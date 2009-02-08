@@ -1,0 +1,239 @@
+#!/bin/sh
+
+FUNC_VARS_SOFT=1
+
+# maybe we should add an "uses_size_in_flash" var, to check if all packages fit onto device
+
+# sqlite-cli (v3)         = +300kb flash
+# vpnc                    = +236kb flash
+# freifunk-openwrt-compat = +100kb flash
+# screen                  = +192kb flash
+
+fkt_build_vars ()
+{
+	local FUNC="build_vars"
+	
+	func_log $FUNC daemon debug "start"
+
+	SOFTWARE_BASE="dropbear busybox-awk"
+
+	SOFTWARE_USB2="kmod-usb-uhci kmod-usb2"
+	SOFTWARE_USB1="kmod-usb-ohci"
+	
+	eval $(/etc/init.d/S02check_interface_correctness_fff+ show_hardware)	# this gives us for example HW="Linksys (BCM4306-wifi)"; USB="2" ; IDE="1"
+	
+#	  if [ "$USB" = "1" ]; then
+#		SOFTWARE_USB="$SOFTWARE_USB1"					# gets even more filled during fkt_check_usb ()
+#	elif [ "$USB" = "2" ]; then
+#		SOFTWARE_USB="$SOFTWARE_USB2"
+#	fi
+
+	SOFTWARE_USB="kmod-usb-core $SOFTWARE_USB1 $SOFTWARE_USB2"	# simply install all usb-stuff?
+	
+	SOFTWARE_IPFILTER=""
+	SOFTWARE_IPFILTER="$SOFTWARE_IPFILTER kmod-ipt-conntrack kmod-ipt-extra kmod-ipt-filter kmod-ipt-ipopt kmod-ipt-ipsec"
+	SOFTWARE_IPFILTER="$SOFTWARE_IPFILTER kmod-ipt-nat kmod-ipt-nat-extra kmod-ipt-queue kmod-ipt-ulog iptables-mod-conntrack"
+	SOFTWARE_IPFILTER="$SOFTWARE_IPFILTER iptables-mod-extra iptables-extra kmod-ipt-ulog ulogd-mod-extra $( [ "$(nvram get ff_adm_mail)" = "technik@bittorf-wireless.de" ] && echo -n 'ulogd' )"
+	SOFTWARE_IPFILTER="$SOFTWARE_IPFILTER freifunk-iptables-missing kmod-sched fff-layer7-descriptions fff-adblock-list"
+	SOFTWARE_IPFILTER="$SOFTWARE_IPFILTER fff-missing-conntrack"
+	
+	SOFTWARE_EXTRA=""
+	SOFTWARE_EXTRA="$SOFTWARE_EXTRA freifunk-dnsmasq $SOFTWARE_USB kmod-ide $SOFTWARE_IPFILTER micro-proxy"
+	SOFTWARE_EXTRA="$SOFTWARE_EXTRA busybox-tftp busybox-telnet freifunk-map-de freifunk-olsr-viz-de zlib"
+	SOFTWARE_EXTRA="$SOFTWARE_EXTRA librrd1 rrdcgi1 rrdcollect rrdtool1 freifunk-statistics-de"
+	SOFTWARE_EXTRA="$SOFTWARE_EXTRA xyssl xrelayd freifunk-secureadmin-de libpcap freifunk-tcpdump"
+	SOFTWARE_EXTRA="$SOFTWARE_EXTRA libncurses horst iptraf freifunk-recommended-de bwm fftrace"
+	SOFTWARE_EXTRA="$SOFTWARE_EXTRA openssh-sftp-server busybox-nc"
+	
+	SOFTWARE_USER="busybox-coreutils loginutils"				# user-management related stuff
+	SOFTWARE_HTTPS="xyssl freifunk-secureadmin-de"				# since v1.6.15 in recommended included
+	SOFTWARE_PPPOE="freifunk-pppoecd-de" 					# not yet functional: freifunk-portfw-de
+	SOFTWARE_BATMAN="kmod-tun batmand-adv battool"				# should be mirrored on weimarnetz-repo (to ensure same versions on all routers)
+	SOFTWARE_INETGW="freifunk-dyndns-de"
+	SOFTWARE_TUNNEL="libopenssl zlib vtun"					# later openvpn_nossl_nolzo
+	SOFTWARE_STORAGE="kmod-ext2 kmod-ext3 kmod-vfat rsync"			# filesystem support and backup-related stuff / maybe only load needed mods?
+	SOFTWARE_IDE="$SOFTWARE_STORAGE hdparm"					# maybe check partitions and unload if no hdd present?
+	SOFTWARE_CAMERA="kmod-videodev libjpeg motion"				# webcam related stuff, specific drivers are loaded in "fkt_check_usb"
+	SOFTWARE_RADIO="kmod-audio kmod-soundcore libid3tag libmad madplay rexima freifunk-radio"	# usb-based soundcard -> http://micro.fm
+	SOFTWARE_MADWIFI="kmod-madwifi"						# maybe tools?
+	SOFTWARE_5GHZ="wl-adv"							# maybe we must check PCI-bus?
+	SOFTWARE_PRIV="$(nvram get fff_ipkg)"					# firmware-setting +my own packages
+	SOFTWARE_VPNC="kmod-tun libgpg-error libgcrypt vpnc"			# +200k (cisco-vpn-client)
+
+	func_log $FUNC daemon debug "end"
+}
+
+fkt_check_usb ()
+{
+	local FUNC="check_usb"
+
+	func_log $FUNC daemon debug "start"
+
+	local DAEMON="fkt_check_usb"
+	local   LIST="$( [ -e /proc/bus/usb/devices ] && sed -ne 's/^P:.*Vendor=\([0-9a-z]*\) ProdID=\([0-9a-z]*\).*/\1:\2/p' /proc/bus/usb/devices | grep -v 0000:0000 )"	# this is VENDOR:PRODUCT, filtering empty ports
+	local   INFO=""
+	local    CAT=""
+	local     SW=""
+
+	func_log $FUNC daemon debug "found: '$LIST'"
+
+	if [ -n "$LIST" ]; then
+	
+		for CODE in $LIST; do
+		
+			func_log $FUNC daemon debug "probing device '$CODE'"
+			
+			case $CODE in
+				148f:2573) SW="kmod-rt73";				CAT="NETWORK";	INFO="wifi-stick, Ralink Technology, Corp." ;;
+				413c:8102) SW="";					CAT="NETWORK";  INFO="wifi-stick, Dell Computer Corp." ;;
+
+				0d8c:000c) SW="$SOFTWARE_RADIO";                        CAT="SOUND";    INFO="soundcard, Auvisio, C-Media Electronics, Inc." ;;
+				
+				0553:0002) SW="$SOFTWARE_CAMERA"; 			CAT="CAMERA" ;	INFO="STMicroelectronics Imaging Division (VLSI Vision) CPiA WebCam" ;;
+				093a:2468) SW="kmod-spca5xx $SOFTWARE_CAMERA";		CAT="CAMERA" ;  INFO="Pixart Imaging, Inc. / Technaxx VP-1" ;;
+				0471:0311) SW="kmod-pwc9 kmod-pwc9x $SOFTWARE_CAMERA";	CAT="CAMERA" ;	INFO="Philips PCVC740K ToUcam Pro [pwc]" ;;
+				054c:0154) SW="kmod-ov51x ov511 $SOFTWARE_CAMERA";      CAT="CAMERA" ;  INFO="Sony Eyetoy" ;;
+				
+				04fa:2490) SW="owshell";				CAT="SENSOR" ;	INFO="Dallas Semiconductor DS1490F 2-in-1 Fob, 1-Wire adapter" ;;
+				067b:2303) SW="kmod-usb-serial-pl2303 gpsd";		CAT="SENSOR" ;	INFO="GPS, Prolific Technology, Inc. PL2303 Serial Port" ;;
+				
+				        *) SW="$SOFTWARE_STORAGE freifunk-usbstick";	CAT="unknown";  INFO="$( lsusb -d $CODE | sed 's/.* ....:.... \(.*\)/\1/' )" ;;
+			esac
+
+			[ -n "$INFO" ] && {
+				func_log $FUNC daemon debug "found: '$CODE' (Category: $CAT) = '$INFO', depends on: '$SW'"
+				SOFTWARE_USB="$SOFTWARE_USB $SW"
+				INFO=""
+			}
+		done
+	else
+		func_log $FUNC daemon debug "found nothing."
+	
+		if [ ! -e "$SOFTWARE_FULLY_INSTALLED" ] && [ -n "$SOFTWARE_USB" ]; then	# only during software-install, to have the chance to install it
+			
+			local FILELIST=""
+			for FILE in $SOFTWARE_USB; do {
+				FILELIST="$FILELIST $( ipkg files $FILE )"
+			} done
+
+			func_log $FUNC daemon debug "trying to delete those packages/files: '$SOFTWARE_USB' / '$FILELIST'"
+		
+			for FILE in $FILELIST; do {
+				[ -f $FILE ] && {					# we don't need this anymore
+					func_log $FUNC daemon debug "deleting '$FILE'"
+					rm -f $FILE
+				}
+			} done								# fixme! (ipkg can't see removal of files)
+		fi
+	fi
+}
+
+fkt_check_ide ()
+{
+	local FUNC="check_ide"
+	local LINE
+	local DAEMON="fkt_check_ide"
+		IDE=0						# later: autodetect ide-usage
+
+	if grep -q ide /proc/partitions ; then			# where partitions detected?                                                       
+		IDE=1
+	
+		func_log $FUNC daemon debug "used IDE-bus detected"
+		
+		while read LINE; do {
+			func_log $FUNC daemon debug "partition: '$LINE'"
+		} done </proc/partitions
+	else
+		func_log $FUNC daemon debug "no used IDE-bus detected"
+		
+		[ ! -e "$SOFTWARE_FULLY_INSTALLED" ] && {
+		
+			for FILE in $(ipkg files kmod-ide); do {
+
+				[ -f "$FILE" ] && {
+					func_log $FUNC daemon debug "deinstalling ide-related file: '$FILE'"
+					rm -f "$FILE"
+				}
+			} done
+		}	
+	fi
+}
+
+fkt_check_dependencies ()
+{
+	local FUNC="check_dependencies"
+	local DAEMON="fkt_check_dependencies"
+	local LOW=""
+	local WAN_DEF_ROUTE=""
+	local LAN_DEF_ROUTE=""
+	local INETOFFER="$( fkt_check_if_this_node_offers_inet )"
+
+	BROADCOM="$( echo "$HW" | sed 's/\(.*broadcom.*\)/1/' )"		# transform string into "1", if subword "BCM" somewhere exists
+	
+	LIST_SOFTWARE="$(nvram get fff_override_fw_ipkg)"			# my own list
+
+	test ! -z "$LIST_SOFTWARE" && return					# own list exists? ready!
+										# own list is build during update process
+	test -e "$LOWMEM"			&&	LOW=true
+	test -e "$LOWFLASH"			&&	LOW=true
+
+							LIST_SOFTWARE=""
+	test    -e "$PPPOE"			&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_PPPOE"
+	test "$INETOFFER" != "false" 	        &&      LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_TUNNEL"
+	test "$INETOFFER" != "false"		&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_INETGW"
+							LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_BASE"
+
+	# when no, unknown or non-broadcom wifi-card
+	# is installed, then install madwifi!
+	test "1" != "$BROADCOM"                 &&      LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_MADWIFI"
+	[ "$(nvram get wl0_phytype)" = "a" ] && [ "$BROADCOM" = "1" ] && {
+							LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_5GHZ"
+	}
+	
+	/etc/init.d/S52vpnc_fff+ check		&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_VPNC"	# essid = 'WLAN-BUW' 8-)
+	test  -n   "$(nvram get fff_batman)"    &&      LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_BATMAN"
+	test  ! -z "$SOFTWARE_USB"		&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_USB"
+	test    -z "$LOW"			&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_EXTRA"
+	test "1" = "$IDE"			&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_IDE"
+	test  ! -z "$SOFTWARE_PRIV"		&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_PRIV"
+							# LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_USER"		# fixme! needs more testing
+
+	[ -e /tmp/LOWMEM ] && LIST_SOFTWARE=""		# fixme!
+
+	func_log $FUNC daemon debug "generated list: '$LIST_SOFTWARE'"
+
+	fkt_speedup MARK
+}
+
+fkt_speedup ()
+{
+	local FUNC="speedup"
+	
+	STATUSFILE="/tmp/placeholder_for_showing_that_software_list_was_already_build_fff+"
+
+	[ "$1" = "MARK" ] && {
+		func_log $FUNC daemon debug "marking software-list as already build"
+		echo "$LIST_SOFTWARE" >"$STATUSFILE"
+		return
+	}
+
+	[ -e "$STATUSFILE" ] && {
+		LIST_SOFTWARE="$(cat "$STATUSFILE")"
+		func_log $FUNC daemon debug "delivering already build software-list"
+		echo "true"
+	}
+}
+
+if [ -e "$SOFTWARE_FULLY_INSTALLED" ]; then
+	func_log loading_software_vars daemon debug "Software already installed - do nothing"
+else
+	[ "$(fkt_speedup)" != "true" ] && {
+		
+		fkt_build_vars
+		fkt_check_usb
+		fkt_check_ide
+		fkt_check_dependencies
+	}
+
+	fkt_speedup >/dev/null
+fi

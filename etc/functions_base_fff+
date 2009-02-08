@@ -1,0 +1,162 @@
+FUNC_BASE=1
+
+func_need ()	# idea: for easier solving dependencies each function has only to know own dep's
+{
+	while [ -n "$1" ]; do {
+
+		case $1 in
+		        old) [ -z "$FUNC_OLD"       ] && . /etc/functions_fff+	        ;;
+		   vars_old) [ -z "$FUNC_VARS_OLD"  ] && . /etc/variables_fff+          ;;
+		       vars) [ -z "$FUNC_VARS"      ] && . /tmp/vars		        ;;
+	      vars_software) [ -z "$FUNC_VARS_SOFT" ] && . /etc/variables_software_fff+ ;;
+			log) [ -z "$FUNC_LOG"       ] && . /etc/functions_logging_fff+  ;;
+		       wifi) [ -z "$FUNC_WIFI"      ] && . /etc/functions_wifi_fff+     ;;
+		    network) [ -z "$FUNC_NETWORK"   ] && . /etc/functions_network_fff+  ;;
+		      nvram) [ -z "$FUNC_NVRAM"     ] && . /etc/functions_nvram_fff+    ;;
+			  *)
+			  	if [ -z "$FUNC_LOG" ]; then
+			 		logger -t "fff+ $0 (func_need)" -p "daemon.debug" "'$1' unknown"
+				else
+					func_log func_need daemon debug "'$1' unknown"
+				fi
+			;;
+		esac
+		
+		shift
+	} done
+}
+
+func_escape ()		# SENS: work with string and always use single quotes: 'string'
+{
+	echo "$1" | sed -e "s/'/'\\\''/g"
+}
+
+func_system_get_load ()		# load without comma, e.g.
+{				# 1.00 = 100 or 12.89 = 1289
+	case $1 in
+		1min)
+			sed -ne 's/^\([0-9]*\)\.\([0-9]*\) .*$/\1\2/' -e 's/^[0]*//p' /proc/loadavg
+		;;
+		*)
+			echo 0
+		;;
+	esac
+}
+
+func_system_flash_free ()
+{
+	df | sed -n 's/^\/dev\/mtdblock\/4[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p'
+}
+
+func_uptime ()			# OUT1 = string
+{				# ARG1 = string: plain|min|hour|sec
+	[ "$1" = "plain" ] && {
+		cut -d' ' /proc/uptime
+		return 0
+      	}
+
+	local UPTIME=0
+	local NULL=""
+	
+	IFS='.'
+	read UPTIME NULL </proc/uptime		# reads integer = seconds
+	unset IFS
+	
+	case $1 in
+		min)
+			let UPTIME=UPTIME/60
+		;;
+		h|hour|hours)
+			let UPTIME=UPTIME/3600
+		;;
+	esac
+	
+	echo -n "$UPTIME"
+}
+
+func_get_random_value ()	# OUT1: integer, higher or equal => $START and lower or equal <= $END
+{
+	local START="$1"
+	local END="$2"
+
+	[ -z "$START" ] && echo -n 0 && return
+
+	local DIFF=$(( $END + 1 - $START ))
+	local SEED="$( dd if=/dev/urandom bs=2 count=1 2>&- | hexdump | if read line;then echo 0x${line#* };fi )" # 0x6f2d
+	local RANDOM="$(( $SEED % $DIFF ))"	# min=0 ... max=$DIFF
+	
+	echo -n $(( $START + $RANDOM ))
+}
+
+func_humanreadable_date ()
+{
+	case $1 in
+		short)
+			func_lowercase $(date +%Y%b%d)		# 2008oct12
+		;;
+		*)
+			func_lowercase $(date +%Y%b%d_%H:%M)	# 2008oct12_20:25
+		;;
+	esac
+}
+
+func_lowercase ()
+{
+	echo "$1" | sed 'y/ABCDEFGHIJKLMNOPQRSTUVW/abcdefghijklmnopqrstuvwxyz/'
+}
+
+func_filesize ()	# if we have a busybox without 'stat'-command compiled
+{
+	# logger -p daemon.debug -t "$0 func_filesize()" "'$( ls -la "$1" )'"
+	
+	local OUT="$( ls -la "$1" | sed -n 's/^.* \([0-9]*\) .* [0-9]* .*[0-9]*.*[0-9]*:[0-9]*.*/\1/p' )"
+	
+	# logger -p daemon.debug -t "$0 func_filesize()" "'$OUT'"
+
+	echo "$OUT"
+}
+
+func_file_lines ()
+{
+	sed -n '$=' "$1"
+}
+
+func_ip2dns ()
+{
+	nslookup $1 | sed -n 's/^Name:[^a-zA-Z0-9]*\(.*\)/\1/p'
+}
+
+func_safe_reboot ()			# fixme! maybe shutting down services like vpn, olsrd?
+{
+	local REASON="$1"
+
+	[ -e /dev/misc/crondog ] && /etc/init.d/S*crond* stop		# this enforces an reboot in 10 minutes by crondog
+
+	/etc/init.d/S69watch_olsrd_fff+ send_alive_message no_antenna_test	# maybe the last feedback can be helpful
+
+	func_need log vars_old
+	
+	func_log safe_reboot daemon alert "scheduling reboot - reason: '$REASON'"
+
+	if [ ! -e "$SOFTWARE_FULLY_INSTALLED" ]; then			# fixme! check free flash space?
+	
+		func_log safe_reboot daemon crit "safing syslog to '$SYSLOG_SAFED'"
+		grep -v "kern.err olsrd" $SYSLOG >$SYSLOG_SAFED		# we don't need the "add route/del route" errors
+	else
+		func_log safe_reboot daemon crit "safing last 100 lines of syslog to '$SYSLOG_SAFED'"
+		grep -v "kern.err olsrd" $SYSLOG | tail -n 100 >$SYSLOG_SAFED
+	fi	
+
+	func_log safe_reboot daemon crit "flash free: '$(func_system_flash_free)', rebooting in 10 sec"
+
+	sleep 10				# fixme! maybe we should wait till crondog works or enforce crondog-timeout
+
+	if [ -e /rom/sbin/reboot ]; then
+		/rom/sbin/reboot
+	else
+		reboot
+	fi
+
+	sleep 20		# just to be sure, that no further commands are executed
+}
+

@@ -1,0 +1,848 @@
+#!/bin/sh
+
+fkt_print_accounting () {
+	local FILE_REAL="/tmp/accounting.html"
+	local FILE_LINK="/www/accounting.html"
+
+	[ ! -e "$FILE_LINK" ] && ln -s $FILE_REAL $FILE_LINK
+
+	. /etc/local.fw-functions_fff+
+	fkt_definitions
+
+	local MACLIST="$( fkt_list_user_macs )"
+
+	test -n "$MACLIST" && local LAYER7_HITS="$( fkt_get_layer7_hit_ratio_in_percent )"
+	test -z "$LAYER7_HITS" && LAYER7_HITS="-"
+
+	local UP_SECONDS_x100="$(( $( cut -d"." -f1 /proc/uptime ) * 100  ))"
+	local UP_HOURS="$((        $( cut -d"." -f1 /proc/uptime ) / 360  ))"
+	      UP_HOURS="$( fkt_divide_by_10 $UP_HOURS )"
+	
+	local FWD_ALIEN="$(     fkt_convert_to_unit $( fkt_get_traffic_forward_alien      ) kb dotted pre )"
+	local FWD_INTRA="$(     fkt_convert_to_unit $( fkt_get_traffic_forward_intranet   ) kb dotted pre )"
+	local OLSR_WIFI_IN="$(  fkt_convert_to_unit $( fkt_get_traffic_olsr_wifi_incoming ) kb dotted pre )"
+	local OLSR_WIFI_OUT="$( fkt_convert_to_unit $( fkt_get_traffic_olsr_wifi_outgoing ) kb dotted pre )"
+
+	local OLSR_WIFI_PER_SEC_IN="$(( $( fkt_get_traffic_olsr_wifi_incoming) / $UP_SECONDS_x100 ))"
+	local OLSR_WIFI_PER_SEC_OUT="$(( $(fkt_get_traffic_olsr_wifi_outgoing) / $UP_SECONDS_x100 ))"
+	
+	OLSR_WIFI_PER_SEC_IN="<tt>$(  fkt_divide_by_10 $OLSR_WIFI_PER_SEC_IN  )</tt>"
+	OLSR_WIFI_PER_SEC_OUT="<tt>$( fkt_divide_by_10 $OLSR_WIFI_PER_SEC_OUT )</tt>"
+
+	local TDR="<td align=right>"
+	local TDC="<td align=center>"
+
+	local TDR_RED="<td bgcolor=red   align=right>"
+	local TDR_GRE="<td bgcolor=green align=right>"
+
+	cat <<EOF
+<table cellspacing=0 cellpadding=0 border=0 width=100%><tr><td>
+Erstellungszeit dieser Zusammenfassung: $( date +%H:%M ) Uhr </td>
+<td align=right><a href="cgi-bin-tool_fff+?OPT=accounting&GUI=1">Seite neu generieren</a></td></tr></table>
+
+Ger&auml;telaufzeit, letzter Neustart: vor $UP_HOURS Stunden<br><br>
+
+<table cellspacing=2 cellpadding=2 border=1 CLASS="shadow0"><tr>
+$TDC Datenverkehr </td>
+$TDC [KBytes]     </td>
+</tr>
+<tr><td> durchgeleitetet von anderen Knoten     </td>$TDR $FWD_ALIEN                                    </td></tr>
+<tr><td> weitergeleitetet netzintern            </td>$TDR $FWD_INTRA                                    </td></tr>
+<tr><td> Funk-OLSR eingegangen                  </td>$TDR $OLSR_WIFI_PER_SEC_IN / sek =  $OLSR_WIFI_IN  </td></tr>
+<tr><td> Funk-OLSR abgeschickt                  </td>$TDR $OLSR_WIFI_PER_SEC_OUT / sek = $OLSR_WIFI_OUT </td></tr>
+<tr><td> Trefferquote Layer7-Erkennung Benutzer </td>$TDR $LAYER7_HITS %                                </td></tr>
+</table>
+<br><br>
+<table cellspacing=2 cellpadding=2 border=1 CLASS="shadow0"><tr>
+<td colspan=4 align=center>Benutzer</td>
+<td colspan=5 align=center>verursachter Datenverkehr [KBytes] im Zeitraum</td>
+<td colspan=3 align=center>Verbindungen</td>
+</tr>
+<tr>
+$TDC MAC-Adresse     </td>
+$TDC Anschlu&szlig;  </td>
+$TDC Hops            </td>
+$TDC Name            </td>
+$TDC 15&nbsp;Minuten </td>
+$TDC Heute           </td>
+$TDC Limit&nbsp;%    </td>
+$TDC Gesamt          </td>
+$TDC Tagesschnitt    </td>
+$TDC Aufbau          </td>
+$TDC Abbau           </td>
+$TDC Verweigert      </td>
+</tr>
+EOF
+
+	for MAC in $MACLIST; do
+		local RECENT="$( fkt_convert_to_unit $( fkt_get_traffic_for_mac $MAC recent ) kb dotted pre )"
+		local TODAY="$(  fkt_convert_to_unit $( fkt_get_traffic_for_mac $MAC today  ) kb dotted pre )"
+		local ALL="$(    fkt_convert_to_unit $( fkt_get_traffic_for_mac $MAC all    ) kb dotted pre )"
+
+		local TODAY_PERCENT="$( fkt_get_used_traffic_limit_from_user_with_mac_in_percent $MAC )"
+
+		local COLCELL="$TDR_GRE"
+		if [ $TODAY_PERCENT -gt 100 ] && [ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "true" ]; then
+			COLCELL="$TDR_RED"											# bgcolor if mac is blocked / overlimit
+		fi
+
+		local MEDIA="Kabel"
+		test "$(fkt_get_media_from_mac $MAC)" = "wifi" && MEDIA="Funk"
+		
+		local SEC="$( cut -d"." -f1 /proc/uptime )"
+		local ESTIMATED="unbekannt"
+		which awk >/dev/null && {
+		      ESTIMATED="$( fkt_get_traffic_for_mac $MAC all | awk -v SEC=$SEC '{ printf("%i",($0/SEC*60*60*24)/1024) }' )"	# unit= KBytes , fixme! AWK!! (big numbers)
+		      ESTIMATED="$( fkt_convert_to_unit $ESTIMATED notouch dotted pre )"
+		}
+		test $SEC -lt 43200 && ESTIMATED="$TODAY"
+		
+		local NAME="$( fkt_get_name_for_mac $MAC )"
+
+		local HOPS=0
+
+		local CONN_STARTS="$( fkt_get_conn_starts_for_mac       $MAC )"
+		local CONN_ENDS="$(   fkt_get_conn_ends_for_mac         $MAC )"
+		local CONN_LIMITS="$( fkt_get_conn_above_limits_for_mac $MAC )"
+	
+		echo "<tr>$TDR<small> $MAC </small></td>$TDC $MEDIA </td>$TDC $HOPS </td>$TDC $NAME </td>$TDR $RECENT </td>$TDR $TODAY </td>$COLCELL $TODAY_PERCENT </td>$TDR $ALL </td> $TDR $ESTIMATED </td>$TDR $CONN_STARTS </td>$TDR $CONN_ENDS </td>$TDR $CONN_LIMITS </td></tr>"
+	done
+
+	echo "</table>"
+}
+
+func_print_mac2ip_table ()
+{
+	local MAC
+	local IP
+	local DNS
+
+	echo "<h2>Zuordnungstabelle LinkLocal-Adresse, Internet-Adresse und DNS-Name</h2>"
+	echo "<table cellspacing='2' cellpadding='2' border='1'>"
+	echo "<tr bgcolor=grey><td> MAC-Adresse </td><td> IP-Adresse </td><td> HOST-Name </td>"
+	
+	while read LINE; do {
+		MAC="${LINE%*[ ]*}"
+		DNS="${LINE#*[ ]}"
+		IP="$( grep " $DNS" /etc/local.hosts | cut -d' ' -f1 )"
+
+		echo "<tr><td> $MAC </td><td> $IP </td><td> $DNS </td></tr>"
+		
+	} done </etc/ethers
+
+	echo "</table><br>"
+	
+	[ -z "$MAC" ] && {
+		echo "Diese Tabelle ist leer, weil in der <a href='cgi-bin/config_fff+?gui=user'>Benutzerverwaltung</a> noch nichts eingetragen wurde.<br><br>"
+	}
+	
+	echo "Wenn du deine Rechner nicht automatisch konfigurieren laesst (dies ist die Empfehlung),<br>"
+	echo "sondern eine manuelle Zuordnung bevorzugst, musst du dich an diese Tabelle halten."
+}
+
+fkt_grab_startpic_from_wiki () {
+	. /etc/init.d/S03patch-o-matic_fff\+ >/dev/null
+
+	local WIKI_PIC_NAME="Node$( nvram get fff_node_number ).jpg"
+
+	cat <<EOF
+Hinweis: Auf dem Wiki muss es eine Bild-Datei namens "$WIKI_PIC_NAME" geben.<br>
+Versuche neues Startbild aus dem Wiki zu holen:<br><br>
+EOF
+
+	fkt_patch_intro_picture
+	
+	cat <<EOF
+Neues (verkleinertes) Startbild auf deinem Router: (wenns nicht geklappt hat, einfach nochmal probieren...)<br>
+<img src="/images/intro.jpg" alt="hier sollte eigentlich das neue Startbild sein - Fehler aufgetreten?" width=192 heigh=144 border=0>
+EOF
+}
+
+fkt_print_html_header () {		# fixme! ARG1 should be the headline
+	[ "$GUI" != "1" ] && return
+
+	export DATE="$(grep SVN "/etc/variables_fff+" | cut -d"#" -f2)"
+	export TITLE="Werkkzeug: Anleitung"
+	SCRIPT=${0#/rom}
+	. ${SCRIPT%/*}/cgi-bin-pre.sh
+}
+
+fkt_print_html_footer () {
+	test "$GUI" != "1" && return
+
+	. ${SCRIPT%/*}/cgi-bin-post.sh
+}
+
+fkt_build_entry () {
+
+	cat <<EOF
+<option value="$1">$2</option>
+EOF
+}
+
+fkt_print_select_box () {
+
+	local NODENUMBER="$( nvram get fff_node_number )"
+	[ -z "$NODENUMBER" ] && NODENUMBER="noch nicht vergeben"
+	echo "<b>Netzknoten-Nummer dieses Ger&auml;ts: </b><big> $NODENUMBER </big>&nbsp;-&nbsp;"
+	echo '<a href="http://wireless.subsignal.org/index.php?title=Telefonnummer">Weimarnetz-Sorgentelefon</a>:&nbsp;<b>03643 / <big>544304</big></b><br><br>'
+
+	cat <<EOF
+<SCRIPT LANGUAGE="JavaScript" TYPE="text/javascript"><!--
+function showmap(obj)                               
+{                                                   
+	var frm = document.getElementById("mapfrm");        
+	if (!frm)                                           
+	{                                                   
+		var wdt = Math.floor(document.body.offsetWidth / 2);
+		var lft = obj.offsetLeft;                           
+		var top = obj.offsetTop + obj.offsetHeight;         
+
+		while (obj = obj.offsetParent)                      
+		{                                             
+			lft += obj.offsetLeft;                        
+			top += obj.offsetTop;                           
+		}                                             
+
+		if (lft > document.body.offsetWidth - wdt - 8)        
+			lft = document.body.offsetWidth - wdt - 8;    
+		if (lft < 8)                                  
+			lft = 8;                                                 
+
+		frm = document.createElement("IFRAME");   
+		frm.id = "mapfrm";                     
+		frm.src = "mapfrm.htm";                      
+		frm.style.position = "absolute";       
+		frm.style.border = "2px outset gray";
+		frm.style.left = lft+"px";                                 
+		frm.style.top = top+"px";                                                                                                                      
+		frm.style.width = wdt+"px";                                                                                                                    
+		frm.style.height = "300px";                                                                                                                    
+		document.body.appendChild(frm);                                                                                                                
+	}                                                                                                                                              
+	else                                                                                                                                           
+	{                                                                                                                                              
+		document.body.removeChild(frm);                                                                                                                
+	}                                                                                                                                              
+}                                                                                                                                              
+--></SCRIPT>
+
+<ul>
+<li>
+Hilfmittel ausw&auml;hlen:<br>
+<form action="" method="GET">
+<select name="OPT">
+$( fkt_build_entry speedarchiv       "01. Bandbreitentest - Archiv anzeigen"          )
+$( fkt_build_entry tracearchiv       "02. Gateway-Auswahl - Archiv anzeigen"          )
+$( fkt_build_entry servicearchiv     "03. Sonderdienste im Netz - Tagesansicht"       )
+$( fkt_build_entry notebookconf      "04. Laptop-Konfigurator - OLSR-Wizard"          )
+$( fkt_build_entry accounting        "05. Angefallener Datenverkehr (Accounting)"     )
+$( fkt_build_entry netfilterolsr     "06. OLSR-Filterliste - Gesamtansicht"           )
+$( fkt_build_entry sysinfo           "07. Systeminformationen - aktuell"              )
+$( fkt_build_entry telnet            "08. Notfallkonsole aufrufen - telnet"           )
+$( fkt_build_entry tftp              "09. Software weiterkopieren - TFTP-Modus"       )
+$( fkt_build_entry syslog            "10. Systemlog anschauen" GREP=%3A SUPRESS1=DHCP SUPRESS2=rrdcollect HIGHLIGHT=fff)
+$( fkt_build_entry wikistartpic      "11. Pers&ouml;nliches Startbild vom Wiki holen" )
+$( fkt_build_entry shoutbox          "12. Nachrichtenversand - freifunk-Blog"         )
+$( fkt_build_entry reboot            "13. Neustart dieser Freifunkantenne - reboot"   )
+$( fkt_build_entry fwupdatecheck     "14. Jetzt auf neue Firmware-Version pr&uuml;fen")
+$( fkt_build_entry fwupdate          "15. Firmware manuell aktualisieren / pr&uuml;fen")
+$( fkt_build_entry node_data_archiv  "16. Netzknoten Zustandsdaten - Archiv anzeigen" )
+$( fkt_build_entry time              "17. Zeitparameter anzeigen"                     )
+$( fkt_build_entry wifi_on_or_off    "18. WLAN an bzw. ausschalten"                   )
+$( fkt_build_entry antenna_test	     "19. Automatischen Antennentest starten"         )
+$( fkt_build_entry print_everlog     "20. Resetfestes Computer-Logbuch anzeigen"      )
+$( fkt_build_entry mac2ip_table	     "21. Zuordnungstabelle MAC,IP,DNS anzeigen"      )
+$( fkt_build_entry adblock_table     "22. Liste der blockierten Werbeserver zeigen"   )
+$( fkt_build_entry neigh	     "23. Liste aller OLSR-Nachbarn, ausf&uuml;hrlich")
+$( fkt_build_entry tracetest	     "24. Routenverfolgung ins Internet / traceroute" )
+</select>
+<input type="hidden" name="GUI" value="1">
+<input type="submit" value="OK">
+</form>
+</li>
+<li>
+EOF
+
+	. /www/cgi-bin/config_functions_fff+
+	func_print_gps_data_form
+
+	cat <<EOF
+</li>
+<li>
+Angefallener Datenverkehr (Accounting): <a href="accounting.html"><br>
+Schnelle Variante</a>
+</li>
+<li>
+EOF
+
+if [ -e /www/images/intro.jpg ]; then cat <<EOF
+Vorschau auf Netzknotenbild dieser Freifunkantenne:<br>
+<a href="cgi-bin-index.html"
+  title="Linkziel: Startseite">
+ <img src="images/intro.jpg"
+      alt="Bild dieses Netzknotens"
+    width="320"
+   height="240"
+   border="0">
+</a>
+EOF
+else
+	echo "(kein Kein Netzknotenbild vorhanden)"
+fi
+
+	cat <<EOF
+</li>
+</ul>
+EOF
+
+}
+
+func_print_qrcode ()
+{
+	local WIDTH="300"
+	local HEIGHT="300"
+	local URL="http://chart.apis.google.com/chart"
+	local CODEPAGE="ISO-8859-1"
+	local TEXT="$( nvram show 2>/dev/null | grep ^ff_adm | sort | while read L; do echo -n "$L %0D%0A";done | sed 's/[^a-zA-Z0-9_ |=:;@<>"\.\/-]//g' )"
+	local TEXT_URL="$( func_url_encode "$TEXT" )"
+
+	local URL="${URL}?cht=qr&chl=${TEXT_URL}&choe=${CODEPAGE}&chs=${WIDTH}x${HEIGHT}"
+
+	echo -n "<img width=${WIDTH} height=${HEIGHT} alt='$TEXT' src='${URL}'>"
+}
+
+func_print_gps_data_form ()
+{
+	eval $(nvram get ff_adm_latlon | sed -n 's/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LATITUDE="\1"\nLONGITUDE="\2"/p')
+
+	cat <<EOF
+<form action="" method="post" CLASS="form">
+GPS-Position dieses Netzknotens (<a href="http://www.weimarnetz.de/jens/gps.html">Latitude / Longitude</a>):
+<br>
+Geo-Koordinaten: 
+<!--
+	<INPUT NAME="ff_adm_latlon" SIZE="42" TYPE="TEXT" VALUE="$(nvram get ff_adm_latlon)">
+	<BUTTON ONCLICK="if(null!=window.showmap)showmap(this);return false">Map</BUTTON>
+-->
+<input type=text name="FORM_LATITUDE"  value="$LATITUDE"  size=18>
+<input type=text name="FORM_LONGITUDE" value="$LONGITUDE" size=18>
+<input type=submit value="Speichern">
+</form>
+EOF
+
+}
+
+fkt_print_html_help () {
+	local AND="&amp;"
+
+	. /www/cgi-bin/config_functions_fff+	
+	fkt_formular_gui_simple_build_vars
+
+	cat<<EOF
+<a href="cgi-bin-message_fff+">		Vorschau Nachrichtenversand / Shoutbox	</a><br>
+
+$( func_print_gps_data_form )
+
+<br><b>	Status:		</b><br>
+Automatisches Firmwareupdate (Morgens zwischen 4 und 7 Uhr): 			$(if [ "$(nvram get fff_autofwupdate)" = "0" ]; then echo "deaktiviert"; else echo "ja, Modus: $(nvram get fff_autofwupdate)"; fi ) - <a href="?OPT=fwupdate&GUI=1">jetzt erfragen</a><br>
+Software wird gerade installiert?: 						$(if [ -e "$SOFTWARE_INSTALL_ACTIVE" ]; then echo "ja"; else echo "nein"; fi)	<br>
+Software wurde vollstaendig nachinstalliert: 					$(if [ -e "$SOFTWARE_FULLY_INSTALLED" ]; then echo "ja"; else echo "nein"; fi)	<br>
+Hardware / USB / IDE / miniPCI-Anschluss:					$(fkt_print_hardware)						<br>
+Schmalspurgeraet mit weniger als 16mb RAM / weniger als 4MB Flash?: 		$(if [ -e "$LOWMEM" ]; then echo ja; else echo nein; fi) / $(if [ -e "$LOWFLASH" ]; then echo ja; else echo nein; fi)<br>
+Freifunk-Geraete dieser Stadt mit alter / neuer Firmware / DSLer / insgesamt: 	$(fkt_print_fw_counter)						<br>
+Neustarts seit dem letzten Firmware-Update / pro Tag / uptime, load: 		$(cat $REBOOT_COUNT) / $(fkt_print_reboots_per_day) / $(uptime)	<br>
+Resetfester Variablenspeicher - Anzahl / Bytes belegt / Bytes frei: 		$(fkt_print_nvram_stats)					<br>
+Sendeleistung [<a href="http://wifitastic.com/forum/index.php?topic=47.msg93" title="Beispiel: 40 mW = 16 dbm = 64 qdbm -> im Webif 64 eintragen">qdbm</a>] / tats&auml;chlich [<a href="http://de.wikipedia.org/wiki/Milliwatt">mW</a>]: $(nvram get wl0_txpwr)/$(wl txpwr | cut -d" " -f3)<br>
+WLAN Sende- / Empfangsantenne / Frag / RTS: 					$(fkt_print_wlan_stats)						<br>
+
+<br><b> Bot-Infos:      </b><br>
+<a href="?OPT=time&GUI=1">Zeit (Zeitserver)</a> / <a href="?OPT=version&GUI=1">Softwareversion</a> / <a href="?OPT=wifimac&GUI=1">MAC-Adresse</a>
+EOF
+}
+
+fkt_print_tftp_help () {
+	cat <<EOF
+Diese Funktion &uuml;bertr&auml;gt die auf diesem Ger&auml;t installierte <br>
+Software auf einen anderen, per Kabel angeschlossenen Router.             <br><br>
+
+Diese Kopierfunktion ist nur innerhalb der ersten 5 Sekunden       <br>
+nach dem Einschalten des anderen Routers verfuegbar. Ziehe         <br>
+also den Stromstecker am anderen Router und stecke ihn wieder ein. <br>
+Betaetige dann den entsprechenden Auswahlknopf abh&auml;ngig vom   <br>
+Hardware-Typ des anderen Routers.                                  <br><br>
+
+Wenn eine Fehlermeldung kommt, dann einfach nochmal probieren.     <br>
+
+...viel Erfolg! <br><br><br>
+
+Typ des anderen Routers? <br>
+<table cellspacing=2 cellpadding=2 border=0><tr>
+<td> <form action"" method=post> <input type=hidden name="TFTP_HARDWARE" value=wrt>     <input type=submit value="Linksys">   </form> </td>
+<td> <form action"" method=post> <input type=hidden name="TFTP_HARDWARE" value=dell>    <input type=submit value="Dell">      </form> </td>
+<td> <form action"" method=post> <input type=hidden name="TFTP_HARDWARE" value=asus>    <input type=submit value="Asus">      </form> </td>
+<td> <form action"" method=post> <input type=hidden name="TFTP_HARDWARE" value=buffalo> <input type=submit value="Buffalo">   </form> </td>
+<td> <form action"" method=post> <input type=hidden name="TFTP_HARDWARE" value=unknown> <input type=submit value="Unbekannt"> </form> </td>
+</tr> </table>
+EOF
+}
+
+fkt_print_tftp_flashing () {
+	. /tmp/NETPARAM
+
+	local TEMP="/tmp/fw.trx"
+
+	case $TFTP_HARDWARE in
+		wrt) 	 SRC="192.168.1.2/24" ; DEST_IP="192.168.1.1"   ; SOURCE=g    ;;
+		asus)	 SRC="192.168.1.2/24" ; DEST_IP="192.168.1.220" ; SOURCE=trx  ;;
+		dell)	 SRC="192.168.2.2/24" ; DEST_IP="192.168.2.1"   ; SOURCE=trx  ;;
+	 	buffalo) SRC="192.168.11.2/24"; DEST_IP="192.168.11.1"  ; SOURCE=trx  ;;
+	 	*)	 SRC="192.168.1.2/24" ; DEST_IP="192.168.1.1"   ; SOURCE=trx  ;;
+	esac
+
+	[ -n "$IPSRC" ] && SRC="$IPSRC"
+	[ -n "$IPDST" ] && DEST_IP="$IPDST"
+	[ -n "$TYPE" ]  && SOURCE="$TYPE"
+	
+	echo "Gew&auml;hlte Hardware: \"$TFTP_HARDWARE\"<br>"
+	echo "Qell-IP: $SRC - Ziel-IP: $DEST_IP - Dateiformat: $SOURCE<br>"
+	echo "Programmausgabe: <br><pre>"
+
+	ip address add $SRC dev $LANDEV label ${LANDEV}:tftp
+	/www/cgi-bin/freifunk-upload -$SOURCE /dev/mtd/1 >$TEMP
+	
+	test $TFTP_HARDWARE = "asus" && tftp -g -r ASUS -l /dev/null $DEST_IP
+	
+	tftp -p -l $TEMP $DEST_IP
+	ERROR="$?"
+	rm -f $TEMP
+	ip address delete $SRC dev $LANDEV label ${LANDEV}:tftp
+
+	echo "</pre><br>"
+	
+	if [ "$ERROR" -eq 0 ]; then
+		echo "Gratuliere! Erfolgreich kopiert. Der andere Router installiert nun die Software.<br>"
+	else
+		echo "Schade, es hat nicht geklappt. Einfach nochmal probieren.<br>"
+	
+		echo "<br><br>Tip:<br>"
+		echo "- bei Buffalo-Routern muss waehrend des Einschaltens der versenkte Resetknopf (\"INIT\") gedrueckt werden, solange bis alle 5 LEDs an den switch-Ports wieder ausgehen.<br>"
+		echo "- Asus wl500g-Premium / Asus wl-hdd / Yakumo Storage-Router h&ouml;ren nur auf die zuletzt eingestellte LAN-Adresse und es muss beim Einschalten der versenkte RESTORE-Knopf solange gedr&uuml;ckt werden, bis die Powerlampe langsam an/aus blinkt.<br>"
+		echo "- spezielle Wuensche, koennen durch w&uuml;rzen der URL mit <tt>&IPSRC=<b>10.63.168.120/27</b>&IPDST=<b>10.63.168.97</b>&TYPE=<b>trx</b></tt> verwirklicht werden.</br>"
+	fi
+}
+
+func_print_neigh ()
+{
+	[ "$GUI" = "1" ] && echo "<pre>"
+	neigh
+	[ "$GUI" = "1" ] && echo "</pre>"
+}
+
+func_print_adblock_table ()
+{
+	local FILE
+	local PACKAGE="fff-adblock-list"
+
+	echo "<pre>"
+	ipkg status $PACKAGE
+	echo "</pre><br>"
+
+	echo "<pre>"
+	ipkg info $PACKAGE
+	echo "</pre><br>"
+
+	echo "<pre>Sollte diese Liste leer sein, so wurde der Werbefilter nicht richtig installiert</small>"
+	for FILE in $(ipkg files $PACKAGE); do {
+		[ -f "$FILE" ] && {
+			ls -l "$FILE"
+			echo "$(wc -l <"$FILE") Hosts in dieser Datei:<br>"
+			cat "$FILE"
+			echo "<br>"
+			# sed -n 's/^1\.1\.[0-9\.]* \(.*\)/\1/p' /etc/local.hosts
+		}
+	} done
+	echo "</small></pre>"
+}
+
+func_wifi_on_or_off ()
+{
+	local RADIO="$( nvram get wl0_radio )"
+
+	if [ -z "$RADIO" ] || [ "$RADIO" = "1" ]; then
+		echo "WLAN ist eingeschaltet, schalte es nun aus (scheduler-gesteuert)."
+		echo "<br>Bei einem Neustart wird WLAN wieder automatisch aktiviert (Sicherheitsfunktion)."
+	
+		scheduler -a "nvram set wl0_radio=0;wifi"
+	else
+		echo "WLAN ist ausgeschaltet, schalte es nun ein"
+		logger "switching wifi on"
+		
+		nvram set wl0_radio=1
+		wifi
+	fi
+}
+
+fkt_print_hardware () {
+	eval $(/etc/init.d/S02check_interface_correctness_fff+)
+	
+	  if [ "$USB" = "1" ]; then
+	  	USB="USB v1.1"
+	elif [ "$USB" = "2" ]; then
+		USB="USB v2.0"
+	else
+		USB="nein"
+	fi
+	
+	if [ "$IDE" = "1" ]; then
+		IDE="ja"
+	else
+		IDE="nein"
+	fi
+	
+	if [ "$MINIPCI" = "1" ]; then
+		MINIPCI="ja"
+	else
+		MINIPCI="nein"
+	fi
+	
+	echo "$HW / $USB / $IDE / $MINIPCI"
+}
+
+fkt_print_wlan_stats () {
+	local  FRAG="$(    wl frag   | cut -d" " -f3)"
+	local   RTS="$(    wl rts    | cut -d" " -f3)"
+	local RXANT="$(a=$(wl antdiv | cut -d" " -f3); if [ "$a" = "0" ]; then echo "A"; elif [ "$a" = "1" ]; then echo "B"; else echo "beide";fi)"
+	local TXANT="$(a=$(wl txant  | cut -d" " -f3); if [ "$a" = "0" ]; then echo "A"; elif [ "$a" = "1" ]; then echo "B"; else echo "beide";fi)"
+
+	echo $TXANT / $RXANT / $FRAG / $RTS
+}
+
+fkt_print_reboots_per_day ()
+{
+	test ! -e "$SOFTWARE_FULLY_INSTALLED" && exit
+
+	local TIME_FLASH="$(cat $SOFTWARE_FULLY_INSTALLED)"
+	local TIME_BYNOW="$(date +%s)"
+	
+	local DIFF=$(( TIME_BYNOW - TIME_FLASH ))
+
+	which awk >/dev/null || return
+	awk -v DIFF=$DIFF '{DAYS=DIFF/86400;printf("%.1f",$0/DAYS)}' $REBOOT_COUNT	# fixme! (awk)
+}
+
+fkt_print_version () {
+	echo $FFF_PLUS_VERSION	
+}
+
+fkt_print_nvram_stats () {				# output: how_many_vars / used_bytes / free_bytes
+	local FILE="/tmp/nvram_temp.txt"
+	local OFFSET="20"
+	local MAX="32768"
+	local COUNT="0"
+	local USED="0"
+	
+	nvram show >$FILE 2>/dev/null
+	
+	while read LINE; do
+		set LINE
+		let USED+=${#LINE}+1
+		let COUNT+=1
+	done <$FILE
+	
+	rm $FILE
+	
+	echo $COUNT / $(( USED + OFFSET )) / $(( MAX - USED - OFFSET ))
+}
+
+fkt_print_time () {		# OUT1: 1123499652;080813142005 = unixtime;datestring for setting date with "date -s"
+	
+	local UNIXTIME_AND_DATESTRING="$( date "+%s;%m%d%H%M%Y" )"
+	local LAST_FETCH_NTP_TIME="$(( $( cat 2>/dev/null /tmp/ntp_was_successful ) + 0 ))"	# see S69...
+
+	echo -n "${UNIXTIME_AND_DATESTRING};${LAST_FETCH_NTP_TIME};$TZ"
+}
+
+fkt_print_wifimac () {
+	. /tmp/NETPARAM
+	ip link show $WIFIDEV | sed -e '/ether/!d' -e 's/[ ]*/_/g' | cut -d"_" -f3
+}
+
+fkt_print_link_to_reboot ()
+{
+	echo 'F&uuml;r verschiedene Neustart-Optionen, bitte <a href="cgi-bin/reset.html">diesem Link</a> folgen.'
+}
+
+fkt_print_fw_counter () {
+	local FILE="/tmp/hna_table"
+
+	wget -O - http://127.0.0.1:2006 | sed -e '/./{H;$!d;}' -e 'x;/Table: HNA/!d;' >$FILE
+	
+	# we have to escape the dots with \. , otherwise its not correct
+	
+	FW_NEW=$(grep "255\.255\.255\.192" 	$FILE 2>/dev/null 			| wc -l)
+	FW_OLD=$(grep "255\.255\.255\.240" 	$FILE 2>/dev/null | grep -v ^104.63 	| wc -l)
+	FW_DSL=$(grep "0\.0\.0\.0" 		$FILE 2>/dev/null | grep -v HNA 	| wc -l)
+	FW_ALL=$(( $FW_NEW + $FW_OLD ))
+
+	rm -f 				$FILE 2>/dev/null
+	
+	echo "$FW_OLD / $FW_NEW / $FW_DSL / $FW_ALL"
+}
+
+fkt_start_or_end_telnetd () {
+	if [ -z "$(pidof telnetd)" ]; then
+		echo "<br>Telnet-Dienst kann <a href=\"cgi-bin/telnetd_fff+\">ueber diesen Link</a> gestartet werden."
+		echo "<br>Achtung: der Login ist dann ohne Passwort moeglich."
+		echo "<br>Nach Benutzung am besten mit <tt>killall telnetd</tt> wieder schliessen."
+	else
+		killall telnetd
+		echo "Das Telnet-Dienstprogramm wurde wieder beendet."
+	fi
+}
+
+fkt_print_html_netfilter_olsr () {
+	echo "<pre><small>"
+	iptables -nxvL olsr_in_whitelist
+	echo "</small></pre>"
+}
+
+fkt_print_html_speedarchiv () {
+	echo "<small><pre>"
+	cat $TEST_NEIGHBOUR_SPEED
+	echo "</pre></small>"
+}
+
+fkt_print_html_node_data_archiv () {
+	echo "<small><pre>"
+	sed -e 's/&/ /g' -e 's/%3a/:/g' -e 's/%2c/,/g' "$ARCHIV_NODE_DATA"
+	echo "</pre></small>"
+}
+
+fkt_print_html_syslog () {
+	# following comfort-related functions in this order:
+	# - only print lines with pattern X (not casesensitiv)		"GREP="
+	# - don't print lines with pattern X (not casesensistiv)	"SUPRESS1="
+	# - and don't print lines with pattern X (not casesensistiv)	"SUPRESS2="
+	# - highlight pattern X in all lines				"HIGHLIGHT="
+	# - ... 
+
+	test -z "$GREP"		&& GREP=":"
+	test -z "$SUPRESS1"	&& SUPRESS1="ßßß"
+	test -z "$SUPRESS2"	&& SUPRESS2="ßßß"
+	test -z "$HIGHLIGHT"	&& HIGHLIGHT="ßßß"
+
+	echo "<form action=\"\" method=get>"
+	echo "Schreibe nur Zeilen, die folgendes enthalten:		<input type=text name=GREP 	value=\"$GREP\">	<br>"
+	echo "und unterdr&uuml;cke Zeilen, die folgendes enthalten:	<input type=text name=SUPRESS1	value=\"$SUPRESS1\">	<br>"
+	echo "und unterdr&uuml;cke Zeilen, die folgendes enthalten:	<input type=text name=SUPRESS2	value=\"$SUPRESS2\">	<br>"
+	echo "und hebe Zeilen hervor, die folgendes enthalten:		<input type=text name=HIGHLIGHT	value=\"$HIGHLIGHT\">	<br>"
+	
+	echo "<input type=hidden name=OPT value=syslog><input type=hidden name=GUI value=1>"
+	echo "<input type=submit value=\"Systemlog anzeigen\"></form><small><pre>"
+	
+	logread.sh -a | grep -i "$GREP" | grep -iv "$SUPRESS1" | grep -iv "$SUPRESS2" | sed "s/\(.*$HIGHLIGHT.*\)/<b>\1<\/b>/"
+	echo "</pre></small>"
+}
+
+fkt_print_html_servicearchiv () {
+	echo "<small><pre>"
+	cat $SERVICE_INFO
+	echo "</pre></small>"
+}
+
+fkt_print_html_tracearchiv () {
+	echo "<small><pre>"
+	cat $TRACE_INET_GATEWAY
+	echo "</pre></small>"
+}
+
+fkt_print_html_sysinfo () {
+	echo "<small><pre>"
+	uptime
+	echo "<hr>"
+	ps
+	echo "<hr>"
+	free
+	echo "<hr>"
+	df -h
+	echo "<hr>"
+	mount
+	echo "</pre></small>"
+}
+
+fkt_print_html_internet_trace () {
+	echo "<small><pre><b>Weg der Datenpakete von diesem Router ins Internet (ohne DNS bzw. Namens-Aufl&ouml;sung):</b>"
+	
+	traceroute -n -m 9 141.1.1.1 -w 1 -q 2
+	
+	echo "</pre><br><pre><b>Weg der Datenpakete von diesem Router ins Internet (mit DNS bzw. Namens-Aufl&ouml;sung):</b>"
+	
+	traceroute -m 15 gmx.de -w 1 -q 2
+	
+	echo "</pre><br><pre><b>Benutzt werden folgende DNS-Einstellungen:</b>"
+
+	  if pidof dnsmasq >/dev/null ; then
+
+		echo "Das Programm 'DNSmasq' ist ordnungsgem&auml;&szlig; gestartet und ist aktiv"
+
+		[ -e /etc/dnsmasq.conf ] && {
+			echo "Konfigurierte DNS-Server f&uuml;r das Programm 'DNSmasq':"
+			grep "^server=" /etc/dnsmasq.conf
+		}
+
+	elif pidof udhcpd >/dev/null; then
+
+		echo "Das Programm 'uDHCPd' ist ordnungsgem&auml;&szlig; gestartet und ist aktiv"
+	else
+		echo "DNS-Dienst ist NICHT aktiv. (jeder Klient-Rechner muss manuell konfiguriert werden)"
+	fi
+
+	echo
+
+	if [ -e /var/etc/resolv.conf ]; then
+		echo "Konfiguration der 'resolv.conf':"
+		cat /etc/resolv.conf
+	else
+		echo "Es wurde KEINE resolv.conf gefunden."
+	fi
+}
+
+fkt_print_html_trace_to_remote () {
+	echo "<small><pre>"
+	echo "<b>Weg der Datenpakete von diesem Router zum Abfragenden (ohne Namens-Aufloesung):</b>"
+	traceroute -n -m 9 $REMOTE_ADDR -w 1 -q 2
+	echo "<b>Weg der Datenpakete von diesem Router zum Abfragenden (mit Namens-Aufloesung):</b>"	
+	traceroute -m 15 $REMOTE_ADDR -w 1 -q 2
+}
+
+fkt_print_html_notebook_conf () {
+	test -z "$IPWIZARD" && IPWIZARD="666"
+
+	eval $(fkt_calc_node_params $IPWIZARD)
+	
+	if [ "$ERROR" -eq "1" ]; then
+		echo "Knotennummer nur zwischen 1 und 1020 gueltig."
+		IPWIZARD=2
+		eval $(fkt_calc_node_params $IPWIZARD)
+	fi
+
+	local DNSSERVER="$( [ -e /etc/dnsmasq.conf ] && sed -n 's/^server=\(.*\)/\1/p' /etc/dnsmasq.conf | head -n1 )"
+
+	cat<<EOF
+
+<form action="" method="post" CLASS="form">
+<b>So sollte deine WLAN-Karte fuer die Netzknotennummer </b><i>
+<input type=text name="IPWIZARD" value="$IPWIZARD" size=4> </i><b> konfiguriert sein:
+<input type=submit name="GOGO" value="Neu berechnen"></form> </b>
+<pre>
+IP-Adresse	:		$WIFIADR
+Netzwerkmaske	:		255.0.0.0
+Gateway		:		<i>bleibt leer</i> (wird vom OLSR-Dienst dynamisch gesetzt)
+DNS-Server	:		${DNSSERVER:=141.1.1.1} (nur eine Empfehlung)
+</pre>
+<br>
+<b>So sollte deine OLSRd-Konfiguration </b><i>/etc/olsrd.conf</i><b> fuer die WLAN-Karte </b><i>eth1</i><b> auf dem Laptop aussehen:</b>
+<pre>
+DebugLevel		0
+IpVersion		4
+AllowNoInt		yes
+Pollrate		0.025
+TcRedundancy		2
+FIBMetric		"approx"
+MprCoverage		7
+LinkQualityFishEye	1
+UseHysteresis		no
+LinkQualityLevel	2
+
+Interface "<b>eth1</b>" {
+$(sed -n '/Interface/,/}/p' /etc/olsrd.conf | sed '/}/q' | sed -n '/...*/p' | sed '/Interface/d')
+}
+</pre>
+EOF
+}
+
+fkt_print_date_from_unixtime () {
+	local UNIXTIME="$1"
+	local FACTOR="3600"
+
+	which awk >/dev/null || {
+		echo "error-AWK_nicht_installiert"
+		return 1
+	}
+
+	if [ "$UNIXTIME" -gt 0 ]; then
+		awk -v U=$UNIXTIME -v F=$FACTOR 'BEGIN{printf("%s",strftime("%c",U*F))}'	# fixme! (awk)
+	else
+		echo "??? - Seitenladefehler!"
+	fi
+}
+
+fkt_print_unixtime_diff_in_days () {
+	local UNIXTIME="$1"
+	local FACTOR="3600"
+
+	which awk >/dev/null || {
+		echo "error-AWK_nicht_installiert"
+		return 1
+	}
+
+	if [ "$UNIXTIME" -gt 0 ]; then		# fixme! (awk)
+		awk -v U=$UNIXTIME -v F=$FACTOR -v D=$(date +%s) 'BEGIN{ daydiff=(D-(U*F))/3600/24; if(daydiff<0)daydiff=0; printf("%5.1f",daydiff) }'
+	else
+		echo "???"
+	fi
+}
+
+fkt_nice_date () {
+	local UNIXTIME="$1"
+	test -z "$UNIXTIME" && UNIXTIME=0
+
+	fkt_print_unixtime_diff_in_days $UNIXTIME
+	echo -n " Tage alt<br>(vom "
+	fkt_print_date_from_unixtime    $UNIXTIME
+	echo -n ")"
+}
+
+fkt_button_fw_update () {
+	local TYP="$1"
+
+	cat <<EOF
+<form action="cgi-bin/cgi-bin-update_fff+" method="get">
+<input type="hidden" value="$TYP" name="SOURCE">
+<input type="hidden" value="1" name="GUI">
+<input type="submit" value="Diese Version jetzt installieren">
+</form>
+EOF
+}
+
+fkt_print_update_help () {
+	local    URL_BETA="$(      echo $URL_FIRMWARE_VERSION | sed 's/version/version-beta/')"
+	local URL_TESTING="$(      echo $URL_FIRMWARE_VERSION | sed 's/version/version-testing/')"
+
+	cat <<EOF
+<big>Eingestellter Aktualisierungsmodus:</big>&nbsp;&nbsp;<b>$( OUT=$(nvram get fff_autofwupdate); test -z "$OUT" && OUT=stable; echo -n $OUT )</b>
+<br><br>
+
+<table cellspacing=0 cellpadding=3 border=0>
+<tr><td valign=top>Aktuelle Stabile-Version:</td><td>$( T="$( fkt_wget "$URL_FIRMWARE_VERSION" 3 )"; fkt_nice_date $T )</td><td>$( fkt_button_fw_update stable )	</td></tr>
+<tr><td valign=top>Aktuelle Beta-Version:   </td><td>$( T="$( fkt_wget "$URL_BETA" 3 )";   	     fkt_nice_date $T )</td><td>$( fkt_button_fw_update beta )	</td></tr>
+<tr><td valign=top>Aktuelle Testing-Version:</td><td>$( T="$( fkt_wget "$URL_TESTING" 3 )";          fkt_nice_date $T )</td><td>$( fkt_button_fw_update testing)	</td></tr>
+<tr><td valign=top>Auf diesem Gerät installierte Version</td><td>$( fkt_nice_date $FFF_PLUS_VERSION )	              </td><td><img src="images/yes.gif">       </td></tr>
+</table>
+
+<br><br><small>
+(<a href="cgi-bin/firmware.html">Normale Vorgehensweise benutzen</a>)
+</small>
+EOF
+}
+
+fkt_print_html_fwupdatecheck () {
+	local AUTORUN="/tmp/.autorun"
+
+	echo "/etc/init.d/S01firmware_update_fff+ check nopause; rm -f \$0" 	>$AUTORUN
+	chmod +x $AUTORUN
+	
+	echo "Update wird in $(( 60 - $(date +%S) )) Sekunden gestartet."
+	echo "Siehe Systemlog. Keine weiteren Meldungen."
+}

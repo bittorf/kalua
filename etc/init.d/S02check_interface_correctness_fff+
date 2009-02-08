@@ -1,0 +1,83 @@
+#!/bin/sh
+
+. /etc/functions_profile_fff+
+. /etc/functions_wifi_fff+
+
+eval $( func_wifi_get_hardware_pci )		# $WIFI_VENDOR|WIFI_MODEL
+eval $( func_profile_remap_devs get_model)	# $ROUTER_VENDOR|ROUTER_MODEL
+
+[ -n "$1" ] && {	# depricated!
+	[ "$1" != "start" ] && echo "HW='$ROUTER_VENDOR $ROUTER_MODEL ($WIFI_VENDOR $WIFI_MODEL)';USB='';IDE='';MINIPCI=''"
+	
+	[ "$1" = "show_hardware" ] && exit
+	[ -n "$FAILSAFE" ]         && exit
+	[ -n "$READONLY" ]         && exit
+}
+
+. /etc/variables_fff+
+. /etc/functions_fff+
+. /etc/functions_base_fff+
+. /etc/functions_nvram_fff+
+. /etc/functions_logging_fff+
+. /etc/functions_profile_user_fff+
+. /etc/functions_profile_mac2profile_fff+
+
+RAMSIZE="$(fkt_get_ramsize_in_kb)"
+FLASHSIZE="$(fkt_get_flashsize_in_kb)"
+FLASHFREE="$(fkt_get_free_flash_space_in_kb)"
+[ -z "$( echo $FLASHFREE | sed '/[^0-9]/d')" ] && FLASHFREE=1
+[ -z "$( echo $FLASHSIZE | sed '/[^0-9]/d')" ] && FLASHSIZE=1
+
+func_log hw_info_router daemon debug "VENDOR/MODEL: '$ROUTER_VENDOR'/'$ROUTER_MODEL'"
+func_log hw_info_mem    daemon debug "RAM/FLASH/FLASHFREE: $RAMSIZE/$FLASHSIZE/$FLASHFREE ($(( $FLASHFREE * 100 / $FLASHSIZE ))% free)"
+func_log hw_info_wifi   daemon debug "VENDOR/MODEL: '$WIFI_VENDOR'/'$WIFI_MODEL'"
+
+MAC="$( ip -o link show | sed -e '/^.*: lo: </d' -ne 's/^.*link\/ether \(..:..:..:..:..:..\).*/\1/p;q' )"
+func_log "get_first_ethernet_mac_address" daemon debug "is '$MAC'"
+
+fkt_check_if_this_node_offers_inet >/dev/null		# fixme! just a test
+
+DSSFILE="/etc/dropbear/dropbear_dss_host_key"			# if no dropbear is in firmware and we install it,
+DSSKEY="$( nvram get ff_dsskey )"				# the key in nvram is not respected
+TOOL="/rom/www/cgi-bin/freifunk-upload"
+if [ ! -e $DSSFILE ] || [ "${#DSSKEY}" -le 256 ] || [ "$DSSKEY" != "$( $TOOL -b2a <$DSSFILE )" ]; then
+
+	mkdir -p etc/dropbear		# key in nvram is more important, than (maybe new generated) keyfile
+	if [ "${#DSSKEY}" -ge 256 ]; then
+		func_log setup_dropbear_keys daemon info "keyfile differs from keys in nvram - restoring keys from nvram"
+		echo -n $DSSKEY | $TOOL -a2b >$DSSFILE
+		chmod 0600 $DSSFILE                    
+	else
+		func_log setup_dropbear_keys daemon info "keyfile differs from keys in nvram - generating new keys"
+		
+		if [ -e /usr/bin/dropbearkey ]; then
+			[ -e $DSSFILE ] && {
+				func_log setup_dropbear_keys daemon info "$DSSFILE already exists - why? deleting it!"
+				rm $DSSFILE
+			}
+			dropbearkey -t dss -f $DSSFILE
+			func_nvset ff_dsskey $( $TOOL -b2a <$DSSFILE )
+			func_nvset commit
+		else
+			func_log setup_dropbear_keys daemon info "SSH-DSS-key does not exist (yet) - abort"
+		fi
+	fi
+
+	[ "$(func_uptime min)" -gt 5 ] && {
+		dropbear || func_log setup_dropbear_keys daemon info "starting daemon failed"
+	}
+else
+	func_log setup_dropbear_keys daemon debug "SSH-DSS-key seems to be correct"
+fi
+
+PROFILE="$(func_profile_get $MAC)" && {
+	func_log "profile_get" daemon debug "profile set ('$PROFILE'), only applying interface-check"
+	func_profile_remap_devs
+	[ "$1" != "enforce_new_profile" ] && exit
+}
+
+func_profile_set_config "$PROFILE"
+
+[ "$1" = "enforce_new_profile" ] && {
+	func_safe_reboot "new profile was enforced"
+}

@@ -1,0 +1,189 @@
+#!/bin/sh
+
+[ -e /tmp/NETPARAM ] && . /tmp/NETPARAM
+. /etc/functions_logging_fff+
+. /etc/variables_fff+
+
+# root@dell11:~# udhcpc -qfn --interface="eth2:test"
+# debug, Sending select for 172.18.23.6...
+# info, Lease of 172.18.23.6 obtained, lease time 600
+# search scc.uni-weimar.de >> /tmp/resolv.conf
+# adding dns 141.54.100.129
+# adding dns 141.54.1.3
+
+	# --> netmask?
+
+# root@dell11:~# cat /etc/vpnc/vpnc.conf 
+# IPSec gateway 172.18.254.252
+# IPSec ID GROUP-WLAN
+# IPSec secret E8C02F411F2DEAA0697DE4C8BE232C414C17A5EA943D10A70C2270D12D4F8664D1E52614E6B2B720EE68296AE2FFE510
+# Xauth username thoska
+# Xauth password thoska03
+
+func_get_first_ip_from_dev ()
+{
+	local DEV="$1"
+	
+	ip -oneline -f inet address show dev $DEV | sed -n 's/^.*inet \([0-9\.\/]*\) .*/\1/p;q'
+}
+
+func_get_first_broadcast_from_dev ()
+{
+	local DEV="$1"
+	
+	ip -oneline -f inet address show dev $DEV | sed -n 's/^.* brd \([0-9\.]*\) .*/\1/p;q'
+}
+
+func_log_wifidev ()
+{
+	local FUNC="log_wifidev"
+	local LINE
+	
+	ip address show dev $WIFIDEV | while read LINE; do {
+		func_log $FUNC daemon debug "$LINE"
+	} done
+
+	while read LINE; do {
+		func_log $FUNC daemon debug "tmp.resolv.conf: '$LINE'"
+	} done </tmp/resolv.conf
+}
+
+func_start ()
+{
+	local FUNC="start"
+	local COUNTER=0
+	local IP_ORIG
+	local BRD_ORIG
+	local IP_VPNC
+	local BRD_VPNC
+	local FILE="/etc/vpnc/vpnc.conf"	# "/tmp/vpnc.conf"
+	local ERRORFILE="/tmp/vpnc_error.txt"
+	
+	local GATEWAY="$(  nvram get fff_vpnc_gateway  )"
+	local GROUPID="$(  nvram get fff_vpnc_groupid  )"
+	local SECRET="$(   nvram get fff_vpnc_secret   )"
+	local USERNAME="$( nvram get fff_vpnc_username )"
+	local PASSWORD="$( nvram get fff_vpnc_password )"
+
+	func_log $FUNC daemon debug "writing config: '$FILE'"
+	
+	cat >$FILE <<EOF
+IPSec gateway $GATEWAY
+IPSec ID $GROUPID
+IPSec secret $SECRET
+Xauth username $USERNAME
+Xauth password $PASSWORD
+EOF
+
+	func_log_wifidev
+
+	IP_ORIG="$(  func_get_first_ip_from_dev $WIFIDEV )"
+	BRD_ORIG="$( func_get_first_broadcast_from_dev $WIFIDEV )"
+	func_log $FUNC daemon debug "deleting first ip ('$IP_ORIG' brd '$BRD_ORIG') on wifidev ('$WIFIDEV')"
+	ip address delete $IP_ORIG dev $WIFIDEV
+
+	func_log_wifidev
+
+	func_log $FUNC daemon debug "trying to get dhcp-lease over wifi"
+	while ! udhcpc -qfn --interface="$WIFIDEV" ; do {
+		COUNTER=$(( $COUNTER + 1 ))
+	
+		[ $COUNTER -gt 50 ] && {
+			func_log $FUNC daemon debug "leasing-fetching failed - giving up"
+			break
+		}
+
+		ip -oneline -f inet address show dev $WIFIDEV | logger
+	
+		func_log $FUNC daemon debug "leasing-fetching failed, retry in 5 sec (try: '$COUNTER')"
+		wifi
+		sleep 5
+	} done
+
+	func_log_wifidev
+
+	IP_VPNC="$(  func_get_first_ip_from_dev $WIFIDEV )"
+	BRD_VPNC="$( func_get_first_broadcast_from_dev $WIFIDEV )"
+	func_log $FUNC daemon debug "got lease - deleting first ip ('$IP_VPNC' brd '$BRD_VPNC') on wifidev ('$WIFIDEV')"
+	ip address delete $IP_VPNC dev $WIFIDEV
+	
+	func_log_wifidev
+	
+	func_log $FUNC daemon debug "setting original ip-address"
+	ip address add $IP_ORIG brd $BRD_ORIG dev $WIFIDEV
+	
+	func_log $FUNC daemon debug "setting vpnc-ip-address as second"
+	ip address add $IP_VPNC brd $BRD_VPNC dev $WIFIDEV
+
+	func_log_wifidev
+
+	if ping -c 1 -q $GATEWAY ; then
+		func_log $FUNC daemon debug "gateway seems reachable"
+	else
+		func_log $FUNC daemon debug "gateway seems unreachable"
+	fi
+
+	COUNTER=0
+	while ! pidof vpnc >/dev/null ; do {
+	
+		# vpnc $FILE 2>$ERRORFILE && break		# fixme! must be startet manually
+		# COUNTER=$(( $COUNTER + 1 ))			# because we have to enter the password, which is
+								# a bug of old vpnc... (no matter if pass is in config-file)
+		[ $COUNTER -gt 50 ] && {
+			func_log $FUNC daemon debug "startup failed - giving up"
+			return 1
+		}
+		
+		# func_log $FUNC daemon debug "startup failed '$(cat $ERRORFILE)', retry in 120 sec (try: '$COUNTER')"
+		# rm $ERRORFILE
+		sleep 120
+	} done
+	
+	func_log $FUNC daemon debug "vpnc connected $( if [ -e $ERRORFILE ]; then cat $ERRORFILE; rm $ERRORFILE; fi )"
+
+	local DEVICE="$( ip route list exact 0/0 | sed -n 's/^.* dev \([a-zA-Z0-9]*\).*/\1/p;q' )"
+	func_log $FUNC daemon debug "masquerading the traffic over device '$DEVICE'"
+	iptables -t nat -I POSTROUTING -o $DEVICE -j MASQUERADE				# fixme! (generic function in local.fw)
+}
+
+func_check ()
+{
+	local FUNC="check"
+	local VAR
+
+	for VAR in gateway groupid secret username password ; do {
+	
+		[ -z "$( nvram get fff_vpnc_$VAR )" ] && {
+			func_log $FUNC daemon debug "error - empty output of 'nvram get fff_vpnc_$VAR'"
+			return 1
+		}
+	
+	} done
+
+	func_log $FUNC daemon debug "went fine - vpnc startable"
+	return 0
+}
+
+case $1 in
+	check) 
+		func_check || exit 1
+		exit 0
+	;;
+	start)
+		[ -e $SOFTWARE_FULLY_INSTALLED ] && {
+			func_check && scheduler -a "$0 call"
+		}
+	;;
+	call)
+		while true; do {
+			func_start || exit 1
+		} done &
+	;;
+	stop)
+		func_stop  || exit 1
+	;;
+	*)
+		echo "Usage: $0 (start|stop|check)"
+		exit 1
+	;;
+esac

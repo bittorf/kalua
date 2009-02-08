@@ -1,0 +1,121 @@
+#!/bin/sh
+
+func_check_if_too_many_requests ()		# SENS: when a user calls a nonexistent page with many links in it, the 404-redirection
+{						#	mechanism of the webserver trys to deliver the error-page, but
+						#	uses the path of the wrong page, which again leads to delivering
+						#	the 404-page (think about many pictures, links), e.g. call is:
+						#	http://router/cgi-bin/nonexistent.html
+						#	which is then the path for all relative elements in the page
+						#	sadly, there is yet no known way to detect an 404 call		# fixme! must be more elegant!
+	
+	local TIMEFILE="/tmp/last_webserver_welcome_page_action_$REMOTE_ADDR"						
+	local      NOW="$( date +%s )"
+	
+	local LAST="$( cat $TIMEFILE 2>/dev/null )" && {
+		
+		[ $(( $NOW - ${LAST:=0} )) -lt 10 ] && {
+			echo -en "Content-type: text/html\n\n<html><head><title>&Uuml;berlastung [Weimarnetz]</title></head><body bgcolor=#ffcb05><h1>puh!</h1><h1>Dieser Weimarnetz-Knoten hat gerade</h1><h1>zu viel zu tun, bitte kurz warten...</h1><br>(bitte 10 Sekunden warten - bei anhaltenden Problemen bitte<br><a href=\"http://wireless.subsignal.org/index.php?title=Telefonnummer\">das Weimarnetz-Sorgentelefon</a> unter 03643 / 544304 anrufen)</body></html>"
+			return 1	# 10 seconds must be beetween two 404-requests
+		}
+	}
+	
+	echo $NOW >$TIMEFILE
+}
+
+[ "$QUERY_STRING" != "REDIRECTED=1" ] && {
+	func_check_if_too_many_requests || exit		# dont do this long procedure twice!
+}
+
+. /etc/variables_fff+
+. /etc/functions_fff+
+. /etc/functions_logging_fff+
+. /etc/functions_http_fff+
+. /etc/local.fw-functions_fff+
+. /www/cgi-bin-welcome_functions_fff+
+
+fkt_decide_usecase				# examine if user is already logged in or not
+fkt_decide_mode					# assigns mode by examining remote-IP-address
+
+case $MODE in
+	REDIRECT_LAN|REDIRECT_WIFI)
+		if [ "$MODE" = "REDIRECT_LAN" ]; then
+			fkt_print_html_redirection LAN
+		else
+			fkt_print_html_redirection WIFI
+		fi
+	;;
+	SERVICE)
+		fkt_print_html_header
+		fkt_print_html_message_service
+		fkt_print_html_footer
+	;;
+	WIFI|LAN)									# fixme! akzeptiere nutzungsbedingungen fehlt noch
+		fkt_print_html_header
+		
+		MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+		IP=$REMOTE_ADDR								# fixme! really needed?
+		
+		fkt_definitions
+		[ -z "$( fkt_list_locally_registered_users | grep -i $MAC )" ] && {
+			fkt_print_html_link_to_usermanagement
+		}
+		
+		if [ "$MODE" = "WIFI" ]; then
+			fkt_print_html_message_wifi
+		else
+			fkt_print_html_message_lan
+		fi
+		
+		fkt_print_wiki "$WIKI_ARTICLE_1" "$WIKI_ARTICLE_1_HEADLINE"
+		fkt_print_news "$LATEST_NEWS_URL" "$LATEST_NEWS_HEADLINE"
+		fkt_print_wiki "$WIKI_ARTICLE_2" "$WIKI_ARTICLE_2_HEADLINE"
+										# nvram get fff_ethers_auth = BLACKLIST || WHITELIST !
+
+		if [ "$( fkt_check_if_user_with_mac_is_locally_blacklisted $MAC )" = "true" ]; then
+			
+			fkt_print_html_you_are_blacklistet
+		else
+			if [ -z "$( fkt_list_user_macs | grep -i $MAC )" ]; then
+				fkt_print_html_button										# user is not logged in yet
+			else
+				if [ "$( fkt_get_used_traffic_limit_from_user_with_mac_in_percent $MAC )" -gt 100 ] && [ "$( fkt_check_if_mac_is_admin $MAC )" = "false" ]; then
+					fkt_print_html_user_over_limit
+				else
+					if [ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "true" ]; then
+						fkt_print_html_button
+					else
+						fkt_print_html_alread_logged_in
+					fi
+				fi
+			fi
+		fi
+		
+		fkt_print_html_footer
+	;;
+	WAN|REDIRECT_WAN)
+		fkt_deliver_indexpage	
+	;;
+	BUTTON)							# fixme! print network / social-rules!
+		fkt_print_html_header				# fixme! an attacker can refresh the POST-values in browser and again surf 15mins 8-)
+		fkt_definitions					# same packet-filter vars...
+		
+		MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+		
+		fkt_list_user_macs | grep -q -i $MAC								# already shaped?
+		
+		if [ "$?" -eq 0 ]; then										# user already shaped, but redirected (over night kick off...)
+			fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $REMOTE_ADDR >/dev/null
+		else												# user is really new
+			func_activate_reserved_user_chain $MAC $REMOTE_ADDR || {
+				fkt_add_user_with_mac_and_ip $MAC $REMOTE_ADDR
+			}
+		fi
+	
+		fkt_print_html_message_welcome
+		fkt_print_image_of_inet_gw
+		fkt_print_html_footer			# fixme: maybe redirect to: "http://www.google.de/search?q=www.weimarnetz.de" ???
+	;;
+	*) 					# remote user is from mesh or localhost
+		fkt_deliver_indexpage
+	;;
+esac

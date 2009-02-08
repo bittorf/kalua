@@ -1,0 +1,92 @@
+#!/bin/sh
+
+. /etc/functions_logging_fff+
+. /etc/functions_base_fff+
+. /etc/functions_olsr
+
+func_longest_string ()
+{
+	local LIST="$1"
+	local MIN=0
+	local WORD
+	local OUT
+
+	for WORD in $LIST; do {
+		[ ${#WORD} -gt $MIN ] && {
+			OUT="$WORD"
+			MIN="${#WORD}"
+		}
+	} done
+	
+	echo $OUT
+}
+
+func_normalize_ip ()	# IP_max=123.123.123.123 (15chars) IP_min=1.1.1.1 (7chars) -> DIFF_max = 8
+{
+	local MAX="${#1}"
+	local LENGTH="${#2}"
+	local DIFF=$(( $MAX - $LENGTH ))
+
+	case $DIFF in
+		0) return ;;
+		1) echo -n ' ' ;;
+		2) echo -n '  ' ;;
+		3) echo -n '   ' ;;
+		4) echo -n '    ' ;;
+		5) echo -n '     ' ;;
+		6) echo -n '      ' ;;
+		7) echo -n '       ' ;;
+		*) echo -n '        ' ;;
+	esac
+}
+
+OUT_OLSR="$(func_olsr_get_neighbours)" || exit
+
+case $1 in		# all those functions must care about removing $OUT_OLSR !
+	meshrdf)
+		func_olsr_output_neigh_meshrdf $OUT_OLSR
+		[ "$( ls -l /tmp/olsr_output_* 2>/dev/null | wc -l )" -gt 50 ] && {		# fixme! (dirty workaround)
+			func_log olsr_output_garbage_collector daemon alert "removing >50 cadaver's"
+			rm /tmp/olsr_output_*
+		}
+	;;
+	evalable)
+		func_olsr_output_neigh_evalable $OUT_OLSR verbose
+	;;
+	best_wifi_nlq)
+		# output like '500' which is 0.500 - output can be <empty>!
+		
+		func_olsr_best_wifi_nlq $OUT_OLSR
+	;;
+	check4nonwifi)
+		func_olsr_check_if_any_nonwifi_neigh $OUT_OLSR
+	;;
+	check4wifi)
+		func_olsr_check_for_wifi_neigh $OUT_OLSR
+	;;
+	check4good_non_tunnel_neigh)
+		func_olsr_check_for_good_non_tunnel_neigh $OUT_OLSR || exit 1
+	;;
+	get_random)
+		func_olsr_get_random_neigh $OUT_OLSR		# returns IP or EMPTY (!)
+	;;
+	get_random_pair)
+		rm $OUT_OLSR
+		func_olsr_get_random_pair_from_mesh_evalable "$2"	# fixme! max_cost not yet implemented
+	;;
+	get_cost2node)
+		rm $OUT_OLSR
+		func_olsr_get_cost_to_specific_node_evalable "$2"
+	;;
+	plain)
+		cat $OUT_OLSR
+		rm $OUT_OLSR
+	;;
+	help)
+		echo "Usage: $0 (meshrdf | evalable | best_wifi_nlq | check4nonwifi | check4wifi | check4good_non_tunnel_neigh | get_random | get_random_pair [max_cost] | get_cost2node node | plain | <empty>)"
+		rm $OUT_OLSR
+	;;
+	*)
+		func_olsr_output_neigh_humanreadable $OUT_OLSR		# fixme! +gps +distance +olsrd/ff/fff-version?
+	;;
+esac

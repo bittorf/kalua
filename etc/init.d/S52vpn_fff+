@@ -1,0 +1,333 @@
+#!/bin/sh
+
+# ToDo:
+#	- limiting outgoing olsr-traffic (not wasting upload) ??
+#	- vtund not installed, but we need it? -> free_some_flash() -> reinit_software_install()
+
+. /etc/variables_fff+
+. /etc/functions_fff+
+. /etc/functions_base_fff+
+. /etc/functions_ipkg_fff+
+. /etc/functions_logging_fff+
+
+[ -e "$LOWMEM" ] && exit
+[ -n "$FAILSAFE" ] && exit
+[ -n "$READONLY" ] && exit
+[ ! -e "$SOFTWARE_FULLY_INSTALLED" ] && exit
+
+fkt_build_vars ()
+{
+	NODE_NUMBER="$( nvram get fff_node_number )"
+	HOSTNAME="$( nvram get wan_hostname | sed 's/[^a-zA-Z0-9]//g' )"
+	
+	SERV="$VPN_SERVER"
+	CONF="/etc/local.olsrd.conf"
+	KNOT=$NODE_NUMBER
+	VTUN="/etc/vtund.conf"
+	
+	INETOFFER=$( fkt_check_if_this_node_offers_inet )
+
+	. /tmp/NETPARAM
+	eval $(fkt_calc_node_params $NODE_NUMBER)
+}
+
+fkt_tunnel_conf_write ()
+{
+	local FUNC="tunnel_conf_write"
+	local LINE=""
+	local STATIC_ROUTE="$( func_get_static_route )"
+	
+	cat >$VTUN <<EOF
+$HOSTNAME {
+	passwd ff ;		# fixme! check MTU = 1450?
+	type ether ;		# fixme! olsrd-bug: /32 interface needed?
+	persist yes ;		# fimxe! add 'timeout 60' ?
+
+	up {
+		program "logger -p daemon.info -t $0_vtund.conf link_up %%:$HOSTNAME" ;
+		program "ip address add $WIFIVPNCLIENTADR/$WIFIVPNPRE dev %% label %%:$HOSTNAME" ;
+		program "ip address add $WIFIVPNCLIENTADR/32 dev %%" ;
+		program "ip link set dev %% mtu 1450 up" ;
+		program "ip route add $VPN_SERVER via $STATIC_ROUTE" ;		# + table local?
+	} ;
+		# fixme! static_route must only be valid for programs on this machine
+	down {
+		program "logger -p daemon.info -t $0_vtund.conf link_down %%:$HOSTNAME" ;
+		program "ip route del $VPN_SERVER via $STATIC_ROUTE" ;
+		program "ip link set dev %% down" ;
+	} ;
+}
+EOF
+
+	func_log $FUNC daemon debug "ready"
+	while read LINE; do {
+		func_log $FUNC daemon debug "${VTUN} +'$LINE'"
+	} done <$VTUN
+}
+
+fkt_tunnel_conf_remove ()
+{
+	local FUNC="tunnel_conf_remove"
+
+	[ -e $VTUN ] && {
+		func_log $FUNC daemon debug "working"
+		rm $VTUN
+	}
+}
+
+fkt_tunnel_start ()
+{
+	local ERROR_INSTALL=false
+
+	local FUNC="tunnel_start"
+	
+	[ ! -e "$VTUN" ] && {
+		func_log $FUNC daemon debug "no configfile - abort"
+		return
+	}
+	
+	lsmod | grep -q ^tun || insmod tun || {
+		func_log $FUNC daemon debug "error during 'insmod tun'"
+	}        
+	
+	func_log $FUNC daemon debug "starting vtun with config '$VTUN'"
+	
+	vtund $HOSTNAME $SERV 2>/dev/null || {
+
+		func_log $FUNC daemon debug "error"	
+		
+		func_ipkg_is_not_installed vtun && ERROR_INSTALL=true
+		func_ipkg_is_not_installed kmod-tun && ERROR_INSTALL=true
+		
+		if [ "$ERROR_INSTALL" = "true" ]; then
+		
+			func_log $FUNC daemon debug "vtund and/or kmod-tun not installed"
+		
+			fkt_tunnel_conf_remove
+			
+			func_ipkg_make_free_space 1000	# [kilobyte]
+			func_ipkg_install libopenssl	# +550
+			func_ipkg_install zlib		# +175
+			func_ipkg_install liblzo	# +52
+			func_ipkg_install kmod-tun	# +12
+			func_ipkg_install vtun		# +36
+							# ----
+							# +825
+		else
+			vtund - 2>/dev/null | grep -q -i vtun || {
+			
+				func_log $FUNC daemon debug "vtund is installed, but has an serious problem"
+
+				# under mysterious circumstances (e.g. low disk space during installing),
+				# vtund claims to have a "bus error", so we should reinstall it
+			
+				func_ipkg_remove  vtun
+				func_ipkg_remove  libopenssl
+				func_ipkg_install libopenssl
+				func_ipkg_install vtun
+			}
+		fi
+		
+		# cron-jobs trys later an vpn-restart
+		
+		return 1
+	}
+}
+
+fkt_tunnel_stop ()
+{
+	local FUNC="tunnel_stop"
+	
+	pidof vtund >/dev/null && {
+
+		func_log $FUNC daemon debug "killing tunnel-daemon"		
+		killall vtund
+		sleep 2
+	
+		pidof vtund >/dev/null && {
+
+			func_log $FUNC daemon debug "daemon still alive, trying hard"
+			killall -9 vtund
+			sleep 2
+			
+			pidof vtund >/dev/null && {
+
+				func_log $FUNC daemon debug "daemon still alive - error"
+			}
+		}
+	}
+}
+
+fkt_olsr_conf_remove ()
+{
+	local FUNC="olsr_conf_remove"
+	
+	[ -e $CONF ] && {
+		func_log $FUNC daemon debug "working"
+		rm $CONF
+	}	
+}
+
+fkt_olsr_conf_write ()
+{
+	local FUNC="olsr_conf_write"
+	local LINE=""
+	
+	SPEED=$(nvram get ff_olsrspeed)		# fixme! maybe multiply by 10? (lowering traffic)
+	SPEED=${SPEED:=5}
+
+        FEYE=$(nvram get ff_fisheye)
+	if [ "0" != "$FEYE" ];then
+		TCINT=$(( 2 * SPEED / 4 ))
+		test $TCINT -eq 0 && TCINT=1
+		COVER=7
+		FEYE=1
+	else
+		TCINT=$(( 2 * SPEED ))
+		COVER=3
+		FEYE=0
+	fi
+						# these are the values for fff v1.6.34
+	cat >$CONF <<EOF
+Interface "tap0" {
+	HelloInterval		$(( SPEED / 2 + 1 )).0
+	HelloValidityTime	$(( 25 * SPEED )).0
+	TcInterval		$TCINT.0
+	TcValidityTime		$(( 100 * SPEED )).0
+	MidInterval		$(( 5 * SPEED )).0
+	MidValidityTime		$(( 100 * SPEED )).0
+	HnaInterval		$(( 2 * SPEED )).0
+	HnaValidityTime		$(( 25 * SPEED )).0
+	Ip4Broadcast		$WIFIVPNSERVERADR
+}
+EOF
+
+	func_log $FUNC daemon debug "ready"
+	while read LINE; do {
+		func_log $FUNC daemon debug "${CONF} +'$LINE'"
+	} done <$CONF
+}
+
+func_get_static_route ()			# prevents tunneling over mesh, when local defgw gets broken
+{
+	local DEFAULT_GATEWAY_IP="$( ip route list exact 0/0 | head -n1 | cut -d" " -f3 )"
+	
+	case $INETOFFER in
+		lan)
+			echo -n "$DEFAULT_GATEWAY_IP dev $LANDEV"
+		;;
+		pppoe)
+			echo -n "$( ip route list exact 0/0 dev ppp0 | head -n1 | cut -d" " -f3 ) dev ppp0"
+		;;
+		*)
+			echo -n "$DEFAULT_GATEWAY_IP dev $WANDEV"
+		;;
+	esac
+}
+
+func_sending_request_to_vpnserver_for_participation ()
+{
+	local FUNC="sending_request_to_vpnserver_for_participation" 
+	local OUTPUT=""
+	local URL="http://$VPN_SERVER/freifunk/vpn/"
+	local QUERY=""
+	local PROTO="$( nvram get fff_vpn_proto )"		# none,olsr,batman,batman-adv,...
+	[ -z "$PROTO" ] && PROTO=olsr
+	
+	QUERY="${QUERY}?CLIENTIP=${WIFIVPNCLIENTADR}"
+	QUERY="${QUERY}&SERVERIP=${WIFIVPNSERVERADR}"
+	QUERY="${QUERY}&NAME=$HOSTNAME"
+	QUERY="${QUERY}&PROTO=$PROTO"
+	QUERY="${QUERY}&EMAIL=$( func_url_encode "$(nvram get ff_adm_mail)" )"
+	QUERY="${QUERY}&COMMENT=city${FFF_CITY}_node${NODE_NUMBER}_auto_created"
+
+	func_log $FUNC daemon debug "query: '${URL}${QUERY}'"
+	
+	OUTPUT="$( wget 2>/dev/null -O - "${URL}${QUERY}" )"	# fixme! encode unsafe URL chars (like email above)
+
+	func_log $FUNC daemon debug "answer: '$OUTPUT'"
+}
+
+func_vpn_start ()
+{
+	local FUNC="func_vpn_start"
+
+	[ $INETOFFER = "false" ] && {
+		func_log $FUNC daemon debug "no local default gateway - abort"
+		return 1
+	}
+
+	[ -z "$NODE_NUMBER" ] && {
+		func_log $FUNC daemon debug "node not configured yet - abort"
+		return 1
+	}
+		
+	func_sending_request_to_vpnserver_for_participation
+	fkt_tunnel_conf_remove
+	fkt_tunnel_conf_write
+	fkt_olsr_conf_remove			# fixme! // grep ^"Interface .*tap0" /etc/olsrd.conf || restart_olsr
+	fkt_olsr_conf_write
+	fkt_tunnel_start && {
+		pidof olsrd >/dev/null && {
+			scheduler -a restart_olsr
+			return
+		}
+		func_log $FUNC daemon debug "OLSRd not up, no need for restart"
+	}
+}
+
+func_vpn_stop ()
+{
+ 	fkt_tunnel_conf_remove
+ 	fkt_olsr_conf_remove
+  	fkt_tunnel_stop
+}
+
+func_vpn_status ()
+{
+	FUNC="vpn_status"
+	
+	pidof vtund >/dev/null && {
+		func_log $FUNC daemon debug "daemon running"
+		return 0
+	}
+	
+	func_log $FUNC daemon debug "daemon NOT running"
+	return 1
+}
+
+case $1 in
+	start)
+		fkt_build_vars
+		func_vpn_start
+	;;
+	stop)
+		fkt_build_vars
+		func_vpn_stop
+ 	;;
+	restart)
+		fkt_build_vars
+		func_vpn_status && {
+	
+			[ "$INETOFFER" = "false" ] && {
+				func_log restart daemon debug "not inetoffer, stop running vpn"
+				func_vpn_stop
+				exit
+			}
+		
+			[ "$2" != "--force" ] && {
+				func_log restart daemon debug "ignoring call"
+				exit
+			}
+		}
+		
+		func_vpn_stop
+		func_vpn_start
+      	;;
+      	status)
+      		func_vpn_status
+      	;;
+	*)
+		echo "Usage: $0 (start|stop|restart (--force)|status)"
+	;;
+esac

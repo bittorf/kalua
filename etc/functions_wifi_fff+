@@ -1,0 +1,555 @@
+FUNC_WIFI=1
+
+# func_wifi_get_params
+# func_wifi_get_tx_and_rx
+# func_wifi_get_config_params
+# func_wifi_get_status_broadcom
+# func_wifi_get_params_iwconfig
+# func_wifi_print_iwconfig_sample
+# func_wifi_probe_feature
+# func_wifi_probe_phy_online
+# func_wifi_get_hardware_pci
+# func_wifi_get_hardware_usb
+# func_wifi_link_up
+# func_wifi_uptime
+# func_wifi_restart_wifi_phy
+# func_wifi_get_txpwr
+# func_wifi_set_txpwr
+# func_wifi_convert_mw_to_dbm
+# func_wifi_set_antenna_rx
+# func_wifi_set_antenna_tx
+# func_wifi_get_antenna_rx
+# func_wifi_get_antenna_tx
+# func_wifi_get_all_devs
+# func_wifi_probe_mode_infrastructure
+# func_wifi_probe_mode_ap
+# func_wifi_get_mode
+# func_wifi_scan_and_get_results
+
+
+# alle devs rausbekommen
+# pro dev herausbekommen, welche hardware = welcher treiber
+
+# [ "$BSSID" = "00:00:00:00:00:00" ] && not_connected
+
+# mode=master|client|adhoc|wds ???
+
+# iwconfig device = emtpy -> broadcom
+# iwconfig eth1 >/tmp/t 2>/dev/null && echo ja
+
+# was wenn eine hardware mit wl und iwconfig angesprochen werden kann?
+# vielleicht immer mit iwconfig probieren, wenn leer dann wl?!
+
+# MAC-Adresse
+# ip -oneline link show dev eth1 2>/dev/null |
+#  sed -n 's/^.*link\/ether \(..\):\(..\):\(..\):\(..\):\(..\):\(..\) .*/MAC=\1:\2:\3:\4:\5:\6\nMAC=\1\2\3\4\5\6/p'
+#
+# joinen von iwconfig/broadcom-ausgabe-variablen
+# oder gleich broadcom nach iwconfig ueberfuehren?
+
+# Idee, wie man mit mehreren wlan-karten klarkommt: 
+#    Erstes WIFI_DEV steht sowohl in normaler Variablenliste,
+#    als auch in /tmp/wifi_$DEV zum includen. So werden Operationen
+#    auf alle Elemente in der Liste gemacht:
+#    (es muss also nur was included werden, wenn es mehrere wireless-karten gibt)
+#    (bei einer wlan-karte gibt es kein $WIFI_DEV_NEXT)
+#
+# for WIFI_DEV in $WIFI_DEVS; do {
+#	do_some_stuff_with_normal_vars
+#	[ -n "$WIFI_DEV_NEXT" ] && . $WIFI_DEV_NEXT	# inluding VAR-set for next WIFI_DEV
+# } done						# (last entry must point to first-device)
+
+func_wifi_get_params ()
+{
+	local VAR
+	local WIFI_DEVS="$( func_wifi_get_all_devs )"
+	local THIS_WIFI_DEV
+
+	echo "WIFI_DEVS='$WIFI_DEVS'"	
+	
+	for THIS_WIFI_DEV in $WIFI_DEVS; do {
+
+		func_wifi_get_hardware_usb  >/tmp/wifi_hardware
+		func_wifi_get_hardware_pci >>/tmp/wifi_hardware
+		. /tmp/wifi_hardware
+
+		if [ "$WIFI_VENDOR" = "broadcom" ]; then
+			func_wifi_get_status_broadcom $THIS_WIFI_DEV
+		else
+			func_wifi_get_status_iwconfig $THIS_WIFI_DEV
+		fi
+
+		cat /tmp/wifi_hardware		
+		func_wifi_get_config_params
+		func_wifi_get_tx_and_rx $THIS_WIFI_DEV
+	} done
+}
+
+func_wifi_get_tx_and_rx ()		# ARG1 = NETWORK_DEV e.g. WIFI_DEV
+{
+	# WIFI_RX_BYTES=1665694551
+	# WIFI_RX_PACKETS=22019893
+	# WIFI_RX_ERRORS=0
+	# WIFI_RX_FRAMES=109127
+	# WIFI_TX_BYTES=2572111365
+	# WIFI_TX_PACKETS=22193801
+	# WIFI_TX_ERROR=3
+
+	sed -n "s/^.*$1: *\([0-9]*\) *\([0-9]*\) *\([0-9]*\) *[0-9]* *[0-9]* *\([0-9]*\) *[0-9]* *[0-9]* *\([0-9]*\) *\([0-9]*\) *\([0-9]*\) .*/WIFI_RX_BYTES=\1\nWIFI_RX_PACKETS=\2\nWIFI_RX_ERRORS=\3\nWIFI_RX_FRAMES=\4\nWIFI_TX_BYTES=\5\nWIFI_TX_PACKETS=\6\nWIFI_TX_ERROR=\7/p" /proc/net/dev
+}
+
+func_wifi_get_config_params ()
+{
+	# WIFI_CONFIG_FRAG=2346
+	# WIFI_CONFIG_CHANNEL=7
+	# WIFI_CONFIG_BSSID=02:CA:FF:EE:BA:BE
+
+	sed -ne '/^wl0_frag=/s/^wl0_frag=\([0-9]*\)/WIFI_CONFIG_FRAG=\1/p' \
+	    -ne '/^wl0_channel=/s/^wl0_channel=\([0-9]*\)/WIFI_CONFIG_CHANNEL=\1\n/p' \
+	    -ne '/^ff_bssid=/!d;s/^ff_bssid=\([0-9]\)/WIFI_CONFIG_BSSID=\1/;y/abcdef/ABCDEF/;p' /dev/mtdblock/3
+}
+
+func_wifi_get_status_broadcom ()	# ARG1 = WIFI_DEV ; safe and fast reformatting of 'wl status'-output
+{					# for easy eval() BSSID is always uppercase
+	# WIFI_DEV=eth1
+	# WIFI_UPTIME=0
+	# WIFI_ESSID='www.freifunk.net (Zugangspunkt)'
+	# WIFI_MODE='Master'
+	# WIFI_RSSI='0'
+	# WIFI_NOISE='0'
+	# WIFI_CHANNEL=7					# convert to MHz ?
+	# WIFI_BSSID=00:1D:73:05:0F:59
+	# WIFI_RATESET='1(b) 2(b) 5.5(b) 6 9 11(b) 12 18 24 36 48 54'
+
+	wl -i $1 status 2>/dev/null |
+	 sed -ne "s/'/'\\\''/g;s/^SSID: \"\(.*\)\"/WIFI_DEV=$1\nWIFI_UPTIME=0\nWIFI_ESSID='\1'/p" \
+	     -ne "s/^Mode: \([ a-zA-Z]*\).*RSSI: \(.*\) dBm.*noise: \(.*\) dBm.*Channel: \([0-9]*\).*/WIFI_MODE='\1'\nWIFI_RSSI='\2'\nWIFI_NOISE='\3'\nWIFI_CHANNEL=\4/p" \
+	     -ne "s/^Supported Rates: \[ \(.*\) \]/WIFI_RATESET='\1'/p" \
+	     -ne "/^BSSID: /!d;s/^BSSID: \(..:..:..:..:..:..\).*/WIFI_BSSID=\1/;y/abcdef/ABCDEF/;p"
+}
+
+func_wifi_get_params_iwconfig ()	# signal/noise = dBm
+{
+	# WIFI_DEV=eth1
+	# WIFI_UPTIME=0
+	# WIFI_ESSID='www.freifunk.net (Zugangspunkt)'  
+	# WIFI_MODE="Managed"
+	# WIFI_FREQ=2442					# in MHz ! -> convert to Channel?
+	# WIFI_BSSID=00:1D:73:05:0F:59  
+	# WIFI_QUALITY=52
+	# WIFI_QUALITY_MAX=94
+	# WIFI_SIGNAL='-43'
+	# WIFI_NOISE='-95'
+
+	iwconfig $1 2>/dev/null |
+	 sed -ne "s/^.*ESSID:\"\(.*\)\"/WIFI_DEV=$1\nWIFI_UPTIME=0\nWIFI_ESSID='\1'/p" \
+	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Access Point: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_BSSID=\4/p' \
+	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Cell: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_BSSID=\4/p' \
+	     -ne "s/^.*Link Quality[:=]\([0-9]*\)\/\([0-9]*\).*Signal level[:=]\([-0-9]*\) dBm.*Noise level[:=]\([-0-9]*\) dBm/WIFI_QUALITY=\1\nWIFI_QUALITY_MAX=\2\nWIFI_SIGNAL='\3'\nWIFI_NOISE='\4'/p"
+}
+
+func_wifi_print_iwconfig_sample ()
+{
+cat <<EOF
+ath0      IEEE 802.11b  ESSID:"www.freifunk.net (Zugangspunkt)"  
+          Mode:Managed  Frequency:2.442GHz  Access Point: 00:1D:73:05:0F:59  
+          Bit Rate:11Mb/s   Tx-Power:0 dBm   Sensitivity=0/3  
+          Retry:off   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:off
+          Link Quality:52/94  Signal level:-43 dBm  Noise level:-95 dBm
+          Rx invalid nwid:8199  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+EOF
+
+cat >/dev/null <<EOF
+ath0      IEEE 802.11g  ESSID:""  
+          Mode:Ad-Hoc  Frequency:2.412 GHz  Cell: 02:0B:6B:DA:95:07   
+          Bit Rate:0 kb/s   Tx-Power:19 dBm   Sensitivity=1/1  
+          Retry:off   RTS thr:off   Fragment thr=256 B   
+          Encryption key:off
+          Power Management:off
+          Link Quality=0/70  Signal level=-96 dBm  Noise level=-96 dBm
+          Rx invalid nwid:389  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+EOF
+}
+
+func_wifi_probe_feature ()
+{
+	local FUNC="wifi_probe_feature"
+	local FEATURE="$1"
+	
+	eval $(func_wifi_get_hardware_pci)	# WIFI_BANDS
+
+	case "$FEATURE" in
+		802.11a)
+			echo $WIFI_BANDS | grep -q "a" && {
+				func_log $FUNC daemon debug "802.11a capable"
+				return 0
+			}
+		;;
+		802.11b)
+			echo $WIFI_BANDS | grep -q "b" && {
+				func_log $FUNC daemon debug "802.11b capable"
+				return 0
+			}
+		;;
+		802.11g)
+			echo $WIFI_BANDS | grep -q "g" && {
+				func_log $FUNC daemon debug "802.11g capable"
+				return 0
+			}
+		;;
+	esac
+	
+	return 1
+}
+
+func_wifi_phy_probe_online ()		# fixme! more abstraction
+{
+	local WIFI_DEV="$1"
+	
+	[ "$( nvram get wl0_radio )" = "0" ] && {
+		return 1
+	}
+	
+	return 0
+}
+
+func_wifi_get_hardware_pci ()		# output can be more than one, how to handle?
+{					# ARG1 = WIFI_DEV
+
+	# WIFI_VENDOR=broadcom;WIFI_MODEL=4318
+
+	sed -ne "/14e44318/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4318 ;WIFI_BANDS='b g'" \
+	    -ne "/14e44320/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4306 ;WIFI_BANDS='b g'" \
+	    -ne "/14e44319/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4319 ;WIFI_BANDS='b g a'" \
+	    -ne "/168c0012/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5211a;WIFI_BANDS='b g a'" \
+	    -ne "/168c0013/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5212a;WIFI_BANDS='b g a'" /proc/bus/pci/devices
+}
+
+func_wifi_get_hardware_usb ()
+{
+	# WIFI_VENDOR=ralink;WIFI_MODEL=rt73usb
+
+	sed -ne "/Vendor=148f ProdID=2573/cWIFI_VENDOR=ralink;WIFI_MODEL=rt73usb;WIFI_BANDS='b g'" /proc/bus/usb/devices 2>/dev/null
+}
+
+func_wifi_link_up ()
+{
+	wifi up			# fixme! 
+	func_wifi_uptime set
+}
+
+func_wifi_uptime ()
+{
+	a=0
+	# cut -d"." -f1 /proc/uptime
+	# set
+	# get
+}
+
+func_wifi_restart_wifi_phy ()		# fixme! broadcom/atheros-abstraction needed
+{
+	local FUNC="wifi_restart_wifi_phy"
+	local WIFI_DEV="$1"
+
+	func_log $FUNC daemon info "working"
+	
+	# wifi -i $WIFI_DEV up		# fixme! has no effect?
+	wifi				# simply rereads nvram for all broadcom-devices
+}
+
+func_wifi_get_txpwr ()		# fixme! abstraction of broadcom/atheros needed
+{
+	local FUNC="wifi_get_txpwr"
+	local WIFI_DEV="$1"
+	local UNIT="$2"		# keyword, can be 'mw', 'dbm', 'qdbm' // fixme! at the moment this IS in [mW]
+	
+	[ -z "$WIFI_DEV" ] && {
+		func_log $FUNC daemon info "call without specified WIFI-DEV"
+		WIFI_DEV="$( func_wifi_get_all_devs )"	# fixme!
+	}
+	
+	local TXPOWER="$( wl -i $WIFI_DEV txpwr | cut -d" " -f3 )"	# this is in [mW]
+
+	[ -z "$TXPOWER" ] && {
+		[ -z $WIFI_DEV ] && WIFI_DEV="ath0"
+		TXPOWER="$( iwlist "$WIFI_DEV" txpower 2>/dev/null | sed -n '/Tx-Power/s/^.*(\([0-9]*\).*/\1/p' )"
+	}
+	
+	echo -n "${TXPOWER:=0}"		# fixme! no wifi-dev?
+}
+
+func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
+{				# e.g.: func_wifi_set_txpwr "$WIFIDEV" 10 mW add overturn
+	local FUNC="wifi_set_txpwr"
+	local WIFI_DEV="$1"
+	local TXPWR="$2"
+	local UNIT="$3"		# keyword, can be 'mw', 'dbm', 'qdbm'	// fixme! at the moment this MUST be [mW]
+	local MODE="$4"		# keyword, can be 'add', 'subtract', 'empty = absolute'
+	local KEYWORD="$5"	# keyword, 'overturn' (if value is over max, then flip to min)
+	local VALUE
+	local MAX="90"		# this is just an proposal and not science-based
+	local MIN="10"		# this is a not science-based, IMHO senseful value
+	
+	case $MODE in
+	    	     add) VALUE="$(( $(func_wifi_get_txpwr $WIFI_DEV mw) + $TXPWR ))" ;;
+		subtract) VALUE="$(( $(func_wifi_get_txpwr $WIFI_DEV mw) - $TXPWR ))" ;;
+		       *)
+		          VALUE="$( func_wifi_convert_mw_to_dbm $TXPWR )"
+		       	  func_log $FUNC daemon info "for '$WIFI_DEV' to '$TXPWR' mW ('$VALUE' qdBm)"
+		          . /etc/functions_nvram_fff+
+		       	  func_nvset wl0_txpwr "$VALUE"
+		       	  func_wifi_restart_wifi_phy "$WIFI_DEV"
+		       	  return 0
+		       ;;
+	esac
+
+	[ "$KEYWORD" = "overturn" ] && {
+		[ "$VALUE" -gt "$MAX" ] && VALUE="$MIN"
+		[ "$VALUE" -lt "$MIN" ] && VALUE="$MAX"
+	}
+	
+	func_wifi_set_txpwr "$WIFI_DEV" "$VALUE" mw absolute
+}
+
+func_wifi_convert_mw_to_dbm ()		# for broadcom on freifunk, convert unit [mW] -> [qdBm]
+{
+	local o
+					# nvram 0|78 is both 89 mW
+	case $1 in
+	 	 2) o=8 ;;
+	 	 3) o=16 ;;
+	 	 4) o=22 ;;		
+		 5) o=27 ;;
+		 6) o=30 ;;
+		 7) o=33 ;;
+		 8) o=36 ;;
+		 9) o=38 ;;
+		10) o=40 ;;
+		11) o=41 ;;
+		12) o=43 ;;
+		13) o=44 ;;
+		14) o=46 ;;
+		15) o=47 ;;
+		16) o=48 ;;
+		17) o=49 ;;
+		18) o=50 ;;
+		19) o=51 ;;
+		20) o=52 ;;
+		21) o=53 ;;
+	     22|23) o=54 ;;
+		24) o=55 ;;
+	     25|26) o=56 ;;
+		27) o=57 ;;
+	     28|29) o=58 ;;
+	     30|31) o=59 ;;
+		32) o=60 ;;
+	     33|34) o=61 ;;
+	  35|36|37) o=62 ;;
+	     38|39) o=63 ;;
+	     40|41) o=64 ;;
+          42|43|44) o=65 ;;
+             45|46) o=66 ;;
+            4[7-9]) o=67 ;;
+            5[0-2]) o=68 ;;
+            5[3-5]) o=69 ;;
+            5[6-9]) o=70 ;;
+            6[0-2]) o=71 ;;
+            6[3-6]) o=72 ;;
+         6[7-9]|70) o=73 ;;
+            7[1-4]) o=74 ;;
+            7[5-8]) o=75 ;;
+         79|8[0-3]) o=76 ;;
+            8[4-8]) o=77 ;;
+         89|9[0-3]) o=78 ;;
+            9[4-9]) o=79 ;;
+	   10[0-5]) o=80 ;;
+   10[6-9]|110|111) o=81 ;;
+           11[2-8]) o=82 ;;
+       119|12[0-5]) o=83 ;;
+   12[6-9]|13[0-2]) o=84 ;;
+       13[3-9]|140) o=85 ;;
+           14[1-9]) o=86 ;;
+           15[0-7]) o=87 ;;
+   158|159|16[0-7]) o=88 ;;
+   168|169|17[0-7]) o=89 ;;
+   178|179|18[0-7]) o=90 ;;
+   188|189|19[0-9]) o=91 ;;
+       20[0-9]|210) o=92 ;;
+   21[1-9]|22[0-3]) o=93 ;;
+   22[4-9]|23[0-6]) o=94 ;;
+   23[7-9]|24[0-9]) o=95 ;;
+               250) o=95 ;;
+           25[1-4]) o=96 ;;
+	       255) o=97 ;;
+		 *) o=1 ;;
+	esac
+	
+	echo -n "$o"
+}
+
+func_wifi_set_antenna_rx ()
+{
+	local WIFI_DEV="$1"
+	local ANTENNA="$2"
+	local VALUE
+
+	case "$ANTENNA" in
+		0) VALUE=0 ;;
+		1) VALUE=1 ;;
+		*) VALUE=-1 ;;
+	esac
+	
+	func_nvset wl0_antdiv "$VALUE"
+
+	# sysctl -w dev.wifi0.diversity=0		# only if not auto
+	# sysctl -w dev.wifi0.rxantenna="$VALUE"
+}
+
+func_wifi_set_antenna_tx ()
+{
+	local WIFI_DEV="$1"
+	local ANTENNA="$2"
+	
+	case "$ANTENNA" in
+		0) VALUE=0 ;;
+		1) VALUE=1 ;;
+		*) VALUE=-1 ;;
+	esac
+	
+	func_nvset wl0_txant "$VALUE"
+}
+
+func_wifi_get_antenna_rx ()
+{
+	local WIFI_DEV="$1"
+	local RX="$( nvram get wl0_antdiv )"
+
+	case $RX in
+		0) echo "0" ;;
+		1) echo "1" ;;
+		*) echo "auto" ;;
+	esac
+}
+
+func_wifi_get_antenna_tx ()
+{
+	local WIFI_DEV="$1"
+	local TX="$( nvram get wl0_txant )"
+
+	if [ "$TX" = "0" ] || [ "$TX" = "1" ]; then
+		echo "$TX"
+		return
+	fi
+
+	echo "auto"
+}
+
+func_wifi_get_all_devs ()	# one device per line
+{
+	sed -n 's/^ *\(.*\): [0-9]*.*/\1/p' /proc/net/wireless
+	#  sed -n 's/^ *\([^:]\+\):.*/\1/p' /proc/net/wireless	(sven-ola)
+}
+
+func_wifi_probe_mode_infrastructure ()
+{
+	[ "$(nvram get wl0_infra)" = "1" ] && return 0
+	return 1
+}
+
+func_wifi_probe_mode_ap ()
+{
+	[ "$(nvram get wl0_mode)" = "ap" ] && return 0		
+	return 1
+}
+
+func_wifi_get_mode ()		# OUT1: string
+{
+	if func_wifi_probe_mode_infrastructure ; then
+	
+		if func_wifi_probe_mode_ap ; then
+			echo 'ap'
+		else
+			echo 'client'	# fixme! output 'sta' or 'station' ?
+		fi
+	else
+		if func_wifi_probe_mode_ap ; then
+			echo 'unknown'	
+		else
+			echo 'adhoc'
+		fi
+	fi
+}
+
+func_wifi_scan_and_get_results ()
+{
+	local   FUNC="func_get_wifi_scan_results"
+	local   TEMP="/tmp/$FUNC"
+	local  INFRA="$( nvram get wl0_infra )"
+	local   MODE="$( nvram get wl0_mode  )"
+	local BEACON="$( nvram get wl0_bcn   )"
+	local CHANGE=0
+
+	[ "$INFRA" != "0" ] || [ "$MODE" != "sta" ] && {
+		logger "fff+ ($FUNC) switching to wifi-adhoc-mode"
+		nvram set wl0_infra=0
+		nvram set wl0_mode=sta
+		nvram set wl0_bcn=0
+		nvram set wl0_closed=1
+		wifi
+		sleep 1
+		CHANGE=1		
+	}
+
+	logger "fff+ ($FUNC) starting wifi-scan"
+	wl scan
+	sleep 2
+	wl scanresults >$TEMP
+
+	[ "$CHANGE" = "1" ] && {
+		logger "fff+ ($FUNC) switching back to normal wifi-mode"
+		nvram set wl0_infra="$INFRA"
+		nvram set wl0_mode="$MODE"
+		nvram set wl0_bcn="$BEACON"
+		nvram set wl0_closed=0	
+		wifi
+	}
+	
+	while read LINE; do {
+
+		echo "$LINE" | grep -q "^SSID: " && {
+			eval $( echo "$LINE" |
+			 sed -n 's/^SSID: .\(.*\)./\1/p' |			# fetch exact string
+		 	  sed 's/[^a-zA-Z0-9 _\.!~*()-@%&;"=]//g' |		# pseudo-safe-chars (normally all are allowed)
+			   sed -n "s/\(.*\)/SSID='\1';/p"			# print SSID='myssid';  (this is eval-able)
+			)
+			continue
+		}
+	
+		echo "$LINE" | grep -q "^Mode: " && {
+			eval $( echo "$LINE" |
+			 sed -n 's/Mode: \([a-zA-Z0-9 ]*\).*RSSI: \([-0-9]*\) dBm.*noise: \([-0-9]*\) dBm.*Channel: \([0-9]*\)/MODE="\1";RSSI="\2";NOISE="\3";CHANNEL="\4";/p'
+			)
+			continue
+		}
+	
+		echo "$LINE" | grep -q "^BSSID: " && {
+			eval $( echo "$LINE" |
+			 sed -n "s/BSSID: \(..:..:..:..:..:..\).*Capability: \(.*\)$/BSSID='\1';KEY='\2';/p"
+			)
+			continue
+		}
+
+		echo "$LINE" | grep -q "^Supported Rates: " && {
+			eval $( echo "$LINE" |
+			 sed -n "s/Supported Rates: \[ \(.*\) \]/RATESET='\1';/p"
+			)
+		
+			echo "BSSID=$BSSID;SSID='$SSID';CHANNEL=$CHANNEL;MODE=$( echo $MODE | sed -e 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvw/' -e 's/ //g' );RSSI=$RSSI;NOISE=$NOISE;RATESET='$RATESET';KEY='$KEY'"
+		}
+
+	} done	<$TEMP
+}

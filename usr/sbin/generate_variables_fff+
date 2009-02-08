@@ -1,0 +1,77 @@
+#!/bin/sh
+
+# ToDo:	- erstes WIFI-DEV in normaler Liste drinlassen
+#
+#	- OLSR_NEIGHS_COUNT=
+#	- OLSR_NEIGHS_COUNT_UNIQ=
+#
+#	- zaehlen: OLSR_NEIGH mit gutem ETX
+#	- 	   OLSR_NEIGH in Routentabelle, wenn DIFF, dann restart
+#	- ip monitor > muss innerhalb einer minute output liefern?
+#	               HASH auf routing-tabelle?
+#
+#	- LAN_OLSR_TRAF? -> change? ein/aus? -> pauschal starten mit, wenn kein TRAF,dann?
+#
+#	- OLSR_NEIGHS="IP1 IP2 IP3"
+#	- OLSR_NEIGH_IP_REMOTE=
+#	- OLSR_NEIGH_IP_LOCAL=
+#       - OLSR_NEIGH_MAC=
+#       - OLSR_NEIGH_ETX=
+#       - OLSR_NEIGH_LQ=
+#       - OLSR_NEIGH_NLQ=
+#       - OLSR_NEIGH_LQMUL=
+#
+#	- USER_MACS=
+#
+#	- RANDOM=
+#
+#	- netparam?
+#
+#	- INET=MESH,WAN,LAN,PPPOE,NONE/FALSE
+#	-      $DEFAULT_GATEWAY_IP (wechselt bei pppoe)
+#              over $xyANDEV (eth1, ppp0, vlan1, ...)
+#	-      hop2gw, etx2gx, gwnode, gw
+
+. /etc/functions_wifi_fff+
+
+func_start ()
+{
+	func_wifi_get_params
+	func_get_random_hex
+	func_get_cpu_load
+
+	cat /tmp/neverchanging_vars 2>/dev/null || {
+	
+		func_start_only_once_every_boot >/tmp/neverchanging_vars
+		cat /tmp/neverchanging_vars
+	}
+}
+
+func_start_only_once_every_boot ()
+{
+	func_get_sha1_fingerprint_dss_host_key
+	/rom/usr/bin/netparam
+}
+
+func_get_random_hex ()
+{
+	hexdump /dev/urandom | sed 's/^\(.*\) \(.*\).*/RANDOM=0x\2/;q'
+}
+
+func_get_cpu_load ()
+{
+	sed 's/\([0-9]*\)\.\([0-9]*\) \([0-9]*\)\.\([0-9]*\) \([0-9]*\)\.\([0-9]*\) .*/CPU_LOAD_AVG_1=\1\2\nCPU_LOAD_AVG_5=\3\4\nCPU_LOAD_AVG_15=\5\6/' /proc/loadavg
+}
+
+func_get_sha1_fingerprint_dss_host_key ()
+{
+	dropbearkey -y -f /etc/dropbear/dropbear_dss_host_key |
+	 sed -n 's/://g;s/Fingerprint .* \(.*\)/DSS_PUB_KEY_SHA1_FINGERPRINT=\1/p'
+}                                         
+
+func_get_mtu_and_mac_from_each_interface ()
+{
+	ip -oneline link show |
+	 sed -n 's/^[0-9]*: \([a-zA-Z0-9]*\):.* mtu \([0-9]*\) .*link\/ether \(..:..:..:..:..:..\) .*/MTU_\1=\2\nMAC_\1=\3/p'
+}
+func_start

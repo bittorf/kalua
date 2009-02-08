@@ -1,0 +1,41 @@
+func_http_sanitize_query_string ()
+{
+	[ "$REQUEST_METHOD" = "POST" ] && {		# fixme! allow also ':' (and '&') for dividing vars
+		read POST
+		[ -n "$POST" ] && QUERY_STRING="${QUERY_STRING:=TZ=}&${POST}"		# if method GET is unset, then writeout TZ=
+	}
+	
+	[ -z "$QUERY_STRING" ] && return
+
+	# 1) now we have joined POST+GET in one string 
+	# 2) special characters like %20 (space) must be decoded (httpd -d)
+	# 3) hide all single-quotes (') by escaping them from shell
+	# 4) delete all '&'/'$'-signs and append a single-quote + pipe to /dev/null + newline
+	# 5) now we have a de-serialized query-string and each line looks like
+	#    VARNAME=VALUE' >/dev/null 2>/dev/null;
+	# 6) replace the first equal-sign with =' , now we have in each line
+	#    VARNAME='VALUE' >/dev/null 2>/dev/null;
+	# 7) varname must only consist of [a-zA-Z0-9_-], all other things are deleted
+
+	/usr/sbin/httpd -d "$QUERY_STRING" |
+	 sed  -e "s/'/'\\\''/g" \
+	      -e "s/&/' >\/dev\/null 2>\/dev\/null;\n/g" \
+	      -e "s/$/' >\/dev\/null 2>\/dev\/null;\n/" |
+	  sed -n "s/^\([a-zA-Z0-9_-]*\)=\(.*\)/\1='\2/p"	# fixme! values cant have ? or & inside,
+	  							# because we first decode and then split
+
+	# here we do the same for our ENV-variables, so user can't overwrite/inject special vars
+	# hole output of this function can be used like:
+	#
+	# eval $(func_http_sanitize_query_string)
+
+	/usr/bin/env |
+	 sed -e "s/'/'\\\''/g" \
+	     -e "s/=/='/" \
+	     -e "s/$/' >\/dev\/null 2>\/dev\/null; /"
+}
+
+func_http_header_mime_output ()
+{
+	echo -en "Content-type: $1\n\n"		# ARG1 = e.g. text/html
+}

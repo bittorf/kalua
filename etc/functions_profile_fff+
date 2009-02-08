@@ -1,0 +1,749 @@
+# func_profile_get
+# func_cidr_to_netmask		-> muss in functions_network?
+# func_profile_set_config
+# func_profile_memorise_important_vars
+# func_profile_rebuild_cfe
+# func_profile_unset_nvram_group
+# func_profile_local_include_vars
+# func_profile_set_system
+# func_profile_set_contact
+# func_profile_set_wifi
+# func_profile_set_wifi_phy
+# func_profile_set_olsr
+# func_profile_set_fff_extensions
+# func_profile_set_packetfilter
+# func_profile_set_lan
+# func_profile_set_wan
+# func_profile_remap_devs
+# func_profile_mac_plus
+
+
+func_profile_get ()	# OUT1: string
+{
+	local FUNC="profile_get"
+	local PROFILE
+	local NODE_NUMBER_VAR="fff_node_number"
+	local PROFILE_VAR="fff_profile"
+	local PROFILE_SAFED="$( nvram get $PROFILE_VAR )"
+	local OUT="standard"
+	local MAC="$1"
+
+	[ ! -e $FRESHFLASH ] && {
+		func_log $FUNC daemon debug "detected freshflash"
+		
+		[ -n "$PROFILE_SAFED" ] && {
+			func_log $FUNC daemon debug "applying already safed profile again"
+			nvram get $PROFILE_VAR
+			return 1
+		}
+	}
+
+	[ -z "$PROFILE_SAFED" ] && {			# unset? -> set profile
+
+		func_log $FUNC daemon debug "is unset, probing capabilities"
+
+		PROFILE="$( func_profile_get_profile_for_mac $MAC )"
+
+		  if [ -n "$PROFILE" ]; then
+			
+			func_log $FUNC daemon debug "found mac2profile-entry: '$PROFILE'"
+			func_nvset $PROFILE_VAR 	"$( echo "$PROFILE" | sed -n 's/^..:..:..:..:..:.. \([a-zA-Z0-9_-]*\).*/\1/p' )"
+  	  		func_nvset $NODE_NUMBER_VAR 	"$( echo "$PROFILE" | sed -n 's/^..:..:..:..:..:.. [a-zA-Z0-9_]*[^0-9]*\([0-9]*\).*/\1/p' )"
+  	  	
+  	  	elif func_wifi_probe_feature 802.11a ; then
+  	  	
+  	  		func_nvset $PROFILE_VAR "standard_mesh_band_a"
+  	  	
+  	  	elif func_wifi_probe_feature 802.11g ; then
+			  
+			  if [ -z "$( nvram get fff_node_number )" ]; then
+
+			  	func_log $FUNC daemon debug "no node_number, totally virgin"
+			  	func_nvset $PROFILE_VAR "standard_mesh_band_g"
+			  	
+			elif [ "$(func_wifi_get_mode)" = "ap" ]; then
+		
+				func_log $FUNC daemon debug "device is in AP-mode"
+				func_nvset $PROFILE_VAR "standard_ap_band_g"
+			
+			elif [ "$(func_wifi_get_mode)" = "client" ]; then
+				
+				func_log $FUNC daemon debug "device is in STA-mode (client)"
+				
+				func_nvset $PROFILE_VAR "standard_mesh_band_g"
+				# func_nvset $PROFILE_VAR "standard_client_band_g"	# fixme! (needs some work...)
+			else
+				if [ "$( nvram get wl0_channel )" = "13" ]; then
+					func_log $FUNC daemon debug "device is not in AP or client-mode, but on Channel 13"
+					func_nvset $PROFILE_VAR "backbone_mesh_band_g"
+				else
+					func_log $FUNC daemon debug "device is not in AP or client-mode"
+					func_nvset $PROFILE_VAR "standard_mesh_band_g"
+				fi
+			fi
+		else
+			func_log $FUNC daemon debug "could'nt determine profile, fallback to g-mesh"
+			func_nvset $PROFILE_VAR "standard_mesh_band_g"
+		fi
+		
+		nvram get $PROFILE_VAR
+		return 1
+	}
+
+	nvram get $PROFILE_VAR
+	return 0
+}
+
+func_cidr_to_netmask ()		# OUT1: string		# fixme! rename to func_net_cidr2netmask()
+{
+	local o=0
+	
+	case $1 in
+		31) o=255.255.255.254 ;;
+		30) o=255.255.255.252 ;;
+		29) o=255.255.255.248 ;;
+		28) o=255.255.255.240 ;;
+		27) o=255.255.255.224 ;;
+		26) o=255.255.255.192 ;;
+		25) o=255.255.255.128 ;;
+		24) o=255.255.255.0 ;;
+		23) o=255.255.254.0 ;;
+		22) o=255.255.252.0 ;;
+		21) o=255.255.248.0 ;;
+		20) o=255.255.240.0 ;;
+		19) o=255.255.224.0 ;;
+		18) o=255.255.192.0 ;;
+		17) o=255.255.128.0 ;;
+		16) o=255.255.0.0 ;;
+		15) o=255.254.0.0 ;;
+		14) o=255.252.0.0 ;;
+		13) o=255.248.0.0 ;;
+		12) o=255.240.0.0 ;;
+		11) o=255.224.0.0 ;;
+		10) o=255.192.0.0 ;;
+		 9) o=255.128.0.0 ;;
+		 8) o=255.0.0.0 ;;
+		 7) o=254.0.0.0 ;;
+		 6) o=252.0.0.0 ;;
+		 5) o=248.0.0.0 ;;
+		 4) o=240.0.0.0 ;;
+		 3) o=224.0.0.0 ;;
+		 2) o=192.0.0.0 ;;
+		 1) o=128.0.0.0 ;;
+		 *) o=255.255.255.255 ;;
+	esac
+	
+	echo -n $o
+}
+
+func_profile_set_config ()
+{
+	unset BSSID	# /etc/variables_fff+
+	unset ESSID	# /etc/variables_fff+
+	unset CHANNEL	# /etc/variables_fff+
+
+	local FUNC="profile_set_config"
+	local PROFILE="$1"			# e.g. weimarnetz_standard
+	local NODE_ID="$2"			# e.g. 422 or 69-7
+
+	[ -z "$NODE_ID" ] && NODE_ID="$( nvram get fff_node_number )"		# maybe known?
+
+	func_profile_map_name $PROFILE >/dev/null && {
+		PROFILE="$( func_profile_map_name $PROFILE )"
+	}
+
+	func_log $FUNC daemon debug "applying profile '$PROFILE' / nodeID: '$NODE_ID'"
+
+	pidof crond >/dev/null && {
+		func_log $FUNC daemon debug "discontinue cron.minutely checks for 300 seconds"
+		
+		echo "rm \$0; sleep 300" >/tmp/.autorun
+		chmod +x /tmp/.autorun
+		sleep 3
+	}
+
+	func_profile_nvram_make_backup
+	func_profile_memorise_important_vars $NODE_ID
+	func_profile_unset_nvram_group
+	func_profile_rebuild_cfe	
+	func_profile_remap_devs
+	
+	func_profile_set_$PROFILE $NODE_ID
+
+	func_profile_memorise_important_vars restore
+
+	# fixme! this means, we can't enforce this variable in profile 8-(
+	if [ -z "$(nvram get ff_adm_neturl)" ] || nvram get ff_adm_neturl | grep -q "wireless.subsignal.org" ; then
+		func_nvset ff_adm_neturl "<big><a href=http://wireless.subsignal.org>http://wireless.subsignal.org</a> - der Weimarer Freifunk Anlaufpunkt - Telefon:&nbsp;<b>03643&nbsp;/&nbsp;544304</b></big>"
+	fi
+
+	func_profile_count_used_nvram_vars
+
+	func_nvset commit
+}
+
+func_profile_nvram_make_backup ()
+{
+	local FUNC="profile_nvram_make_backup"
+	local TEMP="/tmp/nvram_backup"
+	local BACKUP="/www/backup_nvram_$( ls -l /www/backup_nvram_* /bin/sh 2>/dev/null | sed -n '$=' ).sh.gz"		# /bin/sh for +1
+
+	func_log $FUNC daemon debug "writing '$BACKUP'"	
+
+	echo "# in case of emergency, simply run this file with 'sh file.sh'" >"$TEMP"
+
+	nvram show 2>/dev/null |
+	 sort |
+	  sed "s/'/'\\\''/g" |
+	   sed -n "s/^\([a-zA-Z0-9_-]*\)=\([A-Za-z0-9<>_\.-].*\)/nvram set \1='\2'/p" >>"$TEMP"
+
+	echo "echo 'dont forget an \"nvram commit\" to save changes...'" >>"$TEMP"
+
+	cat "$TEMP" | gzip -c >>"$BACKUP"
+	rm  "$TEMP"
+}
+
+func_profile_count_used_nvram_vars ()
+{
+	local FUNC="profile_count_used_nvram_vars"
+	local COUNT="$( nvram show 2>/dev/null | sed -n '/^[a-zA-Z0-9_\.-]*=[A-Za-z0-9<>_-].*/p' | wc -l )"
+	
+	func_log $FUNC daemon debug "$COUNT"
+}
+
+func_profile_memorise_important_vars ()
+{
+	local FUNC="profile_memorise_important_vars"
+	
+	[ "$1" = "restore" ] && {
+		func_log $FUNC daemon debug "restoring '/tmp/${FUNC}_*'"
+		
+		.  /tmp/profile_memorise_important_vars_*
+		rm /tmp/profile_memorise_important_vars_*
+		
+		func_log $FUNC daemon debug "restored"
+		return
+	}
+	
+	local VARGROUP=""
+	local TEMP="/tmp/${FUNC}_$$"
+	local LIST="fff_profile fff_ethers_ fff_sms_ fff_autofwupdate fff_portfw fff_mail_ fff_node_number"
+	      LIST="$LIST fff_vpnc_ fff_dhcp_ignore"	# fixme! fff_adblock fff_nosplash? ff_ipkg?
+	      LIST="$LIST ff_adm_ ff_reset ff_nameservice ff_secureadmin_ ff_dsskey ff_pw lan_hwaddr wan_hwaddr wifi_hwaddr"
+	      LIST="$LIST ppp_ wifi_gateway wan_gateway lan_gateway wan_hostname"
+
+	case "$(nvram get wan_proto)" in
+		pppoe|dhcp)
+			LIST="$LIST wan_proto"
+		;;
+	esac
+
+	[ "$(func_wifi_get_mode)" = "client" ] && {					# fixme! (master-mode too?!)
+		LIST="$LIST wl0_infra wl0_mode wl0_ssid wl0_channel wifi_proto"
+	}
+
+	[ "$(func_wifi_get_mode)" = "master" ] && {
+		[ -n "$(nvram get fff_profile)" ] && {
+			nvram get wl0_ssid | grep -i -q "weimar" || {			# fixme! (dirty hack)
+				LIST="$LIST wl0_ssid"
+			}
+		}
+	}
+
+	eval $(func_ipsystem_weimar $1)
+	
+	[ -n "$(nvram get lan_gateway)" ] && {
+	
+		if [ "$(nvram get lan_gateway)" = "0.0.0.0" ]; then
+			func_log $FUNC daemon debug "removing senseless DD-WRT(?) entry"
+			func_nvset lan_gateway
+		else
+			[ "$LAN_ADR" != "$( nvram get lan_ipaddr)" ] && {		# static alien LAN ip-addr/netmask
+				LIST="$LIST lan_ipaddr lan_netmask"
+			}
+		fi
+	}
+
+	[ -n "$(nvram get wan_gateway)" ] && {
+		[ "$WAN_ADR" != "$( nvram get wan_ipaddr)" ] && {		# static alien WAN ip-addr/netmask
+			LIST="$LIST wan_ipaddr wan_netmask"
+		}
+	}
+
+	[ -n "$(nvram get wifi_gateway)" ] && {
+		[ "$WIFI_ADR" != "$( nvram get wifi_ipaddr)" ] && {		# static alien WIFI ip-addr/netmask
+			LIST="$LIST wifi_ipaddr wifi_netmask"
+		}
+	}
+
+
+	# inetoffer or specials (e.g. olsr over wifi-client)
+	#
+	# OK?    - lan, simple, static gateway					= lan_gateway
+	# OK?    - lan, own static network/mask/gateway (not ip-system)		= lan_ipaddr/netmask/gateway
+	# OK?    - lan, alien gateway (=2nd ip, with DHCP)			= lan_gateway
+	
+	# OK?    - wan, dhcp
+	# OK?    - wan, simple, static gateway					= wan_gateway
+	# OK?    - wan, own static network/mask/gateway (not ip-system)		= wan_ipaddr/netmask/gateway
+	# OK?    - wan, pppoe							= wan_proto/mtu, ppp_redialperiod/idletime/username/passwd
+	
+	# OK?    - wifi, mode:client+specific essid				= wl0_infra/mode/ssid/channel, wifi_proto
+	# OK?    - wifi, mode:client+specific essid simple, static gateway	= wl0_infra/mode/ssid/channel, wifi_proto/gateway
+	# fixme! - wifi, mode:client+specific essid,static, only alien gateway	= ?
+	# OK?    - wifi, mode:client+specific essid
+	#		 own static network/mask/gateway (not ip-system)	= wl0_infra/mode/ssid/channel, wifi_proto/gateway/ipaddr/netmask
+	
+	# fixme! - vpnc?
+	#
+
+
+	func_log $FUNC daemon debug "writing to $TEMP"	
+
+	for VARGROUP in $LIST; do {
+		nvram show 2>/dev/null |
+		 grep ^$VARGROUP |
+		  sed "s/'/'\\\''/g" |
+		   sed -n "s/^\([0-9a-zA-Z_\.-]*\)=\(.*\)/func_nvset \1 '\2'/p"
+	} done >$TEMP
+}
+
+func_profile_rebuild_cfe ()
+{
+	local FUNC="profile_rebuild_cfe"
+	local TEMP="/tmp/cfe_rebuild_$$"
+
+	func_log $FUNC daemon debug "extracting cfe"
+	
+	strings /dev/mtd/0ro |
+	 sed '/^[0-9a-fA-F][0-9a-fA-F]:/,$d'|
+	  sed -n '/^.*=[^%].*/p' |
+	   sed -n "s/^\([a-zA-Z][a-zA-Z0-9_\.-]*\)=\(.*\)$/func_nvset \1 '\2' ;/p" >$TEMP
+
+	func_log $FUNC daemon debug "applying values"
+
+	. $TEMP
+	rm $TEMP
+}
+
+func_profile_unset_nvram_group ()	# empty ARG1 = all (!)
+{
+	local FUNC="profile_unset_nvram_group"
+	local SIZE_COUNTER=0
+	local GROUP="$1"		# e.g. lan_
+	local TEMP="/tmp/${FUNC}_$$"
+	local VAR=""
+	local LIST="$( nvram show 2>$TEMP | sort | sed -n "s/^\($GROUP[0-9a-zA-Z_\.-]*\)=.*$/\1/p" )"	# 2> is the output 'used 5286 bytes'
+	local SIZE_DIFF=0
+	local SIZE_AFTER=0
+	local SIZE_BEFORE="$( cut -d" " -f2 $TEMP )"
+	
+	[ -z "$GROUP" ] && func_log $FUNC daemon debug "trying to erase hole nvram"
+	
+	func_log $FUNC daemon debug "used nvram: $SIZE_BEFORE bytes"
+	
+	for VAR in $LIST; do {
+		SIZE_COUNTER=$(( $SIZE_COUNTER + 1 + ${#VAR} + $( nvram get "$VAR" | wc -c ) ))
+		func_nvset "$VAR" ""
+	} done
+	
+	func_log $FUNC daemon debug "calculated freed bytes: $SIZE_COUNTER"
+	
+	nvram show >/dev/null 2>$TEMP
+	SIZE_AFTER="$( cut -d" " -f2 $TEMP )"
+	
+	func_log $FUNC daemon debug "used nvram: $SIZE_AFTER bytes"
+
+	SIZE_DIFF=$(( $SIZE_BEFORE - $SIZE_AFTER ))
+
+	[ $SIZE_DIFF -ne $SIZE_COUNTER ] && {
+		func_log $FUNC daemon debug "calculated freed bytes != real freed ($SIZE_COUNTER != $SIZE_DIFF)"
+	}
+
+	if [ -z "$GROUP" ] && [ $SIZE_AFTER -ne 0 ]; then
+		func_log $FUNC daemon debug "could not delete all variables"
+		
+		nvram show 2>/dev/null | sed 's/[^a-zA-Z0-9_:><@-]/\./g' >$TEMP		# replace non-printable chars to dots
+		
+		SIZE_BEFORE=0
+		while read LIST; do {
+			SIZE_BEFORE=$(( $SIZE_BEFORE + 1 ))		# now count+log each line
+			func_log $FUNC daemon debug "trashline $SIZE_BEFORE: '$LIST'"
+		} done <$TEMP
+		
+		if [ $SIZE_BEFORE -eq 0 ]; then
+			func_log $FUNC daemon debug "but nvram database seems to be empty"
+		else
+			func_log $FUNC daemon debug "writing backup with $SIZE_BEFORE lines to '/www/uneraseable_nvram.txt'"
+			nvram show 2>/dev/null >/www/uneraseable_nvram.txt
+		fi
+	fi
+
+	rm $TEMP
+}
+
+func_profile_local_include_vars ()
+{
+	local VAR
+
+	while [ -n "$1" ]; do {			# fixme! todo: escape "'"
+	
+		VAR="$( echo "$1" | sed -n "s/^\(.*\)=\(.*\)$/\1='\2'/p" )"	# hello=world c -> hello='world c'
+	
+		echo "local $VAR 2>/dev/null >/dev/null ;"
+	
+		shift
+	} done
+}
+
+func_profile_set_system ()
+{
+	local TEMP_TZ="$TZ"; unset TZ
+	eval $(func_profile_local_include_vars "$@")
+
+	[ -n "$PASS"     ] && func_nvset ff_pw        "$( httpd -m "$PASS" )"	# must be plaintext
+	[ -n "$HOSTNAME" ] && func_nvset wan_hostname "$HOSTNAME"		# e.g. my-router
+	[ -n "$DOMAIN"   ] && func_nvset wan_domain   "$DOMAIN"			# e.g. olsr
+	[ -n "$DNS"      ] && func_nvset wan_dns      "$DNS"			# e.g. 141.1.1.1
+	[ -n "$TZ"       ] && func_nvset ff_tz        "$TZ"			# standard timezone-string
+	[ -n "$REPOS"    ] && func_nvset ff_ipkg      "$REPOS"			# src freifunk http://download.berlin.freifunk.net/ipkg/packages;src weimarnetz http://www.weimarnetz.de/ipkg/packages 
+
+	[ -n "$DEFAULTS" ] && {
+		func_nvset boot_wait "on"		# for safe TFTP, is also hard set in /etc/preinit
+		func_nvset ff_dnsmasq "1"		# start DNSmasq-daemon -> 1/0
+		func_nvset ff_mini_fo "1"		# rom-overlay filesystem
+		func_nvset ff_nonetmsg "0"		# not udp-netmessages during bootstrapping
+		func_nvset ff_unsecure_webadmin "1"	# HTTPS enforced for /www/cgi-bin/ ?
+	}
+	
+	TZ="$TEMP_TZ"
+}
+
+func_profile_set_contact ()	# OK
+{
+	eval $(func_profile_local_include_vars "$@")
+	
+	[ -n "$LOCATION"] && func_nvset ff_adm_loc	"$LOCATION"
+	[ -n "$MAIL"    ] && func_nvset ff_adm_mail	"$MAIL"
+	[ -n "$PHON"    ] && func_nvset ff_adm_tel	"$PHON"
+	[ -n "$NOTE"    ] && func_nvset ff_adm_note	"$NOTE"
+	[ -n "$LAT"     ] && func_nvset ff_adm_latlon	"${LAT};${LON}"
+	[ -n "$URL"	] && func_nvset ff_adm_neturl	"$URL"
+}
+
+func_profile_set_wifi ()	# OK
+{
+	eval $(func_profile_local_include_vars "$@")
+	
+	[ -n "$IP" ] && {
+		func_nvset wifi_proto	"static"
+		func_nvset wifi_ipaddr	"${IP%/*}"
+		func_nvset wifi_netmask "$( func_cidr_to_netmask ${IP#*/} )"	# 8 -> 255.0.0.0
+	}
+
+	[ -n "$DHCP" ] && {
+		# DHCP="STARTIP/PRE,NUM,LEASETIME" -> DHCP="${WIFI_IP_1ST}/${WIFI_PRE},${WIFI_MASK}"
+		func_nvset ff_wldhcp "$(echo $DHCP|sed -n 's/^\(.*\),.*,.*/\1/p'),$( func_cidr_to_netmask $(echo $DHCP|sed -n 's/^.*\/\(.*\),.*,.*/\1/p'))"
+	}
+
+	[ -n "$PROTO"	 ] && func_nvset wifi_proto 	"$PROTO"
+	[ -n "$DEFAULTS" ] && func_nvset ff_mtu 	"1500"		# checkit
+}
+
+func_profile_set_wifi_phy ()
+{
+	eval $(func_profile_local_include_vars "$@")
+
+	case "$MODE" in
+		adhoc)
+			func_nvset wl0_mode "sta"
+			func_nvset wl0_infra "0"
+			[ -n "$BSSID" ] && func_nvset ff_bssid "$BSSID"
+			func_nvset wl0_closed 0
+			func_nvset ff_noprobe 1		# freifunk/ff-special
+		;;
+		ap|master|offer)
+			func_nvset wl0_mode "ap"
+			func_nvset wl0_infra "1"
+			func_nvset wl0_closed 0
+		;;
+		managed|client)
+			func_nvset wl0_mode "sta"
+			func_nvset wl0_infra "1"
+		;;
+	esac
+
+	[ -n "$CHANNEL" ] && {
+		if [ $CHANNEL -lt 15 ]; then
+			func_nvset wl0_phytype "g"
+		else
+			func_nvset wl0_phytype "a"
+		fi
+	
+		func_nvset wl0_channel "$CHANNEL"
+	}
+
+	[ -n "$DEFAULTS" ] && {
+		func_nvset ff_txpwroverride	"1"		# http://wireless.subsignal.org/index.php?title=SvenOlaTuecke-Mail2007sep12-sendeleistung%2Ceinheiten%2Cwl%2Cwifi%2Cbroadcom
+		func_nvset pa0maxpwr		"0x48"		# http://wireless.subsignal.org/index.php?title=SvenOlaTuecke-Mail2007sep12-sendeleistung%2Ceinheiten%2Cwl%2Cwifi%2Cbroadcom
+		func_nvset wl0_country_code 	"DE"		# contry-code madwifi? ALL?
+		func_nvset wl0_radio 		"1"		# 0 = wifi_off
+		func_nvset wl0_antdiv		"0"		# antenna A
+		func_nvset wl0_txant		"0"		# antenne A
+		func_nvset wl0_rateset		"default"
+		func_nvset wl0_rate		"0"		# 0=auto, 1000000 = 1mbit
+		func_nvset wl0_bcn 		"100"		# beacon rate [100 = 10/s] default=100
+		func_nvset wl0_frag		"2346"		# frag-threshold ("schwelle")
+		func_nvset wl0_rts		"2347"		# rts-threshold ("schwelle")
+		func_nvset wl0_txpwr		"60"		# [1/4 dBm = qdBm]
+		func_nvset wl0_gmode_protection "off"		# CTS on/off
+		func_nvset wl0_frameburst	"off"		# on/off
+		func_nvset wl0_gmode		"0"		# 0 = Bonly/LegacyB, 1 = Auto/B&G, 2 = Gonly, 3 = BDeferred,
+								# 4 = performanceG, 5 = LRS , 6 = Afterburner
+								# http://wireless.subsignal.org/index.php?title=WLAN-Optimierung
+	}
+	
+	[ -n "$ESSID"    ] && func_nvset wl0_ssid        "$ESSID"
+	[ -n "$TXPOWER"  ] && func_nvset wl0_txpwr       "$TXPOWER"      # [1/4 dBm = qdBm]
+	[ -n "$BEACON"   ] && func_nvset wl0_bcn         "$BEACON"       # beacon rate [100 = 10/s] default=100
+	[ -n "$MRATE"    ] && func_nvset wl0_mrate       "$MRATE"        # default = 5500000
+	[ -n "$RTS"      ] && func_nvset wl0_rts         "$RTS"          # 2347 = off = empty
+	[ -n "$FRAG"     ] && func_nvset wl0_frag        "$FRAG"         # 256...2346
+	[ -n "$DISTANCE" ] && func_nvset wl0_distance    "$DISTANCE"     # for ACK-Timing, [meter], normal 2000 // fixme! (needs some research)
+	[ -n "$PREAMBLE" ] && func_nvset wl0_plcphdr     "$PREAMBLE"     # short/long=auto
+	[ -n "$GMODE"    ] && func_nvset wl0_gmode       "$GMODE"	 # needs more abstraction
+}
+
+func_profile_set_olsr ()
+{ 
+	eval $(func_profile_local_include_vars "$@")
+
+	[ -n "$DEFAULTS" ] && {
+		func_nvset ff_hna4 	  "$OLSR_HNA"
+		func_nvset ff_qos	  "2"			# hysteresis or LQ?
+		func_nvset ff_policyrt	  "0"			# 1 = my gateway only for me
+		func_nvset ff_arprefresh  "1"
+		func_nvset ff_nameservice "1"
+		func_nvset ff_httpinfo	  "1"
+		func_nvset ff_olsrspeed	  "5"
+		func_nvset ff_dijklim
+		func_nvset ff_fisheye  	  "1"
+		func_nvset ff_ip4broad 	  "255.255.255.255"
+		func_nvset ff_ping
+		func_nvset ff_service
+		func_nvset ff_bmf
+		func_nvset ff_lqmult
+		func_nvset ff_will
+	}
+}
+
+func_profile_set_fff_extensions ()	# OK
+{
+	eval $(func_profile_local_include_vars "$@")
+
+	[ -n "$DEFAULTS" ] && {
+		func_nvset fff_menu 		"full" 		# "switch between 'simply', 'expert' and 'full' menu"
+		func_nvset fff_adblock 		"true"		# "zero/true|off/false"
+		func_nvset fff_node_number 	"$NODE_NUMBER"
+		func_nvset fff_autofwupdate 	"stable"	# "zero/stable|testing|beta"
+	}
+}
+
+func_profile_set_packetfilter ()	# OK
+{
+	eval $(func_profile_local_include_vars "$@")
+
+	[ "$FIREWALL" = "off" ] && {
+		func_nvset ff_wanssh "1"
+		func_nvset ff_wanhttp "1"
+		func_nvset ff_wanicmp "1"
+		func_nvset fw_disable "1"
+	}
+
+	[ -n "$IGNORE" ] && func_nvset ff_ign "$IGNORE"
+
+	[ "$NAT" = "off" ] && {
+		func_nvset ff_nonat "1"
+	}
+}
+
+func_profile_set_lan ()		# OK
+{
+	eval $(func_profile_local_include_vars "$@")
+		
+	[ -n "$IP" ] && {
+		func_nvset lan_proto	"static"
+		func_nvset lan_ipaddr	"${IP%/*}"
+		func_nvset lan_netmask	"$( func_cidr_to_netmask ${IP#*/} )"	# 27 -> 255.255.255.224
+	}
+
+	[ -n "$DHCP" ] && {	# DHCP="STARTIP/PRE,NUM,LEASETIME"
+	
+		func_nvset dhcp_start 	"$(echo $DHCP|sed -n 's/^.*\.\([0-9]*\)\/.*/\1/p')"	# e.g. '98' (octett4)
+		func_nvset dhcp_num	"$(echo $DHCP|sed -n 's/^.*,\([0-9]*\),.*/\1/p')"	# e.g. '29' (how much?)
+		func_nvset dhcp_lease   "$(echo $DHCP|sed -n 's/^.*,.*,\(.*\)/\1/p')"		# e.g. '2h' (leasetime)
+	}
+	
+	[ -n "$PROTO" ] && func_nvset lan_proto    "$PROTO"
+	[ -n "$GW"    ] && func_nvset lan_gateway  "$GW"
+	[ -n "$MAC"   ] && func_nvset lan_hwaddr   "$MAC"
+	[ -n "$ROUTE" ] && func_nvset static_route "$ROUTE" 	# ->S40network
+}
+
+func_profile_set_wan ()		# OK
+{
+	eval $(func_profile_local_include_vars "$@")
+	
+	[ -n "$IP" ] && {
+		func_nvset wan_proto	"static"
+		func_nvset wan_ipaddr	"${IP%/*}"				# 172.16.254.253
+		func_nvset wan_netmask	"$( func_cidr_to_netmask ${IP#*/} )"	# 255.255.255.252
+	}
+	
+	[ -n "$MTU"   ] && func_nvset wan_mtu		"$MTU"		# for pppoe
+	[ -n "$GW"    ] && func_nvset wan_gateway	"$GW"
+	[ -n "$PROTO" ] && func_nvset wan_proto 	"$PROTO"	# DHCP, pppoe
+}
+
+func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-boardtype/ifnames (and vicaversa) only at one point
+{				# func_profile_remap_devs <empty> or	-> function calls himself with interface-values
+				# func_profile_remap_devs get_model	-> function outputs only vendor/model
+
+	local FUNC="profile_remap_devs"
+	local NEW_MAC
+
+	[ "$8" = "get_model" ] && {
+		echo "ROUTER_VENDOR='${10}';ROUTER_MODEL='${11}';ROUTER_NO='$9'"
+		return
+	}
+
+	[ -z "$8" ] && {
+		local PHYADDR="$( nvram get et0phyaddr )"
+		local BOARDNUM="$( nvram get boardnum )"
+		local BOARDTYPE="$( nvram get boardtype | sed 's/^0x[0]*//' )"		# 0x0467 -> 467
+		local BOARD="${PHYADDR}_${BOARDTYPE}_${BOARDNUM}"
+		
+		case "$BOARD" in 
+			"30_467_00")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "0" "Buffalo" "WHR-HP-G54" ;;
+			"30_467_42")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "3 2 1 0 5*"   "4 5" $1 "1" "Linksys" "WRT-54-GL" ;;
+			"30_708_42")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "2" "Linksys" "WRT-54-G v3.0" ;;
+			"30_101_42")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "3" "Linksys" "WRT-54-G v2.0" ;;
+			"30_42f_45")		func_$FUNC "vlan0" "br0" "eth2" "eth2" "vlan1" "1 2 3 4 5*"   "0 5" $1 "4" "Asus"    "500g premium" ;;											
+			"30_101_")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "0 1 2 3 5*"   "4 5" $1 "5" "Siemens" "SE505 v2" ;;
+			 "0_bcm94710r4_100")	func_$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  ""             ""    $1 "6" "Siemens" "SE505 v1" ;;						
+			"30_bcm94710dev_42")	func_$FUNC "vlan2" "br0" "eth2" "eth2" "vlan1" ""             ""    $1 "7" "Allnet"  "0277" ;;
+			"30_bcm94710ap_44")	func_$FUNC "eth0" "eth0" "eth2" "eth2" "eth1"  "0 1 2 3 4 5u" ""    $1 "8" "Dell"    "Truemobile 2300" ;;
+			 "0_bcm94710dev_asusX")	func_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "9" "Asus"    "WL-HDD (Yakumo_Storage)" ;;
+			"30_bcm94710dev_2")	func_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "A" "Linksys" "WAP v1.0" ;;
+			*)
+				[ "$1" = "get_model" ] && {
+					echo "ROUTER_VENDOR='unknown';ROUTER_MODEL='unknown'"
+					return
+				}
+				
+				func_log $FUNC daemon debug "unknown vendor/model"
+			;;
+		esac
+	
+		return
+	}
+
+	func_log $FUNC daemon debug "vendor/model/no: '${9}' / '${10}' / '${8}'"
+
+	# fixme! convert all macs to lowercase?
+
+	case $8 in
+		1|2|3)	# WRT-54-GL / G3.0 / G2.0
+			# factory (G3.0)
+			# et0macaddr=00:90:4C:60:00:2A
+			# il0macaddr=00:90:4c:5f:00:2a
+		
+			NEW_MAC="$( strings /dev/mtd/0ro | grep ".*..:..:..:..:..:...*" | tail -n1 )"
+			func_nvset  lan_hwaddr "$NEW_MAC"							# +0 = lan
+			func_nvset wifi_hwaddr "$( func_profile_mac_plus $(func_profile_mac_plus $NEW_MAC) )"	# +2 = wifi
+			
+			func_nvset  il0macaddr $(nvram get wifi_hwaddr)		# il0macaddr <= wifi_hwaddr 
+			func_nvset  et0macaddr "$NEW_MAC"			# et0macaddr <=  lan_hwaddr
+			
+			[ -z "$(nvram get wan_hwaddr)" ] && {
+				func_nvset  wan_hwaddr "$( func_profile_mac_plus $NEW_MAC )"			# +1 = wan
+			}
+		;;
+		4)	# asus wl-500g premium
+			#
+			# et0macaddr=00:1d:60:46:97:09 (which is individual)
+			# et1macaddr=40:10:18:00:00:2d (is default, and used by the ETHERNET_PHY = eth1)
+			#
+			# example of correct values for an router with original wifi-card (sadly, no relation between values)
+			# wifi_hwaddr=00:1d:60:46:81:83
+			#  lan_hwaddr=00:1d:60:46:97:09
+			#
+			# if wifi-card is changed, there is no need to set wifi_hwaddr,
+			# but if wifi-card is original, then wifi_mac=lan_mac !!!	// we have to test this
+			
+			func_log $FUNC daemon debug "fixme! if wifi-card is original, you have to set wifi_hwaddr"	
+			
+			# func_nvset lan_hwaddr $(nvram get et0macaddr)
+		;;
+		8)	# dell2300				// fixme! idea: if wifi is up, apply ($WIFIMAC - 2) to LAN
+			# factory-settings:
+			# et0macaddr=00:90:4c:49:00:2c
+			# et1macaddr=00:90:4c:4a:00:2c
+			
+			[ -n "$(nvram get wan_hwaddr)" ] && func_nvset wan_hwaddr		# its not possible to set wan_hwaddr!
+			
+			if [ "$( func_lowercase "$(nvram get et1macaddr)" )" != "00:90:4c:4a:00:2c" ]; then
+				[ "$(nvram get et1macaddr)" != "(nvram get lan_hwaddr)" ] && {
+					func_nvset lan_hwaddr "$(nvram get et1macaddr)"
+				}
+			else
+				# et0macaddr=...wifi?...doesnt matter, is automatically set correctly
+				# et1macaddr=00:90:4b:39:7b:5e
+				# lan_hwaddr=00:90:4b:39:7b:5e
+			
+				func_log $FUNC daemon crit "must be set manually: It is the mac on the back/downside in the middle, near barcode -2"
+				func_log $FUNC daemon crit "use this commands: 'mymac=00:90:4b:39:7b:5e ; nvram set et1macaddr=\$mymac'"
+				func_log $FUNC daemon crit "and: 'nvram set lan_hwaddr=\$mymac ; nvram commit ; reboot'"
+			fi
+		;;
+		9)
+			# Asus WL-HDD / Yakumo Storage
+			# eth0macaddr     =>  lan_hwaddr
+			# eth0macaddr + 3 => wifi_hwaddr = lan_hwaddr (2c + 3 =2f)
+			func_log $FUNC daemon debug "no mac setting needed"
+		;;
+	esac
+
+	local LIST="lan_ifnames lan_ifname wl0_ifname wifi_ifname wan_ifname vlan0ports vlan1ports" # + wan_device=wan_ifname?
+	local CHANGE=""
+	local ENTRY=""
+	local VALUE=""
+	local ARG_NUM=0
+	
+	for ENTRY in $LIST ; do {
+		ARG_NUM=$(( ARG_NUM + 1 ))
+		eval "VALUE=\"\$${ARG_NUM}\""			# get arg_1...2...n in $VAR
+		func_nvset "$ENTRY" "$VALUE" || CHANGE="true"
+	} done
+	
+	[ -n "$CHANGE" ] && return 1
+}
+
+func_profile_mac_plus ()
+{
+	local MAC="$( echo $1 | sed 'y/ABCDEF/abcdef/' )"	# lowercase
+	local MAC_LAST_BYTE="$( echo $MAC | cut -b 17 )"
+	local MAC="$( echo $MAC | cut -b 1-16 )"
+
+	MAC_LAST_BYTE="$( echo $MAC_LAST_BYTE | sed 'y/0123456789abcdef/zyxwvutsrqonmlkj/' | sed 'y/zyxwvutsrqonmlkj/123456789abcdef0/' )"
+
+	[ "$MAC_LAST_BYTE" = "0" ] && {				# cf + 1 = d0 !
+		MAC_LAST_BYTE="$( echo $MAC | cut -b 16 )"
+		MAC_LAST_BYTE="$( echo $MAC_LAST_BYTE | sed 'y/0123456789abcdef/zyxwvutsrqonmlkj/' | sed 'y/zyxwvutsrqonmlkj/123456789abcdef0/' )"
+		MAC="$( echo $MAC | cut -b 1-15 )"
+		echo "${MAC}${MAC_LAST_BYTE}0"
+		return
+	}
+	
+	echo "${MAC}${MAC_LAST_BYTE}"
+}

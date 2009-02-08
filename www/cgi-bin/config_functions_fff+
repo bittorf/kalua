@@ -1,0 +1,449 @@
+func_config_process_form_select_profile ()
+{
+	local IP
+	local PRE
+	local INTERFACE
+	
+	echo "<h2>Schnelleinstellung</h2>"
+		
+	[ -z "$FORM_FWUPDATE" ] && FORM_FWUPDATE="stable"
+	[ "$( nvram get fff_profile )" != "$FORM_PROFILE" ]    && APPLY_PROFILE=1
+	[ "$( nvram get fff_node_number )" != "$FORM_NODEID" ] && APPLY_PROFILE=1
+		
+	. /etc/functions_nvram_fff+
+	func_nvset fff_node_number  "$FORM_NODEID"
+	func_nvset fff_profile      "$FORM_PROFILE"
+	func_nvset fff_autofwupdate "$FORM_FWUPDATE" 
+		
+	[ "$APPLY_PROFILE" = "1" ] && {
+		touch /tmp/DEBUG		# dirty, but doesnt matter, we reboot anyway
+			
+		scheduler -p -a	"/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile"
+		func_config_print_ready_for_applying_new_profile "$FORM_PROFILE" "$FORM_NODEID"
+	}
+		
+	echo "<br>Der Modus f&uuml;r die Software-Aktualisierung ist nun: '$FORM_FWUPDATE'"
+	echo "<br>Bitte darauf achten, das die Kontakt-Informationen mit sinnvollen Werten gef&uuml;llt werden."
+	echo "<br><br>Wenn du dem Freifunk-Netz deinen eigenen Internetzugang zur<br>"
+	echo "Verf&uuml;gung stellen m&ouml;chtest und dies bisher noch nicht getan hast,<br>"
+		
+	if [ "$APPLY_PROFILE" = "1" ]; then
+		echo "kannst du das erst nach dem selbstst&auml;ndigem Neustart tun."
+		echo "<br><br>Dieses Ger&auml;t mit der Knotennummer '$FORM_NODEID' ist dann unter folgenden Adressen erreichbar:<br>"
+	
+		. /etc/functions_profile_fff+
+		. /etc/functions_profile_user_fff+
+		eval $(func_ipsystem_weimar $FORM_NODEID)
+	
+		for INTERFACE in LAN WAN WIFI; do {
+			eval "IP=\"\$${INTERFACE}_ADR\""
+			eval "PRE=\"\$${INTERFACE}_PRE\""
+			echo "<br>Netzwerkkarte: '$INTERFACE' hat IP-Adresse $IP mit Netzmaske $( func_cidr_to_netmask $PRE ) (CIDR: /$PRE)" 
+		} done
+		
+		echo "<br>oder unter 'http://$( nvram get wan_hostname)'.<br>"
+	else
+		echo "kannst du das nun unter den Men&uuml;punkten WAN, LAN bzw. PPPoE tun."
+	fi
+	
+	echo "<br>Ansonsten bleibt alles beim Alten...8-)"
+
+	grep -q 'root:$1$$CoERg7ynjYLsj2j4glJ34.' /etc/passwd && {		# this is 'admin'
+	
+		echo "<br><br><b>Denke bitte daran, das Standardpasswort zu &auml;ndern!</b>"
+	}
+}	
+
+func_config_print_form_select_profile ()
+{
+	local PROFILE="$( nvram get fff_profile )"
+	local NODE_ID="$( nvram get fff_node_number )"
+	local FWUPDATE="$( nvram get fff_autofwupdate )"
+	local TEXT
+	local ENTRY
+	local PROFILE_LIST="$( sed -n 's/^func_profile_set_\(.*\) .*/\1/p' /etc/functions_profile_user_fff+ )"
+	
+	echo "<h2>Schnelleinstellung</h2>"
+	echo "<table cellpadding='0' cellspacing='5' border='0' CLASS='shadow0'><tr><td>"
+	echo "Beim Ausw&auml;hlen eines Profils werden alle Konfigurationswerte nochmal neu gesetzt.<br>"
+	echo "Danach k&ouml;nnen nat&uuml;rlich eigene Anpassungen vorgenommen werden. (nicht empfohlen)<br>"
+	echo "Dies kann auch manuell &uuml;ber die verschiedenen Men&uuml;punkte realisiert werden.<br><br>"
+	echo "<form action='' method='post' CLASS='form'>"
+	echo "<input name='FORM_NODEID' type='text' size='6' value='$NODE_ID'>&nbsp;(Netzknotennummer)<br><br>"
+	echo "<select name='FORM_FWUPDATE'>"
+	
+	for ENTRY in stable 0 beta testing; do {
+		case $ENTRY in
+			      0) TEXT='Paranoid - keine automatisches Software-Update (nicht empfohlen)' ;;
+			   beta) TEXT='Mutig - automatisches Software-Update bei neuer Beta-Version' ;;
+			testing) TEXT='Avantgarde - automatisches Software-Update bei jeder Software-&Auml;nderung' ;;
+			      *) TEXT='Normal - automatisches Software-Update bei neuer stabiler Version' ;;
+		esac
+		
+		echo "<option value='$ENTRY'$( [ "$FWUPDATE" = "$ENTRY" ] && echo " selected" )>$TEXT</option>"
+	} done
+	
+	echo "</select>&nbsp;(Update-Modus)<br><br>"
+	echo "<select name='FORM_PROFILE'>"
+	
+	for ENTRY in $PROFILE_LIST; do {
+		echo "<option$( [ "$PROFILE" = "$ENTRY" ] && echo " selected" )>$ENTRY</option>"
+	} done
+	
+	echo "</select>&nbsp;<input type='submit' value='Neues Profil setzen'></form></td></tr></table>"
+
+	echo "<br><h2>Profilbeschreibungen</h2>"
+	
+	for ENTRY in $PROFILE_LIST; do {
+		echo "<h3>$ENTRY</h3><pre>"
+		func_profile_set_$ENTRY info
+		echo "</pre>"
+	} done
+}
+
+func_config_print_ready_for_applying_new_profile ()
+{
+	local PROFILE="$1"
+	local NODE_ID="$2"
+
+	echo "<h2>Schnelleinstellung</h2>"
+	echo "Die neuen Einstellungen werden nun get&auml;tigt:<br><br>"
+	echo "Profil: '$PROFILE'<br>"
+	echo "Netzknoten: '$NODE_ID'<br><br>"
+	echo "Dies kann einige Minuten dauern und im <a href='../cgi-bin-status.html'>Systemlog</a> mitverfolgt werden.<br>"
+	echo "Deine Freifunk-Antenne startet dann selbstst&auml;ndig neu.<br>"
+}
+
+fkt_print_html_pre () {
+	export DATE="$(grep SVN "/etc/variables_fff+" | cut -d"#" -f2)"
+	export TITLE="Verwaltung: FFF+"
+	SCRIPT=${0#/rom}
+	
+	. ${SCRIPT%/*}/cgi-bin-pre.sh
+}
+	
+fkt_print_html_post () {
+	. ${SCRIPT%/*}/cgi-bin-post.sh
+}
+
+fkt_formular_gui_user_build_lang () {
+	AUTH_BLACKLIST_TXT_SHORT="Zugang f&uuml;r alle"
+	AUTH_BLACKLIST_TXT_LONG="Jeder der auf diesem Knoten oder auf mindestens 3 Netzknoten in diesem Netzwerk registriert ist, darf sich an dieses Ger&auml;t dranh&auml;ngen. Du kannst aber bestimmte Teilnehmer ausschliessen."
+	AUTH_WHITELIST_TXT_SHORT="Zugang nur f&uuml;r VIP's"
+	AUTH_WHITELIST_TXT_LONG="Nur von Dir erlaubte Rechner d&uuml;rfen sich mit diesem Ger&auml;t verbinden.<br>Alle anderen bleiben im Touristenmodus."
+	
+	USER_LIST_TXT_SHORT="Bekannte Ger&auml;te"
+
+	LEGEND_TXT_SHORT="Hinweise"
+	LEGEND_TXT_LONG="Rechner erscheinen als bekannt, wenn diese mindestens einmal versucht haben eine Webseite abzurufen (HTTP,HTTPS,RSS-feed). Die Netzwerkadresse des Rechners, der diese Webseite abgerufen hat, ist farblich hervorgehoben. Durch voranstellen von \"free-\" beim Benutzernamen, "
+	LEGEND_TXT_LONG="$LEGEND_TXT_LONG kann man z.B. bei Servern die Umleitung auf die Infoseite unterdr&uuml;cken. Wenn dieser Knoten Internet einspeisst, k&ouml;nnen "
+	LEGEND_TXT_LONG="$LEGEND_TXT_LONG durch voranstellen von \"admin-\" beim Benutzer diesem Sonderrechte einger&auml;umt werden."
+	LEGEND_TXT_LONG="$LEGEND_TXT_LONG Hinweis: Betrachtet man diese Seite von der WAN-Schnittstelle kommend, wird der eigene Rechner nicht als Benutzer angezeigt."
+
+	GLOSSAR_SHORT_TXT="Begriffskl&auml;rung"
+	GLOSSAR_TXT=""
+	GLOSSAR_TXT="$GLOSSAR_TXT <b>Netzknoten</b>: die Kiste (\"Freifunkantenne\" oder auch \"Router\"), die auf deinem Dach oder Fensterbrett steht (z.b. ein Linksys)<br>"
+	GLOSSAR_TXT="$GLOSSAR_TXT <b>Touristenmodus</b>: maximal $MAX_WIFI_TRAFFIC_UNR Megabytes per WLAN bzw. $MAX_WIRE_TRAFFIC_UNR Megabytes per Kabel Datenverkehr pro Tag. Alle nicht registrierten Rechner gelten als Touristen. <br>"
+	GLOSSAR_TXT="$GLOSSAR_TXT <b>MAC-Adresse</b>: normalerweise weltweit eindeutige Seriennummer einer Netzwerkkarte <br>"
+	GLOSSAR_TXT="$GLOSSAR_TXT <b>Eingetragen / registriert</b>: die MAC-Adresse wurde auf diesem Ger&auml;t eingetragen <br>"
+	GLOSSAR_TXT="$GLOSSAR_TXT <b>Vertrauensw&uuml;rdig</b>: die MAC-Adresse wurde auf mindestens 3 Netzknoten eingetragen. <br>"
+	GLOSSAR_TXT="$GLOSSAR_TXT <b>Vertrauen verspielt</b>: auf mindestens 3 Netzknoten als \"unerw&uuml;nscht\" eingetragen. Dieser Rechner darf nicht mehr ins Netz. Misstrauen wiegt st&auml;rker als eine Freischaltung.<br>"
+	
+	SUBMIT_TXT="&Uuml;bernehmen"
+	
+	# DIAL_WAN_CHK="$(if [ "$(nvram get wan_proto)" = "dhcp" ]; then echo checked; fi)"
+}
+
+fkt_formular_gui_user_build_vars () {
+	local VALUE="$( nvram get fff_ethers_auth )"
+	
+	test -z "$VALUE" && VALUE="BLACKLIST"
+	
+	RADIO_BLACKLIST_CHK="$( test "$VALUE" = "BLACKLIST" && echo checked )"
+	RADIO_WHITELIST_CHK="$( test "$VALUE" = "WHITELIST" && echo checked )"
+}
+
+func_check_if_mac_is_from_wan_or_olsr_neighbour ()	# fixme! do we really need to check for olsr-neigh-mac?
+{
+	local  MAC="$1"
+	local  DEV="$( ip neigh | sed -e "/$MAC/!d" -ne 's/.* dev \(.*\) lladdr .*/\1/p' | head -n1 )"		# fixme! make it faster
+	local  OUT="false"
+	local FUNC="check_if_mac_is_from_wan_or_olsr_neighbour"
+	local   IP
+
+	logger "$FUNC $MAC - start"
+
+  	[ "$DEV" = "$WANDEV" ] && {
+		OUT="true"
+	
+		logger "$FUNC $MAC -> true (WANDEV)"
+	}
+	
+	[ "$OUT" = "false" ] && {
+		
+		IP_FROM_MAC_ESCAPED="$( fkt_get_ip_from_mac $MAC | sed 's/\./\\\./g' )"
+	
+		wget -O - http://127.0.0.1:2006/neighbours |
+		 grep "0\.00" |
+		  while read LOCAL REMOTE HYST LQ LOST TOTAL NLQ ETX; do {
+		  	[ "$IP_FROM_MAC_ESCAPED" = "$( echo $REMOTE | sed 's/\./\\\./g' )" ] && {
+		  		OUT=true
+		  		
+		  		logger "$FUNC $MAC -> true (OLSR_NEIGH)"	# fixme! use olsr-abstraction
+		  	}
+		  } done
+	}
+	
+	echo $OUT
+	
+	logger "$FUNC $MAC - end"
+}
+
+fkt_print_html_known_user_list () {
+	. /etc/local.fw-functions_fff+
+	fkt_definitions
+	
+	. /tmp/NETPARAM
+
+	local MAC=""
+	local IP=""
+	local REG=""
+	local MODE=""
+	local NAME=""
+	local ACTION=""
+	local ACTION_TYPE=""
+	local ENTRY=""
+	local LIST=""
+	      LIST="$LIST $( fkt_list_user_macs ) $( fkt_list_blocked_macs )"
+	      LIST="$LIST $( fkt_list_locally_registered_users ) $( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+	      LIST="$LIST $( func_list_macs_in_dhcp_leases )"
+	
+	LIST="$( for ENTRY in $LIST; do echo $ENTRY; done | sort | sed 'y/ABCDEF/abcdef/' | uniq )"	# purging doubled entrys + lowercase
+	
+	echo "<table cellspacing=1 cellpadding=1 border=1>"
+	echo "<tr><td> Hardwareadresse </td><td> Netzadresse </td><td align=center> Anschluss </td><td align=center> Name </td><td> Eingetragen? </td><td align=center> m&ouml;gliche Aktion </td></tr>"
+	
+	for MAC in $LIST; do							# people who have already seen splashpage + local reg/blocked
+
+		test "$(func_check_if_mac_is_from_wan_or_olsr_neighbour $MAC)" = "true" && continue		# jump to next entry
+
+		IP="$( fkt_get_ip_from_mac $MAC )"
+		test -z "$IP" && IP="unbekannt"					# how to handle one MAC with 2 IP's?
+
+		logger "fff+ (fkt_print_html_known_user_list) $MAC = $IP"
+
+		if [ "$( fkt_get_media_from_mac $MAC )" = "wire" ]; then
+			MODE="Kabel"
+		else
+			MODE="Funk"
+		fi
+		
+		NAME="<input type=text name=\"USER_NAME_ADD\" value=\"$( fkt_get_name_for_mac $MAC )\" size=15>"
+		
+		if  grep -q -i $MAC /etc/ethers ; then						# mac is not in list yet
+			REG="<img src=\"../images/yes.gif\" alt=\"yes\">"			
+			
+			ACTION=""
+			ACTION="$ACTION <input type=hidden name=\"USER_MAC_CHANGE\" value=\"$MAC\">"
+			ACTION="$ACTION <input type=submit value=\"Name &auml;ndern\">"
+			ACTION="$ACTION </form><form action=\"\" method=\"post\" CLASS=\"form\">"
+			ACTION="$ACTION <input type=hidden name=gui value=user>"
+			ACTION="$ACTION <input type=hidden name=\"USER_MAC_FORGET\" value=\"$MAC\">"
+			ACTION="$ACTION <input type=submit value=\"Vergessen\"></form>"
+		else											# mac is already local known
+			REG="<img src=\"../images/no.gif\" alt=\"no\">"
+			
+			ACTION=""
+			ACTION="$ACTION <input type=hidden name=\"USER_MAC_ADD\" value=\"$MAC\">"
+			ACTION="$ACTION <input type=submit value=\"Erlauben\">"
+			ACTION="$ACTION </form><form action=\"\" method=\"post\" CLASS=\"form\">"
+			ACTION="$ACTION <input type=hidden name=gui value=user>"
+			ACTION="$ACTION <input type=hidden name=\"USER_MAC_BLACKEN\" value=\"$MAC\">"
+			ACTION="$ACTION <input type=submit value=\"Verbieten\"></form>"
+		fi
+		
+		if   nvram get fff_ethers_blocked | grep -q -i $MAC ; then			# this is a blocked user
+			REG="blockiert!"
+			NAME="anonym"
+			ACTION=""
+			ACTION="$ACTION <input type=\"hidden\" name=\"USER_MAC_BLACKEN_FORGET\" value=\"$MAC\">"
+			ACTION="$ACTION <input type=submit value=\"Blockierung aufheben\"></form>"
+		fi
+
+		local COL_REMOTE=""
+		test "$IP" = "$REMOTE_ADDR" && COL_REMOTE="bgcolor=\"lightgreen\""
+		
+		echo "<form action=\"\" method=\"post\" CLASS=\"form\"><input type=hidden name=gui value=user>"
+		echo "<tr><td $COL_REMOTE> $MAC </td><td align=center $COL_REMOTE> $IP </td><td align=center nowrap> $MODE </td><td> $NAME </td><td align=center> $REG </td><td> $ACTION </td></tr>"
+	done
+
+	echo "</table>"
+}
+
+fkt_formular_gui_user_print_html () {
+	cat<<EOF
+<form action="" method="post" CLASS="form"><table cellpadding=0 cellspacing=5 border=0 CLASS="shadow0" width="100%">
+<tr><td align=left valign=top> $GLOSSAR_SHORT_TXT </td><td align=left> $GLOSSAR_TXT </td></tr>
+<tr><td align=left valign=top> $AUTH_BLACKLIST_TXT_SHORT </td><td align=left><input type="radio" name="AUTHMODE" value="BLACKLIST" $RADIO_BLACKLIST_CHK><br> $AUTH_BLACKLIST_TXT_LONG </td></tr>
+<tr><td align=left valign=top> $AUTH_WHITELIST_TXT_SHORT </td><td align=left><input type="radio" name="AUTHMODE" value="WHITELIST" $RADIO_WHITELIST_CHK><br> $AUTH_WHITELIST_TXT_LONG </td></tr>
+<tr><td align=left><input type=hidden name="gui" value="user"><input type=submit value="$SUBMIT_TXT"></td><td>&nbsp;</td></tr>
+</form>
+
+<form action="" method="post" CLASS="form">
+<tr><td align=left valign=middle> $USER_LIST_TXT_SHORT </td><td align=left> $USER_LIST_TXT_LONG <br> $( fkt_print_html_known_user_list ) </td></tr>
+<tr><td align=left>               $LEGEND_TXT_SHORT    </td><td align=left> $LEGEND_TXT_LONG </td></tr>
+
+</form>
+</table>
+EOF
+}
+
+fkt_formular_gui_user_ready_print_html () {
+	local PLEASE_REBOOT="<br>Diese Funktion funktioniert erst zuverl&auml;ssig nach einen <a href=reset.html>Neustart</a> deiner Freifunkantenne.<br>Denke daran, das evtl. neu eingetragende Rechner nochmal eine IP-Adresse beziehen muessen. (neudeutsch \"DHCP\")"
+
+	  if [ -n "$AUTHMODE" ]; then								# Authmode is configured
+	  	func_nvset fff_ethers_auth "$AUTHMODE"
+	  	func_nvset commit
+		echo "Authorisierungsmodus wurde auf \"$AUTHMODE\" gesetzt."
+		echo $PLEASE_REBOOT
+	
+	elif [ -n "$USER_MAC_BLACKEN" ]; then							# user onto blacklist
+		local DIVIDER=";"
+		test -z "$( nvram get fff_ethers_blocked )" && DIVIDER=""                         # more than one entry? then insert an ";"
+		
+		if [ -z "$( nvram get fff_ethers_blocked | grep -i $USER_MAC_BLACKEN )" ]; then      # not in list yet
+		
+			func_nvset fff_ethers_blocked "$( nvram get fff_ethers_blocked )${DIVIDER}$USER_MAC_BLACKEN"
+			func_nvset commit
+			
+			echo "Dieser User wird nun dauerhaft blockiert."
+			echo $PLEASE_REBOOT
+		else
+			echo "Benutzer wird schon blockiert."
+		fi
+
+	elif [ -n "$USER_MAC_BLACKEN_FORGET" ]; then
+		local OUTLIST=""
+	
+		IFS=";"
+		for ENTRY in $( nvram get fff_ethers_blocked ); do			# entry = MAC
+		
+			if ! echo $ENTRY | grep -q -i $USER_MAC_BLACKEN_FORGET ; then	# not the mac we want to forget
+				if [ -z "$OUTLIST" ]; then
+					OUTLIST="$ENTRY"
+				else
+					OUTLIST="${OUTLIST};$ENTRY"
+				fi
+			else								# we want to delete this entry
+				if [ -z "$OUTLIST" ]; then
+					OUTLIST=""
+				else
+					OUTLIST="${OUTLIST}"
+				fi
+			fi
+		done
+
+		func_nvset fff_ethers_blocked "$OUTLIST"
+		func_nvset commit
+		echo "Blockierung wurde aufgehoben."
+		echo $PLEASE_REBOOT
+	
+	elif [ -n "$USER_MAC_ADD" ]; then
+		. /etc/local.fw-functions_fff+
+		
+		local NAME_SANITIZED="$( echo $USER_NAME_ADD | sed 's/[^a-zA-Z0-9-]//g' )"	# only allowing chars and numbers
+		local DIVIDER=";"
+		local PHYMEDIA="$( fkt_get_media_from_mac $USER_MAC_ADD )"
+		test "$PHYMEDIA" = "wire" && PHYMEDIA="lan"					# fixme! this is not elegant!
+		test -z "$( nvram get fff_ethers_$PHYMEDIA )" && DIVIDER=""			# more than one entry? then insert an ";"
+		
+		if nvram get fff_ethers_$PHYMEDIA | grep -q -i $USER_MAC_ADD ; then		# not in list yet
+		
+			echo "Benutzer ist schon registriert."
+		else
+			/etc/local.fw-fff+ adduser $USER_MAC_ADD $(fkt_get_ip_from_mac $USER_MAC_ADD)
+	
+			echo "Benutzer wurde registriert und gilt nun als freigeschaltet."
+			echo $PLEASE_REBOOT
+			
+			func_nvset fff_ethers_$PHYMEDIA "$( nvram get fff_ethers_$PHYMEDIA )${DIVIDER}$USER_MAC_ADD=$NAME_SANITIZED"
+			func_nvset commit
+		
+			scheduler -a "/etc/init.d/S43ethers_fff+ call"
+		fi
+		
+	elif [ -n "$USER_MAC_CHANGE" ]; then
+		. /etc/local.fw-functions_fff+
+		
+		local PHYMEDIA="$( fkt_get_media_from_mac $USER_MAC_CHANGE )"
+		test "$PHYMEDIA" = "wire" && PHYMEDIA="lan"
+		local ENTRY=""
+		local OUTLIST=""
+		local NAME_SANITIZED="$( echo $USER_NAME_ADD | sed 's/[^a-zA-Z0-9-]//g' )"      # only allowing chars and numbers
+		
+		IFS=";"
+		for ENTRY in $( nvram get fff_ethers_$PHYMEDIA ); do			# entry = user/mac-tupel
+		
+			if ! echo $ENTRY | grep -q -i $USER_MAC_CHANGE ; then		# not the entry we want to alter
+				if [ -z "$OUTLIST" ]; then
+					OUTLIST="$ENTRY"
+				else
+					OUTLIST="${OUTLIST};$ENTRY"
+				fi
+			else								# altering this entry
+				if [ -z "$OUTLIST" ]; then
+					OUTLIST="${USER_MAC_CHANGE}=$NAME_SANITIZED"
+				else
+					OUTLIST="${OUTLIST};${USER_MAC_CHANGE}=$NAME_SANITIZED"
+				fi
+			fi
+		done
+		unset IFS
+	
+		func_nvset fff_ethers_$PHYMEDIA "$OUTLIST"
+		func_nvset commit
+		
+		scheduler -a "/etc/init.d/S43ethers_fff+ call"
+		
+		echo "Benutzerdaten wurden aktualisiert."
+		echo $PLEASE_REBOOT
+
+	elif [ -n "$USER_MAC_FORGET" ]; then
+		. /etc/local.fw-functions_fff+
+		
+		local PHYMEDIA="$( fkt_get_media_from_mac $USER_MAC_FORGET )"
+		test "$PHYMEDIA" = "wire" && PHYMEDIA="lan"
+		local ENTRY=""
+		local OUTLIST=""
+		
+		IFS=";"
+		for ENTRY in $( nvram get fff_ethers_$PHYMEDIA ); do                    # entry = user/mac-tupel
+		
+			if ! echo $ENTRY | grep -q -i $USER_MAC_FORGET ; then		# not the entry we want to remove 
+				if [ -z "$OUTLIST" ]; then
+					OUTLIST="$ENTRY"
+				else
+					OUTLIST="${OUTLIST};$ENTRY"
+				fi
+			else								# removing this entry
+				if [ -z "$OUTLIST" ]; then
+					OUTLIST=""
+				else
+					OUTLIST="${OUTLIST}"
+				fi
+			fi
+		done
+		unset IFS
+	
+		func_nvset fff_ethers_$PHYMEDIA "$OUTLIST"
+		func_nvset commit
+	
+		scheduler -a "/etc/init.d/S43ethers_fff+ call"
+		
+		echo "Benutzereintrag wurde entfernt."
+		echo $PLEASE_REBOOT
+	
+	else
+		echo "Unerwartete Eingabe - keine Aktion."
+	fi
+}

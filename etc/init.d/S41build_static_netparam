@@ -1,0 +1,70 @@
+#!/bin/sh
+
+. /etc/functions_logging_fff+
+
+func_build ()
+{
+	local FUNC="build"
+	local FILE="/tmp/NETPARAM"
+
+	echo "[ -e /tmp/DEBUG ] && logger -p daemon.debug -t \"fff+ \$0 netparam()\" including" >$FILE
+	echo "[ -z \"\$LODEV\" ] && {" >>$FILE
+	
+	func_log $FUNC daemon debug "working"
+	/rom/usr/bin/netparam >>$FILE && {
+		echo "}" >>$FILE
+		func_log $FUNC daemon debug "successfully build '$FILE'"
+		return 0
+	}
+	
+	func_log $FUNC daemon crit "error during build, trying pivot-root"
+	/usr/bin/netparam >>$FILE && {
+		echo "}" >>$FILE
+		func_log $FUNC daemon crit "success building '$FILE'"
+		return 0
+	}
+	
+	func_log $FUNC daemon crit "error, could not build '$FILE'"
+	return 1
+}
+
+func_restore_original_netparam ()
+{
+	local FUNC="restore_original_netparam"
+	local ORIGINAL="/rom/usr/bin/netparam"
+	local COPY="/usr/bin/netparam"
+	
+	local CRC_ORIGINAL="$( md5sum $ORIGINAL | cut -d' ' -f1 )"
+	local CRC_COPY="$(     md5sum $COPY     | cut -d' ' -f1 )"
+
+	[ "$CRC_ORIGINAL" = "$CRC_COPY" ] && {
+		func_log $FUNC daemon debug "netparam seems to be fine"
+		return
+	}	
+
+	func_log $FUNC daemon debug "CRC's differ - replacing netparam in filesystem with copy in rom"
+	
+	cp $ORIGINAL $COPY || {
+		func_log $FUNC daemon debug "error during copy? trying to symlink"
+		
+		>$COPY		# create 0 byte-file
+		rm $COPY
+		ln -s $ORIGINAL $COPY && {
+			func_log $FUNC daemon debug "symlinking went fine"
+			return
+		}
+		func_log $FUNC daemon crit "error during symlinking"
+		return 1
+	}
+	
+	func_log $FUNC daemon debug "successfully replaced"
+}
+
+if [ -e /tmp/BOOT ] || [ "$1" = "restore_original_netparam" ]; then
+	func_restore_original_netparam
+fi
+
+func_build
+
+# ToDo:
+# with/without OLSR on all interfaces? or spezific interfaces?

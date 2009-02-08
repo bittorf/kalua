@@ -1,0 +1,46 @@
+#!/bin/sh
+
+. /etc/functions_base_fff+
+
+func_need wifi log
+
+func_vars_once_each_boot ()		# once each boot, not changing during runtime
+{
+	func_log once_each_boot daemon debug "building"
+
+	PUBKEY="$( dropbearkey -y -f /etc/dropbear/dropbear_dss_host_key | sed -n 's/^Fingerprint: sha1 \(.*\)/\1/p' | sed 's/://g' )"	
+	echo "SSH_PUBKEY='$PUBKEY'"
+	
+	. /etc/profile >/dev/null       # timezone
+	echo "export TZ='$TZ'"
+	echo "WIFI_DEVS='$( func_wifi_get_all_devs )'"
+	
+	local OLSR_VERSION1="$( olsrd -f /dev/null 2>/dev/null | sed -n 's/^.* olsr.org - \([0-9\.]*\).*/\1/p' )"	
+	local OLSR_VERSION2="$( olsrd -f /dev/null 2>/dev/null | sed -n 's/^.* date: \(.*\)/\1/p' )"
+	echo "OLSR_VERSION='$OLSR_VERSION1 $OLSR_VERSION2'"
+	
+	echo "FUNC_VARS=1"
+
+	func_log once_each_boot daemon debug "ready"
+}
+
+func_vars_build_changing_vars ()
+{
+	wget -qO /tmp/olsr_plain http://127.0.0.1:2006 && {		# each minute! fixme: hanging wget?
+		echo "OLSR_OUT=/tmp/olsr_plain"
+	}
+}
+
+func_vars_build ()
+{
+	[ ! -e /tmp/vars_once_each_boot ] && func_vars_once_each_boot >/tmp/vars_once_each_boot
+	cat /tmp/vars_once_each_boot
+	func_vars_build_changing_vars
+}
+
+[ "$1" = "build" ] && {
+	func_vars_build >/tmp/vars
+	exit
+}
+
+func_vars_build

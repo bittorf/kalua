@@ -1,0 +1,47 @@
+#!/bin/sh
+
+[ -n "$FAILSAFE" ] && exit
+
+. /tmp/vars
+. /etc/functions_fff+
+. /etc/variables_fff+
+. /etc/functions_logging_fff+
+
+case $1 in
+	start)
+		. /tmp/NETPARAM        # getting vars: LANDEV, LANNET, LANPRE
+
+		[ -e /tmp/LOWMEM ] && {
+			
+			for TASK in klogd syslogd resetd dropbear httpd; do {
+				pidof $TASK >/dev/null && {
+					func_log low_mem_device daemon debug "killing '$TASK'"
+					killall $TASK || {
+						func_log low_mem_device daemon debug "error during killing '$TASK'"
+					}
+				}
+			} done
+			
+			[ -e "/etc/init.d/S90olsr-prio" ] && {
+				func_log low_mem_device daemon debug "removing QoS-scripts"
+				rm -f /etc/init.d/S90olsr-prio
+			}
+		}
+
+		if [ "$(fkt_check_if_lowflash_device)" = "true" ]   && [ ! -e "$LOWFLASH" ]; then touch "$LOWFLASH"; else rm -f "$LOWFLASH"; fi
+		if [ "$LANOLSR" = "1" ]                             && [ ! -e "$OLSR_LAN" ]; then touch "$OLSR_LAN"; else rm -f "$OLSR_LAN"; fi
+		if [ "$WANOLSR" = "1" ]                             && [ ! -e "$OLSR_WAN" ]; then touch "$OLSR_WAN"; else rm -f "$OLSR_WAN"; fi
+		if [ "$(fkt_check_if_pppoe_is_needed)" = "true" ]   && [ ! -e "$PPPOE" ];    then touch "$PPPOE";    else rm -f "$PPPOE";    fi
+		if [ "$(fkt_check_if_https_is_possible)" = "true" ] && [ ! -e "$HTTPS" ];    then touch "$HTTPS";    else rm -f "$HTTPS";    fi
+		
+		[ -z "$(mount | grep usbfs)" ] && {
+			func_log mount_usbfs daemon debug "trying to mount usbfs"
+			mount -t usbfs none /proc/bus/usb 2>/dev/null || {
+				func_log mount_usbfs daemon debug "no success, no usbfs, nousb?"
+			}
+		}
+	;;
+	*)
+		echo "Usage: $0 start"
+	;;
+esac

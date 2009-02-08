@@ -1,0 +1,533 @@
+#!/bin/sh
+
+. /etc/functions_base_fff+
+. /etc/functions_logging_fff+
+
+func_watch_hanging_wget ()
+{
+	local FUNC="watch_hanging_wget"
+	local WGET_PID="$( pidof -s wget )"				# any running wget-process?
+	
+	[ -z "$WGET_PID" ] && {
+		func_log $FUNC daemon debug "no running wget-process"
+		return 0
+	}
+	
+	local WGET_CMD="$( cat /proc/$WGET_PID/cmdline )"		# remember exact commandline
+	local OLD_PID
+	local OLD_CMD
+	local FILE1="/tmp/maybe_hanging_wget_process_id"
+	local FILE2="/tmp/maybe_hanging_wget_process_cmd"
+
+	[ -e "$FILE1" ] && OLD_PID="$( cat $FILE1 )"
+	[ -e "$FILE2" ] && OLD_CMD="$( cat $FILE2 )"
+
+	func_log $FUNC daemon debug "found wget-process '$WGET_PID' / '$WGET_CMD'"
+
+	if [ "$OLD_PID" = "$WGET_PID" ] && [ "$OLD_CMD" = "$WGET_CMD" ]; then
+
+		func_log $FUNC daemon err "killing '$WGET_CMD'"
+		kill $WGET_PID
+		sleep 3
+		
+		[ -e "/proc/$WGET_PID" ] && {
+			func_log $FUNC daemon crit "still hanging, killing hard"
+			kill -9 $WGET_PID
+			sleep 3
+		
+			[ -e "/proc/$WGET_PID" ] && {
+				func_safe_reboot "$FUNC() still hanging wget"
+				return
+			}
+		}
+			
+		func_log $FUNC daemon info "successfully killed"
+		return
+	fi
+
+	func_log $FUNC daemon debug "remember for next check '$WGET_PID' / '$WGET_CMD'"
+	echo >$FILE1 "$WGET_PID"
+	echo >$FILE2 "$WGET_CMD"
+}
+
+[ "$1" = "watch_hanging_wget" ] && {
+	func_watch_hanging_wget
+	exit
+}
+
+. /etc/variables_fff+
+. /etc/functions_olsr
+. /etc/functions_wifi_fff+
+. /tmp/NETPARAM
+
+[ "$(func_wifi_get_mode)" = "adhoc" ] && {	# fixme! lowering tx-power if NLQ ~ 1.000 ?
+
+	  if ! func_wifi_phy_probe_online $WIFIDEV ; then	# maybe its switched off by admin
+	
+		func_log meshmode_but_no_wifi_neighs daemon debug "radio is off, no further tests"
+		continue	
+	
+	elif [ "$(func_uptime min)" -lt 5 ]; then		# olsrd needs some time
+	
+		func_log meshmode_but_no_wifi_neighs daemon debug "uptime <5 min, no further tests"
+		continue
+	
+	elif neigh check4wifi ; then
+		func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
+		
+		BEST_WIFI_NLQ="$(neigh best_wifi_nlq)"
+		if [ "$BEST_WIFI_NLQ" -gt 500 ]; then
+	 		func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ ($BEST_WIFI_NLQ > 500)"
+		else
+			func_log meshmode_but_no_wifi_neighs daemon debug "NOT found at least one wifi-neigh with reasonable NLQ (found '$BEST_WIFI_NLQ')"
+			func_wifi_set_txpwr "$WIFIDEV" 10 mW add overturn
+									# fixme! add aftercheck + alert.log when successful
+		fi
+		
+		echo "0" >/tmp/wifi_error_counter
+	else
+		COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
+		COUNT="$(( ${COUNT:=0} + 1 ))"
+	
+		func_log meshmode_but_no_wifi_neighs daemon crit "raising counter to ${COUNT}/15"
+		
+		[ $COUNT -gt 15 ] && {
+			func_safe_reboot "meshmode - but no wifi neigh for a long time"		# 15 * 15 mins = 4 hours
+		}
+		
+		echo $COUNT >/tmp/wifi_error_counter
+		
+		func_wifi_set_txpwr "$WIFIDEV" 10 mW add overturn	# fixme! add aftercheck + alert.log when successful
+		
+		/usr/sbin/cron.select_best_antenna_fff+ force
+	fi
+}
+
+func_olsr_plausi_check $(func_olsr_get_neighbours) || /etc/init.d/S53olsrd restart
+
+# fixme!
+	# random node-IP in mesh with 1 hop or 2 hops -> IP = main-interface
+	# [ ! -e contact_$IP ] || [ "$(cat contact_${IP}_fetched)" -lt $(( $(date +%s) - 86400 )) ] && {
+	# 	wget -qO - http://$IP/cgi-bin-contact.html | sed -n '/<H1>Kontakt<\/H1>/,$p'| sed '/^<\/TABLE>/q' >/tmp/node_$IP
+	#
+	#	[ "$( md5sum /tmp/node_$IP | cut -d' ' -f1 )" = "c9614a47d313e7be6f6cf2a7b88d5d2b" ]; then
+	#		echo "empty"
+	#	}
+	# }			# ~ 800 Bytes if all fields are set
+
+# fixme! Idee:
+	# eintrag in everlog, wenn im WLAN-Scan ein extrem starker Router auftaucht,
+	# muss man "unterdruecken" koennen, damit das nicht staendig kommt, wenn man nicht die
+	# gewalt ueber den stoerer hat.
+
+# fixme! Idee:
+	# xrelayd haengt manchmal in der taskliste rum und laesst sich nur mit kill -9 beenden
+	#
+	# pidof xrelayd
+
+# fixme! Idee:
+	# nice oder renice (fuer bestimmte code-abschnitte)
+
+PID="$(pidof vpnc)" && {
+	func_log vpnc_helper daemon info "petting PID '$PID' - fixme!"
+	# kill -SIGHUP "$PID"		# fixme! (howto reconnect?)
+}
+
+
+func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in sync with hole network
+{
+	local FUNC="set_time_with_ntp-server"	
+	local POOL="128.138.140.44 171.64.7.77 171.64.7.99 81.169.154.44"
+	local   IP="0"
+	local  TRY="0"
+	local  UP1="$( func_uptime sec )"
+	local  UP2=0
+	local HOST=""
+	local FILE_SUCCESS="/tmp/ntp_was_successful"
+
+	[ -e $FILE_SUCCESS ] && {
+		UP2="$(( $UP1 - $( cat $FILE_SUCCESS ) ))"
+		[ $UP2 -lt 3600 ] && {
+			func_log $FUNC daemon info "last successful ntp-fetch was only $UP2 seconds before, aborting"
+			return 0
+		}
+	}
+	touch $FILE_SUCCESS			# prevents double-execution
+	
+	func_log $FUNC daemon info "start"
+
+	while [ $TRY -lt 5 ]; do {
+		TRY=$(( $TRY + 1 ))
+	
+		local ID="0"
+		for IP in $POOL; do {
+		
+			ID=$(( $ID + 1 ))		
+			sleep 5
+			rdate -s $IP >/dev/null 2>&1 && {
+
+				UP2="$( func_uptime sec )"			
+				HOST="$( nslookup $IP | sed -n 's/^Name:[ ]*\(.*\)$/\1/p' )"
+				func_log $FUNC daemon debug "success after $(( $UP2 - $UP1 )) seconds and ${TRY}. round on ${ID}. IP in pool (${IP} = $HOST)"
+				TRY=9
+				[ "$( func_filesize "$FILE_SUCCESS" )" -eq 0 ] && {
+					func_log $FUNC daemon alert "first successful set after reboot"
+				}
+				echo $UP2 >$FILE_SUCCESS
+				break				# fixme! calc + log diff before/after timesetting in sec?
+			}
+		} done
+	} done
+
+	[ "$TRY" != "9" ] && {
+		func_log $FUNC daemon alert "end without success"
+		rm $FILE_SUCCESS
+	}
+}
+
+### fresh booted (<300sec up) and no wifi? switch on!
+
+[ "$( func_uptime sec )" -lt 300 ] && {
+
+	[ "$( nvram get wl0_radio )" = "0" ] && {
+		func_log "force_wifi_on" daemon info "working"
+		nvram set wl0_radio=1
+		wifi
+	}
+}
+
+### reboot-command is lost/deleted/bad (ipkg login-utils)
+[ ! -e /sbin/reboot ] && {
+	func_log command_reboot_faulty daemon crit "symlinking to /rom/sbin/reboot"
+	ln -s /rom/sbin/reboot /sbin/reboot
+}
+
+### same routers lost the 'date'/'busybox-coreutils'-package, correct this:
+
+[ -z "$( date 2>/dev/null )" ] && {
+	func_log command_date_faulty daemon crit "symlinking to busybox"
+	rm /bin/date
+	ln -s busybox /bin/date
+	func_log command_date_faulty daemon crit "date output now: '$(date)'"
+}
+
+### firmware-build-date is newer than unixtime? -> set time
+
+[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {		# 340529 = 2008'november
+	func_set_time_with_ntp_server
+
+	[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {
+		func_log set_time daemon info "could'nt set time - trying poor mens timeserver - fixme!"
+		# /www/cgi-bin-speed t		# fixme!
+	}
+}
+
+
+### under unclear circumstances the "wifi"-program segfaults and there
+### are after some time hanging 'wifi'-processes, so we
+### count the spaces between the pids and if we have more
+### then 1 pids of "wifi" we do an hard reboot
+
+[ "$( pidof wifi | sed 's/[^ ]//g' | wc -c )" -gt 1 ] && {
+	func_safe_reboot "strange_wifi() several wifi-PIDs!"		# fixme! recheck at least 5 times?
+}
+
+### sending "i'am alive"-messages to vpn-server in random
+### intervals (approx. once a day) or/and simply log it
+
+ARG1="$1"
+
+test   -e "/tmp/LOWMEM"			&& ARG1=fast
+test   -n "$FAILSAFE" 			&& ARG1=fast
+test ! -e "$SOFTWARE_FULLY_INSTALLED"	&& ARG1=fast
+
+if [ "$ARG1" = "fast" ]; then
+	func_log "fastmode" daemon debug "no mesh-rdf-data-collection"
+else
+	func_log mesh_rdf daemon debug "start"
+
+	# fixme! use more abstraction
+
+	# this parts takes
+	# about 30 seconds!
+	# needs more optimizing!
+					# keyword 'fast' means not to collect any data, which is faster
+					# tip: it is useful that neighbour-infos must be "in sync" with other nodes
+					#      which means: take this neighbour-snapshot at exactly the same time
+					#                   in hole network
+	. /etc/functions_fff+
+	. /etc/functions_logging_fff+
+	. /etc/local.fw-functions_fff+
+	
+	TIME="$( date +%s )"
+	
+# takes long!
+	func_log mesh_rdf_build_neighs daemon debug "start"
+	NEIGH="$( func_url_encode "$(neigh meshrdf)" )"		# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
+
+# takes long!
+	func_log mesh_rdf_build_users daemon debug "start"
+	USERS="$( func_url_encode "$(func_get_all_user_macs_with_traffic_today)" )"	# -001122334455:500~112233445566:9888
+	
+	FORWARDED="$( IPT=iptables ; fkt_convert_to_unit $(fkt_get_traffic_forward_alien) mb )"
+	. /usr/sbin/n include		# fixme! replace functions provided by this file and remove it
+	
+	UPTIME="$(( $(cut -d"." -f1 /proc/uptime) / 3600 ))"		# in hours				# 1078
+	CPU_LOAD="$( sed 's/^[0-9]*\.[0-9]* [0-9]*\.[0-9]* \([0-9]*\)\.\([0-9]*\).*/\1\2/' /proc/loadavg )"	# 088
+	VERSION=$FFF_PLUS_VERSION										# 345678
+	REBOOT="$( cat $REBOOT_COUNT )"										# 15
+	NODE="$( nvram get fff_node_number )"									# 423
+	. /tmp/vars
+	WIFIDEV="$WIFI_DEVS"		# fixme!								# eth1
+														# 001122334455
+	WIFIMAC="$( ip link show dev $WIFIDEV | sed -n 's/^.*link\/ether \(..\):\(..\):\(..\):\(..\):\(..\):\(..\) brd.*/\1\2\3\4\5\6/p' )"
+	UPDATE="$( nvram get fff_autofwupdate )"; test -z "$UPDATE" && UPDATE=stable			# testing
+	LATLON="$( nvram get ff_adm_latlon | sed -e 's/[^0-9\;,\.]//g' -e 's/\;/,/g' )"				# 50.1234,11.3345
+		if [ "," = "$LATLON" ] || [ -z "$LATLON" ]; then
+			LATLON="0,0"
+		fi
+		LATLON="$( func_url_encode $LATLON )"
+	
+	ADMINEMAIL="$( nvram get ff_adm_mail | sed 's/[^0-9a-zA-Z@\._-]//g' )"					# bla@blubb.de
+	ADMINPHONE="$( nvram get ff_adm_tel | sed 's/[^0-9a-zA-Z]//g' )"					# 036435101112zuhause
+	HOSTNAME="$( nvram get wan_hostname | sed 's/[^0-9a-zA-Z-]//g' )"					# Windmuehlen12
+	TXPWR="$( func_wifi_get_txpwr $WIFIDEV mw )"								# 40
+	FRAG="$( wl frag | sed -n 's/frag is \([0-9]*\).*$/\1/p' )"						# 500
+	RTS="$( wl rts | sed -n 's/rts is \([0-9]*\).*$/\1/p' )"						# 2347
+	GMODEPROT="$( wl gmode_protection | sed -n 's/^gmode_protection is \([0-9] \).*/\1/p' )"		# 0 or 1
+		GMODEPROT="${GMODEPROT:=0}"
+	CITY="$CITY"												# 63
+	WIFIMODE="$( func_get_wifi_mode )"									# adhoc
+	CHANNEL="$( wl status | sed -n 's/.*Channel: \([0-9]*\)/\1/p' )"					# 104
+	MRATE="$( wl mrate | cut -d' ' -f3 )"									# 5.5
+	eval $( /etc/init.d/S02check_interface_correctness_fff+ show_hardware )
+	HW="$( echo $HW | sed -e 's/ /_/g' -e 's/[^_a-zA-Z0-9-]//g' )"			# Buffalo_WHR-HP-G54_BCM4318-wifi
+
+	PUBKEY="$SSH_PUBKEY"								# 1660559e90efefafd04298c516365bbd12b0ffda
+											# (40 bytes HEX [SHA-1])
+	FREE_SPACE_FLASH="$( fkt_get_free_flash_space_in_kb )"
+	FREE_SPACE_USB="$(df | grep "/mnt/disc0_." | sed -n "s/^[0-9a-zA-Z\/]*[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p")"	# fixme! more abstraction!
+	[ -n "$FREE_SPACE_USB" ] && FREE_SPACE_USB="$(( $FREE_SPACE_USB / 1024 ))"
+	SERVICE_FREE_SPACE="$(( $FREE_SPACE_FLASH + ${FREE_SPACE_USB:=0} ))"
+	SERVICES="${SERVICE_FREE_SPACE}kb"						# fixme! how to describe webcams?
+											# or SSHd or HTTPd?
+											# or Templogger/Sensorstuff?
+	
+	[ $FREE_SPACE_FLASH -lt 150 ] && {
+		[ ! -e /tmp/REPO_REMOVED ] && {
+			func_log remove_repos_if_low_space daemon alert "only $FREE_SPACE_FLASH kb free - removing files in /usr/lib/ipkg/lists/"
+			rm -f /usr/lib/ipkg/lists/*			# to avoid possible problems (gives +100k)
+			touch /tmp/REPO_REMOVED
+		}
+	}
+	
+	PUBIP="$( fkt_wget http://${VPN_SERVER}/show_remote_address.php 10 )"		# 217.212.17.148
+	
+	[ -r "$TRACE_INET_GATEWAY" ] && {
+		HOP2GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* METRIC=\([0-9\.]*\).*/\1/p' )"		# 5
+		ETX2GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* ETX=\([0-9\.]*\).*/\1/p' )"		# 5.234
+		GWNODE="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* NEXTHOP=\([0-9\.]*\).*/\1/p' )"		# 10.63.144.65
+			GWNODE="$( fkt_calc_node_from_ip $GWNODE )"
+		GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* GW=\([0-9\.]*\).*/\1/p' )"			# 10.63.144.65
+			GW="$( fkt_calc_node_from_ip $GW )"							# 400
+	}
+	
+	HOP2GW=${HOP2GW:=NULL}		# todo: ensure, that empty values are rewritten to 'NULL'
+	ETX2GW=${ETX2GW:=NULL}
+	GW=${GW:=NULL}
+
+	# trying to print at first the values that are not likely to change its length/appearance often 
+	# just to be better readable in logfile
+
+	QUERY=""
+	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$PUBKEY"
+	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE"
+	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS"
+	QUERY="${QUERY}&gmodeprot=$GMODEPROT"
+	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED"
+	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP"
+	
+	echo >>"$ARCHIV_NODE_DATA" "$QUERY"
+										# only last 150 lines ('ringbuffer')
+	tail -n 150 "${ARCHIV_NODE_DATA}"     >"${ARCHIV_NODE_DATA}_temp"	# which is ~50 kilobytes and around
+	mv          "${ARCHIV_NODE_DATA}_temp" "${ARCHIV_NODE_DATA}"		# 1.5 days archiv when called each 15 mins
+	
+	RANDOM=$(dd if=/dev/urandom bs=2 count=1 2>&-|hexdump|if read line;then echo 0x${line#* };fi)
+	test "$(( $RANDOM % 70 ))" -eq 1 && ARG1="send_alive_message"					# roundabout each day
+
+	func_log mesh_rdf daemon debug "ready"
+	
+	if [ -n "$KEEP_ALIVE_URL" ] && [ "$ARG1" = "send_alive_message" ]; then
+	
+		[ -z "$2" ] && fkt_sleep_random_seconds_but_max 60
+
+		func_log mesh_rdf_send_alive daemon info "sending message to vpn-server: '${KEEP_ALIVE_URL} [...]'"
+
+		func_set_time_with_ntp_server
+
+		# what we do here is:
+		# look for last comment "# alive was send..." in our archive
+		# and try to send all lines from this point to end of file
+		# to the logging server. After this we set the comment at file-end 
+
+		LINENUMBER_LAST_SUCCESS="$( grep -n "^# " "${ARCHIV_NODE_DATA}" | tail -n1 | cut -d':' -f1 )"
+
+		while true; do {							# start one line after comment
+			LINENUMBER_LAST_SUCCESS=$(( $LINENUMBER_LAST_SUCCESS + 1 ))	# worst case is line one
+
+		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "${ARCHIV_NODE_DATA}" )"
+ 
+ 			if [ -n "$QUERY" ]; then
+ 		
+ 				[ -z "$( echo "$QUERY" | grep "^# " )" ] && {		# dont send comments ;-)
+ 			
+ 					OUT="$( fkt_wget "${KEEP_ALIVE_URL}?${QUERY}" 10 )"
+ 					func_log mesh_rdf_send_alive daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
+ 					
+ 					[ "$OUT" != "OK" ] && {
+ 						func_log mesh_rdf_send_alive daemon debug "send alive-line: something went wrong - ending"
+ 						break
+ 					}
+ 				}
+ 			else
+ 				func_log mesh_rdf_send_alive daemon debug "send alive normally ended"
+ 				break
+ 			fi
+		} done
+
+		echo >>"${ARCHIV_NODE_DATA}" "# alive-message was send (at least i tried...)"
+
+		[ "$2" != "no_antenna_test" ] && {
+			func_log enforce_antenna_test daemon info "starting up"		# fixme! maybe there is a better place for	
+			/usr/sbin/cron.select_best_antenna_fff+ force			# regular but random execution of this script
+		
+			[ "$(func_system_flash_free)" -gt 125 ] && {
+				func_log update_adblock_filter daemon info "working"
+				ipkg install http://www.weimarnetz.de/ipkg/packages/fff-adblock-list_0.1.0_mipsel.ipk
+				/etc/init.d/S43ethers_fff+ start
+			}
+		}
+	fi
+fi
+
+
+### check if DNS-resolution works:
+								# only with existing dnsmasq and reachable internet-gateway
+
+if [ -e /etc/init.d/*dnsmasq ] && [ -n "$(ip route list exact 0/0)" ]; then	
+	
+	pidof dnsmasq >/dev/null || {
+
+		logger -p daemon.err "$0 (DNS-watchdog) restarting dnsmasq"
+
+		pidof udhcpd >/dev/null && {			# otherwise the server-port cannot bound to new daemon
+	
+			logger -p daemon.err "$0 (DNS-watchdog) killing old DNS-server \"udhcpd\""
+			killall udhcpd
+		}
+		
+		/etc/init.d/S*dnsmasq restart
+		sleep 5
+		
+		logger -p daemon.err "$0 (DNS-watchdog) restarted dnsmasq, PID now \"$( pidof dnsmasq )\""
+	}
+	
+	nslookup "$(date +%s).weimarnetz.de" 2>/dev/null >/dev/null || {		# can we resolv a random address?
+
+		logger -p daemon.err -t "$0" "error in dns-resolution, sending SIGHUP to DNSmasq"
+		kill -SIGHUP $( pidof -s dnsmasq )
+		sleep 5
+	
+		nslookup "$(date +%s).weimarnetz.de" 2>/dev/null >/dev/null || {        # again: can we resolv a random address?
+
+			logger -p daemon.err -t "$0" "error in dns-resolution, restarting DNSmasq"
+			/etc/init.d/S*dnsmasq restart
+		}
+	}
+fi
+
+
+### check if PPPoE is running if needed
+
+if [ -e "$PPPOE" ] && [ -z "$( ip route list exact 0/0 dev ppp0 )" ]; then
+	
+	func_log pppoe_watchdog daemon err "no default route over ppp0 - restarting PPPoE"
+	
+	killall    pppoecd
+	killall -9 pppoecd
+	ifup wan
+	sleep 15
+	
+	func_log pppoe_watchdog daemon err "restarted: '$( ip route list exact 0/0 dev ppp0 )'"
+fi
+
+
+### check webcam
+
+[ -e /tmp/WEBCAM ] && {
+	pidof motion >/dev/null || {
+		func_log webcam_watchdog daemon alert "restarting webcam"
+		/etc/init.d/S90webcam_fff+ restart
+	}
+}
+
+
+### check webserver
+
+pidof httpd >/dev/null || {
+
+	if pidof crond >/dev/null ; then
+		func_log httpd_watchdog daemon err "webserver is not running - restarting"
+	
+		/etc/init.d/S50httpd start
+		sleep 5
+	
+		func_log httpd_watchdog daemon err "webserver PID now: '$( pidof httpd )'"
+	else
+		func_log httpd_watchdog daemon debug "no crond - no restart"		# crondog does it
+	fi
+}
+
+
+### check if nodenumber/id is from random pool		// fixme! if [ -e /tmp/REGISTRATED ] ... else ...fi
+
+. /etc/functions_profile_user_fff+
+
+if func_ipsystem_weimar | grep -q ^"NODE_NUMBER_RANDOM=true" ; then
+	func_log replace_random_nodeID daemon info "detected ID from random pool - registering official ID"
+	
+	URL="http://www.weimarnetz.de/registrator/bot.php?WIFIMAC=${WIFIMAC}&SSHPUBKEY=${SSH_PUBKEY}"	# fixme! no ssh -> no ssh_pub_key!
+													# fixme! no wifi, no registration?
+ 	func_log replace_random_nodeID daemon debug "fetching: '$URL'"
+ 	
+ 	[ -n "$SSH_PUBKEY" ] && ID="$( fkt_wget "$URL" 10 )"
+ 	
+ 	[ -n "$ID" ] && {
+ 		func_ipsystem_weimar "$ID" && {			# ipsystem() has a sanitizer built in, so don't worry 8-)
+			. /etc/functions_nvram_fff+
+			func_nvset fff_node_number "$ID"
+			/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile
+			func_safe_reboot "replace_random_nodeID() new profile applied"
+		}
+	}
+
+	func_log replace_random_nodeID daemon info "ID not clean: '$ID' - aborting"
+else
+	if [ ! -e /tmp/REGISTRATED ] && [ "$(func_uptime min)" -gt 30 ]; then
+		URL="http://www.weimarnetz.de/registrator/bot.php?WIFIMAC=${WIFIMAC}&SSHPUBKEY=${SSH_PUBKEY}&NODE=${NODE}"
+
+		[ -n "$SSH_PUBKEY" ] && {
+			ID="$( fkt_wget "$URL" 10 )"
+			touch /tmp/REGISTRATED		# only one try each reboot
+		}
+
+		if [ -n "$ID" ]; then
+			func_log registrator_petting daemon info "answer was '$ID' (question was: '$URL')"	
+		else
+			func_log registrator_petting daemon info "no answer (service '$URL' not running?)"
+		fi
+	else
+		[ -e /tmp/REGISTRATED ] && func_log registrator_petting daemon debug "is already lucky"
+	fi
+fi
+

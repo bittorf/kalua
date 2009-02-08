@@ -1,0 +1,121 @@
+#!/bin/sh
+
+# filename: 2008aug8-username-00:11:22:33:44:55.ulog
+#	    time direction ip port proto id seq ack
+#           123456789012>212.123.12.44 5900 udp 123456789012 123456789012 123456789012
+#
+#           ~ 50 * 10000
+#           = 500.000 / user / day
+#
+# example-shot: 92.750 bytes / 337 lines -> 18985 bytes in 86sec (-> 20%) -> gzip -> 4000 bytes (-> 4.3%)
+# 		2.000.000 -> 80kb
+
+. /etc/variables_fff+
+. /etc/functions_base_fff+
+. /etc/functions_logging_fff+
+
+func_ulog_prepare ()
+{
+	local FUNC="ulog_prepare"
+	local PID_ULOG="$(pidof ulogd)"
+	
+	ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"
+	ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"
+	
+	[ -z "$PID_ULOG" ] && {
+		[ -e /usr/sbin/ulogd ] && {
+			func_log $FUNC daemon debug "ulogd inactive - starting up"
+			ulogd -d || {
+				func_log $FUNC daemon debug "ulogd-startup failed"
+				return 1		# needs correct /etc/ulogd.conf !
+			}
+			func_log $FUNC daemon debug "ulogd-startup successful"
+		}
+	}
+	
+	[ ! -e $ULOG_LOGFILE_ORIG ] && return 1
+	[ $(func_filesize $ULOG_LOGFILE_ORIG) -eq 0 ] && return 1
+
+	func_log $FUNC daemon debug "creating logfile working copy"
+	
+	mv $ULOG_LOGFILE_ORIG $ULOG_LOGFILE
+	# touch $ULOG_LOGFILE_ORIG
+	kill -HUP $PID_ULOG
+	
+	func_log $FUNC daemon debug "created"
+
+	return 0
+}
+
+func_ulog_sqeeze_log ()		# OUT1: string, echo >>/tmp/00:20:a6:4c:22:5d-2008.ulog "17:12:27>192.168.1.111:5900 TCP 39016 3658281311 0"
+{
+	local FUNC="ulog_sqeeze_log"
+	local DATE="$( func_humanreadable_date short )"
+	local BYTES="$( func_filesize $ULOG_LOGFILE )"
+	local LINES="$( func_file_lines $ULOG_LOGFILE )"
+
+	func_log $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines"	
+
+	# local FLAGS="| ACK:$FLAG_ACK SYN:$FLAG_SYN RST:$FLAG_RST FIN:$FLAG_FIN PSH:$FLAG_PSH URGP:$URGP"
+	local LINE
+	local FLAGS
+	local PORT
+	local IP
+	local OUTPUT
+	local COUNTER=0
+
+	local TIME
+	local MAC
+	local DIR
+	local SRC
+	local DST
+	local ID
+	local PROTO
+	local SPT
+	local DPT
+	local SEQ
+	local ACK
+	local WINDOW
+	local FLAG_ACK
+	local FLAG_SYN
+	local FLAG_RST
+	local FLAG_FIN
+	local FLAG_PSH
+	local URGP
+
+	while read LINE; do {
+
+		eval $( func_ulog_make_evalable "$LINE" )
+	
+		PORT=$DPT
+		IP=$DST
+
+		grep -q "^${IP};" "$CLIENTS_LAN" "$CLIENTS_WIFI" && {
+			IP=$SRC
+			PORT=$SPT
+		}
+
+		OUTPUT="$DIR $TIME $IP $PORT $PROTO $ID $SEQ $ACK"
+		COUNTER=$(( $COUNTER + ${#OUTPUT} ))
+		
+		echo >>"/tmp/user-${MAC}-${DATE}.ulog" "$OUTPUT"   # $LINE for debugging
+
+	} done <$ULOG_LOGFILE
+
+	rm $ULOG_LOGFILE
+	func_log $FUNC daemon debug "squeezed to $(( $COUNTER * 100 / $BYTES ))% ($COUNTER bytes)"
+}
+
+func_ulog_make_evalable ()
+{
+	echo "$1" | sed -ne 's/^[a-zA-Z]* [0-9]* \([0-9][0-9]:[0-9][0-9]:[0-9][0-9]\).*\([0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]\)\(.\) .* SRC=\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) DST=\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .* ID=\([0-9]*\).*PROTO=\(.*\)$/TIME=\1;MAC=\2;DIR="\3";SRC=\4;DST=\5;ID=\6;PROTO=\7/' \
+	                 -e 'y/ /;/' \
+	                 -e 's/;ACK;/;FLAG_ACK=1;/' \
+	                 -e 's/;SYN;/;FLAG_SYN=1;/' \
+	                 -e 's/;RST;/;FLAG_RST=1;/' \
+			 -e 's/;FIN;/;FLAG_FIN=1;/' \
+			 -e 's/;PSH;/;FLAG_PSH=1;/' \
+			 -e 'p'
+}
+
+func_ulog_prepare && func_ulog_sqeeze_log

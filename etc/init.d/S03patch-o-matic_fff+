@@ -1,0 +1,446 @@
+#!/bin/sh
+
+fkt_get_size_of_file () {
+	local FNAME="get_size_of_file"
+	local FILE="$1"						# ARG1: string  (filename)
+	local SIZE=""						# OUT1: integer (filesize in bytes)
+
+	if [ ! -r "$FILE" ]; then
+		func_log $FNAME daemon crit "file unreadable '$FILE'"
+	else
+		SIZE="$( ls -l "$FILE" 2>/dev/null | sed -n 's/^[-a-z]* .*[0-9]* [a-z]* * [a-z]* * \([0-9]*\) .*/\1/p;q' | sed 's/[^0-9]//g' )"		# "stat" is n/a
+	fi
+	
+	if [ -z "$SIZE" ]; then
+		SIZE=0
+		func_log $FNAME daemon crit "error - assuming $SIZE bytes"
+	fi
+	
+	echo $SIZE
+}
+
+fkt_patch () {
+	local  FNAME="patch"
+	local  PATCH="$1"					# ARG1: string (keyword, what todo)
+	local   MODE="$2"					# ARG2: string (optional, keyword "restore_from_rom")
+	local   TEMP="/tmp/$FNAME"
+	local BACKUP="${TEMP}_backup"
+	local   SIZE=0
+	local   FILE=0
+
+	if [ "$MODE" != "restore_from_rom" ]; then
+		func_log $FNAME daemon info "patching: '$PATCH'"
+	fi
+	
+	case $PATCH in
+		olsrd_timezone)
+			FILE="/etc/init.d/S53olsrd"
+			sed "s#^[^a-zA-Z0-9]*start)#        start)  export TZ='$TZ';#" "$FILE" >"$TEMP"
+		;;
+		dnsserver_timezone)
+			FILE="/etc/init.d/S50dnsmasq"
+			sed "s#^[^a-zA-Z0-9]*start)#        start)  export TZ='$TZ';#" "$FILE" >"$TEMP"
+		;;
+		http_public_menu_entry)
+			FILE="/www/40-cgi-bin-tool_fff+"
+			touch "$FILE"	# create it! (otherwise the script thinks something is wrong...)
+			echo  >"$TEMP" "<TR ID=\"idx-40\"><TD><DIV CLASS=\"plugin\">"
+			echo >>"$TEMP" "<A CLASS=\"plugin\" HREF=\"cgi-bin-tool_fff+\">Werkzeug</A></DIV></TD></TR>"
+		;;
+		syslog_with_rebootfix_syslog)
+			FILE="$SYSLOG"
+			cat 2>/dev/null "$SYSLOG_SAFED" "$FILE" >"$TEMP"
+		;;
+		statuspage_for_new_syslog)
+			FILE="/www/cgi-bin-status.html"
+			sed 's/logread /logread.sh /g' "$FILE" >"$TEMP"
+		;;
+		force_olsrd_startup_without_wifi)
+			# then we have one hour to reload madwifi-modules, see S99done
+			FILE="/etc/init.d/S53olsrd"
+			sed "s/^test -z /# WE WANT OLSR-STARTUP EVEN WITHOUT WIRELESS | was: test -z /" "$FILE" >"$TEMP"
+		;;
+		syslogd_start_for_more_space)
+			FILE="/etc/init.d/S10boot"
+		
+			REPLACE="{ mkdir -p /var/log; mv /tmp/messages $SYSLOG; syslogd -O $SYSLOG -s 333; }"
+		
+			sed "s#syslogd -C 16#$REPLACE#" "$FILE" >"$TEMP"			# 333 means 666 (logrotate)
+		;;
+		syslogd_set_hostname)
+			FILE="/etc/init.d/S10boot"
+			sed "s#^TOTMEM=#export HOSTNAME='|'; echo '|' >/proc/sys/kernel/hostname; TOTMEM=#" "$FILE" >"$TEMP"
+		;;
+		syslog_start_timezone)
+			FILE="/etc/init.d/S10boot"
+		
+			sed "s#^\(.*\)\(syslogd -O \)\(.*\)#\1export TZ='$TZ'; syslogd -O \3#" "$FILE" >"$TEMP"
+		;;	
+		admin_start_page_for_own_values)
+			FILE="/www/cgi-bin/index.html"
+			sed 's/^einzublenden.<\/P>/einzublenden.<\/P><h1>Folgende Tabelle gilt nur f\&uuml;r Berlin, jedoch nicht in Weimar:<\/h1>/' "$FILE" >"$TEMP"
+		;;
+		httpd_start_for_own_404page)
+			FILE="/etc/init.d/S50httpd"
+			sed -e 's/I:cgi-bin-index.html/I:\/no-index/' -e 's/#E:\/cgi-bin-404.html/E:\/cgi-bin-welcome/' "$FILE" >"$TEMP"
+		;;
+		proxy_start_for_changing_port)
+			FILE="/etc/init.d/S80micro-proxy"
+			sed 's/3129/110/g' "$FILE" >"$TEMP"
+			chmod +x "$TEMP"
+		;;
+		cron_minutely_for_verboser_trace_errors)
+			FILE="/usr/sbin/cron.minutely"
+			sed -e 's/deactivated HNA4 for \$defgw/deactivated HNA4 for $defgw (trace-error to \$ip)/g' "$FILE" >"$TEMP"
+		;;
+		login_banner)
+			FILE="/etc/banner"
+			cp "$FILE" "$TEMP"
+			fkt_gen_infos_for_login_banner >>"$TEMP"
+		;;
+		intro_picture)
+			FILE="/www/images/intro.jpg"
+		;;
+		html_preprocessor)
+			FILE="/www/cgi-bin-pre.sh"
+		;;
+		*)
+			return
+		;;
+	esac
+
+	if [ "$MODE" = "restore_from_rom" ]; then
+		local ROMFILE="/rom$FILE"
+	
+		if [ -r "$ROMFILE" ] && [ "$FILE" != "$SYSLOG" ]; then						# dunno why, but syslog is mirrored in rom?
+			func_log $FNAME daemon info "restoring '$FILE' from '$ROMFILE' (ROM)"
+			rm -f "$FILE"
+			cp "$ROMFILE" "$FILE"
+			func_log $FNAME daemon info "restored: $( fkt_get_size_of_file "$FILE" ) bytes"
+		else
+			func_log $FNAME daemon info "restoring '$FILE' impossible - not in ROM"
+			# deleting file in jffs2? would be cleaner...
+		fi
+		
+		rm -f "$TEMP"
+		return
+	fi
+
+	if [ ! -r "$FILE" ]; then
+		func_log $FNAME daemon crit "file '$FILE' not readable - aborting (mode:'$PATCH')"
+		rm -f "$TEMP"
+		return
+	fi
+	
+	SIZE="$( fkt_get_size_of_file "$FILE" )"
+	func_log $FNAME daemon debug "working on '$FILE' - size: $SIZE bytes"
+	cp "$FILE" "$BACKUP"
+
+	SIZE="$( fkt_get_size_of_file "$TEMP" )"
+
+	func_log $FNAME daemon debug "patched - new size: $SIZE bytes"
+
+	if [ $SIZE -ne 0 ]; then
+		rm -f "$FILE"
+		
+		func_log $FNAME daemon notice "working on '$FILE' - writing to media"
+		
+		cp "$TEMP" "$FILE"
+		chmod +x "$FILE"
+		
+		SIZE="$( fkt_get_size_of_file "$FILE" )"
+	
+		if [ $SIZE -ne 0 ] && [ $( fkt_get_size_of_file "$TEMP" ) -eq $SIZE ]; then
+			func_log $FNAME daemon notice "working on '$FILE' ready - size: $SIZE bytes"
+		else
+			func_log $FNAME daemon crit "errors during write on media - size: $SIZE bytes"
+			
+			rm -f "$FILE"
+			cp    "$BACKUP" "$FILE"
+			
+			func_log $FNAME daemon crit "errors during write on media, restored backup - now $( fkt_get_size_of_file '$FILE' ) bytes"
+		fi
+	else
+		func_log $FNAME daemon crit "errors during patching - leaving '$FILE' untouched"
+	fi
+
+	rm "$BACKUP" "$TEMP"
+}
+
+fkt_generate_logread_replacement () {
+	local FNAME="generate_logread_replacement"
+	local  FILE="/usr/bin/logread.sh"
+
+	func_log $FNAME daemon info "creating $FILE"
+
+	cat >$FILE <<EOF
+#!/bin/sh
+
+# this file was generating trough $0 (fkt_generate_logread_replacement)
+
+  if [ -e "$SYSLOG" ] && [ "\$1" = "-f" ]; then
+	echo "+ exec \"tail -n 50 -f $SYSLOG\"  (showing last 50 lines and further):"
+	echo
+	tail -n 50 -f $SYSLOG
+
+elif [ -e "$SYSLOG" ] && [ "\$1" = "-a" ]; then
+	echo "exec \"cat $SYSLOG.0 $SYSLOG\" (showing whole syslog):"
+	echo
+	cat $SYSLOG.0 $SYSLOG 2>/dev/null
+
+elif [ -e "$SYSLOG" ]; then
+	echo "exec \"tail -n 300 $SYSLOG\" (showing last 300 syslog lines) - look <a href=\"cgi-bin-tool_fff+?GREP=%3A&OPT=syslog&GUI=1&SUPRESS1=DHCP&SUPRESS2=rrdcollect&HIGHLIGHT=fff\">here for whole syslog</a> or use \"logread.sh -a\"..."
+	echo
+	tail -n 300 $SYSLOG
+else
+	echo "no syslog available yet! try 'logread'"
+fi
+EOF
+
+	chmod +x "$FILE"	
+	ln -s "$FILE" /usr/bin/lr
+}
+
+fkt_patch_html_preprocessor_with_pagepeel_and_nodenumber_in_title () {
+	local FILE="/www/cgi-bin-pre.sh"
+	local TEMP="/tmp/cgi-bin-pre.sh_temp"
+
+	logger "fff+ $0 fkt_patch_html_preprocessor_with_pagepeel"
+
+	sed '/<\/HEAD>/q' $FILE | grep -v "<\/HEAD>" 		 >$TEMP		# print all till (but not including) the "</HEAD>"-tag
+	
+										# for nodenumber in title
+	
+	cat $TEMP | sed 's/wan_hostname)/wan_hostname)\;echo -en "No."\;nvram get fff_node_number\;echo -en " - "/g' >$TEMP
+	
+	fkt_print_pagepeel					>>$TEMP		# appending "pagepeel"
+	sed -n '/<\/HEAD>/,$p' $FILE | grep -v "<\/HEAD>" 	>>$TEMP		# print all after (but not including) the "</HEAD>"-tag
+	mv $TEMP $FILE								# overwriting unpatched with patched
+}
+
+fkt_print_pagepeel () {					# first line is for "schaeuble"-head
+
+	cat >>$TEMP <<EOF
+<script type="text/javascript" src="watching.js"></script>
+
+<!-- AKVS head start v1.5 -->
+<style type="text/css">
+<!--
+div#akct {
+	position: absolute; top:0px; right: 0px; z-index: 2342; width:113px; height:88px;
+	background-image: url(http://wiki.vorratsdatenspeicherung.de/images/Akvse.gif);
+	background-repeat: no-repeat;
+	background-position: right top;
+	border:none;
+	padding:0;
+	margin:0;
+	text-align: right;
+}
+
+div#akct img {
+	border:none;
+	padding:0;
+	margin:0;
+	background: none;
+}
+
+div#akct a#akpeel img {
+        width: 113px;
+        height: 88px;
+}
+
+div#akct a, div#akct a:hover {
+	text-decoration: none;
+	border:none;
+	padding:0;
+	margin:0;
+	display: block;
+	background: none;
+}
+
+div#akct a#akpeel:hover {
+	position: absolute; top:0px; right: 0px; z-index: 4223; width:500px; height:500px;
+	display: block;
+	background-image: url(http://wiki.vorratsdatenspeicherung.de/images/Akvsb.gif);
+	background-repeat: no-repeat;
+	background-position: right top;
+}
+
+div#akct a#akpreload {
+	background-image: url(http://wiki.vorratsdatenspeicherung.de/images/Akvsb.gif);
+	background-repeat: no-repeat;
+	background-position: 234px 0px;
+}
+-->
+</style>
+<!--[if gte IE 5.5]>
+<![if lt IE 7]>
+<style type="text/css">
+div#akct a#akpeel:hover {
+		right: -1px;
+}
+</style>
+<![endif]>
+<![endif]-->
+<!-- AKVS head end -->
+
+</HEAD>
+<BODY>
+<!-- AKVS body start v1.5 -->
+<div id="akct"><a id="akpeel" href="http://www.vorratsdatenspeicherung.de" target="_blank" title="Stoppt die Vorratsdatenspeicherung! Jetzt klicken &amp; handeln!"><img src="http://wiki.vorratsdatenspeicherung.de/images/Akvst.gif" alt="Stoppt die Vorratsdatenspeicherung! Jetzt klicken &amp; handeln!" /></a><a id="akpreload" href="http://wiki.vorratsdatenspeicherung.de/?title=Online_Demo" target="_blank" title="Willst du auch bei der Aktion teilnehmen? Hier findest du alle relevanten Infos und Materialien:"><img src="http://wiki.vorratsdatenspeicherung.de/images/Akvsi.gif" alt="Willst du auch bei der Aktion teilnehmen? Hier findest du alle relevanten Infos und Materialien:" /></a></div>
+<!-- AKVS body end -->
+EOF
+}
+
+fkt_gen_infos_for_login_banner () {
+
+	[ -e /tmp/NETPARAM ] && . /tmp/NETPARAM
+	eval $(/etc/init.d/S02check_interface_correctness_fff+ show_hardware)
+
+	local HW="$( echo "$HW" | sed 's/)//' )"
+	
+	cat <<EOF
+$(tail -n 2 /etc/variables_fff+)
+FLASHDATE=$( date +%Y%h%d-%H:%M )
+UPDATEMODE=$( MODE=$(nvram get fff_autofwupdate); test -z "$MODE" && MODE="stable"; echo $MODE )
+INETOFFER=$( fkt_check_if_this_node_offers_inet )
+
+Node: $(nvram get fff_node_number) | Hardware: $HW @ $( func_wifi_get_txpwr $WIFIDEV mw )mW) | RAM/FLASH: $(fkt_get_ramsize_in_kb)/$(fkt_get_flashsize_in_kb)kb | USB: $USB | IDE: $IDE | miniPCI: $MINIPCI
+
+Hints: - 'lr -f OR logread.sh -f' is short for 'tail -n 50 -f $SYSLOG'
+       - 'neigh.sh', 'hna.sh' or 'neigh' gives olsrd-feedback
+       - '/usr/sbin/fwupload_fff+' starts upload of own changes to SVN-server
+       - '/etc/init.d/S01firmware_update_fff+ check' for safe flashing
+       - '/etc/init.d/S01firmware_update_fff+ poor_mens_update' for fast'n'dirty update and
+       - 'wget -O fw.trx $URL_FIRMWARE_CURRENT' +
+         'firmware-burn fw.trx' is for fast flashing
+
+EOF
+}
+
+func_patch_favicon ()
+{
+	local PICTURE_URL="http://www.weimarnetz.de/favicon.ico"
+
+	fkt_wget "$PICTURE_URL" 10 >/www/favicon.ico
+}
+
+fkt_patch_intro_picture () {
+	local FNAME="patch_intro_picture"
+	
+	# local PICTURE_URL="http://wireless.subsignal.org/index.php?title=Bild:Falke16.jpg"
+	# local PICTURE_URL="http://wireless.subsignal.org/images/d/d4/Die_suche_klein.JPG"
+	# PICTURE_URL="${WIKI_MAIN_URL}/images/9/9b/800px-DSC00071_klein.JPG"
+
+	local PICTURE_NAME="Node$( nvram get fff_node_number ).jpg"				# searching for a picture in wiki name Node324.jpg (for node 324)
+	local PICTURE_URL="${WIKI_MAIN_URL}/index.php?title=Bild:$PICTURE_NAME"			# path for wiki-picture-page (with description etc.)
+	local PICTURE_LINK=""
+	
+	PICTURE_LINK="$( fkt_wget "$PICTURE_URL" 10 |
+		grep "$PICTURE_NAME" |
+		sed -n "s/.*href=\"\(.*$PICTURE_NAME\)\".*/\1/p" |
+		head -n2 |
+		tail -n1 |
+		cut -d'"' -f1 )"
+
+	echo $PICTURE_LINK | grep -q "^http://"
+	
+	if [ "$?" -eq 0 ]; then									# no picture for this node uploaded on wiki yet
+		PICTURE_URL="http://wireless.subsignal.org/images/c/c7/Freifunkwiese_klein.jpg"	# old default-picture
+		PICTURE_URL="http://wireless.subsignal.org/images/b/b6/Social_event.jpg"	# default-picture till  2008-nov-4
+		PICTURE_URL="http://weimarnetz.de/freifunk/bilder/wirelessafrica.jpg"		# default-picture since 2008-nov-4
+		PICTURE_URL="http://weimarnetz.de/freifunk/bilder/Node354_klein_schrift.jpg"	# default-picture since 2008-nov-9
+	else
+		PICTURE_URL="${WIKI_MAIN_URL}${PICTURE_LINK}"					# node-specific-picture
+	fi
+	
+	logger "fff+ $0 fkt_patch_intro_picture (from \"$PICTURE_URL\")"
+	                                                                                
+	fkt_wget "$PICTURE_URL" 15 >/www/images/intro.jpg
+	
+	fkt_wget http://knoedeldealer.de/watching.js 15 >/www/watching.js	# fixme!
+	fkt_wget http://knoedeldealer.de/head.gif    15 >/www/head.gif		# this needs an extra function
+}
+
+if [ -n "$1" ]; then
+	if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ]; then exit; fi
+
+	. /etc/variables_fff+
+	. /etc/functions_fff+
+	. /etc/functions_base_fff+
+	. /etc/functions_wifi_fff+
+	. /etc/functions_logging_fff+
+fi
+
+LOCKFILE="/tmp/lockfile_patch-o-matic"
+
+if [ -r "$LOCKFILE" ]; then
+	func_log check_lockfile daemon crit "lockfile '$LOCKFILE' exists - abort"
+	exit
+else
+	touch "$LOCKFILE"
+fi
+
+MAC_CHANGE="/www/mac_changed.txt"
+
+case $1 in
+	start)							# after reach reboot
+		# fkt_patch syslog_with_rebootfix_syslog	# fixme! /var/log/messages is first started at S10boot, use /www/everlasting_syslog.txt
+		fkt_build_settings_menu
+		fkt_count_reboots
+                	
+		[ ! -r "$FRESHFLASH" ] && {			# we must take care of the
+			rm -f "$LOCKFILE"			# lockfile, each time we exit
+			$0 virgin				# or recall this script, otherwise
+		}						# it won't work out ;-)
+	;;
+	virgin)							# after virgin boot (directly after flashing)
+		fkt_patch syslogd_start_for_more_space
+		fkt_patch syslogd_set_hostname
+		fkt_patch force_olsrd_startup_without_wifi
+		fkt_patch statuspage_for_new_syslog
+		fkt_patch cron_minutely_for_verboser_trace_errors
+		fkt_patch http_public_menu_entry
+			
+		fkt_generate_logread_replacement
+		
+		touch "$FRESHFLASH"
+	;;
+	post_software_install)					# is invoked directly after ready software_install
+		fkt_patch olsrd_timezone
+		fkt_patch dnsserver_timezone
+		fkt_patch syslog_start_timezone
+		fkt_patch httpd_start_for_own_404page
+		fkt_patch admin_start_page_for_own_values
+		fkt_patch proxy_start_for_changing_port
+		fkt_patch login_banner
+		
+		fkt_patch_html_preprocessor_with_pagepeel_and_nodenumber_in_title
+		fkt_patch_intro_picture
+		func_patch_favicon
+	;;
+	restore_from_rom)
+		fkt_patch olsrd_timezone			  restore_from_rom
+		fkt_patch dnsserver_timezone			  restore_from_rom
+		fkt_patch syslog_with_rebootfix_syslog            restore_from_rom
+		fkt_patch force_olsrd_startup_without_wifi	  restore_from_rom
+		fkt_patch statuspage_for_new_syslog               restore_from_rom
+		fkt_patch syslogd_start_for_more_space            restore_from_rom
+		fkt_patch admin_start_page_for_own_values         restore_from_rom
+		fkt_patch httpd_start_for_own_404page             restore_from_rom
+		fkt_patch proxy_start_for_changing_port           restore_from_rom
+		fkt_patch cron_minutely_for_verboser_trace_errors restore_from_rom
+		fkt_patch login_banner                            restore_from_rom
+		fkt_patch intro_picture                           restore_from_rom
+		fkt_patch html_preprocessor                       restore_from_rom
+		fkt_patch http_public_menu_entry                  restore_from_rom
+	
+		rm -f "$FRESHFLASH"
+	;;
+	*)
+		echo "Usage: $0 ( start | virgin | post_software_install | restore_from_rom | checkmac)"
+	;;
+esac
+
+rm -f "$LOCKFILE"
+

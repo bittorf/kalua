@@ -1,0 +1,31 @@
+#!/bin/sh
+
+OPT="$1"
+
+test ! -r /usr/sbin/batmand-adv && OPT="install"
+test -z "$(nvram get fff_batman_adv_start)" && OPT="nostart"
+
+case $OPT in
+	start)
+		INTERFACES="$( grep ^Interface /etc/olsrd.conf | cut -d" " -f2 | sed 's/\"//g' )"
+		
+		logger "fff+ $0 starting on these interfaces: $INTERFACES"
+		
+		/usr/sbin/batmand-adv $INTERFACES
+	;;
+	stop)
+		killall    batmand-adv
+		killall -9 batmand-adv
+	;;
+	restart)
+		$0 stop
+		$0 start
+	;;
+	*)
+		echo "Usage: $0 (start|stop|restart)"
+	
+		test "$OPT" = "nostart" && echo "you must manually do an: nvram set fff_batman_adv_start=1 commit"
+		test "$OPT" = "install" && echo "you must manually install batman-adv with ipkg."
+	;;
+esac
+

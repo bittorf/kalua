@@ -1,0 +1,163 @@
+#!/bin/sh
+
+. /etc/variables_fff+
+. /etc/functions_fff+
+. /etc/functions_nvram_fff+
+. /etc/functions_logging_fff+
+. /etc/functions_base_fff+
+
+if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ] || [ ! -e "$SOFTWARE_FULLY_INSTALLED" ]; then exit; fi
+
+fkt_write_ethers () {					# writes /etc/ethers which is "mac-address hostname" per line
+	local MODE="$1"					# ARG1: wifi or lan (keyword for nvram-var and for humanreadable hostname)
+	local FILE="/etc/ethers"
+	local FUNC="write_ethers"
+
+	[ "$MODE" = "remove" ] && {
+		rm $FILE
+		return
+	}
+
+	local CLIENT=0
+	local DOMAIN="$( nvram get wan_domain )"
+	local NODE="$( nvram get fff_node_number )"
+	local LIST="$( nvram get fff_ethers_$MODE )"
+	local DEBUG_FILE="/tmp/ethers"
+	local DEBUG_VAR="fff_ethers_$MODE"
+	local DEBUG_VAL=""
+
+	func_log $FUNC daemon debug "mode '$MODE'"
+
+	[ -z "$LIST" ] && touch "$FILE"			# fixme! why this?
+
+	[ -e $DEBUG_FILE ] && rm $DEBUG_FILE
+
+	IFS=";"
+	for MAC_AND_HOST in $LIST; do {
+		CLIENT=$(( $CLIENT + 1 ))
+		HWADRESS="$( echo $MAC_AND_HOST | cut -d'=' -f1 | sed 'y/ABCDEF/abcdef/' )"		# to lowercase
+		HOSTNAME="$( echo $MAC_AND_HOST | cut -d'=' -f2 )"
+
+		func_log $FUNC daemon debug "working on mac '$HWADRESS' with hostname '$HOSTNAME'"
+
+		if [ -n "$HWADRESS" ] && [ -n "$HOSTNAME" ] && [ -z "$( grep ^$HWADRESS "$FILE" 2>/dev/null )" ]; then
+
+			echo "$HOSTNAME" | grep -q ^"admin" && {				# "adminbob" -> "admin-bob"
+				echo "$HOSTNAME" | grep -q ^"admin-" || {
+					HOSTNAME="$( echo $HOSTNAME | sed 's/^admin/admin-/' )"
+				}
+			}
+
+			echo "$HOSTNAME" | grep -q ^"free" && {					# "freealice" -> "free-alice"
+				echo "$HOSTNAME" | grep -q ^"free-" || {
+					HOSTNAME="$( echo $HOSTNAME | sed 's/^free/free-/' )"
+				}
+			}
+
+			[ -z "$( echo "$HOSTNAME" | cut -d'-' -f2 )" ] && {			# "free|admin-" -> "free|admin-anonym"
+				HOSTNAME="${HOSTNAME}anonym"
+			}
+
+			HOSTNAME="$( echo $HOSTNAME | sed 's/[^0-9a-zA-Z-]//g' )"	# sanitized / RFC-952
+			
+			echo -en "${HWADRESS}=${HOSTNAME};" >>$DEBUG_FILE		# must include the sanitized output
+											# and must be the same syntax like nvram
+			
+			HOSTNAME="${HOSTNAME}-${MODE}${CLIENT}-n$NODE.$DOMAIN"		# fixme! remove leading/trailing "-"
+
+			func_log $FUNC daemon debug "writing '$HWADRESS' with hostname '$HOSTNAME' to '$FILE'"
+
+			echo "$HWADRESS $HOSTNAME" >>"$FILE"
+		else
+			[ -z "$HWADRESS" ] && func_log $FUNC daemon debug "no mac-address given"
+			[ -z "$HOSTNAME" ] && func_log $FUNC daemon debug "no hostname-address given"
+			
+			[ -n "$HWADRESS" ] && {
+				grep -q ^"$HWADRESS" "$FILE" 2>/dev/null && {
+					func_log $FUNC daemon debug "suppressing doubled mac '$HWADRESS'"
+				}
+			}
+		
+			CLIENT=$(( $CLIENT - 1 ))
+		fi
+	} done
+	unset IFS
+
+	[ -e $DEBUG_FILE ] && {
+		DEBUG_VAL="$( sed 's/^\(.*\)\;$/\1/' $DEBUG_FILE )"		# cutting off last ";"
+
+		if [ "$LIST" != "$DEBUG_VAL" ]; then
+			# fixme! we need a sanitizer for non allowed characters, e.g. ":"
+				
+			func_log $FUNC daemon alert "error in config: is '$LIST' must be '$DEBUG_VAL' - correcting"
+			
+			func_nvset "${DEBUG_VAR}" "$DEBUG_VAL"
+			func_nvset commit
+		else
+			func_log $FUNC daemon debug "no config error"
+		fi
+	
+		rm $DEBUG_FILE
+	}
+}
+
+fkt_restart_running_dnsserver ()
+{
+	local FUNC="restart_running_dnsserver"
+	local PID="$( pidof dnsmasq | head -n1 )"
+	
+	[ -n "$PID" ] && {
+		func_log $FUNC daemon debug "working"
+	
+		kill -SIGHUP $PID		# fixme! we should only reread /etc/hosts, when we are sure, that adblock-filters are working?!
+	}
+}
+
+fkt_build_clients_list ()
+{
+	eval $(fkt_calc_node_params)           
+	
+	local WIFINET="$(ipcalc -n $WIFIADR/$WIFIPRE | cut -d"=" -f2)"
+	fkt_build_client_list "$WIFINET" "$WIFIBRC" "$WIFIPRE" "WIFI"   >$CLIENTS_WIFI
+	
+	# fixme! add tunnel-ip's:
+	# 10.63.167.94 intercityvpn-server-n422.olsr intercityvpn-server-n422		// for nicer traceroute
+	
+	. /tmp/NETPARAM                                                         
+	
+	fkt_build_client_list "$LANNET"  "$LANBRC"  "$LANPRE"  "LAN"    >$CLIENTS_LAN 
+	fkt_build_client_list "$WANNET"  "$WANBRC"  "$WANPRE"  "WAN"    >$CLIENTS_WAN
+	
+	cat $CLIENTS_WIFI $CLIENTS_LAN $CLIENTS_WAN                     >$CLIENTS_ALL
+}
+
+case $1 in
+	call)
+		fkt_write_ethers remove
+		fkt_write_ethers wifi
+		fkt_write_ethers lan
+
+		fkt_build_clients_list
+
+		fkt_build_etc_local_hosts lan
+		fkt_build_etc_local_hosts wifi
+		fkt_build_etc_local_hosts virtual
+		
+		if [ -z "$(nvram get fff_adblock)" ] || [ -z "$(nvram get fff_nosplash)" ]; then	# fff_adblock=no/false?
+													# fff_nosplash=yes/true?
+				FILE_INFO="$( ls -l /etc/hosts.drop | sed -n 's/^[a-z-]*[0-9]*.*root.*root\(.*\)/\1/p' )"													
+				func_log "add_adblock" daemon debug "$FILE_INFO"
+				fkt_build_etc_local_hosts drop
+		fi
+		
+		fkt_build_etc_local_hosts join
+		
+		fkt_restart_running_dnsserver
+	;;
+	start)
+		scheduler -a "$0 call"
+	;;
+	*)
+		echo "Usage: $0 (start|call)"
+	;;
+esac

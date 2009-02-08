@@ -1,0 +1,33 @@
+#!/bin/sh
+
+. /etc/variables_fff+
+. /etc/functions_fff+
+. /www/cgi-bin-tool_functions_fff+
+. /etc/functions_http_fff+
+
+if [ "$REQUEST_METHOD" = "GET" ] && [ -n "$QUERY_STRING" ]; then
+	eval $(func_http_sanitize_query_string)
+
+	GUI=0
+	fkt_print_html_header
+	
+	NODE="$( fkt_calc_node_from_ip $REMOTE_ADDR )"
+	TIME="$( date +%s                           )"
+	DATE="$( date +%d%b%Y-%Huhr%M               )"
+
+	cat >>$NETFILTER_COUNT <<EOF
+NODE=$NODE TIME=$TIME DATE=$DATE MAC=$MAC NAME=$NAME REG=$REG MEDIA=$MEDIA TRAFF_RECENT=$TRAFF_RECENT TRAFF_TODAY=$TRAFF_TODAY TRAFF_ALL=$TRAFF_ALL
+EOF
+	tail -n 250 "${NETFILTER_COUNT}"     >"${NETFILTER_COUNT}_temp"
+	mv          "${NETFILTER_COUNT}_temp" "${NETFILTER_COUNT}"
+	
+	echo "OK"
+	fkt_print_html_footer
+else	
+	GUI=1
+	fkt_print_html_header
+	echo "<pre>"
+	cat $NETFILTER_COUNT
+	echo "</pre>"
+	fkt_print_html_footer
+fi

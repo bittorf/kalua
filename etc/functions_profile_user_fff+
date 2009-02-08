@@ -1,0 +1,350 @@
+# ToDo: unterscheiden zwischen 'nvram' und 'uci'-Router - wie?
+
+# dummer/unkonigurierter router
+# - einstellung als standard mit zufaelliger knotennummer
+# - cronjob, der versucht eine knotennummer zu ziehen
+#   - wenn dies gelingt, reconfig + reboot
+
+
+# func_profile_map_name
+# func_profile_set_weimarnetz_standard_mesh
+# func_profile_set_weimarnetz_standard_ap
+# func_profile_set_weimarnetz_standard_mesh_atheros_5ghz
+# func_dnsservers_berlin
+# func_timezone
+# func_reposet_ffweimar
+# func_ipsystem_weimar
+# func_config
+
+
+func_profile_map_name ()	# OUT1: string
+{
+	case $1 in
+		backbone_mesh_band_g)	echo "weimarnetz_backbone_mesh"
+		;;
+		standard_mesh_band_g)	echo "weimarnetz_standard_mesh"
+		;;
+		standard_ap_band_g)	echo "weimarnetz_standard_ap"
+		;;
+		standard_client_band_g) echo "weimarnetz_standard_client"
+		;;
+		standard_mesh_band_a)	echo "weimarnetz_standard_mesh_atheros_5ghz"	# howto dell1470?
+		;;
+		*) 			echo "unknown ('$1')"
+					return 1
+		;;
+	esac
+}
+
+func_profile_set_weimarnetz_standard_mesh ()
+{
+	[ "$1" = "info" ] && {
+		echo "Standardeinstellungen fuer Weimar mit dem Weimarer IP-System."
+		echo "Auf LAN und WLAN werden per DHCP Adressen vergeben."
+		echo "Auf LAN, WAN und WLAN wird OLSR gesprochen."
+		echo "Alle Weimarer Firmware-Erweiterungen sind aktiviert."
+		echo "Das Funknetzwerk arbeitet im performanten 802.11g-Modus (longslot) auf Kanal 5,"
+		echo "nutzt den Mesh-(AdHoc)-Modus mit fixer BSSID, 256-Byte-WLAN-Packetfragmentierung"
+		echo "und einer niedrigen Beacon-Aussendung von 1/Sekunde. Broadcast-Pakete"
+		echo "(z.b. OLSR) werden fest mit einer 802.11b-Rate von 1.0 Megabit gesendet."
+		echo "Der ACK-Bestaetigungsmechanismus funktioniert bis 5000 Meter Entfernung."
+		return
+	}
+	
+	eval $(func_ipsystem_weimar $1)
+
+	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "PASS=admin" "TZ=$(func_timezone DE)"
+	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)"
+	func_profile_set_wan	        "IP=$WAN_IP"
+	func_profile_set_lan         	"IP=$LAN_IP"  "DHCP=$DHCP_LAN"
+	func_profile_set_wifi      	"IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
+	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=1000000" "FRAG=256" "BEACON=1000" "DISTANCE=5000" "GMODE=2" "PREAMBLE=long"
+	func_profile_set_wifi_phy       "MODE=adhoc" "ESSID=www.weimarnetz.de_Transportnetz" "BSSID=02:ca:ff:ee:ba:be" "CHANNEL=5"
+	func_profile_set_olsr           "DEFAULTS=true"
+	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
+	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
+}
+
+func_profile_set_weimarnetz_backbone_mesh ()
+{
+	[ "$1" = "info" ] && {
+		echo "Entspricht dem Profil 'weimarnetz_standard_mesh', arbeitet aber auf"
+		echo "Kanal 13 und mit anderer BSSID."
+		return
+	}
+	
+	func_profile_set_weimarnetz_standard_mesh "$1"
+	func_profile_set_wifi_phy "MODE=adhoc" "ESSID=www.weimarnetz.de_Backbone_2GHz" "BSSID=02:ca:ca:00:ba:be" "CHANNEL=13"
+}
+
+func_profile_set_weimarnetz_standard_ap ()
+{
+	[ "$1" = "info" ] && {
+		echo "Standardeinstellungen fuer Weimar mit dem Weimarer IP-System."
+		echo "Auf LAN und WLAN werden per DHCP Adressen vergeben."
+		echo "Auf LAN, WAN und WLAN wird OLSR gesprochen."
+		echo "Alle Weimarer Firmware-Erweiterungen sind aktiviert."
+		echo "Das Funknetzwerk arbeitet im hochkompatiblen-802.11b/g-Master/AP-Modus,"
+		echo "ist also nur sinnvoll, wenn mindestens ein zweiter Router per Kabelkopplung"
+		echo "angeschlossen wird, der im Mesh-(AdHoc)-Modus arbeitet."
+		return
+	}			# howto disable wifi-olsr?
+
+	eval $(func_ipsystem_weimar $1)
+	
+	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}ap" "PASS=admin" "TZ=$(func_timezone DE)"
+	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)"
+	func_profile_set_wan            "IP=$WAN_IP"
+	func_profile_set_lan            "IP=$LAN_IP"  "DHCP=$DHCP_LAN"
+	func_profile_set_wifi           "IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
+	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=1000000" "GMODE=1" "PREAMBLE=long"	# fixme! mrate=auto?
+	func_profile_set_wifi_phy       "MODE=ap" "ESSID=www.weimarnetz.de_Zugangspunkt" "CHANNEL=1"
+	func_profile_set_olsr           "DEFAULTS=true"
+	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
+	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
+}
+
+func_profile_set_weimarnetz_standard_client ()
+{
+	[ "$1" = "info" ] && {
+		echo "Noch nicht vollstaendig implementiert - nur fuer Testzwecke von Experten zu benutzen"
+		# fixme! echo "client-klauschwein, muss wifi-dhcp machen?, essid+evtl.channel merken!"	# fixme!
+		return
+	}			# howto disable wifi-olsr?
+	
+	eval $(func_ipsystem_weimar $1)
+	
+	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}client" "PASS=admin" "TZ=$(func_timezone DE)"
+	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)"
+	func_profile_set_wan            "IP=$WAN_IP"
+	func_profile_set_lan            "IP=$LAN_IP"  "DHCP=$DHCP_LAN"
+	func_profile_set_wifi           "IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
+	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=5500000"
+	func_profile_set_wifi_phy       "MODE=client" "ESSID=spezifisch" "CHANNEL=13"	# channel=spezifisch
+	func_profile_set_olsr           "DEFAULTS=true"
+	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
+	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
+}
+
+func_profile_set_weimarnetz_standard_mesh_atheros_5ghz ()
+{
+	[ "$1" = "info" ] && {
+		echo "Standardeinstellungen fuer Weimar mit dem Weimarer IP-System."
+		echo "Auf LAN und WLAN werden per DHCP Adressen vergeben."
+		echo "Auf LAN, WAN und WLAN wird OLSR gesprochen."
+		echo "Alle Weimarer Firmware-Erweiterungen sind aktiviert."
+		echo "Das Funknetzwerk arbeitet im performanten 802.11a-(AdHoc)-Modus."
+		echo "Wird eine Atheros-Karte verwendet, werden die madwifi-Treiber im 5 GHz-Outdoor-Modus benutzt."
+		return
+	}
+	
+	eval $(func_ipsystem_weimar $1)
+	
+	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh5ghz" "PASS=admin" "TZ=$(func_timezone DE)"
+	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)"
+	func_profile_set_wan            "IP=$WAN_IP"
+	func_profile_set_lan            "IP=$LAN_IP"  "DHCP=$DHCP_LAN"
+	func_profile_set_wifi           "IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
+	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=6000000" "DISTANCE=5000"
+	func_profile_set_wifi_phy       "MODE=adhoc" "ESSID=www.weimarnetz.de_Backbone_5GHz" "BSSID=02:ff:ff:ca:01:00" "CHANNEL=100"
+	func_profile_set_wifi_phy       "BEACON=1000" "RTS=off"
+	func_nvset ff_ath_param         "countrycode=276 outdoor=1 bstuck_thresh=1"	# atheros/freifunk-special!
+	func_profile_set_olsr           "DEFAULTS=true"
+	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
+	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
+}
+
+func_dnsservers_berlin ()
+{
+	echo -n "81.169.139.12;212.91.230.58;208.67.222.222"
+}
+
+func_timezone ()
+{
+	case $1 in
+		DE)
+			echo -n "CET-1CEST-2,M3.5.0/2,M10.5.0/3"
+		;;
+	esac
+}
+
+func_reposet_ffweimar ()
+{
+	local REP
+	
+	REP="src freifunk http://download.berlin.freifunk.net/ipkg/packages"
+	REP="${REP};src weimarnetz http://www.weimarnetz.de/ipkg/packages"
+	REP="${REP};src kamikaze-backports http://downloads.openwrt.org/backports/rc5"
+	REP="${REP};src whiterussian http://downloads.openwrt.org/whiterussian/packages"
+	REP="${REP};src owfs http://owfs.sourceforge.net/openwrt/packages"
+	REP="${REP};src laurence http://www.pug.org/~laurence/OpenWRT/whiterussian"
+	REP="${REP};src leipzig http://firmware.leipzig.freifunk.net/ipkg/global"
+
+	echo -n "$REP"
+}
+
+func_ipsystem_weimar ()			# ARG1: - empty -> has_nodenumber? -> output for my nodenumber
+{					#  	- "random" or empty && no_nodenumber?  -> output for random nodenumber
+	local NODE_NUMBER="$1"		#       - IP-address  -> output nodenumber
+	local CITY="63"			#	- node-number -> output for this nodenumber, return 1 if not in range
+	local NW=10
+	local RANGE_START="2"
+	local RANGE_END="1020"
+
+	  if [ -z "$NODE_NUMBER" ]; then
+		NODE_NUMBER="$( nvram get fff_node_number )"
+		[ -z "$NODE_NUMBER" ] && NODE_NUMBER=$( func_get_random_value 970 $RANGE_END )
+	elif [ "$NODE_NUMBER" = "random" ]; then
+		NODE_NUMBER=$( func_get_random_value 970 $RANGE_END )
+	elif [ "$( echo $NODE_NUMBER | sed 's/[^\.]//g' )" = '...' ]; then	# is IPv4
+		
+		eval $(echo $NODE_NUMBER|sed -n 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/local OCT1=\1\nlocal OCT2=\2\nlocal OCT3=\3\nlocal OCT4=\4/p')
+
+		[ $OCT1 -eq $NW ] && [ $OCT2 -eq $CITY ] && {
+		     	  if [ $OCT4 -gt 191 ]; then echo $(( $OCT3 + 765 ))
+			elif [ $OCT4 -gt 127 ]; then echo $(( $OCT3 + 510 ))
+			elif [ $OCT4 -gt  63 ]; then echo $(( $OCT3 + 255 ))
+			else 			     echo     $OCT3; fi
+			return 0
+		}
+		return 1
+		
+	fi
+	
+	if [ 2>/dev/null "$NODE_NUMBER" -ge $RANGE_START ] && [ "$NODE_NUMBER" -le $RANGE_END ]; then
+			
+		local S=0			# subnetstart 	e.g. network.city.100.${S}
+		local N=$NODE_NUMBER		# nodenumber_id	e.g. network.city.${N}.0
+		local RANDOM=false
+		
+		  if [ "$NODE_NUMBER" -gt 969 ]; then
+			N=$(( $NODE_NUMBER - 765 ))
+			S=192
+			RANDOM=true
+		elif [ "$NODE_NUMBER" -gt 765 ]; then
+			N=$(( $NODE_NUMBER - 765 ))
+			S=192
+		elif [ "$NODE_NUMBER" -gt 510 ]; then
+			N=$(( $NODE_NUMBER - 510 ))
+			S=128
+		elif [ "$NODE_NUMBER" -gt 255 ]; then
+			N=$(( $NODE_NUMBER - 255 ))
+			S=64
+		fi
+	else
+		return 1
+	fi
+
+	cat<<EOF
+NODE_NUMBER=$NODE_NUMBER
+NODE_NUMBER_RANDOM=$RANDOM
+OLSR_HNA=$NW.$CITY.$N.$S/26
+
+LAN_ADR=$NW.$CITY.$N.$(( S + 33 ))
+LAN_IP=$NW.$CITY.$N.$(( S + 33 ))/27
+LAN_IP_1ST=$NW.$CITY.$N.$(( S + 34 ))/27
+LAN_PRE=27
+LAN_DHCP_PRE=27
+LAN_DHCP_NUM=29
+LAN_DHCP_LEASETIME=12h
+
+WAN_ADR=$NW.$CITY.$N.$(( S + 25 ))
+WAN_PRE=30
+WAN_IP=$NW.$CITY.$N.$(( S + 25 ))/30
+
+WIFI_ADR=$NW.$CITY.$N.$(( S + 1 ))
+WIFI_IP=$NW.$CITY.$N.$(( S + 1 ))/8
+WIFI_IP_1ST=$NW.$CITY.$N.$(( S + 2 ))
+WIFI_PRE=8
+WIFI_DHCP_PRE=27
+WIFI_DHCP_NUM=20
+WIFI_DHCP_LEASETIME=2h
+
+DHCP_LAN="$NW.$CITY.$N.$(( S + 34 ))/27,29,12h"
+DHCP_WIFI="$NW.$CITY.$N.$(( S + 2 ))/27,20,2h"
+# ---
+FFF_NODE=$NODE_NUMBER
+FFF_HNA=$NW.$CITY.$N.$S/26
+LANADR=$NW.$CITY.$N.$(( S + 33 ))
+LAN1ST=$NW.$CITY.$N.$(( S + 34 ))
+LANMSK=255.255.255.224
+LANBRC=$NW.$CITY.$N.$(( S + 63 ))
+LANNET=$NW.$CITY.$N.$(( S + 32 ))
+LANPRE=27
+LANDHCPSTART=$(( S + 34 ))
+LANDHCPNUM=29
+WIFIADR=$NW.$CITY.$N.$(( S + 1 ))
+WIFI1ST=$NW.$CITY.$N.$(( S + 2 ))
+WIFIMSK=255.255.255.224
+WIFIBRC=$NW.$CITY.$N.$(( S + 31 ))
+WIFINET=$NW.$CITY.$N.$S
+WIFIPRE=27
+WANADR=$NW.$CITY.$N.$(( S + 25 ))
+WAN1ST=$NW.$CITY.$N.$(( S + 26 ))
+WANMSK=255.255.255.252
+WANBRC=$NW.$CITY.$N.$(( S + 27 ))
+WANNET=$NW.$CITY.$N.$(( S + 24 ))
+WANPRE=30
+WIFIDHCPSTART=$NW.$CITY.$N.$(( S + 2 ))
+WIFIDHCPNUM=25
+WIFIVPNSERVERADR=$NW.$CITY.$N.$(( S + 30 ))
+WIFIVPNCLIENTADR=$NW.$CITY.$N.$(( S + 29 ))
+WIFIVPNNET=$NW.$CITY.$N.$(( S + 28 ))
+WIFIVPNBRC=$NW.$CITY.$N.$(( S + 31 ))
+WIFIVPNPRE=30
+EOF
+}
+
+func_conf ()		# e.g. func_conf boot_watchdog && start_bootwatchdog (OUT=bool)
+{			# e.g. func_conf show_all -> list (value short_desc long_desc)
+
+	local P=1
+
+	[ "$1" = "show_all" ] && {
+		while func_conf $P info; do {
+			P=$(( $P + 1 ))
+		} done
+		return 0
+	}
+	
+	local VAR="fff_extensions"
+	local VALUE="$( nvram get $VAR )"
+	local I="no description available"
+	local S="short_description"
+	
+	case $1 in
+		      speedtest|1)  P=1  ; S="speedtest"       ; I="Alle 40 Minuten wird von einem zufaelligem Nachbarn 10 fuer Sekunden ein Testdownload gemacht. Diese Werte dienen als Berechnungsgrundlage fuer ein Bandbreitenabhaengiges Routing." ;;
+		 	adblock|2)  P=2  ; S="adblock"         ; I="Ueber eine systemweite DNS-Liste ('/etc/local.hosts') werden bekannte Werbebanner geschluckt (zurueckgewiesen). Weniger Datenverkehr und schnelleres surfen im Web." ;;
+		 firmwareupdate|3)  P=3  ; S="firmwareupdate"  ; I="Automatisches Firmwareupdate, je nach Einstellung." ;;
+		lazy_wired_olsr|4)  P=4  ; S="lazy_wired_olsr" ; I="Auf allen Netzwerkschnittstellen, auf denen kein OLSR-Partner zu hoeren ist, wird OLSR abgeschaltet. Alle 15 Stunden wird neu ueberprueft." ;;
+		  boot_watchdog|5)  P=5  ; S="boot_watchdog"   ; I="Sollte 10 Minuten nach dem Boot-Vorgang kein OLSR laufen, werden alle Partitionen neu formatiert und nochmal gestartet." ;;
+		     layer7_qos|6)  P=6  ; S="layer7_qos"      ; I="Die gaengigsten Protokolle (HTTP,FTP,...) werden auf Layer7-Basis erkannt, markiert und entsprecht der Wichtigkeit priorisiert." ;;
+		    no_wifi_nat|7)  P=7  ; S="no_wifi_nat"     ; I="Das maskieren der WLAN-Klienten wird deaktivert. Dazu muss der WLAN-Bereich per OLSR-HNA4 angekuendigt werden." ;;
+		     splashpage|8)  P=8  ; S="splashpage"      ; I="Alle Benutzer sehen, wenn sie das interne Netzwerk verlassen eine Infoseite, die " ;;
+		   smart_ethers|9)  P=9  ; S="smart_ethers"    ; I="Es koennen MAC-Adressen eingegeben werden, die " ;;
+		   boot_telnetd|10) P=10 ; S="boot_telnetd"    ; I="Waehrend der ersten 10 Minuten des Startvorgangs ist zusaetzlich zum SSH-Login auch ein telnet-Login ohne Passwort moeglich." ;;
+		    auto_config|11) P=11 ; S="auto_config"     ; I="Beim Bootvorgang werden automatisch alle Einstellungen vorgenommen, es sei denn, dies wurde schonmal getan." ;;
+	         olsr_whitelist|12) P=12 ; S="olsr_whitelist"  ; I="Nur von zentral in einer 'whitelist' eingetragenen Netzknoten (MAC/IP-Kombination) werden OLSR-Pakete akzeptiert. Damit gibt es weniger Konfigurationsfehler. Diese Liste wird alle 10 Stunden optimiert." ;;
+		  auto_software|13) P=13 ; S="auto_software"   ; I="Abhaengig von Speicherplatz und gewuenschter Funktionalitaet werden automatisch nach dem flashen brauchbare Software-Pakete nachinstalliert." ;;
+		      nud_neigh|14) P=14 ; S="nud_neigh"       ; I="Alle OLSR-Nachbarn werden permanent in die Kernel-NUD-Liste eingetragen." ;;
+		      nud_local|15) P=15 ; S="nud_local"       ; I="Lokal bekannte Benutzer werden permanent in die Kernel-NUD-Liste eingetragen." ;;
+		       mesh_rdf|16) P=16 ; S="mesh_rdf"        ; I="Alle 15 Minuten werden Statusinformationen dieses Netzknotens local gespeichert und in zufaelligen Abstaenden zu einem zentralen Server gesendet" ;;
+                     accounting|17) P=17 ; S="accounting"      ; I="Es kann eine Liste aller Benutzer abgefragt werden, die auf diesem Netzknoten irgendwie Datenverkehr verursacht haben." ;;
+	                 ic_vpn|18) P=18 ; S="ic_vpn"          ; I="Ist ein lokaler Internetzugang vorhanden, wird automatisch am Intercity-VPN teilgenommen. Dabei werden Funkwolken ueber VPN gekoppelt." ;;
+                  system_checks|19) P=19 ; S="system_checks"   ; I="Alle 15 Minuten werden die wichtigen Dienste auf korrekte Funktionalitaet geprueft und neugestartet, wenn noetig." ;;
+                      check_mac|20) P=20 ; S="check_mac"       ; I="Alle MAC-Adressen dieses Geraets werden beim Start geprueft. Sollte eine ungueltige festgestellt werden, wird dies korrigiert." ;;
+				 *) P=0
+		;;
+	esac
+
+	VAR="$(echo -n $VALUE | cut -b$P)"
+
+	[ "$2" = "info" ] && {
+		[ $P -eq 0 ] && return 1
+		echo "local VALUE='$VAR';local DESC_SHORT='$S'; local DESC_LONG='$I'"
+		return 0
+	}
+
+	[ 2>/dev/null "$VAR" -gt 0 ] && return 0
+	return 1
+}

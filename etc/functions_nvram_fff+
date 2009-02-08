@@ -1,0 +1,60 @@
+FUNC_NVRAM=1
+
+func_nvget ()
+{
+	local VALUE="$( nvram get "$1" )"		# fixme! maybe escape it?
+	func_log nvget daemon debug "'$1'='$VALUE'"
+	echo "$VALUE"
+}
+
+func_nvset ()			# func_nvset varA valueA	// sets value
+{				# func_nvset commit		// commit changes
+	local FUNC="nvset"	# func_nvset variableA		// no value = unset
+	local VAR="$1"		# func_nvset varB valueB simu   // just simulates a this function for debugging
+	local SIMULATE="$3"	# func_nvset commit - simu	// simulating commit
+
+	[ -n "$SIMULATE" ] && FUNC="${FUNC}_simulated"
+	
+	[ "$VAR" = "commit" ] && {
+		[ -z "$SIMULATE" ] && {
+			func_log $FUNC daemon debug "commiting changes"
+			nvram commit 2>/dev/null || {
+				func_log $FUNC daemon crit "error during commit"	# fixme! command always returns 0
+				return 1						# even if "low mem, could'nt write"
+			}
+			func_log $FUNC daemon alert "commited all changes"		# fixme! log changes? (needs /tmp/NVRAM_NO_CHANGE)
+			return
+		}
+		func_log $FUNC daemon debug "commit"		# fixme! take "reason" as arg3?
+		return
+	}
+
+	local VALUE_NEW="$2"
+	local VALUE_OLD="$( nvram get "$VAR" )"
+	local VAR_CHANGED="(no change)"
+	local RETURN=0				# means, nothing was changed
+	
+	[ "$VALUE_OLD" != "$VALUE_NEW" ] && {
+		if [ -z "$VALUE_OLD" ]; then
+			VAR_CHANGED="(new variable)"
+			RETURN=1
+		else
+			[ ${#VALUE_OLD} -gt 30 ] && {
+				VALUE_OLD="$( echo "$VALUE_OLD" | head -n1 | cut -b1-33 ) [...]"
+			}
+			
+			VAR_CHANGED="(changed, was: '$VALUE_OLD')"
+			RETURN=1
+		fi
+	}
+	
+	[ -n "$VALUE_NEW" ] && {
+		func_log $FUNC daemon debug "'$VAR'='$VALUE_NEW' $VAR_CHANGED"
+		[ -z "$SIMULATE" ] &&  nvram set "$VAR"="$VALUE_NEW"
+		return $RETURN
+	}
+	
+	func_log $FUNC daemon debug "unsetting '$VAR' $VAR_CHANGED"
+	[ -z "$SIMULATE" ] && nvram unset "$VAR"
+	return $RETURN
+}

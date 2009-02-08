@@ -1,0 +1,87 @@
+func_ipkg_make_free_space ()
+{
+	local FUNC="ipkg_make_free_space"
+	local SPACE_WISH="$1"
+	local FREE=0
+	local IPK
+
+	for IPK in $( func_ipkg_list_installed_backwards ); do {
+		FREE="$( func_system_flash_free )"
+		func_log $FUNC daemon debug "now $FREE kb"
+		[ $FREE -gt $SPACE_WISH ] && {
+			func_log $FUNC daemon debug "ready"
+			break
+		}
+		func_ipkg_remove $IPK
+	} done
+}
+
+func_ipkg_list_installed_backwards ()	# OUT1: string
+{
+	ipkg status |
+	 sed -n 's/^Package: \(.*\)/\1/p' |
+	  sed '1!G;h;$!d'
+}
+
+func_ipkg_repos_list_files ()	# OUT1: string
+{
+	cat /usr/lib/ipkg/lists/* 2>/dev/null || {
+		echo
+		return 1
+	}
+}
+
+func_ipkg_update ()
+{
+	local FILE_LAST_FETCH="/tmp/ipkg_last_repository_update"
+	local UNIXTIME_UPDATE=0
+	local UNIXTIME_NOW="$( date +%s )"
+	
+	  if [ "$( func_ipkg_repos_list_files | wc -l )" -lt 100 ]; then
+	  
+	  	UNIXTIME_UPDATE=0
+
+	elif [ -e $FILE_LAST_FETCH ]; then
+	  
+		UNIXTIME_UPDATE="$( cat $FILE_LAST_FETCH )"
+	else
+		UNIXTIME_UPDATE=0
+	fi
+	
+	[ $(( $UNIXTIME_NOW - $UNIXTIME_UPDATE )) -gt 1800 ] && {
+		ipkg update
+		echo $UNIXTIME_NOW >$FILE_LAST_FETCH
+	}
+}
+
+func_ipkg_install ()
+{
+	func_ipkg_update
+	ipkg -force-defaults install "$1"
+}
+
+func_ipkg_remove ()
+{
+	local FUNC="ipkg_remove"
+	local PACKAGE="$1"
+	
+	func_log $FUNC daemon debug "'$PACKAGE'"
+	ipkg remove $PACKAGE
+	
+	[ ! -e /sbin/reboot ] && ln -s /rom/sbin/reboot /sbin/reboot	# loginutils
+	[ -z "$( date 2>/dev/null )" ] && ln -s busybox /bin/date	# busybox-coreutils
+}
+
+func_ipkg_is_installed ()
+{
+	ipkg status "$1" | grep -q "Status: install ok installed" && return 0
+	
+	return 1
+}
+
+func_ipkg_is_not_installed ()
+{
+	ipkg status "$1" | grep -q "Status: install ok installed" || return 0
+
+	return 1
+}

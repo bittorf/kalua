@@ -1,0 +1,177 @@
+#!/bin/sh
+
+# 
+# fixme! Idee: - es wird direkt eine Seite erzeugt, die man sich direkt ausdrucken kann mit allen
+#              - technischen Daten fuer diesen Router und freies Feld fuer das Passwort
+
+. /etc/variables_fff+
+. /etc/functions_fff+
+. /www/cgi-bin-tool_functions_fff+
+. /etc/functions_logging_fff+
+
+if [ -z "$1" ]; then		# call from httpd
+
+	. /etc/functions_http_fff+
+	eval $(func_http_sanitize_query_string)
+
+	[ "$REQUEST_METHOD" = "POST" ] && {			# do this, if submit-button was pressed
+								# (POST-method) - GET arguments are passed too(!)
+		[ -n "$FORM_LATITUDE" ] && [ -n "$FORM_LONGITUDE" ] && {
+			func_log setting_gps user info "LATITUDE='$FORM_LATITUDE' LONGITUDE='$FORM_LONGITUDE'"
+			. /etc/functions_nvram_fff+
+			func_nvset ff_adm_latlon "$FORM_LATITUDE;$FORM_LONGITUDE"
+			func_nvset commit
+			scheduler -a restart_olsr
+		}
+	
+		[ -n "$IPWIZARD" ] && {
+			eval $(fkt_calc_node_params $IPWIZARD)
+		}
+
+		[ -n "$TFTP_HARDWARE" ] && {
+			fkt_print_html_header
+			fkt_print_tftp_flashing
+			fkt_print_html_footer
+			exit
+		}
+	}
+else				# call from shell
+	OPT="$1"	
+fi
+
+case "$OPT" in
+	print_everlog)
+		fkt_print_html_header
+		[ ! -e /www/everlasting_syslog.txt ] && {
+			echo "Bisher sind keine wichtigen Systemmeldungen angefallen.<br>"
+			exit
+		}
+		echo "<pre>"
+		cat /www/everlasting_syslog.txt
+		echo "</pre>"
+	;;
+	antenna_test)
+		fkt_print_html_header
+		echo "Der Automatische Antennentest wurde in die Warteschlange gestellt.<br>"
+		echo "Das Ergebnis ist in wenigen Minuten &uuml;ber das<br>"
+		echo "'resetfeste Computerlogbuch' im Werkzeug einsehbar<br><br><pre>"
+		scheduler -a "/usr/sbin/cron.select_best_antenna_fff+ force"
+		scheduler -l
+		echo "</pre>"
+	;;
+	neigh)
+		fkt_print_html_header
+		func_print_neigh
+	;;
+	adblock_table)
+		fkt_print_html_header
+		func_print_adblock_table
+	;;
+	mac2ip_table)
+		fkt_print_html_header
+		func_print_mac2ip_table
+	;;
+	wifi_on_or_off)
+		fkt_print_html_header
+		func_wifi_on_or_off
+	;;
+	fwupdate)
+		fkt_print_html_header
+		fkt_print_update_help
+	;;
+	fwupdatecheck)
+		fkt_print_html_header
+		fkt_print_html_fwupdatecheck
+	;;
+	tftp)
+		fkt_print_html_header
+		fkt_print_tftp_help
+	;;
+	wikistartpic)
+		fkt_print_html_header
+		fkt_grab_startpic_from_wiki
+	;;
+	killallwget)
+		fkt_print_html_header
+		fkt_killall_wget
+	;;
+	wifimac)
+		fkt_print_html_header
+		fkt_print_wifimac
+	;;
+	time)
+		fkt_print_html_header
+		fkt_print_time
+	;;
+	version)
+		fkt_print_html_header
+		fkt_print_version
+	;;
+	notebookconf)
+		fkt_print_html_header
+		fkt_print_html_notebook_conf
+	;;
+	netfilterolsr)
+		fkt_print_html_header
+		fkt_print_html_netfilter_olsr
+	;;
+	netfilter)
+		fkt_print_html_header
+		fkt_print_html_netfilter
+	;;
+	speedarchiv)
+		fkt_print_html_header
+		fkt_print_html_speedarchiv
+	;;
+	tracearchiv)
+		fkt_print_html_header
+		fkt_print_html_tracearchiv
+	;;
+	servicearchiv)
+		fkt_print_html_header
+		fkt_print_html_servicearchiv
+	;;
+	node_data_archiv)
+		fkt_print_html_header
+		fkt_print_html_node_data_archiv
+	;;
+	sysinfo)
+		fkt_print_html_header
+		fkt_print_html_sysinfo
+	;;
+	syslog)
+		fkt_print_html_header
+		fkt_print_html_syslog
+	;;
+	tracetest)
+		fkt_print_html_header
+		fkt_print_html_internet_trace
+	;;
+	traceremote)
+		fkt_print_html_header
+		fkt_print_html_trace_to_remote
+	;;
+	telnet)
+		fkt_print_html_header
+		fkt_start_or_end_telnetd
+	;;
+	accounting)
+		fkt_print_html_header
+		fkt_print_accounting
+	;;
+	reboot)
+		fkt_print_html_header
+		fkt_print_link_to_reboot
+	;;
+	accounting_gen_cache)
+		fkt_print_accounting generate_cache >/tmp/cached_fkt_print_accounting
+	;;
+	*)
+		GUI=1
+		fkt_print_html_header
+		# fkt_print_html_help
+		fkt_print_select_box
+	;;
+esac
+
+fkt_print_html_footer

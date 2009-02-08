@@ -1,0 +1,65 @@
+#!/bin/sh
+
+# example output:
+# T=1186910127; DATE=12Aug2007-11uhr15; GW=10.63.85.1; HOSTNAME=rom; NEXTHOP=10.63.194.1; METRIC=2; ETX=3.15 
+
+. /etc/functions_fff+
+. /etc/variables_fff+
+
+test   -e "$LOWMEM"			&& exit
+test   -n "$FAILSAFE"			&& exit
+test ! -e "$SOFTWARE_FULLY_INSTALLED"	&& exit
+
+fkt_watch_archiv () {
+	tail -n 250 "${TRACE_INET_GATEWAY}"     >"${TRACE_INET_GATEWAY}_temp"
+	mv          "${TRACE_INET_GATEWAY}_temp" "${TRACE_INET_GATEWAY}"
+}	
+
+LIST=$(fkt_print_all_gateways)
+LIST="$(echo $LIST | sed 's/ /\/32_/g' | sed 's/$/\/32/g')"		# append a "/32_" on every IP and at the end
+
+# should be this form: etx, gw-ip, nexthop-ip, metric
+
+OUT="$(wget -O - http://127.0.0.1:2006 | sed -e '/./{H;$!d;}' -e 'x;/Table: Routes/!d;' | 
+	awk -v LIST=$LIST '/\./ {if($4/1<1)exit;if(index(LIST,$1)>0)print $4,$1,$2,$3}' |
+	sort -n |
+	head -n 1 |
+	sed 's/\/32//g')"
+	
+# possible error: olsr does not respond, caused by hanging or deactivated plaintest-plugin
+
+if [ -z "$OUT" ]; then
+	GW="$(ip ro list exact 0/0 | cut -d" " -f3)"	# gatewayip from routing table
+	GWESCAPED="$(echo $GW  | sed 's/\./\\./g')"
+
+	if [ -n "$(grep "$GWESCAPED" $CLIENTS_LAN)" ] || [ -n "$(grep $GWESCAPED $CLIENTS_WAN)" ]; then
+		. /tmp/NETPARAM
+		OUT="1.00 $WIFIADR $WIFIADR 0"	# metric = 0 ! (is in own subnet, without a router intermediate - ergo GW = WIFIADR!)
+	else
+		. /tmp/NETPARAM
+		OUT="1.00 $WIFIADR $WIFIADR 0"	# provider-lan with subnet >/24 is implemented yet
+	fi
+fi
+
+      ETX="$(echo $OUT | cut -d" " -f1)"
+       GW="$(echo $OUT | cut -d" " -f2)"
+     NEXT="$(echo $OUT | cut -d" " -f3)"
+   METRIC="$(echo $OUT | cut -d" " -f4)"
+GWESCAPED="$(echo $GW  | sed 's/\./\\./g')"
+   DOMAIN="$(nvram get wan_domain)"             # bug! this is not true in our mesh - domain is always .olsr
+   DOMAIN="olsr"
+ HOSTNAME="$( nslookup $GW | sed -n 's/Name: *\([0-9a-zA-Z_-]*\)\.\([0-9a-zA-Z_-]*\)/\1/p' )"
+ UNIXTIME="$(date +%s)"
+ HUMNDATE="$(date +%d%b%Y-%Huhr%M)"
+
+test -z "$HOSTNAME" && HOSTNAME="?"
+
+echo "T=$UNIXTIME; DATE=$HUMNDATE; GW=$GW; HOSTNAME=$HOSTNAME; NEXTHOP=$NEXT; METRIC=$METRIC; ETX=$ETX" >>"$TRACE_INET_GATEWAY"
+
+tail -n 1 $TRACE_INET_GATEWAY
+
+fkt_watch_archiv
+
+#LOCAL_NETWORK="$(awk '/;$/ {printf $1}' $CLIENTS_ALL)"
+#ACTIVE_CLIENTS="$(sed 's/.* src=\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) dst=.*/\1/g' /proc/net/ip_conntrack|sort|uniq)"
+

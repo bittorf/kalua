@@ -1,0 +1,141 @@
+#!/bin/sh
+
+# fixme! needs some rework - it does not do much senseful at the moment
+
+. /etc/variables_fff+
+
+test   -e "$LOWMEM" 			&& exit
+test   -n "$FAILSAFE" 			&& exit
+test ! -e "$SOFTWARE_FULLY_INSTALLED" 	&& exit
+test ! -e "$NETFILTER" 			&& exit
+
+# todo: what about nodes, which have no wifi-neighours?
+
+fkt_get_inet_gateway () {
+	eval $(tail -n 1 $TRACE_INET_GATEWAY)
+	echo -en $GW
+}
+
+fkt_get_last24h_users () {
+	# this is false!
+	
+	cat /proc/net/arp | wc -l | sed -e "s/ //g"
+}
+
+fkt_get_last24h_traffic () {
+	# this is false!
+
+	iptables -nxvL FORWARD | awk  '/FORWARD/ {print int($7/1024/1024)}'
+}
+
+fkt_get_neighbour_params () {		# the sed's are: - squeeze double (ore more) spaces than one, e.g. "the  dog" -> "the dog"
+					#                - cut out the ":" for shorter mac-addresses
+
+	# sample output (in one line, comma-separated):
+	# I://10.63.19.191:1|udp|		- inital fakeprotocol (kind of keyword)
+	# I=529,				- ID: nodenumber
+	# R=17,					- R:  reboots since last flashing
+	# U=37,					- UP: uptime in minuts
+	# B=bcm94710ap44,			- B:  boardtype / hardware
+	# V=329010,				- V:  running software-version
+	# G=10.63.85.1,				- GW: used internet-gateway
+	# C=6,					- C:  known LAN/WIFI-clients (ARP-entrys) within last 24h
+	# T=0,					- T:  forwarded megabytes within last 24h
+	#	I1=10.63.194.1,			- I1: neighbour_1 - IP-address
+	#	M1=0018396BD618,		- M1: neighbour_1 - MAC-address
+	#	S1=0				- S1: neighbour_1 - average download-speed in kilobytes/sec
+	#
+	#	I2=10.63.104.1,
+	#	M2=0018F8EBAE95,
+	#	S2=1082,
+	#	
+	#	I3=10.63.3.129,
+	#	M3=00904B3AF9EE,
+	#	S3=0,
+	#	
+	#	I4=10.63.165.1,
+	#	M4=009096C0636B,
+	#	S4=0,
+	# N=4					- N: neighbours with good ETX (snapshot)
+	
+
+	/www/cgi-bin-speed N | 
+	 awk -v DEV=$WIFIDEV '{
+	 	c++
+	 	printf "I"c"="$2",M"c"="
+	 	system("OUT=$(arping -qfI "DEV" "$2" ;grep "$2" /proc/net/arp | sed -e \"s/\ */ /g\" | cut -d\" \" -f 5 | sed \"s/://g\");echo -en $OUT")
+		printf ",S"c"="
+		system("OUT=$(/www/cgi-bin-speed s="$2" | cut -d= -f2 | cut -d\\; -f1);echo -en $OUT")
+	 	printf ","
+	 	}END{
+	 	print "N="c
+	}'
+}
+
+fkt_generate_node_params () {
+	. /tmp/NETPARAM
+
+ 	local  PROTOCOL="I://$LANBRC:1|udp|"
+	local NODECOUNT="$(nvram get fff_node_number)"
+	local   REBOOTS="$(cat "$REBOOT_COUNT" 2>/dev/null)"
+		test -z "$REBOOTS" && REBOOTS=1
+	local UP_IN_MIN="$(echo $(( $(cut -d. -f1 /proc/uptime) / 60 )))"
+	local BORDVALUE="$(nvram get boardtype)$(nvram get boardnum)"
+	local   VERSION="$FFF_PLUS_VERSION"
+	local    INETGW="$(fkt_get_inet_gateway)"
+	local   CLIENTS="$(fkt_get_last24h_users)"
+	local   TRAFFIC="$(fkt_get_last24h_traffic)"
+	local    PARAMS="$(fkt_get_neighbour_params)"
+
+	echo "${PROTOCOL}I=${NODECOUNT},R=${REBOOTS},U=${UP_IN_MIN},B=${BORDVALUE},V=${VERSION},G=${INETGW},C=${CLIENTS},T=${TRAFFIC},$PARAMS"
+}
+
+fkt_update_config_if_not_up_to_date () {
+	local NEW="$1$2"
+	local OLD="$(nvram get $CONF)"
+	local STA="$2"
+	
+	if [ "$NEW" != "$OLD" ]; then
+		logger "Updating service_announcement: old=\"$OLD\" - new=\"$NEW\""
+		
+		test ! -z "$STA" && echo >>$SERVICE_INFO "T=$(date +%s); V=\"$STA\""
+		
+		nvram set "$CONF"="$NEW"
+		nvram commit 2>/dev/null
+	fi
+}
+
+fkt_extract_real_services () {
+	local SERVICE_LIST="$(nvram get $CONF)"
+	local SERVICE=""
+	local REAL=""
+	IFS=\;
+	
+	for SERVICE in $SERVICE_LIST; do
+		unset IFS
+		test "$(echo $SERVICE | cut -d/ -f1)" != "I:" && REAL="${REAL}${SERVICE};"
+	done
+	
+	echo "$REAL"
+}
+
+
+CONF="ff_service"
+
+case $1 in
+	start)
+		fkt_update_config_if_not_up_to_date "$(fkt_extract_real_services)"
+	;;
+	update)
+		fkt_update_config_if_not_up_to_date "$(fkt_extract_real_services)" "$(fkt_generate_node_params)"
+	;;
+	show)
+		fkt_generate_node_params
+	;;
+	real)
+		fkt_extract_real_services
+	;;
+	*)
+		echo "Usage: $0 (start|show|real|update)"
+	;;
+esac

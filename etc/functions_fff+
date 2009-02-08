@@ -1,0 +1,878 @@
+FUNC_OLD=1
+
+# fkt_calc_node_from_ip				SENS: calculate nodenumber from IP-address
+# fkt_calc_node_params 				SENS: calculate network parameters for a nodenumber
+# fkt_get_free_flash_space_in_kb
+# fkt_check_if_pppoe_is_needed
+# fkt_check_if_https_is_possible
+# fkt_sleep_random_seconds_but_max
+# fkt_check_if_lowflash_device			SENS: checks if this device has less then 4mb flash-memory
+# fkt_print_all_nodes				SENS: simply prints all ip-addresses of all nodes, one per line (source: olsrd-topo)
+# fkt_print_all_gateways			SENS: simply prints all ip-addresses of internet-gateways, one per line (source: olsrd-hna)
+# fkt_count_reboots				SENS:
+# fkt_log					SENS: solution for central logging instance with configurable verboseness (see "VERBOSE" in variables)
+# fkt_install_software				SENS: simply installs ipkg-pakage without further prompting
+## fkt_if_installed_remove_it_now		SENS:
+# fkt_check_install_status			SENS:
+# fkt_check_install_status_lowlevel		SENS: outputs an "1" when ipkg-package (arg1) is fully installed, otherwise an "0"
+## fkt_get_cpu_load_x_100			SENS: cpu-load multiplied by 100 for easier calculating (no comma!)
+# fkt_build_etc_local_hosts			SENS: modulary builds /etc/local.hosts
+# fkt_check_for_static_lan_default_route	SENS: checks for static lan default-route (internet) config 
+# fkt_build_settings_menu			SENS: switching between "simple", "expert" and "full" settings-menu
+# fkt_check_readonly				SENS: check if data-partition is mounted read-only (failsafe or firmware-update-mode)
+# fkt_insert_netfilter				SENS: ?
+# fkt_build_client_list				SENS: print IP-list of (potential) clients
+# fkt_wget                                      SENS: reliable fetching an URL $1, aborting after $2 seconds
+# fkt_check_if_this_node_offers_inet
+
+
+fkt_calc_node_from_ip () {		# SENS: calculate nodenumber from IP-address
+					# ARG1: ip-address
+	local IP="$1"
+	local OKT3="$(echo $IP | sed 's/[0-9]*\.[0-9]*\.\([0-9]*\)\.[0-9]*/\1/g')"
+	local OKT4="$(echo $IP | sed 's/[0-9]*\.[0-9]*\.[0-9]*\.\([0-9]*\)/\1/g')"
+	local NODE=""
+
+	if [ -z "$IP" ]; then
+		NODE="$( nvram get fff_node_number )"
+		
+		if [ -n "$NODE" ]; then
+			echo $NODE
+			return
+		fi
+	fi
+
+	if [ -z "$(echo $IP | sed "/^$FFF_NET\.$FFF_CITY\./!d")" ]; then	# ip is not from mesh e.g. 192.168.1.2
+		echo "0"
+		return
+	fi
+
+	  if [ "$OKT4" -gt  "-1" ] && [ "$OKT4" -lt  "64" ]; then echo $OKT3
+	elif [ "$OKT4" -gt  "63" ] && [ "$OKT4" -lt "128" ]; then echo $(( $OKT3 + 255))
+	elif [ "$OKT4" -gt "127" ] && [ "$OKT4" -lt "192" ]; then echo $(( $OKT3 + 510))
+	elif [ "$OKT4" -gt "191" ] && [ "$OKT4" -lt "256" ]; then echo $(( $OKT3 + 765))
+	fi
+}
+
+fkt_calc_node_params () {		# SENS: calculate network parameters for a nodenumber
+					# ARG1: integer [2-1020] = nodenumber
+	local D=$1    # node to calc
+	local N=0     # node-count
+	local S=0     # subnet-start
+	local K=0     # nodenumber for output
+	local DAEMON="fkt_calc_node_params"
+
+	test -z "$D" && D=$(nvram get fff_node_number)
+	test -z "$D" && D=1
+
+	if [ $D -lt 1021 ] && [ $D -gt 765 ]; then N=$(( $D - 765 )); S=192; K=$D; fi
+	if [ $D -lt  766 ] && [ $D -gt 510 ]; then N=$(( $D - 510 )); S=128; K=$D; fi
+	if [ $D -lt  511 ] && [ $D -gt 255 ]; then N=$(( $D - 255 )); S=64 ; K=$D; fi
+	if [ $D -lt  256 ] && [ $D -gt   1 ]; then N=$D             ; S=0  ; K=$D; fi
+	
+	if [ $K -eq 0 ]; then
+		echo "ERROR=1"
+		fkt_log "$DAEMON" "Nodenumber not in range (2-1020, Node_1 = VPN-server)" 1
+		return
+	fi
+
+cat<<EOF
+ERROR=0
+FFF_NODE=$K
+FFF_HNA=$FFF_NET.$FFF_CITY.$N.$S/26
+
+LANADR=$FFF_NET.$FFF_CITY.$N.$(( S + 33 ))
+LAN1ST=$FFF_NET.$FFF_CITY.$N.$(( S + 34 ))
+LANMSK=255.255.255.224
+LANBRC=$FFF_NET.$FFF_CITY.$N.$(( S + 63 ))
+LANNET=$FFF_NET.$FFF_CITY.$N.$(( S + 32 ))
+LANPRE=27
+
+LANDHCPSTART=$(( S + 34 ))
+LANDHCPNUM=29
+
+WIFIADR=$FFF_NET.$FFF_CITY.$N.$(( S + 1 ))
+WIFI1ST=$FFF_NET.$FFF_CITY.$N.$(( S + 2 ))
+WIFIMSK=255.255.255.224
+WIFIBRC=$FFF_NET.$FFF_CITY.$N.$(( S + 31 ))
+WIFINET=$FFF_NET.$FFF_CITY.$N.$S
+WIFIPRE=27
+
+WANADR=$FFF_NET.$FFF_CITY.$N.$(( S + 25 ))
+WAN1ST=$FFF_NET.$FFF_CITY.$N.$(( S + 26 ))
+WANMSK=255.255.255.252
+WANBRC=$FFF_NET.$FFF_CITY.$N.$(( S + 27 ))
+WANNET=$FFF_NET.$FFF_CITY.$N.$(( S + 24 ))
+WANPRE=30
+
+WIFIDHCPSTART=$FFF_NET.$FFF_CITY.$N.$(( S + 2 ))
+WIFIDHCPNUM=25
+
+WIFIVPNSERVERADR=$FFF_NET.$FFF_CITY.$N.$(( S + 30 ))
+WIFIVPNCLIENTADR=$FFF_NET.$FFF_CITY.$N.$(( S + 29 ))
+WIFIVPNNET=$FFF_NET.$FFF_CITY.$N.$(( S + 28 ))
+WIFIVPNBRC=$FFF_NET.$FFF_CITY.$N.$(( S + 31 ))
+WIFIVPNPRE=30
+
+# VPN_SERVER=$FFF_NET.$FFF_CITY.1.254
+EOF
+}
+
+fkt_get_free_flash_space_in_kb () {
+	df | grep ".*jffs$" | sed 's/[ .]*/ /g' | cut -d" " -f5
+}
+
+func_network_get_mac_from_dev ()
+{
+	ip -oneline link show dev $1 2>/dev/null | sed -n 's/^.*link\/ether \(..:..:..:..:..:..\) .*/\1/p'
+}
+
+fkt_check_if_pppoe_is_needed () {
+	local OUT="false"
+	local PPPOE="0"
+	
+	test ! -z "$(nvram get pppoe_username)" && let PPPOE+=1
+	test ! -z "$(nvram get ppp_username  )" && let PPPOE+=1
+	test ! -z "$(nvram get pppoe_passwd  )" && let PPPOE+=1
+	test ! -z "$(nvram get ppp_passwd    )" && let PPPOE+=1
+	
+	test "$PPPOE" -eq "4" && OUT="true"
+	
+	echo $OUT
+}
+
+fkt_check_if_https_is_possible () {
+	local OUT="false"
+	local HTTPS="0"
+	
+	test -e /etc/host.key  && let HTTPS+=1
+	test -e /etc/host.cert && let HTTPS+=1
+	test ! -e "$LOWMEM"    && let HTTPS+=1
+	test ! -e "$LOWFLASH"  && let HTTPS+=1
+
+	test "$HTTPS" -eq "4" && OUT="true"
+	
+	echo $OUT
+}
+
+fkt_sleep_random_seconds_but_max ()
+{
+	[ -z "FUNC_BASE" ] && . /etc/functions_base_fff+
+	func_need log
+
+	local FUNC="sleep_random_seconds_but_max"
+	local WAIT="$(func_get_random_value 0 $1)"
+
+	func_log $FUNC daemon debug "sleeping $WAIT sec"
+
+	sleep $WAIT
+}
+
+fkt_get_ramsize_in_kb ()
+{
+	local FUNC="get_ramsize_in_kb"
+	local FILE="/tmp/ramsize"
+	local KEY
+	local MEM
+	local NOP
+	local BORDER="14416"		# this reports /proc/meminfo with 16 mb
+
+	[ ! -e $FILE ] && {
+		while read KEY MEM NOP NOP NOP NOP; do
+			[ "$KEY" = "MemTotal:" ] && {
+				echo -n "$MEM" >$FILE
+			}
+		done </proc/meminfo
+		
+		MEM="$( cat $FILE )"
+		
+		[ "$MEM" -lt "$BORDER" ] && {
+			. /etc/functions_logging_fff+
+			func_log $FUNC daemon info "$MEM kb - detected lowmem device, with lower than $BORDER kb"
+			touch /tmp/LOWMEM
+		}
+	}
+	
+	cat $FILE
+}
+
+func_get_free_ram_in_bytes () {
+	sed -n 's/Mem:[\ ]*[0-9]*[\ ]*[0-9]*[\ ]*\([0-9]*\).*/\1/p' /proc/meminfo
+}
+
+fkt_get_flashsize_in_kb () {
+	local FILE="/tmp/flashsize"
+	
+	[ ! -e $FILE ] && echo >$FILE $(( $(cat /dev/mtdblock/0 /dev/mtdblock/1 /dev/mtdblock/3 | wc -c) / 1024 ))	# CFE+LINUX+NVRAM
+
+	cat $FILE
+}
+
+fkt_check_if_lowflash_device () {	# SENS: checks if this device has less then 4mb flash-memory
+	local BORDER="4096"		# OUT1: string, "true" if < 4096 kb
+	local  FLASH="0"
+	local DAEMON="fkt_check_if_lowflash_device"
+	local    OUT="false"
+
+	FLASH=$(fkt_get_flashsize_in_kb)
+	
+	fkt_log "$DAEMON" "$OUT (Flash-Size detected: $FLASH Kilobytes)" 1
+	
+	test "$FLASH" -lt "$BORDER" && OUT="true"
+
+	echo $OUT
+}
+
+fkt_print_all_nodes () {		# SENS: simply prints all ip-addresses of all nodes, one per line (source: olsrd-topo)
+
+	wget -O - http://127.0.0.1:2006 | sed -e '/./{H;$!d;}' -e 'x;/Table: Topology/!d;' | sed -e '/\./!d' -e 's/[^0-9.]/ /g' | cut -d" " -f1 | sort -n | uniq
+}
+
+fkt_print_all_gateways () {		# SENS: simply prints all ip-addresses of internet-gateways, one per line (source: olsrd-hna)
+
+	wget -O - http://127.0.0.1:2006 | sed -e '/./{H;$!d;}' -e 'x;/Table: HNA/!d;' | sed -e '/0.0.0.0/!d' -e '/\./!d' -e 's/[^0-9.]/ /g' | cut -d" " -f3
+}
+
+fkt_count_reboots () {
+	local COUNT="$( cat "$REBOOT_COUNT" 2>/dev/null )"
+	echo $(( $COUNT + 1 )) >"$REBOOT_COUNT"
+}
+
+fkt_log () {				# SENS: solution for central logging instance with configurable verboseness (see "VERBOSE" in variables)
+	test -e "$LOWMEM" && return	# ARG1: string, taskname which sends message
+					# ARG2: string, message to send
+	local DAEMON="$1"		# ARG3: integer, syslog-level:
+	local   TEXT="$2"
+	local TWITTY="$3"
+	
+	[ "$0" = "$DAEMON" ] && DAEMON=""
+	[ -z "$FUNC_LOG" ] && . /etc/functions_logging_fff+
+	
+	func_log "(fkt_log) $DAEMON" daemon debug "$TEXT"		# fixme! rewrite all sections, which use fkt_log
+	
+	# logger "fff+ $DAEMON $TEXT"
+	#	
+	# if [ "$VERBOSE" -gt 1 ] && [ "$TWITTY" != "1" ]; then
+	# 	echo "fff+ $DAEMON $TEXT"
+	# fi
+}
+
+fkt_install_software () {			# SENS: simply installs ipkg-pakage without further prompting
+	local DAEMON="fkt_install_software"	# ARG1: string, ipkg-packetname
+
+	local PAKET="$1"
+								# fixme! sometimes libopenssl isn't correct installed,
+								# and vtund claims to make an "bus error". We have to
+								# double-check this and e.g. reinstall - CRC-test?
+								# look at S52vpn fkt_check_for_correct_install ()
+
+	while [ -z "$( ip route list exact 0/0 )" ]; do {	# fixme! use central func_inet_works() bool
+		local SLEEP=120
+		
+		logger "fff+ $0 fkt_install_software : no default-route found, waiting $SLEEP seconds"
+		sleep $SLEEP
+	} done
+
+	fkt_log "$DAEMON" "Trying to install \"$PAKET\" (free space: $(fkt_get_free_flash_space_in_kb) Kilobyte)"
+	
+	if ipkg -force-defaults install $PAKET ; then
+		fkt_log "$DAEMON" "\"$PAKET\" install seems fine (free space: $(fkt_get_free_flash_space_in_kb) Kilobyte)"
+	
+		case $PAKET in
+			loginutils)
+				[ "$(fkt_check_install_status_lowlevel $PAKET)" = "1" ] && {
+					rm -f /sbin/halt
+					ln -s /rom/sbin/reboot /sbin/reboot
+				}
+			;;
+			freifunk-pppoecd-de)
+				[ "$(fkt_check_install_status_lowlevel $PAKET)" = "1" ] && {
+					. /etc/functions_base_fff+
+					func_safe_reboot "pppoecd was installed"	# fixme! maybe just 'ifup wan' ?
+				}
+			;;
+			kmod-ide)
+				[ "$(fkt_check_install_status_lowlevel $PAKET)" = "1" ] && {
+					. /etc/functions_base_fff+
+					func_safe_reboot "kmod-ide was installed"	# fixme! maybe just reload modules?
+				}
+			;;
+		esac
+	else
+		fkt_log "$DAEMON" "\"$PAKET\" install failed (free space: $(fkt_get_free_flash_space_in_kb) Kilobyte)"
+	fi
+}
+
+fkt_if_installed_remove_it_now ()
+{
+	logger -p daemon.info -t "$0 if_installed_remove_it_now()" "checking $PAKET"
+
+	[ -n "$(ipkg status $PAKET)" ] && {
+		logger -p daemon info -t "$0 if_installed_remove_it_now()" "found $PAKET - removing"
+		func_ipkg_remove $PAKET
+		logger -p daemon info -t "$0 if_installed_remove_it_now()" "found $PAKET - removed"
+	}
+}
+
+func_ipkg_remove ()
+{
+	local PACKAGE="$1"
+	
+	logger -p daemon.info -t "$0 ipkg_remove()" "removing $PACKAGE"
+	ipkg remove $PACKAGE
+	logger -p daemon.info -t "$0 ipkg_remove()" "$PACKAGE removed"
+	
+	[ ! -e /sbin/reboot ] && {
+		logger -p daemon.info -t "$0 ipkg_remove()" "/sbin/reboot not found, symlinking to /rom/sbin/reboot"
+		ln -s /rom/sbin/reboot /sbin/reboot
+	}
+}
+
+fkt_check_install_status () {
+	local DAEMON="fkt_check_install_status"
+
+        if [ -z "$(ipkg status $PAKET | grep 'ok installed')" ]; then
+		fkt_log $DAEMON "$PAKET not installed"
+	else
+		fkt_log $DAEMON "$PAKET installed"
+	fi
+}
+
+fkt_check_install_status_lowlevel ()	# OUT1: 0 = not_installed , 1 = installed , 2 = not in repo
+{					# ARG1: string, ipkg-paketname
+	local SOFTWARE="$1"
+	local FUNC="check_install_status_lowlevel"
+	
+	ipkg status $SOFTWARE | grep -q ^"Status: install ok installed" && {
+		echo -n 1
+		func_log $FUNC daemon info "'$SOFTWARE' installed ok"
+		return
+	}
+	
+	ipkg list | grep -q "^$SOFTWARE " && {
+		echo -n 0
+		func_log $FUNC daemon info "'$SOFTWARE' not installed"
+		return
+	}
+	
+	echo -n 2
+	func_log $FUNC daemon info "'$SOFTWARE' not in repository this time"
+}
+
+fkt_get_cpu_load_x_100 () {				# SENS: cpu-load multiplied by 100 for easier calculating (no comma!)
+							# OUT : integer 0-500
+	cut -d" " -f1 /proc/loadavg | sed 's/[.]//'
+}
+
+fkt_build_etc_local_hosts () {				# SENS: modulary builds /etc/local.hosts
+	local FUNC="build_etc_local_hosts"
+	local DAEMON="fkt_build_etc_local_hosts"
+	local FILE="/etc/local.hosts"
+	local SUB_PATH="/tmp/"
+	local SUB_DROP="${SUB_PATH}hosts.drop"
+	local SUB_VIRT="${SUB_PATH}hosts.virtual"
+	local SUB_WIFI="${SUB_PATH}hosts.wifi"
+	local SUB_LAN="${SUB_PATH}hosts.lan"
+	local DOMAIN="$(nvram get wan_domain)"
+	local LINE=""
+
+	. /tmp/NETPARAM
+
+	case $1 in
+		join)
+			fkt_log "$DAEMON" "Joining \"$SUB_LAN\", \"$SUB_WIFI\", \"$SUB_VIRT\", \"$SUB_DROP\" to \"$FILE\""
+			cat $SUB_LAN $SUB_WIFI $SUB_VIRT $SUB_DROP >$FILE
+			rm  $SUB_LAN $SUB_WIFI $SUB_VIRT $SUB_DROP
+		;;
+		wifi)
+			fkt_log "$DAEMON" "Building wifi-entrys"
+			echo  >$SUB_WIFI "# entrys for wifi-subnet"
+
+			DEFAULT="wardriver"
+			NODE="$(nvram get fff_node_number)"
+			DOMAIN="$(nvram get wan_domain)"
+			CLIENT=0
+			MODE="$1"
+			
+			while read LINE; do
+				let CLIENT+=1
+				IFS=";"
+				set $LINE
+				
+				OUT="$(grep "\-${MODE}${CLIENT}\-" /etc/ethers)" # exists in /etc/ethers?
+				
+				if [ -z "$OUT" ]; then				# anonymous without hard /etc/ethers entry
+					echo "$1 ${DEFAULT}-${MODE}${CLIENT}-n$NODE.$DOMAIN ${DEFAULT}-${MODE}${CLIENT}-n$NODE"
+				else						# is in /etc/ethers
+					echo "$1 $(echo "$OUT" | cut -d" " -f2) $(echo "$OUT" | cut -d" " -f2 | cut -d"." -f1)" 	
+				fi
+				
+				unset IFS
+			done <"$CLIENTS_WIFI" >>$SUB_WIFI
+			
+			echo >>$SUB_WIFI
+		;;
+		lan)
+			fkt_log "$DAEMON" "Building lan/wan-entrys"
+			echo  >$SUB_LAN "# entrys for lan-subnet"
+			
+			[ -n "$WANADR" ] && {
+				echo >>$SUB_LAN "# WAN (start)"
+				echo >>$SUB_LAN "$WANADR $(nvram get wan_hostname).$DOMAIN $(nvram get wan_hostname)"
+				echo >>$SUB_LAN "# WAN (end)"
+			}
+
+			DEFAULT="anonymous"
+			NODE="$(nvram get fff_node_number)"
+			DOMAIN="$(nvram get wan_domain)"
+			CLIENT=0
+			MODE="$1"
+			
+			while read LINE; do
+				let CLIENT+=1
+				IFS=";"
+				set $LINE
+				
+				OUT="$(grep "\-${MODE}${CLIENT}\-" /etc/ethers)"	# exists in /etc/ethers?
+
+				if [ -z "$OUT" ]; then					# anonymous without hard /etc/ethers entry
+					echo "$1 ${DEFAULT}-${MODE}${CLIENT}-n$NODE.$DOMAIN ${DEFAULT}-${MODE}${CLIENT}-n$NODE"
+				else							# is in /etc/ethers
+					echo "$1 $(echo "$OUT" | cut -d" " -f2) $(echo "$OUT" | cut -d" " -f2 | cut -d"." -f1)"
+				fi
+				
+				unset IFS
+			done <"$CLIENTS_LAN" >>$SUB_LAN
+			
+			echo >>$SUB_LAN 	# just a blank line
+		;;
+		virtual)
+			fkt_log "$DAEMON" "Building virtual-entrys" 
+			echo  >$SUB_VIRT "# for neccesary lookups and safe reaching of device"
+			echo >>$SUB_VIRT "255.255.255.255 anyhost.$DOMAIN anyhost"
+			echo >>$SUB_VIRT "104.0.0.0 oldstyle_freifunk_net.$DOMAIN oldstyle_freifunk_net"
+			echo >>$SUB_VIRT "127.0.0.1 localhost.$DOMAIN localhost"
+			echo >>$SUB_VIRT "$LANNET local_lannet.$DOMAIN local_lannet"
+			
+			test ! -z "$WANADR" && echo >>$SUB_VIRT "$WANNET local_wannet.$DOMAIN local_wannet"
+			
+			echo >>$SUB_VIRT "$WIFINET local_wifinet.$DOMAIN local_wifinet"
+			echo >>$SUB_VIRT
+			echo >>$SUB_VIRT "$LANADR      kiste.$DOMAIN kiste"
+			echo >>$SUB_VIRT "$LANADR        box.$DOMAIN box"
+			echo >>$SUB_VIRT "$LANADR     router.$DOMAIN router"
+			echo >>$SUB_VIRT "$LANADR   internet.$DOMAIN internet"
+			echo >>$SUB_VIRT "$LANADR      mutti.$DOMAIN mutti" 
+			echo >>$SUB_VIRT "$LANADR    linksys.$DOMAIN linksys"
+			echo >>$SUB_VIRT "$LANADR    siemens.$DOMAIN siemens"
+			echo >>$SUB_VIRT "$LANADR weimarnetz.$DOMAIN weimarnetz"
+			echo >>$SUB_VIRT "$LANADR       dell.$DOMAIN dell"
+			
+			eval $(fkt_calc_node_params | grep VPN_SERVER)
+			
+			echo >>$SUB_VIRT
+			echo >>$SUB_VIRT "$VPN_SERVER rootserver.$DOMAIN rootserver"
+			echo >>$SUB_VIRT "$VPN_SERVER vpnserver.$DOMAIN vpnserver"
+			echo >>$SUB_VIRT "$VPN_SERVER vpn.$DOMAIN vpn"
+			# echo >>$SUB_VIRT "$VPN_SERVER weimarnetz.de"
+			# echo >>$SUB_VIRT "$VPN_SERVER news.weimarnetz.de"
+			
+			echo >>$SUB_VIRT
+		;;
+		drop)
+			echo  >$SUB_DROP "# for dropping known advertisement servers"
+			echo >>$SUB_DROP "# (1.1.0.0/20 gets REJECTed, range is enough for ~4096 hosts)"
+			
+			local LIST="/etc/hosts.drop"						# see fff-adblock-list.ipk
+		
+			[ -e $LIST ] && {
+				func_log $FUNC daemon debug "building drop-list"
+			
+				local X=0
+				local Y=0
+				local COUNT=0
+				
+				while read LINE; do {
+				
+					Y=$(( $Y + 1 ))
+					[ $Y -gt 254 ] && {
+						Y=1
+						X=$(( $X + 1 ))
+						COUNT=$(( $COUNT + 255 ))
+					}
+					
+					echo "1.1.$X.$Y $LINE"
+				
+				} done <$LIST >>$SUB_DROP
+				
+				func_log $FUNC daemon debug "bilding drop-list ready ($(( $COUNT + $Y )) hosts)"
+				return 0
+			}
+			func_log $FUNC daemon debug "no drop-list - do nothing"
+		;;
+	esac
+}
+
+fkt_check_for_static_lan_default_route () {		# SENS: checks for static lan default-route (internet) config
+							# OUT1: string, "true" or "false"
+
+	local DAEMON="fkt_check_for_static_lan_default_route"
+	local STATIC_ROUTE="$(nvram get static_route)"
+	local STATIC_ROUTE_SOURCE="$(     echo $STATIC_ROUTE | cut -d: -f1)"
+	local STATIC_ROUTE_DESTINATION="$(echo $STATIC_ROUTE | cut -d: -f2)"
+	local STATIC_ROUTE_INTERFACE="$(  echo $STATIC_ROUTE | cut -d: -f5)"
+	local LAN_GATEWAY="$(nvram get lan_gateway)"
+	local OUT="false"
+
+	if [ ! -z "$LAN_GATEWAY" ]; then
+		fkt_log "$DAEMON" "static lan-gateway ($LAN_GATEWAY) found" 1
+		OUT="true"
+	fi
+
+	if [ "$STATIC_ROUTE_SOURCE" = "0.0.0.0" ] && [ "$STATIC_ROUTE_DESTINATION" = "0.0.0.0" ]; then
+		if [ "$STATIC_ROUTE_INTERFACE" = "$LANDEV" ]; then
+			fkt_log "$DAEMON" "static lan-default-route found" 1
+			OUT="true"
+		else
+			fkt_log "$DAEMON" "no static lan-default-route found" 1
+		fi
+	fi
+	
+	echo "$OUT"
+}
+
+fkt_build_settings_menu () {				# SENS: switching between "simple", "expert" and "full" settings-menu
+	local DAEMON="fkt_build_settings_menu"		# ARG1: string, "simple", "expert", "full" or "" (empty)
+	local MODE="$1"	
+	local DEST="/www/cgi-bin"
+	local ID="15"
+	local ID_EXPERT="16"
+	local ID_USER="17"
+	local FILE="config_fff+"
+	local OPT_EXPERT="gui=expert"
+	local OPT_USER="gui=user"
+	local TITLE="Schnelleinstellung"
+	local TITLE_EXPERT="Experteneinstellung"
+	local TITLE_USER="Benutzerverwaltung"
+	local MENU="$(nvram get fff_menu)"
+
+	test -n "$READONLY" && return
+	test -n "$FAILSAFE" && return
+	
+	fkt_log "$DAEMON" "nvram is \"$MENU\", wish is \"$MODE\"" 1
+	test ! -z "$MODE" && MENU=$MODE
+	fkt_log "$DAEMON" "Trying to establish mode \"$MENU\"" 1
+
+	if [ -n "$FAILSAFE" ] || [ "$(fkt_check_readonly)" = "true" ]; then
+		fkt_log "$DAEMON" "No action in failsafe/readonly mode possible!"
+		return
+	fi
+
+	cd $DEST
+
+	if [ ! -e "$ID-$FILE" ]; then
+		fkt_log "$DAEMON" "Inserting settings-menu entry"
+		echo >$ID-$FILE "<TR ID=\"idx-$ID\"><TD><DIV CLASS=\"plugin\"><A CLASS=\"plugin\" HREF=\"$FILE\">$TITLE</A></DIV></TD></TR>"
+	else
+		fkt_log "$DAEMON" "Settings-menu entry already exists"
+	fi
+
+	if [ "$MENU" = "simple" ] || [ -z "$MENU" ]; then
+		fkt_log "$DAEMON" "Checking if simple menu is up to date"
+
+		test -e "$ID_EXPERT-$FILE" && mv "$ID_EXPERT-$FILE" "ghosted_$ID_EXPERT-$FILE"
+		test -e "$ID_USER-$FILE"   && mv "$ID_USER-$FILE"   "ghosted_$ID_USER-$FILE"
+	
+		local LIST="$(ls -1 [^a-z]*)"
+		for OBJ in $LIST; do
+			if [ "$OBJ" != "$ID-$FILE" ]; then
+				fkt_log "$DAEMON" "Moving $DEST/$OBJ to $DEST/ghosted_$OBJ"
+				mv "$OBJ" "ghosted_$OBJ"
+			fi
+		done
+	fi
+	
+	if [ "$MENU" = "expert" ]; then
+		fkt_log "$DAEMON" "Checking if expert menu is up to date"
+
+		local LIST="$(ls -1 [^a-z]*)"
+		for OBJ in $LIST; do
+			if [ "$OBJ" != "$ID-$FILE" ]; then
+				fkt_log "$DAEMON" "Moving $DEST/$OBJ to $DEST/ghosted_$OBJ"
+				mv "$OBJ" "ghosted_$OBJ"
+			fi
+		done
+	fi
+	
+	if [ "$MENU" = "expert" ] || [ "$MENU" = "full" ]; then
+		if [ ! -e "$ID_EXPERT-$FILE" ]; then
+			fkt_log "$DAEMON" "Inserting expert-settings-menu entry"
+			echo >$ID_EXPERT-$FILE "<TR ID=\"idx-$ID\"><TD><DIV CLASS=\"plugin\"><A CLASS=\"plugin\" HREF=\"$FILE?$OPT_EXPERT\">$TITLE_EXPERT</A></DIV></TD></TR>"
+		else
+			fkt_log "$DAEMON" "Expert-settings-menu entry already exists"
+		fi	
+		
+		if [ ! -e "$ID_USER-$FILE" ]; then
+			fkt_log "$DAEMON" "Inserting user-settings-menu entry"
+			echo >$ID_USER-$FILE "<TR ID=\"idx-$ID\"><TD><DIV CLASS=\"plugin\"><A CLASS=\"plugin\" HREF=\"$FILE?$OPT_USER\">$TITLE_USER</A></DIV></TD></TR>"
+		else
+			fkt_log "$DAEMON" "User-settings-menu entry already exists"
+		fi
+	fi
+
+	if [ "$MENU" = "full" ]; then
+		fkt_log "$DAEMON" "Checking if full menu is up to date"
+		
+		local LIST="$(ls -1 ghosted_* 2>/dev/null)"
+		for OBJ in $LIST; do
+			local OBJ_NEW="$(echo $OBJ | sed "s/ghosted_//g")"
+			fkt_log "$DAEMON" "Moving $DEST/$OBJ to $DEST/$OBJ_NEW"
+			mv "$OBJ" "$OBJ_NEW"
+		done
+	fi
+	
+	[ -e "$ID_EXPERT-$FILE" ] && rm "$ID_EXPERT-$FILE"	# fixme!
+}
+
+fkt_check_readonly () {			# SENS: check if data-partition is mounted read-only (failsafe or firmware-update-mode)
+					# OUT1: string (bool, false/true)
+	local OUT=false
+	local DAEMON="fkt_check_readonly"
+
+	mount | while read line
+		do set $line
+		if [ "$5" = "mini_fo" ] && [ "$6" = "(ro)" ]; then
+			fkt_log "$DAEMON" "Data-partition mounted read-only!"
+			OUT=true
+			break
+		fi
+	done
+	
+	echo $OUT
+}
+
+fkt_insert_netfilter ()
+{
+	logger -p daemon.crit -t "insert_netfilter()" "call to nonexistent function"
+}
+
+fkt_build_client_list () {			# SENS: print IP-list of (potential) clients
+	local STARTIP="$1"			# ARG1: string, interface-IP (first useable address of network)
+	local   ENDIP="$2"			# ARG2: string, interface-broadcast-address
+	local     PRE="$3"			# ARG3: string, interface-netmask in CIDR-notation (e.g. /24)
+	local     NET="$4"			# ARG4: string, interface info ("wan") - just for logging
+	local  DAEMON="fkt_build_client_list"	# OUT1: list of IP-addresses
+
+	fkt_log "$DAEMON" "writing client list for $STARTIP/$PRE (\"$NET\")" 1
+
+	OKT1="$(echo $STARTIP | cut -d. -f1)"
+	OKT2="$(echo $STARTIP | cut -d. -f2)"
+	OKT3="$(echo $STARTIP | cut -d. -f3)"	  
+	OKT4_START="$(echo $STARTIP | cut -d. -f4)"
+	OKT4_END="$(  echo $ENDIP   | cut -d. -f4)"
+
+	# we only need real clients, not the network, not the interface and not the broadcast-address
+	let OKT4_START+=2
+	   
+	if [ "$PRE" -ge 24 ] && [ "$PRE" -le 30 ]; then		# this is not correct, just an workaround!
+		
+		[ "$PRE" = "30" ] && OKT4_START=$(( $OKT4_START - 1 ))
+
+		while [ $OKT4_START -lt $OKT4_END ]; do {
+			echo "$OKT1.$OKT2.$OKT3.$OKT4_START;"
+			OKT4_START=$(( $OKT4_START + 1 ))
+		} done
+	else
+		fkt_log "$DAEMON" "error, CIDR-netmask <24 or >30 not implemented yet!"
+		
+		sed -n "s/^${NET}ADR=\(.*\)/\1/p" /tmp/NETPARAM			# fixme! uiuiui!
+		echo "# (printing at least the IP itself, maybe it helps)"
+		echo "# error, CIDR-netmask = $PRE, which is <24 or >30 - not implemented yet!"
+	fi
+}
+
+fkt_wget ()								# SENS: reliable fetching an URL $1, aborting after $2 seconds
+{	
+	local C=0							# counter (raising) for maximal seconds
+	local MAX="$2"							# maximal running time in seconds
+	local URL="$1"
+	
+	wget -qO - "$URL" 2>/dev/null &					# fixme! what if wget-task has ended before 'pidof' ?
+	local PID_WGET="$( pidof wget | sed 's/ /\n/g' | sed '$!d' )"	# list of all wget-pid's, insert newlines, print last line
+	local PID_LINE="$( cat /proc/$PID_WGET/cmdline 2>/dev/null )"	# exact line of ps-output
+	
+	while [ -e "/proc/$PID_WGET" ]; do {				# wget-process in tasklist?
+		sleep 1
+		C=$(( $C + 1 ))
+		
+		local PID_LINE_NOW="$( cat /proc/$PID_WGET/cmdline 2>/dev/null )"	# is empty, when task has ended
+		
+		[ $C -gt $MAX ] && {					# maximal execution time reached
+			[ "$PID_LINE" = "$PID_LINE_NOW" ] && {		# is this really the started process?
+			
+				logger "fff+ (fkt_wget) error during fetching '$URL' - killing PID '$PID_WGET' after $C seconds"
+				kill $PID_WGET 2>/dev/null
+									# fixme! check if still there? zombie? reboot?
+				return 1
+			}						# this is another process
+			return
+		}
+	} done
+}
+
+func_strange_l7_experiments_from_bastian ()		# fixme!
+{
+
+DEST="/tmp/l7fertig"
+TEMP="/tmp/l7"
+
+L7URL="http://l7-filter.sourceforge.net"
+
+test -d $DEST || mkdir $DEST
+test -d $TEMP || mkdir $TEMP
+
+cd $DEST
+rm -fR *
+
+cd $TEMP
+rm -fR *
+
+LIST="$( wget -O - "$L7URL/protocols" | sed -n 's/^.*href=\"\(layer7-protocols\/.*\/.*\.pat\)\".*/\1/p' )"
+
+SIZE_OLD="0"
+SIZE_NEW="0"
+
+for LINK in $LIST; do
+	wget -q "$L7URL/$LINK"
+
+	NAME="$( grep -v "^#" *.pat | grep -v "^$" | head -n1 )"
+	SIZE="$( ls -l *.pat | while read RIGHTS UID GROUP USER LENGTH REST; do echo $LENGTH;done )"
+	ATTR="$( sed -n 's/^# [pP]attern attributes: \(.*\)/\1/p' *.pat )"
+
+	let SIZE_OLD+=$SIZE
+
+	echo "Working on protocol: \"$NAME\" ($SIZE bytes) - Attributes: \"$ATTR\""
+	
+	grep -v "^#" *.pat | grep -v "^$" >$DEST/$NAME.pat
+	# cat   *.pat >$DEST/$NAME.pat
+	
+	SIZE="$( ls -l $DEST/$NAME.pat | while read RIGHTS UID GROUP USER LENGTH REST; do echo $LENGTH;done )"
+	
+	let SIZE_NEW+=$SIZE
+	
+	rm -f *.pat
+done
+
+echo "original summarized size: $SIZE_OLD"
+echo "arranged summarized size: $SIZE_NEW"
+
+}
+
+fkt_check_if_this_node_offers_inet ()			# SENS: check if default-route is local OUT1 can be one of "false wan lan pppoe"
+{							#       yes means "not false" and returncode 0
+	local MODE="false"
+	local FUNC="check_if_this_node_offers_inet"
+	local PHYDEV=0
+	local METRIC=0
+	local D=0
+	local N=0
+
+	[ -z "$FUNC_LOG" ] && . /etc/functions_logging_fff+
+
+	[ ! -e /tmp/NETPARAM ] && {			# early_boot_estimation is for profile-functions
+
+		[ -n "$( nvram get wan_gateway )" ] && {
+			
+			[ "$( nvram get wan_proto )" = "pppoe" ] && {
+				func_log $FUNC daemon info "early_boot_estimation: pppoe"
+				echo "pppoe"
+				return 0			# fixme!
+			}
+			
+			func_log $FUNC daemon info "early_boot_estimation: wan"
+			echo "wan"
+			return 0
+		}
+	
+		[ -n "$( nvram get lan_gateway )" ] && {
+			func_log $FUNC daemon info "early_boot_estimation: lan"
+			echo "lan"
+			return 0
+		}
+
+		/etc/init.d/S52vpnc_fff+ check && {
+			func_log $FUNC daemon info "early_boot_estimation: tun"
+			echo "tun"
+			return 0
+		}
+
+		func_log $FUNC daemon info "early_boot_estimation: false"
+		echo "false"
+		return 1
+	}
+
+	. /tmp/NETPARAM
+	
+	# only look for the first default-route
+	# some examples:
+	#
+	# default via 192.168.1.1 dev vlan1		-> wan-offer|wan_gateway
+	# default via 191.255.255.1 dev venet0		-> root-server
+	# default via 217.0.116.253 dev ppp0		-> pppoe
+	# default dev tun0  scope link			-> vpnc
+	# default via 10.63.52.36 dev br0 		-> lan-offer|lan-gateway
+	
+	eval $( ip route list exact 0/0 | head -n1 |
+		while read N N D N PHYDEV METRIC N; do {	# we must eval it, otherwise
+			echo PHYDEV=$PHYDEV			# the vars from subprocess are
+			echo METRIC=$METRIC			# not known
+			echo N=$N
+			echo D=$D				# fixme! better use 'eval $( ip route list exact 0/0 | sed 'xyz' )'
+		} done
+	)
+
+	if [ -z "$METRIC" ]; then				# found no metric = local inet-offer
+
+		func_log $FUNC daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
+
+		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0/0 -> "default via eth0" or similar
+
+			if [ "$( nvram get lan_gateway )" = "0.0.0.0" ]; then
+				
+				func_log $FUNC daemon info "NV-RAM mistake, unsetting lan_gateway which was 0.0.0.0"
+				nvram unset lan_gateway commit
+				ip route delete default via $D
+			fi
+		else
+			if   [ "$PHYDEV" = "$WANDEV" ]; then
+				MODE="wan"
+			elif [ "$PHYDEV" = "$LANDEV" ]; then
+				MODE="lan"
+			else
+				MODE="pppoe"	# && WANDEV=ppp0          # fixme! this is not exact!
+			fi
+			
+			[ "$PHYDEV" = "link" ] && {
+				if   echo $D | grep -q "^tun[0-9]*" ; then
+					MODE=tun
+				elif echo $D | grep -q "^tap[0-9]*" ; then
+					MODE=tap
+				else
+					MODE="$D"				# e.g. tun0 / vpnc
+				fi
+			}
+			
+			func_log $FUNC daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
+		fi
+	else
+		if [ $N -eq 0 ]; then
+			func_log $FUNC daemon info "no local default-gateway, no default-gateway, no internet 8-("
+		else
+			func_log $FUNC daemon info "local default-gateway found, only $N hops away 8-)"
+		fi
+	fi
+                                                                                                                       
+	echo $MODE
+
+	[ "$MODE" = "false" ] && return 1	
+}

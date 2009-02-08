@@ -1,0 +1,215 @@
+#!/bin/sh
+
+. /etc/functions_base_fff+
+
+fkt_build_list () {
+	FILE=""
+	LIST="/etc/init.d/S42build_static_macs /etc/init.d/S41build_static_netparam /usr/bin/neigh /etc/functions_olsr /www/cgi-bin-speed /www/cgi-bin-welcome /usr/sbin/n /usr/bin/scheduler /usr/sbin/cron.build_vars"
+	LIST="$LIST $(find / -type f -name "*fff+" | grep -v safed_syslog | grep -v network_ | grep -v S03a | grep -v /tmp/ | grep -v placeholder | grep -v rom | grep -v 40- | grep -v ghost | grep -v 15- | grep -v 16- | grep -v 17- | grep -v reboot_count | sort -n)"
+}
+
+fkt_build_archiv () {
+	tar cvzf $ARCHIV $LIST
+}
+
+fkt_build_comment () {
+	read COMMENT
+	echo >$SUBMIT "$COMMENT"
+	echo
+}
+
+fkt_build_comment2 () {
+	read RELEASE
+	
+	test "$RELEASE" = "1" && RELEASE="STABLE"
+	test "$RELEASE" = "2" && RELEASE="BETA"
+	test "$RELEASE" = "3" && RELEASE="TESTING"
+	
+	echo >$SUBMIT "${RELEASE}: (${REASON}) $USERNAME $COMMENT"
+	echo "Changelog-Text: \"${RELEASE}: (${REASON}) $USERNAME $COMMENT\""
+	echo
+}
+
+fkt_build_comment10 () {
+	read REASON
+	
+	test "$REASON" = "1" && REASON="minor_bugfix"
+	test "$REASON" = "2" && REASON="critical_bugfix"
+	test "$REASON" = "3" && REASON="cosmetics_in_code"
+	test "$REASON" = "4" && REASON="cosmetics_in_GUI"
+	test "$REASON" = "5" && REASON="new_feature"
+	test "$REASON" = "6" && REASON="package_upgrade"
+	test "$REASON" = "7" && REASON="config_tweak"
+}
+
+fkt_build_comment15 () {
+	read USERNAME
+
+	USERNAME="[node$( nvram get fff_node_number),$USERNAME]"
+}
+
+fkt_build_vars () {
+	ARCHIV="/tmp/changes.tgz"
+	SUBMIT="/tmp/changes.txt"
+	SERVER="root@www.weimarnetz.de:/tmp"		# slow
+	SERVER="bastian@www.datenkiste.org:/tmp"	# fast ;-)
+}
+
+fkt_check_if_uptodate () {
+	local CURRENT="$(wget -O - "$URL_FIRMWARE_VERSION")"
+	local BETA="$(wget -O - "$(echo $URL_FIRMWARE_VERSION | sed 's/version/version-beta/g')")"
+	
+	test "$CURRENT" -lt "$BETA" && CURRENT=$BETA
+	
+	if [ "$CURRENT" = "$FFF_PLUS_VERSION" ]; then
+		echo "Ok, you have the latest version installed."
+	else
+		echo "Abort! Version-conflict!"
+		echo "You have not the latest fff+ version installed."
+		echo "Use --force to override, if you really know what you are doing (!)"
+		echo
+		exit
+	fi
+}
+
+fkt_print_text1 () {
+	echo
+	echo "Now we upload all fff+ files to the SVN-server."
+	echo "But first: tell me for the SVN-log, what have you changed?"
+}
+
+fkt_print_text1a () {
+	echo
+	echo "And now: tell me the release-status for the code: (1 = stable, 2 = beta, 3 = testing)"
+}
+
+fkt_print_text10 () {
+	echo
+	echo "And now tell me, what is the reason for this upload?"
+	echo "(1 = minor bugfix , 2 = critical bugfix , 3 = cosmetics in code , 4 = cosmetics in GUI , 5 = new feature , 6 = package_upgrade, 7 = config_tweak)"
+}
+
+fkt_print_text15 () {
+	echo
+	echo "your name in short? (e.g. tom)"
+}
+
+fkt_print_text2 () {
+	echo
+	echo "Now submit the password for destination \"$SERVER\""
+}
+
+fkt_print_text3 () {
+	echo
+	echo "Ok. SVN-server now should automatically build a new firmware."
+	test "$RELEASE" = "1" && echo "As marked: all routers will flash this piece!"
+}
+
+fkt_copy_and_remove () {
+	scp $ARCHIV $SUBMIT $BETA $SERVER
+	rm -f $ARCHIV $SUBMIT
+}
+
+. /etc/variables_fff+
+. /etc/functions_fff+
+
+case $1 in
+	start)
+		test "$2" != "--force" && fkt_check_if_uptodate
+		fkt_print_text1		# change-text
+		fkt_build_vars
+		fkt_build_comment
+		fkt_print_text10	# upload-reason?
+		fkt_build_comment10
+		fkt_print_text15	# username?
+		fkt_build_comment15
+		fkt_print_text1a	# release status?
+		fkt_build_comment2
+		
+		fkt_build_list
+		fkt_build_archiv
+		
+		fkt_print_text2
+		fkt_copy_and_remove
+		fkt_print_text3
+	;;
+	crc)
+		fkt_build_vars
+		fkt_build_list
+		
+		for F in $LIST; do md5sum $F;done
+	;;
+	list)
+		fkt_build_list
+	
+		FULLSIZE=0
+		FULLSTRIP=0
+		for FILE in $LIST; do {
+			[ -e "$FILE" ] && {
+			
+			SIZE="$( func_filesize "$FILE" )"
+			FULLSIZE=$(( $FULLSIZE + $SIZE ))
+			STRIPPED_SIZE="$( sed 's/[ 	]*$//' "$FILE" | wc -c )"
+			STRIPPED_DIFF="$(( $SIZE - $STRIPPED_SIZE ))"
+			[ "$STRIPPED_DIFF" -gt 0 ] && {
+				FULLSTRIP=$(( $FULLSTRIP + $STRIPPED_DIFF ))
+				STRIPPED_DIFF="  --> $STRIPPED_DIFF Bytes stripable"
+			}
+			
+			case ${#SIZE} in
+				4) SIZE=" $SIZE" ;;
+				3) SIZE="  $SIZE" ;;
+				2) SIZE="   $SIZE" ;;
+				1) SIZE="    $SIZE" ;;
+			esac
+				
+				echo "$SIZE   $FILE $STRIPPED_DIFF Bytes stripable"
+			}
+		} done
+		
+		echo "size overall: $FULLSIZE bytes ($FULLSTRIP bytes stripable)"
+	;;
+	search)
+		fkt_build_list
+		
+		for FILE in $LIST; do {
+			[ -e "$FILE" ] && {
+				grep -q "$2" "$FILE" && {
+					echo "found in '$FILE' :"
+					
+					sed -n "/$2/s/^[ 	]*\(.*\)/  : \1/p" "$FILE"	# remove leading whitespaces/tabs
+					
+					echo ""
+				}
+			}
+		} done
+	;;
+	show_functions)
+		fkt_build_list
+
+		for FILE in $LIST; do {
+			LIST_FUNCTIONS="$( sed -n 's/^\([a-zA-Z_]*\) ().*/\1/p' $FILE )"
+		
+			[ -n "$2" ] && LIST_FUNCTIONS="$( sed -n "s/^\($2\) ().*/\1/p" $FILE )"
+			
+			for FUNCTION in $LIST_FUNCTIONS; do {
+			
+				# echo "$FUNCTION"
+			
+				COUNT=0
+				for FILE2 in $LIST; do {
+				
+					[ -n "$( grep "$FUNCTION" "$FILE2" | grep -v "^${FUNCTION} ().*" )" ] && {
+						echo "		found call to '$FUNCTION' in '$FILE2'"
+						COUNT=$(( $COUNT + $( grep "$FUNCTION" $FILE2 | grep -v "^${FUNCTION} ().*" | sed -n '$=' ) ))
+					}
+				} done
+				
+				echo "$COUNT times found $FUNCTION (defined in '$FILE')"
+			} done
+		} done
+	;;
+	*)
+		echo "Usage: $0 (start [--force] | crc | list | search <string> | show_functions <specific_function>)"
+	;;
+esac

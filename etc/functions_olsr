@@ -1,0 +1,447 @@
+# func_olsr_get_random_neigh
+# func_olsr_get_random_pair_from_mesh_evalable
+# func_olsr_check_if_any_nonwifi_neigh
+# func_olsr_check_for_wifi_neigh
+# func_olsr_best_wifi_nlq
+# func_olsr_check_for_good_non_tunnel_neigh
+# func_olsr_get_neighbours
+# func_olsr_plausi_check
+# func_olsr_output_neigh
+# func_olsr_output_neigh_evalable
+# func_olsr_output_neigh_meshrdf
+# func_olsr_output_neigh_humanreadable
+# func_type_dev_layer
+# func_ip2metric
+# func_dev_is_wireless
+# func_dev_is_tunnel
+# func_get_dev_from_ip
+
+func_olsr_get_random_neigh ()
+{
+	local FUNC="olsr_get_random_neigh"
+	local FILE="$1"
+
+	local COST
+	local COUNT=0
+	local RANDOM
+	
+	func_olsr_output_neigh "$FILE"
+	
+	while read LINE; do {
+		eval $LINE
+	} done <"$FILE"
+
+	[ -n "$REMOTE" ] && {
+		RANDOM="$( func_get_random_value 1 $COUNT )"
+
+		eval $( sed -n "${RANDOM}p" "$FILE" )
+
+		echo "$REMOTE"
+		rm "$FILE"
+		return 0
+	}
+
+	rm "$FILE"
+
+	func_log $FUNC daemon debug "no neighbour, no random neighour"
+	return 1
+}
+
+func_olsr_get_random_pair_from_mesh_evalable ()
+{
+	. /tmp/vars
+	local LINES="$( sed -e '/./{H;$!d;}' -e "x;/^Table: Topology/!d;" $OLSR_OUT | sed -n '$=' )"
+	local RANDOM="$( func_get_random_value 4 $LINES )"
+
+	sed -e '/./{H;$!d;}' -e "x;/^Table: Topology/!d;" $OLSR_OUT |
+	 sed -n "${RANDOM}p" |
+	  sed -n 's/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\).*/\LOCAL=\1\nREMOTE=\2\nLQ=\3\nNLQ=\4\nCOST=\5/p'
+}
+
+func_olsr_get_cost_to_specific_node_evalable ()
+{
+	. /tmp/vars
+	local NODE="$1"
+	
+	sed -e '/./{H;$!d;}' -e "x;/^Table: Routes/!d;" $OLSR_OUT |
+	 grep ^"${NODE}/32" |
+	  sed -n 's/^[0-9\.]*\/32[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9]*\)[^0-9]*\([0-9\.]*\).*/GATEWAY=\1\nMETRIC=\2\nCOST=\3/p'
+}
+
+func_olsr_check_if_any_nonwifi_neigh ()
+{
+	local FUNC="olsr_check_if_any_nonwifi_neigh"
+	local FILE="$1"
+	
+	func_olsr_output_neigh "$FILE"
+	
+	while read LINE; do {
+		eval $LINE
+		
+		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
+		[ -n "$DEVTYPE" ] && {
+			[ "$DEVTYPE" != "wifi" ] && {
+				func_log $FUNC daemon debug "found nonwifi neigh: '$REMOTE'"
+				return 0
+			}
+		}
+
+	} done <"$FILE" && rm "$FILE"
+
+	func_log $FUNC daemon debug "found only wifi neighbours"
+	return 1
+}
+
+func_olsr_check_for_wifi_neigh ()
+{
+	local FUNC="olsr_check_for_wifi_neigh"
+	local FILE="$1"
+	
+	func_olsr_output_neigh "$FILE"
+	
+	while read LINE; do {
+		eval $LINE
+		
+		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
+		[ "$DEVTYPE" = "wifi" ] && {
+			func_log $FUNC daemon debug "found wifi neigh: '$REMOTE'"
+			return 0
+		}
+	
+	} done <"$FILE" && rm "$FILE"
+
+	func_log $FUNC daemon debug "found only non-wifi neighbours"
+	return 1
+}
+
+func_olsr_best_wifi_nlq ()
+{
+	local FUNC="olsr_best_wifi_nlq"
+	local FILE="$1"
+	local NLQ_MAX
+	
+	func_olsr_output_neigh "$FILE"
+	
+	while read LINE; do {
+		eval $LINE
+
+		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
+		[ "$DEVTYPE" = "wifi" ] && {
+			NLQ="${NLQ:=0.000}"
+			NLQ="${NLQ%[\.]*}${NLQ#*[\.]}"			# 0.456 -> 0456
+
+			[ ${NLQ_MAX:=0} -lt $NLQ ] && NLQ_MAX="$NLQ"	# theoretical best value is 1.000 -> '1000'
+		}
+		
+	} done <"$FILE" && rm "$FILE"
+
+	[ -z "$NLQ_MAX" ] && return 1
+
+	echo $NLQ_MAX
+}
+
+func_olsr_check_for_good_non_tunnel_neigh ()
+{
+	local FUNC="olsr_check_for_good_non_tunnel_neigh"
+	local FILE="$1"
+	local BORDER="10"	# maximum suitable COST
+	
+	func_olsr_output_neigh "$FILE"
+	
+	while read LINE; do {
+		eval $LINE
+		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
+		[ -n "$DEVTYPE" ] && {
+			[ "$DEVTYPE" != "tunnel" ] && {
+				[ -n "$COST" ] && {
+					[ ${COST%[\.]*} -lt 10 ] && {
+						func_log $FUNC daemon debug "found suitable neigh: '$LINE'"
+						return 0
+					}
+				}
+			}
+		}
+	
+	} done <"$FILE" && rm "$FILE"
+	
+	func_log $FUNC daemon debug "found nothing suitable"
+	return 1 
+}
+
+func_olsr_get_neighbours ()
+{
+	local FUNC="func_olsr_get_neighbours"
+	local TEMP="/tmp/olsr_output_$$.txt"
+	local PLUGIN="olsrd_txtinfo"
+	local CONF="/etc/olsrd.conf"
+	
+	grep -q "^LoadPlugin.*$PLUGIN\.so\." $CONF && {	
+		
+		wget -qO "$TEMP" "http://127.0.0.1:2006/neighbours" 2>/dev/null || {		# fixme! fetch routing-table also
+												# and use it for func_ip2metric()
+			rm "$TEMP"
+			
+			pidof olsrd >/dev/null || {
+				func_log $FUNC daemon crit "failed to fetch neighbour-table, because OLSRd is'nt running"
+				return 1
+			}
+		
+			func_log $FUNC daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
+			return 1
+		}
+	
+		echo -n "$TEMP"
+		return 0
+	}
+	
+	func_log $FUNC daemon info "OLSRd is not configured to load plugin '$PLUGIN'" 
+	return 1
+}
+
+func_olsr_plausi_check ()			# is each non-infinite neighbour in routing-table?
+{						# each local/remote-pair has only one entry?
+	local FUNC="olsr_plausi_check"		# are minimum-cost neighbours linklocal?
+	local LINE
+	local FILE="$1"
+
+	[ -z "$FILE" ] && return 1
+
+	local COUNT=0
+	local LOCAL
+	local REMOTE
+	local LQ
+	local NLQ
+	local COST
+	
+	func_olsr_output_neigh $FILE
+
+	# fixme! no wifi-neighbours and an ad-hoc-mode? start antenna-test!
+	
+	while read LINE; do {
+		eval $LINE
+		[ -n "$COST" ] && {
+			[ -z "$( ip route list exact $REMOTE )" ] && {
+				func_log $FUNC daemon crit "is each non-infinite neighbour in routing-table? '$REMOTE' (COST:'$COST') is not!"
+				rm "$FILE"
+				return 1
+			}
+		}
+	} done <"$FILE"
+
+	func_log $FUNC daemon debug "ok! (is each non-infinite neighbour in routing-table?)"
+
+
+	local METRIC
+	while read LINE; do {
+		eval $LINE
+		[ "$COST" = "1.000" ] && {
+			METRIC="$( ip route list $REMOTE | sed -n 's/^.*metric \([0-9]*\).*/\1/p' )"
+		
+			[ "$METRIC" != "1" ] && {
+				func_log $FUNC daemon crit "are minimum-cost neighbours linklocal? '$REMOTE' is not!"
+				rm "$FILE"
+				return 1
+			}
+		}
+	} done <"$FILE"
+
+	[ -n "$METRIC" ] && func_log $FUNC daemon debug "ok! (are minimum-cost neighbours linklocal?)"
+
+
+	local LINES1="$( sed -n '$=' $FILE )"
+	local LINES2="$( sed -n 's/^\(LOCAL=[0-9\.]*;REMOTE=[0-9\.]*\);.*/\1/p' $FILE | sort | uniq | sed -n '$=' )"
+
+	[ "$LINES1" != "$LINES2" ] && {
+		func_log $FUNC daemon crit "each local/remote-pair has only one entry? no!"
+		
+		while read LINE; do {
+			func_log $FUNC daemon crit "$LINE"
+		} done <$FILE
+		
+		rm "$FILE"
+		return 1
+	}
+
+	func_log $FUNC daemon debug "ok! (each local/remote-pair has only one entry?)"
+
+	rm "$FILE"
+	return 0
+}
+
+func_olsr_output_neigh ()	# ARG1 = plaintext-file 	// COST can be 'INFINITE' and is truncated because of regexp [0-9] to ''
+{
+	local FILE="$1"
+
+	sed -i -n '/0\.00/s/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*0\.00[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$\(\( \$COUNT \+ 1 \)\)/p' "$FILE"
+}
+
+func_olsr_output_neigh_evalable ()
+{
+	local FILE="$1"
+	local VERBOSE="$2"
+
+	local COUNT=0
+	local LOCAL
+	local REMOTE
+	local LQ
+	local NLQ
+	local COST
+
+	func_olsr_output_neigh $FILE	
+
+	while read LINE; do {
+		eval $LINE
+
+		[ -n "$VERBOSE" ] && {
+		
+			METRIC="$( func_ip2metric $REMOTE )"
+			DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
+		
+			echo "LOCAL=$LOCAL;REMOTE=$REMOTE;LQ=$LQ;NLQ=$NLQ;COST=$COST;DEVTYPE=$DEVTYPE;METRIC=$METRIC"
+			continue
+		}
+		
+		echo "LOCAL=$LOCAL;REMOTE=$REMOTE;LQ=$LQ;NLQ=$NLQ;COST=$COST;COUNT=$COUNT"
+				
+	} done <"$FILE" && rm "$FILE"
+}
+
+func_olsr_output_neigh_meshrdf ()
+{
+	. /etc/functions_profile_user_fff+
+	
+	local FILE="$1"
+	local VERBOSE="$2"
+	
+	local COUNT=0
+	local LOCAL
+	local REMOTE
+	local LQ
+	local NLQ
+	local COST
+
+	local DEVTYPE
+	local METRIC
+	local METHOD="COST"	# linkcost / etx / batadv / ...
+
+	func_olsr_output_neigh $FILE
+
+	while read LINE; do {
+		eval $LINE
+		
+		case "$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )" in
+			wifi) DEVTYPE="~" ;;			
+			wire) DEVTYPE="-" ;;		
+		      tunnel) DEVTYPE="=" ;;
+		           *) DEVTYPE="?" ;;
+		esac
+
+		METRIC="$( func_ip2metric $REMOTE )"
+		REMOTE_ID="$( func_ipsystem_weimar $REMOTE )"
+				
+		echo -n "${DEVTYPE}${REMOTE_ID}:${LOCAL}:${REMOTE}:${METHOD}:${LQ}:${NLQ}:${COST}:${METRIC}"
+
+		# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COST : 2.123 : 1.234 : 1.678 : 1
+		
+		# 1+3+4+4+1+4+4+4+1 = 26 bytes / neigh
+		
+	} done <"$FILE" && rm "$FILE"
+}
+
+func_olsr_output_neigh_humanreadable ()		# ToDo: latitude/longitude/distance?
+{
+	local FILE="$1"
+	local GATEWAY_IP="$( ip route list exact 0/0 | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )"	# fixme! more abstraction, works
+	local DNS											# only for mesh-gateways
+	local METRIC
+	local LIST
+	local LINE
+	local DEVTYPE
+	local SPACER1
+	local MAX1
+	local SPACER2
+	local MAX2
+	local SPACER3=" "
+
+	local COUNT=0
+	local LOCAL
+	local REMOTE
+	local LQ
+	local NLQ
+	local COST
+	
+	func_olsr_output_neigh $FILE
+	
+	LIST="$( sed -n 's/^LOCAL=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all local IP's
+	MAX1="$( func_longest_string "$LIST" )"
+	LIST="$( sed -n 's/^.*;REMOTE=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all remote IP's
+	MAX2="$( func_longest_string "$LIST" )"
+
+	while read LINE; do {
+	  	
+	  	eval $LINE
+	  	
+		case "$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )" in
+			  wifi)	DEVTYPE="~~" ;;
+			  wire)	DEVTYPE="--" ;;
+			tunnel) DEVTYPE="==" ;;
+			     *)	DEVTYPE="??" ;;
+		esac
+		
+		MAC="$( ip neigh show to $REMOTE | sed -n "s/^.* lladdr \(..:..:..:..:..:..\) .*/\1/p;q" )"	# break after first match!
+		SPACER1="$( func_normalize_ip $MAX1 $LOCAL  )"				# ip's should always have
+		SPACER2="$( func_normalize_ip $MAX2 $REMOTE )"				# the same length
+		DNS="$( func_ip2dns $REMOTE )"
+		METRIC="$( func_ip2metric $REMOTE )"
+		[ $COUNT -gt 9 ] && unset SPACER3					# 9 -> ' 9'; 10 = 10
+	  	
+	  	if [ "$REMOTE" = "$GATEWAY_IP" ]; then
+	  		echo "${SPACER3}${COUNT}:>>${LOCAL}${SPACER1} ${DEVTYPE}${METRIC:=0}${DEVTYPE} ${REMOTE}${SPACER2}  LQ/NLQ/COST: ${LQ} / ${NLQ} / ${COST:=~    }  MAC+DNS: ${MAC:=??:??:??:??:??:??} '${DNS:=unknown}'"
+		else
+	  		echo "${SPACER3}${COUNT}:  ${LOCAL}${SPACER1} ${DEVTYPE}${METRIC:=0}${DEVTYPE} ${REMOTE}${SPACER2}  LQ/NLQ/COST: ${LQ} / ${NLQ} / ${COST:=~    }  MAC+DNS: ${MAC:=??:??:??:??:??:??} '${DNS:=unknown}'"
+		fi
+	
+	} done <"$FILE" && rm "$FILE"
+}
+
+func_type_dev_layer ()		# OUT1: string, "wifi/tunnel/wire"
+{
+	local DEV="$1"
+	
+	func_dev_is_wireless $DEV && {
+		echo -n "wifi"
+		return
+	}
+	
+	func_dev_is_tunnel $DEV && {
+		echo -n "tunnel"
+		return
+	}
+	
+	echo -n "wire"		# ethernet
+}
+
+func_ip2metric ()
+{
+	ip route list $1 | sed -n 's/^.*metric \([0-9]*\).*/\1/p'
+}
+
+func_dev_is_wireless ()
+{
+	grep -q "^.*$1:" /proc/net/wireless && return 0
+	return 1
+}
+
+func_dev_is_tunnel ()
+{
+	local KEYWORD="$(echo $1 | sed -n 's/^\([a-z]*\)[0-9]*/\1/p' )"
+	
+	[ "$KEYWORD" = "tun" ] && return 0
+	[ "$KEYWORD" = "tap" ] && return 0
+	return 1
+}
+
+func_get_dev_from_ip ()
+{
+	ip -oneline address show | sed -ne "/ inet $1\//s/^[0-9]*: \([a-zA-Z0-9@\.]*\).*/\1/p"
+}

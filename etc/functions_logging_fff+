@@ -1,0 +1,391 @@
+FUNC_LOG=1
+
+func_split_string ()		# ARG1: string
+{				# ARG2: max_string_length
+
+	# ToDo: sms > 160 zeichen automatisch splitten
+	# text1 [1/3]
+	# test2 [2/3]
+	# text3 [3/3]
+
+	local TEXT="[1]3456789[2]DEFGHIJ[3]3456789[4]DEFGHIJ[5]3456789"
+	local ANZAHL=5
+	local b=0
+	local pos=0
+	local step=10
+	local von=0
+	local bis=0
+
+	local POS_START
+	local POS_END
+	
+	while [ $b -lt $ANZAHL ]; do {
+
+		b=$(( $b + 1 ))
+		von=$(( $pos + $von ))
+		von=$(( $von * $b ))
+		bis=$(( $bis + $step ))
+
+		POS_START=$(( ($b * $step) - $step + 1 ))
+		POS_END=$bis
+		
+		echo "LOOP: '$b' POS_START: '$POS_START' POS_END: '$POS_END'"
+		
+		echo "$TEXT" | cut -b $POS_START-$POS_END
+	} done
+}
+
+func_log ()				# CALL: func_log my_func_name daemon info "mytext"
+{
+	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
+
+	local FATHER_PROCESS="$0"
+	local       FUNCTION="$1"	# ARG1, string (name of function, from where call was invoked)
+	local       FACILITY="$2"	# ARG2, string (kern,user,mail,daemon,syslog,lpr,news,uucp,cron,authpriv,local0-7)
+	local           PRIO="$3"	# ARG3, string (emerg,alert,crit,err,warning,notice,info,debug)
+	local        MESSAGE="$4"	# ARG4, string (humanreadable verbose message, all is syslog-alike)
+	local        EVERLOG="/www/everlasting_syslog.txt"
+
+	[ -z "$TZ" ] && {				# fixme! workaround, till all scripts use this file
+		[ -e /tmp/vars ] && . /tmp/vars
+		[ -z "$TZ" ] && export TZ='CET-1CEST-2,M3.5.0/2,M10.5.0/3'	# fallback to germany
+	}
+
+	case $PRIO in
+		debug|emerg|alert|crit)
+			local MEM="$( sed -n '/^Mem:/s/^Mem:[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p' /proc/meminfo )"
+			local UPTIME="$( cut -d" " -f1 /proc/uptime )"
+			local DATE="$( date "+%b %d %H:%M:%S" )"	# Oct 29 12:45:06
+			
+			[ "$PRIO" != "debug" ] && {		# write to logfile in flash, which is not lost after reboot
+			
+				[ -z "$FUNC_BASE" ] && . /etc/functions_base_fff+
+			
+				[ "$(func_system_flash_free)" -gt 90 ] && {
+					echo >>$EVERLOG "$DATE | [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
+				}
+			}
+		;;
+	esac
+
+	[ "$SHELL" = "/bin/ash" -o "$SHELL" = "/bin/sh" ] && {		# executing from commandline (ssh/telnet) (maybe using: "$TERM" != "vt102" ?)
+	
+		[ -z "$MEM" ] && {
+			local MEM="$( sed -n '/^Mem:/s/^Mem:[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p' /proc/meminfo )"
+			local UPTIME="$( cut -d" " -f1 /proc/uptime )"				# fixme! this section is doubled (see above)
+			local DATE="$( date "+%b %d %H:%M:%S" )"	# Oct 29 12:45:06
+		}
+		
+		FATHER_PROCESS="TERM:${TERM} $0"
+		echo "$DATE | [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE" 1>&2   # to stderr
+	}
+
+	if [ "$PRIO" = "debug" ]; then
+
+		[ ! -e /tmp/DEBUG ] && [ "$SHELL" != "/bin/ash" ] && return
+
+		[ -e /tmp/BOOT ] && {
+			pidof syslogd >/dev/null || {		# write to special logfile
+				echo >>/tmp/messages "$DATE | [up $(cut -d" " -f1 /proc/uptime)s] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
+				# func_netmessage "$MESSAGE"	# fixme!
+			}
+		}
+	else
+		[ -e /tmp/BOOT ] && {
+			pidof syslogd >/dev/null || {		# write to special logfile
+				echo >>/tmp/messages "$DATE | [up $(cut -d" " -f1 /proc/uptime)s] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"	
+				# func_netmessage "$MESSAGE"	# fixme!
+			}
+		}
+	fi
+
+	# fixme! howto print out logging when webserver executes a script?
+
+	logger -t "fff+ $FATHER_PROCESS ${FUNCTION}()" -p "${FACILITY}.${PRIO}" "$MESSAGE"
+}
+
+func_netmessage () 		# SENS: sends a human-readable UDP netmessage to all broadcast-destinations
+{
+	# readable per tcpdump: (each line are 16 bytes)
+	# tcpdump -s 500 -nXi $DEVICE udp and port 2049
+
+	local  MESSAGE="$1"	# ARG1: string
+	local  BROADCAST
+	local  DESTINATIONS="$( ip address show |
+	                         sed -n 's/^.* brd \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\).*/255.255.255.255\n\1/p' |
+	                          sort | uniq )"
+
+	for BROADCAST in ${DESTINATIONS:=255.255.255.255}; do {
+		netmsg $BROADCAST "__$MESSAGE"				# fixme! at early boot, there are no interfaces up...
+	} done
+}
+
+func_strip_nonsafe_url_chars ()		# SENS: strip all chars, which are not URL-safe (RFC-3986, chapter 2.3. unreserved chars)
+{
+	echo "$1" | sed 's/[^a-zA-Z0-9_\.~-]//g'			# fixme! sed 's/%[0-9a-fA-F][0-9a-fA-F]//g'
+									# -> leave already encoded chars in?!
+}
+
+func_strip_special_chars ()		# SENS: strip all chars, which are in our special table (see next function!)
+{
+	echo "$1" | sed -e 's/[}{\$\^[()!*\[,"|	;<>'\\\''=+:?@#\\/ ]//g' -e 's/]//g'	# is: { } $ ^ [ ] ( ) ! * , " | TAB ; < > ' = + : ? @ # / space
+}
+
+func_url_encode_special_chars ()	# SENS: converting chars using a fixed table, where we know the URL-encodings
+{					#				  is: , ; : ? # [ ] / @ + = " ' | ( ) TAB < > ! * { } $ ^ space
+	echo "$1" | sed -e 's/,/%2c/g'	\
+			-e 's/;/%3b/g'	\
+			-e 's/:/%3a/g'	\
+			-e 's/?/%3f/g'	\
+			-e 's/#/%23/g'	\
+			-e 's/\[/%5b/g'	\
+			-e 's/\]/%5d/g'	\
+			-e 's/\//%2f/g'	\
+			-e 's/@/%40/g'	\
+			-e 's/+/%2b/g'  \
+			-e 's/=/%3d/g'	\
+			-e 's/"/%22/g'	\
+			-e "s/'/%27/g"	\
+			-e "s/|/%7c/g"	\
+			-e "s/[(]/%28/g" \
+			-e "s/[)]/%29/g" \
+			-e "s/	/%09/g"	\
+			-e 's/</%3c/g'  \
+			-e 's/>/%3e/g'  \
+			-e 's/!/%21/g' \
+			-e 's/*/%2a/g' \
+			-e 's/{/%7b/g' \
+			-e 's/}/%7d/g' \
+			-e 's/\$/%24/g' \
+			-e 's/\^/%5e/g' \
+			-e 's/ /+/g'
+}
+
+func_url_encode ()						# todo: on cmdline this produces error on each "!"-sign, but output is ok
+{								# ARG1: string (all chars are allowed)
+	local FUNC="url_encode"					# OUT1: string (URL-encoded, RFC2396)
+	local TEXT="$1"
+	local  OUT=""
+	local CHAR=""
+	local  HEX=""
+	local  POS=0
+	local STRIP="$( func_strip_nonsafe_url_chars "$TEXT" )"
+
+	[ "$TEXT" = "$STRIP" ] && {		# no need for conversion, only safe chars
+		echo "$TEXT"
+		return
+	}
+	
+	[ "$STRIP" = "$( func_strip_special_chars "$TEXT" )" ] && {	# conversion of unsafe chars is possible with a fast table
+		func_url_encode_special_chars "$TEXT"
+		return
+	}
+
+	# seems that we have special chars, that are not in our table,
+	# so we have to check char by char, which is slow...
+	# maybe we should auto-generate a table when using this functions for the first time?
+
+	while [ $POS -lt ${#TEXT} ]; do {							# 0...length_of_text
+		
+		POS=$(( $POS + 1 ))
+		CHAR="$( echo "$TEXT" | cut -b $POS )"				# char at $POS
+			
+		[ -n "$( func_strip_nonsafe_url_chars "$CHAR" )" ] && {
+		  	OUT="${OUT}${CHAR}"
+		  	continue
+		}
+		
+		HEX="$( echo "$CHAR" | hexdump -C | cut -d" " -f3 )"		# is unsafe char! do HEX
+		OUT="${OUT}%${HEX}"						# no matter: a-z = A-Z
+	} done
+
+	echo $OUT
+}
+
+func_get_number_from_name_in_phonebook () {
+	local      DEST="$1"							# ARG1: string (peter or 0177/2821234)
+	local       OUT=""							# OUT1: string (number or keyword "invalid")
+	local PHONEBOOK="$( nvram get fff_sms_phonebook )"			# klaus=0177/2821234;peter=0179/1234567;...
+
+	[ -z "$DEST" ] && {							# output hole phonebook
+
+		IFS=";"
+		for DEST in $PHONEBOOK; do {
+			echo $DEST
+		} done
+		unset IFS
+	
+		return 1
+	}
+	
+	if [ -n "$( echo "$PHONEBOOK" | grep "${DEST}=" )" ]; then		# is in phonebook, convert NAME to NUMBER
+	
+		OUT="$( echo "$PHONEBOOK" | sed 's/[^0-9a-zA-Z;=]//g' | sed "s/.*$DEST=\([0-9]*\).*/\1/" )"
+	else
+		OUT="$DEST"							# not in phonebook
+	fi
+
+	OUT="$( echo "$OUT" | sed 's/[^0-9]//g' )"				# allow only numbers
+
+	if [ -z "$OUT" ] || [ -z "$DEST" ]; then
+		echo "invalid"
+		return 1
+	fi
+	
+	echo "$OUT"
+}
+
+func_send_sms ()		# SENS: wrapper for SMS-sending independent from service
+{				#	- collect all relevant data
+				#	- write and process queue-file line by line
+				#	- call service-specific function
+				#	- when something fails, use another service
+				#	this should be executed by cron every minute (to process queue-file)
+				
+	local   FUNC="send_sms"
+	local   DEST="$1"				# ARG1: string (name or number)
+	local   TEXT="$2"				# ARG2: string (text to send, codepage ISO_8859-1)
+	local NOPOST="$3"				# ARG3: string (optional, keyword: nopost)
+	local   USER="$( nvram get fff_sms_user )"	#	string
+	local   PASS="$( nvram get fff_sms_pass )"	#	string
+	local   POST="$( nvram get fff_sms_post )"	#       string (something like: "from klaus [03643/110]" )
+	
+	[ -z "$USER" ] && {
+		func_log $FUNC user crit "username not given - aborting"
+		return 1
+	}
+	
+	[ -z "$PASS" ] && {
+		func_log $FUNC user crit "password not given - aborting"
+		return 1
+	}
+	
+	[ -z "$TEXT" ] && {
+		func_log $FUNC user crit "text not given - aborting"
+		return 1
+	}
+	
+	[ -n "$NOPOST" ] && POST=""
+	
+	local NUMBER="$( func_get_number_from_name_in_phonebook "$DEST" )" || {
+		func_log $FUNC user crit "wrong name/number - aborting"
+		return 1
+	}
+	
+	[ -n "$POST" ] && TEXT="$TEXT $POST @$( date +%H:%M)uhr"		# append own brand + time
+
+	func_log $FUNC user notice "to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
+		
+	func_send_sms_with_service_sms77 $USER $PASS $NUMBER $(func_url_encode "$TEXT")
+}
+
+func_send_sms_with_service_sms77 ()
+{
+	local   FUNC="func_send_sms_with_service_sms77"
+	local   USER=$1
+	local   PASS=$2
+	local NUMBER=$3
+	local   TEXT=$4
+	local    OUT=""
+	local    URL="http://www.sms77.de/gateway/?type=basicplus"
+	local     RC=0
+
+	func_log $FUNC daemon debug "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}"
+	
+	OUT="$( wget -qO - "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}" )"
+	RC=$?
+
+	if [ $RC -ne 0 ] || [ "$OUT" != "100" ]; then
+		func_log $FUNC user crit "wget-returncode: '$RC' - sms77-answer: '$OUT' - something went wrong"
+	fi
+}
+
+func_mail_check_pop3_stats () {						# works with busybox-netcat
+	local   FUNC="mail_check_pop3_stats"
+	local   USER="$( nvram get fff_mail_user )"
+	local   PASS="$( nvram get fff_mail_pass )"
+	local    OUT=""
+	local NETCAT="nc"
+	local SERVER="$( nvram get fff_mail_server_pop3 )"
+	local   PORT="$( nvram get fff_mail_server_pop3_port )"
+	local     RC=0
+	local WINDOW=600						# time in seconds, when pop_before_smtp is valid
+
+	func_log $FUNC user notice "sending data to '$SERVER'"
+
+	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT $SERVER $PORT )"
+
+	RC=$?
+	OUT="$( echo "$OUT" | cut -d' ' -f1 | tr -d \\n )"				# remove LF/CR
+
+	if [ $RC -ne 0 ] || [ "$OUT" != "+OK+OK+OK" ]; then				# if all went fine we get 3 x OK
+	
+		func_log $FUNC user crit "returncode: '$RC' - '$SERVER'-answer: '$OUT' - something went wrong"
+	fi
+}
+
+func_sendmail() {								# ToDo: we need a simple addressbook for phone,email,shortname,name...
+	local           FUNC="sendmail"
+	local      FROM_REAL="$1"	# ARG1, string (name,  format: title, surname name  )
+	local      FROM_MAIL="$2"	# ARG2, string (email, format: recipient@domain.foo )
+	local RECIPIENT_REAL="$3"	# ARG3, string (name)
+	local RECIPIENT_MAIL="$4"	# ARG4, string (email)
+	local       MAILFILE="$5"	# ARG5, string (name of file with body-text and variables)
+	local           VAR1="$6"	# ARG6, string (user-definable, for using in mail.txt)
+	local           VAR2="$7"	# ARG7, string
+	local           VAR3="$8"	# ARG8, string
+	
+	if [ ! -r "$MAILFILE" ]; then
+		func_log $FUNC user crit "can't read '$MAILFILE' - aborting"
+		return
+	fi
+	
+	local           MAIL=""
+	local        SUBJECT="$( head -n1 $MAILFILE )"
+	local            OUT=""
+	local         NETCAT="nc"
+	local         SERVER="$( nvram get fff_mail_server_smtp )"
+	local           PORT="$( nvram get fff_mail_server_smtp_port )"
+	local             RC=0
+	local           FQDN="$( nvram get wan_hostname ).local"
+	local     ADMIN_REAL="$( nvram get ff_adm_name )"
+	local     ADMIN_MAIL="$( nvram get ff_adm_mail )"
+	local      NICE_DATE="$( date "+%d.%b'%y-%H:%M" )"									# 06.May'08-18:10
+	local      MAIL_DATE="$( date "+%a, " )$( date "+%e " | sed 's/ //' )$( date "+%b %Y %X %z" | sed 's/-0/+0/' )"		# Wed, 7 May 2008 16:04:59 +0200
+	
+	func_mail_check_pop3_stats			# pop before smtp must be configured on mailserver
+	
+	MAIL="${MAIL}HELO ${FQDN}\r\n"
+	MAIL="${MAIL}MAIL FROM: \"${FROM_REAL}\" <${FROM_MAIL}>\r\n"
+	MAIL="${MAIL}RCPT TO: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>\r\n"
+	MAIL="${MAIL}RCPT TO: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
+	MAIL="${MAIL}DATA\r\n"
+	MAIL="${MAIL}From: \"${FROM_REAL}\" <${FROM_MAIL}>\r\n"
+	MAIL="${MAIL}To: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>\r\n"
+	MAIL="${MAIL}Cc: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
+	MAIL="${MAIL}Subject: ${SUBJECT}\r\n"
+	MAIL="${MAIL}Date: ${MAIL_DATE}\r\n"
+	MAIL="${MAIL}Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>\r\n"							# 121016909907May08-16_04@buffalo422.local
+	MAIL="${MAIL}MIME-Version: 1.0\r\n"
+	MAIL="${MAIL}Content-Type: text/plain; charset=iso-8859-1\r\n"
+	MAIL="${MAIL}Content-Transfer-Encoding: quoted-printable\r\n"
+	MAIL="${MAIL}Organization: ${ADMIN_REAL}\r\n"
+	MAIL="${MAIL}Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
+	MAIL="${MAIL}X-Mailer: netcat $( $NETCAT --help 2>&1 | grep -i " v" )\r\n"
+	MAIL="${MAIL}X-Operating-System: $( cat /proc/version )\r\n"
+	MAIL="${MAIL}\n"
+	MAIL="${MAIL}$( eval "$( sed '3,99!d' $MAILFILE | sed 's/^\(.*\)$/echo -n \"\1\\r\\n\"/g' )" )\r\n.\r\n"		# 1st/2nd line is crap
+	MAIL="${MAIL}QUIT\r\n"
+	
+	OUT="$( echo -e $MAIL | $NETCAT $SERVER $PORT )"
+				
+	RC=$?
+	OUT="$( echo "$OUT" | strings | sed -e 's/ //g' -e 's/^\([0-9]*\).*$/\1_/' | tr -d \\n )"		# extract error-codes
+
+	if [ $RC -ne 0 ] || [ "$OUT" != "220_250_2502_2502_2502_354_2502_2212_" ]; then				# error-codes, when all went fine (RCPT=OK=2502)
+	
+		func_log $FUNC user crit "returncode: '$RC' - '$SERVER'-answer: '$OUT' - something went wrong"
+	else
+		func_log $FUNC user notice "sent mail to '$RECIPIENT_MAIL' went fine"
+	fi
+}
