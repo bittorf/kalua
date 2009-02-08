@@ -17,6 +17,20 @@
 # func_profile_remap_devs
 # func_profile_mac_plus
 
+func_profile_user_probe_old_sundhausen_node ()
+{
+	[ -z "$(nvram get $NODE_NUMBER_VAR)" ] && {
+		nvram get wl0_ssid | grep -q ^"sundi" && {
+			nvram get wifi_ipaddr | grep -q ^"10\.10\.10\." && {
+				nvram get wifi_netmask | grep -q ^"255\.0\.0\.0" && {
+					return 0
+				}
+			}
+		}
+	}
+
+	return 1
+}
 
 func_profile_get ()	# OUT1: string
 {
@@ -27,6 +41,10 @@ func_profile_get ()	# OUT1: string
 	local PROFILE_SAFED="$( nvram get $PROFILE_VAR )"
 	local OUT="standard"
 	local MAC="$1"
+
+	func_profile_user_probe_old_sundhausen_node && {
+		func_nvset $NODE_NUMBER_VAR "$(nvram get wifi_ipaddr | cut -d'.' -f4)"
+	}
 
 	[ ! -e $FRESHFLASH ] && {
 		func_log $FUNC daemon debug "detected freshflash"
@@ -495,12 +513,11 @@ func_profile_set_wifi_phy ()
 		func_nvset wl0_bcn 		"100"		# beacon rate [100 = 10/s] default=100
 		func_nvset wl0_frag		"2346"		# frag-threshold ("schwelle")
 		func_nvset wl0_rts		"2347"		# rts-threshold ("schwelle")
-		func_nvset wl0_txpwr		"60"		# [1/4 dBm = qdBm]
+		func_nvset wl0_txpwr		"60"		# [1/4 dBm = qdBm] -> 32 mW
 		func_nvset wl0_gmode_protection "off"		# CTS on/off
 		func_nvset wl0_frameburst	"off"		# on/off
 		func_nvset wl0_gmode		"0"		# 0 = Bonly/LegacyB, 1 = Auto/B&G, 2 = Gonly, 3 = BDeferred,
 								# 4 = performanceG, 5 = LRS , 6 = Afterburner
-								# http://wireless.subsignal.org/index.php?title=WLAN-Optimierung
 	}
 	
 	[ -n "$ESSID"    ] && func_nvset wl0_ssid        "$ESSID"
@@ -510,8 +527,6 @@ func_profile_set_wifi_phy ()
 	[ -n "$RTS"      ] && func_nvset wl0_rts         "$RTS"          # 2347 = off = empty
 	[ -n "$FRAG"     ] && func_nvset wl0_frag        "$FRAG"         # 256...2346
 	[ -n "$DISTANCE" ] && func_nvset wl0_distance    "$DISTANCE"     # for ACK-Timing, [meter], normal 2000 // fixme! (needs some research)
-	[ -n "$PREAMBLE" ] && func_nvset wl0_plcphdr     "$PREAMBLE"     # short/long=auto
-	[ -n "$GMODE"    ] && func_nvset wl0_gmode       "$GMODE"	 # needs more abstraction
 }
 
 func_profile_set_olsr ()

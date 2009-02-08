@@ -55,6 +55,30 @@ func_watch_hanging_wget ()
 	exit
 }
 
+func_watch_hanging_netcat ()
+{
+	local FUNC="watch_hanging_netcat"
+	local PID="$( pidof nc )"
+	local OLD="/tmp/maybe_hanging_netcat_process_id"
+	
+	if [ -z "$PID" ]; then
+		[ -e "$OLD" ] && rm $OLD
+		return
+	else
+		if [ -e "$OLD" ]; then
+			[ "$PID" = "$( cat "$OLD" )" ] && {
+				func_log $FUNC daemon err "killing '$PID'"
+				kill "$PID"
+				rm "$OLD"
+			}
+		else
+			echo "$PID" >"$OLD"
+		fi
+	fi
+}
+
+func_watch_hanging_netcat
+
 . /etc/variables_fff+
 . /etc/functions_olsr
 . /etc/functions_wifi_fff+
@@ -241,9 +265,10 @@ test   -e "/tmp/LOWMEM"			&& ARG1=fast
 test   -n "$FAILSAFE" 			&& ARG1=fast
 test ! -e "$SOFTWARE_FULLY_INSTALLED"	&& ARG1=fast
 
-if [ "$ARG1" = "fast" ]; then
-	func_log "fastmode" daemon debug "no mesh-rdf-data-collection"
-else
+[ "$ARG1" = "fast" ] && func_log "fastmode" daemon debug "no mesh-rdf-data-collection"
+
+if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node must be configured
+
 	func_log mesh_rdf daemon debug "start"
 
 	# fixme! use more abstraction
@@ -294,7 +319,7 @@ else
 	TXPWR="$( func_wifi_get_txpwr $WIFIDEV mw )"								# 40
 	FRAG="$( wl frag | sed -n 's/frag is \([0-9]*\).*$/\1/p' )"						# 500
 	RTS="$( wl rts | sed -n 's/rts is \([0-9]*\).*$/\1/p' )"						# 2347
-	GMODEPROT="$( wl gmode_protection | sed -n 's/^gmode_protection is \([0-9] \).*/\1/p' )"		# 0 or 1
+	GMODEPROT="$( wl gmode_protection | sed -n 's/^gmode_protection is \([0-9]\) .*/\1/p' )"		# 0 or 1
 		GMODEPROT="${GMODEPROT:=0}"
 	CITY="$CITY"												# 63
 	WIFIMODE="$( func_get_wifi_mode )"									# adhoc
@@ -489,7 +514,7 @@ pidof httpd >/dev/null || {
 }
 
 
-### check if nodenumber/id is from random pool		// fixme! if [ -e /tmp/REGISTRATED ] ... else ...fi
+### check if nodenumber/id is from random pool
 
 . /etc/functions_profile_user_fff+
 
@@ -497,17 +522,18 @@ if func_ipsystem_weimar | grep -q ^"NODE_NUMBER_RANDOM=true" ; then
 	func_log replace_random_nodeID daemon info "detected ID from random pool - registering official ID"
 	
 	URL="http://www.weimarnetz.de/registrator/bot.php?WIFIMAC=${WIFIMAC}&SSHPUBKEY=${SSH_PUBKEY}"	# fixme! no ssh -> no ssh_pub_key!
-													# fixme! no wifi, no registration?
+ 	
  	func_log replace_random_nodeID daemon debug "fetching: '$URL'"
  	
  	[ -n "$SSH_PUBKEY" ] && ID="$( fkt_wget "$URL" 10 )"
  	
  	[ -n "$ID" ] && {
- 		func_ipsystem_weimar "$ID" && {			# ipsystem() has a sanitizer built in, so don't worry 8-)
+ 		func_ipsystem_weimar "$ID" && {
 			. /etc/functions_nvram_fff+
 			func_nvset fff_node_number "$ID"
 			/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile
-			func_safe_reboot "replace_random_nodeID() new profile applied"
+	
+			func_safe_reboot "replace_random_nodeID() now profile applied"
 		}
 	}
 
@@ -515,19 +541,21 @@ if func_ipsystem_weimar | grep -q ^"NODE_NUMBER_RANDOM=true" ; then
 else
 	if [ ! -e /tmp/REGISTRATED ] && [ "$(func_uptime min)" -gt 30 ]; then
 		URL="http://www.weimarnetz.de/registrator/bot.php?WIFIMAC=${WIFIMAC}&SSHPUBKEY=${SSH_PUBKEY}&NODE=${NODE}"
+		func_log registrator_petting daemon info "with kind regards"
 
-		[ -n "$SSH_PUBKEY" ] && {
-			ID="$( fkt_wget "$URL" 10 )"
-			touch /tmp/REGISTRATED		# only one try each reboot
-		}
+		[ -n "$SSH_PUBKEY" ] && ID="$( fkt_wget "$URL" 10 )"
 
 		if [ -n "$ID" ]; then
 			func_log registrator_petting daemon info "answer was '$ID' (question was: '$URL')"	
 		else
 			func_log registrator_petting daemon info "no answer (service '$URL' not running?)"
 		fi
+		
+		touch /tmp/REGISTRATED  	# only one try each reboot
 	else
-		[ -e /tmp/REGISTRATED ] && func_log registrator_petting daemon debug "is already lucky"
+		[ -e /tmp/REGISTRATED ] && {
+			func_log registrator_petting daemon debug "is already lucky"
+		}
 	fi
 fi
 

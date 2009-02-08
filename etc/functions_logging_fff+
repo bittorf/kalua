@@ -305,6 +305,7 @@ func_mail_check_pop3_stats () {						# works with busybox-netcat
 	local   USER="$( nvram get fff_mail_user )"
 	local   PASS="$( nvram get fff_mail_pass )"
 	local    OUT=""
+	local   LINE
 	local NETCAT="nc"
 	local SERVER="$( nvram get fff_mail_server_pop3 )"
 	local   PORT="$( nvram get fff_mail_server_pop3_port )"
@@ -316,7 +317,7 @@ func_mail_check_pop3_stats () {						# works with busybox-netcat
 	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT $SERVER $PORT )"
 
 	RC=$?
-	OUT="$( echo "$OUT" | cut -d' ' -f1 | tr -d \\n )"				# remove LF/CR
+	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "$LINE"; done )"	# remove LF/CR
 
 	if [ $RC -ne 0 ] || [ "$OUT" != "+OK+OK+OK" ]; then				# if all went fine we get 3 x OK
 	
@@ -324,7 +325,13 @@ func_mail_check_pop3_stats () {						# works with busybox-netcat
 	fi
 }
 
-func_sendmail() {								# ToDo: we need a simple addressbook for phone,email,shortname,name...
+func_sendmail()								# ToDo: we need a simple addressbook for phone,email,shortname,name...
+{
+	# while read ADDRESS; do {
+	# 	func_sendmail "Team-Weimarnetz" weimarnetz@gmx.de "Weimarnetz-Teilnehmer" $ADDRESS mail.txt
+	#	sleep 60
+	# } done <addresses.txt
+
 	local           FUNC="sendmail"
 	local      FROM_REAL="$1"	# ARG1, string (name,  format: title, surname name  )
 	local      FROM_MAIL="$2"	# ARG2, string (email, format: recipient@domain.foo )
@@ -335,14 +342,14 @@ func_sendmail() {								# ToDo: we need a simple addressbook for phone,email,sh
 	local           VAR2="$7"	# ARG7, string
 	local           VAR3="$8"	# ARG8, string
 	
-	if [ ! -r "$MAILFILE" ]; then
-		func_log $FUNC user crit "can't read '$MAILFILE' - aborting"
+	[ ! -e "$MAILFILE" ] && {
+		func_log $FUNC user crit "can't read '$MAILFILE' - aborting (usage: func_$FUNC myname me@world.org yourname you@world.org mailfile"
 		return
-	fi
+	}
 	
-	local           MAIL=""
 	local        SUBJECT="$( head -n1 $MAILFILE )"
 	local            OUT=""
+	local           LINE
 	local         NETCAT="nc"
 	local         SERVER="$( nvram get fff_mail_server_smtp )"
 	local           PORT="$( nvram get fff_mail_server_smtp_port )"
@@ -352,40 +359,49 @@ func_sendmail() {								# ToDo: we need a simple addressbook for phone,email,sh
 	local     ADMIN_MAIL="$( nvram get ff_adm_mail )"
 	local      NICE_DATE="$( date "+%d.%b'%y-%H:%M" )"									# 06.May'08-18:10
 	local      MAIL_DATE="$( date "+%a, " )$( date "+%e " | sed 's/ //' )$( date "+%b %Y %X %z" | sed 's/-0/+0/' )"		# Wed, 7 May 2008 16:04:59 +0200
+	local           MAIL="/tmp/outgoing_mail_$NICE_DATE"
 	
 	func_mail_check_pop3_stats			# pop before smtp must be configured on mailserver
 	
-	MAIL="${MAIL}HELO ${FQDN}\r\n"
-	MAIL="${MAIL}MAIL FROM: \"${FROM_REAL}\" <${FROM_MAIL}>\r\n"
-	MAIL="${MAIL}RCPT TO: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>\r\n"
-	MAIL="${MAIL}RCPT TO: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
-	MAIL="${MAIL}DATA\r\n"
-	MAIL="${MAIL}From: \"${FROM_REAL}\" <${FROM_MAIL}>\r\n"
-	MAIL="${MAIL}To: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>\r\n"
-	MAIL="${MAIL}Cc: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
-	MAIL="${MAIL}Subject: ${SUBJECT}\r\n"
-	MAIL="${MAIL}Date: ${MAIL_DATE}\r\n"
-	MAIL="${MAIL}Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>\r\n"							# 121016909907May08-16_04@buffalo422.local
-	MAIL="${MAIL}MIME-Version: 1.0\r\n"
-	MAIL="${MAIL}Content-Type: text/plain; charset=iso-8859-1\r\n"
-	MAIL="${MAIL}Content-Transfer-Encoding: quoted-printable\r\n"
-	MAIL="${MAIL}Organization: ${ADMIN_REAL}\r\n"
-	MAIL="${MAIL}Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
-	MAIL="${MAIL}X-Mailer: netcat $( $NETCAT --help 2>&1 | grep -i " v" )\r\n"
-	MAIL="${MAIL}X-Operating-System: $( cat /proc/version )\r\n"
-	MAIL="${MAIL}\n"
-	MAIL="${MAIL}$( eval "$( sed '3,99!d' $MAILFILE | sed 's/^\(.*\)$/echo -n \"\1\\r\\n\"/g' )" )\r\n.\r\n"		# 1st/2nd line is crap
-	MAIL="${MAIL}QUIT\r\n"
+	echo  >$MAIL -n "HELO ${FQDN}\r\n"
+	echo >>$MAIL -n "MAIL FROM: \"${FROM_REAL}\" <${FROM_MAIL}>\r\n"
+	echo >>$MAIL -n "RCPT TO: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>\r\n"
+	# can be multiple RCPT's:
+	# echo >>$MAIL -n "RCPT TO: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
+	echo >>$MAIL -n "DATA\r\n"
+	echo >>$MAIL -n "From: \"${FROM_REAL}\" <${FROM_MAIL}>\r\n"
+	echo >>$MAIL -n "To: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>\r\n"
+	# echo >>$MAIL -n "Cc: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
+	echo >>$MAIL -n "Subject: ${SUBJECT}\r\n"
+	echo >>$MAIL -n "Date: ${MAIL_DATE}\r\n"
+	echo >>$MAIL -n "Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>\r\n"				# 121016909907May08-16_04@buffalo422.local
+	echo >>$MAIL -n "MIME-Version: 1.0\r\n"
+	echo >>$MAIL -n "Content-Type: text/plain; charset=iso-8859-1\r\n"
+	echo >>$MAIL -n "Content-Transfer-Encoding: quoted-printable\r\n"
+
+	# echo >>$MAIL -n "Organization: ${ADMIN_REAL}\r\n"
+	# echo >>$MAIL -n "Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
+	echo >>$MAIL -n "Organization: Weimarnetz e.V.\r\n"
+	echo >>$MAIL -n "Reply-To: \"Weimarnetz e.V.\" <wireless-discuss@subsignal.org>\r\n"
 	
-	OUT="$( echo -e $MAIL | $NETCAT $SERVER $PORT )"
+	echo >>$MAIL -n "X-Mailer: netcat $( $NETCAT --help 2>&1 | grep -i " v" )\r\n"
+	echo >>$MAIL -n "X-Operating-System: $( cat /proc/version )\r\n"
+	echo >>$MAIL -n "X-Firmware: $( grep ^Kit: /etc/freifunk-release )\r\n"
+	echo >>$MAIL -n "\n"
+	sed '3,99!d' $MAILFILE | while read LINE; do echo -n "${LINE}\r\n"; done >>$MAIL	# 1st/2nd line is crap
+	echo >>$MAIL -n "\r\n.\r\nQUIT\r\n"
+
+	OUT="$( echo -e "$(cat $MAIL)" | $NETCAT $SERVER $PORT )"	# fixme! correct LF/CR with 'while read LINE; do echo -e \r\n...'
 				
 	RC=$?
-	OUT="$( echo "$OUT" | strings | sed -e 's/ //g' -e 's/^\([0-9]*\).*$/\1_/' | tr -d \\n )"		# extract error-codes
+	OUT="$( echo "$OUT" | strings | sed -e 's/ //g' -e 's/^\([0-9]*\).*$/\1_/' | while read LINE; do echo -n "$LINE"; done )"	# extract error-codes + remove LF/CR
 
-	if [ $RC -ne 0 ] || [ "$OUT" != "220_250_2502_2502_2502_354_2502_2212_" ]; then				# error-codes, when all went fine (RCPT=OK=2502)
+												# fixme! for each RCPT we must add an "2502_"
+	if [ $RC -ne 0 ] || [ "$OUT" != "220_250_2502_2502_354_2502_2212_" ]; then		# error-codes, when all went fine (RCPT=OK=2502)
 	
-		func_log $FUNC user crit "returncode: '$RC' - '$SERVER'-answer: '$OUT' - something went wrong"
+		func_log $FUNC user crit "error for recipient '${RECIPIENT_MAIL}': returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAIL'"
 	else
 		func_log $FUNC user notice "sent mail to '$RECIPIENT_MAIL' went fine"
+		rm "$MAIL"
 	fi
 }
