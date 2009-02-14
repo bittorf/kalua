@@ -173,13 +173,14 @@ func_profile_set_config ()
 	func_log $FUNC daemon debug "applying profile '$PROFILE' / nodeID: '$NODE_ID'"
 
 	pidof crond >/dev/null && {
-		func_log $FUNC daemon debug "discontinue cron.minutely checks for 300 seconds"
+		func_log $FUNC daemon debug "discontinue cron.minutely checks for 600 seconds"
 		
-		echo "rm \$0; sleep 300" >/tmp/.autorun
+		echo "rm \$0; sleep 600" >/tmp/.autorun
 		chmod +x /tmp/.autorun
-		sleep 3
+		sleep 3			# fixme! why sleep?
 	}
 
+	touch /tmp/PROFILE_SET
 	func_profile_nvram_make_backup
 	func_profile_memorise_important_vars $NODE_ID
 	func_profile_unset_nvram_group
@@ -197,6 +198,7 @@ func_profile_set_config ()
 
 	func_profile_count_used_nvram_vars
 
+	rm /tmp/PROFILE_SET
 	func_nvset commit
 }
 
@@ -246,7 +248,7 @@ func_profile_memorise_important_vars ()
 	local VARGROUP=""
 	local TEMP="/tmp/${FUNC}_$$"
 	local LIST="fff_profile fff_ethers_ fff_sms_ fff_autofwupdate fff_portfw fff_mail_ fff_node_number"
-	      LIST="$LIST fff_vpnc_ fff_dhcp_ignore"	# fixme! fff_adblock fff_nosplash? ff_ipkg?
+	      LIST="$LIST fff_vpnc_ fff_dhcp_ignore fff_adblock fff_nosplash"		# fixme! ff_ipkg?
 	      LIST="$LIST ff_adm_ ff_reset ff_nameservice ff_secureadmin_ ff_dsskey ff_pw lan_hwaddr wan_hwaddr wifi_hwaddr"
 	      LIST="$LIST ppp_ wifi_gateway wan_gateway lan_gateway wan_hostname"
 
@@ -518,15 +520,18 @@ func_profile_set_wifi_phy ()
 		func_nvset wl0_frameburst	"off"		# on/off
 		func_nvset wl0_gmode		"0"		# 0 = Bonly/LegacyB, 1 = Auto/B&G, 2 = Gonly, 3 = BDeferred,
 								# 4 = performanceG, 5 = LRS , 6 = Afterburner
-	}
+	}							# http://wireless.subsignal.org/index.php?title=WLAN-Optimierung
 	
-	[ -n "$ESSID"    ] && func_nvset wl0_ssid        "$ESSID"
-	[ -n "$TXPOWER"  ] && func_nvset wl0_txpwr       "$TXPOWER"      # [1/4 dBm = qdBm]
-	[ -n "$BEACON"   ] && func_nvset wl0_bcn         "$BEACON"       # beacon rate [100 = 10/s] default=100
-	[ -n "$MRATE"    ] && func_nvset wl0_mrate       "$MRATE"        # default = 5500000
-	[ -n "$RTS"      ] && func_nvset wl0_rts         "$RTS"          # 2347 = off = empty
-	[ -n "$FRAG"     ] && func_nvset wl0_frag        "$FRAG"         # 256...2346
-	[ -n "$DISTANCE" ] && func_nvset wl0_distance    "$DISTANCE"     # for ACK-Timing, [meter], normal 2000 // fixme! (needs some research)
+	
+	[ -n "$ESSID"    ] && func_nvset wl0_ssid       "$ESSID"
+	[ -n "$TXPOWER"  ] && func_nvset wl0_txpwr      "$TXPOWER"	# [1/4 dBm = qdBm]
+	[ -n "$BEACON"   ] && func_nvset wl0_bcn        "$BEACON"	# beacon rate [100 = 10/s] default=100
+	[ -n "$MRATE"    ] && func_nvset wl0_mrate      "$MRATE"	# default = 5500000
+	[ -n "$RTS"      ] && func_nvset wl0_rts        "$RTS"		# 2347 = off = empty
+	[ -n "$FRAG"     ] && func_nvset wl0_frag       "$FRAG"		# 256...2346
+	[ -n "$DISTANCE" ] && func_nvset wl0_distance   "$DISTANCE"	# for ACK-Timing, [meter], normal 2000 // fixme! (needs some research)
+	[ -n "$PREAMBLE" ] && func_nvset wl0_plcphdr	"$PREAMBLE"	# should be internally set by GMODE-selection?
+	[ -n "$GMODE"    ] && func_nvset wl0_gmode      "$GMODE"	# needs more abstraction
 }
 
 func_profile_set_olsr ()
@@ -558,9 +563,9 @@ func_profile_set_fff_extensions ()	# OK
 
 	[ -n "$DEFAULTS" ] && {
 		func_nvset fff_menu 		"full" 		# "switch between 'simply', 'expert' and 'full' menu"
-		func_nvset fff_adblock 		"true"		# "zero/true|off/false"
+		func_nvset fff_adblock 		"true"		# "unset/true | 0/off/false"
 		func_nvset fff_node_number 	"$NODE_NUMBER"
-		func_nvset fff_autofwupdate 	"stable"	# "zero/stable|testing|beta"
+		func_nvset fff_autofwupdate 	"stable"	# "unset/stable | testing | beta"
 	}
 }
 

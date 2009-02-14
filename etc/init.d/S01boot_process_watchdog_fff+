@@ -74,6 +74,14 @@ while true; do {
 	[ -n "$READONLY" ] && func_log check_readonly daemon info "working in READONLY-mode"
 
 	while ! pidof olsrd; do {
+		[ -e /tmp/PROFILE_SET ] && {
+			[ "$(func_system_get_load 1min)" -gt 50 ] && {		# router does'nt hang? // fixme! also check >500?
+				[ -e /dev/misc/crondog ] && {
+					echo >/dev/misc/crondog
+					COUNT=$(( $COUNT - 1 ))
+				}
+			}
+		}
 		COUNT=$(( $COUNT + 1 ))
 		[ $COUNT -gt 60 ] && break	# 10 minutes should be enough, till olsrd gets started.
 		sleep 10			# If this script fails, crondog reboots after ~600 seconds
@@ -84,7 +92,6 @@ while true; do {
 		func_log pidof_olsrd daemon debug "OLSRd is up"
 
 		if   pidof dropbear >/dev/null ; then
-		
 			func_log pidof_dropbear daemon debug "dropbear is up, trying to kill telnetd in 45 sec"
 			sleep 45
 			func_telnetd_stop
@@ -104,12 +111,12 @@ while true; do {
 	fi
 
 	# fixme! when wireless-driver could'nt be loaded, then reformat jffs2
-	# ->pci-bus claims to have wireless onboard, but /proc doesnt know wireless and driver is onboard!
+	# (pci-bus claims to have wireless onboard, but /proc doesnt know wireless and driver is onboard!)
 	# if [ -n "$WIFI_VENDOR" ] && [ -z "$WIFI_DEVS" ] && reformat_jffs2
 
 	rm /tmp/BOOT
 	
-	ls -l /www/*software_is_fully_installed* && {
+	ls -l /www/*software_is_fully_installed* >/dev/null && {
 		sleep 1200
 		func_log exit_watchdog daemon debug "switching DEBUG-mode off, but can be manually startet with '>DEBUG'"
 		rm /tmp/DEBUG

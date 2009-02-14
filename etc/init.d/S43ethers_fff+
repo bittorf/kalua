@@ -144,12 +144,17 @@ case $1 in
 		fkt_build_etc_local_hosts wifi
 		fkt_build_etc_local_hosts virtual
 		
-		if [ -z "$(nvram get fff_adblock)" ] || [ -z "$(nvram get fff_nosplash)" ]; then	# fff_adblock=no/false?
-													# fff_nosplash=yes/true?
+		case $(nvram get fff_adblock) in
+			0|off|false) DROP=0 ;;
+			          *) [ -n "$(nvram get fff_nosplash)" ] && DROP=0
+				     [ -e "/tmp/LOWMEM" ]               && DROP=0 ;;
+		esac
+		
+		[ "$DROP" != "0" ] && {
 				FILE_INFO="$( ls -l /etc/hosts.drop | sed -n 's/^[a-z-]*[0-9]*.*root.*root\(.*\)/\1/p' )"													
 				func_log "add_adblock" daemon debug "$FILE_INFO"
 				fkt_build_etc_local_hosts drop
-		fi
+		}
 		
 		fkt_build_etc_local_hosts join
 		
