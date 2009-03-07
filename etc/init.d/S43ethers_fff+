@@ -150,11 +150,22 @@ case $1 in
 				     [ -e "/tmp/LOWMEM" ]               && DROP=0 ;;
 		esac
 		
-		[ "$DROP" != "0" ] && {
-				FILE_INFO="$( ls -l /etc/hosts.drop | sed -n 's/^[a-z-]*[0-9]*.*root.*root\(.*\)/\1/p' )"													
+		DROPFILE="/etc/hosts.drop"
+		if [ "$DROP" = "0" ]; then
+			[ -e "$DROPFILE" ] && {
+				func_log "del_adblock" daemon debug "must be deactivated, removing '$DROPFILE'"
+				rm "$DROPFILE"
+			}
+		else
+			fkt_build_etc_local_hosts drop
+			
+			if [ -e "$DROPFILE" ]; then
+				FILE_INFO="$( ls -l "$DROPFILE" | sed -n 's/^[a-z-]*[0-9]*.*root.*root\(.*\)/\1/p' )"
 				func_log "add_adblock" daemon debug "$FILE_INFO"
-				fkt_build_etc_local_hosts drop
-		}
+			else
+				func_log "add_adblock" daemon debug "was not possible, missing '$DROPFILE'"
+			fi
+		fi
 		
 		fkt_build_etc_local_hosts join
 		
