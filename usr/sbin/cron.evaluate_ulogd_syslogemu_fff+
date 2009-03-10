@@ -1,14 +1,17 @@
 #!/bin/sh
 
-# filename: 2008aug8-username-00:11:22:33:44:55.ulog
-#	    time direction ip port proto id seq ack
-#           123456789012>212.123.12.44 5900 udp 123456789012 123456789012 123456789012
+# filename: 	/tmp/2008aug8-username-00:11:22:33:44:55.ulog
 #
-#           ~ 50 * 10000
-#           = 500.000 / user / day
+#		direction time ip port proto id seq ack
+# 		> 11:35:41 212.58.226.33 80 TCP 10415 3248578720 0
+# 		< 11:35:41 212.58.226.33 80 TCP 0 1694259892 3248578721
+# 		< 11:35:47 212.58.226.33 80 TCP 33278 1694279284 3248579419
+# 		< 11:35:56 212.58.226.33 80 TCP 10434 3248579419 1694279285
 #
-# example-shot: 92.750 bytes / 337 lines -> 18985 bytes in 86sec (-> 20%) -> gzip -> 4000 bytes (-> 4.3%)
-# 		2.000.000 -> 80kb
+#		fixme! 11:35:56 -> unixtime?
+#
+# example-shot:     92.750 bytes | 337 lines (~273 bytes) -> 18985 bytes in 86sec (-> 20%) -> gzip -> 4000 bytes (-> 21%/4.3% overall)
+# extrapolation: 2.000.000 bytes | 7272 lines -> 80kb / user / day
 
 . /etc/variables_fff+
 . /etc/functions_base_fff+
@@ -17,10 +20,10 @@
 func_ulog_prepare ()
 {
 	local FUNC="ulog_prepare"
-	local PID_ULOG="$(pidof ulogd)"
+	local PID_ULOG="$( pidof ulogd )"
 	
-	ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"
-	ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"
+	ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"			# is global!
+	ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"		# is global!
 	
 	[ -z "$PID_ULOG" ] && {
 		[ -e /usr/sbin/ulogd ] && {
@@ -30,6 +33,7 @@ func_ulog_prepare ()
 				return 1		# needs correct /etc/ulogd.conf !
 			}
 			func_log $FUNC daemon debug "ulogd-startup successful"
+			PID_ULOG="$( pidof ulogd )"
 		}
 	}
 	
@@ -39,8 +43,7 @@ func_ulog_prepare ()
 	func_log $FUNC daemon debug "creating logfile working copy"
 	
 	mv $ULOG_LOGFILE_ORIG $ULOG_LOGFILE
-	# touch $ULOG_LOGFILE_ORIG
-	kill -HUP $PID_ULOG
+	kill -HUP $PID_ULOG			# logfile touching not needed
 	
 	func_log $FUNC daemon debug "created"
 
@@ -85,6 +88,8 @@ func_ulog_sqeeze_log ()		# OUT1: string, echo >>/tmp/00:20:a6:4c:22:5d-2008.ulog
 
 	while read LINE; do {
 
+		func_ulog_make_evalable "$LINE" >>/tmp/hallo
+
 		eval $( func_ulog_make_evalable "$LINE" )
 	
 		PORT=$DPT
@@ -98,7 +103,12 @@ func_ulog_sqeeze_log ()		# OUT1: string, echo >>/tmp/00:20:a6:4c:22:5d-2008.ulog
 		OUTPUT="$DIR $TIME $IP $PORT $PROTO $ID $SEQ $ACK"
 		COUNTER=$(( $COUNTER + ${#OUTPUT} ))
 		
-		echo >>"/tmp/user-${MAC}-${DATE}.ulog" "$OUTPUT"   # $LINE for debugging
+		echo >>"/tmp/user-${MAC}-${DATE}.ulog" "$OUTPUT"
+
+		# > 11:35:41 212.58.226.33 80 TCP 10415 3248578720 0
+		# < 11:35:41 212.58.226.33 80 TCP 0 1694259892 3248578721
+		# < 11:35:47 212.58.226.33 80 TCP 33278 1694279284 3248579419
+		# < 11:35:56 212.58.226.33 80 TCP 10434 3248579419 1694279285
 
 	} done <$ULOG_LOGFILE
 
@@ -108,7 +118,21 @@ func_ulog_sqeeze_log ()		# OUT1: string, echo >>/tmp/00:20:a6:4c:22:5d-2008.ulog
 
 func_ulog_make_evalable ()
 {
-	echo "$1" | sed -ne 's/^[a-zA-Z]* [0-9]* \([0-9][0-9]:[0-9][0-9]:[0-9][0-9]\).*\([0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]\)\(.\) .* SRC=\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) DST=\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .* ID=\([0-9]*\).*PROTO=\(.*\)$/TIME=\1;MAC=\2;DIR="\3";SRC=\4;DST=\5;ID=\6;PROTO=\7/' \
+	# Input is like: (no space, all in one line)
+
+	# Mar  9 23:21:29 node408ap 00:04:75:f8:ed:67< IN=eth2 OUT=br0 MAC=00:90:4b:87:82:d5:00:04:75:f8:ed:67:08:00
+	# SRC=10.63.153.66 DST=212.79.62.105 LEN=52 TOS=00 PREC=0x00 TTL=63 ID=26975 DF PROTO=TCP SPT=39952 DPT=80
+	# SEQ=3144651213 ACK=3259829088 WINDOW=4340 ACK FIN URGP=0
+
+	# Mar 10 11:18:17 liszt28 00:02:2d:2d:8a:54< IN=vlan1 OUT=eth1 MAC=00:1d:73:05:0f:58:00:1c:4a:89:b6:17:08:00:45:00:00:34
+	# SRC=74.125.39.104 DST=10.63.167.70 LEN=52 TOS=00 PREC=0x00 TTL=55 ID=49744 CE PROTO=TCP SPT=80 DPT=32908
+	# SEQ=4275812248 ACK=2185052976 WINDOW=135 ACK FIN URGP=0 
+
+	# Mar 10 11:18:21 liszt28 00:02:2d:2d:8a:54< IN=eth1 OUT=vlan1 MAC=00:1d:73:05:0f:59:00:02:2d:2d:8a:54:08:00
+	# SRC=10.63.167.70 DST=74.125.39.104 LEN=52 TOS=00 PREC=0x00 TTL=63 ID=37032 CE DF PROTO=TCP SPT=32908 DPT=80
+	# SEQ=2185052976 ACK=4275812249 WINDOW=25524 ACK FIN URGP=0 
+
+	echo "$1" | sed -ne 's/^[a-zA-Z]* *[0-9]* \([0-9][0-9]:[0-9][0-9]:[0-9][0-9]\).*\([0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]\)\(.\) .* SRC=\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) DST=\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .* ID=\([0-9]*\).*PROTO=\(.*\)$/TIME=\1;MAC=\2;DIR="\3";SRC=\4;DST=\5;ID=\6;PROTO=\7/' \
 	                 -e 'y/ /;/' \
 	                 -e 's/;ACK;/;FLAG_ACK=1;/' \
 	                 -e 's/;SYN;/;FLAG_SYN=1;/' \
@@ -116,6 +140,14 @@ func_ulog_make_evalable ()
 			 -e 's/;FIN;/;FLAG_FIN=1;/' \
 			 -e 's/;PSH;/;FLAG_PSH=1;/' \
 			 -e 'p'
+
+	# Output is like: (no spaces, all in one line)
+
+	# TIME=11:18:17; MAC=00:02:2d:2d:8a:54; DIR="<"; SRC=74.125.39.104; DST=10.63.167.70; ID=49744; PROTO=TCP;
+	# SPT=80; DPT=32908; SEQ=4275812248; ACK=2185052976; WINDOW=135; FLAG_ACK=1; FLAG_FIN=1; URGP=0
+	
+	# TIME=11:18:21; MAC=00:02:2d:2d:8a:54; DIR="<"; SRC=10.63.167.70; DST=74.125.39.104; ID=37032; PROTO=TCP;
+	# SPT=32908; DPT=80; SEQ=2185052976; ACK=4275812249; WINDOW=25524; FLAG_ACK=1; FLAG_FIN=1; URGP=0
 }
 
 func_ulog_prepare && func_ulog_sqeeze_log
