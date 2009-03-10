@@ -31,11 +31,10 @@ func_activate_reserved_user_chain ()
 			iptables -t mangle -D traff_users -m mac --mac-source $MAC_RESERVE	-j traff_$MAC
 			iptables -t mangle -D traff_users -d 99.99.99.99			-j traff_$MAC
 
-			iptables -t mangle -D traff_$MAC 9
-			iptables -t mangle -D traff_$MAC 15
-
-			iptables -t mangle -I traff_$MAC  9 -m mark --mark $( fkt_proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}>"	# inside2outside
-			iptables -t mangle -I traff_$MAC 15 -m mark --mark $( fkt_proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
+			iptables -t mangle -D traff_$MAC 12
+			iptables -t mangle -I traff_$MAC 12 -m mark --mark $( fkt_proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}>"	# inside2outside
+			iptables -t mangle -D traff_$MAC 19
+			iptables -t mangle -I traff_$MAC 19 -m mark --mark $( fkt_proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
 
 			iptables -t mangle -A traff_users -m mac --mac-source $MAC		-j traff_$MAC
 			iptables -t mangle -A traff_users -d $IP				-j traff_$MAC
@@ -44,6 +43,8 @@ func_activate_reserved_user_chain ()
 			fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP		
 		
 			func_log $FUNC daemon info "successfully activated 'traff_$MAC'"
+
+			scheduler -a "/etc/local.fw-fff+ adduser_reserve $MAC_RESERVE 99.99.99.99"
 			return 0
 		}
 

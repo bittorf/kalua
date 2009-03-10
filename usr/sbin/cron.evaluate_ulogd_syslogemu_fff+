@@ -10,35 +10,36 @@
 #
 #		fixme! 11:35:56 -> unixtime?
 #
-# example-shot:     92.750 bytes | 337 lines (~273 bytes) -> 18985 bytes in 86sec (-> 20%) -> gzip -> 4000 bytes (-> 21%/4.3% overall)
-# extrapolation: 2.000.000 bytes | 7272 lines -> 80kb / user / day
+# example-shot:     92.750 bytes |  337 lines (~273 bytes) ->  18985 bytes in 86sec (-> 20%) -> gzip -> 4000 bytes (-> 21%/4.3% overall)
+# extrapolation: 2.000.000 bytes | 7272 lines              -> 80.000 bytes / user / day
 
 . /etc/variables_fff+
 . /etc/functions_base_fff+
 . /etc/functions_logging_fff+
+
+ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"
+ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"
 
 func_ulog_prepare ()
 {
 	local FUNC="ulog_prepare"
 	local PID_ULOG="$( pidof ulogd )"
 	
-	ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"			# is global!
-	ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"		# is global!
-	
-	[ -z "$PID_ULOG" ] && {
-		[ -e /usr/sbin/ulogd ] && {
-			func_log $FUNC daemon debug "ulogd inactive - starting up"
-			ulogd -d || {
-				func_log $FUNC daemon debug "ulogd-startup failed"
-				return 1		# needs correct /etc/ulogd.conf !
-			}
-			func_log $FUNC daemon debug "ulogd-startup successful"
-			PID_ULOG="$( pidof ulogd )"
+	[ -z "$PID_ULOG" -a -e /usr/sbin/ulogd ] && {
+		func_log $FUNC daemon debug "ulogd inactive - starting up"
+		
+		ulogd -d || {
+			func_log $FUNC daemon debug "ulogd-startup failed"
+			return 1		# needs correct /etc/ulogd.conf !
 		}
+			
+		PID_ULOG="$( pidof ulogd )"
+		func_log $FUNC daemon debug "ulogd-startup successful"
 	}
 	
-	[ ! -e $ULOG_LOGFILE_ORIG ] && return 1
-	[ $(func_filesize $ULOG_LOGFILE_ORIG) -eq 0 ] && return 1
+	[ ! -e $ULOG_LOGFILE_ORIG ]			&& return 1
+	[ ! -e /tmp/USER_PACKETFILTER ]			&& return 1	# no packetfilter, no logfile?
+	[ $(func_filesize $ULOG_LOGFILE_ORIG) -eq 0 ]	&& return 1
 
 	func_log $FUNC daemon debug "creating logfile working copy"
 	
@@ -50,7 +51,7 @@ func_ulog_prepare ()
 	return 0
 }
 
-func_ulog_sqeeze_log ()		# OUT1: string, echo >>/tmp/00:20:a6:4c:22:5d-2008.ulog "17:12:27>192.168.1.111:5900 TCP 39016 3658281311 0"
+func_ulog_sqeeze_log ()
 {
 	local FUNC="ulog_sqeeze_log"
 	local DATE="$( func_humanreadable_date short )"
@@ -101,7 +102,7 @@ func_ulog_sqeeze_log ()		# OUT1: string, echo >>/tmp/00:20:a6:4c:22:5d-2008.ulog
 		}
 
 		OUTPUT="$DIR $TIME $IP $PORT $PROTO $ID $SEQ $ACK"
-		COUNTER=$(( $COUNTER + ${#OUTPUT} ))
+		COUNTER=$(( $COUNTER + ${#OUTPUT} ))			# count bytes
 		
 		echo >>"/tmp/user-${MAC}-${DATE}.ulog" "$OUTPUT"
 
@@ -113,7 +114,7 @@ func_ulog_sqeeze_log ()		# OUT1: string, echo >>/tmp/00:20:a6:4c:22:5d-2008.ulog
 	} done <$ULOG_LOGFILE
 
 	rm $ULOG_LOGFILE
-	func_log $FUNC daemon debug "squeezed to $(( $COUNTER * 100 / $BYTES ))% ($COUNTER bytes)"
+	func_log $FUNC daemon debug "squeezed to $(( $COUNTER * 100 / ${BYTES:=1} ))% ($COUNTER bytes)"
 }
 
 func_ulog_make_evalable ()
