@@ -57,6 +57,7 @@ func_ulog_sqeeze_log ()
 	local DATE="$( func_humanreadable_date short )"
 	local BYTES="$( func_filesize $ULOG_LOGFILE )"
 	local LINES="$( func_file_lines $ULOG_LOGFILE )"
+	local NODEID="$( nvram get fff_node_number )"
 
 	func_log $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines"	
 
@@ -93,18 +94,20 @@ func_ulog_sqeeze_log ()
 
 		eval $( func_ulog_make_evalable "$LINE" )
 	
-		PORT=$DPT
-		IP=$DST
-
-		grep -q "^${IP};" "$CLIENTS_LAN" "$CLIENTS_WIFI" && {
+		if grep -q "^${IP};" "$CLIENTS_LAN" "$CLIENTS_WIFI" ; then
 			IP=$SRC
 			PORT=$SPT
-		}
+			USERIP=$DST
+		else
+			PORT=$DPT		# fixme! USERNAME=$( ... )
+			IP=$DST
+			USERIP=$SRC
+		fi
 
 		OUTPUT="$DIR $TIME $IP $PORT $PROTO $ID $SEQ $ACK"
 		COUNTER=$(( $COUNTER + ${#OUTPUT} ))			# count bytes
 		
-		echo >>"/tmp/user-${MAC}-${DATE}.ulog" "$OUTPUT"
+		echo >>"/tmp/user-${USERNAME:=noname}-${MAC}-${USERIP:=noip}-${DATE}-${NODEID}.ulog" "$OUTPUT"
 
 		# > 11:35:41 212.58.226.33 80 TCP 10415 3248578720 0
 		# < 11:35:41 212.58.226.33 80 TCP 0 1694259892 3248578721
