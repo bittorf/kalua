@@ -2,7 +2,6 @@
 
 # ToDo:
 #	- limiting outgoing olsr-traffic (not wasting upload) ??
-#	- vtund not installed, but we need it? -> free_some_flash() -> reinit_software_install()
 
 . /etc/variables_fff+
 . /etc/functions_fff+
@@ -266,7 +265,7 @@ func_vpn_start ()
 	func_sending_request_to_vpnserver_for_participation
 	fkt_tunnel_conf_remove
 	fkt_tunnel_conf_write
-	fkt_olsr_conf_remove			# fixme! // grep ^"Interface .*tap0" /etc/olsrd.conf || restart_olsr
+	fkt_olsr_conf_remove
 	fkt_olsr_conf_write
 	fkt_tunnel_start && {
 		pidof olsrd >/dev/null && {
@@ -290,11 +289,18 @@ func_vpn_status ()
 	
 	pidof vtund >/dev/null && {
 		func_log $FUNC daemon debug "daemon running"
+
+		grep -q ^"Interface .*tap0" /etc/olsrd.conf || {	# fixme! more abstraction: tun/tapXY + conf-filename
+			func_log $FUNC daemon debug "daemon running but tunnel-device not used by olsr"
+			return 1
+		}
+		func_log $FUNC daemon debug "tunnel-device used by olsr"
 		
 		ps ax | grep vtund | grep -q connecting && {
 			func_log $FUNC daemon debug "daemon running but connection seems broken"
 			return 1
 		}
+		func_log $FUNC daemon debug "connection seems active"
 		
 		return 0
 	}
