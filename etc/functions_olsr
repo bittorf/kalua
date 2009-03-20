@@ -198,19 +198,13 @@ func_olsr_get_neighbours ()
 	return 1
 }
 
-func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routing-table?
-{						# test 2/5: each local/remote-pair has only one entry?
-	local FUNC="olsr_plausi_check"		# test 3/5: are minimum-cost neighbours linklocal?
-	local LINE				# test 4/5: each node in mesh has only 1 route?
-	local LASTLINE				# test 5/5: are wired neighbours LQ/NLQ nearly synchronous?
-	local FILE="$1"				# test 0/5: olsr-plaintext plugin works?
+func_olsr_plausi_check ()			# is each non-infinite neighbour in routing-table?
+{						# each local/remote-pair has only one entry?
+	local FUNC="olsr_plausi_check"		# are minimum-cost neighbours linklocal?
+	local LINE
+	local FILE="$1"
 
-	[ -z "$FILE" ] && {
-		func_log $FUNC daemon crit "olsr-plaintext plugin has no output!"
-		return 1
-	}			# fixme! count lines of file?
-	
-	func_log $FUNC daemon debug "ok! (olsr-plaintext plugin outputs something)"
+	[ -z "$FILE" ] && return 1
 
 	local COUNT=0
 	local LOCAL
@@ -218,13 +212,11 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 	local LQ
 	local NLQ
 	local COST
-	local METRIC
-	local DEVTYPE
-	local LINES1
-	local LINES2
 	
 	func_olsr_output_neigh $FILE
 
+	# fixme! no wifi-neighbours and an ad-hoc-mode? start antenna-test!
+	
 	while read LINE; do {
 		eval $LINE
 		[ -n "$COST" ] && {
@@ -238,49 +230,8 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 
 	func_log $FUNC daemon debug "ok! (is each non-infinite neighbour in routing-table?)"
 
-	# are wired neighbours LQ/NLQ nearly synchronous?
-	
-	while read LINE; do {
-		eval $LINE
-		
-		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
-		
-		[ "$DEVTYPE" = "wire" ] && {
-			case "${LQ}-${NLQ}" in
-				"1000-"|"0000-"|"1000-0000"|"0000-1000")
-					func_log $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! LQ/NLQ = '$LQ'/'$NLQ'"
-					return 1
-				;;
-			esac
-		}
-	} done <"$FILE"
-	
-	func_log $FUNC daemon debug "ok! (are wired neighbours LQ/NLQ nearly synchronous?)"
-	
-	
-	# each node in mesh has only 1 route?	// fixme! be more correct: is only an error,if in same routing table... (but we check "main")
 
-	local FILE_RT="/tmp/routing_table_main_$$"
-	ip route show table main | sort >$FILE_RT
-	LINES1="$( sed -n 's/^\([0-9\.]*\) .*/\1/p' $FILE_RT | wc -l )"
-	LINES2="$( sed -n 's/^\([0-9\.]*\) .*/\1/p' $FILE_RT | uniq | wc -l )"
-
-	[ "$LINES1" != "$LINES2" ] && {	
-		while read LINE; do {
-	  		[ "$LINE" = "$LASTLINE" ] && {
-				func_log $FUNC daemon crit "each node in mesh has only 1 route? entry '$LINE' ($(ip -o route get $LINE)) is doubled!"
-				rm $FILE_RT
-		  		return 1
-	  		}
-	  		LASTLINE="$LINE"
-		
-		} done <$FILE_RT
-	}
-
-	rm $FILE_RT
-	func_log $FUNC daemon debug "ok! (each node in mesh has only 1 route? [checked $LINES1 routes])"
-
-
+	local METRIC
 	while read LINE; do {
 		eval $LINE
 		[ "$COST" = "1.000" ] && {
@@ -297,8 +248,8 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 	[ -n "$METRIC" ] && func_log $FUNC daemon debug "ok! (are minimum-cost neighbours linklocal?)"
 
 
-	LINES1="$( cat $FILE | wc -l )"
-	LINES2="$( sed -n 's/^\(LOCAL=[0-9\.]*;REMOTE=[0-9\.]*\);.*/\1/p' $FILE | sort | uniq | wc -l )"
+	local LINES1="$( sed -n '$=' $FILE )"
+	local LINES2="$( sed -n 's/^\(LOCAL=[0-9\.]*;REMOTE=[0-9\.]*\);.*/\1/p' $FILE | sort | uniq | sed -n '$=' )"
 
 	[ "$LINES1" != "$LINES2" ] && {
 		func_log $FUNC daemon crit "each local/remote-pair has only one entry? no!"
@@ -397,27 +348,13 @@ func_olsr_output_neigh_meshrdf ()
 	} done <"$FILE" && rm "$FILE"
 }
 
-func_olsr_output_neigh_humanreadable ()		# ToDo: latitude/longitude/distance?
+func_olsr_output_neigh_humanreadable ()		# fixme! ToDo: latitude/longitude/distance/speed
 {
 	local FILE="$1"
 	local GATEWAY_IP="$( ip route list exact 0/0 | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )"	# fixme! more abstraction, works
-	local DNS											# only for mesh-gateways
-	local METRIC
-	local LIST
-	local LINE
-	local DEVTYPE
-	local SPACER1
-	local MAX1
-	local SPACER2
-	local MAX2
-	local SPACER3=" "
-
-	local COUNT=0
-	local LOCAL
-	local REMOTE
-	local LQ
-	local NLQ
-	local COST
+													# only for mesh-gateways
+	local DNS METRIC LIST LINE DEVTYPE SPACER1 SPACER2 SPACER4 MAX1 MAX2 LQMULTI
+	local COUNT=0 LOCAL REMOTE LQ NLQ COST
 	
 	func_olsr_output_neigh $FILE
 	
@@ -425,6 +362,8 @@ func_olsr_output_neigh_humanreadable ()		# ToDo: latitude/longitude/distance?
 	MAX1="$( func_longest_string "$LIST" )"
 	LIST="$( sed -n 's/^.*;REMOTE=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all remote IP's
 	MAX2="$( func_longest_string "$LIST" )"
+
+	[ $(echo $LIST | wc -w) -gt 9 ] && SPACER3=" "	# numbering layout
 
 	while read LINE; do {
 	  	
@@ -443,12 +382,12 @@ func_olsr_output_neigh_humanreadable ()		# ToDo: latitude/longitude/distance?
 		DNS="$( func_ip2dns $REMOTE )"
 		METRIC="$( func_ip2metric $REMOTE )"
 		[ $COUNT -gt 9 ] && unset SPACER3					# 9 -> ' 9'; 10 = 10
+		
+		LQMULTI="$( sed -n "/LinkQualityMult[^0-9]*${REMOTE}/{s/^.*LinkQualityMult[^0-9]*${REMOTE}[^0-9]*\([0-9\.]*\).*/[LQ x\1]/p;q}" /etc/olsrd.conf )"
 	  	
-	  	if [ "$REMOTE" = "$GATEWAY_IP" ]; then
-	  		echo "${SPACER3}${COUNT}:>>${LOCAL}${SPACER1} ${DEVTYPE}${METRIC:=0}${DEVTYPE} ${REMOTE}${SPACER2}  LQ/NLQ/COST: ${LQ} / ${NLQ} / ${COST:=~    }  MAC+DNS: ${MAC:=??:??:??:??:??:??} '${DNS:=unknown}'"
-		else
-	  		echo "${SPACER3}${COUNT}:  ${LOCAL}${SPACER1} ${DEVTYPE}${METRIC:=0}${DEVTYPE} ${REMOTE}${SPACER2}  LQ/NLQ/COST: ${LQ} / ${NLQ} / ${COST:=~    }  MAC+DNS: ${MAC:=??:??:??:??:??:??} '${DNS:=unknown}'"
-		fi
+	  	SPACER4="  "
+	  	[ "$REMOTE" = "$GATEWAY_IP" ] && SPACER4=">>"
+		echo "${SPACER3}${COUNT}:${SPACER4}${LOCAL}${SPACER1} ${DEVTYPE}${METRIC:=0}${DEVTYPE} ${REMOTE}${SPACER2}  LQ/NLQ/COST: ${LQ} / ${NLQ} / ${COST:=~    }  MAC+DNS: ${MAC:=??:??:??:??:??:??} '${DNS:=unknown}' ${LQMULTI}"
 	
 	} done <"$FILE" && rm "$FILE"
 }
@@ -467,7 +406,7 @@ func_type_dev_layer ()		# OUT1: string, "wifi/tunnel/wire"
 		return
 	}
 	
-	echo -n "wire"		# ethernet
+	echo -n "wire"		# fixme! is this always ethernet?
 }
 
 func_ip2metric ()
@@ -492,8 +431,5 @@ func_dev_is_tunnel ()
 
 func_get_dev_from_ip ()
 {
-	ip -oneline address show | sed -ne "/ inet $1\//{s/^[0-9]*: \([a-zA-Z0-9@\.]*\).*/\1/p;q}"
-	
-	# does not work for local IP's:
-	# ip -o route get $1 | cut -d' ' -f3
+	ip -oneline address show | sed -ne "/ inet $1\//s/^[0-9]*: \([a-zA-Z0-9@\.]*\).*/\1/p"
 }
