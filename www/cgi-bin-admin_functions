@@ -1,66 +1,158 @@
-func_admingui_get_action ()	# element1: ${STRING%|*}
-{				# element2: ${STRING#*|}
+func_admingui_get_action ()
+{
 	case $1 in
 		all)
 			echo "user_add user_edit user_show profile_add profile_edit"
 		;;
 		user_add)
-			echo "Benutzer hinzuf&uuml;gen|neue Benutzer anlegen"
+			echo "EXPERT='false'"
+			echo "DESC_SHORT='Benutzer hinzuf&uuml;gen'"
+			echo "DESC_LONG='neue Benutzer anlegen'"
 		;;
 		user_edit)
-			echo "Benutzer bearbeiten|vorhandene Benutzer bearbeiten"
+			echo "EXPERT='false'"
+			echo "DESC_SHORT='Benutzer bearbeiten'"
+			echo "DESC_LONG='vorhandene Benutzer bearbeiten'"
 		;;
 		user_show)
-			echo "Benutzer anzeigen|alle angelegten Benutzer anzeigen"
+			echo "EXPERT='false'"
+			echo "DESC_SHORT='Benutzer anzeigen'"
+			echo "DESC_LONG='alle angelegten Benutzer anzeigen'"
 		;;
 		profile_add)
-			echo "Benutzerprofil erstellen|neues Benutzerprofil anlegen"
+			echo "EXPERT='true'"
+			echo "DESC_SHORT='Benutzerprofil erstellen'"
+			echo "DESC_LONG='neues Benutzerprofil anlegen'"
 		;;
 		profile_edit)
-			echo "Benutzerprofil bearbeiten|vorhandes Benutzerprofil bearbeiten oder l&ouml;schen"
+			echo "EXPERT='true'"
+			echo "DESC_SHORT='Benutzerprofil bearbeiten'"
+			echo "DESC_LONG='vorhandes Benutzerprofil bearbeiten oder l&ouml;schen'"
 		;;
 		*)
-			echo "Auswahl|hier werden Benutzer oder Profile verwaltet"
+			echo "EXPERT='false'"
+			echo "DESC_SHORT='Auswahl'"
+			echo "DESC_LONG='hier werden Benutzer oder Profile verwaltet'"
 		;;
 	esac
 }
 
 func_admingui_links2category ()
 {
-	local ACTION BGCOLOR DESC DESC_SHORT DESC_LONG
+	local ACTION BGCOLOR DESC DESC_SHORT DESC_LONG EXPERT
 	
 	for ACTION in $(func_admingui_get_action all); do {
 		case $BGCOLOR in "#FAEBD7") BGCOLOR="#DCDCDC" ;;        
 					 *) BGCOLOR="#FAEBD7" ;; esac                                 
 
-		DESC="$( func_admingui_get_action $ACTION )"                          
-		DESC_SHORT="${DESC%|*}"                    
-		DESC_LONG="${DESC#*|}"                     
+		eval $(func_admingui_get_action $ACTION)                          
 
-		echo -n "<td bgcolor='$BGCOLOR' align='center'>"        
-		echo -n "<form method='GET'><input type='hidden' name='FORM_ACTION' value='$ACTION'><input type='submit' value='$DESC_SHORT'></form>"
-		echo -n "$DESC_LONG</td>"                               
+		echo -n "<td bgcolor='$BGCOLOR' align='center'>"
+		
+		[ "$EXPERT" = "true" ] && {
+			echo -n "<table class='trg' style='display: none; visibility: hidden;'><tr><td>"
+		}
+		
+		echo -n "<form method='GET'>"
+		echo -n "<input type='hidden' name='FORM_ACTION' value='$ACTION'><input type='submit' value='$DESC_SHORT'></form>"
+		echo -n "$DESC_LONG</td>"
+		
+		[ "$EXPERT" = "true" ] && {
+			echo -n "</td></tr></table>"
+		}
 	} done
+}
+
+func_admingui_javascript ()
+{
+	cat<<EOF
+<SCRIPT LANGUAGE="JavaScript" TYPE="text/javascript"><!--
+
+function getElementsByClassName(strClassName)
+{
+	var arrHelp = new Array();
+	var strPattern = eval("/"+strClassName+"/");
+	var arrTags = (navigator.userAgent.toLowerCase().indexOf("msie") != -1) ? document.all : document.getElementsByTagName('*');
+
+	for(varEntry in arrTags){
+		if((arrTags[varEntry].className) && (arrTags[varEntry].className.match(strPattern))){
+			arrHelp[arrHelp.length] = arrTags[varEntry];
+		}
+	}
+
+	return arrHelp;
+}
+
+function toggleMe(item)
+{
+	var e=getElementsByClassName(item);
+	
+	if(!e)return true;
+
+	for (var i = 0; i < e.length; i++){
+		with (e[i].style){
+			if(visibility == 'hidden' || display=='none'){
+				display = '';
+				visibility = 'visible';
+			}else{
+				display = 'none';
+				visibility = 'hidden';
+			}
+		}
+	}
+
+	return true;
+}
+
+--></SCRIPT>
+EOF
+
 }
 
 func_admingui_user_add_form ()
 {
-	local VALUE DESC DESC_SHORT DESC_LONG BGCOLOR
-	
-	echo -n "<form method='get'>"
-	echo -n "<input type='hidden' name='FORM_ACTION' value='user_add'>"
-	echo -n "<table cellspacing='2' cellpadding='2' border='0' width='100%'>"
+	local N SWITCH EXPERT COUNT VALUE BGCOLOR FORM_TYPE DESC DESC_SHORT DESC_LONG DEFAULT_VAL DEFAULT_TXT
+
+	echo "<form method='get' accept-charset='ISO-8859-1'>"
+	echo "<input type='hidden' name='FORM_ACTION' value='user_add'>"
+	echo "<table id='tabID' cellspacing='0' cellpadding='2' border='0' width='100%'>"
 	
 	for VALUE in $(func_admingui_user_add_form_get_elements all); do {
 		case $BGCOLOR in "#FAEBD7") BGCOLOR="#DCDCDC" ;;
 					 *) BGCOLOR="#FAEBD7" ;; esac
 					 
-		DESC="$( func_admingui_user_add_form_get_elements $VALUE )"
-		DESC_SHORT="${DESC%|*}"
-		DESC_LONG="${DESC#*|}"
+		eval $(func_admingui_user_add_form_get_elements $VALUE)
+
+		if [ "$EXPERT" = "true" ]; then
+			[ "$SWITCH" != "true" ] && {
+				SWITCH="true"
+				echo -n "<tr><td colspan='3'><a href='#' ONCLICK=\"toggleMe('trg');\">Zusatzeinstellungen anzeigen</a></td></tr>"
+			}
+			echo -n "<tr class='trg' style='display: none; visibility: hidden;'"
+		else
+			echo -n "<tr>"
+		fi
 		
-		echo -n "<tr><td bgcolor='$BGCOLOR'>$DESC_SHORT</td><td bgcolor='$BGCOLOR'>"
-		echo -n "<input type='text' name='FORM_USERADD_$VALUE' value='$( func_admingui_user_add_form_get_elements $VALUE default )'>"
+		echo -n "<td bgcolor='$BGCOLOR'>$DESC_SHORT</td><td bgcolor='$BGCOLOR'>"
+		
+		case $FORM_TYPE in
+			radio)
+				echo -n "<input type='radio' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL' checked> $DEFAULT_TEXT"
+				echo -n "<input type='radio' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL1'       > $DEFAULT_TEXT2"
+			;;
+			select)
+				echo -n "<select size='1' name='FORM_USERADD_$VALUE'>"
+				for OPTION in $DEFAULT_VALS; do {
+					echo -n "<option value='$OPTION'>$( eval $( echo -n echo -n \$DEFAULT_TXT${N} ) )</option>"
+					N=$(( $N + 1 ))
+				} done && N=
+				echo -n "</select>"
+			;;
+			*)
+				echo -n "<input type='text' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL'>"
+			;;
+		esac
+		
 		echo -n "</td><td bgcolor='$BGCOLOR'>$DESC_LONG</td></tr>"
 	} done
 
@@ -76,42 +168,91 @@ func_admingui_user_add_form_get_elements ()
 			echo -n "COUNT PROFILE COMMENT NAME PASS MAC MAXMAC ISOLATION"
 		;;
 		COUNT)
-			[ "$2" = "default" ] && echo -n "1" && return
-			echo -n "Benutzeranzahl|wieviele Benutzer sollen angelegt werden?"
+			echo "EXPERT='false'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='1'"
+			echo "DESC_SHORT='Benutzeranzahl'"
+			echo "DESC_LONG='wieviele Benutzer sollen angelegt werden?'"
 		;;
 		NAME)
-			[ "$2" = "default" ] && echo -n "auto" && return
-			echo -n "Benutzername|wird automatisch vorgegeben, kann aber auch manuell vergeben werden"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='auto'"
+			echo "DESC_SHORT='Benutzername'"
+			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"
 		;;
 		PASS)
-			[ "$2" = "default" ] && echo -n "auto" && return
-			echo -n "Passwort|wird automatisch vorgegeben, kann aber auch manuell vergeben werden"	
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='auto'"
+			echo "DESC_SHORT='Passwort'"
+			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"	
 		;;
 		PROFILE)
-			# fixme! muss eine selectbox sein
+			local N
+			local PROFILE
+			local PROFILE_LIST="$( func_db_profile_get_desc all )"
 		
-			[ "$2" = "default" ] && echo -n "24-Stunden-Ticket" && return
-			echo -n "Profil|Zusammenfassung grundlegender Benutzerrechte (G&uuml;ltigkeitsdauer,&nbsp;...)"
+			echo "EXPERT='false'"
+			echo "FORM_TYPE='select'"
+			echo "DEFAULT_VALS='$PROFILE_LIST'"
+			
+			for PROFILE in $PROFILE_LIST; do {
+				echo "DEFAULT_TXT${N}='$( func_db_profile_get_desc $PROFILE )'"
+				N=$(( $N + 1 ))
+			} done
+			
+			echo "DESC_SHORT='Profil'"
+			echo "DESC_LONG='Zusammenfassung grundlegender Benutzerrechte (G&uuml;ltigkeitsdauer,&nbsp;...)'"
 		;;
 		MAC)
-			[ "$2" = "default" ] && echo -n "auto" && return
-			echo -n "MAC-Adresse|wird automatisch vorgegeben, kann aber auch manuell vergeben werden"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='auto'"		# space separated?
+			echo "DESC_SHORT='MAC-Adresse'"
+			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell vergeben werden'"
 		;;
 		MAXMAC)
-			[ "$2" = "default" ] && echo -n "1" && return
-			echo -n "Ger&auml;teanzahl|Endger&auml;te die sich mit gleicher Kennung anmelden d&uuml;rfen (Gruppenticket)"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='1'"
+			echo "DESC_SHORT='Ger&auml;teanzahl'"
+			echo "DESC_LONG='Endger&auml;te die sich mit gleicher Kennung anmelden d&uuml;rfen (Gruppenticket)'"
 		;;
 		COMMENT)
-			[ "$2" = "default" ] && echo -n "..." && return
-			echo -n "Kommentar|zur freien Verwendung, z.B. Zimmernummer"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='...'"
+			echo "DESC_SHORT='Kommentar'"
+			echo "DESC_LONG='interner Vermerk, z.B. Zimmernummer'"
 		;;
 		ISOLATION)
-			# fixme! muss radio-button werden
-			
-			[ "$2" = "default" ] && echo -n "ja" && return
-			echo -n "Isolation|Schutz des Netzteilnehmer vor Zugriff durch andere Benutzer?"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='radio'"
+			echo "DEFAULT_VAL='true'"
+			echo "DEFAULT_TXT='ja'"
+			echo "DEFAULT_VAL1='false'"
+			echo "DEFAULT_TXT1='nein'"
+			echo "DESC_SHORT='Isolation'"
+			echo "DESC_LONG='Schutz des Netzteilnehmers vor Zugriff durch andere Benutzer?'"
 		;;
 	esac
 }
 
-
+func_db_profile_get_desc ()
+{
+	case $1 in
+		all)
+			echo -n "ticket_24h ticket_48h ticket_1monat"
+		;;
+		ticket_24h)
+			echo -n "1-Tages-Ticket f&uuml;r G&auml;ste"
+		;;
+		ticket_48h)
+			echo -n "2-Tages-Ticket f&uuml;r G&auml;ste"
+		;;
+		ticket_1monat)
+			echo -n "Monatsticket f&uuml;r Mitarbeiter"
+		;;
+	esac
+}
