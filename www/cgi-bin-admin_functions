@@ -1,10 +1,38 @@
+# func_toggle_values
 # func_admingui_get_action
 # func_admingui_links2category
 # func_admingui_javascript
+# func_admingui_user_add_form_was_send
 # func_admingui_user_add_form
 # func_admingui_user_add_form_get_elements
+# func_db_init
 # func_db_profile
+# func_db_devices
 
+
+# todo
+#
+# - user-editor: 
+#   - werte uebernehmen und tabelle anlegen, wenn noch nicht vorhanden
+#   - user anzeigen
+#
+# - profil-editor: neues profil = muell-profil erzeugen + dieses bearbeiten
+#   - table PROFIL leer? -> direkt in profil-editor gehen
+#   - profil-editor: profil loeschen
+
+func_toggle_values ()
+{
+	local COLOR_NOW="$1"
+	local COLOR_A="$2"
+	local COLOR_B="$3"
+
+	[ "$COLOR_NOW" = "$COLOR_B" ] && {
+		echo -n "$COLOR_A"
+		return
+	}
+	
+	echo -n "$COLOR_B"		# is also the initial value
+}
 
 func_admingui_get_action ()
 {
@@ -15,7 +43,7 @@ func_admingui_get_action ()
 		user_add)
 			echo "EXPERT='false'"
 			echo "DESC_SHORT='Benutzer hinzuf&uuml;gen'"
-			echo "DESC_LONG='neue Benutzer anlegen'"
+			echo "DESC_LONG='neue Benutzer im System anlegen'"
 		;;
 		user_edit)
 			echo "EXPERT='false'"
@@ -30,7 +58,7 @@ func_admingui_get_action ()
 		profile_add)
 			echo "EXPERT='true'"
 			echo "DESC_SHORT='Benutzerprofil erstellen'"
-			echo "DESC_LONG='neues Benutzerprofil anlegen'"
+			echo "DESC_LONG='ein neues Benutzerprofil anlegen'"
 		;;
 		profile_edit)
 			echo "EXPERT='true'"
@@ -50,98 +78,104 @@ func_admingui_links2category ()
 	local ACTION BGCOLOR DESC DESC_SHORT DESC_LONG EXPERT
 	
 	for ACTION in $(func_admingui_get_action all); do {
-		case $BGCOLOR in "#FAEBD7") BGCOLOR="#DCDCDC" ;;        
-					 *) BGCOLOR="#FAEBD7" ;; esac                                 
+		
+		BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
 
 		eval $(func_admingui_get_action $ACTION)                          
 
 		echo -n "<td bgcolor='$BGCOLOR' align='center'>"
 		
-		[ "$EXPERT" = "true" ] && {
-			echo -n "<table class='trg' style='display: none; visibility: hidden;'><tr><td>"
-		}
+		[ "$EXPERT" = "true" ] && echo -n "<table class='trg' style='display: none; visibility: hidden;'><tr><td align='center'>"
 		
 		echo -n "<form method='GET'>"
 		echo -n "<input type='hidden' name='FORM_ACTION' value='$ACTION'><input type='submit' value='$DESC_SHORT'></form>"
 		echo -n "$DESC_LONG</td>"
 		
-		[ "$EXPERT" = "true" ] && {
-			echo -n "</td></tr></table>"
-		}
+		[ "$EXPERT" = "true" ] && echo -n "</td></tr></table>"
 	} done
 }
 
 func_admingui_javascript ()		# http://www.tutorials.de/forum/javascript-ajax/329323-tabellenzeilen-verstecken-anzeigen.html
 {
 	cat<<EOF
-<SCRIPT LANGUAGE="JavaScript" TYPE="text/javascript"><!--
+	<SCRIPT LANGUAGE="JavaScript" TYPE="text/javascript"><!--
 
-function getElementsByClassName(strClassName)
-{
-	var arrHelp = new Array();
-	var strPattern = eval("/"+strClassName+"/");
-	var arrTags = (navigator.userAgent.toLowerCase().indexOf("msie") != -1) ? document.all : document.getElementsByTagName('*');
+	function getElementsByClassName(strClassName)
+	{
+		var arrHelp = new Array();
+		var strPattern = eval("/"+strClassName+"/");
+		var arrTags = (navigator.userAgent.toLowerCase().indexOf("msie") != -1) ? document.all : document.getElementsByTagName('*');
 
-	for(varEntry in arrTags){
-		if((arrTags[varEntry].className) && (arrTags[varEntry].className.match(strPattern))){
-			arrHelp[arrHelp.length] = arrTags[varEntry];
-		}
-	}
-
-	return arrHelp;
-}
-
-function toggleMe(item)
-{
-	var e=getElementsByClassName(item);
-	
-	if(!e)return true;
-
-	for (var i = 0; i < e.length; i++){
-		with (e[i].style){
-			if(visibility == 'hidden' || display=='none'){
-				display = '';
-				visibility = 'visible';
-			}else{
-				display = 'none';
-				visibility = 'hidden';
+		for(varEntry in arrTags){
+			if((arrTags[varEntry].className) && (arrTags[varEntry].className.match(strPattern))){
+				arrHelp[arrHelp.length] = arrTags[varEntry];
 			}
 		}
+
+		return arrHelp;
 	}
 
-	return true;
+	function toggleMe(item)
+	{
+		var e=getElementsByClassName(item);
+	
+		if(!e)return true;
+
+		for (var i = 0; i < e.length; i++){
+			with (e[i].style){
+				if(visibility == 'hidden' || display=='none'){
+					display = '';
+					visibility = 'visible';
+				}else{
+					display = 'none';
+					visibility = 'hidden';
+				}
+			}
+		}
+
+		return true;
+	}
+	--></SCRIPT>
+EOF
 }
 
---></SCRIPT>
-EOF
-
+func_admingui_user_add_form_was_send ()		# LIST="$( func_db_user all )" + write each element to DB ?
+{
+	local COUNT="$FORM_USERADD_COUNT"
+	
+	if [ "$COUNT" -gt 1 ]; then
+		echo -n "<h2>Es wurden $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
+	else
+		echo -n "<h2>Es wurde $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
+	fi
 }
 
 func_admingui_user_add_form ()
 {
 	local N SWITCH EXPERT COUNT VALUE BGCOLOR FORM_TYPE DESC DESC_SHORT DESC_LONG DEFAULT_VAL DEFAULT_TXT
 
-	echo "<form method='get' accept-charset='ISO-8859-1'>"
-	echo "<input type='hidden' name='FORM_ACTION' value='user_add'>"
-	echo "<table id='tabID' cellspacing='0' cellpadding='2' border='0' width='100%'>"
+	echo -n "<form method='get' accept-charset='ISO-8859-1'><input type='hidden' name='FORM_ACTION' value='user_add'><input type='hidden' name='FORM_SEND' value='true'>"
+	echo -n "<table id='tabID' cellspacing='0' cellpadding='2' border='0' width='100%'><tr><td width='10%'>&nbsp;</td><td width='10%'>&nbsp;</td><td width='80%'>&nbsp;</td></tr>"
 	
 	for VALUE in $(func_admingui_user_add_form_get_elements all); do {
-		case $BGCOLOR in "#FAEBD7") BGCOLOR="#DCDCDC" ;;
-					 *) BGCOLOR="#FAEBD7" ;; esac
+
+		BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
 					 
 		eval $(func_admingui_user_add_form_get_elements $VALUE)
 
 		if [ "$EXPERT" = "true" ]; then
 			[ "$SWITCH" != "true" ] && {
 				SWITCH="true"
-				echo -n "<tr><td colspan='3'><a href='#' ONCLICK=\"toggleMe('trg');\">Zusatzeinstellungen anzeigen</a></td></tr>"
+				echo -n "<tr><td colspan='3' align='right' bgcolor='$BGCOLOR'>"
+				echo -n "<a href='#' ONCLICK=\"toggleMe('trg');\">Zusatzeinstellungen anzeigen</a></td></tr>"
+				BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
 			}
-			echo -n "<tr class='trg' style='display: none; visibility: hidden;'"
+			echo -n "<tr class='trg' style='display: none; visibility: hidden;'>"
 		else
 			echo -n "<tr>"
 		fi
 		
-		echo -n "<td bgcolor='$BGCOLOR'>$DESC_SHORT</td><td bgcolor='$BGCOLOR'>"
+		echo -n "<td bgcolor='$BGCOLOR'>${DESC_SHORT}&nbsp;&nbsp;</td><td bgcolor='$BGCOLOR'>"
 		
 		case $FORM_TYPE in
 			radio)
@@ -161,12 +195,11 @@ func_admingui_user_add_form ()
 			;;
 		esac
 		
-		echo -n "</td><td bgcolor='$BGCOLOR'>$DESC_LONG</td></tr>"
+		echo -n "</td><td bgcolor='$BGCOLOR'>&nbsp;&nbsp;${DESC_LONG}</td></tr>"
 	} done
 
-	echo -n "<tr><td valign='middle' align='center' bgcolor='#D3D3D3' colspan='2'><br>"
-	echo -n "<input type='submit' value='Benutzer anlegen'><br><br>"
-	echo -n "</td><td bgcolor='#D3D3D3'>&nbsp;</td></tr></table>"
+	echo -n "<tr><td colspan='3'>&nbsp;</td></tr><tr><td valign='middle' align='center' bgcolor='#D3D3D3' colspan='2'><br>"
+	echo -n "<input type='submit' value='Benutzer anlegen'><br><br></td><td bgcolor='#D3D3D3'>&nbsp;</td></tr></table>"
 }
 
 func_admingui_user_add_form_get_elements ()
@@ -190,16 +223,14 @@ func_admingui_user_add_form_get_elements ()
 			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"
 		;;
 		PASS)
-			echo "EXPERT='true'"
+			echo "EXPERT='true'"			# user can alter this!?
 			echo "FORM_TYPE='text'"
 			echo "DEFAULT_VAL='auto'"
 			echo "DESC_SHORT='Passwort'"
 			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"	
 		;;
 		PROFILE)
-			local N
-			local PROFILE
-			local PROFILE_LIST="$( func_db_profile ID all )"
+			local N PROFILE PROFILE_LIST="$( func_db_profile ID all )"
 		
 			echo "EXPERT='false'"
 			echo "FORM_TYPE='select'"
@@ -271,7 +302,20 @@ func_admingui_user_add_form_get_elements ()
 	esac
 }
 
-func_db_profile ()
+func_db_init ()
+{
+	local DB="/tmp/admin"
+
+	[ -e "$DB" ] && return
+
+	local SQLBIN="$( which sqlite3 )"
+
+	$SQLBIN $DB "$(func_db_profile init)"
+	$SQLBIN $DB "$(func_db_user    init)"
+	$SQLBIN $DB "CREATE TABLE DEVICES(USER TEXT, MAC TEXT, DEVTYPE TEXT);"
+}
+
+func_db_profile ()		# insert into PROFILE values('hello!',10);
 {
 	case $1 in
 		init)
@@ -279,15 +323,19 @@ func_db_profile ()
 			
 			echo -n "CREATE TABLE PROFILE("
 			
-			for COL in $COLS; do {
+			for COL in $COLS EOL; do {
 				eval $(func_db_profile $COL)
-				echo -n "$COL $SQLCLASS,"
+				echo -n "$COL $SQLCLASS"
+				[ "$COL" != "EOL" ] && echo -n ", "
 			} done
 			
 			echo -n ");"
 		;;
 		all)
 			echo -n "ID DESC VALIDITY MAXTRAFFALL MAXTRAFFPERDAY MAXSPEEDUP MAXSPEEDDOWN MAXTIMEALL MAXTIMEPERDAY LANDINGURL COST CURRENCY"
+		;;
+		EOL)
+			return
 		;;
 		ID)
 			case $2 in
@@ -348,3 +396,7 @@ func_db_profile ()
 	esac
 }
 
+func_db_devices ()
+{
+	return
+}
