@@ -1,13 +1,14 @@
+# func_unixtime
 # func_toggle_values
 # func_admingui_get_action
 # func_admingui_links2category
 # func_admingui_javascript
 # func_admingui_user_add_form_was_send
 # func_admingui_user_add_form
-# func_admingui_user_add_form_get_elements
+# func_db_user
 # func_db_init
-# func_db_profile
 # func_db_devices
+# func_db_profile
 
 
 # todo
@@ -19,6 +20,11 @@
 # - profil-editor: neues profil = muell-profil erzeugen + dieses bearbeiten
 #   - table PROFIL leer? -> direkt in profil-editor gehen
 #   - profil-editor: profil loeschen
+
+func_unixtime ()
+{
+	date +%s
+}
 
 func_toggle_values ()
 {
@@ -139,8 +145,8 @@ func_admingui_javascript ()		# http://www.tutorials.de/forum/javascript-ajax/329
 EOF
 }
 
-func_admingui_user_add_form_was_send ()		# LIST="$( func_db_user all )" + write each element to DB ?
-{
+func_admingui_user_add_form_was_send ()		# ToDo: [ "$FORM_VALUE" = "$DEFAULT_VALUE" ] && set_db $DEFAULT_SQL
+{						# DEFAULT_SQL ... NULL | 'time_now' | text | ...
 	local COUNT="$FORM_USERADD_COUNT"
 	
 	if [ "$COUNT" -gt 1 ]; then
@@ -151,12 +157,17 @@ func_admingui_user_add_form_was_send ()		# LIST="$( func_db_user all )" + write 
 	
 	echo -n "<pre>"
 	
-	local FIELD OBJ LIST="$(func_admingui_user_add_form_get_elements all sql)"
+	local FIELD OBJ LIST="$(func_db_user all sql)"
+	
+	echo "INSERT into USER values("
 	
 	for OBJ in $LIST; do {
-		eval $(func_admingui_user_add_form_get_elements $OBJ)
-		echo "'$OBJ' - '$SQLCLASS' - '$EXPERT' - \$FORM_USERADD_$OBJ exist?: '$( eval $( echo echo \$FORM_USERADD_$OBJ ) )'"
+		eval $(func_db_user $OBJ)
+		echo "element: '$OBJ' - sqlclass: '$SQLCLASS' - expert: '$EXPERT' - \$FORM_USERADD_$OBJ: '$( eval $( echo echo \$FORM_USERADD_$OBJ ) )' def: '$DEFAULT_VAL'"
+		echo 
 	} done
+	
+	echo ");"
 	
 	echo -n "</pre>"
 }
@@ -168,11 +179,11 @@ func_admingui_user_add_form ()
 	echo -n "<form method='get' accept-charset='ISO-8859-1'><input type='hidden' name='FORM_ACTION' value='user_add'><input type='hidden' name='FORM_SEND' value='true'>"
 	echo -n "<table id='tabID' cellspacing='0' cellpadding='2' border='0' width='100%'><tr><td width='10%'>&nbsp;</td><td width='10%'>&nbsp;</td><td width='80%'>&nbsp;</td></tr>"
 	
-	for VALUE in $(func_admingui_user_add_form_get_elements all); do {
+	for VALUE in $(func_db_user all); do {
 
 		BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
 					 
-		eval $(func_admingui_user_add_form_get_elements $VALUE)
+		eval $(func_db_user $VALUE)
 
 		if [ "$EXPERT" = "true" ]; then
 			[ "$SWITCH" != "true" ] && {
@@ -213,7 +224,7 @@ func_admingui_user_add_form ()
 	echo -n "<input type='submit' value='Benutzer anlegen'><br><br></td><td bgcolor='#D3D3D3'>&nbsp;</td></tr></table>"
 }
 
-func_admingui_user_add_form_get_elements ()
+func_db_user ()
 {
 	case $1 in
 		all)
@@ -221,6 +232,14 @@ func_admingui_user_add_form_get_elements ()
 			[ "$2" = "sql" ] && {
 				echo -n "ID INSTALLED FIRSTSEEN LASTSEEN TRAFFALL TRAFFTODAY TIMEALL TIMETODAY"
 			}
+		;;
+		init)
+			local SEPARATE OBJ LIST="$( func_db_user all sql )"
+			
+			for OBJ in $LIST; do {
+				eval $(func_db_user $OBJ)
+				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
+			} done 
 		;;
 		COUNT)
 			echo "SQLCLASS='INTEGER'"
@@ -290,9 +309,9 @@ func_admingui_user_add_form_get_elements ()
 			echo "SQLCLASS='INTEGER'"
 			echo "EXPERT='true'"
 			echo "FORM_TYPE='radio'"
-			echo "DEFAULT_VAL='true'"
+			echo "DEFAULT_VAL='1'"
 			echo "DEFAULT_TXT='ja'"
-			echo "DEFAULT_VAL1='false'"
+			echo "DEFAULT_VAL1='0'"
 			echo "DEFAULT_TXT1='nein'"
 			echo "DESC_SHORT='Isolation'"
 			echo "DESC_LONG='Schutz des Netzteilnehmers vor Zugriff durch andere Benutzer?'"
@@ -304,68 +323,94 @@ func_admingui_user_add_form_get_elements ()
 		INSTALLED)
 			echo "SQLCLASS='INTEGER'"		# unixzeit / anlegezeitpunkt in DB
 			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='$( func_unixtime )'"
 		;;
 		FIRSTSEEN)
 			echo "SQLCLASS='INTEGER'"		# unixzeit / erster erfolgreicher einlogvorgang
 			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='NULL'"
 		;;
 		LASTSEEN)
 			echo "SQLCLASS='INTEGER'"		# unixzeit / letzter auslogvorgang
 			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='NULL'"
 		;;
 		TRAFFALL)
 			echo "SQLCLASS='INTEGER'"		# traffic [megabyte] insgesamt
 			echo "EXPERT='sql'"			# trafficmeldungen ("fetch me!" -> scp alle transaktionen)
+			echo "DEFAULT_VAL='0'"
 		;;
 		TRAFFTODAY)
 			echo "SQLCLASS='INTEGER'"		# traffic [megabyte] heute	// trafficmeldungen
 			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='0'"
 		;;
 		TIMEALL)
 			echo "SQLCLASS='INTEGER'"		# minutenverbrauch insgesamt	// trafficmeldungen
 			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='0'"
 		;;
 		TIMETODAY)
 			echo "SQLCLASS='INTEGER'"		# minutenverbrauch heute	// trafficmeldungen
 			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='0'"
 		;;
 	esac
 }
 
 func_db_init ()
 {
-	local DB="/tmp/admin"
+	local DB="/tmp/admin.db"
 
 	[ -e "$DB" ] && return
 
-	local SQLBIN="$( which sqlite3 )"
+	local TABLE SQLBIN="$( which sqlite3 )"
+	
+	for TABLE in profile devices user; do {
+		func_log db_init daemon info "creating table '$TABLE'"
+		eval $( $SQLBIN $DB "CREATE TABLE $TABLE ( $(func_db_$TABLE init) );" )
+	} done
+}
 
-	$SQLBIN $DB "$(func_db_profile init)"
-	$SQLBIN $DB "$(func_db_user    init)"
-	$SQLBIN $DB "CREATE TABLE DEVICES(USER TEXT, MAC TEXT, DEVTYPE TEXT);"
+func_db_devices ()
+{
+	case $1 in
+		init)
+			local SEPARATE OBJ LIST="$( func_db_devices all )"
+		
+			for OBJ in $LIST; do {
+				eval $(func_db_devices $OBJ)
+				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
+			} done
+		;;
+		all)
+			echo -n "USER MAC DEVTYPE"
+		;;
+		USER)
+			echo "SQLCLASS='INTEGER'"	# foreign key?
+		;;
+		MAC)
+			echo "SQLCLASS='TEXT'"
+		;;
+		DEVTYPE)
+			echo "SQLCLASS='TEXT'"
+		;;
+	esac
 }
 
 func_db_profile ()		# insert into PROFILE values('hello!',10);
 {
 	case $1 in
 		init)
-			local COL COLS="$( func_db_profile all )"
+			local SEPARATE OBJ LIST="$( func_db_profile all )"
 			
-			echo -n "CREATE TABLE PROFILE("
-			
-			for COL in $COLS EOL; do {
-				eval $(func_db_profile $COL)
-				echo -n "$COL $SQLCLASS"
-				[ "$COL" != "EOL" ] && echo -n ", "
+			for OBJ in $LIST; do {
+				eval $(func_db_profile $OBJ)
+				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
 			} done
-			
-			echo -n ");"
 		;;
 		all)
 			echo -n "ID DESC VALIDITY MAXTRAFFALL MAXTRAFFPERDAY MAXSPEEDUP MAXSPEEDDOWN MAXTIMEALL MAXTIMEPERDAY LANDINGURL COST CURRENCY"
-		;;
-		EOL)
-			return
 		;;
 		ID)
 			case $2 in
@@ -424,9 +469,4 @@ func_db_profile ()		# insert into PROFILE values('hello!',10);
 			echo "SQLCLASS='TEXT'"
 		;;
 	esac
-}
-
-func_db_devices ()
-{
-	return
 }
