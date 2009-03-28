@@ -14,7 +14,8 @@
 # todo
 #
 # - user-editor: 
-#   - werte uebernehmen und tabelle anlegen, wenn noch nicht vorhanden
+#   - werte uebernehmen
+#     - zuerst SQL-Syntax schreiben und dann eval
 #   - user anzeigen
 #
 # - profil-editor: neues profil = muell-profil erzeugen + dieses bearbeiten
@@ -28,16 +29,15 @@ func_unixtime ()
 
 func_toggle_values ()
 {
-	local COLOR_NOW="$1"
-	local COLOR_A="$2"
-	local COLOR_B="$3"
+	local VALUE_NOW="$1"
+	local VALUE_A="$2"
+	local VALUE_B="$3"
 
-	[ "$COLOR_NOW" = "$COLOR_B" ] && {
-		echo -n "$COLOR_A"
-		return
-	}
-	
-	echo -n "$COLOR_B"		# is also the initial value
+	if [ "$VALUE_NOW" = "$VALUE_B" ]; then
+		echo -n "$VALUE_A"
+	else
+		echo -n "$VALUE_B"		# is also the initial value
+	fi
 }
 
 func_admingui_get_action ()
@@ -145,29 +145,40 @@ func_admingui_javascript ()		# http://www.tutorials.de/forum/javascript-ajax/329
 EOF
 }
 
-func_admingui_user_add_form_was_send ()		# ToDo: [ "$FORM_VALUE" = "$DEFAULT_VALUE" ] && set_db $DEFAULT_SQL
-{						# DEFAULT_SQL ... NULL | 'time_now' | text | ...
+func_admingui_user_add_form_was_send ()
+{
 	local COUNT="$FORM_USERADD_COUNT"
+	local TEMP="/tmp/tempfile_user_add_form_was_send_$$"
 	
 	if [ "$COUNT" -gt 1 ]; then
-		echo -n "<h2>Es wurden $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
+		echo -n "<h2>Es werden $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
 	else
-		echo -n "<h2>Es wurde $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
+		echo -n "<h2>Es wird $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
 	fi
 	
 	echo -n "<pre>"
 	
-	local FIELD OBJ LIST="$(func_db_user all sql)"
+	local SEPARATOR FIELD OBJ LIST="$(func_db_user all sql)"
 	
-	echo "INSERT into USER values("
+	while [ "$COUNT" -gt 0 ]; do {
+		COUNT=$(( $COUNT - 1 ))
+		
+		echo -n "INSERT into USER values ("
 	
-	for OBJ in $LIST; do {
-		eval $(func_db_user $OBJ)
-		echo "element: '$OBJ' - sqlclass: '$SQLCLASS' - expert: '$EXPERT' - \$FORM_USERADD_$OBJ: '$( eval $( echo echo \$FORM_USERADD_$OBJ ) )' def: '$DEFAULT_VAL'"
-		echo 
-	} done
+		SEPARATOR=
+		for OBJ in $LIST; do {
+			eval $(func_db_user $OBJ)
+			[ -z "$SQLCLASS" ] && continue
+			echo -n "${SEPARATOR}'$DEFAULT_VAL ($OBJ)'" && SEPARATOR=","
+		} done
 	
-	echo ");"
+		echo " );"
+	
+	} done >$TEMP
+	
+	cat $TEMP && rm $TEMP
+	
+	# func_db_query $TEMP
 	
 	echo -n "</pre>"
 }
@@ -228,21 +239,20 @@ func_db_user ()
 {
 	case $1 in
 		all)
-			echo -n "COUNT PROFILE COMMENT NAME PASS MAC MAXMAC ISOLATION "
-			[ "$2" = "sql" ] && {
-				echo -n "ID INSTALLED FIRSTSEEN LASTSEEN TRAFFALL TRAFFTODAY TIMEALL TIMETODAY"
-			}
+			[ "$2" = "sql" ] && echo -n "ID INSTALLED FIRSTSEEN LASTSEEN TRAFFALL TRAFFTODAY TIMEALL TIMETODAY "
+			echo -n "COUNT PROFILE COMMENT NAME PASS MAC DEVICES ISOLATION"
 		;;
 		init)
 			local SEPARATE OBJ LIST="$( func_db_user all sql )"
 			
 			for OBJ in $LIST; do {
 				eval $(func_db_user $OBJ)
+				[ -z "SQLCLASS" ] && continue
 				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
 			} done 
 		;;
 		COUNT)
-			echo "SQLCLASS='INTEGER'"
+			echo "SQLCLASS=''"
 			echo "EXPERT='false'"
 			echo "FORM_TYPE='text'"
 			echo "DEFAULT_VAL='1'"
@@ -289,7 +299,7 @@ func_db_user ()
 			echo "DESC_SHORT='MAC-Adresse'"
 			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell vergeben werden'"
 		;;
-		MAXMAC)
+		DEVICES)
 			echo "SQLCLASS='INTEGER'"
 			echo "EXPERT='true'"
 			echo "FORM_TYPE='text'"
@@ -317,7 +327,8 @@ func_db_user ()
 			echo "DESC_LONG='Schutz des Netzteilnehmers vor Zugriff durch andere Benutzer?'"
 		;;
 		ID)
-			echo "SQLCLASS='INTEGER PRIMARY KEY'"	# eindeutiger bezeichner pro user-kennung
+			echo "SQLCLASS='INTEGER PRIMARY KEY AUTOINCREMENT'"	# eindeutiger bezeichner pro user-kennung
+			echo "DEFAULT_VAL='NULL'"
 			echo "EXPERT='sql'"
 		;;
 		INSTALLED)
@@ -367,7 +378,7 @@ func_db_init ()
 	local TABLE SQLBIN="$( which sqlite3 )"
 	
 	for TABLE in profile devices user; do {
-		func_log db_init daemon info "creating table '$TABLE'"
+		func_log db_init daemon info "creating table '$TABLE' - '$(func_db_$TABLE init)'"
 		eval $( $SQLBIN $DB "CREATE TABLE $TABLE ( $(func_db_$TABLE init) );" )
 	} done
 }
@@ -384,15 +395,18 @@ func_db_devices ()
 			} done
 		;;
 		all)
-			echo -n "USER MAC DEVTYPE"
+			echo -n "USER MAC DEVTYPE LANG"
 		;;
 		USER)
-			echo "SQLCLASS='INTEGER'"	# foreign key?
+			echo "SQLCLASS='INTEGER'"	# foreign key to table 'USER' ?
 		;;
 		MAC)
 			echo "SQLCLASS='TEXT'"
 		;;
 		DEVTYPE)
+			echo "SQLCLASS='TEXT'"
+		;;
+		LANG)
 			echo "SQLCLASS='TEXT'"
 		;;
 	esac
