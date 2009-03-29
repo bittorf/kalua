@@ -1,0 +1,141 @@
+func_db_defs ()
+{
+	SQL_DB="/tmp/admin2.db"
+	SQL_BIN="$( which sqlite3 )"
+
+	[ ! -e "$DB" ] && eval $(func_db_init)
+}
+
+func_db_init ()
+{
+	func_db_init_sql | sqlite3 /tmp/admin2.db
+}
+
+func_db_init_sql ()
+{
+	local I OBJ
+	
+	echo "begin;"
+	
+	for OBJ in $( func_db_tables all ); do {
+		echo "create table $OBJ ( $(func_db_tables $OBJ init) );"
+	} done
+
+	for OBJ in $(func_db_tables USERNAMES init_defaults); do {
+		echo "INSERT INTO 'USERNAMES' VALUES ( '$OBJ' );"
+	} done
+
+	echo "create trigger 'auto_pass' after insert on 'USERS' begin"
+	echo "update 'USERS' set pass = substr(abs(random()),1,5) where pass = 'auto'; end;"
+	
+	echo "create trigger 'auto_user' after insert on 'USERS' begin"
+	echo "update 'USERS' set name = (select name from 'USERNAMES'  where rowid >= (abs(random()) % (select max(rowid) from 'USERNAMES')) limit 1) where name = 'auto'; end;"	
+
+	echo "create trigger 'auto_time' after insert on 'USERS' begin"
+	echo "update 'USERS' set installed = strftime('%s','now') where installed = 'auto'; end;"
+
+	echo "create trigger 'no_rowid_holes' after delete on 'USERS' begin"
+	echo "update 'USERS' set rowid = old.rowid where rowid = (select count()+1 from USERS); end;"
+
+	for I in 1 2 3 4 5 6 7 8 9 10; do {
+	for OBJ in 1 2 3 4 5 6 7 8 9 10; do {
+		echo "insert into 'USERS' values ( NULL, 'profil' , 'Zimmer 10$OBJ', 'auto', 'auto', 'auto', '$OBJ' );"
+	} done
+	} done
+
+	echo "insert into 'PROFILES' values ( NULL, 'Kurz-Ticket', 'fuer ca. 20 Minuten', 2, 200, 200, 50, 50, 180, 180, 'http://hier.com', 5, 'EUR' );"
+	echo "insert into 'PROFILES' values ( NULL, 'Tagesticket', 'fuer 24 Stunden', 2, 500, 1200, 100, 100, 1800, 1800, 'http://hier.com', 10, 'EUR' );"
+	echo "insert into 'PROFILES' values ( NULL, '2-Tages-Ticket', 'fuer 48 Stunden', 2, 1200, 2200, 120, 120, 1800, 1800, 'http://hier.com', 15, 'EUR' );"
+	echo "insert into 'PROFILES' values ( NULL, 'Mitarbeiterticket', 'fuer einen Monat', 2, 8200, 16200, 150, 150, 2800, 2800, 'http://hier.com', 0, 'EUR' );"
+
+	for I in 1 2 3 4 5 6 7 8 9; do {
+		echo "insert into 'DEVICES' values ( $I, '00:11:22:33:44:0$I', 'wifi', 'de', '', '', '', '', '', '', 1);"
+	} done
+	
+	echo "commit;"
+}
+
+func_db_insert_tickets ()			# trigger: name = auto , pass = auto
+{						# "select name from NAMES where rowid>=random() % (SELECT max(rowid) FROM NAMES) limit 1"
+	local TICKET
+
+	echo "$SQL_BIN $SQL_DB \"BEGIN;"
+	
+	for TICKET in $FORM_USERADD_COUNT; do {
+		echo -n "insert into 'USERS' values ( "
+		echo -n "NULL, '$FORM_USERADD_PROFILE' , '$FORM_USERADD_COMMENT', '$FORM_USERADD_NAME', '$FORM_USERADD_PASS', strftime('%s','now'), $FORM_USERADD_DEVICES )"
+	} done
+	
+	echo "COMMIT\""
+}
+
+func_db_tables ()
+{
+	local TABLE="$1"
+	local VIEW="$2"
+	
+	case $TABLE in
+		all)
+			echo -n "DEVICES USERS USERNAMES PROFILES"
+		;;
+		DEVICES)
+			case $VIEW in
+				all)
+					echo -n "user mac devtype lang firstseen lastseen timeall timetoday traffall trafftoday isolation"
+				;;
+				init)
+					echo -n "user INTEGER, mac TEXT, devtype TEXT, lang TEXT, firstseen INTEGER, lastseen INTEGER,"
+					echo -n "timeall INTEGER, timetoday INTEGER, traffall INTEGER, trafftoday INTEGER, isolation INTEGER"
+				;;
+			esac	
+		;;
+		USERS)
+			case $VIEW in
+				all)
+					echo -n "id profile comment name pass installed devices"
+				;;
+				init)
+					echo -n "id INTEGER PRIMARY KEY, profile TEXT, comment TEXT, name TEXT, pass TEXT, installed INTEGER, devices INTEGER"
+				;;
+			esac	
+		;;
+		PROFILES)
+			case $VIEW in
+				all)
+					echo -n "id name comment validity maxtraffall maxtraffday maxspeedup maxspeeddown maxtimeall maxtimeday landingurl cost currency"
+				;;
+				init)
+					echo -n "id INTEGER PRIMARY KEY, name TEXT, comment TEXT, validity INTEGER, maxtraffall INTEGER, maxtraffday INTEGER,"
+					echo -n "maxspeedup INTEGER, maxspeeddown INTEGER, maxtimeall INTEGER, maxtimeday INTEGER, landingurl TEXT, cost TEXT, currency TEXT"
+				;;
+			esac
+		;;
+		USERNAMES)
+			case $VIEW in
+				all)
+					echo -n "name"
+				;;
+				init)
+					echo -n "name TEXT"
+				;;
+				init_defaults)
+					echo -n "pinguin delphin giraffe elefant loewe tiger leopard wildkatze uhu fuchs gazelle wolf schwan buntspecht eisbaer "
+					echo -n "polarfuchs blauwal hai schildkroete zebra bueffel braunbaer hirsch reh goldfisch katze bernhardiner schaeferhund "
+					echo -n "pudel eichhoernchen ameisenbaer honigbiene schmetterling kolibri schneeeule vogelspinne hase wellensittich adler "
+					echo -n "meerkatze pelikan robbe erdmaennchen pfauenauge gorilla orangutan condor habicht amsel drossel fink star yak "
+					echo -n "krokodil ameisenbaer yeti gnu tintenfisch fasan rebhuhn stockente haubentaucher bachstelze spitzmaus maulwurf "
+					echo -n "goldhamster pony pandabaer"
+				;;
+				init_defaults2)
+					echo -n "behringer borchers borowski pedda blume boettcher botto brueckner burger burghardt coppa ebersbach eissner ernert "
+					echo -n "fischerart goethner gille gnuechtel griesel haeussler hartmann heisig heublein horlbeck kappler hund huniat jahr "
+					echo -n "killisch kober kollwitz kratsch kristofori kunert lehmann loy mattheuer mayerforeyt minkewitz mohr mueller "
+					echo -n "muellersimon munse muenze murschetz naumann novaky penck petersdorf petkova piniek pillwitz poetzschig rauch "
+					echo -n "richter rink rossmanit ruddigkeit schade schletter schultheiss scholz schroeter albertschulz schwimmer sologubov "
+					echo -n "stauf suessmilch stelzmann thal triegel touma tuebke vancura vent voigt voelkel wagenbrett wajsberg weischer "
+					echo -n "zettl zickelbein ziegler zumor zuerner"
+				;;
+			esac
+		;;
+	esac
+}
