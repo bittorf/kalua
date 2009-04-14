@@ -1240,8 +1240,10 @@ olsr_whitelist_set_inactive () {
 	$IPT -I $OLSR_WL_CHAIN -j ACCEPT
 }
 
-fkt_control_olsr () {
-	fkt_localfw_log "(fkt_control_olsr) Installing management"
+fkt_control_olsr ()
+{
+	local FUNC="control_olsr"
+	fkt_localfw_log "($FUNC) Installing management"
 
 	rm -f "$OLSR_WL_READY"									# to be sure, that this list must be reread
 
@@ -1308,6 +1310,15 @@ fkt_control_olsr () {
 	# ----- outgoing OLSR: -----
 	
 	$IPT -A POSTROUTING -t nat -p udp --dport 698  -j olsr_out				# from me
+
+	func_need wifi
+	[ "$(func_wifi_get_mode)" != "adhoc" ] && {					# fixme! must be device-specific
+		[ "$(nvram get fff_profile)" != "versilia_ap" ] && {
+			func_log $FUNC daemon info "deactivating wifi-olsr"
+			$IPT -A OUTPUT -o $WIFIDEV -p udp --dport 698 -j DROP		# in AP-mode, keep air clean
+		}
+	}
+
 	$IPT -A OUTPUT             -p udp --dport 698  -j olsr_out				# from me
 
 	$IPT -A olsr_out -t nat                        -j ACCEPT				# no further parsing in table nat
