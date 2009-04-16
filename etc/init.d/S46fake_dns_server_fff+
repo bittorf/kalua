@@ -68,14 +68,17 @@ func_install_fake_dns_server_via_iptables ()
 	# all DNS-querys are NAT-ed and forwarded to an real-dns-server
 	# sense: the client can use DHCP as usable
 
+	local MODE="I"
+	[ "$1" = "remove" ] && MODE="D"
+
 	local FUNC="install_fake_dns_server_via_iptables"
 	local DNS_SERVER="$( nvram get wan_dns | cut -d";" -f1 )"
 	[ -z "$DNS_SERVER" ] && DNS_SERVER=141.1.1.1
 
 	func_log $FUNC daemon debug "working"
 
-	iptables -I PREROUTING -t nat -p udp --dport 53 -s $LANNET/$LANPRE   -d $LANADR  -j DNAT --to-destination $DNS_SERVER
-	iptables -I PREROUTING -t nat -p udp --dport 53 -s $WIFINET/$WIFIPRE -d $WIFIADR -j DNAT --to-destination $DNS_SERVER
+	iptables -$MODE PREROUTING -t nat -p udp --dport 53 -s $LANNET/$LANPRE   -d $LANADR  -j DNAT --to-destination $DNS_SERVER
+	iptables -$MODE PREROUTING -t nat -p udp --dport 53 -s $WIFINET/$WIFIPRE -d $WIFIADR -j DNAT --to-destination $DNS_SERVER
 }
 
 func_if_possible_set_private_ip_on_interface_with_ip () {
@@ -118,6 +121,11 @@ func_if_possible_set_private_ip_on_interface_with_ip () {
 }
 
 . /tmp/NETPARAM
+
+[ "$1" = "remove_fake_dnsserver" ] && {
+	func_install_fake_dns_server_via_iptables remove
+	exit
+}
 
 func_add_experimental_wifi_roaming
 func_add_thight_netmask_to_wifi

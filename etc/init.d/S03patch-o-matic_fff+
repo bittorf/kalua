@@ -37,6 +37,10 @@ fkt_patch () {
 			FILE="/etc/init.d/S53olsrd"
 			sed "s#^[^a-zA-Z0-9]*start)#        start)  export TZ='$TZ';#" "$FILE" >"$TEMP"
 		;;
+		olsrd_not_on_wifi)
+			FILE="/etc/init.d/S53olsrd"
+			grep -q "# OLSRDEVLIST" "$FILE" || sed 's/OLSRDEVLIST=\$WIFIDEV/# OLSRDEVLIST=\$WIFIDEV/' "$FILE" >"$TEMP"
+		;;
 		dnsserver_timezone)
 			FILE="/etc/init.d/S50dnsmasq"
 			sed "s#^[^a-zA-Z0-9]*start)#        start)  export TZ='$TZ';#" "$FILE" >"$TEMP"
@@ -401,6 +405,21 @@ case $1 in
 			rm -f "$LOCKFILE"			# lockfile, each time we exit
 			$0 virgin				# or recall this script, otherwise
 		}						# it won't work out ;-)
+	
+		[ "$( func_wifi_get_mode )" != "adhoc" ] && {		# fixme! and the way back to normal wifi-olsr?
+		
+			case "$(nvram get fff_profile)" in
+				versilia_ap)
+					exit
+				;;
+				versilia_client)
+					exit
+				;;
+				*)
+					fkt_patch olsrd_not_on_wifi
+				;;
+			esac
+		}
 	;;
 	virgin)							# after virgin boot (directly after flashing)
 		fkt_patch syslogd_start_for_more_space
