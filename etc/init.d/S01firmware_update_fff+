@@ -55,11 +55,8 @@ fkt_build_own_ipkg_list () {
 fkt_check_for_newer_firmware () {
 	local DAEMON="fkt_check_for_newer_firmware"
 	
-	local URL_MAIN="$(      echo $URL_FIRMWARE_VERSION | sed 's/version/version-main/')"		# there is ff_ver, e.g.: "1.6.28"
-	local URL_BETA="$(      echo $URL_FIRMWARE_VERSION | sed 's/version/version-beta/')"
-	local URL_TESTING="$(   echo $URL_FIRMWARE_VERSION | sed 's/version/version-testing/')"
-	local URL_BETA_FW="$(   echo $URL_FIRMWARE_CURRENT | sed 's/current/current-beta/')"
-	local URL_TESTING_FW="$(echo $URL_FIRMWARE_CURRENT | sed 's/current/current-testing/')"
+	local URL_BETA_FW="$(    func_links_get_url_firmware beta )"
+	local URL_TESTING_FW="$( func_links_get_url_firmware testing )"
 	
 	local RANDOM="$(dd if=/dev/urandom bs=2 count=1 2>&- | hexdump | if read line; then echo 0x${line#* }; fi)"
 	local WAIT="$(( $RANDOM % 1234))"			# not all 600 routers should wgetting an 1mb-file from internet at the same time
@@ -81,19 +78,19 @@ fkt_check_for_newer_firmware () {
 
 	fkt_log "$DAEMON" "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
 	sleep $WAIT_SHORT
-	local CURRENT="$(wget -O - "$URL_FIRMWARE_VERSION")"
+	local CURRENT="$( func_links_get_url_firmware version_installed )"
 	
 	fkt_log "$DAEMON" "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
 	sleep $WAIT_SHORT
-	local CURRENT_BETA="$(wget -O - "$URL_BETA")"
+	local CURRENT_BETA="$( func_links_get_url_firmware version_current beta )"
 	
 	fkt_log "$DAEMON" "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
 	sleep $WAIT_SHORT
-	local CURRENT_TESTING="$(wget -O - "$URL_TESTING")"
+	local CURRENT_TESTING="$( func_links_get_url_firmware version_current testing )"
 
 	fkt_log "$DAEMON" "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing main version"
 	sleep $WAIT_SHORT
-	local CURRENT_MAIN="$( wget -O - "$URL_MAIN" )"
+	local CURRENT_MAIN="$( func_links_get_url_firmware version_current stable )"
 	
 	local DOIT="0"
 
@@ -117,22 +114,31 @@ fkt_check_for_newer_firmware () {
 	fkt_log "$DAEMON" "update-mode-conclusion: $USERWISH"
 
 
-	# we need some more work here:
+	# fixme! we need some more work here:
 	# situation could be: stable is newer than beta
 	# we have to test: update? which of the installation canditates is the newest
 	# DOIT=1 should be DOIT=versionnumber and only be altered of newer than before
 	
+	local RESULTING_UPDATEMODE="stable"
 
 	if [ "$USERWISH" = "stable" ] && [ "$CURRENT" -gt "$FFF_PLUS_VERSION" ]; then DOIT=1; fi	# stable = stable
 	
 	  if [ "$USERWISH" = "beta" ] && [ "$CURRENT_BETA" -gt "$FFF_PLUS_VERSION" ]; then		# beta = beta and...
-	  	DOIT="1"; URL_FIRMWARE_CURRENT="$URL_BETA_FW"
+
+	  	DOIT="1"
+	  	URL_FIRMWARE_CURRENT="$URL_BETA_FW"
+		RESULTING_UPDATEMODE="beta"
+
 	elif [ "$USERWISH" = "beta" ] && [ "$CURRENT" -gt "$FFF_PLUS_VERSION" ]; then			# ...stable
+	
 		DOIT="1"
 	fi
 	
 	  if [ "$USERWISH" = "testing" ] && [ "$CURRENT_TESTING" -gt "$FFF_PLUS_VERSION" ]; then	# testing = testing and...
-		DOIT="1"; URL_FIRMWARE_CURRENT="$URL_TESTING_FW"
+
+		DOIT="1"
+		URL_FIRMWARE_CURRENT="$URL_TESTING_FW"
+		RESULTING_UPDATEMODE="testing"
 	
 		if [ "$USERWISH" = "testing" ] && [ "$FFF_VERSION" = "$CURRENT_MAIN" ]; then		# doing incremental update
 		
@@ -142,8 +148,13 @@ fkt_check_for_newer_firmware () {
 		fi
 	
 	elif [ "$USERWISH" = "testing" ] && [ "$CURRENT_BETA" -gt "$FFF_PLUS_VERSION" ]; then		# ...beta and...
-		DOIT="1"; URL_FIRMWARE_CURRENT="$URL_BETA_FW"
+
+		DOIT="1"
+		URL_FIRMWARE_CURRENT="$URL_BETA_FW"
+		RESULTING_UPDATEMODE="beta"
+		
 	elif [ "$USERWISH" = "testing" ] && [ "$CURRENT" -gt "$FFF_PLUS_VERSION" ]; then		# ...stable
+		
 		DOIT="1"
 	fi
 
@@ -166,8 +177,8 @@ fkt_check_for_newer_firmware () {
 
 		local CHECK="$(/www/cgi-bin/freifunk-upload -c /www/fw.trx)"
 		
-		fkt_log "$DAEMON" "Checking server MD5 (\"${URL_FIRMWARE_CURRENT}.md5\")"
-		local FW_CRC_SERVER="$( wget -O - "${URL_FIRMWARE_CURRENT}.md5" )"
+		fkt_log "$DAEMON" "Checking server MD5"
+		local FW_CRC_SERVER="$( wget -O - "$( func_links_get_url_firmware $RESULTING_UPDATEMODE crc )" )"
 		fkt_log "$DAEMON" "Checking local MD5"
 		local FW_CRC_REAL="$( md5sum /www/fw.trx | cut -d" " -f1 )"
 		fkt_log "$DAEMON" "Comparing both MD5-crc's"
@@ -191,6 +202,7 @@ fkt_check_for_newer_firmware () {
 fkt_install_latest_tarball () {
 	local DAEMON="fkt_install_latest_tarball"
 	local FILE="/tmp/tarball.tar"
+	local URL_FIRMWARE_TARBALL="$( func_links_get_url_firmware tarball )"
 	
 	fkt_log "$DAEMON" "fetching from \"$URL_FIRMWARE_TARBALL\""
 	
@@ -333,7 +345,7 @@ case $1 in
 		. /etc/functions_wifi_fff+
 		eval $(func_wifi_get_hardware_pci)
 		
-		[ "$WIFI_VENDOR" != "broadcom" ] && {
+		[ "$WIFI_VENDOR" != "broadcom" ] && {		# fixme! problem is solved by func_links_url_firmware()
 			neigh check4nonwifi || {		# no update, if chickenegg-problem
 			
 				case $(fkt_check_if_this_node_offers_inet) in
