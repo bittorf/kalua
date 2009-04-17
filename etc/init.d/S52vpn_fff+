@@ -171,6 +171,9 @@ fkt_olsr_conf_write ()
 {
 	local FUNC="olsr_conf_write"
 	local LINE=""
+	local INTERFACE="tap0"
+
+	[ -n "$( nvram get fff_vpn_proto )" ] && INTERFACE=none		# fixme! this is dirty...
 	
 	SPEED=$(nvram get ff_olsrspeed)		# fixme! maybe multiply by 10? (lowering traffic)
 	SPEED=${SPEED:=5}
@@ -188,7 +191,7 @@ fkt_olsr_conf_write ()
 	fi
 						# these are the values for fff v1.6.34
 	cat >$CONF <<EOF
-Interface "tap0" {
+Interface "$INTERFACE" {
 	HelloInterval		$(( SPEED / 2 + 1 )).0
 	HelloValidityTime	$(( 25 * SPEED )).0
 	TcInterval		$TCINT.0
@@ -230,15 +233,15 @@ func_sending_request_to_vpnserver_for_participation ()
 	local OUTPUT=""
 	local URL="http://$VPN_SERVER/freifunk/vpn/"
 	local QUERY=""
-	local PROTO="$( nvram get fff_vpn_proto )"		# none,olsr,batman,batman-adv,...
-	[ -z "$PROTO" ] && PROTO=olsr
+	local ADMINMAIL="$(nvram get ff_adm_mail)"
+	local PROTO="$( nvram get fff_vpn_proto )"		# fixme! none,olsr,batman,batman-adv,...
 	
 	QUERY="${QUERY}?CLIENTIP=${WIFIVPNCLIENTADR}"
 	QUERY="${QUERY}&SERVERIP=${WIFIVPNSERVERADR}"
 	QUERY="${QUERY}&NAME=$HOSTNAME"
-	QUERY="${QUERY}&PROTO=$PROTO"
-	QUERY="${QUERY}&EMAIL=$( func_url_encode "$(nvram get ff_adm_mail)" )"
-	QUERY="${QUERY}&COMMENT=city${FFF_CITY}_node${NODE_NUMBER}_auto_created"
+	QUERY="${QUERY}&PROTO=${PROTO:=olsr}"
+	QUERY="${QUERY}&EMAIL=$( func_url_encode "${ADMINMAIL:=unset@box.local}" )"
+	QUERY="${QUERY}&COMMENT=city${FFF_CITY}_node${NODE_NUMBER}_profile$( nvram get fff_profile )"
 
 	func_log $FUNC daemon debug "query: '${URL}${QUERY}'"
 	
