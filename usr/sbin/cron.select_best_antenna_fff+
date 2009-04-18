@@ -24,20 +24,23 @@ eval $( func_wifi_get_hardware_pci )
 eval $( func_profile_remap_devs get_model )		# fixme! new field ROUTER_BEST_ANT='A|B|AUTO' ?
 case "${ROUTER_NO}-${WIFI_MODEL}" in
 	0-4318|8-4306)					# buffalo whr-hp-54g, dell2300
-	
-		WIFI_DEV="$WIFI_DEVS"	# fixme!
 		BEST_ANT=0
-		
-		[ "$(func_wifi_get_antenna_rx $WIFI_DEV)$(func_wifi_get_antenna_tx $WIFI_DEV)" != "${BEST_ANT}${BEST_ANT}" ] && {
-			func_log check_for_special_devices daemon info "unmodified '$ROUTER_VENDOR/$ROUTER_MODEL', using antenna A on dev '$WIFI_DEV'"
-			func_wifi_set_antenna_rx $WIFI_DEV $BEST_ANT
-			func_wifi_set_antenna_tx $WIFI_DEV $BEST_ANT
-			func_nvset commit
-			func_wifi_restart_wifi_phy $WIFI_DEV
-		}
-		exit
+	;;
+	4-4318)						# asus wl500g premium
+		BEST_ANT=1
 	;;
 esac
+[ -n "$BEST_ANT" ] && {
+	WIFI_DEV="$WIFI_DEVS"	# fixme!
+	[ "$(func_wifi_get_antenna_rx $WIFI_DEV)$(func_wifi_get_antenna_tx $WIFI_DEV)" != "${BEST_ANT}${BEST_ANT}" ] && {
+		func_log check_for_special_devices daemon info "unmodified '$ROUTER_VENDOR/$ROUTER_MODEL', using antenna A on dev '$WIFI_DEV'"
+		func_wifi_set_antenna_rx $WIFI_DEV $BEST_ANT
+		func_wifi_set_antenna_tx $WIFI_DEV $BEST_ANT
+		func_nvset commit
+		func_wifi_restart_wifi_phy $WIFI_DEV
+	}
+	exit
+}
 
 [ "$(func_wifi_get_mode)" != "adhoc" ] && {	# fixme! can only work, when there is traffic, e.g. in mesh-mode
 
