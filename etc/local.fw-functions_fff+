@@ -2,6 +2,23 @@
 # tc qdisc show
 # 
 
+func_pfilter_user_unsplash ()
+{
+	local MAC="$1"
+	local IP="$2"
+
+	[ -z "$MAC" -o -z "$IP" ] && return 1
+								# user is known, but splashed
+	fkt_list_user_macs | grep -q -i $MAC && {
+		fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP >/dev/null
+		return
+	}
+
+	func_activate_reserved_user_chain $MAC $IP || {		# user is new and splashed
+		fkt_add_user_with_mac_and_ip $MAC $IP
+	}
+}
+
 func_reject_traffic_from_nonlocal_hosts_to_local_webserver ()
 {
 	local FUNC="reject_traffic_from_nonlocal_hosts_to_local_webserver"
@@ -461,7 +478,7 @@ fkt_kick_all_nonfree_users () {
 		[ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "false" ] && {
 			
 			[ "$( fkt_check_if_mac_is_free $MAC )" = "false" ] && {
-				func_log daemon debug "kicking nonfree-user: $MAC"
+				func_log $FUNC daemon debug "kicking '$MAC'"
 				fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( fkt_get_ip_from_mac $MAC )"
 			}
 		}

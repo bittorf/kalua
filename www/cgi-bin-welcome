@@ -7,17 +7,30 @@ case "$(nvram get fff_profile)" in
 		if [ "$REQUEST_METHOD" = "POST" ]; then
 	
 			eval $(func_http_sanitize_query_string)
-			func_http_header_mime_output "text/html"
-			echo "USER: '$FORM_USER'"
-			echo "PASS: '$FORM_PASS'"
-			[ -n "$FORM_RULES" ] && echo "Regeln akzeptiert!"
+			
+			if [ -n "$FORM_RULES" ]; then
+				func_need pfilter weblogin old vars_old log
+
+				func_weblogin_check_login "$FORM_USER" "$FORM_PASS" && {
+					fkt_definitions
+					
+					MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+					func_pfilter_user_unsplash "$MAC" "$REMOTE_ADDR" && {
+						func_http_redirect 302 landing_elephant
+						exit
+					}
+				}
+				
+				func_weblogin_output_login_error
+			else						# fixme! send error to show (user,pass,rules,inetconnection...)
+				func_http_redirect 302 ip_wifi		# ip route list exact 0/0
+			fi
 		else
 			if [ "$QUERY_STRING" != "REDIRECTED=1" ]; then
 				func_http_redirect 302 ip_wifi
 			else
 				func_need weblogin
-				func_http_header_mime_output "text/html"
-				func_weblogin_output_startpage
+				func_weblogin_output_loginpage
 			fi
 		fi
 		
