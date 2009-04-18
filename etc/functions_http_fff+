@@ -41,3 +41,41 @@ func_http_header_mime_output ()
 {
 	echo -en "Content-type: $1\n\n"		# ARG1 = e.g. text/html
 }
+
+func_http_redirect ()
+{
+	local ERRORCODE="$1"
+	local DESTINATION="$2"
+	local REASON
+
+	case $DESTINATION in
+		ip_wifi)
+			DESTINATION="$( sed -n '/^WIFIADR=/{s/^WIFIADR=\(.*\)/\1/p;q}' /tmp/NETPARAM )"
+		;;
+	esac
+
+	DESTINATION="http://$DESTINATION/cgi-bin-welcome?REDIRECTED=1"
+	
+	case $ERRORCODE in
+		302)
+			REASON="Temporary Redirect"
+		;;
+	esac
+
+	cat <<EOF
+HTTP/1.1 $ERRORCODE $REASON
+Connection: close
+Cache-Control: no-cache
+Content-Type: text/html
+Location: $DESTINATION
+
+<HTML><HEAD>
+<TITLE>$ERRORCODE $REASON</TITLE>
+<META HTTP-EQUIV="cache-control" CONTENT="no-cache">
+<META HTTP-EQUIV="refresh" CONTENT="0; URL=$DESTINATION">
+</HEAD><BODY>
+<H1>$ERRORCODE - $REASON</H1>
+<P>click <A HREF="$DESTINATION">here</A> if you are not redirected automatically.</P>
+</BODY></HTML>
+EOF
+}

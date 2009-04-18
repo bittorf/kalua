@@ -1,5 +1,30 @@
 #!/bin/sh
 
+case "$(nvram get fff_profile)" in
+	elephant_mesh|elephant_ap)
+		. /etc/functions_base_fff+ && func_need http
+
+		if [ "$REQUEST_METHOD" = "POST" ]; then
+	
+			eval $(func_http_sanitize_query_string)
+			func_http_header_mime_output "text/html"
+			echo "USER: '$FORM_USER'"
+			echo "PASS: '$FORM_PASS'"
+			[ -n "$FORM_RULES" ] && echo "Regeln akzeptiert!"
+		else
+			if [ "$QUERY_STRING" != "REDIRECTED=1" ]; then
+				func_http_redirect 302 ip_wifi
+			else
+				func_need weblogin
+				func_http_header_mime_output "text/html"
+				func_weblogin_output_startpage
+			fi
+		fi
+		
+		exit
+	;;
+esac
+
 func_check_if_too_many_requests ()		# SENS: when a user calls a nonexistent page with many links in it, the 404-redirection
 {						#	mechanism of the webserver trys to deliver the error-page, but
 						#	uses the path of the wrong page, which again leads to delivering
