@@ -2,33 +2,38 @@
 
 case "$(nvram get fff_profile)" in
 	elephant_mesh|elephant_ap)
-		. /etc/functions_base_fff+ && func_need http
+		. /etc/functions_base_fff+ && func_need http log
 
 		if [ "$REQUEST_METHOD" = "POST" ]; then
 	
 			eval $(func_http_sanitize_query_string)
 			
 			if [ -n "$FORM_RULES" ]; then
-				func_need pfilter weblogin old vars_old log
+				func_need pfilter weblogin old vars_old
+				MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+				func_log weblogin_try daemon info "ip: '$REMOTE_ADDR' mac: '$MAC' user: '$FORM_USER' pass: '$FORM_PASS'"
 
-				func_weblogin_check_login "$FORM_USER" "$FORM_PASS" && {
+				func_weblogin_check_login "$FORM_USER" "$FORM_PASS" "$MAC" && {
 					fkt_definitions
-					
-					MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
 					func_pfilter_user_unsplash "$MAC" "$REMOTE_ADDR" && {
+						func_log weblogin_success daemon info "mac: '$MAC'"
 						func_http_redirect 302 landing_elephant
 						exit
 					}
 				}
 				
+				func_log weblogin_failed daemon info "ip: '$REMOTE_ADDR'"
 				func_weblogin_output_login_error
 			else						# fixme! send error to show (user,pass,rules,inetconnection...)
+				func_log weblogin_norules daemon info "ip: '$REMOTE_ADDR'"
 				func_http_redirect 302 ip_wifi		# ip route list exact 0/0
 			fi
 		else
 			if [ "$QUERY_STRING" != "REDIRECTED=1" ]; then
+				func_log weblogin_redirect daemon info "ip: '$REMOTE_ADDR'"
 				func_http_redirect 302 ip_wifi
 			else
+				func_log weblogin_splash daemon info "ip: '$REMOTE_ADDR'"
 				func_need weblogin
 				func_weblogin_output_loginpage
 			fi
