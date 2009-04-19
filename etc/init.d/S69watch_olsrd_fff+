@@ -328,6 +328,25 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	CITY="$CITY"												# 63
 	WIFIMODE="$( func_get_wifi_mode )"									# adhoc
 
+	case "$WIFIMODE" in
+		adhoc)
+			NOISE="$( wl noise | sed 's/[^0-9-]//g' )"
+			RSSI="$(  wl rssi  | sed 's/[^0-9-]//g' )"
+		;;
+		ap)
+			NOISE=""
+			RSSI="$( wl assoclist |
+			          while read NOP MAC; do {
+					echo -n "${LOOP:+:}$( echo $MAC | sed 'y/ABCDEF/abcdef/' | sed 's/[^0-9a-f]//g' )$(wl rssi $MAC | sed 's/[^0-9-]//g' )"
+					LOOP=1
+				  } done )"
+		;;
+		*)
+			NOISE=""
+			RSSI=""
+		;;
+	esac
+
 	# fixme! gmode?
 
 	CHANNEL="$( wl status | sed -n 's/.*Channel: \([0-9]*\)/\1/p' )"					# 104
@@ -355,7 +374,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 	# fixme! we need a global sanitizer ("email","ip","hostname","url","number","hex","upper","lower")
 	
-	PUBIP="$( fkt_wget http://${VPN_SERVER}/show_remote_address.php 10 | sed 's/^[0-9\.]//g' )"		# 217.212.17.148
+	PUBIP="$( fkt_wget http://${VPN_SERVER}/show_remote_address.php 10 | sed 's/[^0-9\.]//g' )"		# 217.212.17.148
 	
 	[ -r "$TRACE_INET_GATEWAY" ] && {
 		HOP2GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* METRIC=\([0-9\.]*\).*/\1/p' )"		# 5
@@ -377,7 +396,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$PUBKEY"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS"
-	QUERY="${QUERY}&gmodeprot=$GMODEPROT&profile=$( nvram get fff_profile )"
+	QUERY="${QUERY}&gmodeprot=$GMODEPROT&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${RSSI}"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED"
 	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP"
 	
