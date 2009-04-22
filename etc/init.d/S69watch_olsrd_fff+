@@ -325,7 +325,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	RTS="$( wl rts | sed -n 's/rts is \([0-9]*\).*$/\1/p' )"						# 2347
 	GMODE="$( nvram get wl0_gmode )"
 	GMODEPROT="$( wl gmode_protection | sed -n 's/^gmode_protection is \([0-9]\) .*/\1/p' )"		# 0 or 1
-	ESSID="$( nvram get wl0_ssid )"
+	ESSID="$( func_url_encode "$(nvram get wl0_ssid)" )"
 	BSSID="$( nvram get ff_bssid )"
 	CITY="$CITY"												# 63
 	WIFIMODE="$( func_wifi_get_mode )"									# adhoc
@@ -406,7 +406,11 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	mv          "${ARCHIV_NODE_DATA}_temp" "${ARCHIV_NODE_DATA}"		# 1.5 days archiv when called each 15 mins
 	
 	RANDOM=$(dd if=/dev/urandom bs=2 count=1 2>&-|hexdump|if read line;then echo 0x${line#* };fi)
-	test "$(( $RANDOM % 70 ))" -eq 1 && ARG1="send_alive_message"					# roundabout each day
+	[ "$(( $RANDOM % 70 ))" -eq 1 ] && ARG1="send_alive_message"					# roundabout each day
+	[ -e /tmp/SEND_ALIVE_FAILED ] && {
+		rm /tmp/SEND_ALIVE_FAILED
+		ARG1="send_alive_message"
+	}
 
 	func_log mesh_rdf daemon debug "ready"
 	
@@ -441,6 +445,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
  					
  					[ "$OUT" != "OK" ] && {
  						func_log mesh_rdf_send_alive daemon crit "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending"
+ 						touch /tmp/SEND_ALIVE_FAILED
  						break
  					}
  				}
