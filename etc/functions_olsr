@@ -246,12 +246,38 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
 		
 		[ "$DEVTYPE" = "wire" ] && {
+		
+			LQ="$(  echo $LQ  | sed 's/\.//' )"
+			NLQ="$( echo $NLQ | sed 's/\.//' )"
+		
 			case "${LQ}-${NLQ}" in
 				"1000-"|"0000-"|"1000-0000"|"0000-1000")
 					func_log $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! LQ/NLQ = '$LQ'/'$NLQ'"
 					return 1
 				;;
 			esac
+			
+			[ $LQ -lt 100 ] && {			# fixme! check user-defined lqmult
+				[ $NLQ -gt 900 ] && {
+					sleep 10		# waiting for getting stable
+	
+					[ $NLQ -gt 900 -a $LQ -lt 100 ] && {
+						func_log $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! LQ/NLQ = '$LQ'/'$NLQ'"
+						return 1
+					}
+				}
+			}
+			
+			[ $NLQ -lt 100 ] && {			# fixme! check user-defined lqmult
+				[ $LQ -gt 900 ] && {
+					sleep 10		# waiting for getting stable
+	
+					[ $LQ -gt 900 -a $NLQ -lt 100 ] && {
+						func_log $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! LQ/NLQ = '$LQ'/'$NLQ'"
+						return 1
+					}
+				}
+			}
 		}
 	} done <"$FILE"
 	
@@ -268,8 +294,7 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 	[ "$LINES1" != "$LINES2" ] && {	
 		while read LINE; do {
 	  		[ "$LINE" = "$LASTLINE" ] && {
-				func_log $FUNC daemon crit "each node in mesh has only 1 route? 1no!: ($( ip route | grep ^"$LINE" ))"
-				func_log $FUNC daemon crit "each node in mesh has only 1 route? 2no!: ($( ip route list exact $LINE ))"
+				func_log $FUNC daemon crit "each node in mesh has only 1 route? no!: ($( ip route list exact $LINE ))"
 				rm $FILE_RT
 		  		return 1
 	  		}
