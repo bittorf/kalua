@@ -13,12 +13,11 @@
 # example-shot:     92.750 bytes |  337 lines (~273 bytes) ->  18985 bytes in 86sec (-> 20%) -> gzip -> 4000 bytes (-> 21%/4.3% overall)
 # extrapolation: 2.000.000 bytes | 7272 lines              -> 80.000 bytes / user / day
 
-. /etc/variables_fff+
-. /etc/functions_base_fff+
-. /etc/functions_logging_fff+
+. /etc/functions_base_fff+ && func_need vars_old log
 
 ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"
 ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"
+VDS_PATH="/tmp"
 
 func_ulog_prepare ()
 {
@@ -107,7 +106,7 @@ func_ulog_sqeeze_log ()
 		OUTPUT="$DIR $TIME $IP $PORT $PROTO $ID $SEQ $ACK"
 		COUNTER=$(( $COUNTER + ${#OUTPUT} ))			# count bytes
 		
-		echo >>"/tmp/user-${USERNAME:=noname}-${MAC}-${USERIP:=noip}-${DATE}-${NODEID}.ulog" "$OUTPUT"
+		echo >>"${VDS_PATH}/user-${USERNAME:=noname}-${MAC}-${USERIP:=noip}-${DATE}-${NODEID}.ulog" "$OUTPUT"
 
 		# > 11:35:41 212.58.226.33 80 TCP 10415 3248578720 0
 		# < 11:35:41 212.58.226.33 80 TCP 0 1694259892 3248578721
@@ -154,4 +153,48 @@ func_ulog_make_evalable ()
 	# SPT=32908; DPT=80; SEQ=2185052976; ACK=4275812249; WINDOW=25524; FLAG_ACK=1; FLAG_FIN=1; URGP=0
 }
 
+func_ulog_logsaving ()
+{
+	local FUNC="ulog_logsaving"
+	local PATTERN="${VDS_PATH}/user-*"
+	local TODAY="$( func_humanreadable_date short )"
+	local COPYCOMMAND
+	local DESTINATION
+	local FILELIST="$( find $PATTERN -type f )"
+	local FILE
+
+	[ -z "$FILELIST" ] && {
+		func_log $FUNC daemon debug "no logs - abort"
+		return
+	}
+
+	. /tmp/NETPARAM
+	eval "$( tail -n1 archiv_trace_inet_gateway_fff+ )"
+
+	if [ "$GW" = "$WIFIADR" ]; then
+		func_log $FUNC daemon debug "gateway = myself"
+		COPYCOMMAND="cp -p"
+		DESTINATION="$( func_system_get_storage_path )"
+	else
+		func_log $FUNC daemon debug "gateway = '$GW'"
+		COPYCOMMAND="scp -p -i $HOME/.ssh/dropbear_dss_host_key"
+		DESTINATION="${GW}:${VDS_PATH}"
+	fi
+
+	for FILE in $FILELIST; do {
+		if $COPYCOMMAND "$FILE" $DESTINATION ; then
+			if echo "$FILE" | grep -q "$TODAY" ; then
+				func_log $FUNC daemon info "copying '$FILE' was successful (is from today)"
+			else
+				func_log $FUNC daemon info "copying '$FILE' was successful - removing"
+				rm "$FILE"
+			fi
+		else	
+			func_log $FUNC daemon info "copying '$FILE' failed"
+		fi
+	} done
+}
+
 func_ulog_prepare && func_ulog_sqeeze_log
+func_ulog_logsaving
+
