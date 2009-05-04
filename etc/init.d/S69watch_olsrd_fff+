@@ -1,42 +1,42 @@
 #!/bin/sh
 
-. /etc/functions_base_fff+
-. /etc/functions_logging_fff+
+. /etc/functions_base_fff+ && func_need log
 
-func_watch_hanging_wget ()
+func_watch_hanging_command ()
 {
-	local FUNC="watch_hanging_wget"
-	local WGET_PID="$( pidof -s wget )"				# any running wget-process?
+	local COMMAND="$1"						# e.g. 'wget' or 'scp'
+	local FUNC="watch_hanging_command"
+	local COMMAND_PID="$( pidof -s $COMMAND )"			# any running process?
 	
-	[ -z "$WGET_PID" ] && {
-		func_log $FUNC daemon debug "no running wget-process"
+	[ -z "$COMMAND_PID" ] && {
+		func_log $FUNC daemon debug "no running '$COMMAND'-process"
 		return 0
 	}
 	
-	local WGET_CMD="$( cat /proc/$WGET_PID/cmdline )"		# remember exact commandline
+	local COMMAND_CMD="$( cat /proc/$COMMAND_PID/cmdline )"		# remember exact commandline
 	local OLD_PID
 	local OLD_CMD
-	local FILE1="/tmp/maybe_hanging_wget_process_id"
-	local FILE2="/tmp/maybe_hanging_wget_process_cmd"
+	local FILE1="/tmp/maybe_hanging_${COMMAND}_process_id"
+	local FILE2="/tmp/maybe_hanging_${COMMAND}_process_cmd"
 
 	[ -e "$FILE1" ] && OLD_PID="$( cat $FILE1 )"
 	[ -e "$FILE2" ] && OLD_CMD="$( cat $FILE2 )"
 
-	func_log $FUNC daemon debug "found wget-process '$WGET_PID' / '$WGET_CMD'"
+	func_log $FUNC daemon debug "found '$COMMAND'-process '$COMMAND_PID' / '$COMMAND_CMD'"
 
-	if [ "$OLD_PID" = "$WGET_PID" ] && [ "$OLD_CMD" = "$WGET_CMD" ]; then
+	if [ "$OLD_PID" = "$COMMAND_PID" ] && [ "$OLD_CMD" = "$COMMAND_CMD" ]; then
 
-		func_log $FUNC daemon err "killing '$WGET_CMD'"
-		kill $WGET_PID
+		func_log $FUNC daemon err "killing '$COMMAND_CMD'"
+		kill $COMMAND_PID
 		sleep 3
 		
-		[ -e "/proc/$WGET_PID" ] && {
+		[ -e "/proc/$COMMAND_PID" ] && {
 			func_log $FUNC daemon crit "still hanging, killing hard"
-			kill -9 $WGET_PID
+			kill -9 $COMMAND_PID
 			sleep 3
 		
-			[ -e "/proc/$WGET_PID" ] && {
-				func_safe_reboot "$FUNC() still hanging wget"
+			[ -e "/proc/$COMMAND_PID" ] && {
+				func_safe_reboot "$FUNC() still hanging '$COMMAND'"
 				return
 			}
 		}
@@ -45,13 +45,14 @@ func_watch_hanging_wget ()
 		return
 	fi
 
-	func_log $FUNC daemon debug "remember for next check '$WGET_PID' / '$WGET_CMD'"
-	echo >$FILE1 "$WGET_PID"
-	echo >$FILE2 "$WGET_CMD"
+	func_log $FUNC daemon debug "remember for next check '$COMMAND_PID' / '$COMMAND_CMD'"
+	echo >$FILE1 "$COMMAND_PID"
+	echo >$FILE2 "$COMMAND_CMD"
 }
 
-[ "$1" = "watch_hanging_wget" ] && {
-	func_watch_hanging_wget
+[ "$1" = "watch_hanging_command" ] && {
+	func_watch_hanging_command wget
+	func_watch_hanging_command scp
 	exit
 }
 
