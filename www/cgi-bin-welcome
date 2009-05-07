@@ -1,5 +1,19 @@
 #!/bin/sh
 
+func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wireless costs/hops)
+{						# fixme! apply these checks regulary
+	[ -z "$( ip route list exact 0/0 table main )" ] && return 1
+
+	# func_need vars_old
+	# eval "$( tail -n1 $TRACE_INET_GATEWAY )"
+	# [ "$( echo ${ETX:-9999} | sed 's/\.//g' )" -gt 8000 ] && return 1
+
+	# is ETX > 8.000 ?
+	[ "$( sed -n '${s/^.*ETX=\([0-9]*\)\.\([0-9]*\)/\1\2/p}' /tmp/archiv_trace_inet_gateway_fff+ )" -gt 8000 ] && return 1
+	
+	return 0
+}
+
 case "$(nvram get fff_profile)" in
 	elephant_mesh|elephant_ap)
 		. /etc/functions_base_fff+ && func_need http log
@@ -33,9 +47,15 @@ case "$(nvram get fff_profile)" in
 				func_log weblogin_redirect daemon info "ip: '$REMOTE_ADDR'"
 				func_http_redirect 302 ip_wifi
 			else
-				func_log weblogin_splash daemon info "ip: '$REMOTE_ADDR'"
 				func_need weblogin
-				func_weblogin_output_loginpage
+			
+				if func_network_inet_seems_stable; then
+					func_log weblogin_splash daemon info "ip: '$REMOTE_ADDR'"
+					func_weblogin_output_loginpage
+				else
+					func_log weblogin_inet_unstable daemon info "bla"
+					func_weblogin_output_errorpage inet_broken
+				fi
 			fi
 		fi
 		
