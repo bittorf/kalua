@@ -1,9 +1,12 @@
 FUNC_WEBLOGIN=1
 
-func_weblogin_output_loginpage ()
-{
-	func_http_header_mime_output "text/html"
+func_weblogin_output_loginpage ()			# needs: images/logo.gif|logo2.gif		+ images/flag_de|en|fr.gif
+{							#        images/button_login_de.gif		+ images/bgcolor.txt
+	func_http_header_mime_output "text/html"	#        /favicon.ico
 	
+	local BGCOLOR="$( cat /www/images/bgcolor.txt 2>/dev/null )"
+	local SLOGAN="$( test -e /www/images/logo2.gif && echo -n '<IMG SRC="images/logo2.gif" TITLE="Hotel-Slogan" ALT="Hotel-Slogan"><BR><BR>' )"
+
 	cat <<EOF
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 	"http://www.w3.org/TR/html4/loose.dtd">
@@ -13,11 +16,11 @@ func_weblogin_output_loginpage ()
 <META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15">
 <LINK REL="shortcut icon" TYPE="image/x-icon" HREF="/favicon.ico">
 </HEAD>
-<BODY BGCOLOR="white" TEXT="black"><CENTER>
+<BODY BGCOLOR="${BGCOLOR:-white}" TEXT="black"><CENTER>
 <A HREF="#" TITLE="diese Seite in deutsch anzeigen"><IMG SRC="images/flag_de.gif" BORDER="0" ALT="de" TITLE="diese Seite in deutsch anzeigen">&nbsp;deutsch</A>
 &nbsp;&nbsp;<A HREF="#" TITLE="show this page in english"><IMG SRC="images/flag_en.gif" BORDER="0" ALT="en" TITLE="show this page in english">&nbsp;english</A>
 &nbsp;&nbsp;<A HREF="#" TITLE="afficher cette page en anglais"><IMG SRC="images/flag_fr.gif" BORDER="0" ALT="fr" TITLE="afficher cette page en anglais">&nbsp;fran&ccedil;ais</A>
-<BR><BR><IMG SRC="images/logo.gif" TITLE="Hotel-Logo" ALT="Hotel-Logo"><FORM METHOD="post" ACTION="">
+<BR><BR>${SLOGAN}<IMG SRC="images/logo.gif" TITLE="Hotel-Logo" ALT="Hotel-Logo"><FORM METHOD="post" ACTION="">
 <TABLE CELLSPACING="0" CELLPADDING="0" BORDER="0">
 <TR><TD ALIGN="CENTER"><BR><B><BIG>Internetzugang</BIG></B></TD></TR>
 <TR><TD ALIGN="CENTER"><BR><TABLE CELLSPACING="0" CELLPADDING="2" BORDER="0">
@@ -61,10 +64,10 @@ EOF
 }
 
 func_weblogin_check_login ()		# fixme! send HOSTNAME?
-{
-	local USER="$1"
-	local PASS="$2"
-	local MAC="$3"
+{					# fixme! answer must be a challenge/response:
+	local USER="$1"			#        1. send hash of user/pass
+	local PASS="$2"			#        2. server answers with hash_of(1+secret_sshid) + auth=true/false
+	local MAC="$3"			#        3. we calc same hash and compare
 
 	local CRC="$( echo -n "${USER}${PASS}" | md5sum | cut -d' ' -f1 )"
 	local GATEWAY="$( sed -n '${s/^.* GW=\([0-9\.]*\);.*/\1/p}' /tmp/archiv_trace_inet_gateway_fff+ )"
