@@ -355,7 +355,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	eval $( /etc/init.d/S02check_interface_correctness_fff+ show_hardware )
 	HW="$( echo $HW | sed -e 's/ /_/g' -e 's/[^_a-zA-Z0-9-]//g' )"			# Buffalo_WHR-HP-G54_BCM4318-wifi
 
-	PUBKEY="$SSH_PUBKEY"								# 1660559e90efefafd04298c516365bbd12b0ffda
+	# "$SSH_PUBKEY_FP"								# 1660559e90efefafd04298c516365bbd12b0ffda
 											# (40 bytes HEX [SHA-1])
 	FREE_SPACE_FLASH="$( fkt_get_free_flash_space_in_kb )"
 	FREE_SPACE_USB="$(df | grep "/mnt/disc0_." | sed -n "s/^[0-9a-zA-Z\/]*[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p")"	# fixme! more abstraction!
@@ -394,7 +394,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	# just to be better readable in logfile
 
 	QUERY=""
-	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$PUBKEY"
+	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS"
 	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${RSSI}"
@@ -579,35 +579,28 @@ pidof httpd >/dev/null || {
 
 . /etc/functions_profile_user_fff+
 
+URL="$(nvram get fff_url_network)/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$(nvram get ff_dsskey_pub)"
+
 if func_ipsystem_weimar | grep -q ^"NODE_NUMBER_RANDOM=true" ; then
-	func_log replace_random_nodeID daemon info "detected ID from random pool - registering official ID"
+	func_log replace_random_nodeID daemon info "detected ID from random pool - registering official ID from '$URL'"
 	
-	URL="$( nvram get fff_url_network)/registrator/"
-	URL="${URL}?WIFIMAC=${WIFIMAC}&SSHPUBKEY=${SSH_PUBKEY}&SSHPUBID=$(nvram get ff_dsskey_pub)"	# fixme! no ssh -> no ssh_pub_key!
-													# fixme! no wifi, no registration?
- 	func_log replace_random_nodeID daemon debug "fetching: '$URL'"
- 	
- 	[ -n "$SSH_PUBKEY" ] && ID="$( fkt_wget "$URL" 10 )"
- 	
- 	[ -n "$ID" ] && {
- 		func_ipsystem_weimar "$ID" >/dev/null && {		# ipsystem() has a sanitizer built in, so don't worry 8-)
-			. /etc/functions_nvram_fff+
-			func_nvset fff_node_number "$ID"
-			/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile
+ 	[ -n "$SSH_PUBKEY_FP" ] && ID="$( fkt_wget "$URL" 10 )"		# fixme! no ssh -> no ssh_pubkey_fingerprint!
+ 									# fixme! no wifi, no registration?
+ 	func_ipsystem_weimar "${ID:-99999}" >/dev/null && {		# ipsystem() has a sanitizer built in, so don't worry 8-)
+		. /etc/functions_nvram_fff+
+		func_nvset fff_node_number "$ID"
+		/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile
 	
-			func_safe_reboot "replace_random_nodeID() now profile applied"
-		}
+		func_safe_reboot "replace_random_nodeID() now profile applied"
 	}
 
 	func_log replace_random_nodeID daemon info "ID not clean: '$ID' - aborting"
 else
 	if [ ! -e /tmp/REGISTRATED ] && [ "$(func_uptime min)" -gt 30 ]; then
-		URL="$( nvram get fff_url_network)/registrator/"
-		URL="${URL}?WIFIMAC=${WIFIMAC}&SSHPUBKEY=${SSH_PUBKEY}&NODE=${NODE}&SSHPUBID=$(nvram get ff_dsskey_pub)"
 
-		[ -n "$SSH_PUBKEY" ] && {
-			ID="$( fkt_wget "$URL" 10 )"
-			touch /tmp/REGISTRATED		# only one (successful) try each reboot
+		[ -n "$SSH_PUBKEY_FP" ] && {
+			ID="$( fkt_wget "${URL}&NODE=${NODE}" 10 )"
+			touch /tmp/REGISTRATED				# only one (un/successful) try each reboot
 		}
 
 		if [ -n "$ID" ]; then
@@ -616,9 +609,7 @@ else
 			func_log registrator_petting daemon info "no answer (service '$URL' not running?)"
 		fi
 	else
-		[ -e /tmp/REGISTRATED ] && {
-			func_log registrator_petting daemon debug "is already lucky"
-		}
+		[ -e /tmp/REGISTRATED ] && func_log registrator_petting daemon debug "is already lucky"
 	fi
 fi
 
