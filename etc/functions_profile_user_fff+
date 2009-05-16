@@ -21,8 +21,9 @@ FUNC_PROFILE_USER=1
 # func_reposet_essential
 # func_reposet_ffweimar
 # func_reposet_ffweimar_old
-# func_ipsystem_sundi
-# func_ipsystem_weimar
+# func_ipsystem
+# func_ipsystem_ffsundi
+# func_ipsystem_ffweimar
 # func_conf
 
 
@@ -60,7 +61,7 @@ func_profile_set_weimarnetz_standard_mesh ()
 		return
 	}
 	
-	eval $(func_ipsystem_weimar $1)
+	eval "$(func_ipsystem_ffweimar $1)"
 
 	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "PASS=admin" "TZ=$(func_timezone DE)"
 	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)" "SERVERS=$(func_servers_ffweimar)"
@@ -89,7 +90,7 @@ func_profile_set_elephant_mesh ()
 		return
 	}
 
-	eval $(func_ipsystem_weimar $1)
+	eval "$(func_ipsystem_ffweimar $1)"
 	
 	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "PASS=mvemjsunp" "TZ=$(func_timezone DE)"
 	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_elephant)" "SERVERS=$(func_servers_elephant)"
@@ -130,7 +131,7 @@ func_profile_set_elephant_ap ()
 		return
 	}
 	
-	eval $(func_ipsystem_weimar $1)
+	eval "$(func_ipsystem_ffweimar $1)"
 	
 	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}ap" "PASS=mvemjsunp" "TZ=$(func_timezone DE)"
 	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_elephant)" "SERVERS=$(func_servers_elephant)"
@@ -179,7 +180,7 @@ func_profile_set_weimarnetz_standard_ap ()
 		return
 	}			# howto disable wifi-olsr?
 
-	eval $(func_ipsystem_weimar $1)
+	eval "$(func_ipsystem_ffweimar $1)"
 	
 	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}ap" "PASS=admin" "TZ=$(func_timezone DE)"
 	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)" "SERVERS=$(func_servers_ffweimar)"
@@ -201,7 +202,7 @@ func_profile_set_weimarnetz_standard_client ()
 		return
 	}			# howto disable wifi-olsr?
 	
-	eval $(func_ipsystem_weimar $1)
+	eval "$(func_ipsystem_ffweimar $1)"
 	
 	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}client" "PASS=admin" "TZ=$(func_timezone DE)"
 	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)" "SERVERS=$(func_servers_ffweimar)"
@@ -227,7 +228,7 @@ func_profile_set_weimarnetz_standard_mesh_atheros_5ghz ()
 		return
 	}
 	
-	eval $(func_ipsystem_weimar $1)
+	eval "$(func_ipsystem_ffweimar $1)"
 	
 	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh5ghz" "PASS=admin" "TZ=$(func_timezone DE)"
 	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)" "SERVERS=$(func_servers_ffweimar)"
@@ -317,15 +318,21 @@ func_reposet_ffweimar_old ()
 	echo -n "$REP"
 }
 
-func_ipsystem_sundi ()
+func_ipsystem ()
 {
-	# sundi = city		// func_ipsystem_${FFF_CITY}
+	local SYSTEM="$( nvram get fff_ipsystem )"
 
+	func_ipsystem_${SYSTEM:-ffweimar} "$1"
+}
+
+func_ipsystem_ffsundi ()
+{
 	local NODE_NUMBER="$1"
 	local CITY="10"
-	local NW=10
-	local RANGE_START="1"
+	local NW="10"
+	local RANGE_START="2"
 	local RANGE_END="255"
+	local RANGE_FIRST_RANDOM="220"
 
 	# node26:
 	# lan_ipaddr=10.10.26.1
@@ -343,19 +350,20 @@ func_ipsystem_sundi ()
 	# ff_hna4=10.10.26.0/24;10.10.88.0/27;0.0.0.0/0
 }
 
-func_ipsystem_weimar ()			# ARG1: - empty -> has_nodenumber? -> output for my nodenumber
+func_ipsystem_ffweimar ()		# ARG1: - empty       -> has_nodenumber? -> output for my nodenumber
 {					#  	- "random" or empty && no_nodenumber?  -> output for random nodenumber
 	local NODE_NUMBER="$1"		#       - IP-address  -> output nodenumber
 	local CITY="63"			#	- node-number -> output for this nodenumber, return 1 if not in range
-	local NW=10
+	local NW="10"
 	local RANGE_START="2"
 	local RANGE_END="1020"
+	local RANGE_FIRST_RANDOM="970"
 
 	  if [ -z "$NODE_NUMBER" ]; then
 		NODE_NUMBER="$( nvram get fff_node_number )"
-		[ -z "$NODE_NUMBER" ] && NODE_NUMBER=$( func_get_random_value 970 $RANGE_END )
+		[ -z "$NODE_NUMBER" ] && NODE_NUMBER=$( func_get_random_value $RANGE_FIRST_RANDOM $RANGE_END )
 	elif [ "$NODE_NUMBER" = "random" ]; then
-		NODE_NUMBER=$( func_get_random_value 970 $RANGE_END )
+		NODE_NUMBER=$( func_get_random_value $RANGE_FIRST_RANDOM $RANGE_END )
 	elif [ "$( echo $NODE_NUMBER | sed 's/[^\.]//g' )" = '...' ]; then	# is IPv4
 		
 		eval $(echo $NODE_NUMBER|sed -n 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/local OCT1=\1\nlocal OCT2=\2\nlocal OCT3=\3\nlocal OCT4=\4/p')

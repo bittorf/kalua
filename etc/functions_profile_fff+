@@ -20,20 +20,6 @@ FUNC_PROFILE=1
 # func_profile_remap_devs
 # func_profile_mac_plus
 
-func_profile_user_probe_old_sundhausen_node ()
-{
-	[ -z "$(nvram get $NODE_NUMBER_VAR)" ] && {
-		nvram get wl0_ssid | grep -q ^"sundi" && {
-			nvram get wifi_ipaddr | grep -q ^"10\.10\.10\." && {
-				nvram get wifi_netmask | grep -q ^"255\.0\.0\.0" && {
-					return 0
-				}
-			}
-		}
-	}
-
-	return 1
-}
 
 func_profile_get ()	# OUT1: string
 {
@@ -45,16 +31,15 @@ func_profile_get ()	# OUT1: string
 	local OUT="standard"
 	local MAC="$1"
 
-	func_profile_user_probe_old_sundhausen_node && {
-		func_nvset $NODE_NUMBER_VAR "$(nvram get wifi_ipaddr | cut -d'.' -f4)"
-	}
-
 	[ ! -e $FRESHFLASH ] && {
 		func_log $FUNC daemon debug "detected freshflash"
 
 								# here is the place to enforce a profile,
-		PROFILE_SAFED="weimarnetz_standard_mesh"	# history of the node doesn't matter
+		PROFILE_SAFED="ffsundi_mesh"			# history of the node doesn't matter
 		func_nvset $PROFILE_VAR $PROFILE_SAFED		# my_profile from /etc/functions_profile_user_fff+
+		
+		MYNODE="$( nvram get wifi_ipaddr | cut -d'.' -f4 )"
+		[ -n "$MYNODE" ] && func_nvset $NODE_NUMBER_VAR
 
 		[ -n "$PROFILE_SAFED" ] && {
 			func_log $FUNC daemon debug "applying already safed profile again"
@@ -282,7 +267,7 @@ func_profile_memorise_important_vars ()
 		}
 	}
 
-	eval $(func_ipsystem_weimar $1)
+	eval "$(func_ipsystem $1)"
 	
 	[ -n "$(nvram get lan_gateway)" ] && {
 	
@@ -511,6 +496,7 @@ func_profile_set_system ()
 	[ -n "$DNS"      ] && func_nvset wan_dns      "$DNS"			# e.g. 141.1.1.1
 	[ -n "$TZ"       ] && func_nvset ff_tz        "$TZ"			# standard timezone-string
 	[ -n "$REPOS"    ] && func_nvset ff_ipkg      "$REPOS"			# src freifunk http://download.berlin.freifunk.net/ipkg/packages;src weimarnetz http://www.weimarnetz.de/ipkg/packages 
+	[ -n "$IPSYSTEM" ] && func_nvset fff_ipsystem "$IPSYSTEM"		# it must exist the function: func_ipsystem_$IPSYSTEM ()
 
 	[ -n "$SERVERS"  ] && {
 		func_nvset fff_url_firmware    "http://$( echo "$SERVERS" | cut -d";" -f1 )"	# fixme! allow ftp,ssh,...?
@@ -526,6 +512,7 @@ func_profile_set_system ()
 		func_nvset ff_mini_fo "1"		# rom-overlay filesystem
 		func_nvset ff_nonetmsg "0"		# not udp-netmessages during bootstrapping
 		func_nvset ff_unsecure_webadmin "1"	# HTTPS enforced for /www/cgi-bin/ ?
+		func_nvset fff_ipsystem "ffweimar"	# therefore it must exist the function "func_ipsystem_ffweimar"
 	}
 	
 	TZ="$TEMP_TZ"

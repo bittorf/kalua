@@ -1,7 +1,5 @@
 FUNC_OLD=1
 
-# fkt_calc_node_from_ip				SENS: calculate nodenumber from IP-address
-# fkt_calc_node_params 				SENS: calculate network parameters for a nodenumber
 # fkt_get_free_flash_space_in_kb
 # fkt_check_if_pppoe_is_needed
 # fkt_check_if_https_is_possible
@@ -25,98 +23,6 @@ FUNC_OLD=1
 # fkt_wget                                      SENS: reliable fetching an URL $1, aborting after $2 seconds
 # fkt_check_if_this_node_offers_inet
 
-
-fkt_calc_node_from_ip () {		# SENS: calculate nodenumber from IP-address
-					# ARG1: ip-address
-	local IP="$1"
-	local OKT3="$(echo $IP | sed 's/[0-9]*\.[0-9]*\.\([0-9]*\)\.[0-9]*/\1/g')"
-	local OKT4="$(echo $IP | sed 's/[0-9]*\.[0-9]*\.[0-9]*\.\([0-9]*\)/\1/g')"
-	local NODE=""
-
-	if [ -z "$IP" ]; then
-		NODE="$( nvram get fff_node_number )"
-		
-		if [ -n "$NODE" ]; then
-			echo $NODE
-			return
-		fi
-	fi
-
-	if [ -z "$(echo $IP | sed "/^$FFF_NET\.$FFF_CITY\./!d")" ]; then	# ip is not from mesh e.g. 192.168.1.2
-		echo "0"
-		return
-	fi
-
-	  if [ "$OKT4" -gt  "-1" ] && [ "$OKT4" -lt  "64" ]; then echo $OKT3
-	elif [ "$OKT4" -gt  "63" ] && [ "$OKT4" -lt "128" ]; then echo $(( $OKT3 + 255))
-	elif [ "$OKT4" -gt "127" ] && [ "$OKT4" -lt "192" ]; then echo $(( $OKT3 + 510))
-	elif [ "$OKT4" -gt "191" ] && [ "$OKT4" -lt "256" ]; then echo $(( $OKT3 + 765))
-	fi
-}
-
-fkt_calc_node_params () {		# SENS: calculate network parameters for a nodenumber
-					# ARG1: integer [2-1020] = nodenumber
-	local D=$1    # node to calc
-	local N=0     # node-count
-	local S=0     # subnet-start
-	local K=0     # nodenumber for output
-	local DAEMON="fkt_calc_node_params"
-
-	test -z "$D" && D=$(nvram get fff_node_number)
-	test -z "$D" && D=1
-
-	if [ $D -lt 1021 ] && [ $D -gt 765 ]; then N=$(( $D - 765 )); S=192; K=$D; fi
-	if [ $D -lt  766 ] && [ $D -gt 510 ]; then N=$(( $D - 510 )); S=128; K=$D; fi
-	if [ $D -lt  511 ] && [ $D -gt 255 ]; then N=$(( $D - 255 )); S=64 ; K=$D; fi
-	if [ $D -lt  256 ] && [ $D -gt   1 ]; then N=$D             ; S=0  ; K=$D; fi
-	
-	if [ $K -eq 0 ]; then
-		echo "ERROR=1"
-		fkt_log "$DAEMON" "Nodenumber not in range (2-1020, Node_1 = VPN-server)" 1
-		return
-	fi
-
-cat<<EOF
-ERROR=0
-FFF_NODE=$K
-FFF_HNA=$FFF_NET.$FFF_CITY.$N.$S/26
-
-LANADR=$FFF_NET.$FFF_CITY.$N.$(( S + 33 ))
-LAN1ST=$FFF_NET.$FFF_CITY.$N.$(( S + 34 ))
-LANMSK=255.255.255.224
-LANBRC=$FFF_NET.$FFF_CITY.$N.$(( S + 63 ))
-LANNET=$FFF_NET.$FFF_CITY.$N.$(( S + 32 ))
-LANPRE=27
-
-LANDHCPSTART=$(( S + 34 ))
-LANDHCPNUM=29
-
-WIFIADR=$FFF_NET.$FFF_CITY.$N.$(( S + 1 ))
-WIFI1ST=$FFF_NET.$FFF_CITY.$N.$(( S + 2 ))
-WIFIMSK=255.255.255.224
-WIFIBRC=$FFF_NET.$FFF_CITY.$N.$(( S + 31 ))
-WIFINET=$FFF_NET.$FFF_CITY.$N.$S
-WIFIPRE=27
-
-WANADR=$FFF_NET.$FFF_CITY.$N.$(( S + 25 ))
-WAN1ST=$FFF_NET.$FFF_CITY.$N.$(( S + 26 ))
-WANMSK=255.255.255.252
-WANBRC=$FFF_NET.$FFF_CITY.$N.$(( S + 27 ))
-WANNET=$FFF_NET.$FFF_CITY.$N.$(( S + 24 ))
-WANPRE=30
-
-WIFIDHCPSTART=$FFF_NET.$FFF_CITY.$N.$(( S + 2 ))
-WIFIDHCPNUM=25
-
-WIFIVPNSERVERADR=$FFF_NET.$FFF_CITY.$N.$(( S + 30 ))
-WIFIVPNCLIENTADR=$FFF_NET.$FFF_CITY.$N.$(( S + 29 ))
-WIFIVPNNET=$FFF_NET.$FFF_CITY.$N.$(( S + 28 ))
-WIFIVPNBRC=$FFF_NET.$FFF_CITY.$N.$(( S + 31 ))
-WIFIVPNPRE=30
-
-# VPN_SERVER=$FFF_NET.$FFF_CITY.1.254
-EOF
-}
 
 fkt_get_free_flash_space_in_kb () {
 	df | grep ".*jffs$" | sed 's/[ .]*/ /g' | cut -d" " -f5
@@ -469,7 +375,7 @@ fkt_build_etc_local_hosts () {				# SENS: modulary builds /etc/local.hosts
 			echo >>$SUB_VIRT "$LANADR       dell.$DOMAIN dell"
 			echo >>$SUB_VIRT "$WIFIADR     hotel.$DOMAIN hotel"
 			
-			eval $(fkt_calc_node_params | grep VPN_SERVER)
+			eval $( func_ipsystem | grep ^VPN_SERVER )
 			
 			echo >>$SUB_VIRT
 			echo >>$SUB_VIRT "$VPN_SERVER rootserver.$DOMAIN rootserver"
