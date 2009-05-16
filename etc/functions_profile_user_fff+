@@ -116,6 +116,35 @@ func_profile_set_galerie_mesh ()
 	func_profile_set_wifi_phy "ESSID=www.leipziger-hof.de"
 }
 
+
+func_profile_set_ffsundi_mesh ()
+{
+	[ "$1" = "info" ] && {
+		echo "Standardeinstellungen fuer Sundi mit dem Sundi-IP-System."
+		echo "Auf LAN und WLAN werden per DHCP Adressen vergeben."
+		echo "Auf LAN, WAN und WLAN wird OLSR gesprochen."
+		echo "Alle Weimarer Firmware-Erweiterungen sind aktiviert."
+		echo "Das Funknetzwerk arbeitet im performanten 802.11g-(AdHoc)-Modus."
+		echo "Wird eine Atheros-Karte verwendet, werden die madwifi-Treiber im 2.4 GHz-Modus benutzt."
+		return
+	}
+	
+	eval "$(func_ipsystem_ffsundi $1)"
+	
+	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh5ghz" "PASS=admin" "TZ=$(func_timezone DE)"
+	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)" "SERVERS=$(func_servers_ffweimar)"
+	func_profile_set_wan            "IP=$WAN_IP"
+	func_profile_set_lan            "IP=$LAN_IP"  "DHCP=$DHCP_LAN"
+	func_profile_set_wifi           "IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
+	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=6000000" "DISTANCE=2000"
+	func_profile_set_wifi_phy       "MODE=adhoc" "ESSID=sundi.freifunk.net" "BSSID=02:ca:ff:ee:ba:be" "CHANNEL=1"
+	func_profile_set_wifi_phy       "BEACON=1000" "RTS=off"
+	func_nvset ff_ath_param         "countrycode=276 outdoor=1 bstuck_thresh=1"	# atheros/freifunk-special!
+	func_profile_set_olsr           "DEFAULTS=true"
+	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
+	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
+}
+
 func_profile_set_elephant_ap ()
 {
 	[ "$1" = "info" ] && {
@@ -325,7 +354,109 @@ func_ipsystem ()
 	func_ipsystem_${SYSTEM:-ffweimar} "$1"
 }
 
-func_ipsystem_ffsundi ()
+func_ipsystem_ffsundi ()		# ARG1: - empty       -> has_nodenumber? -> output for my nodenumber
+{					#  	- "random" or empty && no_nodenumber?  -> output for random nodenumber
+	local NODE_NUMBER="$1"		#       - IP-address  -> output nodenumber
+	local CITY="10"			#	- node-number -> output for this nodenumber, return 1 if not in range
+	local NW="10"
+	local RANGE_START="2"
+	local RANGE_END="254"
+	local RANGE_FIRST_RANDOM="220"
+
+	  if [ -z "$NODE_NUMBER" ]; then
+		NODE_NUMBER="$( nvram get fff_node_number )"
+		[ -z "$NODE_NUMBER" ] && NODE_NUMBER=$( func_get_random_value $RANGE_FIRST_RANDOM $RANGE_END )
+	elif [ "$NODE_NUMBER" = "random" ]; then
+		NODE_NUMBER=$( func_get_random_value $RANGE_FIRST_RANDOM $RANGE_END )
+	elif [ "$( echo $NODE_NUMBER | sed 's/[^\.]//g' )" = '...' ]; then	# is IPv4
+
+		eval $(echo $NODE_NUMBER|sed -n 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/local OCT1=\1\nlocal OCT2=\2\nlocal OCT3=\3\nlocal OCT4=\4/p')
+
+		[ $OCT1 -eq $NW ] && [ $OCT2 -eq $CITY ] && {
+			  if [ $OCT3 -eq 10 ]; then               echo $OCT4		# input = wifi-ip4
+			elif [ $OCT4 -ge 0 -a OCT4 -le 63 ]; then echo $OCT3		# input = lan-ip4
+			fi  
+			return 0
+		}
+		return 1
+	fi
+	
+	if [ 2>/dev/null "$NODE_NUMBER" -ge $RANGE_START -a "$NODE_NUMBER" -le $RANGE_END ]; then
+			
+		local S=0			# subnetstart 	e.g. network.city.100.${S}
+		local N=$NODE_NUMBER		# nodenumber_id	e.g. network.city.${N}.0
+		local RANDOM=false
+		
+		if [ "$NODE_NUMBER" -ge $RANGE_FIRST_RANDOM ]; then
+			RANDOM=true
+		fi
+	else
+		return 1
+	fi
+
+	cat<<EOF
+NODE_NUMBER=$NODE_NUMBER
+NODE_NUMBER_RANDOM=$RANDOM
+OLSR_HNA=$NW.$CITY.$N.$S/25
+
+LAN_ADR=$NW.$CITY.$N.$(( S + 1 ))
+LAN_IP=$NW.$CITY.$N.$(( S + 1 ))/26
+LAN_IP_1ST=$NW.$CITY.$N.$(( S + 2 ))/26
+LAN_PRE=26
+LAN_DHCP_PRE=26
+LAN_DHCP_NUM=40
+LAN_DHCP_LEASETIME=12h
+
+WAN_ADR=$NW.$CITY.$N.$(( S + 61 ))
+WAN_PRE=30
+WAN_IP=$NW.$CITY.$N.$(( S + 61 ))/30
+
+WIFI_ADR=$NW.$CITY.10.$NODE_NUMBER
+WIFI_IP=$NW.$CITY.10.$NODE_NUMBER/8
+WIFI_IP_1ST=$NW.$CITY.$NODE_NUMBER.97
+WIFI_PRE=8
+WIFI_DHCP_PRE=28
+WIFI_DHCP_NUM=14
+WIFI_DHCP_LEASETIME=2h
+
+DHCP_LAN="$NW.$CITY.$NODE_NUMBER.$(( S + 2 ))/26,40,12h"
+DHCP_WIFI="$NW.$CITY.$NODE_NUMBER.96/28,14,2h"
+# ---
+FFF_CITY=$CITY
+FFF_NET=$NW
+FFF_NODE=$NODE_NUMBER
+FFF_HNA=$NW.$CITY.$N.$S/25
+LANADR=$NW.$CITY.$N.$(( S + 1 ))
+LAN1ST=$NW.$CITY.$N.$(( S + 2 ))
+LANMSK=255.255.255.192
+LANBRC=$NW.$CITY.$N.$(( S + 63 ))
+LANNET=$NW.$CITY.$N.$S
+LANPRE=26
+LANDHCPSTART=$(( S + 2 ))
+LANDHCPNUM=40
+WIFIADR=$NW.$CITY.10.$NODE_NUMBER
+WIFI1ST=$NW.$CITY.$NODE_NUMBER.97
+WIFIMSK=255.255.255.240
+WIFIBRC=$NW.$CITY.$N.111
+WIFINET=$NW.$CITY.$N.96
+WIFIPRE=28
+WANADR=$NW.$CITY.$N.61
+WAN1ST=$NW.$CITY.$N.62
+WANMSK=255.255.255.252
+WANBRC=$NW.$CITY.$N.63
+WANNET=$NW.$CITY.$N.60
+WANPRE=30
+WIFIDHCPSTART=$NW.$CITY.$N.97
+WIFIDHCPNUM=14
+WIFIVPNSERVERADR=$NW.$CITY.$N.110
+WIFIVPNCLIENTADR=$NW.$CITY.$N.109
+WIFIVPNNET=$NW.$CITY.$N.108
+WIFIVPNBRC=$NW.$CITY.$N.111
+WIFIVPNPRE=30
+EOF
+}
+
+func_ipsystem_ffsundi2 ()
 {
 	local NODE_NUMBER="$1"
 	local CITY="10"
@@ -379,13 +510,13 @@ func_ipsystem_ffweimar ()		# ARG1: - empty       -> has_nodenumber? -> output fo
 		
 	fi
 	
-	if [ 2>/dev/null "$NODE_NUMBER" -ge $RANGE_START ] && [ "$NODE_NUMBER" -le $RANGE_END ]; then
+	if [ 2>/dev/null "$NODE_NUMBER" -ge $RANGE_START -a "$NODE_NUMBER" -le $RANGE_END ]; then
 			
 		local S=0			# subnetstart 	e.g. network.city.100.${S}
 		local N=$NODE_NUMBER		# nodenumber_id	e.g. network.city.${N}.0
 		local RANDOM=false
 		
-		  if [ "$NODE_NUMBER" -gt 969 ]; then
+		  if [ "$NODE_NUMBER" -ge $RANGE_FIRST_RANDOM ]; then
 			N=$(( $NODE_NUMBER - 765 ))
 			S=192
 			RANDOM=true
@@ -431,6 +562,8 @@ WIFI_DHCP_LEASETIME=2h
 DHCP_LAN="$NW.$CITY.$N.$(( S + 34 ))/27,29,12h"
 DHCP_WIFI="$NW.$CITY.$N.$(( S + 2 ))/27,20,2h"
 # ---
+FFF_CITY=$CITY
+FFF_NET=$NW
 FFF_NODE=$NODE_NUMBER
 FFF_HNA=$NW.$CITY.$N.$S/26
 LANADR=$NW.$CITY.$N.$(( S + 33 ))
