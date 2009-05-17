@@ -1,0 +1,36 @@
+#!/bin/sh
+
+. /etc/functions_base_fff+ && func_need http log
+
+eval $(func_http_sanitize_query_string)		# LOGIN={md5sum_of_user+pass}
+
+[ -z "$LOGIN" ] && {
+	exit
+	func_log no_args daemon info "exit"
+}
+
+func_http_header_mime_output text/plain
+
+FILE="/www/cgi-bin/userdata.txt"	# md5sum no. min user pass
+
+DATE="$( date )"
+DNS="$( nslookup $REMOTE_ADDR | sed -n 's/^Name:[^a-zA-Z0-9]*\(.*\)\.olsr/\1/p' )"
+OUT="'$DATE' - '$REMOTE_ADDR' = '${DNS:-unresolveable}' = '$USER'"
+
+[ ! -e "$FILE" ] && {
+	echo "1"
+	echo "$OUT | no_userdata" >>/www/users_logged_in
+	func_log no_userdata daemon info "$OUT"
+	exit
+}
+
+USER="$( grep ^"$LOGIN" "$FILE" )" && {
+	echo "1"
+	echo "$OUT | user_ok" >>/www/users_logged_in
+	func_log user_ok daemon info "$OUT"
+	exit
+}
+
+func_log user_mismatch daemon info "$OUT"
+
+echo "0"
