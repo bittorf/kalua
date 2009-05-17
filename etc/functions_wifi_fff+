@@ -395,6 +395,7 @@ func_wifi_convert_mw_to_dbm ()		# for broadcom on freifunk, convert unit [mW] ->
 
 func_wifi_set_antenna_rx ()
 {
+	local FUNC="wifi_set_antenna_rx"
 	local WIFI_DEV="$1"
 	local ANTENNA="$2"
 	local VALUE
@@ -407,12 +408,25 @@ func_wifi_set_antenna_rx ()
 	
 	func_nvset wl0_antdiv "$VALUE"
 
-	# sysctl -w dev.wifi0.diversity=0		# only if not auto
-	# sysctl -w dev.wifi0.rxantenna="$VALUE"
+	func_wifi_get_hardware_pci | grep -q broadcom || {		# fixme! must be device specific
+		case $VALUE in
+		       -1)
+		       		func_log $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
+				sysctl -w dev.wifi0.diversity=1
+			;;
+			*)
+				func_log $FUNC daemon debug "sysctl +dev.wifi0.diversity = 0"
+				func_log $FUNC daemon debug "sysctl +dev.wifi0.rxantenna = $(( $VALUE + 1 ))"
+				sysctl -w dev.wifi0.diversity=0
+				sysctl -w dev.wifi0.rxantenna="$(( $VALUE + 1 ))"
+			;;
+		esac
+	}
 }
 
 func_wifi_set_antenna_tx ()
 {
+	local FUNC="wifi_set_antenna_tx"
 	local WIFI_DEV="$1"
 	local ANTENNA="$2"
 	
@@ -423,6 +437,21 @@ func_wifi_set_antenna_tx ()
 	esac
 	
 	func_nvset wl0_txant "$VALUE"
+
+	func_wifi_get_hardware_pci | grep -q broadcom || {		# fixme! must be device specific
+		case $VALUE in
+		       -1)
+				func_log $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
+				sysctl -w dev.wifi0.diversity=1
+			;;
+			*)
+				func_log $FUNC daemon debug "sysctl +dev.wifi0.diversity = 0"
+				func_log $FUNC daemon debug "sysctl +dev.wifi0.txantenna = $(( $VALUE + 1 ))"
+				sysctl -w dev.wifi0.diversity=0
+				sysctl -w dev.wifi0.txantenna="$(( $VALUE + 1 ))"
+			;;
+		esac
+	}
 }
 
 func_wifi_get_antenna_rx ()
