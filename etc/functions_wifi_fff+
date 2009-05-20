@@ -4,10 +4,10 @@ FUNC_WIFI=1
 # func_wifi_get_tx_and_rx
 # func_wifi_get_config_params
 # func_wifi_get_status_broadcom
-# func_wifi_get_params_iwconfig
+# func_wifi_get_status_iwconfig
 # func_wifi_print_iwconfig_sample
 # func_wifi_probe_feature
-# func_wifi_probe_phy_online
+# func_wifi_phy_probe_online
 # func_wifi_get_hardware_pci
 # func_wifi_get_hardware_usb
 # func_wifi_link_up
@@ -15,16 +15,26 @@ FUNC_WIFI=1
 # func_wifi_restart_wifi_phy
 # func_wifi_get_txpwr
 # func_wifi_set_txpwr
-# func_wifi_convert_mw_to_dbm
+# func_wifi_convert_mhz2channel
+# func_wifi_convert_mw2qdbm
 # func_wifi_set_antenna_rx
 # func_wifi_set_antenna_tx
 # func_wifi_get_antenna_rx
 # func_wifi_get_antenna_tx
+# func_wifi_get_frag
+# func_wifi_get_rts
+# func_wifi_get_mrate
+# func_wifi_get_noise
+# func_wifi_get_signal
+# func_wifi_get_channel
+# func_wifi_get_protection
 # func_wifi_get_all_devs
 # func_wifi_probe_mode_infrastructure
 # func_wifi_probe_mode_ap
+# func_wifi_get_wifimode
 # func_wifi_get_mode
 # func_wifi_scan_and_get_results
+
 
 
 # fixme! all calls to 'wl' must be in one functions, that checks for "Bus error" on stderr (2)
@@ -117,7 +127,7 @@ func_wifi_get_status_broadcom ()	# ARG1 = WIFI_DEV ; safe and fast reformatting 
 	# WIFI_UPTIME=0
 	# WIFI_ESSID='www.freifunk.net (Zugangspunkt)'
 	# WIFI_MODE='Master'
-	# WIFI_RSSI='0'
+	# WIFI_RSSI='0'						# is signal in [dBm]?
 	# WIFI_NOISE='0'
 	# WIFI_CHANNEL=7					# convert to MHz ?
 	# WIFI_BSSID=00:1D:73:05:0F:59
@@ -130,14 +140,18 @@ func_wifi_get_status_broadcom ()	# ARG1 = WIFI_DEV ; safe and fast reformatting 
 	     -ne "/^BSSID: /!d;s/^BSSID: \(..:..:..:..:..:..\).*/WIFI_BSSID=\1/;y/abcdef/ABCDEF/;p"
 }
 
-func_wifi_get_params_iwconfig ()	# signal/noise = dBm
+func_wifi_get_status_iwconfig ()	# ARG1 = WIFI_DEV
 {
 	# WIFI_DEV=eth1
 	# WIFI_UPTIME=0
-	# WIFI_ESSID='www.freifunk.net (Zugangspunkt)'  
+	# WIFI_ESSID='www.freifunk.net (Zugangspunkt)'  	# fixme! single quotes are not correct escaped!
 	# WIFI_MODE="Managed"
 	# WIFI_FREQ=2442					# in MHz ! -> convert to Channel?
+	# WIFI_CHANNEL="$( func_wifi_convert_mhz2chan 2442 )"	# this is converted during 'eval'
 	# WIFI_BSSID=00:1D:73:05:0F:59  
+	# WIFI_RETRY=off
+	# WIFI_RTS=256
+	# WIFI_FRAG=off
 	# WIFI_QUALITY=52
 	# WIFI_QUALITY_MAX=94
 	# WIFI_SIGNAL='-43'
@@ -146,13 +160,14 @@ func_wifi_get_params_iwconfig ()	# signal/noise = dBm
 	iwconfig $1 2>/dev/null |
 	 sed -ne "s/^.*ESSID:\"\(.*\)\"/WIFI_DEV=$1\nWIFI_UPTIME=0\nWIFI_ESSID='\1'/p" \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Access Point: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_BSSID=\4/p' \
-	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Cell: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_BSSID=\4/p' \
+	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Cell: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_CHANNEL=\"\$( func_wifi_convert_mhz2channel \2\3 )\"\nWIFI_BSSID=\4/p' \
+	     -ne 's/^.*Retry.\([a-z0-9]*\)[^a-zA-Z0-9]*RTS thr.\([a-z0-9]*\)[^0-9a-zA-Z]*Fragment thr.\([a-z0-9]*\).*/WIFI_RETRY="\1"\nWIFI_RTS="\2"\nWIFI_FRAG="\3"/p' \
 	     -ne "s/^.*Link Quality[:=]\([0-9]*\)\/\([0-9]*\).*Signal level[:=]\([-0-9]*\) dBm.*Noise level[:=]\([-0-9]*\) dBm/WIFI_QUALITY=\1\nWIFI_QUALITY_MAX=\2\nWIFI_SIGNAL='\3'\nWIFI_NOISE='\4'/p"
 }
 
 func_wifi_print_iwconfig_sample ()
 {
-cat <<EOF
+	cat >/dev/null <<EOF
 ath0      IEEE 802.11b  ESSID:"www.freifunk.net (Zugangspunkt)"  
           Mode:Managed  Frequency:2.442GHz  Access Point: 00:1D:73:05:0F:59  
           Bit Rate:11Mb/s   Tx-Power:0 dBm   Sensitivity=0/3  
@@ -164,8 +179,8 @@ ath0      IEEE 802.11b  ESSID:"www.freifunk.net (Zugangspunkt)"
           Tx excessive retries:0  Invalid misc:0   Missed beacon:0
 EOF
 
-cat >/dev/null <<EOF
-ath0      IEEE 802.11g  ESSID:""  
+	cat <<EOF
+ath0      IEEE 802.11g  ESSID:"hier muss was 'kompliziertes' stehen"   
           Mode:Ad-Hoc  Frequency:2.412 GHz  Cell: 02:0B:6B:DA:95:07   
           Bit Rate:0 kb/s   Tx-Power:19 dBm   Sensitivity=1/1  
           Retry:off   RTS thr:off   Fragment thr=256 B   
@@ -259,29 +274,23 @@ func_wifi_restart_wifi_phy ()		# fixme! broadcom/atheros-abstraction needed
 
 	func_log $FUNC daemon info "working"
 	
-	# wifi -i $WIFI_DEV up		# fixme! has no effect?
 	wifi				# simply rereads nvram for all broadcom-devices
 }
 
-func_wifi_get_txpwr ()		# fixme! abstraction of broadcom/atheros needed
+func_wifi_get_txpwr ()
 {
-	local FUNC="wifi_get_txpwr"
 	local WIFI_DEV="$1"
 	local UNIT="$2"		# keyword, can be 'mw', 'dbm', 'qdbm' // fixme! at the moment this IS in [mW]
+	local POWER
 	
-	[ -z "$WIFI_DEV" ] && {
-		func_log $FUNC daemon info "call without specified WIFI-DEV"
-		WIFI_DEV="$( func_wifi_get_all_devs )"	# fixme!
-	}
-	
-	local TXPOWER="$( wl -i $WIFI_DEV txpwr | cut -d" " -f3 )"	# this is in [mW]
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then
 
-	[ -z "$TXPOWER" ] && {
-		[ -z $WIFI_DEV ] && WIFI_DEV="ath0"
-		TXPOWER="$( iwlist "$WIFI_DEV" txpower 2>/dev/null | sed -n '/Tx-Power/s/^.*(\([0-9]*\).*/\1/p' )"
-	}
+		POWER="$( wl -i $WIFI_DEV txpwr | cut -d" " -f3 )"	# this is in [mW]
+	else
+		POWER="$( iwlist "$WIFI_DEV" txpower 2>/dev/null | sed -n '/Tx-Power/s/^.*(\([0-9]*\).*/\1/p' )"		# [mW]
+	fi
 	
-	echo -n "${TXPOWER:=0}"		# fixme! no wifi-dev?
+	echo "${POWER:-0}"	# no wifi-dev
 }
 
 func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
@@ -300,7 +309,7 @@ func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
 	    	     add) VALUE="$(( $(func_wifi_get_txpwr $WIFI_DEV mw) + $TXPWR ))" ;;
 		subtract) VALUE="$(( $(func_wifi_get_txpwr $WIFI_DEV mw) - $TXPWR ))" ;;
 		       *)
-		          VALUE="$( func_wifi_convert_mw_to_dbm $TXPWR )"
+		          VALUE="$( func_wifi_convert_mw2qdbm $TXPWR )"
 		       	  func_log $FUNC daemon info "for '$WIFI_DEV' to '$TXPWR' mW ('$VALUE' qdBm)"
 		          . /etc/functions_nvram_fff+
 		       	  func_nvset wl0_txpwr "$VALUE"
@@ -317,8 +326,88 @@ func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
 	func_wifi_set_txpwr "$WIFI_DEV" "$VALUE" mw absolute
 }
 
-func_wifi_convert_mw_to_dbm ()		# for broadcom on freifunk, convert unit [mW] -> [qdBm]
-{					# fixme! function name is bad! qdBm<->dBm
+func_wifi_convert_mhz2channel ()	# http://en.wikipedia.org/wiki/Lost_of_WLAN_channels
+{
+	local o
+	
+	case $1 in
+		2412) o=1 ;;		# block of 802.11b/g/n-freqs
+		2417) o=2 ;;
+		2422) o=3 ;;
+		2427) o=4 ;;
+		2432) o=5 ;;
+		2437) o=6 ;;
+		2442) o=7 ;;
+		2447) o=8 ;;
+		2452) o=9 ;;
+		2457) o=10 ;;
+		2462) o=11 ;;
+		2467) o=12 ;;
+		2472) o=13 ;;
+		2484) o=14 ;;
+
+					# block of 802.11y ommited
+
+		5035) o=7 ;;		# block of 802.11a/h/j/n
+            504|5040) o=8 ;;
+		5045) o=9 ;;
+		5055) o=11 ;;
+	    506|5060) o=12 ;;
+            508|5080) o=13 ;;
+	    517|5170) o=34 ;;
+	    518|5180) o=36 ;;
+	    519|5190) o=38 ;;
+	     52|5200) o=40 ;;
+	    521|5210) o=42 ;;	# TURBO.only	# for TURBO, see http://madwifi-project.org/wiki/UserDocs/802.11a_channels
+	    522|5220) o=44 ;;
+	    523|5230) o=46 ;;
+	    524|5240) o=48 ;;
+	    525|5250) o=50 ;; 	# TURBO.only	# not listed in wikipedia?
+	    526|5260) o=52 ;;
+	    528|5280) o=56 ;;
+	    529|5290) o=58 ;;	# TURBO.only	# not listed in wikipedia?
+	     53|5300) o=60 ;;
+	    532|5320) o=64 ;;
+	     55|5500) o=100 ;;		# iwconfig-output is '55' and means 5500mhz!
+	    552|5520) o=104 ;;
+	    553|5530) o=106 ;;		# not listed in wikipedia?
+	    554|5540) o=108 ;;
+	    556|5560) o=112 ;;
+	    557|5570) o=114 ;;		# not listed in wikipedia?
+	    558|5580) o=116 ;;
+	     56|5600) o=120 ;;
+	    561|5610) o=122 ;;		# not listed in wikipedia?
+	    562|5620) o=124 ;;
+	    564|5640) o=128 ;;
+	    565|5650) o=130 ;;		# not listed in wikipedia?
+	    566|5660) o=132 ;;
+	    568|5680) o=136 ;;
+	     57|5700) o=140 ;;
+		5745) o=149 ;;
+	    576|5760) o=152 ;;	# TURBO.only	# not listed in wikipedia?
+		5765) o=153 ;;
+		5785) o=157 ;;
+	     58|5800) o=160 ;;	# TURBO.only	# not listed in wikipedia?
+		5805) o=161 ;;
+		5825) o=165 ;;
+
+		4915) o=183 ;;
+	    492|4920) o=184 ;;
+		4925) o=185 ;;
+		4935) o=187 ;;
+	    494|4940) o=188 ;;
+		4945) o=189 ;;
+	    496|4960) o=192 ;;
+	    498|4980) o=196 ;;
+
+		   *) o=0 ;;		# fixme! till we inserted all freqs
+	esac
+
+	echo -n "$o"
+}
+
+func_wifi_convert_mw2qdbm ()		# for broadcom on freifunk, convert unit [mW] -> [qdBm]
+{
 	local o
 					# nvram 0|78 is both 89 mW
 	case $1 in
@@ -479,35 +568,206 @@ func_wifi_get_antenna_tx ()
 	echo "auto"
 }
 
+func_wifi_get_frag ()
+{
+	local WIFI_DEV="$1"
+	
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	
+		wl -i $WIFI_DEV frag | sed -n 's/^frag is \([0-9]*\).*$/\1/p'
+	else
+		eval "$(func_wifi_get_status_iwconfig $WIFI_DEV | grep ^WIFI_FRAG )"
+		echo $WIFI_FRAG
+	fi
+}
+
+func_wifi_get_rts ()
+{
+	local WIFI_DEV="$1"
+
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	
+		wl -i $WIFI_DEV rts | sed -n 's/^rts is \([0-9]*\).*$/\1/p'
+	else
+		eval "$(func_wifi_get_status_iwconfig $WIFI_DEV | grep ^WIFI_RTS )"
+		echo $WIFI_RTS
+	fi
+}
+
+func_wifi_get_mrate ()
+{
+	local WIFI_DEV="$1"
+	local LINE
+	
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	
+		wl -i $WIFI_DEV mrate | cut -d' ' -f3		# 1, 2, 5.5, 6, 9, 12 ...
+	else
+		iwpriv $WIFI_DEV get_mcast_rate |
+		 sed -n 's/^.*:\([0-9]*\).*/\1/p' |
+		  while read LINE; do {
+			case $LINE in
+				5500) echo 5.5 ;;
+				   *) echo $(( $LINE / 1000 )) ;;	
+			esac
+		} done
+	fi
+}
+
+func_wifi_get_noise ()		# OUT1: signed Integer, -93 [dBm]
+{
+	local WIFI_DEV="$1"
+	local WIFI_MODE="$(func_wifi_get_mode $WIFI_DEV)"
+	
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	
+		case "$WIFI_MODE" in
+			adhoc)
+				wl -i $WIFI_DEV noise | sed 's/[^0-9-]//g'
+			;;
+			client)
+				echo ""		# fixme!
+			;;
+			ap)
+				echo ""		# fixme!
+			;;
+			*)
+				echo ""		# ?
+			;;
+		esac
+	else
+		eval "$(func_wifi_get_status_iwconfig $WIFI_DEV | grep ^WIFI_NOISE )"
+		
+		case "$WIFI_MODE" in
+			adhoc)
+				echo $WIFI_NOISE
+			;;
+			client)
+				echo ""		# fixme!
+			;;
+			ap)
+				echo ""		# fixme!
+			;;
+			*)
+				echo ""		# ?
+			;;
+		esac
+	fi
+}
+
+func_wifi_get_signal ()		# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all stations
+{
+	local WIFI_DEV="$1"
+	local WIFI_MODE="$(func_wifi_get_mode $WIFI_DEV)"
+	local NOP MAC RSSI LOOP
+
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific	
+
+		case "$WIFI_MODE" in
+			adhoc)
+				wl -i $WIFI_DEV rssi  | sed 's/[^0-9-]//g'
+			;;
+			client)
+				echo ""		# fixme!
+			;;
+			ap)
+				wl -i $WIFI_DEV assoclist |
+				 while read NOP MAC; do {
+					RSSI="$( wl -i $WIFI_DEV rssi $MAC | sed -n 's/^rssi is \([0-9-]*\).*/\1/p' )"
+					MAC="$( echo $MAC | sed 'y/ABCDEF/abcdef/' | sed 's/[^0-9a-f]//g' )"	# abcdef012345
+					
+					echo -n "${LOOP:+:}${MAC}${RSSI}"
+					
+					LOOP=1
+				} done
+			;;
+			*)
+				echo ""		# fixme!
+			;;
+		esac
+	else
+		case "$WIFI_MODE" in
+			adhoc)
+				eval "$(func_wifi_get_status_iwconfig $WIFI_DEV | grep ^WIFI_SIGNAL )"
+				echo "$WIFI_SIGNAL"
+			;;
+			client)
+				echo ""		# fixme!
+			;;
+			ap)
+				echo ""		# fixme!
+			;;
+			*)
+				echo ""		# fixme!
+			;;
+		esac	
+	fi
+}
+
+func_wifi_get_channel ()
+{
+	local WIFI_DEV="$1"
+	
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	
+		eval "$(func_wifi_get_status_broadcom $WIFI_DEV | grep ^WIFI_CHANNEL )"
+	else
+		eval "$(func_wifi_get_status_iwconfig $WIFI_DEV | grep ^WIFI_CHANNEL )"
+	fi
+	
+	echo $WIFI_CHANNEL
+}
+
+func_wifi_get_protection ()	# OUT1: integer, 0 | 1
+{
+	local WIFI_DEV="$1"
+	
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	
+		wl -i $WIFI_DEV gmode_protection | sed -n 's/^gmode_protection is \([0-9]\) .*/\1/p'
+	else
+		iwpriv $WIFI_DEV get_protmode | sed -n 's/^.*:\([01]\).*/\1/p'
+	fi
+}
+
 func_wifi_get_all_devs ()	# one device per line
 {
 	sed -n 's/^ *\(.*\): [0-9]*.*/\1/p' /proc/net/wireless
 	#  sed -n 's/^ *\([^:]\+\):.*/\1/p' /proc/net/wireless	(sven-ola)
 }
 
-func_wifi_probe_mode_infrastructure ()
+func_wifi_probe_mode_infrastructure ()		# fixme! respect WIFI_DEV
 {
 	[ "$(nvram get wl0_infra)" = "1" ] && return 0
 	return 1
 }
 
-func_wifi_probe_mode_ap ()
+func_wifi_probe_mode_ap ()			# fixme! respect WIFI_DEV
 {
 	[ "$(nvram get wl0_mode)" = "ap" ] && return 0		
 	return 1
 }
 
-func_wifi_get_mode ()		# OUT1: string		// fixme! work with WIFI_DEV
+func_wifi_get_wifimode ()	# fixme! howto describe:
+{				# channel-width, compression, frame-aggregation/bursting, plcp-header(=preamble)long/short ...?
+	local WIFI_DEV="$1"	# OUT1: string, b | g | bg | gT | a | aT
+
+	echo "bg"		# fixme!
+}
+
+func_wifi_get_mode ()		# OUT1: string, ap | client | adhoc
 {
-	if func_wifi_probe_mode_infrastructure ; then
+	local WIFI_DEV="$1"
 	
-		if func_wifi_probe_mode_ap ; then
+	if func_wifi_probe_mode_infrastructure $WIFI_DEV ; then
+	
+		if func_wifi_probe_mode_ap $WIFI_DEV ; then
 			echo 'ap'
 		else
 			echo 'client'	# fixme! output 'sta' or 'station' ?
 		fi
 	else
-		if func_wifi_probe_mode_ap ; then
+		if func_wifi_probe_mode_ap $WIFI_DEV ; then
 			echo 'unknown'	
 		else
 			echo 'adhoc'

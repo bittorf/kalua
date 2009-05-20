@@ -265,6 +265,7 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 ### intervals (approx. once a day) or/and simply log it
 
 ARG1="$1"
+ARG2="$2"
 
 test   -e "/tmp/LOWMEM"			&& ARG1=fast
 test   -n "$FAILSAFE" 			&& ARG1=fast
@@ -316,40 +317,25 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		fi
 		LATLON="$( func_url_encode $LATLON )"
 	
-	ADMINEMAIL="$( nvram get ff_adm_mail | sed 's/[^0-9a-zA-Z@\._-]//g' )"					# bla@blubb.de
-	ADMINPHONE="$( nvram get ff_adm_tel | sed 's/[^0-9a-zA-Z]//g' )"					# 036435101112zuhause
-	HOSTNAME="$( nvram get wan_hostname | sed 's/[^0-9a-zA-Z-]//g' )"					# Windmuehlen12
-	TXPWR="$( func_wifi_get_txpwr $WIFIDEV mw )"								# 40
-	FRAG="$( wl frag | sed -n 's/frag is \([0-9]*\).*$/\1/p' )"						# 500
-	RTS="$( wl rts | sed -n 's/rts is \([0-9]*\).*$/\1/p' )"						# 2347
+	ADMINEMAIL="$( nvram get ff_adm_mail  | sed 's/[^0-9a-zA-Z@\._-]//g' )"		# bla@blubb.de
+	ADMINPHONE="$( nvram get ff_adm_tel   | sed 's/[^0-9a-zA-Z]//g' )"		# 036435101112zuhause
+	HOSTNAME="$(   nvram get wan_hostname | sed 's/[^0-9a-zA-Z-]//g' )"		# Windmuehlen12
+
+	TXPWR="$(     func_wifi_get_txpwr      $WIFIDEV mw )"		# 40
+	FRAG="$(      func_wifi_get_frag       $WIFIDEV )"		# 500
+	RTS="$(       func_wifi_get_rts        $WIFIDEV )"		# 2347
+	GMODEPROT="$( func_wifi_get_protection $WIFIDEV )"		# 0 or 1
+	WIFIMODE="$(  func_wifi_get_mode       $WIFIDEV )"		# adhoc
+	NOISE="$(     func_wifi_get_noise      $WIFIDEV )"		# -94
+	SIGNAL="$(    func_wifi_get_signal     $WIFIDEV )"
+	CHANNEL="$(   func_wifi_get_channel    $WIFIDEV )"		# 104
+	MRATE="$(     func_wifi_get_mrate      $WIFIDEV )"		# 5.5
+
 	GMODE="$( nvram get wl0_gmode )"
-	GMODEPROT="$( wl gmode_protection | sed -n 's/^gmode_protection is \([0-9]\) .*/\1/p' )"		# 0 or 1
 	ESSID="$( func_url_encode "$(nvram get wl0_ssid)" )"
 	BSSID="$( nvram get ff_bssid )"
-	CITY="$CITY"												# 63
-	WIFIMODE="$( func_wifi_get_mode )"									# adhoc
+	CITY="$CITY"				# fixme! ask ipsystem()
 
-	case "$WIFIMODE" in
-		adhoc)
-			NOISE="$( wl noise | sed 's/[^0-9-]//g' )"
-			RSSI="$(  wl rssi  | sed 's/[^0-9-]//g' )"
-		;;
-		ap)
-			NOISE=""
-			RSSI="$( wl assoclist |
-			          while read NOP MAC; do {
-					echo -n "${LOOP:+:}$( echo $MAC | sed 'y/ABCDEF/abcdef/' | sed 's/[^0-9a-f]//g' )$(wl rssi $MAC | sed 's/[^0-9-]//g' )"
-					LOOP=1
-				  } done )"
-		;;
-		*)
-			NOISE=""
-			RSSI=""
-		;;
-	esac
-
-	CHANNEL="$( wl status | sed -n 's/.*Channel: \([0-9]*\)/\1/p' )"					# 104
-	MRATE="$( wl mrate | cut -d' ' -f3 )"									# 5.5
 	eval $( /etc/init.d/S02check_interface_correctness_fff+ show_hardware )
 	HW="$( echo $HW | sed -e 's/ /_/g' -e 's/[^_a-zA-Z0-9-]//g' )"			# Buffalo_WHR-HP-G54_BCM4318-wifi
 
@@ -398,7 +384,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS"
-	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${RSSI}"
+	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${SIGNAL}"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=${ESSID}&bssid=${BSSID}"
 	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP"
 	
@@ -412,6 +398,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	[ -e /tmp/SEND_ALIVE_FAILED ] && {
 		rm /tmp/SEND_ALIVE_FAILED
 		ARG1="send_alive_message"
+		ARG2="no_antenna_test"
 	}
 
 	func_log mesh_rdf daemon debug "ready"
@@ -420,7 +407,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 	if [ -n "$KEEP_ALIVE_URL" ] && [ "$ARG1" = "send_alive_message" ]; then
 	
-		[ -z "$2" ] && fkt_sleep_random_seconds_but_max 60
+		[ -z "$ARG2" ] && fkt_sleep_random_seconds_but_max 60
 
 		func_log mesh_rdf_send_alive daemon info "sending message to vpn-server: '${KEEP_ALIVE_URL} [...]'"
 
@@ -471,20 +458,20 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		# | nc intercity-vpn.de 80 >/dev/null
 		# wget -qO /dev/null "http://intercity-vpn.de/testdata.bin"	// 5mb
 
-		[ "$2" != "no_antenna_test" ] && {
+		[ "$ARG2" != "no_antenna_test" ] && {
 			func_log enforce_antenna_test daemon info "starting up"		# fixme! maybe there is a better place for	
 			/usr/sbin/cron.select_best_antenna_fff+ force			# regular but random execution of this script
 		
 			[ "$(func_system_flash_free)" -gt 125 ] && {
 				func_log update_adblock_filter daemon info "working"
 				
-				ipkg install fff-adblock-list || {		# fixme! returncode is always '0'
-				
-					func_log update_adblock_filter daemon info "failed - trying direct link"
-					ipkg install "$(nvram get fff_url_network)/packages/fff-adblock-list_0.1.0_mipsel.ipk" || {
-						func_log update_adblock_filter daemon info "direct link failed"
-					}
-				}
+#				ipkg install fff-adblock-list || {		# fixme! returncode is always '0'
+#				
+#					func_log update_adblock_filter daemon info "failed - trying direct link"
+#					ipkg install "$(nvram get fff_url_network)/packages/fff-adblock-list_0.1.0_mipsel.ipk" || {
+#						func_log update_adblock_filter daemon info "direct link failed"
+#					}
+#				}
 				
 				# eval $(func_wifi_get_status_broadcom $WIFIDEV)
 				# [ "$WIFI_ESSID" = "offline" ] && {
@@ -578,7 +565,9 @@ pidof httpd >/dev/null || {
 
 ### check if nodenumber/id is from random pool
 
-. /etc/functions_profile_user_fff+
+func_need profile_user old
+
+WIFIMAC="$( ip link show dev $WIFIDEV | sed -n 's/^.*link\/ether \(..\):\(..\):\(..\):\(..\):\(..\):\(..\) brd.*/\1\2\3\4\5\6/p' )"
 
 URL="$(nvram get fff_url_network)/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$(nvram get ff_dsskey_pub)"
 
