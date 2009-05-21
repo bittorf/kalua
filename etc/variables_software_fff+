@@ -170,8 +170,8 @@ fkt_check_dependencies ()
 	local LAN_DEF_ROUTE=""
 	local INETOFFER="$( fkt_check_if_this_node_offers_inet )"
 
-	BROADCOM="$( echo "$HW" | sed 's/\(.*broadcom.*\)/1/' )"		# transform string into "1", if subword "BCM" somewhere exists
-	
+	func_need wifi
+
 	LIST_SOFTWARE="$(nvram get fff_override_fw_ipkg)"			# my own list
 
 	test ! -z "$LIST_SOFTWARE" && return					# own list exists? ready!
@@ -187,17 +187,17 @@ fkt_check_dependencies ()
 
 	# when no, unknown or non-broadcom wifi-card
 	# is installed, then install madwifi!
+
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then
+
+		[ "$(func_wifi_get_mode)" != "adhoc" ] &&  	LIST_SOFTWARE="$LIST_SOFTWARE wl-adv"
+
+		nvram get fff_profile | grep -q ffsundi &&	LIST_SOFTWARE="$LIST_SOFTWARE wl-adv"		# fixme!
 	
-	test "1" != "$BROADCOM"                 &&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_MADWIFI"
-
-	test "1" = "$BROADCOM" && {		# fixme! this is dirty
-		. /etc/functions_wifi_fff\+
-		[ "$(func_wifi_get_mode)" != "adhoc" ] && LIST_SOFTWARE="$LIST_SOFTWARE wl-adv"
-	}
-
-	[ "$(nvram get wl0_phytype)" = "a" ] && [ "$BROADCOM" = "1" ] && {
-							LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_5GHZ"
-	}
+		[ "$(nvram get wl0_phytype)" = "a" ] &&		LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_5GHZ"
+	else
+		LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_MADWIFI"
+	fi
 	
 	/etc/init.d/S52vpnc_fff+ check		&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_VPNC"	# essid = 'WLAN-BUW' 8-)
 	test  -n   "$(nvram get fff_batman)"    &&      LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_BATMAN"

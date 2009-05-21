@@ -224,31 +224,19 @@ fkt_nat_for_roaming_wifi_clients ()
 	$IPT -t nat -A POSTROUTING -o $WIFIDEV -s $ROAMING_IP4/$ROAMING_PRE -j MASQUERADE	# or SNAT?
 }
 
-fkt_get_mac_from_local_ip ()		# fixme! search for 'ip neigh' and use only _this_ function - rename to func_net_ip2mac()
+fkt_get_mac_from_local_ip ()
 {
 	local IP="$1"
-	local MAC="$( sed -e 'y/ABCDEF/abcdef/' -ne "/^$(fkt_escape $IP)[^0-9\.]/s/^.*\(..:..:..:..:..:..\).*/\1/p" /proc/net/arp )"
 	
-	[ -n "$MAC" ] && {
-		echo $MAC
-		logger "fff+ (fkt_get_mac_from_local_ip) IP: \"$IP\" ($MAC)"
-		return
-	}
-							# 127.0.0.1 means tunnelled conn trough fake-SSL httpd for https
 	[ "$IP" = "127.0.0.1" ] && {
-		IP="$( tail -n15 /var/log/messages | grep "to plain server" | tail -n1 | sed -n 's/^.* ssl client \(.*\) to .*/\1/p' )"	# badbadbad!
 
-		[ -z "$IP" ] && {
-			logger "fff+ (fkt_get_mac_from_local_ip) 127.0.0.1 -> zeroIP!"
-			logger "fff+ (fkt_get_mac_from_local_ip) DEBUG: tail -n50 /var/log/messages >/tmp/debug.txt"
-			tail -n50 /var/log/messages >/tmp/debug.txt
-			IP="127.0.0.1"					# fixme!
-		}
+		IP="$( tail -n15 /var/log/messages |
+			grep "to plain server" |
+			 tail -n1 |
+			  sed -n 's/^.* ssl client \(.*\) to .*/\1/p' )"
 	}
-
-	MAC="$( ip neigh show to $IP | sed -n "s/^.* lladdr \(..:..:..:..:..:..\) .*/\1/p;q" )"		# break after first match!
-	logger "fff+ (fkt_get_mac_from_local_ip) IP: \"$IP\" ($MAC)"		
-	echo $MAC
+	
+	ip neigh show to $IP | sed -n "s/^.* lladdr \(..:..:..:..:..:..\) .*/\1/p;q"
 }
 
 fkt_check_if_user_with_mac_is_locally_blacklisted () {
