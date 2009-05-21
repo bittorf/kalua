@@ -82,7 +82,7 @@ func_watch_hanging_netcat
 
 func_need vars_old olsr wifi netparam
 
-[ "$(func_wifi_get_mode)" = "adhoc" ] && {	# fixme! lowering tx-power if NLQ ~ 1.000 ?
+if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-power if NLQ ~ 1.000 ?
 
 	  if ! func_wifi_phy_probe_online $WIFIDEV ; then	# maybe its switched off by admin
 	
@@ -97,14 +97,14 @@ func_need vars_old olsr wifi netparam
 	elif neigh check4wifi ; then
 		func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
 		
-		BEST_WIFI_NLQ="$(neigh best_wifi_nlq)"
+		BEST_WIFI_NLQ="$(neigh best_wifi_nlq)"		# fixme! maybe check wifi_gateway?
 		if [ "$BEST_WIFI_NLQ" -gt 500 ]; then
 	 		func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ ($BEST_WIFI_NLQ > 500)"
 		else
 			func_log meshmode_but_no_wifi_neighs daemon debug "NOT found at least one wifi-neigh with reasonable NLQ (found '$BEST_WIFI_NLQ')"
 			func_wifi_set_txpwr "$WIFIDEV" 5 mW add overturn
 									# fixme! add aftercheck + alert.log when successful
-		fi
+		fi							# fixme! remember best NLQ?
 		
 		echo "0" >/tmp/wifi_error_counter
 	else
@@ -123,7 +123,20 @@ func_need vars_old olsr wifi netparam
 		
 		/usr/sbin/cron.select_best_antenna_fff+ force
 	fi
-}
+else			# master or client-mode
+
+	if neigh check4nonwifi ; then
+
+		func_log no_meshmode_and_no_neighs daemon debug "found wired neigh"
+	else
+		if neigh check4wifi ; then
+		
+			func_log no_meshmode_and_no_neighs daemon debug "found wifi neigh"
+		else
+			func_safe_reboot "no meshmode - and no wired nor wifi neigh"
+		fi
+	fi
+fi
 
 func_olsr_plausi_check $(func_olsr_get_neighbours) || /etc/init.d/S53olsrd restart
 
