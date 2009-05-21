@@ -1,5 +1,17 @@
 FUNC_PACKAGES=1
 
+# func_ipkg_make_free_space
+# func_ipkg_is_essential
+# func_ipkg_list_installed_backwards
+# func_ipkg_repos_list_files
+# func_ipkg_update
+# func_ipkg_install
+# func_ipkg_remove
+# func_ipkg_is_installed
+# func_ipkg_is_not_installed
+# func_packages_install
+
+
 func_ipkg_make_free_space ()
 {
 	local FUNC="ipkg_make_free_space"
@@ -8,12 +20,15 @@ func_ipkg_make_free_space ()
 	local IPK
 
 	for IPK in $( func_ipkg_list_installed_backwards ); do {
+	
 		FREE="$( func_system_flash_free )"
 		func_log $FUNC daemon debug "now $FREE kb"
+	
 		[ $FREE -gt $SPACE_WISH ] && {
 			func_log $FUNC daemon debug "ready"
 			break
 		}
+	
 		func_ipkg_is_essential $IPK || {			# prevents chicken egg-problem
 			func_log $FUNC daemon alert "removing '$IPK'"
 			func_ipkg_remove $IPK
@@ -21,8 +36,8 @@ func_ipkg_make_free_space ()
 	} done
 }
 
-func_ipkg_is_essential ()	# fixme! how to determine, if package is part of a meta-package?
-{
+func_ipkg_is_essential ()	# fixme! how to determine, if package is part of a meta-package? maybe this
+{				#	 doesn't matter, removing meta-packages doesn't effect child-packages
 	local PACKAGE="$1"
 	
 	case $PACKAGE in
@@ -79,7 +94,7 @@ func_ipkg_update ()
 		UNIXTIME_UPDATE=0
 	fi
 	
-	[ $(( $UNIXTIME_NOW - $UNIXTIME_UPDATE )) -gt 1800 ] && {
+	[ $(( ${UNIXTIME_NOW:-0} - ${UNIXTIME_UPDATE:-0} )) -gt 1800 ] && {
 		ipkg update
 		echo $UNIXTIME_NOW >$FILE_LAST_FETCH
 	}
@@ -116,3 +131,12 @@ func_ipkg_is_not_installed ()
 
 	return 1
 }
+
+func_packages_install ()	# hide package-manager from scripts
+{
+	local PACKAGE_NAME="$1"
+	
+	func_ipkg_install	$PACKAGE_NAME
+	func_ipkg_is_installed	$PACKAGE_NAME || return 1
+}
+
