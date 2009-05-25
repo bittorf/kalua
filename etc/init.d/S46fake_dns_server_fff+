@@ -1,12 +1,17 @@
 #!/bin/sh
 
-. /etc/functions_base_fff+ && func_need vars_old wifi log profile profile_user nvram
+. /etc/functions_base_fff+ && func_need vars_old wifi log profile profile_user nvram netparam ipsystem
+
+# func_add_experimental_wifi_roaming
+# func_add_thight_netmask_to_wifi
+# func_apply_wifi_helper_if_only_roaming_network
+# func_install_fake_dns_server_via_iptables
+# func_if_possible_set_private_ip_on_interface_with_ip
+
 
 func_add_experimental_wifi_roaming ()
 {
 	local FUNC="add_experimental_wifi_roaming"
-
-	eval "$(func_ipsystem)"
 
 	ip address add $ROAMING_IP4/$ROAMING_PRE dev $WIFIDEV label ${WIFIDEV}:roaming 2>/dev/null && {
 		func_log $FUNC daemon debug "added experimental wifi-roaming-network: $ROAMING_IP4/$ROAMING_PRE to ${WIFIDEV}:roaming"
@@ -19,15 +24,16 @@ func_add_experimental_wifi_roaming ()
 func_add_thight_netmask_to_wifi ()
 {
 	local FUNC="add_thight_netmask_to_wifi"
-	local WIFI_DHCP_NETMASK="$( nvram get ff_wldhcp | sed -n 's#^[0-9\.]*/\([0-9]*\),.*#\1#p' )"
 	
-	[ -z "$WIFI_DHCP_NETMASK" ] && {
+	[ -z "$WIFI_DHCP_PRE" ] && {
 		func_log $FUNC daemon debug "no wifi-dhcp defined - abort"	
 		return 1
 	}
 	
-	ip address add $WIFIADR/$WIFI_DHCP_NETMASK dev $WIFIDEV label ${WIFIDEV}:mywifi 2>/dev/null && {
-		func_log $FUNC daemon debug "added alias interface with wifi-ip: '$WIFIADR/$WIFI_DHCP_NETMASK dev $WIFIDEV'"
+	local RANGE="$WIFI_IP_1ST/$WIFI_DHCP_PRE dev $WIFIDEV label ${WIFIDEV}:wifi_dhcp"
+	
+	ip address add $RANGE 2>/dev/null && {
+		func_log $FUNC daemon debug "added alias interface with wifi-ip: '$RANGE'"
 		return 0
 	}
 	
@@ -42,8 +48,6 @@ func_apply_wifi_helper_if_only_roaming_network ()
 		func_log $FUNC daemon debug "no wifi - no helper 8-)"
 		return 0
 	}
-
-	eval "$(func_ipsystem)"
 
 	ip -oneline address show dev $WIFIDEV | head -n2 | tail -n1 | grep -q "$ROAMING_IP4/$ROAMING_PRE" || {
 		func_log $FUNC daemon debug "roaming network is not 1st ip - seems fine"
@@ -121,8 +125,6 @@ func_if_possible_set_private_ip_on_interface_with_ip () {
 		func_log $FUNC daemon debug "do nothing, conflict: $FIRST_3_OKTETTS = $RANGE"
 	fi
 }
-
-. /tmp/NETPARAM
 
 [ "$1" = "remove_fake_dnsserver" ] && {
 	func_install_fake_dns_server_via_iptables remove
