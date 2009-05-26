@@ -2,6 +2,7 @@ FUNC_BASE=1
 
 # func_need		# sed -n 's/^\(func_.*\) ().*/# \1/p'
 # func_escape
+# func_count_pids
 # func_system_get_load
 # func_system_flash_free
 # func_system_get_storage_path
@@ -63,6 +64,13 @@ func_need ()	# idea: for easier solving dependencies each function has only to k
 func_escape ()		# SENS: work with string and always use single quotes: 'string'
 {
 	echo "$1" | sed -e "s/'/'\\\''/g"
+}
+
+func_count_pids ()			# fixme! returns "1", even when no process was found
+{
+	local PROCESS_NAME="$1"					# e.g. 'wifi' or 'xrelayd'
+								#      pidof wifi: '5736 5779 6314 6317 6499'
+	pidof "$PROCESS_NAME" | sed 's/[^ ]//g' | wc -c		# strip all, except spaces and count those spaces
 }
 
 func_system_get_load ()		# load without comma, e.g.
@@ -176,6 +184,10 @@ func_ip2dns ()
 func_safe_reboot ()			# fixme! maybe shutting down services like vpn, olsrd?
 {
 	local REASON="$1"
+	local LOCKFILE="/tmp/SAFE_REBOOT_SCHEDULED"
+
+	[ -e  "$LOCKFILE" ] && return
+	touch "$LOCKFILE"
 
 	[ -e /dev/misc/crondog ] && /etc/init.d/S*crond* stop	# if something goes wrong, this enforces an reboot in 10 minutes by crondog
 

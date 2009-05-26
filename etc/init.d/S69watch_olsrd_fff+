@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# wget -qO /dev/null "http://127.0.0.1/cgi-bin-rrd1.html?START=end-24h"		# stats,wifi (signal/noise,rate,olsr-traffic)
+# scp /tmp/rrd/img/end-24hWLAN_WLA_STATS.png intercity-vpn.de:/var/www/99.png
+
 . /etc/functions_base_fff+ && func_need log
 
 func_watch_hanging_command ()
@@ -156,11 +159,6 @@ func_olsr_plausi_check $(func_olsr_get_neighbours) || /etc/init.d/S53olsrd resta
 	# gewalt ueber den stoerer hat.
 
 # fixme! Idee:
-	# xrelayd haengt manchmal in der taskliste rum und laesst sich nur mit kill -9 beenden
-	#
-	# pidof xrelayd
-
-# fixme! Idee:
 	# nice oder renice (fuer bestimmte code-abschnitte)
 
 PID="$(pidof vpnc)" && {
@@ -260,13 +258,49 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 
 
 ### under unclear circumstances the "wifi"-program segfaults and there
-### are after some time hanging 'wifi'-processes, so we
-### count the spaces between the pids and if we have more
-### then 1 pids of "wifi" we do an hard reboot
+### are after some time hanging 'wifi'-processes...
 
-[ "$( pidof wifi | sed 's/[^ ]//g' | wc -c )" -gt 1 ] && {
-	func_safe_reboot "strange_wifi() several wifi-PIDs!"		# fixme! recheck at least 5 times?
+[ "$( func_count_pids wifi )" -gt 1 ] && {
+
+	sleep 10
+	
+	[ "$( func_count_pids wifi )" -gt 1 ] && {
+		func_safe_reboot "strange_wifi() several wifi-PIDs!"
+	}
 }
+
+[ "$( func_count_pids xrelayd )" -gt 1 ] && {		# can be the case, after too many simultaneously https-connections
+	
+	func_log watch_xrelayd daemon info "trying to end some processes and restart daemon"
+	killall xrelayd
+	sleep 10
+	
+	if [ "$( func_count_pids xrelayd )" -gt 1 ]; then
+	
+		func_log watch_xrelayd daemon info "still some processes around"
+	
+		for PID in $(pidof xrelayd); do {
+			kill -9 $PID
+		} done
+	
+		if [ "$( func_count_pids xrelayd )" -gt 1 ]; then
+			func_safe_reboot "can't end some xrelayd-processes"
+		else
+			/etc/init.d/S70secureadmin start
+		fi
+	else
+		/etc/init.d/S70secureadmin start
+	fi
+}
+
+touch /tmp/rrd_plausi_check					# needs some test
+for FILE in $(find /tmp/rrd -name *.rrd 2>/dev/null); do {
+	[ /tmp/rrd_plausi_check -ot $FILE ] && {
+		func_log rrd_plausi_check daemon alert "rrd-file is in future - reinit for '$FILE'"
+		touch "$FILE"
+	}
+} done
+
 
 [ "$( ps | sed -n 's/^[^Z]*\(Z\)[^Z]*\[.*\].*/\1/p' | wc -l )" -gt 50 ] && {
 	func_safe_reboot "more than 50 zombie processes!"
