@@ -111,6 +111,15 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 		
 		echo "0" >/tmp/wifi_error_counter
 	else
+		[ "$( func_wifi_get_noise $WIFIDEV )" -gt -85 ] && {		# [dBm] e.g. -75 is greater than -85
+		
+			[ "$( func_wifi_get_sensitivity $WIFIDEV )" = "auto" ] && {
+			
+				func_log meshmode_but_no_wifi_neighs daemon info "changing sensitivity model of '$WIFIDEV'"
+				func_wifi_set_sensitivity $WIFIDEV nonwifi
+			}
+		}
+	
 		COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
 		COUNT="$(( ${COUNT:=0} + 1 ))"
 	
@@ -366,17 +375,23 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	ADMINPHONE="$( nvram get ff_adm_tel   | sed 's/[^0-9a-zA-Z]//g' )"		# 036435101112zuhause
 	HOSTNAME="$(   nvram get wan_hostname | sed 's/[^0-9a-zA-Z-]//g' )"		# Windmuehlen12
 
-	TXPWR="$(     func_wifi_get_txpwr      $WIFIDEV mw )"		# 40
-	FRAG="$(      func_wifi_get_frag       $WIFIDEV )"		# 500
-	RTS="$(       func_wifi_get_rts        $WIFIDEV )"		# 2347
-	GMODEPROT="$( func_wifi_get_protection $WIFIDEV )"		# 0 or 1
-	WIFIMODE="$(  func_wifi_get_mode       $WIFIDEV )"		# adhoc
-	NOISE="$(     func_wifi_get_noise      $WIFIDEV )"		# -94
-	SIGNAL="$(    func_wifi_get_signal     $WIFIDEV )"
-	CHANNEL="$(   func_wifi_get_channel    $WIFIDEV )"		# 104
-	MRATE="$(     func_wifi_get_mrate      $WIFIDEV )"		# 5.5
+	TXPWR="$(	func_wifi_get_txpwr	  $WIFIDEV mw )"	# 40
+	FRAG="$(	func_wifi_get_frag	  $WIFIDEV )"		# 500
+	RTS="$(		func_wifi_get_rts	  $WIFIDEV )"		# 2347
+	GMODEPROT="$(	func_wifi_get_protection  $WIFIDEV )"		# 0 or 1
+	WIFIMODE="$(	func_wifi_get_mode	  $WIFIDEV )"		# adhoc
+	NOISE="$(	func_wifi_get_noise	  $WIFIDEV )"		# -94
+	SIGNAL="$(	func_wifi_get_signal	  $WIFIDEV )"
+	CHANNEL="$(	func_wifi_get_channel	  $WIFIDEV )"		# 104
+	MRATE="$(	func_wifi_get_mrate	  $WIFIDEV )"		# 5.5
+	SENS="$(	func_wifi_get_sensitivity $WIFIDEV )"		# 1,wifi,auto
+	
+	DRIVER="$(	func_wifi_get_driver_version $WIFIDEV )"	# wl-adv_3.90-RC37.0_v1.1
+									# wl-simple_v1.0 
+									# mod-madwifi_2.4.30brcm+r3314-8
 
-	GMODE="$( nvram get wl0_gmode )"
+	GMODE="$( nvram get wl0_gmode )"	# fixme!
+
 	ESSID="$( func_url_encode "$(nvram get wl0_ssid)" )"
 	BSSID="$( nvram get ff_bssid )"
 
@@ -425,11 +440,11 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 
 	QUERY=""
 	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
-	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE"
+	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE&wifidrv=$DRIVER"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS"
 	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${SIGNAL}"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=${ESSID}&bssid=${BSSID}"
-	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP"
+	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP&sens=$SENS"
 	
 	echo >>"$ARCHIV_NODE_DATA" "$QUERY"
 										# only last 150 lines ('ringbuffer')
@@ -461,16 +476,21 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		# and try to send all lines from this point to end of file
 		# to the logging server. After this we set the comment at file-end 
 
-		LINENUMBER_LAST_SUCCESS="$( grep -n "^# " "${ARCHIV_NODE_DATA}" | tail -n1 | cut -d':' -f1 )"
+		LINENUMBER_LAST_SUCCESS="$( grep -n "^#" "${ARCHIV_NODE_DATA}" | tail -n1 | cut -d':' -f1 )"	# last comment
 
-		while true; do {							# start one line after comment
+		while true; do {							# start one line after last comment
 			LINENUMBER_LAST_SUCCESS=$(( $LINENUMBER_LAST_SUCCESS + 1 ))	# worst case is line one
 
-		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "${ARCHIV_NODE_DATA}" )"
+		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "${ARCHIV_NODE_DATA}" )"		# must be url-encoded
  
  			if [ -n "$QUERY" ]; then
  		
- 				echo "$QUERY" | grep -q ^"local=" && {		# dont send comments or trash
+ 				echo "$QUERY" | grep -q ^"#" || {		# dont send comments
+ 
+ 					echo "$QUERY" | grep -q ^"log=" && {
+ 						func_log mesh_rdf_send_alive daemon debug "send log-message"
+ 						QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC"
+ 					}
  			
  					OUT="$( fkt_wget "${KEEP_ALIVE_URL}?${QUERY}" 10 )"
  					func_log mesh_rdf_send_alive daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
@@ -478,7 +498,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
  					[ "$OUT" != "OK" ] && {
  						func_log mesh_rdf_send_alive daemon crit "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending"
  						touch /tmp/SEND_ALIVE_FAILED
- 						break				# fixme! mark already sent lines
+ 						break				# fixme! set comment ("marker") after last sent line
  					}
  				}
  			else
@@ -507,7 +527,8 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		
 			[ "$(func_system_flash_free)" -gt 125 ] && {
 				func_log update_adblock_filter daemon info "working"
-				
+
+#				ipkg update				
 #				ipkg install fff-adblock-list || {		# fixme! returncode is always '0'
 #				
 #					func_log update_adblock_filter daemon info "failed - trying direct link"

@@ -10,6 +10,10 @@ FUNC_WIFI=1
 # func_wifi_phy_probe_online
 # func_wifi_get_hardware_pci
 # func_wifi_get_hardware_usb
+# func_wifi_get_driver_version
+# func_wifi_get_sensitivity
+# todo: func_wifi_get_scansupress?
+# todo: func_wifi_get_retry
 # func_wifi_link_up
 # func_wifi_uptime
 # func_wifi_restart_wifi_phy
@@ -149,6 +153,7 @@ func_wifi_get_status_iwconfig ()	# ARG1 = WIFI_DEV
 	# WIFI_FREQ=2442					# in MHz ! -> convert to Channel?
 	# WIFI_CHANNEL="$( func_wifi_convert_mhz2chan 2442 )"	# this is converted during 'eval'
 	# WIFI_BSSID=00:1D:73:05:0F:59  
+	# WIFI_SENSITIVITY="0/3"
 	# WIFI_RETRY=off
 	# WIFI_RTS=256
 	# WIFI_FRAG=off
@@ -161,11 +166,12 @@ func_wifi_get_status_iwconfig ()	# ARG1 = WIFI_DEV
 	 sed -ne "s/^.*ESSID:\"\(.*\)\"/WIFI_DEV=$1\nWIFI_UPTIME=0\nWIFI_ESSID='\1'/p" \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Access Point: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_BSSID=\4/p' \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Cell: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_CHANNEL=\"\$( func_wifi_convert_mhz2channel \2\3 )\"\nWIFI_BSSID=\4/p' \
+	     -ne 's/^.*Bit Rate:.*Tx-Power:.*Sensitivity=\([0-9]*\)\/\([0-9]*\).*/WIFI_SENSITIVITY="\1\/\2"/p' \
 	     -ne 's/^.*Retry.\([a-z0-9]*\)[^a-zA-Z0-9]*RTS thr.\([a-z0-9]*\)[^0-9a-zA-Z]*Fragment thr.\([a-z0-9]*\).*/WIFI_RETRY="\1"\nWIFI_RTS="\2"\nWIFI_FRAG="\3"/p' \
 	     -ne "s/^.*Link Quality[:=]\([0-9]*\)\/\([0-9]*\).*Signal level[:=]\([-0-9]*\) dBm.*Noise level[:=]\([-0-9]*\) dBm/WIFI_QUALITY=\1\nWIFI_QUALITY_MAX=\2\nWIFI_SIGNAL='\3'\nWIFI_NOISE='\4'/p"
 }
 
-func_wifi_print_iwconfig_sample ()
+func_wifi_print_iwconfig_sample ()		# only for testing above function
 {
 	cat >/dev/null <<EOF
 ath0      IEEE 802.11b  ESSID:"www.freifunk.net (Zugangspunkt)"  
@@ -253,8 +259,87 @@ func_wifi_get_hardware_usb ()
 	sed -ne "/Vendor=148f ProdID=2573/cWIFI_VENDOR=ralink;WIFI_MODEL=rt73usb;WIFI_BANDS='b g'" /proc/bus/usb/devices 2>/dev/null
 }
 
+func_wifi_get_driver_version ()
+{
+	local WIFI_DEV="$1"		# fixme! howto connect DEV -> PHY  (DEV -> DRIVER is no problem)
+	local VERSION
+
+	func_need packages
+
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then
+
+		VERSION="$( wl -i $WIFI_DEV ver | sed -n 's/^wl:[^0-9]*\(.*\)/\1/p;q' | sed 's/[ ]/-/g' )"	# 3.90-RC37.0
+		
+		if [ -n "$VERSION" ]; then
+			VERSION="wl-adv_${VERSION}_v$( func_packages_version wl-adv )"
+		else
+			VERSION="wl-simple_v$( func_packages_version wl )"
+		fi
+	else
+		VERSION="kmod-madwifi_v$( func_packages_version kmod-madwifi )"
+	fi
+	
+	echo "$VERSION"
+}
+
+func_wifi_get_sensitivity ()
+{
+	local WIFI_DEV="$1"
+	local VALUE
+	local OUT
+
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then
+
+		VALUE="$( wl -i $WIFI_DEV interference )"
+	
+		case "$VALUE" in
+			"Auto Wireless LAN Interference mitigation is enabled and not active")
+				OUT="0,wifi,auto"
+			;;
+			"Auto Wireless LAN Interference mitigation is enabled and active")	# just guessed
+				OUT="1,wifi,auto"
+			;;
+			"Wireless LAN Interference mitigation is enabled.")
+				OUT="1,wifi,user"
+			;;
+			"Non-wireless LAN Interference mitigation is enabled.")
+				OUT="1,nonwifi,user"
+			;;
+			"All interference mitigation is disabled.")
+				OUT="0,all,user"
+			;;
+			*)
+				OUT="?,wifi,auto"		# e.g. if 'wl-adv' is not installed
+			;;
+		esac
+	else
+		eval "$( func_wifi_get_status_iwconfig $WIFI_DEV | grep ^WIFI_SENSITIVITY= )"	# e.g. '3/3'
+		OUT="$WIFI_SENSITIVITY"								# fixme! output more common
+	fi
+	
+	echo "$OUT"
+}
+
+func_wifi_get_scansupress ()
+{
+	local WIFI_DEV="$1"
+	
+	wl scansupress
+}
+
+func_wifi_get_retry ()
+{
+	local WIFI_DEV="$1"
+	local RETRYTYPE="$2"		# long / short
+
+	wl srl		# short retrylimit: empty == default == 7	// non RTS/CTS-packets ("big packets")
+	wl lrl		# short retrylimit: empty == default == 4
+}
+
 func_wifi_link_up ()
 {
+	local WIFI_DEV="$1"
+	
 	wifi up			# fixme! 
 	func_wifi_uptime set
 }
@@ -401,7 +486,8 @@ func_wifi_convert_mhz2channel ()	# http://en.wikipedia.org/wiki/Lost_of_WLAN_cha
 		4945) o=189 ;;
 	    496|4960) o=192 ;;
 	    498|4980) o=196 ;;
-
+					# wl also knows: 200, 204, 208, 212, 216
+					
 		   *) o=0 ;;		# fixme! till we inserted all freqs
 	esac
 
