@@ -6,8 +6,8 @@ func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wire
 {						# fixme! apply these checks regulary
 	[ -z "$( ip route list exact 0/0 table main )" ] && return 1
 
-	# is ETX > 8.000 ? fixme! is dirty
-	[ "$( sed -n '${s/^.*ETX=\([0-9]*\)\.\([0-9]*\)/\1\2/p}' /tmp/archiv_trace_inet_gateway_fff+ 2>/dev/null )" -lt 8000 ] || return 1
+	. /tmp/gateway_check_recent 2>/dev/null && [ "$COST_INT" 2>/dev/null -gt 8000 ] && return 1
+	return 0
 }
 
 case "$(nvram get fff_profile)" in
@@ -20,13 +20,15 @@ case "$(nvram get fff_profile)" in
 			
 			if [ -n "$FORM_RULES" ]; then
 				func_need pfilter weblogin old vars_old
-				MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"	# fixme! empty mac = nonlocal!
+				MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
 				func_log weblogin_try daemon info "ip: '$REMOTE_ADDR' mac: '$MAC' user: '$FORM_USER' pass: '$FORM_PASS'"
+
+				# empty mac? redirect to real = nonlocal gateway ( ipsystem $REMOTE_ADDR | grep ^WIFI_ADDR )
 
 				func_weblogin_check_login "$FORM_USER" "$FORM_PASS" "$MAC" && {
 					fkt_definitions
 					func_pfilter_user_unsplash "$MAC" "$REMOTE_ADDR" && {
-						func_log weblogin_success daemon info "mac: '$MAC'"
+						func_log weblogin_success daemon alert "mac: '$MAC'"
 						func_http_redirect 302 landing_page
 						exit
 					}
@@ -50,7 +52,7 @@ case "$(nvram get fff_profile)" in
 					func_weblogin_output_loginpage
 				else
 					func_log weblogin_inet_unstable daemon info "inet_broken"
-					func_weblogin_output_errorpage inet_broken
+					func_weblogin_output_errorpage inet_broken "cost_int: '$COST_INT' default_route: '$( ip route list exact 0/0 table main )'"
 				fi
 			fi
 		fi
@@ -66,6 +68,11 @@ fkt_decide_mode					# assigns mode by examining remote-IP-address
 
 case $MODE in
 	REDIRECT_LAN|REDIRECT_WIFI)
+	
+		func_need weblogin
+		func_weblogin_output_gate_page
+		exit
+	
 		if [ "$MODE" = "REDIRECT_LAN" ]; then		# fixme! ip -o route get 10.63.167.70 | sed -n 's/^.*src \([0-9\.]*\).*/\1/p;q'
 			func_http_redirect 302 ip_lan
 		else
