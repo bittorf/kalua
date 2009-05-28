@@ -12,6 +12,8 @@ FUNC_WIFI=1
 # func_wifi_get_hardware_usb
 # func_wifi_get_driver_version
 # func_wifi_get_sensitivity
+# func_wifi_set_sensitivity
+# func_wifi_install_full_broadcomdriver_if_not_installed
 # todo: func_wifi_get_scansupress?
 # todo: func_wifi_get_retry
 # func_wifi_link_up
@@ -285,6 +287,7 @@ func_wifi_get_driver_version ()
 func_wifi_get_sensitivity ()
 {
 	local WIFI_DEV="$1"
+	local COMMAND="$2"
 	local VALUE
 	local OUT
 
@@ -316,8 +319,61 @@ func_wifi_get_sensitivity ()
 		eval "$( func_wifi_get_status_iwconfig $WIFI_DEV | grep ^WIFI_SENSITIVITY= )"	# e.g. '3/3'
 		OUT="$WIFI_SENSITIVITY"								# fixme! output more common
 	fi
+
+	case $COMMAND in
+		short)
+			OUT="$( echo $OUT | cut -d',' -f1 )"
+		;;
+	esac
 	
 	echo "$OUT"
+}
+
+func_wifi_install_full_broadcomdriver_if_not_installed ()
+{
+	local FUNC="wifi_install_full_broadcomdriver_if_not_installed"
+
+	wl ver | grep -q ^"wl:" && return 0
+	
+	func_need packages
+	func_packages_install wl-adv && return 0
+
+	func_log $FUNC daemon alert "installing 'wl-adv' was not possible"
+		
+	return 1
+}
+
+func_wifi_set_sensitivity ()
+{
+	local FUNC="wifi_set_sensitivity"
+	local WIFI_DEV="$1"
+	local METHOD="$2"	# off | auto | wifi | nonwifi
+
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then
+	
+		func_wifi_install_full_broadcomdriver_if_not_installed && {
+		
+			func_log $FUNC daemon info "setting interference mitigation for '$WIFI_DEV' to '$METHOD'"
+		
+			case $METHOD in			# fixme! only apply, when method differs from active method
+				off)
+					wl -i $WIFI_DEV interference 0
+				;;
+				nonwifi)
+					wl -i $WIFI_DEV interference 1
+				;;
+				wifi)
+					wl -i $WIFI_DEV interference 2
+				;;
+				auto)
+					wl -i $WIFI_DEV interference 3
+				;;
+			esac
+		}
+	else
+		# http://madwifi-project.org/ticket/820
+		func_log $FUNC daemon info "setting interference mitigation with madwifi does not work"
+	fi
 }
 
 func_wifi_get_scansupress ()
