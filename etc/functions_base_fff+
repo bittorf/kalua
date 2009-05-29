@@ -184,6 +184,7 @@ func_ip2dns ()
 
 func_safe_reboot ()			# fixme! maybe shutting down services like vpn, olsrd?
 {
+	local FUNC="safe_reboot"
 	local REASON="$1"
 	local LOCKFILE="/tmp/SAFE_REBOOT_SCHEDULED"
 
@@ -196,18 +197,26 @@ func_safe_reboot ()			# fixme! maybe shutting down services like vpn, olsrd?
 
 	func_need log vars_old
 	
-	func_log safe_reboot daemon alert "scheduling reboot - reason: '$REASON'"
+	func_log $FUNC daemon alert "scheduling reboot - reason: '$REASON'"
+
+	tail -n1 "$ARCHIV_NODE_DATA" | grep -q ^# || {			# found comment at fileend
+
+		func_log $FUNC daemon info "send_alive_message was unsuccessful, backing up '${ARCHIV_NODE_DATA}'"		
+
+		local LINENUMBER_LAST_SUCCESS="$( grep -n "^#" "${ARCHIV_NODE_DATA}" | tail -n1 | cut -d':' -f1 )"
+		sed -n "$(( $LINENUMBER_LAST_SUCCESS + 1 )),\$p" "${ARCHIV_NODE_DATA}" >/www/backup_archiv_node_data
+	}
 
 	if [ ! -e "$SOFTWARE_FULLY_INSTALLED" ]; then			# fixme! check free flash space?
 	
-		func_log safe_reboot daemon info "safing syslog to '$SYSLOG_SAFED'"
+		func_log $FUNC daemon info "safing syslog to '$SYSLOG_SAFED'"
 		grep -v "kern.err olsrd" $SYSLOG >$SYSLOG_SAFED		# we don't need the "add route/del route" errors
 	else
-		func_log safe_reboot daemon info "safing last 100 lines of syslog to '$SYSLOG_SAFED'"
+		func_log $FUNC daemon info "safing last 100 lines of syslog to '$SYSLOG_SAFED'"
 		grep -v "kern.err olsrd" $SYSLOG | tail -n 100 >$SYSLOG_SAFED
 	fi	
 
-	func_log safe_reboot daemon info "flash free: '$(func_system_flash_free)', rebooting in 10 sec"
+	func_log $FUNC daemon info "flash free: '$(func_system_flash_free)', rebooting in 10 sec"
 
 	sync			# not needed? flush_cache() is also called during reboot()
 	sleep 10		# fixme! maybe we should wait till crondog works or enforce crondog-timeout
