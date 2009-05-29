@@ -1,10 +1,12 @@
 #!/bin/sh
 
+. /etc/functions_base_fff+
+
 func_update_repos ()			# fixme! only update, if not older than X hours ?
 {
 	local FUNC="update_repos"
 	
-	if [ "$(fkt_get_free_flash_space_in_kb)" -ge 250 ]; then
+	if [ "$( func_system_flash_free )" -ge 250 ]; then
 		func_log $FUNC daemon debug "Software not fully installed, updating ipkg-repositorys"
 		ipkg update
 	else
@@ -14,9 +16,9 @@ func_update_repos ()			# fixme! only update, if not older than X hours ?
 
 func_purge_repos ()
 {
-	func_log purge_repos daemon debug "flash free: $(fkt_get_free_flash_space_in_kb) kb"
+	func_log purge_repos daemon debug "flash free: $( func_system_flash_free ) kb"
 	rm -f /usr/lib/ipkg/lists/*
-	func_log purge_repos daemon debug "flash free: $(fkt_get_free_flash_space_in_kb) kb (after purging)"
+	func_log purge_repos daemon debug "flash free: $( func_system_flash_free ) kb (after purging)"
 }
 
 func_check ()		# fixme! wrong/unreachable local default route (-> but intra-net-vpnserver can help -> add to repos)
@@ -27,7 +29,7 @@ func_check ()		# fixme! wrong/unreachable local default route (-> but intra-net-
 
 	func_update_repos	# we want to know if software is in repo or not
 		
-	if [ "$(fkt_get_free_flash_space_in_kb)" -ge 250 ]; then		# fixme! we need a generic function low_flash()
+	if [ "$( func_system_flash_free )" -ge 250 ]; then		# fixme! we need a generic function low_flash()
 
 		func_log check_install daemon debug "building list of installed/not_installed software"
 
@@ -40,7 +42,7 @@ func_check ()		# fixme! wrong/unreachable local default route (-> but intra-net-
 		REAL="forced_ready"	
 	fi
 
-	if [ $(func_uptime hours) -gt 48 ] || [ "$WISH" = "$REAL" ] || [ "$(fkt_get_free_flash_space_in_kb)" -lt 250 ]; then	# lowflash_border must be the same as in functions_fff+
+	if [ $(func_uptime hours) -gt 48 ] || [ "$WISH" = "$REAL" ] || [ "$( func_system_flash_free )" -lt 250 ]; then	# lowflash_border must be the same as in functions_fff+
 		func_install_ending
 	fi
 }
@@ -66,7 +68,7 @@ func_install_ending ()
 					
 	func_log $FUNC daemon info "Software fully installed or (further) install not possible"
 				
-	[ "$(fkt_get_free_flash_space_in_kb)" -lt 150 ] && func_purge_repos
+	[ "$( func_system_flash_free )" -lt 150 ] && func_purge_repos
 			
 	func_log $FUNC daemon debug "Software fully installed for the first time...marking and rebooting"
 					
@@ -76,9 +78,9 @@ func_install_ending ()
 	func_end_all_daemons
 			
 	/etc/init.d/S03patch-o-matic* post_software_install
-	func_log check_install daemon debug "flashspace after patching: ($(fkt_get_free_flash_space_in_kb) kb)"
+	func_log check_install daemon debug "flashspace after patching: ($( func_system_flash_free ) kb)"
 				
-	[ $(fkt_get_free_flash_space_in_kb) -lt 150 ] && func_purge_repos
+	[ $( func_system_flash_free ) -lt 150 ] && func_purge_repos
 					
 	# user has an own ipkg-list? that set to 1 and the list gets filled before flashing
 	[ -n "$(nvram get fff_override_fw_ipkg)" ] && {
@@ -89,7 +91,7 @@ func_install_ending ()
 	if [ -e $SOFTWARE_FULLY_INSTALLED ]; then
 		func_safe_reboot "software fully installed"
 	else
-		func_log check_install daemon crit "Can't reboot, ultralow flashspace ($(fkt_get_free_flash_space_in_kb) kb)"
+		func_log check_install daemon crit "Can't reboot, ultralow flashspace ($( func_system_flash_free ) kb)"
 	fi
 }
 
@@ -98,7 +100,7 @@ func_install ()
 	local SOFTWARE
 
 	for SOFTWARE in $LIST_SOFTWARE; do {
-		[ $(fkt_get_free_flash_space_in_kb) -lt 250 ] && break
+		[ $( func_system_flash_free ) -lt 250 ] && break
 		[ "$( fkt_check_install_status_lowlevel "$SOFTWARE" )" = "0" ] && fkt_install_software "$SOFTWARE"
 	} done
 }
