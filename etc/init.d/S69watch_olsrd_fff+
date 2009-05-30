@@ -99,7 +99,7 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 	
 	elif neigh check4wifi ; then
 		func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
-		
+
 		BEST_WIFI_NLQ="$(neigh best_wifi_nlq)"					# fixme! maybe check 'my' wifi_gateway?
 		BEST_WIFI_NLQ_LAST="$( cat /tmp/BEST_WIFI_NLQ_LAST 2>/dev/null )"	#        and check if I'am a wifi_gateway?
 		echo "$BEST_WIFI_NLQ" >/tmp/BEST_WIFI_NLQ_LAST
@@ -121,9 +121,13 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 		
 		echo "0" >/tmp/wifi_error_counter
 	else
+		[ "$( func_wifi_get_bssid $WIFIDEV )" != "$( func_wifi_get_bssid $WIFIDEV config )" ] && {	# fixme! empty config bssid?
+			func_log meshmode_but_no_wifi_neighs daemon alert "BSSID error: '$( func_wifi_get_bssid $WIFIDEV )'/'$( func_wifi_get_bssid $WIFIDEV config )'"
+			func_wifi_restart_wifi_phy $WIFIDEV
+		}
+		
 		# fixme! sensitivity does not work on madwifi
-	
-		if [ "$( func_wifi_get_noise $WIFIDEV )" -gt -85 ] && {			# [dBm] e.g. -75 is greater than -85
+		if [ "$( func_wifi_get_noise $WIFIDEV )" -gt -85 ]; then		# [dBm] e.g. -75 is greater than -85
 		
 			[ "$( func_wifi_get_sensitivity $WIFIDEV short )" != "1" ] && {
 				func_wifi_set_sensitivity $WIFIDEV nonwifi
@@ -150,6 +154,8 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 		/usr/sbin/cron.select_best_antenna_fff+ force
 	fi
 else			# master or client-mode
+
+	# fixme! check for zero bssid!
 
 	if neigh check4nonwifi ; then
 

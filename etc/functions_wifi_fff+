@@ -26,6 +26,7 @@ FUNC_WIFI=1
 # func_wifi_set_antenna_tx
 # func_wifi_get_antenna_rx
 # func_wifi_get_antenna_tx
+# func_wifi_get_bssid
 # func_wifi_get_frag
 # func_wifi_get_rts
 # func_wifi_get_mrate
@@ -135,7 +136,7 @@ func_wifi_get_status_broadcom ()	# ARG1 = WIFI_DEV ; safe and fast reformatting 
 	# WIFI_RSSI='0'						# is signal in [dBm]?
 	# WIFI_NOISE='0'
 	# WIFI_CHANNEL=7					# convert to MHz ?
-	# WIFI_BSSID=00:1D:73:05:0F:59
+	# WIFI_BSSID=00:1D:73:05:0F:59				# own wifi_mac in AP, master_wifi_mac in STA and cell in ADHOC-mode
 	# WIFI_RATESET='1(b) 2(b) 5.5(b) 6 9 11(b) 12 18 24 36 48 54'
 
 	wl -i $1 status 2>/dev/null |
@@ -403,17 +404,20 @@ func_wifi_uptime ()	todo: get/set
 	# get
 }
 
-func_wifi_restart_wifi_phy ()		# fixme! broadcom/atheros-abstraction needed (iwconfig does not need an extra phy restart?)
+func_wifi_restart_wifi_phy ()
 {
 	local FUNC="wifi_restart_wifi_phy"
 	local WIFI_DEV="$1"
 
-	[ -x /sbin/wifi ] && {
-		func_log $FUNC daemon info "working"
-		wifi					# simply rereads nvram for all broadcom-devices
+	func_log $FUNC daemon info "working on '$WIFI_DEV'"
 
-		# func_wifi_uptime set
-	}
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then
+	
+		wifi					# simply rereads nvram for all broadcom-devices
+	else
+		ip link set dev $WIFI_DEV down
+		ip link set dev $WIFI_DEV up
+	fi
 }
 
 func_wifi_get_txpwr ()
@@ -715,6 +719,27 @@ func_wifi_get_antenna_tx ()
 	fi
 
 	echo "auto"
+}
+
+func_wifi_get_bssid ()			# works only in adhoc-mode
+{
+	local WIFI_DEV="$1"
+	local KEYWORD="$2"		# can be 'config'
+	local WIFI_BSSID
+
+	[ "$KEYWORD" = "config" ] && {
+		func_uppercase "$(nvram get ff_bssid)"
+		return
+	}
+	
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+
+		eval "$(func_wifi_get_status_broadcom | grep ^WIFI_BSSID= )"
+	else
+		echo "$(func_wifi_get_status_iwconfig | grep ^WIFI_BSSID= )"
+	fi
+	
+	echo $WIFI_BSSID		# should be uppercase
 }
 
 func_wifi_get_frag ()
