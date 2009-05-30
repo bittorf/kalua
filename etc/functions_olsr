@@ -174,19 +174,31 @@ func_olsr_get_neighbours ()
 	local TEMP="/tmp/olsr_output_$$.txt"
 	local PLUGIN="olsrd_txtinfo"
 	local CONF="/etc/olsrd.conf"
+	local URL="http://127.0.0.1:2006/neighbours"
 	
 	grep -q "^LoadPlugin.*$PLUGIN\.so\." $CONF && {	
 		
-		wget -qO "$TEMP" "http://127.0.0.1:2006/neighbours" 2>/dev/null || {		# fixme! fetch routing-table also
-												# and use it for func_ip2metric()
+		wget -qO "$TEMP" "$URL" 2>/dev/null || {		# fixme! fetch routing-table also
+									#        and use it for func_ip2metric()
+			rm "$TEMP"
+
+			[ "$(func_uptime min)" -lt 5 ] && {
+				sleep 60				# lets settle down
+			
+				wget -qO "$TEMP" "$URL" 2>/dev/null && {
+					echo -n "$TEMP"
+					return 0
+				}
+			}
+			
 			rm "$TEMP"
 			
-			pidof olsrd >/dev/null || {
+			if pidof olsrd >/dev/null ; then
+				func_log $FUNC daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
+			else
 				func_log $FUNC daemon crit "failed to fetch neighbour-table, because OLSRd is'nt running"
-				return 1
-			}
+			fi
 		
-			func_log $FUNC daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
 			return 1
 		}
 	
