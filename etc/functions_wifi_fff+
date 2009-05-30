@@ -438,7 +438,8 @@ func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
 	local TXPWR="$2"
 	local UNIT="$3"		# keyword, can be 'mw', 'dbm', 'qdbm'	// fixme! at the moment this MUST be [mW]
 	local MODE="$4"		# keyword, can be 'add', 'subtract', 'empty = absolute'
-	local KEYWORD="$5"	# keyword, 'overturn' (if value is over max, then flip to min)
+	local KEYWORD="$5"	# keyword: 'overturn' (if value is over max, then flip to min)
+				#          'limit' (if value is over max or under min, than to nothing)
 	local VALUE
 	local MAX="90"		# this is just an proposal and not science-based
 	local MIN="10"		# this is a not science-based, but IMHO a senseful value
@@ -456,10 +457,16 @@ func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
 		       ;;
 	esac
 
-	[ "$KEYWORD" = "overturn" ] && {
-		[ "$VALUE" -gt "$MAX" ] && VALUE="$MIN"
-		[ "$VALUE" -lt "$MIN" ] && VALUE="$MAX"
-	}
+	case "$KEYWORD" in
+		overturn)
+			[ "$VALUE" -gt "$MAX" ] && VALUE="$MIN"
+			[ "$VALUE" -lt "$MIN" ] && VALUE="$MAX"
+		;;
+		limit)
+			[ "$VALUE" -gt "$MAX" ] && VALUE="$MAX"
+			[ "$VALUE" -lt "$MIN" ] && VALUE="$MIN"
+		;;
+	esac
 	
 	func_wifi_set_txpwr "$WIFI_DEV" "$VALUE" mw absolute
 }
