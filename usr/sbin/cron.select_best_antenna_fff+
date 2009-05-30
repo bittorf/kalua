@@ -5,7 +5,7 @@
 # switching trough possible settings and measuring received OLSR-data. (iptables)
 # If no OLSR-daemon is running for specific interface, we count
 # the received bytes in /proc/net/dev (e.g. in master or client-mode)
-# All settings are done on-the-fly, without commiting - no wifi- or olsr-restart.
+# All settings are done on-the-fly, without 'nvram'-commiting - no wifi- or olsr-restart.
 
 . /etc/functions_base_fff+ && func_need vars wifi nvram log profile
 
@@ -30,7 +30,7 @@ esac
 		func_log check_for_special_devices daemon info "unmodified '$ROUTER_VENDOR/$ROUTER_MODEL' or enforced, using antenna A on dev '$WIFI_DEV'"
 		func_wifi_set_antenna_rx $WIFI_DEV $BEST_ANT
 		func_wifi_set_antenna_tx $WIFI_DEV $BEST_ANT
-		func_nvset commit
+		func_nvset commit				# fixme! not needed?
 		func_wifi_restart_wifi_phy $WIFI_DEV
 	}
 	exit
@@ -121,9 +121,12 @@ func_test_wifi_dev ()
 		func_log compare_packets daemon info "a = b"
 	fi
 
+	local PRIO="alert"	# for logger
+
 	  if [ $BYTES_A -gt $BYTES_B ] && [ $PACKETS_A -ne $PACKETS_B ]; then			# compare bytes
 	  
-		func_log compare_bytes daemon alert "$INFO - bytes_a > bytes_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
+	  	[ "$ANTENNA_INITIAL" = "A" ] && PRIO="info"
+		func_log compare_bytes daemon $PRIO "$INFO - bytes_a > bytes_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
 
 		func_wifi_set_antenna_rx   $WIFI_DEV 0
 		func_wifi_set_antenna_tx   $WIFI_DEV 0
@@ -131,23 +134,27 @@ func_test_wifi_dev ()
 	
 	elif [ $BYTES_B -gt $BYTES_A ] && [ $PACKETS_A -ne $PACKETS_B ]; then
 	
-		func_log compare_bytes daemon info "$INFO - bytes_a < bytes_b (initial was: $ANTENNA_INITIAL - leaving antenna selection on B)"
+		[ "$ANTENNA_INITIAL" = "B" ] && PRIO="info"
+		func_log compare_bytes daemon $PRIO "$INFO - bytes_a < bytes_b (initial was: $ANTENNA_INITIAL - leaving antenna selection on B)"
 	else
 		func_log compare_bytes daemon info "bytes_a = bytes_b or packets_a = packets_b, taking received dev_packets into account"
 		
 		  if [ $DEV_PACKETS_A -gt $DEV_PACKETS_B ]; then			# compare dev_packets
 		
-			func_log compare_devpackets daemon alert "$INFO - dev_packets_a > dev_packets_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
+			[ "$ANTENNA_INITIAL" = "A" ] && PRIO="info"
+			func_log compare_devpackets daemon $PRIO "$INFO - dev_packets_a > dev_packets_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
 			
 			func_wifi_set_antenna_rx   $WIFI_DEV 0
 			func_wifi_set_antenna_tx   $WIFI_DEV 0
 			func_wifi_restart_wifi_phy $WIFI_DEV
 			
 		elif [ $DEV_PACKETS_B -gt $DEV_PACKETS_A ]; then
-		
-			func_log compare_devpackets daemon info "$INFO - a < b (initial was: $ANTENNA_INITIAL - leaving antenna selection B)"
+	
+			[ "$ANTENNA_INITIAL" = "B" ] && PRIO="info"
+			func_log compare_devpackets daemon $PRIO "$INFO - a < b (initial was: $ANTENNA_INITIAL - leaving antenna selection B)"
 		else
-			func_log compare_devpackets daemon info "$INFO - a = b (initial was: $ANTENNA_INITIAL - leaving antenna selection B)"
+			[ "$ANTENNA_INITIAL" = "B" ] && PRIO="info"
+			func_log compare_devpackets daemon $PRIO "$INFO - a = b (initial was: $ANTENNA_INITIAL - leaving antenna selection B)"
 		fi
 	fi
 }
