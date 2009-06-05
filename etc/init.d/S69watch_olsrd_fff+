@@ -123,7 +123,7 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 	else
 		[ "$( func_wifi_get_bssid $WIFIDEV )" != "$( func_wifi_get_bssid $WIFIDEV config )" ] && {	# fixme! empty config bssid?
 			func_log meshmode_but_no_wifi_neighs daemon alert "BSSID error: '$( func_wifi_get_bssid $WIFIDEV )'/'$( func_wifi_get_bssid $WIFIDEV config )'"
-			func_wifi_restart_wifi_phy $WIFIDEV
+			func_wifi_restart_phy $WIFIDEV
 		}
 		
 		# fixme! sensitivity does not work on madwifi
@@ -141,10 +141,10 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 		COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
 		COUNT="$(( ${COUNT:=0} + 1 ))"
 	
-		func_log meshmode_but_no_wifi_neighs daemon crit "raising counter to ${COUNT}/15"
+		func_log meshmode_but_no_wifi_neighs daemon info "raising counter to ${COUNT}/15"
 		
 		[ $COUNT -gt 15 ] && {
-			func_safe_reboot "meshmode - but no wifi neigh for a long time"		# 15 * 15 mins = 4 hours
+			func_safe_reboot "meshmode - but no wifi neigh for a long time (counter: '${COUNT}')"	# 15 * 15 mins = 4 hours
 		}
 		
 		echo $COUNT >/tmp/wifi_error_counter
@@ -153,21 +153,43 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 		
 		/usr/sbin/cron.select_best_antenna_fff+ force
 	fi
-else			# master or client-mode
+else							# master or client-mode
+	[ "$(func_uptime min)" -gt 5 ] && {
 
-	# fixme! check for zero bssid!
+		if neigh check4nonwifi ; then		# fixme! check for zero bssid!
 
-	if neigh check4nonwifi ; then
-
-		func_log no_meshmode_and_no_neighs daemon debug "found wired neigh"
-	else
-		if neigh check4wifi ; then
-		
-			func_log no_meshmode_and_no_neighs daemon debug "found wifi neigh"
+			func_log no_meshmode_and_no_neighs daemon debug "found wired neigh"
+			echo "0" >/tmp/wifi_error_counter
 		else
-			func_safe_reboot "no meshmode - and no wired nor wifi neigh"
+			if neigh check4wifi ; then
+		
+				func_log no_meshmode_and_no_neighs daemon debug "found wifi neigh"
+				echo "0" >/tmp/wifi_error_counter
+			else
+				[ "$(func_wifi_get_bssid $WIFIDEV)" = "00:00:00:00:00:00" ] && {
+					func_log no_meshmode_and_no_neighs daemon alert "zero bssid: 'func_wifi_get_bssid $WIFIDEV'"
+					func_wifi_restart_phy $WIFIDEV
+				}
+				
+				if [ "$(fkt_check_if_this_node_offers_inet)" != "false" ]; then
+				
+					func_log no_meshmode_and_no_neighs daemon debug "no wifi-neighs, but local inet offer"
+					echo "0" >/tmp/wifi_error_counter
+				else
+					COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
+					COUNT="$(( ${COUNT:=0} + 1 ))"
+					
+					func_log no_meshmode_and_no_neighs daemon info "raising counter to ${COUNT}/15"
+					
+					[ $COUNT -gt 15 ] && {
+						func_safe_reboot "no meshmode - and no wired nor wifi neigh for a long time (counter: '${COUNT}')"
+					}
+					
+					echo $COUNT >/tmp/wifi_error_counter
+				fi
+			fi
 		fi
-	fi
+	}
 fi
 
 func_olsr_plausi_check $(func_olsr_get_neighbours) || /etc/init.d/S53olsrd restart
@@ -243,7 +265,7 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 	} done
 
 	[ "$TRY" != "9" ] && {
-		func_log $FUNC daemon alert "end without success"
+		func_log $FUNC daemon info "end without success"
 		rm $FILE_SUCCESS
 	}
 }
@@ -540,7 +562,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
  					func_log mesh_rdf_send_alive daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
  					
  					[ "$OUT" != "OK" ] && {
- 						func_log mesh_rdf_send_alive daemon crit "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending"
+ 						func_log mesh_rdf_send_alive daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending"
  						touch /tmp/SEND_ALIVE_FAILED
  						break				# fixme! set comment ("marker") after last sent line
  					}

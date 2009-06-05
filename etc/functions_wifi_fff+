@@ -17,7 +17,7 @@ FUNC_WIFI=1
 # todo: func_wifi_get_scansupress?
 # todo: func_wifi_get_retry
 # func_wifi_uptime
-# func_wifi_restart_wifi_phy
+# func_wifi_restart_phy
 # func_wifi_get_txpwr
 # func_wifi_set_txpwr
 # func_wifi_convert_mhz2channel
@@ -48,20 +48,11 @@ FUNC_WIFI=1
 # alle devs rausbekommen
 # pro dev herausbekommen, welche hardware = welcher treiber
 
-# [ "$BSSID" = "00:00:00:00:00:00" ] && not_connected
-
 # mode=master|client|adhoc|wds ???
-
-# iwconfig device = emtpy -> broadcom
-# iwconfig eth1 >/tmp/t 2>/dev/null && echo ja
 
 # was wenn eine hardware mit wl und iwconfig angesprochen werden kann?
 # vielleicht immer mit iwconfig probieren, wenn leer dann wl?!
 
-# MAC-Adresse
-# ip -oneline link show dev eth1 2>/dev/null |
-#  sed -n 's/^.*link\/ether \(..\):\(..\):\(..\):\(..\):\(..\):\(..\) .*/MAC=\1:\2:\3:\4:\5:\6\nMAC=\1\2\3\4\5\6/p'
-#
 # joinen von iwconfig/broadcom-ausgabe-variablen
 # oder gleich broadcom nach iwconfig ueberfuehren?
 
@@ -76,6 +67,7 @@ FUNC_WIFI=1
 #	do_some_stuff_with_normal_vars
 #	[ -n "$WIFI_DEV_NEXT" ] && . $WIFI_DEV_NEXT	# inluding VAR-set for next WIFI_DEV
 # } done						# (last entry must point to first-device)
+
 
 func_wifi_get_params ()
 {
@@ -404,7 +396,7 @@ func_wifi_uptime ()	todo: get/set
 	# get
 }
 
-func_wifi_restart_wifi_phy ()
+func_wifi_restart_phy ()
 {
 	local FUNC="wifi_restart_wifi_phy"
 	local WIFI_DEV="$1"
@@ -471,7 +463,7 @@ func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
 		       	  func_need nvram
 		       	  func_log $FUNC daemon ${PRIO:-alert} "for '$WIFI_DEV' to '$TXPWR' mW ('$VALUE' qdBm)"
 		       	  func_nvset wl0_txpwr "$VALUE"
-		       	  func_wifi_restart_wifi_phy "$WIFI_DEV"
+		       	  func_wifi_restart_phy "$WIFI_DEV"
 		       	 
 		       	  return 0
 		       ;;
@@ -736,9 +728,9 @@ func_wifi_get_antenna_tx ()
 	echo "auto"
 }
 
-func_wifi_get_bssid ()			# works only in adhoc-mode
+func_wifi_get_bssid ()			# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associated ap in client-mode
 {
-	local WIFI_DEV="$1"
+	local WIFI_DEV="$1"		# fixme! check, if this works with broadcom AND madwifi in all conditions
 	local KEYWORD="$2"		# can be 'config'
 	local WIFI_BSSID
 
@@ -749,9 +741,9 @@ func_wifi_get_bssid ()			# works only in adhoc-mode
 	
 	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
 
-		eval "$(func_wifi_get_status_broadcom | grep ^WIFI_BSSID= )"
+		eval "$(func_wifi_get_status_broadcom $WIFI_DEV | grep ^WIFI_BSSID= )"
 	else
-		echo "$(func_wifi_get_status_iwconfig | grep ^WIFI_BSSID= )"
+		echo "$(func_wifi_get_status_iwconfig $WIFI_DEV | grep ^WIFI_BSSID= )"
 	fi
 	
 	echo $WIFI_BSSID		# should be uppercase

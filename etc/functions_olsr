@@ -1,7 +1,11 @@
+FUNC_OLSR=1
+
 # func_olsr_get_random_neigh
 # func_olsr_get_random_pair_from_mesh_evalable
+# func_olsr_get_cost_to_specific_node_evalable
 # func_olsr_check_if_any_nonwifi_neigh
 # func_olsr_check_for_wifi_neigh
+# func_olsr_get_nlq
 # func_olsr_best_wifi_nlq
 # func_olsr_check_for_good_non_tunnel_neigh
 # func_olsr_get_neighbours
@@ -15,6 +19,7 @@
 # func_dev_is_wireless
 # func_dev_is_tunnel
 # func_get_dev_from_ip
+
 
 func_olsr_get_random_neigh ()
 {
@@ -114,7 +119,32 @@ func_olsr_check_for_wifi_neigh ()
 	return 1
 }
 
-func_olsr_best_wifi_nlq ()			# idea: [ "$( nvram get fff_nlq_optimize )" = "$IP" ]
+func_olsr_get_nlq ()
+{
+	local FUNC="olsr_get_nlq"
+	local FILE="$1"
+	local THIS_NEIGH="$2"
+	local NLQ
+	
+	func_olsr_output_neigh "$FILE"
+	
+	while read LINE; do {
+		eval $LINE
+
+		[ "$REMOTE" = "$THIS_NEIGH" ] && {
+			NLQ="${NLQ:=0.000}"
+			NLQ="${NLQ%[\.]*}${NLQ#*[\.]}"
+			break			
+		}
+	
+	} done <"$FILE" && rm "$FILE"
+
+	[ -z "$NLQ" ] && return 1
+	
+	echo $NLQ
+}
+
+func_olsr_best_wifi_nlq ()
 {
 	local FUNC="olsr_best_wifi_nlq"
 	local FILE="$1"

@@ -42,20 +42,30 @@ case $MODE in
 	          	     		     	exit
 					     ;;
 		esac
+
+		func_need old vars_old
 		
 		if func_pfilter_is_usermac "$MAC" ; then
 			func_log dhcp_$MODE daemon info "'$MAC' already shaped"
 
-			func_pfilter_is_redirected $MAC && {
+			if func_pfilter_is_redirected $MAC ; then
+			
 				func_log dhcp_$MODE daemon info "'$MAC' gets a redirect, unsplashing"
 				fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP
-			}
+			else
+				func_log dhcp_$MODE daemon info "'$MAC' is already freed"
+			fi
 		else
 			func_log dhcp_$MODE daemon info "'$MAC' yet unknown, from '$DEV',ID:'$DNSMASQ_CLIENT_ID',CLASS:'$DNSMASQ_VENDOR_CLASS',IF:'$DNSMASQ_INTERFACE'"
 		
-			func_activate_reserved_user_chain $MAC $IP || {
+			if func_activate_reserved_user_chain $MAC $IP ; then
+			
+				func_log dhcp_$MODE daemon info "'$MAC' (fast) activated"
+			else
+				func_log dhcp_$MODE daemon info "'$MAC' is getting (slowly) established"
 				fkt_add_user_with_mac_and_ip $MAC $IP
-			}                        
+				func_log dhcp_$MODE daemon info "'$MAC' ready"
+			fi                  
 		fi
 	;;
 	del)
