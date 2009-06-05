@@ -86,7 +86,7 @@ func_watch_hanging_netcat
 func_need vars_old olsr wifi netparam
 
 if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-power if NLQ ~ 1.000 ?
-
+								# fixme! also make this, if olsr-neighs (in ap or client-mode)
 	  if ! func_wifi_phy_probe_online $WIFIDEV ; then	# maybe its switched off by admin
 	
 		func_log meshmode_but_no_wifi_neighs daemon debug "radio is off, no further tests"
@@ -100,8 +100,14 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 	elif neigh check4wifi ; then
 		func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
 
-		BEST_WIFI_NLQ="$(neigh best_wifi_nlq)"					# fixme! maybe check 'my' wifi_gateway?
-		BEST_WIFI_NLQ_LAST="$( cat /tmp/BEST_WIFI_NLQ_LAST 2>/dev/null )"	#        and check if I'am a wifi_gateway?
+		if [ -n "$( nvram get fff_optimize_neigh )"; then				# fixme! we must detect interface for neigh,
+												#        to tune the correct antenna
+			BEST_WIFI_NLQ="$( neigh get_nlq $(nvram get fff_optimize_neigh) )"
+		else
+			BEST_WIFI_NLQ="$( neigh best_wifi_nlq )"				# fixme! maybe check 'my' wifi_gateway?
+		fi										#        and check if I'am a wifi_gateway?
+
+		BEST_WIFI_NLQ_LAST="$( cat /tmp/BEST_WIFI_NLQ_LAST 2>/dev/null )"
 		echo "$BEST_WIFI_NLQ" >/tmp/BEST_WIFI_NLQ_LAST
 		[ -z "$BEST_WIFI_NLQ_LAST" ] && BEST_WIFI_NLQ_LAST="$BEST_WIFI_NLQ"
 		
@@ -161,7 +167,11 @@ else							# master or client-mode
 			func_log no_meshmode_and_no_neighs daemon debug "found wired neigh"
 			echo "0" >/tmp/wifi_error_counter
 		else
-			if neigh check4wifi ; then
+			  if ! func_wifi_phy_probe_online $WIFIDEV ; then
+			
+				func_log no_meshmode_and_no_neighs daemon debug "wifi is switched off by admin"
+			
+			elif neigh check4wifi ; then
 		
 				func_log no_meshmode_and_no_neighs daemon debug "found wifi neigh"
 				echo "0" >/tmp/wifi_error_counter
