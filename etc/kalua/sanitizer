@@ -1,0 +1,77 @@
+FUNC_SANITIZER=1
+
+# ToDo: 
+# - urlencode
+# - email
+# - integer
+#   - shortint
+#   - integer
+#   - longint
+#   - unsigned
+#   - range -500...+800	(round to min or max, or check)
+# - ip4, ip6
+
+_sanitizer ()
+{
+	local INPUT="$1"
+	local WORK="$1"
+
+	while [ -n "$2" ]; do {	
+	
+		case $2 in
+			hex)
+				INPUT="$( _sanitizer_hex "$INPUT" )"
+			;;
+			lowercase)
+				INPUT="$( _sanitizer_lowercase "$INPUT" )"
+			;;
+			uppercase)
+				INPUT="$( _sanitizer_uppercase "$INPUT" )"
+			;;
+			email)
+				INPUT="$( _sanitizer_email "$INPUT" )"
+			;;
+			urlvalue)
+				INPUT="$( _sanitizer_urlvalue "$INPUT" )"	
+			;;
+			check)
+				[ "$WORK" = "$INPUT" ] && return 0
+				return 1
+			;;
+			*)
+				logger -t "fff+ $0 _sanitizer()" -p "daemon.alert" "'$1' - invalid call"
+			;;
+		esac
+		
+		shift
+	} done
+	
+	echo -n "$INPUT"
+}
+
+_sanitizer_hex ()
+{
+	echo -n "$1" | sed 's/[^a-fA-F0-9]//g'
+}
+
+_sanitizer_lowercase ()
+{
+	echo -n "$1" | sed 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'
+}
+
+_sanitizer_uppercase ()
+{
+	echo -n "$1" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/'
+}
+
+_sanitizer_email ()
+{
+	echo -n "$1" | sed 's/[^0-9a-zA-Z@\._-]//g'		# fixme! only one '@'
+}
+
+_sanitizer_urlvalue ()
+{
+	func_need log
+	
+	func_url_encode "$1"
+}
