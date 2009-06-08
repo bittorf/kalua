@@ -100,10 +100,21 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 	elif neigh check4wifi ; then
 		func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
 
-		if [ -n "$( nvram get fff_optimize_neigh )" ]; then				# fixme! we must detect interface for neigh,
-			
-			BEST_WIFI_NLQ="$( neigh get_nlq $(nvram get fff_optimize_neigh) )"
+		OPTIMIGE_TARGET_NLQ="$( nvram get fff_optimize_nlq   )"		# 0...1000 (integer)
+		OPTIMIZE_NEIGH="$(      nvram get fff_optimize_neigh )"		# IPv4, 'gateway' or <empty> = any
+		
+		[ "$OPTIMIZE_NEIGH" = "gateway" ] && {				# make sure, that we optimize a wifi-gateway
+			ip route list exact 0/0 | grep -q "dev $WIFIDEV" && {
+				OPTIMIZE_NEIGH="$( ip route list exact 0/0 | sed -n "s/^default via \(.*\) dev ${WIFIDEV}.*/\1/p" )"
+			}
+		}
+		
+		if [ -n "$OPTIMIZE_NEIGH" ]; then						# fixme! we must detect interface for neigh,
+												#        to tune the correct antenna
+			func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, optimizing for $OPTIMIZE_NEIGH"
+			BEST_WIFI_NLQ="$( neigh get_nlq $OPTIMIZE_NEIGH )"
 		else
+			func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"
 			BEST_WIFI_NLQ="$( neigh best_wifi_nlq )"				# fixme! maybe check 'my' wifi_gateway?
 		fi										#        and check if I'am a wifi_gateway?
 
@@ -111,12 +122,12 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 		echo "$BEST_WIFI_NLQ" >/tmp/BEST_WIFI_NLQ_LAST
 		[ -z "$BEST_WIFI_NLQ_LAST" ] && BEST_WIFI_NLQ_LAST="$BEST_WIFI_NLQ"
 		
-		if [ "$BEST_WIFI_NLQ" -gt 500 ]; then
+		if [ "${BEST_WIFI_NLQ:=0}" -gt ${OPTIMIGE_TARGET_NLQ:=500} ]; then
 	 		func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ ($BEST_WIFI_NLQ > 500)"
 
 			func_wifi_set_txpwr "$WIFIDEV" 5 mW subtract limit
 		else
-			func_log meshmode_but_no_wifi_neighs daemon debug "NOT found at least one wifi-neigh with reasonable NLQ (found '$BEST_WIFI_NLQ')"
+			func_log meshmode_but_no_wifi_neighs daemon debug "NOT found at least one wifi-neigh with reasonable NLQ (found '$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST')"
 
 			if [ "$BEST_WIFI_NLQ" -le "$BEST_WIFI_NLQ_LAST" ]; then		# fixme! use hysteresis
 				func_wifi_set_txpwr "$WIFIDEV" 5 mW add overturn
