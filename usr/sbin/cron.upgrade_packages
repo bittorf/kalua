@@ -1,15 +1,17 @@
 #!/bin/sh
 
-. /etc/functions_base_fff+ && func_need log packages
-
+. /etc/functions_base_fff+ && func_need log packages			# reading and working directly with a stream of package-metadata
+									# without the need to use flashspace like with 'ipkg update'
 URL_PACKAGE_LIST="$(nvram get fff_url_network)/packages/Packages"
-
 func_log grab_package_list daemon debug "fetching '$URL_PACKAGE_LIST'"
 
 wget -qO - "$URL_PACKAGE_LIST" | while read LINE; do {
 
-	case "$( echo $LINE | cut -d':' -f1 )" in			# keyword
+	case "$( echo $LINE | cut -d':' -f1 )" in			# ipkg-keyword
 	
+		Priority|Maintainer|Section|Description|Source|Size|Architecture|Depends|MD5Sum|Conflicts)
+			continue
+		;;
 		Package)
 			PACKAGE="$(  echo $LINE | cut -d' ' -f2 )"	# mydesign
 			VERSION=
@@ -21,7 +23,7 @@ wget -qO - "$URL_PACKAGE_LIST" | while read LINE; do {
 		Filename)
 			FILENAME="$( echo $LINE | cut -d' ' -f2 )"	# mydesign_0.1.ipk
 		;;
-		*)
+		"")
 			[ -n "$VERSION" ] && [ -n "$FILENAME" ] && {
 			
 				case $PACKAGE in
@@ -30,28 +32,24 @@ wget -qO - "$URL_PACKAGE_LIST" | while read LINE; do {
 						VERSION_HERE="$( func_packages_version $PACKAGE )"
 						VERSION_SERVER="$VERSION"
 						
-						if [ "$(func_packages_get_newer_version $VERSION_HERE $VERSION_SERVER)" = "$VERSION_SERVER" ]; then
+						if [ "$(func_packages_get_newer_version ${VERSION_HERE:=0} $VERSION_SERVER)" = "$VERSION_SERVER" ] || func_ipkg_is_not_installed $PACKAGE; then
 						
 							URL="$(nvram get fff_url_network)/packages/$FILENAME"
-						
 							func_log found_newer_version daemon info "upgrading '$PACKAGE' (here/server: v$VERSION_HERE/v$VERSION_SERVER url: '$URL')"
 						
-							cd /tmp
-							wget -q "$URL"		
-							ipkg install $FILENAME		# package must have no dependencies
-							rm $FILENAME
+							wget -q -O "/tmp/mypackage_$$.ipk" "$URL"		
+							ipkg install "/tmp/mypackage_$$.ipk"		# package must have no dependencies
+							rm "/tmp/mypackage_$$.ipk"
 						else
 							func_log version_not_newer daemon debug "package '$PACKAGE' not upgraded (here/server: v$VERSION_HERE/v$VERSION_SERVER)"
 						fi
 					;;
 					*)
-						func_log invalid_package daemon debug "ignoring '$PACKAGE'"
+						func_log uninteresting_package daemon debug "ignoring '$PACKAGE'"
 					;;
 				esac
 			
-				PACKAGE=
-				VERSION=
-				FILENAME=
+				PACKAGE=""; VERSION=""; FILENAME=""
 			}
 		;;
 	esac
