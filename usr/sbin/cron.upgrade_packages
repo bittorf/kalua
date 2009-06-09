@@ -1,0 +1,59 @@
+#!/bin/sh
+
+. /etc/functions_base_fff+ && func_need log packages
+
+URL_PACKAGE_LIST="$(nvram get fff_url_network)/packages/Packages"
+
+func_log grab_package_list daemon debug "fetching '$URL_PACKAGE_LIST'"
+
+wget -qO - "$URL_PACKAGE_LIST" | while read LINE; do {
+
+	case "$( echo $LINE | cut -d':' -f1 )" in			# keyword
+	
+		Package)
+			PACKAGE="$(  echo $LINE | cut -d' ' -f2 )"	# mydesign
+			VERSION=
+			FILENAME=
+		;;
+		Version)
+			VERSION="$(  echo $LINE | cut -d' ' -f2 )"	# 0.1
+		;;
+		Filename)
+			FILENAME="$( echo $LINE | cut -d' ' -f2 )"	# mydesign_0.1.ipk
+		;;
+		*)
+			[ -n "$VERSION" ] && [ -n "$FILENAME" ] && {
+			
+				case $PACKAGE in
+					mydesign|mysettings|sshpubkeys|fff-adblock-list)
+					
+						VERSION_HERE="$( func_packages_version $PACKAGE )"
+						VERSION_SERVER="$VERSION"
+						
+						if [ "$(func_packages_get_newer_version $VERSION_HERE $VERSION_SERVER)" = "$VERSION_SERVER" ]; then
+						
+							URL="$(nvram get fff_url_network)/packages/$FILENAME"
+						
+							func_log found_newer_version daemon info "upgrading '$PACKAGE' (here/server: v$VERSION_HERE/v$VERSION_SERVER url: '$URL')"
+						
+							cd /tmp
+							wget -q "$URL"		
+							ipkg install $FILENAME		# package must have no dependencies
+							rm $FILENAME
+						else
+							func_log version_not_newer daemon debug "package '$PACKAGE' not upgraded (here/server: v$VERSION_HERE/v$VERSION_SERVER)"
+						fi
+					;;
+					*)
+						func_log invalid_package daemon debug "ignoring '$PACKAGE'"
+					;;
+				esac
+			
+				PACKAGE=
+				VERSION=
+				FILENAME=
+			}
+		;;
+	esac
+} done
+

@@ -10,6 +10,9 @@ FUNC_PACKAGES=1
 # func_ipkg_is_installed
 # func_ipkg_is_not_installed
 # func_packages_install
+# func_packages_upgrade
+# func_packages_version
+# func_packages_get_newer_version
 
 
 func_ipkg_make_free_space ()
@@ -162,5 +165,72 @@ func_packages_version ()
 	}
 
 	return 1
+}
+
+func_packages_get_newer_version ()		# compare the values and return the newer one
+{
+	local VERSION_A="$1"
+	local VERSION_B="$2"
+
+	  if [ "$( func_packages_get_newer_version_normalize $VERSION_A )" -gt "$( func_packages_get_newer_version_normalize $VERSION_B )" ]; then
+	
+		echo -n "$VERSION_A"
+	
+	elif [ "$( func_packages_get_newer_version_normalize $VERSION_B )" -gt "$( func_packages_get_newer_version_normalize $VERSION_A )" ]; then
+
+		echo -n "$VERSION_B"
+	fi
+}
+
+func_packages_get_newer_version_normalize ()
+{
+	local VERSION="$1"
+	local X Y Z N
+
+	# bash can't calculate with floats, so we normalize to 100.000.000, e.g.:
+	#
+	# v  X.  Y.  Z
+	# v  1.222.333 -> 001222333 (2 dots)
+	# v111.222.333 -> 111222333 (2 dots)
+	# v  4.222     -> 004222000 (1 dot)
+	# v  5         ->   5000000 (0 dots)
+
+	local DOTS="$( echo -n $VERSION | sed 's/[^\.]//g' )"
+	
+	case "${#DOTS}" in
+		0)
+			X="$VERSION"
+		;;
+		1)
+			X=${VERSION%[.]*}
+			Y=${VERSION#*.}
+		;;
+		2)
+			N=${VERSION%[.]*}
+			X=${N%[.]*}
+			
+			N=${VERSION#*.}
+			Y=${N%[.]*}
+			Z=${N#*.}
+		;;
+	esac
+
+	for N in "$X" "$Y" "$Z"; do {
+	
+		case ${#N} in
+			0)
+				echo -n "000"
+			;;
+			1)
+				echo -n "00$N"
+			;;
+			2)
+				echo -n "0$N"
+			;;
+			*)
+				echo -n "${N:=000}"
+			;;
+		esac
+	} done
 }
 
