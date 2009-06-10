@@ -111,30 +111,35 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 		
 		if [ -n "$OPTIMIZE_NEIGH" ]; then						# fixme! we must detect interface for neigh,
 												#        to tune the correct antenna
-			func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, optimizing for $OPTIMIZE_NEIGH"
 			BEST_WIFI_NLQ="$( neigh get_nlq $OPTIMIZE_NEIGH )"
+			func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, optimizing for $OPTIMIZE_NEIGH, nlq_now: $BEST_WIFI_NLQ"
 		else
-			func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"
-			BEST_WIFI_NLQ="$( neigh best_wifi_nlq )"				# fixme! maybe check 'my' wifi_gateway?
-		fi										#        and check if I'am a wifi_gateway?
+			BEST_WIFI_NLQ="$( neigh best_wifi_nlq )"							# fixme! maybe check 'my' wifi_gateway?
+			func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, nlq_now: $BEST_WIFI_NLQ"	#	 and check if I'am a wifi_gateway?
+		fi
 
 		BEST_WIFI_NLQ_LAST="$( cat /tmp/BEST_WIFI_NLQ_LAST 2>/dev/null )"
-		echo "$BEST_WIFI_NLQ" >/tmp/BEST_WIFI_NLQ_LAST
+		echo "${BEST_WIFI_NLQ:=0}" >/tmp/BEST_WIFI_NLQ_LAST
 		[ -z "$BEST_WIFI_NLQ_LAST" ] && BEST_WIFI_NLQ_LAST="$BEST_WIFI_NLQ"
 		
-		if [ "${BEST_WIFI_NLQ:=0}" -gt ${OPTIMIGE_TARGET_NLQ:=500} ]; then
-	 		func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
-
-			func_wifi_set_txpwr "$WIFIDEV" 5 mW subtract limit
+		TXPWR_STEP="5 mW"
+		
+		if [ "${BEST_WIFI_NLQ:=0}" -gt ${OPTIMIGE_TARGET_NLQ:=850} ]; then		# definition of default_target_nlq = 0.850
+	 	
+	 		func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ: -$TXPWR_STEP ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
+			func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
 		else
 			func_log meshmode_but_no_wifi_neighs daemon debug "NOT found at least one wifi-neigh with reasonable NLQ (found '$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST')"
 
-			if [ "$BEST_WIFI_NLQ" -le "$BEST_WIFI_NLQ_LAST" ]; then		# fixme! use hysteresis
-				func_wifi_set_txpwr "$WIFIDEV" 5 mW add overturn
+			if [ "$BEST_WIFI_NLQ" -le "$BEST_WIFI_NLQ_LAST" ]; then			# fixme! use hysteresis
+				
+				func_log meshmode_but_no_wifi_neighs daemon debug "nlq is lower or equal than in last round: +$TXPWR_STEP"
+				func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP add overturn
 			else
-				func_wifi_set_txpwr "$WIFIDEV" 5 mW subtract limit
+				func_log meshmode_but_no_wifi_neighs daemon debug "nlq is higher than in last round: -$TXPWR_STEP"
+				func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
 			fi
-		fi									# fixme! add aftercheck + alert.log when successful
+		fi										# fixme! add aftercheck + alert.log when successful
 		
 		echo "0" >/tmp/wifi_error_counter
 	else
@@ -166,7 +171,7 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ]; then	# fixme! lowering tx-po
 		
 		echo $COUNT >/tmp/wifi_error_counter
 		
-		func_wifi_set_txpwr "$WIFIDEV" 5 mW add overturn	# fixme! add aftercheck + alert.log when successful
+		func_wifi_set_txpwr "$WIFIDEV" 10 mW add overturn	# fixme! add aftercheck + alert.log when successful
 		
 		/usr/sbin/cron.select_best_antenna_fff+ force
 	fi
@@ -493,10 +498,23 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 	PUBIP="$( fkt_wget http://$( nvram get fff_server_vpn_dns )/show_remote_address.php 10 | sed 's/[^0-9\.]//g' )"		# 217.212.17.148
 	
-	# fixme! func_need gwcheck
+	# func_need gwcheck
+	#
 	# GWCHECK=1; T=1243685931; DATE=30May2009-14uhr18; GW=10.63.3.1; HOSTNAME=KG-bittorfwireless-AP;
 	# NEXTHOP=10.63.3.1; METRIC=0; ETX=1.00; COST=1.00; COST_INT=0
-	# user better vars: GWCHECK_TIME= GWCHECK_COST_INT= ...
+	# user better vars: 
+	#
+	# GWCHECK_OVERALL_COST_INT="9876"
+	# GWCHECK_OVERALL_METRIC="5"
+	# GWCHECK_OVERALL_GATEWAY_IP4="10.63.5.1"
+	# GWCHECK_OVERALL_GATEWAY_HOST="trierer65"	// really?
+	# GWCHECK_NEXTHOP_COST_INT="2876"
+	# GWCHECK_NEXTHOP_IP4="10.63.3.1"
+	# GWCHECK_NEXTHOP_HOST="bruckner4"		// really?
+	# GWCHECK_NEXTHOP_MEDIA="remote/localwifi|lan|wan|pppoe|lan|..."
+	#
+	# -> GWCHECK="value:value:value:value:value:value:value"
+
 	
 	[ -r "$TRACE_INET_GATEWAY" ] && {
 		HOP2GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* METRIC=\([0-9\.]*\).*/\1/p' )"		# 5

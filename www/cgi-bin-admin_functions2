@@ -17,36 +17,54 @@ func_db_init ()
 	func_db_init_sql | sqlite3 /tmp/admin2.db
 }
 
-func_db_init_sql ()
-{
-	local I OBJ
+func_db_init_sql ()		# outputs an complete sqlite-query, which
+{				# - creates all tables
+	local I OBJ		# - creates all triggers
 	
 	echo "begin;"
 	
 	for OBJ in $( func_db_tables all ); do {
-		echo "create table $OBJ ( $(func_db_tables $OBJ init) );"
+		echo "create table '$OBJ' ( $(func_db_tables $OBJ init) );"
 	} done
 
-	for OBJ in $(func_db_tables USERNAMES init_defaults); do {
-		echo "INSERT INTO 'USERNAMES' VALUES ( '$OBJ' );"
+	for OBJ in $(func_db_tables USERNAMES init_defaults); do {		# fill a table with useable 'USERNAMES'
+		echo "INSERT INTO 'USERNAMES' VALUES ( '$OBJ' );"		# which is only used by the trigger 'auto_user'
 	} done
 
-	echo "create trigger 'auto_pass' after insert on 'USERS' begin"
-	echo "update 'USERS' set pass = substr(abs(random()),1,5) where pass = 'auto'; end;"
+	cat <<EOF
+create trigger 'auto_pass' after insert on 'USERS'
+  begin
+    update 'USERS' set pass = substr(abs(random()),1,5) where pass = 'auto';
+  end;
 	
-	echo "create trigger 'auto_user' after insert on 'USERS' begin"
-	echo "update 'USERS' set name = (select name from 'USERNAMES'  where rowid >= (abs(random()) % (select max(rowid) from 'USERNAMES')) limit 1) where name = 'auto'; end;"	
+create trigger 'auto_user' after insert on 'USERS'
+  begin
+    update 'USERS' set name = (select name from 'USERNAMES'  where rowid >= (abs(random()) % (select max(rowid) from 'USERNAMES')) limit 1) where name = 'auto';
+  end;
 
-	echo "create trigger 'auto_time' after insert on 'USERS' begin"
-	echo "update 'USERS' set installed = strftime('%s','now') where installed = 'auto'; end;"
+create trigger 'auto_time' after insert on 'USERS'
+  begin
+    update 'USERS' set installed = strftime('%s','now') where installed = 'auto';
+  end;
+	
+create trigger 'no_rowid_holes' after delete on 'USERS'
+  begin
+    update 'USERS' set rowid = old.rowid where rowid = (select count()+1 from USERS);
+  end;
 
-	echo "create trigger 'no_rowid_holes' after delete on 'USERS' begin"
-	echo "update 'USERS' set rowid = old.rowid where rowid = (select count()+1 from USERS); end;"
+EOF
 
-	for I in 1 2 3 4 5 6 7 8 9 10; do {
-	for OBJ in 1 2 3 4 5 6 7 8 9 10; do {
-		echo "insert into 'USERS' values ( NULL, 'profil' , 'Zimmer 10$OBJ', 'auto', 'auto', 'auto', '$OBJ' );"
-	} done
+	echo "commit;"
+}
+
+func_schrott ()
+{
+	echo "begin;"
+
+	for I in 1 2 3 ; do {			# insert some USERS
+		for OBJ in 1 2 3 ; do {
+			echo "insert into 'USERS' values ( NULL, 'profil' , 'Zimmer 10$OBJ', 'auto', 'auto', 'auto', '$OBJ' );"
+		} done
 	} done
 
 	echo "insert into 'PROFILES' values ( NULL, 'Kurz-Ticket', 'fuer ca. 20 Minuten', 2, 200, 200, 50, 50, 180, 180, 'http://hier.com', 5, 'EUR' );"
@@ -54,7 +72,7 @@ func_db_init_sql ()
 	echo "insert into 'PROFILES' values ( NULL, '2-Tages-Ticket', 'fuer 48 Stunden', 2, 1200, 2200, 120, 120, 1800, 1800, 'http://hier.com', 15, 'EUR' );"
 	echo "insert into 'PROFILES' values ( NULL, 'Mitarbeiterticket', 'fuer einen Monat', 2, 8200, 16200, 150, 150, 2800, 2800, 'http://hier.com', 0, 'EUR' );"
 
-	for I in 1 2 3 4 5 6 7 8 9; do {
+	for I in 1 2 3; do {
 		echo "insert into 'DEVICES' values ( $I, '00:11:22:33:44:0$I', 'wifi', 'de', '', '', '', '', '', '', 1);"
 	} done
 	
