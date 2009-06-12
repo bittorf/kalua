@@ -1,20 +1,26 @@
 #!/bin/sh
+
 # ToDo:
 #	- limiting outgoing olsr-traffic (not wasting upload) ??
 
-[ "$( nvram get fff_vpn_active )" = "0" ] && exit
+. /etc/functions_base_fff+ && func_need vars_old old packages log profile_user sanitizer
 
-. /etc/functions_base_fff+ && func_need vars_old old packages log profile_user
+DIRTY=
+[ "$( nvram get fff_vpn_active )" = "0" ]	&& DIRTY="fff_vpn_active set to 0"
+[ -e "$LOWMEM" ]				&& DIRTY="lowmem"
+[ -n "$FAILSAFE" ]				&& DIRTY="failsafe"
+[ -n "$READONLY" ]				&& DIRTY="readonly"
+[ ! -e "$SOFTWARE_FULLY_INSTALLED" ]		&& DIRTY="software not fully installed"
 
-[ -e "$LOWMEM" ] && exit
-[ -n "$FAILSAFE" ] && exit
-[ -n "$READONLY" ] && exit
-[ ! -e "$SOFTWARE_FULLY_INSTALLED" ] && exit
+[ -n "$DIRTY" ] && {
+	func_log init daemon debug "call: '$1' - abort: '$DIRTY'"
+	exit
+}
 
 fkt_build_vars ()
 {
 	NODE_NUMBER="$( nvram get fff_node_number )"
-	HOSTNAME="$( nvram get wan_hostname | sed 's/[^a-zA-Z0-9]//g' )"
+	HOSTNAME="$( _sanitizer $(nvram get wan_hostname) alphanum )"
 	[ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
 
 	VPN_SERVER="$( nvram get fff_server_vpn_ip4 )"
@@ -240,7 +246,7 @@ func_sending_request_to_vpnserver_for_participation ()
 	QUERY="${QUERY}&SERVERIP=${WIFIVPNSERVERADR}"
 	QUERY="${QUERY}&NAME=$HOSTNAME"
 	QUERY="${QUERY}&PROTO=${PROTO:=olsr}"
-	QUERY="${QUERY}&EMAIL=$( func_url_encode "${ADMINMAIL:=unset@box.local}" )"
+	QUERY="${QUERY}&EMAIL=$( _sanitizer "${ADMINMAIL:=unset@box.local}" urlvalue )"
 	QUERY="${QUERY}&COMMENT=city${FFF_CITY}_node${NODE_NUMBER}_profile$( nvram get fff_profile )"
 
 	func_log $FUNC daemon debug "query: '${URL}${QUERY}'"

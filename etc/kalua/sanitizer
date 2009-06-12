@@ -7,6 +7,7 @@ FUNC_SANITIZER=1
 # _sanitizer_email
 # _sanitizer_urlvalue
 # _sanitizer_mac
+# _sanitizer_alphanum
 
 
 # ToDo: 
@@ -28,15 +29,15 @@ _sanitizer ()
 	while [ -n "$2" ]; do {	
 	
 		case $2 in
-			hex|lowercase|uppercase|email|urlvalue|mac)
-				WORK="$( _sanitizer_$2 "$WORK" )"
-			;;
 			check)
 				[ "$WORK" = "$INPUT" ] && return 0
 				return 1
 			;;
-			*)
-				logger -t "fff+ $0 _sanitizer()" -p "daemon.alert" "'$1' - invalid call"
+			*)							# hex|lowercase|uppercase|email|urlvalue|mac|alphanum
+				WORK="$( _sanitizer_$2 "$WORK" )" || {
+					logger -t "fff+ $0 _sanitizer()" -p "daemon.alert" "'_sanitizer_$2 $1' - invalid call"
+					return 1
+				}
 			;;
 		esac
 		
@@ -78,3 +79,7 @@ _sanitizer_mac ()		# real world mac's, does not work on e.g. tun/tap/bridge-macs
 	echo -n "$1" | sed -n 's/^.*\([018aA][01248AaCc][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9]\).*/\1/p'
 }
 
+_sanitizer_alphanum ()
+{
+	echo -n "$1" | sed 's/[^a-zA-Z0-9]//g'
+}
