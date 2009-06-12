@@ -472,14 +472,15 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 
 	# "$SSH_PUBKEY_FP"								# 1660559e90efefafd04298c516365bbd12b0ffda
 											# (40 bytes HEX [SHA-1])
-	FREE_SPACE_FLASH="$( func_system_flash_free )"			# [kByte]
-	FREE_SPACE_USB="$(df | grep "/mnt/disc0_." | sed -n "s/^[0-9a-zA-Z\/]*[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p")"	# fixme! more abstraction!
-	[ -n "$FREE_SPACE_USB" ] && FREE_SPACE_USB="$(( $FREE_SPACE_USB / 1024 ))"
-	SERVICE_FREE_SPACE="$(( $FREE_SPACE_FLASH + ${FREE_SPACE_USB:=0} ))"
-	SERVICES="${SERVICE_FREE_SPACE}kb"						# fixme! how to describe webcams?
-											# or SSHd or HTTPd?
-											# or Templogger/Sensorstuff?
+
+	FREE_SPACE_FLASH="$( func_system_flash_free )"
+	SERVICES="flash.free.kb:${FREE_SPACE_FLASH}"					# [kByte]
 	
+	FREE_SPACE_USB="$( df | grep "/mnt/disc0_." | sed -n "s/^[0-9a-zA-Z\/]*[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p" )"	# fixme! more abstraction!
+	[ -n "$FREE_SPACE_USB" ] && {
+		SERVICES="${SERVICES}|usbstorage.free.kb:$(( $FREE_SPACE_USB / 1024 ))"	# [kByte]
+	}
+											# fixme! add: webcam, sambashare, sensorstuff, inetoffer, ...
 	[ $FREE_SPACE_FLASH -lt 150 ] && {
 		[ ! -e /tmp/REPO_REMOVED ] && {
 			func_log remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing files in /usr/lib/ipkg/lists/"
@@ -533,6 +534,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	QUERY=""
 	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE&wifidrv=$DRIVER&olsrver=$OLSRVER"
+	QUERY="${QUERY}&portfw=$( _sanitizer "$(nvram get fff_portfw)" urlvalue )&optimizenlq=$( nvram get fff_optimize_nlq )&optimizeneigh=$( nvram get fff_optimize_neigh )"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS"
 	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${SIGNAL}"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=${ESSID}&bssid=${BSSID}"
