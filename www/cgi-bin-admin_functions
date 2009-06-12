@@ -6,7 +6,6 @@
 # func_admingui_user_add_form_was_send
 # func_admingui_user_add_form
 # func_db_user
-# func_db_init
 # func_db_devices
 # func_db_profile
 
@@ -147,8 +146,12 @@ EOF
 
 func_admingui_user_add_form_was_send ()
 {
+	local FUNC="admingui_user_add_form_was_send"
 	local COUNT="$FORM_USERADD_COUNT"
 	local TEMP="/tmp/tempfile_user_add_form_was_send_$$"
+	local BEGIN="true"
+
+	func_log $FUNC daemon debug "adding $COUNT users into 'USERS' with profile '$FORM_USERADD_PROFILE_ID'"
 	
 	if [ "$COUNT" -gt 1 ]; then
 		echo -n "<h2>Es werden $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
@@ -158,27 +161,33 @@ func_admingui_user_add_form_was_send ()
 	
 	echo -n "<pre>"
 	
-	local SEPARATOR FIELD OBJ LIST="$(func_db_user all sql)"
-	
-	while [ "$COUNT" -gt 0 ]; do {
+	while [ "$COUNT" -gt 0 ]; do {		# (COUNT) USER_ID PROFILE_ID COMMENT USERNAME PASSWORD INSTALLED DEVICE_MAX
 		COUNT=$(( $COUNT - 1 ))
+	
+		[ "$BEGIN" = "true" ] && echo "begin;" && BEGIN="false"
 		
-		echo -n "INSERT into USER values ("
-	
-		SEPARATOR=
-		for OBJ in $LIST; do {
-			eval $(func_db_user $OBJ)
-			[ -z "$SQLCLASS" ] && continue
-			echo -n "${SEPARATOR}'$DEFAULT_VAL ($OBJ)'" && SEPARATOR=","
-		} done
-	
-		echo " );"
+		echo -n "  insert into 'USERS' values ("
+		echo -n "  NULL ,"				# row/user_id
+		echo -n "  '$FORM_USERADD_PROFILE_ID',"
+		echo -n "  '$FORM_USERADD_COMMENT' ,"
+		echo -n "  '$FORM_USERADD_USERNAME' ,"
+		echo -n "  '$FORM_USERADD_PASSWORD' ,"
+		echo -n "  'auto' ,"				# installed
+		echo -n "  '$FORM_USERADD_DEVICES_MAX'"
+		echo    " );"
 	
 	} done >$TEMP
 	
-	cat $TEMP && rm $TEMP
+	if [ -e "$TEMP" ]; then
 	
-	# func_db_query $TEMP
+		echo "commit;" >>$TEMP
+		cat $TEMP
+		$SQL_BIN $SQL_DB <$TEMP
+		rm $TEMP
+		func_log $FUNC daemon info "created $FORM_USERADD_COUNT users with profile '$FORM_USERADD_PROFILE_ID'"
+	else
+		func_log $FUNC daemon alert "something went wrong"
+	fi
 	
 	echo -n "</pre>"
 }
@@ -239,8 +248,13 @@ func_db_user ()
 {
 	case $1 in
 		all)
+			# USER_ID PROFILE_ID COMMENT USERNAME PASSWORD INSTALLED DEVICE_MAX
+		
 			[ "$2" = "sql" ] && echo -n "ID INSTALLED FIRSTSEEN LASTSEEN TRAFFALL TRAFFTODAY TIMEALL TIMETODAY "
-			echo -n "COUNT PROFILE COMMENT NAME PASS MAC DEVICES ISOLATION"
+			echo -n "COUNT PROFILE_ID COMMENT USERNAME PASSWORD MAC DEVICES_MAX ISOLATION"
+
+			# echo -n "USER_ID PROFILE_ID COMMENT USERNAME PASSWORD INSTALLED DEVICE_MAX"
+			# echo -n "COUNT "
 		;;
 		init)
 			local SEPARATE OBJ LIST="$( func_db_user all sql )"
@@ -259,7 +273,7 @@ func_db_user ()
 			echo "DESC_SHORT='Benutzeranzahl'"
 			echo "DESC_LONG='wieviele Benutzer sollen angelegt werden?'"
 		;;
-		NAME)
+		USERNAME)
 			echo "SQLCLASS='TEXT'"
 			echo "EXPERT='true'"
 			echo "FORM_TYPE='text'"
@@ -267,7 +281,7 @@ func_db_user ()
 			echo "DESC_SHORT='Benutzername'"
 			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"
 		;;
-		PASS)
+		PASSWORD)
 			echo "SQLCLASS='TEXT'"
 			echo "EXPERT='true'"			# user can alter this!?
 			echo "FORM_TYPE='text'"
@@ -275,7 +289,7 @@ func_db_user ()
 			echo "DESC_SHORT='Passwort'"
 			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"	
 		;;
-		PROFILE)
+		PROFILE_ID)
 			local N PROFILE PROFILE_LIST="$( func_db_profile ID all )"
 		
 			echo "SQLCLASS='INTEGER'"
@@ -299,7 +313,7 @@ func_db_user ()
 			echo "DESC_SHORT='MAC-Adresse'"
 			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell vergeben werden'"
 		;;
-		DEVICES)
+		DEVICES_MAX)
 			echo "SQLCLASS='INTEGER'"
 			echo "EXPERT='true'"
 			echo "FORM_TYPE='text'"
@@ -367,20 +381,6 @@ func_db_user ()
 			echo "DEFAULT_VAL='0'"
 		;;
 	esac
-}
-
-func_db_init ()
-{
-	local DB="/tmp/admin.db"
-
-	[ -e "$DB" ] && return
-
-	local TABLE SQLBIN="$( which sqlite3 )"
-	
-	for TABLE in profile devices user; do {
-		func_log db_init daemon info "creating table '$TABLE' - '$(func_db_$TABLE init)'"
-		eval $( $SQLBIN $DB "CREATE TABLE $TABLE ( $(func_db_$TABLE init) );" )
-	} done
 }
 
 func_db_devices ()
