@@ -126,8 +126,15 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 		
 		if [ "${BEST_WIFI_NLQ:=0}" -gt ${OPTIMIGE_TARGET_NLQ:=900} ]; then		# definition of default_target_nlq = 0.900
 	 	
-	 		func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ: -$TXPWR_STEP ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
-			func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
+	 		# e.g. 940-900 = 30 > 900 / 20 = 45 ? -> no_tx_power_change	// only do TX_POWER_CHANGE if DIFF greater than 5% (x/100*5 -> x/20)
+	 		#      650-600 = 50 > 600 / 20 = 30 ? -> lowering_tx_power	// this is for absorbe "pulsing" tx_power
+	 	
+	 		if [ $(( $BEST_WIFI_NLQ - $OPTIMIGE_TARGET_NLQ )) -gt $(( $OPTIMIGE_TARGET_NLQ / 20 )) ]; then
+	 			func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ: -$TXPWR_STEP ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
+				func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
+			else
+				func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ, low diff, do nothing ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
+			fi
 		else
 			if [ "$BEST_WIFI_NLQ" -lt "$BEST_WIFI_NLQ_LAST" ]; then			# fixme! use hysteresis
 				
@@ -443,8 +450,8 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 	ADMINEMAIL="$( _sanitizer "$(nvram get ff_adm_mail)" email urlvalue )"		# bla@blubb.de
 
-	ADMINPHONE="$( nvram get ff_adm_tel   | sed 's/[^0-9a-zA-Z]//g' )"		# 036435101112zuhause
-	HOSTNAME="$(   nvram get wan_hostname | sed 's/[^0-9a-zA-Z-]//g' )"		# Windmuehlen12
+	ADMINPHONE="$( _sanitizer "$(nvram get ff_adm_tel)" alphanum )"			# 036435101112zuhause
+	HOSTNAME="$(   nvram get wan_hostname | sed 's/[^0-9a-zA-Z-]//g' )"		# Windmuehlen12		// _sanitizer $HOST hostname?
 
 	TXPWR="$(	func_wifi_get_txpwr	  $WIFIDEV mw )"	# 40
 	FRAG="$(	func_wifi_get_frag	  $WIFIDEV )"		# 500

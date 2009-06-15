@@ -34,6 +34,7 @@ FUNC_WIFI=1
 # func_wifi_get_signal
 # func_wifi_get_channel
 # func_wifi_get_protection
+# func_wifi_get_assoclist
 # func_wifi_get_all_devs
 # func_wifi_probe_mode_infrastructure
 # func_wifi_probe_mode_ap
@@ -838,29 +839,25 @@ func_wifi_get_noise ()		# OUT1: signed Integer, -93 [dBm]
 	fi
 }
 
-func_wifi_get_signal ()		# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all stations
+func_wifi_get_signal ()		# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all stations	// fimxe! better concept needed
 {
 	local WIFI_DEV="$1"
 	local WIFI_MODE="$(func_wifi_get_mode $WIFI_DEV)"
-	local NOP MAC RSSI LOOP
+	local MAC RSSI LOOP
 
 	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific	
 
 		case "$WIFI_MODE" in
 			adhoc)
-				wl -i $WIFI_DEV rssi  | sed 's/[^0-9-]//g'
+				wl -i $WIFI_DEV rssi | sed 's/[^0-9-]//g'
 			;;
 			client)
 				echo ""		# fixme!
 			;;
 			ap)
-				wl -i $WIFI_DEV assoclist |
-				 while read NOP MAC; do {
+				for MAC in $(func_wifi_get_assoclist $WIFI_DEV); do {
 					RSSI="$( wl -i $WIFI_DEV rssi $MAC | sed -n 's/^rssi is \([0-9-]*\).*/\1/p' )"
-					MAC="$( echo $MAC | sed 'y/ABCDEF/abcdef/' | sed 's/[^0-9a-f]//g' )"	# abcdef012345
-					
 					echo -n "${LOOP:+:}${MAC}${RSSI}"
-					
 					LOOP=1
 				} done
 			;;
@@ -910,6 +907,35 @@ func_wifi_get_protection ()	# OUT1: integer, 0 | 1
 		wl -i $WIFI_DEV gmode_protection | sed -n 's/^gmode_protection is \([0-9]\) .*/\1/p'
 	else
 		iwpriv $WIFI_DEV get_protmode | sed -n 's/^.*:\([01]\).*/\1/p'
+	fi
+}
+
+func_wifi_get_assoclist ()		# OUT1: list of associated mac_adresses
+{
+	func_need sanitizer
+
+	local WIFI_DEV="$1"
+	local WIFI_MODE="$(func_wifi_get_mode $WIFI_DEV)"
+	local NOP MAC
+	
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+
+		case "$WIFI_MODE" in
+			adhoc)
+				echo ""		# fixme! howto distinguish from OLSR-neighs?
+			;;
+			ap)
+				wl -i $WIFI_DEV assoclist |
+				 while read NOP MAC; do {
+				 	echo -n "$( _sanitizer "$MAC" lowercase ) "
+				 } done
+			;;
+			client)
+				echo ""		# fixme!
+			;;
+		esac
+	else
+		echo ""				# fixme!
 	fi
 }
 
