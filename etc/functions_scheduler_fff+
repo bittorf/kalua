@@ -124,15 +124,16 @@ func_scheduler_add ()
 	local COUNTER="$( date +%s )"	# we need a monotonic + always_same_length-counter here, so better not use $$ (process-id)
 					# this is only true from 2001-Sep-10 ... 2038-Jan-19
 
-	[ "$KEYWORD" = "move_up" ] && COUNTER="$(( 1000000000 + $$ ))"
+	if [ "$KEYWORD" = "move_up" ]; then
 
-	# touch ${FILE_SCHEDULER_TMP}${COUNTER} $FILE_SCHEDULER_COPY	# seems, that grep can work with nonexisting files
-
-	grep -q ^"$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY 2>/dev/null && {
+		COUNTER="$(( 1000000000 + $$ ))"
+	else
+		grep -q ^"$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY 2>/dev/null && {
 	
-		func_log $FUNC daemon debug "PID:'$$' - '$TASK' - already in queue, ignoring '$1'"
-		return
-	}
+			func_log $FUNC daemon debug "PID:'$$' - '$TASK' - already in queue, ignoring '$1'"
+			return
+		}
+	fi
 	
 	func_log $FUNC daemon debug "PID:'$$' +'$TASK'"
 	echo "$COMMAND   # $TASK" >>${FILE_SCHEDULER_TMP}${COUNTER}
@@ -148,7 +149,10 @@ func_scheduler_check_if_every_Nth_minute ()
 	local UPTIME="$( func_uptime min )"	# e.g. uptime = 60 and
 	local CARRYOVER="$(( $UPTIME % $1 ))"	# e.g. every = 55 min : 60 % 55 = 5 
 	
-	[ "$CARRYOVER" -eq 0 ] && return 0
+	[ "$CARRYOVER" -eq 0 ] && {
+		func_log scheduler_check_if_every_Nth_minute daemon info "call for ${1}th minute, uptime: $UPTIME"
+		return 0
+	}
 
 	return 1
 }
