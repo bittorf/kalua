@@ -775,7 +775,7 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 
 	func_log $FUNC daemon debug "vendor/model/no: '${9}' / '${10}' / '${8}'"
 
-	# fixme! convert all macs to lowercase?
+	func_need sanitizer
 
 	case $8 in
 		1|2|3)	# WRT-54-GL / G3.0 / G2.0
@@ -783,10 +783,10 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 			# et0macaddr=00:90:4C:60:00:2A
 			# il0macaddr=00:90:4c:5f:00:2a
 		
-			NEW_MAC="$( strings /dev/mtd/0ro | grep ".*..:..:..:..:..:...*" | tail -n1 )"
+			NEW_MAC="$( _sanitizer "$(sed -n '/..:..:..:..:..:../{p;q}' /dev/mtd/0ro)" mac lowercase )"
 			func_nvset  lan_hwaddr "$NEW_MAC"							# +0 = lan
 			func_nvset wifi_hwaddr "$( func_profile_mac_plus $(func_profile_mac_plus $NEW_MAC) )"	# +2 = wifi
-			
+
 			func_nvset  il0macaddr $(nvram get wifi_hwaddr)		# il0macaddr <= wifi_hwaddr 
 			func_nvset  et0macaddr "$NEW_MAC"			# et0macaddr <=  lan_hwaddr
 			
@@ -834,8 +834,15 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 		9)
 			# Asus WL-HDD / Yakumo Storage
 			# eth0macaddr     =>  lan_hwaddr
-			# eth0macaddr + 3 => wifi_hwaddr = lan_hwaddr (2c + 3 =2f)
-			func_log $FUNC daemon debug "no mac setting needed"
+			# eth1macaddr + 2 => wifi_hwaddr = lan_hwaddr (2b + 2 =2d)
+
+			NEW_MAC="$( _sanitizer "$(sed -n '/..:..:..:..:..:../{p;q}' /dev/mtd/0ro)" mac lowercase )"
+			func_nvset  lan_hwaddr "$NEW_MAC"
+			func_nvset wifi_hwaddr "$( func_profile_mac_plus $(func_profile_mac_plus $NEW_MAC) )"	# +2
+
+			func_nvset  et0macaddr "$NEW_MAC"			# et0macaddr <=  lan_hwaddr
+			func_nvset  et1macaddr $(nvram get wifi_hwaddr)		# et1macaddr <= wifi_hwaddr
+
 		;;
 	esac
 
