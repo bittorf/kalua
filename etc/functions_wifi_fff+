@@ -41,7 +41,6 @@ FUNC_WIFI=1
 # func_wifi_get_wifimode
 # func_wifi_get_mode
 # func_wifi_scan
-# func_wifi_scan_and_get_results
 
 
 
@@ -989,146 +988,58 @@ func_wifi_get_mode ()		# OUT1: string, ap | client | adhoc		// rename: wifi_get_
 	fi
 }
 
-func_wifi_scan ()
-{
+func_wifi_scan ()			# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3e:1:-88:-76:8:WEP:Zugangspunkt
+{					# which means   BSSID : INFRA/ADHOC=1/0 | RSSI | NOISE | CHANNEL | CRYPT | ESSID + next_entry
 	local WIFI_DEV="$1"
 	local FILE="/tmp/WIFI_SCAN_$$"
-	      FILE="/tmp/scan_217.txt"
-	local LINE SIGNAL NOISE CHANNEL BSSID CRYPT INFRA
-
-	# output:
-	# BSSID | WIFIMAC or 'AP' | RSSI | NOISE | CHANNEL | CRYPT | ESSID
-
-
+	local LINE SIGNAL NOISE CHANNEL BSSID CRYPT INFRA LOOP
+	
 	func_need sanitizer
-	
-	if func_wifi_probe_mode_infrastructure $WIFI_DEV ; then
-	
-		# wl -i $WIFI_DEV scan
-		# sleep 3
-		# wl -i $WIFI_DEV scanresults
 
-		# SSID: "FRITZ!Box Fon WLAN 7141"
-		# Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10
-		# BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot
-		# Supported Rates: [ 1(b) 2(b) 5.5(b) 11(b) 6 9 12 18 24 36 48 54 ]
+	if func_wifi_get_hardware_pci | grep -q broadcom ; then
 
+		[ "$(func_wifi_get_mode $WIFI_DEV)" != "adhoc" ] && return
+	
+		wl -i $WIFI_DEV scan					# SSID: "FRITZ!Box Fon WLAN 7141"
+		sleep 3							# Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10
+		wl -i $WIFI_DEV scanresults >$FILE			# BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot
+									# Supported Rates: [ 1(b) 2(b) 5.5(b) 11(b) 6 9 12 18 24 36 48 54 ]
 		while read LINE; do {
-		
-			case "$( echo $LINE | cut -d: -f1 )" in
 			
+			case "$( echo $LINE | cut -d: -f1 )" in
+				
 				SSID)
-					ESSID="$( echo "$LINE" | sed -n 's/^SSID: "\(.*\)"$/\1/p' )"	# sanitize!
+					ESSID="$( echo "$LINE" | sed -n 's/^SSID: "\(.*\)"$/\1/p' )"
+					ESSID="$( _sanitizer "$ESSID" essid )"			# fixme! (escape_all?)
 				;;
 				Mode)
 					# 'Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10'
 					# SIGNAL="-93";NOISE="-89";CHANNEL="10"
 				
-					eval "$( echo "$LINE" | sed -n 's/^Mode: .*RSSI: \([0-9-]*\).*dBm noise: \([0-9-]*\).*dBm Channel: \([0-9]*\).*/SIGNAL="\1";NOISE="\2";CHANNEL="\3"/p' )"
-
-					echo "$LINE" | sed -n 's/^Mode: .*RSSI: \([0-9-]*\).*dBm noise: \([0-9-]*\).*dBm Channel: \([0-9]*\).*/SIGNAL="\1";NOISE="\2";CHANNEL="\3"/p'
-					echo $SIGNAL
-					echo $NOISE
-					echo $CHANNEL
+					eval "$( echo "$LINE" | sed -n 's/^Mode: .*RSSI: \([0-9-]*\).*dBm.*noise: \([0-9-]*\).*dBm.*Channel: \([0-9]*\).*/SIGNAL="\1";NOISE="\2";CHANNEL="\3"/p' )"
 				;;
 				BSSID)
 					# 'BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot'
 					
-					BSSID="$( echo "$LINE" | sed -n 's/^BSSID: \([0-9a-fA-F:]*\) .*/\1/p' )"
-					[ "$( echo $BSSID | cut -d: -f1 )" = "02" ] && INFRA=0
+					BSSID="$( echo "$LINE" | sed -n 's/^BSSID: \([0-9a-fA-F:]*\).*/\1/p' )"
+					[ "$( echo $BSSID | cut -d':' -f1 )" = "02" ] && INFRA=0
 					BSSID="$( _sanitizer "$BSSID" hex lowercase )"
 					
 					echo "$LINE" | grep -q "WEP" && CRYPT="WEP"
-				
-					echo $BSSID
-					echo $CRYPT
-					echo $INFRA
 				;;
 				"")
-					echo "$BSSID | ${INFRA:=1} | $SIGNAL | $NOISE | $CHANNEL | ${CRYPT:=0} | $ESSID"
+					[ -z "$BSSID" ] && continue
+					echo "${LOOP:+;}${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}"
 					
-					BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=
+					LOOP=1;BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=
 				;;
 			esac
-
-			echo "'$LINE'"
 			
 		} done <$FILE
-		
-		echo $LINE
 	else
-		a=0
+		# fixme! needs a parser for madwifi...
+		continue
 	fi
 	
-	# [ -e "$FILE" ] && rm $FILE
-}
-
-func_wifi_scan_and_get_results ()
-{
-	local   FUNC="func_get_wifi_scan_results"
-	local   TEMP="/tmp/$FUNC"
-	local  INFRA="$( nvram get wl0_infra )"
-	local   MODE="$( nvram get wl0_mode  )"
-	local BEACON="$( nvram get wl0_bcn   )"
-	local CHANGE=0
-
-	[ "$INFRA" != "0" ] || [ "$MODE" != "sta" ] && {
-		logger "fff+ ($FUNC) switching to wifi-adhoc-mode"
-		nvram set wl0_infra=0
-		nvram set wl0_mode=sta
-		nvram set wl0_bcn=0
-		nvram set wl0_closed=1
-		wifi
-		sleep 1
-		CHANGE=1		
-	}
-
-	logger "fff+ ($FUNC) starting wifi-scan"
-	wl scan
-	sleep 2
-	wl scanresults >$TEMP
-
-	[ "$CHANGE" = "1" ] && {
-		logger "fff+ ($FUNC) switching back to normal wifi-mode"
-		nvram set wl0_infra="$INFRA"
-		nvram set wl0_mode="$MODE"
-		nvram set wl0_bcn="$BEACON"
-		nvram set wl0_closed=0	
-		wifi
-	}
-	
-	while read LINE; do {
-
-		echo "$LINE" | grep -q "^SSID: " && {
-			eval $( echo "$LINE" |
-			 sed -n 's/^SSID: .\(.*\)./\1/p' |			# fetch exact string
-		 	  sed 's/[^a-zA-Z0-9 _\.!~*()-@%&;"=]//g' |		# pseudo-safe-chars (normally all are allowed)
-			   sed -n "s/\(.*\)/SSID='\1';/p"			# print SSID='myssid';  (this is eval-able)
-			)
-			continue
-		}
-	
-		echo "$LINE" | grep -q "^Mode: " && {
-			eval $( echo "$LINE" |
-			 sed -n 's/Mode: \([a-zA-Z0-9 ]*\).*RSSI: \([-0-9]*\) dBm.*noise: \([-0-9]*\) dBm.*Channel: \([0-9]*\)/MODE="\1";RSSI="\2";NOISE="\3";CHANNEL="\4";/p'
-			)
-			continue
-		}
-	
-		echo "$LINE" | grep -q "^BSSID: " && {
-			eval $( echo "$LINE" |
-			 sed -n "s/BSSID: \(..:..:..:..:..:..\).*Capability: \(.*\)$/BSSID='\1';KEY='\2';/p"
-			)
-			continue
-		}
-
-		echo "$LINE" | grep -q "^Supported Rates: " && {
-			eval $( echo "$LINE" |
-			 sed -n "s/Supported Rates: \[ \(.*\) \]/RATESET='\1';/p"
-			)
-		
-			echo "BSSID=$BSSID;SSID='$SSID';CHANNEL=$CHANNEL;MODE=$( echo $MODE | sed -e 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvw/' -e 's/ //g' );RSSI=$RSSI;NOISE=$NOISE;RATESET='$RATESET';KEY='$KEY'"
-		}
-
-	} done	<$TEMP
+	[ -e "$FILE" ] && rm $FILE
 }
