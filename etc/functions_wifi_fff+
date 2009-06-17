@@ -40,6 +40,7 @@ FUNC_WIFI=1
 # func_wifi_probe_mode_ap
 # func_wifi_get_wifimode
 # func_wifi_get_mode
+# func_wifi_scan
 # func_wifi_scan_and_get_results
 
 
@@ -986,6 +987,80 @@ func_wifi_get_mode ()		# OUT1: string, ap | client | adhoc		// rename: wifi_get_
 			echo 'adhoc'
 		fi
 	fi
+}
+
+func_wifi_scan ()
+{
+	local WIFI_DEV="$1"
+	local FILE="/tmp/WIFI_SCAN_$$"
+	      FILE="/tmp/scan_217.txt"
+	local LINE SIGNAL NOISE CHANNEL BSSID CRYPT INFRA
+
+	# output:
+	# BSSID | WIFIMAC or 'AP' | RSSI | NOISE | CHANNEL | CRYPT | ESSID
+
+
+	func_need sanitizer
+	
+	if func_wifi_probe_mode_infrastructure $WIFI_DEV ; then
+	
+		# wl -i $WIFI_DEV scan
+		# sleep 3
+		# wl -i $WIFI_DEV scanresults
+
+		# SSID: "FRITZ!Box Fon WLAN 7141"
+		# Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10
+		# BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot
+		# Supported Rates: [ 1(b) 2(b) 5.5(b) 11(b) 6 9 12 18 24 36 48 54 ]
+
+		while read LINE; do {
+		
+			case "$( echo $LINE | cut -d: -f1 )" in
+			
+				SSID)
+					ESSID="$( echo "$LINE" | sed -n 's/^SSID: "\(.*\)"$/\1/p' )"	# sanitize!
+				;;
+				Mode)
+					# 'Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10'
+					# SIGNAL="-93";NOISE="-89";CHANNEL="10"
+				
+					eval "$( echo "$LINE" | sed -n 's/^Mode: .*RSSI: \([0-9-]*\).*dBm noise: \([0-9-]*\).*dBm Channel: \([0-9]*\).*/SIGNAL="\1";NOISE="\2";CHANNEL="\3"/p' )"
+
+					echo "$LINE" | sed -n 's/^Mode: .*RSSI: \([0-9-]*\).*dBm noise: \([0-9-]*\).*dBm Channel: \([0-9]*\).*/SIGNAL="\1";NOISE="\2";CHANNEL="\3"/p'
+					echo $SIGNAL
+					echo $NOISE
+					echo $CHANNEL
+				;;
+				BSSID)
+					# 'BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot'
+					
+					BSSID="$( echo "$LINE" | sed -n 's/^BSSID: \([0-9a-fA-F:]*\) .*/\1/p' )"
+					[ "$( echo $BSSID | cut -d: -f1 )" = "02" ] && INFRA=0
+					BSSID="$( _sanitizer "$BSSID" hex lowercase )"
+					
+					echo "$LINE" | grep -q "WEP" && CRYPT="WEP"
+				
+					echo $BSSID
+					echo $CRYPT
+					echo $INFRA
+				;;
+				"")
+					echo "$BSSID | ${INFRA:=1} | $SIGNAL | $NOISE | $CHANNEL | ${CRYPT:=0} | $ESSID"
+					
+					BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=
+				;;
+			esac
+
+			echo "'$LINE'"
+			
+		} done <$FILE
+		
+		echo $LINE
+	else
+		a=0
+	fi
+	
+	# [ -e "$FILE" ] && rm $FILE
 }
 
 func_wifi_scan_and_get_results ()
