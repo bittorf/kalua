@@ -161,6 +161,9 @@ func_ulog_logsaving ()
 	local DESTINATION
 	local FILELIST="$( find $PATTERN -type f )"
 	local FILE
+	local LOGPRIO="alert" 
+
+	[ -e /tmp/ERROR_VDS ] && LOGPRIO="info"
 
 	[ -z "$FILELIST" ] && {
 		func_log $FUNC daemon debug "no logs - abort"
@@ -176,7 +179,8 @@ func_ulog_logsaving ()
 		DESTINATION="$( func_system_get_storage_path )"		# e.g. /www/cgi-bin
 
 		[ "$DESTINATION" = "/www/cgi-bin" ] && [ "$(func_system_flash_free)" -lt 200 ] && {
-			func_log $FUNC daemon crit "low_flash: $(func_system_flash_free) - aborting"
+			func_log $FUNC daemon $LOGPRIO "low_flash: $(func_system_flash_free) - aborting"
+			touch /tmp/ERROR_VDS
 			exit 1
 		}			# fixme! remove VDS-data from RAM? or copy to /dev/null?
 	else
@@ -193,8 +197,11 @@ func_ulog_logsaving ()
 				func_log $FUNC daemon info "copying '$FILE' was successful - removing"
 				rm "$FILE"
 			fi
+			
+			[ -e /tmp/ERROR_VDS ] && rm /tmp/ERROR_VDS
 		else	
-			func_log $FUNC daemon info "copying '$FILE' failed"
+			func_log $FUNC daemon $LOGPRIO "copying '$FILE' failed"
+			touch /tmp/ERROR_VDS
 		fi
 		
 		sync		# if destination is USB-stick, then be sure that all data was written
