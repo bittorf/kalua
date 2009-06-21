@@ -5,6 +5,9 @@
 # func_admingui_javascript
 # func_admingui_user_add_form_was_send
 # func_admingui_user_add_form
+# func_admingui_user_edit_form_was_send
+# func_admingui_user_edit_form_save_was_send_built_sql
+# func_admingui_user_edit_form
 # func_db_user
 # func_db_devices
 # func_db_profile
@@ -221,8 +224,8 @@ func_admingui_user_add_form ()
 		
 		case $FORM_TYPE in
 			radio)
-				echo -n "<input type='radio' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL' checked> $DEFAULT_TEXT"
-				echo -n "<input type='radio' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL1'       > $DEFAULT_TEXT2"
+				echo -n "<input type='radio' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL' checked> $DEFAULT_TXT"
+				echo -n "<input type='radio' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL1'       > $DEFAULT_TXT1"
 			;;
 			select)
 				echo -n "<select size='1' name='FORM_USERADD_$VALUE'>"
@@ -244,11 +247,115 @@ func_admingui_user_add_form ()
 	echo -n "<input type='submit' value='Benutzer anlegen'><br><br></td><td bgcolor='#D3D3D3'>&nbsp;</td></tr></table>"
 }
 
-func_admingui_user_edit_form ()
+func_admingui_user_edit_form_was_send ()
 {
 	echo "<pre>"
-	$SQL_BIN $SQL_DB "select * from USERS;"
-	echo "</pre>"
+
+	  if [ -n "$FORM_USECASE_SAVE" ]; then
+
+		func_admingui_user_edit_form_save_was_send_built_sql	
+		$SQL_BIN $SQL_DB "$( func_admingui_user_edit_form_save_was_send_built_sql )"
+		echo "<br><big> Daten wurden gespeichert. </big>"
+	
+	elif [ -n "$FORM_USECASE_DELETE" ]; then
+
+		func_admingui_user_edit_form_delete_was_send_built_sql
+		$SQL_BIN $SQL_DB "$( func_admingui_user_edit_form_delete_was_send_built_sql )"
+		echo "<br><big> Daten wurden gel&ouml;scht. </big>"
+	
+	elif [ -n "$FORM_USECASE_PRINT" ]; then
+
+		continue
+	fi
+}
+
+func_admingui_user_edit_form_delete_was_send_built_sql ()
+{
+	local COMMENT ROWID ID=1
+	
+	echo "begin;"
+	echo "/* ID: '$ID' ROWID_MAX: '$ROWID_MAX' */"
+	
+	while [ "$ID" -le "$ROWID_MAX" ]; do {
+	
+		eval ROWID=\${ROWID_$ID}
+		
+		[ -n "$ROWID" ] && {
+			echo "  delete from USERS where ROWID=$ID;"
+		}
+		
+		ID="$(( $ID + 1 ))"
+	} done	
+	
+	echo "commit;"
+}
+
+func_admingui_user_edit_form_save_was_send_built_sql ()
+{
+	local COMMENT ROWID ID=1
+	
+	echo "begin;"
+	echo "/* ID: '$ID' ROWID_MAX: '$ROWID_MAX' */"
+
+	while [ "$ID" -le "$ROWID_MAX" ]; do {
+	
+		eval ROWID=\${ROWID_$ID}
+
+		[ -n "$ROWID" ] && {
+			eval COMMENT="\${COMMENT_$ID}"
+			echo "  update USERS set comment='$COMMENT' where ROWID=$ID;"
+		}
+		
+		ID="$(( $ID + 1 ))"
+	} done
+
+	echo "commit;"
+}
+
+func_admingui_user_edit_form ()				# ToDo:
+{							# - jede spalte sortierbar machen, sortierung mit in QUERY uebergeben (fuer druck...)
+							# - alles markieren
+	echo "<br><form method='get' action=''>"
+	echo "<input type='hidden' name='FORM_ACTION' value='user_edit'>"
+	echo "<input type='hidden' name='FORM_SEND' value='true'>"
+	echo "<table cellspacing=1 cellpadding=1 border=0>"
+	echo "<tr bgcolor='#C5FF9F'><td>&nbsp;</td><td align='center'>&nbsp; No. &nbsp;</td><td align='center'>&nbsp; Profil &nbsp;</td>"
+	echo "<td align='center'>&nbsp; Zimmernummer oder Name, Kommentar &nbsp;</td><td>&nbsp; Benutzername &nbsp;</td>"
+	echo "<td>&nbsp; Passwort &nbsp;</td><td>&nbsp; Ger&auml;te &nbsp;</td><td align='center'>&nbsp; Alter [d] &nbsp;</td></tr>"
+
+	$SQL_BIN $SQL_DB "select ROWID,profile,comment,name,pass,devices,(strftime('%s','now')-installed)/3600/24,datetime(installed,'unixepoch') from USERS order by installed DESC;" |
+	    awk 'BEGIN{
+			FS="|"
+			ROWID_MAX=1
+		}{
+			if (BGCOLOR=="" || BGCOLOR=="#DCDCDC")
+				BGCOLOR="#FAEBD7"
+			else
+				BGCOLOR="#DCDCDC"
+
+			if ($1 > ROWID_MAX)
+				ROWID_MAX=$1
+			
+			printf "<tr bgcolor=\"" BGCOLOR "\">"
+			printf "<td><input type=\"checkbox\" name=\"ROWID_" $1 "\" value=\"1\"></td>"				# checkbox
+			printf "<td align=\"right\">&nbsp; %s &nbsp;</td>",$1							# rowid
+			printf "<td>&nbsp; %s &nbsp;</td>",$2									# profile
+			printf "<td>&nbsp;<input type=\"text\" size=\"40\" name=\"COMMENT_" $1 "\" value=\"%s\">&nbsp;</td>",$3	# comment
+			printf "<td>&nbsp; %s &nbsp;</td>",$4									# user
+			printf "<td align=\"center\">&nbsp; %s &nbsp;</td>",$5							# pass
+			printf "<td align=\"center\">&nbsp; %s &nbsp;</td>",$6							# devices
+			printf "<td align=\"center\">&nbsp;<a href=\"#\" title=\"Erstellt: %s\">%s</a>&nbsp;</td>",$8,$7	# age
+		}'
+
+	echo "<tr bgcolor='#C5FF9F'><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>"
+	echo "</table><br>"
+	echo "<table cellspacing='0' cellpadding='0' border='0' width='100%'>"
+	echo "<tr><td valign='middle' align='center' bgcolor='#D3D3D3'><br>"
+	echo "<input type='hidden' name='ROWID_MAX' value='$( $SQL_BIN $SQL_DB "select max(ROWID) from USERS;" )'>"
+	echo "<input type='submit' name='FORM_USECASE_DELETE' value='markierte Spalten l&ouml;schen'>"
+	echo "<input type='submit' name='FORM_USECASE_SAVE'   value='markierte Spalten speichern'>"
+	echo "<input type='submit' name='FORM_USECASE_PRINT'  value='markierte Spalten drucken'>"
+	echo "<br><br></td></tr></table></form>"
 }
 
 func_db_user ()
