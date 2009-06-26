@@ -3,7 +3,7 @@
 # example output:
 # T=1186910127; DATE=12Aug2007-11uhr15; GW=10.63.85.1; HOSTNAME=rom; NEXTHOP=10.63.194.1; METRIC=2; ETX=3.15 
 
-. /etc/functions_base_fff+ && func_need old vars_old
+. /bin/needs base old vars_old
 
 test   -e "$LOWMEM"			&& exit
 test   -n "$FAILSAFE"			&& exit
@@ -57,6 +57,20 @@ GWESCAPED="$(echo $GW  | sed 's/\./\\./g')"
  HUMNDATE="$(date +%d%b%Y-%Huhr%M)"
 
 test -z "$HOSTNAME" && HOSTNAME="?"
+
+[ -z "$( ip route list exact 0/0 table main )" ] && {
+	METRIC=0		# traceerror
+	COST_INT=0
+	GW=0
+	NEXT=0
+	ETX=0
+	COST=0
+
+	LOCAL_GW_IP="$( ip route list exact 0/0 table dyngw | sed -n 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' )"
+	[ -n "$LOCAL_GW_IP" ] && {
+		ping -c 1 $LOCAL_GW_IP || METRIC=-1	# local_gateway not reachable
+	}
+}
 
 OUT="T=$UNIXTIME; DATE=$HUMNDATE; GW=$GW; HOSTNAME=$HOSTNAME; NEXTHOP=$NEXT; METRIC=$METRIC; ETX=$ETX; COST=$ETX; COST_INT=$COST_INT"
 
