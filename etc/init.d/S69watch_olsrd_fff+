@@ -563,6 +563,60 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		;;
 	esac
 
+
+	# ----- fixme! start_of_ugly_packetfilter_monitoring
+
+	PFILTER_NAT="$(			iptables -t nat    -nxvL | grep "\--" | sed -n '$=' )"
+	PFILTER_FILTER="$(		iptables -t filter -nxvL | grep "\--" | sed -n '$=' )"
+	PFILTER_MANGLE="$(		iptables -t mangle -nxvL | grep "\--" | sed -n '$=' )"
+	PFILTER_MANGLE_REAL=$PFILTER_MANGLE
+
+	PFILTER_MANGLE_USER_REAL="$(    iptables -t mangle -nxvL traff_users | grep    traff_99:99:99:99:99:9 | sed -n '$=' )"
+	PFILTER_MANGLE_USER_RESERVE="$( iptables -t mangle -nxvL traff_users | grep -v traff_99:99:99:99:99:9 | sed -n '$=' )"
+
+	_meshrdf_count_user_real ()
+	{
+		local LIST="$( iptables -t mangle -nxvL | sed -n 's/^Chain traff_\(..:..:..:..:..:..\) .*/\1/p' | grep -v 99:99:99:99:99:9 )"
+		local LOOP=
+		local COUNT
+		local MAC
+		
+		for MAC in $LIST; do {
+			COUNT="$( iptables -t mangle -nxvL traff_$MAC | sed -n '$=' )"
+			echo -n "${LOOP:+,}$COUNT"
+			LOOP=1
+		} done
+	}
+	
+	_meshrdf_count_user_reserve ()
+	{
+		local LIST="$( iptables -t mangle -nxvL | sed -n 's/^Chain traff_\(..:..:..:..:..:..\) .*/\1/p' | grep    99:99:99:99:99:9 )"
+		local LOOP=
+		local COUNT
+		local MAC
+		
+		for MAC in $LIST; do {
+			COUNT="$( iptables -t mangle -nxvL traff_$MAC | sed -n '$=' )"
+			echo -n "${LOOP:+,}$COUNT"
+			LOOP=1
+		} done
+	}
+
+	PFILTER="$(_meshrdf_count_user_real):$(_meshrdf_count_user_reserve)"
+
+	IFS=",:"
+	for COUNT in $PFILTER; do {
+		PFILTER_MANGLE_REAL="$(( PFILTER_MANGLE_REAL - $COUNT ))"
+
+		logger "all: '$PFILTER_MANGLE_REAL' count: '$COUNT'"
+	} done
+	IFS=
+
+	PFILTER="${PFILTER_NAT}:${PFILTER_FILTER}:${PFILTER_MANGLE}:${PFILTER_MANGLE_REAL}:${PFILTER_MANGLE_USER_REAL}:${PFILTER_MANGLE_USER_RESERVE}:${PFILTER}"
+	PFILTER="$( _sanitizer "$PFILTER" urlvalue )"
+
+	# ----- end_of_ugly_packetfilter_monitoring, output like: 7:39:600:97:10:12:49,49,49,49,49:13,49,49,49,49,49
+
 	# trying to print at first the values that are not likely to change its length/appearance often 
 	# just to be better readable in logfile
 
@@ -570,7 +624,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE&wifidrv=$DRIVER&olsrver=$OLSRVER"
 	QUERY="${QUERY}&portfw=$( _sanitizer "$(nvram get fff_portfw)" urlvalue )&optimizenlq=$( nvram get fff_optimize_nlq )&optimizeneigh=$( nvram get fff_optimize_neigh )"
-	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS"
+	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS&pfilter=$PFILTER"
 	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${SIGNAL}"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=${ESSID}&bssid=${BSSID}"
 	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP&sens=$SENS&wifiscan=$WIFISCAN"
