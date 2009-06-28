@@ -1,34 +1,30 @@
 #!/bin/sh
 
 # example output:
-# T=1186910127; DATE=12Aug2007-11uhr15; GW=10.63.85.1; HOSTNAME=rom; NEXTHOP=10.63.194.1; METRIC=2; ETX=3.15 
+# GWCHECK=1; T=1246179625; DATE=28Jun2009-11uhr00; GW=10.63.3.1; HOSTNAME=KG-bittorfwireless-AP; NEXTHOP=10.63.3.1; METRIC=0; ETX=1.00; COST=1.00; COST_INT=0
 
-. /bin/needs base old vars_old
+. /bin/needs base old vars_old log sanitizer
 
 test   -e "$LOWMEM"			&& exit
 test   -n "$FAILSAFE"			&& exit
 test ! -e "$SOFTWARE_FULLY_INSTALLED"	&& exit
 
-fkt_watch_archiv () {
+func_watch_archiv ()
+{
 	tail -n 250 "${TRACE_INET_GATEWAY}"     >"${TRACE_INET_GATEWAY}_temp"
 	mv          "${TRACE_INET_GATEWAY}_temp" "${TRACE_INET_GATEWAY}"
 }	
 
-LIST=$(fkt_print_all_gateways)
-LIST="$(echo $LIST | sed 's/ /\/32_/g' | sed 's/$/\/32/g')"		# append a "/32_" on every IP and at the end
+LIST="$( neigh gateways | sed 's/ /\/32_/g' | sed 's/$/\/32/g' )"		# append a "/32_" on every IP and at the end
 
-# should be this form: etx, gw-ip, nexthop-ip, metric
+OUT="$( sed -e '/./{H;$!d;}' -e 'x;/Table: Routes/!d;' /tmp/olsr_output_recent | 
+	 awk -v LIST=$LIST '/\./ {if($4/1<1)exit;if(index(LIST,$1)>0)print $4,$1,$2,$3}' |
+	  sort -n |
+	   head -n 1 |
+	    sed 's/\/32//g')"							# should be this form: cost, gw-ip, nexthop-ip, metric
 
-OUT="$(wget -O - http://127.0.0.1:2006 | sed -e '/./{H;$!d;}' -e 'x;/Table: Routes/!d;' | 
-	awk -v LIST=$LIST '/\./ {if($4/1<1)exit;if(index(LIST,$1)>0)print $4,$1,$2,$3}' |
-	sort -n |
-	head -n 1 |
-	sed 's/\/32//g')"
-	
-# possible error: olsr does not respond, caused by hanging or deactivated plaintest-plugin
-
-if [ -z "$OUT" ]; then
-	GW="$(ip ro list exact 0/0 | cut -d" " -f3)"	# gatewayip from routing table
+[ -z "$OUT" ] && {							# olsr does not respond, caused by hanging or deactivated plaintest-plugin
+	GW="$( _sanitizer "$(ip route list exact 0/0)" ip4 )"		# gatewayip from routing table 	// fixme! 'default dev tun0  scope link' -> no ip!
 	GWESCAPED="$(echo $GW  | sed 's/\./\\./g')"
 
 	if [ -n "$(grep "$GWESCAPED" $CLIENTS_LAN)" ] || [ -n "$(grep $GWESCAPED $CLIENTS_WAN)" ]; then
@@ -38,12 +34,12 @@ if [ -z "$OUT" ]; then
 		. /tmp/NETPARAM
 		OUT="1.00 $WIFIADR $WIFIADR 0"	# provider-lan with subnet >/24 is implemented yet
 	fi
-fi
+}
 
       ETX="$(echo $OUT | cut -d" " -f1)"
 
 COST="$ETX"
-[ "$ETX" = "1.00" ] && COST="0"		# oldstyle 'local' inetoffer to newstyle
+[ "$ETX" = "1.00" ] && COST="0"			# oldstyle 'local' inetoffer to newstyle
 
  COST_INT="$( echo $COST | sed 's/\.//g' )"	# cut off commata, for easy bash-calculating
        GW="$(echo $OUT | cut -d" " -f2)"
@@ -59,6 +55,9 @@ GWESCAPED="$(echo $GW  | sed 's/\./\\./g')"
 test -z "$HOSTNAME" && HOSTNAME="?"
 
 [ -z "$( ip route list exact 0/0 table main )" ] && {
+
+	func_log get_gateway daemon alert "no default route"
+
 	METRIC=0		# traceerror
 	COST_INT=0
 	GW=0
@@ -79,8 +78,4 @@ echo "GWCHECK=1; $OUT"  >/tmp/gateway_check_recent		# for fast including -> . /t
 
 echo "$OUT"
 
-fkt_watch_archiv
-
-#LOCAL_NETWORK="$(awk '/;$/ {printf $1}' $CLIENTS_ALL)"
-#ACTIVE_CLIENTS="$(sed 's/.* src=\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) dst=.*/\1/g' /proc/net/ip_conntrack|sort|uniq)"
-
+func_watch_archiv

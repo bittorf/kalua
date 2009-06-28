@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/functions_base_fff+ && func_need log olsr
+. /bin/needs base log olsr
 
 func_longest_string ()
 {
@@ -38,7 +38,17 @@ func_normalize_ip ()	# IP_max=123.123.123.123 (15chars) IP_min=1.1.1.1 (7chars) 
 	esac
 }
 
-OUT_OLSR="$(func_olsr_get_neighbours)" || exit
+if [ "$2" = "use_recent" ]; then
+
+	OUT_OLSR="/tmp/olsr_output_recent"
+else
+	case $1 in
+		gateways) OUT_OLSR="$(func_olsr_get_neighbours full)" || exit ;;
+		       *) OUT_OLSR="$(func_olsr_get_neighbours     )" || exit ;;
+	esac
+	
+	cp $OUT_OLSR /tmp/olsr_output_recent
+fi
 
 case $1 in		# all those functions must care about removing $OUT_OLSR !
 	meshrdf)
@@ -48,13 +58,14 @@ case $1 in		# all those functions must care about removing $OUT_OLSR !
 			rm /tmp/olsr_output_*
 		}
 	;;
+	gateways)
+		func_olsr_get_gateways $OUT_OLSR
+	;;
 	evalable)
 		func_olsr_output_neigh_evalable $OUT_OLSR verbose
 	;;
 	best_wifi_nlq)
-		# output like '500' which is 0.500 - output can be <empty>!
-		
-		func_olsr_best_wifi_nlq $OUT_OLSR
+		func_olsr_best_wifi_nlq $OUT_OLSR	# output like '500' which is 0.500 - output can be <empty>!
 	;;
 	get_nlq)
 		func_olsr_get_nlq $OUT_OLSR "$2"	
