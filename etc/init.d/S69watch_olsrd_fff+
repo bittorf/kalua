@@ -83,7 +83,14 @@ func_watch_hanging_netcat ()
 
 func_watch_hanging_netcat
 
-func_need vars_old olsr wifi netparam
+_needs vars_old olsr wifi netparam
+
+[ "$(func_wifi_get_mode $WIFIDEV config)" != "$(func_wifi_get_mode $WIFIDEV)" ] && {
+
+	func_log compare_config_and_real_wifi_mode daemon alert "differs! real: '$(func_wifi_get_mode $WIFIDEV)' restarting wifi_phy '$WIFIDEV'"
+	func_wifi_restart_phy $WIFIDEV
+	sleep 30				# lets settle down, to get some neighbours
+}
 
 if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also make this, if olsr-neighs (in ap or client-mode)
 
@@ -177,7 +184,7 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 		func_log meshmode_but_no_wifi_neighs daemon info "raising counter to ${COUNT}/15"
 		
 		[ $COUNT -gt 15 ] && {
-			func_safe_reboot "meshmode - but no wifi neigh for a long time (counter: '${COUNT}')"	# 15 * 15 mins = 4 hours
+			func_safe_reboot "meshmode_but_no_wifi_neighs for a long time (counter: '${COUNT}')"	# 15 * 15 mins = 4 hours
 		}
 		
 		echo $COUNT >/tmp/wifi_error_counter
@@ -335,7 +342,7 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 
 ### firmware-build-date is newer than unixtime? -> set time
 
-[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {		# 340529 = 2008'november
+[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {		# fallback 340529 = 2008'november
 	func_set_time_with_ntp_server
 
 	[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {
@@ -420,7 +427,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 					#      which means: take this neighbour-snapshot at exactly the same time
 					#                   in hole network
 	
-	func_need old log pfilter profile_user sanitizer
+	_needs old log pfilter profile_user sanitizer
 	
 	TIME="$( date +%s )"
 	
@@ -622,8 +629,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	# trying to print at first the values that are not likely to change its length/appearance often 
 	# just to be better readable in logfile
 
+	DATE_LOCAL_HUMAN="$( date +%d%b%Y-%Huhr%M )"
+
 	QUERY=""
-	QUERY="${QUERY}local=$( date +%d%b%Y-%Huhr%M )&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
+	QUERY="${QUERY}local=$DATE_LOCAL_HUMAN&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE&wifidrv=$DRIVER&olsrver=$OLSRVER"
 	QUERY="${QUERY}&olsrrestartcount=$( cat /tmp/olsr_restarts )&olsrrestarttime=$( cat /tmp/olsr_restart_time )"
 	QUERY="${QUERY}&portfw=$( _sanitizer "$(nvram get fff_portfw)" urlvalue )&optimizenlq=$( nvram get fff_optimize_nlq )&optimizeneigh=$( nvram get fff_optimize_neigh )"
@@ -701,7 +710,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
  				}
  			else
  				func_log mesh_rdf_send_alive daemon debug "send alive normally ended"
- 				echo >>"${ARCHIV_NODE_DATA}" "# alive-message was send (normal exit...)"
+ 				echo >>"${ARCHIV_NODE_DATA}" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
  				break
  			fi
 		} done
