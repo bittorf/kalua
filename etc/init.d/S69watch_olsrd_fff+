@@ -471,6 +471,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	RTS="$(		func_wifi_get_rts	  $WIFIDEV )"		# 2347
 	GMODEPROT="$(	func_wifi_get_protection  $WIFIDEV )"		# 0 or 1
 	WIFIMODE="$(	func_wifi_get_mode	  $WIFIDEV )"		# adhoc
+	DISTANCE="$(	func_wifi_get_distance    $WIFIDEV )"		# 1500
 	NOISE="$(	func_wifi_get_noise	  $WIFIDEV )"		# -94
 	SIGNAL="$(	func_wifi_get_signal	  $WIFIDEV )"		# 001122334455-70:223344556677-40
 	SIGNAL="$( _sanitizer "$SIGNAL" urlvalue )"
@@ -532,7 +533,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 	PUBIP="$( fkt_wget http://$( nvram get fff_server_vpn_dns )/show_remote_address.php 10 | sed 's/[^0-9\.]//g' )"		# 217.212.17.148
 	
-	# func_need gwcheck
+	# _needs gwcheck
 	#
 	# GWCHECK=1; T=1243685931; DATE=30May2009-14uhr18; GW=10.63.3.1; HOSTNAME=KG-bittorfwireless-AP;
 	# NEXTHOP=10.63.3.1; METRIC=0; ETX=1.00; COST=1.00; COST_INT=0
@@ -549,17 +550,16 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	#
 	# -> GWCHECK="value:value:value:value:value:value:value"
 
+	[ ! -r "$TRACE_INET_GATEWAY" ] && cron.check_inet_gw_fff+ >/dev/null
 	
-	[ -r "$TRACE_INET_GATEWAY" ] && {
-		HOP2GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* METRIC=\([0-9\.]*\).*/\1/p' )"		# 5
-		ETX2GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* ETX=\([0-9\.]*\).*/\1/p' )"		# 5.234
-		GWNODE="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* NEXTHOP=\([0-9\.]*\).*/\1/p' )"		# 10.63.144.65
-			GWNODE="$( func_ipsystem $GWNODE )"
-		GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* GW=\([0-9\.]*\).*/\1/p' )"			# 10.63.144.65
-			GW="$( func_ipsystem $GW )"								# 400
-	}
-	
-	HOP2GW=${HOP2GW:=NULL}		# todo: ensure, that empty values are rewritten to 'NULL'
+	HOP2GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* METRIC=\([0-9\.]*\).*/\1/p' )"		# 5
+	ETX2GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* ETX=\([0-9\.]*\).*/\1/p' )"		# 5.234
+	GWNODE="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* NEXTHOP=\([0-9\.]*\).*/\1/p' )"		# 10.63.144.65
+		GWNODE="$( func_ipsystem $GWNODE )"
+	GW="$( tail -n1 $TRACE_INET_GATEWAY | sed -n 's/.* GW=\([0-9\.]*\).*/\1/p' )"			# 10.63.144.65
+		GW="$( func_ipsystem $GW )"								# 400
+
+	HOP2GW=${HOP2GW:=NULL}			# todo: ensure, that empty values are rewritten to 'NULL'
 	ETX2GW=${ETX2GW:=NULL}
 	GW=${GW:=NULL}
 
@@ -637,7 +637,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	QUERY="${QUERY}&olsrrestartcount=$( cat /tmp/olsr_restarts )&olsrrestarttime=$( cat /tmp/olsr_restart_time )"
 	QUERY="${QUERY}&portfw=$( _sanitizer "$(nvram get fff_portfw)" urlvalue )&optimizenlq=$( nvram get fff_optimize_nlq )&optimizeneigh=$( nvram get fff_optimize_neigh )"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS&pfilter=$PFILTER"
-	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${SIGNAL}"
+	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${SIGNAL}distance=${DISTANCE}"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=${ESSID}&bssid=${BSSID}"
 	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP&sens=$SENS&wifiscan=$WIFISCAN"
 	
@@ -658,6 +658,11 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	func_log mesh_rdf daemon debug "ready"
 	
 	KEEP_ALIVE_URL="$( nvram get fff_url_network )/meshrdf/"
+
+	[ "$UPTIME" -lt 2 ] && {
+		ARG1="send_alive_message"
+		ARG2="no_antenna_test"
+	}
 	
 	if [ -n "$KEEP_ALIVE_URL" ] && [ "$ARG1" = "send_alive_message" ]; then
 	
