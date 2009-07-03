@@ -702,6 +702,16 @@ fkt_check_if_this_node_offers_inet ()			# SENS: check if default-route is local 
 		return 1
 	}
 
+	local  LAN_GATEWAY="$( nvram get lan_gateway )"
+	[ -n "$LAN_GATEWAY" ] && [ -z "$( ip route list exact 0/0 via $LAN_GATEWAY )" ] && {
+
+		[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
+			func_log $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
+			echo "lan"
+			return 0		# gets applied during '/etc/local.fw-fff+ masq'
+		}
+	}
+
 	. /tmp/NETPARAM
 	
 	# only look for the first default-route
@@ -722,17 +732,15 @@ fkt_check_if_this_node_offers_inet ()			# SENS: check if default-route is local 
 		} done
 	)
 
-	# fixme! lan-alien-gateway (can't be applied)
-
 	if [ -z "$METRIC" ]; then				# found no metric = local inet-offer
 
 		func_log $FUNC daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
 
 		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0/0 -> "default via eth0" or similar
 
-			if [ "$( nvram get lan_gateway )" = "0.0.0.0" ]; then
+			if [ "$LAN_GATEWAY" = "0.0.0.0" ]; then
 				
-				func_log $FUNC daemon info "NV-RAM mistake, unsetting lan_gateway which was 0.0.0.0"
+				func_log $FUNC daemon info "NV-RAM mistake, unsetting lan_gateway which was '$LAN_GATEWAY'"
 				
 				. /etc/functions_nvram_fff+	# fixme!
 				func_nvset lan_gateway 
