@@ -813,14 +813,11 @@ func_wifi_get_noise ()		# OUT1: signed Integer, -93 [dBm]
 	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific
 	
 		case "$WIFI_MODE" in
-			adhoc)
+			adhoc|client)
 				wl -i $WIFI_DEV noise | sed 's/[^0-9-]//g'
 			;;
-			client)
-				echo ""		# fixme!
-			;;
 			ap)
-				echo ""		# fixme!
+				echo "0"	# fixme! does not work in broadcom?
 			;;
 			*)
 				echo ""		# ?
@@ -852,23 +849,24 @@ func_wifi_get_signal ()		# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI 
 	local WIFI_MODE="$(func_wifi_get_mode $WIFI_DEV)"
 	local MAC RSSI LOOP
 
-	func_need sanitizer
+	# func_need sanitizer
 
 	if func_wifi_get_hardware_pci | grep -q broadcom ; then		# fixme! hardware-check must be device specific	
 
 		case "$WIFI_MODE" in
-			adhoc)
+			adhoc|client)
 				wl -i $WIFI_DEV rssi | sed 's/[^0-9-]//g'
 			;;
-			client)
-				echo ""		# fixme!
-			;;
 			ap)
+				# for MAC in $(func_wifi_get_assoclist $WIFI_DEV); do {
+				#	RSSI="$( wl -i $WIFI_DEV rssi $MAC | sed -n 's/^rssi is \([0-9-]*\).*/\1/p' )"
+				#	echo -n "${LOOP:+:}$( _sanitizer "$MAC" hex )${RSSI}"
+				#	LOOP=1
+				# } done
+				
 				for MAC in $(func_wifi_get_assoclist $WIFI_DEV); do {
-					RSSI="$( wl -i $WIFI_DEV rssi $MAC | sed -n 's/^rssi is \([0-9-]*\).*/\1/p' )"
-					echo -n "${LOOP:+:}$( _sanitizer "$MAC" hex )${RSSI}"
-					LOOP=1
-				} done
+					wl -i $WIFI_DEV rssi $MAC | cut -d' ' -f3
+				} done | sort -n | tail -n1
 			;;
 			*)
 				echo ""		# fixme!
