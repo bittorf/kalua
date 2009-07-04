@@ -35,6 +35,21 @@ fkt_patch () {
 	fi
 	
 	case $PATCH in
+		rrd_txpwr_collect)
+			FILE="/etc/rrdcollect.conf"
+			sed -e 's/rate noise rssi/rate noise rssi txpwr/' -e 's/rate is %d Mbps/rate: %d/' -e 's/noise is -%d/noise: -%d/' -e 's/"rssi is -%d/"txpwr: %d" WLAN.rrd:txpw\n"rssi: -%d/' "$FILE" >"$TEMP"
+		;;
+		rrd_txpwr_conf)
+			FILE="/etc/rrd.conf"
+			sed -e 's/ Data Rate / Data Rate and TX-Power /' -e 's/Second/Second + milliwatt/' -e 's/RATE SNRA/RATE SNRA TXPW/' -e 's/^WLAN_RATE/WLAN_TXPW="txpw|TXpower|GAUGE|U|$WNOI|LINE2|%3.0lf"\nWLAN_RATE/' "$FILE" >"$TEMP"
+		;;
+		rrd_txpwr_exec)
+			FILE="/usr/bin/rrd-wl"
+			cat >"$TEMP" <<EOF
+#!/bin/sh
+. /bin/needs netparam wifi base; for ARG in \$*; do echo -n "\$ARG: "; test \$ARG = rssi && ARG=signal; func_wifi_get_\$ARG \$WIFIDEV; done
+EOF
+		;;
 		owfs_activate_server_option_for_usb)
 			FILE="/etc/default/owserver"
 			sed 's/#OPTIONS="-u -p /OPTIONS="-u -p /' "$FILE" >"$TEMP"
@@ -463,6 +478,9 @@ case $1 in
 		fkt_patch login_banner
 		fkt_patch owfs_activate_server_option_for_usb
 		fkt_patch owfs_activate_server
+		fkt_patch rrd_txpwr_collect
+		fkt_patch rrd_txpwr_conf
+		fkt_patch rrd_txpwr_exec
 		
 		fkt_patch_html_preprocessor_with_pagepeel_and_nodenumber_in_title
 		fkt_patch_intro_picture
