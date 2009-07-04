@@ -1,0 +1,109 @@
+#!/bin/sh
+
+. /bin/needs old vars_old 1wire
+
+fkt_define_vars
+func_set_lockfile_or_wait
+
+if [ "$REQUEST_METHOD" = "GET" ]; then				# what about POST,PUT,DELETE?
+	fkt_read_browsers_query_string
+	fkt_check_port
+	fkt_check_auth
+else								# call from shell
+	[ -n "$REMOTE_ADDR" ] && {				# unimplemented request-method, not from shell
+		func_remove_lockfile
+		exit 1
+	}
+	
+	ACTION="$1"
+	
+	test -z "$ACTION" && ACTION="jobwork"
+fi
+
+case $ACTION in
+	backup)
+		fkt_define_vars
+		fkt_backup
+	;;
+	jobwork)
+		fkt_define_vars
+		fkt_work_the_flow
+	;;
+	joblist)
+		if [ -e "$JOBFILE" ]; then
+			cat "$JOBFILE"
+			fkt_print_endtag
+		else
+			fkt_trap_error "no jobfile yet"
+		fi
+	;;
+	jobadd)
+		if [ -z "$(grep "$CHIP $FIELD " "$JOBFILE" 2>/dev/null)" ]; then
+			fkt_write_file  "$JOBFILE" "$CHIP $FIELD $THRESHOLDSTART $THRESHOLDEND"
+		else
+			fkt_remove_line "$JOBFILE" "$CHIP $FIELD "
+			fkt_write_file  "$JOBFILE" "$CHIP $FIELD $THRESHOLDSTART $THRESHOLDEND"
+		fi
+		
+		fkt_print_endtag
+	;;
+	jobdel)
+		if [ ! -z "$(grep "$CHIP $FIELD " "$JOBFILE" 2>/dev/null)" ]; then
+			fkt_remove_line "$JOBFILE" "$CHIP $FIELD "
+			fkt_print_endtag
+		else
+			fkt_trap_error "no such job!"
+		fi
+	;;
+	chiplist)
+		OUT="$(fkt_print_all_sensors)"
+		if [ -z "$OUT" ]; then
+			fkt_trap_error "zero output - owfs not running?"
+		else
+			echo "$OUT"
+			fkt_print_endtag
+		fi
+	;;
+	chipget)
+		TERM1="$(echo "$FIELD" | cut -d"," -f1)"
+		TERM2="$(echo "$FIELD" | cut -d"," -f2)"
+		
+		ADDON=""
+		if [ "$TERM1" != "TERM2" ]; then
+			ADDON="uncached/"
+			FIELD="$TERM1"
+		fi
+	
+		OUT="$(print_sensorfield)"
+		if [ -z "$OUT" ]; then
+			fkt_trap_error "no values, wrong or nonexistent field or sensor?"
+		else
+			echo "$OUT"
+			fkt_print_endtag
+		fi			
+	;;
+	chipset)
+		fkt_trap_error "not implemented yet"
+	;;
+	chiphistory)
+		if [ -e "$JOBDATA.$CHIP.$FIELD" ]; then
+			test -z "$TIMESTART" && TIMESTART=0
+			test -z "$TIMEEND"   && TIMEEND="$(date +%s)"
+			
+			awk -v S="$TIMESTART" -v E="$TIMEEND" '{if($1>=S && $1<=E)print $0}' "$JOBDATA.$CHIP.$FIELD" 2>/dev/null
+			
+			if [ "$?" -ne 0 ]; then
+				fkt_trap_error "no values in time-range"
+			else
+				fkt_print_endtag
+			fi
+		else
+			fkt_trap_error "no datafile yet"
+		fi
+	;;
+	*)
+		fkt_print_help
+	;;
+esac
+
+func_remove_lockfile
