@@ -95,25 +95,12 @@ func_cron_config_write ()
 EOF
 	else
 	
-	#
-	# most cron-activity is on 3 _or_ 4 _or_ 6 o'clock
-	# for example:
-	# 1) cron.minutely, build vars (e.g. OLSR-output)       -> 8 seconds
-	# 2) schedule 15min-job					-> 3 seconds
-	# 2) schedule 24h-job					-> 3 seconds
-	# 3) schedule 6 o'clock-job (or 3 or 4 o'clock)		-> 3 seconds
-	# 4) schedule 1-hour-job				-> 3 seconds
-	# 5) run all scheduled jobs				-> long time
-	#
-	# -> So we try to call the scheduler each for each, not all at one point
-	#
+	# we try to call the scheduler each for each, not all at one point
 	
 		func_log $FUNC daemon debug "profile = standard"	
 		cat >$CRONFILE <<EOF
-*    * * * * pidof cron.minutely >/dev/null || /usr/sbin/cron.minutely; /usr/sbin/cron.build_vars build; scheduler -o
-*    * * * * sleep 20; scheduler -a speedtest_every_40min -a whitelist_rebuild_every_3h -a whitelist_update_every_15h -a upgrade_packages -r
-*/15 * * * * sleep  8 ;scheduler -a gateway_check $VDS -a 15min_checks -a user_traff_broadcast -a build_accounting -a kick_user_over_limit -A watch_hanging_command
-0    * * * * sleep 16; scheduler -a 1h_checks -a restart_vpn
+*    * * * * pidof cron.minutely >/dev/null || /usr/sbin/cron.minutely; /usr/sbin/cron.build_vars build; scheduler -o -s 17 -a speedtest_every_40min -a whitelist_rebuild_every_3h -a whitelist_update_every_15h -a upgrade_packages -r
+*/15 * * * * sleep  8; scheduler -a gateway_check $VDS -a 15min_checks -a user_traff_broadcast -a build_accounting -a kick_user_over_limit -A watch_hanging_command \$( [ "\$(date +%M)" = "00" ] && echo "-a 1h_checks -a restart_vpn" )
 0    3 * * * sleep 12; scheduler -a rebuild_service_announce -a recheck_wired_olsr -a restart_olsr
 0    4 * * * sleep 12; scheduler -a fwupdate_check
 0    6 * * * sleep 12; scheduler -a build_service_announce -a recheck_wired_olsr -a restart_olsr -a user_traff_reset -a kick_user_all
