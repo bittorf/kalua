@@ -145,8 +145,15 @@ EOF
 		intro_picture)
 			FILE="/www/images/intro.jpg"
 		;;
-		html_preprocessor)
+		html_preprocessor_with_pagepeel_and_nodenumber_in_title)
 			FILE="/www/cgi-bin-pre.sh"
+			sed '/<\/HEAD>/q' $FILE | grep -v "<\/HEAD>"		 >$TEMP		# print all till (but not including) the "</HEAD>"-tag
+												# for nodenumber in title
+	
+			sed -i 's/wan_hostname)/wan_hostname)\;echo -en "No."\;nvram get fff_node_number\;echo -en " - "/g' $TEMP
+	
+			func_print_pagepeel					>>$TEMP		# appending "pagepeel"
+			sed -n '/<\/HEAD>/,$p' $FILE | grep -v "<\/HEAD>" 	>>$TEMP		# print all after (but not including) the "</HEAD>"-tag
 		;;
 		*)
 			return
@@ -245,24 +252,7 @@ EOF
 	ln -s "$FILE" /usr/bin/lr
 }
 
-fkt_patch_html_preprocessor_with_pagepeel_and_nodenumber_in_title () {
-	local FILE="/www/cgi-bin-pre.sh"
-	local TEMP="/tmp/cgi-bin-pre.sh_temp"
-
-	logger "fff+ $0 fkt_patch_html_preprocessor_with_pagepeel"
-
-	sed '/<\/HEAD>/q' $FILE | grep -v "<\/HEAD>" 		 >$TEMP		# print all till (but not including) the "</HEAD>"-tag
-	
-										# for nodenumber in title
-	
-	cat $TEMP | sed 's/wan_hostname)/wan_hostname)\;echo -en "No."\;nvram get fff_node_number\;echo -en " - "/g' >$TEMP
-	
-	fkt_print_pagepeel					>>$TEMP		# appending "pagepeel"
-	sed -n '/<\/HEAD>/,$p' $FILE | grep -v "<\/HEAD>" 	>>$TEMP		# print all after (but not including) the "</HEAD>"-tag
-	mv $TEMP $FILE								# overwriting unpatched with patched
-}
-
-fkt_print_pagepeel () {					# first line is for "schaeuble"-head
+func_print_pagepeel () {			# first line is for "schaeuble"-head
 
 	cat >>$TEMP <<EOF
 <script type="text/javascript" src="watching.js"></script>
@@ -413,12 +403,13 @@ fkt_patch_intro_picture () {
 if [ -n "$1" ]; then
 	if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ]; then exit; fi
 
-	. /etc/functions_base_fff+ && func_need old vars_old wifi log
+	. /bin/needs base old vars_old wifi log
 fi
 
 LOCKFILE="/tmp/lockfile_patch-o-matic"
 
 if [ -r "$LOCKFILE" ]; then
+	. /bin/needs log
 	func_log check_lockfile daemon crit "lockfile '$LOCKFILE' exists - abort"
 	exit
 else
@@ -431,7 +422,8 @@ case $1 in
 	start)							# after reach reboot
 		# fkt_patch syslog_with_rebootfix_syslog	# fixme! /var/log/messages is first started at S10boot, use /www/everlasting_syslog.txt
 		fkt_build_settings_menu				# only needed for generating menu-entrys
-		fkt_count_reboots
+
+		echo $(( $( cat "$REBOOT_COUNT" 2>/dev/null || echo 0 ) + 1 )) >"$REBOOT_COUNT"		# reboot_count++ on each boot
                 	
 		[ ! -r "$FRESHFLASH" ] && {			# we must take care of the
 			rm -f "$LOCKFILE"			# lockfile, each time we exit
@@ -454,54 +446,68 @@ case $1 in
 		# }
 	;;
 	virgin)							# after virgin boot (directly after flashing)
-		fkt_patch syslogd_start_for_more_space
-		fkt_patch hide_all_repos
-		fkt_patch syslogd_set_hostname
-		fkt_patch force_olsrd_startup_without_wifi
-		fkt_patch statuspage_for_new_syslog
-		fkt_patch cron_minutely_for_verboser_trace_errors
-		fkt_patch cron_minutely_for_verboser_hna_on
-		fkt_patch http_public_menu_entry
-			
+		PATCHLIST="syslogd_start_for_more_space \
+			   hide_all_repos \
+			   syslogd_set_hostname \
+			   force_olsrd_startup_without_wifi \
+			   statuspage_for_new_syslog \
+			   cron_minutely_for_verboser_trace_errors \
+			   cron_minutely_for_verboser_hna_on \
+			   http_public_menu_entry"
+		
+		for PATCH in $PATCHLIST; do {
+			fkt_patch $PATCH
+		} done
+		
 		fkt_generate_logread_replacement
 		
 		touch "$FRESHFLASH"
 	;;
 	post_software_install)					# is invoked directly after ready software_install
-		fkt_patch olsrd_timezone_and_restart_counter
-		fkt_patch dnsserver_timezone
-		fkt_patch dnsserver_fast_lease
-		fkt_patch syslog_start_timezone
-		fkt_patch httpd_start_for_own_404page
-		fkt_patch admin_start_page_for_own_values
-		fkt_patch proxy_start_for_changing_port
-		fkt_patch login_banner
-		fkt_patch owfs_activate_server_option_for_usb
-		fkt_patch owfs_activate_server
-		fkt_patch rrd_txpwr_collect
-		fkt_patch rrd_txpwr_conf
-		fkt_patch rrd_txpwr_exec
+	
+		PATCHLIST="olsrd_timezone_and_restart_counter \
+			   dnsserver_timezone \
+			   dnsserver_fast_lease \
+			   syslog_start_timezone \
+			   httpd_start_for_own_404page \
+			   admin_start_page_for_own_values \
+			   proxy_start_for_changing_port \
+			   login_banner \
+			   owfs_activate_server_option_for_usb \
+			   owfs_activate_server \
+			   rrd_txpwr_collect \
+			   rrd_txpwr_conf \
+			   rrd_txpwr_exec \
+			   html_preprocessor_with_pagepeel_and_nodenumber_in_title"
+	
+		for PATCH in $PATCHLIST; do {
+			fkt_patch $PATCH
+		} done
 		
-		fkt_patch_html_preprocessor_with_pagepeel_and_nodenumber_in_title
 		fkt_patch_intro_picture
 		func_patch_favicon
 	;;
 	restore_from_rom)
-		fkt_patch owfs_activate_server			  restore_from_rom
-		fkt_patch olsrd_timezone_and_restart_counter	  restore_from_rom
-		fkt_patch dnsserver_timezone			  restore_from_rom
-		fkt_patch syslog_with_rebootfix_syslog            restore_from_rom
-		fkt_patch force_olsrd_startup_without_wifi	  restore_from_rom
-		fkt_patch statuspage_for_new_syslog               restore_from_rom
-		fkt_patch syslogd_start_for_more_space            restore_from_rom
-		fkt_patch admin_start_page_for_own_values         restore_from_rom
-		fkt_patch httpd_start_for_own_404page             restore_from_rom
-		fkt_patch proxy_start_for_changing_port           restore_from_rom
-		fkt_patch cron_minutely_for_verboser_trace_errors restore_from_rom
-		fkt_patch login_banner                            restore_from_rom
-		fkt_patch intro_picture                           restore_from_rom
-		fkt_patch html_preprocessor                       restore_from_rom
-		fkt_patch http_public_menu_entry                  restore_from_rom
+	
+		PATCHLIST="owfs_activate_server \
+			   olsrd_timezone_and_restart_counter \
+			   dnsserver_timezone \
+			   syslog_with_rebootfix_syslog \
+			   force_olsrd_startup_without_wifi \
+			   statuspage_for_new_syslog \
+			   syslogd_start_for_more_space \
+			   admin_start_page_for_own_values \
+			   httpd_start_for_own_404page \
+			   proxy_start_for_changing_port \
+			   cron_minutely_for_verboser_trace_errors \
+			   login_banner \
+			   intro_picture \
+			   html_preprocessor_with_pagepeel_and_nodenumber_in_title \
+			   http_public_menu_entry"
+
+		for PATCH in $PATCHLIST; do {
+			fkt_patch $PATCH restore_from_rom
+		} done
 	
 		rm -f "$FRESHFLASH"
 	;;
