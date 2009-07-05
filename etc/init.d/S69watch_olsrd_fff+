@@ -150,6 +150,20 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 			fi
 		else
 			if [ "$BEST_WIFI_NLQ" -lt "$BEST_WIFI_NLQ_LAST" ]; then			# fixme! use hysteresis
+	
+				case "$(cat /tmp/WIFI_TREND_TXPOWER_${WIFIDEV} 2>/dev/null || echo 0)" in
+					"=")
+						func_log meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough, do nothing, last txpower-change was '='"
+					;;
+					"+")
+						func_log meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: -$TXPWR_STEP"
+						func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
+					;;
+					"-")
+						func_log meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: +$TXPWR_STEP (last txpower-change was '-')"
+						func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP add overturn
+					;;
+				esac
 				
 				func_log meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: -$TXPWR_STEP"
 				func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
