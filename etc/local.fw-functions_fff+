@@ -415,19 +415,19 @@ fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac ()
 	if [ "$?" -eq 0 ]; then							# locally registered
 	
 		if [ "$MEDIA" = "wire" ] || [ "$WIFI_MODE" = "ap" ] ; then	# locally registered, wire or AP
-			OUT="$MAX_WIRE_TRAFFIC_REG"
+			OUT="$( nvram get fff_traffic_borders | cut -d':' -f4 )"
 		else								# locally registered, wifi
-			OUT="$MAX_WIFI_TRAFFIC_REG"
+			OUT="$( nvram get fff_traffic_borders | cut -d':' -f3 )"
 		fi
 	else
 		if [ "$MEDIA" = "wire" ] || [ "$WIFI_MODE" = "ap" ]; then	# anonym, wire or AP
-			OUT="$MAX_WIRE_TRAFFIC_UNR"
+			OUT="$( nvram get fff_traffic_borders | cut -d':' -f2 )"
 		else								# anonym, wifi
-			OUT="$MAX_WIFI_TRAFFIC_UNR"
+			OUT="$( nvram get fff_traffic_borders | cut -d':' -f1 )"
 		fi
 	fi
 
-	echo "${OUT}000000"							# convert MBytes in Bytes 8-)
+	echo "${OUT:-2500}000000"						# convert MBytes in Bytes 8-)
 }
 
 fkt_get_used_traffic_limit_from_user_with_mac_in_percent () {		# ARG1: mac-address
@@ -1159,7 +1159,9 @@ fkt_olsr_whitelist_variables () {
 fkt_olsr_whitelist_fetch () {
 	fkt_localfw_log "(fkt_olsr_whitelist_fetch) fetching"
 
-	wget -qO $OLSR_WL_FRESH "$REGISTRATOR_WHITELIST_URL"
+	. /bin/needs links
+
+	wget -qO $OLSR_WL_FRESH "$( func_links_get_url_firmware olsr_whitelist )"
 
 	TAG1="$( head -n 1 $OLSR_WL_FRESH )"
 	TAG2="$( tail -n 1 $OLSR_WL_FRESH )"
