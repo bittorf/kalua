@@ -3,22 +3,22 @@ FUNC_OLD=1
 # fkt_check_if_pppoe_is_needed
 # fkt_check_if_https_is_possible
 # fkt_sleep_random_seconds_but_max
-# fkt_check_if_lowflash_device			SENS: checks if this device has less then 4mb flash-memory
-# fkt_print_all_nodes				SENS: simply prints all ip-addresses of all nodes, one per line (source: olsrd-topo)
-# fkt_count_reboots				SENS:
-# fkt_log					SENS: solution for central logging instance with configurable verboseness (see "VERBOSE" in variables)
-# fkt_install_software				SENS: simply installs ipkg-pakage without further prompting
-## fkt_if_installed_remove_it_now		SENS:
-# fkt_check_install_status			SENS:
-# fkt_check_install_status_lowlevel		SENS: outputs an "1" when ipkg-package (arg1) is fully installed, otherwise an "0"
-## fkt_get_cpu_load_x_100			SENS: cpu-load multiplied by 100 for easier calculating (no comma!)
-# fkt_build_etc_local_hosts			SENS: modulary builds /etc/local.hosts
-# fkt_check_for_static_lan_default_route	SENS: checks for static lan default-route (internet) config 
-# fkt_build_settings_menu			SENS: switching between "simple", "expert" and "full" settings-menu
-# fkt_check_readonly				SENS: check if data-partition is mounted read-only (failsafe or firmware-update-mode)
-# fkt_insert_netfilter				SENS: ?
-# fkt_build_client_list				SENS: print IP-list of (potential) clients
-# fkt_wget                                      SENS: reliable fetching an URL $1, aborting after $2 seconds
+# fkt_get_ramsize_in_kb
+# func_get_free_ram_in_bytes
+# fkt_get_flashsize_in_kb
+# fkt_check_if_lowflash_device
+# fkt_count_reboots
+# fkt_log
+# fkt_install_software
+# func_ipkg_remove
+# fkt_check_install_status
+# fkt_check_install_status_lowlevel
+# fkt_build_etc_local_hosts
+# fkt_build_settings_menu
+# fkt_check_readonly
+# fkt_build_client_list
+# fkt_wget
+# func_strange_l7_experiments_from_bastian
 # fkt_check_if_this_node_offers_inet
 
 
@@ -118,11 +118,6 @@ fkt_check_if_lowflash_device () {	# SENS: checks if this device has less then 4m
 	echo $OUT
 }
 
-fkt_print_all_nodes () {		# SENS: simply prints all ip-addresses of all nodes, one per line (source: olsrd-topo)
-
-	wget -O - http://127.0.0.1:2006 | sed -e '/./{H;$!d;}' -e 'x;/Table: Topology/!d;' | sed -e '/\./!d' -e 's/[^0-9.]/ /g' | cut -d" " -f1 | sort -n | uniq
-}
-
 fkt_count_reboots () {
 	local COUNT="$( cat "$REBOOT_COUNT" 2>/dev/null )"
 	echo $(( $COUNT + 1 )) >"$REBOOT_COUNT"
@@ -192,17 +187,6 @@ fkt_install_software () {			# SENS: simply installs ipkg-pakage without further 
 	fi
 }
 
-fkt_if_installed_remove_it_now ()
-{
-	logger -p daemon.info -t "$0 if_installed_remove_it_now()" "checking $PAKET"
-
-	[ -n "$(ipkg status $PAKET)" ] && {
-		logger -p daemon info -t "$0 if_installed_remove_it_now()" "found $PAKET - removing"
-		func_ipkg_remove $PAKET
-		logger -p daemon info -t "$0 if_installed_remove_it_now()" "found $PAKET - removed"
-	}
-}
-
 func_ipkg_remove ()
 {
 	local PACKAGE="$1"
@@ -246,11 +230,6 @@ fkt_check_install_status_lowlevel ()	# OUT1: 0 = not_installed , 1 = installed ,
 	
 	echo -n 2
 	func_log $FUNC daemon info "'$SOFTWARE' not in repository this time"
-}
-
-fkt_get_cpu_load_x_100 () {				# SENS: cpu-load multiplied by 100 for easier calculating (no comma!)
-							# OUT : integer 0-500
-	cut -d" " -f1 /proc/loadavg | sed 's/[.]//'
 }
 
 fkt_build_etc_local_hosts () {				# SENS: modulary builds /etc/local.hosts
@@ -404,34 +383,6 @@ fkt_build_etc_local_hosts () {				# SENS: modulary builds /etc/local.hosts
 	esac
 }
 
-fkt_check_for_static_lan_default_route () {		# SENS: checks for static lan default-route (internet) config
-							# OUT1: string, "true" or "false"
-
-	local DAEMON="fkt_check_for_static_lan_default_route"
-	local STATIC_ROUTE="$(nvram get static_route)"
-	local STATIC_ROUTE_SOURCE="$(     echo $STATIC_ROUTE | cut -d: -f1)"
-	local STATIC_ROUTE_DESTINATION="$(echo $STATIC_ROUTE | cut -d: -f2)"
-	local STATIC_ROUTE_INTERFACE="$(  echo $STATIC_ROUTE | cut -d: -f5)"
-	local LAN_GATEWAY="$(nvram get lan_gateway)"
-	local OUT="false"
-
-	if [ ! -z "$LAN_GATEWAY" ]; then
-		fkt_log "$DAEMON" "static lan-gateway ($LAN_GATEWAY) found" 1
-		OUT="true"
-	fi
-
-	if [ "$STATIC_ROUTE_SOURCE" = "0.0.0.0" ] && [ "$STATIC_ROUTE_DESTINATION" = "0.0.0.0" ]; then
-		if [ "$STATIC_ROUTE_INTERFACE" = "$LANDEV" ]; then
-			fkt_log "$DAEMON" "static lan-default-route found" 1
-			OUT="true"
-		else
-			fkt_log "$DAEMON" "no static lan-default-route found" 1
-		fi
-	fi
-	
-	echo "$OUT"
-}
-
 fkt_build_settings_menu () {				# SENS: switching between "simple", "expert" and "full" settings-menu
 	local DAEMON="fkt_build_settings_menu"		# ARG1: string, "simple", "expert", "full" or "" (empty)
 	local MODE="$1"	
@@ -540,11 +491,6 @@ fkt_check_readonly () {			# SENS: check if data-partition is mounted read-only (
 	done
 	
 	echo $OUT
-}
-
-fkt_insert_netfilter ()
-{
-	logger -p daemon.crit -t "insert_netfilter()" "call to nonexistent function"
 }
 
 fkt_build_client_list () {			# SENS: print IP-list of (potential) clients
