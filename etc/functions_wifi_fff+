@@ -469,6 +469,7 @@ func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
 	local KEYWORD="$5"	# keyword: 'overturn' (if value is over max, then flip to min)
 				#          'limit' (if value is over max or under min, than do nothing)
 	local VALUE
+	local VALUE_DBM
 	local VALUE_OLD
 	local PRIO="alert"
 	local MAX="$( func_wifi_get_txpwr_max $WIFI_DEV )"	# driverlimit
@@ -481,7 +482,9 @@ func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
 		       *)
 		       	  # mode = "absolute"
 		       
-		          VALUE="$( func_wifi_convert_mw2qdbm $TXPWR )"		# value is stored in [qdBm]
+		          VALUE="$(     func_wifi_convert_mw2qdbm $TXPWR )"		# value is stored in [qdBm]
+			  VALUE_DBM="$( func_wifi_convert_mw2dbm  $TXPWR )"
+
 		       	  VALUE_OLD="$( nvram get wl0_txpwr )"
 		       	  
 		       	  [ "$VALUE" = "$VALUE_OLD" ] && {
@@ -502,14 +505,14 @@ func_wifi_set_txpwr ()		# fixme! abstraction of broadcom/atheros needed
 		       	  [ "$TXPWR" -gt 55 ] && PRIO="alert"
 		       	 
 		       	  func_need nvram
-		       	  func_log $FUNC daemon ${PRIO} "for '$WIFI_DEV' to '$TXPWR' mW ('$VALUE' qdBm)"
+		       	  func_log $FUNC daemon ${PRIO} "for '$WIFI_DEV' to '$TXPWR' mW ('$VALUE' qdBm / '$VALUE_DBM' dBm)"
 		       	  func_nvset wl0_txpwr "$VALUE"
 
 			  if func_wifi_get_hardware_pci | grep -q broadcom ; then
 
 				wl -i "$WIFI_DEV" txpwr $TXPWR			# must be in [mW]
 			  else
-			  	iwconfig "$WIFI_DEV" txpower "$(func_wifi_convert_mw2dbm $TXPWR)"  2>/dev/null
+			  	iwconfig "$WIFI_DEV" txpower "$VALUE_DBM"  2>/dev/null
 			  fi
 		       	 
 		       	  return 0
@@ -879,7 +882,7 @@ func_wifi_get_rate ()
 		wl -i $WIFI_DEV rate | cut -d' ' -f3		# 1, 2, 5.5, 6, 9, 12 ...
 	else
 		# Current Bit Rate=54 Mb/s
-		# Current Bit Rate:0 kb/s
+		# Current Bit Rate:0 kb/s	// 0 means 'auto' ?
 		
 		iwlist $WIFI_DEV rate 2>/dev/null | sed -n 's/^.*Bit Rate[:=]\([0-9\.]*\) .*/\1/p'
 	fi
