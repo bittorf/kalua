@@ -407,13 +407,13 @@ func_wifi_restart_phy ()
 	local FUNC="wifi_restart_wifi_phy"
 	local WIFI_DEV="$1"
 
-	func_log $FUNC daemon info "working on '$WIFI_DEV'"
+	func_log $FUNC daemon alert "working on '$WIFI_DEV'"
 
 	if func_wifi_get_hardware_pci | grep -q broadcom ; then
 	
 		wifi					# simply rereads nvram for all broadcom-devices
 	else
-		ip link set dev $WIFI_DEV down
+		ip link set dev $WIFI_DEV down		# we have seen some strange behaviour with madwifi after that, needs some research!
 		ip link set dev $WIFI_DEV up
 	fi
 }
@@ -595,13 +595,23 @@ func_wifi_convert_mhz2channel ()	# http://en.wikipedia.org/wiki/Lost_of_WLAN_cha
 	    568|5680) o=136 ;; # 276
 	     57|5700) o=140 ;; # 276
 		5745) o=149 ;;
-	    576|5760) o=152 ;;	# TURBO.only	# not listed in wikipedia?
-		5765) o=153 ;;
-		5785) o=157 ;;
-	     58|5800) o=160 ;;	# TURBO.only	# not listed in wikipedia?
-		5805) o=161 ;;
-		5825) o=165 ;;
-
+	    576|5760) o=152 ;;	# TURBO.only	# not listed in wikipedia?	# BFWA
+		5765) o=153 ;;							# BFWA
+		5785) o=157 ;;							# BFWA
+	     58|5800) o=160 ;;	# TURBO.only	# not listed in wikipedia?	# BFWA
+		5805) o=161 ;;							# BFWA
+		5825) o=165 ;;							# BFWA
+	    583|5830) o=166 ;;							# BFWA
+	        5835) o=167 ;;							# BFWA
+	    584|5840) o=168 ;;							# BFWA
+		5845) o=169 ;;							# BFWA
+	    585|5850) o=170 ;;							# BFWA
+		5855) o=171 ;;							# BFWA
+	    586|5860) o=172 ;;							# BFWA
+		5865) o=173 ;;							# BFWA
+	    587|5870) o=174 ;;							# BFWA
+		5875) o=175 ;;							# BFWA
+		
 		4915) o=183 ;;
 	    492|4920) o=184 ;;
 		4925) o=185 ;;
@@ -611,6 +621,7 @@ func_wifi_convert_mhz2channel ()	# http://en.wikipedia.org/wiki/Lost_of_WLAN_cha
 	    496|4960) o=192 ;;
 	    498|4980) o=196 ;;
 					# wl also knows: 200, 204, 208, 212, 216
+					# oswave.com -> 220/6100mhz, 234...250 (4920...5000mhz), 1...6 (5005....5030)
 					
 		   *) o=0 ;;		# fixme! till we inserted all freqs
 	esac
@@ -750,7 +761,10 @@ func_wifi_set_antenna_rx ()
 	
 	func_nvset wl0_antdiv "$VALUE"					# fixme! set it also with 'wl -i $WIFIDEV rxant ?'
 
-	func_wifi_get_hardware_pci | grep -q broadcom || {		# fixme! must be device specific
+	if func_wifi_get_hardware_pci | grep -q broadcom; then  	# fixme! must be device specific
+
+		wl -i $WIFI_DEV antdiv $ANTENNA
+	else
 		case $VALUE in
 		       -1)
 		       		func_log $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
@@ -763,7 +777,7 @@ func_wifi_set_antenna_rx ()
 				sysctl -w dev.wifi0.rxantenna="$(( $VALUE + 1 ))"
 			;;
 		esac
-	}
+	fi
 }
 
 func_wifi_set_antenna_tx ()
@@ -780,7 +794,10 @@ func_wifi_set_antenna_tx ()
 	
 	func_nvset wl0_txant "$VALUE"
 
-	func_wifi_get_hardware_pci | grep -q broadcom || {		# fixme! must be device specific
+	if func_wifi_get_hardware_pci | grep -q broadcom; then		# fixme! must be device specific
+
+		wl -i $WIFI_DEV txant $ANTENNA
+	else
 		case $VALUE in
 		       -1)
 				func_log $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
@@ -793,7 +810,7 @@ func_wifi_set_antenna_tx ()
 				sysctl -w dev.wifi0.txantenna="$(( $VALUE + 1 ))"
 			;;
 		esac
-	}
+	fi
 }
 
 func_wifi_get_antenna_rx ()
