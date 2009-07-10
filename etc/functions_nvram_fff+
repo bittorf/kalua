@@ -8,7 +8,7 @@ func_nvget ()
 }
 
 func_nvset ()			# func_nvset varA valueA	// sets value
-{				# func_nvset commit		// commit changes
+{				# func_nvset commit message	// commit changes
 	local FUNC="nvset"	# func_nvset variableA		// no value = unset
 	local VAR="$1"		# func_nvset varB valueB simu   // just simulates this function for debugging
 	local SIMULATE="$3"	# func_nvset commit - simu	// simulating commit
@@ -16,12 +16,14 @@ func_nvset ()			# func_nvset varA valueA	// sets value
 	[ -n "$SIMULATE" ] && FUNC="${FUNC}_simulated"		# fixme! maybe monitor all changes to a file which is removed after commit?
 	
 	[ "$VAR" = "commit" ] && {
+		local COMMIT_REASON="$2"
+	
 		[ -e /tmp/PROFILE_SET ] && {
 			func_log $FUNC daemon crit "error - cannot comit - lockfile '/tmp/PROFILE_SET' exists"
 			return 1
 		}
 		[ -z "$SIMULATE" ] && {
-			func_log $FUNC daemon debug "commiting changes"
+			func_log $FUNC daemon debug "commiting changes - reason: '$COMMIT_REASON'"
 			nvram commit 2>/dev/null || {
 				func_log $FUNC daemon crit "error during commit"	# fixme! command always returns 0
 				return 1						# even if "low mem, could'nt write"
@@ -29,7 +31,7 @@ func_nvset ()			# func_nvset varA valueA	// sets value
 			func_log $FUNC daemon alert "commited all changes"		# fixme! log changes? (needs /tmp/NVRAM_NO_CHANGE)
 			return
 		}
-		func_log $FUNC daemon debug "commit"		# fixme! take "reason" as arg3?
+		func_log $FUNC daemon debug "commit - reason: '$COMMIT_REASON'"
 		return
 	}
 
