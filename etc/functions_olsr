@@ -160,16 +160,19 @@ func_olsr_best_wifi_nlq ()
 	local FILE="$1"
 	local NLQ_MAX=
 	
-	func_olsr_output_neigh "$FILE"
-	
 	while read LINE; do {
 		eval $LINE
+
+		logger "remote: '$REMOTE'"
 
 		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
 		[ "$DEVTYPE" = "wifi" ] && {
 			NLQ="$( echo ${NLQ:=0.000} | sed -ne 's/\.//' -e 's/^[0]*\([0-9]*\)/\1/p' )"		# 0.056 -> 56
 
-			[ ${NLQ_MAX:=0} -lt ${NLQ:=0} ] && NLQ_MAX="$NLQ"	# theoretical best value is 1.000 -> '1000'
+			[ ${NLQ_MAX:=0} -lt ${NLQ:=0} ] && {
+				NLQ_MAX="$NLQ"					# theoretical best value is 1.000 -> '1000'
+				echo $REMOTE >/tmp/WIFI_OPTIMIZE_NEIGH		# for RRD-tool
+			}
 		}	
 		
 	} done <"$FILE" && rm "$FILE"
