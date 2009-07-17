@@ -277,12 +277,13 @@ PID="$(pidof vpnc)" && {
 func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in sync with hole network
 {
 	local FUNC="set_time_with_ntp-server"	
-	local POOL="$( nvram get fff_timeserver ) 128.138.140.44 171.64.7.77 171.64.7.99 81.169.154.44"
-	local   IP
+	local POOL="$( nvram get fff_timeserver )"
+	      POOL="${POOL}${POOL:+ }128.138.140.44 171.64.7.77 171.64.7.99 81.169.154.44"	# no space at list begin
+	local   IP=""
 	local  TRY="0"
 	local  UP1="$( func_uptime sec )"
-	local  UP2=0
-	local HOST
+	local  UP2="0"
+	local HOST=""
 	local FILE_SUCCESS="/tmp/ntp_was_successful"
 
 	[ -e $FILE_SUCCESS ] && {
@@ -305,6 +306,9 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 		
 			ID=$(( $ID + 1 ))		
 			sleep 5
+
+			func_log $FUNC daemon debug "ID: '$ID' IP: '$IP'"
+
 			rdate -s $IP >/dev/null 2>&1 && {
 
 				UP2="$( func_uptime sec )"			
@@ -631,7 +635,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	for COUNT in $PFILTER; do {
 		PFILTER_MANGLE_REAL="$(( $PFILTER_MANGLE_REAL - ${COUNT:-0} ))"
 	} done
-	IFS=
+	unset IFS
 
 	PFILTER="${PFILTER_NAT:-0}:${PFILTER_FILTER:-0}:${PFILTER_MANGLE}:${PFILTER_MANGLE_REAL}:${PFILTER_MANGLE_USER_REAL:-0}:${PFILTER_MANGLE_USER_RESERVE:-0}:${PFILTER}"
 	PFILTER="$( _sanitizer "$PFILTER" urlvalue )"
