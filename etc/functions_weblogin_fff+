@@ -3,7 +3,11 @@ FUNC_WEBLOGIN=1
 func_weblogin_output_loginpage ()			# needs: images/logo.gif|logo2.gif		+ images/flag_de|en|fr.gif
 {							#        images/button_login_de.gif		+ images/bgcolor.txt
 	func_http_header_mime_output "text/html"	#        /favicon.ico
-	
+
+	local LANG="${1:-de}"				# definition of default/unset language
+	local SHOW_RULES="$2"
+
+	local LINK="?REDIRECTED=1&FORM_LANG"
 	local BGCOLOR="$( cat /www/images/bgcolor.txt 2>/dev/null )"
 	local SLOGAN="$( test -e /www/images/logo2.gif && echo -n '<IMG SRC="images/logo2.gif" TITLE="Hotel-Slogan" ALT="Hotel-Slogan"><BR><BR>' )"
 
@@ -17,20 +21,67 @@ func_weblogin_output_loginpage ()			# needs: images/logo.gif|logo2.gif		+ images
 <LINK REL="shortcut icon" TYPE="image/x-icon" HREF="/favicon.ico">
 </HEAD>
 <BODY BGCOLOR="${BGCOLOR:-white}" TEXT="black"><CENTER>
-<A HREF="#" TITLE="diese Seite in deutsch anzeigen"><IMG SRC="images/flag_de.gif" BORDER="0" ALT="de" TITLE="diese Seite in deutsch anzeigen">&nbsp;deutsch</A>
-&nbsp;&nbsp;<A HREF="#" TITLE="show this page in english"><IMG SRC="images/flag_en.gif" BORDER="0" ALT="en" TITLE="show this page in english">&nbsp;english</A>
-&nbsp;&nbsp;<A HREF="#" TITLE="afficher cette page en anglais"><IMG SRC="images/flag_fr.gif" BORDER="0" ALT="fr" TITLE="afficher cette page en anglais">&nbsp;fran&ccedil;ais</A>
+<A HREF="$LINK=de" TITLE="diese Seite in deutsch anzeigen"><IMG SRC="images/flag_de.gif" BORDER="0" ALT="de" TITLE="diese Seite in deutsch anzeigen">&nbsp;deutsch</A>
+&nbsp;&nbsp;<A HREF="$LINK=en" TITLE="show this page in english"><IMG SRC="images/flag_en.gif" BORDER="0" ALT="en" TITLE="show this page in english">&nbsp;english</A>
+&nbsp;&nbsp;<A HREF="$LINK=fr" TITLE="afficher cette page en anglais"><IMG SRC="images/flag_fr.gif" BORDER="0" ALT="fr" TITLE="afficher cette page en anglais">&nbsp;fran&ccedil;ais</A>
 <BR><BR>${SLOGAN}<IMG SRC="images/logo.gif" TITLE="Hotel-Logo" ALT="Hotel-Logo"><FORM METHOD="post" ACTION="">
 <TABLE CELLSPACING="0" CELLPADDING="0" BORDER="0">
-<TR><TD ALIGN="CENTER"><BR><B><BIG>Internetzugang</BIG></B></TD></TR>
+<TR><TD ALIGN="CENTER"><BR><B><BIG>$( _translate $LANG internetaccess )</BIG></B></TD></TR>$( test "$SHOW_RULES" = "true" && func_weblogin_show_rules )
 <TR><TD ALIGN="CENTER"><BR><TABLE CELLSPACING="0" CELLPADDING="2" BORDER="0">
-<TR><TD ALIGN="RIGHT">Benutzername:&nbsp;<INPUT TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER"></TD></TR>
-<TR><TD ALIGN="RIGHT">Passwort:&nbsp;<INPUT TYPE="password" SIZE="10" MAXLENGTH="10" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
-<TR><TD ALIGN="CENTER"><BR><INPUT TYPE="checkbox" NAME="FORM_RULES" checked>&nbsp;Ich akzeptiere die <A HREF="#RULES" TITLE="ausf&uuml;hrliche Informationen zu den Vertragsbedingungen">Nutzungsbedingungen</A></TD></TR>
+<TR><TD ALIGN="RIGHT">$( _translate $LANG username ):&nbsp;<INPUT TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER"></TD></TR>
+<TR><TD ALIGN="RIGHT">$( _translate $LANG password ):&nbsp;<INPUT TYPE="password" SIZE="10" MAXLENGTH="10" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
+<TR><TD ALIGN="CENTER"><BR><INPUT TYPE="checkbox" NAME="FORM_RULES" checked>&nbsp;$( _translate $LANG accept_terms1 ) <A HREF="$LINK=${LANG}&SHOW_RULES=true" TITLE="$( _translate $LANG tip_contract )">$( _translate $LANG accept_terms2 )</A></TD></TR>
 <TR><TD ALIGN="CENTER"><BR><INPUT TYPE="image" SRC="images/button_login_de.gif" ALT="&rarr;Login"></TD></TR>
 </TABLE></FORM></CENTER>
 </BODY></HTML>
 EOF
+}				# <a href="bla" target="_blank">link</a>
+
+func_weblogin_show_rules ()
+{
+	echo -n "<TR BGCOLOR='yellow'><TD ALIGN="CENTER"><BR><B><BIG>DIES SIND DIE REGELN</BIG></B><BR><BR></TD></TR>"	
+}
+
+_translate ()			# todo: proof-of-concept -> chinese-simplified / arabic
+{
+	local LANG="$1"
+	local KEYWORD="$2"
+	local o="element_${KEYWORD}_is_unset"
+	
+	case $KEYWORD in
+		internetaccess)
+			case $LANG in 	de) o="Internetzugang" ;;
+					en) o="Internet access" ;;
+					ru) o="&#1044;&#1086;&#1089;&#1090;&#1091;&#1087; &#1074; &#1048;&#1085;&#1090;&#1077;&#1088;&#1085;&#1077;&#1090;" ;;
+					fr) o="Acc&egrave;s Internet" ;; esac ;;
+		username)
+			case $LANG in	de) o="Benutzername" ;;
+					en) o="Username" ;;
+					ru) o="&#1048;&#1084;&#1103; &#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1103;" ;;
+					fr) o="Nom d'utilisateur" ;; esac ;;
+		password)
+			case $LANG in	de) o="Passwort" ;;
+					en) o="Password" ;;
+					ru) o="&#1055;&#1072;&#1088;&#1086;&#1083;&#1100;" ;;
+					fr) o="Mot de passe" ;; esac ;;
+		accept_terms1)
+			case $LANG in	de) o="Ich akzeptiere die" ;;
+					en) o="I accept the" ;;
+					ru) o="&#1071; &#1087;&#1088;&#1080;&#1085;&#1080;&#1084;&#1072;&#1102;" ;;
+					fr) o="J'accepte les" ;; esac ;;
+		accept_terms2)
+			case $LANG in	de) o="Nutzungsbedingungen" ;;
+					en) o="Terms of Use" ;;
+					ru) o="&#1059;&#1089;&#1083;&#1086;&#1074;&#1080;&#1103; &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1085;&#1080;&#1103;" ;;
+					fr) o="Conditions d'utilisation" ;; esac ;;
+		tip_contract)
+			case $LANG in	de) o="ausf&uuml;hrliche Informationen zu den Vertragsbedingungen" ;;
+					en) o="detailed information to contractual" ;;
+					ru) o="&#1055;&#1086;&#1076;&#1088;&#1086;&#1073;&#1085;&#1091;&#1102; &#1080;&#1085;&#1092;&#1086;&#1088;&#1084;&#1072;&#1094;&#1080;&#1102; &#1087;&#1086; &#1082;&#1086;&#1085;&#1090;&#1088;&#1072;&#1082;&#1090;&#1072;&#1084;" ;;
+					fr) o="&eacute;tendue des informations contractuelles" ;; esac ;; 
+	esac
+	
+	echo -n "$o"
 }
 
 func_weblogin_output_gate_page ()

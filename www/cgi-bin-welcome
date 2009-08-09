@@ -10,56 +10,55 @@ func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wire
 	return 0
 }
 
-case "$(nvram get fff_profile)" in
-	versilia_ap|versilia_client|elephant_mesh|elephant_ap|galerie_mesh|galerie_ap)
-		func_need http log
+[ -n "$(nvram get fff_profile)" ] && {
+	func_need http log
 
-		if [ "$REQUEST_METHOD" = "POST" ]; then
-	
-			eval $(func_http_sanitize_query_string)
-			
-			if [ -n "$FORM_RULES" ]; then
-				func_need pfilter weblogin old vars_old
-				MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
-				func_log weblogin_try daemon info "ip: '$REMOTE_ADDR' mac: '$MAC' user: '$FORM_USER' pass: '$FORM_PASS'"
+	eval $(func_http_sanitize_query_string)
 
-				# empty mac? redirect to real = nonlocal gateway ( ipsystem $REMOTE_ADDR | grep ^WIFI_ADDR )
+	if [ "$REQUEST_METHOD" = "POST" ]; then
 
-				func_weblogin_check_login "$FORM_USER" "$FORM_PASS" "$MAC" && {
-					fkt_definitions
-					func_pfilter_user_unsplash "$MAC" "$REMOTE_ADDR" && {
-						func_log weblogin_success daemon alert "mac: '$MAC'"
-						func_http_redirect 302 landing_page
-						exit
-					}
+		if [ -n "$FORM_RULES" ]; then
+			func_need pfilter weblogin old vars_old
+			MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+			func_log weblogin_try daemon info "ip: '$REMOTE_ADDR' mac: '$MAC' user: '$FORM_USER' pass: '$FORM_PASS'"
+
+			# empty mac? redirect to real = nonlocal gateway ( ipsystem $REMOTE_ADDR | grep ^WIFI_ADDR )
+
+			func_weblogin_check_login "$FORM_USER" "$FORM_PASS" "$MAC" && {
+				fkt_definitions
+				func_pfilter_user_unsplash "$MAC" "$REMOTE_ADDR" && {
+					func_log weblogin_success daemon alert "mac: '$MAC'"
+					func_http_redirect 302 landing_page
+					exit
 				}
-				
-				func_log weblogin_failed daemon info "ip: '$REMOTE_ADDR'"
-				func_weblogin_output_login_error
-			else						# fixme! send error to show (user,pass,rules,inetconnection...)
-				func_log weblogin_norules daemon info "ip: '$REMOTE_ADDR'"
-				func_http_redirect 302 ip_wifi
+			}
+
+			func_log weblogin_failed daemon info "ip: '$REMOTE_ADDR'"
+			func_weblogin_output_login_error
+		else						# fixme! send error to show (user,pass,rules,inetconnection...)
+			func_log weblogin_norules daemon info "ip: '$REMOTE_ADDR'"
+			func_http_redirect 302 ip_wifi
+		fi
+	else
+		if [ "$REDIRECTED" = "1" ]; then
+			
+			func_need weblogin
+
+			if func_network_inet_seems_stable; then
+				func_log weblogin_splash daemon info "ip: '$REMOTE_ADDR' lang: '${FORM_LANG}'"
+				func_weblogin_output_loginpage "$FORM_LANG" "$SHOW_RULES"
+			else
+				func_log weblogin_inet_unstable daemon info "inet_broken"
+				func_weblogin_output_errorpage inet_broken "cost_int: '$COST_INT' default_route: '$( ip route list exact 0/0 table main )'"
 			fi
 		else
-			if [ "$QUERY_STRING" != "REDIRECTED=1" ]; then
-				func_log weblogin_redirect daemon info "ip: '$REMOTE_ADDR'"
-				func_http_redirect 302 ip_wifi
-			else
-				func_need weblogin
-			
-				if func_network_inet_seems_stable; then
-					func_log weblogin_splash daemon info "ip: '$REMOTE_ADDR'"
-					func_weblogin_output_loginpage
-				else
-					func_log weblogin_inet_unstable daemon info "inet_broken"
-					func_weblogin_output_errorpage inet_broken "cost_int: '$COST_INT' default_route: '$( ip route list exact 0/0 table main )'"
-				fi
-			fi
+			func_log weblogin_redirect daemon info "ip: '$REMOTE_ADDR'"
+			func_http_redirect 302 ip_wifi
 		fi
-		
-		exit
-	;;
-esac
+	fi
+
+	exit
+}
 
 func_need vars_old old log http pfilter welcome
 
