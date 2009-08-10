@@ -48,16 +48,38 @@ func_http_redirect ()
 	local ERRORCODE="$1"
 	local DESTINATION="$2"
 	local REASON
+	local PROTO="http"
 
 	case $DESTINATION in
-		ip_wifi)
-			DESTINATION="http://$( nvram get wifi_ipaddr )/cgi-bin-welcome?REDIRECTED=1"
-		;;
-		ip_lan)
-			DESTINATION="http://$( nvram get lan_ipaddr  )/cgi-bin-welcome?REDIRECTED=1"
-		;;
-		ip_wan)
-			DESTINATION="http://$( nvram get wan_ipaddr  )/cgi-bin-welcome?REDIRECTED=1"
+		ip_*)
+			case $DESTINATION in
+				ip_incoming_interface)
+					# kern.notice xrelayd[30173]: xrelayd.c:445 Connected ssl client 10.63.3.24 to plain server localhost:80
+				
+					[ "$REMOTE_ADDR" = "127.0.0.1" ] && {
+						REMOTE_ADDR="$( tail -n15 /var/log/messages |
+								 grep "to plain server" |
+								  tail -n1 |
+								   sed -n 's/^.* ssl client \(.*\) to .*/\1/p' )"
+								   
+						[ -z "$REMOTE_ADDR" ] && REMOTE_ADDR="$( nvram get wifi_ipaddr )"
+						PROTO="https"
+					}
+					
+					DESTINATION="$( ip route get $REMOTE_ADDR | sed -n 's/^.*src \([0-9\.]*\).*/\1/p;q' )"
+				;;
+				ip_wifi)
+					DESTINATION="$( nvram get wifi_ipaddr )"
+				;;
+				ip_lan)
+					DESTINATION="$( nvram get lan_ipaddr )"
+				;;
+				ip_wan)
+					DESTINATION="$( nvram get wan_ipaddr )"
+				;;
+			esac
+			
+			DESTINATION="${PROTO}://$DESTINATION/cgi-bin-welcome?REDIRECTED=1"
 		;;
 		landing_page)
 			DESTINATION="$( cat /www/images/landing_page.txt 2>/dev/null || echo 'http://google.de' )"

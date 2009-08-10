@@ -22,22 +22,22 @@ func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wire
 			MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
 			func_log weblogin_try daemon info "ip: '$REMOTE_ADDR' mac: '$MAC' user: '$FORM_USER' pass: '$FORM_PASS'"
 
-			# empty mac? redirect to real = nonlocal gateway ( ipsystem $REMOTE_ADDR | grep ^WIFI_ADDR )
+			# fixme! empty mac of REMOTE_ADDR -> redirect to real = nonlocal gateway ( ipsystem $REMOTE_ADDR | grep ^WIFI_ADDR )
 
-			func_weblogin_check_login "$FORM_USER" "$FORM_PASS" "$MAC" && {
+			if func_weblogin_check_login "$FORM_USER" "$FORM_PASS" "$MAC" ; then
 				fkt_definitions
 				func_pfilter_user_unsplash "$MAC" "$REMOTE_ADDR" && {
 					func_log weblogin_success daemon alert "mac: '$MAC'"
 					func_http_redirect 302 landing_page
-					exit
 				}
-			}
-
-			func_log weblogin_failed daemon info "ip: '$REMOTE_ADDR'"
-			func_weblogin_output_login_error
-		else						# fixme! send error to show (user,pass,rules,inetconnection...)
+			else
+				func_log weblogin_failed daemon info "ip: '$REMOTE_ADDR'"
+				func_weblogin_output_loginpage "$FORM_LANG" "$SHOW_RULES" "true"
+			fi
+		else						# fixme! send error(s!) to show (user,pass,rules,inetconnection...)
+			func_need weblogin
 			func_log weblogin_norules daemon info "ip: '$REMOTE_ADDR'"
-			func_http_redirect 302 ip_wifi
+			func_weblogin_output_loginpage "$FORM_LANG" "$SHOW_RULES" "false" "true"
 		fi
 	else
 		if [ "$REDIRECTED" = "1" ]; then
@@ -53,7 +53,7 @@ func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wire
 			fi
 		else
 			func_log weblogin_redirect daemon info "ip: '$REMOTE_ADDR'"
-			func_http_redirect 302 ip_wifi
+			func_http_redirect 302 ip_incoming_interface
 		fi
 	fi
 
