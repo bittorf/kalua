@@ -17,6 +17,7 @@ FUNC_OLD=1
 # fkt_check_readonly
 # fkt_build_client_list
 # fkt_wget
+# func_lookup_skype_servers
 # func_strange_l7_experiments_from_bastian
 # fkt_check_if_this_node_offers_inet
 
@@ -551,52 +552,64 @@ fkt_wget ()								# SENS: reliable fetching an URL $1, aborting after $2 second
 	} done
 }
 
+func_lookup_skype_servers ()
+{
+	local SERVER NUMBER
+	
+	for SERVER in dir http ; do {
+		for NUMBER in 1 2 3 4 5 6 7 8 ; do {
+
+			echo -n "${SERVER}${NUMBER}.sd.skype.net: "
+			func_ip2dns "${SERVER}${NUMBER}.sd.skype.net"
+		} done		
+	} done
+}
+
 func_strange_l7_experiments_from_bastian ()		# fixme!
 {
+	local DEST="/tmp/l7fertig"
+	local TEMP="/tmp/l7"
+	local LINK NAME SIZE ATTR
 
-DEST="/tmp/l7fertig"
-TEMP="/tmp/l7"
+	local L7URL="http://l7-filter.sourceforge.net"
 
-L7URL="http://l7-filter.sourceforge.net"
+	test -d $DEST || mkdir $DEST
+	test -d $TEMP || mkdir $TEMP
 
-test -d $DEST || mkdir $DEST
-test -d $TEMP || mkdir $TEMP
+	cd $DEST
+	rm -fR *
 
-cd $DEST
-rm -fR *
+	cd $TEMP
+	rm -fR *
 
-cd $TEMP
-rm -fR *
+	LIST="$( wget -O - "$L7URL/protocols" | sed -n 's/^.*href=\"\(layer7-protocols\/.*\/.*\.pat\)\".*/\1/p' )"
 
-LIST="$( wget -O - "$L7URL/protocols" | sed -n 's/^.*href=\"\(layer7-protocols\/.*\/.*\.pat\)\".*/\1/p' )"
+	local SIZE_OLD="0"
+	local SIZE_NEW="0"
 
-SIZE_OLD="0"
-SIZE_NEW="0"
+	for LINK in $LIST; do {
+		wget -q "$L7URL/$LINK"
 
-for LINK in $LIST; do
-	wget -q "$L7URL/$LINK"
+		NAME="$( grep -v "^#" *.pat | grep -v "^$" | head -n1 )"
+		SIZE="$( ls -l *.pat | while read RIGHTS UID GROUP USER LENGTH REST; do echo $LENGTH;done )"
+		ATTR="$( sed -n 's/^# [pP]attern attributes: \(.*\)/\1/p' *.pat )"
 
-	NAME="$( grep -v "^#" *.pat | grep -v "^$" | head -n1 )"
-	SIZE="$( ls -l *.pat | while read RIGHTS UID GROUP USER LENGTH REST; do echo $LENGTH;done )"
-	ATTR="$( sed -n 's/^# [pP]attern attributes: \(.*\)/\1/p' *.pat )"
+		SIZE_OLD=$(( $SIZE_OLD + $SIZE ))
 
-	let SIZE_OLD+=$SIZE
-
-	echo "Working on protocol: \"$NAME\" ($SIZE bytes) - Attributes: \"$ATTR\""
+		echo "Working on protocol: \"$NAME\" ($SIZE bytes) - Attributes: \"$ATTR\""
 	
-	grep -v "^#" *.pat | grep -v "^$" >$DEST/$NAME.pat
-	# cat   *.pat >$DEST/$NAME.pat
+		grep -v "^#" *.pat | grep -v "^$" >$DEST/$NAME.pat
+	#	cat   *.pat >$DEST/$NAME.pat
 	
-	SIZE="$( ls -l $DEST/$NAME.pat | while read RIGHTS UID GROUP USER LENGTH REST; do echo $LENGTH;done )"
+		SIZE="$( ls -l $DEST/$NAME.pat | while read RIGHTS UID GROUP USER LENGTH REST; do echo $LENGTH;done )"
 	
-	let SIZE_NEW+=$SIZE
+		SIZE_NEW=$(( $SIZE_NEW + $SIZE ))
 	
-	rm -f *.pat
-done
+		rm -f *.pat
+	} done
 
-echo "original summarized size: $SIZE_OLD"
-echo "arranged summarized size: $SIZE_NEW"
-
+	echo "original summarized size: $SIZE_OLD"
+	echo "arranged summarized size: $SIZE_NEW (removed comments)"
 }
 
 fkt_check_if_this_node_offers_inet ()			# SENS: check if default-route is local OUT1 can be one of "false wan lan pppoe"
