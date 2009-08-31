@@ -1,10 +1,6 @@
 FUNC_PFILTER=1
 IPT="/usr/sbin/iptables"
 
-# + layer7-debug
-# + end_l7 nur, wenn kein ACK
-# + shoutcast + quake-halflife
-
 # tc qdisc add dev eth0 root handle 1: cbq avpkt 1000 bandwidth [HN]
 # tc qdisc show
 # 
@@ -853,6 +849,7 @@ fkt_proto2id () {
 			DHCPIN)     N=87 ;;
 			PICOPEER)   N=86 ;;
 			GUESS)      N=85 ;;
+			SMALL)      N=84 ;;
 						
 			*)          N=99 ;;
 		esac
@@ -1079,6 +1076,14 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 	$IPT -t mangle -A traff_all
 	$IPT -t mangle -A shaper    -j ACCEPT
 
+	$IPT -t mangle -A marking_layer7 -p tcp  -m length --length 0:40 --tcp-flags RST,URG     RST	 -j MARK --set-mark $( fkt_proto2id SMALL )
+	$IPT -t mangle -A marking_layer7 -p tcp  -m length --length 0:52 --tcp-flags ACK,URG     ACK	 -j MARK --set-mark $( fkt_proto2id SMALL )
+	$IPT -t mangle -A marking_layer7 -p tcp  -m length --length 0:64 --tcp-flags SYN,URG     SYN	 -j MARK --set-mark $( fkt_proto2id SMALL )
+	$IPT -t mangle -A marking_layer7 -p tcp  -m length --length 0:64 --tcp-flags ACK,SYN,URG ACK,SYN -j MARK --set-mark $( fkt_proto2id SMALL )
+	$IPT -t mangle -A marking_layer7 -p icmp -m length --length 84					 -j MARK --set-mark $( fkt_proto2id SMALL )	# ping
+	#$IPT -t mangle -A marking_layer7 -m mark ! --mark 0						 -j LOG --log-prefix "layer7_small: "
+	$IPT -t mangle -A marking_layer7 -m mark ! --mark 0						 -j RETURN
+
 	for ENTRY in $PROTOCOLS; do {
 		PROTO="${ENTRY%,*}"
 		# PORT="${ENTRY#*,}"
@@ -1090,17 +1095,20 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 		$IPT -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
 		$IPT -t mangle -A traff_all      -m mark --mark $( fkt_proto2id )/0xFF	-j traff_users
 	} done
+
+	$IPT -t mangle -A marking_layer7 -j LOG --log-prefix "layer7_end: "
 	
 	$IPT -t mangle -A traff_all -m mark --mark $( fkt_proto2id UNKN )/0xFF -j traff_users	# list unknown traffic
 	$IPT -t mangle -A traff_all                                            -j traff_users
 	$IPT -t mangle -A traff_all                                            -j shaper
 	
-	$IPT -t mangle -A marking -m mark ! --mark 0                              -j traff_all					# already marked in prerouting?
-	$IPT -t mangle -A marking                                                 -j marking_layer7				# trying all layer7-filters
-	$IPT -t mangle -A marking -m mark ! --mark 0                              -j CONNMARK --save-mark			# layer7-matching was successful!
-	$IPT -t mangle -A marking -m mark ! --mark 0                              -j traff_all					# goto traff_all
-	$IPT -t mangle -A marking                                                 -j MARK --set-mark $( fkt_proto2id UNKN )	# mark unknown traffic
-	$IPT -t mangle -A marking                                                 -j traff_all
+	$IPT -t mangle -A marking -m mark ! --mark 0			-j traff_all					# already marked in prerouting?
+	$IPT -t mangle -A marking					-j marking_layer7				# trying all layer7-filters
+	$IPT -t mangle -A marking -m mark --mark $(fkt_proto2id SMALL)	-j MARK --set-mark 0				# marked SMALL during marking_layer7
+	$IPT -t mangle -A marking -m mark ! --mark 0			-j CONNMARK --save-mark				# layer7-matching was successful!
+	$IPT -t mangle -A marking -m mark ! --mark 0			-j traff_all					# goto traff_all
+	$IPT -t mangle -A marking					-j MARK --set-mark $( fkt_proto2id UNKN )	# mark unknown traffic
+	$IPT -t mangle -A marking					-j traff_all
 }
 
 fkt_insmod_all () {
@@ -1458,7 +1466,7 @@ fkt_definitions () {
 	
 	IPT="/usr/sbin/iptables"
 
-	PROTOCOLS="http,80 irc,6665:6669 ftp,21 ssh,22 telnet,23 dns,53 pop3,110 nntp,119 imap,143 validcertssl,443 ssl,993"
+	PROTOCOLS="ntp,123 shoutcast,8000 http,80 irc,6665:6669 ftp,21 ssh,22 telnet,23 dns,53 pop3,110 nntp,119 imap,143 validcertssl,443 ssl,993"
 	PROTOCOLS="$PROTOCOLS smtp,25 msnmessenger,1863 rdp,3389 aim,5190 jabber,5222"
 	PROTOCOLS="$PROTOCOLS yahoo,5050 vnc,5900:5902 halflife2-deathmatch,7001 quake-halflife,26970 sip,0 lpd,0 skypetoskype,0 skypeout,0"
 }

@@ -286,6 +286,11 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 	local HOST=""
 	local FILE_SUCCESS="/tmp/ntp_was_successful"
 
+	[ "$1" = "is_unset" ] && {
+		[ -e $FILE_SUCCESS ] && return 1
+		return 0
+	}
+
 	[ -e $FILE_SUCCESS ] && {
 		UP2="$( cat $FILE_SUCCESS )"
 		UP2="$(( $UP1 - ${UP2:-0} ))"
@@ -356,9 +361,16 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 	func_log command_date_faulty daemon crit "date output now: '$(date)'"
 }
 
-### firmware-build-date is newer than unixtime? -> set time
+### firmware-build-date is newer than unixtime?
+### firmware-build-date + 1 year is older than date? (yes, i have seen _many_ routers with date 2020/2037!) -> set time
 
-[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {		# fallback 340529 = 2008'november
+NTP_TIME_OK=								# fallback 347681 = 2009'aug-30
+
+[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 ))"            -gt "$(date +%s)" ] && NTP_TIME_OK="false"
+[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 + 135000000))" -lt "$(date +%s)" ] && NTP_TIME_OK="false"
+func_set_time_with_ntp_server is_unset					     && NTP_TIME_OK="false"
+
+[ "$NTP_TIME_OK" = "false" ] && {
 	func_set_time_with_ntp_server
 
 	[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {
