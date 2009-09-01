@@ -1053,6 +1053,7 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 	fkt_localfw_log "(fkt_scaleable_packetfilter_with_QoS) Installing"
 
 	$IPT -t mangle -N marking
+	$IPT -t mangle -N marking_unmarkable
 	$IPT -t mangle -N marking_layer7
 	$IPT -t mangle -N traff_all
 	$IPT -t mangle -N traff_users
@@ -1062,7 +1063,7 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 	$IPT -A FORWARD -m mark --mark $( fkt_proto2id CONN_ABOVE )/0xFF -j REJECT  # --reject-with tcp-reset (does not work?)
 	$IPT -A FORWARD -s $MESH -d $MESH                                -j ACCEPT
 	$IPT -A FORWARD -m state --state ESTABLISHED,RELATED             -j ACCEPT
-	# maybe let already marked traffic go trough?
+# maybe let already marked traffic go trough?
 	$IPT -A FORWARD -m ipp2p --ipp2p                                 -j LOG --log-prefix "ip_p2p: "
 	$IPT -A FORWARD -m ipp2p --ipp2p                                 -j DROP
 	$IPT -A FORWARD -m state --state NEW                             -j ACCEPT
@@ -1076,22 +1077,23 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 	$IPT -t mangle -A traff_all
 	$IPT -t mangle -A shaper    -j ACCEPT
 
-	$IPT -t mangle -A marking_layer7 -p tcp  -m length --length 0:40 --tcp-flags RST,URG     RST	 -j MARK --set-mark $( fkt_proto2id SMALL )
-	$IPT -t mangle -A marking_layer7 -p tcp  -m length --length 0:52 --tcp-flags ACK,URG     ACK	 -j MARK --set-mark $( fkt_proto2id SMALL )
-	$IPT -t mangle -A marking_layer7 -p tcp  -m length --length 0:64 --tcp-flags SYN,URG     SYN	 -j MARK --set-mark $( fkt_proto2id SMALL )
-	$IPT -t mangle -A marking_layer7 -p tcp  -m length --length 0:64 --tcp-flags ACK,SYN,URG ACK,SYN -j MARK --set-mark $( fkt_proto2id SMALL )
-	$IPT -t mangle -A marking_layer7 -p icmp -m length --length 84					 -j MARK --set-mark $( fkt_proto2id SMALL )	# ping
-	#$IPT -t mangle -A marking_layer7 -m mark ! --mark 0						 -j LOG --log-prefix "layer7_small: "
-	$IPT -t mangle -A marking_layer7 -m mark ! --mark 0						 -j RETURN
+	$IPT -t mangle -A marking_unmarkable -p tcp  -m length --length 85:1500					-j RETURN
+	$IPT -t mangle -A marking_unmarkable -p tcp  -m length --length 0:40 --tcp-flags RST,URG     RST	-j MARK --set-mark $( fkt_proto2id SMALL )
+	$IPT -t mangle -A marking_unmarkable -p tcp  -m length --length 0:52 --tcp-flags ACK,URG     ACK	-j MARK --set-mark $( fkt_proto2id SMALL )
+	$IPT -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags SYN,URG     SYN	-j MARK --set-mark $( fkt_proto2id SMALL )
+	$IPT -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags ACK,SYN,URG ACK,SYN	-j MARK --set-mark $( fkt_proto2id SMALL )
+	$IPT -t mangle -A marking_unmarkable -p icmp -m length --length 84					-j MARK --set-mark $( fkt_proto2id SMALL )	# ping
+#	$IPT -t mangle -A marking_unmarkable -m mark ! --mark 0							-j LOG --log-prefix "layer7_small: "
+#	$IPT -t mangle -A marking_unmarkable -m mark ! --mark 0							-j RETURN
 
 	for ENTRY in $PROTOCOLS; do {
 		PROTO="${ENTRY%,*}"
-		# PORT="${ENTRY#*,}"
+	#	PORT="${ENTRY#*,}"
 		
 		fkt_localfw_log "(layer7-filter) Installing protocol $PROTO"
 		
 		$IPT -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( fkt_proto2id )
-		$IPT -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
+	#	$IPT -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
 		$IPT -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
 		$IPT -t mangle -A traff_all      -m mark --mark $( fkt_proto2id )/0xFF	-j traff_users
 	} done
@@ -1103,15 +1105,17 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 	$IPT -t mangle -A traff_all                                            -j shaper
 	
 	$IPT -t mangle -A marking -m mark ! --mark 0			-j traff_all					# already marked in prerouting?
-	$IPT -t mangle -A marking					-j marking_layer7				# trying all layer7-filters
-	$IPT -t mangle -A marking -m mark --mark $(fkt_proto2id SMALL)	-j MARK --set-mark 0				# marked SMALL during marking_layer7
+	$IPT -t mangle -A marking					-j marking_unmarkable				# fixme!
+#	$IPT -t mangle -A marking -m mark --mark $(fkt_proto2id SMALL)	-j MARK --set-mark 0
+	$IPT -t mangle -A marking -m mark ! --mark 0			-j marking_layer7				# trying all layer7-filters
 	$IPT -t mangle -A marking -m mark ! --mark 0			-j CONNMARK --save-mark				# layer7-matching was successful!
 	$IPT -t mangle -A marking -m mark ! --mark 0			-j traff_all					# goto traff_all
 	$IPT -t mangle -A marking					-j MARK --set-mark $( fkt_proto2id UNKN )	# mark unknown traffic
 	$IPT -t mangle -A marking					-j traff_all
 }
 
-fkt_insmod_all () {
+fkt_insmod_all ()			# fixme! alles durch _iptables () schleifen und erst bei bedarf laden
+{
 	fkt_insmod ipt_conntrack	# for general connection tracking even for stateless udp
 	fkt_insmod ipt_CONNMARK		# for -j CONNMARK
 	fkt_insmod ipt_connmark		# for -m connmark
