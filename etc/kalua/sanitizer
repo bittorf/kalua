@@ -10,7 +10,8 @@ FUNC_SANITIZER=1
 # _sanitizer_mac
 # _sanitizer_alphanum
 # _sanitizer_essid
-
+# _sanitizer_hostname
+# _sanitizer_length
 
 # ToDo: 
 # - urlencode
@@ -23,21 +24,30 @@ FUNC_SANITIZER=1
 # - ip4, ip6
 
 
-_sanitizer ()
+_sanitizer ()		# example_call: _sanitizer "$MYSTRING" mac hex lowercase check
 {
 	local INPUT="$1"
 	local WORK="$1"
+	local KEYWORD OPTION
 
 	while [ -n "$2" ]; do {	
-	
-		case $2 in
+
+		KEYWORD="$2"
+		OPTION=
+		
+		[ "${KEYWORD#*_}" != "$KEYWORD" ] && {
+			OPTION="${KEYWORD#*_}"		# cut string after  "_", e.g.: string "keyword_option" -> string "option"
+			KEYWORD="${KEYWORD%[_]*}"	# cut string before "_", e.g.: string "keyword_option" -> string "keyword"
+		}
+
+		case $KEYWORD in
 			check)
 				[ "$WORK" = "$INPUT" ] && return 0
 				return 1
 			;;
 			*)							# hex|lowercase|uppercase|email|urlvalue|mac|alphanum
-				WORK="$( _sanitizer_$2 "$WORK" )" || {
-					logger -t "fff+ $0 _sanitizer()" -p "daemon.alert" "'_sanitizer_$2 $1' - invalid call"
+				WORK="$( _sanitizer_$KEYWORD "$WORK" "$OPTION" )" || {
+					logger -t "fff+ $0 _sanitizer()" -p "daemon.alert" "'_sanitizer_$KEYWORD ${OPTION} $1' - invalid call"
 					return 1
 				}
 			;;
@@ -93,5 +103,18 @@ _sanitizer_alphanum ()
 
 _sanitizer_essid ()		# allow only a-z A-Z 0-9 . _ - ~ {} $ ^ () ! * , <> SPACE | = + ? @ # \ / and not ; : ' " [ ]
 {
-	echo "$1" | sed 's/[^-a-zA-Z0-9\._-~}{$^()!*,<> |=+?@#\\/]//g'		# fixme! allow more and escape it?
+	echo -n "$1" | sed 's/[^-a-zA-Z0-9\._-~}{$^()!*,<> |=+?@#\\/]//g'		# fixme! allow more and escape it?
 }
+
+_sanitizer_hostname ()
+{
+	_sanitizer "$(echo -n "$1" | sed 's/[^-a-zA-Z0-9]//g')" length_24
+}
+_sanitizer_length ()
+{
+	local STRING="$1"
+	local LENGTH="$2"
+
+	echo -n "$STRING" | cut -b1-${LENGTH}
+}
+
