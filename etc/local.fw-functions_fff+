@@ -349,16 +349,15 @@ fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over la
 			[ -n "$ALIASIP" ] && break
 			fkt_localfw_log "($FUNC) no alias-ip - trying again in 10 sec"
 			sleep 10
-			COUNTER=$(( $COUNTER + 1 ))
+			COUNTER=$(( $COUNTER + 1 ))		# fixme! even with "LAN:fantasy" /etc/resolv.conf gets applied, rewrite?
 		} done
 		
 		[ -z "$ALIASIP" ] && {
-			fkt_localfw_log "($FUNC) couldt fetch IP-address from LAN-DHCP-server"
-			
 			# last octett is now a 234, so when
 			# gateway is 192.168.178.1, we set
 			#            192.168.178.234 on our LAN-address		# fixme! uiuiui!
 			ALIASIP="$( echo $GATEWAY | sed -n 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\..*/\1.\2.\3.234/p' )"
+			fkt_localfw_log "($FUNC) couldt fetch IP-address from LAN-DHCP-server, guessing"
 		}
 		
 		fkt_localfw_log "($FUNC) using alienip '$ALIASIP' to reach gateway"
@@ -374,6 +373,8 @@ fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over la
 		
 		ip address add $ALIASIP/$ALIASPRE   dev $LANDEV label $LANDEV:aliennet
 		ip route   add default via $GATEWAY dev               $LANDEV metric 0
+
+		# fixme! apply now static_routes, which could be used till now?
 	
 		if [ "$?" -ne 0 ]; then
 			fkt_localfw_log "($FUNC) error adding default route"
