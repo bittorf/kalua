@@ -503,6 +503,8 @@ func_profile_set_system ()
 	[ -n "$TZ"       ] && func_nvset ff_tz        "$TZ"			# standard timezone-string
 	[ -n "$REPOS"    ] && func_nvset ff_ipkg      "$REPOS"			# src freifunk http://download.berlin.freifunk.net/ipkg/packages;src weimarnetz http://www.weimarnetz.de/ipkg/packages 
 	[ -n "$IPSYSTEM" ] && func_nvset fff_ipsystem "$IPSYSTEM"		# it must exist the function: func_ipsystem_$IPSYSTEM ()
+	[ -n "$WEBLOGIN" ] && func_nvset fff_weblogin "1"
+	[ -n "$VDS"	 ] && func_nvset fff_vds      "1"			# data retention / vorratsdatenspeicherung
 
 	[ -n "$SERVERS"  ] && {
 		func_nvset fff_url_firmware    "http://$( echo "$SERVERS" | cut -d";" -f1 )"	# fixme! allow ftp,ssh,...?
@@ -519,6 +521,7 @@ func_profile_set_system ()
 		func_nvset ff_nonetmsg "0"		# not udp-netmessages during bootstrapping
 		func_nvset ff_unsecure_webadmin "1"	# HTTPS enforced for /www/cgi-bin/ ?
 		func_nvset fff_ipsystem "ffweimar"	# therefore it must exist the function "func_ipsystem_ffweimar"
+		func_nvset wan_domain "olsr"		# better do not change it
 	}
 	
 	TZ="$TEMP_TZ"
@@ -577,6 +580,7 @@ func_profile_set_wifi_phy ()
 			[ -n "$BSSID" ] && func_nvset ff_bssid "$BSSID"
 			func_nvset wl0_closed 0
 			func_nvset ff_noprobe 1		# freifunk/ff-special
+			func_nvset ff_ath_param "countrycode=608 outdoor=1 bstuck_thresh=1"	# atheros/freifunk-special! 608=phillipines, 276=germany
 		;;
 		ap|master|offer)			# todo: wl scansuppress 1 -> wl scansuppress
 			func_nvset wl0_mode "ap"	# 	wl interference 2 ; 0=off|1=ism_protection|2=wlan_protection|3=auto
@@ -631,6 +635,11 @@ func_profile_set_wifi_phy ()
 		func_nvset wl0_rts "$RTS"				# 2347 = off = empty?
 	}
 
+	[ -n "$DISTANCE" ] && {
+		[ "$DISTANCE" -le 2000 ] && DISTANCE=""			# for ACK-Timing, [meter], normal 2000 // fixme! (needs some research)
+		func_nvset wl0_distance "$DISTANCE"
+	}
+
 	[ -n "$FRAG"     ] && func_nvset wl0_frag       "$FRAG"		# 256...2346
 	[ -n "$DISTANCE" ] && func_nvset wl0_distance   "$DISTANCE"	# for ACK-Timing, [meter], normal 2000 // fixme! (needs some research)
 	[ -n "$PREAMBLE" ] && func_nvset wl0_plcphdr	"$PREAMBLE"	# should be internally set by GMODE-selection?
@@ -661,7 +670,7 @@ func_profile_set_olsr ()
 	}
 }
 
-func_profile_set_fff_extensions ()	# OK
+func_profile_set_fff_extensions ()
 {
 	eval $(func_profile_local_include_vars "$@")
 
@@ -673,7 +682,7 @@ func_profile_set_fff_extensions ()	# OK
 	}
 }
 
-func_profile_set_packetfilter ()	# OK
+func_profile_set_packetfilter ()
 {
 	eval $(func_profile_local_include_vars "$@")
 
@@ -691,7 +700,7 @@ func_profile_set_packetfilter ()	# OK
 	}
 }
 
-func_profile_set_lan ()		# OK
+func_profile_set_lan ()
 {
 	eval $(func_profile_local_include_vars "$@")
 		

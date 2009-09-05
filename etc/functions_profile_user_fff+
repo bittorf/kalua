@@ -1,8 +1,8 @@
 FUNC_PROFILE_USER=1
 
 # func_profile_map_name
-
 # func_profile_set_weimarnetz_standard_mesh
+# func_profile_set_ejbw_mesh
 # func_profile_set_elephant_mesh
 # func_profile_set_galerie_mesh
 # func_profile_set_ffsundi_mesh
@@ -12,42 +12,30 @@ FUNC_PROFILE_USER=1
 # func_profile_set_weimarnetz_standard_ap
 # func_profile_set_weimarnetz_standard_client
 # func_profile_set_weimarnetz_standard_mesh_5ghz
-
-# func_dnsservers_berlin
-# func_dnsservers_ffsundi
-
-# func_servers_ffweimar
-# func_servers_elephant
-# func_servers_galerie
-# func_servers_ffsundi
-
-# func_reposet_elephant
-# func_reposet_galerie
-# func_reposet_essential
-# func_reposet_ffweimar
-# func_reposet_ffweimar_old
-
+# func_profile_set_versilia_mesh
+# func_profile_set_versilia_ap
+# func_profile_set_versilia_client
+# _dnsservers
+# _timezone
+# _servers_bittorfwireless
+# _servers
+# _reposet_bittorfwireless
+# _reposet
 # func_ipsystem
 # func_ipsystem_ffsundi
 # func_ipsystem_ffweimar
-
-# func_timezone
 # func_conf
 
 
 func_profile_map_name ()	# OUT1: string			# fixme! respect city/region
 {								# fixme! safe individual profile, not common profile
 	case $1 in
-		backbone_mesh_band_g)	echo "weimarnetz_backbone_mesh"
-		;;
-		standard_mesh_band_g)	echo "weimarnetz_standard_mesh"
-		;;
-		standard_ap_band_g)	echo "weimarnetz_standard_ap"
-		;;
-		standard_client_band_g) echo "weimarnetz_standard_client"
-		;;
-		standard_mesh_band_a)	echo "weimarnetz_standard_mesh_5ghz"
-		;;
+		backbone_mesh_band_g)	echo "weimarnetz_backbone_mesh" ;;
+		standard_mesh_band_g)	echo "weimarnetz_standard_mesh" ;;
+		standard_ap_band_g)	echo "weimarnetz_standard_ap" ;;
+		standard_client_band_g) echo "weimarnetz_standard_client" ;;
+		standard_mesh_band_a)	echo "weimarnetz_standard_mesh_5ghz" ;;
+		
 		*) 			echo "unknown ('$1')"
 					return 1
 		;;
@@ -71,8 +59,8 @@ func_profile_set_weimarnetz_standard_mesh ()
 	
 	eval "$(func_ipsystem_ffweimar $1)"
 
-	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "TZ=$(func_timezone DE)"
-	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)" "SERVERS=$(func_servers_ffweimar)"
+	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "TZ=$( _timezone DE )"
+	func_profile_set_system         "DNS=$( _dnsservers berlin )" "REPOS=$( _reposet ffweimar )" "SERVERS=$( _servers ffweimar )"
 	func_profile_set_wan	        "IP=$WAN_IP"
 	func_profile_set_lan         	"IP=$LAN_IP"  "DHCP=$DHCP_LAN"
 	func_profile_set_wifi      	"IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
@@ -83,49 +71,42 @@ func_profile_set_weimarnetz_standard_mesh ()
 	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
 }
 
+func_profile_set_ejbw_mesh ()		# fixme! block_wifi_access? / LAN_DHCP=0 / static_route / gateway = ipcop / update=0 
+{
+	[ "$1" = "info" ] && return
+	
+	func_profile_set_weimarnetz_standard_mesh_5ghz $1
+
+	func_profile_set_wifi_phy	"MODE=adhoc" "ESSID=ejbw" "BSSID=02:ca:ff:ee:b0:42" "CHANNEL=42" "DISTANCE=300"
+}
+
 func_profile_set_elephant_mesh ()
 {
-	[ "$1" = "info" ] && {
-		echo "Basiert auf dem Weimarer IP-System."
-		echo "Auf LAN und WLAN werden per DHCP Adressen vergeben."
-		echo "Auf LAN, WAN und WLAN wird OLSR gesprochen."
-		echo "Alle Weimarer Firmware-Erweiterungen sind aktiviert."
-		echo "Das Funknetzwerk arbeitet im performanten 802.11g-Modus (longslot) auf Kanal 13,"
-		echo "nutzt den Mesh-(AdHoc)-Modus mit fixer BSSID, mit 256 Bytes WLAN-Packetfragmentierung"
-		echo "und einer niedrigen Beacon-Aussendung von 0.1/Sekunde. Broadcast-Pakete"
-		echo "(z.b. OLSR) werden fest mit einer Rate von 6.0 Megabit im 802.11g-Modus gesendet."
-		echo "Der ACK-Bestaetigungsmechanismus hat die Standard-Einstellung." 
-		return
-	}
+	[ "$1" = "info" ] && return
 
 	eval "$(func_ipsystem_ffweimar $1)"
 	
-	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "TZ=$(func_timezone DE)"
-	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_elephant)" "SERVERS=$(func_servers_elephant)"
+	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "TZ=$( _timezone DE )" "WEBLOGIN=true" "VDS=true"
+	func_profile_set_system         "DNS=$( _dnsservers berlin )" "REPOS=$( _reposet elephant )" "SERVERS=$( _servers elephant )"
 	func_profile_set_wan            "IP=$WAN_IP"
 	func_profile_set_lan            "IP=$LAN_IP"  "DHCP=$DHCP_LAN"
 	func_profile_set_wifi           "IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
 	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=6000000" "FRAG=256" "BEACON=10000" "GMODE=2"
-	func_profile_set_wifi_phy       "MODE=adhoc" "ESSID=olsrbone" "BSSID=02:ca:ff:ee:b0:13" "CHANNEL=13" "TXPOWER=40"
+	func_profile_set_wifi_phy       "MODE=adhoc" "ESSID=bb" "BSSID=02:ca:ff:ee:b0:13" "CHANNEL=13" "TXPOWER=40"
 	func_profile_set_olsr           "DEFAULTS=true"
 	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
 	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
-	func_nvset fff_weblogin		1
 }
 
 func_profile_set_galerie_mesh ()
 {
-	func_profile_set_elephant_mesh $1
-
 	[ "$1" = "info" ] && return	
 
-	func_profile_set_system		"REPOS=$(func_reposet_galerie)" "SERVERS=$(func_servers_galerie)"
+	func_profile_set_elephant_mesh $1
 
-	func_profile_set_wifi_phy	"BEACON=10000" "MRATE=5500000" "MODE=adhoc" "BSSID=02:ca:ff:ee:ba:be" "CHANNEL=13"
-	func_profile_set_wifi_phy	"ESSID=bb"
-	func_nvset fff_weblogin		1
+	func_profile_set_system		"REPOS=$( _reposet galerie )" "SERVERS=$( _servers galerie )"
+	func_profile_set_wifi_phy	"MODE=adhoc" "BSSID=02:ca:ff:ee:ba:be" "MRATE=5500000"
 }
-
 
 func_profile_set_ffsundi_mesh ()
 {
@@ -135,55 +116,32 @@ func_profile_set_ffsundi_mesh ()
 		echo "Auf LAN, WAN und WLAN wird OLSR gesprochen."
 		echo "Alle Weimarer Firmware-Erweiterungen sind aktiviert."
 		echo "Das Funknetzwerk arbeitet im performanten 802.11g-(AdHoc)-Modus."
-		echo "Wird eine Atheros-Karte verwendet, werden die madwifi-Treiber im 2.4 GHz-Modus benutzt."
 		return
 	}
 	
 	eval "$(func_ipsystem_ffsundi $1)"
 	
-	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "TZ=$(func_timezone DE)"
-	func_profile_set_system         "DNS=$(func_dnsservers_ffsundi)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffsundi)"
-	func_profile_set_system		"SERVERS=$(func_servers_ffsundi)" "IPSYSTEM=ffsundi"
+	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh" "TZ=$( _timezone DE )" "IPSYSTEM=ffsundi"
+	func_profile_set_system         "DNS=$( _dnsservers ffsundi )" "REPOS=$( _reposet ffsundi )" "SERVERS=$( _servers ffsundi )"
 	func_profile_set_wan            "IP=$WAN_IP"
 	func_profile_set_lan            "IP=$LAN_IP"  "DHCP=$DHCP_LAN"
 	func_profile_set_wifi           "IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
 	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=6000000" "GMODE=4"
 	func_profile_set_wifi_phy       "MODE=adhoc" "ESSID=sundi.freifunk.net" "BSSID=02:ca:ff:ee:ba:be" "CHANNEL=8"
-	func_profile_set_wifi_phy       "BEACON=2000" "RTS=off"
-	func_nvset ff_ath_param         "countrycode=608 outdoor=1 bstuck_thresh=1"	# atheros/freifunk-special! 608=phillipines, 276=germany
+	func_profile_set_wifi_phy       "BEACON=100" "RTS=off"
 	func_profile_set_olsr           "DEFAULTS=true"
 	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
 	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
 }
 
-func_profile_set_elephant_ap ()		# fixme! join with elephant_mesh
+func_profile_set_elephant_ap ()
 {
-	[ "$1" = "info" ] && {
-		echo "Basiert auf dem Weimarer IP-System."
-		echo "Auf LAN und WLAN werden per DHCP Adressen vergeben."
-		echo "Auf LAN und WAN - jedoch nicht im WLAN - wird OLSR gesprochen."		# fixme!
-		echo "Alle Weimarer Firmware-Erweiterungen sind aktiviert."
-		echo "Das Funknetzwerk arbeitet im hochkompatiblen 802.11b/g-Modus (longslot) auf Kanal 1,"
-		echo "nutzt den Master-Modus, keine WLAN-Packetfragmentierung"
-		echo "und einer normalen Beacon-Aussendung von 10/Sekunde. Broadcast-Pakete"
-		echo "(z.b. DHCP) werden fest mit einer Rate von 5.5 Megabit im 802.11b-Modus gesendet."
-		echo "Der ACK-Bestaetigungsmechanismus hat die Standard-Einstellung."
-		return
-	}
+	[ "$1" = "info" ] && return
+
+	func_profile_set_elephant_mesh $1
 	
-	eval "$(func_ipsystem_ffweimar $1)"
-	
-	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}ap" "TZ=$(func_timezone DE)"
-	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_elephant)" "SERVERS=$(func_servers_elephant)"
-	func_profile_set_wan            "IP=$WAN_IP"
-	func_profile_set_lan            "IP=$LAN_IP"  "DHCP=$DHCP_LAN"
-	func_profile_set_wifi           "IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
-	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=auto" "GMODE=1"
-	func_profile_set_wifi_phy       "MODE=ap" "ESSID=Hotel-Elephant" "CHANNEL=1"
-	func_profile_set_olsr           "DEFAULTS=true"
-	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
-	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
-	func_nvset fff_weblogin		1
+	func_profile_set_system         "HOSTNAME=node${NODE_NUMBER}ap"
+	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=auto" "GMODE=1" "MODE=ap" "ESSID=Hotel-Elephant" "CHANNEL=1"
 }
 
 func_profile_set_galerie_ap ()
@@ -237,11 +195,10 @@ func_profile_set_weimarnetz_standard_client ()
 		return
 	}
 	
-	func_profile_set_weimarnetz_standard_mesh $1
+	func_profile_set_weimarnetz_standard_ap $1
 	
 	func_profile_set_system		"HOSTNAME=node${NODE_NUMBER}client"
-	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=1000000"
-	func_profile_set_wifi_phy       "MODE=client" "ESSID=weimarnetz" "CHANNEL=1"
+	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=1000000" "MODE=client"
 }
 
 func_profile_set_weimarnetz_standard_mesh_5ghz ()
@@ -255,43 +212,27 @@ func_profile_set_weimarnetz_standard_mesh_5ghz ()
 		echo "Wird eine Atheros-Karte verwendet, werden die madwifi-Treiber im 5 GHz-Outdoor-Modus benutzt."
 		return
 	}
+
+	func_profile_set_weimarnetz_standard_mesh $1
 	
-	eval "$(func_ipsystem_ffweimar $1)"
-	
-	func_profile_set_system         "DEFAULTS=true" "HOSTNAME=node${NODE_NUMBER}mesh5ghz" "TZ=$(func_timezone DE)"
-	func_profile_set_system         "DNS=$(func_dnsservers_berlin)" "DOMAIN=olsr" "REPOS=$(func_reposet_ffweimar)" "SERVERS=$(func_servers_ffweimar)"
-	func_profile_set_wan            "IP=$WAN_IP"
-	func_profile_set_lan            "IP=$LAN_IP"  "DHCP=$DHCP_LAN"
-	func_profile_set_wifi           "IP=$WIFI_IP" "DHCP=$DHCP_WIFI"
+	func_profile_set_system         "HOSTNAME=node${NODE_NUMBER}mesh5ghz"
 	func_profile_set_wifi_phy       "DEFAULTS=true" "MRATE=6000000" "DISTANCE=5000"
-	func_profile_set_wifi_phy       "MODE=adhoc" "ESSID=weimarnetz" "BSSID=02:ff:ff:ca:00:42" "CHANNEL=42"
-	func_profile_set_wifi_phy       "BEACON=1000" "RTS=off"
-	func_nvset ff_ath_param         "countrycode=608 outdoor=1 bstuck_thresh=1"	# atheros/freifunk-special! 608=phillipines, 276=germany
-	func_profile_set_olsr           "DEFAULTS=true"
-	func_profile_set_fff_extensions "DEFAULTS=true" "NODE_NUMBER=$NODE_NUMBER"
-	func_profile_set_packetfilter   "NAT=off" "FIREWALL=off"
+	func_profile_set_wifi_phy       "MODE=adhoc" "ESSID=weimarnetz" "BSSID=02:ff:ff:ca:00:42" "CHANNEL=42" "BEACON=1000" "RTS=off"
 }
 
 func_profile_set_versilia_mesh ()
 {
-	[ "$1" = "info" ] && {
-		echo "profilbeschreibung fehlt"
-		return
-	}
+	[ "$1" = "info" ] && return
 	
 	func_profile_set_weimarnetz_standard_mesh $1
 
-	func_profile_set_system		"REPOS=$(func_reposet_versilia)" "SERVERS=$(func_servers_versilia)"
+	func_profile_set_system		"REPOS=$( _reposet versilia )" "SERVERS=$( _servers versilia )" "WEBLOGIN=true"
 	func_profile_set_wifi_phy	"ESSID=Ristorante_Versilia" "CHANNEL=13"
-	func_nvset fff_weblogin		1
 }
 
 func_profile_set_versilia_ap ()
 {
-	[ "$1" = "info" ] && {
-		echo "profilbeschreibung fehlt"
-		return
-	}
+	[ "$1" = "info" ] && return
 	
 	func_profile_set_versilia_mesh $1
 
@@ -300,109 +241,70 @@ func_profile_set_versilia_ap ()
 
 func_profile_set_versilia_client ()
 {
-	[ "$1" = "info" ] && {
-		echo "profilbeschreibung fehlt"
-		return
-	}
+	[ "$1" = "info" ] && return
 	
 	func_profile_set_versilia_ap $1
 
 	func_profile_set_wifi_phy	"MODE=client"
 }
 
-
-
-func_dnsservers_berlin ()
+_dnsservers ()
 {
-	echo -n "81.169.139.12;212.91.230.58;208.67.222.222"
-}
-
-func_dnsservers_ffsundi ()
-{
-	echo -n "192.168.254.2;81.169.139.12;212.91.230.58"
-}
-
-func_timezone ()
-{
-	case $1 in
-		DE)
-			echo -n "CET-1CEST-2,M3.5.0/2,M10.5.0/3"
-		;;
+	local SERVERSET="$1"
+	
+	case $SERVERSET in
+		 berlin) echo -n "81.169.139.12;212.91.230.58;208.67.222.222" ;;
+		ffsundi) echo -n "192.168.254.2;81.169.139.12;212.91.230.58" ;;
 	esac
 }
 
-
-
-func_servers_versilia ()
+_timezone ()
 {
-	echo -n "intercity-vpn.de/firmware;intercity-vpn.de/networks/versilia;weimarnetz.de;87.118.106.19;fe80::216:3eff:fe4f:7f20"
+	case $1 in
+		DE) echo -n "CET-1CEST-2,M3.5.0/2,M10.5.0/3" ;;
+	esac
 }
 
-func_servers_ffweimar ()
+_servers_bittorfwireless ()	# 84.38.67.43 = intercity-vpn.de
 {
-	echo -n "intercity-vpn.de/firmware;intercity-vpn.de/networks/ffweimar;weimarnetz.de;87.118.106.19;fe80::216:3eff:fe4f:7f20"
-}
-
-func_servers_elephant ()		# 84.38.67.43 = intercity-vpn.de
-{
-	echo -n "intercity-vpn.de/firmware;intercity-vpn.de/networks/elephant;weimarnetz.de;87.118.106.19;fe80::216:3eff:fe4f:7f20"
-}
-
-func_servers_galerie ()
-{
-	echo -n "intercity-vpn.de/firmware;intercity-vpn.de/networks/galerie;weimarnetz.de;87.118.106.19;fe80::216:3eff:fe4f:7f20"
-}
-
-func_servers_ffsundi ()
-{
-	echo -n "intercity-vpn.de/firmware;intercity-vpn.de/networks/ffsundi;weimarnetz.de;87.118.106.19;fe80::216:3eff:fe4f:7f20"
-}
-
-
-
-func_reposet_versilia ()
-{
-	echo -n "$(func_reposet_essential);src elephant http://intercity-vpn.de/networks/versilia/packages"
-}
-
-func_reposet_elephant ()
-{
-	echo -n "$(func_reposet_essential);src elephant http://intercity-vpn.de/networks/elephant/packages"
-}
-
-func_reposet_galerie ()
-{
-	echo -n "$(func_reposet_essential);src galerie http://intercity-vpn.de/networks/galerie/packages"
-}
-
-func_reposet_ffweimar ()
-{
-	echo -n "$(func_reposet_essential);src ffweimar http://intercity-vpn.de/networks/ffweimar/packages"
-}
-
-func_reposet_ffsundi ()
-{
-	echo -n "$(func_reposet_essential);src ffsundi http://intercity-vpn.de/networks/ffsundi/packages"
-}
-
-func_reposet_essential ()
-{
-	echo -n "src essential http://intercity-vpn.de/firmware/broadcom/packages/2.4.30/essential"
-}
-
-func_reposet_ffweimar_old ()
-{
-	local REP
+	local NETWORK="$1"
 	
-	REP="src freifunk http://download.berlin.freifunk.net/ipkg/packages"
-	REP="${REP};src weimarnetz http://www.weimarnetz.de/ipkg/packages"
-	REP="${REP};src kamikaze-backports http://downloads.openwrt.org/backports/rc5"
-	REP="${REP};src whiterussian http://downloads.openwrt.org/whiterussian/packages"
-	REP="${REP};src owfs http://owfs.sourceforge.net/openwrt/packages"
-	REP="${REP};src laurence http://www.pug.org/~laurence/OpenWRT/whiterussian"
-	REP="${REP};src leipzig http://firmware.leipzig.freifunk.net/ipkg/global"
+	echo -n "intercity-vpn.de/firmware;intercity-vpn.de/networks/${NETWORK};weimarnetz.de;87.118.106.19;fe80::216:3eff:fe4f:7f20"
+}
 
-	echo -n "$REP"
+_servers ()
+{
+	local NETWORK="$1"
+	
+	case $NETWORK in
+		versilia) _servers_bittorfwireless $NETWORK ;;
+		elephant) _servers_bittorfwireless $NETWORK ;;
+		 galerie) _servers_bittorfwireless $NETWORK ;;
+		ffweimar) _servers_bittorfwireless $NETWORK ;;
+		 ffsundi) _servers_bittorfwireless $NETWORK ;;
+	esac
+}
+
+_reposet_bittorfwireless ()
+{
+	local NETWORK="$1"
+	
+	echo -n "$( _reposet essential );src ${NETWORK} http://intercity-vpn.de/networks/${NETWORK}/packages"	
+}
+
+_reposet ()
+{
+	local NETWORK="$1"
+	
+	case $NETWORK in
+		versilia) _reposet_bittorfwireless $NETWORK ;;
+		elephant) _reposet_bittorfwireless $NETWORK ;;
+		 galerie) _reposet_bittorfwireless $NETWORK ;;
+		ffweimar) _reposet_bittorfwireless $NETWORK ;;
+		 ffsundi) _reposet_bittorfwireless $NETWORK ;;
+		 
+	       essential) echo -n "src essential http://intercity-vpn.de/firmware/broadcom/packages/2.4.30/essential" ;;
+	esac
 }
 
 func_ipsystem ()
