@@ -11,9 +11,10 @@ FUNC_LOG=1
 # func_number2caller
 # func_number2caller_dasoertliche
 # func_number2caller_goyellow
-# func_send_sms
-# func_send_sms_with_service_sms77
+# _sms_send
+# _sms_send_sms77
 # func_mail_check_pop3_stats
+# func_sendmail
 
 
 func_split_string ()		# ARG1: string
@@ -292,14 +293,14 @@ func_number2caller_goyellow ()		# ARG1 = number
 	      -e "s/^<p class=\"address\">\(.*\)<\/p>/CALLER_DETAILS='\1'/p"
 }
 
-func_send_sms ()		# SENS: wrapper for SMS-sending independent from service
+_sms_send ()			# SENS: wrapper for SMS-sending independent from service
 {				#	- collect all relevant data
 				#	- write and process queue-file line by line
 				#	- call service-specific function
 				#	- when something fails, use another service
 				#	this should be executed by cron every minute (to process queue-file)
 				
-	local   FUNC="send_sms"
+	local   FUNC="sms_send"
 	local   DEST="$1"				# ARG1: string (name or number)
 	local   TEXT="$2"				# ARG2: string (text to send, codepage ISO_8859-1)
 	local NOPOST="$3"				# ARG3: string (optional, keyword: nopost)
@@ -334,19 +335,24 @@ func_send_sms ()		# SENS: wrapper for SMS-sending independent from service
 
 	func_log $FUNC user notice "to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
 		
-	func_send_sms_with_service_sms77 $USER $PASS $NUMBER $(func_url_encode "$TEXT") || return 1
+	_sms_send_sms77 $USER $PASS $NUMBER $(func_url_encode "$TEXT") || {
+		
+		scheduler -a ". /bin/needs log && _$FUNC '$NUMBER' '$TEXT' no_post"
+		return 1
+	}
 }
 
-func_send_sms_with_service_sms77 ()
+_sms_send_sms77 ()
 {
-	local   FUNC="func_send_sms_with_service_sms77"
+	local   FUNC="sms_send_sms77"
 	local   USER=$1
 	local   PASS=$2
 	local NUMBER=$3
 	local   TEXT=$4
 	local    OUT=""
-	local    URL="http://www.sms77.de/gateway/?type=basicplus"
+	local    URL="http://www.sms77.de/gateway/?type=basicplus"	# basicplus hard coded, need abstraction
 	local     RC=0
+	local      o 
 
 	func_log $FUNC daemon debug "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}"
 	
@@ -354,8 +360,28 @@ func_send_sms_with_service_sms77 ()
 	RC=$?
 
 	if [ $RC -ne 0 ] || [ "$OUT" != "100" ]; then
-		func_log $FUNC user crit "wget-returncode: '$RC' - sms77-answer: '$OUT' - something went wrong"
-		return 1
+
+		case $OUT in					# 100,101,306 not implemented
+		        201) o="wrong country code" ;;
+		        202) o="wrong recipient number" ;;
+		    300|900) o="username/pass wrong or unset" ;;
+			301) o="recipient unset" ;;
+			304) o="type unset" ;;
+			305) o="text unset" ;;
+			307) o="url unset" ;;
+			400) o="type invalid" ;;
+			401) o="text too long" ;;
+			402) o="reload mistake, try again" ;;
+			902) o="API deactivated!" ;;
+			903) o="serverip wrong" ;;
+			500) o="no credits available" ;;
+			
+			  *) func_log $FUNC user crit "wget-returncode: '$RC' - sms77-answer: '$OUT' - something went wrong"
+			     return 1	# which means - try to send again
+			 ;;
+		esac
+		
+		func_log $FUNC user info "wget-returncode: '$RC' - sms77-answer: '$OUT' ($o)"
 	fi
 }
 
@@ -384,7 +410,7 @@ func_mail_check_pop3_stats () {						# works with busybox-netcat
 	fi
 }
 
-func_sendmail()								# ToDo: we need a simple addressbook for phone,email,shortname,name...
+func_sendmail ()					# ToDo: we need a simple addressbook for phone,email,shortname,name...
 {
 	# while read ADDRESS; do {
 	# 	func_sendmail "Team-Weimarnetz" weimarnetz@gmx.de "Weimarnetz-Teilnehmer" $ADDRESS mail.txt
