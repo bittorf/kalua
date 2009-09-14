@@ -55,7 +55,7 @@ IPT="/usr/sbin/iptables"
 # fkt_control_redirect_for_user_with_mac_and_ip
 # fkt_add_user_with_mac_and_ip
 # fkt_scaleable_packetfilter_with_QoS
-# fkt_insmod_all
+# _pfilter_kmodules_init
 # fkt_activate_splashpage
 # fkt_all_chains_acceptance
 # fkt_olsr_whitelist_variables
@@ -237,37 +237,40 @@ fkt_localfw_log () {
 	func_log localfw_log daemon debug "$1"
 }
 
-fkt_insmod () {
+fkt_insmod ()
+{
 	local KMOD="$1"
 	local MEM_BEFORE="$( func_get_free_ram_in_bytes )"
 	local MEM_AFTER=0
 	local MEM_DIFF=0
+	local FUNC="insmod"
 
-	lsmod | grep -q ^$KMOD || {
+	if lsmod | grep -q ^$KMOD ; then
 
-		fkt_localfw_log "(fkt_insmod) Inserting kernel-module '${KMOD}.o'"
+		func_log $FUNC daemon debug "kernel-module '${KMOD}' already loaded"
+	else
+		func_log $FUNC daemon info "loading kernel-module '${KMOD}'"
 		
-		insmod $KMOD && {
+		if insmod $KMOD ; then
 			MEM_AFTER="$( func_get_free_ram_in_bytes )"
 			MEM_DIFF=$(( $MEM_BEFORE - $MEM_AFTER ))
 			[ $MEM_DIFF -gt 0 ] && MEM_DIFF="+$MEM_DIFF"
-			fkt_localfw_log "(fkt_insmod) memoryusage: ${MEM_DIFF} bytes"
-			return 0
-		}
-		
-		fkt_localfw_log "(fkt_insmod) Failing to insert kernel-module '${KMOD}.o'"
-		
-		local FILE="$( find /lib/modules/ | grep ${KMOD}.o )"
-		
-		if [ -n "$FILE" ]; then
-			fkt_localfw_log "(fkt_insmod) but found '$FILE'"
+	
+			func_log $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes"
 		else
-			fkt_localfw_log "(fkt_insmod) seems that ${KMOD}.o is not installed"
-		fi
+			func_log $FUNC daemon alert "[ERR] failing to insert kernel-module '${KMOD}.o'"
 		
-		return 1
-	}
-	return 0
+			local FILE="$( find /lib/modules/ | grep ${KMOD}.o )"
+		
+			if [ -n "$FILE" ]; then
+				func_log $FUNC daemon info "but found '$FILE'"
+			else
+				func_log $FUNC daemon info "seems that ${KMOD}.o is not in filesystem"
+			fi
+		
+			return 1
+		fi
+	fi
 }
 
 func_get_all_user_macs_with_traffic_today ()
@@ -1046,7 +1049,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 }
 
 fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = langsame klasse/download?
-	fkt_insmod_all				# connection-aufbau /pro user /pro zeiteinheit limitieren
+	_pfilter_kmodules_init			# connection-aufbau /pro user /pro zeiteinheit limitieren
 						# connections /pro user limitieren
 						# icmp /ping pro user /pro zeiteinheitlimitieren
 						# unabhaengig von einteilung bestimmte packet trotzdem in prio veraendern (ACK...)
@@ -1115,24 +1118,33 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 	$IPT -t mangle -A marking					-j traff_all
 }
 
-fkt_insmod_all ()			# fixme! alles durch _iptables () schleifen und erst bei bedarf laden
+_pfilter_kmodules_init ()	# fixme! alles durch _iptables () schleifen und erst bei bedarf laden
 {
-	fkt_insmod ipt_conntrack	# for general connection tracking even for stateless udp
-	fkt_insmod ipt_CONNMARK		# for -j CONNMARK
-	fkt_insmod ipt_connmark		# for -m connmark
-	fkt_insmod ipt_CLASSIFY		# for -j CLASSIFY
-	fkt_insmod ip_conntrack_ftp	# FTP
-	fkt_insmod ip_conntrack_irc	# IRC
-	fkt_insmod ipt_length		# packetlaenge matchen
-	fkt_insmod ipt_connbytes	# gesamt uebertragene Bytes einer Verbindung matchen
-	fkt_insmod ipt_connlimit	# for limiting tcp-connections
-	fkt_insmod ipt_udplimit		# for limiting udp-connections
-	fkt_insmod ipt_layer7		# Layer7-Filter
-	fkt_insmod ipt_ttl		# TTL-matching (traceroute...)
-	fkt_insmod ipt_ipp2p		# another layer7-filter for P2P
+	local MODULE
+	local LIST_MATCH="conntrack connbytes connlimit connmark udplimit length layer7 ipp2p ttl"
+	local LIST_CONNTRACK="ftp irc sip h323 irc amanda proto_gre pptp rtsp tftp"
+	local LIST_JUMP="CONNMARK CLASSIFY ULOG"
+	local LIST_SCHEDULER="cbq"			# tc-scheduler: [C]lass [B]ased [Q]ueueing | http://man-wiki.net/index.php/8:tc-cbq
 
-	fkt_insmod sch_cbq		# tc-scheduler: [C]lass [B]ased [Q]ueueing | http://man-wiki.net/index.php/8:tc-cbq
-	fkt_insmod ipt_ULOG		# ulogd, user space logging
+	_list_add_prefix ()
+	{
+		local PREFIX="$1"
+		local LIST="$2"
+		local OBJ
+
+		for OBJ in $LIST; do {
+			echo -n "${PREFIX}${OBJ} "
+		} done
+	}
+
+	LIST_MATCH="$(		_list_add_prefix ipt_		"$LIST_MATCH"		)"
+	LIST_CONNTRACK="$(	_list_add_prefix ip_conntrack_	"$LIST_CONNTRACK" 	)"	
+	LIST_JUMP="$(		_list_add_prefix ipt_		"$LIST_JUMP"		)"
+	LIST_SCHEDULER="$(	_list_add_prefix sch_		"$LIST_SCHEDULER"	)"
+	
+	for MODULE in ${LIST_MATCH} ${LIST_CONNTRACK} ${LIST_JUMP} ${LIST_SCHEDULER}; do {
+		fkt_insmod $MODULE
+	} done
 }
 
 fkt_activate_splashpage () {
