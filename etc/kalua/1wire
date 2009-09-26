@@ -10,47 +10,46 @@ fkt_wget () {
 	local PID_LINE_NOW=""
 
 	wget -O - "$URL" 2>/dev/null &
-	PID_WGET="$(pidof wget | sed 's/ /\n/g' | sed '$!d')"		# list of all wget-pid's, insert newlines, print last line
+	PID_WGET="$(pidof wget | sed 's/ /n/g' | sed '$!d')"		# list of all wget-pid's, insert newlines, print last line
 	PID_LINE="$(cat /proc/$PID_WGET/cmdline 2>/dev/null)"		# exact line of ps-output
-	
-	while [ -e "/proc/$PID_WGET" ]; do				# wget-process in tasklist?
+
+	while [ -e "/proc/$PID_WGET" ]; do {				# wget-process in tasklist?
 		sleep 1
 		let C+=1
-		
+
 		PID_LINE_NOW="$(cat /proc/$PID_WGET/cmdline 2>/dev/null)"
-		
+
 		if [ $C -gt $MAX ]; then				# maximal execution time reached
 			if [ "$PID_LINE" = "$PID_LINE_NOW" ] ; then	# is this really the started process?
-			
-				logger "wgetting \"$URL_SAFE\" - killing pid $PID_WGET after $C seconds"
+
+				logger "wgetting "$URL_SAFE" - killing pid $PID_WGET after $C seconds"
 				kill $PID_WGET 2>/dev/null
 				return
 			else						# this is another process
-				logger "wgetting \"$URL_SAFE\" - ready after $C seconds (\"$PID_LINE"\" != \"$PID_LINE_NOW"\")"
+				logger "wgetting "$URL_SAFE" - ready after $C seconds ("$PID_LINE"" != "$PID_LINE_NOW"")"
 				return
-				
-				# password in logger needs to be secured
+
+				# fixme! passwords in logger (pw in query) needs to be secured
 			fi
 		fi
-	done
-	
-	logger "wgetting \"$URL_SAFE\" - ready after $C seconds"
+	} done
+
+	logger "wgetting "$URL_SAFE" - ready after $C seconds"
 }
 
 fkt_define_vars () {
 	SECUSER="$( nvram get owfs_https_user )"
 	SECPASS="$( nvram get owfs_https_pass )"
 	JOBFILE="/www/1wire_jobs.txt"			# fixme! serialize nvram_var
-	JOBDATA="/www/1wire_data.txt"                     
+	JOBDATA="/www/1wire_data.txt"
 	LOCKFILE="/tmp/lockfile_1wire_checker"
-	
+
 	# we need:
 	# - sensor_name -> 1wire-ID e.g. owfs_sensors="temperaturfuehler_keller=10.DA3D4E010800;zaehlbaustein1=1D.C61209000000"
 	# - jobs:
 	#   - sensorname, sensorfeld, untere_schwelle, obere_schelle, pollintervall [s]
 	#
 	# 				 owfs_jobs="temperaturfuehler_keller,temperature,-10,65,600;..."
-	
 }
 
 func_remove_lockfile ()
@@ -64,27 +63,27 @@ func_set_lockfile_or_wait ()
 		logger "1wire - waiting (DoS)"
 		sleep 1
 	} done
-	
+
 	touch $LOCKFILE
 }
 
 fkt_print_header () {
-	echo -en "Content-type: text/html\n\n"
+	echo -en "Content-type: text/htmlnn"
 }
 
 fkt_backup () {
 	local BACKUP_DEST="backup_$( date +%s )_$( date +%d%b%Y-%Huhr%M )_1wire.tgz"
 	local BACKUP_DATA="/etc/init.d/S88chip_workflow /www/cgi-bin-chip* $JOBFILE $JOBDATA*"
-	local USBSTICK="$( df | grep ^/dev/scsi | sed -n 's/^.*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*% \(.*\)/\1/p' )"
+	local USBSTICK="$( df | grep ^/dev/scsi | sed -n 's/^.*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*% (.*)/1/p' )"
 
 	[ -n "$USBSTICK" ] && {
-		BACKUP_DEST="$USBSTICK/$BACKUP_DEST"	
+		BACKUP_DEST="$USBSTICK/$BACKUP_DEST"
 	} || {
 		BACKUP_DEST="/tmp/$BACKUP_DEST"
 	}
 
 	echo "writing backup to '$BACKUP_DEST'"
-	
+
 	tar cvzf $BACKUP_DEST $BACKUP_DATA
 	sync
 
@@ -96,9 +95,9 @@ func_wait_for_error_free_1wire_bus ()
 {
 	local COUNTER=0
 
-	while [ $( owdir -s 3002 | grep "^/..\." | wc -l ) -lt 2 ]; do {
+	while [ $( owdir -s 3002 | grep "^/..." | wc -l ) -lt 2 ]; do {
 		sleep 6
-		
+
 		COUNTER=$(( $COUNTER + 1 ))
 		[ $COUNTER -gt 10 ] && {
 			logger "1wire bus error - waiting since 1 minute"
@@ -110,43 +109,43 @@ func_wait_for_error_free_1wire_bus ()
 fkt_print_all_sensors () {
 	func_wait_for_error_free_1wire_bus
 
-	owdir -s 3002 | grep ^..\.............
+	owdir -s 3002 | grep ^...............
 
-#	fkt_wget "http://127.0.0.1:3001" |				# fetch owhttpd
-#	 sed -e 's/<\/TR>/<\/TR>\n/g' |					# insert newline after TR-end-tag
-#	  sed -e '/1-wire/!d' |						# only print lines with "1-wire"
-#	   sed 's/.*<BIG>\([^a-z]*\)<\/BIG>.*/\1/' |			# print only sensor-code
-#	    sed -e '/^[0-9]/!d'						# supress lines which are not sensors (e.g. "simultaneous")
+	#	fkt_wget "http://127.0.0.1:3001" |				# fetch owhttpd
+	#	 sed -e 's/</TR>/</TR>n/g' |					# insert newline after TR-end-tag
+	#	  sed -e '/1-wire/!d' |						# only print lines with "1-wire"
+	#	   sed 's/.*<BIG>([^a-z]*)</BIG>.*/1/' |			# print only sensor-code
+	#	    sed -e '/^[0-9]/!d'						# supress lines which are not sensors (e.g. "simultaneous")
 }
 
 print_sensorfield ()
-{	
+{
 	# vars must be something like:
 	# ADDON=uncached
 	# CHIP=/1D.C61209000000
 	# FIELD=counters.A
 
 	func_wait_for_error_free_1wire_bus
-#	logger "getting: 'owread -s 3002 /${ADDON}${CHIP}/$FIELD'"
-	owread -s 3002 /${ADDON}${CHIP}/$FIELD | sed 's/[^a-zA-Z0-9\.]//g'
+	#	logger "getting: 'owread -s 3002 /${ADDON}${CHIP}/$FIELD'"
+	owread -s 3002 /${ADDON}${CHIP}/$FIELD | sed 's/[^a-zA-Z0-9.]//g'
 
-#	fkt_wget "http://127.0.0.1:3001/${ADDON}${CHIP}" |		# fetch specific sensorpage from owhttpd
-#	  sed -e "/<B>$FIELD<\/B>/!d" |					# only print lines with field
-#	   sed 's/.*<\/B><\/TD><TD>\(.*\)<\/TD><\/TR>/\1/g' |		# extract value from field
-#	    sed -e 's/  *//g'						# remove spaces
+	#	fkt_wget "http://127.0.0.1:3001/${ADDON}${CHIP}" |		# fetch specific sensorpage from owhttpd
+	#	  sed -e "/<B>$FIELD</B>/!d" |					# only print lines with field
+	#	   sed 's/.*</B></TD><TD>(.*)</TD></TR>/1/g' |		# extract value from field
+	#	    sed -e 's/  *//g'						# remove spaces
 }
 
 fkt_trap_error () {
 	local MESSAGE="$1"
 
 	fkt_print_header
-	echo "ERROR=\"$MESSAGE\""
+	echo "ERROR="$MESSAGE""
 	func_remove_lockfile
 	exit 1
 }
 
 fkt_print_endtag () {
-	echo "ERROR=\"0\""
+	echo "ERROR="0""
 	func_remove_lockfile
 	exit
 }
@@ -170,29 +169,29 @@ fkt_write_file () {
 	local FILE="$1"
 
 	[ "$DATA" = "ErrorInvalidargument" ] && {
-	
+
 		logger "$0 ARG2=ErrorInvalidargument - leaving database ('$FILE') untouched"
 		return
 	}
 
 	fkt_lock_file   "$FILE"
 
-	logger "$0 writing \"$DATA\" to \"$FILE\""
-	
+	logger "$0 writing "$DATA" to "$FILE""
+
 	echo  "$DATA" >>"$FILE"
-	
+
 	fkt_unlock_file "$FILE"
 }
 
 fkt_remove_line () {
 	local PATT="$2"					# pattern to remove using grep
 	local FILE="$1"
-	
+
 	fkt_lock_file   "$FILE"
-	
-	logger "$0 : removing line containing \"$PATT\""
+
+	logger "$0 : removing line containing "$PATT""
 	cat "$FILE" | grep -v "$PATT" >"$FILE"
-	
+
 	fkt_unlock_file "$FILE"
 }
 
@@ -213,17 +212,17 @@ fkt_work_the_flow () {
 	local LINE=""
 
 	test ! -e "$JOBFILE" && return
-	
+
 	while read LINE; do {			 			# ok of jobs is not 100% sure, e.g. sensor is offline
 		set $LINE						# so its better to check each return-code
-									# this test is now in print_sensorfield()
+		# this test is now in print_sensorfield()
 		CHIP="/${1}"
 		FIELD="${2}"
 		ADDON=uncached
-		 
+
 		VALUE="$( print_sensorfield )"
 		[ -n "$VALUE" ] && {
-#			logger "fkt_write_file \"$JOBDATA.$1.$2\" \"$(date +%s) $VALUE\""
+			#			logger "fkt_write_file "$JOBDATA.$1.$2" "$(date +%s) $VALUE""
 			fkt_write_file "$JOBDATA.$1.$2" "$(date +%s) $VALUE"
 		} || {
 			logger "zero value - leaving database untouched"
@@ -232,22 +231,22 @@ fkt_work_the_flow () {
 #		fkt_wget "http://127.0.0.1/cgi-bin-chip?PASS=$SECPASS&USER=$SECUSER&ACTION=chipget&CHIP=$1&FIELD=$2" |
 #		 while read LINE2; do								# reading output / values
 #		 	if [ -z "$(echo "$LINE2" | sed 's/^ERROR=.*//g')" ]; then		# line begins with "ERROR="
-#		 		
+#
 #		 		eval $LINE2
-#		 		
+#
 #		 		if [ "$ERROR" = "0" ] && [ -n "$VALUE" ]; then			# all is ok
 #		 			fkt_write_file "$JOBDATA.$1.$2" "$(date +%s) $VALUE"
 #		 		else
 #		 			logger "ERROR != 0 or zero value - leaving database untouched"
 #		 		fi
 #			else
-#				VALUE="$(echo $LINE2 | sed 's/[^0-9a-zA-Z\.]//g')"		# attention, only dots,chars and numbers
+#				VALUE="$(echo $LINE2 | sed 's/[^0-9a-zA-Z.]//g')"		# attention, only dots,chars and numbers
 #		 	fi
 #		 done
-		 
+
 	} done <"$JOBFILE"
 
-#	sleep 30
+	#	sleep 30
 }
 
 fkt_print_help () {
@@ -260,50 +259,50 @@ fkt_print_help () {
 	local U3="${P}Output:${O}"
 
 	fkt_print_header
-	
+
 	cat <<EOF
 <html><head><title>1wire</title><body bgcolor=white text=black><pre>
 $U1	${URL}?PASS=...&USER=...&ACTION=${P}joblist${O}
-		
-	${URL}?PASS=...&USER=...&ACTION=${P}jobadd${O}&CHIP=...&FIELD=...&THRESHOLDSTART=...&THRESHOLDEND=...&INTERVAL=...
-		
-	${URL}?PASS=...&USER=...&ACTION=${P}jobdel${O}&CHIP=...&FIELD=...
-		
-	${URL}?PASS=...&USER=...&ACTION=${P}chiplist${O}
-		
-	${URL}?PASS=...&USER=...&ACTION=${P}chipget${O}&CHIP=...&FIELD=...
-		
-	${URL}?PASS=...&USER=...&ACTION=${P}chipset${O}&CHIP=...&FIELD=...&VALUE=...
-		
-	${URL}?PASS=...&USER=...&ACTION=${P}chiphistory${O}&CHIP=...&FIELD=...&TIMESTART=...&TIMEEND=...
+
+${URL}?PASS=...&USER=...&ACTION=${P}jobadd${O}&CHIP=...&FIELD=...&THRESHOLDSTART=...&THRESHOLDEND=...&INTERVAL=...
+
+${URL}?PASS=...&USER=...&ACTION=${P}jobdel${O}&CHIP=...&FIELD=...
+
+${URL}?PASS=...&USER=...&ACTION=${P}chiplist${O}
+
+${URL}?PASS=...&USER=...&ACTION=${P}chipget${O}&CHIP=...&FIELD=...
+
+${URL}?PASS=...&USER=...&ACTION=${P}chipset${O}&CHIP=...&FIELD=...&VALUE=...
+
+${URL}?PASS=...&USER=...&ACTION=${P}chiphistory${O}&CHIP=...&FIELD=...&TIMESTART=...&TIMEEND=...
 
 $U2	PASS=my_password
-	USER=my_username
-		
-	CHIP=10.9BBAC5000800	(1wire-ID)
-		
-	FIELD=temperature
-	FIELD=temperature,uncached
-		
-	TIMESTART=1192095247	(unix-timestamp, empty = 0)
-	TIMEEND=1192095333	(unix-timestamp, empty = now)
-		
-	THRESHOLDSTART=-12.5	(range, where no alarm is scheduled including these values)
-	THRESHOLDEND=40.325	(if value is digital and you want alarm only when value = YES, write in both arguments "NO")
+USER=my_username
 
-	INTERVAL=15		(how often a job must be called in [s] / seconds, empty = 60)
+CHIP=10.9BBAC5000800	(1wire-ID)
 
-	VALUE=-12.5
-	VALUE=40.325
-	VALUE=on
+FIELD=temperature
+FIELD=temperature,uncached
+
+TIMESTART=1192095247	(unix-timestamp, empty = 0)
+TIMEEND=1192095333	(unix-timestamp, empty = now)
+
+THRESHOLDSTART=-12.5	(range, where no alarm is scheduled including these values)
+THRESHOLDEND=40.325	(if value is digital and you want alarm only when value = YES, write in both arguments "NO")
+
+INTERVAL=15		(how often a job must be called in [s] / seconds, empty = 60)
+
+VALUE=-12.5
+VALUE=40.325
+VALUE=on
 
 $U3	- is always zero (!) or more lines of wished output
-	- and: last line is always ERROR="0" or ERROR="exact explanation of error circumstances"
-	
-	- chiphistory outputs in each line: 	"UNIXTIME VALUE"
-	- chiplist outputs in each line: 	"CHIP"
-	- chipget outputs in one line: 		"VALUE"
-	- joblist outputs in each line:		"CHIP FIELD THRESHOLDSTART THRESHOLDEND"
+- and: last line is always ERROR="0" or ERROR="exact explanation of error circumstances"
+
+- chiphistory outputs in each line: 	"UNIXTIME VALUE"
+- chiplist outputs in each line: 	"CHIP"
+- chipget outputs in one line: 		"VALUE"
+- joblist outputs in each line:		"CHIP FIELD THRESHOLDSTART THRESHOLDEND"
 </pre></body></html>
 EOF
 }
@@ -312,8 +311,8 @@ fkt_read_browsers_query_string () {
 	local INPUT="$QUERY_STRING"
 	test -z "$INPUT" && return
 
-	local SANITIZED="$(echo $INPUT | sed -e 's/[^%&=+-:!,@\\"-_a-z~]//g')"					# only good chars
-	local ESCAPED="$(httpd -d $SANITIZED | sed -e 's/"/\\"/g' -e 's/=/="/g' -e 's/&/";/g ' -e 's/$/"/g')"	# escape ",= convert & to "; and $ to "
+	local SANITIZED="$(echo $INPUT | sed -e 's/[^%&=+-:!,@"-_a-z~]//g')"					# only good chars
+	local ESCAPED="$(httpd -d $SANITIZED | sed -e 's/"/"/g' -e 's/=/="/g' -e 's/&/";/g ' -e 's/$/"/g')"	# escape ",= convert & to "; and $ to "
 
 	eval $ESCAPED 2>/dev/null
 }

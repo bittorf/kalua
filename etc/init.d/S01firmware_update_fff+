@@ -1,9 +1,11 @@
 #!/bin/sh
 
+. /tmp/loader
+
 if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ]; then exit; fi
 
-fkt_burn_firmware_if_exists () {
-	fkt_safe_user_data
+_firmware_burn_if_exists () {
+	_userdata_safe
 
 	cp $FIRMWARE_IN_FLASH $FIRMWARE_IN_RAM
 	/usr/sbin/firmware-burn $FIRMWARE_IN_RAM
@@ -13,7 +15,7 @@ fkt_burn_firmware_if_exists () {
 	func_safe_reboot "firmware-burn not successful"
 }
 
-fkt_safe_user_data () {
+_userdata_safe () {
 	# fff_restore_web_file="http://url1;full_path_to_destination1;http://url2;full_path_to_destination2"	# wget -O dest1 "http://url1"
 	# fff_backup_on_device="full_path_file1;full_path_file2;full_path_file3"				# tar czf /tmp/configs.tgz file1 file2 file3
 	# fff_restore_web_tagz=""										# tar xzf /tmp/webdata.tgz
@@ -30,7 +32,7 @@ fkt_safe_user_data () {
 	# nvram commit
 }
 
-fkt_restore_user_data () {
+_userdata_restore () {
 	local FILE="/www/images/intro.jpg"
 	local  OUT="$(nvram get fff_safe_pic)"
 	
@@ -40,20 +42,21 @@ fkt_restore_user_data () {
 	nvram commit
 }
 
-fkt_build_own_ipkg_list () {
+_software_list_build () {
 	# we generate a list of all installed packages, and this
 	# list gets installed after next flashing
 
-	local DAEMON="fkt_build_own_ipkg_list"
+	local DAEMON="_software_list_build"
 	local LIST="$(ipkg status | sed -ne 's/^Package: \(.*\)/\1/p' | while read LINE; do printf "$LINE ";done)"
 
-	fkt_log "$DAEMON" "generated this ipkg-list: $LIST"
+	_log do "$DAEMON" daemon info "generated this ipkg-list: $LIST"
+	_log do "$DAEMON" daemon info "generated this ipkg-list: $LIST"
 
 	nvram set fff_override_fw_ipkg="$LIST" commit
 }
 
-fkt_check_for_newer_firmware () {
-	local DAEMON="fkt_check_for_newer_firmware"
+_firmware_check_for_newer () {
+	local DAEMON="_firmware_check_for_newer"
 	
 	local URL_BETA_FW="$(    func_links_get_url_firmware beta )"
 	local URL_TESTING_FW="$( func_links_get_url_firmware testing )"
@@ -70,38 +73,49 @@ fkt_check_for_newer_firmware () {
 	fi
 
 	if [ -n "$NOPAUSE" ]; then
-		fkt_log "$DAEMON" "invoked with \"nopause\"-switch, setting sleep-timers to zero"
+		_log do "$DAEMON" daemon info "invoked with \"nopause\"-switch, setting sleep-timers to zero"
+		_log do "$DAEMON" daemon info "invoked with \"nopause\"-switch, setting sleep-timers to zero"
 	
 		WAIT=0
 		WAIT_SHORT=0
 	fi
 
-	fkt_log "$DAEMON" "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
+	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
+	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
 	sleep $WAIT_SHORT
 	local CURRENT="$( func_links_get_url_firmware version_current stable )"
 
 	URL_FIRMWARE_CURRENT="$( func_links_get_url_firmware stable )"
 	
-	fkt_log "$DAEMON" "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
+	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
+	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
 	sleep $WAIT_SHORT
 	local CURRENT_BETA="$( func_links_get_url_firmware version_current beta )"
 	
-	fkt_log "$DAEMON" "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
+	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
+	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
 	sleep $WAIT_SHORT
 	local CURRENT_TESTING="$( func_links_get_url_firmware version_current testing )"
 
-	fkt_log "$DAEMON" "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing main version"
+	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing main version"
+	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing main version"
 	sleep $WAIT_SHORT
 	local CURRENT_MAIN="$( func_links_get_url_firmware version_installed )"
 	
 	local DOIT="0"
 
-	fkt_log "$DAEMON" "my version:      $FFF_PLUS_VERSION"
-	fkt_log "$DAEMON" "current_stable:  $CURRENT"
-	fkt_log "$DAEMON" "current_beta:    $CURRENT_BETA"
-	fkt_log "$DAEMON" "current_testing: $CURRENT_TESTING"
-	fkt_log "$DAEMON" "current_main:    $CURRENT_MAIN"
-	fkt_log "$DAEMON" "update-mode:     $MODE"
+	_log do "$DAEMON" daemon info "my version:      $FFF_PLUS_VERSION"
+	_log do "$DAEMON" daemon info "my version:      $FFF_PLUS_VERSION"
+	_log do "$DAEMON" daemon info "current_stable:  $CURRENT"
+	_log do "$DAEMON" daemon info "current_stable:  $CURRENT"
+	_log do "$DAEMON" daemon info "current_beta:    $CURRENT_BETA"
+	_log do "$DAEMON" daemon info "current_beta:    $CURRENT_BETA"
+	_log do "$DAEMON" daemon info "current_testing: $CURRENT_TESTING"
+	_log do "$DAEMON" daemon info "current_testing: $CURRENT_TESTING"
+	_log do "$DAEMON" daemon info "current_main:    $CURRENT_MAIN"
+	_log do "$DAEMON" daemon info "current_main:    $CURRENT_MAIN"
+	_log do "$DAEMON" daemon info "update-mode:     $MODE"
+	_log do "$DAEMON" daemon info "update-mode:     $MODE"
 
 	test -z "$MODE"		 && USERWISH="stable"
 	test "$MODE" = "stable"  && USERWISH="stable"
@@ -113,7 +127,8 @@ fkt_check_for_newer_firmware () {
 		USERWISH=$FORCE_USERWISH
 	fi
 
-	fkt_log "$DAEMON" "update-mode-conclusion: $USERWISH"
+	_log do "$DAEMON" daemon info "update-mode-conclusion: $USERWISH"
+	_log do "$DAEMON" daemon info "update-mode-conclusion: $USERWISH"
 
 
 	# fixme! we need some more work here:
@@ -144,7 +159,8 @@ fkt_check_for_newer_firmware () {
 	
 		if [ "$USERWISH" = "testing" ] && [ "$FFF_VERSION" = "$CURRENT_MAIN" ]; then		# doing incremental update
 		
-			fkt_log "$DAEMON" "main_myself: $FFF_VERSION main_server: $CURRENT_MAIN - doing incremental update"
+			_log do "$DAEMON" daemon info "main_myself: $FFF_VERSION main_server: $CURRENT_MAIN - doing incremental update"
+			_log do "$DAEMON" daemon info "main_myself: $FFF_VERSION main_server: $CURRENT_MAIN - doing incremental update"
 			$0 poor_mens_update
 			DOIT=0
 		fi
@@ -160,44 +176,54 @@ fkt_check_for_newer_firmware () {
 		DOIT="1"
 	fi
 
-	fkt_log "$DAEMON" "download-url would be: \"$URL_FIRMWARE_CURRENT\""
+	_log do "$DAEMON" daemon info "download-url would be: \"$URL_FIRMWARE_CURRENT\""
+	_log do "$DAEMON" daemon info "download-url would be: \"$URL_FIRMWARE_CURRENT\""
 
 	if [ "$DOIT" = "1" ]; then
-		fkt_log "$DAEMON" "New firmware detected! (my: $FFF_PLUS_VERSION  current:$CURRENT current-beta:$CURRENT_BETA current-testing:$CURRENT_TESTING)"
+		_log do "$DAEMON" daemon info "New firmware detected! (my: $FFF_PLUS_VERSION  current:$CURRENT current-beta:$CURRENT_BETA current-testing:$CURRENT_TESTING)"
+		_log do "$DAEMON" daemon info "New firmware detected! (my: $FFF_PLUS_VERSION  current:$CURRENT current-beta:$CURRENT_BETA current-testing:$CURRENT_TESTING)"
 
 		if [ ! -z "$(nvram get fff_override_fw_ipkg)" ]; then					# safe the installed package list
-			fkt_build_own_ipkg_list
+			_software_list_build
 		fi
 
-		fkt_log "$DAEMON" "Sleeping for $WAIT sec (\"jitter\"), before downloading firmware"
+		_log do "$DAEMON" daemon info "Sleeping for $WAIT sec (\"jitter\"), before downloading firmware"
+		_log do "$DAEMON" daemon info "Sleeping for $WAIT sec (\"jitter\"), before downloading firmware"
 		
 		sleep $WAIT
 			
 		fkt_fetch_firmware
 
-		fkt_log "$DAEMON" "Checking CRC"
+		_log do "$DAEMON" daemon info "Checking CRC"
+		_log do "$DAEMON" daemon info "Checking CRC"
 
 		local CHECK="$(/www/cgi-bin/freifunk-upload -c /www/fw.trx)"
 		
-		fkt_log "$DAEMON" "Checking server MD5"
+		_log do "$DAEMON" daemon info "Checking server MD5"
+		_log do "$DAEMON" daemon info "Checking server MD5"
 		local FW_CRC_SERVER="$( func_links_get_url_firmware $RESULTING_UPDATEMODE crc )"
-		fkt_log "$DAEMON" "Checking local MD5"
+		_log do "$DAEMON" daemon info "Checking local MD5"
+		_log do "$DAEMON" daemon info "Checking local MD5"
 		local FW_CRC_REAL="$( md5sum /www/fw.trx | cut -d" " -f1 )"
-		fkt_log "$DAEMON" "Comparing both MD5-crc's"
+		_log do "$DAEMON" daemon info "Comparing both MD5-crc's"
+		_log do "$DAEMON" daemon info "Comparing both MD5-crc's"
 		test "$FW_CRC_SERVER" = "$FW_CRC_REAL" && CHECK_MD5=ok
 
 		if [ "$CHECK" = "ok" ] && [ "$CHECK_MD5" = "ok" ]; then
-			fkt_log "$DAEMON" "CRC - ok, sleeping for $WAIT sec and rebooting"
+			_log do "$DAEMON" daemon info "CRC - ok, sleeping for $WAIT sec and rebooting"
+			_log do "$DAEMON" daemon info "CRC - ok, sleeping for $WAIT sec and rebooting"
 			sleep $WAIT
 			func_safe_reboot "firmware-image successful downloaded"
 		else
-			fkt_log "$DAEMON" "CRC - error, removing download, abort."
+			_log do "$DAEMON" daemon info "CRC - error, removing download, abort."
+			_log do "$DAEMON" daemon info "CRC - error, removing download, abort."
 			rm -f "/www/fw.trx"						# not needed, above check does rm this
 			rm -f "$SOFTWARE_FULLY_INSTALLED"				# to ensure, that we reinstall all packets
 			func_safe_reboot "firmware-image download unsuccessful"
 		fi
 	else
-		fkt_log "$DAEMON" "I'am up to date 8-)"
+		_log do "$DAEMON" daemon info "I'am up to date 8-)"
+		_log do "$DAEMON" daemon info "I'am up to date 8-)"
 	fi
 }
 
@@ -206,24 +232,29 @@ fkt_install_latest_tarball () {
 	local FILE="/tmp/tarball.tgz"
 	local URL_FIRMWARE_TARBALL="$( func_links_get_url_firmware tarball )"
 	
-	fkt_log "$DAEMON" "fetching from \"$URL_FIRMWARE_TARBALL\""
+	_log do "$DAEMON" daemon info "fetching from \"$URL_FIRMWARE_TARBALL\""
+	_log do "$DAEMON" daemon info "fetching from \"$URL_FIRMWARE_TARBALL\""
 	
 	wget -O $FILE "$URL_FIRMWARE_TARBALL"
 	
 	if [ "$?" -ne 0 ]; then
-		fkt_log "$DAEMON" "error during download, aborting."
+		_log do "$DAEMON" daemon info "error during download, aborting."
+		_log do "$DAEMON" daemon info "error during download, aborting."
 		return 1
 	fi
 	
-	fkt_log "$DAEMON" "unpacking and overwriting existing files"
+	_log do "$DAEMON" daemon info "unpacking and overwriting existing files"
+	_log do "$DAEMON" daemon info "unpacking and overwriting existing files"
 	
 	cd /
 	tar xvzf $FILE
 
-	fkt_log "$DAEMON" "removing download archiv"
+	_log do "$DAEMON" daemon info "removing download archiv"
+	_log do "$DAEMON" daemon info "removing download archiv"
 	rm -f $FILE
 
-	fkt_log "$DAEMON" "patching banner-file for helping you to remember..."
+	_log do "$DAEMON" daemon info "patching banner-file for helping you to remember..."
+	_log do "$DAEMON" daemon info "patching banner-file for helping you to remember..."
 	
 	echo "# manually updated with poormens method on $(date) to this version"	>>/etc/banner
 	echo "# originally flashed version: $( grep ^Kit: /etc/freifunk-release )"	>>/etc/banner
@@ -231,7 +262,8 @@ fkt_install_latest_tarball () {
 	echo "#"									>>/etc/banner 
 	echo										>>/etc/banner
 	
-	fkt_log "$DAEMON" "done. reboot maybe not necessary."
+	_log do "$DAEMON" daemon info "done. reboot maybe not necessary."
+	_log do "$DAEMON" daemon info "done. reboot maybe not necessary."
 }
 
 fkt_fetch_firmware ()
@@ -250,9 +282,11 @@ fkt_fetch_firmware ()
 	
 	[ -e /tmp/LOWMEM ] && for IPK in $PACKAGES; do {			# firmware-download to flash only on lowmem-devices
 		
-		fkt_log "$DAEMON" "now free: $(func_system_flash_free) kb"
+		_log do "$DAEMON" daemon info "now free: $(func_system_flash_free) kb"
+		_log do "$DAEMON" daemon info "now free: $(func_system_flash_free) kb"
 		[ "$(func_system_flash_free)" -gt "$FREE_WANTED" ] && break
-		fkt_log "$DAEMON" "removing package '$IPK'"
+		_log do "$DAEMON" daemon info "removing package '$IPK'"
+		_log do "$DAEMON" daemon info "removing package '$IPK'"
 		
 		func_ipkg_remove $IPK
 	} done
@@ -300,7 +334,8 @@ fkt_fetch_firmware ()
 		func_safe_reboot "firmware burning unsuccessful"
 	}
 	
-	fkt_log "$DAEMON" "download ready."
+	_log do "$DAEMON" daemon info "download ready."
+	_log do "$DAEMON" daemon info "download ready."
 }
 
 . /tmp/loader
@@ -314,8 +349,8 @@ test "$3" = "forcemode" && FORCE_USERWISH=$4
 case $1 in
         start)
 		[ -e $FIRMWARE_IN_FLASH ] && {
-			fkt_restore_user_data
-			fkt_burn_firmware_if_exists
+			_userdata_restore
+			_firmware_burn_if_exists
 			return
 		}
 		
@@ -323,11 +358,12 @@ case $1 in
 	;;
 	check_neighbour)
 		# fixme! here should be a routine to check a random (good) neighbour for newer version
-		fkt_check_for_newer_firmware $URL_TO_CHECK $URL_TO_FETCH
+		_firmware_check_for_newer $URL_TO_CHECK $URL_TO_FETCH
 	;;
 	check)
 		[ "$(nvram get fff_autofwupdate)" = "0" ] && {
-			fkt_log "$0" "no execution, no automatic update"			
+			_log do "$0" daemon info "no execution, no automatic update"			
+			_log do "$0" daemon info "no execution, no automatic update"			
 			exit
 		}
 		
@@ -344,10 +380,10 @@ case $1 in
 			# fff_autofwupdate = beta		("small fixes")
 			# fff_autofwupdate = stable = unset	("great releases")
 		
-		fkt_check_for_newer_firmware
+		_firmware_check_for_newer
 	;;
 	forcecheck)
-		fkt_check_for_newer_firmware
+		_firmware_check_for_newer
 	;;
 	pmu|poor_mens_update)
 		fkt_install_latest_tarball && {
@@ -355,20 +391,24 @@ case $1 in
 			/etc/init.d/S41build_static_netparam start
 			/etc/init.d/S51crond_fff+ restart
 		
-			fkt_log "poormens_update" "checking interface/settings"
+			_log do "poormens_update" daemon info "checking interface/settings"
+			_log do "poormens_update" daemon info "checking interface/settings"
 			/etc/init.d/S02check_interface_correctness_fff\+
 
-			fkt_log "poormens_update" "checking dns/packetfilter-services"
+			_log do "poormens_update" daemon info "checking dns/packetfilter-services"
+			_log do "poormens_update" daemon info "checking dns/packetfilter-services"
 			scheduler -a "/etc/init.d/S43ethers_fff+ start"
 			scheduler -a "/etc/init.d/S45firewall restart"
 			scheduler -a "/etc/init.d/S50dnsmasq restart"
 		
 			tail -n 6 /etc/banner
 
-			fkt_log "poormens_update" "sending alive message"
+			_log do "poormens_update" daemon info "sending alive message"
+			_log do "poormens_update" daemon info "sending alive message"
 			scheduler -a "/etc/init.d/S69watch_olsrd_fff+ send_alive_message fast"
 		
-			fkt_log "poormens_update" "ready"
+			_log do "poormens_update" daemon info "ready"
+			_log do "poormens_update" daemon info "ready"
 		}
 	;;
 	*)

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /tmp/loader
+
 _filelist ()
 {
 	echo "/etc/kalua/* /etc/kalua_init /etc/init.d/S41build_static_netparam /usr/bin/neigh"
@@ -40,8 +42,6 @@ _upload ()
 	rm $ARCHIV
 }
 
-. /tmp/loader
-
 case $1 in
 	start)
 		_vars
@@ -55,7 +55,7 @@ case $1 in
 		for FILE in $( _filelist ); do {
 			[ -e "$FILE" ] && {
 			
-			SIZE="$( _file_size "$FILE" )"
+			SIZE="$( _file size "$FILE" )"
 			FULLSIZE=$(( $FULLSIZE + $SIZE ))
 			STRIPPED_SIZE="$( sed 's/[ 	]*$//' "$FILE" | wc -c )"
 			STRIPPED_DIFF="$(( $SIZE - $STRIPPED_SIZE ))"
@@ -121,7 +121,30 @@ case $1 in
 		REPLACE="$3"
 		
 		for FILE in $( _filelist ); do {
+			#sed -i 's/_log do \([^ daemon info ]*\) \(.*\)/_log do \1 daemon info \2/p' "$FILE"
 			sed -i "s/${SEARCH}/${REPLACE}/g" "$FILE"
+		} done
+	;;
+	strip_doubles_lines)
+		for FILE in $( _filelist ); do {
+		
+			_log do strip_doubles daemon debug "working on '$FILE'"
+		
+			NUM=0
+			while read LINE; do {
+				NUM=$(( $NUM + 1 ))
+				MD5_NEW="$( echo "$LINE" | md5sum | cut -d' ' -f1 )"
+				test "$MD5_NEW" != "$MD5_OLD" && sed "${NUM}q;d" "$FILE" >>"${FILE}_tmp"
+				MD5_OLD="$MD5_NEW"
+			} done <$FILE
+			
+			[ -e "${FILE}_tmp" ] && {
+				[ $( _file size "$FILE" ) -ne $( _file size "${FILE}_tmp" ) ] && {
+					echo "stripped to '$FILE' = $( _file size "$FILE" )->$( _file size "${FILE}_tmp" ) Bytes"
+					echo "key!";read KEY
+					mv "${FILE}_tmp" "$FILE"
+				}
+			}
 		} done
 	;;
 	*)
