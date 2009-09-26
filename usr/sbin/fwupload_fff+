@@ -127,16 +127,24 @@ case $1 in
 	;;
 	strip_doubles_lines)
 		for FILE in $( _filelist ); do {
-		
+		#for FILE in "/etc/kalua/http"; do {
 			_log do strip_doubles daemon debug "working on '$FILE'"
 		
 			NUM=0
-			while read LINE; do {
+			while [ $NUM -lt $( _file lines "$FILE" ) ]; do {
 				NUM=$(( $NUM + 1 ))
 				MD5_NEW="$( sed "${NUM}q;d" "$FILE" | md5sum | cut -d' ' -f1 )"
-				test "$MD5_NEW" != "$MD5_OLD" && sed "${NUM}q;d" "$FILE" >>"${FILE}_tmp"
+				
+				if [ "$MD5_NEW" = "$MD5_OLD" ]; then
+					echo "# lasse diese zeile aus:"
+					sed "${NUM}q;d"	"$FILE"
+					echo "#"
+				else
+					sed "${NUM}q;d" "$FILE" >>"${FILE}_tmp"
+				fi
+				
 				MD5_OLD="$MD5_NEW"
-			} done <$FILE
+			} done
 			
 			[ -e "${FILE}_tmp" ] && {
 				if [ $( _file size "$FILE" ) -ne $( _file size "${FILE}_tmp" ) ]; then
