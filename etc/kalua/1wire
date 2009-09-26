@@ -10,7 +10,7 @@ fkt_wget () {
 	local PID_LINE_NOW=""
 
 	wget -O - "$URL" 2>/dev/null &
-	PID_WGET="$(pidof wget | sed 's/ /n/g' | sed '$!d')"		# list of all wget-pid's, insert newlines, print last line
+	PID_WGET="$(pidof wget | sed 's/ /\n/g' | sed '$!d')"		# list of all wget-pid's, insert newlines, print last line
 	PID_LINE="$(cat /proc/$PID_WGET/cmdline 2>/dev/null)"		# exact line of ps-output
 
 	while [ -e "/proc/$PID_WGET" ]; do {				# wget-process in tasklist?
@@ -22,16 +22,15 @@ fkt_wget () {
 		if [ $C -gt $MAX ]; then				# maximal execution time reached
 			if [ "$PID_LINE" = "$PID_LINE_NOW" ] ; then	# is this really the started process?
 
-				logger "wgetting "$URL_SAFE" - killing pid $PID_WGET after $C seconds"
+				logger "wgetting '$URL_SAFE' - killing pid $PID_WGET after $C seconds"
 				kill $PID_WGET 2>/dev/null
 				return
 			else						# this is another process
-				logger "wgetting "$URL_SAFE" - ready after $C seconds ("$PID_LINE"" != "$PID_LINE_NOW"")"
+				logger "wgetting '$URL_SAFE' - ready after $C seconds ("$PID_LINE"" != "$PID_LINE_NOW"")"
 				return
 
 				# fixme! passwords in logger (pw in query) needs to be secured
 			fi
-		fi
 	} done
 
 	logger "wgetting "$URL_SAFE" - ready after $C seconds"
@@ -68,13 +67,13 @@ func_set_lockfile_or_wait ()
 }
 
 fkt_print_header () {
-	echo -en "Content-type: text/htmlnn"
+	echo -en "Content-type: text/html\n\n"
 }
 
 fkt_backup () {
 	local BACKUP_DEST="backup_$( date +%s )_$( date +%d%b%Y-%Huhr%M )_1wire.tgz"
 	local BACKUP_DATA="/etc/init.d/S88chip_workflow /www/cgi-bin-chip* $JOBFILE $JOBDATA*"
-	local USBSTICK="$( df | grep ^/dev/scsi | sed -n 's/^.*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*% (.*)/1/p' )"
+	local USBSTICK="$( df | grep ^/dev/scsi | sed -n 's/^.*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*% \(.*\)/1/p' )"
 
 	[ -n "$USBSTICK" ] && {
 		BACKUP_DEST="$USBSTICK/$BACKUP_DEST"
@@ -95,7 +94,7 @@ func_wait_for_error_free_1wire_bus ()
 {
 	local COUNTER=0
 
-	while [ $( owdir -s 3002 | grep "^/..." | wc -l ) -lt 2 ]; do {
+	while [ $( owdir -s 3002 | grep "^/..\." | wc -l ) -lt 2 ]; do {
 		sleep 6
 
 		COUNTER=$(( $COUNTER + 1 ))
@@ -109,7 +108,7 @@ func_wait_for_error_free_1wire_bus ()
 fkt_print_all_sensors () {
 	func_wait_for_error_free_1wire_bus
 
-	owdir -s 3002 | grep ^...............
+	owdir -s 3002 | grep ^..\.............
 
 	#	fkt_wget "http://127.0.0.1:3001" |				# fetch owhttpd
 	#	 sed -e 's/</TR>/</TR>n/g' |					# insert newline after TR-end-tag
@@ -139,13 +138,13 @@ fkt_trap_error () {
 	local MESSAGE="$1"
 
 	fkt_print_header
-	echo "ERROR="$MESSAGE""
+	echo "ERROR=\"$MESSAGE\""
 	func_remove_lockfile
 	exit 1
 }
 
 fkt_print_endtag () {
-	echo "ERROR="0""
+	echo "ERROR=\"0\""
 	func_remove_lockfile
 	exit
 }
@@ -176,7 +175,7 @@ fkt_write_file () {
 
 	fkt_lock_file   "$FILE"
 
-	logger "$0 writing "$DATA" to "$FILE""
+	logger "$0 writing '$DATA' to '$FILE'"
 
 	echo  "$DATA" >>"$FILE"
 
@@ -189,7 +188,7 @@ fkt_remove_line () {
 
 	fkt_lock_file   "$FILE"
 
-	logger "$0 : removing line containing "$PATT""
+	logger "$0 : removing line containing '$PATT'"
 	cat "$FILE" | grep -v "$PATT" >"$FILE"
 
 	fkt_unlock_file "$FILE"

@@ -95,14 +95,12 @@ _log_do ()				# CALL: _log do my_func_name daemon info "mytext"
 				echo >>/tmp/messages "$DATE | [up $(cut -d" " -f1 /proc/uptime)s] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
 				# func_netmessage "$MESSAGE"	# fixme!
 			}
-		}
 	else
 		[ -e /tmp/BOOT ] && {
 			pidof syslogd >/dev/null || {		# write to special logfile
 				echo >>/tmp/messages "$DATE | [up $(cut -d" " -f1 /proc/uptime)s] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"	
 				# func_netmessage "$MESSAGE"	# fixme!
 			}
-		}
 	fi
 
 	# fixme! howto print out logging when webserver executes a script?
@@ -294,7 +292,6 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 		_log do $FUNC user crit "username not given - aborting"
 		return 1
 	}
-	
 	[ -z "$PASS" ] && {
 		_log do $FUNC user crit "password not given - aborting"
 		return 1
@@ -444,30 +441,3 @@ func_sendmail ()					# ToDo: we need a simple addressbook for phone,email,shortn
 	echo >>$MAIL -n "MIME-Version: 1.0\r\n"
 	echo >>$MAIL -n "Content-Type: text/plain; charset=iso-8859-1\r\n"
 	echo >>$MAIL -n "Content-Transfer-Encoding: quoted-printable\r\n"
-
-	# echo >>$MAIL -n "Organization: ${ADMIN_REAL}\r\n"
-	# echo >>$MAIL -n "Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
-	echo >>$MAIL -n "Organization: Weimarnetz e.V.\r\n"
-	echo >>$MAIL -n "Reply-To: \"Weimarnetz e.V.\" <wireless-discuss@subsignal.org>\r\n"
-	
-	echo >>$MAIL -n "X-Mailer: netcat $( $NETCAT --help 2>&1 | grep -i " v" )\r\n"
-	echo >>$MAIL -n "X-Operating-System: $( cat /proc/version )\r\n"
-	echo >>$MAIL -n "X-Firmware: $( grep ^Kit: /etc/freifunk-release )\r\n"
-	echo >>$MAIL -n "\n"
-	sed '3,99!d' $MAILFILE | while read LINE; do echo -n "${LINE}\r\n"; done >>$MAIL	# 1st/2nd line is crap
-	echo >>$MAIL -n "\r\n.\r\nQUIT\r\n"
-
-	OUT="$( echo -e "$(cat $MAIL)" | $NETCAT $SERVER $PORT )"	# fixme! correct LF/CR with 'while read LINE; do echo -e \r\n...'
-				
-	RC=$?
-	OUT="$( echo "$OUT" | strings | sed -e 's/ //g' -e 's/^\([0-9]*\).*$/\1_/' | while read LINE; do echo -n "$LINE"; done )"	# extract error-codes + remove LF/CR
-
-												# fixme! for each RCPT we must add an "2502_"
-	if [ $RC -ne 0 ] || [ "$OUT" != "220_250_2502_2502_354_2502_2212_" ]; then		# error-codes, when all went fine (RCPT=OK=2502)
-	
-		_log do $FUNC user crit "error for recipient '${RECIPIENT_MAIL}': returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAIL'"
-	else
-		_log do $FUNC user notice "sent mail to '$RECIPIENT_MAIL' went fine"
-		rm "$MAIL"
-	fi
-}
