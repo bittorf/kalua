@@ -6,7 +6,7 @@ fkt_build_vars ()
 {
 	local FUNC="build_vars"
 	
-	func_log $FUNC daemon debug "start"
+	_log do $FUNC daemon debug "start"
 
 	SOFTWARE_BASE="dropbear busybox-awk mydesign"
 
@@ -59,14 +59,14 @@ fkt_build_vars ()
 	SOFTWARE_PRIV="$(nvram get fff_ipkg)"					# firmware-setting +my own packages
 	SOFTWARE_VPNC="kmod-tun libgpg-error libgcrypt vpnc"			# +200k (cisco-vpn-client)
 
-	func_log $FUNC daemon debug "end"
+	_log do $FUNC daemon debug "end"
 }
 
 fkt_check_usb ()
 {
 	local FUNC="check_usb"
 
-	func_log $FUNC daemon debug "start"
+	_log do $FUNC daemon debug "start"
 
 	local DAEMON="fkt_check_usb"
 	local   LIST="$( [ -e /proc/bus/usb/devices ] && sed -ne 's/^P:.*Vendor=\([0-9a-z]*\) ProdID=\([0-9a-z]*\).*/\1:\2/p' /proc/bus/usb/devices | grep -v 0000:0000 )"	# this is VENDOR:PRODUCT, filtering empty ports
@@ -74,13 +74,13 @@ fkt_check_usb ()
 	local    CAT=""
 	local     SW=""
 
-	func_log $FUNC daemon debug "found: '$LIST'"
+	_log do $FUNC daemon debug "found: '$LIST'"
 
 	if [ -n "$LIST" ]; then
 	
 		for CODE in $LIST; do {
 		
-			func_log $FUNC daemon debug "probing device '$CODE'"
+			_log do $FUNC daemon debug "probing device '$CODE'"
 			
 			case $CODE in
 				148f:2573) SW="kmod-rt73";				CAT="NETWORK";	INFO="wifi-stick, Ralink Technology, Corp." ;;
@@ -100,13 +100,13 @@ fkt_check_usb ()
 			esac
 
 			[ -n "$INFO" ] && {
-				func_log $FUNC daemon debug "found: '$CODE' (Category: $CAT) = '$INFO', depends on: '$SW'"
+				_log do $FUNC daemon debug "found: '$CODE' (Category: $CAT) = '$INFO', depends on: '$SW'"
 				SOFTWARE_USB="$SOFTWARE_USB $SW"
 				INFO=""
 			}
 		} done
 	else
-		func_log $FUNC daemon debug "found nothing."
+		_log do $FUNC daemon debug "found nothing."
 	
 		if [ ! -e "$SOFTWARE_FULLY_INSTALLED" ] && [ -n "$SOFTWARE_USB" ]; then	# only during software-install, to have the chance to install it
 			
@@ -115,11 +115,11 @@ fkt_check_usb ()
 				FILELIST="$FILELIST $( ipkg files $FILE )"
 			} done
 
-			func_log $FUNC daemon debug "trying to delete those packages/files: '$SOFTWARE_USB' / '$FILELIST'"
+			_log do $FUNC daemon debug "trying to delete those packages/files: '$SOFTWARE_USB' / '$FILELIST'"
 		
 			for FILE in $FILELIST; do {
 				[ -f $FILE ] && {					# we don't need this anymore
-					func_log $FUNC daemon debug "deleting '$FILE'"
+					_log do $FUNC daemon debug "deleting '$FILE'"
 					rm -f $FILE
 				}
 			} done								# fixme! (ipkg can't see removal of files)
@@ -137,20 +137,20 @@ fkt_check_ide ()
 	if grep -q ide /proc/partitions ; then			# where partitions detected?                                                       
 		IDE=1
 	
-		func_log $FUNC daemon debug "used IDE-bus detected"
+		_log do $FUNC daemon debug "used IDE-bus detected"
 		
 		while read LINE; do {
-			func_log $FUNC daemon debug "partition: '$LINE'"
+			_log do $FUNC daemon debug "partition: '$LINE'"
 		} done </proc/partitions
 	else
-		func_log $FUNC daemon debug "no used IDE-bus detected"
+		_log do $FUNC daemon debug "no used IDE-bus detected"
 		
 		[ ! -e "$SOFTWARE_FULLY_INSTALLED" ] && {
 		
 			for FILE in $(ipkg files kmod-ide); do {
 
 				[ -f "$FILE" ] && {
-					func_log $FUNC daemon debug "deinstalling ide-related file: '$FILE'"
+					_log do $FUNC daemon debug "deinstalling ide-related file: '$FILE'"
 					rm -f "$FILE"
 				}
 			} done
@@ -206,7 +206,7 @@ fkt_check_dependencies ()
 
 	[ -e /tmp/LOWMEM ] && LIST_SOFTWARE=""		# fixme!
 
-	func_log $FUNC daemon debug "generated list: '$LIST_SOFTWARE'"
+	_log do $FUNC daemon debug "generated list: '$LIST_SOFTWARE'"
 
 	fkt_speedup MARK
 }
@@ -218,20 +218,20 @@ fkt_speedup ()
 	STATUSFILE="/tmp/placeholder_for_showing_that_software_list_was_already_build_fff+"
 
 	[ "$1" = "MARK" ] && {
-		func_log $FUNC daemon debug "marking software-list as already build"
+		_log do $FUNC daemon debug "marking software-list as already build"
 		echo "$LIST_SOFTWARE" >"$STATUSFILE"
 		return
 	}
 
 	[ -e "$STATUSFILE" ] && {
 		LIST_SOFTWARE="$(cat "$STATUSFILE")"
-		func_log $FUNC daemon debug "delivering already build software-list"
+		_log do $FUNC daemon debug "delivering already build software-list"
 		echo "true"
 	}
 }
 
 if [ -e "$SOFTWARE_FULLY_INSTALLED" ]; then
-	func_log loading_software_vars daemon debug "Software already installed - do nothing"
+	_log do loading_software_vars daemon debug "Software already installed - do nothing"
 else
 	[ "$(fkt_speedup)" != "true" ] && {
 		

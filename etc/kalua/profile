@@ -33,11 +33,11 @@ func_profile_get ()	# OUT1: string
 	local MAC="$1"
 
 	[ ! -e $FRESHFLASH ] && {
-		func_log $FUNC daemon debug "detected freshflash"
+		_log do $FUNC daemon debug "detected freshflash"
 
 		if [ -n "$PROFILE_SAFED" ]; then
 			
-			func_log $FUNC daemon debug "applying already safed profile again"
+			_log do $FUNC daemon debug "applying already safed profile again"
 			nvram get $PROFILE_VAR
 			return 1
 		else									# this is an example to migrate from an
@@ -55,13 +55,13 @@ func_profile_get ()	# OUT1: string
 
 	[ -z "$PROFILE_SAFED" ] && {			# unset? -> set profile
 
-		func_log $FUNC daemon debug "is unset, probing capabilities"
+		_log do $FUNC daemon debug "is unset, probing capabilities"
 
 		PROFILE="$( func_profile_get_profile_for_mac $MAC )"
 
 		  if [ -n "$PROFILE" ]; then
 			
-			func_log $FUNC daemon debug "found mac2profile-entry: '$PROFILE'"
+			_log do $FUNC daemon debug "found mac2profile-entry: '$PROFILE'"
 			func_nvset $PROFILE_VAR 	"$( echo "$PROFILE" | sed -n 's/^..:..:..:..:..:.. \([a-zA-Z0-9_-]*\).*/\1/p' )"
   	  		func_nvset $NODE_NUMBER_VAR 	"$( echo "$PROFILE" | sed -n 's/^..:..:..:..:..:.. [a-zA-Z0-9_]*[^0-9]*\([0-9]*\).*/\1/p' )"
   	  	
@@ -73,31 +73,31 @@ func_profile_get ()	# OUT1: string
 			  
 			  if [ -z "$( nvram get fff_node_number )" ]; then
 
-			  	func_log $FUNC daemon debug "no node_number, totally virgin"
+			  	_log do $FUNC daemon debug "no node_number, totally virgin"
 			  	func_nvset $PROFILE_VAR "standard_mesh_band_g"
 			  	
 			elif [ "$(func_wifi_get_mode)" = "ap" ]; then
 		
-				func_log $FUNC daemon debug "device is in AP-mode"
+				_log do $FUNC daemon debug "device is in AP-mode"
 				func_nvset $PROFILE_VAR "standard_ap_band_g"
 			
 			elif [ "$(func_wifi_get_mode)" = "client" ]; then
 				
-				func_log $FUNC daemon debug "device is in STA-mode (client)"
+				_log do $FUNC daemon debug "device is in STA-mode (client)"
 				
 				func_nvset $PROFILE_VAR "standard_mesh_band_g"
 				# func_nvset $PROFILE_VAR "standard_client_band_g"	# fixme! (needs some work...)
 			else
 				if [ "$( nvram get wl0_channel )" = "13" ]; then
-					func_log $FUNC daemon debug "device is not in AP or client-mode, but on Channel 13"
+					_log do $FUNC daemon debug "device is not in AP or client-mode, but on Channel 13"
 					func_nvset $PROFILE_VAR "backbone_mesh_band_g"
 				else
-					func_log $FUNC daemon debug "device is not in AP or client-mode"
+					_log do $FUNC daemon debug "device is not in AP or client-mode"
 					func_nvset $PROFILE_VAR "standard_mesh_band_g"
 				fi
 			fi
 		else
-			func_log $FUNC daemon debug "could'nt determine profile, fallback to g-mesh"
+			_log do $FUNC daemon debug "could'nt determine profile, fallback to g-mesh"
 			func_nvset $PROFILE_VAR "standard_mesh_band_g"
 		fi
 		
@@ -168,10 +168,10 @@ func_profile_set_config ()
 		func_nvset fff_profile $PROFILE
 	}
 
-	func_log $FUNC daemon debug "applying profile '$PROFILE' / nodeID: '$NODE_ID'"
+	_log do $FUNC daemon debug "applying profile '$PROFILE' / nodeID: '$NODE_ID'"
 
 	pidof crond >/dev/null && {
-		func_log $FUNC daemon debug "discontinue cron.minutely checks for 600 seconds"
+		_log do $FUNC daemon debug "discontinue cron.minutely checks for 600 seconds"
 		
 		echo "rm \$0; sleep 600" >/tmp/.autorun
 		chmod +x /tmp/.autorun
@@ -206,7 +206,7 @@ func_profile_nvram_make_backup ()
 	local TEMP="/tmp/nvram_backup"
 	local BACKUP="/www/backup_nvram_$( ls -l /www/backup_nvram_* /bin/sh 2>/dev/null | sed -n '$=' ).sh.gz"		# /bin/sh for +1
 
-	func_log $FUNC daemon debug "writing '$BACKUP'"	
+	_log do $FUNC daemon debug "writing '$BACKUP'"	
 
 	echo "# in case of emergency, simply run this file with 'sh file.sh'" >"$TEMP"
 
@@ -226,7 +226,7 @@ func_profile_count_used_nvram_vars ()
 	local FUNC="profile_count_used_nvram_vars"
 	local COUNT="$( nvram show 2>/dev/null | sed -n '/^[a-zA-Z0-9_\.-]*=[A-Za-z0-9<>_-].*/p' | wc -l )"
 	
-	func_log $FUNC daemon debug "$COUNT"
+	_log do $FUNC daemon debug "$COUNT"
 }
 
 func_profile_memorise_important_vars ()
@@ -234,12 +234,12 @@ func_profile_memorise_important_vars ()
 	local FUNC="profile_memorise_important_vars"
 	
 	[ "$1" = "restore" ] && {
-		func_log $FUNC daemon debug "restoring '/tmp/${FUNC}_*'"
+		_log do $FUNC daemon debug "restoring '/tmp/${FUNC}_*'"
 		
 		.  /tmp/profile_memorise_important_vars_*
 		rm /tmp/profile_memorise_important_vars_*
 		
-		func_log $FUNC daemon debug "restored"
+		_log do $FUNC daemon debug "restored"
 		return
 	}
 	
@@ -251,7 +251,7 @@ func_profile_memorise_important_vars ()
 	      LIST="$LIST fff_optimize_ ppp_ wifi_gateway wan_gateway lan_gateway wan_hostname fff_traffic_borders"
 
 	[ "$(nvram get ff_pw)" != '$1$$CoERg7ynjYLsj2j4glJ34.' ] && {			# fixme! better use: "$(httpd -m admin)"
-		func_log $FUNC daemon debug "password is not 'admin', using it"		# so we have to possibility to define once
+		_log do $FUNC daemon debug "password is not 'admin', using it"		# so we have to possibility to define once
 		LIST="$LIST ff_pw"							# an profil_pw, which is not in later sources...
 	}
 
@@ -278,7 +278,7 @@ func_profile_memorise_important_vars ()
 	[ -n "$(nvram get lan_gateway)" ] && {
 	
 		if [ "$(nvram get lan_gateway)" = "0.0.0.0" ]; then
-			func_log $FUNC daemon debug "removing senseless DD-WRT(?) entry"
+			_log do $FUNC daemon debug "removing senseless DD-WRT(?) entry"
 			func_nvset lan_gateway
 		else
 			[ "$LAN_ADR" != "$( nvram get lan_ipaddr)" ] && {		# static alien LAN ip-addr/netmask
@@ -321,7 +321,7 @@ func_profile_memorise_important_vars ()
 	#
 
 
-	func_log $FUNC daemon debug "writing to $TEMP"	
+	_log do $FUNC daemon debug "writing to $TEMP"	
 
 	for VARGROUP in $LIST; do {
 		nvram show 2>/dev/null |
@@ -336,14 +336,14 @@ func_profile_rebuild_cfe ()
 	local FUNC="profile_rebuild_cfe"
 	local TEMP="/tmp/cfe_rebuild_$$"
 
-	func_log $FUNC daemon debug "extracting cfe"
+	_log do $FUNC daemon debug "extracting cfe"
 	
 	strings /dev/mtd/0ro |
 	 sed '/^[0-9a-fA-F][0-9a-fA-F]:/,$d'|
 	  sed -n '/^.*=[^%].*/p' |
 	   sed -n "s/^\([a-zA-Z][a-zA-Z0-9_\.-]*\)=\(.*\)$/func_nvset \1 '\2' ;/p" >$TEMP
 
-	func_log $FUNC daemon debug "applying values"
+	_log do $FUNC daemon debug "applying values"
 
 	. $TEMP
 	rm $TEMP
@@ -432,43 +432,43 @@ func_profile_unset_nvram_group ()	# empty ARG1 = all (!)
 	local SIZE_AFTER=0
 	local SIZE_BEFORE="$( cut -d" " -f2 $TEMP )"
 	
-	[ -z "$GROUP" ] && func_log $FUNC daemon debug "trying to erase hole nvram"
+	[ -z "$GROUP" ] && _log do $FUNC daemon debug "trying to erase hole nvram"
 	
-	func_log $FUNC daemon debug "used nvram: $SIZE_BEFORE bytes"
+	_log do $FUNC daemon debug "used nvram: $SIZE_BEFORE bytes"
 	
 	for VAR in $LIST; do {
 		SIZE_COUNTER=$(( $SIZE_COUNTER + 1 + ${#VAR} + $( nvram get "$VAR" | wc -c ) ))
 		func_nvset "$VAR" ""
 	} done
 	
-	func_log $FUNC daemon debug "calculated freed bytes: $SIZE_COUNTER"
+	_log do $FUNC daemon debug "calculated freed bytes: $SIZE_COUNTER"
 	
 	nvram show >/dev/null 2>$TEMP
 	SIZE_AFTER="$( cut -d" " -f2 $TEMP )"
 	
-	func_log $FUNC daemon debug "used nvram: $SIZE_AFTER bytes"
+	_log do $FUNC daemon debug "used nvram: $SIZE_AFTER bytes"
 
 	SIZE_DIFF=$(( $SIZE_BEFORE - $SIZE_AFTER ))
 
 	[ $SIZE_DIFF -ne $SIZE_COUNTER ] && {
-		func_log $FUNC daemon debug "calculated freed bytes != real freed ($SIZE_COUNTER != $SIZE_DIFF)"
+		_log do $FUNC daemon debug "calculated freed bytes != real freed ($SIZE_COUNTER != $SIZE_DIFF)"
 	}
 
 	if [ -z "$GROUP" ] && [ $SIZE_AFTER -ne 0 ]; then
-		func_log $FUNC daemon debug "could not delete all variables"
+		_log do $FUNC daemon debug "could not delete all variables"
 		
 		nvram show 2>/dev/null | sed 's/[^a-zA-Z0-9_:><@-]/\./g' >$TEMP		# replace non-printable chars to dots
 		
 		SIZE_BEFORE=0
 		while read LIST; do {
 			SIZE_BEFORE=$(( $SIZE_BEFORE + 1 ))		# now count+log each line
-			func_log $FUNC daemon debug "trashline $SIZE_BEFORE: '$LIST'"
+			_log do $FUNC daemon debug "trashline $SIZE_BEFORE: '$LIST'"
 		} done <$TEMP
 		
 		if [ $SIZE_BEFORE -eq 0 ]; then
-			func_log $FUNC daemon debug "but nvram database seems to be empty"
+			_log do $FUNC daemon debug "but nvram database seems to be empty"
 		else
-			func_log $FUNC daemon debug "writing backup with $SIZE_BEFORE lines to '/www/uneraseable_nvram.txt'"
+			_log do $FUNC daemon debug "writing backup with $SIZE_BEFORE lines to '/www/uneraseable_nvram.txt'"
 			nvram show 2>/dev/null >/www/uneraseable_nvram.txt
 		fi
 	fi
@@ -780,14 +780,14 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 					return
 				}
 				
-				func_log $FUNC daemon debug "unknown vendor/model"
+				_log do $FUNC daemon debug "unknown vendor/model"
 			;;
 		esac
 	
 		return
 	}
 
-	func_log $FUNC daemon debug "vendor/model/no: '${9}' / '${10}' / '${8}'"
+	_log do $FUNC daemon debug "vendor/model/no: '${9}' / '${10}' / '${8}'"
 
 	func_need sanitizer
 
@@ -820,7 +820,7 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 			# if wifi-card is changed, there is no need to set wifi_hwaddr,
 			# but if wifi-card is original, then wifi_mac=lan_mac !!!	// we have to test this
 			
-			func_log $FUNC daemon debug "fixme! if wifi-card is original, you have to set wifi_hwaddr"	
+			_log do $FUNC daemon debug "fixme! if wifi-card is original, you have to set wifi_hwaddr"	
 			
 			# func_nvset lan_hwaddr $(nvram get et0macaddr)
 		;;
@@ -840,9 +840,9 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 				# et1macaddr=00:90:4b:39:7b:5e
 				# lan_hwaddr=00:90:4b:39:7b:5e
 			
-				func_log $FUNC daemon alert "must be set manually: It is the mac on the back/downside in the middle, near barcode -2"
-				func_log $FUNC daemon alert "use this commands: 'mymac=00:90:4b:xx:xx:xx ; nvram set et1macaddr=\$mymac'"
-				func_log $FUNC daemon alert "and: 'nvram set lan_hwaddr=\$mymac ; nvram commit ; reboot'"
+				_log do $FUNC daemon alert "must be set manually: It is the mac on the back/downside in the middle, near barcode -2"
+				_log do $FUNC daemon alert "use this commands: 'mymac=00:90:4b:xx:xx:xx ; nvram set et1macaddr=\$mymac'"
+				_log do $FUNC daemon alert "and: 'nvram set lan_hwaddr=\$mymac ; nvram commit ; reboot'"
 			fi
 		;;
 		9|C)

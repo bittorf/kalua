@@ -14,11 +14,11 @@ func_add_experimental_wifi_roaming ()
 	local FUNC="add_experimental_wifi_roaming"
 
 	ip address add $ROAMING_IP4/$ROAMING_PRE dev $WIFIDEV label ${WIFIDEV}:roaming 2>/dev/null && {
-		func_log $FUNC daemon debug "added experimental wifi-roaming-network: $ROAMING_IP4/$ROAMING_PRE to ${WIFIDEV}:roaming"
+		_log do $FUNC daemon debug "added experimental wifi-roaming-network: $ROAMING_IP4/$ROAMING_PRE to ${WIFIDEV}:roaming"
 		return 0
 	}
 	
-	func_log $FUNC daemon debug "error - already set"
+	_log do $FUNC daemon debug "error - already set"
 }
 
 func_add_thight_netmask_to_wifi ()
@@ -26,7 +26,7 @@ func_add_thight_netmask_to_wifi ()
 	local FUNC="add_thight_netmask_to_wifi"
 	
 	[ -z "$WIFI_DHCP_PRE" ] && {
-		func_log $FUNC daemon debug "no wifi-dhcp defined - abort"	
+		_log do $FUNC daemon debug "no wifi-dhcp defined - abort"	
 		return 1
 	}
 	
@@ -34,9 +34,9 @@ func_add_thight_netmask_to_wifi ()
 	
 	if   ip address add $RANGE 2>/dev/null ; then
 	
-		func_log $FUNC daemon debug "added alias interface with wifi-ip: '$RANGE'"
+		_log do $FUNC daemon debug "added alias interface with wifi-ip: '$RANGE'"
 	else
-		func_log $FUNC daemon debug "error - '$RANGE' already set"
+		_log do $FUNC daemon debug "error - '$RANGE' already set"
 	fi
 }
 
@@ -45,16 +45,16 @@ func_apply_wifi_helper_if_only_roaming_network ()
 	local FUNC="apply_wifi_helper_if_no_ip"
 
 	[ -z "$WIFIDEV" ] && {
-		func_log $FUNC daemon debug "no wifi - no helper 8-)"
+		_log do $FUNC daemon debug "no wifi - no helper 8-)"
 		return 0
 	}
 
 	ip -oneline address show dev $WIFIDEV | head -n2 | tail -n1 | grep -q "$ROAMING_IP4/$ROAMING_PRE" || {
-		func_log $FUNC daemon debug "roaming network is not 1st ip - seems fine"
+		_log do $FUNC daemon debug "roaming network is not 1st ip - seems fine"
 		return 0
 	}
 
-	func_log $FUNC daemon debug "roaming-ip is not 2nd (but 1st) ip on wifi-dev, applying helper"
+	_log do $FUNC daemon debug "roaming-ip is not 2nd (but 1st) ip on wifi-dev, applying helper"
 
 	# fixme! works only with broadcom - maybe "func_nvset commit && func_safe_reboot" ???
 
@@ -81,7 +81,7 @@ func_install_fake_dns_server_via_iptables ()
 	local DNS_SERVER="$( nvram get wan_dns | cut -d";" -f1 )"
 	[ -z "$DNS_SERVER" ] && DNS_SERVER=141.1.1.1
 
-	func_log $FUNC daemon debug "working"
+	_log do $FUNC daemon debug "working"
 
 	iptables -$MODE PREROUTING -t nat -p udp --dport 53 -s $LANNET/$LANPRE   -d $LANADR  -j DNAT --to-destination $DNS_SERVER
 	iptables -$MODE PREROUTING -t nat -p udp --dport 53 -s $WIFINET/$WIFIPRE -d $WIFIADR -j DNAT --to-destination $DNS_SERVER
@@ -106,23 +106,23 @@ func_if_possible_set_private_ip_on_interface_with_ip () {
 	local         NETMASK="30"
 	local           RANGE="$( echo $GW | sed 's/^\([0-9]*\.[0-9]*\.[0-9]*\.\).*/\1/' | sed 's/\./\\\./g' )"		# escaped dots
 	
-	func_log $FUNC daemon debug "trying $DEV with address $ADDR"
+	_log do $FUNC daemon debug "trying $DEV with address $ADDR"
 	
 	if [ "$FIRST_3_OKTETTS" != "$RANGE" ]; then
 	
-		func_log $FUNC daemon debug "no conflict: $FIRST_3_OKTETTS != $RANGE , adding virtual ip $VIRTUAL_IP/$NETMASK to $DEV"
+		_log do $FUNC daemon debug "no conflict: $FIRST_3_OKTETTS != $RANGE , adding virtual ip $VIRTUAL_IP/$NETMASK to $DEV"
 		
 		ip addr add $VIRTUAL_IP/$NETMASK dev $DEV label ${DEV}:0
 		ping -c 1 $GW >/dev/null
 		
 		if [ "$?" -ne 0 ]; then											# no ping possible
-			func_log $FUNC daemon debug "ok, leaving virtual ip for debug purposes"
+			_log do $FUNC daemon debug "ok, leaving virtual ip for debug purposes"
 		else													# ping was possible
-			func_log $FUNC daemon debug "removing virtual ip, detected ${GW}er ip"
+			_log do $FUNC daemon debug "removing virtual ip, detected ${GW}er ip"
 			ip addr del $VIRTUAL_IP/$NETMASK dev $DEV label ${DEV}:0
 		fi
 	else
-		func_log $FUNC daemon debug "do nothing, conflict: $FIRST_3_OKTETTS = $RANGE"
+		_log do $FUNC daemon debug "do nothing, conflict: $FIRST_3_OKTETTS = $RANGE"
 	fi
 }
 
@@ -138,12 +138,12 @@ func_apply_wifi_helper_if_only_roaming_network
 [ ! -e /etc/init.d/*dnsmasq ] && {
 	func_install_fake_dns_server_via_iptables
 }
-func_log install_fake_dns_server_via_iptables daemon debug "found installed dnsmasq - do nothing"
+_log do install_fake_dns_server_via_iptables daemon debug "found installed dnsmasq - do nothing"
 
 [ ! -e $SOFTWARE_FULLY_INSTALLED ] && {		# fixme! sideeffects with olsr_plausi_check (same route is doubled)
 	# func_if_possible_set_private_ip_on_interface_with_ip $LANDEV  $LANADR
 	# func_if_possible_set_private_ip_on_interface_with_ip $WANDEV  $WANADR
 	# func_if_possible_set_private_ip_on_interface_with_ip $WIFIDEV $WIFIADR
-	func_log if_possible_set_private_ip_on_interface_with_ip daemon debug "temporarily deactivated"
+	_log do if_possible_set_private_ip_on_interface_with_ip daemon debug "temporarily deactivated"
 }
-func_log if_possible_set_private_ip_on_interface_with_ip daemon debug "software fully installed - do nothing"
+_log do if_possible_set_private_ip_on_interface_with_ip daemon debug "software fully installed - do nothing"

@@ -258,7 +258,7 @@ fkt_fetch_firmware ()
 	} done
 
 	[ "$(func_system_flash_free)" -lt "$FREE_WANTED" ] && {
-		func_log $FUNC daemon crit "could'nt free target-flash space, strange!"
+		_log do $FUNC daemon crit "could'nt free target-flash space, strange!"
 		DESTINATION="/tmp/fw.trx"
 		local FW_IN_RAM="true"
 	}
@@ -267,14 +267,14 @@ fkt_fetch_firmware ()
 	while true; do {
 		
 		wget -c -O "$DESTINATION" "$URL_FIRMWARE_CURRENT" && {
-			func_log $FUNC daemon info "download successful"
+			_log do $FUNC daemon info "download successful"
 			break
 		}
 
 		scheduler -p
 		
 		[ "$(func_system_flash_free)" -lt 120 ] && {
-			func_log $FUNC daemon crit "low flash space, during download?"
+			_log do $FUNC daemon crit "low flash space, during download?"
 			DESTINATION="/tmp/fw.trx"
 			local FW_IN_RAM="true"
 			rm "$DESTINATION"
@@ -288,14 +288,14 @@ fkt_fetch_firmware ()
 			func_safe_reboot "firmware download unseccussful"	# fixme!
 		}
 
-		func_log $FUNC daemon info "something went wrong during download...retrying in 30 sec (try: $RETRY_COUNT)"
+		_log do $FUNC daemon info "something went wrong during download...retrying in 30 sec (try: $RETRY_COUNT)"
 		sleep 30
 	} done
 
 	scheduler -p
 	
 	[ "$FW_IN_RAM" = "true" ] && {
-		func_log $FUNC daemon info "burning firmware directly"
+		_log do $FUNC daemon info "burning firmware directly"
 		/usr/sbin/firmware-burn "$DESTINATION"
 		func_safe_reboot "firmware burning unsuccessful"
 	}
@@ -331,10 +331,10 @@ case $1 in
 			exit
 		}
 		
-		func_log check daemon info "initiating test for new firmware"
+		_log do check daemon info "initiating test for new firmware"
 		
 		[ -e "$LOWFLASH" ] && {
-			func_log check daemon info "LOW_FLASH-device - abort"
+			_log do check daemon info "LOW_FLASH-device - abort"
 			exit
 		}
 		
@@ -351,7 +351,7 @@ case $1 in
 	;;
 	pmu|poor_mens_update)
 		fkt_install_latest_tarball && {
-			func_log poormens_update daemon debug "successfully installed latest tarball - restarting some services"
+			_log do poormens_update daemon debug "successfully installed latest tarball - restarting some services"
 			/etc/init.d/S41build_static_netparam start
 			/etc/init.d/S51crond_fff+ restart
 		
@@ -372,7 +372,7 @@ case $1 in
 		}
 	;;
 	*)
-		func_log print_usage daemon debug "working"
+		_log do print_usage daemon debug "working"
 		echo "Usage: $0 ( start | check | forcecheck | pmu = poor_mens_update | [nopause] = do it as fast as possible without any sleeps [forcemode stable,beta,testing] )"
 	;;
 esac

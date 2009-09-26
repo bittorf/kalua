@@ -8,14 +8,14 @@ fkt_get_size_of_file () {
 	local SIZE=""						# OUT1: integer (filesize in bytes)
 
 	if [ ! -r "$FILE" ]; then
-		func_log $FNAME daemon crit "file unreadable '$FILE'"
+		_log do $FNAME daemon crit "file unreadable '$FILE'"
 	else
 		SIZE="$( ls -l "$FILE" 2>/dev/null | sed -n 's/^[-a-z]* .*[0-9]* [a-z]* * [a-z]* * \([0-9]*\) .*/\1/p;q' | sed 's/[^0-9]//g' )"		# "stat" is n/a
 	fi
 	
 	if [ -z "$SIZE" ]; then
 		SIZE=0
-		func_log $FNAME daemon crit "error - assuming $SIZE bytes"
+		_log do $FNAME daemon crit "error - assuming $SIZE bytes"
 	fi
 	
 	echo $SIZE
@@ -31,7 +31,7 @@ fkt_patch () {
 	local   FILE=0
 
 	if [ "$MODE" != "restore_from_rom" ]; then
-		func_log $FNAME daemon info "patching: '$PATCH'"
+		_log do $FNAME daemon info "patching: '$PATCH'"
 	fi
 	
 	case $PATCH in
@@ -137,11 +137,11 @@ EOF
 		;;
 		cron_minutely_for_verboser_trace_errors)
 			FILE="/usr/sbin/cron.minutely"
-			sed -e 's/"deactivated HNA4 for $defgw"/"deactivated HNA4 for $defgw (trace-error to $ip)"\;\. \/etc\/functions_base_fff+ \&\& func_need log \&\& func_log hna_off daemon alert "trace_failure on $defgw to $ip"/' "$FILE" >"$TEMP"
+			sed -e 's/"deactivated HNA4 for $defgw"/"deactivated HNA4 for $defgw (trace-error to $ip)"\;\. \/etc\/functions_base_fff+ \&\& func_need log \&\& _log do hna_off daemon alert "trace_failure on $defgw to $ip"/' "$FILE" >"$TEMP"
 		;;
 		cron_minutely_for_verboser_hna_on)
 			FILE="/usr/sbin/cron.minutely"
-			sed -e 's/"activated HNA4 for $defgw"/"activated HNA4 for $defgw"\;\. \/etc\/functions_base_fff+ \&\& func_need log \&\& func_log hna_on daemon alert "trace_ok on $defgw"/' "$FILE" >"$TEMP"
+			sed -e 's/"activated HNA4 for $defgw"/"activated HNA4 for $defgw"\;\. \/etc\/functions_base_fff+ \&\& func_need log \&\& _log do hna_on daemon alert "trace_ok on $defgw"/' "$FILE" >"$TEMP"
 		;;
 		login_banner)
 			FILE="/etc/banner"
@@ -175,12 +175,12 @@ EOF
 		local ROMFILE="/rom$FILE"
 	
 		if [ -r "$ROMFILE" ] && [ "$FILE" != "$SYSLOG" ]; then						# dunno why, but syslog is mirrored in rom?
-			func_log $FNAME daemon info "restoring '$FILE' from '$ROMFILE' (ROM)"
+			_log do $FNAME daemon info "restoring '$FILE' from '$ROMFILE' (ROM)"
 			rm -f "$FILE"
 			cp "$ROMFILE" "$FILE"
-			func_log $FNAME daemon info "restored: $( fkt_get_size_of_file "$FILE" ) bytes"
+			_log do $FNAME daemon info "restored: $( fkt_get_size_of_file "$FILE" ) bytes"
 		else
-			func_log $FNAME daemon info "restoring '$FILE' impossible - not in ROM"
+			_log do $FNAME daemon info "restoring '$FILE' impossible - not in ROM"
 			# deleting file in jffs2? would be cleaner...
 		fi
 		
@@ -189,23 +189,23 @@ EOF
 	fi
 
 	if [ ! -r "$FILE" ]; then
-		func_log $FNAME daemon crit "file '$FILE' not readable - aborting (mode:'$PATCH')"
+		_log do $FNAME daemon crit "file '$FILE' not readable - aborting (mode:'$PATCH')"
 		rm -f "$TEMP"
 		return
 	fi
 	
 	SIZE="$( fkt_get_size_of_file "$FILE" )"
-	func_log $FNAME daemon debug "working on '$FILE' - size: $SIZE bytes"
+	_log do $FNAME daemon debug "working on '$FILE' - size: $SIZE bytes"
 	cp "$FILE" "$BACKUP"
 
 	SIZE="$( fkt_get_size_of_file "$TEMP" )"
 
-	func_log $FNAME daemon debug "patched - new size: $SIZE bytes"
+	_log do $FNAME daemon debug "patched - new size: $SIZE bytes"
 
 	if [ $SIZE -ne 0 ]; then
 		rm -f "$FILE"
 		
-		func_log $FNAME daemon notice "working on '$FILE' - writing to media"
+		_log do $FNAME daemon notice "working on '$FILE' - writing to media"
 		
 		cp "$TEMP" "$FILE"
 		chmod +x "$FILE"
@@ -213,17 +213,17 @@ EOF
 		SIZE="$( fkt_get_size_of_file "$FILE" )"
 	
 		if [ $SIZE -ne 0 ] && [ $( fkt_get_size_of_file "$TEMP" ) -eq $SIZE ]; then
-			func_log $FNAME daemon notice "working on '$FILE' ready - size: $SIZE bytes"
+			_log do $FNAME daemon notice "working on '$FILE' ready - size: $SIZE bytes"
 		else
-			func_log $FNAME daemon crit "errors during write on media - size: $SIZE bytes"
+			_log do $FNAME daemon crit "errors during write on media - size: $SIZE bytes"
 			
 			rm -f "$FILE"
 			cp    "$BACKUP" "$FILE"
 			
-			func_log $FNAME daemon crit "errors during write on media, restored backup - now $( fkt_get_size_of_file '$FILE' ) bytes"
+			_log do $FNAME daemon crit "errors during write on media, restored backup - now $( fkt_get_size_of_file '$FILE' ) bytes"
 		fi
 	else
-		func_log $FNAME daemon crit "errors during patching - leaving '$FILE' untouched"
+		_log do $FNAME daemon crit "errors during patching - leaving '$FILE' untouched"
 	fi
 
 	rm "$BACKUP" "$TEMP"
@@ -233,7 +233,7 @@ fkt_generate_logread_replacement () {
 	local FNAME="generate_logread_replacement"
 	local  FILE="/usr/bin/logread.sh"
 
-	func_log $FNAME daemon info "creating $FILE"
+	_log do $FNAME daemon info "creating $FILE"
 
 	cat >$FILE <<EOF
 #!/bin/sh
@@ -421,7 +421,7 @@ LOCKFILE="/tmp/lockfile_patch-o-matic"
 
 if [ -r "$LOCKFILE" ]; then
 	. /bin/needs log
-	func_log check_lockfile daemon crit "lockfile '$LOCKFILE' exists - abort"
+	_log do check_lockfile daemon crit "lockfile '$LOCKFILE' exists - abort"
 	exit
 else
 	touch "$LOCKFILE"
@@ -435,7 +435,7 @@ case $1 in
 		fkt_build_settings_menu				# only needed for generating menu-entrys
 
 		echo $(( $( cat "$REBOOT_COUNT" 2>/dev/null || echo 0 ) + 1 )) >"$REBOOT_COUNT"		# reboot_count++ on each boot
-       		grep -q "kern.warn kernel: " /www/everlasting_syslog.txt && func_log detect_old_oops daemon alert "kernel-oops detected"
+       		grep -q "kern.warn kernel: " /www/everlasting_syslog.txt && _log do detect_old_oops daemon alert "kernel-oops detected"
        
                 	
 		[ ! -r "$FRESHFLASH" ] && {			# we must take care of the

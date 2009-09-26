@@ -25,7 +25,7 @@ func_scheduler_list_queue ()
 {
 	local FUNC="scheduler_list_queue"
 
-	func_log $FUNC daemon info "working"
+	_log do $FUNC daemon info "working"
 	
 	echo "# actual,running queue:"
 	cat $FILE_SCHEDULER_COPY 2>/dev/null || echo -en "# empty!\n\n"
@@ -38,7 +38,7 @@ func_scheduler_print_usage ()
 {
 	local FUNC="scheduler_print_usage"
 	
-	func_log $FUNC daemon info "working"
+	_log do $FUNC daemon info "working"
 
 	cat <<EOF
 
@@ -117,7 +117,7 @@ func_scheduler_task2command ()
 	      software_install_start)   COMMAND="/etc/init.d/S71auto_software_update_fff+ call" ;;
 		      startup_helper)	COMMAND="/etc/init.d/S72filter_fff+ call" ;;
 				   *)   COMMAND="$TASK"
-				        func_log $FUNC daemon debug "user defined: '$COMMAND'" ;;
+				        _log do $FUNC daemon debug "user defined: '$COMMAND'" ;;
 	esac
 	
 	echo "$COMMAND"
@@ -135,7 +135,7 @@ func_scheduler_add ()
 
 		cat ${FILE_SCHEDULER_TMP}1000* 2>/dev/null | head -n1 | grep -q ^"$COMMAND" && {
 		
-			func_log $FUNC daemon debug "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring '$1'"
+			_log do $FUNC daemon debug "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring '$1'"
 			return
 		}
 		
@@ -143,14 +143,14 @@ func_scheduler_add ()
 	else
 		grep -q ^"$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY 2>/dev/null && {
 	
-			func_log $FUNC daemon debug "PID:'$$' - '$TASK' - already in queue, ignoring '$1'"
+			_log do $FUNC daemon debug "PID:'$$' - '$TASK' - already in queue, ignoring '$1'"
 			return
 		}
 		
 		COUNTER="$( date +%s )"		# we need a monotonic + always_same_length-counter here, so better not use $$ (process-id)
 	fi					# this is only true from 2001-Sep-10 ... 2038-Jan-19
 	
-	func_log $FUNC daemon debug "PID:'$$' +'$TASK'"
+	_log do $FUNC daemon debug "PID:'$$' +'$TASK'"
 	echo "$COMMAND   # $TASK" >>${FILE_SCHEDULER_TMP}${COUNTER}
 }
 
@@ -165,7 +165,7 @@ func_scheduler_check_if_every_Nth_minute ()
 	local CARRYOVER="$(( $UPTIME % $1 ))"	# e.g. every = 55 min : 60 % 55 = 5 
 	
 	[ "$CARRYOVER" -eq 0 ] && {
-		func_log scheduler_check_if_every_Nth_minute daemon debug "call '$2' for ${1}th minute, uptime: $UPTIME"
+		_log do scheduler_check_if_every_Nth_minute daemon debug "call '$2' for ${1}th minute, uptime: $UPTIME"
 		return 0
 	}
 
@@ -182,7 +182,7 @@ func_scheduler_wait_till_cpuload_is_low ()
 	
 	while [ $CPU_LOAD -gt $TARGET ]; do {
 		WAIT=$(( 5 + ($CPU_LOAD - $TARGET) / 2 ))
-		func_log $FUNC daemon debug "PID:'$$' - load >=0.$TARGET ($CPU_LOAD) - waiting $WAIT sec (for '$WAITING_TASK')"
+		_log do $FUNC daemon debug "PID:'$$' - load >=0.$TARGET ($CPU_LOAD) - waiting $WAIT sec (for '$WAITING_TASK')"
 		TARGET=$(( $TARGET + 1 ))
 		sleep ${WAIT:-100}
 		CPU_LOAD="$(func_system_get_load 1min)"
@@ -197,14 +197,14 @@ func_scheduler_run ()
 	local LOCKFILE="/tmp/lockfile_scheduler_is_running"
 
 	[ -e $LOCKFILE ] && {
-		func_log $FUNC daemon debug "already running - ignoring call"
+		_log do $FUNC daemon debug "already running - ignoring call"
 		return 1
 	}
 	touch $LOCKFILE
 							# this builds the running queue from temp_queue
 	for FILE in ${FILE_SCHEDULER_TMP}*; do {
 		while read LINE; do {
-			func_log $FUNC daemon debug "fetching '$LINE' from file '$FILE'"
+			_log do $FUNC daemon debug "fetching '$LINE' from file '$FILE'"
 			echo "$LINE" >>$FILE_SCHEDULER
 		} done <$FILE
 		rm $FILE
@@ -213,7 +213,7 @@ func_scheduler_run ()
 	
 	while read LINE; do {
 		func_scheduler_wait_till_cpuload_is_low "$LINE"
-		func_log $FUNC daemon debug "running '$LINE'"
+		_log do $FUNC daemon debug "running '$LINE'"
 		/bin/sh -c "$LINE"
 	} done <$FILE_SCHEDULER
 	

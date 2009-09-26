@@ -33,7 +33,7 @@ func_split_string ()		# ARG1: string
 	} done
 }
 
-_log_do ()				# CALL: func_log my_func_name daemon info "mytext"
+_log_do ()				# CALL: _log do my_func_name daemon info "mytext"
 {
 	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
 
@@ -291,30 +291,30 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 	local NUMBER
 	
 	[ -z "$USER" ] && {
-		func_log $FUNC user crit "username not given - aborting"
+		_log do $FUNC user crit "username not given - aborting"
 		return 1
 	}
 	
 	[ -z "$PASS" ] && {
-		func_log $FUNC user crit "password not given - aborting"
+		_log do $FUNC user crit "password not given - aborting"
 		return 1
 	}
 	
 	[ -z "$TEXT" ] && {
-		func_log $FUNC user crit "text not given - aborting"
+		_log do $FUNC user crit "text not given - aborting"
 		return 1
 	}
 	
 	[ -n "$NOPOST" ] && POST=""
 	
 	NUMBER="$( func_get_number_from_name_in_phonebook "$DEST" )" || {
-		func_log $FUNC user notice "wrong name/number - aborting"
+		_log do $FUNC user notice "wrong name/number - aborting"
 		return 1
 	}
 	
 	[ -n "$POST" ] && TEXT="$TEXT $POST @$( date +%H:%M)uhr"		# append own brand + time
 
-	func_log $FUNC user notice "to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
+	_log do $FUNC user notice "to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
 		
 	_sms_send_sms77 $USER $PASS $NUMBER $(func_url_encode "$TEXT") || {
 		
@@ -335,7 +335,7 @@ _sms_send_sms77 ()
 	local     RC=0
 	local      o 
 
-	func_log $FUNC daemon debug "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}"
+	_log do $FUNC daemon debug "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}"
 	
 	OUT="$( wget -qO - "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}" )"
 	RC=$?
@@ -357,12 +357,12 @@ _sms_send_sms77 ()
 			903) o="serverip wrong" ;;
 			500) o="no credits available" ;;
 			
-			  *) func_log $FUNC user crit "wget-returncode: '$RC' - sms77-answer: '$OUT' - something went wrong"
+			  *) _log do $FUNC user crit "wget-returncode: '$RC' - sms77-answer: '$OUT' - something went wrong"
 			     return 1	# which means - try to send again
 			 ;;
 		esac
 		
-		func_log $FUNC user info "wget-returncode: '$RC' - sms77-answer: '$OUT' ($o)"
+		_log do $FUNC user info "wget-returncode: '$RC' - sms77-answer: '$OUT' ($o)"
 	fi
 }
 
@@ -378,7 +378,7 @@ func_mail_check_pop3_stats () {						# works with busybox-netcat
 	local     RC=0
 	local WINDOW=600						# time in seconds, when pop_before_smtp is valid
 
-	func_log $FUNC user notice "sending data to '$SERVER'"
+	_log do $FUNC user notice "sending data to '$SERVER'"
 
 	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT $SERVER $PORT )"
 
@@ -387,7 +387,7 @@ func_mail_check_pop3_stats () {						# works with busybox-netcat
 
 	if [ $RC -ne 0 ] || [ "$OUT" != "+OK+OK+OK" ]; then				# if all went fine we get 3 x OK
 	
-		func_log $FUNC user crit "returncode: '$RC' - '$SERVER'-answer: '$OUT' - something went wrong"
+		_log do $FUNC user crit "returncode: '$RC' - '$SERVER'-answer: '$OUT' - something went wrong"
 	fi
 }
 
@@ -409,7 +409,7 @@ func_sendmail ()					# ToDo: we need a simple addressbook for phone,email,shortn
 	local           VAR3="$8"	# ARG8, string
 	
 	[ ! -e "$MAILFILE" ] && {
-		func_log $FUNC user crit "can't read '$MAILFILE' - aborting (usage: func_$FUNC myname me@world.org yourname you@world.org mailfile"
+		_log do $FUNC user crit "can't read '$MAILFILE' - aborting (usage: func_$FUNC myname me@world.org yourname you@world.org mailfile"
 		return
 	}
 	
@@ -465,9 +465,9 @@ func_sendmail ()					# ToDo: we need a simple addressbook for phone,email,shortn
 												# fixme! for each RCPT we must add an "2502_"
 	if [ $RC -ne 0 ] || [ "$OUT" != "220_250_2502_2502_354_2502_2212_" ]; then		# error-codes, when all went fine (RCPT=OK=2502)
 	
-		func_log $FUNC user crit "error for recipient '${RECIPIENT_MAIL}': returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAIL'"
+		_log do $FUNC user crit "error for recipient '${RECIPIENT_MAIL}': returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAIL'"
 	else
-		func_log $FUNC user notice "sent mail to '$RECIPIENT_MAIL' went fine"
+		_log do $FUNC user notice "sent mail to '$RECIPIENT_MAIL' went fine"
 		rm "$MAIL"
 	fi
 }

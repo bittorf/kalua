@@ -58,7 +58,7 @@ fkt_sleep_random_seconds_but_max ()
 	local FUNC="sleep_random_seconds_but_max"
 	local WAIT="$(func_get_random_value 0 $1)"
 
-	func_log $FUNC daemon debug "sleeping $WAIT sec"
+	_log do $FUNC daemon debug "sleeping $WAIT sec"
 
 	sleep $WAIT
 }
@@ -83,7 +83,7 @@ fkt_get_ramsize_in_kb ()
 		
 		[ "$MEM" -lt "$BORDER" ] && {
 			. /etc/functions_logging_fff+
-			func_log $FUNC daemon info "$MEM kb - detected lowmem device, with lower than $BORDER kb"
+			_log do $FUNC daemon info "$MEM kb - detected lowmem device, with lower than $BORDER kb"
 			touch /tmp/LOWMEM
 		}
 	}
@@ -128,7 +128,7 @@ fkt_log () {				# SENS: solution for central logging instance with configurable 
 	[ "$0" = "$DAEMON" ] && DAEMON=""
 	[ -z "$FUNC_LOG" ] && . /etc/functions_logging_fff+
 	
-	func_log "(fkt_log) $DAEMON" daemon debug "$TEXT"		# fixme! rewrite all sections, which use fkt_log
+	_log do "(fkt_log) $DAEMON" daemon debug "$TEXT"		# fixme! rewrite all sections, which use fkt_log
 }
 
 fkt_install_software () {			# SENS: simply installs ipkg-pakage without further prompting
@@ -213,18 +213,18 @@ fkt_check_install_status_lowlevel ()	# OUT1: 0 = not_installed , 1 = installed ,
 	
 	ipkg status $SOFTWARE | grep -q ^"Status: install ok installed" && {
 		echo -n 1
-		func_log $FUNC daemon info "'$SOFTWARE' installed ok"
+		_log do $FUNC daemon info "'$SOFTWARE' installed ok"
 		return
 	}
 	
 	ipkg list | grep -q "^$SOFTWARE " && {
 		echo -n 0
-		func_log $FUNC daemon info "'$SOFTWARE' not installed"
+		_log do $FUNC daemon info "'$SOFTWARE' not installed"
 		return
 	}
 	
 	echo -n 2
-	func_log $FUNC daemon info "'$SOFTWARE' not in repository this time"
+	_log do $FUNC daemon info "'$SOFTWARE' not in repository this time"
 }
 
 fkt_build_etc_local_hosts () {				# SENS: modulary builds /etc/local.hosts
@@ -351,7 +351,7 @@ fkt_build_etc_local_hosts () {				# SENS: modulary builds /etc/local.hosts
 			local LIST="/etc/hosts.drop"						# see fff-adblock-list.ipk
 		
 			[ -e $LIST ] && {
-				func_log $FUNC daemon debug "building drop-list"
+				_log do $FUNC daemon debug "building drop-list"
 			
 				local X=0
 				local Y=0
@@ -370,10 +370,10 @@ fkt_build_etc_local_hosts () {				# SENS: modulary builds /etc/local.hosts
 				
 				} done <$LIST >>$SUB_DROP
 				
-				func_log $FUNC daemon debug "bilding drop-list ready ($(( $COUNT + $Y )) hosts)"
+				_log do $FUNC daemon debug "bilding drop-list ready ($(( $COUNT + $Y )) hosts)"
 				return 0
 			}
-			func_log $FUNC daemon debug "no drop-list - do nothing"
+			_log do $FUNC daemon debug "no drop-list - do nothing"
 		;;
 	esac
 }
@@ -628,29 +628,29 @@ fkt_check_if_this_node_offers_inet ()			# SENS: check if default-route is local 
 		[ -n "$( nvram get wan_gateway )" ] && {
 			
 			[ "$( nvram get wan_proto )" = "pppoe" ] && {
-				func_log $FUNC daemon info "early_boot_estimation: pppoe"
+				_log do $FUNC daemon info "early_boot_estimation: pppoe"
 				echo "pppoe"
 				return 0			# fixme!
 			}
 			
-			func_log $FUNC daemon info "early_boot_estimation: wan"
+			_log do $FUNC daemon info "early_boot_estimation: wan"
 			echo "wan"
 			return 0
 		}
 	
 		[ -n "$( nvram get lan_gateway )" ] && {
-			func_log $FUNC daemon info "early_boot_estimation: lan"
+			_log do $FUNC daemon info "early_boot_estimation: lan"
 			echo "lan"
 			return 0
 		}
 
 		/etc/init.d/S52vpnc_fff+ check && {
-			func_log $FUNC daemon info "early_boot_estimation: tun"
+			_log do $FUNC daemon info "early_boot_estimation: tun"
 			echo "tun"
 			return 0
 		}
 
-		func_log $FUNC daemon info "early_boot_estimation: false"
+		_log do $FUNC daemon info "early_boot_estimation: false"
 		echo "false"
 		return 1
 	}
@@ -659,7 +659,7 @@ fkt_check_if_this_node_offers_inet ()			# SENS: check if default-route is local 
 	[ -n "$LAN_GATEWAY" ] && [ -z "$( ip route list exact 0/0 via $LAN_GATEWAY )" ] && {
 
 		[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
-			func_log $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
+			_log do $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
 			echo "lan"
 			return 0		# gets applied during '/etc/local.fw-fff+ masq'
 		}
@@ -687,13 +687,13 @@ fkt_check_if_this_node_offers_inet ()			# SENS: check if default-route is local 
 
 	if [ -z "$METRIC" ]; then				# found no metric = local inet-offer
 
-		func_log $FUNC daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
+		_log do $FUNC daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
 
 		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0/0 -> "default via eth0" or similar
 
 			if [ "$LAN_GATEWAY" = "0.0.0.0" ]; then
 				
-				func_log $FUNC daemon info "NV-RAM mistake, unsetting lan_gateway which was '$LAN_GATEWAY'"
+				_log do $FUNC daemon info "NV-RAM mistake, unsetting lan_gateway which was '$LAN_GATEWAY'"
 				
 				. /etc/functions_nvram_fff+	# fixme!
 				func_nvset lan_gateway 
@@ -720,13 +720,13 @@ fkt_check_if_this_node_offers_inet ()			# SENS: check if default-route is local 
 				fi
 			}
 			
-			func_log $FUNC daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
+			_log do $FUNC daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
 		fi
 	else
 		if [ $N -eq 0 ]; then
-			func_log $FUNC daemon info "no local default-gateway, no default-gateway, no internet 8-("
+			_log do $FUNC daemon info "no local default-gateway, no default-gateway, no internet 8-("
 		else
-			func_log $FUNC daemon info "no local default-gateway found, only $N hops away 8-)"
+			_log do $FUNC daemon info "no local default-gateway found, only $N hops away 8-)"
 		fi
 	fi
                                                                                                                        

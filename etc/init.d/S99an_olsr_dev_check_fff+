@@ -12,13 +12,13 @@ fkt_patch_netparam ()
 	local COPY="/usr/bin/netparam"
 
 	[ "$MODE" = "restore" ] && {
-		func_log $FUNC daemon info "restoring '$COPY' from '$ORIG' (or copy already made)"
+		_log do $FUNC daemon info "restoring '$COPY' from '$ORIG' (or copy already made)"
 		rm $COPY
 		cp $ORIG $COPY
 		return
 	}
 	
-	func_log $FUNC daemon info "generating new '$COPY', simulating wifi-olsr-only device"
+	_log do $FUNC daemon info "generating new '$COPY', simulating wifi-olsr-only device"
 	
 	rm $COPY
 	echo -en "#!/bin/sh\n\ncat<<EOF\n"  >$COPY 	# intro of script
@@ -43,9 +43,9 @@ fkt_check_if_only_wifi_olsr ()
 	
 	if [ "$COUNT_ALL" = "$COUNT_WIFI" ] && [ "$COUNT_WIFI" != "0" ]; then		# fixme! this does not work for tun/tap-neighbours / VPN!
 		
-		func_log $FUNC daemon info "only wifi-olsr"
+		_log do $FUNC daemon info "only wifi-olsr"
 	else
-		func_log $FUNC daemon info "olsr also (or only) on wired-interfaces"
+		_log do $FUNC daemon info "olsr also (or only) on wired-interfaces"
 		return 1
 	fi
 }
@@ -66,17 +66,17 @@ case $1 in
 		
 		OUT_OLSR="$(func_olsr_get_neighbours)" && {
 			func_olsr_check_if_any_nonwifi_neigh $OUT_OLSR && {
-				func_log recheck daemon info "no need for recheck, there are non_wifi neighbours"
+				_log do recheck daemon info "no need for recheck, there are non_wifi neighbours"
 				exit
 			}
 		}
 	
 		fkt_patch_netparam restore
 		
-		func_log recheck daemon info "restart OLSRd using parameters of actual netparam-script"
+		_log do recheck daemon info "restart OLSRd using parameters of actual netparam-script"
 		/etc/init.d/S53olsrd restart
 		
-		func_log recheck daemon info "waiting 120 seconds"
+		_log do recheck daemon info "waiting 120 seconds"
 		
 		fkt_check_if_only_wifi_olsr && {
 			fkt_patch_netparam replace
@@ -84,14 +84,14 @@ case $1 in
 		}
 	;;
 	restart_olsr)
-		func_log restart_olsr daemon info "using parameters of actual netparam-script"
+		_log do restart_olsr daemon info "using parameters of actual netparam-script"
 		/etc/init.d/S53olsrd restart
 	;;
 	start)
 		scheduler -a "$0 call"	
 	;;
 	*)
-		func_log output_help daemon info "printing"
+		_log do output_help daemon info "printing"
 		echo "Usage: $0 (call|replace|recheck|restart_olsr)"
 	;;
 esac

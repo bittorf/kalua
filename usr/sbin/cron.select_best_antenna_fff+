@@ -27,7 +27,7 @@ esac
 [ -n "$BEST_ANT" ] && {
 	WIFI_DEV="$WIFI_DEVS"	# fixme!
 	[ "$(func_wifi_get_antenna_rx $WIFI_DEV)$(func_wifi_get_antenna_tx $WIFI_DEV)" != "${BEST_ANT}${BEST_ANT}" ] && {
-		func_log check_for_special_devices daemon info "unmodified '$ROUTER_VENDOR/$ROUTER_MODEL' or enforced, using antenna A on dev '$WIFI_DEV'"
+		_log do check_for_special_devices daemon info "unmodified '$ROUTER_VENDOR/$ROUTER_MODEL' or enforced, using antenna A on dev '$WIFI_DEV'"
 		func_wifi_set_antenna_rx $WIFI_DEV $BEST_ANT
 		func_wifi_set_antenna_tx $WIFI_DEV $BEST_ANT
 	}
@@ -36,7 +36,7 @@ esac
 
 [ "$(func_wifi_get_mode)" != "adhoc" ] && {	# fixme! can only work, when there is traffic, e.g. in mesh-mode
 
-	func_log check_wifi_mode daemon info "not in adhoc-mode, unreliable measuring!"
+	_log do check_wifi_mode daemon info "not in adhoc-mode, unreliable measuring!"
 }
 
 func_received_wifi_olsr_packets ()	# fixme! if chain is missing?
@@ -51,7 +51,7 @@ func_received_wifi_olsr_bytes ()	# fixme! if chain is missing?
 
 func_reset_received_wifi_olsr_counter ()	# fixme! - outsource to packetfilter?
 {
-	func_log reset_received_wifi_olsr_counter daemon info "working"
+	_log do reset_received_wifi_olsr_counter daemon info "working"
 	iptables -R olsr_in_wifi 1 --set-counters 0 0 -j olsr_in_sanitizer	# wifi/wired mixed doesn't matter, error is twice the same
 }
 
@@ -75,7 +75,7 @@ func_test_wifi_dev ()
 	func_wifi_set_antenna_tx   $WIFI_DEV 0
 	func_reset_received_wifi_olsr_counter		# fixme! maybe chain doesn't exist?
 	
-	func_log $FUNC daemon info "counting incoming data for $INTERVAL seconds on antenna A"
+	_log do $FUNC daemon info "counting incoming data for $INTERVAL seconds on antenna A"
 	sleep $INTERVAL
 	local PACKETS_A="$( func_received_wifi_olsr_packets )"; PACKETS_A=${PACKETS_A:=0}
 	local BYTES_A="$(   func_received_wifi_olsr_bytes )"; BYTES_A=${BYTES_A:=0}
@@ -87,14 +87,14 @@ func_test_wifi_dev ()
 	func_wifi_set_antenna_tx   $WIFI_DEV 1
 	func_reset_received_wifi_olsr_counter
 	
-	func_log $FUNC daemon info "counting incoming data for $INTERVAL seconds on antenna B"
+	_log do $FUNC daemon info "counting incoming data for $INTERVAL seconds on antenna B"
 	sleep $INTERVAL
 	
 	local PACKETS_B="$( func_received_wifi_olsr_packets )"; PACKETS_B=${PACKETS_B:=0}
 	local BYTES_B="$(   func_received_wifi_olsr_bytes )"; BYTES_B=${BYTES_B:=0}
 	local DEV_PACKETS_B="$(  func_wifi_get_tx_and_rx $WIFI_DEV | sed -n 's/^WIFI_RX_PACKETS=\([0-9]*\)/\1/p' )"
 	
-	func_log $FUNC daemon info "dev_packets init/a/b: '$DEV_PACKETS_INITIAL'/'$DEV_PACKETS_A'/'$DEV_PACKETS_B'"
+	_log do $FUNC daemon info "dev_packets init/a/b: '$DEV_PACKETS_INITIAL'/'$DEV_PACKETS_A'/'$DEV_PACKETS_B'"
 	
 	DEV_PACKETS_B="$(( $DEV_PACKETS_B - $DEV_PACKETS_A ))"
 	DEV_PACKETS_A="$(( $DEV_PACKETS_A - $DEV_PACKETS_INITIAL ))"
@@ -107,14 +107,14 @@ func_test_wifi_dev ()
 
 	INFO="interval: ${INTERVAL}s packet_diff: ${DIFF1}% antenna_a/b_packets/bytes/dev_packets: $PACKETS_A/$PACKETS_B|$BYTES_A/$BYTES_B|$DEV_PACKETS_A/$DEV_PACKETS_B"
 	
-	func_log $FUNC daemon info "$INFO"
+	_log do $FUNC daemon info "$INFO"
 
 	  if [ $PACKETS_A -gt $PACKETS_B ]; then			# compare packets, fixme! maye zero vars?
-		func_log compare_packets daemon info "a > b"
+		_log do compare_packets daemon info "a > b"
 	elif [ $PACKETS_B -gt $PACKETS_A ]; then
-		func_log compare_packets daemon info "a < b"
+		_log do compare_packets daemon info "a < b"
 	else
-		func_log compare_packets daemon info "a = b"
+		_log do compare_packets daemon info "a = b"
 	fi
 
 	local PRIO="alert"			# for logger
@@ -123,7 +123,7 @@ func_test_wifi_dev ()
 	  if [ $BYTES_A -gt $BYTES_B ] && [ $PACKETS_A -ne $PACKETS_B ]; then			# compare bytes
 	  
 	  	[ "$ANTENNA_INITIAL" = "A" ] && PRIO="info"
-		func_log compare_bytes daemon $PRIO "$INFO - bytes_a > bytes_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
+		_log do compare_bytes daemon $PRIO "$INFO - bytes_a > bytes_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
 
 		func_wifi_set_antenna_rx   $WIFI_DEV 0
 		func_wifi_set_antenna_tx   $WIFI_DEV 0
@@ -131,14 +131,14 @@ func_test_wifi_dev ()
 	elif [ $BYTES_B -gt $BYTES_A ] && [ $PACKETS_A -ne $PACKETS_B ]; then
 	
 		[ "$ANTENNA_INITIAL" = "B" ] && PRIO="info"
-		func_log compare_bytes daemon $PRIO "$INFO - bytes_a < bytes_b (initial was: $ANTENNA_INITIAL - leaving antenna selection on B)"
+		_log do compare_bytes daemon $PRIO "$INFO - bytes_a < bytes_b (initial was: $ANTENNA_INITIAL - leaving antenna selection on B)"
 	else
-		func_log compare_bytes daemon info "bytes_a = bytes_b or packets_a = packets_b, taking received dev_packets into account"
+		_log do compare_bytes daemon info "bytes_a = bytes_b or packets_a = packets_b, taking received dev_packets into account"
 		
 		  if [ $DEV_PACKETS_A -gt $DEV_PACKETS_B ]; then			# compare dev_packets
 		
 			[ "$ANTENNA_INITIAL" = "A" ] && PRIO="info"
-			func_log compare_devpackets daemon $PRIO "$INFO - dev_packets_a > dev_packets_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
+			_log do compare_devpackets daemon $PRIO "$INFO - dev_packets_a > dev_packets_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
 			
 			func_wifi_set_antenna_rx   $WIFI_DEV 0
 			func_wifi_set_antenna_tx   $WIFI_DEV 0
@@ -146,28 +146,28 @@ func_test_wifi_dev ()
 		elif [ $DEV_PACKETS_B -gt $DEV_PACKETS_A ]; then
 	
 			[ "$ANTENNA_INITIAL" = "B" ] && PRIO="info"
-			func_log compare_devpackets daemon $PRIO "$INFO - a < b (initial was: $ANTENNA_INITIAL - leaving antenna selection B)"
+			_log do compare_devpackets daemon $PRIO "$INFO - a < b (initial was: $ANTENNA_INITIAL - leaving antenna selection B)"
 		else
 			[ "$ANTENNA_INITIAL" = "B" ] && PRIO="info"
-			func_log compare_devpackets daemon $PRIO "$INFO - a = b (initial was: $ANTENNA_INITIAL - leaving antenna selection B)"
+			_log do compare_devpackets daemon $PRIO "$INFO - a = b (initial was: $ANTENNA_INITIAL - leaving antenna selection B)"
 		fi
 	fi
 }
 
 for WIFI_DEV in $WIFI_DEVS; do {
 
-	func_log loop_wifi_devs daemon info "measuring '$WIFI_DEV'"
+	_log do loop_wifi_devs daemon info "measuring '$WIFI_DEV'"
 
 	if [ "$1" = "force" ] || [ "$1" = "fastcheck" ] || [ "$(func_wifi_get_antenna_rx $WIFI_DEV)" = "auto" ] || [ "$(func_wifi_get_antenna_rx $WIFI_DEV)" != "$(func_wifi_get_antenna_tx $WIFI_DEV)" ]; then
 		
 		func_test_wifi_dev $WIFI_DEV "$1"		# fixme! maybe only change settings, if
 								# there is an significant procentual change?!
 	else
-		func_log check_wifi_devs user info "${WIFI_DEV}: antenna-selection is not auto or strange, do nothing"
+		_log do check_wifi_devs user info "${WIFI_DEV}: antenna-selection is not auto or strange, do nothing"
 	fi
 	
-	func_log loop_wifi_devs daemon info "measure ready"
+	_log do loop_wifi_devs daemon info "measure ready"
 } done
 
-[ -z "$WIFI_DEVS" ] && func_log check_wifi_devs daemon crit "no wifi installed?"
+[ -z "$WIFI_DEVS" ] && _log do check_wifi_devs daemon crit "no wifi installed?"
 

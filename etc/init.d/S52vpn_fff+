@@ -13,7 +13,7 @@ DIRTY=
 [ ! -e "$SOFTWARE_FULLY_INSTALLED" ]		&& DIRTY="software not fully installed"
 
 [ -n "$DIRTY" ] && {
-	func_log init daemon debug "call: '$1' - abort: '$DIRTY'"
+	_log do init daemon debug "call: '$1' - abort: '$DIRTY'"
 	exit
 }
 
@@ -64,9 +64,9 @@ $HOSTNAME {
 }
 EOF
 
-	func_log $FUNC daemon debug "ready"
+	_log do $FUNC daemon debug "ready"
 	while read LINE; do {
-		func_log $FUNC daemon debug "${VTUN} +'$LINE'"
+		_log do $FUNC daemon debug "${VTUN} +'$LINE'"
 	} done <$VTUN
 }
 
@@ -75,7 +75,7 @@ fkt_tunnel_conf_remove ()
 	local FUNC="tunnel_conf_remove"
 
 	[ -e $VTUN ] && {
-		func_log $FUNC daemon debug "working"
+		_log do $FUNC daemon debug "working"
 		rm $VTUN
 	}
 }
@@ -87,26 +87,26 @@ fkt_tunnel_start ()
 	local FUNC="tunnel_start"
 	
 	[ ! -e "$VTUN" ] && {
-		func_log $FUNC daemon debug "no configfile - abort"
+		_log do $FUNC daemon debug "no configfile - abort"
 		return
 	}
 	
 	lsmod | grep -q ^tun || insmod tun || {
-		func_log $FUNC daemon debug "error during 'insmod tun'"
+		_log do $FUNC daemon debug "error during 'insmod tun'"
 	}        
 	
-	func_log $FUNC daemon debug "starting vtun with config '$VTUN'"
+	_log do $FUNC daemon debug "starting vtun with config '$VTUN'"
 	
 	vtund $HOSTNAME $SERV 2>/dev/null || {
 
-		func_log $FUNC daemon debug "error"	
+		_log do $FUNC daemon debug "error"	
 		
 		func_ipkg_is_not_installed vtun && ERROR_INSTALL=true
 		func_ipkg_is_not_installed kmod-tun && ERROR_INSTALL=true
 		
 		if [ "$ERROR_INSTALL" = "true" ]; then
 		
-			func_log $FUNC daemon debug "vtund and/or kmod-tun not installed"
+			_log do $FUNC daemon debug "vtund and/or kmod-tun not installed"
 		
 			fkt_tunnel_conf_remove
 			
@@ -121,7 +121,7 @@ fkt_tunnel_start ()
 		else
 			vtund - 2>/dev/null | grep -q -i vtun || {
 			
-				func_log $FUNC daemon debug "vtund is installed, but has an serious problem"
+				_log do $FUNC daemon debug "vtund is installed, but has an serious problem"
 
 				# under mysterious circumstances (e.g. low disk space during installing),
 				# vtund claims to have a "bus error", so we should reinstall it
@@ -145,19 +145,19 @@ fkt_tunnel_stop ()
 	
 	pidof vtund >/dev/null && {
 
-		func_log $FUNC daemon debug "killing tunnel-daemon"		
+		_log do $FUNC daemon debug "killing tunnel-daemon"		
 		killall vtund
 		sleep 2
 	
 		pidof vtund >/dev/null && {
 
-			func_log $FUNC daemon debug "daemon still alive, trying hard"
+			_log do $FUNC daemon debug "daemon still alive, trying hard"
 			killall -9 vtund
 			sleep 2
 			
 			pidof vtund >/dev/null && {
 
-				func_log $FUNC daemon debug "daemon still alive - error"
+				_log do $FUNC daemon debug "daemon still alive - error"
 			}
 		}
 	}
@@ -168,7 +168,7 @@ fkt_olsr_conf_remove ()
 	local FUNC="olsr_conf_remove"
 	
 	[ -e $CONF ] && {
-		func_log $FUNC daemon debug "working"
+		_log do $FUNC daemon debug "working"
 		rm $CONF
 	}	
 }
@@ -210,9 +210,9 @@ Interface "$INTERFACE" {
 }
 EOF
 
-	func_log $FUNC daemon debug "ready"
+	_log do $FUNC daemon debug "ready"
 	while read LINE; do {
-		func_log $FUNC daemon debug "${CONF} +'$LINE'"
+		_log do $FUNC daemon debug "${CONF} +'$LINE'"
 	} done <$CONF
 }
 
@@ -249,11 +249,11 @@ func_sending_request_to_vpnserver_for_participation ()
 	QUERY="${QUERY}&EMAIL=$( _sanitizer "${ADMINMAIL:=unset@box.local}" urlvalue )"
 	QUERY="${QUERY}&COMMENT=city${FFF_CITY}_node${NODE_NUMBER}_profile$( nvram get fff_profile )"
 
-	func_log $FUNC daemon debug "query: '${URL}${QUERY}'"
+	_log do $FUNC daemon debug "query: '${URL}${QUERY}'"
 	
 	OUTPUT="$( wget 2>/dev/null -O - "${URL}${QUERY}" )"	# fixme! encode unsafe URL chars (like email above)
 
-	func_log $FUNC daemon debug "answer: '$OUTPUT'"
+	_log do $FUNC daemon debug "answer: '$OUTPUT'"
 }
 
 func_vpn_start ()
@@ -261,12 +261,12 @@ func_vpn_start ()
 	local FUNC="func_vpn_start"
 
 	[ $INETOFFER = "false" ] && {
-		func_log $FUNC daemon debug "no local default gateway - abort"
+		_log do $FUNC daemon debug "no local default gateway - abort"
 		return 1
 	}
 
 	[ -z "$NODE_NUMBER" ] && {
-		func_log $FUNC daemon debug "node not configured yet - abort"
+		_log do $FUNC daemon debug "node not configured yet - abort"
 		return 1
 	}
 		
@@ -280,7 +280,7 @@ func_vpn_start ()
 			scheduler -a restart_olsr
 			return
 		}
-		func_log $FUNC daemon debug "OLSRd not up, no need for restart"
+		_log do $FUNC daemon debug "OLSRd not up, no need for restart"
 	}
 }
 
@@ -296,30 +296,30 @@ func_vpn_status ()
 	FUNC="vpn_status"
 	
 	pidof vtund >/dev/null && {
-		func_log $FUNC daemon debug "daemon running"
+		_log do $FUNC daemon debug "daemon running"
 
 		grep -q ^"Interface .*tap0" /etc/olsrd.conf || {	# fixme! more abstraction: tun/tapXY + conf-filename
-			func_log $FUNC daemon debug "daemon running but tunnel-device not used by olsr"
+			_log do $FUNC daemon debug "daemon running but tunnel-device not used by olsr"
 			return 1
 		}
-		func_log $FUNC daemon debug "tunnel-device is in olsr.conf"
+		_log do $FUNC daemon debug "tunnel-device is in olsr.conf"
 		
 		ps ax | grep vtund | grep -q connecting && {
-			func_log $FUNC daemon debug "daemon running but connection seems broken"
+			_log do $FUNC daemon debug "daemon running but connection seems broken"
 			return 1
 		}
-		func_log $FUNC daemon debug "connection seems active"
+		_log do $FUNC daemon debug "connection seems active"
 		
 		neigh | grep -q "==1==" || {				# fixme! implement: 'neigh has_tunnel_neigh'
-			func_log $FUNC daemon debug "no tunnel-olsr neighs?"
+			_log do $FUNC daemon debug "no tunnel-olsr neighs?"
 			return 1
 		}
-		func_log $FUNC daemon debug "tunnel-olsr neigh available"
+		_log do $FUNC daemon debug "tunnel-olsr neigh available"
 		
 		return 0
 	}
 	
-	func_log $FUNC daemon debug "daemon NOT running"
+	_log do $FUNC daemon debug "daemon NOT running"
 	return 1
 }
 
@@ -337,13 +337,13 @@ case $1 in
 		func_vpn_status && {
 	
 			[ "$INETOFFER" = "false" ] && {
-				func_log restart daemon debug "no more inetoffer, stop running vpn"
+				_log do restart daemon debug "no more inetoffer, stop running vpn"
 				func_vpn_stop
 				exit
 			}
 		
 			[ "$2" != "--force" ] && {
-				func_log restart daemon debug "ignoring call"
+				_log do restart daemon debug "ignoring call"
 				exit
 			}
 		}

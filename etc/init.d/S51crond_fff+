@@ -11,16 +11,16 @@ func_cron_daemon_start ()
 	local FUNC="cron_daemon_start"
 	
 	pidof crond >/dev/null && {
-		func_log $FUNC daemon debug "already started"
+		_log do $FUNC daemon debug "already started"
 		return
 	}
 	
 	/usr/sbin/crond -L /dev/null || {
-		func_log $FUNC daemon debug "error"
+		_log do $FUNC daemon debug "error"
 		return
 	}
 	
-	func_log $FUNC daemon debug "daemon started"
+	_log do $FUNC daemon debug "daemon started"
 }
 
 func_cron_daemon_stop ()
@@ -28,12 +28,12 @@ func_cron_daemon_stop ()
 	local FUNC="cron_daemon_stop"
 	
 	pidof crond >/dev/null && {
-		func_log $FUNC daemon debug "killing"
+		_log do $FUNC daemon debug "killing"
 		killall crond
 		return
 	}
 	
-	func_log $FUNC daemon debug "no daemon running"
+	_log do $FUNC daemon debug "no daemon running"
 }
 
 func_cron_start ()
@@ -52,11 +52,11 @@ func_cron_status ()
 	local FUNC="cron_status"
 	
 	pidof crond >/dev/null || {
-		func_log $FUNC daemon debug "daemon is NOT running"
+		_log do $FUNC daemon debug "daemon is NOT running"
 		return
 	}
 	
-	func_log $FUNC daemon debug "daemon is running"
+	_log do $FUNC daemon debug "daemon is running"
 	func_cron_config_write status
 }
 
@@ -72,7 +72,7 @@ func_cron_config_write ()
 	local PROFILE="$1"
 
 	[ "$PROFILE" = "status" ] && {
-		func_log $FUNC daemon debug "status: '$CRONFILE'"
+		_log do $FUNC daemon debug "status: '$CRONFILE'"
 		cat $CRONFILE
 		return
 	}
@@ -93,14 +93,14 @@ func_cron_config_write ()
 
 	if [ "$PROFILE" = "minimal" ]; then
 
-		func_log $FUNC daemon debug "profile = minimal"
+		_log do $FUNC daemon debug "profile = minimal"
 		cat >$CRONFILE <<EOF
 *    * * * * pidof cron.minutely >/dev/null || /usr/sbin/cron.minutely; pidof S69watch_olsrd_fff+ >/dev/null || /etc/init.d/S69watch_olsrd_fff+ watch_hanging_command
 */15 * * * * sleep 6; pidof S69watch_olsrd_fff+ >/dev/null || /etc/init.d/S69watch_olsrd_fff+ ; scheduler -a 1h_checks -a software_install -r
 0    4 * * * scheduler -a fwupdate_check
 EOF
 	elif [ "$PROFILE" = "nano" ]; then
-		func_log $FUNC daemon debug "profile = nano"
+		_log do $FUNC daemon debug "profile = nano"
 		cat >$CRONFILE <<EOF
 * * * * * /usr/sbin/cron.minutely
 EOF
@@ -108,7 +108,7 @@ EOF
 	
 	# we try to call the scheduler each for each, not all at one point
 	
-		func_log $FUNC daemon debug "profile = standard"	
+		_log do $FUNC daemon debug "profile = standard"	
 		cat >$CRONFILE <<EOF
 *    * * * * pidof cron.minutely >/dev/null || /usr/sbin/cron.minutely; /usr/sbin/cron.build_vars build; scheduler -u -o -s 17 -a speedtest_every_40min -a whitelist_rebuild_every_3h -a whitelist_update_every_15h -a upgrade_packages -r
 */15 * * * * sleep  8; scheduler -a gateway_check $VDS -a 15min_checks -a user_traff_broadcast -a build_accounting -a kick_user_over_limit -A watch_hanging_command \$( [ "\$(date +%M)" = "00" ] && echo "-a 1h_checks -a restart_vpn" )
@@ -120,7 +120,7 @@ EOF
 	fi
 
 	while read LINE; do {
-		func_log $FUNC daemon debug "+ '$LINE'"
+		_log do $FUNC daemon debug "+ '$LINE'"
 	} done <$CRONFILE
 }
 

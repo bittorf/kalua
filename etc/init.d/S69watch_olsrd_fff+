@@ -12,7 +12,7 @@ func_watch_hanging_command ()
 	local COMMAND_PID="$( pidof -s $COMMAND )"			# any running process?
 	
 	[ -z "$COMMAND_PID" ] && {
-		func_log $FUNC daemon debug "no running '$COMMAND'-process"
+		_log do $FUNC daemon debug "no running '$COMMAND'-process"
 		return 0
 	}
 	
@@ -25,16 +25,16 @@ func_watch_hanging_command ()
 	[ -e "$FILE1" ] && OLD_PID="$( cat $FILE1 )"
 	[ -e "$FILE2" ] && OLD_CMD="$( cat $FILE2 )"
 
-	func_log $FUNC daemon debug "found '$COMMAND'-process '$COMMAND_PID' / '$COMMAND_CMD'"
+	_log do $FUNC daemon debug "found '$COMMAND'-process '$COMMAND_PID' / '$COMMAND_CMD'"
 
 	if [ "$OLD_PID" = "$COMMAND_PID" ] && [ "$OLD_CMD" = "$COMMAND_CMD" ]; then
 
-		func_log $FUNC daemon err "killing '$COMMAND_CMD'"
+		_log do $FUNC daemon err "killing '$COMMAND_CMD'"
 		kill $COMMAND_PID
 		sleep 3
 		
 		[ -e "/proc/$COMMAND_PID" ] && {
-			func_log $FUNC daemon crit "still hanging, killing hard"
+			_log do $FUNC daemon crit "still hanging, killing hard"
 			kill -9 $COMMAND_PID
 			sleep 3
 		
@@ -44,11 +44,11 @@ func_watch_hanging_command ()
 			}
 		}
 			
-		func_log $FUNC daemon info "successfully killed"
+		_log do $FUNC daemon info "successfully killed"
 		return
 	fi
 
-	func_log $FUNC daemon debug "remember for next check '$COMMAND_PID' / '$COMMAND_CMD'"
+	_log do $FUNC daemon debug "remember for next check '$COMMAND_PID' / '$COMMAND_CMD'"
 	echo >$FILE1 "$COMMAND_PID"
 	echo >$FILE2 "$COMMAND_CMD"
 }
@@ -71,7 +71,7 @@ func_watch_hanging_netcat ()
 	else
 		if [ -e "$OLD" ]; then
 			[ "$PID" = "$( cat "$OLD" )" ] && {
-				func_log $FUNC daemon err "killing '$PID'"
+				_log do $FUNC daemon err "killing '$PID'"
 				kill "$PID"
 				rm "$OLD"
 			}
@@ -87,7 +87,7 @@ _needs vars_old olsr wifi netparam
 
 [ "$(func_wifi_get_mode $WIFIDEV config)" != "$(func_wifi_get_mode $WIFIDEV)" ] && {		# adhoc in config but managed in real?
 
-	func_log compare_config_and_real_wifi_mode daemon alert "differs! real: '$(func_wifi_get_mode $WIFIDEV)' restarting wifi_phy '$WIFIDEV'"
+	_log do compare_config_and_real_wifi_mode daemon alert "differs! real: '$(func_wifi_get_mode $WIFIDEV)' restarting wifi_phy '$WIFIDEV'"
 	func_wifi_restart_phy $WIFIDEV
 	sleep 30				# lets settle down, to get some neighbours
 }
@@ -96,16 +96,16 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 
 	  if ! func_wifi_phy_probe_online $WIFIDEV ; then	# maybe its switched off by admin
 	
-		func_log meshmode_but_no_wifi_neighs daemon debug "radio is off, no further tests"
+		_log do meshmode_but_no_wifi_neighs daemon debug "radio is off, no further tests"
 		continue	
 	
 	elif [ "$(func_uptime min)" -lt 5 ]; then		# olsrd needs some time
 	
-		func_log meshmode_but_no_wifi_neighs daemon debug "uptime <5 min, no further tests"
+		_log do meshmode_but_no_wifi_neighs daemon debug "uptime <5 min, no further tests"
 		continue
 	
 	elif neigh check4wifi ; then
-		func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
+		_log do meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
 
 		OPTIMIGE_TARGET_NLQ="$( nvram get fff_optimize_nlq   )"		# 0...1000 (integer)
 		OPTIMIZE_NEIGH="$(      nvram get fff_optimize_neigh )"		# IPv4, 'gateway' or <empty> = any
@@ -123,11 +123,11 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 		if [ -n "$OPTIMIZE_NEIGH" ]; then						# fixme! we must detect interface for neigh,
 												#        to tune the correct antenna
 			BEST_WIFI_NLQ="$( neigh get_nlq $OPTIMIZE_NEIGH )"
-			func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, optimizing for $OPTIMIZE_NEIGH, nlq_now: ${BEST_WIFI_NLQ:=0}"
+			_log do meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, optimizing for $OPTIMIZE_NEIGH, nlq_now: ${BEST_WIFI_NLQ:=0}"
 			echo $OPTIMIZE_NEIGH >/tmp/WIFI_OPTIMIZE_NEIGH		# for RRD-tool
 		else
 			BEST_WIFI_NLQ="$( neigh best_wifi_nlq )"							# fixme! maybe check 'my' wifi_gateway?
-			func_log meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, nlq_now: $BEST_WIFI_NLQ"	#	 and check if I'am a wifi_gateway?
+			_log do meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, nlq_now: $BEST_WIFI_NLQ"	#	 and check if I'am a wifi_gateway?
 		fi
 
 		BEST_WIFI_NLQ_LAST="$( cat /tmp/BEST_WIFI_NLQ_LAST 2>/dev/null )"
@@ -144,29 +144,29 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 	 		#      650-600 = 50 > 600 / 20 = 30 ? -> lowering_tx_power	// this is for absorbe "pulsing" tx_power
 	 	
 	 		if [ $(( $BEST_WIFI_NLQ - $OPTIMIGE_TARGET_NLQ )) -gt $(( $OPTIMIGE_TARGET_NLQ / 20 )) ]; then
-	 			func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ: -$TXPWR_STEP ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
+	 			_log do meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ: -$TXPWR_STEP ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
 				func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
 			else
-				func_log meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ, low diff, do nothing ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
+				_log do meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ, low diff, do nothing ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
 			fi
 		else
 			if [ "$BEST_WIFI_NLQ" -lt "$BEST_WIFI_NLQ_LAST" ]; then			# fixme! use hysteresis
 	
 				case "$( cat /tmp/WIFI_TREND_TXPOWER_${WIFIDEV} 2>/dev/null || echo '-' )" in
 					"=")
-						func_log meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough, do nothing, last txpower-change was '='"
+						_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough, do nothing, last txpower-change was '='"
 					;;
 					"+")
-						func_log meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: -$TXPWR_STEP"
+						_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: -$TXPWR_STEP"
 						func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
 					;;
 					"-")
-						func_log meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: +$TXPWR_STEP (last txpower-change was '-')"
+						_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: +$TXPWR_STEP (last txpower-change was '-')"
 						func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP add overturn
 					;;
 				esac
 			else
-				func_log meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') but higher or equal than in last round: +$TXPWR_STEP"
+				_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') but higher or equal than in last round: +$TXPWR_STEP"
 				func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP add overturn
 			fi
 		fi										# fixme! add aftercheck + alert.log when successful
@@ -174,7 +174,7 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 		echo "0" >/tmp/wifi_error_counter
 	else
 		[ "$( func_wifi_get_bssid $WIFIDEV )" != "$( func_wifi_get_bssid $WIFIDEV config )" ] && {	# fixme! empty config bssid?
-			func_log meshmode_but_no_wifi_neighs daemon alert "BSSID error: '$( func_wifi_get_bssid $WIFIDEV )'/'$( func_wifi_get_bssid $WIFIDEV config )'"
+			_log do meshmode_but_no_wifi_neighs daemon alert "BSSID error: '$( func_wifi_get_bssid $WIFIDEV )'/'$( func_wifi_get_bssid $WIFIDEV config )'"
 			func_wifi_restart_phy $WIFIDEV
 		}
 		
@@ -193,7 +193,7 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 		COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
 		COUNT="$(( ${COUNT:=0} + 1 ))"
 	
-		func_log meshmode_but_no_wifi_neighs daemon info "raising counter to ${COUNT}/15"
+		_log do meshmode_but_no_wifi_neighs daemon info "raising counter to ${COUNT}/15"
 		
 		[ $COUNT -gt 15 ] && {
 			func_safe_reboot "meshmode_but_no_wifi_neighs for a long time (counter: '${COUNT}')"	# 15 * 15 mins = 4 hours
@@ -210,32 +210,32 @@ else							# master or client-mode
 
 		if neigh check4nonwifi ; then		# fixme! check for zero bssid!
 
-			func_log no_meshmode_and_no_neighs daemon debug "found wired neigh"
+			_log do no_meshmode_and_no_neighs daemon debug "found wired neigh"
 			echo "0" >/tmp/wifi_error_counter
 		else
 			  if ! func_wifi_phy_probe_online $WIFIDEV ; then
 			
-				func_log no_meshmode_and_no_neighs daemon debug "wifi is switched off by admin"
+				_log do no_meshmode_and_no_neighs daemon debug "wifi is switched off by admin"
 			
 			elif neigh check4wifi ; then
 		
-				func_log no_meshmode_and_no_neighs daemon debug "found wifi neigh"
+				_log do no_meshmode_and_no_neighs daemon debug "found wifi neigh"
 				echo "0" >/tmp/wifi_error_counter
 			else
 				[ "$(func_wifi_get_bssid $WIFIDEV)" = "00:00:00:00:00:00" ] && {
-					func_log no_meshmode_and_no_neighs daemon alert "zero bssid: 'func_wifi_get_bssid $WIFIDEV'"
+					_log do no_meshmode_and_no_neighs daemon alert "zero bssid: 'func_wifi_get_bssid $WIFIDEV'"
 					func_wifi_restart_phy $WIFIDEV
 				}
 				
 				if [ "$(fkt_check_if_this_node_offers_inet)" != "false" ]; then
 				
-					func_log no_meshmode_and_no_neighs daemon debug "no wifi-neighs, but local inet offer"
+					_log do no_meshmode_and_no_neighs daemon debug "no wifi-neighs, but local inet offer"
 					echo "0" >/tmp/wifi_error_counter
 				else
 					COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
 					COUNT="$(( ${COUNT:=0} + 1 ))"
 					
-					func_log no_meshmode_and_no_neighs daemon info "raising counter to ${COUNT}/15"
+					_log do no_meshmode_and_no_neighs daemon info "raising counter to ${COUNT}/15"
 					
 					[ $COUNT -gt 15 ] && {
 						func_safe_reboot "no meshmode - and no wired nor wifi neigh for a long time (counter: '${COUNT}')"
@@ -269,7 +269,7 @@ func_olsr_plausi_check $(func_olsr_get_neighbours) || /etc/init.d/S53olsrd resta
 	# nice oder renice (fuer bestimmte code-abschnitte)
 
 PID="$(pidof vpnc)" && {
-	func_log vpnc_helper daemon info "petting PID '$PID' - fixme!"
+	_log do vpnc_helper daemon info "petting PID '$PID' - fixme!"
 	# kill -SIGHUP "$PID"		# fixme! (howto reconnect?)
 }
 
@@ -295,13 +295,13 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 		UP2="$( cat $FILE_SUCCESS )"
 		UP2="$(( $UP1 - ${UP2:-0} ))"
 		[ $UP2 -lt 3600 ] && {
-			func_log $FUNC daemon debug "last successful ntp-fetch was only $UP2 seconds before, aborting"
+			_log do $FUNC daemon debug "last successful ntp-fetch was only $UP2 seconds before, aborting"
 			return 0
 		}
 	}
 	touch $FILE_SUCCESS			# prevents double-execution
 	
-	func_log $FUNC daemon debug "start"
+	_log do $FUNC daemon debug "start"
 
 	while [ $TRY -lt 5 ]; do {
 		TRY=$(( $TRY + 1 ))
@@ -312,16 +312,16 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 			ID=$(( $ID + 1 ))		
 			sleep 5
 
-			func_log $FUNC daemon debug "ID: '$ID' IP: '$IP'"
+			_log do $FUNC daemon debug "ID: '$ID' IP: '$IP'"
 
 			rdate -s $IP >/dev/null 2>&1 && {
 
 				UP2="$( func_uptime sec )"			
 				HOST="$( func_ip2dns $IP )"
-				func_log $FUNC daemon info "success after $(( $UP2 - $UP1 )) seconds and ${TRY}. round on ${ID}. IP in pool (${IP} = $HOST)"
+				_log do $FUNC daemon info "success after $(( $UP2 - $UP1 )) seconds and ${TRY}. round on ${ID}. IP in pool (${IP} = $HOST)"
 				TRY=9
 				[ "$( func_filesize "$FILE_SUCCESS" )" -eq 0 ] && {
-					func_log $FUNC daemon alert "first successful set after reboot"
+					_log do $FUNC daemon alert "first successful set after reboot"
 				}
 				echo $UP2 >$FILE_SUCCESS
 				break				# fixme! calc + log diff before/after timesetting in sec?
@@ -330,7 +330,7 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 	} done
 
 	[ "$TRY" != "9" ] && {
-		func_log $FUNC daemon info "end without success"
+		_log do $FUNC daemon info "end without success"
 		rm $FILE_SUCCESS
 	}
 }
@@ -340,7 +340,7 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 [ "$( func_uptime sec )" -lt 300 ] && {
 
 	[ "$( nvram get wl0_radio )" = "0" ] && {
-		func_log "force_wifi_on" daemon info "working"
+		_log do "force_wifi_on" daemon info "working"
 		nvram set wl0_radio=1
 		wifi
 	}
@@ -348,17 +348,17 @@ func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in
 
 ### reboot-command is lost/deleted/bad (ipkg login-utils)
 [ ! -e /sbin/reboot ] && {
-	func_log command_reboot_faulty daemon crit "symlinking to /rom/sbin/reboot"
+	_log do command_reboot_faulty daemon crit "symlinking to /rom/sbin/reboot"
 	ln -s /rom/sbin/reboot /sbin/reboot
 }
 
 ### same routers lost the 'date'/'busybox-coreutils'-package, correct this:
 
 [ -z "$( date 2>/dev/null )" ] && {
-	func_log command_date_faulty daemon crit "symlinking to busybox"
+	_log do command_date_faulty daemon crit "symlinking to busybox"
 	rm /bin/date
 	ln -s busybox /bin/date
-	func_log command_date_faulty daemon crit "date output now: '$(date)'"
+	_log do command_date_faulty daemon crit "date output now: '$(date)'"
 }
 
 ### firmware-build-date is newer than unixtime?
@@ -374,7 +374,7 @@ func_set_time_with_ntp_server is_unset					     && NTP_TIME_OK="false"
 	func_set_time_with_ntp_server
 
 	[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {
-		func_log set_time daemon info "could'nt set time - trying poor mens timeserver - fixme!"
+		_log do set_time daemon info "could'nt set time - trying poor mens timeserver - fixme!"
 		# /www/cgi-bin-speed t		# fixme!
 	}
 }
@@ -394,13 +394,13 @@ func_set_time_with_ntp_server is_unset					     && NTP_TIME_OK="false"
 
 [ "$( func_count_pids xrelayd )" -gt 1 ] && {		# can be the case, after too many simultaneously https-connections
 	
-	func_log watch_xrelayd daemon info "trying to end some processes and restart daemon"
+	_log do watch_xrelayd daemon info "trying to end some processes and restart daemon"
 	killall xrelayd
 	sleep 10
 	
 	if [ "$( func_count_pids xrelayd )" -gt 1 ]; then
 	
-		func_log watch_xrelayd daemon info "still some processes around"
+		_log do watch_xrelayd daemon info "still some processes around"
 	
 		for PID in $(pidof xrelayd); do {
 			kill -9 $PID
@@ -419,7 +419,7 @@ func_set_time_with_ntp_server is_unset					     && NTP_TIME_OK="false"
 touch /tmp/rrd_plausi_check					# needs some test
 for FILE in $(find /tmp/rrd -name *.rrd 2>/dev/null); do {
 	[ /tmp/rrd_plausi_check -ot $FILE ] && {
-		func_log rrd_plausi_check daemon alert "rrd-file is in future - reinit for '$FILE'"
+		_log do rrd_plausi_check daemon alert "rrd-file is in future - reinit for '$FILE'"
 		touch "$FILE"
 	}
 } done
@@ -439,11 +439,11 @@ test   -e "/tmp/LOWMEM"			&& ARG1=fast
 test   -n "$FAILSAFE" 			&& ARG1=fast
 test ! -e "$SOFTWARE_FULLY_INSTALLED"	&& ARG1=fast
 
-[ "$ARG1" = "fast" ] && func_log "fastmode" daemon debug "no mesh-rdf-data-collection"
+[ "$ARG1" = "fast" ] && _log do "fastmode" daemon debug "no mesh-rdf-data-collection"
 
 if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node must be configured
 
-	func_log mesh_rdf daemon debug "start"
+	_log do mesh_rdf daemon debug "start"
 
 	# fixme! use more abstraction
 
@@ -460,11 +460,11 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	TIME="$( date +%s )"
 	
 # takes long!
-	func_log mesh_rdf_build_neighs daemon debug "start"
+	_log do mesh_rdf_build_neighs daemon debug "start"
 	NEIGH="$( func_url_encode "$(neigh meshrdf)" )"		# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
 
 # takes long!
-	func_log mesh_rdf_build_users daemon debug "start"
+	_log do mesh_rdf_build_users daemon debug "start"
 	USERS="$( func_url_encode "$(func_get_all_user_macs_with_traffic_today)" )"	# -001122334455:500~112233445566:9888
 	
 	FORWARDED="$( IPT=iptables ; fkt_convert_to_unit $(fkt_get_traffic_forward_alien) mb )"
@@ -543,10 +543,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 											# fixme! add: soundcard, webcam, sambashare, sensorstuff, inetoffer, ...
 	[ $FREE_SPACE_FLASH -lt 150 ] && {
 		[ ! -e /tmp/REPO_REMOVED ] && {
-			func_log remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing files in /usr/lib/ipkg/lists/"
+			_log do remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing files in /usr/lib/ipkg/lists/"
 
 			for FILE in /usr/lib/ipkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+ /www/everlasting_syslog.txt; do {
-				func_log remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing '$FILE' with $(func_filesize "$FILE") bytes"
+				_log do remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing '$FILE' with $(func_filesize "$FILE") bytes"
 				rm "$FILE"
 			} done
 			touch /tmp/REPO_REMOVED
@@ -683,7 +683,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		ARG2="no_antenna_test"
 	}
 
-	func_log mesh_rdf daemon debug "ready"
+	_log do mesh_rdf daemon debug "ready"
 	
 	KEEP_ALIVE_URL="$( nvram get fff_url_network )/meshrdf/"
 
@@ -696,13 +696,13 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 		[ -z "$ARG2" ] && fkt_sleep_random_seconds_but_max 60
 
-		func_log mesh_rdf_send_alive daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
+		_log do mesh_rdf_send_alive daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
 
 		func_set_time_with_ntp_server
 
 		[ -e /www/backup_archiv_node_data ] && {			# see func_safe_reboot()
 		
-			func_log mesh_rdf_send_alive daemon info "found node-data backup, including"
+			_log do mesh_rdf_send_alive daemon info "found node-data backup, including"
 			
 			mv "${ARCHIV_NODE_DATA}" "${ARCHIV_NODE_DATA}.temp"	# copy backup-file
 			mv /www/backup_archiv_node_data "${ARCHIV_NODE_DATA}"	# on top of
@@ -726,23 +726,23 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
  				echo "$QUERY" | grep -q ^"lo" && {		# dont send trash/comments; "lo" means local='...' or log='...'
  
  					echo "$QUERY" | grep -q ^"log=" && {
- 						func_log mesh_rdf_send_alive daemon debug "send log-message"
+ 						_log do mesh_rdf_send_alive daemon debug "send log-message"
  						QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC"
  					}
  
  					QUERY="$( echo "$QUERY" | sed 's/:/%3a/g' )"	# fixme! only temporary
  			
  					OUT="$( fkt_wget "${KEEP_ALIVE_URL}?${QUERY}" 10 )"
- 					func_log mesh_rdf_send_alive daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
+ 					_log do mesh_rdf_send_alive daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
  					
  					[ "$OUT" != "OK" ] && {
- 						func_log mesh_rdf_send_alive daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
+ 						_log do mesh_rdf_send_alive daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
  						touch /tmp/SEND_ALIVE_FAILED
  						break				# fixme! set comment ("marker") after last sent line
  					}
  				}
  			else
- 				func_log mesh_rdf_send_alive daemon debug "send alive normally ended"
+ 				_log do mesh_rdf_send_alive daemon debug "send alive normally ended"
  				echo >>"${ARCHIV_NODE_DATA}" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
  				break
  			fi
@@ -762,7 +762,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		# wget -qO /dev/null "http://intercity-vpn.de/testdata.bin"	// 5mb
 
 		[ "$ARG2" != "no_antenna_test" ] && {
-			func_log enforce_antenna_test daemon info "starting up"		# fixme! maybe there is a better place for	
+			_log do enforce_antenna_test daemon info "starting up"		# fixme! maybe there is a better place for	
 			/usr/sbin/cron.select_best_antenna_fff+ force			# regular but random execution of this script
 		}
 	fi
@@ -810,14 +810,14 @@ fi
 
 if [ -e "$PPPOE" ] && [ -z "$( ip route list exact 0/0 dev ppp0 )" ]; then
 	
-	func_log pppoe_watchdog daemon err "no default route over ppp0 - restarting PPPoE"
+	_log do pppoe_watchdog daemon err "no default route over ppp0 - restarting PPPoE"
 	
 	killall    pppoecd
 	killall -9 pppoecd
 	ifup wan
 	sleep 15
 	
-	func_log pppoe_watchdog daemon err "restarted: '$( ip route list exact 0/0 dev ppp0 )'"
+	_log do pppoe_watchdog daemon err "restarted: '$( ip route list exact 0/0 dev ppp0 )'"
 fi
 
 
@@ -825,7 +825,7 @@ fi
 
 [ -e /tmp/WEBCAM ] && {
 	pidof motion >/dev/null || {
-		func_log webcam_watchdog daemon alert "restarting webcam"
+		_log do webcam_watchdog daemon alert "restarting webcam"
 		/etc/init.d/S90webcam_fff+ restart
 	}
 }
@@ -836,14 +836,14 @@ fi
 pidof httpd >/dev/null || {
 
 	if pidof crond >/dev/null ; then
-		func_log httpd_watchdog daemon err "webserver is not running - restarting"
+		_log do httpd_watchdog daemon err "webserver is not running - restarting"
 	
 		/etc/init.d/S50httpd start
 		sleep 5
 	
-		func_log httpd_watchdog daemon err "webserver PID now: '$( pidof httpd )'"
+		_log do httpd_watchdog daemon err "webserver PID now: '$( pidof httpd )'"
 	else
-		func_log httpd_watchdog daemon debug "no crond - no restart"		# crondog does it
+		_log do httpd_watchdog daemon debug "no crond - no restart"		# crondog does it
 	fi
 }
 
@@ -853,18 +853,18 @@ pidof dropbear >/dev/null || {
 
 	pidof telnetd >/dev/null || {
 	
-		func_log sshd_watchdog daemon err "dropbear nor telnetd not running - restarting"
+		_log do sshd_watchdog daemon err "dropbear nor telnetd not running - restarting"
 		
 		/etc/init.d/S*dropbear start
 		if pidof dropbear >/dev/null; then
 			
-			func_log sshd_watchdog daemon info "dropbear PID now: '$( pidof dropbear )'"
+			_log do sshd_watchdog daemon info "dropbear PID now: '$( pidof dropbear )'"
 		else
 			if telnetd; then
 			
-				func_log sshd_watchdog daemon info "telnetd PID now: '$( pidof telnetd )'"
+				_log do sshd_watchdog daemon info "telnetd PID now: '$( pidof telnetd )'"
 			else
-				func_log sshd_watchdog daemon err "dropbear nor telnetd not startable?"
+				_log do sshd_watchdog daemon err "dropbear nor telnetd not startable?"
 			fi
 		fi
 	}
@@ -881,7 +881,7 @@ WIFIMAC="$( _sanitizer "$(ip link show dev $WIFIDEV)" mac hex lowercase )"
 URL="$(nvram get fff_url_network)/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$(nvram get ff_dsskey_pub)"
 
 if func_ipsystem | grep -q ^"NODE_NUMBER_RANDOM=true" ; then
-	func_log replace_random_nodeID daemon info "detected ID from random pool - registering official ID from '$URL'"
+	_log do replace_random_nodeID daemon info "detected ID from random pool - registering official ID from '$URL'"
 	
  	[ -n "$SSH_PUBKEY_FP" ] && ID="$( fkt_wget "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
  									# fixme! no wifi -> no wifimac -> no registration?
@@ -893,7 +893,7 @@ if func_ipsystem | grep -q ^"NODE_NUMBER_RANDOM=true" ; then
 		func_safe_reboot "replace_random_nodeID() now profile applied"
 	}
 
-	func_log replace_random_nodeID daemon info "ID not clean: '$ID' - aborting"
+	_log do replace_random_nodeID daemon info "ID not clean: '$ID' - aborting"
 else
 	if [ ! -e /tmp/REGISTRATED ] && [ "$(func_uptime min)" -gt 30 ]; then
 
@@ -903,12 +903,12 @@ else
 		}
 
 		if [ -n "$ID" ]; then
-			func_log registrator_petting daemon info "answer was '$ID' (question was: '$URL')"	
+			_log do registrator_petting daemon info "answer was '$ID' (question was: '$URL')"	
 		else
-			func_log registrator_petting daemon info "no answer (service '$URL' not running or no pubkey_fp?)"
+			_log do registrator_petting daemon info "no answer (service '$URL' not running or no pubkey_fp?)"
 		fi
 	else
-		[ -e /tmp/REGISTRATED ] && func_log registrator_petting daemon debug "is already lucky"
+		[ -e /tmp/REGISTRATED ] && _log do registrator_petting daemon debug "is already lucky"
 	fi
 fi
 

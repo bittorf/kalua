@@ -58,7 +58,7 @@ func_olsr_get_random_neigh ()
 
 	rm "$FILE"
 
-	func_log $FUNC daemon debug "no neighbour, no random neighour"
+	_log do $FUNC daemon debug "no neighbour, no random neighour"
 	return 1
 }
 
@@ -96,14 +96,14 @@ func_olsr_check_if_any_nonwifi_neigh ()
 		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
 		[ -n "$DEVTYPE" ] && {
 			[ "$DEVTYPE" != "wifi" ] && {
-				func_log $FUNC daemon debug "found nonwifi neigh: '$REMOTE'"
+				_log do $FUNC daemon debug "found nonwifi neigh: '$REMOTE'"
 				return 0
 			}
 		}
 
 	} done <"$FILE" && rm "$FILE"
 
-	func_log $FUNC daemon debug "found only wifi neighbours"
+	_log do $FUNC daemon debug "found only wifi neighbours"
 	return 1
 }
 
@@ -119,13 +119,13 @@ func_olsr_check_for_wifi_neigh ()
 		
 		DEVTYPE="$( func_type_dev_layer $(func_get_dev_from_ip $LOCAL) )"
 		[ "$DEVTYPE" = "wifi" ] && {
-			func_log $FUNC daemon debug "found wifi neigh: '$REMOTE'"
+			_log do $FUNC daemon debug "found wifi neigh: '$REMOTE'"
 			return 0
 		}
 	
 	} done <"$FILE" && rm "$FILE"
 
-	func_log $FUNC daemon debug "found only non-wifi neighbours"
+	_log do $FUNC daemon debug "found only non-wifi neighbours"
 	return 1
 }
 
@@ -197,7 +197,7 @@ func_olsr_check_for_good_non_tunnel_neigh ()
 			[ "$DEVTYPE" != "tunnel" ] && {
 				[ -n "$COST" ] && {
 					[ ${COST%[\.]*} -lt 10 ] && {
-						func_log $FUNC daemon debug "found suitable neigh: '$LINE'"
+						_log do $FUNC daemon debug "found suitable neigh: '$LINE'"
 						return 0
 					}
 				}
@@ -206,7 +206,7 @@ func_olsr_check_for_good_non_tunnel_neigh ()
 	
 	} done <"$FILE" && rm "$FILE"
 	
-	func_log $FUNC daemon debug "found nothing suitable"
+	_log do $FUNC daemon debug "found nothing suitable"
 	return 1 
 }
 
@@ -236,9 +236,9 @@ func_olsr_get_neighbours ()
 			rm "$TEMP"
 			
 			if pidof olsrd >/dev/null ; then
-				func_log $FUNC daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
+				_log do $FUNC daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
 			else
-				func_log $FUNC daemon crit "failed to fetch neighbour-table, because OLSRd is'nt running"
+				_log do $FUNC daemon crit "failed to fetch neighbour-table, because OLSRd is'nt running"
 			fi
 		
 			return 1
@@ -248,7 +248,7 @@ func_olsr_get_neighbours ()
 		return 0
 	}
 	
-	func_log $FUNC daemon info "OLSRd is not configured to load plugin '$PLUGIN'" 
+	_log do $FUNC daemon info "OLSRd is not configured to load plugin '$PLUGIN'" 
 	return 1
 }
 
@@ -262,11 +262,11 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 						# idea: '10.63.176.193 ~~0~~ 10.63.62.1     LQ/NLQ/COST: 0.000 / 0.000 / ~      MAC+DNS: ??:??:??:??:??:?? 'unknown'
 						# idea:
 	[ -z "$FILE" ] && {
-		func_log $FUNC daemon crit "olsr-plaintext plugin has no output!"
+		_log do $FUNC daemon crit "olsr-plaintext plugin has no output!"
 		return 1
 	}			# fixme! count lines of file?
 	
-	func_log $FUNC daemon debug "ok! (olsr-plaintext plugin outputs something)"
+	_log do $FUNC daemon debug "ok! (olsr-plaintext plugin outputs something)"
 
 	local COUNT=0
 	local LOCAL
@@ -285,14 +285,14 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 		eval $LINE
 		[ -n "$COST" ] && {
 			[ -z "$( ip route list exact $REMOTE )" ] && {
-				func_log $FUNC daemon crit "is each non-infinite neighbour in routing-table? '$REMOTE' (COST:'$COST') is not!"
+				_log do $FUNC daemon crit "is each non-infinite neighbour in routing-table? '$REMOTE' (COST:'$COST') is not!"
 				rm "$FILE"
 				return 1
 			}
 		}
 	} done <"$FILE"
 
-	func_log $FUNC daemon debug "ok! (is each non-infinite neighbour in routing-table?)"
+	_log do $FUNC daemon debug "ok! (is each non-infinite neighbour in routing-table?)"
 
 	# are wired neighbours LQ/NLQ nearly synchronous?
 	
@@ -308,7 +308,7 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 		
 			case "${LQ:=0}-${NLQ:=0}" in
 				"1000-"|"0000-"|"1000-0000"|"0000-1000")
-					func_log $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
+					_log do $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
 					return 1
 				;;
 			esac
@@ -318,7 +318,7 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 					sleep 10		# waiting for getting stable
 	
 					[ $NLQ -gt 900 -a $LQ -lt 100 ] && {
-						func_log $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
+						_log do $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
 						return 1
 					}
 				}
@@ -329,7 +329,7 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 					sleep 10		# waiting for getting stable
 	
 					[ $LQ -gt 900 -a $NLQ -lt 100 ] && {
-						func_log $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
+						_log do $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
 						return 1
 					}
 				}
@@ -337,7 +337,7 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 		}
 	} done <"$FILE"
 	
-	func_log $FUNC daemon debug "ok! (are wired neighbours LQ/NLQ nearly synchronous?)"
+	_log do $FUNC daemon debug "ok! (are wired neighbours LQ/NLQ nearly synchronous?)"
 	
 	
 	# each node in mesh has only 1 route?	// fixme! be more correct: is only an error,if in same routing table... (but we check "main")
@@ -352,7 +352,7 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 	[ "$LINES1" != "$LINES2" ] && {	
 		while read LINE; do {
 	  		[ "$LINE" = "$LASTLINE" ] && {
-				func_log $FUNC daemon crit "each node in mesh has only 1 route? no!: ($( ip route list exact $LINE ))"
+				_log do $FUNC daemon crit "each node in mesh has only 1 route? no!: ($( ip route list exact $LINE ))"
 				rm $FILE_RT
 		  		return 1
 	  		}
@@ -362,7 +362,7 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 	}
 
 	rm $FILE_RT
-	func_log $FUNC daemon debug "ok! (each node in mesh has only 1 route? [checked $LINES1 routes])"
+	_log do $FUNC daemon debug "ok! (each node in mesh has only 1 route? [checked $LINES1 routes])"
 
 
 	while read LINE; do {
@@ -371,31 +371,31 @@ func_olsr_plausi_check ()			# test 1/5: is each non-infinite neighbour in routin
 			METRIC="$( ip route list $REMOTE | sed -n 's/^.*metric \([0-9]*\).*/\1/p' )"
 		
 			[ "$METRIC" != "1" ] && {
-				func_log $FUNC daemon crit "are minimum-cost neighbours linklocal? '$REMOTE' is not!"
+				_log do $FUNC daemon crit "are minimum-cost neighbours linklocal? '$REMOTE' is not!"
 				rm "$FILE"
 				return 1
 			}
 		}
 	} done <"$FILE"
 
-	[ -n "$METRIC" ] && func_log $FUNC daemon debug "ok! (are minimum-cost neighbours linklocal?)"
+	[ -n "$METRIC" ] && _log do $FUNC daemon debug "ok! (are minimum-cost neighbours linklocal?)"
 
 
 	LINES1="$( cat $FILE | wc -l )"
 	LINES2="$( sed -n 's/^\(LOCAL=[0-9\.]*;REMOTE=[0-9\.]*\);.*/\1/p' $FILE | sort | uniq | wc -l )"
 
 	[ "$LINES1" != "$LINES2" ] && {
-		func_log $FUNC daemon crit "each local/remote-pair has only one entry? no!"
+		_log do $FUNC daemon crit "each local/remote-pair has only one entry? no!"
 		
 		while read LINE; do {
-			func_log $FUNC daemon crit "$LINE"
+			_log do $FUNC daemon crit "$LINE"
 		} done <$FILE
 		
 		rm "$FILE"
 		return 1
 	}
 
-	func_log $FUNC daemon debug "ok! (each local/remote-pair has only one entry?)"
+	_log do $FUNC daemon debug "ok! (each local/remote-pair has only one entry?)"
 
 	rm "$FILE"
 	return 0

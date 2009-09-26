@@ -96,7 +96,7 @@ func_reject_traffic_from_nonlocal_hosts_to_local_webserver ()
 {
 	local FUNC="reject_traffic_from_nonlocal_hosts_to_local_webserver"
 
-	func_log $FUNC daemon info "activate blocking for HTTP(S) to avoid lowmem situations during software-install"
+	_log do $FUNC daemon info "activate blocking for HTTP(S) to avoid lowmem situations during software-install"
 
 	$IPT -I INPUT -p tcp -s ! $MYHNA --dport 80  -j DROP	# if REJECT is not possible DROP is fallback
 	$IPT -I INPUT -p tcp -s ! $MYHNA --dport 443 -j DROP
@@ -116,7 +116,7 @@ func_activate_reserved_user_chain ()
 
 		iptables -t mangle -E traff_${MAC_RESERVE} traff_$MAC 2>/dev/null && { 
 	
-			func_log $FUNC daemon info "found chain traff_${MAC_RESERVE} and renamed to 'traff_$MAC'"
+			_log do $FUNC daemon info "found chain traff_${MAC_RESERVE} and renamed to 'traff_$MAC'"
 			
 			iptables -t mangle -D traff_users -m mac --mac-source $MAC_RESERVE	-j traff_$MAC
 			iptables -t mangle -D traff_users -d 99.99.99.99			-j traff_$MAC
@@ -132,13 +132,13 @@ func_activate_reserved_user_chain ()
 			fkt_make_arp_entry_permanent $IP $MAC
 			fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP		
 		
-			func_log $FUNC daemon info "successfully activated 'traff_$MAC'"
+			_log do $FUNC daemon info "successfully activated 'traff_$MAC'"
 
 			scheduler -a "/etc/local.fw-fff+ adduser_reserve $MAC_RESERVE 99.99.99.99"
 			return 0
 		}
 
-		func_log $FUNC daemon debug "renaming chain 'traff_${MAC_RESERVE}' to 'traff_$MAC' didn't work"
+		_log do $FUNC daemon debug "renaming chain 'traff_${MAC_RESERVE}' to 'traff_$MAC' didn't work"
 		scheduler -a "/etc/local.fw-fff+ adduser_reserve $MAC_RESERVE 99.99.99.99"
 		
 		if [ "$MAC_RESERVE" = "99:99:99:99:99:95" ] && [ ! -e "/tmp/USER_PACKETFILTER" ]; then
@@ -158,7 +158,7 @@ func_packetfilter_count_rules ()
 	
 	for TABLE in $LIST; do {
 		COUNT="$( iptables -t $TABLE -nxL | sed -e '/^target/d' -e '/^Chain /d' -ne '/[^.]$/p' | sed -n '$=' )"
-		func_log packetfilter_count_rules daemon debug "$COUNT rules in '$TABLE'"
+		_log do packetfilter_count_rules daemon debug "$COUNT rules in '$TABLE'"
 	} done
 }
 
@@ -190,9 +190,9 @@ func_packetfilter_install_portforwarding ()			# fixme! howto redirect to myself?
 				RULE_ACTIVE="-t nat -I PREROUTING $RULE_INCOMING_INTERFACE -p $PROTO --dport $RULE_PORT_INCOMING -j DNAT --to-destination $RULE_DEST_IP:$RULE_PORT_DEST"
 				
 					if $IPT $RULE_ACTIVE ; then
-				     		func_log $FUNC user info "success adding rule '$RULE_NAME'"
+				     		_log do $FUNC user info "success adding rule '$RULE_NAME'"
 				     	else
-				     		func_log $FUNC user err  "error adding rule '$ENTRY' ('$IPT $RULE_ACTIVE')"
+				     		_log do $FUNC user err  "error adding rule '$ENTRY' ('$IPT $RULE_ACTIVE')"
 				     	fi
 			} done
 		}
@@ -206,7 +206,7 @@ func_packetfilter_dhcp_ignore_specific_macs ()		# nvram set fff_dhcp_ignore="MAC
 	
 	for MAC in $(nvram get fff_dhcp_ignore); do {
 
-		func_log $FUNC daemon debug "ignoring '$MAC'"
+		_log do $FUNC daemon debug "ignoring '$MAC'"
 		iptables -I INPUT -p udp --sport 68 -d 255.255.255.255 --dport 67 -m mac --mac-source $MAC -j DROP
 	} done
 }
@@ -234,7 +234,7 @@ func_packetfilter_portforwarding_serialize_config_entry ()
 }
 
 fkt_localfw_log () {
-	func_log localfw_log daemon debug "$1"
+	_log do localfw_log daemon debug "$1"
 }
 
 fkt_insmod ()
@@ -247,25 +247,25 @@ fkt_insmod ()
 
 	if lsmod | grep -q ^$KMOD ; then
 
-		func_log $FUNC daemon debug "kernel-module '${KMOD}' already loaded"
+		_log do $FUNC daemon debug "kernel-module '${KMOD}' already loaded"
 	else
-		func_log $FUNC daemon info "loading kernel-module '${KMOD}'"
+		_log do $FUNC daemon info "loading kernel-module '${KMOD}'"
 		
 		if insmod $KMOD ; then
 			MEM_AFTER="$( func_get_free_ram_in_bytes )"
 			MEM_DIFF=$(( $MEM_BEFORE - $MEM_AFTER ))
 			[ $MEM_DIFF -gt 0 ] && MEM_DIFF="+$MEM_DIFF"
 	
-			func_log $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes"
+			_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes"
 		else
-			func_log $FUNC daemon alert "[ERR] failing to insert kernel-module '${KMOD}.o'"
+			_log do $FUNC daemon alert "[ERR] failing to insert kernel-module '${KMOD}.o'"
 		
 			local FILE="$( find /lib/modules/ | grep ${KMOD}.o )"
 		
 			if [ -n "$FILE" ]; then
-				func_log $FUNC daemon info "but found '$FILE'"
+				_log do $FUNC daemon info "but found '$FILE'"
 			else
-				func_log $FUNC daemon info "seems that ${KMOD}.o is not in filesystem"
+				_log do $FUNC daemon info "seems that ${KMOD}.o is not in filesystem"
 			fi
 		
 			return 1
@@ -551,7 +551,7 @@ fkt_kick_all_nonfree_users () {
 		[ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "false" ] && {
 			
 			[ "$( fkt_check_if_mac_is_free $MAC )" = "false" ] && {
-				func_log $FUNC daemon debug "kicking '$MAC'"
+				_log do $FUNC daemon debug "kicking '$MAC'"
 				fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( fkt_get_ip_from_mac $MAC )"
 			}
 		}
@@ -575,12 +575,12 @@ fkt_kick_all_users_which_are_over_limit ()
 				[ "$( fkt_check_if_mac_is_admin $MAC )" = "false" ] && {
 		
 					PERCENT="$( fkt_get_used_traffic_limit_from_user_with_mac_in_percent $MAC )"
-					func_log $FUNC user debug "'$MAC'-traffic is ${PERCENT}%"
+					_log do $FUNC user debug "'$MAC'-traffic is ${PERCENT}%"
 				
 					[ $PERCENT -gt 100 ] && {
 						LIMIT="$( fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac $MAC )"
 						LIMIT="$( func_humanreadable_integer $LIMIT )"
-						func_log $FUNC user info " -'$MAC' (traffic: ${PERCENT}% ~${LIMIT} bytes)"
+						_log do $FUNC user info " -'$MAC' (traffic: ${PERCENT}% ~${LIMIT} bytes)"
 						fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( fkt_get_ip_from_mac $MAC )"
 					}
 				}
@@ -745,7 +745,7 @@ fkt_reset_traffic_counter_for_mac ()
 		     *) RULE_NUM=4 ;;		# overall
 	esac
 
-	func_log $FUNC daemon $LOGPRIO "$MAC ('$2')"
+	_log do $FUNC daemon $LOGPRIO "$MAC ('$2')"
 	
 	$IPT -R traff_$MAC $RULE_NUM -t mangle --set-counters 0 0
 }
@@ -954,9 +954,9 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 	local ARP="$3"		# fixme! sens of $3 ?
 
 	[ "$4" != "reserve" ] && {
-		func_log $FUNC daemon debug "instant call - trying to activate reserved user chain"
+		_log do $FUNC daemon debug "instant call - trying to activate reserved user chain"
 		func_activate_reserved_user_chain $MAC $IP && {
-			func_log $FUNC daemon debug "successfully activated reserved user chain"
+			_log do $FUNC daemon debug "successfully activated reserved user chain"
 			return 0
 		}
 	}
@@ -985,14 +985,14 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 		fi
 	fi
 	
-	func_log $FUNC daemon debug "$MAC / $IP (connlimit tcp/udp: $CONN_LIMIT_TCP/$CONN_LIMIT_UDP)"
+	_log do $FUNC daemon debug "$MAC / $IP (connlimit tcp/udp: $CONN_LIMIT_TCP/$CONN_LIMIT_UDP)"
 
 	[ -z "$ARP" ] && fkt_make_arp_entry_permanent $IP $MAC
 
-	func_log $FUNC daemon debug "filling user chain - start"
+	_log do $FUNC daemon debug "filling user chain - start"
 	
 	$IPT -t mangle -N traff_$MAC 2>/dev/null || {
-		func_log $FUNC daemon debug "chain traff_$MAC already exists - abort"
+		_log do $FUNC daemon debug "chain traff_$MAC already exists - abort"
 		return 1
 	}
 	
@@ -1174,7 +1174,7 @@ fkt_all_chains_acceptance ()
 	[ "$ARG" = "off" ] && MODE="D"		# delete
 
 	for CHAIN in filter mangle; do {
-		func_log $FUNC daemon debug "table '$CHAIN', switching '$ARG'"
+		_log do $FUNC daemon debug "table '$CHAIN', switching '$ARG'"
 		
 		$IPT -t $CHAIN -$MODE INPUT              -j ACCEPT
 		$IPT -t $CHAIN -$MODE FORWARD            -j ACCEPT
@@ -1220,7 +1220,7 @@ fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-
 	local FUNC="olsr_whitelist_update"
 
 	[ ! -e "$OLSR_WL_READY" ] && {
-		func_log $FUNC daemon debug "no whitelist - no update"
+		_log do $FUNC daemon debug "no whitelist - no update"
 		return
 	}
 	
@@ -1264,7 +1264,7 @@ fkt_make_arp_entry_permanent ()				# ARG1:ip ARG2:mac ARG3:wifi or wire
         local MAC="$( echo $2 | sed -e 'y/ABCDEF/abcdef/' )"
         local FORCE="$3"						# fixme! use also IP to guess interface
         
-        func_log $FUNC daemon debug "IP: '$IP' MAC: '$MAC' PHY: '$FORCE'"
+        _log do $FUNC daemon debug "IP: '$IP' MAC: '$MAC' PHY: '$FORCE'"
         
         local IP_ESCAPED="$( echo $IP | sed 's/\./\\\./g' )"
  	local PHYSDEV="$( ip neigh | grep -i $MAC | cut -d" " -f3 | head -n1 )"		# fetch DEV from neigh-list
@@ -1273,41 +1273,41 @@ fkt_make_arp_entry_permanent ()				# ARG1:ip ARG2:mac ARG3:wifi or wire
 	local MODE="add"
 
 	ip neigh | grep "^$IP_ESCAPED " | grep -q "nud permanent" && {			# fixme! faster, only one call to 'ip'
-		func_log $FUNC daemon debug "already permanent - do nothing"
+		_log do $FUNC daemon debug "already permanent - do nothing"
 		return
 	}
 	
 	ip neigh | grep -q "^$IP_ESCAPED " && {
-		func_log $FUNC daemon debug "already found - MODE: 'change'"
+		_log do $FUNC daemon debug "already found - MODE: 'change'"
 		MODE="change"
 	}
 
  	if [ -z "$PHYSDEV" ]; then
 
-		func_log $FUNC daemon debug "not in neigh-list, probing"
+		_log do $FUNC daemon debug "not in neigh-list, probing"
  		  
  		  if [ "$FORCE" = "wifi" ]; then
  			
- 			func_log $FUNC daemon debug "enforced wifi"
+ 			_log do $FUNC daemon debug "enforced wifi"
  			PHYSDEV=$WIFIDEV
  		
  		elif [ "$( fkt_get_media_from_mac $MAC )" = "wire" ]; then
  		
- 			func_log $FUNC daemon debug "detected wire"
+ 			_log do $FUNC daemon debug "detected wire"
  			PHYSDEV=$LANDEV
  		else
- 			func_log $FUNC daemon debug "fallback to wifi"
+ 			_log do $FUNC daemon debug "fallback to wifi"
  			PHYSDEV=$WIFIDEV
  		fi
  	
- 		func_log $FUNC daemon debug "DEV from NV-RAM or forced: '$PHYSDEV'"
+ 		_log do $FUNC daemon debug "DEV from NV-RAM or forced: '$PHYSDEV'"
  	else
- 		func_log $FUNC daemon debug "DEV from ip_neigh: '$PHYSDEV'"
+ 		_log do $FUNC daemon debug "DEV from ip_neigh: '$PHYSDEV'"
  	fi
  
-	func_log $FUNC daemon debug "applying IP: '$IP' MAC: '$MAC' PHY: '$FORCE' PHYSDEV: '$PHYSDEV'"
+	_log do $FUNC daemon debug "applying IP: '$IP' MAC: '$MAC' PHY: '$FORCE' PHYSDEV: '$PHYSDEV'"
 
-	func_log $FUNC daemon debug "ip neigh $MODE $IP dev $PHYSDEV lladdr $MAC nud permanent"
+	_log do $FUNC daemon debug "ip neigh $MODE $IP dev $PHYSDEV lladdr $MAC nud permanent"
         # ip neigh $MODE $IP dev $PHYSDEV lladdr $MAC nud permanent
 }
 
@@ -1451,7 +1451,7 @@ fkt_control_olsr ()
 	# func_need wifi								# gives errors: 'kern.err olsrd[3923]: OLSR: sendto IPv4 Operation not permitted'
 	# [ "$(func_wifi_get_mode)" != "adhoc" ] && {					# fixme! must be device-specific
 	#	[ "$(nvram get fff_profile)" != "versilia_ap" ] && {
-	#		func_log $FUNC daemon info "deactivating wifi-olsr"
+	#		_log do $FUNC daemon info "deactivating wifi-olsr"
 	#		$IPT -A OUTPUT -o $WIFIDEV -p udp --dport 698 -j DROP		# in AP-mode, keep air clean
 	#	}
 	# }
@@ -1567,6 +1567,6 @@ func_packetfilter_show_chain ()
 	}
 	
 	iptables -t $TABLE -nxvL $CHAIN | while read LINE; do {
-		func_log $FUNC daemon debug "$LINE"
+		_log do $FUNC daemon debug "$LINE"
 	} done
 }
