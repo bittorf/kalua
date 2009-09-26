@@ -1,0 +1,231 @@
+FUNC_WEBLOGIN=1
+
+# func_weblogin_output_loginpage
+# func_weblogin_show_rules
+# func_weblogin_show_rules_hint
+# func_weblogin_show_hint_logindata_is_wrong
+# _translate
+# func_weblogin_output_gate_page
+# func_weblogin_output_login_error
+# func_weblogin_show_inet_broken
+# func_weblogin_output_errorpage
+# func_weblogin_check_login
+
+
+func_weblogin_output_loginpage ()			# needs: images/logo.gif|logo2.gif		+ images/flag_de|en|fr.gif
+{							#        images/button_login_de.gif		+ images/bgcolor.txt
+	func_http_header_mime_output "text/html"	#        /favicon.ico
+
+	local LANG="${1:-de}"				# definition of default/unset language - fixme! must be in _translate()
+	local SHOW_RULES="$2"				# fixme! can be 'inet_broken'
+	local SHOW_PASSWORD_WRONG="$3"
+	local SHOW_ACCEPT_RULES="$4"
+	local AMP="&amp;"
+
+	[ -n "$FORM_RULES" ] && SHOW_ACCEPT_RULES="false"
+	[ "$FORM_SHOW_ACCEPT_RULES"   = "true" ] && SHOW_ACCEPT_RULES="true"
+	[ "$FORM_SHOW_PASSWORD_WRONG" = "true" ] && SHOW_PASSWORD_WRONG="true"
+
+	local LINK="${SCRIPT_NAME}?REDIRECTED=1$(
+		[ "$SHOW_PASSWORD_WRONG" = "true" ] && echo -n "${AMP}FORM_SHOW_PASSWORD_WRONG=true" )$(
+		[ "$SHOW_ACCEPT_RULES"   = "true" ] && echo -n "${AMP}FORM_SHOW_ACCEPT_RULES=true"
+		)${AMP}FORM_LANG"
+
+	local BGCOLOR="$( cat /www/images/bgcolor.txt 2>/dev/null )"
+	local SLOGAN="$( test -e /www/images/logo2.gif && echo -n '<IMG SRC="images/logo2.gif" TITLE="Hotel-Slogan" ALT="Hotel-Slogan"><BR><BR>' )"
+
+	cat <<EOF
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<HTML><HEAD>
+<TITLE>Weblogin</TITLE>
+<META HTTP-EQUIV="cache-control" CONTENT="no-cache">
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15">
+<LINK REL="shortcut icon" TYPE="image/x-icon" HREF="/favicon.ico">
+</HEAD>
+<BODY BGCOLOR="${BGCOLOR:-white}" TEXT="black"><CENTER>
+<A HREF="$LINK=de" TITLE="diese Seite in deutsch anzeigen"><IMG SRC="images/flag_de.gif" BORDER="0" ALT="de" TITLE="diese Seite in deutsch anzeigen">&nbsp;deutsch</A>
+&nbsp;&nbsp;<A HREF="$LINK=en" TITLE="show this page in english"><IMG SRC="images/flag_en.gif" BORDER="0" ALT="en" TITLE="show this page in english">&nbsp;english</A>
+&nbsp;&nbsp;<A HREF="$LINK=fr" TITLE="afficher cette page en anglais"><IMG SRC="images/flag_fr.gif" BORDER="0" ALT="fr" TITLE="afficher cette page en anglais">&nbsp;fran&ccedil;ais</A>
+<BR><BR>${SLOGAN}<IMG SRC="images/logo.gif" TITLE="Hotel-Logo" ALT="Hotel-Logo"><FORM METHOD="post" ACTION="">
+<TABLE CELLSPACING="0" CELLPADDING="0" BORDER="0" width='85%'>
+<TR><TD ALIGN="CENTER"><BR><B><BIG>$( _translate $LANG internetaccess )</BIG></B></TD></TR>$(
+	test "$FORM_SHOW_RULES"	    = "true"		&& func_weblogin_show_rules			$LANG
+	test "$SHOW_PASSWORD_WRONG" = "true"		&& func_weblogin_show_hint_logindata_is_wrong	$LANG
+	test "$SHOW_ACCEPT_RULES"   = "true"		&& func_weblogin_show_rules_hint		$LANG
+	test "$SHOW_RULES"	    = "inet_broken" 	&& func_weblogin_show_inet_broken		$LANG
+)
+<TR><TD ALIGN="CENTER"><BR><TABLE CELLSPACING="0" CELLPADDING="2" BORDER="0">
+<TR><TD ALIGN="RIGHT">$( _translate $LANG username ):&nbsp;<INPUT TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER" VALUE="$FORM_USER"></TD></TR>
+<TR><TD ALIGN="RIGHT">$( _translate $LANG password ):&nbsp;<INPUT TYPE="password" SIZE="10" MAXLENGTH="10" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
+<TR><TD ALIGN="CENTER"><BR><INPUT TYPE="checkbox" NAME="FORM_RULES" checked>&nbsp;$( _translate $LANG accept_terms1 ) <A HREF="$LINK=${LANG}${AMP}FORM_SHOW_RULES=true" TITLE="$( _translate $LANG tip_contract )">$( _translate $LANG accept_terms2 )</A></TD></TR>
+<TR><TD ALIGN="CENTER"><BR><INPUT TYPE="image" SRC="images/button_login_de.gif" ALT="&rarr;Login"></TD></TR>
+</TABLE></FORM></CENTER>
+</BODY></HTML>
+EOF
+}
+
+func_weblogin_show_rules ()
+{
+	local LANG="$1"
+	local FILE="/www/images/weblogin_rules_${LANG}.txt"		# fixme! must be coded in ISO_8859-1
+	local META="/www/images/weblogin_rules_${LANG}_meta"
+
+	eval "$( sed 's/^/local /' $META )"
+	
+	echo -n "<TR BGCOLOR='yellow'><TD ALIGN="LEFT"><BR>"
+
+	sed	-e '/^#/d' \
+		-e "s#\${HOTELNAME}#$HOTELNAME#g" \
+		-e "s#\${BEZAHLMODELL}#$BEZAHLMODELL#g" \
+		-e "s#\${SPEED}#$SPEED#g" \
+		-e "s#\${TECHNIK}#$TECHNIK#g" \
+		-e "s#\${WARTUNGSFENSTER}#$WARTUNGSFENSTER#g" \
+		-e "s#\${SPEICHERDAUER}#$SPEICHERDAUER#g" \
+		-e "s#\${ERSTELLUNGSZEIT}#$ERSTELLUNGSZEIT#g" \
+		-e "s#\${SIGNATUR}#$SIGNATUR#g" \
+		-e 's#^[0-9]\.[0-9]#<br><br><b>&</b>#' \
+		-e 's#^[0-9]\. .*#<h3>&</h3>#' \
+		-e 's/§/\&sect;/g' \
+		-e 's/ö/\&ouml;/g' \
+		-e 's/ü/\&uuml;/g' \
+		-e 's/ä/\&auml;/g' \
+		-e 's/ß/\&szlig;/g' $FILE
+
+	echo -n "<BR><BR></TD></TR>"	
+}
+
+func_weblogin_show_rules_hint ()
+{
+	local LANG="$1"
+	
+	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate $LANG accept_rules )&nbsp;</B><BR><BR></TD></TR>"
+}
+
+func_weblogin_show_hint_logindata_is_wrong ()
+{
+	local LANG="$1"
+	
+	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate $LANG wrong_logindata )&nbsp;</B><BR><BR></TD></TR>"
+}
+
+_translate ()			# todo: proof-of-concept -> chinese-simplified / arabic
+{
+	local LANG="$1"
+	local KEYWORD="$2"
+	local o="element_${KEYWORD}_is_unset"
+	
+	case $KEYWORD in
+		internetaccess)
+			case $LANG in 	de) o="Internetzugang" ;;
+					en) o="Internet access" ;;
+					ru) o="&#1044;&#1086;&#1089;&#1090;&#1091;&#1087; &#1074; &#1048;&#1085;&#1090;&#1077;&#1088;&#1085;&#1077;&#1090;" ;;
+					fr) o="Acc&egrave;s Internet" ;; esac ;;
+		username)
+			case $LANG in	de) o="Benutzername" ;;
+					en) o="Username" ;;
+					ru) o="&#1048;&#1084;&#1103; &#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1103;" ;;
+					fr) o="Nom d'utilisateur" ;; esac ;;
+		password)
+			case $LANG in	de) o="Passwort" ;;
+					en) o="Password" ;;
+					ru) o="&#1055;&#1072;&#1088;&#1086;&#1083;&#1100;" ;;
+					fr) o="Mot de passe" ;; esac ;;
+		accept_terms1)
+			case $LANG in	de) o="Ich akzeptiere die" ;;
+					en) o="I accept the" ;;
+					ru) o="&#1071; &#1087;&#1088;&#1080;&#1085;&#1080;&#1084;&#1072;&#1102;" ;;
+					fr) o="J'accepte les" ;; esac ;;
+		accept_terms2)
+			case $LANG in	de) o="Nutzungsbedingungen" ;;
+					en) o="Terms of Use" ;;
+					ru) o="&#1059;&#1089;&#1083;&#1086;&#1074;&#1080;&#1103; &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1085;&#1080;&#1103;" ;;
+					fr) o="Conditions d'utilisation" ;; esac ;;
+		tip_contract)
+			case $LANG in	de) o="ausf&uuml;hrliche Informationen zu den Vertragsbedingungen" ;;
+					en) o="detailed information to contractual" ;;
+					ru) o="&#1055;&#1086;&#1076;&#1088;&#1086;&#1073;&#1085;&#1091;&#1102; &#1080;&#1085;&#1092;&#1086;&#1088;&#1084;&#1072;&#1094;&#1080;&#1102; &#1087;&#1086; &#1082;&#1086;&#1085;&#1090;&#1088;&#1072;&#1082;&#1090;&#1072;&#1084;" ;;
+					fr) o="&eacute;tendue des informations contractuelles" ;; esac ;; 
+		wrong_logindata)
+			case $LANG in	de) o="bitte pr&uuml;fen Sie ihre Eingabe und achten Sie auf die Gro&szlig;- bzw. Kleinschreibung" ;;
+					en) o="please check your entry and pay attention to upper / lower case" ;;
+					ru) o="&#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1100;&#1090;&#1077; &#1080;&#1084;&#1103; &#1080; &#1086;&#1073;&#1088;&#1072;&#1090;&#1080;&#1090;&#1077; &#1074;&#1085;&#1080;&#1084;&#1072;&#1085;&#1080;&#1077; &#1085;&#1072; &#1074;&#1077;&#1088;&#1093;&#1085;&#1080;&#1081; / &#1085;&#1080;&#1078;&#1085;&#1080;&#1081; &#1088;&#1077;&#1075;&#1080;&#1089;&#1090;&#1088;" ;;
+					fr) o="s'il vous pla&icirc;t v&eacute;rifier votre inscription et de pr&ecirc;ter attention aux majuscules / minuscules" ;; esac ;;
+		accept_rules)
+			case $LANG in	de) o="bitte akzeptieren Sie die Nutzungsbedingungen" ;;
+					en) o="please accept the Terms of Use" ;;
+					ru) o="&#1087;&#1088;&#1080;&#1084;&#1080;&#1090;&#1077; &#1059;&#1089;&#1083;&#1086;&#1074;&#1080;&#1103; &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1085;&#1080;&#1103;" ;;
+					fr) o="s'il vous pla&icirc;t accepter les Conditions d'utilisation" ;; esac ;;
+		inet_broken)
+			case $LANG in	de) o="Netzwerkfehler entdeckt, bitte benutzen Sie einen anderen Zugangspunkt." ;;
+					en) o="Error in network detected, please use another accesspoint." ;;
+					ru) o="&#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1074; &#1089;&#1077;&#1090;&#1100; &#1086;&#1073;&#1085;&#1072;&#1088;&#1091;&#1078;&#1077;&#1085;&#1072;, &#1087;&#1086;&#1078;&#1072;&#1083;&#1091;&#1081;&#1089;&#1090;&#1072;, &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1091;&#1081;&#1090;&#1077; &#1076;&#1088;&#1091;&#1075;&#1086;&#1081; &#1090;&#1086;&#1095;&#1082;&#1080; &#1076;&#1086;&#1089;&#1090;&#1091;&#1087;&#1072;." ;;
+					fr) o="Erreur de reseau apparu, veuillez utiliser un autre point d' access." ;; esac ;;
+	esac
+	
+	echo -n "$o"
+}
+
+func_weblogin_output_gate_page ()
+{
+	func_http_header_mime_output "text/html"
+	
+	cat <<EOF
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>Weimarnetz : Knoten $(nvram get fff_node_number) ($(nvram get wan_hostname))</title>
+<style type="text/css">
+h1 { margin:0; padding:3pt; background:#333; color:white; font-size:15px; border-bottom:#333 1px solid;}
+li { font-size:14px; font-weight:700; padding:12pt 0pt 0pt 10pt;list-style:none; height:30px; border-bottom:#333 1px solid; background:#fff}
+a{text-decoration:none; color:222;}
+li:hover{background:#3399FF; }
+li:hover a{color:#fff}
+ul {margin:0;padding:0; width: 100%;}
+body {font-family:sans-serif; width:100%; height:100%; background-color:#333; padding:0; margin:0; color:black;}
+</style>
+</head>
+<body>
+<h1>Bitte ausw&auml;hlen</h1>
+<ul>
+<li><a href="http://$( nvram get wifi_ipaddr )/cgi-bin-welcome?REDIRECTED=1">weiter ins Internet</a></li>
+<li><a href="http://vikingosegundo.de/mw/">test hoopy-froods.net</a></li>
+</ul>
+</body>
+</html>
+EOF
+}
+
+func_weblogin_output_login_error ()		# fixme! more informations to user!
+{
+	func_http_redirect 302 ip_incoming_interface
+}
+
+func_weblogin_show_inet_broken ()
+{
+	local LANG="$1"
+	
+	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate $LANG inet_broken )&nbsp;</B><BR><BR></TD></TR>"	
+}
+
+func_weblogin_check_login ()		# fixme! send HOSTNAME?
+{					# fixme! answer must be a challenge/response:	// prevent replay attacks!
+	local USER="$1"			#        1. send hash of user/pass
+	local PASS="$2"			#        2. server answers with hash_of(1+my_secret_sshid) + auth=true/false
+	local MAC="$3"			#        3. we calc same hash and compare
+	local SIGNAL="$4"
+	local KEYWORD="$5"		# 'plaintext'
+
+	[ -n "$KEYWORD" ] && KEYWORD="${USER}+${PASS}"
+
+	local CRC="$( echo -n "${USER}${PASS}" | md5sum | cut -d' ' -f1 )"
+	local GATEWAY="$( sed -n '${s/^.* GW=\([0-9\.]*\);.*/\1/p}' /tmp/archiv_trace_inet_gateway_fff+ 2>/dev/null )"	# func_need gwcheck
+
+	local ANSWER="$( wget -qO - "http://${GATEWAY:-127.0.0.1}/cgi-bin-sql?LOGIN=${CRC}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}" 2>/dev/null )"
+	
+	[ "$ANSWER" = "1" -o -e /tmp/FREE ] && {
+		echo "$CRC" >/tmp/vds_user_$MAC		# for building vds
+		return 0
+	}
+	
+	return 1
+}

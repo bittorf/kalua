@@ -1,14 +1,11 @@
 #!/bin/sh
 
-. /etc/functions_base_fff+ && func_need old vars_old
-
-func_filelist ()
+_filelist ()
 {
-	echo "/etc/init.d/S41build_static_netparam /usr/bin/neigh /etc/functions_olsr"
+	echo "/etc/kalua/* /etc/kalua_init /etc/init.d/S41build_static_netparam /usr/bin/neigh"
 	echo "/www/cgi-bin-speed /www/cgi-bin-welcome /usr/bin/scheduler /usr/sbin/cron.build_vars"
-	echo "/www/cgi-bin-admin_functions* /www/cgi-bin-admin /www/cgi-bin-sql /etc/functions_links_fff+"
-	echo "/etc/dhcp-script.d/10dhcpscript /etc/kalua/sanitizer /usr/sbin/cron.upgrade_packages /bin/needs"
-	echo "/etc/functions_1wire /www/cgi-bin-chip /etc/funcloader_init /etc/init.d/S90ipip_tunnel"
+	echo "/www/cgi-bin-admin /www/cgi-bin-sql /www/cgi-bin-chip"
+	echo "/etc/dhcp-script.d/10dhcpscript /usr/sbin/cron.upgrade_packages"
 	
 	find / -type f -name "*fff+" |
 	 grep -v safed_syslog |
@@ -26,37 +23,39 @@ func_filelist ()
 	             sort -n
 }
 
-func_build_archiv ()
+_build_archiv ()
 {
-	tar cvzf $ARCHIV $(func_filelist)
+	tar cvzf $ARCHIV $( _filelist )
 }
 
-func_definitions ()
+_vars ()
 {
 	ARCHIV="/tmp/changes.tgz"
 	SERVER="hs@www.datenkiste.org:/tmp"
 }
 
-func_upload ()
+_upload ()
 {
 	scp $ARCHIV $SERVER
 	rm $ARCHIV
 }
 
+. /tmp/loader
+
 case $1 in
 	start)
-		func_definitions
-		func_build_archiv
-		func_upload
+		_vars
+		_build_archiv
+		_upload
 	;;
 	list)
 		FULLSIZE=0
 		FULLSTRIP=0
 	
-		for FILE in $(func_filelist); do {
+		for FILE in $( _filelist ); do {
 			[ -e "$FILE" ] && {
 			
-			SIZE="$( func_filesize "$FILE" )"
+			SIZE="$( _file_size "$FILE" )"
 			FULLSIZE=$(( $FULLSIZE + $SIZE ))
 			STRIPPED_SIZE="$( sed 's/[ 	]*$//' "$FILE" | wc -c )"
 			STRIPPED_DIFF="$(( $SIZE - $STRIPPED_SIZE ))"
@@ -79,7 +78,7 @@ case $1 in
 		echo "size overall: $FULLSIZE bytes ($FULLSTRIP bytes stripable)"
 	;;
 	search)
-		for FILE in $(func_filelist); do {
+		for FILE in $( _filelist ); do {
 			[ -e "$FILE" ] && {
 				grep -q "$2" "$FILE" && {
 					echo "found in '$FILE' :"
@@ -95,7 +94,7 @@ case $1 in
 		} done
 	;;
 	show_functions)
-		for FILE in $(func_filelist); do {
+		for FILE in $( _filelist ); do {
 			LIST_FUNCTIONS="$( sed -n 's/^\([a-zA-Z_]*\) ().*/\1/p' $FILE )"
 		
 			[ -n "$2" ] && LIST_FUNCTIONS="$( sed -n "s/^\($2\) ().*/\1/p" $FILE )"

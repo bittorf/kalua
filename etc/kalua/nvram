@@ -1,0 +1,64 @@
+_nvram_get ()
+{
+	local VALUE="$( nvram get "$1" )"		# fixme! maybe escape it?
+	func_log nvget daemon debug "'$1'='$VALUE'"
+	echo "$VALUE"
+}
+
+_nvram_set ()			# func_nvset varA valueA	// sets value
+{				# func_nvset commit message	// commit changes
+	local FUNC="nvram_set"	# func_nvset variableA		// no value = unset
+	local VAR="$1"		# func_nvset varB valueB simu   // just simulates this function for debugging
+	local SIMULATE="$3"	# func_nvset commit - simu	// simulating commit
+
+	[ -n "$SIMULATE" ] && FUNC="${FUNC}_simulated"		# fixme! maybe monitor all changes to a file which is removed after commit?
+	
+	[ "$VAR" = "commit" ] && {
+		local COMMIT_REASON="$2"
+	
+		[ -e /tmp/PROFILE_SET ] && {
+			_log do $FUNC daemon crit "error - cannot comit - lockfile '/tmp/PROFILE_SET' exists"
+			return 1
+		}
+		[ -z "$SIMULATE" ] && {
+			_log do $FUNC daemon debug "commiting changes - reason: '$COMMIT_REASON'"
+			nvram commit 2>/dev/null || {
+				_log do $FUNC daemon crit "error during commit"		# fixme! command always returns 0
+				return 1						# even if "low mem, could'nt write"
+			}
+			_log do $FUNC daemon alert "commited all changes"		# fixme! log changes? (needs /tmp/NVRAM_NO_CHANGE)
+			return
+		}
+		_log do $FUNC daemon debug "commit - reason: '$COMMIT_REASON'"
+		return
+	}
+
+	local VALUE_NEW="$2"
+	local VALUE_OLD="$( nvram get "$VAR" )"
+	local VAR_CHANGED="(no change)"
+	local RETURN=0				# means, nothing was changed
+	
+	[ "$VALUE_OLD" != "$VALUE_NEW" ] && {
+		if [ -z "$VALUE_OLD" ]; then
+			VAR_CHANGED="(new variable)"
+			RETURN=1
+		else
+			[ ${#VALUE_OLD} -gt 30 ] && {
+				VALUE_OLD="$( echo "$VALUE_OLD" | head -n1 | cut -b1-33 ) [...]"
+			}
+			
+			VAR_CHANGED="(changed, was: '$VALUE_OLD')"
+			RETURN=1
+		fi
+	}
+	
+	[ -n "$VALUE_NEW" ] && {
+		_log do $FUNC daemon debug "'$VAR'='$VALUE_NEW' $VAR_CHANGED"
+		[ -z "$SIMULATE" ] &&  nvram set "$VAR"="$VALUE_NEW"
+		return $RETURN
+	}
+	
+	_log do $FUNC daemon debug "unsetting '$VAR' $VAR_CHANGED"
+	[ -z "$SIMULATE" ] && nvram unset "$VAR"
+	return $RETURN
+}

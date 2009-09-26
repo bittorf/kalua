@@ -5,32 +5,32 @@
 # was'nt started (= no process_id) we:
 # - enforce reformatting of jffs2-partition and reboot
 
-. /etc/functions_base_fff+ && func_need log nvram
+/etc/kalua_init && . /tmp/loader
 
-func_telnetd_start ()		# during startup, login without password (!)
+_telnetd_start ()		# during startup, login without password (!)
 {
 	local FUNC="telnetd_start"
 
 	pidof telnetd >/dev/null && {
-		func_log $FUNC daemon debug "already running"
+		_log do $FUNC daemon debug "already running"
 		return
 	}
 	
 	telnetd || {
-		func_log $FUNC daemon debug "error"
+		_log do $FUNC daemon debug "error"
 		return 1
 	}
 
 	return 0
 }
 
-func_telnetd_stop ()
+_telnetd_stop ()
 {
 	local FUNC="telnetd_stop"
 	local PID="$( pidof telnetd )"
 	
 	[ -z "$PID" ] && {
-		func_log $FUNC daemon debug "there is no telnetd?!"
+		_log do $FUNC daemon debug "there is no telnetd?!"
 		return 1
 	}
 
@@ -38,16 +38,16 @@ func_telnetd_stop ()
 	# fixme! ensure, that conn is _to_ local
 	
 	grep -q "^.* ESTABLISHED .* dport=23 " /proc/net/ip_conntrack && {
-		func_log $FUNC daemon debug "error - somebody is logged in"
+		_log do $FUNC daemon debug "error - somebody is logged in"
 		return 1
 	}
 	
 	kill $PID || {
-		func_log $FUNC daemon debug "error - process $PID"
+		_log do $FUNC daemon debug "error - process $PID"
 		return 1
 	}
 	
-	func_log $FUNC daemon debug "success"
+	_log do $FUNC daemon debug "success"
 	return 0
 }
 
@@ -56,9 +56,9 @@ while true; do {
 	touch /tmp/DEBUG /tmp/BOOT		# logging on during boot-time
 
 	if   insmod crondog ; then
-		func_log activate_crondog daemon debug "went fine"
+		_log do activate_crondog daemon debug "went fine"
 	else
-		func_log activate_crondog daemon crit "error during insmod"
+		_log do activate_crondog daemon crit "error during insmod"
 	fi
 
 	[ ! -e /etc/shells ] && echo "/bin/ash"  >/etc/shells
@@ -67,14 +67,14 @@ while true; do {
 	grep -q "^nobody:" /etc/group  2>/dev/null || echo 'nobody:x:500:' >>/etc/group
 	grep -q "^nobody:" /etc/passwd 2>/dev/null || echo 'nobody:$1$$enWsv2cbxPCrd0WeXUXtX0:500:500:Linux User,,,:/home/nobody:/bin/sh' >>/etc/passwd
 
-	func_telnetd_start && func_log telnetd_start daemon debug "success"
+	_telnetd_start && _log do telnetd_start daemon debug "success"
 
-	[ -n "$FAILSAFE" ] && func_log check_failsafe daemon info "working in FAILSAFE-mode"
-	[ -n "$READONLY" ] && func_log check_readonly daemon info "working in READONLY-mode"
+	[ -n "$FAILSAFE" ] && _log do check_failsafe daemon info "working in FAILSAFE-mode"
+	[ -n "$READONLY" ] && _log do check_readonly daemon info "working in READONLY-mode"
 
-	while ! pidof olsrd; do {
+	while ! pidof olsrd >/dev/null; do {
 		[ -e /tmp/PROFILE_SET ] && {
-			[ "$(func_system_get_load 1min)" -gt 50 ] && {		# router does'nt hang? // fixme! also check >500?
+			[ "$( _system_get_load 1min )" -gt 50 ] && {		# router does'nt hang? // fixme! also check >500?
 				[ -e /dev/misc/crondog ] && {
 					echo >/dev/misc/crondog
 					COUNT=$(( $COUNT - 1 ))
@@ -85,28 +85,28 @@ while true; do {
 		[ $COUNT -gt 60 ] && break	# 10 minutes should be enough, till olsrd gets started.
 		sleep 10			# If this script fails, crondog reboots after ~600 seconds
 	} done
-	
+
 	if  pidof olsrd >/dev/null ; then
 
-		func_log pidof_olsrd daemon debug "OLSRd is up"
+		_log do pidof_olsrd daemon debug "OLSRd is up"
 
 		if   pidof dropbear >/dev/null ; then
-			func_log pidof_dropbear daemon debug "dropbear is up, trying to kill telnetd in 45 sec"
+			_log do pidof_dropbear daemon debug "dropbear is up, trying to kill telnetd in 45 sec"
 			sleep 45
-			func_telnetd_stop
+			_telnetd_stop
 		else
-			func_log pidof_dropbear daemon debug "dropbear is NOT up - use telnet!"
+			_log do pidof_dropbear daemon debug "dropbear is NOT up - use telnet!"
 		fi
 	else
-		func_log if_olsrd_not_up daemon debug "OLSRd is NOT up"
+		_log do if_olsrd_not_up daemon debug "OLSRd is NOT up"
 		
 		if [ -z "$FAILSAFE" ] && [ -z "$READONLY" ]; then
-			func_nvset ff_reset
-			func_nvset commit	# this enforces reformatting of jffs2-partition -> plain firmware
-			func_safe_reboot "olsrd was not started"
+			_nvram set ff_reset
+			_nvram set commit			# this enforces reformatting of jffs2-partition -> plain firmware
+			_safe_reboot "olsrd was not started"
 		fi
 			
-		func_log if_failsafe_or_readonly daemon debug "OLSRd is NOT up"
+		_log do if_failsafe_or_readonly daemon debug "OLSRd is NOT up"
 	fi
 
 	# fixme! when wireless-driver could'nt be loaded, then reformat jffs2
@@ -117,13 +117,12 @@ while true; do {
 	
 	ls -l /www/*software_is_fully_installed* >/dev/null && {
 		sleep 1200
-		func_log exit_watchdog daemon debug "switching DEBUG-mode off, but can be manually startet with '>DEBUG'"
+		_log do exit_watchdog daemon debug "switching DEBUG-mode off, but can be manually startet with '>DEBUG'"
 		rm /tmp/DEBUG
 		exit
 	}
 		
-	func_log exit_watchdog daemon debug "leaving DEBUG-mode on, software-install is not ready yet"	
+	_log do exit_watchdog daemon debug "leaving DEBUG-mode on, software-install is not ready yet"	
 	exit
 		
 } done &
-

@@ -1,0 +1,105 @@
+_system_safe_reboot ()			# fixme! maybe shutting down services like vpn, olsrd?
+{
+	local FUNC="system_safe_reboot"
+	local REASON="$1"
+	local LOCKFILE="/tmp/SAFE_REBOOT_SCHEDULED"
+
+	[ -e  "$LOCKFILE" ] && return
+	touch "$LOCKFILE"
+
+	[ -e /dev/misc/crondog ] && /etc/init.d/S*crond* stop	# if something goes wrong, this enforces an reboot in 10 minutes by crondog
+
+	/etc/init.d/S69watch_olsrd_fff+ send_alive_message no_antenna_test	# maybe the last feedback can be helpful
+
+	_log do $FUNC daemon alert "scheduling reboot - reason: '$REASON'"
+
+	tail -n1 "$ARCHIV_NODE_DATA" | grep -q ^# || {			# found comment at fileend
+
+		_log do $FUNC daemon info "send_alive_message was unsuccessful, backing up '${ARCHIV_NODE_DATA}'"		
+
+		local LINENUMBER_LAST_SUCCESS="$( grep -n "^#" "${ARCHIV_NODE_DATA}" | tail -n1 | cut -d':' -f1 )"
+		sed -n "$(( $LINENUMBER_LAST_SUCCESS + 1 )),\$p" "${ARCHIV_NODE_DATA}" >/www/backup_archiv_node_data
+	}
+
+	if [ ! -e "$SOFTWARE_FULLY_INSTALLED" ]; then			# fixme! check free flash space?
+	
+		_log do $FUNC daemon info "safing syslog to '$SYSLOG_SAFED'"
+		grep -v "kern.err olsrd" $SYSLOG >$SYSLOG_SAFED		# we don't need the "add route/del route" errors
+	else
+		_log do $FUNC daemon info "safing last 100 lines of syslog to '$SYSLOG_SAFED'"
+		grep -v "kern.err olsrd" $SYSLOG | tail -n 100 >$SYSLOG_SAFED
+	fi	
+
+	_log do $FUNC daemon info "flash free: '$(func_system_flash_free)', rebooting in 10 sec"
+
+	sync			# not needed? flush_cache() is also called during reboot()
+	sleep 10		# fixme! maybe we should wait till crondog works or enforce crondog-timeout
+
+	if [ -e /rom/sbin/reboot ]; then
+		/rom/sbin/reboot
+	else
+		reboot
+	fi
+
+	sleep 20		# just to be sure, that no further commands are executed
+}
+
+_system_load ()			# load without comma, e.g.
+{				# 1.00 = 100 or 12.89 = 1289
+	case $1 in
+		1min)
+			sed -ne 's/^\([0-9]*\)\.\([0-9]*\) .*$/\1\2/' -e 's/^[0]*//p' /proc/loadavg
+		;;
+		*)
+			echo 0
+		;;
+	esac
+}
+
+_system_flash_free ()	# [kByte]		# fixme! abtraction to PARTITION="$1", fallback to internal flash
+{
+	local PARTITION="/dev/mtdblock/4"
+	
+	df | sed -n "s#^${PARTITION}[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*#\1#p"
+}
+
+_system_get_storage_path ()
+{
+	# usb-stick attached:
+	# /dev/scsi/host0/bus0/target0/lun0/part1 15607264   3435664  11378796  23% /mnt/disc0_1
+	
+	local OUT="$( df | grep ^/dev/scsi/ | head -n1 | cut -d'%' -f2 )"
+
+	echo ${OUT:-/www/cgi-bin}	# fallback is password-protected space
+}
+
+_system_hostname_get ()
+{
+	local HOSTNAME="$(nvram get wan_hostname)"
+	
+	_sanitizer "${HOSTNAME:=unsethostname}" hostname
+}
+
+_system_uptime ()		# OUT1 = string
+{				# ARG1 = string: plain|min|hour|sec
+	local FORMAT="$1"
+	local UPTIME FLOAT NOP
+	
+	IFS='. '
+	read UPTIME FLOAT NOP </proc/uptime		# reads integer = seconds
+	unset IFS
+	
+	case $FORMAT in
+		min)
+			UPTIME=$(( $UPTIME / 60 ))
+		;;
+		h|hour|hours)
+			UPTIME=$(( $UPTIME / 3600 ))
+		;;
+		plain)
+			UPTIME="$UPTIME.$FLOAT"
+		;;
+	esac
+	
+	echo -n "$UPTIME"
+}

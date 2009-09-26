@@ -1,0 +1,317 @@
+FUNC_WELCOME=1
+
+fkt_print_html_user_over_limit () {
+	local MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+	local LIMIT_IN_MB="$( fkt_convert_to_unit $(fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac $MAC ) mb )"
+
+	logger "fff+ $0 (fkt_print_html_user_over_limit)"
+
+	cat <<EOF
+<big><b>
+Leider wurdest du ausgeloggt, weil du zuviel Datenverkehr verursacht hast.<br>
+Momentan darf dein Rechner $LIMIT_IN_MB Megabytes pro Tag verursachen.<br>
+Ein erneuter Login ist ab 6 Uhr Vormittag wieder m&ouml;glich.<br>
+EOF
+										
+
+	# hinweis auf netzinterne dienste?
+
+	fkt_list_locally_registered_users | grep -i -q $MAC
+
+	test "$?" -eq 0 && return							# user is already registered
+
+	logger "fff+ $0 (fkt_print_html_user_over_limit) unregistered"
+
+	cat <<EOF
+Sollte daran etwas falsch sein, spreche mit dem Administrator dieses Netzknotens.	<br>
+Dieser kann dich auf diesem Knoten registrieren - dann ist mehr drin ;-)		<br>
+Bei Problemen kannst du auch das <a href="http://wireless.subsignal.org/index.php?title=Telefonnummer">Weimarnetz-Sorgentelefon</a> anrufen: 03643 / 544304
+</b></big>
+EOF
+}
+
+fkt_print_html_you_are_blacklistet () {
+	logger "fff+ $0 (fkt_print_html_you_are_blacklistet)"
+
+	cat <<EOF
+<big><b>
+Dieser Netzknoten wurde f&uuml;r die Benutzung durch andere Benutzer gesperrt.<br>
+Dies kann verschiedene Ursachen haben. Es besteht nat&uuml;rlich die M&ouml;glichkeit,<br>
+das Du dir eine eigene Freifunkantenne ("Router") aufstellst.<br>
+Mehr Informationen dazu findest du unter <a href="$WIKI_MAIN_URL">$WIKI_MAIN_URL</a> .<br>
+Bei Problemen kannst du auch das <a href="http://wireless.subsignal.org/index.php?title=Telefonnummer">Weimarnetz-Sorgentelefon</a> anrufen: 03643 / 544304
+</b></big>
+EOF
+}
+
+fkt_print_html_alread_logged_in () {
+	logger "fff+ $0 (fkt_print_html_alread_logged_in)"
+
+	cat <<EOF
+<small>(Hinweis: du bist schon eingeloggt)</small>
+EOF
+}
+
+fkt_print_admin_link_from_ip () {
+	local IP="$1"
+	
+	fkt_wget "http://$IP/cgi-bin-index.html" 3 | sed -n '/<LI>/{n;p;q}' | grep -v "Berliner Webseite"
+}
+
+fkt_print_hostname_from_ip () {
+	local IP="$1"
+	
+	if [ -z "$IP" ]; then
+		echo "?"
+		return
+	fi
+	
+	nslookup $IP | while read LINE; do
+		
+		test -n "$LINE" && set $LINE
+		
+		if [ "$1" = "Name:" ]; then
+		
+			if [ -z "$2" ];then
+				echo "$IP"
+			else
+				echo "${2%.*}"          # print $2, but only all before the dot "." (omit domain)
+			fi
+			
+			return
+		fi
+	done
+}
+
+fkt_print_image_of_inet_gw ()
+{
+	func_need profile_user
+	
+	test ! -e $TRACE_INET_GATEWAY && /usr/sbin/cron.check_inet_gw_fff+ >/dev/null
+
+	eval "$( tail -n 1 $TRACE_INET_GATEWAY 2>/dev/null )"
+
+	cat <<EOF
+Der Internetzugang wird dir gerade von diesem freundlichen<br>
+Netzteilnehmer zur Verf&uuml;gung gestellt: "<b>$( fkt_print_hostname_from_ip $GW )</b>" (Knoten $( func_ipsystem $GW ))<br>
+<a href="http://$GW/cgi-bin-index.html"><img src="http://$GW/images/intro.jpg" border=0 width=240 height=180 alt="Hier sollte eigentlich das Startbild deines Internet-Einspeisers zu sehen sein."></a>
+EOF
+
+fkt_print_admin_link_from_ip $GW
+
+	if [ "$GW" != "$NEXTHOP" ]; then
+		cat <<EOF
+<br><br>Dies ist dein n&auml;chster Funknachbar: "<b>$( fkt_print_hostname_from_ip $NEXTHOP )</b>" (Knoten $( func_ipsystem $NEXTHOP ))<br>
+<a href="http://$NEXTHOP/cgi-bin-index.html"><img src="http://$NEXTHOP/images/intro.jpg" border=0 width=240 height=180 alt="Hier sollte eigentlich das Startbild deines naechsten Funknachbars &uuml;ber den das Internet geleitet wird zu sehen sein."></a>
+EOF
+		fkt_print_admin_link_from_ip $NEXTHOP
+	else
+		echo "<br><br>Das ist auch dein n&auml;chster Funknachbar!<br>"
+	fi
+}
+
+fkt_decide_usecase ()
+{
+	if [ "$REQUEST_METHOD" = "POST" ]; then			# fixme! a simple POST is enough?
+		USECASE="BUTTON_PRESSED"
+	else
+		eval $(func_http_sanitize_query_string)		# fixme! also check: already logged in?
+		USECASE="LOOK_ONLY"
+	fi
+	
+	func_log decide_usecase daemon info "USECASE: '$USECASE' REMOTE_ADDR: '${REMOTE_ADDR}'"
+}
+
+fkt_print_html_header () {
+	export DATE="$(grep SVN "/etc/variables_fff+" | cut -d"#" -f2)"
+	export TITLE="Weimarnetz-Infoseite"
+	SCRIPT=${0#/rom}
+	. ${SCRIPT%/*}/cgi-bin-pre.sh
+}
+
+fkt_print_html_footer () {
+	. ${SCRIPT%/*}/cgi-bin-post.sh
+}
+
+fkt_print_html_button () {
+	echo '<form action="" method="POST"><input type="submit" value="Internetverbindung aufbauen"></form>'
+}
+
+fkt_deliver_indexpage () {
+	sh /www/cgi-bin-index.html
+}
+
+fkt_print_html_message_service () {
+	echo "Router befindet sich gerade im Wartungs-Modus oder in der Startphase, bitte keinen Datenverkehr verursachen."
+}
+
+fkt_print_html_message_wifi () {
+	echo "Hallo Nutzer. Du musst noch unten auf den Knopf dr&uuml;cken!<br>"
+	echo "Versuche Dich in Zukunft per Kabel ans Weimarnetz anzuschliessen, es geht dann schneller.<br>"
+	echo "Bei Problemen kannst du auch das <a href="http://wireless.subsignal.org/index.php?title=Telefonnummer">Weimarnetz-Sorgentelefon</a> anrufen: 03643 / 544304"
+}
+
+fkt_print_html_link_to_usermanagement () {
+	cat <<EOF
+<table cellspacing=0 cellpadding=0 border=0 width=100%><tr><td align=right width=100%>
+<a href="/cgi-bin/config_fff+?gui=user"><small>...diesen Computer fest eintragen</small></a></td></tr></table>
+EOF
+}
+
+fkt_print_html_message_lan () {
+	echo "Hallo Nutzer. Du musst noch unten auf den Knopf dr&uuml;cken!<br>"
+	echo "Bei Problemen kannst du auch das <a href="http://wireless.subsignal.org/index.php?title=Telefonnummer">Weimarnetz-Sorgentelefon</a> anrufen: 03643 / 544304"
+}
+
+fkt_print_html_message_welcome () {
+	local BORDER
+
+	if [ "$( fkt_check_if_mac_is_admin $MAC )" != "true" ]; then
+		BORDER="$( fkt_convert_to_unit $(fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac $MAC ) mb ) Megabytes/Tag"
+	else
+		BORDER="unbegrenzt"
+	fi
+
+	cat <<EOF
+Viel Spass beim Surfen.
+<i>Tipp</i>: Du erreichst diese Seite immer unter <b>
+<tt>http://$( nvram get wan_hostname )</tt></b><br>
+<small>Dein Benutzerstatus erlaubt Dir
+$BORDER Internetdatenverkehr (siehe <a href="/cgi-bin/config_fff+?gui=user">Benutzerverwaltung</a>).</small><br>
+EOF
+}
+
+fkt_check_if_remote_from_wifi ()
+{
+	grep -q "$REMOTE_ADDR_ESCAPED;" $CLIENTS_WIFI 2>/dev/null && {
+		echo "true"
+		return
+	}
+}
+
+fkt_check_if_remote_from_lan ()
+{
+	grep -q "$REMOTE_ADDR_ESCAPED;" $CLIENTS_LAN 2>/dev/null && {
+		echo "true"
+	}
+}
+
+fkt_check_if_remote_from_wan ()
+{
+	grep -q "$REMOTE_ADDR_ESCAPED;" $CLIENTS_WAN 2>/dev/null && {
+		echo "true"
+	}
+}
+
+fkt_check_if_router_in_maintenance_mode ()
+{
+	[ ! -e "$SOFTWARE_FULLY_INSTALLED" ] && {
+		echo "true"
+	}
+}
+
+fkt_decide_mode ()
+{
+	[ "$REMOTE_ADDR" = "127.0.0.1" ] && {
+		local REMOTE_ADDR_TEMP="$( sed -n 's/^.* ssl client \(.*\) to .*/\1/p' /var/log/messages | tail -n1)"
+					# "to plain server" ???	
+		[ -n "$REMOTE_ADDR_TEMP" ] && REMOTE_ADDR="$REMOTE_ADDR_TEMP"
+	}
+	
+	REMOTE_ADDR_ESCAPED="$( echo $REMOTE_ADDR | sed 's/\./\\\./g' )"
+
+	  if [ "$USECASE" = "BUTTON_PRESSED" ]; then
+	  	MODE=BUTTON
+
+  	elif [ "$(fkt_check_if_router_in_maintenance_mode)" = "true" ]; then
+  		MODE=SERVICE
+  	
+	elif [ ! -z "$(fkt_check_if_remote_from_wifi)" ] && [ "$REDIRECTED" != "1" ]; then
+		MODE=REDIRECT_WIFI
+	
+	elif [ ! -z "$(fkt_check_if_remote_from_wifi)" ]; then
+		MODE=WIFI
+
+	elif [ ! -z "$(fkt_check_if_remote_from_lan)" ] && [ "$REDIRECTED" != "1" ]; then
+		MODE=REDIRECT_LAN
+
+	elif [ ! -z "$(fkt_check_if_remote_from_lan)" ]; then
+		MODE=LAN
+	
+	elif [ ! -z "$(fkt_check_if_remote_from_wan)" ] && [ "$REDIRECTED" != "1" ]; then
+		MODE=REDIRECT_WAN
+	
+	elif [ ! -z "$(fkt_check_if_remote_from_wan)" ]; then
+		MODE=WAN
+	else
+		MODE=MESH
+	fi
+	
+	logger "fff+ (fkt_decide_mode) $0 : \"$MODE\""
+
+	[ -z "$DEBUG" ] && return
+
+	case "$DEBUG" in
+		1) MODE=SERVICE       ;;
+		2) MODE=BUTTON        ;;
+		3) MODE=REDIRECT_WIFI ;;
+		4) MODE=WIFI          ;;
+		5) MODE=REDIRECT_LAN  ;;
+		6) MODE=LAN           ;;
+		7) MODE=REDIRECT_WAN  ;;
+		8) MODE=WAN           ;;
+		*) MODE=MESH          ;;
+	esac
+
+	logger "fff+ (fkt_decide_mode,debug) $0 : \"$MODE\""
+}
+
+fkt_print_news () {		# SENS: loads a file containing the 10 latest news from the newsserver, created by A. Braeu
+	local URL="$1"		# ARG1: string,URL
+	local HEAD="$2"		# ARG2: string,headline
+
+	cat <<EOF
+	<P><table cellspacing=0 cellpadding=0 border=0 width=100%><tr><td align=left width=50%><big><b> $HEAD </b></big></td>
+	</tr></table></p>
+	<A HREF="${NEWSSERVER_URL}" TARGET="_blank">Direktlink</A> zum Newsserver - Benutzername: <I>freifunk</I> Passwort: <I>weimar</I><BR>
+EOF
+
+        fkt_wget "${URL}" 2 | sed -e 's/Ã¤/ä/g' -e 's/Ã¼/ü/g' -e 's/Ã¶/ö/g'	# fetch this page but abort after max 3 seconds	and convert german umlauts
+
+	test "$?" -ne 0 && echo "Fehler aufgetreten...<br>Hier sollten eigentlich aktuelle Diskussionen vom Newsserver/Mailingliste stehen.<br><br>"
+}	
+
+fkt_print_wiki () {
+	local  URL="${WIKI_MAIN_URL}/index.php"
+	local PAGE="$1"
+	local HEAD="$2"
+
+	cat <<EOF
+<p><table cellspacing=0 cellpadding=0 border=0 width=100%><tr><td align=left width=50%><big><b> $HEAD </b></big></td>
+<td align=right width=50%><a href="${URL}?${PAGE}&action=edit"><small>Text bearbeiten</small></a></td></tr></table></p>
+EOF
+	which awk >/dev/null && {
+		fkt_wget "${URL}?${PAGE}" 2 | awk -v URL=$URL '{		# fetch this page but abort after max 3 seconds
+			gsub(/\/index.php/,URL)
+			gsub(/Ã¤/,"ä")						# utf8
+			gsub(/Ã¼/,"ü")						# utf8
+			gsub(/Ã¶/,"ö")						# utf8 - yet missing: the big german umlauts + sz
+			if(s==1)
+				print
+			if(substr($0,4,24)=="<div class=\"editsection\"" || index($0,"class=\"mw-headline\"")>0)
+				s=1
+			if(s==1 && substr($0,1,11)=="</li></ul>")		# Problem: only lists are possible (end-detection...)
+				exit
+		}END{if(s!=1)exit 1}'
+	}
+	
+	if [ "$?" -ne 0 ] || ! which awk >/dev/null; then		# fixme! awk -> sed
+		cat <<EOF						# fetching wikipage was NOT successful
+		Fehler aufgetreten...<br>
+		Hier sollte eigentlich ein Auszug<br>
+		aus dem Weimarnetz-Wiki (<a href="${URL}?${PAGE}">"${PAGE}"</a>) stehen.
+		<br><br>
+EOF
+		logger "fff+ (fkt_print_wiki) failed to retrieve: \"${URL}?${PAGE}\""
+	fi
+}

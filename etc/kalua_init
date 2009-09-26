@@ -1,0 +1,63 @@
+#!/bin/sh
+
+# this outputs an inital small loader which can be sourced for each 'class', e.g. for class 'wifi':
+#
+# idee: kommentare etc. strippen beim zusammenbau
+# idee: methode 'unload' ?
+#
+# todo: needs ( netparam | vars_old | vars | vars_software | gwcheck | ipsystem )
+
+_strip ()
+{
+	local a=0
+	
+	# kommentare entfernen
+	# fuehrende spaces oder tabs entfernen
+	# trailing spaces oder tabs entfernen
+	# leerzeilen entfernen
+}
+
+_init ()
+{
+	local BASEDIR="/etc/kalua"	# scriptbase, simply throw your 'class'-files here e.g. wifi
+	local LOADER="/tmp/loader"	# scripts can source this file and automatically use all 'classes'
+	local POOLDIR="/tmp/kalua"	# all function-scripts are rewritten (stripped) to this dir
+	local CLASS
+
+	[ -e "$LOADER" ] && rm "$LOADER"
+	mkdir -p "$POOLDIR"
+	
+	for CLASS in $(find $BASEDIR -type f); do {
+		CLASS="$( basename $CLASS )"
+		
+		logger -s "generate shortpre + method 'show' to '$POOLDIR/${CLASS}'"
+								# generate shortpre + method 'show'
+		cat >"$POOLDIR/${CLASS}" <<EOF
+_${CLASS} ()
+{
+	local F=\$1
+	shift
+	_${CLASS}_\$F "\$@"	
+}
+
+_${CLASS}_show ()
+{
+	sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/${CLASS}
+}
+EOF
+		cat >>"$POOLDIR/${CLASS}" $BASEDIR/$CLASS	# copy all functions to pool
+
+		cat >>"$LOADER" <<EOF
+_${CLASS} ()
+{
+	. $POOLDIR/${CLASS}
+	local F=\$1
+	shift
+	_${CLASS}_\$F "\$@"
+}
+EOF
+
+	} done
+}
+
+_init
