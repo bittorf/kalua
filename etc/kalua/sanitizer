@@ -68,13 +68,6 @@ _sanitizer_email ()
 	echo -n "$1" | sed 's/[^0-9a-zA-Z@\._-]//g'		# fixme! only one '@'
 }
 
-_sanitizer_urlvalue ()
-{
-	func_need log
-	
-	func_url_encode "$1"
-}
-
 _sanitizer_mac ()		# real world mac's, does not work on e.g. tun/tap/bridge-macs	// fixme! enforce ':'-format?
 {
 	echo -n "$1" | sed -n 's/^.*\([018aA][01248AaCc][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9]\).*/\1/p'
@@ -94,6 +87,7 @@ _sanitizer_hostname ()
 {
 	_sanitizer_do "$(echo -n "$1" | sed 's/[^-a-zA-Z0-9]//g')" length_24
 }
+
 _sanitizer_length ()
 {
 	local STRING="$1"
@@ -102,3 +96,119 @@ _sanitizer_length ()
 	echo -n "$STRING" | cut -b1-${LENGTH}
 }
 
+_sanitizer_strip_nonsafe_url ()		# SENS: strip all chars, which are not URL-safe (RFC-3986, chapter 2.3. unreserved chars)
+{
+	echo "$1" | sed 's/[^a-zA-Z0-9_\.~-]//g'			# fixme! sed 's/%[0-9a-fA-F][0-9a-fA-F]//g'
+									# -> leave already encoded chars in?!
+}
+
+_sanitizer_strip_nonsafe_url_special ()		# SENS: strip all chars, which are in our special table (see next function!)
+{
+	echo "$1" | sed -e 's/[}{\$\^[()!*\[,"|	;<>'\\\''=+:?@#\\/ ]//g' -e 's/]//g'	# is: { } $ ^ [ ] ( ) ! * , " | TAB ; < > ' = + : ? @ # / space
+}
+
+_sanitizer_encode_nonsafe_url_special ()	# SENS: converting chars using a fixed table, where we know the URL-encodings
+{						#   is: , ; : ? # [ ] / @ + = " ' | ( ) TAB < > ! * { } $ ^ space
+	echo "$1" | sed -e 's/,/%2c/g'	\
+			-e 's/;/%3b/g'	\
+			-e 's/:/%3a/g'	\
+			-e 's/?/%3f/g'	\
+			-e 's/#/%23/g'	\
+			-e 's/\[/%5b/g'	\
+			-e 's/\]/%5d/g'	\
+			-e 's/\//%2f/g'	\
+			-e 's/@/%40/g'	\
+			-e 's/+/%2b/g'  \
+			-e 's/=/%3d/g'	\
+			-e 's/"/%22/g'	\
+			-e "s/'/%27/g"	\
+			-e "s/|/%7c/g"	\
+			-e "s/[(]/%28/g" \
+			-e "s/[)]/%29/g" \
+			-e "s/	/%09/g"	\
+			-e 's/</%3c/g'  \
+			-e 's/>/%3e/g'  \
+			-e 's/!/%21/g' \
+			-e 's/*/%2a/g' \
+			-e 's/{/%7b/g' \
+			-e 's/}/%7d/g' \
+			-e 's/\$/%24/g' \
+			-e 's/\^/%5e/g' \
+			-e 's/ /+/g'
+}
+
+_sanitizer_urlvalue ()			# todo: on cmdline this produces error on each "!"-sign, but output is ok
+{					# ARG1: string (all chars are allowed)
+	local FUNC="url_encode"		# OUT1: string (URL-encoded, RFC2396)
+	local TEXT="$1"
+	local  OUT=""
+	local CHAR=""
+	local  HEX=""
+	local  POS=0
+	local STRIP="$( _sanitizer_strip_nonsafe_url "$TEXT" )"
+
+	[ "$TEXT" = "$STRIP" ] && {		# no need for conversion, only safe chars
+		echo "$TEXT"
+		return
+	}
+	
+	[ "$STRIP" = "$( _sanitizer_strip_nonsafe_url_special "$TEXT" )" ] && {	# conversion of unsafe chars is possible with a fast table
+		_sanitizer_encode_nonsafe_url_special "$TEXT"
+		return
+	}
+
+	# seems that we have special chars, that are not in our table,
+	# so we have to check char by char, which is slow...
+	# maybe we should auto-generate a table when using this functions for the first time?
+
+	while [ $POS -lt ${#TEXT} ]; do {					# 0...length_of_text
+		
+		POS=$(( $POS + 1 ))
+		CHAR="$( echo "$TEXT" | cut -b $POS )"				# char at $POS
+			
+		[ -n "$( _sanitizer_strip_nonsafe_url "$CHAR" )" ] && {
+		  	OUT="${OUT}${CHAR}"
+		  	continue
+		}
+		
+		HEX="$( echo "$CHAR" | hexdump -C | cut -d" " -f3 )"		# is unsafe char! do HEX
+		OUT="${OUT}%${HEX}"						# no matter: a-z = A-Z
+	} done
+
+	echo $OUT
+}
+
+func_split_string ()		# ARG1: string
+{				# ARG2: max_string_length
+
+	# ToDo: sms > 160 zeichen automatisch splitten
+	# text1 [1/3]
+	# test2 [2/3]
+	# text3 [3/3]
+
+	local TEXT="[1]3456789[2]DEFGHIJ[3]3456789[4]DEFGHIJ[5]3456789"
+	local ANZAHL=5
+	local b=0
+	local pos=0
+	local step=10
+	local von=0
+	local bis=0
+
+	local POS_START
+	local POS_END
+	
+	while [ $b -lt $ANZAHL ]; do {
+
+		b=$(( $b + 1 ))
+		von=$(( $pos + $von ))
+		von=$(( $von * $b ))
+		bis=$(( $bis + $step ))
+
+		POS_START=$(( ($b * $step) - $step + 1 ))
+		POS_END=$bis
+		
+		echo "LOOP: '$b' POS_START: '$POS_START' POS_END: '$POS_END'"
+		
+		echo "$TEXT" | cut -b $POS_START-$POS_END
+	} done
+}

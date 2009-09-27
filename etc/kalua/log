@@ -1,38 +1,3 @@
-func_split_string ()		# ARG1: string
-{				# ARG2: max_string_length
-
-	# ToDo: sms > 160 zeichen automatisch splitten
-	# text1 [1/3]
-	# test2 [2/3]
-	# text3 [3/3]
-
-	local TEXT="[1]3456789[2]DEFGHIJ[3]3456789[4]DEFGHIJ[5]3456789"
-	local ANZAHL=5
-	local b=0
-	local pos=0
-	local step=10
-	local von=0
-	local bis=0
-
-	local POS_START
-	local POS_END
-	
-	while [ $b -lt $ANZAHL ]; do {
-
-		b=$(( $b + 1 ))
-		von=$(( $pos + $von ))
-		von=$(( $von * $b ))
-		bis=$(( $bis + $step ))
-
-		POS_START=$(( ($b * $step) - $step + 1 ))
-		POS_END=$bis
-		
-		echo "LOOP: '$b' POS_START: '$POS_START' POS_END: '$POS_END'"
-		
-		echo "$TEXT" | cut -b $POS_START-$POS_END
-	} done
-}
-
 _log_do ()				# CALL: _log do my_func_name daemon info "mytext"
 {
 	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
@@ -63,7 +28,7 @@ _log_do ()				# CALL: _log do my_func_name daemon info "mytext"
 				MESSAGE="$( echo "$MESSAGE" | while read LINE; do echo -n $LINE; done )"	# strip newline chars
 				local UNIXTIME="$( date +%s )"
 				local ARCHIV_NODE_MESSAGE="$DATE | [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
-				echo >>$ARCHIV_NODE_DATA "log=$( func_url_encode "$ARCHIV_NODE_MESSAGE" )&time=${UNIXTIME}"
+				echo >>$ARCHIV_NODE_DATA "log=$( _sanitizer do "$ARCHIV_NODE_MESSAGE" urlvalue )&time=${UNIXTIME}"
 				touch /tmp/SEND_ALIVE_FAILED
 			}
 		;;
@@ -119,88 +84,6 @@ _log_netmessage () 		# SENS: sends a human-readable UDP netmessage to all broadc
 	for BROADCAST in ${DESTINATIONS:=255.255.255.255}; do {
 		netmsg $BROADCAST "__$MESSAGE"				# fixme! at early boot, there are no interfaces up...
 	} done
-}
-
-func_strip_nonsafe_url_chars ()		# SENS: strip all chars, which are not URL-safe (RFC-3986, chapter 2.3. unreserved chars)
-{
-	echo "$1" | sed 's/[^a-zA-Z0-9_\.~-]//g'			# fixme! sed 's/%[0-9a-fA-F][0-9a-fA-F]//g'
-									# -> leave already encoded chars in?!
-}
-
-func_strip_special_chars ()		# SENS: strip all chars, which are in our special table (see next function!)
-{
-	echo "$1" | sed -e 's/[}{\$\^[()!*\[,"|	;<>'\\\''=+:?@#\\/ ]//g' -e 's/]//g'	# is: { } $ ^ [ ] ( ) ! * , " | TAB ; < > ' = + : ? @ # / space
-}
-
-func_url_encode_special_chars ()	# SENS: converting chars using a fixed table, where we know the URL-encodings
-{					#				  is: , ; : ? # [ ] / @ + = " ' | ( ) TAB < > ! * { } $ ^ space
-	echo "$1" | sed -e 's/,/%2c/g'	\
-			-e 's/;/%3b/g'	\
-			-e 's/:/%3a/g'	\
-			-e 's/?/%3f/g'	\
-			-e 's/#/%23/g'	\
-			-e 's/\[/%5b/g'	\
-			-e 's/\]/%5d/g'	\
-			-e 's/\//%2f/g'	\
-			-e 's/@/%40/g'	\
-			-e 's/+/%2b/g'  \
-			-e 's/=/%3d/g'	\
-			-e 's/"/%22/g'	\
-			-e "s/'/%27/g"	\
-			-e "s/|/%7c/g"	\
-			-e "s/[(]/%28/g" \
-			-e "s/[)]/%29/g" \
-			-e "s/	/%09/g"	\
-			-e 's/</%3c/g'  \
-			-e 's/>/%3e/g'  \
-			-e 's/!/%21/g' \
-			-e 's/*/%2a/g' \
-			-e 's/{/%7b/g' \
-			-e 's/}/%7d/g' \
-			-e 's/\$/%24/g' \
-			-e 's/\^/%5e/g' \
-			-e 's/ /+/g'
-}
-
-func_url_encode ()						# todo: on cmdline this produces error on each "!"-sign, but output is ok
-{								# ARG1: string (all chars are allowed)
-	local FUNC="url_encode"					# OUT1: string (URL-encoded, RFC2396)
-	local TEXT="$1"
-	local  OUT=""
-	local CHAR=""
-	local  HEX=""
-	local  POS=0
-	local STRIP="$( func_strip_nonsafe_url_chars "$TEXT" )"
-
-	[ "$TEXT" = "$STRIP" ] && {		# no need for conversion, only safe chars
-		echo "$TEXT"
-		return
-	}
-	
-	[ "$STRIP" = "$( func_strip_special_chars "$TEXT" )" ] && {	# conversion of unsafe chars is possible with a fast table
-		func_url_encode_special_chars "$TEXT"
-		return
-	}
-
-	# seems that we have special chars, that are not in our table,
-	# so we have to check char by char, which is slow...
-	# maybe we should auto-generate a table when using this functions for the first time?
-
-	while [ $POS -lt ${#TEXT} ]; do {							# 0...length_of_text
-		
-		POS=$(( $POS + 1 ))
-		CHAR="$( echo "$TEXT" | cut -b $POS )"				# char at $POS
-			
-		[ -n "$( func_strip_nonsafe_url_chars "$CHAR" )" ] && {
-		  	OUT="${OUT}${CHAR}"
-		  	continue
-		}
-		
-		HEX="$( echo "$CHAR" | hexdump -C | cut -d" " -f3 )"		# is unsafe char! do HEX
-		OUT="${OUT}%${HEX}"						# no matter: a-z = A-Z
-	} done
-
-	echo $OUT
 }
 
 func_get_number_from_name_in_phonebook () {
@@ -311,7 +194,7 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 
 	_log do $FUNC user notice "to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
 		
-	_sms_send_sms77 $USER $PASS $NUMBER $(func_url_encode "$TEXT") || {
+	_sms_send_sms77 $USER $PASS $NUMBER $( _sanitizer do "$TEXT" urlvalue ) || {
 		
 		scheduler -a ". /bin/needs log && _$FUNC '$NUMBER' '$TEXT' no_post"
 		return 1

@@ -1,0 +1,47 @@
+_gps_guess_city ()
+{
+	local FUNC="get_city_by_gps"
+	local CITY="default"
+	
+	_gps get
+	
+	if [ -z "$GPSX" ] || [ -z "$GPSY" ]; then
+		echo "$CITY"
+		return
+	fi
+
+	local Y="$( fkt_normalize_digit $GPSX )"
+	local X="$( fkt_normalize_digit $GPSY )"
+
+	_log do $FUNC daemon debug "normalized Y:'$Y' X:'$X'"
+	
+	# erster wert:  - je weiter noerdlich, umso groesser - suedlicher gleich kleiner
+	# zweiter wert: - je weiter oestlich, umso groesser - westlicher gleich kleiner
+	# these values cover the topleft and bottomright corners of an virtual rectangle about the city
+	# order is: low,high,low,high (always 7 digits)
+	
+	  if [ $X -gt 1123283 ] && [ $X -lt 1140106 ] && [ $Y -gt 5093203 ] && [ $Y -lt 5102671 ]; then CITY="weimar"		# ettersburg,mellingen
+	elif [ $X -gt 1066909 ] && [ $X -lt 1083732 ] && [ $Y -gt 5111860 ] && [ $Y -lt 5117417 ]; then CITY="sundhausen"	# kleinweisbach,herbsleben
+	fi
+
+	echo "$CITY"
+}
+
+_gps_get ()
+{
+	local FUNC="gps_get"
+	
+	_log do $FUNC daemon debug "coords now: GPSX:'$GPSX' GPSY:'$GPSY'"
+
+	if [ -n "$GPSX" ] && [ -n "$GPSY" ]; then			# during /www/cgi-bin/config_fff+ these vars are filled
+
+		_log do $FUNC daemon debug "coords known: $GPSX / $GPSY"
+
+	else								# not filled? fetch them from NV-RAM
+	
+		GPSX="$( nvram get ff_adm_latlon | cut -d";" -f1 | sed 's/[^0-9\.]//g' )"
+		GPSY="$( nvram get ff_adm_latlon | cut -d";" -f2 | sed 's/[^0-9\.]//g' )"
+
+		_log do $FUNC daemon debug "coords from nvram: GPSX:'$GPSX' GPSY:'$GPSY'"
+	fi
+}
