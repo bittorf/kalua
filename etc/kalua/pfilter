@@ -1,78 +1,7 @@
-FUNC_PFILTER=1
 IPT="/usr/sbin/iptables"
 
 # tc qdisc add dev eth0 root handle 1: cbq avpkt 1000 bandwidth [HN]
 # tc qdisc show
-# 
-
-# func_pfilter_user_unsplash
-# func_reject_traffic_from_nonlocal_hosts_to_local_webserver
-# func_activate_reserved_user_chain
-# func_packetfilter_count_rules
-# func_packetfilter_install_portforwarding
-# func_packetfilter_dhcp_ignore_specific_macs
-# func_packetfilter_portforwarding_serialize_config_entry
-# fkt_localfw_log
-# fkt_insmod
-# func_get_all_user_macs_with_traffic_today
-# fkt_nat_for_roaming_wifi_clients
-# fkt_get_mac_from_local_ip
-# fkt_check_if_user_with_mac_is_locally_blacklisted
-# fkt_masq_internet_traffic_over_lan_device
-# fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac
-# fkt_get_used_traffic_limit_from_user_with_mac_in_percent
-# fkt_free_all_users_which_dont_want_splash
-# fkt_get_media_from_mac
-# fkt_get_name_for_mac
-# fkt_get_ip_from_mac
-# fkt_kick_all_nonfree_users
-# fkt_kick_all_users_which_are_over_limit
-# fkt_reset_all_daily_user_counters
-# fkt_get_traffic_olsr_wifi_incoming
-# fkt_get_traffic_olsr_wifi_outgoing
-# fkt_get_layer7_hit_ratio_in_percent
-# fkt_divide_by_10
-# fkt_divide_by_100
-# fkt_show_user_traff
-# func_pfilter_is_usermac
-# fkt_list_user_macs
-# fkt_list_blocked_macs
-# func_list_macs_in_dhcp_leases
-# fkt_list_locally_registered_users
-# fkt_reset_traffic_counter_for_mac
-# fkt_get_traffic_forward_intranet
-# fkt_get_traffic_forward_alien
-# fkt_get_conn_starts_for_mac
-# fkt_get_conn_ends_for_mac
-# fkt_get_conn_above_limits_for_mac
-# fkt_get_traffic_for_mac
-# fkt_convert_to_unit
-# fkt_proto2id
-# fkt_check_if_mac_is_admin
-# fkt_check_if_mac_is_free
-# func_pfilter_is_redirected
-# fkt_check_if_user_with_mac_is_redirected
-# fkt_control_redirect_for_user_with_mac_and_ip
-# fkt_add_user_with_mac_and_ip
-# fkt_scaleable_packetfilter_with_QoS
-# _pfilter_kmodules_init
-# fkt_activate_splashpage
-# fkt_all_chains_acceptance
-# fkt_olsr_whitelist_variables
-# fkt_olsr_whitelist_fetch
-# fkt_escape
-# fkt_olsr_whitelist_update
-# fkt_get_hostname_from_ip
-# fkt_make_arp_entry_permanent
-# fkt_olsr_whitelist_optimize
-# fkt_olsr_whitelist_check_for_error
-# olsr_whitelist_set_inactive
-# fkt_control_olsr
-# fkt_definitions
-# fkt_insert_walled_garden
-# fkt_no_nat_for_wifi_clients
-# func_masq
-# func_packetfilter_show_chain
 
 func_pfilter_user_unsplash ()
 {
@@ -232,10 +161,6 @@ func_packetfilter_portforwarding_serialize_config_entry ()
 	# local RULE_PORT_DEST=80
 }
 
-fkt_localfw_log () {
-	_log do localfw_log daemon debug "$1"
-}
-
 fkt_insmod ()
 {
 	local KMOD="$1"
@@ -298,7 +223,7 @@ func_get_all_user_macs_with_traffic_today ()
 
 fkt_nat_for_roaming_wifi_clients ()
 {
-	fkt_localfw_log "(fkt_nat_for_roaming_wifi_clients) Installing masquerading"
+	_log do pfilter daemon info "(fkt_nat_for_roaming_wifi_clients) Installing masquerading"
 
 	eval "$( func_ipsystem )"
 
@@ -335,7 +260,7 @@ fkt_check_if_user_with_mac_is_locally_blacklisted () {
 fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over lan-device for omitting "black hole"
 {						#       and fetches IP from local DHCP-server, if gateway-IP is not from local IP-range
 	local FUNC="masq_internet_traffic_over_lan_device"
-	fkt_localfw_log "($FUNC) working"
+	_log do pfilter daemon info "($FUNC) working"
 
 	local LANDEV="$( sed -n 's/^LANDEV=\(.*\)/\1/p' /tmp/NETPARAM )"
 	local GATEWAY="$( nvram get lan_gateway )"
@@ -346,10 +271,10 @@ fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over la
 	if [ -n "$GATEWAY" ] && [ -z "$( ip route list exact 0/0 via $GATEWAY )" ]; then	# def_route could'nt be set by /sbin/ifup
 												# because kernel has no suiteable interface for gw
 		while [ $COUNTER -lt 5 ]; do {
-			fkt_localfw_log "($FUNC) detected alien LAN-gateway, trying to fetch DHCP-address"
+			_log do pfilter daemon info "($FUNC) detected alien LAN-gateway, trying to fetch DHCP-address"
 			local ALIASIP="$( udhcpc -qfn --interface="$LANDEV:fantasy" 2>/dev/null | sed -n 's/.* \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' )"
 			[ -n "$ALIASIP" ] && break
-			fkt_localfw_log "($FUNC) no alias-ip - trying again in 10 sec"
+			_log do pfilter daemon info "($FUNC) no alias-ip - trying again in 10 sec"
 			sleep 10
 			COUNTER=$(( $COUNTER + 1 ))		# fixme! even with "LAN:fantasy" /etc/resolv.conf gets applied, rewrite?
 		} done
@@ -359,19 +284,19 @@ fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over la
 			# gateway is 192.168.178.1, we set
 			#            192.168.178.234 on our LAN-address		# fixme! uiuiui!
 			ALIASIP="$( echo $GATEWAY | sed -n 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\..*/\1.\2.\3.234/p' )"
-			fkt_localfw_log "($FUNC) couldt fetch IP-address from LAN-DHCP-server, guessing"
+			_log do pfilter daemon info "($FUNC) couldt fetch IP-address from LAN-DHCP-server, guessing"
 		}
 		
-		fkt_localfw_log "($FUNC) using alienip '$ALIASIP' to reach gateway"
+		_log do pfilter daemon info "($FUNC) using alienip '$ALIASIP' to reach gateway"
 		
 		local ALIASPRE="$( ipcalc -p $ALIASIP           | sed -n 's/PREFIX=\(.*\)/\1/p' )"
 		local ALIASNET="$( ipcalc -n $ALIASIP/$ALIASPRE | sed -n 's/NETWORK=\(.*\)/\1/p' )"
 		local LANNET="$ALIASNET"
 		local LANPRE="$ALIASPRE"
 
-		fkt_localfw_log "($FUNC) local alien-address gateway"
-		fkt_localfw_log "($FUNC) adding $ALIASIP/$ALIASPRE on $LANDEV:aliennet"
-		fkt_localfw_log "($FUNC) adding default route"
+		_log do pfilter daemon info "($FUNC) local alien-address gateway"
+		_log do pfilter daemon info "($FUNC) adding $ALIASIP/$ALIASPRE on $LANDEV:aliennet"
+		_log do pfilter daemon info "($FUNC) adding default route"
 		
 		ip address add $ALIASIP/$ALIASPRE   dev $LANDEV label $LANDEV:aliennet
 		ip route   add default via $GATEWAY dev               $LANDEV metric 0
@@ -379,9 +304,9 @@ fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over la
 		# fixme! apply now static_routes, which could be used till now?
 	
 		if [ "$?" -ne 0 ]; then
-			fkt_localfw_log "($FUNC) error adding default route"
+			_log do pfilter daemon info "($FUNC) error adding default route"
 		else
-			fkt_localfw_log "($FUNC) success adding default route"	# fixme! why we restart vpn?
+			_log do pfilter daemon info "($FUNC) success adding default route"	# fixme! why we restart vpn?
 			/etc/init.d/S*vpn* restart				# uiuiui! better use an central
 										# function to automatically ifup/down
 										# vpn-connection (cron.minutely hna4-hook?)
@@ -392,7 +317,7 @@ fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over la
 	$IPT -A POSTROUTING -t nat -o $WIFIDEV -s   $LANNET/$LANPRE -j MASQUERADE
 
 	func_packetfilter_show nat POSTROUTING
-	fkt_localfw_log "($FUNC) done"
+	_log do pfilter daemon info "($FUNC) done"
 }
 
 fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac ()
@@ -459,7 +384,7 @@ fkt_free_all_users_which_dont_want_splash () {
 
 	fkt_definitions
 
-	fkt_localfw_log "(fkt_free_all_users_which_dont_want_splash) checking"
+	_log do pfilter daemon info "(fkt_free_all_users_which_dont_want_splash) checking"
 
 	for ENTRY in $LIST; do						# MAC NAME MAC NAME ...
 		echo $ENTRY | grep -q "..:..:..:..:..:.."
@@ -470,7 +395,7 @@ fkt_free_all_users_which_dont_want_splash () {
 			NAME=$ENTRY
 			IP="$( grep $NAME /etc/local.hosts | cut -d" " -f1 )"
 
-			fkt_localfw_log "(fkt_free_all_users_which_dont_want_splash) adding \"$NAME\""
+			_log do pfilter daemon info "(fkt_free_all_users_which_dont_want_splash) adding \"$NAME\""
 
 			fkt_add_user_with_mac_and_ip $MAC $IP
 		fi
@@ -926,10 +851,10 @@ fkt_control_redirect_for_user_with_mac_and_ip () {		# SENS: controlling if a use
 	local  MAC="$2"
 	local   IP="$3"
 
-	fkt_localfw_log "(fkt_control_redirect_for_user_with_mac_and_ip) start - mode: $MODE - $MAC / $IP"
+	_log do pfilter daemon info "(fkt_control_redirect_for_user_with_mac_and_ip) start - mode: $MODE - $MAC / $IP"
 
 	if [ -z "$MODE" ] || [ -z "$MAC" ] || [ -z "$IP" ]; then
-		fkt_localfw_log "(fkt_control_redirect_for_user_with_mac_and_ip) no mode nor mac nor ip given, aborting"
+		_log do pfilter daemon info "(fkt_control_redirect_for_user_with_mac_and_ip) no mode nor mac nor ip given, aborting"
 		return
 	fi
 
@@ -942,7 +867,7 @@ fkt_control_redirect_for_user_with_mac_and_ip () {		# SENS: controlling if a use
 	iptables -t mangle $MODE PREROUTING -m mac --mac-source $MAC -j ACCEPT
 	iptables -t mangle $MODE PREROUTING -d $IP                   -j ACCEPT	
 
-	fkt_localfw_log "(fkt_control_redirect_for_user_with_mac_and_ip) end - mode: $MODE - $MAC / $IP"
+	_log do pfilter daemon info "(fkt_control_redirect_for_user_with_mac_and_ip) end - mode: $MODE - $MAC / $IP"
 }
 
 fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accounting-chain
@@ -961,7 +886,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 	}
 
 	[ -z "$IP" ] && {
-		fkt_localfw_log "(fkt_add_user_with_mac_and_ip) no MAC or no IP given - aborting"
+		_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) no MAC or no IP given - aborting"
 		return 1
 	}
 					# normal users
@@ -970,14 +895,14 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 
 	if [ "$( fkt_check_if_this_node_offers_inet )" != "false" ]; then
 	
-		fkt_localfw_log "(fkt_add_user_with_mac_and_ip) raising connection-count for this user"
+		_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) raising connection-count for this user"
 
 		CONN_LIMIT_UDP="20"		# free-users on node with inet-offer
 		CONN_LIMIT_TCP="75"
 	
 		if [ "$( fkt_check_if_mac_is_admin $MAC )" = "true" ]; then
 
-			fkt_localfw_log "(fkt_add_user_with_mac_and_ip) boosting connection-count for this admin-user"
+			_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) boosting connection-count for this admin-user"
 
 			CONN_LIMIT_UDP="1000"
 			CONN_LIMIT_TCP="4096"
@@ -1044,7 +969,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 
 	fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP
 	
-	fkt_localfw_log "(fkt_add_user_with_mac_and_ip) filling user chain - end"
+	_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) filling user chain - end"
 }
 
 fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = langsame klasse/download?
@@ -1053,7 +978,7 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 						# icmp /ping pro user /pro zeiteinheitlimitieren
 						# unabhaengig von einteilung bestimmte packet trotzdem in prio veraendern (ACK...)
 						
-	fkt_localfw_log "(fkt_scaleable_packetfilter_with_QoS) Installing"
+	_log do pfilter daemon info "(fkt_scaleable_packetfilter_with_QoS) Installing"
 
 	$IPT -t mangle -N marking
 	$IPT -t mangle -N marking_unmarkable
@@ -1093,7 +1018,7 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 		PROTO="${ENTRY%,*}"
 	#	PORT="${ENTRY#*,}"
 		
-		fkt_localfw_log "(layer7-filter) Installing protocol $PROTO"
+		_log do pfilter daemon info "(layer7-filter) Installing protocol $PROTO"
 		
 		$IPT -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( fkt_proto2id )
 	#	$IPT -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
@@ -1147,7 +1072,7 @@ _pfilter_kmodules_init ()	# fixme! alles durch _iptables () schleifen und erst b
 }
 
 fkt_activate_splashpage () {
-	fkt_localfw_log "(fkt_activate_splashpage) shutting doors"
+	_log do pfilter daemon info "(fkt_activate_splashpage) shutting doors"
 
 	$IPT -t mangle -A PREROUTING -p udp --sport 68 --dport 67 -d 255.255.255.255 -j ACCEPT		# DCHP requests to internal server
 	$IPT -t mangle -A PREROUTING -s ! $MYHNA -d ! $MYHNA                         -j ACCEPT		# forwarding internet from other nodes
@@ -1191,7 +1116,7 @@ fkt_olsr_whitelist_variables () {
 }
 
 fkt_olsr_whitelist_fetch () {
-	fkt_localfw_log "(fkt_olsr_whitelist_fetch) fetching"
+	_log do pfilter daemon info "(fkt_olsr_whitelist_fetch) fetching"
 
 	. /bin/needs links
 
@@ -1201,10 +1126,10 @@ fkt_olsr_whitelist_fetch () {
 	TAG2="$( tail -n 1 $OLSR_WL_FRESH )"
 
 	if [ -n "$TAG1" ] && [ "$TAG1" = "$TAG2" ]; then
-		fkt_localfw_log "(fkt_olsr_whitelist_fetch) went fine, sanitizing"
+		_log do pfilter daemon info "(fkt_olsr_whitelist_fetch) went fine, sanitizing"
 		sed -e '/[<>]/d' -e 's/[^A-Fa-f0-9:,]//g' $OLSR_WL_FRESH >$OLSR_WL_READY	# removing lines with "<unixtime>" and sanitize LF/CR
 	else
-		fkt_localfw_log "(fkt_olsr_whitelist_fetch) abort - something's wrong"
+		_log do pfilter daemon info "(fkt_olsr_whitelist_fetch) abort - something's wrong"
 	fi
 
 	rm -f $OLSR_WL_FRESH
@@ -1226,7 +1151,7 @@ fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-
 	local N=0
 	local ESTIMATED="$(( 8 * $( cat $OLSR_WL_READY | wc -l ) / 10 ))"	# counting lines and multipling 0.8 seconds for each line for time-message in syslog
 	
-	fkt_localfw_log "(fkt_olsr_whitelist_update) inserting new rules (needs up to $ESTIMATED seconds)"
+	_log do pfilter daemon info "(fkt_olsr_whitelist_update) inserting new rules (needs up to $ESTIMATED seconds)"
 
 	while read LINE; do							# each line is: "nodenumber,mac" - mac can be empty
 		
@@ -1246,7 +1171,7 @@ fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-
 
 	$IPT -D $OLSR_WL_CHAIN -j ACCEPT 2>/dev/null			       # deleting accept. of all packets, activating whitelist
 	
-	fkt_localfw_log "(fkt_olsr_whitelist_install) installed $N rules"
+	_log do pfilter daemon info "(fkt_olsr_whitelist_install) installed $N rules"
 }
 
 fkt_get_hostname_from_ip () {
@@ -1316,7 +1241,7 @@ fkt_olsr_whitelist_optimize () {
 	
 	test ! -e "$OLSR_WL_READY" && return
 
-	fkt_localfw_log "(fkt_olsr_whitelist_optimize) working"
+	_log do pfilter daemon info "(fkt_olsr_whitelist_optimize) working"
 
 	test -z "$( $IPT -nL $OLSR_WL_CHAIN 2>/dev/null | grep ACCEPT )" && $IPT -I $OLSR_WL_CHAIN -j ACCEPT	# temp. accept. of all packets
 
@@ -1331,7 +1256,7 @@ fkt_olsr_whitelist_optimize () {
                 HOST="$( fkt_get_hostname_from_ip $IP )"
                 NODE="$( func_ipsystem            $IP )"
 						                                                    
-                fkt_localfw_log "(fkt_olsr_whitelist_optimize) moveup: $IP node_$NODE $HOST ${1}_packets)"
+                _log do pfilter daemon info "(fkt_olsr_whitelist_optimize) moveup: $IP node_$NODE $HOST ${1}_packets)"
 
 		test -e $NO_NEIGH && rm -f $NO_NEIGH
 
@@ -1349,7 +1274,7 @@ fkt_olsr_whitelist_optimize () {
 	$IPT -D $OLSR_WL_CHAIN -j ACCEPT 2>/dev/null 						# removing temp. accept. of all packets
 
 	if [ -e "$NO_NEIGH" ]; then
-		fkt_localfw_log "(fkt_olsr_whitelist_optimize) really no neighbours!"
+		_log do pfilter daemon info "(fkt_olsr_whitelist_optimize) really no neighbours!"
 		olsr_whitelist_set_inactive
 	fi
 }
@@ -1371,7 +1296,7 @@ fkt_olsr_whitelist_check_for_error () {
 }
 
 olsr_whitelist_set_inactive () {
-	fkt_localfw_log "(olsr_whitelist_set_inactive) executing"	
+	_log do pfilter daemon info "(olsr_whitelist_set_inactive) executing"	
 
 	$IPT -I $OLSR_WL_CHAIN -j ACCEPT
 }
@@ -1379,7 +1304,7 @@ olsr_whitelist_set_inactive () {
 fkt_control_olsr ()
 {
 	local FUNC="control_olsr"
-	fkt_localfw_log "($FUNC) Installing management"
+	_log do pfilter daemon info "($FUNC) Installing management"
 
 	rm -f "$OLSR_WL_READY"									# to be sure, that this list must be reread
 
@@ -1498,12 +1423,12 @@ fkt_insert_walled_garden ()
 
 		if [ "$WORD" = "IP" ]; then							# we have to filter IPs from comments
 		
-			fkt_localfw_log "(fkt_insert_walled_garden) no fence for \"$ENTRY\""
+			_log do pfilter daemon info "(fkt_insert_walled_garden) no fence for \"$ENTRY\""
 		
 			$IPT -t mangle -A PREROUTING -s $ENTRY -j ACCEPT
 			$IPT -t mangle -A PREROUTING -d $ENTRY -j ACCEPT
 		else
-			fkt_localfw_log "(fkt_insert_walled_garden) human_readable: $ENTRY"
+			_log do pfilter daemon info "(fkt_insert_walled_garden) human_readable: $ENTRY"
 		fi
 	} done
 }
@@ -1514,7 +1439,7 @@ fkt_no_nat_for_wifi_clients ()
 
 	[ -z "$WIFI_DHCP_NET" ] && return
 	
-	fkt_localfw_log "(fkt_no_nat_for_wifi_clients) Removing rules"
+	_log do pfilter daemon info "(fkt_no_nat_for_wifi_clients) Removing rules"
 
 	$IPT -D POSTROUTING -t nat -s $WIFI_DHCP_NET -j MASQUERADE
 }
