@@ -1,50 +1,14 @@
 #!/bin/sh
 
-. /bin/needs base log olsr
-
-func_longest_string ()
-{
-	local LIST="$1"
-	local MIN=0
-	local WORD
-	local OUT
-
-	for WORD in $LIST; do {
-		[ ${#WORD} -gt $MIN ] && {
-			OUT="$WORD"
-			MIN="${#WORD}"
-		}
-	} done
-	
-	echo $OUT
-}
-
-func_normalize_ip ()	# IP_max=123.123.123.123 (15chars) IP_min=1.1.1.1 (7chars) -> DIFF_max = 8
-{
-	local MAX="${#1}"
-	local LENGTH="${#2}"
-	local DIFF=$(( $MAX - $LENGTH ))
-
-	case $DIFF in
-		0) return ;;
-		1) echo -n ' ' ;;
-		2) echo -n '  ' ;;
-		3) echo -n '   ' ;;
-		4) echo -n '    ' ;;
-		5) echo -n '     ' ;;
-		6) echo -n '      ' ;;
-		7) echo -n '       ' ;;
-		*) echo -n '        ' ;;
-	esac
-}
+. /tmp/loader
 
 if [ "$2" = "use_recent" ]; then
 
 	OUT_OLSR="/tmp/olsr_output_recent"
 else
 	case $1 in
-		gateways) OUT_OLSR="$(func_olsr_get_neighbours full)" || exit ;;
-		       *) OUT_OLSR="$(func_olsr_get_neighbours     )" || exit ;;
+		gateways) OUT_OLSR="$(_olsr neighbours_get full)" || exit ;;
+		       *) OUT_OLSR="$(_olsr neighbours_get     )" || exit ;;
 	esac
 	
 	cp $OUT_OLSR /tmp/olsr_output_recent
@@ -100,7 +64,7 @@ case $1 in		# all those functions must care about removing $OUT_OLSR !
 	;;
 	*)
 		[ -z "$1" ] && {
-			func_olsr_output_neigh_humanreadable $OUT_OLSR		# fixme! +gps +distance +olsrd/ff/fff-version?
+			_olsr neigh_output_humanreadable $OUT_OLSR		# fixme! +gps +distance +olsrd/ff/fff-version?
 			exit
 		}
 		

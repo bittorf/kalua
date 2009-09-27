@@ -31,7 +31,7 @@ _olsr_neigh_random_get ()
 	} done <"$FILE"
 
 	[ -n "$REMOTE" ] && {
-		RANDOM="$( func_get_random_value 1 $COUNT )"
+		RANDOM="$( _math random_integer 1 $COUNT )"
 
 		eval $( sed -n "${RANDOM}p" "$FILE" )
 
@@ -51,7 +51,7 @@ _olsr_neigh_random_pair_from_mesh_evalable ()
 	local FILE="/tmp/olsr_plain"
 	
 	local LINES="$( sed -e '/./{H;$!d;}' -e "x;/^Table: Topology/!d;" $FILE | sed -n '$=' )"
-	local RANDOM="$( func_get_random_value 4 $LINES )"
+	local RANDOM="$( _math random_integer 4 $LINES )"
 
 	sed -e '/./{H;$!d;}' -e "x;/^Table: Topology/!d;" $FILE |
 	 sed -n "${RANDOM}p" |
@@ -195,9 +195,9 @@ func_olsr_check_for_good_non_tunnel_neigh ()
 	return 1 
 }
 
-func_olsr_get_neighbours ()
+_olsr_neighbours_get ()
 {
-	local FUNC="func_olsr_get_neighbours"
+	local FUNC="_olsr neighbours_get"
 	local TEMP="/tmp/olsr_output_$$.txt"
 	local PLUGIN="olsrd_txtinfo"
 	local CONF="/etc/olsrd.conf"
@@ -463,7 +463,7 @@ func_olsr_output_neigh_meshrdf ()
 	} done <"$FILE" && rm "$FILE"
 }
 
-func_olsr_output_neigh_humanreadable ()		# fixme! ToDo: latitude/longitude/distance + speed
+_olsr_neigh_output_humanreadable ()	# fixme! ToDo: latitude/longitude/distance + speed
 {
 	local FILE="$1"
 	local GATEWAY_IP="$( ip route list exact 0/0 | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )"	# fixme! more abstraction, works
@@ -474,9 +474,9 @@ func_olsr_output_neigh_humanreadable ()		# fixme! ToDo: latitude/longitude/dista
 	func_olsr_output_neigh $FILE
 	
 	LIST="$( sed -n 's/^LOCAL=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all local IP's
-	MAX1="$( func_longest_string "$LIST" )"
+	MAX1="$( _sanitizer do "$LIST" list_get_longest_string )"
 	LIST="$( sed -n 's/^.*;REMOTE=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all remote IP's
-	MAX2="$( func_longest_string "$LIST" )"
+	MAX2="$( _sanitizer do "$LIST" list_get_longest_string )"
 
 	[ $(echo $LIST | wc -w) -gt 9 ] && SPACER3=" "  	# numbering layout
 
@@ -492,9 +492,9 @@ func_olsr_output_neigh_humanreadable ()		# fixme! ToDo: latitude/longitude/dista
 		esac
 		
 		MAC="$( ip neigh show to $REMOTE | sed -n "s/^.* lladdr \(..:..:..:..:..:..\) .*/\1/p;q" )"	# break after first match!
-		SPACER1="$( func_normalize_ip $MAX1 $LOCAL  )"				# ip's should always have
-		SPACER2="$( func_normalize_ip $MAX2 $REMOTE )"				# the same length
-		DNS="$( func_ip2dns $REMOTE )"
+		SPACER1="$( _sanitizer do "$MAX1 $LOCAL"  add_length_diff_with_spaces )"			# ip's should always have
+		SPACER2="$( _sanitizer do "$MAX2 $REMOTE" add_length_diff_with_spaces )"			# the same length
+		DNS="$( _net ip2dns $REMOTE )"
 		METRIC="$( func_ip2metric $REMOTE )"
 		[ $COUNT -gt 9 ] && unset SPACER3					# 9 -> ' 9'; 10 = 10
 

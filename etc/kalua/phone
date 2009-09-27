@@ -1,0 +1,65 @@
+func_get_number_from_name_in_phonebook () {
+	local      DEST="$1"							# ARG1: string (peter or 0177/2821234)
+	local       OUT=""							# OUT1: string (number or keyword "invalid")
+	local PHONEBOOK="$( nvram get fff_sms_phonebook )"			# klaus=0177/2821234;peter=0179/1234567;...
+
+	[ -z "$DEST" ] && {							# output hole phonebook
+
+		IFS=";"
+		for DEST in $PHONEBOOK; do {
+			echo $DEST
+		} done
+		unset IFS
+	
+		return 1
+	}
+	
+	if [ -n "$( echo "$PHONEBOOK" | grep "${DEST}=" )" ]; then		# is in phonebook, convert NAME to NUMBER
+	
+		OUT="$( echo "$PHONEBOOK" | sed 's/[^0-9a-zA-Z;=]//g' | sed "s/.*$DEST=\([0-9]*\).*/\1/" )"
+	else
+		OUT="$DEST"							# not in phonebook
+	fi
+
+	OUT="$( echo "$OUT" | sed 's/[^0-9]//g' )"				# allow only numbers
+
+	if [ -z "$OUT" ] || [ -z "$DEST" ]; then
+		echo "invalid"
+		return 1
+	fi
+	
+	echo "$OUT"
+}
+
+func_number2caller ()
+{
+	local NUMBER="$1"
+	local CALLER_NAME
+	local CALLER_DETAILS
+
+	func_number2caller_dasoertliche $NUMBER
+	eval $(func_number2caller_dasoertliche $NUMBER)
+	echo $CALLER_NAME
+	echo $CALLER_DETAILS
+	echo "#"
+	func_number2caller_goyellow $NUMBER
+	eval $(func_number2caller_goyellow $NUMBER)
+	echo $CALLER_NAME
+	echo $CALLER_DETAILS
+	echo "#"
+}
+
+func_number2caller_dasoertliche ()	# ARG1 = number
+{
+	wget -qO - "http://www1.dasoertliche.de/?form_name=search_inv&ph=${1}" |
+	 sed -ne "s/^.*onmouseover=\"\"  >\(.*\)<\/a>.*/CALLER_NAME='\1';/p" \
+	      -e "s/^[^a-zA-Z0-9]*\([a-zA-Z0-9].*\)<br\/>/CALLER_DETAILS='\1';/p" |
+	  sed -e 's/&nbsp;/ /g' -e 's/nbsp;/ /g'
+}
+
+func_number2caller_goyellow ()		# ARG1 = number
+{
+	wget -qO - "http://www.goyellow.de/schnellsuche/?LIP=simpleSearch&MDN=${1}&LOC=" |
+	 sed -ne "s/^.*title=\"Detailinformationen.*);\">\(.*\)<\/a>/CALLER_NAME='\1'/p" \
+	      -e "s/^<p class=\"address\">\(.*\)<\/p>/CALLER_DETAILS='\1'/p"
+}

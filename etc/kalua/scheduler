@@ -1,26 +1,15 @@
-FUNC_SCHEDULER=1
-
 # ToDo:
 # option einbauen, um einen task zu einer bestimmten Uhrzeit in der Zukunft ausfuehren zu lassen,
 # z.b. +werbefilter-liste_update in 24h
 
-# func_scheduler_vars
-# func_scheduler_list_queue
-# func_scheduler_print_usage
-# func_scheduler_task2command
-# func_scheduler_add
-# func_scheduler_check_if_every_Nth_minute
-# func_scheduler_wait_till_cpuload_is_low
-# func_scheduler_run
-
-func_scheduler_vars ()
+_scheduler_vars ()
 {
 	FILE_SCHEDULER_TMP="/tmp/scheduler_queue_tmp_"		# scheduler_add() appends an counter to filename
 	FILE_SCHEDULER="/tmp/scheduler_queue"			# HINT: it is also possible to (scp-)upload a file
 	FILE_SCHEDULER_COPY="/tmp/scheduler_queue_copy"		#       called ${FILE_SCHEDULER_TMP}xyz for automatic
 }								#       execution on many devices...
 
-func_scheduler_list_queue ()
+_scheduler_list_queue ()
 {
 	local FUNC="scheduler_list_queue"
 
@@ -33,7 +22,7 @@ func_scheduler_list_queue ()
 	cat ${FILE_SCHEDULER_TMP}* 2>/dev/null || echo -en "# empty!\n\n"
 }
 
-func_scheduler_print_usage ()
+_scheduler_print_usage ()
 {
 	local FUNC="scheduler_print_usage"
 	
@@ -76,25 +65,25 @@ Example: $0 -s3 -w -a do_this -a do_that -r -a do_another_thing -r
 EOF
 }
 
-func_scheduler_task2command ()
+_scheduler_task2command ()
 {
 	local FUNC="scheduler_task2command"
 	local TASK="$1"
 	local COMMAND
 	
 	case "$TASK" in
-		    upgrade_packages)	func_scheduler_check_if_every_Nth_minute 360 upgrade_packages || return 1
+		    upgrade_packages)	_scheduler check_if_every_Nth_minute 360 upgrade_packages || return 1
 		    			COMMAND="/usr/sbin/cron.upgrade_packages" ;;
 	       watch_hanging_command)	COMMAND="/etc/init.d/S69watch_olsrd_fff+ watch_hanging_command" ;;
 		    software_install)	[ -e "/www/placeholder_for_showing_that_software_is_fully_installed_fff+" ] && return 1		# fixme! is a hack
 		    			COMMAND="/etc/init.d/S71auto_software_update_fff+ call" ;;
 	            build_accounting)   COMMAND="wget -qO /tmp/accounting.tmp 'http://127.0.0.1/cgi-bin-tool_fff+?OPT=accounting&GUI=1'; mv /tmp/accounting.tmp /tmp/accounting.html" ;;
 		  recheck_wired_olsr)	COMMAND="/etc/init.d/S99an_olsr_dev_check_fff+ recheck" ;;
-	  whitelist_update_every_15h)   func_scheduler_check_if_every_Nth_minute 891 whitelist_update || return 1
+	  whitelist_update_every_15h)   _scheduler_check_if_every_Nth_minute 891 whitelist_update || return 1
 	  				COMMAND="/etc/local.fw-fff+ olsr_whitelist_update" ;;
-	  whitelist_rebuild_every_3h)   func_scheduler_check_if_every_Nth_minute 173 whitelist_rebuild || return 1
+	  whitelist_rebuild_every_3h)   _scheduler_check_if_every_Nth_minute 173 whitelist_rebuild || return 1
 	  				COMMAND="/etc/local.fw-fff+ olsr_whitelist_optimize" ;;
-	       speedtest_every_40min)   func_scheduler_check_if_every_Nth_minute 40 speedtest || return 1
+	       speedtest_every_40min)   _scheduler_check_if_every_Nth_minute 40 speedtest || return 1
 	       				COMMAND="/www/cgi-bin-speed r" ;;
 		        restart_olsr) 	COMMAND="/etc/init.d/S53olsrd restart" ;;
 		         1min_checks) 	COMMAND="/usr/sbin/cron.minutely" ;;
@@ -121,12 +110,12 @@ func_scheduler_task2command ()
 	echo "$COMMAND"
 }
 
-func_scheduler_add ()
+_scheduler_add ()
 {
 	local TASK="$1"
 	local KEYWORD="$2"
 	local COMMAND COUNTER
-	      COMMAND="$( func_scheduler_task2command "$TASK" )" || return
+	      COMMAND="$( _scheduler task2command "$TASK" )" || return
 	local FUNC="scheduler_add"
 
 	if [ "$KEYWORD" = "move2top" ]; then		# insert on top, if not already in waiting_queue
@@ -152,7 +141,7 @@ func_scheduler_add ()
 	echo "$COMMAND   # $TASK" >>${FILE_SCHEDULER_TMP}${COUNTER}
 }
 
-func_scheduler_check_if_every_Nth_minute ()
+_scheduler_check_if_every_Nth_minute ()
 {
 	# some tasks should be repeated regulary, but NOT on the same
 	# time on every node in the mesh. so we need a way the schedule
@@ -170,7 +159,7 @@ func_scheduler_check_if_every_Nth_minute ()
 	return 1
 }
 
-func_scheduler_wait_till_cpuload_is_low ()
+_scheduler_wait_till_cpuload_is_low ()
 {
 	local WAITING_TASK="$1"
 	local FUNC="scheduler_wait_till_cpuload_is_low"
@@ -187,7 +176,7 @@ func_scheduler_wait_till_cpuload_is_low ()
 	} done
 }
 
-func_scheduler_run ()
+_scheduler_run ()
 {
 	local FUNC="scheduler_run"
 	local FILE
@@ -210,7 +199,7 @@ func_scheduler_run ()
 	cp $FILE_SCHEDULER $FILE_SCHEDULER_COPY		# for checking of DUPs in running queue -> scheduler_add()
 	
 	while read LINE; do {
-		func_scheduler_wait_till_cpuload_is_low "$LINE"
+		_scheduler_wait_till_cpuload_is_low "$LINE"
 		_log do $FUNC daemon debug "running '$LINE'"
 		/bin/sh -c "$LINE"
 	} done <$FILE_SCHEDULER

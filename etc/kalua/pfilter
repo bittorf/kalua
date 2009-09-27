@@ -503,7 +503,7 @@ fkt_kick_all_users_which_are_over_limit ()
 				
 					[ $PERCENT -gt 100 ] && {
 						LIMIT="$( fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac $MAC )"
-						LIMIT="$( func_humanreadable_integer $LIMIT )"
+						LIMIT="$( _sanitizer do "$LIMIT" number_humanreadable )"
 						_log do $FUNC user info " -'$MAC' (traffic: ${PERCENT}% ~${LIMIT} bytes)"
 						fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( fkt_get_ip_from_mac $MAC )"
 					}
@@ -1414,21 +1414,24 @@ fkt_definitions () {
 
 fkt_insert_walled_garden ()
 {
-	local ENTRY
-	local WORD
-
-	for ENTRY in $WALLED_GARDEN; do {							# accepting marked packets is done in main_framework
+	local FUNC="walled_garden_insert"
+	local ENTRY WALLED_GARDEN
+	
+	WALLED_GARDEN="141.54.160.24/32 (ping01) 141.54.1.1/32 (BUW-DNS) 141.1.1.1/32 (DFN) 85.25.251.231/32 (vorratsdatenspeicherung.de)"
+	WALLED_GARDEN="${WALLED_GARDEN} 82.149.225.169/32 (wiki.vorratsdatenspeicherung.de) 141.54.160.48/32 (m18.uni-weimar.de)"                          
+	WALLED_GARDEN="${WALLED_GARDEN} 87.118.106.19/32 (www.weimarnetz.de) 88.198.146.230/32 (wiki_neu)"                       
+	WALLED_GARDEN="${WALLED_GARDEN} 213.239.220.3/32 (vekingosegundo.de) 217.238.197.73 (vekingosegundo.de2)"
+	
+	for ENTRY in $WALLED_GARDEN; do {				# accepting marked packets is done in main_framework
 		
-		WORD="$( echo $ENTRY | sed -n 's/\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\/[0-9]*\)/IP/p' )"
-
-		if [ "$WORD" = "IP" ]; then							# we have to filter IPs from comments
+		if _sanitizer do "${ENTRY%/*}" ip4 check ; then		# we have to filter IPs from comments (only check before '/')
 		
-			_log do pfilter daemon info "(fkt_insert_walled_garden) no fence for \"$ENTRY\""
+			_log do $FUNC daemon info "no fence for '$ENTRY'"
 		
 			$IPT -t mangle -A PREROUTING -s $ENTRY -j ACCEPT
 			$IPT -t mangle -A PREROUTING -d $ENTRY -j ACCEPT
 		else
-			_log do pfilter daemon info "(fkt_insert_walled_garden) human_readable: $ENTRY"
+			_log do $FUNC daemon info "human_readable: $ENTRY"
 		fi
 	} done
 }
