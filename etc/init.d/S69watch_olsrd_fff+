@@ -3,7 +3,7 @@
 # wget -qO /dev/null "http://127.0.0.1/cgi-bin-rrd1.html?START=end-24h"		# stats,wifi (signal/noise,rate,olsr-traffic)
 # scp /tmp/rrd/img/end-24hWLAN_WLA_STATS.png intercity-vpn.de:/var/www/99.png
 
-. /bin/needs base log
+. /tmp/loader
 
 func_watch_hanging_command ()
 {
@@ -474,10 +474,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 
 	func_need vars
 
-	OLSRVER="$( func_url_encode "$OLSR_VERSION" )"				# pre-0.5.6-r4 2009-01-02 12:00:45 on pcnet
+	OLSRVER="$( func_url_encode "$( _olsr version )" )"			# pre-0.5.6-r4 2009-01-02 12:00:45 on pcnet
 	WIFIDEV="$WIFI_DEVS"		# fixme!								# eth1
 														# 001122334455
-	WIFIMAC="$( _sanitizer "$(ip link show dev $WIFIDEV)" mac hex lowercase )"
+	WIFIMAC="$( _sanitizer do "$(ip link show dev $WIFIDEV)" mac hex lowercase )"
 	
 	UPDATE="$( nvram get fff_autofwupdate )"; test -z "$UPDATE" && UPDATE=stable			# testing
 	LATLON="$( nvram get ff_adm_latlon | sed -e 's/[^0-9\;,\.]//g' -e 's/\;/,/g' )"				# 50.1234,11.3345
@@ -486,10 +486,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		fi
 		LATLON="$( func_url_encode $LATLON )"
 	
-	ADMINEMAIL="$( _sanitizer "$(nvram get ff_adm_mail)" email urlvalue )"		# bla@blubb.de
+	ADMINEMAIL="$( _sanitizer do "$(nvram get ff_adm_mail)" email urlvalue )"		# bla@blubb.de
 
-	ADMINPHONE="$( _sanitizer "$(nvram get ff_adm_tel)" alphanum )"			# 036435101112zuhause
-	HOSTNAME="$(   nvram get wan_hostname | sed 's/[^0-9a-zA-Z-]//g' )"		# Windmuehlen12		// _sanitizer $HOST hostname?
+	ADMINPHONE="$( _sanitizer do "$(nvram get ff_adm_tel)" alphanum )"			# 036435101112zuhause
+	HOSTNAME="$(   nvram get wan_hostname | sed 's/[^0-9a-zA-Z-]//g' )"		# Windmuehlen12		// _sanitizer do $HOST hostname?
 
 	TXPWR="$(	func_wifi_get_txpwr	  $WIFIDEV mw )"	# 40
 	FRAG="$(	func_wifi_get_frag	  $WIFIDEV )"		# 500
@@ -499,7 +499,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	DISTANCE="$(	func_wifi_get_distance    $WIFIDEV )"		# 1500
 	NOISE="$(	func_wifi_get_noise	  $WIFIDEV )"		# -94
 	SIGNAL="$(	func_wifi_get_signal	  $WIFIDEV )"		# 001122334455-70:223344556677-40
-	SIGNAL="$( _sanitizer "$SIGNAL" urlvalue )"
+	SIGNAL="$( _sanitizer do "$SIGNAL" urlvalue )"
 	
 	CHANNEL="$(	func_wifi_get_channel	  $WIFIDEV )"		# 104
 	MRATE="$(	func_wifi_get_mrate	  $WIFIDEV )"		# 5.5
@@ -514,14 +514,13 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	GMODE="$( nvram get wl0_gmode )"	# fixme!
 
 	ESSID="$( func_url_encode "$(nvram get wl0_ssid)" )"
-	BSSID="$( _sanitizer "$(func_wifi_get_bssid $WIFIDEV)" hex lowercase )"
+	BSSID="$( _sanitizer do "$(func_wifi_get_bssid $WIFIDEV)" hex lowercase )"
 
 	eval $( /etc/init.d/S02check_interface_correctness_fff+ show_hardware )
 	HW="$( echo $HW | sed -e 's/ /_/g' -e 's/[^_a-zA-Z0-9-]//g' )"			# Buffalo_WHR-HP-G54_BCM4318-wifi
 
-	# "$SSH_PUBKEY_FP"								# 1660559e90efefafd04298c516365bbd12b0ffda
+	SSH_PUBKEY_FP="$( _sanitizer do $(_ssh key_public_fingerprint_get) hex )"	# 1660559e90efefafd04298c516365bbd12b0ffda
 											# (40 bytes HEX [SHA-1])
-
 	FREE_SPACE_FLASH="$( func_system_flash_free )"
 	SERVICES="flash.free.kb:${FREE_SPACE_FLASH}"					# [kByte]
 	
@@ -535,7 +534,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 #		SERVICES="${SERVICES}|idestorage.free.kb:$(( $FREE_SPACE_IDE / 1024 ))" # [kByte]
 #	}
 	
-	SERVICES="$( _sanitizer "$SERVICES" urlvalue )"
+	SERVICES="$( _sanitizer do "$SERVICES" urlvalue )"
 	
 											# fixme! add: soundcard, webcam, sambashare, sensorstuff, inetoffer, ...
 	[ $FREE_SPACE_FLASH -lt 150 ] && {
@@ -591,7 +590,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	case "$(date +%H)" in			# only at night
 		01|02|03|04|05|06)
 			WIFISCAN="$( func_wifi_scan $WIFIDEV )"
-			WIFISCAN="$( _sanitizer "$WIFISCAN" urlvalue )"
+			WIFISCAN="$( _sanitizer do "$WIFISCAN" urlvalue )"
 		;;
 	esac
 
@@ -646,7 +645,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	unset IFS
 
 	PFILTER="${PFILTER_NAT:-0}:${PFILTER_FILTER:-0}:${PFILTER_MANGLE}:${PFILTER_MANGLE_REAL}:${PFILTER_MANGLE_USER_REAL:-0}:${PFILTER_MANGLE_USER_RESERVE:-0}:${PFILTER}"
-	PFILTER="$( _sanitizer "$PFILTER" urlvalue )"
+	PFILTER="$( _sanitizer do "$PFILTER" urlvalue )"
 
 	# ----- end_of_ugly_packetfilter_monitoring, output like: 7:39:600:97:10:12:49,49,49,49,49:13,49,49,49,49,49
 
@@ -659,7 +658,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	QUERY="${QUERY}local=$DATE_LOCAL_HUMAN&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE&wifidrv=$DRIVER&olsrver=$OLSRVER"
 	QUERY="${QUERY}&olsrrestartcount=$( cat /tmp/olsr_restarts )&olsrrestarttime=$( cat /tmp/olsr_restart_time )"
-	QUERY="${QUERY}&portfw=$( _sanitizer "$(nvram get fff_portfw)" urlvalue )&optimizenlq=$( nvram get fff_optimize_nlq )&optimizeneigh=$( nvram get fff_optimize_neigh )"
+	QUERY="${QUERY}&portfw=$( _sanitizer do "$(nvram get fff_portfw)" urlvalue )&optimizenlq=$( nvram get fff_optimize_nlq )&optimizeneigh=$( nvram get fff_optimize_neigh )"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS&pfilter=$PFILTER"
 	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( nvram get fff_profile )&noise=${NOISE}&rssi=${SIGNAL}&distance=${DISTANCE}"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=${ESSID}&bssid=${BSSID}"
@@ -866,7 +865,8 @@ pidof dropbear >/dev/null || {
 
 func_need profile_user old
 
-WIFIMAC="$( _sanitizer "$(ip link show dev $WIFIDEV)" mac hex lowercase )"
+WIFIMAC="$( _sanitizer do "$(ip link show dev $WIFIDEV)" mac hex lowercase )"
+SSH_PUBKEY_FP="$( _sanitizer do $(_ssh key_public_fingerprint_get) hex )"
 
 URL="$(nvram get fff_url_network)/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$(nvram get ff_dsskey_pub)"
 
