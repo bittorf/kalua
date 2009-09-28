@@ -11,22 +11,20 @@ _log_do ()				# CALL: _log do my_func_name daemon info "mytext"
 
 	case $PRIO in
 		debug|emerg|alert|crit)
-			local MEM="$( sed -n '/^Mem:/s/^Mem:[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p' /proc/meminfo )"
-			local UPTIME="$( cut -d" " -f1 /proc/uptime )"
-			local DATE="$( date "+%b %d %H:%M:%S" )"	# Oct 29 12:45:06
+			local MEM="$(    _system memory_free	)"
+			local UPTIME="$( _system uptime		)"
+			local DATE="$(	 _system date		)"
 			
 			[ "$PRIO" != "debug" ] && {		# write to logfile in flash, which is not lost after reboot
 			
-				[ -z "$FUNC_BASE" ] && . /etc/functions_base_fff+
 				func_need vars_old
 			
-				[ "$(func_system_flash_free)" -gt 150 ] && {
+				[ "$( _system flash_free )" -gt 150 ] && {
 					echo >>$EVERLOG "$DATE | [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
 				}
 				
-				local LINE
-				MESSAGE="$( echo "$MESSAGE" | while read LINE; do echo -n $LINE; done )"	# strip newline chars
-				local UNIXTIME="$( date +%s )"
+				MESSAGE="$( _sanitizer do "$MESSAGE" strip_newlines )"
+				local UNIXTIME="$( _system date unixtime )"
 				local ARCHIV_NODE_MESSAGE="$DATE | [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
 				echo >>$ARCHIV_NODE_DATA "log=$( _sanitizer do "$ARCHIV_NODE_MESSAGE" urlvalue )&time=${UNIXTIME}"
 				touch /tmp/SEND_ALIVE_FAILED
@@ -37,9 +35,9 @@ _log_do ()				# CALL: _log do my_func_name daemon info "mytext"
 	[ "$SHELL" = "/bin/ash" -o "$SHELL" = "/bin/sh" ] && {		# executing from commandline (ssh/telnet) (maybe using: "$TERM" != "vt102" ?)
 	
 		[ -z "$MEM" ] && {
-			local MEM="$( sed -n '/^Mem:/s/^Mem:[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p' /proc/meminfo )"
-			local UPTIME="$( cut -d" " -f1 /proc/uptime )"				# fixme! this section is doubled (see above)
-			local DATE="$( date "+%b %d %H:%M:%S" )"	# Oct 29 12:45:06
+			local MEM="$(	 _system memory_free	)"
+			local UPTIME="$( _system uptime		)"
+			local DATE="$(	 _system date		)"
 		}
 		
 		FATHER_PROCESS="TERM:${TERM} $0"
@@ -53,14 +51,14 @@ _log_do ()				# CALL: _log do my_func_name daemon info "mytext"
 		[ -e /tmp/BOOT ] && {
 			pidof syslogd >/dev/null || {		# write to special logfile
 				echo >>/tmp/messages "$DATE | [up $(cut -d" " -f1 /proc/uptime)s] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
-				# func_netmessage "$MESSAGE"	# fixme!
+				# _log netmessage "$MESSAGE"	# fixme!
 			}
 		}
 	else
 		[ -e /tmp/BOOT ] && {
 			pidof syslogd >/dev/null || {		# write to special logfile
 				echo >>/tmp/messages "$DATE | [up $(cut -d" " -f1 /proc/uptime)s] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"	
-				# func_netmessage "$MESSAGE"	# fixme!
+				# _log netmessage "$MESSAGE"	# fixme!
 			}
 		}
 	fi

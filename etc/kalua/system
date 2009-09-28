@@ -30,7 +30,7 @@ _system_reboot_safe ()			# fixme! maybe shutting down services like vpn, olsrd?
 		grep -v "kern.err olsrd" $SYSLOG | tail -n 100 >$SYSLOG_SAFED
 	fi	
 
-	_log do $FUNC daemon info "flash free: '$(func_system_flash_free)', rebooting in 10 sec"
+	_log do $FUNC daemon info "flash free: '$( _system flash_free )', rebooting in 10 sec"
 
 	sync			# not needed? flush_cache() is also called during reboot()
 	sleep 10		# fixme! maybe we should wait till crondog works or enforce crondog-timeout
@@ -61,6 +61,11 @@ _system_flash_free ()	# [kByte]		# fixme! abtraction to PARTITION="$1", fallback
 	local PARTITION="/dev/mtdblock/4"
 	
 	df | sed -n "s#^${PARTITION}[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*#\1#p"
+}
+
+_system_memory_free ()		# in bytes
+{
+	sed -n '/^Mem:/s/^Mem:[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p' /proc/meminfo
 }
 
 _system_get_storage_path ()
@@ -104,14 +109,27 @@ _system_uptime ()		# OUT1 = string
 	echo -n "$UPTIME"
 }
 
-_system_date_humanreadable ()
+_system_date ()
 {
 	case $1 in
-		short)
-			func_lowercase $(date +%Y%b%d)		# 2008oct12
+		humanreadable)
+			case $2 in
+				short)
+					_sanitizer do "$(date +%Y%b%d)" lowercase	# 2008oct12
+				;;
+				*)
+					_sanitizer do "$(date +%Y%b%d_%H:%M)"		# 2008oct12_20:25
+				;;
+			esac
+		;;
+		full)
+			date								# Mon Sep 28 09:08:04 CEST 2009
+		;;
+		unixtime)
+			date +%s							# 1254121912
 		;;
 		*)
-			func_lowercase $(date +%Y%b%d_%H:%M)	# 2008oct12_20:25
+			date "+%b %d %H:%M:%S"						# Sep 28 09:01:54
 		;;
 	esac
 }
