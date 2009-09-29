@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /etc/functions_base_fff+
-
 func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wireless costs/hops)
 {						# fixme! apply these checks regulary
 	[ -z "$( ip route list exact 0/0 table main )" ] && return 1
@@ -12,7 +10,7 @@ func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wire
 
 [ -n "$(nvram get fff_weblogin)" ] && {
 	func_need http log
-	eval $(_http query_string_sanitize)
+	eval $( _http query_string_sanitize )
 
 	if [ "$REQUEST_METHOD" = "POST" ]; then
 
@@ -70,13 +68,12 @@ func_need vars_old old log http pfilter welcome
 
 # _log do show_method_get daemon info "is '$QUERY_STRING'"
 
-fkt_decide_usecase				# examine if user is already logged in or not
-fkt_decide_mode					# assigns mode by examining remote-IP-address
+_welcome usercase_decide				# examine if user is already logged in or not
+_welcome mode_decide					# assigns mode by examining remote-IP-address
 
 case $MODE in
 	REDIRECT_LAN|REDIRECT_WIFI)
 	
-		func_need weblogin
 		func_weblogin_output_gate_page
 		exit
 	
@@ -87,59 +84,59 @@ case $MODE in
 		fi
 	;;
 	SERVICE)
-		fkt_print_html_header
-		fkt_print_html_message_service
-		fkt_print_html_footer
+		_welcome htmlout_header
+		_welcome htmlout_message_maintenance
+		_welcome htmlout_footer
 	;;
 	WIFI|LAN)									# fixme! akzeptiere nutzungsbedingungen fehlt noch
-		fkt_print_html_header
+		_welcome htmlout_header
 		
 		MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
 		IP=$REMOTE_ADDR								# fixme! really needed?
 		
 		fkt_definitions
 		[ -z "$( fkt_list_locally_registered_users | grep -i $MAC )" ] && {
-			fkt_print_html_link_to_usermanagement
+			_welcome htmlout_link_usermanagement
 		}
 		
 		if [ "$MODE" = "WIFI" ]; then
-			fkt_print_html_message_wifi
+			_welcome htmlout_message_wifi
 		else
-			fkt_print_html_message_lan
+			_welcome htmlout_message_lan
 		fi
 		
-		fkt_print_wiki "$WIKI_ARTICLE_1" "$WIKI_ARTICLE_1_HEADLINE"
-		fkt_print_news "$LATEST_NEWS_URL" "$LATEST_NEWS_HEADLINE"
-		fkt_print_wiki "$WIKI_ARTICLE_2" "$WIKI_ARTICLE_2_HEADLINE"
+		_welcome htmlout_wikipage "$WIKI_ARTICLE_1" "$WIKI_ARTICLE_1_HEADLINE"
+		_welcome htmlout_news "$LATEST_NEWS_URL" "$LATEST_NEWS_HEADLINE"
+		_welcome htmlout_wikipage "$WIKI_ARTICLE_2" "$WIKI_ARTICLE_2_HEADLINE"
 										# fixme! nvram get fff_ethers_auth = BLACKLIST || WHITELIST !
 
 		if [ "$( fkt_check_if_user_with_mac_is_locally_blacklisted $MAC )" = "true" ]; then
 			
-			fkt_print_html_you_are_blacklistet
+			_welcome htmlout_user_blackisted
 		else
 			if fkt_list_user_macs | grep -q -i $MAC ; then
 			
 				if [ "$( fkt_get_used_traffic_limit_from_user_with_mac_in_percent $MAC )" -gt 100 ] && [ "$( fkt_check_if_mac_is_admin $MAC )" = "false" ]; then
-					fkt_print_html_user_over_limit
+					_welcome htmlout_user_over_limit
 				else
 					if [ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "true" ]; then
-						fkt_print_html_button
+						_welcome htmlout_submitbutton_start
 					else
-						fkt_print_html_alread_logged_in
+						_welcome htmlout_user_yet_logged_in
 					fi
 				fi
 			else
-				fkt_print_html_button
+				_welcome htmlout_submitbutton_start
 			fi
 		fi
 		
-		fkt_print_html_footer
+		_welcome htmlout_footer
 	;;
 	WAN|REDIRECT_WAN)
-		fkt_deliver_indexpage	
+		_welcome htmlout_indexpage	
 	;;
 	BUTTON)							# fixme! print network / social-rules!
-		fkt_print_html_header				# fixme! an attacker can refresh the POST-values in browser and again surf 15mins 8-)
+		_welcome htmlout_header				# fixme! an attacker can refresh the POST-values in browser and again surf 15mins 8-)
 		fkt_definitions					# same packet-filter vars...
 		
 		MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
@@ -154,11 +151,11 @@ case $MODE in
 			}
 		fi
 	
-		fkt_print_html_message_welcome
-		fkt_print_image_of_inet_gw
-		fkt_print_html_footer			# fixme: maybe redirect to: "http://www.google.de/search?q=www.weimarnetz.de" ???
+		_welcome htmlout_message_welcome
+		_welcome htmlout_gateway_intropic
+		_welcome htmlout_footer			# fixme: maybe redirect to: "http://www.google.de/search?q=www.weimarnetz.de" ???
 	;;
 	*) 					# remote user is from mesh or localhost
-		fkt_deliver_indexpage
+		_welcome htmlout_indexpage
 	;;
 esac
