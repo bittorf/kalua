@@ -1,27 +1,11 @@
-FUNC_PACKAGES=1
-
-# func_ipkg_make_free_space
-# func_ipkg_is_essential
-# func_ipkg_list_installed_backwards
-# func_ipkg_repos_list_files
-# func_ipkg_update
-# func_ipkg_install
-# func_ipkg_remove
-# func_ipkg_is_installed
-# func_ipkg_is_not_installed
-# func_packages_install
-# func_packages_upgrade
-# func_packages_version
-# func_packages_get_newer_version
-
-func_ipkg_make_free_space ()
+_software_make_free_space ()
 {
 	local FUNC="ipkg_make_free_space"
 	local SPACE_WISH="$1"
 	local FREE=0
 	local IPK
 
-	for IPK in $( func_ipkg_list_installed_backwards ); do {
+	for IPK in $( _software show_installed_backwards ); do {
 	
 		FREE="$( _system flash_free )"
 		_log do $FUNC daemon debug "now $FREE kb"
@@ -31,14 +15,14 @@ func_ipkg_make_free_space ()
 			break
 		}
 	
-		func_ipkg_is_essential $IPK || {			# prevents chicken egg-problem
+		_software is_essential $IPK || {			# prevents chicken egg-problem
 			_log do $FUNC daemon alert "removing '$IPK'"
-			func_ipkg_remove $IPK
+			_software package_remove $IPK
 		}
 	} done
 }
 
-func_ipkg_is_essential ()	# fixme! how to determine, if package is part of a meta-package? maybe this
+_software_is_essential ()	# fixme! how to determine, if package is part of a meta-package? maybe this
 {				#	 doesn't matter, removing meta-packages doesn't effect child-packages
 	local PACKAGE="$1"
 	
@@ -65,14 +49,14 @@ func_ipkg_is_essential ()	# fixme! how to determine, if package is part of a met
 	esac
 }
 
-func_ipkg_list_installed_backwards ()	# OUT1: string
+_software_show_installed_backwards ()	# OUT1: list
 {
 	ipkg status |
 	 sed -n 's/^Package: \(.*\)/\1/p' |
 	  sed '1!G;h;$!d'
 }
 
-func_ipkg_repos_list_files ()	# OUT1: string
+_software_repos_list_files ()	# OUT1: list
 {
 	cat /usr/lib/ipkg/lists/* 2>/dev/null || {
 		echo
@@ -80,13 +64,13 @@ func_ipkg_repos_list_files ()	# OUT1: string
 	}
 }
 
-func_ipkg_update ()
+_software_repos_update ()
 {
 	local FILE_LAST_FETCH="/tmp/ipkg_last_repository_update"
 	local UNIXTIME_UPDATE=0
 	local UNIXTIME_NOW="$( date +%s )"
 	
-	  if [ "$( func_ipkg_repos_list_files | wc -l )" -lt 100 ]; then
+	  if [ "$( _software repos_list_files | wc -l )" -lt 100 ]; then
 	  
 	  	UNIXTIME_UPDATE=0
 
@@ -103,13 +87,13 @@ func_ipkg_update ()
 	}
 }
 
-func_ipkg_install ()
+_software_package_install ()
 {
-	func_ipkg_update
+	_software repos_update
 	ipkg -force-defaults install "$1"
 }
 
-func_ipkg_remove ()
+_software_package_remove ()
 {
 	local FUNC="ipkg_remove"
 	local PACKAGE="$1"
@@ -121,31 +105,31 @@ func_ipkg_remove ()
 	[ -z "$( date 2>/dev/null )" ] && ln -s busybox /bin/date	# busybox-coreutils
 }
 
-func_ipkg_is_installed ()
+_software_package_is_installed ()
 {
 	ipkg status "$1" | grep -q "Status: install ok installed" && return 0
 	
 	return 1
 }
 
-func_ipkg_is_not_installed ()
+_software_package_is_not_installed ()
 {
 	ipkg status "$1" | grep -q "Status: install ok installed" || return 0
 
 	return 1
 }
 
-func_packages_install ()	# hide package-manager from scripts
+_software_packages_install ()
 {
 	local PACKAGE_NAME="$1"
 	
-	func_ipkg_install	$PACKAGE_NAME
-	func_ipkg_is_installed	$PACKAGE_NAME || return 1
+	_software package_install	$PACKAGE_NAME			# fixme! better names for package_install <-> packages_install
+	_software package_is_installed	$PACKAGE_NAME || return 1
 
 	return 0
 }
 
-func_packages_upgrade ()
+_software_package_upgrade ()	# fixme! /usr/sbin/cron.upgrade_packages
 {
 	local PACKAGE_NAME="$1"
 	local PACKAGE_VERSION_HERE=0
@@ -154,7 +138,7 @@ func_packages_upgrade ()
 	echo
 }
 
-func_packages_version ()
+_software_package_version ()
 {
 	local PACKAGE_NAME="$1"
 	local VERSION="$( ipkg status "$PACKAGE_NAME" | sed -n 's/^Version: \(.*\)/\1/p' | tail -n1 )"
@@ -167,22 +151,22 @@ func_packages_version ()
 	return 1
 }
 
-func_packages_get_newer_version ()		# compare the values and return the newer one
+_software_package_newer_version ()	# compare the values and return the newer one
 {
 	local VERSION_A="$1"
 	local VERSION_B="$2"
 
-	  if [ "$( func_packages_get_newer_version_normalize $VERSION_A )" -gt "$( func_packages_get_newer_version_normalize $VERSION_B )" ]; then
+	  if [ "$( _software version_normalize $VERSION_A )" -gt "$( _software version_normalize $VERSION_B )" ]; then
 	
 		echo -n "$VERSION_A"
 	
-	elif [ "$( func_packages_get_newer_version_normalize $VERSION_B )" -gt "$( func_packages_get_newer_version_normalize $VERSION_A )" ]; then
+	elif [ "$( _software version_normalize $VERSION_B )" -gt "$( _software version_normalize $VERSION_A )" ]; then
 
 		echo -n "$VERSION_B"
 	fi
 }
 
-func_packages_get_newer_version_normalize ()
+_software_version_normalize ()
 {
 	local VERSION="$1"
 	local X Y Z N
@@ -233,4 +217,3 @@ func_packages_get_newer_version_normalize ()
 		esac
 	} done
 }
-
