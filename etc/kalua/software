@@ -64,7 +64,7 @@ _software_repos_list_files ()	# OUT1: list
 	}
 }
 
-_software_repos_update ()
+_software_repos_update ()	# fixme! no update during low flash?
 {
 	local FILE_LAST_FETCH="/tmp/ipkg_last_repository_update"
 	local UNIXTIME_UPDATE=0
@@ -87,10 +87,11 @@ _software_repos_update ()
 	}
 }
 
-_software_package_install ()
+_software_repos_purge ()
 {
-	_software repos_update
-	ipkg -force-defaults install "$1"
+	_log do purge_repos daemon debug "flash free: $( _system flash_free ) kb"
+	rm -f /usr/lib/ipkg/lists/*
+	_log do purge_repos daemon debug "flash free: $( _system flash_free ) kb (after purging)"
 }
 
 _software_package_remove ()
@@ -216,4 +217,70 @@ _software_version_normalize ()
 			;;
 		esac
 	} done
+}
+
+_software_package_is_installed_lowlevel ()	# OUT1: 0 = not_installed , 1 = installed , 2 = not in repo
+{						# ARG1: string, ipkg-paketname
+	local SOFTWARE="$1"
+	local FUNC="check_install_status_lowlevel"
+
+	ipkg status $SOFTWARE | grep -q ^"Status: install ok installed" && {
+		echo -n 1
+		_log do $FUNC daemon info "'$SOFTWARE' installed ok"
+		return
+	}
+	
+	ipkg list | grep -q ^"$SOFTWARE " && {
+		echo -n 0
+		_log do $FUNC daemon info "'$SOFTWARE' not installed"
+		return
+	}
+	
+	echo -n 2
+	_log do $FUNC daemon info "'$SOFTWARE' not in repository this time"
+}
+
+_software_package_install ()
+{								# fixme! sometimes libopenssl isn't correct installed,
+	local PACKAGE="$1"					# and vtund claims to make an "bus error". We have to
+	local FUNC="software_package_install"			# double-check this and e.g. reinstall - CRC-test?
+	local SLEEP="120"					# look at S52vpn check_for_correct_install()
+
+	while [ -z "$( ip route list exact 0/0 )" ]; do {	# fixme! use central "_net inet_works()" bool
+		_log do $FUNC daemon debug "no default-route found, waiting $SLEEP seconds"
+		sleep $SLEEP
+	} done
+
+	_log do $FUNC daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
+	_software repos_update	
+	
+	if ipkg -force-defaults install $PACKAGE ; then
+		_log do "$FUNC" daemon info "'$PACKAGE' install seems fine (free space: $( _system flash_free ) Kilobyte)"
+	
+		case $PACKAGE in
+			loginutils)
+				[ "$( _software package_is_installed_lowlevel $PACKAGE )" = "1" ] && {
+					rm -f /sbin/halt
+					ln -s /rom/sbin/reboot /sbin/reboot
+				}
+			;;
+			freifunk-pppoecd-de)
+				[ "$( _software package_is_installed_lowlevel $PACKAGE )" = "1" ] && {
+					_system reboot_safe "$PACKAGE was installed"	# fixme! maybe just 'ifup wan' ?
+				}
+			;;
+			kmod-ide)
+				[ "$( _software package_is_installed_lowlevel $PACKAGE )" = "1" ] && {
+					_system reboot_safe "$PACKAGE was installed"	# fixme! maybe just reload modules?
+				}
+			;;
+			dropbear)
+				[ "$( _software package_is_installed_lowlevel $PACKAGE )" = "1" ] && {
+					_ssh start
+				}
+			;;
+		esac
+	else
+		_log do $FUNC "'$PACKAGE' install failed (free space: $( _system flash_free ) Kilobyte)"
+	fi
 }
