@@ -9,9 +9,9 @@
 
 . /etc/functions_base_fff+ && func_need vars wifi nvram log profile
 
-[ -z "$WIFI_DEVS" ] && WIFI_DEVS="$( func_wifi_get_all_devs )"  	# during reboot /tmp/vars isn't filled
+[ -z "$WIFI_DEVS" ] && WIFI_DEVS="$( _wifi devs_list )"  	# during reboot /tmp/vars isn't filled
 
-eval "$( func_wifi_get_hardware_pci )"
+eval "$( _wifi vendor_and_model_pci )"
 eval "$( func_profile_remap_devs get_model )"
 
 case "${ROUTER_NO}-${WIFI_MODEL}" in
@@ -26,10 +26,10 @@ esac
 [ -n "$( nvram get fff_best_ant )" ] && BEST_ANT="$( nvram get fff_best_ant )"
 [ -n "$BEST_ANT" ] && {
 	WIFI_DEV="$WIFI_DEVS"	# fixme!
-	[ "$(func_wifi_get_antenna_rx $WIFI_DEV)$(func_wifi_get_antenna_tx $WIFI_DEV)" != "${BEST_ANT}${BEST_ANT}" ] && {
+	[ "$(_wifi antenna_rx $WIFI_DEV)$(_wifi antenna_tx $WIFI_DEV)" != "${BEST_ANT}${BEST_ANT}" ] && {
 		_log do check_for_special_devices daemon info "unmodified '$ROUTER_VENDOR/$ROUTER_MODEL' or enforced, using antenna A on dev '$WIFI_DEV'"
-		func_wifi_set_antenna_rx $WIFI_DEV $BEST_ANT
-		func_wifi_set_antenna_tx $WIFI_DEV $BEST_ANT
+		_wifi antenna_rx_set $WIFI_DEV $BEST_ANT
+		_wifi antenna_tx_set $WIFI_DEV $BEST_ANT
 	}
 	exit
 }
@@ -60,31 +60,31 @@ func_test_wifi_dev ()
 	local FUNC="test_wifi_dev"
 	local INTERVAL="120" ; [ "$2" = "fastcheck" ] && INTERVAL="30"	# fast check - for devices with 1 really bad antenna this should be enough
 	local WIFI_DEV="$1"
-	local DEV_PACKETS_INITIAL="$( func_wifi_get_tx_and_rx $WIFI_DEV | sed -n 's/^WIFI_RX_PACKETS=\([0-9]*\)/\1/p' )"
+	local DEV_PACKETS_INITIAL="$( _wifi tx_and_rx $WIFI_DEV | sed -n 's/^WIFI_RX_PACKETS=\([0-9]*\)/\1/p' )"
 	local INFO
 	local DIFF		# fixme! maybe use the "frame"-counter ("the number of packet framing errors") for indication of bad selection?
 
-	local ANTENNA_INITIAL="$( func_wifi_get_antenna_rx "$WIFI_DEV" )"
+	local ANTENNA_INITIAL="$( _wifi antenna_rx "$WIFI_DEV" )"
 	case $ANTENNA_INITIAL in		# this is only for logging
 		0) ANTENNA_INITIAL=A ;;
 		1) ANTENNA_INITIAL=B ;;
 		*) ANTENNA_INITIAL="AUTO" ;;
 	esac
 	
-	func_wifi_set_antenna_rx   $WIFI_DEV 0					# antenna A
-	func_wifi_set_antenna_tx   $WIFI_DEV 0
+	_wifi antenna_rx_set   $WIFI_DEV 0					# antenna A
+	_wifi antenna_tx_set   $WIFI_DEV 0
 	func_reset_received_wifi_olsr_counter		# fixme! maybe chain doesn't exist?
 	
 	_log do $FUNC daemon info "counting incoming data for $INTERVAL seconds on antenna A"
 	sleep $INTERVAL
 	local PACKETS_A="$( func_received_wifi_olsr_packets )"; PACKETS_A=${PACKETS_A:=0}
 	local BYTES_A="$(   func_received_wifi_olsr_bytes )"; BYTES_A=${BYTES_A:=0}
-	local DEV_PACKETS_A="$(  func_wifi_get_tx_and_rx $WIFI_DEV | sed -n 's/^WIFI_RX_PACKETS=\([0-9]*\)/\1/p' )"
+	local DEV_PACKETS_A="$(  _wifi tx_and_rx $WIFI_DEV | sed -n 's/^WIFI_RX_PACKETS=\([0-9]*\)/\1/p' )"
 
 	# fixme! count wifi_neighs?
 	
-	func_wifi_set_antenna_rx   $WIFI_DEV 1					# antenna B
-	func_wifi_set_antenna_tx   $WIFI_DEV 1
+	_wifi antenna_rx_set   $WIFI_DEV 1					# antenna B
+	_wifi antenna_tx_set   $WIFI_DEV 1
 	func_reset_received_wifi_olsr_counter
 	
 	_log do $FUNC daemon info "counting incoming data for $INTERVAL seconds on antenna B"
@@ -92,7 +92,7 @@ func_test_wifi_dev ()
 	
 	local PACKETS_B="$( func_received_wifi_olsr_packets )"; PACKETS_B=${PACKETS_B:=0}
 	local BYTES_B="$(   func_received_wifi_olsr_bytes )"; BYTES_B=${BYTES_B:=0}
-	local DEV_PACKETS_B="$(  func_wifi_get_tx_and_rx $WIFI_DEV | sed -n 's/^WIFI_RX_PACKETS=\([0-9]*\)/\1/p' )"
+	local DEV_PACKETS_B="$(  _wifi tx_and_rx $WIFI_DEV | sed -n 's/^WIFI_RX_PACKETS=\([0-9]*\)/\1/p' )"
 	
 	_log do $FUNC daemon info "dev_packets init/a/b: '$DEV_PACKETS_INITIAL'/'$DEV_PACKETS_A'/'$DEV_PACKETS_B'"
 	
@@ -125,8 +125,8 @@ func_test_wifi_dev ()
 	  	[ "$ANTENNA_INITIAL" = "A" ] && PRIO="info"
 		_log do compare_bytes daemon $PRIO "$INFO - bytes_a > bytes_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
 
-		func_wifi_set_antenna_rx   $WIFI_DEV 0
-		func_wifi_set_antenna_tx   $WIFI_DEV 0
+		_wifi antenna_rx_set   $WIFI_DEV 0
+		_wifi antenna_tx_set   $WIFI_DEV 0
 	
 	elif [ $BYTES_B -gt $BYTES_A ] && [ $PACKETS_A -ne $PACKETS_B ]; then
 	
@@ -140,8 +140,8 @@ func_test_wifi_dev ()
 			[ "$ANTENNA_INITIAL" = "A" ] && PRIO="info"
 			_log do compare_devpackets daemon $PRIO "$INFO - dev_packets_a > dev_packets_b (initial was: $ANTENNA_INITIAL - switching to antenna A)"
 			
-			func_wifi_set_antenna_rx   $WIFI_DEV 0
-			func_wifi_set_antenna_tx   $WIFI_DEV 0
+			_wifi antenna_rx_set   $WIFI_DEV 0
+			_wifi antenna_tx_set   $WIFI_DEV 0
 			
 		elif [ $DEV_PACKETS_B -gt $DEV_PACKETS_A ]; then
 	
@@ -158,7 +158,7 @@ for WIFI_DEV in $WIFI_DEVS; do {
 
 	_log do loop_wifi_devs daemon info "measuring '$WIFI_DEV'"
 
-	if [ "$1" = "force" ] || [ "$1" = "fastcheck" ] || [ "$(func_wifi_get_antenna_rx $WIFI_DEV)" = "auto" ] || [ "$(func_wifi_get_antenna_rx $WIFI_DEV)" != "$(func_wifi_get_antenna_tx $WIFI_DEV)" ]; then
+	if [ "$1" = "force" ] || [ "$1" = "fastcheck" ] || [ "$(_wifi antenna_rx $WIFI_DEV)" = "auto" ] || [ "$(_wifi antenna_rx $WIFI_DEV)" != "$(_wifi antenna_tx $WIFI_DEV)" ]; then
 		
 		func_test_wifi_dev $WIFI_DEV "$1"		# fixme! maybe only change settings, if
 								# there is an significant procentual change?!

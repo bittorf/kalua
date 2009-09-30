@@ -85,16 +85,16 @@ func_watch_hanging_netcat
 
 _needs vars_old olsr wifi netparam
 
-[ "$(func_wifi_get_mode $WIFIDEV config)" != "$(func_wifi_get_mode $WIFIDEV)" ] && {		# adhoc in config but managed in real?
+[ "$(_wifi mode $WIFIDEV config)" != "$(_wifi mode $WIFIDEV)" ] && {		# adhoc in config but managed in real?
 
-	_log do compare_config_and_real_wifi_mode daemon alert "differs! real: '$(func_wifi_get_mode $WIFIDEV)' restarting wifi_phy '$WIFIDEV'"
-	func_wifi_restart_phy $WIFIDEV
+	_log do compare_config_and_real_wifi_mode daemon alert "differs! real: '$(_wifi mode $WIFIDEV)' restarting wifi_phy '$WIFIDEV'"
+	_wifi phy_restart $WIFIDEV
 	sleep 30				# lets settle down, to get some neighbours
 }
 
-if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also make this, if olsr-neighs (in ap or client-mode)
+if [ "$(_wifi mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also make this, if olsr-neighs (in ap or client-mode)
 
-	  if ! func_wifi_phy_probe_online $WIFIDEV ; then	# maybe its switched off by admin
+	  if ! _wifi phy_probe_online $WIFIDEV ; then	# maybe its switched off by admin
 	
 		_log do meshmode_but_no_wifi_neighs daemon debug "radio is off, no further tests"
 		continue	
@@ -145,7 +145,7 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 	 	
 	 		if [ $(( $BEST_WIFI_NLQ - $OPTIMIGE_TARGET_NLQ )) -gt $(( $OPTIMIGE_TARGET_NLQ / 20 )) ]; then
 	 			_log do meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ: -$TXPWR_STEP ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
-				func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
+				_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP subtract limit
 			else
 				_log do meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ, low diff, do nothing ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
 			fi
@@ -158,35 +158,35 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 					;;
 					"+")
 						_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: -$TXPWR_STEP"
-						func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP subtract limit
+						_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP subtract limit
 					;;
 					"-")
 						_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: +$TXPWR_STEP (last txpower-change was '-')"
-						func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP add overturn
+						_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP add overturn
 					;;
 				esac
 			else
 				_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') but higher or equal than in last round: +$TXPWR_STEP"
-				func_wifi_set_txpwr "$WIFIDEV" $TXPWR_STEP add overturn
+				_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP add overturn
 			fi
 		fi										# fixme! add aftercheck + alert.log when successful
 		
 		echo "0" >/tmp/wifi_error_counter
 	else
-		[ "$( func_wifi_get_bssid $WIFIDEV )" != "$( func_wifi_get_bssid $WIFIDEV config )" ] && {	# fixme! empty config bssid?
-			_log do meshmode_but_no_wifi_neighs daemon alert "BSSID error: '$( func_wifi_get_bssid $WIFIDEV )'/'$( func_wifi_get_bssid $WIFIDEV config )'"
-			func_wifi_restart_phy $WIFIDEV
+		[ "$( _wifi bssid $WIFIDEV )" != "$( _wifi bssid $WIFIDEV config )" ] && {	# fixme! empty config bssid?
+			_log do meshmode_but_no_wifi_neighs daemon alert "BSSID error: '$( _wifi bssid $WIFIDEV )'/'$( _wifi bssid $WIFIDEV config )'"
+			_wifi phy_restart $WIFIDEV
 		}
 		
 		# fixme! sensitivity does not work on madwifi
-		if [ "$( func_wifi_get_noise $WIFIDEV )" -gt -85 ]; then		# [dBm] e.g. -75 is greater than -85
+		if [ "$( _wifi noise $WIFIDEV )" -gt -85 ]; then		# [dBm] e.g. -75 is greater than -85
 		
-			[ "$( func_wifi_get_sensitivity $WIFIDEV short )" != "1" ] && {
-				func_wifi_set_sensitivity $WIFIDEV nonwifi
+			[ "$( _wifi sensitivity $WIFIDEV short )" != "1" ] && {
+				_wifi sensitivity_set $WIFIDEV nonwifi
 			}
 		else									# switch back, if conditions are normal again
-			[ "$( func_wifi_get_sensitivity $WIFIDEV mode )" != "wifi,auto" ] && {
-				func_wifi_set_sensitivity $WIFIDEV auto	
+			[ "$( _wifi sensitivity $WIFIDEV mode )" != "wifi,auto" ] && {
+				_wifi sensitivity_set $WIFIDEV auto	
 			}
 		fi
 	
@@ -201,7 +201,7 @@ if [ "$(func_wifi_get_mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		#
 		
 		echo $COUNT >/tmp/wifi_error_counter
 		
-		func_wifi_set_txpwr "$WIFIDEV" 10 mW add overturn	# fixme! add aftercheck + alert.log when successful
+		_wifi phy_txpower_set "$WIFIDEV" 10 mW add overturn	# fixme! add aftercheck + alert.log when successful
 		
 		/usr/sbin/cron.select_best_antenna_fff+ force
 	fi
@@ -213,7 +213,7 @@ else							# master or client-mode
 			_log do no_meshmode_and_no_neighs daemon debug "found wired neigh"
 			echo "0" >/tmp/wifi_error_counter
 		else
-			  if ! func_wifi_phy_probe_online $WIFIDEV ; then
+			  if ! _wifi phy_probe_online $WIFIDEV ; then
 			
 				_log do no_meshmode_and_no_neighs daemon debug "wifi is switched off by admin"
 			
@@ -222,9 +222,9 @@ else							# master or client-mode
 				_log do no_meshmode_and_no_neighs daemon debug "found wifi neigh"
 				echo "0" >/tmp/wifi_error_counter
 			else
-				[ "$(func_wifi_get_bssid $WIFIDEV)" = "00:00:00:00:00:00" ] && {
-					_log do no_meshmode_and_no_neighs daemon alert "zero bssid: 'func_wifi_get_bssid $WIFIDEV'"
-					func_wifi_restart_phy $WIFIDEV
+				[ "$(_wifi bssid $WIFIDEV)" = "00:00:00:00:00:00" ] && {
+					_log do no_meshmode_and_no_neighs daemon alert "zero bssid: '_wifi bssid $WIFIDEV'"
+					_wifi phy_restart $WIFIDEV
 				}
 				
 				if [ "$(fkt_check_if_this_node_offers_inet)" != "false" ]; then
@@ -491,12 +491,12 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	ADMINPHONE="$( _sanitizer do "$(nvram get ff_adm_tel)" alphanum )"			# 036435101112zuhause
 	HOSTNAME="$(   _system hostname_get )"							# Windmuehlen12
 
-	TXPWR="$(	func_wifi_get_txpwr	  $WIFIDEV mw )"	# 40
+	TXPWR="$(	_wifi phy_txpower	  $WIFIDEV mw )"	# 40
 	FRAG="$(	func_wifi_get_frag	  $WIFIDEV )"		# 500
 	RTS="$(		func_wifi_get_rts	  $WIFIDEV )"		# 2347
-	GMODEPROT="$(	func_wifi_get_protection  $WIFIDEV )"		# 0 or 1
+	GMODEPROT="$(	_wifi protection_gmode  $WIFIDEV )"		# 0 or 1
 	WIFIMODE="$(	func_wifi_get_mode	  $WIFIDEV )"		# adhoc
-	DISTANCE="$(	func_wifi_get_distance    $WIFIDEV )"		# 1500
+	DISTANCE="$(	_wifi timing_distance    $WIFIDEV )"		# 1500
 	NOISE="$(	func_wifi_get_noise	  $WIFIDEV )"		# -94
 	SIGNAL="$(	func_wifi_get_signal	  $WIFIDEV )"		# 001122334455-70:223344556677-40
 	SIGNAL="$( _sanitizer do "$SIGNAL" urlvalue )"
@@ -504,17 +504,17 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	CHANNEL="$(	func_wifi_get_channel	  $WIFIDEV )"		# 104
 	MRATE="$(	func_wifi_get_mrate	  $WIFIDEV )"		# 5.5
 	
-	SENS="$(	func_wifi_get_sensitivity $WIFIDEV )"		# 1,wifi,auto | 3/3
+	SENS="$(	_wifi sensitivity $WIFIDEV )"		# 1,wifi,auto | 3/3
 	SENS="$( _sanitizer do "$SENS" urlvalue )"
 	
-	DRIVER="$(	func_wifi_get_driver_version $WIFIDEV )"	# wl-adv_3.90-RC37.0_v1.1
+	DRIVER="$(	_wifi driver_version $WIFIDEV )"	# wl-adv_3.90-RC37.0_v1.1
 	DRIVER="$( _sanitizer do "$DRIVER" urlvalue )" 			# wl-simple_v1.0 
 									# mod-madwifi_2.4.30brcm+r3314-8
 
 	GMODE="$( nvram get wl0_gmode )"	# fixme!
 
 	ESSID="$( _sanitizer do "$(nvram get wl0_ssid)" urlvalue )"
-	BSSID="$( _sanitizer do "$(func_wifi_get_bssid $WIFIDEV)" hex lowercase )"
+	BSSID="$( _sanitizer do "$(_wifi bssid $WIFIDEV)" hex lowercase )"
 
 	eval $( /etc/init.d/S02check_interface_correctness_fff+ show_hardware )
 	HW="$( echo $HW | sed -e 's/ /_/g' -e 's/[^_a-zA-Z0-9-]//g' )"			# Buffalo_WHR-HP-G54_BCM4318-wifi
@@ -589,7 +589,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 
 	case "$(date +%H)" in			# only at night
 		01|02|03|04|05|06)
-			WIFISCAN="$( func_wifi_scan $WIFIDEV )"
+			WIFISCAN="$( _wifi scan $WIFIDEV )"
 			WIFISCAN="$( _sanitizer do "$WIFISCAN" urlvalue )"
 		;;
 	esac
