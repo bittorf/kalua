@@ -52,3 +52,122 @@ _net_params ()
 {
 	cat /tmp/NETPARAM
 }
+
+_net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be one of "false wan lan pppoe"
+{					#	yes means "not false" and returncode 0
+	local MODE="false"
+	local FUNC="check_if_this_node_offers_inet"
+	local PHYDEV=0
+	local METRIC=0
+	local D=0
+	local N=0
+
+	[ -z "$FUNC_LOG" ] && . /etc/functions_logging_fff+
+
+	[ ! -e /tmp/NETPARAM ] && {			# early_boot_estimation is for profile-functions
+
+		[ -n "$( nvram get wan_gateway )" ] && {
+			
+			[ "$( nvram get wan_proto )" = "pppoe" ] && {
+				_log do $FUNC daemon info "early_boot_estimation: pppoe"
+				echo "pppoe"
+				return 0			# fixme!
+			}
+			
+			_log do $FUNC daemon info "early_boot_estimation: wan"
+			echo "wan"
+			return 0
+		}
+	
+		[ -n "$( nvram get lan_gateway )" ] && {
+			_log do $FUNC daemon info "early_boot_estimation: lan"
+			echo "lan"
+			return 0
+		}
+
+		/etc/init.d/S52vpnc_fff+ check && {
+			_log do $FUNC daemon info "early_boot_estimation: tun"
+			echo "tun"
+			return 0
+		}
+
+		_log do $FUNC daemon info "early_boot_estimation: false"
+		echo "false"
+		return 1
+	}
+
+	local  LAN_GATEWAY="$( nvram get lan_gateway )"
+	[ -n "$LAN_GATEWAY" ] && [ -z "$( ip route list exact 0/0 via $LAN_GATEWAY )" ] && {
+
+		[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
+			_log do $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
+			echo "lan"
+			return 0		# gets applied during '/etc/local.fw-fff+ masq'
+		}
+
+	. /tmp/NETPARAM
+	
+	# only look for the first default-route
+	# some examples:
+	#
+	# default via 192.168.1.1 dev vlan1		-> wan-offer|wan_gateway
+	# default via 191.255.255.1 dev venet0		-> root-server
+	# default via 217.0.116.253 dev ppp0		-> pppoe
+	# default dev tun0  scope link			-> vpnc
+	# default via 10.63.52.36 dev br0 		-> lan-offer|lan-gateway
+	
+	eval $( ip route list exact 0/0 | head -n1 |
+		while read N N D N PHYDEV METRIC N; do {	# we must eval it, otherwise
+			echo PHYDEV=$PHYDEV			# the vars from subprocess are
+			echo METRIC=$METRIC			# not known
+			echo N=$N
+			echo D=$D				# fixme! better use 'eval $( ip route list exact 0/0 | sed 'xyz' )'
+		} done
+	)
+
+	if [ -z "$METRIC" ]; then				# found no metric = local inet-offer
+
+		_log do $FUNC daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
+
+		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0/0 -> "default via eth0" or similar
+
+			if [ "$LAN_GATEWAY" = "0.0.0.0" ]; then
+				
+				_nvram set lan_gateway 
+				_nvram set commit "config-mistake, unsetting lan-gateway which was '$LAN_GATEWAY'"
+				
+				ip route delete default via $D
+			fi
+		else
+			if   [ "$PHYDEV" = "$WANDEV" ]; then
+				MODE="wan"
+			elif [ "$PHYDEV" = "$LANDEV" ]; then
+				MODE="lan"
+			else
+				MODE="pppoe"	# && WANDEV=ppp0          # fixme! this is not exact!
+			fi
+			
+			[ "$PHYDEV" = "link" ] && {
+				if   echo $D | grep -q "^tun[0-9]*" ; then
+					MODE=tun
+				elif echo $D | grep -q "^tap[0-9]*" ; then
+					MODE=tap
+				else
+					MODE="$D"				# e.g. tun0 / vpnc
+				fi
+			}
+			
+			_log do $FUNC daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
+		fi
+	else
+		if [ $N -eq 0 ]; then
+			_log do $FUNC daemon info "no local default-gateway, no default-gateway, no internet 8-("
+		else
+			_log do $FUNC daemon info "no local default-gateway found, only $N hops away 8-)"
+		fi
+                                                                                                                       
+	echo $MODE
+
+	[ "$MODE" = "false" ] && return 1	
+	return 0
+}

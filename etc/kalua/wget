@@ -1,0 +1,31 @@
+_wget_do ()								# SENS: reliable fetching an URL $1, aborting after $2 seconds
+{
+	local URL="$1"
+	local C=0							# counter (raising) for maximal seconds
+	local MAX="${2:-15}"						# maximal running time in seconds, defaults to 15sec
+	local MASK1="$3"
+	local MASK2="$4"						# user/pass-string from, which should be masked during logging
+	
+	wget -qO - "$URL" 2>/dev/null &					# fixme! what if wget-task has ended before 'pidof' ?
+	local PID_WGET="$( pidof wget | sed 's/ /\n/g' | sed '$!d' )"	# list of all wget-pid's, insert newlines, print last line
+	local PID_LINE="$( cat /proc/$PID_WGET/cmdline 2>/dev/null )"	# exact line of ps-output
+	
+	while [ -e "/proc/$PID_WGET" ]; do {				# wget-process in tasklist?
+		sleep 1
+		C=$(( $C + 1 ))
+		
+		local PID_LINE_NOW="$( cat /proc/$PID_WGET/cmdline 2>/dev/null )"	# is empty, when task has ended
+		
+		[ $C -gt $MAX ] && {					# maximal execution time reached
+			[ "$PID_LINE" = "$PID_LINE_NOW" ] && {		# is this really the started process?
+	
+				[ -n "$MASK1" ] && URL="$( echo "$URL" | sed -e "s/$MASK1/hidden/" -e "s/$MASK2/hidden/" )"
+			
+				_log do "wget" daemon info "error during fetching '$URL' - killing PID '$PID_WGET' after $C seconds"
+				kill $PID_WGET 2>/dev/null
+				return 1				# fixme! check if still there? zombie? reboot?
+			}
+			return 0					# OK - this is another process
+		}
+	} done
+}

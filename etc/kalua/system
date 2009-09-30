@@ -63,6 +63,15 @@ _system_flash_free ()	# [kByte]		# fixme! abtraction to PARTITION="$1", fallback
 	df | sed -n "s#^${PARTITION}[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*#\1#p"
 }
 
+_system_flash_size ()	# [kByte]
+{
+	local FILE="/tmp/FLASHSIZE"
+	
+	[ ! -e $FILE ] && echo >$FILE $(( $(cat /dev/mtdblock/0 /dev/mtdblock/1 /dev/mtdblock/3 | wc -c) / 1024 ))      # CFE+LINUX+NVRAM
+	
+	cat $FILE
+}
+
 _system_memory_free ()		# in bytes
 {
 	sed -n '/^Mem:/s/^Mem:[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p' /proc/meminfo
@@ -144,4 +153,36 @@ _system_pids_count ()			# fixme! returns "1", even when no process was found
 	local PROCESS_NAME="$1"					# e.g. 'wifi' or 'xrelayd'
 								#      pidof wifi: '5736 5779 6314 6317 6499'
 	pidof "$PROCESS_NAME" | sed 's/[^ ]//g' | wc -c		# strip all, except spaces and count those spaces
+}
+
+_system_ram ()
+{
+	case $1 in
+		free)
+			sed -n 's/Mem:[\ ]*[0-9]*[\ ]*[0-9]*[\ ]*\([0-9]*\).*/\1/p' /proc/meminfo	# [bytes]
+		;;
+		size)
+			local FUNC="ram_size"		# [kBytes]
+			local FILE="/tmp/RAMSIZE"
+			local BORDER="14416"		# this reports /proc/meminfo with 16 mb
+			local KEY MEM NOP
+
+			[ ! -e $FILE ] && {
+				while read KEY MEM NOP NOP NOP NOP; do {
+					[ "$KEY" = "MemTotal:" ] && {
+						echo -n "$MEM" >$FILE
+					}
+				} done </proc/meminfo
+		
+				MEM="$( cat $FILE )"
+		
+				[ "$MEM" -lt "$BORDER" ] && {
+					_log do $FUNC daemon info "$MEM kb - detected lowmem device, with lower than $BORDER kb"
+					touch /tmp/LOWMEM
+				}
+			}
+			
+			cat $FILE
+		;;
+	esac
 }
