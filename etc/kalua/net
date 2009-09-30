@@ -2,3 +2,48 @@ _net_ip2dns ()
 {
 	nslookup $1 | sed -n "s/^Name:[^a-zA-Z0-9]*\(.*\)\.$( nvram get wan_domain )$/\1/p"
 }
+
+_net_dev_type ()		# OUT1: string, "wifi/tunnel/wire"
+{
+	local DEV="$1"
+	
+	_net dev_is_wifi $DEV && {
+		echo -n "wifi"
+		return
+	}
+	
+	_net dev_is_tuntap $DEV && {
+		echo -n "tunnel"
+		return
+	}
+	
+	echo -n "wire"		# fixme! is this always ethernet?
+}
+
+_net_ip2metric ()
+{
+	ip route list $1 | sed -n 's/^.*metric \([0-9]*\).*/\1/p'
+}
+
+_net_dev_is_wifi ()
+{
+	grep -q "^.*$1:" /proc/net/wireless && return 0
+	return 1
+}
+
+_net_dev_is_tuntap ()
+{
+	local KEYWORD="$(echo $1 | sed -n 's/^\([a-z]*\)[0-9]*/\1/p' )"
+	
+	[ "$KEYWORD" = "tun" ] && return 0
+	[ "$KEYWORD" = "tap" ] && return 0
+	return 1
+}
+
+_net_ip2dev ()
+{
+	ip -oneline address show | sed -ne "/ inet $1\//{s/^[0-9]*: \([a-zA-Z0-9@\.]*\).*/\1/p;q}"
+	
+	# does not work for local IP's:
+	# ip -o route get $1 | cut -d' ' -f3
+}
