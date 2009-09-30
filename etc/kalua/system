@@ -155,34 +155,32 @@ _system_pids_count ()			# fixme! returns "1", even when no process was found
 	pidof "$PROCESS_NAME" | sed 's/[^ ]//g' | wc -c		# strip all, except spaces and count those spaces
 }
 
-_system_ram ()
+_system_ram_free ()	# [bytes]
 {
-	case $1 in
-		free)
-			sed -n 's/Mem:[\ ]*[0-9]*[\ ]*[0-9]*[\ ]*\([0-9]*\).*/\1/p' /proc/meminfo	# [bytes]
-		;;
-		size)
-			local FUNC="ram_size"		# [kBytes]
-			local FILE="/tmp/RAMSIZE"
-			local BORDER="14416"		# this reports /proc/meminfo with 16 mb
-			local KEY MEM NOP
+	sed -n 's/Mem:[\ ]*[0-9]*[\ ]*[0-9]*[\ ]*\([0-9]*\).*/\1/p' /proc/meminfo
+}
 
-			[ ! -e $FILE ] && {
-				while read KEY MEM NOP NOP NOP NOP; do {
-					[ "$KEY" = "MemTotal:" ] && {
-						echo -n "$MEM" >$FILE
-					}
-				} done </proc/meminfo
-		
-				MEM="$( cat $FILE )"
-		
-				[ "$MEM" -lt "$BORDER" ] && {
-					_log do $FUNC daemon info "$MEM kb - detected lowmem device, with lower than $BORDER kb"
-					touch /tmp/LOWMEM
-				}
+_system_ram_size ()	# [kBytes]
+{
+	local FUNC="ram_size"
+	local FILE="/tmp/RAMSIZE"
+	local BORDER="14416"		# this reports /proc/meminfo with 16 mb
+	local KEY MEM NOP
+
+	[ ! -e $FILE ] && {
+		while read KEY MEM NOP NOP NOP NOP; do {
+			[ "$KEY" = "MemTotal:" ] && {
+				echo -n "$MEM" >$FILE
 			}
+		} done </proc/meminfo
+		
+		MEM="$( cat $FILE )"
+
+		[ "$MEM" -lt "$BORDER" ] && {
+			_log do $FUNC daemon info "$MEM kb - detected lowmem device, with lower than $BORDER kb"
+			touch /tmp/LOWMEM
+		}
+	}
 			
-			cat $FILE
-		;;
-	esac
+	cat $FILE
 }
