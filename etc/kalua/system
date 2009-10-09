@@ -97,7 +97,7 @@ _system_domain_get ()
 
 _system_hostname_get ()
 {
-	local HOSTNAME="$( nvram get wan_hostname )"
+	local HOSTNAME="$( nvram get wan_hostname )"	# fixme! use 'uname -n'?
 
 	_sanitizer do "${HOSTNAME:=unsethostname}" hostname
 }
@@ -189,4 +189,22 @@ _system_ram_size ()	# [kBytes]
 	}
 			
 	cat $FILE
+}
+
+_system_flash_mounted_readonly ()	# SENS: check if data-partition is mounted read-only (failsafe or firmware-update-mode)
+{
+	local FUNC="flash_mounted_readonly"
+	local LINE
+
+	mount | while read LINE; do {
+	
+		set $LINE
+	
+		if [ "$5" = "mini_fo" ] && [ "$6" = "(ro)" ]; then
+			_log do $FUNC "data-partition mounted read-only"
+			return 0
+		fi
+	} done
+	
+	return 1
 }

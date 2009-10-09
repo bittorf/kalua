@@ -1,5 +1,195 @@
 #!/bin/sh
 
+_build_clients ()
+{						# SENS: print IP-list of (potential) clients
+	local STARTIP="$1"			# ARG1: string, interface-IP (first useable address of network)
+	local   ENDIP="$2"			# ARG2: string, interface-broadcast-address
+	local     PRE="$3"			# ARG3: string, interface-netmask in CIDR-notation (e.g. /24)
+	local     NET="$4"			# ARG4: string, interface info ("wan") - just for logging
+	local    FUNC="build_clients"		# OUT1: list of IP-addresses
+
+	_log do $FUNC daemon debug "writing client list for $STARTIP/$PRE ('$NET')"
+
+	OKT1="$(	echo $STARTIP | cut -d. -f1 )"
+	OKT2="$(	echo $STARTIP | cut -d. -f2 )"
+	OKT3="$(	echo $STARTIP | cut -d. -f3 )"	  
+	OKT4_START="$(	echo $STARTIP | cut -d. -f4 )"
+	OKT4_END="$(	echo $ENDIP   | cut -d. -f4 )"
+
+	let OKT4_START+=2	# we only need real clients, not the network, not the interface and not the broadcast-address
+	   
+	if [ "$PRE" -ge 24 ] && [ "$PRE" -le 30 ]; then		# this is not correct, just an workaround!
+		
+		[ "$PRE" = "30" ] && OKT4_START=$(( $OKT4_START - 1 ))
+
+		while [ $OKT4_START -lt $OKT4_END ]; do {
+			echo "$OKT1.$OKT2.$OKT3.$OKT4_START;"
+			OKT4_START=$(( $OKT4_START + 1 ))
+		} done
+	else
+		_log do $FUNC daemon debug "error, CIDR-netmask <24 or >30 not implemented yet!"
+		
+		sed -n "s/^${NET}ADR=\(.*\)/\1/p" /tmp/NETPARAM			# fixme! uiuiui!
+		echo "# (printing at least the IP itself, maybe it helps)"
+		echo "# error, CIDR-netmask = $PRE, which is <24 or >30 - not implemented yet!"
+	fi
+}
+
+_build_hosts ()				# SENS: modulary builds /etc/local.hosts
+{
+	local FUNC="build_hosts"
+	local FILE="/etc/local.hosts"
+	local SUB_PATH="/tmp/"
+	local SUB_DROP="${SUB_PATH}hosts.drop"
+	local SUB_VIRT="${SUB_PATH}hosts.virtual"
+	local SUB_WIFI="${SUB_PATH}hosts.wifi"
+	local SUB_LAN="${SUB_PATH}hosts.lan"
+	local DOMAIN="$( nvram get wan_domain )"
+	local LINE=""
+
+	. /tmp/NETPARAM
+
+	case "$1" in
+		join)
+			_log do $FUNC daemon debug "joining '$SUB_LAN', '$SUB_WIFI', '$SUB_VIRT', '$SUB_DROP' to '$FILE'"
+			cat 2>/dev/null $SUB_LAN $SUB_WIFI $SUB_VIRT $SUB_DROP >$FILE
+			rm  2>/dev/null $SUB_LAN $SUB_WIFI $SUB_VIRT $SUB_DROP
+		;;
+		wifi)
+			_log do $FUNC daemon debug "building wifi-entrys"
+			echo  >$SUB_WIFI "# entrys for wifi-subnet"
+
+			DEFAULT="wardriver"
+			NODE="$(   nvram get fff_node_number )"
+			DOMAIN="$( nvram get wan_domain )"
+			CLIENT=0
+			MODE="$1"
+			
+			while read LINE; do {
+				let CLIENT+=1
+				IFS=";"
+				set $LINE
+				
+				OUT="$(grep "\-${MODE}${CLIENT}\-" /etc/ethers)" # exists in /etc/ethers?
+				
+				if [ -z "$OUT" ]; then				# anonymous without hard /etc/ethers entry
+					echo "$1 ${DEFAULT}-${MODE}${CLIENT}-n$NODE.$DOMAIN ${DEFAULT}-${MODE}${CLIENT}-n$NODE"
+				else						# is in /etc/ethers
+					echo "$1 $(echo "$OUT" | cut -d" " -f2) $(echo "$OUT" | cut -d" " -f2 | cut -d"." -f1)" 	
+				fi
+				
+				unset IFS
+
+			} done <"$CLIENTS_WIFI" >>$SUB_WIFI
+			
+			echo >>$SUB_WIFI
+		;;
+		lan)
+			_log do $FUNC daemon debug "building lan/wan-entrys"
+			echo  >$SUB_LAN "# entrys for lan-subnet"
+			
+			[ -n "$WANADR" ] && {
+				echo >>$SUB_LAN "# WAN (start)"
+				echo >>$SUB_LAN "$WANADR $(nvram get wan_hostname).$DOMAIN $(nvram get wan_hostname)"
+				echo >>$SUB_LAN "# WAN (end)"
+			}
+
+			DEFAULT="anonymous"
+			NODE="$(   nvram get fff_node_number )"
+			DOMAIN="$( nvram get wan_domain )"
+			CLIENT=0
+			MODE="$1"
+			
+			while read LINE; do {
+				let CLIENT+=1
+				IFS=";"
+				set $LINE
+				
+				OUT="$(grep "\-${MODE}${CLIENT}\-" /etc/ethers)"	# exists in /etc/ethers?
+
+				if [ -z "$OUT" ]; then					# anonymous without hard /etc/ethers entry
+					echo "$1 ${DEFAULT}-${MODE}${CLIENT}-n$NODE.$DOMAIN ${DEFAULT}-${MODE}${CLIENT}-n$NODE"
+				else							# is in /etc/ethers
+					echo "$1 $(echo "$OUT" | cut -d" " -f2) $(echo "$OUT" | cut -d" " -f2 | cut -d"." -f1)"
+				fi
+				
+				unset IFS
+
+			} done <"$CLIENTS_LAN" >>$SUB_LAN
+			
+			echo >>$SUB_LAN 	# just a blank line
+		;;
+		virtual)
+			_log do $FUNC daemon debug "building virtual-entrys" 
+
+			echo  >$SUB_VIRT "# for neccesary lookups and safe reaching of device"
+			echo >>$SUB_VIRT "255.255.255.255 anyhost.$DOMAIN anyhost"
+			echo >>$SUB_VIRT "104.0.0.0 oldstyle_freifunk_net.$DOMAIN oldstyle_freifunk_net"
+			echo >>$SUB_VIRT "127.0.0.1 localhost.$DOMAIN localhost"
+			echo >>$SUB_VIRT "$LANNET local_lannet.$DOMAIN local_lannet"
+			
+			test ! -z "$WANADR" && echo >>$SUB_VIRT "$WANNET local_wannet.$DOMAIN local_wannet"
+			
+			echo >>$SUB_VIRT "$WIFINET local_wifinet.$DOMAIN local_wifinet"
+			echo >>$SUB_VIRT
+			echo >>$SUB_VIRT "$LANADR      kiste.$DOMAIN kiste"
+			echo >>$SUB_VIRT "$LANADR        box.$DOMAIN box"
+			echo >>$SUB_VIRT "$LANADR     router.$DOMAIN router"
+			echo >>$SUB_VIRT "$LANADR   internet.$DOMAIN internet"
+			echo >>$SUB_VIRT "$LANADR      mutti.$DOMAIN mutti" 
+			echo >>$SUB_VIRT "$LANADR    linksys.$DOMAIN linksys"
+			echo >>$SUB_VIRT "$LANADR    siemens.$DOMAIN siemens"
+			echo >>$SUB_VIRT "$LANADR weimarnetz.$DOMAIN weimarnetz"
+			echo >>$SUB_VIRT "$LANADR       dell.$DOMAIN dell"
+			echo >>$SUB_VIRT "$WIFIADR     hotel.$DOMAIN hotel"
+			echo >>$SUB_VIRT "$WIFIADR     login.$DOMAIN login"
+			
+			VPN_SERVER="$( nvram get fff_server_vpn_ip4 )"
+			
+			echo >>$SUB_VIRT
+			echo >>$SUB_VIRT "$VPN_SERVER rootserver.$DOMAIN rootserver"
+			echo >>$SUB_VIRT "$VPN_SERVER vpnserver.$DOMAIN vpnserver"
+			echo >>$SUB_VIRT "$VPN_SERVER vpn.$DOMAIN vpn"
+			# echo >>$SUB_VIRT "$VPN_SERVER weimarnetz.de"
+			# echo >>$SUB_VIRT "$VPN_SERVER news.weimarnetz.de"
+			
+			echo >>$SUB_VIRT
+		;;
+		drop)
+			echo  >$SUB_DROP "# for dropping known advertisement servers"
+			echo >>$SUB_DROP "# (1.1.0.0/20 gets REJECTed, range is enough for ~4096 hosts)"
+			
+			local LIST="/etc/hosts.drop"						# see fff-adblock-list.ipk
+		
+			[ -e $LIST ] && {
+				_log do $FUNC daemon debug "building drop-list"
+			
+				local X=0
+				local Y=0
+				local COUNT=0
+				
+				while read LINE; do {
+				
+					Y=$(( $Y + 1 ))
+					[ $Y -gt 254 ] && {
+						Y=1
+						X=$(( $X + 1 ))
+						COUNT=$(( $COUNT + 255 ))
+					}
+					
+					echo "1.1.$X.$Y $LINE"
+				
+				} done <$LIST >>$SUB_DROP
+				
+				_log do $FUNC daemon debug "bilding drop-list ready ($(( $COUNT + $Y )) hosts)"
+				return 0
+			}
+
+			_log do $FUNC daemon debug "no drop-list - do nothing"
+		;;
+	esac
+}
+
 . /etc/functions_base_fff+ && func_need vars_old old nvram log profile_user
 
 nvram get wan_hostname | grep -q ^node && {					# fixme! unneeded?
@@ -124,9 +314,9 @@ fkt_build_clients_list ()	# these lists are used to to a fast 'grep $IP $FILE', 
 	# 10.63.167.94 cityvpn-serverside-n422.olsr cityvpn-serverside-n422		// for nicer traceroute
 	# 10.63.167.93 cityvpn-clientside-n422.olsr cityvpn-clientside-n422
 
-	fkt_build_client_list "$WIFINET" "$WIFIBRC" "$WIFIPRE" "WIFI"	>$CLIENTS_WIFI
-	fkt_build_client_list "$LANNET"  "$LANBRC"  "$LANPRE"  "LAN"    >$CLIENTS_LAN 
-	fkt_build_client_list "$WANNET"  "$WANBRC"  "$WANPRE"  "WAN"    >$CLIENTS_WAN
+	_build_clients "$WIFINET" "$WIFIBRC" "$WIFIPRE" "WIFI"	>$CLIENTS_WIFI
+	_build_clients "$LANNET"  "$LANBRC"  "$LANPRE"  "LAN"	>$CLIENTS_LAN 
+	_build_clients "$WANNET"  "$WANBRC"  "$WANPRE"  "WAN"	>$CLIENTS_WAN
 	
 	cat $CLIENTS_WIFI $CLIENTS_LAN $CLIENTS_WAN                     >$CLIENTS_ALL
 }
@@ -139,9 +329,9 @@ case $1 in
 
 		fkt_build_clients_list
 
-		fkt_build_etc_local_hosts lan
-		fkt_build_etc_local_hosts wifi
-		fkt_build_etc_local_hosts virtual
+		_build_hosts lan
+		_build_hosts wifi
+		_build_hosts virtual
 		
 		case $(nvram get fff_adblock) in
 			0|off|false) DROP=0 ;;
@@ -156,7 +346,7 @@ case $1 in
 				rm "$DROPFILE"
 			}
 		else
-			fkt_build_etc_local_hosts drop
+			_build_hosts drop
 			
 			if [ -e "$DROPFILE" ]; then
 				FILE_INFO="$( ls -l "$DROPFILE" | sed -n 's/^[a-z-]*[0-9]*.*root.*root\(.*\)/\1/p' )"
@@ -166,7 +356,7 @@ case $1 in
 			fi
 		fi
 		
-		fkt_build_etc_local_hosts join
+		_build_hosts join
 		
 		fkt_restart_running_dnsserver
 	;;
