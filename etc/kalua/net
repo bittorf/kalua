@@ -1,6 +1,11 @@
 _net_ip2dns ()
 {
-	nslookup $1 | sed -n "s/^Name:[^a-zA-Z0-9]*\(.*\)\.$( nvram get wan_domain )$/\1/p"
+	nslookup $1 | sed -n "s/^Name:[^a-zA-Z0-9]*\(.*\)/\1/p"
+}
+
+_net_dns2ip ()
+{
+	nslookup $1 | sed -n '5s/^Address:[^0-9]*\([0-9\.]*\)/\1/p'
 }
 
 _net_dev_type ()		# OUT1: string, "wifi/tunnel/wire"
@@ -48,9 +53,9 @@ _net_ip2dev ()
 	# ip -o route get $1 | cut -d' ' -f3
 }
 
-_net_params ()
+_net_params ()			# join with ipsystem() ?
 {
-	cat /tmp/NETPARAM
+	cat /tmp/NETPARAM	# maybe include?
 }
 
 _net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be one of "false wan lan pppoe"
@@ -61,8 +66,6 @@ _net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be on
 	local METRIC=0
 	local D=0
 	local N=0
-
-	[ -z "$FUNC_LOG" ] && . /etc/functions_logging_fff+
 
 	[ ! -e /tmp/NETPARAM ] && {			# early_boot_estimation is for profile-functions
 
@@ -97,13 +100,14 @@ _net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be on
 	}
 
 	local  LAN_GATEWAY="$( nvram get lan_gateway )"
-	[ -n "$LAN_GATEWAY" ] && [ -z "$( ip route list exact 0/0 via $LAN_GATEWAY )" ] && {
+	if [ -n "$LAN_GATEWAY" ] && [ -z "$( ip route list exact 0/0 via $LAN_GATEWAY )" ]; then
 
 		[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
 			_log do $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
 			echo "lan"
 			return 0		# gets applied during '/etc/local.fw-fff+ masq'
 		}
+	fi
 
 	. /tmp/NETPARAM
 	
@@ -131,13 +135,13 @@ _net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be on
 
 		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0/0 -> "default via eth0" or similar
 
-			if [ "$LAN_GATEWAY" = "0.0.0.0" ]; then
+			[ "$LAN_GATEWAY" = "0.0.0.0" ] && {
 				
 				_nvram set lan_gateway 
 				_nvram set commit "config-mistake, unsetting lan-gateway which was '$LAN_GATEWAY'"
 				
 				ip route delete default via $D
-			fi
+			}
 		else
 			if   [ "$PHYDEV" = "$WANDEV" ]; then
 				MODE="wan"
@@ -165,7 +169,8 @@ _net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be on
 		else
 			_log do $FUNC daemon info "no local default-gateway found, only $N hops away 8-)"
 		fi
-                                                                                                                       
+	fi
+
 	echo $MODE
 
 	[ "$MODE" = "false" ] && return 1	
