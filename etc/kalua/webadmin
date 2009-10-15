@@ -1,0 +1,808 @@
+func_db_html_out ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf 
+{
+	sqlite3 /tmp/admin2.db "select * from USERS;" |
+	 awk -v DATUM="$( date )" 'BEGIN{
+		print "<html><body><big>WLAN-Benutzerliste, 30-Minuten-Tickets&nbsp;&nbsp;&nbsp;</big>"
+		print "<small>Erstellungszeitpunkt: "DATUM"</small>"
+		print "<table cellspacing='1' cellpadding='1' border='1' width='100%'>"
+		print "<tr width='100%'><td align='center' width='5%'> Benutzername </td>"
+		print "<td align='center' width='5%'>  Passwort </td>"
+		print "<td align='center' width='5%'>  Zimmernummer / Gastname </td>"
+		print "<td align='center' width='85%'> Kommentar </td></tr>"
+	}{
+		FS="|"
+		print "<tr><td>&nbsp;&nbsp;"$4"</td><td align='center'>"$5"</td><td>&nbsp;</td><td>&nbsp;</td>"
+	}'
+}
+
+func_db_dirty_out ()
+{
+	local TICKET="30min"	# 30min, 60min, 12h, 24h, 48h, 1week
+	local      C="434"
+	
+	sqlite3 /tmp/admin2.db "select * from USERS;" |
+	 while read LINE; do {
+	 
+	 	IFS="|"
+	 	set $LINE		# md5sum id profile_name username password
+	 	
+	 	echo "$( echo -n "$4$5" | md5sum | cut -d' ' -f1 ) $C $TICKET $4 $5"
+	 	C=$(( $C + 1 ))
+	} done	
+}
+
+_webadmin_db_defs ()
+{
+	SQL_DB="/tmp/admin2.db"
+	SQL_BIN="$( which sqlite3 )"
+
+	[ ! -e "$SQL_DB" ] && {		# fixme! check 0 size?
+		_log do db_defs daemon info "creating database '$SQL_DB'"
+		func_db_init
+	}
+}
+
+func_db_init ()
+{
+	func_db_init_sql | "$SQL_BIN" "$SQL_DB"
+}
+
+func_db_init_sql ()		# outputs an complete sqlite-query, which creates all tables/triggers
+{
+	local TABLE TABLES_LIST TABLE_INIT NAME NAMES_LIST
+
+	TABLES_LIST="$( func_db_tables all )"
+	NAMES_LIST="$(  func_db_tables USERNAMES init_defaults )"
+	
+	echo "begin;"
+	echo
+
+	for TABLE in $TABLES_LIST; do {
+		TABLE_INIT="$( func_db_tables $TABLE init )"
+		echo "create table '$TABLE' ( $TABLE_INIT );"
+	} done
+
+	for NAME in $NAMES_LIST; do {					# fill a table with useable 'USERNAMES'
+		echo "insert into 'USERNAMES' values ( '$NAME' );"	# which is only used by the trigger 'auto_user'
+	} done
+
+	cat <<EOF
+	
+create trigger 'auto_pass' after insert on 'USERS'
+  begin
+    update 'USERS' set pass = substr(abs(random()),1,5) where pass = 'auto';
+  end;
+	
+create trigger 'auto_user' after insert on 'USERS'
+  begin
+    update 'USERS' set name = (select name from 'USERNAMES'  where rowid >= (abs(random()) % (select max(rowid) from 'USERNAMES')) limit 1) where name = 'auto';
+  end;
+
+create trigger 'auto_time' after insert on 'USERS'
+  begin
+    update 'USERS' set installed = strftime('%s','now') where installed = 'auto';
+  end;
+	
+create trigger 'no_rowid_holes' after delete on 'USERS'
+  begin
+    update 'USERS' set rowid = old.rowid where rowid = (select count()+1 from USERS);
+  end;
+
+EOF
+
+	echo "commit;"
+}
+
+func_schrott ()
+{
+	echo "begin;"
+
+	for I in 1 2 3 ; do {			# insert some USERS
+		for OBJ in 1 2 3 ; do {
+			echo "insert into 'USERS' values ( NULL, 'profil' , 'Zimmer 10$OBJ', 'auto', 'auto', 'auto', '$OBJ' );"
+		} done
+	} done
+
+	echo "insert into 'PROFILES' values ( NULL, 'Kurz-Ticket', 'fuer ca. 20 Minuten', 2, 200, 200, 50, 50, 180, 180, 'http://hier.com', 5, 'EUR' );"
+	echo "insert into 'PROFILES' values ( NULL, 'Tagesticket', 'fuer 24 Stunden', 2, 500, 1200, 100, 100, 1800, 1800, 'http://hier.com', 10, 'EUR' );"
+	echo "insert into 'PROFILES' values ( NULL, '2-Tages-Ticket', 'fuer 48 Stunden', 2, 1200, 2200, 120, 120, 1800, 1800, 'http://hier.com', 15, 'EUR' );"
+	echo "insert into 'PROFILES' values ( NULL, 'Mitarbeiterticket', 'fuer einen Monat', 2, 8200, 16200, 150, 150, 2800, 2800, 'http://hier.com', 0, 'EUR' );"
+
+	for I in 1 2 3; do {
+		echo "insert into 'DEVICES' values ( $I, '00:11:22:33:44:0$I', 'wifi', 'de', '', '', '', '', '', '', 1);"
+	} done
+	
+	echo "commit;"
+}
+
+func_db_insert_tickets ()			# trigger: name = auto , pass = auto
+{						# "select name from NAMES where rowid>=random() % (SELECT max(rowid) FROM NAMES) limit 1"
+	local TICKET
+
+	echo "$SQL_BIN $SQL_DB \"BEGIN;"
+	
+	for TICKET in $FORM_USERADD_COUNT; do {
+		echo -n "insert into 'USERS' values ( "
+		echo -n "NULL, '$FORM_USERADD_PROFILE' , '$FORM_USERADD_COMMENT', '$FORM_USERADD_NAME', '$FORM_USERADD_PASS', strftime('%s','now'), $FORM_USERADD_DEVICES )"
+	} done
+	
+	echo "COMMIT\""
+}
+
+func_db_tables ()
+{
+	local TABLE="$1"
+	local VIEW="$2"
+	
+	case $TABLE in
+		all)
+			echo -n "DEVICES USERS USERNAMES PROFILES"
+		;;
+		DEVICES)
+			case $VIEW in
+				all)
+					echo -n "user mac devtype lang firstseen lastseen timeall timetoday traffall trafftoday isolation"
+				;;
+				init)
+					echo -n "user INTEGER, mac TEXT, devtype TEXT, lang TEXT, firstseen INTEGER, lastseen INTEGER,"
+					echo -n "timeall INTEGER, timetoday INTEGER, traffall INTEGER, trafftoday INTEGER, isolation INTEGER"
+				;;
+			esac	
+		;;
+		USERS)
+			case $VIEW in
+				all)
+					echo -n "id profile comment name pass installed devices"
+				;;
+				init)
+					echo -n "id INTEGER PRIMARY KEY, profile TEXT, comment TEXT, name TEXT, pass TEXT, installed INTEGER, devices INTEGER"
+				;;
+			esac	
+		;;
+		PROFILES)
+			case $VIEW in
+				all)
+					echo -n "id name comment validity maxtraffall maxtraffday maxspeedup maxspeeddown maxtimeall maxtimeday landingurl cost currency"
+				;;
+				init)
+					echo -n "id INTEGER PRIMARY KEY, name TEXT, comment TEXT, validity INTEGER, maxtraffall INTEGER, maxtraffday INTEGER,"
+					echo -n "maxspeedup INTEGER, maxspeeddown INTEGER, maxtimeall INTEGER, maxtimeday INTEGER, landingurl TEXT, cost TEXT, currency TEXT"
+				;;
+			esac
+		;;
+		USERNAMES)
+			case $VIEW in
+				all)
+					echo -n "name"
+				;;
+				init)
+					echo -n "name TEXT"
+				;;
+				init_defaults)
+					#local THEME="tiere"
+					#local THEME="leipziger_kuenstler"
+					local THEME="hauptstaedte"
+					
+					case $THEME in
+						tiere)
+					echo -n "pinguin delphin giraffe elefant loewe tiger leopard wildkatze uhu fuchs gazelle wolf schwan buntspecht eisbaer "
+					echo -n "polarfuchs blauwal hai schildkroete zebra bueffel braunbaer hirsch reh goldfisch katze bernhardiner schaeferhund "
+					echo -n "pudel eichhoernchen ameisenbaer honigbiene schmetterling kolibri schneeeule vogelspinne hase wellensittich adler "
+					echo -n "meerkatze pelikan robbe erdmaennchen pfauenauge gorilla orangutan condor habicht amsel drossel fink star yak "
+					echo -n "krokodil ameisenbaer yeti gnu tintenfisch fasan rebhuhn stockente haubentaucher bachstelze spitzmaus maulwurf "
+					echo -n "goldhamster pony pandabaer storch strauss einhorn schwalbe eisvogel kranich"
+						;;
+						leipziger_kuenstler)
+					echo -n "behringer borchers borowski pedda blume boettcher botto brueckner burger burghardt coppa ebersbach eissner ernert "
+					echo -n "fischerart goethner gille gnuechtel griesel haeussler hartmann heisig heublein horlbeck kappler hund huniat jahr "
+					echo -n "killisch kober kollwitz kratsch kristofori kunert lehmann loy mattheuer mayerforeyt minkewitz mohr mueller "
+					echo -n "muellersimon munse muenze murschetz naumann novaky penck petersdorf petkova piniek pillwitz poetzschig rauch "
+					echo -n "richter rink rossmanit ruddigkeit schade schletter schultheiss scholz schroeter albertschulz schwimmer sologubov "
+					echo -n "stauf suessmilch stelzmann thal triegel touma tuebke vancura vent voigt voelkel wagenbrett wajsberg weischer "
+					echo -n "zettl zickelbein ziegler zumor zuerner"
+						;;
+						hauptstaedte)
+					echo -n "kabul kairo tirana algier luanda malabo eriwan baku canberra manama dhaka bridgetown belmopan cotonou thimphu "
+					echo -n "sucre sarajewo gaborone sofia ouagadougou bujumbura taipeh peking kopenhagen berlin roseau quito yamoussoukro "
+					echo -n "abidjan asmara tallinn suva helsinki paris libreville banjul tiflis accra athen conakry bissau tegucigalpa "
+					echo -n "jakarta bagdad teheran dublin jerusalem rom tokio amman ottawa astana doha nairobi bischkek kinshasa brazzaville "
+					echo -n "seoul zagreb havanna vientiane maseru riga beirut monrovia vaduz vilnius antananarivo lilongwe putrajaya bamako "
+					echo -n "valletta rabat majuro nouakchott skopje palikir monaco ulaanbaatar podgorica maputo pyinmana windhoek kathmandu "
+					echo -n "wellington managua amsterdam niamey abuja oslo maskat wien dili islamabad lima manila warschau lissabon kigali "
+					echo -n "bukarest moskau honiara lusaka apia riad stockholm bern dakar belgrad freetown harare singapur bratislava "
+					echo -n "ljubljana mogadischu madrid colombo basseterre castries kingstown pretoria kapstadt khartum paramaribo mbabane "
+					echo -n "damaskus duschanbe dodoma bangkok prag tunis ankara aschgabat funafuti kampala kiew budapest montevideo taschkent "
+					echo -n "vatikanstadt caracas london hanoi minsk bangui nikosia"
+						;;
+					esac
+				;;
+			esac
+		;;
+	esac
+}
+
+# ToDo:
+#
+# - user-editor: 
+#   - werte uebernehmen
+#     - zuerst SQL-Syntax schreiben und dann eval
+#   - user anzeigen
+#
+# - profil-editor: neues profil = muell-profil erzeugen + dieses bearbeiten
+#   - table PROFIL leer? -> direkt in profil-editor gehen
+#   - profil-editor: profil loeschen
+
+func_unixtime ()
+{
+	date +%s
+}
+
+func_toggle_values ()
+{
+	local VALUE_NOW="$1"
+	local VALUE_A="$2"
+	local VALUE_B="$3"
+
+	if [ "$VALUE_NOW" = "$VALUE_B" ]; then
+		echo -n "$VALUE_A"
+	else
+		echo -n "$VALUE_B"		# is also the initial value
+	fi
+}
+
+_webadmin_action ()
+{
+	case $1 in
+		all)
+			echo "user_add user_edit user_show profile_add profile_edit"
+		;;
+		user_add)
+			echo "EXPERT='false'"
+			echo "DESC_SHORT='Benutzer hinzuf&uuml;gen'"
+			echo "DESC_LONG='neue Benutzer im System anlegen'"
+		;;
+		user_edit)
+			echo "EXPERT='false'"
+			echo "DESC_SHORT='Benutzer bearbeiten'"
+			echo "DESC_LONG='vorhandene Benutzer bearbeiten'"
+		;;
+		user_show)
+			echo "EXPERT='false'"
+			echo "DESC_SHORT='Benutzer anzeigen'"
+			echo "DESC_LONG='alle angelegten Benutzer anzeigen'"
+		;;
+		profile_add)
+			echo "EXPERT='true'"
+			echo "DESC_SHORT='Benutzerprofil erstellen'"
+			echo "DESC_LONG='ein neues Benutzerprofil anlegen'"
+		;;
+		profile_edit)
+			echo "EXPERT='true'"
+			echo "DESC_SHORT='Benutzerprofile bearbeiten'"
+			echo "DESC_LONG='Benutzerprofile bearbeiten oder l&ouml;schen'"
+		;;
+		*)
+			echo "EXPERT='false'"
+			echo "DESC_SHORT='Auswahl'"
+			echo "DESC_LONG='hier werden Benutzer oder Profile verwaltet'"
+		;;
+	esac
+}
+
+_webadmin_htmlout_links2category ()
+{
+	local ACTION BGCOLOR DESC DESC_SHORT DESC_LONG EXPERT
+	
+	for ACTION in $( _webadmin action all ); do {
+		
+		BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
+
+		eval $( _webadmin action $ACTION )                          
+
+		echo -n "<td bgcolor='$BGCOLOR' align='center'>"
+		
+		[ "$EXPERT" = "true" ] && echo -n "<table class='trg' style='display: none; visibility: hidden;'><tr><td align='center'>"
+		
+		echo -n "<form method='GET'>"
+		echo -n "<input type='hidden' name='FORM_ACTION' value='$ACTION'><input type='submit' value='$DESC_SHORT'></form>"
+		echo -n "$DESC_LONG</td>"
+		
+		[ "$EXPERT" = "true" ] && echo -n "</td></tr></table>"
+	} done
+}
+
+func_admingui_javascript ()		# http://www.tutorials.de/forum/javascript-ajax/329323-tabellenzeilen-verstecken-anzeigen.html
+{
+	cat<<EOF
+	<SCRIPT LANGUAGE="JavaScript" TYPE="text/javascript"><!--
+
+	function getElementsByClassName(strClassName)
+	{
+		var arrHelp = new Array();
+		var strPattern = eval("/"+strClassName+"/");
+		var arrTags = (navigator.userAgent.toLowerCase().indexOf("msie") != -1) ? document.all : document.getElementsByTagName('*');
+
+		for(varEntry in arrTags){
+			if((arrTags[varEntry].className) && (arrTags[varEntry].className.match(strPattern))){
+				arrHelp[arrHelp.length] = arrTags[varEntry];
+			}
+		}
+
+		return arrHelp;
+	}
+
+	function toggleMe(item)
+	{
+		var e=getElementsByClassName(item);
+	
+		if(!e)return true;
+
+		for (var i = 0; i < e.length; i++){
+			with (e[i].style){
+				if(visibility == 'hidden' || display=='none'){
+					display = '';
+					visibility = 'visible';
+				}else{
+					display = 'none';
+					visibility = 'hidden';
+				}
+			}
+		}
+
+		return true;
+	}
+	--></SCRIPT>
+EOF
+}
+
+_webadmin_formsend_useradd ()
+{
+	local FUNC="admingui_user_add_form_was_send"
+	local COUNT="$FORM_USERADD_COUNT"
+	local TEMP="/tmp/tempfile_user_add_form_was_send_$$"
+	local BEGIN="true"
+
+	_log do $FUNC daemon debug "adding $COUNT users into 'USERS' with profile '$FORM_USERADD_PROFILE_ID'"
+	
+	if [ "$COUNT" -gt 1 ]; then
+		echo -n "<h2>Es werden $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
+	else
+		echo -n "<h2>Es wird $FORM_USERADD_COUNT Benutzer angelegt.</h2>"
+	fi
+	
+	echo -n "<pre>"
+	
+	while [ "$COUNT" -gt 0 ]; do {		# (COUNT) USER_ID PROFILE_ID COMMENT USERNAME PASSWORD INSTALLED DEVICE_MAX
+		COUNT=$(( $COUNT - 1 ))
+	
+		[ "$BEGIN" = "true" ] && echo "begin;" && BEGIN="false"
+		
+		echo -n "  insert into 'USERS' values ("
+		echo -n "  NULL ,"				# row/user_id
+		echo -n "  '$FORM_USERADD_PROFILE_ID',"
+		echo -n "  '$FORM_USERADD_COMMENT' ,"
+		echo -n "  '$FORM_USERADD_USERNAME' ,"
+		echo -n "  '$FORM_USERADD_PASSWORD' ,"
+		echo -n "  'auto' ,"				# installed
+		echo -n "  '$FORM_USERADD_DEVICES_MAX'"
+		echo    " );"
+	
+	} done >$TEMP
+	
+	if [ -e "$TEMP" ]; then
+	
+		echo "commit;" >>$TEMP
+		cat $TEMP
+		$SQL_BIN $SQL_DB <$TEMP
+		rm $TEMP
+		_log do $FUNC daemon info "created $FORM_USERADD_COUNT users with profile '$FORM_USERADD_PROFILE_ID'"
+	else
+		_log do $FUNC daemon alert "something went wrong"
+	fi
+	
+	echo -n "</pre>"
+}
+
+_webadmin_htmlout_form_useradd ()
+{
+	local N SWITCH EXPERT COUNT VALUE BGCOLOR FORM_TYPE DESC DESC_SHORT DESC_LONG DEFAULT_VAL DEFAULT_TXT
+
+	echo -n "<form method='get' accept-charset='ISO-8859-1'><input type='hidden' name='FORM_ACTION' value='user_add'><input type='hidden' name='FORM_SEND' value='true'>"
+	echo -n "<table id='tabID' cellspacing='0' cellpadding='2' border='0' width='100%'><tr><td width='10%'>&nbsp;</td><td width='10%'>&nbsp;</td><td width='80%'>&nbsp;</td></tr>"
+	
+	for VALUE in $(func_db_user all); do {
+
+		BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
+					 
+		eval $(func_db_user $VALUE)
+
+		if [ "$EXPERT" = "true" ]; then
+			[ "$SWITCH" != "true" ] && {
+				SWITCH="true"
+				echo -n "<tr><td colspan='3' align='right' bgcolor='$BGCOLOR'>"
+				echo -n "<a href='#' ONCLICK=\"toggleMe('trg');\">Zusatzeinstellungen anzeigen</a></td></tr>"
+				BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
+			}
+			echo -n "<tr class='trg' style='display: none; visibility: hidden;'>"
+		else
+			echo -n "<tr>"
+		fi
+		
+		echo -n "<td bgcolor='$BGCOLOR'>${DESC_SHORT}&nbsp;&nbsp;</td><td bgcolor='$BGCOLOR'>"
+		
+		case $FORM_TYPE in
+			radio)
+				echo -n "<input type='radio' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL' checked> $DEFAULT_TXT"
+				echo -n "<input type='radio' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL1'       > $DEFAULT_TXT1"
+			;;
+			select)
+				echo -n "<select size='1' name='FORM_USERADD_$VALUE'>"
+				for OPTION in $DEFAULT_VALS; do {
+					echo -n "<option value='$OPTION'>$( eval $( echo -n echo -n \$DEFAULT_TXT${N} ) )</option>"
+					N=$(( $N + 1 ))
+				} done && N=
+				echo -n "</select>"
+			;;
+			*)
+				echo -n "<input type='text' name='FORM_USERADD_$VALUE' value='$DEFAULT_VAL'>"
+			;;
+		esac
+		
+		echo -n "</td><td bgcolor='$BGCOLOR'>&nbsp;&nbsp;${DESC_LONG}</td></tr>"
+	} done
+
+	echo -n "<tr><td colspan='3'>&nbsp;</td></tr><tr><td valign='middle' align='center' bgcolor='#D3D3D3' colspan='2'><br>"
+	echo -n "<input type='submit' value='Benutzer anlegen'><br><br></td><td bgcolor='#D3D3D3'>&nbsp;</td></tr></table>"
+}
+
+_webadmin_formsend_useredit ()
+{
+	echo "<pre>"
+
+	  if [ -n "$FORM_USECASE_SAVE" ]; then
+
+		_webadmin htmlout_form_useredit_save_was_send_built_sql	
+		$SQL_BIN $SQL_DB "$( _webadmin htmlout_form_useredit_save_was_send_built_sql )"
+		echo "<br><big> Daten wurden gespeichert. </big>"
+	
+	elif [ -n "$FORM_USECASE_DELETE" ]; then
+
+		_webadmin htmlout_form_useredit_delete_was_send_built_sql
+		$SQL_BIN $SQL_DB "$( _webadmin htmlout_form_useredit_delete_was_send_built_sql )"
+		echo "<br><big> Daten wurden gel&ouml;scht. </big>"
+	
+	elif [ -n "$FORM_USECASE_PRINT" ]; then
+
+		continue
+	fi
+}
+
+_webadmin_htmlout_form_useredit_delete_was_send_built_sql ()
+{
+	local COMMENT ROWID ID=1
+	
+	echo "begin;"
+	echo "/* ID: '$ID' ROWID_MAX: '$ROWID_MAX' */"
+	
+	while [ "$ID" -le "$ROWID_MAX" ]; do {
+	
+		eval ROWID=\${ROWID_$ID}
+		
+		[ -n "$ROWID" ] && {
+			echo "  delete from USERS where ROWID=$ID;"
+		}
+		
+		ID="$(( $ID + 1 ))"
+	} done	
+	
+	echo "commit;"
+}
+
+_webadmin_htmlout_form_useredit_save_was_send_built_sql ()
+{
+	local COMMENT ROWID ID=1
+	
+	echo "begin;"
+	echo "/* ID: '$ID' ROWID_MAX: '$ROWID_MAX' */"
+
+	while [ "$ID" -le "$ROWID_MAX" ]; do {
+	
+		eval ROWID=\${ROWID_$ID}
+
+		[ -n "$ROWID" ] && {
+			eval COMMENT="\${COMMENT_$ID}"
+			echo "  update USERS set comment='$COMMENT' where ROWID=$ID;"
+		}
+		
+		ID="$(( $ID + 1 ))"
+	} done
+
+	echo "commit;"
+}
+
+_webadmin_htmlout_form_useredit ()			# ToDo:
+{							# - jede spalte sortierbar machen, sortierung mit in QUERY uebergeben (fuer druck...)
+							# - alles markieren
+	echo "<br><form method='get' action=''>"
+	echo "<input type='hidden' name='FORM_ACTION' value='user_edit'>"
+	echo "<input type='hidden' name='FORM_SEND' value='true'>"
+	echo "<table cellspacing=1 cellpadding=1 border=0>"
+	echo "<tr bgcolor='#C5FF9F'><td>&nbsp;</td><td align='center'>&nbsp; No. &nbsp;</td><td align='center'>&nbsp; Profil &nbsp;</td>"
+	echo "<td align='center'>&nbsp; Zimmernummer oder Name, Kommentar &nbsp;</td><td>&nbsp; Benutzername &nbsp;</td>"
+	echo "<td>&nbsp; Passwort &nbsp;</td><td>&nbsp; Ger&auml;te &nbsp;</td><td align='center'>&nbsp; Alter [d] &nbsp;</td></tr>"
+
+	$SQL_BIN $SQL_DB "select ROWID,profile,comment,name,pass,devices,(strftime('%s','now')-installed)/3600/24,datetime(installed,'unixepoch') from USERS order by installed DESC;" |
+	    awk 'BEGIN{
+			FS="|"
+			ROWID_MAX=1
+		}{
+			if (BGCOLOR=="" || BGCOLOR=="#DCDCDC")
+				BGCOLOR="#FAEBD7"
+			else
+				BGCOLOR="#DCDCDC"
+
+			if ($1 > ROWID_MAX)
+				ROWID_MAX=$1
+			
+			printf "<tr bgcolor=\"" BGCOLOR "\">"
+			printf "<td><input type=\"checkbox\" name=\"ROWID_" $1 "\" value=\"1\"></td>"				# checkbox
+			printf "<td align=\"right\">&nbsp; %s &nbsp;</td>",$1							# rowid
+			printf "<td>&nbsp; %s &nbsp;</td>",$2									# profile
+			printf "<td>&nbsp;<input type=\"text\" size=\"40\" name=\"COMMENT_" $1 "\" value=\"%s\">&nbsp;</td>",$3	# comment
+			printf "<td>&nbsp; %s &nbsp;</td>",$4									# user
+			printf "<td align=\"center\">&nbsp; %s &nbsp;</td>",$5							# pass
+			printf "<td align=\"center\">&nbsp; %s &nbsp;</td>",$6							# devices
+			printf "<td align=\"center\">&nbsp;<a href=\"#\" title=\"Erstellt: %s\">%s</a>&nbsp;</td>",$8,$7	# age
+		}'
+
+	echo "<tr bgcolor='#C5FF9F'><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>"
+	echo "</table><br>"
+	echo "<table cellspacing='0' cellpadding='0' border='0' width='100%'>"
+	echo "<tr><td valign='middle' align='center' bgcolor='#D3D3D3'><br>"
+	echo "<input type='hidden' name='ROWID_MAX' value='$( $SQL_BIN $SQL_DB "select max(ROWID) from USERS;" )'>"
+	echo "<input type='submit' name='FORM_USECASE_DELETE' value='markierte Spalten l&ouml;schen'>"
+	echo "<input type='submit' name='FORM_USECASE_SAVE'   value='markierte Spalten speichern'>"
+	echo "<input type='submit' name='FORM_USECASE_PRINT'  value='markierte Spalten drucken'>"
+	echo "<br><br></td></tr></table></form>"
+}
+
+func_db_user ()
+{
+	case $1 in
+		all)
+			# USER_ID PROFILE_ID COMMENT USERNAME PASSWORD INSTALLED DEVICE_MAX
+		
+			[ "$2" = "sql" ] && echo -n "ID INSTALLED FIRSTSEEN LASTSEEN TRAFFALL TRAFFTODAY TIMEALL TIMETODAY "
+			echo -n "COUNT PROFILE_ID COMMENT USERNAME PASSWORD MAC DEVICES_MAX ISOLATION"
+
+			# echo -n "USER_ID PROFILE_ID COMMENT USERNAME PASSWORD INSTALLED DEVICE_MAX"
+			# echo -n "COUNT "
+		;;
+		init)
+			local SEPARATE OBJ LIST="$( func_db_user all sql )"
+			
+			for OBJ in $LIST; do {
+				eval $(func_db_user $OBJ)
+				[ -z "SQLCLASS" ] && continue
+				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
+			} done 
+		;;
+		COUNT)
+			echo "SQLCLASS=''"
+			echo "EXPERT='false'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='1'"
+			echo "DESC_SHORT='Benutzeranzahl'"
+			echo "DESC_LONG='wieviele Benutzer sollen angelegt werden?'"
+		;;
+		USERNAME)
+			echo "SQLCLASS='TEXT'"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='auto'"
+			echo "DESC_SHORT='Benutzername'"
+			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"
+		;;
+		PASSWORD)
+			echo "SQLCLASS='TEXT'"
+			echo "EXPERT='true'"			# user can alter this!?
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='auto'"
+			echo "DESC_SHORT='Passwort'"
+			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"	
+		;;
+		PROFILE_ID)
+			local N PROFILE PROFILE_LIST="$( func_db_profile ID all )"
+		
+			echo "SQLCLASS='INTEGER'"
+			echo "EXPERT='false'"
+			echo "FORM_TYPE='select'"
+			echo "DEFAULT_VALS='$PROFILE_LIST'"
+			
+			for PROFILE in $PROFILE_LIST; do {
+				echo "DEFAULT_TXT${N}='$( func_db_profile DESC $PROFILE )'"
+				N=$(( $N + 1 ))
+			} done
+			
+			echo "DESC_SHORT='Profil'"
+			echo "DESC_LONG='Zusammenfassung grundlegender Benutzerrechte (G&uuml;ltigkeitsdauer,&nbsp;...)'"
+		;;
+		MAC)
+			echo "SQLCLASS='TEXT'"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='auto'"		# space separated?
+			echo "DESC_SHORT='MAC-Adresse'"
+			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell vergeben werden'"
+		;;
+		DEVICES_MAX)
+			echo "SQLCLASS='INTEGER'"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='1'"
+			echo "DESC_SHORT='Ger&auml;teanzahl'"
+			echo "DESC_LONG='Endger&auml;te die sich mit gleicher Kennung anmelden d&uuml;rfen (Gruppenticket)'"
+		;;
+		COMMENT)
+			echo "SQLCLASS='TEXT'"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='text'"
+			echo "DEFAULT_VAL='...'"
+			echo "DESC_SHORT='Kommentar'"
+			echo "DESC_LONG='interner Vermerk, z.B. Zimmernummer'"
+		;;
+		ISOLATION)
+			echo "SQLCLASS='INTEGER'"
+			echo "EXPERT='true'"
+			echo "FORM_TYPE='radio'"
+			echo "DEFAULT_VAL='1'"
+			echo "DEFAULT_TXT='ja'"
+			echo "DEFAULT_VAL1='0'"
+			echo "DEFAULT_TXT1='nein'"
+			echo "DESC_SHORT='Isolation'"
+			echo "DESC_LONG='Schutz des Netzteilnehmers vor Zugriff durch andere Benutzer?'"
+		;;
+		ID)
+			echo "SQLCLASS='INTEGER PRIMARY KEY AUTOINCREMENT'"	# eindeutiger bezeichner pro user-kennung
+			echo "DEFAULT_VAL='NULL'"
+			echo "EXPERT='sql'"
+		;;
+		INSTALLED)
+			echo "SQLCLASS='INTEGER'"		# unixzeit / anlegezeitpunkt in DB
+			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='$( func_unixtime )'"
+		;;
+		FIRSTSEEN)
+			echo "SQLCLASS='INTEGER'"		# unixzeit / erster erfolgreicher einlogvorgang
+			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='NULL'"
+		;;
+		LASTSEEN)
+			echo "SQLCLASS='INTEGER'"		# unixzeit / letzter auslogvorgang
+			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='NULL'"
+		;;
+		TRAFFALL)
+			echo "SQLCLASS='INTEGER'"		# traffic [megabyte] insgesamt
+			echo "EXPERT='sql'"			# trafficmeldungen ("fetch me!" -> scp alle transaktionen)
+			echo "DEFAULT_VAL='0'"
+		;;
+		TRAFFTODAY)
+			echo "SQLCLASS='INTEGER'"		# traffic [megabyte] heute	// trafficmeldungen
+			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='0'"
+		;;
+		TIMEALL)
+			echo "SQLCLASS='INTEGER'"		# minutenverbrauch insgesamt	// trafficmeldungen
+			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='0'"
+		;;
+		TIMETODAY)
+			echo "SQLCLASS='INTEGER'"		# minutenverbrauch heute	// trafficmeldungen
+			echo "EXPERT='sql'"
+			echo "DEFAULT_VAL='0'"
+		;;
+	esac
+}
+
+func_db_devices ()
+{
+	case $1 in
+		init)
+			local SEPARATE OBJ LIST="$( func_db_devices all )"
+		
+			for OBJ in $LIST; do {
+				eval $(func_db_devices $OBJ)
+				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
+			} done
+		;;
+		all)
+			echo -n "USER MAC DEVTYPE LANG"
+		;;
+		USER)
+			echo "SQLCLASS='INTEGER'"	# foreign key to table 'USER' ?
+		;;
+		MAC)
+			echo "SQLCLASS='TEXT'"
+		;;
+		DEVTYPE)
+			echo "SQLCLASS='TEXT'"
+		;;
+		LANG)
+			echo "SQLCLASS='TEXT'"
+		;;
+	esac
+}
+
+func_db_profile ()		# insert into PROFILE values('hello!',10);
+{
+	case $1 in
+		init)
+			local SEPARATE OBJ LIST="$( func_db_profile all )"
+			
+			for OBJ in $LIST; do {
+				eval $(func_db_profile $OBJ)
+				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
+			} done
+		;;
+		all)
+			echo -n "ID DESC VALIDITY MAXTRAFFALL MAXTRAFFPERDAY MAXSPEEDUP MAXSPEEDDOWN MAXTIMEALL MAXTIMEPERDAY LANDINGURL COST CURRENCY"
+		;;
+		ID)
+			case $2 in
+				all)
+					echo -n "ticket_24h ticket_48h ticket_1monat"
+				;;
+				*)
+					echo "SQLCLASS='INTEGER PRIMARY KEY'"
+				;;
+			esac
+		;;
+		DESC)
+			case $2 in
+				ticket_24h)
+					echo -n "1-Tages-Ticket f&uuml;r G&auml;ste"
+				;;
+				ticket_48h)
+					echo -n "2-Tages-Ticket f&uuml;r G&auml;ste"
+				;;
+				ticket_1monat)
+					echo -n "Monatsticket f&uuml;r Mitarbeiter"
+				;;
+				*)
+					echo "SQLCLASS='TEXT'"
+				;;
+			esac
+		;;
+		VALIDITY)
+			echo "SQLCLASS='INTEGER'"
+		;;
+		MAXTRAFFALL)
+			echo "SQLCLASS='INTEGER'"
+		;;
+		MAXTRAFFPERDAY)
+			echo "SQLCLASS='INTEGER'"
+		;;
+		MAXSPEEDUP)
+			echo "SQLCLASS='INTEGER'"
+		;;
+		MAXSPEEDDOWN)
+			echo "SQLCLASS='INTEGER'"
+		;;
+		MAXTIMEALL)
+			echo "SQLCLASS='INTEGER'"
+		;;
+		MAXTIMEPERDAY)
+			echo "SQLCLASS='INTEGER'"
+		;;
+		LANDINGURL)
+			echo "SQLCLASS='TEXT'"
+		;;
+		COST)
+			echo "SQLCLASS='INTEGER'"
+		;;
+		CURRENCY)
+			echo "SQLCLASS='TEXT'"
+		;;
+	esac
+}
