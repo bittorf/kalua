@@ -160,7 +160,7 @@ EOF
 			echo >>"$TEMP" "<A CLASS=\"plugin\" HREF=\"cgi-bin-tool_fff+\">Werkzeug</A></DIV></TD></TR>"
 		;;
 		syslog_with_rebootfix_syslog)
-			FILE="$SYSLOG"
+			FILE="/var/log/messages"
 			cat 2>/dev/null "/www/SYSLOG_SAFED" "$FILE" >"$TEMP"
 		;;
 		statuspage_for_new_syslog)
@@ -175,7 +175,7 @@ EOF
 		syslogd_start_for_more_space)
 			FILE="/etc/init.d/S10boot"
 		
-			REPLACE="{ mkdir -p /var/log; mv /tmp/messages $SYSLOG; syslogd -O $SYSLOG -s 333; }"
+			REPLACE="{ mkdir -p /var/log; mv /tmp/messages /var/log/messages; syslogd -O /var/log/messages -s 333; }"
 		
 			sed "s#syslogd -C 16#$REPLACE#" "$FILE" >"$TEMP"			# 333 means 666 (logrotate)
 		;;
@@ -247,7 +247,7 @@ EOF
 	if [ "$MODE" = "restore_from_rom" ]; then
 		local ROMFILE="/rom$FILE"
 	
-		if [ -r "$ROMFILE" ] && [ "$FILE" != "$SYSLOG" ]; then						# dunno why, but syslog is mirrored in rom?
+		if [ -r "$ROMFILE" ] && [ "$FILE" != "/var/log/messages" ]; then						# dunno why, but syslog is mirrored in rom?
 			_log do $FNAME daemon info "restoring '$FILE' from '$ROMFILE' (ROM)"
 			rm -f "$FILE"
 			cp "$ROMFILE" "$FILE"
@@ -315,20 +315,20 @@ fkt_generate_logread_replacement () {
 
 # this file was generating trough $0 (fkt_generate_logread_replacement)
 
-  if [ -e "$SYSLOG" ] && [ "\$1" = "-f" ]; then
-	echo "+ exec \"tail -n 50 -f $SYSLOG\"  (showing last 50 lines and further):"
+  if [ -e "/var/log/messages" ] && [ "\$1" = "-f" ]; then
+	echo "+ exec \"tail -n 50 -f /var/log/messages\"  (showing last 50 lines and further):"
 	echo
-	tail -n 50 -f $SYSLOG
+	tail -n 50 -f /var/log/messages
 
-elif [ -e "$SYSLOG" ] && [ "\$1" = "-a" ]; then
-	echo "exec \"cat $SYSLOG.0 $SYSLOG\" (showing whole syslog):"
+elif [ -e "/var/log/messages" ] && [ "\$1" = "-a" ]; then
+	echo "exec \"cat /var/log/messages.0 /var/log/messages\" (showing whole syslog):"
 	echo
-	cat $SYSLOG.0 $SYSLOG 2>/dev/null
+	cat /var/log/messages.0 /var/log/messages 2>/dev/null
 
-elif [ -e "$SYSLOG" ]; then
-	echo "exec \"tail -n 300 $SYSLOG\" (showing last 300 syslog lines) - look <a href=\"cgi-bin-tool_fff+?GREP=%3A&OPT=syslog&GUI=1&SUPRESS1=DHCP&SUPRESS2=rrdcollect&HIGHLIGHT=fff\">here for whole syslog</a> or use \"logread.sh -a\"..."
+elif [ -e "/var/log/messages" ]; then
+	echo "exec \"tail -n 300 /var/log/messages\" (showing last 300 syslog lines) - look <a href=\"cgi-bin-tool_fff+?GREP=%3A&OPT=syslog&GUI=1&SUPRESS1=DHCP&SUPRESS2=rrdcollect&HIGHLIGHT=fff\">here for whole syslog</a> or use \"logread.sh -a\"..."
 	echo
-	tail -n 300 $SYSLOG
+	tail -n 300 /var/log/messages
 else
 	echo "no syslog available yet! try 'logread'"
 fi
@@ -431,7 +431,7 @@ PROFILE=$( nvram get fff_profile )
 
 Node: $(nvram get fff_node_number) | Hardware: $HW @ $( _wifi phy_txpower $WIFIDEV mw )mW) | RAM/FLASH: $(_system ram_size)/$( _system flash_size )kb | USB: $USB | IDE: $IDE | miniPCI: $MINIPCI
 
-Hints: - 'lr -f OR logread.sh -f' is short for 'tail -n 50 -f $SYSLOG'
+Hints: - 'lr -f OR logread.sh -f' is short for 'tail -n 50 -f /var/log/messages'
        - 'neigh.sh', 'hna.sh' or 'neigh' gives olsrd-feedback
        - '/usr/sbin/fwupload_fff+' starts upload of own changes to SVN/GIT-server
        - '/etc/init.d/S01firmware_update_fff+ check' for safe flashing
