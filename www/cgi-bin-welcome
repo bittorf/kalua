@@ -1,24 +1,15 @@
 #!/bin/sh
-
-func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wireless costs/hops)
-{						# fixme! apply these checks regulary
-	[ -z "$( ip route list exact 0/0 table main )" ] && return 1
-
-	. /tmp/gateway_check_recent 2>/dev/null && [ "$COST_INT" 2>/dev/null -gt 8000 ] && return 1
-	return 0
-}
+. /tmp/loader
 
 [ -n "$(nvram get fff_weblogin)" ] && {
-	func_need http log
 	eval $( _http query_string_sanitize )
 
 	if [ "$REQUEST_METHOD" = "POST" ]; then
 
 		if [ -n "$FORM_RULES" ]; then				# rules accepted	// fixme! more abstraction (client signal/rssi)
-			func_need pfilter weblogin old vars_old
-			MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
-			SIGNAL="$( wl rssi $MAC 2>/dev/null | cut -d' ' -f3 )"		# not possible from LAN or WAN
-			
+			MAC="$( _net ip2mac $REMOTE_ADDR )"
+			SIGNAL="$( wl -i $WIFIDEV rssi $MAC 2>/dev/null | cut -d' ' -f3 )"	# not possible from LAN or WAN
+
 			_log do weblogin_try daemon info "ip: '$REMOTE_ADDR' mac: '$MAC' user: '$FORM_USER' pass: '$FORM_PASS' signal: '$SIGNAL' lang: '$FORM_LANG'"
 
 			# fixme! empty mac of REMOTE_ADDR -> redirect to real = nonlocal gateway ( ipsystem $REMOTE_ADDR | grep ^WIFI_ADDR )
@@ -39,16 +30,13 @@ func_network_inet_seems_stable ()		# fixme! also check path to gateway (add wire
 				_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" "true"
 			fi
 		else						# fixme! send error(s!) to show (user,pass,rules,inetconnection...)
-			func_need weblogin
 			_log do weblogin_norules daemon info "ip: '$REMOTE_ADDR'"
 			_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" "false" "true"
 		fi
 	else
 		if [ "$REDIRECTED" = "1" ]; then
 			
-			func_need weblogin
-
-			if func_network_inet_seems_stable; then
+			if _net inet_seems_stable; then
 				_log do weblogin_splash daemon info "ip: '$REMOTE_ADDR' lang: '${FORM_LANG}'"
 				_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES"
 			else
@@ -91,7 +79,7 @@ case $MODE in
 	WIFI|LAN)									# fixme! akzeptiere nutzungsbedingungen fehlt noch
 		_welcome htmlout_header
 		
-		MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+		MAC="$( _net ip2mac $REMOTE_ADDR )"
 		IP=$REMOTE_ADDR								# fixme! really needed?
 		
 		fkt_definitions
@@ -139,7 +127,7 @@ case $MODE in
 		_welcome htmlout_header				# fixme! an attacker can refresh the POST-values in browser and again surf 15mins 8-)
 		fkt_definitions					# same packet-filter vars...
 		
-		MAC="$( fkt_get_mac_from_local_ip $REMOTE_ADDR )"
+		MAC="$( _net ip2mac $REMOTE_ADDR )"
 		
 		fkt_list_user_macs | grep -q -i $MAC								# already shaped?
 		

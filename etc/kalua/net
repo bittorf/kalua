@@ -3,6 +3,11 @@ _net_ip2dns ()
 	nslookup $1 | sed -n "s/^Name:[^a-zA-Z0-9]*\(.*\)/\1/p"
 }
 
+_net_ip2mac ()		# ofcourse this works only for local IP's
+{
+	ip neigh show to $1 | sed -n "s/^.* lladdr \(..:..:..:..:..:..\) .*/\1/p;q"
+}
+
 _net_dns2ip ()
 {
 	nslookup $1 | sed -n '5s/^Address:[^0-9]*\([0-9\.]*\)/\1/p'
@@ -179,5 +184,13 @@ _net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be on
 	echo $MODE
 
 	[ "$MODE" = "false" ] && return 1	
+	return 0
+}
+
+_net_inet_seems_stable ()			# fixme! also check path to gateway (add wireless costs/hops)
+{						# fixme! apply these checks regulary
+	[ -z "$( ip route list exact 0/0 table main )" ] && return 1
+
+	. /tmp/gateway_check_recent 2>/dev/null && [ "$COST_INT" 2>/dev/null -gt 8000 ] && return 1
 	return 0
 }
