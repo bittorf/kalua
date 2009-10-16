@@ -364,8 +364,6 @@ fkt_free_all_users_which_dont_want_splash ()
 	local IP=""
 	local LIST="$( grep "^..:..:..:..:..:.. free-" /etc/ethers ; grep "^..:..:..:..:..:.. admin-" /etc/ethers)"
 
-	fkt_definitions
-
 	_log do pfilter daemon info "(fkt_free_all_users_which_dont_want_splash) checking"
 
 	for ENTRY in $LIST; do						# MAC NAME MAC NAME ...
@@ -768,7 +766,8 @@ fkt_proto2id () {
 		return
 	fi
 	
-	for ENTRY in $PROTOCOLS; do {
+	for ENTRY in $( _pfilter l7proto_list ); do {
+	
 		THIS_PROTO="${ENTRY%,*}"
 		THIS_PORT="${ENTRY#*,}"
 
@@ -936,7 +935,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 	iptables -t mangle -A traff_users -m mac --mac-source $MAC -j traff_$MAC
 	iptables -t mangle -A traff_users -d $IP                   -j traff_$MAC	# must be IP, not HNA!
 	
-	for ENTRY in $PROTOCOLS; do {
+	for ENTRY in $( _pfilter l7proto_list ); do {
 		PROTO="${ENTRY%,*}"		# PORT="${ENTRY#*,}"
 	
 		iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id )/0xFF	-j shaper
@@ -996,7 +995,7 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 #	iptables -t mangle -A marking_unmarkable -m mark ! --mark 0							-j LOG --log-prefix "layer7_small: "
 #	iptables -t mangle -A marking_unmarkable -m mark ! --mark 0							-j RETURN
 
-	for ENTRY in $PROTOCOLS; do {
+	for ENTRY in $( _pfilter l7proto_list ); do {
 		PROTO="${ENTRY%,*}"
 	#	PORT="${ENTRY#*,}"
 		
@@ -1357,37 +1356,37 @@ fkt_control_olsr ()
 	
 	iptables -A POSTROUTING -t nat -p udp --dport 698  -j olsr_out				# from me
 
-	# func_need wifi								# gives errors: 'kern.err olsrd[3923]: OLSR: sendto IPv4 Operation not permitted'
-	# [ "$(func_wifi_get_mode)" != "adhoc" ] && {					# fixme! must be device-specific
-	#	[ "$(nvram get fff_profile)" != "versilia_ap" ] && {
+	#								# gives errors: 'kern.err olsrd[3923]: OLSR: sendto IPv4 Operation not permitted'
+	# [ "$( _wifi get_mode )" != "adhoc" ] && {			# fixme! must be device-specific
+	#	[ "$( nvram get fff_profile )" != "versilia_ap" ] && {
 	#		_log do $FUNC daemon info "deactivating wifi-olsr"
 	#		iptables -A OUTPUT -o $WIFIDEV -p udp --dport 698 -j DROP		# in AP-mode, keep air clean
 	#	}
 	# }
 
-	iptables -A OUTPUT             -p udp --dport 698  -j olsr_out				# from me
+	iptables -A OUTPUT -p udp --dport 698	-j olsr_out		# from me
 
-	iptables -A olsr_out -t nat                        -j ACCEPT				# no further parsing in table nat
-	iptables -A olsr_out -o $WIFIDEV                   -j olsr_out_wifi				# wifi out
-	iptables -A olsr_out                               -j olsr_out_wire				# wire out
+	iptables -A olsr_out -t nat		-j ACCEPT		# no further parsing in table nat
+	iptables -A olsr_out -o $WIFIDEV	-j olsr_out_wifi	# wifi out
+	iptables -A olsr_out			-j olsr_out_wire	# wire out
 
-	iptables -A olsr_out_wifi                          -j ACCEPT				# maybe doing some statistics here (size, speed ...)
-	iptables -A olsr_out_wire			       -j ACCEPT				# maybe doing some statistics here (size, speed ...)
+	iptables -A olsr_out_wifi		-j ACCEPT		# maybe doing some statistics here (size, speed ...)
+	iptables -A olsr_out_wire		-j ACCEPT		# maybe doing some statistics here (size, speed ...)
 }
 
-fkt_definitions ()
+fkt_definitions ()	# fixme!
 {
-	if [ -z "/tmp/CLIENTS_LAN" ]; then
-		CLIENTS_LAN="$(  func_ipsystem | sed -n 's/^LANNET=\(.*\)/\1/p'  )/$( func_ipsystem | sed -n 's/^LANPRE=\(.*\)/\1/p'  )"
-		CLIENTS_WIFI="$( func_ipsystem | sed -n 's/^WIFINET=\(.*\)/\1/p' )/$( func_ipsystem | sed -n 's/^WIFIPRE=\(.*\)/\1/p' )"
-		
-		[ -z "$WANADR" ] && WANADR="$( func_ipsystem | sed -n 's/^WANADR=\(.*\)/\1/p' )"
-		[ -z "$WANDEV" ] && WANDEV="wandev_NA"
-	fi
-	
-	PROTOCOLS="ntp,123 shoutcast,8000 http,80 irc,6665:6669 ftp,21 ssh,22 telnet,23 dns,53 pop3,110 nntp,119 imap,143 validcertssl,443 ssl,993"
-	PROTOCOLS="$PROTOCOLS smtp,25 msnmessenger,1863 rdp,3389 aim,5190 jabber,5222"
-	PROTOCOLS="$PROTOCOLS yahoo,5050 vnc,5900:5902 halflife2-deathmatch,7001 quake-halflife,26970 sip,0 lpd,0 skypetoskype,0 skypeout,0"
+	[ -z "$WANADR" ] && WANADR="$( func_ipsystem | sed -n 's/^WANADR=\(.*\)/\1/p' )"
+	[ -z "$WANDEV" ] && WANDEV="wandev_NA"
+}
+
+_pfilter_l7proto_list ()
+{
+	local	LAYER7="ntp,123 shoutcast,8000 http,80 irc,6665:6669 ftp,21 ssh,22 telnet,23 dns,53 pop3,110 nntp,119 imap,143 validcertssl,443 ssl,993"
+		LAYER7="$LAYER7 smtp,25 msnmessenger,1863 rdp,3389 aim,5190 jabber,5222"
+		LAYER7="$LAYER7 yahoo,5050 vnc,5900:5902 halflife2-deathmatch,7001 quake-halflife,26970 sip,0 lpd,0 skypetoskype,0 skypeout,0"
+
+	echo -n "$LAYER7"
 }
 
 fkt_insert_walled_garden ()
