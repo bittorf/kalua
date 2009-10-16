@@ -1,5 +1,3 @@
-IPT="/usr/sbin/iptables"
-
 # tc qdisc add dev eth0 root handle 1: cbq avpkt 1000 bandwidth [HN]
 # tc qdisc show
 
@@ -23,10 +21,11 @@ func_pfilter_user_unsplash ()
 func_reject_traffic_from_nonlocal_hosts_to_local_webserver ()
 {
 	local FUNC="reject_traffic_from_nonlocal_hosts_to_local_webserver"
+	local MYHNA="$( nvram get ff_hna4 )"
 
 	_log do $FUNC daemon info "activate blocking for HTTP(S) to avoid lowmem situations during software-install"
 
-	iptables -I INPUT -p tcp -s ! $MYHNA --dport 80  -j DROP	# if REJECT is not possible DROP is fallback
+	iptables -I INPUT -p tcp -s ! $MYHNA --dport 80  -j DROP	# if REJECT is not possible, then method DROP is fallback
 	iptables -I INPUT -p tcp -s ! $MYHNA --dport 443 -j DROP
 	iptables -I INPUT -p tcp -s ! $MYHNA --dport 80  -j REJECT
 	iptables -I INPUT -p tcp -s ! $MYHNA --dport 443 -j REJECT
@@ -861,6 +860,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 	local MAC="$1"
 	local  IP="$2"
 	local ARP="$3"		# fixme! sens of $3 ?
+	local MYHNA="$( nvram get ff_hna4 )"
 
 	[ "$4" != "reserve" ] && {
 		_log do $FUNC daemon debug "instant call - trying to activate reserved user chain"
@@ -962,6 +962,7 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 						# connections /pro user limitieren
 						# icmp /ping pro user /pro zeiteinheitlimitieren
 						# unabhaengig von einteilung bestimmte packet trotzdem in prio veraendern (ACK...)
+	local MYHNA="$( nvram get ff_hna4 )"
 						
 	_log do pfilter daemon info "(fkt_scaleable_packetfilter_with_QoS) Installing"
 
@@ -1056,7 +1057,10 @@ _pfilter_kmodules_init ()	# fixme! alles durch _iptables () schleifen und erst b
 	} done
 }
 
-fkt_activate_splashpage () {
+fkt_activate_splashpage ()
+{
+	local MYHNA="$( nvram get ff_hna4 )"
+
 	_log do pfilter daemon info "(fkt_activate_splashpage) shutting doors"
 
 	iptables -t mangle -A PREROUTING -p udp --sport 68 --dport 67 -d 255.255.255.255 -j ACCEPT		# DCHP requests to internal server
@@ -1289,6 +1293,8 @@ olsr_whitelist_set_inactive () {
 fkt_control_olsr ()
 {
 	local FUNC="control_olsr"
+	local MYHNA="$( nvram get ff_hna4 )"
+
 	_log do pfilter daemon info "($FUNC) Installing management"
 
 	rm -f "$OLSR_WL_READY"									# to be sure, that this list must be reread
@@ -1377,8 +1383,6 @@ fkt_control_olsr ()
 
 fkt_definitions ()
 {
-	MYHNA="$( nvram get ff_hna4 )"		# fixme! needs support for serveral entries
-	
 	if [ -z "$CLIENTS_LAN" ]; then
 		CLIENTS_LAN="$(  func_ipsystem | sed -n 's/^LANNET=\(.*\)/\1/p'  )/$( func_ipsystem | sed -n 's/^LANPRE=\(.*\)/\1/p'  )"
 		CLIENTS_WIFI="$( func_ipsystem | sed -n 's/^WIFINET=\(.*\)/\1/p' )/$( func_ipsystem | sed -n 's/^WIFIPRE=\(.*\)/\1/p' )"
