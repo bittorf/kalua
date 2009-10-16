@@ -250,7 +250,7 @@ _olsr check_plausi $( _olsr neighs ) || /etc/init.d/S53olsrd restart
 
 # fixme!
 	# random node-IP in mesh with 1 hop or 2 hops -> IP = main-interface
-	# [ ! -e contact_$IP ] || [ "$(cat contact_${IP}_fetched)" -lt $(( $(date +%s) - 86400 )) ] && {
+	# [ ! -e contact_$IP ] || [ "$(cat contact_${IP}_fetched)" -lt $(( $(_system date unixtime) - 86400 )) ] && {
 	# 	wget -qO - http://$IP/cgi-bin-contact.html | sed -n '/<H1>Kontakt<\/H1>/,$p'| sed '/^<\/TABLE>/q' >/tmp/node_$IP
 	#
 	#	[ "$( md5sum /tmp/node_$IP | cut -d' ' -f1 )" = "c9614a47d313e7be6f6cf2a7b88d5d2b" ]; then
@@ -302,14 +302,14 @@ PID="$(pidof vpnc)" && {
 
 NTP_TIME_OK=								# fallback 347681 = 2009'aug-30
 
-[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 ))"            -gt "$(date +%s)" ] && NTP_TIME_OK="false"
-[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 + 135000000))" -lt "$(date +%s)" ] && NTP_TIME_OK="false"
+[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 ))"            -gt "$(_system date unixtime)" ] && NTP_TIME_OK="false"
+[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 + 135000000))" -lt "$(_system date unixtime)" ] && NTP_TIME_OK="false"
 _ntp set is_unset					     && NTP_TIME_OK="false"
 
 [ "$NTP_TIME_OK" = "false" ] && {
 	_ntp set
 
-	[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {
+	[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(_system date unixtime)" ] && {
 		_log do set_time daemon info "could'nt set time - trying poor mens timeserver - fixme!"
 		# /www/cgi-bin-speed t		# fixme!
 	}
@@ -391,7 +391,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 	_needs old log pfilter profile_user sanitizer
 	
-	TIME="$( date +%s )"
+	TIME="$( _system date unixtime )"
 	
 # takes long!
 	_log do mesh_rdf_build_neighs daemon debug "start"
@@ -721,13 +721,13 @@ if [ -e /etc/init.d/*dnsmasq ] && [ -n "$(ip route list exact 0/0)" ]; then
 		logger -p daemon.err "$0 (DNS-watchdog) restarted dnsmasq, PID now \"$( pidof dnsmasq )\""
 	}
 	
-	nslookup "$(date +%s).weimarnetz.de" 2>/dev/null >/dev/null || {		# can we resolv a random address?
+	nslookup "$(_system date unixtime).weimarnetz.de" 2>/dev/null >/dev/null || {		# can we resolv a random address?
 
 		logger -p daemon.err -t "$0" "error in dns-resolution, sending SIGHUP to DNSmasq"
 		kill -SIGHUP $( pidof -s dnsmasq )
 		sleep 5
 	
-		nslookup "$(date +%s).weimarnetz.de" 2>/dev/null >/dev/null || {        # again: can we resolv a random address?
+		nslookup "$(_system date unixtime).weimarnetz.de" 2>/dev/null >/dev/null || {        # again: can we resolv a random address?
 
 			logger -p daemon.err -t "$0" "error in dns-resolution, restarting DNSmasq"
 			/etc/init.d/S*dnsmasq restart
