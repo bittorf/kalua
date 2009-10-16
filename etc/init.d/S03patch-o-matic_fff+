@@ -93,25 +93,6 @@ fkt_build_settings_menu ()				# SENS: switching between "simple", "expert" and "
 	[ -e "$ID_EXPERT-$FILE" ] && rm "$ID_EXPERT-$FILE"	# fixme!
 }
 
-fkt_get_size_of_file () {
-	local FNAME="get_size_of_file"
-	local FILE="$1"						# ARG1: string  (filename)
-	local SIZE=""						# OUT1: integer (filesize in bytes)
-
-	if [ ! -r "$FILE" ]; then
-		_log do $FNAME daemon crit "file unreadable '$FILE'"
-	else
-		SIZE="$( ls -l "$FILE" 2>/dev/null | sed -n 's/^[-a-z]* .*[0-9]* [a-z]* * [a-z]* * \([0-9]*\) .*/\1/p;q' | sed 's/[^0-9]//g' )"		# "stat" is n/a
-	fi
-	
-	if [ -z "$SIZE" ]; then
-		SIZE=0
-		_log do $FNAME daemon crit "error - assuming $SIZE bytes"
-	fi
-	
-	echo $SIZE
-}
-
 fkt_patch () {
 	local  FNAME="patch"
 	local  PATCH="$1"					# ARG1: string (keyword, what todo)
@@ -269,7 +250,7 @@ EOF
 			_log do $FNAME daemon info "restoring '$FILE' from '$ROMFILE' (ROM)"
 			rm -f "$FILE"
 			cp "$ROMFILE" "$FILE"
-			_log do $FNAME daemon info "restored: $( fkt_get_size_of_file "$FILE" ) bytes"
+			_log do $FNAME daemon info "restored: $( _file size "$FILE" ) bytes"
 		else
 			_log do $FNAME daemon info "restoring '$FILE' impossible - not in ROM"
 			# deleting file in jffs2? would be cleaner...
@@ -285,11 +266,12 @@ EOF
 		return
 	fi
 	
-	SIZE="$( fkt_get_size_of_file "$FILE" )"
+	SIZE="$( _file size "$FILE" )"
 	_log do $FNAME daemon debug "working on '$FILE' - size: $SIZE bytes"
 	cp "$FILE" "$BACKUP"
 
-	SIZE="$( fkt_get_size_of_file "$TEMP" )"
+	SIZE="$( _file size "$TEMP" )"
+	SIZE="${SIZE:=0}"			# fixme!
 
 	_log do $FNAME daemon debug "patched - new size: $SIZE bytes"
 
@@ -301,9 +283,10 @@ EOF
 		cp "$TEMP" "$FILE"
 		chmod +x "$FILE"
 		
-		SIZE="$( fkt_get_size_of_file "$FILE" )"
+		SIZE="$( _file size "$FILE" )"
+		SIZE="${SIZE:=0}"
 	
-		if [ $SIZE -ne 0 ] && [ $( fkt_get_size_of_file "$TEMP" ) -eq $SIZE ]; then
+		if [ $SIZE -ne 0 ] && [ $( _file size "$TEMP" ) -eq $SIZE ]; then
 			_log do $FNAME daemon notice "working on '$FILE' ready - size: $SIZE bytes"
 		else
 			_log do $FNAME daemon crit "errors during write on media - size: $SIZE bytes"
@@ -311,7 +294,7 @@ EOF
 			rm -f "$FILE"
 			cp    "$BACKUP" "$FILE"
 			
-			_log do $FNAME daemon crit "errors during write on media, restored backup - now $( fkt_get_size_of_file '$FILE' ) bytes"
+			_log do $FNAME daemon crit "errors during write on media, restored backup - now $( _file size '$FILE' ) bytes"
 		fi
 	else
 		_log do $FNAME daemon crit "errors during patching - leaving '$FILE' untouched"
