@@ -905,7 +905,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 		return 1
 	}
 	
-	iptables -t mangle -A traff_$MAC -s $WIFINET -d $WIFINET -j shaper   # counter0 (intranet/mesh-intern)
+	iptables -t mangle -A traff_$MAC -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j shaper   # counter0 (intranet/mesh-intern)
 	iptables -t mangle -A traff_$MAC		                   # counter1 (traffic interval-count)
 	iptables -t mangle -A traff_$MAC		                   # counter2 (traffic_today)
 	iptables -t mangle -A traff_$MAC                               # counter3 (traffic_all)
@@ -974,7 +974,7 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 
 	iptables -A FORWARD -m mark --mark $( fkt_proto2id REJECT )          -j REJECT
 	iptables -A FORWARD -m mark --mark $( fkt_proto2id CONN_ABOVE )/0xFF -j REJECT  # --reject-with tcp-reset (does not work?)
-	iptables -A FORWARD -s $WIFINET -d $WIFINET                                -j ACCEPT
+	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE                                -j ACCEPT
 	iptables -A FORWARD -m state --state ESTABLISHED,RELATED             -j ACCEPT
 # maybe let already marked traffic go trough?
 	iptables -A FORWARD -m ipp2p --ipp2p                                 -j LOG --log-prefix "ip_p2p: "
@@ -1065,7 +1065,7 @@ fkt_activate_splashpage () {
 	
 	# iptables -t mangle -A PREROUTING -d ! $MYHNA                                     -j ACCEPT          # dest = internet
 	
-	iptables -t mangle -A PREROUTING -s $WIFINET -d $WIFINET                               -j ACCEPT          # picopeer
+	iptables -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE                               -j ACCEPT          # picopeer
 	iptables -t mangle -A PREROUTING -p udp --dport 698                              -j ACCEPT          # OLSR incoming
 	iptables -t mangle -A PREROUTING -p tcp -m multiport --dports 80,443             -j MARK --set-mark $( fkt_proto2id REDIRECT )
 	iptables -t mangle -A PREROUTING -m mark --mark 0                                -j MARK --set-mark $( fkt_proto2id REJECT )
@@ -1334,7 +1334,7 @@ fkt_control_olsr ()
 	iptables -A olsr_in_wire                           -j olsr_in_wire_valid			# count all valid
 	
 	iptables -A olsr_in_sanitizer -s $MYHNA            -j olsr_in_homebrew                      # selfgenerated packets from me to me
-	iptables -A olsr_in_sanitizer -s $WIFINET  -p udp --sport 698 -j RETURN			# all ok, back to further parsing (later: -d 255.255.255.255)
+	iptables -A olsr_in_sanitizer -s $WIFINET/$WIFIPRE  -p udp --sport 698 -j RETURN			# all ok, back to further parsing (later: -d 255.255.255.255)
 	iptables -A olsr_in_sanitizer -i tap+   -p udp --sport 698 -j RETURN			# from tunnel, not that restrictiv
 	iptables -A olsr_in_sanitizer		       -j olsr_in_malformed			# something is wrong
 	
@@ -1436,23 +1436,23 @@ func_masq ()		# fixme! also masq traffic from local lan to internet during start
 			fkt_masq_internet_traffic_over_lan_device
 		;;
 		tun|tun0)
-			iptables -t nat -A POSTROUTING -o tun+ -d ! $WIFINET -j MASQUERADE
+			iptables -t nat -A POSTROUTING -o tun+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		tap)
-			iptables -t nat -A POSTROUTING -o tap+ -d ! $WIFINET -j MASQUERADE
+			iptables -t nat -A POSTROUTING -o tap+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		wan)
-			iptables -t nat -A POSTROUTING -o $WANDEV -d ! $WIFINET -j MASQUERADE
+			iptables -t nat -A POSTROUTING -o $WANDEV -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		pppoe)
-			iptables -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET -j MASQUERADE
+			iptables -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		*)	
 			# should'nt break anything: sometimes WANDEV is not up yet when packetfilter starts up
 			
 			local WANDEV="$(nvram get wan_device)"			
-			[ -n "$WANDEV" ] && iptables -t nat -A POSTROUTING -o ${WANDEV} -d ! $WIFINET -j MASQUERADE
-			iptables -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET -j MASQUERADE
+			[ -n "$WANDEV" ] && iptables -t nat -A POSTROUTING -o ${WANDEV} -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			iptables -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 	esac
 	
