@@ -198,8 +198,6 @@ fkt_insmod ()
 
 func_get_all_user_macs_with_traffic_today ()
 {
-	fkt_definitions
-
 	local   MEDIA=""
 	local TRAFFIC=0	
 	local MACLIST="$( fkt_list_user_macs )"
@@ -229,7 +227,8 @@ fkt_nat_for_roaming_wifi_clients ()
 	iptables -t nat -A POSTROUTING -o $WIFIDEV -s $ROAMING_IP4/$ROAMING_PRE -j MASQUERADE	# or SNAT?
 }
 
-fkt_check_if_user_with_mac_is_locally_blacklisted () {
+fkt_check_if_user_with_mac_is_locally_blacklisted ()
+{
 	local MAC="$1"
 
 	nvram get fff_ethers_blocked | grep -q -i $MAC
@@ -313,9 +312,6 @@ fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac ()
 		return
 	}
 	
-	[ -z "$FUNC_BASE" ] && . /etc/functions_base_fff+
-	func_need wifi
-	
 	local OUT=0								# traffic variables are known from /etc/variables_fff+
 	local WIFI_MODE="$( _wifi mode )"
 	local MEDIA="$( fkt_get_media_from_mac $MAC )"
@@ -342,8 +338,9 @@ fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac ()
 	echo "${OUT:-2500}000000"						# convert MBytes in Bytes 8-)
 }
 
-fkt_get_used_traffic_limit_from_user_with_mac_in_percent () {		# ARG1: mac-address
-	local MAC="$1"							# OUT1: integer - can be higher then 100% (!)
+fkt_get_used_traffic_limit_from_user_with_mac_in_percent ()		# ARG1: mac-address
+{									# OUT1: integer - can be higher then 100% (!)
+	local MAC="$1"
 	local STEP1
 	local STEP2
 	local STEP3
@@ -360,7 +357,8 @@ fkt_get_used_traffic_limit_from_user_with_mac_in_percent () {		# ARG1: mac-addre
 	echo $(( $STEP1 / $STEP3 ))							#       doing it this way we avoid big numbers during bash-calculation
 }
 
-fkt_free_all_users_which_dont_want_splash () {
+fkt_free_all_users_which_dont_want_splash ()
+{
 	local ENTRY=""
 	local MAC=""
 	local IP=""
@@ -394,8 +392,6 @@ fkt_get_media_from_mac ()					# SENS: ...
 	
 	local PHYSDEV="$( ip neigh | grep -v "^127\.0\.0\.1" | grep -i $MAC | cut -d" " -f3 )"	# from local ARP-cache
 												# in ARP-cache OR locally registered/blocked user
-	. /tmp/NETPARAM
-	  
 	  if [ "$PHYSDEV" = "$WIFIDEV" ]; then
 	  	OUT=wifi
 	elif [ -n "$( nvram get fff_ethers_wifi | grep -i $MAC )" ]; then
@@ -428,7 +424,7 @@ fkt_get_name_for_mac ()
 
 fkt_get_ip_from_mac ()
 {
-	local MAC="$( _sanitizer do "$1" lowercase )
+	local MAC="$( _sanitizer do "$1" lowercase )"
 
 	[ -z "$MAC" ] && return 1
 
@@ -905,10 +901,10 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 		return 1
 	}
 	
-	iptables -t mangle -A traff_$MAC -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j shaper   # counter0 (intranet/mesh-intern)
-	iptables -t mangle -A traff_$MAC		                   # counter1 (traffic interval-count)
-	iptables -t mangle -A traff_$MAC		                   # counter2 (traffic_today)
-	iptables -t mangle -A traff_$MAC                               # counter3 (traffic_all)
+	iptables -t mangle -A traff_$MAC -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j shaper	# counter0 (intranet/mesh-intern)
+	iptables -t mangle -A traff_$MAC							# counter1 (traffic interval-count)
+	iptables -t mangle -A traff_$MAC							# counter2 (traffic_today)
+	iptables -t mangle -A traff_$MAC							# counter3 (traffic_all)
 	
 	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20 -m limit --limit 6/min --limit-burst 10 -j LOG --log-prefix "ADBLOCK:"
 	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20        -j MARK --set-mark $( fkt_proto2id REJECT )    # adblock (special dest)
@@ -1069,8 +1065,8 @@ fkt_activate_splashpage ()
 	
 	# iptables -t mangle -A PREROUTING -d ! $MYHNA                                     -j ACCEPT          # dest = internet
 	
-	iptables -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE                               -j ACCEPT          # picopeer
-	iptables -t mangle -A PREROUTING -p udp --dport 698                              -j ACCEPT          # OLSR incoming
+	iptables -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE	-j ACCEPT		# picopeer
+	iptables -t mangle -A PREROUTING -p udp --dport 698                              -j ACCEPT		# OLSR incoming
 	iptables -t mangle -A PREROUTING -p tcp -m multiport --dports 80,443             -j MARK --set-mark $( fkt_proto2id REDIRECT )
 	iptables -t mangle -A PREROUTING -m mark --mark 0                                -j MARK --set-mark $( fkt_proto2id REJECT )
 
@@ -1106,8 +1102,6 @@ fkt_olsr_whitelist_variables () {
 
 fkt_olsr_whitelist_fetch () {
 	_log do pfilter daemon info "(fkt_olsr_whitelist_fetch) fetching"
-
-	. /bin/needs links
 
 	wget -qO $OLSR_WL_FRESH "$( _links firmware_url_get olsr_whitelist )"
 
