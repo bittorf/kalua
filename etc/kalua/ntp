@@ -1,0 +1,72 @@
+_ntp_pool ()
+{
+	local POOL="$( nvram get fff_timeserver )"
+	      POOL="${POOL}${POOL:+ }128.138.140.44 171.64.7.77 171.64.7.99 81.169.154.44"	# no space at list begin
+	      
+	echo -n "$POOL"
+}
+
+_ntp_set ()		# SENS: setting time, so each node is nearly in sync with hole network (builtin clock's have strong scatter)
+{
+	local FUNC="ntp_set"	
+	local   IP=
+	local  TRY="0"
+	local  UP1="$( _system uptime sec )"
+	local  UP2="0"
+	local HOST=""
+	local FILE_SUCCESS="/tmp/ntp_was_successful"
+
+	[ "$1" = "is_unset" ] && {
+		[ -e $FILE_SUCCESS ] && return 1
+		return 0
+	}
+
+	[ -e $FILE_SUCCESS ] && {
+		UP2="$( cat $FILE_SUCCESS )"
+		UP2="$(( $UP1 - ${UP2:-0} ))"
+		[ $UP2 -lt 3600 ] && {
+			_log do $FUNC daemon debug "last successful ntp-fetch was only $UP2 seconds before, aborting"
+			return 0
+		}
+	}
+	touch $FILE_SUCCESS			# prevents double-execution
+	
+	_log do $FUNC daemon debug "start"
+
+	while [ $TRY -lt 5 ]; do {
+		TRY=$(( $TRY + 1 ))
+	
+		local ID="0"
+		for IP in $( _ntp pool ); do {
+		
+			ID=$(( $ID + 1 ))		
+
+			_log do $FUNC daemon debug "ID: '$ID' IP: '$IP'"
+
+			rdate -s $IP >/dev/null 2>&1 && {
+				set -x
+
+				UP2="$( _system uptime sec )"			
+				HOST="$( _net ip2dns $IP )"
+
+				_log do $FUNC daemon info "success after $(( $UP2 - $UP1 )) seconds and ${TRY}. round on ${ID}. IP in pool (${IP} = $HOST)"
+
+				TRY=9
+
+				[ "$( _file size "$FILE_SUCCESS" )" -eq 0 ] && {
+					_log do $FUNC daemon alert "first successful set after reboot"
+				}
+
+				echo "$UP2" >$FILE_SUCCESS
+				break				# fixme! calc + log diff before/after timesetting in sec?
+			}
+			
+			sleep 5
+		} done
+	} done
+
+	[ "$TRY" != "9" ] && {
+		_log do $FUNC daemon info "end without success"
+		rm $FILE_SUCCESS
+	}
+}

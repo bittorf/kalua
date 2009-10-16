@@ -271,67 +271,6 @@ PID="$(pidof vpnc)" && {
 	# kill -SIGHUP "$PID"		# fixme! (howto reconnect?)
 }
 
-func_set_time_with_ntp_server ()	# SENS: setting time, so each node is nearly in sync with hole network
-{
-	local FUNC="set_time_with_ntp-server"	
-	local POOL="$( nvram get fff_timeserver )"
-	      POOL="${POOL}${POOL:+ }128.138.140.44 171.64.7.77 171.64.7.99 81.169.154.44"	# no space at list begin
-	local   IP=""
-	local  TRY="0"
-	local  UP1="$( _system uptime sec )"
-	local  UP2="0"
-	local HOST=""
-	local FILE_SUCCESS="/tmp/ntp_was_successful"
-
-	[ "$1" = "is_unset" ] && {
-		[ -e $FILE_SUCCESS ] && return 1
-		return 0
-	}
-
-	[ -e $FILE_SUCCESS ] && {
-		UP2="$( cat $FILE_SUCCESS )"
-		UP2="$(( $UP1 - ${UP2:-0} ))"
-		[ $UP2 -lt 3600 ] && {
-			_log do $FUNC daemon debug "last successful ntp-fetch was only $UP2 seconds before, aborting"
-			return 0
-		}
-	}
-	touch $FILE_SUCCESS			# prevents double-execution
-	
-	_log do $FUNC daemon debug "start"
-
-	while [ $TRY -lt 5 ]; do {
-		TRY=$(( $TRY + 1 ))
-	
-		local ID="0"
-		for IP in $POOL; do {
-		
-			ID=$(( $ID + 1 ))		
-			sleep 5
-
-			_log do $FUNC daemon debug "ID: '$ID' IP: '$IP'"
-
-			rdate -s $IP >/dev/null 2>&1 && {
-
-				UP2="$( _system uptime sec )"			
-				HOST="$( _net ip2dns $IP )"
-				_log do $FUNC daemon info "success after $(( $UP2 - $UP1 )) seconds and ${TRY}. round on ${ID}. IP in pool (${IP} = $HOST)"
-				TRY=9
-				[ "$( func_filesize "$FILE_SUCCESS" )" -eq 0 ] && {
-					_log do $FUNC daemon alert "first successful set after reboot"
-				}
-				echo $UP2 >$FILE_SUCCESS
-				break				# fixme! calc + log diff before/after timesetting in sec?
-			}
-		} done
-	} done
-
-	[ "$TRY" != "9" ] && {
-		_log do $FUNC daemon info "end without success"
-		rm $FILE_SUCCESS
-	}
-}
-
 ### fresh booted (<300sec up) and no wifi? switch on!
 
 [ "$( _system uptime sec )" -lt 300 ] && {
@@ -365,10 +304,10 @@ NTP_TIME_OK=								# fallback 347681 = 2009'aug-30
 
 [ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 ))"            -gt "$(date +%s)" ] && NTP_TIME_OK="false"
 [ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 + 135000000))" -lt "$(date +%s)" ] && NTP_TIME_OK="false"
-func_set_time_with_ntp_server is_unset					     && NTP_TIME_OK="false"
+_ntp set is_unset					     && NTP_TIME_OK="false"
 
 [ "$NTP_TIME_OK" = "false" ] && {
-	func_set_time_with_ntp_server
+	_ntp set
 
 	[ "$(( ${FFF_PLUS_VERSION:=340529} * 3600 ))" -gt "$(date +%s)" ] && {
 		_log do set_time daemon info "could'nt set time - trying poor mens timeserver - fixme!"
@@ -540,7 +479,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 			_log do remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing files in /usr/lib/ipkg/lists/"
 
 			for FILE in /usr/lib/ipkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+ /www/everlasting_syslog.txt; do {
-				_log do remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing '$FILE' with $(func_filesize "$FILE") bytes"
+				_log do remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing '$FILE' with $(_file size "$FILE") bytes"
 				rm "$FILE"
 			} done
 			touch /tmp/REPO_REMOVED
@@ -662,10 +601,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=${ESSID}&bssid=${BSSID}"
 	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP&sens=$SENS&wifiscan=$WIFISCAN"
 	
-	echo >>"$ARCHIV_NODE_DATA" "$QUERY"
-										# only last 150 lines ('ringbuffer')
-	tail -n 150 "${ARCHIV_NODE_DATA}"     >"${ARCHIV_NODE_DATA}_temp"	# which is ~50 kilobytes and around
-	mv          "${ARCHIV_NODE_DATA}_temp" "${ARCHIV_NODE_DATA}"		# 1.5 days archiv when called each 15 mins
+	echo >>/tmp/ARCHIV_MONITORING "$QUERY"
+											# only last 150 lines ('ringbuffer')
+	tail -n 150 "/tmp/ARCHIV_MONITORING"     >"/tmp/ARCHIV_MONITORING_temp"		# which is ~50 kilobytes and around
+	mv          "/tmp/ARCHIV_MONITORING_temp" "/tmp/ARCHIV_MONITORING"		# 1.5 days archiv when called each 15 mins
 	
 	[ "$( _math random_integer 1 96 )" -eq 50 ] && ARG1="send_alive_message"	# roundabout each day (15min = 4/h * 24 = 96)
 	[ -e /www/backup_archiv_node_data ] && ARG1="send_alive_message"
@@ -690,28 +629,28 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 
 		_log do mesh_rdf_send_alive daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
 
-		func_set_time_with_ntp_server
+		_ntp set
 
 		[ -e /www/backup_archiv_node_data ] && {			# see _system reboot_safe()
 		
 			_log do mesh_rdf_send_alive daemon info "found node-data backup, including"
 			
-			mv "${ARCHIV_NODE_DATA}" "${ARCHIV_NODE_DATA}.temp"	# copy backup-file
-			mv /www/backup_archiv_node_data "${ARCHIV_NODE_DATA}"	# on top of
-			cat "${ARCHIV_NODE_DATA}.temp" >>"${ARCHIV_NODE_DATA}"	# normal node_data_file
-			rm  "${ARCHIV_NODE_DATA}.temp"				# and remove backup
+			mv "/tmp/ARCHIV_MONITORING" "/tmp/ARCHIV_MONITORING.temp"	# copy backup-file
+			mv /www/backup_archiv_node_data "/tmp/ARCHIV_MONITORING"	# on top of
+			cat "/tmp/ARCHIV_MONITORING.temp" >>"/tmp/ARCHIV_MONITORING"	# normal node_data_file
+			rm  "/tmp/ARCHIV_MONITORING.temp"				# and remove backup
 		}
 
 		# look for last comment "# alive was send..." in our archive
 		# and try to send all lines from this point to end of file
 		# to the logging server. After this we set the comment at file-end
 
-		LINENUMBER_LAST_SUCCESS="$( grep -n "^#" "${ARCHIV_NODE_DATA}" | tail -n1 | cut -d':' -f1 )"	# last comment
+		LINENUMBER_LAST_SUCCESS="$( grep -n "^#" "/tmp/ARCHIV_MONITORING" | tail -n1 | cut -d':' -f1 )"	# last comment
 
 		while true; do {							# start one line after last comment
 			LINENUMBER_LAST_SUCCESS=$(( $LINENUMBER_LAST_SUCCESS + 1 ))	# worst case is line one
 
-		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "${ARCHIV_NODE_DATA}" )"		# must be url-encoded
+		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "/tmp/ARCHIV_MONITORING" )"		# must be url-encoded
  
  			if [ -n "$QUERY" ]; then
  		
@@ -735,7 +674,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
  				}
  			else
  				_log do mesh_rdf_send_alive daemon debug "send alive normally ended"
- 				echo >>"${ARCHIV_NODE_DATA}" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
+ 				echo >>"/tmp/ARCHIV_MONITORING" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
  				break
  			fi
 		} done
