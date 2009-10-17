@@ -63,7 +63,7 @@ _firmware_check_for_newer () {
 	local WAIT="$(       _math random_integer 0 1000 )"	# not all 600 routers should wgetting an 1mb-file from internet at the same time
 	local WAIT_SHORT="$( _math random_integer 0 60	 )"	# not all 600 routers should wgetting the version.txt from internet at the same time
 	local USERWISH=""
-	local MODE="$(nvram get fff_autofwupdate)"
+	local MODE="$( _firmware updatemode )"
 
 	if [ -n "$FORCE_USERWISH" ]; then
 		MODE=$FORCE_USERWISH	
@@ -103,11 +103,6 @@ _firmware_check_for_newer () {
 	_log do "$DAEMON" daemon info "current_testing: $CURRENT_TESTING"
 	_log do "$DAEMON" daemon info "current_main:    $CURRENT_MAIN"
 	_log do "$DAEMON" daemon info "update-mode:     $MODE"
-
-	test -z "$MODE"		 && USERWISH="stable"
-	test "$MODE" = "stable"  && USERWISH="stable"
-	test "$MODE" = "beta"	 && USERWISH="beta"
-	test "$MODE" = "testing" && USERWISH="testing"
 
 	if [ -n "$FORCE_USERWISH" ]; then
 		DOIT=1
@@ -166,7 +161,7 @@ _firmware_check_for_newer () {
 		_log do "$DAEMON" daemon info "New firmware detected! (my: $FFF_PLUS_VERSION  current:$CURRENT current-beta:$CURRENT_BETA current-testing:$CURRENT_TESTING)"
 
 		if [ ! -z "$(nvram get fff_override_fw_ipkg)" ]; then					# safe the installed package list
-			_software_list_build
+			_software list_build
 		fi
 
 		_log do "$DAEMON" daemon info "Sleeping for $WAIT sec (\"jitter\"), before downloading firmware"
@@ -177,7 +172,7 @@ _firmware_check_for_newer () {
 
 		_log do "$DAEMON" daemon info "Checking CRC"
 
-		local CHECK="$(/www/cgi-bin/freifunk-upload -c /www/fw.trx)"
+		local CHECK="$( /www/cgi-bin/freifunk-upload -c /www/fw.trx )"
 		
 		_log do "$DAEMON" daemon info "Checking server MD5"
 		local FW_CRC_SERVER="$( _links firmware_url_get $RESULTING_UPDATEMODE crc )"
@@ -257,7 +252,7 @@ fkt_fetch_firmware ()
 		_software package_remove $IPK
 	} done
 
-	[ "$(_system flash_free)" -lt "$FREE_WANTED" ] && {
+	[ "$( _system flash_free )" -lt "$FREE_WANTED" ] && {
 		_log do $FUNC daemon crit "could'nt free target-flash space, strange!"
 		DESTINATION="/tmp/fw.trx"
 		local FW_IN_RAM="true"
@@ -326,7 +321,7 @@ case $1 in
 		_firmware_check_for_newer $URL_TO_CHECK $URL_TO_FETCH
 	;;
 	check)
-		[ "$(nvram get fff_autofwupdate)" = "0" ] && {
+		[ "$( _firmware updatemode )" = "0" ] && {
 			_log do "$0" daemon info "no execution, no automatic update"			
 			exit
 		}
@@ -337,12 +332,6 @@ case $1 in
 			_log do check daemon info "LOW_FLASH-device - abort"
 			exit
 		}
-		
-			# checks to add:	//fixme!
-			# fff_autofwupdate = 0			("fuck off, i do not thrust you!")
-			# fff_autofwupdate = testing 		("i want to brick my router")
-			# fff_autofwupdate = beta		("small fixes")
-			# fff_autofwupdate = stable = unset	("great releases")
 		
 		_firmware_check_for_newer
 	;;
