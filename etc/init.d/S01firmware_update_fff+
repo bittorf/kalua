@@ -1,5 +1,4 @@
 #!/bin/sh
-
 . /tmp/loader
 
 if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ]; then exit; fi
@@ -40,18 +39,6 @@ _userdata_restore () {
 	echo "$OUT" | /www/cgi-bin/freifunk-upload -a2b >"$FILE"
 	nvram unset fff_safe_pic
 	nvram commit
-}
-
-_software_list_build () {
-	# we generate a list of all installed packages, and this
-	# list gets installed after next flashing
-
-	local DAEMON="_software_list_build"
-	local LIST="$(ipkg status | sed -ne 's/^Package: \(.*\)/\1/p' | while read LINE; do printf "$LINE ";done)"
-
-	_log do "$DAEMON" daemon info "generated this ipkg-list: $LIST"
-
-	nvram set fff_override_fw_ipkg="$LIST" commit
 }
 
 _firmware_check_for_newer () {
@@ -160,9 +147,9 @@ _firmware_check_for_newer () {
 	if [ "$DOIT" = "1" ]; then
 		_log do "$DAEMON" daemon info "New firmware detected! (my: $FFF_PLUS_VERSION  current:$CURRENT current-beta:$CURRENT_BETA current-testing:$CURRENT_TESTING)"
 
-		if [ ! -z "$(nvram get fff_override_fw_ipkg)" ]; then					# safe the installed package list
-			_software list_build
-		fi
+		[ ! -z "$(nvram get fff_override_fw_ipkg)" ] && {					# safe the installed package list
+			_nvram set fff_override_fw_ipkg "$( _software show_installed )"
+		}
 
 		_log do "$DAEMON" daemon info "Sleeping for $WAIT sec (\"jitter\"), before downloading firmware"
 		
