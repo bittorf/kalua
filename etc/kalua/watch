@@ -1,3 +1,25 @@
+_watch_system_time ()		# firmware-build-date is newer than unixtime?
+{				# firmware-build-date + 1 year is older than date? (yes, i have seen _many_ routers with date 2020/2037!) -> set time
+	local NTP_TIME_OK=	# fallback 347681 = 2009'aug-30                         
+
+	local UNIXTIME="$( _system date unixtime )"
+	      UNIXTIME="${UNIXTIME:=0}"
+
+	[ $(( ${FFF_PLUS_VERSION:=347681} * 3600 ))            -gt $UNIXTIME ] && NTP_TIME_OK="false"
+	[ $(( ${FFF_PLUS_VERSION:=347681} * 3600 + 135000000)) -lt $UNIXTIME ] && NTP_TIME_OK="false"
+
+	_ntp set is_unset && NTP_TIME_OK="false"
+	
+	[ "$NTP_TIME_OK" = "false" ] && {
+		_ntp set
+
+		[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 ))" -gt "$UNIXTIME" ] && {
+			_log do set_time daemon info "could'nt set time - trying poor mens timeserver - fixme!"
+			# /www/cgi-bin-speed t          # fixme!
+		}
+	}
+}
+
 _watch_wifi_mode ()		# adhoc in config but managed in real?
 {
 	[ "$( _wifi mode $WIFIDEV config )" != "$( _wifi mode $WIFIDEV )" ] && {
