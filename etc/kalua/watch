@@ -1,0 +1,319 @@
+_watch_wifi_mode ()		# adhoc in config but managed in real?
+{
+	[ "$( _wifi mode $WIFIDEV config )" != "$( _wifi mode $WIFIDEV )" ] && {
+		_log do compare_config_and_real_wifi_mode daemon alert "differs! real: '$(_wifi mode $WIFIDEV)' restarting wifi_phy '$WIFIDEV'"
+		_wifi phy_restart $WIFIDEV
+		return 1
+	}
+}
+
+_watch_vpnc ()
+{
+	local PID
+	
+	PID="$( pidof vpnc )" && {                                                                                                                                              
+		_log do vpnc_helper daemon info "petting PID '$PID' - fixme!"                                                                                                 
+		# kill -SIGHUP "$PID"           # fixme! (howto reconnect?)                                                                                                   
+	}              
+}
+
+_watch_hanging_command ()
+{
+	local COMMAND="$1"						# e.g. 'wget' or 'scp'
+	local FUNC="watch_hanging_command"
+	local COMMAND_PID="$( pidof -s $COMMAND )"			# any running process?
+	
+	[ -z "$COMMAND_PID" ] && {
+		_log do $FUNC daemon debug "no running '$COMMAND'-process"
+		return 0
+	}
+	
+	local COMMAND_CMD="$( cat /proc/$COMMAND_PID/cmdline )"		# remember exact commandline
+	local OLD_PID
+	local OLD_CMD
+	local FILE1="/tmp/maybe_hanging_${COMMAND}_process_id"
+	local FILE2="/tmp/maybe_hanging_${COMMAND}_process_cmd"
+
+	[ -e "$FILE1" ] && OLD_PID="$( cat $FILE1 )"
+	[ -e "$FILE2" ] && OLD_CMD="$( cat $FILE2 )"
+
+	_log do $FUNC daemon debug "found '$COMMAND'-process '$COMMAND_PID' / '$COMMAND_CMD'"
+
+	if [ "$OLD_PID" = "$COMMAND_PID" ] && [ "$OLD_CMD" = "$COMMAND_CMD" ]; then
+
+		_log do $FUNC daemon err "killing '$COMMAND_CMD'"
+		kill $COMMAND_PID
+		sleep 3
+		
+		[ -e "/proc/$COMMAND_PID" ] && {
+			_log do $FUNC daemon crit "still hanging, killing hard"
+			kill -9 $COMMAND_PID
+			sleep 3
+		
+			[ -e "/proc/$COMMAND_PID" ] && {
+				_system reboot_safe "$FUNC() still hanging '$COMMAND'"
+				return
+			}
+		}
+			
+		_log do $FUNC daemon info "successfully killed"
+		return
+	fi
+
+	_log do $FUNC daemon debug "remember for next check '$COMMAND_PID' / '$COMMAND_CMD'"
+	echo >$FILE1 "$COMMAND_PID"
+	echo >$FILE2 "$COMMAND_CMD"
+}
+
+_watch_hanging_netcat ()
+{
+	local FUNC="watch_hanging_netcat"
+	local PID="$( pidof nc )"
+	local OLD="/tmp/maybe_hanging_netcat_process_id"
+	
+	if [ -z "$PID" ]; then
+		[ -e "$OLD" ] && rm $OLD
+		return
+	else
+		if [ -e "$OLD" ]; then
+			[ "$PID" = "$( cat "$OLD" )" ] && {
+				_log do $FUNC daemon err "killing '$PID'"
+				kill "$PID"
+				rm "$OLD"
+			}
+		else
+			echo "$PID" >"$OLD"
+		fi
+	fi
+}
+
+_watch_hanging_broadcom_wifi ()				# under unclear circumstances the "wifi"-program segfaults
+{							# and there are after some time hanging 'wifi'-processes
+	[ "$( _system pids_count wifi )" -gt 1 ] && {
+
+		sleep 10
+	
+		[ "$( _system pids_count wifi )" -gt 1 ] && {
+			_system reboot_safe "strange_wifi() several wifi-PIDs!"
+		}
+	}
+}
+
+_watch_hanging_xrelayd ()
+{
+	[ "$( _system pids_count xrelayd )" -gt 1 ] && {		# can be the case, after too many simultaneously https-connections
+	
+		_log do watch_xrelayd daemon info "trying to end some processes and restart daemon"
+		killall xrelayd
+		sleep 10
+	
+		if [ "$( _system pids_count xrelayd )" -gt 1 ]; then
+	
+			_log do watch_xrelayd daemon info "still some processes around"
+	
+			for PID in $(pidof xrelayd); do {
+				kill -9 $PID
+			} done
+	
+			if [ "$( _system pids_count xrelayd )" -gt 1 ]; then
+				_system reboot_safe "can't end some xrelayd-processes"
+			else
+				/etc/init.d/S70secureadmin start
+			fi
+		else
+			/etc/init.d/S70secureadmin start
+		fi
+	}
+}
+
+_watch_rrd_integrity ()
+{
+	touch /tmp/rrd_plausi_check					# needs some test
+	for FILE in $(find /tmp/rrd -name *.rrd 2>/dev/null); do {
+		[ /tmp/rrd_plausi_check -ot $FILE ] && {
+			_log do rrd_plausi_check daemon alert "rrd-file is in future - reinit for '$FILE'"
+			touch "$FILE"
+		}
+	} done
+}
+
+_watch_zombie_processes ()
+{
+	[ "$( ps | sed -n 's/^[^Z]*\(Z\)[^Z]*\[.*\].*/\1/p' | wc -l )" -gt 50 ] && {
+		_system reboot_safe "more than 50 zombie processes!"
+	}
+}
+
+_watch_flash_free_space ()
+{
+	[ $FREE_SPACE_FLASH -lt 150 ] && {
+		[ ! -e /tmp/REPO_REMOVED ] && {
+			_log do remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing files in /usr/lib/ipkg/lists/"
+
+			for FILE in /usr/lib/ipkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+ /www/everlasting_syslog.txt; do {
+				_log do remove_repos_if_low_space daemon info "only $FREE_SPACE_FLASH kb free - removing '$FILE' with $(_file size "$FILE") bytes"
+				rm "$FILE"
+			} done
+			touch /tmp/REPO_REMOVED
+		}
+		
+		[ ! -e /tmp/SEND_ALIVE_FAILED ] && {
+			rm /www/everlasting_syslog.txt		# content is already on server
+		}
+	}
+}
+
+_watch_dns_resolution ()	# only with existing dnsmasq and reachable internet-gateway
+{
+	[ ! -e /etc/init.d/*dnsmasq ]		&& return 0
+	[ -z "$(ip route list exact 0/0)" ]	|| return 0
+
+	local FUNC="watch_dns_resolution"
+	
+	pidof dnsmasq >/dev/null || {
+
+		_log do $FUNC daemon error "restarting dnsmasq"
+
+		pidof udhcpd >/dev/null && {			# otherwise the server-port cannot bound to new daemon
+
+			_log do $FUNC daemon error "killing old DNS-server 'udhcpd'"	
+			killall udhcpd
+		}
+		
+		/etc/init.d/S*dnsmasq start
+		/etc/init.d/S46fake_dns_server_fff+ remove_fake_dnsserver
+		sleep 3
+		
+		_log do $FUNC daemon error "restarted dnsmasq, PID now '$( pidof dnsmasq )'"
+	}
+	
+	nslookup "$( _system date unixtime ).weimarnetz.de" 2>/dev/null >/dev/null || {			# can we resolv a random address?
+
+		_log do $FUNC daemon error "error in dns-resolution, sending SIGHUP to DNSmasq"
+		kill -SIGHUP $( pidof -s dnsmasq )
+		sleep 5
+	
+		nslookup "$( _system date unixtime ).weimarnetz.de" 2>/dev/null >/dev/null || {		# again: can we resolv a random address?
+
+			_log do $FUNC daemon error "error in dns-resolution, restarting DNSmasq"
+			/etc/init.d/S*dnsmasq restart
+		}
+	}
+}
+
+_watch_pppoe ()
+{
+	[ ! -e "/tmp/PPPOE_NEEDED" ]			&& return
+	[ -n "$( ip route list exact 0/0 dev ppp0 )" ]	&& return
+	
+	local FUNC="watch_pppoe"
+	
+	_log do $FUNC daemon err "no default route over ppp0 - restarting PPPoE"
+	
+	killall    pppoecd
+	killall -9 pppoecd
+	ifup wan
+	sleep 15
+	
+	_log do $FUNC daemon err "restarted: '$( ip route list exact 0/0 dev ppp0 )'"
+}
+
+_watch_webcam ()
+{
+	[ ! -e /tmp/WEBCAM ] && return
+	
+	pidof motion >/dev/null || {
+		_log do webcam_watchdog daemon alert "restarting webcam"
+		/etc/init.d/S90webcam_fff+ restart
+	}
+}
+
+_watch_webserver ()
+{
+	local FUNC="watch_webserver"
+	
+	pidof httpd >/dev/null || {
+
+		if pidof crond >/dev/null ; then
+			_log do $FUNC daemon err "webserver is not running - restarting"
+	
+			/etc/init.d/S50httpd start
+			sleep 5
+	
+			_log do $FUNC daemon err "webserver PID now: '$( pidof httpd )'"
+		else
+			_log do $FUNC daemon debug "no crond - no restart"		# crondog does it
+		fi
+	}
+}
+
+_watch_sshd_or_telnet ()
+{
+	pidof dropbear >/dev/null && return
+
+	local FUNC="watch_sshd_or_telnet"
+
+	pidof telnetd >/dev/null || {
+	
+		_log do $FUNC daemon err "dropbear nor telnetd not running - restarting"
+		
+		/etc/init.d/S*dropbear start
+		if pidof dropbear >/dev/null; then
+			
+			_log do $FUNC daemon info "dropbear PID now: '$( pidof dropbear )'"
+		else
+			if telnetd; then
+				_log do $FUNC daemon info "telnetd PID now: '$( pidof telnetd )'"
+			else
+				_log do $FUNC daemon err "dropbear nor telnetd not startable?"
+			fi
+		fi
+	}
+}
+
+_watch_random_node_id ()	# check if nodenumber/id is from random pool
+{
+	local FUNC="watch_random_node_id"
+	local URL
+
+	_url ()
+	{
+		local WIFIMAC="$(	_sanitizer do "$( ip link show dev $WIFIDEV )"		mac hex lowercase )"
+		local SSH_PUBKEY_FP="$(	_sanitizer do "$( _ssh key_public_fingerprint_get )"	hex )"
+
+		echo -n "$( nvram get fff_url_network )/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$( nvram get ff_dsskey_pub )"
+	}
+
+	if func_ipsystem | grep -q ^"NODE_NUMBER_RANDOM=true" ; then
+		URL="$( _url )"
+		_log do $FUNC daemon info "detected ID from random pool - registering official ID from '$URL'"
+	
+ 		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _wget do "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
+ 										# fixme! no wifi -> no wifimac -> no registration?
+	 	func_ipsystem "${ID:-99999}" >/dev/null && {			# ipsystem() has a sanitizer built in, so don't worry 8-)
+			_nvram set fff_node_number "$ID"
+			/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile
+	
+			_system reboot_safe "replace_random_nodeID() now profile applied"
+		}
+
+		_log do $FUNC daemon info "ID not clean: '$ID' - aborting"
+	else
+		if [ ! -e /tmp/REGISTRATED ] && [ "$( _system uptime min )" -gt 30 ]; then
+
+			[ -n "$SSH_PUBKEY_FP" ] && {
+				URL="$( _url )"
+				ID="$( _wget do "${URL}&NODE=${NODE}" 10 )"
+				touch /tmp/REGISTRATED				# fixme! only one (un/successful) try each reboot?
+			}
+
+			if [ -n "$ID" ]; then
+				_log do registrator_petting daemon info "answer was '$ID' (question was: '$URL')"	
+			else
+				_log do registrator_petting daemon info "no answer (service '$URL' not running or no pubkey_fp?)"
+			fi
+		else
+			[ -e /tmp/REGISTRATED ] && _log do registrator_petting daemon debug "is already lucky"
+		fi
+	fi
+}
