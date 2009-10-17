@@ -8,3 +8,53 @@ _ssh_start ()
 {
 	/etc/init.d/*dropbear start
 }
+
+_ssh_sanitize_and_cleanup_keys ()
+{
+	local DSSFILE="/etc/dropbear/dropbear_dss_host_key"		# if no dropbear is in firmware and we install it,
+	local DSSKEY="$( nvram get ff_dsskey )"				# the key in nvram is not respected
+	local TOOL="/rom/www/cgi-bin/freifunk-upload"
+
+	if [ ! -e $DSSFILE ] || [ "${#DSSKEY}" -le 256 ] || [ "$DSSKEY" != "$( $TOOL -b2a <$DSSFILE )" ]; then
+
+		mkdir -p etc/dropbear		# key in nvram is more important, than (maybe new generated) keyfile
+	
+		if [ "${#DSSKEY}" -ge 256 ]; then
+			_log do setup_dropbear_keys daemon info "keyfile differs from keys in nvram - restoring keys from nvram"
+			echo -n $DSSKEY | $TOOL -a2b >$DSSFILE
+			chmod 0600 $DSSFILE                    
+		else
+			_log do setup_dropbear_keys daemon info "keyfile differs from keys in nvram - generating new keys"
+		
+			if [ -e /usr/bin/dropbearkey ]; then
+				[ -e $DSSFILE ] && {
+					_log do setup_dropbear_keys daemon info "$DSSFILE already exists - why? deleting it!"
+					rm $DSSFILE
+				}
+
+				dropbearkey -t dss -f $DSSFILE
+				_nvram set ff_dsskey $( $TOOL -b2a <$DSSFILE )
+				_nvram set commit
+			else
+				_log do setup_dropbear_keys daemon info "SSH-DSS-key does not exist (yet) - abort"
+			fi
+		fi
+
+		[ "$( _system uptime min )" -gt 5 ] && {
+			dropbear || _log do setup_dropbear_keys daemon info "starting daemon failed"
+		}
+	else
+		_log do setup_dropbear_keys daemon debug "SSH-DSS-key seems to be correct"
+
+		[ "$( _file size "${DSSFILE}.pub" )" = "0" ] && rm "${DSSFILE}.pub"
+
+		[ -e /usr/bin/dropbearkey ] && [ ! -e "${DSSFILE}.pub" ] && {
+			dropbearkey -y -f "$DSSFILE" | grep ^ssh- >"${DSSFILE}.pub"
+			chmod 0600 "${DSSFILE}.pub"
+		}
+
+		[ -z "$( nvram get ff_dsskey_pub )" ] && {
+			_nvram set ff_dsskey_pub $( $TOOL -b2a <"${DSSFILE}.pub" )
+		}
+	fi
+}
