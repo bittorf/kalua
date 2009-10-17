@@ -1,0 +1,158 @@
+#!/bin/sh
+. /tmp/loader
+
+if [ "$( _wifi mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also make this, if olsr-neighs (in ap or client-mode)
+
+	  if ! _wifi phy_probe_online $WIFIDEV ; then				# maybe its switched off by admin
+	
+		_log do meshmode_but_no_wifi_neighs daemon debug "radio is off, no further tests"
+		continue	
+	
+	elif [ "$( _system uptime min )" -lt 5 ]; then				# olsrd needs some time
+	
+		_log do meshmode_but_no_wifi_neighs daemon debug "uptime <5 min, no further tests"
+		continue
+	
+	elif neigh check4wifi ; then
+		_log do meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
+
+		OPTIMIGE_TARGET_NLQ="$( nvram get fff_optimize_nlq   )"		# 0...1000 (integer)
+		OPTIMIZE_NEIGH="$(      nvram get fff_optimize_neigh )"		# IPv4, 'gateway' or <empty> = any
+		
+		# fixme! if NLQ of wifi_gateway is much worser than best_wifi_nlq, take automatically wifi_gateway
+		
+		[ "$OPTIMIZE_NEIGH" = "gateway" ] && {				# make sure, that we optimize a wifi-gateway
+			if ip route list exact 0/0 | grep -q "dev $WIFIDEV" ; then
+				OPTIMIZE_NEIGH="$( ip route list exact 0/0 | sed -n "s/^default via \(.*\) dev ${WIFIDEV}.*/\1/p" )"
+			else
+				OPTIMIZE_NEIGH=""
+			fi
+		}
+		
+		if [ -n "$OPTIMIZE_NEIGH" ]; then				# fixme! we must detect interface for neigh,
+										#        to tune the correct antenna
+			BEST_WIFI_NLQ="$( neigh get_nlq $OPTIMIZE_NEIGH )"
+			_log do meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, optimizing for $OPTIMIZE_NEIGH, nlq_now: ${BEST_WIFI_NLQ:=0}"
+			echo $OPTIMIZE_NEIGH >/tmp/WIFI_OPTIMIZE_NEIGH		# for RRD-tool
+		else
+			BEST_WIFI_NLQ="$( neigh best_wifi_nlq )"							# fixme! maybe check 'my' wifi_gateway?
+			_log do meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, nlq_now: $BEST_WIFI_NLQ"	#	 and check if I'am a wifi_gateway?
+		fi
+
+		BEST_WIFI_NLQ_LAST="$( cat /tmp/BEST_WIFI_NLQ_LAST 2>/dev/null )"
+		echo "${BEST_WIFI_NLQ:=0}" >/tmp/BEST_WIFI_NLQ_LAST
+		[ -z "$BEST_WIFI_NLQ_LAST" ] && BEST_WIFI_NLQ_LAST="$BEST_WIFI_NLQ"
+		
+		TXPWR_STEP="5 mW"
+		
+		if [ "${BEST_WIFI_NLQ:=0}" -gt ${OPTIMIGE_TARGET_NLQ:=900} ]; then		# definition of default_target_nlq = 0.900
+	 	
+	 		# fixme! maybe take tx_power into account? (high_txpower -> always try to lower?)
+	 	
+	 		# e.g. 940-900 = 40 > 900 / 20 = 45 ? -> no_tx_power_change	// only do TX_POWER_CHANGE if DIFF greater than 5% (x/100*5 -> x/20)
+	 		#      650-600 = 50 > 600 / 20 = 30 ? -> lowering_tx_power	// this is for absorbe "pulsing" tx_power
+	 	
+	 		if [ $(( $BEST_WIFI_NLQ - $OPTIMIGE_TARGET_NLQ )) -gt $(( $OPTIMIGE_TARGET_NLQ / 20 )) ]; then
+	 			_log do meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ: -$TXPWR_STEP ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
+				_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP subtract limit
+			else
+				_log do meshmode_but_no_wifi_neighs daemon debug "found at least one wifi-neigh with reasonable NLQ, low diff, do nothing ($BEST_WIFI_NLQ > $OPTIMIGE_TARGET_NLQ)"
+			fi
+		else
+			if [ "$BEST_WIFI_NLQ" -lt "$BEST_WIFI_NLQ_LAST" ]; then			# fixme! use hysteresis
+	
+				case "$( cat /tmp/WIFI_TREND_TXPOWER_${WIFIDEV} 2>/dev/null || echo '-' )" in
+					"=")
+						_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough, do nothing, last txpower-change was '='"
+					;;
+					"+")
+						_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: -$TXPWR_STEP"
+						_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP subtract limit
+					;;
+					"-")
+						_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') and lower than in last round: +$TXPWR_STEP (last txpower-change was '-')"
+						_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP add overturn
+					;;
+				esac
+			else
+				_log do meshmode_but_no_wifi_neighs daemon info "NLQ is'nt good enough ('$BEST_WIFI_NLQ' old was: '$BEST_WIFI_NLQ_LAST') but higher or equal than in last round: +$TXPWR_STEP"
+				_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP add overturn
+			fi
+		fi										# fixme! add aftercheck + alert.log when successful
+		
+		echo "0" >/tmp/wifi_error_counter
+	else
+		[ "$( _wifi bssid $WIFIDEV )" != "$( _wifi bssid $WIFIDEV config )" ] && {	# fixme! empty config bssid?
+			_log do meshmode_but_no_wifi_neighs daemon alert "BSSID error: '$( _wifi bssid $WIFIDEV )'/'$( _wifi bssid $WIFIDEV config )'"
+			_wifi phy_restart $WIFIDEV
+		}
+		
+		# fixme! sensitivity does not work on madwifi
+		if [ "$( _wifi noise $WIFIDEV )" -gt -85 ]; then		# [dBm] e.g. -75 is greater than -85
+		
+			[ "$( _wifi sensitivity $WIFIDEV short )" != "1" ] && {
+				_wifi sensitivity_set $WIFIDEV nonwifi
+			}
+		else									# switch back, if conditions are normal again
+			[ "$( _wifi sensitivity $WIFIDEV mode )" != "wifi,auto" ] && {
+				_wifi sensitivity_set $WIFIDEV auto	
+			}
+		fi
+	
+		COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
+		COUNT="$(( ${COUNT:=0} + 1 ))"
+	
+		_log do meshmode_but_no_wifi_neighs daemon info "raising counter to ${COUNT}/15"
+		
+		[ $COUNT -gt 15 ] && {
+			_system reboot_safe "meshmode_but_no_wifi_neighs for a long time (counter: '${COUNT}')"	# 15 * 15 mins = 4 hours
+		}
+		
+		echo $COUNT >/tmp/wifi_error_counter
+		
+		_wifi phy_txpower_set "$WIFIDEV" 10 mW add overturn	# fixme! add aftercheck + alert.log when successful
+		
+		/usr/sbin/cron.select_best_antenna_fff+ force
+	fi
+else							# master or client-mode
+	[ "$(_system uptime min)" -gt 5 ] && {
+
+		if neigh check4nonwifi ; then		# fixme! check for zero bssid!
+
+			_log do no_meshmode_and_no_neighs daemon debug "found wired neigh"
+			echo "0" >/tmp/wifi_error_counter
+		else
+			  if ! _wifi phy_probe_online $WIFIDEV ; then
+			
+				_log do no_meshmode_and_no_neighs daemon debug "wifi is switched off by admin"
+			
+			elif neigh check4wifi ; then
+		
+				_log do no_meshmode_and_no_neighs daemon debug "found wifi neigh"
+				echo "0" >/tmp/wifi_error_counter
+			else
+				[ "$(_wifi bssid $WIFIDEV)" = "00:00:00:00:00:00" ] && {
+					_log do no_meshmode_and_no_neighs daemon alert "zero bssid: '_wifi bssid $WIFIDEV'"
+					_wifi phy_restart $WIFIDEV
+				}
+				
+				if [ "$(_net local_inet_offer)" != "false" ]; then
+				
+					_log do no_meshmode_and_no_neighs daemon debug "no wifi-neighs, but local inet offer"
+					echo "0" >/tmp/wifi_error_counter
+				else
+					COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
+					COUNT="$(( ${COUNT:=0} + 1 ))"
+					
+					_log do no_meshmode_and_no_neighs daemon info "raising counter to ${COUNT}/15"
+					
+					[ $COUNT -gt 15 ] && {
+						_system reboot_safe "no meshmode - and no wired nor wifi neigh for a long time (counter: '${COUNT}')"
+					}
+					
+					echo $COUNT >/tmp/wifi_error_counter
+				fi
+			fi
+		fi
+	}
+fi
