@@ -13,9 +13,9 @@ ARG="$1"	# fixme! ipp2p als fallback fuers marking layer7
 	# [ "$ARG" = "masq" ] && remove_adblock_list	// fixme!
 }
 
-_pfilter rules_install ()
+_startup ()
 {
-	_log do local_firewall daemon info "_pfilter rules_install"
+	_log do local_firewall daemon info "startup"
 		
 	_pfilter rules_olsr_whitelist_vars
 	_pfilter rules_accept_all on
@@ -26,23 +26,26 @@ _pfilter rules_install ()
 	_pfilter user_splash_add
 	_pfilter user_splash_remove_autounsplashed
 
-	[ -n "$WANDEV" ] && {	# fixme
-		_log do deny_possible_wan_olsr_over_internet daemon debug "denying incoming OLSR to WANDEV for alien-nets"
-		iptables -I INPUT -i $WANDEV -s ! 10.0.0.0/8 -p udp --dport 698 -j DROP	# fixme! (network+mask is a hack)
-	}
+	case "$( _net local_inet_offer )" in
+		wan|pppoe)
+			_log do deny_possible_wan_olsr_over_internet daemon debug "denying incoming OLSR to WANDEV for alien-nets"
+			iptables -I INPUT -i $WANDEV -p udp --dport 698 -j DROP
+		;;
+	esac
 
 	_pfilter rules_dhcp_ignore_specific_macs
+
 	[ -e /tmp/USER_PACKETFILTER ] && {
 		_pfilter rules_accept_all off			# fixme!
 	}
 	_pfilter stats_rules_count
 		
-	_log do local_firewall daemon info "_pfilter rules_install - ready"
+	_log do local_firewall daemon info "startup ready"
 }
 
 case $ARG in
 	close_doors)
-		_log do local_firewall daemon info "_pfilter rules_install - first full init ($( uptime ))"
+		_log do local_firewall daemon info "startup - first full init ($( uptime ))"
 		_pfilter rules_accept_all off
 	;;
 	start)
@@ -50,11 +53,11 @@ case $ARG in
 			_scheduler add "start_local_packetfilter"
 			/usr/sbin/cron.select_best_antenna_fff+ fastcheck
 		else
-			_pfilter rules_install
+			_startup
 		fi
 	;;
 	call)
-		_pfilter rules_install
+		_startup
 	;;
 	masq)
 		_pfilter rules_nat_install		# includes portforwarding

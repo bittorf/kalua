@@ -126,12 +126,12 @@ _pfilter_rules_portfw_install ()			# fixme! howto redirect to myself?
 	} done
 }
 
-_pfilter_rules_dhcp_ignore_specific_macs ()		# nvram set fff_dhcp_ignore="MAC MAC MAC"
+_pfilter_rules_dhcp_ignore_specific_macs ()	# SENS: mario
 {
 	local FUNC="packetfilter_dhcp_ignore_specific_macs"
 	local MAC
 	
-	for MAC in $(nvram get fff_dhcp_ignore); do {
+	for MAC in $( nvram get fff_dhcp_ignore ); do {		# format: 'MAC1 MAC2 MACn"
 
 		_log do $FUNC daemon debug "ignoring '$MAC'"
 		iptables -I INPUT -p udp --sport 68 -d 255.255.255.255 --dport 67 -m mac --mac-source $MAC -j DROP
@@ -195,13 +195,8 @@ _pfilter_user_probe_local_blacklist ()
 {
 	local MAC="$1"
 
-	nvram get fff_ethers_blocked | grep -q -i $MAC
-	
-	if [ "$?" -eq 0 ]; then
-		echo "true"
-	else
-		echo "false"
-	fi
+	nvram get fff_ethers_blocked | grep -q -i $MAC && return 0
+	return 1
 }
 
 _pfilter_rules_nat_inetoffer_lan ()	# SENS: masquerades traffic over lan-device for omitting "black hole"
@@ -621,7 +616,7 @@ _pfilter_proto2id ()		# fixme! uses global var 'PROTO' + 'PORT'
 		return
 	}
 	
-	for ENTRY in $( _pfilter l7proto_list ); do {
+	for ENTRY in $( _pfilter l7proto_list ); do {		# fixme! this loop runs very often
 	
 		THIS_PROTO="${ENTRY%,*}"
 		THIS_PORT="${ENTRY#*,}"
@@ -1215,7 +1210,7 @@ _pfilter_rules_nat_install ()		# fixme! also masq traffic from local lan to inte
 
 	case $INETOFFER in
 		lan)
-			fkt_masq_internet_traffic_over_lan_device
+			_pfilter rules_nat_inetoffer_lan
 		;;
 		tun|tun0)
 			iptables -t nat -A POSTROUTING -o tun+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
@@ -1238,9 +1233,9 @@ _pfilter_rules_nat_install ()		# fixme! also masq traffic from local lan to inte
 		;;
 	esac
 	
-	fkt_no_nat_for_wifi_clients
-	fkt_nat_for_roaming_wifi_clients
-	func_packetfilter_install_portforwarding
+	_pfilter rules_nat_no_wificlients
+	_pfilter rules_nat_wifi_roaming
+	_pfilter rules_portfw_install
 }
 
 _pfilter_stats_chain_show ()
