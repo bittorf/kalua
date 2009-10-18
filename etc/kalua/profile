@@ -1,4 +1,4 @@
-func_profile_get ()	# OUT1: string
+_profile_get ()		# OUT1: string
 {			# RC: false = apply new profile (!) -> S02interface_check
 
 	local FUNC="profile_get"
@@ -34,7 +34,7 @@ func_profile_get ()	# OUT1: string
 
 		_log do $FUNC daemon debug "is unset, probing capabilities"
 
-		PROFILE="$( func_profile_get_profile_for_mac $MAC )"
+		PROFILE="$( _profile get_profile_for_mac $MAC )"
 
 		  if [ -n "$PROFILE" ]; then
 			
@@ -86,12 +86,8 @@ func_profile_get ()	# OUT1: string
 	return 0
 }
 
-func_profile_set_config ()
+_profile_set_config ()
 {
-	unset BSSID	# /etc/variables_fff+
-	unset ESSID	# /etc/variables_fff+
-	unset CHANNEL	# /etc/variables_fff+
-
 	local FUNC="profile_set_config"
 	local PROFILE="$1"			# e.g. weimarnetz_standard
 	local NODE_ID="$2"			# e.g. 422 or 69-7
@@ -114,28 +110,28 @@ func_profile_set_config ()
 	}
 
 	touch /tmp/PROFILE_SET
-	func_profile_nvram_make_backup
-	func_profile_memorise_important_vars $NODE_ID
-	func_profile_unset_nvram_group
-	func_profile_rebuild_cfe	
-	func_profile_remap_devs
+	_profile nvram_make_backup
+	_profile memorise_important_vars $NODE_ID
+	_profile unset_nvram_group
+	_profile rebuild_cfe	
+	_profile remap_devs
 	
 	func_profile_set_$PROFILE $NODE_ID
 
-	func_profile_memorise_important_vars restore
+	_profile memorise_important_vars restore
 
 	# fixme! this means, we can't enforce this variable in profile 8-(
 	if [ -z "$(nvram get ff_adm_neturl)" ] || nvram get ff_adm_neturl | grep -q "wireless.subsignal.org" ; then
 		_nvram set ff_adm_neturl "<big><a href=http://wireless.subsignal.org>http://wireless.subsignal.org</a> - der Weimarer Freifunk Anlaufpunkt - Telefon:&nbsp;<b>03643&nbsp;/&nbsp;544304</b></big>"
 	fi
 
-	func_profile_count_used_nvram_vars
+	_profile count_used_nvram_vars
 
 	rm /tmp/PROFILE_SET
 	_nvram set commit
 }
 
-func_profile_nvram_make_backup ()
+_profile_nvram_make_backup ()
 {
 	local FUNC="profile_nvram_make_backup"
 	local TEMP="/tmp/nvram_backup"
@@ -156,7 +152,7 @@ func_profile_nvram_make_backup ()
 	rm  "$TEMP"
 }
 
-func_profile_count_used_nvram_vars ()
+_profile_count_used_nvram_vars ()
 {
 	local FUNC="profile_count_used_nvram_vars"
 	local COUNT="$( nvram show 2>/dev/null | sed -n '/^[a-zA-Z0-9_\.-]*=[A-Za-z0-9<>_-].*/p' | wc -l )"
@@ -164,7 +160,7 @@ func_profile_count_used_nvram_vars ()
 	_log do $FUNC daemon debug "$COUNT"
 }
 
-func_profile_memorise_important_vars ()
+_profile_memorise_important_vars ()
 {
 	local FUNC="profile_memorise_important_vars"
 	
@@ -264,7 +260,7 @@ func_profile_memorise_important_vars ()
 	} done >$TEMP
 }
 
-func_profile_rebuild_cfe ()
+_profile_rebuild_cfe ()
 {
 	local FUNC="profile_rebuild_cfe"
 	local TEMP="/tmp/cfe_rebuild_$$"
@@ -300,7 +296,7 @@ func_profile_rebuild_cfe ()
 	# 'u'='x}'
 }
 
-func_profile_rebuild_cfe_se505 ()
+_profile_rebuild_cfe_se505 ()
 {
 	cat <<EOF
 aa0=3
@@ -353,7 +349,7 @@ wl0_unit=0
 EOF
 }
 
-func_profile_unset_nvram_group ()	# empty ARG1 = all (!)
+_profile_unset_nvram_group ()	# empty ARG1 = all (!)
 {
 	local FUNC="profile_unset_nvram_group"
 	local SIZE_COUNTER=0
@@ -409,7 +405,7 @@ func_profile_unset_nvram_group ()	# empty ARG1 = all (!)
 	rm $TEMP
 }
 
-func_profile_local_include_vars ()
+_profile_local_include_vars ()
 {
 	local VAR
 
@@ -423,11 +419,11 @@ func_profile_local_include_vars ()
 	} done
 }
 
-func_profile_set_system ()
+_profile_set_system ()
 {
 	local TEMP_TZ="$TZ"; unset TZ		# sadly we use the global var TZ, so we need a "stack"
 	local VAR
-	eval $(func_profile_local_include_vars "$@")
+	eval $(_profile local_include_vars "$@")
 
 	[ -n "$PASS"     ] && _nvram set ff_pw        "$( httpd -m "$PASS" )"	# must be plaintext (is replaced by real pw later...)
 	[ -n "$HOSTNAME" ] && _nvram set wan_hostname "$HOSTNAME"		# e.g. my-router
@@ -460,9 +456,9 @@ func_profile_set_system ()
 	TZ="$TEMP_TZ"
 }
 
-func_profile_set_contact ()	# OK
+_profile_set_contact ()
 {
-	eval $(func_profile_local_include_vars "$@")
+	eval $(_profile local_include_vars "$@")
 	
 	[ -n "$LOCATION"] && _nvram set ff_adm_loc	"$LOCATION"
 	[ -n "$MAIL"    ] && _nvram set ff_adm_mail	"$MAIL"
@@ -472,9 +468,9 @@ func_profile_set_contact ()	# OK
 	[ -n "$URL"	] && _nvram set ff_adm_neturl	"$URL"
 }
 
-func_profile_set_wifi ()	# OK
+_profile_set_wifi ()
 {
-	eval $(func_profile_local_include_vars "$@")
+	eval $(_profile local_include_vars "$@")
 	
 	[ -n "$IP" ] && {
 		_nvram set wifi_proto	"static"
@@ -491,20 +487,9 @@ func_profile_set_wifi ()	# OK
 	[ -n "$DEFAULTS" ] && _nvram set ff_mtu 	"1500"		# checkit
 }
 
-func_profile_set_wifi_phy ()
+_profile_set_wifi_phy ()
 {
-	eval $(func_profile_local_include_vars "$@")
-
-# root@AP:~# wl interference
-# Auto Wireless LAN Interference mitigation is enabled and not active
-# root@AP:~# wl interference 2
-# root@AP:~# wl interference
-# Wireless LAN Interference mitigation is enabled.
-# root@AP:~# wl scansuppress
-# scansuppress is 0 (off)
-# root@AP:~# wl scansuppress 1
-# root@AP:~# wl scansuppress
-# scansuppress is 1 (on)
+	eval $(_profile local_include_vars "$@")
 
 	case "$MODE" in
 		adhoc)
@@ -586,9 +571,9 @@ func_profile_set_wifi_phy ()
 	[ -n "$GMODE"    ] && _nvram set wl0_gmode      "$GMODE"	# needs more abstraction
 }
 
-func_profile_set_olsr ()
+_profile_set_olsr ()
 { 
-	eval $(func_profile_local_include_vars "$@")
+	eval $(_profile local_include_vars "$@")
 
 	[ -n "$DEFAULTS" ] && {
 		_nvram set ff_hna4 	  "$OLSR_HNA"
@@ -610,9 +595,9 @@ func_profile_set_olsr ()
 	}
 }
 
-func_profile_set_fff_extensions ()
+_profile_set_fff_extensions ()
 {
-	eval $(func_profile_local_include_vars "$@")
+	eval $(_profile local_include_vars "$@")
 
 	[ -n "$DEFAULTS" ] && {
 		_nvram set fff_menu 		"full" 		# "switch between 'simply', 'expert' and 'full' menu"
@@ -622,9 +607,9 @@ func_profile_set_fff_extensions ()
 	}
 }
 
-func_profile_set_packetfilter ()
+_profile_set_packetfilter ()
 {
-	eval $(func_profile_local_include_vars "$@")
+	eval $(_profile local_include_vars "$@")
 
 	[ "$FIREWALL" = "off" ] && {
 		_nvram set ff_wanssh "1"
@@ -640,9 +625,9 @@ func_profile_set_packetfilter ()
 	}
 }
 
-func_profile_set_lan ()
+_profile_set_lan ()
 {
-	eval $(func_profile_local_include_vars "$@")
+	eval $(_profile local_include_vars "$@")
 		
 	[ -n "$IP" ] && {
 		_nvram set lan_proto	"static"
@@ -663,9 +648,9 @@ func_profile_set_lan ()
 	[ -n "$ROUTE" ] && _nvram set static_route "$ROUTE" 	# ->S40network
 }
 
-func_profile_set_wan ()		# OK
+_profile_set_wan ()
 {
-	eval $(func_profile_local_include_vars "$@")
+	eval $(_profile local_include_vars "$@")
 	
 	[ -n "$IP" ] && {
 		_nvram set wan_proto	"static"
@@ -678,9 +663,9 @@ func_profile_set_wan ()		# OK
 	[ -n "$PROTO" ] && _nvram set wan_proto 	"$PROTO"	# DHCP, pppoe
 }
 
-func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-boardtype/ifnames (and vicaversa) only at one point
-{				# func_profile_remap_devs <empty> or	-> function calls himself with interface-values
-				# func_profile_remap_devs get_model	-> function outputs only vendor/model
+_profile_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardtype/ifnames (and vicaversa) only at one point
+{				# _profile remap_devs <empty> or	-> function calls himself with interface-values
+				# _profile remap_devs get_model	-> function outputs only vendor/model
 
 	local FUNC="profile_remap_devs"
 	local NEW_MAC
@@ -734,13 +719,13 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 		
 			NEW_MAC="$( _sanitizer do "$(grep ..:..:..:..:..:.. /dev/mtd/0ro | tail -n1)" mac lowercase )"
 			_nvram set  lan_hwaddr "$NEW_MAC"							# +0 = lan
-			_nvram set wifi_hwaddr "$( func_profile_mac_plus $(func_profile_mac_plus $NEW_MAC) )"	# +2 = wifi
+			_nvram set wifi_hwaddr "$( _profile mac_plus $(_profile mac_plus $NEW_MAC) )"	# +2 = wifi
 
 			_nvram set  il0macaddr $(nvram get wifi_hwaddr)		# il0macaddr <= wifi_hwaddr 
 			_nvram set  et0macaddr "$NEW_MAC"			# et0macaddr <=  lan_hwaddr
 			
 			[ -z "$(nvram get wan_hwaddr)" ] && {
-				_nvram set  wan_hwaddr "$( func_profile_mac_plus $NEW_MAC )"			# +1 = wan
+				_nvram set  wan_hwaddr "$( _profile mac_plus $NEW_MAC )"			# +1 = wan
 			}
 		;;
 		4)	# asus wl-500g premium v1
@@ -787,7 +772,7 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 
 			NEW_MAC="$( _sanitizer do "$(sed -n '/..:..:..:..:..:../{p;q}' /dev/mtd/0ro)" mac lowercase )"
 			_nvram set  lan_hwaddr "$NEW_MAC"
-			_nvram set wifi_hwaddr "$( func_profile_mac_plus $(func_profile_mac_plus $NEW_MAC) )"	# +2
+			_nvram set wifi_hwaddr "$( _profile mac_plus $(_profile mac_plus $NEW_MAC) )"	# +2
 
 			_nvram set  et0macaddr "$NEW_MAC"			# et0macaddr <=  lan_hwaddr
 			_nvram set  et1macaddr $(nvram get wifi_hwaddr)		# et1macaddr <= wifi_hwaddr
@@ -810,7 +795,7 @@ func_profile_remap_devs ()	# this one is tricky, but we want boardvalues-2-board
 	[ -n "$CHANGE" ] && return 1
 }
 
-func_profile_mac_plus ()
+_profile_mac_plus ()
 {
 	local MAC="$( _sanitizer do "$1" lowercase )"
 	local MAC_LAST_BYTE="$( echo $MAC | cut -b 17 )"
