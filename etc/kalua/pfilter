@@ -172,7 +172,7 @@ func_get_all_user_macs_with_traffic_today ()
 	
 		[ "$TRAFFIC" != "0" ] && {
 		
-			TRAFFIC="$( fkt_convert_to_unit $TRAFFIC mb )"
+			TRAFFIC="$( _math bytes2unit $TRAFFIC mb )"
 		
 			  MAC="$( echo $MAC | sed 's/://g' )"
 			MEDIA="$( fkt_get_media_from_mac $MAC short )"
@@ -384,7 +384,7 @@ fkt_get_name_for_mac ()
 	echo ${NAME:=anonym}
 }
 
-fkt_get_ip_from_mac ()
+fkt_get_ip_from_mac ()		# arpcache -> dhcp-leases -> /etc/hosts 
 {
 	local MAC="$( _sanitizer do "$1" lowercase )"
 
@@ -652,36 +652,6 @@ fkt_get_traffic_for_mac ()	# OUT1: string
 
 	iptables -t mangle --line-numbers -nxvL traff_${MAC} | 
 	 sed -n "/^${LINE} /s/^${LINE}[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p"
-}
-
-fkt_convert_to_unit () {		# fixme! sad but true, we have to use AWK - numbers >2.000.000.000 (2 gigbytes) are a "bash: out of range"
-	local VALUE="$1"
-	local UNIT="$2"			# can be kb, mb, gb
-	local ARG3="$3"			# can be "dotted" - so we convert 123456789 = 123.456.789	
-	local ARG4="$4"			# can be "pre" - so we enclose the number in html-<tt>'s
-	local OUT=""
-
-	which awk >/dev/null || UNIT=""		# fixme! this is a workaround
-						# maybe cut off last numbers?
-	case $UNIT in
-		kb|KB) OUT="$( awk -v VALUE=$VALUE 'BEGIN{ printf("%i",VALUE/1000) }'       )" ;;		# this
-		mb|MB) OUT="$( awk -v VALUE=$VALUE 'BEGIN{ printf("%i",VALUE/1000000) }'    )" ;;		# is not
-		gb|GB) OUT="$( awk -v VALUE=$VALUE 'BEGIN{ printf("%i",VALUE/1000000000) }' )" ;;		# very correct ;-)
-		    *) OUT=$VALUE ;;
-	esac
-
-	test "$ARG3" = "dotted" && OUT="$( echo "$OUT" | sed -e :a -e 's/^\(.*[0-9]\)\([0-9]\{3\}\)/\1\.\2/;ta' )"
-
-	if [ "$ARG4" = "pre" ]; then
-		OUT="<tt>$OUT</tt>"
-		
-		if [ "$ARG3" = "dotted" ]; then							# dotted and preformatted text?
-		
-			OUT="$( echo $OUT | sed 's/\./<\/tt><small>\.<\/small><tt>/g' )"	# looks nicer 8-)
-		fi
-	fi
-
-	echo $OUT
 }
 
 fkt_proto2id () {

@@ -29,3 +29,56 @@ _math_divide10 ()	# SENS: sets point in front of last digit 976 = 97.6
 
 	echo -n $VALUE | sed -n 's/^\(.*\)\([0-9]\)$/\1\.\2/p'	# 976 = 97.6 , ash can't calc with floats
 }
+
+_math_byte2unit ()		# SENS: humanreadable but not correct bytes -> k|m|g-Bytes conversion
+{				#       ash can't calc with floats, so we use sed to 'calc' (not AWK!)
+	local VALUE="$1"
+	local UNIT="$2"			# can be kb, mb, gb, bytes
+	local ARG3="$3"			# can be "dotted" - so we convert 123456789 = 123.456.789	
+	local ARG4="$4"			# can be "pre" - so we enclose the number in html-<tt>'s
+	local OUT
+
+	case $UNIT in
+		kb|KB)
+			case ${#VALUE} in
+				0|1|2) OUT="0" ;;
+				    3) OUT="1" ;;
+				    *) OUT="$( echo $VALUE | sed -n 's/^\(.*\).../\1/p' )" ;;			# cut off last 3 digits
+			esac
+		;;
+		mb|MB)
+			case ${#VALUE} in
+				0|1|2|3|4|5) OUT="0" ;;
+					  6) OUT="1" ;;
+					  *) OUT="$( echo $VALUE | sed -n 's/^\(.*\)....../\1/p' )" ;;   	# cut off last 6 digits
+			esac
+		;;
+		gb|GB)
+			case ${#VALUE} in
+				0|1|2|3|4|5|6|7|8) OUT="0" ;;
+						9) OUT="1" ;;
+						*) OUT="$( echo $VALUE | sed -n 's/^\(.*\)........./\1/p' )" ;;	# cut off last 9 digits
+			esac
+		;;
+		*)
+			OUT=$VALUE
+		;;
+	esac
+
+	[ -n "$ARG3" ] && {
+		[ "$ARG3" = "dotted" ] && {
+			OUT="$( echo "$OUT" | sed -e :a -e 's/^\(.*[0-9]\)\([0-9]\{3\}\)/\1\.\2/;ta' )"
+		}
+
+		[ "$ARG4" = "pre" ] && {
+			OUT="<tt>$OUT</tt>"
+		
+			if [ "$ARG3" = "dotted" ]; then							# dotted and preformatted text?
+		
+				OUT="$( echo $OUT | sed 's/\./<\/tt><small>\.<\/small><tt>/g' )"	# looks nicer 8-)
+			fi
+		}
+	}
+
+	echo -n $OUT
+}
