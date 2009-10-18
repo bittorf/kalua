@@ -394,7 +394,7 @@ fkt_get_media_from_mac ()					# SENS: ...
 	  	OUT=wifi
 	elif [ -n "$( nvram get fff_ethers_wifi | grep -i $MAC )" ]; then
 		OUT=wifi
-	elif [ -n "$( grep "^$(fkt_escape $(fkt_get_ip_from_mac $MAC) );" /tmp/CLIENTS_WIFI )" ]; then
+	elif grep -q ^"$( _sanitizer do "$( fkt_get_ip_from_mac $MAC)" esacpe_dots );" /tmp/CLIENTS_WIFI )"  then
 		OUT=wifi
 	else
 		OUT=wire		# fixme! this can also be guessed!
@@ -1117,10 +1117,6 @@ fkt_olsr_whitelist_fetch () {
 	rm -f $OLSR_WL_FRESH
 }
 
-fkt_escape () {
-	echo -n $1 | sed 's/\./\\\./g'
-}
-
 fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-restart (!)
 {
 	local FUNC="olsr_whitelist_update"
@@ -1135,11 +1131,11 @@ fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-
 	
 	_log do pfilter daemon info "(fkt_olsr_whitelist_update) inserting new rules (needs up to $ESTIMATED seconds)"
 
-	while read LINE; do							# each line is: "nodenumber,mac" - mac can be empty
+	while read LINE; do {							# each line is: "nodenumber,mac" - mac can be empty
 		
 		IP="$( _ipsystem ${LINE%,*} | sed -n 's/^WIFIADR=\(.*\)/\1/p' )"
 		
-		if [ -z "$( iptables -nL $OLSR_WL_CHAIN | grep $( fkt_escape $IP ) )" ]; then	# IP not in list yet?
+		iptables -nL $OLSR_WL_CHAIN | grep -q "$( _sanitizer do "$IP" esacpe_dots )" || {	# IP not in list yet?
 			MAC="${LINE#*,}"
 		
 			MACFILTER=""		
@@ -1147,9 +1143,9 @@ fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-
 				
 			let N+=1
 			iptables -A $OLSR_WL_CHAIN -s $IP $MACFILTER -j olsr_in_wifi_valid
-		fi
+		}
 
-	done <$OLSR_WL_READY
+	} done <$OLSR_WL_READY
 
 	iptables -D $OLSR_WL_CHAIN -j ACCEPT 2>/dev/null			       # deleting accept. of all packets, activating whitelist
 	
