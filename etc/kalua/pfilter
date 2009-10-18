@@ -160,42 +160,6 @@ func_packetfilter_portforwarding_serialize_config_entry ()
 	# local RULE_PORT_DEST=80
 }
 
-fkt_insmod ()
-{
-	local KMOD="$1"
-	local MEM_BEFORE="$( _system ram_free )"
-	local MEM_AFTER=0
-	local MEM_DIFF=0
-	local FUNC="insmod"
-
-	if lsmod | grep -q ^$KMOD ; then
-
-		_log do $FUNC daemon debug "kernel-module '${KMOD}' already loaded"
-	else
-		_log do $FUNC daemon info "loading kernel-module '${KMOD}'"
-		
-		if insmod $KMOD ; then
-			MEM_AFTER="$( _system ram_free )"
-			MEM_DIFF=$(( $MEM_BEFORE - $MEM_AFTER ))
-			[ $MEM_DIFF -gt 0 ] && MEM_DIFF="+$MEM_DIFF"
-	
-			_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes"
-		else
-			_log do $FUNC daemon alert "[ERR] failing to insert kernel-module '${KMOD}.o'"
-		
-			local FILE="$( find /lib/modules/ | grep ${KMOD}.o )"
-		
-			if [ -n "$FILE" ]; then
-				_log do $FUNC daemon info "but found '$FILE'"
-			else
-				_log do $FUNC daemon info "seems that ${KMOD}.o is not in filesystem"
-			fi
-		
-			return 1
-		fi
-	fi
-}
-
 func_get_all_user_macs_with_traffic_today ()
 {
 	local   MEDIA=""
@@ -394,7 +358,7 @@ fkt_get_media_from_mac ()					# SENS: ...
 	  	OUT=wifi
 	elif [ -n "$( nvram get fff_ethers_wifi | grep -i $MAC )" ]; then
 		OUT=wifi
-	elif grep -q ^"$( _sanitizer do "$( fkt_get_ip_from_mac $MAC)" esacpe_dots );" /tmp/CLIENTS_WIFI )"  then
+	elif grep -q ^"$( _sanitizer do "$( fkt_get_ip_from_mac $MAC)" esacpe_dots );" /tmp/CLIENTS_WIFI ; then
 		OUT=wifi
 	else
 		OUT=wire		# fixme! this can also be guessed!
@@ -1048,7 +1012,7 @@ _pfilter_kmodules_init ()	# fixme! alles durch _iptables () schleifen und erst b
 	LIST_SCHEDULER="$(	_list_add_prefix sch_		"$LIST_SCHEDULER"	)"
 	
 	for MODULE in ${LIST_MATCH} ${LIST_CONNTRACK} ${LIST_JUMP} ${LIST_SCHEDULER}; do {
-		fkt_insmod $MODULE
+		_system insmod $MODULE
 	} done
 }
 

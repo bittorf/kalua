@@ -211,3 +211,38 @@ _system_flash_mounted_readonly ()	# SENS: check if data-partition is mounted rea
 	
 	return 1
 }
+
+_system_insmod ()
+{
+	local KMOD="$1"
+	local OPTIONS="$2"
+
+	lsmod | grep -q ^$KMOD && return	# already loaded
+	
+	local MEM_BEFORE="$( _system ram_free )"
+	local MEM_AFTER=0
+	local MEM_DIFF=0
+	local FUNC="system_insmod"
+
+	_log do $FUNC daemon info "loading kernel-module '$KMOD' with options '$OPTIONS'"
+		
+	if insmod "$KMOD" "$OPTIONS" ; then
+		MEM_AFTER="$( _system ram_free )"
+		MEM_DIFF=$(( $MEM_BEFORE - $MEM_AFTER ))
+		[ $MEM_DIFF -gt 0 ] && MEM_DIFF="+$MEM_DIFF"
+	
+		_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes"
+	else
+		_log do $FUNC daemon alert "[ERR] failing to insert kernel-module '${KMOD}.o'"
+		
+		local FILE="$( find /lib/modules/ | grep ${KMOD}.o )"
+		
+		if [ -n "$FILE" ]; then
+			_log do $FUNC daemon info "but found '$FILE'"
+		else
+			_log do $FUNC daemon info "seems that ${KMOD}.o is not in filesystem"
+		fi
+		
+		return 1
+	fi
+}
