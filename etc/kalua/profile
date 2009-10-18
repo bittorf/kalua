@@ -86,48 +86,6 @@ func_profile_get ()	# OUT1: string
 	return 0
 }
 
-func_cidr_to_netmask ()		# OUT1: string		# fixme! rename to func_net_cidr2netmask()
-{
-	local o=0
-	
-	case $1 in
-		31) o=255.255.255.254 ;;
-		30) o=255.255.255.252 ;;
-		29) o=255.255.255.248 ;;
-		28) o=255.255.255.240 ;;
-		27) o=255.255.255.224 ;;
-		26) o=255.255.255.192 ;;
-		25) o=255.255.255.128 ;;
-		24) o=255.255.255.0 ;;
-		23) o=255.255.254.0 ;;
-		22) o=255.255.252.0 ;;
-		21) o=255.255.248.0 ;;
-		20) o=255.255.240.0 ;;
-		19) o=255.255.224.0 ;;
-		18) o=255.255.192.0 ;;
-		17) o=255.255.128.0 ;;
-		16) o=255.255.0.0 ;;
-		15) o=255.254.0.0 ;;
-		14) o=255.252.0.0 ;;
-		13) o=255.248.0.0 ;;
-		12) o=255.240.0.0 ;;
-		11) o=255.224.0.0 ;;
-		10) o=255.192.0.0 ;;
-		 9) o=255.128.0.0 ;;
-		 8) o=255.0.0.0 ;;
-		 7) o=254.0.0.0 ;;
-		 6) o=252.0.0.0 ;;
-		 5) o=248.0.0.0 ;;
-		 4) o=240.0.0.0 ;;
-		 3) o=224.0.0.0 ;;
-		 2) o=192.0.0.0 ;;
-		 1) o=128.0.0.0 ;;
-		 *) o=255.255.255.255 ;;
-	esac
-	
-	echo -n $o
-}
-
 func_profile_set_config ()
 {
 	unset BSSID	# /etc/variables_fff+
@@ -521,12 +479,12 @@ func_profile_set_wifi ()	# OK
 	[ -n "$IP" ] && {
 		_nvram set wifi_proto	"static"
 		_nvram set wifi_ipaddr	"${IP%/*}"
-		_nvram set wifi_netmask "$( func_cidr_to_netmask ${IP#*/} )"	# 8 -> 255.0.0.0
+		_nvram set wifi_netmask "$( _net cidr2mask ${IP#*/} )"	# 8 -> 255.0.0.0
 	}
 
 	[ -n "$DHCP" ] && {
 		# DHCP="STARTIP/PRE,NUM,LEASETIME" -> DHCP="${WIFI_IP_1ST}/${WIFI_PRE},${WIFI_MASK}"
-		_nvram set ff_wldhcp "$(echo $DHCP|sed -n 's/^\(.*\),.*,.*/\1/p'),$( func_cidr_to_netmask $(echo $DHCP|sed -n 's/^.*\/\(.*\),.*,.*/\1/p'))"
+		_nvram set ff_wldhcp "$(echo $DHCP|sed -n 's/^\(.*\),.*,.*/\1/p'),$( _net cidr2mask $(echo $DHCP|sed -n 's/^.*\/\(.*\),.*,.*/\1/p'))"
 	}
 
 	[ -n "$PROTO"	 ] && _nvram set wifi_proto 	"$PROTO"
@@ -689,7 +647,7 @@ func_profile_set_lan ()
 	[ -n "$IP" ] && {
 		_nvram set lan_proto	"static"
 		_nvram set lan_ipaddr	"${IP%/*}"
-		_nvram set lan_netmask	"$( func_cidr_to_netmask ${IP#*/} )"	# 27 -> 255.255.255.224
+		_nvram set lan_netmask	"$( _net cidr2mask ${IP#*/} )"	# 27 -> 255.255.255.224
 	}
 
 	[ -n "$DHCP" ] && {	# DHCP="STARTIP/PRE,NUM,LEASETIME"
@@ -712,7 +670,7 @@ func_profile_set_wan ()		# OK
 	[ -n "$IP" ] && {
 		_nvram set wan_proto	"static"
 		_nvram set wan_ipaddr	"${IP%/*}"				# 172.16.254.253
-		_nvram set wan_netmask	"$( func_cidr_to_netmask ${IP#*/} )"	# 255.255.255.252
+		_nvram set wan_netmask	"$( _net cidr2mask ${IP#*/} )"	# 255.255.255.252
 	}
 	
 	[ -n "$MTU"   ] && _nvram set wan_mtu		"$MTU"		# for pppoe
