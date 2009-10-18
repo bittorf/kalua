@@ -1,3 +1,10 @@
+_net_ip2hostname ()
+{
+	local HOST="$( nslookup $1 | sed -n 's/^Name: *\([A-Za-z0-9\._-]*\)/\1/p' )"                                                                                        
+        
+        echo -n "${HOST:-?}"
+}
+
 _net_ip2dns ()
 {
 	nslookup $1 | sed -n "s/^Name:[^a-zA-Z0-9]*\(.*\)/\1/p"
@@ -260,4 +267,52 @@ _net_mac2media ()
 	[ -n "$SHORT" ] && OUT="$( _net devtype2symbol $DEV )"
 
 	echo -n "$OUT"
+}
+
+_net_arp_permanent ()					# ARG1:ip ARG2:mac ARG3:wifi or wire
+{
+	local FUNC="net_arp_permanent"
+        local IP="$1"
+        local MAC="$( _sanitizer do "$2" lowercase )"
+        local FORCE="$3"						# fixme! use also IP to guess interface
+        
+        _log do $FUNC daemon info "IP: '$IP' MAC: '$MAC' FORCE: '$FORCE'"
+        
+	local LINE="$( ip neigh show to $IP )"
+	
+	echo $LINE | grep -q "nud permanent"
+		_log do $FUNC daemon info "already permanent - do nothing"
+		return
+	}
+
+	local DEV="$( _net mac2dev $MAC )"
+	local MODE="add"
+	
+	[ -n "$LINE" ] && {
+		_log do $FUNC daemon info "already found - MODE: 'change'"
+		MODE="change"
+	}
+
+ 	if [ -z "$DEV" ]; then
+		_log do $FUNC daemon info "not in neigh-list, probing"
+ 		  
+ 		  if [ "$FORCE" = "wifi" ]; then
+ 			
+ 			_log do $FUNC daemon info "enforced wifi"
+ 			DEV=$WIFIDEV
+ 		
+ 		elif [ "$( _net mac2media $MAC )" = "wire" ]; then
+ 		
+ 			_log do $FUNC daemon info "detected wire"
+ 			DEV=$LANDEV
+ 		else
+ 			_log do $FUNC daemon info "fallback to wifi"
+ 			DEV=$WIFIDEV
+ 		fi
+ 	else
+ 		_log do $FUNC daemon info "DEV from ip_neigh: '$DEV'"
+ 	fi
+ 
+	_log do $FUNC daemon info "ip neigh $MODE $IP dev $DEV lladdr $MAC nud permanent"
+	ip neigh $MODE $IP dev $PHYSDEV lladdr $MAC nud permanent
 }

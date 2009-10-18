@@ -56,7 +56,7 @@ func_activate_reserved_user_chain ()
 			iptables -t mangle -A traff_users -m mac --mac-source $MAC		-j traff_$MAC
 			iptables -t mangle -A traff_users -d $IP				-j traff_$MAC
 
-			fkt_make_arp_entry_permanent $IP $MAC
+			_net arp_permanent $IP $MAC
 			fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP		
 		
 			_log do $FUNC daemon info "successfully activated 'traff_$MAC'"
@@ -747,7 +747,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 	
 	_log do $FUNC daemon debug "$MAC / $IP (connlimit tcp/udp: $CONN_LIMIT_TCP/$CONN_LIMIT_UDP)"
 
-	[ -z "$ARP" ] && fkt_make_arp_entry_permanent $IP $MAC
+	[ -z "$ARP" ] && _net arp_permanent $IP $MAC
 
 	_log do $FUNC daemon debug "filling user chain - start"
 	
@@ -1008,67 +1008,6 @@ fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-
 	_log do pfilter daemon info "(fkt_olsr_whitelist_install) installed $N rules"
 }
 
-fkt_get_hostname_from_ip () {
-	HOST="$( nslookup $1 | sed -n 's/^Name: *\([A-Za-z0-9\._-]*\)/\1/p' )"
-	test -z "$HOST" && HOST="?"
-	
-	echo $HOST
-}
-
-fkt_make_arp_entry_permanent ()				# ARG1:ip ARG2:mac ARG3:wifi or wire
-{
-	local FUNC="make_arp_entry_permanent"
-        local IP="$1"
-        local MAC="$( _sanitizer do "$2" lowercase )"
-        local FORCE="$3"						# fixme! use also IP to guess interface
-        
-        _log do $FUNC daemon debug "IP: '$IP' MAC: '$MAC' PHY: '$FORCE'"
-        
-        local IP_ESCAPED="$( echo $IP | sed 's/\./\\\./g' )"
- 	local PHYSDEV="$( ip neigh | grep -i $MAC | cut -d" " -f3 | head -n1 )"		# fetch DEV from neigh-list
-	# ip neigh show 10.63.246.225 | sed -n "s/^[0-9\.]* dev \(.*\) lladdr .*/\1/p"
-	
-	local MODE="add"
-
-	ip neigh | grep "^$IP_ESCAPED " | grep -q "nud permanent" && {			# fixme! faster, only one call to 'ip'
-		_log do $FUNC daemon debug "already permanent - do nothing"
-		return
-	}
-	
-	ip neigh | grep -q "^$IP_ESCAPED " && {
-		_log do $FUNC daemon debug "already found - MODE: 'change'"
-		MODE="change"
-	}
-
- 	if [ -z "$PHYSDEV" ]; then
-
-		_log do $FUNC daemon debug "not in neigh-list, probing"
- 		  
- 		  if [ "$FORCE" = "wifi" ]; then
- 			
- 			_log do $FUNC daemon debug "enforced wifi"
- 			PHYSDEV=$WIFIDEV
- 		
- 		elif [ "$( _net mac2media $MAC )" = "wire" ]; then
- 		
- 			_log do $FUNC daemon debug "detected wire"
- 			PHYSDEV=$LANDEV
- 		else
- 			_log do $FUNC daemon debug "fallback to wifi"
- 			PHYSDEV=$WIFIDEV
- 		fi
- 	
- 		_log do $FUNC daemon debug "DEV from NV-RAM or forced: '$PHYSDEV'"
- 	else
- 		_log do $FUNC daemon debug "DEV from ip_neigh: '$PHYSDEV'"
- 	fi
- 
-	_log do $FUNC daemon debug "applying IP: '$IP' MAC: '$MAC' PHY: '$FORCE' PHYSDEV: '$PHYSDEV'"
-
-	_log do $FUNC daemon debug "ip neigh $MODE $IP dev $PHYSDEV lladdr $MAC nud permanent"
-        # ip neigh $MODE $IP dev $PHYSDEV lladdr $MAC nud permanent
-}
-
 fkt_olsr_whitelist_optimize () {
 	local  NO_NEIGH="/tmp/we_have_no_olsr_neighbour.txt"
 	touch $NO_NEIGH
@@ -1087,7 +1026,7 @@ fkt_olsr_whitelist_optimize () {
                 
                 IP="$8"
                 MAC="$11"                                                                                                                      
-                HOST="$( fkt_get_hostname_from_ip $IP )"
+                HOST="$( _net ip2hostname $IP )"
                 NODE="$( _ipsystem            $IP )"
 						                                                    
                 _log do pfilter daemon info "(fkt_olsr_whitelist_optimize) moveup: $IP node_$NODE $HOST ${1}_packets)"
@@ -1101,7 +1040,7 @@ fkt_olsr_whitelist_optimize () {
                         iptables -D $OLSR_WL_CHAIN                      -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
                         iptables -I $OLSR_WL_CHAIN --set-counters $1 $2 -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
                         
-                        fkt_make_arp_entry_permanent $IP $MAC wifi
+                        _net arp_permanent $IP $MAC wifi
                 fi                                 
         done      
 
