@@ -18,21 +18,34 @@ _net_dev2mac ()
 	ip -o link show $1 | sed -n 's/^.*ether \(..:..:..:..:..:..\) .*/\1/p;q'
 }
 
+_net_devtype2symbol ()
+{
+	case $1 in
+		tunnel) echo -n '=' ;;
+	 	  wifi) echo -n '~' ;;
+		     *) echo -n "-" ;;
+	esac
+}
+
 _net_dev_type ()		# OUT1: string, "wifi/tunnel/wire"
 {
 	local DEV="$1"
+	local OPTION="$2"	# short
+	local OUT
 	
-	_net dev_is_wifi $DEV && {
-		echo -n "wifi"
-		return
+	if   _net dev_is_wifi $DEV ; then
+		OUT="wifi"
+	elif _net dev_is_tuntap $DEV ; then
+		OUT="tunnel"
+	else
+		OUT="wire"
+	fi
+	
+	[ "$OPTION" = "short" ] && {
+		OUT="$( _net devtype2symbol )"
 	}
 	
-	_net dev_is_tuntap $DEV && {
-		echo -n "tunnel"
-		return
-	}
-	
-	echo -n "wire"		# fixme! is this always ethernet?
+	echo -n "$OUT"
 }
 
 _net_ip2metric ()
@@ -48,7 +61,7 @@ _net_dev_is_wifi ()
 
 _net_dev_is_tuntap ()
 {
-	local KEYWORD="$(echo $1 | sed -n 's/^\([a-z]*\)[0-9]*/\1/p' )"
+	local KEYWORD="$( echo $1 | sed -n 's/^\([a-z]*\)[0-9]*/\1/p' )"
 	
 	[ "$KEYWORD" = "tun" ] && return 0
 	[ "$KEYWORD" = "tap" ] && return 0
@@ -66,11 +79,6 @@ _net_iplocal2dev ()		# does it really make sense to have this func?
 	
 	# does not work for local IP's:
 	# ip -o route get $1 | cut -d' ' -f3
-}
-
-_net_params ()			# join with ipsystem() ?
-{
-	cat /tmp/NETPARAM	# maybe include?
 }
 
 _net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be one of "false wan lan pppoe"
@@ -124,8 +132,6 @@ _net_local_inet_offer ()		# SENS: check if default-route is local OUT1 can be on
 		}
 	fi
 
-	. /tmp/NETPARAM
-	
 	# only look for the first default-route
 	# some examples:
 	#
@@ -198,4 +204,60 @@ _net_inet_seems_stable ()			# fixme! also check path to gateway (add wireless co
 
 	. /tmp/gateway_check_recent 2>/dev/null && [ "$COST_INT" 2>/dev/null -gt 8000 ] && return 1
 	return 0
+}
+
+_net_mac2ip ()		# SENS: get IP from different sources		# ARP-cache   (macs are lowercase)
+{									# DHCP-leases (macs are lowercase)
+	local MAC="$( _sanitizer do "$1" lowercase )"			# /etc/ethers (macs are lowercase)
+	local IP							# not used: /proc/net/arp (macs are uppercase)
+
+	IP="$( ip neigh show | sed -n "s/^\(.*\) dev .* lladdr ${MAC} nud.*/\1/p" )"
+
+	[ -z "$IP" ] && {
+		IP="$( sed -e "/$MAC/!d" -ne 's/^.* ..:..:..:..:..:.. \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' /var/run/dhcp.leases )"
+
+		[ -z "$IP" ] && {
+			local HOSTNAME="$( sed -n "s/^$MAC \(.*\)/\1/p" /etc/ethers )"
+			[ -n "$HOSTNAME" ] && {
+				IP="$( sed -n "/$HOSTNAME/s/^\([0-9\.]*\) ${HOSTNAME}.*/\1/p" /etc/local.hosts )"
+			}
+		}
+	}
+
+	echo -n $IP
+}
+
+_net_mac2hostname ()
+{
+	local MAC="$1"                                                                                                                                                
+	local NAME="$( grep -i $MAC /etc/ethers | sed -n 's/^..:..:..:..:..:.. \(.*\)-.*-.*\..*$/\1/p' )"	# cutting off e.g. "-lan1-n364.domain"
+	echo ${NAME:=anonym}                                                                                                                                          
+}
+
+_net_mac2dev ()
+{
+	ip neigh | sed -n "/$1/{s/^.* dev \(.*\) lladdr .*/\1/p;q}"
+}
+
+_net_mac2media ()
+{
+	local     MAC="$1"					# ARG1: (string) mac-address
+	local   SHORT="$2"					# ARG2: (string) keyword "short" (optional)
+	local     OUT=0						# OUT1: (string) wifi,wire OR ~,-
+
+	local DEV="$( _net mac2dev $MAC )"
+	
+	  if [ "$DEV" = "$WIFIDEV" ]; then
+	  	OUT=wifi
+	elif nvram get fff_ethers_wifi | grep -qi $MAC ; then
+		OUT=wifi
+	elif grep -q ^"$( _sanitizer do "$( _net mac2ip $MAC )" escape_dots );" /tmp/CLIENTS_WIFI 2>/dev/null ; then
+		OUT=wifi
+	else
+		OUT=wire		# fixme! this can also be guessed!
+	fi
+
+	[ -n "$SHORT" ] && OUT="$( _net devtype2symbol $DEV )"
+
+	echo -n "$OUT"
 }

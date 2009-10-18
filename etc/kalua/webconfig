@@ -182,7 +182,7 @@ func_check_if_mac_is_from_wan_or_olsr_neighbour ()	# fixme! do we really need to
 	
 	[ "$OUT" = "false" ] && {
 		
-		IP_FROM_MAC_ESCAPED="$( fkt_get_ip_from_mac $MAC | sed 's/\./\\\./g' )"
+		IP_FROM_MAC_ESCAPED="$( _net mac2ip $MAC | sed 's/\./\\\./g' )"
 	
 		wget -O - http://127.0.0.1:2006/neighbours |
 		 grep "0\.00" |
@@ -224,18 +224,18 @@ fkt_print_html_known_user_list ()
 
 		test "$(func_check_if_mac_is_from_wan_or_olsr_neighbour $MAC)" = "true" && continue		# jump to next entry
 
-		IP="$( fkt_get_ip_from_mac $MAC )"
+		IP="$( _net mac2ip $MAC )"
 		test -z "$IP" && IP="unbekannt"					# how to handle one MAC with 2 IP's?
 
 		logger "fff+ (fkt_print_html_known_user_list) $MAC = $IP"
 
-		if [ "$( fkt_get_media_from_mac $MAC )" = "wire" ]; then
+		if [ "$( _net mac2media $MAC )" = "wire" ]; then
 			MODE="Kabel"
 		else
 			MODE="Funk"
 		fi
 		
-		NAME="<input type=text name=\"USER_NAME_ADD\" value=\"$( fkt_get_name_for_mac $MAC )\" size=15>"
+		NAME="<input type=text name=\"USER_NAME_ADD\" value=\"$( _net mac2hostname $MAC )\" size=15>"
 		
 		if  grep -q -i $MAC /etc/ethers ; then						# mac is not in list yet
 			REG="<img src=\"../images/yes.gif\" alt=\"yes\">"			
@@ -350,7 +350,7 @@ fkt_formular_gui_user_ready_print_html () {
 			
 		local NAME_SANITIZED="$( echo $USER_NAME_ADD | sed 's/[^a-zA-Z0-9-]//g' )"	# only allowing chars and numbers
 		local DIVIDER=";"
-		local PHYMEDIA="$( fkt_get_media_from_mac $USER_MAC_ADD )"
+		local PHYMEDIA="$( _net mac2media $USER_MAC_ADD )"
 		test "$PHYMEDIA" = "wire" && PHYMEDIA="lan"					# fixme! this is not elegant!
 		test -z "$( nvram get fff_ethers_$PHYMEDIA )" && DIVIDER=""			# more than one entry? then insert an ";"
 		
@@ -358,7 +358,7 @@ fkt_formular_gui_user_ready_print_html () {
 		
 			echo "Benutzer ist schon registriert."
 		else
-			/etc/local.fw-fff+ adduser $USER_MAC_ADD $(fkt_get_ip_from_mac $USER_MAC_ADD)
+			/etc/local.fw-fff+ adduser $USER_MAC_ADD $(_net mac2ip $USER_MAC_ADD)
 	
 			echo "Benutzer wurde registriert und gilt nun als freigeschaltet."
 			echo $PLEASE_REBOOT
@@ -372,7 +372,7 @@ fkt_formular_gui_user_ready_print_html () {
 	elif [ -n "$USER_MAC_CHANGE" ]; then
 		func_need pfilter
 			
-		local PHYMEDIA="$( fkt_get_media_from_mac $USER_MAC_CHANGE )"
+		local PHYMEDIA="$( _net mac2media $USER_MAC_CHANGE )"
 		test "$PHYMEDIA" = "wire" && PHYMEDIA="lan"
 		local ENTRY=""
 		local OUTLIST=""
@@ -408,7 +408,7 @@ fkt_formular_gui_user_ready_print_html () {
 	elif [ -n "$USER_MAC_FORGET" ]; then
 		func_need pfilter
 		
-		local PHYMEDIA="$( fkt_get_media_from_mac $USER_MAC_FORGET )"
+		local PHYMEDIA="$( _net mac2media $USER_MAC_FORGET )"
 		test "$PHYMEDIA" = "wire" && PHYMEDIA="lan"
 		local ENTRY=""
 		local OUTLIST=""

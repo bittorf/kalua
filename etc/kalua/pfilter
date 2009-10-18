@@ -175,7 +175,7 @@ func_get_all_user_macs_with_traffic_today ()
 			TRAFFIC="$( _math bytes2unit $TRAFFIC mb )"
 		
 			  MAC="$( echo $MAC | sed 's/://g' )"
-			MEDIA="$( fkt_get_media_from_mac $MAC short )"
+			MEDIA="$( _net mac2media $MAC short )"
 				
 			echo -en "${MEDIA}${MAC}:${TRAFFIC}"
 		}
@@ -278,7 +278,7 @@ fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac ()
 	
 	local OUT=0								# traffic variables are known from /etc/variables_fff+
 	local WIFI_MODE="$( _wifi mode )"
-	local MEDIA="$( fkt_get_media_from_mac $MAC )"
+	local MEDIA="$( _net mac2media $MAC )"
 	
 	fkt_list_locally_registered_users | grep -q -i $MAC
 										# now we make differences for anonym or locally registered
@@ -346,68 +346,6 @@ fkt_free_all_users_which_dont_want_splash ()
 	done
 }
 
-fkt_get_media_from_mac ()					# SENS: ...
-{
-	local     MAC="$1"					# ARG1: (string) mac-address
-	local   SHORT="$2"					# ARG2: (string) keyword "short" (optional)
-	local     OUT=0						# OUT1: (string) wifi,wire OR ~,-
-	
-	local PHYSDEV="$( ip neigh | grep -v "^127\.0\.0\.1" | grep -i $MAC | cut -d" " -f3 )"	# from local ARP-cache
-												# in ARP-cache OR locally registered/blocked user
-	  if [ "$PHYSDEV" = "$WIFIDEV" ]; then
-	  	OUT=wifi
-	elif [ -n "$( nvram get fff_ethers_wifi | grep -i $MAC )" ]; then
-		OUT=wifi
-	elif grep -q ^"$( _sanitizer do "$( fkt_get_ip_from_mac $MAC)" esacpe_dots );" /tmp/CLIENTS_WIFI ; then
-		OUT=wifi
-	else
-		OUT=wire		# fixme! this can also be guessed!
-	fi
-
-	[ -n "$SHORT" ] && {
-		[ "$OUT" = "wifi" ] && {
-			echo "~"
-			return
-		}
-		echo "-"
-		return
-	}
-
-	echo "$OUT"
-}
-
-fkt_get_name_for_mac ()
-{
-	local MAC="$1"
-	local NAME="$( grep -i $MAC /etc/ethers | sed -n 's/^..:..:..:..:..:.. \(.*\)-.*-.*\..*$/\1/p' )"	# cutting off e.g. "-lan1-n364.domain"
-	
-	echo ${NAME:=anonym}
-}
-
-fkt_get_ip_from_mac ()		# arpcache -> dhcp-leases -> /etc/hosts 
-{
-	local MAC="$( _sanitizer do "$1" lowercase )"
-
-	[ -z "$MAC" ] && return 1
-
-	local  IP="$( ip neigh | grep -v "^127\.0\.0\.1" | grep $MAC | cut -d" " -f1 )"		# try ARP-cache
-
-	[ -z "$IP" ] && {									# try DHCP-lease-file
-	
-		IP="$( sed -e "/$MAC/!d" -ne 's/^.* ..:..:..:..:..:.. \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' /var/run/dhcp.leases )"
-	}
-
-	[ -z "$IP" ] && {
-		local HOSTNAME="$( sed -n "s/^$MAC \(.*\)/\1/p" /etc/ethers )"
-		
-		[ -n "$HOSTNAME" ] && {
-			IP="$( sed -n "/$HOSTNAME/s/^\([0-9\.]*\) ${HOSTNAME}.*/\1/p" /etc/local.hosts )"
-		}
-	}
-
-	echo "$IP"
-}
-
 fkt_kick_all_nonfree_users () {
 	local FUNC="kick_all_nonfree_users"
 	local LIST="$( fkt_list_user_macs )"
@@ -418,7 +356,7 @@ fkt_kick_all_nonfree_users () {
 			
 			[ "$( fkt_check_if_mac_is_free $MAC )" = "false" ] && {
 				_log do $FUNC daemon debug "kicking '$MAC'"
-				fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( fkt_get_ip_from_mac $MAC )"
+				fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( _net mac2ip $MAC )"
 			}
 		}
 	} done
@@ -447,7 +385,7 @@ fkt_kick_all_users_which_are_over_limit ()
 						LIMIT="$( fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac $MAC )"
 						LIMIT="$( _sanitizer do "$LIMIT" number_humanreadable )"
 						_log do $FUNC user info " -'$MAC' (traffic: ${PERCENT}% ~${LIMIT} bytes)"
-						fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( fkt_get_ip_from_mac $MAC )"
+						fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( _net mac2ip $MAC )"
 					}
 				}
 			}
@@ -519,8 +457,8 @@ fkt_show_user_traff () {					# if ARG2 = spread, then data goes out to $GW and $
 			local TRAFF_TODAY="$(  fkt_get_traffic_for_mac $MAC today  )"
 			local TRAFF_ALL="$(    fkt_get_traffic_for_mac $MAC all    )"
 			
-			local MEDIA="$(        fkt_get_media_from_mac         $MAC )"
-			local NAME="$(         fkt_get_name_for_mac           $MAC )"
+			local MEDIA="$(        _net mac2media         $MAC )"
+			local NAME="$(         _net mac2hostname           $MAC )"
 			local NODE="local"
 			local REG=0
 	
@@ -1111,7 +1049,7 @@ fkt_make_arp_entry_permanent ()				# ARG1:ip ARG2:mac ARG3:wifi or wire
  			_log do $FUNC daemon debug "enforced wifi"
  			PHYSDEV=$WIFIDEV
  		
- 		elif [ "$( fkt_get_media_from_mac $MAC )" = "wire" ]; then
+ 		elif [ "$( _net mac2media $MAC )" = "wire" ]; then
  		
  			_log do $FUNC daemon debug "detected wire"
  			PHYSDEV=$LANDEV
