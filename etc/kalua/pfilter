@@ -1,24 +1,24 @@
 # tc qdisc add dev eth0 root handle 1: cbq avpkt 1000 bandwidth [HN]
 # tc qdisc show
 
-func_pfilter_user_unsplash ()
+_pfilter_user_splash_remove ()
 {
 	local MAC="$1"
 	local IP="$2"
 
 	[ -z "$MAC" -o -z "$IP" ] && return 1
 								# user is known, but splashed
-	fkt_list_user_macs | grep -q -i $MAC && {
-		fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP >/dev/null
+	_pfilter user_list | grep -q -i $MAC && {
+		_pfilter user_splash_control nosplash $MAC $IP >/dev/null
 		return
 	}
 
-	func_activate_reserved_user_chain $MAC $IP || {		# user is new and splashed
-		fkt_add_user_with_mac_and_ip $MAC $IP
+	_pfilter user_ruleset_activate $MAC $IP || {		# user is new and splashed
+		_pfilter user_add $MAC $IP
 	}
 }
 
-func_reject_traffic_from_nonlocal_hosts_to_local_webserver ()
+_pfilter_rules_webserver_deny_incoming_nonlocal ()
 {
 	local FUNC="reject_traffic_from_nonlocal_hosts_to_local_webserver"
 	local MYHNA="$( _config get net olsr hna4 )"
@@ -31,7 +31,7 @@ func_reject_traffic_from_nonlocal_hosts_to_local_webserver ()
 	iptables -I INPUT -p tcp -s ! $MYHNA --dport 443 -j REJECT
 }
 
-func_activate_reserved_user_chain ()
+_pfilter_user_ruleset_activate ()
 {
 	local FUNC="activate_reserved_user_chain"
 	local MAC_RESERVE
@@ -49,15 +49,15 @@ func_activate_reserved_user_chain ()
 			iptables -t mangle -D traff_users -d 99.99.99.99			-j traff_$MAC
 
 			iptables -t mangle -D traff_$MAC 12
-			iptables -t mangle -I traff_$MAC 12 -m mark --mark $( fkt_proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}>"	# inside2outside
+			iptables -t mangle -I traff_$MAC 12 -m mark --mark $( _pfilter proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}>"	# inside2outside
 			iptables -t mangle -D traff_$MAC 19
-			iptables -t mangle -I traff_$MAC 19 -m mark --mark $( fkt_proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
+			iptables -t mangle -I traff_$MAC 19 -m mark --mark $( _pfilter proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
 
 			iptables -t mangle -A traff_users -m mac --mac-source $MAC		-j traff_$MAC
 			iptables -t mangle -A traff_users -d $IP				-j traff_$MAC
 
 			_net arp_permanent $IP $MAC
-			fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP		
+			_pfilter user_splash_control nosplash $MAC $IP		
 		
 			_log do $FUNC daemon info "successfully activated 'traff_$MAC'"
 
@@ -77,7 +77,7 @@ func_activate_reserved_user_chain ()
 	return 1
 }
 
-func_packetfilter_count_rules ()
+_pfilter_stats_rules_count ()
 {
 	local LIST="${1:-mangle filter nat}"
 	local TABLE
@@ -89,7 +89,7 @@ func_packetfilter_count_rules ()
 	} done
 }
 
-func_packetfilter_install_portforwarding ()			# fixme! howto redirect to myself?
+_pfilter_rules_portfw_install ()			# fixme! howto redirect to myself?
 {
 	local FUNC="packetfilter_install_portforwarding"
 	local ENTRY
@@ -98,7 +98,7 @@ func_packetfilter_install_portforwarding ()			# fixme! howto redirect to myself?
 
 	for ENTRY in $PORTFORWARDING; do {
 	
-		eval $( func_packetfilter_portforwarding_serialize_config_entry $ENTRY )
+		eval $( _pfilter rules_portfw_config_serialize $ENTRY )
 		
 		[ $RULE_ACTIVE = "on" ] && {
 		
@@ -126,7 +126,7 @@ func_packetfilter_install_portforwarding ()			# fixme! howto redirect to myself?
 	} done
 }
 
-func_packetfilter_dhcp_ignore_specific_macs ()		# nvram set fff_dhcp_ignore="MAC MAC MAC"
+_pfilter_rules_dhcp_ignore_specific_macs ()		# nvram set fff_dhcp_ignore="MAC MAC MAC"
 {
 	local FUNC="packetfilter_dhcp_ignore_specific_macs"
 	local MAC
@@ -138,7 +138,7 @@ func_packetfilter_dhcp_ignore_specific_macs ()		# nvram set fff_dhcp_ignore="MAC
 	} done
 }
 
-func_packetfilter_portforwarding_serialize_config_entry ()
+_pfilter_rules_portfw_config_serialize ()
 {
 	# like in DD-WRT (but with incoming interface!)
 
@@ -160,15 +160,15 @@ func_packetfilter_portforwarding_serialize_config_entry ()
 	# local RULE_PORT_DEST=80
 }
 
-func_get_all_user_macs_with_traffic_today ()
+_pfilter_stats_user_traffic_list_today ()
 {
 	local   MEDIA=""
 	local TRAFFIC=0	
-	local MACLIST="$( fkt_list_user_macs )"
+	local MACLIST="$( _pfilter user_list )"
 
 	for MAC in $MACLIST; do {
 	
-		TRAFFIC="$( fkt_get_traffic_for_mac $MAC today )"
+		TRAFFIC="$( _pfilter stats_user_traffic $MAC today )"
 	
 		[ "$TRAFFIC" != "0" ] && {
 		
@@ -182,7 +182,7 @@ func_get_all_user_macs_with_traffic_today ()
 	} done
 }
 
-fkt_nat_for_roaming_wifi_clients ()
+_pfilter_rules_nat_wifi_roaming ()
 {
 	_log do pfilter daemon info "(fkt_nat_for_roaming_wifi_clients) Installing masquerading"
 
@@ -191,7 +191,7 @@ fkt_nat_for_roaming_wifi_clients ()
 	iptables -t nat -A POSTROUTING -o $WIFIDEV -s $ROAMING_IP4/$ROAMING_PRE -j MASQUERADE	# or SNAT?
 }
 
-fkt_check_if_user_with_mac_is_locally_blacklisted ()
+_pfilter_user_probe_local_blacklist ()
 {
 	local MAC="$1"
 
@@ -204,7 +204,7 @@ fkt_check_if_user_with_mac_is_locally_blacklisted ()
 	fi
 }
 
-fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over lan-device for omitting "black hole"
+_pfilter_rules_nat_inetoffer_lan ()	# SENS: masquerades traffic over lan-device for omitting "black hole"
 {						#       and fetches IP from local DHCP-server, if gateway-IP is not from local IP-range
 	local FUNC="masq_internet_traffic_over_lan_device"
 	_log do pfilter daemon info "($FUNC) working"
@@ -267,7 +267,7 @@ fkt_masq_internet_traffic_over_lan_device ()	# SENS: masquerades traffic over la
 	_log do pfilter daemon info "($FUNC) done"
 }
 
-fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac ()
+_pfilter_user_traffic_limit ()
 {
 	local MAC="$1"
 	
@@ -280,7 +280,7 @@ fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac ()
 	local WIFI_MODE="$( _wifi mode )"
 	local MEDIA="$( _net mac2media $MAC )"
 	
-	fkt_list_locally_registered_users | grep -q -i $MAC
+	_pfilter user_list_local_registered | grep -q -i $MAC
 										# now we make differences for anonym or locally registered
 										# and wire / wireless / wireless_in_non-mesh-disturbing ap-mode (other channel!)
 										
@@ -302,33 +302,33 @@ fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac ()
 	echo "${OUT:-2500}000000"						# convert MBytes in Bytes 8-)
 }
 
-fkt_get_used_traffic_limit_from_user_with_mac_in_percent ()		# ARG1: mac-address
+_pfilter_stats_user_traffic_used_percent ()		# ARG1: mac-address
 {									# OUT1: integer - can be higher then 100% (!)
 	local MAC="$1"
 	local STEP1
 	local STEP2
 	local STEP3
 	
-	fkt_list_user_macs | grep -q -i $MAC || {
+	_pfilter user_list | grep -q -i $MAC || {
 		echo "0"
 		return
 	}
 
-	STEP1="$( fkt_get_traffic_for_mac $MAC today )"					# hint: traffic_today * 100 / traffic_limit
-	STEP2="$( fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac $MAC )"	#       is the same like:
+	STEP1="$( _pfilter stats_user_traffic $MAC today )"					# hint: traffic_today * 100 / traffic_limit
+	STEP2="$( _pfilter user_traffic_limit $MAC )"	#       is the same like:
 	STEP3="$( _math divide100 $STEP2 )"						#       traffic_today / (traffic_limit/100)
 
 	echo $(( $STEP1 / $STEP3 ))							#       doing it this way we avoid big numbers during bash-calculation
 }
 
-fkt_free_all_users_which_dont_want_splash ()
+_pfilter_user_splash_remove_autounsplashed ()
 {
 	local ENTRY=""
 	local MAC=""
 	local IP=""
 	local LIST="$( grep "^..:..:..:..:..:.. free-" /etc/ethers ; grep "^..:..:..:..:..:.. admin-" /etc/ethers)"
 
-	_log do pfilter daemon info "(fkt_free_all_users_which_dont_want_splash) checking"
+	_log do pfilter daemon info "(_pfilter user_splash_remove_autounsplashed) checking"
 
 	for ENTRY in $LIST; do						# MAC NAME MAC NAME ...
 		echo $ENTRY | grep -q "..:..:..:..:..:.."
@@ -339,53 +339,53 @@ fkt_free_all_users_which_dont_want_splash ()
 			NAME=$ENTRY
 			IP="$( grep $NAME /etc/local.hosts | cut -d" " -f1 )"
 
-			_log do pfilter daemon info "(fkt_free_all_users_which_dont_want_splash) adding \"$NAME\""
+			_log do pfilter daemon info "(_pfilter user_splash_remove_autounsplashed) adding \"$NAME\""
 
-			fkt_add_user_with_mac_and_ip $MAC $IP
+			_pfilter user_add $MAC $IP
 		fi
 	done
 }
 
-fkt_kick_all_nonfree_users () {
+_pfilter_user_splash_add_for_nonautounsplashed () {
 	local FUNC="kick_all_nonfree_users"
-	local LIST="$( fkt_list_user_macs )"
+	local LIST="$( _pfilter user_list )"
 
 	for MAC in $LIST; do {
 		
-		[ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "false" ] && {
+		[ "$( _pfilter user_probe_splash $MAC )" = "false" ] && {
 			
-			[ "$( fkt_check_if_mac_is_free $MAC )" = "false" ] && {
+			[ "$( _pfilter user_probe_autounsplashed $MAC )" = "false" ] && {
 				_log do $FUNC daemon debug "kicking '$MAC'"
-				fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( _net mac2ip $MAC )"
+				_pfilter user_splash_control splash $MAC "$( _net mac2ip $MAC )"
 			}
 		}
 	} done
 }
 
-fkt_kick_all_users_which_are_over_limit ()
+_pfilter_user_kick_overlimit ()
 {
 	local FUNC="kick_all_users_which_are_over_limit"
-	local LIST="$( fkt_list_user_macs )"
+	local LIST="$( _pfilter user_list )"
 	local LIMIT
 	local PERCENT
 	local MAC
 
 	for MAC in $LIST; do {
 
-		[ "$( fkt_get_traffic_for_mac $MAC today )" != "0" ] && {	# very fast check
+		[ "$( _pfilter stats_user_traffic $MAC today )" != "0" ] && {	# very fast check
 		
-			[ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "false" ] && {
+			[ "$( _pfilter user_probe_splash $MAC )" = "false" ] && {
 		
-				[ "$( fkt_check_if_mac_is_admin $MAC )" = "false" ] && {
+				[ "$( _pfilter user_probe_admin $MAC )" = "false" ] && {
 		
-					PERCENT="$( fkt_get_used_traffic_limit_from_user_with_mac_in_percent $MAC )"
+					PERCENT="$( _pfilter stats_user_traffic_used_percent $MAC )"
 					_log do $FUNC user debug "'$MAC'-traffic is ${PERCENT}%"
 				
 					[ $PERCENT -gt 100 ] && {
-						LIMIT="$( fkt_get_daily_traffic_limit_in_bytes_from_user_with_mac $MAC )"
+						LIMIT="$( _pfilter user_traffic_limit $MAC )"
 						LIMIT="$( _sanitizer do "$LIMIT" number_humanreadable )"
 						_log do $FUNC user info " -'$MAC' (traffic: ${PERCENT}% ~${LIMIT} bytes)"
-						fkt_control_redirect_for_user_with_mac_and_ip splash $MAC "$( _net mac2ip $MAC )"
+						_pfilter user_splash_control splash $MAC "$( _net mac2ip $MAC )"
 					}
 				}
 			}
@@ -393,17 +393,17 @@ fkt_kick_all_users_which_are_over_limit ()
 	} done
 }
 
-fkt_reset_all_daily_user_counters () {
+_pfilter_user_traffic_reset () {
 	local FUNC="reset_all_daily_user_counters"
-	local LIST="$( fkt_list_user_macs )"
+	local LIST="$( _pfilter user_list )"
 	local MAC
 	
 	for MAC in $LIST; do {
-		fkt_reset_traffic_counter_for_mac $MAC today	
+		_pfilter user_traffic_reset_single $MAC today	
 	} done
 }
 
-fkt_get_traffic_olsr_wifi_incoming () {
+_pfilter_stats_olsr_traffic_wifi_in () {
 	local PACK=""
 	local BYTES=""
 	local REST=""
@@ -411,7 +411,7 @@ fkt_get_traffic_olsr_wifi_incoming () {
 	iptables -nxvL olsr_in | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
-fkt_get_traffic_olsr_wifi_outgoing () {
+_pfilter_stats_olsr_traffic_wifi_out () {
 	local PACK=""
 	local BYTES=""
 	local REST=""
@@ -419,7 +419,7 @@ fkt_get_traffic_olsr_wifi_outgoing () {
 	iptables -nxvL olsr_out_wifi | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
-fkt_get_layer7_hit_ratio_in_percent () {
+_pfilter_stats_layer7_hits () {
 	local PACK=""
 	local BYTES=""
 	local REST=""
@@ -439,8 +439,8 @@ fkt_get_layer7_hit_ratio_in_percent () {
 	# _math divide10 "$(( $STEP1 / $STEP2 ))"
 }
 
-fkt_show_user_traff () {					# if ARG2 = spread, then data goes out to $GW and $NEXTHOP
-	local LIST="$( fkt_list_user_macs )"
+_pfilter_stats_user_cast () {					# if ARG2 = spread, then data goes out to $GW and $NEXTHOP
+	local LIST="$( _pfilter user_list )"
 
 	eval "$( tail -n 1 /tmp/ARCHIV_TRACEINET )"
 
@@ -450,12 +450,12 @@ fkt_show_user_traff () {					# if ARG2 = spread, then data goes out to $GW and $
 			local DATE="$(         date +%d%b%Y-%Huhr%M                )"
 			local TIME="$(         _system date unixtime                            )"
 			
-			local TRAFF_RECENT="$( fkt_get_traffic_for_mac $MAC recent )"
+			local TRAFF_RECENT="$( _pfilter stats_user_traffic $MAC recent )"
 			[ $TRAFF_RECENT -ne 0 ] && {
-				fkt_reset_traffic_counter_for_mac $MAC recent
+				_pfilter user_traffic_reset_single $MAC recent
 			}
-			local TRAFF_TODAY="$(  fkt_get_traffic_for_mac $MAC today  )"
-			local TRAFF_ALL="$(    fkt_get_traffic_for_mac $MAC all    )"
+			local TRAFF_TODAY="$(  _pfilter stats_user_traffic $MAC today  )"
+			local TRAFF_ALL="$(    _pfilter stats_user_traffic $MAC all    )"
 			
 			local MEDIA="$(        _net mac2media         $MAC )"
 			local NAME="$(         _net mac2hostname           $MAC )"
@@ -483,18 +483,18 @@ fkt_show_user_traff () {					# if ARG2 = spread, then data goes out to $GW and $
 	fi
 }
 
-func_pfilter_is_usermac ()
+_pfilter_user_probe ()
 {
 	iptables -t mangle -nL traff_${1:-unset} >/dev/null 2>/dev/null && return 0
 	return 1
 }
 
-fkt_list_user_macs ()					# SENS: list all MACs from logged in / shaped users
+_pfilter_user_list ()					# SENS: list all MACs from logged in / shaped users
 {
 	iptables -t mangle -nL traff_users 2>/dev/null | sed -n 's/^traff_\([0-8abcdef][0-8abcdef]:..:..:..:..:..\) .*MAC .*$/\1/p'	# must not begin with '99' (=reserved user)
 }
 
-fkt_list_blocked_macs () {
+_pfilter_user_list_blocked () {
 	IFS=";"
 	for MAC in $( nvram get fff_ethers_blocked ); do
 		echo "$MAC"
@@ -502,12 +502,12 @@ fkt_list_blocked_macs () {
 	unset IFS
 }
 
-func_list_macs_in_dhcp_leases ()
+_pfilter_user_list_dhcp_active ()
 {
 	sed -n 's/^.* \(..:..:..:..:..:..\) .*/\1/p' /var/run/dhcp.leases
 }
 
-fkt_list_locally_registered_users () {
+_pfilter_user_list_local_registered () {
 	IFS=";"
 	for MAC in $( nvram get fff_ethers_wifi ); do
 		echo "${MAC%=*}"
@@ -519,7 +519,7 @@ fkt_list_locally_registered_users () {
 	unset IFS
 }
 
-fkt_reset_traffic_counter_for_mac ()
+_pfilter_user_traffic_reset_single ()
 {
 	local FUNC="reset_traffic_counter_for_mac"
 	local RULE_NUM="$2"
@@ -538,7 +538,7 @@ fkt_reset_traffic_counter_for_mac ()
 	iptables -R traff_$MAC $RULE_NUM -t mangle --set-counters 0 0
 }
 
-fkt_get_traffic_forward_intranet () {
+_pfilter_stats_traffic_forwarded_intranet () {
 	local PACK=""
 	local BYTES=""
 	local REST=""
@@ -546,7 +546,7 @@ fkt_get_traffic_forward_intranet () {
 	iptables -nxvL FORWARD | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
-fkt_get_traffic_forward_alien () {
+_pfilter_stats_traffic_forwarded_internet () {
 	local PACK=""
 	local BYTES=""
 	local REST=""
@@ -554,21 +554,21 @@ fkt_get_traffic_forward_alien () {
 	iptables -t mangle -nxvL FORWARD | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
-fkt_get_conn_starts_for_mac ()
+_pfilter_stats_user_conns_start ()
 {
 	local MAC="$1"
 	
 	iptables -t mangle -nxvL traff_$MAC | grep "state NEW MARK set 0x91" | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
 }
 
-fkt_get_conn_ends_for_mac ()
+_pfilter_stats_user_conns_end ()
 {
 	local MAC="$1"
 
 	iptables -t mangle -nxvL traff_$MAC | grep "flags:0x11/0x11 MARK" | tail -n1 | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
 }
 
-fkt_get_conn_above_limits_for_mac () {	# we count udp + tcp above's 	// fixme! what about adblock?
+_pfilter_stats_user_conns_over_limit () {	# we count udp + tcp above's 	// fixme! what about adblock?
 	local MAC="$1"
 	local PACK=""
 	local REST=""	
@@ -576,7 +576,7 @@ fkt_get_conn_above_limits_for_mac () {	# we count udp + tcp above's 	// fixme! w
 	iptables -t mangle -nxvL traff_$MAC | head -n 9 | tail -n 1 | while read PACK REST; do echo $PACK; done
 }
 
-fkt_get_traffic_for_mac ()	# OUT1: string
+_pfilter_stats_user_traffic ()	# OUT1: string
 {
 	local MAC="$1"
 	local TIMESLOT="$2"
@@ -592,10 +592,11 @@ fkt_get_traffic_for_mac ()	# OUT1: string
 	 sed -n "/^${LINE} /s/^${LINE}[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p"
 }
 
-fkt_proto2id () {
+_pfilter_proto2id ()		# fixme! uses global var 'PROTO' + 'PORT'
+{
 	local N=0
 	
-	if [ -n "$1" ]; then			# better doing this in a loop?
+	[ -n "$1" ] && {
 		case $1 in
 			PING)       N=98 ;;
 			TRACE)      N=97 ;;
@@ -617,28 +618,25 @@ fkt_proto2id () {
 		esac
 		
 		echo -n "0x$N"
-		#printf "0x%2.2i" $N
-		
 		return
-	fi
+	}
 	
 	for ENTRY in $( _pfilter l7proto_list ); do {
 	
 		THIS_PROTO="${ENTRY%,*}"
 		THIS_PORT="${ENTRY#*,}"
 
-		test -z "$PORT" && THIS_PORT=""
+		[ -z "$PORT" ] && THIS_PORT=""
 	
 		let N+=1
 		if [ "$PROTO" = "$THIS_PROTO" ] && [ "$PORT" = "$THIS_PORT" ]; then
 			echo -n "0x$N"
-			#printf "0x%2.2i" $N
 			return
 		fi
 	} done
 }
 
-fkt_check_if_mac_is_admin () {
+_pfilter_user_probe_admin () {
 	local MAC="$1"
 	local LIST="$(nvram get fff_ethers_lan) $(nvram get fff_ethers_wifi)"
 	
@@ -649,7 +647,7 @@ fkt_check_if_mac_is_admin () {
 	fi
 }
 
-fkt_check_if_mac_is_free () {				# free means no splashpage wished: username must begin with "admin-" or "free-"
+_pfilter_user_probe_autounsplashed () {				# free means no splashpage wished: username must begin with "admin-" or "free-"
 	local MAC="$1"
 	local LIST="$(nvram get fff_ethers_lan) $(nvram get fff_ethers_wifi)"
 	
@@ -660,13 +658,13 @@ fkt_check_if_mac_is_free () {				# free means no splashpage wished: username mus
 	fi
 }
 
-func_pfilter_is_redirected ()
+_pfilter_user_splash_probe ()
 {
 	iptables -t mangle -nL PREROUTING | grep -q -i ${1:-unsetmac} && return 1
 	return 0
 }
 
-fkt_check_if_user_with_mac_is_redirected () {
+_pfilter_user_probe_splash () {
 	local MAC="$1"
 
 	iptables -t mangle -nL PREROUTING | grep -q -i $MAC
@@ -678,7 +676,7 @@ fkt_check_if_user_with_mac_is_redirected () {
 	fi
 }
 
-fkt_control_redirect_for_user_with_mac_and_ip () {		# SENS: controlling if a user must see splashpage before using internet or not
+_pfilter_user_splash_control () {		# SENS: controlling if a user must see splashpage before using internet or not
 								# ARG1: nosplash,splash
 								# ARG2: mac
 	local FUNC="control_redirect_for_user_with_mac_and_ip"	# ARG3: ip-address
@@ -705,7 +703,7 @@ fkt_control_redirect_for_user_with_mac_and_ip () {		# SENS: controlling if a use
 	_log do pfilter daemon info "(fkt_control_redirect_for_user_with_mac_and_ip) end - mode: $MODE - $MAC / $IP"
 }
 
-fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accounting-chain
+_pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 {
 	local FUNC="add_user_with_mac_and_ip"
 	local MAC="$1"
@@ -715,7 +713,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 
 	[ "$4" != "reserve" ] && {
 		_log do $FUNC daemon debug "instant call - trying to activate reserved user chain"
-		func_activate_reserved_user_chain $MAC $IP && {
+		_pfilter user_ruleset_activate $MAC $IP && {
 			_log do $FUNC daemon debug "successfully activated reserved user chain"
 			return 0
 		}
@@ -736,7 +734,7 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 		CONN_LIMIT_UDP="20"		# free-users on node with inet-offer
 		CONN_LIMIT_TCP="75"
 	
-		if [ "$( fkt_check_if_mac_is_admin $MAC )" = "true" ]; then
+		if [ "$( _pfilter user_probe_admin $MAC )" = "true" ]; then
 
 			_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) boosting connection-count for this admin-user"
 
@@ -762,27 +760,27 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 	iptables -t mangle -A traff_$MAC							# counter3 (traffic_all)
 	
 	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20 -m limit --limit 6/min --limit-burst 10 -j LOG --log-prefix "ADBLOCK:"
-	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20        -j MARK --set-mark $( fkt_proto2id REJECT )    # adblock (special dest)
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id REJECT )/0xFF  -j shaper
+	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20        -j MARK --set-mark $( _pfilter proto2id REJECT )    # adblock (special dest)
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id REJECT )/0xFF  -j shaper
 	
-	iptables -t mangle -A traff_$MAC -m state --state NEW -p udp -m udplimit  --udplimit-above  $CONN_LIMIT_UDP -j MARK --set-mark $( fkt_proto2id CONN_ABOVE )
-	iptables -t mangle -A traff_$MAC -m state --state NEW -p tcp -m connlimit --connlimit-above $CONN_LIMIT_TCP -j MARK --set-mark $( fkt_proto2id CONN_ABOVE )
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id CONN_ABOVE )/0xFF                           -j shaper	# connabove to shaper
+	iptables -t mangle -A traff_$MAC -m state --state NEW -p udp -m udplimit  --udplimit-above  $CONN_LIMIT_UDP -j MARK --set-mark $( _pfilter proto2id CONN_ABOVE )
+	iptables -t mangle -A traff_$MAC -m state --state NEW -p tcp -m connlimit --connlimit-above $CONN_LIMIT_TCP -j MARK --set-mark $( _pfilter proto2id CONN_ABOVE )
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF                           -j shaper	# connabove to shaper
 	
-	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW                   -j MARK --set-mark $( fkt_proto2id CONN )	# all new packets
+	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW                   -j MARK --set-mark $( _pfilter proto2id CONN )	# all new packets
 	
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id CONN )/0xFF       -j ULOG --ulog-prefix "$MAC>"       # inside2outside
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id CONN )/0xFF       -j shaper
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF       -j ULOG --ulog-prefix "$MAC>"       # inside2outside
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF       -j shaper
 	
-	iptables -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( fkt_proto2id CONN )    # FIN&ACK is set
-	iptables -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( fkt_proto2id CONN )    # RST     is set
+	iptables -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( _pfilter proto2id CONN )    # FIN&ACK is set
+	iptables -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( _pfilter proto2id CONN )    # RST     is set
 	
-	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags syn,ack syn,ack     -j MARK --set-mark $( fkt_proto2id CONN )	# better? SYN&ACK in answer is set
-	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( fkt_proto2id CONN )	# better? FIN&ACK in answer is set
-	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( fkt_proto2id CONN )	# better? RST     in answer is set
+	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags syn,ack syn,ack     -j MARK --set-mark $( _pfilter proto2id CONN )	# better? SYN&ACK in answer is set
+	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( _pfilter proto2id CONN )	# better? FIN&ACK in answer is set
+	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( _pfilter proto2id CONN )	# better? RST     in answer is set
 
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id CONN )/0xFF    -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id CONN )/0xFF    -j shaper 
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF    -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF    -j shaper 
 	
 	iptables -t mangle -A traff_$MAC -m connbytes --connbytes   97999:99999   --connbytes-dir both --connbytes-mode bytes
 	iptables -t mangle -A traff_$MAC -m connbytes --connbytes  997999:999999  --connbytes-dir both --connbytes-mode bytes
@@ -794,28 +792,28 @@ fkt_add_user_with_mac_and_ip ()		# SENS: generate MAC-specific shaping/accountin
 	for ENTRY in $( _pfilter l7proto_list ); do {
 		PROTO="${ENTRY%,*}"		# PORT="${ENTRY#*,}"
 	
-		iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id )/0xFF	-j shaper
-		iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id )/0xFF	-j LOG --log-prefix "layer7_${PROTO}: "
-		iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id )/0xFF	-j RETURN
+		iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j shaper
+		iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j LOG --log-prefix "layer7_${PROTO}: "
+		iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j RETURN
 	} done
 	
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id UNKN )/0xFF		-j shaper				# unknown traffic
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id UNKN )/0xFF		-j LOG --log-prefix "layer7_UNKNOWN: "
-	iptables -t mangle -A traff_$MAC -m mark --mark $( fkt_proto2id UNKN )/0xFF		-j RETURN
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j shaper				# unknown traffic
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j LOG --log-prefix "layer7_UNKNOWN: "
+	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j RETURN
 
-	fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $IP
+	_pfilter user_splash_control nosplash $MAC $IP
 	
 	_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) filling user chain - end"
 }
 
-fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = langsame klasse/download?
+_pfilter_rules_install () {	# connbytes auswerten: http ab 200k = langsame klasse/download?
 	_pfilter_kmodules_init			# connection-aufbau /pro user /pro zeiteinheit limitieren
 						# connections /pro user limitieren
 						# icmp /ping pro user /pro zeiteinheitlimitieren
 						# unabhaengig von einteilung bestimmte packet trotzdem in prio veraendern (ACK...)
 	local MYHNA="$( _config get net olsr hna4 )"
 						
-	_log do pfilter daemon info "(fkt_scaleable_packetfilter_with_QoS) Installing"
+	_log do pfilter daemon info "(_pfilter rules_install) Installing"
 
 	iptables -t mangle -N marking
 	iptables -t mangle -N marking_unmarkable
@@ -824,8 +822,8 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 	iptables -t mangle -N traff_users
 	iptables -t mangle -N shaper
 
-	iptables -A FORWARD -m mark --mark $( fkt_proto2id REJECT )          -j REJECT
-	iptables -A FORWARD -m mark --mark $( fkt_proto2id CONN_ABOVE )/0xFF -j REJECT  # --reject-with tcp-reset (does not work?)
+	iptables -A FORWARD -m mark --mark $( _pfilter proto2id REJECT )          -j REJECT
+	iptables -A FORWARD -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF -j REJECT  # --reject-with tcp-reset (does not work?)
 	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE                                -j ACCEPT
 	iptables -A FORWARD -m state --state ESTABLISHED,RELATED             -j ACCEPT
 # maybe let already marked traffic go trough?
@@ -843,11 +841,11 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 	iptables -t mangle -A shaper    -j ACCEPT
 
 	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 85:1500					-j RETURN
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:40 --tcp-flags RST,URG     RST	-j MARK --set-mark $( fkt_proto2id SMALL )
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:52 --tcp-flags ACK,URG     ACK	-j MARK --set-mark $( fkt_proto2id SMALL )
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags SYN,URG     SYN	-j MARK --set-mark $( fkt_proto2id SMALL )
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags ACK,SYN,URG ACK,SYN	-j MARK --set-mark $( fkt_proto2id SMALL )
-	iptables -t mangle -A marking_unmarkable -p icmp -m length --length 84					-j MARK --set-mark $( fkt_proto2id SMALL )	# ping
+	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:40 --tcp-flags RST,URG     RST	-j MARK --set-mark $( _pfilter proto2id SMALL )
+	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:52 --tcp-flags ACK,URG     ACK	-j MARK --set-mark $( _pfilter proto2id SMALL )
+	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags SYN,URG     SYN	-j MARK --set-mark $( _pfilter proto2id SMALL )
+	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags ACK,SYN,URG ACK,SYN	-j MARK --set-mark $( _pfilter proto2id SMALL )
+	iptables -t mangle -A marking_unmarkable -p icmp -m length --length 84					-j MARK --set-mark $( _pfilter proto2id SMALL )	# ping
 #	iptables -t mangle -A marking_unmarkable -m mark ! --mark 0							-j LOG --log-prefix "layer7_small: "
 #	iptables -t mangle -A marking_unmarkable -m mark ! --mark 0							-j RETURN
 
@@ -857,25 +855,25 @@ fkt_scaleable_packetfilter_with_QoS () {	# connbytes auswerten: http ab 200k = l
 		
 		_log do pfilter daemon info "(layer7-filter) Installing protocol $PROTO"
 		
-		iptables -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( fkt_proto2id )
+		iptables -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id )
 	#	iptables -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
 		iptables -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
-		iptables -t mangle -A traff_all      -m mark --mark $( fkt_proto2id )/0xFF	-j traff_users
+		iptables -t mangle -A traff_all      -m mark --mark $( _pfilter proto2id )/0xFF	-j traff_users
 	} done
 
 	iptables -t mangle -A marking_layer7 -j LOG --log-prefix "layer7_end: "
 	
-	iptables -t mangle -A traff_all -m mark --mark $( fkt_proto2id UNKN )/0xFF -j traff_users	# list unknown traffic
+	iptables -t mangle -A traff_all -m mark --mark $( _pfilter proto2id UNKN )/0xFF -j traff_users	# list unknown traffic
 	iptables -t mangle -A traff_all                                            -j traff_users
 	iptables -t mangle -A traff_all                                            -j shaper
 	
 	iptables -t mangle -A marking -m mark ! --mark 0			-j traff_all					# already marked in prerouting?
 	iptables -t mangle -A marking					-j marking_unmarkable				# fixme!
-#	iptables -t mangle -A marking -m mark --mark $(fkt_proto2id SMALL)	-j MARK --set-mark 0
+#	iptables -t mangle -A marking -m mark --mark $(_pfilter proto2id SMALL)	-j MARK --set-mark 0
 	iptables -t mangle -A marking -m mark ! --mark 0			-j marking_layer7				# trying all layer7-filters
 	iptables -t mangle -A marking -m mark ! --mark 0			-j CONNMARK --save-mark				# layer7-matching was successful!
 	iptables -t mangle -A marking -m mark ! --mark 0			-j traff_all					# goto traff_all
-	iptables -t mangle -A marking					-j MARK --set-mark $( fkt_proto2id UNKN )	# mark unknown traffic
+	iptables -t mangle -A marking					-j MARK --set-mark $( _pfilter proto2id UNKN )	# mark unknown traffic
 	iptables -t mangle -A marking					-j traff_all
 }
 
@@ -908,11 +906,11 @@ _pfilter_kmodules_init ()	# fixme! alles durch _iptables () schleifen und erst b
 	} done
 }
 
-fkt_activate_splashpage ()
+_pfilter_user_splash_add ()
 {
 	local MYHNA="$( _config get net olsr hna4 )"
 
-	_log do pfilter daemon info "(fkt_activate_splashpage) shutting doors"
+	_log do pfilter daemon info "(_pfilter user_splash_add) shutting doors"
 
 	iptables -t mangle -A PREROUTING -p udp --sport 68 --dport 67 -d 255.255.255.255 -j ACCEPT		# DCHP requests to internal server
 	iptables -t mangle -A PREROUTING -s ! $MYHNA -d ! $MYHNA                         -j ACCEPT		# forwarding internet from other nodes
@@ -922,13 +920,13 @@ fkt_activate_splashpage ()
 	
 	iptables -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE	-j ACCEPT		# picopeer
 	iptables -t mangle -A PREROUTING -p udp --dport 698                              -j ACCEPT		# OLSR incoming
-	iptables -t mangle -A PREROUTING -p tcp -m multiport --dports 80,443             -j MARK --set-mark $( fkt_proto2id REDIRECT )
-	iptables -t mangle -A PREROUTING -m mark --mark 0                                -j MARK --set-mark $( fkt_proto2id REJECT )
+	iptables -t mangle -A PREROUTING -p tcp -m multiport --dports 80,443             -j MARK --set-mark $( _pfilter proto2id REDIRECT )
+	iptables -t mangle -A PREROUTING -m mark --mark 0                                -j MARK --set-mark $( _pfilter proto2id REJECT )
 
-	iptables -t nat    -A PREROUTING -m mark --mark $( fkt_proto2id REDIRECT )       -j REDIRECT
+	iptables -t nat    -A PREROUTING -m mark --mark $( _pfilter proto2id REDIRECT )       -j REDIRECT
 }
 
-fkt_all_chains_acceptance ()
+_pfilter_rules_accept_all ()
 {
 	local FUNC="all_chains_acceptance"
 	local CHAIN
@@ -949,14 +947,15 @@ fkt_all_chains_acceptance ()
 	} done
 }
 
-fkt_olsr_whitelist_variables () {
+_pfilter_rules_olsr_whitelist_vars ()
+{
 	      OLSR_WL_FRESH="/tmp/olsr_whitelist_fresh"		# <unixtime>-Tags at first and last line
               OLSR_WL_READY="/tmp/olsr_whitelist"		# nodenumber,mac (mac can be empty)
               OLSR_WL_CHAIN="olsr_in_whitelist"			# for iptables
 }
 
-fkt_olsr_whitelist_fetch () {
-	_log do pfilter daemon info "(fkt_olsr_whitelist_fetch) fetching"
+_pfilter_rules_olsr_whitelist_fetch () {
+	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) fetching"
 
 	wget -qO $OLSR_WL_FRESH "$( _links firmware_url_get olsr_whitelist )"
 
@@ -964,16 +963,16 @@ fkt_olsr_whitelist_fetch () {
 	TAG2="$( tail -n 1 $OLSR_WL_FRESH )"
 
 	if [ -n "$TAG1" ] && [ "$TAG1" = "$TAG2" ]; then
-		_log do pfilter daemon info "(fkt_olsr_whitelist_fetch) went fine, sanitizing"
+		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) went fine, sanitizing"
 		sed -e '/[<>]/d' -e 's/[^A-Fa-f0-9:,]//g' $OLSR_WL_FRESH >$OLSR_WL_READY	# removing lines with "<unixtime>" and sanitize LF/CR
 	else
-		_log do pfilter daemon info "(fkt_olsr_whitelist_fetch) abort - something's wrong"
+		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) abort - something's wrong"
 	fi
 
 	rm -f $OLSR_WL_FRESH
 }
 
-fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-restart (!)
+_pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-restart (!)
 {
 	local FUNC="olsr_whitelist_update"
 
@@ -985,7 +984,7 @@ fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-
 	local N=0
 	local ESTIMATED="$(( 8 * $( cat $OLSR_WL_READY | wc -l ) / 10 ))"	# counting lines and multipling 0.8 seconds for each line for time-message in syslog
 	
-	_log do pfilter daemon info "(fkt_olsr_whitelist_update) inserting new rules (needs up to $ESTIMATED seconds)"
+	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_update) inserting new rules (needs up to $ESTIMATED seconds)"
 
 	while read LINE; do {							# each line is: "nodenumber,mac" - mac can be empty
 		
@@ -1008,13 +1007,13 @@ fkt_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-
 	_log do pfilter daemon info "(fkt_olsr_whitelist_install) installed $N rules"
 }
 
-fkt_olsr_whitelist_optimize () {
+_pfilter_rules_olsr_whitelist_optimize () {
 	local  NO_NEIGH="/tmp/we_have_no_olsr_neighbour.txt"
 	touch $NO_NEIGH
 	
 	test ! -e "$OLSR_WL_READY" && return
 
-	_log do pfilter daemon info "(fkt_olsr_whitelist_optimize) working"
+	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_optimize) working"
 
 	test -z "$( iptables -nL $OLSR_WL_CHAIN 2>/dev/null | grep ACCEPT )" && iptables -I $OLSR_WL_CHAIN -j ACCEPT	# temp. accept. of all packets
 
@@ -1029,7 +1028,7 @@ fkt_olsr_whitelist_optimize () {
                 HOST="$( _net ip2hostname $IP )"
                 NODE="$( _ipsystem do            $IP )"
 						                                                    
-                _log do pfilter daemon info "(fkt_olsr_whitelist_optimize) moveup: $IP node_$NODE $HOST ${1}_packets)"
+                _log do pfilter daemon info "(_pfilter rules_olsr_whitelist_optimize) moveup: $IP node_$NODE $HOST ${1}_packets)"
 
 		test -e $NO_NEIGH && rm -f $NO_NEIGH
 
@@ -1047,12 +1046,12 @@ fkt_olsr_whitelist_optimize () {
 	iptables -D $OLSR_WL_CHAIN -j ACCEPT 2>/dev/null 						# removing temp. accept. of all packets
 
 	if [ -e "$NO_NEIGH" ]; then
-		_log do pfilter daemon info "(fkt_olsr_whitelist_optimize) really no neighbours!"
-		olsr_whitelist_set_inactive
+		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_optimize) really no neighbours!"
+		_pfilter rules_olsr_whitelist_bypass 
 	fi
 }
 
-fkt_olsr_whitelist_check_for_error () {
+_pfilter_rules_olsr_whitelist_errorcheck () {
 	local LINES_IN_WL_CHAIN="$( iptables -nxvL $OLSR_WL_CHAIN | grep all | wc -l )"		# the grep removes chain-headers
 	local LINES_IN_WL_FILE="$(         cat $OLSR_WL_READY |            wc -l )"
 	local OUT="false"
@@ -1068,13 +1067,14 @@ fkt_olsr_whitelist_check_for_error () {
 	echo $OUT
 }
 
-olsr_whitelist_set_inactive () {
-	_log do pfilter daemon info "(olsr_whitelist_set_inactive) executing"	
+_pfilter_rules_olsr_whitelist_bypass ()
+{
+	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_bypass ) executing"	
 
 	iptables -I $OLSR_WL_CHAIN -j ACCEPT
 }
 
-fkt_control_olsr ()
+_pfilter_rules_olsr_control ()
 {
 	local FUNC="control_olsr"
 	local MYHNA="$( _config get net olsr hna4 )"
@@ -1165,12 +1165,6 @@ fkt_control_olsr ()
 	iptables -A olsr_out_wire		-j ACCEPT		# maybe doing some statistics here (size, speed ...)
 }
 
-fkt_definitions ()	# fixme!
-{
-	[ -z "$WANADR" ] && WANADR="$( _ipsystem do | sed -n 's/^WANADR=\(.*\)/\1/p' )"
-	[ -z "$WANDEV" ] && WANDEV="wandev_NA"
-}
-
 _pfilter_l7proto_list ()
 {
 	local	LAYER7="ntp,123 shoutcast,8000 http,80 irc,6665:6669 ftp,21 ssh,22 telnet,23 dns,53 pop3,110 nntp,119 imap,143 validcertssl,443 ssl,993"
@@ -1180,7 +1174,7 @@ _pfilter_l7proto_list ()
 	echo -n "$LAYER7"
 }
 
-fkt_insert_walled_garden ()
+_pfilter_rules_walledgarden ()
 {
 	local FUNC="walled_garden_insert"
 	local ENTRY WALLED_GARDEN
@@ -1204,7 +1198,7 @@ fkt_insert_walled_garden ()
 	} done
 }
 
-fkt_no_nat_for_wifi_clients ()
+_pfilter_rules_nat_no_wificlients ()
 {
 	local WIFI_DHCP_NET="$( nvram get ff_wldhcp | cut -d, -f1 )"	
 
@@ -1215,7 +1209,7 @@ fkt_no_nat_for_wifi_clients ()
 	iptables -D POSTROUTING -t nat -s $WIFI_DHCP_NET -j MASQUERADE
 }
 
-func_masq ()		# fixme! also masq traffic from local lan to internet during startup (atm only local wifi gets masq)
+_pfilter_rules_nat_install ()		# fixme! also masq traffic from local lan to internet during startup (atm only local wifi gets masq)
 {
 	local INETOFFER="$( _net local_inet_offer )"
 
@@ -1238,7 +1232,7 @@ func_masq ()		# fixme! also masq traffic from local lan to internet during start
 		*)	
 			# should'nt break anything: sometimes WANDEV is not up yet when packetfilter starts up
 			
-			local WANDEV="$(nvram get wan_device)"			
+			local WANDEV="$( nvram get wan_device )"			
 			[ -n "$WANDEV" ] && iptables -t nat -A POSTROUTING -o ${WANDEV} -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 			iptables -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
@@ -1249,7 +1243,7 @@ func_masq ()		# fixme! also masq traffic from local lan to internet during start
 	func_packetfilter_install_portforwarding
 }
 
-func_packetfilter_show_chain ()
+_pfilter_stats_chain_show ()
 {
 	local FUNC="packetfilter_show_chain_postrouting"
 	local TABLE="$1"

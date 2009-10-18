@@ -13,69 +13,66 @@ ARG="$1"	# fixme! ipp2p als fallback fuers marking layer7
 	# [ "$ARG" = "masq" ] && remove_adblock_list	// fixme!
 }
 
-func_packetfilter_startup ()
+_pfilter rules_install ()
 {
-	_log do local_firewall daemon info "func_packetfilter_startup"
+	_log do local_firewall daemon info "_pfilter rules_install"
 		
-	fkt_olsr_whitelist_variables
-	fkt_all_chains_acceptance on
-		
-	func_masq
-		
-	fkt_scaleable_packetfilter_with_QoS
-	fkt_control_olsr
-	fkt_insert_walled_garden
-	fkt_activate_splashpage
+	_pfilter rules_olsr_whitelist_vars
+	_pfilter rules_accept_all on
+	_pfilter rules_nat_install
+	_pfilter rules_install
+	_pfilter rules_olsr_control
+	_pfilter rules_walledgarden
+	_pfilter user_splash_add
+	_pfilter user_splash_remove_autounsplashed
 
-	fkt_free_all_users_which_dont_want_splash
-
-	[ -n "$WANADR" ] && {
+	[ -n "$WANDEV" ] && {	# fixme
 		_log do deny_possible_wan_olsr_over_internet daemon debug "denying incoming OLSR to WANDEV for alien-nets"
 		iptables -I INPUT -i $WANDEV -s ! 10.0.0.0/8 -p udp --dport 698 -j DROP	# fixme! (network+mask is a hack)
 	}
 
-	func_packetfilter_dhcp_ignore_specific_macs
+	_pfilter rules_dhcp_ignore_specific_macs
 	[ -e /tmp/USER_PACKETFILTER ] && {
-		fkt_all_chains_acceptance off			# fixme!
+		_pfilter rules_accept_all off			# fixme!
 	}
-	func_packetfilter_count_rules
+	_pfilter stats_rules_count
 		
-	_log do local_firewall daemon info "func_packetfilter_startup - ready"
+	_log do local_firewall daemon info "_pfilter rules_install - ready"
 }
 
 case $ARG in
 	close_doors)
-		_log do local_firewall daemon info "func_packetfilter_startup - first full init ($( uptime ))"
-		fkt_all_chains_acceptance off
+		_log do local_firewall daemon info "_pfilter rules_install - first full init ($( uptime ))"
+		_pfilter rules_accept_all off
 	;;
 	start)
 		if [ -e /tmp/BOOT ]; then
 			_scheduler add "start_local_packetfilter"
 			/usr/sbin/cron.select_best_antenna_fff+ fastcheck
 		else
-			func_packetfilter_startup
+			_pfilter rules_install
 		fi
 	;;
 	call)
-		func_packetfilter_startup
+		_pfilter rules_install
 	;;
 	masq)
-		func_masq		# includes portforwarding
+		_pfilter rules_nat_install		# includes portforwarding
 		[ ! -e "/www/SOFTWARE_FULLY_INSTALLED" ] && {
-			func_reject_traffic_from_nonlocal_hosts_to_local_webserver	
+			_pfilter rules_webserver_deny_incoming_nonlocal	
 			# safes memory during software_install
 		}
 	;;
 	reset_all_daily_user_counters)
-		fkt_reset_all_daily_user_counters
+		_pfilter user_traffic_reset
 	;;
 	reset_daily_counter)
-		fkt_reset_traffic_counter_for_mac $2 today
+		_pfilter user_traffic_reset_single $2 today
 	;;
 	showuser_traff)
 		test "$4" = "randomwait" && sleep "$( _math random_integer 0 15	)"		# trying to avoid multiple http-requests during data-spreading
 	
-		fkt_show_user_traff $3								# with ARG3 = spread, we blow out the data to $GW and $NEXTHOP
+		_pfilter stats_user_cast $3								# with ARG3 = spread, we blow out the data to $GW and $NEXTHOP
 		
 		test "$2" != "quiet" && grep "^NODE=local " /tmp/ARCHIV_TRAFFIC | tail -n 1	# output to stdout
 	;;
@@ -83,7 +80,7 @@ case $ARG in
 		UPDATE_INTERVAL=3	# seconds
 		
 		while true; do {
-			TRAFF_TOTAL="$( fkt_get_traffic_for_mac $2 recent )"
+			TRAFF_TOTAL="$( _pfilter stats_user_traffic $2 recent )"
 			TRAFF_DIFF="$(( $TRAFF_TOTAL - ${TRAFF_OLD:=0} ))"
 			TRAFF_LIVE="$(( $TRAFF_DIFF / $UPDATE_INTERVAL ))"		# bytes/sec
 			TRAFF_OLD="$TRAFF_TOTAL"
@@ -100,40 +97,40 @@ case $ARG in
 	adduser)
 		[ -e /tmp/LOWMEM ] && exit
 		
-		fkt_list_user_macs | grep -i -q "$2" && {
+		_pfilter user_list | grep -i -q "$2" && {
 			_log do adduser daemon debug "MAC '$2' already added - abort"
 			exit
 		}
 		
-		func_activate_reserved_user_chain "$2" "$3" && exit
+		_pfilter user_ruleset_activate "$2" "$3" && exit
 		
-		fkt_add_user_with_mac_and_ip $2 $3 $4
+		_pfilter user_add $2 $3 $4
 	;;
 	adduser_reserve)
-		fkt_add_user_with_mac_and_ip $2 $3 noarp reserve
-		fkt_control_redirect_for_user_with_mac_and_ip splash $2 $3
-		func_packetfilter_count_rules
+		_pfilter user_add $2 $3 noarp reserve
+		_pfilter user_splash_control splash $2 $3
+		_pfilter stats_rules_count
 	;;
 	kickoverlimituser)
-		fkt_kick_all_users_which_are_over_limit
+		_pfilter user_kick_overlimit
 	;;
 	kickalluser)
-		fkt_kick_all_nonfree_users
+		_pfilter user_splash_add_for_nonautounsplashed
 	;;
 	olsr_whitelist_update)
-		fkt_olsr_whitelist_variables	
-		fkt_olsr_whitelist_fetch
-		fkt_all_chains_acceptance on
-		fkt_olsr_whitelist_update
-		fkt_all_chains_acceptance off
+		_pfilter rules_olsr_whitelist_vars	
+		_pfilter rules_olsr_whitelist_fetch
+		_pfilter rules_accept_all on
+		_pfilter rules_olsr_whitelist_update
+		_pfilter rules_accept_all off
 		sleep 15		
-		fkt_olsr_whitelist_optimize
+		_pfilter rules_olsr_whitelist_optimize
 		
-		test "$( fkt_olsr_whitelist_check_for_error )" = "true" && olsr_whitelist_set_inactive
+		test "$( _pfilter rules_olsr_whitelist_errorcheck )" = "true" && _pfilter rules_olsr_whitelist_bypass 
 	;;
 	olsr_whitelist_optimize)
-		fkt_olsr_whitelist_variables
-		fkt_olsr_whitelist_optimize
+		_pfilter rules_olsr_whitelist_vars
+		_pfilter rules_olsr_whitelist_optimize
 	;;
 	stop)
 		[ -e /tmp/USER_PACKETFILTER ] && rm /tmp/USER_PACKETFILTER	# mark unready

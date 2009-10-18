@@ -16,7 +16,7 @@
 
 			if _weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" ; then
 				
-				if func_pfilter_user_unsplash "$MAC" "$REMOTE_ADDR" ; then
+				if _pfilter user_splash_remove "$MAC" "$REMOTE_ADDR" ; then
 					_log do weblogin_success daemon alert "mac: '$MAC'"
 				else
 					_log do weblogin_no_success daemon alert "mac: '$MAC'"	
@@ -81,7 +81,7 @@ case $MODE in
 		MAC="$( _net ip2mac $REMOTE_ADDR )"
 		IP=$REMOTE_ADDR								# fixme! really needed?
 		
-		[ -z "$( fkt_list_locally_registered_users | grep -i $MAC )" ] && {
+		[ -z "$( _pfilter user_list_local_registered | grep -i $MAC )" ] && {
 			_welcome htmlout_link_usermanagement
 		}
 		
@@ -96,16 +96,16 @@ case $MODE in
 		_welcome htmlout_wikipage "$WIKI_ARTICLE_2" "$WIKI_ARTICLE_2_HEADLINE"
 										# fixme! nvram get fff_ethers_auth = BLACKLIST || WHITELIST !
 
-		if [ "$( fkt_check_if_user_with_mac_is_locally_blacklisted $MAC )" = "true" ]; then
+		if [ "$( _pfilter user_probe_local_blacklist $MAC )" = "true" ]; then
 			
 			_welcome htmlout_user_blackisted
 		else
-			if fkt_list_user_macs | grep -q -i $MAC ; then
+			if _pfilter user_list | grep -q -i $MAC ; then
 			
-				if [ "$( fkt_get_used_traffic_limit_from_user_with_mac_in_percent $MAC )" -gt 100 ] && [ "$( fkt_check_if_mac_is_admin $MAC )" = "false" ]; then
+				if [ "$( _pfilter stats_user_traffic_used_percent $MAC )" -gt 100 ] && [ "$( _pfilter user_probe_admin $MAC )" = "false" ]; then
 					_welcome htmlout_user_over_limit
 				else
-					if [ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "true" ]; then
+					if [ "$( _pfilter user_probe_splash $MAC )" = "true" ]; then
 						_welcome htmlout_submitbutton_start
 					else
 						_welcome htmlout_user_yet_logged_in
@@ -126,13 +126,13 @@ case $MODE in
 		
 		MAC="$( _net ip2mac $REMOTE_ADDR )"
 		
-		fkt_list_user_macs | grep -q -i $MAC								# already shaped?
+		_pfilter user_list | grep -q -i $MAC								# already shaped?
 		
 		if [ "$?" -eq 0 ]; then										# user already shaped, but redirected (over night kick off...)
-			fkt_control_redirect_for_user_with_mac_and_ip nosplash $MAC $REMOTE_ADDR >/dev/null
+			_pfilter user_splash_control nosplash $MAC $REMOTE_ADDR >/dev/null
 		else												# user is really new
-			func_activate_reserved_user_chain $MAC $REMOTE_ADDR || {
-				fkt_add_user_with_mac_and_ip $MAC $REMOTE_ADDR
+			_pfilter user_ruleset_activate $MAC $REMOTE_ADDR || {
+				_pfilter user_add $MAC $REMOTE_ADDR
 			}
 		fi
 	

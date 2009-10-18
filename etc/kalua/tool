@@ -9,19 +9,19 @@ fkt_print_accounting ()
 
 	[ ! -e "$FILE_LINK" ] && ln -s $FILE_REAL $FILE_LINK
 
-	local MACLIST="$( fkt_list_user_macs )"
+	local MACLIST="$( _pfilter user_list )"
 
-	test -n "$MACLIST" && local LAYER7_HITS="$( fkt_get_layer7_hit_ratio_in_percent )"
+	test -n "$MACLIST" && local LAYER7_HITS="$( _pfilter stats_layer7_hits )"
 	test -z "$LAYER7_HITS" && LAYER7_HITS="-"
 
 	local UP_SECONDS_x100="$(( $( cut -d"." -f1 /proc/uptime ) * 100  ))"
 	local UP_HOURS="$((        $( cut -d"." -f1 /proc/uptime ) / 360  ))"
 	      UP_HOURS="$( _math divide10 $UP_HOURS )"
 	
-	local FWD_ALIEN="$(     _math bytes2unit $( fkt_get_traffic_forward_alien      ) kb dotted pre )"
-	local FWD_INTRA="$(     _math bytes2unit $( fkt_get_traffic_forward_intranet   ) kb dotted pre )"
-	local OLSR_WIFI_IN="$(  _math bytes2unit $( fkt_get_traffic_olsr_wifi_incoming ) kb dotted pre )"
-	local OLSR_WIFI_OUT="$( _math bytes2unit $( fkt_get_traffic_olsr_wifi_outgoing ) kb dotted pre )"
+	local FWD_ALIEN="$(     _math bytes2unit $( _pfilter stats_traffic_forwarded_internet      ) kb dotted pre )"
+	local FWD_INTRA="$(     _math bytes2unit $( _pfilter stats_traffic_forwarded_intranet   ) kb dotted pre )"
+	local OLSR_WIFI_IN="$(  _math bytes2unit $( _pfilter stats_olsr_traffic_wifi_in ) kb dotted pre )"
+	local OLSR_WIFI_OUT="$( _math bytes2unit $( _pfilter stats_olsr_traffic_wifi_out ) kb dotted pre )"
 
 	local OLSR_WIFI_PER_SEC_IN="$(( $( fkt_get_traffic_olsr_wifi_incoming) / $UP_SECONDS_x100 ))"
 	local OLSR_WIFI_PER_SEC_OUT="$(( $(fkt_get_traffic_olsr_wifi_outgoing) / $UP_SECONDS_x100 ))"
@@ -75,14 +75,14 @@ $TDC Verweigert      </td>
 EOF
 
 	for MAC in $MACLIST; do {
-		local RECENT="$( _math bytes2unit $( fkt_get_traffic_for_mac $MAC recent ) kb dotted pre )"
-		local TODAY="$(  _math bytes2unit $( fkt_get_traffic_for_mac $MAC today  ) kb dotted pre )"
-		local ALL="$(    _math bytes2unit $( fkt_get_traffic_for_mac $MAC all    ) kb dotted pre )"
+		local RECENT="$( _math bytes2unit $( _pfilter stats_user_traffic $MAC recent ) kb dotted pre )"
+		local TODAY="$(  _math bytes2unit $( _pfilter stats_user_traffic $MAC today  ) kb dotted pre )"
+		local ALL="$(    _math bytes2unit $( _pfilter stats_user_traffic $MAC all    ) kb dotted pre )"
 
-		local TODAY_PERCENT="$( fkt_get_used_traffic_limit_from_user_with_mac_in_percent $MAC )"
+		local TODAY_PERCENT="$( _pfilter stats_user_traffic_used_percent $MAC )"
 
 		local COLCELL="$TDR_GRE"
-		if [ $TODAY_PERCENT -gt 100 ] && [ "$( fkt_check_if_user_with_mac_is_redirected $MAC )" = "true" ]; then
+		if [ $TODAY_PERCENT -gt 100 ] && [ "$( _pfilter user_probe_splash $MAC )" = "true" ]; then
 			COLCELL="$TDR_RED"											# bgcolor if mac is blocked / overlimit
 		fi
 
@@ -92,7 +92,7 @@ EOF
 		local SEC="$( cut -d"." -f1 /proc/uptime )"
 		local ESTIMATED="unbekannt"
 		which awk >/dev/null && {
-		      ESTIMATED="$( fkt_get_traffic_for_mac $MAC all | awk -v SEC=$SEC '{ printf("%i",($0/SEC*60*60*24)/1024) }' )"	# unit= KBytes , fixme! AWK!! (big numbers)
+		      ESTIMATED="$( _pfilter stats_user_traffic $MAC all | awk -v SEC=$SEC '{ printf("%i",($0/SEC*60*60*24)/1024) }' )"	# unit= KBytes , fixme! AWK!! (big numbers)
 		      ESTIMATED="$( _math bytes2unit $ESTIMATED notouch dotted pre )"
 		}
 		test $SEC -lt 43200 && ESTIMATED="$TODAY"
@@ -101,9 +101,9 @@ EOF
 
 		local HOPS=0
 
-		local CONN_STARTS="$( fkt_get_conn_starts_for_mac       $MAC )"
-		local CONN_ENDS="$(   fkt_get_conn_ends_for_mac         $MAC )"
-		local CONN_LIMITS="$( fkt_get_conn_above_limits_for_mac $MAC )"
+		local CONN_STARTS="$( _pfilter stats_user_conns_start       $MAC )"
+		local CONN_ENDS="$(   _pfilter stats_user_conns_end         $MAC )"
+		local CONN_LIMITS="$( _pfilter stats_user_conns_over_limit $MAC )"
 	
 		echo "<tr>$TDR<small> $MAC </small></td>$TDC $MEDIA </td>$TDC $HOPS </td>$TDC $NAME </td>$TDR $RECENT </td>$TDR $TODAY </td>$COLCELL $TODAY_PERCENT </td>$TDR $ALL </td> $TDR $ESTIMATED </td>$TDR $CONN_STARTS </td>$TDR $CONN_ENDS </td>$TDR $CONN_LIMITS </td></tr>"
 	} done
