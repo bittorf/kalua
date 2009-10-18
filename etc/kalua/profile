@@ -53,12 +53,12 @@ _profile_get ()		# OUT1: string
 			  	_log do $FUNC daemon debug "no node_number, totally virgin"
 			  	_nvram set $PROFILE_VAR "standard_mesh_band_g"
 			  	
-			elif [ "$(func_wifi_get_mode)" = "ap" ]; then
+			elif [ "$( _wifi get_mode )" = "ap" ]; then
 		
 				_log do $FUNC daemon debug "device is in AP-mode"
 				_nvram set $PROFILE_VAR "standard_ap_band_g"
 			
-			elif [ "$(func_wifi_get_mode)" = "client" ]; then
+			elif [ "$( _wifi get_mode )" = "client" ]; then
 				
 				_log do $FUNC daemon debug "device is in STA-mode (client)"
 				
@@ -116,8 +116,8 @@ _profile_set_config ()
 	_profile rebuild_cfe	
 	_profile remap_devs
 	
-	func_profile_set_$PROFILE $NODE_ID
-
+	_profile_user set_$PROFILE $NODE_ID
+	
 	_profile memorise_important_vars restore
 
 	# fixme! this means, we can't enforce this variable in profile 8-(
@@ -192,11 +192,11 @@ _profile_memorise_important_vars ()
 		;;
 	esac
 
-	[ "$(func_wifi_get_mode)" = "client" ] && {					# fixme! (master-mode too?!)
+	[ "$( _wifi get_mode )" = "client" ] && {					# fixme! (master-mode too?!)
 		LIST="$LIST wl0_infra wl0_mode wl0_ssid wl0_channel wifi_proto"
 	}
 
-	[ "$(func_wifi_get_mode)" = "ap" ] && {
+	[ "$( _wifi get_mode )" = "ap" ] && {
 		[ -n "$(nvram get fff_profile)" ] && {
 			nvram get wl0_ssid | grep -i -q "weimar" || {			# fixme! (dirty hack)
 				LIST="$LIST wl0_ssid"					# remember ESSID if keyword 'weimar'
@@ -431,7 +431,7 @@ _profile_set_system ()
 	[ -n "$DNS"      ] && _nvram set wan_dns      "$DNS"			# e.g. 141.1.1.1
 	[ -n "$TZ"       ] && _nvram set ff_tz        "$TZ"			# standard timezone-string
 	[ -n "$REPOS"    ] && _nvram set ff_ipkg      "$REPOS"			# src freifunk http://download.berlin.freifunk.net/ipkg/packages;src weimarnetz http://www.weimarnetz.de/ipkg/packages 
-	[ -n "$IPSYSTEM" ] && _nvram set fff_ipsystem "$IPSYSTEM"		# it must exist the function: func_ipsystem_$IPSYSTEM ()
+	[ -n "$IPSYSTEM" ] && _nvram set fff_ipsystem "$IPSYSTEM"		# it must exist the function: "_ipsystem_$IPSYSTEM ()"
 	[ -n "$WEBLOGIN" ] && _nvram set fff_weblogin "1"
 	[ -n "$VDS"	 ] && _nvram set fff_vds      "1"			# data retention / vorratsdatenspeicherung
 
@@ -449,7 +449,7 @@ _profile_set_system ()
 		_nvram set ff_mini_fo "1"		# rom-overlay filesystem
 		_nvram set ff_nonetmsg "0"		# not udp-netmessages during bootstrapping
 		_nvram set ff_unsecure_webadmin "1"	# HTTPS enforced for /www/cgi-bin/ ?
-		_nvram set fff_ipsystem "ffweimar"	# therefore it must exist the function "func_ipsystem_ffweimar"
+		_nvram set fff_ipsystem "ffweimar"	# it must exist the function "_ipsystem_ffweimar ()"
 		_nvram set wan_domain "olsr"		# better do not change it
 	}
 	
@@ -682,20 +682,20 @@ _profile_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardtyp
 		local BOARD="${PHYADDR}_${BOARDTYPE}_${BOARDNUM}"
 		
 		case "$BOARD" in 
-			"30_467_00")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "0" "Buffalo" "WHR-HP-G54" ;;
-			"30_467_42")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "3 2 1 0 5*"   "4 5" $1 "1" "Linksys" "WRT-54-GL" ;;
-			"30_708_42")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "2" "Linksys" "WRT-54-G v3.0" ;;
-			"30_101_42")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "3" "Linksys" "WRT-54-G v2.0" ;;
-			"30_42f_45")		func_$FUNC "vlan0" "br0" "eth2" "eth2" "vlan1" "1 2 3 4 5*"   "0 5" $1 "4" "Asus"    "WL-500g premium v1" ;;											
-			"30_48E_45")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "4 5" $1 "D" "Asus"    "WL-500g premium v2" ;;	# ???
-			"30_101_")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "0 1 2 3 5*"   "4 5" $1 "5" "Siemens" "SE505 v2" ;;
-			 "0_bcm94710r4_100")	func_$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  ""             ""    $1 "6" "Siemens" "SE505 v1" ;;						
-			"30_bcm94710dev_42")	func_$FUNC "vlan2" "br0" "eth2" "eth2" "vlan1" ""             ""    $1 "7" "Allnet"  "0277" ;;
-			"30_bcm94710ap_44")	func_$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  "0 1 2 3 4 5u" ""    $1 "8" "Dell"    "Truemobile 2300" ;;
-			 "0_bcm94710dev_asusX")	func_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "9" "Asus"    "WL-HDD (Yakumo_Storage)" ;;
-			"30_bcm94710dev_2")	func_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "A" "Linksys" "WAP v1.0" ;;
-			"30_48e_00")		func_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "0 1 2 3 5*"   "0 5" $1 "B" "Buffalo" "WHR-G125" ;;
-			"30_bcm94710dev_asusX") func_$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  ""             ""    $1 "C" "Asus"    "WL-500g deluxe" ;;
+			"30_467_00")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "0" "Buffalo" "WHR-HP-G54" ;;
+			"30_467_42")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "3 2 1 0 5*"   "4 5" $1 "1" "Linksys" "WRT-54-GL" ;;
+			"30_708_42")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "2" "Linksys" "WRT-54-G v3.0" ;;
+			"30_101_42")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "3" "Linksys" "WRT-54-G v2.0" ;;
+			"30_42f_45")		_$FUNC "vlan0" "br0" "eth2" "eth2" "vlan1" "1 2 3 4 5*"   "0 5" $1 "4" "Asus"    "WL-500g premium v1" ;;											
+			"30_48E_45")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "4 5" $1 "D" "Asus"    "WL-500g premium v2" ;;	# ???
+			"30_101_")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "0 1 2 3 5*"   "4 5" $1 "5" "Siemens" "SE505 v2" ;;
+			 "0_bcm94710r4_100")	_$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  ""             ""    $1 "6" "Siemens" "SE505 v1" ;;						
+			"30_bcm94710dev_42")	_$FUNC "vlan2" "br0" "eth2" "eth2" "vlan1" ""             ""    $1 "7" "Allnet"  "0277" ;;
+			"30_bcm94710ap_44")	_$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  "0 1 2 3 4 5u" ""    $1 "8" "Dell"    "Truemobile 2300" ;;
+			 "0_bcm94710dev_asusX")	_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "9" "Asus"    "WL-HDD (Yakumo_Storage)" ;;
+			"30_bcm94710dev_2")	_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "A" "Linksys" "WAP v1.0" ;;
+			"30_48e_00")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "0 1 2 3 5*"   "0 5" $1 "B" "Buffalo" "WHR-G125" ;;
+			"30_bcm94710dev_asusX") _$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  ""             ""    $1 "C" "Asus"    "WL-500g deluxe" ;;
 			*)
 				[ "$1" = "get_model" ] && {
 					echo "ROUTER_VENDOR='unknown';ROUTER_MODEL='unknown'"
