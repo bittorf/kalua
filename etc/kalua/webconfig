@@ -1,4 +1,4 @@
-func_config_process_form_select_profile ()
+_webconfig_form_select_profile_process ()
 {
 	local IP
 	local PRE
@@ -19,7 +19,7 @@ func_config_process_form_select_profile ()
 			
 		_scheduler queue_purge
 		_scheduler add "/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile"
-		func_config_print_ready_for_applying_new_profile "$FORM_PROFILE" "$FORM_NODEID"
+		_webconfig htmlout_form_select_profile_submitted "$FORM_PROFILE" "$FORM_NODEID"
 	}
 		
 	echo "<br>Der Modus f&uuml;r die Software-Aktualisierung ist nun: '$FORM_FWUPDATE'"
@@ -53,7 +53,7 @@ func_config_process_form_select_profile ()
 	}
 }	
 
-func_config_print_form_select_profile ()
+_webconfig_htmlout_form_select_profile ()
 {
 	local PROFILE="$( nvram get fff_profile )"
 	local NODE_ID="$( nvram get fff_node_number )"
@@ -66,7 +66,7 @@ func_config_print_form_select_profile ()
 	echo "<table cellpadding='0' cellspacing='5' border='0' CLASS='shadow0'><tr><td>"
 	echo "Beim Ausw&auml;hlen eines Profils werden alle Konfigurationswerte nochmal neu gesetzt.<br>"
 	echo "Danach k&ouml;nnen nat&uuml;rlich eigene Anpassungen vorgenommen werden. (nicht empfohlen)<br>"
-	echo "Dies kann auch manuell &uuml;ber die verschiedenen Men&uuml;punkte realisiert werden.<br><"
+	echo "Dies kann auch manuell &uuml;ber die verschiedenen Men&uuml;punkte realisiert werden.<br>"
 	echo "Das manuelle Eintragen einer Knotennummer wird ausdr&uuml;cklich nicht empfohlen.<br>"
 	echo "Um automatisch eine neue Knotennummer ziehen zu lassen, bitte einfach eine '1000' eintragen.<br><br>"
 	echo "<form action='' method='post' CLASS='form'>"
@@ -97,12 +97,12 @@ func_config_print_form_select_profile ()
 	
 	for ENTRY in $PROFILE_LIST; do {
 		echo "<h3>$ENTRY</h3><pre>"
-		_profile_user set_$ENTRY info
+		_profile_user set_$ENTRY info || echo "Keine Beschreibung vorhanden"
 		echo "</pre>"
 	} done
 }
 
-func_config_print_ready_for_applying_new_profile ()
+_webconfig_htmlout_form_select_profile_submitted ()
 {
 	local PROFILE="$1"
 	local NODE_ID="$2"
@@ -115,7 +115,7 @@ func_config_print_ready_for_applying_new_profile ()
 	echo "Deine Freifunk-Antenne startet dann selbstst&auml;ndig neu.<br>"
 }
 
-fkt_print_html_pre () {
+_webconfig_htmlout_head () {
 	export DATE="$(grep SVN "/etc/variables_fff+" | cut -d"#" -f2)"
 	export TITLE="Verwaltung: FFF+"
 	SCRIPT=${0#/rom}
@@ -123,11 +123,12 @@ fkt_print_html_pre () {
 	. ${SCRIPT%/*}/cgi-bin-pre.sh
 }
 	
-fkt_print_html_post () {
+_webconfig_htmlout_foot () {
 	. ${SCRIPT%/*}/cgi-bin-post.sh
 }
 
-fkt_formular_gui_user_build_lang () {
+_webconfig_build_lang_gui_user ()
+{
 	AUTH_BLACKLIST_TXT_SHORT="Zugang f&uuml;r alle"
 	AUTH_BLACKLIST_TXT_LONG="Jeder der auf diesem Knoten oder auf mindestens 3 Netzknoten in diesem Netzwerk registriert ist, darf sich an dieses Ger&auml;t dranh&auml;ngen. Du kannst aber bestimmte Teilnehmer ausschliessen."
 	AUTH_WHITELIST_TXT_SHORT="Zugang nur f&uuml;r VIP's"
@@ -155,7 +156,8 @@ fkt_formular_gui_user_build_lang () {
 	# DIAL_WAN_CHK="$(if [ "$(nvram get wan_proto)" = "dhcp" ]; then echo checked; fi)"
 }
 
-fkt_formular_gui_user_build_vars () {
+_webconfig_build_vars_gui_user ()
+{
 	local VALUE="$( nvram get fff_ethers_auth )"
 	
 	test -z "$VALUE" && VALUE="BLACKLIST"
@@ -164,43 +166,7 @@ fkt_formular_gui_user_build_vars () {
 	RADIO_WHITELIST_CHK="$( test "$VALUE" = "WHITELIST" && echo checked )"
 }
 
-func_check_if_mac_is_from_wan_or_olsr_neighbour ()	# fixme! do we really need to check for olsr-neigh-mac?
-{
-	local  MAC="$1"
-	local  DEV="$( ip neigh | sed -e "/$MAC/!d" -ne 's/.* dev \(.*\) lladdr .*/\1/p' | head -n1 )"		# fixme! make it faster
-	local  OUT="false"
-	local FUNC="check_if_mac_is_from_wan_or_olsr_neighbour"
-	local   IP
-
-	logger "$FUNC $MAC - start"
-
-  	[ "$DEV" = "$WANDEV" ] && {
-		OUT="true"
-	
-		logger "$FUNC $MAC -> true (WANDEV)"
-	}
-	
-	[ "$OUT" = "false" ] && {
-		
-		IP_FROM_MAC_ESCAPED="$( _net mac2ip $MAC | sed 's/\./\\\./g' )"
-	
-		wget -O - http://127.0.0.1:2006/neighbours |
-		 grep "0\.00" |
-		  while read LOCAL REMOTE HYST LQ LOST TOTAL NLQ ETX; do {
-		  	[ "$IP_FROM_MAC_ESCAPED" = "$( echo $REMOTE | sed 's/\./\\\./g' )" ] && {
-		  		OUT=true
-		  		
-		  		logger "$FUNC $MAC -> true (OLSR_NEIGH)"	# fixme! use olsr-abstraction
-		  	}
-		  } done
-	}
-	
-	echo $OUT
-	
-	logger "$FUNC $MAC - end"
-}
-
-fkt_print_html_known_user_list ()
+_webconfig_htmlout_users ()
 {
 	local MAC=""
 	local IP=""
@@ -220,14 +186,15 @@ fkt_print_html_known_user_list ()
 	echo "<table cellspacing=1 cellpadding=1 border=1>"
 	echo "<tr><td> Hardwareadresse </td><td> Netzadresse </td><td align=center> Anschluss </td><td align=center> Name </td><td> Eingetragen? </td><td align=center> m&ouml;gliche Aktion </td></tr>"
 	
-	for MAC in $LIST; do							# people who have already seen splashpage + local reg/blocked
+	for MAC in $LIST; do {							# people who have already seen splashpage + local reg/blocked
 
-		test "$(func_check_if_mac_is_from_wan_or_olsr_neighbour $MAC)" = "true" && continue		# jump to next entry
+		[ "$( _net mac2dev $MAC )" = "$WANDEV" ] && continue
+		_olsr neigh_list_macs | grep -i $MAC && continue
 
 		IP="$( _net mac2ip $MAC )"
 		test -z "$IP" && IP="unbekannt"					# how to handle one MAC with 2 IP's?
 
-		logger "fff+ (fkt_print_html_known_user_list) $MAC = $IP"
+		logger "fff+ (_webconfig htmlout_users) $MAC = $IP"
 
 		if [ "$( _net mac2media $MAC )" = "wire" ]; then
 			MODE="Kabel"
@@ -272,12 +239,13 @@ fkt_print_html_known_user_list ()
 		
 		echo "<form action=\"\" method=\"post\" CLASS=\"form\"><input type=hidden name=gui value=user>"
 		echo "<tr><td $COL_REMOTE> $MAC </td><td align=center $COL_REMOTE> $IP </td><td align=center nowrap> $MODE </td><td> $NAME </td><td align=center> $REG </td><td> $ACTION </td></tr>"
-	done
+	} done
 
 	echo "</table>"
 }
 
-fkt_formular_gui_user_print_html () {
+_webconfig_htmlout_gui_user ()
+{
 	cat<<EOF
 <form action="" method="post" CLASS="form"><table cellpadding=0 cellspacing=5 border=0 CLASS="shadow0" width="100%">
 <tr><td align=left valign=top> $GLOSSAR_SHORT_TXT </td><td align=left> $GLOSSAR_TXT </td></tr>
@@ -287,7 +255,7 @@ fkt_formular_gui_user_print_html () {
 </form>
 
 <form action="" method="post" CLASS="form">
-<tr><td align=left valign=middle> $USER_LIST_TXT_SHORT </td><td align=left> $USER_LIST_TXT_LONG <br> $( fkt_print_html_known_user_list ) </td></tr>
+<tr><td align=left valign=middle> $USER_LIST_TXT_SHORT </td><td align=left> $USER_LIST_TXT_LONG <br> $( _webconfig htmlout_users ) </td></tr>
 <tr><td align=left>               $LEGEND_TXT_SHORT    </td><td align=left> $LEGEND_TXT_LONG </td></tr>
 
 </form>
@@ -295,7 +263,8 @@ fkt_formular_gui_user_print_html () {
 EOF
 }
 
-fkt_formular_gui_user_ready_print_html () {
+_webconfig_htmlout_gui_user_submitted ()
+{
 	local PLEASE_REBOOT="<br>Diese Funktion funktioniert erst zuverl&auml;ssig nach einen <a href=reset.html>Neustart</a> deiner Freifunkantenne.<br>Denke daran, das evtl. neu eingetragende Rechner nochmal eine IP-Adresse beziehen muessen. (neudeutsch \"DHCP\")"
 
 	  if [ -n "$AUTHMODE" ]; then								# Authmode is configured
