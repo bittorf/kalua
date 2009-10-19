@@ -33,3 +33,58 @@ _config_commit ()
 	
 	_nvram set commit "$REASON"
 }
+
+_config_todo ()		# e.g. _config_todo boot_watchdog && start_bootwatchdog (OUT=bool)
+{			# e.g. _config_todo show_all -> list (value short_desc long_desc)
+
+	local P=1
+	local FUNC="config_todo"
+
+	[ "$1" = "show_all" ] && {
+		while _$FUNC $P info; do {
+			P=$(( $P + 1 ))
+		} done
+		return 0
+	}
+	
+	local VAR="fff_extensions"
+	local VALUE="$( nvram get $VAR )"
+	local I="no description available"
+	local S="short_description"
+	
+	case $1 in
+		      speedtest|1)  P=1  ; S="speedtest"       ; I="Alle 40 Minuten wird von einem zufaelligem Nachbarn 10 fuer Sekunden ein Testdownload gemacht. Diese Werte dienen als Berechnungsgrundlage fuer ein Bandbreitenabhaengiges Routing." ;;
+		 	adblock|2)  P=2  ; S="adblock"         ; I="Ueber eine systemweite DNS-Liste ('/etc/local.hosts') werden bekannte Werbebanner geschluckt (zurueckgewiesen). Weniger Datenverkehr und schnelleres surfen im Web." ;;
+		 firmwareupdate|3)  P=3  ; S="firmwareupdate"  ; I="Automatisches Firmwareupdate, je nach Einstellung." ;;
+		lazy_wired_olsr|4)  P=4  ; S="lazy_wired_olsr" ; I="Auf allen Netzwerkschnittstellen, auf denen kein OLSR-Partner zu hoeren ist, wird OLSR abgeschaltet. Alle 15 Stunden wird neu ueberprueft." ;;
+		  boot_watchdog|5)  P=5  ; S="boot_watchdog"   ; I="Sollte 10 Minuten nach dem Boot-Vorgang kein OLSR laufen, werden alle Partitionen neu formatiert und nochmal gestartet." ;;
+		     layer7_qos|6)  P=6  ; S="layer7_qos"      ; I="Die gaengigsten Protokolle (HTTP,FTP,...) werden auf Layer7-Basis erkannt, markiert und entsprecht der Wichtigkeit priorisiert." ;;
+		    no_wifi_nat|7)  P=7  ; S="no_wifi_nat"     ; I="Das maskieren der WLAN-Klienten wird deaktivert. Dazu muss der WLAN-Bereich per OLSR-HNA4 angekuendigt werden." ;;
+		     splashpage|8)  P=8  ; S="splashpage"      ; I="Alle Benutzer sehen, wenn sie das interne Netzwerk verlassen eine Infoseite, die " ;;
+		   smart_ethers|9)  P=9  ; S="smart_ethers"    ; I="Es koennen MAC-Adressen eingegeben werden, die " ;;
+		   boot_telnetd|10) P=10 ; S="boot_telnetd"    ; I="Waehrend der ersten 10 Minuten des Startvorgangs ist zusaetzlich zum SSH-Login auch ein telnet-Login ohne Passwort moeglich." ;;
+		    auto_config|11) P=11 ; S="auto_config"     ; I="Beim Bootvorgang werden automatisch alle Einstellungen vorgenommen, es sei denn, dies wurde schonmal getan." ;;
+	         olsr_whitelist|12) P=12 ; S="olsr_whitelist"  ; I="Nur von zentral in einer 'whitelist' eingetragenen Netzknoten (MAC/IP-Kombination) werden OLSR-Pakete akzeptiert. Damit gibt es weniger Konfigurationsfehler. Diese Liste wird alle 10 Stunden optimiert." ;;
+		  auto_software|13) P=13 ; S="auto_software"   ; I="Abhaengig von Speicherplatz und gewuenschter Funktionalitaet werden automatisch nach dem flashen brauchbare Software-Pakete nachinstalliert." ;;
+		      nud_neigh|14) P=14 ; S="nud_neigh"       ; I="Alle OLSR-Nachbarn werden permanent in die Kernel-NUD-Liste eingetragen." ;;
+		      nud_local|15) P=15 ; S="nud_local"       ; I="Lokal bekannte Benutzer werden permanent in die Kernel-NUD-Liste eingetragen." ;;
+		       mesh_rdf|16) P=16 ; S="mesh_rdf"        ; I="Alle 15 Minuten werden Statusinformationen dieses Netzknotens local gespeichert und in zufaelligen Abstaenden zu einem zentralen Server gesendet" ;;
+                     accounting|17) P=17 ; S="accounting"      ; I="Es kann eine Liste aller Benutzer abgefragt werden, die auf diesem Netzknoten irgendwie Datenverkehr verursacht haben." ;;
+	                 ic_vpn|18) P=18 ; S="ic_vpn"          ; I="Ist ein lokaler Internetzugang vorhanden, wird automatisch am Intercity-VPN teilgenommen. Dabei werden Funkwolken ueber VPN gekoppelt." ;;
+                  system_checks|19) P=19 ; S="system_checks"   ; I="Alle 15 Minuten werden die wichtigen Dienste auf korrekte Funktionalitaet geprueft und neugestartet, wenn noetig." ;;
+                      check_mac|20) P=20 ; S="check_mac"       ; I="Alle MAC-Adressen dieses Geraets werden beim Start geprueft. Sollte eine ungueltige festgestellt werden, wird dies korrigiert." ;;
+				 *) P=0
+		;;
+	esac
+
+	VAR="$( echo -n $VALUE | cut -b$P )"
+
+	[ "$2" = "info" ] && {
+		[ $P -eq 0 ] && return 1
+		echo "local VALUE='$VAR';local DESC_SHORT='$S'; local DESC_LONG='$I'"
+		return 0
+	}
+
+	[ 2>/dev/null "$VAR" -gt 0 ] && return 0
+	return 1
+}
