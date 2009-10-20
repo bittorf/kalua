@@ -1,4 +1,5 @@
 #!/bin/sh
+. /tmp/loader
 
 fkt_build_settings_menu ()				# SENS: switching between "simple", "expert" and "full" settings-menu
 {							# ARG1: string, "simple", "expert", "full" or "" (empty)
@@ -19,26 +20,26 @@ fkt_build_settings_menu ()				# SENS: switching between "simple", "expert" and "
 	test -n "$READONLY" && return
 	test -n "$FAILSAFE" && return
 	
-	fkt_log "$DAEMON" "nvram is \"$MENU\", wish is \"$MODE\"" 1
+	_log do "$DAEMON" daemon debug "nvram is '$MENU', wish is '$MODE'"
 	test ! -z "$MODE" && MENU=$MODE
-	fkt_log "$DAEMON" "Trying to establish mode \"$MENU\"" 1
+	_log do "$DAEMON" daemon debug "Trying to establish mode '$MENU'"
 
 	if [ -n "$FAILSAFE" ] || _system flash_mounted_readonly ; then
-		fkt_log "$DAEMON" "No action in failsafe/readonly mode possible!"
+		_log do "$DAEMON" daemon debug "No action in failsafe/readonly mode possible!"
 		return
 	fi
 
 	cd $DEST
 
 	if [ ! -e "$ID-$FILE" ]; then
-		fkt_log "$DAEMON" "Inserting settings-menu entry"
+		_log do "$DAEMON" daemon debug "Inserting settings-menu entry"
 		echo >$ID-$FILE "<TR ID=\"idx-$ID\"><TD><DIV CLASS=\"plugin\"><A CLASS=\"plugin\" HREF=\"$FILE\">$TITLE</A></DIV></TD></TR>"
 	else
-		fkt_log "$DAEMON" "Settings-menu entry already exists"
+		_log do "$DAEMON" daemon debug "Settings-menu entry already exists"
 	fi
 
 	if [ "$MENU" = "simple" ] || [ -z "$MENU" ]; then
-		fkt_log "$DAEMON" "Checking if simple menu is up to date"
+		_log "$DAEMON" daemon debug "Checking if simple menu is up to date"
 
 		test -e "$ID_EXPERT-$FILE" && mv "$ID_EXPERT-$FILE" "ghosted_$ID_EXPERT-$FILE"
 		test -e "$ID_USER-$FILE"   && mv "$ID_USER-$FILE"   "ghosted_$ID_USER-$FILE"
@@ -46,19 +47,19 @@ fkt_build_settings_menu ()				# SENS: switching between "simple", "expert" and "
 		local LIST="$(ls -1 [^a-z]*)"
 		for OBJ in $LIST; do
 			if [ "$OBJ" != "$ID-$FILE" ]; then
-				fkt_log "$DAEMON" "Moving $DEST/$OBJ to $DEST/ghosted_$OBJ"
+				_log do "$DAEMON" daemon debug "Moving $DEST/$OBJ to $DEST/ghosted_$OBJ"
 				mv "$OBJ" "ghosted_$OBJ"
 			fi
 		done
 	fi
 	
 	if [ "$MENU" = "expert" ]; then
-		fkt_log "$DAEMON" "Checking if expert menu is up to date"
+		_log "$DAEMON" daemon debug "Checking if expert menu is up to date"
 
 		local LIST="$(ls -1 [^a-z]*)"
 		for OBJ in $LIST; do
 			if [ "$OBJ" != "$ID-$FILE" ]; then
-				fkt_log "$DAEMON" "Moving $DEST/$OBJ to $DEST/ghosted_$OBJ"
+				_log do "$DAEMON" daemon debug "Moving $DEST/$OBJ to $DEST/ghosted_$OBJ"
 				mv "$OBJ" "ghosted_$OBJ"
 			fi
 		done
@@ -66,26 +67,27 @@ fkt_build_settings_menu ()				# SENS: switching between "simple", "expert" and "
 	
 	if [ "$MENU" = "expert" ] || [ "$MENU" = "full" ]; then
 		if [ ! -e "$ID_EXPERT-$FILE" ]; then
-			fkt_log "$DAEMON" "Inserting expert-settings-menu entry"
+			_log do "$DAEMON" daemon debug "Inserting expert-settings-menu entry"
 			echo >$ID_EXPERT-$FILE "<TR ID=\"idx-$ID\"><TD><DIV CLASS=\"plugin\"><A CLASS=\"plugin\" HREF=\"$FILE?$OPT_EXPERT\">$TITLE_EXPERT</A></DIV></TD></TR>"
 		else
-			fkt_log "$DAEMON" "Expert-settings-menu entry already exists"
+			_log do "$DAEMON" daemon debug "Expert-settings-menu entry already exists"
 		fi	
 		
 		if [ ! -e "$ID_USER-$FILE" ]; then
-			fkt_log "$DAEMON" "Inserting user-settings-menu entry"
+			_log do "$DAEMON" daemon debug "Inserting user-settings-menu entry"
 			echo >$ID_USER-$FILE "<TR ID=\"idx-$ID\"><TD><DIV CLASS=\"plugin\"><A CLASS=\"plugin\" HREF=\"$FILE?$OPT_USER\">$TITLE_USER</A></DIV></TD></TR>"
 		else
-			fkt_log "$DAEMON" "User-settings-menu entry already exists"
+			_log do "$DAEMON" daemon debug "User-settings-menu entry already exists"
 		fi
+	fi
 
 	if [ "$MENU" = "full" ]; then
-		fkt_log "$DAEMON" "Checking if full menu is up to date"
+		_log do "$DAEMON" daemon debug "Checking if full menu is up to date"
 		
 		local LIST="$(ls -1 ghosted_* 2>/dev/null)"
 		for OBJ in $LIST; do
 			local OBJ_NEW="$(echo $OBJ | sed "s/ghosted_//g")"
-			fkt_log "$DAEMON" "Moving $DEST/$OBJ to $DEST/$OBJ_NEW"
+			_log do "$DAEMON" daemon debug "Moving $DEST/$OBJ to $DEST/$OBJ_NEW"
 			mv "$OBJ" "$OBJ_NEW"
 		done
 	fi
