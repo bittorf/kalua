@@ -1,17 +1,16 @@
 #!/bin/sh
+. /tmp/loader
 
-. /bin/needs old vars_old 1wire
-
-fkt_define_vars
-func_set_lockfile_or_wait
+_1wire vars
+_1wire lockfile_set
 
 if [ "$REQUEST_METHOD" = "GET" ]; then				# what about POST,PUT,DELETE?
-	fkt_read_browsers_query_string
-	fkt_check_port
-	fkt_check_auth
+	eval $( _http_query_string_sanitize )
+	_1wire check_https
+	_1wire check_auth
 else								# call from shell
 	[ -n "$REMOTE_ADDR" ] && {				# unimplemented request-method, not from shell
-		func_remove_lockfile
+		_1wire lockfile_remove
 		exit 1
 	}
 	
@@ -22,46 +21,46 @@ fi
 
 case $ACTION in
 	backup)
-		fkt_define_vars
-		fkt_backup
+		_1wire vars
+		_1wire backup
 	;;
 	jobwork)
-		fkt_define_vars
-		fkt_work_the_flow
+		_1wire vars
+		_1wire sensor_data_fetch
 	;;
 	joblist)
 		if [ -e "$JOBFILE" ]; then
 			cat "$JOBFILE"
-			fkt_print_endtag
+			_1wire print_endtag
 		else
-			fkt_trap_error "no jobfile yet"
+			_1wire error_trap "no jobfile yet"
 		fi
 	;;
 	jobadd)
 		if [ -z "$(grep "$CHIP $FIELD " "$JOBFILE" 2>/dev/null)" ]; then
-			fkt_write_file  "$JOBFILE" "$CHIP $FIELD $THRESHOLDSTART $THRESHOLDEND"
+			_1wire file_print  "$JOBFILE" "$CHIP $FIELD $THRESHOLDSTART $THRESHOLDEND"
 		else
-			fkt_remove_line "$JOBFILE" "$CHIP $FIELD "
-			fkt_write_file  "$JOBFILE" "$CHIP $FIELD $THRESHOLDSTART $THRESHOLDEND"
+			_1wire file_remove_line "$JOBFILE" "$CHIP $FIELD "
+			_1wire file_print  "$JOBFILE" "$CHIP $FIELD $THRESHOLDSTART $THRESHOLDEND"
 		fi
 		
-		fkt_print_endtag
+		_1wire print_endtag
 	;;
 	jobdel)
 		if [ ! -z "$(grep "$CHIP $FIELD " "$JOBFILE" 2>/dev/null)" ]; then
-			fkt_remove_line "$JOBFILE" "$CHIP $FIELD "
-			fkt_print_endtag
+			_1wire file_remove_line "$JOBFILE" "$CHIP $FIELD "
+			_1wire print_endtag
 		else
-			fkt_trap_error "no such job!"
+			_1wire error_trap "no such job!"
 		fi
 	;;
 	chiplist)
-		OUT="$(fkt_print_all_sensors)"
+		OUT="$(_1wire sensor_show)"
 		if [ -z "$OUT" ]; then
-			fkt_trap_error "zero output - owfs not running?"
+			_1wire error_trap "zero output - owfs not running?"
 		else
 			echo "$OUT"
-			fkt_print_endtag
+			_1wire print_endtag
 		fi
 	;;
 	chipget)
@@ -74,16 +73,16 @@ case $ACTION in
 			FIELD="$TERM1"
 		fi
 	
-		OUT="$(print_sensorfield)"
+		OUT="$(_1wire sensorfield_show)"
 		if [ -z "$OUT" ]; then
-			fkt_trap_error "no values, wrong or nonexistent field or sensor?"
+			_1wire error_trap "no values, wrong or nonexistent field or sensor?"
 		else
 			echo "$OUT"
-			fkt_print_endtag
+			_1wire print_endtag
 		fi			
 	;;
 	chipset)
-		fkt_trap_error "not implemented yet"
+		_1wire error_trap "not implemented yet"
 	;;
 	chiphistory)
 		if [ -e "$JOBDATA.$CHIP.$FIELD" ]; then
@@ -93,17 +92,17 @@ case $ACTION in
 			awk -v S="$TIMESTART" -v E="$TIMEEND" '{if($1>=S && $1<=E)print $0}' "$JOBDATA.$CHIP.$FIELD" 2>/dev/null
 			
 			if [ "$?" -ne 0 ]; then
-				fkt_trap_error "no values in time-range"
+				_1wire error_trap "no values in time-range"
 			else
-				fkt_print_endtag
+				_1wire print_endtag
 			fi
 		else
-			fkt_trap_error "no datafile yet"
+			_1wire error_trap "no datafile yet"
 		fi
 	;;
 	*)
-		fkt_print_help
+		_1wire usage
 	;;
 esac
 
-func_remove_lockfile
+_1wire lockfile_remove

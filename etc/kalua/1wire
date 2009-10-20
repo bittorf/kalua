@@ -1,6 +1,5 @@
-#!/bin/sh
-
-fkt_define_vars () {
+_1wire_vars ()
+{
 	SECUSER="$( nvram get owfs_https_user )"
 	SECPASS="$( nvram get owfs_https_pass )"
 	JOBFILE="/www/1wire_jobs.txt"			# fixme! serialize nvram_var
@@ -13,30 +12,28 @@ fkt_define_vars () {
 	#   - sensorname, sensorfeld, untere_schwelle, obere_schelle, pollintervall [s]
 	#
 	# 				 owfs_jobs="temperaturfuehler_keller,temperature,-10,65,600;..."
+	# - umrechnungsschema angeben?
+	# - zaehlart?
 }
 
-func_remove_lockfile ()
+_1wire_lockfile_remove ()
 {
 	rm $LOCKFILE
 }
 
-func_set_lockfile_or_wait ()
+_1wire_lockfile_set ()
 {
-	while [ -r $LOCKFILE ]; do {
-		logger "1wire - waiting (DoS)"
+	while [ -e $LOCKFILE ]; do {
 		sleep 1
 	} done
 
 	touch $LOCKFILE
 }
 
-fkt_print_header () {
-	echo -en "Content-type: text/html\n\n"
-}
-
-fkt_backup () {
-	local BACKUP_DEST="backup_$( _system date unixtime )_$( date +%d%b%Y-%Huhr%M )_1wire.tgz"
-	local BACKUP_DATA="/etc/init.d/S88chip_workflow /www/cgi-bin-chip* $JOBFILE $JOBDATA*"
+_1wire_backup ()
+{
+	local BACKUP_DEST="backup_$( _system date unixtime )_$( _system date humanreadable )_1wire.tgz"
+	local BACKUP_DATA="/etc/init.d/S88chip_workflow /www/cgi-bin-chip $JOBFILE $JOBDATA*"
 	local USBSTICK="$( df | grep ^/dev/scsi | sed -n 's/^.*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*% \(.*\)/1/p' )"
 
 	[ -n "$USBSTICK" ] && {
@@ -54,7 +51,7 @@ fkt_backup () {
 	echo "backup done at '$BACKUP_DEST'"
 }
 
-func_wait_for_error_free_1wire_bus ()
+_1wire_bus_wait_until_clean ()
 {
 	local COUNTER=0
 
@@ -69,65 +66,53 @@ func_wait_for_error_free_1wire_bus ()
 	} done
 }
 
-fkt_print_all_sensors () {
-	func_wait_for_error_free_1wire_bus
+_1wire_sensor_show ()
+{
+	_1wire bus_wait_until_clean
 
 	owdir -s 3002 | grep ^..\.............
-
-	#	_wget do "http://127.0.0.1:3001" |				# fetch owhttpd
-	#	 sed -e 's/</TR>/</TR>n/g' |					# insert newline after TR-end-tag
-	#	  sed -e '/1-wire/!d' |						# only print lines with "1-wire"
-	#	   sed 's/.*<BIG>([^a-z]*)</BIG>.*/1/' |			# print only sensor-code
-	#	    sed -e '/^[0-9]/!d'						# supress lines which are not sensors (e.g. "simultaneous")
 }
 
-print_sensorfield ()
+_1wire_sensorfield_show ()
 {
 	# vars must be something like:
 	# ADDON=uncached
 	# CHIP=/1D.C61209000000
 	# FIELD=counters.A
 
-	func_wait_for_error_free_1wire_bus
+	_1wire bus_wait_until_clean
 	#	logger "getting: 'owread -s 3002 /${ADDON}${CHIP}/$FIELD'"
 	owread -s 3002 /${ADDON}${CHIP}/$FIELD | sed 's/[^a-zA-Z0-9.]//g'
-
-	#	_wget do "http://127.0.0.1:3001/${ADDON}${CHIP}" |		# fetch specific sensorpage from owhttpd
-	#	  sed -e "/<B>$FIELD</B>/!d" |					# only print lines with field
-	#	   sed 's/.*</B></TD><TD>(.*)</TD></TR>/1/g' |		# extract value from field
-	#	    sed -e 's/  *//g'						# remove spaces
 }
 
-fkt_trap_error () {
+_1wire_error_trap ()
+{
 	local MESSAGE="$1"
 
-	fkt_print_header
+	_http header_mimetype_output "text/html"
 	echo "ERROR=\"$MESSAGE\""
-	func_remove_lockfile
+	_1wire lockfile_remove
 	exit 1
 }
 
-fkt_print_endtag () {
+_1wire_print_endtag ()
+{
 	echo "ERROR=\"0\""
-	func_remove_lockfile
+	_1wire lockfile_remove
 	exit
 }
 
-fkt_check_auth () {
+_1wire_check_auth ()
+{
 	if [ "$USER" = "$SECUSER" ] && [ "$PASS" = "$SECPASS" ]; then
 		return
 	else
-		fkt_trap_error "wrong username/password combination from IP"
+		_1wire error_trap "wrong username/password combination from IP: '$REMOTE_ADDR'"
 	fi
 }
 
-fkt_get_remote_addr () {
-	# interface wan,lan,wifi-ip
-
-	sed -e "/ESTABLISHED/!d" -e "/ASSURED/!d" -e "/dst=10.63.240.1/!d" -e "/dport=443/!d" /proc/net/ip_conntrack
-}
-
-fkt_write_file () {
+_1wire_file_print ()
+{
 	local DATA="$2"
 	local FILE="$1"
 
@@ -137,83 +122,70 @@ fkt_write_file () {
 		return
 	}
 
-	fkt_lock_file   "$FILE"
+	_1wire file_lock   "$FILE"
 
 	logger "$0 writing '$DATA' to '$FILE'"
 
 	echo  "$DATA" >>"$FILE"
 
-	fkt_unlock_file "$FILE"
+	_1wire file_unlock "$FILE"
 }
 
-fkt_remove_line () {
+_1wire_file_remove_line ()
+{
 	local PATT="$2"					# pattern to remove using grep
 	local FILE="$1"
 
-	fkt_lock_file   "$FILE"
+	_1wire file_lock   "$FILE"
 
 	logger "$0 : removing line containing '$PATT'"
 	cat "$FILE" | grep -v "$PATT" >"$FILE"
 
-	fkt_unlock_file "$FILE"
+	_1wire file_unlock "$FILE"
 }
 
-fkt_lock_file () {
+_1wire_file_lock ()
+{
 	while [ -e "$1.locked" ]; do logger "$0 : waiting for $1.locked"; sleep 1; done
 	touch "$1"
 }
 
-fkt_unlock_file () {
+_1wire_file_unlock ()
+{
 	rm -f "$1.locked"
 }
 
-fkt_check_port () {
-	test "$REMOTE_ADDR" != "127.0.0.1" && fkt_trap_error "only https possible"
+_1wire_check_https ()
+{
+	[ "$SERVER_PORT" != "443" ] && _1wire error_trap "only https possible"
 }
 
-fkt_work_the_flow () {
+_1wire_sensor_data_fetch ()
+{
 	local LINE=""
 
 	test ! -e "$JOBFILE" && return
 
 	while read LINE; do {			 			# ok of jobs is not 100% sure, e.g. sensor is offline
 		set $LINE						# so its better to check each return-code
-		# this test is now in print_sensorfield()
+		# this test is now in _1wire sensorfield_show()
 		CHIP="/${1}"
 		FIELD="${2}"
 		ADDON=uncached
 
-		VALUE="$( print_sensorfield )"
+		VALUE="$( _1wire sensorfield_show )"
 		[ -n "$VALUE" ] && {
-			#			logger "fkt_write_file "$JOBDATA.$1.$2" "$(_system date unixtime) $VALUE""
-			fkt_write_file "$JOBDATA.$1.$2" "$(_system date unixtime) $VALUE"
+			#			logger "_1wire file_print "$JOBDATA.$1.$2" "$(_system date unixtime) $VALUE""
+			_1wire file_print "$JOBDATA.$1.$2" "$(_system date unixtime) $VALUE"
 		} || {
 			logger "zero value - leaving database untouched"
 		}
 
-#		_wget do "http://127.0.0.1/cgi-bin-chip?PASS=$SECPASS&USER=$SECUSER&ACTION=chipget&CHIP=$1&FIELD=$2" |
-#		 while read LINE2; do								# reading output / values
-#		 	if [ -z "$(echo "$LINE2" | sed 's/^ERROR=.*//g')" ]; then		# line begins with "ERROR="
-#
-#		 		eval $LINE2
-#
-#		 		if [ "$ERROR" = "0" ] && [ -n "$VALUE" ]; then			# all is ok
-#		 			fkt_write_file "$JOBDATA.$1.$2" "$(_system date unixtime) $VALUE"
-#		 		else
-#		 			logger "ERROR != 0 or zero value - leaving database untouched"
-#		 		fi
-#			else
-#				VALUE="$(echo $LINE2 | sed 's/[^0-9a-zA-Z.]//g')"		# attention, only dots,chars and numbers
-#		 	fi
-#		 done
-
 	} done <"$JOBFILE"
-
-	#	sleep 30
 }
 
-fkt_print_help () {
-	eval $(netparam)
+_1wire_usage ()
+{
 	local URL="<small>https://${LANADR}${REQUEST_URI}</small>"
 	local P="<b>"
 	local O="</b>"
@@ -221,7 +193,7 @@ fkt_print_help () {
 	local U2="${P}Vars:${O}"
 	local U3="${P}Output:${O}"
 
-	fkt_print_header
+	_http header_mimetype_output "text/html"
 
 	cat <<EOF
 <html><head><title>1wire</title><body bgcolor=white text=black><pre>
@@ -268,14 +240,4 @@ $U3	- is always zero (!) or more lines of wished output
 - joblist outputs in each line:		"CHIP FIELD THRESHOLDSTART THRESHOLDEND"
 </pre></body></html>
 EOF
-}
-
-fkt_read_browsers_query_string () {
-	local INPUT="$QUERY_STRING"
-	test -z "$INPUT" && return
-
-	local SANITIZED="$(echo $INPUT | sed -e 's/[^%&=+-:!,@"-_a-z~]//g')"					# only good chars
-	local ESCAPED="$(httpd -d $SANITIZED | sed -e 's/"/"/g' -e 's/=/="/g' -e 's/&/";/g ' -e 's/$/"/g')"	# escape ",= convert & to "; and $ to "
-
-	eval $ESCAPED 2>/dev/null
 }
