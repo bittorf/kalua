@@ -80,11 +80,11 @@ _pfilter_user_ruleset_activate ()
 _pfilter_stats_rules_count ()
 {
 	local LIST="${1:-mangle filter nat}"
-	local TABLE
-	local COUNT
+	local OPTION="$2"			# POSTROUTING
+	local TABLE COUNT
 	
 	for TABLE in $LIST; do {
-		COUNT="$( iptables -t $TABLE -nxL | sed -e '/^target/d' -e '/^Chain /d' -ne '/[^.]$/p' | sed -n '$=' )"
+		COUNT="$( iptables -t $TABLE -nxL $OPTION | sed -e '/^target/d' -e '/^Chain /d' -ne '/[^.]$/p' | sed -n '$=' )"
 		_log do packetfilter_count_rules daemon debug "$COUNT rules in '$TABLE'"
 	} done
 }
@@ -184,7 +184,7 @@ _pfilter_stats_user_traffic_list_today ()
 
 _pfilter_rules_nat_wifi_roaming ()
 {
-	_log do pfilter daemon info "(fkt_nat_for_roaming_wifi_clients) Installing masquerading"
+	_log do "pfilter_rules_nat_wifi_roaming" daemon info "installing masquerading"
 
 	eval "$( _ipsystem do )"
 
@@ -257,7 +257,7 @@ _pfilter_rules_nat_inetoffer_lan ()	# SENS: masquerades traffic over lan-device 
 	iptables -A POSTROUTING -t nat -o $LANDEV  -s ! $LANNET/$LANPRE -j MASQUERADE
 	iptables -A POSTROUTING -t nat -o $WIFIDEV -s   $LANNET/$LANPRE -j MASQUERADE
 
-	func_packetfilter_show nat POSTROUTING
+	_pfilter stats_rules_count nat POSTROUTING
 	_log do pfilter daemon info "($FUNC) done"
 }
 
@@ -670,18 +670,18 @@ _pfilter_user_probe_splash () {
 	fi
 }
 
-_pfilter_user_splash_control () {		# SENS: controlling if a user must see splashpage before using internet or not
-								# ARG1: nosplash,splash
-								# ARG2: mac
-	local FUNC="control_redirect_for_user_with_mac_and_ip"	# ARG3: ip-address
+_pfilter_user_splash_control ()				# SENS: controlling if a user must see splashpage before using internet or not
+{							# ARG1: nosplash,splash
+							# ARG2: mac
+	local FUNC="pfilter_user_splash_control"	# ARG3: ip-address
 	local MODE="$1"
 	local  MAC="$2"
 	local   IP="$3"
 
-	_log do pfilter daemon info "(fkt_control_redirect_for_user_with_mac_and_ip) start - mode: $MODE - $MAC / $IP"
+	_log do $FUNC daemon info "start - mode: $MODE - $MAC / $IP"
 
 	if [ -z "$MODE" ] || [ -z "$MAC" ] || [ -z "$IP" ]; then
-		_log do pfilter daemon info "(fkt_control_redirect_for_user_with_mac_and_ip) no mode nor mac nor ip given, aborting"
+		_log do $FUNC daemon info "no mode nor mac nor ip given, aborting"
 		return
 	fi
 
@@ -694,12 +694,12 @@ _pfilter_user_splash_control () {		# SENS: controlling if a user must see splash
 	iptables -t mangle $MODE PREROUTING -m mac --mac-source $MAC -j ACCEPT
 	iptables -t mangle $MODE PREROUTING -d $IP                   -j ACCEPT	
 
-	_log do pfilter daemon info "(fkt_control_redirect_for_user_with_mac_and_ip) end - mode: $MODE - $MAC / $IP"
+	_log do $FUNC daemon info "end - mode: $MODE - $MAC / $IP"
 }
 
 _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 {
-	local FUNC="add_user_with_mac_and_ip"
+	local FUNC="pfilter_user_add"
 	local MAC="$1"
 	local  IP="$2"
 	local ARP="$3"		# fixme! sens of $3 ?
@@ -714,7 +714,7 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	}
 
 	[ -z "$IP" ] && {
-		_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) no MAC or no IP given - aborting"
+		_log do $FUNC daemon info "no MAC or no IP given - aborting"
 		return 1
 	}
 					# normal users
@@ -723,14 +723,14 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 
 	if [ "$( _net local_inet_offer )" != "false" ]; then
 	
-		_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) raising connection-count for this user"
+		_log do $FUNC daemon info "raising connection-count for this user"
 
 		CONN_LIMIT_UDP="20"		# free-users on node with inet-offer
 		CONN_LIMIT_TCP="75"
 	
 		if [ "$( _pfilter user_probe_admin $MAC )" = "true" ]; then
 
-			_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) boosting connection-count for this admin-user"
+			_log do $FUNC daemon info "boosting connection-count for this admin-user"
 
 			CONN_LIMIT_UDP="1000"
 			CONN_LIMIT_TCP="4096"
@@ -797,7 +797,7 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 
 	_pfilter user_splash_control nosplash $MAC $IP
 	
-	_log do pfilter daemon info "(fkt_add_user_with_mac_and_ip) filling user chain - end"
+	_log do $FUNC daemon info "filling user chain - end"
 }
 
 _pfilter_rules_install () {	# connbytes auswerten: http ab 200k = langsame klasse/download?
@@ -968,7 +968,7 @@ _pfilter_rules_olsr_whitelist_fetch () {
 
 _pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-restart (!)
 {
-	local FUNC="olsr_whitelist_update"
+	local FUNC="pfilter_rules_olsr_whitelist_update"
 
 	[ ! -e "$OLSR_WL_READY" ] && {
 		_log do $FUNC daemon debug "no whitelist - no update"
@@ -998,7 +998,7 @@ _pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added unt
 
 	iptables -D $OLSR_WL_CHAIN -j ACCEPT 2>/dev/null			       # deleting accept. of all packets, activating whitelist
 	
-	_log do pfilter daemon info "(fkt_olsr_whitelist_install) installed $N rules"
+	_log do $FUNC daemon info "installed $N rules"
 }
 
 _pfilter_rules_olsr_whitelist_optimize () {
@@ -1045,7 +1045,9 @@ _pfilter_rules_olsr_whitelist_optimize () {
 	fi
 }
 
-_pfilter_rules_olsr_whitelist_errorcheck () {
+_pfilter_rules_olsr_whitelist_errorcheck ()
+{
+	local FUNC="pfilter_rules_olsr_whitelist_errorcheck"
 	local LINES_IN_WL_CHAIN="$( iptables -nxvL $OLSR_WL_CHAIN | grep all | wc -l )"		# the grep removes chain-headers
 	local LINES_IN_WL_FILE="$(         cat $OLSR_WL_READY |            wc -l )"
 	local OUT="false"
@@ -1056,7 +1058,7 @@ _pfilter_rules_olsr_whitelist_errorcheck () {
 		OUT="false"
 	fi
 
-	logger "fff+ (fkt_olsr_whitelist_check_for_error) $OUT (lines in: $LINES_IN_WL_FILE - lines real: $LINES_IN_WL_CHAIN)"
+	_log do $FUNC daemon info "$OUT (lines in: $LINES_IN_WL_FILE - lines real: $LINES_IN_WL_CHAIN)"
 
 	echo $OUT
 }
@@ -1194,11 +1196,12 @@ _pfilter_rules_walledgarden ()
 
 _pfilter_rules_nat_no_wificlients ()
 {
+	local FUNC="pfilter_rules_nat_no_wificlients"
 	local WIFI_DHCP_NET="$( nvram get ff_wldhcp | cut -d, -f1 )"	
 
 	[ -z "$WIFI_DHCP_NET" ] && return
 	
-	_log do pfilter daemon info "(fkt_no_nat_for_wifi_clients) Removing rules"
+	_log do $FUNC daemon info "removing rules"
 
 	iptables -D POSTROUTING -t nat -s $WIFI_DHCP_NET -j MASQUERADE
 }
