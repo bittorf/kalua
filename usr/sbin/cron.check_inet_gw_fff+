@@ -8,22 +8,16 @@ test   -e "/tmp/LOWMEM"			&& exit
 test   -n "$FAILSAFE"			&& exit
 test ! -e "/www/SOFTWARE_FULLY_INSTALLED"	&& exit
 
-func_watch_archiv ()
-{
-	tail -n 250 "/tmp/ARCHIV_TRACEINET"     >"/tmp/ARCHIV_TRACEINET_temp"
-	mv          "/tmp/ARCHIV_TRACEINET_temp" "/tmp/ARCHIV_TRACEINET"
-}	
-
-LIST="$( neigh gateways | sed 's/ /\/32_/g' | sed 's/$/\/32/g' )"		# append a "/32_" on every IP and at the end
+LIST="$( neigh gateways | sed 's/ /\/32_/g' | sed 's/$/\/32/g' )"	# append a "/32_" on every IP and at the end
 
 OUT="$( sed -e '/./{H;$!d;}' -e 'x;/Table: Routes/!d;' /tmp/olsr_output_recent | 
 	 awk -v LIST=$LIST '/\./ {if($4/1<1)exit;if(index(LIST,$1)>0)print $4,$1,$2,$3}' |
 	  sort -n |
 	   head -n 1 |
-	    sed 's/\/32//g')"							# should be this form: cost, gw-ip, nexthop-ip, metric
+	    sed 's/\/32//g')"						# should be this form: cost, gw-ip, nexthop-ip, metric
 
 [ -z "$OUT" ] && {							# olsr does not respond, caused by hanging or deactivated plaintest-plugin
-	GW="$( _sanitizer do "$(ip route list exact 0/0)" ip4 )"		# gatewayip from routing table 	// fixme! 'default dev tun0  scope link' -> no ip!
+	GW="$( _sanitizer do "$( ip route list exact 0/0 )" ip4 )"	# gatewayip from routing table 	// fixme! 'default dev tun0  scope link' -> no ip!
 	GWESCAPED="$(echo $GW  | sed 's/\./\\./g')"
 
 	if [ -n "$(grep "$GWESCAPED" /tmp/CLIENTS_LAN)" ] || [ -n "$(grep $GWESCAPED /tmp/CLIENTS_WAN)" ]; then
@@ -33,21 +27,21 @@ OUT="$( sed -e '/./{H;$!d;}' -e 'x;/Table: Routes/!d;' /tmp/olsr_output_recent |
 	fi
 }
 
-      ETX="$(echo $OUT | cut -d" " -f1)"
+ETX="$( echo $OUT | cut -d" " -f1 )"
 
 COST="$ETX"
 [ "$ETX" = "1.00" ] && COST="0"			# oldstyle 'local' inetoffer to newstyle
 
  COST_INT="$( echo $COST | sed 's/\.//g' )"	# cut off commata, for easy bash-calculating
-       GW="$(echo $OUT | cut -d" " -f2)"
-     NEXT="$(echo $OUT | cut -d" " -f3)"
-   METRIC="$(echo $OUT | cut -d" " -f4)"
-GWESCAPED="$(echo $GW  | sed 's/\./\\./g')"
-   DOMAIN="$(nvram get wan_domain)"             # bug! this is not true in our mesh - domain is always .olsr
+       GW="$( echo $OUT | cut -d" " -f2 )"
+     NEXT="$( echo $OUT | cut -d" " -f3 )"
+   METRIC="$( echo $OUT | cut -d" " -f4	)"
+GWESCAPED="$( echo $GW  | sed 's/\./\\./g' )"
+   DOMAIN="$( nvram get wan_domain )"             # bug! this is not true in our mesh - domain is always .olsr
    DOMAIN="olsr"
  HOSTNAME="$( nslookup $GW | sed -n 's/Name: *\([0-9a-zA-Z_-]*\)\.\([0-9a-zA-Z_-]*\)/\1/p' )"
- UNIXTIME="$(_system date unixtime)"
- HUMNDATE="$(date +%d%b%Y-%Huhr%M)"
+ UNIXTIME="$( _system date unixtime )"
+ HUMNDATE="$( _system date humanreadable )"
 
 test -z "$HOSTNAME" && HOSTNAME="?"
 
@@ -82,4 +76,4 @@ echo "GWCHECK=1; $OUT"  >/tmp/gateway_check_recent		# for fast including -> . /t
 
 echo "$OUT"
 
-func_watch_archiv
+_watch archivsize "/tmp/ARCHIV_TRACEINET" 250
