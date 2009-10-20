@@ -1,4 +1,15 @@
-func_db_html_out ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf 
+# ToDo:
+#
+# - user-editor: 
+#   - werte uebernehmen
+#     - zuerst SQL-Syntax schreiben und dann eval
+#   - user anzeigen
+#
+# - profil-editor: neues profil = muell-profil erzeugen + dieses bearbeiten
+#   - table PROFIL leer? -> direkt in profil-editor gehen
+#   - profil-editor: profil loeschen
+
+_webadmin_db_dirtyout_pdf ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf 
 {
 	sqlite3 /tmp/admin2.db "select * from USERS;" |
 	 awk -v DATUM="$( date )" 'BEGIN{
@@ -15,7 +26,7 @@ func_db_html_out ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf
 	}'
 }
 
-func_db_dirty_out ()
+_webadmin_db_dirtyout_userdata ()
 {
 	local TICKET="2h"	# 30min, 60min, 12h, 24h, 48h, 1week
 	local      C="502"
@@ -38,27 +49,27 @@ _webadmin_db_defs ()
 
 	[ ! -e "$SQL_DB" ] && {		# fixme! check 0 size?
 		_log do db_defs daemon info "creating database '$SQL_DB'"
-		func_db_init
+		_webadmin db_call
 	}
 }
 
-func_db_init ()
+_webadmin_db_call ()
 {
-	func_db_init_sql | "$SQL_BIN" "$SQL_DB"
+	_webadmin db_call_sql | "$SQL_BIN" "$SQL_DB"
 }
 
-func_db_init_sql ()		# outputs an complete sqlite-query, which creates all tables/triggers
+_webadmin_db_call_sql ()		# outputs an complete sqlite-query, which creates all tables/triggers
 {
 	local TABLE TABLES_LIST TABLE_INIT NAME NAMES_LIST
 
-	TABLES_LIST="$( func_db_tables all )"
-	NAMES_LIST="$(  func_db_tables USERNAMES init_defaults )"
+	TABLES_LIST="$( _webadmin db_tables all )"
+	NAMES_LIST="$(  _webadmin db_tables USERNAMES init_defaults )"
 	
 	echo "begin;"
 	echo
 
 	for TABLE in $TABLES_LIST; do {
-		TABLE_INIT="$( func_db_tables $TABLE init )"
+		TABLE_INIT="$( _webadmin db_tables $TABLE init )"
 		echo "create table '$TABLE' ( $TABLE_INIT );"
 	} done
 
@@ -93,7 +104,7 @@ EOF
 	echo "commit;"
 }
 
-func_schrott ()
+_webadmin_db_playground ()
 {
 	echo "begin;"
 
@@ -115,7 +126,7 @@ func_schrott ()
 	echo "commit;"
 }
 
-func_db_insert_tickets ()			# trigger: name = auto , pass = auto
+_webadmin_db_insert_tickets ()			# trigger: name = auto , pass = auto
 {						# "select name from NAMES where rowid>=random() % (SELECT max(rowid) FROM NAMES) limit 1"
 	local TICKET
 
@@ -129,7 +140,7 @@ func_db_insert_tickets ()			# trigger: name = auto , pass = auto
 	echo "COMMIT\""
 }
 
-func_db_tables ()
+_webadmin_db_tables ()
 {
 	local TABLE="$1"
 	local VIEW="$2"
@@ -221,23 +232,7 @@ func_db_tables ()
 	esac
 }
 
-# ToDo:
-#
-# - user-editor: 
-#   - werte uebernehmen
-#     - zuerst SQL-Syntax schreiben und dann eval
-#   - user anzeigen
-#
-# - profil-editor: neues profil = muell-profil erzeugen + dieses bearbeiten
-#   - table PROFIL leer? -> direkt in profil-editor gehen
-#   - profil-editor: profil loeschen
-
-func_unixtime ()
-{
-	_system date unixtime
-}
-
-func_toggle_values ()
+_toggle ()
 {
 	local VALUE_NOW="$1"
 	local VALUE_A="$2"
@@ -295,7 +290,7 @@ _webadmin_htmlout_links2category ()
 	
 	for ACTION in $( _webadmin action all ); do {
 		
-		BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
+		BGCOLOR="$( _toggle "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
 
 		eval $( _webadmin action $ACTION )                          
 
@@ -311,7 +306,7 @@ _webadmin_htmlout_links2category ()
 	} done
 }
 
-func_admingui_javascript ()		# http://www.tutorials.de/forum/javascript-ajax/329323-tabellenzeilen-verstecken-anzeigen.html
+_webadmin_htmlout_javascript ()		# http://www.tutorials.de/forum/javascript-ajax/329323-tabellenzeilen-verstecken-anzeigen.html
 {
 	cat<<EOF
 	<SCRIPT LANGUAGE="JavaScript" TYPE="text/javascript"><!--
@@ -410,18 +405,18 @@ _webadmin_htmlout_form_useradd ()
 	echo -n "<form method='get' accept-charset='ISO-8859-1'><input type='hidden' name='FORM_ACTION' value='user_add'><input type='hidden' name='FORM_SEND' value='true'>"
 	echo -n "<table id='tabID' cellspacing='0' cellpadding='2' border='0' width='100%'><tr><td width='10%'>&nbsp;</td><td width='10%'>&nbsp;</td><td width='80%'>&nbsp;</td></tr>"
 	
-	for VALUE in $(func_db_user all); do {
+	for VALUE in $(_webadmin db_user all); do {
 
-		BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
+		BGCOLOR="$( _toggle "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
 					 
-		eval $(func_db_user $VALUE)
+		eval $(_webadmin db_user $VALUE)
 
 		if [ "$EXPERT" = "true" ]; then
 			[ "$SWITCH" != "true" ] && {
 				SWITCH="true"
 				echo -n "<tr><td colspan='3' align='right' bgcolor='$BGCOLOR'>"
 				echo -n "<a href='#' ONCLICK=\"toggleMe('trg');\">Zusatzeinstellungen anzeigen</a></td></tr>"
-				BGCOLOR="$( func_toggle_values "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
+				BGCOLOR="$( _toggle "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
 			}
 			echo -n "<tr class='trg' style='display: none; visibility: hidden;'>"
 		else
@@ -566,7 +561,7 @@ _webadmin_htmlout_form_useredit ()			# ToDo:
 	echo "<br><br></td></tr></table></form>"
 }
 
-func_db_user ()
+_webadmin_db_user ()
 {
 	case $1 in
 		all)
@@ -579,10 +574,10 @@ func_db_user ()
 			# echo -n "COUNT "
 		;;
 		init)
-			local SEPARATE OBJ LIST="$( func_db_user all sql )"
+			local SEPARATE OBJ LIST="$( _webadmin db_user all sql )"
 			
 			for OBJ in $LIST; do {
-				eval $(func_db_user $OBJ)
+				eval $(_webadmin db_user $OBJ)
 				[ -z "SQLCLASS" ] && continue
 				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
 			} done 
@@ -612,7 +607,7 @@ func_db_user ()
 			echo "DESC_LONG='wird automatisch vorgegeben, kann auch manuell eingetragen werden'"	
 		;;
 		PROFILE_ID)
-			local N PROFILE PROFILE_LIST="$( func_db_profile ID all )"
+			local N PROFILE PROFILE_LIST="$( _webadmin db_profile ID all )"
 		
 			echo "SQLCLASS='INTEGER'"
 			echo "EXPERT='false'"
@@ -620,7 +615,7 @@ func_db_user ()
 			echo "DEFAULT_VALS='$PROFILE_LIST'"
 			
 			for PROFILE in $PROFILE_LIST; do {
-				echo "DEFAULT_TXT${N}='$( func_db_profile DESC $PROFILE )'"
+				echo "DEFAULT_TXT${N}='$( _webadmin db_profile DESC $PROFILE )'"
 				N=$(( $N + 1 ))
 			} done
 			
@@ -670,7 +665,7 @@ func_db_user ()
 		INSTALLED)
 			echo "SQLCLASS='INTEGER'"		# unixzeit / anlegezeitpunkt in DB
 			echo "EXPERT='sql'"
-			echo "DEFAULT_VAL='$( func_unixtime )'"
+			echo "DEFAULT_VAL='$( _system date unixtime )'"
 		;;
 		FIRSTSEEN)
 			echo "SQLCLASS='INTEGER'"		# unixzeit / erster erfolgreicher einlogvorgang
@@ -705,14 +700,14 @@ func_db_user ()
 	esac
 }
 
-func_db_devices ()
+_webadmin_db_devices ()
 {
 	case $1 in
 		init)
-			local SEPARATE OBJ LIST="$( func_db_devices all )"
+			local SEPARATE OBJ LIST="$( _webadmin db_devices all )"
 		
 			for OBJ in $LIST; do {
-				eval $(func_db_devices $OBJ)
+				eval $(_webadmin db_devices $OBJ)
 				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
 			} done
 		;;
@@ -734,14 +729,14 @@ func_db_devices ()
 	esac
 }
 
-func_db_profile ()		# insert into PROFILE values('hello!',10);
+_webadmin_db_profile ()		# insert into PROFILE values('hello!',10);
 {
 	case $1 in
 		init)
-			local SEPARATE OBJ LIST="$( func_db_profile all )"
+			local SEPARATE OBJ LIST="$( _webadmin db_profile all )"
 			
 			for OBJ in $LIST; do {
-				eval $(func_db_profile $OBJ)
+				eval $(_webadmin db_profile $OBJ)
 				echo -n "${SEPARATE}${OBJ} $SQLCLASS" && SEPARATE=","
 			} done
 		;;
