@@ -1112,18 +1112,19 @@ _pfilter_rules_olsr_control ()
 	iptables -A olsr_in_wifi                           -j $OLSR_WL_CHAIN			# try to pass whitelist, or...
 	iptables -A olsr_in_wifi                           -j olsr_in_wifi_invalid			# away
 	
-	iptables -A olsr_in_wire -i tap+		       -j ACCEPT				# from tap?
-	iptables -A olsr_in_wire -i tun+		       -j ACCEPT				# from tun?
-	iptables -A olsr_in_wire -i $LANDEV		       -j olsr_in_sanitizer			# from lan?
-	iptables -A olsr_in_wire -i $LANDEV                -j olsr_in_wire_valid			# from lan and sanitized
-	iptables -A olsr_in_wire            	       -j olsr_in_sanitizer			# must be WANDEV...
-	iptables -A olsr_in_wire                           -j olsr_in_wire_valid			# count all valid
+	iptables -A olsr_in_wire -i tap+	-j ACCEPT				# from tap?
+	iptables -A olsr_in_wire -i tun+	-j ACCEPT				# from tun?
+	iptables -A olsr_in_wire -i $LANDEV	-j olsr_in_sanitizer			# from lan?
+	iptables -A olsr_in_wire -i $LANDEV	-j olsr_in_wire_valid			# from lan and sanitized
+	iptables -A olsr_in_wire		-j olsr_in_sanitizer			# must be WANDEV...
+	iptables -A olsr_in_wire		-j olsr_in_wire_valid			# count all valid
 	
-	iptables -A olsr_in_sanitizer -s $MYHNA            -j olsr_in_homebrew			# selfgenerated packets from me to me
-	iptables -A olsr_in_sanitizer -s $WIFINET/$WIFIPRE  -p udp --sport 698 -j RETURN	# all ok, back to further parsing (later: -d 255.255.255.255)
-	iptables -A olsr_in_sanitizer -i $LANDEV -p udp --sport 698 -j RETURN			# from LAN
-	iptables -A olsr_in_sanitizer -i tap+   -p udp --sport 698 -j RETURN			# from tunnel, not that restrictiv
-	iptables -A olsr_in_sanitizer		       -j olsr_in_malformed			# something is wrong
+	iptables -A olsr_in_sanitizer -s $MYHNA				-j olsr_in_homebrew		# selfgenerated packets from me to me
+	iptables -A olsr_in_sanitizer -s $WIFINET/$WIFIPRE		-p udp --sport 698 -j RETURN	# all ok, back to further parsing (later: -d 255.255.255.255)
+	iptables -A olsr_in_sanitizer -i $WIFIDEV			-j RETURN			# from WIFI
+	iptables -A olsr_in_sanitizer -i $LANDEV  -p udp --sport 698	-j RETURN			# from LAN
+	iptables -A olsr_in_sanitizer -i tap+     -p udp --sport 698	-j RETURN			# from tunnel, not that restrictiv
+	iptables -A olsr_in_sanitizer					-j olsr_in_malformed		# something is wrong
 	
 	iptables -A olsr_in_malformed -m limit --limit 1/hour -j LOG --log-prefix "olsr_in_malformed: "  # first log and then...
 	iptables -A olsr_in_malformed                      -j DROP					# better not parse these packets
