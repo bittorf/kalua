@@ -306,18 +306,20 @@ _watch_sshd_or_telnet ()
 _watch_random_node_id ()	# check if nodenumber/id is from random pool
 {
 	local FUNC="watch_random_node_id"
-	local URL
+	local URL WIFIMAC SSH_PUBKEY_FP
 
-	_url ()
+	_build_vars ()
 	{
 		local WIFIMAC="$(	_sanitizer do "$( _net dev2mac $WIFIDEV )"		hex )"
 		local SSH_PUBKEY_FP="$(	_sanitizer do "$( _ssh key_public_fingerprint_get )"	hex )"
-
-		echo -n "$( nvram get fff_url_network )/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$( nvram get ff_dsskey_pub )"
+	
+		echo "WIFIMAC=$WIFIMAC"
+		echo "SSH_PUBKEY_FP=$SSH_PUBKEY_FP"	
+		echo "URL='$( nvram get fff_url_network )/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$( nvram get ff_dsskey_pub )'"
 	}
 
 	if _ipsystem do | grep -q ^"NODE_NUMBER_RANDOM=true" ; then
-		URL="$( _url )"
+		eval "$( _build_vars )"
 		_log do $FUNC daemon info "detected ID from random pool - registering official ID from '$URL'"
 	
  		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _wget do "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
@@ -326,16 +328,18 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 			_nvram set fff_node_number "$ID"
 			/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile
 	
-			_system reboot_safe "replace_random_nodeID() now profile applied"
+			_system reboot_safe "replace_random_nodeID() new profile applied"
 		}
 
 		_log do $FUNC daemon info "ID not clean: '$ID' - aborting"
 	else
 		if [ ! -e /tmp/REGISTRATED ] && [ "$( _system uptime min )" -gt 30 ]; then
 
+			eval "$( _build_vars )"
+
 			[ -n "$SSH_PUBKEY_FP" ] && {
-				URL="$( _url )"
-				ID="$( _wget do "${URL}&NODE=${NODE}" 10 )"
+				URL="${URL}&NODE=$( nvram get fff_node_number )"
+				ID="$( _wget do "$URL" 10 )"
 				touch /tmp/REGISTRATED				# fixme! only one (un/successful) try each reboot?
 			}
 
