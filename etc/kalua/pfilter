@@ -1207,6 +1207,18 @@ _pfilter_rules_nat_no_wificlients ()
 	iptables -D POSTROUTING -t nat -s $WIFI_DHCP_NET -j MASQUERADE
 }
 
+_pfilter_rules_nat_dns_enforce_own ()
+{
+	local FUNC="pfilter_rules_nat_dns_enforce_own"
+	local DNS_FIRST_SERVER="$( nvram get wan_dns | cut -d ';' -f1 )"
+
+	_net ip4_is_private "$DNS_FIRST_SERVER" && {
+		_log do $FUNC daemon info "enforcing server '$DNS_FIRST_SERVER' for all"
+
+		iptables -t nat -A PREROUTING -p udp --dport 53 -d ! $DNS_FIRST_SERVER -j DNAT --to-destination $DNS_FIRST_SERVER
+	}
+}
+
 _pfilter_rules_nat_install ()		# fixme! also masq traffic from local lan to internet during startup (atm only local wifi gets masq)
 {
 	local INETOFFER="$( _net local_inet_offer )"
@@ -1239,6 +1251,7 @@ _pfilter_rules_nat_install ()		# fixme! also masq traffic from local lan to inte
 	_pfilter rules_nat_no_wificlients
 	_pfilter rules_nat_wifi_roaming
 	_pfilter rules_portfw_install
+	_pfilter rules_nat_dns_enforce_own
 }
 
 _pfilter_stats_chain_show ()
