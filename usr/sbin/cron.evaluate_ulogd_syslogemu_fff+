@@ -56,6 +56,7 @@ func_ulog_sqeeze_log ()
 	local BYTES="$( _file size $ULOG_LOGFILE )"
 	local LINES="$( _file lines $ULOG_LOGFILE )"
 	local NODEID="$( nvram get fff_node_number )"
+	local REBOOTS="$( cat /www/REBOOT_COUNTER )"
 
 	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines"	
 
@@ -104,7 +105,7 @@ func_ulog_sqeeze_log ()
 		OUTPUT="$DIR $TIME $IP $PORT $PROTO $ID $SEQ $ACK"
 		COUNTER=$(( $COUNTER + ${#OUTPUT} ))			# count bytes for logfile
 		
-		echo >>"${VDS_PATH}/user-${USERNAME:-unknown}-${MAC}-${USERIP:-noip}-${DATE}-${NODEID}.ulog" "$OUTPUT"
+		echo >>"${VDS_PATH}/user-${USERNAME:-unknown}-${MAC}-${USERIP:-noip}-${DATE}-node${NODEID}-reboots${REBOOTS}.ulog" "$OUTPUT"
 
 		# > 11:35:41 212.58.226.33 80 TCP 10415 3248578720 0
 		# < 11:35:41 212.58.226.33 80 TCP 0 1694259892 3248578721
@@ -158,7 +159,7 @@ func_ulog_logsaving ()
 	local TODAY="$( _system date humanreadable short )"
 	local COPYCOMMAND
 	local DESTINATION
-	local FILELIST="$( find $PATTERN -type f )"
+	local FILELIST="$( find $PATTERN -type f 2>/dev/null )"
 	local FILE FILESIZE
 	local LOGPRIO="alert" 
 
@@ -195,25 +196,33 @@ func_ulog_logsaving ()
 		DESTINATION="${GW}:${VDS_PATH}"
 	fi
 
-	for FILE in $FILELIST; do {
+	for FILE in $FILELIST; do {		# fixme! howto prevent accidently overwriting same file after reboot?
 
 		FILESIZE="$( _file size "$FILE" )"
 
-		# fixme! only copy, if not already copied to safe traffic/cpu
+		local HASH_NOW="$( _file hash "$FILE" )"
+		local HASH_OLD="$( cat "${FILE}.copyhash" 2>/dev/null )"
 
-		if $COPYCOMMAND "$FILE" $DESTINATION ; then			# fixme! only copy to lokal, if not existent
-			if echo "$FILE" | grep -q "$TODAY" ; then
-				_log do $FUNC daemon info "copying '$FILE' ($FILESIZE bytes) was successful (is from today)"
-			else
-				_log do $FUNC daemon info "copying '$FILE' ($FILESIZE bytes) was successful - removing"
-				rm "$FILE"
-			fi
+		_log do $FUNC daemon debug "NOW:'$HASH_NOW'"
+		_log do $FUNC daemon debug "OLD:'$HASH_OLD'"
+
+		[ "${HASH_OLD:=never_hashed}" != "$HASH_NOW" ] && {
+
+			if $COPYCOMMAND "$FILE" $DESTINATION ; then			# fixme! only copy to lokal, if not existent
+				if echo "$FILE" | grep -q "$TODAY" ; then
+					_log do $FUNC daemon info "copying '$FILE' ($FILESIZE bytes) was successful (is from today)"
+					echo -n "$HASH_NOW" >"${FILE}.copyhash"
+				else
+					_log do $FUNC daemon info "copying '$FILE' ($FILESIZE bytes) was successful - removing"
+					rm "$FILE" "${FILE}.copyhash"
+				fi
 			
-			[ -e /tmp/ERROR_VDS ] && rm /tmp/ERROR_VDS
-		else	
-			_log do $FUNC daemon $LOGPRIO "copying '$FILE' ($FILESIZE bytes) failed"
-			touch /tmp/ERROR_VDS
-		fi
+				[ -e /tmp/ERROR_VDS ] && rm /tmp/ERROR_VDS
+			else	
+				_log do $FUNC daemon $LOGPRIO "copying '$FILE' ($FILESIZE bytes) failed"
+				touch /tmp/ERROR_VDS
+			fi
+		}
 		
 		sync		# if destination is USB-stick, then be sure that all data was written
 	} done
