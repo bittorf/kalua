@@ -175,9 +175,9 @@ fkt_olsr_conf_write ()
 	local LINE=""
 	local INTERFACE="tap0"
 
-	[ -n "$( nvram get fff_vpn_proto )" ] && INTERFACE=none		# fixme! this is dirty...
+	[ "$( _vpn_proto )" != "olsr" ] && INTERFACE=none		# fixme! this is dirty...
 	
-	SPEED=$(nvram get ff_olsrspeed)		# fixme! maybe multiply by 10? (lowering traffic)
+	SPEED=$( nvram get ff_olsrspeed )				# fixme! maybe multiply by 10? (lowering traffic)
 	SPEED=${SPEED:=5}
 
         FEYE=$(nvram get ff_fisheye)
@@ -229,19 +229,25 @@ func_get_static_route ()			# prevents tunneling over mesh, when local defgw gets
 	esac
 }
 
+_vpn_proto ()						# defaults to 'olsr'
+{
+	local PROTO="$( nvram get fff_vpn_proto )"
+	
+	echo -n "${PROTO:-olsr}"			# fixme! none,olsr,batman,batman-adv,...
+}
+
 func_sending_request_to_vpnserver_for_participation ()
 {
 	local FUNC="sending_request_to_vpnserver_for_participation" 
 	local OUTPUT=""
 	local URL="http://$VPN_SERVER/freifunk/vpn/"
 	local QUERY=""
-	local ADMINMAIL="$(nvram get ff_adm_mail)"
-	local PROTO="$( nvram get fff_vpn_proto )"		# fixme! none,olsr,batman,batman-adv,...
+	local ADMINMAIL="$( nvram get ff_adm_mail )"
 	
 	QUERY="${QUERY}?CLIENTIP=${WIFIVPNCLIENTADR}"
 	QUERY="${QUERY}&SERVERIP=${WIFIVPNSERVERADR}"
 	QUERY="${QUERY}&NAME=$HOSTNAME"
-	QUERY="${QUERY}&PROTO=${PROTO:=olsr}"
+	QUERY="${QUERY}&PROTO=$( _vpn_proto )"
 	QUERY="${QUERY}&EMAIL=$( _sanitizer do "${ADMINMAIL:=unset@box.local}" urlvalue )"
 	QUERY="${QUERY}&COMMENT=city${FFF_CITY}_node${NODE_NUMBER}_profile$( nvram get fff_profile )"
 
@@ -273,10 +279,12 @@ func_vpn_start ()
 	fkt_olsr_conf_write
 	fkt_tunnel_start && {
 		pidof olsrd >/dev/null && {
-			_scheduler add "restart_olsr"
-			return
+			[ "$( _vpn_proto )" = "olsr" ] && {
+				_scheduler add "restart_olsr"
+				return
+			}
 		}
-		_log do $FUNC daemon debug "OLSRd not up, no need for restart"
+		_log do $FUNC daemon debug "olsr not up or olsr-proto unwished, no need for restart of olsrd"
 	}
 }
 
