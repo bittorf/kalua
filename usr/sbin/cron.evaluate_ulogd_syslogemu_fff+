@@ -169,15 +169,23 @@ func_ulog_logsaving ()
 		return
 	}
 
-	eval "$( tail -n1 archiv_trace_inet_gateway_fff+ )"
+	eval "$( tail -n1 /tmp/ARCHIV_TRACEINET )"
 
-	if [ "$GW" = "$WIFIADR" ]; then					# fixme! make this check at 1st, and abort if low flash, safes cpu-power
+	if   [ -n "$( nvram get fff_vds_server )" ]; then
+
+		_log do $FUNC daemon debug "direct copy to server '$( nvram get fff_vds_server )'"
+		
+		COPYCOMMAND="scp -p -i $HOME/.ssh/dropbear_dss_host_key"
+		DESTINATION="$( nvram get fff_vds_server )"
+
+	elif [ "$GW" = "$WIFIADR" ]; then				# fixme! make this check at 1st, and abort if low flash, safes cpu-power
 		_log do $FUNC daemon debug "gateway = myself"
+
 		COPYCOMMAND="cp -p"
 		DESTINATION="$( _system get_storage_path )"		# e.g. /www/cgi-bin
 
-		[ "$DESTINATION" = "/www/cgi-bin" ] && [ "$(_system flash_free)" -lt 200 ] && {
-			_log do $FUNC daemon $LOGPRIO "low_flash: $(_system flash_free)kb - aborting"
+		[ "$DESTINATION" = "/www/cgi-bin" ] && [ "$( _system flash_free )" -lt 200 ] && {
+			_log do $FUNC daemon $LOGPRIO "low_flash: $( _system flash_free )kb - aborting"
 			touch /tmp/ERROR_VDS
 			exit 1
 		}			# fixme! remove VDS-data from RAM? or copy to /dev/null?
@@ -190,6 +198,8 @@ func_ulog_logsaving ()
 	for FILE in $FILELIST; do {
 
 		FILESIZE="$( _file size "$FILE" )"
+
+		# fixme! only copy, if not already copied to safe traffic/cpu
 
 		if $COPYCOMMAND "$FILE" $DESTINATION ; then			# fixme! only copy to lokal, if not existent
 			if echo "$FILE" | grep -q "$TODAY" ; then
