@@ -206,7 +206,7 @@ func_ulog_logsaving ()
 		_log do $FUNC daemon debug "NOW:'$HASH_NOW'"
 		_log do $FUNC daemon debug "OLD:'$HASH_OLD'"
 
-		[ "${HASH_OLD:=never_hashed}" != "$HASH_NOW" ] && {
+		if [ "${HASH_OLD:=never_hashed}" != "$HASH_NOW" ]; then		# file has changed
 
 			if $COPYCOMMAND "$FILE" $DESTINATION ; then
 				
@@ -223,7 +223,15 @@ func_ulog_logsaving ()
 				_log do $FUNC daemon $LOGPRIO "copying '$FILE' ($FILESIZE bytes) failed"
 				touch /tmp/ERROR_VDS
 			fi
-		}
+		else								# file unchanged
+			[ -e /tmp/ERROR_VDS ] || {				# no former error
+				echo "$FILE" | grep -q "$TODAY" || {		# not from today
+				
+					_log do $FUNC daemon info "removing old '$FILE' ($FILESIZE bytes)"
+					rm "$FILE" "${FILE}.copyhash"
+				}
+			}
+		fi
 		
 		sync		# if destination is USB-stick, then be sure that all data was written
 	} done
