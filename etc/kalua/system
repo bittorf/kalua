@@ -219,19 +219,28 @@ _system_insmod ()
 
 	lsmod | grep -q ^$KMOD && return	# already loaded
 	
+	_log do $FUNC daemon info "loading kernel-module '$KMOD' with options '$OPTIONS'"
+	
 	local MEM_BEFORE="$( _system ram_free )"
 	local MEM_AFTER=0
 	local MEM_DIFF=0
 	local FUNC="system_insmod"
-
-	_log do $FUNC daemon info "loading kernel-module '$KMOD' with options '$OPTIONS'"
 		
 	if insmod "$KMOD" "$OPTIONS" ; then
+
+		case "$KMOD" in
+			crondog)
+				[ -e /dev/misc/crondog ] && {
+					echo > /dev/misc/crondog	# activate it
+				}
+			;;
+		esac
+
 		MEM_AFTER="$( _system ram_free )"
 		MEM_DIFF=$(( $MEM_BEFORE - $MEM_AFTER ))
 		[ $MEM_DIFF -gt 0 ] && MEM_DIFF="+$MEM_DIFF"
 	
-		_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes ('$( lsmod | grep -q ^$KMOD )')"
+		_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes (lsmod: '$( lsmod | grep -q ^$KMOD )')"
 	else
 		_log do $FUNC daemon alert "[ERR] failing to insert kernel-module '${KMOD}.o'"
 		
