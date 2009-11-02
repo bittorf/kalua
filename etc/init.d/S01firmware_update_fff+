@@ -3,6 +3,17 @@
 
 if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ]; then exit; fi
 
+_usage ()
+{
+	_log do "usage" daemon debug "printing"
+	echo "Usage: $0 start | check | forcecheck"
+	echo "		+ <nopause> = do it as fast as possible without any sleeps"
+	echo "		+ <updatemode> = stable | beta | testing"
+	echo
+	echo "       $0 pmu | poor_mens_update"
+	echo "		+ <updatemode>"
+}
+
 _firmware_burn_if_exists () {
 	_userdata_safe
 
@@ -183,10 +194,12 @@ _firmware_check_for_newer () {
 	fi
 }
 
-fkt_install_latest_tarball () {
+fkt_install_latest_tarball ()
+{
+	local UPDATEMODE="$1"
 	local DAEMON="fkt_install_latest_tarball"
 	local FILE="/tmp/tarball.tgz"
-	local URL_FIRMWARE_TARBALL="$( _links firmware_url_get tarball )"
+	local URL_FIRMWARE_TARBALL="$( _links firmware_url_get tarball "$UPDATEMODE" )"
 	
 	_log do "$DAEMON" daemon info "fetching from \"$URL_FIRMWARE_TARBALL\""
 	
@@ -326,7 +339,7 @@ case $1 in
 		_firmware_check_for_newer
 	;;
 	pmu|poor_mens_update)
-		fkt_install_latest_tarball && {
+		fkt_install_latest_tarball "$2" && {
 			_log do poormens_update daemon debug "successfully installed latest tarball - restarting some services"
 			/etc/init.d/S41build_static_netparam start
 			/etc/init.d/S51crond_fff+ restart
@@ -348,7 +361,6 @@ case $1 in
 		}
 	;;
 	*)
-		_log do print_usage daemon debug "working"
-		echo "Usage: $0 ( start | check | forcecheck | pmu = poor_mens_update | [nopause] = do it as fast as possible without any sleeps [forcemode stable,beta,testing] )"
+		_usage
 	;;
 esac
