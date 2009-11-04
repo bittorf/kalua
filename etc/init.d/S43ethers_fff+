@@ -42,19 +42,25 @@ _build_hosts ()				# SENS: modulary builds /etc/local.hosts
 {
 	local FUNC="build_hosts"
 	local FILE="/etc/local.hosts"
-	local SUB_PATH="/tmp/"
-	local SUB_DROP="${SUB_PATH}hosts.drop"
-	local SUB_VIRT="${SUB_PATH}hosts.virtual"
-	local SUB_WIFI="${SUB_PATH}hosts.wifi"
-	local SUB_LAN="${SUB_PATH}hosts.lan"
+	local SUB_PATH="/tmp"
+	local SUB_DROP="$SUB_PATH/hosts.drop"
+	local SUB_VIRT="$SUB_PATH/hosts.virtual"
+	local SUB_WIFI="$SUB_PATH/hosts.wifi"
+	local SUB_LAN="$SUB_PATH/hosts.lan"
 	local DOMAIN="$( nvram get wan_domain )"
 	local LINE=""
 
 	case "$1" in
 		join)
 			_log do $FUNC daemon debug "joining '$SUB_LAN', '$SUB_WIFI', '$SUB_VIRT', '$SUB_DROP' to '$FILE'"
-			cat 2>/dev/null $SUB_LAN $SUB_WIFI $SUB_VIRT $SUB_DROP >$FILE
-			rm  2>/dev/null $SUB_LAN $SUB_WIFI $SUB_VIRT $SUB_DROP
+			cat 2>/dev/null $SUB_LAN $SUB_WIFI $SUB_VIRT $SUB_DROP >$FILE || {
+				_log do $FUNC daemon info "lowspace during join? trying again without adblock"
+				rm $FILE
+				cat 2>/dev/null $SUB_LAN $SUB_WIFI $SUB_VIRT >$FILE || {
+					_log do $FUNC daemon alert "error during join of '$SUB_LAN $SUB_WIFI $SUB_VIRT' to $FILE"
+				}
+			}
+			rm 2>/dev/null $SUB_LAN $SUB_WIFI $SUB_VIRT $SUB_DROP
 		;;
 		wifi)
 			_log do $FUNC daemon debug "building wifi-entrys"
@@ -160,33 +166,34 @@ _build_hosts ()				# SENS: modulary builds /etc/local.hosts
 			echo  >$SUB_DROP "# for dropping known advertisement servers"
 			echo >>$SUB_DROP "# (1.1.0.0/20 gets REJECTed, range is enough for ~4096 hosts)"
 			
-			local LIST="/etc/hosts.drop"						# see fff-adblock-list.ipk
+			local LIST="/etc/hosts.drop"		# see fff-adblock-list.ipk, list of bad domains
 		
-			[ -e $LIST ] && {
-				_log do $FUNC daemon debug "building drop-list"
-			
-				local X=0
-				local Y=0
-				local COUNT=0
-				
-				while read LINE; do {
-				
-					Y=$(( $Y + 1 ))
-					[ $Y -gt 254 ] && {
-						Y=1
-						X=$(( $X + 1 ))
-						COUNT=$(( $COUNT + 255 ))
-					}
-					
-					echo "1.1.$X.$Y $LINE"
-				
-				} done <$LIST >>$SUB_DROP
-				
-				_log do $FUNC daemon debug "bilding drop-list ready ($(( $COUNT + $Y )) hosts)"
-				return 0
+			[ -e "$LIST" ] || {
+				_log do $FUNC daemon debug "no drop-list '$LIST' - do nothing"
+				return
 			}
+			
+			_log do $FUNC daemon debug "building drop-list"
+			
+			local X=0
+			local Y=0
+			local COUNT=0
+			local LINE
 
-			_log do $FUNC daemon debug "no drop-list - do nothing"
+			while read LINE; do {
+				
+				Y=$(( $Y + 1 ))
+				[ $Y -gt 254 ] && {
+					Y=1
+					X=$(( $X + 1 ))
+					COUNT=$(( $COUNT + 255 ))
+				}
+					
+				echo "1.1.$X.$Y $LINE"		# e.g. '1.1.5.200 www.ebay.de' -> packetfilter knows, that this range must be dropped
+				
+			} done <$LIST >>$SUB_DROP
+	
+			_log do $FUNC daemon debug "bilding drop-list ready ($(( $COUNT + $Y )) hosts)"
 		;;
 	esac
 }
@@ -333,10 +340,10 @@ case $1 in
 		_build_hosts wifi
 		_build_hosts virtual
 		
-		case $(nvram get fff_adblock) in
+		case "$( nvram get fff_adblock )" in
 			0|off|false) DROP=0 ;;
-			          *) [ -n "$(nvram get fff_nosplash)" ] && DROP=0
-				     [ -e "/tmp/LOWMEM" ]               && DROP=0 ;;
+			          *) [ -n "$( nvram get fff_nosplash )" ] && DROP=0
+				     [ -e "/tmp/LOWMEM" ]		  && DROP=0 ;;
 		esac
 		
 		DROPFILE="/etc/hosts.drop"
@@ -349,8 +356,7 @@ case $1 in
 			_build_hosts drop
 			
 			if [ -e "$DROPFILE" ]; then
-				FILE_INFO="$( ls -l "$DROPFILE" | sed -n 's/^[a-z-]*[0-9]*.*root.*root\(.*\)/\1/p' )"
-				_log do "add_adblock" daemon debug "$FILE_INFO"
+				_log do "add_adblock" daemon debug "size: '$( _file size "$DROPFILE" )'"
 			else
 				_log do "add_adblock" daemon debug "was not possible, missing '$DROPFILE'"
 			fi

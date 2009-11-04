@@ -293,6 +293,7 @@ _software_package_install ()
 	local PACKAGE="$1"					# and vtund claims to make an "bus error". We have to
 	local FUNC="software_package_install"			# double-check this and e.g. reinstall - CRC-test?
 	local SLEEP="120"					# look at S52vpn check_for_correct_install()
+	local KEYWORD="$2"	# noautorepoupdate
 
 	while [ -z "$( ip route list exact 0/0 )" ]; do {	# fixme! use central "_net inet_works()" bool
 		_log do $FUNC daemon debug "no default-route found, waiting $SLEEP seconds"
@@ -300,11 +301,11 @@ _software_package_install ()
 	} done
 
 	_log do $FUNC daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
-	_software repos_update	
+	[ -z "$KEYWORD" ] && _software repos_update	
 	
 	if ipkg -force-defaults install $PACKAGE ; then
 		_log do "$FUNC" daemon info "'$PACKAGE' install seems fine (free space: $( _system flash_free ) Kilobyte)"
-	
+
 		case $PACKAGE in
 			loginutils)
 				[ "$( _software package_is_installed_lowlevel $PACKAGE )" = "1" ] && {
@@ -325,6 +326,11 @@ _software_package_install ()
 			dropbear)
 				[ "$( _software package_is_installed_lowlevel $PACKAGE )" = "1" ] && {
 					_ssh start
+				}
+			;;
+			*fff-adblock-list*)
+				[ "$( _software package_is_installed_lowlevel "fff-adblock-list" )" = "1" ] && {
+					/etc/init.d/S43ethers_fff+ start
 				}
 			;;
 		esac
