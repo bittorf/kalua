@@ -3,11 +3,87 @@ _firmware_updatemode ()
 	local MODE="$( nvram get fff_autofwupdate )"
 
 	case $MODE in
-		0|stable|beta|testing)
+		0|beta|testing)
 			echo -n "$MODE"
 		;;
 		*)
 			echo -n "stable"
 		;;
 	esac
+}
+
+_firmware_fetch ()
+{
+	local FIRMWARE_URL="$1"
+	local FUNC="fetch_firmware"
+	local FREE_WANTED="1750"		# which means 1750-120 = 1630 useable kilobyte for image-file (should ne enough 8-) )
+	local DAEMON="firmware_fetch"
+	local DESTINATION="/www/fw.trx"
+	local RETRY_COUNT=0
+	local IPK
+
+	_scheduler queue_purge
+	/etc/init.d/S90webcam_fff+ stop	
+	/etc/init.d/S52vpn_fff+ stop		# for safe uninstalling this package
+	
+	[ -e /tmp/LOWMEM ] && for IPK in $( _software show_installed_backwards ); do {	# firmware-download to flash only on lowmem-devices
+		
+		_log do "$DAEMON" daemon info "now free: $(_system flash_free) kb"
+		[ "$( _system flash_free )" -gt "$FREE_WANTED" ] && break
+		_log do "$DAEMON" daemon info "removing package '$IPK'"
+		
+		_software package_remove $IPK
+	} done
+
+	[ "$( _system flash_free )" -lt "$FREE_WANTED" ] && {
+		_log do $FUNC daemon crit "could'nt free target-flash space, strange!"
+		DESTINATION="/tmp/fw.trx"
+		local FW_IN_RAM="true"
+	}
+
+	rm "$DESTINATION"
+	while true; do {
+
+		wget -c -O "$DESTINATION" "$FIRMWARE_URL" && {
+			_log do $FUNC daemon info "download successful"
+			break
+		}
+
+		_scheduler queue_purge
+
+		[ "$( _system flash_free )" -lt 120 ] && {
+			_log do $FUNC daemon crit "low flash space, during download?"
+			DESTINATION="/tmp/fw.trx"
+			local FW_IN_RAM="true"
+			rm "$DESTINATION"
+			RETRY_COUNT=0
+		}
+
+		RETRY_COUNT=$(( $RETRY_COUNT + 1 ))
+		[ "$RETRY_COUNT" -gt 50 ] && {
+			rm -f "/www/SOFTWARE_FULLY_INSTALLED"	# to ensure, that we reinstall all removed packages...
+			rm -f "$DESTINATION"
+			_system reboot_safe "firmware download unseccussful"	# fixme!
+		}
+
+		_log do $FUNC daemon info "something went wrong during download...retrying in 30 sec (try: $RETRY_COUNT)"
+		sleep 30
+	} done
+
+	_scheduler queue_purge
+
+	[ "$FW_IN_RAM" = "true" ] && {
+		_log do $FUNC daemon info "burning firmware directly"
+		_firmware burn "$DESTINATION"
+		_system reboot_safe "firmware burning unsuccessful"
+	}
+
+	_log do "$DAEMON" daemon info "download ready."
+}
+
+_firmware_burn ()
+{
+	local FILE="$1"
+	
+	/usr/sbin/firmware-burn "$FILE"	
 }

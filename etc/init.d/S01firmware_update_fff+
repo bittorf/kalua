@@ -8,13 +8,14 @@ _usage ()
 	_log do "usage" daemon debug "printing"
 	echo "Usage: $0 start | check | forcecheck"
 	echo "		+ <nopause> = do it as fast as possible without any sleeps"
-	echo "		+ <updatemode> = stable | beta | testing"
+	echo "		+ forcemode <updatemode> = stable | beta | testing"
 	echo
 	echo "       $0 pmu | poor_mens_update"
 	echo "		+ <updatemode>"
 }
 
-_firmware_burn_if_exists () {
+_firmware_burn_if_exists ()
+{
 	_userdata_safe
 
 	cp $FIRMWARE_IN_FLASH $FIRMWARE_IN_RAM
@@ -25,7 +26,8 @@ _firmware_burn_if_exists () {
 	_system reboot_safe "firmware-burn not successful"
 }
 
-_userdata_safe () {
+_userdata_safe ()
+{
 	# fff_restore_web_file="http://url1;full_path_to_destination1;http://url2;full_path_to_destination2"	# wget -O dest1 "http://url1"
 	# fff_backup_on_device="full_path_file1;full_path_file2;full_path_file3"				# tar czf /tmp/configs.tgz file1 file2 file3
 	# fff_restore_web_tagz=""										# tar xzf /tmp/webdata.tgz
@@ -42,7 +44,8 @@ _userdata_safe () {
 	# nvram commit
 }
 
-_userdata_restore () {
+_userdata_restore ()
+{
 	local FILE="/www/images/intro.jpg"
 	local  OUT="$(nvram get fff_safe_pic)"
 	
@@ -52,145 +55,136 @@ _userdata_restore () {
 	nvram commit
 }
 
-_firmware_check_for_newer () {
-	local DAEMON="_firmware_check_for_newer"
+_sleep ()
+{
+	local SECONDS="$1"
+	[ -n "$NOPAUSE" ] && return		# global
+
+	_log do "sleep" daemon info "waiting for $SECONDS sec ('jitter'), before going further"
+
+	sleep $SECONDS
+}
+
+_firmware_check_for_newer ()
+{
+	local FUNC="firmware_check_for_newer"
 	
 	local URL_BETA_FW="$(    _links firmware_url_get beta )"
 	local URL_TESTING_FW="$( _links firmware_url_get testing )"
 	
 	local WAIT="$(       _math random_integer 0 1000 )"	# not all 600 routers should wgetting an 1mb-file from internet at the same time
 	local WAIT_SHORT="$( _math random_integer 0 60	 )"	# not all 600 routers should wgetting the version.txt from internet at the same time
-	local USERWISH=""
+	local USERWISH
 	local MODE="$( _firmware updatemode )"
+	local DOIT=0
 
-	if [ -n "$FORCE_USERWISH" ]; then
-		MODE=$FORCE_USERWISH	
+	[ -n "$FORCE_USERWISH" ] && {	# global
+		MODE="$FORCE_USERWISH"
 		FFF_PLUS_VERSION=0
-	fi
-
-	if [ -n "$NOPAUSE" ]; then
-		_log do "$DAEMON" daemon info "invoked with \"nopause\"-switch, setting sleep-timers to zero"
-	
-		WAIT=0
-		WAIT_SHORT=0
-	fi
-
-	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
-	sleep $WAIT_SHORT
-	local CURRENT="$( _links firmware_url_get version_current stable )"
-
-	URL_FIRMWARE_CURRENT="$( _links firmware_url_get stable )"
-	
-	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
-	sleep $WAIT_SHORT
-	local CURRENT_BETA="$( _links firmware_url_get version_current beta )"
-	
-	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing version"
-	sleep $WAIT_SHORT
-	local CURRENT_TESTING="$( _links firmware_url_get version_current testing )"
-
-	_log do "$DAEMON" daemon info "Sleeping for $WAIT_SHORT sec (\"jitter\"), before grabbing main version"
-	sleep $WAIT_SHORT
-	local CURRENT_MAIN="$( _links firmware_url_get version_installed )"
-	
-	local DOIT="0"
-
-	_log do "$DAEMON" daemon info "my version:      $FFF_PLUS_VERSION"
-	_log do "$DAEMON" daemon info "current_stable:  $CURRENT"
-	_log do "$DAEMON" daemon info "current_beta:    $CURRENT_BETA"
-	_log do "$DAEMON" daemon info "current_testing: $CURRENT_TESTING"
-	_log do "$DAEMON" daemon info "current_main:    $CURRENT_MAIN"
-	_log do "$DAEMON" daemon info "update-mode:     $MODE"
-
-	if [ -n "$FORCE_USERWISH" ]; then
 		DOIT=1
-		USERWISH=$FORCE_USERWISH
-	fi
+	}
 
-	_log do "$DAEMON" daemon info "update-mode-conclusion: $USERWISH"
+	local RESULTING_UPDATEMODE="$MODE"
+
+	_sleep $WAIT_SHORT
+	local CURRENT="$( 	  _links firmware_url_get version_current stable  )"
+	URL_FIRMWARE_CURRENT="$(  _links firmware_url_get stable		  )"
+	_sleep $WAIT_SHORT
+	local CURRENT_BETA="$(    _links firmware_url_get version_current beta 	  )"
+	_sleep $WAIT_SHORT
+	local CURRENT_TESTING="$( _links firmware_url_get version_current testing )"
+	_sleep $WAIT_SHORT
+	local CURRENT_MAIN="$(	  _links firmware_url_get version_installed	  )"
+	
+	_log do "$FUNC" daemon info "my version:      $FFF_PLUS_VERSION"
+	_log do "$FUNC" daemon info "current_stable:  $CURRENT"
+	_log do "$FUNC" daemon info "current_beta:    $CURRENT_BETA"
+	_log do "$FUNC" daemon info "current_testing: $CURRENT_TESTING"
+	_log do "$FUNC" daemon info "current_main:    $CURRENT_MAIN"		# my_version
+	_log do "$FUNC" daemon info "update-mode:     $MODE"
 
 	# fixme! we need some more work here:
 	# situation could be: stable is newer than beta
 	# we have to test: update? which of the installation canditates is the newest
-	# DOIT=1 should be DOIT=versionnumber and only be altered of newer than before
-	
-	local RESULTING_UPDATEMODE="stable"
+	# DOIT=1 should be DOIT=versionnumber and only be altered if newer than before
 
-	if [ "$USERWISH" = "stable" ] && [ "$CURRENT" -gt "$FFF_PLUS_VERSION" ]; then DOIT=1; fi	# stable = stable
+	case "$MODE" in
+		stable)
+			[ "$CURRENT" -gt "$FFF_PLUS_VERSION" ] && {		# server_stable > my?
+				DOIT=1
+			}
+		;;
+		beta)
+			[ "$CURRENT_BETA" -gt "$FFF_PLUS_VERSION" ] && {	# server_beta > my?
+				DOIT=1
+				URL_FIRMWARE_CURRENT="$URL_BETA_FW"	
+			}
+			
+			[ "$CURRENT" -gt "$FFF_PLUS_VERSION" ] && {		# server_stable > my?
+				DOIT=1
+			}
+		;;
+		testing)
+			[ "$CURRENT_TESTING" -gt "$FFF_PLUS_VERSION" ] && {	# server_testing > my?
+				DOIT=1
+				RESULTING_UPDATEMODE="testing"
+				URL_FIRMWARE_CURRENT="$URL_TESTING_FW"
+			
+				[ "$FFF_VERSION" = "$CURRENT_MAIN" ] && {
+					_log do "$FUNC" daemon info "main_myself: $FFF_VERSION main_server: $CURRENT_MAIN - doing incremental update"
+					$0 poor_mens_update
+					DOIT=0
+				}
+			}
+			
+			[ "$CURRENT_BETA" -gt "$FFF_PLUS_VERSION" ] && {	# server_beta > my?
+				DOIT=1
+				RESULTING_UPDATEMODE="beta"
+				URL_FIRMWARE_CURRENT="$URL_BETA_FW"
+			}
+			
+			[ "$CURRENT" -gt "$FFF_PLUS_VERSION" ] && {		# server_stable > my?
+				DOIT=1
+			}
+		;;
+	esac
 	
-	  if [ "$USERWISH" = "beta" ] && [ "$CURRENT_BETA" -gt "$FFF_PLUS_VERSION" ]; then		# beta = beta and...
-
-	  	DOIT="1"
-	  	URL_FIRMWARE_CURRENT="$URL_BETA_FW"
-		RESULTING_UPDATEMODE="beta"
-
-	elif [ "$USERWISH" = "beta" ] && [ "$CURRENT" -gt "$FFF_PLUS_VERSION" ]; then			# ...stable
-	
-		DOIT="1"
-	fi
-	
-	  if [ "$USERWISH" = "testing" ] && [ "$CURRENT_TESTING" -gt "$FFF_PLUS_VERSION" ]; then	# testing = testing and...
-
-		DOIT="1"
-		URL_FIRMWARE_CURRENT="$URL_TESTING_FW"
-		RESULTING_UPDATEMODE="testing"
-	
-		if [ "$USERWISH" = "testing" ] && [ "$FFF_VERSION" = "$CURRENT_MAIN" ]; then		# doing incremental update
-		
-			_log do "$DAEMON" daemon info "main_myself: $FFF_VERSION main_server: $CURRENT_MAIN - doing incremental update"
-			$0 poor_mens_update
-			DOIT=0
-		fi
-	
-	elif [ "$USERWISH" = "testing" ] && [ "$CURRENT_BETA" -gt "$FFF_PLUS_VERSION" ]; then		# ...beta and...
-
-		DOIT="1"
-		URL_FIRMWARE_CURRENT="$URL_BETA_FW"
-		RESULTING_UPDATEMODE="beta"
-		
-	elif [ "$USERWISH" = "testing" ] && [ "$CURRENT" -gt "$FFF_PLUS_VERSION" ]; then		# ...stable
-		
-		DOIT="1"
-	fi
-
-	_log do "$DAEMON" daemon info "download-url would be: \"$URL_FIRMWARE_CURRENT\""
+	_log do "$FUNC" daemon info "update-mode-conclusion: '$RESULTING_UPDATEMODE' url: '$URL_FIRMWARE_CURRENT'"
 
 	if [ "$DOIT" = "1" ]; then
-		_log do "$DAEMON" daemon info "New firmware detected! (my: $FFF_PLUS_VERSION  current:$CURRENT current-beta:$CURRENT_BETA current-testing:$CURRENT_TESTING)"
+		_log do "$FUNC" daemon info "New firmware detected! (my: $FFF_PLUS_VERSION  current:$CURRENT current-beta:$CURRENT_BETA current-testing:$CURRENT_TESTING)"
 
-		[ ! -z "$(nvram get fff_override_fw_ipkg)" ] && {					# safe the installed package list
+		[ -n "$( nvram get fff_override_fw_ipkg )" ] && {					# safe the installed package list
 			_nvram set fff_override_fw_ipkg "$( _software show_installed )"
 		}
-
-		_log do "$DAEMON" daemon info "Sleeping for $WAIT sec (\"jitter\"), before downloading firmware"
 		
-		sleep $WAIT
-			
-		fkt_fetch_firmware
-
-		_log do "$DAEMON" daemon info "Checking CRC"
-
-		local CHECK="$( /www/cgi-bin/freifunk-upload -c /www/fw.trx )"
+		_sleep $WAIT
 		
-		_log do "$DAEMON" daemon info "Checking server MD5"
-		local FW_CRC_SERVER="$( _links firmware_url_get $RESULTING_UPDATEMODE crc )"
-		_log do "$DAEMON" daemon info "Checking local MD5"
-		local FW_CRC_REAL="$( md5sum /www/fw.trx | cut -d" " -f1 )"
-		_log do "$DAEMON" daemon info "Comparing both MD5-crc's"
+		_firmware fetch "$URL_FIRMWARE_CURRENT"
+
+		_log do "$FUNC" daemon info "Checking CRC"
+
+		local CHECK="$( /www/cgi-bin/freifunk-upload -c /www/fw.trx )"		# returns 'ok' if good
+		
+		_log do "$FUNC" daemon info "Checking server MD5"
+		local FW_CRC_SERVER="$( _links firmware_url_get "$RESULTING_UPDATEMODE" crc )"		# is md5
+		_log do "$FUNC" daemon info "Checking local MD5"
+		local FW_CRC_REAL="$( _file hash "/www/fw.trx" )"					# is md5
+		_log do "$FUNC" daemon info "Comparing both MD5-crc's"
 		test "$FW_CRC_SERVER" = "$FW_CRC_REAL" && CHECK_MD5=ok
 
 		if [ "$CHECK" = "ok" ] && [ "$CHECK_MD5" = "ok" ]; then
-			_log do "$DAEMON" daemon info "CRC - ok, sleeping for $WAIT sec and rebooting"
-			sleep $WAIT
+			_log do "$FUNC" daemon info "CRC - ok, rebooting"
+			_sleep $WAIT
 			_system reboot_safe "firmware-image successful downloaded"
 		else
-			_log do "$DAEMON" daemon info "CRC - error, removing download, abort."
+			_log do "$FUNC" daemon info "CRC - error, removing download, abort."
 			rm -f "/www/fw.trx"						# not needed, above check does rm this
 			rm -f "/www/SOFTWARE_FULLY_INSTALLED"				# to ensure, that we reinstall all packets
 			_system reboot_safe "firmware-image download unsuccessful"
 		fi
 	else
-		_log do "$DAEMON" daemon info "I'am up to date 8-)"
+		_log do "$FUNC" daemon info "no action - I'am up to date 8-)"
 	fi
 }
 
@@ -229,82 +223,11 @@ fkt_install_latest_tarball ()
 	_log do "$DAEMON" daemon info "done. reboot maybe not necessary."
 }
 
-fkt_fetch_firmware ()
-{
-	local FUNC="fetch_firmware"
-	local FREE_WANTED="1750"		# which means 1750-120 = 1630 useable kilobyte for image-file (should ne enough 8-) )
-	local DAEMON="fkt_fetch_firmware"
-	local DESTINATION="/www/fw.trx"
-	local RETRY_COUNT=0
-	local IPK
-	local PACKAGES="$( ipkg status | grep Package: | cut -d" " -f2 | sed '1!G;h;$!d' )"	# newest package at first
-
-	_scheduler queue_purge
-	/etc/init.d/S90webcam_fff+ stop	
-	/etc/init.d/S52vpn_fff+ stop		# for safe uninstalling this package
-	
-	[ -e /tmp/LOWMEM ] && for IPK in $PACKAGES; do {			# firmware-download to flash only on lowmem-devices
-		
-		_log do "$DAEMON" daemon info "now free: $(_system flash_free) kb"
-		[ "$(_system flash_free)" -gt "$FREE_WANTED" ] && break
-		_log do "$DAEMON" daemon info "removing package '$IPK'"
-		
-		_software package_remove $IPK
-	} done
-
-	[ "$( _system flash_free )" -lt "$FREE_WANTED" ] && {
-		_log do $FUNC daemon crit "could'nt free target-flash space, strange!"
-		DESTINATION="/tmp/fw.trx"
-		local FW_IN_RAM="true"
-	}
-
-	rm "$DESTINATION"
-	while true; do {
-		
-		wget -c -O "$DESTINATION" "$URL_FIRMWARE_CURRENT" && {
-			_log do $FUNC daemon info "download successful"
-			break
-		}
-
-		_scheduler queue_purge
-		
-		[ "$(_system flash_free)" -lt 120 ] && {
-			_log do $FUNC daemon crit "low flash space, during download?"
-			DESTINATION="/tmp/fw.trx"
-			local FW_IN_RAM="true"
-			rm "$DESTINATION"
-			RETRY_COUNT=0
-		}
-		
-		RETRY_COUNT=$(( $RETRY_COUNT + 1 ))
-		[ "$RETRY_COUNT" -gt 50 ] && {
-			rm -f "/www/SOFTWARE_FULLY_INSTALLED"	# to ensure, that we reinstall all removed packages...
-			rm -f "$DESTINATION"
-			_system reboot_safe "firmware download unseccussful"	# fixme!
-		}
-
-		_log do $FUNC daemon info "something went wrong during download...retrying in 30 sec (try: $RETRY_COUNT)"
-		sleep 30
-	} done
-
-	_scheduler queue_purge
-	
-	[ "$FW_IN_RAM" = "true" ] && {
-		_log do $FUNC daemon info "burning firmware directly"
-		/usr/sbin/firmware-burn "$DESTINATION"
-		_system reboot_safe "firmware burning unsuccessful"
-	}
-	
-	_log do "$DAEMON" daemon info "download ready."
-}
-
-. /tmp/loader
-
 FIRMWARE_IN_FLASH="/www/fw.trx"
 FIRMWARE_IN_RAM="/tmp/fw.trx"  
 
-test "$2" = "nopause" && NOPAUSE=true
-test "$3" = "forcemode" && FORCE_USERWISH=$4
+test "$2" = "nopause"	&& NOPAUSE=true		# global
+test "$3" = "forcemode" && FORCE_USERWISH=$4	# global
 
 case $1 in
         start)
@@ -313,12 +236,12 @@ case $1 in
 			_firmware_burn_if_exists
 			return
 		}
-		
+
 		_log do burn_firmware_if_exists daemon debug "no new firmwareimage found - do nothing"
 	;;
 	check_neighbour)
 		# fixme! here should be a routine to check a random (good) neighbour for newer version
-		_firmware_check_for_newer $URL_TO_CHECK $URL_TO_FETCH
+		_firmware_check_for_newer "$URL_TO_CHECK" "$URL_TO_FETCH"
 	;;
 	check)
 		[ "$( _firmware updatemode )" = "0" ] && {
@@ -332,7 +255,7 @@ case $1 in
 			_log do check daemon info "LOW_FLASH-device - abort"
 			exit
 		}
-		
+
 		_firmware_check_for_newer
 	;;
 	forcecheck)
@@ -343,7 +266,7 @@ case $1 in
 			_log do poormens_update daemon debug "successfully installed latest tarball - restarting some services"
 			/etc/init.d/S41build_static_netparam start
 			/etc/init.d/S51crond_fff+ restart
-		
+
 			_log do "poormens_update" daemon info "checking interface/settings"
 			/etc/init.d/S02check_interface_correctness_fff\+
 
@@ -351,12 +274,12 @@ case $1 in
 			_scheduler add "/etc/init.d/S43ethers_fff+ start"
 			_scheduler add "/etc/init.d/S45firewall restart"
 			_scheduler add "/etc/init.d/S50dnsmasq restart"
-		
+
 			tail -n 6 /etc/banner
 
 			_log do "poormens_update" daemon info "sending alive message"
 			_scheduler add "/etc/init.d/S69watch_olsrd_fff+ send_alive_message fast"
-		
+
 			_log do "poormens_update" daemon info "ready"
 		}
 	;;
