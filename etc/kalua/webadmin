@@ -9,12 +9,25 @@
 #   - table PROFIL leer? -> direkt in profil-editor gehen
 #   - profil-editor: profil loeschen
 
-_webadmin_db_dirtyout_pdf ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf 
+_webadmin_db_dirtyout_userdata ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf
 {
-	local HEADLINE="WLAN-Benutzerliste, Konferenz-Ticket (10 Computer), 3 Tage gueltig"
+	local TICKET="24h"	# 30min, 60min, 12h, 24h, 48h, 1week, 1month
+	local      C="603"
 	
 	sqlite3 /tmp/admin2.db "select * from USERS;" |
-	 awk -v DATUM="$( _system date full )" -v HEADLINE="$HEADLINE" 'BEGIN{
+	 while read LINE; do {
+	 
+	 	IFS="|"
+	 	set $LINE		# md5sum id profile_name username password
+	 	
+	 	echo "$( echo -n "$4$5" | md5sum | cut -d' ' -f1 ) $C $TICKET $4 $5"
+	 	C=$(( $C + 1 ))
+	} done >/tmp/out.txt
+
+	local HEADLINE="WLAN-Benutzerliste, 24-Stunden-Tickets"		# Konferenz-Ticket (10 Computer), 3 Tage gueltig
+	
+	sqlite3 /tmp/admin2.db "select * from USERS;" |
+	 awk >/tmp/out.html -v DATUM="$( _system date full )" -v HEADLINE="$HEADLINE" 'BEGIN{
 		print "<html><body><big>"HEADLINE"&nbsp;&nbsp;&nbsp;</big><br>"
 		print "<small>Erstellungszeitpunkt: "DATUM"</small>"
 		print "<table cellspacing='1' cellpadding='1' border='1' width='100%'>"
@@ -26,22 +39,6 @@ _webadmin_db_dirtyout_pdf ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf
 		FS="|"
 		print "<tr><td>&nbsp;&nbsp;"$4"</td><td align='center'>"$5"</td><td>&nbsp;</td><td>&nbsp;</td>"
 	}'
-}
-
-_webadmin_db_dirtyout_userdata ()
-{
-	local TICKET="1month"	# 30min, 60min, 12h, 24h, 48h, 1week, 1month
-	local      C="69"
-	
-	sqlite3 /tmp/admin2.db "select * from USERS;" |
-	 while read LINE; do {
-	 
-	 	IFS="|"
-	 	set $LINE		# md5sum id profile_name username password
-	 	
-	 	echo "$( echo -n "$4$5" | md5sum | cut -d' ' -f1 ) $C $TICKET $4 $5"
-	 	C=$(( $C + 1 ))
-	} done	
 }
 
 _webadmin_db_defs ()
