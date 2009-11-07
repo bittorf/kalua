@@ -12,8 +12,8 @@ _firmware_update_pmu ()
 	{
 		_log do "$FUNC" daemon info "cleaning up - applied ${COUNT:-0} files"
 		cd /tmp
-		rm -f "$WORKINGDIR"
-		rm -f "$TGZ"
+		rm -fR "$WORKINGDIR"
+		rm -f  "$TGZ"
 	}
 	
 	wget -O "$TGZ" "$URL" || {
@@ -32,14 +32,17 @@ _firmware_update_pmu ()
 	mv "$TGZ" "$WORKINGDIR"
 	cd "$WORKINGDIR"
 	
-	tar xzf "$FILE" || {
+	tar xzf "$FILE" >/dev/null || {
 		 _log do "$FUNC" daemon info "failed to extract '$TGZ' to '$WORKINGDIR' - abort"
 		_cleanup
 		return 1	 
 	}
 
 	for TEMPFILE in $( find -type f ); do {
-		[ "$( _file hash "$TEMPFILE")" = "$( _file hash "/$TEMPFILE" )" ] || {
+
+		_log do "$FUNC" daemon debug "hashing files '$WORKINGDIR/$TEMPFILE' / '/$TEMPFILE'"
+
+		[ "$( _file hash "$TEMPFILE" )" = "$( _file hash "/$TEMPFILE" )" ] || {
 
 			_log do "$FUNC" daemon debug "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" ) ))"
