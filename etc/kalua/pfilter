@@ -89,12 +89,15 @@ _pfilter_stats_rules_count ()
 	} done
 }
 
-_pfilter_rules_portfw_install ()			# fixme! howto redirect to myself?
+_pfilter_rules_portfw_install ()
 {
 	local FUNC="packetfilter_install_portforwarding"
 	local ENTRY
 	local PROTO
 	local PORTFORWARDING="$( nvram get fff_portfw )"
+	local MYHNA="$( _config get net olsr hna4 )"
+
+	iptables -I FORWARD -i $WANDEV -d $MYHNA -j ACCEPT
 
 	for ENTRY in $PORTFORWARDING; do {
 	
@@ -110,6 +113,7 @@ _pfilter_rules_portfw_install ()			# fixme! howto redirect to myself?
 				   *) RULE_INCOMING_INTERFACE=""		;;
 			esac
 
+			[ $RULE_DEST_IP = "me" ] && RULE_DEST_IP=		# this works!
 			[ $RULE_PROTO = "both" ] && RULE_PROTO="tcp udp"
 			
 			for PROTO in $RULE_PROTO; do {
@@ -147,6 +151,7 @@ _pfilter_rules_portfw_config_serialize ()
 
 	# emule:off:wan:both:4661>10.63.45.100:4661
 	# webcam:on:any:tcp:8080>10.63.168.97:80
+	# myssh:on:wan:tcp:10022>me:22
 	
 	echo $1 | sed 's/\(.*\):\(.*\):\(.*\):\(.*\):\(.*\)>\(.*\):\(.*\)/local RULE_NAME=\1\nlocal RULE_ACTIVE=\2\nlocal RULE_INCOMING_INTERFACE=\3\nlocal RULE_PROTO=\4\nlocal RULE_PORT_INCOMING=\5\nlocal RULE_DEST_IP=\6\nlocal RULE_PORT_DEST=\7/'
 
@@ -156,7 +161,7 @@ _pfilter_rules_portfw_config_serialize ()
 	# local RULE_INCOMING_INTERFACE=all	// wan,lan,wifi,all/any
 	# local RULE_PROTO=tcp
 	# local RULE_PORT_INCOMING=8080
-	# local RULE_DEST_IP=10.63.168.97
+	# local RULE_DEST_IP=10.63.168.97	// ip4 or 'me' = myself
 	# local RULE_PORT_DEST=80
 }
 
