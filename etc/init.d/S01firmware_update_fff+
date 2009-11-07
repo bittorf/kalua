@@ -9,9 +9,6 @@ _usage ()
 	echo "Usage: $0 start | check | forcecheck"
 	echo "		+ <nopause> = do it as fast as possible without any sleeps"
 	echo "		+ forcemode <updatemode> = stable | beta | testing"
-	echo
-	echo "       $0 pmu | poor_mens_update"
-	echo "		+ <updatemode>"
 }
 
 _firmware_burn_if_exists ()
@@ -188,41 +185,6 @@ _firmware_check_for_newer ()
 	fi
 }
 
-fkt_install_latest_tarball ()
-{
-	local UPDATEMODE="$1"
-	local DAEMON="fkt_install_latest_tarball"
-	local FILE="/tmp/tarball.tgz"
-	local URL_FIRMWARE_TARBALL="$( _links firmware_url_get tarball "$UPDATEMODE" )"
-	
-	_log do "$DAEMON" daemon info "fetching from \"$URL_FIRMWARE_TARBALL\""
-	
-	wget -O $FILE "$URL_FIRMWARE_TARBALL"
-	
-	if [ "$?" -ne 0 ]; then
-		_log do "$DAEMON" daemon info "error during download, aborting."
-		return 1
-	fi
-	
-	_log do "$DAEMON" daemon info "unpacking and overwriting existing files"
-	
-	cd /
-	tar xvzf $FILE
-
-	_log do "$DAEMON" daemon info "removing download archiv"
-	rm -f $FILE
-
-	_log do "$DAEMON" daemon info "patching banner-file for helping you to remember..."
-	
-	echo "# manually updated with poormens method on $(date) to this version"	>>/etc/banner
-	echo "# originally flashed version: $( grep ^Kit: /etc/freifunk-release )"	>>/etc/banner
-	tail -n2 /etc/variables_fff+							>>/etc/banner
-	echo "#"									>>/etc/banner 
-	echo										>>/etc/banner
-	
-	_log do "$DAEMON" daemon info "done. reboot maybe not necessary."
-}
-
 FIRMWARE_IN_FLASH="/www/fw.trx"
 FIRMWARE_IN_RAM="/tmp/fw.trx"  
 
@@ -260,28 +222,6 @@ case $1 in
 	;;
 	forcecheck)
 		_firmware_check_for_newer
-	;;
-	pmu|poor_mens_update)
-		fkt_install_latest_tarball "$2" && {
-			_log do poormens_update daemon debug "successfully installed latest tarball - restarting some services"
-			/etc/init.d/S41build_static_netparam start
-			/etc/init.d/S51crond_fff+ restart
-
-			_log do "poormens_update" daemon info "checking interface/settings"
-			/etc/init.d/S02check_interface_correctness_fff\+
-
-			_log do "poormens_update" daemon info "checking dns/packetfilter-services"
-			_scheduler add "/etc/init.d/S43ethers_fff+ start"
-			_scheduler add "/etc/init.d/S45firewall restart"
-			_scheduler add "/etc/init.d/S50dnsmasq restart"
-
-			tail -n 6 /etc/banner
-
-			_log do "poormens_update" daemon info "sending alive message"
-			_scheduler add "/etc/init.d/S69watch_olsrd_fff+ send_alive_message fast"
-
-			_log do "poormens_update" daemon info "ready"
-		}
 	;;
 	*)
 		_usage

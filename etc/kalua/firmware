@@ -1,4 +1,4 @@
-_firmware_update_pmu ()
+_firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)files with tarball from repo
 {
 	local FUNC="firmware_update_pmu"
 	local MODE="$1"
@@ -22,7 +22,7 @@ _firmware_update_pmu ()
 		return 1
 	}
 	
-	tar tzf "$TGZ" || {
+	tar tzf "$TGZ" >/dev/null || {
 		_log do "$FUNC" daemon info "failed to extract '$TGZ' - abort"
 		_cleanup
 		return 1
@@ -32,7 +32,7 @@ _firmware_update_pmu ()
 	mv "$TGZ" "$WORKINGDIR"
 	cd "$WORKINGDIR"
 	
-	tar xzf "$FILE" >/dev/null || {
+	tar xzf "$FILE" || {
 		 _log do "$FUNC" daemon info "failed to extract '$TGZ' to '$WORKINGDIR' - abort"
 		_cleanup
 		return 1	 
@@ -55,6 +55,13 @@ _firmware_update_pmu ()
 	} done
 	
 	_cleanup
+	
+	echo >>/etc/banner "# manually updated with poormens method on $(date) to this version"
+	echo >>/etc/banner "# originally flashed version: $( grep ^Kit: /etc/freifunk-release )"
+	tail >>/etc/banner -n2 /etc/variables_fff+
+	echo >>/etc/banner "#"
+	echo >>/etc/banner
+	
 	/etc/kalua_init
 }
 
@@ -86,15 +93,8 @@ _firmware_fetch ()
 	/etc/init.d/S90webcam_fff+ stop	
 	/etc/init.d/S52vpn_fff+ stop		# for safe uninstalling this package
 	
-	[ -e /tmp/LOWMEM ] && for IPK in $( _software show_installed_backwards ); do {	# firmware-download to flash only on lowmem-devices
-		
-		_log do "$DAEMON" daemon info "now free: $(_system flash_free) kb"
-		[ "$( _system flash_free )" -gt "$FREE_WANTED" ] && break
-		_log do "$DAEMON" daemon info "removing package '$IPK'"
-		
-		_software package_remove $IPK
-	} done
-
+	_software make_free_space $FREE_WANTED
+	
 	[ "$( _system flash_free )" -lt "$FREE_WANTED" ] && {
 		_log do $FUNC daemon crit "could'nt free target-flash space, strange!"
 		DESTINATION="/tmp/fw.trx"
