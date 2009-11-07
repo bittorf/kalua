@@ -3,7 +3,7 @@ _links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
 					#       version_installed
 					#       version_current <stable|beta|testing>
 	local COMMAND="$1"		#	tarball 
-	local UPDATEMODE_WISH="$2"	#	olsr_whitelist
+	local KEYWORD="$2"		#	olsr_whitelist
 	
 	local UPDATEMODE="$( _firmware updatemode )"	
 	local BASE="$( nvram get fff_url_firmware )"		# http://intercity-vpn.de/firmware
@@ -15,6 +15,12 @@ _links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
 	local WIFI_VENDOR WIFI_MODEL WIFIDRIVER
 	[ -z "$WIFI_VENDOR" ] && eval $( _wifi vendor_and_model )
 	
+	case "$KEYWORD" in
+		stable|beta|testing)
+			UPDATEMODE="$KEYWORD"
+		;;
+	esac
+
 	case $WIFI_VENDOR in					# BROADCOM, BROADCOMFULL, B43, RT73, MADWIFI, NONE
 		atheros)
 			WIFI_DRIVER="MADWIFI"
@@ -33,7 +39,7 @@ _links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
 
 	[ -z "$BASE" ] && BASE="http://intercity-vpn.de/firmware"
 
-	case $COMMAND in
+	case "$COMMAND" in
 		olsr_whitelist)
 			echo "$( nvram get fff_url_network )/whitelist/"
 		;;
@@ -42,12 +48,6 @@ _links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
 		;;
 		version_current)
 			local GENERATED VERSION KERNEL MAINTAINER OUTPUT
-			
-			case $UPDATEMODE_WISH in
-				stable|beta|testing)
-					UPDATEMODE="$UPDATEMODE_WISH"
-				;;
-			esac
 			
 			OUTPUT="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | head -n1 )"
 			[ -n "$OUTPUT" ] && eval $OUTPUT
@@ -58,15 +58,15 @@ _links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
 			echo -n "${FFF_PLUS_VERSION:=000000}"
 		;;
 		*)
-			case $1 in
+			case "$COMMAND" in
 				stable|beta|testing)
-					UPDATEMODE="$1"
+					UPDATEMODE="$COMMAND"
 				;;
 			esac
 		
 			local FILEWISH="linux=${MYKERNEL}_format=TRX_wifidriver=${WIFI_DRIVER}${OPT}.bin"
 			
-			case $2 in
+			case "$KEYWORD" in
 				crc)
 					local GENERATED VERSION KERNEL MAINTAINER CRC
 		

@@ -1,3 +1,61 @@
+_firmware_update_pmu ()
+{
+	local FUNC="firmware_update_pmu"
+	local MODE="$1"
+	local URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing
+	local WORKINGDIR="/tmp/pmu"
+	local FILE="tarball.tgz"
+	local TGZ="/tmp/$FILE"
+	local SIZE COUNT TEMPFILE
+	
+	_cleanup ()
+	{
+		_log do "$FUNC" daemon info "cleaning up - applied ${COUNT:-0} files"
+		cd /tmp
+		rm -f "$WORKINGDIR"
+		rm -f "$TGZ"
+	}
+	
+	wget -O "$TGZ" "$URL" || {
+		_log do "$FUNC" daemon info "failed to download '$URL' - abort"
+		_cleanup
+		return 1
+	}
+	
+	tar tzf "$TGZ" || {
+		_log do "$FUNC" daemon info "failed to extract '$TGZ' - abort"
+		_cleanup
+		return 1
+	}
+	
+	mkdir -p "$WORKINGDIR"
+	mv "$TGZ" "$WORKINGDIR"
+	cd "$WORKINGDIR"
+	
+	tar xzf "$FILE" || {
+		 _log do "$FUNC" daemon info "failed to extract '$TGZ' to '$WORKINGDIR' - abort"
+		_cleanup
+		return 1	 
+	}
+
+	for TEMPFILE in $( find -type f ); do {
+		[ "$( _file hash "$TEMPFILE")" = "$( _file hash "/$TEMPFILE" )" ] || {
+
+			_log do "$FUNC" daemon debug "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
+			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" ) ))"
+		
+			mv "$TEMPFILE" "/$TEMPFILE" || {
+				_log do "$FUNC" daemon alert "error during moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
+			}
+			
+			COUNT=$(( $COUNT + 1 ))
+		}
+	} done
+	
+	_cleanup
+	/etc/kalua_init
+}
+
 _firmware_updatemode ()
 {
 	local MODE="$( nvram get fff_autofwupdate )"
