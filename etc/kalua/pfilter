@@ -946,42 +946,36 @@ _pfilter_rules_accept_all ()
 	} done
 }
 
-_pfilter_rules_olsr_whitelist_vars ()
+_pfilter_rules_olsr_whitelist_fetch ()
 {
-	      OLSR_WL_FRESH="/tmp/olsr_whitelist_fresh"		# <unixtime>-Tags at first and last line
-              OLSR_WL_READY="/tmp/olsr_whitelist"		# nodenumber,mac (mac can be empty)
-              OLSR_WL_CHAIN="olsr_in_whitelist"			# for iptables
-}
-
-_pfilter_rules_olsr_whitelist_fetch () {
 	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) fetching"
 
-	wget -qO $OLSR_WL_FRESH "$( _links firmware_url_get olsr_whitelist )"
+	wget -qO /tmp/olsr_whitelist_fresh "$( _links firmware_url_get olsr_whitelist )"	# <unixtime>-Tags at first and last line
 
-	TAG1="$( head -n 1 $OLSR_WL_FRESH )"
-	TAG2="$( tail -n 1 $OLSR_WL_FRESH )"
+	TAG1="$( head -n 1 /tmp/olsr_whitelist_fresh )"
+	TAG2="$( tail -n 1 /tmp/olsr_whitelist_fresh )"
 
 	if [ -n "$TAG1" ] && [ "$TAG1" = "$TAG2" ]; then
 		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) went fine, sanitizing"
-		sed -e '/[<>]/d' -e 's/[^A-Fa-f0-9:,]//g' $OLSR_WL_FRESH >$OLSR_WL_READY	# removing lines with "<unixtime>" and sanitize LF/CR
-	else
+		sed -e '/[<>]/d' -e 's/[^A-Fa-f0-9:,]//g' /tmp/olsr_whitelist_fresh >/tmp/olsr_whitelist	# removing lines with "<unixtime>" and sanitize LF/CR
+	else													# results in: "nodenumber,mac (can be empty)
 		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) abort - something's wrong"
 	fi
 
-	rm -f $OLSR_WL_FRESH
+	rm -f /tmp/olsr_whitelist_fresh
 }
 
 _pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-restart (!)
 {
 	local FUNC="pfilter_rules_olsr_whitelist_update"
 
-	[ ! -e "$OLSR_WL_READY" ] && {
+	[ ! -e "/tmp/olsr_whitelist" ] && {
 		_log do $FUNC daemon debug "no whitelist - no update"
 		return
 	}
 	
 	local N=0
-	local ESTIMATED="$(( 8 * $( cat $OLSR_WL_READY | wc -l ) / 10 ))"	# counting lines and multipling 0.8 seconds for each line for time-message in syslog
+	local ESTIMATED="$(( 8 * $( cat /tmp/olsr_whitelist | wc -l ) / 10 ))"	# counting lines and multipling 0.8 seconds for each line for time-message in syslog
 	
 	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_update) inserting new rules (needs up to $ESTIMATED seconds)"
 
@@ -989,19 +983,19 @@ _pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added unt
 		
 		IP="$( _ipsystem do ${LINE%,*} | sed -n 's/^WIFIADR=\(.*\)/\1/p' )"
 		
-		iptables -nL $OLSR_WL_CHAIN | grep -q "$( _sanitizer do "$IP" esacpe_dots )" || {	# IP not in list yet?
+		iptables -nL olsr_in_whitelist | grep -q "$( _sanitizer do "$IP" esacpe_dots )" || {	# IP not in list yet?
 			MAC="${LINE#*,}"
 		
 			MACFILTER=""		
 			test -n "$MAC" && MACFILTER="-m mac --mac-source $MAC"
 				
 			let N+=1
-			iptables -A $OLSR_WL_CHAIN -s $IP $MACFILTER -j olsr_in_wifi_valid
+			iptables -A olsr_in_whitelist -s $IP $MACFILTER -j olsr_in_wifi_valid
 		}
 
-	} done <$OLSR_WL_READY
+	} done </tmp/olsr_whitelist
 
-	iptables -D $OLSR_WL_CHAIN -j ACCEPT 2>/dev/null			       # deleting accept. of all packets, activating whitelist
+	iptables -D olsr_in_whitelist -j ACCEPT 2>/dev/null			       # deleting accept. of all packets, activating whitelist
 	
 	_log do $FUNC daemon info "installed $N rules"
 }
@@ -1010,13 +1004,13 @@ _pfilter_rules_olsr_whitelist_optimize () {
 	local  NO_NEIGH="/tmp/we_have_no_olsr_neighbour.txt"
 	touch $NO_NEIGH
 	
-	test ! -e "$OLSR_WL_READY" && return
+	test ! -e "/tmp/olsr_whitelist" && return
 
 	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_optimize) working"
 
-	test -z "$( iptables -nL $OLSR_WL_CHAIN 2>/dev/null | grep ACCEPT )" && iptables -I $OLSR_WL_CHAIN -j ACCEPT	# temp. accept. of all packets
+	test -z "$( iptables -nL olsr_in_whitelist 2>/dev/null | grep ACCEPT )" && iptables -I olsr_in_whitelist -j ACCEPT	# temp. accept. of all packets
 
-	iptables -nxvL $OLSR_WL_CHAIN |
+	iptables -nxvL olsr_in_whitelist |
 	 sed -e '/^ *0/d' -e '/valid/!d' -e 's/\*/_/g' |							# filtering packetcount 0 and stars,
           sort |
            while read LINE; do                                                                                                      
@@ -1032,47 +1026,45 @@ _pfilter_rules_olsr_whitelist_optimize () {
 		test -e $NO_NEIGH && rm -f $NO_NEIGH
 
                 if [ -z "$MAC" ]; then                                                         		# without MAC
-                        iptables -D $OLSR_WL_CHAIN                      -s $IP -j olsr_in_wifi_valid        # delete old rule
-                        iptables -I $OLSR_WL_CHAIN --set-counters $1 $2 -s $IP -j olsr_in_wifi_valid        # insert new rule at the beginning, reinsert old values
+                        iptables -D olsr_in_whitelist                      -s $IP -j olsr_in_wifi_valid        # delete old rule
+                        iptables -I olsr_in_whitelist --set-counters $1 $2 -s $IP -j olsr_in_wifi_valid        # insert new rule at the beginning, reinsert old values
                 else                                                                                                                                   
-                        iptables -D $OLSR_WL_CHAIN                      -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
-                        iptables -I $OLSR_WL_CHAIN --set-counters $1 $2 -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
+                        iptables -D olsr_in_whitelist                      -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
+                        iptables -I olsr_in_whitelist --set-counters $1 $2 -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
                         
                         _net arp_permanent $IP $MAC wifi
                 fi                                 
         done      
 
-	iptables -D $OLSR_WL_CHAIN -j ACCEPT 2>/dev/null 						# removing temp. accept. of all packets
+	iptables -D olsr_in_whitelist -j ACCEPT 2>/dev/null 						# removing temp. accept. of all packets
 
-	if [ -e "$NO_NEIGH" ]; then
+	[ -e "$NO_NEIGH" ] && {
 		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_optimize) really no neighbours!"
 		_pfilter rules_olsr_whitelist_bypass 
-	fi
+	}
 }
 
 _pfilter_rules_olsr_whitelist_errorcheck ()
 {
 	local FUNC="pfilter_rules_olsr_whitelist_errorcheck"
-	local LINES_IN_WL_CHAIN="$( iptables -nxvL $OLSR_WL_CHAIN | grep all | wc -l )"		# the grep removes chain-headers
-	local LINES_IN_WL_FILE="$(         cat $OLSR_WL_READY |            wc -l )"
+	local LINES_IN_WL_CHAIN="$( iptables -nxvL olsr_in_whitelist | fgrep all | wc -l )"		# the grep removes chain-headers
+	local LINES_IN_WL_FILE="$( _file lines "/tmp/olsr_whitelist" )"
 	local OUT="false"
-
-	if [ $LINES_IN_WL_CHAIN -lt $LINES_IN_WL_FILE ]; then
-		OUT="true"
-	else
-		OUT="false"
-	fi
 
 	_log do $FUNC daemon info "$OUT (lines in: $LINES_IN_WL_FILE - lines real: $LINES_IN_WL_CHAIN)"
 
-	echo $OUT
+	if [ ${LINES_IN_WL_CHAIN:-0} -lt ${LINES_IN_WL_FILE:-0} ]; then
+		return 0
+	else
+		return 1
+	fi
 }
 
 _pfilter_rules_olsr_whitelist_bypass ()
 {
 	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_bypass ) executing"	
 
-	iptables -I $OLSR_WL_CHAIN -j ACCEPT
+	iptables -I olsr_in_whitelist -j ACCEPT
 }
 
 _pfilter_rules_olsr_control ()
@@ -1082,7 +1074,7 @@ _pfilter_rules_olsr_control ()
 
 	_log do pfilter daemon info "($FUNC) Installing management"
 
-	rm -f "$OLSR_WL_READY"									# to be sure, that this list must be reread
+	rm -f "/tmp/olsr_whitelist"									# to be sure, that this list must be reread
 
 	# ----- creating user-chains: -----
 
@@ -1092,7 +1084,7 @@ _pfilter_rules_olsr_control ()
 	iptables -N olsr_in_sanitizer
 	iptables -N olsr_in_malformed
 	iptables -N olsr_in_homebrew
-	iptables -N $OLSR_WL_CHAIN
+	iptables -N olsr_in_whitelist
 	iptables -N olsr_in_wifi_valid
 	iptables -N olsr_in_wifi_invalid
 	iptables -N olsr_in_wire_valid
@@ -1114,7 +1106,7 @@ _pfilter_rules_olsr_control ()
 	iptables -A olsr_in                                -j olsr_in_wire				# wire in
 	
 	iptables -A olsr_in_wifi                           -j olsr_in_sanitizer			# are packets good?
-	iptables -A olsr_in_wifi                           -j $OLSR_WL_CHAIN			# try to pass whitelist, or...
+	iptables -A olsr_in_wifi                           -j olsr_in_whitelist			# try to pass whitelist, or...
 	iptables -A olsr_in_wifi                           -j olsr_in_wifi_invalid			# away
 	
 	iptables -A olsr_in_wire -i tap+	-j ACCEPT				# from tap?
@@ -1138,7 +1130,7 @@ _pfilter_rules_olsr_control ()
 	iptables -A olsr_in_homebrew -i $LANDEV            -j DROP					# from LAN?
 	iptables -A olsr_in_homebrew                       -j DROP                                  # must be from WAN
 	
-	iptables -A $OLSR_WL_CHAIN			       -j ACCEPT				# later we have to fill this chain with MAC/IP-tupels
+	iptables -A olsr_in_whitelist			       -j ACCEPT				# later we have to fill this chain with MAC/IP-tupels
 
 	iptables -A olsr_in_wifi_valid                     -j ACCEPT				# all went ok, let olsrd parse it
 	iptables -A olsr_in_wire_valid                     -j ACCEPT				# the same for wire

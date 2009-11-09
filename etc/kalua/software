@@ -2,7 +2,6 @@ _software_make_free_space ()
 {
 	local FUNC="ipkg_make_free_space"
 	local SPACE_WISH="$1"			# [kilobyte]
-	local KEYWORD="$2"			# 'ruthless'
 	local FREE=0
 	local IPK
 
@@ -11,9 +10,12 @@ _software_make_free_space ()
 		FREE="$( _system flash_free )"
 		_log do $FUNC daemon debug "now $FREE kb (wish: $SPACE_WISH kb)"
 	
-		[ $FREE -gt $SPACE_WISH ] && break
+		[ $FREE -gt $SPACE_WISH ] && {
+			_log do $FUNC daemon debug "ready"
+			break
+		}
 	
-		_software is_essential $IPK $KEYWORD || {		# prevents chicken egg-problem
+		_software is_essential $IPK || {			# prevents chicken egg-problem
 			_log do $FUNC daemon alert "removing '$IPK'"
 			_software package_remove $IPK
 		}
@@ -23,10 +25,7 @@ _software_make_free_space ()
 _software_is_essential ()	# fixme! how to determine, if package is part of a meta-package? maybe this
 {				#	 doesn't matter, removing meta-packages doesn't effect child-packages
 	local PACKAGE="$1"
-	local KEYWORD="$2"
-
-	[ "$KEYWORD" = "ruthless" ] && return 1
-
+	
 	case $PACKAGE in
 		freifunk-pppoecd-*) return 0 ;;		# PPPoE
 		      kmod-madwifi) return 0 ;;		# atheros
