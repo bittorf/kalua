@@ -375,7 +375,7 @@ _pfilter_user_kick_overlimit ()
 		
 			[ "$( _pfilter user_probe_splash $MAC )" = "false" ] && {
 		
-				[ "$( _pfilter user_probe_admin $MAC )" = "false" ] && {
+				_pfilter user_probe_admin $MAC || {
 		
 					PERCENT="$( _pfilter stats_user_traffic_used_percent $MAC )"
 					_log do $FUNC user debug "'$MAC'-traffic is ${PERCENT}%"
@@ -635,15 +635,13 @@ _pfilter_proto2id ()		# fixme! uses global var 'PROTO' + 'PORT'
 	} done
 }
 
-_pfilter_user_probe_admin () {
+_pfilter_user_probe_admin ()
+{
 	local MAC="$1"
-	local LIST="$(nvram get fff_ethers_lan) $(nvram get fff_ethers_wifi)"
+	local LIST="$( nvram get fff_ethers_lan ) $( nvram get fff_ethers_wifi )"
 	
-	if [ -n "$( echo $LIST | grep -i "${MAC}=admin-" )" ]; then
-		echo "true"
-	else
-		echo "false"
-	fi
+	echo $LIST | fgrep -i "${MAC}=admin-" && return 0
+	return 1
 }
 
 _pfilter_user_probe_autounsplashed () {				# free means no splashpage wished: username must begin with "admin-" or "free-"
@@ -726,21 +724,21 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	local CONN_LIMIT_UDP="20"	# was 5
 	local CONN_LIMIT_TCP="75"	# was 20
 
-	if [ "$( _net local_inet_offer )" != "false" ]; then
+	_net local_inet_offer >/dev/null && {
 	
 		_log do $FUNC daemon info "raising connection-count for this user"
 
-		CONN_LIMIT_UDP="20"		# free-users on node with inet-offer
-		CONN_LIMIT_TCP="75"
+		CONN_LIMIT_UDP="50"		# free-users on node with inet-offer
+		CONN_LIMIT_TCP="100"
 	
-		if [ "$( _pfilter user_probe_admin $MAC )" = "true" ]; then
+		_pfilter user_probe_admin $MAC && {
 
 			_log do $FUNC daemon info "boosting connection-count for this admin-user"
 
 			CONN_LIMIT_UDP="1000"
 			CONN_LIMIT_TCP="4096"
-		fi
-	fi
+		}
+	}
 	
 	_log do $FUNC daemon debug "$MAC / $IP (connlimit tcp/udp: $CONN_LIMIT_TCP/$CONN_LIMIT_UDP)"
 
