@@ -1,7 +1,7 @@
 _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)files with tarball from repo
 {
 	local FUNC="firmware_update_pmu"
-	local MODE="$( _firmware updatemode $1 )"
+	local MODE="$( _firmware updatemode "$1" override)"
 	local URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing
 	local WORKINGDIR="/tmp/pmu"
 	local FILE="tarball.tgz"
@@ -68,18 +68,33 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	_log do "$FUNC" daemon info "[OK] applied tarball in '$MODE'-mode, wrote new banner"
 }
 
-_firmware_updatemode ()
-{
-	local MODE="$( nvram get fff_autofwupdate )"
+_firmware_updatemode ()		# updatemode <empty>		= string of configured update-mode
+{				# updatemode "stable"		= bool, true if "stable" = "configured update-mode", false if not
+	local CHECKMODE="$1"	# updatemode "beta" "override"	= string if mode "beta" is known, otherwise configured mode (fallback)
+	local KEYWORD="$2"
+	local OUT MODE
+
+	if [ "$KEYWORD" = "override" ]; then
+		MODE="$1"
+	else		
+		MODE="$( nvram get fff_autofwupdate )"
+	fi
 
 	case $MODE in
 		0|beta|testing)
-			echo -n "$MODE"
+			OUT="$MODE"
 		;;
 		*)
-			echo -n "stable"
+			OUT="stable"
 		;;
 	esac
+	
+	if [ -n "$CHECKMODE" ] && [ -z "$KEYWORD" ]; then
+		[ "$OUT" = "$CHECKMODE" ] && return 0
+		return 1
+	else
+		echo -n "$OUT"
+	fi
 }
 
 _firmware_fetch ()

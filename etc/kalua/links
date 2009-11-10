@@ -1,11 +1,11 @@
-_links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
-{					#       stable|beta|testing <crc>
-					#       version_installed
-					#       version_current <stable|beta|testing>
+_links_firmware_url_get ()		# ARG1:	stable|beta|testing|empty
+{					#	stable|beta|testing	<crc>
+					#	version_installed
+					#	version_current		<stable|beta|testing>
 	local COMMAND="$1"		#	tarball 
 	local KEYWORD="$2"		#	olsr_whitelist
 	
-	local UPDATEMODE="$( _firmware updatemode )"	
+	local UPDATEMODE="$( _firmware updatemode "$KEYWORD" override )"
 	local BASE="$( nvram get fff_url_firmware )"		# http://intercity-vpn.de/firmware
 	local MYKERNEL="$( uname -a | cut -d' ' -f3 )"		# 2.4.30
 	local ARCHITECTURE="broadcom"				# fixme! better use mips + endianlittle/el...?
@@ -15,12 +15,6 @@ _links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
 	local WIFI_VENDOR WIFI_MODEL WIFIDRIVER
 	[ -z "$WIFI_VENDOR" ] && eval $( _wifi vendor_and_model )
 	
-	case "$KEYWORD" in
-		stable|beta|testing)
-			UPDATEMODE="$KEYWORD"
-		;;
-	esac
-
 	case $WIFI_VENDOR in					# BROADCOM, BROADCOMFULL, B43, RT73, MADWIFI, NONE
 		atheros)
 			WIFI_DRIVER="MADWIFI"
@@ -41,7 +35,7 @@ _links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
 
 	case "$COMMAND" in
 		olsr_whitelist)
-			echo "$( nvram get fff_url_network )/whitelist/"
+			echo -n "$( nvram get fff_url_network )/whitelist/"
 		;;
 		tarball)
 			echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/tarball.tgz"
@@ -58,19 +52,13 @@ _links_firmware_url_get ()		# ARG1: stable|beta|testing|empty
 			echo -n "${FFF_PLUS_VERSION:=000000}"
 		;;
 		*)
-			case "$COMMAND" in
-				stable|beta|testing)
-					UPDATEMODE="$COMMAND"
-				;;
-			esac
-		
 			local FILEWISH="linux=${MYKERNEL}_format=TRX_wifidriver=${WIFI_DRIVER}${OPT}.bin"
 			
 			case "$KEYWORD" in
 				crc)
 					local GENERATED VERSION KERNEL MAINTAINER CRC
-		
-					CRC="$( wget 2>/dev/null -qO - "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | grep "'$FILEWISH'" )"
+	
+					CRC="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | grep "'$FILEWISH'" )"
 					[ -n "$CRC" ] && CRC="$( echo "$CRC" | cut -d' ' -f2 )"
 				
 					echo -n "${CRC:=0}"
