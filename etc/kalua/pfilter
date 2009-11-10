@@ -345,15 +345,16 @@ _pfilter_user_splash_remove_autounsplashed ()
 	done
 }
 
-_pfilter_user_splash_add_for_nonautounsplashed () {
+_pfilter_user_splash_add_for_nonautounsplashed ()
+{
 	local FUNC="kick_all_nonfree_users"
 	local LIST="$( _pfilter user_list )"
 
 	for MAC in $LIST; do {
 		
-		[ "$( _pfilter user_probe_splash $MAC )" = "false" ] && {
+		_pfilter user_probe_splash $MAC || {
 			
-			[ "$( _pfilter user_probe_autounsplashed $MAC )" = "false" ] && {
+			_pfilter user_probe_autounsplashed $MAC || {
 				_log do $FUNC daemon debug "kicking '$MAC'"
 				_pfilter user_splash_control splash $MAC "$( _net mac2ip $MAC )"
 			}
@@ -373,7 +374,7 @@ _pfilter_user_kick_overlimit ()
 
 		[ "$( _pfilter stats_user_traffic $MAC today )" != "0" ] && {	# very fast check
 		
-			[ "$( _pfilter user_probe_splash $MAC )" = "false" ] && {
+			_pfilter user_probe_splash $MAC || {
 		
 				_pfilter user_probe_admin $MAC || {
 		
@@ -640,37 +641,26 @@ _pfilter_user_probe_admin ()
 	local MAC="$1"
 	local LIST="$( nvram get fff_ethers_lan ) $( nvram get fff_ethers_wifi )"
 	
-	echo $LIST | fgrep -i "${MAC}=admin-" && return 0
+	echo $LIST | fgrep -qi "${MAC}=admin-" && return 0
 	return 1
 }
 
-_pfilter_user_probe_autounsplashed () {				# free means no splashpage wished: username must begin with "admin-" or "free-"
-	local MAC="$1"
-	local LIST="$(nvram get fff_ethers_lan) $(nvram get fff_ethers_wifi)"
-	
-	if [ -n "$( echo $LIST | grep -i "${MAC}=free-" )" ] || [ -n "$( echo $LIST | grep -i "${MAC}=admin-" )" ]; then
-		echo "true"
-	else
-		echo "false"
-	fi
-}
-
-_pfilter_user_splash_probe ()
+_pfilter_user_probe_autounsplashed ()		# free means no splashpage wished: username must begin with "admin-" or "free-"
 {
-	iptables -t mangle -nL PREROUTING | grep -q -i ${1:-unsetmac} && return 1
-	return 0
+	local MAC="$1"
+	local LIST="$( nvram get fff_ethers_lan ) $( nvram get fff_ethers_wifi )"
+	
+	echo $LIST | fgrep -qi "${MAC}=free-"  && return 0
+	echo $LIST | fgrep -qi "${MAC}=admin-" && return 0
+	return 1
 }
 
-_pfilter_user_probe_splash () {
-	local MAC="$1"
+_pfilter_user_probe_splash ()
+{
+	local MAC="${1:-unset}"
 
-	iptables -t mangle -nL PREROUTING | grep -q -i $MAC
-	
-	if [ "$?" -eq 0 ]; then				# mac is accepted in prerouting/mangle: no redirection is made
-		echo "false"
-	else						# mac is not known in prerouting/mangle: user gets splash page
-		echo "true"
-	fi
+	iptables -t mangle -nL PREROUTING | fgrep -qi $MAC && return 1	# mac is accepted in prerouting/mangle: no redirection is made
+	return 0							# mac is not known in prerouting/mangle: user gets splash page
 }
 
 _pfilter_user_splash_control ()				# SENS: controlling if a user must see splashpage before using internet or not
