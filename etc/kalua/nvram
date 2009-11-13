@@ -14,21 +14,30 @@ _nvram_set ()			# _nvram set varA valueA	// sets value
 	[ -n "$SIMULATE" ] && FUNC="${FUNC}_simulated"		# fixme! maybe monitor all changes to a file which is removed after commit?
 	
 	[ "$VAR" = "commit" ] && {
-		local COMMIT_REASON="${2:-no_reason}"
+		local COMMIT_REASON="${2:-no_reason_given}"
 	
 		[ -e /tmp/PROFILE_SET ] && {
 			_log do $FUNC daemon crit "error - cannot comit - lockfile '/tmp/PROFILE_SET' exists"
 			return 1
 		}
+
 		[ -z "$SIMULATE" ] && {
 			_log do $FUNC daemon debug "commiting changes - reason: '$COMMIT_REASON'"
-			nvram commit 2>/dev/null || {
-				_log do $FUNC daemon crit "error during commit"		# fixme! command always returns 0
-				return 1						# even if "low mem, could'nt write"
+			
+			nvram commit 2>/tmp/NVRAM_COMMIT_$$	# command always returns 0, even if
+								# "low mem, could'nt write" or "/dev/nvram: Input/output error"
+
+			local ERROR_MSG="$( grep -v  ^"nvram_commit(): start" /tmp/NVRAM_COMMIT_$$ | grep -v ^"nvram_commit(): end"; rm /tmp/NVRAM_COMMIT_$$ )"
+			
+			[ -n "$ERROR_MSG" ] && {
+				_log do $FUNC daemon crit "error during commit ('$ERROR_MSG'), reason: '$COMMIT_REASON'"
+				return 1
 			}
+			
 			_log do $FUNC daemon alert "commited all changes - reason: '$COMMIT_REASON'"	# fixme! log changes? (needs /tmp/NVRAM_NO_CHANGE)
 			return
 		}
+
 		_log do $FUNC daemon debug "commit - reason: '$COMMIT_REASON'"
 		return
 	}
