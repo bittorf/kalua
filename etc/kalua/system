@@ -1,15 +1,17 @@
 _system_reboot_safe ()			# fixme! maybe shutting down services like vpn, olsrd?
-{
+{					# fixme! safe vds-data? rrd-data?
 	local FUNC="system_reboot_safe"
 	local REASON="$1"
 	local LOCKFILE="/tmp/SAFE_REBOOT_SCHEDULED"
 
+	[ -e /dev/misc/crondog ] && {
+		pidof crond >/dev/null && killall crond		# if something goes wrong, this enforces an reboot in 10 minutes by crondog
+	}
+
 	[ -e  "$LOCKFILE" ] && return
 	touch "$LOCKFILE"
 
-	[ -e /dev/misc/crondog ] && /etc/init.d/S*crond* stop	# if something goes wrong, this enforces an reboot in 10 minutes by crondog
-
-	/etc/init.d/S69watch_olsrd_fff+ send_alive_message no_antenna_test	# maybe the last feedback can be helpful
+	cron.monitoring send_alive_message no_antenna_test	# maybe the last feedback can be helpful
 
 	_log do $FUNC daemon alert "scheduling reboot - reason: '$REASON'"
 
