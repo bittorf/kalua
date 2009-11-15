@@ -232,6 +232,9 @@ EOF
 			FILE="/www/images/intro.jpg"
 		;;
 		html_preprocessor_with_pagepeel_and_nodenumber_in_title)
+		
+			nvram get fff_profile | grep -q ^weimarnetz || return
+		
 			FILE="/www/cgi-bin-pre.sh"
 			sed '/<\/HEAD>/q' $FILE | grep -v "<\/HEAD>"		 >$TEMP		# print all till (but not including) the "</HEAD>"-tag
 												# for nodenumber in title
@@ -239,6 +242,7 @@ EOF
 			sed -i 's/wan_hostname)/wan_hostname)\;echo -en "No."\;nvram get fff_node_number\;echo -en " - "/g' $TEMP
 	
 			func_print_pagepeel					>>$TEMP		# appending "pagepeel"
+			
 			sed -n '/<\/HEAD>/,$p' $FILE | grep -v "<\/HEAD>" 	>>$TEMP		# print all after (but not including) the "</HEAD>"-tag
 		;;
 		*)
@@ -446,24 +450,26 @@ fkt_patch_intro_picture ()
 	local FUNC="patch_intro_picture"
 	local WIKI_MAIN_URL="http://wireless.subsignal.org"
 	
-	local PICTURE_NAME="Node$( nvram get fff_node_number ).jpg"				# searching for a picture in wiki name Node324.jpg (for node 324)
-	local PICTURE_URL="${WIKI_MAIN_URL}/index.php?title=Bild:$PICTURE_NAME"			# path for wiki-picture-page (with description etc.)
-	local PICTURE_LINK=""
+	local PICTURE_NAME="Node$( nvram get fff_node_number ).jpg"			# searching for a picture in wiki name Node324.jpg (for node 324)
+	local PICTURE_URL="${WIKI_MAIN_URL}/index.php?title=Bild:$PICTURE_NAME"		# path for wiki-picture-page (with description etc.)
+	local PICTURE_FILE="/www/images/intro.jpg"
+	local PICTURE_LINK
 	
-	PICTURE_LINK="$( _wget do "$PICTURE_URL" 10 |
+	PICTURE_LINK="$( _wget do "$PICTURE_URL" 30 |
 		grep "$PICTURE_NAME" |
-		sed -n "s/.*href=\"\(.*$PICTURE_NAME\)\".*/\1/p" |
-		head -n2 |
-		tail -n1 |
-		cut -d'"' -f1 )"
+		 sed -n "s/.*href=\"\(.*$PICTURE_NAME\)\".*/\1/p" |
+		  head -n2 |
+		   tail -n1 |
+		    cut -d'"' -f1
+	)"
 
 	echo $PICTURE_LINK | grep -q "^http://" || {		# no picture for this node uploaded on wiki yet
 		PICTURE_URL="${WIKI_MAIN_URL}${PICTURE_LINK}"	# node-specific-picture
-	}
 	
-	_log do $FUNC daemon info "from '$PICTURE_URL'"
+		_log do $FUNC daemon info "from '$PICTURE_URL'"
 	                                                                                
-	_wget do "$PICTURE_URL" 15 >/www/images/intro.jpg
+		_wget do "$PICTURE_URL" 60 >"$PICTURE_FILE"
+	}
 }
 
 if [ -n "$1" ]; then
@@ -550,7 +556,9 @@ case $1 in
 			fkt_patch $PATCH
 		} done
 		
-		fkt_patch_intro_picture
+		nvram get fff_profile | grep -q ^weimarnetz && {
+			fkt_patch_intro_picture
+		}
 	;;
 	restore_from_rom)
 	
