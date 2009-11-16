@@ -3,14 +3,20 @@ _net_mac2vendor ()
 	local MAC="$1"
 	local KEYWORD="$2"
 	local URL="http://84.38.67.43/macs"	# intercity-vpn.de
-	
-	# already sanitized?
-	[ ${#MAC} -ne 6 ] && MAC="$( _sanitizer do "$MAC" mac hex lowercase length:6 )"
-	[ -z "$MAC" ] && return 1
-
+	local MAC_SANITIZED
 	local CACHE="/tmp/CACHE_MAC2VENDOR_$MAC"
+	
+	[ ! -e "$CACHE" ] && {
 
-	[ ! -e "$CACHE" ] && wget -qO "$CACHE" "$URL/$MAC"
+		if [ ${#MAC} -ne 6 ]; then
+			MAC_SANITIZED="$( _sanitizer do "$MAC" mac hex lowercase length:6 )"
+			[ -z "$MAC_SANITIZED" ] && return 1
+		else
+			MAC_SANITIZED="$MAC"
+		fi
+
+		wget -qO "$CACHE" "$URL/$MAC_SANITIZED"
+	}
 
 	if [ "$KEYWORD" = "short" ]; then
 		head -n1 $CACHE
