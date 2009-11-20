@@ -30,42 +30,31 @@ _webadmin_db_dirtyout_pdf ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf
 
 _webadmin_db_pdfout ()
 {
-	local DB="/tmp/admin2.db"
-	local COUNT=0
-	local NUMBER
-	local DB_QUERY="select * from USERS;"
-	local PDF_ORIGINAL="/tmp/template.pdf"
-	local PDF_NEW="/tmp/meinpdf.pdf"
+	local PDF_TEMPLATE="/tmp/template.pdf"
+	local PDF_OUT="/tmp/meinpdf.pdf"
 	local TEMP="/tmp/db_output_$$"
-	local LINE WORD VALUE
+	local LINE WORD NUMBER
+	local COUNT=0
 
 	local VAR_CREATOR="ekuku multispot"
 	local VAR_GENTIME="$( _system date humanreadable )"
 	local VAR_SOURCE="quellenangabe"
-
 	local VAR_HOTELNAME="Hotel Liszt Weimar"
 	local WORD_USERLIST="WLAN-Benutzerliste: "
 	local VAR_TICKETTYPE="24-Stunden-Tickets"
-	local WORD_GENTIME="Zeitpunkt der Generierung: "
+	local WORD_GENTIME="Zeitpunkt der automatischen Generierung: "		# oder 'manuell'
 	local VAR_GENHUMANDATE="$( _system date humanreadable )"
 	local WORD_USER="Benutzername"
 	local WORD_PASS="Passwort"
-	local WORD_ROOMANDGUEST="Zimmernummer \/ Gastname"
+	local WORD_ROOMANDGUEST="Zimmernummer \/ Gastname"			# sed-style
 	local WORD_COMMENT="Kommentar"
 	local VARLIST="VAR_CREATOR VAR_GENTIME VAR_SOURCE VAR_HOTELNAME WORD_USERLIST VAR_TICKETTYPE VAR_GENHUMANDATE WORD_GENTIME WORD_USER WORD_PASS WORD_ROOMANDGUEST WORD_COMMENT" 
 
-	cp "$PDF_ORIGINAL" "$PDF_NEW"
-
-	echo -n "sed -i " >$TEMP
-
 	for WORD in $VARLIST; do {
-		eval "VALUE=\"\$${WORD}\""
-		echo -n "-e 's/$WORD/$VALUE/g' "
-	} done >>$TEMP
+		echo -n "-e 's/$WORD/$( eval echo \$$WORD )/g' "
+	} done >$TEMP
 
-	_system globbing off
-
-	sqlite3 "$DB" "$DB_QUERY" |
+	sqlite3 "/tmp/admin2.db" "select * from USERS;" |
 	 while read LINE; do {
 
 		IFS="|"
@@ -78,11 +67,8 @@ _webadmin_db_pdfout ()
 		echo -n "-e 's/USER${NUMBER}/$4/' -e 's/PASS${NUMBER}/$5/' -e 's/GUEST${NUMBER}//' -e 's/COMMENT${NUMBER}//' "
 	} done >>$TEMP
 
-	_system globbing on	
-
-	echo -n "$PDF_NEW" >>$TEMP
-	sh $TEMP
-	rm $TEMP
+	echo "sed $( cat $TEMP; rm $TEMP ) '$PDF_TEMPLATE' >'$PDF_OUT'" >$TEMP
+	sh $TEMP && rm $TEMP
 }
 
 _webadmin_db_dirtyout_userdata ()
