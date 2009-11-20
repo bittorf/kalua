@@ -37,7 +37,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	local RECIPIENT_REAL="$3"	# ARG3, string (name)
 	local RECIPIENT_MAIL="$4"	# ARG4, string (email)
 	local       MAILFILE="$5"	# ARG5, string (name of file with body-text and variables)
-	local           VAR1="$6"	# ARG6, string (user-definable, for using in mail.txt)
+	local           VAR1="$6"	# ARG6, string (user-defineable, for using in mail.txt)
 	local           VAR2="$7"	# ARG7, string
 	local           VAR3="$8"	# ARG8, string
 	
@@ -46,53 +46,56 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 		return
 	}
 	
-	local        SUBJECT="$( head -n1 $MAILFILE )"
-	local            OUT=""
-	local           LINE
-	local         NETCAT="nc"
-	local         SERVER="$( nvram get fff_mail_server_smtp )"
-	local           PORT="$( nvram get fff_mail_server_smtp_port )"
-	local             RC=0
-	local           FQDN="$( nvram get wan_hostname ).local"
-	local     ADMIN_REAL="$( nvram get ff_adm_name )"
-	local     ADMIN_MAIL="$( nvram get ff_adm_mail )"
-	local      NICE_DATE="$( date "+%d.%b'%y-%H:%M" )"									# 06.May'08-18:10
-	local      MAIL_DATE="$( date "+%a, " )$( date "+%e " | sed 's/ //' )$( date "+%b %Y %X %z" | sed 's/-0/+0/' )"		# Wed, 7 May 2008 16:04:59 +0200
-	local           MAIL="/tmp/outgoing_mail_$NICE_DATE"
+	local SUBJECT="$( head -n1 $MAILFILE )"
+	local OUT LINE
+	local NETCAT="nc"
+	local SERVER="$( nvram get fff_mail_server_smtp )"
+	local PORT="$( nvram get fff_mail_server_smtp_port )"
+	local RC=0
+	local FQDN="$( nvram get wan_hostname ).local"
+	local ADMIN_REAL="$( nvram get ff_adm_name )"
+	local ADMIN_MAIL="$( nvram get ff_adm_mail )"
+	local MAIL="/tmp/outgoing_mail_$( _system date humanreadable nice )"
 	
 	_mail pop3_check_stats			# pop before smtp must be configured on mailserver
-	
-	echo  >$MAIL -n "HELO ${FQDN}\r\n"
-	echo >>$MAIL -n "MAIL FROM: \"${FROM_REAL}\" <${FROM_MAIL}>\r\n"
-	echo >>$MAIL -n "RCPT TO: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>\r\n"
-	# can be multiple RCPT's:
-	# echo >>$MAIL -n "RCPT TO: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
-	echo >>$MAIL -n "DATA\r\n"
-	echo >>$MAIL -n "From: \"${FROM_REAL}\" <${FROM_MAIL}>\r\n"
-	echo >>$MAIL -n "To: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>\r\n"
-	# echo >>$MAIL -n "Cc: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
-	echo >>$MAIL -n "Subject: ${SUBJECT}\r\n"
-	echo >>$MAIL -n "Date: ${MAIL_DATE}\r\n"
-	echo >>$MAIL -n "Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>\r\n"				# 121016909907May08-16_04@buffalo422.local
-	echo >>$MAIL -n "MIME-Version: 1.0\r\n"
-	echo >>$MAIL -n "Content-Type: text/plain; charset=iso-8859-1\r\n"
-	echo >>$MAIL -n "Content-Transfer-Encoding: quoted-printable\r\n"
 
-	# echo >>$MAIL -n "Organization: ${ADMIN_REAL}\r\n"
-	# echo >>$MAIL -n "Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>\r\n"
-	echo >>$MAIL -n "Organization: Weimarnetz e.V.\r\n"
-	echo >>$MAIL -n "Reply-To: \"Weimarnetz e.V.\" <wireless-discuss@subsignal.org>\r\n"
+	_do ()
+	{
+		echo >>$MAIL -n "$1\r\n"
+	}
 	
-	echo >>$MAIL -n "X-Mailer: netcat $( $NETCAT --help 2>&1 | grep -i " v" )\r\n"
-	echo >>$MAIL -n "X-Operating-System: $( cat /proc/version )\r\n"
-	echo >>$MAIL -n "X-Firmware: $( grep ^Kit: /etc/freifunk-release )\r\n"
+	_do "HELO ${FQDN}"
+	_do "MAIL FROM: \"${FROM_REAL}\" <${FROM_MAIL}>"
+	_do "RCPT TO: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>"
+	_do "DATA"
+	_do "From: \"${FROM_REAL}\" <${FROM_MAIL}>"
+	_do "To: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>"			# can be multiple RCPT's:
+#	_do "Cc: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>"
+	_do "Subject: ${SUBJECT}\r\n"
+	_do "Date: $( _system date mail )"
+	_do "Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>"			# 121016909907May08-16_04@buffalo422.local
+	_do "MIME-Version: 1.0"
+	_do "Content-Type: text/plain; charset=iso-8859-1"
+	_do "Content-Transfer-Encoding: quoted-printable"
+	_do "Organization: ${ADMIN_REAL}"
+	_do "Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>"
+	_do "X-Mailer: netcat $( $NETCAT --help 2>&1 | grep -i " v" )"
+	_do "X-Operating-System: $( cat /proc/version )"
+	_do "X-Firmware: $FFF_VERSION / $FFF_PLUS_VERSION / $( grep ^Kit: /etc/freifunk-release )"
+
 	echo >>$MAIL -n "\n"
-	sed '3,99!d' $MAILFILE | while read LINE; do echo -n "${LINE}\r\n"; done >>$MAIL	# 1st/2nd line is crap
-	echo >>$MAIL -n "\r\n.\r\nQUIT\r\n"
+	
+	sed '3,99!d' $MAILFILE | while read LINE; do _do "${LINE}"; done	# 1st/2nd line is crap
+	
+	_do ""
+	_do "."
+	_do "QUIT"
 
-	OUT="$( echo -e "$(cat $MAIL)" | $NETCAT $SERVER $PORT )"	# fixme! correct LF/CR with 'while read LINE; do echo -e \r\n...'
-				
+	echo -e "$( cat $MAIL )"
+
+	OUT="$( echo -e "$( cat $MAIL )" | $NETCAT $SERVER $PORT )"
 	RC=$?
+	
 	OUT="$( echo "$OUT" | strings | sed -e 's/ //g' -e 's/^\([0-9]*\).*$/\1_/' | while read LINE; do echo -n "$LINE"; done )"	# extract error-codes + remove LF/CR
 
 												# fixme! for each RCPT we must add an "2502_"
