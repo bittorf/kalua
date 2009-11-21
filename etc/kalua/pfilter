@@ -1,6 +1,22 @@
 # tc qdisc add dev eth0 root handle 1: cbq avpkt 1000 bandwidth [HN]
 # tc qdisc show
 
+_ipt ()		# for better logging and safer installing - have seen strange errors during iptables-storm
+{
+	local FUNC="iptables"
+	local ARGS="$1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18} ${19} ${20}"
+
+	iptables $ARGS || {
+		_log do $FUNC daemon debug "something went wrong: '$ARGS' - retry"
+		sleep 1
+		iptables $ARGS || {
+			_log do $FUNC daemon info "giving up: '$ARGS'"
+			return 1
+		}
+		return 0
+	}
+}
+
 _pfilter_user_splash_remove ()
 {
 	local MAC="$1"
@@ -25,10 +41,10 @@ _pfilter_rules_webserver_deny_incoming_nonlocal ()
 
 	_log do $FUNC daemon info "activate blocking for HTTP(S) to avoid lowmem situations during software-install"
 
-	iptables -I INPUT -p tcp -s ! $MYHNA --dport 80  -j DROP	# if REJECT is not possible, then method DROP is fallback
-	iptables -I INPUT -p tcp -s ! $MYHNA --dport 443 -j DROP
-	iptables -I INPUT -p tcp -s ! $MYHNA --dport 80  -j REJECT
-	iptables -I INPUT -p tcp -s ! $MYHNA --dport 443 -j REJECT
+	_ipt -I INPUT -p tcp -s ! $MYHNA --dport 80  -j DROP	# if REJECT is not possible, then method DROP is fallback
+	_ipt -I INPUT -p tcp -s ! $MYHNA --dport 443 -j DROP
+	_ipt -I INPUT -p tcp -s ! $MYHNA --dport 80  -j REJECT
+	_ipt -I INPUT -p tcp -s ! $MYHNA --dport 443 -j REJECT
 }
 
 _pfilter_user_ruleset_activate ()
@@ -41,20 +57,20 @@ _pfilter_user_ruleset_activate ()
 	
 	for MAC_RESERVE in $MAC_RESERVE_LIST; do {
 
-		iptables -t mangle -E traff_${MAC_RESERVE} traff_$MAC 2>/dev/null && { 
+		_ipt -t mangle -E traff_${MAC_RESERVE} traff_$MAC 2>/dev/null && { 
 	
 			_log do $FUNC daemon info "found chain traff_${MAC_RESERVE} and renamed to 'traff_$MAC'"
 			
-			iptables -t mangle -D traff_users -m mac --mac-source $MAC_RESERVE	-j traff_$MAC
-			iptables -t mangle -D traff_users -d 99.99.99.99			-j traff_$MAC
+			_ipt -t mangle -D traff_users -m mac --mac-source $MAC_RESERVE	-j traff_$MAC
+			_ipt -t mangle -D traff_users -d 99.99.99.99			-j traff_$MAC
 
-			iptables -t mangle -D traff_$MAC 12
-			iptables -t mangle -I traff_$MAC 12 -m mark --mark $( _pfilter proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}>"	# inside2outside
-			iptables -t mangle -D traff_$MAC 19
-			iptables -t mangle -I traff_$MAC 19 -m mark --mark $( _pfilter proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
+			_ipt -t mangle -D traff_$MAC 12
+			_ipt -t mangle -I traff_$MAC 12 -m mark --mark $( _pfilter proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}>"	# inside2outside
+			_ipt -t mangle -D traff_$MAC 19
+			_ipt -t mangle -I traff_$MAC 19 -m mark --mark $( _pfilter proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
 
-			iptables -t mangle -A traff_users -m mac --mac-source $MAC		-j traff_$MAC
-			iptables -t mangle -A traff_users -d $IP				-j traff_$MAC
+			_ipt -t mangle -A traff_users -m mac --mac-source $MAC		-j traff_$MAC
+			_ipt -t mangle -A traff_users -d $IP				-j traff_$MAC
 
 			_net arp_permanent $IP $MAC
 			_pfilter user_splash_control nosplash $MAC $IP		
@@ -84,7 +100,7 @@ _pfilter_stats_rules_count ()
 	local TABLE COUNT
 	
 	for TABLE in $LIST; do {
-		COUNT="$( iptables -t $TABLE -nxL $OPTION | sed -e '/^target/d' -e '/^Chain /d' -ne '/[^.]$/p' | sed -n '$=' )"
+		COUNT="$( _ipt -t $TABLE -nxL $OPTION | sed -e '/^target/d' -e '/^Chain /d' -ne '/[^.]$/p' | sed -n '$=' )"
 		_log do packetfilter_count_rules daemon debug "$COUNT rules in '$TABLE' $OPTION"
 	} done
 }
@@ -97,7 +113,7 @@ _pfilter_rules_portfw_install ()
 	local PORTFORWARDING="$( nvram get fff_portfw )"
 	local MYHNA="$( _config get net olsr hna4 )"
 
-	iptables -I FORWARD -i $WANDEV -d $MYHNA -j ACCEPT
+	_ipt -I FORWARD -i $WANDEV -d $MYHNA -j ACCEPT
 
 	for ENTRY in $PORTFORWARDING; do {
 	
@@ -120,10 +136,10 @@ _pfilter_rules_portfw_install ()
 				
 				RULE_ACTIVE="-t nat -I PREROUTING $RULE_INCOMING_INTERFACE -p $PROTO --dport $RULE_PORT_INCOMING -j DNAT --to-destination $RULE_DEST_IP:$RULE_PORT_DEST"
 				
-					if iptables $RULE_ACTIVE ; then
+					if _ipt $RULE_ACTIVE ; then
 				     		_log do $FUNC user info "success adding rule '$RULE_NAME'"
 				     	else
-				     		_log do $FUNC user err  "error adding rule '$ENTRY' ('iptables $RULE_ACTIVE')"
+				     		_log do $FUNC user err  "error adding rule '$ENTRY' ('_ipt $RULE_ACTIVE')"
 				     	fi
 			} done
 		}
@@ -138,7 +154,7 @@ _pfilter_rules_dhcp_ignore_specific_macs ()	# SENS: mario
 	for MAC in $( nvram get fff_dhcp_ignore ); do {		# format: 'MAC1 MAC2 MACn"
 
 		_log do $FUNC daemon debug "ignoring '$MAC'"
-		iptables -I INPUT -p udp --sport 68 -d 255.255.255.255 --dport 67 -m mac --mac-source $MAC -j DROP
+		_ipt -I INPUT -p udp --sport 68 -d 255.255.255.255 --dport 67 -m mac --mac-source $MAC -j DROP
 	} done
 }
 
@@ -193,7 +209,7 @@ _pfilter_rules_nat_wifi_roaming ()
 
 	eval "$( _ipsystem do )"
 
-	iptables -t nat -A POSTROUTING -o $WIFIDEV -s $ROAMING_IP4/$ROAMING_PRE -j MASQUERADE	# or SNAT?
+	_ipt -t nat -A POSTROUTING -o $WIFIDEV -s $ROAMING_IP4/$ROAMING_PRE -j MASQUERADE	# or SNAT?
 }
 
 _pfilter_user_probe_local_blacklist ()
@@ -259,8 +275,8 @@ _pfilter_rules_nat_inetoffer_lan ()	# SENS: masquerades traffic over lan-device 
 		fi
 	fi	
 	
-	iptables -A POSTROUTING -t nat -o $LANDEV  -s ! $LANNET/$LANPRE -j MASQUERADE
-	iptables -A POSTROUTING -t nat -o $WIFIDEV -s   $LANNET/$LANPRE -j MASQUERADE
+	_ipt -A POSTROUTING -t nat -o $LANDEV  -s ! $LANNET/$LANPRE -j MASQUERADE
+	_ipt -A POSTROUTING -t nat -o $WIFIDEV -s   $LANNET/$LANPRE -j MASQUERADE
 
 	_pfilter stats_rules_count nat POSTROUTING
 	_log do pfilter daemon info "($FUNC) done"
@@ -406,23 +422,23 @@ _pfilter_stats_olsr_traffic_wifi_in ()
 {
 	local PACK BYTES REST
 	
-	iptables -nxvL olsr_in 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo -n ${BYTES:-0}; done
+	_ipt -nxvL olsr_in 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo -n ${BYTES:-0}; done
 }
 
 _pfilter_stats_olsr_traffic_wifi_out ()
 {
 	local PACK BYTES REST
 	
-	iptables -nxvL olsr_out_wifi 2>/dev/null | tail -n1 | while read PACK BYTES REST; do echo ${BYTES:-0}; done
+	_ipt -nxvL olsr_out_wifi 2>/dev/null | tail -n1 | while read PACK BYTES REST; do echo ${BYTES:-0}; done
 }
 
 _pfilter_stats_layer7_hits ()
 {
 	local PACK BYTES REST
 	
-	local ALL_BYTES="$(      iptables -t mangle -nxvL FORWARD | grep "CONNMARK restore" | while read PACK BYTES REST; do echo $BYTES; done )"
-	local RESTORED_BYTES="$( iptables -t mangle -nxvL FORWARD | grep "CONNMARK match"   | while read PACK BYTES REST; do echo $BYTES; done )"
-	local MATCHED_BYTES="$(  iptables -t mangle -nxvL marking | grep "CONNMARK"         | while read PACK BYTES REST; do echo $BYTES; done )"
+	local ALL_BYTES="$(      _ipt -t mangle -nxvL FORWARD | grep "CONNMARK restore" | while read PACK BYTES REST; do echo $BYTES; done )"
+	local RESTORED_BYTES="$( _ipt -t mangle -nxvL FORWARD | grep "CONNMARK match"   | while read PACK BYTES REST; do echo $BYTES; done )"
+	local MATCHED_BYTES="$(  _ipt -t mangle -nxvL marking | grep "CONNMARK"         | while read PACK BYTES REST; do echo $BYTES; done )"
 
 	which awk >/dev/null || {
 		echo 0
@@ -481,13 +497,13 @@ _pfilter_stats_user_cast () {					# if ARG2 = spread, then data goes out to $GW 
 
 _pfilter_user_probe ()
 {
-	iptables -t mangle -nL traff_${1:-unset} >/dev/null 2>/dev/null && return 0
+	_ipt -t mangle -nL traff_${1:-unset} >/dev/null 2>/dev/null && return 0
 	return 1
 }
 
 _pfilter_user_list ()					# SENS: list all MACs from logged in / shaped users
 {
-	iptables -t mangle -nL traff_users 2>/dev/null | sed -n 's/^traff_\([0-8abcdef][0-8abcdef]:..:..:..:..:..\) .*MAC .*$/\1/p'	# must not begin with '99' (=reserved user)
+	_ipt -t mangle -nL traff_users 2>/dev/null | sed -n 's/^traff_\([0-8abcdef][0-8abcdef]:..:..:..:..:..\) .*MAC .*$/\1/p'	# must not begin with '99' (=reserved user)
 }
 
 _pfilter_user_list_blocked () {
@@ -531,35 +547,35 @@ _pfilter_user_traffic_reset_single ()
 
 	_log do $FUNC daemon $LOGPRIO "$MAC ('$2')"
 	
-	iptables -R traff_$MAC $RULE_NUM -t mangle --set-counters 0 0
+	_ipt -R traff_$MAC $RULE_NUM -t mangle --set-counters 0 0
 }
 
 _pfilter_stats_traffic_forwarded_intranet ()
 {
 	local PACK BYTES REST
 	
-	iptables -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
+	_ipt -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
 _pfilter_stats_traffic_forwarded_internet ()	# fixme! empty chains -> output = "bytes", but should be '0'
 {
 	local PACK BYTES REST
 	
-	iptables -t mangle -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
+	_ipt -t mangle -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
 _pfilter_stats_user_conns_start ()
 {
 	local MAC="$1"
 	
-	iptables -t mangle -nxvL traff_$MAC | grep "state NEW MARK set 0x91" | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
+	_ipt -t mangle -nxvL traff_$MAC | grep "state NEW MARK set 0x91" | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
 }
 
 _pfilter_stats_user_conns_end ()
 {
 	local MAC="$1"
 
-	iptables -t mangle -nxvL traff_$MAC | grep "flags:0x11/0x11 MARK" | tail -n1 | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
+	_ipt -t mangle -nxvL traff_$MAC | grep "flags:0x11/0x11 MARK" | tail -n1 | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
 }
 
 _pfilter_stats_user_conns_over_limit () {	# we count udp + tcp above's 	// fixme! what about adblock?
@@ -567,7 +583,7 @@ _pfilter_stats_user_conns_over_limit () {	# we count udp + tcp above's 	// fixme
 	local PACK=""
 	local REST=""	
 
-	iptables -t mangle -nxvL traff_$MAC | head -n 9 | tail -n 1 | while read PACK REST; do echo $PACK; done
+	_ipt -t mangle -nxvL traff_$MAC | head -n 9 | tail -n 1 | while read PACK REST; do echo $PACK; done
 }
 
 _pfilter_stats_user_traffic ()	# OUT1: string
@@ -582,7 +598,7 @@ _pfilter_stats_user_traffic ()	# OUT1: string
 		*)      LINE="4" ;;	# overall
 	esac
 
-	iptables -t mangle --line-numbers -nxvL traff_${MAC} | 
+	_ipt -t mangle --line-numbers -nxvL traff_${MAC} | 
 	 sed -n "/^${LINE} /s/^${LINE}[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p"
 }
 
@@ -653,7 +669,7 @@ _pfilter_user_probe_splash ()
 {
 	local MAC="${1:-unset}"
 
-	iptables -t mangle -nL PREROUTING | grep -qi $MAC && return 1	# mac is accepted in prerouting/mangle: no redirection is made
+	_ipt -t mangle -nL PREROUTING | grep -qi $MAC && return 1	# mac is accepted in prerouting/mangle: no redirection is made
 	return 0							# mac is not known in prerouting/mangle: user gets splash page
 }
 
@@ -678,8 +694,8 @@ _pfilter_user_splash_control ()				# SENS: controlling if a user must see splash
 		MODE="-D"
 	fi
 
-	iptables -t mangle $MODE PREROUTING -m mac --mac-source $MAC -j ACCEPT
-	iptables -t mangle $MODE PREROUTING -d $IP                   -j ACCEPT	
+	_ipt -t mangle $MODE PREROUTING -m mac --mac-source $MAC -j ACCEPT
+	_ipt -t mangle $MODE PREROUTING -d $IP                   -j ACCEPT	
 
 	_log do $FUNC daemon info "end - mode: $MODE - $MAC / $IP"
 }
@@ -730,57 +746,57 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 
 	_log do $FUNC daemon debug "filling user chain - start"
 	
-	iptables -t mangle -N traff_$MAC 2>/dev/null || {
+	_ipt -t mangle -N traff_$MAC 2>/dev/null || {
 		_log do $FUNC daemon debug "chain traff_$MAC already exists - abort"
 		return 1
 	}
 	
-	iptables -t mangle -A traff_$MAC -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j shaper	# counter0 (intranet/mesh-intern)
-	iptables -t mangle -A traff_$MAC							# counter1 (traffic interval-count)
-	iptables -t mangle -A traff_$MAC							# counter2 (traffic_today)
-	iptables -t mangle -A traff_$MAC							# counter3 (traffic_all)
+	_ipt -t mangle -A traff_$MAC -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j shaper	# counter0 (intranet/mesh-intern)
+	_ipt -t mangle -A traff_$MAC							# counter1 (traffic interval-count)
+	_ipt -t mangle -A traff_$MAC							# counter2 (traffic_today)
+	_ipt -t mangle -A traff_$MAC							# counter3 (traffic_all)
 	
-	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20 -m limit --limit 6/min --limit-burst 10 -j LOG --log-prefix "ADBLOCK:"
-	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20        -j MARK --set-mark $( _pfilter proto2id REJECT )    # adblock (special dest)
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id REJECT )/0xFF  -j shaper
+	_ipt -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20 -m limit --limit 6/min --limit-burst 10 -j LOG --log-prefix "ADBLOCK:"
+	_ipt -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20        -j MARK --set-mark $( _pfilter proto2id REJECT )    # adblock (special dest)
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id REJECT )/0xFF  -j shaper
 	
-	iptables -t mangle -A traff_$MAC -m state --state NEW -p udp -m udplimit  --udplimit-above  $CONN_LIMIT_UDP -j MARK --set-mark $( _pfilter proto2id CONN_ABOVE )
-	iptables -t mangle -A traff_$MAC -m state --state NEW -p tcp -m connlimit --connlimit-above $CONN_LIMIT_TCP -j MARK --set-mark $( _pfilter proto2id CONN_ABOVE )
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF                           -j shaper	# connabove to shaper
+	_ipt -t mangle -A traff_$MAC -m state --state NEW -p udp -m udplimit  --udplimit-above  $CONN_LIMIT_UDP -j MARK --set-mark $( _pfilter proto2id CONN_ABOVE )
+	_ipt -t mangle -A traff_$MAC -m state --state NEW -p tcp -m connlimit --connlimit-above $CONN_LIMIT_TCP -j MARK --set-mark $( _pfilter proto2id CONN_ABOVE )
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF                           -j shaper	# connabove to shaper
 	
-	iptables -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW                   -j MARK --set-mark $( _pfilter proto2id CONN )	# all new packets
+	_ipt -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW                   -j MARK --set-mark $( _pfilter proto2id CONN )	# all new packets
 	
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF       -j ULOG --ulog-prefix "$MAC>"       # inside2outside
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF       -j shaper
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF       -j ULOG --ulog-prefix "$MAC>"       # inside2outside
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF       -j shaper
 	
-	iptables -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( _pfilter proto2id CONN )    # FIN&ACK is set
-	iptables -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( _pfilter proto2id CONN )    # RST     is set
+	_ipt -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( _pfilter proto2id CONN )    # FIN&ACK is set
+	_ipt -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( _pfilter proto2id CONN )    # RST     is set
 	
-	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags syn,ack syn,ack     -j MARK --set-mark $( _pfilter proto2id CONN )	# better? SYN&ACK in answer is set
-	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( _pfilter proto2id CONN )	# better? FIN&ACK in answer is set
-	iptables -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( _pfilter proto2id CONN )	# better? RST     in answer is set
+	_ipt -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags syn,ack syn,ack     -j MARK --set-mark $( _pfilter proto2id CONN )	# better? SYN&ACK in answer is set
+	_ipt -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( _pfilter proto2id CONN )	# better? FIN&ACK in answer is set
+	_ipt -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( _pfilter proto2id CONN )	# better? RST     in answer is set
 
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF    -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF    -j shaper 
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF    -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF    -j shaper 
 	
-	iptables -t mangle -A traff_$MAC -m connbytes --connbytes   97999:99999   --connbytes-dir both --connbytes-mode bytes
-	iptables -t mangle -A traff_$MAC -m connbytes --connbytes  997999:999999  --connbytes-dir both --connbytes-mode bytes
-	iptables -t mangle -A traff_$MAC -m connbytes --connbytes 9997999:9999999 --connbytes-dir both --connbytes-mode bytes
+	_ipt -t mangle -A traff_$MAC -m connbytes --connbytes   97999:99999   --connbytes-dir both --connbytes-mode bytes
+	_ipt -t mangle -A traff_$MAC -m connbytes --connbytes  997999:999999  --connbytes-dir both --connbytes-mode bytes
+	_ipt -t mangle -A traff_$MAC -m connbytes --connbytes 9997999:9999999 --connbytes-dir both --connbytes-mode bytes
 	
-	iptables -t mangle -A traff_users -m mac --mac-source $MAC -j traff_$MAC
-	iptables -t mangle -A traff_users -d $IP                   -j traff_$MAC	# must be IP, not HNA!
+	_ipt -t mangle -A traff_users -m mac --mac-source $MAC -j traff_$MAC
+	_ipt -t mangle -A traff_users -d $IP                   -j traff_$MAC	# must be IP, not HNA!
 	
 	for ENTRY in $( _pfilter l7proto_list ); do {
 		PROTO="${ENTRY%,*}"		# PORT="${ENTRY#*,}"
 	
-		iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j shaper
-		iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j LOG --log-prefix "layer7_${PROTO}: "
-		iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j RETURN
+		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j shaper
+		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j LOG --log-prefix "layer7_${PROTO}: "
+		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j RETURN
 	} done
 	
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j shaper				# unknown traffic
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j LOG --log-prefix "layer7_UNKNOWN: "
-	iptables -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j RETURN
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j shaper				# unknown traffic
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j LOG --log-prefix "layer7_UNKNOWN: "
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j RETURN
 
 	_pfilter user_splash_control nosplash $MAC $IP
 	
@@ -796,39 +812,39 @@ _pfilter_rules_install () {	# connbytes auswerten: http ab 200k = langsame klass
 						
 	_log do pfilter daemon info "(_pfilter rules_install) Installing"
 
-	iptables -t mangle -N marking
-	iptables -t mangle -N marking_unmarkable
-	iptables -t mangle -N marking_layer7
-	iptables -t mangle -N traff_all
-	iptables -t mangle -N traff_users
-	iptables -t mangle -N shaper
+	_ipt -t mangle -N marking
+	_ipt -t mangle -N marking_unmarkable
+	_ipt -t mangle -N marking_layer7
+	_ipt -t mangle -N traff_all
+	_ipt -t mangle -N traff_users
+	_ipt -t mangle -N shaper
 
-	iptables -A FORWARD -m mark --mark $( _pfilter proto2id REJECT )          -j REJECT
-	iptables -A FORWARD -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF -j REJECT  # --reject-with tcp-reset (does not work?)
-	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE                                -j ACCEPT
-	iptables -A FORWARD -m state --state ESTABLISHED,RELATED             -j ACCEPT
+	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id REJECT )          -j REJECT
+	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF -j REJECT  # --reject-with tcp-reset (does not work?)
+	_ipt -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE                                -j ACCEPT
+	_ipt -A FORWARD -m state --state ESTABLISHED,RELATED             -j ACCEPT
 # maybe let already marked traffic go trough?
-	iptables -A FORWARD -m ipp2p --ipp2p                                 -j LOG --log-prefix "ip_p2p: "
-	iptables -A FORWARD -m ipp2p --ipp2p                                 -j DROP
-	iptables -A FORWARD -m state --state NEW                             -j ACCEPT
+	_ipt -A FORWARD -m ipp2p --ipp2p                                 -j LOG --log-prefix "ip_p2p: "
+	_ipt -A FORWARD -m ipp2p --ipp2p                                 -j DROP
+	_ipt -A FORWARD -m state --state NEW                             -j ACCEPT
 
-	iptables -t mangle -A FORWARD -s ! $MYHNA -d ! $MYHNA  -j ACCEPT				# forwarding (but not my own forwarding)
-	iptables -t mangle -A FORWARD -m mark ! --mark 0       -j ACCEPT				# already marked in e.g. PREROUTING
-	iptables -t mangle -A FORWARD                          -j CONNMARK --restore-mark		# trying to get mark from maybe already known connection
-	iptables -t mangle -A FORWARD -m connmark ! --mark 0x0 -j traff_all				# connection known/marked? then goto traff_all
-	iptables -t mangle -A FORWARD                          -j marking				# connection not known! try to mark
+	_ipt -t mangle -A FORWARD -s ! $MYHNA -d ! $MYHNA  -j ACCEPT				# forwarding (but not my own forwarding)
+	_ipt -t mangle -A FORWARD -m mark ! --mark 0       -j ACCEPT				# already marked in e.g. PREROUTING
+	_ipt -t mangle -A FORWARD                          -j CONNMARK --restore-mark		# trying to get mark from maybe already known connection
+	_ipt -t mangle -A FORWARD -m connmark ! --mark 0x0 -j traff_all				# connection known/marked? then goto traff_all
+	_ipt -t mangle -A FORWARD                          -j marking				# connection not known! try to mark
 
-	iptables -t mangle -A traff_all
-	iptables -t mangle -A shaper    -j ACCEPT
+	_ipt -t mangle -A traff_all
+	_ipt -t mangle -A shaper    -j ACCEPT
 
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 85:1500					-j RETURN
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:40 --tcp-flags RST,URG     RST	-j MARK --set-mark $( _pfilter proto2id SMALL )
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:52 --tcp-flags ACK,URG     ACK	-j MARK --set-mark $( _pfilter proto2id SMALL )
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags SYN,URG     SYN	-j MARK --set-mark $( _pfilter proto2id SMALL )
-	iptables -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags ACK,SYN,URG ACK,SYN	-j MARK --set-mark $( _pfilter proto2id SMALL )
-	iptables -t mangle -A marking_unmarkable -p icmp -m length --length 84					-j MARK --set-mark $( _pfilter proto2id SMALL )	# ping
-#	iptables -t mangle -A marking_unmarkable -m mark ! --mark 0							-j LOG --log-prefix "layer7_small: "
-#	iptables -t mangle -A marking_unmarkable -m mark ! --mark 0							-j RETURN
+	_ipt -t mangle -A marking_unmarkable -p tcp  -m length --length 85:1500					-j RETURN
+	_ipt -t mangle -A marking_unmarkable -p tcp  -m length --length 0:40 --tcp-flags RST,URG     RST	-j MARK --set-mark $( _pfilter proto2id SMALL )
+	_ipt -t mangle -A marking_unmarkable -p tcp  -m length --length 0:52 --tcp-flags ACK,URG     ACK	-j MARK --set-mark $( _pfilter proto2id SMALL )
+	_ipt -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags SYN,URG     SYN	-j MARK --set-mark $( _pfilter proto2id SMALL )
+	_ipt -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags ACK,SYN,URG ACK,SYN	-j MARK --set-mark $( _pfilter proto2id SMALL )
+	_ipt -t mangle -A marking_unmarkable -p icmp -m length --length 84					-j MARK --set-mark $( _pfilter proto2id SMALL )	# ping
+#	_ipt -t mangle -A marking_unmarkable -m mark ! --mark 0							-j LOG --log-prefix "layer7_small: "
+#	_ipt -t mangle -A marking_unmarkable -m mark ! --mark 0							-j RETURN
 
 	for ENTRY in $( _pfilter l7proto_list ); do {
 		PROTO="${ENTRY%,*}"
@@ -836,29 +852,29 @@ _pfilter_rules_install () {	# connbytes auswerten: http ab 200k = langsame klass
 		
 		_log do pfilter daemon info "(layer7-filter) Installing protocol $PROTO"
 		
-		iptables -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id )
-	#	iptables -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
-		iptables -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
-		iptables -t mangle -A traff_all      -m mark --mark $( _pfilter proto2id )/0xFF	-j traff_users
+		_ipt -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id )
+	#	_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
+		_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
+		_ipt -t mangle -A traff_all      -m mark --mark $( _pfilter proto2id )/0xFF	-j traff_users
 	} done
 
-	iptables -t mangle -A marking_layer7 -j LOG --log-prefix "layer7_end: "
+	_ipt -t mangle -A marking_layer7 -j LOG --log-prefix "layer7_end: "
 	
-	iptables -t mangle -A traff_all -m mark --mark $( _pfilter proto2id UNKN )/0xFF -j traff_users	# list unknown traffic
-	iptables -t mangle -A traff_all                                            -j traff_users
-	iptables -t mangle -A traff_all                                            -j shaper
+	_ipt -t mangle -A traff_all -m mark --mark $( _pfilter proto2id UNKN )/0xFF -j traff_users	# list unknown traffic
+	_ipt -t mangle -A traff_all                                            -j traff_users
+	_ipt -t mangle -A traff_all                                            -j shaper
 	
-	iptables -t mangle -A marking -m mark ! --mark 0			-j traff_all					# already marked in prerouting?
-	iptables -t mangle -A marking					-j marking_unmarkable				# fixme!
-#	iptables -t mangle -A marking -m mark --mark $(_pfilter proto2id SMALL)	-j MARK --set-mark 0
-	iptables -t mangle -A marking -m mark ! --mark 0			-j marking_layer7				# trying all layer7-filters
-	iptables -t mangle -A marking -m mark ! --mark 0			-j CONNMARK --save-mark				# layer7-matching was successful!
-	iptables -t mangle -A marking -m mark ! --mark 0			-j traff_all					# goto traff_all
-	iptables -t mangle -A marking					-j MARK --set-mark $( _pfilter proto2id UNKN )	# mark unknown traffic
-	iptables -t mangle -A marking					-j traff_all
+	_ipt -t mangle -A marking -m mark ! --mark 0			-j traff_all					# already marked in prerouting?
+	_ipt -t mangle -A marking					-j marking_unmarkable				# fixme!
+#	_ipt -t mangle -A marking -m mark --mark $(_pfilter proto2id SMALL)	-j MARK --set-mark 0
+	_ipt -t mangle -A marking -m mark ! --mark 0			-j marking_layer7				# trying all layer7-filters
+	_ipt -t mangle -A marking -m mark ! --mark 0			-j CONNMARK --save-mark				# layer7-matching was successful!
+	_ipt -t mangle -A marking -m mark ! --mark 0			-j traff_all					# goto traff_all
+	_ipt -t mangle -A marking					-j MARK --set-mark $( _pfilter proto2id UNKN )	# mark unknown traffic
+	_ipt -t mangle -A marking					-j traff_all
 }
 
-_pfilter_kmodules_init ()	# fixme! alles durch _iptables () schleifen und erst bei bedarf laden
+_pfilter_kmodules_init ()	# fixme! alles durch __ipt () schleifen und erst bei bedarf laden
 {
 	local MODULE
 	local LIST_MATCH="conntrack connbytes connlimit connmark udplimit length layer7 ipp2p ttl"
@@ -893,18 +909,18 @@ _pfilter_user_splash_add ()
 
 	_log do pfilter daemon info "(_pfilter user_splash_add) shutting doors"
 
-	iptables -t mangle -A PREROUTING -p udp --sport 68 --dport 67 -d 255.255.255.255 -j ACCEPT		# DCHP requests to internal server
-	iptables -t mangle -A PREROUTING -s ! $MYHNA -d ! $MYHNA                         -j ACCEPT		# forwarding internet from other nodes
-	iptables -t mangle -A PREROUTING -s ! $MYHNA                                     -j ACCEPT          # from other nodes to me
+	_ipt -t mangle -A PREROUTING -p udp --sport 68 --dport 67 -d 255.255.255.255 -j ACCEPT		# DCHP requests to internal server
+	_ipt -t mangle -A PREROUTING -s ! $MYHNA -d ! $MYHNA                         -j ACCEPT		# forwarding internet from other nodes
+	_ipt -t mangle -A PREROUTING -s ! $MYHNA                                     -j ACCEPT          # from other nodes to me
 	
-	# iptables -t mangle -A PREROUTING -d ! $MYHNA                                     -j ACCEPT          # dest = internet
+	# _ipt -t mangle -A PREROUTING -d ! $MYHNA                                     -j ACCEPT          # dest = internet
 	
-	iptables -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE	-j ACCEPT		# picopeer
-	iptables -t mangle -A PREROUTING -p udp --dport 698                              -j ACCEPT		# OLSR incoming
-	iptables -t mangle -A PREROUTING -p tcp -m multiport --dports 80,443             -j MARK --set-mark $( _pfilter proto2id REDIRECT )
-	iptables -t mangle -A PREROUTING -m mark --mark 0                                -j MARK --set-mark $( _pfilter proto2id REJECT )
+	_ipt -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE	-j ACCEPT		# picopeer
+	_ipt -t mangle -A PREROUTING -p udp --dport 698                              -j ACCEPT		# OLSR incoming
+	_ipt -t mangle -A PREROUTING -p tcp -m multiport --dports 80,443             -j MARK --set-mark $( _pfilter proto2id REDIRECT )
+	_ipt -t mangle -A PREROUTING -m mark --mark 0                                -j MARK --set-mark $( _pfilter proto2id REJECT )
 
-	iptables -t nat    -A PREROUTING -m mark --mark $( _pfilter proto2id REDIRECT )       -j REDIRECT
+	_ipt -t nat    -A PREROUTING -m mark --mark $( _pfilter proto2id REDIRECT )       -j REDIRECT
 }
 
 _pfilter_rules_accept_all ()
@@ -919,12 +935,12 @@ _pfilter_rules_accept_all ()
 	for CHAIN in filter mangle; do {
 		_log do $FUNC daemon debug "table '$CHAIN', switching '$ARG'"
 		
-		iptables -t $CHAIN -$MODE INPUT              -j ACCEPT
-		iptables -t $CHAIN -$MODE FORWARD            -j ACCEPT
-		iptables -t $CHAIN -$MODE OUTPUT             -j ACCEPT
-		iptables -t $CHAIN -$MODE PREROUTING  -t nat -j ACCEPT
-	      # iptables -t $CHAIN -$MODE POSTROUTING -t nat -j ACCEPT	# let masquerading work
-		iptables -t $CHAIN -$MODE OUTPUT      -t nat -j ACCEPT
+		_ipt -t $CHAIN -$MODE INPUT              -j ACCEPT
+		_ipt -t $CHAIN -$MODE FORWARD            -j ACCEPT
+		_ipt -t $CHAIN -$MODE OUTPUT             -j ACCEPT
+		_ipt -t $CHAIN -$MODE PREROUTING  -t nat -j ACCEPT
+	      # _ipt -t $CHAIN -$MODE POSTROUTING -t nat -j ACCEPT	# let masquerading work
+		_ipt -t $CHAIN -$MODE OUTPUT      -t nat -j ACCEPT
 	} done
 }
 
@@ -965,19 +981,19 @@ _pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added unt
 		
 		IP="$( _ipsystem do ${LINE%,*} | sed -n 's/^WIFIADR=\(.*\)/\1/p' )"
 		
-		iptables -nL olsr_in_whitelist | grep -q "$( _sanitizer do "$IP" esacpe_dots )" || {	# IP not in list yet?
+		_ipt -nL olsr_in_whitelist | grep -q "$( _sanitizer do "$IP" esacpe_dots )" || {	# IP not in list yet?
 			MAC="${LINE#*,}"
 		
 			MACFILTER=""		
 			test -n "$MAC" && MACFILTER="-m mac --mac-source $MAC"
 				
 			let N+=1
-			iptables -A olsr_in_whitelist -s $IP $MACFILTER -j olsr_in_wifi_valid
+			_ipt -A olsr_in_whitelist -s $IP $MACFILTER -j olsr_in_wifi_valid
 		}
 
 	} done </tmp/olsr_whitelist
 
-	iptables -D olsr_in_whitelist -j ACCEPT 2>/dev/null			       # deleting accept. of all packets, activating whitelist
+	_ipt -D olsr_in_whitelist -j ACCEPT 2>/dev/null			       # deleting accept. of all packets, activating whitelist
 	
 	_log do $FUNC daemon info "installed $N rules"
 }
@@ -990,9 +1006,9 @@ _pfilter_rules_olsr_whitelist_optimize () {
 
 	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_optimize) working"
 
-	test -z "$( iptables -nL olsr_in_whitelist 2>/dev/null | grep ACCEPT )" && iptables -I olsr_in_whitelist -j ACCEPT	# temp. accept. of all packets
+	test -z "$( _ipt -nL olsr_in_whitelist 2>/dev/null | grep ACCEPT )" && _ipt -I olsr_in_whitelist -j ACCEPT	# temp. accept. of all packets
 
-	iptables -nxvL olsr_in_whitelist |
+	_ipt -nxvL olsr_in_whitelist |
 	 sed -e '/^ *0/d' -e '/valid/!d' -e 's/\*/_/g' |							# filtering packetcount 0 and stars,
           sort |
            while read LINE; do                                                                                                      
@@ -1008,17 +1024,17 @@ _pfilter_rules_olsr_whitelist_optimize () {
 		test -e $NO_NEIGH && rm -f $NO_NEIGH
 
                 if [ -z "$MAC" ]; then                                                         		# without MAC
-                        iptables -D olsr_in_whitelist                      -s $IP -j olsr_in_wifi_valid        # delete old rule
-                        iptables -I olsr_in_whitelist --set-counters $1 $2 -s $IP -j olsr_in_wifi_valid        # insert new rule at the beginning, reinsert old values
+                        _ipt -D olsr_in_whitelist                      -s $IP -j olsr_in_wifi_valid        # delete old rule
+                        _ipt -I olsr_in_whitelist --set-counters $1 $2 -s $IP -j olsr_in_wifi_valid        # insert new rule at the beginning, reinsert old values
                 else                                                                                                                                   
-                        iptables -D olsr_in_whitelist                      -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
-                        iptables -I olsr_in_whitelist --set-counters $1 $2 -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
+                        _ipt -D olsr_in_whitelist                      -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
+                        _ipt -I olsr_in_whitelist --set-counters $1 $2 -s $IP -m mac --mac-source $MAC -j olsr_in_wifi_valid
                         
                         _net arp_permanent $IP $MAC wifi
                 fi                                 
         done      
 
-	iptables -D olsr_in_whitelist -j ACCEPT 2>/dev/null 						# removing temp. accept. of all packets
+	_ipt -D olsr_in_whitelist -j ACCEPT 2>/dev/null 						# removing temp. accept. of all packets
 
 	[ -e "$NO_NEIGH" ] && {
 		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_optimize) really no neighbours!"
@@ -1029,7 +1045,7 @@ _pfilter_rules_olsr_whitelist_optimize () {
 _pfilter_rules_olsr_whitelist_errorcheck ()
 {
 	local FUNC="pfilter_rules_olsr_whitelist_errorcheck"
-	local LINES_IN_WL_CHAIN="$( iptables -nxvL olsr_in_whitelist | fgrep all | wc -l )"		# the grep removes chain-headers
+	local LINES_IN_WL_CHAIN="$( _ipt -nxvL olsr_in_whitelist | fgrep all | wc -l )"		# the grep removes chain-headers
 	local LINES_IN_WL_FILE="$( _file lines "/tmp/olsr_whitelist" )"
 	local OUT="false"
 
@@ -1046,7 +1062,7 @@ _pfilter_rules_olsr_whitelist_bypass ()
 {
 	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_bypass ) executing"	
 
-	iptables -I olsr_in_whitelist -j ACCEPT
+	_ipt -I olsr_in_whitelist -j ACCEPT
 }
 
 _pfilter_rules_olsr_control ()
@@ -1060,86 +1076,86 @@ _pfilter_rules_olsr_control ()
 
 	# ----- creating user-chains: -----
 
-	iptables -N olsr_in
-	iptables -N olsr_in_wifi
-	iptables -N olsr_in_wire
-	iptables -N olsr_in_sanitizer
-	iptables -N olsr_in_malformed
-	iptables -N olsr_in_homebrew
-	iptables -N olsr_in_whitelist
-	iptables -N olsr_in_wifi_valid
-	iptables -N olsr_in_wifi_invalid
-	iptables -N olsr_in_wire_valid
+	_ipt -N olsr_in
+	_ipt -N olsr_in_wifi
+	_ipt -N olsr_in_wire
+	_ipt -N olsr_in_sanitizer
+	_ipt -N olsr_in_malformed
+	_ipt -N olsr_in_homebrew
+	_ipt -N olsr_in_whitelist
+	_ipt -N olsr_in_wifi_valid
+	_ipt -N olsr_in_wifi_invalid
+	_ipt -N olsr_in_wire_valid
 
-	iptables -N olsr_out
-	iptables -N olsr_out_wifi
-	iptables -N olsr_out_wire
+	_ipt -N olsr_out
+	_ipt -N olsr_out_wifi
+	_ipt -N olsr_out_wire
 
-	iptables -t nat -N olsr_in
-	iptables -t nat -N olsr_out
+	_ipt -t nat -N olsr_in
+	_ipt -t nat -N olsr_out
 
 	# ----- incoming OLSR: -----
 	
-	iptables -A PREROUTING -t nat -p udp --dport 698   -j olsr_in				# to me
-	iptables -A INPUT             -p udp --dport 698   -j olsr_in				# to me
+	_ipt -A PREROUTING -t nat -p udp --dport 698   -j olsr_in				# to me
+	_ipt -A INPUT             -p udp --dport 698   -j olsr_in				# to me
 
-	iptables -A olsr_in -t nat			       -j ACCEPT				# no further parsing in table nat
-	iptables -A olsr_in -i $WIFIDEV                    -j olsr_in_wifi  			# wifi in
-	iptables -A olsr_in                                -j olsr_in_wire				# wire in
+	_ipt -A olsr_in -t nat			       -j ACCEPT				# no further parsing in table nat
+	_ipt -A olsr_in -i $WIFIDEV                    -j olsr_in_wifi  			# wifi in
+	_ipt -A olsr_in                                -j olsr_in_wire				# wire in
 	
-	iptables -A olsr_in_wifi                           -j olsr_in_sanitizer			# are packets good?
-	iptables -A olsr_in_wifi                           -j olsr_in_whitelist			# try to pass whitelist, or...
-	iptables -A olsr_in_wifi                           -j olsr_in_wifi_invalid			# away
+	_ipt -A olsr_in_wifi                           -j olsr_in_sanitizer			# are packets good?
+	_ipt -A olsr_in_wifi                           -j olsr_in_whitelist			# try to pass whitelist, or...
+	_ipt -A olsr_in_wifi                           -j olsr_in_wifi_invalid			# away
 	
-	iptables -A olsr_in_wire -i tap+	-j ACCEPT				# from tap?
-	iptables -A olsr_in_wire -i tun+	-j ACCEPT				# from tun?
-	iptables -A olsr_in_wire -i $LANDEV	-j olsr_in_sanitizer			# from lan?
-	iptables -A olsr_in_wire -i $LANDEV	-j olsr_in_wire_valid			# from lan and sanitized
-	iptables -A olsr_in_wire		-j olsr_in_sanitizer			# must be WANDEV...
-	iptables -A olsr_in_wire		-j olsr_in_wire_valid			# count all valid
+	_ipt -A olsr_in_wire -i tap+	-j ACCEPT				# from tap?
+	_ipt -A olsr_in_wire -i tun+	-j ACCEPT				# from tun?
+	_ipt -A olsr_in_wire -i $LANDEV	-j olsr_in_sanitizer			# from lan?
+	_ipt -A olsr_in_wire -i $LANDEV	-j olsr_in_wire_valid			# from lan and sanitized
+	_ipt -A olsr_in_wire		-j olsr_in_sanitizer			# must be WANDEV...
+	_ipt -A olsr_in_wire		-j olsr_in_wire_valid			# count all valid
 	
-	iptables -A olsr_in_sanitizer -s $MYHNA				-j olsr_in_homebrew		# selfgenerated packets from me to me
-	iptables -A olsr_in_sanitizer -s $WIFINET/$WIFIPRE		-p udp --sport 698 -j RETURN	# all ok, back to further parsing (later: -d 255.255.255.255)
-	iptables -A olsr_in_sanitizer -i $WIFIDEV			-j RETURN			# from WIFI
-	iptables -A olsr_in_sanitizer -i $LANDEV  -p udp --sport 698	-j RETURN			# from LAN
-	iptables -A olsr_in_sanitizer -i tap+     -p udp --sport 698	-j RETURN			# from tunnel, not that restrictiv
-	iptables -A olsr_in_sanitizer					-j olsr_in_malformed		# something is wrong
+	_ipt -A olsr_in_sanitizer -s $MYHNA				-j olsr_in_homebrew		# selfgenerated packets from me to me
+	_ipt -A olsr_in_sanitizer -s $WIFINET/$WIFIPRE		-p udp --sport 698 -j RETURN	# all ok, back to further parsing (later: -d 255.255.255.255)
+	_ipt -A olsr_in_sanitizer -i $WIFIDEV			-j RETURN			# from WIFI
+	_ipt -A olsr_in_sanitizer -i $LANDEV  -p udp --sport 698	-j RETURN			# from LAN
+	_ipt -A olsr_in_sanitizer -i tap+     -p udp --sport 698	-j RETURN			# from tunnel, not that restrictiv
+	_ipt -A olsr_in_sanitizer					-j olsr_in_malformed		# something is wrong
 	
-	iptables -A olsr_in_malformed -m limit --limit 1/hour -j LOG --log-prefix "olsr_in_malformed: "  # first log and then...
-	iptables -A olsr_in_malformed                      -j DROP					# better not parse these packets
+	_ipt -A olsr_in_malformed -m limit --limit 1/hour -j LOG --log-prefix "olsr_in_malformed: "  # first log and then...
+	_ipt -A olsr_in_malformed                      -j DROP					# better not parse these packets
 	
-	iptables -A olsr_in_homebrew -i $WIFIDEV	       -j DROP                                  # from WIFI? we don't need these packets
-	iptables -A olsr_in_homebrew -i $LANDEV            -j DROP					# from LAN?
-	iptables -A olsr_in_homebrew                       -j DROP                                  # must be from WAN
+	_ipt -A olsr_in_homebrew -i $WIFIDEV	       -j DROP                                  # from WIFI? we don't need these packets
+	_ipt -A olsr_in_homebrew -i $LANDEV            -j DROP					# from LAN?
+	_ipt -A olsr_in_homebrew                       -j DROP                                  # must be from WAN
 	
-	iptables -A olsr_in_whitelist			       -j ACCEPT				# later we have to fill this chain with MAC/IP-tupels
+	_ipt -A olsr_in_whitelist			       -j ACCEPT				# later we have to fill this chain with MAC/IP-tupels
 
-	iptables -A olsr_in_wifi_valid                     -j ACCEPT				# all went ok, let olsrd parse it
-	iptables -A olsr_in_wire_valid                     -j ACCEPT				# the same for wire
+	_ipt -A olsr_in_wifi_valid                     -j ACCEPT				# all went ok, let olsrd parse it
+	_ipt -A olsr_in_wire_valid                     -j ACCEPT				# the same for wire
 
-	iptables -A olsr_in_wifi_invalid -m limit --limit 3/hour -j LOG --log-prefix "olsr_in_wifi_invalid: "	# not useable
-	iptables -A olsr_in_wifi_invalid                 -j DROP				        # better not parse these packets
+	_ipt -A olsr_in_wifi_invalid -m limit --limit 3/hour -j LOG --log-prefix "olsr_in_wifi_invalid: "	# not useable
+	_ipt -A olsr_in_wifi_invalid                 -j DROP				        # better not parse these packets
 
 	# ----- outgoing OLSR: -----
 	
-	iptables -A POSTROUTING -t nat -p udp --dport 698  -j olsr_out				# from me
+	_ipt -A POSTROUTING -t nat -p udp --dport 698  -j olsr_out				# from me
 
 	#								# gives errors: 'kern.err olsrd[3923]: OLSR: sendto IPv4 Operation not permitted'
 	# [ "$( _wifi mode )" != "adhoc" ] && {				# fixme! must be device-specific
 	#	[ "$( nvram get fff_profile )" != "versilia_ap" ] && {
 	#		_log do $FUNC daemon info "deactivating wifi-olsr"
-	#		iptables -A OUTPUT -o $WIFIDEV -p udp --dport 698 -j DROP		# in AP-mode, keep air clean
+	#		_ipt -A OUTPUT -o $WIFIDEV -p udp --dport 698 -j DROP		# in AP-mode, keep air clean
 	#	}
 	# }
 
-	iptables -A OUTPUT -p udp --dport 698	-j olsr_out		# from me
+	_ipt -A OUTPUT -p udp --dport 698	-j olsr_out		# from me
 
-	iptables -A olsr_out -t nat		-j ACCEPT		# no further parsing in table nat
-	iptables -A olsr_out -o $WIFIDEV	-j olsr_out_wifi	# wifi out
-	iptables -A olsr_out			-j olsr_out_wire	# wire out
+	_ipt -A olsr_out -t nat		-j ACCEPT		# no further parsing in table nat
+	_ipt -A olsr_out -o $WIFIDEV	-j olsr_out_wifi	# wifi out
+	_ipt -A olsr_out			-j olsr_out_wire	# wire out
 
-	iptables -A olsr_out_wifi		-j ACCEPT		# maybe doing some statistics here (size, speed ...)
-	iptables -A olsr_out_wire		-j ACCEPT		# maybe doing some statistics here (size, speed ...)
+	_ipt -A olsr_out_wifi		-j ACCEPT		# maybe doing some statistics here (size, speed ...)
+	_ipt -A olsr_out_wire		-j ACCEPT		# maybe doing some statistics here (size, speed ...)
 }
 
 _pfilter_l7proto_list ()
@@ -1167,8 +1183,8 @@ _pfilter_rules_walledgarden ()
 		
 			_log do $FUNC daemon info "no fence for '$ENTRY'"
 		
-			iptables -t mangle -A PREROUTING -s $ENTRY -j ACCEPT
-			iptables -t mangle -A PREROUTING -d $ENTRY -j ACCEPT
+			_ipt -t mangle -A PREROUTING -s $ENTRY -j ACCEPT
+			_ipt -t mangle -A PREROUTING -d $ENTRY -j ACCEPT
 		else
 			_log do $FUNC daemon info "human_readable: $ENTRY"
 		fi
@@ -1184,7 +1200,7 @@ _pfilter_rules_nat_no_wificlients ()
 	
 	_log do $FUNC daemon info "removing rules"
 
-	iptables -D POSTROUTING -t nat -s $WIFI_DHCP_NET -j MASQUERADE
+	_ipt -D POSTROUTING -t nat -s $WIFI_DHCP_NET -j MASQUERADE
 }
 
 _pfilter_rules_nat_dns_enforce_own ()
@@ -1195,7 +1211,7 @@ _pfilter_rules_nat_dns_enforce_own ()
 	_net ip4_is_private "$DNS_FIRST_SERVER" && {
 		_log do $FUNC daemon info "enforcing server '$DNS_FIRST_SERVER' for all"
 
-		iptables -t nat -A PREROUTING -p udp --dport 53 -d ! $DNS_FIRST_SERVER -j DNAT --to-destination $DNS_FIRST_SERVER
+		_ipt -t nat -A PREROUTING -p udp --dport 53 -d ! $DNS_FIRST_SERVER -j DNAT --to-destination $DNS_FIRST_SERVER
 	}
 }
 
@@ -1208,23 +1224,23 @@ _pfilter_rules_nat_install ()		# fixme! also masq traffic from local lan to inte
 			_pfilter rules_nat_inetoffer_lan
 		;;
 		tun|tun0)
-			iptables -t nat -A POSTROUTING -o tun+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o tun+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		tap)
-			iptables -t nat -A POSTROUTING -o tap+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o tap+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		wan)
-			iptables -t nat -A POSTROUTING -o $WANDEV -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o $WANDEV -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		pppoe)
-			iptables -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		*)	
 			# should'nt break anything: sometimes WANDEV is not up yet when packetfilter starts up
 			
 			local WANDEV="$( nvram get wan_device )"			
-			[ -n "$WANDEV" ] && iptables -t nat -A POSTROUTING -o ${WANDEV} -d ! $WIFINET/$WIFIPRE -j MASQUERADE
-			iptables -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			[ -n "$WANDEV" ] && _ipt -t nat -A POSTROUTING -o ${WANDEV} -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 	esac
 	
@@ -1241,12 +1257,12 @@ _pfilter_stats_chain_show ()
 	local CHAIN="$2"
 	local LINE
 	
-	[ -z "$CHAIN" ] && {		# defaults to 'filter' like iptables-usage
+	[ -z "$CHAIN" ] && {		# defaults to 'filter' like _ipt-usage
 		TABLE="filter"
 		CHAIN="$1"
 	}
 	
-	iptables -t $TABLE -nxvL $CHAIN | while read LINE; do {
+	_ipt -t $TABLE -nxvL $CHAIN | while read LINE; do {
 		_log do $FUNC daemon debug "$LINE"
 	} done
 }
