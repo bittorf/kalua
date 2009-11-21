@@ -706,9 +706,10 @@ _profile_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardtyp
 			"30_bcm94710dev_42")	_$FUNC "vlan2" "br0" "eth2" "eth2" "vlan1" ""             ""    $1 "7" "Allnet"  "0277" ;;
 			"30_bcm94710ap_44")	_$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  "0 1 2 3 4 5u" ""    $1 "8" "Dell"    "Truemobile 2300" ;;
 			 "0_bcm94710dev_asusX")	_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "9" "Asus"    "WL-HDD (Yakumo_Storage)" ;;
-			"30_bcm94710dev_2")	_$FUNC "eth0"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "A" "Linksys" "WAP v1.0" ;;
+			"30_bcm94710dev_2")	_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "A" "Linksys" "WAP v1.0" ;;
 			"30_48e_00")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "0 1 2 3 5*"   "0 5" $1 "B" "Buffalo" "WHR-G125" ;;
 			"30_bcm94710dev_asusX") _$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  ""             ""    $1 "C" "Asus"    "WL-500g deluxe" ;;
+	
 			*)
 				[ "$1" = "get_model" ] && {
 					echo "ROUTER_VENDOR='unknown';ROUTER_MODEL='unknown'"
@@ -730,14 +731,14 @@ _profile_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardtyp
 			# et0macaddr=00:90:4C:60:00:2A
 			# il0macaddr=00:90:4c:5f:00:2a
 		
-			NEW_MAC="$( _sanitizer do "$(grep ..:..:..:..:..:.. /dev/mtd/0ro | tail -n1)" mac lowercase )"
+			NEW_MAC="$( _sanitizer do "$( grep ..:..:..:..:..:.. /dev/mtd/0ro | tail -n1 )" mac lowercase )"
 			_nvram set  lan_hwaddr "$NEW_MAC"							# +0 = lan
 			_nvram set wifi_hwaddr "$( _profile mac_plus $(_profile mac_plus $NEW_MAC) )"	# +2 = wifi
 
-			_nvram set  il0macaddr $(nvram get wifi_hwaddr)		# il0macaddr <= wifi_hwaddr 
+			_nvram set  il0macaddr $( nvram get wifi_hwaddr )	# il0macaddr <= wifi_hwaddr 
 			_nvram set  et0macaddr "$NEW_MAC"			# et0macaddr <=  lan_hwaddr
 			
-			[ -z "$(nvram get wan_hwaddr)" ] && {
+			[ -z "$( nvram get wan_hwaddr )" ] && {
 				_nvram set  wan_hwaddr "$( _profile mac_plus $NEW_MAC )"			# +1 = wan
 			}
 		;;
@@ -755,18 +756,18 @@ _profile_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardtyp
 			
 			_log do $FUNC daemon debug "fixme! if wifi-card is original, you have to set wifi_hwaddr"	
 			
-			# _nvram set lan_hwaddr $(nvram get et0macaddr)
+			# _nvram set lan_hwaddr $( nvram get et0macaddr )
 		;;
 		8)	# dell2300				// fixme! idea: if wifi is up, apply ($WIFIMAC - 2) to LAN
 			# factory-settings:
 			# et0macaddr=00:90:4c:49:00:2c
 			# et1macaddr=00:90:4c:4a:00:2c
 			
-			[ -n "$(nvram get wan_hwaddr)" ] && _nvram set wan_hwaddr		# its not possible to set wan_hwaddr!
+			[ -n "$( nvram get wan_hwaddr )" ] && _nvram set wan_hwaddr		# its not possible to set wan_hwaddr!
 			
 			if [ "$( _sanitizer do "$(nvram get et1macaddr)" lowercase )" != "00:90:4c:4a:00:2c" ]; then
-				[ "$(nvram get et1macaddr)" != "(nvram get lan_hwaddr)" ] && {
-					_nvram set lan_hwaddr "$(nvram get et1macaddr)"
+				[ "$( nvram get et1macaddr )" != "( nvram get lan_hwaddr )" ] && {
+					_nvram set lan_hwaddr "$( nvram get et1macaddr )"
 				}
 			else
 				# et0macaddr=...wifi?...doesnt matter, is automatically set correctly
@@ -789,12 +790,12 @@ _profile_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardtyp
 			# et0macaddr     =>  lan_hwaddr
 			# et1macaddr + 2 => wifi_hwaddr = lan_hwaddr (2b + 2 =2d)
 
-			NEW_MAC="$( _sanitizer do "$(sed -n '/..:..:..:..:..:../{p;q}' /dev/mtd/0ro)" mac lowercase )"
+			NEW_MAC="$( _sanitizer do "$( sed -n '/..:..:..:..:..:../{p;q}' /dev/mtd/0ro )" mac lowercase )"
 			_nvram set  lan_hwaddr "$NEW_MAC"
 			_nvram set wifi_hwaddr "$( _profile mac_plus $(_profile mac_plus $NEW_MAC) )"	# +2
 
 			_nvram set  et0macaddr "$NEW_MAC"			# et0macaddr <=  lan_hwaddr
-			_nvram set  et1macaddr $(nvram get wifi_hwaddr)		# et1macaddr <= wifi_hwaddr
+			_nvram set  et1macaddr $( nvram get wifi_hwaddr )	# et1macaddr <= wifi_hwaddr
 
 		;;
 	esac

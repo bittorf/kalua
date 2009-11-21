@@ -40,13 +40,16 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	local           VAR1="$6"	# ARG6, string (user-defineable, for using in mail.txt)
 	local           VAR2="$7"	# ARG7, string
 	local           VAR3="$8"	# ARG8, string
+
+echo "VAR1: '$VAR1'"
+echo "VAR2: '$VAR2'"
 	
 	[ ! -e "$MAILFILE" ] && {
 		_log do $FUNC user crit "can't read '$MAILFILE' - aborting (usage: _$FUNC myname me@world.org yourname you@world.org mailfile"
 		return
 	}
 	
-	local SUBJECT="$( head -n1 $MAILFILE )"
+	local SUBJECT="$( head -n1 $MAILFILE | sed "s#\$VAR1#$VAR1#g" )"
 	local OUT LINE
 	local NETCAT="nc"
 	local SERVER="$( nvram get fff_mail_server_smtp )"
@@ -84,14 +87,21 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	_do "X-Firmware: $FFF_VERSION / $FFF_PLUS_VERSION / $( grep ^Kit: /etc/freifunk-release )"
 
 	echo >>$MAIL -n "\n"
-	
-	sed '3,99!d' $MAILFILE | while read LINE; do _do "${LINE}"; done	# 1st/2nd line is crap
+						# 1st/2nd line is crap	
+	sed '3,99!d' $MAILFILE |
+	 sed	-e "s#\$VAR1#$VAR1#g" \
+		-e "s#\$VAR2#$VAR2#g" \
+	 	-e "s#\$VAR3#$VAR3#g" |
+	  while read LINE; do {
+	  	_do "$LINE"
+	  } done
 	
 	_do ""
 	_do "."
 	_do "QUIT"
 
 	echo -e "$( cat $MAIL )"
+	return
 
 	OUT="$( echo -e "$( cat $MAIL )" | $NETCAT $SERVER $PORT )"
 	RC=$?
