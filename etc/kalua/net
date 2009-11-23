@@ -137,17 +137,23 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 
 	[ ! -e /tmp/NETPARAM ] && {			# early_boot_estimation is for _profile()
 
-		[ -n "$( nvram get wan_gateway )" ] && {
+		local  WAN_GATEWAY="$( nvram get wan_gateway )"
+		[ -n "$WAN_GATEWAY" ] && {
 			
-			[ "$( nvram get wan_proto )" = "pppoe" ] && {
-				_log do $FUNC daemon info "early_boot_estimation: pppoe"
-				echo "pppoe"
-				return 0			# fixme!
-			}
+			if [ "$WAN_GATEWAY" = "0.0.0.0" ]; then
+				_nvram set wan_gateway 
+				_nvram set commit "config-mistake, unsetting wan-gateway which was '$WAN_GATEWAY'"
+			else
+				[ "$( nvram get wan_proto )" = "pppoe" ] && {
+					_log do $FUNC daemon info "early_boot_estimation: pppoe"
+					echo "pppoe"
+					return 0			# fixme!
+				}
 			
-			_log do $FUNC daemon info "early_boot_estimation: wan"
-			echo "wan"
-			return 0
+				_log do $FUNC daemon info "early_boot_estimation: wan"
+				echo "wan"
+				return 0
+			fi
 		}
 	
 		[ -n "$( nvram get lan_gateway )" ] && {
@@ -203,7 +209,7 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 
 		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0/0 -> "default via eth0" or similar
 
-			[ "$LAN_GATEWAY" = "0.0.0.0" ] && {
+			[ "$LAN_GATEWAY" = "0.0.0.0" ] && {	# fixme! move to early-boot-estimation
 				
 				_nvram set lan_gateway 
 				_nvram set commit "config-mistake, unsetting lan-gateway which was '$LAN_GATEWAY'"
