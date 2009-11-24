@@ -9,30 +9,13 @@
 #   - table PROFIL leer? -> direkt in profil-editor gehen
 #   - profil-editor: profil loeschen
 
-_webadmin_db_dirtyout_pdf ()	# html2ps out.html >out.ps ; ps2pdf out.ps out.pdf 
-{
-	local HEADLINE="WLAN-Benutzerliste, Konferenz-Ticket (10 Computer), 3 Tage gueltig"
-	
-	sqlite3 /tmp/admin2.db "select * from USERS;" |
-	 awk -v DATUM="$( _system date full )" -v HEADLINE="$HEADLINE" 'BEGIN{
-		print "<html><body><big>"HEADLINE"&nbsp;&nbsp;&nbsp;</big><br>"
-		print "<small>Erstellungszeitpunkt: "DATUM"</small>"
-		print "<table cellspacing='1' cellpadding='1' border='1' width='100%'>"
-		print "<tr width='100%'><td align='center' width='5%'> Benutzername </td>"
-		print "<td align='center' width='5%'>  Passwort </td>"
-		print "<td align='center' width='5%'>  Zimmernummer / Gastname </td>"
-		print "<td align='center' width='85%'> Kommentar </td></tr>"
-	}{
-		FS="|"
-		print "<tr><td>&nbsp;&nbsp;"$4"</td><td align='center'>"$5"</td><td>&nbsp;</td><td>&nbsp;</td>"
-	}'
-}
-
 _webadmin_db_pdfout ()
 {
+	local FUNC="webadmin_db_pdfout"
 	local PDF_TEMPLATE="/tmp/template.pdf"
 	local PDF_OUT="/tmp/meinpdf.pdf"
-	local TEMP="/tmp/db_output_$$"
+	local TEMP="/tmp/db_output_generate_$$"
+	local SQLTEMP="/tmp/db_output_sqlquery_$$"
 	local LINE WORD NUMBER
 	local COUNT=0
 
@@ -41,8 +24,8 @@ _webadmin_db_pdfout ()
 	local VAR_SOURCE="quellenangabe"
 	local VAR_HOTELNAME="Hotel Liszt Weimar"
 	local WORD_USERLIST="WLAN-Benutzerliste: "
-	local VAR_TICKETTYPE="24-Stunden-Tickets"
-	local WORD_GENTIME="Zeitpunkt der automatischen Generierung: "		# oder 'manuell'
+	local VAR_TICKETTYPE="1-Monats-Tickets"					# 24-Stunden-Tickets, 1-Wochen-Tickets, 1-Monats-Tickets
+	local WORD_GENTIME="Zeitpunkt der automatischen Generierung: "		# 'automatischen' / 'manuellen'
 	local VAR_GENHUMANDATE="$( _system date humanreadable )"
 	local WORD_USER="Benutzername"
 	local WORD_PASS="Passwort"
@@ -54,28 +37,33 @@ _webadmin_db_pdfout ()
 		echo -n "-e 's/$WORD/$( eval echo \$$WORD )/g' "
 	} done >$TEMP
 
-	sqlite3 "/tmp/admin2.db" "select * from USERS;" |
-	 while read LINE; do {
+	sqlite3 "/tmp/admin2.db" "select * from USERS;" >$SQLTEMP
+
+	while read LINE; do {
 
 		IFS="|"
 		set $LINE	# md5sum id profile_name username password
 		
-		COUNT=$(( $COUNT + 1 ))
+		COUNT=$(( $COUNT + 1 ))		# fixme! replace unused tickets with <empty>
 		NUMBER=$COUNT
 		[ ${#COUNT} -eq 1 ] && NUMBER="0${COUNT}"
 			
 		echo -n "-e 's/USER${NUMBER}/$4/' -e 's/PASS${NUMBER}/$5/' -e 's/GUEST${NUMBER}//' -e 's/COMMENT${NUMBER}//' "
-	} done >>$TEMP
+
+	} done <$SQLTEMP >>$TEMP
+
+	_log do $FUNC daemon info "creating '$PDF_OUT' ($COUNT tickets)"
 
 	echo "sed $( cat $TEMP; rm $TEMP ) '$PDF_TEMPLATE' >'$PDF_OUT'" >$TEMP
-	sh $TEMP && rm $TEMP
+
+	sh $TEMP && rm $TEMP $SQLTEMP
 }
 
 _webadmin_db_dirtyout_userdata ()
 {
 	local LINE
 	local TICKET="1month"	# 30min, 60min, 12h, 24h, 48h, 1week, 1month
-	local      C="69"
+	local      C="173"
 	
 	sqlite3 /tmp/admin2.db "select * from USERS;" |
 	 while read LINE; do {
