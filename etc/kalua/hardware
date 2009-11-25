@@ -1,0 +1,71 @@
+_hardware_list ()	# fixme! pci_class + fallback to 'http://pci-ids.ucw.cz/read/PCI/14e4/4719'
+{			# fixme! split into show_pci/usb/pcmcia...
+
+	# use this a input for kernel2.6-style
+	# sed 's/^\([0-9a-f]\{4\}\)[^0-9a-f]*\([0-9a-f]\{4\}\)\([0-9a-f]\{4\}\).*/Class \1: PCI device \2:\3 -/' /proc/bus/pci/devices
+
+	local ALGO CLASS VENDOR DEVICE ID_VENDOR ID_CLASS ID_DEVICE LINE OUT
+	local SOURCE="${1:-/proc/pci}"		# can be file (copy/paste from another device)
+	local KEYWORD="$2"			# 'verbose'
+
+	_sanitizer include
+
+	_service1 ()
+	{
+		local VENDOR="$1"
+		local DEVICE="$2"	
+		local URL="http://pci-ids.ucw.cz/read/PC/$VENDOR"	# accepts upper+lowercase	
+
+		_wget do "$URL"		| fgrep itemname |	      sed 's/^.*Name: \(.*\)/VENDOR="\1";/'
+		_wget do "$URL/$DEVICE" | fgrep itemname | tail -n1 | sed 's/^.*Name: \(.*\)/DEVICE="\1";/'
+	}
+
+	_service2 ()
+	{
+		local VENDOR="0x$1"
+		local DEVICE="0x$2"
+		local URL="http://www.pcidatabase.com/search.php?device_search=Search&device_search_str=${DEVICE}"
+
+		_wget do "${URL}" | fgrep "$VENDOR" |
+		 sed -n "s#^.*<td>${DEVICE}</td><td>\(.*\)</td><td>${VENDOR}</td>.*id=[0-9]*.>\(.*\)</a>.*#DEVICE='\1';VENDOR='\2';#p"
+	}
+
+	_class ()
+	{
+		local CLASS="$1"				# 12e4
+		local MAIN="$( echo $CLASS | cut -b 1-2 )"
+		local SUB="$(  echo $CLASS | cut -b 3-4 )"
+		local URL="http://pci-ids.ucw.cz/read/PD"
+		
+		_wget do "$URL/$MAIN"	   | fgrep itemname | tail -n1 | sed 's/^.*Name: \(.*\)/CLASS="\1, /'
+		_wget do "$URL/$MAIN/$SUB" | fgrep itemname | tail -n1 | sed 's/^.*Name: \(.*\)/\1/'
+		echo -n '"'
+	}
+
+	while read LINE; do {
+	
+		case "verbose" in
+			"$KEYWORD"|"$SOURCE") echo $LINE ;;
+		esac
+		
+		eval $( echo "$LINE" | sed -n 's/^.*Class \([0-9a-f]*\): PCI device \([0-9a-f]*\):\([0-9a-f]*\) .*/ID_CLASS=\1;ID_VENDOR=\2;ID_DEVICE=\3/p' )
+
+		[ -n "$ID_CLASS" ] && {
+
+			eval "$( _sanitizer do "$( _class "$ID_CLASS" )" strip_newlines )"
+
+			ID_VENDOR="$( _sanitizer do "$ID_VENDOR" uppercase )"
+			ID_DEVICE="$( _sanitizer do "$ID_DEVICE" uppercase )"
+
+			for ALGO in _service1 _service2; do {
+				eval "$( $ALGO "${ID_VENDOR}" "${ID_DEVICE}" )"
+				[ -n "$DEVICE" ] && break
+			} done
+			
+			echo "$CLASS | $DEVICE | $VENDOR"
+
+			CLASS=; DEVICE=; VENDOR=; ID_CLASS=; ID_VENDOR=; ID_DEVICE=
+		}
+	
+	} done <"$SOURCE"
+}
