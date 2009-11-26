@@ -3,42 +3,13 @@
 
 _usage ()
 {
-	echo "Usage: $0 ( start | list | filelist | check <functionfile> | search <string> | show_functions <specific_function> | replace <string1> <string2> )"
-}
-
-_filelist ()
-{
-	local FILE LIST
-	
-	LIST="/etc/kalua/* /etc/kalua_init /etc/init.d/S41build_static_netparam /usr/bin/neigh"
-	LIST="$LIST /www/cgi-bin-speed /www/cgi-bin-welcome /usr/bin/scheduler"
-	LIST="$LIST /www/cgi-bin-admin /www/cgi-bin-sql /www/cgi-bin-chip /usr/sbin/cron.monitoring"
-	LIST="$LIST /etc/dhcp-script.d/10dhcpscript /usr/sbin/cron.upgrade_packages /usr/sbin/cron.optimize_wifi_txpower"
-	LIST="$LIST /etc/init.d/S90ipip_tunnel /usr/sbin/cron.generate_new_tickets"
-	
-	for FILE in $LIST; do {
-		echo $FILE
-	} done
-	
-	find / -type f -name "*fff+" |
-	 grep -v safed_syslog |
-	  grep -v network_ |
-	   grep -v S03a |
-	    grep -v /tmp/ |
-	     grep -v placeholder |
-	      grep -v rom |
-	       grep -v 40- |
-	        grep -v ghost |
-	         grep -v 15- |
-	          grep -v 16- |
-	           grep -v 17- |
-	            grep -v reboot_count |
-	             sort -n
+	echo "Usage: $0 ( start | list | check <functionfile> | search <string> | show_functions <specific_function> | replace <string1> <string2> | cat_func | strip_doubles_lines )"
 }
 
 _build_archiv ()
 {
-	tar cvzf $ARCHIV $( _filelist )
+	_vars
+	tar cvzf $ARCHIV $( _firmware filelist )
 }
 
 _vars ()
@@ -49,25 +20,19 @@ _vars ()
 
 _upload ()
 {
+	_vars
 	scp $ARCHIV $SERVER
 	rm $ARCHIV
 }
 
-
 case $1 in
-	filelist)
-		_filelist
-	;;
 	check)
-		FILELIST="$2"
-		[ -z "$FILELIST" ] && FILELIST="$( _filelist )"
-		
-		for FILE in $FILELIST; do {
+		for FILE in $( _firmware filelist "$2" ); do {
 			echo "checking '$FILE':"
 		
-			[ "$FILE" = "/etc/kalua/tool" ] && continue
+			[ "$FILE" = "/etc/kalua/tool" ]			  && continue
 			[ "$FILE" = "/etc/init.d/S03patch-o-matic_fff+" ] && continue
-			[ "$FILE" = "/etc/init.d/S52vpn_fff+" ] && continue
+			[ "$FILE" = "/etc/init.d/S52vpn_fff+" ]		  && continue
 		
 			LIST="$( sed -n 's/^\(.*\) ().*/\1/p' "$FILE" )"
 		
@@ -80,7 +45,6 @@ case $1 in
 		} done
 	;;
 	start)
-		_vars
 		_build_archiv
 		_upload
 	;;
@@ -89,7 +53,7 @@ case $1 in
 		FULLSTRIP=0
 		FULLLINES=0
 	
-		for FILE in $( _filelist ); do {
+		for FILE in $( _firmware filelist "$2" ); do {
 			[ -e "$FILE" ] && {
 			
 			SIZE="$( _file size "$FILE" )"
@@ -117,10 +81,7 @@ case $1 in
 		echo "size overall: $FULLSIZE bytes $FULLLINES lines ($FULLSTRIP bytes stripable)"
 	;;
 	search)
-		FILELIST="$3"
-		[ -z "$FILELIST" ] && FILELIST="$( _filelist )"
-		
-		for FILE in $FILELIST; do {
+		for FILE in $( _firmware filelist "$3" ); do {
 			[ -e "$FILE" ] && {
 				grep -q "$2" "$FILE" && {
 					echo "found in '$FILE' :"
@@ -130,20 +91,18 @@ case $1 in
 						grep "$2" "$FILE"	# for special patterns
 					}
 					
-					echo ""
+					echo
 				}
 			}
 		} done
 	;;
 	show_functions)
-		for FILE in $( _filelist ); do {
+		for FILE in $( _firmware filelist "$3" ); do {
 			LIST_FUNCTIONS="$( sed -n 's/^\([a-zA-Z_]*\) ().*/\1/p' $FILE )"
 		
 			[ -n "$2" ] && LIST_FUNCTIONS="$( sed -n "s/^\($2\) ().*/\1/p" $FILE )"
 			
 			for FUNCTION in $LIST_FUNCTIONS; do {
-			
-				# echo "$FUNCTION"
 			
 				COUNT=0
 				for FILE2 in $LIST; do {
@@ -161,7 +120,7 @@ case $1 in
 	cat_func)
 		FUNCNAME="$2"
 		
-		for FILE in $( _filelist ); do {
+		for FILE in $( _firmware filelist "$3" ); do {
 			sed "/^${FUNCNAME} ()/,/^}/!d" $FILE
 		} done
 	;;
@@ -170,16 +129,13 @@ case $1 in
 		REPLACE="$3"
 		FILELIST="$4"
 		
-		[ -z "$FILELIST" ] && FILELIST="$( _filelist )"
-		
-		for FILE in $FILELIST; do {
-			#sed -i 's/_log do \([^ daemon info ]*\) \(.*\)/_log do \1 daemon info \2/p' "$FILE"
+		for FILE in $( _firmware filelist "$2" ); do {
+			# sed -i 's/_log do \([^ daemon info ]*\) \(.*\)/_log do \1 daemon info \2/p' "$FILE"
 			sed -i "s/${SEARCH}/${REPLACE}/g" "$FILE"
 		} done
 	;;
 	strip_doubles_lines)
-		for FILE in $( _filelist ); do {
-		#for FILE in "/etc/kalua/http"; do {
+		for FILE in $( _firmware filelist "$2" ); do {
 			_log do strip_doubles daemon debug "working on '$FILE'"
 		
 			NUM=0
