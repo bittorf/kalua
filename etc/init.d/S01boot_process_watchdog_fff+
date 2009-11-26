@@ -7,7 +7,7 @@
 # was'nt started (= no process_id) we:
 # - enforce reformatting of jffs2-partition and reboot
 
-_telnetd_start ()		# during startup, login without password (!)
+_telnetd_start ()		# during startup, login without password (!) in case of emergency
 {
 	local FUNC="telnetd_start"
 
@@ -24,49 +24,22 @@ _telnetd_start ()		# during startup, login without password (!)
 	return 0
 }
 
-_telnetd_stop ()
-{
-	local FUNC="telnetd_stop"
-	local PID="$( pidof telnetd )"
-	
-	[ -z "$PID" ] && {
-		_log do $FUNC daemon debug "there is no telnetd?!"
-		return 1
-	}
 
-	# tcp      6 7199 ESTABLISHED src=10.63.167.66 dst=10.63.167.65 sport=1448 dport=23 src=10.63.167.65 dst=10.63.167.66 sport=23 dport=1448 [ASSURED] use=1 mark=0 bytes=3211
-	# fixme! ensure, that conn is _to_ local
-	
-	grep -q "^.* ESTABLISHED .* dport=23 " /proc/net/ip_conntrack && {
-		_log do $FUNC daemon debug "error - somebody is logged in"
-		return 1
-	}
-	
-	kill $PID || {
-		_log do $FUNC daemon debug "error - process $PID"
-		return 1
-	}
-	
-	_log do $FUNC daemon debug "success"
-	return 0
-}
+touch /tmp/DEBUG /tmp/BOOT		# logging on during boot-time
+
+_system insmod crondog
+
+[ ! -e /etc/shells ] && echo "/bin/ash"  >/etc/shells
+
+grep -q "^root:"   /etc/group  2>/dev/null || echo 'root:*:0:'     >>/etc/group
+grep -q "^nobody:" /etc/group  2>/dev/null || echo 'nobody:x:500:' >>/etc/group		# user/pass: nobody/nobody, but no ssh ('invalid shell')
+grep -q "^nobody:" /etc/passwd 2>/dev/null || echo 'nobody:$1$$enWsv2cbxPCrd0WeXUXtX0:500:500:Linux User,,,:/home/nobody:/bin/sh' >>/etc/passwd
+
+[ -n "$FAILSAFE" ] && _log do check_failsafe daemon info "working in FAILSAFE-mode"
+[ -n "$READONLY" ] && _log do check_readonly daemon info "working in READONLY-mode"
+
 
 while true; do {
-
-	touch /tmp/DEBUG /tmp/BOOT		# logging on during boot-time
-
-	_system insmod crondog
-
-	[ ! -e /etc/shells ] && echo "/bin/ash"  >/etc/shells
-
-	grep -q "^root:"   /etc/group  2>/dev/null || echo 'root:*:0:'     >>/etc/group
-	grep -q "^nobody:" /etc/group  2>/dev/null || echo 'nobody:x:500:' >>/etc/group		# user/pass: nobody/nobody, but no ssh ('invalid shell')
-	grep -q "^nobody:" /etc/passwd 2>/dev/null || echo 'nobody:$1$$enWsv2cbxPCrd0WeXUXtX0:500:500:Linux User,,,:/home/nobody:/bin/sh' >>/etc/passwd
-
-	_telnetd_start && _log do telnetd_start daemon debug "success"
-
-	[ -n "$FAILSAFE" ] && _log do check_failsafe daemon info "working in FAILSAFE-mode"
-	[ -n "$READONLY" ] && _log do check_readonly daemon info "working in READONLY-mode"
 
 	while ! pidof olsrd >/dev/null; do {
 		[ -e /tmp/PROFILE_SET ] && {
@@ -87,11 +60,10 @@ while true; do {
 		_log do pidof_olsrd daemon debug "OLSRd is up"
 
 		if   pidof dropbear >/dev/null ; then
-			_log do pidof_dropbear daemon debug "dropbear is up, trying to kill telnetd in 45 sec"
-			sleep 45
-			_telnetd_stop
+			_log do pidof_dropbear daemon debug "dropbear is up"
 		else
 			_log do pidof_dropbear daemon debug "dropbear is NOT up - use telnet!"
+			_telnetd_start && _log do telnetd_start daemon debug "success"
 		fi
 	else
 		_log do if_olsrd_not_up daemon debug "OLSRd is NOT up"
@@ -109,18 +81,15 @@ while true; do {
 	# (pci-bus claims to have wireless onboard, but /proc doesnt know wireless and driver is onboard!)
 	# if [ -n "$WIFI_VENDOR" ] && [ -z "$WIFI_DEVS" ] && reformat_jffs2
 
-	rm /tmp/BOOT
-	
-	ls -l /www/SOFTWARE_FULLY_INSTALLED >/dev/null && {
+	if [ -e /www/SOFTWARE_FULLY_INSTALLED ]; then
 		sleep 1200
 		_log do exit_watchdog daemon debug "switching DEBUG-mode off, but can be manually startet with '>DEBUG'"
 		rm /tmp/DEBUG
-		exit
-	}
-		
-	_log do exit_watchdog daemon debug "leaving DEBUG-mode on, software-install is not ready yet"	
+	else
+		_log do exit_watchdog daemon debug "leaving DEBUG-mode on, software-install is not ready yet"	
+	fi
+	
+	rm /tmp/BOOT
 	exit
 		
 } done &
-
-sleep 5		# lets settle down
