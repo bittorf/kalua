@@ -1,0 +1,45 @@
+#!/bin/sh
+. /tmp/loader
+
+FILE_TICKETS="/www/cgi-bin/userdata.txt"	# 98af7946b7bcbfe996f52d0b59557116 6 30min helsinki 11588
+FILE_LOGINS="/www/users_logged_in"
+
+_extract_essentials ()		# -> '60min warschau 79459'
+{
+	echo "$1" | sed -n 's/^.* [0-9]* \([a-zA-Z0-9]*\) \([a-zA-Z0-9]*\) \([0-9]*\).*$/\1 \2 \3/p'
+}
+
+_list_ticket_types ()
+{
+	sed 's/^[^ ]* [0-9]* \(.*\) .* .*/\1/' "$FILE_TICKETS" | sort | uniq
+}
+
+_tickets_left ()
+{
+	local BORDER=10
+	local ATLEAST=5
+	local FUNC="tickets_left"
+	local TICKETART LINE LATEST_LOGIN_LINE LAST_LINENUMBER_TICKETART
+	
+	for TICKETART in $( _list_ticket_types ); do {
+
+		LATEST_LOGIN_LINE="$( fgrep " $TICKETART " "$FILE_LOGINS" | tail -n1 )"		# found last/latest occurence
+		LINE="$( _extract_essentials "$LATEST_LOGIN_LINE" )"				# -> '60min warschau 79459'
+		set ${LINE:=unset}								# -> $1/$2/$3
+
+		LAST_LINENUMBER_TICKETART="$( sed -n "/ $2 $3$/=" "$FILE_TICKETS" | tail -n1 )"		# find linenumber of ticketlist
+													# ignore holes/unused/lost tickets before
+		
+		COUNT="$( sed -n "$LAST_LINENUMBER_TICKETART,\${/ $1 /p}" "$FILE_TICKETS" | wc -l )"	# print all lines with MY_TICKETART
+		COUNT="$(( $COUNT -1 ))"								# from last found really used ticket, till EOF
+		
+		if [ $COUNT -lt $BORDER ] && [ $COUNT -gt $ATLEAST ]; then
+		
+			_log do $FUNC daemon alert "making tickettype '$1'"
+		else
+			_log do $FUNC daemon debug "no need for action: $COUNT tickets for $1"
+		fi
+	} done
+}
+
+_tickets_left
