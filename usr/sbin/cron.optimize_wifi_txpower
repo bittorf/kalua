@@ -33,11 +33,12 @@ if [ "$( _wifi mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also m
 		
 		# fixme! if NLQ of wifi_gateway is much worser than best_wifi_nlq, take automatically wifi_gateway
 		
-		[ "$OPTIMIZE_NEIGH" = "gateway" ] && {				# make sure, that we optimize a wifi-gateway
+		[ "$OPTIMIZE_NEIGH" = "gateway" ] && {				# make sure, that we optimize a wifi - not wired - gateway
 			if ip route list exact 0/0 | grep -q "dev $WIFIDEV" ; then
 				OPTIMIZE_NEIGH="$( ip route list exact 0/0 | sed -n "s/^default via \(.*\) dev ${WIFIDEV}.*/\1/p" )"
+				echo "$OPTIMIZE_NEIGH" >/tmp/MY_LAST_WIFI_GATEWAY
 			else
-				OPTIMIZE_NEIGH=""
+				OPTIMIZE_NEIGH="$( cat /tmp/MY_LAST_WIFI_GATEWAY 2>/dev/null )"		# gateway lost? take old or leave empty
 			fi
 		}
 		
@@ -51,7 +52,7 @@ if [ "$( _wifi mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also m
 			_log do meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh, nlq_now: $BEST_WIFI_NLQ"	#	 and check if I'am a wifi_gateway?
 		fi
 
-		BEST_WIFI_NLQ_LAST="$( cat /tmp/BEST_WIFI_NLQ_LAST 2>/dev/null )"
+		BEST_WIFI_NLQ_LAST="$( cat /tmp/BEST_WIFI_NLQ_LAST 2>/dev/null )"	# fixme! do this neigh_sensitive
 		echo "${BEST_WIFI_NLQ:=0}" >/tmp/BEST_WIFI_NLQ_LAST
 		[ -z "$BEST_WIFI_NLQ_LAST" ] && BEST_WIFI_NLQ_LAST="$BEST_WIFI_NLQ"
 		
