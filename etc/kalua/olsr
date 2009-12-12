@@ -14,6 +14,22 @@ _olsr_version ()
 	# 'pre-0.5.6-r7 Date: 2009-10-27 07:50:42 on pcacer '
 }
 
+_olsr_uptime ()		# in seconds
+{
+	local FUNC="olsr_uptime"
+	local UNIXTIME_START="$( cat /tmp/olsr_restart_time )"
+	local UNIXTIME_NOW="$( _system date unixtime )"
+
+	local DIFF="$(( $UNIXTIME_NOW - $UNIXTIME_START ))"
+	
+	[ $DIFF -gt 600000 ] && {	# 7 days
+		_log do $FUNC daemon info "is pretty high: '$DIFF' seconds - time probs, rewrite to 0"
+		DIFF=0
+	}
+	
+	echo -n $DIFF
+}
+
 _olsr_gateways_get ()		# OUT: list with each HNA4-0.0.0.0/0-announcing IP line by line
 {
 	local FILE="$1"
@@ -254,6 +270,12 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 
 						# idea: '10.63.176.193 ~~0~~ 10.63.62.1     LQ/NLQ/COST: 0.000 / 0.000 / ~      MAC+DNS: ??:??:??:??:??:?? 'unknown'
 						# idea:
+
+	[ "$( _olsr uptime )" -lt 300 ] && {
+		_log do $FUNC daemon info "no check - olsr_uptime seems pretty low"
+		return 0
+	}
+
 	[ -z "$FILE" ] && {
 		_log do $FUNC daemon crit "olsr-plaintext plugin has no output!"
 		return 1
