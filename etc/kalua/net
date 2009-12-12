@@ -259,11 +259,19 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 _net_inet_seems_stable ()			# fixme! also check path to gateway (add wireless costs/hops)
 {						# fixme! apply these checks regulary
 	local FILE="/tmp/GATEWAY_CHECK_RECENT"	# fixme! test dns also?
-	[ -z "$( ip route list exact 0/0 table main )" ] && return 1
+	local FUNC="inet_seems_stable"
+	
+	[ -z "$( ip route list exact 0/0 table main )" ] && {
+		_log do $FUNC daemon alert "unstable inet, no default route in main-table"
+		return 1
+	}
 
 	[ -e "$FILE" ] && {
 		. $FILE 2>/dev/null
-		[ "$COST_INT" 2>/dev/null -gt 8000 ] && return 1
+		[ "$COST_INT" 2>/dev/null -gt 8000 ] && {
+			_log do $FUNC daemon alert "unstable inet, cost_int: '$COST_INT'"
+			return 1
+		}
 	}
 	
 	return 0
