@@ -240,19 +240,21 @@ _watch_dns_resolution ()	# only with existing dnsmasq and reachable internet-gat
 _watch_pppoe ()
 {
 	[ ! -e "/tmp/PPPOE_NEEDED" ]			&& return 0
-	[ -n "$( ip route list exact 0/0 dev ppp0 )" ]	&& return 0
 	[ "$( nvram get wan_proto )" = "pppoe" ]	|| return 0
-	
-	local FUNC="watch_pppoe"
-	
-	_log do $FUNC daemon err "no default route over ppp0 - restarting PPPoE"
-	
-	killall    pppoecd
-	killall -9 pppoecd
-	ifup wan
-	sleep 15
-	
-	_log do $FUNC daemon err "restarted: '$( ip route list exact 0/0 dev ppp0 )'"
+
+	ip route list exact 0/0 dev ppp0 >/dev/null 2>/dev/null	|| {
+
+		local FUNC="watch_pppoe"
+
+		_log do $FUNC daemon err "no default route over ppp0 - restarting PPPoE"
+
+		killall    pppoecd
+		killall -9 pppoecd
+		ifup wan
+		sleep 15
+
+		_log do $FUNC daemon err "restarted: '$( ip route list exact 0/0 dev ppp0 )'"
+	}
 }
 
 _watch_webcam ()
