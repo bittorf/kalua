@@ -16,18 +16,25 @@ _olsr_version ()
 
 _olsr_uptime ()		# in seconds
 {
+	local KEYWORD="$1"		# string: "is_short" or <empty>
 	local FUNC="olsr_uptime"
 	local UNIXTIME_START="$( cat /tmp/olsr_restart_time )"
 	local UNIXTIME_NOW="$( _system date unixtime )"
 
 	local DIFF="$(( $UNIXTIME_NOW - $UNIXTIME_START ))"
 	
-	[ $DIFF -gt 600000 ] && {	# 7 days
+	[ ${DIFF:=0} -gt 600000 ] && {	# 7 days
 		_log do $FUNC daemon info "is pretty high: '$DIFF' seconds - time probs, rewrite to 0"
 		DIFF=0
 	}
-	
-	echo -n $DIFF
+
+	if [ "$KEYWORD" = "is_short" ]; then
+
+		[ $DIFF -lt 300 ] && return 0
+		return 1
+	else	
+		echo -n $DIFF
+	fi
 }
 
 _olsr_gateways_get ()		# OUT: list with each HNA4-0.0.0.0/0-announcing IP line by line
@@ -271,7 +278,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 						# idea: '10.63.176.193 ~~0~~ 10.63.62.1     LQ/NLQ/COST: 0.000 / 0.000 / ~      MAC+DNS: ??:??:??:??:??:?? 'unknown'
 						# idea:
 
-	[ "$( _olsr uptime )" -lt 300 ] && {
+	_olsr uptime is_short && {
 		_log do $FUNC daemon info "no check - olsr_uptime seems pretty low"
 		return 0
 	}
