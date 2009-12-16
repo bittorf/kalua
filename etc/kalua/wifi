@@ -830,8 +830,20 @@ _wifi_bssid ()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associat
 	local SWITCH="$2"		# can be 'config'
 	local WIFI_BSSID
 
-	[ "$SWITCH" = "config" ] && {				# fixme! return wifimac in 'ap'-mode?
-		_sanitizer do "$( nvram get ff_bssid )" lowercase
+	[ "$SWITCH" = "config" ] && {
+
+		case "$( _wifi mode $WIFI_DEV )" in
+			adhoc)
+				_sanitizer do "$( nvram get ff_bssid )" lowercase
+			;;
+			ap)
+				_net dev2mac $WIFI_DEV
+			;;
+			client)
+				:
+			;;
+		esac
+		
 		return
 	}
 	
@@ -842,7 +854,7 @@ _wifi_bssid ()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associat
 		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_BSSID= )"
 	fi
 	
-	_sanitizer do "$WIFI_BSSID" lowercase
+	_sanitizer do "${WIFI_BSSID:-00:00:00:00:00:00}" lowercase
 }
 
 _wifi_frag ()
