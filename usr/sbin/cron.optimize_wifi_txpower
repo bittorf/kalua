@@ -1,6 +1,45 @@
 #!/bin/sh
 . /tmp/loader
 
+_wifi_errorcounter ()		# fixme! move to _wifi() ?
+{
+	local FILE="/tmp/WIFI_ERROR_COUNTER_${WIFIDEV}"
+	local KEYWORD="$1"
+	local COUNT
+	local MAX=15
+	
+	case "$KEYWORD" in
+		0)
+			echo 0 >$FILE
+		;;
+		raise)
+			COUNT="$( cat $FILE 2>/dev/null )"
+			COUNT="$(( ${COUNT:=0} + 1 ))"
+			
+			_log do meshmode_but_no_wifi_neighs daemon info "raising counter to ${COUNT}/${MAX}"
+			
+			[ $COUNT -gt $MAX ] && {
+				 _system reboot_safe "no_wifi_neighs for a long time (counter: '${COUNT}')"	# 15 * 15 mins = 4 hours
+			}
+			
+			echo $COUNT >$FILE
+		;;
+	esac
+}
+
+_plausicheck_bssid ()
+{
+	local FUNC="plausicheck_bssid"
+	local MY_BSSID="$( _wifi bssid $WIFIDEV )"
+
+	_log do $FUNC daemon debug "my_bssid: '$MY_BSSID'"
+	
+	if [ -z "$MY_BSSID" ] || [ "$MY_BSSID" != "$( _wifi bssid $WIFIDEV config )" ]; then
+		_log do $FUNC daemon alert "BSSID error - real/config: '$MY_BSSID'/'$( _wifi bssid $WIFIDEV config )'"
+		_wifi phy_restart $WIFIDEV
+	fi
+}
+
 [ "$( nvram get fff_optimize_neigh )" = "off" ] && {
 	_log do txpower_regulation daemon debug "user switched to manual calibration"
 	exit
@@ -27,6 +66,8 @@ if [ "$( _wifi mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also m
 	
 	elif neigh check4wifi ; then
 		_log do meshmode_but_no_wifi_neighs daemon debug "found wifi-neigh"	
+
+		_plausicheck_bssid
 
 		OPTIMIGE_TARGET_NLQ="$( nvram get fff_optimize_nlq   )"		# 0...1000 (integer)
 		OPTIMIZE_NEIGH="$(      nvram get fff_optimize_neigh )"		# IPv4, 'gateway' or <empty> = any
@@ -93,14 +134,11 @@ if [ "$( _wifi mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also m
 			fi
 		fi										# fixme! add aftercheck + alert.log when successful
 		
-		echo "0" >/tmp/wifi_error_counter
+		_wifi_errorcounter 0
 	else
 		TXPWR_STEP="15 mW"
 	
-		[ "$( _wifi bssid $WIFIDEV )" != "$( _wifi bssid $WIFIDEV config )" ] && {
-			_log do meshmode_but_no_wifi_neighs daemon alert "BSSID error - real/config: '$( _wifi bssid $WIFIDEV )'/'$( _wifi bssid $WIFIDEV config )'"
-			_wifi phy_restart $WIFIDEV
-		}
+		_plausicheck_bssid
 		
 		# fixme! sensitivity does not work on madwifi
 		if [ "$( _wifi noise $WIFIDEV )" -gt -85 ]; then		# [dBm] e.g. -75 is greater than -85
@@ -113,18 +151,9 @@ if [ "$( _wifi mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also m
 				_wifi sensitivity_set $WIFIDEV auto	
 			}
 		fi
-	
-		COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
-		COUNT="$(( ${COUNT:=0} + 1 ))"
-	
-		_log do meshmode_but_no_wifi_neighs daemon info "raising counter to ${COUNT}/15"
-		
-		[ $COUNT -gt 15 ] && {
-			_system reboot_safe "meshmode_but_no_wifi_neighs for a long time (counter: '${COUNT}')"	# 15 * 15 mins = 4 hours
-		}
-		
-		echo $COUNT >/tmp/wifi_error_counter
-		
+
+		_wifi_errorcounter raise	
+
 		_wifi phy_txpower_set "$WIFIDEV" $TXPWR_STEP add overturn	# fixme! add aftercheck + alert.log when successful
 		
 		/usr/sbin/cron.select_best_antenna_fff+ force
@@ -132,10 +161,10 @@ if [ "$( _wifi mode $WIFIDEV )" = "adhoc" ] || neigh check4wifi ; then		# also m
 else							# master or client-mode
 	[ "$( _system uptime min )" -gt 5 ] && {
 
-		if neigh check4nonwifi ; then		# fixme! check for zero bssid!
+		if neigh check4nonwifi ; then
 
 			_log do no_meshmode_and_no_neighs daemon debug "found wired neigh"
-			echo "0" >/tmp/wifi_error_counter
+			_wifi_errorcounter 0
 		else
 			  if ! _wifi phy_probe_online $WIFIDEV ; then
 			
@@ -144,28 +173,16 @@ else							# master or client-mode
 			elif neigh check4wifi ; then
 		
 				_log do no_meshmode_and_no_neighs daemon debug "found wifi neigh"
-				echo "0" >/tmp/wifi_error_counter
+				_wifi_errorcounter 0
 			else
-				[ "$( _wifi bssid $WIFIDEV )" = "00:00:00:00:00:00" ] && {
-					_log do no_meshmode_and_no_neighs daemon alert "zero bssid: '$( _wifi bssid $WIFIDEV )'"
-					_wifi phy_restart $WIFIDEV
-				}
+				_plausicheck_bssid
 				
 				if _net local_inet_offer >/dev/null ; then
 				
 					_log do no_meshmode_and_no_neighs daemon debug "no wifi-neighs, but local inet offer"
-					echo "0" >/tmp/wifi_error_counter
+					_wifi_errorcounter 0
 				else
-					COUNT="$( cat /tmp/wifi_error_counter 2>/dev/null )"
-					COUNT="$(( ${COUNT:=0} + 1 ))"
-					
-					_log do no_meshmode_and_no_neighs daemon info "raising counter to ${COUNT}/15"
-					
-					[ $COUNT -gt 15 ] && {
-						_system reboot_safe "no meshmode - and no wired nor wifi neigh for a long time (counter: '${COUNT}')"
-					}
-					
-					echo $COUNT >/tmp/wifi_error_counter
+					_wifi_errorcounter raise
 				fi
 			fi
 		fi
