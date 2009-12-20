@@ -224,7 +224,7 @@ _pfilter_rules_nat_wifi_roaming ()
 {
 	_log do "pfilter_rules_nat_wifi_roaming" daemon info "installing masquerading"
 
-	eval "$( _ipsystem do )"
+	eval "$( _ipsystem do | grep ^ROAMING_ )"
 
 	_ipt -t nat -A POSTROUTING -o $WIFIDEV -s $ROAMING_IP4/$ROAMING_PRE -j MASQUERADE	# or SNAT?
 }
@@ -237,7 +237,7 @@ _pfilter_user_probe_local_blacklist ()
 	return 1
 }
 
-_pfilter_rules_nat_inetoffer_lan ()	# SENS: masquerades traffic over lan-device for omitting "black hole"
+_pfilter_rules_nat_inetoffer_lan ()		# SENS: masquerades traffic over lan-device for omitting "black hole"
 {						#       and fetches IP from local DHCP-server, if gateway-IP is not from local IP-range
 	local FUNC="masq_internet_traffic_over_lan_device"
 	_log do pfilter daemon info "($FUNC) working"
@@ -259,10 +259,13 @@ _pfilter_rules_nat_inetoffer_lan ()	# SENS: masquerades traffic over lan-device 
 		} done
 		
 		[ -z "$ALIASIP" ] && {
-			# last octett is now a 234, so when
-			# gateway is 192.168.178.1, we set
-			#            192.168.178.234 on our LAN-address		# fixme! uiuiui!
+			
+			# last octett is now hard set to 234, so when
+			# gateway is 192.168.178.1   , we set
+			#            192.168.178.234 on our LAN-address		# fixme! uiuiui! what when lan_gateway is not reachable anymore?
+			
 			ALIASIP="$( echo $GATEWAY | sed -n 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\..*/\1.\2.\3.234/p' )"
+			
 			_log do pfilter daemon info "($FUNC) couldt fetch IP-address from LAN-DHCP-server, guessing"
 		}
 		
@@ -514,52 +517,58 @@ _pfilter_stats_user_cast () {					# if ARG2 = spread, then data goes out to $GW 
 
 _pfilter_user_probe ()
 {
-	_ipt -t mangle -nL traff_${1:-unset} >/dev/null 2>/dev/null && return 0
+	local MAC="${1:-unset}"
+	
+	iptables -t mangle -nL traff_${MAC} >/dev/null 2>/dev/null && return 0		# not using _ipt()
 	return 1
 }
 
 _pfilter_user_list ()					# SENS: list all MACs from logged in / shaped users
 {
-	_ipt -t mangle -nL traff_users 2>/dev/null | sed -n 's/^traff_\([0-8abcdef][0-8abcdef]:..:..:..:..:..\) .*MAC .*$/\1/p'	# must not begin with '99' (=reserved user)
+	_ipt -t mangle -nL traff_users 2>/dev/null |
+	 sed -n 's/^traff_\([0-8abcdef][0-8abcdef]:..:..:..:..:..\) .*MAC .*$/\1/p'	# must not begin with '99' (=reserved user)
 }
 
-_pfilter_user_list_blocked () {
+_pfilter_user_list_blocked ()
+{
 	IFS=";"
-	for MAC in $( nvram get fff_ethers_blocked ); do
+	for MAC in $( nvram get fff_ethers_blocked ); do {
 		echo "$MAC"
-	done
+	} done
 	unset IFS
 }
 
 _pfilter_user_list_dhcp_active ()
 {
-	sed -n 's/^.* \(..:..:..:..:..:..\) .*/\1/p' /var/run/dhcp.leases
+	sed -n 's/^.* \(..:..:..:..:..:..\) .*/\1/p' /var/run/dhcp.leases	# is lowercase (dnsmasq)
 }
 
-_pfilter_user_list_local_registered () {
-	IFS=";"
-	for MAC in $( nvram get fff_ethers_wifi ); do
-		echo "${MAC%=*}"
-	done
+_pfilter_user_list_local_registered ()
+{
+	local MAC
 	
-	for MAC in $( nvram get fff_ethers_lan ); do
-		echo "${MAC%=*}"
-	done
+	IFS=";"
+	for MAC in $( nvram get fff_ethers_wifi ) $( nvram get fff_ethers_lan ); do {
+		echo "${MAC%=*}"				# print word before "="
+	} done
 	unset IFS
 }
 
 _pfilter_user_traffic_reset_single ()
 {
-	local FUNC="reset_traffic_counter_for_mac"
-	local RULE_NUM="$2"
+	local FUNC="pfilter_user_traffic_reset_single"
 	local MAC="$1"
+	local RULE_NUM="$2"
 	local LOGPRIO="info"
 	
 	case $RULE_NUM in
 		recent) RULE_NUM=2
-			LOGPRIO="debug" ;;	# last 15min
-		 today) RULE_NUM=3 ;;		# today
-		     *) RULE_NUM=4 ;;		# overall
+			LOGPRIO="debug"		# last 15min
+		;;
+		 today) RULE_NUM=3		# today
+		;;
+		     *) RULE_NUM=4		# overall
+		;;
 	esac
 
 	_log do $FUNC daemon $LOGPRIO "$MAC ('$2')"
@@ -585,17 +594,18 @@ _pfilter_stats_user_conns_start ()
 {
 	local MAC="$1"
 	
-	_ipt -t mangle -nxvL traff_$MAC | grep "state NEW MARK set 0x91" | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
+	_ipt -t mangle -nxvL traff_$MAC | fgrep "state NEW MARK set 0x91" | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
 }
 
 _pfilter_stats_user_conns_end ()
 {
 	local MAC="$1"
 
-	_ipt -t mangle -nxvL traff_$MAC | grep "flags:0x11/0x11 MARK" | tail -n1 | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
+	_ipt -t mangle -nxvL traff_$MAC | fgrep "flags:0x11/0x11 MARK" | tail -n1 | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
 }
 
-_pfilter_stats_user_conns_over_limit () {	# we count udp + tcp above's 	// fixme! what about adblock?
+_pfilter_stats_user_conns_over_limit ()		# we count udp + tcp above's 	// fixme! what about adblock?
+{
 	local MAC="$1"
 	local PACK=""
 	local REST=""	
@@ -684,9 +694,9 @@ _pfilter_user_probe_autounsplashed ()		# free means no splashpage wished: userna
 
 _pfilter_user_probe_splash ()
 {
-	local MAC="${1:-unset}"
+	local MAC="${1:-unset}"			# not using _ipt()
 
-	_ipt -t mangle -nL PREROUTING | grep -qi $MAC && return 1	# mac is accepted in prerouting/mangle: no redirection is made
+	iptables -t mangle -nL PREROUTING | grep -qi $MAC && return 1	# mac is accepted in prerouting/mangle: no redirection is made
 	return 0							# mac is not known in prerouting/mangle: user gets splash page
 }
 
