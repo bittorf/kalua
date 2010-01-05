@@ -361,21 +361,20 @@ _pfilter_stats_user_traffic_used_percent ()		# ARG1: mac-address
 
 _pfilter_user_splash_remove_autounsplashed ()
 {
+	local FUNC="pfilter_user_splash_remove_autounsplashed"
 	local ENTRY MAC IP
 	local LIST="$( grep "^..:..:..:..:..:.. free-" /etc/ethers ; grep "^..:..:..:..:..:.. admin-" /etc/ethers)"
 
-	_log do pfilter daemon info "(_pfilter user_splash_remove_autounsplashed) checking"
+	_log do $FUNC daemon info "checking"
 
 	for ENTRY in $LIST; do {					# MAC NAME MAC NAME ...
-		echo $ENTRY | grep -q "..:..:..:..:..:.."
-		
-		if [ "$?" -eq 0 ]; then
-			MAC=$ENTRY
-		else
-			NAME=$ENTRY
-			IP="$( grep $NAME /etc/local.hosts | cut -d" " -f1 )"
 
-			_log do pfilter daemon info "(_pfilter user_splash_remove_autounsplashed) adding \"$NAME\""
+		if   _sanitizer do "$ENTRY" mac check ; then
+			MAC=$ENTRY					# remember for next loop-cycle
+		else
+			IP="$( fgrep "$ENTRY" /etc/local.hosts | cut -d" " -f1 )"	# is a hack!
+
+			_log do $FUNC daemon info "adding name/mac/ip '$NAME' / '$IP' / '$MAC'"
 
 			_pfilter user_add $MAC $IP
 		fi
