@@ -6,7 +6,7 @@
 fkt_patch_netparam ()
 {
 	local FUNC="patch_netparam"
-	local MODE="$1"
+	local MODE="$1"				# replace | restore
 	local ORIG="/rom/usr/bin/netparam"
 	local COPY="/usr/bin/netparam"
 
@@ -26,30 +26,9 @@ fkt_patch_netparam ()
 	chmod +x $COPY
 }
 
-fkt_check_if_only_wifi_olsr ()			# fixme! use _olsr()
-{
-	local FUNC="check_if_only_wifi_olsr"
-	local FILE="/tmp/table.links.txt"
-
-	wget -O - http://127.0.0.1:2006/neighbours | sed -e '/./{H;$!d;}' -e 'x;/Table: Links/!d;' | sed -e '/0\.00/!d' >$FILE
-
-	COUNT_ALL="$( cat $FILE | wc -l )"
-	COUNT_WIFI="$( fgrep "$WIFIADR" $FILE | wc -l )"
-	
-	rm $FILE
-	
-	if [ "$COUNT_ALL" = "$COUNT_WIFI" ] && [ "$COUNT_WIFI" != "0" ]; then		# fixme! this does not work for tun/tap-neighbours / VPN!
-		
-		_log do $FUNC daemon info "only wifi-olsr"
-	else
-		_log do $FUNC daemon info "olsr also (or only) on wired-interfaces"
-		return 1
-	fi
-}
-
 case $1 in
 	call)
-		fkt_check_if_only_wifi_olsr && {
+		neigh check4nonwifi || {
 			fkt_patch_netparam replace
 			_scheduler add "restart_olsr"
 		}
@@ -73,7 +52,7 @@ case $1 in
 		
 		_log do recheck daemon info "waiting 120 seconds"
 		
-		fkt_check_if_only_wifi_olsr && {
+		neigh check4nonwifi || {
 			fkt_patch_netparam replace
 			_scheduler add "restart_olsr"
 		}
