@@ -3,35 +3,38 @@
 
 _ipt ()		# for better logging and safer installing - have seen strange errors during iptables-storm
 {
+	local LOCKFILE="/tmp/iptables_lock"
+
+	while [ -e "$LOCKFILE" ]; do {
+		sleep 1
+	} done
+	touch $LOCKFILE
+
 	local FUNC="iptables"
 	local ARGS="$1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18} ${19} ${20}"
 	local ERRORFILE="/tmp/iptables_$$"
 	local LINE
+	local CLEANUP
 	
-	_cleanup ()
-	{
-		[ -e $ERRORFILE ] && {
-			while read LINE; do {
-				_log do $FUNC daemon info "former error: '$LINE' (ARGS: '$ARGS')"
-			} done <$ERRORFILE
-	
-			rm $ERRORFILE
-		}
-		
-		return ${1:-0}
-	}
-
 	iptables $ARGS 2>$ERRORFILE || {
 		_log do $FUNC daemon debug "something went wrong: '$ARGS' - retry"
 		sleep 1
 		iptables $ARGS 2>$ERRORFILE || {
 			_log do $FUNC daemon info "giving up: '$ARGS'"
-			_cleanup 1
+			CLEANUP=1
 		}
-		_cleanup 0
 	}
-	
-	_cleanup 0
+
+	[ -e $ERRORFILE ] && {
+		while read LINE; do {
+			_log do $FUNC daemon info "former error: '$LINE' (ARGS: '$ARGS')"
+		} done <$ERRORFILE
+
+		rm $ERRORFILE
+	}
+		
+	rm $LOCKFILE
+	return ${CLEANUP:-0}
 }
 
 _pfilter_user_splash_remove ()
@@ -590,18 +593,18 @@ _pfilter_stats_traffic_forwarded_internet ()	# fixme! empty chains -> output = "
 	_ipt -t mangle -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
-_pfilter_stats_user_conns_start ()
+_pfilter_stats_user_conns_start ()	# we don't use _ipt() abstraction because chains maybe does not exist / avoid syslog errors
 {
 	local MAC="$1"
 	
-	_ipt -t mangle -nxvL traff_$MAC | fgrep "state NEW MARK set 0x91" | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
+	iptables -t mangle -nxvL traff_$MAC | fgrep "state NEW MARK set 0x91" | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
 }
 
 _pfilter_stats_user_conns_end ()
 {
 	local MAC="$1"
 
-	_ipt -t mangle -nxvL traff_$MAC | fgrep "flags:0x11/0x11 MARK" | tail -n1 | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
+	iptables -t mangle -nxvL traff_$MAC | fgrep "flags:0x11/0x11 MARK" | tail -n1 | sed -n 's/^[^0-9]*\([0-9]*\)[^0-9]*.*/\1/p'
 }
 
 _pfilter_stats_user_conns_over_limit ()		# we count udp + tcp above's 	// fixme! what about adblock?
@@ -610,7 +613,7 @@ _pfilter_stats_user_conns_over_limit ()		# we count udp + tcp above's 	// fixme!
 	local PACK=""
 	local REST=""	
 
-	_ipt -t mangle -nxvL traff_$MAC | head -n 9 | tail -n 1 | while read PACK REST; do echo $PACK; done
+	iptables -t mangle -nxvL traff_$MAC | head -n 9 | tail -n 1 | while read PACK REST; do echo $PACK; done
 }
 
 _pfilter_stats_user_traffic ()	# OUT1: string
