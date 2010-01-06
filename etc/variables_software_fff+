@@ -6,18 +6,22 @@ fkt_build_vars ()
 
 	SOFTWARE_BASE="dropbear busybox-awk"
 
-	SOFTWARE_USB2="kmod-usb-uhci kmod-usb2"
-	SOFTWARE_USB1="kmod-usb-ohci"
-	
-	eval $(/etc/init.d/S02check_interface_correctness_fff+ show_hardware)	# this gives us for example HW="Linksys (BCM4306-wifi)"; USB="2" ; IDE="1"
-	
-#	  if [ "$USB" = "1" ]; then
-#		SOFTWARE_USB="$SOFTWARE_USB1"					# gets even more filled during fkt_check_usb ()
-#	elif [ "$USB" = "2" ]; then
-#		SOFTWARE_USB="$SOFTWARE_USB2"
-#	fi
+	eval $( _profile remap_devs get_model )		# $ROUTER_VENDOR/MODEL/NO
 
-	SOFTWARE_USB="kmod-usb-core $SOFTWARE_USB1 $SOFTWARE_USB2"	# simply install all usb-stuff?
+	case "$ROUTER_NO" in		# gets even more filled during fkt_check_usb()
+		5|6|9|C)
+			SOFTWARE_USB="kmod-usb-core kmod-usb-ohci"			# usb1
+		;;
+		4|D)
+			SOFTWARE_USB="kmod-usb-core kmod-usb-uhci kmod-usb2"		# usb2.0
+		;;
+	esac
+
+	case "$ROUTER_NO" in
+		9)
+			IDEHOOK="kmod-ide"
+		;;
+	esac
 
 	VDSHOOK=
 	[ -n "$( nvram get fff_vds )" ] && VDSHOOK="ulogd"		# libsqlite3 libncurses libreadline sqlite3-cli (+300kb)
@@ -33,7 +37,7 @@ fkt_build_vars ()
 	SOFTWARE_IPFILTER="$SOFTWARE_IPFILTER fff-missing-conntrack"
 	
 	SOFTWARE_EXTRA=""
-	SOFTWARE_EXTRA="$SOFTWARE_EXTRA freifunk-dnsmasq $SOFTWARE_USB kmod-ide $SOFTWARE_IPFILTER micro-proxy"
+	SOFTWARE_EXTRA="$SOFTWARE_EXTRA freifunk-dnsmasq ${SOFTWARE_USB} ${IDEHOOK} $SOFTWARE_IPFILTER micro-proxy"
 	SOFTWARE_EXTRA="$SOFTWARE_EXTRA busybox-tftp busybox-telnet freifunk-map-de freifunk-olsr-viz-de zlib"
 	SOFTWARE_EXTRA="$SOFTWARE_EXTRA librrd1 rrdcgi1 rrdcollect rrdtool1 freifunk-statistics-de busybox-nc"
 	SOFTWARE_EXTRA="$SOFTWARE_EXTRA xyssl xrelayd freifunk-secureadmin-de libpcap freifunk-tcpdump"
@@ -62,7 +66,6 @@ fkt_check_usb ()
 
 	_log do $FUNC daemon debug "start"
 
-	local DAEMON="fkt_check_usb"
 	local   LIST="$( [ -e /proc/bus/usb/devices ] && sed -ne 's/^P:.*Vendor=\([0-9a-z]*\) ProdID=\([0-9a-z]*\).*/\1:\2/p' /proc/bus/usb/devices | grep -v 0000:0000 )"	# this is VENDOR:PRODUCT, filtering empty ports
 	local   INFO=""
 	local    CAT=""
@@ -121,15 +124,15 @@ fkt_check_usb ()
 	fi
 }
 
-fkt_check_ide ()
+fkt_check_ide ()						# called after initial installation of IDE-drivers (if possible)
 {
 	local FUNC="check_ide"
 	local LINE
-	local DAEMON="fkt_check_ide"
-		IDE=0						# later: autodetect ide-usage
+
+	IDEHOOK=""						# later: autodetect ide-usage
 
 	if grep -q ide /proc/partitions ; then			# where partitions detected?                                                       
-		IDE=1
+		IDEHOOK="kmod-ide"
 	
 		_log do $FUNC daemon debug "used IDE-bus detected"
 		
@@ -141,7 +144,7 @@ fkt_check_ide ()
 		
 		[ ! -e "/www/SOFTWARE_FULLY_INSTALLED" ] && {
 		
-			for FILE in $(ipkg files kmod-ide); do {
+			for FILE in $( ipkg files kmod-ide ); do {
 
 				[ -f "$FILE" ] && {
 					_log do $FUNC daemon debug "deinstalling ide-related file: '$FILE'"
@@ -155,7 +158,6 @@ fkt_check_ide ()
 fkt_check_dependencies ()
 {
 	local FUNC="check_dependencies"
-	local DAEMON="fkt_check_dependencies"
 	local LOW=""
 	local WAN_DEF_ROUTE=""
 	local LAN_DEF_ROUTE=""
@@ -194,7 +196,7 @@ fkt_check_dependencies ()
 	/etc/init.d/S52vpnc_fff+ check		&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_VPNC"	# essid = 'WLAN-BUW' 8-)
 	test  -n   "$(nvram get fff_batman)"    &&      LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_BATMAN"
 	test  ! -z "$SOFTWARE_USB"		&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_USB"
-	test "1" = "$IDE"			&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_IDE"
+	[ -n "$IDEHOOK" ]			&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_IDE"
 	test    -z "$LOW"			&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_EXTRA"
 	test  ! -z "$SOFTWARE_PRIV"		&&	LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_PRIV"
 							# LIST_SOFTWARE="$LIST_SOFTWARE $SOFTWARE_USER"		# fixme! needs more testing
