@@ -1153,60 +1153,83 @@ _wifi_mode ()			# OUT1: string, ap | client | adhoc             // rename: wifi_
 	fi
 }
 
-_wifi_scan ()				# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3e:1:-88:-76:8:WEP:Zugangspunkt
-{					# which means   BSSID : INFRA/ADHOC=1/0 | RSSI | NOISE | CHANNEL | CRYPT | ESSID + next_entry
+_wifi_scan ()
+{
 	local FUNC="wifi_scan"
 	local WIFI_DEV="$1"
+	local KEYWORD="$2"		# intense | normal = <empty>
 	local FILE="/tmp/WIFI_SCAN_$$"
-	local LINE SIGNAL NOISE CHANNEL BSSID CRYPT INFRA LOOP
+	local MYCHANNEL
+
+	[ "$( _wifi mode $WIFI_DEV )" != "adhoc" ] && return
 	
 	if _wifi vendor_and_model | grep -q broadcom ; then
 
-		[ "$( _wifi mode $WIFI_DEV )" != "adhoc" ] && return
-	
-		_wl $WIFI_DEV scan					# SSID: "FRITZ!Box Fon WLAN 7141"
-		sleep 3							# Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10
-		_wl $WIFI_DEV scanresults >$FILE			# BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot
-									# Supported Rates: [ 1(b) 2(b) 5.5(b) 11(b) 6 9 12 18 24 36 48 54 ]
-		while read LINE; do {
-			
-			case "$( echo $LINE | cut -d: -f1 )" in
-				
-				SSID)
-					ESSID="$( echo "$LINE" | sed -n 's/^SSID: "\(.*\)"$/\1/p' )"
-					ESSID="$( _sanitizer do "$ESSID" essid )"			# fixme! (escape_all?)
-				;;
-				Mode)
-					# 'Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10'
-					# SIGNAL="-93";NOISE="-89";CHANNEL="10"
-				
-					eval "$( echo "$LINE" | sed -n 's/^Mode: .*RSSI: \([0-9-]*\).*dBm.*noise: \([0-9-]*\).*dBm.*Channel: \([0-9]*\).*/SIGNAL="\1";NOISE="\2";CHANNEL="\3"/p' )"
-				;;
-				BSSID)
-					# 'BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot'
-					
-					BSSID="$( echo "$LINE" | sed -n 's/^BSSID: \([0-9a-fA-F:]*\).*/\1/p' )"
-					[ "$( echo $BSSID | cut -d':' -f1 )" = "02" ] && INFRA=0
-					BSSID="$( _sanitizer do "$BSSID" hex lowercase )"
-					
-					echo "$LINE" | grep -q "WEP" && CRYPT="WEP"
-				;;
-				"")
-					[ -z "$BSSID" ] && continue
-					_log do $FUNC daemon info "PHY_${WIFI_DEV}: '${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}'"
-					echo -n "${LOOP:+;}${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}"
-					
-					LOOP=1;BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=
-				;;
-			esac
-			
-		} done <$FILE
+		if [ "$KEYWORD" = "intense" ]; then
+
+			for MYCHANNEL in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 $( _wifi channel $WIFI_DEV ); do {
+		
+				_nvram set wl0_channel $MYCHANNEL		# fixme! is a hack!
+				wifi
+				sleep 5
+
+				_wl $WIFI_DEV scan
+				sleep 3
+				_wl $WIFI_DEV scanresults >$FILE
+				_wifi scan_parse_wl $FILE
+			} done
+		else
+			_wl $WIFI_DEV scan
+			sleep 3
+			_wl $WIFI_DEV scanresults >$FILE
+			_wifi scan_parse_wl $FILE
+		fi
 	else
-		# fixme! needs a parser for madwifi...
-		continue
+		touch FILE
+		continue	# fixme! needs a parser for iwconfig/madwifi...
 	fi
 	
-	[ -e "$FILE" ] && rm $FILE
+	rm $FILE
+}
+
+_wifi_scan_parse_wl ()			# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3e:1:-88:-76:8:WEP:Zugangspunkt
+{					# which means   BSSID : INFRA/ADHOC=1/0 | RSSI | NOISE | CHANNEL | CRYPT | ESSID + next_entry
+	local FILE="$1"
+	local LINE SIGNAL NOISE CHANNEL ESSID BSSID CRYPT INFRA LOOP
+
+	while read LINE; do {					# SSID: "FRITZ!Box Fon WLAN 7141"
+								# Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10
+		case "$( echo $LINE | cut -d: -f1 )" in		# BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot
+								# Supported Rates: [ 1(b) 2(b) 5.5(b) 11(b) 6 9 12 18 24 36 48 54 ]
+			SSID)
+				ESSID="$( echo "$LINE" | sed -n 's/^SSID: "\(.*\)"$/\1/p' )"
+				ESSID="$( _sanitizer do "$ESSID" essid )"			# fixme! (escape_all?)
+			;;
+			Mode)
+				# 'Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10'
+				# SIGNAL="-93";NOISE="-89";CHANNEL="10"
+
+				eval "$( echo "$LINE" | sed -n 's/^Mode: .*RSSI: \([0-9-]*\).*dBm.*noise: \([0-9-]*\).*dBm.*Channel: \([0-9]*\).*/SIGNAL="\1";NOISE="\2";CHANNEL="\3"/p' )"
+			;;
+			BSSID)
+				# 'BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot'
+					
+				BSSID="$( echo "$LINE" | sed -n 's/^BSSID: \([0-9a-fA-F:]*\).*/\1/p' )"
+				[ "$( echo $BSSID | cut -d':' -f1 )" = "02" ] && INFRA=0
+				BSSID="$( _sanitizer do "$BSSID" hex lowercase )"
+	
+				echo "$LINE" | grep -q "WEP" && CRYPT="WEP"
+			;;
+			"")
+				[ -z "$BSSID" ] && continue
+				_log do $FUNC daemon info "PHY_${WIFI_DEV}: '${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}'"
+				echo -n "${LOOP:+;}${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}"
+
+				LOOP=1;BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=
+			;;
+		esac
+			
+	} done <$FILE
 }
 
 _wifi_nlq ()			# is a hack for rrd-tool
