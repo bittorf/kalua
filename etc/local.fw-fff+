@@ -19,23 +19,25 @@ _startup ()
 		
 	_pfilter rules_accept_all on
 
-	case "$( nvram get wan_proto )" in
-		dhcp|pppoe)
-			local WAIT=120		# seconds
+	[ -n "$WANDEV" ] && {
+		case "$( nvram get wan_proto )" in
+			dhcp|pppoe)
+				local WAIT=120		# seconds
 			
-			while [ $WAIT -gt 0 ]; do {
-				_log do "dhcp_pppoe_hook" daemon debug "wait for inet offer on WANDEV (${WAIT}s)"
-				
-				_net local_inet_offer >/dev/null && {
-					/etc/init.d/S41build_static_netparam
-					break
-				}
-				sleep 5
-				WAIT=$(( $WAIT - 5 ))
-			} done
-			. /tmp/loader	# reread for newer values
-		;;
-	esac
+				while [ $WAIT -gt 0 ]; do {
+					_log do "dhcp_pppoe_hook" daemon debug "wait for inet offer on WANDEV (${WAIT}s)"
+
+					_net local_inet_offer >/dev/null && {
+						/etc/init.d/S41build_static_netparam
+						break
+					}
+					sleep 5
+					WAIT=$(( $WAIT - 5 ))
+				} done
+				. /tmp/loader	# reread for newer values
+			;;
+		esac
+	}
 
 	_pfilter rules_nat_install		# fixme! rules are installed 2 times
 	_pfilter rules_install
