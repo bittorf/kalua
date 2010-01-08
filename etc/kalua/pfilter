@@ -1198,15 +1198,18 @@ _pfilter_l7proto_list ()
 	echo -n "$LAYER7"
 }
 
-_pfilter_rules_walledgarden ()
+_pfilter_rules_walledgarden ()				# fixme! this must be profile-sensitive
 {
 	local FUNC="pfilter_rules_walledgarden"
+	local TABLE="walled_garden"
 	local ENTRY WALLED_GARDEN
 	
 	WALLED_GARDEN="141.54.160.24/32 (ping01) 141.54.1.1/32 (BUW-DNS) 141.1.1.1/32 (DFN) 85.25.251.231/32 (vorratsdatenspeicherung.de)"
 	WALLED_GARDEN="${WALLED_GARDEN} 82.149.225.169/32 (wiki.vorratsdatenspeicherung.de) 141.54.160.48/32 (m18.uni-weimar.de)"                          
 	WALLED_GARDEN="${WALLED_GARDEN} 87.118.106.19/32 (www.weimarnetz.de) 88.198.146.230/32 (wiki_neu)"                       
 	WALLED_GARDEN="${WALLED_GARDEN} 213.239.220.3/32 (vekingosegundo.de) 217.238.197.73 (vekingosegundo.de2)"
+
+	_ipt -t mangle -N $TABLE
 	
 	for ENTRY in $WALLED_GARDEN; do {				# accepting marked packets is done in main_framework
 		
@@ -1214,12 +1217,14 @@ _pfilter_rules_walledgarden ()
 		
 			_log do $FUNC daemon info "no fence for '$ENTRY'"
 		
-			_ipt -t mangle -A PREROUTING -s $ENTRY -j ACCEPT
-			_ipt -t mangle -A PREROUTING -d $ENTRY -j ACCEPT
+			_ipt -t mangle -A $TABLE -s $ENTRY -j ACCEPT
+			_ipt -t mangle -A $TABLE -d $ENTRY -j ACCEPT
 		else
 			_log do $FUNC daemon info "human_readable: $ENTRY"
 		fi
 	} done
+
+	_ipt -t mangle -A PREROUTING -j $TABLE
 }
 
 _pfilter_rules_nat_no_wificlients ()
