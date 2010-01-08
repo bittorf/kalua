@@ -1196,7 +1196,7 @@ _wifi_scan_parse_wl ()			# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3
 {					# which means   BSSID : INFRA/ADHOC=1/0 | RSSI | NOISE | CHANNEL | CRYPT | ESSID + next_entry (separator = ";")
 	local FILE="$1"
 	local FUNC="wifi_scan_parse_wl"
-	local LINE SIGNAL NOISE CHANNEL ESSID BSSID CRYPT INFRA LOOP
+	local LINE SIGNAL NOISE CHANNEL ESSID BSSID CRYPT INFRA SUMMARY
 
 	while read LINE; do {					# SSID: "FRITZ!Box Fon WLAN 7141"
 								# Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10
@@ -1223,10 +1223,13 @@ _wifi_scan_parse_wl ()			# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3
 			;;
 			"")
 				[ -z "$BSSID" ] && continue
-				_log do $FUNC daemon info "PHY_${WIFI_DEV}_chan_$( _wifi channel $WIFI_DEV ): '${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}'"
-				echo -n "${LOOP:+;}${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}"
+				SUMMARY="${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}"
 
-				LOOP=1;BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=
+				_log do $FUNC daemon info "PHY_${WIFI_DEV}_chan_$( _wifi channel $WIFI_DEV ): '${SUMMARY}'"
+				
+				_wifi scan_summary insert $BSSID "${SUMMARY}"
+
+				BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=;SUMMARY=
 			;;
 		esac
 			
@@ -1235,8 +1238,33 @@ _wifi_scan_parse_wl ()			# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3
 
 _wifi_scan_summary ()
 {
-	local FUNC="wifi_scan_summary"
-	local SUMMARY="/tmp/WIFI_SCAN_TODAY"
+	local KEYWORD="$1"		# remove | insert | get = <empty>
+	local OBJ1="$2"			# when 'insert' -> bssid to insert
+	local OBJ2="$3"			# when 'insert' -> data to insert
+	
+	local FILE_BSSID LOOP OUT
+	local DIR="/tmp/WIFI_SCAN_TODAY"
+	
+	[ -d $DIR ] || mkdir $DIR
+
+	case "$KEYWORD" in
+		remove)
+			rm $DIR/* 2>/dev/null
+		;;
+		insert)
+			echo "$OBJ2" >>$DIR/$OBJ1
+		;;
+		*)
+			for FILE_BSSID in $( ls -1 $DIR ); do {
+				OUT="$( sort -n $FILE_BSSID | tail -n1 )"	# only show strongest received beacon
+
+				[ -n "$OUT" ] && {
+					echo -n "${LOOP:+;}${OUT}"
+					LOOP=1
+				}
+			} done
+		;;
+	esac
 }
 
 _wifi_nlq ()			# is a hack for rrd-tool
