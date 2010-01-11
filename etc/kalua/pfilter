@@ -973,6 +973,27 @@ _pfilter_rules_accept_all ()
 	} done
 }
 
+_pfilter_rules_olsr_ignore_ignored_neighs ()		# ignoring neighs is really annoying, we delete the rules and autoconvert this to LQ_MULT x 0.1
+{
+	local LIST_IGNORE=$( nvram get ff_ign )
+	local FILL=";"
+	local IP
+	
+	IFS=";"
+	for IP in $LIST_IGNORE; do {
+		_ipt -I INPUT -i $WIFIDEV -s $IP -p udp --sport 698 -j DROP
+
+		nvram get ff_lqmult | grep -q "$IP:" || {
+		
+			FILL=";"
+			[ -z "$( nvram get ff_lqmult )" ] && FILL=""
+			_nvram set ff_lqmult "$( nvram get ff_lqmult )${FILL}${IP}:0.1"		# appending to LQmult-list
+		}
+
+	} done
+	unset IFS
+}
+
 _pfilter_rules_olsr_whitelist_fetch ()
 {
 	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) fetching"
