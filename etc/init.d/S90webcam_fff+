@@ -7,25 +7,10 @@
 # und ein SIGHUP oder restart gemacht werden
 # kill -SIGHUP $( pidof motion | cut -d' ' -f1 )
 
-# 046d:08b4 = quickcam zoom/silver 	// pwc power_save=1
+[ ! -e /www/SOFTWARE_FULLY_INSTALLED ] && exit
 
-test ! -e /www/SOFTWARE_FULLY_INSTALLED && exit
-
-fkt_search_for_cameras ()
+fkt_prepare ()
 {
-	  if [ "$( grep 0471 /proc/bus/usb/devices | grep 0311 )" ]; then
-		logger "fff+ $0 - found webcam 0471:0311"
-		return 0
-	elif [ "$( grep 046d /proc/bus/usb/devices | grep 08b4 )" ]; then
-		logger "fff+ $0 - found webcam 046d:08b4"
-		return 0
-	else
-		logger "fff+ $0 - no webcam found. stop."
-		return 1
-	fi
-}
-
-fkt_prepare () {
 	if [ ! -e "/dev/video0" ] && [ ! -L "/dev/video0" ]; then
 		ln -s "/dev/v4l/video0" "/dev/video0"
 	fi
@@ -34,7 +19,8 @@ fkt_prepare () {
 	test ! -L "/www/images/intro.jpg" 	&& ln -s "/tmp/webcam.jpg" "/www/images/intro.jpg"
 }
 
-fkt_load_module () {
+fkt_load_module ()
+{
 	local MODULE_NAME="$1"
 	local MODULE_PARAMS="$2"
 	
@@ -48,7 +34,8 @@ fkt_load_module () {
 	_system insmod "$MODULE_NAME" "$MODULE_PARAMS"
 }
 
-fkt_unload_module () {
+fkt_unload_module ()
+{
 	local MODULE_NAME="$1"
 	
 	logger "fff+ $0 - trying to unload kernelmodule $MODULE_NAME"
@@ -62,22 +49,25 @@ fkt_unload_module () {
 	fi
 }
 
-fkt_load_kernel_modules () {
+fkt_load_kernel_modules ()
+{
 	fkt_load_module videodev
 	fkt_load_module pwc leds=0,0
 	fkt_load_module pwcx
 }
 
-fkt_unload_kernel_modules () {
+fkt_unload_kernel_modules ()
+{
 	fkt_unload_module pwcx
 	fkt_unload_module pwc
 	fkt_unload_module videodev
 }
 
-fkt_write_motion_config () {
+fkt_write_motion_config ()
+{
 	local FILE="/etc/motion.conf"
 	
-	logger "fff+ $0 - creating \"$FILE\""
+	logger "fff+ $0 - creating '$FILE'"
 
 	cat >/etc/motion.conf <<EOF
 daemon                  on 
@@ -101,7 +91,8 @@ framerate               1                       # maximum per second
 EOF
 }
 
-fkt_start_picture_grabbing () {
+fkt_start_picture_grabbing ()
+{
 	fkt_write_motion_config	
 	echo 1 >/dev/video0                                                             # using cam (just to switch off leds)
 
@@ -111,7 +102,8 @@ fkt_start_picture_grabbing () {
 	motion
 }
 
-fkt_end_picture_grabbing () {
+fkt_end_picture_grabbing ()
+{
 	logger "fff+ $0 - trying to end picture_grabber"
 
 	test -n "$(pidof motion)" && killall    motion
@@ -120,8 +112,7 @@ fkt_end_picture_grabbing () {
 
 func_start ()
 {
-	fkt_search_for_cameras
-	test "$?" -ne 0 && exit
+	_webcam probe || exit
 	
 	fkt_prepare
 	fkt_load_kernel_modules
@@ -130,8 +121,7 @@ func_start ()
 
 func_stop ()
 {
-	fkt_search_for_cameras
-	test "$?" -ne 0 && exit
+	_webcam probe || exit
 	
 	fkt_prepare
 	fkt_end_picture_grabbing
