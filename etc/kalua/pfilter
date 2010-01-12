@@ -995,21 +995,24 @@ _pfilter_rules_olsr_ignore_ignored_neighs ()		# ignoring neighs is really annoyi
 
 _pfilter_rules_olsr_whitelist_fetch ()
 {
-	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) fetching"
+	local FUNC="pfilter_rules_olsr_whitelist_fetch"
+	local FILE="/tmp/olsr_whitelist_fresh"
+	
+	_log do $FUNC daemon info "fetching"
 
-	wget -qO /tmp/olsr_whitelist_fresh "$( _links firmware_url_get olsr_whitelist )"	# <unixtime>-Tags at first and last line
+	wget -qO $FILE "$( _links firmware_url_get olsr_whitelist )"	# <unixtime>-Tags at first and last line
 
-	TAG1="$( head -n 1 /tmp/olsr_whitelist_fresh )"
-	TAG2="$( tail -n 1 /tmp/olsr_whitelist_fresh )"
+	local TAG1="$( head -n 1 $FILE )"
+	local TAG2="$( tail -n 1 $FILE )"
 
 	if [ -n "$TAG1" ] && [ "$TAG1" = "$TAG2" ]; then
-		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) went fine, sanitizing"
-		sed -e '/[<>]/d' -e 's/[^A-Fa-f0-9:,]//g' /tmp/olsr_whitelist_fresh >/tmp/olsr_whitelist	# removing lines with "<unixtime>" and sanitize LF/CR
-	else													# results in: "nodenumber,mac (can be empty)
-		_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_fetch) abort - something's wrong"
+		_log do $FUNC daemon info "went fine, sanitizing"
+		sed -e '/[<>]/d' -e 's/[^A-Fa-f0-9:,]//g' $FILE >/tmp/olsr_whitelist		# removing lines with "<unixtime>" and sanitize LF/CR
+	else											# results in: "nodenumber,mac (can be empty)
+		_log do $FUNC daemon info "abort - something went wrong"
 	fi
 
-	rm -f /tmp/olsr_whitelist_fresh
+	rm $FILE
 }
 
 _pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added until fw-full-restart (!)
