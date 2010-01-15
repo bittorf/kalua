@@ -938,22 +938,28 @@ _pfilter_kmodules_init ()	# fixme! alles durch __ipt () schleifen und erst bei b
 
 _pfilter_user_splash_add ()
 {
+	local FUNC="pfilter_user_splash_add"
 	local MYHNA="$( _config get net olsr hna4 )"
 
-	_log do pfilter daemon info "(_pfilter user_splash_add) shutting doors"
+	_log do $FUNC daemon info "shutting doors"
 
 	_ipt -t mangle -A PREROUTING -p udp --sport 68 --dport 67 -d 255.255.255.255 -j ACCEPT		# DCHP requests to internal server
 	_ipt -t mangle -A PREROUTING -s ! $MYHNA -d ! $MYHNA                         -j ACCEPT		# forwarding internet from other nodes
 	_ipt -t mangle -A PREROUTING -s ! $MYHNA                                     -j ACCEPT          # from other nodes to me
 	
 	# _ipt -t mangle -A PREROUTING -d ! $MYHNA                                     -j ACCEPT          # dest = internet
+
+	_ipt -t mangle -A PREROUTING -i tap+ -d $WIFI_IP			-j ACCEPT		# picopeer from tunnel
+	_ipt -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE	-j ACCEPT		# picopeer small (myhna2myhna)
+	_ipt -t mangle -A PREROUTING -s $WIFI_IP -d $WIFI_IP			-j ACCEPT		# picopeer big ("10.63.17.1/8")
 	
-	_ipt -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE	-j ACCEPT		# picopeer
 	_ipt -t mangle -A PREROUTING -p udp --dport 698                              -j ACCEPT		# OLSR incoming
 	_ipt -t mangle -A PREROUTING -p tcp -m multiport --dports 80,443             -j MARK --set-mark $( _pfilter proto2id REDIRECT )
 	_ipt -t mangle -A PREROUTING -m mark --mark 0                                -j MARK --set-mark $( _pfilter proto2id REJECT )
 
 	_ipt -t nat    -A PREROUTING -m mark --mark $( _pfilter proto2id REDIRECT )       -j REDIRECT
+
+	_log do $FUNC daemon info "doors closed"
 }
 
 _pfilter_rules_accept_all ()
