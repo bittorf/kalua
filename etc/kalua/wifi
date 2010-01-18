@@ -1214,20 +1214,27 @@ _wifi_scan_parse_wl ()			# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3
 			;;
 			BSSID)
 				# 'BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot'
-					
+				
+				# fixme! sometimes we get an wrong BSSID even for an AP like: 00:1a:2a:73:14:05 (real) -> 9e:dd:8b:b3:b1:38 (random!)
+				# idea: if _net mac2vendor is not possible, then throw away the scan
+
 				BSSID="$( echo "$LINE" | sed -n 's/^BSSID: \([0-9a-fA-F:]*\).*/\1/p' )"
 				[ "$( echo $BSSID | cut -d':' -f1 )" = "02" ] && INFRA=0
 				BSSID="$( _sanitizer do "$BSSID" hex lowercase )"
 	
-				echo "$LINE" | grep -q "WEP" && CRYPT="WEP"
+				echo "$LINE" | grep -q "WEP" && CRYPT="w"	# idea: w = wep / W=WPA ?
 			;;
 			"")
 				[ -z "$BSSID" ] && continue
-				SUMMARY="${BSSID}:${INFRA:=1}:${SIGNAL}:${NOISE}:${CHANNEL}:${CRYPT:=0}:${ESSID}"
+				SUMMARY="${BSSID}:${INFRA:=1}:${CRYPT:=0}:${CHANNEL}:${SIGNAL}:${NOISE}:${ESSID}"
 
 				_log do $FUNC daemon info "PHY_${WIFI_DEV}_chan_$( _wifi channel $WIFI_DEV ): '${SUMMARY}'"
 				
 				_wifi scan_summary insert $BSSID "${SUMMARY}"
+
+				_net mac2vendor $BSSID 2>/dev/null >/dev/null || {
+					cat $FILE >>/tmp/STRANGE_SCAN_$BSSID_$$
+				}
 
 				BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=;SUMMARY=
 			;;
