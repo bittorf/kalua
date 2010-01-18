@@ -10,9 +10,10 @@
 # 		< 11:35:56 212.58.226.33 80 TCP 10434 3248579419 1694279285
 #
 #		fixme! 11:35:56 -> unixtime?
+#		speed: ca. 8 lines/second on WRT54GL
 #
-# example-shot:     92.750 bytes |  337 lines (~273 bytes) ->  18985 bytes in 86sec (-> 20%) -> gzip -> 4000 bytes (-> 21%/4.3% overall)
-# extrapolation: 2.000.000 bytes | 7272 lines              -> 80.000 bytes / user / day
+# example-shot:     92.750 bytes |  337 lines (~273 bytes) ->  18985 bytes (-> 20%) -> gzip -> 4000 bytes (-> 21% / 4.3% overall)
+# extrapolation: 2.000.000 bytes | 7272 lines              -> 80.000 bytes / user / day (gzip)
 
 ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"
 ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"
@@ -37,7 +38,7 @@ func_ulog_prepare ()
 	
 	[ ! -e $ULOG_LOGFILE_ORIG ]			&& return 1
 	[ ! -e /tmp/USER_PACKETFILTER ]			&& return 1	# no packetfilter, no logfile?
-	[ $(_file size $ULOG_LOGFILE_ORIG) -eq 0 ]	&& return 1
+	[ $( _file size $ULOG_LOGFILE_ORIG ) -eq 0 ]	&& return 1
 
 	_log do $FUNC daemon debug "creating logfile working copy"
 	
@@ -49,42 +50,21 @@ func_ulog_prepare ()
 	return 0
 }
 
-func_ulog_sqeeze_log ()
+func_ulog_squeeze_log ()
 {
-	local FUNC="ulog_sqeeze_log"
+	local FUNC="ulog_squeeze_log"
 	local DATE="$( _system date humanreadable short )"
-	local BYTES="$( _file size $ULOG_LOGFILE )"
+	local BYTES="$( _file size  $ULOG_LOGFILE )"
 	local LINES="$( _file lines $ULOG_LOGFILE )"
 	local NODEID="$( nvram get fff_node_number )"
 	local REBOOTS="$( cat /www/REBOOT_COUNTER )"
 
 	# local FLAGS="| ACK:$FLAG_ACK SYN:$FLAG_SYN RST:$FLAG_RST FIN:$FLAG_FIN PSH:$FLAG_PSH URGP:$URGP"
-	local LINE
-	local FLAGS
-	local PORT
-	local IP
-	local OUTPUT
+
+	local LINE FLAGS PORT IP OUTPUT TIMECOUNT
+	local TIME MAC DIR SRC DST ID PROTO SPT DPT SEQ ACK WINDOW FLAG_ACK FLAG_SYN FLAG_RST FLAG_FIN FLAG_PSH URGP
 	local COUNTER=0
-	local TIMECOUNT
 					# fixme! fetch conn_length from conntrack when connection was closed
-	local TIME
-	local MAC
-	local DIR
-	local SRC
-	local DST
-	local ID
-	local PROTO
-	local SPT
-	local DPT
-	local SEQ
-	local ACK
-	local WINDOW
-	local FLAG_ACK
-	local FLAG_SYN
-	local FLAG_RST
-	local FLAG_FIN
-	local FLAG_PSH
-	local URGP
 
 	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines"
 	_stopwatch start $FUNC	
@@ -108,11 +88,6 @@ func_ulog_sqeeze_log ()
 		COUNTER=$(( $COUNTER + ${#OUTPUT} ))			# count bytes for logfile
 		
 		echo >>"${VDS_PATH}/user-${USERNAME:-unknown}-${MAC}-${USERIP:-noip}-${DATE}-node${NODEID}-reboots${REBOOTS}.ulog" "$OUTPUT"
-
-		# > 11:35:41 212.58.226.33 80 TCP 10415 3248578720 0
-		# < 11:35:41 212.58.226.33 80 TCP 0 1694259892 3248578721
-		# < 11:35:47 212.58.226.33 80 TCP 33278 1694279284 3248579419
-		# < 11:35:56 212.58.226.33 80 TCP 10434 3248579419 1694279285
 
 	} done <$ULOG_LOGFILE
 
@@ -242,5 +217,5 @@ func_ulog_logsaving ()
 	} done
 }
 
-func_ulog_prepare && func_ulog_sqeeze_log
+func_ulog_prepare && func_ulog_squeeze_log
 func_ulog_logsaving
