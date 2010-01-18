@@ -58,8 +58,6 @@ func_ulog_sqeeze_log ()
 	local NODEID="$( nvram get fff_node_number )"
 	local REBOOTS="$( cat /www/REBOOT_COUNTER )"
 
-	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines"	
-
 	# local FLAGS="| ACK:$FLAG_ACK SYN:$FLAG_SYN RST:$FLAG_RST FIN:$FLAG_FIN PSH:$FLAG_PSH URGP:$URGP"
 	local LINE
 	local FLAGS
@@ -67,6 +65,7 @@ func_ulog_sqeeze_log ()
 	local IP
 	local OUTPUT
 	local COUNTER=0
+	local TIMECOUNT
 					# fixme! fetch conn_length from conntrack when connection was closed
 	local TIME
 	local MAC
@@ -86,6 +85,9 @@ func_ulog_sqeeze_log ()
 	local FLAG_FIN
 	local FLAG_PSH
 	local URGP
+
+	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines"
+	_stopwatch start $FUNC	
 
 	while read LINE; do {		# func_ulog_make_evalable "$LINE" >>/tmp/vds_debug
 
@@ -114,8 +116,9 @@ func_ulog_sqeeze_log ()
 
 	} done <$ULOG_LOGFILE
 
+	TIMECOUNT="$( _stopwatch stop $FUNC )"
 	rm $ULOG_LOGFILE
-	_log do $FUNC daemon debug "squeezed to $(( $COUNTER * 100 / ${BYTES:=1} ))% ($COUNTER bytes)"
+	_log do $FUNC daemon info "squeezed to $(( $COUNTER * 100 / ${BYTES:=1} ))% ($COUNTER bytes) ($LINES lines in $TIMECOUNT seconds/100 )"
 }
 
 func_ulog_make_evalable ()

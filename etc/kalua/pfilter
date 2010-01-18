@@ -477,48 +477,53 @@ _pfilter_stats_layer7_hits ()
 	# _math divide10 "$(( $STEP1 / $STEP2 ))"
 }
 
-_pfilter_stats_user_cast () {					# if ARG2 = spread, then data goes out to $GW and $NEXTHOP
+_pfilter_stats_user_cast ()
+{
+	local KEYWORD="$1"			# ARG1: 'spread' = data goes out to $GW and $NEXTHOP
 	local LIST="$( _pfilter user_list )"
+	local URL MSG DATE TIME TRAFF_RECENT TRAFF_TODAY TRAFF_ALL MEDIA NAME NODE REG OUTPUT MAC GW NEXTHOP
 
 	eval "$( tail -n 1 /tmp/ARCHIV_TRACEINET )"
 
-	if [ -n "$LIST" ]; then
-		for MAC in $LIST; do
+	for MAC in $LIST; do {
 
-			local DATE="$(         date +%d%b%Y-%Huhr%M                )"
-			local TIME="$(         _system date unixtime                            )"
+		DATE="$( _system date humanreadable )"
+		TIME="$( _system date unixtime	    )"
 			
-			local TRAFF_RECENT="$( _pfilter stats_user_traffic $MAC recent )"
-			[ $TRAFF_RECENT -ne 0 ] && {
-				_pfilter user_traffic_reset_single $MAC recent
-			}
-			local TRAFF_TODAY="$(  _pfilter stats_user_traffic $MAC today  )"
-			local TRAFF_ALL="$(    _pfilter stats_user_traffic $MAC all    )"
+		TRAFF_RECENT="$( _pfilter stats_user_traffic $MAC recent )"
+
+		[ $TRAFF_RECENT -ne 0 ] && {
+			_pfilter user_traffic_reset_single $MAC recent
+		}
+
+		TRAFF_TODAY="$(  _pfilter stats_user_traffic $MAC today  )"
+		TRAFF_ALL="$(    _pfilter stats_user_traffic $MAC all    )"
 			
-			local MEDIA="$(        _net mac2media         $MAC )"
-			local NAME="$(         _net mac2hostname           $MAC )"
-			local NODE="local"
-			local REG=0
+		MEDIA="$( _net mac2media    $MAC )"
+		NAME="$(  _net mac2hostname $MAC )"
+		NODE="local"
+		REG=0
 	
-			OUTPUT="NODE=$NODE TIME=$TIME DATE=$DATE MAC=$MAC NAME=$NAME REG=$REG MEDIA=$MEDIA TRAFF_RECENT=$TRAFF_RECENT TRAFF_TODAY=$TRAFF_TODAY TRAFF_ALL=$TRAFF_ALL"
+		OUTPUT="NODE=$NODE TIME=$TIME DATE=$DATE MAC=$MAC NAME=$NAME REG=$REG MEDIA=$MEDIA TRAFF_RECENT=$TRAFF_RECENT TRAFF_TODAY=$TRAFF_TODAY TRAFF_ALL=$TRAFF_ALL"
 
-			if [ "$1" = "spread" ] && [ $TRAFF_RECENT -gt 0 ]; then
-				echo $OUTPUT
-				echo $OUTPUT >>/tmp/ARCHIV_TRAFFIC
-				
-				local URL="http://$GW/cgi-bin-traffic_fff+?"
-				local MSG="MAC=$MAC&NAME=$NAME&REG=$REG&MEDIA=$MEDIA&TRAFF_RECENT=$TRAFF_RECENT&TRAFF_TODAY=$TRAFF_TODAY&TRAFF_ALL=$TRAFF_ALL"			
+		MAC="$( _sanitizer do "$MAC" mac lowercase urlvalue )"
 
-				_wget do "${URL}${MSG}" 5 >/dev/null
+		[ "$KEYWORD" = "spread" -a $TRAFF_RECENT -gt 0 ] && {
+
+			echo $OUTPUT				# fixme! better _log()?
+			echo $OUTPUT >>/tmp/ARCHIV_TRAFFIC
+
+			URL="http://$GW/cgi-bin-traffic_fff+?"
+			MSG="MAC=${MAC}&NAME=${NAME}&REG=${REG}&MEDIA=${MEDIA}&TRAFF_RECENT=${TRAFF_RECENT}&TRAFF_TODAY=${TRAFF_TODAY}&TRAFF_ALL=${TRAFF_ALL}"
+
+			_wget do "${URL}${MSG}" 5 >/dev/null
 			
-				if [ "$GW" != "$NEXTHOP" ]; then
-					local URL="http://$NEXTHOP/cgi-bin-traffic_fff+?"				
-				
-					_wget do "${URL}${MSG}" 5 >/dev/null
-				fi
-			fi
-		done
-	fi
+			[ "$GW" != "$NEXTHOP" ] && {
+				URL="http://$NEXTHOP/cgi-bin-traffic_fff+?"				
+				_wget do "${URL}${MSG}" 5 >/dev/null
+			}
+		}
+	} done
 }
 
 _pfilter_user_probe ()

@@ -1,0 +1,36 @@
+_stopwatch_start ()
+{
+	local FUNC="stopwatch_start"
+	local KEYWORD="${1:-unset}"
+	local FILE="/tmp/STOPWATCH_${KEYWORD}_$$"
+	local UP1 UP2 NOP
+
+	IFS=". "; read UP1 UP2 NOP </proc/uptime; unset IFS
+
+	echo "${UP1}${UP2}" >$FILE
+}
+
+_stopwatch_stop ()		# OUT1: centyseconds = seconds/100
+{
+	local FUNC="stopwatch_stop"
+	local KEYWORD="${1:-unset}"
+	local FILE="/tmp/STOPWATCH_${KEYWORD}_$$"
+	local UP1 UP2 NOP DIFF
+	local START END OUT
+
+	[ ! -e "$FILE" ] && {
+		_log $FUNC daemon info "timefile '$FILE' not found - abort"
+		return 1
+	}
+	
+	IFS=". "; read UP1 UP2 NOP </proc/uptime; unset IFS
+
+	read START <$FILE
+	rm $FILE
+	END="${UP1}${UP2}"
+	
+	OUT="$(( $END - $START ))"
+
+	_log do $FUNC daemon info "task '$KEYWORD' lasts $(( $OUT / 100 )).$(( $OUT % 100 )) seconds"
+	echo $OUT
+}
