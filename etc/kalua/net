@@ -285,23 +285,36 @@ _net_inet_seems_stable ()			# fixme! also check path to gateway (add wireless co
 	return 0
 }
 
-_net_mac2ip ()		# SENS: get IP from different sources		# ARP-cache   (macs are lowercase)
-{									# DHCP-leases (macs are lowercase)
-	local MAC="$( _sanitizer do "$1" lowercase )"			# /etc/ethers (macs are lowercase)
-	local IP							# not used: /proc/net/arp (macs are uppercase)
+_net_mac2ip ()		# SENS: get IP from different sources
+{
+	local MAC="$( _sanitizer do "$1" lowercase )"
+	local IP HOSTNAME COUNT
 
-	IP="$( ip neigh show | sed -n "s/^\(.*\) dev .* lladdr ${MAC} nud.*/\1/p" )"
-
-	[ -z "$IP" ] && {
-		IP="$( sed -e "/$MAC/!d" -ne 's/^.* ..:..:..:..:..:.. \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' /var/run/dhcp.leases )"
-
-		[ -z "$IP" ] && {
-			local HOSTNAME="$( sed -n "s/^$MAC \(.*\)/\1/p" /etc/ethers )"
-			[ -n "$HOSTNAME" ] && {
-				IP="$( sed -n "/$HOSTNAME/s/^\([0-9\.]*\) ${HOSTNAME}.*/\1/p" /etc/local.hosts )"
-			}
-		}
+	_try1 ()	# is filled during pfilter_adduser() (macs are lowercase)
+	{
+		read 2>/dev/null IP </tmp/MAC2IP_$MAC
 	}
+
+	_try2 ()	# arp-cache (macs are lowercase)
+	{
+		IP="$( ip neigh show | sed -n "s/^\(.*\) dev .* lladdr ${MAC} nud.*/\1/p" )"
+	}
+
+	_try3 ()	# DHCP-leases (macs are lowercase)
+	{
+		IP="$( sed -e "/$MAC/!d" -ne 's/^.* ..:..:..:..:..:.. \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' /var/run/dhcp.leases )"
+	}
+
+	_try4 ()	# /etc/ethers -> /etc/local.hosts (macs are lowercase)
+	{
+		HOSTNAME="$( sed -n "s/^$MAC \(.*\)/\1/p" /etc/ethers 2>/dev/null )"
+		[ -n "$HOSTNAME" ] && IP="$( sed -n "/$HOSTNAME/s/^\([0-9\.]*\) ${HOSTNAME}.*/\1/p" /etc/local.hosts )"
+	}
+
+	for COUNT in 1 2 3 4; do {
+		_try${COUNT}
+		[ -n "$IP" ] && break
+	} done
 
 	echo -n $IP
 }
