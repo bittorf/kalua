@@ -180,6 +180,26 @@ func_ulog_logsaving ()
 
 		FILESIZE="$( _file size "$FILE" )"
 
+		[ "$FILESIZE" -gt 80000 ] && {			# shrinks to 25% -> 20kb-snippets
+			_filetype compressed "$FILE" || {
+
+				_log do $FUNC daemon debug "compressing '$FILE' ($FILESIZE bytes)"
+
+				APPEND=".up$( _system uptime ).gz.ulog"
+
+				gzip $FILE			# automatically renames compressed "file" to "file.gz", defaults to compression level 6
+				mv $FILE.gz ${FILE}${APPEND}
+				rm ${FILE}.copyhash 2>/dev/null
+				FILE="${FILE}${APPEND}"
+
+				FILESIZE_OLD="$FILESIZE"
+				FILESIZE="$( _file size "$FILE" )"
+
+				_log do $FUNC daemon info "compressed ($FILESIZE_OLD -> $FILESIZE bytes -> $(( $FILESIZE * 100 / $FILESIZE_OLD ))% on file '$FILE')"
+			}
+		}
+
+
 		local HASH_NOW="$( _file hash "$FILE" )"
 		local HASH_OLD="$( cat "${FILE}.copyhash" 2>/dev/null )"
 
@@ -190,12 +210,12 @@ func_ulog_logsaving ()
 
 			if $COPYCOMMAND "$FILE" "$DESTINATION" ; then
 				
-				if echo "$FILE" | grep -q "$TODAY" ; then
-					_log do $FUNC daemon debug "copying '$FILE' ($FILESIZE bytes) was successful (is from today)"
+				if echo "$FILE" | grep -q "$TODAY" && ! _filetype compressed "$FILE" ; then
+					_log do $FUNC daemon debug "copying '$FILE' ($FILESIZE bytes) was successful (is from today and uncompressed)"
 					echo -n "$HASH_NOW" >"${FILE}.copyhash"
 				else
 					_log do $FUNC daemon info "copying '$FILE' ($FILESIZE bytes) was successful - removing"
-					rm "$FILE" "${FILE}.copyhash"
+					rm "$FILE" "${FILE}.copyhash" 2>/dev/null
 				fi
 			
 				[ -e /tmp/ERROR_VDS ] && rm /tmp/ERROR_VDS
@@ -208,7 +228,7 @@ func_ulog_logsaving ()
 				echo "$FILE" | grep -q "$TODAY" || {		# not from today
 				
 					_log do $FUNC daemon info "removing old '$FILE' ($FILESIZE bytes)"
-					rm "$FILE" "${FILE}.copyhash"
+					rm "$FILE" "${FILE}.copyhash" 2>/dev/null
 				}
 			}
 		fi
