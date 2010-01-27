@@ -1229,12 +1229,6 @@ _wifi_scan_parse_wl ()			# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3
 				
 				_wifi scan_summary insert $BSSID "${SUMMARY}"
 
-				[ "$INFRA" = "1" ] && {						# sometimes we get an wrong BSSID even for an AP like: 00:1a:2a:73:14:05 (real) -> 9e:dd:8b:b3:b1:38 (random!)
-					_net mac2vendor $BSSID 2>/dev/null >/dev/null || {
-						cat $FILE >>/tmp/STRANGE_SCAN_$BSSID_$$
-					}
-				}
-
 				BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=;SUMMARY=
 			;;
 		esac
@@ -1247,7 +1241,7 @@ _wifi_scan_summary ()
 	local KEYWORD="$1"		# remove | insert | show | get = <empty>
 	local OBJ1="$2"			# when 'insert' -> bssid to insert
 	local OBJ2="$3"			# when 'insert' -> data to insert
-	
+
 	local FILE_BSSID LOOP OUT
 	local DIR="/tmp/WIFI_SCAN_TODAY"
 	
@@ -1263,6 +1257,10 @@ _wifi_scan_summary ()
 		*)
 			for FILE_BSSID in $( ls -1 $DIR ); do {
 				OUT="$( sort -n $DIR/$FILE_BSSID | head -n1 )"		# only show strongest received beacon
+
+				[ "$( echo $OUT | cut -d':' -f2 )" = "1" ] && {		# infra=1? / sometimes we get an wrong BSSID even for an AP like: 00:1a:2a:73:14:05 (real) -> 9e:dd:8b:b3:b1:38 (random!)
+					_net mac2vendor $FILE_BSSID 2>/dev/null >/dev/null || OUT=
+				}
 
 				[ -n "$OUT" ] && {
 					if [ "$KEYWORD" = "show" ]; then
