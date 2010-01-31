@@ -15,6 +15,7 @@
 ### sending "i'am alive"-messages to vpn-server in random
 ### intervals (approx. once a day) or/and simply log it
 
+FUNC="monitoring"
 ARG1="$1"
 ARG2="$2"
 
@@ -22,11 +23,11 @@ test   -e "/tmp/LOWMEM"			&& ARG1=fast
 test   -n "$FAILSAFE" 			&& ARG1=fast
 test ! -e "/www/SOFTWARE_FULLY_INSTALLED"	&& ARG1=fast
 
-[ "$ARG1" = "fast" ] && _log do "fastmode" daemon debug "no mesh-rdf-data-collection"
+[ "$ARG1" = "fast" ] && _log do $FUNC daemon debug "fastmode - no data_collection"
 
 if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node must be configured
 
-	_log do mesh_rdf daemon debug "start"
+	_log do $FUNC daemon debug "start"
 
 	_sanitizer include
 	_math include
@@ -51,11 +52,11 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	TIME="$( _system date unixtime )"
 	
 # takes long!
-	_log do mesh_rdf_build_neighs daemon debug "start"
+	_log do $FUNC daemon debug "build_neighs start"
 	NEIGH="$( _sanitizer do "$( neigh meshrdf )" urlvalue )"		# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
 
 # takes long!
-	_log do mesh_rdf_build_users daemon debug "start"
+	_log do $FUNC daemon debug "build_users start"
 	USERS="$( _sanitizer do "$( _pfilter stats_user_traffic_list_today )" urlvalue )"	# -001122334455:500~112233445566:9888
 	
 	FORWARDED="$( _math bytes2unit "$( _pfilter stats_traffic_forwarded_internet )" mb )"
@@ -133,7 +134,11 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 	PUBIP="$( _wget do http://$( nvram get fff_server_vpn_dns )/show_remote_address.php 10 | sed 's/[^0-9\.]//g' )"		# 217.212.17.148
 
+	read 2>/dev/null PUBIP_OLD </tmp/MY_PUBLIC_IP
 	echo >/tmp/MY_PUBLIC_IP "$PUBIP"
+	[ "$PUBIP" != "$PUBIP_OLD" ] && {
+		_log do $FUNC daemon info "public IP changed: '$PUBIP_OLD' -> '$PUBIP'"
+	}
 	
 	# _needs gwcheck
 	#
@@ -264,7 +269,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		ARG2="no_antenna_test"
 	}
 
-	_log do mesh_rdf daemon debug "ready"
+	_log do $FUNC daemon debug "ready"
 	
 	KEEP_ALIVE_URL="$( nvram get fff_url_network )/meshrdf/"
 
@@ -277,13 +282,13 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 	
 		[ -z "$ARG2" ] && sleep "$( _math random_integer 0 60 )"
 
-		_log do mesh_rdf_send_alive daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
+		_log do $FUNC daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
 
 		_ntp set
 
 		[ -e /www/backup_archiv_node_data ] && {			# see _system reboot_safe()
 		
-			_log do mesh_rdf_send_alive daemon info "found node-data backup, including"
+			_log do $FUNC daemon info "found node-data backup, including"
 			
 			mv "/tmp/ARCHIV_MONITORING" "/tmp/ARCHIV_MONITORING.temp"	# copy backup-file
 			mv /www/backup_archiv_node_data "/tmp/ARCHIV_MONITORING"	# on top of
@@ -307,25 +312,25 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
  				echo "$QUERY" | grep -q ^"lo" && {		# dont send trash/comments; "lo" means local='...' or log='...'
  
  					echo "$QUERY" | grep -q ^"log=" && {
- 						_log do mesh_rdf_send_alive daemon debug "send log-message"
+ 						_log do $FUNC daemon debug "send log-message"
  						QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC"
  					}
  
  					QUERY="$( echo "$QUERY" | sed 's/:/%3a/g' )"	# fixme! only temporary
  		
- 					_log do mesh_rdf_send_alive daemon debug "query has $(( ${#QUERY} + ${#KEEP_ALIVE_URL} + 1 )) bytes"
+ 					_log do $FUNC daemon debug "query has $(( ${#QUERY} + ${#KEEP_ALIVE_URL} + 1 )) bytes"
  			
  					OUT="$( _wget do "${KEEP_ALIVE_URL}?${QUERY}" 10 )"
- 					_log do mesh_rdf_send_alive daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
+ 					_log do $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
  					
  					[ "$OUT" != "OK" ] && {
- 						_log do mesh_rdf_send_alive daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
+ 						_log do $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
  						touch /tmp/SEND_ALIVE_FAILED
  						break				# fixme! set comment ("marker") after last sent line
  					}
  				}
  			else
- 				_log do mesh_rdf_send_alive daemon debug "send alive normally ended"
+ 				_log do $FUNC daemon debug "send alive normally ended"
  				echo >>"/tmp/ARCHIV_MONITORING" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
  				break
  			fi
@@ -345,7 +350,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( nvram get fff_node_number )" ]; then	# node
 		# wget -qO /dev/null "http://intercity-vpn.de/testdata.bin"	// 5mb
 
 		[ "$ARG2" != "no_antenna_test" ] && {
-			_log do enforce_antenna_test daemon info "starting up"		# fixme! maybe there is a better place for	
+			_log do $FUNC daemon info "enforce_antenna_test start"		# fixme! maybe there is a better place for	
 			/usr/sbin/cron.select_best_antenna_fff+ force			# regular but random execution of this script
 		}
 	fi
