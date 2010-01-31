@@ -229,7 +229,9 @@ _pfilter_stats_user_traffic_list_today ()
 
 _pfilter_rules_nat_wifi_roaming ()
 {
-	_log do "pfilter_rules_nat_wifi_roaming" daemon info "installing masquerading"
+	local FUNC="pfilter_rules_nat_wifi_roaming"
+	
+	_log do $FUNC daemon info "masquerading outgoing wifi '$WIFIDEV'"
 
 	eval "$( _ipsystem do | grep ^ROAMING_ )"
 
@@ -536,7 +538,7 @@ _pfilter_user_probe ()
 
 _pfilter_user_list ()					# SENS: list all MACs from logged in / shaped users
 {
-	_ipt -t mangle -nL traff_users 2>/dev/null |
+	iptables -t mangle -nL traff_users 2>/dev/null |
 	 sed -n 's/^traff_\([0-8abcdef][0-8abcdef]:..:..:..:..:..\) .*MAC .*$/\1/p'	# must not begin with '99' (=reserved user)
 }
 
@@ -746,10 +748,13 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	local MAC="$1"
 	local  IP="$2"
 	local ARP="$3"		# fixme! sens of $3 ?
+	local KEYWORD="$4"
+	
 	local MYHNA="$( _config get net olsr hna4 )"
 
-	[ "$4" != "reserve" ] && {
+	[ "$KEYWORD" != "reserve" ] && {
 		_log do $FUNC daemon debug "instant call - trying to activate reserved user chain"
+
 		_pfilter user_ruleset_activate $MAC $IP && {
 			_log do $FUNC daemon debug "successfully activated reserved user chain"
 			return 0
@@ -792,9 +797,9 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	}
 	
 	_ipt -t mangle -A traff_$MAC -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j shaper	# counter0 (intranet/mesh-intern)
-	_ipt -t mangle -A traff_$MAC							# counter1 (traffic interval-count)
-	_ipt -t mangle -A traff_$MAC							# counter2 (traffic_today)
-	_ipt -t mangle -A traff_$MAC							# counter3 (traffic_all)
+	_ipt -t mangle -A traff_$MAC								# counter1 (traffic interval-count)
+	_ipt -t mangle -A traff_$MAC								# counter2 (traffic_today)
+	_ipt -t mangle -A traff_$MAC								# counter3 (traffic_all)
 	
 	_ipt -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20 -m limit --limit 6/min --limit-burst 10 -j LOG --log-prefix "ADBLOCK:"
 	_ipt -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20        -j MARK --set-mark $( _pfilter proto2id REJECT )    # adblock (special dest)
@@ -843,14 +848,18 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	_log do $FUNC daemon info "filling user chain - end"
 }
 
-_pfilter_rules_install () {	# connbytes auswerten: http ab 200k = langsame klasse/download?
-	_pfilter_kmodules_init			# connection-aufbau /pro user /pro zeiteinheit limitieren
+_pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsame klasse/download?
+{
+	local FUNC="pfilter_rules_install"
+
+	_pfilter kmodules_init			# connection-aufbau /pro user /pro zeiteinheit limitieren
 						# connections /pro user limitieren
 						# icmp /ping pro user /pro zeiteinheitlimitieren
 						# unabhaengig von einteilung bestimmte packet trotzdem in prio veraendern (ACK...)
+
 	local MYHNA="$( _config get net olsr hna4 )"
 						
-	_log do pfilter daemon info "(_pfilter rules_install) Installing"
+	_log do $FUNC daemon info "start"
 
 	_ipt -t mangle -N marking
 	_ipt -t mangle -N marking_unmarkable
@@ -863,7 +872,9 @@ _pfilter_rules_install () {	# connbytes auswerten: http ab 200k = langsame klass
 	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF -j REJECT  # --reject-with tcp-reset (does not work?)
 	_ipt -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE                                -j ACCEPT
 	_ipt -A FORWARD -m state --state ESTABLISHED,RELATED             -j ACCEPT
-# maybe let already marked traffic go trough?
+
+	# maybe let already marked traffic go trough?
+
 	_ipt -A FORWARD -m ipp2p --ipp2p                                 -j LOG --log-prefix "ip_p2p: "
 	_ipt -A FORWARD -m ipp2p --ipp2p                                 -j DROP
 	_ipt -A FORWARD -m state --state NEW                             -j ACCEPT
@@ -890,7 +901,7 @@ _pfilter_rules_install () {	# connbytes auswerten: http ab 200k = langsame klass
 		PROTO="${ENTRY%,*}"
 	#	PORT="${ENTRY#*,}"
 		
-		_log do pfilter daemon info "(layer7-filter) Installing protocol $PROTO"
+		_log do $FUNC daemon info "loop_layer7: installing protocol '$PROTO'"
 		
 		_ipt -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id )
 	#	_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
@@ -912,6 +923,8 @@ _pfilter_rules_install () {	# connbytes auswerten: http ab 200k = langsame klass
 	_ipt -t mangle -A marking -m mark ! --mark 0			-j traff_all					# goto traff_all
 	_ipt -t mangle -A marking					-j MARK --set-mark $( _pfilter proto2id UNKN )	# mark unknown traffic
 	_ipt -t mangle -A marking					-j traff_all
+
+	_log do $FUNC daemon info "end"
 }
 
 _pfilter_kmodules_init ()	# fixme! alles durch __ipt () schleifen und erst bei bedarf laden
@@ -947,6 +960,8 @@ _pfilter_user_splash_add ()
 {
 	local FUNC="pfilter_user_splash_add"
 	local MYHNA="$( _config get net olsr hna4 )"
+
+	eval $( _ipsystem do | grep ^WIFI_IP= )
 
 	_log do $FUNC daemon info "shutting doors"
 
@@ -997,7 +1012,7 @@ _pfilter_rules_olsr_ignore_ignored_neighs ()		# ignoring neighs is really annoyi
 	
 	IFS=";"
 	for IP in $LIST_IGNORE; do {
-		_ipt -I INPUT -i $WIFIDEV -s $IP -p udp --sport 698 -j DROP
+		_ipt -D INPUT -i $WIFIDEV -s $IP -p udp --sport 698 -j DROP
 
 		nvram get ff_lqmult | grep -q "$IP:" || {
 		
@@ -1005,7 +1020,6 @@ _pfilter_rules_olsr_ignore_ignored_neighs ()		# ignoring neighs is really annoyi
 			[ -z "$( nvram get ff_lqmult )" ] && FILL=""
 			_nvram set ff_lqmult "$( nvram get ff_lqmult )${FILL}${IP}:0.1"		# appending to LQmult-list
 		}
-
 	} done
 	unset IFS
 }
@@ -1044,7 +1058,7 @@ _pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added unt
 	local N=0
 	local ESTIMATED="$(( 8 * $( _file lines /tmp/olsr_whitelist ) / 10 ))"	# counting lines and multipling 0.8 seconds for each line for time-message in syslog
 	
-	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_update) inserting new rules (needs up to $ESTIMATED seconds)"
+	_log do $FUNC daemon info "inserting new rules (needs up to $ESTIMATED seconds)"
 
 	while read LINE; do {							# each line is: "nodenumber,mac" - mac can be empty
 		
@@ -1067,18 +1081,22 @@ _pfilter_rules_olsr_whitelist_update ()				# fixme! new MACs are never added unt
 	_log do $FUNC daemon info "installed $N rules"
 }
 
-_pfilter_rules_olsr_whitelist_optimize () {
+_pfilter_rules_olsr_whitelist_optimize ()
+{
+	local FUNC="pfilter_rules_olsr_whitelist_optimize"
 	local  NO_NEIGH="/tmp/we_have_no_olsr_neighbour.txt"
 	touch $NO_NEIGH
 	
-	test ! -e "/tmp/olsr_whitelist" && return
+	[ ! -e "/tmp/olsr_whitelist" ] && return
 
-	_log do pfilter daemon info "(_pfilter rules_olsr_whitelist_optimize) working"
+	_log do $FUNC daemon info "start"
 
-	test -z "$( _ipt -nL olsr_in_whitelist 2>/dev/null | grep ACCEPT )" && _ipt -I olsr_in_whitelist -j ACCEPT	# temp. accept. of all packets
+	iptables -nL olsr_in_whitelist 2>/dev/null | grep -q ACCEPT || {
+		_ipt -I olsr_in_whitelist -j ACCEPT				# temp. accept. of all packets
+	}
 
 	_ipt -nxvL olsr_in_whitelist |
-	 sed -e '/^ *0/d' -e '/valid/!d' -e 's/\*/_/g' |							# filtering packetcount 0 and stars,
+	 sed -e '/^ *0/d' -e '/valid/!d' -e 's/\*/_/g' |			# filtering packetcount 0 and stars,
           sort |
            while read LINE; do                                                                                                      
 		set $LINE
@@ -1114,7 +1132,7 @@ _pfilter_rules_olsr_whitelist_optimize () {
 _pfilter_rules_olsr_whitelist_errorcheck ()
 {
 	local FUNC="pfilter_rules_olsr_whitelist_errorcheck"
-	local LINES_IN_WL_CHAIN="$( _ipt -nxvL olsr_in_whitelist | fgrep all | wc -l )"		# the grep removes chain-headers
+	local LINES_IN_WL_CHAIN="$( iptables -nxvL olsr_in_whitelist | fgrep all | wc -l )"		# the grep removes chain-headers
 	local LINES_IN_WL_FILE="$( _file lines "/tmp/olsr_whitelist" )"
 	local OUT="false"
 
@@ -1314,7 +1332,7 @@ _pfilter_rules_nat_install ()		# fixme! also masq traffic from local lan to inte
 		*)	
 			# should'nt break anything: sometimes WANDEV is not up yet when packetfilter starts up
 			
-			local WANDEV="$( nvram get wan_device )"			
+			WANDEV="$( nvram get wan_ifname )"
 			[ -n "$WANDEV" ] && _ipt -t nat -A POSTROUTING -o ${WANDEV} -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 			_ipt -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
