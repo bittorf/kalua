@@ -17,22 +17,25 @@ _stopwatch_stop ()		# OUT1: centyseconds = seconds/100
 	local KEYWORD="$2"
 	local FILE="/tmp/STOPWATCH_${CONTEXT}_$$"
 	local UP1 UP2 NOP DIFF
-	local START END OUT
+	local START END OUT INTEGER REST
 
 	[ ! -e "$FILE" ] && {
-		_log $FUNC daemon info "timefile '$FILE' not found - abort"
+		_log do $FUNC daemon info "timefile '$FILE' not found - abort"
 		return 1
 	}
 	
 	IFS=". "; read UP1 UP2 NOP </proc/uptime; unset IFS
-
+	
 	read START <$FILE
 	rm $FILE
 	END="${UP1}${UP2}"
 	
 	OUT="$(( $END - $START ))"
+	REST="$(( $OUT % 100 ))"
+	[ $REST -lt 10 ] && REST="0$REST"
+	INTEGER="$(( $OUT / 100 ))"
 
-	_log do $FUNC daemon info "task '$CONTEXT' lasts $(( $OUT / 100 )).$(( $OUT % 100 )) seconds"
+	_log do $FUNC daemon info "task '$CONTEXT' lasts $INTEGER.$REST seconds"
 
 	[ "$KEYWORD" != "quiet" ] && echo $OUT
 }
