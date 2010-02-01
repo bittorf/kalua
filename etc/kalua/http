@@ -32,15 +32,11 @@ _http_query_string_sanitize ()				# fixme! detect IFS-change
 	     -e "s/=/='/" \
 	     -e "s/$/' >\/dev\/null 2>\/dev\/null; /"
 
-	[ "$REMOTE_ADDR" = "127.0.0.1" ] && {		# xrelayd.c:445 Connected ssl client 10.63.3.24 to plain server localhost:80
-		REMOTE_ADDR="$( tail -n15 /var/log/messages |
-				 grep "to plain server" |
-				  tail -n1 |
-				   sed -n 's/^.* ssl client \(.*\) to .*/\1/p' )"	# local xrelays-connection
-		
-		[ -z "$REMOTE_ADDR" ] && REMOTE_ADDR="$WIFIADR"		# fixme! detect real localloop-connections?
-		echo "REMOTE_ADDR='$REMOTE_ADDR';"
-		echo "SERVER_PORT='443';"
+	[ "$REMOTE_ADDR" = "127.0.0.1" ] && {				# syslog: "xrelayd.c:445 Connected ssl client 10.63.3.24 to plain server localhost:80"
+	
+		REMOTE_ADDR="$( tail -n200 /var/log/messages | fgrep "to plain server" | tail -n1 | sed -n 's/^.* ssl client \(.*\) to .*/\1/p' )"
+		echo "REMOTE_ADDR='${REMOTE_ADDR:=$WIFIADR}';"
+		echo "SERVER_PORT='443';"				# fixme! detect real localloop-connections?
 	}
 }
 
@@ -65,7 +61,7 @@ _http_redirect ()
 					if _net ip4_is_private $REMOTE_ADDR ; then
 						DESTINATION="$( ip route get $REMOTE_ADDR | sed -n 's/^.*src \([0-9\.]*\).*/\1/p;q' )"
 					else
-						DESTINATION="$( cat 2>/dev/null /tmp/MY_PUBLIC_IP )"
+						read DESTINATION 2>/dev/null </tmp/MY_PUBLIC_IP
 					fi
 				;;
 				ip_wifi)
@@ -81,10 +77,11 @@ _http_redirect ()
 			
 			[ "$SERVER_PORT" = "443" ] && PROTO="https"
 			
-			DESTINATION="${PROTO}://$DESTINATION/cgi-bin-welcome?REDIRECTED=1"
+			DESTINATION="${PROTO}://${DESTINATION:=$WIFIADR}/cgi-bin-welcome?REDIRECTED=1"
 		;;
 		landing_page)
-			DESTINATION="$( cat /www/images/landing_page.txt 2>/dev/null || echo 'http://google.de' )"
+			read DESTINATION 2>/dev/null </www/images/landing_page.txt
+			DESTINATION="${DESTINATION:=http://google.de}"
 		;;
 	esac
 
