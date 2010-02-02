@@ -445,8 +445,8 @@ _wifi_phy_txpower ()		# output in [mW]
 	echo "${POWER:-0}"	# no wifi-dev
 }
 
-_wifi_phy_txpower_set ()
-{				# e.g.: _wifi phy_txpower_set "$WIFIDEV" 10 mW add overturn
+_wifi_phy_txpower_set ()	# e.g.: _wifi phy_txpower_set "$WIFIDEV" 10 mW add overturn
+{
 	local FUNC="wifi_set_txpower"
 	local WIFI_DEV="$1"
 	local TXPWR="$2"
@@ -454,14 +454,16 @@ _wifi_phy_txpower_set ()
 	local MODE="$4"		# keyword, can be 'add', 'subtract', 'empty = absolute'
 	local KEYWORD="$5"	# keyword: 'overturn' (if value is over max, then flip to min)
 				#          'limit' (if value is over max or under min, than do nothing)
-	local VALUE
-	local VALUE_DBM
-	local VALUE_OLD
-	local VALUE_OLD_MW
+	
+	local VALUE VALUE_DBM VALUE_OLD VALUE_OLD_MW MIN
 	local PRIO="debug"
-	local MAX="$( _wifi phy_txpower_limit $WIFI_DEV )"	# driverlimit
-	local MIN="10"						# this is a not science-based, but IMHO a senseful value
+	local MAX="$( _wifi phy_txpower_limit $WIFI_DEV )"	# txpower driverlimit in [mW]
 	local FILE_TREND="/tmp/WIFI_TREND_TXPOWER_${WIFI_DEV}"
+
+	case "$( _wifi mode $WIFI_DEV )" in
+		adhoc) MIN=10 ;;			# this is a not science-based, but IMHO a senseful value
+		    *) MIN=28 ;;			# this is minimal target txpower in [mW]
+	esac
 
 	case $MODE in
 	    	     add) VALUE="$(( $( _wifi phy_txpower $WIFI_DEV mw ) + $TXPWR ))" ;;
