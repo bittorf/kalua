@@ -1,7 +1,7 @@
 # tc qdisc add dev eth0 root handle 1: cbq avpkt 1000 bandwidth [HN]
 # tc qdisc show
 
-_ipt ()		# for better logging and safer installing - have seen strange errors during iptables-storm
+_ipt ()		# for better logging and safer installing - have seen strange errors during iptables-insert-storms
 {
 	local LOCKFILE="/tmp/iptables_lock"
 
@@ -13,8 +13,32 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 	local FUNC="iptables"
 	local ARGS="$1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18} ${19} ${20}"
 	local ERRORFILE="/tmp/iptables_$$"
-	local LINE
+	local LINE CLEANUP MATCH JUMP
 	local CLEANUP
+
+	# idea: *--l7proto*) detect this?
+
+	case "$ARGS" in
+		*-m*)
+			MATCH="$( echo "$ARGS" | sed -n 's/^.* -m \([a-z]*\) .*/\1/p' )"
+
+			[ ! -e /tmp/iptables_match_$MATCH ] && {
+				_log do $FUNC daemon debug "detected match '$MATCH' for first time"
+				touch /tmp/iptables_match_$MATCH
+			}
+		;;
+	esac
+	
+	case "$ARGS" in
+		*-j*)	
+			JUMP="$( echo "$ARGS" | sed -n 's/^.* -j \([A-Z]*\).*/\1/p' )"
+			
+			[ ! -e /tmp/iptables_jump_$JUMP ] && {
+				_log do $FUNC daemon debug "detected jump '$JUMP' for first time"
+				touch /tmp/iptables_jump_$JUMP
+			}
+		;;
+	esac
 	
 	iptables $ARGS 2>$ERRORFILE || {
 		_log do $FUNC daemon debug "something went wrong: '$ARGS' - retry"
