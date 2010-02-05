@@ -13,30 +13,57 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 	local FUNC="iptables"
 	local ARGS="$1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18} ${19} ${20}"
 	local ERRORFILE="/tmp/iptables_$$"
-	local LINE CLEANUP MATCH JUMP
-	local CLEANUP
+	local LINE CLEANUP MATCH JUMP FILE DIRTY
 
 	# idea: *--l7proto*) detect this?
+
+# /lib/modules/2.4.30/ipt_DSCP.o
+# /lib/modules/2.4.30/ipt_ECN.o
+# /lib/modules/2.4.30/ipt_MIRROR.o
+# /lib/modules/2.4.30/ipt_TARPIT.o
+# /lib/modules/2.4.30/ipt_TOS.o
+# /lib/modules/2.4.30/ipt_TTL.o
+# /lib/modules/2.4.30/ipt_ah.o
+# /lib/modules/2.4.30/ipt_dscp.o
+# /lib/modules/2.4.30/ipt_ecn.o
+# /lib/modules/2.4.30/ipt_esp.o
+# /lib/modules/2.4.30/ipt_helper.o		# match conntrack-tracked conns by string
+# /lib/modules/2.4.30/ipt_owner.o
+# /lib/modules/2.4.30/ipt_physdev.o
+# /lib/modules/2.4.30/ipt_pkttype.o
+# /lib/modules/2.4.30/ipt_recent.o
+# /lib/modules/2.4.30/ipt_string.o
+# /lib/modules/2.4.30/ipt_tcpmss.o
+# /lib/modules/2.4.30/ipt_tos.o
+# /lib/modules/2.4.30/ipt_unclean.o
+
+# /usr/lib/iptables/libipt_*
 
 	case "$ARGS" in
 		*\ -m\ *)
 			MATCH="$( echo "$ARGS" | sed -n 's/^.* -m \([a-z0-9]*\) .*/\1/p' )"
 
 			[ -n "$MATCH" -a ! -e /tmp/iptables_match_$MATCH ] && {
-				_log do $FUNC daemon debug "detected match '$MATCH' for first time ('$ARGS')"
+
+				FILE="/usr/lib/iptables/libipt_${MATCH}.so"
+
+				_log do $FUNC daemon debug "detected match '$MATCH' for first time"
 				touch /tmp/iptables_match_$MATCH
 			
 				case "$MATCH" in
-					state)
-						:	# builtin
-					;;
 					conntrack|connbytes|connlimit|connmark|udplimit|length|layer7|ipp2p|ttl)
 						_system insmod ipt_$MATCH
 					;;
-					limit|mac|mark|multiport)
-						:	# are automatically loaded, must be extra installed
+					state|limit|mac|mark|multiport)
+						:
 					;;
 				esac
+				
+				if [ -e "$FILE" ]; then
+					_log do $FUNC daemon debug "match '$MATCH' exists and is automatically loaded (or builtin)"
+				else
+					_log do $FUNC daemon debug "match '$MATCH' does not exist ('$FILE')"
+				fi
 			}
 		;;
 	esac
@@ -46,20 +73,29 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 			JUMP="$( echo "$ARGS" | sed -n 's/^.* -j \([A-Z]*\).*/\1/p' )"
 			
 			[ -n "$JUMP" -a ! -e /tmp/iptables_jump_$JUMP ] && {
-				_log do $FUNC daemon debug "detected jump '$JUMP' for first time ('$ARGS')"
-				touch /tmp/iptables_jump_$JUMP
+	
+				FILE="/usr/lib/iptables/libipt_${JUMP}.so"
+	
+				_log do $FUNC daemon debug "detected jump '$JUMP' for first time"
+				touch /tmp/iptables_jump_${JUMP}
 	
 				case "$JUMP" in
-					ACCEPT|DROP|LOG|MASQUERADE|RETURN)
-						:
-					;;
-					CONNMARK|CLASSIFY|ULOG)
+					CONNMARK|CLASSIFY|ULOG|REDIRECT)
 						_system insmod ipt_$JUMP
 					;;
-					MARK|REDIRECT|REJECT)
+					ACCEPT|DROP|LOG|MASQUERADE|RETURN)
+						BUILTIN=1
+					;;
+					REJECT|MARK)
 						:
 					;;
 				esac
+				
+				if [ -e "$FILE" -o "$BUILTIN" = "1" ]; then
+					_log do $FUNC daemon debug "jump '$JUMP' exists and is automatically loaded (or builtin)"
+				else
+					_log do $FUNC daemon debug "jump '$JUMP' does not exist ('$FILE')"
+				fi
 			}
 		;;
 	esac
