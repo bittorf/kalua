@@ -19,23 +19,47 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 	# idea: *--l7proto*) detect this?
 
 	case "$ARGS" in
-		*-m*)
-			MATCH="$( echo "$ARGS" | sed -n 's/^.* -m \([a-z]*\) .*/\1/p' )"
+		*\ -m\ *)
+			MATCH="$( echo "$ARGS" | sed -n 's/^.* -m \([a-z0-9]*\) .*/\1/p' )"
 
-			[ ! -e /tmp/iptables_match_$MATCH ] && {
-				_log do $FUNC daemon debug "detected match '$MATCH' for first time"
+			[ -n "$MATCH" -a ! -e /tmp/iptables_match_$MATCH ] && {
+				_log do $FUNC daemon debug "detected match '$MATCH' for first time ('$ARGS')"
 				touch /tmp/iptables_match_$MATCH
+			
+				case "$MATCH" in
+					state)
+						:	# builtin
+					;;
+					conntrack|connbytes|connlimit|connmark|udplimit|length|layer7|ipp2p|ttl)
+						_system insmod ipt_$MATCH
+					;;
+					limit|mac|mark|multiport)
+						:	# are automatically loaded, must be extra installed
+					;;
+				esac
 			}
 		;;
 	esac
 	
 	case "$ARGS" in
-		*-j*)	
+		*\ -j\ *)	
 			JUMP="$( echo "$ARGS" | sed -n 's/^.* -j \([A-Z]*\).*/\1/p' )"
 			
-			[ ! -e /tmp/iptables_jump_$JUMP ] && {
-				_log do $FUNC daemon debug "detected jump '$JUMP' for first time"
+			[ -n "$JUMP" -a ! -e /tmp/iptables_jump_$JUMP ] && {
+				_log do $FUNC daemon debug "detected jump '$JUMP' for first time ('$ARGS')"
 				touch /tmp/iptables_jump_$JUMP
+	
+				case "$JUMP" in
+					ACCEPT|DROP|LOG|MASQUERADE|RETURN)
+						:
+					;;
+					CONNMARK|CLASSIFY|ULOG)
+						_system insmod ipt_$JUMP
+					;;
+					MARK|REDIRECT|REJECT)
+						:
+					;;
+				esac
 			}
 		;;
 	esac
@@ -951,13 +975,13 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 	_log do $FUNC daemon info "end"
 }
 
-_pfilter_kmodules_init ()	# fixme! alles durch __ipt () schleifen und erst bei bedarf laden
+_pfilter_kmodules_init ()	# fixme! alles durch _ipt () schleifen und erst bei bedarf laden
 {
 	local MODULE
-	local LIST_MATCH="conntrack connbytes connlimit connmark udplimit length layer7 ipp2p ttl"
+#	local LIST_MATCH="conntrack connbytes connlimit connmark udplimit length layer7 ipp2p ttl"
 	local LIST_CONNTRACK="ftp irc sip h323 amanda proto_gre pptp rtsp tftp"
-	local LIST_JUMP="CONNMARK CLASSIFY ULOG"
-	local LIST_SCHEDULER="cbq"			# tc-scheduler: [C]lass [B]ased [Q]ueueing | http://man-wiki.net/index.php/8:tc-cbq
+#	local LIST_JUMP="CONNMARK CLASSIFY ULOG"
+#	local LIST_SCHEDULER="cbq"			# tc-scheduler: [C]lass [B]ased [Q]ueueing | http://man-wiki.net/index.php/8:tc-cbq
 
 	_list_add_prefix ()
 	{
@@ -970,10 +994,10 @@ _pfilter_kmodules_init ()	# fixme! alles durch __ipt () schleifen und erst bei b
 		} done
 	}
 
-	LIST_MATCH="$(		_list_add_prefix ipt_		"$LIST_MATCH"		)"
+#	LIST_MATCH="$(		_list_add_prefix ipt_		"$LIST_MATCH"		)"
 	LIST_CONNTRACK="$(	_list_add_prefix ip_conntrack_	"$LIST_CONNTRACK" 	)"	
-	LIST_JUMP="$(		_list_add_prefix ipt_		"$LIST_JUMP"		)"
-	LIST_SCHEDULER="$(	_list_add_prefix sch_		"$LIST_SCHEDULER"	)"
+#	LIST_JUMP="$(		_list_add_prefix ipt_		"$LIST_JUMP"		)"
+#	LIST_SCHEDULER="$(	_list_add_prefix sch_		"$LIST_SCHEDULER"	)"
 	
 	for MODULE in ${LIST_MATCH} ${LIST_CONNTRACK} ${LIST_JUMP} ${LIST_SCHEDULER}; do {
 		_system insmod $MODULE
