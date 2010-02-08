@@ -18,14 +18,19 @@
 
 	if [ "$REQUEST_METHOD" = "POST" ]; then
 
-		if [ -n "$FORM_RULES" ]; then				# rules accepted	// fixme! more abstraction (client signal/rssi)
+		if [ -n "$FORM_RULES" ]; then				# rules accepted
 			MAC="$( _net ip2mac $REMOTE_ADDR )"
 			DEV="$( _net mac2dev $MAC )"
-			[ "$DEV" = "$WIFIDEV" ] && SIGNAL="$( /usr/sbin/wl -i $WIFIDEV rssi $MAC 2>/dev/null | cut -d' ' -f3 )"		# fixme! sometimes 0?
+			
+			[ "$DEV" = "$WIFIDEV" ] && {
+				SIGNAL=0; while [ "$SIGNAL" = "0" ]; do {
+					SIGNAL="$( /usr/sbin/wl -i $WIFIDEV rssi $MAC 2>/dev/null | cut -d' ' -f3 )"	# fixme! user _wifi()-abstraction
+				} done
+			}
 
 			_log do weblogin_try daemon info "ip: '$REMOTE_ADDR' mac: '$MAC' dev: '$DEV' user: '$FORM_USER' pass: '$FORM_PASS' signal: '$SIGNAL' lang: '$FORM_LANG'"
 
-			# fixme! empty mac of REMOTE_ADDR -> redirect to real = nonlocal gateway ( _ipsystem do $REMOTE_ADDR | grep ^WIFI_ADDR )
+				# fixme! empty mac of REMOTE_ADDR -> redirect to real = nonlocal gateway ( _ipsystem do $REMOTE_ADDR | grep ^WIFI_ADDR )
 
 			if _weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" ; then
 				
