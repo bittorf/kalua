@@ -4,9 +4,17 @@ _file_size ()	# if we have a busybox without 'stat'-command compiled
 	local FILE="$1"
 	local UNIT="$2"
 
+	_fsize ()
+	{
+		ls -la "$1" 2>/dev/null | sed -n 's/^[^0-9]*[0-9]*[a-zA-Z ]*\([0-9]*\).*/\1/p' || {
+			_log do file_size daemon crit "file '$FILE' does't exist"
+			return 1
+		}
+	}
+
 	[ -n "$UNIT" ] && {	# needs forking
 	
-		OUT="$( ls -la "$FILE" 2>/dev/null | sed -n 's/^.* \([0-9]*\) .* [0-9]* .*[0-9]*.*[0-9]*.*[0-9]*.*/\1/p' )"
+		OUT="$( _fsize "$FILE" )"
 		
 		case $UNIT in
 			kb)
@@ -20,15 +28,12 @@ _file_size ()	# if we have a busybox without 'stat'-command compiled
 		return
 	}
 
-	ls -la "$FILE" 2>/dev/null | sed -n 's/^.* \([0-9]*\) .* [0-9]* .*[0-9]*.*[0-9]*.*[0-9]*.*/\1/p' || {
-		_log do file_size daemon crit "file '$FILE' does't exist"
-		return 1
-	}
+	_fsize "$FILE" || return 1
 }
 
 _file_lines ()
 {
-	sed -n '$=' "$1" 2>/dev/null || echo "0"	# same like 'cat nonexistingFILE | wc -l'
+	sed -n '$=' "$1" 2>/dev/null || echo "0"	# same like 'cat nonexistingFILE | wc -l' but nonforking
 }
 
 _file_hash ()
@@ -43,7 +48,7 @@ _file_diskusage ()
 	local DIR="$1"
 	local I=0		# byte-counter
 
-	eval "$( ls -lR $DIR | sed -n '/^[d-]/s/^.* \([0-9]*\) .* [0-9]* .*[0-9]*.*[0-9]*.*[0-9]*.*/I=$(( $I + \1 ));/p' )"
+	eval "$( ls -lR "$DIR" | sed -n '/^-/s/^[^0-9]*[0-9]*[a-zA-Z ]*\([0-9]*\).*/I=$(( $I + \1 ));/p' )"
 	
 	echo $I
 }
