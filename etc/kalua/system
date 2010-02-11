@@ -62,17 +62,24 @@ _system_reboot_safe ()			# fixme! maybe shutting down services like vpn, olsrd?
 
 _system_load ()			# load without comma, e.g.
 {				# 1.00 = 100 or 12.89 = 1289
+	local CPULOAD DECIMALS NOP
+
 	case $1 in
 		1min)
-			sed -ne 's/^\([0-9]*\)\.\([0-9]*\) .*$/\1\2/' -e 's/^[0]*//p' /proc/loadavg
+			IFS='. '; read CPULOAD DECIMALS NOP </proc/loadavg; unset IFS
+		;;
+		5min)
+			IFS='. '; read CPULOAD DECIMALS CPULOAD DECIMALS NOP </proc/loadavg; unset IFS
 		;;
 		15min)
-			sed 's/^[0-9]*\.[0-9]* [0-9]*\.[0-9]* \([0-9]*\)\.\([0-9]*\).*/\1\2/' /proc/loadavg
+			IFS='. '; read CPULOAD DECIMALS CPULOAD DECIMALS CPULOAD DECIMALS NOP </proc/loadavg; unset IFS
 		;;
 		*)
-			echo 0
+			CPULOAD=0
 		;;
 	esac
+	
+	echo "${CPULOAD}${DECIMALS}"
 }
 
 _system_flash_free ()	# [kByte]		# fixme! abtraction to PARTITION="$1", fallback to internal flash

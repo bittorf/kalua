@@ -360,3 +360,29 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 		fi
 	fi
 }
+
+_watch_topusage_task ()
+{
+	local FUNC="watch_topusage_task"
+	local TEMPFILE="/tmp/top_$$"
+	local PID CPU CPU_INT TASK
+	local MAX_ALLOWED_PERCENT=70
+
+	top >$TEMPFILE &
+	sleep 1
+
+	while pidof -s top >/dev/null; do {
+		PID="$( pidof -s top )"
+		kill $PID
+		kill -9 $PID
+	} done
+
+	eval "$( sed -n 's/^[ ]*\([0-9]\{1,5\}\).*\([0-9]\{1,2\}\)\.\([0-9]\).*[0-9]\{1,2\}\.[0-9].* \(.*\)/PID=\1;CPU=\2.\3;CPU_INT=\2;TASK="\4"/p' $TEMPFILE | head -n1 )"
+	rm $TEMPFILE
+
+	[ "$CPU_INT" -gt $MAX_ALLOWED_PERCENT ] && {
+		_log do $FUNC daemon alert "detected task '$TASK' with cpu-usage > ${MAX_ALLOWED_PERCENT}% - trying to kill pid '$PID'"
+		_watch hanging_command $TASK	# must be called 2 times
+		_watch hanging_command $TASK
+	}
+}
