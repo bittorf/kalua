@@ -1,0 +1,85 @@
+#!/bin/sh
+. /tmp/loader
+
+_system include
+_net include
+_http include
+
+eval "$( _http query_string_sanitize )"
+
+GUI=1
+_tool htmlout_head
+
+MAC="$( _net ip2mac $REMOTE_ADDR )"
+MAC="${MAC:=001122334455}"
+
+[ "$REQUEST_METHOD" = "POST" -a -n "$FORM_SHOUTBOX_TEXT" ] && {
+
+	TIME="$( _system date unixtime )"
+
+	echo "$TIME $MAC $FORM_SHOUTBOX_TEXT" >>/tmp/SHOUTBOX
+	echo "${FORM_SHOUTBOX_USER:=anonym}"   >/tmp/shoutboxmac2user_$MAC
+}
+
+	cat <<EOF
+<form action="" method="POST">
+Deine Nachricht:
+<input type="text" name="FORM_SHOUTBOX_TEXT">
+&nbsp;&nbsp;Dein Name:
+<input type="text" name="FORM_SHOUTBOX_USER" $( read 2>/dev/null USERNAME </tmp/shoutboxmac2user_$MAC; [ -n "$USERNAME" ] && echo -n "value='$USERNAME'" ) ">
+<input type="submit" value="Senden">&nbsp;&nbsp;<a href='http://${WIFIADR}${SCRIPTNAME}' title='diese Seite erneut laden'>aktualisieren</a></form>
+EOF
+
+_toggle ()
+{
+	local NOW="$1"
+	local A="$2"
+	local B="$3"
+	
+	if [ "$NOW" = "$B" ]; then
+		echo -n "$A"
+	else
+		echo -n "$B"
+	fi
+}
+
+_humandiff ()
+{
+	local UNIXTIME_NOW="$1"
+	local UNIXTIME_PAST="$2"
+	local DIFF="$(( $UNIXTIME_NOW - $UNIXTIME_PAST ))"
+	local OUT
+	
+	if   [ $DIFF -gt 86400 ]; then
+
+		OUT="vor $(( $DIFF / 86400 )).$(( $DIFF % 86400 )) Tagen"
+
+	elif [ $DIFF -gt 3600 ]; then
+
+		OUT="vor $(( $DIFF / 3600 )).$(( $DIFF % 3600 )) Stunden"
+
+	elif [ $DIFF -gt 300 ]; then
+
+		OUT="vor $(( $DIFF / 60 )) Minuten"
+	else
+		OUT="vor $DIFF Sekunden"
+	fi
+
+	echo -n "$OUT"
+}
+
+[ -e /tmp/SHOUTBOX ] && {
+
+	echo "<table cellspacing='0' cellpadding='1' border='1'>"
+
+	while read SENDTIME MAC MESSAGE; do {
+		BGCOLOR="$( _toggle "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
+		HUMANTIME="$( _humandiff $( _system date unixtime ) $SENDTIME )"
+		read USERNAME </tmp/shoutboxmac2user_$MAC
+		echo "<tr bgcolor='$BGCOLOR'><td> $HUMANTIME </td><td> $USERNAME </td><td> $MESSAGE </td></tr>"
+	} done </tmp/SHOUTBOX | sed '1!G;h;$!d'
+
+	echo "</table>"
+}
+
+_tool htmlout_foot
