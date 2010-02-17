@@ -23,7 +23,7 @@ _scheduler_queue_list ()
 	local FUNC="scheduler_list_queue"
 
 	_log do $FUNC daemon debug "working"
-	
+
 	echo "# actual,running queue:"
 	cat $FILE_SCHEDULER_COPY 2>/dev/null || echo -en "# empty!\n\n"
 	
@@ -135,7 +135,7 @@ _scheduler_add ()
 
 		cat ${FILE_SCHEDULER_TMP}1000* 2>/dev/null | head -n1 | grep -q ^"$COMMAND" && {
 		
-			_log do $FUNC daemon debug "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring '$1'"
+			_log do $FUNC daemon debug "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring"
 			return
 		}
 		
@@ -143,7 +143,7 @@ _scheduler_add ()
 	else
 		grep -q ^"$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY 2>/dev/null && {
 	
-			_log do $FUNC daemon debug "PID:'$$' - '$TASK' - already in queue, ignoring '$1'"
+			_log do $FUNC daemon debug "PID:'$$' - '$TASK' - already in queue, ignoring"
 			return
 		}
 		
@@ -194,14 +194,22 @@ _scheduler_run ()
 	_scheduler vars
 	
 	local FUNC="scheduler_run"
-	local FILE
-	local LINE
+	local FILE LINE
 	local LOCKFILE="/tmp/lockfile_scheduler_is_running"
 
 	[ -e $LOCKFILE -o "$( _system uptime min )" -lt 5 ] && {
 		_log do $FUNC daemon debug "already running or low uptime - ignoring call"
 		return 1
 	}
+
+	_cleanup ()
+	{
+		rm $LOCKFILE
+		_log do $FUNC daemon info "cleanup called during '$LINE'"
+		exit 1
+	}
+
+	trap "_cleanup" SIGINT				# SIGINT = CTRL+C, SIGHUP/SIGTERM?
 	touch $LOCKFILE
 							# this builds the running queue from temp_queue
 	for FILE in ${FILE_SCHEDULER_TMP}*; do {
@@ -214,9 +222,11 @@ _scheduler_run ()
 	cp $FILE_SCHEDULER $FILE_SCHEDULER_COPY		# for checking of DUPs in running queue -> scheduler_add()
 	
 	while read LINE; do {
-		_scheduler_wait_till_cpuload_is_low "$LINE"
+		_scheduler wait_till_cpuload_is_low "$LINE"
 		_log do $FUNC daemon debug "running '$LINE'"
+		echo "$LINE" >$LOCKFILE
 		/bin/sh -c "$LINE"
+		_log do $FUNC daemon debug "ready '$LINE'"
 	} done <$FILE_SCHEDULER
 	
 	rm $FILE_SCHEDULER $FILE_SCHEDULER_COPY $LOCKFILE
