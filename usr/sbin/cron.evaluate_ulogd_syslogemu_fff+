@@ -237,5 +237,40 @@ func_ulog_logsaving ()
 	} done
 }
 
+func_backup_userdata ()
+{
+	local FUNC="backup_userdata"
+	local DESTINATION="$( nvram get fff_vds_server )" 
+	local FILE HASH HASH_LASTSEND
+	local I=0
+	local FILELIST="/www/users_logged_in /www/cgi-bin/userdata.txt"
+	
+	for FILE in $FILELIST; do {
+
+		HASH=
+		HASH_LASTSEND=
+
+		[ -e "$FILE" ] && {
+			HASH="$( _file hash "$FILE" )"
+			read 2>/dev/null HASH_LASTSEND <"$FILE.hashlastsend"
+		}
+											# append some random or hash to filename
+		[ "$HASH" != "$HASH_LASTSEND" ] && {
+			I="$(( $I + 1 ))"
+
+			if scp -i .ssh/dropbear_dss_host_key "$FILE" "$DESTINATION" ; then
+				_log do $FUNC daemon info "copying '$FILE' ($( _file size "$FILE" ) bytes) was successful"
+				echo -n "$HASH" >"$FILE.hashlastsend"
+			else
+				_log do $FUNC daemon debug "copying '$FILE' ($( _file size "$FILE" ) bytes) was NOT successful"
+			fi
+		}
+
+	} done
+	
+	[ $I -eq 0 ] && _log do $FUNC daemon debug "no file has changed, no action"
+}
+
 func_ulog_prepare && func_ulog_squeeze_log
 func_ulog_logsaving
+func_backup_userdata
