@@ -173,6 +173,8 @@ _software_package_is_not_installed ()
 
 _software_install_or_deinstall_hook ()
 {
+	local PACKAGE="$1"
+
 	# reboot-command is lost/deleted/bad (ipkg login-utils)                                                    
 	[ ! -e /sbin/reboot ] && {                                                                                                                                      
 		_log do command_reboot_faulty daemon crit "symlinking to /rom/sbin/reboot"
@@ -327,7 +329,7 @@ _software_package_install ()
 	if ipkg -force-defaults install $PACKAGE ; then
 		_log do "$FUNC" daemon info "'$PACKAGE' install seems fine (free space: $( _system flash_free ) Kilobyte)"
 
-		case $PACKAGE in
+		case $PACKAGE in			# fixme! move these into hook()
 			loginutils)
 				[ "$( _software package_is_installed_lowlevel $PACKAGE )" = "1" ] && {
 					rm -f /sbin/halt
@@ -347,6 +349,11 @@ _software_package_install ()
 			dropbear)
 				[ "$( _software package_is_installed_lowlevel $PACKAGE )" = "1" ] && {
 					_ssh start
+					pidof dropbear >/dev/null && {
+						pidof telnetd >/dev/null && {
+							killall telnetd
+						}
+					}
 				}
 			;;
 			*fff-adblock-list*)
