@@ -25,7 +25,7 @@ _http_query_string_sanitize ()				# fixme! detect IFS-change
 	# here we do the same for our ENV-variables, so user can't overwrite/inject special vars
 	# hole output of this function can be used like:
 	#
-	# eval $(_http query_string_sanitize)
+	# eval "$( _http query_string_sanitize )"
 
 	/usr/bin/env |
 	 sed -e "s/'/'\\\''/g" \
@@ -33,6 +33,9 @@ _http_query_string_sanitize ()				# fixme! detect IFS-change
 	     -e "s/$/' >\/dev\/null 2>\/dev\/null; /"
 
 	[ "$REMOTE_ADDR" = "127.0.0.1" ] && {				# syslog: "xrelayd.c:445 Connected ssl client 10.63.3.24 to plain server localhost:80"
+
+		pidof xrelayd >/dev/null || return
+		[ ! -e /var/log/messages ] && return
 	
 		REMOTE_ADDR="$( tail -n200 /var/log/messages | fgrep "to plain server" | tail -n1 | sed -n 's/^.* ssl client \(.*\) to .*/\1/p' )"
 		echo "REMOTE_ADDR='${REMOTE_ADDR:=$WIFIADR}';"
