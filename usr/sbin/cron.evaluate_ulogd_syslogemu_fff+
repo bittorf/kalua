@@ -240,8 +240,8 @@ func_ulog_logsaving ()
 func_backup_userdata ()
 {
 	local FUNC="backup_userdata"
-	local DESTINATION="$( nvram get fff_vds_server )" 
-	local FILE HASH HASH_LASTSEND
+	local DESTINATION="$( nvram get fff_vds_server )"		# root@intercity-vpn.de:/var/www/networks/liszt28/vds/ 
+	local FILE HASH HASH_LASTSEND HASH_SSH_PRIV
 	local I=0
 	local FILELIST="/www/users_logged_in /www/cgi-bin/userdata.txt"
 
@@ -255,15 +255,28 @@ func_backup_userdata ()
 		HASH=
 		HASH_LASTSEND=
 
-		[ -e "$FILE" ] && {
+		if [ -e "$FILE" ]; then
 			HASH="$( _file hash "$FILE" )"
 			read 2>/dev/null HASH_LASTSEND <"$FILE.hashlastsend"
-		}
+		else
+			_log do $FUNC daemon info "restoring userdata '$FILE' from monitoring server"
+
+			HASH_SSH_PRIV="$( _file hash .ssh/dropbear_dss_host_key )"
+			wget -O "$FILE"	"$( nvram get fff_url_network )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"	# http://intercity-vpn.de/networks/liszt28
+
+			_log do $FUNC daemon info "restored '$FILE' with $( _file size "$FILE" ) bytes"
+
+			HASH="$( _file hash "$FILE" )"
+			echo -n "$HASH" >"$FILE.hashlastsend"
+			
+			continue
+		fi
 											# append hash of private ssh_key, for autofetching it
 		[ "$HASH" != "$HASH_LASTSEND" ] && {
 			I="$(( $I + 1 ))"
+			HASH_SSH_PRIV="$( _file hash .ssh/dropbear_dss_host_key )"
 
-			if scp -i .ssh/dropbear_dss_host_key "$FILE" "$DESTINATION" ; then
+			if scp -i .ssh/dropbear_dss_host_key "$FILE" "${DESTINATION}$( basename "$FILE" )_${HASH_SSH_PRIV}" ; then	# to make it secret
 				_log do $FUNC daemon info "copying '$FILE' ($( _file size "$FILE" ) bytes) was successful"
 				echo -n "$HASH" >"$FILE.hashlastsend"
 			else
