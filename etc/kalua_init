@@ -2,28 +2,22 @@
 
 # this outputs an inital small loader which can be sourced for each 'class', e.g. for class 'wifi':
 #
-# idee: kommentare etc. strippen beim zusammenbau
 # idee: methode 'unload' ?
 # idee: methode help?
 # idee: $FUNCNAME fuellen ODER alle Vorkommen von FUNCNAME durch realen zur "compile-zeit" ersetzen
 # idee: funktionsausrufe innerhalb der klasse optimieren, d.h. innerhalb von _wifi wird der aufruf "_wifi txpwr_get" durch _wifi_txpwr_get ersetzt
-# idee: passend zur klasse automatisch einen bestimmten variablensatz aktivieren (z.b. INTRANET bei pfilter)?
-# idee: statistik anzeigen lassen per befehl
+# idee: passend zur klasse automatisch einen bestimmten variablensatz aktivieren (z.b. $INTRANET bei pfilter)?
+# idee: statistik anzeigen lassen per befehl: sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/${CLASS} | wc -l | sed 's/ //g'
 # idee: anzahl der maximalen argumente die in einem aufruf vorkommen klassenspezifisch dynamisch bestimmen
 # idee: netparam ohne *MTU|BRC|OLSR|MSK|LO*
-#
 # todo: option zum entfernen aller logmeldungen? (bzw. nur log-debug)
 # todo: lade-log an/aus (loader/realclass)
-#
-# idee: kommentare etc. strippen beim zusammenbau
-# - kommentare entfernen
-# - fuehrende spaces oder tabs entfernen
-# - trailing spaces oder tabs entfernen
-# - leerzeilen entfernen
-# - aufpassen, das dies nicht innerhalb von cat <<EOF EOF passiert
+# idee: - trailing spaces oder tabs entfernen
+# idee: - aufpassen, das dies nicht innerhalb von cat <<EOF EOF passiert
 
 STARTTIME="$( date +%s )"
 DEBUG="$1"		# debug or empty
+STRIP="$2"		# strip or empty
 BASEDIR="/etc/kalua"	# scriptbase, simply throw your 'class'-files here e.g. wifi
 LOADER="/tmp/loader_$$"	# scripts can source this file and automatically use all 'classes'
 LOADER_FINAL="/tmp/loader"
@@ -38,7 +32,7 @@ echo >>"$LOADER" "_(){ ls -1 $POOLDIR|sort|sed 's/^/_/';}"
 for CLASS in $(find $BASEDIR -type f); do {
 	CLASS="$( basename $CLASS )"			# generate loader and add methods 'show'+'include'
 
-	[ -n "$DEBUG" ] && {
+	[ "$DEBUG" = "debug" ] && {
 		DEBUG1=" logger \"realclass:$CLASS name:\$1 args:'\$2' '\$3' '\$4' '\$5' '\$6'\" ;"
 		DEBUG2=" logger -- \"--- loader:$CLASS name:\$1 args:'\$2' '\$3' '\$4' '\$5' '\$6'\" ;"
 	}
@@ -49,6 +43,14 @@ _${CLASS}_show(){ sed -n '1,2ds/^\(.*\) ().*/\1/p' $POOLDIR/${CLASS} | sort ;}
 _${CLASS}_include(){ :;}
 EOF
 	cat >>"$POOLDIR/${CLASS}" $BASEDIR/$CLASS	# copy all functions to pool
+
+	[ "$STRIP" = "strip" ] && {
+		sed -i	-e 's/ [ 	]*#.*//g' \
+			-e '/^#/d' \
+			-e '/^	#/d' \
+			-e 's/^[ 	]*//' \
+			-e '/^$/d' 		"$POOLDIR/${CLASS}"	# strip inline comments, comments at line start, leading spaces/tabs, empty lines
+	}
 
 	echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/${CLASS};${DEBUG2}_${CLASS} \$1 \"\$2\" \"\$3\" \"\$4\" \"\$5\" \"\$6\";}\n"
 } done
@@ -70,6 +72,3 @@ mv "$LOADER" "$LOADER_FINAL"
 . "$LOADER_FINAL"			# fixme! rely on external functions _log + _file ?
 
 _log do "gen_loader" daemon info "generated '$LOADER_FINAL' (in $(( $( date +%s ) - $STARTTIME ))sec, using $( _file diskusage $POOLDIR ) bytes in $POOLDIR)"
-
-# COUNT="($( sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/${CLASS} | wc -l | sed 's/ //g') functions)"
-# logger -s "generated shortpre + method 'show' to '$POOLDIR/${CLASS}' ${COUNT}"
