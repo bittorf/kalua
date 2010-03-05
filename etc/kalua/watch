@@ -372,7 +372,7 @@ _watch_topusage_task ()
 {
 	local FUNC="watch_topusage_task"
 	local TEMPFILE="/tmp/top_$$"
-	local PID CPU CPU_INT TASK
+	local PID CPU CPU_INT TASK TOPTASK
 	local MAX_ALLOWED_PERCENT=70
 
 	top >$TEMPFILE &
@@ -384,8 +384,13 @@ _watch_topusage_task ()
 		kill -9 $PID
 	} done
 
-	eval "$( sed -n 's/^[ ]*\([0-9]\{1,5\}\).* \([0-9]\{1,2\}\)\.\([0-9]\).*[0-9]\{1,2\}\.[0-9].* \(.*\)/PID=\1;CPU=\2.\3;CPU_INT=\2;TASK="\4"/p' $TEMPFILE | head -n1 )"
-	_log do $FUNC daemon info "output: PID=$PID CPU=$CPU CPU_INT=$CPU_INT TASK=$TASK TEMPFILE=$TEMPFILE FILESIZE=$( _file size $TEMPFILE )bytes"
+	eval "$( sed -n 's/^[ ]*\([0-9]\{1,5\}\).* \([0-9]\{1,2\}\)\.\([0-9]\).*[0-9]\{1,2\}\.[0-9].* \(.*\)/PID=\1;CPU=\2.\3;CPU_INT=\2;TOPTASK="\4"/p' $TEMPFILE | head -n1 )"
+
+	read TASK 2>/dev/null </proc/$PID/cmdline	# taskname is limited by TERM? e.g. "cron.evaluate_u" seems to be max length
+	TASK="$( basename "$TASK" )"
+	[ -z "$TASK" ] && TASK="$TOPTASK"
+
+	_log do $FUNC daemon info "output: PID=$PID CPU=$CPU CPU_INT=$CPU_INT TASK=$TOPTASK -> $TASK TEMPFILE=$TEMPFILE FILESIZE=$( _file size $TEMPFILE )bytes"
 	rm $TEMPFILE
 	
 	[ "$CPU_INT" -gt $MAX_ALLOWED_PERCENT ] && {
