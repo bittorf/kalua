@@ -40,15 +40,16 @@ _net_mac2vendor ()
 	fi
 }
 
-_net_ip4_is_private ()
+_net_ip4_is_private ()		# RFC-1918 e.g. 192.168.0.0/16 ; 172.16.0.0/12 ; 169.254.0.0/16 ; 10.0.0.0/8 , 127.0.0.0/8
 {
-	local IP="$1"
-	
-	echo $IP | grep -q ^"192\.168\." && return 0
-	echo $IP | grep -q ^"172\.16\." && return 0
-	echo $IP | grep -q ^"10\." && return 0
-	echo $IP | grep -q ^"169\.254\." && return 0
+	local IP="$1"		# fixme! 172.16.0.0/12 = 172.16. ... 172.31. - regex is not correct
 
+	[ "$( echo "$IP" | sed	-ne '/^192.168./{s/^192.*/private/p}' \
+				-ne '/^172\.[123][0-9]\..*/{s/^172.*/private/p}' \
+				-ne '/^169\.254\..*/{s/^169.*/private/p}' \
+				-ne '/^10\..*/{s/^10.*/private/p}' \
+				-ne '/^127\..*/{s/^127.*/private/p}' )" = "private" ] && return 0
+	
 	return 1
 }
 
