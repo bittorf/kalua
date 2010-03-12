@@ -14,6 +14,72 @@ _list_ticket_types ()
 	sed 's/^[^ ]* [0-9]* \(.*\) .* .*/\1/' "$FILE_TICKETS" | sort | uniq
 }
 
+_tickets_expired ()
+{
+	local TICKETLINE LOGIN_LINE_FIRST LOGIN_LINE_LAST
+	local UNIX_FIRST UNIX_LAST
+	local DATE_FIRST DATE_LAST
+	local MINS_TICKET MINS_USED COMMENT UNUSED
+	local HASH NO TYPE USER PASS MINS
+	local UNIX_NOW="$( _system date unixtime )"
+
+	
+	while read TICKETLINE; do {		# b41fa59ad8a2582ad43efe24393ff49d 1 nolimit liszt weimar
+
+		COMMENT=
+
+		set ${TICKETLINE:-unset}
+		HASH="$1"
+		NO="$2"
+		TYPE="$3"
+	 	USER="$4"
+	 	PASS="$5"
+
+		case "$TYPE" in
+			nolimit) continue ;;
+			    24h) MINS_TICKET=1440 ;;
+			  1week) MINS_TICKET=10080 ;;
+		esac
+		
+		LOGIN_LINE_FIRST="$( fgrep "$HASH" "$FILE_LOGINS" | head -n1 )"
+		LOGIN_LINE_LAST="$(  fgrep "$HASH" "$FILE_LOGINS" | tail -n1 )"
+
+		UNUSED=
+		MINS_USED=
+		MINS_FREE=
+
+
+		if [ -z "$LOGIN_LINE_FIRST" ]; then
+			COMMENT="never_logged_in"		# do not delete!
+			UNUSED=1
+		else
+			eval "DATE_FIRST=$( echo $LOGIN_LINE_FIRST | cut -d'-' -f1 )"
+			eval "DATE_LAST=$(  echo $LOGIN_LINE_LAST  | cut -d'-' -f1 )"
+
+			UNIX_FIRST="$( _system date 2unixtime "$DATE_FIRST" )"
+			UNIX_LAST="$(  _system date 2unixtime "$DATE_LAST"  )"
+
+			MINS_USED="$(( ($UNIX_LAST - $UNIX_FIRST) / 60 ))"
+			MINS_FREE="$(( $MINS_TICKET - $MINS_USED ))"
+		fi
+
+		if   [ "$MINS_TICKET" = "$MINS_FREE" ]; then
+			COMMENT="$COMMENT never_used"
+		elif [ "$UNUSED" = "1" ]; then
+			:
+		else
+			if   [ "$MINS_FREE" -lt 0 ]; then
+				COMMENT="$COMMENT remove: <0mins free"
+			elif [ "$(( $UNIX_NOW - $UNIX_FIRST ))" -gt $MINS_TICKET ]; then
+				COMMENT="$COMMENT remove: oldold"
+			fi
+		fi
+		
+		echo "user: $USER  diff: $MINS_USED  valid: $TYPE  yet_free: $MINS_FREE comment: $COMMENT"
+	
+	} done <$FILE_TICKETS
+}
+
 _tickets_left ()
 {
 	local FUNC="tickets_left"
@@ -28,7 +94,7 @@ _tickets_left ()
 	
 	for TICKETART in $( _list_ticket_types ); do {
 
-		LATEST_LOGIN_LINE="$( fgrep " $TICKETART " "$FILE_LOGINS" | tail -n1 )"		# found last/latest occurence
+		LATEST_LOGIN_LINE="$( fgrep " $TICKETART " "$FILE_LOGINS" | tail -n1 )"		# found last/latest occurence in LOGINS
 		LINE="$( _extract_essentials "$LATEST_LOGIN_LINE" )"				# -> '60min warschau 79459'
 		set ${LINE:=unset}								# -> $1/$2/$3
 
@@ -47,4 +113,8 @@ _tickets_left ()
 	} done
 }
 
-_tickets_left
+if [ -z "$1" ]; then
+	_tickets_left
+else
+	_tickets_expired
+fi
