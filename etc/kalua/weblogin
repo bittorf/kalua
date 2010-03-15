@@ -161,15 +161,22 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	local MAC="$3"			#        3. we calc same hash and compare
 	local SIGNAL="$4"
 	local KEYWORD="$5"		# 'plaintext'
+	local FREE
+	local AUTHFILE="/www/cgi-bin/userdata.txt"
 
-	[ -n "$KEYWORD" ] && KEYWORD="${USER}+${PASS}"		# fixme! use local file, if available
+	[ -n "$KEYWORD" ] && KEYWORD="${USER}+${PASS}"
 
 	local CRC="$( echo -n "${USER}${PASS}" | md5sum | cut -d' ' -f1 )"
 	local GATEWAY="$( sed -n '${s/^.* GW=\([0-9\.]*\);.*/\1/p}' /tmp/ARCHIV_TRACEINET 2>/dev/null )"	# fixme! abstraction
-
 	local ANSWER="$( wget -qO - "http://${GATEWAY:-127.0.0.1}/cgi-bin-sql?LOGIN=${CRC}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}" 2>/dev/null )"
+
+	if [ -e /tmp/FREE ]; then
+		FREE=1
+	else
+		grep -q ^"$CRC" "$AUTHFILE" && FREE=1	# use local auth file, if available - but also send logmsg to GW
+	fi
 	
-	[ "$ANSWER" = "1" -o -e /tmp/FREE ] && {
+	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
 		echo "$CRC" >/tmp/vds_user_$MAC		# for building vds
 		return 0
 	}
