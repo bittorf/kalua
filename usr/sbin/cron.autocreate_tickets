@@ -16,14 +16,24 @@ _list_ticket_types ()
 
 _tickets_expired ()
 {
+	local FUNC="tickets_expired"
 	local TICKETLINE LOGIN_LINE_FIRST LOGIN_LINE_LAST
 	local UNIX_FIRST UNIX_LAST
 	local DATE_FIRST DATE_LAST
 	local MINS_TICKET MINS_USED COMMENT UNUSED
-	local HASH NO TYPE USER PASS MINS
+	local HASH NO TYPE USER PASS MINS REMOVE
 	local UNIX_NOW="$( _system date unixtime )"
 
-	
+	local FILE_TICKETS_TEMP_READ="/tmp/tickets_temp_read_$$"
+	local FILE_TICKETS_TEMP_WRITE="/tmp/tickets_temp_write_$$"
+	local FILE_TICKETS_TEMP_WRITE_REMOVED="/tmp/tickets_temp_removed_$$"
+	local FILE_LOGINS_TEMP="/tmp/tickets_login_$$"
+
+	cp "$FILE_TICKETS" "$FILE_TICKETS_TEMP_READ"
+	cp "$FILE_LOGINS" "$FILE_LOGINS_TEMP"
+
+	_system include
+
 	while read TICKETLINE; do {		# b41fa59ad8a2582ad43efe24393ff49d 1 nolimit liszt weimar
 
 		COMMENT=
@@ -37,17 +47,20 @@ _tickets_expired ()
 
 		case "$TYPE" in
 			nolimit) continue ;;
-			    24h) MINS_TICKET=1440 ;;
+		       60min|1h) MINS_TICKET=60 ;;
+		      120min|2h) MINS_TICKET=120 ;;
+		       24h|1day) MINS_TICKET=1440 ;;
+		       48h|2day) MINS_TICKET=2880 ;;
 			  1week) MINS_TICKET=10080 ;;
 		esac
 		
-		LOGIN_LINE_FIRST="$( fgrep "$HASH" "$FILE_LOGINS" | head -n1 )"
-		LOGIN_LINE_LAST="$(  fgrep "$HASH" "$FILE_LOGINS" | tail -n1 )"
+		LOGIN_LINE_FIRST="$( fgrep "$HASH" "$FILE_LOGINS_TEMP" | head -n1 )"
+		LOGIN_LINE_LAST="$(  fgrep "$HASH" "$FILE_LOGINS_TEMP" | tail -n1 )"
 
 		UNUSED=
 		MINS_USED=
 		MINS_FREE=
-
+		REMOVE=
 
 		if [ -z "$LOGIN_LINE_FIRST" ]; then
 			COMMENT="never_logged_in"		# do not delete!
@@ -69,15 +82,37 @@ _tickets_expired ()
 			:
 		else
 			if   [ "$MINS_FREE" -lt 0 ]; then
-				COMMENT="$COMMENT remove: <0mins free"
+				REMOVE=1
+				COMMENT="$COMMENT remove: tickets_min <0mins free"
+				
 			elif [ "$(( $UNIX_NOW - $UNIX_FIRST ))" -gt $MINS_TICKET ]; then
-				COMMENT="$COMMENT remove: oldold"
+				REMOVE=1
+				COMMENT="$COMMENT remove: first usage till now > tickets_min"
 			fi
 		fi
 		
-		echo "user: $USER  diff: $MINS_USED  valid: $TYPE  yet_free: $MINS_FREE comment: $COMMENT"
+		case "$REMOVE" in
+			1)
+				echo >>"$FILE_TICKETS_TEMP_WRITE_REMOVED" "$TICKETLINE	# MINS_USED='$MINS_USED'; MINS_FREE='$MINS_FREE'; FIRST_USAGE='$DATE_FIRST'; COMMENT='$COMMENT'"
+				_log do $FUNC daemon info "remove: $( tail -n1 $FILE_TICKETS_TEMP_WRITE_REMOVED )"
+			;;
+			*)
+				echo >>"$FILE_TICKETS_TEMP_WRITE" "$TICKETLINE"
+				_log do $FUNC daemon debug "no action on: $TICKETLINE # MINS_USED='$MINS_USED'; MINS_FREE='$MINS_FREE'; FIRST_USAGE='$DATE_FIRST'; COMMENT='$COMMENT'"
+			;;
+		esac
 	
-	} done <$FILE_TICKETS
+	} done <"$FILE_TICKETS_TEMP_READ"
+
+	[ -e "$FILE_TICKETS_TEMP_WRITE_REMOVED" ] && {
+		_log do $FUNC daemon info "appending '$FILE_TICKETS_TEMP_WRITE_REMOVED' to /www/cgi-bin/userdata.txt_removed"
+		cat $FILE_TICKETS_TEMP_WRITE_REMOVED >>/www/cgi-bin/userdata.txt_removed
+		rm $FILE_TICKETS_TEMP_WRITE_REMOVED
+	}
+	
+	mv "$FILE_TICKETS_TEMP_WRITE" "$FILE_TICKETS"
+	rm "$FILE_TICKETS_TEMP_READ"
+	rm "$FILE_LOGINS_TEMP"
 }
 
 _tickets_left ()
