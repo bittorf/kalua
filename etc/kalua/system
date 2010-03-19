@@ -71,9 +71,12 @@ _system_reboot_safe ()			# fixme! maybe shutting down services like vpn, olsrd?
 
 _system_load ()			# load without comma, e.g.
 {				# 1.00 = 100 or 12.89 = 1289
+	local TIME="$1"
+	local FORMAT="$2"	# e.g. full or empty
+
 	local CPULOAD DECIMALS NOP OUT
 
-	case $1 in
+	case "$TIME" in
 		1min)
 			IFS='. '; read CPULOAD DECIMALS NOP </proc/loadavg; unset IFS
 		;;
@@ -88,9 +91,16 @@ _system_load ()			# load without comma, e.g.
 		;;
 	esac
 
-	OUT="${CPULOAD}${DECIMALS}"
-	OUT="${OUT#*0}"				# cut off leading zero's
-	OUT="${OUT#*0}"
+	case "$FORMAT" in
+		full)
+			OUT="${CPULOAD}.${DECIMALS}"
+		;;
+		*)
+			OUT="${CPULOAD}${DECIMALS}"
+			OUT="${OUT#*0}"				# cut off leading zero's
+			OUT="${OUT#*0}"
+		;;
+	esac
 	
 	echo "$OUT"
 }
@@ -116,7 +126,11 @@ _system_flash_size ()	# [kByte]
 
 _system_memory_free ()		# in bytes
 {
-	sed -n '/^Mem:/s/^Mem:[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p' /proc/meminfo
+	local K N MEM
+	
+	while read K N N MEM N N N; do test "$K" = "Mem:" && break; done </proc/meminfo
+	
+	echo $MEM	# better?: sed -n '/^Mem:/s/^Mem:[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p' /proc/meminfo
 }
 
 _system_get_storage_path ()
