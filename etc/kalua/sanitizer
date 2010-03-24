@@ -174,21 +174,19 @@ _sanitizer_encode_nonsafe_url_special ()	# SENS: converting chars using a fixed 
 
 _sanitizer_urlvalue ()			# todo: on cmdline this produces error on each "!"-sign, but output is ok
 {					# ARG1: string (all chars are allowed)
-	local FUNC="url_encode"		# OUT1: string (URL-encoded, RFC2396)
+	local FUNC="sanitizer_urlvalue"	# OUT1: string (URL-encoded, RFC2396)
 	local TEXT="$1"
-	local  OUT=""
-	local CHAR=""
-	local  HEX=""
+	local STRIP="$( _sanitizer strip_nonsafe_url "$TEXT" )"
 	local  POS=0
-	local STRIP="$( _sanitizer_strip_nonsafe_url "$TEXT" )"
+	local  OUT CHAR HEX
 
 	[ "$TEXT" = "$STRIP" ] && {		# no need for conversion, only safe chars
 		echo "$TEXT"
 		return
 	}
 	
-	[ "$STRIP" = "$( _sanitizer_strip_nonsafe_url_special "$TEXT" )" ] && {	# conversion of unsafe chars is possible with a fast table
-		_sanitizer_encode_nonsafe_url_special "$TEXT"
+	[ "$STRIP" = "$( _sanitizer strip_nonsafe_url_special "$TEXT" )" ] && {	# conversion of unsafe chars is possible with a fast table
+		_sanitizer encode_nonsafe_url_special "$TEXT"
 		return
 	}
 
@@ -201,9 +199,9 @@ _sanitizer_urlvalue ()			# todo: on cmdline this produces error on each "!"-sign
 		POS=$(( $POS + 1 ))
 		CHAR="$( echo "$TEXT" | cut -b $POS )"				# char at $POS
 			
-		[ -n "$( _sanitizer_strip_nonsafe_url "$CHAR" )" ] && {
-		  	OUT="${OUT}${CHAR}"
-		  	continue
+		[ -n "$( _sanitizer strip_nonsafe_url "$CHAR" )" ] && {
+		  	OUT="${OUT}${CHAR}"					# append
+		  	continue						# char is safe, continue and check next...
 		}
 		
 		HEX="$( echo "$CHAR" | hexdump -C | cut -d" " -f3 )"		# is unsafe char! do HEX
