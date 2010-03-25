@@ -50,15 +50,14 @@ Options: -a "TASK"   adds an TASK to queue, where TASK can be keyword
          -A "TASK"   immediately runs TASK, does not respect cpu-load
 	 -r          runs the queue, step by step
 	 -s "SEC"    sleeps for SEC seconds
-	 -w          sends an heartbeat to the cron-watchdog 
 	 -l          lists running and waitung queue
 	 -p	     purge all queues
 	 -o	     special: checks for incoming olsr-packets and
 		     restarts daemon with new conf if neccessary
 
-Example: $0 -s3 -w -a do_this -a do_that -r -a do_another_thing -r
+Example: $0 -s3 -a do_this -a do_that -r -a do_another_thing -r
 
-	 This invokes a sleep for 3 seconds, runs the watchdog-heartbeat,
+	 This invokes a sleep for 3 seconds,
 	 adds "do_this" to queue, then adds "do_that" to queue, then
 	 runs the queue, then adds an user-defined program call to
 	 queue, then runs the queue. Keywords must be defined in
@@ -174,11 +173,15 @@ _scheduler_check_if_every_Nth_minute ()
 
 _scheduler_wait_till_cpuload_is_low ()
 {
+	_system include
+
 	local WAITING_TASK="$1"
 	local FUNC="scheduler_wait_till_cpuload_is_low"
 	local CPU_LOAD="$( _system load 1min )"
 	local TARGET=60
 	local WAIT
+
+	echo >/dev/misc/crondog				# fixme! cron.minutely should do this
 	
 	while [ $CPU_LOAD -gt $TARGET ]; do {
 		WAIT=$(( 5 + ($CPU_LOAD - $TARGET) / 2 ))
@@ -186,6 +189,7 @@ _scheduler_wait_till_cpuload_is_low ()
 		TARGET=$(( $TARGET + 1 ))
 		sleep ${WAIT:-100}
 		CPU_LOAD="$( _system load 1min )"
+		echo >/dev/misc/crondog			# fixme! cron.minutely should do this
 	} done
 }
 
@@ -225,7 +229,6 @@ _scheduler_run ()
 		_scheduler wait_till_cpuload_is_low "$LINE"
 		_log do $FUNC daemon debug "running '$LINE'"
 		echo "$LINE" >$LOCKFILE
-		echo > /dev/misc/crondog	# fixme! cron.minutely should do this
 		/bin/sh -c "$LINE"
 		_log do $FUNC daemon debug "ready '$LINE'"
 	} done <$FILE_SCHEDULER
