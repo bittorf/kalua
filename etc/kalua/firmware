@@ -6,11 +6,13 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	local WORKINGDIR="/tmp/pmu"
 	local FILE="tarball.tgz"
 	local TGZ="/tmp/$FILE"
-	local SIZE COUNT TEMPFILE CRON_RESTART
+	local SIZE TEMPFILE CRON_RESTART
+	local COUNT=0
+	local COUNT_ERROR=0
 	
 	_cleanup ()
 	{
-		_log do "$FUNC" daemon debug "cleaning up - applied ${COUNT:=0} files"
+		_log do "$FUNC" daemon debug "cleaning up - applied $COUNT files ($COUNT_ERROR errors)"
 		cd /tmp
 		rm -fR "$WORKINGDIR"
 		rm -f  "$TGZ"
@@ -55,6 +57,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 		
 			mv "$TEMPFILE" "/$TEMPFILE" || {
 				_log do "$FUNC" daemon alert "error during moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
+				COUNT_ERROR=$(( $COUNT_ERROR + 1 ))
 			}
 			sync
 
@@ -67,7 +70,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 
 	[ "$CRON_RESTART" = "1" ] && /etc/init.d/S51crond_fff+ restart 
 	
-	if [ ${COUNT:=0} -gt 0 ]; then
+	if [ $COUNT -gt 0 ]; then
 		
 		echo >>/etc/banner "# manually updated with poormens method on $( date ) by '$0' to this version:"
 		echo >>/etc/banner "# originally flashed version: $( grep ^Kit: /etc/freifunk-release )"
