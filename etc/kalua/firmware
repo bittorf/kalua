@@ -6,7 +6,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	local WORKINGDIR="/tmp/pmu"
 	local FILE="tarball.tgz"
 	local TGZ="/tmp/$FILE"
-	local SIZE COUNT TEMPFILE
+	local SIZE COUNT TEMPFILE CRON_RESTART
 	
 	_cleanup ()
 	{
@@ -47,6 +47,11 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 
 			_log do "$FUNC" daemon info "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" kb ) ))"
+
+			[ "$( basename "$TEMPFILE" )" = "S51crond_fff+" ] && {
+				_log do "$FUNC" daemon info "detected changed cron settings"
+				CRON_RESTART=1
+			}
 		
 			mv "$TEMPFILE" "/$TEMPFILE" || {
 				_log do "$FUNC" daemon alert "error during moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
@@ -59,13 +64,17 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	
 	_cleanup
 	/etc/kalua_init
+
+	[ "$CRON_RESTART" = "1" ] && /etc/init.d/S51crond_fff+ restart 
 	
 	if [ ${COUNT:=0} -gt 0 ]; then
-		echo >>/etc/banner "# manually updated with poormens method on $(date) to this version"
+		
+		echo >>/etc/banner "# manually updated with poormens method on $( date ) by '$0' to this version:"
 		echo >>/etc/banner "# originally flashed version: $( grep ^Kit: /etc/freifunk-release )"
 		tail >>/etc/banner -n2 /etc/variables_fff+
 		echo >>/etc/banner "#"
 		echo >>/etc/banner
+		
 		_log do "$FUNC" daemon alert "[OK] applied tarball in '$MODE'-mode ($COUNT files), wrote new banner"
 	else
 		_log do "$FUNC" daemon info "[OK] applied nothing - all seems up to date"
