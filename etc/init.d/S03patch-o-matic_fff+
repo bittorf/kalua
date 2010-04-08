@@ -238,6 +238,16 @@ EOF
 			FILE="/usr/sbin/cron.minutely"
 			sed '/traceroute/s/eval/test -n "$( nvram get fff_notrace )" \&\& ok=2;test $ok = 0 \&\& eval/' $FILE >"$TEMP"
 		;;
+		cron_minutely_for_welcome_helper)
+			FILE="/usr/sbin/cron.minutely"
+			cat >"$TEMP" <<EOF
+#!/bin/sh
+read WIFIADR </tmp/WIFIADR
+PIDCOUNT="\$( pidof httpd | sed 's/[^ ]//g' )"
+echo -n "\$WIFIADR \${PIDCOUNT:-#}" >/tmp/WELCOME_HELPER
+EOF
+			cat "$FILE" >>"$TEMP"
+		;;
 		login_banner)
 			FILE="/etc/banner"
 			cp "$FILE" "$TEMP"
@@ -513,7 +523,7 @@ fi
 
 MAC_CHANGE="/www/mac_changed.txt"
 
-case $1 in
+case "$1" in
 	start)							# after reach reboot
 		# fkt_patch syslog_with_rebootfix_syslog	# fixme! /var/log/messages is first started at S10boot, use /www/everlasting_syslog.txt
 		fkt_build_settings_menu				# only needed for generating menu-entrys
@@ -541,6 +551,9 @@ case $1 in
 		#		;;
 		#	esac
 		# }
+	;;
+	patch)
+		fkt_patch "$2"
 	;;
 	virgin)							# after virgin boot (directly after flashing)
 		PATCHLIST="syslogd_start_for_more_space \
@@ -579,6 +592,7 @@ case $1 in
 			   rrd_txpwr_collect \
 			   rrd_txpwr_conf \
 			   rrd_txpwr_exec \
+			   cron_minutely_for_welcome_helper \
 			   html_preprocessor_with_pagepeel_and_nodenumber_in_title"
 	
 		for PATCH in $PATCHLIST; do {

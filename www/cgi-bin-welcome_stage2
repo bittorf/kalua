@@ -1,0 +1,156 @@
+#!/bin/sh
+. /tmp/loader
+
+[ -n "$( nvram get fff_weblogin )" ] && {
+
+	eval $( _http query_string_sanitize )
+
+	if [ "$REQUEST_METHOD" = "POST" ]; then
+
+		if [ -n "$FORM_RULES" ]; then				# rules accepted
+			MAC="$( _net ip2mac $REMOTE_ADDR )"
+			DEV="$( _net mac2dev $MAC )"
+			
+			if [ "$DEV" = "$WIFIDEV" ]; then
+				SIGNAL=0; while [ "$SIGNAL" = "0" ]; do {
+					SIGNAL="$( /usr/sbin/wl -i $WIFIDEV rssi $MAC 2>/dev/null | cut -d' ' -f3 )"	# fixme! use _wifi()-abstraction
+				} done
+			else
+				SIGNAL="lan"
+			fi
+
+			_log do weblogin_try daemon info "ip: '$REMOTE_ADDR' mac: '$MAC' dev: '$DEV' user: '$FORM_USER' pass: '$FORM_PASS' signal: '$SIGNAL' lang: '$FORM_LANG'"
+
+				# fixme! empty mac of REMOTE_ADDR -> redirect to real = nonlocal gateway ( _ipsystem do $REMOTE_ADDR | grep ^WIFI_ADDR )
+
+			if _weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" ; then
+				
+				if _pfilter user_splash_remove "$MAC" "$REMOTE_ADDR" ; then
+					_log do weblogin_success daemon alert "mac: '$MAC'"
+				else
+					_log do weblogin_no_success daemon alert "mac: '$MAC'"	
+				fi
+				
+				_http redirect 302 landing_page
+			else
+				_weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" "plaintext"	# for plain logging on gateway
+				_log do weblogin_failed daemon info "ip: '$REMOTE_ADDR'"
+				_weblogin htmlout_loginpage "${FORM_LANG:=default}" "$SHOW_RULES" "true"
+			fi
+		else						# fixme! send error(s!) to show (user,pass,rules,inetconnection...)
+			_log do weblogin_norules daemon info "ip: '$REMOTE_ADDR' lang: '$LANG' formlang: '$FORM_LANG'"
+			_weblogin htmlout_loginpage "${FORM_LANG:=default}" "$SHOW_RULES" "false" "true"
+		fi
+	else
+		if [ "$REDIRECTED" = "1" ]; then
+			
+			if _net inet_seems_stable; then
+				_log do weblogin_splash daemon info "ip: '$REMOTE_ADDR' lang: '${FORM_LANG}'"
+				_weblogin htmlout_loginpage "${FORM_LANG:=default}" "$SHOW_RULES"
+			else
+				_log do weblogin_inet_unstable daemon alert "inet_broken - lang: '$FORM_LANG' cost_int: '$COST_INT' default_route: '$( ip route list exact 0/0 table main )'"	# fixme! send_sms?
+				_weblogin htmlout_loginpage "${FORM_LANG:=default}" "inet_broken"
+			fi
+		else
+			_log do weblogin_redirect daemon info "ip: '$REMOTE_ADDR' query: '$QUERY_STRING'"
+			_http redirect 302 ip_incoming_interface
+		fi
+	fi
+
+	exit
+}
+
+_welcome usercase_decide				# examine if user is already logged in or not
+_welcome mode_decide					# assigns mode by examining remote-IP-address
+
+_welcome wiki_vars	# fixme!
+
+case $MODE in
+	REDIRECT_LAN|REDIRECT_WIFI)
+
+		_weblogin htmlout_gatepage
+		exit
+	
+		if [ "$MODE" = "REDIRECT_LAN" ]; then		# fixme! ip -o route get 10.63.167.70 | sed -n 's/^.*src \([0-9\.]*\).*/\1/p;q'
+			_http redirect 302 ip_lan
+		else
+			_http redirect 302 ip_wifi
+		fi
+	;;
+	SERVICE)
+		_welcome htmlout_header
+		_welcome htmlout_message_maintenance
+		_welcome htmlout_footer
+	;;
+	WIFI|LAN)									# fixme! akzeptiere nutzungsbedingungen fehlt noch
+		_welcome htmlout_header
+		
+		MAC="$( _net ip2mac $REMOTE_ADDR )"
+		IP=$REMOTE_ADDR								# fixme! really needed?
+		
+		[ -z "$( _pfilter user_list_local_registered | grep -i $MAC )" ] && {
+			_welcome htmlout_link_usermanagement
+		}
+		
+		if [ "$MODE" = "WIFI" ]; then
+			_welcome htmlout_message_wifi
+		else
+			_welcome htmlout_message_lan
+		fi
+		
+		_welcome htmlout_wikipage "$WIKI_ARTICLE_1" "$WIKI_ARTICLE_1_HEADLINE"
+		_welcome htmlout_news "$LATEST_NEWS_URL" "$LATEST_NEWS_HEADLINE"
+		_welcome htmlout_wikipage "$WIKI_ARTICLE_2" "$WIKI_ARTICLE_2_HEADLINE"
+										# fixme! nvram get fff_ethers_auth = BLACKLIST || WHITELIST !
+		if _pfilter user_probe_local_blacklist $MAC ; then
+			
+			_welcome htmlout_user_blackisted
+		else
+			if _pfilter user_list | grep -q -i $MAC ; then
+			
+				if [ "$( _pfilter stats_user_traffic_used_percent $MAC )" -gt 100 ] && ! _pfilter user_probe_admin $MAC ; then
+					_welcome htmlout_user_over_limit
+				else
+					if _pfilter user_probe_splash $MAC ; then
+						_welcome htmlout_submitbutton_start
+					else
+						_welcome htmlout_user_yet_logged_in
+					fi
+				fi
+			else
+				_welcome htmlout_submitbutton_start
+			fi
+		fi
+		
+		_welcome htmlout_footer
+	;;
+	WAN|REDIRECT_WAN)
+		if _net ip4_is_private $REMOTE_ADDR ; then
+			_welcome htmlout_indexpage
+		else
+			_weblogin htmlout_gatepage
+		fi
+	;;
+	BUTTON)							# fixme! print network / social-rules!
+		_welcome htmlout_header				# fixme! an attacker can refresh the POST-values in browser and again surf 15mins 8-)
+		
+		MAC="$( _net ip2mac $REMOTE_ADDR )"
+		
+		_pfilter user_list | grep -q -i $MAC								# already shaped?
+		
+		if [ "$?" -eq 0 ]; then										# user already shaped, but redirected (over night kick off...)
+			_pfilter user_splash_control nosplash $MAC $REMOTE_ADDR >/dev/null
+		else												# user is really new
+			_pfilter user_ruleset_activate $MAC $REMOTE_ADDR || {
+				_pfilter user_add $MAC $REMOTE_ADDR
+			}
+		fi
+	
+		_welcome htmlout_message_welcome
+		_welcome htmlout_gateway_intropic
+		_welcome htmlout_footer			# fixme: maybe redirect to: "http://www.google.de/search?q=www.weimarnetz.de" ???
+	;;
+	*) 					# remote user is from mesh or localhost
+		_welcome htmlout_indexpage
+	;;
+esac
