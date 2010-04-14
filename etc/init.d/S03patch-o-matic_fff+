@@ -508,24 +508,8 @@ fkt_patch_intro_picture ()
 	}
 }
 
-if [ -n "$1" ]; then
-	if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ]; then exit; fi
-fi
-
-LOCKFILE="/tmp/lockfile_patch-o-matic"
-
-if [ -r "$LOCKFILE" ]; then
-	_log do check_lockfile daemon crit "lockfile '$LOCKFILE' exists - abort"
-	exit
-else
-	touch "$LOCKFILE"
-fi
-
-MAC_CHANGE="/www/mac_changed.txt"
-
-case "$1" in
-	start)							# after reach reboot
-		# fkt_patch syslog_with_rebootfix_syslog	# fixme! /var/log/messages is first started at S10boot, use /www/everlasting_syslog.txt
+_call_start ()							# after reach reboot
+{		# fkt_patch syslog_with_rebootfix_syslog	# fixme! /var/log/messages is first started at S10boot, use /www/everlasting_syslog.txt
 		fkt_build_settings_menu				# only needed for generating menu-entrys
 
 		echo $(( $( cat "/www/REBOOT_COUNTER" 2>/dev/null || echo 0 ) + 1 )) >"/www/REBOOT_COUNTER"		# reboot_count++ on each boot
@@ -534,7 +518,7 @@ case "$1" in
                 	
 		[ ! -e "/www/FRESHFLASHED" ] && {			# we must take care of the
 			rm -f "$LOCKFILE"			# lockfile, each time we exit
-			$0 virgin				# or recall this script, otherwise
+			_call_virgin				# or recall this script, otherwise
 		}						# it won't work out ;-)
 	
 		# [ "$( _wifi mode )" != "adhoc" ] && {		# fixme! and the way back to normal wifi-olsr?
@@ -551,18 +535,24 @@ case "$1" in
 		#		;;
 		#	esac
 		# }
-	;;
-	patch)
-		fkt_patch "$2"
-	;;
-	repatch_all)
-		$0 restore_from_rom
-		$0 virgin
+}
+
+_call_patch ()
+{
+		fkt_patch "$1"
+}
+
+_call_repatch_all ()
+{
+		_call_restore_from_rom
+		_call_virgin
 		rm /www/FRESHFLASHED		# no start for software-install
-		$0 post_software_install
+		_call_post_software_install
 		fkt_build_settings_menu		# is a hack for '$0 start'
-	;;
-	virgin)							# after virgin boot (directly after flashing)
+}
+
+_call_virgin ()							# after virgin boot (directly after flashing)
+{
 		PATCHLIST="syslogd_start_for_more_space \
 			   hide_all_repos \
 			   syslogd_set_hostname \
@@ -583,9 +573,10 @@ case "$1" in
 		fkt_generate_logread_replacement
 		
 		touch "/www/FRESHFLASHED"
-	;;
-	post_software_install)					# is invoked directly after ready software_install
-	
+}
+
+_call_post_software_install ()					# is invoked directly after ready software_install
+{
 		PATCHLIST="olsrd_timezone_and_restart_counter \
 			   dnsserver_timezone \
 			   dnsserver_fast_lease \
@@ -609,9 +600,10 @@ case "$1" in
 		nvram get fff_profile | grep -q ^weimarnetz && {
 			fkt_patch_intro_picture
 		}
-	;;
-	restore_from_rom)
-	
+}
+
+_call_restore_from_rom ()
+{
 		PATCHLIST="owfs_activate_server \
 			   olsrd_timezone_and_restart_counter \
 			   dnsserver_timezone \
@@ -634,11 +626,39 @@ case "$1" in
 		} done
 	
 		rm -f "/www/FRESHFLASHED"
+}
+
+_call_usage ()
+{
+		echo "Usage: $0 ( start | virgin | post_software_install | restore_from_rom | patch <KEYWORD> | repatch_all )"
+}
+
+
+if [ -n "$1" ]; then
+	if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ]; then exit; fi
+fi
+
+LOCKFILE="/tmp/lockfile_patch-o-matic"
+
+if [ -e "$LOCKFILE" ]; then
+	_log do check_lockfile daemon crit "lockfile '$LOCKFILE' exists - abort"
+	exit
+else
+	touch "$LOCKFILE"
+fi
+
+MAC_CHANGE="/www/mac_changed.txt"
+
+
+case "$1" in
+	start|virgin|post_software_install|restore_from_rom|patch|repatch_all)
+		_call_$1 "$2" "$3" "$4"
 	;;
 	*)
-		echo "Usage: $0 ( start | virgin | post_software_install | restore_from_rom | checkmac)"
+		_call_usage
 	;;
 esac
+
 
 rm -f "$LOCKFILE"
 
