@@ -248,6 +248,10 @@ echo -n "\$WIFIADR \${PIDCOUNT:-#}" >/tmp/WELCOME_HELPER
 EOF
 			cat "$FILE" >>"$TEMP"
 		;;
+		remove_oldstyle_cron)
+			FILE="/etc/init.d/S51crond"
+			[ -e "/etc/init.d/S51crond_fff+" ] && echo "" >$TEMP
+		;;
 		login_banner)
 			FILE="/etc/banner"
 			cp "$FILE" "$TEMP"
@@ -539,7 +543,12 @@ _call_start ()							# after reach reboot
 
 _call_patch ()
 {
-		fkt_patch "$1"
+	local PATCHLIST="$@"
+	local PATCH
+	
+	for PATCH in $PATCHLIST; do {
+		fkt_patch "$PATCH"
+	} done
 }
 
 _call_repatch_all ()
@@ -554,6 +563,7 @@ _call_repatch_all ()
 _call_virgin ()							# after virgin boot (directly after flashing)
 {
 		PATCHLIST="syslogd_start_for_more_space \
+			   remove_oldstyle_cron \
 			   hide_all_repos \
 			   syslogd_set_hostname \
 			   force_olsrd_startup_without_wifi \
@@ -652,7 +662,13 @@ MAC_CHANGE="/www/mac_changed.txt"
 
 case "$1" in
 	start|virgin|post_software_install|restore_from_rom|patch|repatch_all)
-		_call_$1 "$2" "$3" "$4"
+		ARG1="$1"; shift; _call_$ARG1 "$@"
+	;;
+	cron.minutely)
+		_call_patch cron_minutely_for_verboser_trace_errors
+		_call_patch cron_minutely_for_verboser_hna_on
+		_call_patch cron_minutely_for_configureable_tracetest
+		_call_patch cron_minutely_for_welcome_helper
 	;;
 	*)
 		_call_usage
