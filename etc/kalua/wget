@@ -5,19 +5,20 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 	local MAX="${2:-15}"						# maximal running time in seconds, defaults to 15sec
 	local MASK1="$3"
 	local MASK2="$4"						# strings from URL, which should be masked during logging
+	local PID_WGET PID_LINE PID_LINE_NOW
 
-	_log do "wget" daemon debug "'$URL'"
+	_log do "wget" daemon debug "max ${MAX}s '$URL'"
 	
 	wget -qO - "$URL" 2>/dev/null &					# fixme! what if wget-task has ended before 'pidof' / howto catch returncode?
 
-	local PID_WGET="$( pidof wget | sed 's/ /\n/g' | sed '$!d' )"	# list of all wget-pid's, insert newlines, print last line
-	local PID_LINE="$( cat /proc/$PID_WGET/cmdline 2>/dev/null )"	# exact line of ps-output
+	PID_WGET="$( pidof wget | sed 's/ /\n/g' | sed '$!d' )"		# list of all wget-pid's, insert newlines, print last line
+	read PID_LINE </proc/$PID_WGET/cmdline 2>/dev/null		# exact line of ps-output
 	
-	while [ -e "/proc/$PID_WGET" ]; do {				# wget-process in tasklist?
+	while [ -e "/proc/${PID_WGET:=unset}" ]; do {			# wget-process in tasklist?
 		sleep 1
 		C=$(( $C + 1 ))
 		
-		local PID_LINE_NOW="$( cat /proc/$PID_WGET/cmdline 2>/dev/null )"	# is empty, when task has ended
+		read PID_LINE_NOW </proc/$PID_WGET/cmdline 2>/dev/null	# is empty, when task has ended
 		
 		[ $C -gt $MAX ] && {					# maximal execution time reached
 			[ "$PID_LINE" = "$PID_LINE_NOW" ] && {		# is this really the started process?
