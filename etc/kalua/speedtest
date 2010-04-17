@@ -5,11 +5,21 @@ _speedtest_do ()
 
 	[ -d "$DIR" ] || mkdir -p "$DIR"
 
-	local IP_LOCAL="$1"	# [ip4]
-	local KEYWORD="$2"	# [ip4 = IP_TARGET] or keyword, e.g. neighs_wifi_onehop, gateway, inetgateway?
-	local METHOD="$3"	# keyword, e.g. tcpdownload, netperfTCP, netperfUDP
-	local DURATION="$4"	# [seconds]
+	local IP_LOCAL="${1:-$WIFIADR}"		# [ip4]
+	local KEYWORD="${2:-gateway}"		# [ip4 = IP_TARGET] or keyword, e.g. neighs_wifi_onehop, gateway, inetgateway?
+	local METHOD="${3:-tcpdownload}"	# keyword, e.g. tcpdownload, netperfTCP, netperfUDP
+	local DURATION="${4:-10}"		# [seconds]
 	local INITIATOR="${REMOTE_ADDR:-local}"
+
+	case "$IP_LOCAL" in
+		$WIFIADR|$LANADR|$WANADR) : ;;
+		*)
+			local URL="http://$IP_LOCAL/cgi-bin-tool_fff+?OPT=speedtest&ARGS=$IP_LOCAL+$KEYWORD+$METHOD+$DURATION"
+			_log do $FUNC daemon debug "fetching '$URL'"
+			wget -qO - "$URL"
+			return
+		;;
+	esac
 
 	local MAXCOST=7000	# fixme! hardcoded?
 	local IP_LOCAL IP_TARGET LOAD_BEGIN LOAD_END UNIXTIME HUMANTIME METRIC_BEGIN METRIC_END OLSR_COST_BEGIN OLSR_COST_END SPEED DURATION DURATION_REAL DEVTYPE
@@ -42,6 +52,7 @@ _speedtest_do ()
 
 	# fixme! METHOD not implemented yet
 	# fixme! DIRECTION not implemented yet
+	# fixme! onehop, but metric >1 && continue
 
 	for IP_TARGET in $IP_LIST; do {
 
