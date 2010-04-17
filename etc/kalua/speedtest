@@ -1,19 +1,93 @@
-_speed_test ()
+_speedtest_do ()
 {
-	local DIR="/tmp/STATS/SPEEDTEST"
+	local FUNC="speedtest_do"
+	local DIR="/tmp/STATS/SPEEDTEST"	# fixme! make use of 'trap'
 
-	[ -d "$DIR" ] || mkdir "$DIR"
+	[ -d "$DIR" ] || mkdir -p "$DIR"
 
-	local IP="$1"
+	local IP_LOCAL="$1"	# [ip4]
+	local KEYWORD="$2"	# [ip4 = IP_TARGET] or keyword, e.g. neighs_wifi_onehop, gateway, inetgateway?
+	local METHOD="$3"	# keyword, e.g. tcpdownload, netperfTCP, netperfUDP
+	local DURATION="$4"	# [seconds]
+	local INITIATOR="${REMOTE_ADDR:-local}"
 
-	local MAXCOST=700
+	local MAXCOST=7000	# fixme! hardcoded?
+	local IP_LOCAL IP_TARGET LOAD_BEGIN LOAD_END UNIXTIME HUMANTIME METRIC_BEGIN METRIC_END OLSR_COST_BEGIN OLSR_COST_END SPEED DURATION DURATION_REAL DEVTYPE
+	local PID_WGET PACK BYTES REST METHOD IP_LIST
+
+	case "$METHOD" in
+		*)
+			METHOD="tcpdownload"
+		;;
+	esac
+
+	_log do $FUNC daemon debug "$IP_LOCAL -> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+
+	case "$KEYWORD" in
+		neighs_wifi_onehop)
+			IP_LIST="$( neigh | sed -n 's/^.* ~~1~~ \([0-9\.]*\).*/\1/p' )"
+		;;
+		gateway)
+			_net local_inet_offer && return
+			IP_LIST="$( _sanitizer do "$( ip route list exact 0/0 )" ip4 )"
+		;;
+		inetgateway)
+			IP_LIST="$( sed -n 's/^.* GW=\([0-9\.]*\).*/\1/p' /tmp/GATEWAY_CHECK_RECENT )"
+		;;
+		*)
+			_sanitizer do "$KEYWORD" ip4 check || return
+			IP_LIST="$KEYWORD"
+		;;
+	esac
+
+	# fixme! METHOD not implemented yet
+	# fixme! DIRECTION not implemented yet
+
+	for IP_TARGET in $IP_LIST; do {
+
+		_log do $FUNC daemon debug "$IP_LOCAL -> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+
+		iptables -I INPUT -p tcp --sport 80 -d $IP_LOCAL
+		iptables -I OUTPUT -p tcp --dport 80 -d $IP_TARGET
 	
-	IP_LOCAL IP_REMOTE UNIXTIME HUMANTIME METRIC_BEGIN METRIC_END SPEED DURATION
+		_stopwatch start speedtest_$$				############## START ###########
 
+		wget -qO /dev/null "http://$IP_TARGET/cgi-bin-dev-zero.bin" &
+		LOAD_BEGIN="$( _system load 1min )"
+		PID_WGET="$( ps ax | fgrep "wget -qO /dev/null http://$IP_TARGET" | head -n1 | sed -n 's/^[ ]*\([0-9]*\).*/\1/p'  )"		# fixme! use one sed
 
+		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
+		OLSR_COST_BEGIN=$COST
+
+		UNIXTIME="$(  _system date unixtime )"
+		HUMANTIME="$( _system date humanreadable )"
+		METRIC_BEGIN="$( _net ip2metric $IP_TARGET )"
+		DEVTYPE="$( _net dev_type $( _net ip2dev $IP_TARGET ))"
+
+		sleep $(( $DURATION - 1 ))
+		LOAD_END="$( _system load 1min )"
+		METRIC_END="$( _net ip2metric $IP_TARGET )"
+		kill $PID_WGET
+	
+		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
+		OLSR_COST_END=$COST
+	
+		DURATION_REAL="$( _stopwatch stop speedtest_$$ )"	############## END #############
+		
+		eval $( iptables -nxvL INPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
+		
+		SPEED="$(( $BYTES / $DURATION_REAL / 10 ))"		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
+
+		echo "IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_BEGIN DURATION=$DURATION DURATION_REAL=$DURATION_REAL DEVTYPE=$DEVTYPE"
+
+		iptables -D INPUT -p tcp --sport 80 -d $IP_LOCAL
+		iptables -D OUTPUT -p tcp --dport 80 -d $IP_TARGET
+
+		_log do $FUNC daemon info "$IP_LOCAL -> $IP_TARGET @ $SPEED Kilobytes/sec, method '$METHOD'"
+	} done
 }
 
-_speed_get ()
+_speedtest_get ()
 {
 	local MAC="$1"
 	local METHOD="$2"
@@ -27,5 +101,13 @@ _speed_get ()
 }
 
 # for WIFIADR in NODELIST; do {
-# 	_speed test $WIFIADR neighs_wifi_onehop
+# 	_speedtest do $WIFIADR $TARGET $METHOD $DURATION
 # } done
+
+# TARGET: neighs_wifi_onehop
+#	  gateway
+#	  
+
+# METHOD: tcpdownload
+#	  netperfTCP	
+#	  netperfUDP

@@ -174,6 +174,7 @@ _olsr_neigh_nlq ()
 	local FUNC="olsr_get_nlq"
 	local FILE="$1"
 	local THIS_NEIGH="$2"
+	local KEYWORD="$3"	# speedtest, fixme!
 	local NLQ
 	
 	_olsr neighs_evalable "$FILE"
@@ -185,13 +186,25 @@ _olsr_neigh_nlq ()
 			break
 		else
 			NLQ=
+			LQ=
+			COST=
 		fi
 	
 	} done <"$FILE" && rm "$FILE"
 
 	[ -z "$NLQ" ] && return 1
 	
-	NLQ="$( echo ${NLQ:=0.000} | sed -ne 's/\.//' -e 's/^[0]*\([0-9]*\)/\1/p' )"; echo "${NLQ:=0}"
+	_sanitizer include
+	
+	NLQ="$(  _sanitizer do "$NLQ" numeric )"
+	LQ="$(   _sanitizer do "$NLQ" numeric )"
+	COST="$( _sanitizer do "$NLQ" numeric )"
+	
+	if [ -z "$KEYWORD" ]; then
+		echo "${NLQ:-0}"
+	else
+		echo "NLQ=${NLQ:-0};LQ=${LQ:-0};COST=${COST:-0};"
+	fi
 }
 
 _olsr_neigh_nlq_best_wifi ()
