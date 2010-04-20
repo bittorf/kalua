@@ -9,6 +9,14 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	local        MESSAGE="$4"	# ARG4, string (humanreadable verbose message, all is syslog-alike)
 	local        EVERLOG="/www/everlasting_syslog.txt"
 
+	shell_is_interactive ()
+	{
+		case "$-" in
+			*i*) return 0 ;;
+			*)   return 1 ;;
+		esac
+	}
+	
 	case "$PRIO" in
 		debug|emerg|alert|crit)
 			_system include
@@ -31,7 +39,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 		;;
 	esac
 
-	[ "$SHELL" = "/bin/ash" -o "$SHELL" = "/bin/sh" ] && {		# executing from commandline (ssh/telnet) (maybe using: "$TERM" != "vt102" ?)
+	shell_is_interactive && {
 	
 		[ -z "$MEM" ] && {
 			_system include
@@ -39,6 +47,8 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 			local UPTIME="$( _system uptime      )"
 			local DATE="$(   _system date        )"
 		}
+		env >/tmp/bbb1_$$
+		set >/tmp/bbb2_$$
 		
 		FATHER_PROCESS="TERM:${TERM} $0"
 		echo "$DATE | [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE" 1>&2   # to stderr
@@ -46,7 +56,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 
 	if [ "$PRIO" = "debug" ]; then
 
-		[ ! -e /tmp/DEBUG ] && [ "$SHELL" != "/bin/ash" ] && return
+		[ ! -e /tmp/DEBUG -a ! shell_is_interactive ] && return
 
 		[ -e /tmp/BOOT ] && {
 			pidof syslogd >/dev/null || {		# write to special logfile
