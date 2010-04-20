@@ -1,4 +1,4 @@
-_speedtest_do ()			# rate waehrend der messung
+_speedtest_do ()
 {
 	local FUNC="speedtest_do"
 	local DIR="/tmp/STATS/SPEEDTEST"	# fixme! make use of 'trap'
@@ -22,8 +22,10 @@ _speedtest_do ()			# rate waehrend der messung
 	esac
 
 	local MAXCOST=7000	# fixme! hardcoded?
-	local IP_LOCAL IP_TARGET LOAD_BEGIN LOAD_END UNIXTIME HUMANTIME METRIC_BEGIN METRIC_END OLSR_COST_BEGIN OLSR_COST_END SPEED DURATION DURATION_REAL DEVTYPE
+	local IP_LOCAL IP_TARGET LOAD_BEGIN LOAD_END UNIXTIME HUMANTIME METRIC_BEGIN METRIC_END OLSR_COST_BEGIN OLSR_COST_END SPEED DEVTYPE
 	local PID_WGET PACK BYTES REST METHOD IP_LIST
+	local RATE RATE_MIN RATE_MAX				# fixme! make use of this
+	local DURATION DURATION_REAL DURATION_COUNTER
 
 	case "$METHOD" in
 		*)
@@ -75,7 +77,16 @@ _speedtest_do ()			# rate waehrend der messung
 		METRIC_BEGIN="$( _net ip2metric $IP_TARGET )"
 		DEVTYPE="$( _net dev_type $( _net ip2dev $IP_TARGET ))"
 
-		sleep $(( $DURATION - 1 ))
+		while [ ${DURATION_COUNTER:=$DURATION} -gt 0 ]; do {
+			[ "$DEVTYPE" = "wifi" ] && {
+				RATE="$( wl -i $WIFIDEV rate | cut -d' ' -f3 )"		# fixme! use _wifi()-abstraction
+				[ ${RATE:=0} -gt ${RATE_MAX:-0}	] && RATE_MAX="$RATE"
+				[ ${RATE} -lt ${RATE_MIN:-600}	] && RATE_MIN="$RATE"
+			}
+			sleep 1
+			DURATION_COUNTER=$(( $DURATION_COUNTER - 1 ))
+		} done
+
 		LOAD_END="$( _system load 1min )"
 		METRIC_END="$( _net ip2metric $IP_TARGET )"
 		kill $PID_WGET
@@ -89,7 +100,7 @@ _speedtest_do ()			# rate waehrend der messung
 		
 		SPEED="$(( $BYTES / $DURATION_REAL / 10 ))"		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
 
-		echo "IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_BEGIN DURATION=$DURATION DURATION_REAL=$DURATION_REAL DEVTYPE=$DEVTYPE"
+		echo "IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED RATE_MIN=$RATE_MIN RATE_MAX=$RATE_MAX BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_BEGIN DURATION=${DURATION}000 DURATION_REAL=${DURATION_REAL}0 DEVTYPE=$DEVTYPE"
 
 		iptables -D INPUT -p tcp --sport 80 -d $IP_LOCAL
 		iptables -D OUTPUT -p tcp --dport 80 -d $IP_TARGET
