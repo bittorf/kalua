@@ -55,6 +55,7 @@ _speedtest_do ()
 	# fixme! METHOD not implemented yet
 	# fixme! DIRECTION not implemented yet
 	# fixme! onehop, but metric >1 && continue
+	# fixme! calculate EFFECTIV_PROCENTUAL_THROUGHPUT -> 34 mbit rate_avg, but 207kb/s -> xy% from max
 
 	for IP_TARGET in $IP_LIST; do {
 
@@ -78,13 +79,24 @@ _speedtest_do ()
 		DEVTYPE="$( _net dev_type $( _net ip2dev $IP_TARGET ))"
 
 		while [ ${DURATION_COUNTER:=0} -lt $DURATION ]; do {
+
 			[ "$DEVTYPE" = "wifi" ] && {
+
 				RATE="$( wl -i $WIFIDEV rate | cut -d' ' -f3 )"		# fixme! use _wifi()-abstraction
-				[ ${RATE:=0} -gt ${RATE_MAX:-0}	] && RATE_MAX="$RATE"
-				[ ${RATE} -lt ${RATE_MIN:-600}	] && RATE_MIN="$RATE"
+				case "${RATE:=0}" in
+					5.5) RATE=5500 ;;
+					  0) RATE=1000 ;;
+					  *) RATE="${RATE}000" ;;			# rate is convert to [Kilobit]
+				esac
+				
+				[ $RATE -gt ${RATE_MAX:-0}	] && RATE_MAX="$RATE"
+				[ $RATE -lt ${RATE_MIN:-600}	] && RATE_MIN="$RATE"
 				RATE_AVG="$(( ${RATE_AVG:-0} + $RATE ))"
 				RATE_SAMPLES="$(( ${RATE_SAMPLES:-0} + 1 ))"
+				
+				_log do $FUNC daemon debug "rate: $RATE"
 			}
+
 			sleep 1
 			DURATION_COUNTER="$(( $DURATION_COUNTER + 1 ))"
 		} done
