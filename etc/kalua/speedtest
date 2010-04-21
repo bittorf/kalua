@@ -5,10 +5,10 @@ _speedtest_do ()
 
 	[ -d "$DIR" ] || mkdir -p "$DIR"
 
-	local IP_LOCAL="${1:-$WIFIADR}"		# [ip4]
-	local KEYWORD="${2:-gateway}"		# [ip4 = IP_TARGET] or keyword, e.g. neighs_wifi_onehop, gateway, inetgateway?
-	local METHOD="${3:-tcpdownload}"	# keyword, e.g. tcpdownload, netperfTCP, netperfUDP
-	local DURATION="${4:-10}"		# [seconds]
+	local IP_LOCAL="${1:-$WIFIADR}"			# [ip4]
+	local KEYWORD="${2:-gateway}"			# [ip4 = IP_TARGET] or keyword, e.g. neighs_wifi_onehop, gateway, inetgateway?
+	local METHOD="${3:-poormens_tcpdownload}"	# keyword, e.g. tcpdownload, netperfTCP, netperfUDP
+	local DURATION="${4:-10}"			# [seconds]
 	local INITIATOR="${REMOTE_ADDR:-local}"
 
 	_log do $FUNC daemon debug "$IP_LOCAL -> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
@@ -30,8 +30,11 @@ _speedtest_do ()
 	local DURATION DURATION_REAL DURATION_COUNTER
 
 	case "$METHOD" in
+		poormens_tcpdownload|udpupload)
+			:
+		;;
 		*)
-			METHOD="tcpdownload"		# fixme! here we must track 'rate' of device from which we download
+			METHOD="poormens_tcpdownload"		# fixme! here we must track 'rate' of device from which we download
 		;;
 	esac
 
@@ -56,8 +59,6 @@ _speedtest_do ()
 		;;
 	esac
 
-	# fixme! METHOD not implemented yet
-	# fixme! DIRECTION not implemented yet
 	# fixme! onehop, but metric >1 && continue
 	# fixme! calculate EFFECTIV_PROCENTUAL_THROUGHPUT -> 34 mbit rate_avg, but 207kb/s -> xy% from max
 
@@ -67,17 +68,25 @@ _speedtest_do ()
 			_log do $FUNC daemon debug "$IP_LOCAL -> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 		}
 
-		iptables -I INPUT -p tcp --sport 80 -d $IP_LOCAL
-		iptables -I OUTPUT -p tcp --dport 80 -d $IP_TARGET
-	
+
+		case "$METHOD" in
+			poormens_tcpdownload)
+				iptables -I INPUT -p tcp --sport 80 -d $IP_LOCAL
+				iptables -I OUTPUT -p tcp --dport 80 -d $IP_TARGET
+				wget -qO /dev/null "http://$IP_TARGET/cgi-bin-dev-zero.bin" &
+				PID_WGET="$( ps ax | fgrep "wget -qO /dev/null http://$IP_TARGET" | head -n1 | sed -n 's/^[ ]*\([0-9]*\).*/\1/p'  )"		# fixme! use one sed
+				trap "kill $PID_WGET" SIGINT
+			;;
+			udpupload)
+				iptables -I OUTPUT -p udp -d $IP_TARGET						# seems that dport changes randomly, so it's a bit inexact
+				netperf -H $IP_TARGET -t UDP_STREAM -l "$(( $DURATION * 2 ))" >/dev/null &
+				trap "killall netperf" SIGINT
+			;;
+		esac
+
 		_stopwatch start speedtest_$$				############## START ###########
 
-		wget -qO /dev/null "http://$IP_TARGET/cgi-bin-dev-zero.bin" &
 		LOAD_BEGIN="$( _system load 1min )"
-		PID_WGET="$( ps ax | fgrep "wget -qO /dev/null http://$IP_TARGET" | head -n1 | sed -n 's/^[ ]*\([0-9]*\).*/\1/p'  )"		# fixme! use one sed
-
-		trap "kill $PID_WGET; return" SIGINT
-
 		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
 		OLSR_COST_BEGIN=$COST
 
@@ -112,21 +121,29 @@ _speedtest_do ()
 
 		LOAD_END="$( _system load 1min )"
 		METRIC_END="$( _net ip2metric $IP_TARGET )"
-		kill $PID_WGET
 
 		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
 		OLSR_COST_END=$COST
-	
+		
 		DURATION_REAL="$( _stopwatch stop speedtest_$$ )"	############## END #############
 		
-		eval $( iptables -nxvL INPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
+		case "$METHOD" in
+			poormens_tcpdownload)
+				kill $PID_WGET
+				eval $( iptables -nxvL INPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
+				iptables -D INPUT -p tcp --sport 80 -d $IP_LOCAL
+				iptables -D OUTPUT -p tcp --dport 80 -d $IP_TARGET
+			;;
+			udpupload)
+				killall netperf
+				eval $( iptables -nxvL OUTPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
+				iptables -D OUTPUT -p udp -d $IP_TARGET
+			;;
+		esac
 		
 		SPEED="$(( $BYTES / $DURATION_REAL / 10 ))"		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
 
 		echo "IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED RATE_AVG=$RATE_AVG RATE_MIN=${RATE_MIN:-0} RATE_MAX=${RATE_MAX:-0} BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_BEGIN DURATION=${DURATION}000 DURATION_REAL=${DURATION_REAL}0 DEVTYPE=$DEVTYPE"
-
-		iptables -D INPUT -p tcp --sport 80 -d $IP_LOCAL
-		iptables -D OUTPUT -p tcp --dport 80 -d $IP_TARGET
 
 		_log do $FUNC daemon info "$IP_LOCAL -> $IP_TARGET @ $SPEED Kilobytes/sec, method '$METHOD'"
 	} done
