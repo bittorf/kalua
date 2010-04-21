@@ -11,6 +11,8 @@ _speedtest_do ()
 	local DURATION="${4:-10}"		# [seconds]
 	local INITIATOR="${REMOTE_ADDR:-local}"
 
+	_log do $FUNC daemon debug "$IP_LOCAL -> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+
 	case "$IP_LOCAL" in
 		$WIFIADR|$LANADR|$WANADR) : ;;
 		*)
@@ -33,14 +35,16 @@ _speedtest_do ()
 		;;
 	esac
 
-	_log do $FUNC daemon debug "$IP_LOCAL -> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
-
 	case "$KEYWORD" in
 		neighs_wifi_onehop)
 			IP_LIST="$( neigh | sed -n 's/^.* ~~1~~ \([0-9\.]*\).*/\1/p' )"
 		;;
 		gateway)
-			_net local_inet_offer && return
+			_net local_inet_offer && {
+				_log do $FUNC daemon info "no gatewaytest, because we _are_ the gateway 8-)"
+				return
+			}				
+
 			IP_LIST="$( _sanitizer do "$( ip route list exact 0/0 )" ip4 )"
 		;;
 		inetgateway)
@@ -59,7 +63,9 @@ _speedtest_do ()
 
 	for IP_TARGET in $IP_LIST; do {
 
-		_log do $FUNC daemon debug "$IP_LOCAL -> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+		[ "$IP_LIST" != "$KEYWORD" ] && {
+			_log do $FUNC daemon debug "$IP_LOCAL -> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+		}
 
 		iptables -I INPUT -p tcp --sport 80 -d $IP_LOCAL
 		iptables -I OUTPUT -p tcp --dport 80 -d $IP_TARGET
@@ -70,6 +76,8 @@ _speedtest_do ()
 		LOAD_BEGIN="$( _system load 1min )"
 		PID_WGET="$( ps ax | fgrep "wget -qO /dev/null http://$IP_TARGET" | head -n1 | sed -n 's/^[ ]*\([0-9]*\).*/\1/p'  )"		# fixme! use one sed
 
+		trap "kill $PID_WGET; return" SIGINT
+
 		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
 		OLSR_COST_BEGIN=$COST
 
@@ -78,7 +86,7 @@ _speedtest_do ()
 		METRIC_BEGIN="$( _net ip2metric $IP_TARGET )"
 		DEVTYPE="$( _net dev_type $( _net ip2dev $IP_TARGET ))"
 
-		while [ ${DURATION_COUNTER:=0} -lt $DURATION ]; do {
+		while [ ${DURATION_COUNTER:=0} -lt $(( $DURATION / 2 )) ]; do {
 
 			[ "$DEVTYPE" = "wifi" ] && {
 
@@ -105,7 +113,7 @@ _speedtest_do ()
 		LOAD_END="$( _system load 1min )"
 		METRIC_END="$( _net ip2metric $IP_TARGET )"
 		kill $PID_WGET
-	
+
 		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
 		OLSR_COST_END=$COST
 	
