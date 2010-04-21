@@ -3,6 +3,34 @@ _speedtest_do ()
 	local FUNC="speedtest_do"
 	local DIR="/tmp/STATS/SPEEDTEST"	# fixme! make use of 'trap'
 
+	case "$1" in
+		"-h"|"-help"|"--help"|"help")
+			cat <<EOF
+
+Usage:	_speedtest do <firstIP> <secondIP> <method> <duration>
+
+	speedtest is performed between first and second IP with a
+	selectable measure-method. after wished duration (defaults
+	to 10 seconds), test is aborted and overall speed is calculated.
+
+	empty <firstIP> defaults to IP of local wifi interface
+	empty <secondIP> defaults to wifi-IP of nexthop to internet
+	empty <method> defaults to poormens_tcpdownload
+	empty <duration> defaults to 10 seconds
+	
+	<firstIP> can also be the keyword "here"
+	<secondIP> can also be a keyword, e.g. "gateway", "inetgateway" or "neighs_wifi_onehop"
+	<method> can be "poormens_tcpdownload" or "udpupload"
+
+e.g.:	_speedtest do here gateway udpupload 15
+	_speedtest do 10.63.12.1 10.63.99.1 udpupload 5
+	_speedtest do
+
+EOF
+			return
+		;;
+	esac
+
 	[ -d "$DIR" ] || mkdir -p "$DIR"
 
 	local IP_LOCAL="${1:-$WIFIADR}"			# [ip4]
@@ -11,10 +39,15 @@ _speedtest_do ()
 	local DURATION="${4:-10}"			# [seconds]
 	local INITIATOR="${REMOTE_ADDR:-local}"
 
-	_log do $FUNC daemon debug "$IP_LOCAL -> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+	_log do $FUNC daemon debug "$IP_LOCAL <-> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 
 	case "$IP_LOCAL" in
-		$WIFIADR|$LANADR|$WANADR) : ;;
+		$WIFIADR|$LANADR|$WANADR)
+			:
+		;;
+		here)
+			IP_LOCAL="$WIFIADR"
+		;;
 		*)
 			local URL="http://$IP_LOCAL/cgi-bin-tool_fff+?OPT=speedtest&ARGS=$IP_LOCAL+$KEYWORD+$METHOD+$DURATION"
 			_log do $FUNC daemon debug "fetching '$URL'"
@@ -23,7 +56,7 @@ _speedtest_do ()
 		;;
 	esac
 
-	local MAXCOST=7000	# fixme! hardcoded?
+	local MAXCOST=7000	# fixme! hardcoded and unused?
 	local IP_LOCAL IP_TARGET LOAD_BEGIN LOAD_END UNIXTIME HUMANTIME METRIC_BEGIN METRIC_END OLSR_COST_BEGIN OLSR_COST_END SPEED DEVTYPE
 	local PID_WGET PACK BYTES REST METHOD IP_LIST
 	local RATE RATE_MIN RATE_MAX RATE_AVG RATE_SAMPLES
@@ -65,14 +98,13 @@ _speedtest_do ()
 	for IP_TARGET in $IP_LIST; do {
 
 		[ "$IP_LIST" != "$KEYWORD" ] && {
-			_log do $FUNC daemon debug "$IP_LOCAL -> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+			_log do $FUNC daemon debug "$IP_LOCAL <-> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 		}
 
 
 		case "$METHOD" in
 			poormens_tcpdownload)
-				iptables -I INPUT -p tcp --sport 80 -d $IP_LOCAL
-				iptables -I OUTPUT -p tcp --dport 80 -d $IP_TARGET
+				iptables -I INPUT -p tcp --sport 80 -s $IP_TARGET
 				wget -qO /dev/null "http://$IP_TARGET/cgi-bin-dev-zero.bin" &
 				PID_WGET="$( ps ax | fgrep "wget -qO /dev/null http://$IP_TARGET" | head -n1 | sed -n 's/^[ ]*\([0-9]*\).*/\1/p'  )"		# fixme! use one sed
 				trap "kill $PID_WGET" SIGINT
@@ -97,7 +129,7 @@ _speedtest_do ()
 
 		while [ ${DURATION_COUNTER:=0} -lt $(( $DURATION / 2 )) ]; do {
 
-			[ "$DEVTYPE" = "wifi" ] && {
+			[ "$DEVTYPE" = "wifi" -a "${METRIC_BEGIN:=0}" = "1" ] && {
 
 				RATE="$( wl -i $WIFIDEV rate | cut -d' ' -f3 )"		# fixme! use _wifi()-abstraction
 				case "${RATE:=0}" in
@@ -131,8 +163,7 @@ _speedtest_do ()
 			poormens_tcpdownload)
 				kill $PID_WGET
 				eval $( iptables -nxvL INPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
-				iptables -D INPUT -p tcp --sport 80 -d $IP_LOCAL
-				iptables -D OUTPUT -p tcp --dport 80 -d $IP_TARGET
+				iptables -D INPUT -p tcp --sport 80 -s $IP_TARGET
 			;;
 			udpupload)
 				killall netperf
@@ -141,11 +172,12 @@ _speedtest_do ()
 			;;
 		esac
 		
+		trap - SIGINT	# unset
 		SPEED="$(( $BYTES / $DURATION_REAL / 10 ))"		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
 
 		echo "IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED RATE_AVG=$RATE_AVG RATE_MIN=${RATE_MIN:-0} RATE_MAX=${RATE_MAX:-0} BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_BEGIN DURATION=${DURATION}000 DURATION_REAL=${DURATION_REAL}0 DEVTYPE=$DEVTYPE"
 
-		_log do $FUNC daemon info "$IP_LOCAL -> $IP_TARGET @ $SPEED Kilobytes/sec, method '$METHOD'"
+		_log do $FUNC daemon info "$IP_LOCAL <-> $IP_TARGET @ $SPEED Kilobytes/sec, method '$METHOD'"
 	} done
 }
 
