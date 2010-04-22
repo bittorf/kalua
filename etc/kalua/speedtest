@@ -19,7 +19,7 @@ Usage:	_speedtest do <firstIP> <secondIP> <method> <duration>
 	empty <duration> defaults to 10 seconds
 	
 	<firstIP> can also be the keyword "here"
-	<secondIP> can also be a keyword, e.g. "gateway", "inetgateway" or "neighs_wifi_onehop"
+	<secondIP> can also be a keyword, e.g. "gateway", "inetgateway", "neighs_onehop" or "neighs_wifi_onehop"
 	<method> can be "poormens_tcpdownload" or "udpupload"
 
 e.g.:	_speedtest do here gateway udpupload 15
@@ -34,7 +34,7 @@ EOF
 	[ -d "$DIR" ] || mkdir -p "$DIR"
 
 	local IP_LOCAL="${1:-$WIFIADR}"			# [ip4]
-	local KEYWORD="${2:-gateway}"			# [ip4 = IP_TARGET] or keyword, e.g. neighs_wifi_onehop, gateway, inetgateway: fixme! allow lists
+	local KEYWORD="${2:-gateway}"			# [ip4 = IP_TARGET] or keyword - fixme! allow lists
 	local METHOD="${3:-poormens_tcpdownload}"	# keyword, e.g. tcpdownload, netperfTCP, netperfUDP
 	local DURATION="${4:-10}"			# [seconds]
 	local INITIATOR="${REMOTE_ADDR:-local}"
@@ -72,6 +72,9 @@ EOF
 	esac
 
 	case "$KEYWORD" in			# fixme! we need _net_any2ip() on several points
+		neighs_onehop)
+			IP_LIST="$( neigh | sed -n 's/^.* ..1.. \([0-9\.]*\).*/\1/p' )"
+		;;
 		neighs_wifi_onehop)
 			IP_LIST="$( neigh | sed -n 's/^.* ~~1~~ \([0-9\.]*\).*/\1/p' )"
 		;;
@@ -94,6 +97,10 @@ EOF
 			IP_LIST="$KEYWORD"
 		;;
 	esac
+
+	[ -z "$IP_LIST" ] && {
+		_log do $FUNC daemon info "empty target list?"
+	}
 
 	# fixme! onehop, but metric >1 && continue
 	# fixme! calculate EFFECTIV_PROCENTUAL_THROUGHPUT -> 34 mbit rate_avg, but 207kb/s -> xy% from max
@@ -152,6 +159,8 @@ EOF
 			sleep 1
 			DURATION_COUNTER="$(( $DURATION_COUNTER + 1 ))"
 		} done
+
+		DURATION_COUNTER=0
 		RATE_AVG="$(( ${RATE_AVG:-0} / ${RATE_SAMPLES:-1} ))"
 
 		LOAD_END="$( _system load 1min )"
