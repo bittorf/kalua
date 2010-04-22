@@ -60,7 +60,7 @@ EOF
 	local MAXCOST=7000	# fixme! hardcoded and unused?
 	local IP_LOCAL IP_TARGET LOAD_BEGIN LOAD_END UNIXTIME HUMANTIME METRIC_BEGIN METRIC_END OLSR_COST_BEGIN OLSR_COST_END SPEED DEVTYPE
 	local PID_WGET PACK BYTES REST METHOD IP_LIST
-	local RATE RATE_MIN RATE_MAX RATE_AVG RATE_SAMPLES
+	local RATE RATE_MIN RATE_MAX RATE_AVG RATE_SAMPLES DIRECTION
 	local DURATION DURATION_REAL DURATION_COUNTER
 
 	case "$METHOD" in
@@ -118,12 +118,14 @@ EOF
 
 		case "$METHOD" in
 			poormens_tcpdownload)
+				DIRECTION="download"
 				iptables -I INPUT -p tcp --sport 80 -s $IP_TARGET
 				wget -qO /dev/null "http://$IP_TARGET/cgi-bin-dev-zero.bin" &
 				PID_WGET="$( ps ax | fgrep "wget -qO /dev/null http://$IP_TARGET" | head -n1 | sed -n 's/^[ ]*\([0-9]*\).*/\1/p'  )"		# fixme! use one sed
 				trap "kill $PID_WGET" SIGINT
 			;;
 			udpupload)
+				DIRECTION="upload"
 				iptables -I OUTPUT -p udp -d $IP_TARGET						# seems that dport changes randomly, so it's a bit inexact
 				netperf -H $IP_TARGET -t UDP_STREAM -l "$(( $DURATION * 2 ))" >/dev/null &
 				trap "killall netperf" SIGINT
@@ -143,7 +145,7 @@ EOF
 
 		while [ ${DURATION_COUNTER:=0} -lt $(( $DURATION / 2 )) ]; do {
 
-			[ "$DEVTYPE" = "wifi" -a "${METRIC_BEGIN:=0}" = "1" ] && {
+			[ "$DIRECTION" = "upload" -a "$DEVTYPE" = "wifi" -a "${METRIC_BEGIN:=0}" = "1" ] && {
 
 				RATE="$( wl -i $WIFIDEV rate | cut -d' ' -f3 )"		# fixme! use _wifi()-abstraction
 				case "${RATE:=0}" in
