@@ -1,0 +1,110 @@
+# todo: index_of username+password for fast grepping
+
+_userdb_backup ()
+{
+	:
+}
+
+_userdb_restore ()
+{
+	:
+}
+
+_userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
+{
+	local ACTION="$1"
+	
+	local ID
+	local NAME
+	local COMMENT
+	local AUTOGENERATE		# [bool]
+	local MAX_TIME			# [min] -> autogenerate some keyword, e.g. 1week, 24h, 1month ...
+	local MAX_TRAFFIC		# [kb]
+	local MAXSPEED_UP		# [kb/s]
+	local MAXSPEED_OWN		# [kb/s]
+	local LANDING_URL
+	local COST
+	local CURRENCY			# ?
+}
+
+_userdb_device ()
+{
+	local ACTION="$1"
+	
+	local USERID
+	local MAC
+	local DEVTYPE
+	local LANG
+	local FIRSTSEEN			# [unixtime]
+	local LASTSEEN			# [unixtime]
+	local USED_TRAFFIC		# [kb]
+	local USED_TIME			# [min]
+	local USED_TRAFFIC_TODAY	# [kb]
+	local USED_TIME_TODAY		# [min]
+	local ISOLATION			# [bool]
+}
+
+_userdb_login ()
+{
+	local ACTION="$1"			# add, del, list, gen_index
+	local DIR="/tmp/USERDB/LOGIN"
+	local FUNC="userdb_login_$ACTION"
+	
+	local ID			# autoincrement
+	local PROFILE_ID
+	local COMMENT
+	local USERNAME			# namespace from mydesign or explicit
+	local PASSWORD
+	local DEVICES			# how many
+	local INSTALLED			# [unixtime]
+
+	case "$ACTION" in
+		add)
+			read ID 2>/dev/null <"$DIR/meta_maxid"
+			ID="$(( ${ID:-0} + 1 ))"			# autoincrement
+			mkdir -p "$DIR"
+			echo -n >"$DIR/meta_maxid" "$ID"
+
+			PROFILE_ID="${2:-1}"				# fixme! can be a name -> autoconvert to ID
+			COMMENT="$3"
+			USERNAME="${4:-$( _random_username do )}"
+			PASSWORD="${5:-$( _math random_integer 1 99999 fillup )}"
+			DEVICE_QUANTITY="${6:-1}"
+			INSTALLED="${7:-$( _system date unixtime)}"
+
+			_log do $FUNC daemon debug "ID: $ID PROFILE_ID: $PROFILE_ID COMMENT: $COMMENT USERNAME: $USERNAME PASSWORD: $PASSWORD DEVICE_QUANTITY: $DEVICE_QUANTITY INSTALLED: $INSTALLED"
+
+			mkdir "$DIR/$ID"					# each login has it own dir
+			echo -n >"$DIR/$ID/PROFILE_ID"		"$PROFILE_ID"
+			echo -n >"$DIR/$ID/COMMENT"		"$COMMENT"
+			echo -n >"$DIR/$ID/USERNAME"		"$USERNAME"
+			echo -n >"$DIR/$ID/PASSWORD"		"$PASSWORD"
+			echo -n >"$DIR/$ID/DEVICE_QUANTITY"	"$DEVICE_QUANTITY"
+			echo -n >"$DIR/$ID/INSTALLED"		"$INSTALLED"
+		;;
+		del)
+			ID="$2"
+			_log do $FUNC daemon info "removing ID '$ID'"
+			rm -fR "$DIR/$ID"
+		;;
+		list)
+			ls -l "$DIR"
+		;;
+		gen_index)
+			local USERINDEX="/www/cgi-bin/userdata.txt"
+			local CRC
+			
+			ls -1 "$DIR" | sort -n | while read ID; do {
+				[ -d "$DIR/$ID" ] && {
+					read USERNAME	<"$DIR/$ID/USERNAME"
+					read PASSWORD	<"$DIR/$ID/PASSWORD"
+					read PROFILE_ID	<"$DIR/$ID/PROFILE_ID"
+				
+					CRC="$( echo -n "$USERNAME$PASSWORD" | md5sum | cut -d' ' -f1 )"
+					
+					echo "$CRC $ID $PROFILE_ID $USERNAME $PASSWORD"
+				}
+			} done
+		;;
+	esac
+}
