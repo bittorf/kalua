@@ -9,7 +9,7 @@ DIRTY=
 [ -e "/tmp/LOWMEM" ]				&& DIRTY="lowmem"
 [ -n "$FAILSAFE" ]				&& DIRTY="failsafe"
 [ -n "$READONLY" ]				&& DIRTY="readonly"
-[ ! -e "/www/SOFTWARE_FULLY_INSTALLED" ]		&& DIRTY="software not fully installed"
+[ ! -e "/www/SOFTWARE_FULLY_INSTALLED" ]	&& DIRTY="software not fully installed"
 
 [ -n "$DIRTY" ] && {
 	_log do init daemon debug "call: '$1' - abort: '$DIRTY'"
@@ -213,6 +213,8 @@ func_get_static_route ()			# prevents tunneling over mesh, when local defgw gets
 {
 	local DEFAULT_GATEWAY_IP="$( ip route list exact 0/0 | head -n1 | cut -d" " -f3 )"
 	
+	[ -n "$( nvram get fff_vpn_force )" ] && return
+	
 	case $INETOFFER in
 		lan)
 			echo -n "$DEFAULT_GATEWAY_IP dev $LANDEV"
@@ -259,7 +261,7 @@ func_vpn_start ()
 {
 	local FUNC="func_vpn_start"
 
-	[ $INETOFFER = "false" ] && {
+	[ $INETOFFER = "false" -a -z "$( nvram get fff_vpn_force )" ] && {
 		_log do $FUNC daemon debug "no local default gateway - abort"
 		return 1
 	}
@@ -330,7 +332,7 @@ case $1 in
 		func_vpn_start
 	;;
 	stop)
-		fkt_build_vars stop
+		fkt_build_vars $1
 		func_vpn_stop
  	;;
 	restart)
