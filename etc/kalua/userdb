@@ -10,23 +10,70 @@ _userdb_restore ()
 
 _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 {
-	local ACTION="$1"
-	
+	local ACTION="$1"		# ARG1: string -> <empty>, add, del, list, update, id2name, name2id
+	local DIR="/tmp/USERDB/PROFILE"
+	local FUNC="userdb_profile"
+
+	local ELEMENT VALUE
 	local ID			# autoincrement
 	local NAME
 	local COMMENT
 	local AUTOGENERATE		# [bool]
-	local MAX_TIME			# [nolimit|min] -> autogenerate some keywords?, e.g. 1week, 24h, 1month ...
-	local MAX_TRAFFIC		# [nolimit|kb]
-	local MAX_SPEED_UP		# [nolimit|kb/s]
-	local MAX_SPEED_OWN		# [nolimit|kb/s]
+
+	local MAX_TIME			# [min] -> autogenerate some keywords?, e.g. 1week, 24h, 1month ...
+	local MAX_TRAFFIC		# [kb]
+	local MAX_SPEED_UP		# [kb/s]
+	local MAX_SPEED_OWN		# [kb/s]	// empty on MAX_* means: nolimit/unlimited
+
 	local LANDING_URL
 	local COST
 	local CURRENCY			# ?
 
 	case "$ACTION" in
-		id2name)
+		"")
+			echo
+			echo "Usage: _$FUNC	add <name> <comment> <autogenerate> <max_time> <max_traffic> <max_speed_up> <max_speed_down> <landing_url> <cost> <currency>"
+			echo "			del <id>"
+			echo "			update <id> <same_value_like_add>"
+			echo
+		;;
+		add)
+			read ID 2>/dev/null <"$DIR/meta_maxid"
+			ID="$(( ${ID:-0} + 1 ))"			# autoincrement
+			mkdir -p "$DIR"
+			echo -n >"$DIR/meta_maxid" "$ID"
+
+			NAME="${2:-unset_name_$$}"
+			COMMENT="$3"
+			AUTOGENERATE="$4"
+			MAX_TIME="$5"
+			MAX_TRAFFIC="$6"
+			MAX_SPEED_UP="$7"
+			MAX_SPEED_DOWN="$8"
+			LANDING_URL="$9"
+			COST="${10}"
+			CURRENCY="${11}"
+
+			_log do $FUNC daemon debug "$ACTION - ID: $ID NAME: $NAME COMMENT: $COMMENT AUTOGENERATE: $AUTOGENERATE MAX_TIME: $MAX_TIME MAX_TRAFFIC: $MAX_TRAFFIC MAX_SPEED_UP: $MAX_SPEED_UP MAX_SPEED_DOWN: $MAX_SPEED_DOWN LANDING_URL: $LANDING_URL COST: $COST CURRENCY: $CURRENCY"
+
+			mkdir "$DIR/$ID"					# each profile has it own dir
+			for ELEMENT in NAME COMMENT AUTOGENERATE MAX_TIME MAX_TRAFFIC MAX_SPEED_UP MAX_SPEED_DOWN LANDING_URL COST CURRENCY; do {
+				eval "VALUE=\"\$${ELEMENT}\""
+				echo -n >"$DIR/$ID/$ELEMENT" "$VALUE"
+			} done
+		;;
+		update)
 			:
+		;;
+		del)
+			:
+		;;
+		list)
+			:
+		;;
+		id2name)
+			ID="$2"
+			cat 2>/dev/null "$DIR/$ID/NAME" || return 1
 		;;
 		name2id)
 			:
@@ -66,7 +113,7 @@ _userdb_login_autocreate ()
 
 _userdb_login ()
 {
-	local ACTION="$1"			# add, del, list, gen_index
+	local ACTION="$1"		# ARG1: string -> <empty>, add, del, list, update, gen_index
 	local DIR="/tmp/USERDB/LOGIN"
 	local FUNC="userdb_login"
 	
@@ -109,6 +156,9 @@ _userdb_login ()
 			echo -n >"$DIR/$ID/PASSWORD"		"$PASSWORD"
 			echo -n >"$DIR/$ID/DEVICE_QUANTITY"	"$DEVICE_QUANTITY"
 			echo -n >"$DIR/$ID/INSTALLED"		"$INSTALLED"
+		;;
+		update)
+			:
 		;;
 		del)
 			ID="$2"
