@@ -1,11 +1,21 @@
 _userdb_backup ()
 {
-	:
+	:	# automatically call this after <prio> changes
 }
 
 _userdb_restore ()
 {
-	:
+	:	# automatically call this after reboot
+}
+
+_userdb_stats ()
+{
+	local TABLE
+	
+	for TABLE in profile login device; do {
+		echo "TABLE: '$TABLE'"
+		_userdb $TABLE list
+	} done
 }
 
 _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
@@ -39,7 +49,7 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 			echo "			name2id <name>"
 		;;
 		add|update)
-			if [ "$ACTION" = "update" ]; then
+			if [ "$ACTION" = "update" ]; then			# fixme! don't touch values, if "=" is given
 				ID="$2"
 				shift
 			else
@@ -70,6 +80,7 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 		;;
 		del)
 			ID="${2:-is_unset}"
+			[ -d "$DIR/$ID" ] || return 1
 			_log do $FUNC daemon info "$ACTION - removing ID '$ID'"
 			rm -fR "$DIR/$ID"					# fixme! check, if referenced in logins
 		;;
@@ -82,7 +93,8 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 			} done
 		;;
 		list)
-			ls -l "$DIR" 2>/dev/null || return 1
+			[ -d "$DIR" ] || return 1
+			ls -1 "$DIR" 2>/dev/null | grep ^[0-9] | sort -n
 		;;
 		id2name)
 			ID="$2"
@@ -106,11 +118,16 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 _userdb_device ()
 {
 	local ACTION="$1"
-	
-	local USERID
-	local MAC
-	local DEVTYPE
-	local LANG
+	local DIR="/tmp/USERDB/DEVICE"
+	local FUNC="userdb_device"
+	local ELEMENT VALUE
+	local ELEMENT_LIST="USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION"
+
+	local ID			# autoincrement
+	local USER_ID
+	local MAC			# lowercase + : e.g. 00:11:22:aa:bb:cc
+	local DEVTYPE			# wifi, wire
+	local LANG			# like i18n
 	local FIRSTSEEN			# [unixtime]
 	local LASTSEEN			# [unixtime]
 	local USED_TRAFFIC		# [kb]
@@ -118,6 +135,65 @@ _userdb_device ()
 	local USED_TRAFFIC_TODAY	# [kb]
 	local USED_TIME_TODAY		# [min]
 	local ISOLATION			# [bool]
+
+	case "$ACTION" in
+		"")
+			echo "Usage: _$FUNC	add <user_id> <mac> <devtype> <language> <firstseen> <lastseen> <used_traffic> <used_time> <used_traffic_today> <used_time_today> <isolation>"
+			echo "			update <id> <same_args_like_add>"
+			echo "			del <id>"
+			echo "			show <id>"
+			echo "			list"
+		;;
+		add|update)
+			if [ "$ACTION" = "update" ]; then			# fixme! don't touch values, if "=" is given
+				ID="$2"
+				shift
+			else
+				read ID 2>/dev/null <"$DIR/meta_maxid"
+				ID="$(( ${ID:-0} + 1 ))"			# autoincrement
+				mkdir -p "$DIR"
+				echo -n >"$DIR/meta_maxid" "$ID"
+			fi
+
+			USER_ID="$2"
+			MAC="$3"
+			DEVTYPE="$4"
+			LANG="$5"
+			FIRSTSEEN="$6"
+			LASTSEEN="$7"
+			USED_TRAFFIC="$8"
+			USED_TIME="$9"
+			USED_TRAFFIC_TODAY="${10}"
+			USED_TIME_TODAY="${11}"
+			ISOLATION="${12}"
+
+			_log do $FUNC daemon debug "$ACTION - ID: $ID USER_ID: $USER_ID MAC: $MAC DEVTYPE: $DEVTYPE LANG: $LANG FIRSTSEEN: $FIRSTSEEN LASTSEEN: $LASTSEEN USED_TRAFFIC: $USED_TRAFFIC USED_TIME: $USED_TIME USED_TRAFFIC_TODAY: $USED_TRAFFIC_TODAY USED_TIME_TODAY: $USED_TIME_TODAY ISOLATION: $ISOLATION"
+
+			mkdir -p "$DIR/$ID"					# each profile has it own dir
+			for ELEMENT in $ELEMENT_LIST; do {
+				eval "VALUE=\"\$${ELEMENT}\""
+				echo -n >"$DIR/$ID/$ELEMENT" "$VALUE"
+			} done
+		;;
+		del)
+			ID="${2:-is_unset}"
+			[ -d "$DIR/$ID" ] || return 1
+			_log do $FUNC daemon info "$ACTION - removing ID '$ID'"
+			rm -fR "$DIR/$ID"
+		;;
+		show)
+			ID="${2:-is_unset}"
+			[ -d "$DIR/$ID" ] || return 1
+			echo "ID: $ID"
+			for ELEMENT in $ELEMENT_LIST; do {
+				echo "$ELEMENT: $( cat "$DIR/$ID/$ELEMENT" )"
+			} done
+		;;
+		list)
+			[ -d "$DIR" ] || return 1
+			ls -1 "$DIR" 2>/dev/null | grep ^[0-9] | sort -n
+		;;
+	esac
 }
 
 _userdb_login_autocreate ()
@@ -158,8 +234,8 @@ _userdb_login ()
 			echo "			list"
 			echo "			gen_index"
 		;;
-		add|update)						# fixme! also save ID in $DIR ?
-			if [ "$ACTION" = "update" ]; then
+		add|update)							# fixme! also save ID in $DIR ?
+			if [ "$ACTION" = "update" ]; then			# fixme! don't touch values, if "=" is given
 				ID="$2"
 				shift
 			else
@@ -187,6 +263,7 @@ _userdb_login ()
 		;;
 		del)
 			ID="${2:-is_unset}"
+			[ -d "$DIR/$ID" ] || return 1
 			_log do $FUNC daemon info "$ACTION - removing ID '$ID'"
 			rm -fR "$DIR/$ID"
 		;;
@@ -199,7 +276,8 @@ _userdb_login ()
 			} done
 		;;
 		list)
-			ls -l "$DIR"
+			[ -d "$DIR" ] || return 1
+			ls -1 "$DIR" 2>/dev/null | grep ^[0-9] | sort -n
 		;;
 		gen_index)							# fixme! write to /tmp/USERDB/LOGIN/meta_index
 			local USERINDEX="/www/cgi-bin/userdata.txt"
