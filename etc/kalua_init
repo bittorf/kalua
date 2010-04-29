@@ -5,7 +5,7 @@
 # idee: methode 'unload' ?
 # idee: methode help?
 # idee: $FUNCNAME fuellen ODER alle Vorkommen von FUNCNAME durch realen zur "compile-zeit" ersetzen
-# idee: funktionsausrufe innerhalb der klasse optimieren, d.h. innerhalb von _wifi wird der aufruf "_wifi txpwr_get" durch _wifi_txpwr_get ersetzt
+##### idee: funktionsausrufe innerhalb der klasse optimieren, d.h. innerhalb von _wifi wird der aufruf "_wifi txpwr_get" durch _wifi_txpwr_get ersetzt
 # idee: passend zur klasse automatisch einen bestimmten variablensatz aktivieren (z.b. $INTRANET bei pfilter)?
 # idee: statistik anzeigen lassen per befehl: sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/${CLASS} | wc -l | sed 's/ //g'
 # idee: anzahl der maximalen argumente die in einem aufruf vorkommen klassenspezifisch dynamisch bestimmen
@@ -30,12 +30,15 @@ echo >>"$LOADER" "export TZ='CET-1CEST-2,M3.5.0/2,M10.5.0/3'"
 echo >>"$LOADER" "_(){ ls -1 $POOLDIR|sort|sed 's/^/_/';}"
 
 max_arguments ()		# fixme! find a way to ignore internal class calls -> must be marked
-{
-	local FILE="$1"
-	local ARG LIST
+{				# fixme! find a way to identify calls like _sanitizer do "string" arg1 arg2 arg3 argN
+	local FILE="$1"		# fixme! find a way to count '$@', e.g. profile_local_include_vars
+	local ARG KEY LIST
 	
-	for ARG in 1 2 3 4 5 6 7 8 9; do {
-		LIST="$LIST\"\$$ARG\" "
+	while :; do {
+		ARG=$(( ${ARG:-0} + 1 ))
+		KEY=$ARG
+		[ $ARG -gt 9 ] && KEY="{$ARG}"
+		LIST="$LIST\"\$$KEY\" "
 		fgrep -q "\$$ARG" "$FILE" && continue
 		fgrep -q "\${${ARG}" "$FILE" && continue
 		break
@@ -69,6 +72,8 @@ EOF
 			-e 's/^[ 	]*//' \
 			-e '/^$/d' 		"$POOLDIR/${CLASS}"	# strip inline comments, comments at line start, leading spaces/tabs, empty lines
 	}
+
+	sed -i "/_$CLASS ./s/_$CLASS /_${CLASS}_/g" "$POOLDIR/${CLASS}"		# make internal calls more efficient, e.g. in _wifi() all "_wifi arg" -> "_wifi_arg"
 
 	echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/${CLASS};${DEBUG2}_${CLASS} $MAX_ARGS;}\n"
 } done

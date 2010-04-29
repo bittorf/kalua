@@ -1,5 +1,6 @@
 _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no success
 {
+	local FUNC="wget_do"
 	local URL="$1"
 	local C=0							# counter (raising) for maximal seconds
 	local MAX="${2:-15}"						# maximal running time in seconds, defaults to 15sec
@@ -7,29 +8,31 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 	local MASK2="$4"						# strings from URL, which should be masked during logging
 	local PID_WGET PID_LINE PID_LINE_NOW
 
-	_log do "wget" daemon debug "max ${MAX}s '$URL'"
-	
-	wget -qO - "$URL" 2>/dev/null &					# fixme! what if wget-task has ended before 'pidof' / howto catch returncode?
+	_log do $FUNC daemon debug "max ${MAX}s '$URL'"
 
-	PID_WGET="$( pidof wget | sed 's/ /\n/g' | sed '$!d' )"		# list of all wget-pid's, insert newlines, print last line
-	read PID_LINE 2>/dev/null </proc/$PID_WGET/cmdline		# exact line of ps-output
+	wget -qO - "$URL" 2>/dev/null &
+
+	PID_WGET="$( pidof wget | sed 's/ /\n/g' | sed '$!d' )"		# list of all wget-pid's, insert newlines, print last line	// fixme! e.g. ${PID#* }
+	read PID_LINE 2>/dev/null </proc/${PID_WGET:=unset}/cmdline	# exact line of ps-output
 	
-	while [ -e "/proc/${PID_WGET:=unset}" ]; do {			# wget-process in tasklist?
+	while [ -e "/proc/$PID_WGET" ]; do {				# wget-process in tasklist?
 		sleep 1
 		C=$(( $C + 1 ))
 		
-		read PID_LINE_NOW 2>/dev/null </proc/$PID_WGET/cmdline	# is empty, when task has ended
-		
 		[ $C -gt $MAX ] && {					# maximal execution time reached
+
+			PID_LINE_NOW=
+			read PID_LINE_NOW 2>/dev/null </proc/$PID_WGET/cmdline		# is now empty, when task has ended
+
 			[ "$PID_LINE" = "$PID_LINE_NOW" ] && {		# is this really the started process?
 	
 				[ -n "$MASK1" ] && URL="$( echo "$URL" | sed -e "s/$MASK1/hidden/" -e "s/$MASK2/hidden/" )"
 			
-				_log do "wget" daemon info "error during fetching '$URL' - killing PID '$PID_WGET' after $C seconds"
+				_log do $FUNC daemon info "error during fetching '$URL' - killing PID '$PID_WGET' after $C seconds"
 				kill $PID_WGET 2>/dev/null
 				return 1				# fixme! check if still there? zombie? reboot?
 			}
-			return 0					# OK - this is another process
+			return 0					# OK, is another/new process with same PID
 		}
 	} done
 }
