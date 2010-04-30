@@ -1,0 +1,42 @@
+_kalua_max_arguments ()		# fixme! find a way to ignore internal class calls -> must be marked
+{				# fixme! find a way to identify calls like _sanitizer do "string" arg1 arg2 arg3 argN
+	local FILE="$1"		# fixme! find a way to count '$@', e.g. profile_local_include_vars
+	local ARG KEY LIST	# fixme! better set a marker in front of every class, like '#maxargs 7'
+	
+	while :; do {
+		ARG=$(( ${ARG:-0} + 1 ))
+		KEY=$ARG
+		[ $ARG -gt 9 ] && KEY="{$ARG}"
+		LIST="$LIST\"\$$KEY\" "
+		fgrep -q "\$$ARG" "$FILE" && continue
+		fgrep -q "\${${ARG}" "$FILE" && continue
+		break
+	} done
+
+	echo "$LIST"
+}
+
+_kalua_strip_script ()			# fixme! no substitution within 'cat <<EOF bla bla EOF' ?
+{
+	local FILE="$1"
+	local CLASS="${2:-is_unset}"
+		
+	sed	-e 's/ [ 	]*#.*//g' \
+		-e 's/	[ 	]*#.*//g' \
+		-e '/^#/d' \
+		-e '/^	#/d' \
+		-e 's/^[ 	]*//' \
+		-e '/^$/d' \
+		-e 's/ | /|/g' \
+		-e 's/ |$/|/' \
+		-e "/_$CLASS ./s/_$CLASS /_${CLASS}_/g" \
+		-e 's/; do {/\ndo/' \
+		-e 's/} done/done/' \
+		-e 's/ ()/()/' \
+		-e 's/]; then\(.*\)/]\nthen\1/' \
+		-e 's/; fi/\nfi/' \
+		-e 's/$([ 	]*/$(/' \
+		-e 's/[ 	]*)/)/' \
+		-e 's/local [ 	]*/local /' \
+		"$FILE"
+}
