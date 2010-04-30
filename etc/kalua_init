@@ -32,8 +32,8 @@ for CLASS in $( find $BASEDIR -type f ); do {
 	MAX_ARGS="$( _kalua_max_arguments "$BASEDIR/$CLASS" )"
 
 	[ "$DEBUG" = "debug" ] && {
-		DEBUG1=" logger \"realclass:$CLASS name:\$1 args:${MAX_ARGS#* } ;"
-		DEBUG2=" logger -- \"--- loader:$CLASS name:\$1 args:${MAX_ARGS#* } ;"		# omit first ARG
+		DEBUG1="logger working in _$CLASS, calling \$1 with args ${MAX_ARGS#* };"	# omit first ARG
+		DEBUG2="logger including _$CLASS subfunc \$1;"
 	}
 
 	cat >"$POOLDIR/${CLASS}" <<EOF
@@ -42,12 +42,17 @@ _${CLASS}_show(){ sed -n '1,2ds/^\(.*\) ().*/\1/p' $BASEDIR/${CLASS}|sort ;}
 _${CLASS}_include(){ :;}
 EOF
 
-	_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" >>"$POOLDIR/${CLASS}"
+	_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" "$DEBUG" >>"$POOLDIR/${CLASS}"
 
-	echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/${CLASS};${DEBUG2}_${CLASS} $MAX_ARGS;}\n"
+	if [ "$DEBUG" = "debug" ]; then
+		. "$POOLDIR/${CLASS}"
+		echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/${CLASS};${DEBUG2}_${CLASS} ${MAX_ARGS};}\n"
+	else
+		echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/${CLASS};${DEBUG2}_${CLASS}_\$1 ${MAX_ARGS#* };}\n"
+	fi
 } done
 
-[ -e /tmp/NETPARAM ] && {				# fixme! better concept needed
+if [ -e /tmp/NETPARAM ]; then		# fixme! better concept needed
 	. /tmp/NETPARAM
 	
 	while read LINE; do {
@@ -55,7 +60,9 @@ EOF
 	} done </tmp/NETPARAM
 	
 	echo -en >>"$LOADER" "WIFI_DEVS=$WIFIDEV\n"
-}
+else
+	logger -s "$0 could'nt work with '/tmp/NETPARAM'"
+fi
 
 . /etc/variables_fff+
 echo >>"$LOADER" "FFF_PLUS_VERSION=$FFF_PLUS_VERSION;FFF_VERSION=$FFF_VERSION"
@@ -66,4 +73,4 @@ mv "$LOADER" "$LOADER_FINAL"
 echo -n "$WIFIDEV" >/tmp/WIFIDEV	# is a hack for fast seeking our dev/ip
 echo -n "$WIFIADR" >/tmp/WIFIADR
 
-_log do "gen_loader" daemon info "generated '$LOADER_FINAL' (in $(( $( date +%s ) - $STARTTIME ))sec, using $( _file diskusage $POOLDIR ) bytes in $POOLDIR) - you MUST reinclude the new loader with '. $LOADER_FINAL' if this is an interactive shell"
+_log do gen_loader daemon info "[OK] done '$LOADER_FINAL' (in $(( $( date +%s ) - $STARTTIME ))sec, using $( _file diskusage $POOLDIR ) bytes in $POOLDIR) - you MUST reinclude the new loader with '. $LOADER_FINAL' if this is an interactive shell"
