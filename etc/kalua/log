@@ -58,9 +58,17 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 			local UPTIME="$( _system uptime      )"
 			local DATE="$(   _system date        )"
 		}
-							# fixme! i can't see that, e.g. _net mac2vendor $MAC	
+							# fixme! it does'nt work in nested functions, e.g. _net mac2vendor $MAC	
 		FATHER_PROCESS="TERM:${TERM} $0"
 		echo "$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE" 1>&2   # to stderr
+	}
+
+	boot_and_debug_message ()
+	{
+		pidof syslogd >/dev/null || {		# write to special logfile
+			echo >>/tmp/messages "$DATE ' [up ${UPTIME}s $MEM bytes free] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
+			# _log netmessage "$MESSAGE"	# fixme!
+		}
 	}
 
 	if [ "$PRIO" = "debug" ]; then
@@ -68,20 +76,9 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 		[ ! -e /tmp/DEBUG ] && {
 			shell_is_interactive || return
 		}
-
-		[ -e /tmp/BOOT ] && {
-			pidof syslogd >/dev/null || {		# write to special logfile
-				echo >>/tmp/messages "$DATE ' [up $(cut -d" " -f1 /proc/uptime)s] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
-				# _log netmessage "$MESSAGE"	# fixme!
-			}
-		}
+		boot_and_debug_message
 	else
-		[ -e /tmp/BOOT ] && {
-			pidof syslogd >/dev/null || {		# write to special logfile
-				echo >>/tmp/messages "$DATE ' [up $(cut -d" " -f1 /proc/uptime)s] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"	
-				# _log netmessage "$MESSAGE"	# fixme!
-			}
-		}
+		boot_and_debug_message
 	fi
 
 	# fixme! howto print out logging when webserver executes a script?
