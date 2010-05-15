@@ -1,0 +1,120 @@
+#!/bin/sh
+. /tmp/loader
+
+# fixme! typische Einheiten fuer alle Werte anbieten und intern korrekt rechnen:
+#        [Minuten|Stunden|Tage|Monate|Jahr]
+#        [kb|mb|gb]
+#        [euro|dollar|...]
+
+
+_http header_mimetype_output "text/html"
+eval $( _http query_string_sanitize )
+
+cat <<EOF
+<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.01//EN' 'http://www.w3.org/TR/html4/strict.dtd'>
+<html><head><title>WLAN-System: Benutzerverwaltung</title>
+<META HTTP-EQUIV='cache-control' CONTENT='no-cache'></head><body bgcolor='white'>
+EOF
+
+AMP="&amp;"
+ARROW="<b>&rarr;</b>"
+
+_userdb include
+
+[ "$FORM_ACTION" = "profile_del" ] && {
+	_userdb profile del "$FORM_ID"
+	FORM_ACTION=
+}
+
+case "$FORM_ACTION" in
+	profile_update|profile_add)
+		echo "<h3> Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Profil bearbeiten </h3>"
+
+		case "$FORM_ACTION" in
+			profile_update)
+				[ -n "$FORM_NAME" ] && {
+					_userdb profile update "$FORM_ID" "$FORM_NAME" "$FORM_COMMENT" "$FORM_AUTOGENERATE" "$FORM_MAX_TIME" "$FORM_MAX_TRAFFIC" "$FORM_MAX_SPEED_UP" "$FORM_MAX_SPEED_DOWN" "$FORM_LANDING_URL" "$FORM_COST" "$FORM_CURRENCY"
+				}			
+			;;
+			profile_add)
+				_userdb profile add "Name nicht vergeben"
+				for FORM_ID in $( _userdb profile list ); do :; done		# fetch last ID
+			;;
+		esac	
+
+		eval $( _userdb profile show $FORM_ID )
+
+		echo "<form action='' method='get'>"
+		echo "<input type='hidden' name='FORM_ACTION' value='profile_update'>"
+		echo "<input name='FORM_ID' type='hidden' value='$ID'>"
+		echo "ID: $ID<br>"
+		echo "Name: <input name='FORM_NAME' type='text' size='30' value='$NAME'><br>"
+		echo "Kommentar: <input name='FORM_COMMENT' type='text' size='30' value='$COMMENT'><br>"
+		echo "Automatisches erzeugen: <input name='FORM_AUTOGENERATE' type='radio' name='AUTOGENERATE' value='1' $( test "$AUTOGENERATE" = "1" && echo checked )>ja&nbsp;<input name='FORM_AUTOGENERATE' type='radio' name='AUTOGENERATE' value='0' $( test "$AUTOGENERATE" = "0" && echo checked )>nein<br>"
+		echo "G&uuml;ltigkeitsdauer [min]: <input name='FORM_MAX_TIME' type='text' value='$MAX_TIME'><br>"
+		echo "Maximales Datenvolumen: [kb]: <input name='FORM_MAX_TRAFFIC' type='text' value='$MAX_TRAFFIC'><br>"
+		echo "Maximale Upload-Geschwindigkeit [kb/s]: <input name='FORM_MAX_SPEED_UP' type='text' value='$MAX_SPEED_UP'><br>"
+		echo "Maximale Download-Geschwindigkeit [kb/s]: <input name='FORM_MAX_SPEED_DOWN' type='text' value='$MAX_SPEED_DOWN'><br>"
+		echo "Landeseite URL: <input name='FORM_LANDING_URL' type='text' value='$LANDING_URL'><br>"
+		echo "Verkaufspreis: <input name='FORM_COST' type='text' value='$COST'><br>"
+		echo "W&auml;hrung: <input name='FORM_CURRENCY' type='text' value='$CURRENCY'><br>"
+		echo "<input type='submit' name='' value='Eintr&auml;ge aktualisieren'>"
+	;;
+	*)
+		cat <<EOF
+<h3>Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a></h3>
+<p>
+<ul>
+	<li>Benutzerprofile verwalten:</li>
+	<ul>
+		<li>neues Profil <a href='?FORM_ACTION=profile_add'>erstellen</a></li>
+EOF
+		
+LIST_PROFILES="$( _userdb profile list )"
+
+		[ -n "$LIST_PROFILES" ] && {
+			echo "<li>ein Profil bearbeiten:</li><ul>"
+
+			for ID in $LIST_PROFILES; do {
+				eval "$( _userdb profile show $ID "NAME COMMENT" )"
+				echo "<li>$NAME ('$COMMENT') <a href='?FORM_ACTION=profile_update${AMP}FORM_ID=${ID}'>bearbeiten</a> | <a href='?FORM_ACTION=profile_del${AMP}FORM_ID=${ID}'>l&ouml;schen</a></li>"
+			} done
+
+			echo "</ul>"
+		}	
+	
+		profile_selector ()
+		{
+			echo "<select name='' size='1'>"
+			for ID in $LIST_PROFILES; do {
+				eval "$( _userdb profile show $ID "NAME COMMENT" )"
+				echo "<option value='$ID'>${NAME}: ${COMMENT}</option>"
+			} done
+			echo "</select>"
+		}
+	
+		
+		cat <<EOF
+	</ul>
+</p>
+<p>
+	<li>Logins verwalten:</li>
+	<ul>
+		<li>neue Logins <a href='?FORM_ACTION=login_add'>erstellen</a></li>
+		<li>Logins anzeigen | ausdrucken</li>
+		<li>Logins bearbeiten | l&ouml;schen</li>
+	</ul>
+</p>
+<p>
+	<li>Ger&auml;te verwalten:</li>
+	<ul>
+		<li>neue Ger&auml;te <a href='?FORM_ACTION=device_add'>eintragen</a></li>
+		<li>Ger&auml;te anzeigen</li>
+	</ul>
+</p>
+</ul>
+EOF
+	;;
+esac
+
+echo "</body></html>"
