@@ -33,6 +33,7 @@ _userdb_stats ()
 _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 {
 	local ACTION="$1"		# ARG1: string -> <empty>, add, del, list, update, id2name, name2id
+	
 	local DIR="/tmp/USERDB/PROFILE"
 	local FUNC="userdb_profile"
 	local ELEMENT VALUE
@@ -55,7 +56,7 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 			echo "Usage: _$FUNC	add <name> <comment> <autogenerate> <max_time> <max_traffic> <max_speed_up> <max_speed_down> <landing_url> <cost> <currency>"
 			echo "			update <id> <same_args_like_add>"
 			echo "			del <id>"
-			echo "			show <id>"
+			echo "			show <id> <specific_elements>"
 			echo "			list"
 			echo "			id2name <id>"
 			echo "			name2id <name>"
@@ -63,6 +64,7 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 		add|update)
 			if [ "$ACTION" = "update" ]; then			# fixme! don't touch values, if "=" is given
 				ID="$2"
+				[ -z "$ID" ] && return
 				shift
 			else
 				read ID 2>/dev/null <"$DIR/meta_maxid"
@@ -98,10 +100,12 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 		;;
 		show)
 			ID="${2:-is_unset}"
+			OPTION="$3"
 			[ -d "$DIR/$ID" ] || return 1
-			echo "ID: $ID"
+			[ -n "$OPTION" ] && ELEMENT_LIST="$OPTION"
+			echo "ID='$ID'"
 			for ELEMENT in $ELEMENT_LIST; do {
-				echo "$ELEMENT: $( cat "$DIR/$ID/$ELEMENT" )"
+				echo "$ELEMENT='$( cat "$DIR/$ID/$ELEMENT" )'"
 			} done
 		;;
 		list)
@@ -198,7 +202,7 @@ _userdb_device ()
 			[ -d "$DIR/$ID" ] || return 1
 			echo "ID: $ID"
 			for ELEMENT in $ELEMENT_LIST; do {
-				echo "$ELEMENT: $( cat "$DIR/$ID/$ELEMENT" )"
+				echo "$ELEMENT='$( cat "$DIR/$ID/$ELEMENT" )'"
 			} done
 		;;
 		list)
@@ -217,7 +221,7 @@ _userdb_login_autocreate ()
 	
 	while [ $I -lt $COUNTER ]; do {
 		I=$(( $I + 1 ))
-		_userdb_login add "$1" "" "" "" "1" "$UNIXTIME"
+		_userdb login add "$1" "" "" "" "1" "$UNIXTIME"
 	} done
 }
 
