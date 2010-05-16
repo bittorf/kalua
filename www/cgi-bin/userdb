@@ -5,6 +5,7 @@
 #        [Minuten|Stunden|Tage|Monate|Jahr]
 #        [kb|mb|gb]
 #        [euro|dollar|...]
+# fixme! neuerzeugen von profil, aber altes als vorlage nehmen
 
 
 _http header_mimetype_output "text/html"
@@ -18,16 +19,17 @@ EOF
 
 AMP="&amp;"
 ARROW="<b>&rarr;</b>"
-
 _userdb include
 
-[ "$FORM_ACTION" = "profile_del" ] && {
-	_userdb profile del "$FORM_ID"
-	FORM_ACTION=
-}
+case "$FORM_ACTION" in
+	profile_del)
+		_userdb profile del "$FORM_ID"
+		FORM_ACTION=
+	;;
+esac
 
 case "$FORM_ACTION" in
-	profile_update|profile_add)
+	profile_add|profile_update)
 		echo "<h3> Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Profil bearbeiten </h3>"
 
 		case "$FORM_ACTION" in
@@ -37,7 +39,7 @@ case "$FORM_ACTION" in
 				}			
 			;;
 			profile_add)
-				_userdb profile add "Name nicht vergeben"
+				_userdb profile add "Name nicht vergeben"			# creat new and...
 				for FORM_ID in $( _userdb profile list ); do :; done		# fetch last ID
 			;;
 		esac	
@@ -48,8 +50,8 @@ case "$FORM_ACTION" in
 		echo "<input type='hidden' name='FORM_ACTION' value='profile_update'>"
 		echo "<input name='FORM_ID' type='hidden' value='$ID'>"
 		echo "ID: $ID<br>"
-		echo "Name: <input name='FORM_NAME' type='text' size='30' value='$NAME'><br>"
-		echo "Kommentar: <input name='FORM_COMMENT' type='text' size='30' value='$COMMENT'><br>"
+		echo "Name: <input name='FORM_NAME' type='text' value='$NAME'><br>"
+		echo "Kommentar: <input name='FORM_COMMENT' type='text' value='$COMMENT'><br>"
 		echo "Automatisches erzeugen: <input name='FORM_AUTOGENERATE' type='radio' name='AUTOGENERATE' value='1' $( test "$AUTOGENERATE" = "1" && echo checked )>ja&nbsp;<input name='FORM_AUTOGENERATE' type='radio' name='AUTOGENERATE' value='0' $( test "$AUTOGENERATE" = "0" && echo checked )>nein<br>"
 		echo "G&uuml;ltigkeitsdauer [min]: <input name='FORM_MAX_TIME' type='text' value='$MAX_TIME'><br>"
 		echo "Maximales Datenvolumen: [kb]: <input name='FORM_MAX_TRAFFIC' type='text' value='$MAX_TRAFFIC'><br>"
@@ -58,6 +60,83 @@ case "$FORM_ACTION" in
 		echo "Landeseite URL: <input name='FORM_LANDING_URL' type='text' value='$LANDING_URL'><br>"
 		echo "Verkaufspreis: <input name='FORM_COST' type='text' value='$COST'><br>"
 		echo "W&auml;hrung: <input name='FORM_CURRENCY' type='text' value='$CURRENCY'><br>"
+		echo "<input type='submit' name='' value='Eintr&auml;ge aktualisieren'>"
+	;;
+	login_add|login_update)
+		echo "<h3> Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Login bearbeiten </h3>"
+
+		case "$FORM_ACTION" in
+			login_add)
+				_userdb login add						# create new and...
+				for FORM_ID in $( _userdb login list ); do :; done		# fetch last ID
+			;;
+			login_update)
+
+				helper_update ()
+				{
+					_userdb login update "$FORM_ID" "$FORM_PROFILE_ID" "$FORM_COMMENT" "$FORM_USERNAME" "$FORM_PASSWORD" "$FORM_DEVICE_QUANTITY" "$FORM_INSTALLED"
+				}
+			
+				case "$FORM_DUPLICATE_NO" in
+					1)
+						helper_update
+					;;
+					*)
+						FORM_USERNAME=		# does not make sense to have many tickets
+						FORM_PASSWORD=		# with same values, this enforces random()
+					
+						helper_update
+						while [ $FORM_DUPLICATE_NO -ne 0 ]; do {
+
+							FORM_DUPLICATE_NO="$(( $FORM_DUPLICATE_NO - 1 ))"
+
+							_userdb login add
+							for FORM_ID in $( _userdb login list ); do :; done
+							helper_update
+						} done
+					;;
+				esac
+			;;
+		esac
+
+		profile_selector ()
+		{
+			local ID NAME COMMENT
+			
+			echo "Profil: <select name='FORM_PROFILE_ID' size='1'>"
+			
+			for ID in $( _userdb profile list ); do {
+				eval "$( _userdb profile show $ID "NAME COMMENT" )"
+				echo "<option value='$ID'>${NAME}: ${COMMENT}</option>"
+			} done
+		
+			echo "</select><br>"
+		}
+		
+		eval $( _userdb login show $FORM_ID )
+
+		echo "<form action='' method='get'>"
+		echo "<input type='hidden' name='FORM_ACTION' value='login_update'>"
+		echo "<input name='FORM_ID' type='hidden' value='$ID'>"
+		echo "ID: $ID<br>"
+		
+		profile_selector
+		
+		echo "Kommentar: <input name='FORM_COMMENT' type='text' value='$COMMENT'><br>"
+		echo "Benutzername: <input name='FORM_USERNAME' type='text' value='$USERNAME'><br>"
+		echo "Passwort: <input name='FORM_PASSWORD' type='text' value='$PASSWORD'><br>"
+		echo "Ger&auml;teanzahl: <input name='FORM_DEVICE_QUANTITY' type='text' value='$DEVICE_QUANTITY'><br>"
+		echo "<input name='FORM_INSTALLED' type='hidden' value='$( _system date unixtime )'>"
+
+		case "$FORM_ACTION" in
+			login_add)
+				echo "Anzahl der Kopien: <input name='FORM_DUPLICATE_NO' type='text' value='1'><br>"
+			;;
+			*)
+				echo "<input name='FORM_DUPLICATE_NO' type='hidden' value='1'>"
+			;;
+		esac
+		
 		echo "<input type='submit' name='' value='Eintr&auml;ge aktualisieren'>"
 	;;
 	*)
@@ -82,17 +161,6 @@ LIST_PROFILES="$( _userdb profile list )"
 
 			echo "</ul>"
 		}	
-	
-		profile_selector ()
-		{
-			echo "<select name='' size='1'>"
-			for ID in $LIST_PROFILES; do {
-				eval "$( _userdb profile show $ID "NAME COMMENT" )"
-				echo "<option value='$ID'>${NAME}: ${COMMENT}</option>"
-			} done
-			echo "</select>"
-		}
-	
 		
 		cat <<EOF
 	</ul>

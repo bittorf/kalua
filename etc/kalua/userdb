@@ -29,6 +29,7 @@ _userdb_stats ()
 
 # fixme! email fuer tickets.pdf?
 # fixme! free_intranet? 
+# fixme! entscheidung zwischen echtzeit-ablauf und reine nutzungszeit-ablauf (profil)
 
 _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 {
@@ -105,7 +106,8 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 			[ -n "$OPTION" ] && ELEMENT_LIST="$OPTION"
 			echo "ID='$ID'"
 			for ELEMENT in $ELEMENT_LIST; do {
-				echo "$ELEMENT='$( cat "$DIR/$ID/$ELEMENT" )'"
+				read VALUE <"$DIR/$ID/$ELEMENT"
+				echo "$ELEMENT='$VALUE'"
 			} done
 		;;
 		list)
@@ -117,11 +119,17 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 			cat 2>/dev/null "$DIR/$ID/NAME" || return 1
 		;;
 		name2id)
-			[ -z "$2" ] && return
+			[ 2>/dev/null "${2:-unset}" -gt 0 ] && { 		# is_numeric? -> already ID
+				[ -e "$DIR/$2/NAME" ] || return 1
+				echo $2
+				return 0
+			}
+			
 			for FILE in $( find "$DIR" -type d ); do {
 				[ -e "$FILE/NAME" ] && {
 					read NAME <"$FILE/NAME"
-					[ "$NAME" = "$2" ] && {
+					
+					[ "$NAME" = "${2:-$NAME}" ] && {	# empty 'name' means: output any/first profile_name
 						basename $FILE
 						return
 					}
@@ -200,9 +208,10 @@ _userdb_device ()
 		show)
 			ID="${2:-is_unset}"
 			[ -d "$DIR/$ID" ] || return 1
-			echo "ID: $ID"
+			echo "ID='$ID'"
 			for ELEMENT in $ELEMENT_LIST; do {
-				echo "$ELEMENT='$( cat "$DIR/$ID/$ELEMENT" )'"
+				read VALUE <"$DIR/$ID/$ELEMENT"
+				echo "$ELEMENT='$VALUE'"
 			} done
 		;;
 		list)
@@ -238,7 +247,7 @@ _userdb_login ()
 	local COMMENT
 	local USERNAME			# namespace from mydesign or explicit
 	local PASSWORD
-	local DEVICES			# how many
+	local DEVICE_QUANTITY		# how many
 	local INSTALLED			# [unixtime]
 
 	case "$ACTION" in
@@ -286,9 +295,10 @@ _userdb_login ()
 		show)
 			ID="${2:-is_unset}"
 			[ -d "$DIR/$ID" ] || return 1
-			echo "ID: $ID"
+			echo "ID='$ID'"
 			for ELEMENT in $ELEMENT_LIST; do {
-				echo "$ELEMENT: $( cat "$DIR/$ID/$ELEMENT" )"
+				read VALUE <"$DIR/$ID/$ELEMENT"
+				echo "$ELEMENT='$VALUE'"
 			} done
 		;;
 		list)
