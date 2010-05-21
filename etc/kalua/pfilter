@@ -215,7 +215,7 @@ _pfilter_stats_rules_count ()
 	local TABLE COUNT
 	
 	for TABLE in $LIST; do {
-		COUNT="$( _ipt -t $TABLE -nxL $OPTION | sed -e '/^target/d' -e '/^Chain /d' -ne '/[^.]$/p' | sed -n '$=' )"
+		COUNT="$( iptables -t $TABLE -nxL $OPTION | sed -e '/^target/d' -e '/^Chain /d' -ne '/[^.]$/p' | sed -n '$=' )"
 		_log do packetfilter_count_rules daemon debug "$COUNT rules in '$TABLE' $OPTION"
 	} done
 }
@@ -541,23 +541,23 @@ _pfilter_stats_olsr_traffic_wifi_in ()
 {
 	local PACK BYTES REST
 	
-	_ipt -nxvL olsr_in 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo -n ${BYTES:-0}; done
+	iptables -nxvL olsr_in 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo -n ${BYTES:-0}; done
 }
 
 _pfilter_stats_olsr_traffic_wifi_out ()
 {
 	local PACK BYTES REST
 	
-	_ipt -nxvL olsr_out_wifi 2>/dev/null | tail -n1 | while read PACK BYTES REST; do echo ${BYTES:-0}; done
+	iptables -nxvL olsr_out_wifi 2>/dev/null | tail -n1 | while read PACK BYTES REST; do echo ${BYTES:-0}; done
 }
 
 _pfilter_stats_layer7_hits ()
 {
 	local PACK BYTES REST
 	
-	local ALL_BYTES="$(      _ipt -t mangle -nxvL FORWARD | grep "CONNMARK restore" | while read PACK BYTES REST; do echo $BYTES; done )"
-	local RESTORED_BYTES="$( _ipt -t mangle -nxvL FORWARD | grep "CONNMARK match"   | while read PACK BYTES REST; do echo $BYTES; done )"
-	local MATCHED_BYTES="$(  _ipt -t mangle -nxvL marking | grep "CONNMARK"         | while read PACK BYTES REST; do echo $BYTES; done )"
+	local ALL_BYTES="$(      iptables -t mangle -nxvL FORWARD | grep "CONNMARK restore" | while read PACK BYTES REST; do echo $BYTES; done )"
+	local RESTORED_BYTES="$( iptables -t mangle -nxvL FORWARD | grep "CONNMARK match"   | while read PACK BYTES REST; do echo $BYTES; done )"
+	local MATCHED_BYTES="$(  iptables -t mangle -nxvL marking | grep "CONNMARK"         | while read PACK BYTES REST; do echo $BYTES; done )"
 
 	which awk >/dev/null || {
 		echo 0
@@ -684,14 +684,14 @@ _pfilter_stats_traffic_forwarded_intranet ()
 {
 	local PACK BYTES REST
 	
-	_ipt -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
+	iptables -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
 _pfilter_stats_traffic_forwarded_internet ()	# fixme! empty chains -> output = "bytes", but should be '0'
 {
 	local PACK BYTES REST
 	
-	_ipt -t mangle -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
+	iptables -t mangle -nxvL FORWARD 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo $BYTES; done
 }
 
 _pfilter_stats_user_conns_start ()	# we don't use _ipt() abstraction because chains maybe does not exist / avoid syslog errors
@@ -729,7 +729,7 @@ _pfilter_stats_user_traffic ()	# OUT1: string
 		*)      LINE="4" ;;	# overall
 	esac
 
-	_ipt -t mangle --line-numbers -nxvL traff_${MAC} | 
+	iptables -t mangle --line-numbers -nxvL traff_${MAC} | 
 	 sed -n "/^${LINE} /s/^${LINE}[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p"
 }
 
@@ -1456,7 +1456,7 @@ _pfilter_stats_chain_show ()
 		CHAIN="$1"
 	}
 	
-	_ipt -t $TABLE -nxvL $CHAIN | while read LINE; do {
+	iptables -t $TABLE -nxvL $CHAIN | while read LINE; do {
 		_log do $FUNC daemon debug "$LINE"
 	} done
 }
