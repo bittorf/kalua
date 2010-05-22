@@ -22,14 +22,21 @@ _userdb_stats ()
 	local TABLE
 	
 	for TABLE in profile login device; do {
+		
 		echo "TABLE: '$TABLE'"
-		_userdb $TABLE list
+		
+		if [ -n "$( _userdb $TABLE list )" ]; then
+			_userdb $TABLE list
+		else
+			echo "# empty table '$TABLE'"
+		fi
 	} done
 }
 
 # fixme! email fuer tickets.pdf?
 # fixme! free_intranet? 
 # fixme! entscheidung zwischen echtzeit-ablauf und reine nutzungszeit-ablauf (profil)
+# fixme! _userdb profile_lastid() + wenn man loescht luecken auffuellen?
 
 _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 {
@@ -38,13 +45,14 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 	local DIR="/tmp/USERDB/PROFILE"
 	local FUNC="userdb_profile"
 	local ELEMENT VALUE
-	local ELEMENT_LIST="NAME COMMENT AUTOGENERATE MAX_TIME MAX_TRAFFIC MAX_SPEED_UP MAX_SPEED_DOWN LANDING_URL COST CURRENCY"
+	local ELEMENT_LIST="NAME COMMENT AUTOGENERATE TIME_MODEL MAX_TIME MAX_TRAFFIC MAX_SPEED_UP MAX_SPEED_DOWN LANDING_URL COST CURRENCY"
 	
 	local ID			# autoincrement
 	local NAME
 	local COMMENT
 	local AUTOGENERATE		# [bool]
 	local MAX_TIME			# [min] -> autogenerate some keywords?, e.g. 1week, 24h, 1month ...
+	local TIME_MODEL		# [bool] used_time = unset/0 - passed_time = 1
 	local MAX_TRAFFIC		# [kb]
 	local MAX_SPEED_UP		# [kb/s]
 	local MAX_SPEED_OWN		# [kb/s]	// empty on MAX_* means: nolimit/unlimited
@@ -54,7 +62,7 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 
 	case "$ACTION" in
 		"")
-			echo "Usage: _$FUNC	add <name> <comment> <autogenerate> <max_time> <max_traffic> <max_speed_up> <max_speed_down> <landing_url> <cost> <currency>"
+			echo "Usage: _$FUNC	add <name> <comment> <autogenerate=0|1> <time_model=0|1=used/passed> <max_time> <tim<max_traffic> <max_speed_up> <max_speed_down> <landing_url> <cost> <currency>"
 			echo "			update <id> <same_args_like_add>"
 			echo "			del <id>"
 			echo "			show <id> <specific_elements>"
@@ -77,15 +85,16 @@ _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 			NAME="${2:-unset_name_$$}"
 			COMMENT="$3"
 			AUTOGENERATE="$4"
-			MAX_TIME="$5"
-			MAX_TRAFFIC="$6"
-			MAX_SPEED_UP="$7"
-			MAX_SPEED_DOWN="$8"
-			LANDING_URL="$9"
-			COST="${10}"
-			CURRENCY="${11}"
+			TIME_MODEL="$5"
+			MAX_TIME="$6"
+			MAX_TRAFFIC="$7"
+			MAX_SPEED_UP="$8"
+			MAX_SPEED_DOWN="$9"
+			LANDING_URL="${10}"
+			COST="${11}"
+			CURRENCY="${12}"
 
-			_log do $FUNC daemon debug "$ACTION - ID: $ID NAME: $NAME COMMENT: $COMMENT AUTOGENERATE: $AUTOGENERATE MAX_TIME: $MAX_TIME MAX_TRAFFIC: $MAX_TRAFFIC MAX_SPEED_UP: $MAX_SPEED_UP MAX_SPEED_DOWN: $MAX_SPEED_DOWN LANDING_URL: $LANDING_URL COST: $COST CURRENCY: $CURRENCY"
+			_log do $FUNC daemon debug "$ACTION - ID: $ID NAME: $NAME COMMENT: $COMMENT TIME_MODEL: $TIME_MODEL AUTOGENERATE: $AUTOGENERATE MAX_TIME: $MAX_TIME MAX_TRAFFIC: $MAX_TRAFFIC MAX_SPEED_UP: $MAX_SPEED_UP MAX_SPEED_DOWN: $MAX_SPEED_DOWN LANDING_URL: $LANDING_URL COST: $COST CURRENCY: $CURRENCY"
 
 			mkdir -p "$DIR/$ID"					# each profile has it own dir
 			for ELEMENT in $ELEMENT_LIST; do {
