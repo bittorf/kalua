@@ -6,8 +6,20 @@
 #        [kb|mb|gb]
 #        [euro|dollar|...]
 # fixme! neuerzeugen von profil, aber altes als vorlage nehmen
-# fixme! 5 tickets erzeugen 6 tickets!
+# fixme! 5 tickets erzeugen = 6 tickets!
 
+toggle ()
+{
+	local VALUE_NOW="$1"
+	local VALUE_A="$2"
+	local VALUE_B="$3"
+	
+	if [ "$VALUE_NOW" = "$VALUE_B" ]; then
+		echo "$VALUE_A"
+	else
+		echo "$VALUE_B"
+	fi
+}
 
 _http header_mimetype_output "text/html"
 eval $( _http query_string_sanitize )
@@ -19,9 +31,21 @@ cat <<EOF
 EOF
 
 AMP="&amp;"
-EQUAL=""
 ARROW="<b>&rarr;</b>"
 _userdb include
+
+[ -n "$FORM_ACTION_LOGIN_DEL" ] && {
+	FORM_ACTION="login_del"
+	[ -n "$FORM_CB" ] && {
+		LIST_FORM_CHECKBOX="$( _http query_string_group2list FORM_CB_ )"
+		
+		for FORM_ID in $LIST_FORM_CHECKBOX; do {
+			_userdb login del "$FORM_ID"
+		} done
+		
+		FORM_ACTION="login_show"
+	}
+}
 
 case "$FORM_ACTION" in
 	profile_del)
@@ -147,15 +171,18 @@ case "$FORM_ACTION" in
 		echo "<input type='submit' name='' value='Eintr&auml;ge aktualisieren'></form>"
 	;;
 	login_show)
-		echo "<h3> Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Login &Uuml;bersicht </h3>"
+		echo "<h3> Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW <a href='?FORM_ACTION=login_show'>Login &Uuml;bersicht</a> </h3>"
 	
 		echo "<form action='' method='get'>"
 		echo "<table cellspacing='1' cellpadding='1' border='1'>"
 		echo "<tr><td>&nbsp;<input type='hidden' name='FORM_CB' value='0'></td><td>ID</td><td>Profil</td><td>Kommentar</td><td>Benutzername</td><td>Passwort</td><td>Ger&auml;tezahl</td><td>Erstellungszeit</td><td>&nbsp;</td></tr>"
+
+		# fixme! erstellungszeit menschenlesbar, "vor 5 minuten"?
 	
 		for ID in $( _userdb login list ); do {
 			eval "$( _userdb login show $ID )"
-			echo "<tr><td><input type='checkbox' name='FORM_CB_$ID' value='1'></td><td>$ID</td><td>$( _userdb profile id2name $PROFILE_ID )</td><td>$COMMENT</td><td>$USERNAME</td><td>$PASSWORD</td><td>$DEVICE_COUNT</td><td>$INSTALLED</td><td><a href='?FORM_ACTION=login_del${AMP}FORM_ID=$ID'>l&ouml;schen</a></td></tr>"
+			BGCOLOR="$( toggle "$BGCOLOR" "#FAEBD7" "#DCDCDC" )"
+			echo "<tr bgcolor='$BGCOLOR'><td><input type='checkbox' ID='login$ID' name='FORM_CB_$ID' value='1'></td><td><label for='login$ID'>$ID</label></td><td><label for='login$ID'>$( _userdb profile id2name $PROFILE_ID )</label></td><td><label for='login$ID'>$COMMENT</label></td><td><label for='login$ID'>$USERNAME</label></td><td><label for='login$ID'>$PASSWORD</label></td><td><label for='login$ID'>$DEVICE_COUNT</label></td><td><label for='login$ID'>$INSTALLED</label></td><td><a href='?FORM_ACTION=login_del${AMP}FORM_ID=$ID'>l&ouml;schen</a></td></tr>"
 		} done
 		
 		echo "</table>"
@@ -201,7 +228,7 @@ EOF
 		LIST_LOGINS="$( _userdb login list )"
 
 		[ -n "$LIST_LOGINS" ] && {
-			echo "<li>Logins <a href='?FORM_ACTION=login_show'>anzeigen</a></li>"
+			echo "<li>Logins <a href='?FORM_ACTION=login_show'>anzeigen</a> ($( echo $LIST_LOGINS | wc -l ))</li>"
 		}
 		
 		cat <<EOF
