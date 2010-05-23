@@ -303,7 +303,9 @@ _userdb_login ()
 		;;
 		show)
 			ID="${2:-is_unset}"
+			OPTION="$3"
 			[ -d "$DIR/$ID" ] || return 1
+			[ -n "$OPTION" ] && ELEMENT_LIST="$OPTION"
 			echo "ID='$ID'"
 			for ELEMENT in $ELEMENT_LIST; do {
 				read VALUE <"$DIR/$ID/$ELEMENT"
@@ -331,4 +333,69 @@ _userdb_login ()
 			} done
 		;;
 	esac
+}
+
+_userdb_login_pdfout ()								# max 35 on one A4-sheet
+{
+	local FUNC="userdb_login_pdfout"
+	local LIST_LOGIN_ID="$1"						# fixme! automatically print 2,3...pages each 35 tickets
+	
+	local PDF_TEMPLATE="/www/images/userdb_ticket_template.pdf"
+	local PDF_LINES_MAX="35"						# fixme! read it from PDF, not hardcode here
+	local PDF_OUT="/tmp/meinpdf.pdf"
+	local TEMP="/tmp/db_output_generate_$$"
+	local SQLTEMP="/tmp/db_output_sqlquery_$$"
+	local LINE WORD NUMBER
+	local ID PROFILE_ID NAME INSTALLED USERNAME PASSWORD
+	local COUNT=0
+
+	local VAR_CREATOR="ekuku multispot"					# fixme!
+	local VAR_SOURCE="quellenangabe"					# fixme!
+	local VAR_HOTELNAME="$( _weblogin metadata_locationname )"		# Hotel Liszt in Weimar
+	local WORD_USERLIST="WLAN-Benutzerliste: "
+
+	local VAR_GENTIME							# unixtime
+	local VAR_TICKETTYPE							# 24-Stunden-Tickets, 1-Wochen-Tickets, 1-Monats-Tickets
+	for ID in $LIST_LOGIN_ID; do {
+		eval $( _userdb login show $ID "PROFILE_ID INSTALLED" )
+		eval $( _userdb profile show $PROFILE_ID NAME )
+		VAR_TICKETTYPE="$NAME"
+		VAR_GENTIME="$INSTALLED"
+		break
+	} done
+
+	local WORD_GENTIME="Zeitpunkt der automatischen Generierung: "		# fixme! 'automatischen' / 'manuellen'
+	local VAR_GENHUMANDATE="$( _sanitizer do $( _system date humanreadable nice ) escape_single_quotes )"
+	local WORD_USER="Benutzername"
+	local WORD_PASS="Passwort"
+	local WORD_ROOMANDGUEST="Zimmernummer \/ Gastname"			# sed-style
+	local WORD_COMMENT="Kommentar"
+	local VARLIST="VAR_CREATOR VAR_GENTIME VAR_SOURCE VAR_HOTELNAME WORD_USERLIST VAR_TICKETTYPE VAR_GENHUMANDATE WORD_GENTIME WORD_USER WORD_PASS WORD_ROOMANDGUEST WORD_COMMENT" 
+
+	for WORD in $VARLIST; do {
+		echo -n "-e 's/$WORD/$( eval echo \$$WORD )/g' "
+	} done >$TEMP
+
+	ID=;while :; do ID="$ID N";test ${#ID} -eq $(( $PDF_LINES_MAX * 2 )) && break; done 	# outputs: N N N N ... (filling up template-page)
+	for ID in $LIST_LOGIN_ID $ID; do {
+
+		COUNT=$(( $COUNT + 1 ))				# for calc
+		NUMBER=$COUNT					# for print
+		[ ${#COUNT} -eq 1 ] && NUMBER="0${COUNT}"
+
+		case "$ID" in
+			N) USERNAME=; PASSWORD= ;;
+			*) eval $( _userdb login show $ID "USERNAME PASSWORD" ) ;;
+		esac
+
+		echo -n "-e 's/USER${NUMBER}/$USERNAME/' -e 's/PASS${NUMBER}/$PASSWORD/' -e 's/GUEST${NUMBER}//' -e 's/COMMENT${NUMBER}//' "
+		[ $NUMBER -eq $PDF_LINES_MAX ] && break
+
+	} done >>$TEMP
+
+	_log do $FUNC daemon info "creating '$PDF_OUT' ($COUNT tickets)"
+
+	echo "sed $( cat $TEMP; rm $TEMP ) '$PDF_TEMPLATE' >'$PDF_OUT'" >$TEMP
+
+	sh $TEMP && rm $TEMP
 }
