@@ -5,28 +5,18 @@
 #        [Minuten|Stunden|Tage|Monate|Jahr]
 #        [kb|mb|gb]
 #        [euro|dollar|...]
+#
 # fixme! neuerzeugen von profil, aber altes als vorlage nehmen
 # fixme! 5 tickets erzeugen = 6 tickets!
 
-toggle ()
-{
-	local VALUE_NOW="$1"
-	local VALUE_A="$2"
-	local VALUE_B="$3"
-	
-	if [ "$VALUE_NOW" = "$VALUE_B" ]; then
-		echo "$VALUE_A"
-	else
-		echo "$VALUE_B"
-	fi
-}
+_log do userdb daemon info "query: '$QUERY_STRING'"
 
 _http header_mimetype_output "text/html"
 eval $( _http query_string_sanitize )
 
 cat <<EOF
 <!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.01//EN' 'http://www.w3.org/TR/html4/strict.dtd'>
-<html><head><title>WLAN-System: Benutzerverwaltung</title>
+<html><head><title>WLAN-System: Rechteverwaltung</title>
 <META HTTP-EQUIV='cache-control' CONTENT='no-cache'></head><body bgcolor='white'>
 EOF
 
@@ -77,7 +67,7 @@ esac
 
 case "$FORM_ACTION" in
 	profile_add|profile_update)
-		echo "<h3> Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Profil bearbeiten </h3>"
+		echo "<h3> Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Profil bearbeiten </h3>"
 
 		case "$FORM_ACTION" in
 			profile_update)
@@ -111,7 +101,7 @@ case "$FORM_ACTION" in
 		echo "<input type='submit' name='' value='Eintr&auml;ge aktualisieren'></form>"
 	;;
 	login_add|login_update)
-		echo "<h3> Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Login bearbeiten </h3>"
+		echo "<h3> Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Login bearbeiten </h3>"
 
 		case "$FORM_ACTION" in
 			login_add)
@@ -155,7 +145,7 @@ case "$FORM_ACTION" in
 			
 			for ID in $( _userdb profile list ); do {
 				eval "$( _userdb profile show $ID "NAME COMMENT" )"
-				echo "<option value='$ID'>${NAME}: ${COMMENT}</option>"
+				echo "<option value='$ID' $( test "$FORM_PROFILE_ID" = "$ID" && echo selected )>${NAME}: ${COMMENT}</option>"
 			} done
 		
 			echo "</select><br>"
@@ -188,7 +178,7 @@ case "$FORM_ACTION" in
 		echo "<input type='submit' name='' value='Eintr&auml;ge aktualisieren'></form>"
 	;;
 	login_show)
-		echo "<h3> Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW <a href='?FORM_ACTION=login_show'>Login &Uuml;bersicht</a> </h3>"
+		echo "<h3> Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW <a href='?FORM_ACTION=login_show'>Login &Uuml;bersicht</a> </h3>"
 	
 		echo "<form action='' method='get'>"
 		echo "<table cellspacing='1' cellpadding='1' border='0'>"
@@ -196,9 +186,25 @@ case "$FORM_ACTION" in
 
 		# fixme! erstellungszeit menschenlesbar, "vor 5 minuten"?
 		# fixme! wie leichtes auswaehlen einer gruppe? (35 auswaehlen?)
+
+		case "$FORM_RANGE_METHOD" in
+			last)
+				echo "<input type='hidden' name='FORM_RANGE_METHOD'  value='$FORM_RANGE_METHOD'>"
+				echo "<input type='hidden' name='FORM_RANGE_KEYWORD' value='$FORM_RANGE_KEYWORD'>"
+				echo "<p><i>Hinweis:</i> Es werden nur die letzten $FORM_RANGE_KEYWORD Logins angezeigt</p>"
+				LIST_ID="$( _userdb login list last $FORM_RANGE_KEYWORD )"
+			;;
+			*)
+				LIST_ID="$( _userdb login list )"
+			;;
+		esac
 	
-		for ID in $( _userdb login list ); do {
+		for ID in $LIST_ID; do {
+		
+			PROFILE_ID=
 			eval "$( _userdb login show $ID )"
+			[ -z "$PROFILE_ID" ] && continue
+		
 			INSTALLED="$( _system date unixtime2date $INSTALLED )"
 
 			case "$BGCOLOR" in
@@ -217,7 +223,7 @@ case "$FORM_ACTION" in
 <td align='middle'><label for='login$ID'>$DEVICE_QUANTITY</label></td>
 <td><label for='login$ID'>$INSTALLED</label></td>
 <td>&nbsp;<a href='?FORM_ACTION=login_del${AMP}FORM_ID=$ID'>l&ouml;schen</a>&nbsp;|&nbsp;<a 
-href='?FORM_ACTION=login_update${AMP}FORM_ID=$ID${AMP}FORM_PROFILE_ID=$FORM_PROFILE_ID${AMP}FORM_COMMENT=$COMMENT${AMP}FORM_USERNAME=$USERNAME${AMP}FORM_PASSWORD=$PASSWORD${AMP}FORM_DEVICE_QUANTITY=$DEVICE_QUANTITY${AMP}$FORM_INSTALLED=FORM_INSTALLED'>bearbeiten</a></a></td>
+href='?FORM_ACTION=login_update${AMP}FORM_ID=$ID${AMP}FORM_PROFILE_ID=$PROFILE_ID${AMP}FORM_COMMENT=$COMMENT${AMP}FORM_USERNAME=$USERNAME${AMP}FORM_PASSWORD=$PASSWORD${AMP}FORM_DEVICE_QUANTITY=$DEVICE_QUANTITY${AMP}$FORM_INSTALLED=$INSTALLED'>bearbeiten</a></a></td>
 </tr>
 EOF
 
@@ -235,10 +241,10 @@ EOF
 	;;
 	*)
 		cat <<EOF
-<h3>Benutzerverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a></h3>
+<h3>Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a></h3>
 <p>
 <ul>
-	<li>Benutzerprofile verwalten:</li>
+	<li><b><big>P</big>rofile</b> verwalten:</li>
 	<ul>
 		<li>neues Profil <a href='?FORM_ACTION=profile_add'>erstellen</a></li>
 EOF
@@ -246,12 +252,13 @@ EOF
 		LIST_PROFILES="$( _userdb profile list )"
 
 		[ -n "$LIST_PROFILES" ] && {
-			echo "<li>ein Profil bearbeiten:</li><ul>"
+			echo "<li>Profile bearbeiten:</li><ul>"
 
 			for ID in $LIST_PROFILES; do {
 				eval "$( _userdb profile show $ID "NAME COMMENT" )"
-				echo "<li>$NAME ('$COMMENT') <a href='?FORM_ACTION=profile_update${AMP}FORM_ID=${ID}'>bearbeiten</a> | "
-				echo "<a href='?FORM_ACTION=profile_del${AMP}FORM_ID=${ID}'>l&ouml;schen</a></li>"		# fixme! only show, if no deps (login|devices)
+				echo "<li><a href='?FORM_ACTION=profile_update${AMP}FORM_ID=${ID}'>bearbeiten</a> | "
+				echo "<a href='?FORM_ACTION=profile_del${AMP}FORM_ID=${ID}'>l&ouml;schen</a>&nbsp;-&nbsp;$NAME$( test -n "$COMMENT" && echo "&nbsp;('$COMMENT')" )</li>"
+				# fixme! only show 'del', if no deps (login|devices)
 			} done
 
 			echo "</ul>"
@@ -261,7 +268,7 @@ EOF
 	</ul>
 </p>
 <p>
-	<li>Logins verwalten:</li>
+	<li><b><big>L</big>ogins</b> verwalten:</li>
 	<ul>
 EOF
 		if [ -n "$LIST_PROFILES" ]; then
@@ -271,18 +278,31 @@ EOF
 		fi
 
 		LIST_LOGINS="$( _userdb login list )"
-		LIST_LOGINS_COUNT="$( _userdb login list | wc -l )"
-		LIST_LOGINS_COUNT="$(( $LIST_LOGINS_COUNT + 0 ))"
 
 		[ -n "$LIST_LOGINS" ] && {
-			echo "<li>Logins <a href='?FORM_ACTION=login_show'>anzeigen</a> ($LIST_LOGINS_COUNT)</li>"
+		
+			LIST_LOGINS_COUNT="$( _userdb login list | wc -l )"
+			LIST_LOGINS_COUNT="$(( $LIST_LOGINS_COUNT + 0 ))"
+			
+			echo "<li>Logins <a href='?FORM_ACTION=login_show'>anzeigen&nbsp;($LIST_LOGINS_COUNT St&uuml;ck)</a>"
+
+			[ $LIST_LOGINS_COUNT -gt 10 ] && {
+				echo "<ul><li>"
+				echo "<li><a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=5'>die neuesten 5</a>,&nbsp;"
+				echo "<a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=10'>10</a>,&nbsp;"
+				echo "<a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=15'>15</a>,&nbsp;"
+				echo "<a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=35'>35</a>"
+				echo "</li></ul>"
+			}
+
+			echo "</li>"
 		}
 		
 		cat <<EOF
 	</ul>
 </p>
 <p>
-	<li>Ger&auml;te verwalten:</li>
+	<li><b><big>G</big>er&auml;te</b> verwalten:</li>
 	<ul>
 EOF
 		LISTE_DEVICES="$( _userdb device list )"
