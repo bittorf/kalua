@@ -18,47 +18,57 @@ BGCOLOR_TABLEHEAD="lightblue"
 ARROW="<b>&rarr;</b>"
 _userdb include
 
-[ -n "$FORM_ACTION_LOGIN_DEL" ] && {
+if [ -n "$FORM_ACTION_LOGIN_DEL_CHECKED" -o -n "$FORM_ACTION_LOGIN_DEL_RANGE" ]; then
 
 	FORM_ACTION="login_del"
 
 	[ -n "$FORM_CB" ] && {
 		LIST_FORM_CHECKBOX="$( _http query_string_group2list FORM_CB_ )"
-		
-		for FORM_ID in $LIST_FORM_CHECKBOX; do {
-			_userdb login del "$FORM_ID"
-		} done
-		
-		FORM_ACTION="login_show"
 	}
-}
+	
+	[ -z "$LIST_FORM_CHECKBOX" ] && {
+		LIST_FORM_CHECKBOX="$( _userdb login list $FORM_RANGE_METHOD $FORM_RANGE_KEYWORD )"
+	}
 
-[ -n "$FORM_ACTION_LOGIN_PRINT" ] && {
+	_log do login_del_specific daemon info "list: '$LIST_FORM_CHECKBOX'"
+	for FORM_ID in $LIST_FORM_CHECKBOX; do {
+		_userdb login del "$FORM_ID"
+	} done
+	
+	FORM_ACTION="login_show"
+fi
+
+if [ -n "$FORM_ACTION_LOGIN_PRINT_CHECKED" -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE" ]; then
 
 	FORM_ACTION="login_show"
 
+	_log do gui_print_tickets daemon info "[init]" 
+	
 	[ -n "$FORM_CB" ] && {
-		_log do gui_print_tickets daemon info "[init]"
-		
 		LIST_FORM_CHECKBOX="$( _http query_string_group2list FORM_CB_ )"
-		I=0; for N in $LIST_FORM_CHECKBOX; do I=$(( $I + 1 )); done 		# count tickets
-		for LOGIN_ID in $LIST_FORM_CHECKBOX; do break; done			# fetch first ticket
-		eval $( _userdb login show $LOGIN_ID "PROFILE_ID" )			# used_profile_id
-		eval $( _userdb profile show $PROFILE_ID "NAME" )			# id2name
-		
-		FILENAME="wlansystem-$( _weblogin metadata_locationname )-$( _system date humanreadable )-${I}x${NAME}.pdf"
-#		FILENAME="$( _sanitizer do "$FILENAME" urlvalue )"
-		FILENAME="$( echo "$FILENAME" | sed -e 's/ //g' -e 's/:/uhr/g' )"	# strip spaces, replace ":"
-
-		_log do gui_print_tickets daemon info "filename: '$FILENAME'"
-
-		_http header_mimetype_output "application/pdf" "$FILENAME"
-		_userdb login_pdfout "$LIST_FORM_CHECKBOX"
-
-		_log do gui_print_tickets daemon info "[done]"
-		exit	
 	}
-}
+	
+	[ -z "$LIST_FORM_CHECKBOX" ] && {
+		LIST_FORM_CHECKBOX="$( _userdb login list $FORM_RANGE_METHOD $FORM_RANGE_KEYWORD )"
+	}
+
+	I=0; for N in $LIST_FORM_CHECKBOX; do I=$(( $I + 1 )); done 		# count tickets
+	for LOGIN_ID in $LIST_FORM_CHECKBOX; do break; done			# fetch first ticket
+	eval $( _userdb login show $LOGIN_ID "PROFILE_ID" )			# used_profile_id
+	eval $( _userdb profile show $PROFILE_ID "NAME" )			# id2name
+		
+	FILENAME="wlansystem-$( _weblogin metadata_locationname )-$( _system date humanreadable )-${I}x${NAME}.pdf"
+#	FILENAME="$( _sanitizer do "$FILENAME" urlvalue )"
+	FILENAME="$( echo "$FILENAME" | sed -e 's/ //g' -e 's/:/uhr/g' )"	# strip spaces, replace ":"
+
+	_log do gui_print_tickets daemon info "filename: '$FILENAME' list: '$LIST_FORM_CHECKBOX'"
+
+	_http header_mimetype_output "application/pdf" "$FILENAME"
+	_userdb login_pdfout "$LIST_FORM_CHECKBOX"
+
+	_log do gui_print_tickets daemon info "[done]"
+	exit	
+fi
 
 case "$FORM_ACTION" in
 	profile_del)
@@ -247,12 +257,12 @@ EOF
 		
 		echo "</table>"
 		echo "<p>Ausgew&auml;hlte Logins "
-		echo "<input type='submit' name='FORM_ACTION_LOGIN_DEL' value='l&ouml;schen'>"
-		echo "<input type='submit' name='FORM_ACTION_LOGIN_PRINT' value='drucken'>"
+		echo "<input type='submit' name='FORM_ACTION_LOGIN_DEL_CHECKED' value='l&ouml;schen'>"
+		echo "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED' value='drucken'>"
 		echo "<p>"
 		echo "<p>Alle angezeigten Logins "
-		echo "<input type='submit' name='FORM_ACTION_LOGIN_DEL' value='l&ouml;schen'>"
-		echo "<input type='submit' name='FORM_ACTION_LOGIN_PRINT' value='drucken'>"
+		echo "<input type='submit' name='FORM_ACTION_LOGIN_DEL_RANGE' value='l&ouml;schen'>"
+		echo "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE' value='drucken'>"
 		echo "</form>"
 	;;
 	*)
@@ -300,7 +310,7 @@ EOF
 			LIST_LOGINS_COUNT="$( _userdb login list | wc -l )"
 			LIST_LOGINS_COUNT="$(( $LIST_LOGINS_COUNT + 0 ))"
 			
-			echo "<li>Logins <a href='?FORM_ACTION=login_show'>anzeigen&nbsp;($LIST_LOGINS_COUNT St&uuml;ck)</a>"
+			echo "<li>Logins <a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=all'>anzeigen&nbsp;($LIST_LOGINS_COUNT St&uuml;ck)</a>"
 
 			[ $LIST_LOGINS_COUNT -gt 10 ] && {
 				echo "<ul><li>"
