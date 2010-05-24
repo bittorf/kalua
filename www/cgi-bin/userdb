@@ -11,14 +11,7 @@
 
 _log do userdb daemon info "query: '$QUERY_STRING'"
 
-_http header_mimetype_output "text/html"
 eval $( _http query_string_sanitize )
-
-cat <<EOF
-<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.01//EN' 'http://www.w3.org/TR/html4/strict.dtd'>
-<html><head><title>WLAN-System: Rechteverwaltung</title>
-<META HTTP-EQUIV='cache-control' CONTENT='no-cache'></head><body bgcolor='white'>
-EOF
 
 AMP="&amp;"
 BGCOLOR_TABLEHEAD="lightblue"
@@ -45,12 +38,25 @@ _userdb include
 	FORM_ACTION="login_show"
 
 	[ -n "$FORM_CB" ] && {
+		_log do gui_print_tickets daemon info "[init]"
+		
 		LIST_FORM_CHECKBOX="$( _http query_string_group2list FORM_CB_ )"
+		I=0; for N in $LIST_FORM_CHECKBOX; do I=$(( $I + 1 )); done 		# count tickets
+		for LOGIN_ID in $LIST_FORM_CHECKBOX; do break; done			# fetch first ticket
+		eval $( _userdb login show $LOGIN_ID "PROFILE_ID" )			# used_profile_id
+		eval $( _userdb profile show $PROFILE_ID "NAME" )			# id2name
+		
+		FILENAME="wlansystem-$( _weblogin metadata_locationname )-$( _system date humanreadable )-${I}x${NAME}.pdf"
+#		FILENAME="$( _sanitizer do "$FILENAME" urlvalue )"
+		FILENAME="$( echo "$FILENAME" | sed -e 's/ //g' -e 's/:/uhr/g' )"	# strip spaces, replace ":"
 
-		for FORM_ID in $LIST_FORM_CHECKBOX; do {
-			#print
-			:
-		} done		
+		_log do gui_print_tickets daemon info "filename: '$FILENAME'"
+
+		_http header_mimetype_output "application/pdf" "$FILENAME"
+		_userdb login_pdfout "$LIST_FORM_CHECKBOX"
+
+		_log do gui_print_tickets daemon info "[done]"
+		exit	
 	}
 }
 
@@ -64,6 +70,16 @@ case "$FORM_ACTION" in
 		FORM_ACTION=login_show
 	;;
 esac
+
+
+_http header_mimetype_output "text/html"
+
+cat <<EOF
+<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.01//EN' 'http://www.w3.org/TR/html4/strict.dtd'>
+<html><head><title>WLAN-System: Rechteverwaltung</title>
+<META HTTP-EQUIV='cache-control' CONTENT='no-cache'></head><body bgcolor='white'>
+EOF
+
 
 case "$FORM_ACTION" in
 	profile_add|profile_update)
