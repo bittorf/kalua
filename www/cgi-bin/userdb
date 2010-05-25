@@ -163,8 +163,9 @@ case "$FORM_ACTION" in
 
 		case "$FORM_ACTION" in
 			login_add)
-				_userdb login add						# create new and...
-				for FORM_ID in $( _userdb login list ); do :; done		# fetch last ID
+				_userdb login add							# create new and...
+				for FORM_ID in $( _userdb login list ); do :; done			# fetch last ID
+				for FORM_PROFILE_ID in $( _userdb profile list ); do break; done	# fetch first ID
 			;;
 			login_update)
 
@@ -201,14 +202,16 @@ case "$FORM_ACTION" in
 		{
 			local ID NAME COMMENT
 			
-			echo "Profil: <select name='FORM_PROFILE_ID' size='1'>"
+			echo "<select name='FORM_PROFILE_ID' size='1'>"
 			
 			for ID in $( _userdb profile list ); do {
 				eval "$( _userdb profile show $ID "NAME COMMENT" )"
-				echo "<option value='$ID' $( test "$FORM_PROFILE_ID" = "$ID" && echo selected )>${NAME}: ${COMMENT}</option>"
+				echo "<option value='$ID'"
+				test "$FORM_PROFILE_ID" = "$ID" && echo -n "selected"
+				echo ">${NAME}: ${COMMENT}</option>"
 			} done
 		
-			echo "</select><br>"
+			echo "</select>"
 		}
 		
 		eval $( _userdb login show $FORM_ID )
@@ -216,26 +219,30 @@ case "$FORM_ACTION" in
 		echo "<form action='' method='get'>"
 		echo "<input type='hidden' name='FORM_ACTION' value='login_update'>"
 		echo "<input name='FORM_ID' type='hidden' value='$ID'>"
-		echo "ID: $ID<br>"
-		
-		profile_selector
-		
-		echo "Kommentar: <input name='FORM_COMMENT' type='text' value='$COMMENT'><br>"
-		echo "Benutzername: <input name='FORM_USERNAME' type='text' value='$USERNAME'><br>"
-		echo "Passwort: <input name='FORM_PASSWORD' type='text' value='$PASSWORD'><br>"
-		echo "Ger&auml;teanzahl: <input name='FORM_DEVICE_QUANTITY' type='text' value='$DEVICE_QUANTITY'><br>"
 		echo "<input name='FORM_INSTALLED' type='hidden' value='$( _system date unixtime )'>"
 
 		case "$FORM_ACTION" in
-			login_add)
-				echo "Anzahl der Kopien: <input name='FORM_DUPLICATE_NO' type='text' value='1'><br>"
-			;;
-			*)
-				echo "<input name='FORM_DUPLICATE_NO' type='hidden' value='1'>"
-			;;
+			login_add) ;;
+				*) echo "<input name='FORM_DUPLICATE_NO' type='hidden' value='1'>" ;;
 		esac
+
+		echo "<table cellspacing='1' cellpadding='1' border='0'>"
+		echo "<tr bgcolor='$BG_0'><td>Parameter</td><td>Wert</td><td>Erl&auml;uterung</td></tr>"
 		
-		echo "<input type='submit' name='' value='$SUBMIT_BUTTON_TEXT'></form>"
+		echo "<tr bgcolor='$BG_A'><td>Profil</td><td>"
+		profile_selector
+		echo "</td><td>welches Profil soll Grundlage f&uuml;r diesen Login werden?</td></tr>"
+		
+		echo "<tr bgcolor='$BG_B'><td>Kommentar</td><td><input name='FORM_COMMENT' type='text' value='$COMMENT'></td><td>falls n&ouml;tig Notizen zum Nutzer oder Ereignis</td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>Benutzername</td><td><input name='FORM_USERNAME' type='text' value='$USERNAME'></td><td>ein einfach zu schreibender Loginname, leerlassen f&uuml;r automatische Generierung</td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>Passwort</td><td><input name='FORM_PASSWORD' type='text' value='$PASSWORD'></td><td>Zahlenkombination, leerlassen f&uuml;r automatische Generierung</td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>Ger&auml;teanzahl</td><td><input name='FORM_DEVICE_QUANTITY' type='text' value='$DEVICE_QUANTITY'></td><td>wieviel unterschiedliche Ger&auml;te d&uuml;rfen diesen Login benutzen?</td></tr>"
+
+		[ "$FORM_ACTION" = "login_add" ] && {
+			echo "<tr bgcolor='$BG_B'><td>Anzahl der Kopien</td><td><select name='FORM_DUPLICATE_NO' size='1'><option value='1'>1</option><option value='5'>5</option><option value='5'>5</option><option value='10'>10</option><option value='15'>15</option><option value='35'>35</option></select></td><td>soll eine gr&ouml;&szlig;ere Anzahl der gleichen Ticketart angelegt werden? Benutzername und Passwort werden dann in jedem Fall automatisch generiert</td></tr>"
+		}
+		
+		echo "<tr bgcolor='$BG_0'><td colspan='2' align='center' valign='middle'><br><input type='submit' name='' value='$SUBMIT_BUTTON_TEXT'><br><br></td><td>&nbsp;</td></tr></table></form>"
 	;;
 	login_show)
 		echo "<h3> Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW <a href='?FORM_ACTION=login_show'>Login &Uuml;bersicht</a> </h3>"
