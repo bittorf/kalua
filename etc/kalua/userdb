@@ -1,11 +1,38 @@
-_userdb_backup ()
+# fixme! email fuer tickets.pdf?
+# fixme! free_intranet? 
+# fixme! _userdb profile_lastid() + wenn man loescht luecken auffuellen?
+
+
+_userdb_backup ()	# fixme! automatically call this after <prio> changes
 {
-	:	# automatically call this after <prio> changes
+	local FUNC="userdb_backup"
+	local FILE="/www/cgi-bin/userdata_backup.tgz"
+	
+	if tar czf "$FILE" /tmp/USERDB ; then
+		_log do $FUNC daemon info "[ok]"
+	else
+		_lgo do $FUNC daemon alert "[err]"
+	fi
 }
 
-_userdb_restore ()
+_userdb_restore ()	# fixme! automatically call this after reboot
 {
-	:	# automatically call this after reboot
+	local FUNC="userdb_restore"
+	local FILE="/www/cgi-bin/userdata_backup.tgz"
+
+	if [ -e "$FILE" ]; then
+	
+		_log do $FUNC daemon info "unarc of '$FILE'"
+		rm -fR /tmp/USERDB
+
+		if tar -C / -xzf "$FILE" ; then
+			_log do $FUNC daemon info "[ok]"
+		else
+			_lgo do $FUNC daemon alert "[err]"
+		fi
+	else
+		_log do $FUNC daemon info "[err] '$FILE' not found"
+	fi
 }
 
 _userdb_query ()
@@ -49,11 +76,6 @@ _userdb_stats ()
 		fi
 	} done
 }
-
-# fixme! email fuer tickets.pdf?
-# fixme! free_intranet? 
-# fixme! entscheidung zwischen echtzeit-ablauf und reine nutzungszeit-ablauf (profil)
-# fixme! _userdb profile_lastid() + wenn man loescht luecken auffuellen?
 
 _userdb_profile ()			# idea: allow configurable UPnP, P2P, QOS, ROAMING?
 {
@@ -283,7 +305,7 @@ _userdb_login ()
 			echo "			del <login_id>"
 			echo "			show <id>"
 			echo "			list"
-			echo "			gen_index"
+			echo "			index_gen | index_show"
 		;;
 		add|update)							# fixme! also save ID in $DIR ?
 			if [ "$ACTION" = "update" ]; then			# fixme! don't touch values, if "=" is given
@@ -350,21 +372,19 @@ _userdb_login ()
 				;;
 			esac
 		;;
-		gen_index)							# fixme! write to /tmp/USERDB/LOGIN/meta_index
-			local USERINDEX="/www/cgi-bin/userdata.txt"
-			local CRC
-			
-			ls -1 "$DIR" | sort -n | while read ID; do {
-				[ -d "$DIR/$ID" ] && {
-					read USERNAME	<"$DIR/$ID/USERNAME"
-					read PASSWORD	<"$DIR/$ID/PASSWORD"
-					read PROFILE_ID	<"$DIR/$ID/PROFILE_ID"
-				
-					CRC="$( echo -n "$USERNAME$PASSWORD" | md5sum | cut -d' ' -f1 )"
-					
-					echo "$CRC $ID $PROFILE_ID $USERNAME $PASSWORD"
-				}
-			} done
+		index_gen)
+			local INDEX="$DIR/meta_index"
+			local CRC USERNAME PASSWORD PROFILE_ID ID
+
+			for ID in $( _userdb login list ); do {
+				eval $( _userdb login show $ID "USERNAME PASSWORD PROFILE_ID" )
+				CRC="$( echo -n "$USERNAME$PASSWORD" | md5sum | cut -d' ' -f1 )"
+				echo "$CRC $ID $PROFILE_ID $USERNAME $PASSWORD"
+			} done >$INDEX
+		;;
+		index_show)
+			local USERINDEX="$DIR/meta_index"
+			cat $USERINDEX
 		;;
 	esac
 }
