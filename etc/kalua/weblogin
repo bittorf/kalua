@@ -9,6 +9,8 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 	local SHOW_RULES="$2"				# fixme! can be 'inet_broken'
 	local SHOW_PASSWORD_WRONG="$3"
 	local SHOW_ACCEPT_RULES="$4"
+	local LINK_BASE="${5:-http://$WIFIADR}"		# fixme! append slash?
+
 	local BGCOLOR LINK SLOGAN MYLANG MYLANGLIST NEXT_LANG_SUBSET_START
 	local AMP="&amp;"
 	local TABINDEX="6"	# is hardcoded on most points
@@ -27,14 +29,14 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 	[ "$FORM_SHOW_ACCEPT_RULES"   = "true" ] && SHOW_ACCEPT_RULES="true"
 	[ "$FORM_SHOW_PASSWORD_WRONG" = "true" ] && SHOW_PASSWORD_WRONG="true"
 
-	LINK="${SCRIPT_NAME}?REDIRECTED=1"
+	LINK="${LINK_BASE}${SCRIPT_NAME}?REDIRECTED=1"					# SCRIPT_NAME = e.g. '/cgi-bin-welcome'
 	[ "$SHOW_PASSWORD_WRONG" = "true" ] && LINK="${LINK}${AMP}FORM_SHOW_PASSWORD_WRONG=true"
 	[ "$SHOW_ACCEPT_RULES"   = "true" ] && LINK="${LINK}${AMP}FORM_SHOW_ACCEPT_RULES=true"
 	LINK="${LINK}${AMP}FORM_LANG"
 
 	read BGCOLOR 2>/dev/null </www/images/bgcolor.txt		# fixme! defaulting to #F2F2F2 ?
 									# fixme! _weblogin metadata slogan()
-	SLOGAN="$( test -e /www/images/logo2.gif && echo -n '<IMG SRC="images/logo2.gif" TITLE="Hotel-Slogan" ALT="Hotel-Slogan"><BR><BR>' )"
+	SLOGAN="$( test -e /www/images/logo2.gif && echo -n '<IMG SRC="${LINK_BASE}/images/logo2.gif" TITLE="Hotel-Slogan" ALT="Hotel-Slogan"><BR><BR>' )"
 
 	cat <<EOF
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
@@ -45,7 +47,7 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 <META HTTP-EQUIV="pragma" CONTENT="no-cache"> 
 <META HTTP-EQUIV="expires" CONTENT="0">
 <META HTTP-EQUIV="content-type" CONTENT="text/html; charset=${CODEPAGE}">
-<LINK REL="shortcut icon" TYPE="image/x-icon" HREF="/favicon.ico">
+<LINK REL="shortcut icon" TYPE="image/x-icon" HREF="${LINK_BASE}/favicon.ico">
 </HEAD>
 <BODY BGCOLOR="${BGCOLOR:=#ffffff}" TEXT="#000000"><CENTER>
 EOF
@@ -56,7 +58,7 @@ EOF
 		
 			echo -n "<A TABINDEX='$TABINDEX' HREF='$LINK=$MYLANG' HREFLANG='$MYLANG' CHARSET='$CODEPAGE' TITLE='"
 			_translate do "$MYLANG" in_my_lang							# idea: build it with tables 8-)
-			echo -n "'><IMG SRC='images/flag_${MYLANG}.gif' BORDER='0' ALT='${MYLANG}' TITLE='"	# each flag is a 16x12/GIF
+			echo -n "'><IMG SRC='${LINK_BASE}/images/flag_${MYLANG}.gif' BORDER='0' ALT='${MYLANG}' TITLE='"	# each flag is a 16x12/GIF
 			_translate do "$MYLANG" in_my_lang
 			echo -n "'>&nbsp;"
 			_translate do "$MYLANG" langname
@@ -67,12 +69,13 @@ EOF
 		cat "$LANG_CACHE_FILE"
 	}				# fixme! each image has to have an 'filename.gif_dimensions' with 'X Y' pixels, to better follow standards
 					# image: fits best with 220px, transparency, GIF
-					# fixme! lynx cannot display next symbol, use image+alt instead!
+					# fixme! lynx cannot display the "next" symbol, use image+alt instead!
 					# fixme! maybe group username/pass with <fieldset> + <legend>?
 					# fixme! font zusaetzlich mit CSS festlegen <span style="font-family:'Times New Roman',Times,serif">
+					# fixme! testsuite: dillo1/2, w3m, lynx, links2, IE4+, pirelli-phone + all mainstream browsers
 	cat <<EOF
 <A TABINDEX='10' HREF='$LINK=$NEXT_LANG_SUBSET_START' HREFLANG='$NEXT_LANG_SUBSET_START' CHARSET='$CODEPAGE' TITLE='$( _translate do "$LANG" other_languages )'><big><b>&raquo;</b></big></a>
-<BR><BR>${SLOGAN}<IMG SRC="images/logo.gif" TITLE="$LOGO_DESCRIPTION" ALT="$LOGO_DESCRIPTION"><FORM METHOD="post" ACTION="">
+<BR><BR>${SLOGAN}<IMG SRC="${LINK_BASE}/images/logo.gif" TITLE="$LOGO_DESCRIPTION" ALT="$LOGO_DESCRIPTION"><FORM METHOD="post" ACTION="${LINK}">
 <TABLE CELLSPACING="0" CELLPADDING="0" BORDER="0" width='85%'>
 <TR><TD ALIGN="CENTER"><BR><B><BIG>$( _translate do "$LANG" internetaccess )</BIG></B></TD></TR>
 EOF
@@ -86,7 +89,7 @@ EOF
 <TR><TD ALIGN="RIGHT"><label for='username'>$( _translate do "$LANG" username ):&nbsp;</label><INPUT TABINDEX="1" ID="username" TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER" VALUE="$FORM_USER"></TD></TR>
 <TR><TD ALIGN="RIGHT"><label for='password'>$( _translate do "$LANG" password ):&nbsp;</label><INPUT TABINDEX="2" ID="password" TYPE="password" SIZE="10" MAXLENGTH="10" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
 <TR><TD ALIGN="CENTER"><BR><INPUT TYPE="checkbox" ID="accept_terms" TABINDEX="4" NAME="FORM_RULES" checked><label for='accept_terms'>&nbsp;$( _translate do "$LANG" accept_terms1 ) <A TABINDEX="5" HREF="$LINK=${LANG}${AMP}FORM_SHOW_RULES=$( if [ "$FORM_SHOW_RULES" = "true" ]; then echo -n 'false'; else echo -n 'true'; fi )" TITLE="$( _translate do "$LANG" tip_contract )">$( _translate do "$LANG" accept_terms2 )</A></label></TD></TR>
-<TR><TD ALIGN="CENTER"><BR><INPUT TYPE="image" TABINDEX="3" SRC="images/button_login_de.gif" ALT="&rarr;Login"></TD></TR>
+<TR><TD ALIGN="CENTER"><BR><INPUT TYPE="image" TABINDEX="3" SRC="${LINK_BASE}/images/button_login_de.gif" ALT="&rarr;Login"></TD></TR>
 </TABLE></FORM></CENTER>
 </BODY></HTML>
 EOF
