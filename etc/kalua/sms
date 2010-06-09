@@ -53,23 +53,21 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 _sms_send_sms77 ()
 {
 	local   FUNC="sms_send_sms77"
-	local   USER=$1
-	local   PASS=$2
-	local NUMBER=$3
-	local   TEXT=$4
-	local    OUT=""
-	local    URL="http://www.sms77.de/gateway/?type=basicplus"	# basicplus hard coded, need abstraction
-	local     RC=0
-	local      o 
+	local   USER="$1"
+	local   PASS="$2"
+	local NUMBER="$3"
+	local   TEXT="$4"
+	local    URL="http://www.sms77.de/gateway/?type=basicplus"	# basicplus hard coded, needs abstraction
+	local OUT RC o
 
 	_log do $FUNC daemon debug "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}"
 	
-	OUT="$( wget -qO - "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}" )"	# fixme! use _wget()
-	RC=$?
+	OUT="$( _wget do "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}" 10 "$USER" "$PASS" )"
+	RC="$?"
 
 	if [ $RC -ne 0 ] || [ "$OUT" != "100" ]; then
 
-		case $OUT in					# 100,101,306 not implemented
+		case "$OUT" in					# 100,101,306 not implemented
 		        201) o="wrong country code" ;;
 		        202) o="wrong recipient number" ;;
 		    300|900) o="username/pass wrong or unset" ;;
@@ -84,11 +82,12 @@ _sms_send_sms77 ()
 			903) o="serverip wrong" ;;
 			500) o="no credits available" ;;
 			
-			  *) _log do $FUNC user crit "wget-returncode: '$RC' - sms77-answer: '$OUT' - something went wrong"
-			     return 1	# which means - try to send again
+			  *)
+				_log do $FUNC user crit "wget-returncode: '$RC' - sms77-answer: '$OUT' - something went wrong"
+				return 1	# which means - try to send again
 			 ;;
 		esac
-		
+
 		_log do $FUNC user info "wget-returncode: '$RC' - sms77-answer: '$OUT' ($o)"
 	fi
 }
