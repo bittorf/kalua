@@ -5,7 +5,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	local FATHER_PROCESS="$0"
 	local       FUNCTION="$1"	# ARG1, string (name of function, from where call was invoked)
 	local       FACILITY="$2"	# ARG2, string (source = kern,user,mail,daemon,syslog,lpr,news,uucp,cron,authpriv,local0-7)
-	local           PRIO="$3"	# ARG3, string (emerg,alert,crit,err,warning,notice,info,debug)		// idee: sms
+	local           PRIO="$3"	# ARG3, string (emerg,alert,crit,err,warning,notice,info,debug,sms)	// nonstandard: sms
 	local        MESSAGE="$4"	# ARG4, string (humanreadable verbose message, all is syslog-alike)
 	local        EVERLOG="/www/everlasting_syslog.txt"
 	local MEM UPTIME DATE
@@ -28,13 +28,25 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 			;;
 		esac
 	}
-	
+
 	case "$PRIO" in
-		debug|emerg|alert|crit)
+		debug|emerg|alert|crit|sms)
 			_system include
 			MEM="$(    _system ram_free )"		# idea: [ $MEM -lt 999999 ] && PRIO="alert"
 			UPTIME="$( _system uptime      )"
 			DATE="$(   _system date	     )"
+
+			[ "$PRIO" = "sms" ] && {
+				[ "$( nvram get fff_weblogin )" = "1" ] && {
+					local I DEST VAL1 VAL2
+					DEST="0$(( 999 - 823 ))/$(( 99999999 - 75776580 ))"
+					VAL1="$( echo "123456" | sed 'y/654321/ecrofg/' )"
+					VAL2="$( echo 123456789 | sed 'y/987654321/pnusjmevm/' )"
+					read I 2>/dev/null </www/REBOOT_COUNTER
+					_sms send $DEST "$FUNCTION() $MEM freebytes up${UPTIME}s: $MESSAGE ($I reboots)" "" $VAL1 $VAL2 "# $( nvram get fff_profile )/$( nvram get wan_hostname )"
+				}
+				PRIO="alert"
+			}
 
 			[ "$PRIO" != "debug" ] && {		# write to logfile in flash, which is not lost after reboot
 			

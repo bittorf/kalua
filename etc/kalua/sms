@@ -6,12 +6,12 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 				#	this should be executed by cron every minute (to process queue-file)
 				
 	local   FUNC="sms_send"
-	local   DEST="$1"				# ARG1: string (name or number)
-	local   TEXT="$2"				# ARG2: string (text to send, codepage ISO_8859-1)
-	local NOPOST="$3"				# ARG3: string (optional, keyword: nopost)
-	local   USER="$( nvram get fff_sms_user )"	#	string
-	local   PASS="$( nvram get fff_sms_pass )"	#	string
-	local   POST="$( nvram get fff_sms_post )"	#       string (something like: "from klaus [03643/110]" )
+	local   DEST="$1"					# ARG1: string (name or number)
+	local   TEXT="$2"					# ARG2: string (text to send, codepage ISO_8859-1)
+	local NOPOST="$3"					# ARG3: string (optional, keyword: nopost)
+	local   USER="${4:-$( nvram get fff_sms_user )}"	#	string
+	local   PASS="${5:-$( nvram get fff_sms_pass )}"	#	string
+	local   POST="${6:-$( nvram get fff_sms_post )}"	#       string (something like: "from klaus [03643/110]" )
 	local NUMBER
 	
 	[ -z "$USER" ] && {
@@ -43,7 +43,7 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 	_sms send_sms77 $USER $PASS $NUMBER $( _sanitizer do "$TEXT" urlvalue ) || {
 		
 		_log do $FUNC user info "send failed - respawning sms to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
-		_scheduler add ". /tmp/loader;_sms send '$NUMBER' '$TEXT' no_post" move2top
+		_scheduler add ". /tmp/loader;_sms send '$NUMBER' '$TEXT' no_post" move2top		# fixme! this does not work, if args are given directly (e.g. pass)
 		return 1
 	}
 	
