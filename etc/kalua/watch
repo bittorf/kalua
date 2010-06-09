@@ -385,12 +385,13 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 _watch_topusage_task ()
 {
 	local FUNC="watch_topusage_task"
+	local WAIT="${1:-1}"
 	local TEMPFILE="/tmp/top_$$"
-	local PID CPU CPU_INT TASK TOPTASK
+	local PID CPU CPU_INT TASK TOPTASK FILESIZE
 	local MAX_ALLOWED_PERCENT=70
 
 	top >$TEMPFILE &
-	sleep 1				# fixme! can lead to race conditions, we don't know exactly when page output is ready, especially under high load
+	sleep $WAIT			# fixme! can lead to race conditions, we don't know exactly when page output is ready, especially under high load
 
 	while pidof -s top >/dev/null; do {
 		PID="$( pidof -s top )"
@@ -398,13 +399,20 @@ _watch_topusage_task ()
 		kill -9 $PID
 	} done
 
+	FILESIZE="$( _file size $TEMPFILE )"
+#	[ "$FILESIZE" = "0" ] && {
+#		_$FUNC "$(( $WAIT + 1 ))"	# or random_integer?
+#		rm $TEMPFILE			# abort after 5x recursion?
+#		return
+#	}
+
 	eval "$( sed -n 's/^[ ]*\([0-9]\{1,5\}\).* \([0-9]\{1,2\}\)\.\([0-9]\).*[0-9]\{1,2\}\.[0-9].* \(.*\)/PID=\1;CPU=\2.\3;CPU_INT=\2;TOPTASK="\4"/p' $TEMPFILE | head -n1 )"
 
 	read TASK 2>/dev/null </proc/$PID/cmdline	# taskname is limited by TERM? e.g. "cron.evaluate_u" seems to be max length
 	TASK="$( basename "$TASK" )"
 	[ -z "$TASK" ] && TASK="$TOPTASK"
 
-	_log do $FUNC daemon info "output: PID=$PID CPU=$CPU CPU_INT=$CPU_INT TASK=$TOPTASK -> $TASK TEMPFILE=$TEMPFILE FILESIZE=$( _file size $TEMPFILE )bytes"
+	_log do $FUNC daemon info "output: PID=$PID CPU=$CPU CPU_INT=$CPU_INT TASK=$TOPTASK -> TOPTASK=$TASK TEMPFILE=$TEMPFILE FILESIZE=${FILESIZE}bytes"
 	rm $TEMPFILE
 
 	case "$TASK" in
@@ -413,8 +421,16 @@ _watch_topusage_task ()
 			killall $TASK
 		;;
 	esac
-	
-	[ "$CPU_INT" -gt $MAX_ALLOWED_PERCENT ] && {
+
+	case "$TOPTASK" in
+		syslogd)
+			[ $CPU_INT -gt 10 ] && {
+				_olsr daemon restart "$FUNC high load of $TOPTASK: $CPU"
+			}
+		;;
+	esac
+
+	[ "${CPU_INT:=0}" -gt $MAX_ALLOWED_PERCENT ] && {
 		_log do $FUNC daemon alert "detected task '$TASK' with high cpu-usage ${CPU_INT}% > ${MAX_ALLOWED_PERCENT}% - trying to kill pid '$PID'"
 		_watch hanging_command $TASK	# must be called 2 times
 		_watch hanging_command $TASK
