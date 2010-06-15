@@ -384,6 +384,34 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 	fi
 }
 
+_watch_counter ()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || action
+{
+	local FILE="$1"
+	local MODE="$2"		# increment|decrement|set
+	local MODE_VALUE="$3"
+	local OPTION="$4"	# max|min
+	local OPTION_VALUE="$5"
+	local VALUE
+
+	read VALUE 2>/dev/null <"$FILE"
+
+	case "$MODE" in
+		increment) VALUE="$(( ${VALUE:-0} + $MODE_VALUE ))" ;;
+		decrement) VALUE="$(( ${VALUE:-0} - $MODE_VALUE ))" ;;
+		set) VALUE="$MODE_VALUE" ;;
+		*) return ;;
+	esac
+
+	echo $VALUE >"$FILE"
+
+	case "$OPTION" in
+		max) [ $VALUE -ge $OPTION_VALUE ] && return 1 ;;
+		min) [ $VALUE -le $OPTION_VALUE ] && return 1 ;;
+	esac
+
+	return 0
+}
+
 _watch_topusage_task ()
 {
 	local FUNC="watch_topusage_task"
@@ -391,6 +419,8 @@ _watch_topusage_task ()
 	local TEMPFILE="/tmp/top_$$"
 	local PID CPU CPU_INT TASK TOPTASK FILESIZE
 	local MAX_ALLOWED_PERCENT=70
+
+	_watch counter "/tmp/counter_highload" increment 1 max 10 || reboot		# workaround: we can't see which task causes high I/O-load
 
 	top >$TEMPFILE &
 	sleep $WAIT			# fixme! can lead to race conditions, we don't know exactly when page output is ready, especially under high load
