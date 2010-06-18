@@ -8,25 +8,22 @@ _ntp_pool ()		# SENS: output space separated list of ntp-servers, best one first
 	echo -n "$POOL"
 }
 
-_ntp_set ()		# SENS: setting time, so each node is nearly in sync with hole network (builtin clock's have strong scatter)
-{			# ARG1: -
-			# OUT1: -		// ntp_unset: date -s 010101011970
-			
-	local FUNC="ntp_set"	
-	local   IP
+_ntp_set ()			# SENS: setting time, so each node is nearly in sync with hole network (builtin clock's have strong scatter)
+{				# ARG1: -
+	local FUNC="ntp_set"	# OUT1: -	// ntp_unset: date -s 010101011970	
 	local  TRY="0"
 	local  UP1="$( _system uptime sec )"
 	local  UP2="0"
-	local HOST
-	local FILE_SUCCESS="/tmp/ntp_was_successful"
+	local HOST IP
+	local FILE_SUCCESS="/tmp/ntp_was_successful"	# can be 0 size or has unixtimestamp from last ntp_set
 
 	[ "$1" = "is_unset" ] && {
-		[ -e $FILE_SUCCESS ] && return 1
+		[ -e $FILE_SUCCESS ] && return 1	# fixme!
 		return 0
 	}
 
 	[ -e $FILE_SUCCESS ] && {
-		UP2="$( cat $FILE_SUCCESS )"
+		read UP2 <"$FILE_SUCCESS"
 		UP2="$(( $UP1 - ${UP2:-0} ))"		# fixme! use _stopwatch()-abstraction?
 		[ $UP2 -lt 3600 ] && {
 			_log do $FUNC daemon debug "last successful ntp-fetch was only $UP2 seconds before, aborting"
@@ -57,7 +54,12 @@ _ntp_set ()		# SENS: setting time, so each node is nearly in sync with hole netw
 				TRY=9
 
 				[ "$( _file size "$FILE_SUCCESS" )" -eq 0 ] && {
-					_log do $FUNC daemon sms "first successful set after reboot"		# fixme! take real timediff into account
+					if [ ! -e "${FILE_SUCCESS}_firsttime" ]; then
+						touch "${FILE_SUCCESS}_firsttime"
+						_log do $FUNC daemon sms "first successful set after reboot"		# fixme! take real timediff into account
+					else
+						_log do $FUNC daemon info "successful set"
+					fi
 				}
 
 				echo "$UP2" >$FILE_SUCCESS
@@ -70,6 +72,6 @@ _ntp_set ()		# SENS: setting time, so each node is nearly in sync with hole netw
 
 	[ "$TRY" != "9" ] && {
 		_log do $FUNC daemon info "end without success (try: $TRY)"
-		rm $FILE_SUCCESS
+		rm $FILE_SUCCESS						# fixme! 
 	}
 }
