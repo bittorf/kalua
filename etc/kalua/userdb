@@ -389,9 +389,9 @@ _userdb_login ()
 	esac
 }
 
-_userdb_login_pdfout ()								# max 35 on one A4-sheet
+_userdb_login_pdfout_digest ()							# max 35 on one A4-sheet
 {										# fixme! calculate correct output size? (template_size - replaced_vars_templete + replaced_vars)
-	local FUNC="userdb_login_pdfout"
+	local FUNC="userdb_login_pdfout_digest"
 	local LIST_LOGIN_ID="$1"						# fixme! automatically print 2,3...pages each 35 tickets
 
 	_log do $FUNC daemon info "[start] generating A4-page with these logins: '$LIST_LOGIN_ID'"
@@ -453,4 +453,156 @@ _userdb_login_pdfout ()								# max 35 on one A4-sheet
 	echo "sed $( cat $TEMP; rm $TEMP ) '$PDF_TEMPLATE'" >$TEMP
 
 	sh $TEMP && rm $TEMP
+}
+
+_userdb_login_pdfout_marker ()
+{
+	local FUNC="userdb_login_pdfout_marker"
+	local LIST_LOGIN_ID="$1"
+	local FONTSIZE=18
+	local NUMBER I N N1 N2 ID USERNAME PASSWORD XCOL1 XCOL2 XCOL3 XCOL4 XCOL5 YCOL
+
+	_log do $FUNC daemon info "[start] generating A4-page with these logins: '$LIST_LOGIN_ID'"
+
+	cat <<EOF
+%PDF-1.7
+
+1 0 obj  % entry point
+<<
+  /Type /Catalog
+  /Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+  /Type /Pages
+  /MediaBox [ 0 0 595 842 ]
+  /Count 1
+  /Kids [ 3 0 R ]
+>>
+endobj
+
+3 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /Resources <<
+    /Font <<
+      /F1 4 0 R 
+    >>
+  >>
+  /Contents 5 0 R
+>>
+endobj
+
+4 0 obj
+<<
+  /Type /Font
+  /Subtype /Type1
+  /BaseFont /Times-Roman
+>>
+endobj
+
+5 0 obj  % page content
+<<
+  /Length 44
+>>
+stream
+EOF
+
+	tenth ()	# SENS: 123 -> 12.3
+	{
+		local VALUE="$1"
+
+		echo "$(( $VALUE / 10 )).$(( $VALUE % 10 ))"
+	}
+
+	xcol ()
+	{
+		local COLUMN="$1"
+		local BEGIN="163"
+		local OFFSET="1170"
+		local X
+
+		X=$(( $BEGIN + ( $OFFSET * ( $COLUMN - 1 ) ) ))
+
+		tenth $X
+	}
+
+	yrow ()					# pdf-coord-system starts in lower/left border with 0/0
+	{
+		local ROW="$1"
+		local OPTION="$2"		# nextline
+		local BEGIN="300"
+		local OFFSET="516"
+		local OFFSET_NEXTLINE="160"
+		local Y
+
+		Y=$(( $BEGIN + ($OFFSET * ($ROW - 1) ) ))
+
+		[ -n "$OPTION" ] && Y=$(( $Y - $OFFSET_NEXTLINE ))
+
+		tenth $Y
+	}
+
+	XCOL1=$( xcol 1 )
+	XCOL2=$( xcol 2 )
+	XCOL3=$( xcol 3 )
+	XCOL4=$( xcol 4 )
+	XCOL5=$( xcol 5 )
+	I=17			# counter for right yrow (increasing)
+
+	for ID in $LIST_LOGIN_ID; do {
+
+		NUMBER=$(( ${NUMBER:-0} + 1 ))
+
+		if [ $NUMBER -gt 16 ]; then		# right yrow
+
+			I=$(( $I -1 ))
+			N=$I
+			
+			XCOL1=$XCOL4
+			XCOL2=$XCOL5
+		else
+			N=$(( $I - $NUMBER ))		# left yrow
+		fi
+
+		YROW1="$( yrow $N )"
+		YROW2="$( yrow $N nextline )"
+
+		eval $( _userdb login show $ID "USERNAME PASSWORD" )
+
+		cat <<EOF
+BT $XCOL1 $YROW1 TD /F1 $FONTSIZE Tf ($USERNAME)Tj ET
+BT $XCOL1 $YROW2 TD /F1 $FONTSIZE Tf ($PASSWORD)Tj ET
+BT $XCOL2 $YROW1 TD /F1 $FONTSIZE Tf ($USERNAME)Tj ET
+BT $XCOL2 $YROW2 TD /F1 $FONTSIZE Tf ($PASSWORD)Tj ET
+EOF
+
+	} done
+
+	cat <<EOF
+endstream
+endobj
+
+xref
+0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000079 00000 n 
+0000000173 00000 n 
+0000000301 00000 n 
+0000000380 00000 n 
+trailer
+<<
+  /Size 6
+  /Root 1 0 R
+>>
+startxref
+492
+%%EOF
+EOF
+
+	_log do $FUNC daemon info "[end] generating PDF to stdout ($NUMBER tickets)" 
 }
