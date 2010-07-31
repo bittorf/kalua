@@ -13,7 +13,8 @@ BG_0="lightblue"
 BG_A="#FAEBD7"
 BG_B="#DCDCDC"
 ARROW="<b>&rarr;</b>"
-_userdb include
+
+_db include
 
 [ -n "$FORM_THEME_NAME" ] && {
 	_nvram set fff_weblogin_usernametheme "$FORM_THEME_NAME"		# fixme! we need a way to forward this cleaner
@@ -29,12 +30,12 @@ if [ -n "$FORM_ACTION_LOGIN_DEL_CHECKED" -o -n "$FORM_ACTION_LOGIN_DEL_RANGE" ];
 	}
 	
 	[ -z "$LIST_FORM_CHECKBOX" ] && {
-		LIST_FORM_CHECKBOX="$( _userdb login list $FORM_RANGE_METHOD $FORM_RANGE_KEYWORD )"
+		LIST_FORM_CHECKBOX="$( _db user login list $FORM_RANGE_METHOD $FORM_RANGE_KEYWORD )"
 	}
 
 	_log do login_del_specific daemon info "list: '$LIST_FORM_CHECKBOX'"
 	for FORM_ID in $LIST_FORM_CHECKBOX; do {
-		_userdb login del "$FORM_ID"
+		_db user login del "$FORM_ID"
 	} done
 	
 	FORM_ACTION="login_show"
@@ -51,13 +52,13 @@ if [ -n "$FORM_ACTION_LOGIN_PRINT_CHECKED" -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE
 	}
 	
 	[ -z "$LIST_FORM_CHECKBOX" ] && {
-		LIST_FORM_CHECKBOX="$( _userdb login list $FORM_RANGE_METHOD $FORM_RANGE_KEYWORD )"
+		LIST_FORM_CHECKBOX="$( _db user login list $FORM_RANGE_METHOD $FORM_RANGE_KEYWORD )"
 	}
 
 	I=0; for N in $LIST_FORM_CHECKBOX; do I=$(( $I + 1 )); done 		# count tickets
 	for LOGIN_ID in $LIST_FORM_CHECKBOX; do break; done			# fetch first ticket
-	eval $( _userdb login show $LOGIN_ID "PROFILE_ID" )			# used_profile_id
-	eval $( _userdb profile show $PROFILE_ID "NAME" )			# id2name
+	eval $( _db user login show $LOGIN_ID "PROFILE_ID" )			# used_profile_id
+	eval $( _db user profile show $PROFILE_ID "NAME" )			# id2name
 		
 	FILENAME="wlansystem-$( _weblogin metadata_locationname )-$( _system date humanreadable )-${I}x${NAME}.pdf"
 #	FILENAME="$( _sanitizer do "$FILENAME" urlvalue )"
@@ -69,9 +70,9 @@ if [ -n "$FORM_ACTION_LOGIN_PRINT_CHECKED" -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE
 
 	if [ -n "$FORM_ACTION_LOGIN_PRINT_CHECKED" -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE" ]; then
 	
-		_userdb login_pdfout_digest "$LIST_FORM_CHECKBOX"	# uebersicht
+		_db user login_pdfout_digest "$LIST_FORM_CHECKBOX"	# uebersicht
 	else
-		_userdb login_pdfout_marker "$LIST_FORM_CHECKBOX"	# etiketten
+		_db user login_pdfout_marker "$LIST_FORM_CHECKBOX"	# etiketten
 	fi
 
 	_log do gui_print_tickets daemon info "[done]"
@@ -80,11 +81,11 @@ fi
 
 case "$FORM_ACTION" in
 	profile_del)
-		_userdb profile del "$FORM_ID"
+		_db user profile del "$FORM_ID"
 		FORM_ACTION=
 	;;
 	login_del)
-		_userdb login del "$FORM_ID"
+		_db user login del "$FORM_ID"
 		FORM_ACTION=login_show
 	;;
 esac
@@ -131,18 +132,18 @@ case "$FORM_ACTION" in
 						mb) FORM_MAX_SPEED_UP="$(( $FORM_MAX_SPEED_UP * 1024 ))" ;;
 					esac
 
-					_userdb profile update "$FORM_ID" "$FORM_NAME" "$FORM_COMMENT" "$FORM_AUTOGENERATE" "$FORM_TIME_MODEL" "$FORM_MAX_TIME" "$FORM_MAX_TRAFFIC" "$FORM_MAX_SPEED_UP" "$FORM_MAX_SPEED_DOWN" "$FORM_LANDING_URL" "$FORM_COST" "$FORM_CURRENCY"
+					_db user profile update "$FORM_ID" "$FORM_NAME" "$FORM_COMMENT" "$FORM_AUTOGENERATE" "$FORM_TIME_MODEL" "$FORM_MAX_TIME" "$FORM_MAX_TRAFFIC" "$FORM_MAX_SPEED_UP" "$FORM_MAX_SPEED_DOWN" "$FORM_LANDING_URL" "$FORM_COST" "$FORM_CURRENCY"
 				}			
 			
 				SUBMIT_BUTTON_TEXT="Profil aktualisieren"
 			;;
 			profile_add)
-				_userdb profile add "z.b. Tagesticket"				# create new and...
-				for FORM_ID in $( _userdb profile list ); do :; done		# fetch last ID
+				_db user profile add "z.b. Tagesticket"				# create new and...
+				for FORM_ID in $( _db user profile list ); do :; done		# fetch last ID
 			;;
 		esac	
 
-		eval $( _userdb profile show $FORM_ID )
+		eval $( _db user profile show $FORM_ID )
 
 		echo "<form action='' method='get'>"						# currency is coded like ISO-4217
 		echo "<input type='hidden' name='FORM_ACTION' value='profile_update'>"
@@ -175,8 +176,8 @@ case "$FORM_ACTION" in
 
 		case "$FORM_ACTION" in
 			login_add)
-				_userdb login add							# create new and...
-				for FORM_ID in $( _userdb login list ); do :; done			# fetch last ID
+				_db user login add							# create new and...
+				for FORM_ID in $( _db user login list ); do :; done			# fetch last ID
 			;;
 			login_update)
 
@@ -184,7 +185,7 @@ case "$FORM_ACTION" in
 
 				helper_update ()
 				{
-					_userdb login update "$FORM_ID" "$FORM_PROFILE_ID" "$FORM_COMMENT" "$FORM_USERNAME" "$FORM_PASSWORD" "$FORM_DEVICE_QUANTITY" "$FORM_INSTALLED"
+					_db user login update "$FORM_ID" "$FORM_PROFILE_ID" "$FORM_COMMENT" "$FORM_USERNAME" "$FORM_PASSWORD" "$FORM_DEVICE_QUANTITY" "$FORM_INSTALLED"
 				}
 			
 				case "${FORM_DUPLICATE_NO:-1}" in
@@ -200,14 +201,14 @@ case "$FORM_ACTION" in
 
 							FORM_DUPLICATE_NO="$(( $FORM_DUPLICATE_NO - 1 ))"
 
-							_userdb login add
-							for FORM_ID in $( _userdb login list ); do :; done	# fetch last ID
+							_db user login add
+							for FORM_ID in $( _db user login list ); do :; done	# fetch last ID
 							helper_update
 						} done
 					;;
 				esac
 
-				_scheduler add ". /tmp/loader; _userdb login index_gen"
+				_scheduler add ". /tmp/loader; _db user login index_gen"
 			;;
 		esac
 
@@ -217,8 +218,8 @@ case "$FORM_ACTION" in
 			
 			echo "<select name='FORM_PROFILE_ID' size='1'>"
 			
-			for ID in $( _userdb profile list ); do {
-				eval "$( _userdb profile show $ID "NAME COMMENT" )"
+			for ID in $( _db user profile list ); do {
+				eval "$( _db user profile show $ID "NAME COMMENT" )"
 				echo "<option value='$ID'"
 				test "$FORM_PROFILE_ID" = "$ID" && echo -n "selected"
 				echo ">${NAME}: ${COMMENT}</option>"
@@ -242,7 +243,7 @@ case "$FORM_ACTION" in
 			echo "</select>"
 		}
 
-		eval $( _userdb login show $FORM_ID )
+		eval $( _db user login show $FORM_ID )
 
 		echo "<form action='' method='get'>"
 		echo "<input type='hidden' name='FORM_ACTION' value='login_update'>"
@@ -291,10 +292,10 @@ case "$FORM_ACTION" in
 				echo "<input type='hidden' name='FORM_RANGE_METHOD'  value='$FORM_RANGE_METHOD'>"
 				echo "<input type='hidden' name='FORM_RANGE_KEYWORD' value='$FORM_RANGE_KEYWORD'>"
 				echo "<p><i>Hinweis:</i> Es werden nur die letzten $FORM_RANGE_KEYWORD Logins angezeigt</p>"
-				LIST_ID="$( _userdb login list last $FORM_RANGE_KEYWORD )"
+				LIST_ID="$( _db user login list last $FORM_RANGE_KEYWORD )"
 			;;
 			*)
-				LIST_ID="$( _userdb login list )"
+				LIST_ID="$( _db user login list )"
 			;;
 		esac
 
@@ -304,7 +305,7 @@ case "$FORM_ACTION" in
 		for ID in $LIST_ID; do {
 
 			PROFILE_ID=
-			eval "$( _userdb login show $ID )"
+			eval "$( _db user login show $ID )"
 			[ -z "$PROFILE_ID" ] && continue
 
 			case "$BGCOLOR" in
@@ -315,7 +316,7 @@ case "$FORM_ACTION" in
 			cat <<EOF
 <tr bgcolor='$BGCOLOR'>
 <td align='center'><input type='checkbox' ID='login$ID' name='FORM_CB_$ID' value='1'></td>
-<td><label for='login$ID'>&nbsp;$( _userdb profile id2name $PROFILE_ID )</label></td>
+<td><label for='login$ID'>&nbsp;$( _db user profile id2name $PROFILE_ID )</label></td>
 <td><label for='login$ID'>&nbsp;${COMMENT:--}</label></td>
 <td><label for='login$ID'>&nbsp;$USERNAME</label></td>
 <td align='center'><label for='login$ID'>$PASSWORD</label></td>
@@ -350,13 +351,13 @@ EOF
 		<li>neues Profil <a href='?FORM_ACTION=profile_add'>erstellen</a></li>
 EOF
 		
-		LIST_PROFILES="$( _userdb profile list )"
+		LIST_PROFILES="$( _db user profile list )"
 
 		[ -n "$LIST_PROFILES" ] && {
 			echo "<li>Profile bearbeiten:<ul>"
 
 			for ID in $LIST_PROFILES; do {
-				eval "$( _userdb profile show $ID "NAME COMMENT" )"
+				eval "$( _db user profile show $ID "NAME COMMENT" )"
 				echo "<li><a href='?FORM_ACTION=profile_update${AMP}FORM_ID=${ID}'>bearbeiten</a> | "
 				echo "<a href='?FORM_ACTION=profile_del${AMP}FORM_ID=${ID}'>l&ouml;schen</a>&nbsp;-&nbsp;$NAME$( test -n "$COMMENT" && echo "&nbsp;('$COMMENT')" )</li>"
 
@@ -380,11 +381,11 @@ EOF
 			echo "<li>neue Logins <s>erstellen</s> (zuerst muss ein Profil angelegt werden)</li>"
 		fi
 
-		LIST_LOGINS="$( _userdb login list )"
+		LIST_LOGINS="$( _db user login list )"
 
 		[ -n "$LIST_LOGINS" ] && {
 		
-			LIST_LOGINS_COUNT="$( _userdb login list | wc -l )"
+			LIST_LOGINS_COUNT="$( _db user login list | wc -l )"
 			LIST_LOGINS_COUNT="$(( $LIST_LOGINS_COUNT + 0 ))"
 			
 			echo "<li>Logins <a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=all'>anzeigen&nbsp;($LIST_LOGINS_COUNT St&uuml;ck)</a>"
@@ -406,7 +407,7 @@ EOF
 <li><br><b><big>G</big>er&auml;te</b> verwalten:
 	<ul>
 EOF
-		LISTE_DEVICES="$( _userdb device list )"
+		LISTE_DEVICES="$( _db user device list )"
 		
 		if [ -n "$LIST_LOGINS" ]; then
 			echo "<li>neue Ger&auml;te <a href='?FORM_ACTION=device_add'>eintragen</a></li>"
