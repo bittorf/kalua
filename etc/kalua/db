@@ -1,3 +1,35 @@
+_db_backup ()		# fixme! automatically call this after <prio> changes
+{
+	local FUNC="db_backup"
+	local FILE="/www/cgi-bin/db_backup.tgz"
+
+	if tar czf "$FILE" /tmp/DB ; then
+		_log do $FUNC daemon info "[ok]"
+	else
+		_log do $FUNC daemon alert "[err]"
+	fi
+}
+
+_db_restore ()		# fixme! automatically call this after reboot
+{
+	local FUNC="db_restore"
+	local FILE="/www/cgi-bin/db_backup.tgz"
+
+	if [ -e "$FILE" ]; then
+	
+		_log do $FUNC daemon info "unarc of '$FILE'"
+		rm -fR /tmp/DB
+
+		if tar -C / -xzf "$FILE" ; then
+			_log do $FUNC daemon info "[ok]"
+		else
+			_lgo do $FUNC daemon alert "[err]"
+		fi
+	else
+		_log do $FUNC daemon info "[err] '$FILE' not found"
+	fi
+}
+
 _db_user ()			# poormens_db: each line has: A="";B="";C="";D="";...;   # ID = linenumber
 {
 	local TABLE="$1"
@@ -22,6 +54,8 @@ _db_user ()			# poormens_db: each line has: A="";B="";C="";D="";...;   # ID = li
 
 	case "$ACTION" in
 		list)
+			[ -e "$DIR/rows" ] || return 1
+		
 			case "$ID" in
 				last)
 					sed -n '/^A/=' "$DIR/rows" | tail -n "$4"
