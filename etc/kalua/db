@@ -30,24 +30,27 @@ _db_restore ()		# fixme! automatically call this after reboot
 	fi
 }
 
-_db_user ()			# poormens_db: each line has: A="";B="";C="";D="";...;   # ID = linenumber
+_db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;   	# autocreated is ID = linenumber = index
 {
+	local FUNC="db_user"
 	local TABLE="$1"
 	local ACTION="$2"
 	local ID="$3"		# set to 'autoid' when action is 'add'
-	local FIXME="$4$5$6$7$8$9${10}${11}"
+	local FIXME="$4$5$6$7$8$9${10}${11}${12}${13}${14}"
 	local OBJ ELEMENTS REWRITE_VARS SHORT_VAR N LIST VALUE FILL
 
 	case "$TABLE" in
 		profile) ELEMENTS="NAME COMMENT AUTOGENERATE TIME_MODEL MAX_TIME MAX_TRAFFIC MAX_SPEED_UP MAX_SPEED_DOWN LANDING_URL COST CURRENCY" ;;
-		login)	 ELEMENTS="PROFILE_ID COMMENT USERNAME PASSWORD DEVICE_QUANTITY INSTALLED" ;;
-		device)	 ELEMENTS="USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION" ;;
+		login)   ELEMENTS="PROFILE_ID COMMENT USERNAME PASSWORD DEVICE_QUANTITY INSTALLED" ;;
+		device)  ELEMENTS="USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION" ;;
 		*)
 			echo "Usage: _db_user <table> <action>"
 			echo "       _db_user profile|login|device list|show <id>|add autoid ...|del <id>|update <id> ..."
 			return 1
 		;;
 	esac
+
+	_log do $FUNC daemon info "table: $TABLE action: $ACTION elements: $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14}"
 
 	local DIR="/tmp/DB/USER/$TABLE"
 	mkdir -p "$DIR"
@@ -58,15 +61,15 @@ _db_user ()			# poormens_db: each line has: A="";B="";C="";D="";...;   # ID = li
 		
 			case "$ID" in
 				last)
-					sed -n '/^A/=' "$DIR/rows" | tail -n "$4"
+					sed -n '/;A/=' "$DIR/rows" | tail -n ${4:-1}
 				;;
 				*)
-					sed -n '/^A/=' "$DIR/rows"
+					sed -n '/;A/=' "$DIR/rows"		# fixme! why does this work?
 				;;
 			esac
 		;;
 		show)
-			[ -n "$4" ] && ELEMENTS="$4"
+			[ -n "$4" ] && ELEMENTS="$4"		# fixme! e.g. only output "NAME COMMENT" does not work
 		
 			for OBJ in $ELEMENTS; do {
 
@@ -104,6 +107,12 @@ _db_user ()			# poormens_db: each line has: A="";B="";C="";D="";...;   # ID = li
 			for OBJ in $ELEMENTS; do {
 				eval "VALUE=\"\${$N}\""
 
+				case "${VALUE}${TABLE}_${OBJ}" in				# fixme! this a hack? (empty VALUE!)
+					login_USERNAME)  VALUE="$( _random_username do )" ;;
+					login_PASSWORD)  VALUE="$( _math random_integer 1 99999 fillup )" ;;
+					login_INSTALLED) VALUE="$( _system date unixtime )" ;;
+				esac
+
 				case "$SHORT_VAR" in
 					A) SHORT_VAR="B" ;;
 					B) SHORT_VAR="C" ;;
@@ -133,10 +142,10 @@ _db_user ()			# poormens_db: each line has: A="";B="";C="";D="";...;   # ID = li
 			esac
 		;;
 		id2name)
-			sed -n "${ID}s/^A='\(.*\)';B=.*/\1/p" "$DIR/rows"	# fixme! hardcoded position
+			sed -n "${ID}s/.*;A='\(.*\)';B=.*/\1/p" "$DIR/rows"	# fixme! hardcoded NAME position (is needed for PROFILE only)
 		;;
 		name2id)
-			sed -n "/^A='testname';/=" "$DIR/rows"			# fixme! hardcoded position
+			sed -n "/;A='${ID}';/=" "$DIR/rows"			# fixme! hardcoded position (dito)
 		;;
 		*)
 			echo "Usage: ..."
