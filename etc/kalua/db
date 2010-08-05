@@ -4,7 +4,7 @@ _db_backup ()		# fixme! automatically call this after <prio> changes
 	local FILE="/www/cgi-bin/db_backup.tgz"
 
 	if tar czf "$FILE" /tmp/DB ; then
-		_log do $FUNC daemon info "[ok]"
+		_log do $FUNC daemon info "[ok] wrote $( _file size "$FILE" ) bytes"
 	else
 		_log do $FUNC daemon alert "[err]"
 	fi
@@ -50,12 +50,28 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		;;
 	esac
 
-	_log do $FUNC daemon info "table: $TABLE action: $ACTION elements: 3:$3 4:$4 5:$5 6:$6 7:$7 8:$8 9:$9 0:${10} 1:${11} 2:${12} 3:${13} 4:${14}"
+#	_log do $FUNC daemon info "table: $TABLE action: $ACTION elements: 3:$3 4:$4 5:$5 6:$6 7:$7 8:$8 9:$9 0:${10} 1:${11} 2:${12} 3:${13} 4:${14}"
 
 	local DIR="/tmp/DB/USER/$TABLE"
 	mkdir -p "$DIR"
 
 	case "$ACTION" in
+		index_gen)
+			local INDEX="$DIR/meta_index"
+			local CRC USERNAME PASSWORD PROFILE_ID ID
+
+			for ID in $( _db user login list ); do {
+				eval $( _db user login show $ID "USERNAME PASSWORD PROFILE_ID" )
+				CRC="$( echo -n "$USERNAME$PASSWORD" | md5sum | cut -d' ' -f1 )"
+				echo "$CRC $ID $PROFILE_ID $USERNAME $PASSWORD"
+			} done >$INDEX
+
+			cp $INDEX /www/cgi-bin/userdata.txt	# fixme!
+
+			_log do $FUNC daemon info "$ACTION: wrote '$INDEX' and '/www/cgi-bin/userdata.txt'"
+
+			_db backup
+		;;
 		list)
 			[ -e "$DIR/rows" ] || return 1
 		
