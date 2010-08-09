@@ -1,25 +1,21 @@
 _uci_get ()			# SENS: wrapper for firmware, that can work with either 'nvram' oder 'uci'-style
 {				# USAGE: _uci get wl0_ssid SSID		// sets var 'SSID'
-	local OPTION="$1"
-	local VARIABLE="$2"
-
-	test ! -e /tmp/NVRAM	# using 'uci' if file is NOT there (default)
+	local o="$1"		# $2 = VARNAME to set (this function cannot have vars)
+	test ! -e /tmp/NVRAM	# using 'uci' if file is NOT there (means: defaulting to uci)
 
 	case $? in
 		0)
-			uci get "$OPTION" "$VARIABLE"
+			uci get "$o" "$2"		# Unified Configuration Interface: http://nbd.name/gitweb.cgi?p=uci.git;a=summary
 		;;
 		*)
-			case "$OPTION" in
-				vpn.intercity.enabled) OPTION="fff_vpn_active"
+			case "$o" in
+				vpn.intercity.enabled) o="fff_vpn_active" ;;
 			esac
 
-			if [ -z "$VARIABLE" ]; then
-				nvram get "$OPTION"
-			else
-				eval "$VARIABLE='$( nvram get "$OPTION" )'"
-			fi
+			case "$2" in
+				"") nvram get "$o" ;;
+				 *) eval "$2='$( nvram get "$o" )'"	# fixme! possible without forking?
+			esac
 		;;
 	esac
 }
-
