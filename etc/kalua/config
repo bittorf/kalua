@@ -1,24 +1,37 @@
+_config_load ()		# loads an entire config files, e.g. /etc/config/network with '_config load network'
+{
+	:
+}
+				# openwrt_trunk:
+				# config_get <variable> <section> <option> [<default>]
+				# config_get <section> <option>
+
+				# fixme! we use another approach
+				# _config get <option> <variable> [<default>]		// no <section> and interchanged position of <option> / <variable>
+
 _config_get ()			# SENS: wrapper for firmware, that can work with either 'nvram' oder 'uci'-style
-{				# USAGE: _uci get wl0_ssid SSID		// sets var 'SSID'
+{				# USAGE: _config get "wl0_ssid" "SSID" [<default_value>]	// sets var 'SSID'
 	local o="$1"		# $2 = VARNAME to set (this function cannot have vars)
-	test ! -e /tmp/NVRAM	# using 'uci' if file is NOT there (means: defaulting to uci)
+				# $3 = DEFAULT-value
+						# idea: option 'bool' enforces true/false RC, if value is 0/1 or true/false? -> config_get_bool!
+	if [ -e /tmp/NVRAM ]; then		# defaulting to uci
+		case "$o" in						# fixme! build long2short() to make this without var "$o"?
+			icvpn.enabled)	o="fff_vpn_active" ;;
+			olsr.hna4)	o="ff_hna4" ;;			# fixme! can be a list, IFS=";"
+		esac
 
-	case $? in		# idea: option 'bool' enforces true/false RC, if value is 0/1 or true/false?
-		0)
-			uci get "$o" "$2"		# Unified Configuration Interface: http://nbd.name/gitweb.cgi?p=uci.git;a=summary
-		;;
-		*)
-			case "$o" in						# fixme! build long2short() to make this without var "$o"?
-				vpn.intercity.enabled)	o="fff_vpn_active" ;;
-				olsr.hna4)		o="ff_hna4" ;;		# fixme! can be a list, IFS=";"
-			esac
+		case "$2" in
+			"") nvram get "$o" ;;				# deprecated!
+			 *) eval "$2='$( nvram get "$o" )'" ;;		# fixme! possible without forking?
+		esac
 
-			case "$2" in
-				"") nvram get "$o" ;;
-				 *) eval "$2='$( nvram get "$o" )'"	# fixme! possible without forking?
-			esac
-		;;
-	esac
+		[ -n "$3" ] && {
+			eval "o=\"\$$2\""				# fixme! again using 'o'
+			[ -z "$o" ] && eval "$2='$3'"			# set default val, if given
+		}
+	else
+		config_get "$2" "SECTION" "$o" "$3"			# Unified Configuration Interface: http://nbd.name/gitweb.cgi?p=uci.git;a=summary
+	fi
 }
 
 _config_todo ()		# e.g. _config_todo boot_watchdog && start_bootwatchdog (OUT=bool)
