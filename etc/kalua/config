@@ -1,33 +1,38 @@
 _config_load ()		# loads an entire config files, e.g. /etc/config/network with '_config load network'
 {
-	:
+	[ -n "$3" ] && shift 2		# e.g.: _config load WIFI get MYVAR wlan0.ssid
+	_config get "$@"
 }
 				# openwrt_trunk:
 				# config_get <variable> <section> <option> [<default>]
 				# config_get <section> <option>
 
-				# fixme! we use another approach
-				# _config get <option> <variable> [<default>]		// no <section> and interchanged position of <option> / <variable>
+				# _config get <variable> <option> [<default>]		// no <section>
+				# _config get <option> [<default>]
 
-_config_get ()			# SENS: wrapper for firmware, that can work with either 'nvram' oder 'uci'-style
-{				# USAGE: _config get "wl0_ssid" "SSID" [<default_value>]	// sets var 'SSID'
-	local o="$1"		# $2 = VARNAME to set (this function cannot have vars)
-				# $3 = DEFAULT-value
+_config_get ()			# SENS: wrapper for firmware, that can work with either 'nvram' or 'uci'-style
+{				# USAGE: _config get "MYSSID" "wlan0.essid" [<default_value>]	// sets var '$MYSSID'
+	case "$2" in
+		"") o="$1"; shift ;;		# only print value, so no <variable> given
+		 *) o="$2" ;;
+	esac					
 						# idea: option 'bool' enforces true/false RC, if value is 0/1 or true/false? -> config_get_bool!
 	if [ -e /tmp/NVRAM ]; then		# defaulting to uci
+
 		case "$o" in						# fixme! build long2short() to make this without var "$o"?
 			icvpn.enabled)	o="fff_vpn_active" ;;
-			olsr.hna4)	o="ff_hna4" ;;			# fixme! can be a list, IFS=";"
+			olsrd.hna4)	o="ff_hna4" ;;			# fixme! can be a list, IFS=";"
+			wlan0.essid)	o="wl0_ssid" ;;
 		esac
 
 		case "$2" in
 			"") nvram get "$o" ;;				# deprecated!
-			 *) eval "$2='$( nvram get "$o" )'" ;;		# fixme! possible without forking?
+			 *) eval "$1='$( nvram get "$o" )'" ;;		# fixme! possible without forking?
 		esac
 
 		[ -n "$3" ] && {
-			eval "o=\"\$$2\""				# fixme! again using 'o'
-			[ -z "$o" ] && eval "$2='$3'"			# set default val, if given
+			eval "o=\"\$$1\""				# fixme! again using 'o'
+			[ -z "$o" ] && eval "$1='$3'"			# set default val, if given
 		}
 	else
 		config_get "$2" "SECTION" "$o" "$3"			# Unified Configuration Interface: http://nbd.name/gitweb.cgi?p=uci.git;a=summary
