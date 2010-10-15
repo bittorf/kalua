@@ -16,7 +16,7 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 	local FUNC="iptables"
 	local ARGS="$1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18} ${19} ${20}"
 	local ERRORFILE="/tmp/iptables_$$"
-	local LINE CLEANUP MATCH JUMP FILE BUILTIN
+	local LINE CLEANUP MATCH JUMP FILE BUILTIN=""
 
 	# idea: *--l7proto*) detect this?
 
@@ -60,6 +60,9 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 					state|limit|mac|mark|multiport)
 						:
 					;;
+					*)
+						_log do $FUNC daemon debug "uncatched match"
+					;;
 				esac
 				
 				if [ -e "$FILE" ]; then
@@ -73,8 +76,8 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 	
 	case "$ARGS" in
 		*\ -j\ *)	
-			JUMP="$( echo "$ARGS" | sed -n 's/^.* -j \([A-Z]*\).*/\1/p' )"
-			
+			JUMP="$( echo "$ARGS" | sed -n 's/^.* -j \([A-Z]*\).*/\1/p' )"		# fixme! custom chains can be [a-z]
+
 			[ -n "$JUMP" -a ! -e /tmp/iptables_jump_$JUMP ] && {
 	
 				FILE="/usr/lib/iptables/libipt_${JUMP}.so"
@@ -89,8 +92,15 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 					ACCEPT|DROP|LOG|MASQUERADE|RETURN)
 						BUILTIN=1
 					;;
-					REJECT|MARK)
+					REJECT|MARK|TCPMSS)
 						:
+					;;
+					*)
+						if iptables -nL $JUMP >/dev/null ; then
+							_log do $FUNC daemon debug "custom chain '$JUMP'"
+						else
+							_log do $FUNC daemon debug "uncatched jump '$JUMP'"
+						fi
 					;;
 				esac
 				
@@ -965,10 +975,14 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 	_ipt -t mangle -N traff_users
 	_ipt -t mangle -N shaper
 
-	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id REJECT )          -j REJECT
-	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF -j REJECT  # --reject-with tcp-reset (does not work?)
-	_ipt -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE                                -j ACCEPT
-	_ipt -A FORWARD -m state --state ESTABLISHED,RELATED             -j ACCEPT
+	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id REJECT )		-j REJECT
+	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF	-j REJECT  	# --reject-with tcp-reset (does not work?)
+	_ipt -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE		-j ACCEPT
+# http://www.frozentux.net/iptables-tutorial/iptables-tutorial.html#TABLE.TCPMSSTARGET
+# MSS (maximum segment size) should always be path_MTU - 40 (20 for IP header + 20 for TCP header)
+# fixme! restrict to '-o $LAN/$WIFI/$WAN' ?
+	_ipt -A FORWARD -p tcp --tcp-flags SYN,RST SYN				-j TCPMSS --clamp-mss-to-pmtu
+	_ipt -A FORWARD -m state --state ESTABLISHED,RELATED			-j ACCEPT
 
 	# maybe let already marked traffic go trough?
 
