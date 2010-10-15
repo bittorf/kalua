@@ -9,6 +9,10 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 	local SHOW_ACCEPT_RULES="$4"
 	local LINK_BASE="$5"				# e.g. http://$WIFIADR
 	local INJECT_TITLE="$6"
+	local MOBILE_MODE="$7"				# show field for mobile-number instead of username/password
+
+	[ -n "$( nvram get fff_weblogin_password2mobile )" ] && MOBILE_MODE="mobile_mode"
+
 
 	local LANG_DIRECTION="ltr"			# fixme! left2right or right2left?
 	local CODEPAGE="ISO-8859-15"			# fixme! lang <-> charset/codepage?
@@ -26,9 +30,9 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 
 	local LANG_CACHE_FILE="/tmp/weblogin_langcache_${LANG_DIRECTION}_${MYLANGLIST}_${INJECT_TITLE}"
 
-	[ -n "$FORM_RULES" ] && SHOW_ACCEPT_RULES="false"
-	[ "$FORM_SHOW_ACCEPT_RULES"   = "true" ] && SHOW_ACCEPT_RULES="true"
-	[ "$FORM_SHOW_PASSWORD_WRONG" = "true" ] && SHOW_PASSWORD_WRONG="true"
+	[ -n "$FORM_RULES" -o -n "$MOBILE_MODE" ] && SHOW_ACCEPT_RULES="false"
+	[ "$FORM_SHOW_ACCEPT_RULES"   = "true"  ] && SHOW_ACCEPT_RULES="true"
+	[ "$FORM_SHOW_PASSWORD_WRONG" = "true"  ] && SHOW_PASSWORD_WRONG="true"
 
 	LINK="${LINK_BASE}${SCRIPT_NAME:=/cgi-bin-welcome}?REDIRECTED=1"					# fixme: harcoded! SCRIPT_NAME = e.g. '/cgi-bin-welcome'
 	[ "$SHOW_PASSWORD_WRONG" = "true" ] && LINK="${LINK}${AMP}FORM_SHOW_PASSWORD_WRONG=true"
@@ -84,13 +88,36 @@ EOF
 	[ "$SHOW_PASSWORD_WRONG" = "true"	 ] && _weblogin htmlout_message_wrong_logindata	$LANG
 	[ "$SHOW_ACCEPT_RULES"	 = "true"	 ] && _weblogin htmlout_rules_hint		$LANG
 	[ "$SHOW_RULES"		 = "inet_broken" ] && _weblogin htmlout_inet_broken		$LANG
+	[ -n "$FORM_MOBILE_NUMBER" ] && {
+		if _sanitizer do "$FORM_MOBILE_NUMBER" mobilenumber check; then
+			_weblogin htmlout_message_password_was_send $LANG
+		else
+			_weblogin htmlout_message_wrong_mobile_number $LANG
+		fi
+	}
 
 	cat <<EOF
 <TR><TD ALIGN="CENTER"><BR><TABLE CELLSPACING="0" CELLPADDING="2" BORDER="0">
+EOF
+
+	case "$MOBILE_MODE" in
+		mobile_mode)
+			cat <<EOF
+<TR><TD ALIGN="RIGHT"><label for='mobile_number'>$( _translate do "$LANG" mobile_number ):&nbsp;</label><INPUT TABINDEX="1" ID="mobile_number" TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_MOBILE_NUMBER" VALUE="$FORM_MOBILE_NUMBER"></TD></TR>
+<TR><TD ALIGN="CENTER"><BR><INPUT TYPE="image" TABINDEX="3" SRC="${LINK_BASE}/images/button_login_de.gif" ALT="&rarr;Login"></TD></TR>
+EOF
+		;;
+		*)
+			cat <<EOF
 <TR><TD ALIGN="RIGHT"><label for='username'>$( _translate do "$LANG" username ):&nbsp;</label><INPUT TABINDEX="1" ID="username" TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER" VALUE="$FORM_USER"></TD></TR>
 <TR><TD ALIGN="RIGHT"><label for='password'>$( _translate do "$LANG" password ):&nbsp;</label><INPUT TABINDEX="2" ID="password" TYPE="password" SIZE="10" MAXLENGTH="10" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
 <TR><TD ALIGN="CENTER"><BR><INPUT TYPE="checkbox" ID="accept_terms" TABINDEX="4" NAME="FORM_RULES" checked><label for='accept_terms'>&nbsp;$( _translate do "$LANG" accept_terms1 ) <A TABINDEX="5" HREF="${LINK}=${LANG}${AMP}FORM_SHOW_RULES=$( if [ "$FORM_SHOW_RULES" = "true" ]; then echo -n 'false'; else echo -n 'true'; fi )" TITLE="$( _translate do "$LANG" tip_contract )">$( _translate do "$LANG" accept_terms2 )</A></label></TD></TR>
 <TR><TD ALIGN="CENTER"><BR><INPUT TYPE="image" TABINDEX="3" SRC="${LINK_BASE}/images/button_login_de.gif" ALT="&rarr;Login"></TD></TR>
+EOF
+		;;
+	esac
+
+	cat <<EOF
 </TABLE></FORM></CENTER>
 </BODY></HTML>
 EOF
@@ -162,6 +189,20 @@ _weblogin_htmlout_rules_hint ()
 	local LANG="$1"
 	
 	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate do "$LANG" accept_rules )&nbsp;</B><BR><BR></TD></TR>"
+}
+
+_weblogin_htmlout_message_password_was_send ()
+{
+	local LANG="$1"
+
+	echo -n "<TR BGCOLOR='lime'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate do "$LANG" password_was_send )&nbsp;</B><BR><BR></TD></TR>"
+}
+
+_weblogin_htmlout_message_wrong_mobile_number ()
+{
+	local LANG="$1"
+
+	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate do "$LANG" wrong_mobile_number )&nbsp;</B><BR><BR></TD></TR>"
 }
 
 _weblogin_htmlout_message_wrong_logindata ()
