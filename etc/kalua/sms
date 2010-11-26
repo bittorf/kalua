@@ -56,20 +56,33 @@ _sms_send_sms77 ()
 	local   USER="$1"
 	local   PASS="$2"
 	local NUMBER="$3"
-	local   TEXT="$4"
-	local    URL="http://www.sms77.de/gateway/?type=quality"	# basicplus hard coded, needs abstraction
+	local   TEXT="$4"		# already URL encoded
+	local  TRASH
+	local   TYPE="quality"		# basicplus|standard|quality|festnetz|flash - hardcoded, needs abstraction
+
+	case $TYPE in
+		quality)
+			[ "${#TEXT}" -gt 160 ] && {
+				TRASH="$( echo $TEXT | cut -b161-999 )"
+				TEXT="$(  echo $TEXT | cut -b1-160 )"		# fixme! respect encoding borders, e.g. %20 -> %2 does not work
+				_log do $FUNC daemon debug "shortened text, trash was: '$TRASH'"
+			}
+		;;
+	esac
+
+	local    URL="http://www.sms77.de/gateway/?type=$TYPE"
 	local OUT RC o
 
-	_log do $FUNC daemon debug "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}"
+	_log do $FUNC daemon debug "[${#TEXT} chars] ${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}"
 	
 	OUT="$( _wget do "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}" 10 "$USER" "$PASS" )"
 	RC="$?"
 
 	if [ $RC -ne 0 ] || [ "$OUT" != "100" ]; then
-
-		case "$OUT" in					# 100,101,306 not implemented
-		        201) o="wrong country code" ;;
-		        202) o="wrong recipient number" ;;
+									# not implemented:
+		case "$OUT" in						# 100 = "SMS was send"
+		        201) o="wrong country code" ;;			# 101 = "Sending failed at least to one recipient"
+		        202) o="wrong recipient number" ;;		# 306 = "Sending ID/Nummer is wrong"
 		    300|900) o="username/pass wrong or unset" ;;
 			301) o="recipient unset" ;;
 			304) o="type unset" ;;
