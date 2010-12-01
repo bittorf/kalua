@@ -222,6 +222,21 @@ _pfilter_user_ruleset_activate ()
 	return 1
 }
 
+_pfilter_stats_simple_approach ()
+{
+	return 0			# fixme!
+}
+
+_pfilter_stats_p2p_block ()
+{
+	local PROFILE="$( nvram get fff_profile )"
+
+	case $PROFILE in
+		weimarnetz) return 0 ;;
+			 *) return 1 ;;
+	esac
+}
+
 _pfilter_stats_rules_count ()
 {
 	local LIST="${1:-mangle filter nat}"
@@ -937,7 +952,7 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	
 	_ipt -t mangle -A traff_users -m mac --mac-source $MAC -j traff_$MAC
 	_ipt -t mangle -A traff_users -d $IP                   -j traff_$MAC	# must be IP, not HNA!
-	
+
 	for ENTRY in $( _pfilter l7proto_list ); do {
 		PROTO="${ENTRY%,*}"		# PORT="${ENTRY#*,}"
 	
@@ -986,8 +1001,11 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 
 	# maybe let already marked traffic go trough?
 
-	_ipt -A FORWARD -m ipp2p --ipp2p                                 -j LOG --log-prefix "ip_p2p: "
-	_ipt -A FORWARD -m ipp2p --ipp2p                                 -j DROP
+	_pfilter stats_p2p_block && {
+		_ipt -A FORWARD -m ipp2p --ipp2p                                 -j LOG --log-prefix "ip_p2p: "
+		_ipt -A FORWARD -m ipp2p --ipp2p                                 -j DROP
+	}
+
 	_ipt -A FORWARD -m state --state NEW                             -j ACCEPT
 
 	_ipt -t mangle -A FORWARD -s ! $MYHNA -d ! $MYHNA  -j ACCEPT				# forwarding (but not my own forwarding)
@@ -1008,17 +1026,24 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 #	_ipt -t mangle -A marking_unmarkable -m mark ! --mark 0							-j LOG --log-prefix "layer7_small: "
 #	_ipt -t mangle -A marking_unmarkable -m mark ! --mark 0							-j RETURN
 
-	for ENTRY in $( _pfilter l7proto_list ); do {
-		PROTO="${ENTRY%,*}"
-	#	PORT="${ENTRY#*,}"
-		
-		_log do $FUNC daemon info "loop_layer7: installing protocol '$PROTO'"
-		
-		_ipt -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id )
-	#	_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
-		_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
-		_ipt -t mangle -A traff_all      -m mark --mark $( _pfilter proto2id )/0xFF	-j traff_users
-	} done
+	if _pfilter stats_simple_approach ; then
+		PROTO="http"
+		PORT=80
+		_ipt -t mangle -A marking_layer7 -j MARK --set-mark $( _pfilter proto2id )
+		_ipt -t mangle -A marking_layer7 -j RETURN
+	else
+		for ENTRY in $( _pfilter l7proto_list ); do {
+			PROTO="${ENTRY%,*}"
+		#	PORT="${ENTRY#*,}"
+	
+			_log do $FUNC daemon info "loop_layer7: installing protocol '$PROTO'"
+
+			_ipt -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id )
+		#	_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
+			_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
+			_ipt -t mangle -A traff_all      -m mark --mark $( _pfilter proto2id )/0xFF	-j traff_users
+		} done
+	fi
 
 	_ipt -t mangle -A marking_layer7 -j LOG --log-prefix "layer7_end: "
 	
