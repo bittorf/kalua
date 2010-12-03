@@ -1,12 +1,101 @@
+_db_migrate ()
+{
+	local FUNC="db_migrate"
+	local FILE="/www/cgi-bin/userdata.txt"
+	local FILE_LOGIN="/www/users_logged_in"
+	local FILE_LOGIN_TEMP="/tmp/users_logged_in.temp"
+	local TEMP="/tmp/$FUNC.temp"
+	local UNIXTIME="$( _system date unixtime )"
+	local QUANTITY=1
+	local HASH NO PROFILE USERNAME PASSWORD
+	local ID USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION
+	local LINE ENTRIES
+	local NO=0
+
+	cp $FILE_LOGIN $FILE_LOGIN_TEMP
+
+	while read LINE; do {
+
+		set $LINE		# 54f2ce58c6c011379be0d343607d7584 42 3 manila 15981
+
+		HASH="$1"
+		NO="$2"
+		PROFILE="$3"
+		USERNAME="$4"
+		PASSWORD="$5"		
+
+		LINE="$( fgrep $HASH $FILE_LOGIN_TEMP | head -n1 )"
+		if [ -n "$LINE" ]; then
+			LINE="$( echo $LINE | cut -d'-' -f1 | cut -b2-99 )"
+			LINE="$( _system date 2unixtime "$LINE" )"
+			TIME="$(( $LINE - 600 ))"			# 10 minutes before first login
+		else
+			TIME="$UNIXTIME"
+		fi
+
+		case $PROFILE in
+			99) PROFILE="2" ;;		# henschel
+			 *) PROFILE="1" ;;
+		esac
+
+		logger -s "login add $PROFILE $USERNAME $PASSWORD $QUANTITY $TIME"
+		_db user login add "$PROFILE" "$USERNAME" "$PASSWORD" "$QUANTITY" "$TIME"
+
+		# 'Tue Nov 30 10:49:18 CET 2010' - IP:'192.168.1.1' - DNS:'hotel' = HASH:'a812a8fc4e3bbb99e28cc916396fc460' - MAC:'00:26:c7:31:dc:bb' - SIGNAL:'-87' - KEYWORD:'' | ok | a812a8fc4e3bbb99e28cc916396fc460 65 3 taugenichts password
+		fgrep "$HASH" $FILE_LOGIN_TEMP >$TEMP
+
+		while read LINE; do {
+
+			USER_ID="$( _db user login list last )"		# fixme! should be named LOGIN_ID
+			MAC="$( _sanitizer do "$LINE" mac )"
+			DEVTYPE="0"					# 0 = wifi | 1 = lan?
+			LANG="de"
+
+			[ -z "$MAC" ] && continue
+
+			FIRSTSEEN="$( fgrep $MAC $TEMP | head -n1 | cut -d'-' -f1 | cut -b2-99 )"
+			LASTSEEN="$(  fgrep $MAC $TEMP | tail -n1 | cut -d'-' -f1 | cut -b2-99 )"
+
+			FIRSTSEEN="$( _system date 2unixtime "$FIRSTSEEN" )"
+			LASTSEEN="$(  _system date 2unixtime "$LASTSEEN" )"
+
+			USED_TRAFFIC=0
+			USED_TIME=0
+			USED_TRAFFIC_TODAY=0
+			USED_TIME_TODAY=0
+			ISOLATION=0
+
+			fgrep -q "$MAC" /tmp/DB/USER/device/rows 2>/dev/null && continue	# fixme! check for same mac with different account/logindata?
+
+			logger -s "device add $USER_ID $MAC $DEVTYPE $LANG $FIRSTSEEN $LASTSEEN $USED_TRAFFIC $USED_TIME $USED_TRAFFIC_TODAY $USED_TIME_TODAY $ISOLATION"
+			_db user device add "$USER_ID" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
+
+		} done <$TEMP
+		rm $TEMP
+
+	} done <$FILE
+}
+
+_db_purge ()
+{
+	local FUNC="db_purge"
+	local OBJ
+
+	for OBJ in "/tmp/DB" "/www/cgi-bin/db_backup.tgz"; do {
+		_log do $FUNC daemon info "[OK] removing '$OBJ'"
+		rm -fR "$OBJ"
+	} done
+}
+
 _db_backup ()		# fixme! automatically call this after <prio> changes
 {
 	local FUNC="db_backup"
 	local FILE="/www/cgi-bin/db_backup.tgz"
 
 	if tar czf "$FILE" /tmp/DB ; then
-		_log do $FUNC daemon info "[ok] wrote $( _file size "$FILE" ) bytes"
+		_log do $FUNC daemon info "[OK] wrote $( _file size "$FILE" ) bytes"
 	else
-		_log do $FUNC daemon alert "[err]"
+		_log do $FUNC daemon alert "[ERR]"
 	fi
 }
 
@@ -44,8 +133,9 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		login)   ELEMENTS="PROFILE_ID COMMENT USERNAME PASSWORD DEVICE_QUANTITY INSTALLED" ;;
 		device)  ELEMENTS="USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION" ;;
 		*)
-			echo "Usage: _db_user <table> <action>"
-			echo "       _db_user profile|login|device list|show <id>|add autoid ...|del <id>|update <id> ..."
+			echo "Usage: _$FUNC <table> <action>"
+			echo "       _$FUNC profile|login|device list|show <id>|add autoid ...|del <id>|update <id> ..."
+			echo "       _$FUNC profile|login|device fgrep <string>"
 			return 1
 		;;
 	esac
@@ -71,6 +161,9 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 			_log do $FUNC daemon info "$ACTION: wrote '$INDEX' and '/www/cgi-bin/userdata.txt'"
 
 			_db backup
+		;;
+		fgrep)
+			fgrep string "$DIR/rows"		# fixme!
 		;;
 		list)
 			[ -e "$DIR/rows" ] || return 1
