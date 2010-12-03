@@ -9,28 +9,29 @@ eval $( _http query_string_sanitize )		# LOGIN={md5sum_of_user+pass} | MAC=00:11
 }
 
 _http header_mimetype_output "text/plain"
+_system include
 
-FILE="/www/cgi-bin/userdata.txt"		# md5sum no. min user pass
-LOGFILE="/www/users_logged_in"
-
-DATE="$( date )"
+DATE="$( _system date full )"
 DNS="$( nslookup ${REMOTE_ADDR:=127.0.0.1} | sed -n 's/^Name:[^a-zA-Z0-9]*\(.*\)\.olsr/\1/p' )"		# https?
 OUT="'$DATE' - IP:'$REMOTE_ADDR' - DNS:'${DNS:-unresolveable}' = HASH:'$LOGIN' - MAC:'$MAC' - SIGNAL:'$SIGNAL' - KEYWORD:'$KEYWORD'"
 
-[ ! -e "$FILE" ] && {
-	echo "1"
-	echo "$OUT | ok | no_userdata" >>$LOGFILE
-	_log do no_userdata daemon alert "login_ok: $OUT"
-	exit
-}
+if [ -n "$( _db user login query hash2id "$HASH" )" ]; then
 
-USER="$( grep ^"$LOGIN" "$FILE" )" && {
-	echo "1"
-	echo "$OUT | ok | $USER" >>$LOGFILE
-	_log do user_ok daemon alert "login_ok: '$LOGIN' - $OUT"
-	exit
-}
+	DEVICE_ID="$( _db user device query string2id "${MAC:-unsetmacaddress}" )"
+	if [ -n "$DEVICE_ID" ]; then
 
-echo "$OUT | failed" >>$LOGFILE
-_log do user_mismatch daemon alert "login_failed: $OUT"
-echo "0"
+		eval "$( _db user device show $DEVICE_ID )"
+		LASTSEEN="$( _system date unixtime )"		# fixme! check for time or traffic-range overrun
+
+		_log do login_ok daemon info "old user, updating DB '$LOGIN' - $OUT"
+		_db user device update "$DEVICE_ID" "$USER_ID" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
+	else
+		_log do login_ok daemon info "new user, adding to DB '$LOGIN' - $OUT"
+		_db user device add                 "$USER_ID" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
+	fi
+
+	echo "1"
+else
+	_log do login_mismatch daemon info "login_failed: $OUT"
+	echo "0"
+fi

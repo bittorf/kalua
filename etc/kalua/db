@@ -7,10 +7,12 @@ _db_migrate ()
 	local TEMP="/tmp/$FUNC.temp"
 	local UNIXTIME="$( _system date unixtime )"
 	local QUANTITY=1
-	local HASH NO PROFILE USERNAME PASSWORD
+	local HASH NO PROFILE_ID COMMENT USERNAME PASSWORD
 	local ID USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION
 	local LINE ENTRIES
 	local NO=0
+
+	_stopwatch start $FUNC
 
 	cp $FILE_LOGIN $FILE_LOGIN_TEMP
 
@@ -20,9 +22,10 @@ _db_migrate ()
 
 		HASH="$1"
 		NO="$2"
-		PROFILE="$3"
+		PROFILE_ID="$3"
 		USERNAME="$4"
 		PASSWORD="$5"		
+		COMMENT=
 
 		LINE="$( fgrep $HASH $FILE_LOGIN_TEMP | head -n1 )"
 		if [ -n "$LINE" ]; then
@@ -34,12 +37,12 @@ _db_migrate ()
 		fi
 
 		case $PROFILE in
-			99) PROFILE="2" ;;		# henschel
-			 *) PROFILE="1" ;;
+			99) PROFILE_ID="2" ;;		# henschel
+			 *) PROFILE_ID="1" ;;
 		esac
 
-		logger -s "login add $PROFILE $USERNAME $PASSWORD $QUANTITY $TIME"
-		_db user login add "$PROFILE" "$USERNAME" "$PASSWORD" "$QUANTITY" "$TIME"
+		logger -s "login add $PROFILE_ID $COMMENT $USERNAME $PASSWORD $QUANTITY $TIME"
+		_db user login add "$PROFILE_ID" "$COMMENT" "$USERNAME" "$PASSWORD" "$QUANTITY" "$TIME"
 
 		# 'Tue Nov 30 10:49:18 CET 2010' - IP:'192.168.1.1' - DNS:'hotel' = HASH:'a812a8fc4e3bbb99e28cc916396fc460' - MAC:'00:26:c7:31:dc:bb' - SIGNAL:'-87' - KEYWORD:'' | ok | a812a8fc4e3bbb99e28cc916396fc460 65 3 taugenichts password
 		fgrep "$HASH" $FILE_LOGIN_TEMP >$TEMP
@@ -65,7 +68,7 @@ _db_migrate ()
 			USED_TIME_TODAY=0
 			ISOLATION=0
 
-			fgrep -q "$MAC" /tmp/DB/USER/device/rows 2>/dev/null && continue	# fixme! check for same mac with different account/logindata?
+			[ -n "$( _db user device query string2id "$MAC" )" ] && continue	# fixme! check for same mac with different account/logindata?
 
 			logger -s "device add $USER_ID $MAC $DEVTYPE $LANG $FIRSTSEEN $LASTSEEN $USED_TRAFFIC $USED_TIME $USED_TRAFFIC_TODAY $USED_TIME_TODAY $ISOLATION"
 			_db user device add "$USER_ID" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
@@ -74,6 +77,9 @@ _db_migrate ()
 		rm $TEMP
 
 	} done <$FILE
+	rm $FILE_LOGIN_TEMP
+
+	_stopwatch stop $FUNC
 }
 
 _db_purge ()
@@ -122,10 +128,13 @@ _db_restore ()		# fixme! automatically call this after reboot
 _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;   	# autocreated is ID = linenumber = index
 {
 	local FUNC="db_user"
+
 	local TABLE="$1"
 	local ACTION="$2"
-	local ID="$3"		# set to 'autoid' when action is 'add'
-	local FIXME="$4$5$6$7$8$9${10}${11}${12}${13}${14}"
+	local ID="$3"		# is set to 'autoid' when action is 'add'
+	local OPTION="$4"
+
+	local FIXME="$5$6$7$8$9${10}${11}${12}${13}${14}"
 	local OBJ ELEMENTS REWRITE_VARS SHORT_VAR N LIST VALUE FILL
 
 	case "$TABLE" in
@@ -135,7 +144,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		*)
 			echo "Usage: _$FUNC <table> <action>"
 			echo "       _$FUNC profile|login|device list|show <id>|add autoid ...|del <id>|update <id> ..."
-			echo "       _$FUNC profile|login|device fgrep <string>"
+			echo "       _$FUNC profile|login|device query hash2id|string2id <string>"
 			return 1
 		;;
 	esac
@@ -146,31 +155,38 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 	mkdir -p "$DIR"
 
 	case "$ACTION" in
+		query)
+			case "$ID" in
+				hash2id)
+					local HASH="$OPTION"
+					sed -n "/$HASH/{=;q}" "$DIR/meta_index"
+				;;
+				string2id)
+					local STRING="$OPTION"
+					sed -n "/$STRING/{=;q}" "$DIR/rows"
+				;;
+			esac				
+		;;
 		index_gen)
 			local INDEX="$DIR/meta_index"
-			local CRC USERNAME PASSWORD PROFILE_ID ID
+			local LOGIN_ID
 
-			for ID in $( _db user login list $3 $4 ); do {					# fixme!
-				eval $( _db user login show $ID "USERNAME PASSWORD PROFILE_ID" )
-				CRC="$( echo -n "$USERNAME$PASSWORD" | md5sum | cut -d' ' -f1 )"
-				echo "$CRC $ID $PROFILE_ID $USERNAME $PASSWORD"
+			_stopwatch start $ACTION
+			for LOGIN_ID in $( _db user login list $3 $4 ); do {				# fixme! can be: "last" + "32"
+				eval $( _db user login show $LOGIN_ID "USERNAME PASSWORD" )
+				echo -n "$USERNAME$PASSWORD" | md5sum | cut -d' ' -f1		# hash
 			} done >$INDEX
+			_stopwatch stop $ACTION
 
-			cp $INDEX /www/cgi-bin/userdata.txt	# fixme!
-
-			_log do $FUNC daemon info "$ACTION: wrote '$INDEX' and '/www/cgi-bin/userdata.txt'"
-
+			_log do $FUNC daemon info "$ACTION: wrote '$INDEX'"
 			_db backup
-		;;
-		fgrep)
-			fgrep string "$DIR/rows"		# fixme!
 		;;
 		list)
 			[ -e "$DIR/rows" ] || return 1
 		
 			case "$ID" in
 				last)
-					sed -n '/A=/=' "$DIR/rows" | tail -n ${4:-1}
+					sed -n '/A=/=' "$DIR/rows" | tail -n ${OPTION:-1}
 				;;
 				*)
 					sed -n '/A=/=' "$DIR/rows"
