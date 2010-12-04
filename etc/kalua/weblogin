@@ -256,7 +256,8 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	local PASS="$2"			#        2. server answers with hash_of(1+my_secret_sshid) + auth=true/false
 	local MAC="$3"			#        3. we calc same hash and compare
 	local SIGNAL="$4"
-	local KEYWORD="$5"		# 'plaintext'
+	local LANG="$( _translate lang $5 )"
+	local KEYWORD="$6"		# can be 'plaintext'
 	local FREE HASH GATEWAY ANSWER
 
 	[ -n "$KEYWORD" ] && KEYWORD="${USER}+${PASS}"
@@ -269,10 +270,10 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		[ -n "$( _db user login query hash2id "$HASH" )" ] && FREE=1	# use local DB, if available - but also send logmsg to GW
 	fi
 
-	[ "$FREE" != "1" ] && {
+#	[ "$FREE" != "1" ] && {
 		GATEWAY="$( sed -n '${s/^.* GW=\([0-9\.]*\);.*/\1/p}' /tmp/ARCHIV_TRACEINET 2>/dev/null )"	# fixme! abstraction
-		ANSWER="$( wget -qO - "http://${GATEWAY:-127.0.0.1}/cgi-bin-sql?LOGIN=${HASH}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}" 2>/dev/null )"
-	}
+		ANSWER="$( wget -qO - "http://${GATEWAY:-127.0.0.1}/cgi-bin-sql?LOGIN=${HASH}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}" 2>/dev/null )"
+#	}
 
 	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
 		echo "$HASH" >/tmp/vds_user_$MAC		# fixme! for building vds, use DB instead (easy/simple mac2hash)

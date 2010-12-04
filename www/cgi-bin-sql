@@ -1,7 +1,7 @@
 #!/bin/sh
 . /tmp/loader
 
-eval $( _http query_string_sanitize )		# LOGIN={md5sum_of_user+pass} | MAC=00:11:22:33:44:55 | SIGNAL=-64 | KEYWORD=username+pass
+eval $( _http query_string_sanitize )		# LOGIN={md5sum_of_user+pass} | MAC=00:11:22:33:44:55 | SIGNAL=-64 | KEYWORD=username+pass | USER_LANG=de
 
 [ -z "$LOGIN" ] && {
 	_log do no_args daemon info "no login-data given - abort"
@@ -13,20 +13,34 @@ _system include
 
 DATE="$( _system date full )"
 DNS="$( nslookup ${REMOTE_ADDR:=127.0.0.1} | sed -n 's/^Name:[^a-zA-Z0-9]*\(.*\)\.olsr/\1/p' )"		# https?
-OUT="'$DATE' - IP:'$REMOTE_ADDR' - DNS:'${DNS:-unresolveable}' = HASH:'$LOGIN' - MAC:'$MAC' - SIGNAL:'$SIGNAL' - KEYWORD:'$KEYWORD'"
+OUT="'$DATE' - IP:'$REMOTE_ADDR' - DNS:'${DNS:-unresolveable}' = HASH:'$LOGIN' - MAC:'$MAC' - SIGNAL:'$SIGNAL' - KEYWORD:'$KEYWORD' - LANG:'$USER_LANG'"
+
+build_vars ()
+{
+		LASTSEEN="$( _system date unixtime )"
+		LANG="$USER_LANG"
+		DEVTYPE=1			# wire
+		[ -n "$SIGNAL" ] && DEVTYPE=0	# wifi
+}
 
 if [ -n "$( _db user login query hash2id "$HASH" )" ]; then
 
 	DEVICE_ID="$( _db user device query string2id "${MAC:-unsetmacaddress}" )"
 	if [ -n "$DEVICE_ID" ]; then
 
-		eval "$( _db user device show $DEVICE_ID )"
-		LASTSEEN="$( _system date unixtime )"		# fixme! check for time or traffic-range overrun
+		eval "$( _db user device show $DEVICE_ID )"	# fixme! check for time or traffic-range overrun
 
-		_log do login_ok daemon info "old user, updating DB '$LOGIN' - $OUT"
+		build_vars
+
+		_log do login_ok daemon info "OLD user, updating DB '$LOGIN' - $OUT"
 		_db user device update "$DEVICE_ID" "$USER_ID" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
 	else
-		_log do login_ok daemon info "new user, adding to DB '$LOGIN' - $OUT"
+		build_vars
+		FIRSTSEEN="$LASTSEEN"
+		USED_TRAFFIC=0
+		USED_TIME=0
+	
+		_log do login_ok daemon info "NEW user, adding to DB '$LOGIN' - $OUT"
 		_db user device add                 "$USER_ID" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
 	fi
 
