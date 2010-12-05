@@ -19,12 +19,14 @@ build_vars ()
 {
 		LASTSEEN="$( _system date unixtime )"
 		LANG="$USER_LANG"
-		DEVTYPE=1			# wire
-		[ -n "$SIGNAL" ] && DEVTYPE=0	# wifi
+		DEVTYPE=1				# wire
+		[ "$SIGNAL" != "lan" ] && DEVTYPE=0	# wifi
 }
 
 USER_ID="$( _db user login query hash2id "$HASH" )"
 if [ -n "$USER_ID" ]; then
+
+	USER_ID_STACK="$USER_ID"
 
 	DEVICE_ID="$( _db user device query string2id "${MAC:-unsetmacaddress}" )"
 	if [ -n "$DEVICE_ID" ]; then
@@ -34,7 +36,7 @@ if [ -n "$USER_ID" ]; then
 		build_vars
 
 		_log do login_ok daemon info "OLD user, updating DB '$LOGIN' - $OUT"
-		_db user device update "$DEVICE_ID" "$USER_ID" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
+		_db user device update "$DEVICE_ID" "$USER_ID_STACK" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
 	else
 		build_vars
 		FIRSTSEEN="$LASTSEEN"
@@ -42,7 +44,7 @@ if [ -n "$USER_ID" ]; then
 		USED_TIME=0
 
 		_log do login_ok daemon info "NEW user, adding to DB '$LOGIN' - $OUT"
-		_db user device add                 "$USER_ID" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
+		_db user device add                 "$USER_ID_STACK" "$MAC" "$DEVTYPE" "$LANG" "$FIRSTSEEN" "$LASTSEEN" "$USED_TRAFFIC" "$USED_TIME" "$USED_TRAFFIC_TODAY" "$USED_TIME_TODAY" "$ISOLATION"
 	fi
 
 	echo "1"
