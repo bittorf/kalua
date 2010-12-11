@@ -204,6 +204,9 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 				last)
 					sed -n '/A=/=' "$DIR/rows" | tail -n ${OPTION:-1}
 				;;
+				reverse)
+					sed -n '/A=/=' "$DIR/rows" | sed '1!G;h;$!d'
+				;;
 				*)
 					sed -n '/A=/=' "$DIR/rows"
 				;;
@@ -293,4 +296,44 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 			echo "Usage: ..."
 		;;
 	esac
+}
+
+_db_ticketcheck ()
+{
+	local FUNC="db_ticketcheck"
+	local PROFILE_ID_WISH="${1:-$( _db user profile list )}"
+	local DEVICE_ID_LIST="${2:-$( _db user device list reverse )}"
+
+	local ALIEN_PROFILE_ID ALIEN_ID USER_ID_LAST I ID
+
+	# going through list of profiles (user defined or all)
+	# going reverse through list of last new devices
+	# which profile they have used? if profile = wished, than check:
+	# go through list of all login's, after the used one
+	# count, which have whished profile
+
+	for ALIEN_PROFILE_ID in $PROFILE_ID_WISH; do {
+
+		_log do $FUNC daemon debug "checking for unused ticket with profile $ALIEN_PROFILE_ID"
+
+		for ALIEN_ID in $DEVICE_ID_LIST; do {
+
+			eval "$( _db user device show $ALIEN_ID )"
+			eval "$( _db user login show $USER_ID )"
+
+			[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && {
+
+				USER_ID_LAST="$( _db user login list last )"
+				I=0
+				for ID in $( _db user login list last $(( $USER_ID_LAST - $USER_ID )) ); do {
+					eval $( _db user login show $ID )
+					[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && I=$(( $I + 1 ))
+				} done
+
+				_log do $FUNC daemon info "only $I tickets for profile $ALIEN_PROFILE_ID in database"
+				echo $I
+				break
+			}
+		} done
+	} done
 }
