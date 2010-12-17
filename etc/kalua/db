@@ -43,12 +43,12 @@ _db_migrate ()
 #		     30min) PROFILE_ID="1" ;;
 #		  60min|1h) PROFILE_ID="2" ;;
 #			2h) PROFILE_ID="3" ;;
-		       24h) PROFILE_ID="1" ;;
+#		       24h) PROFILE_ID="1" ;;
 #		       48h) PROFILE_ID="5" ;;
 #		       72h) PROFILE_ID="6" ;;
 #		       24h) PROFILE_ID="1" ;;
-		     1week) PROFILE_ID="2" ;;
-		    1month) PROFILE_ID="3" ;;
+#		     1week) PROFILE_ID="2" ;;
+#		    1month) PROFILE_ID="3" ;;
 
 			 *) PROFILE_ID="1" ;;
 		esac
@@ -157,8 +157,8 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		device)  ELEMENTS="USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION" ;;
 		*)
 			echo "Usage: _$FUNC <table> <action>"
-			echo "       _$FUNC profile|login|device list|show <id>|add autoid ...|del <id>|update <id> ..."
-			echo "       _$FUNC profile|login|device query hash2id|string2id <string>"
+			echo "       _$FUNC profile|login|device list [last <num>|reverse] | show [last|<id>] | add autoid ...|del <id>|update <id> ..."
+			echo "       _$FUNC profile|login|device query hash2id | string2id <string>"
 			return 1
 		;;
 	esac
@@ -215,6 +215,10 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		show)
 			# [ -n "$4" ] && ELEMENTS="$4"		# fixme! e.g. only output "NAME COMMENT" does not work
 			[ -e "$DIR/rows" ] || return 1
+
+			[ "$ID" = "last" ] && {
+				ID="$( sed -n '$=' "$DIR/rows" )"
+			}
 		
 			for OBJ in $ELEMENTS; do {
 
@@ -300,40 +304,74 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 
 _db_ticketcheck ()
 {
+	return		# fixme!
+
 	local FUNC="db_ticketcheck"
 	local PROFILE_ID_WISH="${1:-$( _db user profile list )}"
 	local DEVICE_ID_LIST="${2:-$( _db user device list reverse )}"
 
-	local ALIEN_PROFILE_ID ALIEN_ID USER_ID_LAST I ID
+	local ALIEN_PROFILE_ID ALIEN_ID USER_ID_LAST I ID ID2 USER_ID_STACK
 
 	# going through list of profiles (user defined or all)
 	# going reverse through list of last new devices
 	# which profile they have used? if profile = wished, than check:
 	# go through list of all login's, after the used one
-	# count, which have whished profile
+	# count, which have whished profile and are unused
+
+	_stopwatch start $FUNC
+
+	profiles_are_matching_and_login_is_unused ()
+	{
+		eval $( _db user login show $ID )
+
+		if [ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ]; then
+echo "profile match: $PROFILE_ID"
+			for ID2 in $( _db user device list ); do {
+echo "checking device $ID2"
+				eval $( _db user device show $ID2 )	# USER_ID
+				[ "$ID" = "$USER_ID" ] || {
+echo "used! user_id: $ID"
+echo
+					return 1
+				}
+			} done
+echo "OK - not used"
+		else
+			return 1
+		fi
+
+	}
 
 	for ALIEN_PROFILE_ID in $PROFILE_ID_WISH; do {
-
-		_log do $FUNC daemon debug "checking for unused ticket with profile $ALIEN_PROFILE_ID"
+echo "checking profile $ALIEN_PROFILE_ID / all: $PROFILE_ID_WISH"
+		_log do $FUNC daemon debug "checking for unused tickets with profile $ALIEN_PROFILE_ID"
 
 		for ALIEN_ID in $DEVICE_ID_LIST; do {
-
+echo "checking device $ALIEN_ID, profile-loop $ALIEN_PROFILE_ID"
 			eval "$( _db user device show $ALIEN_ID )"
 			eval "$( _db user login show $USER_ID )"
+			USER_ID_STACK="$USER_ID"
+			eval "$( _db user profile show $ALIEN_PROFILE_ID )"
 
-			[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && {
-
-				USER_ID_LAST="$( _db user login list last )"
+			[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && {		# matches user_wish
+echo "found device $ALIEN_ID with profile $PROFILE_ID"
 				I=0
-				for ID in $( _db user login list last $(( $USER_ID_LAST - $USER_ID )) ); do {
-					eval $( _db user login show $ID )
-					[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && I=$(( $I + 1 ))
+				LOGIN_LAST="$( _db user login list last )"
+				DIFF="$(( $LAST - $USER_ID ))"
+echo "for ID in ...login last $DIFF"
+				for ID in $( _db user login list last $DIFF ); do {
+echo "looping logins, ID: $ID"
+					profiles_are_matching_and_login_is_unused && {
+						I=$(( $I + 1 ))
+					}
 				} done
 
-				_log do $FUNC daemon info "only $I tickets for profile $ALIEN_PROFILE_ID in database"
+				_log do $FUNC daemon info "only $I unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $USER_ID_STACK)"
 				echo $I
 				break
 			}
 		} done
 	} done
+
+	_stopwatch stop $FUNC
 }

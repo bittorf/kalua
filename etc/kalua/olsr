@@ -272,7 +272,7 @@ _olsr_neighs ()
 	local URL="http://127.0.0.1:2006/${1:-neighbours}"	# ARG1 can be 'full' and defaults to 'neighbours'
 	
 	grep -q "^LoadPlugin.*$PLUGIN\.so\." $CONF && {	
-		
+									# fixme! use _wget do()		
 		wget -qO "$TEMP" "$URL" 2>/dev/null || {		# fixme! fetch routing-table also
 									#        and use it for _net ip2metric()
 			rm "$TEMP"
@@ -321,11 +321,11 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	}
 
 	[ -z "$FILE" ] && {
-		_log do $FUNC daemon crit "olsr-plaintext plugin has no output!"
+		_log do $FUNC daemon crit "[ERR] olsr-plaintext plugin has no output!"
 		return 1
 	}			# fixme! count lines of file?
 	
-	_log do $FUNC daemon debug "ok! (olsr-plaintext plugin outputs something)"
+	_log do $FUNC daemon debug "[OK] (olsr-plaintext plugin outputs something)"
 
 	[ -z "$( ip route list exact 0/0 )" ] && {
 		_log do $FUNC daemon crit "no default route - olsr error?"	# we have seen AP-routers, which do not send out olsr-packets over lan
@@ -333,15 +333,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	}
 
 	local COUNT=0
-	local LOCAL
-	local REMOTE
-	local LQ
-	local NLQ
-	local COST
-	local METRIC
-	local DEVTYPE
-	local LINES1
-	local LINES2
+	local LOCAL REMOTE LQ NLQ COST METRIC DEVTYPE LINES1 LINES2
 	
 	_olsr neighs_evalable $FILE
 
@@ -350,7 +342,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		[ -n "$COST" ] && {
 			[ "$COST" = "INFINITE" ] || {					# fixme! workaround for wrong neighs_evalable() abstraction
 				[ -z "$( ip route list exact $REMOTE )" ] && {
-					_log do $FUNC daemon crit "is each non-infinite neighbour in routing-table? '$REMOTE' (COST:'$COST') is not!"
+					_log do $FUNC daemon crit "[ERR] is each non-infinite neighbour in routing-table? '$REMOTE' (COST:'$COST') is not!"
 					rm "$FILE"
 					return 1
 				}
@@ -358,7 +350,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		}
 	} done <"$FILE"
 
-	_log do $FUNC daemon debug "ok! (is each non-infinite neighbour in routing-table?)"
+	_log do $FUNC daemon debug "[OK] (is each non-infinite neighbour in routing-table?)"
 
 	# are wired neighbours LQ/NLQ nearly synchronous?
 	
@@ -374,7 +366,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		
 			case "${LQ:=0}-${NLQ:=0}" in
 				"1000-"|"0000-"|"1000-0000"|"0000-1000")
-					_log do $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
+					_log do $FUNC daemon crit "[ERR] are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
 					return 1
 				;;
 			esac
@@ -384,7 +376,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 					sleep 10		# waiting for getting stable
 	
 					[ $NLQ -gt 900 -a $LQ -lt 100 ] && {
-						_log do $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
+						_log do $FUNC daemon crit "[ERR] are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
 						return 1
 					}
 				}
@@ -395,7 +387,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 					sleep 10		# waiting for getting stable
 	
 					[ $LQ -gt 900 -a $NLQ -lt 100 ] && {
-						_log do $FUNC daemon crit "are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
+						_log do $FUNC daemon crit "[ERR] are wired neighbours LQ/NLQ nearly synchronous? no! REMOTE/LQ/NLQ = '$REMOTE'/'$LQ'/'$NLQ'"
 						return 1
 					}
 				}
@@ -405,16 +397,16 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 			while [ $I -ne 10 ]; do {
 				LOSS="$( ping -q -c 1 $REMOTE | sed -n 's/^.*packets received, \([0-9]*\)%.*/\1/p' )"
 				[ ${LOSS:-100} -eq 0 ] && break
-				_log do $FUNC daemon info "wired remote $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
+				_log do $FUNC daemon info "[ERR] wired remote $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
 				I=$(( $I + 1 ))
 			} done
 			[ $I -eq 10 ] && _system reboot_safe "wired remote $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
 			
-			_log do $FUNC daemon debug "wired remote $REMOTE seems ok (${LOSS}% packetloss with ping, after try $I)"
+			_log do $FUNC daemon debug "[OK] wired remote $REMOTE seems ok (${LOSS}% packetloss with ping, after try $I)"
 		}
 	} done <"$FILE"
 	
-	_log do $FUNC daemon debug "ok! (are wired neighbours LQ/NLQ nearly synchronous?)"
+	_log do $FUNC daemon debug "[OK] (are wired neighbours LQ/NLQ nearly synchronous?)"
 	
 	# each node in mesh has only 1 route?	// fixme! be more correct: is only an error,if in same routing table... (but we check "main")
 						#  fixme! maybe give some time and double check?
@@ -428,7 +420,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	[ "$LINES1" != "$LINES2" ] && {	
 		while read LINE; do {
 	  		[ "$LINE" = "$LASTLINE" ] && {
-				_log do $FUNC daemon crit "each node in mesh has only 1 route? no!: ($( ip route list exact $LINE ))"
+				_log do $FUNC daemon crit "[ERR] each node in mesh has only 1 route? no!: ($( ip route list exact $LINE ))"
 				rm $FILE_RT
 		  		return 1
 	  		}
@@ -438,7 +430,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	}
 
 	rm $FILE_RT
-	_log do $FUNC daemon debug "ok! (each node in mesh has only 1 route? [checked $LINES1 routes])"
+	_log do $FUNC daemon debug "[OK] (each node in mesh has only 1 route? [checked $LINES1 routes])"
 
 	while read LINE; do {
 		eval $LINE
@@ -446,30 +438,30 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 			METRIC="$( ip route list $REMOTE | sed -n 's/^.*metric \([0-9]*\).*/\1/p' )"
 		
 			[ "$METRIC" != "1" ] && {
-				_log do $FUNC daemon crit "are minimum-cost neighbours linklocal? '$REMOTE' is not!"
+				_log do $FUNC daemon crit "[ERR] are minimum-cost neighbours linklocal? '$REMOTE' is not!"
 				rm "$FILE"
 				return 1
 			}
 		}
 	} done <"$FILE"
 
-	[ -n "$METRIC" ] && _log do $FUNC daemon debug "ok! (are minimum-cost neighbours linklocal?)"
+	[ -n "$METRIC" ] && _log do $FUNC daemon debug "[OK] are minimum-cost neighbours linklocal?"
 
 	LINES1="$( cat $FILE | wc -l )"
 	LINES2="$( sed -n 's/^\(LOCAL=[0-9\.]*;REMOTE=[0-9\.]*\);.*/\1/p' $FILE | sort | uniq | wc -l )"
 
 	[ "$LINES1" != "$LINES2" ] && {
-		_log do $FUNC daemon crit "each local/remote-pair has only one entry? no!"
+		_log do $FUNC daemon crit "[ERR] each local/remote-pair has only one entry? no!"
 		
 		while read LINE; do {
-			_log do $FUNC daemon crit "$LINE"
+			_log do $FUNC daemon crit "[ERR] $LINE"
 		} done <$FILE
 		
 		rm "$FILE"
 		return 1
 	}
 
-	_log do $FUNC daemon debug "ok! (each local/remote-pair has only one entry?)"
+	_log do $FUNC daemon debug "[OK] (each local/remote-pair has only one entry?)"
 
 	rm "$FILE"
 	return 0
