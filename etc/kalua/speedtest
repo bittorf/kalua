@@ -70,6 +70,7 @@ EOF
 	local PID_WGET PACK BYTES REST METHOD IP_LIST
 	local RATE RATE_MIN RATE_MAX RATE_AVG RATE_SAMPLES DIRECTION
 	local DURATION DURATION_REAL DURATION_COUNTER
+	local PID_OF_TOOL
 
 	case "$METHOD" in
 		poormens_tcpdownload|udpupload|tcpupload|tcpdownload)
@@ -156,7 +157,8 @@ EOF
 			;;
 		esac
 
-		trap "kill $!" SIGINT
+		PID_OF_TOOL="$!"
+		trap "kill $PID_OF_TOOL" SIGINT
 
 		_stopwatch start speedtest_$$				############## START ###########
 
@@ -206,21 +208,21 @@ EOF
 		OLSR_COST_END=$COST
 		
 		DURATION_REAL="$( _stopwatch stop speedtest_$$ )"	############## END #############
-		
+		kill $PID_OF_TOOL
+
 		case "$METHOD" in
 			poormens_tcpdownload)
-				kill $PID_WGET
 				eval $( iptables -nxvL INPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
+				iptables -D INPUT 1
 			;;
+			
 			udpupload|tcpupload|tcpdownload)
-				killall netperf
 				eval $( iptables -nxvL OUTPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
+				iptables -D OUTPUT 1
 			;;
 		esac
-
-		iptables -D INPUT 1
 	
-		trap - SIGINT	# unset
+		trap - SIGINT						# unset
 		SPEED="$(( $BYTES / $DURATION_REAL / 10 ))"		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
 
 		VALUES="IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED RATE_AVG=$RATE_AVG RATE_MIN=${RATE_MIN:-0} RATE_MAX=${RATE_MAX:-0} BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_BEGIN DURATION=${DURATION}000 DURATION_REAL=${DURATION_REAL}0 DEVTYPE=$DEVTYPE"
