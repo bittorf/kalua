@@ -157,7 +157,7 @@ EOF
 		;;
 		olsrd_timezone_and_restart_counter)
 			FILE="/etc/init.d/S53olsrd"
-			sed "s#^[^a-zA-Z0-9]*start)#        start)  export TZ='$TZ'; I=\$(cat /tmp/olsr_restarts 2>/dev/null);echo \$(( \${I:-0} + 1 )) >/tmp/olsr_restarts;\. \/tmp\/loader;_system date unixtime >/tmp/olsr_restart_time#" "$FILE" >"$TEMP"
+			sed "s#^[^a-zA-Z0-9]*start)#        start)  export TZ='$TZ'; . /tmp/loader; _olsr uptime mark_restart#" "$FILE" >"$TEMP"
 		;;
 		olsrd_not_on_wifi)
 			FILE="/etc/init.d/S53olsrd"
@@ -618,6 +618,9 @@ _call_post_software_install ()					# is invoked directly after ready software_in
 
 _call_restore_from_rom ()
 {
+	local PATCHLIST="$1"
+
+	[ -z "$PATCHLIST" ] && {
 		PATCHLIST="owfs_activate_server \
 			   olsrd_timezone_and_restart_counter \
 			   dnsserver_timezone \
@@ -634,12 +637,13 @@ _call_restore_from_rom ()
 			   html_preprocessor_with_pagepeel_and_nodenumber_in_title \
 			   http_public_menu_entry \
 			   fancy_prompt"
+	}
 
-		for PATCH in $PATCHLIST; do {
-			fkt_patch $PATCH restore_from_rom
-		} done
+	for PATCH in $PATCHLIST; do {
+		fkt_patch $PATCH restore_from_rom
+	} done
 	
-		rm -f "/www/FRESHFLASHED"
+	rm -f "/www/FRESHFLASHED"
 }
 
 _call_usage ()

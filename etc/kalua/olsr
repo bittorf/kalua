@@ -39,26 +39,43 @@ _olsr_version ()
 
 _olsr_uptime ()		# in seconds
 {
-	local KEYWORD="$1"		# string: "is_short" or <empty>
+	local KEYWORD="$1"		# string: "is_short", "mark_restart", "restarts_get", "restart_time" or <empty> = get
 	local FUNC="olsr_uptime"
-	local UNIXTIME_START="$( cat /tmp/olsr_restart_time 2>/dev/null )"
-	local UNIXTIME_NOW="$( _system date unixtime )"				# fixme! work with uptime, which is also monotonic
+	local FILE_RESTART_TIME="/tmp/STATS_OLSR_RESTART_LAST"
+	local FILE_RESTARTS="/tmp/STATS_OLSR_RESTARTS"
+	local TIME_LAST_START TIME_NOW DIFF I
 
-	local DIFF="$(( $UNIXTIME_NOW - ${UNIXTIME_START:=0} ))"
+	read TIME_LAST_START 2>/dev/null <$FILE_RESTART_TIME
 	
-	[ ${DIFF:=0} -gt 600000 ] && {	# 7 days
-		_log do $FUNC daemon info "is pretty high: '$DIFF' seconds - time probs, rewrite to 0"
-		echo $UNIXTIME_NOW >/tmp/olsr_restart_time
-		DIFF=0
-	}
+	TIME_NOW="$( _system uptime )"
+	DIFF="$(( $TIME_NOW - ${TIME_LAST_START:=0} ))"
 
-	if [ "$KEYWORD" = "is_short" ]; then
-
-		[ $DIFF -lt 300 ] && return 0
-		return 1
-	else	
-		echo -n $DIFF
-	fi
+	case "$KEYWORD" in
+		is_short)
+			if [ $DIFF -lt 300 ]; then
+				return 0
+			else
+				return 1
+			fi
+		;;
+		mark_restart)
+			echo "$TIME_NOW" >$FILE_RESTART_TIME
+			
+			read I 2>/dev/null <$FILE_RESTARTS
+			echo $(( ${I:-0} + 1 )) >$FILE_RESTARTS
+		;;
+		restarts_get)
+			read I 2>/dev/null <$FILE_RESTARTS
+			echo ${I:-0}
+		;;
+		restart_time)
+			DIFF="$(( $TIME_NOW - $TIME_LAST_START ))"
+			echo "$(( $( _system date unixtime ) - $DIFF ))"
+		;;
+		*)
+			echo -n $DIFF
+		;;
+	esac
 }
 
 _olsr_gateways_get ()		# OUT: list with each HNA4-0.0.0.0/0-announcing IP line by line
