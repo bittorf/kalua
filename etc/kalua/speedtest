@@ -142,11 +142,10 @@ EOF
 			;;
 			udpupload|tcpupload)
 				DIRECTION="upload"
-				iptables -I OUTPUT -p "$( echo $METHOD | cut -b1-3 )" -d $IP_TARGET		# seems that dport changes randomly, so it's a bit inexact
 
-				case "$$METHOD" in
+				case "$$METHOD" in		# seems that dport (12865?) changes randomly, so it's a bit inexact
 					udpupload)
-						iptables -I OUTPUT -p udp -d $IP_TARGET	
+						iptables -I OUTPUT -p udp -d $IP_TARGET
 						netperf -H $IP_TARGET -t UDP_STREAM -l "$(( $DURATION * 2 ))" >/dev/null &
 					;;
 					tcpupload)
@@ -158,8 +157,8 @@ EOF
 		esac
 
 		PID_OF_TOOL="$!"
-		_log do $FUNC daemon debug "measuretool has pid '$PID_OF_TOOL'"
-		trap "kill ${PID_OF_TOOL:=99999}" SIGINT
+		[ -z "$PID_OF_TOOL" ] && _log do $FUNC daemon info "[ERR] empty pid of measurement-tool"
+		trap "kill $PID_OF_TOOL" SIGINT
 
 		_stopwatch start speedtest_$$				############## START ###########
 
@@ -209,7 +208,7 @@ EOF
 		OLSR_COST_END=$COST
 		
 		DURATION_REAL="$( _stopwatch stop speedtest_$$ )"	############## END #############
-		kill $PID_OF_TOOL
+		[ -n "$PID_OF_TOOL" ] && kill $PID_OF_TOOL
 
 		case "$METHOD" in
 			poormens_tcpdownload)
