@@ -282,42 +282,45 @@ _olsr_neigh_check_for_good_non_tunnel ()
 
 _olsr_neighs ()
 {
-	local FUNC="olsr neighs"
+	local FUNC="olsr_neighs"
+	local KEYWORD="${1:-neighbours}"			# ARG1 can be 'full' and defaults to 'neighbours'
+
 	local TEMP="/tmp/olsr_output_$$.txt"
 	local PLUGIN="olsrd_txtinfo"
-	local CONF="/etc/olsrd.conf"
-	local URL="http://127.0.0.1:2006/${1:-neighbours}"	# ARG1 can be 'full' and defaults to 'neighbours'
-	
-	grep -q "^LoadPlugin.*$PLUGIN\.so\." $CONF && {	
-									# fixme! use _wget do()		
-		wget -qO "$TEMP" "$URL" 2>/dev/null || {		# fixme! fetch routing-table also
-									#        and use it for _net ip2metric()
+	local FILE_CONFIG="/etc/olsrd.conf"
+	local URL="http://127.0.0.1:2006/$KEYWORD"
+
+	grep -q "^LoadPlugin.*$PLUGIN\.so\." $FILE_CONFIG && {	
+
+		_wget do "$URL" 5 >"$TEMP" || {			# fixme! fetch routing-table also
+								#        and use it for _net ip2metric()
 			rm "$TEMP"
 
-			[ "$( _system uptime min )" -lt 5 ] && {
+			_olsr uptime is_short && {
+				_log do $FUNC daemon info "waiting 60 sec for olsrd restart"
 				sleep 60				# lets settle down
-			
-				wget -qO "$TEMP" "$URL" 2>/dev/null && {
-					echo -n "$TEMP"
-					return 0
-				}
 			}
-			
+
+			_wget do "$URL" >"$TEMP" && {
+				echo -n "$TEMP"
+				return 0
+			}
+
 			rm "$TEMP"
-			
+
 			if pidof olsrd >/dev/null ; then
 				_log do $FUNC daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
 			else
 				_log do $FUNC daemon crit "failed to fetch neighbour-table, because OLSRd is'nt running"
 			fi
-		
+
 			return 1
 		}
-	
+
 		echo -n "$TEMP"
 		return 0
 	}
-	
+
 	_log do $FUNC daemon info "OLSRd is not configured to load plugin '$PLUGIN'" 
 	return 1
 }

@@ -2,21 +2,27 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 {
 	local FUNC="wget_do"
 	local URL="$1"
-	local C=0							# counter (raising) for maximal seconds
 	local MAX="${2:-15}"						# maximal running time in seconds, defaults to 15sec
 	local MASK1="$3"
-	local MASK2="$4"						# strings from URL, which should be masked during logging, when prio is > debug
-	local PID_WGET PID_LINE PID_LINE_NOW
+	local MASK2="$4"						# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
+
+	local PID_WGET PID_LINE PID_LINE_NOW RC
+	local C=0							# counter (raising) for maximal seconds
 
 	_log do $FUNC daemon debug "max ${MAX}s '$URL'"
 
-	wget -qO - "$URL" 2>/dev/null &
-	PID_WGET="$( pidof wget )"
-	set ${PID_WGET:=unset}
-	for PID_WGET; do :; done
+	( wget -qO - "$URL" 2>/dev/null || echo "$?" >/tmp/${FUNC}_$$ ) &
+	PID_WGET="$!"
 
-	[ "$PID_WGET" = "unset" ] && _log do $FUNC daemon info "empty PID?"
-	read PID_LINE 2>/dev/null </proc/$PID_WGET/cmdline		# exact line of ps-output
+	case ${PID_WGET:=unset} in
+		unset)
+			_log do $FUNC daemon info "empty PID? after fetching '$URL'"
+			return 1
+		;;
+		*)
+			read PID_LINE 2>/dev/null </proc/$PID_WGET/cmdline	# exact line of ps-output
+		;;
+	esac
 
 	while [ -e "/proc/$PID_WGET" ]; do {				# wget-process in tasklist?
 		sleep 1
@@ -39,5 +45,12 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 		}
 	} done
 
-	return 0	# fixme! return real RC of wget
+	if [ -e /tmp/${FUNC}_$$ ]; then
+		read RC </tmp/${FUNC}_$$
+		rm /tmp/${FUNC}_$$
+		_log do $FUNC daemon info "[ERR] returning $RC after fetching '$URL'"
+		return $RC
+	else
+		return 0
+	fi
 }
