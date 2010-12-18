@@ -4,6 +4,11 @@ _speedtest_meta1 ()
 	# test whole network
 }
 
+_speedtest_help ()
+{
+	_speedtest do help
+}
+
 _speedtest_do ()
 {
 	local FUNC="speedtest_do"
@@ -25,10 +30,10 @@ Usage:	_speedtest do <firstIP> <secondIP> <method> <duration>
 	
 	<firstIP> can also be the keyword "here"
 	<secondIP> can also be a keyword, e.g. "here", "gateway", "inetgateway", "neighs_onehop" or "neighs_wifi_onehop"
-	<method> can be "poormens_tcpdownload" or "udpupload"
+	<method> can be "poormens_tcpdownload", "udpupload", "tcpdownload" or "tcpupload"
 
 e.g.:	_speedtest do here gateway udpupload 15
-	_speedtest do 10.63.12.1 10.63.99.1 udpupload 5
+	_speedtest do 10.63.12.1 10.63.99.1 tcpdownload 5
 	_speedtest do gateway here
 	_speedtest do
 
@@ -67,7 +72,7 @@ EOF
 	local DURATION DURATION_REAL DURATION_COUNTER
 
 	case "$METHOD" in
-		poormens_tcpdownload|udpupload)
+		poormens_tcpdownload|udpupload|tcpupload|tcpdownload)
 			:
 		;;
 		*)
@@ -119,22 +124,39 @@ EOF
 			_log do $FUNC daemon debug "$IP_LOCAL <-> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 		}
 
-
 		case "$METHOD" in
-			poormens_tcpdownload)
+			poormens_tcpdownload|tcpdownload)
 				DIRECTION="download"
-				iptables -I INPUT -p tcp --sport 80 -s $IP_TARGET
-				wget -qO /dev/null "http://$IP_TARGET/cgi-bin-dev-zero.bin" &
-				PID_WGET="$( ps ax | fgrep "wget -qO /dev/null http://$IP_TARGET" | head -n1 | sed -n 's/^[ ]*\([0-9]*\).*/\1/p'  )"		# fixme! use one sed
-				trap "kill $PID_WGET" SIGINT
+			
+				case "$METHOD" in
+					poormens_tcpdownload)
+						iptables -I INPUT -p tcp --sport 80 -s $IP_TARGET
+						wget -qO /dev/null "http://$IP_TARGET/cgi-bin-dev-zero.bin" &
+					;;
+					tcpdownload)
+						iptables -I INPUT -p tcp -s $IP_TARGET
+						netperf -H $IP_TARGET -t TCP_MAERTS -l "$(( $DURATION * 2 ))" >/dev/null &
+					;;
+				esac
 			;;
-			udpupload)
+			udpupload|tcpupload)
 				DIRECTION="upload"
-				iptables -I OUTPUT -p udp -d $IP_TARGET						# seems that dport changes randomly, so it's a bit inexact
-				netperf -H $IP_TARGET -t UDP_STREAM -l "$(( $DURATION * 2 ))" >/dev/null &
-				trap "killall netperf" SIGINT
+				iptables -I OUTPUT -p "$( echo $METHOD | cut -b1-3 )" -d $IP_TARGET		# seems that dport changes randomly, so it's a bit inexact
+
+				case "$$METHOD" in
+					udpupload)
+						iptables -I OUTPUT -p udp -d $IP_TARGET	
+						netperf -H $IP_TARGET -t UDP_STREAM -l "$(( $DURATION * 2 ))" >/dev/null &
+					;;
+					tcpupload)
+						iptables -I OUTPUT -p tcp -d $IP_TARGET
+						netperf -H $IP_TARGET -t TCP_STREAM -l "$(( $DURATION * 2 ))" >/dev/null &
+					;;
+				esac
 			;;
 		esac
+
+		trap "kill $!" SIGINT
 
 		_stopwatch start speedtest_$$				############## START ###########
 
@@ -147,7 +169,9 @@ EOF
 		METRIC_BEGIN="$( _net ip2metric $IP_TARGET )"
 		DEVTYPE="$( _net dev_type $( _net ip2dev $IP_TARGET ))"
 
-		_log do $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
+		[ "$DIRECTION" = "upload" -a "$DEVTYPE" = "wifi" -a "${METRIC_BEGIN:=0}" = "1" ] || {
+			_log do $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
+		}
 
 		while [ ${DURATION_COUNTER:=0} -lt $(( $DURATION / 2 )) ]; do {
 
@@ -187,15 +211,15 @@ EOF
 			poormens_tcpdownload)
 				kill $PID_WGET
 				eval $( iptables -nxvL INPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
-				iptables -D INPUT -p tcp --sport 80 -s $IP_TARGET
 			;;
-			udpupload)
+			udpupload|tcpupload|tcpdownload)
 				killall netperf
 				eval $( iptables -nxvL OUTPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
-				iptables -D OUTPUT -p udp -d $IP_TARGET
 			;;
 		esac
-		
+
+		iptables -D INPUT 1
+	
 		trap - SIGINT	# unset
 		SPEED="$(( $BYTES / $DURATION_REAL / 10 ))"		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
 
