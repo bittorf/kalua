@@ -30,7 +30,7 @@ Usage:	_speedtest do <firstIP> <secondIP> <method> <duration>
 	
 	<firstIP> can also be the keyword "here"
 	<secondIP> can also be a keyword, e.g. "here", "gateway", "inetgateway", "neighs_onehop" or "neighs_wifi_onehop"
-	<method> can be "poormens_tcpdownload", "udpupload", "tcpdownload" or "tcpupload"
+	<method> can be "poormens_tcpdownload", "udpupload", "udpdownload", "tcpdownload" or "tcpupload"
 
 e.g.:	_speedtest do here gateway udpupload 15
 	_speedtest do 10.63.12.1 10.63.99.1 tcpdownload 5
@@ -67,13 +67,13 @@ EOF
 
 	local MAXCOST=7000	# fixme! hardcoded and unused?
 	local VALUES IP_LOCAL IP_TARGET LOAD_BEGIN LOAD_END UNIXTIME HUMANTIME METRIC_BEGIN METRIC_END OLSR_COST_BEGIN OLSR_COST_END SPEED DEVTYPE
-	local PID_WGET PACK BYTES REST METHOD IP_LIST
+	local PID_WGET PACK BYTES REST METHOD IP_LIST NOP
 	local RATE RATE_MIN RATE_MAX RATE_AVG RATE_SAMPLES DIRECTION
 	local DURATION DURATION_REAL DURATION_COUNTER
 	local PID_OF_TOOL
 
 	case "$METHOD" in
-		poormens_tcpdownload|udpupload|tcpupload|tcpdownload)
+		poormens_tcpdownload|udpupload|udpdownload|tcpupload|tcpdownload)
 			:
 		;;
 		*)
@@ -125,8 +125,14 @@ EOF
 			_log do $FUNC daemon debug "$IP_LOCAL <-> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 		}
 
+		netperf_fire ()
+		{
+			_log do $FUNC daemon debug "netperf -H $1 -t $2 -l $3"
+			netperf -H $1 -t $2 -l $3 >/dev/null &
+		}
+
 		case "$METHOD" in
-			poormens_tcpdownload|tcpdownload)
+			poormens_tcpdownload|tcpdownload|udpdownload)
 				DIRECTION="download"
 			
 				case "$METHOD" in
@@ -136,21 +142,25 @@ EOF
 					;;
 					tcpdownload)
 						iptables -I INPUT -p tcp -s $IP_TARGET
-						netperf -H $IP_TARGET -t TCP_MAERTS -l "$(( $DURATION * 2 ))" >/dev/null &
+						netperf_fire $IP_TARGET TCP_MAERTS $(( $DURATION * 2 ))
+					;;
+					udpdownload)
+						iptables -I INPUT -p udp -s $IP_TARGET
+						netperf_fire $IP_TARGET UDP_MAERTS $(( $DURATION * 2 ))		# fixme! older netperf's do not know this method
 					;;
 				esac
 			;;
 			udpupload|tcpupload)
 				DIRECTION="upload"
 
-				case "$$METHOD" in		# seems that dport (12865?) changes randomly, so it's a bit inexact
+				case "$METHOD" in		# seems that dport (12865?) changes randomly, so it's a bit inexact
 					udpupload)
 						iptables -I OUTPUT -p udp -d $IP_TARGET
-						netperf -H $IP_TARGET -t UDP_STREAM -l "$(( $DURATION * 2 ))" >/dev/null &
+						netperf_fire $IP_TARGET UDP_STREAM $(( $DURATION * 2 ))
 					;;
 					tcpupload)
 						iptables -I OUTPUT -p tcp -d $IP_TARGET
-						netperf -H $IP_TARGET -t TCP_STREAM -l "$(( $DURATION * 2 ))" >/dev/null &
+						netperf_fire $IP_TARGET TCP_STREAM $(( $DURATION * 2 ))
 					;;
 				esac
 			;;
@@ -171,8 +181,10 @@ EOF
 		METRIC_BEGIN="$( _net ip2metric $IP_TARGET )"
 		DEVTYPE="$( _net dev_type $( _net ip2dev $IP_TARGET ))"
 
-		[ "$DIRECTION" = "upload" -a "$DEVTYPE" = "wifi" -a "${METRIC_BEGIN:=0}" = "1" ] || {
-			_log do $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
+		[ "$DIRECTION" = "upload" ] || {
+			[ "$DEVTYPE" = "wifi" ] || {
+				_log do $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
+			}
 		}
 
 		while [ ${DURATION_COUNTER:=0} -lt $(( $DURATION / 2 )) ]; do {
@@ -208,22 +220,21 @@ EOF
 		OLSR_COST_END=$COST
 		
 		DURATION_REAL="$( _stopwatch stop speedtest_$$ )"	############## END #############
-		[ -n "$PID_OF_TOOL" ] && kill $PID_OF_TOOL
+		[ -e "/proc/$PID_OF_TOOL" ] && kill $PID_OF_TOOL
 
 		case "$DIRECTION" in
 			download)
-				eval $( iptables -nxvL INPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
+				eval $( iptables --line-numbers -nxvL INPUT  | grep ^"1 " | while read NOP PACK BYTES REST; do echo "BYTES=$BYTES"; done )
 				iptables -D INPUT 1
 			;;
-			
 			upload)
-				eval $( iptables -nxvL OUTPUT 2>/dev/null | head -n3 | tail -n1 | while read PACK BYTES REST; do echo "BYTES=$BYTES"; done )
+				eval $( iptables --line-numbers -nxvL OUTPUT | grep ^"1 " | while read NOP PACK BYTES REST; do echo "BYTES=$BYTES"; done )
 				iptables -D OUTPUT 1
 			;;
 		esac
 	
 		trap - SIGINT						# unset
-		SPEED="$(( $BYTES / $DURATION_REAL / 10 ))"		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
+		SPEED="$(( ${BYTES:=0} / $DURATION_REAL / 10 ))"	# kilobytes / second ; 1 Kilobyte = 1000 Bytes
 
 		VALUES="IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED RATE_AVG=$RATE_AVG RATE_MIN=${RATE_MIN:-0} RATE_MAX=${RATE_MAX:-0} BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_BEGIN DURATION=${DURATION}000 DURATION_REAL=${DURATION_REAL}0 DEVTYPE=$DEVTYPE"
 		_speedtest_store "$IP_LOCAL" "$IP_TARGET" "$METHOD" "$UNIXTIME" "$SPEED" "$VALUES"
