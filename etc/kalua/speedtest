@@ -28,7 +28,7 @@ Usage:	_speedtest do <firstIP> <secondIP> <method> <duration>
 	empty <method> defaults to poormens_tcpdownload
 	empty <duration> defaults to 10 seconds
 	
-	<firstIP> can also be the keyword "here"
+	<firstIP> can also be the keyword "here" or "path_to"
 	<secondIP> can also be a keyword, e.g. "here", "gateway", "inetgateway", "neighs_onehop" or "neighs_wifi_onehop"
 	<method> can be "poormens_tcpdownload", "udpupload", "udpdownload", "tcpdownload" or "tcpupload"
 
@@ -47,6 +47,7 @@ EOF
 	local METHOD="${3:-poormens_tcpdownload}"	# keyword, e.g. tcpdownload, netperfTCP, netperfUDP
 	local DURATION="${4:-10}"			# [seconds]
 	local INITIATOR="${REMOTE_ADDR:-local}"
+	local LIST IP I IP_LOCAL IP_REMOTE
 
 	_log do $FUNC daemon debug "$IP_LOCAL <-> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 
@@ -56,6 +57,36 @@ EOF
 		;;
 		here)
 			IP_LOCAL="$WIFIADR"
+		;;
+		path_to)
+			LIST="$WIFIADR $( traceroute -n "$KEYWORD" 2>/dev/null | while read NOP IP NOP;do echo $IP;done )"
+
+			list_get_element ()
+			{
+				local LIST="$1"
+				local N="$2"
+				local I=0
+				local OBJ
+				
+				for OBJ in $LIST; do {
+					I=$(( $I + 1 ))
+					[ $I -eq $N ] && {
+						echo $OBJ
+						break
+					}
+				} done
+			}
+
+			I=0
+			for IP in $LIST; do {
+					I=$(( $I + 1 ))
+					IP_LOCAL="$(  list_get_element "$LIST" $I )"
+					IP_REMOTE="$( list_get_element "$LIST" $(( $I + 1 )) )" 
+
+					[ -n "$IP_REMOTE" ] && _speedtest do $IP_LOCAL $IP_REMOTE $METHOD $DURATION
+			} done
+
+			return
 		;;
 		*)
 			_sanitizer do "$IP_LOCAL" ip4 check || return
@@ -245,9 +276,7 @@ EOF
 
 		_log do $FUNC daemon info "$IP_LOCAL <-> $IP_TARGET @ $SPEED Kilobytes/sec, method '$METHOD'"
 
-		case "$0" in
-			"/www/cgi-bin"*) echo "$IP_LOCAL <-> $IP_TARGET @ $SPEED Kilobytes/sec, method '$METHOD'" ;;
-		esac
+		[ -n "$REMOTE_ADDR" ] && echo "$IP_LOCAL <-> $IP_TARGET @ $SPEED Kilobytes/sec, method '$METHOD'"
 	} done
 }
 
