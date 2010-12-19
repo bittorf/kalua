@@ -58,6 +58,8 @@ EOF
 			IP_LOCAL="$WIFIADR"
 		;;
 		*)
+			_sanitizer do "$IP_LOCAL" ip4 check || return
+
 			local URL="http://$IP_LOCAL/cgi-bin-tool_fff+?OPT=speedtest&ARGS=$IP_LOCAL+$KEYWORD+$METHOD+$DURATION"
 			_log do $FUNC daemon debug "fetching '$URL'"
 			wget -qO - "$URL"
@@ -111,9 +113,11 @@ EOF
 		;;
 	esac
 
-	[ -z "$IP_LIST" ] && {
+	if [ -z "$IP_LIST" ]; then
 		_log do $FUNC daemon info "empty target list?"
-	}
+	else
+		_log do $FUNC daemon info "looping with method $METHOD from $IP_LOCAL over list $IP_LIST"
+	fi
 
 	# fixme! onehop, but metric >1 && continue
 	# fixme! calculate EFFECTIV_PROCENTUAL_THROUGHPUT -> 34 mbit rate_avg, but 207kb/s -> xy% from max
@@ -218,9 +222,9 @@ EOF
 
 		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
 		OLSR_COST_END=$COST
-		
+
+		[ -e "/proc/$PID_OF_TOOL" ] && kill $PID_OF_TOOL		
 		DURATION_REAL="$( _stopwatch stop speedtest_$$ )"	############## END #############
-		[ -e "/proc/$PID_OF_TOOL" ] && kill $PID_OF_TOOL
 
 		case "$DIRECTION" in
 			download)
