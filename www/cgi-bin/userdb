@@ -57,10 +57,9 @@ if [ -n "$FORM_ACTION_LOGIN_PRINT_CHECKED" -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE
 	I=0; for N in $LIST_FORM_CHECKBOX; do I=$(( $I + 1 )); done 		# count tickets
 	for LOGIN_ID in $LIST_FORM_CHECKBOX; do break; done			# fetch first ticket
 	eval $( _db user login show $LOGIN_ID "PROFILE_ID" )			# used_profile_id
-	eval $( _db user profile show $PROFILE_ID "NAME" )			# id2name
+	eval $( _db user profile show $PROFILE_ID "NAME" )
 		
 	FILENAME="wlansystem-$( _weblogin metadata_locationname )-$( _system date humanreadable )-${I}x${NAME}.pdf"
-#	FILENAME="$( _sanitizer do "$FILENAME" urlvalue )"
 	FILENAME="$( echo "$FILENAME" | sed -e 's/ //g' -e 's/:/uhr/g' )"	# strip spaces, replace ":"	fixme! is a hack
 
 	_log do gui_print_tickets daemon info "filename: '$FILENAME' list: '$LIST_FORM_CHECKBOX'"
@@ -305,8 +304,12 @@ case "$FORM_ACTION" in
 		for ID in $LIST_ID; do {
 
 			PROFILE_ID=
-			eval "$( _db user login show $ID )"
-			[ -z "$PROFILE_ID" ] && continue
+			eval "$( _db user login show $ID "PROFILE_ID" )"
+			if [ -z "$PROFILE_ID" ]; then
+				continue
+			else
+				eval "$( _db user profile show $PROFILE_ID "NAME" )"
+			fi
 
 			case "$BGCOLOR" in
 				"$BG_A") BGCOLOR="$BG_B" ;;
@@ -316,7 +319,7 @@ case "$FORM_ACTION" in
 			cat <<EOF
 <tr bgcolor='$BGCOLOR'>
 <td align='center'><input type='checkbox' ID='login$ID' name='FORM_CB_$ID' value='1'></td>
-<td><label for='login$ID'>&nbsp;$( _db user profile id2name $PROFILE_ID )</label></td>
+<td><label for='login$ID'>&nbsp;${NAME}</label></td>
 <td><label for='login$ID'>&nbsp;${COMMENT:--}</label></td>
 <td><label for='login$ID'>&nbsp;$USERNAME</label></td>
 <td align='center'><label for='login$ID'>$PASSWORD</label></td>
