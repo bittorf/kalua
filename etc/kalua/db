@@ -89,7 +89,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 			local LOGIN_ID
 
 			_stopwatch start $ACTION
-			for LOGIN_ID in $( _db user login list $ID $OPTION ); do {				# fixme! can be: "last" + "32"
+			for LOGIN_ID in $( _db user login list $ID $OPTION ); do {		# fixme! can be: "last" + "32"
 				eval $( _db user login show $LOGIN_ID "USERNAME PASSWORD" )
 				echo -n "$USERNAME$PASSWORD" | md5sum | cut -d' ' -f1		# hash
 			} done >$INDEX
@@ -113,7 +113,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 				;;
 			esac
 		;;
-		show)
+		show)						# fixme! idea: always write userwish/$OPTION in output, e.g. USERNAME=;PASSWORD=;
 			[ -e "$DIR/rows" ] || return 1
 
 			[ "$ID" = "last" ] && {
@@ -222,62 +222,72 @@ _db_ticketcheck ()								# going through list of profiles (user defined or all)
 	local DEVICE_ID_LIST_REVERSE="${2:-$( _db user device list reverse )}"	# if profile = wished, than check:
 	local DEVICE_ID_LIST="$( _db user device list )"			#
 										# go through list of all login's, after the used one
-	local ALIEN_PROFILE_ID ALIEN_ID USER_ID_LAST I ID ID2 USER_ID_STACK	# count, which have whished profile X and are unused
+	local ALIEN_PROFILE_ID ALIEN_ID USER_ID_LAST ID ID2 USER_ID_STACK	# count, which have whished profile X and are unused
 	local AUTOGENERATE_BORDER=15
+	local UNUSED_TICKETS FOUND_DEVICE
 
 	profiles_are_matching_and_login_is_unused ()		# needs global ID_CHECK + ALIEN_PROFILE_ID + DEVICE_ID_LIST
 	{
-		eval $( _db user login show $ID_CHECK )				# get PROFILE_ID
+		eval $( _db user login show $ID_CHECK "PROFILE_ID" )
 
-		[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && {
+		if [ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ]; then
 
 			for ID2 in $DEVICE_ID_LIST; do {
-				eval $( _db user device show $ID2 )		# get USER_ID
-				[ "$ID_CHECK" = "$USER_ID" ] && return 1
+				eval $( _db user device show $ID2 "USER_ID" )
+				[ "$ID_CHECK" = "$USER_ID" ] && {
+					return 1
+				}
 			} done
-		}
+			return 0
+		else
+			return 1
+		fi
 	}
 
 	_stopwatch start $FUNC
 
 	for ALIEN_PROFILE_ID in $PROFILE_ID_WISH; do {
 
-		eval "$( _db user profile show $ALIEN_PROFILE_ID )"		# get AUTOGENERATE + NAME
+		eval "$( _db user profile show $ALIEN_PROFILE_ID "AUTOGENERATE NAME" )"
 
 		if [ "$AUTOGENERATE" = "1" ]; then
-			_log do $FUNC daemon debug "checking for unused tickets with profile $ALIEN_PROFILE_ID $NAME"
+			_log do $FUNC daemon debug "checking for unused tickets with profile $ALIEN_PROFILE_ID ($NAME)"
 		else
-			_log do $FUNC daemon debug "ignoring profile $ALIEN_PROFILE_ID $NAME - autogenerate is off"
+			_log do $FUNC daemon debug "ignoring profile $ALIEN_PROFILE_ID ($NAME) - autogenerate is off"
 			continue
 		fi
 
+		FOUND_DEVICE=
 		for ALIEN_ID in $DEVICE_ID_LIST_REVERSE; do {
 
-			eval "$( _db user device show $ALIEN_ID )"		# get USER_ID which has used this device
-			eval "$( _db user login show $USER_ID )"		# get PROFILE_ID for this login
-#			USER_ID_STACK="$USER_ID"
-#			eval "$( _db user profile show $ALIEN_PROFILE_ID )"	# get ???
+			eval "$( _db user device show $ALIEN_ID "USER_ID"  )"
+			eval "$( _db user login show $USER_ID "PROFILE_ID" )"
 
 			[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && {		# matches user/loop_wish?
 
-				I=0
+				FOUND_DEVICE=1
+				UNUSED_TICKETS=0
 				LOGIN_LAST="$( _db user login list last )"
 				DIFF="$(( $LOGIN_LAST - $USER_ID ))"
-echo "now for ID_CHECK in $( _db user login list last $DIFF )"
+
 				for ID_CHECK in $( _db user login list last $DIFF ); do {
-					profiles_are_matching_and_login_is_unused && I=$(( $I + 1 ))
+					profiles_are_matching_and_login_is_unused && {
+						UNUSED_TICKETS=$(( $UNUSED_TICKETS + 1 ))
+					}
 				} done
 
-				if [ $I -lt $AUTOGENERATE_BORDER ]; then
-					_log do $FUNC daemon alert "[ERR] only $I unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $USER_ID)"
+				if [ $UNUSED_TICKETS -lt $AUTOGENERATE_BORDER ]; then
+					_log do $FUNC daemon alert "[ERR] only $UNUSED_TICKETS unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $(( $LOGIN_LAST - $DIFF )))"
 				else
-					_log do $FUNC daemon info "[OK] $I (enough) unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $USER_ID)"
+					_log do $FUNC daemon info "[OK] $UNUSED_TICKETS (enough) unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $(( $LOGIN_LAST - $DIFF )))"
 				fi
 
 				break
 			}
 		} done
+
+		[ -z "$FOUND_DEVICE" ] && _log do $FUNC daemon info "[ERR] did not found any device, which uses profile $ALIEN_PROFILE_ID ($NAME)"	
 	} done
 
-	_stopwatch stop $FUNC
+	_stopwatch stop $FUNC quiet
 }
