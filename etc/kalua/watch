@@ -420,15 +420,15 @@ _watch_topusage_task ()
 	local PID CPU CPU_INT TASK TOPTASK FILESIZE
 	local MAX_ALLOWED_PERCENT=70
 
-	_watch counter "/tmp/counter_highload" increment 1 max 10 || reboot		# workaround: we can't see which task causes high I/O-load
+	_watch counter "/tmp/counter_highload" increment 1 max 10 || reboot		# workaround: we can't see, which task causes e.g. high I/O-load
 
-	top >$TEMPFILE &
-	sleep $WAIT			# fixme! can lead to race conditions, we don't know exactly when page output is ready, especially under high load
+	top >$TEMPFILE &		# fixme! can lead to race conditions, we don't know exactly when page output is ready, especially under high load
+	PID="$!"			# normally we can use 'top -b -n 1 &', but the busybox-top must have implemented this 8-(
+	sleep $WAIT
 
-	while pidof -s top >/dev/null; do {
-		PID="$( pidof -s top )"
+	while [ -e "/proc/$PID" ]; do {
 		kill $PID
-		kill -9 $PID
+		[ -e "/proc/$PID" ] && kill -9 $PID
 	} done
 
 	FILESIZE="$( _file size $TEMPFILE )"
