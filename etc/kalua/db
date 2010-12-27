@@ -157,8 +157,9 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		device)  ELEMENTS="USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION" ;;
 		*)
 			echo "Usage: _$FUNC <table> <action>"
-			echo "       _$FUNC profile|login|device list [last <num>|reverse] | show [last|<id>] | add autoid ...|del <id>|update <id> ..."
-			echo "       _$FUNC profile|login|device query hash2id | string2id <string>"
+			echo "       _$FUNC profile|login|device show [<id>|last|\"elementA elementB ... elementN\"]"
+			echo "       _$FUNC profile|login|device list [last <num>|reverse] | add autoid ... | del <id>|update <id> ..."
+			echo "       _$FUNC profile|login|device query hash2id <hash> | string2id <string>"
 			return 1
 		;;
 	esac
@@ -213,13 +214,12 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 			esac
 		;;
 		show)
-			# [ -n "$4" ] && ELEMENTS="$4"		# fixme! e.g. only output "NAME COMMENT" does not work
 			[ -e "$DIR/rows" ] || return 1
 
 			[ "$ID" = "last" ] && {
 				ID="$( sed -n '$=' "$DIR/rows" )"
 			}
-		
+
 			for OBJ in $ELEMENTS; do {
 
 				case "$SHORT_VAR" in
@@ -237,8 +237,12 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 					*) SHORT_VAR="A"; OBJ="ID=${ID};${OBJ}" ;;
 				esac
 
-				REWRITE_VARS="${REWRITE_VARS}s/${FILL}${SHORT_VAR}=/${FILL}${OBJ}=/;"
-				FILL=";"
+				case "${4:-$OBJ}" in
+					*"$OBJ"*)
+						REWRITE_VARS="${REWRITE_VARS}s/${FILL}${SHORT_VAR}=/${FILL}${OBJ}=/;"
+						FILL=";"
+					;;
+				esac
 			} done
 
 			sed -n "${ID}{${REWRITE_VARS}p;q}" "$DIR/rows"		# fixme! return ERROR on nonexisting line
@@ -312,24 +316,17 @@ _db_ticketcheck ()								# going through list of profiles (user defined or all)
 	local ALIEN_PROFILE_ID ALIEN_ID USER_ID_LAST I ID ID2 USER_ID_STACK	# count, which have whished profile X and are unused
 	local AUTOGENERATE_BORDER=15
 
-	profiles_are_matching_and_login_is_unused ()
+	profiles_are_matching_and_login_is_unused ()		# needs global ID_CHECK + ALIEN_PROFILE_ID + DEVICE_ID_LIST
 	{
-		local ID_CHECK="$1"
-		local ALIEN_PROFILE_ID="$2"
-		local DEVICE_ID_LIST="$3"
-
 		eval $( _db user login show $ID_CHECK )				# get PROFILE_ID
 
-		if [ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ]; then
+		[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && {
 
 			for ID2 in $DEVICE_ID_LIST; do {
-
 				eval $( _db user device show $ID2 )		# get USER_ID
 				[ "$ID_CHECK" = "$USER_ID" ] && return 1
 			} done
-		else
-			return 1
-		fi
+		}
 	}
 
 	_stopwatch start $FUNC
@@ -342,29 +339,30 @@ _db_ticketcheck ()								# going through list of profiles (user defined or all)
 			_log do $FUNC daemon debug "checking for unused tickets with profile $ALIEN_PROFILE_ID $NAME"
 		else
 			_log do $FUNC daemon debug "ignoring profile $ALIEN_PROFILE_ID $NAME - autogenerate is off"
+			continue
 		fi
 
 		for ALIEN_ID in $DEVICE_ID_LIST_REVERSE; do {
 
-			eval "$( _db user device show $ALIEN_ID )"		# get USER_ID which used this device
+			eval "$( _db user device show $ALIEN_ID )"		# get USER_ID which has used this device
 			eval "$( _db user login show $USER_ID )"		# get PROFILE_ID for this login
-			USER_ID_STACK="$USER_ID"
-			eval "$( _db user profile show $ALIEN_PROFILE_ID )"	# get ???
+#			USER_ID_STACK="$USER_ID"
+#			eval "$( _db user profile show $ALIEN_PROFILE_ID )"	# get ???
 
 			[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && {		# matches user/loop_wish?
 
 				I=0
 				LOGIN_LAST="$( _db user login list last )"
 				DIFF="$(( $LOGIN_LAST - $USER_ID ))"
-
-				for ID in $( _db user login list last $DIFF ); do {
-					profiles_are_matching_and_login_is_unused "$ID" "$ALIEN_PROFILE_ID" "$DEVICE_ID_LIST" && I=$(( $I + 1 ))
+echo "now for ID_CHECK in $( _db user login list last $DIFF )"
+				for ID_CHECK in $( _db user login list last $DIFF ); do {
+					profiles_are_matching_and_login_is_unused && I=$(( $I + 1 ))
 				} done
 
 				if [ $I -lt $AUTOGENERATE_BORDER ]; then
-					_log do $FUNC daemon alert "only $I unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $USER_ID_STACK)"
+					_log do $FUNC daemon alert "[ERR] only $I unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $USER_ID)"
 				else
-					_log do $FUNC daemon info "enough = $I unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $USER_ID_STACK)"
+					_log do $FUNC daemon info "[OK] $I (enough) unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $USER_ID)"
 				fi
 
 				break
