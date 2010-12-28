@@ -117,3 +117,39 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 		rm "$MAIL"
 	fi
 }
+
+_mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable#Example
+{					# fixme! there is no check for special chars, done already:
+	local FILE="$1"			#
+	local WRAP=75			# - spaces at the end of a line to '=20'
+	local BUFFER="$WRAP"		# - newlines to '=0A'
+	local LINE			# - linewrap at 75 column + a softbreak '='
+					#
+	IFS="
+"
+	sed -e 's/ $/=20/g' -e 's/$/=0A/' "$FILE" | while read LINE; do {
+
+		while true; do {
+
+			if [ ${#LINE} -lt $BUFFER ]; then
+
+				echo -n "$LINE"
+				BUFFER=$(( $BUFFER - ${#LINE} ))
+				break
+
+			elif [ ${#LINE} -eq $BUFFER ]; then
+
+				echo "${LINE}="
+				BUFFER=$WRAP
+			else
+				echo "$( echo "$LINE" | cut -b 1-$BUFFER )="
+				LINE="$( echo "$LINE" | cut -b $(( $BUFFER + 1 ))-9999 )"
+				BUFFER=$WRAP
+			fi
+
+		} done
+
+	} done
+
+	unset IFS
+}
