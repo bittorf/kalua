@@ -58,18 +58,23 @@ if [ -n "$FORM_ACTION_LOGIN_PRINT_CHECKED" -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE
 	for LOGIN_ID in $LIST_FORM_CHECKBOX; do break; done			# fetch first ticket
 	eval $( _db user login show $LOGIN_ID "PROFILE_ID" )			# used_profile_id
 	eval $( _db user profile show $PROFILE_ID "NAME" )
-		
-	FILENAME="wlansystem-$( _weblogin metadata_locationname )-$( _system date humanreadable )-${N}x${NAME}.pdf"
-	FILENAME="$( echo "$FILENAME" | sed -e 's/ //g' -e 's/:/uhr/g' )"	# strip spaces, replace ":"	fixme! is a hack
 
-	_log do gui_print_tickets daemon info "filename: '$FILENAME' list: '$LIST_FORM_CHECKBOX'"
-
-	_http header_mimetype_output "application/pdf" "$FILENAME"
+	output_mimetype ()
+	{
+		_log do gui_print_tickets daemon info "filename: '$FILENAME' list: '$LIST_FORM_CHECKBOX'"
+		_http header_mimetype_output "application/pdf" "$FILENAME"					# fixme! e.g. for .csv or .txt
+	}
 
 	if [ -n "$FORM_ACTION_LOGIN_PRINT_CHECKED" -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE" ]; then
-	
+
+		FILENAME="$( _pdf filename overview "$N" "$NAME" )"
+		output_mimetype
+
 		_userdb login_pdfout_digest "$LIST_FORM_CHECKBOX"	# uebersicht
 	else
+		FILENAME="$( _pdf filename labels "$N" "$NAME" )"
+		output_mimetype
+
 		_pdf output_a4marker "$LIST_FORM_CHECKBOX"		# labels/etiketten
 	fi
 
