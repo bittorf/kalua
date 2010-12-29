@@ -1,3 +1,5 @@
+# _mail send "bittorf wireless )) Breitband Rehungen" "breitband-rehungen@gmx.de" "ANREDE VORNAME NACHNAME" "bittorf@bluebottle.com" "mail3-2010aug26-nach_Zusendung_Vertrag.txt" "STRASSE HAUSNUMMER" "ANREDE VORNAME" "NACHNAME" "/tmp/wlansystem-HotelZumnorde-2010aug05_16uhr42-32x1-Wochen-Ticket-Etiketten.pdf wlansystem-HotelZumnorde-2010aug05_16uhr42-32x1-Wochen-Ticket-Etiketten.pdf"
+
 _mail_pop3_check_stats ()	# works with busybox-netcat
 {
 	local   FUNC="mail_check_pop3_stats"
@@ -14,15 +16,15 @@ _mail_pop3_check_stats ()	# works with busybox-netcat
 	_log do $FUNC user notice "sending data to '$SERVER'"
 
 	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT $SERVER $PORT )"
-
 	RC=$?
+
 	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "$LINE"; done )"	# fixme! use sanitizer, removes LF/CR
 
-	[ $RC -ne 0 ] || {
-		case "$OUT" in
-			"+OK+OK+OK"*) return 0 ;;	# if all went fine we get 3 x OK (or more)
-		esac
-	
+	case "$OUT" in
+		"+OK+OK+OK"*) return 0 ;;	# if all went fine we get 3 x OK (or more)
+	esac
+
+	[ $RC -eq 0 ] || {
 		_log do $FUNC user crit "returncode: '$RC' - '$SERVER'-answer: '$OUT' - something went wrong"
 	}
 }
@@ -64,6 +66,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	local BOUNDARY="dc+cDN39EJAMEtIO"					# maybe random?
 
 	_mail pop3_check_stats			# pop before smtp must be configured on mailserver
+	_log do $FUNC daemon debug "[BEGIN]"
 
 	_do ()
 	{
@@ -79,7 +82,6 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 			;;
 		esac
 	}
-
 
 	_do init	
 	_do "HELO ${FQDN}"
@@ -107,7 +109,6 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	_do "X-Firmware: $FFF_VERSION / $FFF_PLUS_VERSION / $( grep ^Kit: /etc/freifunk-release )"
 	_do "Subject: ${SUBJECT}\r\n"
 	_do linefeed
-						# 1st/2nd line is crap	
 
 	_do "--${BOUNDARY}"
 	_do "Content-Type: text/plain; charset=iso-8859-1"
@@ -115,6 +116,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	_do "Content-Transfer-Encoding: 8bit"
 	_do ""
 
+						# 1st/2nd line subject/empty
 	sed '3,99!d' $MAILFILE |
 	 sed	-e "s#\$VAR1#$VAR1#g" \
 		-e "s#\$VAR2#$VAR2#g" \
@@ -123,9 +125,16 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	  	_do "$LINE"
 	  } done
 
+	_do ""
+
 	for FILE in $LIST_FILE; do {
 		_do "--${BOUNDARY}"
 		_do "Content-Type: application/pdf"		# fixme!
+
+		[ -e "$FILE.desc" ] && {
+			_do "Content-Description: $( cat "$FILE.desc" )"
+		}
+
 		_do "Content-Disposition: attachment; filename=\"$( basename "$FILE" )\""
 		_do "Content-Transfer-Encoding: quoted-printable"
 		_do ""
@@ -138,7 +147,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 		_do "--${BOUNDARY}--"
 	}
 
-	_do ""
+#	_do ""
 	_do "."
 	_do "QUIT"
 
@@ -162,33 +171,56 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	fi
 }
 
-_mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable#Example
+_mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable#Example | http://tools.ietf.org/html/rfc2045
 {					# fixme! there is no check for special chars, done already:
+	local FUNC="mail_encode_quoted_printable"
+
 	local FILE="$1"			#
-	local WRAP=75			# - spaces at the end of a line to '=20'
+	local WRAP=75			# - tab/space at the end of a line to '=09' / '=20'
 	local BUFFER="$WRAP"		# - newlines to '=0A'
-	local LINE			# - linewrap at 75 column + a softbreak '='
-					#
+	local WINDOWSTART=1		# - linewrap at 75 column + a softbreak '='
+	local LINE OUTPUT		# - encoded special chars must not be line-wrapped
+
+	_stopwatch start $FUNC
+
 	IFS="
 "
-#	sed -e 's/ $/=20/g' -e 's/$/=0A/' "$FILE" | while read LINE; do {
+#	sed -e 's/	$/=09/' -e 's/ $/=20/' -e 's/$/=0A/' "$FILE" | while read LINE; do {
 	sed 's/$/=0A/' "$FILE" | while read LINE; do {
 
 		while true; do {
+
+			case $LINE in
+				"."*) LINE="=2E$( echo "$LINE" | cut -b 2-9999 )"
+			esac
 
 			if [ ${#LINE} -lt $BUFFER ]; then
 
 				echo -n "$LINE"
 				BUFFER=$(( $BUFFER - ${#LINE} ))
-				break
+				break		# fetch next LINE
 
 			elif [ ${#LINE} -eq $BUFFER ]; then
 
 				echo "${LINE}="
 				BUFFER=$WRAP
+				break		# fetch next LINE
 			else
-				echo "$( echo "$LINE" | cut -b 1-$BUFFER )="
-				LINE="$( echo "$LINE" | cut -b $(( $BUFFER + 1 ))-9999 )"
+				OUTPUT="$( echo "$LINE" | cut -b $WINDOWSTART-$BUFFER )"
+
+				  if echo "$OUTPUT" | grep -q =$ ; then		# =A0 at the end (encoded) must not be wrapped
+					BUFFER=$(( $BUFFER - 1 ))
+					OUTPUT="$( echo "$OUTPUT" | cut -b $WINDOWSTART-$BUFFER )"					
+				elif echo "$OUTPUT" | grep -q =.$ ; then
+					BUFFER=$(( $BUFFER - 2 ))
+					OUTPUT="$( echo "$OUTPUT" | cut -b $WINDOWSTART-$BUFFER )"
+				elif echo "$OUTPUT" | grep -q =..$ ; then
+					BUFFER=$(( $BUFFER - 3 ))
+					OUTPUT="$( echo "$OUTPUT" | cut -b $WINDOWSTART-$BUFFER )"	
+				fi
+
+				echo "${OUTPUT}="
+				LINE="$( echo "$LINE" | cut -b $(( $BUFFER + 1 ))-9999 )"	# idea: simply raise startcounter
 				BUFFER=$WRAP
 			fi
 
@@ -197,4 +229,6 @@ _mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable
 	} done
 
 	unset IFS
+
+	_stopwatch stop $FUNC quiet
 }
