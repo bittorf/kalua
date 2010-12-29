@@ -1,28 +1,54 @@
+_filetype_check_header ()
+{
+	local MAGIC="$1"		# can be a regex
+	local FILE="$2"
+	local BYTES LINE
+	local GREPFLAG="-q"
+
+	BYTES="$( echo "$MAGIC" | sed 's/ //g' )"
+	BYTES="$(( ${#BYTES} / 2 ))"
+
+	case $MAGIC in
+		show) MAGIC=""; BYTES=16; GREPFLAG= ;;
+	esac
+
+	dd if="$FILE" bs=${BYTES} count=1 2>&- |
+	 hexdump |
+	  if read LINE; then
+	  	echo "${LINE#* }"
+	  fi |
+	   grep $GREPFLAG "$MAGIC" && {
+	   	return 0
+	   }
+
+	return 1
+}
+
 _filetype_compressed ()
 {
 	local FILE="$1"
 	local TYPE
-	local TYPES_ALL="gzip"
+	local LIST_TYPES="gzip"
 
-	for TYPE in $TYPES_ALL; do {
+	for TYPE in $LIST_TYPES; do {
 		_filetype_$TYPE "$FILE" && return 0
 	} done
-	
+
 	return 1
 }
 
 _filetype_gzip ()
 {
 	local FILE="$1"
-	local GREPMAGIC="^8b1f"
-	local OUT
-	
-	dd if="$FILE" bs=2 count=1 2>&- |
-	 hexdump |
-	  if read LINE; then
-	  	echo "${LINE#* }"
-	  fi |
-	   fgrep -q 8b1f && return 0
+	local MAGIC="8b1f"
 
-	return 1
+	_filetype check_header "$MAGIC" "$FILE" || return 1
+}
+
+_filetype_pdf ()
+{
+	local FILE="$1"
+	local MAGIC="5025 4644 312d"	# '%PDF-1.'
+
+	_filetype check_header "$MAGIC" "$FILE" || return 1
 }
