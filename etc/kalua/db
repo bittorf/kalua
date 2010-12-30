@@ -278,6 +278,7 @@ _db_ticketcheck ()								# going through list of profiles (user defined or all)
 
 				if [ $UNUSED_TICKETS -lt $AUTOGENERATE_BORDER ]; then
 					_log do $FUNC daemon alert "[ERR] only $UNUSED_TICKETS unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $(( $LOGIN_LAST - $DIFF )))"
+					_db autocreate_tickets_and_send_mail "$ALIEN_PROFILE_ID"
 				else
 					_log do $FUNC daemon info "[OK] $UNUSED_TICKETS (enough) unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $(( $LOGIN_LAST - $DIFF )))"
 				fi
@@ -296,13 +297,47 @@ _db_autocreate_tickets_and_send_mail ()
 {
 	local PROFILE_ID="$1"
 
-	local COUNT=32
+	local TICKET_QUANTITY=32
+	local COUNTER="$TICKET_QUANTITY"
 	local PRE="/tmp/tickets_autocreated_$$"
 	local FILE_MAIL="$PRE.mail.txt"
-	local FILE_OVERVIEW="$PRE.overview.pdf"
-	local FILE_LABELS="$PRE.labels.pdf"
-	local FILE_CSV="$PRE.csv"
-
+	local NAME
+	
 	eval $( _db user profile show $PROFILE_ID "NAME" )
-	_weblogin ticket_mail_text "$NAME"
+	
+	local FILE_OVERVIEW="/tmp/$( _pdf filename overview "$TICKET_QUANTITY" "$NAME" )"
+	local FILE_LABELS="/tmp/$(   _pdf filename labels   "$TICKET_QUANTITY" "$NAME" )"
+	local FILE_CSV="$PRE.csv"
+	local LIST_ID
+	local FILE
+	local ID
+	local UNIXTIME="$( _system date unixtime )"
+
+	_weblogin ticket_mail_text "$NAME" >$FILE_MAIL
+	echo "$TICKET_QUANTITY Tickets in einer Uebersicht"	>$FILE_OVERVIEW.desc
+	echo "$TICKET_QUANTITY Tickets fuer Standard-Etiketten" >$FILE_LABELS.desc
+
+	_stopwatch start Generating_${TICKET_QUANTITY}_Tickets
+	while [ $COUNTER -ne 0 ]; do {
+		COUNTER="$(( $COUNTER - 1 ))"
+		_db user login add "$PROFILE_ID" "" "" "" "1" "$UNIXTIME"
+	} done
+	_stopwatch stop Generating_${TICKET_QUANTITY}_Tickets quiet
+	_db user login index_gen
+
+	LIST_ID="$( _db user login list last $TICKET_QUANTITY )"	
+	_pdf output_a4digest "$LIST_ID" >$FILE_OVERVIEW
+	_pdf output_a4marker "$LIST_ID" >$FILE_LABELS
+
+	local LOCATION_NAME="$( _weblogin metadata_locationname )"
+	local FROM_REAL="WLAN-System $LOCATION_NAME"
+	local FROM_MAIL="breitband-rehungen@gmx.de"
+	local RECIPIENT_REAL="Administration $LOCATION_NAME"
+	local RECIPIENT_MAIL="bittorf@bluebottle.com"
+
+	_mail send "$FROM_REAL" "$FROM_MAIL" "$RECIPIENT_REAL" "$RECIPIENT_MAIL" "$FILE_MAIL" "" "" "" "$FILE_OVERVIEW $FILE_LABELS"
+
+	for FILE in $FILE_MAIL $FILE_OVERVIEW $FILE_OVERVIEW.desc $FILE_LABELS $FILE_LABELS.desc $FILE_CSV; do {
+		[ -e "$FILE" ] && rm "$FILE"
+	} done
 }
