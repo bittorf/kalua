@@ -157,7 +157,7 @@ _webconfig_build_lang_gui_user ()
 
 _webconfig_build_vars_gui_user ()
 {
-	local VALUE="$( nvram get fff_ethers_auth )"
+	local VALUE="$( uci get system.@ethers[0].auth )"
 	
 	test -z "$VALUE" && VALUE="BLACKLIST"
 	
@@ -226,7 +226,7 @@ _webconfig_htmlout_users ()
 			ACTION="$ACTION <input type=submit value=\"Verbieten\"></form>"
 		fi
 		
-		if   nvram get fff_ethers_blocked | grep -q -i $MAC ; then			# this is a blocked user
+		if   uci get system.@ethers[0].blocked | grep -q -i $MAC ; then			# this is a blocked user
 			REG="blockiert!"
 			NAME="anonym"
 			ACTION=""
@@ -275,11 +275,11 @@ _webconfig_htmlout_gui_user_submitted ()
 	
 	elif [ -n "$USER_MAC_BLACKEN" ]; then							# user onto blacklist
 		local DIVIDER=";"
-		test -z "$( nvram get fff_ethers_blocked )" && DIVIDER=""                         # more than one entry? then insert an ";"
+		test -z "$( uci get system.@ethers[0].blocked )" && DIVIDER=""                         # more than one entry? then insert an ";"
 		
-		if [ -z "$( nvram get fff_ethers_blocked | grep -i $USER_MAC_BLACKEN )" ]; then      # not in list yet
+		if [ -z "$( uci get system.@ethers[0].blocked | grep -i $USER_MAC_BLACKEN )" ]; then      # not in list yet
 		
-			_nvram set fff_ethers_blocked "$( nvram get fff_ethers_blocked )${DIVIDER}$USER_MAC_BLACKEN"
+			_nvram set fff_ethers_blocked "$( uci get system.@ethers[0].blocked )${DIVIDER}$USER_MAC_BLACKEN"
 			_nvram set commit "added fff_ethers_blocked"
 			
 			echo "Dieser User wird nun dauerhaft blockiert."
@@ -292,7 +292,7 @@ _webconfig_htmlout_gui_user_submitted ()
 		local OUTLIST=""
 	
 		IFS=";"
-		for ENTRY in $( nvram get fff_ethers_blocked ); do			# entry = MAC
+		for ENTRY in $( uci get system.@ethers[0].blocked ); do			# entry = MAC
 		
 			if ! echo $ENTRY | grep -q -i $USER_MAC_BLACKEN_FORGET ; then	# not the mac we want to forget
 				if [ -z "$OUTLIST" ]; then
@@ -321,9 +321,9 @@ _webconfig_htmlout_gui_user_submitted ()
 		local DIVIDER=";"
 		local PHYMEDIA="$( _net mac2media $USER_MAC_ADD )"
 		test "$PHYMEDIA" = "wire" && PHYMEDIA="lan"					# fixme! this is not elegant!
-		test -z "$( nvram get fff_ethers_$PHYMEDIA )" && DIVIDER=""			# more than one entry? then insert an ";"
+		test -z "$( uci get system.@ethers[0].$PHYMEDIA )" && DIVIDER=""			# more than one entry? then insert an ";"
 		
-		if nvram get fff_ethers_$PHYMEDIA | grep -q -i $USER_MAC_ADD ; then		# not in list yet
+		if uci get system.@ethers[0].$PHYMEDIA | grep -q -i $USER_MAC_ADD ; then		# not in list yet
 		
 			echo "Benutzer ist schon registriert."
 		else
@@ -332,7 +332,7 @@ _webconfig_htmlout_gui_user_submitted ()
 			echo "Benutzer wurde registriert und gilt nun als freigeschaltet."
 			echo $PLEASE_REBOOT
 			
-			_nvram set fff_ethers_$PHYMEDIA "$( nvram get fff_ethers_$PHYMEDIA )${DIVIDER}$USER_MAC_ADD=$NAME_SANITIZED"
+			_nvram set fff_ethers_$PHYMEDIA "$( uci get system.@ethers[0].$PHYMEDIA )${DIVIDER}$USER_MAC_ADD=$NAME_SANITIZED"
 			_nvram set commit "registered user fff_ethers_$PHYMEDIA"
 		
 			_scheduler add "/etc/init.d/S43ethers_fff+ call"
@@ -347,7 +347,7 @@ _webconfig_htmlout_gui_user_submitted ()
 		local NAME_SANITIZED="$( echo $USER_NAME_ADD | sed 's/[^a-zA-Z0-9-]//g' )"      # only allowing chars and numbers
 		
 		IFS=";"
-		for ENTRY in $( nvram get fff_ethers_$PHYMEDIA ); do			# entry = user/mac-tupel
+		for ENTRY in $( uci get system.@ethers[0].$PHYMEDIA ); do			# entry = user/mac-tupel
 		
 			if ! echo $ENTRY | grep -q -i $USER_MAC_CHANGE ; then		# not the entry we want to alter
 				if [ -z "$OUTLIST" ]; then
@@ -381,7 +381,7 @@ _webconfig_htmlout_gui_user_submitted ()
 		local OUTLIST=""
 		
 		IFS=";"
-		for ENTRY in $( nvram get fff_ethers_$PHYMEDIA ); do                    # entry = user/mac-tupel
+		for ENTRY in $( uci get system.@ethers[0].$PHYMEDIA ); do                    # entry = user/mac-tupel
 		
 			if ! echo $ENTRY | grep -q -i $USER_MAC_FORGET ; then		# not the entry we want to remove 
 				if [ -z "$OUTLIST" ]; then
