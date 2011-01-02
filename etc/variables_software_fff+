@@ -41,9 +41,11 @@ fkt_build_vars ()			# fixme! this is a real mess - we need profile_specific soft
 	local NONEEDLESS=0
 	
 	[ "$( uci get system.@weblogin[0].enabled )" = "1" ]	&& NONEEDLESS=1
-	[ "$( nvram get fff_profile )" = "liszt28_ap" ]		&& NONEEDLESS=0
-	[ "$( nvram get fff_profile )" = "liszt28_mesh" ]	&& NONEEDLESS=0
-	
+
+	case "$( uci get system.@profile[0].name )" in
+		liszt28_ap|liszt28_mesh) NONEEDLESS=0
+	esac
+
 	SOFTWARE_EXTRA=""
 	SOFTWARE_EXTRA="$SOFTWARE_EXTRA freifunk-dnsmasq ${SOFTWARE_USB} ${IDEHOOK} $SOFTWARE_IPFILTER"
 	SOFTWARE_EXTRA="$SOFTWARE_EXTRA $( _net local_inet_offer >/dev/null && echo "micro-inetd micro-proxy" )"
@@ -196,7 +198,7 @@ fkt_check_dependencies ()
 
 		[ "$( _wifi mode $WIFIDEV )" != "adhoc" ] &&  	LIST_SOFTWARE="$LIST_SOFTWARE wl-adv"
 
-		nvram get fff_profile | grep -q ffsundi &&	LIST_SOFTWARE="$LIST_SOFTWARE wl-adv"		# fixme!
+		uci get system.@profile[0].name | grep -q ffsundi && LIST_SOFTWARE="$LIST_SOFTWARE wl-adv"		# fixme!
 	
 		_wifi feature_probe 802.11a $WIFIDEV	&&	LIST_SOFTWARE="$LIST_SOFTWARE wl-adv"
 	else
