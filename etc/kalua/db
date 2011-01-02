@@ -302,7 +302,13 @@ _db_autocreate_tickets_and_send_mail ()
 	local PRE="/tmp/tickets_autocreated_$$"
 	local FILE_MAIL="$PRE.mail.txt"
 	local NAME
-	
+
+	local LOCATION_NAME="$( _weblogin metadata_locationname )"
+	local FROM_REAL="WLAN-System $LOCATION_NAME"
+	local FROM_MAIL="breitband-rehungen@gmx.de"
+	local RECIPIENT_REAL="Administration $LOCATION_NAME"
+	local RECIPIENT_MAIL="bittorf@bluebottle.com"
+
 	eval $( _db user profile show $PROFILE_ID "NAME" )
 	
 	local FILE_OVERVIEW="/tmp/$( _pdf filename overview "$TICKET_QUANTITY" "$NAME" )"
@@ -314,8 +320,8 @@ _db_autocreate_tickets_and_send_mail ()
 	local UNIXTIME="$( _system date unixtime )"
 
 	_weblogin ticket_mail_text "$NAME" >$FILE_MAIL
-	echo "$TICKET_QUANTITY Tickets in einer Uebersicht"	>$FILE_OVERVIEW.desc
-	echo "$TICKET_QUANTITY Tickets fuer Standard-Etiketten" >$FILE_LABELS.desc
+	echo "WLAN-Tickets (Anzahl: $TICKET_QUANTITY) in einer Uebersicht"	>$FILE_OVERVIEW.desc
+	echo "WLAN-Tickets (Anzahl: $TICKET_QUANTITY) fuer Standard-Etiketten"	>$FILE_LABELS.desc
 
 	_stopwatch start Generating_${TICKET_QUANTITY}_Tickets
 	while [ $COUNTER -ne 0 ]; do {
@@ -323,17 +329,12 @@ _db_autocreate_tickets_and_send_mail ()
 		_db user login add "$PROFILE_ID" "" "" "" "1" "$UNIXTIME"
 	} done
 	_stopwatch stop Generating_${TICKET_QUANTITY}_Tickets quiet
+
 	_db user login index_gen
 
 	LIST_ID="$( _db user login list last $TICKET_QUANTITY )"	
 	_pdf output_a4digest "$LIST_ID" >$FILE_OVERVIEW
 	_pdf output_a4marker "$LIST_ID" >$FILE_LABELS
-
-	local LOCATION_NAME="$( _weblogin metadata_locationname )"
-	local FROM_REAL="WLAN-System $LOCATION_NAME"
-	local FROM_MAIL="breitband-rehungen@gmx.de"
-	local RECIPIENT_REAL="Administration $LOCATION_NAME"
-	local RECIPIENT_MAIL="bittorf@bluebottle.com"
 
 	_mail send "$FROM_REAL" "$FROM_MAIL" "$RECIPIENT_REAL" "$RECIPIENT_MAIL" "$FILE_MAIL" "" "" "" "$FILE_OVERVIEW $FILE_LABELS"
 

@@ -31,11 +31,6 @@ _mail_pop3_check_stats ()	# works with busybox-netcat
 
 _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,name...
 {
-	# while read ADDRESS; do {
-	# 	_mail send "Team-Weimarnetz" weimarnetz@gmx.de "Weimarnetz-Teilnehmer" $ADDRESS mail.txt
-	#	sleep 60
-	# } done <addresses.txt
-
 	local           FUNC="mail_send"
 	local      FROM_REAL="$1"	# ARG1, string (name,  format: title, surname name  )
 	local      FROM_MAIL="$2"	# ARG2, string (email, format: recipient@domain.foo )
@@ -96,11 +91,9 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	_do "Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>"			# 121016909907May08-16_04@buffalo422.local
 
 	_do "MIME-Version: 1.0"
-#	_do "Content-Type: text/plain; charset=iso-8859-1"
 	_do "Content-Type: multipart/mixed; boundary=\"${BOUNDARY}\""
 	_do "Content-Disposition: inline"
 	_do "Content-Transfer-Encoding: 8bit"
-#	_do "Content-Transfer-Encoding: quoted-printable"
 
 	_do "Organization: ${ADMIN_REAL}"
 	_do "Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>"
@@ -116,6 +109,8 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	_do "Content-Transfer-Encoding: 8bit"
 	_do ""
 
+	IFS="
+"
 						# 1st/2nd line subject/empty
 	sed '3,99!d' $MAILFILE |
 	 sed	-e "s#\$VAR1#$VAR1#g" \
@@ -124,6 +119,8 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	  while read LINE; do {
 	  	_do "$LINE"
 	  } done
+
+	unset IFS
 
 	_do ""
 
@@ -147,18 +144,13 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 		_do "--${BOUNDARY}--"
 	}
 
-#	_do ""
 	_do "."
 	_do "QUIT"
 
 	_log do $FUNC daemon info "sending mail to '${RECIPIENT_MAIL}'"
 
-#	echo -e "$( cat $MAIL )"
-#	return
-
 	OUT="$( echo -e "$( cat $MAIL )" | $NETCAT $SERVER $PORT )"
 	RC=$?
-	
 	OUT="$( echo "$OUT" | strings | sed -e 's/ //g' -e 's/^\([0-9]*\).*$/\1_/' | while read LINE; do echo -n "$LINE"; done )"	# extract error-codes + remove LF/CR
 
 												# fixme! for each RCPT we must add an "2502_"
