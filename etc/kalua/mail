@@ -1,32 +1,32 @@
 # _mail send "bittorf wireless )) Breitband Rehungen" "breitband-rehungen@gmx.de" "ANREDE VORNAME NACHNAME" "bittorf@bluebottle.com" "mail3-2010aug26-nach_Zusendung_Vertrag.txt" "STRASSE HAUSNUMMER" "ANREDE VORNAME" "NACHNAME" "/tmp/wlansystem-HotelZumnorde-2010aug05_16uhr42-32x1-Wochen-Ticket-Etiketten.pdf wlansystem-HotelZumnorde-2010aug05_16uhr42-32x1-Wochen-Ticket-Etiketten.pdf"
 
-_mail_pop3_check_stats ()	# works with busybox-netcat
+_mail_pop3_check_stats ()
 {
-	local   FUNC="mail_check_pop3_stats"
-	local   USER="$( uci get mail.@pop3[0].username )"
-	local   PASS="$( uci get mail.@pop3[0].password )"
-	local    OUT=""
-	local   LINE
-	local NETCAT="nc"
-	local SERVER="$( uci get mail.@pop3[0].server )"
-	local   PORT="$( uci get mail.@pop3[0].port )"
-	local     RC=0
-	local WINDOW=600						# fixme! time in seconds, when pop_before_smtp is valid, unused!
+	local FUNC="mail_check_pop3_stats"
+	local USER="$(   uci get mail.@pop3[0].username )"
+	local PASS="$(   uci get mail.@pop3[0].password )"
+	local SERVER="$( uci get mail.@pop3[0].server	)"
+	local PORT="$(   uci get mail.@pop3[0].port	)"
+	local OUT LINE RC_NETCAT
+	local NETCAT_BIN="nc"			# tested with busybox-netcat + gmx.net
+	local WINDOW=600			# fixme! time in seconds, when pop_before_smtp is valid, yet unused!
 
 	_log do $FUNC user notice "sending data to '$SERVER'"
 
-	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT $SERVER $PORT )"
-	RC=$?
+	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT_BIN $SERVER $PORT )"
+	RC_NETCAT=$?
 
-	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "$LINE"; done )"	# fixme! use sanitizer, removes LF/CR
+	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "$LINE"; done )"	# removes LF/CR
 
-	case "$OUT" in
-		"+OK+OK+OK"*) return 0 ;;	# if all went fine we get 3 x OK (or more)
-	esac
+	case "$OUT" in				# normal output:
+		"+OK+OK+OK"*) return 0 ;;	# +OK POP server ready H migmx104
+	esac					# +OK password required for user "0123456789"
+						# +OK mailbox "0123456789" has 0 messages (0 octets) H migmx104
+						# +OK 0 0
+						# +OK POP server signing off
 
-	[ $RC -eq 0 ] || {
-		_log do $FUNC user crit "returncode: '$RC' - '$SERVER'-answer: '$OUT' - something went wrong"
-	}
+	_log do $FUNC user crit "[ERR] returncode netcat: '$RC_NETCAT' - '$SERVER'-serveranswer: '$OUT'"
+	return 1
 }
 
 _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,name...
@@ -62,7 +62,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	local MAIL="/tmp/outgoing_mail_$( _system date humanreadable nice )"
 	local BOUNDARY="dc+cDN39EJAMEtIO"					# maybe random?
 
-	_mail pop3_check_stats			# pop before smtp must be configured on mailserver
+	_mail pop3_check_stats || return 1		# pop before smtp must be configured on mailserver
 	_log do $FUNC daemon debug "[BEGIN]"
 
 	_do ()
@@ -151,6 +151,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 
 	_log do $FUNC daemon info "sending mail to '${RECIPIENT_MAIL}'"
 
+echo -e "$( cat $MAIL )" | $NETCAT $SERVER $PORT
 	OUT="$( echo -e "$( cat $MAIL )" | $NETCAT $SERVER $PORT )"
 	RC=$?
 	OUT="$( echo "$OUT" | strings | sed -e 's/ //g' -e 's/^\([0-9]*\).*$/\1_/' | while read LINE; do echo -n "$LINE"; done )"	# extract error-codes + remove LF/CR
