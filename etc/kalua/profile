@@ -137,8 +137,10 @@ _profile_set_config ()
 	_profile memorise_important_vars restore
 
 	# fixme! this means, we can't enforce this variable in profile 8-(
-	if [ -z "$(nvram get ff_adm_neturl)" ] || nvram get ff_adm_neturl | grep -q "wireless.subsignal.org" ; then
-		_nvram set ff_adm_neturl "<big><a href=http://wireless.subsignal.org>http://wireless.subsignal.org</a> - der Weimarer Freifunk Anlaufpunkt - Telefon:&nbsp;<b>03643&nbsp;/&nbsp;544304</b></big>"
+	if [ -z "$( uci get system.@admin[0].neturl )" ] || {
+		uci get system.@admin[0].neturl | grep -q "wireless.subsignal.org" ; then
+			_nvram set ff_adm_neturl "<big><a href=http://wireless.subsignal.org>http://wireless.subsignal.org</a> - der Weimarer Freifunk Anlaufpunkt - Telefon:&nbsp;<b>03643&nbsp;/&nbsp;544304</b></big>"
+		}
 	fi
 
 	_profile count_used_nvram_vars
@@ -198,7 +200,19 @@ _profile_memorise_important_vars ()
 	      LIST="$LIST fff_optimize_ ppp_ wifi_gateway wan_gateway lan_gateway wan_hostname fff_traffic_borders"
 	      LIST="$LIST fff_vds ff_dyndns_ fff_vpn_active fff_notrace"
 
-	[ "$( nvram get ff_pw )" != '$1$$CoERg7ynjYLsj2j4glJ34.' ] && {			# fixme! better use: "$(httpd -m admin)"
+	root_password_hash ()
+	{
+		fgrep ":root:" /etc/passwd | cut -d':' -f2
+	}
+
+	md5_password_crypt ()		# admin -> $1$$CoERg7ynjYLsj2j4glJ34.
+	{
+		local PLAINTEXT_PASSWORD="$1"
+
+		httpd -m "$PLAINTEXT_PASSWORD"
+	}
+
+	[ "$( root_password_hash )" != "$( md5_password_crypt admin )" ] && {
 		_log do $FUNC daemon debug "password is not 'admin', using it"		# so we have to possibility to define once
 		LIST="$LIST ff_pw"							# an profil_pw, which is not in later sources...
 	}

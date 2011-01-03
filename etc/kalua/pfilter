@@ -1140,18 +1140,18 @@ _pfilter_rules_accept_all ()
 
 _pfilter_rules_olsr_ignore_ignored_neighs ()		# ignoring neighs is really annoying, we delete the rules and autoconvert this to LQ_MULT x 0.1
 {
-	local LIST_IGNORE=$( nvram get ff_ign )
+	local LIST_IGNORE=$( uci get firewall.@ignoreolsr[0].ip )
 	local FILL IP
 	
 	IFS=";"
 	for IP in $LIST_IGNORE; do {
 		_ipt -D INPUT -i $WIFIDEV -s $IP -p udp --sport 698 -j DROP
 
-		nvram get ff_lqmult | grep -q "$IP:" || {
+		uci get olsrd.@Interface[0].lqmult | grep -q "$IP:" || {
 		
 			FILL=";"
-			[ -z "$( nvram get ff_lqmult )" ] && FILL=""
-			_nvram set ff_lqmult "$( nvram get ff_lqmult )${FILL}${IP}:0.1"		# appending to LQmult-list
+			[ -z "$( uci get olsrd.@Interface[0].lqmult )" ] && FILL=""
+			_nvram set ff_lqmult "$( uci get olsrd.@Interface[0].lqmult )${FILL}${IP}:0.1"		# appending to LQmult-list
 		}
 	} done
 	unset IFS
@@ -1430,7 +1430,13 @@ _pfilter_rules_walledgarden ()				# fixme! this must be profile-sensitive
 _pfilter_rules_nat_no_wificlients ()
 {
 	local FUNC="pfilter_rules_nat_no_wificlients"
-	local WIFI_DHCP_NET="$( nvram get ff_wldhcp | cut -d, -f1 )"	
+	local WIFI_DHCP_NET
+	local WIFI_IP_1ST
+	local WIFI_DHCP_PRE
+	
+	eval $( _ipsystem do | grep ^WIFI_IP_1ST   )
+	eval $( _ipsystem do | grep ^WIFI_DHCP_PRE )
+	WIFI_DHCP_NET="$WIFI_IP_1ST/$WIFI_DHCP_PRE"
 
 	[ -z "$WIFI_DHCP_NET" ] && return
 	
