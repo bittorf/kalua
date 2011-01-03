@@ -151,19 +151,33 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 
 	_log do $FUNC daemon info "sending mail to '${RECIPIENT_MAIL}'"
 
-echo -e "$( cat $MAIL )" | $NETCAT $SERVER $PORT
+	# normal netcat output:
+	# 220 mail.gmx.net GMX Mailservices ESMTP {mp017}
+	# 250 mail.gmx.net GMX Mailservices {mp017}
+	# 250 2.1.0 ok {mp017}
+	# 250 2.1.5 ok {mp017}					// means "RCPT OK"
+	# 354 mail.gmx.net Go ahead {mp017}
+	# 250 2.6.0 Message accepted {mp017}
+	# 221 2.0.0 GMX Mailservices {mp017}
+
 	OUT="$( echo -e "$( cat $MAIL )" | $NETCAT $SERVER $PORT )"
 	RC=$?
-	OUT="$( echo "$OUT" | strings | sed -e 's/ //g' -e 's/^\([0-9]*\).*$/\1_/' | while read LINE; do echo -n "$LINE"; done )"	# extract error-codes + remove LF/CR
+	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "+$LINE"; done )"	# add '+' and remove LF/CR
 
-												# fixme! for each RCPT we must add an "2502_"
-	if [ $RC -ne 0 ] || [ "$OUT" != "220_250_2502_2502_354_2502_2212_" ]; then		# error-codes, when all went fine (RCPT=OK=2502)
+	case "$OUT" in
+		"+220+250+250+250"*)
+			case "$OUT" in			# for each RCPT we must think an additional "250 2.1.5"
+				*"+354+250+221")
+					_log do $FUNC user notice "sent mail to '$RECIPIENT_MAIL' went fine"
+					rm "$MAIL"
+					return 0
+				;;
+			esac
+		;;
+	esac
 
-		_log do $FUNC user crit "error for recipient '${RECIPIENT_MAIL}': returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAIL'"
-	else
-		_log do $FUNC user notice "sent mail to '$RECIPIENT_MAIL' went fine"
-		rm "$MAIL"
-	fi
+	_log do $FUNC user crit "error for recipient '${RECIPIENT_MAIL}': returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAIL'"
+	return 1
 }
 
 _mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable#Example | http://tools.ietf.org/html/rfc2045
