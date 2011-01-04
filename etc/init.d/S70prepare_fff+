@@ -26,13 +26,16 @@ case $1 in
 		}
 
 		PPPOE=0
-		test ! -z "$(nvram get pppoe_username)" && let PPPOE+=1
-		test ! -z "$(nvram get ppp_username  )" && let PPPOE+=1
-		test ! -z "$(nvram get pppoe_passwd  )" && let PPPOE+=1
-		test ! -z "$(nvram get ppp_passwd    )" && let PPPOE+=1
-		if [ $PPPOE -eq 4 ] && [ ! -e "/tmp/PPPOE_NEEDED" ]; then touch "/tmp/PPPOE_NEEDED"; else rm -f "/tmp/PPPOE_NEEDED"; fi
+		[ -n "$( uci get network.wan.username )" ] && PPPOE="$(( $PPPOE + 1 ))"
+		[ -n "$( uci get network.wan.password )" ] && PPPOE="$(( $PPPOE + 1 ))"
 
-		[ -z "$(mount | grep usbfs)" ] && {
+		if [ $PPPOE -eq 2 -a ! -e "/tmp/PPPOE_NEEDED" ]; then
+			touch "/tmp/PPPOE_NEEDED"
+		else
+			rm -f "/tmp/PPPOE_NEEDED"
+		fi
+
+		[ -z "$( mount | grep usbfs )" ] && {
 			_log do mount_usbfs daemon debug "trying to mount usbfs"
 			mount -t usbfs none /proc/bus/usb 2>/dev/null || {
 				_log do mount_usbfs daemon debug "no success, no usbfs, nousb?"
