@@ -83,11 +83,19 @@ _hardware_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardty
 	}
 
 	[ -z "$8" ] && {
-		local PHYADDR="$( nvram get et0phyaddr )"
-		local BOARDNUM="$( nvram get boardnum )"
-		local BOARDTYPE="$( nvram get boardtype | sed 's/^0x[0]*//' )"		# 0x0467 -> 467
-		local BOARD="${PHYADDR}_${BOARDTYPE}_${BOARDNUM}"
-		
+		local BOARDFILE="/tmp/BOARDINFO"
+		local BOARD
+
+		if [ -e "$BOARDFILE" ]; then
+			read BOARD <"$BOARDFILE"
+		else
+			local PHYADDR="$( nvram get et0phyaddr )"
+			local BOARDNUM="$( nvram get boardnum )"
+			local BOARDTYPE="$( nvram get boardtype | sed 's/^0x[0]*//' )"		# 0x0467 -> 467
+			BOARD="${PHYADDR-emptyPHYADDR}_${BOARDTYPE:-emptyBOARDTYPE}_${BOARDNUM:-emptyBOARDNUM}"
+			echo "$BOARD" >"$BOARDFILE"
+		fi
+
 		case "$BOARD" in 
 			"30_467_00")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "1 2 3 4 5*"   "0 5" $1 "0" "Buffalo" "WHR-HP-G54" ;;
 			"30_467_42")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "3 2 1 0 5*"   "4 5" $1 "1" "Linksys" "WRT-54-GL" ;;
@@ -110,10 +118,10 @@ _hardware_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardty
 					return
 				}
 				
-				_log do $FUNC daemon debug "unknown vendor/model"
+				_log do $FUNC daemon info "unknown vendor/model: BOARD='$BOARD'"
 			;;
 		esac
-	
+
 		return
 	}
 
