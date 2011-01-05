@@ -234,19 +234,32 @@ _wifi_vendor_and_model ()		# fixme! build lookup-table WIFIDEV -> vendor|model
 	_wifi vendor_and_model_usb
 }
 
-_wifi_vendor_and_model_pci ()		# output can be more than one, how to handle?
-{					# ARG1 = WIFI_DEV
-
-	# WIFI_VENDOR=broadcom;WIFI_MODEL=4318
+_wifi_vendor_and_model_pci ()			# output can be more than one, how to handle?
+{						# ARG1 = WIFI_DEV
+	local FILE="/proc/bus/pci/devices"	# evalable_output: WIFI_VENDOR=broadcom;WIFI_MODEL=4318;WIFI_BANDS='b g'
 
 	# Atheros5413 = AR5006X-family = MikroTik RouterBOARD R5H (miniPCI)
 
-	sed -ne "/168c001b/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5413 ;WIFI_BANDS='a'" \
-	    -ne "/14e44318/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4318 ;WIFI_BANDS='b g'" \
-	    -ne "/14e44320/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4306 ;WIFI_BANDS='b g'" \
-	    -ne "/14e44319/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4319 ;WIFI_BANDS='b g a'" \
-	    -ne "/168c0012/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5211a;WIFI_BANDS='b g a'" \
-	    -ne "/168c0013/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5212a;WIFI_BANDS='b g a'" /proc/bus/pci/devices
+	if [ -e "$FILE" ]; then
+		sed	-ne "/168c001b/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5413 ;WIFI_BANDS='a'" \
+			-ne "/14e44318/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4318 ;WIFI_BANDS='b g'" \
+			-ne "/14e44320/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4306 ;WIFI_BANDS='b g'" \
+			-ne "/14e44319/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4319 ;WIFI_BANDS='b g a'" \
+			-ne "/168c0012/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5211a;WIFI_BANDS='b g a'" \
+			-ne "/168c0013/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5212a;WIFI_BANDS='b g a'" "$FILE"
+	else
+		FILE="/tmp/WIFI_VENDOR_AND_MODEL"
+
+		[ -e "$FILE" ] || {
+			if dmesg | fgrep -q "Atheros AR9100 MAC/BB Rev:0 AR2133"; then
+				echo "WIFI_VENDOR=atheros;WIFI_MODEL=2133;WIFI_BANDS='b g'" >"$FILE"
+			else
+				echo "WIFI_VENDOR=unknown;WIFI_MODEL=unknown;WIFI_BANDS='b g'" >"$FILE"
+			fi
+		}
+
+		cat "$FILE"
+	fi
 }
 
 _wifi_vendor_and_model_usb ()
