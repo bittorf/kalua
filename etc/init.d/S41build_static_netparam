@@ -4,12 +4,50 @@
 # todo:
 # with/without OLSR on all interfaces? or specific interfaces?
 
+netparam_for_uci_devices ()
+{
+	for DEVICE in loopback wlan lan wan ; do {
+
+		case $DEVICE in
+			loopback) NAME="LO" ;;
+			wlan)	  NAME="WIFI" ;;
+			lan)	  NAME="LAN" ;;
+			wan)	  NAME="WAN" ;;
+		esac
+
+		IFNAME="$(  uci -q get network.$DEVICE.ifname  )"
+		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
+		NETMASK="$( uci -q get network.$DEVICE.netmask )"
+		MTU="$( ip -f inet addr show primary dev "$IFNAME" | sed -n 's/^.* mtu \([0-9]*\).*/\1/p' )"
+
+		echo "${NAME}DEV=$IFNAME"
+		echo "${NAME}MTU=$MTU"
+		echo "${NAME}ADR=$ADDRESS"
+		echo "${NAME}MSK=$NETMASK"
+
+		BROADCAST=;NETWORK=;PREFIX=
+		[ -n "$MTU" ] && eval $( ipcalc.sh $ADDRESS $NETMASK )
+
+		echo "${NAME}BRC=$BROADCAST"
+		echo "${NAME}NET=$NETWORK"
+		echo "${NAME}PRE=$PREFIX"
+		echo "${NAME}OLSR="
+	} done
+}
+
 _build ()
 {
 	local FUNC="build"
 	local FILE="/tmp/NETPARAM"
 
 	_log do $FUNC daemon debug "working"
+
+	_uci is_oldstyle || {
+		_log do $FUNC daemon debug "building '$FILE' for an uci-device"
+		netparam_for_uci_devices >$FILE
+		return 0
+	}
+
 	/rom/usr/bin/netparam >$FILE && {
 		_log do $FUNC daemon debug "successfully build '$FILE'"
 		return 0
@@ -30,16 +68,15 @@ _restore_original_netparam ()
 	local FUNC="restore_original_netparam"
 	local ORIGINAL="/rom/usr/bin/netparam"
 	local COPY="/usr/bin/netparam"
-	
-	local CRC_ORIGINAL="$( md5sum $ORIGINAL | cut -d' ' -f1 )"
-	local CRC_COPY="$(     md5sum $COPY     | cut -d' ' -f1 )"
 
-	[ "$CRC_ORIGINAL" = "$CRC_COPY" ] && {
+	_uci is_oldstyle || return
+
+	[ "$( _file hash "$ORIGINAL" )" = "$( _file hash "$COPY" )" ] && {
 		_log do $FUNC daemon debug "netparam seems to be fine"
 		return
 	}	
 
-	_log do $FUNC daemon debug "CRC's differ - replacing netparam in filesystem with copy in rom"
+	_log do $FUNC daemon debug "HASH's differ - replacing netparam in filesystem with copy in rom"
 	
 	cp $ORIGINAL $COPY || {
 		_log do $FUNC daemon debug "error during copy? trying to symlink"
