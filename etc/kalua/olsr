@@ -287,7 +287,7 @@ _olsr_neighs ()
 
 	local TEMP="/tmp/olsr_output_$$.txt"
 	local PLUGIN="olsrd_txtinfo"
-	local FILE_CONFIG="/etc/olsrd.conf"
+	local FILE_CONFIG="/etc/olsrd.conf /var/etc/olsrd.conf"
 	local URL="http://127.0.0.1:2006/$KEYWORD"
 
 	grep -q "^LoadPlugin.*$PLUGIN\.so\." $FILE_CONFIG && {	
@@ -568,7 +568,14 @@ _olsr_neighs_humanreadable ()	# fixme! ToDo: latitude/longitude/distance + speed
 {
 	local FILE="$1"
 	local GATEWAY_IP="$( ip route list exact 0/0 | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )"	# fixme! more abstraction, works
-													# only for mesh-gateways
+	local CONFIG_FILE
+
+	if [ -e /var/etc/olsrd.conf ]; then
+		CONFIG_FILE="/var/etc/olsrd.conf"
+	else
+		CONFIG_FILE="/etc/olsrd.conf"
+	fi
+												# only for mesh-gateways
 	local DNS METRIC LIST LINE DEVTYPE SPACER1 SPACER2 SPACER4 MAX1 MAX2 LQMULTI
 	local COUNT=0 LOCAL REMOTE LQ NLQ COST
 	
@@ -597,7 +604,7 @@ _olsr_neighs_humanreadable ()	# fixme! ToDo: latitude/longitude/distance + speed
 		METRIC="$( _net ip2metric $REMOTE )"
 		[ $COUNT -gt 9 ] && unset SPACER3					# 9 -> ' 9'; 10 = 10
 
-		LQMULTI="$( sed -n "/LinkQualityMult[^0-9]*${REMOTE}/{s/^.*LinkQualityMult[^0-9]*${REMOTE}[^0-9]*\([0-9\.]*\).*/[LQ x\1]/p;q}" /etc/olsrd.conf )"
+		LQMULTI="$( sed -n "/LinkQualityMult[^0-9]*${REMOTE}/{s/^.*LinkQualityMult[^0-9]*${REMOTE}[^0-9]*\([0-9\.]*\).*/[LQ x\1]/p;q}" $CONFIG_FILE )"
 		
 		SPACER4="  "
 		[ "$REMOTE" = "$GATEWAY_IP" ] && SPACER4=">>"
