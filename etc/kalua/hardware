@@ -86,14 +86,18 @@ _hardware_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardty
 		local BOARDFILE="/tmp/BOARDINFO"
 		local BOARD
 
-		if [ -e "$BOARDFILE" ]; then
+		  if [ -e "$BOARDFILE" ]; then
 			read BOARD <"$BOARDFILE"
-		else
+		elif _uci is_oldstyle ; then
 			local PHYADDR="$( nvram get et0phyaddr )"
 			local BOARDNUM="$( nvram get boardnum )"
 			local BOARDTYPE="$( nvram get boardtype | sed 's/^0x[0]*//' )"		# 0x0467 -> 467
 			BOARD="${PHYADDR-emptyPHYADDR}_${BOARDTYPE:-emptyBOARDTYPE}_${BOARDNUM:-emptyBOARDNUM}"
 			echo "$BOARD" >"$BOARDFILE"
+		else
+			dmesg | grep -q "MIPS: machine is TP-LINK TL-WR1043ND" && {
+				echo "TL-WR1043ND" >"$BOARDFILE"
+			}
 		fi
 
 		case "$BOARD" in 
@@ -111,7 +115,8 @@ _hardware_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardty
 			"30_bcm94710dev_2")	_$FUNC "eth1"  "br0" "eth2" "eth2" "none"  ""             ""    $1 "A" "Linksys" "WAP v1.0" ;;
 			"30_48e_00")		_$FUNC "vlan0" "br0" "eth1" "eth1" "vlan1" "0 1 2 3 5*"   "0 5" $1 "B" "Buffalo" "WHR-G125" ;;
 			"30_bcm94710dev_asusX") _$FUNC "eth0"  "br0" "eth2" "eth2" "eth1"  ""             ""    $1 "C" "Asus"    "WL-500g deluxe" ;;
-	
+			"TL-WR1043ND")		_$FUNC ""      ""    ""     ""     ""      ""             ""    $1 "E" "TP-Link" "TL-WR1043ND" ;;
+
 			*)
 				[ "$1" = "get_model" ] && {
 					echo "ROUTER_VENDOR='unknown';ROUTER_MODEL='unknown'"
@@ -202,19 +207,22 @@ _hardware_remap_devs ()		# this one is tricky, but we want boardvalues-2-boardty
 		;;
 	esac
 
-	local LIST="lan_ifnames lan_ifname wl0_ifname wifi_ifname wan_ifname vlan0ports vlan1ports" # + wan_device=wan_ifname?
-	local CHANGE=""
-	local ENTRY=""
-	local VALUE=""
-	local ARG_NUM=0
-	
-	for ENTRY in $LIST ; do {
-		ARG_NUM=$(( ARG_NUM + 1 ))
-		eval "VALUE=\"\$${ARG_NUM}\""			# get arg_1...2...n in $VAR
-		_nvram set "$ENTRY" "$VALUE" || CHANGE="true"
-	} done
-	
-	[ -n "$CHANGE" ] && return 1
+	_uci is_oldstyle && {
+
+		local LIST="lan_ifnames lan_ifname wl0_ifname wifi_ifname wan_ifname vlan0ports vlan1ports" # + wan_device=wan_ifname?
+		local CHANGE=""
+		local ENTRY=""
+		local VALUE=""
+		local ARG_NUM=0
+
+		for ENTRY in $LIST ; do {
+			ARG_NUM=$(( ARG_NUM + 1 ))
+			eval "VALUE=\"\$${ARG_NUM}\""			# get arg_1...2...n in $VAR
+			_nvram set "$ENTRY" "$VALUE" || CHANGE="true"
+		} done
+
+		[ -n "$CHANGE" ] && return 1
+	}
 }
 
 _hardware_mac_plus ()
