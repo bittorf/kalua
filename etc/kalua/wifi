@@ -941,7 +941,7 @@ _wifi_rate ()
 	fi
 }
 
-_wifi_mrate ()
+_wifi_mcastrate ()
 {
 	local WIFI_DEV="$1"
 	local LINE
@@ -950,14 +950,26 @@ _wifi_mrate ()
 	
 		_wl $WIFI_DEV mrate | cut -d' ' -f3		# 1, 2, 5.5, 6, 9, 12 , auto ...
 	else
-		iwpriv $WIFI_DEV get_mcast_rate |
-		 sed -n 's/^.*:\([0-9]*\).*/\1/p' |
-		  while read LINE; do {
-			case $LINE in
-				5500) echo 5.5 ;;
-				   *) echo $(( $LINE / 1000 )) ;;	
-			esac
-		} done
+		if _uci is_oldstyle ; then
+			iwpriv $WIFI_DEV get_mcast_rate |
+			 sed -n 's/^.*:\([0-9]*\).*/\1/p' |
+			  while read LINE; do {
+				case $LINE in
+					5500) echo 5.5 ;;
+					   *) echo $(( $LINE / 1000 )) ;;	
+				esac
+			} done
+		else
+			LINE="$( wireless.@wifi-iface[0].mcast_rate )"
+			if [ -n "$LINE" ]; then
+				case "$LINE" in
+					5500000) echo 5.5 ;;
+					      *) echo $(( $LINE / 1000000 )) ;;
+				esac
+			else
+				echo "auto"
+			fi
+		fi
 	fi
 }
 
