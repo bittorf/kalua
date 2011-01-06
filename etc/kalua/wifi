@@ -467,7 +467,16 @@ _wifi_phy_txpower ()		# output in [mW]
 
 		POWER="$( _wl $WIFI_DEV txpwr | cut -d" " -f3 )"	# this is in [mW]
 	else
-		POWER="$( iwlist "$WIFI_DEV" txpower 2>/dev/null | sed -n '/Tx-Power/s/^.*(\([0-9]*\).*/\1/p' )"		# [mW]
+		if _uci is_oldstyle ; then
+			POWER="$( iwlist "$WIFI_DEV" txpower 2>/dev/null | sed -n '/Tx-Power/s/^.*(\([0-9]*\).*/\1/p' )"		# [mW]
+		else
+			POWER="$( iwconfig "$WIFI_DEV" | sed -n 's/^.*Tx-Power=\([0-9]*\).*/\1/p' )"	# [dBm]
+			if [ -n "$POWER" ]; then
+				POWER="$( _wifi math_dbm2mw $POWER )"
+			else
+				POWER="$( uci get wireless.radio0.txpower )"
+			fi
+		fi
 	fi
 	
 	echo "${POWER:-0}"	# no wifi-dev
@@ -1356,4 +1365,42 @@ _wifi_nlq ()			# fixme! is a hack for rrd-tool
 	else
 		echo "0"
 	fi
+}
+
+_wifi_math_dbm2mw ()			# mW  = 10 ^ (dBm/10)
+{
+	local o
+
+	case $1 in
+		0) o=1 ;;
+		4) o=2 ;;
+		5) o=3 ;;
+		6) o=3 ;;
+		7) o=5 ;;
+		8) o=6 ;;
+		9) o=7 ;;
+		10) o=10 ;;
+		11) o=12 ;;
+		12) o=15 ;;
+		13) o=19 ;;
+		14) o=25 ;;
+		15) o=31 ;;
+		16) o=39 ;;
+		17) o=50 ;;
+		18) o=60 ;;
+		19) o=79 ;;
+		20) o=100 ;;
+		21) o=126 ;;
+		22) o=158 ;;
+		23) o=200 ;;
+		24) o=251 ;;
+		25) o=316 ;;
+		26) o=398 ;;
+		27) o=501 ;;
+		28) o=631 ;;
+		29) o=794 ;;
+		30) o=1000 ;;
+	esac
+
+	echo -n $o
 }
