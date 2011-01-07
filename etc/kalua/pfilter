@@ -165,11 +165,11 @@ _pfilter_rules_webserver_deny_incoming_nonlocal ()
 	
 	_log do $FUNC daemon info "activate blocking for HTTP(S) to avoid lowmem situations during software-install"
 
-	_ipt -I INPUT -p tcp -s ! $MYHNA  --dport  80 -j DROP		# if REJECT is not possible, then method DROP is fallback
-	_ipt -I INPUT -p tcp -s ! $MYHNA  --dport 443 -j DROP
+	_ipt -I INPUT -p tcp ! -s $MYHNA  --dport  80 -j DROP		# if REJECT is not possible, then method DROP is fallback
+	_ipt -I INPUT -p tcp ! -s $MYHNA  --dport 443 -j DROP
 
-	_ipt -I INPUT -p tcp -s ! $MYHNA  --dport  80 -j REJECT
-	_ipt -I INPUT -p tcp -s ! $MYHNA  --dport 443 -j REJECT
+	_ipt -I INPUT -p tcp ! -s $MYHNA  --dport  80 -j REJECT
+	_ipt -I INPUT -p tcp ! -s $MYHNA  --dport 443 -j REJECT
 
 	_ipt -I INPUT -p tcp -s 127.0.0.1 --dport  80 -j ACCEPT
 	_ipt -I INPUT -p tcp -s 127.0.0.1 --dport 443 -j ACCEPT
@@ -423,7 +423,7 @@ _pfilter_rules_nat_inetoffer_lan ()		# SENS: masquerades traffic over lan-device
 		fi
 	fi	
 	
-	_ipt -A POSTROUTING -t nat -o $LANDEV  -s ! $LANNET/$LANPRE -j MASQUERADE
+	_ipt -A POSTROUTING -t nat -o $LANDEV ! -s $LANNET/$LANPRE -j MASQUERADE
 	_ipt -A POSTROUTING -t nat -o $WIFIDEV -s   $LANNET/$LANPRE -j MASQUERADE
 
 	_pfilter stats_rules_count nat POSTROUTING
@@ -1005,7 +1005,7 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 
 	_ipt -A FORWARD -m state --state NEW                             -j ACCEPT
 
-	_ipt -t mangle -A FORWARD -s ! $MYHNA -d ! $MYHNA  -j ACCEPT				# forwarding (but not my own forwarding)
+	_ipt -t mangle -A FORWARD ! -s $MYHNA ! -d $MYHNA  -j ACCEPT				# forwarding (but not my own forwarding)
 	_ipt -t mangle -A FORWARD -m mark ! --mark 0       -j ACCEPT				# already marked in e.g. PREROUTING
 	_ipt -t mangle -A FORWARD                          -j CONNMARK --restore-mark		# trying to get mark from maybe already known connection
 	_ipt -t mangle -A FORWARD -m connmark ! --mark 0x0 -j traff_all				# connection known/marked? then goto traff_all
@@ -1099,10 +1099,10 @@ _pfilter_user_splash_add ()
 	_log do $FUNC daemon info "shutting doors"
 
 	_ipt -t mangle -A PREROUTING -p udp --sport 68 --dport 67 -d 255.255.255.255 -j ACCEPT		# DCHP requests to internal server
-	_ipt -t mangle -A PREROUTING -s ! $MYHNA -d ! $MYHNA                         -j ACCEPT		# forwarding internet from other nodes
-	_ipt -t mangle -A PREROUTING -s ! $MYHNA                                     -j ACCEPT          # from other nodes to me
+	_ipt -t mangle -A PREROUTING ! -s $MYHNA -d ! $MYHNA                         -j ACCEPT		# forwarding internet from other nodes
+	_ipt -t mangle -A PREROUTING ! -s $MYHNA                                     -j ACCEPT          # from other nodes to me
 	
-	# _ipt -t mangle -A PREROUTING -d ! $MYHNA                                     -j ACCEPT          # dest = internet
+	# _ipt -t mangle -A PREROUTING ! -d $MYHNA                                     -j ACCEPT          # dest = internet
 
 	_ipt -t mangle -A PREROUTING -i tap+ -d $WIFI_IP			-j ACCEPT		# picopeer from tunnel
 	_ipt -t mangle -A PREROUTING -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE	-j ACCEPT		# picopeer small (myhna2myhna)
@@ -1453,7 +1453,7 @@ _pfilter_rules_nat_dns_enforce_own ()
 	_net ip4_is_private "$DNS_FIRST_SERVER" && {
 		_log do $FUNC daemon info "enforcing server '$DNS_FIRST_SERVER' for all"
 
-		_ipt -t nat -A PREROUTING -p udp --dport 53 -d ! $DNS_FIRST_SERVER -j DNAT --to-destination $DNS_FIRST_SERVER
+		_ipt -t nat -A PREROUTING -p udp --dport 53 ! -d $DNS_FIRST_SERVER -j DNAT --to-destination $DNS_FIRST_SERVER
 	}
 }
 
@@ -1466,23 +1466,23 @@ _pfilter_rules_nat_install ()		# fixme! also masq traffic from local lan to inte
 			_pfilter rules_nat_inetoffer_lan
 		;;
 		tun|tun0)
-			_ipt -t nat -A POSTROUTING -o tun+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o tun+ ! -d $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		tap)
-			_ipt -t nat -A POSTROUTING -o tap+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o tap+ ! -d $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		wan)
-			_ipt -t nat -A POSTROUTING -o $WANDEV -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o $WANDEV ! -d $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		pppoe)
-			_ipt -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o ppp+ ! -d $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 		*)	
 			# should'nt break anything: sometimes WANDEV is not up yet when packetfilter starts up
 			
 			WANDEV="$( uci get network.wan.ifname )"
-			[ -n "$WANDEV" ] && _ipt -t nat -A POSTROUTING -o ${WANDEV} -d ! $WIFINET/$WIFIPRE -j MASQUERADE
-			_ipt -t nat -A POSTROUTING -o ppp+ -d ! $WIFINET/$WIFIPRE -j MASQUERADE
+			[ -n "$WANDEV" ] && _ipt -t nat -A POSTROUTING -o ${WANDEV} ! -d $WIFINET/$WIFIPRE -j MASQUERADE
+			_ipt -t nat -A POSTROUTING -o ppp+ ! -d $WIFINET/$WIFIPRE -j MASQUERADE
 		;;
 	esac
 	
