@@ -8,7 +8,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	local           PRIO="$3"	# ARG3, string (emerg,alert,crit,err,warning,notice,info,debug,sms)	// nonstandard: sms
 	local        MESSAGE="$4"	# ARG4, string (humanreadable verbose message, all is syslog-alike)
 	local        EVERLOG="/www/everlasting_syslog.txt"
-	local MEM= UPTIME= DATE=
+	local MEM UPTIME DATE
 
 	shell_is_interactive ()
 	{
@@ -29,12 +29,18 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 		esac
 	}
 
+	mem_uptime_and_date ()
+	{
+		[ -z "$MEM" ] && {
+			_system ram_free MEM=
+			_system uptime sec UPTIME=
+			_system date evalable
+		}
+	}
+
 	case "$PRIO" in
-		debug|emerg|alert|crit|sms)
-			_system include
-			MEM="$(    _system ram_free )"		# idea: [ $MEM -lt 999999 ] && PRIO="alert"
-			UPTIME="$( _system uptime      )"
-			DATE="$(   _system date	     )"
+		debug|emerg|alert|crit|sms)			# idea: [ $MEM -lt 999999 ] && PRIO="alert"
+			eval $( mem_uptime_and_date )
 
 			[ "$PRIO" = "sms" ] && {
 				[ "$( uci get system.@weblogin[0].enabled )" = "1" ] && {
@@ -64,15 +70,8 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 		;;
 	esac
 
-	shell_is_interactive && {
-
-		[ -z "$MEM" ] && {
-			_system include
-			MEM="$(	 _system ram_free )"
-			UPTIME="$( _system uptime      )"
-			DATE="$(   _system date        )"
-		}
-							# fixme! it does'nt work in nested functions, e.g. _net mac2vendor $MAC	
+	shell_is_interactive && {			# fixme! it does'nt work in nested functions, e.g. _net mac2vendor $MAC
+		eval $( mem_uptime_and_date )
 		FATHER_PROCESS="TERM:${TERM} $0"
 		echo "$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE" 1>&2   # to stderr
 	}
@@ -80,6 +79,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	boot_and_debug_message ()
 	{
 		pidof syslogd >/dev/null || {		# write to special logfile
+			eval $( mem_uptime_and_date )
 			echo >>/tmp/messages "$DATE ' [up ${UPTIME}s $MEM bytes free] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
 			# _log netmessage "$MESSAGE"	# fixme!
 		}
