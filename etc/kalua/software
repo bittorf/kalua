@@ -198,16 +198,26 @@ _software_package_remove ()
 
 _software_package_is_installed ()
 {
-	/bin/*pkg status "$1" | grep -q "Status: install ok installed" && return 0
-	
-	return 1
+	local PACKAGE="$1"
+	local OUT="$( /bin/*pkg status "$PACKAGE" | fgrep "Status:" )"
+
+	case "$OUT" in
+		"Status: install ok installed") : ;;
+		"Status: install hold installed") : ;;
+		"Status: install user installed") : ;;
+		*) return 1 ;;
+	esac
 }
 
 _software_package_is_not_installed ()
 {
-	/bin/*pkg status "$1" | grep -q "Status: install ok installed" || return 0
+	local PACKAGE="$1"
 
-	return 1
+	if _software package_is_installed "$1" ; then
+		return 1
+	else
+		return 0
+	fi
 }
 
 _software_install_or_deinstall_hook ()
@@ -329,24 +339,24 @@ _software_version_normalize ()
 }
 
 _software_package_is_installed_lowlevel ()	# OUT1: 0 = not_installed , 1 = installed , 2 = not in repo
-{						# ARG1: string, packetname
-	local SOFTWARE="$1"
-	local FUNC="check_install_status_lowlevel"
+{
+	local PACKAGE="$1"
+	local FUNC="software_package_is_installed_lowlevel"
 
-	/bin/*pkg status $SOFTWARE | grep -q ^"Status: install ok installed" && {
+	_software package_is_installed "$PACKAGE" && {
 		echo -n 1
-		_log do $FUNC daemon info "'$SOFTWARE' installed ok"
-		return
+		_log do $FUNC daemon info "'$PACKAGE' installed ok"
+		return 0
 	}
 	
-	/bin/*pkg list | grep -q ^"$SOFTWARE " && {
+	/bin/*pkg list | grep -q ^"$PACKAGE " && {
 		echo -n 0
-		_log do $FUNC daemon info "'$SOFTWARE' not installed"
-		return
+		_log do $FUNC daemon info "'$PACKAGE' not installed, but listed in repo"
+		return 0
 	}
-	
+
 	echo -n 2
-	_log do $FUNC daemon info "'$SOFTWARE' not in repository this time"
+	_log do $FUNC daemon info "'$PACKAGE' not in repository this time"
 }
 
 _software_package_install ()
