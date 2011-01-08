@@ -292,7 +292,7 @@ _system_ram_free ()	# [bytes]
 	while read LINE; do {		# proc-interface has changed between kernel 2.4/2.6
 		case $LINE in
 			Mem:*)     set $LINE; MEM="$4" ; break ;;
-			MemFree:*) set $LINE; MEM="$2" ; break ;;
+			MemFree:*) set $LINE; MEM="$(( $2 * 1024 ))" ; break ;;
 		esac
 	} done </proc/meminfo
 
@@ -304,23 +304,23 @@ _system_ram_size ()	# [kBytes]
 	local FUNC="ram_size"
 	local FILE="/tmp/RAMSIZE"
 	local BORDER="14416"		# this reports /proc/meminfo with 16 mb
-	local KEY MEM NOP
+	local MEM LINE
 
-	[ ! -e $FILE ] && {
-		while read KEY MEM NOP NOP NOP NOP; do {
-			[ "$KEY" = "MemTotal:" ] && {
-				echo -n "$MEM" >$FILE
-			}
+	[ -e "$FILE" ] || {
+		while read LINE; do {
+			case $LINE in
+				MemTotal:*) set $LINE; MEM="$2"; break ;;
+			esac
 		} done </proc/meminfo
-		
-		read MEM <$FILE
+
+		echo "$MEM" >"$FILE"
 
 		[ "$MEM" -lt "$BORDER" ] && {
 			_log do $FUNC daemon info "$MEM kb - detected lowmem device, with lower than $BORDER kb"
 			touch /tmp/LOWMEM
 		}
 	}
-			
+
 	cat $FILE
 }
 
