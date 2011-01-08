@@ -286,11 +286,17 @@ _system_pids_count ()
 
 _system_ram_free ()	# [bytes]
 {
-	local O N MEM
+	local MEM LINE
 	local OPTION="$1"	# eval-hack
 
-	while read O N N MEM N N N; do test "$O" = "Mem:" && break; done </proc/meminfo
-	echo "${OPTION}$MEM"
+	while read LINE; do {		# proc-interface has changed between kernel 2.4/2.6
+		case $LINE in
+			Mem:*)     set $LINE; MEM="$4" ; break ;;
+			MemFree:*) set $LINE; MEM="$2" ; break ;;
+		esac
+	} done </proc/meminfo
+
+	echo "${OPTION}${MEM}"
 }
 
 _system_ram_size ()	# [kBytes]
