@@ -50,7 +50,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 
 	local SUBJECT="$( head -n1 $MAILFILE | sed "s#\$VAR1#$VAR1#g" )"
 	local OUT LINE
-	local NETCAT="nc"
+	local NETCAT_BIN="nc"
 	
 	local SERVER="$( uci get mail.@smtp[0].server )"
 	local PORT="$(   uci get mail.@smtp[0].port )"
@@ -80,6 +80,12 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 		esac
 	}
 
+	netcat_version_information ()
+	{
+		$NETCAT_BIN --help 2>&1 | fgrep "BusyBox v"
+		$NETCAT_BIN --help 2>&1 | fgrep "GNU netcat"
+	}
+
 	_do init	
 	_do "HELO ${FQDN}"
 	_do "MAIL FROM: \"${FROM_REAL}\" <${FROM_MAIL}>"
@@ -99,7 +105,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 
 	_do "Organization: ${ADMIN_REAL}"
 	_do "Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>"
-	_do "X-Mailer: netcat $( $NETCAT --help 2>&1 | grep -i " v" )"
+	_do "X-Mailer: netcat is $( netcat_version_information )"
 	_do "X-Operating-System: $( cat /proc/version )"
 	_do "X-Firmware: $FFF_VERSION / $FFF_PLUS_VERSION / $( _system version )"
 	_do "Subject: ${SUBJECT}\r\n"
@@ -160,7 +166,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	# 250 2.6.0 Message accepted {mp017}
 	# 221 2.0.0 GMX Mailservices {mp017}
 
-	OUT="$( echo -e "$( cat $MAIL )" | $NETCAT $SERVER $PORT )"
+	OUT="$( echo -e "$( cat $MAIL )" | $NETCAT_BIN $SERVER $PORT )"
 	RC=$?
 	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "+$LINE"; done )"	# add '+' and remove LF/CR
 
