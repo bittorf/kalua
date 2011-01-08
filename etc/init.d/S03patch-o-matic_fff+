@@ -263,7 +263,7 @@ EOF
 			echo 'PS1="\[\033[36m\]\u\[\033[m\]@\[\033[32m\]\h:\[\033[33;1m\]\w\[\033[m\] "' >>"$TEMP"
 			echo '[ -e /tmp/loader ] && . /tmp/loader' >>"$TEMP"
 			echo "alias regen='/etc/kalua_init ;. /tmp/loader'" >>"$TEMP"
-			echo 'while read O N N MEM N N N; do test "$O" = "Mem:" && break; done </proc/meminfo; test $MEM -lt 2000000 && echo "# ATTENTION: only $MEM bytes of RAM free"; unset O N MEM' >>"$TEMP"
+			echo 'type _system >/dev/null && MEM="$( _system ram_free )" && test $MEM -lt 2000000 && echo "# ATTENTION: only $MEM bytes of RAM free" && unset MEM' >>"$TEMP"
 		;;
 		fancy_myssh)
 			FILE="/etc/profile"
@@ -554,14 +554,24 @@ _call_patch ()
 	} done
 }
 
-_call_repatch_all ()
+_call_repatch ()
 {
-		_call_restore_from_rom
-		_call_virgin
-		rm /www/FRESHFLASHED		# no start for software-install
-		_call_post_software_install
-		fkt_build_settings_menu		# is a hack for '$0 start'
-		touch /www/FRESHFLASHED		# fixme! otherwise the profile_enforcer runs
+	local OPTION="$1"
+
+	case "$OPTION" in
+		all)
+			_call_restore_from_rom
+			_call_virgin
+			rm /www/FRESHFLASHED		# no start for software-install
+			_call_post_software_install
+			fkt_build_settings_menu		# is a hack for '$0 start'
+			touch /www/FRESHFLASHED		# fixme! otherwise the profile_enforcer runs
+		;;
+		*)
+			_call_restore_from_rom "$OPTION"
+			_call_patch "$OPTION"
+		;;
+	esac
 }
 
 _call_virgin ()							# after virgin boot (directly after flashing)
@@ -648,7 +658,7 @@ _call_restore_from_rom ()
 
 _call_usage ()
 {
-		echo "Usage: $0 ( start | virgin | post_software_install | restore_from_rom | patch <KEYWORD> | repatch_all )"
+		echo "Usage: $0 ( start | virgin | post_software_install | restore_from_rom | patch <PATCHNAME> | repatch <PATCHNAME|all )"
 }
 
 
@@ -669,7 +679,7 @@ MAC_CHANGE="/www/mac_changed.txt"
 
 
 case "$1" in
-	start|virgin|post_software_install|restore_from_rom|patch|repatch_all)
+	start|virgin|post_software_install|restore_from_rom|patch|repatch)
 		ARG1="$1"; shift; _call_$ARG1 "$@"
 	;;
 	*)
