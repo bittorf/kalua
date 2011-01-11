@@ -96,7 +96,7 @@ _scheduler_task2command ()
 	  				COMMAND="/etc/local.fw-fff+ olsr_whitelist_optimize" ;;
 	       speedtest_every_40min)   _scheduler_check_if_every_Nth_minute 40 speedtest || return 1
 	       				COMMAND="/www/cgi-bin-speed r" ;;
-		        restart_olsr) 	COMMAND=". /tmp/loader; _olsr; _olsr daemon restart olsrd_restart_scheduler_controlled" ;;
+		        restart_olsr) 	COMMAND=". /tmp/loader; _olsr daemon restart olsrd_restart_scheduler_controlled" ;;
 		         1min_checks) 	COMMAND="/usr/sbin/cron.minutely" ;;
 		        15min_checks)  	COMMAND="/etc/init.d/S69watch_olsrd_fff+" ;;
 		     	 restart_vpn)	COMMAND="/etc/init.d/S52vpn_fff+ restart" ;;
@@ -113,8 +113,31 @@ _scheduler_task2command ()
 	    rebuild_service_announce)   COMMAND="/etc/init.d/S52build_services_fff+ update" ;;
 	    start_local_packetfilter)   COMMAND="/etc/local.fw-fff+ call" ;;
 		      startup_helper)	COMMAND="/etc/init.d/S72filter_fff+ call" ;;
-				   *)   COMMAND="$TASK"
-				        _log do $FUNC daemon debug "user defined: '$COMMAND'" ;;
+				   *)
+
+					extract_function_name ()
+					{
+						echo "$1" | cut -d'_' -f2	# "_sms_send bla" -> "_sms"
+					}
+
+				   	is_function ()
+				   	{
+				   		type "_$( extract_function_name \"$1\" )" >/dev/null && return 0
+				   	}
+
+					case "$TASK" in
+						_*)
+							is_function "$TASK" && {
+								COMMAND=". /tmp/loader; _$( extract_function_name \"$TASK\" ) include; $TASK"
+							}
+						;;
+						*)
+							COMMAND="$TASK"
+						;;
+					esac	
+
+				        _log do $FUNC daemon debug "user defined: '$COMMAND'"
+				;;
 	esac
 	
 	echo "$COMMAND"
