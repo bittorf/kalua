@@ -301,17 +301,18 @@ _db_autocreate_tickets_and_send_mail ()
 
 	local FUNC="db_autocreate_tickets_and_send_mail"
 	local TICKET_QUANTITY=32
-	local COUNTER="$TICKET_QUANTITY"
-	local NAME LOGIN LIST_ID
+	local COUNTER NAME LOGIN LIST_ID
 
 	case "$USECASE" in
 		existing_tickets)
 	
 			LIST_ID="$PROFILE_ID"
-			for LOGIN in $LIST_ID; do {
-				eval $( _db user login show $LOGIN "PROFILE_ID" )
-				eval $( _db user profile show $PROFILE_ID "NAME" )
-				break
+			for LOGIN in $LIST_ID; do {			# count ID's + get PROFILE_NAME
+				COUNTER=$(( ${COUNTER:-0} + 1 ))
+				[ -z "$NAME" ] && {
+					eval $( _db user login show $LOGIN "PROFILE_ID" )
+					eval $( _db user profile show $PROFILE_ID "NAME" )
+				}
 			} done
 		;;
 		autogenerate_tickets)
@@ -319,17 +320,15 @@ _db_autocreate_tickets_and_send_mail ()
 			eval $( _db user profile show $PROFILE_ID "NAME" )
 
 			_stopwatch start Generating_${TICKET_QUANTITY}_Tickets
-		
 			while [ $COUNTER -ne 0 ]; do {
 				COUNTER="$(( $COUNTER - 1 ))"
 				_db user login add "$PROFILE_ID" "" "" "" "1" "$UNIXTIME"
 			} done
-
 			_stopwatch stop Generating_${TICKET_QUANTITY}_Tickets quiet
-
 			_db user login index_gen
 
 			LIST_ID="$( _db user login list last $TICKET_QUANTITY )"	
+			COUNTER="$TICKET_QUANTITY"
 		;;
 	esac
 
@@ -352,8 +351,8 @@ _db_autocreate_tickets_and_send_mail ()
 	_pdf output_a4marker "$LIST_ID" >$FILE_LABELS
 
 	_weblogin ticket_mail_text "$NAME" >$FILE_MAIL
-	echo "WLAN-Tickets (Anzahl: $TICKET_QUANTITY) in einer Uebersicht"	>$FILE_OVERVIEW.desc
-	echo "WLAN-Tickets (Anzahl: $TICKET_QUANTITY) fuer Standard-Etiketten"	>$FILE_LABELS.desc
+	echo "WLAN-Tickets (Anzahl: $COUNTER) in einer Uebersicht"	>$FILE_OVERVIEW.desc
+	echo "WLAN-Tickets (Anzahl: $COUNTER) fuer Standard-Etiketten"	>$FILE_LABELS.desc
 
 	_mail send "$FROM_REAL" "$FROM_MAIL" "$RECIPIENT_REAL" "$RECIPIENT_MAIL" "$FILE_MAIL" "" "" "" "$FILE_OVERVIEW $FILE_LABELS" || {
 		_log do $FUNC daemon alert "[ERR] we have to resend the mail"	
