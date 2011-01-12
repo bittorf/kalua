@@ -11,11 +11,9 @@ _mail_pop3_check_stats ()
 	local NETCAT_BIN="nc"			# tested with busybox-netcat + gmx.net
 	local WINDOW=600			# fixme! time in seconds, when pop_before_smtp is valid, yet unused!
 
-	_log do $FUNC user notice "sending data to '$SERVER'"
+	_log do $FUNC user notice "contacting server '$SERVER'"
 
-	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT_BIN $SERVER $PORT )"
-	RC_NETCAT=$?
-
+	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT_BIN $SERVER $PORT )"; RC_NETCAT=$?
 	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "$LINE"; done )"	# removes LF/CR
 
 	case "$OUT" in				# normal output:
@@ -42,6 +40,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	local           VAR3="$8"	# ARG8, string
 	local      LIST_FILE="$9"
 	local FILE
+	local NETCAT_BIN="nc"
 
 	[ ! -e "$MAILFILE" ] && {
 		_log do $FUNC user crit "can't read '$MAILFILE' - aborting (usage: _$FUNC myname me@world.org yourname you@world.org mailfile"
@@ -55,7 +54,6 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	local MAIL="/tmp/outgoing_mail_$( _system date humanreadable nice )"
 	local BOUNDARY="dc+cDN39EJAMEtIO"					# maybe random?
 
-	_mail pop3_check_stats || return 1		# pop before smtp must be configured on mailserver
 	_log do $FUNC daemon debug "[BEGIN]"
 
 	_do ()
@@ -162,10 +160,15 @@ _mail_send_mailfile ()
 	local MAILFILE="$1"			# must be ready formatted
 
 	local FUNC="mail_send_mailfile"
-	local LINE OUT RC
+	local LINE OUT RC ERROR
 	local NETCAT_BIN="nc"
 	local SERVER="$( uci get mail.@smtp[0].server )"
 	local PORT="$(   uci get mail.@smtp[0].port   )"
+	local ERRORFILE="/tmp/$FUNC.error.$$"
+
+	_mail pop3_check_stats || {			# pop before smtp must be configured on mailserver
+		_scheduler add "_$FUNC \"$MAILFILE\""
+	}
 
 	# normal netcat output:
 	# 220 mail.gmx.net GMX Mailservices ESMTP {mp017}
@@ -176,7 +179,12 @@ _mail_send_mailfile ()
 	# 250 2.6.0 Message accepted {mp017}
 	# 221 2.0.0 GMX Mailservices {mp017}
 
-	trap "_log do $FUNC daemon info function_cancelled" HUP INT QUIT TERM
+	cleanup ()
+	{
+		trap - HUP INT QUIT TERM
+	}
+
+	trap "_log do $FUNC daemon info function_cancelled; cleanup" HUP INT QUIT TERM
 
 	sanitize_server_answer ()		# add '+' and remove LF/CR
 	{
@@ -188,7 +196,7 @@ _mail_send_mailfile ()
 		  } done
 	}
 
-	OUT="$( echo -e "$( cat "$MAILFILE" )" | $NETCAT_BIN $SERVER $PORT )"; RC=$?
+	OUT="$( echo -e "$( cat "$MAILFILE" )" | $NETCAT_BIN $SERVER $PORT 2>"$ERRORFILE" )"; RC=$?
 	OUT="$( sanitize_server_answer "$OUT" )"
 
 	case "$OUT" in
@@ -196,14 +204,18 @@ _mail_send_mailfile ()
 			case "$OUT" in			# fixme! for each RCPT we must add an additional "250 2.1.5"
 				*"+354+250+221")
 					rm "$MAILFILE"
-					trap - HUP INT QUIT TERM
+					rm "$ERRORFILE"
+					cleanup
 					return 0
 				;;
 			esac
 		;;
 		*)
-			_log do $FUNC user info "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAILFILE'"
-			_scheduler add "_$FUNC '$MAILFILE'"
+			read ERROR <"$ERRORFILE"
+			rm "$ERRORFILE"
+
+			_log do $FUNC user info "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - debug file '$MAILFILE'"
+			_scheduler add "_$FUNC \"$MAILFILE\""
 			return 1
 		;;
 	esac
