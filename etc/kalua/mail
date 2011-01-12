@@ -189,10 +189,16 @@ _mail_send_mailfile ()
 	sanitize_server_answer ()		# add '+' and remove LF/CR
 	{
 		echo "$1" |
+		 while read LINE; do {
+		 	_log do $FUNC daemon info "SERVER: $LINE"
+		 } done
+
+		echo "$1" |
 		 cut -d' ' -f1 |
 		  while read LINE; do {
-		  	[ -n "$LINE" ] && LINE="+$LINE"
-		  	echo -n "$LINE"
+		  	[ -n "$LINE" ] && {
+		  		echo -n "+$LINE"
+		  	}
 		  } done
 	}
 
@@ -215,7 +221,16 @@ _mail_send_mailfile ()
 			rm "$ERRORFILE"
 
 			_log do $FUNC user info "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - debug file '$MAILFILE'"
-			_scheduler add "_$FUNC \"$MAILFILE\""
+
+			case "$ERROR" in
+				*"No route to host"*)
+					_log do $FUNC user alert "[ERR] during smtp to $SERVER, message: $ERROR, file: $MAILFILE, port blocked?"
+				;;
+				*)
+					_scheduler add "_$FUNC \"$MAILFILE\""
+				;;
+			esac
+
 			return 1
 		;;
 	esac
