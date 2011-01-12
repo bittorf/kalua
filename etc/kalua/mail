@@ -49,13 +49,6 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	}
 
 	local SUBJECT="$( head -n1 $MAILFILE | sed "s#\$VAR1#$VAR1#g" )"
-	local OUT LINE
-	local NETCAT_BIN="nc"
-	
-	local SERVER="$( uci get mail.@smtp[0].server )"
-	local PORT="$(   uci get mail.@smtp[0].port )"
-
-	local RC=0
 	local FQDN="$( uci get system.@system[0].hostname ).local"
 	local ADMIN_REAL="$( uci get system.@admin[0].name )"
 	local ADMIN_MAIL="$( uci get system.@admin[0].mail )"
@@ -156,6 +149,23 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	_do "QUIT"
 
 	_log do $FUNC daemon info "sending mail to '${RECIPIENT_MAIL}'"
+	if _mail send_mailfile "$MAIL" ; then
+		_log do $FUNC user notice "[OK] sent mail to '$RECIPIENT_MAIL' went fine"
+	else
+		_log do $FUNC user notice "[ERR] sending mail to '$RECIPIENT_MAIL' failed, but is re-scheduled"
+		return 1
+	fi
+}
+
+_mail_send_mailfile ()
+{
+	local MAILFILE="$1"			# must be ready formatted
+
+	local FUNC="mail_send_mailfile"
+	local LINE OUT RC
+	local NETCAT_BIN="nc"
+	local SERVER="$( uci get mail.@smtp[0].server )"
+	local PORT="$(   uci get mail.@smtp[0].port   )"
 
 	# normal netcat output:
 	# 220 mail.gmx.net GMX Mailservices ESMTP {mp017}
@@ -166,26 +176,37 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	# 250 2.6.0 Message accepted {mp017}
 	# 221 2.0.0 GMX Mailservices {mp017}
 
-	trap : SIGINT
+	trap "_log do $FUNC daemon info function_cancelled" HUP INT QUIT TERM
 
-	OUT="$( echo -e "$( cat $MAIL )" | $NETCAT_BIN $SERVER $PORT )"
-	RC=$?
-	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "+$LINE"; done )"	# add '+' and remove LF/CR
+	sanitize_server_answer ()		# add '+' and remove LF/CR
+	{
+		echo "$1" |
+		 cut -d' ' -f1 |
+		  while read LINE; do {
+		  	[ -n "$LINE" ] && LINE="+$LINE"
+		  	echo -n "$LINE"
+		  } done
+	}
+
+	OUT="$( echo -e "$( cat "$MAILFILE" )" | $NETCAT_BIN $SERVER $PORT )"; RC=$?
+	OUT="$( sanitize_server_answer "$OUT" )"
 
 	case "$OUT" in
 		"+220+250+250+250"*)
-			case "$OUT" in			# for each RCPT we must think an additional "250 2.1.5"
+			case "$OUT" in			# fixme! for each RCPT we must add an additional "250 2.1.5"
 				*"+354+250+221")
-					_log do $FUNC user notice "sent mail to '$RECIPIENT_MAIL' went fine"
-					rm "$MAIL"
+					rm "$MAILFILE"
+					trap - HUP INT QUIT TERM
 					return 0
 				;;
 			esac
 		;;
+		*)
+			_log do $FUNC user info "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAILFILE'"
+			_scheduler add "_$FUNC '$MAILFILE'"
+			return 1
+		;;
 	esac
-
-	_log do $FUNC user crit "error for recipient '${RECIPIENT_MAIL}': returncode: '$RC' - '$SERVER'-answer: '$OUT' - debug file '$MAIL'"
-	return 1
 }
 
 _mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable#Example | http://tools.ietf.org/html/rfc2045
