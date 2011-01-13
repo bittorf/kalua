@@ -105,6 +105,9 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 				last)
 					sed -n '/A=/=' "$DIR/rows" | tail -n ${OPTION:-1}
 				;;
+				first)
+					sed -n '/A=/=' "$DIR/rows" | head -n ${OPTION:-1}
+				;;
 				reverse)
 					sed -n '/A=/=' "$DIR/rows" | sed '1!G;h;$!d'
 				;;
@@ -296,8 +299,8 @@ _db_ticketcheck ()								# going through list of profiles (user defined or all)
 
 _db_autocreate_tickets_and_send_mail ()
 {
-	local PROFILE_ID="${1:-1}"			# or list if login-ID's
-	local USECASE="${2:-autogenerate_tickets}"	# <autogenerate_tickets|existing_tickets>
+	local PROFILE_ID="${1:-$( _db user profile list first )}"	# or list if login-ID's
+	local USECASE="${2:-autogenerate_tickets}"			# <autogenerate_tickets|existing_tickets>
 
 	local FUNC="db_autocreate_tickets_and_send_mail"
 	local TICKET_QUANTITY=32
@@ -339,7 +342,7 @@ _db_autocreate_tickets_and_send_mail ()
 	local FROM_REAL="WLAN-System $LOCATION_NAME $( uci get mail.@smtp[0].name )"
 	local FROM_MAIL="$( uci get mail.@smtp[0].mail )"
 	local RECIPIENT_REAL="Administration $LOCATION_NAME"
-	local RECIPIENT_MAIL="bittorf@bluebottle.com"
+	local RECIPIENT_MAIL="$( uci get system.@admin[0].mail )"
 
 	local FILE_OVERVIEW="/tmp/$( _pdf filename overview "$TICKET_QUANTITY" "$NAME" )"
 	local FILE_LABELS="/tmp/$(   _pdf filename labels   "$TICKET_QUANTITY" "$NAME" )"
@@ -347,8 +350,8 @@ _db_autocreate_tickets_and_send_mail ()
 	local FILE ID
 	local UNIXTIME="$( _system date unixtime )"
 
-	_pdf output_a4digest "$LIST_ID" >$FILE_OVERVIEW
-	_pdf output_a4marker "$LIST_ID" >$FILE_LABELS
+	_pdf output a4digest "$LIST_ID" >$FILE_OVERVIEW
+	_pdf output a4marker "$LIST_ID" >$FILE_LABELS
 
 	_weblogin ticket_mail_text "$NAME" >$FILE_MAIL
 	echo "WLAN-Tickets (Anzahl: $COUNTER) in einer Uebersicht"	>$FILE_OVERVIEW.desc

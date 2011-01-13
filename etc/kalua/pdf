@@ -19,11 +19,38 @@ _pdf_filename ()
 	echo "$FILENAME" | sed -e 's/ //g' -e 's/:/uhr/g'	# strip spaces, replace ":" - fixme! is a hack
 }
 
-_pdf_output_a4digest ()
+_pdf_output ()
 {
-	LIST_LOGIN_ID="$1"
+	local METHOD="$1"			# a4digest|a4marker
+	local LIST_LOGIN_ID="$2"
 
-	local FUNC="output_a4digest"
+	local FUNC="pdf_output"
+	local TEMPFILE="/tmp/${FUNC}_${METHOD}_$$"
+	local FILEPART
+
+	_log do $FUNC daemon info "[START] generating A4-page ($METHOD) with these logins: '$( _sanitizer do "$LIST_LOGIN_ID" newlines2spaces )'"
+
+	_pdf output_${METHOD}_body "$LIST_LOGIN_ID"		>$TEMPFILE.body
+	SIZE_BODY="$( _file size "$TEMPFILE.body" )"
+
+	_pdf output_header $SIZE_BODY				>$TEMPFILE.header
+	SIZE_HEADER="$( _file size "$TEMPFILE.header" )"
+
+	_pdf output_footer $(( $SIZE_BODY + SIZE_HEADER ))	>$TEMPFILE.footer
+
+	for FILEPART in header body footer; do {
+		cat $TEMPFILE.$FILEPART
+		rm $TEMPFILE.$FILEPART
+	} done
+
+	_log do $FUNC daemon info "[OK] generated PDF ($METHOD)"
+}
+
+_pdf_output_a4digest_body ()
+{
+	local LIST_LOGIN_ID="$1"
+
+	local FUNC="output_a4digest_body"
 	local MAXLINES=32			# then A4 is full
 	local FONTSIZE X XY ID NAME
 	local Y=718
@@ -31,6 +58,7 @@ _pdf_output_a4digest ()
 	local Y_MARGIN=5
 	local YSTART=$Y
 	local RECORD=0
+	local ID
 
 	local X0=25
 	local X1=35
@@ -41,9 +69,6 @@ _pdf_output_a4digest ()
 	local X6=470
 	local X7=480
 	local X8=570
-
-	_log do $FUNC daemon info "[START] generating A4-page with these logins: '$( _sanitizer do "$LIST_LOGIN_ID" newlines2spaces )'"
-	_pdf output_header
 
 	FONTSIZE=24
 
@@ -106,13 +131,13 @@ EOF
 	XY="$X0 750"
 	echo "BT $XY TD /F1 $FONTSIZE Tf (WLAN-Benutzerliste: $NAME ($RECORD Stueck))Tj ET"
 
-	_pdf_output_footer
-
-	_log do $FUNC daemon info "[OK] generating PDF to stdout ($RECORD tickets)"
+	_log do $FUNC daemon info "[OK] $RECORD tickets"
 }
 
 _pdf_output_header ()		# http://www.gnupdf.org/Introduction_to_PDF
 {				# http://www.aivosto.com/vbtips/pdf-optimize2.html
+	local BODYSIZE_IN_BYTES="${1:-100}"
+
 	cat <<EOF
 %PDF-1.7
 
@@ -155,7 +180,7 @@ endobj
 
 5 0 obj  % page content
 <<
-  /Length 44
+  /Length $BODYSIZE_IN_BYTES
 >>
 stream
 EOF
@@ -163,38 +188,49 @@ EOF
 
 _pdf_output_footer ()
 {
+	local XREF_START_BYTE_OFFSET="${1:-999}"	# length of body + header
+	XREF_START_BYTE_OFFSET="$(( $XREF_START_BYTE_OFFSET + 18 ))"	# adding 'endstream...' after body
+
+	local BYTE_OFFSET_OBJ1="0000000010"
+	local BYTE_OFFSET_OBJ2="0000000079"
+	local BYTE_OFFSET_OBJ3="0000000173"
+	local BYTE_OFFSET_OBJ4="0000000301"
+	local BYTE_OFFSET_OBJ5="0000000380"	# we have 6 hardcoded objects
+
+	local GENERATION_NO="00000"		# all objects are new and never changed
+	local OBJ_USED="n "
+	local OBJ_HIDDEN="f "
+
 	cat <<EOF
-endstream endobj 
+endstream
+endobj
+
 xref
 0 6
-0000000000 65535 f 
-0000000010 00000 n 
-0000000079 00000 n 
-0000000173 00000 n 
-0000000301 00000 n 
-0000000380 00000 n 
+0000000000 65535 $OBJ_HIDDEN
+$BYTE_OFFSET_OBJ1 $GENERATION_NO $OBJ_USED
+$BYTE_OFFSET_OBJ2 $GENERATION_NO $OBJ_USED
+$BYTE_OFFSET_OBJ3 $GENERATION_NO $OBJ_USED
+$BYTE_OFFSET_OBJ4 $GENERATION_NO $OBJ_USED
+$BYTE_OFFSET_OBJ5 $GENERATION_NO $OBJ_USED
 trailer
 <<
   /Size 6
   /Root 1 0 R
 >>
 startxref
-492
+$XREF_START_BYTE_OFFSET
 %%EOF
 EOF
 }
 
-_pdf_output_a4marker ()		# SENS: fits for 2x32 labels 35.6x16.9mm L4732 "Zweckform" organised to 5 rows with 16 cols (center row leaves emtpy)
+_pdf_output_a4marker_body ()		# SENS: fits for 2x32 labels 35.6x16.9mm L4732 "Zweckform" organised to 5 rows with 16 cols (center row leaves emtpy)
 {
-	local FUNC="pdf_output_a4marker"
+	local FUNC="pdf_output_a4marker_body"
 	local LIST_LOGIN_ID="$1"
 
 	local FONTSIZE=18
 	local NUMBER I N N1 N2 ID USERNAME PASSWORD XCOL1 XCOL2 XCOL3 XCOL4 XCOL5 YCOL
-
-	_log do $FUNC daemon info "[START] generating A4-page with these logins: '$( _sanitizer do "$LIST_LOGIN_ID" newlines2spaces )'"
-
-	_pdf output_header
 
 	tenth ()	# SENS: 123 -> 12.3
 	{
@@ -286,7 +322,5 @@ BT $XCOL3 $YROW1 TD /F1 $FONTSIZE Tf (Standard-Etiketten)Tj ET
 BT $XCOL3 $YROW2 TD /F1 $FONTSIZE Tf ("Zweckform" L4732)Tj ET
 EOF
 
-	_pdf output_footer
-
-	_log do $FUNC daemon info "[OK] generating PDF to stdout ($NUMBER tickets)" 
+	_log do $FUNC daemon info "[OK] $NUMBER tickets" 
 }
