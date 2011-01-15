@@ -349,14 +349,27 @@ _system_insmod ()
 	local OPTIONS="$2"
 
 	lsmod | grep -q ^$KMOD && return	# already loaded
-	
+
+	case "$KMOD" in
+		ipt_*)
+			local CHANGED_PREFIX_KMOD="$( echo "$KMOD" | sed 's/ipt_/xt_/' )"
+			lsmod | grep -q ^$CHANGED_PREFIX_KMOD && return
+		;;
+	esac
+
 	_log do $FUNC daemon info "loading kernel-module '$KMOD' with options '$OPTIONS'"
 	
 	local MEM_BEFORE="$( _system ram_free )"
 	local MEM_AFTER=0
 	local MEM_DIFF=0
-		
-	if insmod "$KMOD" "$OPTIONS" ; then
+
+	_log do $FUNC daemon info "[TRY] insmod \"$KMOD\" \"$OPTIONS\""
+	insmod "$KMOD" "$OPTIONS" || {
+		_log do $FUNC daemon info "[TRY] insmod \"$CHANGED_PREFIX_KMOD\" \"$OPTIONS\""
+		insmod "$CHANGED_PREFIX_KMOD" "$OPTIONS"
+	}
+
+	if [ $? -eq 0 ] ; then
 
 		case "$KMOD" in
 			crondog)
@@ -370,11 +383,18 @@ _system_insmod ()
 		MEM_DIFF=$(( $MEM_BEFORE - $MEM_AFTER ))
 		[ $MEM_DIFF -gt 0 ] && MEM_DIFF="+$MEM_DIFF"
 
-		_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes (lsmod: '$( lsmod | grep ^$KMOD )')"
+		_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes (lsmod: '$( lsmod | grep ^$KMOD )$( lsmod | grep ^$CHANGED_PREFIX_KMOD )')"
 	else
 		_log do $FUNC daemon alert "[ERR] failing to insert kernel-module '${KMOD}.o' returned with $?"
 		
-		local FILE="$( find /lib/modules/ | grep ${KMOD}.o )"
+		local FILE
+		FILE="$( find /lib/modules/ | grep ${KMOD}.o )"			# e.g. /lib/modules/2.4.30/ipt_length.o 
+		[ -z "$FILE" ] && {
+			FILE="$( find /lib/modules/ | grep ${KMOD}.ko )"	# e.g. /lib/modules/2.6.32.27/xt_length.ko
+		}
+
+		# /lib/modules/2.4.30/ipt_CONNMARK.o
+		# /lib/modules/2.6.32.27/xt_CONNMARK.ko
 		
 		if [ -n "$FILE" ]; then
 			_log do $FUNC daemon info "but found '$FILE'"
