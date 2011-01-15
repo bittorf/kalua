@@ -86,8 +86,15 @@ func_cron_config_write ()
 		return
 	}
 
+	_uci is_oldstyle || {
+		PROFILE="newstyle"
+	}
+
+	  if [ "$PROFILE" = "newstyle" ]; then
+
+		:
 	
-	  if [ "$PROFILE" = "nano" ]; then
+	elif [ "$PROFILE" = "nano" ]; then
 	  
 	  	PROFILE="nano"
 	
@@ -100,27 +107,39 @@ func_cron_config_write ()
 
 	[ ! -d $CRONDIR ] && mkdir -p $CRONDIR
 
+	_log do $FUNC daemon debug "profile = $PROFILE"
+
 	if [ "$PROFILE" = "minimal" ]; then
 
-		_log do $FUNC daemon debug "profile = minimal"
 		cat >$CRONFILE <<EOF
 *    * * * * pidof cron.minutely >/dev/null || /usr/sbin/cron.minutely; pidof S69watch_olsrd_fff+ >/dev/null || /etc/init.d/S69watch_olsrd_fff+ watch_hanging_command
 */15 * * * * sleep 6; pidof S69watch_olsrd_fff+ >/dev/null || /etc/init.d/S69watch_olsrd_fff+ ; scheduler -a 1h_checks -a software_install -r
 0    4 * * * scheduler -a fwupdate_check
 EOF
 	elif [ "$PROFILE" = "nano" ]; then
-		_log do $FUNC daemon debug "profile = nano"
+
 		cat >$CRONFILE <<EOF
 * * * * * /usr/sbin/cron.minutely
 EOF
+
+	elif [ "$PROFILE" = "newstyle" ]; then
+
+		cat >$CRONFILE <<EOF
+*    * * * * scheduler -O -P -f -s 17 -a upgrade_packages -r
+*/15 * * * * sleep  8; scheduler -a gateway_check $VDS -a 15min_checks -a monitoring -a user_traff_broadcast $ACCOUNTING -a kick_user_over_limit -A watch_hanging_command \$( [ "\$(date +%M)" = "00" ] && echo "-a 1h_checks" )
+0    3 * * * sleep 12; scheduler -a restart_olsr
+0    4 * * * sleep 12; $TICKETS scheduler -a fwupdate_check -a splash4nonautounsplashed
+0    6 * * * sleep 12; scheduler -a restart_olsr -a user_traff_reset -a kick_user_all
+0    0 * * * sleep  8; scheduler -a 24h_checks
+EOF		
+
 	else
 	
-	# we try to call the scheduler each for each, not all at one point
+		# we try to call the scheduler each for each, not all at one point
 
-		_log do $FUNC daemon debug "profile = standard"	
 		cat >$CRONFILE <<EOF
 *    * * * * pidof cron.minutely >/dev/null || /usr/sbin/cron.minutely
-*    * * * * scheduler -O -P -u -o -s 17 $RRDHELPER -a speedtest_every_40min -a whitelist_rebuild_every_3h -a whitelist_update_every_15h -a upgrade_packages -r
+*    * * * * scheduler -O -P -u -o -f -s 17 $RRDHELPER -a speedtest_every_40min -a whitelist_rebuild_every_3h -a whitelist_update_every_15h -a upgrade_packages -r
 */15 * * * * sleep  8; scheduler -a gateway_check $VDS -a 15min_checks -a monitoring -a optimize_txpower -a user_traff_broadcast $ACCOUNTING -a kick_user_over_limit -A watch_hanging_command \$( [ "\$(date +%M)" = "00" ] && echo "-a 1h_checks -a restart_vpn" )
 0    3 * * * sleep 12; scheduler -a rebuild_service_announce -a recheck_wired_olsr -a restart_olsr
 0    4 * * * sleep 12; $TICKETS scheduler -a fwupdate_check -a splash4nonautounsplashed
