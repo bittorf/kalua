@@ -269,6 +269,7 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	local LANG="$( _translate lang $5 )"
 	local KEYWORD="$6"		# can be 'plaintext'
 	local FREE HASH GATEWAY ANSWER
+	local URL
 
 	[ -n "$KEYWORD" ] && KEYWORD="${USER}+${PASS}"
 
@@ -282,7 +283,14 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 
 #	[ "$FREE" != "1" ] && {
 		GATEWAY="$( sed -n '${s/^.* GW=\([0-9\.]*\);.*/\1/p}' /tmp/ARCHIV_TRACEINET 2>/dev/null )"	# fixme! abstraction
-		ANSWER="$( wget -qO - "http://${GATEWAY:-127.0.0.1}/cgi-bin-sql?LOGIN=${HASH}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}" 2>/dev/null )"
+
+		if [ -e /usr/sbin/uhttpd ]; then
+			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
+		else
+			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql"
+		fi
+
+		ANSWER="$( wget -qO - "${URL}?LOGIN=${HASH}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}" 2>/dev/null )"
 #	}
 
 	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
