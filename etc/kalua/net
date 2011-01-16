@@ -63,7 +63,19 @@ _net_ip2dns ()
 
 _net_ip2mac ()		# ofcourse this works only for local IP's, but: maybe we want to "guess" using /etc/ethers...?
 {
-	ip neigh show to $1 | sed -n "s/^.* lladdr \(..:..:..:..:..:..\) .*/\1/p;q"
+	local get_ip="$1"
+	local line ip mac
+
+	while read line; do {
+		set $line
+		ip="$1"
+		mac="$4"
+
+		[ "$ip" = "$get_ip" ] && {
+			_sanitizer do "$mac" lowercase
+			return
+		}
+	} done </proc/net/arp
 }
 
 _net_dns2ip ()
@@ -306,7 +318,19 @@ _net_mac2ip ()		# SENS: get IP from different sources
 
 	_try2 ()	# arp-cache (macs are lowercase)
 	{
-		IP="$( ip neigh show | sed -n "s/^\(.*\) dev .* lladdr ${MAC} nud.*/\1/p" )"
+		local mac ip line
+
+		while read line; do {
+			set $line
+			ip="$1"
+			mac="$4"
+
+			[ "$MAC" = "$mac" ] && {
+				IP=$ip
+				return
+			}
+
+		} done </proc/net/arp
 	}
 
 	_try3 ()	# DHCP-leases (macs are lowercase)
@@ -337,7 +361,21 @@ _net_mac2hostname ()
 
 _net_mac2dev ()
 {
-	ip neigh | sed -n "/$1/{s/^.* dev \(.*\) lladdr .*/\1/p;q}"
+	local get_mac="$1"
+	local line mac dev
+
+	while read line; do {
+
+		set $line
+		mac="$4"
+		dev="$6"
+
+		[ "$get_mac" = "$mac" ] && {
+			echo $dev
+			return
+		}
+
+	} done </proc/net/arp
 }
 
 _net_mac2media ()
