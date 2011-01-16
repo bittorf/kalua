@@ -189,7 +189,7 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 	}
 
 	local  LAN_GATEWAY="$( uci get network.lan.gateway )"
-	if [ -n "$LAN_GATEWAY" ] && [ -z "$( ip route list exact 0/0 via $LAN_GATEWAY )" ]; then
+	if [ -n "$LAN_GATEWAY" ] && [ -z "$( ip route list exact 0.0.0.0/0 via $LAN_GATEWAY )" ]; then
 
 		[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
 			_log do $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
@@ -207,12 +207,12 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 	# default dev tun0  scope link			-> vpnc
 	# default via 10.63.52.36 dev br0 		-> lan-offer|lan-gateway
 	
-	eval $( ip route list exact 0/0 | head -n1 |
+	eval $( ip route list exact 0.0.0.0/0 | head -n1 |
 		while read N N D N PHYDEV METRIC N; do {	# we must eval it, otherwise		// fixme! look for 'table all'?
 			echo PHYDEV=$PHYDEV			# the vars from subprocess are
 			echo METRIC=$METRIC			# not known
 			echo N=$N
-			echo D=$D				# fixme! better use 'eval $( ip route list exact 0/0 | sed 'xyz' )'
+			echo D=$D				# fixme! better use 'eval $( ip route list exact 0.0.0.0/0 | sed 'xyz' )'
 		} done
 	)
 
@@ -220,7 +220,7 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 
 		_log do $FUNC daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
 
-		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0/0 -> "default via eth0" or similar
+		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0.0.0.0/0 -> "default via eth0" or similar
 
 			[ "$LAN_GATEWAY" = "0.0.0.0" ] && {	# fixme! move to early-boot-estimation
 				
@@ -270,7 +270,7 @@ _net_inet_seems_stable ()			# fixme! also check path to gateway (add wireless co
 	local FUNC="inet_seems_stable"		# fixme! use dnsfaker if unstable/unfake if stable
 
 	_olsr uptime is_short || {
-		[ -z "$( ip route list exact 0/0 table main )" ] && {
+		[ -z "$( ip route list exact 0.0.0.0/0 table main )" ] && {
 			_log do $FUNC daemon alert "unstable inet, no default route in main-table"
 			return 1
 		}

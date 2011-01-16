@@ -22,12 +22,12 @@ OUT="$( sed -e '/./{H;$!d;}' -e 'x;/Table: Routes/!d;' /tmp/olsr_output_recent |
 	 	}' |
 	  sort -n |
 	   head -n 1 |
-	    sed 's/\/32//g')"						# should be this form: cost, gw-ip, nexthop-ip, metric
+	    sed 's/\/32//g')"							# should be this form: cost, gw-ip, nexthop-ip, metric
 
-[ -z "$OUT" ] && {							# olsr does not respond, caused by hanging or deactivated plaintest-plugin
-	GW="$( _sanitizer do "$( ip route list exact 0/0 )" ip4 )"	# gatewayip from routing table 	// fixme! 'default dev tun0  scope link' -> no ip!
+[ -z "$OUT" ] && {								# olsr does not respond, caused by hanging or deactivated plaintest-plugin
+	GW="$( _sanitizer do "$( ip route list exact 0.0.0.0/0 )" ip4 )"	# gatewayip from routing table 	// fixme! 'default dev tun0  scope link' -> no ip!
 
-	if fgrep -q "$GW;" /tmp/CLIENTS_LAN /tmp/CLIENTS_WAN ; then
+	if fgrep -sq "$GW;" /tmp/CLIENTS_LAN /tmp/CLIENTS_WAN ; then
 		OUT="1.00 $WIFIADR $WIFIADR 0"	# metric = 0 ! (is in own subnet, without a router intermediate - ergo GW = WIFIADR!)
 	else
 		OUT="1.00 $WIFIADR $WIFIADR 0"	# provider-lan with subnet >/24 is implemented yet
@@ -51,7 +51,7 @@ COST="$ETX"
 
 test -z "$HOSTNAME" && HOSTNAME="?"
 
-[ -z "$( ip route list exact 0/0 table main )" ] && {
+[ -z "$( ip route list exact 0.0.0.0/0 table main )" ] && {
 
 	_log do get_gateway daemon alert "no default route"
 
@@ -63,7 +63,7 @@ test -z "$HOSTNAME" && HOSTNAME="?"
 	COST=0
 	HOSTNAME=?
 
-	LOCAL_GW_IP="$( _sanitizer do "$( ip route list exact 0/0 table all )" ip4 )"
+	LOCAL_GW_IP="$( _sanitizer do "$( ip route list exact 0.0.0.0/0 table all )" ip4 )"
 	[ -n "$LOCAL_GW_IP" ] && {
 		if ping -c 1 $LOCAL_GW_IP 2>/dev/null >/dev/null ; then
 		
