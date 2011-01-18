@@ -1,15 +1,25 @@
 #!/bin/sh
 . /tmp/loader
 
-eval $( _http query_string_sanitize )		# LOGIN={md5sum_of_user+pass} | MAC=00:11:22:33:44:55 | SIGNAL=-64 | KEYWORD=username+pass | USER_LANG=de
+if [ -n "$REMOTE_ADDR" ]; then
+
+	eval $( _http query_string_sanitize )		# LOGIN={md5sum_of_user+pass} | MAC=00:11:22:33:44:55 | SIGNAL=-64 | KEYWORD=username+pass | USER_LANG=de
+
+	_http header_mimetype_output "text/plain"
+else
+	LOGIN="$1"
+	MAC="$2"
+	SIGNAL="$3"
+	KEYWORD="$4"
+	USER_LANG="$5"	
+fi
 
 [ -z "$LOGIN" ] && {
 	_log do no_args daemon info "no login-data given - abort"
-	exit
+	exit 1
 }
 
-_http header_mimetype_output "text/plain"
-_system include
+_system include				# fixme! move all from this line down to weblogin()
 
 DATE="$( _system date full )"
 DNS="$( nslookup ${REMOTE_ADDR:=127.0.0.1} | sed -n 's/^Name:[^a-zA-Z0-9]*\(.*\)\.olsr/\1/p' )"		# https?
@@ -62,4 +72,3 @@ else
 	_log do login_mismatch daemon info "login_failed: $OUT"
 	echo "0"
 fi
-
