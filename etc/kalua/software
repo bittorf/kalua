@@ -356,6 +356,7 @@ _software_package_install ()
 	local FUNC="software_package_install"			# double-check this and e.g. reinstall - CRC-test?
 	local SLEEP="120"					# look at S52vpn check_for_correct_install()
 	local KEYWORD="$2"	# noautorepoupdate
+	local COMMAND
 
 	while ! _net inet_seems_stable ; do {
 		_log do $FUNC daemon debug "no default-route found, waiting $SLEEP seconds"
@@ -365,8 +366,14 @@ _software_package_install ()
 
 	_log do $FUNC daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
 	[ -z "$KEYWORD" ] && _software repos_update	
-	
-	if /bin/*pkg -force-defaults install $PACKAGE ; then
+
+	if [ -e /bin/opkg ]; then
+		COMMAND="/bin/opkg remove $PACKAGE; /bin/opkg install $PACKAGE"
+	els
+		COMMAND="/bin/ipkg -force-defaults install $PACKAGE"
+	fi
+
+	if $COMMAND ; then
 		_log do "$FUNC" daemon info "'$PACKAGE' install seems fine (free space: $( _system flash_free ) Kilobyte)"
 
 		case $PACKAGE in			# fixme! move these into hook()
@@ -404,6 +411,7 @@ _software_package_install ()
 		esac
 		
 		_software install_or_deinstall_hook $PACKAGE
+		return 0
 	else
 		_log do $FUNC daemon info "'$PACKAGE' install failed (free space: $( _system flash_free ) Kilobyte)"
 		return 1
