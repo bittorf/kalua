@@ -143,6 +143,7 @@ func_ulog_logsaving ()
 	local FILELIST="$( find $PATTERN -type f 2>/dev/null )"
 	local FILE FILESIZE
 	local LOGPRIO="alert" 
+	local SSH_IDENTITY="/etc/dropbear/dropbear_dss_host_key"
 
 	[ -e /tmp/ERROR_VDS ] && LOGPRIO="info"
 
@@ -157,7 +158,7 @@ func_ulog_logsaving ()
 
 		_log do $FUNC daemon debug "direct copy to server '$( uci get system.@vds[0].server )'"
 		
-		COPYCOMMAND="scp -p -i $HOME/.ssh/dropbear_dss_host_key"	# '-p' preserve time,accesstime and modes
+		COPYCOMMAND="scp -p -i $SSH_IDENTITY"			# '-p' preserve time,accesstime and modes
 		DESTINATION="$( uci get system.@vds[0].server )"
 
 	elif [ "$GW" = "$WIFIADR" ]; then				# fixme! make this check at 1st, and abort if low flash, safes cpu-power
@@ -173,8 +174,8 @@ func_ulog_logsaving ()
 		}			# fixme! remove VDS-data from RAM? or copy to /dev/null?
 	else
 		_log do $FUNC daemon debug "gateway = '$GW'"
-		COPYCOMMAND="scp -p -i $HOME/.ssh/dropbear_dss_host_key"	# '-p' preserve time,accesstime and modes, fixme! -B (batchmode) -C (compression) -q (quiet)
-		DESTINATION="${GW}:${VDS_PATH}"					# fixme! empty GW?
+		COPYCOMMAND="scp -p -i $SSH_IDENTITY"			# '-p' preserve time,accesstime and modes, fixme! -B (batchmode) -C (compression) -q (quiet)
+		DESTINATION="${GW}:${VDS_PATH}"				# fixme! empty GW?
 	fi
 
 	for FILE in $FILELIST; do {
@@ -245,6 +246,7 @@ func_backup_userdata ()
 	local FILE HASH HASH_LASTSEND HASH_SSH_PRIV
 	local I=0
 	local FILELIST="/www/cgi-bin/db_backup.tgz"		# was: "/www/users_logged_in /www/cgi-bin/userdata.txt"
+	local SSH_IDENTITY="/etc/dropbear/dropbear_dss_host_key"
 
 	[ -z "$DESTINATION" ] && {
 		_log do $FUNC daemon debug "no destination - abort"
@@ -262,7 +264,7 @@ func_backup_userdata ()
 		else
 			_log do $FUNC daemon info "restoring userdata '$FILE' from monitoring server"
 
-			HASH_SSH_PRIV="$( _file hash $HOME/.ssh/dropbear_dss_host_key )"
+			HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
 			wget -O "$FILE"	"$( uci get system.@monitoring[0].url )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"	# http://intercity-vpn.de/networks/liszt28
 
 			if [ -e "$FILE" ]; then
@@ -279,9 +281,9 @@ func_backup_userdata ()
 											# append hash of private ssh_key, for autofetching it
 		[ "$HASH" != "$HASH_LASTSEND" ] && {
 			I="$(( $I + 1 ))"
-			HASH_SSH_PRIV="$( _file hash $HOME/.ssh/dropbear_dss_host_key )"
+			HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
 
-			if scp -i $HOME/.ssh/dropbear_dss_host_key "$FILE" "${DESTINATION}$( basename "$FILE" )_${HASH_SSH_PRIV}" ; then	# to make it secret
+			if scp -i $SSH_IDENTITY "$FILE" "${DESTINATION}$( basename "$FILE" )_${HASH_SSH_PRIV}" ; then	# to make it secret
 				_log do $FUNC daemon info "copying '$FILE' ($( _file size "$FILE" ) bytes) was successful"
 				echo -n "$HASH" >"$FILE.hashlastsend"
 			else
