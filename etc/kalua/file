@@ -1,3 +1,41 @@
+_file_convert_binary2text ()
+{
+	local file="$1"
+
+	if [ -e /www/cgi-bin/freifunk-upload ]; then
+
+		/www/cgi-bin/freifunk-upload -b2a <"$file"
+	else
+		local line
+
+		hexdump -C "$file" |
+		 sed -n 's/^[0-9a-f]*\([0-9a-f ]*\)|.*/\1/p' |
+		  sed -e 's/  /%/g' -e 's/ /%/g' |
+		   while read line; do {
+		   	echo -n "$line"
+		   done
+	fi
+}
+
+_file_convert_text2binary ()
+{
+	local file="$1"
+	local buffer
+
+	if [ -e /www/cgi-bin/freifunk-upload ]; then
+
+		/www/cgi-bin/freifunk-upload -a2b <"$file"
+	else
+		buffer="$( cat "$file" )"
+
+		if [ -e /usr/sbin/uhttpd ]; then
+			/usr/sbin/uhttpd -d "$buffer"
+		else
+			/usr/sbin/httpd -d "$buffer"	# fixme! there are many chars not correct
+		fi
+	fi
+}
+
 _file_size ()	# if we have a busybox without 'stat'-command compiled
 {		# ls is much faster, than a 'wc -c /path/to/10mb-file'
 
