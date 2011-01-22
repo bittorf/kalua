@@ -2,15 +2,15 @@ _file_convert_binary2text ()
 {
 	local file="$1"
 
-	if [ ! -e /www/cgi-bin/freifunk-upload ]; then
+	if [ -e /www/cgi-bin/freifunk-upload ]; then
 
 		/www/cgi-bin/freifunk-upload -b2a <"$file"
 	else
-		local line
-
+		local line	# using hexdump, to output eachs byte hex-representation
+				# and throw away thrash + linebreaks
 		hexdump -C "$file" |
 		 sed -n 's/^[0-9a-f]*\([0-9a-f ]*\)|.*/\1/p' |
-		  sed -e 's/  /%/g' -e 's/ /%/g' |
+		  sed -e 's/ //g' |
 		   while read line; do {
 		   	echo -n "$line"
 		   done
@@ -22,17 +22,15 @@ _file_convert_text2binary ()
 	local file="$1"
 	local buffer
 
-	if [ ! -e /www/cgi-bin/freifunk-upload ]; then
+	if [ -e /www/cgi-bin/freifunk-upload ]; then
 
 		/www/cgi-bin/freifunk-upload -a2b <"$file"
 	else
-		buffer="$( cat "$file" )"
+		local hexbyte
 
-		if [ -e /usr/sbin/uhttpd ]; then
-			/usr/sbin/uhttpd -d "$buffer"
-		else
-			/usr/sbin/httpd -d "$buffer"	# fixme! there are many chars not correct
-		fi
+		while read -n 1 hexbyte; do {
+			printf "\\$( printf "%o" 0x$hexbyte )"
+		} done <$file
 	fi
 }
 
