@@ -1,85 +1,74 @@
 #!/bin/sh
 . /tmp/loader
 
-# example output:
-# GWCHECK=1; T=1246179625; DATE=28Jun2009-11uhr00; GW=10.63.3.1; HOSTNAME=KG-bittorfwireless-AP; NEXTHOP=10.63.3.1; METRIC=0; ETX=1.00; COST=1.00; COST_INT=0
+# here we guess the gateway an write some info for fast including in "/tmp/GATEWAY_CHECK_RECENT"
+# DATE=2011jan24_11:15; HOSTNAME=ejbw-mesh-dhcp-99.olsr; COST_INT=1000; GATEWAY=10.10.99.33; NEXTHOP=192.168.100.22; METRIC=1
 
 test   -e "/tmp/LOWMEM"				&& exit
 test   -n "$FAILSAFE"				&& exit
 test ! -e "/www/SOFTWARE_FULLY_INSTALLED"	&& exit
 _olsr uptime is_short				&& exit
 
-which awk >/dev/null || _log do no_awk info "cannot find 'awk', output maybe wrong"
+# first, get a list of all HNA4 0.0.0.0/0 = gateway offers
+# LIST_HNA4="10.63.8.1 10.63.9.1 ..."
+# output routes and compare which of these are gateways, 
+# output them and sort by cost, lowest on top
 
-LIST="$( neigh gateways | sed 's/$/\/32 /' )"	# from olsr-HNA4-table: '10.63.8.1/32 10.63.9.1/32 ...'  // fixme! move to olsr_functions
+LIST_GATEWAYS="$( neigh gateways )"
+MINCOST=99999
+OUT=
 
-OUT="$( sed -e '/./{H;$!d;}' -e 'x;/Table: Routes/!d;' /tmp/olsr_output_recent | 
-	 awk -v LIST="$LIST" '/\./ {
-	 	if($4/1<1)
-	 		exit
-	 	if(index(LIST,$1)>0)
-	 		print $4,$1,$2,$3
-	 	}' |
-	  sort -n |
-	   head -n 1 |
-	    sed 's/\/32//g')"							# should be this form: cost, gw-ip, nexthop-ip, metric
+FILE_OLSR_ROUTES="/tmp/olsr_output_recent_routesonly_$$"
+sed -e '/./{H;$!d;}' -e 'x;/Table: Routes/!d;' /tmp/olsr_output_recent >$FILE_OLSR_ROUTES
 
-[ -z "$OUT" ] && {								# olsr does not respond, caused by hanging or deactivated plaintest-plugin
-	GW="$( _sanitizer do "$( ip route list exact 0.0.0.0/0 )" ip4 )"	# gatewayip from routing table 	// fixme! 'default dev tun0  scope link' -> no ip!
+while read LINE; do {
+
+	set ${LINE:-dummy}
+	GATEWAY=$1		# is "$IP/32"
+	NEXTHOP=$2
+	METRIC=$3
+	COST=$4
+
+	for IP in $LIST_GATEWAYS; do {
+		[ "$IP/32" = "$GATEWAY" ] && {
+
+			if [ "${COST%.*}" = "0" ]; then			# 0.100 -> 100
+				COST_INT="${COST#*.}"
+			else						# 2.345 -> 2345
+				COST_INT="${COST%.*}${COST#*.}"
+			fi
+
+			[ $COST_INT -lt $MINCOST ] && {
+				MINCOST=$COST_INT
+				OUT="COST_INT=$COST_INT; GATEWAY=$IP; NEXTHOP=$NEXTHOP; METRIC=$METRIC"
+			}
+		}
+	} done	
+
+} done <$FILE_OLSR_ROUTES
+rm $FILE_OLSR_ROUTES
+
+[ -z "$OUT" ] && {
+	# gatewayip from routing table  // fixme! 'default dev tun0  scope link' -> no ip!
+	GW="$( _sanitizer do "$( ip route list exact 0.0.0.0/0 )" ip4 )"
 
 	if fgrep -sq "$GW;" /tmp/CLIENTS_LAN /tmp/CLIENTS_WAN ; then
-		OUT="1.00 $WIFIADR $WIFIADR 0"	# metric = 0 ! (is in own subnet, without a router intermediate - ergo GW = WIFIADR!)
+	
+		# metric = 0 ! (is in own subnet, without a router intermediate - ergo GW = WI
+		OUT="COST_INT=0; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
 	else
-		OUT="1.00 $WIFIADR $WIFIADR 0"	# provider-lan with subnet >/24 is implemented yet
+		# provider-lan with subnet >/24 is not implemented yet (see /etc/init.d/S43...)
+		OUT="COST_INT=0; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
 	fi
 }
 
-ETX="$( echo $OUT | cut -d" " -f1 )"
+eval $OUT	# GATEWAY 
 
-COST="$ETX"
-[ "$ETX" = "1.00" ] && COST="0"			# oldstyle 'local' inetoffer to newstyle
+echo "$COST_INT"	>/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY
+echo "$GATEWAY"		>/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 
- COST_INT="$( echo $COST | sed 's/\.//g' )"	# cut off commata, for easy bash-calculating
-       GW="$( echo $OUT | cut -d" " -f2 )"
-     NEXT="$( echo $OUT | cut -d" " -f3 )"
-   METRIC="$( echo $OUT | cut -d" " -f4	)"
-   DOMAIN="$( uci get dhcp.@dnsmasq[0].domain )"	# bug! this is not true in our mesh - domain is always .olsr
-   DOMAIN="olsr"
- HOSTNAME="$( nslookup $GW | sed -n 's/Name: *\([0-9a-zA-Z_-]*\)\.\([0-9a-zA-Z_-]*\)/\1/p' )"
- UNIXTIME="$( _system date unixtime )"
- HUMNDATE="$( _system date humanreadable )"
+echo "DATE=$( _system date humanreadable ); HOSTNAME=$( _net ip2dns $GATEWAY ); $OUT"		>/tmp/GATEWAY_CHECK_RECENT
+cat /tmp/GATEWAY_CHECK_RECENT >>"/tmp/ARCHIV_TRACEINET"
+_watch archivsize "/tmp/ARCHIV_TRACEINET" 250 lines_max
 
-test -z "$HOSTNAME" && HOSTNAME="?"
-
-[ -z "$( ip route list exact 0.0.0.0/0 table main )" ] && {
-
-	_log do get_gateway daemon alert "no default route"
-
-	METRIC=0		# traceerror
-	COST_INT=0
-	GW=0
-	NEXT=0
-	ETX=0
-	COST=0
-	HOSTNAME=?
-
-	LOCAL_GW_IP="$( _sanitizer do "$( ip route list exact 0.0.0.0/0 table all )" ip4 )"
-	[ -n "$LOCAL_GW_IP" ] && {
-		if ping -c 1 $LOCAL_GW_IP 2>/dev/null >/dev/null ; then
-		
-			_log do get_gateway daemon info "gateway is reachable"
-		else
-			_log do get_gateway daemon info "gateway not reachable"
-			METRIC="-1"
-		fi
-	}
-}
-
-OUT="T=$UNIXTIME; DATE=$HUMNDATE; GW=$GW; HOSTNAME=$HOSTNAME; NEXTHOP=$NEXT; METRIC=$METRIC; ETX=$ETX; COST=$ETX; COST_INT=$COST_INT"
-
-echo "$OUT" >>"/tmp/ARCHIV_TRACEINET"
-echo "GWCHECK=1; $OUT"  >/tmp/GATEWAY_CHECK_RECENT		# for fast including
-
-echo "$OUT"
-
-_watch archivsize "/tmp/ARCHIV_TRACEINET" 250
+_log do guess_gateway daemon debug "$OUT"
