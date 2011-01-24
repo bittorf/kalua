@@ -56,7 +56,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 
 	case "$TABLE" in
 		profile) ELEMENTS="NAME COMMENT AUTOGENERATE TIME_MODEL MAX_TIME MAX_TRAFFIC MAX_SPEED_UP MAX_SPEED_DOWN LANDING_URL COST CURRENCY" ;;
-		login)   ELEMENTS="PROFILE_ID COMMENT USERNAME PASSWORD DEVICE_QUANTITY INSTALLED" ;;
+		login)   ELEMENTS="PROFILE_ID COMMENT USERNAME PASSWORD DEVICE_QUANTITY INSTALLED FUZZY" ;;
 		device)  ELEMENTS="USER_ID MAC DEVTYPE LANG FIRSTSEEN LASTSEEN USED_TRAFFIC USED_TIME USED_TRAFFIC_TODAY USED_TIME_TODAY ISOLATION" ;;
 		*)
 			echo "Usage: _$FUNC <table> <action>"
@@ -87,12 +87,47 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		;;
 		index_gen)
 			local INDEX="$DIR/meta_index"
-			local LOGIN_ID
+			local LOGIN_ID USERNAME PASSWORD FUZZY HASH HASH_INPUT LIST_HASH_INPUT
+			local REST_USERNAME REST_PASSWORD
+			local USERNAME_CHAR1_LOWER USERNAME_CHAR1_UPPER PASSWORD_CHAR1_LOWER PASSWORD_CHAR1_UPPER
+			local H1 H2 H3 H4 H5 H6 H7 H8
 
 			_stopwatch start $ACTION
 			for LOGIN_ID in $( _db user login list $ID $OPTION ); do {		# fixme! can be: "last" + "32"
-				eval $( _db user login show $LOGIN_ID "USERNAME PASSWORD" )
-				echo -n "$USERNAME$PASSWORD" | md5sum | cut -d' ' -f1		# hash
+				eval $( _db user login show $LOGIN_ID "USERNAME PASSWORD FUZZY" )
+	
+				if [ -z "$FUZZY" ]; then
+					LIST_HASH_INPUT="$USERNAME$PASSWORD"
+				else
+					REST_USERNAME="$( echo $USERNAME | cut -b2-99 )"
+					REST_PASSWORD="$( echo $PASSWORD | cut -b2-99 )"
+
+					_sanitizer include
+					USERNAME_CHAR1_LOWER="$( _sanitizer do $USERNAME length:1 lowercase )"
+					USERNAME_CHAR1_UPPER="$( _sanitizer do $USERNAME length:1 uppercase )"
+					PASSWORD_CHAR1_LOWER="$( _sanitizer do $PASSWORD length:1 lowercase )"
+					PASSWORD_CHAR1_UPPER="$( _sanitizer do $PASSWORD length:1 uppercase )"
+
+					H1="${USERNAME_CHAR1_LOWER}${REST_USERNAME}${PASSWORD_CHAR1_LOWER}${REST_PASSWORD}"
+					H2="${USERNAME_CHAR1_UPPER}${REST_USERNAME}${PASSWORD_CHAR1_LOWER}${REST_PASSWORD}"
+					H3="${USERNAME_CHAR1_LOWER}${REST_USERNAME}${PASSWORD_CHAR1_UPPER}${REST_PASSWORD}"
+					H4="${USERNAME_CHAR1_UPPER}${REST_USERNAME}${PASSWORD_CHAR1_UPPER}${REST_PASSWORD}"
+
+					H5="${PASSWORD_CHAR1_LOWER}${REST_PASSWORD}${USERNAME_CHAR1_LOWER}${REST_USERNAME}"
+					H6="${PASSWORD_CHAR1_UPPER}${REST_PASSWORD}${USERNAME_CHAR1_LOWER}${REST_USERNAME}"
+					H7="${PASSWORD_CHAR1_LOWER}${REST_PASSWORD}${USERNAME_CHAR1_UPPER}${REST_USERNAME}"
+					H8="${PASSWORD_CHAR1_UPPER}${REST_PASSWORD}${USERNAME_CHAR1_UPPER}${REST_USERNAME}"
+
+					LIST_HASH_INPUT="$H1 $H2 $H3 $H4 $H5 $H6 $H7 $H8"				
+				fi
+
+				HASH=
+				for HASH_INPUT in $LIST_HASH_INPUT; do {
+					HASH="${HASH}$( echo -n "$HASH_INPUT" | md5sum | cut -d' ' -f1 ) "
+				} done
+
+				echo "$HASH"
+
 			} done >$INDEX
 			_stopwatch stop $ACTION
 
