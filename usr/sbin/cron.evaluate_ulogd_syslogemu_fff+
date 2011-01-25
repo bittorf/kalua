@@ -11,7 +11,7 @@
 #
 #		fixme! 11:35:56 -> unixtime?
 #		speed:  ca.  9.5 lines/sec on WRT54GL
-#			ca. 55.5 lines/sec on TP-Link1043ND
+#			ca. 56.0 lines/sec on TP-Link1043ND
 #
 # example-shot:     92.750 bytes |  337 lines (~273 bytes) ->  18985 bytes (-> 21%) -> gzip -> 4000 bytes (-> 21% / 4.3% overall)
 # extrapolation: 2.000.000 bytes | 7272 lines              -> 80.000 bytes / user / day (gzip)
@@ -66,7 +66,8 @@ func_ulog_squeeze_log ()
 	local LINES="$( _file lines $ULOG_LOGFILE )"
 	local NODEID="$( uci get system.@profile[0].nodenumber )"
 	local REBOOTS="$( cat /www/REBOOT_COUNTER )"
-	
+	local TIME_ESTIMATED
+
 	# local FLAGS="| ACK:$FLAG_ACK SYN:$FLAG_SYN RST:$FLAG_RST FIN:$FLAG_FIN PSH:$FLAG_PSH URGP:$URGP"
 
 	local LINE FLAGS PORT IP OUTPUT TIMECOUNT
@@ -74,7 +75,17 @@ func_ulog_squeeze_log ()
 	local COUNTER=0
 					# fixme! fetch conn_length from conntrack when connection was closed
 
-	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in $(( $LINES / 10 ))sec"
+	eval "$( _hardware remap_devs get_model )"
+	case "$ROUTER_MODEL" in
+		TL-WR1043ND)
+			TIME_ESTIMATED="$(( $LINES / 55 ))"	
+		;; 
+		*)
+			TIME_ESTIMATED="$(( $LINES / 10 ))"
+		;;
+	esac
+
+	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in ${TIME_ESTIMATED}sec"
 	_stopwatch start $FUNC	
 
 	while read LINE; do {		# func_ulog_make_evalable "$LINE" >>/tmp/vds_debug
@@ -191,7 +202,7 @@ func_ulog_logsaving ()
 			SERVER="$( echo $DESTINATION | cut -d':' -f1 | cut -d'@' -f2 )"
 
 			fgrep -q $SERVER /etc/dropbear/known_hosts || {
-				_log do $FUNC daemon alert "not found '$SERVER' in /etc/dropbear/known_hosts"
+				_log do $FUNC daemon alert "[ERR] not found '$SERVER' in /etc/dropbear/known_hosts"
 				COPYCOMMAND="false"
 			}
 		;;
