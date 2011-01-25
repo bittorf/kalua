@@ -2,11 +2,54 @@
 . /tmp/loader
 
 ERR=1
-while getopts "a:A:s:rRlpofuOPH" FLAG; do {
+while getopts "a:A:s:wrRlpofuOPH" FLAG; do {
 
 	ERR=0
 
 	case $FLAG in
+		w)
+			# some quirks for ath9k/mac80211 till
+
+			wifidev_name_has_changed()
+			{
+				[ -e /usr/sbin/iwconfig ] && {
+					[ "$( iwconfig wlan1 2>/dev/null | wc -l )" -gt 0 ] && return 1
+					[ "$( iwconfig wlan2 2>/dev/null | wc -l )" -gt 0 ] && return 1
+				}
+
+				return 0
+			}
+
+			wifidev_name_has_changed || _system reboot_safe "wifidev_name_has_changed"
+
+			# [ "$( logread | fgrep "nf_conntrack: table full, dropping packet." | wc -l )" -gt 6 ] && reboot
+
+			incoming_wifi_activity()
+			{
+				local funcname="incoming_wifi_activity"
+				local framecount_old framecount_new
+				local file_framecount="/tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV"
+
+				eval "$( sed -n "s/.*$WIFIDEV: *[0-9]* *\([0-9]*\).*/framecount_new=\1/p" /proc/net/dev )"
+
+				if [ -e "$file_framecount" ]; then
+					read framecount_old <"$file_framecount"
+				else
+					framecount_old=0
+				fi
+
+				echo "$framecount_new" >"$file_framecount"
+
+				if [ "$framecount_old" = "$framecount_new" ]; then
+					_log do $funcname daemon info "framecounter old/new: $framecount_old/$framecount_new"
+					return 1
+				else
+					return 0
+				fi
+			}
+
+			incoming_wifi_activity || wifi
+		;;
 		a)
 			_scheduler add "$OPTARG"
 		;;
