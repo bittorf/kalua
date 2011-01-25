@@ -10,10 +10,18 @@
 # 		< 11:35:56 212.58.226.33 80 TCP 10434 3248579419 1694279285
 #
 #		fixme! 11:35:56 -> unixtime?
-#		speed: ca. 9.5 lines/second on WRT54GL
+#		speed:  ca.  9.5 lines/sec on WRT54GL
+#			ca. 55.5 lines/sec on TP-Link1043ND
 #
 # example-shot:     92.750 bytes |  337 lines (~273 bytes) ->  18985 bytes (-> 21%) -> gzip -> 4000 bytes (-> 21% / 4.3% overall)
 # extrapolation: 2.000.000 bytes | 7272 lines              -> 80.000 bytes / user / day (gzip)
+#
+# prepare before first execution:
+#
+# PUBKEY="/etc/dropbear/dropbear_dss_host_key.pub"
+# SERVERLOGIN="$( uci get system.@vds[0].server | cut -d':' -f1 )"
+# cat $PUBKEY | ssh "$SERVERLOGIN" 'cat >>.ssh/authorized_keys'
+#
 
 ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"
 ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"
@@ -138,7 +146,7 @@ func_ulog_logsaving ()
 	local FUNC="ulog_logsaving"
 	local PATTERN="${VDS_PATH}/user-*.ulog"
 	local TODAY="$( _system date humanreadable short )"
-	local COPYCOMMAND
+	local COPYCOMMAND SERVER
 	local DESTINATION
 	local FILELIST="$( find $PATTERN -type f 2>/dev/null )"
 	local FILE FILESIZE GATEWAY
@@ -177,6 +185,17 @@ func_ulog_logsaving ()
 		COPYCOMMAND="scp -p -i $SSH_IDENTITY"			# '-p' preserve time,accesstime and modes, fixme! -B (batchmode) -C (compression) -q (quiet)
 		DESTINATION="${GATEWAY}:${VDS_PATH}"				# fixme! empty GATEWAY?
 	fi
+
+	case "$COPYCOMMAND" in
+		scp*)
+			SERVER="$( echo $DESTINATION | cut -d':' -f1 | cut -d'@' -f2 )"
+
+			fgrep -q $SERVER /etc/dropbear/known_hosts || {
+				_log do $FUNC daemon alert "not found '$SERVER' in /etc/dropbear/known_hosts"
+				COPYCOMMAND="false"
+			}
+		;;
+	esac
 
 	for FILE in $FILELIST; do {
 
