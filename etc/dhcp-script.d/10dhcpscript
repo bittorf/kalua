@@ -1,8 +1,6 @@
 #!/bin/sh
 . /tmp/loader
 
-[ -n "$( uci get system.@weblogin[0].enabled )" ] && exit	# fixme! respect MAC|HOSTNAME for USERNAME/PASSWORD
-
 MODE="${1:-unset}"
 MAC="${2:-00:00:00:00:00:00}"
 IP="${3:-127.0.0.1}"
@@ -22,6 +20,27 @@ _log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV"
 
 case $MODE in
 	add|old)
+		case "$( uci get system.@weblogin[0].enabled )" in
+			"") ;;
+			*)
+				[ "$MODE" = "add" ] || exit
+
+				USER="$MAC"
+				PASS="$( uci get system.@system[0].hostname )"
+				SIGNAL="dhcp-$MODE"
+				LANG=""
+				KEYWORD=""
+
+				if _weblogin login_check "$USER" "$PASS" "$MAC" "$SIGNAL" "$LANG" "$KEYWORD" ; then
+					_log do dhcp_$MODE daemon info "[OK] _weblogin login_check $USER/$PASS"
+				else
+					_log do dhcp_$MODE daemon info "[ERR] _weblogin login_check $USER/$PASS"
+				fi
+
+				exit 0
+			;;
+		esac	
+
 		case "$( uci get system.@profile[0].name )" in
 				  ffsundi_mesh)
 		  				[ "$TYPE" != "lan" ] && {
