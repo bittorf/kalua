@@ -88,15 +88,34 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		index_gen)
 			local INDEX="$DIR/meta_index"
 			local LOGIN_ID USERNAME PASSWORD FUZZY HASH HASH_INPUT LIST_HASH_INPUT
-			local REST_USERNAME REST_PASSWORD
+			local REST_USERNAME REST_PASSWORD LIST_LOGINS HOST LIST_HOSTS
 			local USERNAME_CHAR1_LOWER USERNAME_CHAR1_UPPER PASSWORD_CHAR1_LOWER PASSWORD_CHAR1_UPPER
 			local H1 H2 H3 H4 H5 H6 H7 H8
 
+			is_macaddress()
+			{
+				case "$1" in
+					[0-9a-f][0-9a-f][:-]*) return 0 ;;
+				esac
+			}
+
 			_stopwatch start $ACTION
-			for LOGIN_ID in $( _db user login list $ID $OPTION ); do {		# fixme! can be: "last" + "32"
+			LIST_LOGINS="$( _db user login list $ID $OPTION )"	# fixme! todo: can be: "last" + "32" for efficient index_bulding/appending
+			for LOGIN_ID in $LIST_LOGINS; do {
 				eval $( _db user login show $LOGIN_ID "USERNAME PASSWORD FUZZY" )
-	
-				if [ -z "$FUZZY" ]; then
+
+				if   is_macaddress $USERNAME; then
+
+					LIST_HOSTS="$PASSWORD"
+					if [ -z "$LIST_HOSTS" ]; then
+						LIST_HASH_INPUT="$USERNAME"
+					else
+						for HOST in $LIST_HOSTS; do {
+							LIST_HASH_INPUT="${LIST_HASH_INPUT}${USERNAME}${HOST} "
+						} done
+					fi
+
+				elif [ -z "$FUZZY" ]; then
 					LIST_HASH_INPUT="$USERNAME$PASSWORD"
 				else
 					REST_USERNAME="$( echo $USERNAME | cut -b2-99 )"
