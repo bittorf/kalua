@@ -341,15 +341,17 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 	local FUNC="watch_random_node_id"
 	local URL WIFIMAC SSH_PUBKEY_FP DIRTY
 
-	_build_vars ()
+	build_vars ()
 	{
-		local WIFIMAC="$(	_sanitizer do "$( _net dev2mac $WIFIDEV )"		hex )"
-		local SSH_PUBKEY_FP="$(	_sanitizer do "$( _ssh key_public_fingerprint_get )"	hex )$( _file hash /etc/dropbear/dropbear_dss_host_key.pub )"
+		local WIFIMAC="$( _sanitizer do "$( _net dev2mac $WIFIDEV )" hex )"
+		local SSS_PUBKEY_FP_HEXONLY="$( _sanitizer do "$( _ssh key_public_fingerprint_get ) hex )"
+		local SSH_PUBKEY_HASH="$( _file hash /etc/dropbear/dropbear_dss_host_key.pub )"
 		local SSH_PUBKEY="$( _file convert_bin2hex /etc/dropbear/dropbear_dss_host_key.pub )"
+		local SERVER_URL="$( uci get system.@monitoring[0].url )"
 
 		echo "WIFIMAC=$WIFIMAC"
-		echo "SSH_PUBKEY_FP=$SSH_PUBKEY_FP"	
-		echo "URL='$( uci get system.@monitoring[0].url )/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$SSH_PUBKEY'"
+		echo "SSH_PUBKEY_FP=${SSS_PUBKEY_FP_HEXONLY}${SSH_PUBKEY_HASH}"	
+		echo "URL='$SERVER_URL/registrator/?WIFIMAC=${WIFIMAC}&SSHPUBKEYFP=${SSH_PUBKEY_FP}&SSHPUBKEY=$SSH_PUBKEY'"
 	}
 
 	_ipsystem do | grep -q ^"NODE_NUMBER_RANDOM=true"					&& DIRTY=1
@@ -357,7 +359,7 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 	[ -z "$WIFIADR" ]									&& DIRTY=	# fixme!
 
 	if [ "$DIRTY" = "1" ]; then
-		eval "$( _build_vars )"
+		eval "$( build_vars )"
 		_log do $FUNC daemon info "detected ID from random pool - registering official ID from '$URL'"
 	
  		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _wget do "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
@@ -375,7 +377,7 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 	else
 		if [ ! -e /tmp/REGISTRATED ] && [ "$( _system uptime min )" -gt 30 ]; then
 
-			eval "$( _build_vars )"
+			eval "$( build_vars )"
 
 			[ -n "$SSH_PUBKEY_FP" ] && {
 				URL="${URL}&NODE=$( uci get system.@profile[0].nodenumber )"
