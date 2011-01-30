@@ -33,7 +33,14 @@
 
 # fixme! empty mac of REMOTE_ADDR -> redirect to real = nonlocal gateway ( _ipsystem do $REMOTE_ADDR | grep ^WIFI_ADDR ) + better show hint, than redirect
 
-			if _weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" "$FORM_LANG" ; then
+			login_ok()	# first try normal operation, than auth by mac/hostname
+			{
+				_weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" "$FORM_LANG" && return 0
+				_weblogin login_check "$MAC" "$( uci get system.@system[0].hostname )" "$MAC" "macauth_over_weblogin" && return 0
+				return 1
+			}
+
+			if   login_ok ; then
 				
 				if _pfilter user_splash_remove "$MAC" "$REMOTE_ADDR" ; then
 					_log do weblogin_success daemon alert "mac: '$MAC'"
