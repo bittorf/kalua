@@ -135,12 +135,17 @@ case "$FORM_ACTION" in
 						gb) FORM_MAX_TRAFFIC="$(( $FORM_MAX_TRAFFIC * 1024 * 1024 ))" ;;
 					esac
 
+					local METADATA_UPLINK_UPSTREAM=32768	# kbit/sec
+					local METADATA_UPLINK_DOWNSTREAM=2048
+
 					case "$FORM_MAX_SPEED_DOWN_UNIT" in	# default/internal: 'kilobytes'
 						mb) FORM_MAX_SPEED_DOWN="$(( $FORM_MAX_SPEED_DOWN * 1024 ))" ;;
+						percent) FORM_MAX_SPEED_DOWN="$(( $METADATA_UPLINK_DOWNSTREAM * $FORM_MAX_SPEED_DOWN / 100 ))" ;;
 					esac
 
 					case "$FORM_MAX_SPEED_UP_UNIT" in	# default/internal: 'kilobytes'
 						mb) FORM_MAX_SPEED_UP="$(( $FORM_MAX_SPEED_UP * 1024 ))" ;;
+						percent) FORM_MAX_SPEED_UP="$(( $METADATA_UPLINK_UPSTREAM * $FORM_MAX_SPEED_UP / 100 ))" ;;
 					esac
 
 					_db user profile update "$FORM_ID" "$FORM_NAME" "$FORM_COMMENT" "$FORM_AUTOGENERATE" "$FORM_TIME_MODEL" "$FORM_MAX_TIME" "$FORM_MAX_TRAFFIC" "$FORM_MAX_SPEED_UP" "$FORM_MAX_SPEED_DOWN" "$FORM_LANDING_URL" "$FORM_COST" "$FORM_CURRENCY"
@@ -173,12 +178,12 @@ case "$FORM_ACTION" in
 		echo "<tr bgcolor='$BG_A'><td>Abrechnungsmodell</td><td><input name='FORM_TIME_MODEL' type='radio' value='1' $( test "$TIME_MODEL" = "1" && echo checked )>vergangene&nbsp;Zeit<br><input name='FORM_TIME_MODEL' type='radio' value='0' $( test "${TIME_MODEL:-0}" = "0" && echo checked )>benutzte&nbsp;Zeit</td><td>die Zeit l&auml;uft, wenn sich ein Benutzer das erste mal einbucht. Soll die tats&auml;chliche Online-Zeit berechnet werden oder l&auml;uft die Zeit auch weiter, wenn der Benutzer nichts im Netz macht?</td></tr>"
 		echo "<tr bgcolor='$BG_B'><td>G&uuml;ltigkeitsdauer</td><td nowrap><input name='FORM_MAX_TIME' type='text' size='10' value='$MAX_TIME'><select size='1' name='FORM_MAX_TIME_UNIT'><option value='minutes' selected>Minuten</option><option value='hours'>Stunden</option><option value='days'>Tage</option><option value='months'>Monate</option></select></td><td>nach dem Abrechnungsmodell erlaubter Zeitrahmen, <i>leer</i> meint unbegrenzt</td></tr>"
 		echo "<tr bgcolor='$BG_A'><td>Maximales Datenvolumen</td><td nowrap><input name='FORM_MAX_TRAFFIC' type='text' size='10' value='$MAX_TRAFFIC'><select size='1' name='FORM_MAX_TRAFFIC_UNIT'><option value='kb' selected>Kilobyte</option><option value='mb'>Megabyte</option><option value='gb'>Gigabyte</option></select></td><td>erlaubter Rahmen der gesamten &uuml;bertragenen Datenmenge, Up- ${AMP} Download zusammengerechnet, <i>leer</i> meint unbegrenzt</td></td></tr>"
-		echo "<tr bgcolor='$BG_B'><td>Maximale Upload-Geschwindigkeit</td><td nowrap><input name='FORM_MAX_SPEED_UP' type='text' size='10' value='$MAX_SPEED_UP'><select size='1' name='FORM_MAX_SPEED_UP_UNIT'><option value='kb' selected>Kilobyte/s</option><option value='mb'>Megabyte/s</option></select></td><td>erlaubte Geschwindkeit bei ausgehendem Datenverkehr, <i>leer</i> meint unbegrenzt</td></td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>Maximale Upload-Geschwindigkeit</td><td nowrap><input name='FORM_MAX_SPEED_UP' type='text' size='10' value='$MAX_SPEED_UP'><select size='1' name='FORM_MAX_SPEED_UP_UNIT'><option value='kb' selected>Kilobyte/s</option><option value='mb'>Megabyte/s</option><option value='percent'>% des Uplinks</option></select></td><td>erlaubte Geschwindkeit bei ausgehendem Datenverkehr, <i>leer</i> meint unbegrenzt</td></td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>Maximale Download-Geschwindigkeit</td><td nowrap><input name='FORM_MAX_SPEED_DOWN' type='text' size='10' value='$MAX_SPEED_DOWN'><select size='1' name='FORM_MAX_SPEED_DOWN_UNIT'><option value='kb' selected>Kilobyte/s</option><option value='mb'>Megabyte/s</option><option value='percent'>% des Uplinks</option></select></td><td>erlaubte Geschwindkeit bei eintreffendem Datenverkehr, <i>leer</i> meint unbegrenzt</td></td></tr>"
 
 		echo "<tr bgcolor='$BG_A'><td>Jugendschutzfilter</td><td nowrap><input name='FORM_PROXY1' type='checkbox'>&nbsp;aktiv</td><td>Der Abruf von Webseiten wird durch einen Filter geleitet</td></td></tr>"
 		echo "<tr bgcolor='$BG_B'><td>Werbefilter</td><td nowrap><input name='FORM_PROXY2' type='checkbox'>&nbsp;aktiv</td><td>Werbebanner werden herausgefiltert</td></tr>"
 
-		echo "<tr bgcolor='$BG_A'><td>Maximale Download-Geschwindigkeit</td><td nowrap><input name='FORM_MAX_SPEED_DOWN' type='text' size='10' value='$MAX_SPEED_DOWN'><select size='1' name='FORM_MAX_SPEED_DOWN_UNIT'><option value='kb' selected>Kilobyte/s</option><option value='mb'>Megabyte/s</option></select></td><td>erlaubte Geschwindkeit bei eintreffendem Datenverkehr, <i>leer</i> meint unbegrenzt</td></td></tr>"
 		echo "<tr bgcolor='$BG_B'><td>Internetadresse der Landeseite</td><td><input name='FORM_LANDING_URL' type='text' size='32' value='$LANDING_URL'></td><td>auf diese Seite wird der Benutzer geleitet, nachdem er sein Passwort eingegeben hat, z.b. https://www.google.com</td></tr>"
 		echo "<tr bgcolor='$BG_A'><td>Verkaufspreis</td><td nowrap><input name='FORM_COST' type='text' size='10' value='$COST'><select size='1' name='FORM_CURRENCY'><option value='EUR' $( test "$CURRENCY" = "EUR" && echo selected )>EUR - Euro</option><option value='USD' $( test "$CURRENCY" = "USD" && echo selected )>USD - US-Dollar</option><option value='VND' $( test "$CURRENCY" = "VND" && echo selected )>VND - &#272;&#7891;ng</option></select></td><td>f&uuml;r die Buchhaltung bzw. revisionssichere Protokollierung</td></tr>"
 		echo "<tr bgcolor='$BG_0'><td colspan='2' align='center' valign='middle'><p><input type='submit' name='' value='$SUBMIT_BUTTON_TEXT'></p></td><td>&nbsp;</td></tr>"
@@ -460,7 +465,7 @@ EOF
 			echo "<li>Logins <a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=all'>anzeigen&nbsp;($LIST_LOGINS_COUNT St&uuml;ck)</a>"
 
 			[ $LIST_LOGINS_COUNT -gt 10 ] && {
-				echo "<ul>"			# fehlendes <li>?
+				echo "<ul>"			# fixme! missing <li>?
 				echo "<li><a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=5'>die neuesten 5</a>,&nbsp;"
 				echo "<a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=10'>10</a>,&nbsp;"
 				echo "<a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=15'>15</a>,&nbsp;"
@@ -473,7 +478,7 @@ EOF
 
 		cat <<EOF
 </ul></li>
-<li><br><b><big>G</big>er&auml;te</b> verwalten:
+<br><li><b><big>G</big>er&auml;te</b> verwalten:
 	<ul>
 EOF
 		LISTE_DEVICES="$( _db user device list )"
