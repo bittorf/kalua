@@ -72,9 +72,14 @@ _startup ()
 	_pfilter user_splash_remove_autounsplashed
 
 	case "$( _net local_inet_offer )" in
-		wan|pppoe)
-			_log do deny_possible_wan_olsr_over_internet daemon debug "denying incoming OLSR to WANDEV for alien-nets"
-			iptables -I INPUT -i $WANDEV -p udp --dport 698 -j DROP
+		wan|pppoe)			# fixme! olsr-allow is a hack for EJBW-installation
+
+			if [ "$( uci get firewall.@zone[1].name )" = "wan" -a "$( uci get firewall.@zone[1].input )" = "ACCEPT" ]; then
+				_log do deny_possible_wan_olsr_over_internet daemon info "allowing OLSR over WANDEV"
+			else
+				_log do deny_possible_wan_olsr_over_internet daemon info "denying incoming OLSR to WANDEV for alien-nets"
+				iptables -I INPUT -i $WANDEV -p udp --dport 698 -j DROP
+			fi
 		;;
 	esac
 
