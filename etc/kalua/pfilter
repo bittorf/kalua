@@ -843,6 +843,7 @@ _pfilter_user_splash_control ()				# SENS: controlling if a user must see splash
 	local MODE="$1"
 	local  MAC="$2"
 	local   IP="$3"
+	local line dhcp_lease_file temp_file
 
 	_log do $FUNC daemon info "start - mode: $MODE - $MAC / $IP"
 
@@ -857,6 +858,22 @@ _pfilter_user_splash_control ()				# SENS: controlling if a user must see splash
 		MODE="-I"
 	else
 		MODE="-D"
+
+		if   [ -e /tmp/dhcp.leases ]; then			# openwrt
+			dhcp_lease_file="/tmp/dhcp.leases"
+		elif [ -e /var/run/dhcp.leases ]; then			# freifunk-firmware
+			dhcp_lease_file="/var/run/dhcp.leases"
+		fi
+
+		tempfile="/tmp/dhcp_leases_$$"
+
+		while read line; do {
+			*$MAC*) : ;;
+			*) echo $line ;;
+		} done <$dhcp_lease_file >$tempfile
+		mv $tempfile $dhcp_lease_file
+
+		_scheduler add "/etc/init.d/*dnsmasq restart"
 	fi
 
 	_ipt -t mangle $MODE PREROUTING -m mac --mac-source $MAC -j ACCEPT
