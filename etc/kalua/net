@@ -1,3 +1,52 @@
+_net_dhcp_lease_filename()
+{
+	local file
+
+	if   [ -e /tmp/dhcp.leases ]; then		# openwrt
+
+		file="/tmp/dhcp.leases"
+
+	elif [ -e /var/run/dhcp.leases ]; then		# freifunk-firmware
+
+		file="/var/run/dhcp.leases"
+	else
+		file="$( uci get dhcp.@dnsmasq[0].leasefile )"
+	fi
+
+	[ -z "$file" ] && {
+		file="/tmp/fake_dhcp_lease_file"
+		touch "$file"
+	}
+
+	echo "$file"
+}
+
+_net_dhcp_lease_show()
+{
+	cat "$( _net dhcp_lease_filename )"
+}
+
+_net_dhcp_lease_remove()
+{
+	local mac="$1"
+	local line
+	local dhcp_lease_file="$( _net dhcp_lease_filename )"
+	local tempfile="/tmp/dhcp_leases_$$"
+
+	while read line; do {
+	
+		case "$line" in
+			*$mac*) ;;
+			     *) echo "$line" ;;
+		esac
+
+	} done <$dhcp_lease_file >$tempfile
+
+	mv "$tempfile" "$dhcp_lease_file"
+
+	_scheduler add "/etc/init.d/*dnsmasq restart"
+}
+
 _net_mac2vendor ()
 {
 	local FUNC="net_mac2vendor"
