@@ -277,10 +277,15 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	HASH="$( echo -n "${USER}${PASS}" | md5sum | cut -d' ' -f1 )"
 
 	if [ -e /tmp/FREE ]; then
+		_log do $FUNC daemon info "[OK] auth: existing /tmp/FREE"
+		FREE=1
+	elif [ -e /tmp/vds_user_$MAC ]; then
+		_log do $FUNC daemon info "[OK] auth: existing /tmp/vds_user_$MAC"
 		FREE=1
 	else
 		_log do $FUNC daemon info "query local db for '$HASH'"
 		[ -n "$( _db user login query hash2id "$HASH" )" ] && {
+			_log do $FUNC daemon info "[OK] auth: local db knows hash '$HASH'"
 			FREE=1	# use local DB, if available - but also send logmsg to GW
 		}
 	fi
@@ -304,7 +309,7 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 
 	[ ${#ANSWER} -gt 10 ] && ANSWER="shortened: $( _sanitizer do "$ANSWER" firstline length:30 )"
 
-	_log do $FUNC daemon info "ANSWER: '$ANSWER' FREE: '$FREE' URL: '${URL:-locally_asked:}?${PARAMETERS}'"
+	_log do $FUNC daemon info "ANSWER: '$ANSWER' (1=ok) FREE: '$FREE' URL: '${URL:-locally_asked:}?${PARAMETERS}'"
 
 	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
 		echo "$HASH" >/tmp/vds_user_$MAC		# fixme! for building vds, use DB instead (easy/simple mac2hash)
