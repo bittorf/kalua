@@ -1,8 +1,9 @@
 _olsr_remoteip2metric ()
 {
 	local ip="$1"
+	local ip="$( echo $ip | sed 's/\./\\\./g' )\/32"	# hiden dots for next regex and sed-safe append /32
 
-	:
+	sed -n "/^$ip/{s/^$ip	[0-9\.]*	\([0-9]*\)	.*/\1/p;q}" /tmp/olsr_plain
 }
 
 _olsr_daemon ()
@@ -305,8 +306,8 @@ _olsr_neighs ()
 
 	grep -sq ^"LoadPlugin.*$PLUGIN\.so\." $FILE_CONFIG && {	
 
-		_wget do "$URL" 5 >"$TEMP" || {			# fixme! fetch routing-table also
-								#        and use it for _net ip2metric()
+		_wget do "$URL" 5 >"$TEMP" || {
+
 			rm "$TEMP"
 
 			_olsr uptime is_short && {
@@ -531,7 +532,7 @@ _olsr_neighs_extended_evalable ()
 
 		[ -n "$VERBOSE" ] && {
 		
-			METRIC="$( _net ip2metric $REMOTE )"
+			METRIC="$( _olsr remoteip2metric $REMOTE )"
 			DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
 		
 			echo "LOCAL=$LOCAL;REMOTE=$REMOTE;LQ=$LQ;NLQ=$NLQ;COST=$COST;DEVTYPE=$DEVTYPE;METRIC=$METRIC"
@@ -565,7 +566,7 @@ _olsr_neighs_meshrdf_evalable ()
 		eval $LINE
 		
 		DEVTYPE="$(   _net devtype2symbol $( _net dev_type $( _net iplocal2dev $LOCAL ) ) )"
-		METRIC="$(    _net ip2metric $REMOTE )"
+		METRIC="$( _olsr remoteip2metric $REMOTE )"
 		REMOTE_ID="$( _ipsystem do $REMOTE )"
 				
 		echo -n "${DEVTYPE}${REMOTE_ID}:${LOCAL}:${REMOTE}:${METHOD}:${LQ}:${NLQ}:${COST}:${METRIC}"
@@ -614,7 +615,7 @@ _olsr_neighs_humanreadable ()	# fixme! ToDo: latitude/longitude/distance + speed
 		SPACER1="$( _sanitizer do "$MAX1 $LOCAL"  add_length_diff_with_spaces )"			# ip's should always have
 		SPACER2="$( _sanitizer do "$MAX2 $REMOTE" add_length_diff_with_spaces )"			# the same length
 		DNS="$( _net ip2dns $REMOTE )"
-		METRIC="$( _net ip2metric $REMOTE )"
+		METRIC="$( _olsr remoteip2metric $REMOTE )"
 		[ $COUNT -gt 9 ] && unset SPACER3					# 9 -> ' 9'; 10 = 10
 
 		LQMULTI="$( sed -n "/LinkQualityMult[^0-9]*${REMOTE}/{s/^.*LinkQualityMult[^0-9]*${REMOTE}[^0-9]*\([0-9\.]*\).*/[LQ x\1]/p;q}" $CONFIG_FILE )"
