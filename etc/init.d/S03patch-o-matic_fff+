@@ -105,6 +105,11 @@ fkt_patch ()
 	local   SIZE=0
 	local   FILE=0
 
+	_uci is_oldstyle || {
+		_log do $FNAME daemon info "found newstyle-device, ignoring call for patching '$PATCH' ($MODE)"
+		return
+	}
+
 	[ "$MODE" != "restore_from_rom" ] && {
 		_log do $FNAME daemon info "patching: '$PATCH'"
 	}
@@ -520,14 +525,16 @@ _call_start ()							# after reach reboot
 		fkt_build_settings_menu				# only needed for generating menu-entrys
 
 		echo $(( $( cat "/www/REBOOT_COUNTER" 2>/dev/null || echo 0 ) + 1 )) >"/www/REBOOT_COUNTER"		# reboot_count++ on each boot
-       		grep -q "kern.warn kernel: " /www/everlasting_syslog.txt && _log do detect_old_oops daemon alert "kernel-oops detected"
-       
-                	
+
+       		grep -sq "kern.warn kernel: " /www/everlasting_syslog.txt && {
+       			_log do detect_old_oops daemon alert "kernel-oops detected"
+		}
+
 		[ ! -e "/www/FRESHFLASHED" ] && {		# we must take care of the
 			rm -f "$LOCKFILE"			# lockfile, each time we exit
 			_call_virgin				# or recall this script, otherwise
 		}						# it won't work out ;-)
-	
+
 		# [ "$( _wifi mode )" != "adhoc" ] && {			# fixme! and the way back to normal wifi-olsr?
 		#							# fixme! an olsr-feature was found, needs some research
 		#	case "$( uci get system.@profile[0].name )" in	# does not work: iptables -I OUTPUT -p udp --dport 698 -j DROP
