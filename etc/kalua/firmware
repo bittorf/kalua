@@ -12,22 +12,30 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	
 	_cleanup ()
 	{
+		local option="$1"
+
 		_log do "$FUNC" daemon debug "cleaning up - applied $COUNT files ($COUNT_ERROR errors)"
 		cd /tmp
 		rm -fR "$WORKINGDIR"
 		rm -f  "$TGZ"
+
+		[ "$option" = "reschedule" ] && {
+			_scheduler add "_$FUNC $MODE"
+		}
 	}
-	
+
 	_log do "$FUNC" daemon debug "fetching tarball in '$MODE'-mode: '$URL'"
 	wget -O "$TGZ" "$URL" || {
 		_log do "$FUNC" daemon info "failed to download '$URL' - abort"
-		_cleanup
+
+		_cleanup reschedule
 		return 1
 	}
 	
 	tar tzf "$TGZ" >/dev/null || {
 		_log do "$FUNC" daemon info "fail during extract-test '$TGZ' - abort"
-		_cleanup
+
+		_cleanup reschedule
 		return 1
 	}
 	
@@ -37,10 +45,12 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	
 	tar xzf "$FILE" || {
 		 _log do "$FUNC" daemon alert "failed to extract '$TGZ' to '$WORKINGDIR' - abort"
-		_cleanup
+
+		_cleanup reschedule
 		return 1	 
 	}
 	rm "$FILE"
+
 	_log do "$FUNC" daemon debug "tarball extracted - applying only files which differ"
 
 	for TEMPFILE in $( find -type f ); do {
@@ -70,7 +80,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	if [ $COUNT -gt 0 ]; then
 
 		/etc/kalua_init
-		[ "$CRON_RESTART" = "1" ] && /etc/init.d/S51crond_fff+ restart
+		[ "$CRON_RESTART" = "1" ] && /etc/init.d/*crond_fff+ restart
 		
 		echo >>/etc/banner "# manually updated with poormens method on $( date ) by '$0' to this version:"
 		echo >>/etc/banner "# originally flashed version: $( _system version )"
