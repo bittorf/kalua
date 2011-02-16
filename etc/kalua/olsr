@@ -11,6 +11,7 @@ _olsr_daemon ()
 	local ACTION="$1"
 	local REASON="${2:-no_reason_given}"
 	local LOGPRIO="alert"
+	local LIST
 
 	case "$REASON" in
 		olsrd_restart_scheduler_controlled|plausi_check_failed)
@@ -27,8 +28,24 @@ _olsr_daemon ()
 				;;
 			esac
 
-			_log do "daemon" daemon $LOGPRIO "$ACTION: $REASON"
-			/etc/init.d/*olsrd $ACTION
+			if [ "$ACTION" = "restart" ]; then
+				LIST="stop start"
+			else
+				LIST="$ACTION"
+			fi
+
+			for ACTION in $LIST; do {
+				_log do "daemon" daemon $LOGPRIO "$ACTION: $REASON"
+				/etc/init.d/*olsrd $ACTION
+
+				[ "$ACTION" = "stop" ] && {
+					_watch hanging_command olsrd || {
+						sleep 3
+						_watch hanging_command olsrd
+					}
+				}
+
+			} done
 		;;
 	esac
 }
@@ -326,8 +343,8 @@ _olsr_neighs ()
 			rm "$TEMP"
 
 			_olsr uptime is_short && {
-				_log do $FUNC daemon info "waiting 60 sec for olsrd restart"
-				sleep 60				# lets settle down
+				_log do $FUNC daemon info "waiting 60 sec for olsrd settle down"
+				sleep 60
 			}
 
 			_wget do "$URL" >"$TEMP" && {

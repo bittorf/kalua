@@ -63,7 +63,7 @@ _watch_vpnc ()
 
 _watch_hanging_command ()
 {
-	local COMMAND="$1"						# e.g. wget|scp|mv|nc
+	local COMMAND="$1"						# e.g. wget|scp|mv|nc|olsrd
 	local FUNC="watch_hanging_command"
 	local COMMAND_PID="$( pidof $COMMAND | cut -d' ' -f1 )"		# any running process?
 	
@@ -89,19 +89,23 @@ _watch_hanging_command ()
 		kill $COMMAND_PID
 		sleep 3
 		
-		[ -e "/proc/$COMMAND_PID" ] && {
+		if [ -e "/proc/$COMMAND_PID" ]; then
 			_log do $FUNC daemon crit "still hanging, killing hard"
 			kill -9 $COMMAND_PID
 			sleep 3
 		
-			[ -e "/proc/$COMMAND_PID" ] && {
+			if [ -e "/proc/$COMMAND_PID" ]; then
 				_system reboot_safe "$FUNC() still hanging '$COMMAND'"
-				return
-			}
-		}
+				return 1
+			else
+				_$FUNC $COMMAND
+			fi
+		else
+			_$FUNC $COMMAND
+		fi
 			
 		_log do $FUNC daemon info "successfully killed '$COMMAND'-process"
-		return
+		return 0
 	fi
 
 	_log do $FUNC daemon debug "remember for next check '$COMMAND_PID' / '$COMMAND_CMD'"
