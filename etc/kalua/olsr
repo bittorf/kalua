@@ -369,6 +369,14 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		return 0
 	}
 
+	local OLSR_RESTARTS="$( _olsr uptime restarts_get )"
+	local BORDER="$(( $( _system uptime days ) + 10 ))"
+
+	[ $OLSR_RESTARTS -gt $BORDER ] && {
+		_log do $FUNC daemon crit "[ERR] olsr restarts > normality ($OLSR_RESTARTS > $BORDER)"
+		return 1
+	}
+
 	[ -z "$FILE" ] && {
 		_log do $FUNC daemon crit "[ERR] olsr-plaintext plugin has no output!"
 		return 1
@@ -431,7 +439,9 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
 		
 		[ "$DEVTYPE" = "wire" ] && {
-		
+
+			[ "$COST" = "INFINITE" ] || continue
+
 			LQ="$(  echo $LQ  | sed -ne 's/\.//' -e 's/^[0]*\([0-9]*\)/\1/p' )"
 			NLQ="$( echo $NLQ | sed -ne 's/\.//' -e 's/^[0]*\([0-9]*\)/\1/p' )"
 		
@@ -469,6 +479,7 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 				LOSS="$( ping -q -c 1 $REMOTE | sed -n 's/^.*packets received, \([0-9]*\)%.*/\1/p' )"
 				[ ${LOSS:-100} -eq 0 ] && break
 				_log do $FUNC daemon info "[ERR] wired remote $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
+				sleep 10
 				I=$(( $I + 1 ))
 			} done
 			[ $I -eq 10 ] && _system reboot_safe "wired remote $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
