@@ -379,21 +379,23 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	local FUNC="olsr_plausi_check"		# test 3/5: are minimum-cost neighbours linklocal?
 	local LINE				# test 4/5: each node in mesh has only 1 route?
 	local LASTLINE				# test 5/5: are wired neighbours LQ/NLQ nearly synchronous?
-	local FILE="$1"				# test 0/5: olsr-plaintext plugin works?
-
+	local FILE="$1"				# test 0/5: olsr-plaintext plugin works? + too much restarts? + default route exists?
+	local option="$2"
 						# idea: '10.63.176.193 ~~0~~ 10.63.62.1     LQ/NLQ/COST: 0.000 / 0.000 / ~      MAC+DNS: ??:??:??:??:??:?? 'unknown'
 						# idea:
 
-	_olsr uptime is_short && {
-		_log do $FUNC daemon info "no check - olsr_uptime seems pretty low"
-		return 0
+	[ "$option" = "force" ] || {
+		_olsr uptime is_short && {
+			_log do $FUNC daemon info "no check - olsr_uptime seems pretty low"
+			return 0
+		}
 	}
 
 	local OLSR_RESTARTS="$( _olsr uptime restarts_get )"
 	local BORDER="$(( $( _system uptime days ) + 10 ))"
 
 	[ $OLSR_RESTARTS -gt $BORDER ] && {
-		_system_reboot_safe "[ERR] olsr restarts > normality ($OLSR_RESTARTS > $BORDER)"
+		_system reboot_safe "[ERR] olsr restarts > normality ($OLSR_RESTARTS > $BORDER)"
 		return 1
 	}
 
