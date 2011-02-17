@@ -153,31 +153,42 @@ _scheduler_add ()
 	_scheduler vars
 	
 	local TASK="$1"
-	local KEYWORD="$2"
+	local KEYWORD="$2"		# move2top|force
 	local COMMAND COUNTER
-	      COMMAND="$( _scheduler task2command "$TASK" )" || return
 	local FUNC="scheduler_add"
+	local logprio="debug"
 
-	if [ "$KEYWORD" = "move2top" ]; then		# insert on top, if not already in waiting_queue
+	COMMAND="$( _scheduler task2command "$TASK" )" || return
 
-		cat ${FILE_SCHEDULER_TMP}1000* 2>/dev/null | head -n1 | grep -q ^"$COMMAND" && {
-		
-			_log do $FUNC daemon debug "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring"
-			return
-		}
-		
-		COUNTER="$(( 1000000000 + $$ ))"
-	else
-		fgrep -sq "$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY && {		# fixme! better begin search at line_start
-												# but if we use regex, we have to escape special chars like * and .
-			_log do $FUNC daemon debug "PID:'$$' - '$TASK' - already in queue, ignoring"
-			return
-		}
-		
+	case "$KEYWORD" in
+		move2top)				# insert on top, if not already in waiting_queue
+
+			cat ${FILE_SCHEDULER_TMP}1000* 2>/dev/null | head -n1 | grep -q ^"$COMMAND" && {
+				_log do $FUNC daemon $logprio "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring"
+				return
+			}
+
+			COUNTER="$(( 1000000000 + $$ ))"
+		;;
+		force)
+			:	# no check at all, simply add to queue
+		;;
+		*)
+			# fixme! better begin search at line_start
+			# but if we use regex, we have to escape special chars like * and .
+
+			fgrep -sq "$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY && {
+				_log do $FUNC daemon $logprio "PID:'$$' - '$TASK' - already in queue, ignoring"
+				return
+			}
+		;;
+	esac
+
+	[ -z "$COUNTER" ] && {
 		COUNTER="$( _system date unixtime )"	# we need a monotonic + always_same_length-counter here, so better not use $$ (process-id)
-	fi						# this is only true from 2001-Sep-10 ... 2038-Jan-19
-	
-	_log do $FUNC daemon debug "PID:'$$' +'$TASK'"
+	}						# this is only true from 2001-Sep-10 ... 2038-Jan-19
+
+	_log do $FUNC daemon $logprio "PID:'$$' +'$TASK'"
 	echo "$COMMAND   # $TASK" >>${FILE_SCHEDULER_TMP}${COUNTER}
 }
 
