@@ -1,9 +1,56 @@
-_olsr_remoteip2metric ()
+_olsr_build_tables ()			# building of /tmp/OLSR_TMP/ALL 		// is called every minute
+{					#			   /LINKS
+	local func="olsr_build_tables"	#			   /LINKS.sh
+	local line			# and moving /tmp/OLSR_TMP/* -> /tmp/OLSR (which is used by all functions)
+
+	mkdir -p /tmp/OLSR /tmp/OLSR_TMP
+
+	while _olsr uptime is_short ; do {
+		sleep 10
+	} done
+
+	_wget do "http://127.0.0.1:2006/all" >/tmp/OLSR_TMP/ALL || {
+
+		if pidof olsrd >/dev/null ; then
+			_log do $FUNC daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
+		else
+			_log do $FUNC daemon crit "failed to fetch neighbour-table, because OLSRd is'nt running"
+		fi
+
+		return 1
+	}
+
+	ip route show table main 			>/tmp/OLSR_TMP/ROUTING_TABLE_MAIN
+
+	while read line; do {
+		case "$line" in
+			"Table: Neighbors")
+				break
+			;;
+			*)
+				echo "$line"
+			;;
+		esac
+	} done </tmp/OLSR_TMP/ALL >/tmp/OLSR_TMP/LINKS
+								# COST of 'INFINITE' is converted to ''
+	if _olsr version | fgrep -q 2009-10-27 ; then		# newstyle vs. old-style textinfo-plugin output
+
+		sed -n 's/^\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)[^0-9]\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$(( \$COUNT + 1 ))/p' "/tmp/OLSR_TMP/LINKS" >"/tmp/OLSR_TMP/LINKS.sh"
+	else
+		sed -n '/0\.00/s/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*0\.00[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$\(\( \$COUNT \+ 1 \)\)/p' "/tmp/OLSR_TMP/LINKS" >"/tmp/OLSR_TMP/LINKS.sh"
+	fi
+
+	mv /tmp/OLSR_TMP/* /tmp/OLSR
+}
+
+_olsr_remoteip2metric ()	# need OLSR_ROUTES
 {
 	local ip="$1"
-	local ip="$( echo $ip | sed 's/\./\\\./g' )\/32"	# hiden dots for next regex and sed-safe append /32
+	local file="/tmp/OLSR/ALL"	# fixme! make ROUTES
 
-	sed -n "/^$ip/{s/^$ip	[0-9\.]*	\([0-9]*\)	.*/\1/p;q}" /tmp/olsr_plain
+	ip="$( echo $ip | sed 's/\./\\\./g' )\/32"	# hiding dots for next regex and sed-safe append /32
+
+	sed -n "/^$ip/{s/^$ip	[0-9\.]*	\([0-9]*\)	.*/\1/p;q}" "$file"
 }
 
 _olsr_daemon ()
@@ -106,7 +153,7 @@ _olsr_uptime ()		# in seconds
 
 	case "$KEYWORD" in
 		is_short)
-			if [ $DIFF -lt 300 ]; then
+			if [ $DIFF -lt 90 ]; then
 				return 0
 			else
 				return 1
@@ -134,9 +181,9 @@ _olsr_uptime ()		# in seconds
 
 _olsr_gateways_get ()		# OUT: list with each HNA4-0.0.0.0/0-announcing IP line by line
 {
-	local FILE="$1"
+	local file="/tmp/OLSR/ALL"	# fixme! make ROUTES
 	
-	sed -e '/./{H;$!d;}' -e 'x;/Table: HNA/!d;' "$FILE" |
+	sed -e '/./{H;$!d;}' -e 'x;/Table: HNA/!d;' "$file" |
 	 sed -e '/0.0.0.0/!d' -e '/\./!d' -e 's/[^0-9.]/ /g' |
 	  cut -d" " -f3
 }
@@ -144,38 +191,33 @@ _olsr_gateways_get ()		# OUT: list with each HNA4-0.0.0.0/0-announcing IP line b
 _olsr_neigh_random_get ()
 {
 	local FUNC="olsr_neigh_random_get"
-	local FILE="$1"
+	local FILE="/tmp/OLSR/LINKS.sh"
 
 	local COST
 	local COUNT=0
 	local RANDOM
-	
-	_olsr neighs_evalable "$FILE"
-	
+
 	while read LINE; do {
 		eval $LINE
-	} done <"$FILE"
+	} done <"$FILE"			# check REMOTE and COUNT
 
-	[ -n "$REMOTE" ] && {
+	if [ -n "$REMOTE" ]; then
 		RANDOM="$( _math random_integer 1 $COUNT )"
 
 		eval $( sed -n "${RANDOM}p" "$FILE" )
 
 		echo "$REMOTE"
-		rm "$FILE"
 		return 0
-	}
-
-	rm "$FILE"
-
-	_log do $FUNC daemon debug "no neighbour, no random neighour"
-	return 1
+	else
+		_log do $FUNC daemon debug "no neighbour, no random neighour"
+		return 1
+	fi
 }
 
-_olsr_neigh_random_pair_from_mesh_evalable ()
+_olsr_neigh_random_pair_from_mesh_evalable ()		# OUT: 'LOCAL={ip};REMOTE={ip};LQ=...;NLQ=...;COST=...'
 {
-	local FILE="/tmp/olsr_plain"
-	
+	local FILE="/tmp/OLSR/ALL"		# use TOPOLOGY
+
 	local LINES="$( sed -e '/./{H;$!d;}' -e "x;/^Table: Topology/!d;" $FILE | sed -n '$=' )"
 	local RANDOM="$( _math random_integer 4 $LINES )"
 
@@ -187,7 +229,7 @@ _olsr_neigh_random_pair_from_mesh_evalable ()
 _olsr_node_evalable ()
 {
 	local NODE="$1"
-	local FILE="/tmp/olsr_plain"
+	local FILE="/tmp/OLSR/ALL"		# use ROUTES
 	
 	sed -e '/./{H;$!d;}' -e "x;/^Table: Routes/!d;" $FILE |
 	 grep ^"${NODE}/32" |
@@ -197,14 +239,12 @@ _olsr_node_evalable ()
 _olsr_neigh_check_for_nonwifi ()
 {
 	local FUNC="olsr_check_if_any_nonwifi_neigh"
-	local FILE="$1"
-	
-	_olsr neighs_evalable "$FILE"
-	
+	local FILE="/tmp/OLSR/LINKS.sh"
+
 	while read LINE; do {
 		eval $LINE
 		
-		DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
+		DEVTYPE="$( _net dev_type $( _net iplocal2dev $LOCAL ) )"
 		[ -n "$DEVTYPE" ] && {
 			[ "$DEVTYPE" != "wifi" ] && {
 				_log do $FUNC daemon debug "found nonwifi neigh: '$REMOTE'"
@@ -212,7 +252,7 @@ _olsr_neigh_check_for_nonwifi ()
 			}
 		}
 
-	} done <"$FILE" && rm "$FILE"
+	} done <"$FILE"
 
 	_log do $FUNC daemon debug "found only wifi neighbours"
 	return 1
@@ -221,20 +261,18 @@ _olsr_neigh_check_for_nonwifi ()
 _olsr_neigh_check_for_wifi ()
 {
 	local FUNC="olsr_check_for_wifi_neigh"
-	local FILE="$1"
-	
-	_olsr neighs_evalable "$FILE"
-	
+	local FILE="/tmp/OLSR/LINKS.sh"
+
 	while read LINE; do {
 		eval $LINE
-		
+
 		DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
 		[ "$DEVTYPE" = "wifi" ] && {
 			_log do $FUNC daemon debug "found wifi neigh: '$REMOTE'"
 			return 0
 		}
-	
-	} done <"$FILE" && rm "$FILE"
+
+	} done <"$FILE"
 
 	_log do $FUNC daemon debug "found only non-wifi neighbours"
 	return 1
@@ -243,13 +281,11 @@ _olsr_neigh_check_for_wifi ()
 _olsr_neigh_nlq ()
 {
 	local FUNC="olsr_get_nlq"
-	local FILE="$1"
-	local THIS_NEIGH="$2"
-	local KEYWORD="$3"	# speedtest, fixme!
+	local FILE="/tmp/OLSR/LINKS.sh"
+	local THIS_NEIGH="$1"
+	local KEYWORD="$2"	# speedtest, fixme!
 	local NLQ
-	
-	_olsr neighs_evalable "$FILE"
-	
+
 	while read LINE; do {
 		eval $LINE
 
@@ -261,31 +297,31 @@ _olsr_neigh_nlq ()
 			COST=
 		fi
 	
-	} done <"$FILE" && rm "$FILE"
+	} done <"$FILE"
 
-	[ -z "$NLQ" ] && return 1
-	
-	_sanitizer include
-	
-	NLQ="$(  _sanitizer do "$NLQ"  numeric )"
-	LQ="$(   _sanitizer do "$LQ"   numeric )"
-	COST="$( _sanitizer do "$COST" numeric )"
-	
-	if [ -z "$KEYWORD" ]; then
-		echo "${NLQ:-0}"
+	if [ -z "$NLQ" ]; then
+		return 1
 	else
-		echo "NLQ=${NLQ:-0};LQ=${LQ:-0};COST=${COST:-0};"
+		_sanitizer include
+
+		NLQ="$(  _sanitizer do "$NLQ"  numeric )"
+		LQ="$(   _sanitizer do "$LQ"   numeric )"
+		COST="$( _sanitizer do "$COST" numeric )"
+
+		if [ -z "$KEYWORD" ]; then
+			echo "${NLQ:-0}"
+		else
+			echo "NLQ=${NLQ:-0};LQ=${LQ:-0};COST=${COST:-0};"
+		fi
 	fi
 }
 
 _olsr_neigh_nlq_best_wifi ()
 {
 	local FUNC="olsr_best_wifi_nlq"
-	local FILE="$1"
+	local FILE="/tmp/OLSR/LINKS.sh"
 	local NLQ_MAX=
 
-	_olsr neighs_evalable "$FILE"
-	
 	while read LINE; do {
 		eval $LINE
 
@@ -298,8 +334,8 @@ _olsr_neigh_nlq_best_wifi ()
 				echo $REMOTE >/tmp/WIFI_OPTIMIZE_NEIGH		# for RRD-tool
 			}
 		}	
-		
-	} done <"$FILE" && rm "$FILE"
+
+	} done <"$FILE"
 
 	[ -z "$NLQ_MAX" ] && return 1
 
@@ -309,11 +345,9 @@ _olsr_neigh_nlq_best_wifi ()
 _olsr_neigh_check_for_good_non_tunnel ()
 {
 	local FUNC="olsr_check_for_good_non_tunnel_neigh"
-	local FILE="$1"
+	local FILE="/tmp/OLSR/LINKS.sh"
 	local BORDER="10"	# maximum suitable COST
-	
-	_olsr neighs_evalable "$FILE"
-	
+
 	while read LINE; do {
 		eval $LINE
 		DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
@@ -327,9 +361,9 @@ _olsr_neigh_check_for_good_non_tunnel ()
 				}
 			}
 		}
-	
-	} done <"$FILE" && rm "$FILE"
-	
+
+	} done <"$FILE"
+
 	_log do $FUNC daemon debug "found nothing suitable"
 	return 1 
 }
@@ -384,11 +418,10 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	local FUNC="olsr_plausi_check"		# test 3/5: are minimum-cost neighbours linklocal?
 	local LINE				# test 4/5: each node in mesh has only 1 route?
 	local LASTLINE				# test 5/5: are wired neighbours LQ/NLQ nearly synchronous?
-	local FILE="$1"				# test 0/5: olsr-plaintext plugin works? + too much restarts? + default route exists?
+	local FILE="/tmp/OLSR/LINKS.sh"		# test 0/5: olsr-plaintext plugin works? + too much restarts? + default route exists?
 	local option="$2"
 						# idea: '10.63.176.193 ~~0~~ 10.63.62.1     LQ/NLQ/COST: 0.000 / 0.000 / ~      MAC+DNS: ??:??:??:??:??:?? 'unknown'
 						# idea:
-
 	[ "$option" = "force" ] || {
 		_olsr uptime is_short && {
 			_log do $FUNC daemon info "no check - olsr_uptime seems pretty low"
@@ -419,26 +452,19 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	local COUNT=0
 	local LOCAL REMOTE LQ NLQ COST METRIC DEVTYPE LINES1 LINES2
 	
-	_olsr neighs_evalable $FILE
-
 	ip_is_in_routing_table ()		# fixme! 'ip route list exact 1.2.3.4/32' does not work ATM in busybox's ip-applet
 	{
 		local ip="$1"
 		local line
-		local file_rtable="/tmp/routing_table_$$"
-
-		ip route list >$file_rtable
 
 		while read line; do {
 			case "$line" in
 				"$ip "*)
-					rm $file_rtable
 					return 0
 				;;
 			esac
-		} done <$file_rtable
+		} done </tmp/OLSR/ROUTING_TABLE_MAIN
 
-		rm $file_rtable
 		return 1
 	}
 
@@ -521,8 +547,8 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 						#  fixme! maybe give some time and double check?
 						#  fixme! maybe it's not a big problem if only metric changes, but not gateway? (2 entrys with metric diff)
 
-	local FILE_RT="/tmp/routing_table_main_$$"
-	ip route show table main | sed -n 's/^\([0-9]\)\([0-9\/\.]*\).*/\1\2/p' | sort >$FILE_RT	# only "10.63.153.65/26"
+	FILE_RT="/tmp/$FUNC-sorted_routing_table"
+	sed -n 's/^\([0-9]\)\([0-9\/\.]*\).*/\1\2/p' /tmp/OLSR/ROUTING_TABLE_MAIN | sort >$FILE_RT	# only "10.63.153.65/26"
 	LINES1="$( cat $FILE_RT | wc -l )"
 	LINES2="$( cat $FILE_RT | uniq | wc -l )"
 
@@ -530,15 +556,13 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		while read LINE; do {
 	  		[ "$LINE" = "$LASTLINE" ] && {
 				_log do $FUNC daemon crit "[ERR] each node in mesh has only 1 route? no!: ($( ip route list exact $LINE ))"
-				rm $FILE_RT
 		  		return 1
 	  		}
 	  		LASTLINE="$LINE"
-		
+
 		} done <$FILE_RT
 	}
 
-	rm $FILE_RT
 	_log do $FUNC daemon debug "[OK] (each node in mesh has only 1 route? [checked $LINES1 routes])"
 
 	while read LINE; do {
@@ -548,13 +572,12 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		
 			[ "$METRIC" != "1" ] && {
 				_log do $FUNC daemon crit "[ERR] are minimum-cost neighbours linklocal? '$REMOTE' is not! (metric: '$METRIC')"
-				rm "$FILE"
 				return 1
 			}
 		}
 	} done <"$FILE"
 
-	[ -n "$METRIC" ] && _log do $FUNC daemon debug "[OK] are minimum-cost neighbours linklocal?"
+	[ -n "$METRIC" ] && _log do $FUNC daemon debug "[OK] (are minimum-cost neighbours linklocal?)"
 
 	LINES1="$( cat $FILE | wc -l )"
 	LINES2="$( sed -n 's/^\(LOCAL=[0-9\.]*;REMOTE=[0-9\.]*\);.*/\1/p' $FILE | sort | uniq | wc -l )"
@@ -565,32 +588,18 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		while read LINE; do {
 			_log do $FUNC daemon crit "[ERR] $LINE"
 		} done <$FILE
-		
-		rm "$FILE"
+
 		return 1
 	}
 
 	_log do $FUNC daemon debug "[OK] (each local/remote-pair has only one entry?)"
 
-	rm "$FILE"
 	return 0
-}
-
-_olsr_neighs_evalable ()	# ARG1 = plaintext-file		// COST can be 'INFINITE' and is truncated because of regexp [0-9] to ''
-{
-	local FILE="$1"		# LOCAL=10.63.3.33;REMOTE=10.63.26.161;LQ=1.000;NLQ=1.000;COST=1.000;COUNT=$(( $COUNT + 1 ))
-
-	if _olsr version | fgrep -q 2009-10-27 ; then		# newstyle vs. old-style textinfo-plugin output
-
-		sed -i -n 's/^\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)[^0-9]\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$(( \$COUNT + 1 ))/p' "$FILE"
-	else
-		sed -i -n '/0\.00/s/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*0\.00[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$\(\( \$COUNT \+ 1 \)\)/p' "$FILE"
-	fi
 }
 
 _olsr_neighs_extended_evalable ()
 {
-	local FILE="$1"
+	local FILE="/tmp/OLSR/LINKS.sh"
 	local VERBOSE="$2"
 
 	local COUNT=0
@@ -600,28 +609,25 @@ _olsr_neighs_extended_evalable ()
 	local NLQ
 	local COST
 
-	_olsr neighs_evalable $FILE	
-
 	while read LINE; do {
 		eval $LINE
 
-		[ -n "$VERBOSE" ] && {
-		
+		if [ -n "$VERBOSE" ]; then
+
 			METRIC="$( _olsr remoteip2metric $REMOTE )"
 			DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
-		
+
 			echo "LOCAL=$LOCAL;REMOTE=$REMOTE;LQ=$LQ;NLQ=$NLQ;COST=$COST;DEVTYPE=$DEVTYPE;METRIC=$METRIC"
-			continue
-		}
-		
-		echo "LOCAL=$LOCAL;REMOTE=$REMOTE;LQ=$LQ;NLQ=$NLQ;COST=$COST;COUNT=$COUNT"
-				
-	} done <"$FILE" && rm "$FILE"
+		else
+			echo "LOCAL=$LOCAL;REMOTE=$REMOTE;LQ=$LQ;NLQ=$NLQ;COST=$COST;COUNT=$COUNT"
+		fi
+
+	} done <"$FILE"
 }
 
 _olsr_neighs_meshrdf_evalable ()
 {
-	local FILE="$1"
+	local FILE="/tmp/OLSR/LINKS.sh"
 	local VERBOSE="$2"
 	
 	local COUNT=0
@@ -634,8 +640,6 @@ _olsr_neighs_meshrdf_evalable ()
 	local DEVTYPE
 	local METRIC
 	local METHOD="COST"	# linkcost / etx / batadv / ...
-
-	_olsr neighs_evalable $FILE
 
 	while read LINE; do {
 		eval $LINE
@@ -650,12 +654,12 @@ _olsr_neighs_meshrdf_evalable ()
 		# fixme! add _speedtest_stats()	
 		# 1+3+4+4+1+4+4+4+1 = 26 bytes / neigh
 		
-	} done <"$FILE" && rm "$FILE"
+	} done <"$FILE"
 }
 
-_olsr_neighs_humanreadable ()	# fixme! ToDo: latitude/longitude/distance + speed
+_olsr_neighs_humanreadable ()			# fixme! ToDo: latitude/longitude/distance + speed
 {
-	local FILE="$1"
+	local FILE="/tmp/OLSR/LINKS.sh"
 	local GATEWAY_IP="$( ip route list exact 0.0.0.0/0 | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )"	# fixme! more abstraction, works
 	local CONFIG_FILE
 
@@ -664,12 +668,10 @@ _olsr_neighs_humanreadable ()	# fixme! ToDo: latitude/longitude/distance + speed
 	else
 		CONFIG_FILE="/etc/olsrd.conf"
 	fi
-												# only for mesh-gateways
-	local DNS METRIC LIST LINE DEVTYPE SPACER1 SPACER2 SPACER4 MAX1 MAX2 LQMULTI
+
+	local DNS METRIC LIST LINE DEVTYPE SPACER1 SPACER2 SPACER4 MAX1 MAX2 LQMULTI		# only for mesh-gateways
 	local COUNT=0 LOCAL REMOTE LQ NLQ COST
-	
-	_olsr neighs_evalable $FILE
-	
+
 	LIST="$( sed -n 's/^LOCAL=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all local IP's
 	MAX1="$( _sanitizer do "$LIST" list_get_longest_string )"
 	LIST="$( sed -n 's/^.*;REMOTE=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all remote IP's
@@ -678,14 +680,14 @@ _olsr_neighs_humanreadable ()	# fixme! ToDo: latitude/longitude/distance + speed
 	[ $( echo $LIST | wc -w ) -gt 9 ] && SPACER3=" "  	# numbering layout
 
 	while read LINE; do {
-	  	
+
 	  	eval $LINE
-	
+
 		[ "$COST" = "INFINITE" ] && COST=
-		
+
 		DEVTYPE="$( _net devtype2symbol $( _net dev_type $(_net iplocal2dev $LOCAL ) ) )"
 		DEVTYPE="${DEVTYPE}${DEVTYPE}"		# looks better
-		
+
 		MAC="$( _net ip2mac $REMOTE )"
 		SPACER1="$( _sanitizer do "$MAX1 $LOCAL"  add_length_diff_with_spaces )"			# ip's should always have
 		SPACER2="$( _sanitizer do "$MAX2 $REMOTE" add_length_diff_with_spaces )"			# the same length
@@ -694,14 +696,14 @@ _olsr_neighs_humanreadable ()	# fixme! ToDo: latitude/longitude/distance + speed
 		[ $COUNT -gt 9 ] && unset SPACER3					# 9 -> ' 9'; 10 = 10
 
 		LQMULTI="$( sed -n "/LinkQualityMult[^0-9]*${REMOTE}/{s/^.*LinkQualityMult[^0-9]*${REMOTE}[^0-9]*\([0-9\.]*\).*/[LQ x\1]/p;q}" $CONFIG_FILE )"
-		
+
 		SPACER4="  "
 		[ "$REMOTE" = "$GATEWAY_IP" ] && SPACER4=">>"
 		echo "${SPACER3}${COUNT}:${SPACER4}${LOCAL}${SPACER1} ${DEVTYPE}${METRIC:=0}${DEVTYPE} ${REMOTE}${SPACER2}  LQ/NLQ/COST: ${LQ} / ${NLQ} / ${COST:=~    }  MAC+DNS: ${MAC:=??:??:??:??:??:??} '${DNS:=unknown}' ${LQMULTI}"
 	
-	} done <"$FILE" && rm "$FILE"
-	
+	} done <"$FILE"
+
 	local OLSR_INGORE="$( uci get firewall.@ignoreolsr[0].ip )"
-	
+
 	[ -n "$OLSR_INGORE" ] && echo "ignored stations: $OLSR_INGORE"
 }

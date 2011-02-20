@@ -1,86 +1,74 @@
 #!/bin/sh
 . /tmp/loader
 
-if [ "$2" = "use_recent" ]; then
+help()
+{
+	echo "Usage: $0 (meshrdf | evalable | get_nlq | best_wifi_nlq | check4nonwifi | check4wifi | check4good_non_tunnel_neigh | get_random | get_random_pair [max_cost] | get_cost2node node | plain | <empty>)"
+}
 
-	OUT_OLSR="/tmp/olsr_output_recent"
-else
-	case $1 in
-		gateways) OUT_OLSR="$( _olsr neighs all )" || exit 1 ;;
-		       *) OUT_OLSR="$( _olsr neighs     )" || exit 1 ;;
-	esac
+ACTION="$1"
+OPTION="$2"
 
-	cp $OUT_OLSR /tmp/olsr_output_recent
-fi
-
-case $1 in		# all those functions must care about removing $OUT_OLSR !
+case "$ACTION" in
 	meshrdf)
-		_olsr neighs_meshrdf_evalable $OUT_OLSR
-		[ "$( ls -1 /tmp/olsr_output_* 2>/dev/null | wc -l )" -gt 5 ] && {		# fixme! (dirty workaround)
-			_log do olsr_output_garbage_collector daemon debug "removing >5 cadaver's"
-			rm /tmp/olsr_output_*
-		}
+		_olsr neighs_meshrdf_evalable
 	;;
 	gateways)
-		_olsr gateways_get $OUT_OLSR
+		_olsr gateways_get
 	;;
 	evalable)
-		_olsr neighs_extended_evalable $OUT_OLSR verbose
+		_olsr neighs_extended_evalable verbose
 	;;
 	best_wifi_nlq)
-		_olsr neigh_nlq_best_wifi $OUT_OLSR	# output like '500' which is 0.500 - output can be <empty>!
+		_olsr neigh_nlq_best_wifi				# output like '500' which is 0.500 - output can be <empty>!
 	;;
 	get_nlq)
-		[ -n "$2" ] && _olsr neigh_nlq $OUT_OLSR "$2" "$3" "$4"	
+		[ -n "$OPTION" ] && {
+			_olsr neigh_nlq "$2" "$3" "$4"	
+		}
 	;;
 	check4nonwifi)
-		_olsr neigh_check_for_nonwifi $OUT_OLSR
+		_olsr neigh_check_for_nonwifi
 	;;
 	check4wifi)
-		_olsr neigh_check_for_wifi $OUT_OLSR
+		_olsr neigh_check_for_wifi
 	;;
 	check4good_non_tunnel_neigh)
-		_olsr neigh_check_for_good_non_tunnel $OUT_OLSR || exit 1
+		_olsr neigh_check_for_good_non_tunnel || exit 1
 	;;
 	get_random)
-		_olsr neigh_random_get $OUT_OLSR		# returns IP or EMPTY (!)
+		_olsr neigh_random_get					# returns IP or EMPTY (!)
 	;;
 	get_random_pair)
-		rm $OUT_OLSR
-		_olsr neigh_random_pair_from_mesh_evalable "$2"	# fixme! max_cost not yet implemented
+		_olsr neigh_random_pair_from_mesh_evalable "$OPTION"	# fixme! max_cost not yet implemented
 	;;
 	get_cost2node)
-		rm $OUT_OLSR
-		_olsr node_evalable "$2"
+		_olsr node_evalable "$OPTION"
 	;;
 	plain)
-		cat $OUT_OLSR
-		rm $OUT_OLSR
+		cat /tmp/OLSR/ALL
 	;;
 	help)
-		echo "Usage: $0 (meshrdf | evalable | get_nlq | best_wifi_nlq | check4nonwifi | check4wifi | check4good_non_tunnel_neigh | get_random | get_random_pair [max_cost] | get_cost2node node | plain | <empty>)"
-		rm $OUT_OLSR
+		help
 	;;
 	*)
-		ARG1="$1"
-
-		if [ -z "$ARG1" ]; then
-			_olsr neighs_humanreadable $OUT_OLSR		# fixme! +gps +distance +olsrd/ff/fff-version?
+		if [ -z "$ACTION" ]; then
+			_olsr neighs_humanreadable		# fixme! +gps +distance +olsrd/ff/fff-version?
 		else
-			[ "$ARG1" = "." ] && ARG1="127.0.0.1"
+			[ "$ACTION" = "." ] && ACTION="127.0.0.1"
 
-			_sanitizer do "$ARG1" numeric check && {			# e.g. 356
-				ARG1="$( _ipsystem  do "$ARG1" | grep ^WIFIADR )"
-				ARG1="$( _sanitizer do "$ARG1" ip4 )"
+			_sanitizer do "$ACTION" numeric check && {			# e.g. 356
+				ACTION="$( _ipsystem  do "$ACTION" | grep ^WIFIADR )"
+				ACTION="$( _sanitizer do "$ACTION" ip4 )"
 			}
 
-			_sanitizer do "$ARG1" ip4 check && {				# e.g. 10.63.127.1
-				wget -qO - "http://$ARG1/cgi-bin-tool_fff+?OPT=neigh"
+			_sanitizer do "$ACTION" ip4 check && {				# e.g. 10.63.127.1
+				wget -qO - "http://$ACTION/cgi-bin-tool_fff+?OPT=neigh"
 				exit
 			}
-		
-			[ -n "$( _net dns2ip "$ARG1" )" ] && {				# e.g. badeofen-AP.olsr
-				wget -qO - "http://$ARG1/cgi-bin-tool_fff+?OPT=neigh"
+
+			[ -n "$( _net dns2ip "$ACTION" )" ] && {			# e.g. badeofen-AP.olsr
+				wget -qO - "http://$ACTION/cgi-bin-tool_fff+?OPT=neigh"
 				exit
 			}
 		fi
