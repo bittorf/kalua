@@ -41,14 +41,16 @@ logger -s -t cron_watchdog -p daemon.info "checking each $interval_sec sec for p
 
 while true
 do
+	[ -e /tmp/cron_please_end_yourself_\$\$ ] && {
+		rm /tmp/cron_watchdog_please_end_yourself_\$\$
+		exit
+	}
+
 	[ -d /proc/$cronpid ] || {
-		sleep 10
-		[ -d /proc/$cronpid ] || {
-			. /tmp/loader
-			_log do cron_watchdog daemon alert "no crond found, restarting cron + watchdog"
-			$0 restart
-			exit
-		}
+		. /tmp/loader
+		_log do cron_watchdog daemon alert "no crond found, restarting cron + watchdog"
+		$0 restart
+		exit
 	}
 
 	sleep $interval_sec
@@ -61,7 +63,8 @@ EOF
 			[ -e $watchdog_pidfile ] && {
 				read watchdog_pid <$watchdog_pidfile
 				rm $watchdog_pidfile ${watchdog_pidfile}.script.tmp.autorun
-				kill $watchdog_pid
+				# kill $watchdog_pid
+				touch /tmp/cron_watchdog_please_end_yourself_$watchdog_pid
 			}
 		;;
 	esac
