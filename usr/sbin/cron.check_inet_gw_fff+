@@ -17,7 +17,6 @@ _olsr uptime is_short && {
 # LIST_HNA4="10.63.8.1 10.63.9.1 ..."
 # output routes and compare which of these are gateways, 
 # output them and sort by cost, lowest on top
-# fixme! detect empty default route
 
 LIST_GATEWAYS="$( neigh gateways )"
 MINCOST=99999
@@ -50,20 +49,28 @@ while read LINE; do {
 		}
 	} done	
 
-} done <$FILE_OLSR_ROUTES && rm $FILE_OLSR_ROUTES
+} done <$FILE_OLSR_ROUTES
+rm $FILE_OLSR_ROUTES
 
 [ -z "$OUT" ] && {
 	# gatewayip from routing table  // fixme! 'default dev tun0  scope link' -> no ip!
 	GW="$( _sanitizer do "$( ip route list exact 0.0.0.0/0 )" ip4 )"
 
 	if   fgrep -sq "$GW;" /tmp/CLIENTS_LAN /tmp/CLIENTS_WAN ; then
-	
+
 		# metric = 0 ! (is in own subnet, without a router intermediate - so we take wifiadress
 		OUT="COST_INT=1; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
 	elif [ -z "$GW" ]; then
 
-		# really no gateway
-		OUT="COST_INT=0; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
+		read LAST_GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
+		# really no gateway, so we set cost ~INFINITE, invalid nexthop,
+		# but OLD gateway - so olsr_plausi_check() should not reboot the box
+		# and enforce soon a next test
+
+		OUT="COST_INT=99999; GATEWAY=${LAST_GATEWAY}; NEXTHOP=127.0.0.0; METRIC=-1"
+
+		_log do guess_gateway daemon info "empty default router, last inet-gateway was: $LAST_GATEWAY"
+		_scheduler add "$0" force
 	else
 		# provider-lan with subnet >/24 is not implemented yet (see /etc/init.d/S43...)
 		OUT="COST_INT=10; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
