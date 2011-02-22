@@ -296,17 +296,26 @@ func_backup_userdata ()
 		else
 			_log do $FUNC daemon info "restoring userdata '$FILE' from monitoring server"
 
-			HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
-			wget -O "$FILE"	"$( uci get system.@monitoring[0].url )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"	# http://intercity-vpn.de/networks/liszt28
+			local restore_counter=0
+			[ -e /tmp/${FUNC}_restore_counter ] && read restore_counter </tmp/${FUNC}_restore_counter
 
-			if [ -e "$FILE" ]; then
-				_log do $FUNC daemon info "restored '$FILE' with $( _file size "$FILE" ) bytes"
+			[ $restore_counter -lt 6 ] && {
 
-				HASH="$( _file hash "$FILE" )"
-				echo -n "$HASH" >"$FILE.hashlastsend"
-			else
-				_log do $FUNC daemon info "[ERR] restoring/download failed"
-			fi
+				HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
+				wget -O "$FILE"	"$( uci get system.@monitoring[0].url )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"	# http://intercity-vpn.de/networks/liszt28
+
+				if [ -e "$FILE" ]; then
+					_log do $FUNC daemon info "restored '$FILE' with $( _file size "$FILE" ) bytes"
+
+					HASH="$( _file hash "$FILE" )"
+					echo -n "$HASH" >"$FILE.hashlastsend"
+				else
+					restore_counter=$(( $restore_counter + 1 ))
+					echo $restore_counter >/tmp/${FUNC}_restore_counter
+
+					_log do $FUNC daemon info "[ERR] restoring/download failed, try $restore_counter in /tmp/${FUNC}_restore_counter"
+				fi
+			}
 
 			continue
 		fi
