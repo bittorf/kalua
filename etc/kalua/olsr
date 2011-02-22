@@ -418,8 +418,8 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	local FUNC="olsr_plausi_check"		# test 3/5: are minimum-cost neighbours linklocal?
 	local LINE				# test 4/5: each node in mesh has only 1 route?
 	local LASTLINE				# test 5/5: are wired neighbours LQ/NLQ nearly synchronous?
-	local FILE="/tmp/OLSR/LINKS.sh"		# test 0/5: olsr-plaintext plugin works? + too much restarts? + default route exists?
-	local option="$2"
+	local FILE="/tmp/OLSR/LINKS.sh"		# test 0/5: ping to inet-gateway works?
+	local option="$2"			# test 0/5: olsr-plaintext plugin works? + too much restarts? + default route exists?
 						# idea: '10.63.176.193 ~~0~~ 10.63.62.1     LQ/NLQ/COST: 0.000 / 0.000 / ~      MAC+DNS: ??:??:??:??:??:?? 'unknown'
 						# idea:
 	[ "$option" = "force" ] || {
@@ -593,6 +593,22 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	}
 
 	_log do $FUNC daemon debug "[OK] (each local/remote-pair has only one entry?)"
+
+	local REMOTE=
+	read REMOTE </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
+	REMOTE="${REMOTE:=8.8.8.8}"
+
+	I=1				# try to ping a wired neigh, if it does not work, reboot
+	while [ $I -ne 10 ]; do {
+		LOSS="$( ping -q -c 1 $REMOTE | sed -n 's/^.*packets received, \([0-9]*\)%.*/\1/p' )"
+		[ ${LOSS:-100} -eq 0 ] && break
+		_log do $FUNC daemon info "[ERR] inet-gateway $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
+		sleep 10
+		I=$(( $I + 1 ))
+	} done
+	[ $I -eq 10 ] && _system reboot_safe "inet-gateway $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
+
+	_log do $FUNC daemon debug "[OK] (ping to inet-gateway works)"
 
 	return 0
 }
