@@ -524,6 +524,16 @@ _pfilter_user_splash_add_for_nonautounsplashed ()
 			}
 		}
 	} done
+
+	first_line_is_walled_garden ()		# fixme! under rare circumstances, above loop does not catch all users
+	{
+		iptables -t mangle -nL PREROUTING --line-number | grep -q ^"1    walled_garden"
+	}
+
+	while ! first_line_is_walled_garden; do {
+		_log do $FUNC daemon info "removing first trashline: $( iptables -t mangle -nL PREROUTING --line-number | grep ^"1 " )"
+		iptables -t mangle -D PREROUTING 1
+	} done
 }
 
 _pfilter_user_kick_overlimit ()
@@ -846,17 +856,17 @@ _pfilter_user_splash_control ()				# SENS: controlling if a user must see splash
 	local  MAC="$2"
 	local   IP="$3"
 
-	_log do $FUNC daemon info "start - mode: $MODE - $MAC / $IP"
-
-	echo "$IP" >/tmp/MAC2IP_${MAC}			# fixme! is a hack for _net_mac2ip
+	_log do $FUNC daemon info "[OK] start - mode: $MODE - $MAC / $IP"
 
 	[ -z "$MODE" -o -z "$MAC" -o -z "$IP" ] && {
-		_log do $FUNC daemon info "no mode nor mac nor ip given, aborting"
+		_log do $FUNC daemon alert "[ERR] no mode '$MODE' nor mac '$MAC' nor ip '$IP' given, aborting"
 		return
 	}
 
 	if [ "$MODE" = "nosplash" ]; then
 		MODE="-I"
+
+		echo "$IP" >/tmp/MAC2IP_${MAC}		# fixme! is a hack for _net_mac2ip
 	else
 		MODE="-D"
 
@@ -866,7 +876,7 @@ _pfilter_user_splash_control ()				# SENS: controlling if a user must see splash
 	_ipt -t mangle $MODE PREROUTING -m mac --mac-source $MAC -j ACCEPT
 	_ipt -t mangle $MODE PREROUTING -d $IP                   -j ACCEPT	
 
-	_log do $FUNC daemon info "end - mode: $MODE - $MAC / $IP"
+	_log do $FUNC daemon info "[OK] end - mode: $MODE - $MAC / $IP"
 }
 
 _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
