@@ -539,6 +539,14 @@ _pfilter_user_splash_add_for_nonautounsplashed ()
 		_log do $FUNC daemon info "removing first trashline: $( iptables -t mangle -nL PREROUTING --line-number | grep ^"1 " )"
 		iptables -t mangle -D PREROUTING 1
 	} done
+
+	local TABLE
+	local LIST_TRASH_TABLES="$( iptables -t mangle -nL| grep ^"Chain traff_[0-9a-fA-F][0-9a-fA-F]:" | fgrep -v "_99:99:99:99:99:9" | cut -d' ' -f2 )"
+
+	for TABLE in LIST_TRASH_TABLES; do {
+		_ipt -t mangle -F $TABLE
+		_ipt -t mangle -X $TABLE
+	} done
 }
 
 _pfilter_user_kick_overlimit ()
@@ -930,22 +938,22 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 
 	[ -z "$ARP" ] && _net arp_permanent $IP $MAC
 
-	_log do $FUNC daemon debug "filling user chain - start"
-	
+	_log do $FUNC daemon debug "[START] filling user chain"
+
 	_ipt -t mangle -N traff_$MAC 2>/dev/null || {
 		_log do $FUNC daemon debug "chain traff_$MAC already exists - abort"
 		return 1
 	}
-	
+
 	_ipt -t mangle -A traff_$MAC -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j shaper	# counter0 (intranet/mesh-intern)
 	_ipt -t mangle -A traff_$MAC								# counter1 (traffic interval-count)
 	_ipt -t mangle -A traff_$MAC								# counter2 (traffic_today)
 	_ipt -t mangle -A traff_$MAC								# counter3 (traffic_all)
-	
+
 	_ipt -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20 -m limit --limit 6/min --limit-burst 10 -j LOG --log-prefix "ADBLOCK:"
 	_ipt -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW -d 1.1.0.0/20        -j MARK --set-mark $( _pfilter proto2id REJECT )    # adblock (special dest)
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id REJECT )/0xFF  -j shaper
-	
+
 	if _uci is_oldstyle ; then
 		_ipt -t mangle -A traff_$MAC -m state --state NEW -p udp -m udplimit  --udplimit-above  $CONN_LIMIT_UDP -j MARK --set-mark $( _pfilter proto2id CONN_ABOVE )
 		_ipt -t mangle -A traff_$MAC -m state --state NEW -p tcp -m connlimit --connlimit-above $CONN_LIMIT_TCP -j MARK --set-mark $( _pfilter proto2id CONN_ABOVE )
@@ -955,43 +963,43 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	fi
 
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF                           -j shaper	# connabove to shaper
-	
+
 	_ipt -t mangle -A traff_$MAC -s $MYHNA -m state --state NEW                   -j MARK --set-mark $( _pfilter proto2id CONN )	# all new packets
-	
+
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF       -j ULOG --ulog-prefix "$MAC>"       # inside2outside
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF       -j shaper
-	
+
 	_ipt -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( _pfilter proto2id CONN )    # FIN&ACK is set
 	_ipt -t mangle -A traff_$MAC -s $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( _pfilter proto2id CONN )    # RST     is set
-	
+
 	_ipt -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags syn,ack syn,ack     -j MARK --set-mark $( _pfilter proto2id CONN )	# better? SYN&ACK in answer is set
 	_ipt -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags fin,ack fin,ack     -j MARK --set-mark $( _pfilter proto2id CONN )	# better? FIN&ACK in answer is set
 	_ipt -t mangle -A traff_$MAC -d $MYHNA -p tcp --tcp-flags rst rst             -j MARK --set-mark $( _pfilter proto2id CONN )	# better? RST     in answer is set
 
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF    -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id CONN )/0xFF    -j shaper 
-	
+
 	_ipt -t mangle -A traff_$MAC -m connbytes --connbytes   97999:99999   --connbytes-dir both --connbytes-mode bytes
 	_ipt -t mangle -A traff_$MAC -m connbytes --connbytes  997999:999999  --connbytes-dir both --connbytes-mode bytes
 	_ipt -t mangle -A traff_$MAC -m connbytes --connbytes 9997999:9999999 --connbytes-dir both --connbytes-mode bytes
-	
+
 	_ipt -t mangle -A traff_users -m mac --mac-source $MAC -j traff_$MAC
 	_ipt -t mangle -A traff_users -d $IP                   -j traff_$MAC	# must be IP, not HNA!
 
 	for ENTRY in $( _pfilter l7proto_list ); do {
 		PROTO="${ENTRY%,*}"		# PORT="${ENTRY#*,}"
-	
+
 		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j shaper
 		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j LOG --log-prefix "layer7_${PROTO}: "
 		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j RETURN
 	} done
-	
+
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j shaper				# unknown traffic
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j LOG --log-prefix "layer7_UNKNOWN: "
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j RETURN
 
 	_pfilter user_splash_control nosplash $MAC $IP
-	
+
 	_log do $FUNC daemon info "filling user chain - end"
 }
 
