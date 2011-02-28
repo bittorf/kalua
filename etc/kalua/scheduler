@@ -244,10 +244,18 @@ _scheduler_run ()
 	local FILE LINE
 	local LOCKFILE="/tmp/lockfile_scheduler_is_running"
 
-	[ -e $LOCKFILE -o $( _system uptime min ) -lt 5 ] && {
+	if [ -e $LOCKFILE -o $( _system uptime min ) -lt 5 ]; then
+
+		_watch counter "/tmp/scheduler_lockfile_counter" increment 1 max 50 || {
+			_log do $FUNC daemon alert "removing lockfile, which seems to be left by accident"
+			rm $LOCKFILE
+		}
+
 		_log do $FUNC daemon debug "already running or low uptime - ignoring call"
 		return 1
-	}
+	else
+		_watch counter "/tmp/scheduler_lockfile_counter" set 1
+	fi
 
 	_cleanup ()
 	{
