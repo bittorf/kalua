@@ -417,7 +417,7 @@ _olsr_neighs ()
 }
 
 _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-table?
-{						# test 2/5: each local/remote-pair has only one entry?
+{						# test 2/5: each local/remote-pair has only one neighbor/link entry?
 	local FUNC="olsr_plausi_check"		# test 3/5: are minimum-cost neighbours linklocal?
 	local LINE				# test 4/5: each node in mesh has only 1 route?
 	local LASTLINE				# test 5/5: are wired neighbours LQ/NLQ nearly synchronous?
@@ -582,36 +582,49 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 
 	[ -n "$METRIC" ] && _log do $FUNC daemon debug "[OK] (are minimum-cost neighbours linklocal?)"
 
+
+
 	LINES1="$( cat $FILE | wc -l )"
 	LINES2="$( sed -n 's/^\(LOCAL=[0-9\.]*;REMOTE=[0-9\.]*\);.*/\1/p' $FILE | sort | uniq | wc -l )"
 
 	[ "$LINES1" != "$LINES2" ] && {
-		_log do $FUNC daemon crit "[ERR] each local/remote-pair has only one entry? no!"
-		
+		_log do $FUNC daemon crit "[ERR] each local/remote-pair has only one neighbour/link-entry? no! ('$LINES1' != '$LINES2')"
+
 		while read LINE; do {
-			_log do $FUNC daemon crit "[ERR] $LINE"
+			_log do $FUNC daemon crit "[ERR] $LINE -> $( echo $LINE | sed -n 's/^\(LOCAL=[0-9\.]*;REMOTE=[0-9\.]*\);.*/\1/p' )"
 		} done <$FILE
 
 		return 1
 	}
 
-	_log do $FUNC daemon debug "[OK] (each local/remote-pair has only one entry?)"
+	_log do $FUNC daemon debug "[OK] (each local/remote-pair has only one neighbour/link-entry?)"
+
+
 
 	local REMOTE=
 	read REMOTE </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 	REMOTE="${REMOTE:=8.8.8.8}"
 
+	ERROR=0
 	I=1				# try to ping a wired neigh, if it does not work, reboot
 	while [ $I -ne 10 ]; do {
 		LOSS="$( ping -q -c 1 $REMOTE | sed -n 's/^.*packets received, \([0-9]*\)%.*/\1/p' )"
-		[ ${LOSS:-100} -eq 0 ] && break
+
+		[ ${LOSS:-100} -eq 0 ] && {
+			[ "$ERROR" = "1" ] && _log do $FUNC daemon info "[OK] inet-gateway $REMOTE ping OK, after try $I"
+			break
+		}
+
 		_log do $FUNC daemon info "[ERR] inet-gateway $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
+		ERROR=1
 		sleep 10
 		I=$(( $I + 1 ))
 	} done
 	[ $I -eq 10 ] && _system reboot_safe "inet-gateway $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
 
 	_log do $FUNC daemon debug "[OK] (ping to inet-gateway $REMOTE works)"
+
+
 
 	return 0
 }
