@@ -513,6 +513,7 @@ _pfilter_user_splash_add_for_nonautounsplashed ()
 {
 	local FUNC="pfilter_user_splash_add_for_nonautounsplashed"
 	local LIST="$( _pfilter user_list )"
+	local TABLE LINE
 
 	for MAC in $LIST; do {
 		
@@ -540,11 +541,31 @@ _pfilter_user_splash_add_for_nonautounsplashed ()
 		iptables -t mangle -D PREROUTING 1
 	} done
 
-	local TABLE
-	local LIST_TRASH_TABLES="$( iptables -t mangle -nL| grep ^"Chain traff_[0-9a-fA-F][0-9a-fA-F]:" | fgrep -v "_99:99:99:99:99:9" | cut -d' ' -f2 )"
+	listof_linenumbers_from_references_in_user_tables()
+	{
+		iptables --line-numbers -t mangle -nxvL traff_users |
+		 fgrep -v "_99:99:99:99:99:9" |
+		  grep "traff_[0-9a-fA-F][0-9a-fA-F]:" |
+		   cut  -d' ' -f1 |
+		    sort -r
+	}
 
-	for TABLE in $LIST_TRASH_TABLES; do {
+	listof_trashtables_in_inputmangle()
+	{
+		iptables -t mangle -nL |
+		 grep ^"Chain traff_[0-9a-fA-F][0-9a-fA-F]:" |
+		  fgrep -v "_99:99:99:99:99:9" |
+		   cut -d' ' -f2
+	}
+
+	for TABLE in $( listof_trashtables_in_inputmangle ); do {
+		_log do $FUNC daemon info "removing $TABLE"
 		_ipt -t mangle -F $TABLE
+
+		for LINE in $( listof_linenumbers_from_references_in_user_tables ); do {
+			_ipt -t mangle -D traff_users $LINE
+		} done
+
 		_ipt -t mangle -X $TABLE
 	} done
 }
