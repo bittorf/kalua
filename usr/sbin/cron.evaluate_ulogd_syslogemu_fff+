@@ -271,7 +271,7 @@ func_ulog_logsaving ()
 	} done
 }
 
-func_backup_userdata ()
+func_backup_userdata ()		# and restore, if missing
 {
 	local FUNC="backup_userdata"
 	local DESTINATION="$( uci get system.@vds[0].server )"	# root@intercity-vpn.de:/var/www/networks/liszt28/vds/ 
@@ -297,7 +297,9 @@ func_backup_userdata ()
 			_log do $FUNC daemon info "restoring userdata '$FILE' from monitoring server"
 
 			local restore_counter=0
-			[ -e /tmp/${FUNC}_restore_counter ] && read restore_counter </tmp/${FUNC}_restore_counter
+			[ -e /tmp/${FUNC}_restore_counter ] && {
+				read restore_counter </tmp/${FUNC}_restore_counter
+			}
 
 			if [ $restore_counter -le 6 ]; then
 
@@ -309,6 +311,8 @@ func_backup_userdata ()
 
 					HASH="$( _file hash "$FILE" )"
 					echo -n "$HASH" >"$FILE.hashlastsend"
+
+					_db restore
 				else
 					restore_counter=$(( $restore_counter + 1 ))
 					echo $restore_counter >/tmp/${FUNC}_restore_counter
