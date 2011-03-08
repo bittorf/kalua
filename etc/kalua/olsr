@@ -416,6 +416,20 @@ _olsr_neighs ()
 	return 1
 }
 
+_olsr_restarts_are_suspicious_often ()
+{
+	local FUNC="olsr_restarts_are_suspicious_often"
+	local OLSR_RESTARTS="$( _olsr uptime restarts_get )"
+	local BORDER="$(( $( _system uptime days ) + 10 ))"
+
+	if [ $OLSR_RESTARTS -gt $BORDER ]; then
+		_log do $FUNC daemon alert "[ERR] olsr restarts > normality ($OLSR_RESTARTS > $BORDER)"
+		return 0
+	else
+		return 1
+	fi
+}
+
 _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-table?
 {						# test 2/5: each local/remote-pair has only one neighbor/link entry?
 	local FUNC="olsr_plausi_check"		# test 3/5: are minimum-cost neighbours linklocal?
@@ -435,8 +449,8 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	local OLSR_RESTARTS="$( _olsr uptime restarts_get )"
 	local BORDER="$(( $( _system uptime days ) + 10 ))"
 
-	[ $OLSR_RESTARTS -gt $BORDER ] && {
-		_system reboot_safe "[ERR] olsr restarts > normality ($OLSR_RESTARTS > $BORDER)"
+	_olsr restarts_are_suspicious_often && {
+		_system reboot_safe "[ERR] olsr restarts > normality"
 		return 1
 	}
 
