@@ -430,13 +430,13 @@ _olsr_restarts_are_suspicious_often ()
 	fi
 }
 
-_olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-table?
+_olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-table? + at least 1 non-infinite?
 {						# test 2/5: each local/remote-pair has only one neighbor/link entry?
 	local FUNC="olsr_plausi_check"		# test 3/5: are minimum-cost neighbours linklocal? + metric seems believable (<100)
 	local LINE				# test 4/5: each node in mesh has only 1 route?
 	local LASTLINE				# test 5/5: are wired neighbours LQ/NLQ nearly synchronous?
 	local FILE="/tmp/OLSR/LINKS.sh"		# test 6/5: ping to inet-gateway works?
-	local option="$2"			# test 0/5: olsr-plaintext plugin works? + too much restarts? + default route exists?
+	local option="$1"			# test 0/5: olsr-plaintext plugin works? + too much restarts? + default route exists?
 						# idea: '10.63.176.193 ~~0~~ 10.63.62.1     LQ/NLQ/COST: 0.000 / 0.000 / ~      MAC+DNS: ??:??:??:??:??:?? 'unknown'
 						# idea:
 	[ "$option" = "force" ] || {
@@ -485,10 +485,15 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		return 1
 	}
 
+
+	local COUNT_NEIGHBORS_NON_INFINITE_COSTS=0
+
 	while read LINE; do {
 		eval $LINE
 		[ -n "$COST" ] && {
-			[ "$COST" = "INFINITE" ] || {					# fixme! workaround for wrong neighs_evalable() abstraction
+			[ "$COST" = "INFINITE" ] || {		# fixme! workaround for wrong neighs_evalable() abstraction
+
+				COUNT_NEIGHBORS_NON_INFINITE_COSTS=$(( $COUNT_NEIGHBORS_NON_INFINITE_COSTS + 1 ))
 
 				ip_is_in_routing_table $REMOTE || {
 					_log do $FUNC daemon crit "[ERR] is each non-infinite neighbour in routing-table? '$REMOTE' (COST:'$COST') is not!"
@@ -500,6 +505,15 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	} done <"$FILE"
 
 	_log do $FUNC daemon debug "[OK] (is each non-infinite neighbour in routing-table?)"
+
+	if [ $COUNT_NEIGHBORS_NON_INFINITE_COSTS -eq 0 ]; then
+		_log do $FUNC daemon crit "[ERR] seeing $COUNT_NEIGHBORS_NON_INFINITE_COSTS neighs which are non-infinite"
+		return 1
+	else
+		_log do $FUNC daemon debug "[OK] seeing at least 1 neigh which is non-infinite (overall: $COUNT_NEIGHBORS_NON_INFINITE_COSTS)"
+	fi
+
+
 
 	# are wired neighbours LQ/NLQ nearly synchronous?
 	
