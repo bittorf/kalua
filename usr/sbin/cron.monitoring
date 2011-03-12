@@ -155,27 +155,27 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 											# (40 bytes HEX [SHA-1])
 	FREE_SPACE_FLASH="$( _system flash_free )"
 	SERVICES="flash.free.kb:${FREE_SPACE_FLASH}"					# [kByte]
-	
+
 	FREE_SPACE_USB="$( df | grep "/mnt/disc0_." | sed -n "s/^[0-9a-zA-Z\/]*[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p" )"	# fixme! more abstraction!
 	[ -n "$FREE_SPACE_USB" ] && {
 		SERVICES="${SERVICES}|usbstorage.free.kb:$(( $FREE_SPACE_USB / 1024 ))"	# [kByte]	# howto determine IDE <-> USB.storage?
 	}
-	
+
 #	FREE_SPACE_IDE="$( df | grep "/mnt/disc0_." | sed -n "s/^[0-9a-zA-Z\/]*[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p" )"	# fixme!
 #	[ -n "$FREE_SPACE_IDE" ] && {
 #		SERVICES="${SERVICES}|idestorage.free.kb:$(( $FREE_SPACE_IDE / 1024 ))" # [kByte]
 #	}
-	
+
 	SERVICES="$( _sanitizer do "$SERVICES" urlvalue )"
-	
+
 											# fixme! add: soundcard, webcam, sambashare, sensorstuff, inetoffer, ...
 	eval "$( _ipsystem do | grep ^FFF_CITY )"
-	
+
 	_net inet_seems_stable && {
-		PUBIP="$( _wget do http://$( uci get system.@vpn[0].hostname )/show_remote_address.php 10 | sed 's/[^0-9\.]//g' )"		# 217.212.17.148
+		PUBIP="$( _wget do http://$( uci get system.@vpn[0].hostname )/show_remote_address.php 10 )"		# 217.212.17.148
 	}
-	
-	[ -n "$PUBIP" ] && {
+
+	if _sanitizer do "$PUBIP" ip4 check ; then
 		read 2>/dev/null PUBIP_OLD </tmp/MY_PUBLIC_IP
 		echo >/tmp/MY_PUBLIC_IP "$PUBIP"
 
@@ -183,8 +183,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 			_log do $FUNC daemon info "public IP changed: '$PUBIP_OLD' -> '$PUBIP'"
 			ARG1="send_alive_message"
 		}
-	}
-	
+	else
+		_log do $FUNC daemon info "public IP cannot be sanitized to ip4: '$PUBIP'"
+	fi
+
 	# _needs gwcheck
 	#
 	# GWCHECK=1; T=1243685931; DATE=30May2009-14uhr18; GW=10.63.3.1; HOSTNAME=KG-bittorfwireless-AP;
