@@ -6,7 +6,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	local WORKINGDIR="/tmp/pmu"
 	local FILE="tarball.tgz"
 	local TGZ="/tmp/$FILE"
-	local SIZE TEMPFILE CRON_RESTART
+	local SIZE TEMPFILE CRON_RESTART REPATCH_ALL
 	local COUNT=0
 	local COUNT_ERROR=0
 	
@@ -60,11 +60,17 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 			_log do "$FUNC" daemon info "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" kb ) ))"
 
-			[ "$( basename "$TEMPFILE" )" = "S51crond_fff+" ] && {
-				_log do "$FUNC" daemon info "detected changed cron settings"
-				CRON_RESTART=1
-			}
-		
+			case "$( basename "$TEMPFILE" )" in
+				S51crond*)
+					_log do "$FUNC" daemon info "detected changed cron settings"
+					CRON_RESTART=1
+				;;
+				S03patch-o-matic*)
+					_log do "$FUNC" daemon info "detected changed patch-o-matic"
+					REPATCH_ALL=1
+				;;
+			esac
+
 			mv "$TEMPFILE" "/$TEMPFILE" || {
 				_log do "$FUNC" daemon alert "error during moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 				COUNT_ERROR=$(( $COUNT_ERROR + 1 ))
@@ -74,14 +80,15 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 			COUNT=$(( $COUNT + 1 ))
 		}
 	} done
-	
+
 	_cleanup
-	
+
 	if [ $COUNT -gt 0 ]; then
 
 		/etc/kalua_init
 		[ "$CRON_RESTART" = "1" ] && /etc/init.d/*crond_fff+ restart
-		
+		[ "$REPATCH_ALL"  = "1" ] && /etc/init.d/*patch-o-matic* repatch all
+
 		echo >>/etc/banner "# manually updated with poormens method on $( date ) by '$0' to this version:"
 		echo >>/etc/banner "# originally flashed version: $( _system version )"
 		tail >>/etc/banner -n2 /etc/variables_fff+
