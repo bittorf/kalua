@@ -299,7 +299,7 @@ fkt_restart_running_dnsserver ()
 {
 	local FUNC="restart_running_dnsserver"
 	local PID="$( pidof dnsmasq | cut -d' ' -f1 )"
-	
+
 	[ -n "$PID" ] && {
 		_log do $FUNC daemon debug "working"
 	
@@ -341,13 +341,13 @@ case $1 in
 		_build_hosts lan
 		_build_hosts wifi
 		_build_hosts virtual
-		
+
 		case "$( uci get firewall.@adblock[0].enabled )" in
 			0|off|false) DROP=0 ;;
 			          *) [ "$( uci get system.@community[0].splash )" = "0" ]	&& DROP=0
 				     [ -e "/tmp/LOWMEM" ]		  			&& DROP=0 ;;
 		esac
-		
+
 		DROPFILE="/etc/hosts.drop"
 		if [ "$DROP" = "0" ]; then
 			[ -e "$DROPFILE" ] && {
@@ -355,17 +355,19 @@ case $1 in
 				rm "$DROPFILE"
 			}
 		else
+			_stopwatch start adblock
 			_build_hosts drop
-			
+			_stopwatch stop adblock quiet
+
 			if [ -e "$DROPFILE" ]; then
-				_log do "add_adblock" daemon debug "size: '$( _file size "$DROPFILE" )'"
+				_log do "add_adblock" daemon debug "$( _file size "$DROPFILE" ) bytes in $( _file lines "$DROPFILE" ) entries"
 			else
 				_log do "add_adblock" daemon debug "was not possible, missing '$DROPFILE'"
 			fi
 		fi
-		
+
 		_build_hosts join
-		
+
 		fkt_restart_running_dnsserver
 	;;
 	start)
