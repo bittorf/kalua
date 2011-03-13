@@ -1,6 +1,10 @@
 _ssh_key_public_fingerprint_get ()	# output differs, wether its a SHA1 or MD5 hash
 {
-	dropbearkey -y -f /etc/dropbear/dropbear_dss_host_key |
+	local file="/etc/dropbear/dropbear_dss_host_key"
+
+	[ -e "$file" ] || _ssh sanitize_and_cleanup_keys
+
+	dropbearkey -y -f "$file" |
 	 fgrep "Fingerprint:" |
 	  cut -d' ' -f3
 }
@@ -20,7 +24,12 @@ _ssh_regen_keys ()
 	rm $KEYFILE.pub
 	rm $KEYFILE
 
-	_ssh start				# works only with newstyle-devices
+	if _uci is_oldstyle ; then
+		dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
+	else
+		_ssh start				# works only with newstyle-devices?
+	fi
+
 	while [ ! -e "$KEYFILE" ]; do {
 		sleep 1
 	} done

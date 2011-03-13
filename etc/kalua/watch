@@ -66,12 +66,12 @@ _watch_hanging_command ()
 	local COMMAND="$1"						# e.g. wget|scp|mv|nc|olsrd
 	local FUNC="watch_hanging_command"
 	local COMMAND_PID="$( _system get_first_pid $COMMAND )"		# any running process?
-	
+
 	[ -z "$COMMAND_PID" ] && {
 		_log do $FUNC daemon debug "no running '$COMMAND'-process"
 		return 0
 	}
-	
+
 	local COMMAND_CMD="$( cat /proc/$COMMAND_PID/cmdline )"		# remember exact commandline
 	local OLD_PID
 	local OLD_CMD
@@ -83,17 +83,17 @@ _watch_hanging_command ()
 
 	_log do $FUNC daemon debug "found '$COMMAND'-process pid:'$COMMAND_PID' / cmdline:'$COMMAND_CMD'"
 
-	if [ "$OLD_PID" = "$COMMAND_PID" ] && [ "$OLD_CMD" = "$COMMAND_CMD" ]; then
+	if [ "$OLD_PID" = "$COMMAND_PID" ] && [ "$OLD_CMD" = "${COMMAND_CMD:=empty_cmd_line}" ]; then
 
 		_log do $FUNC daemon err "killing '$COMMAND_CMD'"
 		kill $COMMAND_PID
 		sleep 3
-		
+
 		if [ -e "/proc/$COMMAND_PID" ]; then
 			_log do $FUNC daemon crit "still hanging, killing hard"
 			kill -9 $COMMAND_PID
 			sleep 3
-		
+
 			if [ -e "/proc/$COMMAND_PID" ]; then
 				_system reboot_safe "$FUNC() still hanging '$COMMAND'"
 				return 1
@@ -103,7 +103,7 @@ _watch_hanging_command ()
 		else
 			_$FUNC $COMMAND
 		fi
-			
+
 		_log do $FUNC daemon info "successfully killed '$COMMAND'-process"
 		return 0
 	fi
@@ -374,7 +374,7 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 					;;
 					REGENERATE_KEY)
 						_ssh regen_keys
-						_scheduler add "_$FUNC"
+						_scheduler add "_$FUNC" force
 					;;
 					*)
 						:
