@@ -66,20 +66,21 @@ _watch_hanging_command ()
 	local COMMAND="$1"						# e.g. wget|scp|mv|nc|olsrd
 	local FUNC="watch_hanging_command"
 	local COMMAND_PID="$( _system get_first_pid $COMMAND )"		# any running process?
+	local COMMAND_CMD
 
 	[ -z "$COMMAND_PID" ] && {
 		_log do $FUNC daemon debug "no running '$COMMAND'-process"
 		return 0
 	}
+	
+	read COMMAND_CMD </proc/$COMMAND_PID/cmdline			# remember exact commandline
 
-	local COMMAND_CMD="$( cat /proc/$COMMAND_PID/cmdline )"		# remember exact commandline
-	local OLD_PID
-	local OLD_CMD
-	local FILE1="/tmp/maybe_hanging_${COMMAND}_process_id"
-	local FILE2="/tmp/maybe_hanging_${COMMAND}_process_cmd"
+	local OLD_PID OLD_CMD FILE1 FILE2
+	FILE1="/tmp/maybe_hanging_${COMMAND}_process_id"
+	FILE2="/tmp/maybe_hanging_${COMMAND}_process_cmd"
 
-	[ -e "$FILE1" ] && OLD_PID="$( cat $FILE1 )"
-	[ -e "$FILE2" ] && OLD_CMD="$( cat $FILE2 )"
+	[ -e "$FILE1" ] && read OLD_PID <$FILE1
+	[ -e "$FILE2" ] && read OLD_CMD <$FILE2
 
 	_log do $FUNC daemon debug "found '$COMMAND'-process pid:'$COMMAND_PID' / cmdline:'$COMMAND_CMD'"
 
@@ -101,7 +102,7 @@ _watch_hanging_command ()
 				_$FUNC $COMMAND
 			fi
 		else
-			_$FUNC $COMMAND
+			_$FUNC $COMMAND		# recheck
 		fi
 
 		_log do $FUNC daemon info "successfully killed '$COMMAND'-process"
