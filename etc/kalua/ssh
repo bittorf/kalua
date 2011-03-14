@@ -14,6 +14,14 @@ _ssh_start ()
 	/etc/init.d/*dropbear start
 }
 
+_ssh_stop ()
+{
+	killall dropbear
+	sleep 3
+	local pid="$( _system get_first_pid dropbear )"
+	[ -n "$pid" ] && kill -9 $pid
+}
+
 _ssh_regen_keys ()
 {
 	local FUNC="ssh_regen_keys"
@@ -25,7 +33,9 @@ _ssh_regen_keys ()
 	rm $KEYFILE
 
 	if _uci is_oldstyle ; then
-		dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
+		_ssh stop
+		_ssh generate_and_store_private_dss_key
+		_ssh start
 	else
 		_ssh start				# works only with newstyle-devices?
 	fi
@@ -37,6 +47,14 @@ _ssh_regen_keys ()
 	_ssh sanitize_and_cleanup_keys
 
 	_log do $FUNC daemon info "[READY] regenerating ssh-keys"
+}
+
+_ssh_generate_and_store_private_dss_key ()
+{
+	local DSSFILE="/etc/dropbear/dropbear_dss_host_key"
+
+	_nvram set ff_dsskey $( _file convert_bin2hex "$DSSFILE" )	
+	_nvram set commit "set new dropbearkey_dsskey"
 }
 
 _ssh_sanitize_and_cleanup_keys ()
@@ -73,9 +91,7 @@ _ssh_sanitize_and_cleanup_keys ()
 					rm $DSSFILE
 				}
 
-				dropbearkey -t dss -f $DSSFILE
-				_nvram set ff_dsskey $( _file convert_bin2hex "$DSSFILE" )
-				_nvram set commit "set new dropbearkey_dsskey"
+				_ssh generate_and_store_private_dss_key
 			else
 				_log do setup_dropbear_keys daemon info "SSH-DSS-key does not exist (yet) - abort"
 			fi
