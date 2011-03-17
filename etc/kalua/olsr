@@ -418,12 +418,19 @@ _olsr_neighs ()
 
 _olsr_restarts_are_suspicious_often ()
 {
-	local FUNC="olsr_restarts_are_suspicious_often"
-	local OLSR_RESTARTS="$( _olsr uptime restarts_get )"
-	local BORDER="$(( $( _system uptime days ) + 10 ))"
+	local func="olsr_restarts_are_suspicious_often"
+	local daemon_restarts="$( _olsr uptime restarts_get )"
+	local basecount="30"
+	local percent
+	local border="$(( $( _system uptime days ) + $basecount ))"
 
-	if [ $OLSR_RESTARTS -gt $BORDER ]; then
-		_log do $FUNC daemon alert "[ERR] olsr restarts > normality ($OLSR_RESTARTS > $BORDER)"
+	percent="$(( $daemon_restarts * 100 ))"
+	percent="$(( $percent / $border ))"
+
+	_log do $func daemon info "percent from border: ${percent}% restarts: $daemon_restarts border: $border"	
+
+	if [ $percent -gt 100 ]; then
+		_log do $func daemon alert "[ERR] olsr restarts > normality (${percent}%: $daemon_restarts > $border)"
 		return 0
 	else
 		return 1
