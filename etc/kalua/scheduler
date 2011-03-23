@@ -49,7 +49,6 @@ Usage:	 $0 -option1 -option2 -optionN
 Options: -a "TASK"   adds an TASK to queue, where TASK can be keyword
 	 -A "TASK"   immediately runs TASK, does not respect cpu-load
 	 -r          runs the queue, step by step
-	 -s "SEC"    sleeps for SEC seconds
 	 -l          lists running and waitung queue
 	 -p	     purge all queues
 	 -f	     overload check (last 5min)
@@ -57,7 +56,10 @@ Options: -a "TASK"   adds an TASK to queue, where TASK can be keyword
 	 -O	     fetch OLSR-table
 	 -o	     special: checks for incoming olsr-packets and
 		     restarts daemon with new conf if neccessary
- 
+	 -u	     check syslog for kernel-oops, reboot if needed
+	 -w	     check mac80211_wifi for problems
+	 -H	     build overload check /tmp/WELCOME_HELPER for uhttpd
+
 Example: $0 -s3 -a do_this -a do_that -r -a do_another_thing -r
  
 	 This invokes a sleep for 3 seconds,
@@ -83,23 +85,18 @@ _scheduler_task2command ()
 	
 	case "$TASK" in
 		    refresh_dnshosts)	COMMAND=". /tmp/loader; _net refresh_dnshosts" ;;
-			   rrdhelper)	pidof rrdcollect >/dev/null || return 1
-			   		COMMAND=". /tmp/loader; _wifi rrdhelper \$WIFIDEV" ;;
+			   rrdhelper)	COMMAND=". /tmp/loader; _wifi rrdhelper \$WIFIDEV" ;;
 	    splash4nonautounsplashed)   COMMAND=". /tmp/loader; _pfilter user_splash_add_for_nonautounsplashed" ;;
 		    optimize_txpower)	COMMAND="/usr/sbin/cron.optimize_wifi_txpower" ;;
 			  monitoring)	COMMAND="/usr/sbin/cron.monitoring" ;;
-		    upgrade_packages)	_scheduler check_if_every_Nth_minute 360 upgrade_packages || return 1
-		    			COMMAND="/usr/sbin/cron.upgrade_packages" ;;
+		    upgrade_packages)	COMMAND="/usr/sbin/cron.upgrade_packages" ;;
 	       watch_hanging_command)	COMMAND=". /tmp/loader; for option in mv scp wget nc; do _watch hanging_command \$option; done" ;;
 		    software_install)   COMMAND="/etc/init.d/S71auto_software_update_fff+ call" ;;
 	            build_accounting)   COMMAND="wget -qO /tmp/accounting.tmp 'http://127.0.0.1/cgi-bin-tool_fff+?OPT=accounting&GUI=1'; mv /tmp/accounting.tmp /tmp/accounting.html" ;;
 		  recheck_wired_olsr)	COMMAND="/etc/init.d/S99an_olsr_dev_check_fff+ recheck" ;;
-	  whitelist_update_every_15h)   _scheduler check_if_every_Nth_minute 891 whitelist_update || return 1
-	  				COMMAND="/etc/local.fw-fff+ olsr_whitelist_update" ;;
-	  whitelist_rebuild_every_3h)   _scheduler check_if_every_Nth_minute 173 whitelist_rebuild || return 1
-	  				COMMAND="/etc/local.fw-fff+ olsr_whitelist_optimize" ;;
-	       speedtest_every_40min)   _scheduler check_if_every_Nth_minute 40 speedtest || return 1
-	       				COMMAND="/www/cgi-bin-speed r" ;;
+	  whitelist_update_every_15h)	COMMAND="/etc/local.fw-fff+ olsr_whitelist_update" ;;
+	  whitelist_rebuild_every_3h)	COMMAND="/etc/local.fw-fff+ olsr_whitelist_optimize" ;;
+	       speedtest_every_40min)	COMMAND="/www/cgi-bin-speed r" ;;
 		        restart_olsr) 	COMMAND=". /tmp/loader; _olsr daemon restart olsrd_restart_scheduler_controlled" ;;
 		         1min_checks) 	COMMAND="/usr/sbin/cron.minutely" ;;
 		        15min_checks)  	COMMAND="/etc/init.d/S69watch_olsrd_fff+" ;;

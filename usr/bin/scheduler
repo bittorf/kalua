@@ -2,13 +2,169 @@
 . /tmp/loader
 
 ERR=1
-while getopts "a:A:s:wmrRlpofuOPH" FLAG; do {
+while getopts "S:a:A:s:wmrRlpofuOPH" FLAG; do {
 
 	ERR=0
 
 	case $FLAG in
-		m)
-			pidof cron.minutely >/dev/null || /usr/sbin/cron.minutely
+		S)
+			MINUTE="$( date +%M )"	# 00...59
+			HOUR="$( date +%k )"	# 0...23
+
+			cron_minutely()
+			{
+				[ -e /usr/sbin/cron.minutely ] && {
+					pidof cron.minutely >/dev/null || {
+						/usr/sbin/cron.minutely
+					}
+				}
+			}
+
+			case "$OPTARG" in
+				minimal)
+					cron_minutely
+
+					case "$MINUTE" in
+						00|15|30|45)
+							_scheduler add software_install
+							_scheduler add 15min_checks
+
+							case "$MINUTE" in
+								00)
+									_scheduler add 1h_checks
+
+									case "$HOUR" in
+										4)
+											_scheduler add fwupdate_check
+										;;
+									esac
+								;;
+							esac
+
+							for option in mv scp wget nc; do {
+								_watch hanging_command $option
+							} done
+						;;
+					esac
+				;;
+				newstyle)
+					[ -e /tmp/.autorun ] && /tmp/.autorun		# can be helpful to make changes an many nodes
+											# script must first delete himself with 'rm $0'
+					_scheduler check_if_every_Nth_minute 360 && {
+						_scheduler add upgrade_packages
+					}
+				
+					case "$MINUTE" in
+						00|15|30|45)
+							_scheduler add gateway_check
+							_scheduler add 15min_checks
+							_scheduler add monitoring
+							_scheduler add user_traff_broadcast
+							_scheduler add kick_user_over_limit
+							[ "$( uci get system.@vds[0].enabled )" = "1" ] && _scheduler add vds
+							# [ -z "$( uci get system.@weblogin[0].enabled )" ] && _scheduler add build_accounting
+
+							case "$MINUTE" in
+								00)
+									_scheduler add 1h_checks
+									_scheduler add refresh_dnshosts
+
+									case "$HOUR" in
+										0)
+											_scheduler add 24h_checks
+										;;
+										3)
+											_scheduler add restart_olsr
+										;;
+										4)
+											_scheduler add fwupdate_check
+											_scheduler add splash4nonautounsplashed
+										;;
+										6)
+											_scheduler add restart_olsr
+											_scheduler add user_traff_reset
+											_scheduler add kick_user_all
+										;;
+									esac
+								;;
+							esac
+
+							for option in mv scp wget nc; do {
+								_watch hanging_command $option
+							} done
+						;;
+					esac
+				;;
+				oldstyle)
+					cron_minutely
+
+					pidof rrdcollect && {
+						_scheduler add rrdhelper
+					}
+
+					_scheduler check_if_every_Nth_minute 891 && {
+						_scheduler add whitelist_update_every_15h
+					}
+
+					_scheduler check_if_every_Nth_minute 173 && {
+						_scheduler add whitelist_rebuild_every_3h
+					}
+
+					_scheduler check_if_every_Nth_minute 40 && {
+						_scheduler add speedtest_every_40min
+					}
+
+					_scheduler check_if_every_Nth_minute 360 && {
+						_scheduler add upgrade_packages
+					}
+
+					case "$MINUTE" in
+						00|15|30|45)
+							_scheduler add gateway_check
+							_scheduler add 15min_checks
+							_scheduler add monitoring
+							_scheduler add optimize_txpower
+							_scheduler add user_traff_broadcast
+							_scheduler add kick_user_over_limit
+							[ "$( uci get system.@vds[0].enabled )" = "1" ] && _scheduler add vds
+							[ -z "$( uci get system.@weblogin[0].enabled )" ] && _scheduler add build_accounting
+
+							case "$MINUTE" in
+								00)
+									_scheduler add 1h_checks
+									_scheduler add restart_vpn
+
+									case "$HOUR" in
+										0)
+											_scheduler add 24h_checks
+										;;
+										3)
+											_scheduler add rebuild_service_announce
+											_scheduler add recheck_wired_olsr
+											_scheduler add restart_olsr
+										;;
+										4)
+											_scheduler add fwupdate_check
+											_scheduler add splash4nonautounsplashed
+										;;
+										6)
+											_scheduler add build_service_announce
+											_scheduler add recheck_wired_olsr
+											_scheduler add restart_olsr
+											_scheduler add user_traff_reset
+											_scheduler add kick_user_all
+										;;
+									esac
+								;;
+							esac
+
+							for option in mv scp wget nc; do {
+								_watch hanging_command $option
+							} done
+						;;
+					esac
+				;;
+			esac
 		;;
 		w)
 			# some quirks for ath9k/mac80211 till
@@ -61,28 +217,12 @@ while getopts "a:A:s:wmrRlpofuOPH" FLAG; do {
 		a)
 			_scheduler add "$OPTARG"
 		;;
-		s)
-			sleep "$OPTARG"
-		;;
-		R)
-			[ -e /tmp/.autorun ] && /tmp/.autorun		# can be helpful to make changes an many nodes
-		;;							# script must first delete himself with 'rm $0'
 		r)
 			[ -e /tmp/SEND_ALIVE_FAILED ] && {				# fixme! this is a hack
 				_scheduler queue_list | grep -q 15min_checks || {
 					_scheduler add 15min_checks move2top
 				}
 			}
-
-			PIDS="$( _system pids_count scheduler )"
-			read OLD_PIDS </tmp/SCHEDULER_PIDS
-			echo $PIDS    >/tmp/SCHEDULER_PIDS
-	
-			if   [ ${OLD_PIDS:=1} -lt $PIDS ]; then
-				logger -s "scheduler pids raised to '$PIDS'"
-			elif [ ${OLD_PIDS:=1} -gt $PIDS ]; then
-				logger -s "scheduler pids lowered to '$PIDS'"
-			fi
 
 			_scheduler run
 		;;

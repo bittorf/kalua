@@ -128,16 +128,7 @@ func_cron_config_write ()
 	fi
 
 	local CRONDIR="$( dirname $CRONFILE )"
-
-	local VDS
-	[ "$( uci get system.@vds[0].enabled )" = "1" ] && VDS="-a vds"
-
 	local OWFS="$( which owfs >/dev/null && echo -n '-a owfs' )"
-	local RRDHELPER="$( which rrdcollect >/dev/null && echo -n '-a rrdhelper' )"
-
-	local ACCOUNTING
-	[ -z "$( uci get system.@weblogin[0].enabled )" ] && ACCOUNTING="-a build_accounting"
-
 	local LINE=""
 	local PROFILE="$1"
 
@@ -173,9 +164,7 @@ func_cron_config_write ()
 	if [ "$PROFILE" = "minimal" ]; then
 
 		cat >$CRONFILE <<EOF
-*    * * * * pidof cron.minutely >/dev/null || /usr/sbin/cron.minutely
-*/15 * * * * sleep 6; pidof S69watch_olsrd_fff+ >/dev/null || /etc/init.d/S69watch_olsrd_fff+ ; scheduler -A watch_hanging_command -a 1h_checks -a software_install -r
-0    4 * * * scheduler -a fwupdate_check
+*    * * * * scheduler -S minimal; . /tmp/loader; _scheduler run
 EOF
 	elif [ "$PROFILE" = "nano" ]; then
 
@@ -186,34 +175,14 @@ EOF
 	elif [ "$PROFILE" = "newstyle" ]; then
 
 		cat >$CRONFILE <<EOF
-*    * * * * scheduler -O -P -f -H -w -a upgrade_packages -R
-*    * * * * scheduler -s 20 -r
-*/15 * * * * sleep  8; scheduler -A watch_hanging_command -a gateway_check $VDS -a 15min_checks -a monitoring -a user_traff_broadcast $ACCOUNTING -a kick_user_over_limit
-0    * * * * sleep 12; scheduler -a 1h_checks -a refresh_dnshosts
-0    3 * * * sleep 12; scheduler -a restart_olsr
-0    4 * * * sleep 12; $TICKETS scheduler -a fwupdate_check -a splash4nonautounsplashed
-0    6 * * * sleep 12; scheduler -a restart_olsr -a user_traff_reset -a kick_user_all
-0    0 * * * sleep  8; scheduler -a 24h_checks
+*    * * * * scheduler -S newstyle -O -P -f -H -w -R; . /tmp/loader; _scheduler run
 EOF
 
 	else
-
-		# we try to call the scheduler each for each, not all at one point
-
 		cat >$CRONFILE <<EOF
-*    * * * * scheduler -m -O -P -u -o -f $RRDHELPER -a speedtest_every_40min -a whitelist_rebuild_every_3h -a whitelist_update_every_15h -a upgrade_packages
-*    * * * * scheduler -s 20 -r
-*/15 * * * * sleep  8; scheduler -A watch_hanging_command -a gateway_check $VDS -a 15min_checks -a monitoring -a optimize_txpower -a user_traff_broadcast $ACCOUNTING -a kick_user_over_limit \$( [ "\$(date +%M)" = "00" ] && echo "-a 1h_checks -a restart_vpn" )
-0    3 * * * sleep 12; scheduler -a rebuild_service_announce -a recheck_wired_olsr -a restart_olsr
-0    4 * * * sleep 12; $TICKETS scheduler -a fwupdate_check -a splash4nonautounsplashed
-0    6 * * * sleep 12; scheduler -a build_service_announce -a recheck_wired_olsr -a restart_olsr -a user_traff_reset -a kick_user_all
-0    0 * * * sleep  8; scheduler -a 24h_checks
+*    * * * * scheduler -S oldstyle -O -P -f -u -o; . /tmp/loader; _scheduler run
 EOF
 	fi
-
-	# fixme! this load/time/mem-consuming:
-	# stage1: only do 'echo "$CRONLINE" >/tmp/JOBS/$$_$keyword' and slowly fetch this with scheduler
-	# stage2: only have cron.each_minute, which does a simple check, which jobs have to be scheduled
 
 	while read LINE; do {
 		_log do $FUNC daemon debug "+ '$LINE'"
