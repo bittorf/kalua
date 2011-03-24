@@ -22,56 +22,61 @@ cron_watchdog()
 {
 	local mode="$1"		# start|stop
 
-	_uci is_oldstyle && return		# we have crondog.o on old devices
+#	_uci is_oldstyle && return		# we have crondog.o on old devices
 
 	local interval_sec=60
-	local cronpid watchdog_pid
-	local watchdog_pidfile="/tmp/cron_watchdog.pid"
+	local cronpid watchdog_id
+	local watchdog_id_file="/tmp/cron_watchdog.id"
 
 	case "$mode" in
 		start)
-			cronpid="$( pidof crond )"
-			cronpid="${cronpid% *}"		# only first pid
+			watchdog_id="$( _math random_integer 1 999999 )"
+			cronpid="$( _system get_first_pid crond )"
 
 			cat >/tmp/.autorun <<EOF
 #!/bin/sh
 rm \$0
-echo \$\$ >$watchdog_pidfile
-logger -s -t cron_watchdog -p daemon.info "checking each $interval_sec sec for pid of crond = $cronpid"
+
+echo $watchdog_id >$watchdog_id_file
+
+logger -s -t cron_watchdog -p daemon.info "checking each $interval_sec sec for crondpid $cronpid, see $watchdog_id_file"
+sleep 50	# only work, when (mostly) nothing else is done (this script starts ~ at second :00)
+logger -s -t cron_watchdog -p daemon.info "[OK] starting up"
 
 while true
 do
-	[ -e /tmp/cron_please_end_yourself_\$\$ ] && {
-		rm /tmp/cron_watchdog_please_end_yourself_\$\$
-		exit
-	}
-
-	[ -d /proc/$cronpid ] || {
+	if [ -e /tmp/cron_watchdog_please_end_yourself_$watchdog_id ]; then		# the new crond will send this
+		rm /tmp/cron_watchdog_please_end_yourself_$watchdog_id
 		. /tmp/loader
-		_log do cron_watchdog daemon alert "no crond found, restarting cron + watchdog"
-		$0 restart
+		_log do cron_watchdog daemon info "[OK] ending myself with ID $watchdog_id"
 		exit
-	}
+	else
+		[ -d /proc/$cronpid ] || {
+			. /tmp/loader
+			_log do cron_watchdog daemon alert "no crond found, starting cron + watchdog"
+			$0 start
+			exit
+		}
+	fi
 
 	sleep $interval_sec
 done &
 EOF
 			chmod +x /tmp/.autorun
-			cp /tmp/.autorun ${watchdog_pidfile}.script.tmp.autorun
+			cp /tmp/.autorun ${watchdog_id_file}.script.tmp.autorun
 		;;
 		stop)
-			[ -e $watchdog_pidfile ] && {
-				read watchdog_pid <$watchdog_pidfile
-				rm $watchdog_pidfile ${watchdog_pidfile}.script.tmp.autorun
-				# kill $watchdog_pid
-				touch /tmp/cron_watchdog_please_end_yourself_$watchdog_pid
+			[ -e "$watchdog_id_file" ] && {
+				read watchdog_id <$watchdog_id_file
+				touch /tmp/cron_watchdog_please_end_yourself_$watchdog_id
 
-				while [ -e /proc/$watchdog_pid ]; do {
-					_log do cron_watchdog daemon debug "waiting for ending of old watchdog PID $watchdog_pid"
+				while [ -e /tmp/cron_watchdog_please_end_yourself_$watchdog_id ]; do {
+					_log do cron_watchdog daemon debug "waiting for deletion of '/tmp/cron_watchdog_please_end_yourself_$watchdog_id'"
 					sleep 10
 				} done
 
-				_log do cron_watchdog daemon info "[OK] old watchdog PID $watchdog_pid is gone"
+				rm $watchdog_id_file ${watchdog_id_file}.script.tmp.autorun
+				_log do cron_watchdog daemon info "[OK] old watchdog gone"
 			}
 		;;
 	esac
