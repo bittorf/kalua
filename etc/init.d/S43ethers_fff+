@@ -3,15 +3,23 @@
 
 if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ] || [ ! -e "/www/SOFTWARE_FULLY_INSTALLED" ]; then exit; fi
 
-_build_clients ()
+build_network_clients ()
 {						# SENS: print IP-list of (potential) clients
 	local STARTIP="$1"			# ARG1: string, interface-IP (first useable address of network)
 	local   ENDIP="$2"			# ARG2: string, interface-broadcast-address
 	local     PRE="$3"			# ARG3: string, interface-netmask in CIDR-notation (e.g. /24)
 	local     NET="$4"			# ARG4: string, interface info ("wan") - just for logging
 	local    FUNC="build_clients"		# OUT1: list of IP-addresses
+	local out
 
-	_log do $FUNC daemon debug "writing client list for $STARTIP/$PRE ('$NET')"
+	ifname_from_dev()
+	{
+		eval echo \$${1}DEV
+	}
+
+	local myip="$( _sanitizer do "$( ip address show $( ifname_from_dev $NET ) )" ip4 firstword )"
+
+	_log do $FUNC daemon debug "writing client list for $STARTIP/$ENDIP/$PRE ('$NET'), myip: $myip"
 
 	OKT1="$(	echo $STARTIP | cut -d. -f1 )"
 	OKT2="$(	echo $STARTIP | cut -d. -f2 )"
@@ -19,19 +27,25 @@ _build_clients ()
 	OKT4_START="$(	echo $STARTIP | cut -d. -f4 )"
 	OKT4_END="$(	echo $ENDIP   | cut -d. -f4 )"
 
-	let OKT4_START+=2	# we only need real clients, not the network, not the interface and not the broadcast-address
-	   
+	OKT4_START=$(( $OKT4_START + 1 ))		# without network
+
 	if [ "$PRE" -ge 24 ] && [ "$PRE" -le 30 ]; then		# this is not correct, just an workaround!
-		
+
 		[ "$PRE" = "30" ] && OKT4_START=$(( $OKT4_START - 1 ))
 
 		while [ $OKT4_START -lt $OKT4_END ]; do {
-			echo "$OKT1.$OKT2.$OKT3.$OKT4_START;"
+
+			out="$OKT1.$OKT2.$OKT3.$OKT4_START"
+
+			[ "$myip" = "$out" ] || {
+				echo "$out;"
+			}
+
 			OKT4_START=$(( $OKT4_START + 1 ))
 		} done
 	else
 		_log do $FUNC daemon debug "error, CIDR-netmask <24 or >30 not implemented yet!"
-		
+
 		sed -n "s/^${NET}ADR=\(.*\)/\1/p" /tmp/NETPARAM			# fixme! uiuiui!
 		echo "# (printing at least the IP itself, maybe it helps)"
 		echo "# error, CIDR-netmask = $PRE, which is <24 or >30 - not implemented yet!"
@@ -318,9 +332,9 @@ fkt_build_clients_list ()	# these lists are used to to a fast 'grep $IP $FILE', 
 	eval $( _ipsystem do | grep ^WIFINET=		)
 	eval $( _ipsystem do | grep ^WIFIBRC=		)
 
-	_build_clients "$WIFINET" "$WIFIBRC" "$WIFI_DHCP_PRE"	"WIFI"	>/tmp/CLIENTS_WIFI
-	_build_clients "$LANNET"  "$LANBRC"  "$LANPRE"		"LAN"	>/tmp/CLIENTS_LAN 
-	_build_clients "$WANNET"  "$WANBRC"  "$WANPRE"		"WAN"	>/tmp/CLIENTS_WAN
+	build_network_clients "$WIFINET" "$WIFIBRC" "$WIFI_DHCP_PRE"	"WIFI"	>/tmp/CLIENTS_WIFI
+	build_network_clients "$LANNET"  "$LANBRC"  "$LANPRE"		"LAN"	>/tmp/CLIENTS_LAN 
+	build_network_clients "$WANNET"  "$WANBRC"  "$WANPRE"		"WAN"	>/tmp/CLIENTS_WAN
 	
 	cat /tmp/CLIENTS_WIFI /tmp/CLIENTS_LAN /tmp/CLIENTS_WAN	>/tmp/CLIENTS_ALL	# not used 
 }
@@ -332,6 +346,9 @@ uci get system.@system[0].hostname | grep -q ^node && {					# fixme! unneeded?
 }
 
 case $1 in
+	build_network_clients)
+		fkt_build_clients_list
+	;;
 	call)
 		fkt_write_ethers remove
 		fkt_write_ethers wifi
@@ -375,6 +392,6 @@ case $1 in
 		_scheduler add "$0 call"
 	;;
 	*)
-		echo "Usage: $0 (start|call)"
+		echo "Usage: $0 (start|call|build_network_clients)"
 	;;
 esac
