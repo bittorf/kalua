@@ -31,6 +31,7 @@ _random_username_themeinfo ()
 
 _random_username_do ()
 {
+	local FUNC="random_username_do"
 	local THEME="${1:-$( uci get system.@weblogin[0].namespace )}"
 	local specific_value="$2"
 	local o
@@ -708,7 +709,27 @@ _random_username_do ()
 			esac
 		;;
 		*)
-			o="${THEME:-error_empty_theme_name}"		# fixme!
+			if [ -z "$THEME" ]; then
+
+				_log do $FUNC daemon info "empty themename, correcting"
+
+				for THEME in $( _random_username themes ); do {
+					break
+				} done
+
+				if _uci is_oldstyle ; then
+					_nvram set fff_weblogin_usernametheme $THEME
+					_nvram set commit "empty themename, correcting to '$THEME'"
+				else
+					uci set system.@weblogin[0].namespace="$THEME"
+					uci commit
+				fi
+
+				_random_username do $THEME
+				return
+			else
+				o="$THEME"
+			fi
 		;;
 	esac
 
