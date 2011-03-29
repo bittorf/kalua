@@ -481,9 +481,14 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		return 1
 	}
 
+	ip_default_route()
+	{
+		_sanitizer do "$( grep ^default /tmp/OLSR/ROUTING_TABLE_MAIN | head -n1 )" ip4
+	}
+
 	local COUNT=0
 	local LOCAL REMOTE LQ NLQ COST METRIC DEVTYPE LINES1 LINES2
-	
+
 	ip_is_in_routing_table ()		# fixme! 'ip route list exact 1.2.3.4/32' does not work ATM in busybox's ip-applet
 	{
 		local ip="$1"
@@ -505,6 +510,12 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 
 	while read LINE; do {
 		eval $LINE
+
+		[ -e /tmp/OLSR/isneigh_$REMOTE ] || {
+			_log do $FUNC daemon info "detected yet unknown neigh $REMOTE"
+			touch /tmp/OLSR/isneigh_$REMOTE
+		}
+
 		[ -n "$COST" ] && {
 			[ "$COST" = "INFINITE" ] || {		# fixme! workaround for wrong neighs_evalable() abstraction
 
@@ -652,6 +663,9 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	_log do $FUNC daemon debug "[OK] (each local/remote-pair has only one neighbour/link-entry?)"
 
 
+	# is inet-nexthop metric1 ?
+	# sed -n 's/^.*NEXTHOP=\(.*\);.*/\1/p' /tmp/GATEWAY_CHECK_RECENT
+	# _olsr remoteip2metric
 
 	local REMOTE=
 	read REMOTE </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
