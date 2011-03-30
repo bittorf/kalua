@@ -4,6 +4,38 @@
 # todo:
 # with/without OLSR on all interfaces? or specific interfaces?
 
+ifname2mtu()
+{
+	ip link show dev "${1:-nonexistent_$2}" |
+	 sed -n 's/^.* mtu \([0-9]*\).*/\1/p;q'
+}
+
+netparam_pppoe_fix_for_oldstyle_devices ()
+{
+	local NAME="wan"
+	local ADDRESS NETMASK MTU BROADCAST NETWORK PREFIX
+	local IFNAME="ppp0"
+
+	[ "$( uci get network.$NAME.proto )" = "pppoe" ] || return
+
+	ADDRESS="$( _net dev2ip $IFNAME )"
+	NETMASK="$( _net dev2ip $IFNAME mask )"
+	MTU="$( ifname2mtu "$IFNAME" "$DEVICE" )"
+
+	echo "${NAME}DEV=$IFNAME"
+	echo "${NAME}MTU=$MTU"
+	echo "${NAME}ADR=$ADDRESS"
+	echo "${NAME}MSK=$NETMASK"
+
+	BROADCAST=;NETWORK=;PREFIX=
+	[ -n "$MTU" ] && eval $( ipcalc.sh $ADDRESS $NETMASK )
+
+	echo "${NAME}BRC=$BROADCAST"
+	echo "${NAME}NET=$NETWORK"
+	echo "${NAME}PRE=$PREFIX"
+	echo "${NAME}OLSR="
+}
+
 netparam_for_uci_devices ()
 {
 	local NAME IFNAME ADDRESS NETMASK MTU BROADCAST NETWORK PREFIX
@@ -20,16 +52,17 @@ netparam_for_uci_devices ()
 		IFNAME="$(  uci -q get network.$DEVICE.ifname  )"
 		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
 		NETMASK="$( uci -q get network.$DEVICE.netmask )"
-		MTU="$( ip link show dev "${IFNAME:-nonexistent_$DEVICE}" | sed -n 's/^.* mtu \([0-9]*\).*/\1/p;q' )"
+		MTU="$( ifname2mtu "$IFNAME" "$DEVICE" )"
 
 		case "$( uci get network.$DEVICE.proto )" in
 			dhcp)
 				ADDRESS="$( _net dev2ip $IFNAME )"
 				NETMASK="$( _net dev2ip $IFNAME mask )"
 			;;
-			pppoe)
-				ADDRESS="$( _net dev2ip ppp0 )"	# fixme!
+			pppoe)						# fixme!
+				ADDRESS="$( _net dev2ip ppp0 )"
 				NETMASK="$( _net dev2ip ppp0 mask )"
+				MTU="$( ifname2mtu "ppp0" "$DEVICE" )"
 			;;
 		esac
 
@@ -62,12 +95,16 @@ _build ()
 	}
 
 	/rom/usr/bin/netparam >$FILE && {
+		netparam_pppoe_fix_for_oldstyle_devices >>$FILE
+
 		_log do $FUNC daemon debug "successfully build '$FILE'"
 		return 0
 	}
 	
 	_log do $FUNC daemon crit "error during build, trying pivot-root"
 	/usr/bin/netparam >$FILE && {
+		netparam_pppoe_fix_for_oldstyle_devices >>$FILE
+
 		_log do $FUNC daemon crit "success building '$FILE'"
 		return 0
 	}
