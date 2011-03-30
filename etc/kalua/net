@@ -152,6 +152,39 @@ _net_dns2ip ()
 	nslookup $1 | sed -n '5s/^Address:[^0-9]*\([0-9\.]*\)/\1/p'
 }
 
+_net_dev2ip ()		# only first ip
+{
+	local dev="$1"
+	local option="$2"	# "ip"|"mask"
+	local type="$3"		# "cidr"
+	local line
+
+	line="$( ip -oneline -f inet address show dev $dev )"
+
+	set $line
+	case "$3" in
+		inet)
+			case "$option" in
+				mask)
+					case "$type" in
+						cidr)
+							echo $4 | cut -d'/' -f2
+						;;
+						*)
+							_net cidr2mask "$( echo $4 | cut -d'/' -f2 )"
+						;;
+					esac
+				;;
+				*)
+					echo $4 | cut -d'/' -f1
+				;;
+			esac
+
+			return
+		;;
+	esac
+}
+
 _net_dev2mac ()
 {
 	ip -o link show $1 | sed -n 's/^.*ether \(..:..:..:..:..:..\) .*/\1/p;q'
