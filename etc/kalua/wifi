@@ -1119,15 +1119,20 @@ _wifi_signal ()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all 
 _wifi_channel ()
 {
 	local WIFI_DEV="$1"
-	
+
 	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
 	
 		eval "$( _wifi params_broadcom_wlstatus $WIFI_DEV | grep ^WIFI_CHANNEL )"
 	else
 		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_CHANNEL )"
 	fi
-	
-	echo $WIFI_CHANNEL
+
+	if [ -z "$WIFI_CHANNEL" -o "$WIFI_CHANNEL" = "0" ]; then
+		_log do wifi_channel daemon alert "empty channel"
+		_wifi params_iwconfig_status $WIFI_DEV >/tmp/WIFI_LAST_ERROR_WIFI_STATUS_EMPTY_CHANNEL_$$.txt
+	else
+		echo "$WIFI_CHANNEL"
+	fi
 }
 
 _wifi_protection_gmode ()	# OUT1: integer, 0 | 1
