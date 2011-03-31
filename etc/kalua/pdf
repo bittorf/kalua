@@ -240,28 +240,63 @@ $XREF_START_BYTE_OFFSET
 EOF
 }
 
+_pdf_element()
+{
+	local type="$1"		# text, line, circle
+	local option="$2"
+	local type2="$3"	# font, thickness
+	local option="$4"
+	local type3="$5"	# "message", color
+	local option="$6"
+}
+
+_pdf_line()
+{
+	local x1="$1"
+	local y1="$2"
+	local x2="$3"
+	local y2="$4"
+	local thickness="$5"		# fixme!
+
+	echo "$x1 $y1 m $x2 $y2 l S"
+}
+
 _pdf_output_a4marker_digest_body ()
 {
 	local list_login_id="$1"
 	local func="pdf_output_a4marker_digest"
-	local fontsize=18
+	local fontsize=14
+	local head="WLAN-System $( _weblogin metadata_locationname ): Protokoll: 2 x 16 Etiketten"
 
 	local i=0
-	local xcenter=297
-	local x_marker_end=125
-	local X0="25"		# left
-	local X8="570"		# right
+	local X0="25"			# left
+	local X8="570"			# right
+	local xcenter="297"
+	local marker_width="110"
+	local x_marker_end_row1=$(( $X0 + $marker_width ))
+	local x_marker_end_row2=$(( $xcenter + $marker_width ))
 
-	local YSTART="750"
+	local YSTART="815"
 	local YSTEP="50"
 
-	echo "$xcenter $YSTART m $xcenter 0 l S"
-	echo "$x_marker_end $YSTART m $x_marker_end 0 l S"
+	echo "$xcenter $YSTART m $xcenter 15 l S"		# fixme! use end-values of below loop for Y
+	echo "$x_marker_end_row1 $YSTART m $x_marker_end_row1 15 l S"
+	echo "$x_marker_end_row2 $YSTART m $x_marker_end_row2 15 l S"
+	echo "$X0 $YSTART m $X0 15 l S"
+	echo "$X8 $YSTART m $X8 15 l S"
 
 	while [ $YSTART -gt 0 ]; do {
+
+		if [ $i -eq 0 ]; then
+			echo "BT $X0 $(( $YSTART + 5 )) TD /F1 $fontsize Tf ($head)Tj ET"
+		else
+			fontsize=10
+			echo "BT $(( $X0 + 20 )) $(( $YSTART + 20 )) TD /F1 $fontsize Tf (Etikett $i)Tj ET"
+			echo "BT $(( $xcenter + 20 )) $(( $YSTART + 20 )) TD /F1 $fontsize Tf (Etikett $(( $i + 16 )))Tj ET"
+		fi
+
 		i=$(( $i + 1 ))
 		echo "$X0 $YSTART m $X8 $YSTART l S"
-		echo "BT $X0 $YSTART TD /F1 $fontsize Tf (xy: $X0 $YSTART i: $i)Tj ET"
 		YSTART=$(( $YSTART - $YSTEP ))
 	} done
 }
