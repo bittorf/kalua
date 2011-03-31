@@ -86,7 +86,15 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	if [ $COUNT -gt 0 ]; then
 
 		/etc/kalua_init
-		[ "$CRON_RESTART" = "1" ] && /etc/init.d/*crond_fff+ restart
+
+		[ "$CRON_RESTART" = "1" ] && {
+			/etc/init.d/*crond_fff+ stop
+
+			while ! pidof crond ; do {
+				/etc/init.d/*crond_fff+ start
+			} done
+		}
+
 		[ "$REPATCH_ALL"  = "1" ] && /etc/init.d/*patch-o-matic* repatch all
 
 		echo >>/etc/banner "# manually updated with poormens method on $( date ) by '$0' to this version:"
@@ -204,7 +212,7 @@ _firmware_burn ()
 	if [ "$OUT" = "ok" ]; then
 		_log do "$FUNC" daemon info "crc: $OUT - burning '$FILE'"
 
-		/etc/init.d/S51crond_fff+ restart nano
+		/etc/init.d/*crond_fff+ restart nano
 		[ -e /dev/misc/crondog ] && echo >/dev/misc/crondog			# fixme!
 
 		/usr/sbin/firmware-burn "$FILE"	
