@@ -37,9 +37,9 @@ _pdf_filename ()
 
 _pdf_output ()
 {
-	local METHOD="$1"			# a4digest|a4marker|a4marker_digest
+	local METHOD="$1"			# a4digest|a4marker|a4marker_digest|a4test
 	local LIST_LOGIN_ID="$2"
-
+# METHOD=a4test
 	local FUNC="pdf_output"
 	local TEMPFILE="/tmp/${FUNC}_${METHOD}_$$"
 	local FILEPART
@@ -60,6 +60,27 @@ _pdf_output ()
 	} done
 
 	_log do $FUNC daemon info "[OK] generated PDF ($METHOD)"
+}
+
+_pdf_output_a4test_body ()
+{
+	local x=0
+	local xmax=900
+	local y=0
+	local ymax=1000
+	local step=10
+	local fontsize=6
+
+	while [ $x -lt 900 ]; do {
+
+		echo "0 $y m $xmax $y l S"		# horizontal
+		echo "$x 0 m $x $ymax l S"		# vertical
+		echo "BT $x $y TD /F1 $fontsize Tf ($x,$y)Tj ET"
+
+		x=$(( $x + $step ))
+		y=$(( $y + $step ))
+
+	} done
 }
 
 _pdf_output_a4digest_body ()
@@ -323,8 +344,8 @@ _pdf_output_a4marker_body ()		# SENS: fits for 2x32 labels 35.6x16.9mm L4732 "Zw
 	xcol ()
 	{
 		local COLUMN="$1"
-		local BEGIN="163"
-		local OFFSET="1170"
+		local BEGIN="310"	# 31.0 points
+		local OFFSET="1090"	# 10.9 points
 		local X
 
 		X=$(( $BEGIN + ( $OFFSET * ( $COLUMN - 1 ) ) ))
@@ -334,18 +355,20 @@ _pdf_output_a4marker_body ()		# SENS: fits for 2x32 labels 35.6x16.9mm L4732 "Zw
 
 	yrow ()					# pdf-coord-system starts in lower/left border with 0/0
 	{
-		local ROW="$1"
-		local OPTION="$2"		# nextline
-		local BEGIN="300"
-		local OFFSET="516"
-		local OFFSET_NEXTLINE="160"
+		local row="$1"
+		local option="$2"		# nextline
+		local begin="580"		# 58.0 points
+		local offset="480"		# 48.0 points
+		local offset_nextline="160"	# 16.0 points
 		local Y
 
-		Y=$(( $BEGIN + ($OFFSET * ($ROW - 1) ) ))
+		y=$(( $begin + ( $offset * ( $row - 1 ) ) ))
 
-		[ -n "$OPTION" ] && Y=$(( $Y - $OFFSET_NEXTLINE ))
+		[ -n "$option" ] && {
+			y=$(( $y - $offset_nextline ))
+		}
 
-		tenth $Y
+		tenth $y
 	}
 
 	XCOL1=$( xcol 1 )
