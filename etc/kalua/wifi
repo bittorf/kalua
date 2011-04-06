@@ -128,7 +128,7 @@ _wifi_params_iwconfig_status ()		# ARG1 = WIFI_DEV
 
 				# fixme! sometimes iwconfig-output is empty
 
-	iwconfig $1 2>/dev/null |
+	/usr/sbin/iwconfig $1 2>/dev/null |
 	 sed -ne "s/^.*ESSID:\"\(.*\)\"/WIFI_DEV=$1\nWIFI_UPTIME=0\nWIFI_ESSID='\1'/p" \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Access Point: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_BSSID=\4/p' \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Cell: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_CHANNEL=\"\$( _wifi math_mhz2channel \2\3 )\"\nWIFI_BSSID=\4/p' \
@@ -480,7 +480,7 @@ _wifi_phy_txpower ()		# output in [mW]
 		if _uci is_oldstyle ; then
 			POWER="$( iwlist "$WIFI_DEV" txpower 2>/dev/null | sed -n '/Tx-Power/s/^.*(\([0-9]*\).*/\1/p' )"		# [mW]
 		else
-			POWER="$( iwconfig "$WIFI_DEV" | sed -n 's/^.*Tx-Power=\([0-9]*\).*/\1/p' )"	# [dBm]
+			POWER="$( /usr/sbin/iwconfig "$WIFI_DEV" | sed -n 's/^.*Tx-Power=\([0-9]*\).*/\1/p' )"	# [dBm]
 
 			[ -z "$POWER" ] && {
 				POWER="$( uci get wireless.radio0.txpower )"
@@ -549,7 +549,7 @@ _wifi_phy_txpower_set ()	# e.g.: _wifi phy_txpower_set "$WIFIDEV" 10 mW add over
 
 				_wl "$WIFI_DEV" txpwr $TXPWR			# must be in [mW]
 			  else
-			  	iwconfig "$WIFI_DEV" txpower "$VALUE_DBM"  2>/dev/null
+			  	/usr/sbin/iwconfig "$WIFI_DEV" txpower "$VALUE_DBM"  2>/dev/null
 			  fi
 		       	 
 		       	  return 0
@@ -1129,12 +1129,7 @@ _wifi_channel ()
 		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_CHANNEL )"
 	fi
 
-	if [ -z "$WIFI_CHANNEL" -o "$WIFI_CHANNEL" = "0" ]; then
-		_log do wifi_channel daemon alert "empty channel"
-		_wifi params_iwconfig_status $WIFI_DEV >/tmp/WIFI_LAST_ERROR_WIFI_STATUS_EMPTY_CHANNEL_$$.txt
-	else
-		echo "$WIFI_CHANNEL"
-	fi
+	echo "$WIFI_CHANNEL"
 }
 
 _wifi_protection_gmode ()	# OUT1: integer, 0 | 1
