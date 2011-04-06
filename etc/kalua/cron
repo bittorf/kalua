@@ -1,0 +1,30 @@
+_cron_watchdog_is_running()
+{
+	local func="cron_watchdog_is_running"
+	local crondog_pid crondog_cmdline
+
+	_uci is_oldstyle || {
+		[ -e /tmp/cron_watchdog.pid ] && {
+
+			read crondog_pid </tmp/cron_watchdog.pid
+			read crondog_cmdline </proc/$crondog_pid/cmdline
+
+			[ "$crondog_cmdline" = "sh/tmp/cron_watchdog.sh" ] || {
+				_log do $func daemon alert "cron_watchdog is missing"
+				return 1
+			}
+		}
+	}
+
+	return 0
+}
+
+_cron_daemon_restart()
+{
+	local func="cron_daemon_restart"
+	local reason="$1"
+
+	_log do $func daemon info "[START] $reason"
+	/etc/init.d/*crond* restart
+	_log do $func daemon info "[READY]"
+}
