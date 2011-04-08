@@ -20,16 +20,15 @@ _olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every mi
 	_wget do "http://127.0.0.1:2006/all" >/tmp/OLSR_TMP/ALL || {
 
 		if pidof olsrd >/dev/null ; then
-			_log do $func daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
+			_olsr daemon restart "$func did not work, but daemon is up"
 		else
-			_log do $func daemon crit "failed to fetch neighbour-table, because OLSRd is'nt running"
-			_olsr daemon start "failed to fetch neighbour-table"
+			_olsr daemon restart "$func did not work, daemon is not up"
 		fi
 
 		return 1
 	}
 
-	ip route show table main >/tmp/OLSR_TMP/ROUTING_TABLE_MAIN
+	ip route show table main >/tmp/OLSR_TMP/ROUTING_TABLE_MAIN	# fixme! update also when fetching neighbour table fails?
 
 	while read line; do {
 		case "$line" in
@@ -49,18 +48,21 @@ _olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every mi
 		sed -n '/0\.00/s/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*0\.00[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$\(\( \$COUNT \+ 1 \)\)/p' "/tmp/OLSR_TMP/LINKS" >"/tmp/OLSR_TMP/LINKS.sh"
 	fi
 
+	mv /tmp/OLSR_TMP/* /tmp/OLSR
+
 	did_we_ever_had_neighbours()
 	{
 		ls -1 /tmp/OLSR/isneigh_* >/dev/null 2>/dev/null
 	}
 
 	did_we_ever_had_neighbours && {
-		[ $( _file size "/tmp/OLSR_TMP/LINKS.sh" ) -eq 0 ] && {
+		[ $( _file size "/tmp/OLSR/LINKS.sh" ) -eq 0 ] && {
 			_log do $func daemon alert "detected 0 neighbours"
+			return 1
 		}
 	}
 
-	mv /tmp/OLSR_TMP/* /tmp/OLSR
+	return 0
 }
 
 _olsr_remoteip2metric ()	# need OLSR_ROUTES
