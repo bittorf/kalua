@@ -1,10 +1,9 @@
 _net_refresh_dnshosts ()
 {
-	local pidfile="/var/run/dnsmasq.pid"
-	local pid
+	local pid="$( _system get_first_pid dnsmasq )"
 
-	[ -e "$pidfile" ] && {
-		read pid <$pidfile
+	[ -n "$pid" ] && {
+		kill -SIGUSR1 $pid		# logging stats
 		kill -HUP $pid			# reread e.g. /etc/hosts + /etc/ethers + /var/run/hosts_olsr
 	}
 }
@@ -55,6 +54,7 @@ _net_dhcp_lease_remove()
 
 	mv "$tempfile" "$dhcp_lease_file"
 
+	kill -SIGUSR1 $( _system get_first_pid dnsmasq )	# logging stats
 	_scheduler add "/etc/init.d/*dnsmasq restart"
 }
 
