@@ -513,14 +513,8 @@ _pfilter_user_splash_add_for_nonautounsplashed ()
 {
 	local FUNC="pfilter_user_splash_add_for_nonautounsplashed"
 
-	case "$( uci get system.@profile[0].name )" in
-		rehungen*)
-			_log do $FUNC daemon info "omitting function"	# fixme!
-		;;
-	esac
-
 	local LIST="$( _pfilter user_list )"
-	local TABLE LINE
+	local TABLE LINE IP MAC
 
 	for MAC in $LIST; do {
 		
@@ -576,8 +570,21 @@ _pfilter_user_splash_add_for_nonautounsplashed ()
 		_ipt -t mangle -X $TABLE
 	} done
 
-	# loop through arp, activate all LAN-clients, which are not OLSR
+	list_of_ip_known_lan_arpneighs()
+	{
+		grep $LANDEV$ /proc/net/arp | cut -d' ' -f1
+	}
 
+	for IP in $( list_of_ip_known_lan_arpneighs ); do {
+
+		_olsr ip_is_neigh $IP || {
+
+			MAC="$( _net ip2mac $IP )"
+			_log do $FUNC daemon info "autoactivating lan-neigh with mac/ip: $MAC/$IP"
+
+			/etc/local.fw-fff+ adduser "$MAC" "$IP"
+		}
+	} done
 }
 
 _pfilter_user_kick_overlimit ()
