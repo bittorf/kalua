@@ -9,10 +9,21 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	local SIZE TEMPFILE CRON_RESTART REPATCH_ALL
 	local COUNT=0
 	local COUNT_ERROR=0
-	
+
+	case "$MODE" in
+		beta|stable|testing)
+			:
+		;;
+		*)
+			_log do "$FUNC" daemon debug "abort, updatemode: $MODE"
+			return
+		;;
+	esac
+
 	_cleanup ()
 	{
 		local option="$1"
+		local updatemode="$2"
 
 		_log do "$FUNC" daemon debug "cleaning up - applied $COUNT files ($COUNT_ERROR errors)"
 		cd /tmp
@@ -114,7 +125,7 @@ _firmware_updatemode ()		# updatemode <empty>		= string of configured update-mod
 	local CHECKMODE="$1"	# updatemode "beta" "override"	= string if mode "beta" is known, otherwise configured mode (fallback)
 	local KEYWORD="$2"
 	local OUT MODE
-	
+
 	if [ "$KEYWORD" = "override" ]; then
 		MODE="$CHECKMODE"
 		[ -z "$MODE" ] && MODE="$( uci get system.@fwupdate[0].mode )"
@@ -130,7 +141,7 @@ _firmware_updatemode ()		# updatemode <empty>		= string of configured update-mod
 			OUT="stable"
 		;;
 	esac
-	
+
 	if [ -n "$CHECKMODE" ] && [ -z "$KEYWORD" ]; then
 		[ "$OUT" = "$CHECKMODE" ] && return 0
 		return 1
