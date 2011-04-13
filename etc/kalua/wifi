@@ -35,6 +35,81 @@ _wl ()		# ARG1: must be WIFI_DEV
 	# -> wl channel _must_ output something?
 }
 
+_wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate()
+{
+	local mac="$1"
+	local file="/sys/kernel/debug/ieee80211/phy0/netdev:wlan0/stations/$mac/rc_stats"
+	local line result targetline rate throughput
+	local max=0
+
+	[ -e "$file" ] || return
+
+	percent()
+	{
+		if   [ "$1" -gt 10000 ]; then
+			echo "0"
+		elif [ "$2" = "0" ]; then
+			echo "0"
+		else
+			echo "$(( ( $1 * 100 ) / $2 ))"
+		fi
+	}
+
+	while read line; do {
+
+		[ -z "$line" ] && continue
+		set $line
+
+		case "$2" in
+			1|2|5.5|11|6|9|12|18|24|36|48|54)
+				result="$( percent "$8" "$9" )"
+				[ $result -gt $max ] && {
+					max=$result
+					targetline="$line"
+				}
+			;;
+			*)
+				case "$3" in
+					ewma|count*)
+					;;
+					*)
+						if [ -n "${10}" ]; then
+							result="$( percent "$9" "${10}" )"
+						else
+							result="$( percent "$7" "$8" )"
+							
+						fi
+						
+						[ $result -gt $max ] && {
+							max=$result
+							targetline="$line"
+						}
+					;;
+				esac
+			;;
+		esac
+
+	} done <$file
+
+	[ -n "$targetline" ] && {
+
+		set $targetline
+
+		case "$2" in
+			1|2|5.5|11|6|9|12|18|24|36|48|54)
+				rate="$2"
+				throughput="$3"
+			;;
+			*)
+				rate="$3"
+				throughput="$4"
+			;;
+		esac
+	}
+
+	echo "txrate=${rate:-0};txthroughput=${throughput:-0};"
+}
+
 _wifi_params ()
 {
 	local VAR
