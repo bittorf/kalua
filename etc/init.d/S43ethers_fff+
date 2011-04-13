@@ -10,14 +10,14 @@ build_network_clients ()
 	local     PRE="$3"			# ARG3: string, interface-netmask in CIDR-notation (e.g. /24)
 	local     NET="$4"			# ARG4: string, interface info ("wan") - just for logging
 	local    FUNC="build_clients"		# OUT1: list of IP-addresses
-	local out
+	local out myip mygateway
 
 	ifname_from_dev()
 	{
 		eval echo \$${1}DEV
 	}
 
-	local myip="$( _net dev2ip $( ifname_from_dev $NET ) )"
+	myip="$( _net dev2ip $( ifname_from_dev $NET ) )"
 
 	_log do $FUNC daemon debug "writing client list for $STARTIP/$ENDIP/$PRE ('$NET'), myip: $myip"
 
@@ -54,6 +54,19 @@ build_network_clients ()
 		echo "# (printing at least the IP itself, maybe it helps)"
 		echo "# error, CIDR-netmask = $PRE, which is <24 or >30 - not implemented yet!"
 	fi
+
+	case "$NET" in
+		lan|LAN)
+			mygateway="$( uci get network.lan.gateway )"
+		;;
+		wan|WAN)
+			mygateway="$( uci get network.wan.gateway )"
+		;;
+	esac
+
+	[ -n "$mygateway"] && {
+		echo "$mygateway;"
+	}
 }
 
 _build_hosts ()				# SENS: modulary builds /etc/local.hosts
