@@ -14,19 +14,33 @@ _watch_usbstick_rehungen()
 
 _watch_local_proxy()
 {
+	local func="watch_local_proxy"
+	local pidfile="/var/run/polipo.pid"
+
 	[ -e /usr/sbin/polipo ] || {
 		return 0
 	}
 
+	daemon_restart()
+	{
+		local reason="$1"
+
+		[ -e "$pidfile" ] && {
+			rm "$pidfile"
+		}
+
+		_log do $func daemon alert "$reason, restarting"
+		/etc/init.d/polipo restart
+	}
+
 	pidof polipo >/dev/null || {
-		rm /var/run/polipo.pid
-		return 1
+		daemon_restart "polipo is not running"
+		sleep 3
 	}
 
 	_wget do "http://127.0.0.1:8123/polipo/status?" 5 |
 	 fgrep -q "Polipo status report" || {
-		rm /var/run/polipo.pid
-		return 1
+		daemon_restart "cannot fetch local status-page"
 	 }
 
 	# testdownload:
