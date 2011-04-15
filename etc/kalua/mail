@@ -48,7 +48,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	}
 
 	local SUBJECT="$( head -n1 $MAILFILE | sed "s#\$VAR1#$VAR1#g" )"
-	local FQDN="$( uci get system.@system[0].hostname ).local"
+	local FQDN="$( uci get system.@system[0].hostname ).local"		# fixme! we should handshake the HELO with the servers name, not ours
 	local ADMIN_REAL="$( uci get system.@admin[0].name )"
 	local ADMIN_MAIL="$( uci get system.@admin[0].mail )"
 	local MAIL="/tmp/outgoing_mail_$( _system date humanreadable )"
@@ -79,14 +79,26 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 		$NETCAT_BIN -h     2>&1 | fgrep "[v"		&& return
 	}
 
+	wellform_mailaddress_and_realname()
+	{
+		local mailaddress="$1"
+		local realname="$2"
+
+		if [ -n "$realname" ]; then
+			echo "\"$realname}" <$mailaddress>"
+		else
+			echo "<$mailaddress>"		# some Micro$oft Exchange Servers deny realnames which are not on a whitelist, so simply let it empty
+		fi		
+	}
+
 	_do init	
 	_do "HELO ${FQDN}"
-	_do "MAIL FROM: \"${FROM_REAL}\" <${FROM_MAIL}>"
-	_do "RCPT TO: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>"
+	_do "MAIL FROM: $( wellform_mailaddress_and_realname "$FROM_MAIL" "$FROM_REAL"		 )"
+	_do "RCPT TO: $(   wellform_mailaddress_and_realname "$RECIPIENT_MAIL" "$RECIPIENT_REAL" )"
 	_do "DATA"
-	_do "From: \"${FROM_REAL}\" <${FROM_MAIL}>"
-	_do "To: \"${RECIPIENT_REAL}\" <${RECIPIENT_MAIL}>"			# can be multiple RCPT's:
-#	_do "Cc: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>"
+	_do "From: $( wellform_mailaddress_and_realname "$FROM_MAIL" "$FROM_REAL"		)"
+	_do "To: $(   wellform_mailaddress_and_realname "$RECIPIENT_MAIL" "$RECIPIENT_REAL"	)"	# can be multiple RCPT's:
+#	_do "Cc: $(   wellform_mailaddress_and_realname "$ADMIN_MAIL" "$ADMIN_REAL"		)"
 
 	_do "Date: $( _system date mail )"
 	_do "Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>"			# 121016909907May08-16_04@buffalo422.local
@@ -97,7 +109,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	_do "Content-Transfer-Encoding: 8bit"
 
 	_do "Organization: ${ADMIN_REAL}"
-	_do "Reply-To: \"${ADMIN_REAL}\" <${ADMIN_MAIL}>"
+	_do "Reply-To: $( wellform_mailaddress_and_realname "$ADMIN_MAIL" "$ADMIN_REAL" )"
 	_do "X-Mailer: netcat is $( netcat_version_information )"
 	_do "X-Operating-System: $( cat /proc/version )"
 	_do "X-Firmware: $FFF_VERSION / $FFF_PLUS_VERSION / $( _system version )"
