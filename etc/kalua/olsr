@@ -578,8 +578,8 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	while read LINE; do {
 		eval $LINE
 		
-		DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
-		
+		DEVTYPE="$( _net dev_type $( _net iplocal2dev $LOCAL ) )"
+
 		[ "$DEVTYPE" = "wire" ] && {
 
 			[ "$COST" = "INFINITE" ] || continue
@@ -654,6 +654,27 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 
 	_log do $FUNC daemon debug "[OK] (each node in mesh has only 1 route? [checked $LINES1 routes])"
 
+
+	local lq_algo="$( uci get olsrd.@olsrd[0].LinkQualityAlgorithm )"
+
+	algo_is_ffeth_and_link_is_wireless()
+	{
+		local local_link_ip="$1"
+
+		case "$lq_algo" in
+			*ffeth)
+				local dev="$( _net iplocal2dev "$local_link_ip" )"
+				local devtype="$( _net dev_type "$dev" )"
+
+				[ "$devtype" = "wifi" ] && {
+					return 0
+				}
+			;;
+		esac
+
+		return 1
+	}
+
 	while read LINE; do {
 		eval $LINE
 		[ "$COST" = "1.000" -o "$COST" = "0.100" ] && {
@@ -665,8 +686,14 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 			}
 
 			[ "$METRIC" != "1" ] && {
-				_log do $FUNC daemon crit "[ERR] are minimum-cost neighbours linklocal? '$REMOTE' is not! (metric: '$METRIC' cost: $COST)"
-				return 1
+
+				if algo_is_ffeth_and_link_is_wireless "$LOCAL" && [ "$METRIC" = "2" ]; then
+					:
+					# fixme! check also, if there _is_ a metric with 1 over a wired link
+				else
+					_log do $FUNC daemon crit "[ERR] are minimum-cost neighbours linklocal? '$REMOTE' is not! (metric: '$METRIC' cost: $COST)"
+					return 1
+				fi
 			}
 		}
 	} done <"$FILE"
