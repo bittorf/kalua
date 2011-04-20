@@ -363,14 +363,23 @@ EOF
 
 func_print_qrcode ()
 {
+	local text="$1"
 	local WIDTH="300"
 	local HEIGHT="300"
 	local URL="http://chart.apis.google.com/chart"
 	local CODEPAGE="ISO-8859-1"
-	local TEXT="$( nvram show 2>/dev/null | grep ^ff_adm | sort | while read L; do echo -n "$L %0D%0A";done | sed 's/[^a-zA-Z0-9_ |=:;@<>"\.\/-]//g' )"
-	local TEXT_URL="$( _sanitizer do "$TEXT" urlvalue )"
 
-	local URL="${URL}?cht=qr&chl=${TEXT_URL}&choe=${CODEPAGE}&chs=${WIDTH}x${HEIGHT}"
+	[ -z "$text" ] && {
+		text="$( nvram show 2>/dev/null |
+			grep ^ff_adm |
+			 sort |
+			  while read L; do {
+			  	echo -n "$L %0D%0A"
+			  } done |
+			   sed 's/[^a-zA-Z0-9_ |=:;@<>"\.\/-]//g' )"
+	}
+
+	URL="${URL}?cht=qr&chl=$( _sanitizer do "$text" urlvalue )&choe=${CODEPAGE}&chs=${WIDTH}x${HEIGHT}"
 
 	echo -n "<img width=${WIDTH} height=${HEIGHT} alt='$TEXT' src='${URL}'>"
 }
