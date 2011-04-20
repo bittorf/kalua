@@ -38,15 +38,22 @@ _wl ()		# ARG1: must be WIFI_DEV
 _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate()
 {
 	local mac="$1"
+	local option="$2"	# debug
+
 	local file="/sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations/$mac/rc_stats"
 	local line result targetline rate throughput
 	local max=0
 
 	[ -e "$file" ] || return
 
+	[ "$option" = "debug" ] && {
+		cat "$file"
+		return
+	}
+
 	percent()
 	{
-		if   [ "$1" -lt 10000 ]; then
+		if   [ "$1" -lt 100 ]; then
 			echo "0"
 		elif [ "$2" = "0" ]; then
 			echo "0"
@@ -57,8 +64,14 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 
 	while read line; do {
 
-		[ -z "$line" ] && continue
-		set $line
+		case "$line" in
+			t*|T*)
+				set $line
+			;;
+			*)
+				continue
+			;;
+		esac
 
 		case "$2" in
 			1|2|5.5|11|6|9|12|18|24|36|48|54)
