@@ -61,6 +61,15 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 						_scheduler add upgrade_packages
 					}
 
+					dmesg | fgrep -q "nf_conntrack: table full, dropping packet." && {
+
+						_log do conntrack_full daemon info "dropping packet"
+
+						[ "$( dmesg | fgrep "nf_conntrack: table full, dropping packet." | wc -l )" -gt 10 ] && {
+							_system reboot_safe "nf_conntrack: table full"
+						}
+					}
+
 					case "$MINUTE" in
 						00|15|30|45)
 							_scheduler add gateway_check
@@ -183,8 +192,6 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 			}
 
 			wifidev_name_has_changed || _system reboot_safe "wifidev_name_has_changed"
-
-			# [ "$( logread | fgrep "nf_conntrack: table full, dropping packet." | wc -l )" -gt 6 ] && reboot
 
 			incoming_wifi_activity()
 			{
