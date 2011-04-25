@@ -25,9 +25,14 @@ _watch_local_proxy()
 		return 0
 	}
 
-	[ -z "$( uci get polipo.cache.diskCacheRoot )" ] && {
+	local cache_path="$( uci get polipo.cache.diskCacheRoot )"
+	if [ -z "$cache_path" ]; then
 		return 0
-	}
+	else
+		ls "$cache_path" >/dev/null || {	# fixme! what to do, if filesystem b0rken?
+			return 0
+		}
+	fi
 
 	daemon_restart()
 	{
@@ -41,18 +46,22 @@ _watch_local_proxy()
 
 		_watch hanging_command polipo
 		_watch hanging_command polipo
-		/etc/init.d/polipo start
-		return 0
+
+		pidof polipo >/dev/null || {
+			/etc/init.d/polipo start
+		}
 	}
 
 	pidof polipo >/dev/null || {
 		daemon_restart "polipo is not running"
+		return 0
 	}
 
-	_wget do "http://127.0.0.1:8123/polipo/status?" 5 |
-	 fgrep -q "Polipo status report" || {
+	_wget do "http://127.0.0.1:8123/polipo/status?" 5 >"/tmp/${func}_$$"
+	fgrep -q "Polipo status report" "/tmp/${func}_$$" || {
 		daemon_restart "cannot fetch local status-page"
-	 }
+	}
+	rm "/tmp/${func}_$$"
 
 	# testdownload:
 	# export http_proxy=http://127.0.0.1:8123
