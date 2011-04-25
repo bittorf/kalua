@@ -400,6 +400,7 @@ _watch_sshd_or_telnet ()
 
 _watch_random_node_id ()	# check if nodenumber/id is from random pool
 {
+	local option="$1"			# force
 	local FUNC="watch_random_node_id"
 	local URL WIFIMAC SSH_PUBKEY_FP DIRTY
 
@@ -436,7 +437,23 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 			_log do $FUNC daemon info "ID not clean: '$ID' - aborting"
 		fi
 	else
-		if [ ! -e /tmp/REGISTRATED ] && [ "$( _system uptime min )" -gt 30 ]; then
+		local wait
+
+		if [ "$option" = "force" ]; then
+			wait="0"
+
+			[ -e /tmp/REGISTRATED ] && {
+				rm /tmp/REGISTRATED
+			}
+		else
+			if [ "$( _system uptime min )" -lt 30 ]; then
+				wait="1"
+			else
+				wait="0"
+			fi
+		fi
+
+		if [ ! -e /tmp/REGISTRATED ] && [ "$wait" = "0" ]; then
 
 			eval "$( build_vars )"
 
