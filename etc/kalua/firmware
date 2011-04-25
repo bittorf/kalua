@@ -3,6 +3,9 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	local FUNC="firmware_update_pmu"
 	local MODE="$( _firmware updatemode "$1" override)"
 	local URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing
+	local hash_last_applied
+	local hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"
+	local FILE_HASH_APPLIED="/etc/tarball_last_applied_hash"
 	local WORKINGDIR="/tmp/pmu"
 	local FILE="tarball.tgz"
 	local TGZ="/tmp/$FILE"
@@ -32,6 +35,13 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 		[ "$option" = "reschedule" ] && {
 			_scheduler add "_$FUNC $MODE" force
 		}
+	}
+
+	read hash_last_applied <"$FILE_HASH_APPLIED"
+
+	[ "$hash_tarball" = "$hash_last_applied" ] && {
+		_log do "$FUNC" daemon info "[OK] applied nothing - all seems up to date"
+		return 0
 	}
 
 	_log do "$FUNC" daemon debug "fetching tarball in '$MODE'-mode: '$URL'"
@@ -92,6 +102,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	} done
 
 	_cleanup
+	echo -n "$hash_tarball" >"$FILE_HASH_APPLIED"
 
 	if [ $COUNT -gt 0 ]; then
 
