@@ -35,28 +35,45 @@ fkt_build_vars ()
 	eval "$( _ipsystem do )"
 }
 
-fkt_tunnel_conf_write ()
+fkt_tunnel_conf_write ()		# fixme! make anonymous-tunnel configurable
 {
 	local FUNC="tunnel_conf_write"
 	local LINE=""
 	local STATIC_ROUTE="$( func_get_static_route )"
-	
+	local particpant_net="10.63.0.0/16"			# fixme! hardcoded
+	local mytable="weimarnetz_anonym"
+	local mtu="1450"					# fixme!
+
 	cat >$VTUN <<EOF
 $HOSTNAME {
-	passwd ff ;		# fixme! check MTU = 1450?
+	passwd ff ;
 	type ether ;		# fixme! olsrd-bug: /32 interface needed?
-	persist yes ;		# fimxe! add 'timeout 60' ?
+	persist yes ;		# fixme! add 'timeout 60' ?
 
 	up {
 		program "logger -p daemon.info -t $0_vtund.conf link_up %%:$HOSTNAME" ;
+
 		program "ip address add $WIFIVPNCLIENTADR/$WIFIVPNPRE dev %% label %%:$HOSTNAME" ;
 		program "ip address add $WIFIVPNCLIENTADR/32 dev %%" ;
-		program "ip link set dev %% mtu 1450 up" ;
+		program "ip link set dev %% mtu $mtu up" ;
 		program "ip route add $VPN_SERVER via $STATIC_ROUTE" ;		# + table local?
+
+		program "grep -q $mytable /etc/iproute2/rt_tables || echo 50 $mytable >>/etc/iproute2/rt_tables" ;
+		program "ip rule add from $particpant_net prio 30002 table $mytable" ;
+		program "ip rule add to $particpant_net prio 30001 lookup main" ;
+		program "ip rule add from $LANNET/$LANPRE prio 30000 table main" ; 
+		program "ip route add default via $WIFIVPNSERVERADR dev %% table $mytable" ;
+		program "ip route flush cache" ;
 	} ;
 		# fixme! static_route must only be valid for programs on this machine
 	down {
 		program "logger -p daemon.info -t $0_vtund.conf link_down %%:$HOSTNAME" ;
+
+		program "ip route del default via $WIFIVPNSERVERADR dev %% table $mytable" ;
+		program "ip rule del from $LANNET/$LANPRE prio 30000 table main" ;
+		program "ip rule del to $particpant_net prio 30001 lookup main" ;
+		program "ip rule del from $particpant_net prio 30002 table $mytable" ;
+
 		program "ip route del $VPN_SERVER via $STATIC_ROUTE" ;
 		program "ip link set dev %% down" ;
 	} ;
