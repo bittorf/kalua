@@ -1,6 +1,23 @@
 #!/bin/sh
 . /tmp/loader
 
+watch_cron()
+{
+	pidof crond >/dev/null || {		# wrong place but works
+
+		local pid cmdline
+		read pid 2>/dev/null </tmp/cron_watchdog.pid
+		read cmdline 2>/dev/null </proc/$pid/cmdline
+
+		[ "$cmdline" = "sh/tmp/cron_watchdog.sh" ] || {
+			_log do watch_cron daemon alert "cron died, restarting"
+			/etc/init.d/*crond* start
+		}
+	}
+}
+
+watch_cron
+
 MODE="${1:-unset}"
 MAC="${2:-00:00:00:00:00:00}"
 IP="${3:-127.0.0.1}"
