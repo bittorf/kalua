@@ -1,13 +1,11 @@
 _stopwatch_start ()
 {
-	local FUNC="stopwatch_start"
-	local CONTEXT="${1:-unset}"
-	local FILE="/tmp/STOPWATCH_${CONTEXT}_$$"
-	local UP1 UP2 NOP
+	local job="${1:-unset}"
+	local file="/tmp/STOPWATCH_${job}_$$"
+	local up rest
 
-	IFS=". "; read UP1 UP2 NOP </proc/uptime; unset IFS
-
-	echo "${UP1}${UP2}" >$FILE
+	read up rest </proc/uptime
+	echo "${up%.*}${up#*.}" >$file
 }
 
 _stopwatch_stop ()		# OUT1: centyseconds = seconds/100
@@ -16,20 +14,20 @@ _stopwatch_stop ()		# OUT1: centyseconds = seconds/100
 	local CONTEXT="${1:-unset}"
 	local KEYWORD="$2"
 	local FILE="/tmp/STOPWATCH_${CONTEXT}_$$"
-	local UP1 UP2 NOP DIFF
+	local up rest DIFF
 	local START END OUT INTEGER REST
 
 	[ ! -e "$FILE" ] && {
 		_log do $FUNC daemon info "timefile '$FILE' not found - abort"
 		return 1
 	}
-	
-	IFS=". "; read UP1 UP2 NOP </proc/uptime; unset IFS
+
+	read up rest </proc/uptime
 	
 	read START <$FILE
 	rm $FILE
-	END="${UP1}${UP2}"
-	
+	END="${up%.*}${up#*.}"
+
 	OUT="$(( $END - $START ))"
 	REST="$(( $OUT % 100 ))"
 	[ $REST -lt 10 ] && REST="0$REST"
