@@ -1,5 +1,6 @@
 _watch_usbstick_rehungen()
 {
+	local func="watch_usbstick_rehungen"
 	local mountpoint="/tmp/usb0"
 
 	fgrep -q "Vendor=18a5 ProdID=0302" /proc/bus/usb/devices && {
@@ -9,9 +10,21 @@ _watch_usbstick_rehungen()
 
 				# btrfs-show -> extract device
 				# fdisk -batch blabla
-				# mkfs.btrfs /dev/sda1
 
-				mount -t btrfs -o compress,ssd /dev/sda1 "$mountpoint"
+				mount_usb()
+				{
+					mount -t btrfs -o compress,ssd /dev/sda1 "$mountpoint" && {
+						_log do $func daemon info "[OK] mounted"
+					}
+					
+				}
+
+				mount_usb || {
+					_log do $func daemon info "mount failed"
+					mkfs.btrfs /dev/sda1
+					mount_usb
+				}
+
 				/etc/init.d/polipo restart
 			}
 		}

@@ -43,6 +43,11 @@ fkt_tunnel_conf_write ()		# fixme! make anonymous-tunnel configurable
 	local particpant_net="10.63.0.0/16"			# fixme! hardcoded
 	local mytable="weimarnetz_anonym"
 	local mtu="1450"					# fixme!
+	local anonym
+
+	[ -n "$( uci get system.@vpn[0].anonym )" ] && {
+		anonym="# (inactiv):"
+	}
 
 	cat >$VTUN <<EOF
 $HOSTNAME {
@@ -59,20 +64,20 @@ $HOSTNAME {
 		program "ip route add $VPN_SERVER via $STATIC_ROUTE" ;		# + table local?
 
 		program "grep -q $mytable /etc/iproute2/rt_tables || echo 50 $mytable >>/etc/iproute2/rt_tables" ;
-		program "ip rule add from $particpant_net prio 30002 table $mytable" ;
-		program "ip rule add to $particpant_net prio 30001 lookup main" ;
-		program "ip rule add from $LANNET/$LANPRE prio 30000 table main" ; 
-		program "ip route add default via $WIFIVPNSERVERADR dev %% table $mytable" ;
-		program "ip route flush cache" ;
+		program "$anonym ip rule add from $particpant_net prio 30002 table $mytable" ;
+		program "$anonym ip rule add to $particpant_net prio 30001 lookup main" ;
+		program "$anonym ip rule add from $LANNET/$LANPRE prio 30000 table main" ; 
+		program "$anonym ip route add default via $WIFIVPNSERVERADR dev %% table $mytable" ;
+		program "$anonym ip route flush cache" ;
 	} ;
 		# fixme! static_route must only be valid for programs on this machine
 	down {
 		program "logger -p daemon.info -t $0_vtund.conf link_down %%:$HOSTNAME" ;
 
-		program "ip route del default via $WIFIVPNSERVERADR dev %% table $mytable" ;
-		program "ip rule del from $LANNET/$LANPRE prio 30000 table main" ;
-		program "ip rule del to $particpant_net prio 30001 lookup main" ;
-		program "ip rule del from $particpant_net prio 30002 table $mytable" ;
+		program "$anonym ip route del default via $WIFIVPNSERVERADR dev %% table $mytable" ;
+		program "$anonym ip rule del from $LANNET/$LANPRE prio 30000 table main" ;
+		program "$anonym ip rule del to $particpant_net prio 30001 lookup main" ;
+		program "$anonym ip rule del from $particpant_net prio 30002 table $mytable" ;
 
 		program "ip route del $VPN_SERVER via $STATIC_ROUTE" ;
 		program "ip link set dev %% down" ;
