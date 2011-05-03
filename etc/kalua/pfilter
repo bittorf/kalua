@@ -145,10 +145,36 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 
 _pfilter_user_splash_remove ()
 {
+	local func="pfilter_user_splash_remove"
+	local jobfile="/tmp/USER_PACKETFILTER_jobs"
 	local MAC="$1"
 	local IP="$2"
+	local job_control="$3"
 
-	[ -z "$MAC" -o -z "$IP" ] && return 1
+	[ -z "$MAC" -o -z "$IP" ] && {
+		return 1
+	}
+
+	case "$job_control" in
+		work)
+			continue
+		;;
+		do_pending_jobs)
+			[ -e "$file" ] && {
+				. "$file"
+				rm "$file"
+			}
+
+			return
+		;;
+		*)
+			[ -e /tmp/USER_PACKETFILTER ] || {
+				_log do $func daemon info "packetfilter not up yet, scheduling job in $file"
+				echo "_pfilter user_splash_remove $MAC $IP work" >>"$file"
+				return
+			}
+		;;
+	esac
 								# user is known, but splashed
 	_pfilter user_list | grep -q -i $MAC && {
 		_pfilter user_splash_control nosplash "$MAC" "$IP" >/dev/null
@@ -1209,6 +1235,8 @@ _pfilter_rules_accept_all ()
 
 	if [ "$ARG" = "off" ]; then
 		MODE="D"			# delete
+
+		_pfilter user_splash_remove do_pending_jobs
 		touch /tmp/USER_PACKETFILTER
 	else
 		MODE="I"			# default = insert
