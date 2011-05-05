@@ -871,7 +871,7 @@ _pfilter_stats_user_traffic ()	# OUT1: string
 _pfilter_proto2id ()		# fixme! uses global var 'PROTO' + 'PORT'
 {
 	local N=0
-	
+
 	[ -n "$1" ] && {
 		case $1 in
 			PING)       N=98 ;;
@@ -896,15 +896,15 @@ _pfilter_proto2id ()		# fixme! uses global var 'PROTO' + 'PORT'
 		echo -n "0x$N"
 		return
 	}
-	
+
 	for ENTRY in $( _pfilter l7proto_list ); do {		# fixme! this loop runs very often
-	
+
 		THIS_PROTO="${ENTRY%,*}"
 		THIS_PORT="${ENTRY#*,}"
 
 		[ -z "$PORT" ] && THIS_PORT=""
-	
-		let N+=1
+
+		N=$(( $N + 1 ))
 		if [ "$PROTO" = "$THIS_PROTO" ] && [ "$PORT" = "$THIS_PORT" ]; then
 			echo -n "0x$N"
 			return
@@ -1065,7 +1065,8 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	_ipt -t mangle -A traff_users -d $IP                   -j traff_$MAC	# must be IP, not HNA!
 
 	for ENTRY in $( _pfilter l7proto_list ); do {
-		PROTO="${ENTRY%,*}"		# PORT="${ENTRY#*,}"
+		PROTO="${ENTRY%,*}"
+		# PORT="${ENTRY#*,}"
 
 		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j shaper
 		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j LOG --log-prefix "layer7_${PROTO}: "
