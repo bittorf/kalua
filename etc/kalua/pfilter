@@ -1263,15 +1263,23 @@ _pfilter_rules_accept_all ()
 {
 	local FUNC="pfilter_rules_accept_all"
 	local CHAIN MODE
-	local ARG="$1"
+	local ARG="$1"				# off|on
 
 	if [ "$ARG" = "off" ]; then
 		MODE="D"			# delete
 
-		_pfilter user_splash_remove dummy dummy do_pending_jobs
+		_pfilter user_splash_remove dummy_arg dummy_arg do_pending_jobs
+
+		_watch counter $FUNC decrement 1 min -1 || {			# allow multiple on's but deny more off's than on's
+			_log do $FUNC daemon debug "already off, ignoring call"
+			return
+		}
+
 		touch /tmp/USER_PACKETFILTER
 	else
 		MODE="I"			# default = insert
+
+		_watch counter $FUNC increment 1
 	fi
 
 	for CHAIN in filter mangle; do {
