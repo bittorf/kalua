@@ -504,6 +504,7 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 
 _watch_counter ()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || action
 {
+	local func="watch_counter"
 	local FILE="$1"
 	local MODE="$2"		# increment|decrement|set
 	local MODE_VALUE="$3"
@@ -514,17 +515,35 @@ _watch_counter ()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 ||
 	read VALUE 2>/dev/null <"$FILE"
 
 	case "$MODE" in
-		increment) VALUE="$(( ${VALUE:-0} + $MODE_VALUE ))" ;;
-		decrement) VALUE="$(( ${VALUE:-0} - $MODE_VALUE ))" ;;
-		set) VALUE="$MODE_VALUE" ;;
-		*) return ;;
+		increment)
+			VALUE="$(( ${VALUE:-0} + $MODE_VALUE ))"
+		;;
+		decrement)
+			VALUE="$(( ${VALUE:-0} - $MODE_VALUE ))"
+		;;
+		set) 
+			VALUE="$MODE_VALUE"
+		;;
+		*)
+			return
+		;;
 	esac
 
 	echo $VALUE >"$FILE"
 
 	case "$OPTION" in
-		max) [ $VALUE -ge $OPTION_VALUE ] && return 1 ;;
-		min) [ $VALUE -le $OPTION_VALUE ] && return 1 ;;
+		max)
+			[ $VALUE -ge $OPTION_VALUE ] && {
+				_log do $func daemon info "[$FILE] max: $VALUE >= $OPTION_VALUE"
+				return 1
+			}
+		;;
+		min)
+			[ $VALUE -le $OPTION_VALUE ] && {
+				_log do $func daemon info "[$FILE] min: $VALUE =< $OPTION_VALUE"
+				return 1
+			}
+		;;
 	esac
 
 	return 0

@@ -144,6 +144,24 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 	return ${CLEANUP:-0}
 }
 
+_pfilter_status ()
+{
+	local command="$1"
+	local statusfile="/tmp/USER_PACKETFILTER"
+
+	case "$command" in
+		mark_down)
+			[ -e "$statusfile" ] && rm "$statusfile"
+		;;
+		mark_up)
+			touch "$statusfile"
+		;;
+		is_up)
+			[ -e "$statusfile" ] || return 1
+		;;
+	esac
+}
+
 _pfilter_user_splash_remove ()
 {
 	local func="pfilter_user_splash_remove"
@@ -163,8 +181,10 @@ _pfilter_user_splash_remove ()
 		do_pending_jobs)
 			if [ -e "$jobfile" ]; then
 				_log do $func daemon info "[START] working on jobs in $jobfile"
+
 				. "$jobfile"
 				rm "$jobfile"
+
 				_log do $func daemon info "[READY] working on jobs in $jobfile"
 			else
 				_log do $func daemon info "[OK] no pending jobs found in $jobfile"
@@ -173,8 +193,9 @@ _pfilter_user_splash_remove ()
 			return
 		;;
 		*)
-			[ -e /tmp/USER_PACKETFILTER ] || {
+			_pfilter status is_up || {
 				_log do $func daemon info "packetfilter not up yet, scheduling job in $jobfile"
+
 				echo "_pfilter user_splash_remove $MAC $IP work" >>"$jobfile"
 				return
 			}
@@ -245,8 +266,10 @@ _pfilter_user_ruleset_activate ()
 		_log do $FUNC daemon debug "renaming chain 'traff_${MAC_RESERVE}' to 'traff_$MAC' didn't work"
 		_scheduler add "/etc/local.fw-fff+ adduser_reserve $MAC_RESERVE 99.99.99.99"
 		
-		[ "$MAC_RESERVE" = "99:99:99:99:99:95" -a ! -e "/tmp/USER_PACKETFILTER" ] && {
-			_scheduler add "/etc/local.fw-fff+ close_doors"
+		[ "$MAC_RESERVE" = "99:99:99:99:99:95" ] && {
+			_pfilter status is_up || {
+				_scheduler add "/etc/local.fw-fff+ close_doors"
+			}
 		}
 	} done
 	
@@ -1270,16 +1293,15 @@ _pfilter_rules_accept_all ()
 
 		_pfilter user_splash_remove dummy_arg dummy_arg do_pending_jobs
 
-		_watch counter $FUNC decrement 1 min -1 || {			# allow multiple on's but deny more off's than on's
-			_log do $FUNC daemon debug "already off, ignoring call"
+		_watch counter "/tmp/$FUNC" decrement 1 min -1 || {			# allow multiple on's but deny more off's than on's
+			_pfilter status mark_up
+			_log do $FUNC daemon info "already off, ignoring call"
 			return
 		}
-
-		touch /tmp/USER_PACKETFILTER
 	else
 		MODE="I"			# default = insert
 
-		_watch counter $FUNC increment 1
+		_watch counter "/tmp/$FUNC" increment 1
 	fi
 
 	for CHAIN in filter mangle; do {
