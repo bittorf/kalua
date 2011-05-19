@@ -1296,7 +1296,15 @@ _pfilter_rules_accept_all ()
 		_watch counter "/tmp/$FUNC" decrement 1 min -1 || {			# allow multiple on's but deny more off's than on's
 			_pfilter status mark_up
 			_log do $FUNC daemon info "already off, ignoring call"
-			return
+
+			if [ "$( uci get system.@weblogin[0].enabled )" = "1" ]; then
+				iptables -t nat -nL PREROUTING | head -n3 | grep -q ^olsr_in && {
+					_log do $FUNC daemon info "[OK] olsr_in is first rule in nat_prerouting"
+					return
+				}
+			else
+				return
+			fi
 		}
 	else
 		MODE="I"			# default = insert
@@ -1314,6 +1322,16 @@ _pfilter_rules_accept_all ()
 	      # _ipt -t $CHAIN -$MODE POSTROUTING -t nat -j ACCEPT	# let masquerading work
 		_ipt -t $CHAIN -$MODE OUTPUT      -t nat -j ACCEPT
 	} done
+
+	[ "$ARG" = "off" ] && {
+		[ "$( _system uptime min )" -gt 360 ] && {
+			iptables -t nat -nL PREROUTING | head -n3 | grep -q ^olsr_in || {
+				_log do $FUNC daemon alert "[ERR] olsr_in is NOT first rule in nat_prerouting, rebooting"
+				sleep 15
+				reboot
+			}
+		}
+	}
 }
 
 _pfilter_rules_olsr_ignore_ignored_neighs ()		# ignoring neighs is really annoying, we delete the rules and autoconvert this to LQ_MULT x 0.1
