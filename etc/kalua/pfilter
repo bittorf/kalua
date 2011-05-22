@@ -927,24 +927,31 @@ _pfilter_proto2id ()
 
 	case "$wish_proto" in
 
-                PING) id=98 ;;
-                TRACE) id=97 ;;
-                NTP) id=96 ;;
-                FRAG) id=95 ;;
-                TTL0) id=94 ;;
-                UNREA) id=93 ;;
-                CONN_ABOVE) id=92 ;;
-                CONN) id=91 ;;
-                GARDEN) id=90 ;;
-                REDIRECT) id=89 ;;
-                REJECT) id=88 ;;
-                DHCPIN) id=87 ;;
-                PICOPEER) id=86 ;;
-                GUESS) id=85 ;;
-                SMALL) id=84 ;;
+		PING) id=98 ;;
+		TRACE) id=97 ;;
+		NTP) id=96 ;;
+		FRAG) id=95 ;;
+		TTL0) id=94 ;;
+		UNREA) id=93 ;;
+		CONN_ABOVE) id=92 ;;
+		CONN) id=91 ;;
+		GARDEN) id=90 ;;
+		REDIRECT) id=89 ;;
+		REJECT) id=88 ;;
+		DHCPIN) id=87 ;;
+		PICOPEER) id=86 ;;
+		GUESS) id=85 ;;
+		SMALL) id=84 ;;
 
-                *)
-                        for entry in $( _pfilter l7proto_list ); do {		# fixme! optimize: runs often
+		*)
+			case "$wish_proto" in				# ssh,22
+				*,*)
+					wish_port="${wish_proto#*,}"	# 22
+					wish_proto="${wish_proto%,*}"	# ssh
+				;;
+			esac
+
+			for entry in $( _pfilter l7proto_list ); do {		# fixme! optimize: runs often
 
 				proto="${entry%,*}"
 				port="${entry#*,}"
@@ -954,8 +961,8 @@ _pfilter_proto2id ()
 				id=$(( $id + 1 ))
 
 				[ "$wish_proto" = "$proto" -a "$wish_port" = "$port" ] && {
-                                        success="true"
-                                        break
+					success="true"
+					break
 				}
 			} done
 
@@ -965,8 +972,8 @@ _pfilter_proto2id ()
 		;;
 	esac
 
-	echo "0x${id}"                                                                                                                                                   
-}            
+	echo "0x${id}"
+}
 
 _pfilter_user_probe_admin ()
 {
@@ -1126,12 +1133,9 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	_ipt -t mangle -A traff_users -d $IP                   -j traff_$MAC	# must be IP, not HNA!
 
 	for ENTRY in $( _pfilter l7proto_list ); do {
-		PROTO="${ENTRY%,*}"
-		# PORT="${ENTRY#*,}"
-
-		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j shaper
-		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j LOG --log-prefix "layer7_${PROTO}: "
-		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id )/0xFF	-j RETURN
+		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j shaper
+		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j LOG --log-prefix "layer7_${ENTRY}: "
+		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j RETURN
 	} done
 
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j shaper				# unknown traffic
@@ -1166,9 +1170,11 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id REJECT )		-j REJECT
 	_ipt -A FORWARD -m mark --mark $( _pfilter proto2id CONN_ABOVE )/0xFF	-j REJECT  	# --reject-with tcp-reset (does not work?)
 	_ipt -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE		-j ACCEPT
-# http://www.frozentux.net/iptables-tutorial/iptables-tutorial.html#TABLE.TCPMSSTARGET
-# MSS (maximum segment size) should always be path_MTU - 40 (20 for IP header + 20 for TCP header)
-# fixme! restrict to '-o $LAN/$WIFI/$WAN' ?
+
+		# http://www.frozentux.net/iptables-tutorial/iptables-tutorial.html#TABLE.TCPMSSTARGET
+		# MSS (maximum segment size) should always be path_MTU - 40 (20 for IP header + 20 for TCP header)
+		# fixme! restrict to '-o $LAN/$WIFI/$WAN' ?
+
 	_ipt -A FORWARD -p tcp --tcp-flags SYN,RST SYN				-j TCPMSS --clamp-mss-to-pmtu
 	_ipt -A FORWARD -m state --state ESTABLISHED,RELATED			-j ACCEPT
 
@@ -1200,21 +1206,17 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 #	_ipt -t mangle -A marking_unmarkable -m mark ! --mark 0							-j RETURN
 
 	if _pfilter stats_simple_approach ; then
-		PROTO="http"
-		PORT=80
-		_ipt -t mangle -A marking_layer7 -j MARK --set-mark $( _pfilter proto2id )
+		_ipt -t mangle -A marking_layer7 -j MARK --set-mark $( _pfilter proto2id http 80 )
 		_ipt -t mangle -A marking_layer7 -j RETURN
 	else
 		for ENTRY in $( _pfilter l7proto_list ); do {
-			PROTO="${ENTRY%,*}"
-		#	PORT="${ENTRY#*,}"
-	
-			_log do $FUNC daemon info "loop_layer7: installing protocol '$PROTO'"
 
-			_ipt -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id )
-		#	_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${PROTO}: "
+			_log do $FUNC daemon info "loop_layer7: installing protocol '$ENTRY'"
+
+			_ipt -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id $ENTRY )
+		#	_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${ENTRY}: "
 			_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
-			_ipt -t mangle -A traff_all      -m mark --mark $( _pfilter proto2id )/0xFF	-j traff_users
+			_ipt -t mangle -A traff_all      -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j traff_users
 		} done
 	fi
 
@@ -1226,7 +1228,7 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 	
 	_ipt -t mangle -A marking -m mark ! --mark 0			-j traff_all					# already marked in prerouting?
 	_ipt -t mangle -A marking					-j marking_unmarkable				# fixme!
-#	_ipt -t mangle -A marking -m mark --mark $(_pfilter proto2id SMALL)	-j MARK --set-mark 0
+#	_ipt -t mangle -A marking -m mark --mark $( _pfilter proto2id SMALL )	-j MARK --set-mark 0
 	_ipt -t mangle -A marking -m mark ! --mark 0			-j marking_layer7				# trying all layer7-filters
 	_ipt -t mangle -A marking -m mark ! --mark 0			-j CONNMARK --save-mark				# layer7-matching was successful!
 	_ipt -t mangle -A marking -m mark ! --mark 0			-j traff_all					# goto traff_all
