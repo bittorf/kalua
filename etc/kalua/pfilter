@@ -918,49 +918,55 @@ _pfilter_stats_user_traffic ()	# OUT1: string
 	 sed -n "/^${LINE} /s/^${LINE}[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*/\1/p"
 }
 
-_pfilter_proto2id ()		# fixme! uses global var 'PROTO' + 'PORT'
+_pfilter_proto2id ()
 {
-	local N=0
+	local wish_proto="$1"
+	local wish_port="$2"
+	local entry proto port success
+	local id=0
 
-	[ -n "$1" ] && {
-		case $1 in
-			PING)       N=98 ;;
-			TRACE)      N=97 ;;
-			NTP)        N=96 ;;
-			FRAG)       N=95 ;;
-			TTL0)       N=94 ;;
-			UNREA)      N=93 ;;
-			CONN_ABOVE) N=92 ;;
-			CONN)       N=91 ;;
-			GARDEN)     N=90 ;;
-			REDIRECT)   N=89 ;;
-			REJECT)     N=88 ;;
-			DHCPIN)     N=87 ;;
-			PICOPEER)   N=86 ;;
-			GUESS)      N=85 ;;
-			SMALL)      N=84 ;;
-						
-			*)          N=99 ;;
-		esac
-		
-		echo -n "0x$N"
-		return
-	}
+	case "$wish_proto" in
 
-	for ENTRY in $( _pfilter l7proto_list ); do {		# fixme! this loop runs very often
+                PING) id=98 ;;
+                TRACE) id=97 ;;
+                NTP) id=96 ;;
+                FRAG) id=95 ;;
+                TTL0) id=94 ;;
+                UNREA) id=93 ;;
+                CONN_ABOVE) id=92 ;;
+                CONN) id=91 ;;
+                GARDEN) id=90 ;;
+                REDIRECT) id=89 ;;
+                REJECT) id=88 ;;
+                DHCPIN) id=87 ;;
+                PICOPEER) id=86 ;;
+                GUESS) id=85 ;;
+                SMALL) id=84 ;;
 
-		THIS_PROTO="${ENTRY%,*}"
-		THIS_PORT="${ENTRY#*,}"
+                *)
+                        for entry in $( _pfilter l7proto_list ); do {		# fixme! optimize: runs often
 
-		[ -z "$PORT" ] && THIS_PORT=""
+				proto="${entry%,*}"
+				port="${entry#*,}"
 
-		N=$(( $N + 1 ))
-		if [ "$PROTO" = "$THIS_PROTO" ] && [ "$PORT" = "$THIS_PORT" ]; then
-			echo -n "0x$N"
-			return
-		fi
-	} done
-}
+				[ -z "$wish_port" ] && port=
+
+				id=$(( $id + 1 ))
+
+				[ "$wish_proto" = "$proto" -a "$wish_port" = "$port" ] && {
+                                        success="true"
+                                        break
+				}
+			} done
+
+			[ -z "$success" ] && {
+				id=99
+			}
+		;;
+	esac
+
+	echo "0x${id}"                                                                                                                                                   
+}            
 
 _pfilter_user_probe_admin ()
 {
