@@ -237,9 +237,40 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				fi
 			}
 
+			kernel_oops_wifi()		# we have seen routers, which have incoming AND outgoing wifi_activity() but wifi is dead
+			{
+				local funcname="kernel_oops_wifi"
+				local hash lasthash line
+				local hashfile="/tmp/last_kernel_oops_wifi"
+
+				local match1="WARNING: at "
+				local match2="drivers/net/wireless"
+
+				line="$( dmesg | fgrep "$match1" | fgrep "$match2" )" && {
+
+					hash="$( echo "$line" | md5sum | cut -d' ' -f1 )"
+
+					[ -e "$hashfile" ] && {
+						read lasthash <"$hashfile"
+					}
+
+					[ "$hash" = "$lasthash" ] || {
+						echo "$hash" >"$hashfile"
+						_log do $funcname daemon alert "detected new oops: $line"
+						return 0
+					}
+				}
+
+				return 1
+			}
+
 			case "$( _wifi mode $WIFIDEV )" in
 				*adhoc*)
 					incoming_wifi_activity || {
+						wifi			# fixme! use _wifi_phy_restart()
+					}
+
+					kernel_oops_wifi && {
 						wifi			# fixme! use _wifi_phy_restart()
 					}
 				;;
