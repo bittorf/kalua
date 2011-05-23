@@ -427,15 +427,22 @@ _pfilter_rules_nat_inetoffer_lan ()		# SENS: masquerades traffic over lan-device
 
 	local GATEWAY="$( uci get network.lan.gateway )"
 	local COUNTER=0
-												# is lan_gateway an alien network?
+	local ALIASIP										# is lan_gateway an alien network?
 												# then add alien-ip-range to alias-interface...
 
 	if [ -n "$GATEWAY" ] && [ -z "$( ip route list exact 0.0.0.0/0 via $GATEWAY )" ]; then	# def_route could'nt be set by /sbin/ifup
 												# because kernel has no suiteable interface for gw
 		while [ $COUNTER -lt 5 ]; do {
-			_log do pfilter daemon info "($FUNC) detected alien LAN-gateway, trying to fetch DHCP-address"
-			local ALIASIP="$( udhcpc -qfn --interface="$LANDEV:fantasy" 2>/dev/null | sed -n 's/.* \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' )"
+			_log do $FUNC daemon info "detected alien LAN-gateway, trying to fetch DHCP-address"
+
+			# fixme! newer udhcpc sets the IP, even on virtual interfaces, so we have to find a way to:
+			# - get a lease
+			# - discard/ignore the lease
+			# - reinit the interface to old state (if changed)
+
+			ALIASIP="$( udhcpc -qfn --interface="$LANDEV:fantasy" 2>/dev/null | sed -n 's/.* \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' )"
 			[ -n "$ALIASIP" ] && break
+
 			_log do pfilter daemon info "($FUNC) no alias-ip - trying again in 10 sec"
 			sleep 10
 			COUNTER=$(( $COUNTER + 1 ))		# fixme! even with "LAN:fantasy" /etc/resolv.conf gets applied, rewrite?
