@@ -1144,12 +1144,12 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 
 	for ENTRY in $( _pfilter l7proto_list ); do {
 		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j shaper
-		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j LOG --log-prefix "layer7_${ENTRY}: "
+		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j LOG --log-prefix "l7_${ENTRY}: "
 		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j RETURN
 	} done
 
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j shaper				# unknown traffic
-	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j LOG --log-prefix "layer7_UNKNOWN: "
+	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j LOG --log-prefix "l7_UNKNOWN: "
 	_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id UNKN )/0xFF		-j RETURN
 
 	_pfilter user_splash_control nosplash "$MAC" "$IP"
@@ -1212,7 +1212,7 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 	_ipt -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags SYN,URG     SYN	-j MARK --set-mark $( _pfilter proto2id SMALL )
 	_ipt -t mangle -A marking_unmarkable -p tcp  -m length --length 0:64 --tcp-flags ACK,SYN,URG ACK,SYN	-j MARK --set-mark $( _pfilter proto2id SMALL )
 	_ipt -t mangle -A marking_unmarkable -p icmp -m length --length 84					-j MARK --set-mark $( _pfilter proto2id SMALL )	# ping
-#	_ipt -t mangle -A marking_unmarkable -m mark ! --mark 0							-j LOG --log-prefix "layer7_small: "
+#	_ipt -t mangle -A marking_unmarkable -m mark ! --mark 0							-j LOG --log-prefix "l7_small: "
 #	_ipt -t mangle -A marking_unmarkable -m mark ! --mark 0							-j RETURN
 
 	if _pfilter stats_simple_approach ; then
@@ -1224,13 +1224,13 @@ _pfilter_rules_install ()			# fixme! connbytes auswerten: http ab 200k = langsam
 			_log do $FUNC daemon info "loop_layer7: installing protocol '$ENTRY'"
 
 			_ipt -t mangle -A marking_layer7 -m layer7 --l7proto $PROTO		-j MARK --set-mark $( _pfilter proto2id $ENTRY )
-		#	_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "layer7_${ENTRY}: "
+		#	_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j LOG --log-prefix "l7_${ENTRY}: "
 			_ipt -t mangle -A marking_layer7 -m mark ! --mark 0			-j RETURN
 			_ipt -t mangle -A traff_all      -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j traff_users
 		} done
 	fi
 
-	_ipt -t mangle -A marking_layer7 -j LOG --log-prefix "layer7_end: "
+	_ipt -t mangle -A marking_layer7 -j LOG --log-prefix "l7_end: "
 	
 	_ipt -t mangle -A traff_all -m mark --mark $( _pfilter proto2id UNKN )/0xFF -j traff_users	# list unknown traffic
 	_ipt -t mangle -A traff_all                                            -j traff_users
