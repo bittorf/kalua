@@ -32,13 +32,22 @@ func_ulog_prepare ()
 {
 	local FUNC="ulog_prepare"
 	local PID_ULOG="$( pidof ulogd )"
+	local errorfile="/tmp/ulogd_startup_failed"
+	local logprio
 
 	[ -z "$PID_ULOG" -a -e /usr/sbin/ulogd ] && {
 		_log do $FUNC daemon debug "ulogd inactive - starting up"
 
 		ulogd -d || {
-			_log do $FUNC daemon alert "ulogd-startup failed"
-			return 1		# needs correct /etc/ulogd.conf
+			if [ -e "$errorfile" ]; then
+				logprio="info"
+			else
+				logprio="alert"
+			fi
+
+			touch "$errorfile"
+			_log do $FUNC daemon $logprio "ulogd-startup failed"
+			return 1						# needs correct /etc/ulogd.conf
 		}
 
 		PID_ULOG="$( pidof ulogd )"
