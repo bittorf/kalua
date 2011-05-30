@@ -12,6 +12,7 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 	_http header_mimetype_output "text/html"	#        /favicon.ico
 	_translate include
 
+	local funcname="weblogin_htmlout_loginpage"
 	local LANG="$( _translate lang $1 )"
 	local SHOW_RULES="$2"				# fixme! can be 'inet_broken'
 	local SHOW_PASSWORD_WRONG="$3"
@@ -116,13 +117,35 @@ EOF
 	[ "$SHOW_ACCEPT_RULES"	 = "true"	 ] && _weblogin htmlout_rules_hint		$LANG
 	[ "$SHOW_RULES"		 = "inet_broken" ] && _weblogin htmlout_inet_broken		$LANG
 
+
 	[ -n "$FORM_MOBILE_NUMBER" ] && {
-		if _sanitizer do "$FORM_MOBILE_NUMBER" mobilenumber check; then
-			_weblogin htmlout_message_password_was_send $LANG
-		else
-			_weblogin htmlout_message_wrong_mobile_number $LANG
-		fi
+
+		local mac="$( _net ip2mac $REMOTE_ADDR )"
+
+		[ -e /tmp/login_was_sent_to_mobilenumber_${mac:-unset} ] || {
+
+			if _sanitizer do "$FORM_MOBILE_NUMBER" mobilenumber check; then
+
+				_weblogin htmlout_message_password_was_send $LANG
+
+				MOBILE_MODE=							# to enforce normal username/password login page
+				touch /tmp/login_was_sent_to_mobilenumber_${mac:-unset}		# fixme! delete on successful login
+
+				local profile=1
+				local devices=1
+				local fuzzy=1
+				local USERNAME PASSWORD
+
+				_db user login add "$profile" "sms" "" "" "$devices" "" "$fuzzy"
+				eval $( _db user login show last "USERNAME PASSWORD" )
+
+				_log do $funcname daemon sms "login from $FORM_MOBILE_NUMBER" "Ihr Login: Benutzername/Passwort: $USERNAME/$PASSWORD - Wir wuenschen angenehmen Aufenthalt" "$FORM_MOBILE_NUMBER"
+			else
+				_weblogin htmlout_message_wrong_mobile_number $LANG
+			fi
+		}
 	}
+
 
 	cat <<EOF
 <TR><TD ALIGN="CENTER"><BR><TABLE CELLSPACING="0" CELLPADDING="2" BORDER="0">
