@@ -215,6 +215,29 @@ _pfilter_user_splash_remove ()
 	}
 }
 
+_pfilter_rules_remove_all_masquerading()		# fixme! is a hack
+{
+	local funcname="pfilter_rules_remove_all_masquerading"
+
+	masq_rules_exist()
+	{
+		iptables -t nat -nL POSTROUTING | fgrep -q MASQUERADE
+	}
+
+	linenumber_first_masq_rule()
+	{
+		iptables --line-numbers -t nat -nL POSTROUTING |
+		 fgrep MASQUERADE |
+		  head -n1 |
+		   cut -d' ' -f1
+	}
+
+	while masq_rules_exist ; do {
+		_log do $funcname daemon info "removing a masq-rule"
+		iptables -t nat -D POSTROUTING $( linenumber_first_masq_rule )
+	} done
+}
+
 _pfilter_rules_webserver_deny_incoming_nonlocal ()
 {
 	local FUNC="pfilter_rules_webserver_deny_incoming_nonlocal"
@@ -580,6 +603,10 @@ _pfilter_user_splash_add_for_nonautounsplashed ()
 	local TABLE LINE IP MAC
 
 	rm /tmp/login_was_sent_to_mobilenumber_* 2>/dev/null		# fixme!
+
+	_net local_inet_offer >/dev/null || {
+		_pfilter rules_remove_all_masquerading
+	}
 
 	for MAC in $LIST; do {
 		

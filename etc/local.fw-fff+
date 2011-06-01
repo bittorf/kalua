@@ -85,17 +85,17 @@ _startup ()
 				iptables -I INPUT -i $WANDEV -p udp --dport 698 -j DROP
 			fi
 		;;
+		*)
+			_net local_inet_offer >/dev/null || {
+				_pfilter rules_remove_all_masquerading
+			}
+		;;
 	esac
 
 	_pfilter rules_dhcp_ignore_specific_macs
 	_pfilter rules_accept_all off
 	_pfilter stats_rules_count
 
-#	# fixme! throw away openwrt-firewall rules
-#	while ! _ipt -t nat -nL PREROUTING | head -n3 | tail -n1 | grep -q ^olsr_in ; do {
-#		_ipt -t nat -D PREROUTING 1
-#	} done
-		
 	_log do local_firewall daemon info "startup ready"
 }
 
@@ -107,7 +107,12 @@ case $ARG in
 	;;
 	start)
 		if [ -e /tmp/BOOT ]; then
+
 			_pfilter rules_nat_install
+			_net local_inet_offer >/dev/null || {
+				_pfilter rules_remove_all_masquerading
+			}
+
 			_scheduler add "start_local_packetfilter"
 			/usr/sbin/cron.select_best_antenna_fff+ fastcheck	# fixme! move to another place
 		else
