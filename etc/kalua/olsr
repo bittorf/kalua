@@ -625,8 +625,14 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 			
 			I=1				# try to ping a wired neigh, if it does not work, reboot
 			while [ $I -ne 10 ]; do {
-				LOSS="$( ping -q -c 1 $REMOTE | sed -n 's/^.*packets received, \([0-9]*\)%.*/\1/p' )"
+
+				# e.g.:
+				# 10 packets transmitted, 8 packets received, 1 duplicates, 20% packet loss
+				# 10 packets transmitted, 0 packets received, 100% packet loss
+
+				LOSS="$( ping -q -c 1 $REMOTE | sed 's/^.*, \([0-9]*\)% packet loss.*/\1/' )"
 				[ ${LOSS:-100} -eq 0 ] && break
+
 				_log do $FUNC daemon info "[ERR] wired remote/cost $REMOTE/$COST FAIL (${LOSS}% packetloss with ping, after try $I)"
 				sleep 10
 				I=$(( $I + 1 ))
