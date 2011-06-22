@@ -542,46 +542,46 @@ _net_arp_permanent ()					# ARG1:ip ARG2:mac ARG3:wifi or wire
         local IP="$1"
         local MAC="$( _sanitizer do "$2" lowercase )"
         local FORCE="$3"						# fixme! use also IP to guess interface
-        
+	local dev_keyword MODE LINE DEV
+
         _log do $FUNC daemon info "IP: '$IP' MAC: '$MAC' FORCE: '$FORCE'"
-        
-	local LINE="$( ip neigh show to $IP 2>/dev/null )"
-	
-	echo "$LINE" | grep -q "nud permanent" && {
+
+	LINE="$( ip neigh show to $IP 2>/dev/null )"
+	echo "$LINE" | fgrep -q "nud permanent" && {
 		_log do $FUNC daemon info "already permanent - do nothing"
 		return
 	}
 
-	local DEV="$( _net mac2dev $MAC )"
-	local MODE="add"
-	
-	[ -n "$LINE" ] && {
-		_log do $FUNC daemon info "already found - MODE: 'change'"
+	if [ -n "$LINE" ]; then
 		MODE="change"
-	}
+	else
+		MODE="add"
+	fi
+
+	DEV="$( _net mac2dev $MAC )"
 
  	if [ -z "$DEV" ]; then
 		_log do $FUNC daemon info "not in neigh-list, probing"
- 		  
+
  		  if [ "$FORCE" = "wifi" ]; then
- 			
- 			_log do $FUNC daemon info "enforced wifi"
- 			DEV=$WIFIDEV
- 		
- 		elif [ "$( _net mac2media $MAC )" = "wire" ]; then
- 		
- 			_log do $FUNC daemon info "detected wire"
- 			DEV=$LANDEV
+
+			dev_keyword="wifi (forced)"
+ 			DEV="$WIFIDEV"
+
+ 		elif [ "$( _net mac2media $MAC )" = "wire" ]; then		# fixme! why a 2nd try?
+
+			dev_keyword="wire (detected at 2nd try)"
+ 			DEV="$LANDEV"
  		else
- 			_log do $FUNC daemon info "fallback to wifi"
- 			DEV=$WIFIDEV
+ 			dev_keyword="wifi (defaulting)"
+ 			DEV="$WIFIDEV"
  		fi
  	else
- 		_log do $FUNC daemon info "DEV from ip_neigh: '$DEV'"
+ 		dev_keyword="$DEV (correctly detected)
  	fi
- 
-	_log do $FUNC daemon info "ip neigh $MODE $IP dev $DEV lladdr $MAC nud permanent"
-	ip neigh $MODE $IP dev $PHYSDEV lladdr $MAC nud permanent 2>/dev/null
+
+	_log do $FUNC daemon info "detected physical-device ${dev_keyword:-unknown}: ip neigh $MODE $IP dev $DEV lladdr $MAC nud permanent"
+	ip neigh $MODE $IP dev $DEV lladdr $MAC nud permanent 2>/dev/null			# fixme! will be flushed every night
 }
 
 _net_mask2cidr ()
