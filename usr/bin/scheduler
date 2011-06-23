@@ -217,10 +217,17 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 			incoming_wifi_activity()
 			{
 				local funcname="incoming_wifi_activity"
-				local framecount_old framecount_new
+				local framecount_old framecount_new check_dev
 				local file_framecount="/tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV"
+				local monitoring_vif="mon.$WIFIDEV"
 
-				eval "$( sed -n "s/.*$WIFIDEV: *[0-9]* *\([0-9]*\).*/framecount_new=\1/p" /proc/net/dev )"
+				if fgrep -q "$monitoring_vif:" /proc/net/dev; then
+					check_dev="$monitoring_vif"
+				else
+					check_dev="$WIFIDEV"
+				fi
+
+				eval "$( sed -n "s/.*${check_dev}: *[0-9]* *\([0-9]*\).*/framecount_new=\1/p" /proc/net/dev )"
 
 				if [ -e "$file_framecount" ]; then
 					read framecount_old <"$file_framecount"
@@ -231,7 +238,7 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				echo "$framecount_new" >"$file_framecount"
 
 				if [ "$framecount_old" = "$framecount_new" ]; then
-					_log do $funcname daemon alert "framecounter old/new: $framecount_old/$framecount_new"
+					_log do $funcname daemon alert "framecounter for $check_dev old/new: $framecount_old/$framecount_new"
 					echo "0" >"$file_framecount"
 					return 1
 				else
@@ -248,7 +255,7 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				local match1="WARNING: at "
 				local match2="drivers/net/wireless"
 
-				line="$( dmesg | fgrep "$match1" | fgrep "$match2" | tail -n1 )" && {
+				line="$( dmesg | fgrep "$match1" | tail -n1 | fgrep -q "$match2" )" && {
 
 					hash="$( echo "$line" | md5sum | cut -d' ' -f1 )"
 
@@ -279,13 +286,21 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				return 1
 			}
 
-			case "$( _wifi mode $WIFIDEV )" in
-				*adhoc*)
-					incoming_wifi_activity || {
+			# we check:
+			# wlan0 in adhoc-mode or
+			# mon.wlan0 in ap-mode
+			# on newstyle-devices
+
+			incoming_wifi_activity || {
+				case "$( _wifi mode $WIFIDEV )" in
+					*adhoc*)
+						_system reboot_safe "no incoming_wifi_activity, counter: $( cat /tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV )"
+					;;
+					*)
 						_wifi phy_restart $WIFIDEV "no incoming_wifi_activity"
-				}
-				;;
-			esac
+					;;
+				esac
+			}
 
 			kernel_oops_wifi && {
 				_wifi phy_restart $WIFIDEV "kernel_oops_wifi"
