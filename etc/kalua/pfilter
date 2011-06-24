@@ -346,15 +346,19 @@ _pfilter_rules_portfw_install ()
 	local PROTO
 	local PORTFORWARDING="$( uci get firewall.@portfw[0].portfw )"
 	local MYHNA="$( uci get olsrd.@Hna4[0].netaddr )/$( _net mask2cidr $( uci get olsrd.@Hna4[0].netmask ) )"
-
-	_ipt -I FORWARD -i $WANDEV -d $MYHNA -j ACCEPT
+	local statfile="/tmp/$FUNC"
 
 	for ENTRY in $PORTFORWARDING; do {
-	
+
 		eval $( _pfilter rules_portfw_config_serialize $ENTRY )
-		
+
 		[ $RULE_ACTIVE = "on" ] && {
-		
+
+			[ -e "$statfile" ] || {
+				_ipt -I FORWARD -i $WANDEV -d $MYHNA -j ACCEPT		# fixme! this overrides some important FORWARD rules (tcpmss etc.)
+				touch "$statfile"
+			}
+
 			case $RULE_INCOMING_INTERFACE in
 				 wan) RULE_INCOMING_INTERFACE="-i $WANDEV"	;;
 				 lan) RULE_INCOMING_INTERFACE="-i $LANDEV"	;;
@@ -365,11 +369,11 @@ _pfilter_rules_portfw_install ()
 
 			[ $RULE_DEST_IP = "me" ] && RULE_DEST_IP=		# this works!
 			[ $RULE_PROTO = "both" ] && RULE_PROTO="tcp udp"
-			
+
 			for PROTO in $RULE_PROTO; do {
-				
+
 				RULE_ACTIVE="-t nat -I PREROUTING $RULE_INCOMING_INTERFACE -p $PROTO --dport $RULE_PORT_INCOMING -j DNAT --to-destination $RULE_DEST_IP:$RULE_PORT_DEST"
-				
+
 					if _ipt $RULE_ACTIVE ; then
 				     		_log do $FUNC user info "success adding rule '$RULE_NAME'"
 				     	else
