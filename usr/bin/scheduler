@@ -235,6 +235,9 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				echo "$uptime_new" >"$file_uptime"
 				uptime_diff="$(( $uptime_new - ${uptime_old:-0} ))"
 
+				[ $uptime_diff -gt 5 ] && \
+					_log do $funcname daemon info "timediff > 60 sec = $uptime_diff"
+
 				if [ -e "$file_framecount" ]; then
 					read framecount_old <"$file_framecount"
 				else
@@ -248,7 +251,7 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					echo "0" >"$file_framecount"
 					return 1
 				else
-					_log do $funcname daemon debug "[OK] framecounter for $check_dev old/new: $framecount_old < $framecount_new timediff: $uptime_diff sec"
+					_log do $funcname daemon info "[OK] framecounter for dev $check_dev: diff / old / new: $(( $framecount_new - $framecount_old )) / $framecount_old < $framecount_new timediff: $uptime_diff sec"
 					return 0
 				fi
 			}
@@ -262,7 +265,7 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				local match1="WARNING: at "
 				local match2="drivers/net/wireless"
 
-				line="$( dmesg | fgrep "$match1" | tail -n1 | fgrep -q "$match2" )" && {
+				line="$( dmesg | fgrep "$match1" | tail -n1 | fgrep "$match2" )" && {
 
 					hash="$( echo "$line" | md5sum | cut -d' ' -f1 )"
 
@@ -301,6 +304,8 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 			incoming_wifi_activity || {
 				case "$( _wifi mode $WIFIDEV )" in
 					*adhoc*)
+						_wifi phy_restart $WIFIDEV "no incoming_wifi_activity, scheduling reboot"
+						sleep 15
 						_system reboot_safe "no incoming_wifi_activity, counter: $( cat /tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV )"
 					;;
 					*)
