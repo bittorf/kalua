@@ -1,3 +1,22 @@
+_log_shell_is_interactive()
+{
+	case "$-" in
+		*i*)
+			return 0
+		;;
+		*)
+			case "$SHELL" in
+				"/bin/ash"|"-ash")
+					return 0
+				;;
+				*)
+					return 1
+				;;
+			esac
+		;;
+	esac
+}
+
 _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 {
 	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
@@ -11,25 +30,6 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	local phonenumber="$6"
 	local        EVERLOG="/www/everlasting_syslog.txt"
 	local MEM UPTIME DATE
-
-	shell_is_interactive ()
-	{
-		case "$-" in
-			*i*)
-				return 0
-			;;
-			*)
-				case "$SHELL" in
-					"/bin/ash"|"-ash")
-						return 0
-					;;
-					*)
-						return 1
-					;;
-				esac
-			;;
-		esac
-	}
 
 	mem_uptime_and_date ()
 	{
@@ -133,7 +133,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 		;;
 	esac
 
-	shell_is_interactive && {			# fixme! it does'nt work in nested functions, e.g. _net mac2vendor $MAC
+	_log shell_is_interactive && {			# fixme! it does'nt work in nested functions, e.g. _net mac2vendor $MAC
 		eval $( mem_uptime_and_date )
 		FATHER_PROCESS="TERM:${TERM} $0"
 		echo "$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE" 1>&2   # to stderr
@@ -151,7 +151,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	if [ "$PRIO" = "debug" ]; then
 
 		[ ! -e /tmp/DEBUG ] && {
-			shell_is_interactive || return 0
+			_log shell_is_interactive || return 0
 		}
 		boot_and_debug_message
 	else
