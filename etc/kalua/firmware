@@ -2,6 +2,17 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 {				# fixme! safe hash of last successful installed tarball /www/TARBALL_STABLE_$HASH and only upgrade, if it differs
 	local FUNC="firmware_update_pmu"
 	local MODE="$( _firmware updatemode "$1" override)"
+
+	case "$MODE" in
+		stable|beta|testing)
+			:
+		;;
+		*)
+			_log do "$FUNC" daemon debug "abort, updatemode: $MODE"
+			return
+		;;
+	esac
+
 	local URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing
 	local hash_last_applied
 	local hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"
@@ -12,16 +23,6 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	local SIZE TEMPFILE CRON_RESTART REPATCH_ALL
 	local COUNT=0
 	local COUNT_ERROR=0
-
-	case "$MODE" in
-		beta|stable|testing)
-			:
-		;;
-		*)
-			_log do "$FUNC" daemon debug "abort, updatemode: $MODE"
-			return
-		;;
-	esac
 
 	_cleanup ()
 	{
@@ -235,18 +236,61 @@ _firmware_burn ()
 	local FUNC="firmware_burn"
 	local OUT
 
-	OUT="$( /www/cgi-bin/freifunk-upload -c "$FILE" )"
-	
-	if [ "$OUT" = "ok" ]; then
-		_log do "$FUNC" daemon info "crc: $OUT - burning '$FILE'"
+	if _uci is_oldstyle ; then
 
-		/etc/init.d/*crond_fff+ restart nano
-		[ -e /dev/misc/crondog ] && echo >/dev/misc/crondog			# fixme!
+		OUT="$( /www/cgi-bin/freifunk-upload -c "$FILE" )"
 
-		/usr/sbin/firmware-burn "$FILE"	
+		if [ "$OUT" = "ok" ]; then
+			_log do "$FUNC" daemon info "crc: $OUT - burning '$FILE'"
+
+			/etc/init.d/*crond_fff+ restart nano
+			[ -e /dev/misc/crondog ] && echo >/dev/misc/crondog			# fixme!
+
+			/usr/sbin/firmware-burn "$FILE"	
+		else
+			_log do "$FUNC" daemon alert "wrong crc: '$OUT'	- abort"
+			return 1
+		fi
 	else
-		_log do "$FUNC" daemon alert "wrong crc: '$OUT'	- abort"
-		return 1
+		mylog()
+		{
+			logger "$1"
+			echo "$1"
+		}
+
+		while [ ! -e /tmp/cron_watchdog.id ]; do {
+			mylog "waiting till cron_watchdog starts"
+			sleep 5
+		} done			
+
+		mylog "watchdog found, enforcing watchdog-ending"
+		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
+		mylog "sleeping 60sec"
+		sleep 60
+
+		local task list_tasks
+		list_tasks="crond S69watch_olsrd_fff+ scheduler uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd olsrd"
+
+		for task in $list_tasks pause $list_tasks; do {
+			mylog "killall $task"
+			killall "$task"
+			[ "$task" = "pause" ] && sleep 3
+		} done
+
+		rm -fR /etc/banner /etc/profile /etc/kalua
+		mylog "[OK] still running tasks:"
+		ps ax
+		echo 3 > /proc/sys/vm/drop_caches
+		free
+
+		mylog "[START] sysupgrading"
+		sysupgrade -v "$FILE"
+		mylog "[READY] sysupgraded"
+
+		>/tmp/fw
+		/bin/sync
+		/bin/sleep 30
+		/sbin/reboot
 	fi
 }
 
