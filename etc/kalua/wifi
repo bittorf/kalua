@@ -67,16 +67,29 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 	while read line; do {
 
 		case "$line" in
+			Type*|type*)
+				continue
+			;;
 			T*|t*)			# only use lines with highest/2nd-highest rate
 				set $line
+			;;
+			"HT20/LGI T"*|"HT20/SGI T"*|"HT40/LGI T"*|"HT40/SGI T"*)
+				set $line
+				shift
+			;;
+			"HT20/LGI  t"*|"HT20/SGI  t"*|"HT40/LGI  t"*|"HT40/SGI  t"*)
+				set $line
+				shift
 			;;
 			*)
 				continue
 			;;
 		esac
 
+# 		logger -s "interesting line: 1: $1 2: $2 3: $3 4:$3 5: $5 6: $6 7: $7 8: $8 9: $9 10: ${10}"
+
 		case "$2" in
-			1|2|5.5|11|6|9|12|18|24|36|48|54)
+			1|2|5.5|11|6|9|12|18|24|36|48|54|*MCS*)
 				result="$( percent "$8" "$9" )"
 				[ $result -gt $max ] && {
 					max=$result
@@ -86,6 +99,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 			*)
 				case "$3" in
 					ewma|count*)
+						:
 					;;
 					*)
 						if [ -n "${10}" ]; then
@@ -109,9 +123,10 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 	[ -n "$targetline" ] && {
 
 		set $targetline
+# 		logger -s "TL 1: $1 2: $2 3: $3 4:$3 5: $5 6: $6 7: $7 8: $8 9: $9"
 
 		case "$2" in
-			1|2|5.5|11|6|9|12|18|24|36|48|54)
+			1|2|5.5|11|6|9|12|18|24|36|48|54|*MCS*)
 				rate="$2"
 				throughput="$3"
 			;;
@@ -122,6 +137,15 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 		esac
 
 		[ "$rate" = "0" ] || {
+
+#			logger -s "rate: $rate"
+
+			case "$rate" in
+				*MCS*)
+					rate="$( _wifi math_mcs2rate "$1" "$1" "$rate" )"
+#					logger -s "rate: $rate"
+				;;
+			esac
 
 			if [ "${throughput%.*}" = "0" ]; then
 				efficiency="${throughput#*.}"				# 0.9 -> 9
@@ -134,6 +158,121 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 	}
 
 	echo "txrate=${rate:-0};txthroughput=${throughput:-0};efficiency=${efficiency:-0};"
+}
+
+_wifi_math_mcs2rate()			# fixme! output spatial streams, coding rate, modulation type?
+{
+	local channel_width="$1"		# e.g. HT20/HT40
+	local guard_interval_type="$2"		# e.g. LGI/SGI
+	local mcs_index="$3"			# e.g. 4
+	local rate
+
+	case "$channel_width" in
+		*20*) channel_width="20" ;;
+		*40*) channel_width="40" ;;
+	esac
+
+	case "$guard_interval_type" in
+		*SGI*) guard_interval_type="short" ;;		# = 400ns
+		*LGI*) guard_interval_type="long" ;;		# = 800ns
+	esac
+
+	case "$mcs_index" in
+		*[0-9]) mcs_index="${mcs_index#*MCS}" ;;	# MCS12 -> 12
+	esac
+
+	case "$channel_width" in
+		20)
+			case "$guard_interval_type" in
+				long)
+					case "$mcs_index" in
+						0) rate="6.5" ;;
+						1) rate="13" ;;
+						2) rate="9.5" ;;
+						3) rate="26" ;;
+						4) rate="39" ;;
+						5) rate="52" ;;
+						6) rate="58.5" ;;
+						7) rate="65" ;;
+						8) rate="13" ;;
+						9) rate="26" ;;
+						10) rate="39" ;;
+						11) rate="52" ;;
+						12) rate="78" ;;
+						13) rate="104" ;;
+						14) rate="117" ;;
+						15) rate="130" ;;
+					esac
+				;;
+				short)
+					case "$mcs_index" in
+						0) rate="7.2" ;;
+						1) rate="14.4" ;;
+						2) rate="21.7" ;;
+						3) rate="28.9" ;;
+						4) rate="43.3" ;;
+						5) rate="57.8" ;;
+						6) rate="65" ;;
+						7) rate="72.2" ;;
+						8) rate="14.4" ;;
+						9) rate="28.9" ;;
+						10) rate="43.3" ;;
+						11) rate="57.8" ;;
+						12) rate="86.7" ;;
+						13) rate="115.6" ;;
+						14) rate="130" ;;
+						15) rate="144.4" ;;
+					esac
+				;;
+			esac
+		;;
+		40)
+			case "$guard_interval_type" in
+				long)
+					case "$mcs_index" in
+						0) rate="13.5" ;;
+						1) rate="27" ;;
+						2) rate="40.5" ;;
+						3) rate="54" ;;
+						4) rate="81" ;;
+						5) rate="108" ;;
+						6) rate="121.5" ;;
+						7) rate="135" ;;
+						8) rate="27" ;;
+						9) rate="54" ;;
+						10) rate="81" ;;
+						11) rate="108" ;;
+						12) rate="162" ;;
+						13) rate="216" ;;
+						14) rate="243" ;;
+						15) rate="270" ;;
+					esac
+				;;
+				short)
+					case "$mcs_index" in
+						0) rate="15" ;;
+						1) rate="30" ;;
+						2) rate="45" ;;
+						3) rate="60" ;;
+						4) rate="90" ;;
+						5) rate="120" ;;
+						6) rate="135" ;;
+						7) rate="150" ;;
+						8) rate="30" ;;
+						9) rate="60" ;;
+						10) rate="90" ;;
+						11) rate="120" ;;
+						12) rate="180" ;;
+						13) rate="240" ;;
+						14) rate="270" ;;
+						15) rate="300" ;;
+					esac
+				;;
+			esac
+		;;
+	esac
+
+	echo "$rate"
 }
 
 _wifi_params ()
