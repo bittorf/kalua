@@ -1,0 +1,41 @@
+_switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
+{
+	local funcname="switch_show"
+	local type="${1:-$( uci get network.@switch[0].name )}"
+	local line
+
+	case "$type" in
+		rtl8366rb)
+			[ -e /sbin/swconfig ] || \
+				return 1
+
+			for port in 0 gap 1 2 3 4; do {		# [ WAN | LAN LAN LAN LAN ]
+
+				if [ "$port" = "gap" ]; then
+					echo -n "."
+				else
+					line="$( swconfig dev $type port $port show | fgrep "link: port:" )"
+
+					case "$line" in
+						*"link: port:$port link: down"*)
+							echo -n "-"
+						;;
+						*"link:up"*)
+							case "$line" in
+								*"speed:100baseT"*)
+									echo -n "x"
+								;;
+								*"speed:1000baseT"*)
+									echo -n "X"
+								;;
+							esac
+						;;
+					esac
+
+					_log do $funcname daemon debug "type: $type port: $port line '$line'"
+				fi
+			} done
+		;;
+	esac
+}
+
