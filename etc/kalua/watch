@@ -375,17 +375,40 @@ _watch_webserver ()
 		SERVER="httpd"
 	fi
 
+	restart_server()
+	{
+		killall $SERVER
+		/etc/init.d/*$SERVER* start
+		sleep 5
+		_log do $FUNC daemon info "[OK] webserver PID now: '$( pidof $SERVER )'"
+	}
+
 	pidof $SERVER >/dev/null || {
 
 		if pidof crond >/dev/null ; then
 			_log do $FUNC daemon err "[ERR] webserver is not running - restarting"
-	
-			/etc/init.d/*$SERVER* start
-			sleep 5
-	
-			_log do $FUNC daemon err "[OK] webserver PID now: '$( pidof $SERVER )'"
+			restart_server	
 		else
 			_log do $FUNC daemon debug "[OK] no crond - no restart"		# crondog will do it
+		fi
+	}
+
+	local filesize httpsize
+	local checkfile="favicon.ico"
+
+	[ -e "/www/$checkfile" ] && {
+		size_gethttp="$( _wget do "http://127.0.0.1/$checkfile" | wc -c )"
+		if [ ${size_gethttp:-0} -gt 0 ]; then
+			size_file="$( _file size "/www/$checkfile" )"
+			if [ $size_file -eq $size_gethttp ]; then
+				_log do $FUNC daemon debug "[OK] same size for file/httpget: $size_file bytes for $checkfile"
+			else
+				_log do $FUNC daemon err "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
+				restart_server
+			fi
+		else
+			_log do $FUNC daemon err "[ERR] gethttp not possible - restarting"
+			restart_server
 		fi
 	}
 }
