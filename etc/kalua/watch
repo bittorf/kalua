@@ -417,23 +417,53 @@ _watch_webserver ()
 
 _watch_sshd_or_telnet ()
 {
-	pidof dropbear >/dev/null && return 0
+	local funcname="watch_sshd_or_telnet"
+	local pid
 
-	local FUNC="watch_sshd_or_telnet"
+	restart_sshd()
+	{
+		_watch hanging_command dropbear
+		_watch hanging_command dropbear
+
+		/etc/init.d/*dropbear start
+	}
+
+	pidof dropbear >/dev/null && {
+
+		which nc >/dev/null && {
+			which dropbear >/dev/null && {
+
+				( echo | nc 127.0.0.1 22 >"/tmp/$funcname" ) &
+				pid="$!"
+				sleep 3
+
+				if fgrep -i dropbear "/tmp/$funcname" ; then
+					_log do $funcname daemon debug "[OK] dropbear seems to run: '$( cat "/tmp/$funcname" )'"
+				else
+					_log do $funcname daemon alert "[ERR] dropbear seems to hang: '$( cat "/tmp/$funcname" )' - restarting"
+					restart_sshd
+				fi
+
+				rm "/tmp/$funcname"
+			}
+		}
+
+		return 0
+	}
 
 	pidof telnetd >/dev/null || {
 	
-		_log do $FUNC daemon err "dropbear nor telnetd not running - restarting"
+		_log do $funcname daemon err "dropbear nor telnetd not running - restarting"
 		
-		/etc/init.d/*dropbear start
+		restart_sshd
 		if pidof dropbear >/dev/null; then
 			
-			_log do $FUNC daemon info "dropbear PID now: '$( pidof dropbear )'"
+			_log do $funcname daemon info "dropbear PID now: '$( pidof dropbear )'"
 		else
 			if telnetd; then
-				_log do $FUNC daemon info "telnetd PID now: '$( pidof telnetd )'"
+				_log do $funcname daemon info "telnetd PID now: '$( pidof telnetd )'"
 			else
-				_log do $FUNC daemon err "dropbear nor telnetd not startable?"
+				_log do $funcname daemon err "dropbear nor telnetd not startable?"
 			fi
 		fi
 	}
