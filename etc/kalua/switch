@@ -2,7 +2,7 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 {
 	local funcname="switch_show"
 	local type="${1:-$( uci get network.@switch[0].name )}"
-	local line
+	local line duplex
 
 	case "$type" in
 		rtl8366rb)
@@ -22,11 +22,26 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 						;;
 						*"link:up"*)
 							case "$line" in
+								*"full-duplex"*)
+									duplex="full"
+								;;
+								*)
+									duplex="half"
+								;;
+							esac
+
+							case "$line" in
+								*"speed:10baseT"*) 
+									_switch symbol $duplex 10
+								;;
 								*"speed:100baseT"*)
-									echo -n "x"
+									_switch symbol $duplex 100
 								;;
 								*"speed:1000baseT"*)
-									echo -n "X"
+									_switch symbol $duplex 1000
+								;;
+								*)
+									_switch symbol unknown
 								;;
 							esac
 						;;
@@ -35,6 +50,36 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 					_log do $funcname daemon debug "type: $type port: $port line '$line'"
 				fi
 			} done
+		;;
+	esac
+}
+
+_switch_symbol()
+{
+	local duplex="$1"
+	local speed="$2"
+
+	case "${duplex}${speed}" in
+		"half10")
+			echo -n "a"
+		;;
+		"half100")
+			echo -n "b"
+		;;
+		"half1000")
+			echo -n "c"
+		;;
+		"full10")
+			echo -n "A"
+		;;
+		"full100")
+			echo -n "B"
+		;;
+		"full1000")
+			echo -n "C"
+		;;
+		*)
+			echo -n "Z"
 		;;
 	esac
 }
