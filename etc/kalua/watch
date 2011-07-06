@@ -399,9 +399,23 @@ _watch_webserver ()
 	local checkfile="favicon.ico"
 
 	[ -e "/www/$checkfile" ] && {
+
 		size_gethttp="$( _wget do "http://127.0.0.1/$checkfile" | wc -c )"
+
 		if [ ${size_gethttp:-0} -gt 0 ]; then
+
 			size_file="$( _file size "/www/$checkfile" )"
+
+			[ ${size_file:-0} -eq 1000 ] && {
+				cp /www/$checkfile /tmp			# fixme! this is a workaround for
+				chmod 777 /tmp/$checkfile		# bad file_size() when
+				rm /www/$checkfile			# user/group is '1000'
+				cp /tmp/$checkfile /www
+				rm /tmp/$checkfile
+
+				size_file="$( _file size "/www/$checkfile" )" 
+			}
+
 			if [ $size_file -eq $size_gethttp ]; then
 				_log do $FUNC daemon debug "[OK] same size for file/httpget: $size_file bytes for $checkfile"
 			else
