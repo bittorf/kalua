@@ -85,7 +85,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 					local HASH="${OPTION}"
 					[ ${#HASH} -eq 32 ] || return 1				# fixme! must be compatible with used hash-algo
 
-					if [ "$OPTION" = "last" ]; then
+					if [ "$OPTION2" = "last" ]; then
 						sed -n "/$HASH/{=;q}" "$DIR/meta_index" | tail -n1
 					else
 						sed -n "/$HASH/{=;q}" "$DIR/meta_index"		# quit after first match
@@ -95,7 +95,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 					[ -e "$DIR/rows" ] || return 1
 					local STRING="$OPTION"
 
-					if [ "$OPTION" = "last" ]; then
+					if [ "$OPTION2" = "last" ]; then
 						sed -n "/$STRING/=" "$DIR/rows" | tail -n1
 					else
 						sed -n "/$STRING/{=;q}" "$DIR/rows"		# quit after first match
@@ -445,7 +445,6 @@ _db_autocreate_tickets_and_send_mail ()
 
 	case "$USECASE" in
 		existing_tickets)
-
 			logprio="alert"
 
 			LIST_ID="$( _sanitizer do "$PROFILE_ID" newlines2spaces )"
@@ -458,13 +457,14 @@ _db_autocreate_tickets_and_send_mail ()
 			} done
 		;;
 		autogenerate_tickets)
-	
 			eval $( _db user profile show $PROFILE_ID "NAME" )
+			eval $( _db user login query profile_id "$PROFILE_ID" last )
+			eval $( _db user login show "$ID" "DEVICE_QUANTITY FUZZY" )
 
 			_stopwatch start Generating_${TICKET_QUANTITY}_Tickets
 			while [ ${COUNTER:=0} -ne $TICKET_QUANTITY ]; do {
 				COUNTER="$(( $COUNTER + 1 ))"
-				_db user login add "$PROFILE_ID" "" "" "" "1" "$UNIXTIME"
+				_db user login add "$PROFILE_ID" "" "" "" "$DEVICE_QUANTITY" "$UNIXTIME" "$FUZZY"
 			} done
 			_stopwatch stop Generating_${TICKET_QUANTITY}_Tickets quiet
 			_db user login index_gen
