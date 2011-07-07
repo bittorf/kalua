@@ -272,21 +272,31 @@ _watch_zombie_processes ()
 
 _watch_flash_free_space ()
 {
+	local funcname="watch_flash_free_space"
+	local file
+
 	[ $( _system flash_free ) -lt 150 ] && {
 
 		[ ! -e /tmp/REPO_REMOVED ] && {
-			_log do remove_repos_if_low_space daemon info "only $( _system flash_free ) kb free - removing files in /usr/lib/*pkg/lists/"
+			_log do $funcname daemon info "only $( _system flash_free ) kb free - removing files in /usr/lib/*pkg/lists/"
 
-			for FILE in /usr/lib/*pkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+ /www/everlasting_syslog.txt; do {
-				[ -e "$FILE" ] && {
-					_log do remove_repos_if_low_space daemon info "only $( _system flash_free ) kb free - removing '$FILE' with $( _file size "$FILE" ) bytes"
-					rm "$FILE"
+			for file in /usr/lib/*pkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+ /www/everlasting_syslog.txt; do {
+				[ -e "$file" ] && {
+					_log do $funcname daemon info "only $( _system flash_free ) kb free - removing '$file' with $( _file size "$file" ) bytes"
+					rm "$file"
 				}
 			} done
+
 			touch /tmp/REPO_REMOVED
 		}
 
-		[ ! -e /tmp/SEND_ALIVE_FAILED ] && {		# fixme! (this means, data has'nt been send yet)
+		while [ -n "$( ls -1 /www/cgi-bin/user-* )" -a $( _system flash_free ) -lt 150 ]; do {
+			file="$( ls -1 /www/cgi-bin/user-* | head -n1 )"
+			_log do $funcname daemon info "only $( _system flash_free ) kb free - removing '$file' with $( _file size "$file" ) bytes"
+			rm "$file"
+		} done
+
+		[ -e /tmp/SEND_ALIVE_FAILED ] || {		# fixme! (this means, data has'nt been send yet)
 			rm /www/everlasting_syslog.txt		# content is already on server
 		}
 
