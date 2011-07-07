@@ -237,6 +237,37 @@ _scheduler_wait_till_cpuload_is_low ()
 	} done
 }
 
+_scheduler_allow_run()
+{
+	local funcname="scheduler_allow_run"
+	local lockfile="/tmp/lockfile_scheduler_is_running"
+	_scheduler vars
+
+	[ $( _system uptime min ) -lt 5 ] && {
+		return 1
+	}
+
+	if [ -e "$lockfile" ]; then
+
+		_watch counter "/tmp/scheduler_lockfile_counter" increment 1 max 60 || {
+			_log do $funcname daemon alert "removing lockfile, which seems to be left by accident"
+			rm "$lockfile"
+		}
+
+		if [ "$( _system load 1min )" -lt 15 ]; then
+			_log do $funcname daemon info "lockfile exists, but allowing due to low system load"
+			return 0
+		else
+			_log do $funcname daemon info "already running, ignoring call (task: $( cat $lockfile ))"
+			return 1
+		fi
+	else
+		_watch counter "/tmp/scheduler_lockfile_counter" set 1
+	fi
+
+	return 0
+}
+
 _scheduler_run ()
 {
 	_scheduler vars
@@ -245,32 +276,23 @@ _scheduler_run ()
 	local FILE LINE
 	local LOCKFILE="/tmp/lockfile_scheduler_is_running"
 
-	if [ -e $LOCKFILE -o $( _system uptime min ) -lt 5 ]; then
-
-		_watch counter "/tmp/scheduler_lockfile_counter" increment 1 max 200 || {
-			_log do $FUNC daemon alert "removing lockfile, which seems to be left by accident"
-			rm $LOCKFILE
-		}
-
-		_log do $FUNC daemon debug "already running (task '$( cat $LOCKFILE )') or low uptime - ignoring call"
-		return 1
-	else
-		_watch counter "/tmp/scheduler_lockfile_counter" set 1
-	fi
-
-	_cron watchdog_is_running || _cron daemon_restart "watchdog missing"
-
 				# fixme! better use 'scheduler_run.sh' instead of lockfile
 	scheduler_cleanup ()	# fixme! respect DRY
 	{
-		rm /tmp/lockfile_scheduler_is_running
+		rm "/tmp/lockfile_scheduler_is_running"
 		_log do scheduler_run daemon info "cleanup called during '$LINE'"
 
 		exit 1		# fixme! use return?
 	}
 
-	trap "scheduler_cleanup" SIGINT		# SIGINT = CTRL+C, SIGHUP/SIGTERM?
-	touch $LOCKFILE
+	if _scheduler allow_run ; then
+		trap "scheduler_cleanup" SIGINT	# SIGINT = CTRL+C, SIGHUP/SIGTERM?
+		touch $LOCKFILE
+	else
+		return 1
+	fi
+
+	_cron watchdog_is_running || _cron daemon_restart "watchdog missing"
 
 	local list_scheduler_file_parts="$( ls -1 ${FILE_SCHEDULER_TMP}* 2>/dev/null )"
 	if [ -n "$list_scheduler_file_parts" ]; then
