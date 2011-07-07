@@ -273,35 +273,25 @@ _watch_zombie_processes ()
 _watch_flash_free_space ()
 {
 	local funcname="watch_flash_free_space"
+	local border="150"
 	local file
 
-	[ $( _system flash_free ) -lt 150 ] && {
+	list_files_removeable()
+	{
+		ls -1 /www/cgi-bin/user-* /usr/lib/*pkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+
 
-		[ ! -e /tmp/REPO_REMOVED ] && {
-			_log do $funcname daemon info "only $( _system flash_free ) kb free - removing files in /usr/lib/*pkg/lists/"
-
-			for file in /usr/lib/*pkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+ /www/everlasting_syslog.txt; do {
-				[ -e "$file" ] && {
-					_log do $funcname daemon info "only $( _system flash_free ) kb free - removing '$file' with $( _file size "$file" ) bytes"
-					rm "$file"
-				}
-			} done
-
-			touch /tmp/REPO_REMOVED
+		[ -e /tmp/SEND_ALIVE_FAILED ] || {		# means, that content is likely already send by monitoring to server
+			echo "/www/everlasting_syslog.txt"
 		}
-
-		while [ -n "$( ls -1 /www/cgi-bin/user-* )" -a $( _system flash_free ) -lt 150 ]; do {
-			file="$( ls -1 /www/cgi-bin/user-* | head -n1 )"
-			_log do $funcname daemon info "only $( _system flash_free ) kb free - removing '$file' with $( _file size "$file" ) bytes"
-			rm "$file"
-		} done
-
-		[ -e /tmp/SEND_ALIVE_FAILED ] || {		# fixme! (this means, data has'nt been send yet)
-			rm /www/everlasting_syslog.txt		# content is already on server
-		}
-
-		# dmesg | fgrep "mini_fo: create_sto_file: ERROR creating sto file." && reboot		// fixme!
 	}
+
+	while [ -n "$( list_files_removeable )" -a $( _system flash_free ) -lt $border ]; do {
+		file="$( list_files_removeable | head -n1 )"
+		_log do $funcname daemon info "only $( _system flash_free ) kb free - removing '$file' with $( _file size "$file" ) bytes"
+		rm "$file"
+	} done
+
+	# dmesg | fgrep "mini_fo: create_sto_file: ERROR creating sto file." && reboot		// fixme!
 }
 
 _watch_dns_resolution ()	# only with existing dnsmasq and reachable internet-gateway
