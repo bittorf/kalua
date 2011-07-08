@@ -237,6 +237,7 @@ _firmware_burn ()
 	local FILE="$1"
 	local FUNC="firmware_burn"
 	local OUT
+	local pause="60"
 
 	_log shell_is_interactive && {
 		screen -ls | fgrep -qi "Attached" || {
@@ -302,19 +303,22 @@ _firmware_burn ()
 			sleep 5
 		} done
 
-		mylog "watchdog found, enforcing watchdog-ending"
-		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
-		mylog "sleeping 60sec"
-		sleep 60
-
 		local task list_tasks
 		list_tasks="crond S69watch_olsrd_fff+ scheduler uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd olsrd polipo cron_watchdog.sh"
 
-		_log shell_is_interactive || {
+		if _log shell_is_interactive; then
+			pause="60"
+		else
 			list_tasks="$list_tasks screen dropbear wifi_down hostapd"
-		}
+			pause="180"
+		fi
 
 		list_tasks="$list_tasks pause $list_tasks"		# double try...
+
+		mylog "watchdog found, enforcing watchdog-ending"
+		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
+		mylog "sleeping $pause sec"
+		sleep $pause
 
 		for task in $list_tasks ; do {
 
