@@ -61,7 +61,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 		*)
 			echo "Usage: _$FUNC <table> <action>"
 			echo "       _$FUNC profile|login|device show [<id>|last|\"elementA elementB ... elementN\"]"
-			echo "       _$FUNC profile|login|device list [last <num>|reverse] | add autoid ... | del <id>|update <id> ..."
+			echo "       _$FUNC profile|login|device list [last <num>|reverse] | linecount | add autoid ... | del <id>|update <id> ..."
 			echo "       _$FUNC profile|login|device query ( profile_id <id> | hash2id <hash> | string2id <string> )"
 			return 1
 		;;
@@ -179,7 +179,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 				echo "$HASH"
 
 			} done >$INDEX
-			_stopwatch stop $ACTION quiet
+			_stopwatch stop $ACTION quiet "$( _db user login list linecount )" "tickets"
 
 			_log do $FUNC daemon info "$ACTION: wrote '$INDEX'"
 			_db backup
@@ -188,6 +188,9 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 			[ -e "$DIR/rows" ] || return 1
 
 			case "$ID" in
+				linecount)
+					fgrep -c 'A=' "$DIR/rows"
+				;;
 				last)
 					sed -n '/A=/=' "$DIR/rows" | tail -n ${OPTION:-1}
 				;;
@@ -467,7 +470,7 @@ _db_autocreate_tickets_and_send_mail ()
 				COUNTER="$(( $COUNTER + 1 ))"
 				_db user login add "$PROFILE_ID" "" "" "" "$DEVICE_QUANTITY" "$UNIXTIME" "$FUZZY"
 			} done
-			_stopwatch stop Generating_${TICKET_QUANTITY}_Tickets quiet
+			_stopwatch stop Generating_${TICKET_QUANTITY}_Tickets quiet "${TICKET_QUANTITY}" "tickets"
 			_db user login index_gen
 
 			LIST_ID="$( _db user login list last $TICKET_QUANTITY )"	
