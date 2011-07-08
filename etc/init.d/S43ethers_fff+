@@ -29,31 +29,32 @@ build_network_clients ()
 
 	OKT4_START=$(( $OKT4_START + 1 ))		# without network
 
-	if   [ "$PRE" -ge 24 ] && [ "$PRE" -le 30 ]; then		# this is not correct, just an workaround!
+	[ "$PRE" -lt 24 ] && {
+		_log do $FUNC daemon info "error, CIDR-netmask $PRE is <24 or >30 - not implemented yet, fallback to 24"
+		PRE="24"
+	}
 
-		[ "$PRE" = "30" ] && OKT4_START=$(( $OKT4_START - 1 ))
-
-		while [ $OKT4_START -lt $OKT4_END ]; do {
-
-			out="$OKT1.$OKT2.$OKT3.$OKT4_START"
-
-			[ "$myip" = "$out" ] || {
-				echo "$out;"
+	case "$PRE" in
+		31|32)
+			echo "$myip;"
+		;;
+		*)					# 24...30
+			[ "$PRE" = "30" ] && {
+				OKT4_START=$(( $OKT4_START - 1 ))
 			}
 
-			OKT4_START=$(( $OKT4_START + 1 ))
-		} done
+			while [ $OKT4_START -lt $OKT4_END ]; do {
 
-	elif [ "$PRE" = "32" ]; then
+				out="$OKT1.$OKT2.$OKT3.$OKT4_START"
 
-		echo "$myip;"
-	else
-		_log do $FUNC daemon debug "error, CIDR-netmask <24 or >30 not implemented yet!"
+				[ "$myip" = "$out" ] || {
+					echo "$out;"
+				}
 
-		sed -n "s/^${NET}ADR=\(.*\)/\1/p" /tmp/NETPARAM			# fixme! uiuiui!
-		echo "# (printing at least the IP itself, maybe it helps)"
-		echo "# error, CIDR-netmask = $PRE, which is <24 or >30 - not implemented yet!"
-	fi
+				OKT4_START=$(( $OKT4_START + 1 ))
+			} done
+		;;
+	esac
 
 	case "$NET" in
 		lan|LAN)
