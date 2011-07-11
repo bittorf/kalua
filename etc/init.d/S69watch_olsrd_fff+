@@ -33,3 +33,60 @@ _watch webcam
 _watch webserver
 _watch sshd_or_telnet
 _watch random_node_id
+
+update_needed()
+{
+	case "$( uci get system.@profile[0].name )" in
+		 liszt28*) ;;
+			*) return 1 ;;
+	esac
+
+	_uci is_oldstyle && {
+		return 1
+	}
+
+	[ "$( _system version short )" -ge 27575 ] && {
+		return 1
+	}
+
+	_net local_inet_offer >/dev/null && {
+		return 1
+	}
+
+	[ "$( _software package_status kernel | grep ^Architecture: | cut -d' ' -f2 )" = "ar71xx" ] || {
+		return 1
+	}
+
+	[ "$( _system uptime min )" -ge 30 ] || {
+		return 1
+	}
+
+	return 0
+}
+
+fetch_firmware()
+{
+	local hash="hash=dd46a08fb252b79723f7a8456adf90e6"
+	local source="http://intercity-vpn.de/firmware/ar71xx/images/testing/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
+
+	while [ "$( md5sum "/tmp/fw" | cut -d" " -f1 )" != "$hash" ]; do {
+		_log do fetch_firmware daemon info "http_get $source"
+		wget -qcO /tmp/fw "$source"
+		sleep 1
+		 _watch counter "/tmp/fetch_firmware" increment 1 max 100 || break
+	} done
+
+	if _watch counter "/tmp/fetch_firmware" increment 1 max 100; then
+		return 0
+	else
+		rm /tmp/fw
+		return 1
+	fi
+}
+
+update_needed && {
+	fetch_firmware && {
+		_firmware burn /tmp/fw
+	}
+}
+
