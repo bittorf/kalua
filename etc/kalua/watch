@@ -8,6 +8,7 @@ _watch_usbstick_rehungen()
 {
 	local func="watch_usbstick_rehungen"
 	local mountpoint="/tmp/usb0"
+	local partition="/dev/sda1"
 
 	fgrep -q "Vendor=18a5 ProdID=0302" /proc/bus/usb/devices && {
 		mount | fgrep -q "$mountpoint" || {
@@ -18,15 +19,26 @@ _watch_usbstick_rehungen()
 
 			mount_usb()
 			{
-				mount -t btrfs -o compress,ssd /dev/sda1 "$mountpoint" && {
+				mount -t btrfs -o compress,ssd "$partition" "$mountpoint" && {
 					_log do $func daemon info "[OK] mounted"
 				}
 			}
 
 			mount_usb || {
 				_log do $func daemon info "mount failed"
-				mkfs.btrfs /dev/sda1
-				mount_usb
+
+				mkfs.btrfs "$partition" || {
+					_log do $func daemon info "[ERR] failed to format $partition"
+					rm -fR "$mountpoint"
+					return 1
+				}
+
+				mount_usb || {
+					_log do $func daemon info "[ERR] failed to mount $partition"
+					rm -fR "$mountpoint"
+					return 1
+				}
+
 				touch "$mountpoint/polipo.log"		# _watch_local_proxy() needs this
 			}
 
