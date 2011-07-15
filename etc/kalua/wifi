@@ -1,3 +1,5 @@
+# iw phy phy0 interface add moni0 type monitor
+
 # alle devs rausbekommen
 # pro dev herausbekommen, welche hardware = welcher treiber
 
@@ -62,7 +64,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 	esac
 
 	local file="/sys/kernel/debug/ieee80211/phy0/netdev:${wifi_dev}/stations/$mac/rc_stats"
-	local line result targetline rate throughput efficiency
+	local line result targetline rate throughput efficiency system
 	local max=0
 
 	[ -e "$file" ] || return
@@ -152,7 +154,13 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 # 		logger -s "TL 1: $1 2: $2 3: $3 4:$3 5: $5 6: $6 7: $7 8: $8 9: $9"
 
 		case "$2" in
-			1|2|5.5|11|6|9|12|18|24|36|48|54|*MCS*)
+			*MCS*)
+				system="n"
+				rate="$2"
+				throughput="$3"
+			;;
+			1|2|5.5|11|6|9|12|18|24|36|48|54)
+				system="g"
 				rate="$2"
 				throughput="$3"
 			;;
@@ -168,8 +176,12 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 
 			case "$rate" in
 				*MCS*)
+					system="n"
 					rate="$( _wifi math_mcs2rate "$1" "$1" "$rate" "$option" )"
 #					logger -s "rate: $rate"
+				;;
+				*)
+					system="g"
 				;;
 			esac
 
@@ -183,7 +195,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 		}
 	}
 
-	echo "txrate=${rate:-0};txthroughput=${throughput:-0};efficiency=${efficiency:-0};"
+	echo "txrate=${rate:-0};txthroughput=${throughput:-0};efficiency=${efficiency:-0};system=${system};"
 }
 
 _wifi_math_mcs2rate()			# fixme! output spatial streams, coding rate, modulation type?
