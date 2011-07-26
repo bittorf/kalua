@@ -201,17 +201,19 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 				_speedtest do $WANADR 84.38.67.43 tcpdownload		# fixme! respect type: wan, lan ...
 				_speedtest do $WANADR 84.38.67.43 tcpupload
-
-				eval $( _speedtest stats $WANADR 84.38.67.43 tcpdownload )
-				WAN_SPEED_DOWNLOAD="$SPEED_AVG"
-
-				eval $( _speedtest stats $WANADR 84.38.67.43 tcpupload ) 
-				WAN_SPEED_UPLOAD="$SPEED_AVG"
 			}
 		}
 	else
 		_log do $FUNC daemon info "public IP cannot be sanitized to ip4: '$PUBIP'"
 	fi
+
+	_net local_inet_offer >/dev/null && {
+		eval $( _speedtest stats $WANADR 84.38.67.43 tcpdownload )
+		WAN_SPEED_DOWNLOAD="$SPEED_AVG"
+
+		eval $( _speedtest stats $WANADR 84.38.67.43 tcpupload ) 
+		WAN_SPEED_UPLOAD="$SPEED_AVG"
+	}
 
 	# _needs gwcheck
 	#
@@ -315,7 +317,6 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	unset IFS
 
 	PFILTER="${PFILTER_NAT:-0}:${PFILTER_FILTER:-0}:${PFILTER_MANGLE}:${PFILTER_MANGLE_REAL}:${PFILTER_MANGLE_USER_REAL:-0}:${PFILTER_MANGLE_USER_RESERVE:-0}:${PFILTER}"
-	PFILTER="${PFILTER}:${WANADR}/${WANPRE}/$( uci get network.wan.proto )/${WAN_SPEED_DOWNLOAD}/${WAN_SPEED_UPLOAD}"
 	PFILTER="$( _sanitizer do "$PFILTER" urlvalue )"
 
 	[ -e /tmp/FREE ] && {
@@ -343,13 +344,25 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	QUERY="${QUERY}&s1=$( _switch show )"
 	QUERY="${QUERY}&h1=$( _system ram_size )"
 
+	[ -n "$WAN_SPEED_DOWNLOAD" ] && {
+		URL_SLASH="%2f"
+		QUERY="${QUERY}&i0=$( uci get network.wan.proto )"
+		QUERY="${QUERY}&i1=${WANADR}${URL_SLASH}${WANPRE}"
+		QUERY="${QUERY}&i2=${WAN_SPEED_DOWNLOAD}"
+		QUERY="${QUERY}&i3=${WAN_SPEED_UPLOAD}"
+	}
+
 	case "$( uci get system.@profile[0].name )" in
 		aschbach*)
 			QUERY="${QUERY}&r0=$( _wifi signal wlan2 )"	# adhoc -> 1st essid
 			QUERY="${QUERY}&r1=$( _wifi signal wlan0 )"	# ap -> 2nd essid
 			QUERY="${QUERY}&r2=$( _wifi signal wlan1 )"	# ap/wep(kasse) -> 3rd essid
 		;;
+		*)
+			QUERY="${QUERY}&r0=$( _wifi signal $WIFIDEV )"	# adhoc or ap
+		;;
 	esac
+
 
 	echo >>/tmp/ARCHIV_MONITORING "$QUERY"
 
