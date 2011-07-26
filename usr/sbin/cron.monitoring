@@ -197,6 +197,16 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 			_net local_inet_offer >/dev/null && {		# respect maybe new DHCP-values
 				/etc/init.d/S41build_static_netparam
 				/etc/init.d/S43ethers_fff+ call
+				. /tmp/NETPARAM
+
+				_speedtest do $WANADR 84.38.67.43 tcpdownload		# fixme! respect type: wan, lan ...
+				_speedtest do $WANADR 84.38.67.43 tcpupload
+
+				eval $( _speedtest stats $WANADR 84.38.67.43 tcpdownload )
+				WAN_SPEED_DOWNLOAD="$SPEED_AVG"
+
+				eval $( _speedtest stats $WANADR 84.38.67.43 tcpupload ) 
+				WAN_SPEED_UPLOAD="$SPEED_AVG"
 			}
 		}
 	else
@@ -305,7 +315,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	unset IFS
 
 	PFILTER="${PFILTER_NAT:-0}:${PFILTER_FILTER:-0}:${PFILTER_MANGLE}:${PFILTER_MANGLE_REAL}:${PFILTER_MANGLE_USER_REAL:-0}:${PFILTER_MANGLE_USER_RESERVE:-0}:${PFILTER}"
-	PFILTER="${PFILTER}:${WANADR}/${WANPRE}/$( uci get network.wan.proto )"
+	PFILTER="${PFILTER}:${WANADR}/${WANPRE}/$( uci get network.wan.proto )/${WAN_SPEED_DOWNLOAD}/${WAN_SPEED_UPLOAD}"
 	PFILTER="$( _sanitizer do "$PFILTER" urlvalue )"
 
 	[ -e /tmp/FREE ] && {
