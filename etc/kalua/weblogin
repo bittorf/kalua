@@ -1,12 +1,5 @@
 _weblogin_splashscript ()
 {
-	case "$( uci get system.@profile[0].name )" in
-		apphalle_*)
-			echo -n "cgi-bin-welcome.sh"
-			return
-		;;
-	esac
-
 	if [ -e /usr/sbin/uhttpd ]; then
 		echo -n "cgi-bin-welcome.sh"
 	else
@@ -422,6 +415,19 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		}
 	fi
 
+	needs_enforced_newstyle()
+	{
+		case "$( uci get system.@profile[0].name )" in
+			apphalle_*)
+				echo -n "cgi-bin-welcome.sh"
+				return 0
+			;;
+			*)
+				return 1
+			;;
+		esac
+	}
+
 #	[ "$FREE" != "1" ] && {
 
 		GATEWAY="$( uci get system.@weblogin[0].authserver )"		
@@ -445,6 +451,9 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
 
 		elif [ -e /usr/sbin/uhttpd ]; then
+			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
+			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
+		elif needs_enforced_newstyle ; then
 			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
 			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
 		else
