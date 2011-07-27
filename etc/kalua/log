@@ -22,13 +22,15 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
 
 	local FATHER_PROCESS="$0"
-	local       FUNCTION="$1"	# ARG1, string (name of function, from where call was invoked)
-	local       FACILITY="$2"	# ARG2, string (source = kern,user,mail,daemon,syslog,lpr,news,uucp,cron,authpriv,local0-7)
-	local           PRIO="$3"	# ARG3, string (emerg,alert,crit,err,warning,notice,info,debug,sms)	// nonstandard: sms
-	local        MESSAGE="$4"	# ARG4, string (humanreadable verbose message, all is syslog-alike)
+	local FUNCTION="$1"		# ARG1, string (name of function, from where call was invoked)
+	local FACILITY="$2"		# ARG2, string (source = kern,user,mail,daemon,syslog,lpr,news,uucp,cron,authpriv,local0-7)
+	local PRIO="$3"			# ARG3, string (emerg,alert,crit,err,warning,notice,info,debug,sms)	// nonstandard: sms
+	local MESSAGE="$4"		# ARG4, string (humanreadable verbose message, all is syslog-alike)
 	local message_sms="$5"
 	local phonenumber="$6"
-	local        EVERLOG="/www/everlasting_syslog.txt"
+	local force="$7"
+
+	local EVERLOG="/www/everlasting_syslog.txt"
 	local MEM UPTIME DATE
 
 	mem_uptime_and_date ()
@@ -104,9 +106,11 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 					[ -e /www/REBOOT_COUNTER ] && \
 						read reboots </www/REBOOT_COUNTER
 
-					[ ${reboots:-0} -lt 3 ] && {		# fixme! respect reason
-						_log do logger daemon info "no sms, reboot counter = '$reboots', which is < 3"
-						list=
+					[ -z "$force" ] && {
+						[ ${reboots:-0} -lt 3 ] && {
+							_log do logger daemon info "no sms, reboot counter = '$reboots', which is < 3"
+							list=
+						}
 					}
 
 					for dest in $list; do {
