@@ -80,7 +80,9 @@ fi
   -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE_MARKER" \
   -o -n "$FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER" \
   -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE_MARKER_DIGEST" \
-  -o -n "$FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER_DIGEST" ] && {
+  -o -n "$FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER_DIGEST" \
+  -o -n "$FORM_ACTION_LOGIN_SENDMAIL_RANGE" \
+  -o -n "$FORM_ACTION_LOGIN_SENDMAIL_CHECKED" ] && {
 
 	FORM_ACTION="login_show"
 
@@ -118,6 +120,10 @@ fi
 
 		_pdf output a4marker "$LIST_FORM_CHECKBOX"		# labels/etiketten
 
+	elif [ -n "$FORM_ACTION_LOGIN_SENDMAIL_RANGE" -o -n "$FORM_ACTION_LOGIN_SENDMAIL_CHECKED" ]; then
+
+		_scheduler add "_db autocreate_tickets_and_send_mail \"$( _sanitizer do "$LIST_FORM_CHECKBOX" newlines2spaces )\" existing_tickets"
+
 	else								# labels/etiketten-uebersicht
 		FILENAME="$( _pdf filename labels_overview "$N" "$NAME" )"
 		output_mimetype "application/pdf"
@@ -126,7 +132,8 @@ fi
 	fi
 
 	_log do gui_print_tickets daemon info "[done]"
-	exit	
+
+	[ -n "$FORM_ACTION_LOGIN_SENDMAIL_RANGE" -o -n "$FORM_ACTION_LOGIN_SENDMAIL_CHECKED" ] || exit
 }
 
 case "$FORM_ACTION" in
@@ -529,19 +536,27 @@ EOF
 
 		} done
 
-		echo -n "<tr bgcolor='$BG_0'><td colspan='8' nowrap align='right'>"
+		echo -n "<tr bgcolor='$BG_0'><td colspan='9' nowrap align='right'>"
 		echo -n "<p>&nbsp;Ausgew&auml;hlte Logins&nbsp;"
 		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_DEL_CHECKED' value='l&ouml;schen'>&nbsp;oder&nbsp;"
 		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED' value='&Uuml;bersicht (PDF)'>&nbsp;oder&nbsp;"
 		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER' value='Etiketten (PDF)'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER_DIGEST' value='Etiketten&Uuml;bersicht (PDF)'>"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER_DIGEST' value='Etiketten&Uuml;bersicht (PDF)'>&nbsp;oder&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_SENDMAIL_CHECKED' value='Mailversand'>"
 		echo -n "</p><p>&nbsp;Alle angezeigten Logins&nbsp;"
 		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_DEL_RANGE' value='l&ouml;schen'>&nbsp;oder&nbsp;"
 		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE' value='&Uuml;bersicht (PDF)'>&nbsp;oder&nbsp;"
 		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE_MARKER' value='Etiketten (PDF)'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE_MARKER_DIGEST' value='Etiketten&Uuml;bersicht (PDF)'>"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE_MARKER_DIGEST' value='Etiketten&Uuml;bersicht (PDF)'>&nbsp;oder&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_SENDMAIL_RANGE' value='Mailversand'>"
 		echo -n "</p></td>"
-		echo -n "<td colspan='1'></td></tr></table></form></html>"
+		echo -n "</tr></table></form>"
+
+		[ -n "$FORM_ACTION_LOGIN_SENDMAIL_RANGE" -o -n "$FORM_ACTION_LOGIN_SENDMAIL_CHECKED" ] && {
+			echo -n "<br><i>Hinweis:</i> Die Tickets werden in den n&auml;chsten Minuten per E-Mail zugestellt."
+		}
+
+		echo -n "</html>"
 	;;
 	*)
 		cat <<EOF
