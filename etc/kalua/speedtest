@@ -40,7 +40,7 @@ Usage:	_speedtest do <firstIP> <secondIP> <method> <duration>
 	
 	<firstIP> can also be the keyword "here" or "path_to"
 	<secondIP> can also be a keyword, e.g. "here", "gateway", "inetgateway", "neighs_onehop" or "neighs_wifi_onehop"
-	<method> can be "poormens_tcpdownload", "udpupload", "udpdownload", "tcpdownload" or "tcpupload"
+	<method> can be "poormens_tcpdownload", "poormens_tcpdownload", "poormens_tcpupload", "udpupload", "udpdownload", "tcpdownload" or "tcpupload"
 
 e.g.:	_speedtest do here gateway udpupload 15
 	_speedtest do 10.63.12.1 10.63.99.1 tcpdownload 5
@@ -116,7 +116,7 @@ EOF
 	local PID_OF_TOOL
 
 	case "$METHOD" in
-		poormens_tcpdownload*|udpupload|udpdownload|tcpupload|tcpdownload)
+		poormens_tcpupload|poormens_tcpdownload*|udpupload|udpdownload|tcpupload|tcpdownload)
 			:
 		;;
 		*)
@@ -180,6 +180,26 @@ EOF
 			netperf -H $1 -t $2 -l $3 >/dev/null &
 		}
 
+		LOAD_BEGIN="$( _system load 1min )"
+		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
+		OLSR_COST_BEGIN=$COST
+
+		UNIXTIME="$(  _system date unixtime )"
+		HUMANTIME="$( _system date humanreadable )"
+		METRIC_BEGIN="$( _olsr remoteip2metric $IP_TARGET )"
+		DEVTYPE="$( _net dev_type $( _net ip2dev $IP_TARGET ))"
+
+
+		case "$METHOD" in
+			poormens_tcpdownload*)
+			;;
+			*)
+				_stopwatch start speedtest_$$			########### START (tool will be started) ##########
+			;;
+		esac
+
+		SHELL_UNDOCKED=
+
 		case "$METHOD" in
 			poormens_tcpdownload*|tcpdownload|udpdownload)
 				DIRECTION="download"
@@ -188,10 +208,14 @@ EOF
 					poormens_tcpdownload)
 						iptables -I INPUT -p tcp --sport 80 -s $IP_TARGET
 						wget -qO /dev/null "http://$IP_TARGET/cgi-bin-dev-zero.bin" &
+						PID_OF_TOOL="$!"
+						SHELL_UNDOCKED="true"
 					;;
 					poormens_tcpdownload2)
 						iptables -I INPUT -p tcp --sport 80 -s $IP_TARGET
 						wget -qO /dev/null "http://$IP_TARGET/data.bin" &
+						PID_OF_TOOL="$!"
+						SHELL_UNDOCKED="true"
 					;;
 					tcpdownload)
 						iptables -I INPUT -p tcp -s $IP_TARGET
@@ -203,7 +227,7 @@ EOF
 					;;
 				esac
 			;;
-			udpupload|tcpupload)
+			poormens_tcpupload|udpupload|tcpupload)
 				DIRECTION="upload"
 
 				case "$METHOD" in		# seems that dport (12865?) changes randomly, so it's a bit inexact
@@ -215,53 +239,68 @@ EOF
 						iptables -I OUTPUT -p tcp -d $IP_TARGET
 						netperf_fire $IP_TARGET TCP_STREAM $(( $DURATION * 2 ))
 					;;
+					poormens_tcpupload)
+						iptables -I OUTPUT -p tcp -d $IP_TARGET
+
+						generate_fake_http_data()
+						{
+							local target="$1"
+							local size="$(( $2 * 1048576 ))"
+
+							echo "POST /index.php HTTP/1.1"
+							echo "Host: $target"
+							echo "Content-Type: application/x-www-form-urlencoded"
+							echo "Content-Length: $size"
+							echo
+
+							dd if=/dev/zero bs=64k count=$(( $size / 65536 )) 2>&-
+						}
+
+						generate_fake_http_data $IP_TARGET 1 megabyte | nc $IP_TARGET 80 >/dev/null
+					;;
 				esac
 			;;
 		esac
 
-		PID_OF_TOOL="$!"
-		[ -z "$PID_OF_TOOL" ] && _log do $FUNC daemon info "[ERR] empty pid of measurement-tool"
-		trap "kill $PID_OF_TOOL" SIGINT
+		[ "$SHELL_UNDOCKED" = "true" ] && {			# measurement-tool runs in background
+			if [ -z "$PID_OF_TOOL" ]; then
+				_log do $FUNC daemon info "[ERR] empty pid of measurement-tool"
+			else
+				trap "kill $PID_OF_TOOL" SIGINT
+			fi
 
-		_stopwatch start speedtest_$$				############## START ###########
+			_stopwatch start speedtest_$$			############## START (tool is running) ###########
 
-		LOAD_BEGIN="$( _system load 1min )"
-		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
-		OLSR_COST_BEGIN=$COST
+			[ "$DIRECTION" = "upload" ] || {
 
-		UNIXTIME="$(  _system date unixtime )"
-		HUMANTIME="$( _system date humanreadable )"
-		METRIC_BEGIN="$( _olsr remoteip2metric $IP_TARGET )"
-		DEVTYPE="$( _net dev_type $( _net ip2dev $IP_TARGET ))"
+				[ "$DEVTYPE" = "wifi" ] || {
+					_log do $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
+				}
 
-		[ "$DIRECTION" = "upload" ] || {
-			[ "$DEVTYPE" = "wifi" ] || {
-				_log do $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
+				while [ ${DURATION_COUNTER:=0} -lt $(( $DURATION / 2 )) ]; do {
+
+					[ "$DIRECTION" = "upload" -a "$DEVTYPE" = "wifi" -a "${METRIC_BEGIN:=0}" = "1" ] && {
+
+						RATE="$( wl -i $WIFIDEV rate | cut -d' ' -f3 )"		# fixme! use _wifi()-abstraction
+						case "${RATE:=0}" in
+							5.5) RATE=5500 ;;
+							  0) RATE=1000 ;;
+							  *) RATE="${RATE}000" ;;			# rate is convert to [Kilobit]
+						esac
+
+						[ $RATE -gt ${RATE_MAX:-0}	] && RATE_MAX="$RATE"
+						[ $RATE -lt ${RATE_MIN:-600000}	] && RATE_MIN="$RATE"
+						RATE_AVG="$(( ${RATE_AVG:-0} + $RATE ))"
+						RATE_SAMPLES="$(( ${RATE_SAMPLES:-0} + 1 ))"
+
+						_log do $FUNC daemon debug "rate: $RATE"
+					}
+
+					sleep 1
+					DURATION_COUNTER="$(( $DURATION_COUNTER + 1 ))"
+				} done
 			}
 		}
-
-		while [ ${DURATION_COUNTER:=0} -lt $(( $DURATION / 2 )) ]; do {
-
-			[ "$DIRECTION" = "upload" -a "$DEVTYPE" = "wifi" -a "${METRIC_BEGIN:=0}" = "1" ] && {
-
-				RATE="$( wl -i $WIFIDEV rate | cut -d' ' -f3 )"		# fixme! use _wifi()-abstraction
-				case "${RATE:=0}" in
-					5.5) RATE=5500 ;;
-					  0) RATE=1000 ;;
-					  *) RATE="${RATE}000" ;;			# rate is convert to [Kilobit]
-				esac
-				
-				[ $RATE -gt ${RATE_MAX:-0}	] && RATE_MAX="$RATE"
-				[ $RATE -lt ${RATE_MIN:-600000}	] && RATE_MIN="$RATE"
-				RATE_AVG="$(( ${RATE_AVG:-0} + $RATE ))"
-				RATE_SAMPLES="$(( ${RATE_SAMPLES:-0} + 1 ))"
-				
-				_log do $FUNC daemon debug "rate: $RATE"
-			}
-
-			sleep 1
-			DURATION_COUNTER="$(( $DURATION_COUNTER + 1 ))"
-		} done
 
 		DURATION_COUNTER=0
 		RATE_AVG="$(( ${RATE_AVG:-0} / ${RATE_SAMPLES:-1} ))"
@@ -272,8 +311,8 @@ EOF
 		eval "$( neigh get_nlq $IP_TARGET speedtest )"		# LQ|NLQ|COST
 		OLSR_COST_END=$COST
 
-		[ -e "/proc/$PID_OF_TOOL" ] && kill $PID_OF_TOOL	# normally this is only needed when poormens_tcpdownload
-		DURATION_REAL="$( _stopwatch stop speedtest_$$ )"	############## END #############
+		[ -e "/proc/${PID_OF_TOOL:-unset}" ] && kill $PID_OF_TOOL	# normally this is only needed when poormens_tcpdownload
+		DURATION_REAL="$( _stopwatch stop speedtest_$$ )"		############## END #############
 
 		case "$DIRECTION" in
 			download)
@@ -289,12 +328,27 @@ EOF
 		trap - SIGINT						# unset
 		SPEED="$(( ${BYTES:=0} / $DURATION_REAL / 10 ))"	# kilobytes / second ; 1 Kilobyte = 1000 Bytes
 
-		SPEED_MEGABIT="$(( ( $SPEED * 8 ) / 1000 ))"
-		if [ "$SPEED_MEGABIT" -lt 100 ]; then
-			SPEED_MEGABIT="${SPEED_MEGABIT}.0$( echo $(( ( $SPEED * 8 ) % 1000 )) | cut -b1 )"		# 12 Kilobyte -> x8 = 96 Kilobit -> 0.096 mbit
-		else
-			SPEED_MEGABIT="${SPEED_MEGABIT}.$( echo $(( ( $SPEED * 8 ) % 1000 )) | cut -b1 )"		# 1674 Kilobyte -> x8 = 13392 Kilobit -> 13.3 mbit
-		fi
+		kilobyte2megabit()
+		{
+			local kilobyte="$1"
+			local mbit="$(( $kilobyte * 8 ))"
+			local out
+
+			if [ $mbit -lt 1000 ]; then
+				if [ $mbit -lt 100 ]; then
+					out="0.0$(( $mbit % 1000 ))"				#   10 Kilobyte -> x8 =    80 Kilobit -> 0.08 mbit
+				else
+					out="0.$( echo $(( $mbit % 1000 )) | cut -b1,2 )"	#  100 Kilobyte -> x8 =   800 Kilobit -> 0.80 mbit
+				fi
+			else
+				out="$(( $mbit / 1000 ))"
+				out="${out}.$( echo $(( $mbit % 1000 )) | cut -b1 )"		# 2048 Kilobyte -> x8 = 16384 Kilobit -> 16.3 mbit
+			fi
+
+			echo "$out"
+		}
+
+		SPEED_MEGABIT="$( kilobyte2megabit $SPEED )"
 
 		VALUES="IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED RATE_AVG=$RATE_AVG RATE_MIN=${RATE_MIN:-0} RATE_MAX=${RATE_MAX:-0} BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_BEGIN DURATION=${DURATION}000 DURATION_REAL=${DURATION_REAL}0 DEVTYPE=$DEVTYPE"
 		_speedtest_store "$IP_LOCAL" "$IP_TARGET" "$METHOD" "$UNIXTIME" "$SPEED" "$VALUES"
