@@ -1,7 +1,7 @@
 #!/bin/sh
 . /tmp/loader
 
-# here we guess the gateway and write some info for fast including in "/tmp/GATEWAY_CHECK_RECENT"
+# here we guess the gateway an write some info for fast including in "/tmp/GATEWAY_CHECK_RECENT"
 # DATE=2011jan24_11:15; HOSTNAME=ejbw-mesh-dhcp-99.olsr; COST_INT=1000; GATEWAY=10.10.99.33; NEXTHOP=192.168.100.22; METRIC=1
 
 test   -e "/tmp/LOWMEM"				&& exit
@@ -79,23 +79,17 @@ rm $FILE_OLSR_ROUTES
 			OUT="COST_INT=10; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
 		else
 			_log do guess_gateway daemon alert "strange situation: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
+			OUT="COST_INT=10; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
 
-			if [ -e "/tmp/$( basename $0 )_first_error" ]; then
-				OUT="COST_INT=10; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
+			_olsr daemon restart "gateway: $GW nexthop: $WIFIADR"
 
-				_olsr daemon restart "gateway: $GW nexthop: $WIFIADR"
-
-				/etc/init.d/S41build_static_netparam
-				/etc/init.d/S43ethers_fff+ build_network_clients
-			else
-				touch "/tmp/$( basename $0 )_first_error"
-			fi
+			/etc/init.d/S41build_static_netparam
+			/etc/init.d/S43ethers_fff+ build_network_clients
 		fi
 	fi
 }
 
 eval $OUT	# GATEWAY 
-GATEWAY="$( _sanitizer do "$GATEWAY" ip4 )"		# fixme! this is safer, we have seen something like "10.10.27.33/32" for output...
 
 echo "$COST_INT"	>/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY
 echo "$GATEWAY"		>/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY

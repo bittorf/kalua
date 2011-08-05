@@ -395,6 +395,7 @@ _firmware_filelist ()
 		/www/cgi-bin-shoutbox
 		/www/cgi-bin-speed
 		/www/cgi-bin-sql
+		/www/cgi-bin-tunnel.sh
 		/www/cgi-bin-tool_fff+
 		/www/cgi-bin-traffic_fff+
 		/www/cgi-bin-welcome*
@@ -430,12 +431,16 @@ _firmware_upgrade_is_needed()
 		return 1
 	}
 
-	[ "$( _system version short )" -ge 27891 ] && {
+	[ "$( _system version short )" -ge 27832 ] && {
 		return 1
 	}
 
+#	fgrep -q LaLaBa /etc/init.d/apply_profile.code && {
+#		return 1
+#	}
+
 	case "$( uci get system.@profile[0].name )" in
-		liszt28*)
+		aschbach*|liszt28*)
 			:
 		;;
 		*)
@@ -444,7 +449,7 @@ _firmware_upgrade_is_needed()
 	esac
 
 	case "$( uci get system.@profile[0].name )" in
-		ejbw*|notyet_liszt28*|aschbach*|hotello_*)
+		ejbw*|liszt28*|aschbach*|hotello_*)
 
 			# satama* -> alias ip for dns/6.6.6.6 ?
 			# safe upgradeable
@@ -476,19 +481,13 @@ _firmware_upgrade_is_needed()
 
 _firmware_wget()
 {
-	local funcname="firmware_wget"
-	local hash="afa486b0b97f641e582a8b9c0de68d01"
+	local hash="bf7e6fbf86800382d87a089275a9fe20"
 	local source="http://intercity-vpn.de/firmware/ar71xx/images/testing/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
 	local file="${1:-/tmp/fw}"
 
-	[ -e "$file" ] && return 0		# fixme!
+	[ -e "$file" ] && return 0
 
-	filehash_is_ok()
-	{
-		test "$( _file hash "$file" )" = "$hash"
-	}
-
-	while ! filehash_is_ok ; do {
+	while [ "$( md5sum "$file" | cut -d" " -f1 )" != "$hash" ]; do {
 		_log do fetch_firmware daemon info "http_get $source"
 		wget -qcO "$file" "$source"
 		sleep 1
@@ -496,10 +495,8 @@ _firmware_wget()
 	} done
 
 	if _watch counter "/tmp/fetch_firmware" increment 1 max 100; then
-		_log do $funcname daemon info "[READY] downloading '$file'"
 		return 0
 	else
-		_log do $funcname daemon info "[ERR] downloading '$file', maximum tries reached, deleting and aborting"
 		rm "$file" /tmp/fetch_firmware
 		return 1
 	fi
