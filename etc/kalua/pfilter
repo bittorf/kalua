@@ -1081,34 +1081,82 @@ _pfilter_user_splash_control ()				# SENS: controlling if a user must see splash
 
 		echo "$IP"  >/tmp/MAC2IP_${MAC}		# fixme! is a hack for _net_mac2ip
 		echo "$MAC" >/tmp/IP2MAC_${IP}
+
+		_pfilter shaping_tunnel_control start "$MAC" "$IP"
 	else
 		MODE="-D"
 
 		_net dhcp_lease_remove "$MAC"
+		_pfilter shaping_tunnel_control stop "$MAC" "$IP"
 	fi
 
 	_ipt -t mangle $MODE PREROUTING -m mac --mac-source $MAC -j ACCEPT
 	_ipt -t mangle $MODE PREROUTING -d $IP                   -j ACCEPT	
 
-	#
-	# maybe job-schedule only?
-	#
-	# local tunnel_server="10.63.7.1"
-	#
-	# local TRUE TUNNEL_IP_CLIENT TUNNEL_IP_SERVER SPEED_UPLOAD SPEED_DOWNLOAD tunnel_id tunnel_name dummy
-	# wget -O - "http://$tunnel_server/cgi-bin-tunnel.sh?ACTION=tunnel_possible&MAC=${MAC}&IP_USER=${IP}"
-	#
-	# _watch counter "/tmp/tunnel_id" increment 1 max 65 || bla
-	# read tunnel_id </tmp/tunnel_id
-	#
-	# mkdir -p /tmp/tunnel
-	# _tunnel config_build $tunnel_id "$MAC" "$IP" >"/tmp/tunnel/${MAC}.conf"
-	# read tunnel_name dummy <"/tmp/tunnel/${MAC}.conf"
-	#
-	# vtund -f "/tmp/tunnel/${MAC}.conf" "$tunnel_name" "$tunnel_server"
-	#
-
 	_log do $FUNC daemon info "[OK] end - mode: $MODE - $MAC / $IP"
+}
+
+_pfilter_shaping_tunnel_control()		# maybe job-schedule only? move to tunnel() _tunnel clientside_control()
+{
+	local funcname="pfilter_shaping_tunnel_control"
+	local action="${1:-action_unset}"
+	local mac="${2:-mac_unset}"
+	local ip="${3:-ip_unset}"
+
+	case "$( uci get system.@profile[0].name )" in
+		liszt28*)
+		;;
+		*)
+			return 1
+		;;
+	esac
+
+	_tunnel check_local_capable || {
+		_log do $funcname daemon info "tunnel for $mac / $ip locally not capable"
+		return 1
+	}
+
+	local configfile="/tmp/tunnel/${mac}.conf"
+	local pidfile="${configfile}.pid"
+	local tunnel_id tunnel_name dummy answer url pid tunnel_server
+	local TRUE FALSE TUNNEL_IP_CLIENT TUNNEL_IP_SERVER SPEED_UPLOAD SPEED_DOWNLOAD
+
+	case "$action" in
+		start)
+			read tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
+			url="http://$tunnel_server/cgi-bin-tunnel.sh?ACTION=tunnel_possible&MAC=${mac}&IP_USER=${ip}"
+			answer="$( _wget do "$url" )"
+
+			case "$answer" in
+				TRUE*)
+					_watch counter "/tmp/tunnel_id" increment 1 max 65 || {
+						_log do $funcname daemon info "maximum tunnel instances reached, aborting"
+						return 1
+					}
+					read tunnel_id </tmp/tunnel_id
+
+					mkdir -p /tmp/tunnel
+					_tunnel config_build $tunnel_id "$mac" "$ip" >"$configfile"
+					read tunnel_name dummy <"$configfile"
+
+					vtund -f "$configfile" "$tunnel_name" "$tunnel_server" &
+					echo $! >"$pidfile"
+
+					_log do $funcname daemon info "prepared tunnel for $mac / $ip"
+				;;
+				*)
+					_log do $funcname daemon info "tunnel for $mac / $ip not possible, answer from $tunnel_server: '$answer' question: '$url'"
+				;;
+			esac
+		;;
+		stop)
+			_log do $funcname daemon info "stopping tunnel for $mac / $ip"
+			rm "$configfile"
+			read pid <"$pidfile"
+			rm "$pidfile"
+			kill "${pid:-unset}"
+		;;
+	esac
 }
 
 _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
