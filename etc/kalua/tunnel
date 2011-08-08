@@ -201,13 +201,24 @@ _tunnel_daemon_apply_config()
 {
 	local file_config="$1"
 	local pidfile="/tmp/tunnel/vtund.pid"
-	local pid
+	local pid cmdline
 
-	if [ -n "$pid" ]; then
+	if [ -e "$pidfile" ]; then
 		read pid <"$pidfile"
-		kill -SIGHUP $pid
+		read cmdline <"/proc/${pid:-unset}/cmdline"
 	else
-		vtund -s -f "$file_config"
-		_system get_first_pid vtund >"$pidfile"
+		pid="$( _system get_first_pid vtund )"
+		read cmdline <"/proc/${pid:-unset}/cmdline"
 	fi
+
+	case "$cmdline" in
+		vtund*)
+			kill -SIGHUP $pid
+		;;
+		*)
+			vtund -s -f "$file_config"
+			_system get_first_pid vtund >"$pidfile"
+		;;
+	esac
 }
+
