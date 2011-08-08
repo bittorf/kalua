@@ -1123,8 +1123,7 @@ _pfilter_shaping_tunnel_control()		# maybe job-schedule only? move to tunnel() _
 	}
 
 	local configfile="/tmp/tunnel/${mac}.conf"
-	local pidfile="${configfile}.pid"
-	local tunnel_id tunnel_name dummy answer url pid tunnel_server
+	local tunnel_id tunnel_name dummy answer url pid tunnel_server process_output
 	local TRUE FALSE TUNNEL_IP_CLIENT TUNNEL_IP_SERVER SPEED_UPLOAD SPEED_DOWNLOAD
 
 	case "$action" in
@@ -1136,7 +1135,7 @@ _pfilter_shaping_tunnel_control()		# maybe job-schedule only? move to tunnel() _
 			case "$answer" in
 				TRUE*)
 					_watch counter "/tmp/tunnel_id" increment 1 max 65 || {
-						_log do $funcname daemon info "maximum tunnel instances reached, aborting"
+						_log do $funcname daemon info "[ERR] maximum tunnel instances reached, aborting"
 						return 1
 					}
 					read tunnel_id </tmp/tunnel_id
@@ -1145,21 +1144,24 @@ _pfilter_shaping_tunnel_control()		# maybe job-schedule only? move to tunnel() _
 					_tunnel config_build $tunnel_id "$mac" "$ip" >"$configfile"
 					read tunnel_name dummy <"$configfile"
 
-					vtund -f "$configfile" "$tunnel_name" "$tunnel_server" &
-					echo $! >"$pidfile"
+					vtund -f "$configfile" "$tunnel_name" "$tunnel_server"
 
-					_log do $funcname daemon info "prepared tunnel for $mac / $ip"
+					_log do $funcname daemon info "[OK] prepared tunnel for $mac / $ip"
 				;;
 				*)
-					_log do $funcname daemon info "tunnel for $mac / $ip not possible, answer from $tunnel_server: '$answer' question: '$url'"
+					_log do $funcname daemon info "[ERR] tunnel for $mac / $ip not possible, answer from $tunnel_server: '$answer' question: '$url'"
 				;;
 			esac
 		;;
 		stop)
-			_log do $funcname daemon info "stopping tunnel for $mac / $ip"
+			_log do $funcname daemon info "[OK] stopping tunnel for $mac / $ip"
 			rm "$configfile"
-			read pid <"$pidfile"
-			rm "$pidfile"
+
+			read tunnel_name dummy <"$configfile"
+			process_output="$( ps ax | fgrep "$tunnel_name" | fgrep vtund | head -n1 )"		# fixme! there must be a better way...
+			set ${process_output:-empty_process_output}						# running into bg with & and reading $!
+			pid="$1"										# does not work - maybe writing pid during section up{...}?
+
 			kill "${pid:-unset}"
 		;;
 	esac
