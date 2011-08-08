@@ -48,6 +48,7 @@ _tunnel_config_build()				# on client
 	local bin_ip="$( which ip )"
 	local bin_echo="$( which echo )"
 	local bin_sed="$( which sed )"
+	mkdir /var/log/vtund			# for stats
 
 	local name message rt_num logerror
 
@@ -61,6 +62,8 @@ $name {
 	type tun;
 	proto udp;
 	password ff;
+	persist yes;
+	stat yes;
 
 	up {
 		program $bin_logger "-t tunnel_clientUP -p daemon.info [START] $message" wait;
@@ -125,7 +128,7 @@ _tunnel_config_insert_new_client()		# on server
 _tunnel_config_rebuild()			# on server: we have to join many user/connections
 {
 	local storage="/tmp/tunnel"
-	local list_tunnel="$( ls -1 "$storage" )"			# these are files named like macadresses
+	local list_tunnel="$( ls -1 "$storage" | grep ..:..:..:..:..:.. )"		# these are files named like macadresses
 	local tunnel tunnel_id mac ipuser speed name message rt_num
 
 	local mask="30"
@@ -136,8 +139,9 @@ _tunnel_config_rebuild()			# on server: we have to join many user/connections
 	local bin_ip="$( which ip )"
 	local bin_echo="$( which echo )"
 	local bin_sed="$( which sed )"
+	mkdir -p /var/log/vtund				# for stats
 
-	for tunnel in $list_tunnel; do {				# todo: log memory
+	for tunnel in $list_tunnel; do {				# todo: log memory, avoid compression for loopback-conns
 
 		tunnel_id=; mac=; ipuser=; speed=
 		read tunnel_id mac ipuser speed <"$storage/$tunnel" 
@@ -153,6 +157,7 @@ $name {
 	compress lzo:9;
 	encrypt no;
 	speed $speed;
+	stat yes;
 
 	type tun;
 	proto udp;
@@ -195,11 +200,14 @@ EOF
 _tunnel_daemon_apply_config()
 {
 	local file_config="$1"
-	local pid="$( _system get_first_pid vtund )"
+	local pidfile="/tmp/tunnel/vtund.pid"
+	local pid
 
 	if [ -n "$pid" ]; then
+		read pid <"$pidfile"
 		kill -SIGHUP $pid
 	else
 		vtund -s -f "$file_config"
+		_system get_first_pid vtund >"$pidfile"
 	fi
 }
