@@ -1061,8 +1061,9 @@ _pfilter_user_splash_control ()				# SENS: controlling if a user must see splash
 							# ARG2: mac
 	local FUNC="pfilter_user_splash_control"	# ARG3: ip-address
 	local MODE="$1"
-	local  MAC="$2"
-	local   IP="$3"
+	local MAC="$2"
+	local IP="$3"
+	local tunnel_mode
 
 	_log do $FUNC daemon info "[OK] start - mode: $MODE - $MAC / $IP"
 
@@ -1082,16 +1083,19 @@ _pfilter_user_splash_control ()				# SENS: controlling if a user must see splash
 		echo "$IP"  >/tmp/MAC2IP_${MAC}		# fixme! is a hack for _net_mac2ip
 		echo "$MAC" >/tmp/IP2MAC_${IP}
 
-		_pfilter shaping_tunnel_control start "$MAC" "$IP"
+		tunnel_mode="start"
 	else
 		MODE="-D"
 
 		_net dhcp_lease_remove "$MAC"
-		_pfilter shaping_tunnel_control stop "$MAC" "$IP"
+
+		tunnel_mode="stop"
 	fi
 
 	_ipt -t mangle $MODE PREROUTING -m mac --mac-source $MAC -j ACCEPT
 	_ipt -t mangle $MODE PREROUTING -d $IP                   -j ACCEPT	
+
+	_pfilter shaping_tunnel_control "$tunnel_mode" "$MAC" "$IP"
 
 	_log do $FUNC daemon info "[OK] end - mode: $MODE - $MAC / $IP"
 }
@@ -1136,7 +1140,7 @@ _pfilter_shaping_tunnel_control()		# maybe job-schedule only? move to tunnel() _
 			}
 
 			url="http://$tunnel_server/cgi-bin-tunnel.sh?ACTION=tunnel_possible&MAC=${mac}&IP_USER=${ip}"
-			answer="$( _wget do "$url" )"
+			answer="$( _wget do "$url" 3 )"
 
 			case "$answer" in
 				TRUE*)
