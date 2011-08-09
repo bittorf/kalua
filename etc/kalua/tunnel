@@ -117,7 +117,7 @@ _tunnel_config_insert_new_client()		# on server
 	if   [ -z "$speed_upload" ]; then
 		speed="0"					# no shaping at all
 	elif [ -z "$speed_download" ]; then
-		speed="$speed_upload:$speed_upload"		# up/down is symetric (follows vtun idea)
+		speed="$speed_upload:$speed_upload"		# up/down is symetric (follows vtun syntax idea)
 	else
 		speed="$speed_download:$speed_upload"		# normal vtun-syntax
 	fi
@@ -129,7 +129,7 @@ _tunnel_config_rebuild()			# on server: we have to join many user/connections
 {
 	local storage="/tmp/tunnel"
 	local list_tunnel="$( ls -1 "$storage" | grep ..:..:..:..:..:.. )"		# these are files named like macadresses
-	local tunnel tunnel_id mac ipuser speed name message rt_num
+	local tunnel tunnel_id mac ipuser speed name message rt_num compress
 
 	local mask="30"
 	local mtu="1450"
@@ -150,11 +150,20 @@ _tunnel_config_rebuild()			# on server: we have to join many user/connections
 		name="$( _sanitizer do "$tunnel" hostname )"
 		message="id $tunnel_id conn $name dev %% for user $ipuser with speed $speed"
 
+		case "$tunnel" in
+			00:08:c6*)
+				compress="no"
+			;;
+			*)
+				compress="lzo:9"
+			;;
+		esac
+
 		logerror="logger -t tunnel_HELPER -p daemon.err $message "
 
 		cat <<EOF
 $name {
-	compress lzo:9;
+	compress $compress;
 	encrypt no;
 	speed $speed;
 	stat yes;

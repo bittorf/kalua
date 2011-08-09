@@ -24,8 +24,8 @@ case "$ACTION" in
 
 			case "$MAC" in
 				00:08:c6*)				# SIP test
-					SPEED_UPLOAD="64"
-					SPEED_DOWNLOAD="64"
+					SPEED_UPLOAD="90"		# G.711a = 90kbit up + 90kbit down
+					SPEED_DOWNLOAD="90"		# G.729 = 20 kbit up + 20 kbit down
 				;;
 				*)
 					SPEED_UPLOAD="16"		# ACK_only  = 40 Bytes / MTU = 1450 Bytes, so 145.000 Bytes / needs 4000 Bytes Ack or:
