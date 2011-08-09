@@ -323,9 +323,15 @@ _tunnel_clientside_control()
 						ip="$(  _sanitizer do "$( cat "$file" )" ip4 | head -n2 | tail -n1 )"
 						mac="$( _sanitizer do "$( cat "$file" )" mac | head -n1 )"
 
-						_log do $funcname daemon info "awake tunnel $tunnel_name for mac $mac and ip $ip"
+						tunnel_id="$( sed -n 's/^.*echo \([0-9]*\) .*/\1/p' "$file" )"
+						tunnel_id="$(( $tunnel_id - 150 ))"					# fixme! add readable metadata in firstline
+
+						_tunnel config_build "$tunnel_id" "$mac" "$ip" "ignore_intranet_traffic" >"$configfile"
+
 						url="http://$tunnel_server/cgi-bin-tunnel.sh?ACTION=tunnel_possible&MAC=${mac}&IP_USER=${ip}"
 						answer="$( _wget do "$url" 3 )"
+
+						_log do $funcname daemon info "awake tunnel $tunnel_name for mac $mac and ip $ip - answer: $answer"
 				}
 			} done
 		;;
@@ -349,7 +355,7 @@ _tunnel_clientside_control()
 					read tunnel_id </tmp/tunnel_id
 
 					mkdir -p /tmp/tunnel
-					_tunnel config_build $tunnel_id "$mac" "$ip" >"$configfile"
+					_tunnel config_build "$tunnel_id" "$mac" "$ip" >"$configfile"
 					read tunnel_name dummy <"$configfile"
 
 					vtund -f "$configfile" "$tunnel_name" "$tunnel_server"
@@ -432,6 +438,8 @@ _pfilter_shaping_tunnel_control()		# maybe job-schedule only? move to tunnel() _
 
 						ip="$(  _sanitizer do "$( cat "$file" )" ip4 | head -n2 | tail -n1 )"
 						mac="$( _sanitizer do "$( cat "$file" )" mac | head -n1 )"
+
+						_tunnel config_build $tunnel_id "$mac" "$ip" >"$configfile"
 
 						url="http://$tunnel_server/cgi-bin-tunnel.sh?ACTION=tunnel_possible&MAC=${mac}&IP_USER=${ip}"
 						answer="$( _wget do "$url" 3 )"
