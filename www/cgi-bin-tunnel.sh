@@ -21,8 +21,17 @@ case "$ACTION" in
 			read TUNNEL_ID <"/tmp/tunnel_id"
 
 	#		eval $( _tunnel get_speed_for_hash "$HASH" "$MAC" )
-			SPEED_UPLOAD="32"
-			SPEED_DOWNLOAD="256"
+
+			case "$MAC" in
+				00:08:c6*)				# SIP test
+					SPEED_UPLOAD="64"
+					SPEED_DOWNLOAD="64"
+				;;
+				*)
+					SPEED_UPLOAD="16"		# ACK_only  = 40 Bytes / MTU = 1450 Bytes, so 145.000 Bytes / needs 4000 Bytes Ack or:
+					SPEED_DOWNLOAD="512"		# 512 kbit = 64 KB/s @ 46 packets/s(MTU) -> 46 * 40 Bytes ACK = 1840 Bytes/s = 14,7 kbit/s upload -> 16
+				;;
+			esac
 
 			echo -n "TRUE=;"
 			echo -n "SPEED_UPLOAD=$SPEED_UPLOAD;"
