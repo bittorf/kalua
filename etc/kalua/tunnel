@@ -36,6 +36,7 @@ _tunnel_config_build()				# on client
 	local tunnel_id="$1"
 	local mac="$2"
 	local ipuser="$3"
+	local option="$4"			# e.g. 'ignore_intranet_traffic' 	// idea: having an extra tunnel for this
 
 	local storage="/tmp/tunnel"		# todo: always use tunnel_name for TABLE
 	mkdir -p "$storage"
@@ -50,12 +51,25 @@ _tunnel_config_build()				# on client
 	local bin_sed="$( which sed )"
 	mkdir /var/log/vtund			# for stats
 
-	local name message rt_num logerror
+	local name message rt_num logerror prio_first prio_last table_intranet intranet
 
+	intranet="10.0.0.0/8"			# fixme!
 	rt_num="$(( 150 + $tunnel_id ))"
 	name="$( _sanitizer do "$mac" hostname )"
 	message="id $tunnel_id conn $name dev %% for user $ipuser"	# speed unknown, send from server?
 	logerror="logger -t tunnel_HELPER -p daemon.err $message "
+
+	prio1="$3${tunnel_id}0"		# e.g. 3 + 152 + 0 = 31520
+	prio2="$3{tunnel_id}1"		# e.g. 3 + 152 + 1 = 31521
+
+	case "$option" in
+		ignore_intranet_traffic)
+			table_intranet="main"
+		;;
+		*)
+			table_intranet="$mac"
+		;;
+	esac
 
 	cat <<EOF
 $name {
@@ -72,10 +86,9 @@ $name {
 		program "$bin_ip link set dev %% mtu $mtu up" wait;
 
 		program "$bin_echo $rt_num $mac >>/etc/iproute2/rt_tables" wait;
-		program "$bin_ip rule add from $ipuser prio $(( 30000 + $tunnel_id )) table $mac" wait;
+		program "$bin_ip rule add from $ipuser to $intranet prio $prio1 table $table_intranet" wait;
+		program "$bin_ip rule add from $ipuser prio $prio2 table $mac" wait;
 
-# not needed?	ip rule add to 10.63.6.8 prio 30001 table main
-# todo: bypass intranet-traffic (no shaping)
 		program "$bin_ip route add default via $( _tunnel id2ip $tunnel_id server ) dev %% table $mac" wait;
 		program "$bin_ip route flush cache" wait;
 
@@ -87,10 +100,10 @@ $name {
 
 		program "$bin_ip route del default via $( _tunnel id2ip $tunnel_id server ) dev %% table $mac" wait;
 
-# not needed?	ip rule del to 10.63.6.8 prio 30001 table main
-
-		program "$bin_ip rule del from $ipuser prio $(( 30000 + $tunnel_id )) table $mac" wait;
+		program "$bin_ip rule del from $ipuser prio $prio2 table $mac" wait;
+		program "$bin_ip rule del from $ipuser to $intranet prio $prio1 table $table_intranet" wait;
 		program "$bin_sed -i '/^$rt_num /d' /etc/iproute2/rt_tables" wait;
+
 		program "$bin_ip route flush cache" wait;
 
 		program "$bin_ip link set dev %% down" wait;
@@ -128,8 +141,10 @@ _tunnel_config_insert_new_client()		# on server
 _tunnel_config_rebuild()			# on server: we have to join many user/connections
 {
 	local storage="/tmp/tunnel"
+	local option="$1"								# e.g. 'ignore_intranet_traffic'
 	local list_tunnel="$( ls -1 "$storage" | grep ..:..:..:..:..:.. )"		# these are files named like macadresses
 	local tunnel tunnel_id mac ipuser speed name message rt_num compress
+	local prio1 prio2 intranet intranet_table
 
 	local mask="30"
 	local mtu="1450"
@@ -150,12 +165,25 @@ _tunnel_config_rebuild()			# on server: we have to join many user/connections
 		name="$( _sanitizer do "$tunnel" hostname )"
 		message="id $tunnel_id conn $name dev %% for user $ipuser with speed $speed"
 
+		prio1="$3${tunnel_id}0"		# e.g. 3 + 152 + 0 = 31520
+		prio2="$3${tunnel_id}1"		# e.g. 3 + 152 + 0 = 31521
+
 		case "$tunnel" in
 			00:08:c6*)
 				compress="no"
 			;;
 			*)
 				compress="lzo:9"
+			;;
+		esac
+
+		intranet="10.0.0.0/8"			# fixme!
+		case "$option" in
+			ignore_intranet_traffic)
+				intranet_table="main"
+			;;
+			*)
+				intranet_table="$mac"
 			;;
 		esac
 
@@ -179,7 +207,9 @@ $name {
 		program "$bin_ip link set dev %% mtu $mtu up" wait;
 
 		program "$bin_echo $rt_num $mac >>/etc/iproute2/rt_tables" wait;
-		program "$bin_ip rule add to $ipuser table $mac" wait;
+		program "$bin_ip rule add to $ipuser from $intranet prio $prio1 table $intranet_table" wait;
+		program "$bin_ip rule add to $ipuser prio $prio2 table $mac" wait;
+
 		program "$bin_ip route add default via $( _tunnel id2ip $tunnel_id client ) dev %% table $mac" wait;
 		program "$bin_ip route flush cache" wait;
 
@@ -190,8 +220,11 @@ $name {
 		program $bin_logger "-t tunnel_serverDOWN -p daemon.info [START] $message" wait;
 
 		program "$bin_ip route del default via $( _tunnel id2ip $tunnel_id client ) dev %% table $mac" wait;
-		program "$bin_ip rule del to $ipuser table $mac" wait;
+		program "$bin_ip rule del to $ipuser prio $prio2 table $mac" wait;
+		program "$bin_ip rule del to $ipuser from $intranet prio $prio1 table $intranet_table" wait;
+
 		program "$bin_sed -i '/^$rt_num /d' /etc/iproute2/rt_tables" wait;
+
 		program "$bin_ip route flush cache" wait;
 
 		program "$bin_ip link set dev %% down" wait;
@@ -425,7 +458,7 @@ _pfilter_shaping_tunnel_control()		# maybe job-schedule only? move to tunnel() _
 					read tunnel_id </tmp/tunnel_id
 
 					mkdir -p /tmp/tunnel
-					_tunnel config_build $tunnel_id "$mac" "$ip" >"$configfile"
+					_tunnel config_build $tunnel_id "$mac" "$ip" "ignore_intranet_traffic" >"$configfile"		# fixme! needs an config option
 					read tunnel_name dummy <"$configfile"
 
 					vtund -f "$configfile" "$tunnel_name" "$tunnel_server"

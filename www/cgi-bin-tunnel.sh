@@ -41,8 +41,8 @@ case "$ACTION" in
 			echo    "TUNNEL_MASK=30;"
 
 			_tunnel config_insert_new_client "$TUNNEL_ID" "$MAC" "$IP_USER" "$SPEED_UPLOAD" "$SPEED_DOWNLOAD"
-			_tunnel config_rebuild     >"/tmp/tunnel/vtun_server.conf"
-			_tunnel daemon_apply_config "/tmp/tunnel/vtun_server.conf"
+			_tunnel config_rebuild "ignore_intranet_traffic"	>"/tmp/tunnel/vtun_server.conf"
+			_tunnel daemon_apply_config				 "/tmp/tunnel/vtun_server.conf"
 		else
 			echo "FALSE=;"
 		fi
