@@ -25,12 +25,12 @@ case "$ACTION" in
 			case "$MAC" in
 				00:08:c6*)				# SIP test
 					SPEED_UPLOAD="80"		# G.711a = 80kbit up + 80kbit down => RTP: 172 Bytes UDP - 28 Bytes UDP overhead = 144 Bytes DATA * 56 Packets = 8064 Bytes/s = 56 * 172 = 9632 bytes/s = 77.056 bit/s
-					SPEED_DOWNLOAD="80"		# G.729 = 20 kbit up + 20 kbit down
+					SPEED_DOWNLOAD="80"		# G.729 = 20 kbit up + 20 kbit down | UDP = 8 Byte Header? -> 8000 Byte/s / (172byte-8byte_udp_header) = 49 pakete * 172 byte = 67424 bit/s
 				;;
 				*)
-					SPEED_UPLOAD="16"		# ACK_only  = 40 Bytes / MTU = 1450 Bytes, so 145.000 Bytes / needs 4000 Bytes Ack or:
-					SPEED_DOWNLOAD="512"		# 512 kbit = 64 KB/s @ 46 packets/s(MTU) -> 46 * 40 Bytes ACK = 1840 Bytes/s = 14,7 kbit/s upload -> 16
-				;;
+					SPEED_UPLOAD="64"		# ACK_only  = 40 Bytes / MTU = 1450 Bytes, so 145.000 Bytes / needs 4000 Bytes Ack or:
+					SPEED_DOWNLOAD="1024"		# 512 kbit = 64 KB/s @ 46 packets/s(MTU) -> 46 * 40 Bytes ACK = 1840 Bytes/s = 14,7 kbit/s upload -> 16
+				;;					# make a function!
 			esac
 
 			echo -n "TRUE=;"
