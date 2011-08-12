@@ -11,6 +11,9 @@ fi
 _log do tunnel_helper daemon info "ACTION: $ACTION QUERY: $QUERY_STRING"
 
 case "$ACTION" in
+	tunnel_disconnect)
+			:
+	;;
 	tunnel_possible)
 		if _tunnel check_local_capable ; then
 
