@@ -8,7 +8,13 @@ else
 	ACTION="$1"
 fi
 
-_log do tunnel_helper daemon info "ACTION: $ACTION QUERY: $QUERY_STRING"
+_log do tunnel_helper daemon info "REMOTE_ADDR: $REMOTE_ADDR - ACTION: $ACTION - QUERY: $QUERY_STRING"
+
+throw_error_and_exit()
+{
+	echo "FALSE=;"
+	exit
+}
 
 case "$ACTION" in
 	tunnel_disconnect)
@@ -17,9 +23,14 @@ case "$ACTION" in
 	tunnel_possible)
 		if _tunnel check_local_capable ; then
 
+			case "$REMOTE_ADDR" in
+				$LANADR|$WANADR|$LOADR)
+					throw_error_and_exit
+				;;
+			esac
+
 			_watch counter "/tmp/tunnel_id" increment 1 max 65 || {		# fixme! set to 0 during nightly/kick_user_all()
-				echo "FALSE=;"
-				exit
+				throw_error_and_exit
 			}
 			read TUNNEL_ID <"/tmp/tunnel_id"
 
@@ -47,10 +58,11 @@ case "$ACTION" in
 			_tunnel config_rebuild "ignore_intranet_traffic"	>"/tmp/tunnel/vtun_server.conf"
 			_tunnel daemon_apply_config				 "/tmp/tunnel/vtun_server.conf"
 		else
-			echo "FALSE=;"
+			throw_error_and_exit
 		fi
 	;;
 	*)
-		echo "FALSE=;"
+		throw_error_and_exit
 	;;
 esac
+
