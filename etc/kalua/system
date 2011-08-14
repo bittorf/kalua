@@ -315,12 +315,29 @@ _system_pids_count ()
 _system_ram_free ()	# [bytes]
 {
 	local MEM LINE
-	local OPTION="$1"	# eval-hack
+	local OPTION="$1"	# eval-hack OR flush
 
-	while read LINE; do {		# proc-interface has changed between kernel 2.4/2.6
+	[ "$OPTION" = "flush" ] && {
+		OPTION=
+
+		[ -e "/proc/sys/vm/drop_caches" ] && {
+			sync
+			echo 3 > /proc/sys/vm/drop_caches
+		}
+	}
+
+	while read LINE; do {
 		case $LINE in
-			Mem:*)     set $LINE; MEM="$4" ; break ;;
-			MemFree:*) set $LINE; MEM="$(( $2 * 1024 ))" ; break ;;
+			Mem:*)			# kernel 2.4
+				set $LINE
+				MEM="$4"
+				break
+			;;
+			MemFree:*)		# kernel 2.6+
+				set $LINE
+				MEM="$(( $2 * 1024 ))"
+				break
+			;;
 		esac
 	} done </proc/meminfo
 
