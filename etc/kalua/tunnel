@@ -263,6 +263,28 @@ _tunnel_daemon_apply_config()
 	esac
 }
 
+_tunnel_check_connection()
+{
+	local tunnel_name="$1"
+	local question="$2"
+	local out
+
+	case "$question" in
+		is_up)
+			out="$( ps ax | fgrep "vtund[c]: $tunnel_name tun tun" | fgrep -v "fgrep" | head -n1 )"
+		;;
+		is_reconnecting)
+			out="$( ps ax | fgrep "vtund[c]: $tunnel_name connecting to" | fgrep -v "fgrep" | head -n1 )"
+		;;
+	esac
+
+	if [ -n "$out" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 _tunnel_clientside_control()
 {
 	local funcname="tunnel_clientside_control"
@@ -294,7 +316,7 @@ _tunnel_clientside_control()
 
 	local storage="/tmp/tunnel"
 	local configfile="$storage/${mac}.conf"
-	local tunnel_id tunnel_name dummy answer url pid tunnel_server process_output file list_files
+	local tunnel_id tunnel_name dummy answer url pid tunnel_server process_output file list_files dirty
 	local TRUE FALSE TUNNEL_IP_CLIENT TUNNEL_IP_SERVER SPEED_UPLOAD SPEED_DOWNLOAD
 
 	case "$action" in
@@ -309,18 +331,21 @@ _tunnel_clientside_control()
 				;;
 			esac
 
+			read tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
+			[ -z "$tunnel_server" ] && {
+				_log do $funcname daemon info "action: $action - no gateway/server found"
+				return
+			}
+
 			for file in $list_files; do {
 				read tunnel_name dummy <"$file"
 				_log do $funcname daemon info "$action: checking conn $tunnel_name in file $file"
 
-				process_output="$( ps ax | fgrep "vtund[c]: $tunnel_name connecting to" | fgrep -v "fgrep" | head -n1 )"
-				[ -n "$process_output" ] && {
-						read tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
+				dirty=
+				_tunnel check_connection "$tunnel_name" is_up		|| dirty=1
+				_tunnel check_connection "$tunnel_name" is_reconnecting	|| dirty=1
 
-						[ -z "$tunnel_server" ] && {
-							_log do $funcname daemon info "tunnel for $mac / $ip fails, no gateway/server found"
-							break
-						}
+				if [ -n "$dirty" ]; then
 
 						ip="$(  _sanitizer do "$( cat "$file" )" ip4 | head -n2 | tail -n1 )"
 						mac="$( _sanitizer do "$( cat "$file" )" mac | head -n1 )"
@@ -335,7 +360,9 @@ _tunnel_clientside_control()
 						answer="$( _wget do "$url" 3 )"
 
 						_log do $funcname daemon info "awake tunnel $tunnel_name for mac $mac and ip $ip - answer: $answer"
-				}
+				else
+					_log do $funcname daemon info "[OK] conn $tunnel_name seems fine"
+				fi
 			} done
 		;;
 		start)
