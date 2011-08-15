@@ -276,6 +276,16 @@ _tunnel_check_connection()
 		is_reconnecting)
 			out="$( ps ax | fgrep "vtund[c]: $tunnel_name connecting to" | fgrep -v "fgrep" | head -n1 )"
 		;;
+		get_pid)
+			out="$( ps ax | fgrep "$tunnel_name" | grep -v "fgrep" | fgrep vtund | head -n1 )"
+			set $out
+			echo $1
+
+			# normal output of ps: 'S <  vtund[c]: 001500189266 tun tun0'
+			# fixme! there must be a better way...
+			# running into bg with & and reading $!
+			# does not work - maybe writing pid during section up{...}?
+		;;
 	esac
 
 	if [ -n "$out" ]; then
@@ -359,7 +369,15 @@ _tunnel_clientside_control()
 						url="http://$tunnel_server/cgi-bin-tunnel.sh?ACTION=tunnel_possible&MAC=${mac}&IP_USER=${ip}"
 						answer="$( _wget do "$url" 3 )"
 
-						_log do $funcname daemon info "awake tunnel $tunnel_name for mac $mac and ip $ip - answer: $answer"
+						case "$answer" in
+							TRUE*)
+								_log do $funcname daemon info "awakening tunnel $tunnel_name for mac $mac and ip $ip"
+								_tunnel client_start "$tunnel_id" "$mac" "$ip" "ignore_intranet_traffic"
+							;;
+							*)
+								_log do $funcname daemon info "awake not possible: answer: $$answer"
+							;;
+						esac
 				else
 					_log do $funcname daemon info "[OK] conn $tunnel_name seems fine"
 				fi
@@ -384,13 +402,7 @@ _tunnel_clientside_control()
 					}
 					read tunnel_id </tmp/tunnel_id
 
-					mkdir -p "$storage"
-					_tunnel config_build "$tunnel_id" "$mac" "$ip" "ignore_intranet_traffic" >"$configfile"
-					read tunnel_name dummy <"$configfile"
-
-					vtund -f "$configfile" "$tunnel_name" "$tunnel_server"
-
-					_log do $funcname daemon info "[OK] prepared tunnel for $mac / $ip"
+					_tunnel client_start "$tunnel_id" "$mac" "$ip" "ignore_intranet_traffic"
 				;;
 				*)
 					_log do $funcname daemon info "[ERR] tunnel for $mac / $ip not possible, answer from $tunnel_server: '$answer' question: '$url'"
@@ -399,14 +411,33 @@ _tunnel_clientside_control()
 		;;
 		stop)
 			_log do $funcname daemon info "[OK] stopping tunnel for $mac / $ip"
+
+			read tunnel_name dummy <"$configfile"
 			rm "$configfile"
 
-			read tunnel_name dummy <"$configfile"									# normal output of ps: 'S <  vtund[c]: 001500189266 tun tun0'
-			process_output="$( ps ax | fgrep "$tunnel_name" | grep -v "fgrep" | fgrep vtund | head -n1 )"		# fixme! there must be a better way...
-			set ${process_output:-empty_process_output}								# running into bg with & and reading $!
-			pid="$1"												# does not work - maybe writing pid during section up{...}?
-
+			pid="$( _tunnel check_connection "$tunnel_name" get_pid )"
 			kill "${pid:-unset}"
 		;;
 	esac
+}
+
+_tunnel_client_start()
+{
+	local funcname="tunnel_client_start"
+	local tunnel_id="$1"
+	local mac="$2"
+	local ip="$3"
+	local option="$4"				# e.g. 'ignore_intranet_traffic'
+
+	local configfile="$storage/${mac}.conf"
+	local storage="/tmp/tunnel"
+	local tunnel_name dummy
+
+	mkdir -p "$storage"
+	_tunnel config_build "$tunnel_id" "$mac" "$ip" "$option" >"$configfile"
+	read tunnel_name dummy <"$configfile"
+
+	vtund -f "$configfile" "$tunnel_name" "$tunnel_server"
+
+	_log do $funcname daemon info "[OK] fired up tunnel $tunnel_name with pid $( _tunnel check_connection $tunnel_name get_pid )"
 }
