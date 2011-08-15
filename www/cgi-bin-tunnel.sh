@@ -12,6 +12,7 @@ _log do tunnel_helper daemon info "REMOTE_ADDR: $REMOTE_ADDR - ACTION: $ACTION -
 
 throw_error_and_exit()
 {
+	_log do tunnel_helper daemon info "[ERR] tunnel not possible for $QUERY_STRING"
 	echo "FALSE=;"
 	exit
 }
