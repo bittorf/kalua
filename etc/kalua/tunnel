@@ -351,11 +351,14 @@ _tunnel_clientside_control()
 				read tunnel_name dummy <"$file"
 				_log do $funcname daemon info "$action: checking conn $tunnel_name in file $file"
 
-				dirty=
-				_tunnel check_connection "$tunnel_name" is_up		|| dirty=1
-				_tunnel check_connection "$tunnel_name" is_reconnecting	|| dirty=1
-
-				if [ -n "$dirty" ]; then
+				if _tunnel check_connection "$tunnel_name" is_up ; then
+						_log do $funcname daemon info "[OK] conn $tunnel_name seems fine - nothing to do"
+				else
+						_tunnel check_connection "$tunnel_name" is_reconnecting && {
+							_log do $funcname daemon info "forcing shutdown if reconnecting tunnel"
+							pid="$( _tunnel check_connection "$tunnel_name" get_pid )"
+							kill ${pid:-unset}
+						}
 
 						ip="$(  _sanitizer do "$( cat "$file" )" ip4 | head -n2 | tail -n1 )"
 						mac="$( _sanitizer do "$( cat "$file" )" mac | head -n1 )"
@@ -378,8 +381,6 @@ _tunnel_clientside_control()
 								_log do $funcname daemon info "awake not possible: answer: $$answer"
 							;;
 						esac
-				else
-					_log do $funcname daemon info "[OK] conn $tunnel_name seems fine"
 				fi
 			} done
 		;;
