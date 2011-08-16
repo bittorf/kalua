@@ -22,13 +22,7 @@ case "$ACTION" in
 			:
 	;;
 	tunnel_possible)
-		if _tunnel check_local_capable ; then
-
-			case "$REMOTE_ADDR" in
-				$LANADR|$WANADR|$LOADR)
-					throw_error_and_exit
-				;;
-			esac
+		if _tunnel check_local_capable "$REMOTE_ADDR" ; then			# REMOTE_ADDR: router from client
 
 			_watch counter "/tmp/tunnel_id" increment 1 max 65 || {		# fixme! set to 0 during nightly/kick_user_all()
 				throw_error_and_exit

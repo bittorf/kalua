@@ -1,6 +1,21 @@
 _tunnel_check_local_capable()
 {
-	test -e "/usr/sbin/vtund"	# later: memory, etc.
+	local funcname="tunnel_check_local_capable"
+	local tunnel_partner="$1"
+
+	case "$tunnel_partner" in
+		$LANADR|$WANADR|$LOADR)
+			_log do $funcname daemon info "[ERR] tunnel-partner $tunnel_partner is own LAN/WAN or LO-address - abort"
+			return 1
+		;;
+	esac
+
+	if [ -e "/usr/sbin/vtund" ]; then		# later: memory, etc.
+		return 0
+	else
+		_log do $funcname daemon info "[ERR] vtund not found - abort"
+		return 1
+	fi
 }
 
 _tunnel_build()
@@ -319,15 +334,21 @@ _tunnel_clientside_control()
 		;;
 	esac
 
-	_tunnel check_local_capable || {
-		_log do $funcname daemon info "tunnel for $mac / $ip locally not capable"
-		return 1
-	}
-
 	local storage="/tmp/tunnel"
 	local configfile="$storage/${mac}.conf"
 	local tunnel_id tunnel_name dummy answer url pid tunnel_server process_output file list_files
 	local TRUE FALSE TUNNEL_IP_CLIENT TUNNEL_IP_SERVER SPEED_UPLOAD SPEED_DOWNLOAD
+
+	read tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
+	[ -z "$tunnel_server" ] && {
+		_log do $funcname daemon info "action: $action - tunnel for $mac / $ip fails, no gateway/server found"
+		return 1
+	}
+
+	_tunnel check_local_capable "$tunnel_server" || {
+		_log do $funcname daemon info "tunnel for $mac / $ip locally not capable"
+		return 1
+	}
 
 	case "$action" in
 		check_connection)
@@ -340,12 +361,6 @@ _tunnel_clientside_control()
 					list_files="$mac"
 				;;
 			esac
-
-			read tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
-			[ -z "$tunnel_server" ] && {
-				_log do $funcname daemon info "action: $action - no gateway/server found"
-				return
-			}
 
 			for file in $list_files; do {
 				read tunnel_name dummy <"$file"
@@ -385,13 +400,6 @@ _tunnel_clientside_control()
 			} done
 		;;
 		start)
-			read tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
-
-			[ -z "$tunnel_server" ] && {
-				_log do $funcname daemon info "tunnel for $mac / $ip fails, no gateway/server found"
-				return 1
-			}
-
 			url="http://$tunnel_server/cgi-bin-tunnel.sh?ACTION=tunnel_possible&MAC=${mac}&IP_USER=${ip}"
 			answer="$( _wget do "$url" 3 )"
 
