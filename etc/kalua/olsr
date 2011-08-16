@@ -750,30 +750,31 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 	# sed -n 's/^.*NEXTHOP=\(.*\);.*/\1/p' /tmp/GATEWAY_CHECK_RECENT
 	# _olsr remoteip2metric
 
-	local REMOTE=
-	read REMOTE </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
-	REMOTE="${REMOTE:=8.8.8.8}"
+	_net local_inet_offer >/dev/null || {
 
-	ERROR=0
-	I=1				# try to ping overall-inet-gateway, if it does not work, reboot
-	while [ $I -ne 10 ]; do {
-		LOSS="$( ping -q -c 1 $REMOTE | sed -n 's/^.*packets received, \([0-9]*\)%.*/\1/p' )"
+		local REMOTE=
+		read REMOTE </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
+		REMOTE="${REMOTE:=8.8.8.8}"
 
-		[ ${LOSS:-100} -eq 0 ] && {
-			[ "$ERROR" = "1" ] && _log do $FUNC daemon info "[OK] inet-gateway $REMOTE ping OK, after try $I"
-			break
-		}
+		ERROR=0
+		I=1				# try to ping overall-inet-gateway, if it does not work, reboot
+		while [ $I -ne 10 ]; do {
+			LOSS="$( ping -q -c 1 $REMOTE | sed -n 's/^.*packets received, \([0-9]*\)%.*/\1/p' )"
 
-		_log do $FUNC daemon info "[ERR] inet-gateway $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
-		ERROR=1
-		sleep 10
-		I=$(( $I + 1 ))
-	} done
-	[ $I -eq 10 ] && _system reboot_safe "inet-gateway $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
+			[ ${LOSS:-100} -eq 0 ] && {
+				[ "$ERROR" = "1" ] && _log do $FUNC daemon info "[OK] inet-gateway $REMOTE ping OK, after try $I"
+				break
+			}
 
-	_log do $FUNC daemon debug "[OK] (ping to inet-gateway $REMOTE works)"
+			_log do $FUNC daemon info "[ERR] inet-gateway $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
+			ERROR=1
+			sleep 10
+			I=$(( $I + 1 ))
+		} done
+		[ $I -eq 10 ] && _system reboot_safe "inet-gateway $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
 
-
+		_log do $FUNC daemon debug "[OK] (ping to inet-gateway $REMOTE works)"
+	}
 
 	return 0
 }
