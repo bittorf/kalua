@@ -3,22 +3,71 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 	local funcname="switch_show"
 	local type="${1:-$( uci get network.@switch[0].name )}"
 	local debug="$2"
-	local line duplex
+	local line duplex n
 
 	[ -z "$type" ] && {
 		if [ -e "/tmp/SWITCH_TYPE" ]; then
 			read type <"/tmp/SWITCH_TYPE"
 		else
-			dmesg | grep ^roboswitch: | fgrep -q "found a 53" && {
-				type="bcm53xx"
+			probe_type1()
+			{
+				dmesg | grep ^roboswitch: | fgrep -q "found a 53" && \
+					echo "bcm53xx"
 			}
 
-			[ -n "$type" ] && \
-				echo "$type" >/tmp/SWITCH_TYPE
+			probe_type2()
+			{
+				dmesg | fgrep -q AG71xx && \
+					echo "ag71xx"
+			}
+
+			for n in 1 2; do {
+				type="$( probe_type${n} )" && {
+					echo "$type" >/tmp/SWITCH_TYPE
+					break
+				}
+			} done
 		fi
 	}
 
 	case "$type" in
+		ag71xx)
+			which mii-tool >/dev/null || {
+				_software package_install mii-tool >/dev/null
+
+				which mii-tool >/dev/null || \
+					return 1
+			}
+
+			line="$( mii-tool ${LANDEV:-empty_landev} )"
+			[ -n "$debug" ] && \
+				_log do $funcname daemon debug "type: $type - line '$line'"
+
+			case "$line" in
+				*"link ok"*)			# "negotiated 100baseTx-FD, link ok"
+					case "$line" in
+						*"-FD,"*)
+							duplex="full"
+						;;
+						*)
+							duplex="half"
+						;;
+					esac
+
+					case "$line" in
+						*" 100baseTx"*)
+							_switch symbol $duplex 100
+						;;
+						*)
+							_switch symbol unknown
+						;;
+					esac
+				;;
+				*)
+					echo -n "-"
+				;;
+			esac
+		;;
 		bcm53xx)
 			which robocfg >/dev/null || {
 				_software package_install robocfg >/dev/null
@@ -140,7 +189,7 @@ _switch_symbol()
 			echo -n "C"
 		;;
 		*)
-			echo -n "Z"
+			echo -n "Z"		# means: 'unknown'
 		;;
 	esac
 }
