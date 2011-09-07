@@ -302,6 +302,34 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				return 1
 			}
 
+			constantly_disassociating_wifi_clients()
+			{
+				local funcname="constantly_disassociating_wifi_clients"
+				local this_minute="$( date +$M )"
+				local last_min=$(( $this_minute - 1 ))			# fixme! will not work at full hour
+				local part_of_date="$( date "+%e %H:$last_min:" )"	# last minute only -> "2 12:55:"
+				local border=3						# how much disass we allow to be normal per minute
+				local count
+
+				grep_log()
+				{
+					logread |
+					 fgrep "$part_of_date" |
+					  sed -n 's/^.*STA \(..:..:..:..:..:..\) IEEE 802.11: disassociated$/\1/p'
+				}
+
+				count="$( grep_log | wc -l )" 
+
+				if [ ${count:-0} -gt $border ]; then
+					_log do $funcname daemon info "affected macs: $( grep_log | sort | uniq )"
+					return 0
+				else
+					return 1
+				fi
+
+				# fixme! there can be more than one mac, we have to count each of them
+			}
+
 			# we check:
 			# wlan0 in adhoc-mode or
 			# mon.wlan0 in ap-mode
@@ -319,6 +347,18 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					;;
 				esac
 			}
+
+			case "$( _wifi mode $WIFIDEV )" in
+				*adhoc*)
+					:
+				;;
+				*)
+					constantly_disassociating_wifi_clients && {
+						:
+						# _wifi phy_restart $WIFIDEV "constantly_disassociating_wifi_clients()"
+					}
+				;;
+			esac
 
 			kernel_oops_wifi && {
 				_wifi phy_restart $WIFIDEV "kernel_oops_wifi"
