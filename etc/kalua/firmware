@@ -414,22 +414,17 @@ _firmware_filelist ()
 
 _firmware_upgrade_is_needed()
 {
-	local target_version_git="28139"
+	local target_version_git="28190"
 
-	_firmware updatemode testing || {
+	[ "$( _system uptime min )" -ge 30 ] || {
 		return 1
 	}
 
-	case "$( uci get system.@profile[0].name )" in
-		aschbach*|liszt28*|tkolleg*|hotello_*|rehungen*|satama*|dhfleesensee*|ejbw*|itzehoe*)		# todo: apphalle|leonardo|zumnorde
-			:
-		;;
-		*)
-			return 1
-		;;
-	esac
-
 	_uci is_oldstyle && {
+		return 1
+	}
+
+	_firmware updatemode testing || {
 		return 1
 	}
 
@@ -438,28 +433,24 @@ _firmware_upgrade_is_needed()
 	}
 
 	case "$( uci get system.@profile[0].name )" in
-		liszt28*)
+		liszt28*|ejbw*)
 			:
 		;;
 		*)
-			return 1
-		;;
+			return 1	# aschbach*|tkolleg*|hotello_*|rehungen*|satama*|dhfleesensee*|ejbw*|itzehoe*
+		;;			# todo: apphalle|leonardo|zumnorde
 	esac
 
-	case "$( uci get system.@profile[0].name )" in
-		ejbw*|liszt28*|aschbach*|hotello_*)
-
-			# satama* -> alias ip for dns/6.6.6.6 ?
-			# safe upgradeable
-
-			:
-		;;
-		*)
-			_net local_inet_offer >/dev/null && {
+	_net local_inet_offer >/dev/null && {
+		case "$( uci get system.@profile[0].name )" in
+			liszt28*|ejbw*)
+				:
+			;;
+			*)
 				return 1
-			}
-		;;
-	esac
+			;;
+		esac
+	}
 
 	case "$( _system architecture )" in
 		ar71xx)
@@ -478,18 +469,12 @@ _firmware_upgrade_is_needed()
 			return 1
 		;;
 	esac
-
-	[ "$( _system uptime min )" -ge 30 ] || {
-		return 1
-	}
-
-	return 0
 }
 
 _firmware_wget()
 {
 	local funcname="firmware_wget"
-	local hash="016cefd453f4b72d643a7641b3b5b575"
+	local hash="bd78c0fdaf7ee101c9f0523f83889683"
 	local source="http://intercity-vpn.de/firmware/ar71xx/images/testing/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
 	local file="${1:-/tmp/fw}"
 
