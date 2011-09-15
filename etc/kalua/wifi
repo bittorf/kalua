@@ -37,6 +37,11 @@ _wl ()		# ARG1: must be WIFI_DEV
 	# -> wl channel _must_ output something?
 }
 
+_wifi_driver_is_old_broadcom()
+{
+	test -e /usr/sbin/wl
+}
+
 _wifi_minstrel()
 {
 	local mac="$1"
@@ -591,7 +596,7 @@ _wifi_driver_version ()
 	local WIFI_DEV="$1"		# fixme! howto connect DEV -> PHY  (DEV -> DRIVER is no problem)
 	local VERSION
 
-	if _wifi vendor_and_model | grep -q broadcom ; then
+	if _wifi driver_is_old_broadcom ; then
 
 		VERSION="$( _wl $WIFI_DEV ver | sed -n 's/^wl:[^0-9]*\(.*\)/\1/p;q' | sed 's/[ ]/-/g' )"	# 3.90-RC37.0
 		
@@ -618,7 +623,7 @@ _wifi_sensitivity ()
 	local VALUE
 	local OUT
 
-	if _wifi vendor_and_model | grep -q broadcom ; then
+	if _wifi driver_is_old_broadcom ; then
 
 		VALUE="$( _wl $WIFI_DEV interference )"
 	
@@ -679,7 +684,7 @@ _wifi_sensitivity_set ()
 	local WIFI_DEV="$1"
 	local METHOD="$2"	# off | auto | wifi | nonwifi
 
-	if _wifi vendor_and_model | grep -q broadcom ; then
+	if _wifi driver_is_old_broadcom ; then
 	
 		_wifi install_full_broadcomdriver_if_not_installed && {
 		
@@ -739,7 +744,7 @@ _wifi_phy_restart ()
 
 	_log do $FUNC daemon $PRIO "working on '$WIFI_DEV' ($REASON)"
 
-	if _wifi vendor_and_model | grep -q broadcom ; then
+	if __wifi driver_is_old_broadcom ; then
 	
 		wifi					# simply rereads nvram for all broadcom-devices
 	else
@@ -758,7 +763,7 @@ _wifi_phy_txpower_limit ()		# driverlimit/output in [mW]
 	local FILE="/tmp/WIFI_MAX_DRIVER_TXPOWER_${WIFI_DEV}"
 	local OUT
 
-	if _wifi vendor_and_model | grep -q broadcom ; then
+	if _wifi driver_is_old_broadcom ; then
 	
 		OUT="150"				# fixme! this has to be evaluated!
 	else
@@ -783,7 +788,7 @@ _wifi_phy_txpower ()		# output in [mW]
 	local UNIT="$2"		# keyword, can be 'mw', 'dbm', 'qdbm' // fixme! at the moment this IS in [mW]
 	local POWER
 	
-	if _wifi vendor_and_model | grep -q broadcom ; then
+	if _wifi driver_is_old_broadcom ; then
 
 		POWER="$( _wl $WIFI_DEV txpwr | cut -d" " -f3 )"	# this is in [mW]
 	else
@@ -855,7 +860,7 @@ _wifi_phy_txpower_set ()	# e.g.: _wifi phy_txpower_set "$WIFIDEV" 10 mW add over
 		       	  _log do $FUNC daemon $PRIO "$( cat $FILE_TREND ) for '$WIFI_DEV' to '$TXPWR' mW ('$VALUE' qdBm / '$VALUE_DBM' dBm)"
 		       	  _nvram set wl0_txpwr "$VALUE"
 
-			  if _wifi vendor_and_model | grep -q broadcom ; then
+			  if _wifi driver_is_old_broadcom ; then
 
 				_wl "$WIFI_DEV" txpwr $TXPWR			# must be in [mW]
 			  else
@@ -1147,7 +1152,7 @@ _wifi_antenna_rx_set ()
 	
 	_nvram set wl0_antdiv "$VALUE"				# fixme! set it also with '_wl $WIFIDEV rxant ?'
 
-	if _wifi vendor_and_model | grep -q broadcom; then  	# fixme! must be device specific
+	if _wifi driver_is_old_broadcom ; then  	# fixme! must be device specific
 
 		_wl $WIFI_DEV antdiv $ANTENNA
 	else
@@ -1180,7 +1185,7 @@ _wifi_antenna_tx_set ()
 	
 	_nvram set wl0_txant "$VALUE"
 
-	if _wifi vendor_and_model | grep -q broadcom; then		# fixme! must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! must be device specific
 
 		_wl $WIFI_DEV txant $ANTENNA
 	else
@@ -1254,7 +1259,7 @@ _wifi_bssid ()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associat
 		esac
 	}
 	
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 
 		eval "$( _wifi params_broadcom_wlstatus $WIFI_DEV | grep ^WIFI_BSSID= )"
 	else
@@ -1268,7 +1273,7 @@ _wifi_frag ()
 {
 	local WIFI_DEV="$1"
 	
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 	
 		_wl $WIFI_DEV frag | sed -n 's/^frag is \([0-9]*\).*$/\1/p'
 	else
@@ -1281,7 +1286,7 @@ _wifi_rts ()
 {
 	local WIFI_DEV="$1"
 
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 	
 		_wl $WIFI_DEV rts | sed -n 's/^rts is \([0-9]*\).*$/\1/p'
 	else
@@ -1294,7 +1299,7 @@ _wifi_rate ()
 {
 	local WIFI_DEV="$1"
 	
-	if _wifi vendor_and_model | grep -q broadcom ; then
+	if _wifi driver_is_old_broadcom ; then
 	
 		_wl $WIFI_DEV rate | cut -d' ' -f3		# 1, 2, 5.5, 6, 9, 12 ...
 	else
@@ -1317,7 +1322,7 @@ _wifi_mcastrate ()
 	local WIFI_DEV="$1"
 	local LINE
 	
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 	
 		_wl $WIFI_DEV mrate | cut -d' ' -f3		# 1, 2, 5.5, 6, 9, 12 , auto ...
 	else
@@ -1349,7 +1354,7 @@ _wifi_noise ()			# OUT1: signed Integer, -93 [dBm]
 	local WIFI_DEV="$1"
 	local WIFI_MODE="$( _wifi mode $WIFI_DEV )"
 	
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 	
 		case "$WIFI_MODE" in
 			adhoc|client)
@@ -1395,7 +1400,7 @@ _wifi_signal ()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all 
 	local WIFI_MODE="$( _wifi mode $WIFI_DEV )"
 	local MAC RSSI LOOP LINE
 
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific	
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific	
 
 		case "$WIFI_MODE" in
 			adhoc|client)
@@ -1433,7 +1438,7 @@ _wifi_channel ()
 {
 	local WIFI_DEV="$1"
 
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 	
 		eval "$( _wifi params_broadcom_wlstatus $WIFI_DEV | grep ^WIFI_CHANNEL )"
 	else
@@ -1447,7 +1452,7 @@ _wifi_protection_gmode ()	# OUT1: integer, 0 | 1
 {
 	local WIFI_DEV="$1"
 	
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 	
 		_wl $WIFI_DEV gmode_protection | sed -n 's/^gmode_protection is \([0-9]\) .*/\1/p'
 	else
@@ -1461,7 +1466,7 @@ _wifi_assoclist ()		# OUT1: list of associated mac_adresses
 	local WIFI_MODE="$( _wifi mode $WIFI_DEV )"
 	local NOP MAC
 	
-	if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 
 		case "$WIFI_MODE" in
 			adhoc)
@@ -1508,7 +1513,7 @@ _wifi_probe_mode_infrastructure ()		# fixme! respect WIFI_DEV
 			;;
 		esac
 	else
-		if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+		if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 	
 			eval "$( _wifi params_broadcom_wlstatus $WIFI_DEV | grep ^WIFI_MODE= )"
 		else
@@ -1536,7 +1541,7 @@ _wifi_probe_mode_ap ()				# fixme! respect WIFI_DEV
 			return 1
 		fi
 	else
-		if _wifi vendor_and_model | grep -q broadcom ; then		# fixme! hardware-check must be device specific
+		if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
 
 			[ "$( _wl $WIFI_DEV ap | cut -d' ' -f3 )" = "1" ] && WIFI_MODE="Managed"	# 0 = station/client
 		else
@@ -1604,7 +1609,7 @@ _wifi_scan ()
 	[ "$( uci get system.@weblogin[0].enabled )" = "1" ]	&& return		# maybe scanning is unstable
 	[ "$( _wifi mode $WIFI_DEV )" != "adhoc" ]		&& return
 
-	if _wifi vendor_and_model | grep -q broadcom ; then
+	if _wifi driver_is_old_broadcom ; then
 
 		if [ "$KEYWORD" = "intense" ]; then
 
