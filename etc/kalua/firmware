@@ -345,6 +345,55 @@ _firmware_burn ()
 		rm -fR /etc/banner /etc/profile /etc/kalua /etc/nixio
 		mylog "[OK] still running tasks:"
 		ps ax
+
+		mylog "[OK] flushing iptables"
+		iptables -t mangle -F
+		iptables -t filter -F
+		iptables -t nat -F
+
+		remove_kmodules()
+		{
+			local module remove
+			local list_modules="$( lsmod | cut -d' ' -f1 )"
+
+			for module in $list_modules ; do {
+
+				case "$module" in
+					"nf_"*|"xt"*|"ts_"*|"x_tables"|"ip_tables"|"ipt_"*|"iptable_"*)
+						remove=1
+					;;
+					"b43"*|"ath"*|"cfg80211"|"mac80211"*|"compat"*)
+						remove=1
+					;;
+					"ts_"*|"crc_ccitt"|"aes_generic"|"arc4"|"crypto_algapi"|"ppp"*)
+						remove=1
+					;;
+					*)
+						remove=
+					;;
+				esac
+
+				[ -n "$remove" ] && {
+					mylog "removing kmodule: $module"
+					rmmod $module
+				}
+			} done
+
+			mylog "[OK] still loaded modules:"
+			lsmod
+		}
+
+		[ $( _system ram_size ) -lt 16500 ] && {
+			remove_kmodules
+			remove_kmodules
+			remove_kmodules
+			remove_kmodules
+		}
+
+		# fixme!
+		# rm -fR /tmp/kalua ???
+
+		mylog "[OK] flushing caches:"
 		echo 3 > /proc/sys/vm/drop_caches
 		free
 
