@@ -341,6 +341,23 @@ _firmware_check_image()
 	fi
 }
 
+_firmware_remove_cron_stuff()
+{
+	[ -e "/etc/init.d/S51crond_fff+" ] && {
+		if mv "/etc/init.d/S51crond_fff+" "/etc/init.d/deactivated_cron_daemon" ; then
+			_firmware log "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
+		else
+			_firmware log "[ERR] during moving /etc/init.d/S51crond_fff+ to /etc/init.d/deactivated_cron_daemon - abort"
+			return 1
+		fi
+	}
+
+	while [ ! -e /tmp/cron_watchdog.id ]; do {
+		_firmware log "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
+		sleep 5
+	} done
+}
+
 _firmware_burn ()
 {
 	local FILE="${1:-/tmp/fw}"
@@ -381,19 +398,7 @@ _firmware_burn ()
 	else
 		_firmware check_image "$FILE" || return 1
 
-		[ -e "/etc/init.d/S51crond_fff+" ] && {
-			if mv "/etc/init.d/S51crond_fff+" "/etc/init.d/deactivated_cron_daemon" ; then
-				_firmware log "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
-			else
-				_firmware log "[ERR] during moving /etc/init.d/S51crond_fff+ to /etc/init.d/deactivated_cron_daemon - abort"
-				return 1
-			fi
-		}
-
-		while [ ! -e /tmp/cron_watchdog.id ]; do {
-			_firmware log "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
-			sleep 5
-		} done
+		_firmware remove_cron_stuff || return 1
 
 		local task list_tasks
 		list_tasks="hotplug2 vtund crond S69watch_olsrd_fff+ scheduler uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo cron_watchdog.sh"
