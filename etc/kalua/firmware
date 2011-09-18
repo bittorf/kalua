@@ -232,6 +232,25 @@ _firmware_fetch ()
 	_log do "$FUNC" daemon info "download ready."
 }
 
+_firmware_wget_prepare()		# for lowmem devices
+{
+	rm /tmp/weblogin*
+	rm /tmp/ARCHIV_*
+	rm /tmp/iptables_*
+	rm /tmp/IP2MAC_*
+	rm /tmp/MAC2IP_*
+	rm -fR /tmp/OLSR
+
+	# kill some tasks
+	# remove some kmodules
+}
+
+_firmware_log()		# syslogd will likely be killed
+{
+	logger -p daemon.info -t firmware "$1"
+	echo "$1"
+}
+
 _firmware_burn ()
 {
 	local FILE="${1:-/tmp/fw}"
@@ -270,45 +289,39 @@ _firmware_burn ()
 			return 1
 		fi
 	else
-		mylog()			# syslogd will likely be killed
-		{
-			logger "$1"
-			echo "$1"
-		}
-
 		[ -e "$FILE" ] || {
-			mylog "file '$FILE' is missing, abort"
+			_firmware log "file '$FILE' is missing, abort"
 			return 1
 		}
 
-		mylog "[START] checking image"
+		_firmware log "[START] checking image"
 		. /etc/functions.sh
 		. /lib/upgrade/platform.sh
 		. /lib/upgrade/common.sh
 
 		if platform_check_image "$FILE" ; then
-			mylog "[READY] image OK checked"
+			_firmware log "[READY] image OK checked"
 		else
-			mylog "[ERR] bad checksum, abort"
+			_firmware log "[ERR] bad checksum, abort"
 			return 1
 		fi
 
 		[ -e "/etc/init.d/S51crond_fff+" ] && {
 			if mv "/etc/init.d/S51crond_fff+" "/etc/init.d/deactivated_cron_daemon" ; then
-				mylog "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
+				_firmware log "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
 			else
-				mylog "[ERR] during moving /etc/init.d/S51crond_fff+ to /etc/init.d/deactivated_cron_daemon - abort"
+				_firmware log "[ERR] during moving /etc/init.d/S51crond_fff+ to /etc/init.d/deactivated_cron_daemon - abort"
 				return 1
 			fi
 		}
 
 		while [ ! -e /tmp/cron_watchdog.id ]; do {
-			mylog "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
+			_firmware log "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
 			sleep 5
 		} done
 
 		local task list_tasks
-		list_tasks="vtund crond S69watch_olsrd_fff+ scheduler uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd olsrd polipo cron_watchdog.sh"
+		list_tasks="hotplug2 vtund crond S69watch_olsrd_fff+ scheduler uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo cron_watchdog.sh"
 
 		if _log shell_is_interactive; then
 			pause="60"
@@ -319,10 +332,10 @@ _firmware_burn ()
 
 		list_tasks="$list_tasks pause $list_tasks"		# double try...
 
-		mylog "watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
+		_firmware log "watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
 		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
 		_scheduler queue_purge
-		mylog "sleeping $pause sec"
+		_firmware log "sleeping $pause sec"
 		sleep $pause
 
 		for task in $list_tasks ; do {
@@ -336,17 +349,17 @@ _firmware_burn ()
 					wifi
 				;;
 				*)
-					mylog "killall $task"
+					_firmware log "killall $task"
 					killall "$task"
 				;;
 			esac
 		} done
 
 		rm -fR /etc/banner /etc/profile /etc/kalua /etc/nixio
-		mylog "[OK] still running tasks:"
+		_firmware log "[OK] still running tasks:"
 		ps ax
 
-		mylog "[OK] flushing iptables"
+		_firmware log "[OK] flushing iptables"
 		iptables -t mangle -F
 		iptables -t filter -F
 		iptables -t nat -F
@@ -374,12 +387,12 @@ _firmware_burn ()
 				esac
 
 				[ -n "$remove" ] && {
-					mylog "removing kmodule: $module"
+					_firmware log "removing kmodule: $module"
 					rmmod $module
 				}
 			} done
 
-			mylog "[OK] still loaded modules:"
+			_firmware log "[OK] still loaded modules:"
 			lsmod
 		}
 
@@ -391,13 +404,13 @@ _firmware_burn ()
 		# fixme!
 		# rm -fR /tmp/kalua ???
 
-		mylog "[OK] flushing caches:"
+		_firmware log "[OK] flushing caches:"
 		echo 3 > /proc/sys/vm/drop_caches
 		free
 
-		mylog "[START] sysupgrading"
+		_firmware log "[START] sysupgrading"
 		sysupgrade -v "$FILE"
-		mylog "[READY] sysupgraded"
+		_firmware log "[READY] sysupgraded"
 
 		>"$FILE"		# normally this section is never reached	
 		/bin/sync
@@ -549,4 +562,3 @@ _firmware_wget()
 		return 1
 	fi
 }
-
