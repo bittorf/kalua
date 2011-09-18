@@ -318,6 +318,29 @@ _firmware_flush_iptables()
 	iptables -t nat -F
 }
 
+_firmware_check_image()
+{
+	local file="${1:-/tmp/fw}"
+
+	_firmware log "[START] checking image '$file'"
+
+	[ -e "$file" ] || {
+		_firmware log "file '$file' is missing, abort"
+		return 1
+	}
+
+	. /etc/functions.sh
+	. /lib/upgrade/platform.sh
+	. /lib/upgrade/common.sh
+
+	if platform_check_image "$file" ; then
+		_firmware log "[READY] image OK checked"
+	else
+		_firmware log "[ERR] bad checksum, abort"
+		return 1
+	fi
+}
+
 _firmware_burn ()
 {
 	local FILE="${1:-/tmp/fw}"
@@ -356,22 +379,7 @@ _firmware_burn ()
 			return 1
 		fi
 	else
-		[ -e "$FILE" ] || {
-			_firmware log "file '$FILE' is missing, abort"
-			return 1
-		}
-
-		_firmware log "[START] checking image"
-		. /etc/functions.sh
-		. /lib/upgrade/platform.sh
-		. /lib/upgrade/common.sh
-
-		if platform_check_image "$FILE" ; then
-			_firmware log "[READY] image OK checked"
-		else
-			_firmware log "[ERR] bad checksum, abort"
-			return 1
-		fi
+		_firmware check_image "$FILE" || return 1
 
 		[ -e "/etc/init.d/S51crond_fff+" ] && {
 			if mv "/etc/init.d/S51crond_fff+" "/etc/init.d/deactivated_cron_daemon" ; then
