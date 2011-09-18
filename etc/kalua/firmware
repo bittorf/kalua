@@ -232,8 +232,11 @@ _firmware_fetch ()
 	_log do "$FUNC" daemon info "download ready."
 }
 
-_firmware_wget_prepare()		# for lowmem devices
+_firmware_wget_prepare_for_lowmem_devices()
 {
+	[ $( _system ram_size ) -gt 16500 ] && return 1
+
+	_firmware log "[OK] removing some things in RAM-Disk"
 	rm /tmp/weblogin*
 	rm /tmp/ARCHIV_*
 	rm /tmp/iptables_*
@@ -241,8 +244,16 @@ _firmware_wget_prepare()		# for lowmem devices
 	rm /tmp/MAC2IP_*
 	rm -fR /tmp/OLSR
 
-	# default_route_via_wifi || wifi_down
-	# _firmware remove_kmodules wifi
+	ip route list exact 0.0.0.0/0 | fgrep -q "dev $WIFIDEV" || {
+		_firmware log "[OK] wifi not needed, shutting down"
+		_firmware kill_tasks wifi_down
+		_firmware remove_kmodules wifi
+	}
+
+	list_tasks="screen dropbear hotplug2 vtund S69watch_olsrd_fff+ scheduler uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd klogd polipo"
+
+	_firmware flush_iptables
+	_firmware remove_kmodules iptables
 
 	# kill some tasks
 	# remove some kmodules
