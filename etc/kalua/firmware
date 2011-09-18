@@ -241,6 +241,7 @@ _firmware_wget_prepare()		# for lowmem devices
 	rm /tmp/MAC2IP_*
 	rm -fR /tmp/OLSR
 
+	# default_route_via_wifi || wifi_down
 	# kill some tasks
 	# remove some kmodules
 }
@@ -291,12 +292,14 @@ _firmware_kill_tasks()
 
 		case "$task" in
 			pause)
-				sleep 3
+				sleep 5
 			;;
 			wifi_down)
-				_firmware log "wifi down"
-				uci set wireless.radio0.disabled=1
-				wifi
+				[ "$( uci set wireless.radio0.disabled )" = 1 ] || {
+					_firmware log "[OK] bringing wifi down"
+					uci set wireless.radio0.disabled=1
+					wifi
+				}
 			;;
 			*)
 				_firmware log "killall $task"
@@ -406,13 +409,13 @@ _firmware_burn ()
 		if _log shell_is_interactive; then
 			pause="60"
 		else
-			list_tasks="$list_tasks screen dropbear wifi_down hostapd"
+			list_tasks="$list_tasks screen dropbear wifi_down"
 			pause="180"
 		fi
 
 		list_tasks="$list_tasks pause $list_tasks"		# double try...
 
-		_firmware log "watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
+		_firmware log "[OK] watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
 		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
 
 		_scheduler queue_purge
