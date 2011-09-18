@@ -251,7 +251,7 @@ _firmware_log()		# syslogd will likely be killed
 	echo "$1"
 }
 
-_firmware_remove_kmodules()
+_firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one module
 {
 	local module remove
 	local list_modules="$( lsmod | cut -d' ' -f1 )"
@@ -281,6 +281,41 @@ _firmware_remove_kmodules()
 
 	_firmware log "[OK] still loaded modules:"
 	lsmod
+}
+
+_firmware_kill_tasks()
+{
+	local list_tasks="$1"		# special keywords: pause | wifi_down
+
+	for task in $list_tasks ; do {
+
+		case "$task" in
+			pause)
+				sleep 3
+			;;
+			wifi_down)
+				_firmware log "wifi down"
+				uci set wireless.radio0.disabled=1
+				wifi
+			;;
+			*)
+				_firmware log "killall $task"
+				killall "$task"
+			;;
+		esac
+	} done
+
+	_firmware log "[OK] still running tasks:"
+	ps ax
+}
+
+_firmware_flush_iptables()
+{
+	_firmware log "[OK] flushing iptables"
+
+	iptables -t mangle -F
+	iptables -t filter -F
+	iptables -t nat -F
 }
 
 _firmware_burn ()
@@ -366,44 +401,21 @@ _firmware_burn ()
 
 		_firmware log "watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
 		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
+
 		_scheduler queue_purge
+
 		_firmware log "sleeping $pause sec"
 		sleep $pause
 
-		for task in $list_tasks ; do {
+		_firmware kill_tasks "$list_tasks"
 
-			case "$task" in
-				pause)
-					sleep 3
-				;;
-				wifi_down)
-					uci set wireless.radio0.disabled=1
-					wifi
-				;;
-				*)
-					_firmware log "killall $task"
-					killall "$task"
-				;;
-			esac
-		} done
+		rm -fR /etc/banner /etc/profile /etc/kalua /etc/nixio /tmp/kalua
 
-		rm -fR /etc/banner /etc/profile /etc/kalua /etc/nixio
-		_firmware log "[OK] still running tasks:"
-		ps ax
-
-		_firmware log "[OK] flushing iptables"
-		iptables -t mangle -F
-		iptables -t filter -F
-		iptables -t nat -F
+		_firmware flush_iptables
 
 		_firmware remove_kmodules
 
-		# fixme!
-		# rm -fR /tmp/kalua ???
-
-		_firmware log "[OK] flushing caches:"
-		echo 3 > /proc/sys/vm/drop_caches
-		free
+		_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
 
 		_firmware log "[START] sysupgrading"
 		sysupgrade -v "$FILE"
