@@ -388,6 +388,8 @@ _firmware_check_image()
 
 _firmware_remove_cron_stuff()
 {
+	local sleeptime="$1"
+
 	[ -e "/etc/init.d/S51crond_fff+" ] && {
 		if mv "/etc/init.d/S51crond_fff+" "/etc/init.d/deactivated_cron_daemon" ; then
 			_firmware log "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
@@ -404,6 +406,9 @@ _firmware_remove_cron_stuff()
 
 	_firmware log "[OK] watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
 	touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
+
+	_firmware log "[OK] waiting $sleeptime seconds"
+	sleep $sleeptime
 
 	_firmware kill_tasks "crond cron_watchdog.sh scheduler"
 	_scheduler queue_purge
@@ -450,11 +455,6 @@ _firmware_burn ()
 	else
 		_firmware check_image "$FILE" || return 1
 
-		_firmware remove_cron_stuff || return 1
-		_firmware log "sleeping $pause sec"
-		sleep $pause
-
-
 		local task list_tasks
 		list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
 
@@ -466,6 +466,8 @@ _firmware_burn ()
 		fi
 
 		list_tasks="$list_tasks pause $list_tasks"		# double try...
+
+		_firmware remove_cron_stuff $pause || return 1
 		_firmware kill_tasks "$list_tasks"
 
 
