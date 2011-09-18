@@ -236,6 +236,8 @@ _firmware_wget_prepare_for_lowmem_devices()
 {
 	[ $( _system ram_size ) -gt 16500 ] && return 1
 
+	_firmware remove_cron_stuff
+
 	_firmware log "[OK] removing some things in RAM-Disk"
 	rm /tmp/weblogin*
 	rm /tmp/ARCHIV_*
@@ -250,13 +252,15 @@ _firmware_wget_prepare_for_lowmem_devices()
 		_firmware remove_kmodules wifi
 	}
 
-	list_tasks="screen dropbear hotplug2 vtund S69watch_olsrd_fff+ scheduler uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd klogd polipo"
+	local list_tasks="screen dropbear hotplug2 vtund S69watch_olsrd_fff+ uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd klogd polipo"
+	_firmware kill_tasks "$list_tasks"
 
 	_firmware flush_iptables
 	_firmware remove_kmodules iptables
 
-	# kill some tasks
-	# remove some kmodules
+	_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
+
+	# fixme! we cant't "remove_kmodules misc" because of ppp
 }
 
 _firmware_log()		# syslogd will likely be killed
@@ -306,8 +310,10 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 		}
 	} done
 
-	_firmware log "[OK] still loaded modules:"
-	lsmod
+	[ "$filter_option" = "all" ] && {
+		_firmware log "[OK] still loaded modules:"
+		lsmod
+	}
 }
 
 _firmware_kill_tasks()
@@ -385,6 +391,12 @@ _firmware_remove_cron_stuff()
 		_firmware log "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
 		sleep 5
 	} done
+
+	_firmware log "[OK] watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
+	touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
+
+	_firmware kill_tasks "crond cron_watchdog.sh scheduler"
+	_scheduler queue_purge
 }
 
 _firmware_burn ()
@@ -428,9 +440,12 @@ _firmware_burn ()
 		_firmware check_image "$FILE" || return 1
 
 		_firmware remove_cron_stuff || return 1
+		_firmware log "sleeping $pause sec"
+		sleep $pause
+
 
 		local task list_tasks
-		list_tasks="hotplug2 vtund crond S69watch_olsrd_fff+ scheduler uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo cron_watchdog.sh"
+		list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ulogd netserver dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
 
 		if _log shell_is_interactive; then
 			pause="60"
@@ -440,22 +455,14 @@ _firmware_burn ()
 		fi
 
 		list_tasks="$list_tasks pause $list_tasks"		# double try...
-
-		_firmware log "[OK] watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
-		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
-
-		_scheduler queue_purge
-
-		_firmware log "sleeping $pause sec"
-		sleep $pause
-
 		_firmware kill_tasks "$list_tasks"
+
 
 		rm -fR /etc/banner /etc/profile /etc/kalua /etc/nixio /tmp/kalua
 
 		_firmware flush_iptables
 
-		_firmware remove_kmodules
+		_firmware remove_kmodules all
 
 		_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
 
