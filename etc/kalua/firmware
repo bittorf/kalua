@@ -242,6 +242,8 @@ _firmware_wget_prepare()		# for lowmem devices
 	rm -fR /tmp/OLSR
 
 	# default_route_via_wifi || wifi_down
+	# _firmware remove_kmodules wifi
+
 	# kill some tasks
 	# remove some kmodules
 }
@@ -255,19 +257,32 @@ _firmware_log()		# syslogd will likely be killed
 _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one module
 {
 	local module remove
+	local filter_option="${1:-all}"				# all | iptables | wifi | misc
 	local list_modules="$( lsmod | cut -d' ' -f1 )"
 
 	for module in $list_modules ; do {
 
 		case "$module" in
 			"nf_"*|"xt"*|"ts_"*|"x_tables"|"ip_tables"|"ipt_"*|"iptable_"*)
-				remove=1
+				case "$filter_option" in
+					all|iptables)
+						remove=1
+					;;
+				esac
 			;;
 			"b43"*|"ath"*|"cfg80211"|"mac80211"*|"compat"*)
-				remove=1
+				case "$filter_option" in
+					all|wifi)
+						remove=1
+					;;
+				esac
 			;;
-			"ts_"*|"crc_ccitt"|"aes_generic"|"arc4"|"crypto_algapi"|"ppp"*)
-				remove=1
+			"ts_"*|"crc_ccitt"|"aes_generic"|"arc4"|"crypto_algapi"|"ppp"*)		# fixme! ifdown wan for ppp?
+				case "$filter_option" in
+					all|misc)
+						remove=1
+					;;
+				esac
 			;;
 			*)
 				remove=
