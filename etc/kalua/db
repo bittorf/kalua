@@ -358,7 +358,7 @@ _db_ticketcheck ()								# going through list of profiles (user defined or all)
 {										#
 	local FUNC="db_ticketcheck"						# going reverse through list of last new devices
 	local PROFILE_ID_WISH="${1:-$( _db user profile list )}"		# which profile has the login, which have used this device?
-	local DEVICE_ID_LIST_REVERSE="${2:-$( _db user device list reverse )}"	# if profile = wished, than check:
+	local DEVICE_ID_LIST_REVERSE="$2"					# if profile = wished, than check:
 	local DEVICE_ID_LIST="$( _db user device list )"			#
 										# go through list of all login's, after the used one
 	local ALIEN_PROFILE_ID ALIEN_ID USER_ID_LAST ID ID2 USER_ID_STACK	# count, which have whished profile X and are unused
@@ -369,15 +369,30 @@ _db_ticketcheck ()								# going through list of profiles (user defined or all)
 		02|03|04)
 		;;
 		*)
-			_log do $FUNC daemon debug "rescheduling myself for midnight"
+			_log do $FUNC daemon debug "rescheduling myself for tonight"
 
 			local arg1="$( _sanitizer do "$PROFILE_ID_WISH" newlines2spaces )"
 			local arg2="$( _sanitizer do "$DEVICE_ID_LIST_REVERSE" newlines2spaces )"
-			_scheduler add "_$FUNC \"$arg1\" \"$arg2\""
+
+			[ -n "$arg1" ] && arg1="\"$arg1\""
+			[ -n "$arg2" ] && arg2="\"$arg2\""
+
+			case "$0" in
+				*"cgi-bin-sql"*)
+					_scheduler add "_$FUNC $arg1 $arg2"
+				;;
+				*)
+					_scheduler add "_$FUNC $arg1 $arg2" force
+				;;
+			esac
 
 			return
 		;;
 	esac
+
+	[ -z "$DEVICE_ID_LIST_REVERSE" ] && {
+		DEVICE_ID_LIST_REVERSE="$( _db user device list reverse )"
+	}
 
 	profiles_are_matching_and_login_is_unused ()		# needs global ID_CHECK + ALIEN_PROFILE_ID + DEVICE_ID_LIST
 	{
