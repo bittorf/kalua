@@ -219,6 +219,36 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				_system reboot_safe "wifidev_name_has_changed"
 			}
 
+			all_wificlients_have_txrate_greater_zero()
+			{
+				local mac ip list_macs
+				local funcname="all_wificlients_have_txrate_greater_zero"
+
+				_net include
+				_wifi include
+
+				list_macs="$( iw dev $WIFIDEV station dump | grep ^Station | cut -d' ' -f2 )"
+
+				# fixme! only check client with low inactivity time
+
+				for mac in $list_macs; do {
+					ip="$( _net mac2ip $mac )"
+					[ -n "$ip" ] && {
+						if arping -q -c 1 -I $WIFIDEV $ip ; then
+							_log do $funcname daemon info "mac: $mac ip: $ip arping OK"
+						else
+							# ping -s 65000 $ip ? to generate some traffic?
+
+							eval $( _wifi minstrel $mac )
+							_log do $funcname daemon info "mac: $mac ip: $ip txrate: $txrate" 
+							[ "$txrate" = "0" ] && return 1
+						fi
+					}
+				} done
+
+				return 0
+			}
+
 			incoming_wifi_activity()
 			{
 				local funcname="incoming_wifi_activity"
@@ -360,6 +390,10 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					constantly_disassociating_wifi_clients && {
 						:
 						# _wifi phy_restart $WIFIDEV "constantly_disassociating_wifi_clients()"
+					}
+
+					all_wificlients_have_txrate_greater_zero || {
+						_wifi phy_restart $WIFIDEV "txrate of a client is 0"
 					}
 				;;
 			esac
