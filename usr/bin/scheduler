@@ -221,7 +221,7 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 
 			all_wificlients_have_txrate_greater_zero()
 			{
-				local mac ip list_macs
+				local mac ip list_macs i
 				local funcname="all_wificlients_have_txrate_greater_zero"
 
 				_net include
@@ -234,10 +234,18 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				for mac in $list_macs; do {
 					ip="$( _net mac2ip $mac )"
 					[ -n "$ip" ] && {
-						if arping -q -c 1 -I $WIFIDEV $ip ; then
+						if arping -q -f -c 10 -I $WIFIDEV $ip ; then
 							_log do $funcname daemon info "mac: $mac ip: $ip arping OK"
 						else
-							# ping -s 65000 $ip ? to generate some traffic?
+							generate_some_tx()
+							{
+								while [ ${i=0} -lt 200 ]; do {
+									i=$(( $i + 1 ))
+									netmsg "$1" "tx"
+								} done
+							}
+
+							# generate_some_tx "$ip"
 
 							eval $( _wifi minstrel $mac )
 							_log do $funcname daemon info "mac: $mac ip: $ip txrate: $txrate" 
