@@ -221,49 +221,52 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 
 			all_wificlients_have_txrate_greater_zero()
 			{
+				local exitcode=0
 				local mac ip list_macs
 				local funcname="all_wificlients_have_txrate_greater_zero"
 
 				_net include
 				_wifi include
 
+				generate_some_tx()
+				{
+					local ip="$1"
+					local i=0
+
+					while [ $i -lt 500 ]; do {
+						i=$(( $i + 1 ))
+						netmsg "$ip" "tx"
+					} done
+				}
+
 				list_macs="$( iw dev $WIFIDEV station dump | grep ^Station | cut -d' ' -f2 )"
 
-				# fixme! only check client with low inactivity time
-
-				for mac in $list_macs; do {
+				for mac in $list_macs; do {		# fixme! only check client with low inactivity time
 					ip="$( _net mac2ip $mac )"
 					[ -n "$ip" ] && {
 						if arping -q -f -c 10 -I $WIFIDEV $ip ; then
 							_log do $funcname daemon info "mac: $mac ip: $ip arping OK"
+							exitcode=0
+							break
 						else
-							generate_some_tx()
-							{
-								local ip="$1"
-								local i=0
-
-								while [ $i -lt 500 ]; do {
-									i=$(( $i + 1 ))
-									netmsg "$ip" "tx"
-								} done
-							}
-
 							eval $( _wifi minstrel $mac )
 							_log do $funcname daemon info "mac: $mac ip: $ip txrate: $txrate" 
 
-							[ "$txrate" = "0" ] && {
+							if [ "$txrate" = "0" ]; then
 								generate_some_tx "$ip"
 
 								eval $( _wifi minstrel $mac )
 								_log do $funcname daemon info "mac: $mac ip: $ip txrate: $txrate (2n try)"
 
-								[ "$txrate" = "0" ] && return 1
-							}
+								[ "$txrate" = "0" ] && exitcode=1
+							else
+								exitcode=0
+							fi
 						fi
 					}
 				} done
 
-				return 0
+				return $exitcode
 			}
 
 			incoming_wifi_activity()
