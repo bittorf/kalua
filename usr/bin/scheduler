@@ -219,25 +219,24 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				_system reboot_safe "wifidev_name_has_changed"
 			}
 
+			generate_some_tx()
+			{
+				local ip="$1"
+				local i=0
+
+				while [ $i -lt 500 ]; do {
+					i=$(( $i + 1 ))
+					netmsg "$ip" "tx"	# 500 x 1001 UDP-Bytes
+				} done
+			}
+
 			all_wificlients_have_txrate_greater_zero()
 			{
-				local exitcode=0
-				local mac ip list_macs
+				local mac ip list_macs exitcode
 				local funcname="all_wificlients_have_txrate_greater_zero"
 
 				_net include
 				_wifi include
-
-				generate_some_tx()
-				{
-					local ip="$1"
-					local i=0
-
-					while [ $i -lt 500 ]; do {
-						i=$(( $i + 1 ))
-						netmsg "$ip" "tx"	# 500 x 1001 UDP-Bytes
-					} done
-				}
 
 				list_macs="$( iw dev $WIFIDEV station dump | grep ^Station | cut -d' ' -f2 )"
 
@@ -265,7 +264,7 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					}
 				} done
 
-				return $exitcode
+				return ${exitcode:-0}
 			}
 
 			incoming_wifi_activity()
@@ -310,7 +309,7 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 						return 0
 					fi
 				else
-					_log do $funcname daemon info "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer do "$framecount_old + $(( $framecount_new - $framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
+					_log do $funcname daemon debug "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer do "$framecount_old + $(( $framecount_new - $framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
 					return 0
 				fi
 			}
