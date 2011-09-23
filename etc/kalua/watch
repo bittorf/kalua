@@ -364,21 +364,22 @@ _watch_dns_resolution ()	# only with existing dnsmasq and reachable internet-gat
 
 _watch_pppoe ()
 {
+	local funcname="watch_pppoe"
+
 	[ ! -e "/tmp/PPPOE_NEEDED" ]			&& return 0
 	[ "$( uci get network.wan.proto )" = "pppoe" ]	|| return 0
 
 	ip route list exact 0.0.0.0/0 dev $WANDEV >/dev/null 2>/dev/null || {		# WANDEV= "pppoe-wan" OR "ppp0"
 
-		local FUNC="watch_pppoe"
+		_log do $funcname daemon alert "no default route over $WANDEV - restarting PPPoE"
 
-		_log do $FUNC daemon err "no default route over $WANDEV - restarting PPPoE"
+		_watch hanging_command pppoecd
+		_watch hanging_command pppoecd
 
-		killall    pppoecd
-		killall -9 pppoecd
 		ifup wan
 		sleep 15
 
-		_log do $FUNC daemon err "restarted: '$( ip route list exact 0.0.0.0/0 dev $WANDEV )'"
+		_log do $funcname daemon info "restarted: '$( ip route list exact 0.0.0.0/0 dev $WANDEV )'"
 
 		_scheduler add "_watch pppoe"
 	}
