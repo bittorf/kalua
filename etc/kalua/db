@@ -551,3 +551,30 @@ _db_autocreate_tickets_and_send_mail ()
 		[ -e "$FILE" ] && rm "$FILE"
 	} done
 }
+
+_db_import()
+{
+	local funcname="db_import"
+	local file="$1"			# .csv with: "lastname","firstname" / codepage 8859-15
+	local profile_id="${2:-1}"
+	local devices_per_login="$3"
+	local fuzzy="1"
+	local comment line firstname lastname
+
+	while read line; do {
+
+		lastname="$(  echo "$line" | cut -d',' -f1 )"
+		firstname="$( echo "$line" | cut -d',' -f2 )"
+		eval lastname=$lastname
+		eval firstname=$firstname
+		comment="$lastname, $firstname"
+
+		username="$( echo $firstname | cut -b 1 ).$lastname"		# Manfred von Ardenne -> "m.von ardenne"
+		username="$( _sanitizer do "$username" lowercase )"
+
+		_log do $funcname daemon info "adding '$firstname $lastname' -> $username"
+		_db user login add "$profile_id" "$comment" "$username" "" "$devices_per_login" "" "$fuzzy"
+
+	} done <"$file"
+}
+
