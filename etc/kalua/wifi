@@ -1805,3 +1805,55 @@ _wifi_typeof()				# returns e.g. "mac80211"
 	config_load wireless
 	config_foreach find_device_type wifi-iface
 }
+
+_wifi_check_each_client()
+{
+	local mac ip list_macs exitcode list_already_known_macs local up1 up2 up_diff
+	local funcname="wifi_check_each_client"
+	local max_arping="10"
+	local statsdir="/tmp/$funcname"
+
+	mkdir -p "$statsdir"
+	_net include
+
+	list_macs="$( iw dev $WIFIDEV station dump | grep ^Station | cut -d' ' -f2 )"
+
+	for mac in $list_macs; do {		# fixme! only check client with low inactivity time
+		[ "$exitcode" = "0" ] || {
+			ip="$( _net mac2ip $mac )" && {
+				if arping -q -f -c $max_arping -I $WIFIDEV $ip ; then
+					_log do $funcname daemon debug "[OK] arping - mac: $mac ip: $ip"
+					exitcode="0"
+				else
+					_log do $funcname daemon info "[ERR] arping - mac: $mac ip: $ip (no success for $max_arping probes)"
+					exitcode="1"
+				fi
+			}
+		}
+
+		[ -e "$statsdir/$mac" ] || {
+			_log do $funcname daemon info "[OK] detected new station $mac"
+			_system uptime >"$statsdir/$mac"
+		}
+	} done
+
+	station_is_valid()
+	{
+		iw dev $WIFIDEV station get "${1:-unset}" 2>/dev/null >/dev/null
+	}
+
+	list_already_known_macs="$( ls -1 "$statsdir" 2>/dev/null )"
+
+	for mac in $list_already_known_macs; do {		# fixme! writeout traffic_counter
+		station_is_valid "$mac" || {
+			up2="$( _system uptime )"
+			read up1 <"$statsdir/$mac"
+			rm "$statsdir/$mac"
+			up_diff="$(( $up2 - $up1 ))"
+
+			_log do $funcname daemon alert "[OK] station $mac left network $WIFIDEV, ($( _stopwatch seconds2humanreadable $up_diff ))"
+		}
+	} done
+
+	return ${exitcode:-0}
+}
