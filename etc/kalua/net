@@ -439,17 +439,18 @@ _net_inet_seems_stable ()					# fixme! also check path to gateway (add wireless 
 
 _net_mac2ip ()		# SENS: get client-IP from different sources
 {
+	local funcname="mac2ip"
 	_sanitizer include
 
-	local MAC="$( _sanitizer do "$1" lowercase )"
+	local MAC="$( _sanitizer do "${1:-unset_mac}" lowercase )"
 	local IP HOSTNAME COUNT
 
-	_try1 ()	# is filled during pfilter_adduser() (macs are lowercase)
+	try_1()		# is filled during pfilter_adduser() (macs are lowercase)
 	{
 		read 2>/dev/null IP </tmp/MAC2IP_$MAC
 	}
 
-	_try2 ()	# arp-cache (macs are lowercase)
+	try_2()		# arp-cache (macs are lowercase)
 	{
 		local mac ip line
 
@@ -459,33 +460,41 @@ _net_mac2ip ()		# SENS: get client-IP from different sources
 			mac="$( _sanitizer do "$4" lowercase )"
 
 			[ "$MAC" = "$mac" ] && {
-				IP=$ip
+				IP="$ip"
 				return
 			}
 
 		} done </proc/net/arp
 	}
 
-	_try3 ()	# DHCP-leases (macs are lowercase)
+	try_3()		# DHCP-leases (macs are lowercase)
 	{
-		IP="$( sed -e "/$MAC/!d" -ne 's/^.* ..:..:..:..:..:.. \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' /var/run/dhcp.leases )"
+		local leasefile="$( _net dhcp_lease_filename )"
+
+		[ -e "$leasefile" ] && {
+			IP="$( sed -e "/$MAC/!d" -ne 's/^.* ..:..:..:..:..:.. \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' "$leasefile" )"
+		}
 	}
 
-	_try4 ()	# /etc/ethers -> /etc/local.hosts (macs are lowercase)
+	try_4()		# /etc/ethers -> /etc/local.hosts (macs are lowercase)
 	{
 		HOSTNAME="$( sed -n "s/^$MAC \(.*\)/\1/p" /etc/ethers 2>/dev/null )"
 		[ -n "$HOSTNAME" ] && IP="$( sed -n "/$HOSTNAME/s/^\([0-9\.]*\) ${HOSTNAME}.*/\1/p" /etc/local.hosts )"
 	}
 
-	for COUNT in 1 2 3 4; do {
-		_try${COUNT}
+	for COUNT in 1 2 3 4 ; do {
+
+		try_${COUNT}
+
 		[ -n "$IP" ] && {
 			echo "$MAC" >/tmp/IP2MAC_$IP
-			break
+			echo "$IP"
+			return 0
 		}
 	} done
 
-	echo -n $IP
+	_log do $funcname daemon info "could not get ip for mac $MAC"
+	return 1
 }
 
 _net_mac2hostname ()
