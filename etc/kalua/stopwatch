@@ -8,6 +8,26 @@ _stopwatch_start ()
 	echo "${up%.*}${up#*.}" >$file
 }
 
+_stopwatch_seconds2humanreadable()
+{
+	local integer="$1"
+	local humanreadable min sec hours
+
+	min="$(( $integer / 60 ))"
+	sec="$(( $integer % 60 ))"
+
+	if [ $min -gt 60 ]; then
+		hours="$(( $min / 60 ))"
+		min="$(( $min % 60 ))"
+
+		humanreadable="${hours}h ${min}min ${sec}sec"
+	else
+		humanreadable="${min}min ${sec}sec"
+	fi
+
+	echo "$humanreadable"
+}
+
 _stopwatch_stop ()		# OUT1: centyseconds = seconds/100
 {
 	local FUNC="stopwatch_stop"
@@ -17,7 +37,7 @@ _stopwatch_stop ()		# OUT1: centyseconds = seconds/100
 	local object_type="$4"				# e.g. tickets
 
 	local FILE="/tmp/STOPWATCH_${CONTEXT}_$$"
-	local up rest DIFF
+	local up rest DIFF humanreadable
 	local START END OUT INTEGER REST message
 
 	read up rest </proc/uptime
@@ -37,13 +57,9 @@ _stopwatch_stop ()		# OUT1: centyseconds = seconds/100
 	INTEGER="$(( $OUT / 100 ))"
 
 	[ $INTEGER -gt 60 ] && {
-		local humanreadable min sec
-
-		min="$(( $INTEGER / 60 ))"
-		sec="$(( $INTEGER % 60 ))"
-		sec="$(( ( $sec * 100 ) / 60 ))"
-
-		humanreadable=" (${min}min ${sec}sec)"
+		humanreadable=" ("
+		humanreadable="${humanreadable}$( _stopwatch seconds2humanreadable $INTEGER )"
+		humanreadable="${humanreadable})"
 	}
 
 	[ -n "$object_type" -a -n "$object_count" ] && {
