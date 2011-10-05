@@ -219,54 +219,6 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 				_system reboot_safe "wifidev_name_has_changed"
 			}
 
-			generate_some_tx()
-			{
-				local ip="$1"
-				local i=0
-
-				while [ $i -lt 500 ]; do {
-					i=$(( $i + 1 ))
-					netmsg "$ip" "tx"	# 500 x 1001 UDP-Bytes
-				} done
-			}
-
-			all_wificlients_have_txrate_greater_zero()	# fixme! do stats for each client
-			{
-				local mac ip list_macs exitcode
-				local funcname="all_wificlients_have_txrate_greater_zero"
-
-				_net include
-				_wifi include
-
-				list_macs="$( iw dev $WIFIDEV station dump | grep ^Station | cut -d' ' -f2 )"
-
-				for mac in $list_macs; do {		# fixme! only check client with low inactivity time
-					ip="$( _net mac2ip $mac )"
-					[ -n "$ip" ] && {
-						if arping -q -f -c 10 -I $WIFIDEV $ip ; then
-							_log do $funcname daemon debug "mac: $mac ip: $ip arping OK"
-							return 0
-						else
-							eval $( _wifi minstrel $mac )
-							_log do $funcname daemon info "mac: $mac ip: $ip txrate: $txrate" 
-
-							if [ "$txrate" = "0" ]; then
-								generate_some_tx "$ip"
-
-								eval $( _wifi minstrel $mac )
-								_log do $funcname daemon info "mac: $mac ip: $ip txrate: $txrate (2nd try)"
-
-								[ "$txrate" = "0" ] && exitcode=1
-							else
-								return 0
-							fi
-						fi
-					}
-				} done
-
-				return ${exitcode:-0}
-			}
-
 			incoming_wifi_activity()
 			{
 				local funcname="incoming_wifi_activity"
@@ -410,8 +362,8 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 						# _wifi phy_restart $WIFIDEV "constantly_disassociating_wifi_clients()"
 					}
 
-					all_wificlients_have_txrate_greater_zero || {
-						_wifi phy_restart $WIFIDEV "txrate of a client is 0"
+					_wifi check_each_client || {
+						_wifi phy_restart $WIFIDEV "tx/arping to all clients failed"
 					}
 				;;
 			esac
