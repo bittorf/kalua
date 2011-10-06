@@ -255,16 +255,27 @@ _watch_vpnc ()
 
 _watch_hanging_command ()
 {
-	local COMMAND="$1"						# e.g. wget|scp|mv|nc|olsrd
 	local FUNC="watch_hanging_command"
-	local COMMAND_PID="$( _system get_first_pid $COMMAND )"		# any running process?
+	local COMMAND="$1"						# e.g. wget|scp|mv|nc|olsrd|own_keyword
+	local COMMAND_PID="$2"						# e.g. direct PID or autoget if empty
 	local COMMAND_CMD
+
+	pid2taskname()
+	{
+		_sanitizer do "$( cut -d: -f2 /proc/${1:-unset}/status )" firstword
+	}
+
+	if [ -z "$COMMAND_PID" ]; then
+		COMMAND_PID="$( _system get_first_pid $COMMAND )"
+	else
+		COMMAND="$( pid2taskname $COMMAND_PID )"
+	fi
 
 	[ -z "$COMMAND_PID" ] && {
 		_log do $FUNC daemon debug "no running '$COMMAND'-process"
 		return 0
 	}
-	
+
 	read COMMAND_CMD </proc/$COMMAND_PID/cmdline			# remember exact commandline
 
 	local OLD_PID OLD_CMD FILE1 FILE2
@@ -301,7 +312,7 @@ _watch_hanging_command ()
 		return 0
 	fi
 
-	_log do $FUNC daemon debug "remember for next check '$COMMAND_PID' / '$COMMAND_CMD'"
+	_log do $FUNC daemon debug "remember for next check pid '$COMMAND_PID' / '$COMMAND_CMD'"
 	echo >$FILE1 "$COMMAND_PID"
 	echo >$FILE2 "$COMMAND_CMD"
 }
