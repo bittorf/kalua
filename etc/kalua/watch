@@ -570,7 +570,12 @@ _watch_webserver ()
 _watch_sshd_or_telnet ()
 {
 	local funcname="watch_sshd_or_telnet"
+	local option="$1"
 	local pid
+
+	[ "$option" = "force" ] || {
+		[ -e /tmp/service_ssh_nowatching ] && return
+	}
 
 	restart_sshd()
 	{
@@ -679,8 +684,18 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 
 		if [ ! -e /tmp/REGISTRATED ] && [ "$wait" = "0" ]; then
 
-			killall rcS		# fixme! for newstyle_devices, till we find to bug why these are hanging around
-			killall logger
+			_uci is_oldstyle || {
+				killall rcS		# fixme! for newstyle_devices, till we find the bug why these are hanging around
+				killall logger
+
+				[ $( _system ram_size ) -lt 28000 ] && {
+					killall hotplug2
+					killall klogd
+
+					touch /tmp/service_ssh_nowatching
+					killall dropbear
+				}
+			}
 
 			eval "$( build_vars )"
 
