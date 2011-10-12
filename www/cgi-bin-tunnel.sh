@@ -32,7 +32,7 @@ case "$ACTION" in
 	#		eval $( _tunnel get_speed_for_hash "$HASH" "$MAC" )
 
 			case "$MAC" in
-				00:08:c6*)				# SIP test
+				00:08:c6*|00:04:13*)			# SIP test (Phillips/SNOM)
 					SPEED_UPLOAD="80"		# G.711a = 80kbit up + 80kbit down => RTP: 172 Bytes UDP - 28 Bytes UDP overhead = 144 Bytes DATA * 56 Packets = 8064 Bytes/s = 56 * 172 = 9632 bytes/s = 77.056 bit/s
 					SPEED_DOWNLOAD="80"		# G.729 = 20 kbit up + 20 kbit down | UDP = 8 Byte Header? -> 8000 Byte/s / (172byte-8byte_udp_header) = 49 pakete * 172 byte = 67424 bit/s
 				;;
