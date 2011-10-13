@@ -476,8 +476,13 @@ _watch_pppoe ()
 	[ ! -e "/tmp/PPPOE_NEEDED" ]			&& return 0
 	[ "$( uci get network.wan.proto )" = "pppoe" ]	|| return 0
 
-	ip route list exact 0.0.0.0/0 dev $WANDEV >/dev/null 2>/dev/null || {		# WANDEV= "pppoe-wan" OR "ppp0"
+	if ip route list exact 0.0.0.0/0 dev $WANDEV >/dev/null 2>/dev/null ; then		# WANDEV= "pppoe-wan" OR "ppp0"
 
+		[ -e "$failure_file" ] && {
+			rm "$failure_file"
+			_stopwatch stop "$funcname" global 1 pppoe-connection
+		}
+	else
 		[ -e "$failure_file" ] || {
 			touch "$failure_file"
 			_stopwatch start "$funcname" global
@@ -499,12 +504,7 @@ _watch_pppoe ()
 		_log do $funcname daemon info "restarted: '$( ip route list exact 0.0.0.0/0 dev $WANDEV )'"
 
 		_scheduler add "_watch pppoe"
-	}
-
-	[ -e "$failure_file" ] && {
-		rm "$failure_file"
-		_stopwatch stop "$funcname" global 1 pppoe-connection
-	}
+	fi
 }
 
 _watch_webcam ()
