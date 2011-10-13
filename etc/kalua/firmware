@@ -236,6 +236,11 @@ _firmware_wget_prepare_for_lowmem_devices()
 {
 	[ $( _system ram_size ) -gt 16500 ] && return 1
 
+	local url="$( _links firmware_url_get )"
+	local server_dnsname="$( _http url_get_serverstring "$url" )"
+	local ip="$( _net dns2ip "$server_dnsname" )"
+	_firmware log "[OK] serverstring2ip: $server_dnsname -> $ip"
+
 	_firmware remove_cron_stuff
 
 	_firmware log "[OK] removing some things in RAM-Disk"
@@ -252,11 +257,13 @@ _firmware_wget_prepare_for_lowmem_devices()
 		_firmware remove_kmodules wifi
 	}
 
-	local list_tasks="screen dropbear hotplug2 vtund S69watch_olsrd_fff+ uhttpd ulogd netserver luci-bwc udhcpc syslogd klogd polipo"
+	local list_tasks="screen dropbear hotplug2 vtund S69watch_olsrd_fff+ uhttpd ulogd netserver luci-bwc udhcpc syslogd klogd polipo dnsmasq"
 	_firmware kill_tasks "$list_tasks"
 
 	_firmware flush_iptables
 	_firmware remove_kmodules iptables
+
+	echo "$ip $server_dnsname" >/etc/hosts		# see beginning of function
 
 	_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
 
