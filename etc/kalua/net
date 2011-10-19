@@ -156,7 +156,37 @@ _net_ip2mac ()		# ofcourse this works only for local IP's, but: maybe we want to
 
 _net_dns2ip ()
 {
-	nslookup $1 | sed -n '5s/^Address:[^0-9]*\([0-9\.]*\)/\1/p'
+	local line ip go
+
+	nslookup "$1" |
+	 while read line; do {
+		case "$line" in
+			Name*)
+				go=1
+			;;
+			Address*)
+				[ -z "$go" ] && continue
+
+				ip="${line#*: }"	# e.g. 'Address 1: 2a02:2e0:3fe:100::8 redirector.heise.de'
+
+				case "$ip" in
+					*:*)
+						continue	# for now we omit ipv6
+					;;
+					" "*)
+						ip="${ip#* }"
+						ip="${ip#* }"
+						ip="${ip#* }"
+					;;
+				esac
+
+				ip="${ip% *}"		# e.g. 'Address 1: 84.38.67.43'
+							# e.g. 'Address 2: 193.99.144.80 redirector.heise.de'
+							# e.g. 'Address:    193.99.144.80'	// spaces on kernel 2.4
+				echo "$ip"
+			;;
+		esac
+	} done
 }
 
 _net_dev2ip ()		# only first ip
