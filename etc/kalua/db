@@ -540,17 +540,6 @@ _db_autocreate_tickets_and_send_mail ()
 		"tickettype: $TICKET_QUANTITY x $NAME" \
 		"[OK] Neue Tickets wurden automatisch generiert: $TICKET_QUANTITY x $NAME ($( _log append_info ))"
 
-	local mail_user mail_domain mail_tld
-	case "$( uci get system.@profile[0].name )" in
-		*)
-			mail_user="info"
-			mail_domain"bittorf-wireless"
-			mail_tld="de"
-		;;
-	esac
-
-	RECIPIENT_MAIL="${mail_user}@${mail_domain}.${mail_tld}"
-
 	local FILE_OVERVIEW="/tmp/$( _pdf filename "overview"		"$TICKET_QUANTITY" "$NAME" )"
 	local FILE_LABELS="/tmp/$(   _pdf filename "labels"		"$TICKET_QUANTITY" "$NAME" )"
 	local FILE_LABELS2="/tmp/$(  _pdf filename "labels_overview"	"$TICKET_QUANTITY" "$NAME" )"
@@ -567,7 +556,9 @@ _db_autocreate_tickets_and_send_mail ()
 	echo "WLAN-Tickets (Anzahl: $COUNTER) fuer Standard-Etiketten"	>$FILE_LABELS.desc
 	echo "Protokoll/Uebersicht fuer Standard-Etiketten"		>$FILE_LABELS2.desc
 
-	_mail send "$FROM_REAL" "$FROM_MAIL" "$RECIPIENT_REAL" "$RECIPIENT_MAIL" "$FILE_MAIL" "" "" "" "$FILE_OVERVIEW $FILE_LABELS $FILE_LABELS2"
+	for RECIPIENT_MAIL in $( _db list_mail_recipients ); do {
+		_mail send "$FROM_REAL" "$FROM_MAIL" "$RECIPIENT_REAL" "$RECIPIENT_MAIL" "$FILE_MAIL" "" "" "" "$FILE_OVERVIEW $FILE_LABELS $FILE_LABELS2"
+	} done
 
 	for FILE in $FILE_MAIL $FILE_OVERVIEW $FILE_OVERVIEW.desc $FILE_LABELS $FILE_LABELS.desc $FILE_LABELS2 $FILE_LABELS.desc $FILE_CSV; do {
 		[ -e "$FILE" ] && rm "$FILE"
@@ -600,4 +591,98 @@ _db_import()
 	} done <"$file"
 
 	_db user login index_gen
+}
+
+_db_list_mail_recipients()
+{
+	local config_profile="${1:-$( uci get system.@profile[0].name )}"
+
+	build_mail()
+	{
+		echo "$1@$2.$3"
+	}
+
+	case "$config_profile" in
+		leonardo*)
+			build_mail info hotel-leonardo de
+			build_mail info wohnen-in-leipzig de
+		;;
+		olympia*)
+			build_mail hotel.olympia t-online de
+			build_mail as cans de
+		;;
+		vivaldi*)
+			build_mail henschel hotel-vivaldi de
+		;;
+		satama*)
+			build_mail r.kowatsch satama-saunapark de
+		;;
+		monami*)
+			build_mail frenzel monami-weimar de
+		;;
+		ejbw*)
+			build_mail peuker ejbweimar de
+		;;
+		hotello-K80*)
+			build_mail k80 hotello de
+			build_mail wlan-ticket cans de
+		;;
+		adagio*)
+			build_mail mail hotel-adagio de
+		;;
+		versilia*)
+			build_mail weimar ristorante-versilia de
+		;;
+		marinapark*)
+			build_mail marinapark web de
+		;;
+		paltstadt*)
+			build_mail info weimar-pension-altstadt de
+			build_mail elektrosteinmetz web de
+		;;
+		galerie*)
+			build_mail info leipziger-hof de
+		;;
+		aschbach*)
+			build_mail rezeption berghotel-aschbach de
+			build_mail wlan-ticket cans de
+		;;
+		hotello-B01*)
+			build_mail b01 hotello de
+			build_mail wlan-ticket cans de
+		;;
+		hotello-H09*)
+			build_mail h09 hotello de
+			build_mail wlan-ticket cans de
+		;;
+		itzehoe*)
+			build_mail huettendorf stadtwerke-itzehoe de
+			build_mail l.reschke ehsdruck de
+		;;
+		apphalle*)
+			build_mail info appartementhausamdom de
+		;;
+		lisztwe*)
+			build_mail mail hotel-adagio de
+			build_mail mail hotel-liszt de
+		;;
+		elephant*)
+			build_mail elephant.weimar luxurycollection com
+		;;
+		berlinle*)
+			build_mail hotel-berlin-leipzig t-online de
+		;;
+		dhfleesensee*)
+			build_mail Thomas.Hoerning dorfhotel-fleesensee de
+		;;
+		zumnorde*)
+			build_mail info hotel-zumnorde de
+		;;
+		tkolleg*)
+			build_mail mail detlefwagner de
+		;;
+		*)
+			build_mail info bittorf-wireless de
+		;;
+	esac
 }
