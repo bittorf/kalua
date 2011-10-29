@@ -314,11 +314,6 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 #					}
 #				}
 
-				local match4="ath: Not enough beacon buffers when adding new interface of type:"
-				dmesg | grep -q "$match4" && {
-					_system reboot_safe "detected: $match4"
-				}
-
 				return 1
 			}
 
@@ -383,6 +378,16 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					_wifi check_each_client || {
 						_wifi phy_restart $WIFIDEV "tx/arping to all clients failed"
 					}
+
+					case "$WIFIMODE" in
+						*ap*)
+							pidof hostapd >/dev/null || {
+								[ -z "$( _net dev2ip $WIFIDEV )" ] && {
+									_system reboot_safe "missing hostapd and no IP on wifidev $WIFIDEV - $( dmesg | tail -n1 )"
+								}
+							}
+						;;
+					esac
 				;;
 			esac
 
