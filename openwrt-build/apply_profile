@@ -1,0 +1,60 @@
+#!/bin/sh /etc/rc.common
+#
+# needs in BASE="/openwrt/trunk/package/base-files/files/etc/init.d"
+# $BASE/apply_profile
+# $BASE/apply_profile.code
+# $BASE/apply_profile.definitions
+
+START=98
+
+boot ()
+{
+	local thisfile="/etc/init.d/apply_profile"
+	local max_try=30
+	local stopfile="/tmp/STOP"
+	local interval=60
+
+	local i=0
+	local led_loops=10
+	local led_state list_states i
+
+	while [ $max_try -gt 1 ]; do {
+
+		logger -s "$thisfile [BOOT] start - $thisfile"
+		"${thisfile}.code" boot && break
+
+		logger -s "$thisfile [BOOT] executed $myfile.code - but with errors, $max_try try's yet, waiting $interval secs"
+		max_try=$(( $max_try - 1 ))
+
+		sleep $interval
+	} done
+
+	logger -s "$thisfile [BOOT] ready - removing '$thisfile', autorebooting in $(( $led_loops * 3 )) sec, avoid this by 'touch $stopfile'"
+	rm "$thisfile"
+
+	led_firework()
+	{
+		if [ -e /etc/diag.sh ]; then
+			. /etc/diag.sh
+
+			while [ $i -lt $led_loops ]; do {
+				logger -s "$thisfile [BOOT] led_firework, loop $i/$led_loops"
+				for led_state in preinit failsafe done; do {
+					set_state $led_state
+					sleep 1
+				} done
+				i=$(( $i + 1 ))
+			} done
+		else
+			sleep $(( $led_loops * 3 ))
+		fi
+	}
+
+	led_firework
+
+	[ -e "$stopfile" ] || {
+		[ -e "$stopfile" ] || {
+			reboot
+		}
+	}
+}
