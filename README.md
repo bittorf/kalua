@@ -26,7 +26,7 @@ how to build this from scratch on a debian server
 	git clone git://github.com/bittorf/kalua.git
 	openwrt-build/mybuild.sh
 	
-	[...]
+	[...] dauert mehrere dings
 
 	# flash your image via TFTP
 	FW="/path/to/your/backed/firmware_file"
