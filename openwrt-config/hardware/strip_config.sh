@@ -9,7 +9,6 @@ FILE="$1"
 }
 
 sed -i -n '/^[^#]/p' "$FILE"
-<<<<<<< HEAD
 
 # kernel.config
 # ar71xx:   ./build_dir/linux-ar71xx_generic/linux-2.6.39.4/.config
@@ -17,5 +16,3 @@ sed -i -n '/^[^#]/p' "$FILE"
 #
 # openwrt.config
 # .config
-=======
->>>>>>> 5e9acd45e024845d818c2ebb52e2d9e1dcef1c2b
