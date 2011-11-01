@@ -7,14 +7,17 @@ OPTION3="$4"
 
 [ -z "$ACTION" ] && {
 	cat <<EOF
-Usage: 	$0 <action> <opt1> <opt2> <opt3>
+Usage: 	$0 <action> <option1> <option2> <option3>
 
-e.g.	$0 applymystuff liszt28 adhoc 5
+e.g.	$0 ask_me_everything_step_by_step
+
+or:	$0 check_build_dependencies
+	$0 download_openwrt_buildroot
 	$0 gitpull
+	$0 applymystuff liszt28 adhoc 5
 	$0 make
 	$0 upload labor
 	$0 upload liszt28 ap 4
-	$0 update
 EOF
 	exit 1
 }
