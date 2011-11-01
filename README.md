@@ -11,14 +11,15 @@ join the [club](http://blog.maschinenraum.tk/) or ask for [consulting](http://bi
 
 how to build this from scratch on a debian server
 -------------------------------------------------
-
- git clone git://nbd.name/openwrt.git
- git clone git://nbd.name/packages.git
- cd openwrt
-
- make menuconfig	# simply select exit, (just for init)
- make package/symlinks
-
- git clone git://github.com/bittorf/kalua.git
- openwrt-build/mybuild.sh
+ 
+	git clone git://nbd.name/openwrt.git
+	git clone git://nbd.name/packages.git
+	cd openwrt
+	
+	make menuconfig		# simply select exit, (just for init)
+	make package/symlinks
+	
+	git clone git://github.com/bittorf/kalua.git
+	openwrt-build/mybuild.sh
+	
 
