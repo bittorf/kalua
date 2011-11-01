@@ -26,4 +26,9 @@ how to build this from scratch on a debian server
 	git clone git://github.com/bittorf/kalua.git
 	openwrt-build/mybuild.sh
 	
+	[...]
 
+	# flash your image via TFTP
+	FW="/path/to/your/backed/firmware_file"
+	IP="your.own.router.ip"
+	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
