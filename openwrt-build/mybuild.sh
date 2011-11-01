@@ -12,9 +12,10 @@ Usage: 	$0 <action> <option1> <option2> <option3>
 e.g.	$0 ask_me_everything_step_by_step
 
 or:	$0 check_build_dependencies
-	$0 download_openwrt_buildroot
+	$0 download_and_prepare_openwrt_buildroot
 	$0 gitpull
-	$0 applymystuff liszt28 adhoc 5
+	$0 set_build_config <hardware>				# e.g. "Linksys WRT54G:GS:GL"
+	$0 applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$0 make
 	$0 upload labor
 	$0 upload liszt28 ap 4
@@ -30,6 +31,38 @@ log()
 get_arch()
 {
 	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|???
+}
+
+ask_me_everything_step_by_step()
+{
+	:
+}
+
+check_build_dependencies()
+{
+	local list package
+	apt-get update
+	list="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev"
+	for package in $list; do {
+		log "checking for package '$package'"
+		sudo apt-get install $package
+	} done
+}
+
+download_and_prepare_openwrt_buildroot()
+{
+	cat <<EOF
+Please do these steps by yourself:
+
+git clone git://nbd.name/openwrt.git
+git clone git://nbd.name/packages.git
+cd openwrt
+
+make menuconfig		# simply select exit, it's just for init
+make package/symlinks
+
+git clone git://github.com/bittorf/kalua.git
+EOF
 }
 
 bwserver_ip()
@@ -189,6 +222,9 @@ case "$ACTION" in
 		chmod +x /tmp/$FILE
 		mv /tmp/$FILE .
 		log "[OK]"
+	;;
+	*)
+		$ACTION
 	;;
 esac
 
