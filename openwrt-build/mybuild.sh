@@ -15,7 +15,7 @@ Usage: 	$me <action> <option1> <option2> <option3>
 e.g.	$me ask_me_everything_step_by_step
 
 or:	$me gitpull
-	$me show_known_hardware_models
+	$me show_known_hardware_models [specific_model_no]
 	$me set_build_config <hardware>				# e.g. "Linksys WRT54G:GS:GL"
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make
