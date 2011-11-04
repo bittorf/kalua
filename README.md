@@ -20,7 +20,7 @@ how to build this from scratch on a debian server
 	git clone git://nbd.name/packages.git
 	cd openwrt
 	
-	make menuconfig			# simply select exit, (just for init)
+	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
 	make kernel_menuconfig		# simply select exit, (just for init)
 	
