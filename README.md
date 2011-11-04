@@ -22,6 +22,7 @@ how to build this from scratch on a debian server
 	
 	make menuconfig			# simply select exit, (just for init)
 	make package/symlinks
+	make kernel_menuconfig		# simply select exit, (just for init)
 	
 	git clone git://github.com/bittorf/kalua.git
 	openwrt-build/mybuild.sh
