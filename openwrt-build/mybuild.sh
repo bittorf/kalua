@@ -40,11 +40,23 @@ get_arch()
 
 show_known_hardware_models()
 {
+	local specific_model="$1"
 	local dir="$( dirname $0 )/../openwrt-config/hardware"
-	local filename
+	local filename hardware i
 
 	find "$dir/"* -type d | while read filename; do {
-		basename "$filename"
+		hardware="$( basename "$filename" )"
+		i=$(( ${i:-0} + 1 ))
+
+		if [ -n "$specific_model" ]; then
+			case "$specific_model" in
+				"$i"|"$hardware")
+					echo "$hardware"
+				;;
+			esac
+		else
+			echo "$i) $hardware"
+		fi
 	} done
 }
 
@@ -212,7 +224,7 @@ case "$ACTION" in
 		log "[OK]"
 	;;
 	*)
-		$ACTION
+		$ACTION "$OPTION" "$OPTION2" "$OPTION3"
 	;;
 esac
 
