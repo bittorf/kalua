@@ -38,7 +38,23 @@ get_arch()
 	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|???
 }
 
-show_known_hardware_models()
+set_build_config()
+{
+	local hardware="$1"
+	local architecture config_dir kernel_config_dir
+
+	config_dir="kalua/openwrt-config/hardware/$( show_known_hardware_models "$hardware" )"
+
+	log "applying openwrt/packages-configuration to .config"
+	cp "$config_dir/openwrt.config" .config
+
+	architecture="$( get_arch )"
+	kernel_config_dir=build_dir/linux-${architecture}/linux-*
+	log "applying kernel-config for $architecture to $kernel_config_dir"
+	cp "$config_dir/kernel.config" $kernel_config_dir/.config
+}
+
+show_known_hardware_models()		# lists all models or get a specific by name or number
 {
 	local specific_model="$1"
 	local dir="$( dirname $0 )/../openwrt-config/hardware"
