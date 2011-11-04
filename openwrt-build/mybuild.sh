@@ -10,16 +10,15 @@ show_help()
 	local me="$( basename $0 )"
 
 	cat <<EOF
-Usage: 	$me <action> <option1> <option2> <option3>
-
-e.g.	$me ask_me_everything_step_by_step
-
-or:	$me gitpull
+Usage:	$me gitpull
 	$me show_known_hardware_models [specific_model_no]
 	$me set_build_config <hardware>				# e.g. "Linksys WRT54G:GS:GL" or "6"
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make
+
 	$me upload <destination_keywords>			# e.g. labor | ffweimar ap 23
+
+
 EOF
 }
 
@@ -41,6 +40,35 @@ get_arch()
 filesize()
 {
 	stat --format=%s "$1"
+}
+
+update_in_seconds()
+{
+	cut -d'.' -f1 /proc/uptime
+}
+
+make()
+{
+	local t1 t2 date1 date2
+
+	t1="$( update_in_seconds )"
+	date1="$( date )"
+
+	make
+
+	t2="$( update_in_seconds )"
+	date2="$( date )"
+	echo "start: $date1"
+	echo "ready: $date2"
+	echo "make lasts $(( $t2 - $t1 )) seconds"
+}
+
+applymystuff()
+{
+	# regdb
+	# tarball
+	# apply_config
+	:
 }
 
 set_build_config()
@@ -81,11 +109,6 @@ show_known_hardware_models()		# lists all models or get a specific by name or nu
 			echo "$i) $hardware"
 		fi
 	} done
-}
-
-ask_me_everything_step_by_step()
-{
-	:
 }
 
 bwserver_ip()
@@ -204,12 +227,6 @@ gitpull()
 case "$ACTION" in
 	applymystuff)
 		apply_tarball_regdb_and_applyprofile "$OPTION" "$OPTION2" "$OPTION3"
-	;;
-	make)
-		T1=$(date)
-		make
-		echo $T1
-		date
 	;;
 	upload)
 		SERVERPATH="root@intercity-vpn.de:/var/www/firmware/$( get_arch )/images/testing/"	
