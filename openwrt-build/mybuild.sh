@@ -5,18 +5,26 @@ OPTION="$2"
 OPTION2="$3"
 OPTION3="$4"
 
-[ -z "$ACTION" ] && {
+show_help()
+{
+	local me="$( basename $0 )"
+
 	cat <<EOF
-Usage: 	$0 <action> <option1> <option2> <option3>
+Usage: 	$me <action> <option1> <option2> <option3>
 
-e.g.	$0 ask_me_everything_step_by_step
+e.g.	$me ask_me_everything_step_by_step
 
-or:	$0 gitpull
-	$0 set_build_config <hardware>				# e.g. "Linksys WRT54G:GS:GL"
-	$0 applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
-	$0 make
-	$0 upload <destination_keywords>			# e.g. labor | ffweimar ap 23
+or:	$me gitpull
+	$me show_known_hardware_models
+	$me set_build_config <hardware>				# e.g. "Linksys WRT54G:GS:GL"
+	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
+	$me make
+	$me upload <destination_keywords>			# e.g. labor | ffweimar ap 23
 EOF
+}
+
+[ -z "$ACTION" ] && {
+	show_help
 	exit 1
 }
 
@@ -28,6 +36,16 @@ log()
 get_arch()
 {
 	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|???
+}
+
+show_known_hardware_models()
+{
+	local dir="$( dirname $0 )/../openwrt-config/hardware"
+	local filename
+
+	find "$dir/"* -type d | while read filename; do {
+		basename "$filename"
+	} done
 }
 
 ask_me_everything_step_by_step()
