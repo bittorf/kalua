@@ -16,7 +16,7 @@ e.g.	$me ask_me_everything_step_by_step
 
 or:	$me gitpull
 	$me show_known_hardware_models [specific_model_no]
-	$me set_build_config <hardware>				# e.g. "Linksys WRT54G:GS:GL"
+	$me set_build_config <hardware>				# e.g. "Linksys WRT54G:GS:GL" or "6"
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make
 	$me upload <destination_keywords>			# e.g. labor | ffweimar ap 23
@@ -181,6 +181,19 @@ apply_tarball_regdb_and_applyprofile()
 	esac
 }
 
+gitpull()
+{
+	log "updating package-feeds"
+	cd ../packages
+	git pull
+
+	log "updating core-packages/build-system"
+	cd ../openwrt
+	git pull
+
+	log "updated to openwrt-version: $( scripts/getver.sh )"
+}
+
 case "$ACTION" in
 	applymystuff)
 		apply_tarball_regdb_and_applyprofile "$OPTION" "$OPTION2" "$OPTION3"
@@ -190,12 +203,6 @@ case "$ACTION" in
 		make
 		echo $T1
 		date
-	;;
-	gitpull)
-		cd ../packages
-		git pull
-		cd ../openwrt
-		git pull
 	;;
 	upload)
 		SERVERPATH="root@intercity-vpn.de:/var/www/firmware/$( get_arch )/images/testing/"	
