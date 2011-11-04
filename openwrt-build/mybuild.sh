@@ -15,10 +15,6 @@ Usage:	$me gitpull
 	$me set_build_config <hardware>				# e.g. "Linksys WRT54G:GS:GL" or "6"
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make
-
-	$me upload <destination_keywords>			# e.g. labor | ffweimar ap 23
-
-
 EOF
 }
 
@@ -31,6 +27,12 @@ case "$ACTION" in
 		ACTION="mymake"
 	;;
 esac
+
+[ -d kalua ] || {
+	echo "please make sure, that your working directory is in the openwrt-base dir"
+	echo "i want to see the directorys 'package', 'scripts' and 'kalua'"
+	exit 1
+}
 
 log()
 {
@@ -70,6 +72,9 @@ mymake()
 
 applymystuff()
 {
+	local base="package/base-files/files/"
+
+	cp openwrt-build/apply_profile 
 	# regdb
 	# tarball
 	# apply_config
