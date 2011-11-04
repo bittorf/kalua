@@ -19,15 +19,16 @@ how to build this from scratch on a debian server
 	git clone git://nbd.name/openwrt.git
 	git clone git://nbd.name/packages.git
 	cd openwrt
+	git clone git://github.com/bittorf/kalua.git
 	
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
-	make kernel_menuconfig		# simply select exit, (just for init)
 	
-	git clone git://github.com/bittorf/kalua.git
 	kalua/openwrt-build/mybuild.sh gitpull
 	kalua/openwrt-build/mybuild.sh show_known_hardware_models
-	kalua/openwrt-build/mybuild.sh set_build_config "Linksys WRT54G:GS:GL"		# split into kernel and openwrt-config
+	kalua/openwrt-build/mybuild.sh set_build_openwrtconfig "Linksys WRT54G:GS:GL"
+	make kernel_menuconfig
+	kalua/openwrt-build/mybuild.sh set_build_kernelconfig "Linksys WRT54G:GS:GL"
 	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
 	
 	kalua/openwrt-build/mybuild.sh make 		# needs some hours
