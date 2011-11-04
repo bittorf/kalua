@@ -67,7 +67,12 @@ mymake()
 	date2="$( date )"
 	echo "start: $date1"
 	echo "ready: $date2"
-	echo "make lasts $(( $t2 - $t1 )) seconds"
+	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min)"
+
+	# show size of rootfs and kernel:
+	# build_dir/linux-brcm47xx/root.squashfs
+	# build_dir/linux-brcm47xx/vmlinux
+	# build_dir/linux-brcm47xx/vmlinux.lzma
 }
 
 applymystuff()
