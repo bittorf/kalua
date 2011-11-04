@@ -72,13 +72,26 @@ mymake()
 
 applymystuff()
 {
-	local base="package/base-files/files/"
+	local base="package/base-files/files"
+	local pwd="$( pwd )"
 
-	cp openwrt-build/apply_profile 
-	# regdb
-	# tarball
-	# apply_config
-	:
+	log "copy apply_profile - the master controller"
+	cp "kalua/openwrt-build/apply_profile" "$base/etc/init.d"
+
+	log "copy apply_profile.code - the configurator"
+	cp "kalua/openwrt-build/apply_profile.code" "$base/etc/init.d"
+
+	log "copy apply_profile.definitions - your network descriptions"
+	cp "kalua/openwrt-build/apply_profile.definitions" "$base/etc/init.d"
+
+	log "copy regulatory.bin - easy bird grilling included"
+	cp "kalua/openwrt-patches/regulatory.bin" "$base/etc/init.d/apply_profile.regulatory.bin"
+
+	log "copy all_the_scripts/addons - the kalua-project itself"
+	cd kalua/openwrt-addons
+	cp -R * "../../$base"
+
+	cd "$pwd"
 }
 
 set_build_config()
@@ -235,9 +248,6 @@ gitpull()
 }
 
 case "$ACTION" in
-	applymystuff)
-		apply_tarball_regdb_and_applyprofile "$OPTION" "$OPTION2" "$OPTION3"
-	;;
 	upload)
 		SERVERPATH="root@intercity-vpn.de:/var/www/firmware/$( get_arch )/images/testing/"	
 		[ -n "$OPTION2" ] || SERVERPATH="$SERVERPATH/$OPTION"					# liszt28
@@ -271,14 +281,6 @@ case "$ACTION" in
 			WGET_URL="http://intercity-vpn.de/firmware/$( get_arch )/images/testing/${FILEINFO}${FILE}"
 			log "download with: wget -O ${FILEINFO}.bin '$WGET_URL'"
 		} done
-	;;
-	update)
-		FILE="openwrt-firmware-bauen.sh"
-		scp -P 222 bastian@$( bwserver_ip ):/home/bastian/Desktop/bittorf_wireless/programmierung/$FILE /tmp
-		log "mv /tmp/$FILE to ."
-		chmod +x /tmp/$FILE
-		mv /tmp/$FILE .
-		log "[OK]"
 	;;
 	*)
 		$ACTION "$OPTION" "$OPTION2" "$OPTION3"
