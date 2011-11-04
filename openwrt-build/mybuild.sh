@@ -22,10 +22,15 @@ Usage:	$me gitpull
 EOF
 }
 
-[ -z "$ACTION" ] && {
-	show_help
-	exit 1
-}
+case "$ACTION" in
+	"")
+		show_help
+		exit 1
+	;;
+	make)
+		ACTION="mymake"
+	;;
+esac
 
 log()
 {
@@ -47,7 +52,7 @@ update_in_seconds()
 	cut -d'.' -f1 /proc/uptime
 }
 
-make()
+mymake()
 {
 	local t1 t2 date1 date2
 
