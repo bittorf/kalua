@@ -106,7 +106,7 @@ set_build_config()
 	cp "$file" .config
 
 	architecture="$( get_arch )"
-	kernel_config_dir=build_dir/linux-${architecture}/linux-*
+	kernel_config_dir=build_dir/linux-${architecture}*/linux-*		# e.g. build_dir/linux-ar71xx_generic/linux-2.6.39.4
 	file="$config_dir/kernel.config"
 	log "applying kernel-config for $architecture to $kernel_config_dir/.config ($( filesize "$file" ) bytes)"
 	cp "$file" $kernel_config_dir/.config
