@@ -30,8 +30,8 @@ how to build this from scratch on a debian server
 	kalua/openwrt-build/mybuild.sh set_build_config "Linksys WRT54G:GS:GL"
 	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
 	
-	[...needs some hours...]
-
+	kalua/openwrt-build/mybuild.sh make 		# needs some hours
+	
 	# flash your image via TFTP
 	FW="/path/to/your/baked/firmware_file"
 	IP="your.own.router.ip"
