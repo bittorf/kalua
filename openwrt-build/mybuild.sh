@@ -47,7 +47,30 @@ get_arch()
 
 filesize()
 {
-	stat --format=%s "$1"
+	local file="$1"
+	local option="$2"
+
+	case "$option" in
+		flashblocks)
+			local blocks bytes overlap percent blocksize
+
+			case "$( get_arch )" in
+				*)
+					blocksize="65536"
+				;;
+			esac
+
+			bytes="$( stat --format=%s "$file" )"
+			blocks="$(( $bytes / $blocksize ))"
+			overlap="$(( $bytes % $blocksize ))"
+			percent="$(( $overlap * 100 / $blocksize ))"
+
+			echo "$blocks flash/eraseblocks, $overlap bytes (${percent}%) overlap into next, 1 block = $blocksize bytes"
+		;;
+		*)
+			stat --format=%s "$file"
+		;;
+	esac
 }
 
 update_in_seconds()
@@ -59,6 +82,7 @@ mymake()
 {
 	local option="$1"			# e.g. V=99
 	local t1 t2 date1 date2 hardware
+	local filelist file
 
 	read hardware <KALUA_HARDWARE
 	t1="$( update_in_seconds )"
@@ -72,10 +96,19 @@ mymake()
 	echo "ready: $date2"
 	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
 
-	# show size of rootfs and kernel:
-	# build_dir/linux-brcm47xx/root.squashfs
-	# build_dir/linux-brcm47xx/vmlinux
-	# build_dir/linux-brcm47xx/vmlinux.lzma
+	case "$( get_arch )" in
+		brcm47xx)
+			filelist="build_dir/linux-brcm47xx/root.squashfs \
+				build_dir/linux-brcm47xx/vmlinux \
+				build_dir/linux-brcm47xx/vmlinux.lzma \
+				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx \
+				bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
+		;;
+	esac
+
+	for file in $filelist; do {
+		echo "file '$file': $( filesize "$file" ) bytes ($( filesize "$file" flashblocks ))"
+	} done
 }
 
 applymystuff()
