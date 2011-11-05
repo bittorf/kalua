@@ -15,7 +15,7 @@ Usage:	$me gitpull
 	$me set_build_openwrtconfig
 	$me set_build_kernelconfig
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
-	$me make
+	$me make <option>
 EOF
 }
 
@@ -57,18 +57,20 @@ update_in_seconds()
 
 mymake()
 {
-	local t1 t2 date1 date2
+	local option="$1"			# e.g. V=99
+	local t1 t2 date1 date2 hardware
 
+	read hardware <KALUA_HARDWARE
 	t1="$( update_in_seconds )"
 	date1="$( date )"
 
-	make
+	make $option
 
 	t2="$( update_in_seconds )"
 	date2="$( date )"
 	echo "start: $date1"
 	echo "ready: $date2"
-	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min)"
+	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
 
 	# show size of rootfs and kernel:
 	# build_dir/linux-brcm47xx/root.squashfs
