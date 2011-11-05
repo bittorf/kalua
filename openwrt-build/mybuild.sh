@@ -151,10 +151,15 @@ select_hardware_model()
 	} done
 
 	[ -z "$specific_model" ] && {
+		read hardware 2>/dev/null <KALUA_HARDWARE
 		echo
-		echo "please select your device:"
+		echo "please select your device or hit <enter> to leave '${hardware:-empty_model}'"
 		read hardware
-		select_hardware_model "$hardware" >KALUA_HARDWARE
+
+		[ -n "$hardware" ] && {
+			select_hardware_model "$hardware" >KALUA_HARDWARE
+		}
+
 		read hardware <KALUA_HARDWARE
 		log "wrote model $hardware to file KALUA_HARDWARE"
 	}
