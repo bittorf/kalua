@@ -115,8 +115,12 @@ mymake()
 
 applymystuff()
 {
+	local installation="$1"
+	local sub_profile="$2"
+	local node="$3"
+
 	local base="package/base-files/files"
-	local file
+	local file destfile
 	local pwd="$( pwd )"
 
 	file="kalua/openwrt-build/apply_profile"
@@ -124,8 +128,23 @@ applymystuff()
 	cp "$file" "$base/etc/init.d"
 
 	file="kalua/openwrt-build/apply_profile.code"
+	destfile="$base/etc/init.d/apply_profile.code"
 	log "copy $( basename "$file" ) - the configurator ($( filesize "$file" ) bytes)"
-	cp "$file" "$base/etc/init.d"
+	cp "$file" "$destfile"
+
+	if [ -n "$node" ]; then
+		echo "changing values in '$destfile'"
+		sed -i "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$destfile"
+		sed -i "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$destfile"
+		sed -i "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$destfile"
+
+		local startline
+		startline="$( grep -n ^"# enforcing a profile" "$destfile" | cut -d':' -f1 )"
+		startline="$(( $startline + 9 ))"
+		head -n $startline "$destfile" | tail -n 13
+	else
+		echo "selected generic profile"
+	fi
 
 	file="kalua/openwrt-build/apply_profile.code.definitions"
 	log "copy $( basename "$file" )  - your network descriptions ($( filesize "$file" ) bytes)"
