@@ -95,6 +95,8 @@ mymake()
 	echo "start: $date1"
 	echo "ready: $date2"
 	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
+	echo
+	echo '"Jauchzet und frohlocket..." ob der bytes die gezaubert wurden:'
 
 	case "$( get_arch )" in
 		brcm47xx)
