@@ -116,19 +116,24 @@ mymake()
 applymystuff()
 {
 	local base="package/base-files/files"
+	local file
 	local pwd="$( pwd )"
 
-	log "copy apply_profile - the master controller ($( filesize kalua/openwrt-build/apply_profile ) bytes)"
-	cp "kalua/openwrt-build/apply_profile" "$base/etc/init.d"
+	file="kalua/openwrt-build/apply_profile"
+	log "copy $( basename "$file" ) - the master controller ($( filesize "$file" ) bytes)"
+	cp "$file" "$base/etc/init.d"
 
-	log "copy apply_profile.code - the configurator ($( filesize kalua/openwrt-build/apply_profile.code ) bytes)"
-	cp "kalua/openwrt-build/apply_profile.code" "$base/etc/init.d"
+	file="kalua/openwrt-build/apply_profile.code"
+	log "copy $( basename "$file" ) - the configurator ($( filesize "$file" ) bytes)"
+	cp "$file" "$base/etc/init.d"
 
-	log "copy apply_profile.definitions - your network descriptions ($( filesize kalua/openwrt-build/apply_profile.definitions ) bytes)"
-	cp "kalua/openwrt-build/apply_profile.definitions" "$base/etc/init.d"
+	file="kalua/openwrt-build/apply_profile.code.definitions"
+	log "copy $( basename "$file" )  - your network descriptions ($( filesize "$file" ) bytes)"
+	cp "$file" "$base/etc/init.d"
 
-	log "copy regulatory.bin - easy bird grilling included ($( filesize kalua/openwrt-patches/regulatory.bin ) bytes)"
-	cp "kalua/openwrt-patches/regulatory.bin" "$base/etc/init.d/apply_profile.regulatory.bin"
+	file="kalua/openwrt-patches/regulatory.bin"
+	log "copy $( basename "$file" )  - easy bird grilling included ($( filesize "$file" ) bytes)"
+	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
 
 	log "copy all_the_scripts/addons - the kalua-project itself ($( du -sh kalua/openwrt-addons ))"
 	cd kalua/openwrt-addons
