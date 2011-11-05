@@ -11,6 +11,7 @@ show_help()
 
 	cat <<EOF
 Usage:	$me gitpull
+	$me config2git
 	$me select_hardware_model
 	$me set_build_openwrtconfig
 	$me set_build_kernelconfig
@@ -76,6 +77,24 @@ filesize()
 update_in_seconds()
 {
 	cut -d'.' -f1 /proc/uptime
+}
+
+config2git()
+{
+	local hardware destfile arch dir
+	local strip="kalua/openwrt-config/hardware/strip_config.sh"
+	read hardware <KALUA_HARDWARE
+	
+
+	destfile="kalua/openwrt-config/hardware/$hardware/openwrt.config"
+	cp -v .config "$destfile"
+	$strip "$destfile"
+
+	architecture="$( get_arch )"
+	dir=build_dir/linux-${architecture}*/linux-*
+	destfile="kalua/openwrt-config/hardware/$hardware/kernel.config"
+	cp -v $dir/.config "$destfile"
+	$strip "$destfile"
 }
 
 mymake()
