@@ -26,11 +26,13 @@ how to build this from scratch on a debian server
 	
 	kalua/openwrt-build/mybuild.sh gitpull
 	kalua/openwrt-build/mybuild.sh select_hardware_model
+
 	kalua/openwrt-build/mybuild.sh set_build_openwrtconfig
+	make menuconfig
 	make kernel_menuconfig
+
 	kalua/openwrt-build/mybuild.sh set_build_kernelconfig
 	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
-	
 	kalua/openwrt-build/mybuild.sh make 		# needs some hours
 	
 	# flash your image via TFTP
