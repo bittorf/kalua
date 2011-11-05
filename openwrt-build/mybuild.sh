@@ -11,9 +11,9 @@ show_help()
 
 	cat <<EOF
 Usage:	$me gitpull
-	$me show_known_hardware_models [specific_model_no]
-	$me set_build_openwrtconfig <hardware>			# e.g. "Linksys WRT54G:GS:GL" or "6"
-	$me set_build_kernelconfig <hardware>
+	$me select_hardware_model
+	$me set_build_openwrtconfig
+	$me set_build_kernelconfig
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make
 EOF
@@ -102,9 +102,9 @@ applymystuff()
 
 set_build_openwrtconfig()
 {
-	local hardware="$1"
-	local config_dir file
+	local config_dir file hardware
 
+	read hardware <KALUA_HARDWARE
 	config_dir="kalua/openwrt-config/hardware/$( show_known_hardware_models "$hardware" )"
 	file="$config_dir/openwrt.config"
 	log "applying openwrt/packages-configuration to .config ($( filesize "$file" ) bytes)"
@@ -116,9 +116,9 @@ set_build_openwrtconfig()
 
 set_build_kernelconfig()
 {
-	local hardware="$1"
-	local architecture kernel_config_dir file config_dir
+	local architecture kernel_config_dir file config_dir hardware
 
+	read hardware <KALUA_HARDWARE
 	config_dir="kalua/openwrt-config/hardware/$( show_known_hardware_models "$hardware" )"
 	architecture="$( get_arch )"
 	kernel_config_dir=build_dir/linux-${architecture}*/linux-*		# e.g. build_dir/linux-ar71xx_generic/linux-2.6.39.4
@@ -127,7 +127,7 @@ set_build_kernelconfig()
 	cp "$file" $kernel_config_dir/.config
 }
 
-show_known_hardware_models()		# lists all models or get a specific by name or number
+select_hardware_model()
 {
 	local specific_model="$1"
 	local dir="$( dirname $0 )/../openwrt-config/hardware"
@@ -147,6 +147,15 @@ show_known_hardware_models()		# lists all models or get a specific by name or nu
 			echo "$i) $hardware"
 		fi
 	} done
+
+	[ -z "$specific_model" ] && {
+		echo
+		echo "please select your device:"
+		read hardware
+		select_hardware_model "$hardware" >KALUA_HARDWARE
+		read hardware <KALUA_HARDWARE
+		log "wrote model $hardware to file KALUA_HARDWARE"
+	}
 }
 
 bwserver_ip()
