@@ -97,6 +97,7 @@ mymake()
 	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
 	echo
 	echo '"Jauchzet und frohlocket..." ob der bytes die gezaubert wurden:'
+	echo
 
 	case "$( get_arch )" in
 		brcm47xx)
@@ -111,6 +112,15 @@ mymake()
 	for file in $filelist; do {
 		echo "file '$file': $( filesize "$file" ) bytes ($( filesize "$file" flashblocks ))"
 	} done
+
+	echo
+	echo "to copy this to your device, use ON the device:"
+	echo "scp $USER@$( mypubip ):$( pwd )/$file ."
+}
+
+mypubip()
+{
+	wget -qO - http://intercity-vpn.de/scripts/getip/
 }
 
 applymystuff()
