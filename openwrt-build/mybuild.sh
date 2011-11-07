@@ -150,7 +150,7 @@ applymystuff()
 	local node="$3"
 
 	local base="package/base-files/files"
-	local file destfile
+	local file destfile hash
 	local pwd="$( pwd )"
 
 	file="kalua/openwrt-build/apply_profile"
@@ -187,6 +187,11 @@ applymystuff()
 	log "copy all_the_scripts/addons - the kalua-project itself ($( du -sh kalua/openwrt-addons ))"
 	cd kalua/openwrt-addons
 	cp -R * "../../$base"
+
+	file="$base/etc/tarball_last_applied_hash"
+	hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" | fgrep CRC | cut -d' ' -f2 )"
+	log "writing tarball-hash '$hash' into image (fooling the builtin-update-checker)"
+	echo -n "$hash" >"$file"
 
 	cd "$pwd"
 }
