@@ -53,9 +53,10 @@ filesize()
 
 	case "$option" in
 		flashblocks)
-			local blocks bytes overlap percent blocksize
+			local blocks bytes overlap percent blocksize hardware
+			read hardware <KALUA_HARDWARE
 
-			case "$( get_arch )" in
+			case "$hardware" in
 				*)
 					blocksize="65536"
 				;;
@@ -66,7 +67,7 @@ filesize()
 			overlap="$(( $bytes % $blocksize ))"
 			percent="$(( $overlap * 100 / $blocksize ))"
 
-			echo "$blocks flash/eraseblocks, $overlap bytes (${percent}%) overlap into next, 1 block = $blocksize bytes"
+			echo "$blocks flash/eraseblocks@${blocksize}bytes, $overlap bytes (${percent}%) overlap into next"
 		;;
 		*)
 			stat --format=%s "$file"
