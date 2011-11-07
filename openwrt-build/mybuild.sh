@@ -75,7 +75,7 @@ filesize()
 	esac
 }
 
-update_in_seconds()
+uptime_in_seconds()
 {
 	cut -d'.' -f1 /proc/uptime
 }
@@ -105,12 +105,12 @@ mymake()
 	local filelist file
 
 	read hardware <KALUA_HARDWARE
-	t1="$( update_in_seconds )"
+	t1="$( uptime_in_seconds )"
 	date1="$( date )"
 
 	make $option
 
-	t2="$( update_in_seconds )"
+	t2="$( uptime_in_seconds )"
 	date2="$( date )"
 	echo "start: $date1"
 	echo "ready: $date2"
