@@ -108,7 +108,7 @@ mymake()
 	t1="$( uptime_in_seconds )"
 	date1="$( date )"
 
-	make $option
+	make $option || return 1
 
 	t2="$( uptime_in_seconds )"
 	date2="$( date )"
@@ -126,6 +126,13 @@ mymake()
 				build_dir/linux-brcm47xx/vmlinux.lzma \
 				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx \
 				bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
+		;;
+		ar71xx)
+			filelist="build_dir/linux-ar71xx_generic/root.squashfs \
+				build_dir/linux-ar71xx_generic/vmlinux \
+				build_dir/linux-ar71xx_generic/vmlinux.bin.lzma \
+				bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin \
+				bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
 		;;
 	esac
 
@@ -148,11 +155,19 @@ calc_free_flash_space()
 	case "$hardware" in
 		"Linksys WRT54G:GS:GL")
 			blocksize="65536"
-			kernel="build_dir/linux-brcm47xx/vmlinux.lzma"
+			kernel="build_dir/linux-brcm47xx/vmlinux.bin.lzma"
 			rootfs="build_dir/linux-brcm47xx/root.squashfs"
 			flashsize="$(( 4 * 1024 * 1024 ))"			# 4mb
 			flashsize="$(( $flashsize / $blocksize ))"
 			flash_essential="$(( 4 + 1 ))"				# CFE + nvram
+		;;
+		"TP-LINK TL-WR1043ND")
+			blocksize="65536"
+			kernel="build_dir/linux-ar71xx_generic/vmlinux.bin.lzma"
+			rootfs="build_dir/linux-ar71xx_generic/root.squashfs"
+			flashsize="$(( 8 * 1024 * 1024 ))"			# 8mb
+			flashsize="$(( $flashsize / $blocksize ))"
+			flash_essential="2"					# uboot
 		;;
 	esac
 
@@ -223,7 +238,7 @@ applymystuff()
 	cd "$pwd"
 
 	file="$base/etc/tarball_last_applied_hash"
-	hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" | fgrep CRC | cut -d' ' -f2 )"
+	hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" | fgrep "tarball.tgz" | cut -d' ' -f2 )"
 	log "writing tarball-hash '$hash' into image (fooling the builtin-update-checker)"
 	echo -n "$hash" >"$file"
 }
