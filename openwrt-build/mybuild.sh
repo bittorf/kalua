@@ -218,12 +218,12 @@ applymystuff()
 	cd kalua/openwrt-addons
 	cp -R * "../../$base"
 
+	cd "$pwd"
+
 	file="$base/etc/tarball_last_applied_hash"
 	hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" | fgrep CRC | cut -d' ' -f2 )"
 	log "writing tarball-hash '$hash' into image (fooling the builtin-update-checker)"
 	echo -n "$hash" >"$file"
-
-	cd "$pwd"
 }
 
 set_build_openwrtconfig()
