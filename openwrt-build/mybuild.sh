@@ -156,6 +156,8 @@ calc_free_flash_space()
 		;;
 	esac
 
+	# fixme! e.g. estimated: 983040 real: 760 1k-blocks
+
 	[ -n "$kernel" ] && {
 		kernel_blocks="$(( $(filesize "$kernel") / $blocksize ))"
 		[ 0 = "$(( $(filesize "$kernel") % $blocksize ))" ] || kernel_blocks="$(( $kernel_blocks + 1 ))"
