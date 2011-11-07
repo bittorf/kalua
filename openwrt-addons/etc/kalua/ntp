@@ -17,11 +17,7 @@ _ntp_set ()			# SENS: setting time, so each node is nearly in sync with hole net
 	local  UP2="0"
 	local HOST IP
 	local FILE_SUCCESS="/tmp/ntp_was_successful"	# can be 0 size or has unixtimestamp from last ntp_set
-
-	which rdate >/dev/null || {
-		_log do $FUNC daemon debug "no rdate available"		# fixme! use ntpd instead if found
-		return 0
-	}
+	local program_call
 
 	case "$OPTION" in
 		is_unset)
@@ -42,7 +38,16 @@ _ntp_set ()			# SENS: setting time, so each node is nearly in sync with hole net
 		}
 	}
 	touch $FILE_SUCCESS			# prevents double-execution
-	
+
+	if which rdate >/dev/null; then
+		program_call="rdate -s"
+	elif which ntpd >/dev/null; then
+		program_call="ntpd -p"
+	else
+		_log do $FUNC daemon debug "no suitable timesetter found"
+		return 0
+	fi
+
 	_log do $FUNC daemon debug "start"
 
 	while [ $TRY -lt 5 ]; do {
@@ -55,7 +60,7 @@ _ntp_set ()			# SENS: setting time, so each node is nearly in sync with hole net
 
 			_log do $FUNC daemon debug "ID: '$ID' IP: '$IP'"
 
-			rdate -s $IP >/dev/null 2>&1 && {
+			$program_call $IP >/dev/null 2>&1 && {
 				
 				UP2="$( _system uptime sec )"			
 				HOST="$( _net ip2dns $IP )"
