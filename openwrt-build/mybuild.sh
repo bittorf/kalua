@@ -133,9 +133,39 @@ mymake()
 		echo "file '$file': $( filesize "$file" ) bytes ($( filesize "$file" flashblocks ))"
 	} done
 
+	calc_free_flash_space
+
 	echo
 	echo "to copy this to your device, use ON the device:"
 	echo "scp $USER@$( mypubip ):$( pwd )/$file ."
+}
+
+calc_free_flash_space()
+{
+	local flashsize flash_essential file_kernel kernel_blocks file_rootfs rootfs_blocks hardware
+
+	read hardware <KALUA_HARDWARE
+	case "$hardware" in
+		"Linksys WRT54G:GS:GL")
+			blocksize="65536"
+			kernel="build_dir/linux-brcm47xx/vmlinux.lzma"
+			rootfs="build_dir/linux-brcm47xx/root.squashfs"
+			flashsize="$(( 4 * 1024 * 1024 ))"			# 4mb
+			flashsize="$(( $flashsize / $blocksize ))"
+			flash_essential="$(( 4 + 1 ))"				# CFE + nvram
+		;;
+	esac
+
+	[ -n "$kernel" ] && {
+		kernel_blocks="$(( $(filesize "$kernel") / $blocksize ))"
+		[ 0 = "$(( $(filesize "$kernel") % $blocksize ))" ] || kernel_blocks="$(( $kernel_blocks + 1 ))"
+		rootfs_blocks="$(( $(filesize "$rootfs") / $blocksize ))"
+		[ 0 = "$(( $(filesize "$rootfs") % $blocksize ))" ] || rootfs_blocks="$(( rootfs_blocks + 1 ))"
+		free_blocks="$(( $flashsize - $flash_essential - $kernel_blocks - $rootfs_blocks ))"
+
+		echo
+		echo "estimated free blocks for '$hardware' on JFFS2: $free_blocks @ $blocksize = $(( $free_blocks * $blocksize )) bytes"
+	}
 }
 
 mypubip()
