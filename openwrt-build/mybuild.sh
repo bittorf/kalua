@@ -67,7 +67,11 @@ filesize()
 			overlap="$(( $bytes % $blocksize ))"
 			percent="$(( $overlap * 100 / $blocksize ))"
 
-			echo "$blocks flash/eraseblocks@${blocksize}bytes, $overlap bytes (${percent}%) overlap into next"
+			if [ "$overlap" = "0" ]; then
+				echo "$blocks flash/eraseblocks@${blocksize}bytes, no overlap"
+			else
+				echo "$blocks flash/eraseblocks@${blocksize}bytes, $overlap bytes (${percent}%) overlap into next"
+			fi
 		;;
 		*)
 			stat --format=%s "$file"
