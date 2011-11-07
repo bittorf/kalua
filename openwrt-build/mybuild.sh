@@ -155,7 +155,7 @@ calc_free_flash_space()
 	case "$hardware" in
 		"Linksys WRT54G:GS:GL")
 			blocksize="65536"
-			kernel="build_dir/linux-brcm47xx/vmlinux.bin.lzma"
+			kernel="build_dir/linux-brcm47xx/vmlinux.lzma"
 			rootfs="build_dir/linux-brcm47xx/root.squashfs"
 			flashsize="$(( 4 * 1024 * 1024 ))"			# 4mb
 			flashsize="$(( $flashsize / $blocksize ))"
