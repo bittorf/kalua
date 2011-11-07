@@ -200,14 +200,13 @@ set_build_openwrtconfig()
 	file="$config_dir/openwrt.config"
 	log "applying openwrt/packages-configuration to .config ($( filesize "$file" ) bytes)"
 	cp "$file" .config
-
 	log "please launch _NOW_ 'make kernel_menuconfig' to stageup the kernel-dirs for architecture $( get_arch )"
 	log "simply select exit and safe the config"
 }
 
 set_build_kernelconfig()
 {
-	local architecture kernel_config_dir file config_dir hardware
+	local architecture kernel_config_dir kernel_config_file file config_dir hardware
 
 	read hardware <KALUA_HARDWARE
 	config_dir="kalua/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
@@ -216,6 +215,10 @@ set_build_kernelconfig()
 	file="$config_dir/kernel.config"
 	log "applying kernel-config for arch $architecture to $kernel_config_dir/.config ($( filesize "$file" ) bytes)"
 	cp "$file" $kernel_config_dir/.config
+
+	kernel_config_file=target/linux/${architecture}*/config-*
+	log "applying kernel-config for arch $architecture to $kernel_config_file ($( filesize "$file" ) bytes)"
+	cp "$file" $kernel_config_file
 }
 
 select_hardware_model()
