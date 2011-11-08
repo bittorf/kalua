@@ -187,9 +187,9 @@ mymake()
 		echo "this is an enforced profile: $installation/$subprofile/$node"
 		destfile="${installation}${subprofile}${node}-$( get_hardware nickname ).bin"
 
-		echo "moving '$file' to '/tmp/fw/$destfile'"
+		echo "copying '$file' to '/tmp/fw/$destfile'"
 		mkdir -p /tmp/fw
-		mv "$file" "/tmp/fw/$destfile"
+		cp "$file" "/tmp/fw/$destfile"
 	else
 		destfile="."
 	fi
