@@ -102,6 +102,30 @@ config2git()
 	$strip "$destfile"
 }
 
+get_hardware()
+{
+	local option="$1"
+	local hardware
+
+	read hardware <KALUA_HARDWARE
+
+	if [ "$option" = "nickname" ]; then
+		case "$hardware" in
+			"Linksys WRT54G:GS:GL")
+				echo "linksys"
+			;;
+			"TP-LINK TL-WR1043ND")
+				echo "tplink"
+			;;
+			*)
+				echo "unknown"
+			;;
+		esac
+	else
+		echo "$hardware"
+	fi
+}
+
 mymake()
 {
 	local option="$1"			# e.g. V=99
@@ -111,17 +135,6 @@ mymake()
 	read hardware <KALUA_HARDWARE
 	t1="$( uptime_in_seconds )"
 	date1="$( date )"
-
-	make $option || return 1
-
-	t2="$( uptime_in_seconds )"
-	date2="$( date )"
-	echo "start: $date1"
-	echo "ready: $date2"
-	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
-	echo
-	echo '"Jauchzet und frohlocket..." ob der bytes die gezaubert wurden:'
-	echo
 
 	case "$( get_arch )" in
 		brcm47xx)
@@ -141,14 +154,49 @@ mymake()
 	esac
 
 	for file in $filelist; do {
+		[ -e "$file" ] && rm "$file"
+	} done
+
+	#
+	make $option || return 1
+	#
+
+	t2="$( uptime_in_seconds )"
+	date2="$( date )"
+	echo "start: $date1"
+	echo "ready: $date2"
+	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
+	echo
+	echo '"Jauchzet und frohlocket..." ob der Bytes die erschaffen wurden:'
+	echo
+
+	for file in $filelist; do {
 		echo "file '$file': $( filesize "$file" ) bytes ($( filesize "$file" flashblocks ))"
 	} done
 
 	calc_free_flash_space
 
+	local enforce_file installation subprofile node destfile
+	enforce_file="package/base-files/files/etc/init.d/apply_profile.code"
+	installation="$( sed -n 's/^SIM_ARG1=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+	subprofile="$( sed -n 's/^SIM_ARG2=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+	node="$( sed -n 's/^SIM_ARG3=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+
+	if [ -n "$installation" ]; then
+		echo
+		echo "this is an enforced profile: $installation/$subprofile/$node"
+		destfile="${installation}${subprofile}${node}-$( get_hardware nickname ).bin"
+
+		echo "moving '$file' to '/tmp/fw/$destfile'"
+		mkdir -p /tmp/fw
+		mv "$file" "/tmp/fw/$destfile"
+	else
+		destfile="."
+	fi
+
 	echo
 	echo "to copy this to your device, use ON the device:"
-	echo "scp $USER@$( mypubip ):$( pwd )/$file ."
+	echo "scp $USER@$( mypubip ):$( pwd )/$file $destfile"
 }
 
 calc_free_flash_space()
@@ -240,6 +288,10 @@ applymystuff()
 	cp -R * "../../$base"
 
 	cd "$pwd"
+
+	file="$base/etc/HARDWARE"
+	log "writing target-hardware in image '$file', to known ourselves even without klog/dmesg"
+	echo "$( get_hardware | sed 's/:/\//g' )" >"$file"
 
 	file="$base/etc/tarball_last_applied_hash"
 	hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" | fgrep "tarball.tgz" | cut -d' ' -f2 )"
