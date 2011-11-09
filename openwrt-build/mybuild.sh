@@ -140,14 +140,14 @@ mymake()
 		brcm47xx)
 			filelist="build_dir/linux-brcm47xx/root.squashfs \
 				build_dir/linux-brcm47xx/vmlinux \
-				build_dir/linux-brcm47xx/vmlinux.lzma \
+				build_dir/linux-brcm47xx/vmlinux.gz \
 				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx \
 				bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
 		;;
 		ar71xx)
 			filelist="build_dir/linux-ar71xx_generic/root.squashfs \
 				build_dir/linux-ar71xx_generic/vmlinux \
-				build_dir/linux-ar71xx_generic/vmlinux.bin.lzma \
+				build_dir/linux-ar71xx_generic/vmlinux.bin.gz \
 				bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin \
 				bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
 		;;
@@ -171,7 +171,13 @@ mymake()
 	echo
 
 	for file in $filelist; do {
-		echo "file '$file': $( filesize "$file" ) bytes ($( filesize "$file" flashblocks ))"
+		if [ -e "$file" ]; then
+			echo "file '$file': $( filesize "$file" ) bytes ($( filesize "$file" flashblocks ))"
+		else
+			calc_free_flash_space
+			echo "error, file '$file' is missing, but needed"
+			return 1
+		fi
 	} done
 
 	calc_free_flash_space
@@ -215,7 +221,18 @@ calc_free_flash_space()
 		;;
 		"TP-LINK TL-WR1043ND")
 			blocksize="65536"
-			kernel="build_dir/linux-ar71xx_generic/vmlinux.bin.lzma"
+			kernel="build_dir/linux-ar71xx_generic/vmlinux.bin.gz"	# always 1280kb! = 20 blocks
+			kernel_blocks="$(( $(filesize "$kernel") / $blocksize ))"
+
+			# https://dev.openwrt.org/ticket/8781
+			# fixme!
+			# cleanup with
+			# filesize_in_blocks "$blocksize" "$file"
+
+			[ 0 = "$(( $(filesize "$kernel") % $blocksize ))" ] || kernel_blocks="$(( $kernel_blocks + 1 ))"
+			[ "$kernel_blocks" -gt 20 ] && {
+				echo "your kernel is greater than possible: 1280kb/20blocks"
+			}
 			rootfs="build_dir/linux-ar71xx_generic/root.squashfs"
 			flashsize="$(( 8 * 1024 * 1024 ))"			# 8mb
 			flashsize="$(( $flashsize / $blocksize ))"
@@ -223,10 +240,11 @@ calc_free_flash_space()
 		;;
 	esac
 
+	# recheck with .gz?
 	# fixme! e.g. estimated: 983040 real: 760 1k-blocks
 
 	[ -n "$kernel" ] && {
-		kernel_blocks="$(( $(filesize "$kernel") / $blocksize ))"
+		[ -z "$kernel_blocks" ] && kernel_blocks="$(( $(filesize "$kernel") / $blocksize ))"
 		[ 0 = "$(( $(filesize "$kernel") % $blocksize ))" ] || kernel_blocks="$(( $kernel_blocks + 1 ))"
 		rootfs_blocks="$(( $(filesize "$rootfs") / $blocksize ))"
 		[ 0 = "$(( $(filesize "$rootfs") % $blocksize ))" ] || rootfs_blocks="$(( rootfs_blocks + 1 ))"
