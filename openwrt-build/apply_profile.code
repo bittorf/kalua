@@ -14,13 +14,15 @@ uptime_in_seconds()
 }
 
 
-[ "$USER" = "root" ] || {
+[ "${USER:-root}" = "root" ] || {
 	log "[ERR] user = $USER: seems we are in cross compiling stage?"
 	exit 0
 }
 
 jffs2_is_ready()
 {
+	[ -n "$FAILSAFE" ] && return 0
+
 	[ -e "/etc/init.d/apply_profile" ] || {
 		log "already applied profile, filesystem should be ok"
 		return 0
@@ -176,6 +178,8 @@ password_set()
 	log "password_set() to '$PASSWORD'"
 	sh -c "echo '$PASSWORD'; sleep 1; echo '$PASSWORD'" | passwd>/dev/null 2>&1
 	log "password_set() [OK]"
+
+	echo "/cgi-bin/:root:$PASSWORD" >/etc/httpd.conf
 
 	which dropbear >/dev/null || {
 		log "missing dropbear, allowing telnet login permanentely in /bin/login.sh"
@@ -1331,7 +1335,8 @@ uci set uhttpd.main.interpreter=".sh=/bin/ash"
 }
 
 uci commit
-echo "/cgi-bin/:root:\$p\$root" >/etc/httpd.conf
+# echo "/cgi-bin/:root:\$p\$root" >/etc/httpd.conf	# not working anymore since ~2011nov9
+# moved to password_set()
 [ -s /www/cgi-bin-welcome.sh	] || ln -s /www/cgi-bin-welcome 	/www/cgi-bin-welcome.sh
 [ -s /www/cgi-bin-sql.sh	] || ln -s /www/cgi-bin-sql     	/www/cgi-bin-sql.sh
 [ -s /www/cgi-bin-tool.sh	] || ln -s /www/cgi-bin-tool_fff+	/www/cgi-bin-tool.sh
@@ -1356,5 +1361,6 @@ echo "rm /etc/init.d/apply_profile"
 echo
 echo "maybe kill S98apply_profile!"
 echo "now type: reboot && exit"
-
+[ -n "$FAILSAFE" ] && echo "you are in FAILSAFE mode, try 'reboot -f && exit'"
+exit 0
 # END
