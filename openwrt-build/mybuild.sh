@@ -30,9 +30,9 @@ case "$ACTION" in
 	;;
 esac
 
-[ -d kalua ] || {
+[ -d weimarnetz ] || {
 	echo "please make sure, that your working directory is in the openwrt-base dir"
-	echo "i want to see the directorys 'package', 'scripts' and 'kalua'"
+	echo "i want to see the directorys 'package', 'scripts' and 'weimarnetz'"
 	exit 1
 }
 
@@ -87,17 +87,17 @@ uptime_in_seconds()
 config2git()
 {
 	local hardware destfile arch dir
-	local strip="kalua/openwrt-config/hardware/strip_config.sh"
+	local strip="weimarnetz/openwrt-config/hardware/strip_config.sh"
 	read hardware <KALUA_HARDWARE
 	
 
-	destfile="kalua/openwrt-config/hardware/$hardware/openwrt.config"
+	destfile="weimarnetz/openwrt-config/hardware/$hardware/openwrt.config"
 	cp -v .config "$destfile"
 	$strip "$destfile"
 
 	architecture="$( get_arch )"
 	dir=build_dir/linux-${architecture}*/linux-*
-	destfile="kalua/openwrt-config/hardware/$hardware/kernel.config"
+	destfile="weimarnetz/openwrt-config/hardware/$hardware/kernel.config"
 	cp -v $dir/.config "$destfile"
 	$strip "$destfile"
 }
@@ -270,11 +270,11 @@ applymystuff()
 	local file destfile hash
 	local pwd="$( pwd )"
 
-	file="kalua/openwrt-build/apply_profile"
+	file="weimarnetz/openwrt-build/apply_profile"
 	log "copy $( basename "$file" ) - the master controller ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
 
-	file="kalua/openwrt-build/apply_profile.code"
+	file="weimarnetz/openwrt-build/apply_profile.code"
 	destfile="$base/etc/init.d/apply_profile.code"
 	log "copy $( basename "$file" ) - the configurator ($( filesize "$file" ) bytes)"
 	cp "$file" "$destfile"
@@ -293,16 +293,16 @@ applymystuff()
 		echo "selected generic profile"
 	fi
 
-	file="kalua/openwrt-build/apply_profile.code.definitions"
+	file="weimarnetz/openwrt-build/apply_profile.code.definitions"
 	log "copy $( basename "$file" )  - your network descriptions ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
 
-	file="kalua/openwrt-patches/regulatory.bin"
+	file="weimarnetz/openwrt-patches/regulatory.bin"
 	log "copy $( basename "$file" )  - easy bird grilling included ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
 
-	log "copy all_the_scripts/addons - the kalua-project itself ($( du -sh kalua/openwrt-addons ))"
-	cd kalua/openwrt-addons
+	log "copy all_the_scripts/addons - the weimarnetz-project itself ($( du -sh weimarnetz/openwrt-addons ))"
+	cd weimarnetz/openwrt-addons
 	cp -R * "../../$base"
 
 	cd "$pwd"
@@ -322,7 +322,7 @@ set_build_openwrtconfig()
 	local config_dir file hardware
 
 	read hardware <KALUA_HARDWARE
-	config_dir="kalua/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
+	config_dir="weimarnetz/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
 	file="$config_dir/openwrt.config"
 	log "applying openwrt/packages-configuration to .config ($( filesize "$file" ) bytes)"
 	cp "$file" .config
@@ -335,7 +335,7 @@ set_build_kernelconfig()
 	local architecture kernel_config_dir kernel_config_file file config_dir hardware
 
 	read hardware <KALUA_HARDWARE
-	config_dir="kalua/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
+	config_dir="weimarnetz/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
 	architecture="$( get_arch )"
 	kernel_config_dir=build_dir/linux-${architecture}*/linux-*		# e.g. build_dir/linux-ar71xx_generic/linux-2.6.39.4
 	file="$config_dir/kernel.config"
