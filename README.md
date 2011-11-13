@@ -1,4 +1,4 @@
-kalua - build mesh-networks _without_ pain
+weimarnetz - build mesh-networks _without_ pain
 ==========================================
 
 * community: http://wireless.subsignal.org
@@ -19,21 +19,21 @@ how to build this from scratch on a debian server
 	git clone git://nbd.name/openwrt.git
 	git clone git://nbd.name/packages.git
 	cd openwrt
-	git clone git://github.com/bittorf/kalua.git
+	git clone git://github.com/andibraeu/weimarnetz.git
 	
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
 	
-	kalua/openwrt-build/mybuild.sh gitpull
-	kalua/openwrt-build/mybuild.sh select_hardware_model
+	weimarnetz/openwrt-build/mybuild.sh gitpull
+	weimarnetz/openwrt-build/mybuild.sh select_hardware_model
 
-	kalua/openwrt-build/mybuild.sh set_build_openwrtconfig
+	weimarnetz/openwrt-build/mybuild.sh set_build_openwrtconfig
 	make menuconfig
 	make kernel_menuconfig
 
-	kalua/openwrt-build/mybuild.sh set_build_kernelconfig
-	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
-	kalua/openwrt-build/mybuild.sh make 		# needs some hours
+	weimarnetz/openwrt-build/mybuild.sh set_build_kernelconfig
+	weimarnetz/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
+	weimarnetz/openwrt-build/mybuild.sh make 		# needs some hours
 	
 	# flash your image via TFTP
 	FW="/path/to/your/baked/firmware_file"
