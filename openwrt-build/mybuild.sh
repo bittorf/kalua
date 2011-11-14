@@ -140,7 +140,7 @@ mymake()
 		brcm47xx)
 			filelist="build_dir/linux-brcm47xx/root.squashfs \
 				build_dir/linux-brcm47xx/vmlinux \
-				build_dir/linux-brcm47xx/vmlinux.gz \
+				build_dir/linux-brcm47xx/vmlinux.lzma \
 				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx \
 				bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
 		;;
