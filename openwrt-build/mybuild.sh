@@ -145,6 +145,7 @@ get_hardware()
 mymake()
 {
 	local option="$1"			# e.g. V=99
+	local cpu_count="$( grep -c ^processor /proc/cpuinfo )"
 	local t1 t2 date1 date2 hardware
 	local filelist file
 
@@ -173,15 +174,17 @@ mymake()
 		[ -e "$file" ] && rm "$file"
 	} done
 
-	#
+
+	option="-j$(( $cpu_count + 1 ))${option:+ }$option"	# http://www.timocharis.com/help/jn.html
+	echo "executing: 'make $option'"
 	make $option || return 1
-	#
+
 
 	t2="$( uptime_in_seconds )"
 	date2="$( date )"
 	echo "start: $date1"
 	echo "ready: $date2"
-	echo "make lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
+	echo "'make $option' lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
 	echo
 	echo '"Jauchzet und frohlocket..." ob der Bytes die erschaffen wurden:'
 	echo
