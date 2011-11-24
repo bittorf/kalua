@@ -46,6 +46,25 @@ while ! jffs2_is_ready ; do {
 } done
 log "uptime now: $( uptime_in_seconds ) seconds"
 
+hwprobe()
+{
+	local machine="$1"
+
+	case "$machine" in
+		"Ubiquiti PicoStation2")
+			dmesg | fgrep -q "lpj=917504" && {
+				dmesg | fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" && {
+					dmesg | fgrep -q "ath5k phy0: Atheros AR2317 chip found (MAC: 0x90, PHY: 0x48)" && {
+						return 0
+					}
+				}
+			}
+		;;
+	esac
+
+	return 1
+}
+
   if [ -e /etc/HARDWARE ]; then
 	read HARDWARE </etc/HARDWARE
 elif dmesg | fgrep -q "Linksys WRT54G/GS/GL" ; then	# brcm47xx
@@ -66,6 +85,8 @@ elif dmesg | fgrep -q "ASUS WL-500g Premium"; then	# brcm47xx / v1
 	HARDWARE="ASUS WL-500g Premium"
 elif dmesg | fgrep -q "Dell TrueMobile 2300"; then	# brcm47xx / v1
 	HARDWARE="Dell TrueMobile 2300"
+elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform
+	HARDWARE="Ubiquiti PicoStation2"
 else
 	log "could not detect hardware, abort"
 
