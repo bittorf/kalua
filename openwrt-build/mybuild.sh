@@ -158,8 +158,13 @@ mymake()
 			filelist="build_dir/linux-brcm47xx/root.squashfs \
 				build_dir/linux-brcm47xx/vmlinux \
 				build_dir/linux-brcm47xx/vmlinux.gz \
-				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx \
-				bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
+				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx"
+
+			case "$hardware" in
+				"Linksys WRT54G:GS:GL")
+					filelist="$filelist bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
+				;;
+			esac
 		;;
 		ar71xx)
 			filelist="build_dir/linux-ar71xx_generic/root.squashfs \
