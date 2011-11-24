@@ -132,6 +132,9 @@ get_hardware()
 
 	if [ "$option" = "nickname" ]; then
 		case "$hardware" in
+			"Buffalo WHR-HP-G54")
+				echo "buffi"
+			;;
 			"Linksys WRT54G:GS:GL")
 				echo "linksys"
 			;;
@@ -235,7 +238,7 @@ calc_free_flash_space()
 
 	read hardware <KALUA_HARDWARE
 	case "$hardware" in
-		"Linksys WRT54G:GS:GL")
+		"Linksys WRT54G:GS:GL"|"Buffalo WHR-HP-G54")
 			blocksize="65536"
 			kernel="build_dir/linux-brcm47xx/vmlinux.lzma"
 			rootfs="build_dir/linux-brcm47xx/root.squashfs"
