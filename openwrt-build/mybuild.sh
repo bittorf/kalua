@@ -7,7 +7,7 @@ OPTION3="$4"
 
 show_help()
 {
-	local me="$( basename $0 )"
+	local me="$0"
 
 	cat <<EOF
 Usage:	$me gitpull
@@ -18,6 +18,11 @@ Usage:	$me gitpull
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
 	$me build_kalua_update_tarball
+
+Hint:   for building multiple config-enforced images use e.g.:
+	APP="$0"
+	for I in \$(seq 2 70); do for MODE in adhoc ap; do \$APP applymystuff "ffweimar" \$MODE \$I; \$APP make; done; done
+
 EOF
 }
 
