@@ -631,9 +631,7 @@ EOF
 _config_network ()
 {
 	local NODE="$1"
-	local PROTO
-	local LANDEV
-	local WANDEV
+	local PROTO LANDEV WANDEV
 
 	if [ "$GATEWAY" = "dhcp" ]; then
 		PROTO="dhcp"
@@ -642,37 +640,21 @@ _config_network ()
 	fi
 
 	case "$HARDWARE" in
-		"SPW500V")
-			LANDEV="eth0"
-		;;
-		"ASUS WL-HDD")
-			LANDEV="eth1"
-		;;
-		"Linksys WRT54G/GS/GL"|"Buffalo WHR-HP-G54"|"ASUS WL-500g Premium V2")
-			LANDEV="eth0.0"
-			WANDEV="eth0.1"
-		;;
-		"BulletM")
-			LANDEV="eth0"
-		;;
 		"Dell TrueMobile 2300")
-			LANDEV="eth0"
 			LANMAC="00:90:4b:39:7b:5e"	# fixme!
-			WANDEV="eth1"
 			WANMAC="00:90:4b:39:7b:5f"	# fixme!
-		;;
-		*)
-			LANDEV="eth0.1"
-			WANDEV="eth0.2"
 		;;
 	esac
 
-	cat >/etc/config/network <<EOF
-config 'interface' 'loopback'
-	option 'ifname'   'lo'
-	option 'proto'    'static'
-	option 'ipaddr'   '127.0.0.1'
-	option 'netmask'  '255.0.0.0'
+	LANDEV="$( uci get network.lan.ifname )"
+	WANDEV="$( uci get network.wan.ifname )"
+
+	uci delete network.wan
+	uci delete network.lan
+	uci delete network.wlan
+	uci commit
+
+	cat >>/etc/config/network <<EOF
 
 config 'interface' 'lan'
 	option 'ifname'   '$LANDEV'
@@ -816,67 +798,6 @@ $hide	option 'proto' 'static'
 $hide	option 'ipaddr' '$alias_ipaddr'
 $hide	option 'netmask' '${alias_netmask:-255.255.255.255}'
 EOF
-
-
-	case $HARDWARE in
-		"TP-LINK TL-WR1043ND")
-			cat >>/etc/config/network <<EOF		
-config 'switch'
-	option 'name' 'rtl8366rb'
-        option 'reset' '1'
-        option 'enable_vlan' '1'
-
-config 'switch_vlan'
-	option 'device' 'rtl8366rb'
-	option 'vlan' '1'
-	option 'ports' '1 2 3 4 5t'
-
-config 'switch_vlan'
-	option 'device' 'rtl8366rb'
-	option 'vlan' '2'
-	option 'ports' '0 5t'
-EOF
-		;;
-		"BulletM")
-			:	# no vlan config
-		;;
-		"Linksys WRT54G/GS/GL"|"Buffalo WHR-HP-G54"|"ASUS WL-HDD"|"ASUS WL-500g Premium V2"|"Dell TrueMobile 2300")
-
-			local PORT0 PORT1 HIDEVLAN2
-
-			case "$HARDWARE" in
-				"ASUS WL-HDD"|"Buffalo WHR-HP-G54")
-					PORT0="1 2 3 4 5"
-					PORT1="0 5"
-				;;
-				"Dell TrueMobile 2300")
-					HIDEVLANS="#"
-					PORT0="0 1 2 3 4 5u"
-					PORT1=
-				;;
-				*)
-					PORT0="0 1 2 3 5"
-					PORT1="4 5"
-				;;
-			esac
-
-			cat >>/etc/config/network <<EOF
-
-${HIDEVLANS}config switch eth0
-${HIDEVLANS}	option enable	1
-
-${HIDEVLANS}config switch_vlan eth0_0
-${HIDEVLANS}	option device	'eth0'
-${HIDEVLANS}	option vlan	0
-${HIDEVLANS}	option ports	'$PORT0'
-
-${HIDEVLANS}config switch_vlan eth0_1
-${HIDEVLANS}	option device	'eth0'
-${HIDEVLANS}	option vlan	1
-${HIDEVLANS}	option ports	'$PORT1'
-EOF
-		;;
-	esac
 }
 
 _config_dhcp ()			# domain = .olsr
