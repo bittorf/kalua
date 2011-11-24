@@ -17,6 +17,7 @@ Usage:	$me gitpull
 	$me set_build_kernelconfig
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
+	$me build_kalua_update_tarball
 EOF
 }
 
@@ -82,6 +83,21 @@ filesize()
 uptime_in_seconds()
 {
 	cut -d'.' -f1 /proc/uptime
+}
+
+build_kalua_update_tarball()
+{
+	local mydir="$( pwd )"
+	local tarball="/tmp/tarball.tgz"
+
+	cd kalua/openwrt-addons/
+	tar --owner=root --group=root -czf "$tarball" .
+	cd $mydir
+
+	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes"
+	echo "to copy this to your device, use ON the device:"
+	echo
+	echo "scp $USER@$( mypubip ):$tarball $tarball; cd /; tar xvzf $tarball; regen"
 }
 
 config2git()
