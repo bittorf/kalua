@@ -312,8 +312,13 @@ applymystuff()
 		echo "selected generic profile"
 	fi
 
-	file="kalua/openwrt-build/apply_profile.code.definitions"
-	log "copy $( basename "$file" )  - your network descriptions ($( filesize "$file" ) bytes)"
+	file="apply_profile.code.definitions"
+	if [ -e "$file" ]; then
+		:
+	else
+		file="kalua/openwrt-build/$file"
+	fi
+	log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
 
 	file="kalua/openwrt-patches/regulatory.bin"
