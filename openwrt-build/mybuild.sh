@@ -181,6 +181,11 @@ mymake()
 				bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin \
 				bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
 		;;
+		atheros)
+			filelist="build_dir/linux-atheros/vmlinux.bin.gz \
+				bin/atheros/openwrt-atheros-combined.squashfs.img \
+				bin/atheros/openwrt-atheros-ubnt2-pico2-squashfs.bin"
+		;;
 	esac
 
 	for file in $filelist; do {
@@ -384,7 +389,7 @@ set_build_kernelconfig()
 	cp "$file" $kernel_config_file
 }
 
-select_hardware_model()
+select_hardware_model()		# add: "Ubiquiti PicoStation2"
 {
 	local specific_model="$1"
 	local dir="$( dirname $0 )/../openwrt-config/hardware"
