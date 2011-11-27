@@ -502,8 +502,26 @@ apply_tarball_regdb_and_applyprofile()
 	esac
 }
 
+svnrev2githash()
+{
+	local revision="$1"
+
+	git log --grep="svn://svn.openwrt.org/openwrt/trunk@$revision " |
+	 grep ^commit |
+	  cut -d' ' -f2
+}
+
 gitpull()
 {
+	local revision="$1"
+	local hash
+
+	[ -n "$revision" ] && {
+		hash="$( svnrev2githash "$revision" )"
+		echo "githash: '$hash'"
+		return 0
+	}
+
 	log "updating package-feeds"
 	cd ../packages
 	git pull
