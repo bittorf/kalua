@@ -17,6 +17,7 @@ Usage:	$me gitpull
 	$me set_build_kernelconfig
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
+	$me build_kalua_update_tarball
 EOF
 }
 
@@ -82,6 +83,21 @@ filesize()
 uptime_in_seconds()
 {
 	cut -d'.' -f1 /proc/uptime
+}
+
+build_kalua_update_tarball()
+{
+	local mydir="$( pwd )"
+	local tarball="/tmp/tarball.tgz"
+
+	cd kalua/openwrt-addons/
+	tar --owner=root --group=root -czf "$tarball" .
+	cd $mydir
+
+	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes"
+	echo "to copy this to your device, use ON the device:"
+	echo
+	echo "scp $USER@$( mypubip ):$tarball $tarball; cd /; tar xvzf $tarball; regen"
 }
 
 config2git()
@@ -486,8 +502,26 @@ apply_tarball_regdb_and_applyprofile()
 	esac
 }
 
+svnrev2githash()
+{
+	local revision="$1"
+
+	git log --grep="svn://svn.openwrt.org/openwrt/trunk@$revision " |
+	 grep ^commit |
+	  cut -d' ' -f2
+}
+
 gitpull()
 {
+	local revision="$1"
+	local hash
+
+	[ -n "$revision" ] && {
+		hash="$( svnrev2githash "$revision" )"
+		echo "githash: '$hash'"
+		return 0
+	}
+
 	log "updating package-feeds"
 	cd ../packages
 	git pull
