@@ -218,7 +218,7 @@ mymake()
 	echo "ready: $date2"
 	echo "'make $option' lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
 	echo
-	echo '"Jauchzet und frohlocket..." ob der Bytes die erschaffen wurden:'
+	echo "\"Jauchzet und frohlocket...\" ob der Bytes die erschaffen wurden: (revision: $( scripts/getver.sh ))"
 	echo
 
 	for file in $filelist; do {
