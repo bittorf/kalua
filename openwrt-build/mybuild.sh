@@ -161,6 +161,12 @@ mymake()
 	t1="$( uptime_in_seconds )"
 	date1="$( date )"
 
+	local enforce_file installation subprofile node destfile
+	enforce_file="package/base-files/files/etc/init.d/apply_profile.code"
+	installation="$( sed -n 's/^SIM_ARG1=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+	subprofile="$( sed -n 's/^SIM_ARG2=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+	node="$( sed -n 's/^SIM_ARG3=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+
 	case "$( get_arch )" in
 		brcm47xx)
 			filelist="build_dir/linux-brcm47xx/root.squashfs \
@@ -172,9 +178,17 @@ mymake()
 		ar71xx)
 			filelist="build_dir/linux-ar71xx_generic/root.squashfs \
 				build_dir/linux-ar71xx_generic/vmlinux \
-				build_dir/linux-ar71xx_generic/vmlinux.bin.gz \
-				bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin \
-				bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
+				build_dir/linux-ar71xx_generic/vmlinux.bin.gz"
+
+			if [ -n "$installation" ]; then
+				filelist="$filelist \
+					bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin \
+					bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin"
+			else
+				filelist="$filelist \
+					bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin \
+					bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
+			fi
 		;;
 		atheros)
 			filelist="build_dir/linux-atheros/vmlinux.bin.gz \
@@ -213,12 +227,6 @@ mymake()
 	} done
 
 	calc_free_flash_space
-
-	local enforce_file installation subprofile node destfile
-	enforce_file="package/base-files/files/etc/init.d/apply_profile.code"
-	installation="$( sed -n 's/^SIM_ARG1=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
-	subprofile="$( sed -n 's/^SIM_ARG2=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
-	node="$( sed -n 's/^SIM_ARG3=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
 
 	if [ -n "$installation" ]; then
 		echo
