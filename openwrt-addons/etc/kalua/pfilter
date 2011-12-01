@@ -292,8 +292,10 @@ _pfilter_user_ruleset_activate ()
 			_ipt -t mangle -D traff_$MAC 19
 			_ipt -t mangle -I traff_$MAC 19 -m mark --mark $( _pfilter proto2id CONN )/0xFF -j ULOG --ulog-prefix "${MAC}<"	# outside2inside
 
-			_ipt -t mangle -A traff_users -m mac --mac-source $MAC		-j traff_$MAC
-			_ipt -t mangle -A traff_users -d $IP				-j traff_$MAC
+			iptables -t mangle -nL traff_users | grep -q ^traff_$MAC || {
+				_ipt -t mangle -A traff_users -m mac --mac-source $MAC	-j traff_$MAC
+				_ipt -t mangle -A traff_users -d $IP			-j traff_$MAC
+			}
 
 			_net arp_permanent $IP $MAC
 			_pfilter user_splash_control nosplash "$MAC" "$IP"
@@ -1204,8 +1206,10 @@ _pfilter_user_add ()		# SENS: generate MAC-specific shaping/accounting-chain
 	_ipt -t mangle -A traff_$MAC -m connbytes --connbytes  997999:999999  --connbytes-dir both --connbytes-mode bytes
 	_ipt -t mangle -A traff_$MAC -m connbytes --connbytes 9997999:9999999 --connbytes-dir both --connbytes-mode bytes
 
-	_ipt -t mangle -A traff_users -m mac --mac-source $MAC -j traff_$MAC
-	_ipt -t mangle -A traff_users -d $IP                   -j traff_$MAC	# must be IP, not HNA!
+	iptables -t mangle -nL traff_users | grep -q ^traff_$MAC || {
+		_ipt -t mangle -A traff_users -m mac --mac-source $MAC	-j traff_$MAC
+		_ipt -t mangle -A traff_users -d $IP			-j traff_$MAC
+	}
 
 	for ENTRY in $( _pfilter l7proto_list ); do {
 		_ipt -t mangle -A traff_$MAC -m mark --mark $( _pfilter proto2id $ENTRY )/0xFF	-j shaper
