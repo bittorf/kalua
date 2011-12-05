@@ -94,9 +94,17 @@ build_kalua_update_tarball()
 {
 	local mydir="$( pwd )"
 	local tarball="/tmp/tarball.tgz"
+	local options
+
+	if tar --version 2>&1 | grep -q ^BusyBox ; then
+		log "detected BusyBox-tar, using simple options"
+		options=
+	else
+		options="--owner=root --group=root"
+	fi
 
 	cd kalua/openwrt-addons/
-	tar --owner=root --group=root -czf "$tarball" .
+	tar $options -czf "$tarball" .
 	cd $mydir
 
 	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes"
