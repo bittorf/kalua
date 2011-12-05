@@ -57,7 +57,12 @@ how to development directly on a router
 	git config --global user.name "Firstname Lastname"
 	git config --global user.email "your_email@youremail.com"
 
+	mkdir -p /tmp/dev; cd /tmp/dev
 	git clone <this_repo>
+	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball
+	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
+
+	cd /tmp/dev/kalua
 	git add <changed_files>
 	git commit -m "decribe changes"
 	git push ...
