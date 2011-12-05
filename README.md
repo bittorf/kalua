@@ -41,7 +41,7 @@ how to build this from scratch on a debian server
 	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
 
 
-how to development on directly on a router
+how to development directly on a router
 ------------------------------------------
 
 	opkg update
@@ -50,6 +50,7 @@ how to development on directly on a router
 	echo  >/tmp/gitssh.sh '#!/bin/sh'
 	echo >>/tmp/gitssh.sh 'logger -s "$0: $*"'
 	echo >>/tmp/gitssh.sh 'ssh -i /etc/dropbear/dropbear_dss_host_key $*'
+
 	chmod +x /tmp/gitssh.sh
 	export GIT_SSH="/tmp/gitssh.sh"		# dropbear needs this for public key authentication
 
