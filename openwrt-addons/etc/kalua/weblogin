@@ -1,3 +1,52 @@
+_weblogin_html_logoutpage()
+{
+	eval $( _http query_string_sanitize )
+	_http header_mimetype_output "text/html"
+
+	local mac="$( _net ip2mac "$REMOTE_ADDR" )"
+	local validate_shaped validate_splashed message
+	local destination="http://$WIFIADR"
+	local wait=5
+
+	if _pfilter user_probe "$mac"; then
+		validate_shaped="ja"
+	else
+		validate_shaped="nein"
+	fi
+
+	if _pfilter user_probe_splash "$mac" ; then
+		validate_splashed="ja"
+		message="[OK] sie sind schon aufgeloggt"
+	else
+		validate_splashed="nein"
+		_pfilter user_splash_control splash "$mac" "$REMOTE_ADDR"
+		message="[OK] erfolgreich aufgeloggt"
+	fi
+
+	cat <<EOF
+<html>
+<head>
+<META HTTP-EQUIV="refresh" CONTENT="$wait; URL=$destination">
+</head>
+<body>
+<h3>$message
+<br>Sie werden in $wait Sekunden automatisch <a href='$destination'>auf die Loginseite</a> geleitet</h3>
+<small>
+<pre>
+technische Details ()
+{
+	IP-Adresse:	$REMOTE_ADDR
+	MAC-Adresse:	$mac
+	shaped?:	$validate_shaped
+	splashed?:	$validate_splashed
+}
+</pre>
+</small>
+</body>
+</html>
+EOF
+}
+
 _weblogin_splashscript ()
 {
 	if [ -e /usr/sbin/uhttpd ]; then
