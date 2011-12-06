@@ -4,47 +4,35 @@
 # }
 #
 
-_watch_usbstick_rehungen()
+_watch_vpn ()
 {
-	local func="watch_usbstick_rehungen"
-	local mountpoint="/tmp/usb0"
-	local partition="/dev/sda1"
-
-	fgrep -q "Vendor=18a5 ProdID=0302" /proc/bus/usb/devices && {
-		mount | fgrep -q "$mountpoint" || {
-			mkdir -p "$mountpoint"
-
-			# btrfs-show -> extract device
-			# fdisk -batch blabla
-
-			mount_usb()
-			{
-				mount -t btrfs -o compress,ssd "$partition" "$mountpoint" && {
-					_log do $func daemon info "[OK] mounted"
-				}
-			}
-
-			mount_usb || {
-				_log do $func daemon info "mount failed"
-
-				mkfs.btrfs "$partition" || {
-					_log do $func daemon info "[ERR] failed to format $partition"
-					rm -fR "$mountpoint"
-					return 1
-				}
-
-				mount_usb || {
-					_log do $func daemon info "[ERR] failed to mount $partition"
-					rm -fR "$mountpoint"
-					return 1
-				}
-
-				touch "$mountpoint/polipo.log"		# _watch_local_proxy() needs this
-			}
-
-			/etc/init.d/polipo restart
+	local func="watch_vpn"
+	
+	pidof vtund >/dev/null && {
+	        _log do $func daemon debug "daemon running"
+	        grep -sq ^"Interface .*tap0" /etc/olsrd.conf /var/etc/olsrd.conf || {   # fixme! more abstraction: tun/tapXY + conf-filename
+	        	_log do $FUNC daemon debug "daemon running but tunnel-device not used by olsr"
+	        	return 1
 		}
+	        _log do $func daemon debug "tunnel-device is in olsr.conf"
+	                                                                                                
+	        ps ax | grep vtund | grep -q connecting && {
+	        	_log do $func daemon debug "daemon running but connection seems broken"
+	                return 1
+	        }
+	        _log do $func daemon debug "connection seems active"
+	                                                                                                                                                                                                                        
+	        neigh | grep -q "==1==" || {                            # fixme! implement: 'neigh has_tunnel_neigh'
+	        	_log do $func daemon debug "no tunnel-olsr neighs?"
+	                return 1
+	        }
+	        _log do $func daemon debug "tunnel-olsr neigh available"
+	                                                                                                                                                                                                                                                                                                                        
+	        return 0
 	}
+	                                                                                                                                                                                                                                                                                                                                                
+	_log do $func daemon debug "daemon NOT running"
+	return 1
 }
 
 _watch_local_proxy()
@@ -167,6 +155,7 @@ _watch_vpnc ()
 	
 	PID="$( pidof vpnc )" && {                                                                                                                                              
 		_log do vpnc_helper daemon info "petting PID '$PID' - fixme!"                                                                                                 
+
 		# kill -SIGHUP "$PID"           # fixme! (howto reconnect?)                                                                                                   
 	}              
 }
