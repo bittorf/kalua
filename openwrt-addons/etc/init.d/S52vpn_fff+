@@ -1,4 +1,8 @@
-#!/bin/sh
+#!/bin/sh 
+# Copyright (C) 2011  Andreas Braeu <freifunk@andi95.de>
+# Special thanks to bittorf wireless ))
+START=65
+
 . /tmp/loader
 
 # ToDo:
@@ -26,7 +30,7 @@ fkt_build_vars ()
 	VPN_SERVER="77.87.48.19"				# fixme!
 	
 	SERV="$( uci get system.@vpn[0].hostname )"	# _ip4|_ip6 fallback?
-	CONF="/etc/local.olsrd.conf"			# old_style
+	CONF="/var/etc/olsrd.conf"			# old_style
 	KNOT=$NODE_NUMBER
 	VTUN="/tmp/vtund.conf"
 
@@ -58,16 +62,18 @@ $HOSTNAME {
 	up {
 		program "logger -p daemon.info -t $0_vtund.conf link_up %%:$HOSTNAME" ;
 
-		program "ip address add $WIFIVPNCLIENTADR/$WIFIVPNPRE dev %% label %%:$HOSTNAME" ;
-		program "ip address add $WIFIVPNCLIENTADR/32 dev %%" ;
-		program "ip link set dev %% mtu $mtu up" ;
-		program "ip route add $VPN_SERVER via $STATIC_ROUTE" ;		# + table local?
+		program "ip address add $WIFIVPNCLIENTADR/$WIFIVPNPRE dev %% label %%:$HOSTNAME" wait ;
+		program "ip address add $WIFIVPNCLIENTADR/32 dev %%" wait;
+		program "ip link set dev %% mtu $mtu up" wait;
+		program "ip route add $VPN_SERVER via $STATIC_ROUTE" wait;		# + table local?
 
 		program "grep -q $mytable /etc/iproute2/rt_tables || echo 50 $mytable >>/etc/iproute2/rt_tables" ;
 		program "$anonym ip rule add from $particpant_net prio 30002 table $mytable" ;
 		program "$anonym ip rule add to $particpant_net prio 30001 lookup main" ;
-		program "$anonym ip rule add from $LANNET/$LANPRE prio 30000 table main" ; 
+		program "$anonym ip rule add from $LANNET/$LANPRE prio 30000 table main" ;
+		program "logger -p daemon.info -t $0_vtund.conf before route"; 
 		program "$anonym ip route add default via $WIFIVPNSERVERADR dev %% table $mytable" ;
+		program "logger -p daemon.info -t $0_vtund.conf after route";
 		program "$anonym ip route flush cache" ;
 	} ;
 		# fixme! static_route must only be valid for programs on this machine
@@ -117,7 +123,7 @@ fkt_tunnel_start ()
 	
 	_log do $FUNC daemon debug "starting vtun with config '$VTUN'"
 	
-	vtund -f $VTUN $HOSTNAME $SERV 2>/dev/null || {
+	vtund -f $VTUN $HOSTNAME $SERV -P 5001 2>/dev/null || {
 
 		_log do $FUNC daemon debug "error"	
 		
