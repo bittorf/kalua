@@ -326,6 +326,12 @@ applymystuff()
 	file="kalua/openwrt-build/apply_profile"
 	log "copy $( basename "$file" ) - the master controller ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
+	chmod +x "$base/etc/init.d/$( basename "$file" )"
+
+	file="kalua/openwrt-build/apply_profile.watch"
+	log "copy $( basename "$file" ) - controller_watcher ($( filesize "$file" ) bytes)"
+	cp "$file" "$base/etc/init.d"
+	chmod +x "$base/etc/init.d/$( basename "$file" )"
 
 	file="kalua/openwrt-build/apply_profile.code"
 	destfile="$base/etc/init.d/apply_profile.code"
