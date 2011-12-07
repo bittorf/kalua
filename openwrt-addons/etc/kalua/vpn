@@ -5,12 +5,12 @@ _vpn_start ()
 	_vpn_build_vars
 
 	[ $INETOFFER = "false" -a -z "$( uci get system.@vpn[0].force )" ] && {
-		_log_do $FUNC daemon debug "no local default gateway - abort"
+		_log do $FUNC daemon debug "no local default gateway - abort"
 		return 1
 	}
 
 	[ -z "$NODE_NUMBER" ] && {
-		_log_do $FUNC daemon debug "node not configured yet - abort"
+		_log do $FUNC daemon debug "node not configured yet - abort"
 		return 1
 	}
 		
@@ -34,6 +34,9 @@ _vpn_start ()
 _vpn_stop ()
 {
 	_vpn_build_vars "stop"
+	_vpn_remove_vtun_conf
+	_vpn_remove_olsr_conf
+	_vpn_tunnel_stop
 	
 }
 
@@ -60,6 +63,30 @@ _vpn_get_static_route ()			# prevents tunneling over mesh, when local defgw gets
 			echo -n "$DEFAULT_GATEWAY_IP dev $WANDEV"
 		;;
 	esac
+}
+
+_vpn_tunnel_stop ()
+{
+	local FUNC="vpn_tunnel_stop"
+	
+	pidof vtund >/dev/null && {
+
+		_log do $FUNC daemon debug "killing tunnel-daemon"		
+		killall vtund
+		sleep 2
+	
+		pidof vtund >/dev/null && {
+
+			_log do $FUNC daemon debug "daemon still alive, trying hard"
+			killall -9 vtund
+			sleep 2
+			
+			pidof vtund >/dev/null && {
+
+				_log do $FUNC daemon debug "daemon still alive - error"
+			}
+		}
+	}
 }
 
 _vpn_tunnel_start ()
@@ -205,13 +232,13 @@ _vpn_remove_olsr_conf()
 	_log do $FUNC daemon debug "removed network config"
 	#remove olsr config
 	UCIRETURN=$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface="tap0" )
-	while ($UCIRETURN != "tap0" && $UCIRETURN != "Entry not found"); do {
-		OLSRIFACECOUNT=$OLSRIFACECOUNT+1
-		UCIRETURN=$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface="tap0" )
-		_log do $FUNC daemon debug "scanning olsrd.conf for interface tap0, round $OLSRIFACECOUNT"
+	while ([ "$UCIRETURN" != "tap0" ] && [ -n "$UCIRETURN" ]); do {
+		OLSRIFACECOUNT=$(( OLSRIFACECOUNT + 1 ))
+		_log do $FUNC daemon debug "scanning olsrd.conf for interface tap0, round $OLSRIFACECOUNT Last output: $UCIRETURN iface"
+		UCIRETURN="$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )"
 		} done
 
-	[ $UCIRETURN = "tap0"] && {
+	[ "$UCIRETURN" = "tap0" ] && {
 		uci delete olsrd.@Interface[$OLSRIFACECOUNT]
 		_log do $FUNC daemon debug "removed olsr config"
 		}
@@ -225,8 +252,8 @@ _vpn_write_olsr_conf()
 	local FUNC="vpn_write_olsr_conf"
 	local LINE=""
 	local INTERFACE="tap0"
-	local OLSRIFACECOUNT="0"
-	local OLSRCONFFOUND
+	local OLSRIFACECOUNT=0
+	local TAPFOUND=""
 	local UCIRETURN
 
 	[ "$( _vpn_proto )" != "olsr" ] && INTERFACE=none		# fixme! this is dirty...
@@ -253,16 +280,15 @@ _vpn_write_olsr_conf()
 
 	#olsrd settings
 	UCIRETURN=$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )
-	_log do $FUNC daemon debug "$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )"
-	while ($UCIRETURN != "tap0" && $UCIRETURN != "uci: Entry not found"); do {
-		OLSRIFACECOUNT=$OLSRIFACECOUNT+1
-		UCIRETURN=$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface" )
-		_log do $FUNC daemon debug "scanning olsrd.conf for interface tap0, round $OLSRIFACECOUNT"
+	while ([ "$UCIRETURN" != "tap0" ] && [ -n "$UCIRETURN" ]); do {
+		OLSRIFACECOUNT=$(( OLSRIFACECOUNT + 1 ))
+		_log do $FUNC daemon debug "scanning olsrd.conf for interface tap0, round $OLSRIFACECOUNT Last output: $UCIRETURN iface"
+		UCIRETURN="$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )"
 		} done
 
-	[ $UCIRETURN = "tap0"] && OLSRCONFFOUND="jep"
+	[ "$UCIRETURN" = "tap0" ] && TAPFOUND="jep"
 
-	[ -z $OLSRCONFFOUND ] && {
+	[ -z "$TAPFOUND" ] && {
 		uci add olsrd Interface
 		OLSRIFACECOUNT=-1
 		}
