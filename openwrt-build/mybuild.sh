@@ -360,7 +360,14 @@ applymystuff()
 	echo "$( get_hardware | sed 's/:/\//g' )" >"$file"
 
 	file="$base/etc/tarball_last_applied_hash"
-	hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" | fgrep "tarball.tgz" | cut -d' ' -f2 )"
+
+	while [ -z "$hash" ]; do {
+		hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" |
+			  fgrep "tarball.tgz" |
+			   cut -d' ' -f2
+		)" || sleep 5
+	} done
+
 	log "writing tarball-hash '$hash' into image (fooling the builtin-update-checker)"
 	echo -n "$hash" >"$file"
 }
