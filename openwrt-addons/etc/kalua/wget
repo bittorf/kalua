@@ -9,7 +9,11 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 
 	local PID_WGET PID_LINE PID_LINE_NOW RC
 	local C=0							# counter (raising) for maximal seconds
-	local proxy_command
+	local proxy_command initial_wgets leaving_wgets
+
+	initial_wgets="$( pidof wget )" && {
+		_log do $FUNC daemon info "initial_wgets: $initial_wgets"
+	}
 
 	case "$URL" in
 		*127.0.0.1*|*:[0-9]*)			# not for local urls or urls with special ports
@@ -25,7 +29,7 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 	_log do $FUNC daemon debug "max ${MAX}s, wget $proxy_command -qO - '$URL'"
 
 	( wget $proxy_command -qO - "$URL" 2>/dev/null || echo "$?" >/tmp/${FUNC}_$$ ) &
-	PID_WGET="$!"
+	PID_WGET="$!"		# fixme! it doesnt work, if hanging process
 
 	case ${PID_WGET:=unset} in
 		unset)
@@ -56,6 +60,12 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 
 				_watch hanging_command wget_selfkill $PID_WGET
 				_watch hanging_command wget_selfkill $PID_WGET
+
+				[ -z "$initial_wgets" ] && {
+					leaving_wgets="$( pidof wget )" && {
+						_log do $FUNC daemon info "leaving wgets: $leaving_wgets"
+					}
+				}
 
 				return 1				# fixme! check if still there? zombie? reboot?
 			}
