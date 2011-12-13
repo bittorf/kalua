@@ -114,7 +114,7 @@ build_kalua_update_tarball()
 
 	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
 
-	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes"
+	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes with MD5: $( md5sum "$tarball" | cut -d' ' -f1 )"
 	echo "to copy this to your device, use ON the device:"
 	echo
 	echo "scp $USER@$( mypubip ):$tarball $tarball; $extract"
