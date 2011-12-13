@@ -80,7 +80,12 @@ filesize()
 			fi
 		;;
 		*)
-			stat --format=%s "$file"
+			if [ -e /tmp/loader ]; then		# we are directly on a router
+				. /tmp/loader
+				_file size "$file"
+			else
+				stat --format=%s "$file"
+			fi
 		;;
 	esac
 }
