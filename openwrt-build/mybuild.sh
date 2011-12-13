@@ -100,6 +100,10 @@ build_kalua_update_tarball()
 	local mydir="$( pwd )"
 	local tarball="/tmp/tarball.tgz"
 	local options extract
+	local file_timestamp="etc/variables_fff+"	# fixme! hackish, use pre-commit hook?
+
+	local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
+	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
 
 	if tar --version 2>&1 | grep -q ^BusyBox ; then
 		log "detected BusyBox-tar, using simple options"
@@ -109,7 +113,9 @@ build_kalua_update_tarball()
 	fi
 
 	cd kalua/openwrt-addons/
+	sed -i "s/366686/$last_commit_unixtime_in_hours/" "$file_timestamp"
 	tar $options -czf "$tarball" .
+	sed -i "s/$last_commit_unixtime_in_hours/366686/" "$file_timestamp"
 	cd $mydir
 
 	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
