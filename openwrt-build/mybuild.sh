@@ -94,7 +94,7 @@ build_kalua_update_tarball()
 {
 	local mydir="$( pwd )"
 	local tarball="/tmp/tarball.tgz"
-	local options
+	local options extract
 
 	if tar --version 2>&1 | grep -q ^BusyBox ; then
 		log "detected BusyBox-tar, using simple options"
@@ -107,10 +107,13 @@ build_kalua_update_tarball()
 	tar $options -czf "$tarball" .
 	cd $mydir
 
+	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
+
 	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes"
 	echo "to copy this to your device, use ON the device:"
 	echo
-	echo "scp $USER@$( mypubip ):$tarball $tarball; cd /; tar xvzf $tarball; regen"
+	echo "scp $USER@$( mypubip ):$tarball $tarball; $extract"
+	echo "or simply extract with: $extract"
 }
 
 config2git()
