@@ -54,7 +54,7 @@ how to development directly on a router
 	chmod +x /tmp/gitssh.sh
 	export GIT_SSH="/tmp/gitssh.sh"		# dropbear needs this for public key authentication
 
-	git config --global user.name || {
+	git config --global user.name >/dev/null || {
 		git config --global user.name "Firstname Lastname"
 		git config --global user.email "your_email@youremail.com"
 		git config --edit --global
