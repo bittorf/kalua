@@ -9,11 +9,8 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 
 	local PID_WGET PID_LINE PID_LINE_NOW RC
 	local C=0							# counter (raising) for maximal seconds
-	local proxy_command initial_wgets leaving_wgets
-
-	initial_wgets="$( pidof wget )" && {
-		_log do $FUNC daemon info "initial_wgets: $initial_wgets"
-	}
+	local proxy_command
+	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
 
 	case "$URL" in
 		*127.0.0.1*|*:[0-9]*)			# not for local urls or urls with special ports
@@ -28,8 +25,29 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 
 	_log do $FUNC daemon debug "max ${MAX}s, wget $proxy_command -qO - '$URL'"
 
+	list_wget_pids_initial="$( pidof wget )"
 	( wget $proxy_command -qO - "$URL" 2>/dev/null || echo "$?" >/tmp/${FUNC}_$$ ) &
-	PID_WGET="$!"		# fixme! it doesnt work, if hanging process
+	list_wget_pids_after_launch="$( pidof wget )"
+	# var $! does not report the childs but only parents, which cannot be killed if the child hangs
+
+	element_in_list()
+	{
+		local element="$1"
+		local list="$2"
+
+		echo " $list " | grep -q " $element "
+	}
+
+	for element in $list_wget_pids_after_launch; do {
+		element_in_list "$element" "$list_wget_pids_initial" || {
+			list_wget_pids_myself="$list_wget_pids_myself $element"
+		}
+	} done
+
+	for element in $list_wget_pids_myself; do {
+		PID_WGET="$element"
+		break
+	} done
 
 	case ${PID_WGET:=unset} in
 		unset)
@@ -56,10 +74,11 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 					URL="$( echo "$URL" | sed -e "s/$MASK1/hidden/" -e "s/$MASK2/hidden/" )"
 				}
 
-				_log do $FUNC daemon info "error during fetching '$URL' - killing PID '$PID_WGET' after $C seconds"
-
-				_watch hanging_command wget_selfkill $PID_WGET
-				_watch hanging_command wget_selfkill $PID_WGET
+				for element in $list_wget_pids_myself; do {
+					log do $FUNC daemon info "error during fetching '$URL' - killing PID '$element' after $C seconds"
+					_watch hanging_command wget_selfkill $element
+					_watch hanging_command wget_selfkill $element
+				} done
 
 				[ -z "$initial_wgets" ] && {
 					leaving_wgets="$( pidof wget )" && {
