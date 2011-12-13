@@ -9,10 +9,18 @@ _ipt ()		# for better logging and safer installing - have seen strange errors du
 	local LOCKFILE="/tmp/iptables_lock"
 
 	while [ -e "$LOCKFILE" ]; do {		# fixme! make a trap()
-		_log do iptables_wrapper daemon info "waiting till lockfile $LOCKFILE is gone, pid $$"
-		sleep "$( _math random_integer 1 5 )"
+		if _watch counter "/tmp/iptables_lockfile_counter" increment 1 max 60 ; then
+			_log do iptables_wrapper daemon info "waiting till lockfile $LOCKFILE is gone, pid $$"
+			sleep "$( _math random_integer 1 5 )"
+		else
+			_log do iptables_wrapper daemon alert "detected race, deleting lockfile"
+			rm "$LOCKFILE"
+			break
+		fi
 	} done
-	touch $LOCKFILE
+
+	touch "$LOCKFILE"
+	_watch counter "/tmp/iptables_lockfile_counter" set 1
 
 	local FUNC="iptables"
 	local ARGS="$1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18} ${19} ${20}"
