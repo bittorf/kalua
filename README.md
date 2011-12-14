@@ -39,3 +39,31 @@ how to build this from scratch on a debian server
 	FW="/path/to/your/baked/firmware_file"
 	IP="your.own.router.ip"
 	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
+
+
+how to development directly on a router
+------------------------------------------
+
+	opkg update
+	opkg install git
+
+	echo  >/tmp/gitssh.sh '#!/bin/sh'
+	echo >>/tmp/gitssh.sh 'logger -s "$0: $*"'
+	echo >>/tmp/gitssh.sh 'ssh -i /etc/dropbear/dropbear_dss_host_key $*'
+
+	chmod +x /tmp/gitssh.sh
+	export GIT_SSH="/tmp/gitssh.sh"		# dropbear needs this for public key authentication
+
+	git config --global user.name "Firstname Lastname"
+	git config --global user.email "your_email@youremail.com"
+
+	mkdir -p /tmp/dev; cd /tmp/dev
+	git clone <this_repo>
+	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball
+	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
+
+	cd /tmp/dev/kalua
+	git add <changed_files>
+	git commit -m "decribe changes"
+	git push ...
+
