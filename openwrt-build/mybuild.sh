@@ -49,7 +49,7 @@ log()
 
 get_arch()
 {
-	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|???
+	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|atheros|???
 }
 
 filesize()
@@ -334,7 +334,7 @@ applymystuff()
 	local node="$3"
 
 	local base="package/base-files/files"
-	local file destfile hash
+	local file destfile hash url
 	local pwd="$( pwd )"
 
 	file="kalua/openwrt-build/apply_profile"
@@ -392,10 +392,17 @@ applymystuff()
 	file="$base/etc/tarball_last_applied_hash"
 
 	while [ -z "$hash" ]; do {
-		hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" |
+		url="http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt"
+		log "fetching $url"
+		hash="$( wget -qO - "$url" |
 			  fgrep "tarball.tgz" |
 			   cut -d' ' -f2
-		)" || sleep 5
+			)"
+
+		[ -z "$hash" ] && {
+			log "[ERR] retry in 5 sec, could not fetch '$url'"
+			sleep 5
+		}
 	} done
 
 	log "writing tarball-hash '$hash' into image (fooling the builtin-update-checker)"
