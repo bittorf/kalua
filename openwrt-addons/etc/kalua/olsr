@@ -25,16 +25,20 @@ _olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every mi
 		sleep 10
 	} done
 
-	_wget do "http://127.0.0.1:2006/all" >/tmp/OLSR_TMP/ALL || {
-
-		if pidof olsrd >/dev/null ; then
-			_olsr daemon restart "$func did not work, but daemon is up"
+	while true; do {
+		if _wget do "http://127.0.0.1:2006/all" >/tmp/OLSR_TMP/ALL ; then
+			[ $( _file size "/tmp/OLSR/ALL" ) -eq 0 ] || break
+			_log do $func daemon info "zero txtinfo.plugin-output, trying again"
 		else
-			_olsr daemon start   "$func did not work, daemon is not up"
-		fi
+			if pidof olsrd >/dev/null ; then
+				_olsr daemon restart "$func did not work, but daemon is up"
+			else
+				_olsr daemon start   "$func did not work, daemon is not up"
+			fi
 
-		return 1
-	}
+			return 1
+		fi
+	} done
 
 	ip route show table main >/tmp/OLSR_TMP/ROUTING_TABLE_MAIN	# fixme! update also when fetching neighbour table fails?
 
