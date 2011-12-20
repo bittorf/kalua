@@ -342,7 +342,7 @@ applymystuff()
 	cp "$file" "$destfile"
 
 	if [ -n "$node" ]; then
-		echo "changing values in '$destfile'"
+		log "changing values in '$destfile'"
 		sed -i "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$destfile"
 		sed -i "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$destfile"
 		sed -i "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$destfile"
@@ -352,7 +352,7 @@ applymystuff()
 		startline="$(( $startline + 9 ))"
 		head -n $startline "$destfile" | tail -n 13
 	else
-		echo "selected generic profile"
+		log "selected generic profile"
 	fi
 
 	file="weimarnetz/openwrt-build/apply_profile.code.definitions"
