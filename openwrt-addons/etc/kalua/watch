@@ -856,3 +856,61 @@ _watch_topusage_task ()
 		_watch hanging_command $TASK
 	}
 }
+
+_watch_switch_linkstatus()
+{
+	local funcname="watch_switch_linkstatus"
+	local statfile="/tmp/$funcname.stat"
+	local stat_old stat_new devname
+
+	if [ -e "$statfile" ]; then
+		read stat_old <"$statfile"
+	else
+		_switch show >"$statfile"
+		_log do $funcname daemon debug "[OK] first status check, no action"
+		return 0
+	fi
+
+	stat_new="$( _switch show )"
+
+	[ "${#stat_new}" -gt 0 ] || {
+		_log do $funcname daemon info "[ERR] could not read switch-status"
+		return 1
+	}
+
+	if [ "$stat_new" = "$stat_old" ]; then
+		_log do $funcname daemon debug "[OK] nothing changed"
+		return 0
+	else
+		echo "$stat_new" >"$statfile"
+
+		_log do $funcname daemon info "[OK] switch-status old: $stat_old"
+		_log do $funcname daemon info "[OK] switch-status new: $stat_new"
+
+		if [ "$( uci get network.wan )" = "interface" ]; then
+			devname="wan"
+		else
+			devname="lan"		# fixme!
+		fi
+
+		firstbyte()
+		{
+			echo "$1" | cut -b1
+		}
+
+		if [ "$( firstbyte "$stat_old" )" = "$( firstbyte "$stat_new" )" ]; then
+			_log do $funcname daemon info "[OK] lan-connectors changed"
+		else
+			case "$( firstbyte "$stat_old" )" in
+				"-")
+					_log do $funcname daemon info "[OK] $devname - link up"
+					ifup $devname
+				;;
+				*)
+					_log do $funcname daemon info "[OK] $devname - link down"
+					ifdown $devname
+				;;
+			esac
+		fi
+	fi
+}
