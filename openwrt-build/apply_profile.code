@@ -140,7 +140,12 @@ has_default_route && {
 #SIM_ARG1="olympia"
 #SIM_ARG2="adhoc"
 #SIM_ARG3=2		# 2,3,4,...,n (number 1 is reserved for vpn-server)
-#SIM_ARG4=""
+if [ "$INSTALLATION" = "ffweimar" ]; then
+	SIM_ARG4="dhcp" #set dhcp as default for wan
+else
+	#SIM_ARG4=""
+fi
+
 #[ "$SIM_ARG3" = "2" ] && SIM_ARG4="dhcp"
 #
 #######################################
@@ -205,7 +210,9 @@ password_set()
 	sh -c "echo '$PASSWORD'; sleep 1; echo '$PASSWORD'" | passwd>/dev/null 2>&1
 	log "password_set() [OK]"
 
-	echo "/cgi-bin/:root:$PASSWORD" >/etc/httpd.conf
+	if [ "$INSTALLATION" != "ffweimar" ]; then	#no web server authentication on weimarnetz routers
+		echo "/cgi-bin/:root:$PASSWORD" >/etc/httpd.conf
+	fi
 
 	which dropbear >/dev/null || {
 		log "missing dropbear, allowing telnet login permanentely in /bin/login.sh"
@@ -362,15 +369,36 @@ config 'profile'
 
 config 'vds'
 	option server	'root@intercity-vpn.de:/var/www/networks/${INSTALLATION}/vds/'
-	option enabled	'1'
+EOF
+	if [ "$INSTALLATION" = "ffweimar" ]; then	#disable vds in profile ffweimar 
+		cat >>/etc/config/system <<EOF
+		option enabled	'0'
+EOF	
+	else
+		cat >>/etc/config/system <<EOF
+		option enabled  '1'
+EOF
+	fi
+
+	cat >>/etc/config/system <<EOF
 
 config 'monitoring'
 	option url	'http://intercity-vpn.de/networks/${INSTALLATION}'
 
 config 'fwupdate'
 	option url	'http://intercity-vpn.de/firmware'
-	option mode	'testing'
+EOF
+        if [ "$INSTALLATION" = "ffweimar" ]; then	# autoupdate only stable versions in profile ffweimar
+		cat >>/etc/config/system <<EOF
+		option mode  'stable'
+EOF     
+	else
+		cat >>/etc/config/system <<EOF
+		option mode  'testing'
+EOF
+        fi
 
+	cat >>/etc/config/system <<EOF
 config 'admin'
 	option location	'$( contact location )'
 	option latlon	'$( contact latlon )'
@@ -383,6 +411,11 @@ config 'vpn'
 	option hostname 'weimarnetz.de'
 	option ipaddr	'77.87.48.19'
 EOF
+	if [ "$INSTALLATION" = "ffweimar" ]; then
+		cat >>/etc/config/system <<EOF
+		option port 	'5001'
+EOF
+	fi
 }
 
 _config_softwareinstall ()
@@ -1282,7 +1315,10 @@ uci set uhttpd.main.interpreter=".sh=/bin/ash"
 }
 
 uci commit
-# echo "/cgi-bin/:root:\$p\$root" >/etc/httpd.conf	# not working anymore since ~2011nov9
+
+if [ "$INSTALLATION" != "ffweimar" ]; then      #no web server authentication on weimarnetz routers
+	echo "/cgi-bin/:root:\$p\$root" >/etc/httpd.conf	# not working anymore since ~2011nov9
+fi
 # moved to password_set()
 [ -s /www/cgi-bin-welcome.sh	] || ln -s /www/cgi-bin-welcome 	/www/cgi-bin-welcome.sh
 [ -s /www/cgi-bin-sql.sh	] || ln -s /www/cgi-bin-sql     	/www/cgi-bin-sql.sh
