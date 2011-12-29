@@ -125,6 +125,9 @@ build_kalua_update_tarball()
 	echo
 	echo "scp $USER@$( mypubip ):$tarball $tarball; $extract"
 	echo "or simply extract with: $extract"
+	echo
+	echo "or copy the config-apply-script with:"
+	echo "scp $USER@$( mypubip ):$( pwd )/kalua/openwrt-build/apply_profile.code /etc/init.d"
 }
 
 config2git()
