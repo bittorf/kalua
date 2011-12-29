@@ -968,6 +968,8 @@ _config_aliases ()
 _config_olsrd ()
 {
 	local NODE="$1"
+	local speed="${OLSR_SPEED:-5}"
+
 	local INTERFACES1		# Mode: ether
 	local INTERFACES2		# Mode: adhoc
 	local hna_net hna_mask
@@ -1006,12 +1008,25 @@ _config_olsrd ()
 		;;
 	esac
 
+	local fisheye hello_interval tc_interval
+
+	fisheye="1"
+	hello_interval="$(( $speed / 2 + 1 ))"
+
+	if [ "$fisheye" = "1" ]; then
+		tc_interval="$(( $speed / 2 ))"
+		[ "$tc_interval" = "0" ] tc_interval="1"
+	else
+		tc_interval="$(( $speed * 2 ))"
+	fi
+
 	cat >/etc/config/olsrd <<EOF
 config olsrd
         option IpVersion		'4'
 	option FIBMetric		'flat'		# approx, correct, flat
 	option Willingness		'7'
 	option TcRedundancy		'2'
+	option LinkQualityFishEye	'$fisheye'
 	option LinkQualityAlgorithm	'$OLSR_METRIC'	# etx_ff, etx_ffeth, etx_float, etx_fpm
 	option MprCoverage		'7'
 #	option RtTable			'111'
@@ -1020,14 +1035,14 @@ config olsrd
 config Interface
 	list interface			'$INTERFACES1'
 	option Ip4Broadcast		'255.255.255.255'
-	option HelloInterval		'3.0'
-	option HelloValidityTime	'125.0'
-	option TcValidityTime		'500.0'
-	option TcInterval		'2.0'
-	option MidInterval		'25.0'
-	option MidValidityTime		'500.0'
-	option HnaInterval		'10.0'
-	option HnaValidityTime		'125.0'
+	option HelloInterval		'$hello_interval.0'
+	option HelloValidityTime	'$(( $speed * 25 )).0'
+	option TcValidityTime		'$(( $speed * 100 )).0'
+	option TcInterval		'$tc_interval.0'
+	option MidInterval		'$(( $speed * 5 )).0'
+	option MidValidityTime		'$(( $speed * 100 )).0'
+	option HnaInterval		'$(( $speed * 2 )).0'
+	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
 [ "$OLSR_METRIC" = "etx_ffeth" ] && {
 	cat >>/etc/config/olsrd <<EOF
@@ -1039,15 +1054,16 @@ EOF
 config Interface
 	list interface			'$INTERFACES2'
 	option Ip4Broadcast		'255.255.255.255'
-	option HelloInterval		'3.0'
-	option HelloValidityTime	'125.0'
-	option TcValidityTime		'500.0'
-	option TcInterval		'2.0'
-	option MidInterval		'25.0'
-	option MidValidityTime		'500.0'
-	option HnaInterval		'10.0'
-	option HnaValidityTime		'125.0'
+	option HelloInterval		'$hello_interval.0'
+	option HelloValidityTime	'$(( $speed * 25 )).0'
+	option TcValidityTime		'$(( $speed * 100 )).0'
+	option TcInterval		'$tc_interval.0'
+	option MidInterval		'$(( $speed * 5 )).0'
+	option MidValidityTime		'$(( $speed * 100 )).0'
+	option HnaInterval		'$(( $speed * 2 )).0'
+	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
+
 [ "$OLSR_METRIC" = "etx_ffeth" -a -n "$INTERFACES2" ] && {
 	cat >>/etc/config/olsrd <<EOF
 	option Mode			'mesh'		# uses normal cost-calculation / default
