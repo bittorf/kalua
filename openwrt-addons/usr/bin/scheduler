@@ -382,11 +382,18 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					case "$WIFIMODE" in
 						*ap*)
 							which hostapd >/dev/null && {
-								pidof hostapd >/dev/null || {
-									[ -z "$( _net dev2ip $WIFIDEV )" ] && {
+								if pidof hostapd >/dev/null; then
+									touch "/tmp/DAEMON_hostapd_seen"
+								else
+									if [ -z "$( _net dev2ip $WIFIDEV )" ]; then
 										_system reboot_safe "missing hostapd and no IP on wifidev $WIFIDEV - $( dmesg | tail -n1 )"
-									}
-								}
+									else
+										[ -e "/tmp/DAEMON_hostapd_seen" ] && {
+											_log do missing_hostapd daemon info "wifi up"
+											wifi up
+										}
+									fi
+								fi
 							}
 						;;
 					esac
