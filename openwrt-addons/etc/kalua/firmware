@@ -573,7 +573,8 @@ _firmware_filelist ()
 
 _firmware_upgrade_is_needed()
 {
-	local target_version_git="28464"
+	local target_version_git="29366"
+	local hardware
 
 	[ "$( _system uptime min )" -ge 30 ] || {
 		return 1
@@ -592,18 +593,27 @@ _firmware_upgrade_is_needed()
 	}
 
 	case "$( uci get system.@profile[0].name )" in
-		liszt28*|ejbw*|rehungen*)
-			# ejbw*|tkolleg*|rehungen*|hotello-K80*|dhfleesensee*|itzehoe*|satama*
-			:
+		ffweimar*)
+			return 1	# be safe and free
+		;;
+		aschbach*|olympia*)
+			return 1	# needs hybrid-profile
+		;;
+		paltstadt*|tkolleg*)
+			return 1	# unmaintained
+		;;
+		spbansin*)
+			return 1	# fixup pppoe-credentials
 		;;
 		*)
-			return 1	# aschbach*|tkolleg*|hotello_*|rehungen*|satama*|dhfleesensee*|ejbw*|itzehoe*
-		;;			# todo: apphalle|leonardo|zumnorde
+			:
+		;;
 	esac
 
 	case "$( uci get system.@profile[0].name )" in
-		liszt28*|ejbw*|satama*|itzehoe*)
-			:		# these inet-offer nodes are safe
+		*)
+			:
+			# these inet-offer nodes are safe
 		;;
 		*)
 			_net local_inet_offer >/dev/null && {
@@ -612,23 +622,23 @@ _firmware_upgrade_is_needed()
 		;;
 	esac
 
-	case "$( _system architecture )" in
-		ar71xx)
-			:
-		;;
-		*)
-			return 1
-		;;
-	esac
+	if [ -e "/etc/HARDWARE" ]; then
+		read hardware <"/etc/HARDWARE"
+		case "$hardware" in
+			"TP-LINK TL-WR1043ND"|"Linksys WRT54G/GS/GL"|"Buffalo WHR-HP-G54")
+				:
+			;;
+			*)
+				return 1
+			;;
+		esac
+	else
+		return 1
+	fi
 
-	case "$( _hardware remap_devs get_model )" in
-		*"TL-WR1043ND"*)
-			:
-		;;
-		*)
-			return 1
-		;;
-	esac
+	return 1	# till we fix the hardware2firmware-image-url()
+
+	return 0
 }
 
 _firmware_wget()
