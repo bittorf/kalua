@@ -466,6 +466,20 @@ _firmware_burn ()
 	else
 		_firmware check_image "$FILE" || return 1
 
+		case "$( _system architecture )" in
+			brcm47xx)
+				local patchfile partition fix
+
+				patchfile="/lib/upgrade/common.sh"
+				fgrep -q '"Upgrade completed";' "$patchfile" || {
+					partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
+					fix="mtd fixtrx $partition"
+					_firmware log "[OK] patching '$patchfile', adding: '$fix'"
+					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" /lib/upgrade/common.sh
+				}
+			;;
+		esac
+
 		local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
 				  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
 
@@ -481,7 +495,6 @@ _firmware_burn ()
 		_firmware remove_cron_stuff $pause || return 1
 		_firmware kill_tasks "$list_tasks"
 
-
 		rm -fR /tmp/kalua		# free some RAM
 
 		_firmware flush_iptables
@@ -492,20 +505,6 @@ _firmware_burn ()
 		_firmware remove_kmodules all
 		_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
 
-
-		case "$( _system architecture )" in
-			brcm47xx)
-				local patchfile partition fix
-
-				patchfile="/lib/upgrade/common.sh"
-				fgrep -q '"Upgrade completed";' "$patchfile" || {
-					partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
-					fix="mtd fixtrx $partition"
-					_firmware log "[OK] patching '$patchfile', adding: '$fix'"
-					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" /lib/upgrade/common.sh
-				}
-			;;
-		esac
 
 		_firmware log "[START] sysupgrading"
 		sysupgrade -v "$FILE"
