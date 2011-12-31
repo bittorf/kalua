@@ -7,16 +7,20 @@ case $1 in
 	start)
 		ZRAM_DEV="/dev/zram0"
 		ZRAM_SIZE=10
-		echo 100 > /proc/sys/vm/swappiness
-		[ -e "$ZRAM_DEV" ] && {
-			which mkswap >/dev/null && {
-				which swapon >/dev/null && {
-					_log do zram_init daemon info "activating $ZRAM_DEV for swapping ($ZRAM_SIZE MegaBytes)"
-					echo $(( $ZRAM_SIZE * 1024 * 1024 )) >"/sys/block/$( basename $ZRAM_DEV )/disksize"
-					mkswap $ZRAM_DEV
-					swapon $ZRAM_DEV
-				}
-			}
+
+		zram_applicable()
+		{
+			grep -sq ^"$ZRAM_DEV " /proc/swaps && return 1
+			[ -e "$ZRAM_DEV" ] || return 1
+			which mkswap >/dev/null || return 1
+			which swapon >/dev/null || return 1
+		}
+
+		zram_applicable && {
+			_log do zram_init daemon info "activating $ZRAM_DEV for swapping ($ZRAM_SIZE MegaBytes)"
+			echo $(( $ZRAM_SIZE * 1024 * 1024 )) >"/sys/block/$( basename $ZRAM_DEV )/disksize"
+			mkswap $ZRAM_DEV
+			swapon $ZRAM_DEV
 		}
 
                 grep -sq ^"START=97" "/etc/init.d/watchdog" && {
