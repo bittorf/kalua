@@ -12,9 +12,10 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 how to build this from scratch on a debian server
 -------------------------------------------------
 
-	sudo apt-get update
+	# be root user
+	apt-get update
 	LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen"
-	for PACKAGE in $LIST; do sudo apt-get install $PACKAGE; done
+	for PACKAGE in $LIST; do apt-get -y install $PACKAGE; done
 
 	# now login as non-root user
 	git clone git://nbd.name/openwrt.git
