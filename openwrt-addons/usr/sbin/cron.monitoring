@@ -383,6 +383,38 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	QUERY="${QUERY}&d1=$( uci get system.@weblogin[0].authserver )"
 	QUERY="${QUERY}&n0=$N0"
 
+	incoming_and_outgoing_olsr_traff_on_wifi()
+	{
+		local funcname="incoming_and_outgoing_olsr_traff"
+		local interval="30"
+		local port="698"
+		local ruleset_in="INPUT -p udp -i $WIFIDEV ! -s $WIFIADR --dport $port"
+		local ruleset_out="OUTPUT -p udp -o $WIFIDEV --dport $port"
+		local packets bytes rest bytes_in bytes_out
+
+		get_bytes()
+		{
+			iptables -nxvL "$1" 1 | while read packets bytes rest; do echo ${bytes:-0}; done
+		}
+
+		iptables -I $ruleset_in
+		iptables -I $ruleset_out
+
+		_log do $funcname daemon info "counting olsr-traff for $interval sec"
+		sleep $interval
+
+		bytes_in="$(  get_bytes INPUT  )"
+		bytes_out="$( get_bytes OUTPUT )"
+
+		bytes_in_sec="$((  $bytes_in  / $interval ))"
+		bytes_out_sec="$(( $bytes_out / $interval ))"
+
+		_log do $funcname daemon info "in: $bytes_in = $bytes_in_sec/s out: $bytes_out = $bytes_out_sec/s"
+
+		echo "&t0=${bytes_in_sec}&t1=${bytes_out_sec}"
+	}
+
+	QUERY="${QUERY}$( incoming_and_outgoing_olsr_traff_on_wifi )"
 
 	[ -e "/www/force_weblogin_check_script" ] && {
 		local scriptname
