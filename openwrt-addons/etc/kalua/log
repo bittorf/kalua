@@ -17,8 +17,27 @@ _log_shell_is_interactive()
 	esac
 }
 
+_log_debug()
+{
+	local message="$1"
+	local wired_dev="${LANDEV:-${WANDEV:-eth0}}"
+	local wired_broadcast_ip="$( ip address show dev $wired_dev | grep inet | cut -d'r' -f2 | cut -d' ' -f2 )"
+
+	if [ -z "$wired_broadcast_ip" ]; then
+		wired_broadcast_ip="192.168.1.255"
+
+		ip address add 192.168.1.1/24 dev $wired_dev
+		/bin/netmsg "$wired_broadcast_ip" "NO-IP: $message"
+		ip address del 192.168.1.1/24 dev $wired_dev
+	else
+		/bin/netmsg "$wired_broadcast_ip" "$message"
+	fi
+}
+
 _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 {
+#	_log debug "box1 $0: $1: $4"
+
 	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
 
 	local FATHER_PROCESS="$0"
