@@ -855,12 +855,12 @@ _watch_switch_linkstatus()
 	if [ -e "$statfile" ]; then
 		read stat_old <"$statfile"
 	else
-		_switch show >"$statfile"
+		robocfg show 2>/dev/null | grep "Port $(robocfg show 2> /dev/null | fgrep "vlan1:" | cut -f 2 -d" ")" | cut -f2 -d ':' | cut -c 3-6 >"$statfile"
 		_log do $funcname daemon debug "[OK] first status check, no action"
 		return 0
 	fi
 
-	stat_new="$( _switch show )"
+	stat_new="$( robocfg show 2>/dev/null | grep "Port $(robocfg show 2> /dev/null | fgrep "vlan1:" | cut -f 2 -d" ")" | cut -f2 -d ':' | cut -c 3-6  )"
 
 	[ "${#stat_new}" -gt 0 ] || {
 		_log do $funcname daemon info "[ERR] could not read switch-status"
@@ -872,33 +872,15 @@ _watch_switch_linkstatus()
 		return 0
 	else
 		echo "$stat_new" >"$statfile"
-
 		_log do $funcname daemon info "[OK] switch-status old: $stat_old"
 		_log do $funcname daemon info "[OK] switch-status new: $stat_new"
-
-		devname="${WANDEV:-$LANDEV}"	# fixme! to be correct we have to check the vlan-settings
-						# fallback for routers with one jack only, which is configured as lan
-
-		interface_name="$( uci show network | grep "=$devname"$ | cut -d'.' -f2 )"	# fixme!
-
-		firstbyte()
-		{
-			echo "$1" | cut -b1
-		}
-
-		if [ "$( firstbyte "$stat_old" )" = "$( firstbyte "$stat_new" )" ]; then
-			_log do $funcname daemon info "[OK] lan-connectors changed"
+		
+		if [ "$stat_old" = "DOWN" ]; then
+			_log do $funcname daemon info "[OK] wan - link up"
 		else
-			case "$( firstbyte "$stat_old" )" in
-				"-")
-					_log do $funcname daemon info "[OK] $interface_name/$devname - link up"
-					ifup $interface_name
-				;;
-				*)
-					_log do $funcname daemon info "[OK] $interface_name/$devname - link down"
-					ifdown $interface_name
-				;;
-			esac
+			_log do $funcname daemon info "[OK] wan - link down"
+			ifup wan
+			/etc/init.d/olsrd restart
 		fi
 	fi
 }
