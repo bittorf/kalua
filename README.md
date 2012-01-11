@@ -7,7 +7,8 @@ kalua - build mesh-networks _without_ pain
 
 needing support?
 join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bittorf-wireless.de)
-* [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software)
+
+[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software)
 
 
 how to build this from scratch on a debian server
