@@ -17,7 +17,7 @@ Usage:	$me gitpull
 	$me set_build_kernelconfig
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
-	$me build_kalua_update_tarball
+	$me build_ffweimar_update_tarball
 
 Hint:   for building multiple config-enforced images use e.g.:
 	APP="$0"
@@ -95,7 +95,7 @@ uptime_in_seconds()
 	cut -d'.' -f1 /proc/uptime
 }
 
-build_kalua_update_tarball()
+build_ffweimar_update_tarball()
 {
 	local mydir="$( pwd )"
 	local tarball="/tmp/tarball.tgz"
@@ -109,7 +109,7 @@ build_kalua_update_tarball()
 		options="--owner=root --group=root"
 	fi
 
-	cd kalua/
+	cd weimarnetz/
 	local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
 	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
 	cd openwrt-addons/
