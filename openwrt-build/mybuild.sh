@@ -182,6 +182,7 @@ mymake()
 	local t1 t2 date1 date2 hardware
 	local filelist file
 
+	[ -e KALUA_HARDWARE ] || echo "unknown_model" >KALUA_HARDWARE
 	read hardware <KALUA_HARDWARE
 	t1="$( uptime_in_seconds )"
 	date1="$( date )"
