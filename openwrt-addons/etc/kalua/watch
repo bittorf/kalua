@@ -305,19 +305,27 @@ _watch_flash_free_space ()
 {
 	local funcname="watch_flash_free_space"
 	local border="150"
-	local file
+	local statfile="/tmp/$funcname.boottime"
+	local file flash_free
+
+	[ -e "$statfile" ] || {
+		_system flash_free >"$statfile"		# is filled during early boot
+	}
+
+	read flash_free <"$statfile"
+	[ $flash_free -lt $border ] && border="$flash_free"
 
 	list_files_removeable()
 	{
 		ls -1 /www/cgi-bin/user-* /usr/lib/*pkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+ 2>/dev/null
 
 		[ -e /tmp/SEND_ALIVE_FAILED ] || {		# means, that content is likely already send by monitoring to server
-			echo "/www/everlasting_syslog.txt"
+			ls -1 /www/everlasting_syslog.txt 2>/dev/null
 		}
 	}
 
 	echo "0" >"/tmp/$funcname"
-	while [ -n "$( list_files_removeable )" -a $( _system flash_free ) -lt $border ]; do {
+	while [ -n "$( list_files_removeable )" ]; do {
 
 		_watch counter "/tmp/$funcname" increment 1 max 100 || {
 			_log do $funcname daemon info "[ERR] rebooting, in an ultralow jffs2-situation, this is the only chance to survive"
@@ -329,7 +337,7 @@ _watch_flash_free_space ()
 		_log do $funcname daemon info "only $( _system flash_free ) kb free - removing '$file' with $( _file size "$file" ) bytes"
 		rm "$file"
 
-		[ "$( _system uptime min )" -lt 20 ] && break
+		[ $( _system flash_free ) -le $border ] && break
 	} done
 
 	# dmesg | fgrep "mini_fo: create_sto_file: ERROR creating sto file." && reboot		// fixme!
