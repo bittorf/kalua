@@ -130,6 +130,15 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 				esac
 			}
 
+			hash()
+			{
+				local input="$1"
+				local hash
+
+				hash="$( echo -n "$input" | md5sum )"
+				echo "${hash%% *}"
+			}
+
 			create_index()
 			{
 				LIST_LOGINS="$( _db user login list $ID $OPTION )"
@@ -176,15 +185,25 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 						H7="${PASSWORD_CHAR1_LOWER}${REST_PASSWORD}${USERNAME_CHAR1_UPPER}${REST_USERNAME}"
 						H8="${PASSWORD_CHAR1_UPPER}${REST_PASSWORD}${USERNAME_CHAR1_UPPER}${REST_USERNAME}"
 
-						LIST_HASH_INPUT="$H1 $H2 $H3 $H4 $H5 $H6 $H7 $H8"
+						HASH="$(         hash "$H1" )"		# respects spaces in username or password
+						HASH="${HASH} $( hash "$H2" )"
+						HASH="${HASH} $( hash "$H3" )"
+						HASH="${HASH} $( hash "$H4" )"
+						HASH="${HASH} $( hash "$H5" )"
+						HASH="${HASH} $( hash "$H6" )"
+						HASH="${HASH} $( hash "$H7" )"
+						HASH="${HASH} $( hash "$H8" )"
+
+						echo "$HASH"
+						LIST_HASH_INPUT=
 					fi
 
 					HASH=
 					for HASH_INPUT in $LIST_HASH_INPUT; do {
-						HASH="${HASH}$( echo -n "$HASH_INPUT" | md5sum | cut -d' ' -f1 ) "
+						HASH="${HASH}$( hash "$HASH_INPUT" ) "
 					} done
 
-					echo "$HASH"
+					[ -n "$LIST_HASH_INPUT" ] && echo "$HASH"
 
 				} done
 			}
