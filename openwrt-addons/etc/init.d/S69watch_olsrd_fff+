@@ -42,19 +42,23 @@ _watch webserver
 _watch sshd_or_telnet
 _watch random_node_id
 
-case "$( uci get system.@profile[0].name )" in
+CONFIG_PROFILE="$( uci get system.@profile[0].name )"
+case "$CONFIG_PROFILE" in
 	extrawatt*)
 		pidof dbclient >/dev/null || {
 			_net local_inet_offer >/dev/null && {		# todo: profilename2port by using asciisum with printf '%d' "'$CHAR"
 				rm /tmp/service_ssh_nowatching
 				_watch sshd_or_telnet
 
-				_log do reverse_sshtunnel daemon debug "[START]"
+				PORT="$( _net text2port "$CONFIG_PROFILE" )"
+				_log do reverse_sshtunnel daemon debug "[START] on local port $PORT"
+
 				dbclient -y -I 600 -K 300 -f -N \
-					 -R 2049:localhost:22 \
+					 -R $PORT:localhost:22 \
 					 -p 22 root@intercity-vpn.de \
 					 -i "/etc/dropbear/dropbear_dss_host_key"
-				_log do reverse_sshtunnel daemon info "[READY] pid: '$( pidof dbclient )'"
+
+				_log do reverse_sshtunnel daemon info "[READY] pid: '$( pidof dbclient )' on local port $PORT"
 			}
 		}
 	;;
