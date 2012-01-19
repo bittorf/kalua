@@ -82,33 +82,47 @@ hwprobe()
 DMESG="/tmp/dmesg.recent"
 dmesg >"$DMESG"
 
-  if dmesg | fgrep -q "Linksys WRT54G/GS/GL" ; then	# brcm47xx
-	HARDWARE="Linksys WRT54G/GS/GL"
-elif dmesg | fgrep -q "Ubiquiti Bullet M" ; then	# ar71xx
-	HARDWARE="BulletM"
-elif dmesg | fgrep -q "TP-LINK TL-WR1043ND"; then	# ar71xx
-	HARDWARE="TP-LINK TL-WR1043ND"
-elif dmesg | fgrep -q "Buffalo WHR-HP-G54" ; then	# brcm47xx
-	HARDWARE="Buffalo WHR-HP-G54"
-elif dmesg | fgrep -q "SPW500V" ; then			# ???????? / speedport w500v / aldi router
-	HARDWARE="SPW500V"
-elif dmesg | fgrep -q "ASUS WL-HDD"; then		# brcm47xx
-	HARDWARE="ASUS WL-HDD"
-elif dmesg | fgrep -q "ASUS WL-500g Premium V2"; then	# brcm47xx / v2
-	HARDWARE="ASUS WL-500g Premium V2"
-elif dmesg | fgrep -q "ASUS WL-500g Premium"; then	# brcm47xx / v1
-	HARDWARE="ASUS WL-500g Premium"
-elif dmesg | fgrep -q "Dell TrueMobile 2300"; then	# brcm47xx / v1
-	HARDWARE="Dell TrueMobile 2300"
-elif dmesg | fgrep -q "Ubiquiti RouterStation Pro"; then	# ar71xx
-	HARDWARE="Ubiquiti RouterStation Pro"
-elif fgrep "4G Systems MTX-1 Board" "$DMESG"; then	# au1000 / meshcube
-	HARDWARE="4G Systems MTX-1 Board"
+try_device()
+{
+	I=$(( ${I:=0} + 1 ))
+
+	case "$I" in
+		 1) HARDWARE="Linksys WRT54G/GS/GL" ;;		# brcm47xx
+		 2) HARDWARE="Ubiquiti Bullet M" ;;		# ar71xx
+		 3) HARDWARE="TP-LINK TL-WR1043ND" ;;		# ar71xx
+		 4) HARDWARE="Buffalo WHR-HP-G54" ;;		# brcm47xx
+		 5) HARDWARE="SPW500V" ;;			# speedport w500v / aldi router
+		 6) HARDWARE="ASUS WL-HDD" ;;			# brcm47xx
+		 7) HARDWARE="ASUS WL-500g Premium V2" ;;	# brcm47xx
+		 8) HARDWARE="ASUS WL-500g Premium" ;;		# brcm47xx
+		 9) HARDWARE="Dell TrueMobile 2300" ;;		# brcm47xx
+		10) HARDWARE="Ubiquiti RouterStation Pro" ;;	# ar71xx
+		11) HARDWARE="4G Systems MTX-1 Board" ;;	# au1000 / meshcube
+		 *)
+			HARDWARE=
+			return 1
+		;;
+	esac
+}
+
+while true; do {
+	if try_device; then
+		fgrep -q "$HARDWARE" "$DMESG" && {
+			log "really found hardware: $HARDWARE"
+			break
+		}
+	else
+		break
+	fi
+} done
+
+  if [ -n "$HARDWARE" ]; then
+	:
 elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform
 	HARDWARE="Ubiquiti PicoStation2"
 elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform
 	HARDWARE="Ubiquiti PicoStation5"
-elif [ -e /etc/HARDWARE ]; then
+elif [ -e "/etc/HARDWARE" ]; then
 	log "could not detect hardware, trying /etc/HARDWARE"
 	read HARDWARE </etc/HARDWARE
 else
@@ -117,7 +131,8 @@ else
 	[ "$1" = "help" ] || exit 1
 fi
 log "detected: $HARDWARE and wrote to '/etc/HARDWARE'"
-echo "$HARDWARE" >"/etc/HARDWARE"
+echo "$HARDWARE" >"/etc/HARDWARE"			# we need this only for monitoring
+
 
 INSTALLATION="$1"
 PROFILE_MODE="$2"
