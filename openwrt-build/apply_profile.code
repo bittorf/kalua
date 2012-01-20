@@ -429,7 +429,7 @@ _config_wireless ()			# fixme! channels hardcoded
 {
 	local NODE="$1"
 	local MAC="$( uci get wireless.radio0.macaddr )"
-	local htmode hwmode country ht_cap ht_cap_list hideht i
+	local htmode hwmode country ht_cap ht_cap_list hideht i radiotype
 
 	[ -z "$MAC" ] && {
 		MAC="11:22:33:44:55:66"
@@ -444,6 +444,8 @@ _config_wireless ()			# fixme! channels hardcoded
 			hideht="#"
 		;;
 	esac
+
+	radiotype="$( uci get wireless.radio0.type )"		# e.g. 'mac80211' or 'atheros'
 
 	ht_cap_list="$( uci get wireless.radio0.ht_capab )"	# backup current state
 
@@ -512,7 +514,7 @@ _config_wireless ()			# fixme! channels hardcoded
 
 			cat >/etc/config/wireless <<EOF
 config wifi-device radio0
-	option type	mac80211
+	option type	$radiotype
 	option country	$country
 	option txpower	$TXPOWER
 	option channel	$CHANNEL
@@ -570,7 +572,7 @@ EOF
 
 			cat >/etc/config/wireless <<EOF
 config wifi-device radio0
-	option type	mac80211
+	option type	$radiotype
 	option country	$country
 	option txpower	$TXPOWER
 	option channel	$CHANNEL
@@ -604,7 +606,7 @@ EOF
 
 			cat >/etc/config/wireless <<EOF
 config wifi-device radio0
-	option type	mac80211
+	option type	$radiotype
 	option country	$country
 	option channel	$CHANNEL
 #	option ath9k_chanbw 20		# temporary, 5, 10 or 20 (default)
@@ -848,9 +850,21 @@ EOF
 
 	fi
 
-	local wlan_ipaddr wlan_netmsk
+	local wlan_ipaddr wlan_netmsk wlan_ifname
 	local alias_ifname alias_proto alias_ipaddr alias_netmask alias_network
 	local hide="#"
+
+	case "$( uci get wireless.radio0.type )" in
+		mac80211)
+			wlan_ifname="wlan0"
+		;;
+		atheros)
+			wlan_ifname="ath0"
+		;;
+		*)
+			wlan_ifname="wlan0"
+		;;
+	esac
 
 	wlan_ipaddr="$( _ipsystem do $NODE | grep WIFIADR= | cut -d'=' -f2 )"
 	wlan_netmsk="$( _ipsystem do $NODE | grep WIFI_PRE= | cut -d'=' -f2 )"
@@ -859,7 +873,7 @@ EOF
 	cat >>/etc/config/network <<EOF
 
 config 'interface' 'wlan'
-	option 'ifname'	'wlan0'
+	option 'ifname'	'$wlan_ifname'
 	option 'proto'	'static'
 	option 'ipaddr'	 '$wlan_ipaddr'
 	option 'netmask' '$wlan_netmsk'
