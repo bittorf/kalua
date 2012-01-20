@@ -17,7 +17,7 @@ Usage:	$me gitpull
 	$me set_build_kernelconfig
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
-	$me build_kalua_update_tarball
+	$me build_kalua_update_tarball [full]
 
 Hint:   for building multiple config-enforced images use e.g.:
 	APP="$0"
@@ -97,6 +97,7 @@ uptime_in_seconds()
 
 build_kalua_update_tarball()
 {
+	local option="$1"
 	local mydir="$( pwd )"
 	local tarball="/tmp/tarball.tgz"
 	local options extract
@@ -114,7 +115,18 @@ build_kalua_update_tarball()
 	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
 	cd openwrt-addons/
 	sed -i "s/366686/$last_commit_unixtime_in_hours/" "$file_timestamp"
-	tar $options -czf "$tarball" .
+
+	if [ "$option" = "full" ]; then
+		cp -v ../openwrt-build/apply_profile* etc/init.d
+		[ -e "../../apply_profile.code.definitions" ] && {
+			cp -v "../../apply_profile.code.definitions" etc/init.d
+		}
+		tar $options -czf "$tarball" .
+		rm etc/init.d/apply_profile*
+	else
+		tar $options -czf "$tarball" .
+	fi
+
 	sed -i "s/$last_commit_unixtime_in_hours/366686/" "$file_timestamp"
 	cd $mydir
 
