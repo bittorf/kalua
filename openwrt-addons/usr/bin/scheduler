@@ -83,9 +83,14 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					dmesg >"/tmp/dmesg.recent"
 					[ -e "/tmp/dmesg.boot" ] || cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
 
-					fgrep -q " page allocation failure: " "/tmp/dmesg.recent"	&& reboot -f
-					fgrep -q " BUG: Bad page state in process " "/tmp/dmesg.recent"	&& reboot -f
-					fgrep -q " ath: Failed to stop TX DMA, queues=0x"		&& reboot -f	# at least with git29366
+					reboot_needed()
+					{
+						fgrep -q " page allocation failure: " "/tmp/dmesg.recent" && return 0
+						fgrep -q " BUG: Bad page state in process " "/tmp/dmesg.recent" && return 0
+						fgrep -q " ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" && return 0
+					}
+
+					reboot_needed && reboot -f
 
 					fgrep -q "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" && {
 						_log do conntrack_full daemon info "dropping packet"
