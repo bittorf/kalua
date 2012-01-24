@@ -438,15 +438,25 @@ _config_softwareinstall ()
 _config_wireless ()			# fixme! channels hardcoded
 {
 	local NODE="$1"
-	local MAC="$( uci get wireless.radio0.macaddr )"
-	local htmode hwmode country ht_cap ht_cap_list hideht i radiotype
+	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard
+	local temp="/tmp/config_wireless.tmp"
 
+	[ -e "$temp" ] && rm "$temp"
+
+for radiocard in 0 1 2 3; do {
+
+	[ -n "$( uci get wireless.@wifi-iface[${radiocard}].device )" ] || break
+	[ $radiocard -gt 0 ] && echo "" >>"$temp"
+
+	log "configuring radio${radiocard} ..."
+
+	MAC="$( uci get wireless.radio${radiocard}.macaddr )"
 	[ -z "$MAC" ] && {
 		MAC="11:22:33:44:55:66"
 		log "[ERR] empty mac, we set $MAC"
 	}
 
-	hwmode="$( uci get wireless.radio0.hwmode )"		# backup current state
+	hwmode="$( uci get wireless.radio${radiocard}.hwmode )"		# backup current state
 	hwmode="${hwmode:-11g}"
 
 	case "$hwmode" in
@@ -455,9 +465,9 @@ _config_wireless ()			# fixme! channels hardcoded
 		;;
 	esac
 
-	radiotype="$( uci get wireless.radio0.type )"		# e.g. 'mac80211' or 'atheros'
+	radiotype="$( uci get wireless.radio${radiocard}.type )"	# e.g. 'mac80211' or 'atheros'
 
-	ht_cap_list="$( uci get wireless.radio0.ht_capab )"	# backup current state
+	ht_cap_list="$( uci get wireless.radio${radiocard}.ht_capab )"	# backup current state
 
 	ht_cap_uci_output()
 	{
@@ -522,8 +532,8 @@ _config_wireless ()			# fixme! channels hardcoded
 			local ssid_adhoc=' '			# fixme!
 			local ssid_ap="$SSID_ENFORCED"
 
-			cat >/etc/config/wireless <<EOF
-config wifi-device radio0
+			cat >>"$temp" <<EOF
+config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
 	option txpower	$TXPOWER
@@ -532,17 +542,17 @@ config wifi-device radio0
 	option frag	off
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 	option hwmode   $hwmode
 ${hideht}	option htmode   $htmode
 $( ht_cap_uci_output )
 ${hide_noscan}	option noscan	1
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 
 config wifi-iface
-	option device	radio0
+	option device	radio${radiocard}
 	option network	wlan
 	option mode	adhoc
 	option bssid	'$ssid_adhoc'
@@ -551,14 +561,14 @@ config wifi-iface
 #	option bintval	1000
 
 config wifi-iface
-	option device	radio0
+	option device	radio${radiocard}
 	option network	wlan
 	option mode	ap
 	option ssid	'${new_essid}'
 EOF
 		;;
 		ap*)
-			local old_essid="$( uci get wireless.@wifi-iface[0].ssid )"
+			local old_essid="$( uci get wireless.@wifi-iface[${radiocard}].ssid )"
 			local new_essid="${INSTALLATION} $NODE"
 
 			[ -n "$SSID_ENFORCED" ] && {
@@ -580,8 +590,8 @@ EOF
 				;;
 			esac
 
-			cat >/etc/config/wireless <<EOF
-config wifi-device radio0
+			cat >>"$temp" <<EOF
+config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
 	option txpower	$TXPOWER
@@ -591,16 +601,16 @@ config wifi-device radio0
 ${hide_noscan}	option noscan	1
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 	option hwmode   $hwmode
 ${hideht}	option htmode   $htmode
 $( ht_cap_uci_output )
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 
 config wifi-iface
-	option device	radio0
+	option device	radio${radiocard}
 	option network	wlan
 	option mode	ap
 	option ssid	'${new_essid}'
@@ -614,8 +624,8 @@ EOF
 				ffweimar*) new_essid="weimarnetz" ;;
 			esac
 
-			cat >/etc/config/wireless <<EOF
-config wifi-device radio0
+			cat >>"$temp" <<EOF
+config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
 	option channel	$CHANNEL
@@ -627,16 +637,16 @@ config wifi-device radio0
 ${hide_noscan}	option noscan	1
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 	option hwmode	$hwmode
 ${hideht}	option htmode	$htmode
 $( ht_cap_uci_output )
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 
 config wifi-iface
-	option device	radio0
+	option device	radio${radiocard}
 	option network	wlan
 	option mode	adhoc
 	option bssid	'$BSSID'
@@ -647,11 +657,15 @@ EOF
 		;;
 	esac
 
-	cat >>/etc/config/wireless <<EOF
+} done
+
+	cat >>"$temp" <<EOF
 
 config auto_optimize
 	option neigh	'off'
 EOF
+
+	mv "$temp" /etc/config/wireless
 }
 
 _config_mail ()
