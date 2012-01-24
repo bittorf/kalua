@@ -5,7 +5,7 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 	local debug="$2"
 	local line duplex n
 
-	[ -z "$type" ] && {
+	[ -z "$type" -o "$type" = "eth0" ] && {
 		if [ -e "/tmp/SWITCH_TYPE" ]; then
 			read type <"/tmp/SWITCH_TYPE"
 		else
@@ -17,8 +17,8 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 
 			probe_type2()
 			{
-				dmesg | fgrep -q "AG71xx" && \
-					echo "ag71xx"
+				dmesg | fgrep -q "  AR8316 " && \
+					echo "ar8316"
 			}
 
 			probe_type3()
@@ -33,7 +33,13 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 					echo "mii"
 			}
 
-			for n in 1 2 3 4; do {
+			probe_type5()
+			{
+				dmesg | fgrep -q "AG71xx" && \
+					echo "ag71xx"
+			}
+
+			for n in 1 2 3 4 5; do {
 				type="$( probe_type${n} )" && {
 					echo "$type" >/tmp/SWITCH_TYPE
 					break
@@ -127,9 +133,11 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 				fi
 			} done
 		;;
-		rtl8366rb)
+		rtl8366rb|ar8316)
 			which swconfig >/dev/null || \
 				return 1
+
+			[ "$type" = "ar8316" ] && type="eth0"	# fixme! these are the LAN-ports only
 
 			for port in 0 gap 1 2 3 4; do {		# [ WAN | LAN LAN LAN LAN ]
 
@@ -142,6 +150,9 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 
 					case "$line" in
 						*"link: port:$port link: down"*)
+							echo -n "-"
+						;;
+						*"link: port:$port link:down"*)
 							echo -n "-"
 						;;
 						*"link:up"*)
