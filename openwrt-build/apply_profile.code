@@ -687,12 +687,6 @@ _config_network ()
 	local NODE="$1"
 	local PROTO LANDEV WANDEV
 
-	if [ "$GATEWAY" = "dhcp" ]; then
-		PROTO="dhcp"
-	else
-		PROTO="static"
-	fi
-
 	case "$HARDWARE" in
 		"Dell TrueMobile 2300")
 			LANMAC="00:90:4b:39:7b:5e"	# fixme!
@@ -702,6 +696,18 @@ _config_network ()
 
 	LANDEV="$( uci get network.lan.ifname )"
 	WANDEV="$( uci get network.wan.ifname )"
+
+	if [ "$GATEWAY" = "dhcp" ]; then
+		PROTO="dhcp"
+
+		[ -n "$LANDEV" -a -z "$WANDEV" ] && {
+			log "swapping LANDEV with WANDEV, we are on singleport machine"
+			WANDEV="$LANDEV"
+			LANDEV=
+		}
+	else
+		PROTO="static"
+	fi
 
 	uci delete network.wan
 	uci delete network.lan
