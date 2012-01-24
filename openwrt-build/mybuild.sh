@@ -117,6 +117,7 @@ build_kalua_update_tarball()
 	sed -i "s/366686/$last_commit_unixtime_in_hours/" "$file_timestamp"
 
 	if [ "$option" = "full" ]; then
+		cp -v ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
 		cp -v ../openwrt-build/apply_profile* etc/init.d
 		[ -e "../../apply_profile.code.definitions" ] && {
 			cp -v "../../apply_profile.code.definitions" etc/init.d
