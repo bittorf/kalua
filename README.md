@@ -45,15 +45,11 @@ how to build this from scratch on a debian server
 how to do a sysupgrade via wifi
 ---------------------------------
 
-* prefs
-    * needs nohup
-    * create a script calling _firmware_burn
-
 * usage
     * login via ssh
     * prepare the router by calling _firmware_wget_prepare_for_lowmem_devices
     * fetch/copy firmware image to /tmp/fw
-    * call 'nohup ffburn'
+    * call _firmware_burn 
 
 how to development directly on a router
 ------------------------------------------
