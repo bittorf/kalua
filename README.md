@@ -42,6 +42,19 @@ how to build this from scratch on a debian server
 	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
 
 
+how to do a sysupgrade via wifi
+---------------------------------
+
+* prefs
+** needs nohup
+** create a script calling __firmware__burn
+
+* usage
+** login via ssh
+** prepare the router by calling __firmware__wget__prepare__for__lowmem__devices
+** fetch/copy firmware image to /tmp/fw
+** call 'nohup ffburn'
+
 how to development directly on a router
 ------------------------------------------
 
