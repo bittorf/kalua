@@ -105,8 +105,10 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 							[ $( _system version short ) -le 29366 ] && {
 								case "$( _wifi mode $WIFIDEV )" in
 									adhoc)
-										_log do kernellog daemon alert "ath: DMA failed to stop in 10 ms AR_CR=0x00000024"
-										return 0
+										[ $( _system uptime min ) -gt 180 ] && {
+											_log do kernellog daemon alert "ath: DMA failed to stop in 10 ms AR_CR=0x00000024"
+											return 0
+										}
 									;;
 									*)
 										case "$( uci get wireless.radio0.htmode )" in
@@ -123,24 +125,24 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 
 						# wifi is laggy after this:
 						fgrep -q "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" && {
-							[ $( _system uptime min ) -gt 60 ] && {
-								[ $( _system version short ) -le 29366 ] && {
-									case "$( _wifi mode $WIFIDEV )" in
-										adhoc)
+							[ $( _system version short ) -le 29366 ] && {
+								case "$( _wifi mode $WIFIDEV )" in
+									adhoc)
+										[ $( _system uptime min ) -gt 180 ] && {
 											_log do kernellog daemon alert "ath: Failed to stop TX DMA, queues=0x"
 											return 0
-										;;
-										*)
-											case "$( uci get wireless.radio0.htmode )" in
-												HT40*)
-													uci set wireless.radio0.htmode=HT20
-													uci commit wireless
-													wifi
-												;;
-											esac
-										;;
-									esac
-								}
+										}
+									;;
+									*)
+										case "$( uci get wireless.radio0.htmode )" in
+											HT40*)
+												uci set wireless.radio0.htmode=HT20
+												uci commit wireless
+												wifi
+											;;
+										esac
+									;;
+								esac
 							}
 						}
 
