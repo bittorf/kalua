@@ -85,15 +85,27 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 
 					reboot_needed()
 					{
-						fgrep -q " page allocation failure: " "/tmp/dmesg.recent" && return 0
-						fgrep -q " BUG: Bad page state in process " "/tmp/dmesg.recent" && return 0
-						fgrep -q "Fixing recursive fault but reboot is needed" "/tmp/dmesg.recent" && return 0
+						fgrep -q " page allocation failure: " "/tmp/dmesg.recent" && {
+							_log do kernellog daemon alert "page allocation failure"
+							return 0
+						}
+
+						fgrep -q " BUG: Bad page state in process " "/tmp/dmesg.recent" && {
+							_log do kernellog daemon alert "BUG: Bad page state in process"
+							return 0
+						}
+
+						fgrep -q "Fixing recursive fault but reboot is needed" "/tmp/dmesg.recent" && {
+							_log do kernellog daemon alert "Fixing recursive fault but reboot is needed"
+							return 0
+						}
 
 						# switch and wifi is affected:
 						fgrep -q "ath: DMA failed to stop in 10 ms AR_CR=0x00000024 AR_DIAG_SW=0x42000020 DMADBG_7" "/tmp/dmesg.recent" && {
 							[ $( _system version short ) -le 29366 ] && {
 								case "$( _wifi mode $WIFIDEV )" in
 									adhoc)
+										_log do kernellog daemon alert "ath: DMA failed to stop in 10 ms AR_CR=0x00000024"
 										return 0
 									;;
 									*)
@@ -115,6 +127,7 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 								[ $( _system version short ) -le 29366 ] && {
 									case "$( _wifi mode $WIFIDEV )" in
 										adhoc)
+											_log do kernellog daemon alert "ath: Failed to stop TX DMA, queues=0x"
 											return 0
 										;;
 										*)
@@ -134,7 +147,10 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 						return 1
 					}
 
-					reboot_needed && reboot -f
+					reboot_needed && {
+						sync
+						reboot -f
+					}
 
 					fgrep -q "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" && {
 						_log do conntrack_full daemon info "dropping packet"
