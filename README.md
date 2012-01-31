@@ -46,7 +46,7 @@ how to build this from scratch on a debian server
 
 
 how to development directly on a router
-------------------------------------------
+---------------------------------------
 
 	opkg update
 	opkg install git
@@ -74,3 +74,30 @@ how to development directly on a router
 	git commit -m "decribe changes"
 	git push ...
 
+
+piggyback kalua on a new router model without building from scratch
+-------------------------------------------------------------------
+
+	# for new devices, which are flashed with a plain openwrt
+	# from http://downloads.openwrt.org/snapshots/trunk/ do this:
+	/etc/init.d/firewall stop
+	/etc/init.d/firewall disable
+
+	# plugin ethernet on wan, to get ip via DHCP
+	# go on the router via 'telnet <routerip>'
+	opkg update
+	opkg install ip bmon netperf
+	opkg install olsrd olsrd-mod-arprefresh olsrd-mod-watchdog olsrd-mod-txtinfo olsrd-mod-nameservice
+	opkg install uhttpd uhttpd-mod-tls px5g
+	opkg install kmod-ipt-compat-xtables iptables-mod-conntrack iptables-mod-conntrack-extra iptables-mod-extra
+	opkg install iptables-mod-filter iptables-mod-ipp2p iptables-mod-ipopt iptables-mod-nat iptables-mod-nat-extra
+	opkg install iptables-mod-ulog ulogd ulogd-mod-extra 
+
+	# build full kalua-tarball on server
+	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full
+
+	# decompress tarball
+	scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz; cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
+
+ 	# execute config-writer
+	/etc/init.d/apply_profile.code
