@@ -91,7 +91,7 @@ piggyback kalua on a new router model without building from scratch
 	opkg install uhttpd uhttpd-mod-tls px5g
 	opkg install kmod-ipt-compat-xtables iptables-mod-conntrack iptables-mod-conntrack-extra iptables-mod-extra
 	opkg install iptables-mod-filter iptables-mod-ipp2p iptables-mod-ipopt iptables-mod-nat iptables-mod-nat-extra
-	opkg install iptables-mod-ulog ulogd ulogd-mod-extra 
+	opkg install iptables-mod-ulog ulogd ulogd-mod-extra
 
 	# build full kalua-tarball on server
 	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full
@@ -99,5 +99,5 @@ piggyback kalua on a new router model without building from scratch
 	# decompress tarball
 	scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz; cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 
- 	# execute config-writer
+	# execute config-writer
 	/etc/init.d/apply_profile.code
