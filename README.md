@@ -80,11 +80,17 @@ piggyback kalua on a new router model without building from scratch
 
 	# for new devices, which are flashed with a plain openwrt
 	# from http://downloads.openwrt.org/snapshots/trunk/ do this:
+
+	# plugin ethernet on WAN, to get IP via DHCP, wait
+	# some seconds, connect via LAN with 'telnet 192.168.1.1' and
+	# look with which IP was given on WAN, then do:
+	ifconfig $(uci get network.wan.ifname) | fgrep "inet addr:"
 	/etc/init.d/firewall stop
 	/etc/init.d/firewall disable
+	exit
 
-	# plugin ethernet on wan, to get ip via DHCP
-	# go on the router via 'telnet <routerip>'
+	# plugin ethernet on WAN and connect to the router
+	# via 'telnet <routers_wan_ip>', then do:
 	opkg update
 	opkg install ip bmon netperf
 	opkg install olsrd olsrd-mod-arprefresh olsrd-mod-watchdog olsrd-mod-txtinfo olsrd-mod-nameservice
