@@ -512,32 +512,25 @@ _watch_webserver ()
 
 	restart_server()
 	{
-		local server="$1"
-		local pid_old pid_new
+		_log do $FUNC daemon info "[OK] trying to stop '$SERVER' with PID '$( pidof $SERVER )'"
 
-		pid_old="$( pidof "$server" )"
-		_log do $FUNC daemon info "[OK] trying to stop '$server' with PID '$pid_old'"
+		_watch hanging_command $SERVER
+		_watch hanging_command $SERVER
 
-		/etc/init.d/*$server* stop
-		_watch hanging_command $server
-		_watch hanging_command $server
-
-		_log do $FUNC daemon info "[OK] trying to start '$server'"
-		/etc/init.d/*$server* start
-
-		pid_new="$( pidof "$server" )"
-		_log do $FUNC daemon info "[OK] server PID now: '$pid_new'"
-
-		[ "$pid_old" = "$pid_old" ] && {
-			_log do $FUNC daemon alert "[ERR] during restarting $server, identical PID '$pid_old'"	# fixme!
-		}
+		if pidof $SERVER >/dev/null; then
+			_log do $FUNC daemon alert "[ERR] during kill of $SERVER, rebooting"
+			reboot
+		else
+			/etc/init.d/*$SERVER* start
+			_log do $FUNC daemon alert "[OK] server PID after restart: '$( pidof $SERVER )'"
+		fi
 	}
 
 	pidof $SERVER >/dev/null || {
 
 		if pidof crond >/dev/null ; then
-			_log do $FUNC daemon err "[ERR] webserver is not running - restarting"
-			restart_server $SERVER
+			_log do $FUNC daemon err "[ERR] webserver is not running - restarting $SERVER"
+			restart_server
 		else
 			_log do $FUNC daemon debug "[OK] no crond - no restart"		# crondog will do it
 		fi
@@ -576,13 +569,13 @@ _watch_webserver ()
 			else
 				_log do $FUNC daemon err "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
 				rm "$file_seen_good"
-				restart_server $SERVER
+				restart_server
 			fi
 		else
 			if [ -e "$file_seen_good" ]; then
 				_log do $FUNC daemon err "[ERR] gethttp not possible - restarting"
 				rm "$file_seen_good"
-				restart_server $SERVER
+				restart_server
 			else
 				_log do $FUNC daemon info "[ERR] gethttp not possible - needs investigation"
 			fi
