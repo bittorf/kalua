@@ -276,6 +276,7 @@ _firmware_wget_prepare_for_lowmem_devices()
 
 _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one module
 {
+	local funcname="firmware_remove_kmodules"
 	local module remove
 	local filter_option="${1:-most}"			# most | all | iptables | wifi | misc
 
@@ -286,11 +287,14 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 	case "$filter_option" in
 		all)
+			_log do $funcname daemon info "ifdown wan"
 			ifdown wan	# for unloading ppp-stuff
 		;;
 	esac
 
 	while :; do {
+
+	_watch counter "/tmp/$funcname" increment 1 max 100 || break
 
 	for module in $( _list shuffle "$( list_modules )" ) ; do {
 
@@ -347,6 +351,8 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 	fi
 
 	} done
+
+	_watch counter "/tmp/$funcname" set 0
 }
 
 _firmware_kill_tasks()
