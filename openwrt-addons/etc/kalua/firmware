@@ -279,6 +279,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 	local funcname="firmware_remove_kmodules"
 	local module remove
 	local filter_option="${1:-most}"			# most | all | iptables | wifi | misc
+	local errorcount
 
 	list_modules()
 	{
@@ -294,62 +295,65 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 	while :; do {
 
-	_watch counter "/tmp/$funcname" increment 1 max 100 || break
+		_watch counter "/tmp/$funcname" increment 1 max 100 || break
 
-	for module in $( _list shuffle "$( list_modules )" ) ; do {
+		errorcount=0
+		for module in $( _list shuffle "$( list_modules )" ) ; do {
 
-		case "$module" in
-			"nf_"*|"xt"*|"ts_"*|"x_tables"|"ip_tables"|"ipt_"*|"iptable_"*)
-				case "$filter_option" in
-					all|most|iptables)
-						remove=1
-					;;
-				esac
-			;;
-			"b43"*|"ath"*|"cfg80211"|"mac80211"*|"compat"*)
-				case "$filter_option" in
-					all|most|wifi)
-						remove=1
-					;;
-				esac
-			;;
-			"ts_"*|"crc_ccitt"|"aes_generic"|"arc4"|"crypto_algapi"|"ppp"*)		# fixme! ifdown wan for ppp?
-				case "$filter_option" in
-					all|most|misc)
-						remove=1
-					;;
-				esac
-			;;
-			*)
-				case "$filter_option" in
-					all)
-						remove=1
-					;;
-					*)
-						remove=
-					;;
-				esac
-			;;
-		esac
+			case "$module" in
+				"nf_"*|"xt"*|"ts_"*|"x_tables"|"ip_tables"|"ipt_"*|"iptable_"*)
+					case "$filter_option" in
+						all|most|iptables)
+							remove=1
+						;;
+					esac
+				;;
+				"b43"*|"ath"*|"cfg80211"|"mac80211"*|"compat"*)
+					case "$filter_option" in
+						all|most|wifi)
+							remove=1
+						;;
+					esac
+				;;
+				"ts_"*|"crc_ccitt"|"aes_generic"|"arc4"|"crypto_algapi"|"ppp"*)		# fixme! ifdown wan for ppp?
+					case "$filter_option" in
+						all|most|misc)
+							remove=1
+						;;
+					esac
+				;;
+				*)
+					case "$filter_option" in
+						all)
+							remove=1
+						;;
+						*)
+							remove=
+						;;
+					esac
+				;;
+			esac
+	
+			[ -n "$remove" ] && {
+				_log do $funcname daemon info "removing kmodule: $module"
 
-		[ -n "$remove" ] && {
-			_log do $funcname daemon info "removing kmodule: $module"
-			rmmod $module || {
-				_log do $funcname daemon info "removing kmodule: $module [FAILED1]"
+				rmmod $module || {
+					_log do $funcname daemon info "removing kmodule: $module [FAILED1]"
+				}
+		
+				lsmod | fgrep -q "$module" && {
+					errorcount=$(( $errorcount + 1 ))
+					_log do $funcname daemon info "removing kmodule: $module [FAILED2] errorcount: $errorcount"
+				}
 			}
-			lsmod | fgrep -q "$module" && {
-				_log do $funcname daemon info "removing kmodule: $module [FAILED2]"
-			}
+		} done
+
+		[ "$filter_option" = "all" ] && {
+			_log do $funcname daemon info "[OK] still loaded modules:"
+			lsmod | _log do firmware_lsmod daemon info
 		}
-	} done
 
-	if [ "$filter_option" = "all" ]; then
-		_log do $funcname daemon info "[OK] still loaded modules:"
-		lsmod | _log do firmware_lsmod daemon info
-	else
-		break
-	fi
-
+		[ "$errorcount" = "0" ] && break
 	} done
 
 	_watch counter "/tmp/$funcname" set 0
