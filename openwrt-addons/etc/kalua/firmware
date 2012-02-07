@@ -234,16 +234,18 @@ _firmware_fetch ()
 
 _firmware_wget_prepare_for_lowmem_devices()
 {
+	local funcname="firmware_wget_prepare_for_lowmem_devices"
+
 	[ $( _system ram_size ) -gt 16500 ] && return 1
 
 	local url="$( _links firmware_url_get )"
 	local server_dnsname="$( _http url_get_serverstring "$url" )"
 	local ip="$( _net dns2ip "$server_dnsname" )"
-	_firmware log "[OK] serverstring2ip: $server_dnsname -> $ip"
+	_log do $funcname daemon info "[OK] serverstring2ip: $server_dnsname -> $ip"
 
 	_firmware remove_cron_stuff
 
-	_firmware log "[OK] removing some things in RAM-Disk"
+	_log do $funcname daemon info "[OK] removing some things in RAM-Disk"
 	rm /tmp/weblogin*
 	rm /tmp/ARCHIV_*
 	rm /tmp/iptables_*
@@ -252,7 +254,7 @@ _firmware_wget_prepare_for_lowmem_devices()
 	rm -fR /tmp/OLSR
 
 	ip route list exact 0.0.0.0/0 | fgrep -q "dev $WIFIDEV" || {
-		_firmware log "[OK] wifi not needed, shutting down"
+		_log do $funcname daemon info "[OK] wifi not needed, shutting down"
 		_firmware kill_tasks wifi_down
 		_firmware remove_kmodules wifi
 	}
@@ -267,7 +269,7 @@ _firmware_wget_prepare_for_lowmem_devices()
 
 	echo "$ip $server_dnsname" >/etc/hosts		# see beginning of function
 
-	_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
+	_log do $funcname daemon info "[OK] flushing caches: $( _system ram_free flush ) bytes free"
 
 	# fixme! we cant't "remove_kmodules misc" because of ppp
 }
@@ -330,19 +332,20 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 		esac
 
 		[ -n "$remove" ] && {
-			_firmware log "removing kmodule: $module"
+			_log do $funcname daemon info "removing kmodule: $module"
 			rmmod $module
 		}
 	} done
 
 	[ "$filter_option" = "all" ] && {
-		_firmware log "[OK] still loaded modules:"
+		_log do $funcname daemon info "[OK] still loaded modules:"
 		lsmod
 	}
 }
 
 _firmware_kill_tasks()
 {
+	local funcname="firmware_kill_tasks"
 	local list_tasks="$1"		# special keywords: pause | wifi_down
 
 	for task in $list_tasks ; do {
@@ -353,25 +356,27 @@ _firmware_kill_tasks()
 			;;
 			wifi_down)
 				[ "$( uci set wireless.radio0.disabled )" = 1 ] || {
-					_firmware log "[OK] bringing wifi down"
+					_log do $funcname daemon info "[OK] bringing wifi down"
 					uci set wireless.radio0.disabled=1
 					wifi
 				}
 			;;
 			*)
-				_firmware log "killall $task"
+				_log do $funcname daemon info "killall $task"
 				killall "$task"
 			;;
 		esac
 	} done
 
-	_firmware log "[OK] still running tasks:"
+	_log do $funcname daemon info "[OK] still running tasks:"
 	ps ax
 }
 
 _firmware_flush_iptables()
 {
-	_firmware log "[OK] flushing iptables"
+	local funcname="firmware_flush_iptables"
+
+	_log do $funcname daemon info "[OK] flushing iptables"
 
 	iptables -t mangle -F
 	iptables -t mangle -X
@@ -383,12 +388,13 @@ _firmware_flush_iptables()
 
 _firmware_check_image()
 {
+	local funcname="firmware_check_image"
 	local file="${1:-/tmp/fw}"
 
-	_firmware log "[START] checking image '$file'"
+	_log do $funcname daemon info "[START] checking image '$file'"
 
 	[ -e "$file" ] || {
-		_firmware log "file '$file' is missing, abort"
+		_log do $funcname daemon info "file '$file' is missing, abort"
 		return 1
 	}
 
@@ -397,35 +403,36 @@ _firmware_check_image()
 	. /lib/upgrade/common.sh
 
 	if platform_check_image "$file" ; then
-		_firmware log "[READY] image OK checked"
+		_log do $funcname daemon info "[READY] image OK checked"
 	else
-		_firmware log "[ERR] bad checksum, abort"
+		_log do $funcname daemon info "[ERR] bad checksum, abort"
 		return 1
 	fi
 }
 
 _firmware_remove_cron_stuff()
 {
+	local funcname="firmware_remove_cron_stuff"
 	local sleeptime="${1:-1}"
 
 	[ -e "/etc/init.d/S51crond_fff+" ] && {
 		if mv "/etc/init.d/S51crond_fff+" "/etc/init.d/deactivated_cron_daemon" ; then
-			_firmware log "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
+			_log do $funcname daemon info "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
 		else
-			_firmware log "[ERR] during moving /etc/init.d/S51crond_fff+ to /etc/init.d/deactivated_cron_daemon - abort"
+			_log do $funcname daemon info "[ERR] during moving /etc/init.d/S51crond_fff+ to /etc/init.d/deactivated_cron_daemon - abort"
 			return 1
 		fi
 	}
 
 	while [ ! -e /tmp/cron_watchdog.id ]; do {
-		_firmware log "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
+		_log do $funcname daemon info "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
 		sleep 5
 	} done
 
-	_firmware log "[OK] watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
+	_log do $funcname daemon info "[OK] watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
 	touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
 
-	_firmware log "[OK] waiting $sleeptime seconds"
+	_log do $funcname daemon info "[OK] waiting $sleeptime seconds"
 	sleep $sleeptime
 
 	_firmware kill_tasks "crond cron_watchdog.sh scheduler"
@@ -438,6 +445,7 @@ _firmware_burn ()
 {
 	local FILE="${1:-/tmp/fw}"
 	local FUNC="firmware_burn"
+	local funcname="firmware_burn"
 	local OUT
 	local pause="60"
 
@@ -483,7 +491,7 @@ _firmware_burn ()
 				fgrep -q '"Upgrade completed";' "$patchfile" || {
 					partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
 					fix="mtd fixtrx $partition"
-					_firmware log "[OK] patching '$patchfile', adding: '$fix'"
+					_log do $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
 					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" /lib/upgrade/common.sh
 				}
 			;;
@@ -507,16 +515,16 @@ _firmware_burn ()
 		_firmware flush_iptables
 
 		_firmware remove_kmodules most
-		_firmware log "[OK] after 'remove_kmodules most' - flushing caches: $( _system ram_free flush ) bytes free"
+		_log do $funcname daemon info "[OK] after 'remove_kmodules most' - flushing caches: $( _system ram_free flush ) bytes free"
 
 		_firmware remove_kmodules all
-		_firmware log "[OK] after 'remove_kmodules all' - flushing caches: $( _system ram_free flush ) bytes free"
+		_log do $funcname daemon info "[OK] after 'remove_kmodules all' - flushing caches: $( _system ram_free flush ) bytes free"
 
 		rm -fR /tmp/kalua		# free some RAM
 
-		_firmware log "[START] sysupgrading"
+		_log do $funcname daemon info "[START] sysupgrading"
 		sysupgrade -v "$FILE" | _log do firmware_sysupgrade daemon info
-		_firmware log "[READY] sysupgraded"
+		_log do $funcname daemon info "[READY] sysupgraded"
 
 
 		>"$FILE"		# normally this section is never reached	
