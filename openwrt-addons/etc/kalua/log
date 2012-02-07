@@ -20,20 +20,27 @@ _log_shell_is_interactive()
 _log_debug()
 {
 	local message="$1"
-	local wired_dev="${2:-${LANDEV:-${WANDEV:-eth0}}}"
-	local wired_broadcast_ip="$( ip address show dev $wired_dev | grep inet | cut -d'r' -f2 | cut -d' ' -f2 )"
+	local dev="${2:-${LANDEV:-${WANDEV:-eth0}}}"
+	local broadcast_ip="$( ip address show dev "$dev" | grep inet | cut -d'r' -f2 | cut -d' ' -f2 )"
 
 	# readable from a neighbour with:
-	# tcpdump -s 1500 -n -l -w - -i eth0.1 port 0x1337 | strings
+	# tcpdump -s 1500 -n -l -w - -i $YOURDEV port 0x1337 | strings
 
-	if [ -z "$wired_broadcast_ip" ]; then
-		wired_broadcast_ip="192.168.1.255"
+	if [ -z "$broadcast_ip" ]; then
+		if grep -sq "$dev:" /proc/net/wireless ; then
+			broadcast_ip="192.168.1.255"
+			local ip="192.168.1.1/24"
+		else
+			broadcast_ip="10.255.255.255"
+			local ip="10.0.0.1/8"
+		fi
 
-		ip address add 192.168.1.1/24 dev $wired_dev
-		/bin/netmsg "$wired_broadcast_ip" "NO-IP: $message"
-		ip address del 192.168.1.1/24 dev $wired_dev
+		ip link set dev "$dev" up
+		ip address add "$ip" dev "$dev"
+		/bin/netmsg "$broadcast_ip" "NO-IP: $message"
+		ip address del "$ip" dev "$dev"
 	else
-		/bin/netmsg "$wired_broadcast_ip" "$message"
+		/bin/netmsg "$broadcast_ip" "$message"
 	fi
 }
 
