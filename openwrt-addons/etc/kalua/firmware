@@ -279,9 +279,9 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 	local funcname="firmware_remove_kmodules"
 	local module remove
 	local filter_option="${1:-most}"			# most | all | iptables | wifi | misc
-	local errorcount
+	local errorcount list_modules
 
-	list_modules()
+	list_modules_get()
 	{
 		lsmod | cut -d' ' -f1
 	}
@@ -297,8 +297,14 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 		_watch counter "/tmp/$funcname" increment 1 max 100 || break
 
+		if [ $( cat "/tmp/$funcname" ) -gt 3 ]; then
+			list_modules="$( list_modules_get )"
+		else
+			list_modules="$( _list shuffle "$( list_modules_get )" )"
+		fi
+
 		errorcount=0
-		for module in $( _list shuffle "$( list_modules )" ) ; do {
+		for module in $list_modules; do {
 
 			case "$module" in
 				"nf_"*|"xt"*|"ts_"*|"x_tables"|"ip_tables"|"ipt_"*|"iptable_"*)
