@@ -279,7 +279,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 	local funcname="firmware_remove_kmodules"
 	local module remove
 	local filter_option="${1:-most}"			# most | all | iptables | wifi | misc
-	local errorcount list_modules usbdev i
+	local errorcount list_modules i line
 
 	list_modules_get()
 	{
@@ -291,15 +291,26 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 			_log do $funcname daemon info "ifdown wan"
 			ifdown wan	# for unloading ppp-stuff
 
-			for usbdev in $( fgrep "/dev/sd" /proc/mounts ); do {
-				case "$usbdev" in
+			while read line; do {
+				set $line	# $device $mountpoint $type $options $rest
+				case "$1" in
 					"/dev/sd"*)
-						_log do $funcname daemon info "unmounting '$usbdev'"
-						umount "$usbdev"
+						_log do $funcname daemon info "unmounting '$2'"
+						umount "$2"
 						umount "/proc/bus/usb"
 					;;
+					"debugfs")
+						_log do $funcname daemon info "unmounting '$2'"
+						umount "$2"
+					;;
+					"none")
+						[ "$2" = "/proc/bus/usb" ] && {
+							_log do $funcname daemon info "unmounting '$2'"
+							umount "$2"
+						}
+					;;
 				esac
-			} done
+			} done <"/proc/mounts"
 		;;
 	esac
 
