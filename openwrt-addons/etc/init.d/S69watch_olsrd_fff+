@@ -78,8 +78,14 @@ _firmware upgrade_is_needed && {
 	URL="$(  _links firmware_url_get )"
 	HASH="$( _links firmware_url_get crc )"
 
-	_firmware wget_prepare_for_lowmem_devices
-	_firmware wget "$FILE" "$URL" "$HASH" && {
+	_firmware wget_prepare_for_lowmem_devices && LOWMEM="true"
+
+	if _firmware wget "$FILE" "$URL" "$HASH" ; then
 		scheduler -p -a "_firmware burn $FILE"
-	}
+	else
+		[ "$LOWMEM" = "true" ] && {
+			_log do wget_firmware daemon alert "download failed on lowmem-device, rebooting"
+			reboot
+		}
+	fi
 }
