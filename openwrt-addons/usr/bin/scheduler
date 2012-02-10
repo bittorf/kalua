@@ -12,6 +12,28 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 	ERR=0
 
 	case $FLAG in
+		U)
+			[ -e "/tmp/START_SYSUPGRADE" ] && {
+				FILE="/tmp/fw"
+				URL="$(  _links firmware_url_get )"
+				HASH="$( _links firmware_url_get crc )"
+
+				_firmware wget_prepare_for_lowmem_devices && {
+					LOWMEM="true"
+				}
+
+				if _firmware wget "$FILE" "$URL" "$HASH" ; then
+					_firmware burn $FILE
+				else
+					[ "$LOWMEM" = "true" ] && {
+						_log do wget_firmware daemon alert "download failed on lowmem-device, rebooting"
+						reboot
+					}
+				fi
+
+				[ -e "/tmp/LOCKFILE_APPLY" ] && rm "/tmp/LOCKFILE_APPLY"        # unblock scheduler
+			}
+		;;
 		S)
 			MINUTE="$( date +%M )"	# 00...59
 			HOUR="$(   date +%H )"	# 00...23
