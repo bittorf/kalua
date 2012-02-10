@@ -35,7 +35,13 @@ _log_debug()
 {
 	local message="$1"
 	local dev="${2:-${LANDEV:-${WANDEV:-eth0}}}"
-	local broadcast_ip="$( ip address show dev "$dev" | grep inet | cut -d'r' -f2 | cut -d' ' -f2 )"
+	local ip_bin="/usr/sbin/ip"
+	local netmsg_bin="/bin/netmsg"
+
+	[ -e "$ip_bin" ] || return 0
+	[ -e "$netmsg_bin" ] || return 0
+
+	local broadcast_ip="$( $ip_bin address show dev "$dev" | grep inet | cut -d'r' -f2 | cut -d' ' -f2 )"
 
 	# readable from a neighbour with:
 	# tcpdump -s 1500 -n -l -w - -i $YOURDEV port 0x1337 | strings
@@ -49,12 +55,12 @@ _log_debug()
 			local ip="10.0.0.1/8"
 		fi
 
-		ip link set dev "$dev" up
-		ip address add "$ip" dev "$dev"
-		/bin/netmsg "$broadcast_ip" "NO-IP: $message"
-		ip address del "$ip" dev "$dev"
+		$ip_bin link set dev "$dev" up
+		$ip_bin address add "$ip" dev "$dev"
+		$netmsg_bin "$broadcast_ip" "NO-IP: $message"
+		$ip_bin address del "$ip" dev "$dev"
 	else
-		/bin/netmsg "$broadcast_ip" "$message"
+		$netmsg_bin "$broadcast_ip" "$message"
 	fi
 }
 
