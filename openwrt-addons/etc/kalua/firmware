@@ -600,11 +600,36 @@ _firmware_burn ()
 		_log include
 		_system include
 		rm -fR /tmp/kalua		# free some RAM
+		rm -fR /tmp/OLSR
+		rm -fR /tmp/OLSR_TMP
+		mkdir /tmp/fwimage
+		mv "$FILE" /tmp/fwimage
+		rm /tmp/*
+		mv /tmp/fwimage/* "$FILE"
+
+		ls -l /tmp | _log do $funcname daemon info
 
 		_log do $funcname daemon info "[OK] after 'remove kalua' - flushing caches: $( _system ram_free flush ) bytes free"
 
 		_log do $funcname daemon info "[START] sysupgrading"
-		sysupgrade -v "$FILE" | _log do firmware_sysupgrade daemon info
+
+		local v
+		for v in $( env | cut -d'=' -f1 ) v; do {
+			case "$v" in
+				FILE)
+					:
+				;;
+				*)
+					unset -v "$v"
+				;;
+		} done
+
+		# for funcname in ...; do {
+		# 	unset -f $function	// except ourself _firmware_burn()
+		# } done
+		# unset -v funcname
+
+		/sbin/sysupgrade -v "$FILE"
 		_log do $funcname daemon info "[READY] sysupgraded"
 
 
