@@ -15,15 +15,23 @@ while getopts "S:a:A:wrlpofuOPHU" FLAG; do {
 		U)
 			[ -e "/tmp/START_SYSUPGRADE" ] && {
 				_scheduler queue_list is_empty >/dev/null && {
-					FILE="/tmp/fw"
-					URL="$(  _links firmware_url_get )"
-					HASH="$( _links firmware_url_get crc )"
 
-					_firmware wget_prepare_for_lowmem_devices && {
-						LOWMEM="true"
+					FILE="/tmp/fw"
+
+					[ -e "$FILE" ] || {
+						URL="$(  _links firmware_url_get )"
+						HASH="$( _links firmware_url_get crc )"
+
+						_firmware wget_prepare_for_lowmem_devices && {
+							LOWMEM="true"
+						}
+
+						_firmware wget "$FILE" "$URL" "$HASH" || {
+							rm "$FILE"
+						}
 					}
 
-					if _firmware wget "$FILE" "$URL" "$HASH" ; then
+					if [ -e "$FILE" ]; then
 						_firmware burn $FILE
 					else
 						[ "$LOWMEM" = "true" ] && {
@@ -33,6 +41,7 @@ while getopts "S:a:A:wrlpofuOPHU" FLAG; do {
 					fi
 
 					[ -e "/tmp/LOCKFILE_APPLY" ] && rm "/tmp/LOCKFILE_APPLY"        # unblock scheduler
+
 					exit 0
 				}
 			}
