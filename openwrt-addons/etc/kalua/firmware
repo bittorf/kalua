@@ -590,30 +590,6 @@ _firmware_burn ()
 		_firmware remove_kmodules all
 		_log do $funcname daemon info "[OK] after 'remove_kmodules all' - flushing caches: $( _system ram_free flush ) bytes free"
 
-#		_log include
-#		_system include
-
-		local func subfunc
-		for func in $( _ show ); do {
-			_log do $funcname daemon info "unloading $func"
-			for subfunc in $( $func show ); do {
-				case "$subfunc" in
-					_*)
-						set $subfunc		# remove comments
-						type "$1" >/dev/null && {
-#							_log do $funcname daemon info "unloading $1()"
-							unset -f "$1"		# removing all kalua-functions, even ourself
-						}
-					;;
-				esac
-			} done
-
-#			_log do $funcname daemon info "unloading $func()"
-			unset -f "$func"
-		} done
-#		_log do $funcname daemon info "unloading _()"
-		unset -f "_"
-
 		rm -fR /tmp/kalua		# free some RAM	- fixme! better delete all except NEEDED?
 		rm -fR /tmp/OLSR
 		rm -fR /tmp/OLSR_TMP
@@ -628,67 +604,16 @@ _firmware_burn ()
 		mv /tmp/fwimage/* "$FILE"
 		rm -fR /tmp/fwimage
 
-#		ls -l /tmp | _log do $funcname daemon info
+		local showmem
+		showmem="echo 3 >/proc/sys/vm/drop_caches"
+		showmem="$showmem; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
+		showmem="$showmem; /bin/netmsg $LANBRC \"\$L\""
 
-#		_log do $funcname daemon info "[OK] after 'remove kalua' - flushing caches: $( _system ram_free flush ) bytes free"
+		cat >/etc/crontabs/root <<EOF
+* * * * * $showmem; killall crond; $showmem; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot
+EOF
 
-#		_log do $funcname daemon info "[START] sysupgrading"
-
-		local func subfunc
-		for func in $( _ show ); do {
-			for subfunc in $( $func show ); do {
-				case "$subfunc" in
-					_*)
-						set $subfunc		# remove comments
-						type "$1" >/dev/null && {
-#							_log do $funcname daemon info "unloading $1()"
-							unset -f "$1"		# removing all kalua-functions, even ourself
-						}
-					;;
-				esac
-			} done
-
-#			_log do $funcname daemon info "unloading $func()"
-			unset -f "$func"
-		} done
-#		_log do $funcname daemon info "unloading _()"
-		unset -f "_"
-
-		local varname
-		for varname in $( set | cut -d'=' -f1 ); do {
-			case "$varname" in
-				varname|FILE|OPTARG|OPTIND|LANBRC)
-					:
-				;;
-				*)
-#					_log do $funcname daemon info "deleting var '$varname'"
-					unset -v "$varname"
-				;;
-			esac
-		} done
-		unset -v "varname"
-
-		unalias -a
-		hash -r
-
-		echo 3 >/proc/sys/vm/drop_caches
-		while read LINE; do {
-			case "$LINE" in
-				MemFree:*)
-					/bin/netmsg $LANBRC "$LINE"
-				;;
-			esac
-		} done </proc/meminfo
-		unset -v LINE
-
-		/sbin/sysupgrade -v "$FILE"
-		_log do $funcname daemon info "[READY] sysupgraded"
-
-
-		>"$FILE"		# normally this section is never reached	
-		/bin/sync
-		/bin/sleep 30
-		/sbin/reboot
+		/usr/sbin/crond -L /dev/null
 	fi
 }
 
