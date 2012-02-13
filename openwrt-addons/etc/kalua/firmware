@@ -609,6 +609,14 @@ _firmware_burn ()
 		showmem="$showmem; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
 		showmem="$showmem; /bin/netmsg $LANBRC \"\$L\""
 
+		# using this way, we have enough free RAM, e.g.
+		# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys
+		#
+		# ideas to get even more free ram:
+		# - unloading all functions/vars before mtd
+		# - unmounting jffs2/unneeded filesystems
+		# - reducing net/disk-buffers?
+
 		cat >/etc/crontabs/root <<EOF
 * * * * * rm /etc/crontabs/root; killall crond; $showmem; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f
 EOF
@@ -671,8 +679,25 @@ _firmware_filelist ()
 
 _firmware_upgrade_is_needed()
 {
-	local target_version_git="30010"
+	local target_version_git
 	local hardware
+
+	if [ -e "/etc/HARDWARE" ]; then
+		read hardware <"/etc/HARDWARE"
+		case "$hardware" in
+			"TP-LINK TL-WR1043ND")
+				target_version_git="30010"
+			;;
+			"Buffalo WHR-HP-G54"|"Linksys WRT54G/GS/GL")
+				target_version_git="30406"
+			;;
+			*)
+				return 1
+			;;
+		esac
+	else
+		return 1
+	fi
 
 	[ "$( _system uptime min )" -ge 30 ] || {
 		return 1
@@ -686,7 +711,7 @@ _firmware_upgrade_is_needed()
 		return 1
 	}
 
-	[ "$( _system version short )" -ge $target_version_git ] && {
+	[ "$( _system version short )" -ge ${target_version_git:-99999} ] && {
 		return 1
 	}
 
@@ -726,20 +751,6 @@ _firmware_upgrade_is_needed()
 			}
 		;;
 	esac
-
-	if [ -e "/etc/HARDWARE" ]; then
-		read hardware <"/etc/HARDWARE"
-		case "$hardware" in
-			"TP-LINK TL-WR1043ND")
-				:
-			;;
-			*)
-				return 1
-			;;
-		esac
-	else
-		return 1
-	fi
 
 	return 0
 }
