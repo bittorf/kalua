@@ -3,23 +3,29 @@
 case "$HTTP_USER_AGENT" in
 	"")				# ignore unknown requests from WAN
 		. /tmp/NETPARAM
-		[ "$SERVER_ADDR" = "$WANADR" ] && exit	# fixme! better use SERVER_NAME?
+		[ "$SERVER_ADDR" = "$WANADR" ] && DO403="true"	# fixme! better use SERVER_NAME?
 	;;
-	"Microsoft NCSI")
-		. /tmp/loader
-		_http spoof_captive_portal_checker_microsoft
-		exit
+	"Microsoft NCSI")	# microsoft captive portel checker -> _http spoof_captive_portal_checker_microsoft
+		DO403="true"
 	;;
-	"CaptiveNetworkSupport"*)
-		. /tmp/loader
-		_http spoof_captive_portal_checker_apple
-		exit
+	"CaptiveNetworkSupport"*)	# apple captive portel checker -> _http spoof_captive_portal_checker_apple
+		DO403="true"
 	;;
-	*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*)
-		logger "$0: ignoring non-human query: '$HTTP_USER_AGENT' from '$REMOTE_ADDR'"
-		exit
+	*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*)
+		DO403="true"
 	;;
 esac
+
+[ -n "$DO403" ] && {
+	cat <<EOF
+Status: 403 Forbiddden
+Connection: close
+
+EOF
+
+	/bin/busybox logger "$0: ignoring non-human query: '$HTTP_USER_AGENT' from '$REMOTE_ADDR'"
+	exit
+}
 
 case "$QUERY_STRING" in
 	REDIRECTED=1*)
