@@ -13,13 +13,13 @@ case "$HTTP_USER_AGENT" in
 	"CaptiveNetworkSupport"*)	# apple captive portel checker -> _http spoof_captive_portal_checker_apple
 		ERROR=403
 	;;
-	"Skype WISPr"|*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*)
+	"WifiHotspot"|"Skype WISPr"|*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*)
 		ERROR=403
 	;;
 esac
 
 case "$HTTP_HOST" in
-	*".googleapis.com")
+	*".googleapis.com"|"catalog.zune.net")
 		HTTP_USER_AGENT="$HTTP_HOST ($HTTP_USER_AGENT)"
 		ERROR=403
 	;;
