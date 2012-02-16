@@ -19,6 +19,10 @@ case "$HTTP_USER_AGENT" in
 esac
 
 case "$HTTP_HOST" in
+	*".googleapis.com")
+		HTTP_USER_AGENT="$HTTP_HOST ($HTTP_USER_AGENT)"
+		ERROR=403
+	;;
 	"liveupdate.symantecliveupdate.com")
 		HTTP_USER_AGENT="liveupdate.symantecliveupdate.com ($HTTP_USER_AGENT)"
 		ERROR=403
