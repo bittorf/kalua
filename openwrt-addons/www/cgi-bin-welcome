@@ -1,47 +1,5 @@
 #!/bin/sh
 
-case "$HTTP_USER_AGENT" in
-	"")				# ignore unknown requests from WAN
-		. /tmp/NETPARAM
-		[ "$SERVER_ADDR" = "$WANADR" ] && DO403="true"	# fixme! better use SERVER_NAME?
-	;;
-	"Microsoft NCSI")	# microsoft captive portel checker -> _http spoof_captive_portal_checker_microsoft
-		DO403="true"
-	;;
-	"CaptiveNetworkSupport"*)	# apple captive portel checker -> _http spoof_captive_portal_checker_apple
-		DO403="true"
-	;;
-	"Skype WISPr"|*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*)
-		DO403="true"
-	;;
-esac
-
-case "$HTTP_HOST" in
-	"liveupdate.symantecliveupdate.com")
-		HTTP_USER_AGENT="liveupdate.symantecliveupdate.com was: '$HTTP_USER_AGENT'"
-		DO403="true"
-	;;
-	"cnfg.montiera.com"|"img.babylon.com")		# invoked by search.babylon.com
-		HTTP_USER_AGENT="BabylonToolbar was: '$HTTP_USER_AGENT'"
-		DO403="true"
-	;;
-	"fxfeeds.mozilla.com")
-		HTTP_USER_AGENT="LiveBookmarks was: '$HTTP_USER_AGENT'"
-		DO403="true"
-	;;
-esac
-
-[ -n "$DO403" ] && {
-	cat <<EOF
-Status: 403 Forbiddden
-Connection: close
-
-EOF
-
-	/bin/busybox logger "$0: do403 for $REMOTE_ADDR: '$HTTP_USER_AGENT'"
-	exit
-}
-
 case "$QUERY_STRING" in
 	REDIRECTED=1*)
 	;;
@@ -51,16 +9,13 @@ case "$QUERY_STRING" in
 		exit
 	;;
 	*)
-		read WIFIADR FORKS 2>/dev/null </tmp/WELCOME_HELPER
-		[ ${#FORKS} -gt 1 -o -z "$FORKS" ] && {
-			cat /tmp/weblogin_cached_for_overload 2>/dev/null && exit
-		}
+		cat /tmp/weblogin_cached_for_overload 2>/dev/null
+		exit
 	;;
 esac
 
-echo -n >>/tmp/WELCOME_HELPER "#"	# raise counter, see cron.minutely
-
 . /tmp/loader
+
 [ -e /tmp/weblogin_cached_for_overload ] || {
 	case "$( uci get system.@weblogin[0].enabled )" in
 		1)
