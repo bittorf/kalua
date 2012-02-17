@@ -19,7 +19,7 @@ case "$HTTP_USER_AGENT" in
 esac
 
 case "$HTTP_HOST" in
-	*".googleapis.com"|"catalog.zune.net")
+	*".googleapis.com"|"catalog.zune.net"|*".ggpht.com")
 		HTTP_USER_AGENT="$HTTP_HOST ($HTTP_USER_AGENT)"
 		ERROR=403
 	;;
