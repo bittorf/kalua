@@ -9,11 +9,11 @@ case $1 in
 		L2="switch_adm switch_robo switch_core diag"
 		L3="ts_fsm ts_bm ts_kmp"
 		L4="crc_ccitt arc4 aes_generic crypto_algapi"
-		L5="compat compat_xtables"
+		L5="compat_xtables"
 		L6="xt_multiport xt_comment xt_CLASSIFY xt_time xt_tcpmss xt_statistic"
 		L7="xt_DSCP xt_dscp xt_string xt_layer7 xt_quota xt_pkttype xt_owner"
 		L8="xt_recent xt_helper xt_conntrack xt_CT xt_NOTRACK xt_HL xt_hl xt_ipp2p"
-		L9="ipt_ecn ipt_ECN ipt_NETMAP ipt_MASQUERADE iptables_raw"
+		L9="ipt_ecn ipt_ECN ipt_NETMAP ipt_MASQUERADE iptable_raw"
 		L0="nf_nat_proto_gre nf_nat_tftp nf_nat_sip nf_nat_pptp nf_nat_h323 nf_nat_amanda nf_nat_irc nf_nat_ftp nf_conntrack_proto_gre"
 		# maybe simply try to unload all
 
@@ -26,12 +26,20 @@ case $1 in
 
 		unload()
 		{
-			for KMOD in $1; do {
-				rmmod $KMOD
-				if lsmod | fgrep -q "$KMOD"; then
-					echo "$KMOD"
+			local list="$1"
+			local kmod
+
+			for kmod in $list; do {
+
+				_log do kmodule_unloader daemon info "rmmod '$kmod'" 
+				rmmod $kmod
+
+				if lsmod | fgrep -q "$kmod"; then
+					echo "$kmod"
 				else
-					[ -e "/tmp/KMODULES_UNLOAD.1sttime" ] && echo "$KMOD" >>"/www/KMODULES_UNLOADED"
+					[ -e "/tmp/KMODULES_UNLOAD.1sttime" ] && {
+						echo "$kmod" >>"/tmp/KMODULES_UNLOADED"
+					}
 				fi
 			} done
 		}
@@ -44,6 +52,8 @@ case $1 in
 			LIST="$( _list shuffle "$LIST" )"
 			[ -e "/tmp/KMODULES_UNLOAD.1sttime" ] || break
 		} done
+
+		mv "/tmp/KMODULES_UNLOADED" "/www/KMODULES_UNLOADED"
 	;;
 	start)
 		grep -qs 0 "/proc/sys/vm/panic_on_oom" && {
