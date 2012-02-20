@@ -4,6 +4,47 @@
 [ -n "$FAILSAFE" ] && exit
 
 case $1 in
+	unload_unneeded_kmodules)
+		L1="pppoe pppoe ppp_async ppp_generic ppp_slhc"
+		L2="switch_adm switch_robo switch_core diag"
+		L3="ts_fsm ts_bm ts_kmp"
+		L4="crc_ccitt arc4 aes_generic crypto_algapi"
+		L5="compat compat_xtables"
+		L6="xt_multiport xt_comment xt_CLASSIFY xt_time xt_tcpmss xt_statistic"
+		L7="xt_DSCP xt_dscp xt_string xt_layer7 xt_quota xt_pkttype xt_owner"
+		L8="xt_recent xt_helper xt_conntrack xt_CT xt_NOTRACK xt_HL xt_hl xt_ipp2p"
+		L9="ipt_ecn ipt_ECN ipt_NETMAP ipt_MASQUERADE iptables_raw"
+		L0="nf_nat_proto_gre nf_nat_tftp nf_nat_sip nf_nat_pptp nf_nat_h323 nf_nat_amanda nf_nat_irc nf_nat_ftp nf_conntrack_proto_gre"
+		# maybe simply try to unload all
+
+		if [ -e "/www/KMODULES_UNLOADED" ]; then
+			LIST="$( cat "/www/KMODULES_UNLOADED" )"
+		else
+			touch "/tmp/KMODULES_UNLOAD.1sttime"
+			LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0"
+		fi
+
+		unload()
+		{
+			for KMOD in $1; do {
+				rmmod $KMOD
+				if lsmod | fgrep -q "$KMOD"; then
+					echo "$KMOD"
+				else
+					[ -e "/tmp/KMODULES_UNLOAD.1sttime" ] && echo "$KMOD" >>"/www/KMODULES_UNLOADED"
+				fi
+			} done
+		}
+
+		I=0
+		while [ -n "$LIST" ]; do {
+			I=$(( $I + 1 ))
+			[ $I -eq 100 ] && break
+			LIST="$( unload "$LIST" )"
+			LIST="$( _list shuffle "$LIST" )"
+			[ -e "/tmp/KMODULES_UNLOAD.1sttime" ] || break
+		} done
+	;;
 	start)
 		grep -qs 0 "/proc/sys/vm/panic_on_oom" && {
 			_log do panic_on_oom daemon info "activating auto-reboot when oom is working"
