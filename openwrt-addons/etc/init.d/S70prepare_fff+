@@ -18,13 +18,7 @@ case $1 in
 		LA="nf_conntrack_tftp nf_conntrack_sip nf_conntrack_pptp nf_conntrack_h323 nf_conntrack_proto_gre nf_conntrack_amanda nf_conntrack_irc nf_conntrack_ftp"
 
 		[ "$( network.wan.proto ) = "pppoe" ] && L1=
-
-		if [ -e "/www/KMODULES_UNLOADED" ]; then
-			LIST="$( cat "/www/KMODULES_UNLOADED" )"
-		else
-			touch "/tmp/KMODULES_UNLOAD.1sttime"
-			LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA"
-		fi
+		LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA"
 
 		unload()
 		{
@@ -36,13 +30,9 @@ case $1 in
 				_log do kmodule_unloader daemon info "rmmod '$kmod'" 
 				rmmod $kmod
 
-				if lsmod | fgrep -q "$kmod"; then
+				lsmod | fgrep -q "$kmod" && {
 					echo "$kmod"
-				else
-					[ -e "/tmp/KMODULES_UNLOAD.1sttime" ] && {
-						echo "$kmod" >>"/tmp/KMODULES_UNLOADED"
-					}
-				fi
+				}
 			} done
 		}
 
@@ -52,10 +42,7 @@ case $1 in
 			[ $I -eq 100 ] && break
 			LIST="$( unload "$LIST" )"
 			LIST="$( _list shuffle "$LIST" )"
-			[ -e "/tmp/KMODULES_UNLOAD.1sttime" ] || break
 		} done
-
-		mv "/tmp/KMODULES_UNLOADED" "/www/KMODULES_UNLOADED"
 
 		# free some more ram, remove old files:
 
@@ -79,6 +66,7 @@ case $1 in
 
 		killall rcS
 		killall klogd
+		# fixme! hotplug2 also?
 
 		touch /tmp/service_cronwatchdog_nowatching
 		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
