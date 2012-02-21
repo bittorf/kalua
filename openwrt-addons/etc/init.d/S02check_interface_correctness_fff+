@@ -10,7 +10,6 @@
 }
 
 eval $( _wifi vendor_and_model )			# $WIFI_VENDOR/MODEL
-eval $( _hardware remap_devs get_model )		# $ROUTER_VENDOR/MODEL/NO
 
 [ -n "$1" ] && {	# depricated!
 	[ "$1" != "start" ] && echo "HW='$ROUTER_VENDOR $ROUTER_MODEL ($WIFI_VENDOR $WIFI_MODEL)';USB='';IDE='';MINIPCI=''"
@@ -21,12 +20,6 @@ eval $( _hardware remap_devs get_model )		# $ROUTER_VENDOR/MODEL/NO
 }
 
 _watch flash_free_space				# to ensure writing of olsr.conf + startup
-
-_uci is_oldstyle && {
-	[ "$WIFI_VENDOR" = "atheros" -a -n "$( uci get wireless.radio0.frag )" ] && {
-		_nvram set wl0_frag ""	# unsetting on madwifi - fixme! needs some research
-	}
-}
 
 RAMSIZE="$(   _system ram_size   )"
 FLASHSIZE="$( _system flash_size )"
@@ -46,12 +39,3 @@ _net local_inet_offer >/dev/null		# fixme! just a test
 
 _ssh sanitize_and_cleanup_keys
 
-PROFILE="$( _profile get $MAC )" && {
-	_log do "profile_get" daemon debug "profile set ('$PROFILE'), only applying interface-check"
-	_hardware remap_devs
-	[ "$1" != "enforce_new_profile" ] && exit
-}
-
-_profile set_config "$PROFILE"
-
-[ "$1" = "enforce_new_profile" ] && _system reboot_safe "new profile was enforced"
