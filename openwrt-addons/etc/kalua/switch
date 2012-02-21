@@ -5,29 +5,41 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 	local debug="$2"
 	local line duplex n
 
-	[ -z "$type" ] && {
+	[ -z "$type" -o "$type" = "eth0" ] && {
 		if [ -e "/tmp/SWITCH_TYPE" ]; then
 			read type <"/tmp/SWITCH_TYPE"
 		else
 			probe_type1()
 			{
-				dmesg | fgrep "roboswitch:" | fgrep -q "found a 53" && \
+				fgrep "roboswitch:" "/tmp/dmesg.boot" | fgrep -q "found a 53" && \
 					echo "bcm53xx"
 			}
 
 			probe_type2()
 			{
-				dmesg | fgrep -q "AG71xx" && \
-					echo "ag71xx"
+				fgrep -q "  AR8316 " "/tmp/dmesg.boot" && \
+					echo "ar8316"
 			}
 
 			probe_type3()
 			{
-				dmesg | fgrep -q "ar231x_eth_mii:" && \
+				fgrep -q "ar231x_eth_mii:" "/tmp/dmesg.boot" && \
 					echo "ar231x"
 			}
 
-			for n in 1 2 3; do {
+			probe_type4()
+			{
+				fgrep -q "mii_bus:phy_addr" "/tmp/dmesg.boot" && \
+					echo "mii"
+			}
+
+			probe_type5()
+			{
+				fgrep -q "AG71xx" "/tmp/dmesg.boot" && \
+					echo "ag71xx"
+			}
+
+			for n in 1 2 3 4 5; do {
 				type="$( probe_type${n} )" && {
 					echo "$type" >/tmp/SWITCH_TYPE
 					break
@@ -37,7 +49,7 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 	}
 
 	case "$type" in
-		ag71xx|ar231x)
+		ag71xx|ar231x|mii)
 			which mii-tool >/dev/null || {
 				_software package_install mii-tool >/dev/null
 
@@ -45,7 +57,7 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 					return 1
 			}
 
-			line="$( mii-tool ${LANDEV:-empty_landev} )"
+			line="$( mii-tool ${LANDEV:-${WANDEV:-empty_dev}} )"
 			[ -n "$debug" ] && \
 				_log do $funcname daemon debug "type: $type - line '$line'"
 
@@ -121,9 +133,12 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 				fi
 			} done
 		;;
-		rtl8366rb)
+		rtl8366rb|ar8316)
 			which swconfig >/dev/null || \
 				return 1
+
+			[ "$type" = "ar8316" ] && type="eth0"	# fixme! these are the LAN-ports only
+								# fixme! wan visible via "mii-tool eth1"
 
 			for port in 0 gap 1 2 3 4; do {		# [ WAN | LAN LAN LAN LAN ]
 
@@ -136,6 +151,9 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 
 					case "$line" in
 						*"link: port:$port link: down"*)
+							echo -n "-"
+						;;
+						*"link: port:$port link:down"*)
 							echo -n "-"
 						;;
 						*"link:up"*)
