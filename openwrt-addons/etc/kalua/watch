@@ -853,10 +853,17 @@ _watch_switch_linkstatus()
 	local type="${1:-$( uci get network.@switch[0].name )}"
 	local stat_old stat_new devname interface_name 
 
-	[ -z "$type" ] && {                                                                                                        
-		if [ -e "/tmp/SWITCH_TYPE" ]; then                                                                             
-			read type <"/tmp/SWITCH_TYPE"                                                                                                   
-		fi                                                                                                             
+	[ -z "$type" ] && {                                                                           
+		if [ -e "/tmp/SWITCH_TYPE" ]; then                                
+			read type <"/tmp/SWITCH_TYPE"                                                          
+			_log do $funcname daemon debug "[INFO] Write switch type $type to uci"
+			uci set network.@switch[0].name="$type"                                       
+			uci commit                                                                                             
+		else                                                                                  
+			_log do $funcname daemon debug "[INFO] Switch type unknown, probe switch type"
+			_switch show                                                                  
+			return 0                                                   
+		fi                                                          
 	}
 	
 	case "$type" in
