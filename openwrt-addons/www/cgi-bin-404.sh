@@ -31,7 +31,7 @@ case "$HTTP_HOST" in
 		HTTP_USER_AGENT="BabylonToolbar ($HTTP_USER_AGENT)"
 		ERROR=403
 	;;
-	"fxfeeds.mozilla.com")
+	"fxfeeds.mozilla.com"|"stats.avg.com"|"toolbar.avg.com")
 		HTTP_USER_AGENT="LiveBookmarks ($HTTP_USER_AGENT)"
 		ERROR=403
 	;;
