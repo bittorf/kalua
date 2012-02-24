@@ -872,8 +872,10 @@ _watch_switch_linkstatus()
 		;;
 		rtl8366rb|ar8316) #on tp-link vlan 2 represents the wan port
 			stat_new="$( swconfig dev $type port "$(swconfig dev $type vlan 2 get ports|cut -f1 -d ' ')" get link)"
-			if [ "$stat_new"=="*down*"]; then
+			if [ "$stat_new" = "*down*" ]; then
 				stat_new="DOWN"
+			else
+				stat_new="UP"
 			fi
 		;;
 		*)
@@ -895,11 +897,13 @@ _watch_switch_linkstatus()
 		return 1
 	}
 
-	if [ "$stat_new"=="$stat_old" ]; then
-		#_log do $funcname daemon debug "[OK] nothing changed"
-		_watch vpn || {
-			_vpn restart
-		}
+	if [ "$stat_new" = "$stat_old" ]; then
+		_log do $funcname daemon debug "[OK] nothing changed"
+		if [ "$stat_new" != "DOWN" ]; then
+			_watch vpn || {
+				_vpn restart
+			}
+		fi
 		return 0
 	else
 		echo "$stat_new" >"$statfile"
