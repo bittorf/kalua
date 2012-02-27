@@ -13,7 +13,7 @@ case "$HTTP_USER_AGENT" in
 	"CaptiveNetworkSupport"*)	# apple captive portel checker -> _http spoof_captive_portal_checker_apple
 		ERROR=403
 	;;
-	"ZoneAlarm"*|*"youtube"*|*"YouTube"*|"WifiHotspot"|"Skype WISPr"|*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*)
+	"Microsoft BITS"*|"ZoneAlarm"*|*"youtube"*|*"YouTube"*|"WifiHotspot"|"Skype WISPr"|*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*)
 		ERROR=403
 	;;
 esac
