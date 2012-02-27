@@ -23,7 +23,7 @@ case "$HTTP_HOST" in
 		HTTP_USER_AGENT="$HTTP_HOST ($HTTP_USER_AGENT)"
 		ERROR=403
 	;;
-	*".kaspersky.com"|*".service.msn.com"|"liveupdate.symantecliveupdate.com"|"update.services.openoffice.org")
+	*".bstatic.com"|*".kaspersky.com"|*".service.msn.com"|"liveupdate.symantecliveupdate.com"|"update.services.openoffice.org")
 		HTTP_USER_AGENT="$HTTP_HOST ($HTTP_USER_AGENT)"
 		ERROR=403
 	;;
