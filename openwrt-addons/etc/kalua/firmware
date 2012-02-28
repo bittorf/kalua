@@ -501,10 +501,16 @@ _firmware_burn ()
 					partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
 					fix="mtd fixtrx $partition"
 					_log do $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
-					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" /lib/upgrade/common.sh || reboot -f
+					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
+					fgrep -q "$fix" "$patchfile" || reboot -f
 				}
 			;;
 		esac
+
+		local patchfile="/lib/upgrade/common.sh"
+		_log do $funcname daemon info "[OK] patching '$patchfile', adding infinite loop to default_do_upgrade() till it does not fail"
+		sed -i "s|default_do_upgrade \"\$ARGV\"|while :;do & \&\& break; v retry_upgrade; done|" "$patchfile"
+		fgrep -q "v retry_upgrade;" || reboot -f
 
 		local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
 				  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
