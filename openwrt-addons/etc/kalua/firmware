@@ -543,10 +543,28 @@ _firmware_burn ()
 		mv /tmp/fwimage/* "$FILE"
 		rm -fR /tmp/fwimage
 
-		local showmem
+		interfaces()
+		{
+			local line
+
+			ip link show | while read line; do {
+				case "$line" in
+					[0-9]*": "*)
+						set $line
+						echo "${2%:*}" | cut -d'@' -f1		# eth0.2@eth0 -> eth0.2
+					;;
+				esac
+			} done
+		}
+
+		local showmem removeable_interfaces
+
+		removeable_interfaces="$( interfaces | sed '1!G;h;$!d' )"	# reverse order
+
 		showmem="echo 3 >/proc/sys/vm/drop_caches"
 		showmem="$showmem; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
 		showmem="$showmem; /bin/netmsg $LANBRC \"\$L\""
+		showmem="$showmem; for I in $removeable_interfaces; do ifconfig \$I down; done'
 
 		# using this way, we have enough free RAM, e.g.
 		# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys
