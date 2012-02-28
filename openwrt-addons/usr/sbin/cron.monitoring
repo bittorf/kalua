@@ -50,7 +50,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	# _system load 15min		>>$F
 
 	TIME="$( _system date unixtime )"
-	
+
 # takes long!
 	_log do $FUNC daemon debug "build_neighs start"
 	NEIGH="$( _sanitizer do "$( neigh meshrdf )" urlvalue )"		# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
@@ -58,9 +58,9 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 # takes long!
 	_log do $FUNC daemon debug "build_users start"
 	USERS="$( _sanitizer do "$( _pfilter stats_user_traffic_list_today )" urlvalue )"	# -001122334455:500~112233445566:9888
-	
+
 	FORWARDED="$( _math bytes2unit "$( _pfilter stats_traffic_forwarded_internet )" mb )"
-	
+
 	UPTIME="$( _system uptime hours )"									# 1078
 	CPU_LOAD="$( _system load 15min )"									# 088
 	VERSION=$FFF_PLUS_VERSION										# 345678
@@ -86,7 +86,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 			LATLON="0,0"
 		fi
 		LATLON="$( _sanitizer do "$LATLON" urlvalue )"
-	
+
 	ADMINEMAIL="$( _sanitizer do "$( uci get system.@admin[0].mail )" email urlvalue )"		# bla@blubb.de
 
 	ADMINPHONE="$( _sanitizer do "$( uci get system.@admin[0].phone )" alphanum )"			# 036435101112zuhause
@@ -100,7 +100,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	NOISE="$(	_wifi noise	  	$WIFIDEV )"		# -94
 	SIGNAL="$(	_wifi signal	  	$WIFIDEV )"		# 001122334455-70:223344556677-40
 	SIGNAL="$( _sanitizer do "$SIGNAL" urlvalue )"
-	
+
 	CHANNEL="$(	_wifi channel	  	$WIFIDEV )"		# 104
 
 
@@ -133,7 +133,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 	SENS="$(	_wifi sensitivity $WIFIDEV )"		# 1,wifi,auto | 3/3
 	SENS="$( _sanitizer do "$SENS" urlvalue )"
-	
+
 	DRIVER="$(	_wifi driver_version $WIFIDEV )"	# wl-adv_3.90-RC37.0_v1.1
 	DRIVER="$( _sanitizer do "$DRIVER" urlvalue )" 		# wl-simple_v1.0 
 								# mod-madwifi_2.4.30brcm+r3314-8
@@ -467,7 +467,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	echo >>/tmp/ARCHIV_MONITORING "$QUERY"
 
 	_watch archivsize "/tmp/ARCHIV_MONITORING" 150 lines_max
-	
+
 	[ "$( _math random_integer 1 96 )" -eq 50 ] && ARG1="send_alive_message"	# roundabout each day (15min = 4/h * 24 = 96)
 	[ -e /www/backup_archiv_node_data ] && ARG1="send_alive_message"
 	[ -e /tmp/SEND_ALIVE_FAILED ] && {
@@ -477,16 +477,16 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	}
 
 	_log do $FUNC daemon debug "ready"
-	
+
 	KEEP_ALIVE_URL="$( uci get system.@monitoring[0].url )/meshrdf/"
 
 	[ "$UPTIME" -lt 2 ] && {
 		ARG1="send_alive_message"
 		ARG2="no_antenna_test"
 	}
-	
+
 	if [ -n "$KEEP_ALIVE_URL" ] && [ "$ARG1" = "send_alive_message" -o "$ARG1" = "sam" ]; then
-	
+
 		[ -z "$ARG2" ] && sleep "$( _math random_integer 0 60 )"
 
 		_log do $FUNC daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
@@ -494,9 +494,9 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 		_ntp set
 
 		[ -e /www/backup_archiv_node_data ] && {			# see _system reboot_safe()
-		
+
 			_log do $FUNC daemon info "found node-data backup, including"
-			
+
 			mv "/tmp/ARCHIV_MONITORING" "/tmp/ARCHIV_MONITORING.temp"	# copy backup-file
 			mv /www/backup_archiv_node_data "/tmp/ARCHIV_MONITORING"	# on top of
 			cat "/tmp/ARCHIV_MONITORING.temp" >>"/tmp/ARCHIV_MONITORING"	# normal node_data_file
@@ -513,31 +513,31 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 			LINENUMBER_LAST_SUCCESS=$(( $LINENUMBER_LAST_SUCCESS + 1 ))	# worst case is line one
 
 		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "/tmp/ARCHIV_MONITORING" )"		# must be url-encoded
- 
+
  			if [ -n "$QUERY" ]; then
- 		
+
  				echo "$QUERY" | grep -q ^"lo" && {		# dont send trash/comments; "lo" means local='...' or log='...'
- 
+
  					echo "$QUERY" | grep -q ^"log=" && {
  						_log do $FUNC daemon debug "send log-message"
  						QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC"
  					}
- 
+
  					QUERY="$( echo "$QUERY" | sed 's/:/%3a/g' )"	# fixme! only temporary
 					echo "$QUERY" >"/tmp/ARCHIV_MONITORING.recent"
- 		
+
  					_log do $FUNC daemon debug "query has $(( ${#QUERY} + ${#KEEP_ALIVE_URL} + 1 )) bytes"
- 			
+
  					OUT="$( _wget do "${KEEP_ALIVE_URL}?${QUERY}" 10 )"
  					_log do $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
- 					
+
  					[ "$OUT" != "OK" ] && {
  						_log do $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
- 
+
  						# fixme! this is a workaround for only sending lines, which we have not send yet
 						sed -n "$LINENUMBER_LAST_SUCCESS,999p" "/tmp/ARCHIV_MONITORING" >"/tmp/ARCHIV_MONITORING.tmp"
 						mv "/tmp/ARCHIV_MONITORING.tmp" "/tmp/ARCHIV_MONITORING"
- 
+
  						touch /tmp/SEND_ALIVE_FAILED
  						_scheduler add "$0" force
  						break				# fixme! set comment ("marker") after last sent line
