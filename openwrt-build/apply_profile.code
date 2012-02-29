@@ -295,6 +295,7 @@ EOF
 _config_system ()
 {
 	local NODE="$1"
+	
 
 	echo "${OLD_HOSTNAME}" >/proc/sys/kernel/hostname
 	
@@ -303,7 +304,14 @@ config 'system'
 	option 'hostname' '${OLD_HOSTNAME}'
 	option 'timezone' 'UTC'
 	option 'cronloglevel' '9'
+EOF
+	if [ "$INSTALLATION" = "ffweimar" ]; then       #restore all settings in profile ffweimar 
+                echo >>/etc/config/system "     option 'keepsettings'  '1'"
+	else
+	        echo >>/etc/config/system "     option 'keepsettings'  '0'"
+	fi
 
+	cat >>/etc/config/system <<EOF
 config 'timeserver'
 	list server 0.openwrt.pool.ntp.org
 	list server 1.openwrt.pool.ntp.org
@@ -1213,11 +1221,14 @@ EOF
 	/etc/init.d/S41build_static_netparam		# it's essential for ipsystem()
 }
 
-for SECTION in softwareinstall system mail wireless network dhcp aliases olsrd firewall sms polipo; do {
-	log "....working on section '$SECTION'"
-	_config_$SECTION "$NODENUMBER"
-	log "[ok] ready with section '$SECTION'"
-} done
+local keepsettings="${0:-$( uci get system.@system[0].keepsettings )}"
+[ "$keepsettings" = "0" ] && {
+	for SECTION in softwareinstall system mail wireless network dhcp aliases olsrd firewall sms polipo; do {
+		log "....working on section '$SECTION'"
+		_config_$SECTION "$NODENUMBER"
+		log "[ok] ready with section '$SECTION'"
+	} done
+}
 
 	F="/etc/init.d/generate_hardware_info"
 	cat >"$F" <<EOF
