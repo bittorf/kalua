@@ -599,6 +599,9 @@ case "$ACTION" in
 				elif grep -q ^"CONFIG_TARGET_ar71xx_generic_TLWR1043NDV1=y" .config ; then
 					LIST_FILES="            openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin"
 					LIST_FILES="$LIST_FILES openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
+				elif grep -q ^"CONFIG_TARGET_ar71xx_generic_TLWR703=y" .config; then
+					LIST_FILES="            openwrt-ar71xx-generic-tl-wr703n-squashfs-factory.bin"
+                                        LIST_FILES="$LIST_FILES openwrt-ar71xx-generic-tl-wr703n-squashfs-sysupgrade.bin"
 				fi
 			;;
 			brcm47xx)
