@@ -153,17 +153,10 @@ func_cron_status ()
 func_cron_config_write ()
 {
 	local FUNC="cron_config_write"
-	local CRONFILE
-
-	if _uci is_oldstyle ; then
-		CRONFILE="/var/spool/cron/crontabs/root"	
-	else
-		CRONFILE="/etc/crontabs/root"
-	fi
-
+	local CRONFILE="/etc/crontabs/root"
 	local CRONDIR="$( dirname $CRONFILE )"
 	local OWFS="$( which owfs >/dev/null && echo -n '-a owfs' )"
-	local LINE=""
+	local LINE
 	local PROFILE="$1"
 
 	[ "$PROFILE" = "status" ] && {
@@ -172,13 +165,12 @@ func_cron_config_write ()
 		return
 	}
 
-	_uci is_oldstyle || {
-		PROFILE="newstyle"
-	}
-
-	case "$( uci get system.@profile[0].name )" in
+	case "$CONFIG_PROFILE" in
 		artotel*)
 			PROFILE="lazy"
+		;;
+		*)
+			PROFILE="newstyle"
 		;;
 	esac
 
@@ -228,10 +220,7 @@ func_cron_config_write ()
 		else
 			echo >$CRONFILE "* * * * * /usr/bin/scheduler -U -S newstyle -O -P -f -H -w; $RUN_QUEUE"
 		fi
-	else
-		echo >$CRONFILE "* * * * * /usr/bin/scheduler -S oldstyle -O -P -f -u -o; $RUN_QUEUE"
 	fi
-
 
 	while read LINE; do {
 		_log do $FUNC daemon debug "+ '$LINE'"

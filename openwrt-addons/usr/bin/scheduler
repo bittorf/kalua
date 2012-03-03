@@ -266,74 +266,6 @@ while getopts "S:a:A:wrlpofuOPHU" FLAG; do {
 						;;
 					esac
 				;;
-				oldstyle)
-					cron_minutely
-
-					pidof rrdcollect >/dev/null && {
-						_scheduler add rrdhelper
-					}
-
-					_scheduler check_if_every_Nth_minute 891 && {
-						_scheduler add whitelist_update_every_15h
-					}
-
-					_scheduler check_if_every_Nth_minute 173 && {
-						_scheduler add whitelist_rebuild_every_3h
-					}
-
-					_scheduler check_if_every_Nth_minute 40 && {
-						_scheduler add speedtest_every_40min
-					}
-
-					_scheduler check_if_every_Nth_minute 360 && {
-						_scheduler add upgrade_packages
-					}
-
-					pidof dnsmasq >/dev/null || _watch dns_resolution
-
-					case "$MINUTE" in
-						00|15|30|45)
-							_scheduler add gateway_check
-							_scheduler add 15min_checks
-							_scheduler add monitoring
-							_scheduler add user_traff_broadcast
-							_scheduler add kick_user_over_limit
-							[ "$( uci get system.@vds[0].enabled )" = "1" ] && _scheduler add vds
-							[ -z "$( uci get system.@weblogin[0].enabled )" ] && _scheduler add build_accounting
-
-							case "$MINUTE" in
-								00)
-									_scheduler add 1h_checks
-									_scheduler add restart_vpn
-
-									case "$HOUR" in
-										00)
-											_scheduler add 24h_checks
-										;;
-										03)
-											_scheduler add rebuild_service_announce
-											_scheduler add recheck_wired_olsr
-											_scheduler add restart_olsr
-										;;
-										04)
-											_scheduler add fwupdate_check
-											_scheduler add splash4nonautounsplashed
-										;;
-										06)
-											_scheduler add build_service_announce
-											_scheduler add recheck_wired_olsr
-											_scheduler add restart_olsr
-											_scheduler add user_traff_reset
-											_scheduler add kick_user_all
-										;;
-									esac
-								;;
-							esac
-
-							watch_hanging_command
-						;;
-					esac
-				;;
 			esac
 		;;
 		w)
@@ -521,16 +453,6 @@ while getopts "S:a:A:wrlpofuOPHU" FLAG; do {
 			[ -e /usr/sbin/uhttpd ] && \
 				echo -n "$WIFIADR #" >/tmp/WELCOME_HELPER
 		;;
-		o)
-			grep -q ^"printdev()" /usr/bin/netparam || {	# fixme! better concept needed, wrong place (but efficient)!
-				INCOMING_OLSR_PACKETS_WIRED="$( iptables --line-numbers -nxvL olsr_in_wire 2>/dev/null | sed -n 's/^4[^0-9]*\([0-9]*\)[^0-9]*[0-9]*.*/\1/p' )"
-				[ ${INCOMING_OLSR_PACKETS_WIRED:=0} -gt 0 ] && {
-					_log do detect_wired_olsr_traffic daemon info "restart olsr-daemon with wired interfaces"
-					/etc/init.d/S41build_static_netparam restore_original_netparam
-					_olsr daemon restart "detected wired neigh"
-				}
-			}
-		;;
 		f)
 			IFS='. '; read NOP NOP FIVEMINLOAD DECIMALS NOP </proc/loadavg; unset IFS 
 			if   [ $FIVEMINLOAD -gt 1 ]; then
@@ -543,16 +465,6 @@ while getopts "S:a:A:wrlpofuOPHU" FLAG; do {
 			else
 				_watch counter /tmp/counter_highload set 0
 			fi
-		;;
-		u)
-			grep -q "kernel: Oops" /var/log/messages && {	# fixme! dirty, but the only chance?
-				grep -q "kernel: Process wifi (" /var/log/messages || {
-					logger -s "$0: detected kernel-oops, rebooting after safing reason"		# without using _log()
-					grep "kern.warn kernel: " /var/log/messages >>/www/everlasting_syslog.txt
-					reboot
-				}
-				_log do detect_kernel_oops daemon alert "only a wifi-oops, ignoring"
-			}
 		;;
 		*)
 			ERR=1
