@@ -66,7 +66,7 @@ case $1 in
 		touch /tmp/service_ssh_nowatching
 		killall dropbear
 
-		dmesg -c >/dev/null
+		dmesg -c >/tmp/dmesg.boot
 
 		ROOTETHERNET="$( echo $LANDEV | cut -d'.' -f1 )"	# eth0.1 -> eth0
 		ip link set dev $ROOTETHERNET txqueuelen 32
@@ -74,10 +74,6 @@ case $1 in
 		echo 1024 >/proc/sys/net/nf_conntrack_max
 	;;
 	start)
-		[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
-			$0 unload_unneeded_kmodules
-		}
-
 		grep -qs 0 "/proc/sys/vm/panic_on_oom" && {
 			_log do panic_on_oom daemon info "activating auto-reboot when oom is working"
 			echo 1 >"/proc/sys/vm/panic_on_oom"
@@ -104,6 +100,10 @@ case $1 in
 			echo $(( $ZRAM_SIZE * 1024 * 1024 )) >"/sys/block/$( basename $ZRAM_DEV )/disksize"
 			mkswap $ZRAM_DEV
 			swapon $ZRAM_DEV
+		}
+
+		[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
+			$0 unload_unneeded_kmodules
 		}
 
 		grep -sq ^"START=97" "/etc/init.d/watchdog" && {
