@@ -5,48 +5,56 @@
 
 case $1 in
 	unload_unneeded_kmodules)
-		L1="pppox pppoe slhc ppp_generic"
-		L2="ppp_async switch_adm switch_robo switch_core diag"
-		L3="ts_fsm ts_bm ts_kmp"
-		L4="crc_ccitt aes_generic"
-		L5="compat_xtables compat"
-		L6="xt_multiport xt_comment xt_CLASSIFY xt_time xt_tcpmss xt_statistic"
-		L7="xt_DSCP xt_dscp xt_string xt_layer7 xt_quota xt_pkttype xt_owner"
-		L8="xt_recent xt_helper xt_conntrack xt_CT xt_NOTRACK xt_HL xt_hl xt_ipp2p"
-		L9="ipt_ecn ipt_ECN ipt_NETMAP iptable_raw"
-		L0="nf_nat_proto_gre nf_nat_tftp nf_nat_sip nf_nat_pptp nf_nat_h323 nf_nat_amanda nf_nat_irc nf_nat_ftp"
-		LA="nf_conntrack_tftp nf_conntrack_sip nf_conntrack_pptp nf_conntrack_h323 nf_conntrack_proto_gre nf_conntrack_amanda nf_conntrack_irc nf_conntrack_ftp"
+		if [ -e "/www/GOOD_MODULE_UNLOAD" ]; then
+			while read LINE; do {
+				rmmod "$LINE"
+			} done <"/www/GOOD_MODULE_UNLOAD"
+		else
+			L1="pppox pppoe slhc ppp_generic"
+			L2="ppp_async switch_adm switch_robo switch_core diag"
+			L3="ts_fsm ts_bm ts_kmp"
+			L4="crc_ccitt aes_generic"
+			L5="compat_xtables compat"
+			L6="xt_multiport xt_comment xt_CLASSIFY xt_time xt_tcpmss xt_statistic"
+			L7="xt_DSCP xt_dscp xt_string xt_layer7 xt_quota xt_pkttype xt_owner"
+			L8="xt_recent xt_helper xt_conntrack xt_CT xt_NOTRACK xt_HL xt_hl xt_ipp2p"
+			L9="ipt_ecn ipt_ECN ipt_NETMAP iptable_raw"
+			L0="nf_nat_proto_gre nf_nat_tftp nf_nat_sip nf_nat_pptp nf_nat_h323 nf_nat_amanda nf_nat_irc nf_nat_ftp"
+			LA="nf_conntrack_tftp nf_conntrack_sip nf_conntrack_pptp nf_conntrack_h323 nf_conntrack_proto_gre nf_conntrack_amanda nf_conntrack_irc nf_conntrack_ftp"
 
-		[ "$( uci get network.wan.proto )" = "pppoe" ] && L1=
-		LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA"
+			[ "$( uci get network.wan.proto )" = "pppoe" ] && L1=
+			LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA"
 
-		_net local_inet_offer >/dev/null || {
-			LIST="$LIST ipt_MASQUERADE"
-		}
+			_net local_inet_offer >/dev/null || {
+				LIST="$LIST ipt_MASQUERADE"
+			}
 
-		unload()
-		{
-			local list="$1"
-			local kmod
+			unload()
+			{
+				local list="$1"
+				local kmod
 
-			for kmod in $list; do {
+				for kmod in $list; do {
 
-				_log do kmodule_unloader daemon info "rmmod '$kmod'" 
-				rmmod $kmod
+					_log do kmodule_unloader daemon info "rmmod '$kmod'" 
+					rmmod $kmod
 
-				lsmod | fgrep -q "$kmod" && {
-					echo "$kmod"
-				}
+					if lsmod | fgrep -q "$kmod"; then
+						echo "$kmod"
+					else
+						echo "$kmod" >>"/www/GOOD_MODULE_UNLOAD"
+					fi
+				} done
+			}
+
+			I=0
+			while [ -n "$LIST" ]; do {
+				I=$(( $I + 1 ))
+				[ $I -eq 100 ] && break
+				LIST="$( unload "$LIST" )"
+				LIST="$( _list shuffle "$LIST" )"
 			} done
-		}
-
-		I=0
-		while [ -n "$LIST" ]; do {
-			I=$(( $I + 1 ))
-			[ $I -eq 100 ] && break
-			LIST="$( unload "$LIST" )"
-			LIST="$( _list shuffle "$LIST" )"
-		} done
+		fi
 
 		# free some more ram, remove old files:
 
