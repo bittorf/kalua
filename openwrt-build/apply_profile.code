@@ -1199,27 +1199,24 @@ EOF
 }
 
 [ -e /etc/kalua_init ] && {
-	log "[OK] building kalua-loader in ramdisk"
-	/etc/kalua_init
-	. /tmp/loader
+	local PARTITION="$( mount | sed -n 's/\(^.*mtd.*\) on .*/\1/p' )"       
+        local flash_free=$(df | sed -n "s#^${PARTITION:-/dev/root}[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*#\1#p")
+	local total_ram=$( cat /proc/meminfo|grep MemTotal| cut -f2 -d ':'| cut -f1 -d 'k'| tr -d ' ')
+	if [ $total_ram -lt 16384 ] && [ $flash_free -gt 340 ]; then
+		log "[OK] building kalua-loader on flash, we are low on RAM =< 16mb"
+        	mkdir "/etc/kalua.w"
+                /etc/kalua_init
+                . /tmp/loader	
+	else
+		log "[OK] building kalua-loader in ramdisk"
+		/etc/kalua_init
+		. /tmp/loader
+	fi
 
-	[ $( _system ram_size ) -lt 16384 ] && {
-		[ $( _system flash_free ) -gt 340 ] && {
-			log "[OK] building kalua-loader on flash, we are low on RAM =< 16mb"
-			mkdir "/etc/kalua.w"
-			/etc/kalua_init
-			. /tmp/loader
-		}
-	}
 
 	/etc/init.d/S41build_static_netparam # it's essential for ipsystem()
 }
 
-[ -e /etc/kalua_init ] && {
-	/etc/kalua_init
-	. /tmp/loader
-	/etc/init.d/S41build_static_netparam		# it's essential for ipsystem()
-}
 
 local keepsettings="$( uci get system.@system[0].keepsettings )"           
 [ "$keepsettings" != "1" ] && { 
