@@ -545,16 +545,17 @@ _firmware_burn ()
 		} done
 	}
 
-	local getmem netmsg delifs console cmds removeable_interfaces
+	local getmem msg1 msg2 delifs cmds removeable_interfaces
 
 	# reverse order, all in one line:
 	removeable_interfaces="$( interfaces | sed '1!G;h;$!d' | while read LINE; do echo -n "$LINE "; done )"
 
 	getmem="echo 3 >/proc/sys/vm/drop_caches; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
-	netmsg="/bin/netmsg $LANBRC \"before_delifs:\$L\""
-	delifs="for I in $removeable_interfaces; do ifconfig \$I down; done"
-	console="/bin/echo \"after_delifs:\$L\" >/dev/console"
-	cmds="$getmem; $netmsg; $delifs; $getmem; $console"
+	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
+	delifs="for I in $removeable_interfaces; do /bin/echo \"ifconfig \$I down\"; ifconfig \$I down; /bin/echo \"\$I is down\"; done"
+	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console"
+
+	cmds="$getmem; $msg1; $delifs; $getmem; $msg2"
 
 	# using this way, we have enough free RAM, e.g.
 	# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys
@@ -573,7 +574,8 @@ EOF
 	grep -q "f$" /etc/crontabs/root || reboot -f
 	pidof crond >/dev/null || reboot -f
 
-	/bin/netmsg $LANBRC "new crond started, will soon delete these ifnames: '$removeable_interfaces'"
+	/bin/netmsg $LANBRC "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
+	/bin/echo "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
 }
 
 _firmware_filelist ()
