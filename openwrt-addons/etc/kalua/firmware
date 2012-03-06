@@ -545,15 +545,16 @@ _firmware_burn ()
 		} done
 	}
 
-	local showmem removeable_interfaces
+	local getmem netmsg delifs console cmds removeable_interfaces
 
 	# reverse order, all in one line:
 	removeable_interfaces="$( interfaces | sed '1!G;h;$!d' | while read LINE; do echo -n "$LINE "; done )"
 
-	showmem="echo 3 >/proc/sys/vm/drop_caches"
-	showmem="$showmem; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
-	showmem="$showmem; /bin/netmsg $LANBRC \"\$L\""
-	showmem="$showmem; for I in $removeable_interfaces; do ifconfig \$I down; done"
+	getmem="echo 3 >/proc/sys/vm/drop_caches; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
+	netmsg="/bin/netmsg $LANBRC \"\$L\""
+	delifs="for I in $removeable_interfaces; do ifconfig \$I down; done"
+	console="echo \"\$L\" >/dev/console"
+	cmds="$getmem; $netmsg; $delifs; $getmem; $console"
 
 	# using this way, we have enough free RAM, e.g.
 	# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys
@@ -561,10 +562,10 @@ _firmware_burn ()
 	# ideas to get even more free ram:
 	# - unloading all functions/vars before mtd
 	# - unmounting jffs2/unneeded filesystems
-	# - reducing net/disk-buffers?
+	# - reducing disk-buffers?
 
 		cat >/etc/crontabs/root <<EOF
-* * * * * rm /etc/crontabs/root; killall crond; $showmem; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f
+* * * * * rm /etc/crontabs/root; killall crond; $cmds; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f
 EOF
 
 	/usr/sbin/crond -L /dev/null
