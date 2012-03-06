@@ -22,8 +22,11 @@ case $1 in
 			L0="nf_nat_proto_gre nf_nat_tftp nf_nat_sip nf_nat_pptp nf_nat_h323 nf_nat_amanda nf_nat_irc nf_nat_ftp"
 			LA="nf_conntrack_tftp nf_conntrack_sip nf_conntrack_pptp nf_conntrack_h323 nf_conntrack_proto_gre nf_conntrack_amanda nf_conntrack_irc nf_conntrack_ftp"
 
+			LB="ipt_ULOG xt_mark xt_length ipt_REDIRECT iptable_nat nf_nat xt_connmark xt_connbytes xt_state nf_conntrack_ipv4 nf_defrag_ipv4 nf_conntrack ipt_REJECT xt_TCPMSS ipt_LOG xt_mac xt_limit root@E1-mtx1-AP:/ iptable_mangle iptable_filter ip_tables xt_tcpudp x_tables"
+			[ -e "/www/SIMPLE_MESHNODE" ] || LB=
+
 			[ "$( uci get network.wan.proto )" = "pppoe" ] && L1=
-			LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA"
+			LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA $LB"
 
 			_net local_inet_offer >/dev/null || {
 				LIST="$LIST ipt_MASQUERADE"
@@ -59,6 +62,14 @@ case $1 in
 		killall klogd
 		killall hotplug2
 		killall syslogd
+
+		[ -e /www/SIMPLE_MESHNODE ] && {
+			touch /tmp/service_ulog_nowatching
+			killall ulogd
+
+			uci delete dhcp.@dnsmasq[0].dhcpscript
+			/etc/init.d/dnsmasq restart
+		}
 
 		touch /tmp/service_cronwatchdog_nowatching
 		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
