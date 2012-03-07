@@ -363,6 +363,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 
 	DATE_LOCAL_HUMAN="$( date +%d%b%Y-%Huhr%M )"
+	RAM_SIZE="$( _system ram_size )"
 
 	QUERY=
 	QUERY="${QUERY}local=$DATE_LOCAL_HUMAN&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
@@ -376,7 +377,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	QUERY="${QUERY}&v1=$( uname -r )"
 	QUERY="${QUERY}&v2=$( _system version short )"
 	QUERY="${QUERY}&s1=$( _switch show )"
-	QUERY="${QUERY}&h1=$( _system ram_size )"
+	QUERY="${QUERY}&h1=$RAM_SIZE"
 	QUERY="${QUERY}&h2=$( _system ram_free )"
 
 	if [ -e /dev/zram0 ]; then
@@ -462,10 +463,12 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 		;;
 	esac
 
-
-	echo >>/tmp/ARCHIV_MONITORING "$QUERY"
-
-	_watch archivsize "/tmp/ARCHIV_MONITORING" 150 lines_max
+	if [ $RAM_SIZE -lt 16384 ]; then
+		echo >/tmp/ARCHIV_MONITORING "$QUERY"
+	else
+		echo >>/tmp/ARCHIV_MONITORING "$QUERY"
+		_watch archivsize "/tmp/ARCHIV_MONITORING" 150 lines_max
+	fi
 
 	[ "$( _math random_integer 1 96 )" -eq 50 ] && ARG1="send_alive_message"	# roundabout each day (15min = 4/h * 24 = 96)
 	[ -e /www/backup_archiv_node_data ] && ARG1="send_alive_message"
@@ -552,7 +555,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 fi
 
 [ $CPU_LOAD -gt 150 ] && {
-	[ $( _system ram_size ) -lt 16384 ] && {
+	[ $RAM_SIZE -lt 16384 ] && {
 		_log do $FUNC daemon alert "rebooting, too much load: $CPU_LOAD"
 		sync
 		reboot -f
