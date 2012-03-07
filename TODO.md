@@ -1,0 +1,144 @@
+build()
+* bug: minor: same gitrev-tarball must have the same hash
+* feature+: include mysshpubkeys.ipk -> /root/.ssh/authorized_keys | known_hosts
+* feature+: include mydesign + mysettings
+* feature+: build /tmp/loader + kalua_working_dir on demand directly in the image (safes space)
+
+pfilter()
+* feature+: use 'dnsmasq --address=/#/$WIFIADR -p 5353' and redirect splashed dns-queries (test: nslookup gmx.de $SERVER -port=5353)
+* feature+: detect 0x1337-port action (neighbour reboots)
+* feature+: config-option to forbid forwarding for local-net-clients ("no clients"), to have a simple/fast setup on mesh-nodes
+* cleanup: rewrite from scratch for better start/stop specific elements
+
+misc()
+* bug: major: patch mtd.c for verify + correct error-codes, respect that in sysupgrade
+* bug: major: get_task_with_top_cpu() needs a fix
+* bug: major: netintern scp with pubkeys is b0rken
+* bug: minor: why hangs '/etc/init.d/rcS' + 'logger' in tasklist
+* bug: minor: wget_do() always cleanup fragments in ramdisk /tmp/wget_do_*
+* feature+: config-option to safe memory on mesh-nodes by: no dnsmasq/dhcp /etc/resolv.conf -> lanAP, no ulogd, special simple pfilter setup
+* feature+: use zram-based ramdisk instead of tmpfs
+* feature+: speedup by overclocking WRT + buffalo WHR-HP-54g?
+* feature+: no default route on AP? change essid -> 'MAINTENANCE MODE (error)' and back to normal, if OK
+* feature+: tmpfs ~ 100% full -> reboot?
+* feature+: firmware_update_pmu() needs locking
+* feature+: make logile-archive-length (monitoring etc.) configureable and limit it on lowmem-devices
+* feature+: uci2nvram-wrapper for having a configureable lowflash-squashfs-only-device
+* cleanup: include community-profile-definitions into own
+* cleanup: use generic locking-mechanism and use /tmp/lock
+* cleanup: remove all calls to nvram-stuff
+* cleanup: remove all calls to _uci is_oldstyle()
+
+upgrade_packages()
+* feature+: success? broadcast to all neighbours: "do it now"
+* cleanup: use wget() for fetching or maybe activate busybox-option 'wget -T xxx'
+* cleanup: use full opkg features for upgrade: if package-source-list is in ramdisk, temporarily hide full repo but leave ours alive and use 'opkg update', 'opkg install mydesign' (upgrade?)
+
+switch()
+* bug: minor: be correct when translating vlans, e.g. if somebody has changed the position of wan-port
+* feature+: check every minute, if state of wan-port has changed: do ifup/ifdown accordingly
+* feature+: detect permanent status-change of one or more ports
+* feature+: detect time of port-status-change and include in monitoring
+
+pdf()
+* feature+: ongoing site-numbers for overview
+* feature+: ongoing ticketnumber for labels
+
+monitoring()
+* bug: minor: after each correct transmitted line, move the OK-mark one line further (now, a wrong transmission after line 99/100 will cause an retransmission of all 99 lines)
+* feature+: show: last weblogin-fetch
+* feature+: show: last weblogin-good-login
+* feature+: show: last dhcp-offer
+* feature+: different/shorter intervals for different values
+* feature+: for specific changes fire a monitoring send immediately
+* feature+: show: detect usb-stick plugin/out
+* feature+: show: per neigh: HT20/HT40, LGI/SGI, MCS xy/rate
+* feature+: show: wifi_signal() non_olsr_clients
+* feature+: show: count of connected clients
+* feature+: show: used dnsserver
+* feature+: show: count of usertunnels
+* feature+: intranet internal aggregation of monitoring data
+
+monitoring-server()
+* bug: password-protect admin-interface
+* bug: accept/deny hostname if more than one is given (e.g. changed a correct hostname)
+* feature+: allow change of arbitrary values via webif
+* feature+: show olsrd-errors in relation to time-unit
+* feature+: detect devices with always short uptime
+* feature+: use 'logo.gif' from 'design.ipk' of all profiles to build a nice summary
+
+olsr()
+* feature+: check_plausi: detect: no_wifi_neigh, but had_good_before
+* feature+: check_plausi: detect: lost a good neigh
+* feature+: let an AP be a slave of the wired-mesh-router: (to safe memory + olsr-traffic)
+	1) whoami: AP? + olsrd is running?
+	2) loop over wired MESH-neighs, which one will annouce MYHNA4 for me
+	3) OK? -> stop olsrd/mark disabled -> set default route over this neigh
+	4) master must do: "ip address add $APIP/$APMASK dev $LANDEV" + do hna4
+	5) ask regulary myneigh, if everything is up/active and visa-versa
+
+sms()
+* feature+: premium-sms
+* feature+: text2pay
+* feature+: smsbox.net
+
+fax()
+* feature+: implement sipgate-API
+
+userdb()
+* bug: major: respect settings how long a login is valid
+* bug: major: respect settings how much macs/devices are allowed to getin with one login (b0rken)
+* bug: minor: respect race, if index_gen runs, but new logins will be added
+* feature+: profile: allow access to internal network: yes/no
+* feature+: profile: sanitize all speed-values to integer
+* feature+: meta: weblogin = username/password | sms | both: (which is default)(user selectable)
+* feature+: meta: weblogin is blocked, if hostname is virgin: yes/no
+* feature+: meta: emails, sms-numbers, fax-numbers 
+* feature+: meta: object name, speed uplink/downlink, ...
+* feature+: meta: default language for weblogin (=order of languages)
+* feature+: login: add message to user on next login
+* feature+: login: temporarily disable a login
+* feature+: relation between login and free-lan-dhcp-device
+* feature+: list_logins: show used_or_not
+* feature+: list_logins: show last used time
+* feature+: username_namespace: 'islands of the world'
+* feature+: auto distribute DB over network
+* feature+: after making e.g. 32 logins, print a direct link to overview
+* cleanup: move hardcoded db-servers into config_var which is set during apply_profile
+
+weblogin()
+* bug: minor: translate logout-page
+* cleanup: minor: change/translate varnames in terms_of_use.meta
+* feature+: link to installation-object-name/webpage on logo
+* feature+: fakepop / autoanswer pop3 action ("please login")
+* feature+: make use of user-language via HTTP_ACCEPT_LANGUAGE
+* feature+: make the sms-auth only visible in configurable timeslots
+* feature+: implement credit-card API for payment
+* feature+: implement import of xml/csv logins
+
+usertunnel()
+* bug: minor: allow local entry in/out: e.g. direct connection to inet_offering node
+* bug: minor: check via ping the other tunnel-end - stop tunnel if fails (test: server reboots)
+* bug: minor: disconnecting client: rewrite all.conf + remove client.conf 
+* bug: minor: use different config-file-names on client/server
+* bug: minor: release unused tunnel IDs
+* feature+: explicit intranet tunnels (compression, another shaping?)
+* feature+: join several tunnels into one, to corectly shape several devices with one login
+
+config()
+* bug: minor: leave already configured special network/vlan-settings
+* feature+: make WAN-olsr better configureable
+* feature+: repect /tmp/resolv.conf.ppp + .auto? (faster resolution)
+* feature+: use special ip4 for service HNA/redundancy: 6.6.6.[5|6|7|8] = monitoring|dns|userdb|tunnelsrv
+
+scheduler()
+* bug: minor: why does it happen: "scheduler_allow_run() removing lockfile, which seems to be left by accident"
+* feature+: run tasks at a specific time
+* cleanup: join lowmem + normal scheme
+
+net()
+* cleanup: implement pingtest-abstraction and use it
+
+wifi()
+* feature+: check if arping-test raised wifi-tx-counter
+
