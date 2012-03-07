@@ -78,6 +78,7 @@ olsr()
 	5) ask regulary myneigh, if everything is up/active and visa-versa
 
 sms()
+* feature+: simplify procedure and use/send only one token (not username+password)
 * feature+: premium-sms
 * feature+: text2pay
 * feature+: smsbox.net
