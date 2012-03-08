@@ -88,13 +88,16 @@ case $1 in
 				test -e "/www/SIMPLE_MESHNODE_FORCE_DHCP_LAN"
 			}
 
-			can_see_lan_clients || {
-				uci set dhcp.lan.ignore=1
-			}
-
 			uci set dhcp.wlan.ignore=1
 			uci delete dhcp.@dnsmasq[0].dhcpscript
-			/etc/init.d/dnsmasq restart
+
+			if can_see_lan_clients; then
+				/etc/init.d/dnsmasq restart
+			else
+				uci set dhcp.lan.ignore=1
+				echo "nameserver $( uci get dhcp.@dnsmasq[0].server )" >"/etc/resolv.conf"
+				/etc/init.d/dnsmasq stop
+			fi
 		}
 
 		touch /tmp/service_cronwatchdog_nowatching
