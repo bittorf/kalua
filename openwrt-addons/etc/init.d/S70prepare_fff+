@@ -67,6 +67,32 @@ case $1 in
 			touch /tmp/service_ulog_nowatching
 			killall ulogd
 
+			list_ip_from_dhcp_leases()
+			{
+				cut -d' ' -f3 /tmp/dhcp.leases
+			}
+
+			list_ip_from_arp_cache()
+			{
+				ip neigh show | cut -d' ' -f1
+			}
+
+			can_see_lan_clients()
+			{
+				local ip
+
+				for ip in $( list_ip_from_dhcp_leases ) $( list_ip_from_arp_cache ); do {
+					fgrep -q "$ip;" "/tmp/CLIENTS_LAN" && return 0
+				} done
+
+				test -e "/www/SIMPLE_MESHNODE_FORCE_DHCP_LAN"
+			}
+
+			can_see_lan_clients || {
+				uci set dhcp.lan.ignore=1
+			}
+
+			uci set dhcp.wlan.ignore=1
 			uci delete dhcp.@dnsmasq[0].dhcpscript
 			/etc/init.d/dnsmasq restart
 		}
