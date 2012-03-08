@@ -21,6 +21,25 @@ boot ()
 
 	touch "/tmp/lockfile_scheduler_is_running"	# this prevents the scheduler from running, see: _scheduler_allow_run()
 
+	ZRAM_DEV="/dev/zram0"
+	ZRAM_SIZE=10
+
+	zram_applicable()
+	{	
+		grep -sq ^"$ZRAM_DEV " /proc/swaps && return 1
+		[ -e "$ZRAM_DEV" ] || return 1
+		which mkswap >/dev/null || return 1
+		which swapon >/dev/null || return 1
+	}
+
+	zram_applicable && {
+		_log do zram_init daemon info "activating $ZRAM_DEV for swapping ($ZRAM_SIZE MegaBytes)"
+		echo $(( $ZRAM_SIZE * 1024 * 1024 )) >"/sys/block/$( basename $ZRAM_DEV )/disksize"
+		mkswap $ZRAM_DEV
+		swapon $ZRAM_DEV
+		echo 100 > /proc/sys/vm/swappiness
+	}
+	
 	while [ $max_try -gt 1 ]; do {
 
 		logger -s "$thisfile [BOOT] start - $thisfile"
