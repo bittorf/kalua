@@ -258,14 +258,18 @@ _welcome_htmlout_news ()
 	local HEAD="$2"		# ARG2: string,headline
 
 	cat <<EOF
-	<P><table cellspacing=0 cellpadding=0 border=0 width=100%><tr><td align=left width=50%><big><b> $HEAD </b></big></td>
-	</tr></table></p>
-	<A HREF="${NEWSSERVER_URL}" TARGET="_blank">Direktlink</A> zum Newsserver - Benutzername: <I>freifunk</I> Passwort: <I>weimar</I><BR>
+	<h2>$HEAD </h2>
+	<div class="row">
+	<div class="span6">
 EOF
 
-        _wget do "${URL}" 2 | sed -e 's/Ã¤/ä/g' -e 's/Ã¼/ü/g' -e 's/Ã¶/ö/g'	# fetch this page but abort after max 3 seconds	and convert german umlauts
+        _wget do "${URL}" 2 | sed -e 's/Ã¤/ä/g' -e 's/Ã¼/ü/g' -e 's/Ã¶/ö/g' -e's/<a[^>]*>//gI'  -e 's/<\/a>//gI'	# fetch this page but abort after max 3 seconds	and convert german umlauts
 
 	test "$?" -ne 0 && echo "Fehler aufgetreten...<br>Hier sollten eigentlich aktuelle Diskussionen vom Newsserver/Mailingliste stehen.<br><br>"
+	cat <<EOF
+	</div>
+	</div>
+EOF
 }	
 
 _welcome_htmlout_wikipage ()
@@ -276,8 +280,9 @@ _welcome_htmlout_wikipage ()
 	local HEAD="$2"
 
 	cat <<EOF
-<p><table cellspacing=0 cellpadding=0 border=0 width=100%><tr><td align=left width=50%><big><b> $HEAD </b></big></td>
-<td align=right width=50%><a href="${URL}?${PAGE}&action=edit"><small>Text bearbeiten</small></a></td></tr></table></p>
+<h2>$HEAD</h2>
+<div class="row">                                                                                                                 
+<div class="span6">
 EOF
 	which awk >/dev/null && {
 		_wget do "${URL}?${PAGE}" 2 | awk -v URL=$URL '{		# fetch this page but abort after max 3 seconds
@@ -285,6 +290,8 @@ EOF
 			gsub(/Ã¤/,"ä")						# utf8
 			gsub(/Ã¼/,"ü")						# utf8
 			gsub(/Ã¶/,"ö")						# utf8 - yet missing: the big german umlauts + sz
+			gsub(/<\/a>/,"")
+			gsub(/<a.*>/,"")
 			if(s==1)
 				print
 			if(substr($0,4,24)=="<div class=\"editsection\"" || index($0,"class=\"mw-headline\"")>0)
@@ -302,5 +309,41 @@ EOF
 		<br><br>
 EOF
 		_log do $FUNC daemon info "failed to retrieve: '${URL}?${PAGE}'"
+	fi
+	cat <<EOF
+</div>
+</div>
+EOF
+}
+
+_welcome_htmlout_luciheader ()
+{
+	local FUNC="welcome_htmlout_luciheader"
+	local URL="http://localhost/cgi-bin/luci/"
+	
+	[ -e /tmp/LUCI_HEADER ] || {
+		wget -qO - "$URL" >/tmp/LUCI_HEADER
+	}
+	cat /tmp/LUCI_HEADER | while read LINE; do
+	case "$LINE" in
+		*"<header>"*)
+	               	header_found=1
+			echo "<header>"
+	                ;;
+		*"</header>"*)
+	               	header_found=0
+	               	echo "</header>"
+	                ;;
+		*)
+	               	[ "$header_found" = "1" ] && echo "$LINE"
+	;;
+		esac
+	done
+	
+	if [ "$header_found" = "2" ]; then               # fixme! awk -> sed
+		cat <<EOF
+		<header>Fehler, hier sollte der Header stehen</header>
+EOF
+		_log do $FUNC daemon info "failed to retrieve: '${URL}'"
 	fi
 }
