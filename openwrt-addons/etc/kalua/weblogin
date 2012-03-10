@@ -186,15 +186,34 @@ EOF
 				local fuzzy=1
 				local USERNAME PASSWORD
 
-				_db user login add "$profile" "sms" "" "" "$devices" "" "$fuzzy"	# fixme! if we don't have a local db, outsource to master
+				case "$( uci get system.@weblogin[0].auth_credentials )" in
+					simple)
+						_db user login add "$profile" "sms" "none" "" "$devices" "" "$fuzzy"	# fixme! if we don't have a local db, outsource to master
+					;;
+					*)
+						_db user login add "$profile" "sms" "" "" "$devices" "" "$fuzzy"	# fixme! if we don't have a local db, outsource to master
+					;;
+				esac
+
 				_db user login index_gen last 1
 				eval $( _db user login show last "USERNAME PASSWORD" )
 
-				_log do $funcname daemon sms \
-					"login from $FORM_MOBILE_NUMBER" \
-					"$( _translate do "$LANG" your_username_and_password ): $USERNAME/$PASSWORD - $( _translate do "$LANG" wishing_a_nice_stay )" \
-					"$FORM_MOBILE_NUMBER" \
-					"force"
+				case "$( uci get system.@weblogin[0].auth_credentials )" in
+					simple)
+						_log do $funcname daemon sms \
+							"login from $FORM_MOBILE_NUMBER" \
+							"$( _translate do "$LANG" your_credentials ): $PASSWORD - $( _translate do "$LANG" wishing_a_nice_stay )" \
+							"$FORM_MOBILE_NUMBER" \
+							"force"
+					;;
+					*)
+						_log do $funcname daemon sms \
+							"login from $FORM_MOBILE_NUMBER" \
+							"$( _translate do "$LANG" your_username_and_password ): $USERNAME/$PASSWORD - $( _translate do "$LANG" wishing_a_nice_stay )" \
+							"$FORM_MOBILE_NUMBER" \
+							"force"
+					;;
+				esac
 			else
 				_weblogin htmlout_message_wrong_mobile_number $LANG
 			fi
@@ -243,10 +262,20 @@ EOF
 EOF
 					;;
 					*)
-						cat <<EOF
+						case "$( uci get system.@weblogin[0].auth_credentials )" in
+							simple)
+								i18n_password="$( _translate do "$LANG" your_credentials )"
+								cat <<EOF
+<TR><TD ALIGN="RIGHT"><label for='password'>${font_start}${i18n_password}:${font_end}&nbsp;</label><INPUT TABINDEX="2" ID="password" TYPE="password" SIZE="10" MAXLENGTH="30" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
+EOF
+							;;
+							*)
+								cat <<EOF
 <TR><TD ALIGN="RIGHT"><label for='username'>${font_start}${i18n_username}:${font_end}&nbsp;</label><INPUT TABINDEX="1" ID="username" TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER" VALUE="$FORM_USER"></TD></TR>
 <TR><TD ALIGN="RIGHT"><label for='password'>${font_start}${i18n_password}:${font_end}&nbsp;</label><INPUT TABINDEX="2" ID="password" TYPE="password" SIZE="10" MAXLENGTH="30" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
 EOF
+							;;
+						esac
 					;;
 				esac
 
