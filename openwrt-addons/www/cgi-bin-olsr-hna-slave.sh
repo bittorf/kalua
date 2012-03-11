@@ -41,7 +41,6 @@ add_static_routes()
 	local netmask="$3"
 	local dev="$4"
 
-	ip route add $ip via $ip dev $dev metric 1 onlink
 	ip route add $netaddr/$netmask via $ip dev $dev metric 1 onlink
 }
 
