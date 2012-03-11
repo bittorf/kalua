@@ -12,7 +12,7 @@ knowing_hna_already()
 			"$netaddr/$netmask")
 				return 0
 			;;
-			"")
+			"/")
 				return 1
 			;;
 		esac
