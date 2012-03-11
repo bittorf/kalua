@@ -5,8 +5,20 @@ knowing_hna_already()
 {
 	local netaddr="$1"
 	local netmask="$( _net cidr2mask "$2" )"
+	local i=0
 
-	return 1
+	while true; do
+		case "$( uci get olsrd.@Hna4[$i].netaddr)/$( uci get olsrd.@Hna4[$i].netmask )" in
+			"$netaddr/$netmask")
+				return 0
+			;;
+			"")
+				return 1
+			;;
+		esac
+
+		i=$(( $i + 1 ))
+	done
 }
 
 hna_add()
@@ -42,11 +54,12 @@ case "$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" i
 esac
 
 [ -n "$dev2slave" ] && {
+	ERROR="OK"
+
 	knowing_hna_already "$netaddr" "$netmask" || {
 		hna_add "$netaddr" "$netmask"
 		add_static_routes "$REMOTE_ADDR" "$netaddr" "$netmask" "$dev2slave"
 		_olsr daemon restart "becoming hna-master for $REMOTE_ADDR: $netaddr/$netmask"
-		ERROR="OK"
 	}
 }
 
