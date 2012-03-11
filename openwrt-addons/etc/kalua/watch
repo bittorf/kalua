@@ -236,40 +236,6 @@ _watch_hanging_command ()
 	echo >$FILE2 "$COMMAND_CMD"
 }
 
-_watch_hanging_xrelayd ()
-{
-	local FUNC="watch_hanging_xrelayd"
-	
-	_linklocal wifi_users $WIFIDEV >/dev/null && {
-		_log do $FUNC daemon debug "no action, connected wifi-clients online"		# fixme! workaroung - check also LAN?
-		return
-	}
-
-	[ "$( _system pids_count xrelayd )" -gt 1 ] && {		# can be the case, after too many simultaneously https-connections
-	
-		_log do $FUNC daemon info "trying to end some processes and restart daemon"
-		killall xrelayd
-		sleep 10
-	
-		if [ "$( _system pids_count xrelayd )" -gt 0 ]; then
-	
-			_log do $FUNC daemon info "still some processes around"
-	
-			for PID in $( pidof xrelayd ); do {
-				kill -9 $PID
-			} done
-	
-			if [ "$( _system pids_count xrelayd )" -gt 0 ]; then
-				_system reboot_safe "can't end some xrelayd-processes"
-			else
-				/etc/init.d/S70secureadmin start
-			fi
-		else
-			/etc/init.d/S70secureadmin start
-		fi
-	}
-}
-
 _watch_rrd_integrity ()
 {
 	touch /tmp/rrd_plausi_check					# needs some test
