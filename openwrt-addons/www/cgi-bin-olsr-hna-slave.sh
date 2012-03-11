@@ -3,6 +3,7 @@
 
 knowing_hna_already()
 {
+	local funcname="knowing_hna_already"
 	local netaddr="$1"
 	local netmask="$( _net cidr2mask "$2" )"
 	local i=0
@@ -10,9 +11,11 @@ knowing_hna_already()
 	while true; do
 		case "$( uci get olsrd.@Hna4[$i].netaddr)/$( uci get olsrd.@Hna4[$i].netmask )" in
 			"$netaddr/$netmask")
+				_log do $funcname daemon info "already know: $netaddr/$netmask"
 				return 0
 			;;
 			"/")
+				_log do $funcname daemon info "new hna: $netaddr/$netmask"
 				return 1
 			;;
 		esac
@@ -64,4 +67,5 @@ esac
 }
 
 _http header_mimetype_output "text/html"
-echo "${ERROR:-ERROR}"
+echo "${ERROR:=ERROR}"
+_log do htmlout daemon info "errorcode: $ERROR for IP: $REMOTE_ADDR"
