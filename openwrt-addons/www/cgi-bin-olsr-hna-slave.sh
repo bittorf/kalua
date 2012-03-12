@@ -41,6 +41,7 @@ add_static_routes()
 	local netmask="$3"
 	local dev="$4"
 
+	rm "/tmp/OLSR/isneigh_$ip"
 	ip route add $netaddr/$netmask via $ip dev $dev metric 1 onlink
 }
 
