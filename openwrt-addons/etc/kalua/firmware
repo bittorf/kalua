@@ -696,6 +696,7 @@ _firmware_wget()
 	local file="${1:-/tmp/fw}"
 	local source="${2:-$( _links firmware_url_get )}"
 	local hash="${3:-$( _links firmware_url_get crc )}"
+	local maxtry="${4:-1000}"
 
 	[ -e "$file" ] && return 0		# for manually fetching the file and test the hole procedure
 
@@ -714,14 +715,14 @@ _firmware_wget()
 		_log do fetch_firmware daemon info "http_get $source: now $( _file size "$file" ) bytes"
 		_wget do "$source" 20 "continue $file"
 		sleep 1
-		 _watch counter "/tmp/fetch_firmware" increment 1 max 100 || break
+		 _watch counter "/tmp/fetch_firmware" increment 1 max $maxtry || break
 	} done
 
-	if _watch counter "/tmp/fetch_firmware" increment 1 max 100; then
+	if _watch counter "/tmp/fetch_firmware" increment 1 max $maxtry; then
 		_log do $funcname daemon info "[READY] downloading '$file' with $( _file size "$file" ) bytes"
 		return 0
 	else
-		_log do $funcname daemon info "[ERR] downloading '$file', maximum tries reached, deleting and aborting"
+		_log do $funcname daemon info "[ERR] downloading '$file', maximum tries = $maxtry reached, deleting and aborting"
 		rm "$file" /tmp/fetch_firmware
 		return 1
 	fi
