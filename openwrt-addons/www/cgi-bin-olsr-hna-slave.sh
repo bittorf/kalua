@@ -45,7 +45,10 @@ add_static_routes()
 	ip route add $netaddr/$netmask via $ip dev $dev metric 1 onlink
 }
 
+_http header_mimetype_output "text/html"
+
 if [ -e "/tmp/LOCK_OLSRSLAVE" ]; then
+	echo "LOCKED"
 	exit 0
 else
 	touch "/tmp/LOCK_OLSRSLAVE"
@@ -72,7 +75,6 @@ esac
 	}
 }
 
-_http header_mimetype_output "text/html"
 echo "${ERROR:=ERROR}"
 _log do htmlout daemon info "errorcode: $ERROR for IP: $REMOTE_ADDR"
 
