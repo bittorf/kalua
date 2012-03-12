@@ -1,5 +1,10 @@
 #!/bin/sh
 
+[ -e "/tmp/service_ssh_nowatching" ] && {
+	cat "/tmp/weblogin_cached_for_overload"
+	exit 0
+}
+
 ERROR=302
 
 case "$HTTP_USER_AGENT" in
