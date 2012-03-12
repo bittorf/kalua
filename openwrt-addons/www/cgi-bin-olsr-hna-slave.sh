@@ -45,6 +45,12 @@ add_static_routes()
 	ip route add $netaddr/$netmask via $ip dev $dev metric 1 onlink
 }
 
+if [ -e "/tmp/LOCK_OLSRSLAVE" ]; then
+	exit 0
+else
+	touch "/tmp/LOCK_OLSRSLAVE"
+fi
+
 eval $( _http query_string_sanitize )
 
 case "$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" in
@@ -69,3 +75,5 @@ esac
 _http header_mimetype_output "text/html"
 echo "${ERROR:=ERROR}"
 _log do htmlout daemon info "errorcode: $ERROR for IP: $REMOTE_ADDR"
+
+rm "/tmp/LOCK_OLSRSLAVE"
