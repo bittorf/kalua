@@ -115,12 +115,13 @@ build_kalua_update_tarball()
 	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
 	cd openwrt-addons/
 	sed -i "s/366686/$last_commit_unixtime_in_hours/" "$file_timestamp"
+	touch -r "../../.git/description" "$file_timestamp"
 
 	if [ "$option" = "full" ]; then
-		cp -v ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
-		cp -v ../openwrt-build/apply_profile* etc/init.d
+		cp -pv ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
+		cp -pv ../openwrt-build/apply_profile* etc/init.d
 		[ -e "../../apply_profile.code.definitions" ] && {
-			cp -v "../../apply_profile.code.definitions" etc/init.d
+			cp -pv "../../apply_profile.code.definitions" etc/init.d
 		}
 		tar $options -czf "$tarball" .
 		rm etc/init.d/apply_profile*
@@ -129,6 +130,7 @@ build_kalua_update_tarball()
 	fi
 
 	sed -i "s/$last_commit_unixtime_in_hours/366686/" "$file_timestamp"
+	touch -r "../../.git/description" "$file_timestamp"
 	cd $mydir
 
 	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
