@@ -56,7 +56,13 @@ fi
 
 eval $( _http query_string_sanitize )
 
-case "$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" in
+RTABLE="$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" || {
+	knowing_hna_already "$netaddr" "$netmask" && {
+		RTABLE="$( ip route list exact $REMOTE_ADDR | fgrep " via $REMOTE_ADDR " )"
+	}
+}
+
+case "$RTABLE" in
 	*" dev $LANDEV "*)
 		dev2slave="$LANDEV"
 	;;
