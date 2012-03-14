@@ -63,6 +63,9 @@ case "$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" i
 	*" dev $WANDEV "*)
 		dev2slave="$WANDEV"
 	;;
+	*)
+		ERROR="CANNOT_FIND_YOUR_HNA"
+	;;
 esac
 
 [ -n "$dev2slave" ] && {
