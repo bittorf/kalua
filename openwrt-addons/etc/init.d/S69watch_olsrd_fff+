@@ -71,3 +71,31 @@ esac
 _firmware upgrade_is_needed && {
 	touch /tmp/START_SYSUPGRADE
 }
+
+[ -e "/tmp/LOCK_OLSRSLAVE" ] && rm "/tmp/LOCK_OLSRSLAVE"	# fixme! till we solve the problem with a trap()
+
+case "$CONFIG_PROFILE" in
+	zumnorde*|adagio*|lisztwe*|apphalle*|fparkssee*|satama*|monami*)
+		case "$CONFIG_PROFILE" in
+			*ap)
+				[ -n "$( uci get dhcp.@dnsmasq[0].dhcpscript )" ] && {
+					uci delete dhcp.@dnsmasq[0].dhcpscript
+					/etc/init.d/dnsmasq restart
+				}
+
+				[ -z "$( uci get olsrd.@meta[0].hnaslave )" ] && {
+					uci set olsrd.@meta[0].hnaslave=1
+				}
+			;;
+			*adhoc)
+				[ $( _system ram_size ) -lt 16384 ] && {
+					[ -e "/www/SIMPLE_MESH" ] || {
+						touch "/www/SIMPLE_MESH"
+						rm "/www/GOOD_MODULE_UNLOAD"
+						reboot
+					}
+				}
+			;;
+		esac
+	;;
+esac
