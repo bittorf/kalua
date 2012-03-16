@@ -67,17 +67,26 @@ _links_firmware_url_get ()		# ARG1:	stable|beta|testing|empty
 			echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/tarball.tgz?host=$( uci get system.@system[0].hostname )"
 		;;
 		tarball_hash)
-			_wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | fgrep "FILE: 'tarball.tgz'" | cut -d' ' -f2
+			local i=0
+			local CRC
+
+			while [ -z "$CRC" -a $i -lt 100 ]; do {
+				CRC="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | fgrep "FILE: 'tarball.tgz'" | cut -d' ' -f2 )"
+				sleep 5
+				i=$(( $i + 1 ))
+			} done
+
+			echo -n "${CRC:=0}"
 		;;
 		version_current*)
 			local OUTPUT
-			
+
 			OUTPUT="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | head -n1 )"
 			[ -n "$OUTPUT" ] && {
 				local GENERATED VERSION KERNEL MAINTAINER VERSION_MAIN
 				eval $OUTPUT
 			}
-		
+
 			if [ "$COMMAND" = "version_current_main" ]; then
 				echo -n "${VERSION_MAIN:=1.6.37}"
 			else
