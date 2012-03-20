@@ -51,6 +51,7 @@ if [ -e "/tmp/LOCK_OLSRSLAVE" ]; then
 	echo "LOCKED"
 	exit 0
 else
+	trap "rm /tmp/LOCK_OLSRSLAVE; exit" INT TERM EXIT
 	touch "/tmp/LOCK_OLSRSLAVE"
 fi
 
@@ -88,3 +89,5 @@ echo "${ERROR:=ERROR}"
 _log do htmlout daemon info "errorcode: $ERROR for IP: $REMOTE_ADDR"
 
 rm "/tmp/LOCK_OLSRSLAVE"
+trap - INT TERM EXIT
+
