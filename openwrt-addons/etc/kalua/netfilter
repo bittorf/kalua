@@ -68,13 +68,39 @@ _netfilter_portforwarding_stop()
 	:
 }
 
+_netfilter_myhna()
+{
+	local mask="$( uci get olsrd.@Hna4[0].netmask )"
+
+	[ -n "$mask" ] && {
+		echo "$( uci get olsrd.@Hna4[0].netaddr )/$( _net mask2cidr $mask )"
+	}
+}
+
 _netfilter_splash_start()
 {
+	local myhna="$( _netfilter myhna )"
+
 	mkdir -p "/tmp/NETFILTER/USER" \
 		 "/tmp/NETFILTER/MAC2IP" \
 		 "/tmp/NETFILTER/IP2MAC"
 
 	_netfilter walledgarden_start
+
+	iptables -t mangle -A PREROUTING -p udp --sport 68 --dport 67 -j ACCEPT		# dhcp_in
+#	iptables -t mangle -A PREROUTING ! -s $myhna ! -d $myhna -j ACCEPT		# not from me/myclients
+	iptables -t mangle -A PREROUTING ! -s $myhna -j ACCEPT				# from other router to me
+	iptables -t mangle -A PREROUTING -s $myhna -d $WIFINET/$WIFIPRE			# picopeer
+	iptables -t mangle -A PREROUTING -p udp --dport 698 -j ACCEPT			# olsr_in
+	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x10	# redirect
+	iptables -t mangle -A PREROUTING -j MARK --set-mark 0x88			# reject
+
+	iptables -t nat -A PREROUTING -m mark --mark 0x10 -j REDIRECT
+}
+
+_netfilter_splash_stop()
+{
+	:
 }
 
 _netfilter_walledgarden_start()
@@ -130,13 +156,9 @@ _netfilter_walledgarden_stop()
 	[ -e "/tmp/NETFILTER/WALLEDGARDEN" ] && {
 		iptables -t mangle -F walledgarden
 		iptables -t mangle -X walledgarden
-		rm "/tmp/NETFILTER/WALLEDGARDEN" 
+		iptables -t mangle -D PREROUTING -j walledgarden
+		rm "/tmp/NETFILTER/WALLEDGARDEN"
 	}
-}
-
-_netfilter_splash_stop()
-{
-	_netfilter_walledgarden_stop
 }
 
 _netfilter_user_list()
@@ -146,9 +168,10 @@ _netfilter_user_list()
 
 _netfilter_user_add()
 {
-	local option="$mac"
-	local ip="$ip"
+	local mac="$1"
+	local ip="$2"
 
+	[ -d "/tmp/NETFILTER/USER" ] || return 1
 	[ -z "$option" -o -z "$ip" ] && return 1
 
 	if [ -d "/tmp/NETFILTER/USER/$mac" ]; then
@@ -158,16 +181,34 @@ _netfilter_user_add()
 		echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
 		echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
 	fi
+
+	iptables -t mangle -I PREROUTING -d $ip -j ACCEPT
+	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -j ACCEPT
+	iptables -t mangle -N user_$mac
 }
 
 _netfilter_user_del()
 {
-	local option="$mac"
+	local option="${mac:-unset}"
+
+	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
+		iptables -t mangle -D PREROUTING -d $ip -j ACCEPT
+		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
+		rm -fR "/tmp/NETFILTER/USER/$mac"
+	}
 }
 
 _netfilter_user_dataretention_add()
 {
 	local mac="$1"
+
+	local myhna="$( _netfilter myhna )"
+	iptables -t mangle -A FORWARD ! -s $myhna ! -d $myhna -j ACCEPT		# not from myself/myclients
+	iptables -t mangle -A FORWARD -m mark ! --mark 0 -j ACCEPT
+	iptables -t mangle -A FORWARD -j CONNMARK --restore-mark
+
+	iptables -t mangle -N newconnection
+	iptables -t mangle -A FORWARD -j newconnection
 }
 
 _netfilter_user_dataretention_del()
