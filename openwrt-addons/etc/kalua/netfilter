@@ -72,11 +72,63 @@ _netfilter_splash_start()
 	mkdir -p "/tmp/NETFILTER/USER" \
 		 "/tmp/NETFILTER/MAC2IP" \
 		 "/tmp/NETFILTER/IP2MAC"
+
+	_netfilter_walledgarden_start
+}
+
+_netfilter_walledgarden_start()
+{
+	local ip
+	local list="$( _netfilter walledgarden_list )"
+
+	[ -z "$list" ] && return 0
+
+	iptables -t mangle -N walledgarden
+
+	for ip in $list; do {
+		case "$ip" in
+			[0-9]*)
+				iptables -t mangle -A walledgarden -s $ip -j ACCEPT
+				iptables -t mangle -A walledgarden -d $ip -j ACCEPT
+			;;
+		esac
+	} done
+
+	iptables -t mangle -A PREROUTING -j walledgarden
+}
+
+_netfilter_walledgarden_list()
+{
+	local list="
+		141.54.160.24/32	ping01/mediathek
+		141.54.1.1/32		BUW-DNS
+		141.1.1.1/32		DFN
+		85.25.251.231/32	vorratsdatenspeicherung.de
+		82.149.225.169/32	wiki.vorratsdatenspeicherung.de
+		141.54.160.48/32	m18.uni-weimar.de
+		87.118.106.19/32	www.weimarnetz.de
+		77.87.48.19/32		www.weimarnetz.de_newserver
+		"
+
+	[ -e "/www/advertisement.js" ] && {
+		fgrep -q "www.openxdemo.com" "/www/advertisement.js" && {
+			ip="$( _net dns2ip www.openxdemo.com )"
+			list="$list $ip www.openxdemo.com"
+		}
+	}
+
+	echo "$list"
+}
+
+_netfilter_walledgarden_stop()
+{
+	iptables -t mangle -F walledgarden
+	iptables -t mangle -X walledgarden
 }
 
 _netfilter_splash_stop()
 {
-	:
+	_netfilter_walledgarden_stop
 }
 
 _netfilter_user_list()
