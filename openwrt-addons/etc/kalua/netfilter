@@ -29,14 +29,32 @@ _netfilter_stop()
 
 _netfilter_masquerade_start()
 {
-	local option="$1"
-	local device="$2"
-	local ip_exception="$3"
+	local exception="$1"		# fixme! needs source/destination arg
+	local device
+
+	case "$( _net local_inet_offer )" in
+		wan)
+			device="$WANDEV"
+		;;
+		lan)
+			device="$LANDEV"
+		;;
+		pppoe)
+			device="ppp+"
+		;;
+	esac
+
+	[ -n "$device" ] && {
+		echo "iptables -t nat -D POSTROUTING -o $device -j MASQUERADE" >"/tmp/NETFILTER/MASQUERADING"
+		iptables -t nat -A POSTROUTING -o $device -j MASQUERADE
+	}
 }
 
 _netfilter_masquerade_stop()
 {
-	:
+	[ -e "/tmp/NETFILTER/MASQUERADING" ] && {
+		. "/tmp/NETFILTER/MASQUERADING"
+	}
 }
 
 _netfilter_portforwarding_start()
