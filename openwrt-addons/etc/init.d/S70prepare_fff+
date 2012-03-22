@@ -5,78 +5,113 @@
 
 case $1 in
 	unload_unneeded_kmodules)
-		L1="pppox pppoe slhc ppp_generic"
-		L2="ppp_async switch_adm switch_robo switch_core diag"
-		L3="ts_fsm ts_bm ts_kmp"
-		L4="crc_ccitt aes_generic"
-		L5="compat_xtables compat"
-		L6="xt_multiport xt_comment xt_CLASSIFY xt_time xt_tcpmss xt_statistic"
-		L7="xt_DSCP xt_dscp xt_string xt_layer7 xt_quota xt_pkttype xt_owner"
-		L8="xt_recent xt_helper xt_conntrack xt_CT xt_NOTRACK xt_HL xt_hl xt_ipp2p"
-		L9="ipt_ecn ipt_ECN ipt_NETMAP iptable_raw"
-		L0="nf_nat_proto_gre nf_nat_tftp nf_nat_sip nf_nat_pptp nf_nat_h323 nf_nat_amanda nf_nat_irc nf_nat_ftp"
-		LA="nf_conntrack_tftp nf_conntrack_sip nf_conntrack_pptp nf_conntrack_h323 nf_conntrack_proto_gre nf_conntrack_amanda nf_conntrack_irc nf_conntrack_ftp"
+		if [ -e "/www/GOOD_MODULE_UNLOAD" ]; then
+			while read LINE; do {
+				rmmod "$LINE"
+			} done <"/www/GOOD_MODULE_UNLOAD"
+		else
+			L1="pppox pppoe slhc ppp_generic"
+			L2="ppp_async switch_adm switch_robo switch_core diag"
+			L3="ts_fsm ts_bm ts_kmp"
+			L4="crc_ccitt aes_generic"
+			L5="compat_xtables compat"
+			L6="xt_multiport xt_comment xt_CLASSIFY xt_time xt_tcpmss xt_statistic"
+			L7="xt_DSCP xt_dscp xt_string xt_layer7 xt_quota xt_pkttype xt_owner"
+			L8="xt_recent xt_helper xt_conntrack xt_CT xt_NOTRACK xt_HL xt_hl xt_ipp2p"
+			L9="ipt_ecn ipt_ECN ipt_NETMAP iptable_raw"
+			L0="nf_nat_proto_gre nf_nat_tftp nf_nat_sip nf_nat_pptp nf_nat_h323 nf_nat_amanda nf_nat_irc nf_nat_ftp"
+			LA="nf_conntrack_tftp nf_conntrack_sip nf_conntrack_pptp nf_conntrack_h323 nf_conntrack_proto_gre nf_conntrack_amanda nf_conntrack_irc nf_conntrack_ftp"
 
-		[ "$( uci get network.wan.proto )" = "pppoe" ] && L1=
-		LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA"
+			LB="ipt_ULOG xt_mark xt_length ipt_REDIRECT iptable_nat nf_nat xt_connmark xt_connbytes xt_state nf_conntrack_ipv4 nf_defrag_ipv4 nf_conntrack ipt_REJECT xt_TCPMSS ipt_LOG xt_mac xt_limit root@E1-mtx1-AP:/ iptable_mangle iptable_filter ip_tables xt_tcpudp x_tables"
+			[ -e "/www/SIMPLE_MESHNODE" ] || LB=
 
-		_net local_inet_offer >/dev/null || {
-			LIST="$LIST ipt_MASQUERADE"
-		}
+			[ "$( uci get network.wan.proto )" = "pppoe" ] && L1=
+			LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA $LB"
 
-		unload()
-		{
-			local list="$1"
-			local kmod
-
-			for kmod in $list; do {
-
-				_log do kmodule_unloader daemon info "rmmod '$kmod'" 
-				rmmod $kmod
-
-				lsmod | fgrep -q "$kmod" && {
-					echo "$kmod"
-				}
-			} done
-		}
-
-		I=0
-		while [ -n "$LIST" ]; do {
-			I=$(( $I + 1 ))
-			[ $I -eq 100 ] && break
-			LIST="$( unload "$LIST" )"
-			LIST="$( _list shuffle "$LIST" )"
-		} done
-
-		# free some more ram, remove old files:
-
-		[ -e "/etc/kalua/webadmin" ] && {
-			rm "/etc/kalua/webadmin"
-			rm "/tmp/kalua/webadmin"
-		}
-
-		[ -e "/etc/kalua/webconfig" ] && {
-			rm "/etc/kalua/webconfig"
-			rm "/tmp/kalua/webconfig"
-		}
-
-		[ $( _system flash_free ) -gt 350 ] && {
-			[ -d "/etc/kalua.w" ] || {
-				mkdir "/etc/kalua.w"
-				/etc/kalua_init
-				rm -fR /tmp/kalua
+			_net local_inet_offer >/dev/null || {
+				LIST="$LIST ipt_MASQUERADE"
 			}
-		}
 
-		killall rcS
-		killall klogd
-		# fixme! hotplug2 + syslogd also?
+			unload()
+			{
+				local list="$1"
+				local kmod
+
+				for kmod in $list; do {
+
+					_log do kmodule_unloader daemon info "rmmod '$kmod'" 
+					rmmod $kmod
+
+					if lsmod | fgrep -q "$kmod"; then
+						echo "$kmod"
+					else
+						echo "$kmod" >>"/www/GOOD_MODULE_UNLOAD"
+					fi
+				} done
+			}
+
+			I=0
+			while [ -n "$LIST" ]; do {
+				I=$(( $I + 1 ))
+				[ $I -eq 100 ] && break
+				LIST="$( unload "$LIST" )"
+				LIST="$( _list shuffle "$LIST" )"
+			} done
+		fi
+
+		#killall klogd
+		killall hotplug2
+		#killall syslogd
+
+		[ -e /www/SIMPLE_MESHNODE ] && {
+			touch /tmp/service_ulog_nowatching
+			killall ulogd
+
+			list_ip_from_dhcp_leases()
+			{
+				cut -d' ' -f3 /tmp/dhcp.leases
+			}
+
+			list_ip_from_arp_cache()
+			{
+				ip neigh show | cut -d' ' -f1
+			}
+
+			can_see_lan_clients()
+			{
+				local ip
+
+				for ip in $( list_ip_from_dhcp_leases ) $( list_ip_from_arp_cache ); do {
+					fgrep -q "$ip;" "/tmp/CLIENTS_LAN" && return 0
+				} done
+
+				test -e "/www/SIMPLE_MESHNODE_FORCE_DHCP_LAN"
+			}
+
+			uci set dhcp.wlan.ignore=1
+			uci delete dhcp.@dnsmasq[0].dhcpscript
+
+			if can_see_lan_clients; then
+				/etc/init.d/dnsmasq restart
+			else
+				uci set dhcp.lan.ignore=1
+				echo "nameserver $( uci get dhcp.@dnsmasq[0].server )" >"/etc/resolv.conf"
+				/etc/init.d/dnsmasq stop
+			fi
+		}
 
 		touch /tmp/service_cronwatchdog_nowatching
 		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
 
 		touch /tmp/service_ssh_nowatching
 		killall dropbear
+
+		dmesg -c >>/tmp/dmesg.boot
+
+		ROOTETHERNET="$( echo $LANDEV | cut -d'.' -f1 )"	# eth0.1 -> eth0
+		ip link set dev $ROOTETHERNET txqueuelen 32
+
+		echo 1024 >/proc/sys/net/nf_conntrack_max
 	;;
 	start)
 		grep -qs 0 "/proc/sys/vm/panic_on_oom" && {
@@ -90,7 +125,7 @@ case $1 in
 		}
 
 		ZRAM_DEV="/dev/zram0"
-		ZRAM_SIZE=10
+		ZRAM_SIZE=8
 
 		zram_applicable()
 		{
@@ -105,11 +140,11 @@ case $1 in
 			echo $(( $ZRAM_SIZE * 1024 * 1024 )) >"/sys/block/$( basename $ZRAM_DEV )/disksize"
 			mkswap $ZRAM_DEV
 			swapon $ZRAM_DEV
-			echo 100 > /proc/sys/vm/swappiness
 		}
 
-		#save dmesg to /tmp
-		dmesg > /tmp/dmesg.boot
+		[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
+			$0 unload_unneeded_kmodules
+		}
 
 		grep -sq ^"START=97" "/etc/init.d/watchdog" && {
 			sed -i 's/=97/=01/' "/etc/init.d/watchdog"
@@ -119,25 +154,10 @@ case $1 in
 			eval $CMD2
 		}
 
-		#_db restore
-		/www/cgi-bin-welcome* >/dev/null		# generate cached loginpage
+	#	_db restore
 
-		[ -e /tmp/LOWMEM ] && {
-			
-			for TASK in klogd syslogd resetd dropbear httpd; do {
-				pidof $TASK >/dev/null && {
-					_log do low_mem_device daemon debug "killing '$TASK'"
-					killall $TASK || {
-						_log do low_mem_device daemon debug "error during killing '$TASK'"
-					}
-				}
-			} done
-			
-			[ -e "/etc/init.d/S90olsr-prio" ] && {
-				_log do low_mem_device daemon debug "removing QoS-scripts"
-				rm -f /etc/init.d/S90olsr-prio
-			}
-		}
+		#export QUERY_STRING="REDIRECTED=1"
+		#/www/cgi-bin-welcome.sh >/dev/null		# generate cached loginpage
 
 		PPPOE=0
 		[ -n "$( uci get network.wan.username )" ] && PPPOE="$(( $PPPOE + 1 ))"
@@ -205,15 +225,6 @@ case $1 in
 		found_specific_hna_offer 6.6.6.6 && attach_lan_ip 6.6.6.6 dns
 		found_specific_hna_offer 6.6.6.7 && attach_lan_ip 6.6.6.7 userdb
 		found_specific_hna_offer 6.6.6.8 && attach_lan_ip 6.6.6.8 tunnelsrv	# only use for ask is_possible?
-
-		_uci is_oldstyle && {
-			[ -z "$( mount | grep usbfs )" ] && {
-				_log do mount_usbfs daemon debug "trying to mount usbfs"
-				mount -t usbfs none /proc/bus/usb 2>/dev/null || {
-					_log do mount_usbfs daemon debug "no success, no usbfs, nousb?"
-				}
-			}
-		}
 
 		[ "$( _firmware updatemode )" = "testing" ] && {
 			_firmware update_pmu

@@ -29,8 +29,6 @@ cron_watchdog()
 	local func="cron_watchdog"
 	local mode="$1"		# start|stop
 
-	_uci is_oldstyle && return		# we have crondog.o on old devices
-
 	local interval_sec=60
 	local cronpid watchdog_id
 	local watchdog_id_file="/tmp/cron_watchdog.id"
@@ -155,17 +153,10 @@ func_cron_status ()
 func_cron_config_write ()
 {
 	local FUNC="cron_config_write"
-	local CRONFILE
-
-	if _uci is_oldstyle ; then
-		CRONFILE="/var/spool/cron/crontabs/root"	
-	else
-		CRONFILE="/etc/crontabs/root"
-	fi
-
+	local CRONFILE="/etc/crontabs/root"
 	local CRONDIR="$( dirname $CRONFILE )"
 	local OWFS="$( which owfs >/dev/null && echo -n '-a owfs' )"
-	local LINE=""
+	local LINE
 	local PROFILE="$1"
 
 	[ "$PROFILE" = "status" ] && {
@@ -174,13 +165,12 @@ func_cron_config_write ()
 		return
 	}
 
-	_uci is_oldstyle || {
-		PROFILE="newstyle"
-	}
-
-	case "$( uci get system.@profile[0].name )" in
+	case "$CONFIG_PROFILE" in
 		artotel*)
 			PROFILE="lazy"
+		;;
+		*)
+			PROFILE="newstyle"
 		;;
 	esac
 
@@ -214,38 +204,45 @@ func_cron_config_write ()
 
 		echo >$CRONFILE "* * * * * /usr/bin/scheduler -S minimal; $RUN_QUEUE"
 
-	elif [ "$PROFILE" = "nano" ]; then
-
-		echo >$CRONFILE "* * * * * /usr/sbin/cron.minutely"
-
 	elif [ "$PROFILE" = "lazy" ]; then
 
 		echo >$CRONFILE "* * * * * /usr/bin/scheduler -S lazy; $RUN_QUEUE"
 
 	elif [ "$PROFILE" = "newstyle" ]; then
 
-		if [ $( _system ram_size ) -lt 16384 ]; then
-			cat >/tmp/CRON_IS_CAREFUL <<EOF
+		cat >/tmp/CRON_IS_CAREFUL <<EOF
 read LOAD REST </proc/loadavg
-case "\$LOAD" in 0*)
-	[ -e /tmp/CRON_LOCK ] || {
-		case "\$( pidof dropbear )" in
-			*" "*)
-			;;
-			*)
-				touch /tmp/CRON_LOCK
-				usr/bin/scheduler -U -S newstyle -O -P -f -H -w
+case "\$LOAD" in
+	1*|0.9*|0.8*)
+		[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
+	;;
+	0*)
+		[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
+
+		[ -e /tmp/CRON_LOCK ] || {
+				trap "rm /tmp/CRON_LOCK; exit" INT TERM EXIT
+				>/tmp/CRON_LOCK
+
+				/usr/bin/scheduler -U -S newstyle -O -P -f -H -w
 				$RUN_QUEUE
+
 				rm /tmp/CRON_LOCK
-			;;
-		esac
-	}
+				trap - INT TERM EXIT
+		}
+	;;
+	*)
+		echo -n "#" >>"/tmp/CRON_OVERLOAD"
+
+		[ -e "/tmp/CRON_OVERLOAD" ] && {
+			read I <"/tmp/CRON_OVERLOAD"
+			[ \${#I} -gt 4 ] && {
+				/sbin/reboot
+			}
+		}
+	;;
 esac
 EOF
-			echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL; _watch switch_linkstatus"
-		else
-			echo >$CRONFILE "* * * * * /usr/bin/scheduler -U -S newstyle -O -P -f -H -w; $RUN_QUEUE"
-		fi
+		echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL; _watch switch_linkstatus"
 	fi
 
 	while read LINE; do {
