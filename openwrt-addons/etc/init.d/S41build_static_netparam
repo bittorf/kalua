@@ -10,35 +10,6 @@ ifname2mtu()
 	 sed -n 's/^.* mtu \([0-9]*\).*/\1/p;q'
 }
 
-netparam_pppoe_fix_for_oldstyle_devices ()
-{
-	local FUNC="netparam_pppoe_fix_for_oldstyle_devices"
-	local ADDRESS NETMASK MTU BROADCAST NETWORK PREFIX
-	local IFNAME="ppp0"
-
-	[ "$( uci get network.wan.proto )" = "pppoe" ] || return
-	_log do $FUNC daemon info "[START]"
-
-	ADDRESS="$( _net dev2ip $IFNAME )"
-	NETMASK="$( _net dev2ip $IFNAME mask )"
-	MTU="$( ifname2mtu "$IFNAME" "$DEVICE" )"
-
-	echo "WANDEV=$IFNAME"
-	echo "WANMTU=$MTU"
-	echo "WANADR=$ADDRESS"
-	echo "WANMSK=$NETMASK"
-
-	BROADCAST=;NETWORK=;PREFIX=
-	[ -n "$MTU" ] && eval $( ipcalc -p -n -b $ADDRESS $NETMASK )
-
-	echo "WANBRC=$BROADCAST"
-	echo "WANNET=$NETWORK"
-	echo "WANPRE=$PREFIX"
-	echo "WANOLSR="
-
-	_log do $FUNC daemon info "[READY]"
-}
-
 netparam_for_uci_devices ()
 {
 	local NAME IFNAME ADDRESS NETMASK MTU BROADCAST NETWORK PREFIX
@@ -102,29 +73,10 @@ _build ()
 
 	_log do $FUNC daemon debug "working"
 
-	_uci is_oldstyle || {
-		_log do $FUNC daemon debug "building '$FILE' for an uci-device"
-		netparam_for_uci_devices >$FILE
-		return 0
-	}
+	_log do $FUNC daemon debug "building '$FILE' for an uci-device"
+	netparam_for_uci_devices >$FILE
+	return 0
 
-	/rom/usr/bin/netparam >$FILE && {
-		netparam_pppoe_fix_for_oldstyle_devices >>$FILE
-
-		_log do $FUNC daemon debug "successfully build '$FILE'"
-		return 0
-	}
-	
-	_log do $FUNC daemon crit "error during build, trying pivot-root"
-	/usr/bin/netparam >$FILE && {
-		netparam_pppoe_fix_for_oldstyle_devices >>$FILE
-
-		_log do $FUNC daemon crit "success building '$FILE'"
-		return 0
-	}
-	
-	_log do $FUNC daemon crit "error, could not build '$FILE'"
-	return 1
 }
 
 _restore_original_netparam ()
@@ -133,29 +85,8 @@ _restore_original_netparam ()
 	local ORIGINAL="/rom/usr/bin/netparam"
 	local COPY="/usr/bin/netparam"
 
-	_uci is_oldstyle || return 0
+	return 0 			# fixme! function was build for oldstyle devices
 
-	[ "$( _file hash "$ORIGINAL" )" = "$( _file hash "$COPY" )" ] && {
-		_log do $FUNC daemon debug "netparam seems to be fine"
-		return
-	}	
-
-	_log do $FUNC daemon debug "HASH's differ - replacing netparam in filesystem with copy in rom"
-	
-	cp $ORIGINAL $COPY || {
-		_log do $FUNC daemon debug "error during copy? trying to symlink"
-		
-		>$COPY		# create 0 byte-file
-		rm $COPY
-		ln -s $ORIGINAL $COPY && {
-			_log do $FUNC daemon debug "symlinking went fine"
-			return
-		}
-		_log do $FUNC daemon crit "error during symlinking"
-		return 1
-	}
-	
-	_log do $FUNC daemon debug "successfully replaced"
 }
 
 if [ -e /tmp/BOOT ] || [ "$1" = "restore_original_netparam" ]; then

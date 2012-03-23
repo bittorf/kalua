@@ -448,11 +448,7 @@ _watch_pppoe ()
 			_stopwatch start "$funcname" global
 		}
 
-		if _uci is_oldstyle ; then
-			daemon="pppoecd"
-		else
-			daemon="pppd"
-		fi
+		daemon="pppd"
 
 		_log do $funcname daemon info "no default route over $WANDEV - restarting PPPoE / $daemon"
 		_watch hanging_command $daemon
@@ -652,12 +648,7 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
  		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _wget do "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
  										# fixme! no wifi -> no wifimac -> no registration?
 	 	if _ipsystem do "${ID:-99999}" >/dev/null ; then		# ipsystem() has a sanitizer built in, so don't worry 8-)
-			_uci is_oldstyle && {
-				_nvram set fff_node_number "$ID"
-				/etc/init.d/S02check_interface_correctness_fff+ enforce_new_profile
-	
-				_system reboot_safe "replace_random_nodeID() new profile applied"
-			}
+			_log do $FUNC daemon info "previously on this stage: the _uci is_oldstyle query"	
 		else
 			_log do $FUNC daemon info "ID not clean: '$ID' - aborting"
 		fi
@@ -680,33 +671,31 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 
 		if [ ! -e /tmp/REGISTRATED ] && [ "$wait" = "0" ]; then
 
-			_uci is_oldstyle || {
-				killall rcS		# fixme! for newstyle_devices, till we find the bug why these are hanging around
-				killall logger
+			killall rcS		# fixme! for newstyle_devices, till we find the bug why these are hanging around
+			killall logger
 
-				[ $( _system ram_size ) -lt 28000 ] && {
-					killall hotplug2
-					killall klogd
+			[ $( _system ram_size ) -lt 28000 ] && {
+				killall hotplug2
+				killall klogd
 
-					touch /tmp/service_cronwatchdog_nowatching
-					touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
+				touch /tmp/service_cronwatchdog_nowatching
+				touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
 
-					touch /tmp/service_ulog_nowatching
-					killall ulogd
+				touch /tmp/service_ulog_nowatching
+				killall ulogd
 
-					touch /tmp/service_ssh_nowatching
-					killall dropbear
+				touch /tmp/service_ssh_nowatching
+				killall dropbear
 
-					dmesg | fgrep -q "Buffalo WHR-HP-G54" && {
-						[ "$( uci get network.eth0_0.ports )" = "1 2 3 4 5" ] || {
-							uci set network.eth0_0.ports="1 2 3 4 5"
-							uci commit network
-						}
+				dmesg | fgrep -q "Buffalo WHR-HP-G54" && {
+					[ "$( uci get network.eth0_0.ports )" = "1 2 3 4 5" ] || {
+						uci set network.eth0_0.ports="1 2 3 4 5"
+						uci commit network
+					}
 
-						[ "$( uci get network.eth0_1.ports )" = "0 5" ] || {
-							uci set network.eth0_1.ports="0 5"
-							uci commit
-						}
+					[ "$( uci get network.eth0_1.ports )" = "0 5" ] || {
+						uci set network.eth0_1.ports="0 5"
+						uci commit
 					}
 				}
 			}
