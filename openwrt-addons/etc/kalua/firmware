@@ -119,11 +119,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 
 		[ "$REPATCH_ALL"  = "1" ] && /etc/init.d/*patch-o-matic* repatch all
 
-		if _uci is_oldstyle; then
-			cat /etc/banner | head -n24 >/etc/banner	# copy in ROM has not all infos
-		else
-			cat /rom/etc/banner | head -n14 >/etc/banner
-		fi
+		cat /rom/etc/banner | head -n14 >/etc/banner
 
 		echo >>/etc/banner
 		echo >>/etc/banner "# manually updated with poormens method on $( date ) by '$0' to this version:"
@@ -451,77 +447,60 @@ _firmware_burn ()
 		}
 	}
 
-	if _uci is_oldstyle ; then
+	_firmware check_image "$FILE" || return 1
 
-		OUT="$( /www/cgi-bin/freifunk-upload -c "$FILE" )"
+	local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
+			  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
 
-		if [ "$OUT" = "ok" ]; then
-			_log do "$FUNC" daemon info "crc: $OUT - burning '$FILE'"
-
-			/etc/init.d/*crond_fff+ restart nano
-			[ -e /dev/misc/crondog ] && echo >/dev/misc/crondog			# fixme!
-
-			/usr/sbin/firmware-burn "$FILE"	
-		else
-			_log do "$FUNC" daemon alert "wrong crc: '$OUT'	- abort"
-			return 1
-		fi
+	if _log shell_is_interactive; then
+		pause="10"
 	else
-		_firmware check_image "$FILE" || return 1
-
-		local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
-				  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
-
-		if _log shell_is_interactive; then
-			pause="10"
-		else
-			list_tasks="$list_tasks screen dropbear wifi_down"
-			pause="60"
-		fi
-
-		list_tasks="$list_tasks pause $list_tasks"		# double try...
-
-		_firmware log "[OK] detaching upgrade process, output can be found in nohup.out"
-		nohup 							#detach script from shell to prevent hangups while killing processes and deleting data
-		_firmware remove_cron_stuff $pause || return 1
-		_firmware kill_tasks "$list_tasks"
-
-
-		rm -fR /tmp/kalua
-
-		_firmware flush_iptables
-
-		_firmware remove_kmodules most
-		_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
-
-		_firmware remove_kmodules all
-		_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
-
-
-		case "$architecture" in
-			brcm47xx)
-				local patchfile partition fix
-
-				patchfile="/lib/upgrade/common.sh"
-				fgrep -q '"Upgrade completed";' "$patchfile" || {
-					partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
-					fix="mtd fixtrx $partition"
-					_firmware log "[OK] patching '$patchfile', adding: '$fix'"
-					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" /lib/upgrade/common.sh
-				}
-			;;
-		esac
-
-		_firmware log "[START] sysupgrading"
-		sysupgrade -v "$FILE"
-		_firmware log "[READY] sysupgraded"
-
-
-		>"$FILE"		# normally this section is never reached	
-		/bin/sync
-		/bin/sleep 30
-		/sbin/reboot
+		list_tasks="$list_tasks screen dropbear wifi_down"
+		pause="60"
 	fi
+
+	list_tasks="$list_tasks pause $list_tasks"		# double try...
+
+	_firmware log "[OK] detaching upgrade process, output can be found in nohup.out"
+	nohup 							#detach script from shell to prevent hangups while killing processes and deleting data
+	_firmware remove_cron_stuff $pause || return 1
+	_firmware kill_tasks "$list_tasks"
+
+
+	rm -fR /tmp/kalua
+
+	_firmware flush_iptables
+
+	_firmware remove_kmodules most
+	_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
+
+	_firmware remove_kmodules all
+	_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
+
+
+	case "$architecture" in
+		brcm47xx)
+			local patchfile partition fix
+
+			patchfile="/lib/upgrade/common.sh"
+			fgrep -q '"Upgrade completed";' "$patchfile" || {
+				partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
+				fix="mtd fixtrx $partition"
+				_firmware log "[OK] patching '$patchfile', adding: '$fix'"
+				sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" /lib/upgrade/common.sh
+			}
+		;;
+	esac
+
+	_firmware log "[START] sysupgrading"
+	sysupgrade -v "$FILE"
+	_firmware log "[READY] sysupgraded"
+
+
+	>"$FILE"		# normally this section is never reached	
+	/bin/sync
+	/bin/sleep 30
+	/sbin/reboot
 }
 
 _firmware_filelist ()
@@ -584,9 +563,6 @@ _firmware_upgrade_is_needed()
 		return 1
 	}
 
-	_uci is_oldstyle && {
-		return 1
-	}
 
 	_firmware updatemode testing || {
 		return 1

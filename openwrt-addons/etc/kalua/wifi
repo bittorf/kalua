@@ -521,15 +521,9 @@ _wifi_phy_probe_online ()		# fixme! more abstraction
 	local WIFI_DEV="$1"
 	local VAR="$( uci get wireless.radio0.disabled )"
 
-	if _uci is_oldstyle ; then
-		[ "$VAR" = "0" ] && {
-			return 1
-		}
-	else
-		[ "$VAR" = "1" ] && {
-			return 1
-		}
-	fi
+	[ "$VAR" = "1" ] && {
+		return 1
+	}
 
 	return 0
 }
@@ -597,11 +591,7 @@ _wifi_driver_version ()
 			VERSION="wl-simple_v$( _software package_version wl )"
 		fi
 	else
-		if _uci is_oldstyle ; then
-			VERSION="kmod-madwifi_v$( _software package_version kmod-madwifi )"
-		else
-			VERSION="kmod-ath9k_v$( _software package_version kmod-ath9k )"
-		fi
+		VERSION="kmod-ath9k_v$( _software package_version kmod-ath9k )"
 	fi
 	
 	echo "$VERSION"
@@ -739,12 +729,7 @@ _wifi_phy_restart ()
 	
 		wifi					# simply rereads nvram for all broadcom-devices
 	else
-		if _uci is_oldstyle ; then
-			ip link set dev $WIFI_DEV down		# we have seen some strange behaviour with madwifi after that, needs some research!
-			ip link set dev $WIFI_DEV up
-		else
-			wifi "$WIFI_DEV"
-		fi
+		wifi "$WIFI_DEV"
 	fi
 }
 
@@ -783,17 +768,13 @@ _wifi_phy_txpower ()		# output in [mW]
 
 		POWER="$( _wl $WIFI_DEV txpwr | cut -d" " -f3 )"	# this is in [mW]
 	else
-		if _uci is_oldstyle ; then
-			POWER="$( iwlist "$WIFI_DEV" txpower 2>/dev/null | sed -n '/Tx-Power/s/^.*(\([0-9]*\).*/\1/p' )"		# [mW]
-		else
-			POWER="$( /usr/sbin/iwconfig "$WIFI_DEV" | sed -n 's/^.*Tx-Power=\([0-9]*\).*/\1/p' )"	# [dBm]
+		POWER="$( /usr/sbin/iwconfig "$WIFI_DEV" | sed -n 's/^.*Tx-Power=\([0-9]*\).*/\1/p' )"	# [dBm]
 
-			[ -z "$POWER" ] && {
-				POWER="$( uci get wireless.radio0.txpower )"
-			}
+		[ -z "$POWER" ] && {
+			POWER="$( uci get wireless.radio0.txpower )"
+		}
 			
-			POWER="$( _wifi math_dbm2mw $POWER )"
-		fi
+		POWER="$( _wifi math_dbm2mw $POWER )"
 	fi
 	
 	echo "${POWER:-0}"	# no wifi-dev
@@ -1317,25 +1298,14 @@ _wifi_mcastrate ()
 	
 		_wl $WIFI_DEV mrate | cut -d' ' -f3		# 1, 2, 5.5, 6, 9, 12 , auto ...
 	else
-		if _uci is_oldstyle ; then
-			iwpriv $WIFI_DEV get_mcast_rate |
-			 sed -n 's/^.*:\([0-9]*\).*/\1/p' |
-			  while read LINE; do {
-				case $LINE in
-					5500) echo 5.5 ;;
-					   *) echo $(( $LINE / 1000 )) ;;	
-				esac
-			} done
+		LINE="$( uci get wireless.@wifi-iface[0].mcast_rate )"
+		if [ -n "$LINE" ]; then
+			case "$LINE" in
+				5500000) echo 5.5 ;;
+				      *) echo $(( $LINE / 1000 )) ;;
+			esac
 		else
-			LINE="$( uci get wireless.@wifi-iface[0].mcast_rate )"
-			if [ -n "$LINE" ]; then
-				case "$LINE" in
-					5500000) echo 5.5 ;;
-					      *) echo $(( $LINE / 1000 )) ;;
-				esac
-			else
-				echo "auto"
-			fi
+			echo "auto"
 		fi
 	fi
 }
