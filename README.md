@@ -102,8 +102,12 @@ piggyback kalua on a new router model without building from scratch
 	# build full kalua-tarball on server
 	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full
 
-	# decompress tarball
-	scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz; cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
+	# copy from server to your router
+	scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz
+	# OR take this prebuilt one:
+	wget -O /tmp/tarball.tgz http://46.252.25.48/tarball_full.tgz
+	# decompress:
+	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 
 	# execute config-writer
 	/etc/init.d/apply_profile.code
