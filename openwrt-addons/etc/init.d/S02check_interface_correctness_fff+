@@ -1,41 +1,5 @@
 #!/bin/sh
 . /tmp/loader
 
-[ -e "/etc/profile" ] || {
-	[ -e "/rom/etc/profile" ] && {
-		cp "/rom/etc/profile" "/etc/profile" && {
-			/sbin/reboot
-		}
-	}
-}
-
-eval $( _wifi vendor_and_model )			# $WIFI_VENDOR/MODEL
-
-[ -n "$1" ] && {	# depricated!
-	[ "$1" != "start" ] && echo "HW='$ROUTER_VENDOR $ROUTER_MODEL ($WIFI_VENDOR $WIFI_MODEL)';USB='';IDE='';MINIPCI=''"
-	
-	[ "$1" = "show_hardware" ] && exit
-	[ -n "$FAILSAFE" ]         && exit
-	[ -n "$READONLY" ]         && exit
-}
-
-_watch flash_free_space				# to ensure writing of olsr.conf + startup
-
-RAMSIZE="$(   _system ram_size   )"
-FLASHSIZE="$( _system flash_size )"
-FLASHFREE="$( _system flash_free )"				# [kByte]
-
-_sanitizer do "$FLASHFREE" numeric check || FLASHFREE="1"
-_sanitizer do "$FLASHSIZE" numeric check || FLASHSIZE="1"
-
-_log do hw_info_router daemon debug "VENDOR/MODEL: '$ROUTER_VENDOR'/'$ROUTER_MODEL'"
-_log do hw_info_mem    daemon debug "RAM/FLASH/FLASHFREE: $RAMSIZE/$FLASHSIZE/$FLASHFREE ($(( $FLASHFREE * 100 / $FLASHSIZE ))% free)"
-_log do hw_info_wifi   daemon debug "VENDOR/MODEL: '$WIFI_VENDOR'/'$WIFI_MODEL'"
-
-MAC="$( _sanitizer do "$( ip -o link show | grep ether )" firstline mac )"
-_log do "get_first_ethernet_mac_address" daemon debug "is '$MAC'"
-
-_net local_inet_offer >/dev/null		# fixme! just a test
-
+_watch flash_free_space
 _ssh sanitize_and_cleanup_keys
-
