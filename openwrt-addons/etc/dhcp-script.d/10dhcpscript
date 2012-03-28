@@ -51,11 +51,11 @@ case $MODE in
 
 				if _weblogin login_check "$USER" "$NODE_HOSTNAME" "$MAC" "$SIGNAL" ; then
 					_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER/$NODE_HOSTNAME"
-					_pfilter user_splash_remove "$MAC" "$IP"
+					_netfilter user_add "$MAC" "$IP"
 				else
 					if _weblogin login_check "$USER" "" "$MAC" "$SIGNAL" ; then
 						_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER (2nd try)"
-						_pfilter user_splash_remove "$MAC" "$IP"
+						_netfilter user_add "$MAC" "$IP"
 					else
 						_log do $SIGNAL daemon info "[ERR] _weblogin login_check $USER/$NODE_HOSTNAME"
 					fi
@@ -64,55 +64,24 @@ case $MODE in
 			;;
 		esac
 
-		case "$( uci get system.@profile[0].name )" in
-				  ffsundi_mesh)
-		  				[ "$TYPE" != "lan" ] && {
-		  					_log do dhcp_$MODE daemon info "'$MAC' is not from lan, exit"
-		  					exit
-		  				}
-					     ;; 
-			weimarnetz_standard_ap)
-						_log do dhcp_$MODE daemon info "this profile is always auto-unsplashed"
-					     ;;
-		      weimarnetz_standard_mesh|ffweimar)
-      						[ "$TYPE" != "lan" ] && {
-      							_log do dhcp_$MODE daemon info "'$MAC' is not from lan, exit"
-      							exit
-      						}
-      			 		     ;;
-	          	     		     *)
-	          	     		     	_log do dhcp_$MODE daemon debug "no action with this profile"
-	          	     		     	exit 0
-					     ;;
+		case "$CONFIG_PROFILE" in
+			ffweimar*)
+				if [ "$TYPE" = "lan" ]; then
+					_log do dhcp_$MODE daemon info "this profile is always auto-unsplashed"
+				else
+					_log do dhcp_$MODE daemon info "'$MAC' is not from lan, exit"
+					exit
+				fi
+			;;
+			*)
+				_log do dhcp_$MODE daemon debug "no action with this profile"
+				exit
+			;;
 		esac
 
-		if _pfilter user_probe "$MAC" ; then
-			_log do dhcp_$MODE daemon info "'$MAC' already shaped"
-
-			if _pfilter user_probe_splash $MAC ; then
-			
-				_log do dhcp_$MODE daemon info "'$MAC' gets a redirect, unsplashing"
-				_pfilter user_splash_control nosplash $MAC $IP
-			else
-				_log do dhcp_$MODE daemon info "'$MAC' is already freed"
-			fi
-		else
-			_log do dhcp_$MODE daemon info "'$MAC' yet unknown, from DEV/IF:'$DEV'/'$DNSMASQ_INTERFACE' ID:'$DNSMASQ_CLIENT_ID' VENDOR:'$DNSMASQ_VENDOR_CLASS'"
-		
-			if _pfilter user_ruleset_activate $MAC $IP ; then
-			
-				_log do dhcp_$MODE daemon info "'$MAC' (fast) activated"
-			else
-				_log do dhcp_$MODE daemon info "'$MAC' is getting (slowly) established"
-				_pfilter user_add $MAC $IP
-				_log do dhcp_$MODE daemon info "'$MAC' ready"
-			fi                  
-		fi
+		_netfilter user_add "$MAC" "$IP"
 	;;
 	del)
-		_pfilter status is_up && {
-			_net arp_permanent "$IP" "$MAC" dummy_arg reachable
-			_pfilter user_splash_control splash "$MAC" "$IP"
-		}
+		_netfilter user_del "$MAC"
 	;;
 esac
