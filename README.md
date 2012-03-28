@@ -1,4 +1,4 @@
-weimarnetz - build mesh-networks _without_ pain
+kalua - build mesh-networks _without_ pain
 ==========================================
 
 * community: http://wireless.subsignal.org
@@ -9,14 +9,18 @@ weimarnetz - build mesh-networks _without_ pain
 needing support?
 join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bittorf-wireless.de)
 
+[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software)
+
 
 how to build this from scratch on a debian server
 -------------------------------------------------
 
-	sudo apt-get updatei 
-	LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt"
-	for PACKAGE in $LIST; do sudo apt-get install $PACKAGE; done
-	
+	# be root user
+	apt-get update
+	LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen"
+	for PACKAGE in $LIST; do apt-get -y install $PACKAGE; done
+
+	# now login as non-root user
 	git clone git://nbd.name/openwrt.git
 	git clone git://nbd.name/packages.git
 	cd openwrt
@@ -25,7 +29,7 @@ how to build this from scratch on a debian server
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
 	
-	weimarnetz/openwrt-build/mybuild.sh gitpull
+	kalua/openwrt-build/mybuild.sh gitpull
 	./scripts/feeds update -a		# update openwrt feeds (luci, x-wrt and packages) 
 	weimarnetz/openwrt-build/mybuild.sh select_hardware_model
 
@@ -73,11 +77,48 @@ how to development directly on a router
 
 	mkdir -p /tmp/dev; cd /tmp/dev
 	git clone <this_repo>
-	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball
+	weimarnetz/openwrt-build/mybuild.sh build_ffweimar_update_tarball
 	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 
-	cd /tmp/dev/kalua
+	cd /tmp/dev/weimarnetz
 	git add <changed_files>
 	git commit -m "decribe changes"
 	git push ...
 
+piggyback kalua on a new router model without building from scratch
+-------------------------------------------------------------------
+
+	# for new devices, which are flashed with a plain openwrt
+	# from http://downloads.openwrt.org/snapshots/trunk/ do this:
+
+	# plugin ethernet on WAN, to get IP via DHCP, wait
+	# some seconds, connect via LAN with 'telnet 192.168.1.1' and
+
+	# look with which IP was given on WAN, then do:
+	ifconfig $(uci get network.wan.ifname) | fgrep "inet addr:"
+	/etc/init.d/firewall stop
+	/etc/init.d/firewall disable
+	exit
+
+	# plugin ethernet on WAN and connect to the router
+	# via 'telnet <routers_wan_ip>', then do:
+	opkg update
+	opkg install ip bmon netperf
+	opkg install olsrd olsrd-mod-arprefresh olsrd-mod-watchdog olsrd-mod-txtinfo olsrd-mod-nameservice
+	opkg install uhttpd uhttpd-mod-tls px5g
+	opkg install kmod-ipt-compat-xtables iptables-mod-conntrack iptables-mod-conntrack-extra iptables-mod-extra
+	opkg install iptables-mod-filter iptables-mod-ipp2p iptables-mod-ipopt iptables-mod-nat iptables-mod-nat-extra
+	opkg install iptables-mod-ulog ulogd ulogd-mod-extra
+
+	# build full kalua-tarball on server
+	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full
+
+	# copy from server to your router
+	scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz
+	# OR take this prebuilt one:
+	wget -O /tmp/tarball.tgz http://46.252.25.48/tarball_full.tgz
+	# decompress:
+	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
+
+	# execute config-writer
+	/etc/init.d/apply_profile.code
