@@ -1,0 +1,118 @@
+#!/bin/sh
+. /tmp/loader
+
+watch_cron()
+{
+	pidof crond >/dev/null || {		# wrong place but works
+
+		local pid cmdline
+		read pid 2>/dev/null </tmp/cron_watchdog.pid
+		read cmdline 2>/dev/null </proc/$pid/cmdline
+
+		[ "$cmdline" = "sh/tmp/cron_watchdog.sh" ] || {
+			_log do watch_cron daemon alert "cron died, restarting"
+			/etc/init.d/*crond* start
+		}
+	}
+}
+
+watch_cron
+
+MODE="${1:-unset}"
+MAC="${2:-00:00:00:00:00:00}"		# fixme!
+IP="${3:-127.0.0.1}"
+HOST="${4:-unset}"
+
+DEV="$( _net ip2dev $IP )"
+
+case "$DEV" in
+	 $WANDEV) TYPE="wan" ;;
+	 $LANDEV) TYPE="lan" ;;
+	$WIFIDEV) TYPE="wifi" ;;
+	  $LODEV) TYPE="loopback" ;;
+	       *) TYPE="unknown" ;;
+esac
+
+_log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV"
+
+case $MODE in
+	add|old)
+		case "$( uci get system.@weblogin[0].enabled )" in
+			""|0) ;;
+			*)
+				[ "$MODE" = "add" ] || exit 0
+
+				USER="$MAC"
+				NODE_HOSTNAME="$( uci get system.@system[0].hostname )"
+				SIGNAL="${NODE_HOSTNAME}_dhcp-${MODE}"				# keyword 'dhcp' is important for login_check()
+				export REMOTE_ADDR="$IP"
+
+				# fixme! _olsr uptime is_short && scheduler ...
+
+				if _weblogin login_check "$USER" "$NODE_HOSTNAME" "$MAC" "$SIGNAL" ; then
+					_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER/$NODE_HOSTNAME"
+					_pfilter user_splash_remove "$MAC" "$IP"
+				else
+					if _weblogin login_check "$USER" "" "$MAC" "$SIGNAL" ; then
+						_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER (2nd try)"
+						_pfilter user_splash_remove "$MAC" "$IP"
+					else
+						_log do $SIGNAL daemon info "[ERR] _weblogin login_check $USER/$NODE_HOSTNAME"
+					fi
+				fi
+
+			;;
+		esac
+
+		case "$( uci get system.@profile[0].name )" in
+				  ffsundi_mesh)
+		  				[ "$TYPE" != "lan" ] && {
+		  					_log do dhcp_$MODE daemon info "'$MAC' is not from lan, exit"
+		  					exit
+		  				}
+					     ;; 
+			weimarnetz_standard_ap)
+						_log do dhcp_$MODE daemon info "this profile is always auto-unsplashed"
+					     ;;
+		      weimarnetz_standard_mesh|ffweimar)
+      						[ "$TYPE" != "lan" ] && {
+      							_log do dhcp_$MODE daemon info "'$MAC' is not from lan, exit"
+      							exit
+      						}
+      			 		     ;;
+	          	     		     *)
+	          	     		     	_log do dhcp_$MODE daemon debug "no action with this profile"
+	          	     		     	exit 0
+					     ;;
+		esac
+
+		if _pfilter user_probe "$MAC" ; then
+			_log do dhcp_$MODE daemon info "'$MAC' already shaped"
+
+			if _pfilter user_probe_splash $MAC ; then
+			
+				_log do dhcp_$MODE daemon info "'$MAC' gets a redirect, unsplashing"
+				_pfilter user_splash_control nosplash $MAC $IP
+			else
+				_log do dhcp_$MODE daemon info "'$MAC' is already freed"
+			fi
+		else
+			_log do dhcp_$MODE daemon info "'$MAC' yet unknown, from DEV/IF:'$DEV'/'$DNSMASQ_INTERFACE' ID:'$DNSMASQ_CLIENT_ID' VENDOR:'$DNSMASQ_VENDOR_CLASS'"
+		
+			if _pfilter user_ruleset_activate $MAC $IP ; then
+			
+				_log do dhcp_$MODE daemon info "'$MAC' (fast) activated"
+			else
+				_log do dhcp_$MODE daemon info "'$MAC' is getting (slowly) established"
+				_pfilter user_add $MAC $IP
+				_log do dhcp_$MODE daemon info "'$MAC' ready"
+			fi                  
+		fi
+	;;
+	del)
+		_pfilter status is_up && {
+			_net arp_permanent "$IP" "$MAC" dummy_arg reachable
+			_pfilter user_splash_control splash "$MAC" "$IP"
+		}
+	;;
+esac
