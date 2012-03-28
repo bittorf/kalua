@@ -67,17 +67,26 @@ _links_firmware_url_get ()		# ARG1:	stable|beta|testing|empty
 			echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/tarball.tgz?host=$( uci get system.@system[0].hostname )"
 		;;
 		tarball_hash)
-			_wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | fgrep "FILE: 'tarball.tgz'" | cut -d' ' -f2
+			local i=0
+			local CRC
+
+			while [ -z "$CRC" -a $i -lt 100 ]; do {
+				CRC="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | fgrep "FILE: 'tarball.tgz'" | cut -d' ' -f2 )"
+				sleep 5
+				i=$(( $i + 1 ))
+			} done
+
+			echo -n "${CRC:=0}"
 		;;
 		version_current*)
 			local OUTPUT
-			
+
 			OUTPUT="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | head -n1 )"
 			[ -n "$OUTPUT" ] && {
 				local GENERATED VERSION KERNEL MAINTAINER VERSION_MAIN
 				eval $OUTPUT
 			}
-		
+
 			if [ "$COMMAND" = "version_current_main" ]; then
 				echo -n "${VERSION_MAIN:=1.6.37}"
 			else
@@ -88,19 +97,33 @@ _links_firmware_url_get ()		# ARG1:	stable|beta|testing|empty
 			echo -n "${FFF_PLUS_VERSION:=000000}"
 		;;
 		*)
-			local FILEWISH="linux=${MYKERNEL}_format=TRX_wifidriver=${WIFI_DRIVER}${OPT}.bin"
-			
-			case "$KEYWORD" in
+			local FILEWISH
+
+			if [ -e "/etc/HARDWARE" ]; then
+				read FILEWISH <"/etc/HARDWARE"
+				FILEWISH="${FILEWISH}.sysupgrade.bin"
+			else
+				FILEWISH="linux=${MYKERNEL}_format=TRX_wifidriver=${WIFI_DRIVER}${OPT}.bin"
+			fi	
+
+			FILEWISH="$( echo "$FILEWISH" | sed 's|/|:|g' )"	# very special: slashes are not allowed in filename
+
+			case "$COMMAND" in
 				crc)
+					local i=0
 					local GENERATED VERSION KERNEL MAINTAINER CRC
-	
-					CRC="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | grep "'$FILEWISH'" )"
+
+					while [ -z "$CRC" -a $i -lt 100 ]; do {
+						CRC="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | fgrep "'$FILEWISH'" )"
+						sleep 5
+						i=$(( $i + 1 ))
+					} done
+
 					[ -n "$CRC" ] && CRC="$( echo "$CRC" | cut -d' ' -f2 )"
-				
 					echo -n "${CRC:=0}"
 				;;
 				*)
-					echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/$FILEWISH"
+					echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/$( _sanitizer do "$FILEWISH" urlvalue )"
 				;;
 			esac
 		;;
