@@ -82,10 +82,12 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 				set $line
 			;;
 			"HT20/LGI T"*|"HT20/SGI T"*|"HT40/LGI T"*|"HT40/SGI T"*)
+				system="n"
 				set $line
 				shift
 			;;
 			"HT20/LGI  t"*|"HT20/SGI  t"*|"HT40/LGI  t"*|"HT40/SGI  t"*)
+				system="n"
 				set $line
 				shift
 			;;
@@ -430,7 +432,7 @@ _wifi_params_iwconfig_status ()		# ARG1 = WIFI_DEV
 	/usr/sbin/iwconfig $1 2>/dev/null |
 	 sed -ne "s/^.*ESSID:\"\(.*\)\"/WIFI_DEV=$1\nWIFI_UPTIME=0\nWIFI_ESSID='\1'/p" \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Access Point: \(.*\)Tx-Power=\([0-9]*\) dBm.*/WIFI_MODE=\1;WIFI_TXPOWER=\3;/p' \
-	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Access Point: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_BSSID=\4/p' \
+	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Access Point: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_CHANNEL=\"\$( _wifi math_mhz2channel \2\3 )\"\nWIFI_BSSID=\4/p' \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Cell: \(..:..:..:..:..:..\)/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_CHANNEL=\"\$( _wifi math_mhz2channel \2\3 )\"\nWIFI_BSSID=\4/p' \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Cell: Not-Associated/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_CHANNEL=\"\$( _wifi math_mhz2channel \2\3 )\"\nWIFI_BSSID=\4/p' \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Frequency:\([0-9]\)\.\([0-9]*\).*Tx-Power=\([0-9]*\) dBm.*/WIFI_MODE="\1"\nWIFI_FREQ=\2\3\nWIFI_CHANNEL=\"\$( _wifi math_mhz2channel \2\3 )\"\nWIFI_TXPOWER=\4/p' \
@@ -531,7 +533,7 @@ _wifi_phy_probe_online ()		# fixme! more abstraction
 _wifi_vendor_and_model ()		# fixme! build lookup-table WIFIDEV -> vendor|model
 {
 	local WIFI_DEV="$1"
-	
+
 	_wifi vendor_and_model_pci
 	_wifi vendor_and_model_usb
 }
@@ -556,9 +558,9 @@ _wifi_vendor_and_model_pci ()			# output can be more than one, how to handle?
 		FILE="/tmp/WIFI_VENDOR_AND_MODEL"
 
 		[ -e "$FILE" ] || {
-			if   dmesg | grep -q "Atheros AR9100 MAC/BB Rev:[0-9a-zA-Z]* AR2133"; then
+			if   grep -q "Atheros AR9100 MAC/BB Rev:[0-9a-zA-Z]* AR2133" "/tmp/dmesg.boot"; then
 				echo "WIFI_VENDOR=atheros;WIFI_MODEL=2133;WIFI_BANDS='b g'" >"$FILE"
-			elif dmesg | fgrep -q "b43-phy0: Broadcom 5352"; then
+			elif fgrep -q "b43-phy0: Broadcom 5352" "/tmp/dmesg.boot"; then
 				echo "WIFI_VENDOR=broadcom;WIFI_MODEL=5352;WIFI_BANDS='b g'" >"$FILE"
 			else
 				echo "WIFI_VENDOR=unknown;WIFI_MODEL=unknown;WIFI_BANDS='b g'" >"$FILE"
@@ -773,7 +775,13 @@ _wifi_phy_txpower ()		# output in [mW]
 		[ -z "$POWER" ] && {
 			POWER="$( uci get wireless.radio0.txpower )"
 		}
-			
+
+			case "$HARDWARE" in
+				"Ubiquiti Bullet M")
+					POWER=$(( $POWER + 12 ))	# fixme! use package iwinfo for this
+				;;
+			esac
+
 		POWER="$( _wifi math_dbm2mw $POWER )"
 	fi
 	
@@ -1817,6 +1825,7 @@ _wifi_check_each_client()
 					exitcode="0"
 				else
 					_log do $funcname daemon info "[ERR] arping - mac: $mac ip: $ip (no success for $max_arping probes)"
+					iw dev "$WIFIDEV" station del "$mac"
 					exitcode="1"
 				fi
 			}
