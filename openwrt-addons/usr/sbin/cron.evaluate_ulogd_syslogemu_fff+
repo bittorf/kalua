@@ -28,8 +28,6 @@ ULOG_LOGFILE_ORIG="/var/log/ulogd.syslogemu"
 ULOG_LOGFILE="/var/log/ulogd.syslogemu_working_copy"
 VDS_PATH="/tmp"
 
-[ -e /tmp/service_ulog_nowatching ] && exit
-
 func_ulog_prepare ()
 {
 	local FUNC="ulog_prepare"
@@ -57,7 +55,6 @@ func_ulog_prepare ()
 	}
 
 	[ ! -e $ULOG_LOGFILE_ORIG ]			&& return 1
-	_pfilter status is_up				|| return 1	# no packetfilter, no logfile?
 	[ $( _file size $ULOG_LOGFILE_ORIG ) -eq 0 ]	&& return 1
 
 	_log do $FUNC daemon debug "creating logfile working copy"
@@ -86,10 +83,10 @@ func_ulog_squeeze_log ()
 	local TIME MAC DIR SRC DST ID PROTO SPT DPT SEQ ACK WINDOW FLAG_ACK FLAG_SYN FLAG_RST FLAG_FIN FLAG_PSH URGP
 	local COUNTER=0
 					# fixme! fetch conn_length from conntrack when connection was closed
-
-	eval "$( _hardware remap_devs get_model )"
+	local HARDWARE
+	[ -e /etc/HARDWARE ] && read HARDWARE </etc/HARDWARE
 	case "$ROUTER_MODEL" in
-		TL-WR1043ND)
+		"TP-LINK TL-WR1043ND")				# fixme! measure speed during kalua_init or estimate on previous actions
 			TIME_ESTIMATED="$(( $LINES / 55 ))"	
 		;; 
 		*)
@@ -361,6 +358,9 @@ func_backup_userdata ()		# and restore, if missing
 	[ $I -eq 0 ] && _log do $FUNC daemon debug "no file has changed, no action"
 }
 
-func_ulog_prepare && func_ulog_squeeze_log
+[ -e /tmp/service_ulog_nowatching ] || {
+	func_ulog_prepare && func_ulog_squeeze_log
+}
+
 func_ulog_logsaving
 func_backup_userdata
