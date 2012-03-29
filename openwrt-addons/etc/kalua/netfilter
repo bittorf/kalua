@@ -1,0 +1,355 @@
+_netfilter_start()
+{
+	mkdir -p "/tmp/NETFILTER"
+
+	_netfilter_masquerade_start
+
+	[ -n "$( uci -q get firewall.@redirect[0] )" ] && {
+		_netfilter_portforwarding_start
+	}
+
+	[ -e "/www/SIMPLE_MESHNODE" ] && return 0
+
+	[ "$( uci -q get system.@weblogin[0].enabled )" = "1" ] && {
+		_netfilter_splash_start
+	}
+}
+
+_netfilter_stop()
+{
+	local mac
+
+	for mac in $( _netfilter user_list ); do {
+		_netfilter user_del "$mac"
+	} done
+
+	iptables -t mangle -F
+	iptables -t mangle -X
+	iptables -t filter -F
+	iptables -t filter -X
+	iptables -t nat -F
+	iptables -t nat -X
+
+	rm -fR "/tmp/NETFILTER"
+}
+
+_netfilter_masquerade_start()
+{
+	local exception="$1"		# fixme! needs source/destination arg
+	local device
+
+	mkdir -p "/tmp/NETFILTER"
+
+	case "$( _net local_inet_offer )" in
+		wan)
+			device="$WANDEV"
+		;;
+		lan)
+			device="$LANDEV"
+		;;
+		pppoe)
+			device="ppp+"
+		;;
+	esac
+
+	[ -n "$device" ] && {
+		echo "iptables -t nat -D POSTROUTING -o $device -j MASQUERADE" >"/tmp/NETFILTER/MASQUERADING"
+		iptables -t nat -A POSTROUTING -o $device -j MASQUERADE
+	}
+}
+
+_netfilter_masquerade_stop()
+{
+	[ -e "/tmp/NETFILTER/MASQUERADING" ] && {
+		. "/tmp/NETFILTER/MASQUERADING"
+		rm "/tmp/NETFILTER/MASQUERADING"
+	}
+}
+
+_netfilter_portforwarding_start()
+{
+	:
+}
+
+_netfilter_portforwarding_stop()
+{
+	:
+}
+
+_netfilter_myhna()
+{
+	local mask="$( uci get olsrd.@Hna4[0].netmask )"
+
+	[ -n "$mask" ] && {
+		echo "$( uci get olsrd.@Hna4[0].netaddr )/$( _net mask2cidr $mask )"
+	}
+}
+
+_netfilter_splash_start()
+{
+	local myhna="$( _netfilter myhna )"
+
+	mkdir -p "/tmp/NETFILTER/USER" \
+		 "/tmp/NETFILTER/MAC2IP" \
+		 "/tmp/NETFILTER/IP2MAC"
+
+	[ -e "/tmp/weblogin_cached_for_overload" ] || {
+		export QUERY_STRING="REDIRECTED=1"
+		/www/cgi-bin-welcome.sh >/dev/null
+	}
+
+	iptables -t mangle -A PREROUTING ! -s $myhna -j ACCEPT				# from alien router/client to me/further (also dhcp_in)
+	iptables -t mangle -A PREROUTING -s $myhna -d $WIFINET/$WIFIPRE -j ACCEPT	# picopeer
+
+	_netfilter walledgarden_start
+
+	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11	# redirect
+	iptables -t mangle -A PREROUTING -m mark --mark 0 -j MARK --set-mark 0x88	# not marked? -> reject
+
+	iptables -A FORWARD -m mark --mark 0x88/0xff -j REJECT
+	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer
+	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+
+	iptables -t nat -A PREROUTING -m mark --mark 0x11/0xff -j REDIRECT
+}
+
+_netfilter_splash_stop()
+{
+	:
+}
+
+_netfilter_walledgarden_start()
+{
+	local ip
+	local list="$( _netfilter walledgarden_list )"
+
+	if [ -z "$list" ]; then
+		return 0
+	else
+		touch "/tmp/NETFILTER/WALLEDGARDEN"
+	fi
+
+	iptables -t mangle -N walledgarden
+
+	for ip in $list; do {
+		case "$ip" in
+			[0-9]*)
+				iptables -t mangle -A walledgarden -s $ip -j ACCEPT
+				iptables -t mangle -A walledgarden -d $ip -j ACCEPT
+			;;
+		esac
+	} done
+
+	iptables -t mangle -A PREROUTING -j walledgarden
+}
+
+_netfilter_walledgarden_list()
+{
+	local list="
+		141.54.160.24/32	ping01/mediathek
+		141.54.1.1/32		BUW-DNS
+		141.1.1.1/32		DFN
+		85.25.251.231/32	vorratsdatenspeicherung.de
+		82.149.225.169/32	wiki.vorratsdatenspeicherung.de
+		141.54.160.48/32	m18.uni-weimar.de
+		87.118.106.19/32	www.weimarnetz.de
+		77.87.48.19/32		www.weimarnetz.de_newserver
+		"
+
+	[ -e "/www/advertisement.js" ] && {
+		fgrep -q "www.openxdemo.com" "/www/advertisement.js" && {
+			ip="$( _net dns2ip www.openxdemo.com )"
+			list="$list $ip www.openxdemo.com"
+		}
+	}
+
+	echo "$list"
+}
+
+_netfilter_walledgarden_stop()
+{
+	[ -e "/tmp/NETFILTER/WALLEDGARDEN" ] && {
+		iptables -t mangle -F walledgarden
+		iptables -t mangle -X walledgarden
+		iptables -t mangle -D PREROUTING -j walledgarden
+		rm "/tmp/NETFILTER/WALLEDGARDEN"
+	}
+}
+
+_netfilter_user_list()
+{
+	ls -1 "/tmp/NETFILTER/USER" 2>/dev/null
+}
+
+_netfilter_user_add()
+{
+	local mac="$1"
+	local ip="$2"
+	local dev
+
+	[ -d "/tmp/NETFILTER/USER" ] || return 1
+	[ -z "$mac" -o -z "$ip" ] && return 1
+
+	if [ -d "/tmp/NETFILTER/USER/$mac" ]; then
+		return 0
+	else
+		mkdir -p "/tmp/NETFILTER/USER/$mac"
+		echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
+		echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
+	fi
+
+	iptables -t mangle -I PREROUTING -d $ip -j ACCEPT
+	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -j ACCEPT
+
+	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
+	ip neigh add    $ip dev $dev lladdr $mac nud permanent 2>/dev/null
+	ip neigh change $ip dev $dev lladdr $mac nud permanent 2>/dev/null
+
+	[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
+		_netfilter user_dataretention_add "$mac" "$ip"
+	}
+}
+
+_netfilter_user_probe()
+{
+	local mac="${1:-unset}"
+
+	test -d "/tmp/NETFILTER/USER/$mac"
+}
+
+_netfilter_user_del()
+{
+	local mac="${1:-unset}"
+	local ip dev
+
+	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
+		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+		iptables -t mangle -D PREROUTING -d $ip -j ACCEPT
+		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
+
+		dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
+		ip neigh del $ip dev $dev lladdr $mac nud permanent
+
+		[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
+			_netfilter user_dataretention_del "$mac" "$ip"
+		}
+
+		rm -fR "/tmp/NETFILTER/USER/$mac"
+	}
+}
+
+_netfilter_user_dataretention_add()
+{
+	local mac="$1"
+	local ip="$2"
+
+	local myhna="$( _netfilter myhna )"
+
+	if [ -e "/tmp/NETFILTER/USER/$mac/dataretention" ]; then
+		return 1
+	else
+		touch "/tmp/NETFILTER/USER/$mac/dataretention"
+	fi
+
+	[ -e "/tmp/NETFILTER/connection_detection" ] || {
+		iptables -t mangle -N mark_connection_new
+		iptables -t mangle -A mark_connection_new -m state --state NEW -j MARK --set-mark 0x33
+		iptables -t mangle -A mark_connection_new -j RETURN
+
+		iptables -t mangle -N mark_connection_end
+		iptables -t mangle -A mark_connection_end -p tcp --tcp-flags fin,ack fin,ack -j MARK --set-mark 0x44
+		iptables -t mangle -A mark_connection_end -p tcp --tcp-flags rst rst -j MARK --set-mark 0x44
+		iptables -t mangle -A mark_connection_end -p tcp --tcp-flags syn,ack syn,ack -j MARK --set-mark 0x44
+		iptables -t mangle -A mark_connection_end -j RETURN
+
+		iptables -t mangle -A FORWARD -j mark_connection_new
+		iptables -t mangle -A FORWARD -j mark_connection_end
+
+		pidof ulogd >/dev/null || ulogd -d
+
+		touch "/tmp/NETFILTER/connection_detection"
+	}
+
+	iptables -t mangle -N outgoing_$mac
+	iptables -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ULOG --ulog-prefix "$mac>"
+
+	iptables -t mangle -N incoming_$mac
+	iptables -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ULOG --ulog-prefix "$mac<"
+
+	iptables -t mangle -A FORWARD -d $ip -j incoming_$mac
+	iptables -t mangle -A FORWARD -m mac --mac-source $mac -j outgoing_$mac
+}
+
+_netfilter_user_dataretention_del()
+{
+	local mac="$1"
+	local ip="$2"
+
+	[ -e "/tmp/NETFILTER/USER/$mac/dataretention" ] || return 1
+
+	iptables -t mangle -D FORWARD -d $ip -j incoming_$mac
+	iptables -t mangle -D FORWARD -m mac --mac-source $mac -j outgoing_$mac
+	iptables -t mangle -F outgoing_$mac
+	iptables -t mangle -X outgoing_$mac
+	iptables -t mangle -F incoming_$mac
+	iptables -t mangle -X incoming_$mac
+
+	[ "$( _netfilter user_list )" = "$mac" ] && {		# last remaining user
+		iptables -t mangle -D FORWARD -j mark_connection_end
+		iptables -t mangle -D FORWARD -j mark_connection_new
+		iptables -t mangle -F mark_connection_end
+		iptables -t mangle -X mark_connection_end
+		iptables -t mangle -F mark_connection_new
+		iptables -t mangle -X mark_connection_new
+
+		/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+
+		killall ulogd
+		rm "/tmp/NETFILTER/connection_detection"
+	}
+
+	rm "/tmp/NETFILTER/USER/$mac/dataretention"
+}
+
+_netfilter_user_quota_add()
+{
+	local mac="$1"
+	local upload="$2"
+	local download="$3"
+}
+
+_netfilter_user_quota_del()
+{
+	local option="$mac"
+}
+
+_netfilter_user_quota_query()
+{
+	local option="$mac"
+}
+
+_netfilter_user_quota_diff()
+{
+	local option="$mac"
+}
+
+_netfilter_user_shaping_add()
+{
+	local mac="$1"
+	local upload="$2"
+	local download="$3"
+}
+
+_netfilter_user_shaping_del()
+{
+	local mac="$1"
+}
+
+_netfilter_user_adblocking_add()
+{
+	local mac="$1"
+}
+
+_netfilter_user_adblocking_del()
+{
+	local mac="$1"
+}
