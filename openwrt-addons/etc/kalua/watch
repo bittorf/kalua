@@ -123,7 +123,6 @@ _watch_system_time ()		# firmware-build-date is newer than unixtime?
 
 		[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 ))" -gt "$( _system date unixtime )" ] && {
 			_log do set_time daemon info "could'nt set time - trying poor mens timeserver - fixme!"
-			# /www/cgi-bin-speed t          # fixme!
 		}
 	}
 }
@@ -226,99 +225,44 @@ _watch_hanging_command ()
 	echo >$FILE2 "$COMMAND_CMD"
 }
 
-_watch_hanging_broadcom_wifi ()				# under unclear circumstances the "wifi"-program segfaults
-{							# and there are after some time hanging 'wifi'-processes
-	[ "$( _system pids_count wifi )" -gt 1 ] && {
-
-		sleep 10
-	
-		[ "$( _system pids_count wifi )" -gt 1 ] && {
-			_system reboot_safe "strange_wifi() several wifi-PIDs!"
-		}
-	}
-}
-
-_watch_hanging_xrelayd ()
-{
-	local FUNC="watch_hanging_xrelayd"
-	
-	_linklocal wifi_users $WIFIDEV >/dev/null && {
-		_log do $FUNC daemon debug "no action, connected wifi-clients online"		# fixme! workaroung - check also LAN?
-		return
-	}
-
-	[ "$( _system pids_count xrelayd )" -gt 1 ] && {		# can be the case, after too many simultaneously https-connections
-	
-		_log do $FUNC daemon info "trying to end some processes and restart daemon"
-		killall xrelayd
-		sleep 10
-	
-		if [ "$( _system pids_count xrelayd )" -gt 0 ]; then
-	
-			_log do $FUNC daemon info "still some processes around"
-	
-			for PID in $( pidof xrelayd ); do {
-				kill -9 $PID
-			} done
-	
-			if [ "$( _system pids_count xrelayd )" -gt 0 ]; then
-				_system reboot_safe "can't end some xrelayd-processes"
-			else
-				/etc/init.d/S70secureadmin start
-			fi
-		else
-			/etc/init.d/S70secureadmin start
-		fi
-	}
-}
-
-_watch_rrd_integrity ()
-{
-	touch /tmp/rrd_plausi_check					# needs some test
-	for FILE in $(find /tmp/rrd -name *.rrd 2>/dev/null); do {
-		[ /tmp/rrd_plausi_check -ot $FILE ] && {
-			_log do rrd_plausi_check daemon alert "rrd-file is in future - reinit for '$FILE'"
-			touch "$FILE"
-		}
-	} done
-}
-
-_watch_zombie_processes ()
-{
-	[ "$( ps | sed -n 's/^[^Z]*\(Z\)[^Z]*\[.*\].*/\1/p' | wc -l )" -gt 50 ] && {
-		_system reboot_safe "more than 50 zombie processes!"
-	}
-}
-
 _watch_flash_free_space ()
 {
 	local funcname="watch_flash_free_space"
 	local border="150"
-	local file
+	local statfile="/tmp/$funcname.boottime"
+	local file flash_free
+
+	[ -e "$statfile" ] || {
+		_system flash_free >"$statfile"		# is filled during early boot
+	}
+
+	read flash_free <"$statfile"
+	[ $flash_free -lt $border ] && border="$flash_free"
 
 	list_files_removeable()
 	{
 		ls -1 /www/cgi-bin/user-* /usr/lib/*pkg/lists/* /www/backup_nvram_* /www/safed_syslog_fff+ 2>/dev/null
 
 		[ -e /tmp/SEND_ALIVE_FAILED ] || {		# means, that content is likely already send by monitoring to server
-			echo "/www/everlasting_syslog.txt"
+			ls -1 /www/everlasting_syslog.txt 2>/dev/null
 		}
 	}
 
 	echo "0" >"/tmp/$funcname"
-	while [ -n "$( list_files_removeable )" -a $( _system flash_free ) -lt $border ]; do {
+	while [ -n "$( list_files_removeable )" ]; do {
+
+		[ $( _system flash_free ) -ge $border ] && break
 
 		_watch counter "/tmp/$funcname" increment 1 max 100 || {
 			_log do $funcname daemon info "[ERR] rebooting, in an ultralow jffs2-situation, this is the only chance to survive"
 			reboot
+			break
 		}
 
 		file="$( list_files_removeable | head -n1 )"
 		_log do $funcname daemon info "only $( _system flash_free ) kb free - removing '$file' with $( _file size "$file" ) bytes"
 		rm "$file"
 	} done
-
-	# dmesg | fgrep "mini_fo: create_sto_file: ERROR creating sto file." && reboot		// fixme!
 }
 
 _watch_dns_resolution ()	# only with existing dnsmasq and reachable internet-gateway
@@ -330,6 +274,7 @@ _watch_dns_resolution ()	# only with existing dnsmasq and reachable internet-gat
 	# dnsmasq -p 5353 -A /#/192.168.1.251 -C /dev/null
 
 	[ ! -x /etc/init.d/*dnsmasq ]		&& return 0
+	fgrep -q "127.0.0.1" /etc/resolv.conf	|| return 0	# real server configured, working without local daemon
 	_net inet_seems_stable			|| return 0
 
 	pidof dnsmasq >/dev/null || {
@@ -478,33 +423,36 @@ _watch_webserver ()
 	local FUNC="watch_webserver"
 	local SERVER
 
-	if   [ -e /usr/sbin/uhttpd ]; then
-		SERVER="uhttpd"
-	elif [ -e /usr/sbin/httpd ]; then
-		SERVER="httpd"
-	else
-		return 0
-	fi
+	case "$( pidof ash )" in
+		*" "*)
+			_log do $FUNC daemon info "[OK] no check during webserver forking action"
+			return 0
+		;;
+	esac
+
+	SERVER="uhttpd"
 
 	restart_server()
 	{
-		local server="$1"
+		_log do $FUNC daemon info "[OK] trying to stop '$SERVER' with PID '$( pidof $SERVER )'"
 
-		_log do $FUNC daemon info "[OK] trying to stop '$server'"
-		_watch hanging_command $server
-		_watch hanging_command $server
+		_watch hanging_command $SERVER
+		_watch hanging_command $SERVER
 
-		_log do $FUNC daemon info "[OK] trying to start '$server'"
-		/etc/init.d/*$server* start
-		sleep 5
-		_log do $FUNC daemon info "[OK] webserver PID now: '$( pidof $server )'"
+		if pidof $SERVER >/dev/null; then
+			_log do $FUNC daemon alert "[ERR] during kill of $SERVER, rebooting"
+			reboot
+		else
+			/etc/init.d/*$SERVER* start
+			_log do $FUNC daemon alert "[OK] server PID after restart: '$( pidof $SERVER )'"
+		fi
 	}
 
 	pidof $SERVER >/dev/null || {
 
 		if pidof crond >/dev/null ; then
-			_log do $FUNC daemon err "[ERR] webserver is not running - restarting"
-			restart_server $SERVER
+			_log do $FUNC daemon err "[ERR] webserver is not running - restarting $SERVER"
+			restart_server
 		else
 			_log do $FUNC daemon debug "[OK] no crond - no restart"		# crondog will do it
 		fi
@@ -542,14 +490,12 @@ _watch_webserver ()
 				touch "$file_seen_good"
 			else
 				_log do $FUNC daemon err "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
-				rm "$file_seen_good"
-				restart_server $SERVER
+				restart_server
 			fi
 		else
 			if [ -e "$file_seen_good" ]; then
 				_log do $FUNC daemon err "[ERR] gethttp not possible - restarting"
-				rm "$file_seen_good"
-				restart_server $SERVER
+				restart_server
 			else
 				_log do $FUNC daemon info "[ERR] gethttp not possible - needs investigation"
 			fi
@@ -644,11 +590,11 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 	if [ "$DIRTY" = "1" ]; then
 		eval "$( build_vars )"
 		_log do $FUNC daemon info "detected ID from random pool - registering official ID from '$URL'"
-	
+
  		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _wget do "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
  										# fixme! no wifi -> no wifimac -> no registration?
 	 	if _ipsystem do "${ID:-99999}" >/dev/null ; then		# ipsystem() has a sanitizer built in, so don't worry 8-)
-			_log do $FUNC daemon info "previously on this stage: the _uci is_oldstyle query"	
+			:	# enforce_new_profile
 		else
 			_log do $FUNC daemon info "ID not clean: '$ID' - aborting"
 		fi
@@ -670,35 +616,6 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 		fi
 
 		if [ ! -e /tmp/REGISTRATED ] && [ "$wait" = "0" ]; then
-
-			killall rcS		# fixme! for newstyle_devices, till we find the bug why these are hanging around
-			killall logger
-
-			[ $( _system ram_size ) -lt 28000 ] && {
-				killall hotplug2
-				killall klogd
-
-				touch /tmp/service_cronwatchdog_nowatching
-				touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
-
-				touch /tmp/service_ulog_nowatching
-				killall ulogd
-
-				touch /tmp/service_ssh_nowatching
-				killall dropbear
-
-				dmesg | fgrep -q "Buffalo WHR-HP-G54" && {
-					[ "$( uci get network.eth0_0.ports )" = "1 2 3 4 5" ] || {
-						uci set network.eth0_0.ports="1 2 3 4 5"
-						uci commit network
-					}
-
-					[ "$( uci get network.eth0_1.ports )" = "0 5" ] || {
-						uci set network.eth0_1.ports="0 5"
-						uci commit
-					}
-				}
-			}
 
 			eval "$( build_vars )"
 
