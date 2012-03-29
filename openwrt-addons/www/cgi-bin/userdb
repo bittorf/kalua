@@ -144,13 +144,21 @@ case "$FORM_ACTION" in
 	;;
 esac
 
+case "$FORM_ACTION" in
+	login_search)
+		FORM_RANGE_METHOD="search"
+		FORM_ACTION="login_show"
+	;;
+esac
+
 
 _http header_mimetype_output "text/html"
+_translate include
 
 cat <<EOF
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 	"http://www.w3.org/TR/html4/loose.dtd">
-<html><head><title>WLAN-System: Rechteverwaltung</title>
+<html><head><title>$( _translate do "$LANG" wifi_system ): $( _translate do "$LANG" rights_management )</title>
 <META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15">
 <META HTTP-EQUIV='cache-control' CONTENT='no-cache'></head><body bgcolor='white'>
 EOF
@@ -158,9 +166,9 @@ EOF
 
 case "$FORM_ACTION" in
 	profile_add|profile_update)
-		echo "<h3> Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Profil bearbeiten </h3>"
+		echo "<h3> $( _translate do "$LANG" rights_management ) $ARROW <a href='?FORM_ACTION='>$( _translate do "$LANG" main_menu )</a> $ARROW $( _translate do "$LANG" profile_edit ) </h3>"
 
-		SUBMIT_BUTTON_TEXT="Profil anlegen"
+		SUBMIT_BUTTON_TEXT="$( _translate do "$LANG" profile_apply )"
 
 		case "$FORM_ACTION" in
 			profile_update)
@@ -214,14 +222,14 @@ case "$FORM_ACTION" in
 					_db user profile update "$FORM_ID" "$FORM_NAME" "$FORM_COMMENT" "$FORM_AUTOGENERATE" "$FORM_TIME_MODEL" "$FORM_MAX_TIME" "$FORM_MAX_TRAFFIC" "$FORM_MAX_SPEED_UP" "$FORM_MAX_SPEED_DOWN" "$FORM_LANDING_URL" "$FORM_COST" "$FORM_CURRENCY"
 				}			
 			
-				SUBMIT_BUTTON_TEXT="Profil aktualisieren"
+				SUBMIT_BUTTON_TEXT="$( _translate do "$LANG" profile_update )"
 			;;
 			profile_add)
 				for FORM_ID in $( _db user profile list ); do :; done		# fetch last ID
 				eval $( _db user profile show $FORM_ID "LANDING_URL" )		# take URL from last profile, userfriendly
 				LANDING_URL_FROM_LAST_PROFILE=$LANDING_URL
 	
-				_db user profile add "z.b. Tagesticket"				# create new and...
+				_db user profile add "$( _translate do "$LANG" eg_1dayticket )"	# create new and...
 				for FORM_ID in $( _db user profile list ); do :; done		# fetch last ID
 			;;
 		esac	
@@ -230,38 +238,60 @@ case "$FORM_ACTION" in
 
 		[ -n "$LANDING_URL_FROM_LAST_PROFILE" ] && LANDING_URL="$LANDING_URL_FROM_LAST_PROFILE"
 
-		echo "<form action='' method='get'>"						# currency is coded like ISO-4217
+		form_currency()		# coded in ISO-4217
+		{
+			local currency htmlname list
+
+			case "$CONFIG_PROFILE" in
+				preskil*) list="EUR USD VND MUR" ;;
+				*) list="USD VND MUR EUR" ;;
+			esac
+
+			for currency in $list; do {
+
+				case "$currency" in
+					EUR) htmlname="Euro" ;;
+					USD) htmlname="US-Dollar" ;;
+					VND) htmlname="&#272;&#7891;ng" ;;
+					MUR) htmlname="Rupie" ;;
+				esac
+
+				echo -n "<option value='$currency_from_list' $( test "$CURRENCY" = "$currency_from_list" && echo "selected" )>$currency - $htmlname</option>"
+			} done
+		}
+
+		echo "<form action='' method='get'>"
 		echo "<input type='hidden' name='FORM_ACTION' value='profile_update'>"
 		echo "<input name='FORM_ID' type='hidden' value='$ID'>"
 		echo "<table cellspacing='1' cellpadding='1' border='0'>"
-		echo "<tr bgcolor='$BG_0'><td><b>Parameter</b></td><td><b>Wert</b></td><td><b>Erl&auml;uterung</b></td></tr>"
-		echo "<tr bgcolor='$BG_B'><td>Name</td><td><input name='FORM_NAME' type='text' size='32' value='$NAME'></td><td>einfacher, kurzer Name (z.b. \"2-Stunden-Tickets\")</td></tr>"
-		echo "<tr bgcolor='$BG_A'><td>Kommentar</td><td><input name='FORM_COMMENT' type='text' size='32' value='$COMMENT'></td><td>wenn n&ouml;tig, ausf&uuml;hrlicher Kommentar</td></tr>"
-		echo "<tr bgcolor='$BG_B'><td>Automatisches erzeugen</td><td><input name='FORM_AUTOGENERATE' type='radio' value='1' $( test "$AUTOGENERATE" = "1" && echo checked )>ja<br><input name='FORM_AUTOGENERATE' type='radio' value='0' $( test "${AUTOGENERATE:-0}" = "0" && echo checked )>nein</td><td>wenn Logins f&uuml;r dieses Profil zur Neige gehen, sollen automatisch neue erzeugt werden?</td></tr>"
-		echo "<tr bgcolor='$BG_A'><td>Abrechnungsmodell</td><td><input name='FORM_TIME_MODEL' type='radio' value='1' $( test "$TIME_MODEL" = "1" && echo checked )>vergangene&nbsp;Zeit<br><input name='FORM_TIME_MODEL' type='radio' value='0' $( test "${TIME_MODEL:-0}" = "0" && echo checked )>benutzte&nbsp;Zeit</td><td>die Zeit l&auml;uft, wenn sich ein Benutzer das erste mal einbucht. Soll die tats&auml;chliche Online-Zeit berechnet werden oder l&auml;uft die Zeit auch weiter, wenn der Benutzer nichts im Netz macht?</td></tr>"
-		echo "<tr bgcolor='$BG_B'><td>G&uuml;ltigkeitsdauer</td><td nowrap><input name='FORM_MAX_TIME' type='text' size='10' value='$MAX_TIME'><select size='1' name='FORM_MAX_TIME_UNIT'><option value='minutes' selected>Minuten</option><option value='hours'>Stunden</option><option value='days'>Tage</option><option value='months'>Monate</option></select></td><td>nach dem Abrechnungsmodell erlaubter Zeitrahmen, <i>leer</i> meint unbegrenzt</td></tr>"
-		echo "<tr bgcolor='$BG_A'><td>Maximales Datenvolumen</td><td nowrap><input name='FORM_MAX_TRAFFIC' type='text' size='10' value='$MAX_TRAFFIC'><select size='1' name='FORM_MAX_TRAFFIC_UNIT'><option value='kb' selected>Kilobyte</option><option value='mb'>Megabyte</option><option value='gb'>Gigabyte</option></select></td><td>erlaubter Rahmen der gesamten &uuml;bertragenen Datenmenge, Up- ${AMP} Download zusammengerechnet, <i>leer</i> meint unbegrenzt</td></td></tr>"
-		echo "<tr bgcolor='$BG_B'><td>Maximale Upload-Geschwindigkeit</td><td nowrap><input name='FORM_MAX_SPEED_UP' type='text' size='10' value='$MAX_SPEED_UP'><select size='1' name='FORM_MAX_SPEED_UP_UNIT'><option value='kb' selected>Kilobyte/s</option><option value='kbit'>Kilobit/s</option><option value='mb'>Megabyte/s</option><option value='mbit'>Megabit/s</option><option value='percent'>% des Uplinks</option></select></td><td>erlaubte Geschwindkeit bei ausgehendem Datenverkehr, <i>leer</i> meint unbegrenzt</td></td></tr>"
-		echo "<tr bgcolor='$BG_A'><td>Maximale Download-Geschwindigkeit</td><td nowrap><input name='FORM_MAX_SPEED_DOWN' type='text' size='10' value='$MAX_SPEED_DOWN'><select size='1' name='FORM_MAX_SPEED_DOWN_UNIT'><option value='kb' selected>Kilobyte/s</option><option value='kbit'>Kilobit/s</option><option value='mb'>Megabyte/s</option><option value='mbit'>Megabit/s</option><option value='percent'>% des Uplinks</option></select></td><td>erlaubte Geschwindkeit bei eintreffendem Datenverkehr, <i>leer</i> meint unbegrenzt</td></td></tr>"
+		echo "<tr bgcolor='$BG_0'><td><b>$( _translate do "$LANG" parameter )</b></td><td><b>$( _translate do "$LANG" value )</b></td><td><b>$( _translate do "$LANG" explanation )</b></td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>$( _translate do "$LANG" name )</td><td><input name='FORM_NAME' type='text' size='32' value='$NAME'></td><td>$( _translate do "$LANG" desc_shortname )</td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>$( _translate do "$LANG" comment )</td><td><input name='FORM_COMMENT' type='text' size='32' value='$COMMENT'></td><td>$( _translate do "$LANG" desc_comment )</td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>$( _translate do "$LANG" autocreate )</td><td><input name='FORM_AUTOGENERATE' type='radio' value='1' $( test "$AUTOGENERATE" = "1" && echo checked )>$( _translate do "$LANG" yes )<br><input name='FORM_AUTOGENERATE' type='radio' value='0' $( test "${AUTOGENERATE:-0}" = "0" && echo checked )>$( _translate do "$LANG" no )</td><td>$( _translate do "$LANG" desc_autogenerate )</td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>$( _translate do "$LANG" accounting_model )</td><td><input name='FORM_TIME_MODEL' type='radio' value='1' $( test "$TIME_MODEL" = "1" && echo checked )>$( _translate do "$LANG" passed_time )<br><input name='FORM_TIME_MODEL' type='radio' value='0' $( test "${TIME_MODEL:-0}" = "0" && echo checked )>$( _translate do "$LANG" used_time )</td><td>$( _translate do "$LANG" desc_timemodel )</td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>$( _translate do "$LANG" validity_period )</td><td nowrap><input name='FORM_MAX_TIME' type='text' size='10' value='$MAX_TIME'><select size='1' name='FORM_MAX_TIME_UNIT'><option value='minutes' selected>$( _translate do "$LANG" minutes )</option><option value='hours'>$( _translate do "$LANG" hours )</option><option value='days'>$( _translate do "$LANG" days )</option><option value='months'>$( _translate do "$LANG" months )</option></select></td><td>$( _translate do "$LANG" desc_validity_period )</td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>$( _translate do "$LANG" max_data_volume )</td><td nowrap><input name='FORM_MAX_TRAFFIC' type='text' size='10' value='$MAX_TRAFFIC'><select size='1' name='FORM_MAX_TRAFFIC_UNIT'><option value='kb' selected>$( _translate do "$LANG" kilobytes )</option><option value='mb'>$( _translate do "$LANG" megabytes )</option><option value='gb'>$( _translate do "$LANG" gigabytes )</option></select></td><td>$( _translate do "$LANG" desc_max_data_volume )</td></td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>$( _translate do "$LANG" max_upload_speed )</td><td nowrap><input name='FORM_MAX_SPEED_UP' type='text' size='10' value='$MAX_SPEED_UP'><select size='1' name='FORM_MAX_SPEED_UP_UNIT'><option value='kb' selected>$( _translate do "$LANG" kilobytes )/s</option><option value='kbit'>$( _translate do "$LANG" kilobits )/s</option><option value='mb'>$( _translate do "$LANG" megabytes )/s</option><option value='mbit'>$( _translate do "$LANG" megabits )/s</option><option value='percent'>$( _translate do "$LANG" percent_uplink )</option></select></td><td>$( _translate do "$LANG" desc_max_upload_speed )</td></td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>$( _translate do "$LANG" max_download_speed )</td><td nowrap><input name='FORM_MAX_SPEED_DOWN' type='text' size='10' value='$MAX_SPEED_DOWN'><select size='1' name='FORM_MAX_SPEED_DOWN_UNIT'><option value='kb' selected>$( _translate do "$LANG" kilobytes )/s</option><option value='kbit'>$( _translate do "$LANG" kilobits )/s</option><option value='mb'>$( _translate do "$LANG" megabytes )/s</option><option value='mbit'>$( _translate do "$LANG" megabits )/s</option><option value='percent'>$( _translate do "$LANG" percent_uplink )</option></select></td><td>$( _translate do "$LANG" desc_max_download_speed )</td></tr>"
 
-		echo "<tr bgcolor='$BG_A'><td>Jugendschutzfilter</td><td nowrap><input name='FORM_PROXY1' type='checkbox'>&nbsp;aktiv</td><td>Der Abruf von Webseiten wird durch einen Filter geleitet</td></td></tr>"
-		echo "<tr bgcolor='$BG_B'><td>Werbefilter</td><td nowrap><input name='FORM_PROXY2' type='checkbox'>&nbsp;aktiv</td><td>Werbebanner werden herausgefiltert</td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>$( _translate do "$LANG" youth_protection )</td><td nowrap><input name='FORM_PROXY1' type='checkbox'>&nbsp;$( _translate do "$LANG" active )</td><td>$( _translate do "$LANG" desc_youth_protection )</td></td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>$( _translate do "$LANG" adblocker )</td><td nowrap><input name='FORM_PROXY2' type='checkbox'>&nbsp;$( _translate do "$LANG" active )</td><td>$( _translate do "$LANG" desc_adblock )</td></tr>"
 
-		echo "<tr bgcolor='$BG_B'><td>Internetadresse der Landeseite</td><td><input name='FORM_LANDING_URL' type='text' size='32' value='$LANDING_URL'></td><td>auf diese Seite wird der Benutzer geleitet, nachdem er sein Passwort eingegeben hat, z.b. https://www.google.com</td></tr>"
-		echo "<tr bgcolor='$BG_A'><td>Verkaufspreis</td><td nowrap><input name='FORM_COST' type='text' size='10' value='$COST'><select size='1' name='FORM_CURRENCY'><option value='EUR' $( test "$CURRENCY" = "EUR" && echo selected )>EUR - Euro</option><option value='USD' $( test "$CURRENCY" = "USD" && echo selected )>USD - US-Dollar</option><option value='VND' $( test "$CURRENCY" = "VND" && echo selected )>VND - &#272;&#7891;ng</option></select></td><td>f&uuml;r die Buchhaltung bzw. revisionssichere Protokollierung</td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>$( _translate do "$LANG" url_landingpage )</td><td><input name='FORM_LANDING_URL' type='text' size='32' value='$LANDING_URL'></td><td>$( _translate do "$LANG" desc_landing_page )</td></tr>"
+		echo "<tr bgcolor='$BG_A'><td>$( _translate do "$LANG" selling_price )</td><td nowrap><input name='FORM_COST' type='text' size='10' value='$COST'><select size='1' name='FORM_CURRENCY'>$( form_currency )</select></td><td>$( _translate do "$LANG" desc_price )</td></tr>"
 		echo "<tr bgcolor='$BG_0'><td colspan='2' align='center' valign='middle'><p><input type='submit' name='' value='$SUBMIT_BUTTON_TEXT'></p></td><td>&nbsp;</td></tr>"
 		echo "</table></form>"
 
 		[ "$FORM_ACTION" = "profile_update" -a -n "$FORM_AUTOGENERATE" ] && {
-			echo "<p><i>Hinweis:</i>&nbsp;Profil wurde gespeichert</p>"
+			echo "<p><i>$( _translate do "$LANG" hint ):</i>&nbsp;$( _translate do "$LANG" profile_was_safed )</p>"
 		}
 
 		echo "</html>"
 	;;
 	login_add|login_update)
-		echo "<h3> Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW Login bearbeiten </h3>"
+		echo "<h3> $( _translate do "$LANG" rights_management ) $ARROW <a href='?FORM_ACTION='>$( _translate do "$LANG" main_menu )</a> $ARROW $( _translate do "$LANG" login_edit )</h3>"
 
-		SUBMIT_BUTTON_TEXT="Login anlegen"
+		SUBMIT_BUTTON_TEXT="$( _translate do "$LANG" login_create )"
 
 		case "$FORM_ACTION" in
 			login_add)
@@ -270,7 +300,7 @@ case "$FORM_ACTION" in
 			;;
 			login_update)
 
-				SUBMIT_BUTTON_TEXT="Login aktualisieren"		# fixme! honour FORM_THEME_NAME? see beginning for a hack
+				SUBMIT_BUTTON_TEXT="$( _translate do "$LANG" login_update )"		# fixme! honour FORM_THEME_NAME? see beginning for a hack
 
 				helper_update ()
 				{
@@ -364,47 +394,47 @@ case "$FORM_ACTION" in
 		esac
 
 		echo "<table cellspacing='1' cellpadding='1' border='0'>"
-		echo "<tr bgcolor='$BG_0'><td>Parameter</td><td>Wert</td><td>Erl&auml;uterung</td></tr>"
+		echo "<tr bgcolor='$BG_0'><td>$( _translate do "$LANG" parameter )</td><td>$( _translate do "$LANG" value )</td><td>$( _translate do "$LANG" explanation )</td></tr>"
 		
-		echo "<tr bgcolor='$BG_A'><td>Profil</td><td>"
+		echo "<tr bgcolor='$BG_A'><td>$( _translate do "$LANG" profile )</td><td>"
 		profile_selector
-		echo "</td><td>welches Profil soll Grundlage f&uuml;r diesen Login werden?</td></tr>"
+		echo "</td><td>$( _translate do "$LANG" desc_profiletype )</td></tr>"
 		
-		echo "<tr bgcolor='$BG_B'><td>Kommentar</td><td><input name='FORM_COMMENT' type='text' value='$COMMENT'></td><td>falls n&ouml;tig Notizen zum Nutzer, Ereignis oder Ger&auml;t</td></tr>"
+		echo "<tr bgcolor='$BG_B'><td>$( _translate do "$LANG" comment )</td><td><input name='FORM_COMMENT' type='text' value='$COMMENT'></td><td>$( _translate do "$LANG" desc_usercomment )</td></tr>"
 
 		[ "$FORM_ACTION" = "login_add" ] && {
-			echo "<tr bgcolor='$BG_0'><td colspan='3'><input type='radio' ID='usernamepassword' name='FORM_AUTHMODE' value='usernamepassword' $( is_macaddress $FORM_USERNAME || echo checked )><label for='usernamepassword'>&nbsp;Benutzername und Passwort werden zur Authentifizierung ben&ouml;tigt</label></tr>"
+			echo "<tr bgcolor='$BG_0'><td colspan='3'><input type='radio' ID='usernamepassword' name='FORM_AUTHMODE' value='usernamepassword' $( is_macaddress $FORM_USERNAME || echo checked )><label for='usernamepassword'>&nbsp;$( _translate do "$LANG" hint_auth_credentials )</label></tr>"
 		}
 
 		if is_macaddress $USERNAME ; then
-			echo "<tr bgcolor='$BG_A'><td>MAC-Adresse</td><td><input name='FORM_USERNAME' type='text' value='$USERNAME'></td><td>eine Hardwareadresse in der Form <i>00:11:22:33:44:55</i> deren Teilnahme bzw. Freischaltung am Netzwerk automatisch erfolgen soll</td></tr>"
-			echo "<tr bgcolor='$BG_B'><td>Hostnamen</td><td><input name='FORM_PASSWORD' type='text' value='$PASSWORD'></td><td>wenn erw&uuml;nscht kann die G&uuml;ltigkeit der MAC-Adresse auf bestimmte Zugangspunkte begrenzt werden. Mehrere Zugangspunkte durch Leerzeichen trennen.</td></tr>"
+			echo "<tr bgcolor='$BG_A'><td>$( _translate do "$LANG" macaddress )</td><td><input name='FORM_USERNAME' type='text' value='$USERNAME'></td><td>$( _translate do "$LANG" desc_macaddress )</td></tr>"
+			echo "<tr bgcolor='$BG_B'><td>$( _translate do "$LANG" hostnames )</td><td><input name='FORM_PASSWORD' type='text' value='$PASSWORD'></td><td>$( _translate do "$LANG" desc_hostnames )</td></tr>"
 			echo "<input name='FORM_DEVICE_QUANTITY' type='hidden' value='1'>"
 		else
-			echo "<tr bgcolor='$BG_A'><td><label for='usernamepassword'>Benutzername</label></td><td><input name='FORM_USERNAME' type='text' value='$USERNAME'></td><td>ein einfach zu schreibender Loginname, <i>leer</i> lassen f&uuml;r automatische Generierung mit dem Namensraum: $( theme_selector )</td></tr>"
-			echo "<tr bgcolor='$BG_B'><td><label for='usernamepassword'>Passwort</label></td><td><input name='FORM_PASSWORD' type='text' value='$PASSWORD'></td><td>Zahlenkombination (empfohlen), <i>leer</i> lassen f&uuml;r automatische Generierung</td></tr>"
-			echo "<tr bgcolor='$BG_A'><td><label for='usernamepassword'>Unsch&auml;rfe</label></td><td><input name='FORM_FUZZY' type='radio' value='' ${FUZZY:-checked}>nein&nbsp;<input name='FORM_FUZZY' type='radio' value='1' $( test -n "$FUZZY" && echo checked )>ja</td><td>Gro&szlig;- bzw. Kleinschreibung am Anfang spielt keine Rolle und Benutzernamen und Passwort k&ouml;nnen vertauscht werden</td></tr>"
-			echo "<tr bgcolor='$BG_B'><td><label for='usernamepassword'>Ger&auml;teanzahl</label></td><td><input name='FORM_DEVICE_QUANTITY' type='text' value='${DEVICE_QUANTITY}'></td><td>wieviel unterschiedliche Ger&auml;te d&uuml;rfen diesen Login benutzen? <i>leer</i> lassen bedeutet unbegrenzt</td></tr>"
+			echo "<tr bgcolor='$BG_A'><td><label for='usernamepassword'>$( _translate do "$LANG" username )</label></td><td><input name='FORM_USERNAME' type='text' value='$USERNAME'></td><td>$( _translate do "$LANG" desc_username ): $( theme_selector )</td></tr>"
+			echo "<tr bgcolor='$BG_B'><td><label for='usernamepassword'>$( _translate do "$LANG" password )</label></td><td><input name='FORM_PASSWORD' type='text' value='$PASSWORD'></td><td>$( _translate do "$LANG" desc_password )</td></tr>"
+			echo "<tr bgcolor='$BG_A'><td><label for='usernamepassword'>$( _translate do "$LANG" fuzziness )</label></td><td><input name='FORM_FUZZY' type='radio' value='' ${FUZZY:-checked}>$( _translate do "$LANG" no )<br><input name='FORM_FUZZY' type='radio' value='1' $( test -n "$FUZZY" && echo checked )>$( _translate do "$LANG" yes )</td><td>$( _translate do "$LANG" desc_fuzzy )</td></tr>"
+			echo "<tr bgcolor='$BG_B'><td><label for='usernamepassword'>$( _translate do "$LANG" devices_number )</label></td><td><input name='FORM_DEVICE_QUANTITY' type='text' value='${DEVICE_QUANTITY}'></td><td>$( _translate do "$LANG" desc_devices_number )</td></tr>"
 		fi
 
 		[ "$FORM_ACTION" = "login_add" ] && {
-			echo "<tr bgcolor='$BG_A'><td><label for='usernamepassword'>Anzahl der Kopien</label></td><td><select name='FORM_DUPLICATE_NO' size='1'><option value='1'>keine</option><option value='3'>3</option><option value='5'>5</option><option value='10'>10</option><option value='15'>15</option><option value='32'>32</option></select></td><td>soll eine gr&ouml;&szlig;ere Anzahl der gleichen Ticketart angelegt werden? Benutzername und Passwort werden dann in jedem Fall automatisch generiert</td></tr>"
-			echo "<tr bgcolor='$BG_0'><td colspan='3'><input type='radio' ID='macaddresshostnames' name='FORM_AUTHMODE' value='macaddresshostnames' $( is_macaddress $FORM_USERNAME && echo checked )><label for='macaddresshostnames'>&nbsp;MAC-Adresse und optional Hostname werden zur Authentifizierung ben&ouml;tigt</label></tr>"
-			echo "<tr bgcolor='$BG_B'><td><label for='macaddresshostnames'>MAC-Adresse</label></td><td><input name='FORM_USERNAME_MACADDRESS' type='text' value='$( is_macaddress $USERNAME && echo $USERNAME )'></td><td>eine Hardwareadresse in der Form <i>00:11:22:33:44:55</i> deren Teilnahme bzw. Freischaltung am Netzwerk automatisch erfolgen soll</td></tr>"
-			echo "<tr bgcolor='$BG_A'><td><label for='macaddresshostnames'>Hostnamen</label></td><td><input name='FORM_PASSWORD_HOSTNAMES' type='text' value='$( is_macaddress $USERNAME && echo $PASSWORD )'></td><td>wenn erw&uuml;nscht kann die G&uuml;ltigkeit der MAC-Adresse auf bestimmte Zugangspunkte begrenzt werden. Mehrere Zugangspunkte durch Leerzeichen trennen.</td></tr>"
+			echo "<tr bgcolor='$BG_A'><td><label for='usernamepassword'>$( _translate do "$LANG" ticket_carboncopy )</label></td><td><select name='FORM_DUPLICATE_NO' size='1'><option value='1'>$( _translate do "$LANG" none )</option><option value='3'>3</option><option value='5'>5</option><option value='10'>10</option><option value='15'>15</option><option value='32'>32</option></select></td><td>$( _translate do "$LANG" desc_ticket_carboncopy )</td></tr>"
+			echo "<tr bgcolor='$BG_0'><td colspan='3'><input type='radio' ID='macaddresshostnames' name='FORM_AUTHMODE' value='macaddresshostnames' $( is_macaddress $FORM_USERNAME && echo checked )><label for='macaddresshostnames'>&nbsp;$( _translate do "$LANG" hint_auth_via_mac )</label></tr>"
+			echo "<tr bgcolor='$BG_B'><td><label for='macaddresshostnames'>$( _translate do "$LANG" macaddress )</label></td><td><input name='FORM_USERNAME_MACADDRESS' type='text' value='$( is_macaddress $USERNAME && echo $USERNAME )'></td><td>$( _translate do "$LANG" desc_macaddress )</td></tr>"
+			echo "<tr bgcolor='$BG_A'><td><label for='macaddresshostnames'>$( _translate do "$LANG" hostnames )</label></td><td><input name='FORM_PASSWORD_HOSTNAMES' type='text' value='$( is_macaddress $USERNAME && echo $PASSWORD )'></td><td>$( _translate do "$LANG" desc_hostnames )</td></tr>"
 		}
 
 		echo "<tr bgcolor='$BG_0'><td colspan='2' align='center' valign='middle'><p><input type='submit' name='' value='$SUBMIT_BUTTON_TEXT'></p></td><td>&nbsp;</td></tr>"
 		echo "</table></form>"
 
 		[ "$FORM_ACTION" = "login_update" ] && {
-			echo "<p><i>Hinweis:</i>&nbsp;Logindaten wurden gespeichert</p>"
+			echo "<p><i>$( _translate do "$LANG" hint ):</i>&nbsp;$( _translate do "$LANG" logindata_was_safed )</p>"
 		}
 
 		echo "</html>"
 	;;
 	login_show)
-		echo "<h3>Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a> $ARROW <a href='?FORM_ACTION=login_show'>Login &Uuml;bersicht</a></h3>"
+		echo "<h3>$( _translate do "$LANG" rights_management ) $ARROW <a href='?FORM_ACTION='>$( _translate do "$LANG" main_menu )</a> $ARROW <a href='?FORM_ACTION=login_show'>$( _translate do "$LANG" login_overview )</a></h3>"
 
 		range_selector()
 		{
@@ -449,7 +479,7 @@ case "$FORM_ACTION" in
 			echo -n "&nbsp;"
 			echo -n "<input type='hidden' name='FORM_RANGE_METHOD_VALUE2'  value='$( range_sanitizer "$(( $start - $small_step ))" "$(( $end - $small_step ))" )'>"
 			echo -n "<input type='submit' name='FORM_ACTION_LOGIN_SHOW_RANGE_METHOD2' value='&lt;&nbsp;${html_minus}$small_step'>"
-			echo -n "&nbsp;bl&auml;ttern&nbsp;"
+			echo -n "&nbsp;$( _translate do "$LANG" browse )&nbsp;"
 			echo -n "<input type='hidden' name='FORM_RANGE_METHOD_VALUE3'  value='$( range_sanitizer "$(( $start + $small_step ))" "$(( $end + $small_step ))" )'>"
 			echo -n "<input type='submit' name='FORM_ACTION_LOGIN_SHOW_RANGE_METHOD3' value='${html_plus}${small_step}&nbsp;&gt;'>"
 			echo -n "&nbsp;"
@@ -470,10 +500,10 @@ case "$FORM_ACTION" in
 				case "$FORM_RANGE_KEYWORD" in
 					*" "*)
 						set $FORM_RANGE_KEYWORD
-						echo "<p><i>Hinweis:</i> Es werden nur die Logins $1 bis $2 angezeigt"
+						echo "<p><i>$( _translate do "$LANG" hint ):</i> $( _translate do "$LANG" only_login_x2y_will_be_shown1 ) $1 $( _translate do "$LANG" till ) $2 $( _translate do "$LANG" only_login_x2y_will_be_shown2 )"
 					;;
 					*)
-						echo "<p><i>Hinweis:</i> Es werden nur die letzten $FORM_RANGE_KEYWORD Logins angezeigt"
+						echo "<p><i>$( _translate do "$LANG" hint ):</i> $( _translate do "$LANG" only_last_x_login_will_be_shown1 ) $FORM_RANGE_KEYWORD $( _translate do "$LANG" only_last_x_login_will_be_shown2 )"
 					;;
 				esac
 
@@ -482,6 +512,9 @@ case "$FORM_ACTION" in
 
 				LIST_ID="$( _db user login list $FORM_RANGE_METHOD $FORM_RANGE_KEYWORD )"
 			;;
+			search)
+				LIST_ID="$( _db user login query string2id_list "${FORM_SEARCH_PATTERN:-unset}" )"
+			;;
 			*)
 				LIST_ID="$( _db user login list )"
 			;;
@@ -489,9 +522,11 @@ case "$FORM_ACTION" in
 
 		echo "<table cellspacing='1' cellpadding='1' border='0'>"
 		echo "<input type='hidden' name='SESSION_TIMESTAMP' value='$( _system date unixtime )'>"	# prevents cached PDF-download
-		echo "<tr bgcolor='$BG_0'><td><small>Wahl</small><input type='hidden' name='FORM_CB' value='0'></td><td>&nbsp;Profil&nbsp;</td><td>&nbsp;Kommentar&nbsp;</td><td>&nbsp;Benutzername&nbsp;</td><td>&nbsp;Passwort&nbsp;</td><td><small>Fuzzy</small></td><td>&nbsp;Ger&auml;tezahl&nbsp;</td><td>&nbsp;Erstellungszeit&nbsp;</td><td>&nbsp;Aktion&nbsp;</td></tr>"
+		echo "<tr bgcolor='$BG_0'><td><small>$( _translate do "$LANG" choice )</small><input type='hidden' name='FORM_CB' value='0'></td><td>&nbsp;$( _translate do "$LANG" profile )&nbsp;</td><td>&nbsp;$( _translate do "$LANG" comment )&nbsp;</td><td>&nbsp;$( _translate do "$LANG" username )&nbsp;</td><td>&nbsp;$( _translate do "$LANG" password )&nbsp;</td><td><small>$( _translate do "$LANG" fuzziness )</small></td><td>&nbsp;$( _translate do "$LANG" device_count )&nbsp;</td><td>&nbsp;$( _translate do "$LANG" creation_time )&nbsp;</td><td>&nbsp;$( _translate do "$LANG" action )&nbsp;</td></tr>"
 
 		local MY_ID PASSWORD_FORMATTED
+		local translation_edit="$( _translate do "$LANG" edit )"
+		local translation_delete="$( _translate do "$LANG" delete )"
 
 		for MY_ID in $LIST_ID; do {
 
@@ -528,54 +563,65 @@ case "$FORM_ACTION" in
 <td align='center'><label for='login${MY_ID}'>&nbsp;${FUZZY_SYMBOL}</label></td>
 <td align='center'><label for='login${MY_ID}'>${DEVICE_QUANTITY:-unbegrenzt}</label></td>
 <td nowrap><label for='login${MY_ID}'>$( _system date unixtime2date $INSTALLED )</label></td>
-<td>&nbsp;<a href='?FORM_ACTION=login_del${AMP}FORM_ID=${MY_ID}'>l&ouml;schen</a>&nbsp;|&nbsp;<a 
-href='?FORM_ACTION=login_update${AMP}FORM_ID=${MY_ID}${AMP}FORM_PROFILE_ID=$PROFILE_ID${AMP}FORM_COMMENT=$COMMENT${AMP}FORM_USERNAME=$USERNAME${AMP}FORM_PASSWORD=$PASSWORD${AMP}FORM_FUZZY=$FUZZY${AMP}FORM_DEVICE_QUANTITY=$DEVICE_QUANTITY${AMP}FORM_INSTALLED=$INSTALLED'>bearbeiten</a></td>
+<td>&nbsp;<a href='?FORM_ACTION=login_del${AMP}FORM_ID=${MY_ID}'>${translation_delete}</a>&nbsp;|&nbsp;<a 
+href='?FORM_ACTION=login_update${AMP}FORM_ID=${MY_ID}${AMP}FORM_PROFILE_ID=$PROFILE_ID${AMP}FORM_COMMENT=$COMMENT${AMP}FORM_USERNAME=$USERNAME${AMP}FORM_PASSWORD=$PASSWORD${AMP}FORM_FUZZY=$FUZZY${AMP}FORM_DEVICE_QUANTITY=$DEVICE_QUANTITY${AMP}FORM_INSTALLED=$INSTALLED'>${translation_edit}</a></td>
 </tr>
 EOF
 
 		} done
 
+		[ -z "$LIST_ID" ] && {
+			echo "<tr><td colspan='9' bgcolor='$BGCOLOR' align='middle'>keine Eintr&auml;ge gefunden</td></tr>"
+		}
+
 		echo -n "<tr bgcolor='$BG_0'><td colspan='9' nowrap align='right'>"
-		echo -n "<p>&nbsp;Ausgew&auml;hlte Logins&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_DEL_CHECKED' value='l&ouml;schen'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED' value='&Uuml;bersicht (PDF)'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER' value='Etiketten (PDF)'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER_DIGEST' value='Etiketten&Uuml;bersicht (PDF)'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_SENDMAIL_CHECKED' value='Mailversand'>"
-		echo -n "</p><p>&nbsp;Alle angezeigten Logins&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_DEL_RANGE' value='l&ouml;schen'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE' value='&Uuml;bersicht (PDF)'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE_MARKER' value='Etiketten (PDF)'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE_MARKER_DIGEST' value='Etiketten&Uuml;bersicht (PDF)'>&nbsp;oder&nbsp;"
-		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_SENDMAIL_RANGE' value='Mailversand'>"
+		echo -n "<p>&nbsp;$( _translate do "$LANG" selected_logins )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_DEL_CHECKED' value='$( _translate do "$LANG" delete )'>&nbsp;$( _translate do "$LANG" or )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED' value='$( _translate do "$LANG" overview ) (PDF)'>&nbsp;$( _translate do "$LANG" or )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER' value='$( _translate do "$LANG" labels ) (PDF)'>&nbsp;$( _translate do "$LANG" or )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER_DIGEST' value='$( _translate do "$LANG" labels_overview ) (PDF)'>&nbsp;$( _translate do "$LANG" or )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_SENDMAIL_CHECKED' value='$( _translate do "$LANG" mail_delivery )'>"
+		echo -n "</p><p>&nbsp;$( _translate do "$LANG" all_shown_logins )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_DEL_RANGE' value='$( _translate do "$LANG" delete )'>&nbsp;$( _translate do "$LANG" or )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE' value='$( _translate do "$LANG" overview ) (PDF)'>&nbsp;$( _translate do "$LANG" or )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE_MARKER' value='$( _translate do "$LANG" labels ) (PDF)'>&nbsp;$( _translate do "$LANG" or )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_PRINT_RANGE_MARKER_DIGEST' value='$( _translate do "$LANG" labels_overview ) (PDF)'>&nbsp;$( _translate do "$LANG" or )&nbsp;"
+		echo -n "<input type='submit' name='FORM_ACTION_LOGIN_SENDMAIL_RANGE' value='$( _translate do "$LANG" mail_delivery )'>"
 		echo -n "</p></td>"
 		echo -n "</tr></table></form>"
 
 		[ -n "$FORM_ACTION_LOGIN_SENDMAIL_RANGE" -o -n "$FORM_ACTION_LOGIN_SENDMAIL_CHECKED" ] && {
-			echo -n "<br><i>Hinweis:</i> Die Tickets werden in den n&auml;chsten Minuten per E-Mail zugestellt."
+			echo -n "<br><i>$( _translate do "$LANG" hint ):</i> $( _translate do "$LANG" tickets_will_be_delivered_soon )"
 		}
 
 		echo -n "</html>"
 	;;
 	*)
 		cat <<EOF
-<h3>Rechteverwaltung $ARROW <a href='?FORM_ACTION='>Hauptmen&uuml;</a></h3>
+<h3>$( _translate do "$LANG" rights_management ) $ARROW <a href='?FORM_ACTION='>$( _translate do "$LANG" main_menu )</a></h3>
 <!-- <p> -->
 <ul>
-	<li><b><big>P</big>rofile</b> verwalten:
+	<li>$( _translate do "$LANG" html_manage_profiles ):
 	<ul>
-		<li>neues Profil <a href='?FORM_ACTION=profile_add'>erstellen</a></li>
+		<li>$( _translate do "$LANG" new_profile ) <a href='?FORM_ACTION=profile_add'>$( _translate do "$LANG" create )</a></li>
 EOF
 		
 		LIST_PROFILES="$( _db user profile list )"
 
 		[ -n "$LIST_PROFILES" ] && {
-			echo "<li>Profile bearbeiten:<ul>"
+			echo "<li>$( _translate do "$LANG" profile_edit ):<ul>"
 
 			for ID in $LIST_PROFILES; do {
-				eval "$( _db user profile show $ID "NAME COMMENT" )"
-				echo "<li><a href='?FORM_ACTION=profile_update${AMP}FORM_ID=${ID}'>bearbeiten</a> | "
-				echo "<a href='?FORM_ACTION=profile_del${AMP}FORM_ID=${ID}'>l&ouml;schen</a>&nbsp;-&nbsp;$NAME$( test -n "$COMMENT" && echo "&nbsp;('$COMMENT')" )</li>"
+				eval "$( _db user profile show $ID "NAME COMMENT AUTOGENERATE" )"
+
+				if [ "$AUTOGENERATE" = "1" ]; then
+					AUTOGENERATE="($( _translate do "$LANG" autocreate ))"
+				else
+					AUTOGENERATE=
+				fi
+
+				echo "<li><a href='?FORM_ACTION=profile_update${AMP}FORM_ID=${ID}'>$( _translate do "$LANG" edit )</a> | "
+				echo "<a href='?FORM_ACTION=profile_del${AMP}FORM_ID=${ID}'>$( _translate do "$LANG" delete )</a>&nbsp;-&nbsp;$NAME$( test -n "$COMMENT" && echo "&nbsp;('$COMMENT')" ) $AUTOGENERATE</li>"
 
 				# fixme! only show 'del', if no deps (login|devices)
 
@@ -588,13 +634,13 @@ EOF
 	</ul></li>
 </ul>
 <ul>
-	<li><b><big>L</big>ogins</b> verwalten:
+	<li>$( _translate do "$LANG" html_manage_logins ):
 	<ul>
 EOF
 		if [ -n "$LIST_PROFILES" ]; then
-			echo "<li>neue Logins <a href='?FORM_ACTION=login_add'>erstellen</a></li>"
+			echo "<li>$( _translate do "$LANG" new_logins ) <a href='?FORM_ACTION=login_add'>$( _translate do "$LANG" create )</a></li>"
 		else
-			echo "<li>neue Logins <s>erstellen</s> (zuerst muss ein Profil angelegt werden)</li>"
+			echo "<li>$( _translate do "$LANG" new_logins ) <s>$( _translate do "$LANG" create )</s> ($( _translate do "$LANG" make_profile_first ))</li>"
 		fi
 
 		LIST_LOGINS="$( _db user login list )"
@@ -604,14 +650,21 @@ EOF
 			LIST_LOGINS_COUNT="$( _db user login list | wc -l )"
 			LIST_LOGINS_COUNT="$(( $LIST_LOGINS_COUNT + 0 ))"
 			
-			echo "<li>Logins <a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=all'>anzeigen&nbsp;($LIST_LOGINS_COUNT St&uuml;ck)</a>"
+			echo "<li>Logins <a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=all'>$( _translate do "$LANG" show )&nbsp;($LIST_LOGINS_COUNT $( _translate do "$LANG" overall ))</a>"
 
 			[ $LIST_LOGINS_COUNT -gt 10 ] && {
 				echo "<ul>"			# fixme! missing <li>?
-				echo "<li><a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=5'>die neuesten 5</a>,&nbsp;"
+				echo "<li><a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=5'>$( _translate do "$LANG" the_newest ) 5</a>,&nbsp;"
 				echo "<a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=10'>10</a>,&nbsp;"
 				echo "<a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=15'>15</a>,&nbsp;"
 				echo "<a href='?FORM_ACTION=login_show${AMP}FORM_RANGE_METHOD=last${AMP}FORM_RANGE_KEYWORD=32'>32</a>"
+				echo "</li>"
+				echo "<li>$( _translate do "$LANG" searchpattern ):&nbsp;"
+				echo "<form action='' method='get'>"
+				echo "<input type='hidden' name='FORM_ACTION' value='login_search'>"
+				echo "<input name='FORM_SEARCH_PATTERN' type='text' size='16' value='$( _translate do "$LANG" eg_username )'>"
+				echo "<input type='submit' name='' value='$( _translate do "$LANG" find )'>"
+				echo "</form>"
 				echo "</li></ul>"
 			}
 
@@ -620,19 +673,19 @@ EOF
 
 		cat <<EOF
 </ul></li>
-<br><li><b><big>G</big>er&auml;te</b> verwalten:
+<br><li>$( _translate do "$LANG" html_manage_devices ):
 	<ul>
 EOF
 		LISTE_DEVICES="$( _db user device list )"
 		
 		if [ -n "$LIST_LOGINS" ]; then
-			echo "<li>neue Ger&auml;te <a href='?FORM_ACTION=device_add'>eintragen</a></li>"
+			echo "<li>$( _translate do "$LANG" new_devices ) <a href='?FORM_ACTION=device_add'>$( _translate do "$LANG" create )</a></li>"
 		else
-			echo "<li>neue Ger&auml;te <s>eintragen</s> (zuerst muss ein Login angelegt werden)</li>"
+			echo "<li>$( _translate do "$LANG" new_devices ) <s>$( _translate do "$LANG" create )</s> ($( _translate do "$LANG" make_login_first ))</li>"
 		fi
 		
 		[ -n "$LISTE_DEVICES" ] && {
-			echo "<li>Ger&auml;te anzeigen</li>"
+			echo "<li>$( _translate do "$LANG" show_devices )</li>"
 		}
 
 		cat <<EOF
