@@ -1,3 +1,20 @@
+_net_text2port()
+{
+	local text="$1"
+	local position char ascii sum value
+
+	while [ ${position:=1} -le ${#text} ]; do {
+		char="$( echo "$text" | cut -b $position )"
+		ascii="$( printf '%d' "'$char" )"
+		value=$(( ( $ascii * 17 ) / 3 ))	# nearly no collisions in testsuite
+		sum=$(( ${sum:-1025} + $value ))
+		position=$(( $position + 1 ))
+	} done
+
+	[ ${sum:=1025} -gt 65535 ] && sum="65535"
+	echo "${sum:-1025}"
+}
+
 _net_refresh_dnshosts ()
 {
 	local pid="$( _system get_first_pid dnsmasq )"
@@ -370,7 +387,7 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 		[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
 			_log do $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
 			echo "lan"
-			return 0		# gets applied during '/etc/local.fw-fff+ masq'
+			return 0
 		}
 	fi
 
@@ -482,11 +499,19 @@ _net_mac2ip ()		# SENS: get client-IP from different sources
 	_sanitizer include
 
 	local MAC="$( _sanitizer do "${1:-unset_mac}" lowercase )"
-	local IP HOSTNAME COUNT
+	local IP=
+	local HOSTNAME=
+	local COUNT=
 
-	try_1()		# is filled during pfilter_adduser() (macs are lowercase)
+	try_1()		# is filled during _netfiler_user_add() (macs are lowercase)
 	{
-		read 2>/dev/null IP </tmp/MAC2IP_$MAC
+		if [ -e "/tmp/MAC2IP_$MAC" ]; then
+			read IP <"/tmp/MAC2IP_$MAC"
+		else
+			[ -e "/tmp/NETFILTER/MAC2IP/$MAC" ] && {
+				read IP <"/tmp/NETFILTER/MAC2IP/$MAC"
+			}
+		fi
 	}
 
 	try_2()		# arp-cache (macs are lowercase)
