@@ -8,18 +8,12 @@ _weblogin_html_logoutpage()
 	local destination="http://$WIFIADR"
 	local wait=5
 
-	if _pfilter user_probe "$mac"; then
-		validate_shaped="ja"
-	else
-		validate_shaped="nein"
-	fi
-
-	if _pfilter user_probe_splash "$mac" ; then
+	if _netfilter user_probe "$mac" ; then
 		validate_splashed="ja"
 		message="[OK] sie sind schon ausgeloggt"
 	else
 		validate_splashed="nein"
-		_pfilter user_splash_control splash "$mac" "$REMOTE_ADDR"
+		_netfilter user_del "$mac"
 		message="[OK] erfolgreich ausgeloggt"
 	fi
 
@@ -180,7 +174,7 @@ EOF
 
 	[ -n "$FORM_MOBILE_NUMBER" ] && {
 
-		local mac="$( _net ip2mac $REMOTE_ADDR )"
+		local mac="$( _net ip2mac $REMOTE_ADDR )"	# fixme! empty mac -> deny
 
 		[ -e /tmp/login_was_sent_to_mobilenumber_${mac:-unset} ] || {
 
@@ -196,15 +190,45 @@ EOF
 				local fuzzy=1
 				local USERNAME PASSWORD
 
-				_db user login add "$profile" "sms" "" "" "$devices" "" "$fuzzy"	# fixme! if we don't have a local db, outsource to master
-				_db user login index_gen						# fixme! implement fast_index() last
+				case "$( uci get system.@weblogin[0].auth_credentials )" in
+					simple)
+						_db user login add "$profile" "sms" "none" "" "$devices" "" "$fuzzy"	# fixme! if we don't have a local db, outsource to master
+					;;
+					*)
+						_db user login add "$profile" "sms" "" "" "$devices" "" "$fuzzy"	# fixme! if we don't have a local db, outsource to master
+					;;
+				esac
+
+				_db user login index_gen last 1
 				eval $( _db user login show last "USERNAME PASSWORD" )
 
-				_log do $funcname daemon sms \
-					"login from $FORM_MOBILE_NUMBER" \
-					"Ihr Benutzername/Passwort: $USERNAME/$PASSWORD - Wir wuenschen einen angenehmen Aufenthalt" \
-					"$FORM_MOBILE_NUMBER" \
-					"force"
+				case "$( uci get system.@weblogin[0].auth_credentials )" in
+					simple)
+						case "$CONFIG_PROFILE" in
+							shankar*)
+								_log do $funcname daemon sms \
+									"login from $FORM_MOBILE_NUMBER" \
+									"Wi-Cloud Credentials: $PASSWORD - Have a nice day!" \
+									"$FORM_MOBILE_NUMBER" \
+									"force"
+							;;
+							*)
+								_log do $funcname daemon sms \
+									"login from $FORM_MOBILE_NUMBER" \
+									"$( _translate do "$LANG" your_credentials ): $PASSWORD - $( _translate do "$LANG" wishing_a_nice_stay )" \
+									"$FORM_MOBILE_NUMBER" \
+									"force"
+							;;
+						esac
+					;;
+					*)
+						_log do $funcname daemon sms \
+							"login from $FORM_MOBILE_NUMBER" \
+							"$( _translate do "$LANG" your_username_and_password ): $USERNAME/$PASSWORD - $( _translate do "$LANG" wishing_a_nice_stay )" \
+							"$FORM_MOBILE_NUMBER" \
+							"force"
+					;;
+				esac
 			else
 				_weblogin htmlout_message_wrong_mobile_number $LANG
 			fi
@@ -329,12 +353,12 @@ _weblogin_htmlout_rules ()
 		-e 's#Ã¢#\&acirc;#g' \
 		-e 's#Ã´#\&ocirc;#g' \
 		-e 's#Ã¹#\&ugrave;#g' \
-		-e 's/Â/\&sect;/g' \
-		-e 's/§/\&sect;/g' \
-		-e 's/ö/\&ouml;/g' \
-		-e 's/ü/\&uuml;/g' \
-		-e 's/ä/\&auml;/g' \
-		-e 's/ß/\&szlig;/g' $FILE
+		-e 's/ï¿½/\&sect;/g' \
+		-e 's/ï¿½/\&sect;/g' \
+		-e 's/ï¿½/\&ouml;/g' \
+		-e 's/ï¿½/\&uuml;/g' \
+		-e 's/ï¿½/\&auml;/g' \
+		-e 's/ï¿½/\&szlig;/g' $FILE
 
 	echo -n "<BR><BR></TD></TR>"	
 }
@@ -429,11 +453,16 @@ _weblogin_device_or_customer_needs_admin_interaction()
 {
 	local funcname="weblogin_device_or_customer_needs_admin_interaction"
 	local config_profile="$1"
+	local hostname="$2"
 
 	case "$config_profile" in
-		rehungen-adhoc-*)
-			_log do $funcname daemon info "triggered: $REMOTE_ADDR"
-			return 0
+		rehungen*)
+			case "$hostname" in
+				rehungen-adhoc*)	# unset/never touched
+					_log do $funcname daemon info "triggered: $REMOTE_ADDR"
+					return 0
+				;;
+			esac
 		;;
 	esac
 
@@ -452,7 +481,13 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	local FREE HASH GATEWAY ANSWER
 	local URL PARAMETERS
 
-	USER="${USER:-$MAC}"		# check for mac-enabled devices, which gets a splash-screen
+	case "$( uci get system.@weblogin[0].auth_credentials )" in
+		simple)
+		;;
+		*)
+			USER="${USER:-$MAC}"		# check for mac-enabled devices, which gets a splash-screen
+		;;
+	esac
 
 	strip_leading_and_trailing_tabs_and_spaces ()
 	{
@@ -526,7 +561,7 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 				;;
 			esac
 		;;
-		rehungen*|liszt28*)
+		rehungen*|liszt28*|extrawatt*)
 			mac_is_from_lan "$MAC" && {
 				_log do $FUNC daemon info "FREE, is profile $profile from LANDEV"
 				FREE=1
@@ -538,7 +573,7 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 				}
 			}
 
-			_weblogin device_or_customer_needs_admin_interaction "$profile" && {
+			_weblogin device_or_customer_needs_admin_interaction "$profile" "$( uci get system.@system[0].hostname )" && {
 				FREE=
 			}
 		;;
@@ -588,22 +623,23 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 			{
 				[ ${#1} -eq 3 ] && {
 					case "$1" in
-						100|101|102|103|104|105|106|107|108|109|110) return 0 ;;
-						200|201|202|203|204|205|206|207|208|209|210) return 0 ;;
-						300|301|302|303|304|305|306|307|308|309|310) return 0 ;;
-						400|401|402|403|404|405|406|407|408|409|410) return 0 ;;
-						600|601|602|603|604|605|606|607|608|609|610) return 0 ;;
-						700|701|702|703|704|705|706|707|708|709|710) return 0 ;;
-						800|801|802|803|804|805|806|807|808|809|810) return 0 ;;
-						900|901|902|903|904|905|906|907|908|909|910) return 0 ;;
+						100|101|102|103|104|105|106|107|108|109|110|111|112) return 0 ;;
+						200|201|202|203|204|205|206|207|208|209|210|211|212) return 0 ;;
+						300|301|302|303|304|305|306|307|308|309|310|311|312) return 0 ;;
+						400|401|402|403|404|405|406|407|408|409|410|411|412) return 0 ;;
+						# 5xx not under management
+						600|601|602|603|604|605|606|607|608|609|610|611|612) return 0 ;;
+						700|701|702|703|704|705|706|707|708|709|710|711|712) return 0 ;;
+						800|801|802|803|804|805|806|807|808|809|810|811|812) return 0 ;;
+						900|901|902|903|904|905|906|907|908|909|910|911|912) return 0 ;;
 					esac
 				}
 
 				[ ${#1} -eq 4 ] && {
 					case "$1" in
-						1000|1001|1002|1003|1004|1005|1006|1007|1008|1009|1010) return 0 ;;
-						1100|1101|1102|1103|1104|1105|1106|1107|1108|1109|1110) return 0 ;;
-						1200|1201|1202|1203|1204|1205|1206|1207|1208|1209|1210) return 0 ;;
+						1000|1001|1002|1003|1004|1005|1006|1007|1008|1009|1010|1011|1012) return 0 ;;
+						1100|1101|1102|1103|1104|1105|1106|1107|1108|1109|1110|1111|1112) return 0 ;;
+						1200|1201|1202|1203|1204|1205|1206|1207|1208|1209|1210|1211|1212) return 0 ;;
 					esac
 				}
 
@@ -670,6 +706,26 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 					;;
 				esac
 			;;
+			satama*)
+				case "$( uci get system.@profile[0].nodenumber )" in
+					119)
+						GATEWAY="$WIFIADR"
+					;;
+					*)
+						GATEWAY="10.63.119.1"
+					;;
+				esac
+			;;
+			fparkssee*)
+				case "$( uci get system.@profile[0].nodenumber )" in
+					222)
+						GATEWAY="$WIFIADR"
+					;;
+					*)
+						GATEWAY="10.63.222.1"
+					;;
+				esac
+			;;
 			*)
 				GATEWAY="$( uci get system.@weblogin[0].authserver )"
 			;;
@@ -721,15 +777,16 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 _weblogin_ticket_mail_text ()
 {
 	local TICKETTYPE="${1:-unset_ticket_name}"
-	local config_profile="${2:-$( uci get system.@profile[0].name )}"
+	local emailat="@"
+	local emaildot="."
 
 	local LOCATION="$( _weblogin metadata_locationname | sed 's#\\&acute;##' )"
 	local MAINTENANCE_COMPANY
 	local MAINTENANCE_PHONE
-	local MAINTENANCE_HINT1="Gerne beantworten wir Ihnen Fragen zum System"
-	local MAINTENANCE_HINT2="unter der Telefonummer"	
+	local MAINTENANCE_HINT1="$( _translate do "$LANG" maintenance_hint1 )"
+	local MAINTENANCE_HINT2="$( _translate do "$LANG" maintenance_hint2 )"	
 
-	case "$config_profile" in			# fixme! move to 'mydesign.opk' or userdb()
+	case "$CONFIG_PROFILE" in			# fixme! move to 'mydesign.opk' or userdb()
 		aschbach*|hotello*)
 			MAINTENANCE_COMPANY="CaNS - Computer and Network Solutions"
 			MAINTENANCE_PHONE="+49 (8167) 88 41"
@@ -747,6 +804,11 @@ _weblogin_ticket_mail_text ()
 			MAINTENANCE_PHONE="+49 (03643) 42 18 09"
 			MAINTENANCE_HINT2="$MAINTENANCE_HINT2 $MAINTENANCE_PHONE"
 		;;
+		shankar*|preskil*)
+			MAINTENANCE_COMPANY="Unitech Ltd."
+			MAINTENANCE_PHONE="shankar${emailat}unitechplanet${emaildot}com"
+			MAINTENANCE_HINT2="via email under $MAINTENANCE_PHONE"			# fixme!
+		;;
 		*)
 			MAINTENANCE_COMPANY="bittorf wireless ))"
 			MAINTENANCE_PHONE="+49 (3643) 49 65 235"	
@@ -755,20 +817,20 @@ _weblogin_ticket_mail_text ()
 	esac
 
 	cat <<EOF
-WLAN-System / neue Tickets / $LOCATION
+$( _translate do "$LANG" wifi_system ) / $( _translate do "$LANG" new_tickets ) / $LOCATION
 
-Guten Tag,
+$( _translate do "$LANG" letter_salutation ),
 
-das WLAN-System hat festgestellt, dass von der Ticketart
+$( _translate do "$LANG" letter_line1 )
 
 	$TICKETTYPE
 
-nur noch wenige Logins vorhanden sind. Im Dateianhang finden
-Sie deshalb eine weitere Liste in verschiedenen Vorlagen.
-Die bisherigen Listen behalten Ihre Gueltigkeit.
+$( _translate do "$LANG" letter_line2 )
+$( _translate do "$LANG" letter_line3 )
+$( _translate do "$LANG" letter_line4 )
 
-mit drahtlosen Gruessen,
-Ihr WLAN-System von "$MAINTENANCE_COMPANY"
+$( _translate do "$LANG" letter_finale1 )
+$( _translate do "$LANG" letter_finale2 ) "$MAINTENANCE_COMPANY"
 
 -- 
 $MAINTENANCE_HINT1
