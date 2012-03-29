@@ -3,13 +3,13 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 	local FUNC="wget_do"
 	local URL="$1"
 	local MAX="${2:-15}"						# maximal running time in seconds, defaults to 15sec
-	local option="$3"						# e.g. 'noproxy'
+	local option="$3"						# e.g. "noproxy"|"continue $filename" or even "noproxy,continue $filename"
 	local MASK1="$3"
 	local MASK2="$4"						# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
 
 	local PID_WGET PID_LINE PID_LINE_NOW RC
 	local C=0							# counter (raising) for maximal seconds
-	local proxy_command
+	local proxy_command file_option filename
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
 	local pidbackground i pidnum mycmdline myerror
 
@@ -24,10 +24,22 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 		;;
 	esac
 
-	_log do $FUNC daemon debug "max ${MAX}s, wget $proxy_command -qO - '$URL'"
+	case "$option" in
+		*"continue"*)
+			filename="$( echo "$option" | cut -d' ' -f2 )"
+			file_option="-c"
+		;;
+		*)
+			filename="-"
+		;;
+	esac
+
+	_log do $FUNC daemon debug "max ${MAX}s, ${#URL} bytes, wget $proxy_command -qO $filename $file_option '$URL'"
+	pidbackground=$!
+	list_wget_pids_after_launch="$( pidof wget )"
 
 	list_wget_pids_initial="$( pidof wget )"
-	( wget $proxy_command -qO - "$URL" 2>/tmp/${FUNC}_$$.error || echo "$?" >/tmp/${FUNC}_$$ ) &
+	( wget $proxy_command -qO $filename $file_option "$URL" 2>/tmp/${FUNC}_$$.error || echo "$?" >/tmp/${FUNC}_$$ ) &
 	pidbackground=$!
 	list_wget_pids_after_launch="$( pidof wget )"
 
@@ -106,7 +118,7 @@ _wget_do ()								# SENS: fetching an URL $1, aborting after $2 seconds if no s
 				}
 
 				for element in $list_wget_pids_myself; do {
-					log do $FUNC daemon info "error during fetching '$URL' - killing PID '$element' after $C seconds"
+					_log do $FUNC daemon info "error during fetching '$URL' - killing PID '$element' after $C seconds"
 					_watch hanging_command wget_selfkill $element
 					_watch hanging_command wget_selfkill $element
 				} done
