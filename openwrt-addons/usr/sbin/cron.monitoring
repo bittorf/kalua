@@ -50,17 +50,15 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	# _system load 15min		>>$F
 
 	TIME="$( _system date unixtime )"
-	
+
 # takes long!
 	_log do $FUNC daemon debug "build_neighs start"
 	NEIGH="$( _sanitizer do "$( neigh meshrdf )" urlvalue )"		# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
 
-# takes long!
-	_log do $FUNC daemon debug "build_users start"
-	USERS="$( _sanitizer do "$( _pfilter stats_user_traffic_list_today )" urlvalue )"	# -001122334455:500~112233445566:9888
-	
-	FORWARDED="$( _math bytes2unit "$( _pfilter stats_traffic_forwarded_internet )" mb )"
-	
+	USERS=		# -001122334455:500~112233445566:9888
+
+	FORWARDED=	# 327 (unit = megabytes)
+
 	UPTIME="$( _system uptime hours )"									# 1078
 	CPU_LOAD="$( _system load 15min )"									# 088
 	VERSION=$FFF_PLUS_VERSION										# 345678
@@ -72,9 +70,12 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 														# 001122334455
 	WIFIMAC="$( _sanitizer do "$( _net dev2mac $WIFIDEV )" hex )"
 	[ -z "$WIFIMAC" ] && {
-		_log do $FUNC daemon alert "empty wifimac, rebuilding netparam"
-		/etc/init.d/S41build_static_netparam
-		exit 1
+		WIFIMAC="$( _sanitizer do "$( uci get wireless.radio0.macaddr )" hex )"
+		[ -z "$WIFIMAC" ] && {
+			_log do $FUNC daemon alert "empty wifimac, rebuilding netparam"
+			/etc/init.d/S41build_static_netparam
+			exit 1
+		}
 	}
 
 	UPDATE="$( _firmware updatemode )"									# testing
@@ -83,7 +84,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 			LATLON="0,0"
 		fi
 		LATLON="$( _sanitizer do "$LATLON" urlvalue )"
-	
+
 	ADMINEMAIL="$( _sanitizer do "$( uci get system.@admin[0].mail )" email urlvalue )"		# bla@blubb.de
 
 	ADMINPHONE="$( _sanitizer do "$( uci get system.@admin[0].phone )" alphanum )"			# 036435101112zuhause
@@ -97,7 +98,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	NOISE="$(	_wifi noise	  	$WIFIDEV )"		# -94
 	SIGNAL="$(	_wifi signal	  	$WIFIDEV )"		# 001122334455-70:223344556677-40
 	SIGNAL="$( _sanitizer do "$SIGNAL" urlvalue )"
-	
+
 	CHANNEL="$(	_wifi channel	  	$WIFIDEV )"		# 104
 
 
@@ -128,12 +129,13 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 	SENS="$(	_wifi sensitivity $WIFIDEV )"		# 1,wifi,auto | 3/3
 	SENS="$( _sanitizer do "$SENS" urlvalue )"
-	
+
 	DRIVER="$(	_wifi driver_version $WIFIDEV )"	# wl-adv_3.90-RC37.0_v1.1
 	DRIVER="$( _sanitizer do "$DRIVER" urlvalue )" 		# wl-simple_v1.0 
 								# mod-madwifi_2.4.30brcm+r3314-8
 
-	GMODE="$( uci get wireless.radio0.hwmode )"
+	GMODE="$( uci get wireless.radio0.hwmode )$( uci get wireless.radio0.htmode )"
+	GMODE="$( _sanitizer do "$GMODE" alphanum )"
 
 	for INDEX in 0 1 2 3; do {
 		SSID_TEMP="$( uci get wireless.@wifi-iface[${INDEX}].ssid )"
@@ -145,8 +147,12 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 	BSSID="$( _sanitizer do "$( _wifi bssid $WIFIDEV )" hex )"
 
-	eval $( /etc/init.d/S02check_interface_correctness_fff+ show_hardware )
-	HW="$( echo $HW | sed -e 's/ /_/g' -e 's/[^_a-zA-Z0-9-]//g' )"			# Buffalo_WHR-HP-G54_BCM4318-wifi
+	if [ -e "/etc/HARDWARE" ]; then
+		read HW <"/etc/HARDWARE"
+		HW="$( _sanitizer do "$HW" urlvalue )"
+	else
+		HW=
+	fi
 
 	SSH_PUBKEY_FP="$( _sanitizer do "$( _ssh key_public_fingerprint_get )" hex )"	# 1660559e90efefafd04298c516365bbd12b0ffda
 											# (40 bytes HEX [SHA-1])
@@ -173,10 +179,20 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	eval "$( _ipsystem do | grep ^FFF_CITY )"
 
 	_net inet_seems_stable && {
-		PUBIP="$( _wget do http://$( uci get system.@vpn[0].hostname )/show_remote_address.php 10 )"		# 217.212.17.148
+		PUBIP="$( _wget do "$( uci get system.@monitoring[0].url )/getip/" 10 )"
 	}
 
-	SPEEDTEST_SERVER="84.38.67.43"
+	case "${CONFIG_PROFILE}-${HOSTNAME}" in
+		preskil*)
+			SPEEDTEST_SERVER="202.123.27.113"
+		;;
+		ejbw_ap-RH*)
+			SPEEDTEST_SERVER="192.168.111.242"
+		;;
+		*)
+			SPEEDTEST_SERVER="195.90.7.115"		# speedtest.qsc.de
+		;;
+	esac
 
 	if _sanitizer do "$PUBIP" ip4 check ; then
 		read 2>/dev/null PUBIP_OLD </tmp/MY_PUBLIC_IP
@@ -197,12 +213,13 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 				/etc/init.d/S43ethers_fff+ call
 				. /tmp/NETPARAM
 
-				_speedtest do $WANADR $SPEEDTEST_SERVER poormens_tcpdownload2		# fixme! respect type: wan, lan ...
-				_speedtest do $WANADR $SPEEDTEST_SERVER poormens_tcpupload
+				_speedtest do $WANADR $SPEEDTEST_SERVER poormens_tcpdownload2 "30"	# fixme! respect type: wan, lan ...
+				_speedtest do $WANADR $SPEEDTEST_SERVER poormens_tcpupload "20"
 			}
 		}
 	else
 		_log do $FUNC daemon info "public IP cannot be sanitized to ip4: '$PUBIP'"
+		PUBIP=
 	fi
 
 	INET_INTERFACE="$( _net local_inet_offer )" && {
@@ -352,11 +369,18 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 
 	DATE_LOCAL_HUMAN="$( date +%d%b%Y-%Huhr%M )"
+	RAM_SIZE="$( _system ram_size )"
+
+	if pidof olsrd >/dev/null; then
+		olsrrestartcount="$( _olsr uptime restarts_get )"
+	else
+		olsrrestartcount="off"
+	fi
 
 	QUERY=
 	QUERY="${QUERY}local=$DATE_LOCAL_HUMAN&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE&wifidrv=$DRIVER&olsrver=$OLSRVER"
-	QUERY="${QUERY}&olsrrestartcount=$( _olsr uptime restarts_get )&olsrrestarttime=$( _olsr uptime restart_time )"
+	QUERY="${QUERY}&olsrrestartcount=${olsrrestartcount}&olsrrestarttime=$( _olsr uptime restart_time )"
 	QUERY="${QUERY}&portfw=$( _sanitizer do "$( uci get firewall.@portfw[0].portfw )" urlvalue )&optimizenlq=$( uci get wireless.@auto_optimize[0].nlq )&optimizeneigh=$( uci get wireless.@auto_optimize[0].neigh )"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS&pfilter=$PFILTER"
 	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( uci get system.@profile[0].name )&noise=${NOISE}&rssi=${SIGNAL}&distance=${DISTANCE}"
@@ -365,7 +389,8 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	QUERY="${QUERY}&v1=$( uname -r )"
 	QUERY="${QUERY}&v2=$( _system version short )"
 	QUERY="${QUERY}&s1=$( _switch show )"
-	QUERY="${QUERY}&h1=$( _system ram_size )"
+	QUERY="${QUERY}&s2=$( uci get dhcp.lan.ignore )"
+	QUERY="${QUERY}&h1=$RAM_SIZE"
 	QUERY="${QUERY}&h2=$( _system ram_free )"
 
 	if [ -e /dev/zram0 ]; then
@@ -377,10 +402,56 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 		QUERY="${QUERY}&h3=$( _system ram_free flush )"			# fixme! we should'nt be smarter than the vm-controller
 	fi
 
+	[ -e "/www/SIMPLE_MESHNODE" ] && {
+		QUERY="${QUERY}&h0=1"
+	}
+
 	QUERY="${QUERY}&d0=$( _db user login list last )"
 	QUERY="${QUERY}&d1=$( uci get system.@weblogin[0].authserver )"
 	QUERY="${QUERY}&n0=$N0"
 
+	incoming_and_outgoing_olsr_traff_on_wifi()
+	{
+		local funcname="incoming_and_outgoing_olsr_traff"
+		local interval="30"
+		local port="698"
+		local ruleset_in="INPUT -p udp -i $WIFIDEV ! -s $WIFIADR --dport $port"
+		local ruleset_out="OUTPUT -p udp -o $WIFIDEV --dport $port"
+		local packets bytes rest bytes_in bytes_out bytes_in_sec bytes_out_sec
+
+		get_bytes()
+		{
+			iptables -nxvL "$1" 1 | while read packets bytes rest; do echo ${bytes:-0}; done
+		}
+
+		iptables -I $ruleset_in
+		iptables -I $ruleset_out
+
+		_log do $funcname daemon info "counting olsr-traff for $interval sec"
+		sleep $interval
+
+		bytes_in="$(  get_bytes INPUT  )"
+		bytes_out="$( get_bytes OUTPUT )"
+
+		bytes_in_sec="$((  $bytes_in  / $interval ))"
+		bytes_out_sec="$(( $bytes_out / $interval ))"
+
+		iptables -D $ruleset_in
+		iptables -D $ruleset_out
+
+		_log do $funcname daemon info "in: $bytes_in = $bytes_in_sec/s out: $bytes_out = $bytes_out_sec/s"
+		echo "&t0=${bytes_in_sec}&t1=${bytes_out_sec}"
+	}
+
+	case "$WIFIMODE" in
+		*adhoc*)
+			QUERY="${QUERY}$( incoming_and_outgoing_olsr_traff_on_wifi )"
+		;;
+	esac
+
+	OLSR_SPEED="$( uci get olsrd.@meta[0].speedvalue )"
+	OLSR_METRIC="$( uci get olsrd.@olsrd[0].LinkQualityAlgorithm )"
+	QUERY="${QUERY}&t2=${OLSR_SPEED:-5}&t3=${OLSR_METRIC}"
 
 	[ -e "/www/force_weblogin_check_script" ] && {
 		local scriptname
@@ -409,11 +480,13 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 		;;
 	esac
 
-
-	echo >>/tmp/ARCHIV_MONITORING "$QUERY"
-
+	if [ $RAM_SIZE -lt 16384 ]; then
+		echo >/tmp/ARCHIV_MONITORING "$QUERY"
+	else
+		echo >>/tmp/ARCHIV_MONITORING "$QUERY"
 	_watch archivsize "/tmp/ARCHIV_MONITORING" 12 lines_max
-	
+	fi
+
 	[ "$( _math random_integer 1 96 )" -eq 50 ] && ARG1="send_alive_message"	# roundabout each day (15min = 4/h * 24 = 96)
 	[ -e /www/backup_archiv_node_data ] && ARG1="send_alive_message"
 	[ -e /tmp/SEND_ALIVE_FAILED ] && {
@@ -423,16 +496,16 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	}
 
 	_log do $FUNC daemon debug "ready"
-	
+
 	KEEP_ALIVE_URL="$( uci get system.@monitoring[0].url )/meshrdf/"
 
 	[ "$UPTIME" -lt 2 ] && {
 		ARG1="send_alive_message"
 		ARG2="no_antenna_test"
 	}
-	
+
 	if [ -n "$KEEP_ALIVE_URL" ] && [ "$ARG1" = "send_alive_message" -o "$ARG1" = "sam" ]; then
-	
+
 		[ -z "$ARG2" ] && sleep "$( _math random_integer 0 60 )"
 
 		_log do $FUNC daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
@@ -440,9 +513,9 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 		_ntp set
 
 		[ -e /www/backup_archiv_node_data ] && {			# see _system reboot_safe()
-		
+
 			_log do $FUNC daemon info "found node-data backup, including"
-			
+
 			mv "/tmp/ARCHIV_MONITORING" "/tmp/ARCHIV_MONITORING.temp"	# copy backup-file
 			mv /www/backup_archiv_node_data "/tmp/ARCHIV_MONITORING"	# on top of
 			cat "/tmp/ARCHIV_MONITORING.temp" >>"/tmp/ARCHIV_MONITORING"	# normal node_data_file
@@ -459,31 +532,37 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 			LINENUMBER_LAST_SUCCESS=$(( $LINENUMBER_LAST_SUCCESS + 1 ))	# worst case is line one
 
 		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "/tmp/ARCHIV_MONITORING" )"		# must be url-encoded
- 
+
  			if [ -n "$QUERY" ]; then
- 		
+
  				echo "$QUERY" | grep -q ^"lo" && {		# dont send trash/comments; "lo" means local='...' or log='...'
- 
+
  					echo "$QUERY" | grep -q ^"log=" && {
  						_log do $FUNC daemon debug "send log-message"
  						QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC"
  					}
- 
+
  					QUERY="$( echo "$QUERY" | sed 's/:/%3a/g' )"	# fixme! only temporary
 					echo "$QUERY" >"/tmp/ARCHIV_MONITORING.recent"
- 		
- 					_log do $FUNC daemon debug "query has $(( ${#QUERY} + ${#KEEP_ALIVE_URL} + 1 )) bytes"
- 			
- 					OUT="$( _wget do "${KEEP_ALIVE_URL}?${QUERY}" 10 )"
+
+					i=0
+					OUT=
+					while [ "$OUT" != "OK" -a $i -lt 30 ]; do {
+	 					OUT="$( _wget do "${KEEP_ALIVE_URL}?${QUERY}" 10 )" || {
+							sleep 10
+						}
+						i=$(( $i + 1 ))
+					} done
+
  					_log do $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
- 					
+
  					[ "$OUT" != "OK" ] && {
  						_log do $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
- 
+
  						# fixme! this is a workaround for only sending lines, which we have not send yet
 						sed -n "$LINENUMBER_LAST_SUCCESS,999p" "/tmp/ARCHIV_MONITORING" >"/tmp/ARCHIV_MONITORING.tmp"
 						mv "/tmp/ARCHIV_MONITORING.tmp" "/tmp/ARCHIV_MONITORING"
- 
+
  						touch /tmp/SEND_ALIVE_FAILED
  						_scheduler add "$0" force
  						break				# fixme! set comment ("marker") after last sent line
@@ -495,10 +574,5 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
  				break
  			fi
 		} done
-
-		[ "$ARG2" != "no_antenna_test" ] && {
-			_log do $FUNC daemon info "enforce_antenna_test start"		# fixme! maybe there is a better place for	
-			/usr/sbin/cron.select_best_antenna_fff+ force			# regular but random execution of this script
-		}
 	fi
 fi
