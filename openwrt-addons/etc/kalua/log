@@ -17,10 +17,59 @@ _log_shell_is_interactive()
 	esac
 }
 
+_log_sleep()		# _log sleep firmware_burn 180 step 10
+{
+	local subroutine_name="$1"
+	local duration="$2"
+	local step="${4:-1}"
+	local i="$duration"
+
+	while [ $i -ge 0 ]; do {
+		_log do "$subroutine_name" daemon info "[OK] sleeping $i/$duration sec"
+		i=$(( $i - $step ))
+		[ $i -ge 0 ] && /bin/sleep $step
+	} done
+}
+
+_log_debug()
+{
+	local message="$1"
+	local dev="${2:-${LANDEV:-${WANDEV:-eth0}}}"
+	local ip_bin="/usr/sbin/ip"
+	local netmsg_bin="/bin/netmsg"
+
+	echo "$message" >/dev/console
+
+	[ -e "$ip_bin" ] || return 0
+	[ -e "$netmsg_bin" ] || return 0
+
+	local broadcast_ip="$( $ip_bin address show dev "$dev" | grep inet | cut -d'r' -f2 | cut -d' ' -f2 )"
+
+	# readable from a neighbour with:
+	# tcpdump -s 1500 -n -l -w - -i $YOURDEV port 0x1337 | strings
+	# or with an UDP-capable netcat via:
+	# nc -lup 4919	//fixme!
+
+	if [ -z "$broadcast_ip" ]; then
+		if grep -sq "$dev:" /proc/net/wireless ; then
+			broadcast_ip="192.168.1.255"
+			local ip="192.168.1.1/24"
+		else
+			broadcast_ip="10.255.255.255"
+			local ip="10.0.0.1/8"
+		fi
+
+		$ip_bin link set dev "$dev" up
+		$ip_bin address add "$ip" dev "$dev"
+		$netmsg_bin "$broadcast_ip" "NO-IP: $message"
+		$ip_bin address del "$ip" dev "$dev"
+	else
+		$netmsg_bin "$broadcast_ip" "$message"
+	fi
+}
+
 _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 {
-	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
-
 	local FATHER_PROCESS="$0"
 	local FUNCTION="$1"		# ARG1, string (name of function, from where call was invoked)
 	local FACILITY="$2"		# ARG2, string (source = kern,user,mail,daemon,syslog,lpr,news,uucp,cron,authpriv,local0-7)
@@ -29,9 +78,25 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	local message_sms="$5"
 	local phonenumber="$6"
 	local force="$7"
-
 	local EVERLOG="/www/everlasting_syslog.txt"
-	local MEM UPTIME DATE
+	local MEM UPTIME DATE i
+
+	[ -z "$MESSAGE" ] && {		# from stdin (pipe into function)
+		while read MESSAGE; do {
+			_log do "$FUNCTION" "$FACILITY" "$PRIO" "STDIN${i}: ${MESSAGE:-stdin_was_empty}"
+			i=$(( ${i:-1} + 1 ))
+		} done
+
+		return 0
+	}
+
+	case "$FUNCTION" in
+		firmware*)
+			_log debug "${HOSTNAME:-box} $FATHER_PROCESS: $FUNCTION: $MESSAGE"
+		;;
+	esac
+
+	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
 
 	mem_uptime_and_date ()
 	{
@@ -59,6 +124,9 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 					HEADER="$( _system date humanreadable )$( uci get system.@profile[0].name ) $( uci get system.@system[0].hostname ) ip:$WIFIADR up:${UPTIME}s reboots:$I"
 
 					case "$profile" in
+						schoeneck*)
+							list="01729094456"
+						;;
 						aschbach*|hotello*)
 							list="01728117657 01727772555 01775906689"
 						;;
@@ -145,11 +213,15 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 
 	boot_and_debug_message ()
 	{
-		pidof syslogd >/dev/null || {		# write to special logfile
-			eval $( mem_uptime_and_date )
-			echo >>/tmp/messages "$DATE ' [up ${UPTIME}s $MEM bytes free] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
-			# _log netmessage "$MESSAGE"	# fixme!
-		}
+		if [ -e "/tmp/service_ssh_nowatching" ]; then
+			[ -e "/tmp/messages" ] && rm "/tmp/messages"
+		else
+			pidof syslogd >/dev/null || {		# write to special logfile
+				eval $( mem_uptime_and_date )
+				echo >>/tmp/messages "$DATE ' [up ${UPTIME}s $MEM bytes free] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
+				# _log netmessage "$MESSAGE"	# fixme!
+			}
+		fi
 	}
 
 	if [ "$PRIO" = "debug" ]; then
