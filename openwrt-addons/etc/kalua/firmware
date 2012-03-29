@@ -15,7 +15,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 
 	local URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing
 	local hash_last_applied
-	local hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"
+	local hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"	# fixme! abort when fetching hash fails
 	local FILE_HASH_APPLIED="/etc/tarball_last_applied_hash"
 	local WORKINGDIR="/tmp/pmu"
 	local FILE="tarball.tgz"
@@ -41,12 +41,12 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	read hash_last_applied <"$FILE_HASH_APPLIED"
 
 	[ "$hash_tarball" = "${hash_last_applied:-empty}" ] && {
-		_log do "$FUNC" daemon info "[OK] applied nothing - all seems up to date (tarball-hash known)"
+		_log do "$FUNC" daemon info "[OK] applied nothing - all seems up to date (tarball-hash known: $FILE_HASH_APPLIED)"
 		return 0
 	}
 
 	_log do "$FUNC" daemon debug "fetching tarball in '$MODE'-mode: '$URL'"
-	wget -O "$TGZ" "$URL" || {
+	_firmware wget "$TGZ" "$URL" "$hash_tarball" 100 || {
 		_log do "$FUNC" daemon info "failed to download '$URL' - abort"
 
 		_cleanup reschedule
@@ -76,7 +76,9 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 
 	for TEMPFILE in $( find -type f ); do {
 
-		[ "$( _file hash "$TEMPFILE" )" = "$( _file hash "/$TEMPFILE" )" ] || {
+		if [ "$( _file hash "$TEMPFILE" )" = "$( _file hash "/$TEMPFILE" )" ]; then
+			rm "$TEMPFILE"
+		else
 
 			_log do "$FUNC" daemon info "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" kb ) ))"
@@ -85,10 +87,6 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 				cron|S51crond*)
 					_log do "$FUNC" daemon info "detected changed cron settings"
 					CRON_RESTART=1
-				;;
-				S03patch-o-matic*)
-					_log do "$FUNC" daemon info "detected changed patch-o-matic"
-					REPATCH_ALL=1
 				;;
 			esac
 
@@ -99,7 +97,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 			sync
 
 			COUNT=$(( $COUNT + 1 ))
-		}
+		fi
 	} done
 
 	_cleanup
@@ -110,11 +108,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 		/etc/kalua_init
 
 		[ "$CRON_RESTART" = "1" ] && {
-			/etc/init.d/*crond_fff+ stop
-
-			while ! pidof crond ; do {
-				/etc/init.d/*crond_fff+ start
-			} done
+			_log do "$FUNC" daemon info "restart cron manually"
 		}
 
 		[ "$REPATCH_ALL"  = "1" ] && /etc/init.d/*patch-o-matic* repatch all
@@ -166,89 +160,31 @@ _firmware_updatemode ()		# updatemode <empty>		= string of configured update-mod
 	fi
 }
 
-_firmware_fetch ()
-{
-	local FIRMWARE_URL="$1"
-	local FUNC="fetch_firmware"
-	local FREE_WANTED="1750"		# which means 1750-120 = 1630 useable kilobyte for image-file (should ne enough 8-) )
-	local DESTINATION="/www/fw.trx"
-	local RETRY_COUNT=0
-	local IPK
-
-	_scheduler queue_purge
-	/etc/init.d/S90webcam_fff+ stop	
-	/etc/init.d/S52vpn_fff+ stop		# for safe uninstalling this package
-	
-	_software make_free_space $FREE_WANTED ruthless
-	
-	[ "$( _system flash_free )" -lt "$FREE_WANTED" ] && {
-		_log do $FUNC daemon crit "could'nt free target-flash space, strange!"
-		DESTINATION="/tmp/fw.trx"
-		local FW_IN_RAM="true"
-	}
-
-	rm "$DESTINATION"
-	while true; do {
-
-		wget -c -O "$DESTINATION" "$FIRMWARE_URL" && {
-			_log do $FUNC daemon info "download successful"
-			break
-		}
-
-		_scheduler queue_purge
-
-		[ "$( _system flash_free )" -lt 120 ] && {
-			_log do $FUNC daemon crit "low flash space, during download?"
-			DESTINATION="/tmp/fw.trx"
-			local FW_IN_RAM="true"
-			rm "$DESTINATION"
-			RETRY_COUNT=0
-		}
-
-		RETRY_COUNT=$(( $RETRY_COUNT + 1 ))
-		[ "$RETRY_COUNT" -gt 50 ] && {
-			rm -f "/www/SOFTWARE_FULLY_INSTALLED"	# to ensure, that we reinstall all removed packages...
-			rm -f "$DESTINATION"
-			_system reboot_safe "firmware download unseccussful"	# fixme!
-		}
-
-		_log do $FUNC daemon info "something went wrong during download...retrying in 30 sec (try: $RETRY_COUNT)"
-		sleep 30
-	} done
-
-	_scheduler queue_purge
-
-	[ "$FW_IN_RAM" = "true" ] && {
-		_log do $FUNC daemon info "burning firmware directly"
-		_firmware burn "$DESTINATION"
-		sleep 30
-		_system reboot_safe "firmware burning unsuccessful"
-	}
-
-	_log do "$FUNC" daemon info "download ready."
-}
-
 _firmware_wget_prepare_for_lowmem_devices()
 {
+	local funcname="firmware_wget_prepare_for_lowmem_devices"
+
 	[ $( _system ram_size ) -gt 16500 ] && return 1
 
 	local url="$( _links firmware_url_get )"
 	local server_dnsname="$( _http url_get_serverstring "$url" )"
 	local ip="$( _net dns2ip "$server_dnsname" )"
-	_firmware log "[OK] serverstring2ip: $server_dnsname -> $ip"
+	_log do $funcname daemon info "[OK] serverstring2ip: $server_dnsname -> $ip"
 
 	_firmware remove_cron_stuff
 
-	_firmware log "[OK] removing some things in RAM-Disk"
+	_log do $funcname daemon info "[OK] removing some things in RAM-Disk"
 	rm /tmp/weblogin*
 	rm /tmp/ARCHIV_*
 	rm /tmp/iptables_*
 	rm /tmp/IP2MAC_*
 	rm /tmp/MAC2IP_*
 	rm -fR /tmp/OLSR
+	rm /tmp/messages
+	rm /tmp/CLIENTS*
 
 	#ip route list exact 0.0.0.0/0 | fgrep -q "dev $WIFIDEV" || {
-	#	_firmware log "[OK] wifi not needed, shutting down"
+	#	_log do $funcname daemon info "[OK] wifi not needed, shutting down"
 	#	_firmware kill_tasks wifi_down
 	#	_firmware remove_kmodules wifi
 	#}
@@ -263,104 +199,183 @@ _firmware_wget_prepare_for_lowmem_devices()
 
 	echo "$ip $server_dnsname" >/etc/hosts		# see beginning of function
 
-	_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
+	_log do $funcname daemon info "[OK] flushing caches: $( _system ram_free flush ) bytes free"
 
 	scheduler -p
 
-	# fixme! we cant't "remove_kmodules misc" because of ppp
-}
-
-_firmware_log()		# syslogd will likely be killed
-{
-	logger -p daemon.info -t firmware "$1"
-	echo "$1"
 }
 
 _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one module
 {
+	local funcname="firmware_remove_kmodules"
 	local module remove
 	local filter_option="${1:-most}"			# most | all | iptables | wifi | misc
-	local list_modules="$( lsmod | cut -d' ' -f1 )"
+	local errorcount list_modules i line
 
-	for module in $list_modules ; do {
+	list_modules_get()
+	{
+		lsmod | cut -d' ' -f1 | sed '1d'	# ignoring 1st line
+	}
 
-		case "$module" in
-			"nf_"*|"xt"*|"ts_"*|"x_tables"|"ip_tables"|"ipt_"*|"iptable_"*)
-				case "$filter_option" in
-					all|most|iptables)
-						remove=1
-					;;
-				esac
-			;;
-			"b43"*|"ath"*|"cfg80211"|"mac80211"*|"compat"*)
-				case "$filter_option" in
-					all|most|wifi)
-						remove=1
-					;;
-				esac
-			;;
-			"ts_"*|"crc_ccitt"|"aes_generic"|"arc4"|"crypto_algapi"|"ppp"*)		# fixme! ifdown wan for ppp?
-				case "$filter_option" in
-					all|most|misc)
-						remove=1
-					;;
-				esac
-			;;
-			*)
-				case "$filter_option" in
-					all)
-						remove=1
-					;;
-					*)
-						remove=
-					;;
-				esac
-			;;
-		esac
+	case "$filter_option" in
+		all)
+			_log do $funcname daemon info "ifdown wan"
+			ifdown wan	# for unloading ppp-stuff
 
-		[ -n "$remove" ] && {
-			_firmware log "removing kmodule: $module"
-			rmmod $module
+			while read line; do {
+				set $line	# $device $mountpoint $type $options $rest
+				case "$1" in
+					"/dev/sd"*)
+						_log do $funcname daemon info "unmounting '$2'"
+						umount "$2"
+						umount "/proc/bus/usb"
+					;;
+					"debugfs")
+						_log do $funcname daemon info "unmounting '$2'"
+						umount "$2"
+					;;
+					"none")
+						[ "$2" = "/proc/bus/usb" ] && {
+							_log do $funcname daemon info "unmounting '$2'"
+							umount "$2"
+						}
+					;;
+				esac
+			} done <"/proc/mounts"
+
+			while read line; do {
+				set $line
+				[ "$1" = "Filename" ] || {
+					_log do $funcname daemon info "deactivate swap '$1'"
+					swapoff "$1"
+
+					case "$1" in
+						*zram*)
+							_log do $funcname daemon info "claiming memory back via /sys/block/$( basename "$1" )/reset"
+							echo 1 >"/sys/block/$( basename "$1" )/reset"
+						;;
+					esac
+				}
+			} done <"/proc/swaps"
+		;;
+	esac
+
+	while :; do {
+
+		_watch counter "/tmp/$funcname" increment 1 max 25 || break
+		read i <"/tmp/$funcname"
+		_log do $funcname daemon info "mode: '$filter_option', iteration: $i/100"
+
+		if [ $i -lt 4 ]; then
+			list_modules="$( list_modules_get )"
+		else
+			if [ "$filter_option" = "all" ]; then
+				list_modules="$( _list shuffle "$( list_modules_get )" )"
+			else
+				break
+			fi
+		fi
+
+		errorcount=0
+		for module in $list_modules; do {
+
+			remove=
+
+			case "$module" in
+				"nf_"*|"xt"*|"ts_"*|"x_tables"|"ip_tables"|"ipt_"*|"iptable_"*)
+					case "$filter_option" in
+						all|most|iptables)
+							remove="true"
+						;;
+					esac
+				;;
+				"b43"*|"ath"*|"cfg80211"|"mac80211"*|"compat"*)
+					case "$filter_option" in
+						all|most|wifi)
+							remove="true"
+						;;
+					esac
+				;;
+				"ts_"*|"crc_ccitt"|"aes_generic"|"arc4"|"crypto_algapi"|"ppp"*)		# fixme! ifdown wan for ppp?
+					case "$filter_option" in
+						all|most|misc)
+							remove="true"
+						;;
+					esac
+				;;
+				*)
+					case "$filter_option" in
+						all)
+							remove="true"
+						;;
+					esac
+				;;
+			esac
+
+			[ -n "$remove" ] && {
+				_log do $funcname daemon info "removing kmodule: $module"
+
+				rmmod $module || {
+					_log do $funcname daemon info "removing kmodule: $module [FAILED1]"
+				}
+		
+				lsmod | fgrep -q "$module" && {
+					errorcount=$(( $errorcount + 1 ))
+					_log do $funcname daemon debug "rmmod/lsmod: $( lsmod | fgrep "$module" )"
+					_log do $funcname daemon info "removing kmodule: $module [FAILED2] errorcount: $errorcount"
+				}
+			}
+		} done
+
+		[ "$filter_option" = "all" ] && {
+			if [ -n "$( list_modules_get )" ]; then
+				_log do $funcname daemon info "[ERR] still loaded modules:"
+				lsmod | _log do firmware_lsmod daemon info
+			else
+				_log do $funcname daemon info "[OK] all modules are now unloaded"
+			fi
 		}
+
+		[ "$errorcount" = "0" ] && break
 	} done
 
-	[ "$filter_option" = "all" ] && {
-		_firmware log "[OK] still loaded modules:"
-		lsmod
-	}
+	_watch counter "/tmp/$funcname" set 0
 }
 
 _firmware_kill_tasks()
 {
+	local funcname="firmware_kill_tasks"
 	local list_tasks="$1"		# special keywords: pause | wifi_down
 
 	for task in $list_tasks ; do {
 
 		case "$task" in
 			pause)
-				sleep 5
+				_log sleep $funcname 5 step 1
 			;;
 			wifi_down)
 				[ "$( uci set wireless.radio0.disabled )" = 1 ] || {
-					_firmware log "[OK] bringing wifi down"
+					_log do $funcname daemon info "[OK] bringing wifi down"
 					uci set wireless.radio0.disabled=1
 					wifi
 				}
 			;;
 			*)
-				_firmware log "killall $task"
+				_log do $funcname daemon info "killall $task"
 				killall "$task"
 			;;
 		esac
 	} done
 
-	_firmware log "[OK] still running tasks:"
-	ps
+	_log do $funcname daemon info "[OK] still running tasks:"
+	ps | _log do firmware_ps daemon info
 }
 
 _firmware_flush_iptables()
 {
-	_firmware log "[OK] flushing iptables"
+	local funcname="firmware_flush_iptables"
+
+	_log do $funcname daemon info "[OK] flushing iptables"
 
 	iptables -t mangle -F
 	iptables -t mangle -X
@@ -368,16 +383,19 @@ _firmware_flush_iptables()
 	iptables -t filter -X
 	iptables -t nat -F
 	iptables -t nat -X
+
+	_log do $funcname daemon info "[READY] flushing iptables"
 }
 
 _firmware_check_image()
 {
+	local funcname="firmware_check_image"
 	local file="${1:-/tmp/fw}"
 
-	_firmware log "[START] checking image '$file'"
+	_log do $funcname daemon info "[START] checking image '$file'"
 
 	[ -e "$file" ] || {
-		_firmware log "file '$file' is missing, abort"
+		_log do $funcname daemon info "file '$file' is missing, abort"
 		return 1
 	}
 
@@ -386,51 +404,58 @@ _firmware_check_image()
 	. /lib/upgrade/common.sh
 
 	if platform_check_image "$file" ; then
-		_firmware log "[READY] image OK checked"
+		_log do $funcname daemon info "[READY] image OK checked"
 	else
-		_firmware log "[ERR] bad checksum, abort"
+		_log do $funcname daemon info "[ERR] bad checksum, abort"
 		return 1
 	fi
 }
 
 _firmware_remove_cron_stuff()
 {
+	local funcname="firmware_remove_cron_stuff"
 	local sleeptime="${1:-1}"
+	local crondog_found
+
+	ps | grep -q "cron_watchdog.sh"$ && {
+		crondog_found="true"
+	}
 
 	[ -e "/etc/init.d/S51crond_fff+" ] && {
 		if mv "/etc/init.d/S51crond_fff+" "/etc/init.d/deactivated_cron_daemon" ; then
-			_firmware log "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
+			_log do $funcname daemon info "[OK] /etc/init.d/S51crond_fff+ moved to /etc/init.d/deactivated_cron_daemon"
 		else
-			_firmware log "[ERR] during moving /etc/init.d/S51crond_fff+ to /etc/init.d/deactivated_cron_daemon - abort"
+			_log do $funcname daemon info "[ERR] during moving /etc/init.d/S51crond_fff+ to /etc/init.d/deactivated_cron_daemon - abort"
 			return 1
 		fi
 	}
 
-	while [ ! -e /tmp/cron_watchdog.id ]; do {
-		_firmware log "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
-		sleep 5
-	} done
+	[ -n "$crondog_found" ] && {
+		while [ ! -e /tmp/cron_watchdog.id ]; do {
+			_log do $funcname daemon info "waiting till cron_watchdog starts (file '/tmp/cron_watchdog.id' must come up)"
+			sleep 5
+		} done
+	}
 
-	_firmware log "[OK] watchdog found, enforcing watchdog-ending and cleaning scheduler queue"
+	_log do $funcname daemon info "[OK] watchdog found, enforcing watchdog-ending"
 	touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
 
-	_firmware log "[OK] waiting $sleeptime seconds"
-	sleep $sleeptime
+	_log do $funcname daemon info "[OK] waiting $sleeptime seconds"
+	_log sleep $funcname $sleeptime step 10
 
-	_firmware kill_tasks "crond cron_watchdog.sh scheduler"
-
-#	_scheduler queue_purge		# fixme! this kills ourself?
-
+	_firmware kill_tasks "crond cron_watchdog.sh"
 }
 
 _firmware_burn ()
 {
 	local FILE="${1:-/tmp/fw}"
 	local FUNC="firmware_burn"
+	local funcname="firmware_burn"
 	local OUT
 	local architecture="$( _system architecture )"
 	local pause="6"
 
+	touch /tmp/LOCKFILE_APPLY	# block scheduler
 	touch /tmp/DEBUG		# syslog verbose, if any...
 
 	_log shell_is_interactive && {
@@ -442,12 +467,31 @@ _firmware_burn ()
 				_log do $FUNC daemon info "better start a screen-session: opkg update; opkg install screen; screen - then do: '. /tmp/loader; _firmware burn /tmp/fw'"
 			fi
 
-			_log do $FUNC daemon info "will continue in 10 seconds"
-			sleep 10
+			_log sleep $funcname 10 step 1
 		}
 	}
 
 	_firmware check_image "$FILE" || return 1
+	case "$( _system architecture )" in
+		brcm47xx)
+			local patchfile partition fix
+
+			patchfile="/lib/upgrade/common.sh"
+			fgrep -q '"Upgrade completed";' "$patchfile" || {
+				partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
+				fix="mtd fixtrx $partition"
+				_log do $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
+				sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
+				fgrep -q "$fix" "$patchfile" || reboot -f
+			}
+		;;
+	esac
+	local patchfile="/lib/upgrade/common.sh"
+	local loop_begin="I=0; while true; do"
+	local loop_end="\&\& break; v retry_upgrade; I=\$(( \$I + 1 )); test \$I -gt 100 \&\& break; done"
+	_log do $funcname daemon info "[OK] patching '$patchfile', adding loop to default_do_upgrade() till it does not fail"
+	sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
+	fgrep -q "v retry_upgrade;" "$patchfile" || reboot -f
 
 	local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
 			  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
@@ -466,41 +510,73 @@ _firmware_burn ()
 	_firmware remove_cron_stuff $pause || return 1
 	_firmware kill_tasks "$list_tasks"
 
-
-	rm -fR /tmp/kalua
-
 	_firmware flush_iptables
 
 	_firmware remove_kmodules most
-	_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
+	_log do $funcname daemon info "[OK] after 'remove_kmodules most' - flushing caches: $( _system ram_free flush ) bytes free"
 
 	_firmware remove_kmodules all
-	_firmware log "[OK] flushing caches: $( _system ram_free flush ) bytes free"
+	_log do $funcname daemon info "[OK] after 'remove_kmodules all' - flushing caches: $( _system ram_free flush ) bytes free"
 
+	rm -fR /tmp/kalua		# free some RAM	- fixme! better delete all except NEEDED?
+	rm -fR /tmp/OLSR
+	rm -fR /tmp/OLSR_TMP
+	rm -fR /tmp/opkg-lists
+	rm -fR /tmp/wifi_check_each_client
+	rm -fR /tmp/WIFI_SCAN_TODAY
+	rm -fR /tmp/DB
 
-	case "$architecture" in
-		brcm47xx)
-			local patchfile partition fix
+	mkdir /tmp/fwimage
+	mv "$FILE" /tmp/fwimage
+	rm /tmp/*
+	mv /tmp/fwimage/* "$FILE"
+	rm -fR /tmp/fwimage
 
-			patchfile="/lib/upgrade/common.sh"
-			fgrep -q '"Upgrade completed";' "$patchfile" || {
-				partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
-				fix="mtd fixtrx $partition"
-				_firmware log "[OK] patching '$patchfile', adding: '$fix'"
-				sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" /lib/upgrade/common.sh
-			}
-		;;
-	esac
+	interfaces()
+	{
+		local line
 
-	_firmware log "[START] sysupgrading"
-	sysupgrade -v "$FILE"
-	_firmware log "[READY] sysupgraded"
+		ip link show | while read line; do {
+			case "$line" in
+				[0-9]*": "*)
+					set $line
+					echo "${2%:*}" | cut -d'@' -f1		# eth0.2@eth0 -> eth0.2
+				;;
+			esac
+		} done
+	}
 
+	local getmem msg1 msg2 delifs cmds removeable_interfaces
 
-	>"$FILE"		# normally this section is never reached	
-	/bin/sync
-	/bin/sleep 30
-	/sbin/reboot
+	# reverse order, all in one line:
+	removeable_interfaces="$( interfaces | sed '1!G;h;$!d' | while read LINE; do echo -n "$LINE "; done )"
+
+	getmem="echo 3 >/proc/sys/vm/drop_caches; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
+	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
+	delifs="for I in $removeable_interfaces; do /bin/echo \"ifconfig \$I down\"; ifconfig \$I down; /bin/echo \"\$I is down\"; done"
+	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; ifconfig >/dev/console; ifconfig | grep . && /sbin/reboot"
+
+	cmds="$getmem; $msg1; $delifs; $getmem; $msg2"
+
+	# using this way, we have enough free RAM, e.g.
+	# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys
+	#
+	# ideas to get even more free ram:
+	# - unloading all functions/vars before mtd
+	# - unmounting jffs2/unneeded filesystems
+	# - reducing disk-buffers?
+
+		cat >/etc/crontabs/root <<EOF
+* * * * * rm /etc/crontabs/root; killall crond; $cmds; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f
+EOF
+
+	/usr/sbin/crond -L /dev/null
+
+	grep -q "f$" /etc/crontabs/root || reboot -f
+	pidof crond >/dev/null || reboot -f
+
+	/bin/netmsg $LANBRC "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
+	/bin/echo "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
 }
 
 _firmware_filelist ()
@@ -520,31 +596,19 @@ _firmware_filelist ()
 		/etc/init.d/S41build_static_netparam
 		/etc/kalua/*
 		/etc/kalua_init*
-		/etc/local.fw-fff+
 		/etc/variables_*
 		/usr/bin/neigh
 		/usr/bin/scheduler
-		/usr/sbin/cron.autocreate_tickets
 		/usr/sbin/cron.check_inet_gw_fff+
 		/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+
-		/usr/sbin/cron.generate_new_tickets
 		/usr/sbin/cron.monitoring
-		/usr/sbin/cron.optimize_wifi_txpower
-		/usr/sbin/cron.select_best_antenna_fff+
 		/usr/sbin/cron.upgrade_packages
 		/usr/sbin/fwupload_fff+
-		/www/cgi-bin-admin
 		/www/cgi-bin-chip
-		/www/cgi-bin-shoutbox
-		/www/cgi-bin-speed
 		/www/cgi-bin-sql
 		/www/cgi-bin-tunnel.sh
 		/www/cgi-bin-tool_fff+
-		/www/cgi-bin-traffic_fff+
 		/www/cgi-bin-welcome*
-		/www/cgi-bin/cgi-bin-update_fff+
-		/www/cgi-bin/config_fff+
-		/www/cgi-bin/telnetd_fff+
 		/www/cgi-bin/userdb
 		/www/robots.txt
 		"
@@ -557,34 +621,66 @@ _firmware_filelist ()
 
 _firmware_upgrade_is_needed()
 {
-	local target_version_git="28464"
+	return 1
 
-	[ "$( _system uptime min )" -ge 30 ] || {
-		return 1
+	local target_version_git hardware
+
+	[ -e "/etc/HARDWARE" ] && {
+		read hardware <"/etc/HARDWARE"
 	}
 
+	case "$hardware" in
+		"TP-LINK TL-WR1043ND")
+			target_version_git="30563"
+
+			case "$CONFIG_PROFILE" in
+				liszt28*|schoeneck*) ;;
+				*) return 1 ;;
+			esac
+		;;
+		"Buffalo WHR-HP-G54"|"Linksys WRT54G/GS/GL"|"Dell TrueMobile 2300")
+			target_version_git="30406"
+
+			[ -d "/etc/kalua.w" ] || target_version_git=55555		# fixme! this enforces an reflash
+
+			case "$CONFIG_PROFILE" in
+				liszt28*|lisztwe*|monami*|versiliawe*|zumnorde*|elephant*) ;;
+				marinapark*|fparkssee*|satama*|adagio*|apphalle*) ;;
+				*) return 1 ;;
+			esac
+		;;
+		*)
+			return 1
+		;;
+	esac
 
 	_firmware updatemode testing || {
 		return 1
 	}
 
-	[ "$( _system version short )" -ge $target_version_git ] && {
+	[ "$( _system version short )" -ge ${target_version_git:-99999} ] && {
 		return 1
 	}
 
-	case "$( uci get system.@profile[0].name )" in
-		liszt28*|ejbw*|rehungen*)
-			# ejbw*|tkolleg*|rehungen*|hotello-K80*|dhfleesensee*|itzehoe*|satama*
-			:
+	case "$CONFIG_PROFILE" in			# explicit global nono!
+		ffweimar*)
+			return 1	# be safe and free
 		;;
-		*)
-			return 1	# aschbach*|tkolleg*|hotello_*|rehungen*|satama*|dhfleesensee*|ejbw*|itzehoe*
-		;;			# todo: apphalle|leonardo|zumnorde
+		aschbach*|olympia*)
+			return 1	# needs hybrid-profile
+		;;
+		paltstadt*|tkolleg*)
+			return 1	# unmaintained
+		;;
+		spbansin*)
+			return 1	# fixup pppoe-credentials
+		;;
 	esac
 
-	case "$( uci get system.@profile[0].name )" in
-		liszt28*|ejbw*|satama*|itzehoe*)
-			:		# these inet-offer nodes are safe
+	case "$CONFIG_PROFILE" in
+		*)
+			:
+			# these inet-offer nodes are safe
 		;;
 		*)
 			_net local_inet_offer >/dev/null && {
@@ -593,33 +689,23 @@ _firmware_upgrade_is_needed()
 		;;
 	esac
 
-	case "$( _system architecture )" in
-		ar71xx)
-			:
-		;;
-		*)
-			return 1
-		;;
-	esac
-
-	case "$( _hardware remap_devs get_model )" in
-		*"TL-WR1043ND"*)
-			:
-		;;
-		*)
-			return 1
-		;;
-	esac
+	return 0
 }
 
 _firmware_wget()
 {
 	local funcname="firmware_wget"
 	local file="${1:-/tmp/fw}"
-	local source="${2:-http://intercity-vpn.de/firmware/ar71xx/images/testing/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin}"
-	local hash="${3:-41bffd5425e51d6725591254316175df}"
+	local source="${2:-$( _links firmware_url_get )}"
+	local hash="${3:-$( _links firmware_url_get crc )}"
+	local maxtry="${4:-1000}"
 
-	[ -e "$file" ] && return 0		# fixme! why?
+	[ -e "$file" ] && return 0		# for manually fetching the file and test the hole procedure
+
+	[ ${#hash} = "32" ] || {
+		_log do $funcname daemon info "abort - hash invalid: '$hash'"
+		return 1
+	}
 
 	filehash_is_ok()
 	{
@@ -627,17 +713,18 @@ _firmware_wget()
 	}
 
 	while ! filehash_is_ok ; do {
-		_log do fetch_firmware daemon info "http_get $source"
-		wget -qcO "$file" "$source"
-		sleep 1
-		 _watch counter "/tmp/fetch_firmware" increment 1 max 100 || break
+		touch "$file"
+		_log do $funcname daemon info "http_get $source: now $( _file size "$file" ) bytes targethash: $hash"
+		_wget do "$source" 10 "continue $file"
+		_log sleep $funcname 15 step 5
+		 _watch counter "/tmp/fetch_firmware" increment 1 max $maxtry || break
 	} done
 
-	if _watch counter "/tmp/fetch_firmware" increment 1 max 100; then
-		_log do $funcname daemon info "[READY] downloading '$file'"
+	if _watch counter "/tmp/fetch_firmware" increment 1 max $maxtry; then
+		_log do $funcname daemon info "[READY] downloading '$file' with $( _file size "$file" ) bytes"
 		return 0
 	else
-		_log do $funcname daemon info "[ERR] downloading '$file', maximum tries reached, deleting and aborting"
+		_log do $funcname daemon info "[ERR] downloading '$file', maximum tries = $maxtry reached, deleting and aborting"
 		rm "$file" /tmp/fetch_firmware
 		return 1
 	fi
