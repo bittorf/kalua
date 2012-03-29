@@ -167,11 +167,12 @@ _system_load ()			# load without comma, e.g.
 	echo "${OUT:-100}"
 }
 
-_system_flash_free ()	# [kByte]		# fixme! abstraction to PARTITION="$1", fallback to internal flash
+_system_flash_free ()	# [kByte]
 {
-	local PARTITION="$( mount | sed -n 's/\(^.*mtd.*\) on .*/\1/p' )"
-
-	df | sed -n "s#^${PARTITION:-/dev/root}[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*#\1#p"
+	local line="$( df | grep " /overlay"$ )"
+	line="${line:-$( df | grep ^"/dev/root" )}"	# fallback
+	set ${line:-0 0 0 0}
+	echo $4
 }
 
 _system_flash_size ()	# [kByte]		// fixme! seems to be device-specific
@@ -334,7 +335,11 @@ _system_ram_free ()	# [bytes]
 		case $LINE in
 			MemFree:*)
 				set $LINE
-				MEM="$(( $2 * 1024 ))"
+				MEM=$2
+			;;
+			Buffers:*)
+				set $LINE
+				MEM=$(( ($MEM + $2) * 1024 ))
 				break
 			;;
 		esac
