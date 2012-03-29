@@ -1,24 +1,68 @@
 #!/bin/sh
 . /tmp/loader
 
+[ -e "/tmp/LOCKFILE_APPLY" ] && {
+	_log do apply_profile daemon info "[OK] no scheduler action"
+	exit 0
+}
+
+case "$( uci get wireless.@wifi-iface[0].mode )" in
+	"ap")
+		grep -sq "b43-phy0" /tmp/dmesg.boot && {
+			iw dev $WIFIDEV set bitrates legacy-2.4 1 2 5.5
+		}
+	;;
+esac
+
 ERR=1
-while getopts "S:a:A:wrlpofuOPH" FLAG; do {
+while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 	ERR=0
 
 	case $FLAG in
+		U)
+			if   [ -e "/tmp/START_SYSUPGRADE" ]; then
+				_scheduler queue_list is_empty >/dev/null && {
+					DO_UPGRADE="true"
+				}
+			elif [ -e "/www/START_SYSUPGRADE" ]; then
+				DO_UPGRADE="true"
+			fi
+
+			[ "$DO_UPGRADE" = "true" ] && {
+				rm "/www/START_SYSUPGRADE" "/tmp/START_SYSUPGRADE"
+
+				FILE="/tmp/fw"
+
+				[ -e "$FILE" ] || {
+					_firmware wget_prepare_for_lowmem_devices && {
+						LOWMEM="true"
+					}
+
+					_firmware wget "$FILE" || {	# or add manually: FILE | URL | HASH
+						rm "$FILE"
+					}
+				}
+
+				if [ -e "$FILE" ]; then
+					_firmware burn $FILE
+				else
+					[ "$LOWMEM" = "true" ] && {
+						_log do wget_firmware daemon alert "download failed on lowmem-device, rebooting"
+						reboot -f
+					}
+				fi
+
+				pidof crond >/dev/null || reboot -f
+
+				[ -e "/tmp/LOCKFILE_APPLY" ] && rm "/tmp/LOCKFILE_APPLY"        # unblock scheduler
+
+				exit 0
+			}
+		;;
 		S)
 			MINUTE="$( date +%M )"	# 00...59
 			HOUR="$(   date +%H )"	# 00...23
-
-			cron_minutely()
-			{
-				[ -e /usr/sbin/cron.minutely ] && {
-					pidof cron.minutely >/dev/null || {
-						/usr/sbin/cron.minutely
-					}
-				}
-			}
 
 			watch_hanging_command()
 			{
@@ -31,11 +75,8 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 
 			case "$OPTARG" in
 				minimal)
-					cron_minutely
-
 					case "$MINUTE" in
 						00|15|30|45)
-							_scheduler add software_install
 							_scheduler add 15min_checks
 
 							case "$MINUTE" in
@@ -65,17 +106,109 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					esac
 				;;
 				newstyle)
+					grep -qs 0 "/proc/sys/vm/panic_on_oom" && {
+						echo 1 >"/proc/sys/vm/panic_on_oom"
+					}
+
+					rm /tmp/wget_do_* 2>/dev/null			# fixme!
+
 					[ -e /tmp/.autorun ] && /tmp/.autorun		# can be helpful to make changes an many nodes
 											# script must first delete himself with 'rm $0'
 					_scheduler check_if_every_Nth_minute 360 && {
 						_scheduler add upgrade_packages
+						_firmware update_pmu
 					}
 
-					dmesg | fgrep -q "nf_conntrack: table full, dropping packet." && {
+					dmesg >"/tmp/dmesg.recent"
+					[ -e "/tmp/dmesg.boot" ] || cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
 
+					reboot_needed()
+					{
+						fgrep -q " page allocation failure: " "/tmp/dmesg.recent" && {
+							_log do kernellog daemon alert "page allocation failure"
+							return 0
+						}
+
+						fgrep -q " BUG: Bad page state in process " "/tmp/dmesg.recent" && {
+							_log do kernellog daemon alert "BUG: Bad page state in process"
+							return 0
+						}
+
+						fgrep -q "Fixing recursive fault but reboot is needed" "/tmp/dmesg.recent" && {
+							_log do kernellog daemon alert "Fixing recursive fault but reboot is needed"
+							return 0
+						}
+							#_scheduler add check_vpn
+
+						[ $( _system version short ) -le 30010 ] && {
+							grep ^WARNING: "/tmp/dmesg.recent" | fgrep -q "ath9k/recv.c:" && {
+								_log do kernellog daemon alert "ath9k-warning in recv.c"
+								return 0	# strange: iptables are open after this
+							}
+						}
+
+						# switch and wifi is affected:
+						fgrep -q "ath: DMA failed to stop in 10 ms AR_CR=0x00000024 AR_DIAG_SW=0x42000020 DMADBG_7" "/tmp/dmesg.recent" && {
+							[ $( _system version short ) -le 30010 ] && {
+								case "$( _wifi mode $WIFIDEV )" in
+									adhoc)
+										_net local_inet_offer >/dev/null || {
+											[ $( _system uptime min ) -gt 180 ] && {
+												_log do kernellog daemon alert "ath: DMA failed to stop in 10 ms AR_CR=0x00000024"
+												return 0
+											}
+										}
+									;;
+									*)
+										case "$( uci get wireless.radio0.htmode )" in
+											HT40*)
+												uci set wireless.radio0.htmode=HT20
+												uci commit wireless
+												wifi
+											;;
+										esac
+									;;
+								esac
+							}
+						}
+
+						# wifi is laggy after this:
+						fgrep -q "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" && {
+							[ $( _system version short ) -le 30010 ] && {
+								case "$( _wifi mode $WIFIDEV )" in
+									adhoc)
+										_net local_inet_offer >/dev/null || {
+											[ $( _system uptime min ) -gt 180 ] && {
+												_log do kernellog daemon alert "ath: Failed to stop TX DMA, queues=0x"
+												return 0
+											}
+										}
+									;;
+									*)
+										case "$( uci get wireless.radio0.htmode )" in
+											HT40*)
+												uci set wireless.radio0.htmode=HT20
+												uci commit wireless
+												wifi
+											;;
+										esac
+									;;
+								esac
+							}
+						}
+
+						return 1
+					}
+
+					reboot_needed && {
+						sync
+						reboot -f
+					}
+
+					fgrep -q "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" && {
 						_log do conntrack_full daemon info "dropping packet"
 
-						[ "$( dmesg | fgrep "nf_conntrack: table full, dropping packet." | wc -l )" -gt 10 ] && {
+						[ "$( fgrep "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" | wc -l )" -gt 10 ] && {
 							_system reboot_safe "nf_conntrack: table full"
 						}
 					}
@@ -83,6 +216,8 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					[ "$( uci get network.wan.proto )" = "pppoe" ] && {
 						_watch pppoe
 					}
+
+					_watch webserver
 
 					pidof dnsmasq >/dev/null || _watch dns_resolution
 					_watch local_proxy
@@ -92,11 +227,13 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 							_scheduler add gateway_check
 							_scheduler add 15min_checks
 							_scheduler add monitoring
-							#_scheduler add check_vpn
-							_scheduler add user_traff_broadcast
-							_scheduler add kick_user_over_limit
-							[ "$( uci get system.@vds[0].enabled )" = "1" ] && _scheduler add vds
-						#	[ -z "$( uci get system.@weblogin[0].enabled )" ] && _scheduler add build_accounting
+
+							[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
+								[ -n "$( _netfilter user_list )" ] && {
+									_scheduler add vds
+								}
+							}
+
 							_scheduler add "_tunnel clientside_control check_connection all"
 
 							case "$MINUTE" in
@@ -106,19 +243,24 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 
 									case "$HOUR" in
 										00)
-											_scheduler add 24h_checks
+											:
 										;;
 										03)
-											_scheduler add restart_olsr
+											[ -e "/tmp/service_olsrd_nowatching" ] || {
+												_scheduler add restart_olsr
+											}
 										;;
 										04)
 											_scheduler add fwupdate_check
 											_scheduler add splash4nonautounsplashed
 										;;
 										06)
-											_scheduler add restart_olsr
-											_scheduler add user_traff_reset
-											_scheduler add kick_user_all
+											killall dbclient	# reinit reverse ssh-tunnel
+											[ -e "/tmp/service_olsrd_nowatching" ] || {
+												_scheduler add restart_olsr
+											}
+
+											/etc/init.d/netfilter restart
 										;;
 									esac
 								;;
@@ -204,79 +346,12 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 							_log do $funcname daemon info "[OK] first activity seen on dev $check_dev ($framecount_old packets) - marking"
 							touch "$file_activity_seen"
 						}
+						}
 					}
 
 					_log do $funcname daemon debug "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer do "$framecount_old + $(( $framecount_new - $framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
 					return 0
 				fi
-			}
-
-			kernel_oops_wifi()		# we have seen routers, which have incoming AND outgoing wifi_activity() but wifi is dead
-			{
-				local funcname="kernel_oops_wifi"
-				local hash lasthash line
-				local hashfile="/tmp/last_kernel_oops_wifi"
-
-				local match1="WARNING: at "
-				local match2="drivers/net/wireless"
-
-				line="$( dmesg | fgrep "$match1" | tail -n1 | fgrep "$match2" )" && {
-
-					hash="$( echo "$line" | md5sum | cut -d' ' -f1 )"
-
-					[ -e "$hashfile" ] && {
-						read lasthash <"$hashfile"
-					}
-
-					if [ "$hash" = "$lasthash" ]; then
-						_log do $funcname daemon debug "detected old oops: $hash"
-					else
-						echo "$hash" >"$hashfile"
-						_log do $funcname daemon alert "detected new oops: $line"
-						return 0
-					fi
-				}
-
-#				local match3="ath: Timeout while waiting for nf to load: AR_PHY_AGC_CONTROL=0x"
-#
-#				line="$( dmesg | fgrep "$match3" | tail -n1 )" && {
-#
-#					hash="$( echo "$line" | md5sum | cut -d' ' -f1 )"
-#
-#					[ -e "$hashfile" ] && {
-#						read lasthash <"$hashfile"
-#					}
-#				}
-
-				return 1
-			}
-
-			constantly_disassociating_wifi_clients()
-			{
-				local funcname="constantly_disassociating_wifi_clients"
-				local this_minute="$( date +%M )"
-				local last_min=$(( $this_minute - 1 ))			# fixme! will not work at full hour
-				local part_of_date="$( date "+%e %H:$last_min:" )"	# last minute only -> "2 12:55:"
-				local border=3						# how much disass we allow to be normal per minute
-				local count
-
-				grep_log()
-				{
-					logread |
-					 fgrep "$part_of_date" |
-					  sed -n 's/^.*STA \(..:..:..:..:..:..\) IEEE 802.11: disassociated$/\1/p'
-				}
-
-				count="$( grep_log | wc -l )" 
-
-				if [ ${count:-0} -gt $border ]; then
-					_log do $funcname daemon info "affected macs: $( grep_log | sort | uniq )"
-					return 0
-				else
-					return 1
-				fi
-
-				# fixme! there can be more than one mac, we have to count each of them
 			}
 
 			# we check:
@@ -294,7 +369,13 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 						_system reboot_safe "no incoming_wifi_activity, framecounter: $( cat /tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV )"
 					;;
 					*)
-						_wifi phy_restart $WIFIDEV "no incoming_wifi_activity, wifimode $WIFIMODE"
+						if [ -n "$( iw dev $WIFIDEV station dump )" ]; then
+							_wifi check_each_client || {
+								_wifi phy_restart $WIFIDEV "clients active, no incoming_wifi_activity, wifimode $WIFIMODE"
+							}
+						else
+							_wifi phy_restart $WIFIDEV "no clients, no incoming_wifi_activity, wifimode $WIFIMODE"
+						fi
 					;;
 				esac
 			}
@@ -304,30 +385,31 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 					:
 				;;
 				*)
-					constantly_disassociating_wifi_clients && {
-						:
-						# _wifi phy_restart $WIFIDEV "constantly_disassociating_wifi_clients()"
-					}
-
 					_wifi check_each_client || {
-						_wifi phy_restart $WIFIDEV "tx/arping to all clients failed"
+						_log do check_each_client daemon info "tx/arping to all clients failed - no further action"
+#						_wifi phy_restart $WIFIDEV "tx/arping to all clients failed"
 					}
 
 					case "$WIFIMODE" in
 						*ap*)
-							pidof hostapd >/dev/null || {
-								[ -z "$( _net dev2ip $WIFIDEV )" ] && {
-									_system reboot_safe "missing hostapd and no IP on wifidev $WIFIDEV - $( dmesg | tail -n1 )"
-								}
+							which hostapd >/dev/null && {
+								if pidof hostapd >/dev/null; then
+									touch "/tmp/DAEMON_hostapd_seen"
+								else
+									if [ -z "$( _net dev2ip $WIFIDEV )" ]; then
+										_system reboot_safe "missing hostapd and no IP on wifidev $WIFIDEV - $( tail -n1 "/tmp/dmesg.recent" )"
+									else
+										[ -e "/tmp/DAEMON_hostapd_seen" ] && {
+											_log do missing_hostapd daemon info "wifi up"
+											wifi up
+										}
+									fi
+								fi
 							}
 						;;
 					esac
 				;;
 			esac
-
-			kernel_oops_wifi && {
-				_wifi phy_restart $WIFIDEV "kernel_oops_wifi"
-			}
 		;;
 		a)
 			_scheduler add "$OPTARG"
@@ -364,25 +446,33 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 			_scheduler queue_purge
 		;;
 		O)
-			_olsr build_tables
+			if pidof olsrd >/dev/null ; then
+				_olsr build_tables
 
-			_olsr restarts_are_suspicious_often && {
-				_system reboot_safe "[ERR] olsr restarts > normality"
-			}
+				_olsr restarts_are_suspicious_often && {
+					_system reboot_safe "[ERR] olsr restarts > normality"
+				}
+
+				[ "$( uci get olsrd.@meta[0].hnaslave )" = "1" ] && {
+					/usr/sbin/cron.olsr-hna-slave
+				}
+			else
+				if [ -e "/tmp/service_olsrd_nowatching" ]; then
+					[ -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" ] && {
+						read IP </tmp/OLSR_HNA_SLAVE_PINGTEST
+						ping -qc 1 $IP >/dev/null || {
+							ip route del default
+							rm /tmp/service_olsrd_nowatching	# fire olsr
+						}
+					}
+				else
+					_olsr daemon start "no running daemon"
+				fi
+			fi
 		;;
 		H)
 			[ -e /usr/sbin/uhttpd ] && \
 				echo -n "$WIFIADR #" >/tmp/WELCOME_HELPER
-		;;
-		o)
-			grep -q ^"printdev()" /usr/bin/netparam || {	# fixme! better concept needed, wrong place (but efficient)!
-				INCOMING_OLSR_PACKETS_WIRED="$( iptables --line-numbers -nxvL olsr_in_wire 2>/dev/null | sed -n 's/^4[^0-9]*\([0-9]*\)[^0-9]*[0-9]*.*/\1/p' )"
-				[ ${INCOMING_OLSR_PACKETS_WIRED:=0} -gt 0 ] && {
-					_log do detect_wired_olsr_traffic daemon info "restart olsr-daemon with wired interfaces"
-					/etc/init.d/S41build_static_netparam restore_original_netparam
-					_olsr daemon restart "detected wired neigh"
-				}
-			}
 		;;
 		f)
 			IFS='. '; read NOP NOP FIVEMINLOAD DECIMALS NOP </proc/loadavg; unset IFS 
@@ -396,16 +486,6 @@ while getopts "S:a:A:wrlpofuOPH" FLAG; do {
 			else
 				_watch counter /tmp/counter_highload set 0
 			fi
-		;;
-		u)
-			grep -q "kernel: Oops" /var/log/messages && {	# fixme! dirty, but the only chance?
-				grep -q "kernel: Process wifi (" /var/log/messages || {
-					logger -s "$0: detected kernel-oops, rebooting after safing reason"		# without using _log()
-					grep "kern.warn kernel: " /var/log/messages >>/www/everlasting_syslog.txt
-					reboot
-				}
-				_log do detect_kernel_oops daemon alert "only a wifi-oops, ignoring"
-			}
 		;;
 		*)
 			ERR=1
