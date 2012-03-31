@@ -219,7 +219,17 @@ case "\$LOAD" in
 	0*)
 		[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
 
-		[ -e /tmp/CRON_LOCK ] || {
+		if [ -e /tmp/CRON_LOCK ]; then
+			case "\$LOAD" in
+				0.00|0.01|0.02)
+					echo -n '#' >>"/tmp/CRON_UNDERLOAD"
+					read I <"/tmp/CRON_UNDERLOAD"
+					[ \${#I} -gt 9 ] && /sbin/reboot -f
+				;;
+			esac
+		else
+			[ -e "/tmp/CRON_UNDERLOAD" ] && rm "/tmp/CRON_UNDERLOAD"
+
 			case "\$( pidof dropbear )" in
 				*" "*)
 				;;
@@ -234,17 +244,12 @@ case "\$LOAD" in
 					trap - INT TERM EXIT
 				;;
 			esac
-		}
+		fi
 	;;
 	*)
-		echo -n "#" >>"/tmp/CRON_OVERLOAD"
-
-		[ -e "/tmp/CRON_OVERLOAD" ] && {
-			read I <"/tmp/CRON_OVERLOAD"
-			[ \${#I} -gt 4 ] && {
-				/sbin/reboot
-			}
-		}
+		echo -n '#' >>"/tmp/CRON_OVERLOAD"
+		read I <"/tmp/CRON_OVERLOAD"
+		[ \${#I} -gt 4 ] && /sbin/reboot -f
 	;;
 esac
 EOF
