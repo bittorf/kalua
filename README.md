@@ -9,8 +9,6 @@ kalua - build mesh-networks _without_ pain
 needing support?
 join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bittorf-wireless.de)
 
-[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software)
-
 
 how to build this from scratch on a debian server
 -------------------------------------------------
@@ -29,7 +27,7 @@ how to build this from scratch on a debian server
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
 	
-	kalua/openwrt-build/mybuild.sh gitpull
+	weimarnetz/openwrt-build/mybuild.sh gitpull
 	./scripts/feeds update -a		# update openwrt feeds (luci, x-wrt and packages) 
 	weimarnetz/openwrt-build/mybuild.sh select_hardware_model
 
@@ -111,7 +109,7 @@ piggyback kalua on a new router model without building from scratch
 	opkg install iptables-mod-ulog ulogd ulogd-mod-extra
 
 	# build full kalua-tarball on server
-	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full
+	weimarnetz/openwrt-build/mybuild.sh build_ffweimar_update_tarball full
 
 	# copy from server to your router
 	scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz
