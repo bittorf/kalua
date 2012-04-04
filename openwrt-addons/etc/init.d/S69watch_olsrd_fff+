@@ -36,7 +36,7 @@ _watch dns_resolution
 _watch pppoe
 _watch netserver
 # _watch webcam
-_watch sshd_or_telnet
+#_watch sshd_or_telnet
 _watch random_node_id
 
 
@@ -53,33 +53,33 @@ esac
 	REVERSE_SSHTUNNEL="true"
 }
 
-[ -n "$REVERSE_SSHTUNNEL" ] && {
-		[ -e "/tmp/service_ssh_nowatching" ] && {
-			rm "/tmp/service_ssh_nowatching"
-		}
-
-		pidof dbclient >/dev/null || {
-			_net local_inet_offer >/dev/null && {
-				_watch sshd_or_telnet
-
-				HOSTNAME="$( uci get system.@system[0].hostname )"
-				PORT="$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )"
-				_log do reverse_sshtunnel daemon debug "[START] on local port $PORT"
-
-				dbclient -y -I 600 -K 300 -f -N \
-					 -R $PORT:localhost:22 \
-					 -p 22 root@intercity-vpn.de \
-					 -i "/etc/dropbear/dropbear_dss_host_key"
-
-				if pidof dbclient >/dev/null; then
-					_log do reverse_sshtunnel daemon info "[READY] pid: '$( pidof dbclient )' on local port $PORT"
-				else
-					_log do reverse_sshtunnel daemon alert "[ERR] could not startup on local port $PORT"
-				fi
-			}
-		}
-	;;
-esac
+#[ -n "$REVERSE_SSHTUNNEL" ] && {
+#		[ -e "/tmp/service_ssh_nowatching" ] && {
+#			rm "/tmp/service_ssh_nowatching"
+#		}
+#
+#		pidof dbclient >/dev/null || {
+#			_net local_inet_offer >/dev/null && {
+#				_watch sshd_or_telnet
+#
+#				HOSTNAME="$( uci get system.@system[0].hostname )"
+#				PORT="$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )"
+#				_log do reverse_sshtunnel daemon debug "[START] on local port $PORT"
+#
+#				dbclient -y -I 600 -K 300 -f -N \
+#					 -R $PORT:localhost:22 \
+#					 -p 22 root@intercity-vpn.de \
+#					 -i "/etc/dropbear/dropbear_dss_host_key"
+#
+#				if pidof dbclient >/dev/null; then
+#					_log do reverse_sshtunnel daemon info "[READY] pid: '$( pidof dbclient )' on local port $PORT"
+#				else
+#					_log do reverse_sshtunnel daemon alert "[ERR] could not startup on local port $PORT"
+#				fi
+#			}
+#		}
+#	;;
+#esac
 
 _firmware upgrade_is_needed && {
 	touch /tmp/START_SYSUPGRADE
@@ -132,19 +132,18 @@ else
 	}
 fi
 
+logger "kurz vor ENDBOOT"
 [ -e "/tmp/ENDBOOT" ] || {
-	[ "$( _system uptime min )" -gt 5 ] && {
-		touch "/tmp/ENDBOOT"
-		killall rcS     # fixme!
+	touch "/tmp/ENDBOOT"
+	killall rcS     # fixme!
 
-		[ $( _system ram_size ) -lt 16384 ] && {
-			[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
-				grep -q "ipt_LOG" "/www/GOOD_MODULE_UNLOAD" || {
-					rm "/www/GOOD_MODULE_UNLOAD"
-				}
+	[ $( _system ram_size ) -lt 16384 ] && {
+		[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
+			grep -q "ipt_LOG" "/www/GOOD_MODULE_UNLOAD" || {
+				rm "/www/GOOD_MODULE_UNLOAD"
 			}
-
-			/etc/init.d/S70prepare_fff+ unload_unneeded_kmodules
 		}
+
+		/etc/init.d/S70prepare_fff+ unload_unneeded_kmodules
 	}
 }
