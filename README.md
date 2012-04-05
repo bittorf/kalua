@@ -24,7 +24,9 @@ how to build this from scratch on a debian server
 	git clone git://nbd.name/packages.git
 	cd openwrt
 	git clone git://github.com/bittorf/kalua.git
-	
+
+	# now copy your own 'apply_profile.code.definitions' to . or use provided on (override)
+
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
 	
