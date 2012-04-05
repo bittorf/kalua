@@ -400,7 +400,7 @@ applymystuff()
 
 	log "copy all_the_scripts/addons - the kalua-project itself ($( du -sh kalua/openwrt-addons ))"
 	cd kalua/openwrt-addons
-	cp -R * "../../$base"
+	cp -pR * "../../$base"
 
 	cd "$pwd"
 
