@@ -121,11 +121,15 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 						_firmware update_pmu
 					}
 
-					dmesg >"/tmp/dmesg.recent"
-					[ -e "/tmp/dmesg.boot" ] || cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
+					[ -e "/bin/dmesg" ] && {
+						/bin/dmesg >"/tmp/dmesg.recent"
+						[ -e "/tmp/dmesg.boot" ] || cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
+					}
 
 					reboot_needed()
 					{
+						[ -e "/tmp/dmesg.recent" ] || return 1
+
 						fgrep -q " page allocation failure: " "/tmp/dmesg.recent" && {
 							_log do kernellog daemon alert "page allocation failure"
 							return 0
@@ -174,7 +178,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 						}
 
 						# wifi is laggy after this:
-						fgrep -q "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" && {
+						fgrep -sq "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" && {
 							[ $( _system version short ) -le 30010 ] && {
 								case "$( _wifi mode $WIFIDEV )" in
 									adhoc)
@@ -206,7 +210,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 						reboot -f
 					}
 
-					fgrep -q "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" && {
+					fgrep -sq "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" && {
 						_log do conntrack_full daemon info "dropping packet"
 
 						[ "$( fgrep "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" | wc -l )" -gt 10 ] && {
