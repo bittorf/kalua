@@ -2,51 +2,90 @@ _netfilter_start()
 {
 	mkdir -p "/tmp/NETFILTER"
 
-	_netfilter_masquerade_start
+	_netfilter masquerade_start
 
 	[ -n "$( uci -q get firewall.@redirect[0] )" ] && {
-		_netfilter_portforwarding_start
+		_netfilter portforwarding_start
 	}
 
-	[ -x "/usr/sbin/olsrd" ] && {
-		[ "$( uci get olsrd.@olsrd[0].disabled )" = "1" ] || {
-			echo 1 >/proc/sys/net/ipv4/ip_forward
-		}
+	_netfilter ipforwarding_needed && {
+		_netfilter ipforwarding_start
 	}
 
 	[ -e "/www/SIMPLE_MESHNODE" ] && return 0
 
 	[ "$( uci -q get system.@weblogin[0].enabled )" = "1" ] && {
-		_netfilter_splash_start
+		_netfilter splash_start
+	}
+}
+
+_netfilter_ipforwarding_needed()
+{
+	[ -x "/usr/sbin/olsrd" ] || return 1
+	[ "$( uci get olsrd.@olsrd[0].disabled )" = "1" ] && return 1
+
+	return 0
+}
+
+_netfilter_ipforwarding_start()
+{
+	local funcname="netfilter_ipforwarding_start"
+	local kernel="/proc/sys/net/ipv4/ip_forward"
+	local state
+
+	read state <"$kernel"
+	echo "$state" >"/tmp/NETFILTER/FORWARDING_STATE_OLD"
+
+	_log do $funcname daemon info "writing 1 to $kernel"
+	echo 1 >"/proc/sys/net/ipv4/ip_forward"
+}
+
+_netfilter_ipforwarding_revert()
+{
+	local funcname="netfilter_ipforwarding_revert"
+	local file="/tmp/NETFILTER/FORWARDING_STATE_OLD"
+	local kernel="/proc/sys/net/ipv4/ip_forward"
+	local state
+
+	[ -e "$file" ] && {
+		read state <"$file"
+		_log do $funcname daemon info "writing $state to $kernel"
+		echo "$state" >"$kernel"
+		rm "$file"
 	}
 }
 
 _netfilter_stop()
 {
-	local mac
+	local funcname="netfilter_stop"
+	local mac state table
 
 	for mac in $( _netfilter user_list ); do {
+		_log do $funcname daemon info "_netfilter user_del $mac"
 		_netfilter user_del "$mac"
 	} done
 
-	iptables -t mangle -F
-	iptables -t mangle -X
-	iptables -t filter -F
-	iptables -t filter -X
-	iptables -t nat -F
-	iptables -t nat -X
+	_netfilter ipforwarding_revert
+
+	for table in mangle filter nat; do {
+		_log do $funcname daemon info "unloading table $table"
+		iptables -t $table -F
+		iptables -t $table -X
+	} done
 
 	rm -fR "/tmp/NETFILTER"
 }
 
 _netfilter_masquerade_start()
 {
+	local funcname="netfilter_masquerade_start"
 	local exception="$1"		# fixme! needs source/destination arg
-	local device
+	local device devname
 
 	mkdir -p "/tmp/NETFILTER"
 
-	case "$( _net local_inet_offer )" in
+	devname="$( _net local_inet_offer )"
+	case "$devname" in
 		wan)
 			device="$WANDEV"
 		;;
@@ -59,6 +98,8 @@ _netfilter_masquerade_start()
 	esac
 
 	[ -n "$device" ] && {
+		_log do $funcname daemon info "active for device $device ($devname)"
+
 		echo "iptables -t nat -D POSTROUTING -o $device -j MASQUERADE" >"/tmp/NETFILTER/MASQUERADING"
 		iptables -t nat -A POSTROUTING -o $device -j MASQUERADE
 
