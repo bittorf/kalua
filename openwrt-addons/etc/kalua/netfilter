@@ -1,3 +1,10 @@
+# marks:
+# 0x11 = port80, redirect to local port 80
+# 0x22 = adblocking, gets rejected
+# 0x33 = connection_start
+# 0x44 = connection_close
+# 0x88 = unauthenticated, gets rejected
+
 _netfilter_start()
 {
 	mkdir -p "/tmp/NETFILTER"
@@ -10,6 +17,10 @@ _netfilter_start()
 
 	_netfilter ipforwarding_needed && {
 		_netfilter ipforwarding_start
+	}
+
+	[ -e "/etc/hosts.drop" ] && {
+		_netfilter adblocking_start
 	}
 
 	[ -e "/www/SIMPLE_MESHNODE" ] && return 0
@@ -400,12 +411,8 @@ _netfilter_user_shaping_del()
 	local mac="$1"
 }
 
-_netfilter_user_adblocking_add()
+_netfilter_adblocking_start()
 {
-	local mac="$1"
-}
-
-_netfilter_user_adblocking_del()
-{
-	local mac="$1"
+	iptables -t mangle -A FORWARD -d 1.1.0.0/20 -j MARK --set-mark 0x22	# see /etc/hosts.drop
+	iptables -A FORWARD -m mark --mark 0x22/0xff -j REJECT
 }
