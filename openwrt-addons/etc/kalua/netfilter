@@ -27,6 +27,7 @@ _netfilter_start()
 
 	[ "$( uci -q get system.@weblogin[0].enabled )" = "1" ] && {
 		_netfilter splash_start
+		_netfilter splash_autoadd
 	}
 }
 
@@ -178,6 +179,21 @@ _netfilter_splash_start()
 
 	iptables -t nat -A PREROUTING -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $WIFIADR
 	iptables -t nat -A PREROUTING -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR
+}
+
+_netfilter_splash_autoadd()
+{
+	local line ip mac
+
+	while read line; do {
+		set ${line:-empty}
+		ip="$1"
+		mac="$4"
+
+		fgrep -sq "$ip;" /tmp/CLIENTS_ALL && {
+			/etc/dhcp-script.d/10dhcpscript add "$mac" "$ip"
+		}
+	} done </proc/net/arp
 }
 
 _netfilter_splash_stop()
