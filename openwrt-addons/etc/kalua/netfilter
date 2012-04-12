@@ -264,6 +264,29 @@ _netfilter_user_list()
 	ls -1 "/tmp/NETFILTER/USER" 2>/dev/null
 }
 
+_netfilter_user_stats_collect()		# this runs every minute, so speedcode!
+{
+	local mac line bytes_incoming bytes_outgoing uptime rest
+	read uptime rest <"/proc/uptime"; uptime="${uptime%.*}"
+
+	iptables -t mangle -nxvL FORWARD |
+	 while read line; do {
+		case "$line" in
+			*"incoming_"*)
+				set $line
+				bytes_incoming="$2"
+				mac="${3#*_}"
+			;;
+			*"outgoing_"*)
+				set $line
+				bytes_outgoing="$2"
+
+				echo "$uptime $bytes_incoming $bytes_outgoing" >>"/tmp/NETFILTER/USER/$mac/stats"
+			;;
+		esac
+	} done
+}
+
 _netfilter_user_add()
 {
 	local mac="$1"
