@@ -55,39 +55,42 @@ else
 	touch "/tmp/LOCK_OLSRSLAVE"
 fi
 
-eval $( _http query_string_sanitize )
+if _olsr uptime is_short; then
+	ERROR="SHORT_OLSR_UPTIME"
+else
+	eval $( _http query_string_sanitize )
 
-RTABLE="$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" || {
-	knowing_hna_already "$netaddr" "$netmask" && {
-		RTABLE="$( ip route list exact $REMOTE_ADDR | fgrep " via $REMOTE_ADDR " )"
+	RTABLE="$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" || {
+		knowing_hna_already "$netaddr" "$netmask" && {
+			RTABLE="$( ip route list exact $REMOTE_ADDR | fgrep " via $REMOTE_ADDR " )"
+		}
 	}
-}
 
-case "$RTABLE" in
-	*" dev $LANDEV "*)
-		dev2slave="$LANDEV"
-	;;
-	*" dev $WANDEV "*)
-		dev2slave="$WANDEV"
-	;;
-	*)
-		ERROR="CANNOT_FIND_YOUR_HNA"
-	;;
-esac
+	case "$RTABLE" in
+		*" dev $LANDEV "*)
+			dev2slave="$LANDEV"
+		;;
+		*" dev $WANDEV "*)
+			dev2slave="$WANDEV"
+		;;
+		*)
+			ERROR="CANNOT_FIND_YOUR_HNA"
+		;;
+	esac
 
-[ -n "$dev2slave" ] && {
-	ERROR="OK"
+	[ -n "$dev2slave" ] && {
+		ERROR="OK"
 
-	knowing_hna_already "$netaddr" "$netmask" || {
-		hna_add "$netaddr" "$netmask"
-		add_static_routes "$REMOTE_ADDR" "$netaddr" "$netmask" "$dev2slave"
-		_olsr daemon restart "becoming hna-master for $REMOTE_ADDR: $netaddr/$netmask"
+		knowing_hna_already "$netaddr" "$netmask" || {
+			hna_add "$netaddr" "$netmask"
+			add_static_routes "$REMOTE_ADDR" "$netaddr" "$netmask" "$dev2slave"
+			_olsr daemon restart "becoming hna-master for $REMOTE_ADDR: $netaddr/$netmask"
+		}
 	}
-}
+fi
 
 echo "${ERROR:=ERROR}"
 _log do htmlout daemon info "errorcode: $ERROR for IP: $REMOTE_ADDR"
 
 rm "/tmp/LOCK_OLSRSLAVE"
 trap - INT TERM EXIT
-
