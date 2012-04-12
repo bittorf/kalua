@@ -458,3 +458,66 @@ _netfilter_adblocking_start()
 	iptables -t mangle -A FORWARD -m mark --mark 0x22/0xff -j ACCEPT	# don't overwrite mark on later rules
 	iptables -A FORWARD -m mark --mark 0x22/0xff -j REJECT
 }
+
+_netfilter_user_stats_process()
+{
+	local server_ip url server_response mac line message= count=0
+	local user_list="$( _netfilter user_list )"
+
+	_netfilter user_stats_collect
+
+	for mac in $user_list; do {
+		[ -e "/tmp/NETFILTER/USER/$mac/stats" ] || continue
+
+		local uptime_old= uptime uptime_sum=0 uptime_diff time_used=0
+		local bytes_incoming_old= bytes_incoming bytes_incoming_sum=0 bytes_incoming_diff
+		local bytes_outgoing_old= bytes_outgoing bytes_outgoing_sum=0 bytes_outgoing_diff
+
+		while read line; do {
+			set $line
+			uptime="$1"
+			bytes_incoming="$2"
+			bytes_outgoing="$3"
+
+			uptime_diff=$(( $uptime - ${uptime_old:-$uptime} ))
+			uptime_old="$uptime"
+			uptime_sum=$(( $uptime_sum + $uptime_diff ))
+
+			bytes_incoming_diff=$(( $bytes_incoming - ${bytes_incoming_old:-$bytes_incoming} ))
+			bytes_incoming_old="$bytes_incoming"
+			bytes_incoming_sum=$(( $bytes_incoming_sum + $bytes_incoming_diff ))
+
+			bytes_outgoing_diff=$(( $bytes_outgoing - ${bytes_outgoing_old:-$bytes_outgoing} ))
+			bytes_outgoing_old="$bytes_outgoing"
+			bytes_outgoing_sum=$(( $bytes_outgoing_sum + $bytes_outgoing_diff ))
+
+			[ $bytes_incoming_diff -gt 0 -o $bytes_outgoing_diff -gt 0 ] && {
+				time_used=$(( $time_used + $uptime_diff ))
+			}
+
+		} done <"/tmp/NETFILTER/USER/$mac/stats"
+
+		# CMA = client mac address
+		# CTP = client time passed
+		# CTU = client time used
+		# CBI = client bytes incoming ("downloaded")
+		# CBO = client bytes outgoing ("uploaded")
+
+		count=$(( $count + 1 ))
+		mac="$( echo "$mac" | sed 's/:/%3a/g' )"	# urlencode
+		message="${message}${message:+&}CMA_${count}=${mac}&CTP_${count}=${uptime_sum}&CTU_${count}=${time_used}&CBI_${count}=${bytes_incoming_sum}&CBO_${count}=${bytes_outgoing_sum}"
+	} done
+
+	[ -n "$message" ] && {
+		read server_ip <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
+
+		url="http://$server_ip/cgi-bin-collect.sh?${message}"
+		server_response="$( _wget do "$url" 20 )"
+
+		[ "$server_response" = "OK" ] && {
+			for mac in $user_list; do {
+				mv "/tmp/NETFILTER/USER/$mac/stats" "/tmp/NETFILTER/USER/$mac/stats.lastsend"
+			} done
+		}
+	}
+}
