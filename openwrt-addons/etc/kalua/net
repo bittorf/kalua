@@ -340,17 +340,22 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 	local D=0
 	local N=0
 	local trash
+	local wan_proto="$( uci get network.wan.proto )"
 
-	[ ! -e /tmp/NETPARAM ] && {			# early_boot_estimation is for _profile()
+	[ "$wan_proto" = "pppoe" ] && {
+		_log do $FUNC daemon info "early_boot_estimation: pppoe"
+		echo "pppoe"
+		return 0
+	}
 
-		local  WAN_GATEWAY="$( uci get network.wan.gateway )"
+	[ -e /tmp/NETPARAM ] || {
+		local WAN_GATEWAY="$( uci get network.wan.gateway )"
 		[ -n "$WAN_GATEWAY" ] && {
-			
 			if [ "$WAN_GATEWAY" = "0.0.0.0" ]; then
 				_nvram set wan_gateway 
 				_nvram set commit "config-mistake, unsetting wan-gateway which was '$WAN_GATEWAY'"
 			else
-				[ "$( uci get network.wan.proto )" = "pppoe" ] && {
+				[ "$wan_proto" = "pppoe" ] && {
 					_log do $FUNC daemon info "early_boot_estimation: pppoe"
 					echo "pppoe"
 					return 0			# fixme!
@@ -361,7 +366,7 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 				return 0
 			fi
 		}
-	
+
 		[ -n "$( uci get network.lan.gateway )" ] && {
 			_log do $FUNC daemon info "early_boot_estimation: lan"
 			echo "lan"
@@ -381,15 +386,16 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 		return 1
 	}
 
-	local  LAN_GATEWAY="$( uci get network.lan.gateway )"
-	if [ -n "$LAN_GATEWAY" ] && [ -z "$( ip route list exact 0.0.0.0/0 via $LAN_GATEWAY )" ]; then
-
-		[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
-			_log do $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
-			echo "lan"
-			return 0
+	local LAN_GATEWAY="$( uci get network.lan.gateway )"
+	[ -n "$LAN_GATEWAY" ] && {
+		[ -z "$( ip route list exact 0.0.0.0/0 via $LAN_GATEWAY )" ] && {
+			[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
+				_log do $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
+				echo "lan"
+				return 0
+			}
 		}
-	fi
+	}
 
 	# only look for the first default-route
 	# some examples:
