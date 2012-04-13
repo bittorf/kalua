@@ -1,7 +1,5 @@
 #!/bin/sh
-. /tmp/loader
 
-_http header_mimetype_output "text/html"
-echo "OK"
-
-echo "REMOTE_ADDR=${REMOTE_ADDR}&$QUERY_STRING" >>"/tmp/COLLECT_DATA"
+read UPTIME REST <"/proc/uptime"; UPTIME="${UPTIME%.*}"
+echo "UPTIME=${UPTIME}&REMOTE_ADDR=${REMOTE_ADDR}&$QUERY_STRING" >>"/tmp/COLLECT_DATA"
+echo -en "Content-type: test/plain\n\nOK"
