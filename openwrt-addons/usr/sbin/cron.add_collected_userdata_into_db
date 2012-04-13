@@ -1,0 +1,59 @@
+#!/bin/sh
+. /tmp/loader
+
+FILE="/tmp/COLLECT_DATA"
+FILE_TEMP="$FILE.working"
+
+[ -e "$FILE" ] || exit 0
+mv "$FILE" "$FILE_TEMP"
+FILE="$FILE_TEMP"
+
+UNIXTIME="$( date +%s )"
+UPTIME_NOW="$( _system uptime sec )"
+
+while read QUERY_STRING; do {
+	eval $( _http query_string_sanitize )	# UPTIME|REMOTE_ADDR|CMA|CTU|CBI|CBO
+	LIST="$( _http query_string_group2list CMA_ )"
+
+	for ID in $LIST; do {
+		eval CMA="\$CMA_${ID}"		# client mac address
+		eval CTU="\$CTU_${ID}"		# client time used
+		eval CBI="\$CBI_${ID}"		# client bytes incoming
+		eval CBO="\$CBO_${ID}"		# client bytes outgoing
+
+		# design-issue in database, so we must rethink:
+		# USED_TRAFFIC -> USED_TRAFFIC_DOWNLOAD
+		# USED_TRAFFIC_TODAY -> USED_TRAFFIC_UPLOAD
+
+		[ $(( $CBI + $CBO )) -eq 0 ] && continue
+
+		DEVICE_ID="$( _db user device query string2id "${CMA:-unsetmacaddress}" )"
+		[ -n "$DEVICE_ID" ] && {
+			eval $( _db user device show "$DEVICE_ID" )
+
+			LASTSEEN="$(( $UNIXTIME - ($UPTIME_NOW - $UPTIME) ))"
+			USED_TRAFFIC=$(( $USED_TRAFFIC + $CBI ))
+			USED_TRAFFIC_TODAY=$(( $USED_TRAFFIC_TODAY + $CBO ))
+			USED_TIME=$(( $USED_TIME + $CTU ))
+
+			_log do loop daemon info "updating $CMA from node $REMOTE_ADDR: +$CBI/$CBO bytes, +$CTU sec"
+			_db user device update \
+				"$DEVICE_ID" \
+				"$USER_ID" \
+				"$MAC" \
+				"$DEVTYPE" \
+				"$LANG" \
+				"$FIRSTSEEN" \
+				"$LASTSEEN" \
+				"$USED_TRAFFIC" \
+				"$USED_TIME" \
+				"$USED_TRAFFIC_TODAY" \
+				"$USED_TIME_TODAY" \
+				"$ISOLATION"
+
+			# todo: check limit of login, force logout if exceeded
+		}
+	} done
+} done <"$FILE"
+
+rm "$FILE"
