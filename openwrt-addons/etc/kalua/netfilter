@@ -461,7 +461,7 @@ _netfilter_adblocking_start()
 
 _netfilter_user_stats_process()
 {
-	local server_ip url server_response mac line message= count=0
+	local server_ip url server_response mac line hash message= count=0
 	local user_list="$( _netfilter user_list )"
 
 	_netfilter user_stats_collect
@@ -500,14 +500,21 @@ _netfilter_user_stats_process()
 		# CTU = client time used
 		# CBI = client bytes incoming ("downloaded")
 		# CBO = client bytes outgoing ("uploaded")
+		# CAH = client authentication hash
 
 		[ $(( $bytes_incoming_sum + $bytes_outgoing_sum )) -eq 0 ] && {
 			continue
 		}
 
+		if [ -e "/tmp/vds_user_$mac" ]; then
+			read hash <"/tmp/vds_user_$mac"
+		else
+			hash=
+		fi
+
 		count=$(( $count + 1 ))
 		mac="${mac//:/%3a}"		# urlencode
-		message="${message}${message:+&}CMA_${count}=${mac}&CTU_${count}=${time_used}&CBI_${count}=${bytes_incoming_sum}&CBO_${count}=${bytes_outgoing_sum}"
+		message="${message}${message:+&}CMA_${count}=${mac}&CTU_${count}=${time_used}&CBI_${count}=${bytes_incoming_sum}&CBO_${count}=${bytes_outgoing_sum}&CAH_${count}=${hash}"
 	} done
 
 	[ -n "$message" ] && {
