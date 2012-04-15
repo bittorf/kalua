@@ -82,7 +82,7 @@ while read QUERY_STRING; do {
 				_log do lock_login daemon alert "ID: $LOGIN_ID, reason: $LOCK_LOGIN, comment/user/pass: $COMMENT/$USERNAME/$PASSWORD"
 
 				_db user login update \
-					"$ID" \
+					"$LOGIN_ID" \
 					"$PROFILE_ID" \
 					"$COMMENT" \
 					"$USERNAME" \
@@ -93,7 +93,16 @@ while read QUERY_STRING; do {
 
 				_db user login index_gen lock "$LOGIN_ID"
 
-				# todo: user_del/user_del_remote
+				case "$REMOTE_ADDR" in
+					$WIFIADR|$LANADR|$WANADR)
+						_netfilter user_del "$CMA"
+					;;
+					*)
+						CMA_URLENCODED="${CMA//:/%3a}"
+						ANSWER="$( _wget do "http://$REMOTE_ADDR/cgi-bin-kick.sh?CAH=${CAH}&CMA=${CMA_URLENCODED}" )"
+						_log do remote_kick daemon info "answer: '$ANSWER'"
+					;;
+				esac
 			}
 		}
 	} done
