@@ -20,11 +20,7 @@ while read QUERY_STRING; do {
 		eval CTU="\$CTU_${ID}"		# client time used
 		eval CBI="\$CBI_${ID}"		# client bytes incoming
 		eval CBO="\$CBO_${ID}"		# client bytes outgoing
-		eval CAH="\$CAH_${ID}"		# client authentication hash
-
-		# design-issue in database, so we must rethink:
-		# USED_TRAFFIC -> USED_TRAFFIC_DOWNLOAD
-		# USED_TRAFFIC_TODAY -> USED_TRAFFIC_UPLOAD
+		eval CAH="\$CAH_${ID}"		# client auth hash
 
 		[ $(( $CBI + $CBO )) -eq 0 ] && continue
 
@@ -32,9 +28,9 @@ while read QUERY_STRING; do {
 		[ -n "$DEVICE_ID" ] && {
 			eval $( _db user device show "$DEVICE_ID" )
 
-			LASTSEEN="$(( $UNIXTIME - ($UPTIME_NOW - $UPTIME) ))"
-			USED_TRAFFIC=$(( $USED_TRAFFIC + $CBI ))
-			USED_TRAFFIC_TODAY=$(( $USED_TRAFFIC_TODAY + $CBO ))
+			LASTSEEN="$(( $UNIXTIME - ($UPTIME_NOW - $UPTIME) ))"	# design-issue in database, so we must rethink:
+			USED_TRAFFIC=$(( $USED_TRAFFIC + $CBI ))		# USED_TRAFFIC -> USED_TRAFFIC_DOWNLOAD
+			USED_TRAFFIC_TODAY=$(( $USED_TRAFFIC_TODAY + $CBO ))	# USED_TRAFFIC_TODAY -> USED_TRAFFIC_UPLOAD
 			USED_TIME=$(( $USED_TIME + $CTU ))
 
 			_log do loop daemon info "updating $CMA from node $REMOTE_ADDR: +$CBI/$CBO bytes, +$CTU sec"
@@ -52,7 +48,52 @@ while read QUERY_STRING; do {
 				"$USED_TIME_TODAY" \
 				"$ISOLATION"
 
-			# todo: check limit of login, force logout if exceeded
+			[ -z "$CAH" ] && continue	# we can't do anything without the hash
+
+			LOGIN_ID="$( _db user login query hash2id "$CAH" )" || continue		# fixme!
+			eval $( _db user login show $LOGIN_ID "PROFILE_ID" )"
+
+			TIME_MODEL=; MAX_TIME=; MAX_TRAFFIC=
+			eval $( _db user profile show "$PROFILE_ID" "TIME_MODEL MAX_TIME MAX_TRAFFIC" )"
+			LOCK_LOGIN=
+
+			[ -n "$MAX_TIME" ] && {				# minutes
+				if [ "$TIME_MODEL" = "0" ]; then	# used time
+					[ $USED_TIME -gt $MAX_TIME ] && {
+						LOCK_LOGIN="-2"
+					}
+				else					# passed time
+					[ $(( $FIRSTSEEN - $LASTSEEN )) -gt $MAX_TIME ] && {
+						LOCK_LOGIN="-2"
+					}
+				fi
+			}
+
+			[ -n "$MAX_TRAFFIC" ] && {			# kilobytes
+				[ $(( ($USED_TRAFFIC + $USED_TRAFFIC_TODAY) / 1024 )) -gt $MAX_TRAFFIC ] && {
+					LOCK_LOGIN="-3"
+				}
+			}
+
+			[ -n "$LOCK_LOGIN" ] && {
+				eval $( _db user login show "$LOGIN_ID" )
+				DEVICE_QUANTITY="$LOCK_LOGIN"
+
+				_log do lock_login daemon alert "ID: $LOGIN_ID, reason: $LOCK_LOGIN, comment/user/pass: $COMMENT/$USERNAME/$PASSWORD"
+
+				_db user login update \
+					"$ID" \
+					"$PROFILE_ID" \
+					"$COMMENT" \
+					"$USERNAME" \
+					"$PASSWORD" \
+					"$DEVICE_QUANTITY" \
+					"$INSTALLED" \
+					"$FUZZY"
+
+				# index_gen -> specific_id
+				# user_del/user_del_remote
+			}
 		}
 	} done
 } done <"$FILE"
