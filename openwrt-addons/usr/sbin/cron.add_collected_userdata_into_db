@@ -54,7 +54,8 @@ while read QUERY_STRING; do {
 				continue
 			}
 
-			eval $( _db user login show $LOGIN_ID "PROFILE_ID" )"
+			eval $( _db user login show "$LOGIN_ID" "PROFILE_ID" )"
+			_log do loop daemon info "LOGIN_ID: $LOGIN_ID -> PROFILE_ID: $PROFILE_ID"
 
 			TIME_MODEL=; MAX_TIME=; MAX_TRAFFIC=
 			eval $( _db user profile show "$PROFILE_ID" "TIME_MODEL MAX_TIME MAX_TRAFFIC" )"
@@ -65,10 +66,12 @@ while read QUERY_STRING; do {
 
 				if [ "$TIME_MODEL" = "0" ]; then	# used time
 					[ $USED_TIME -gt $MAX_TIME ] && {
+						_log do lock_login daemon alert "TIME_MODEL: $TIME_MODEL USED_TIME: $USED_TIME MAX_TIME: $MAX_TIME"
 						LOCK_LOGIN="-2"
 					}
 				else					# passed time
 					[ $(( $FIRSTSEEN - $LASTSEEN )) -gt $MAX_TIME ] && {
+						_log do lock_login daemon alert "TIME_MODEL: $TIME_MODEL FIRSTSEEN: $FIRSTSEEN LASTSEEN: $LASTSEEN MAX_TIME: $MAX_TIME"
 						LOCK_LOGIN="-2"
 					}
 				fi
@@ -76,6 +79,7 @@ while read QUERY_STRING; do {
 
 			[ -n "$MAX_TRAFFIC" ] && {			# kilobytes
 				[ $(( ($USED_TRAFFIC + $USED_TRAFFIC_TODAY) / 1024 )) -gt $MAX_TRAFFIC ] && {
+					_log do lock_login daemon alert "USED_TRAFFIC: $USED_TRAFFIC USED_TRAFFIC_TODAY: $USED_TRAFFIC_TODAY MAX_TRAFFIC: $MAX_TRAFFIC"
 					LOCK_LOGIN="-3"
 				}
 			}
