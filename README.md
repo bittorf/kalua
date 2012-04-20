@@ -27,6 +27,8 @@ how to build this from scratch on a debian server
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
 	
+	weimarnetz/openwrt-build/mybuild.sh initial_settings	#copy some files
+	# start from here, if you only update vour build environment
 	weimarnetz/openwrt-build/mybuild.sh gitpull
 	./scripts/feeds update -a		# update openwrt feeds (luci, x-wrt and packages) 
 	weimarnetz/openwrt-build/mybuild.sh select_hardware_model
