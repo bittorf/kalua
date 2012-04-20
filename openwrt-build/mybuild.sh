@@ -11,6 +11,7 @@ show_help()
 
 	cat <<EOF
 Usage:	$me gitpull
+	$me initial_settings					# prepares the openwrt clone for our needs, should only run one time before compiling the first time
 	$me config2git
 	$me select_hardware_model
 	$me set_build_openwrtconfig
@@ -601,6 +602,16 @@ gitpull()
 	log "updated to openwrt-version: $( scripts/getver.sh )"
 }
 
+initial_settings()	# prepares the openwrt clone for our needs, should only run one time before compiling the first time
+{
+	cd weimarnetz/openwrt-build
+	cp -pv vtun-Makefile ../../feeds/packages/net/vtun/Makefile
+        cp -pv profile-100-Broadcom-b43.mk ../../target/linux/brcm47xx/profiles/100-Broadcom-b43.mk
+        cp -pv rc.local ../../package/base-files/files/etc/rc.local
+	cp -pv pre-commit ../.git/hooks/pre-commit
+        echo "vm.swappiness=100" >> ../../package/base-files/files/etc/sysctl.conf
+}
+
 case "$ACTION" in
 	upload)
 		SERVERPATH="root@intercity-vpn.de:/var/www/firmware/$( get_arch )/images/testing/"	
@@ -643,6 +654,9 @@ case "$ACTION" in
 		$ACTION "$OPTION" "$OPTION2" "$OPTION3"
 	;;
 esac
+
+
+
 
 # tools:
 #
