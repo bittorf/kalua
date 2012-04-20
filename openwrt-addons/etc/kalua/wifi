@@ -720,12 +720,17 @@ _wifi_retry_limit ()
 	_wl $WIFI_DEV lrl		# long  retrylimit: empty == default == 4
 }
 
-_wifi_phy_uptime ()	# todo: get/set
+_wifi_phy_uptime()
 {
-	a=0
-	# cut -d"." -f1 /proc/uptime
-	# set
-	# get
+	local wifi_dev="$1"
+	local uptime_now="$( _system uptime sec )"
+	local last_restart=0
+
+	[ -e "/tmp/STATS_WIFI_RESTARTS.time.$wifi_dev" ] && {
+		read last_restart <"/tmp/STATS_WIFI_RESTARTS.time.$wifi_dev"
+	}
+
+	echo $(( $uptime_now - $last_restart ))
 }
 
 _wifi_phy_restart()
@@ -736,7 +741,7 @@ _wifi_phy_restart()
 	local prio="${3:-alert}"
 
 	_watch counter "/tmp/STATS_WIFI_RESTARTS" increment 1
-	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.time"
+	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.time.$wifi_dev"
 
 	_log do $funcname daemon $prio "working on '$wifi_dev' ($reason)"
 
