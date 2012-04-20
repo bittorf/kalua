@@ -97,34 +97,52 @@ uptime_in_seconds()
 
 build_ffweimar_update_tarball()
 {
-	local mydir="$( pwd )"
-	local tarball="/tmp/tarball.tgz"
-	local options extract
-	local file_timestamp="etc/variables_fff+"	# fixme! hackish, use pre-commit hook?
+        local option="$1"
+        local mydir="$( pwd )"
+        local tarball="/tmp/tarball.tgz"
+        local options extract
+        local file_timestamp="etc/variables_fff+"       # fixme! hackish, use pre-commit hook?
 
-	if tar --version 2>&1 | grep -q ^BusyBox ; then
-		log "detected BusyBox-tar, using simple options"
-		options=
-	else
-		options="--owner=root --group=root"
-	fi
+        if tar --version 2>&1 | grep -q ^BusyBox ; then
+                log "detected BusyBox-tar, using simple options"
+                options=
+        else
+                options="--owner=root --group=root"
+        fi
 
-	cd weimarnetz/
-	local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
-	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
-	cd openwrt-addons/
-	sed -i "s/366686/$last_commit_unixtime_in_hours/" "$file_timestamp"
-	tar $options -czf "$tarball" .
-	sed -i "s/$last_commit_unixtime_in_hours/366686/" "$file_timestamp"
-	cd $mydir
+        cd weimarnetz/
+        local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
+        local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
+        cd openwrt-addons/
+        sed -i "s/366686/$last_commit_unixtime_in_hours/" "$file_timestamp"
+        touch -r "../../.git/description" "$file_timestamp"
 
-	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
+        if [ "$option" = "full" ]; then
+                cp -pv ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
+                cp -pv ../openwrt-build/apply_profile* etc/init.d
+                [ -e "../../apply_profile.code.definitions" ] && {
+                        cp -pv "../../apply_profile.code.definitions" etc/init.d
+                }
+                tar $options -czf "$tarball" .
+                rm etc/init.d/apply_profile*
+        else
+                tar $options -czf "$tarball" .
+        fi
 
-	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes with MD5: $( md5sum "$tarball" | cut -d' ' -f1 )"
-	echo "to copy this tarball (timestamp: $last_commit_unixtime_in_hours) to your device, use ON the device:"
-	echo
-	echo "scp $USER@$( mypubip ):$tarball $tarball; $extract"
-	echo "or simply extract with: $extract"
+        sed -i "s/$last_commit_unixtime_in_hours/366686/" "$file_timestamp"
+        touch -r "../../.git/description" "$file_timestamp"
+        cd $mydir
+
+        extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
+
+        echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes with MD5: $( md5sum "$tarball" | cut -d' ' -f1 )"
+        echo "to copy this tarball (timestamp: $last_commit_unixtime_in_hours) to your device, use ON the device:"
+        echo
+        echo "scp $USER@$( mypubip ):$tarball $tarball; $extract"
+        echo "or simply extract with: $extract"
+        echo
+        echo "or copy the config-apply-script with:"
+        echo "scp $USER@$( mypubip ):$( pwd )/weimarnetz/openwrt-build/apply_profile.code /etc/init.d"	
 }
 
 config2git()
