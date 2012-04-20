@@ -172,7 +172,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 											;;
 										esac
 
-										wifi
+										_wifi phy_restart $WIFIDEV "dmesg: $( fgrep "ath: DMA failed to stop in 10 ms" "/tmp/dmesg.recent" | tail -n1 )"
 									;;
 								esac
 							}
@@ -180,12 +180,12 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 						# wifi is laggy after this:
 						fgrep -sq "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" && {
-							[ $( _system version short ) -le 30010 ] && {
+							[ $( _system version short ) -le 30563 ] && {
 								case "$( _wifi mode $WIFIDEV )" in
 									adhoc)
 										_net local_inet_offer >/dev/null || {
 											[ $( _system uptime min ) -gt 180 ] && {
-												_log do kernellog daemon alert "ath: Failed to stop TX DMA, queues=0x"
+												_log do kernellog daemon alert "$( fgrep "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" | tail -n1 )"
 												return 0
 											}
 										}
@@ -195,7 +195,8 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 											HT40*)
 												uci set wireless.radio0.htmode=HT20
 												uci commit wireless
-												wifi
+
+												_wifi phy_restart $WIFIDEV "dmesg: $( fgrep "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" | tail -n1 )"
 											;;
 										esac
 									;;
@@ -409,7 +410,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 				;;
 				*)
 					_wifi check_each_client || {
-						_log do check_each_client daemon info "tx/arping to all clients failed - no further action"
+						_log do check_each_client daemon alert "tx/arping to all clients failed - no further action"
 #						_wifi phy_restart $WIFIDEV "tx/arping to all clients failed"
 					}
 
@@ -423,8 +424,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 										_system reboot_safe "missing hostapd and no IP on wifidev $WIFIDEV - $( tail -n1 "/tmp/dmesg.recent" )"
 									else
 										[ -e "/tmp/DAEMON_hostapd_seen" ] && {
-											_log do missing_hostapd daemon info "wifi up"
-											wifi up
+											_wifi phy_restart $WIFIDEV "missing_hostapd"
 										}
 									fi
 								fi
