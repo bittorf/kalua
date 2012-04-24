@@ -1,0 +1,59 @@
+#!/bin/sh
+read LOAD REST </proc/loadavg
+# while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;echo $((($M+$2)*1024)) $LOAD>>/tmp/MEM;break;;esac;done</proc/meminfo
+case "$LOAD" in
+	1.0*|0.9*|0.8*)
+		[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
+	;;
+	0*)
+		[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
+
+		if [ -e /tmp/CRON_LOCK ]; then
+
+			[ -e "/tmp/dmesg.recent" ] && {
+				fgrep -q "Oops" "/tmp/dmesg.recent" && {
+					. /tmp/loader
+					_log do CRON_IS_CAREFUL daemon alert "Oops detected, saved to /www/dmesg.$$"
+					cp "/tmp/dmesg.recent" "/www/dmesg.$$"
+					reboot
+				}
+			}
+
+			case "$LOAD" in
+				0.00|0.01|0.02)
+					echo -n '#' >>"/tmp/CRON_UNDERLOAD"
+					read I <"/tmp/CRON_UNDERLOAD"
+					[ ${#I} -gt 9 ] && /sbin/reboot -f
+
+					. /tmp/loader
+					for PRG in mv scp nc wget; do {
+						pidof $PRG && _watch hanging_command $PRG
+					} done
+				;;
+			esac
+		else
+			[ -e "/tmp/CRON_UNDERLOAD" ] && rm "/tmp/CRON_UNDERLOAD"
+
+			case "$( pidof dropbear )" in
+				*" "*)
+				;;
+				*)
+					trap "rm /tmp/CRON_LOCK; exit" INT TERM EXIT
+					>/tmp/CRON_LOCK
+
+					/usr/bin/scheduler -U -S newstyle -O -P -f -H -w
+					. /tmp/loader
+					_scheduler run
+
+					rm /tmp/CRON_LOCK
+					trap - INT TERM EXIT
+				;;
+			esac
+		fi
+	;;
+	*)
+		echo -n '#' >>"/tmp/CRON_OVERLOAD"
+		read I <"/tmp/CRON_OVERLOAD"
+		[ ${#I} -gt 4 ] && /sbin/reboot -f
+	;;
+esac
