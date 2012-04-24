@@ -34,6 +34,18 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 			[ "$DO_UPGRADE" = "true" ] && {
 				rm "/www/START_SYSUPGRADE" "/tmp/START_SYSUPGRADE"
 
+				[ -e "/www/fw" ] && {
+					# patching early startup for:
+					# - not loading any kernel-modules if "/www/fw" exists
+					# - disable any wireless action
+					# - moving "/www/fw" to "/tmp/fw"
+					# - sysupgrade this firmware file
+					sed  -i -e 's/^.*\.failsafe$/&\ntest -e \/www\/fw || {/' \
+						-e 's/^.*rm -f \/tmp\/wireless.tmp$/&\n}/' \
+						-e 's/# another round of/test -e \/www\/fw \&\& {\n. \/tmp\/loader\nuci set wireless.radio0.disabled=1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\n\n&/' \
+							"/etc/init.d/boot" && reboot
+				}
+
 				FILE="/tmp/fw"
 
 				[ -e "$FILE" ] || {
