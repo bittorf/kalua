@@ -801,30 +801,55 @@ _db_report()
 				DEVTYPE="lan"
 			fi
 
-			eval $( _db user login show "$USER_ID" "COMMENT USERNAME PASSWORD PROFILE_ID" )
+			eval $( _db user login show "$USER_ID" "COMMENT USERNAME PASSWORD PROFILE_ID DEVICE_QUANTITY" )
 
 			if [ "$USERNAME" = "$mac" ]; then
-				local authtype="mac-address bases authentication"
+				local authtype="mac-address based authentication"
 				[ -n "$PASSWORD" ] && {
 					authtype="$authtype, restricted to $PASSWORD"
 				}
 			else
-				local authtype="username/password bases authentication"
+				local authtype="username/password based authentication"
 			fi
 
-			echo "mac: $MAC ($DEVTYPE) deviceID: $device_id userID: $USER_ID"
-			echo "auth: $authtype (${COMMENT:-no comment set})"
+			case "$DEVICE_QUANTITY" in
+				"-"*)
+					local login_validity="locked/invalid (code: $DEVICE_QUANTITY)"
+				;;
+				*)
+					local login_validity="OK, ${DEVICE_QUANTITY:-undefined} amount"
+				;;
+			esac
 
-			eval $( _db user profile show "$PROFILE_ID" "NAME COMMENT" )
+			echo "mac: $MAC ($DEVTYPE) deviceID: $device_id userID: $USER_ID"
+			echo "vendor: $( _net mac2vendor "$MAC" short )"
+			echo "auth: $authtype (${COMMENT:-no comment set})"
+			echo "validity: $login_validity"
+
+			eval $( _db user profile show "$PROFILE_ID" "NAME COMMENT MAX_TIME MAX_TRAFFIC" )
 			echo "profile: $NAME (${COMMENT:-no comment set}) profileID: $PROFILE_ID"
+
+			if [ -n "$MAX_TIME" ]; then
+				MAX_TIME="limit: $( _stopwatch seconds2humanreadable "$(( $MAX_TIME * 60 ))" )"
+			else
+				MAX_TIME="unlimited"
+			fi
+
+			if [ -n "$MAX_TRAFFIC" ]; then
+				MAX_TRAFFIC="limit: $(( MAX_TRAFFIC / 1024 )) megabytes"	# kilobyte -> megabyte
+			else
+				MAX_TRAFFIC="unlimited"
+			fi
 
 			echo "first login: $( _system date unixtime2date "$FIRSTSEEN" )"
 			echo "last action: $( _system date unixtime2date "$LASTSEEN" )"
-			echo "used time: $( _stopwatch seconds2humanreadable "$USED_TIME" )"
-			echo "traffic overall: $(( ($USED_TRAFFIC + $USED_TRAFFIC_TODAY) / 1024 / 1024 )) megabytes"
+			echo "used time: $( _stopwatch seconds2humanreadable "$USED_TIME" ) ($MAX_TIME)"
+
+			echo "traffic overall: $(( ($USED_TRAFFIC + ${USED_TRAFFIC_TODAY:=0}) / 1048576 )).$( echo $(( ($USED_TRAFFIC + $USED_TRAFFIC_TODAY) % 1048576 )) | cut -b1 ) megabytes ($MAX_TRAFFIC)"
 			echo "traffic download: $( _sanitizer do "$USED_TRAFFIC" number_humanreadable ) bytes"
 			echo "traffic upload: $( _sanitizer do "$USED_TRAFFIC_TODAY" number_humanreadable ) bytes"
 
+			[ "$USED_TRAFFIC_TODAY" = "0" ] && USED_TRAFFIC_TODAY=1
 			local ratio="$(( $USED_TRAFFIC / $USED_TRAFFIC_TODAY )).$( echo $(( $USED_TRAFFIC % $USED_TRAFFIC_TODAY )) | cut -b1 )"
 			echo "traffic ratio down/up: $ratio:1"
 		;;
