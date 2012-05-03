@@ -3,8 +3,8 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 	local funcname="switch_show"
 	local type="${1:-$( uci get network.@switch[0].name )}"
 	local debug="$2"
-	local line duplex n
-
+	local line duplex n 
+	
 	[ -z "$type" -o "$type" = "eth0" ] && {
 		if [ -e "/tmp/SWITCH_TYPE" ]; then
 			read type <"/tmp/SWITCH_TYPE"
@@ -14,7 +14,19 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 				fgrep "roboswitch:" "/tmp/dmesg.boot" | fgrep -q "found a 53" && \
 					echo "bcm53xx"
 			}
-
+			
+			probe_type7()
+			{
+				fgrep -q "Linksys WRT54" "/etc/HARDWARE" && \
+					echo "bcm53xx"
+			}
+			
+			probe_type6()
+			{
+				fgrep -q "Buffalo WHR" "/etc/HARDWARE" && \
+					echo "bcm53xx"
+			}
+			
 			probe_type2()
 			{
 				fgrep -q "  AR8316 " "/tmp/dmesg.boot" && \
@@ -39,7 +51,8 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 					echo "ag71xx"
 			}
 
-			for n in 1 2 3 4 5; do {
+			for n in 1 2 3 4 5 6 7; do {
+				echo "$( probe_type${n} )"
 				type="$( probe_type${n} )" && {
 					echo "$type" >/tmp/SWITCH_TYPE
 					break
