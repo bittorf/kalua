@@ -710,29 +710,35 @@ _wifi_retry_limit ()
 	_wl $WIFI_DEV lrl		# long  retrylimit: empty == default == 4
 }
 
-_wifi_phy_uptime ()	# todo: get/set
+_wifi_phy_uptime()
 {
-	a=0
-	# cut -d"." -f1 /proc/uptime
-	# set
-	# get
+	local wifi_dev="$1"
+	local uptime_now="$( _system uptime sec )"
+	local last_restart=0
+	local file="/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
+
+	[ -e "$file" ] && {
+		read last_restart <"$file"
+	}
+
+	echo $(( $uptime_now - $last_restart ))
 }
 
-_wifi_phy_restart ()
+_wifi_phy_restart()
 {
-	local FUNC="wifi_phy_restart"
-	local WIFI_DEV="$1"
-	local REASON="${2:-no_reason_given}"
-	local PRIO="${3:-alert}"
+	local funcname="wifi_phy_restart"
+	local wifi_dev="$1"
+	local reason="${2:-no_reason_given}"
+	local prio="${3:-alert}"
 
-	_log do $FUNC daemon $PRIO "working on '$WIFI_DEV' ($REASON)"
+	_watch counter "/tmp/STATS_WIFI_RESTARTS.$wifi_dev" increment 1
+	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
 
-	if _wifi driver_is_old_broadcom ; then
-	
-		wifi					# simply rereads nvram for all broadcom-devices
-	else
-		wifi "$WIFI_DEV"
-	fi
+	_log do $funcname daemon $prio "working on '$wifi_dev' ($reason)"
+
+	/sbin/wifi down
+	_log sleep $funcname 10 step 1
+	/sbin/wifi up		# fixme! how to restart a specific interface?
 }
 
 _wifi_phy_txpower_limit ()		# driverlimit/output in [mW]
