@@ -74,8 +74,12 @@ _netfilter_stop()
 
 	for mac in $( _netfilter user_list ); do {
 		_log do $funcname daemon info "_netfilter user_del $mac"
+
+		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'"
+		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$( _net mac2ip "$mac" )'"
+
 		_netfilter user_del "$mac"
-	} done
+	} done >"/tmp/NETFILTER_AUTOADD"
 
 	_netfilter ipforwarding_revert
 
@@ -184,6 +188,12 @@ _netfilter_splash_start()
 _netfilter_splash_autoadd()
 {
 	local line ip mac
+
+	[ -e "/tmp/NETFILTER_AUTOADD" ] && {
+		. /tmp/NETFILTER_AUTOADD
+		rm /tmp/NETFILTER_AUTOADD
+		return 0
+	}
 
 	while read line; do {
 		set ${line:-empty}
