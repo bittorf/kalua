@@ -450,8 +450,11 @@ _firmware_burn ()
 	local FILE="${1:-/tmp/fw}"
 	local FUNC="firmware_burn"
 	local funcname="firmware_burn"
-	local OUT
-	local pause="60"
+	local OUT pause=
+
+	[ $( _system uptime sec ) -lt 90 ] && {
+		pause=1		# image on flash: invoked from /etc/init.d/boot
+	}
 
 	touch /tmp/LOCKFILE_APPLY	# block scheduler
 	touch /tmp/DEBUG		# syslog verbose, if any...
@@ -496,7 +499,9 @@ _firmware_burn ()
 	local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
 			  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
 
-	if _log shell_is_interactive; then
+	if [ -n "$pause" ]; then
+		:
+	elif  _log shell_is_interactive; then
 		pause="60"
 	else
 		list_tasks="$list_tasks screen dropbear wifi_down"
