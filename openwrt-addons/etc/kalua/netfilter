@@ -69,10 +69,12 @@ _netfilter_ipforwarding_revert()
 
 _netfilter_stop()
 {
+	local option="$1"	# string: remember_over_reboot
 	local funcname="netfilter_stop"
 	local mac state table
+	local list_user="$( _netfilter user_list )"
 
-	for mac in $( _netfilter user_list ); do {
+	for mac in $list_user; do {
 		_log do $funcname daemon info "_netfilter user_del $mac"
 
 		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'"
@@ -80,6 +82,12 @@ _netfilter_stop()
 
 		_netfilter user_del "$mac"
 	} done >"/tmp/NETFILTER_AUTOADD"
+
+	[ -n "option" = "remember_over_reboot" ] && {
+		[ -n "$list_user" ] && {
+			cp "/tmp/NETFILTER_AUTOADD" "/www/NETFILTER_AUTOADD"
+		}
+	}
 
 	_netfilter ipforwarding_revert
 
@@ -187,11 +195,24 @@ _netfilter_splash_start()
 
 _netfilter_splash_autoadd()
 {
-	local line ip mac
+	local line ip mac file
 
-	[ -e "/tmp/NETFILTER_AUTOADD" ] && {
-		. /tmp/NETFILTER_AUTOADD
-		rm /tmp/NETFILTER_AUTOADD
+	if [ -e "/www/NETFILTER_AUTOADD" ]; then
+		_olsr uptime is_short && {
+			_scheduler add "_netfilter splash_autoadd"
+			return 0
+		}
+
+		/usr/sbin/cron.check_inet_gw_fff+
+		file="/www/NETFILTER_AUTOADD"
+		rm "/tmp/NETFILTER_AUTOADD"
+	else
+		file="/tmp/NETFILTER_AUTOADD"
+	fi
+
+	[ -e "$file" ] && {
+		. $file
+		rm $file
 		return 0
 	}
 
