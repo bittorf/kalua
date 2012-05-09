@@ -10,6 +10,8 @@ FILE="$FILE_TEMP"
 
 UNIXTIME="$( date +%s )"
 UPTIME_NOW="$( _system uptime sec )"
+OVERALL_BYTES=0
+LIST_OVERALL_USERS=
 
 while read QUERY_STRING; do {
 	eval $( _http query_string_sanitize )	# UPTIME|REMOTE_ADDR|CMA|CTU|CBI|CBO
@@ -23,6 +25,8 @@ while read QUERY_STRING; do {
 		eval CAH="\$CAH_${ID}"		# client auth hash
 
 		[ $(( $CBI + $CBO )) -eq 0 ] && continue
+		OVERALL_BYTES=$(( $OVERALL_BYTES + $CBI + $CBO ))
+		LIST_OVERALL_USERS="$LIST_OVERALL_USERS $CMA"
 
 		LOGIN_ID="$( _db user login query hash2id "$CAH" )"
 		[ -z "$LOGIN_ID" ] && {
@@ -128,5 +132,6 @@ while read QUERY_STRING; do {
 		}
 	} done
 } done <"$FILE"
-
 rm "$FILE"
+
+_log do summary daemon info "$( _list count_uniq_elements "$LIST_OVERALL_USERS" ) devices, $OVERALL_BYTES bytes"
