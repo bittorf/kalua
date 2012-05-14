@@ -61,6 +61,14 @@ _netfilter_ipforwarding_revert()
 
 	[ -e "$file" ] && {
 		read state <"$file"
+
+		pidof olsrd >/dev/null && {
+			[ "$state" = "1" ] || {
+				_log do $funcname daemon alert "olsrd running, forcing ON"
+				state=1
+			}
+		}
+
 		_log do $funcname daemon info "writing $state to $kernel"
 		echo "$state" >"$kernel"
 		rm "$file"
@@ -91,8 +99,6 @@ _netfilter_stop()
 		;;
 	esac
 
-	_netfilter ipforwarding_revert
-
 	for table in mangle filter nat; do {
 		_log do $funcname daemon info "unloading table $table"
 		iptables -t $table -F
@@ -100,6 +106,8 @@ _netfilter_stop()
 	} done
 
 	rm -fR "/tmp/NETFILTER"
+
+	_netfilter ipforwarding_revert
 }
 
 _netfilter_masquerade_start()
