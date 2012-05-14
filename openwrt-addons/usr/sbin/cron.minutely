@@ -1,6 +1,9 @@
 #!/bin/sh
 read UP REST </proc/uptime
-[ ${UP%.*} -gt 129600 ] && reboot	# 36h
+[ ${UP%.*} -gt 129600 ] && {
+	rm "/tmp/CRON_IS_CAREFUL"
+	reboot	# 36h
+}
 
 read LOAD REST </proc/loadavg
 # uncomment to log freemem/uptime/load into '/tmp/MEM'
@@ -19,6 +22,7 @@ case "$LOAD" in
 					. /tmp/loader
 					_log do CRON_IS_CAREFUL daemon alert "Oops detected, saved to /www/dmesg.$$"
 					cp "/tmp/dmesg.recent" "/www/dmesg.$$"
+					rm "/tmp/CRON_IS_CAREFUL"
 					reboot
 				}
 			}
@@ -27,7 +31,10 @@ case "$LOAD" in
 				0.00|0.01|0.02)
 					echo -n '#' >>"/tmp/CRON_UNDERLOAD"
 					read I <"/tmp/CRON_UNDERLOAD"
-					[ ${#I} -gt 9 ] && /sbin/reboot -f
+					[ ${#I} -gt 9 ] && {
+						rm "/tmp/CRON_IS_CAREFUL"
+						/sbin/reboot -f
+					}
 
 					. /tmp/loader
 					for PRG in mv scp nc wget; do {
@@ -58,6 +65,9 @@ case "$LOAD" in
 	*)
 		echo -n '#' >>"/tmp/CRON_OVERLOAD"
 		read I <"/tmp/CRON_OVERLOAD"
-		[ ${#I} -gt 4 ] && /sbin/reboot -f
+		[ ${#I} -gt 4 ] && {
+			rm "/tmp/CRON_IS_CAREFUL"
+			/sbin/reboot -f
+		}
 	;;
 esac
