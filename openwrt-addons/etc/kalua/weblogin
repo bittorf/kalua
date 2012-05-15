@@ -687,60 +687,17 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		}
 	fi
 
-#	[ "$FREE" != "1" ] && {
+	GATEWAY="$( _weblogin authserver )"
 
-		GATEWAY="$( uci get system.@weblogin[0].authserver )"		
+	# fixme! we should urlencode ":" in MAC, but it works also plain!?
+	PARAMETERS="LOGIN=${HASH}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
 
-		case "$CONFIG_PROFILE" in
-			marinapark*)
-				case "$( uci get system.@profile[0].nodenumber )" in
-					95)
-						GATEWAY="$WIFIADR"
-					;;
-					*)
-						GATEWAY="10.63.95.1"
-					;;
-				esac
-			;;
-			satama*)
-				case "$( uci get system.@profile[0].nodenumber )" in
-					119)
-						GATEWAY="$WIFIADR"
-					;;
-					*)
-						GATEWAY="10.63.119.1"
-					;;
-				esac
-			;;
-			fparkssee*)
-				case "$( uci get system.@profile[0].nodenumber )" in
-					222)
-						GATEWAY="$WIFIADR"
-					;;
-					*)
-						GATEWAY="10.63.222.1"
-					;;
-				esac
-			;;
-			*)
-				GATEWAY="$( uci get system.@weblogin[0].authserver )"
-			;;
-		esac
-
-		[ -z "$GATEWAY" ] && {
-			read GATEWAY 2>/dev/null </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
-		}
-
-		# fixme! we should urlencode ":" in MAC, but it works also plain!?
-		PARAMETERS="LOGIN=${HASH}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
-
-		if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
-			ANSWER="$( /www/cgi-bin-sql.sh "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
-		else
-			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
-			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
-		fi
-#	}
+	if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
+		ANSWER="$( /www/cgi-bin-sql.sh "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
+	else
+		URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
+		ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
+	fi
 
 	[ ${#ANSWER} -gt 10 ] && ANSWER="shortened: $( _sanitizer do "$ANSWER" firstline length:30 )"
 
@@ -752,6 +709,53 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	}
 
 	return 1
+}
+
+_weblogin_authserver()
+{
+	local server="$( uci get system.@weblogin[0].authserver )"
+
+	case "$CONFIG_PROFILE" in
+		marinapark*)
+			case "$( uci get system.@profile[0].nodenumber )" in
+				95)
+					server="$WIFIADR"
+				;;
+				*)
+					server="10.63.95.1"
+				;;
+			esac
+		;;
+		satama*)
+			case "$( uci get system.@profile[0].nodenumber )" in
+				119)
+					server="$WIFIADR"
+				;;
+				*)
+					server="10.63.119.1"
+				;;
+			esac
+		;;
+		fparkssee*)
+			case "$( uci get system.@profile[0].nodenumber )" in
+				222)
+					server="$WIFIADR"
+				;;
+				*)
+					server="10.63.222.1"
+				;;
+			esac
+		;;
+		*)
+			server="$( uci get system.@weblogin[0].authserver )"
+		;;
+	esac
+
+	[ -z "$server" ] && {
+		read server 2>/dev/null </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
+	}
+
+	echo "$server"
 }
 
 _weblogin_ticket_mail_text ()
