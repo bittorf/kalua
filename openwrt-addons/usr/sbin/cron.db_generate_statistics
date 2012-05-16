@@ -1,0 +1,101 @@
+#!/bin/sh
+. /tmp/loader
+
+MODE="$1"	# daily, weekly, monthly
+START="$2"	# today, yesterday, day_before_yesterday
+
+UNIXTIME_NOW="$( date +%s )"
+case "$START" in
+	today)
+		DATE="$( date -d @$UNIXTIME_NOW )"
+	;;
+	yesterday)
+		DATE="$( date -d @$(( $UNIXTIME_NOW - 86400 )) )"
+	;;
+	day_before_yesterday)
+		DATE="$( date -d @$(( $UNIXTIME_NOW - 86400 - 86400 )) )"
+	;;
+	week_ago)
+		DATE="$( date -d @$(( $UNIXTIME_NOW - (7 * 86400) )) )"
+	;;
+	month_ago)
+		DATE="$( date -d @$(( $UNIXTIME_NOW - (30 * 86400) )) )"
+	;;
+esac
+
+set ${DATE:-$( date )}	# today
+DATE="$1 $2 $3"		# Thu Sep 15
+
+UNIXTIME_START="$( _system date 2unixtime "$DATE 00:00:00 $5 $6" )"
+UNIXTIME_END=$(( $UNIXTIME_START + 100800 ))	# till next day 4 o'clock
+
+while read LINE; do {
+	eval $LINE
+	[ $A -gt $UNIXTIME_END ] && break
+	[ $A -gt $UNIXTIME_START ] && WORK=1
+	[ "$WORK" = "1" ] && {
+		DEVICE_LIST="$DEVICE_LIST $D"
+		BYTES_OVERALL=$(( ${BYTES_OVERALL:-0} + $B ))
+		[ $B -gt ${MAX_BYTES:-0} ] && MAX_BYTES=$B
+		[ $C -gt ${MAX_DEVICES:-0} ] && MAX_DEVICES=$C
+	}
+} done <"/tmp/DB/USER/device/stats"
+
+DEVICES_UNIQ="$( _list count_uniq_elements "$DEVICE_LIST" )"
+DEVICE_LIST=
+
+bytes2blocks()
+{
+	local maxbytes="$1"
+	local bytes="$2"
+	local block_maxwidth="48"	# max width overall: 76
+	local blocks=0 i=0 percent
+	local out=
+
+	[ $maxbytes -eq 0 ] && maxbytes=1
+	percent=$(( ($bytes * 100) / $maxbytes ))
+	blocks=$(( ($percent * $block_maxwidth) / 100 ))
+	[ $blocks -eq 0 ] && [ $bytes -gt 0 ] && blocks=1
+
+	while [ $i -lt $blocks ]; do {
+		out="$out#"
+		i=$(( $i + 1))
+	} done
+
+	echo "$out"
+}
+
+echo "Daily report for network $( _weblogin metadata_locationname | sed 's#\\&acute;##' ) @ $DATE"
+echo "from $( _system date unixtime2date "$UNIXTIME_START" ) to $( _system date unixtime2date "$UNIXTIME_END" )"
+echo 
+
+WORK=
+while read LINE; do {
+	eval $LINE
+
+	[ $A -gt $UNIXTIME_END ] && break
+	[ $A -gt $UNIXTIME_START ] && WORK=1
+
+	[ "$WORK" = "1" ] && {
+		TIME="$( _system date unixtime2date "$A" | sed "s/^.* \(..:..\):.. .*/\1/" )"	
+		DEVICES="$C"
+		[ ${#DEVICES} -eq 1 ] && DEVICES=" $DEVICES"
+
+		if [ $(( ($B * 100) / $MAX_BYTES )) -gt 25 ]; then
+			PRINT_BYTES="$( _sanitizer do "$B" number_humanreadable ) bytes"
+		else
+			PRINT_BYTES=
+		fi
+		
+		echo "$TIME ($DEVICES) $( bytes2blocks "$MAX_BYTES" "$B" ) $PRINT_BYTES"
+	}
+	
+} done <"/tmp/DB/USER/device/stats"
+
+[ ${#DEVICES_UNIQ} -eq 1 ] && DEVICES_UNIQ=" $DEVICES_UNIQ"
+
+echo "-----------------------------------------------------------------------------"
+echo "       $DEVICES_UNIQ different devices (max $MAX_DEVICES simultaneous), $( _sanitizer do "$BYTES_OVERALL" number_humanreadable ) bytes"
+echo
+
+_weblogin mail_signature
