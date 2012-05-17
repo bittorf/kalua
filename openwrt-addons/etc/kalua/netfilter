@@ -9,15 +9,12 @@ _netfilter_start()
 {
 	mkdir -p "/tmp/NETFILTER"
 
-	_netfilter masquerade_start
-
-	[ -n "$( uci -q get firewall.@redirect[0] )" ] && {
-		_netfilter portforwarding_start
-	}
-
 	_netfilter ipforwarding_needed && {
 		_netfilter ipforwarding_start
 	}
+
+	_netfilter masquerade_start
+	_netfilter portforwarding_start
 
 	[ -e "/etc/hosts.drop" ] && {
 		_netfilter adblocking_start
@@ -160,7 +157,13 @@ _netfilter_masquerade_stop()
 
 _netfilter_portforwarding_start()
 {
-	:
+	case "$CONFIG_PROFILE" in
+		liszt28*)
+			[ "$LANADR" = "10.63.99.33" ] && {
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 222 -j DNAT --to-destination 10.63.2.34:22
+			}
+		;;
+	esac
 }
 
 _netfilter_portforwarding_stop()
