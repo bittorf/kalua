@@ -37,9 +37,9 @@ how to build this from scratch on a debian server
 	echo "TP-LINK TL-WR1043ND">> KALUA_HARDWARE
 	make menuconfig
 
-	==> Target System ---> Atheros AR7xxx/AR9xxx
-	==> Subtarget ---> Generic
-	==> Target Profile ---> TP-LINK TL-WR1043N/ND
+>	==> Target System ---> Atheros AR7xxx/AR9xxx
+>	==> Subtarget ---> Generic
+>	==> Target Profile ---> TP-LINK TL-WR1043N/ND
 	
 make kernel_menuconfig
 
