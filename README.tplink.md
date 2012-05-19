@@ -36,11 +36,11 @@ how to build this from scratch on a debian server
 	
 	echo "TP-LINK TL-WR1043ND">> KALUA_HARDWARE
 	make menuconfig
-
->	==> Target System ---> Atheros AR7xxx/AR9xxx
->	==> Subtarget ---> Generic
->	==> Target Profile ---> TP-LINK TL-WR1043N/ND
-	
+<pre>
+	==> Target System ---> Atheros AR7xxx/AR9xxx
+	==> Subtarget ---> Generic
+	==> Target Profile ---> TP-LINK TL-WR1043N/ND
+</pre>	
 make kernel_menuconfig
 
 	==> Device Drivers ---> [*] Staging Drivers ---> [*] Compressed RAM block device support
