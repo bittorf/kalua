@@ -46,7 +46,6 @@ make kernel_menuconfig
 <pre>
 	==> Device Drivers ---> [*] Staging Drivers ---> [*] Compressed RAM block device support
 </pre>
-
 	make menuconfig
 
 <pre>
