@@ -38,50 +38,32 @@ how to build this from scratch on a debian server
 	make menuconfig
 
 	==> Target System ---> Atheros AR7xxx/AR9xxx
-	
 	==> Subtarget ---> Generic
-	
 	==> Target Profile ---> TP-LINK TL-WR1043N/ND
 	
-	==> Base system ---> [-] firewall
-	
-	==> Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap
-
-								 ---> [*] swaponoff
-	
-	==> LuCi ---> Modules ---> [*] luci-mod-freifunk (remove firewall dependency in luci Makefile before)
-
-	 	 ---> Applications ---> [*] luci-app-olsr
-
-				   ---> [*] luci-app-olsr-services
-
-		 ---> Themes ---> [*] luci-theme-bootstrap
-
-		 ---> Translations ---> [*] luci-i18n-german
-
-	==> Network ---> VPN ---> [*] vtun (copy vtun-Makefile before to compile without ssl and lzo)
-
-	 	    ---> Firewall ---> [*] iptables-mod-ipopt
-
-		    ---> Routing and Redirection ---> [*] ip
-
-		    				 ---> [*] olsrd
-
-						 		---> [*] olsrd-mod-arprefresh/olsrd-mod-dyn-gw/olsrd-mod-nameservice/olsrd-mod-txtinfo/olsrd-mod-watchdog
-
-		    ---> [*] uhttpd
-
-		    ---> uhttpd ---> [*] uhttpd-mod-tls
-
-		    ---> [-] wpad-mini
-
-	==> Languages ---> lua ---> [*] libiwinfo-lua
-
-	make kernel_menuconfig
+make kernel_menuconfig
 
 	==> Device Drivers ---> [*] Staging Drivers ---> [*] Compressed RAM block device support
 
 	make menuconfig
+
+        ==> Base system ---> [-] firewall
+        ==> Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap
+                                                                 ---> [*] swaponoff
+        ==> LuCi ---> Modules ---> [*] luci-mod-freifunk (remove firewall dependency in luci Makefile before)
+                 ---> Applications ---> [*] luci-app-olsr
+                                   ---> [*] luci-app-olsr-services
+                 ---> Themes ---> [*] luci-theme-bootstrap
+                 ---> Translations ---> [*] luci-i18n-german
+        ==> Network ---> VPN ---> [*] vtun (copy vtun-Makefile before to compile without ssl and lzo)
+                    ---> Firewall ---> [*] iptables-mod-ipopt
+                    ---> Routing and Redirection ---> [*] ip
+                                                 ---> [*] olsrd
+                                                                ---> [*] olsrd-mod-arprefresh/olsrd-mod-dyn-gw/olsrd-mod-nameservice/olsrd-mod-txtinfo/olsrd-mod-watchdog
+                    ---> [*] uhttpd
+                    ---> uhttpd ---> [*] uhttpd-mod-tls
+                    ---> [-] wpad-mini
+        ==> Languages ---> lua ---> [*] libiwinfo-lua
 
 	weimarnetz/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
 	weimarnetz/openwrt-build/mybuild.sh make 		# needs some hours
