@@ -606,7 +606,8 @@ initial_settings()	# prepares the openwrt clone for our needs, should only run o
 {
 	cd weimarnetz/openwrt-build
 	cp -pv vtun-Makefile ../../feeds/packages/net/vtun/Makefile
-        cp -pv profile-100-Broadcom-b43.mk ../../target/linux/brcm47xx/profiles/100-Broadcom-b43.mk
+        #remove dependency manually
+	#cp -pv profile-100-Broadcom-b43.mk ../../target/linux/brcm47xx/profiles/100-Broadcom-b43.mk
         cp -pv rc.local ../../package/base-files/files/etc/rc.local
 	cp -pv pre-commit ../.git/hooks/pre-commit
         echo "vm.swappiness=100" >> ../../package/base-files/files/etc/sysctl.conf
