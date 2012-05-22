@@ -45,6 +45,23 @@ add_static_routes()
 	ip route add $netaddr/$netmask via $ip dev $dev metric 1 onlink
 }
 
+device_forbidden()
+{
+	local ip="$1"
+
+	case "$CONFIG_PROFILE" in
+		elephant*)
+			case "$ip" in
+				10.63.75.33|10.63.76.33)
+					return 0
+				;;
+			esac
+		;;
+	esac
+
+	return 1
+}
+
 _http header_mimetype_output "text/html"
 
 if [ -e "/tmp/LOCK_OLSRSLAVE" ]; then
@@ -55,7 +72,9 @@ else
 	touch "/tmp/LOCK_OLSRSLAVE"
 fi
 
-if _olsr uptime is_short; then
+  if device_forbidden "$REMOTE_ADDR"; then
+	ERROR="NEVER"
+elif _olsr uptime is_short; then
 	ERROR="SHORT_OLSR_UPTIME"
 else
 	eval $( _http query_string_sanitize )
