@@ -1,0 +1,84 @@
+#!/bin/sh
+. /tmp/loader
+
+case "$CONFIG_PROFILE" in
+	extrawatt*|shankar*|fparkssee*|limona*|marinapark*|liszt28*|versiliaje*)
+		PORTS="22"
+	;;
+	preskil*)
+		PORTS="22 80"
+	;;
+	*)
+		PORTS=
+	;;
+esac
+
+[ "$( uci get system.@monitoring[0].maintenance )" = "reverse_sshtunnel" ] && {
+	PORTS="22"
+}
+
+_net local_inet_offer || exit 1
+[ -n "$PORTS" ] || exit 1
+
+tunnel_is_running()
+{
+	local port="$1"
+	local pid line
+
+	for pid in $( pidof dbclient ); do {
+
+		# dbclient-y-I600-K300-f-N-R8080:localhost:80-p22root@intercity-vpn.de-i/etc/dropbear/dropbear_dss_host_key
+		read line <"/proc/$pid/cmdline"
+
+		case "$line" in
+			*":localhost:$port-"*)
+				return 0
+			;;
+		esac
+	} done
+
+	return 1
+}
+
+fire_tunnel()
+{
+	local port_here="$1"
+	local port_server="$2"
+	local server="$( _http url_get_serverstring "$( uci get system.@monitoring[0].url )" )"
+
+	_log do reverse_sshtunnel daemon debug "[START] on local port $LOCAL_PORT"
+
+	dbclient -y -I 600 -K 300 -f -N \
+		 -R $port_server:localhost:$port_here \
+		 -p 22 root@${server} \
+		 -i "/etc/dropbear/dropbear_dss_host_key"
+
+	if pidof dbclient >/dev/null; then
+		_log do reverse_sshtunnel daemon info "[OK] pid: '$( pidof dbclient )' on local port $port_server"
+	else
+		_log do reverse_sshtunnel daemon alert "[ERR] could not startup on local port $port_server"
+	fi
+}
+
+for LOCAL_PORT in $PORTS; do {
+	case "$LOCAL_PORT" in
+		22)
+			_watch sshd_or_telnet
+
+			tunnel_is_running "$LOCAL_PORT" || {
+				[ -e "/tmp/service_ssh_nowatching" ] && {
+					rm "/tmp/service_ssh_nowatching"
+				}
+
+				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )"
+			}
+		;;
+		80)
+			_watch webserver
+
+			tunnel_is_running "$LOCAL_PORT" || {
+				fire_tunnel "$LOCAL_PORT" "8080"
+			}
+		;;
+	esac
+} done
