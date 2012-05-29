@@ -12,6 +12,14 @@ case "$HTTP_USER_AGENT" in
 		. /tmp/NETPARAM
 		[ "$SERVER_ADDR" = "$WANADR" ] && ERROR=403	# fixme! better use SERVER_NAME?
 	;;
+	[0-9A-F]*)
+		. /tmp/NETPARAM
+		case "$HTTP_HOST" in
+			"$WIFIADR:80"|"$LANADR:80")
+				ERROR=403
+			;;
+		esac
+	;;
 	"Microsoft NCSI")	# microsoft captive portel checker -> _http spoof_captive_portal_checker_microsoft
 		ERROR=403
 	;;
