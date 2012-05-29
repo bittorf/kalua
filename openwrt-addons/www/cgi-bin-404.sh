@@ -12,7 +12,7 @@ case "$HTTP_USER_AGENT" in
 		. /tmp/NETPARAM
 		[ "$SERVER_ADDR" = "$WANADR" ] && ERROR=403	# fixme! better use SERVER_NAME?
 	;;
-	[0-9A-F]*)
+	[0-9A-F][0-9A-F][0-9A-F]*)	# goal: match uppercase md5hash
 		. /tmp/NETPARAM
 		case "$HTTP_HOST" in
 			"$WIFIADR:80"|"$LANADR:80")
