@@ -4,6 +4,42 @@
 # }
 #
 
+_watch_dhcp_space()
+{
+	local funcname="watch_dhcp_space"
+	local line
+	local file="/tmp/dhcp.leases"
+	local max_lan="$( uci get dhcp.lan.limit )"
+	local max_wifi="$( uci get dhcp.wlan.limit )"
+	local clients_lan=0
+	local clients_wifi=0
+	local logprio="debug"
+	local percent_border="80"
+
+	while read line; do {
+		set $line
+		if fgrep -q "$3" "/tmp/CLIENTS_LAN"; then
+			clients_lan=$(( $clients_lan + 1 ))
+		else
+			clients_wifi=$(( $clients_wifi + 1 ))
+		fi
+	} done <"$file"
+
+	[ "$( uci get dhcp.lan.ignore )" = "1" ] || {
+		[ $clients_lan -gt $(( (${max_lan:=0} * $percent_border) / 100 )) ] && {
+			logprio="alert"
+		}
+	}
+
+	[ "$( uci get dhcp.wifi.ignore )" = "1" ] || {
+		[ $clients_wifi -gt $(( (${max_wifi:=0} * $percent_border) / 100 )) ] && {
+			logprio="alert"
+		}
+	}
+
+	_log do $funcname daemon $logprio "clients: lan: $clients_lan/$max_lan wifi: $clients_wifi/$max_wifi"
+}
+
 _watch_usbstick_rehungen()
 {
 	local func="watch_usbstick_rehungen"
