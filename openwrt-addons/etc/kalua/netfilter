@@ -1,46 +1,126 @@
+# marks:
+# 0x11 = port80, redirect to local port 80
+# 0x22 = adblocking, gets rejected
+# 0x33 = connection_start
+# 0x44 = connection_close
+# 0x88 = unauthenticated, gets rejected
+
 _netfilter_start()
 {
 	mkdir -p "/tmp/NETFILTER"
 
-	_netfilter_masquerade_start
-
-	[ -n "$( uci -q get firewall.@redirect[0] )" ] && {
-		_netfilter_portforwarding_start
+	_netfilter ipforwarding_needed && {
+		_netfilter ipforwarding_start
 	}
 
-	[ -e "/www/SIMPLE_MESHNODE" ] && return 0
+	_netfilter masquerade_start
+	_netfilter portforwarding_start
+
+	[ -e "/etc/hosts.drop" ] && {
+		_netfilter adblocking_start
+	}
 
 	[ "$( uci -q get system.@weblogin[0].enabled )" = "1" ] && {
-		_netfilter_splash_start
+		_db restore
+
+		[ -e "/www/SIMPLE_MESHNODE" ] || {
+			_netfilter splash_start
+			_netfilter splash_autoadd
+		}
+	}
+}
+
+_netfilter_ipforwarding_needed()
+{
+	[ -x "/usr/sbin/olsrd" ] || return 1
+	[ "$( uci get olsrd.@olsrd[0].disabled )" = "1" ] && return 1
+
+	return 0
+}
+
+_netfilter_ipforwarding_start()
+{
+	local funcname="netfilter_ipforwarding_start"
+	local kernel="/proc/sys/net/ipv4/ip_forward"
+	local state
+
+	read state <"$kernel"
+	echo "$state" >"/tmp/NETFILTER/FORWARDING_STATE_OLD"
+
+	_log do $funcname daemon info "writing 1 to $kernel"
+	echo 1 >"/proc/sys/net/ipv4/ip_forward"
+}
+
+_netfilter_ipforwarding_revert()
+{
+	local funcname="netfilter_ipforwarding_revert"
+	local file="/tmp/NETFILTER/FORWARDING_STATE_OLD"
+	local kernel="/proc/sys/net/ipv4/ip_forward"
+	local state
+
+	[ -e "$file" ] && {
+		read state <"$file"
+
+		pidof olsrd >/dev/null && {
+			[ "$state" = "1" ] || {
+				_log do $funcname daemon alert "olsrd running, forcing ON"
+				state=1
+			}
+		}
+
+		_log do $funcname daemon info "writing $state to $kernel"
+		echo "$state" >"$kernel"
+		rm "$file"
 	}
 }
 
 _netfilter_stop()
 {
-	local mac
+	local option="$1"	# string: remember_over_reboot
+	local funcname="netfilter_stop"
+	local mac state table
+	local list_user="$( _netfilter user_list )"
 
-	for mac in $( _netfilter user_list ); do {
+	for mac in $list_user; do {
+		_log do $funcname daemon info "_netfilter user_del $mac"
+
+		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'"
+		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$( _net mac2ip "$mac" )'"
+
 		_netfilter user_del "$mac"
+	} done >"/tmp/NETFILTER_AUTOADD"
+
+	_db backup
+
+	case "$option" in
+		"remember_over_reboot"|"ror")
+			[ -n "$list_user" ] && {
+				cp "/tmp/NETFILTER_AUTOADD" "/www/NETFILTER_AUTOADD"
+			}
+		;;
+	esac
+
+	for table in mangle filter nat; do {
+		_log do $funcname daemon info "unloading table $table"
+		iptables -t $table -F
+		iptables -t $table -X
 	} done
 
-	iptables -t mangle -F
-	iptables -t mangle -X
-	iptables -t filter -F
-	iptables -t filter -X
-	iptables -t nat -F
-	iptables -t nat -X
-
 	rm -fR "/tmp/NETFILTER"
+
+	_netfilter ipforwarding_revert
 }
 
 _netfilter_masquerade_start()
 {
+	local funcname="netfilter_masquerade_start"
 	local exception="$1"		# fixme! needs source/destination arg
-	local device
+	local device devname
 
 	mkdir -p "/tmp/NETFILTER"
 
-	case "$( _net local_inet_offer )" in
+	devname="$( _net local_inet_offer )"
+	case "$devname" in
 		wan)
 			device="$WANDEV"
 		;;
@@ -53,8 +133,18 @@ _netfilter_masquerade_start()
 	esac
 
 	[ -n "$device" ] && {
+		_log do $funcname daemon info "active for device $device ($devname)"
+
 		echo "iptables -t nat -D POSTROUTING -o $device -j MASQUERADE" >"/tmp/NETFILTER/MASQUERADING"
 		iptables -t nat -A POSTROUTING -o $device -j MASQUERADE
+
+		case "$CONFIG_PROFILE" in
+			tkolleg*)
+				iptables -t nat -I POSTROUTING -s 10.10.0.0/16 -o $LANDEV -j MASQUERADE
+				iptables -t nat -I POSTROUTING -d 10.10.0.10 -j MASQUERADE	# printer
+				iptables -t nat -I POSTROUTING -d 10.10.0.2 -j MASQUERADE	# exNT
+			;;
+		esac
 	}
 }
 
@@ -68,7 +158,13 @@ _netfilter_masquerade_stop()
 
 _netfilter_portforwarding_start()
 {
-	:
+	case "$CONFIG_PROFILE" in
+		liszt28*)
+			[ "$LANADR" = "10.63.99.33" ] && {
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 222 -j DNAT --to-destination 10.63.2.34:22
+			}
+		;;
+	esac
 }
 
 _netfilter_portforwarding_stop()
@@ -112,6 +208,41 @@ _netfilter_splash_start()
 
 	iptables -t nat -A PREROUTING -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $WIFIADR
 	iptables -t nat -A PREROUTING -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR
+}
+
+_netfilter_splash_autoadd()
+{
+	local line ip mac file
+
+	if [ -e "/www/NETFILTER_AUTOADD" ]; then
+		_olsr uptime is_short && {
+			_scheduler add "_netfilter splash_autoadd"
+			return 0
+		}
+
+		/usr/sbin/cron.check_inet_gw_fff+
+		. "/www/NETFILTER_AUTOADD"		# dont delete - in case we have an unscheduled reboot
+	else
+		file="/tmp/NETFILTER_AUTOADD"
+		[ -e "$file" ] && {
+			. "$file"
+			rm "$file"
+		}
+	fi
+
+	while read line; do {
+		set ${line:-empty}
+		ip="$1"
+		mac="$4"
+
+		if _netfilter user_probe "$mac"; then
+			:	# already known
+		else
+			fgrep -sq "$ip;" /tmp/CLIENTS_ALL && {
+				/etc/dhcp-script.d/10dhcpscript add "$mac" "$ip"
+			}
+		fi
+	} done </proc/net/arp
 }
 
 _netfilter_splash_stop()
@@ -183,6 +314,29 @@ _netfilter_user_list()
 	ls -1 "/tmp/NETFILTER/USER" 2>/dev/null
 }
 
+_netfilter_user_stats_collect()		# this runs every minute, so speedcode!
+{
+	local mac line bytes_incoming bytes_outgoing uptime rest
+	read uptime rest <"/proc/uptime"; uptime="${uptime%.*}"
+
+	iptables -t mangle -nxvL FORWARD |
+	 while read line; do {
+		case "$line" in
+			*"incoming_"*)
+				set $line
+				bytes_incoming="$2"
+				mac="${3#*_}"
+			;;
+			*"outgoing_"*)
+				set $line
+				bytes_outgoing="$2"
+
+				echo "$uptime $bytes_incoming $bytes_outgoing" >>"/tmp/NETFILTER/USER/$mac/stats"
+			;;
+		esac
+	} done
+}
+
 _netfilter_user_add()
 {
 	local mac="$1"
@@ -237,6 +391,7 @@ _netfilter_user_del()
 		}
 
 		rm -fR "/tmp/NETFILTER/USER/$mac"
+		rm "/tmp/vds_user_$mac"
 	}
 }
 
@@ -267,7 +422,9 @@ _netfilter_user_dataretention_add()
 		iptables -t mangle -A FORWARD -j mark_connection_new
 		iptables -t mangle -A FORWARD -j mark_connection_end
 
-		pidof ulogd >/dev/null || ulogd -d
+		[ -e "/usr/sbin/ulogd" ] && {
+			pidof ulogd >/dev/null || ulogd -d
+		}
 
 		touch "/tmp/NETFILTER/connection_detection"
 	}
@@ -346,12 +503,94 @@ _netfilter_user_shaping_del()
 	local mac="$1"
 }
 
-_netfilter_user_adblocking_add()
+_netfilter_adblocking_start()
 {
-	local mac="$1"
+	iptables -t mangle -A FORWARD -d 1.1.0.0/20 -j MARK --set-mark 0x22	# see /etc/hosts.drop
+	iptables -t mangle -A FORWARD -m mark --mark 0x22/0xff -j ACCEPT	# don't overwrite mark on later rules
+	iptables -A FORWARD -m mark --mark 0x22/0xff -j REJECT
 }
 
-_netfilter_user_adblocking_del()
+_netfilter_user_stats_process()
 {
-	local mac="$1"
+	local server_ip url server_response mac line hash message= count=0
+	local user_list="$( _netfilter user_list )"
+
+	_netfilter user_stats_collect
+
+	for mac in $user_list; do {
+		[ -e "/tmp/NETFILTER/USER/$mac/stats" ] || continue
+
+		local uptime_old= uptime uptime_diff time_used=0
+		local bytes_incoming_old= bytes_incoming bytes_incoming_sum=0 bytes_incoming_diff
+		local bytes_outgoing_old= bytes_outgoing bytes_outgoing_sum=0 bytes_outgoing_diff
+
+		[ -e "/tmp/NETFILTER/USER/$mac/stats" ] || {
+			bytes_incoming_old=0
+			bytes_outgoing_old=0
+		}
+
+		while read line; do {
+			set $line
+			uptime="$1"
+			bytes_incoming="$2"
+			bytes_outgoing="$3"
+
+			uptime_diff=$(( $uptime - ${uptime_old:-$uptime} ))
+			uptime_old="$uptime"
+
+			bytes_incoming_diff=$(( $bytes_incoming - ${bytes_incoming_old:-$bytes_incoming} ))
+			bytes_incoming_old="$bytes_incoming"
+			bytes_incoming_sum=$(( $bytes_incoming_sum + $bytes_incoming_diff ))
+
+			bytes_outgoing_diff=$(( $bytes_outgoing - ${bytes_outgoing_old:-$bytes_outgoing} ))
+			bytes_outgoing_old="$bytes_outgoing"
+			bytes_outgoing_sum=$(( $bytes_outgoing_sum + $bytes_outgoing_diff ))
+
+			[ $bytes_incoming_diff -gt 0 -o $bytes_outgoing_diff -gt 0 ] && {
+				time_used=$(( $time_used + $uptime_diff ))
+			}
+
+		} done <"/tmp/NETFILTER/USER/$mac/stats"
+
+		# CMA = client mac address
+		# CTU = client time used
+		# CBI = client bytes incoming ("downloaded")
+		# CBO = client bytes outgoing ("uploaded")
+		# CAH = client authentication hash
+
+		[ $(( $bytes_incoming_sum + $bytes_outgoing_sum )) -eq 0 ] && {
+			continue
+		}
+
+		if [ -e "/tmp/vds_user_$mac" ]; then
+			read hash <"/tmp/vds_user_$mac"
+		else
+			hash=
+		fi
+
+		count=$(( $count + 1 ))
+		mac="${mac//:/%3a}"		# urlencode
+		message="${message}${message:+&}CMA_${count}=${mac}&CTU_${count}=${time_used}&CBI_${count}=${bytes_incoming_sum}&CBO_${count}=${bytes_outgoing_sum}&CAH_${count}=${hash}"
+	} done
+
+	[ -n "$message" ] && {
+		server_ip="$( _weblogin authserver )"
+
+		case "$server_ip" in
+			$WIFIADR|$LANADR|$WANADR)
+				echo "UPTIME=${uptime}&REMOTE_ADDR=${WIFIADR}&${message}" >>"/tmp/COLLECT_DATA"
+				server_response="OK"
+			;;
+			*)
+				url="http://$server_ip/cgi-bin-collect.sh?${message}"
+				server_response="$( _wget do "$url" 20 )"
+			;;
+		esac
+
+		[ "$server_response" = "OK" ] && {
+			for mac in $user_list; do {
+				mv "/tmp/NETFILTER/USER/$mac/stats" "/tmp/NETFILTER/USER/$mac/stats.lastsend"
+			} done
+		}
+	}
 }
