@@ -34,14 +34,23 @@ fi
 
 case "$OPT" in
 	minstrel)
+		echo -en "Content-type: text/plain\n\n"
+
 		case "$REMOTE_ADDR" in
 			127.0.0.1|$WIFIADR|$LANADR|$WANADR)
-				REMOTE_ADDR="$( _sanitizer do "$( ip route list exact 0.0.0.0/0 )" ip4 )"
+				REMOTE_ADDR="$( ip route list exact 0.0.0.0/0 )"
+				REMOTE_ADDR="$( _sanitizer do "$REMOTE_ADDR" ip4 )"
 			;;
 		esac
 
-		echo -en "Content-type: text/plain\n\n"
-		_wifi minstrel "$( _sanitizer do "$( traceroute -n "$REMOTE_ADDR" -m 1 -q 1 -w 10 | tail -n1 )" ip4 )"
+		NEXTHOP="$( traceroute -n "$REMOTE_ADDR" -m 1 -q 1 -w 10 | tail -n1 )"
+		NEXTHOP="$( _sanitizer do "$NEXTHOP" ip4 )"
+		[ -z "$NEXTHOP" ] && {
+			NEXTHOP="$( ip route list exact 0.0.0.0/0 )"
+			NEXTHOP="$( _sanitizer do "$NEXTHOP" ip4 )"
+		}
+
+		_wifi minstrel "$NEXTHOP"
 	;;
 	startshell)
 		_watch sshd_or_telnet force
