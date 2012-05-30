@@ -101,10 +101,33 @@ elif [ -n "$USER_ID" ]; then
 		echo "$LOGIN" >/tmp/vds_user_$MAC			# LOGIN = HASH
 
 		eval $( _db user device show last "USER_ID" )		# use $USER_ID_STACK ?
+		DEVICE_ID="$ID"
 		eval $( _db user login show "$USER_ID" )
 
-		[ -z "$USED" ] && {
-			USED="1"
+		is_new_device_for_this_login()
+		{
+			case "$DEVICE_ID" in
+				*" $USED "*)		# list of all device_id's, which have used this login
+					return 0
+				;;
+				*)
+					return 1
+				;;
+			esac
+		}
+
+		is_new_device_for_this_login && {
+			if [ -z "$USED" ]; then
+				USED=" $DEVICE_ID "
+
+				[ -e "/tmp/DB/USER/profile/id${PROFILE_ID}_counterA" ] && {
+					read UNUSED_TICKETS <"/tmp/DB/USER/profile/id${PROFILE_ID}_counterA"
+					echo "$(( $UNUSED_TICKETS - 1 ))" >"/tmp/DB/USER/profile/id${PROFILE_ID}_counterA"
+				}
+			else
+				USED="${USED}${DEVICE_ID} "
+			fi
+
 			_db user login update	"$USER_ID" \
 						"$PROFILE_ID" \
 						"$COMMENT" \
@@ -114,11 +137,6 @@ elif [ -n "$USER_ID" ]; then
 						"$INSTALLED" \
 						"$FUZZY" \
 						"$USED"
-
-			[ -e "/tmp/DB/USER/profile/id${PROFILE_ID}_counterA" ] && {
-				read UNUSED_TICKETS <"/tmp/DB/USER/profile/id${PROFILE_ID}_counterA"
-				echo "$(( $UNUSED_TICKETS - 1 ))" >"/tmp/DB/USER/profile/id${PROFILE_ID}_counterA"
-			}
 		}
 
 		_scheduler add "_db ticketcheck $PROFILE_ID"
