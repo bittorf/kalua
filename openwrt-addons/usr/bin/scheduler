@@ -141,102 +141,6 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					#	_firmware update_pmu
 					#}
 
-					[ -e "/bin/dmesg" ] && {
-						/bin/dmesg -c >"/tmp/dmesg.recent"
-
-						DUMMY=
-						read DUMMY <"/tmp/dmesg.recent"
-						[ ${#DUMMY} -eq 0 ] || cat "/tmp/dmesg.recent" >>"/tmp/dmesg.log"
-
-						[ -e "/tmp/dmesg.boot" ] || cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
-					}
-
-					reboot_needed()
-					{
-						[ -e "/tmp/dmesg.recent" ] || return 1
-
-						fgrep -q " page allocation failure: " "/tmp/dmesg.recent" && {
-							_log do kernellog daemon alert "page allocation failure"
-							return 0
-						}
-
-						fgrep -q " BUG: Bad page state in process " "/tmp/dmesg.recent" && {
-							_log do kernellog daemon alert "BUG: Bad page state in process"
-							return 0
-						}
-
-						fgrep -q "Fixing recursive fault but reboot is needed" "/tmp/dmesg.recent" && {
-							_log do kernellog daemon alert "Fixing recursive fault but reboot is needed"
-							return 0
-						}
-
-						[ $( _system version short ) -le 30010 ] && {
-							grep ^WARNING: "/tmp/dmesg.recent" | fgrep -q "ath9k/recv.c:" && {
-								_log do kernellog daemon alert "ath9k-warning in recv.c"
-								return 0	# strange: iptables are open after this
-							}
-						}
-
-						# switch and wifi is affected:
-						fgrep -q "ath: DMA failed to stop in 10 ms" "/tmp/dmesg.recent" && {
-							[ $( _system version short ) -le 30563 ] && {
-								case "$( _wifi mode $WIFIDEV )" in
-									adhoc)
-										_net local_inet_offer >/dev/null || {
-											[ $( _system uptime min ) -gt 180 ] && {
-												_log do kernellog daemon alert "$( fgrep "ath: DMA failed to stop in 10 ms" "/tmp/dmesg.recent" | tail -n1 )"
-												return 0
-											}
-										}
-									;;
-									*)
-										case "$( uci get wireless.radio0.htmode )" in
-											HT40*)
-												uci set wireless.radio0.htmode=HT20
-												uci commit wireless
-											;;
-										esac
-
-										_wifi phy_restart $WIFIDEV "dmesg: $( fgrep "ath: DMA failed to stop in 10 ms" "/tmp/dmesg.recent" | tail -n1 )"
-									;;
-								esac
-							}
-						}
-
-						# wifi is laggy after this:
-						fgrep -sq "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" && {
-							[ $( _system version short ) -le 30563 ] && {
-								case "$( _wifi mode $WIFIDEV )" in
-									adhoc)
-										_net local_inet_offer >/dev/null || {
-											[ $( _system uptime min ) -gt 180 ] && {
-												_log do kernellog daemon alert "$( fgrep "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" | tail -n1 )"
-												return 0
-											}
-										}
-									;;
-									*)
-										case "$( uci get wireless.radio0.htmode )" in
-											HT40*)
-												uci set wireless.radio0.htmode=HT20
-												uci commit wireless
-
-												_wifi phy_restart $WIFIDEV "dmesg: $( fgrep "ath: Failed to stop TX DMA, queues=0x" "/tmp/dmesg.recent" | tail -n1 )"
-											;;
-										esac
-									;;
-								esac
-							}
-						}
-
-						return 1
-					}
-
-					reboot_needed && {
-						sync
-						reboot -f
-					}
-
 					fgrep -sq "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" && {
 						_log do conntrack_full daemon info "dropping packet"
 
@@ -290,7 +194,9 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 											:
 										;;
 										04)
-											/etc/init.d/netfilter restart
+											_netfilter stop remember_over_reboot
+											_netfilter ipforwarding_start
+											_netfilter masquerade_start
 											sleep 300	# give time for collecting userdata
 
 											case "$HARDWARE" in
@@ -299,16 +205,29 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 												;;
 											esac
 
+											_netfilter start
 											_firmware update_pmu
 										;;
 										05)
-											[ -e "/www/cgi-bin/db_backup.tgz" ] && {
+											[ -e "/tmp/DB/USER/login/rows" ] && {
 												_db user login index_gen
 											}
 										;;
 										06)
 											killall dbclient	# reinit reverse ssh-tunnel
-											/etc/init.d/netfilter restart
+
+											[ "$( _system uptime hours )" -gt 2 ] && {
+												/etc/init.d/netfilter restart
+											}
+
+											[ -e "/tmp/DB/USER/device/stats" ] && {
+												case "$CONFIG_PROFILE" in
+													hotello*|aschbach*|olympia*|liszt28*|rehungen*|preskil*)
+														_log sleep jitter_send_mail "$( _math random_integer 0 100 )" step 5
+														_db statistics_send_mail daily yesterday
+													;;
+												esac
+											}
 										;;
 									esac
 								;;
@@ -413,9 +332,9 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 			incoming_wifi_activity || {
 				case "$WIFIMODE" in
 					*adhoc*)
-						_wifi phy_restart $WIFIDEV "no incoming_wifi_activity, scheduling reboot"
-						sleep 15
-						#_system reboot_safe "no incoming_wifi_activity, framecounter: $( cat /tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV )"
+						_wifi phy_restart $WIFIDEV "no incoming_wifi_activity, NOT scheduling reboot"
+#						sleep 15
+#						_system reboot_safe "no incoming_wifi_activity, framecounter: $( cat /tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV )"
 					;;
 					*)
 						if [ -n "$( iw dev $WIFIDEV station dump )" ]; then
@@ -502,7 +421,13 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 				}
 
 				[ "$( uci get olsrd.@meta[0].hnaslave )" = "1" ] && {
-					/usr/sbin/cron.olsr-hna-slave
+					case "$CONFIG_PROFILE" in
+						hotello*)
+						;;
+						*)
+							/usr/sbin/cron.olsr-hna-slave
+						;;
+					esac
 				}
 			else
 				if [ -e "/tmp/service_olsrd_nowatching" ]; then
