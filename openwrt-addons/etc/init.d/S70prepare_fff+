@@ -34,7 +34,7 @@ case $1 in
 
 			unload()
 			{
-				local list=$LIST
+				local list="$1"
 				local kmod
 
 				for kmod in $list; do {
@@ -98,29 +98,32 @@ case $1 in
 				/etc/init.d/dnsmasq restart
 			else
 				uci set dhcp.lan.ignore=1
-				echo "nameserver $( uci get dhcp.@dnsmasq[0].server )" >"/etc/resolv.conf"
 				/etc/init.d/dnsmasq stop
+				echo "nameserver $( uci get dhcp.@dnsmasq[0].server )" >"/etc/resolv.conf"
 			fi
 		}
 
 		touch /tmp/service_cronwatchdog_nowatching
 		touch /tmp/cron_watchdog_please_end_yourself_$( cat /tmp/cron_watchdog.id )
 
-		dmesg -c >>/tmp/dmesg.boot
+		[ -e "/bin/dmesg" ] && {
+			dmesg -c >>"/tmp/dmesg.boot"
+		}
 
 		ROOTETHERNET="$( echo $LANDEV | cut -d'.' -f1 )"	# eth0.1 -> eth0
 		ip link set dev $ROOTETHERNET txqueuelen 32
 
-		echo 1024 >/proc/sys/net/nf_conntrack_max
+		[ -e "/proc/sys/net/nf_conntrack_max" ] && {
+			echo 1024 >"/proc/sys/net/nf_conntrack_max"	# 350 bytes * 1024 = 360kb instead of 5.7mb (16384)
+		}
 
-		touch /tmp/service_ssh_nowatching
+		touch "/tmp/service_ssh_nowatching"
 		killall dropbear
 	;;
 	start)
-		grep -qs 0 "/proc/sys/vm/panic_on_oom" && {
-			_log do panic_on_oom daemon info "activating auto-reboot when oom is working"
-			echo 1 >"/proc/sys/vm/panic_on_oom"
-		}
+		sysctl -w vm.panic_on_oom=1
+		sysctl -w kernel.panic_on_oops=1
+		sysctl -w kernel.panic=1
 
 		[ -e "/etc/init.d/deactivated_cron_daemon" ] && {
 			mv /etc/init.d/deactivated_cron_daemon /etc/init.d/S51crond_fff+
@@ -157,10 +160,6 @@ case $1 in
 			eval $CMD2
 		}
 
-		if [ "$( uci get system.@profile[0].name )" != "ffweimar_adhoc" ]; then
-		_db restore
-		fi
-
 		PPPOE=0
 		[ -n "$( uci get network.wan.username )" ] && PPPOE="$(( $PPPOE + 1 ))"
 		[ -n "$( uci get network.wan.password )" ] && PPPOE="$(( $PPPOE + 1 ))"
@@ -179,30 +178,13 @@ case $1 in
 		#
 		# equal 2? -> do something
 
-		case "$( uci get system.@profile[0].name )" in
-			tkolleg*)
-				[ "$LANADR" = "10.10.2.33" ] && {
-					iptables -t nat -I POSTROUTING -s 10.10.0.0/16 -o $LANDEV	-j MASQUERADE
-					iptables -t nat -I POSTROUTING -d 10.10.0.10			-j MASQUERADE		# drucker
-					iptables -t nat -I POSTROUTING -d 10.10.0.2			-j MASQUERADE		# exNT
-				}
-			;;
+		case "$CONFIG_PROFILE" in
 			liszt28*)
 				_watch usbstick_rehungen
-
-				# generalize portfw:
-				[ "$LANADR" = "10.63.99.33" ] && {
-					iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 222 -j DNAT --to-destination 10.63.2.34:22
-				}
 			;;
 			aschbach*)
 				[ "$LANADR" = "10.10.2.33" ] && {
 					ip address add 192.168.134.254/24 dev $LANDEV label $LANDEV:kasseGW		# kassen gateway
-				}
-			;;
-			berlinle*)
-				[ "$LANADR" = "10.63.11.33" ] && {
-					ssh -i /etc/dropbear/dropbear_dss_host_key -R 2048:localhost:22 root@intercity-vpn.de &
 				}
 			;;
 		esac

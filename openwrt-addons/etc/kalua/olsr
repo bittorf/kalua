@@ -47,7 +47,7 @@ _olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every mi
 
 				return 1
 			else
-				_log do $func daemon info "trying again"
+				_log do $func daemon info "wget-error trying again"
 			fi
 		fi
 
@@ -499,14 +499,14 @@ _olsr_restarts_are_suspicious_often ()
 	fi
 }
 
-_olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-table? + at least 1 non-infinite?
-{						# test 2/5: each local/remote-pair has only one neighbor/link entry?
-	local FUNC="olsr_plausi_check"		# test 3/5: are minimum-cost neighbours linklocal? + metric seems believeable (<100)
-	local LINE				# test 4/5: each node in mesh has only 1 route?
-	local LASTLINE				# test 5/5: are wired neighbours LQ/NLQ nearly synchronous?
-	local FILE="/tmp/OLSR/LINKS.sh"		# test 6/5: ping to inet-gateway works?
-	local option="$1"			# test 0/5: olsr-plaintext plugin works? + too much restarts? + default route exists?
-						#
+_olsr_check_plausi ()				# test 1/7: is each non-infinite neighbour in routing-table? + at least 1 non-infinite?
+{						# test 2/7: each local/remote-pair has only one neighbor/link entry?
+	local FUNC="olsr_plausi_check"		# test 3/7: are minimum-cost neighbours linklocal? + metric seems believeable (<100)
+	local LINE				# test 4/7: each node in mesh has only 1 route?
+	local LASTLINE				# test 5/7: are wired neighbours LQ/NLQ nearly synchronous?
+	local FILE="/tmp/OLSR/LINKS.sh"		# test 6/7: ping to inet-gateway works?
+	local option="$1"			# test 7/7: strong change to more worse values of wireless neighs
+	# option = force|deep			# test 0/7: olsr-plaintext plugin works? + too much restarts? + default route exists?
 						# idea: '10.63.176.193 ~~0~~ 10.63.62.1     LQ/NLQ/COST: 0.000 / 0.000 / ~      MAC+DNS: ??:??:??:??:??:?? 'unknown'
 						# idea:
 	[ "$option" = "force" ] || {
@@ -810,6 +810,77 @@ _olsr_check_plausi ()				# test 1/5: is each non-infinite neighbour in routing-t
 		_log do $FUNC daemon debug "[OK] (ping to inet-gateway $REMOTE works)"
 	}
 
+
+	local sum_cost=0 sum_wireless_neighs=0 sum_cost_old sum_cost_min message
+	local percent_border="-35" percent_diff
+	COUNT=0
+
+	while read LINE; do {		# test 7/7: strong change to more worse values of wireless neighs / better check LQ only?
+		eval $LINE
+		[ "$LOCAL" = "$WIFIADR" ] && {
+			sum_wireless_neighs=$(( $sum_wireless_neighs + 1 ))
+
+			if [ -n "$COST" ]; then
+				COST="${COST%.*}${COST#*.}"		# 1.123 -> 1123
+			else
+				COST=15000				# infinite -> high value
+			fi
+
+			sum_cost=$(( $sum_cost + $COST ))
+		}
+	} done <"$FILE"
+
+	[ -e "/tmp/OLSR/sum_cost_wireless" ] && {
+		read sum_cost_old <"/tmp/OLSR/sum_cost_wireless"
+		read sum_cost_min <"/tmp/OLSR/sum_cost_wireless_min"
+
+		[ $sum_cost -lt ${sum_cost_min:-999999} ] && {
+			echo "$sum_cost" >"/tmp/OLSR/sum_cost_wireless_min"
+			sum_cost_min="$sum_cost"
+		}
+
+		if [ $sum_cost_old -eq 0 ]; then
+			percent_diff=0
+		else
+			percent_diff=$(( ($sum_cost * 100) / $sum_cost_old ))
+			percent_diff=$(( 100 - $percent_diff ))
+		fi
+
+		message="$sum_cost_old -> $sum_cost (${percent_diff}%, best ever: $sum_cost_min)"
+
+		if [ $percent_diff -lt 0 ]; then
+			message="costs getting worse: $message"
+
+			if [ $percent_diff -le $percent_border ]; then
+				if [ "$option" = "deep" ]; then
+					_wifi phy_restart "$WIFIDEV" "$message"
+				else
+					_log do $FUNC daemon info "no deep check: $message"
+				fi
+			else
+				_log do $FUNC daemon info "$message"
+			fi
+		else
+			_log do $FUNC daemon info "costs getting better: $message"
+		fi
+	}
+
+	echo "$sum_cost" >"/tmp/OLSR/sum_cost_wireless"
+
+	case "$CONFIG_PROFILE" in
+		hotello-B01*)
+			case "$( cut -d';' -f5 "$FILE" | md5sum )" in		# hash over costs
+				251e8bd0827f1455a382b13fd723f994*)
+					_log do $FUNC daemon info "[OK] neighbour hash"
+				;;
+				*)
+					_log do $FUNC daemon alert "[ERR] surprising neighbour hash - rebooting"
+					reboot
+				;;
+			esac
+		;;
+	esac
+
 	return 0
 }
 
@@ -965,6 +1036,41 @@ _olsr_neighs_humanreadable ()			# fixme! ToDo: latitude/longitude/distance + spe
 	} done <"$FILE"
 
 	local OLSR_INGORE="$( uci get firewall.@ignoreolsr[0].ip )"
-
 	[ -n "$OLSR_INGORE" ] && echo "ignored stations: $OLSR_INGORE"
+
+	local line slave_found cidr route local_ip remote_ip
+	uci changes >"/tmp/uci_changes.$$"
+
+	while read line; do {
+		case "$line" in
+			"olsrd."*)
+				case "$line" in				# olsrd.cfg126b70=Hna4
+					*"=Hna4")			# olsrd.cfg126b70.netaddr=10.10.12.0
+						slave_found="true"	# olsrd.cfg126b70.netmask=255.255.255.192
+					;;
+					*".netaddr="*)
+						slave_found="$( echo "$line" | cut -d'=' -f2 )"
+					;;
+					*".netmask="*)
+						[ -n "$slave_found" ] && {
+							cidr="$( echo "$line" | cut -d'=' -f2 )"
+							cidr="$( _net mask2cidr "$cidr" )"
+
+							route="$( ip -o route get $slave_found/$cidr )"
+							local_ip="$( echo "$route" | cut -d' ' -f8 )"
+							remote_ip="$( echo "$route" | cut -d' ' -f3 )"
+
+							COUNT=$(( ${COUNT:-0} + 1 ))
+							echo "$COUNT:  $local_ip --1-- $remote_ip (HNA-slave $slave_found/$cidr)"
+						}
+					;;
+					*)
+						slave_found=
+					;;
+				esac
+			;;
+		esac
+	} done <"/tmp/uci_changes.$$"
+
+	rm "/tmp/uci_changes.$$"
 }

@@ -1,18 +1,22 @@
 #!/bin/sh
-. /tmp/loader
+. /tmp/loader		# this script runs ~ every 15 minutes
 
-# wget -qO /dev/null "http://127.0.0.1/cgi-bin-rrd1.html?START=end-24h"		# stats,wifi (signal/noise,rate,olsr-traffic)
-# scp /tmp/rrd/img/end-24hWLAN_WLA_STATS.png intercity-vpn.de:/var/www/99.png
+echo 1 >/proc/sys/net/ipv4/ip_forward
 
-# idee:
-# random node-IP in mesh with 1 hop or 2 hops -> IP = main-interface
-# [ ! -e contact_$IP ] || [ "$(cat contact_${IP}_fetched)" -lt $(( $(_system date unixtime) - 86400 )) ] && {
-# 	wget -qO - http://$IP/cgi-bin-contact.html | sed -n '/<H1>Kontakt<\/H1>/,$p'| sed '/^<\/TABLE>/q' >/tmp/node_$IP
-#
-#	[ "$( md5sum /tmp/node_$IP | cut -d' ' -f1 )" = "c9614a47d313e7be6f6cf2a7b88d5d2b" ]; then
-#		echo "empty"
-#	}
-# }			# ~ 800 Bytes if all fields are set
+case "$( uci get wireless.radio0.htmode )" in
+	HT40*)
+		case "$( _wifi mode $WIFIDEV )" in
+			ap)
+				uci set wireless.radio0.htmode=HT20
+				uci commit wireless
+			;;
+		esac
+	;;
+esac
+
+# it seems, that sometimes the powersettings are lost
+TXPOWER="$( uci get wireless.radio0.txpower )"
+[ -n "$TXPOWER" ] && iw dev $WIFIDEV set txpower fixed "${TXPOWER}00"
 
 _watch flash_free_space
 
@@ -22,7 +26,9 @@ _watch wifi_mode || sleep 30		# lets settle down to see some neighs
 	_olsr check_plausi || {
 		_log do olsr_deepwatch daemon info "error during check_plausi, watching again in 65sec"
 		sleep 65
-		if _olsr check_plausi; then
+		_olsr build_tables
+
+		if _olsr check_plausi deep; then
 			_log do olsr_deepwatch daemon info "[OK] no error on 2nd check"
 		else
 			_olsr daemon restart "plausi_check_failed"
@@ -35,51 +41,23 @@ _watch wifi_mode || sleep 30		# lets settle down to see some neighs
 _watch dns_resolution
 _watch pppoe
 _watch netserver
-# _watch webcam
-#_watch sshd_or_telnet
+_watch sshd_or_telnet
 _watch random_node_id
-
+_watch dhcp_space
 
 case "$CONFIG_PROFILE" in
-	extrawatt*|shankar*|fparkssee*|preskil*|limona*)
-		REVERSE_SSHTUNNEL="true"
+	ffweimar*|monami*)
+		:
 	;;
 	*)
-		REVERSE_SSHTUNNEL=
+		cron.add_collected_userdata_into_db
+
+		_log sleep jitter_user_stats_process "$( _math random_integer 0 100 )" step 5
+		_netfilter user_stats_process
 	;;
 esac
 
-[ "$( uci get system.@monitoring[0].maintenance )" = "reverse_sshtunnel" ] && {
-	REVERSE_SSHTUNNEL="true"
-}
-
-#[ -n "$REVERSE_SSHTUNNEL" ] && {
-#		[ -e "/tmp/service_ssh_nowatching" ] && {
-#			rm "/tmp/service_ssh_nowatching"
-#		}
-#
-#		pidof dbclient >/dev/null || {
-#			_net local_inet_offer >/dev/null && {
-#				_watch sshd_or_telnet
-#
-#				HOSTNAME="$( uci get system.@system[0].hostname )"
-#				PORT="$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )"
-#				_log do reverse_sshtunnel daemon debug "[START] on local port $PORT"
-#
-#				dbclient -y -I 600 -K 300 -f -N \
-#					 -R $PORT:localhost:22 \
-#					 -p 22 root@intercity-vpn.de \
-#					 -i "/etc/dropbear/dropbear_dss_host_key"
-#
-#				if pidof dbclient >/dev/null; then
-#					_log do reverse_sshtunnel daemon info "[READY] pid: '$( pidof dbclient )' on local port $PORT"
-#				else
-#					_log do reverse_sshtunnel daemon alert "[ERR] could not startup on local port $PORT"
-#				fi
-#			}
-#		}
-#	;;
-#esac
+#/usr/sbin/cron.reverse_ssh_tunnel
 
 _firmware upgrade_is_needed && {
 	touch /tmp/START_SYSUPGRADE
@@ -89,13 +67,19 @@ case "$CONFIG_PROFILE" in
 	zumnorde*|adagio*|lisztwe*|apphalle*|fparkssee*|marinapark*|satama*|monami*|liszt28*|elephant*)
 		case "$CONFIG_PROFILE" in
 			*ap)
-				[ -n "$( uci get dhcp.@dnsmasq[0].dhcpscript )" ] && {
-					uci delete dhcp.@dnsmasq[0].dhcpscript
-					/etc/init.d/dnsmasq restart
-				}
+				case "$HOSTNAME" in
+					SA-leuchtturm-AP|SA-restaurant-MESH)
+					;;
+					*)
+						[ -n "$( uci get dhcp.@dnsmasq[0].dhcpscript )" ] && {
+							uci delete dhcp.@dnsmasq[0].dhcpscript
+							/etc/init.d/dnsmasq restart
+						}
+					;;
+				esac
 
 				[ -z "$( uci get olsrd.@meta[0].hnaslave )" ] && {
-					uci set olsrd.@meta[0].hnaslave=1
+					_net local_inet_offer >/dev/null || uci set olsrd.@meta[0].hnaslave=1
 				}
 			;;
 			*adhoc)
