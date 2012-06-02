@@ -37,23 +37,33 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 	local mac="$1"		# or IP
 	local option="$2"	# debug
 	local wifi_dev="${3:-$WIFIDEV}"
+	local ip
 
 	case "$mac" in
 		*:*)
-			:
+			ip="$( _net mac2ip "$mac" )"
 		;;
 		*)
 			_sanitizer do "$mac" ip4 check && {
+				ip="$mac"
 				mac="$( _net ip2mac $mac )"
 			}
 		;;
 	esac
 
+	[ -e "/tmp/OLSR/LINKS.sh" ] && {
+		eval $( fgrep "REMOTE=${ip};" "/tmp/OLSR/LINKS.sh" )
+		echo -n "lq=$LQ;nlq=$NLQ;cost=$COST;"
+	}
+
 	local file="/sys/kernel/debug/ieee80211/phy0/netdev:${wifi_dev}/stations/$mac/rc_stats"
 	local line result targetline rate throughput efficiency system
 	local max=0
 
-	[ -e "$file" ] || return
+	[ -e "$file" ] || {
+		echo "ip=$ip;"
+		return 1
+	}
 
 	[ "$option" = "debug" ] && {
 		_log do minstrel_out daemon debug "output of $file"
@@ -190,7 +200,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 		}
 	}
 
-	echo "txrate=${rate:-0};txthroughput=${throughput:-0};efficiency=${efficiency:-0};system=${system};"
+	echo "txrate=${rate:-0};txthroughput=${throughput:-0};efficiency=${efficiency:-0};system=${system};ip=$ip"
 }
 
 _wifi_math_mcs2rate()			# fixme! output spatial streams, coding rate, modulation type?
@@ -369,11 +379,11 @@ _wifi_tx_and_rx ()		# ARG1 = NETWORK_DEV e.g. WIFI_DEV
 	# WIFI_RX_FRAMES=109127
 	# WIFI_TX_BYTES=2572111365
 	# WIFI_TX_PACKETS=22193801
-	# WIFI_TX_ERROR=3
+	# WIFI_TX_ERRORS=3
 
 	local FILE="/proc/net/dev"
 
-	sed -n "s/^.*$1: *\([0-9]*\) *\([0-9]*\) *\([0-9]*\) *[0-9]* *[0-9]* *\([0-9]*\) *[0-9]* *[0-9]* *\([0-9]*\) *\([0-9]*\) *\([0-9]*\) .*/WIFI_RX_BYTES=\1\nWIFI_RX_PACKETS=\2\nWIFI_RX_ERRORS=\3\nWIFI_RX_FRAMES=\4\nWIFI_TX_BYTES=\5\nWIFI_TX_PACKETS=\6\nWIFI_TX_ERROR=\7/p" "$FILE"
+	sed -n "s/^.*$1: *\([0-9]*\) *\([0-9]*\) *\([0-9]*\) *[0-9]* *[0-9]* *\([0-9]*\) *[0-9]* *[0-9]* *\([0-9]*\) *\([0-9]*\) *\([0-9]*\) .*/WIFI_RX_BYTES=\1\nWIFI_RX_PACKETS=\2\nWIFI_RX_ERRORS=\3\nWIFI_RX_FRAMES=\4\nWIFI_TX_BYTES=\5\nWIFI_TX_PACKETS=\6\nWIFI_TX_ERRORS=\7/p" "$FILE"
 }
 
 _wifi_params_config ()
@@ -731,10 +741,16 @@ _wifi_phy_restart()
 	local reason="${2:-no_reason_given}"
 	local prio="${3:-alert}"
 
+	local uptime="up $( _wifi phy_uptime "$wifi_dev" ) sec"
 	_watch counter "/tmp/STATS_WIFI_RESTARTS.$wifi_dev" increment 1
 	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
 
-	_log do $funcname daemon $prio "working on '$wifi_dev' ($reason)"
+	eval $( _wifi tx_and_rx $wifi_dev )
+	local vals_rx="rx:bytes/packets/errors/frames $WIFI_RX_BYTES/$WIFI_RX_PACKETS/$WIFI_RX_ERRORS/$WIFI_RX_FRAMES"
+	local vals_tx="tx_bytes/packets/errors: $WIFI_TX_BYTES/$WIFI_TX_PACKETS/$WIFI_TX_ERRORS"
+
+	echo "$reason: $uptime $vals_rx $vals_tx" >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.reason"
+	_log do $funcname daemon $prio "working on '$wifi_dev' ($reason) $uptime $vals_rx $vals_tx"
 
 	/sbin/wifi down
 	_log sleep $funcname 10 step 1
@@ -788,7 +804,8 @@ _wifi_phy_txpower ()		# output in [mW]
 				;;
 			esac
 
-		POWER="$( _wifi math_dbm2mw $POWER )"
+			POWER="$( _wifi math_dbm2mw $POWER )"
+		fi
 	fi
 	
 	echo "${POWER:-0}"	# no wifi-dev

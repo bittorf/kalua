@@ -5,6 +5,68 @@ _ipsystem_do ()
 	_ipsystem ${SYSTEM:-ffweimar} "$1"
 }
 
+_ipsystem_ipv4_extract_octetts()	# fixme! code duplication in sanitizer()
+{
+	local ip="$1"
+	local oldifs="$IFS"; IFS="."; set $ip; IFS="$oldifs"
+	echo "local o1=$1; local o2=$2; local o3=$3; local o4=$4"
+}
+
+_ipsystem_amiga()			# lannet  = 10.10.x.128/25
+{					# wifinet = 10.10.x.0/25
+	local nodenumber="$1"
+	local city=10
+	local network=10
+	local range_start=2
+	local range_end=254
+	local range_first_random=250
+
+	  if [ -z "$nodenumber" ]; then
+
+		nodenumber="$( uci get system.@profile[0].nodenumber )"
+		[ -z "$nodenumber" ] && nodenumber=$( _math random_integer "$range_first_random" "$range_end" )
+
+	elif [ "$nodenumber" = "random" ]; then
+
+		nodenumber=$( _math random_integer "$range_first_random" "$range_end" )
+
+	elif _sanitizer do "$nodenumber" ip4 check ; then	# ip2nodenumber()
+
+		eval $( _ipsystem ipv4_extract_octetts "$nodenumber" )
+		if [ $o1 -eq $network -a $o2 -eq $city ]; then
+				echo "$o3"
+				return 0
+		else
+			return 1
+		fi
+	fi
+
+	# fixme! implement random-case()
+
+	cat <<EOF
+WIFINET=$network.$city.$nodenumber.0
+WIFIBRC=$network.$city.$nodenumber.127
+WIFI_ADDR=$network.$city.$nodenumber.1
+WIFIADR=$network.$city.$nodenumber.1
+WIFI_PRE=8
+WIFI_DHCP_PRE=25
+WIFIDHCPSTART=$network.$city.$nodenumber.2
+WIFIDHCPNUM=122
+
+LANADR=$network.$city.$nodenumber.129
+LANMSK=255.255.255.128
+LANDHCPSTART=130
+LANDHCPNUM=125
+
+WANADR=$network.$city.$nodenumber.125
+WANMSK=255.255.255.252
+
+OLSR_HNA=$network.$city.$nodenumber.0/24
+NODE_NUMBER_RANDOM=false
+FFF_CITY=$city
+EOF
+}
+
 _ipsystem_ffsundi ()			# ARG1: - empty       -> has_nodenumber? -> output for my nodenumber
 {					#  	- "random" or empty && no_nodenumber?  -> output for random nodenumber
 	local NODE_NUMBER="$1"		#       - IP-address  -> output nodenumber

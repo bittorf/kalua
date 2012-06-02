@@ -21,13 +21,27 @@ _log_sleep()		# _log sleep firmware_burn 180 step 10
 {
 	local subroutine_name="$1"
 	local duration="$2"
+	local dummy="$3"	# "step"
 	local step="${4:-1}"
 	local i="$duration"
+	local n do_sleep
+	local prio="info"	# only show first and last message with info, other with debug
 
 	while [ $i -ge 0 ]; do {
-		_log do "$subroutine_name" daemon info "[OK] sleeping $i/$duration sec"
+		n=$i
 		i=$(( $i - $step ))
-		[ $i -ge 0 ] && /bin/sleep $step
+
+		if [ $i -ge 0 ]; then
+			do_sleep="true"
+		else
+			do_sleep=
+			prio="info"
+		fi
+
+		_log do "$subroutine_name" daemon $prio "[OK] sleeping $n/$duration sec"
+		prio="debug"
+
+		[ -n "$do_sleep" ] && /bin/sleep $step
 	} done
 }
 
@@ -246,20 +260,4 @@ _log_append_info()
 	local date="$( _system date humanreadable nice )"
 
 	echo "${location}->${host} @ ${date}"
-}
-
-_log_netmessage () 		# SENS: sends a human-readable UDP netmessage to all broadcast-destinations
-{
-	# readable per tcpdump: (each line are 16 bytes)
-	# tcpdump -s 500 -nXi $DEVICE udp and port 2049
-
-	local  MESSAGE="$1"	# ARG1: string
-	local  BROADCAST
-	local  DESTINATIONS="$( ip address show |
-	                         sed -n 's/^.* brd \([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\).*/255.255.255.255\n\1/p' |
-	                          sort | uniq )"
-
-	for BROADCAST in ${DESTINATIONS:=255.255.255.255}; do {
-		netmsg $BROADCAST "__$MESSAGE"				# fixme! at early boot, there are no interfaces up...
-	} done
 }
