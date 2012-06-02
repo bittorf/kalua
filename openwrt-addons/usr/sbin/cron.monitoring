@@ -213,8 +213,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 				/etc/init.d/S43ethers_fff+ call
 				. /tmp/NETPARAM
 
+				echo 0 >/proc/sys/net/ipv4/ip_forward
 				_speedtest do $WANADR $SPEEDTEST_SERVER poormens_tcpdownload2 "30"	# fixme! respect type: wan, lan ...
 				_speedtest do $WANADR $SPEEDTEST_SERVER poormens_tcpupload "20"
+				echo 1 >/proc/sys/net/ipv4/ip_forward
 			}
 		}
 	else
@@ -407,7 +409,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	}
 
 	QUERY="${QUERY}&d0=$( _db user login list last )"
-	QUERY="${QUERY}&d1=$( uci get system.@weblogin[0].authserver )"
+	QUERY="${QUERY}&d1=$( _weblogin authserver )"
 	QUERY="${QUERY}&n0=$N0"
 
 	incoming_and_outgoing_olsr_traff_on_wifi()
@@ -483,6 +485,17 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	QUERY="${QUERY}&w0=$WIFIDEV"
 	QUERY="${QUERY}&w1=$( cat "/tmp/STATS_WIFI_RESTARTS.$WIFIDEV" )"
 	QUERY="${QUERY}&w2=$( _wifi phy_uptime "$WIFIDEV" )"
+
+	local reason
+	read reason <"/tmp/STATS_WIFI_RESTARTS.$WIFIDEV.reason"
+	QUERY="${QUERY}&w3=$( _sanitizer do "$reason" urlvalue )"
+
+	usbport_something_is_plugged_in()
+	{
+		test -n "$( grep -s " Driver=" /proc/bus/usb/devices | grep -v "Driver=hub" )"
+	}
+
+	QUERY="${QUERY}&u0=$( usbport_something_is_plugged_in && echo "1" )"
 
 	if [ $RAM_SIZE -lt 16384 ]; then
 		echo >/tmp/ARCHIV_MONITORING "$QUERY"
