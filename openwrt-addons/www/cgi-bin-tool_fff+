@@ -33,6 +33,25 @@ else				# call from shell
 fi
 
 case "$OPT" in
+	minstrel)
+		echo -en "Content-type: text/plain\n\n"
+
+		case "$REMOTE_ADDR" in
+			127.0.0.1|$WIFIADR|$LANADR|$WANADR)
+				REMOTE_ADDR="$( ip route list exact 0.0.0.0/0 )"
+				REMOTE_ADDR="$( _sanitizer do "$REMOTE_ADDR" ip4 )"
+			;;
+		esac
+
+		NEXTHOP="$( traceroute -n "$REMOTE_ADDR" -m 1 -q 1 -w 10 | tail -n1 )"
+		NEXTHOP="$( _sanitizer do "$NEXTHOP" ip4 )"
+		[ -z "$NEXTHOP" ] && {
+			NEXTHOP="$( ip route list exact 0.0.0.0/0 )"
+			NEXTHOP="$( _sanitizer do "$NEXTHOP" ip4 )"
+		}
+
+		_wifi minstrel "$NEXTHOP"
+	;;
 	startshell)
 		_watch sshd_or_telnet force
 	;;
@@ -48,15 +67,6 @@ case "$OPT" in
 		}
 		echo "<pre>"
 		cat /www/everlasting_syslog.txt
-		echo "</pre>"
-	;;
-	antenna_test)
-		_tool htmlout_head
-		echo "Der Automatische Antennentest wurde in die Warteschlange gestellt.<br>"
-		echo "Das Ergebnis ist in wenigen Minuten &uuml;ber das<br>"
-		echo "'resetfeste Computerlogbuch' im Werkzeug einsehbar<br><br><pre>"
-		_scheduler add "/usr/sbin/cron.select_best_antenna_fff+ force"
-		_scheduler queue_list
 		echo "</pre>"
 	;;
 	neigh)
