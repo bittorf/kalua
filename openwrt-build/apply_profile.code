@@ -1,7 +1,4 @@
 #!/bin/sh
-#
-# _scheduler add "_firmware wget_prepare_for_lowmem_devices; wget -O /tmp/fw '$URL'"
-# _scheduler add "_firmware burn /tmp/fw"
 
 log()
 {
@@ -49,7 +46,9 @@ while ! jffs2_is_ready ; do {
 	log "waiting for JFFS2 to be ready"
 	sleep 10
 } done
-log "uptime now: $( uptime_in_seconds ) seconds"
+log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
+sleep 5
+df | logger
 
 hwprobe()
 {
@@ -57,9 +56,18 @@ hwprobe()
 
 	case "$machine" in
 		"Ubiquiti PicoStation2")
-			dmesg | fgrep -q "lpj=917504" && {
-				dmesg | fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" && {
-					dmesg | fgrep -q "ath5k phy0: Atheros AR2317 chip found (MAC: 0x90, PHY: 0x48)" && {
+			fgrep -q "lpj=917504" "$DMESG" && {
+				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
+					fgrep -q "ath5k phy0: Atheros AR2317 chip found (MAC: 0x90, PHY: 0x48)" "$DMESG" && {
+						return 0
+					}
+				}
+			}
+		;;
+		"Ubiquiti PicoStation5")
+			fgrep -q "lpj=899072" "$DMESG" && {
+				fgrep -q "CPU revision is: 0001800a (MIPS 4Kc)" "$DMESG" && {
+					fgrep -q "ath5k phy0: Atheros AR2313 chip found (MAC: 0x58, PHY: 0x44)" "$DMESG" && {
 						return 0
 					}
 				}
@@ -70,37 +78,58 @@ hwprobe()
 	return 1
 }
 
-  if dmesg | fgrep -q "Linksys WRT54G/GS/GL" ; then	# brcm47xx
-	HARDWARE="Linksys WRT54G/GS/GL"
-elif dmesg | fgrep -q "Ubiquiti Bullet M" ; then	# ar71xx
-	HARDWARE="BulletM"
-elif dmesg | fgrep -q "TP-LINK TL-WR1043ND"; then	# ar71xx
-	HARDWARE="TP-LINK TL-WR1043ND"
-elif dmesg | fgrep -q "TP-LINK TL-WR703N"; then         #ar71xx
-        HARDWARE="TP-LINK TL-WR703N"
-elif dmesg | fgrep -q "Buffalo WHR-HP-G54" ; then	# brcm47xx
-	HARDWARE="Buffalo WHR-HP-G54"
-elif dmesg | fgrep -q "SPW500V" ; then			# ???????? / speedport w500v / aldi router
-	HARDWARE="SPW500V"
-elif dmesg | fgrep -q "ASUS WL-HDD"; then		# brcm47xx
-	HARDWARE="ASUS WL-HDD"
-elif dmesg | fgrep -q "ASUS WL-500g Premium V2"; then	# brcm47xx / v2
-	HARDWARE="ASUS WL-500g Premium V2"
-elif dmesg | fgrep -q "ASUS WL-500g Premium"; then	# brcm47xx / v1
-	HARDWARE="ASUS WL-500g Premium"
-elif dmesg | fgrep -q "Dell TrueMobile 2300"; then	# brcm47xx / v1
-	HARDWARE="Dell TrueMobile 2300"
+DMESG="/tmp/dmesg.boot"
+[ -e "$DMESG" ] || {
+	dmesg >"$DMESG"
+}
+
+try_device()
+{
+	I=$(( ${I:=0} + 1 ))
+
+	case "$I" in
+		 1) HARDWARE="Linksys WRT54G/GS/GL" ;;		# brcm47xx
+		 2) HARDWARE="Ubiquiti Bullet M" ;;		# ar71xx
+		 3) HARDWARE="TP-LINK TL-WR1043ND" ;;		# ar71xx
+		 4) HARDWARE="Buffalo WHR-HP-G54" ;;		# brcm47xx
+		 5) HARDWARE="SPW500V" ;;			# speedport w500v / aldi router
+		 6) HARDWARE="ASUS WL-HDD" ;;			# brcm47xx
+		 7) HARDWARE="ASUS WL-500g Premium V2" ;;	# brcm47xx
+		 8) HARDWARE="ASUS WL-500g Premium" ;;		# brcm47xx
+		 9) HARDWARE="Dell TrueMobile 2300" ;;		# brcm47xx
+		10) HARDWARE="Ubiquiti RouterStation Pro" ;;	# ar71xx
+		11) HARDWARE="4G Systems MTX-1 Board" ;;	# au1000 / meshcube
+		12) HARDWARE="Buffalo WZR-HP-AG300H" ;;		# ar71xx
+		13) HARDWARE="Ubiquiti Nanostation M" ;;	# ar71xx
+		14) HARDWARE="TP-LINK TL-WR703N" ;;             # ar71xx
+		*)
+			HARDWARE=
+			return 1
+		;;
+	esac
+}
+
+while try_device; do {
+	fgrep -q "$HARDWARE" "$DMESG" && break
+} done
+
+  if [ -n "$HARDWARE" ]; then
+	:
 elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform
 	HARDWARE="Ubiquiti PicoStation2"
-elif [ -e /etc/HARDWARE ]; then
+elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform
+	HARDWARE="Ubiquiti PicoStation5"
+elif [ -e "/etc/HARDWARE" ]; then
+	log "could not detect hardware, trying /etc/HARDWARE"
 	read HARDWARE </etc/HARDWARE
 else
 	log "could not detect hardware, abort"
 
 	[ "$1" = "help" ] || exit 1
 fi
-log "detected: $HARDWARE and wrote to '/etc/HARDWARE'"
+log "detected: $HARDWARE and wrote to '/etc/HARDWARE' for later monitoring"
 echo "$HARDWARE" >"/etc/HARDWARE"
+
 
 INSTALLATION="$1"
 PROFILE_MODE="$2"
@@ -217,9 +246,26 @@ password_set()
 	}
 }
 
+case "$PROFILE_MODE" in
+	hybrid)
+		PROFILE_MODE="adhoc"
+		. ${0}.definitions
+		PROFILE_MODE="hybrid"
 
-. ${0}.definitions
+		[ -z "$SSID_ENFORCED" ] && {
+			SSID_ENFORCED="$INSTALLATION $NODENUMBER"
+		}
+	;;
+	*)
+		. ${0}.definitions
+	;;
+esac
 
+case "$HARDWARE" in
+	"Ubiquiti Bullet M")
+		TXPOWER=$(( $TXPOWER - 12 ))	# https://dev.openwrt.org/browser/trunk/package/iwinfo/src/iwinfo_lib.c#L310
+	;;
+esac
 
 
 OLD_HOSTNAME="$( uci get system.@system[0].hostname )"
@@ -227,6 +273,7 @@ OLD_HOSTNAME="$( uci get system.@system[0].hostname )"
 # old_hostname=OpenWrt ==> build a new hostname
 if [ $OLD_HOSTNAME = "OpenWrt" ]; then
 	OLD_HOSTNAME="${INSTALLATION}-${PROFILE_MODE}-${GATEWAY}-${NODENUMBER}"
+	log "using new hostname $OLD_HOSTNAME"
 fi
 
 echo "$OLD_HOSTNAME" >/proc/sys/kernel/hostname
@@ -295,7 +342,6 @@ EOF
 _config_system ()
 {
 	local NODE="$1"
-	
 
 	echo "${OLD_HOSTNAME}" >/proc/sys/kernel/hostname
 	
@@ -304,6 +350,7 @@ config 'system'
 	option 'hostname' '${OLD_HOSTNAME}'
 	option 'timezone' 'UTC'
 	option 'cronloglevel' '9'
+	option 'log_size' '16'
 EOF
 	if [ "$INSTALLATION" = "ffweimar" ]; then       #restore all settings in profile ffweimar 
                 echo >>/etc/config/system "     option 'keepsettings'  '1'"
@@ -318,11 +365,6 @@ config 'timeserver'
 	list server 2.openwrt.pool.ntp.org
 	list server 3.openwrt.pool.ntp.org
 
-config 'rdate'						# fixme! deprecated
-	list 'server' '0.pool.ntp.org'
-	list 'server' '1.pool.ntp.org'
-	list 'server' '2.pool.ntp.org'
-	list 'server' '3.pool.ntp.org'
 EOF
 
 case "$HARDWARE" in
@@ -358,7 +400,6 @@ EOF
 			echo >>/etc/config/system "	option authserver '192.168.111.183'"
 		;;
 	esac
-
 
 	cat >>/etc/config/system <<EOF
 
@@ -424,39 +465,66 @@ _config_softwareinstall ()
 _config_wireless ()			# fixme! channels hardcoded
 {
 	local NODE="$1"
-	local MAC="$( uci get wireless.radio0.macaddr )"
-	local htmode hwmode country ht_cap ht_cap_list hideht i
+	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard
+	local temp="/tmp/config_wireless.tmp"
 
+	[ -e "$temp" ] && rm "$temp"
+
+for radiocard in 0 1 2 3; do {
+
+	[ -n "$( uci get wireless.@wifi-iface[${radiocard}].device )" ] || break
+	[ $radiocard -gt 0 ] && echo "" >>"$temp"
+
+	log "configuring radio${radiocard} ..."
+
+	MAC="$( uci get wireless.radio${radiocard}.macaddr )"
 	[ -z "$MAC" ] && {
 		MAC="11:22:33:44:55:66"
 		log "[ERR] empty mac, we set $MAC"
 	}
 
-	hwmode="$( uci get wireless.radio0.hwmode )"		# backup current state
+	hwmode="$( uci get wireless.radio${radiocard}.hwmode )"		# backup current state
 	hwmode="${hwmode:-11g}"
-	[ "$hwmode" = "11g" ] && hideht="#"
 
-	ht_cap_list="$( uci get wireless.radio0.ht_capab )"	# backup current state
+	case "$hwmode" in
+		11g|11a)
+			hideht="#"
+		;;
+	esac
+
+	radiotype="$( uci get wireless.radio${radiocard}.type )"	# e.g. 'mac80211' or 'atheros'
+
+	ht_cap_list="$( uci get wireless.radio${radiocard}.ht_capab )"	# backup current state
 
 	ht_cap_uci_output()
 	{
 		for ht_cap in $ht_cap_list; do {
-			echo "list ht_capab	'$ht_cap'"
+			echo "	list ht_capab	'$ht_cap'"
 		} done
 	}
 
 	# detect 5ghz-mode
 	# channel 36 (5180mhz), 161 (5805mhz) is working initially
 
-	[ "$hwmode" = "11na" ] && {
-		if [ "$CHANNEL" = "161" ]; then
-			:
-		else
-			CHANNEL=36
-		fi
+	case "$hwmode" in
+		11na|11a)
+			if [ "$CHANNEL" = "161" ]; then
+				:
+			else
+				CHANNEL=36
+			fi
 
-		log "[OK] using mode 801.$hwmode now and channel $CHANNEL"
-	}
+			BSSID="$( echo "$BSSID" | cut -b 1-11 )"	# 02:be:ef:ca:ff:ee -> 02:be:ef:ca
+
+			if [ "$CHANNEL" -lt 100 ]; then
+				BSSID="${BSSID}:00:$CHANNEL"
+			else
+				BSSID="${BSSID}:0$( echo "$CHANNEL" | cut -b 1 ):$( echo "$CHANNEL" | cut -b 2-3 )"
+			fi
+
+			log "[OK] using mode 801.$hwmode now and channel $CHANNEL with bssid: $BSSID"
+		;;
+	esac
 
 	case "$CHANNEL" in
 		36|37|38|39|40|161) htmode="HT40+" ;;
@@ -496,46 +564,48 @@ _config_wireless ()			# fixme! channels hardcoded
 
 	case "$PROFILE_MODE" in
 		hybrid)
-			local ssid_adhoc=' '			# fixme!
-			local ssid_ap="$SSID_ENFORCED"
+			local ssid_adhoc='bb'			# fixme! work with 'hidden'
+			local ssid_ap="${INSTALLATION} $NODE"
 
-			cat >/etc/config/wireless <<EOF
-config wifi-device radio0
-	option type	mac80211
+			cat >>"$temp" <<EOF
+config wifi-device radio${radiocard}
+	option type	$radiotype
 	option country	$country
-	option txpower	$TXPOWER
 	option channel	$CHANNEL
+#	option ath9k_chanbw 20		# temporary, 5, 10 or 20 (default)
 	option macaddr	$MAC
 	option frag	off
-EOF
-
-			cat >>/etc/config/wireless <<EOF
-	option hwmode   $hwmode
-${hideht}	option htmode   $htmode
-$( ht_cap_uci_output )
+	option txpower	$TXPOWER
+	option beacon_int 1000
 ${hide_noscan}	option noscan	1
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
+	option hwmode   $hwmode
+${hideht}	option htmode   $htmode
+$( ht_cap_uci_output )
+EOF
+
+			cat >>"$temp" <<EOF
 
 config wifi-iface
-	option device	radio0
+	option device	radio${radiocard}
 	option network	wlan
 	option mode	adhoc
-	option bssid	'$ssid_adhoc'
-	option ssid	'${new_essid}'
+	option bssid	'$BSSID'
+	option ssid	'${ssid_adhoc}'
 	option mcast_rate ${MCAST_RATE}
 #	option bintval	1000
 
 config wifi-iface
-	option device	radio0
+	option device	radio${radiocard}
 	option network	wlan
 	option mode	ap
-	option ssid	'${new_essid}'
+	option ssid	'${ssid_ap}'
 EOF
 		;;
 		ap*)
-			local old_essid="$( uci get wireless.@wifi-iface[0].ssid )"
+			local old_essid="$( uci get wireless.@wifi-iface[${radiocard}].ssid )"
 			local new_essid="${INSTALLATION} $NODE"
 
 			[ -n "$SSID_ENFORCED" ] && {
@@ -557,9 +627,9 @@ EOF
 				;;
 			esac
 
-			cat >/etc/config/wireless <<EOF
-config wifi-device radio0
-	option type	mac80211
+			cat >>"$temp" <<EOF
+config wifi-device radio${radiocard}
+	option type	$radiotype
 	option country	$country
 	option txpower	$TXPOWER
 	option channel	$CHANNEL
@@ -568,16 +638,16 @@ config wifi-device radio0
 ${hide_noscan}	option noscan	1
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 	option hwmode   $hwmode
 ${hideht}	option htmode   $htmode
 $( ht_cap_uci_output )
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 
 config wifi-iface
-	option device	radio0
+	option device	radio${radiocard}
 	option network	wlan
 	option mode	ap
 	option ssid	'${new_essid}'
@@ -591,9 +661,9 @@ EOF
 				ffweimar*) new_essid="weimarnetz" ;;
 			esac
 
-			cat >/etc/config/wireless <<EOF
-config wifi-device radio0
-	option type	mac80211
+			cat >>"$temp" <<EOF
+config wifi-device radio${radiocard}
+	option type	$radiotype
 	option country	$country
 	option channel	$CHANNEL
 #	option ath9k_chanbw 20		# temporary, 5, 10 or 20 (default)
@@ -604,16 +674,16 @@ config wifi-device radio0
 ${hide_noscan}	option noscan	1
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 	option hwmode	$hwmode
 ${hideht}	option htmode	$htmode
 $( ht_cap_uci_output )
 EOF
 
-			cat >>/etc/config/wireless <<EOF
+			cat >>"$temp" <<EOF
 
 config wifi-iface
-	option device	radio0
+	option device	radio${radiocard}
 	option network	wlan
 	option mode	adhoc
 	option bssid	'$BSSID'
@@ -624,11 +694,15 @@ EOF
 		;;
 	esac
 
-	cat >>/etc/config/wireless <<EOF
+} done
+
+	cat >>"$temp" <<EOF
 
 config auto_optimize
 	option neigh	'off'
 EOF
+
+	mv "$temp" /etc/config/wireless
 }
 
 _config_mail ()
@@ -665,12 +739,6 @@ _config_network ()
 	local NODE="$1"
 	local PROTO LANDEV WANDEV
 
-	if [ "$GATEWAY" = "dhcp" ]; then
-		PROTO="dhcp"
-	else
-		PROTO="static"
-	fi
-
 	case "$HARDWARE" in
 		"Dell TrueMobile 2300")
 			LANMAC="00:90:4b:39:7b:5e"	# fixme!
@@ -681,12 +749,25 @@ _config_network ()
 	LANDEV="$( uci get network.lan.ifname )"
 	WANDEV="$( uci get network.wan.ifname )"
 
+	if [ "$GATEWAY" = "dhcp" ]; then
+		PROTO="dhcp"
+
+		[ -n "$LANDEV" -a -z "$WANDEV" ] && {
+			log "swapping LANDEV with WANDEV, we are on singleport machine"
+			WANDEV="$LANDEV"
+			LANDEV=
+		}
+	else
+		PROTO="static"
+	fi
+
 	uci delete network.wan
 	uci delete network.lan
 	uci delete network.wlan
 	uci commit
 
-	cat >>/etc/config/network <<EOF
+	[ -n "$LANDEV" ] && {
+		cat >>/etc/config/network <<EOF
 
 config 'interface' 'lan'
 	option 'ifname'   '$LANDEV'
@@ -696,6 +777,7 @@ $( test -n "$LANMAC" && echo "	option 'macaddr'	'$LANMAC'" )
 	option 'netmask'  '$( _ipsystem do $NODE | grep LANMSK= | cut -d'=' -f2 )'
 
 EOF
+	}
 
 	if [ -z "$WANDEV" ]; then
 			:		# no wandev/singleport
@@ -704,7 +786,7 @@ EOF
 		local wan_ipaddr="$(  _ipsystem do $NODE | grep WANADR= | cut -d'=' -f2 )"
 		local wan_netmask="$( _ipsystem do $NODE | grep WANMSK= | cut -d'=' -f2 )"
 		local wan_gateway=
-		local username password hideip
+		local username password hideip wan_dns
 
 		case "${NODE}_${INSTALLATION}" in
 			2_schoeneck)
@@ -833,6 +915,7 @@ fi
 config 'interface' 'wan'
 	option 'ifname' '$WANDEV'
 $( test -n "$WANMAC" && echo "	option 'macaddr'	'$WANMAC'" )
+$( test -n "$wan_dns" && echo "	option 'wan_dns'	'$wan_dns'" )
 	option 'proto' '$PROTO'
 ${hideip:+#}	option 'ipaddr'	 '$wan_ipaddr'
 ${hideip:+#}	option 'netmask' '$wan_netmask'
@@ -841,11 +924,25 @@ ${username:+	option 'username' '$username'}
 ${password:+	option 'password' '$password'}
 EOF
 
+
+
 	fi
 
-	local wlan_ipaddr wlan_netmsk
+	local wlan_ipaddr wlan_netmsk wlan_ifname
 	local alias_ifname alias_proto alias_ipaddr alias_netmask alias_network
 	local hide="#"
+
+	case "$( uci get wireless.radio0.type )" in
+		mac80211)
+			wlan_ifname="wlan0"
+		;;
+		atheros)
+			wlan_ifname="ath0"
+		;;
+		*)
+			wlan_ifname="wlan0"
+		;;
+	esac
 
 	wlan_ipaddr="$( _ipsystem do $NODE | grep WIFIADR= | cut -d'=' -f2 )"
 	wlan_netmsk="$( _ipsystem do $NODE | grep WIFI_PRE= | cut -d'=' -f2 )"
@@ -854,7 +951,7 @@ EOF
 	cat >>/etc/config/network <<EOF
 
 config 'interface' 'wlan'
-	option 'ifname'	'wlan0'
+	option 'ifname'	'$wlan_ifname'
 	option 'proto'	'static'
 	option 'ipaddr'	 '$wlan_ipaddr'
 	option 'netmask' '$wlan_netmsk'
@@ -931,17 +1028,17 @@ config dnsmasq
 
 config dhcp lan
 	option interface	lan
-	option start 		34
-	option limit		8
+	option start 		$( _ipsystem do "$NODE" | grep ^"LANDHCPSTART=" | cut -d'=' -f2 )
+	option limit		$( _ipsystem do "$NODE" | grep ^"LANDHCPNUM="   | cut -d'=' -f2 )
 	option leasetime	2h
 	option force		1
 	option ignore		${DHCP_IGNORE_LAN:-0}
 
 config dhcp wlan
 	option interface	wlan
-	option start 		2
-	option netmask		'255.255.255.240'
-	option limit		8
+	option start 		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPSTART=" | cut -d'=' -f2 | cut -d'.' -f4 )
+	option netmask		'255.255.255.240'	# fixme! better: 255.255.255.224
+	option limit		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPNUM=" | cut -d'=' -f2 )			# fixme! better: 21
 	option leasetime	1h
 	option force		1
 	option ignore		${DHCP_IGNORE_WLAN:-0}
@@ -1000,12 +1097,23 @@ _config_aliases ()
 	}
 }
 
-_config_olsrd ()
+_config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files/olsrd.conf.default.full
 {
 	local NODE="$1"
+	local speed="${OLSR_SPEED:-5}"
+	local hide_nameservice slave
+
+	if [ -z "$GATEWAY" -a "$PROFILE_MODE" = "ap" ]; then
+		slave=1
+	else
+		slave=0
+	fi
+
+	[ $speed -gt 10 ] && hide_nameservice="#"
+
 	local INTERFACES1		# Mode: ether
 	local INTERFACES2		# Mode: adhoc
-	local hna_net hna_mask
+	local hna_net hna_mask main_ip
 
 	hna_net="$(  _ipsystem do $NODE | grep OLSR_HNA= | cut -d'=' -f2 | cut -d'/' -f1 )"
 	hna_mask="$( _ipsystem do $NODE | grep OLSR_HNA= | cut -d'/' -f2 )"
@@ -1041,28 +1149,53 @@ _config_olsrd ()
 		;;
 	esac
 
+	main_ip="$( uci get network.lan.ipaddr )"
+	[ -z "$main_ip" ] && {
+		main_ip="$( uci get network.wan.ipaddr )"
+	}
+
+	local fisheye hello_interval tc_interval
+
+	fisheye="1"
+	hello_interval="$(( $speed / 2 + 1 ))"
+
+	if [ "$fisheye" = "1" ]; then
+		tc_interval="$(( $speed / 2 ))"
+		[ "$tc_interval" = "0" ] && tc_interval="1"
+	else
+		tc_interval="$(( $speed * 2 ))"
+	fi
+
 	cat >/etc/config/olsrd <<EOF
 config olsrd
+	option MainIp			'${main_ip:-0.0.0.0}'
+	option AllowNoInt		'yes'
         option IpVersion		'4'
 	option FIBMetric		'flat'		# approx, correct, flat
 	option Willingness		'7'
 	option TcRedundancy		'2'
+	option LinkQualityFishEye	'$fisheye'
 	option LinkQualityAlgorithm	'$OLSR_METRIC'	# etx_ff, etx_ffeth, etx_float, etx_fpm
 	option MprCoverage		'7'
 #	option RtTable			'111'
 #	option RtTableDefault		'254'		# cat /etc/iproute2/rt_tables
 
+config meta
+	option speedvalue		'$speed'
+	option speedalgo		'1'		# like sven-ola fff 1.7.4
+	option hnaslave			'$slave'
+
 config Interface
 	list interface			'$INTERFACES1'
 	option Ip4Broadcast		'255.255.255.255'
-	option HelloInterval		'3.0'
-	option HelloValidityTime	'125.0'
-	option TcValidityTime		'500.0'
-	option TcInterval		'2.0'
-	option MidInterval		'25.0'
-	option MidValidityTime		'500.0'
-	option HnaInterval		'10.0'
-	option HnaValidityTime		'125.0'
+	option HelloInterval		'$hello_interval.0'
+	option HelloValidityTime	'$(( $speed * 25 )).0'
+	option TcValidityTime		'$(( $speed * 100 )).0'
+	option TcInterval		'$tc_interval.0'
+	option MidInterval		'$(( $speed * 5 )).0'
+	option MidValidityTime		'$(( $speed * 100 )).0'
+	option HnaInterval		'$(( $speed * 2 )).0'
+	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
 [ "$OLSR_METRIC" = "etx_ffeth" ] && {
 	cat >>/etc/config/olsrd <<EOF
@@ -1074,18 +1207,30 @@ EOF
 config Interface
 	list interface			'$INTERFACES2'
 	option Ip4Broadcast		'255.255.255.255'
-	option HelloInterval		'3.0'
-	option HelloValidityTime	'125.0'
-	option TcValidityTime		'500.0'
-	option TcInterval		'2.0'
-	option MidInterval		'25.0'
-	option MidValidityTime		'500.0'
-	option HnaInterval		'10.0'
-	option HnaValidityTime		'125.0'
+	option HelloInterval		'$hello_interval.0'
+	option HelloValidityTime	'$(( $speed * 25 )).0'
+	option TcValidityTime		'$(( $speed * 100 )).0'
+	option TcInterval		'$tc_interval.0'
+	option MidInterval		'$(( $speed * 5 )).0'
+	option MidValidityTime		'$(( $speed * 100 )).0'
+	option HnaInterval		'$(( $speed * 2 )).0'
+	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
+
+	local interface_mode="mesh"
+	case "$PROFILE_MODE" in
+		adhoc*)
+			case "$( uci get wireless.radio0.hwmode )" in
+				*"a"*)
+					interface_mode="ether"		# fixme! not a good idea for multipoint-stations
+				;;
+			esac
+		;;
+	esac
+
 [ "$OLSR_METRIC" = "etx_ffeth" -a -n "$INTERFACES2" ] && {
 	cat >>/etc/config/olsrd <<EOF
-	option Mode			'mesh'		# uses normal cost-calculation / default
+	option Mode			'$interface_mode'		# uses normal cost-calculation / default
 EOF
 }
 
@@ -1136,57 +1281,8 @@ EOF
 #
 #EOF
 #	}
-}
 
-_config_firewall ()
-{
-	local NN="$1"
-	local MASQ MTU
-
-	if [ -n "$GATEWAY" ]; then
-		MASQ=1
-		MTU=1
-	else
-		MASQ=1
-		MTU=1
-	fi
-
-	cat >/etc/config/firewall <<EOF
-config defaults
-	option syn_flood	1
-	option input		ACCEPT
-	option output		ACCEPT 
-	option forward		ACCEPT
-
-config zone
-	option name		lan
-	option input		ACCEPT 
-	option output		ACCEPT 
-	option forward		ACCEPT
-
-config zone
-	option name		wan
-	option network		wan
-	option input		ACCEPT
-	option output		ACCEPT 
-	option forward		ACCEPT
-	option masq		$MASQ
-	option mtu_fix		$MTU
-
-config forwarding 
-	option src      	lan
-	option dest     	wan
-
-config include
-	option path		/etc/firewall.user
 EOF
-
-	cat >/etc/firewall.user <<EOF
-#!/bin/sh
-
-exit 0
-EOF
-
 }
 
 [ -e /etc/init.d/apply_profile.regulatory.bin ] && {
@@ -1198,7 +1294,7 @@ EOF
 	fi
 }
 
-[ -e /etc/kalua_init ] && {
+[ -e "/etc/kalua_init" ] && {
 	local PARTITION="$( mount | sed -n 's/\(^.*mtd.*\) on .*/\1/p' )"       
         local flash_free=$(df | sed -n "s#^${PARTITION:-/dev/root}[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*#\1#p")
 	local total_ram=$( cat /proc/meminfo|grep MemTotal| cut -f2 -d ':'| cut -f1 -d 'k'| tr -d ' ')
@@ -1227,92 +1323,14 @@ local keepsettings="$( uci get system.@system[0].keepsettings )"
 	} done
 }
 
-	F="/etc/init.d/generate_hardware_info"
-	cat >"$F" <<EOF
-#!/bin/sh /etc/rc.common
-START=11
-boot ()
-{
-	/etc/init.d/S02check_interface_correctness_fff+
+/etc/init.d/count_reboots enable
+/etc/init.d/generate_kalua_loader enable
+/etc/init.d/generate_netparams enable
+/etc/init.d/end_boot enable
+/etc/init.d/prepare_stuff enable
 
-	if [ -e /www/REBOOT_COUNTER ]; then
-		read COUNT </www/REBOOT_COUNTER
-		COUNT="\$(( \$COUNT + 1 ))"
-		echo \$COUNT >/www/REBOOT_COUNTER
-	else
-		echo 1 >/www/REBOOT_COUNTER
-	fi
-	#set a start status file for wan port
-	echo "DOWN" > /tmp/watch_switch_linkstatus.stat
-}
-EOF
-chmod +x "$F"
-"$F" enable
-
-	F="/etc/init.d/generate_kalua_loader"
-	cat >"$F" <<EOF
-#!/bin/sh /etc/rc.common
-START=00
-boot ()
-{
-	touch /tmp/BOOT
-	touch /tmp/DEBUG
-	/etc/kalua_init
-}
-EOF
-chmod +x "$F"
-"$F" enable
-
-	F="/etc/init.d/generate_netparams"
-	cat >"$F" <<EOF
-#!/bin/sh /etc/rc.common
-START=41
-boot ()
-{
-	/etc/init.d/S41build_static_netparam start
-	/etc/init.d/S43ethers_fff+ start
-#	touch /tmp/FREE
-}
-EOF
-chmod +x "$F"
-"$F" enable
-
-	F="/etc/init.d/end_boot"
-	cat >"$F" <<EOF
-#!/bin/sh /etc/rc.common
-START=99
-boot ()
-{
-	rm /tmp/BOOT
-
-	[ -d "/sys/class/leds/tl-wr1043nd:green:qss/" ] && {
-		logger -t boot_end -p daemon.info "\$0: switching leds off"
-		for TYPE in qss system usb wlan; do {
-			echo 0 >/sys/class/leds/tl-wr1043nd:green:\$TYPE/brightness
-		} done
-	}
-
-	scheduler -a "cron.upgrade_packages; rm /tmp/DEBUG"
-
-	read t1 dummy </proc/uptime
-	logger -t boot_end -p daemon.info "\$0: uptime: \${t1}sec"
-}
-EOF
-chmod +x "$F"
-"$F" enable
-
-	F="/etc/init.d/firewall-user"
-	cat >"$F" <<EOF
-#!/bin/sh /etc/rc.common
-START=46
-boot ()
-{
-	# logger "firewall-user disabled..."
-	/etc/local.fw-fff+ start
-}
-EOF
-chmod +x "$F"
-"$F" enable
+/etc/init.d/cron.user enable
+/etc/init.d/cron disable
 
 [ -e "/etc/init.d/firewall" ] && {
 	/etc/init.d/firewall disable
@@ -1320,35 +1338,9 @@ chmod +x "$F"
 
 
 
-	F="/etc/init.d/cron.user"
-	cat >"$F" <<EOF
-#!/bin/sh /etc/rc.common
-START=51
-boot ()
-{
-	/etc/init.d/S51crond_fff+ start
-}
-EOF
-chmod +x "$F"
-"$F" enable
-rm /etc/init.d/cron
-
-	F="/etc/init.d/prepare_stuff"
-	cat >"$F" <<EOF
-#!/bin/sh /etc/rc.common
-START=70
-boot ()
-{
-	/etc/init.d/S70prepare_fff+ start
-	/etc/init.d/S72filter_fff+ start
-}
-EOF
-chmod +x "$F"
-"$F" enable
-
 # webserver-related stuff
-uci set uhttpd.main.index_page="cgi-bin-welcome.sh"
-uci set uhttpd.main.error_page="/cgi-bin-welcome.sh"
+uci set uhttpd.main.index_page="cgi-bin-404.sh"
+uci set uhttpd.main.error_page="/cgi-bin-404.sh"
 uci set uhttpd.main.config="/etc/httpd.conf"
 uci set uhttpd.main.interpreter=".sh=/bin/ash"
 # set bootstrap as new default theme
@@ -1357,13 +1349,9 @@ uci set luci.main.mediaurlbase="/luci-static/bootstrap"
 [ -e /usr/lib/uhttpd_tls.so ] || {
 	uci delete uhttpd.main.listen_https
 }
+uci commit uhttpd
 
-uci commit
 
-if [ "$INSTALLATION" != "ffweimar" ]; then      #no web server authentication on weimarnetz routers
-	echo "/cgi-bin/:root:\$p\$root" >/etc/httpd.conf	# not working anymore since ~2011nov9
-fi
-# moved to password_set()
 [ -s /www/cgi-bin-welcome.sh	] || ln -s /www/cgi-bin-welcome 	/www/cgi-bin-welcome.sh
 [ -s /www/cgi-bin-sql.sh	] || ln -s /www/cgi-bin-sql     	/www/cgi-bin-sql.sh
 [ -s /www/cgi-bin-tool.sh	] || ln -s /www/cgi-bin-tool_fff+	/www/cgi-bin-tool.sh
