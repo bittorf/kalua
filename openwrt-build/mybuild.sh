@@ -18,7 +18,7 @@ Usage:	$me gitpull
 	$me set_build_kernelconfig
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
-	$me build_ffweimar_update_tarball
+	$me build_ffweimar_update_tarball [full]
 
 Hint:   for building multiple config-enforced images use e.g.:
 	APP="$0"
@@ -50,7 +50,7 @@ log()
 
 get_arch()
 {
-	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|???
+	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|atheros|???
 }
 
 filesize()
@@ -104,45 +104,52 @@ build_ffweimar_update_tarball()
         local options extract
         local file_timestamp="etc/variables_fff+"       # fixme! hackish, use pre-commit hook?
 
-        if tar --version 2>&1 | grep -q ^BusyBox ; then
-                log "detected BusyBox-tar, using simple options"
-                options=
-        else
-                options="--owner=root --group=root"
-        fi
+	if tar --version 2>&1 | grep -q ^BusyBox ; then
+		log "detected BusyBox-tar, using simple options"
+		options=
+	else
+		options="--owner=root --group=root"
+	fi
 
         cd weimarnetz/
-        local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
-        local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
-        cd openwrt-addons/
-        sed -i "s/366686/$last_commit_unixtime_in_hours/" "$file_timestamp"
-        touch -r "../../.git/description" "$file_timestamp"
+	local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
+	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
+	cd openwrt-addons/
+	sed -i "s/366686/$last_commit_unixtime_in_hours/" "$file_timestamp"
+	touch -r "../../.git/description" "$file_timestamp"
 
-        if [ "$option" = "full" ]; then
-                cp -pv ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
-                cp -pv ../openwrt-build/apply_profile* etc/init.d
-                [ -e "../../apply_profile.code.definitions" ] && {
-                        cp -pv "../../apply_profile.code.definitions" etc/init.d
-                }
-                tar $options -czf "$tarball" .
-                rm etc/init.d/apply_profile*
-        else
-                tar $options -czf "$tarball" .
-        fi
+	if [ "$option" = "full" ]; then
+		cp -pv ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
+		cp -pv ../openwrt-build/apply_profile* etc/init.d
 
-        sed -i "s/$last_commit_unixtime_in_hours/366686/" "$file_timestamp"
-        touch -r "../../.git/description" "$file_timestamp"
-        cd $mydir
+		[ -e "../../apply_profile.code.definitions" ] && {	# custom definitions
+			cp -pv "../../apply_profile.code.definitions" etc/init.d
 
-        extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
+			# insert default-definitions to custom one's
+			sed -n '/^case/,/^	\*)/p' "../openwrt-build/apply_profile.code.definitions" | sed -e '1d' -e '$d' >"/tmp/defs"
+			sed -i '/^case/ r /tmp/defs' "etc/init.d/apply_profile.code.definitions"
+			rm "/tmp/defs"
+		}
 
-        echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes with MD5: $( md5sum "$tarball" | cut -d' ' -f1 )"
-        echo "to copy this tarball (timestamp: $last_commit_unixtime_in_hours) to your device, use ON the device:"
-        echo
-        echo "scp $USER@$( mypubip ):$tarball $tarball; $extract"
-        echo "or simply extract with: $extract"
-        echo
-        echo "or copy the config-apply-script with:"
+		tar $options -czf "$tarball" .
+		rm etc/init.d/apply_profile*
+	else
+		tar $options -czf "$tarball" .
+	fi
+
+	sed -i "s/$last_commit_unixtime_in_hours/366686/" "$file_timestamp"
+	touch -r "../../.git/description" "$file_timestamp"
+	cd $mydir
+
+	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
+
+	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes with MD5: $( md5sum "$tarball" | cut -d' ' -f1 )"
+	echo "to copy this tarball (timestamp: $last_commit_unixtime_in_hours) to your device, use ON the device:"
+	echo
+	echo "scp $USER@$( mypubip ):$tarball $tarball; $extract"
+	echo "or simply extract with: $extract"
+	echo
+	echo "or copy the config-apply-script with:"
         echo "scp $USER@$( mypubip ):$( pwd )/weimarnetz/openwrt-build/apply_profile.code /etc/init.d"	
 }
 
@@ -198,6 +205,7 @@ mymake()
 	local t1 t2 date1 date2 hardware
 	local filelist file
 
+	[ -e KALUA_HARDWARE ] || echo "unknown_model" >KALUA_HARDWARE
 	read hardware <KALUA_HARDWARE
 	t1="$( uptime_in_seconds )"
 	date1="$( date )"
@@ -213,8 +221,13 @@ mymake()
 			filelist="build_dir/linux-brcm47xx/root.squashfs \
 				build_dir/linux-brcm47xx/vmlinux \
 				build_dir/linux-brcm47xx/vmlinux.lzma \
-				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx \
-				bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
+				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx"
+
+			case "$hardware" in
+				"Linksys WRT54G:GS:GL")
+					filelist="$filelist bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
+				;;
+			esac
 		;;
 		ar71xx)
 			filelist="build_dir/linux-ar71xx_generic/root.squashfs \
@@ -348,12 +361,17 @@ applymystuff()
 	local node="$3"
 
 	local base="package/base-files/files"
-	local file destfile hash
+	local file destfile hash url
 	local pwd="$( pwd )"
 
 	file="weimarnetz/openwrt-build/apply_profile"
 	log "copy $( basename "$file" ) - the master controller ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
+
+	file="weimarnetz/openwrt-build/apply_profile.watch"
+	log "copy $( basename "$file" ) - controller_watcher ($( filesize "$file" ) bytes)"
+	cp "$file" "$base/etc/init.d"
+	chmod +x "$base/etc/init.d/$( basename "$file" )"
 
 	file="weimarnetz/openwrt-build/apply_profile.code"
 	destfile="$base/etc/init.d/apply_profile.code"
@@ -374,9 +392,23 @@ applymystuff()
 		log "selected generic profile"
 	fi
 
-	file="weimarnetz/openwrt-build/apply_profile.code.definitions"
-	log "copy $( basename "$file" )  - your network descriptions ($( filesize "$file" ) bytes)"
-	cp "$file" "$base/etc/init.d"
+	file="apply_profile.code.definitions"
+	if [ -e "$file" ]; then
+		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
+		cp "$file" "$base/etc/init.d"
+
+		# extract defaults
+		sed -n '/^case/,/^	\*)/p' "weimarnetz/openwrt-build/$file" | sed -e '1d' -e '$d' >"/tmp/defs"
+		# insert defaults into file
+		sed -i '/^case/ r /tmp/defs' "$base/etc/init.d/$file"
+		rm "/tmp/defs"
+
+		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$file" ) bytes)"
+	else
+		file="weimarnetz/openwrt-build/$file"
+		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
+		cp "$file" "$base/etc/init.d"
+	fi
 
 	file="weimarnetz/openwrt-patches/regulatory.bin"
 	log "copy $( basename "$file" )  - easy bird grilling included ($( filesize "$file" ) bytes)"
@@ -384,7 +416,7 @@ applymystuff()
 
 	log "copy all_the_scripts/addons - the weimarnetz-project itself ($( du -sh weimarnetz/openwrt-addons ))"
 	cd weimarnetz/openwrt-addons
-	cp -R * "../../$base"
+	cp -pR * "../../$base"
 
 	cd "$pwd"
 
@@ -395,10 +427,17 @@ applymystuff()
 	file="$base/etc/tarball_last_applied_hash"
 
 	while [ -z "$hash" ]; do {
-		hash="$( wget -qO - "http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt" |
+		url="http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt"
+		log "fetching $url"
+		hash="$( wget -qO - "$url" |
 			  fgrep "tarball.tgz" |
 			   cut -d' ' -f2
-		)" || sleep 5
+			)"
+
+		[ -z "$hash" ] && {
+			log "[ERR] retry in 5 sec, could not fetch '$url'"
+			sleep 5
+		}
 	} done
 
 	log "writing tarball-hash '$hash' into image (fooling the builtin-update-checker)"
@@ -655,9 +694,6 @@ case "$ACTION" in
 		$ACTION "$OPTION" "$OPTION2" "$OPTION3"
 	;;
 esac
-
-
-
 
 # tools:
 #
