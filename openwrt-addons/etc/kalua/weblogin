@@ -9,12 +9,12 @@ _weblogin_html_logoutpage()
 	local wait=5
 
 	if _netfilter user_probe "$mac" ; then
-		validate_splashed="ja"
-		message="[OK] sie sind schon ausgeloggt"
-	else
 		validate_splashed="nein"
 		_netfilter user_del "$mac"
 		message="[OK] erfolgreich ausgeloggt"
+	else
+		validate_splashed="ja"
+		message="[OK] sie sind schon ausgeloggt"
 	fi
 
 	cat <<EOF
@@ -31,7 +31,6 @@ technische Details ()
 {
 	IP-Adresse:	$REMOTE_ADDR
 	MAC-Adresse:	$mac
-	shaped?:	$validate_shaped
 	splashed?:	$validate_splashed
 }
 </pre>
@@ -178,6 +177,7 @@ EOF
 
 		[ -e /tmp/login_was_sent_to_mobilenumber_${mac:-unset} ] || {
 
+			FORM_MOBILE_NUMBER="$( echo "$FORM_MOBILE_NUMBER" | sed 's/[^0-9]//g' )"	# fixme!
 			if _sanitizer do "$FORM_MOBILE_NUMBER" mobilenumber check; then
 
 				_weblogin htmlout_message_password_was_send $LANG
@@ -192,10 +192,12 @@ EOF
 
 				case "$( uci get system.@weblogin[0].auth_credentials )" in
 					simple)
-						_db user login add "$profile" "sms" "none" "" "$devices" "" "$fuzzy"	# fixme! if we don't have a local db, outsource to master
+						# fixme! if we don't have a local db, outsource to master
+						_db user login add "$profile" "sms-$FORM_MOBILE_NUMBER" "none" "" "$devices" "" "$fuzzy"
 					;;
 					*)
-						_db user login add "$profile" "sms" "" "" "$devices" "" "$fuzzy"	# fixme! if we don't have a local db, outsource to master
+						# fixme! if we don't have a local db, outsource to master
+						_db user login add "$profile" "sms-$FORM_MOBILE_NUMBER" "" "" "$devices" "" "$fuzzy"
 					;;
 				esac
 
@@ -264,10 +266,10 @@ EOF
 						i18n_username="$( _translate do "$LANG" username )"
 						i18n_password="$( _translate do "$LANG" password )"
 					;;
-					esac
+				esac
 
 				case "$config_profile" in
-					ffweimar_adhoc)
+					ffweimar*)
 						# no credentials are needed, just "click away"
 						_welcome wiki_vars
 						_welcome htmlout_wikipage "title=Vorlage:Startseite.Aktuelles" "Aktuelle Meldungen"
@@ -282,10 +284,10 @@ EOF
 					*)
 						cat <<EOF
 <TR><TD ALIGN="RIGHT"><label for='username'>${font_start}${i18n_username}:${font_end}&nbsp;</label><INPUT TABINDEX="1" ID="username" TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER" VALUE="$FORM_USER"></TD></TR>
-<TR><TD ALIGN="RIGHT"><label for='password'>${font_start}${i18n_password}:${font_end}&nbsp;</label><INPUT TABINDEX="2" ID="password" TYPE="password" SIZE="10" MAXLENGTH="10" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
+<TR><TD ALIGN="RIGHT"><label for='password'>${font_start}${i18n_password}:${font_end}&nbsp;</label><INPUT TABINDEX="2" ID="password" TYPE="password" SIZE="10" MAXLENGTH="30" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
 EOF
-					;;
-				esac
+							;;
+						esac
 
 				cat <<EOF
 <INPUT TYPE="checkbox" ID="accept_terms" TABINDEX="4" NAME="FORM_RULES" checked><label for='accept_terms'>&nbsp;${font_start}$( _translate do "$LANG" accept_terms1 )${font_end} <A TABINDEX="5" HREF="${LINK}=${LANG}${AMP}FORM_SHOW_RULES=$( if [ "$FORM_SHOW_RULES" = "true" ]; then echo -n 'false'; else echo -n 'true'; fi )" TITLE="$( _translate do "$LANG" tip_contract )">${font_start}$( _translate do "$LANG" accept_terms2 )${font_end}</A>${hidden_adlink}</label><br/>
@@ -353,12 +355,12 @@ _weblogin_htmlout_rules ()
 		-e 's#Ã¢#\&acirc;#g' \
 		-e 's#Ã´#\&ocirc;#g' \
 		-e 's#Ã¹#\&ugrave;#g' \
-		-e 's/ï¿½/\&sect;/g' \
-		-e 's/ï¿½/\&sect;/g' \
-		-e 's/ï¿½/\&ouml;/g' \
-		-e 's/ï¿½/\&uuml;/g' \
-		-e 's/ï¿½/\&auml;/g' \
-		-e 's/ï¿½/\&szlig;/g' $FILE
+		-e 's/Â/\&sect;/g' \
+		-e 's/§/\&sect;/g' \
+		-e 's/ö/\&ouml;/g' \
+		-e 's/ü/\&uuml;/g' \
+		-e 's/ä/\&auml;/g' \
+		-e 's/ß/\&szlig;/g' $FILE
 
 	echo -n "<BR><BR></TD></TR>"	
 }
@@ -547,23 +549,21 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		esac
 	}
 
-	local profile="$( uci get system.@profile[0].name )"
-
-	case "$profile" in
-		ffweimar_adhoc)
+	case "$CONFIG_PROFILE" in
+		ffweimar*)
 			case "$SIGNAL" in
 				*dhcp*)
-					_log do $FUNC daemon info "DHCP-mode, profile is $profile - ignoring"
+					_log do $FUNC daemon info "DHCP-mode, profile is $CONFIG_PROFILE - ignoring"
 				;;
 				*)
-					_log do $FUNC daemon info "FREE, is profile $profile"
+					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE"
 					FREE=1
 				;;
 			esac
 		;;
 		rehungen*|liszt28*|extrawatt*)
 			mac_is_from_lan "$MAC" && {
-				_log do $FUNC daemon info "FREE, is profile $profile from LANDEV"
+				_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV"
 				FREE=1
 			}
 
@@ -573,14 +573,14 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 				}
 			}
 
-			_weblogin device_or_customer_needs_admin_interaction "$profile" "$( uci get system.@system[0].hostname )" && {
+			_weblogin device_or_customer_needs_admin_interaction "$CONFIG_PROFILE" "$HOSTNAME" && {
 				FREE=
 			}
 		;;
 		versilia*)
 			[ "$( uci get network.lan.ipaddr )" = "10.63.191.225" ] && {
 				mac_is_from_lan "$MAC" && {
-					_log do $FUNC daemon info "FREE, is profile $profile from LANDEV on 10.63.191.225"
+					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV on 10.63.191.225"
 					FREE=1		# fixme!
 				}
 			}
@@ -655,7 +655,7 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 			}
 
 			if is_valid "$USER" "$PASS" ; then
-				_log do $FUNC daemon info "FREE, is profile $profile"
+				_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE"
 				FREE=1
 			else
 				_log do $FUNC daemon info "is not a valid combination: $USER / $PASS"
@@ -679,88 +679,15 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		}
 	fi
 
-	needs_enforced_newstyle()
-	{
-		case "$profile" in
-			apphalle_*)
-				return 0
-			;;
-			*)
-				return 1
-			;;
-		esac
-	}
+	GATEWAY="$( _weblogin authserver )"
+	PARAMETERS="LOGIN=${HASH}&MAC=${MAC//:/%3a}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
 
-#	[ "$FREE" != "1" ] && {
-
-		GATEWAY="$( uci get system.@weblogin[0].authserver )"		
-
-		case "$profile" in
-			marinapark*)
-				case "$( uci get system.@profile[0].nodenumber )" in
-					95)
-						GATEWAY="$WIFIADR"
-					;;
-					*)
-						GATEWAY="10.63.95.1"
-					;;
-				esac
-			;;
-			satama*)
-				case "$( uci get system.@profile[0].nodenumber )" in
-					119)
-						GATEWAY="$WIFIADR"
-					;;
-					*)
-						GATEWAY="10.63.119.1"
-					;;
-				esac
-			;;
-			fparkssee*)
-				case "$( uci get system.@profile[0].nodenumber )" in
-					222)
-						GATEWAY="$WIFIADR"
-					;;
-					*)
-						GATEWAY="10.63.222.1"
-					;;
-				esac
-			;;
-			*)
-				GATEWAY="$( uci get system.@weblogin[0].authserver )"
-			;;
-		esac
-
-		[ -z "$GATEWAY" ] && {
-			read GATEWAY 2>/dev/null </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
-		}
-
-		# fixme! we should urlencode ":" in MAC, but it works also plain!?
-		PARAMETERS="LOGIN=${HASH}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
-
-		if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
-
-			ANSWER="$( /www/cgi-bin-sql "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
-
-		elif [ -e /www/force_weblogin_check_script ]; then
-
-			local scriptname
-			read scriptname </www/force_weblogin_check_script
-			URL="http://${GATEWAY:-127.0.0.1}/$scriptname"
-
-			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
-
-		elif [ -e /usr/sbin/uhttpd ]; then
-			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
-			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
-		elif needs_enforced_newstyle ; then
-			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
-			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
-		else
-			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql"
-			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
-		fi
-#	}
+	if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
+		ANSWER="$( /www/cgi-bin-sql.sh "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
+	else
+		URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
+		ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
+	fi
 
 	[ ${#ANSWER} -gt 10 ] && ANSWER="shortened: $( _sanitizer do "$ANSWER" firstline length:30 )"
 
@@ -774,6 +701,73 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	return 1
 }
 
+_weblogin_authserver()
+{
+	local server="$( uci get system.@weblogin[0].authserver )"
+
+	case "$CONFIG_PROFILE" in
+		monami*)
+			case "$( uci get system.@profile[0].nodenumber )" in
+				7)
+					server="$WIFIADR"
+				;;
+				*)
+					server="10.63.7.1"
+				;;
+			esac
+		;;
+		spbansin*)
+			case "$( uci get system.@profile[0].nodenumber )" in
+				4)
+					server="$WIFIADR"
+				;;
+				*)
+					server="10.10.4.1"
+				;;
+			esac
+		;;
+		marinapark*)
+			case "$( uci get system.@profile[0].nodenumber )" in
+				95)
+					server="$WIFIADR"
+				;;
+				*)
+					server="10.63.95.1"
+				;;
+			esac
+		;;
+		satama*)
+			case "$( uci get system.@profile[0].nodenumber )" in
+				119)
+					server="$WIFIADR"
+				;;
+				*)
+					server="10.63.119.1"
+				;;
+			esac
+		;;
+		fparkssee*)
+			case "$( uci get system.@profile[0].nodenumber )" in
+				222)
+					server="$WIFIADR"
+				;;
+				*)
+					server="10.63.222.1"
+				;;
+			esac
+		;;
+		*)
+			server="$( uci get system.@weblogin[0].authserver )"
+		;;
+	esac
+
+	[ -z "$server" ] && {
+		read server 2>/dev/null </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
+	}
+
+	echo "$server"
+}
+
 _weblogin_ticket_mail_text ()
 {
 	local TICKETTYPE="${1:-unset_ticket_name}"
@@ -781,6 +775,27 @@ _weblogin_ticket_mail_text ()
 	local emaildot="."
 
 	local LOCATION="$( _weblogin metadata_locationname | sed 's#\\&acute;##' )"
+
+	cat <<EOF
+$( _translate do "$LANG" wifi_system ) / $( _translate do "$LANG" new_tickets ) / $LOCATION
+
+$( _translate do "$LANG" letter_salutation ),
+
+$( _translate do "$LANG" letter_line1 )
+
+	$TICKETTYPE
+
+$( _translate do "$LANG" letter_line2 )
+$( _translate do "$LANG" letter_line3 )
+$( _translate do "$LANG" letter_line4 )
+
+EOF
+
+	_weblogin mail_signature
+}
+
+_weblogin_mail_signature()
+{
 	local MAINTENANCE_COMPANY
 	local MAINTENANCE_PHONE
 	local MAINTENANCE_HINT1="$( _translate do "$LANG" maintenance_hint1 )"
@@ -817,18 +832,6 @@ _weblogin_ticket_mail_text ()
 	esac
 
 	cat <<EOF
-$( _translate do "$LANG" wifi_system ) / $( _translate do "$LANG" new_tickets ) / $LOCATION
-
-$( _translate do "$LANG" letter_salutation ),
-
-$( _translate do "$LANG" letter_line1 )
-
-	$TICKETTYPE
-
-$( _translate do "$LANG" letter_line2 )
-$( _translate do "$LANG" letter_line3 )
-$( _translate do "$LANG" letter_line4 )
-
 $( _translate do "$LANG" letter_finale1 )
 $( _translate do "$LANG" letter_finale2 ) "$MAINTENANCE_COMPANY"
 
