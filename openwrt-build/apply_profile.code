@@ -55,6 +55,13 @@ hwprobe()
 	local machine="$1"
 
 	case "$machine" in
+		"Ubiquiti Picostation M2HP")
+			fgrep -q "MyLoader: sysp=f0f0f0f0, boardp=f0f0f0f0, parts=f1f0f0f0" "$DMESG" && {
+				fgrep -q "mtd: partition "rootfs_data" created automatically, ofs=3A0000, len=410000" "$DMESG" && {
+					return 0
+				}
+			}
+		;;
 		"Ubiquiti PicoStation2")
 			fgrep -q "lpj=917504" "$DMESG" && {
 				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
@@ -108,9 +115,15 @@ try_device()
 	esac
 }
 
-while try_device; do {
-	fgrep -q "$HARDWARE" "$DMESG" && break
-} done
+hwprobe "Ubiquiti Picostation M2HP" && {
+	HARDWARE="Ubiquiti Picostation M2HP"
+}
+
+[ -z "$HARDWARE" ] && {
+	while try_device; do {
+		fgrep -q "$HARDWARE" "$DMESG" && break
+	} done
+}
 
   if [ -n "$HARDWARE" ]; then
 	:
