@@ -670,6 +670,7 @@ _db_statistics_send_mail()
 	local time="$2"		# yesterday, today...
 	local i=0
 	local temp="/tmp/$funcname.temp"
+	local list_recipients
 
 	local FROM_REAL="$( _translate do "$LANG" wifi_system ) $LOCATION_NAME $( uci get mail.@smtp[0].name )"
 	local FROM_MAIL="$( uci get mail.@smtp[0].mail )"
@@ -689,21 +690,27 @@ _db_statistics_send_mail()
 
 	case "$mode" in
 		weekly_report)
+			list_recipients="$( _db list_mail_recipients admin ) $( _db list_mail_recipients admin kalua )"
+
 			daily_out 7 >"$temp"
 			/usr/sbin/cron.db_generate_statistics "weekly" "-7" "short2" "$temp" >"$FILE_MAIL"
 			rm "$temp"
 		;;
 		monthly_report)
+			list_recipients="$( _db list_mail_recipients admin ) $( _db list_mail_recipients admin kalua )"
+
 			daily_out 31 >"$temp"
 			/usr/sbin/cron.db_generate_statistics "monthly" "-31" "short2" "$temp" >"$FILE_MAIL"
 			rm "$temp"
 		;;
 		*)
+			list_recipients="$( _db list_mail_recipients admin )"
+
 			/usr/sbin/cron.db_generate_statistics "$mode" "$time" >"$FILE_MAIL"
 		;;
 	esac
 
-	for RECIPIENT_MAIL in $( _db list_mail_recipients admin ); do {
+	for RECIPIENT_MAIL in $( _list uniq "$list_recipients" ); do {
 		_mail send "$FROM_REAL" "$FROM_MAIL" "$RECIPIENT_REAL" "$RECIPIENT_MAIL" "$FILE_MAIL"
 	} done
 
