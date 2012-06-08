@@ -413,7 +413,9 @@ applymystuff()
 	file="kalua/openwrt-patches/regulatory.bin"
 	log "copy $( basename "$file" )  - easy bird grilling included ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
+
 	[ -e "package/mac80211/files/regdb.txt" ] && {
+		file="kalua/openwrt-patches/regulatory.db.txt"
 		log "found package/mac80211/files/regdb.txt - overwriting"
 		cp "$file" "package/mac80211/files/regdb.txt"
 	}
