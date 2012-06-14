@@ -54,37 +54,37 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 	_log do $FUNC user info "[OK] to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
 }
 
-_sms_send_sms77 ()
+_sms_send_sms77()
 {
-	local   FUNC="sms_send_sms77"
-	local   USER="$1"
-	local   PASS="$2"
-	local NUMBER="$3"
-	local   TEXT="$4"		# already URL encoded
-	local  TRASH
-	local   TYPE="quality"		# basicplus|standard|quality|festnetz|flash - hardcoded, needs abstraction
+	local funcname="sms_send_sms77"
+	local user="$1"
+	local pass="$2"
+	local number="$3"
+	local text="$4"		# must be URL encoded
+	local url="
+	local trash
+	local type="quality"	# basicplus|standard|quality|festnetz|flash - hardcoded, needs abstraction
+	local trash out rc o
+	local url="http://www.sms77.de/gateway/?type=$type"
 
-	case $TYPE in
+	case "$type" in
 		quality)
-			[ "${#TEXT}" -gt 160 ] && {
-				TRASH="$( echo $TEXT | cut -b161-999 )"
-				TEXT="$(  echo $TEXT | cut -b1-160 )"		# fixme! respect encoding borders, e.g. %20 -> %2 does not work
-				_log do $FUNC daemon debug "shortened text, trash was: '$TRASH'"
+			[ ${#text} -gt 160 ] && {
+				trash="$( echo "$text" | cut -b 161-999 )"
+				text="$(  echo "$text" | cut -b 1-160 )"		# fixme! respect encoding borders, e.g. %20 -> %2 does not work
+				_log do $funcname daemon debug "shortened text, trash was: '$trash'"
 			}
 		;;
 	esac
 
-	local    URL="http://www.sms77.de/gateway/?type=$TYPE"
-	local OUT RC o
+	_log do $funcname daemon debug "[${#text} chars] ${url}&u=${user}&p=${pass}&to=${number}&text=${text}"
 
-	_log do $FUNC daemon debug "[${#TEXT} chars] ${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}"
-	
-	OUT="$( _wget do "${URL}&u=${USER}&p=${PASS}&to=${NUMBER}&text=${TEXT}" 10 "$USER" "$PASS" )"
-	RC="$?"
+	out="$( _wget do "${url}&u=${user}&p=${pass}&to=${number}&text=${text}" 10 "$user" "$pass" )"
+	rc="$?"
 
-	if [ $RC -ne 0 ] || [ "$OUT" != "100" ]; then
+	if [ $rc -ne 0 ] || [ "$out" != "100" ]; then
 									# not implemented:
-		case "$OUT" in						# 100 = "SMS was send" / OK
+		case "$out" in						# 100 = "SMS was send" / OK
 		        201) o="wrong country code" ;;			# 101 = "Sending failed at least to one recipient"
 		        202) o="wrong recipient number" ;;		# 306 = "Sending ID/Nummer is wrong"
 		    300|900) o="username/pass wrong or unset" ;;
@@ -106,11 +106,11 @@ _sms_send_sms77 ()
 			902) o="account deactivated" ;;
 			903) o="server IP wrong" ;;
 			*)
-				_log do $FUNC user crit "wget-returncode: '$RC' - sms77-answer: '$OUT' - something went wrong"
-				return 1	# which means - try to send again
+				_log do $funcname user crit "wget-returncode: '$rc' - sms77-answer: '$out' - something went wrong"
+				return 1	# send again
 			;;
 		esac
 
-		_log do $FUNC user info "wget-returncode: '$RC' - sms77-answer: '$OUT' ($o)"
+		_log do $func user info "wget-returncode: '$rc' - sms77-answer: '$out' ($o)"
 	fi
 }
