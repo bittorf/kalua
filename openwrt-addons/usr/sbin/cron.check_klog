@@ -1,0 +1,57 @@
+#!/bin/sh
+
+/bin/dmesg -c >"/tmp/dmesg.recent"
+
+LINE=
+read LINE <"/tmp/dmesg.recent"
+[ ${#LINE} -eq 0 ] || {
+	cat "/tmp/dmesg.recent" >>"/tmp/dmesg.log"
+	[ -e "/tmp/dmesg.boot" ] || cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
+
+	reboot_dirty()
+	{
+		echo "b" >/proc/sysrq-trigger
+		/sbin/reboot -f
+	}
+
+	reboot_now()
+	{
+		/sbin/reboot
+	}
+
+	PATTERN="Unhandled kernel unaligned access"
+	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && {
+		_log do kernellog daemon alert "$PATTERN"
+		reboot_dirty
+	}
+
+	PATTERN="page allocation failure: "
+	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && {
+		_log do kernellog daemon alert "$PATTERN"
+		reboot_dirty
+	}
+
+	PATTERN="BUG: Bad page state in process"
+	fgrep -q " $PATTERN " "/tmp/dmesg.recent" && {
+		_log do kernellog daemon alert "$PATTERN"
+		reboot_dirty
+	}
+
+	PATTERN="Fixing recursive fault but reboot is needed"
+	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && {
+		_log do kernellog daemon alert "$PATTERN"
+		reboot_dirty
+	}
+
+	PATTERN="ath: phy0: Failed to stop TX DMA, queues"
+	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && {
+		_log do kernellog daemon alert "$PATTERN"
+		# no reboot
+	}
+
+	PATTERN="ath9k/recv.c:"
+	grep ^"WARNING:" "/tmp/dmesg.recent" | fgrep -q "$PATTERN" && {
+		_log do kernellog daemon alert "$PATTERN"
+		reboot_now
+	}
+}
