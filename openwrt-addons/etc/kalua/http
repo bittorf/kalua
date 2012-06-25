@@ -1,11 +1,9 @@
-_http_query_string_sanitize()				# fixme! security: detect IFS-change
+_http_query_string_sanitize()
 {
-	[ "$REQUEST_METHOD" = "POST" ] && {		# fixme! allow also ':' (and '&') for dividing vars
+	[ "$REQUEST_METHOD" = "POST" ] && {
 		[ ${CONTENT_LENGTH:-0} -eq 0 ] || {
 			read -n $CONTENT_LENGTH POST
-			QUERY_STRING="${QUERY_STRING:=TZ=}&${POST}"
-			# fixme! why?
-			# if method GET is unset, then writeout TZ=
+			QUERY_STRING="${QUERY_STRING:+&}${POST}"
 		}
 	}
 
@@ -25,12 +23,18 @@ _http_query_string_sanitize()				# fixme! security: detect IFS-change
 	      -e "s/$/' >\/dev\/null 2>\/dev\/null;\n/" |
 	  sed -n "s/^\([a-zA-Z0-9_-]*\)=\(.*\)/\1='\2/p"
 
+	# fixme! allow separator ; and & for dividing vars
+
+	# fixme! check: "The equals sign may be omitted if the value is an empty string"
+
 	# fixme! values cant have ? or & inside,
 	#	 because we first decode and then split
 
 	# fixme! automatically build php-style array[] -> array=$array $value ...
 	#	 sed -ne 's/^\([a-zA-Z0-9]*\)\[]=\(.*\)/\1=${\1}\2 #/'
-	
+
+	# fixme! security: detect IFS-change
+
 	# here we do the same for our ENV-variables, so user can't overwrite/inject special vars
 	# hole output of this function can be used like:
 	#
