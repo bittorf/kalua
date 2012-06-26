@@ -768,61 +768,37 @@ _watch_counter ()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 ||
 	return 0
 }
 
-_watch_topusage_task ()
+_watch_topusage_task()
 {
-	local FUNC="watch_topusage_task"
-	local WAIT="${1:-1}"
-	local TEMPFILE="/tmp/top_$$"
-	local PID CPU CPU_INT TASK TOPTASK FILESIZE
-	local MAX_ALLOWED_PERCENT=70
+	local funcname="watch_topusage_task"
+	local file="/tmp/$funcname_$$"
+	local line pid cpu cpu_int toptask
+	local crit_percent_border=70
 
-	_watch counter "/tmp/counter_highload" increment 1 max 10 || reboot		# workaround: we can't see, which task causes e.g. high I/O-load
+	top -b -n 1 >"$file"
 
-	top >$TEMPFILE &		# fixme! can lead to race conditions, we don't know exactly when page output is ready, especially under high load
-	PID="$!"			# normally we can use 'top -b -n 1 &', but the busybox-top must have implemented this 8-(
-	sleep $WAIT
+	while read line; do {
+		set -- $line
+		case "$line" in
+			[0-9]*)
+				pid="$1"
+				cpu="$7"
+				cpu_int="${7//%/}"
+				toptask="$8"
 
-	while [ -e "/proc/$PID" ]; do {
-		kill $PID
-		[ -e "/proc/$PID" ] && kill -9 $PID
-	} done
+				break
+			;;
+		esac
+	} done <"$file"
+	rm "$file"
 
-	FILESIZE="$( _file size $TEMPFILE )"
-#	[ "$FILESIZE" = "0" ] && {
-#		_$FUNC "$(( $WAIT + 1 ))"	# or random_integer?
-#		rm $TEMPFILE			# abort after 5x recursion?
-#		return
-#	}
+	[ $cpu_int -gt $crit_percent_border ] || return 0
 
-	eval "$( sed -n 's/^[ ]*\([0-9]\{1,5\}\).* \([0-9]\{1,2\}\)\.\([0-9]\).*[0-9]\{1,2\}\.[0-9].* \(.*\)/PID=\1;CPU=\2.\3;CPU_INT=\2;TOPTASK="\4"/p' $TEMPFILE | head -n1 )"
+	task="$( basename "$toptask" )"
+	_log do $funcname daemon alert "pid: $pid cpu: $cpu toptask: $toptask task: $task"
 
-	read TASK 2>/dev/null </proc/$PID/cmdline	# taskname is limited by TERM? e.g. "cron.evaluate_u" seems to be max length
-	TASK="$( basename "$TASK" )"
-	[ -z "$TASK" ] && TASK="$TOPTASK"
-
-	_log do $FUNC daemon info "output: PID=$PID CPU=$CPU CPU_INT=$CPU_INT TASK=$TOPTASK -> TOPTASK=$TASK TEMPFILE=$TEMPFILE FILESIZE=${FILESIZE}bytes"
-	rm $TEMPFILE
-
-	case "$TASK" in
-		cgi-bin-welcome*)
-			_log do $FUNC daemon alert "killall $TASK"
-			killall $TASK
-		;;
-	esac
-
-	case "$TOPTASK" in
-		syslogd)
-			[ $CPU_INT -gt 10 ] && {
-				_olsr daemon restart "$FUNC high load of $TOPTASK: $CPU"
-			}
-		;;
-	esac
-
-	[ "${CPU_INT:=0}" -gt $MAX_ALLOWED_PERCENT ] && {
-		_log do $FUNC daemon alert "detected task '$TASK' with high cpu-usage ${CPU_INT}% > ${MAX_ALLOWED_PERCENT}% - trying to kill pid '$PID'"
-		_watch hanging_command $TASK	# must be called 2 times
-		_watch hanging_command $TASK
-	}
+	_watch hanging_command $task	# must be called 2 times
+	_watch hanging_command $task
 }
 
 _watch_switch_linkstatus()
