@@ -23,13 +23,16 @@ LOADER_FINAL="/tmp/loader"	# scripts can source this file and automatically use 
 if [ -d "${BASEDIR}.w" ]; then
 	POOLDIR="${BASEDIR}.w"
 
-	rm $POOLDIR/*
-	if cat $BASEDIR/* >"$POOLDIR/spacetest"; then
-		rm "$POOLDIR/spacetest"
-	else
-		rm -fR "$POOLDIR"
-		POOLDIR="/tmp/kalua"
-	fi
+	[ -e "$POOLDIR/CHECKSUMS" ] || {
+		rm $POOLDIR/*
+
+		if cat $BASEDIR/* >"$POOLDIR/spacetest"; then
+			rm "$POOLDIR/spacetest"
+		else
+			rm -fR "$POOLDIR"
+			POOLDIR="/tmp/kalua"
+		fi
+	}
 else
 	POOLDIR="/tmp/kalua"
 fi
@@ -57,15 +60,23 @@ for CLASS in $( find $BASEDIR -type f -name "[a-z]"* ); do {	# only include lowe
 		DEBUG3="|| logger -t $CLASS -s \"invalid call: \$1\""
 	}
 
-	cat >"$POOLDIR/${CLASS}" <<EOF
+	HASH="$( md5sum "$BASEDIR/$CLASS" )"
+	HASH="${HASH%% *}"
+	grep -qs "$CLASS $HASH" "$POOLDIR/CHECKSUMS" || {
+
+		cat >"$POOLDIR/${CLASS}" <<EOF
 _${CLASS}(){ ${DEBUG1}_${CLASS}_\${1:-s} ${MAX_ARGS#* }${DEBUG3};}
 _${CLASS}_show(){ sed -n "s/\(_${CLASS}_.*\)()/\1/p" $BASEDIR/${CLASS}|sort ;}
 _${CLASS}_s(){ _${CLASS}_show ;}
 _${CLASS}_include(){ :;}
 EOF
 
-	# fixme! do it *fast* when booting, and then do it *good-but-slow* after booting
-	_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" "$DEBUG" >>"$POOLDIR/${CLASS}"
+		# fixme! do it *fast* when booting, and then do it *good-but-slow* after booting
+		_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" "$DEBUG" >>"$POOLDIR/${CLASS}"
+
+		sed -i "/^$CLASS /d" "$POOLDIR/CHECKSUMS"	# remove maybe old checksum
+		echo "$CLASS $HASH" >>"$POOLDIR/CHECKSUMS"
+	}
 
 	if [ "$DEBUG" = "debug" ]; then
 		. "$POOLDIR/${CLASS}"
