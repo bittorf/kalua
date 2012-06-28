@@ -12,8 +12,9 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 
 how to build this from scratch on a debian server
 -------------------------------------------------
+* to avoid problems in openwrt and kernel config we suggest to take the changes manually instead of copying config giles
 
-- to avoid problems in openwrt and kernel config we suggest to take the changes manually instead of copying config giles
+### step by step to your own image
 
 	# be root user
 	apt-get update
@@ -36,22 +37,23 @@ how to build this from scratch on a debian server
 	
 	echo "Linksys WRT54G:GS:GL">> KALUA_HARDWARE
 	make menuconfig
-<pre>
+	
+	# select your target
 	==> Target System ---> Broadcom BCM947xx/953xx
 	==> Target Profile ---> Broadcom BCM43xx WiFi (b43, default)
-</pre>	
-make kernel_menuconfig
 
-<pre>
+	make kernel_menuconfig
+
+	# our suggestions for linksys kernel settings
 	==> General Setup ---> Configure standard kernel features ---> [-] Enable support for printk
 	==> Device Drivers ---> [*] Staging Drivers ---> [*] Compressed RAM block device support
 			   ---> [-] ISDN Support
 			   ---> [-] USB Support
 	==> Networking Support ---> [-] Amateur Radio Support
-</pre>
+
 	make menuconfig
 
-<pre>
+	# our openwrt settings
 	==> Global build settings ---> [-] Enable process core dump support
 				  ---> [*] Strip unnecessary exports from the kernel image
 				  ---> [*] Strip unnecessary functions from libraries
@@ -85,7 +87,6 @@ make kernel_menuconfig
 	FW="/path/to/your/baked/firmware_file"
 	IP="your.own.router.ip"
 	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
-</pre>
 
 how to do a sysupgrade via wifi
 ---------------------------------
