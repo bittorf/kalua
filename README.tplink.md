@@ -12,8 +12,9 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 
 how to build this from scratch on a debian server
 -------------------------------------------------
+* to avoid problems in openwrt and kernel config we suggest to take the changes manually instead of copying config giles
 
-- to avoid problems in openwrt and kernel config we suggest to take the changes manually instead of copying config giles
+### step by step to your own image
 
 	# be root user
 	apt-get update
@@ -36,19 +37,20 @@ how to build this from scratch on a debian server
 	
 	echo "TP-LINK TL-WR1043ND">> KALUA_HARDWARE
 	make menuconfig
-<pre>
+	
+	# select your target. alternativly you can choose all ar71xx based hardware as Target Profile
 	==> Target System ---> Atheros AR7xxx/AR9xxx
 	==> Subtarget ---> Generic
 	==> Target Profile ---> TP-LINK TL-WR1043N/ND
-</pre>	
-make kernel_menuconfig
 
-<pre>
+	make kernel_menuconfig
+
+	# our tp-link kernel settings
 	==> Device Drivers ---> [*] Staging Drivers ---> [*] Compressed RAM block device support
-</pre>
+
 	make menuconfig
 
-<pre>
+	# our openwrt settings for ar71xx based devices
         ==> Base system ---> [-] firewall
         ==> Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap
                                                                  ---> [*] swaponoff
@@ -74,7 +76,6 @@ make kernel_menuconfig
 	FW="/path/to/your/baked/firmware_file"
 	IP="your.own.router.ip"
 	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
-</pre>
 
 how to do a sysupgrade via wifi
 ---------------------------------
