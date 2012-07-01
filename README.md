@@ -13,39 +13,8 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 how to build this from scratch on a debian server
 -------------------------------------------------
 
-	# be root user
-	apt-get update
-	LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen"
-	for PACKAGE in $LIST; do apt-get -y install $PACKAGE; done
-
-	# now login as non-root user
-	git clone git://nbd.name/openwrt.git
-	git clone git://nbd.name/packages.git
-	cd openwrt
-	git clone git://github.com/andibraeu/weimarnetz.git
-	
-	make menuconfig				# simply select exit, (just for init)
-	make package/symlinks
-	
-	weimarnetz/openwrt-build/mybuild.sh initial_settings	#copy some files
-	# start from here, if you only update vour build environment
-	weimarnetz/openwrt-build/mybuild.sh gitpull
-	./scripts/feeds update -a		# update openwrt feeds (luci, x-wrt and packages) 
-	weimarnetz/openwrt-build/mybuild.sh select_hardware_model
-
-	weimarnetz/openwrt-build/mybuild.sh set_build_openwrtconfig
-	make menuconfig
-	make kernel_menuconfig
-
-	weimarnetz/openwrt-build/mybuild.sh set_build_kernelconfig
-	weimarnetz/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
-	weimarnetz/openwrt-build/mybuild.sh make 		# needs some hours
-	
-	# flash your image via TFTP
-	FW="/path/to/your/baked/firmware_file"
-	IP="your.own.router.ip"
-	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
-
+Please refer to [README.linksys.md](https://github.com/weimarnetz/weimarnetz/blob/master/README.linksys.md) for building on Linksys WRT54GL or Buffalo WHR-HP-G54.
+If you use ar71xx-based devices read [README.tplink.md](https://github.com/weimarnetz/weimarnetz/blob/master/README.tplink.md).
 
 how to do a sysupgrade via wifi
 ---------------------------------
