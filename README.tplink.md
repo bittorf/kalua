@@ -25,7 +25,7 @@ how to build this from scratch on a debian server
 	git clone git://nbd.name/openwrt.git
 	git clone git://nbd.name/packages.git
 	cd openwrt
-	git clone git://github.com/andibraeu/weimarnetz.git
+	git clone git://github.com/weimarnetz/weimarnetz.git
 	
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
