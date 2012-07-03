@@ -7,9 +7,19 @@ _mail_pop3_check_stats()
 	local pass="$(   uci get mail.@pop3[0].password )"
 	local server="$( uci get mail.@pop3[0].server	)"
 	local port="$(   uci get mail.@pop3[0].port	)"
-	local answer line rc_netstat
+	local line rc_netstat
 	local netcat_bin="nc"			# tested with busybox-netcat + gmx.net
-	local answer_short
+	local answer answer_short
+
+	local file="/tmp/$funcname"
+	local uptime="$( _system uptime sec )"
+	local uptime_lastcheck
+	read uptime_lastcheck <"$file"
+
+	[ $(( $uptime - ${uptime_lastcheck:-0} )) -lt 180 ] && {
+		_log do $funcname daemon debug "no need to auth"
+		return 0	# http://faq.gmx.de/messages/email/mailprogramme/smtp_sicherheit/3.html
+	}
 
 	_log do $funcname user debug "contacting server '$server'"
 
@@ -19,10 +29,10 @@ _mail_pop3_check_stats()
 
 	case "$answer_short" in			# normal answer:
 		"+OK+OK+OK"*)			# +OK POP server ready H migmx104
-			return 0		# +OK password required for user "0123456789"
-		;;				# +OK mailbox "0123456789" has 0 messages (0 octets) H migmx104
-	esac					# +OK 0 0
-						# +OK POP server signing off
+			echo "$uptime" >"$file"	# +OK password required for user "0123456789"
+			return 0		# +OK mailbox "0123456789" has 0 messages (0 octets) H migmx104
+		;;				# +OK 0 0
+	esac					# +OK POP server signing off
 
 	_log do $funcname user info "[ERR] returncode netcat: '$rc_netcat' - '$server'-serveranswer: '$answer_short'"
 	echo "$answer" | _log do $funcname user info
