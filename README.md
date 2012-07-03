@@ -14,6 +14,7 @@ how to build this from scratch on a debian server
 -------------------------------------------------
 
 Please refer to [README.linksys.md](https://github.com/weimarnetz/weimarnetz/blob/master/README.linksys.md) for building on Linksys WRT54GL or Buffalo WHR-HP-G54.
+
 If you use ar71xx-based devices read [README.tplink.md](https://github.com/weimarnetz/weimarnetz/blob/master/README.tplink.md).
 
 how to do a sysupgrade via wifi

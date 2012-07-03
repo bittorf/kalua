@@ -54,11 +54,6 @@ how to build this from scratch on a debian server
         ==> Base system ---> [-] firewall
         ==> Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap
                                                                  ---> [*] swaponoff
-        ==> LuCi ---> Modules ---> [*] luci-mod-freifunk (remove firewall dependency in luci Makefile before)
-                 ---> Applications ---> [*] luci-app-olsr
-                                   ---> [*] luci-app-olsr-services
-                 ---> Themes ---> [*] luci-theme-bootstrap
-                 ---> Translations ---> [*] luci-i18n-german
         ==> Network ---> VPN ---> [*] vtun (copy vtun-Makefile before to compile without ssl and lzo)
                     ---> Firewall ---> [*] iptables-mod-ipopt
                     ---> Routing and Redirection ---> [*] ip
@@ -68,6 +63,13 @@ how to build this from scratch on a debian server
                     ---> uhttpd ---> [*] uhttpd-mod-tls
                     ---> [-] wpad-mini
         ==> Languages ---> lua ---> [*] libiwinfo-lua
+
+        ==> LuCi ---> Modules ---> [*] luci-mod-freifunk (remove firewall dependency in luci Makefile before)
+                 ---> Applications ---> [*] luci-app-olsr
+                                   ---> [*] luci-app-olsr-services
+                 ---> Themes ---> [*] luci-theme-bootstrap
+                 ---> Translations ---> [*] luci-i18n-german
+
 
 	weimarnetz/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
 	weimarnetz/openwrt-build/mybuild.sh make 		# needs some hours
