@@ -29,22 +29,47 @@ how to build this from scratch on a debian server
 
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
-	
-	kalua/openwrt-build/mybuild.sh gitpull
-	kalua/openwrt-build/mybuild.sh select_hardware_model
 
-	kalua/openwrt-build/mybuild.sh set_build_openwrtconfig
-	make menuconfig
-	make kernel_menuconfig
+	# now configure you image, see
+	# next section "configure the builtin-packages"
 
-	kalua/openwrt-build/mybuild.sh set_build_kernelconfig
 	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
 	kalua/openwrt-build/mybuild.sh make 		# needs some hours
-	
+
 	# flash your image via TFTP
 	FW="/path/to/your/baked/firmware_file"
 	IP="your.own.router.ip"
 	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
+
+
+configure the builtin-packages
+------------------------------
+
+	make kernel_menuconfig
+		General setup ---> [*] Support for paging of anonymous memory (swap)
+		Device Drivers ---> Staging drivers ---> [*] Compressed RAM block device support
+
+	make menuconfig
+		Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap
+									  [*] swaponoff
+		Base system ---> [ ] firewall
+
+		Network ---> Routing and Redirection ---> [*] ip
+		Network ---> Routing and Redirection ---> [*] olsrd ---> [*] olsrd-mod-arprefresh
+									 [*] olsrd-mod-jsoninfo
+									 [*] olsrd-mod-nameservice
+									 [*] olsrd-mod-txtinfo
+									 [*] olsrd-mod-watchdog
+		Network ---> Routing and Redirection ---> [*] uhttpd
+							  [*] uhttpd-mod-tls
+
+		Network ---> [*] ethtool	# if needed, e.g. 'Dell Truemobile 2300'
+		Network ---> [*] mii-tool	# if needed, e.g. 'Ubiquiti Bullet M5'
+		Network ---> [*] netperf
+		Network ---> [*] ulogd ---> [*] ulogd-mod-extra		# only if VDS/Data retention needed
+
+		Utilities ---> [*] px5g
+			       [*] rbcfg	# if needed, e.g. 'Linksys WRT54G/GS/GL'
 
 
 how to development directly on a router
