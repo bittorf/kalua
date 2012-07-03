@@ -3,27 +3,30 @@
 _mail_pop3_check_stats()
 {
 	local funcname="mail_pop3_check_stats"
-	local USER="$(   uci get mail.@pop3[0].username )"
-	local PASS="$(   uci get mail.@pop3[0].password )"
-	local SERVER="$( uci get mail.@pop3[0].server	)"
-	local PORT="$(   uci get mail.@pop3[0].port	)"
-	local OUT LINE RC_NETCAT
-	local NETCAT_BIN="nc"			# tested with busybox-netcat + gmx.net
-	local WINDOW=600			# fixme! time in seconds, when pop_before_smtp is valid, yet unused!
+	local user="$(   uci get mail.@pop3[0].username )"
+	local pass="$(   uci get mail.@pop3[0].password )"
+	local server="$( uci get mail.@pop3[0].server	)"
+	local port="$(   uci get mail.@pop3[0].port	)"
+	local answer line rc_netstat
+	local netcat_bin="nc"			# tested with busybox-netcat + gmx.net
+	local answer_short
 
-	_log do $funcname user debug "contacting server '$SERVER'"
+	_log do $funcname user debug "contacting server '$server'"
 
-	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT_BIN $SERVER $PORT )"; RC_NETCAT=$?
-	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "$LINE"; done )"	# removes LF/CR
+	answer="$( echo -e "USER $user\nPASS $pass\nSTAT\nQUIT\n" | $netcat_bin $server $port )"
+	rc_netcat=$?
+	answer_short="$( echo "$answer" | cut -d' ' -f1 | while read line; do echo -n "$line"; done )"	# removes LF/CR
 
-	case "$OUT" in				# normal output:
-		"+OK+OK+OK"*) return 0 ;;	# +OK POP server ready H migmx104
-	esac					# +OK password required for user "0123456789"
-						# +OK mailbox "0123456789" has 0 messages (0 octets) H migmx104
-						# +OK 0 0
+	case "$answer_short" in			# normal answer:
+		"+OK+OK+OK"*)			# +OK POP server ready H migmx104
+			return 0		# +OK password required for user "0123456789"
+		;;				# +OK mailbox "0123456789" has 0 messages (0 octets) H migmx104
+	esac					# +OK 0 0
 						# +OK POP server signing off
 
-	_log do $funcname user alert "[ERR] returncode netcat: '$RC_NETCAT' - '$SERVER'-serveranswer: '$OUT'"
+	_log do $funcname user info "[ERR] returncode netcat: '$rc_netcat' - '$server'-serveranswer: '$answer_short'"
+	echo "$answer" | _log do $funcname user info
+
 	return 1
 }
 
