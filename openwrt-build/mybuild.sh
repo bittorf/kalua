@@ -644,7 +644,7 @@ gitpull()
 initial_settings()	# prepares the openwrt clone for our needs, should only run one time before compiling the first time
 {
 	cd weimarnetz/openwrt-build
-	cp -pv vtun-Makefile ../../feeds/packages/net/vtun/Makefile
+	#cp -pv vtun-Makefile ../../feeds/packages/net/vtun/Makefile
         #remove dependency manually
 	#cp -pv profile-100-Broadcom-b43.mk ../../target/linux/brcm47xx/profiles/100-Broadcom-b43.mk
         cp -pv rc.local ../../package/base-files/files/etc/rc.local
