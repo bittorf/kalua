@@ -58,6 +58,9 @@ configure the builtin-packages
 									  [*] swaponoff
 		Base system ---> [ ] firewall
 
+		Network ---> Firewall ---> [*] iptables ---> [*] iptables-mod-ipopt
+							     [*] iptables-mod-nat-extra
+
 		Network ---> Routing and Redirection ---> [*] ip
 		Network ---> Routing and Redirection ---> [*] olsrd ---> [*] olsrd-mod-arprefresh
 									 [*] olsrd-mod-jsoninfo
