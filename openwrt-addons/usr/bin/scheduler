@@ -36,6 +36,18 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 				_firmware configure_keep_files
 
+				FILE="/tmp/fw"
+
+				[ $( _system ram_size ) -gt 16384 ] && {
+					_firmware wget "$FILE"
+
+					if [ $( _file size "$FILE" kb ) -lt $( _system flash_free ) ]; then
+						mv "$FILE" "/www/fw"
+					else
+						_log do prepare_firmware_update daemon info "using image-on-flash failed, fallback to ram-mode"
+					fi
+				}
+
 				[ -e "/www/fw" ] && {
 					# patching early startup for:
 					# - not loading any kernel-modules if "/www/fw" exists
@@ -55,8 +67,6 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 								"/etc/init.d/boot" && reboot
 					fi
 				}
-
-				FILE="/tmp/fw"
 
 				[ -e "$FILE" ] || {
 					_firmware wget_prepare_for_lowmem_devices && {
