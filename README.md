@@ -67,8 +67,8 @@ configure the builtin-packages
 									 [*] olsrd-mod-nameservice
 									 [*] olsrd-mod-txtinfo
 									 [*] olsrd-mod-watchdog
-		Network ---> Routing and Redirection ---> [*] uhttpd
-							  [*] uhttpd-mod-tls
+		Network ---> Web Servers/Proxies ---> [*] uhttpd
+						      [*] uhttpd-mod-tls
 
 		Network ---> [*] ethtool	# if needed, e.g. 'Dell Truemobile 2300'
 		Network ---> [*] mii-tool	# if needed, e.g. 'Ubiquiti Bullet M5'
