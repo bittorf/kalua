@@ -26,16 +26,15 @@ how to build this from scratch on a debian server
 	git clone git://github.com/bittorf/kalua.git
 
 	# for working with a specific openwrt-revision, do this:
-	# REV=32508
-	# git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
+	# REV=32582; git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
 
 	# now copy your own 'apply_profile.code.definitions' to . or use provided on (override)
 
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
 
-	# now configure you image, see
-	# next section "configure the builtin-packages"
+	# now configure your image, see next
+	# section "configure the builtin-packages"
 
 	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
 	kalua/openwrt-build/mybuild.sh make 		# needs some hours
