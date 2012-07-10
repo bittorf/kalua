@@ -57,6 +57,9 @@ device_forbidden()
 				;;
 			esac
 		;;
+		boltenhagen*)
+			return 0
+		;;
 	esac
 
 	return 1
