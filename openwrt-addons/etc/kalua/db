@@ -166,6 +166,8 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			esac
 		;;
 		index_gen)
+			_db lock now "$ACTION"
+
 			local INDEX_PRODUCTION="$DIR/meta_index"
 			local INDEX="$INDEX_PRODUCTION.temp"
 			cp "$INDEX_PRODUCTION" "$INDEX"
@@ -287,13 +289,18 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			esac
 			_stopwatch stop $ACTION quiet "$( _db user login list linecount )" "tickets"
 
-			if [ $( _file size "$INDEX" ) -gt 0 ]; then
+			if [ $( _file size "$INDEX" ) -gt 0 ]; then	# fixme! why?
 				mv "$INDEX" "$INDEX_PRODUCTION"
+
+				_db lock free "$ACTION"
+
 				_log do $FUNC daemon info "$ACTION: wrote '$INDEX' -> '$INDEX_PRODUCTION'"
 				_db backup
 			else
 				_log do $FUNC daemon info "$ACTION: '$INDEX' 0 bytes - removing"
 				rm "$INDEX"
+
+				_db lock free "$ACTION"
 			fi
 		;;
 		list)
@@ -384,6 +391,8 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			sed -i "${ID}s/^.*/#/" "$DIR/rows"
 		;;
 		add|update)				# fixme! if "add" is used, ID=<integer> is not in line?
+			_db lock now "$ACTION"
+
 			local USERNAME
 
 			case "$ACTION" in
@@ -476,6 +485,8 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 					_scheduler add "_db backup"	# fixme! must be faster
 				;;
 			esac
+
+			_db lock free "$ACTION"
 		;;
 	esac
 }
