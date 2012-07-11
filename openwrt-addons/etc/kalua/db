@@ -1,4 +1,27 @@
-_db_purge ()
+_db_lock()
+{
+	local funcname="db_lock"
+	local mode="$1"			# now|free
+	local context="${2:-unset}"
+	local file="/tmp/$funcname"
+
+	case "$mode" in
+		free)
+			rm "$file"
+		;;
+		now)
+			while [ -e "$file" ]; do {
+				read reason <"$file"
+				_log do $funcname daemon info "db is locked, task '$context' must wait for '${reason:-unknown_reason}'"
+				sleep 5
+			} done
+
+			echo "$context" >"$file"
+		;;
+	esac
+}
+
+_db_purge()
 {
 	local FUNC="db_purge"
 	local OBJ
@@ -9,7 +32,7 @@ _db_purge ()
 	} done
 }
 
-_db_backup ()		# fixme! automatically call this after <prio> changes
+_db_backup()		# fixme! automatically call this after <prio> changes
 {
 	local funcname="db_backup"
 	local file="/www/cgi-bin/db_backup.tgz"
@@ -31,7 +54,7 @@ _db_backup ()		# fixme! automatically call this after <prio> changes
 	fi
 }
 
-_db_restore ()		# is called during boot: see /etc/init.d/S70prepare_fff+
+_db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 {
 	local FUNC="db_restore"
 	local FILE="/www/cgi-bin/db_backup.tgz"
@@ -57,7 +80,7 @@ _db_hash()
 	echo "${hash%% *}"
 }
 
-_db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;   	# autocreated is ID = linenumber = index
+_db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;   	# autocreated is ID = linenumber = index
 {
 	local FUNC="db_user"
 
@@ -445,7 +468,7 @@ _db_user ()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...
 	esac
 }
 
-_db_ticketcheck ()								# going through list of profiles (user defined or all)
+_db_ticketcheck()								# going through list of profiles (user defined or all)
 {										#
 	local FUNC="db_ticketcheck"						# going reverse through list of last new devices
 	local PROFILE_ID_WISH="${1:-$( _db user profile list )}"		# which profile has the login, which have used this device?
