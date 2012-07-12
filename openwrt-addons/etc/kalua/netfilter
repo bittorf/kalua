@@ -28,6 +28,30 @@ _netfilter_start()
 			_netfilter splash_autoadd
 		}
 	}
+
+	_netfilter conntrack_adjust_max
+}
+
+_netfilter_conntrack_adjust_max()
+{
+	local funcname="netfilter_conntrack_adjust_max"
+	local max="$1"
+	local file="/proc/sys/net/nf_conntrack_max"
+
+	[ -e "$file" ] || return 0
+
+	[ -z "$max" ] && {
+		max="$( _system ram_size )"		# kilobytes
+		if [ $max -lt 16384 ]; then
+			max=1024
+		else
+			max=$(( ($max * 3) / 2 ))	# x1.5
+		fi
+	}
+
+	# check with: wc -l /proc/net/nf_conntrack
+	_log do $funcname daemon info "set max to $max entries, each needs 350 bytes"
+	echo "$max" >"$file"
 }
 
 _netfilter_ipforwarding_needed()
