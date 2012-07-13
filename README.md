@@ -19,7 +19,7 @@ how to build this from scratch on a debian server
 	LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen"
 	for PACKAGE in $LIST; do apt-get -y install $PACKAGE; done
 
-	# now login as non-root user
+	# now login as non-root user, use 'git clone --depth 1 ...' if history doesnt matter (faster download)
 	git clone git://nbd.name/openwrt.git
 	git clone git://nbd.name/packages.git
 	cd openwrt
