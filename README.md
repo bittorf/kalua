@@ -28,7 +28,7 @@ how to build this from scratch on a debian server
 	# for working with a specific openwrt-revision, do this:
 	# REV=32582; git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
 
-	# now copy your own 'apply_profile.code.definitions' to . or use provided on (override)
+	# now copy your own 'apply_profile.code.definitions' to . or the provided one will be used
 
 	make menuconfig				# simply select exit, (just for init)
 	make package/symlinks
