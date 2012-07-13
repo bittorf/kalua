@@ -53,30 +53,32 @@ configure the builtin-packages
 		General setup ---> [*] Support for paging of anonymous memory (swap)
 		Device Drivers ---> Staging drivers ---> [*] Compressed RAM block device support
 
-	make menuconfig
-		Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap
-									  [*] swaponoff
-		Base system ---> [ ] firewall
+	make menuconfig 	# will safe in '.config'
+		Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap			# CONFIG_BUSYBOX_CONFIG_MKSWAP=y
+									  [*] swaponoff			# CONFIG_BUSYBOX_CONFIG_SWAPONOFF=y
 
-		Network ---> Firewall ---> [*] iptables ---> [*] iptables-mod-ipopt
-							     [*] iptables-mod-nat-extra
+		Base system ---> [ ] firewall								# CONFIG_PACKAGE_firewall is not set
 
-		Network ---> Routing and Redirection ---> [*] ip
-		Network ---> Routing and Redirection ---> [*] olsrd ---> [*] olsrd-mod-arprefresh
-									 [*] olsrd-mod-jsoninfo
-									 [*] olsrd-mod-nameservice
-									 [*] olsrd-mod-txtinfo
-									 [*] olsrd-mod-watchdog
-		Network ---> Web Servers/Proxies ---> [*] uhttpd
-						      [*] uhttpd-mod-tls
+		Network ---> Firewall ---> [*] iptables ---> [*] iptables-mod-ipopt			# CONFIG_PACKAGE_kmod-ipt-ipopt=y
+							     [*] iptables-mod-nat-extra			# CONFIG_PACKAGE_kmod-ipt-nat-extra=y
+
+		Network ---> Routing and Redirection ---> [*] ip					# CONFIG_PACKAGE_ip=y
+		Network ---> Routing and Redirection ---> [*] olsrd ---> [*] olsrd-mod-arprefresh	# CONFIG_PACKAGE_olsrd-mod-arprefresh=y
+									 [*] olsrd-mod-jsoninfo		# CONFIG_PACKAGE_olsrd-mod-jsoninfo=y
+									 [*] olsrd-mod-nameservice	# CONFIG_PACKAGE_olsrd-mod-nameservice=y
+									 [*] olsrd-mod-txtinfo		# CONFIG_PACKAGE_olsrd-mod-txtinfo=y
+									 [*] olsrd-mod-watchdog		# CONFIG_PACKAGE_olsrd-mod-watchdog=y
+
+		Network ---> Web Servers/Proxies ---> [*] uhttpd					# CONFIG_PACKAGE_uhttpd=y
+						      [*] uhttpd-mod-tls				# CONFIG_PACKAGE_uhttpd-mod-tls=y
 
 		Network ---> [*] ethtool	# if needed, e.g. 'Dell Truemobile 2300'
 		Network ---> [*] mii-tool	# if needed, e.g. 'Ubiquiti Bullet M5'
 		Network ---> [*] netperf
-		Network ---> [*] ulogd ---> [*] ulogd-mod-extra		# only if VDS/Data retention needed
+		Network ---> [*] ulogd ---> [*] ulogd-mod-extra		# if data retention needed	# CONFIG_PACKAGE_kmod-ipt-ulog=y
 
-		Utilities ---> [*] px5g
-			       [*] rbcfg	# if needed, e.g. 'Linksys WRT54G/GS/GL'
+		Utilities ---> [*] px5g									# CONFIG_PACKAGE_px5g=y
+			       [*] rbcfg	# if needed, e.g. 'Linksys WRT54G/GS/GL'		# CONFIG_PACKAGE_robocfg=y
 
 
 how to development directly on a router
