@@ -53,10 +53,14 @@ configure the builtin-packages
 ------------------------------
 
 	make kernel_menuconfig
+
 		General setup ---> [*] Support for paging of anonymous memory (swap)
 		Device Drivers ---> Staging drivers ---> [*] Compressed RAM block device support
 
-	make menuconfig 	# will safe in '.config'
+	make menuconfig 										# will safe in '.config'
+
+		Global build settings ---> [*] Compile the kernel with symbol table information		# CONFIG_KERNEL_KALLSYMS=y
+
 		Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap			# CONFIG_BUSYBOX_CONFIG_MKSWAP=y
 									  [*] swaponoff			# CONFIG_BUSYBOX_CONFIG_SWAPONOFF=y
 
