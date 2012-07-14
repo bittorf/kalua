@@ -494,18 +494,39 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 	esac
 }
 
-_db_ticketcheck()								# going through list of profiles (user defined or all)
-{										#
-	local FUNC="db_ticketcheck"						# going reverse through list of last new devices
-	local PROFILE_ID_WISH="${1:-$( _db user profile list )}"		# which profile has the login, which have used this device?
-	local DEVICE_ID_LIST_REVERSE="$2"					# if profile = wished, than check:
-	local DEVICE_ID_LIST="$( _db user device list )"			#
-										# go through list of all login's, after the used one
-	local ALIEN_PROFILE_ID ALIEN_ID USER_ID_LAST ID ID2 USER_ID_STACK	# count, which have whished profile X and are unused
+_db_ticketcheck()						# going through list of profiles (user defined or all)
+{								#
+	local FUNC="db_ticketcheck"				# going reverse through list of last new devices
+	local PROFILE_ID_WISH="$1"	# id or "auto"		# which profile has the login, which have used this device?
+	local DEVICE_ID_LIST_REVERSE="$2"			# if profile = wished, than check:
+	local DEVICE_ID_LIST="$( _db user device list )"	#
+								# go through list of all login's, after the used one
+	local ALIEN_PROFILE_ID ALIEN_ID				# count, which have whished profile X and are unused
+	local USER_ID_LAST ID ID2 USER_ID_STACK
 	local AUTOGENERATE_BORDER=
 	local UNUSED_TICKETS FOUND_DEVICE
 	local i=0
 	local lockfile="/tmp/db_ticketcheck_is_running"
+	local file_todo="/tmp/db_ticketcheck_todo"
+
+	if [ -n "$PROFILE_ID_WISH" ]; then
+		case "$PROFILE_ID_WISH" in
+			[0-9]*)
+				grep -q "$PROFILE_ID_WISH" "$file_todo" || echo "$PROFILE_ID_WISH" >>"$file_todo"
+			;;
+			auto)
+				PROFILE_ID_WISH=
+			;;
+		esac
+
+		if [ -e "$file_todo" ]; then
+			read PROFILE_ID_WISH <"$file_todo"
+		else
+			return 0
+		fi
+	else
+		PROFILE_ID_WISH="$( _db user profile list )"
+	fi
 
 	allow_run()
 	{
@@ -523,35 +544,12 @@ _db_ticketcheck()								# going through list of profiles (user defined or all)
 				return 0
 			;;
 			*)
-				return 2
+				return 1
 			;;
 		esac
 	}
 
-	allow_run || {
-		case "$?" in
-			2)
-				_log do $FUNC daemon debug "rescheduling myself for tonight"
-
-				local arg1="$( _sanitizer do "$PROFILE_ID_WISH" newlines2spaces )"
-				local arg2="$( _sanitizer do "$DEVICE_ID_LIST_REVERSE" newlines2spaces )"
-
-				[ -n "$arg1" ] && arg1="\"$arg1\""
-				[ -n "$arg2" ] && arg2="\"$arg2\""
-
-				case "$0" in
-					*"cgi-bin-sql"*)
-						_scheduler add "_$FUNC $arg1 $arg2"
-					;;
-					*)
-						_scheduler add "_$FUNC $arg1 $arg2" force
-					;;
-				esac
-			;;
-		esac
-
-		return 0
-	}
+	allow_run || return 0
 
 	case "$CONFIG_PROFILE" in
 		hotello*)
