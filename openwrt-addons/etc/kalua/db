@@ -505,6 +505,53 @@ _db_ticketcheck()								# going through list of profiles (user defined or all)
 	local AUTOGENERATE_BORDER=
 	local UNUSED_TICKETS FOUND_DEVICE
 	local i=0
+	local lockfile="/tmp/db_ticketcheck_is_running"
+
+	allow_run()
+	{
+		[ -e "$lockfile" ] && return 1
+
+		[ -e "/tmp/db_ticketcheck_force" ] && {		# for debugging
+			rm "/tmp/db_ticketcheck_force"
+			touch "$lockfile"
+			return 0
+		}
+
+		case "$( date +%H )" in
+			02|03|04)
+				touch "$lockfile"
+				return 0
+			;;
+			*)
+				return 2
+			;;
+		esac
+	}
+
+	allow_run || {
+		case "$?" in
+			2)
+				_log do $FUNC daemon debug "rescheduling myself for tonight"
+
+				local arg1="$( _sanitizer do "$PROFILE_ID_WISH" newlines2spaces )"
+				local arg2="$( _sanitizer do "$DEVICE_ID_LIST_REVERSE" newlines2spaces )"
+
+				[ -n "$arg1" ] && arg1="\"$arg1\""
+				[ -n "$arg2" ] && arg2="\"$arg2\""
+
+				case "$0" in
+					*"cgi-bin-sql"*)
+						_scheduler add "_$FUNC $arg1 $arg2"
+					;;
+					*)
+						_scheduler add "_$FUNC $arg1 $arg2" force
+					;;
+				esac
+			;;
+		esac
+
+		return 0
+	}
 
 	case "$CONFIG_PROFILE" in
 		hotello*)
@@ -515,31 +562,6 @@ _db_ticketcheck()								# going through list of profiles (user defined or all)
 		;;
 		*)
 			AUTOGENERATE_BORDER="64"
-		;;
-	esac
-
-	case "$( date +%H )" in
-		02|03|04)
-		;;
-		*)
-			_log do $FUNC daemon debug "rescheduling myself for tonight"
-
-			local arg1="$( _sanitizer do "$PROFILE_ID_WISH" newlines2spaces )"
-			local arg2="$( _sanitizer do "$DEVICE_ID_LIST_REVERSE" newlines2spaces )"
-
-			[ -n "$arg1" ] && arg1="\"$arg1\""
-			[ -n "$arg2" ] && arg2="\"$arg2\""
-
-			case "$0" in
-				*"cgi-bin-sql"*)
-					_scheduler add "_$FUNC $arg1 $arg2"
-				;;
-				*)
-					_scheduler add "_$FUNC $arg1 $arg2" force
-				;;
-			esac
-
-			return
 		;;
 	esac
 
