@@ -37,8 +37,8 @@ how to build this from scratch on a debian server
 	# section "configure the builtin-packages"
 
 	# last 3 arguments enforce a specific configuration (profile: ffweimar, wifmode: adhoc, node: 42)
-	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"	# omit arguments for generic image
-	kalua/openwrt-build/mybuild.sh make 					# needs some hours
+	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"	# omit arguments for a generic image
+	kalua/openwrt-build/mybuild.sh make 					# needs some hours + 5gig of space
 
 	# flash your image via TFTP
 	FW="/path/to/your/baked/firmware_file"
