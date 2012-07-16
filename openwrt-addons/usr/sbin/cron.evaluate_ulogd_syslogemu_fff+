@@ -91,7 +91,6 @@ func_ulog_squeeze_log ()
 	local NODEID="$( uci get system.@profile[0].nodenumber )"
 	local REBOOTS="$( cat /www/REBOOT_COUNTER )"
 	local TIME_ESTIMATED
-	local i=0
 
 	# local FLAGS="| ACK:$FLAG_ACK SYN:$FLAG_SYN RST:$FLAG_RST FIN:$FLAG_FIN PSH:$FLAG_PSH URGP:$URGP"
 
@@ -112,14 +111,9 @@ func_ulog_squeeze_log ()
 
 	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in ${TIME_ESTIMATED}sec"
 	_stopwatch start $FUNC	
+	echo "data_retention" >"/tmp/CRON_OVERLOAD"
 
 	while read LINE; do {		# func_ulog_make_evalable "$LINE" >>/tmp/vds_debug
-
-		i=$(( $i + 1 ))
-		[ $i -gt 200 ] && {
-			echo -n '#' >"/tmp/CRON_OVERLOAD"
-			i=0
-		}
 
 		eval $( func_ulog_make_evalable "$LINE" )
 	
@@ -146,7 +140,9 @@ func_ulog_squeeze_log ()
 	TIMECOUNT="$( _stopwatch stop $FUNC )"
 	LINES_PER_SECOND="$(( ${LINES}00 / $TIMECOUNT )).$(( ${LINES}00 % $TIMECOUNT ))"
 
+	rm "/tmp/CRON_OVERLOAD"
 	rm "$ULOG_LOGFILE"
+
 	_log do $FUNC daemon info "squeezed to $(( $COUNTER * 100 / ${BYTES:=1} ))% ($COUNTER bytes/$LINES lines @ $LINES_PER_SECOND lines/sec, load: $( _system load 1min full ))"
 }
 
