@@ -96,18 +96,11 @@ func_ulog_squeeze_log ()
 	local TIME MAC DIR SRC DST ID PROTO SPT DPT SEQ ACK WINDOW FLAG_ACK FLAG_SYN FLAG_RST FLAG_FIN FLAG_PSH URGP
 	local COUNTER=0
 					# fixme! fetch conn_length from conntrack when connection was closed
-	local HARDWARE
-	[ -e /etc/HARDWARE ] && read HARDWARE </etc/HARDWARE
-	case "$ROUTER_MODEL" in
-		"TP-LINK TL-WR1043ND")				# fixme! measure speed during kalua_init or estimate on previous actions
-			TIME_ESTIMATED="$(( $LINES / 55 ))"	
-		;; 
-		*)
-			TIME_ESTIMATED="$(( $LINES / 10 ))"
-		;;
-	esac
 
-	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in ${TIME_ESTIMATED}sec"
+	local lines_per_sec
+	read lines_per_sec <"/tmp/$FUNC.speed"
+	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in $(( $LINES / ${lines_per_sec:-10} )) sec"
+
 	_stopwatch start $FUNC	
 	echo "data_retention" >"/tmp/CRON_OVERLOAD"
 
@@ -137,6 +130,7 @@ func_ulog_squeeze_log ()
 
 	TIMECOUNT="$( _stopwatch stop $FUNC )"
 	LINES_PER_SECOND="$(( ${LINES}00 / $TIMECOUNT )).$(( ${LINES}00 % $TIMECOUNT ))"
+	echo "$(( ${LINES}00 / $TIMECOUNT ))" >"/tmp/$FUNC.speed"
 
 	rm "/tmp/CRON_OVERLOAD"
 	rm "$ULOG_LOGFILE"
