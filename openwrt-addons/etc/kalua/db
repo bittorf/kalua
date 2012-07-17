@@ -42,24 +42,29 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	local file="/www/cgi-bin/db_backup.tgz"
 	local file_temp="/tmp/db_backup.tgz.temp.$$"
 	local dir="/tmp/DB"
+	local errorcode=0
 
-	[ -d "$dir" ] || return
+	[ -d "$dir" ] || return 0
 
 	_db lock now "$funcname"
 
 	if tar czf "$file_temp" "$dir" 2>/dev/null ; then
 		_log do $funcname daemon info "[OK] wrote $( _file size "$file_temp" ) bytes to $file_temp"
+
+		if mv "$file_temp" "$file"; then
+			_log do $funcname daemon info "[OK] moved $file_temp -> $file"
+		else
+			_log do $funcname daemon alert "[ERR] while moving $file_temp -> $file free: $( _system flash_free )"
+			errorcode=1
+		fi
 	else
 		_log do $funcname daemon alert "[ERR] while working on $file_temp - disk full? free: $( _system disc_free "/tmp" )"
-	fi
-
-	if mv "$file_temp" "$file"; then
-		_log do $funcname daemon info "[OK] moved $file_temp -> $file"
-	else
-		_log do $funcname daemon alert "[ERR] while moving $file_temp -> $file free: $( _system flash_free )"
+		errorcode=1
 	fi
 
 	_db lock free "$funcname"
+
+	return $errorcode
 }
 
 _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
