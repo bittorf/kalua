@@ -65,7 +65,7 @@ device_forbidden()
 	return 1
 }
 
-_http header_mimetype_output "text/html"
+_http header_mimetype_output "text/plain"
 
 if [ -e "/tmp/LOCK_OLSRSLAVE" ]; then
 	echo "LOCKED"
