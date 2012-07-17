@@ -26,7 +26,7 @@ how to build this from scratch on a debian server
 	git clone git://github.com/bittorf/kalua.git
 
 	# for working with a specific openwrt-revision, do this:
-	# REV=32735	// current testing
+	# REV=32760	// current testing
 	# REV=31465	// current beta
 	# REV=30823	// current stable
 	# git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
