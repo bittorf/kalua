@@ -230,6 +230,12 @@ _olsr_uptime ()		# in seconds
 		;;
 		restarts_get)
 			read I 2>/dev/null <$FILE_RESTARTS
+
+			[ ${I:-0} -gt 300 ] && {
+				_log do $FUNC daemon alert "busybox bug: restarts_get: $I"
+				I=0
+			}
+
 			echo ${I:-0}
 		;;
 		restart_time)
@@ -493,7 +499,12 @@ _olsr_restarts_are_suspicious_often ()
 
 	if [ $percent -gt 100 ]; then
 		_log do $func daemon alert "[ERR] olsr restarts > normality (${percent}%: $daemon_restarts > $border)"
-		return 0
+
+		if [ $percent -gt 300 ]; then	# seems to be a busybox-bug of v1.19.4
+			return 0		# sometimes we see values of 35148643% (large restart count)
+		else
+			return 1
+		fi
 	else
 		return 1
 	fi
