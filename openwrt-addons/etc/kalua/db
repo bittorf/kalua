@@ -51,11 +51,20 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	if tar czf "$file_temp" "$dir" 2>/dev/null ; then
 		_log do $funcname daemon info "[OK] wrote $( _file size "$file_temp" ) bytes to $file_temp"
 
-		if mv "$file_temp" "$file"; then
-			_log do $funcname daemon info "[OK] moved $file_temp -> $file"
-		else
-			_log do $funcname daemon alert "[ERR] while moving $file_temp -> $file free: $( _system flash_free )"
+		local filesize_new="$( _file size "$file_temp" )"
+		local filesize_old="$( _file size "$file" )"
+		local percentual_change="$( _math percentual_change "$filesize_old" "$filesize_new" )"
+
+		if [ $( $percentual_change -lt -10 ]; then
+			_log do $funcname daemon alert "[ERR] size shrinks $filesize_old -> $filesize_new = ${percent_change}% - abort"
 			errorcode=1
+		else
+			if mv "$file_temp" "$file"; then
+				_log do $funcname daemon info "[OK] moved $file_temp -> $file"
+			else
+				_log do $funcname daemon alert "[ERR] while moving $file_temp -> $file free: $( _system flash_free )"
+				errorcode=1
+			fi
 		fi
 	else
 		_log do $funcname daemon alert "[ERR] while working on $file_temp - disk full? free: $( _system disc_free "/tmp" )"
