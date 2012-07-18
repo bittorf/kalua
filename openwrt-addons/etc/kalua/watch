@@ -486,8 +486,8 @@ _watch_webcam ()
 
 _watch_webserver()
 {
-	local FUNC="watch_webserver"
-	local SERVER
+	local funcname="watch_webserver"
+	local server="uhttpd"
 	local action=
 
 	case "$( pidof ash )" in
@@ -507,38 +507,35 @@ _watch_webserver()
 		return 0
 	}
 
-	SERVER="uhttpd"
-
 	restart_server()
 	{
-		_log do $FUNC daemon info "[OK] trying to stop '$SERVER' with PID '$( pidof $SERVER )'"
+		_log do $funcname daemon info "[OK] trying to stop '$server' with PID '$( pidof $server )'"
 
-		_watch hanging_command $SERVER
-		_watch hanging_command $SERVER
+		_watch hanging_command "$server"
+		_watch hanging_command "$server"
 
-		if pidof $SERVER >/dev/null; then
-			_log do $FUNC daemon alert "[ERR] during kill of $SERVER, rebooting"
+		if pidof $server >/dev/null; then
+			_log do $funcname daemon alert "[ERR] during kill of $server, rebooting"
 			reboot
 		else
-			/etc/init.d/*$SERVER* start
-			_log do $FUNC daemon alert "[OK] server PID after restart: '$( pidof $SERVER )'"
+			/etc/init.d/$server start
+			_log do $funcname daemon alert "[OK] server PID after restart: '$( pidof $server )'"
 		fi
 	}
 
-	pidof $SERVER >/dev/null || {
-
+	pidof $server >/dev/null || {
 		if pidof crond >/dev/null ; then
-			_log do $FUNC daemon err "[ERR] webserver is not running - restarting $SERVER"
+			_log do $funcname daemon info "[ERR] webserver is not running - restarting $server"
 			restart_server
 		else
-			_log do $FUNC daemon debug "[OK] no crond - no restart"		# crondog will do it
+			_log do $funcname daemon debug "[OK] no crond - no restart"	# maybe intended
 		fi
 	}
 
 	local size_gethttp filesize httpsize
 	local checkfile="favicon.ico"
-	local checkfile_sample="/tmp/$FUNC.sample"
-	local file_seen_good="/tmp/$FUNC.was_good"
+	local checkfile_sample="/tmp/$funcname.sample"
+	local file_seen_good="/tmp/$funcname.was_good"
 	local i=0
 
 	if [ -e "/www/$checkfile" ]; then
@@ -547,7 +544,7 @@ _watch_webserver()
 			i=$(( $i + 1 ))
 			[ $i -gt 5 ] && break
 			[ $i -gt 1 ] && {
-				_log do $FUNC daemon alert "size_gethttp = 0, try $i"
+				_log do $funcname daemon alert "size_gethttp = 0, try $i"
 			}
 
 			size_gethttp="$( _wget do "http://127.0.0.1/$checkfile" 20 >"$checkfile_sample" )"
@@ -573,18 +570,18 @@ _watch_webserver()
 			}
 
 			if [ $size_file -eq $size_gethttp ]; then
-				_log do $FUNC daemon debug "[OK] same size for file/httpget: $size_file bytes for $checkfile"
+				_log do $funcname daemon debug "[OK] same size for file/httpget: $size_file bytes for $checkfile"
 				touch "$file_seen_good"
 			else
-				_log do $FUNC daemon alert "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
+				_log do $funcname daemon alert "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
 				restart_server
 			fi
 		else
 			if [ -e "$file_seen_good" ]; then
-				_log do $FUNC daemon alert "[ERR] gethttp not possible - restarting"
+				_log do $funcname daemon alert "[ERR] gethttp not possible - restarting"
 				restart_server
 			else
-				_log do $FUNC daemon info "[ERR] gethttp not possible - needs investigation"
+				_log do $funcname daemon info "[ERR] gethttp not possible - needs investigation"
 			fi
 		fi
 	else
