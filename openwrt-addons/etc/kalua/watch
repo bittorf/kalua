@@ -484,7 +484,7 @@ _watch_webcam ()
 	}
 }
 
-_watch_webserver ()
+_watch_webserver()
 {
 	local FUNC="watch_webserver"
 	local SERVER
@@ -535,14 +535,24 @@ _watch_webserver ()
 		fi
 	}
 
-	local filesize httpsize
+	local size_gethttp filesize httpsize
 	local checkfile="favicon.ico"
 	local checkfile_sample="/tmp/$FUNC.sample"
 	local file_seen_good="/tmp/$FUNC.was_good"
+	local i=0
 
 	if [ -e "/www/$checkfile" ]; then
 
-		size_gethttp="$( _wget do "http://127.0.0.1/$checkfile" 15 >"$checkfile_sample" )"
+		while [ ${size_gethttp:-0} -eq 0 ]; do {
+			i=$(( $i + 1 ))
+			[ $i -gt 5 ] && break
+			[ $i -gt 1 ] && {
+				_log do $FUNC daemon alert "size_gethttp = 0, try $i"
+			}
+
+			size_gethttp="$( _wget do "http://127.0.0.1/$checkfile" 20 >"$checkfile_sample" )"
+		} done
+
 		[ -e "$checkfile_sample" ] && {
 			size_gethttp="$( cat "$checkfile_sample" | wc -c )"
 			rm "$checkfile_sample"
