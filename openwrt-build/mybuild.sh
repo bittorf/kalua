@@ -65,10 +65,16 @@ set_build()
 		return 1
 	}
 
+	# fixme! apply zram to e.g.
+	# build_dir/linux-ar71xx_generic/linux-3.3.8/.config
+
 	while read line; do {
 		log "apply symbol: $line"
 
 		case "$line" in
+			"#"*)
+				# ignore comments
+			;;
 			*"=y")
 				symbol="$( echo "$line" | sed -n 's/\(^.*\)=y/\1/p' )"
 				# if its marked as NO, change it to YES
