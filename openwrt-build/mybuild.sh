@@ -15,6 +15,7 @@ Usage:	$me gitpull
 	$me select_hardware_model
 	$me set_build_openwrtconfig
 	$me set_build_kernelconfig
+	$me set_build <mini|standard|full>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
 	$me build_kalua_update_tarball [full]
@@ -50,6 +51,36 @@ log()
 get_arch()
 {
 	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|atheros|???
+}
+
+set_build()
+{
+	local mode="$1"			# e.g. mini|standard|full
+	local config=".config"
+	local line symbol file
+
+	file="kalua/openwrt-config/config_${mode}.txt"
+	[ -e "$file" ] || {
+		log "mode '$mode' not implemented yet"
+		return 1
+	}
+
+	while read line; do {
+		log "apply symbol: $line"
+
+		case "$line" in
+			*"=y")
+				symbol="$( echo "$line" | sed -n 's/\(^.*\)=y/\1/p' )"
+				# if its marked as NO, change it to YES
+				sed -i "s/# ${symbol} is not set/${symbol}=y/" "$config"
+			;;
+			*" is not set")
+				symbol="$( echo "$line" | sed -n 's/\(^.*\) is not set/\1/p' )"
+				# if its marked as YES, change it to NO
+				sed -i "s/${symbol}=y/# ${symbol} is not set/" "$config"
+			;;
+		esac
+	} done <"$file"
 }
 
 filesize()
