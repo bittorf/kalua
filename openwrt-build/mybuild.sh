@@ -15,7 +15,7 @@ Usage:	$me gitpull
 	$me select_hardware_model
 	$me set_build_openwrtconfig
 	$me set_build_kernelconfig
-	$me set_build <standard|nopppoe>
+	$me set_build <standard|nopppoe|unencrypted_adhoc_only>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
 	$me build_kalua_update_tarball [full]
