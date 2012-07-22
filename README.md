@@ -33,7 +33,7 @@ how to build this from scratch on a debian server
 
 	# now copy your own 'apply_profile.code.definitions' to . or the provided one will be used
 
-	make menuconfig				# simply select exit, (just for init)
+	make menuconfig				# select you architecture + model and exit
 	make package/symlinks
 
 	# now configure your image, see next
@@ -52,6 +52,10 @@ how to build this from scratch on a debian server
 configure the builtin-packages
 ------------------------------
 
+	# the fast and easy automatic way:
+	kalua/openwrt-build/mybuild.sh set_build standard
+
+	# the way to understand what you are doing here:
 	make kernel_menuconfig		# will safe in 'build_dir/linux-${platform}/linux-${kernelversion}/.config'
 
 		General setup ---> [*] Support for paging of anonymous memory (swap)
