@@ -82,8 +82,13 @@ set_build()
 		return 1
 	}
 
+	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
+	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
+
 	# fixme! apply zram to e.g.
 	# build_dir/linux-ar71xx_generic/linux-3.3.8/.config
+	# target/linux/ar71xx/config-3.3
+	# target/linux/generic/config-3.3
 
 	while read line; do {
 		log "apply symbol: $line"
