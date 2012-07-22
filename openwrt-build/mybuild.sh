@@ -15,6 +15,7 @@ Usage:	$me gitpull
 	$me select_hardware_model
 	$me set_build_openwrtconfig
 	$me set_build_kernelconfig
+	$me config_diff <new_config> <old_config>
 	$me set_build <standard|nopppoe|unencrypted_adhoc_only>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
@@ -51,6 +52,22 @@ log()
 get_arch()
 {
 	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|atheros|???
+}
+
+config_diff()
+{
+	local file_new="$1"	# e.g. .config
+	local file_old="$2"	# e.g. .configOLD
+	local line
+
+	diff "$file_new" "$file_old" |
+	 while read line; do {
+		case "$line" in
+			"< # CONFIG"*|"< CONFIG"*)
+				echo "$line" | cut -b 3-
+			;;
+		esac
+	} done
 }
 
 set_build()
