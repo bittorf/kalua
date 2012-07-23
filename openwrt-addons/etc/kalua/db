@@ -45,6 +45,8 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	local errorcode=0
 
 	[ -d "$dir" ] || return 0
+	[ -e "$dir/USER/login/meta_index" ] || return 0
+	[ $( _file size "$dir/USER/login/meta_index" ) -eq 0 ] && return 0
 
 	_db lock now "$funcname"
 
@@ -89,15 +91,19 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 	_db lock now "$funcname"
 
 	if [ -e "$file" ]; then
-	
-		_log do $funcname daemon info "removing dir /tmp/DB, unarc of '$file'"
-		rm -fR /tmp/DB
 
-		if tar -C / -xzf "$file" ; then
-			_log do $funcname daemon info "[OK]"
+		if [ $( _file size "$file" ) -lt 256 ]; then
+			_log do $funcname daemon info "refusing to unarc '$file', seems too small"
 		else
-			_log do $funcname daemon alert "[ERR] untar of '$file' went wrong - rescheduling"
-			_scheduler add "_db restore"
+			_log do $funcname daemon info "removing dir /tmp/DB, unarc of '$file'"
+			rm -fR /tmp/DB
+
+			if tar -C / -xzf "$file" ; then
+				_log do $funcname daemon info "[OK]"
+			else
+				_log do $funcname daemon alert "[ERR] untar of '$file' went wrong - rescheduling"
+				_scheduler add "_db restore"
+			fi
 		fi
 	else
 		_log do $funcname daemon info "[ERR] '$file' not found"
