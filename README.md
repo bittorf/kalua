@@ -54,6 +54,7 @@ configure the builtin-packages
 
 	# the fast and easy automatic way:
 	kalua/openwrt-build/mybuild.sh set_build standard
+	make defconfig
 
 	# the way to understand what you are doing here:
 	make kernel_menuconfig		# will safe in 'build_dir/linux-${platform}/linux-${kernelversion}/.config'
