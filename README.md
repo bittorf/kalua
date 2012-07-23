@@ -33,7 +33,7 @@ how to build this from scratch on a debian server
 
 	# now copy your own 'apply_profile.code.definitions' to . or the provided one will be used
 
-	make menuconfig				# select you architecture + model and exit
+	make menuconfig				# select your "Target System" / "Target Profile" and exit
 	make package/symlinks
 
 	# now configure your image, see next
