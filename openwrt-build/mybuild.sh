@@ -79,6 +79,11 @@ set_build()
 	local line symbol file wish dir config
 
 	case "$mode" in
+		""|list)
+			echo "possible pregenerated configs are:"
+			ls -1 $dir/config_* | sed 's/^.*config_\(.*\).txt$/\1/'
+			return 1
+		;;
 		kernel*)
 			dir="target/linux/$( get_arch )"
 			config="$( ls -1 $dir/config-* | head -n1 )"
@@ -89,20 +94,11 @@ set_build()
 		;;
 	esac
 
-	case "$mode" in
-		list)
-			echo "possible pregenerated configs are:"
-			ls -1 $dir/config_* | sed 's/^.*config_\(.*\).txt$/\1/'
-			return 1
-		;;
-		*)
-			file="$dir/config_${mode}.txt"
-			[ -e "$file" ] || {
-				log "mode '$mode' not implemented yet"
-				return 1
-			}
-		;;
-	esac
+	file="$dir/config_${mode}.txt"
+	[ -e "$file" ] || {
+		log "mode '$mode' not implemented yet"
+		return 1
+	}
 
 	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
 	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
