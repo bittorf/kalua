@@ -76,9 +76,18 @@ config_diff()
 set_build()
 {
 	local mode="$1"			# e.g. mini|standard|full
-	local config=".config"
-	local dir="kalua/openwrt-config"
-	local line symbol file wish
+	local line symbol file wish dir config
+
+	case "$mode" in
+		kernel*)
+			dir="target/linux/$( get_arch )"
+			config="$( ls -1 $dir/config-* | head -n1 )"
+		;;
+		*)
+			dir="kalua/openwrt-config"
+			config=".config"
+		;;
+	esac
 
 	case "$mode" in
 		list)
