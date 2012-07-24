@@ -77,7 +77,7 @@ set_build()
 {
 	local mode="$1"			# e.g. mini|standard|full
 	local config=".config"
-	local line symbol file
+	local line symbol file wish
 
 	file="kalua/openwrt-config/config_${mode}.txt"
 	[ -e "$file" ] || {
@@ -97,18 +97,30 @@ set_build()
 		log "apply symbol: $line"
 
 		case "$line" in
-			"#"*)
+			""|"#"*)
 				# ignore comments
 			;;
 			*"=y")
 				symbol="$( echo "$line" | sed -n 's/\(^.*\)=y/\1/p' )"
-				# if its marked as NO, change it to YES
-				sed -i "s/# ${symbol} is not set/${symbol}=y/" "$config"
+				wish="${symbol}=y"
+
+				if grep -q ^"# $symbol is not set" "$config"; then
+					# if its marked as NO, change it to YES
+					sed -i "s/^# ${symbol} is not set/$wish/" "$config"
+				else
+					echo "$wish" >>"$config"
+				fi
 			;;
 			*" is not set")
 				symbol="$( echo "$line" | sed -n 's/\(^.*\) is not set/\1/p' )"
-				# if its marked as YES, change it to NO
-				sed -i "s/${symbol}=y/# ${symbol} is not set/" "$config"
+				wish="# ${symbol} is not set"
+
+				if grep -q ^"${symbol}=y" "$config"; then
+					# if its marked as YES, change it to NO
+					sed -i "s/^${symbol}=y/$wish/" "$config"
+				else
+					echo "$wish" >>"$config"
+				fi
 			;;
 		esac
 	} done <"$file"
