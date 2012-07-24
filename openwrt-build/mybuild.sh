@@ -56,14 +56,17 @@ get_arch()
 
 config_diff()
 {
-	local file_new="$1"	# e.g. .config
-	local file_old="$2"	# e.g. .configOLD
+	local file_new="${1:-.config}"
+	local file_old="${2:-.config.old}"
 	local line
 
 	diff "$file_new" "$file_old" |
 	 while read line; do {
 		case "$line" in
-			"< # CONFIG"*|"< CONFIG"*)
+			"< # CONFIG"*)
+				echo "$line" | cut -b 5-
+			;;
+			"< CONFIG"*)
 				echo "$line" | cut -b 3-
 			;;
 		esac
