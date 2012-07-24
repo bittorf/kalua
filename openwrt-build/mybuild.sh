@@ -105,6 +105,8 @@ set_build()
 		;;
 	esac
 
+	log "set_build() using '$dir/$config'"
+
 	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
 	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
