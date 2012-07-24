@@ -16,7 +16,7 @@ Usage:	$me gitpull
 	$me set_build_openwrtconfig
 	$me set_build_kernelconfig
 	$me config_diff <new_config> <old_config>
-	$me set_build <standard|nopppoe|unencrypted_adhoc_only>
+	$me set_build <list|standard|...>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
 	$me build_kalua_update_tarball [full]
@@ -77,13 +77,23 @@ set_build()
 {
 	local mode="$1"			# e.g. mini|standard|full
 	local config=".config"
+	local dir="kalua/openwrt-config"
 	local line symbol file wish
 
-	file="kalua/openwrt-config/config_${mode}.txt"
-	[ -e "$file" ] || {
-		log "mode '$mode' not implemented yet"
-		return 1
-	}
+	case "$mode" in
+		list)
+			echo "possible pregenerated configs are:"
+			ls -1 $dir/config_* | sed 's/^.*config_\(.*\).txt$/\1/'
+			return 1
+		;;
+		*)
+			file="$dir/config_${mode}.txt"
+			[ -e "$file" ] || {
+				log "mode '$mode' not implemented yet"
+				return 1
+			}
+		;;
+	esac
 
 	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
 	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
