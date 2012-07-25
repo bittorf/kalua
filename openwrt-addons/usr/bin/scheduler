@@ -28,6 +28,20 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 			[ "$DO_UPGRADE" = "true" ] && {
 				rm "/www/START_SYSUPGRADE" "/tmp/START_SYSUPGRADE"
 
+				_firmware configure_keep_files
+
+				FILE="/tmp/fw"
+
+				[ $( _system ram_size ) -gt 16384 ] && {
+					_firmware wget "$FILE"
+
+					if [ $( _file size "$FILE" kb ) -lt $( _system flash_free ) ]; then
+						mv "$FILE" "/www/fw"
+					else
+						_log do prepare_firmware_update daemon info "using image-on-flash failed, fallback to ram-mode"
+					fi
+				}
+
 				[ -e "/www/fw" ] && {
 					# patching early startup for:
 					# - not loading any kernel-modules if "/www/fw" exists
@@ -47,8 +61,6 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 								"/etc/init.d/boot" && reboot
 					fi
 				}
-
-				FILE="/tmp/fw"
 
 				[ -e "$FILE" ] || {
 					_firmware wget_prepare_for_lowmem_devices && {
@@ -130,10 +142,17 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 					[ -e /tmp/.autorun ] && /tmp/.autorun		# can be helpful to make changes an many nodes
 											# script must first delete himself with 'rm $0'
-					#_scheduler check_if_every_Nth_minute 360 && {
-					#	_scheduler add upgrade_packages
-					#	_firmware update_pmu
-					#}
+
+					[ $( _system disc_free /tmp percent ) -lt 25 ] && {
+						df -h | grep /tmp$ | _log do high_discusage_before daemon alert
+						/etc/init.d/ulogd stop
+						df -h | grep /tmp$ | _log do high_discusage_after daemon alert
+					}
+
+					_scheduler check_if_every_Nth_minute 360 && {	# e.g. daily restart is at 4:05
+						_scheduler add upgrade_packages		# so: 10:05, 16:05, 22:05
+						_firmware update_pmu
+					}
 
 					fgrep -sq "nf_conntrack: table full, dropping packet." "/tmp/dmesg.recent" && {
 						_log do conntrack_full daemon info "dropping packet"
@@ -144,8 +163,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					}
 
 					case "$CONFIG_PROFILE" in
-						ffweimar*|monami*)
-							:
+						ffweimar*)
 						;;
 						*)
 							_netfilter user_stats_collect
@@ -193,9 +211,15 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 											_netfilter masquerade_start
 											sleep 300	# give time for collecting userdata
 
+											[ "$( uci get system.@system[0].timezone )" = "UTC" ] && {
+												uci set system.@system[0].timezone="CET-1CEST,M3.5.0,M10.5.0/3"
+												uci commit system
+											}
+
 											case "$HARDWARE" in
 												*)
-													reboot
+													[ -e "/www/GOOD_MODULE_UNLOAD" ] && rm "/www/GOOD_MODULE_UNLOAD"
+													_system reboot_safe "nightly"
 												;;
 											esac
 
@@ -234,24 +258,10 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 			esac
 		;;
 		w)
-			# some quirks for ath9k/mac80211 till
-
-			wifidev_name_has_changed()
-			{
-				case "$( _wifi mode $WIFIDEV config )" in
-					ap|adhoc)
-						_filetype elf /usr/sbin/iwconfig && {
-							[ "$( iwconfig wlan1 2>/dev/null | wc -l )" -gt 0 ] && return 1
-							[ "$( iwconfig wlan2 2>/dev/null | wc -l )" -gt 0 ] && return 1
-						}
-					;;
-				esac
-
-				return 0
-			}
-
-			wifidev_name_has_changed || {
-				_system reboot_safe "wifidev_name_has_changed"
+			[ -n "$WIFIDEV" ] && {
+				ip address show dev $WIFIDEV | fgrep -q "inet " || {
+					_wifi phy_restart $WIFIDEV "no ip on dev"
+				}
 			}
 
 			incoming_wifi_activity()
@@ -263,6 +273,8 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 				local file_uptime="$file_framecount.uptime"
 				local monitoring_vif="mon.$WIFIDEV"
 				local logprio="alert"
+
+				[ -z "$WIFIDEV" ] && return 0
 
 				if fgrep -q "$monitoring_vif:" /proc/net/dev; then
 					check_dev="$monitoring_vif"
@@ -326,9 +338,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 			incoming_wifi_activity || {
 				case "$WIFIMODE" in
 					*adhoc*)
-						_wifi phy_restart $WIFIDEV "no incoming_wifi_activity, NOT scheduling reboot"
-#						sleep 15
-#						_system reboot_safe "no incoming_wifi_activity, framecounter: $( cat /tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV )"
+						_wifi phy_restart $WIFIDEV "no incoming_wifi_activity"
 					;;
 					*)
 						if [ -n "$( iw dev $WIFIDEV station dump )" ]; then
@@ -353,7 +363,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					}
 
 					case "$WIFIMODE" in
-						*ap*)
+						*ap*|*client*)
 							which hostapd >/dev/null && {
 								if pidof hostapd >/dev/null; then
 									touch "/tmp/DAEMON_hostapd_seen"
