@@ -1,0 +1,106 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+
+uniq_machine_id()
+{
+	dropbearkey -y -f "/etc/dropbear/dropbear_dss_host_key" |
+	 fgrep "Fingerprint:" |
+	  cut -d' ' -f3
+}
+
+kernel_version()
+{
+	uname -a
+}
+
+box_usecase()
+{
+	local usecase="$( uci get system.@profile[0].name )"
+
+	if [ -n "$usecase" ]; then
+		echo "$usecase"
+	else
+		echo "unknown usecase"
+	fi
+}
+
+box_hardware()
+{
+	if [ -e "/etc/HARDWARE" ]; then
+		cat "/etc/HARDWARE"
+	else
+		echo "unknown hardware"
+	fi
+}
+
+openwrt_revision()
+{
+	if [ -e "/etc/openwrt_version" ]; then
+		cat /etc/openwrt_version
+	else
+		echo "UNKNOWN REVISION"
+	fi
+}
+
+build_http_postdata()
+{
+	local file="$1"
+	local target_ip="$2"
+	local size="$( wc -c "$file" | cut -d' ' -f1 )"
+	local id="$( uniq_machine_id )"
+	local version="$( openwrt_revision )"
+	local kernel="$( kernel_version )"
+	local path="crashlog/index.php"
+	local usecase="$( box_usecase )"
+	local hardware="$( box_hardware )"
+
+	size=$(( ${#version} + ${#kernel} + ${#id} + ${#usecase} + ${#hardware} + 5 + $size ))
+
+	logger "build_http_postdata: preparing send to 'http://$target_ip/$path' ($size bytes)"
+
+	echo "POST /$path HTTP/1.1"
+	echo "Host: $target_ip"
+	echo "Content-Type: application/x-www-form-urlencoded"
+	echo "Content-Length: $size"
+	echo
+
+	echo "$version"
+	echo "$kernel"
+	echo "$id"
+	echo "$usecase"
+	echo "$hardware"
+
+	cat "$file"
+}
+
+start()
+{
+	local funcname="crashlog_apport"
+	local file="/sys/kernel/debug/crashlog"		# enforce a crash with 'echo c >/proc/sysrq-trigger'
+	local server_ip="84.38.67.43"
+	local answer="false"
+	local maxtry=10
+	local pause=30
+
+	if [ -e "$file" ]; then
+		while [ $maxtry -gt 0 ]; do {
+			logger "$funcname: found log in $file, reporting to server $server_ip"
+			answer="$( build_http_postdata "$file" "$server_ip" | nc "$server_ip" 80 )"
+
+			case "$answer" in
+				*OK)
+					break
+				;;
+				*)
+					maxtry=$(( $maxtry - 1 ))
+					logger -s "$funcname: error during send (answer: '$answer'), trying again in $pause sec"
+					sleep $pause
+				;;
+			esac
+		} done
+	else
+		return 0
+	fi
+}
+
