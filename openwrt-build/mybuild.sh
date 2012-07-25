@@ -4,6 +4,12 @@ ACTION="$1"
 OPTION="$2"
 OPTION2="$3"
 OPTION3="$4"
+OPTION4="$5"
+OPTION5="$6"
+OPTION6="$7"
+OPTION7="$8"
+OPTION8="$9"
+OPTION9="${10}"
 
 show_help()
 {
@@ -16,7 +22,7 @@ Usage:	$me gitpull
 	$me set_build_openwrtconfig
 	$me set_build_kernelconfig
 	$me config_diff <new_config> <old_config>
-	$me set_build <list|standard|...>
+	$me set_build <list|standard|...> <...> <...>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
 	$me build_kalua_update_tarball [full]
@@ -151,6 +157,12 @@ set_build()
 			;;
 		esac
 	} done <"$file"
+
+	shift
+	[ -n "$1" ] && {
+		log "parsing next argument: '$1'"
+		set_build "$@"
+	}
 }
 
 filesize()
@@ -784,7 +796,7 @@ case "$ACTION" in
 		} done
 	;;
 	*)
-		$ACTION "$OPTION" "$OPTION2" "$OPTION3"
+		$ACTION "$OPTION" "$OPTION2" "$OPTION3" "$OPTION4" "$OPTION5" "$OPTION6" "$OPTION7" "$OPTION8" "$OPTION9"
 	;;
 esac
 
