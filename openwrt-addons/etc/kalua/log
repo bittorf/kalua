@@ -60,9 +60,17 @@ _log_debug()
 	local broadcast_ip="$( $ip_bin address show dev "$dev" | grep inet | cut -d'r' -f2 | cut -d' ' -f2 )"
 
 	# readable from a neighbour with:
-	# tcpdump -s 1500 -n -l -w - -i $YOURDEV port 0x1337 | strings
+	# 	tcpdump -s 1500 -n -l -w - -i $YOURDEV port 0x1337 | strings
 	# or with an UDP-capable netcat via:
-	# nc -lup 4919	//fixme!
+	# 	nc -lup 4919	//fixme!
+	# or with iptables:
+	#	iptables -I INPUT -p udp --dport 4919 -j LOG --log-prefix "0x1337: "
+	#	logread -f
+	# or with iptables:
+	#	iptables -I INPUT -j LOG
+	#	iptables -I INPUT -p udp --dport 698 -j ACCEPT
+	#	iptables -I INPUT -p tcp --dport 22 -j ACCEPT
+	#	logread -f
 
 	if [ -z "$broadcast_ip" ]; then
 		if grep -sq "$dev:" /proc/net/wireless ; then
@@ -96,7 +104,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 	local MEM UPTIME DATE i
 
 	[ -z "$MESSAGE" ] && {		# from stdin (pipe into function)
-		while read MESSAGE; do {
+		while read -t 3 MESSAGE; do {
 			_log do "$FUNCTION" "$FACILITY" "$PRIO" "STDIN${i}: ${MESSAGE:-stdin_was_empty}"
 			i=$(( ${i:-1} + 1 ))
 		} done
@@ -173,6 +181,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 					if [ -n "$message_sms" ]; then
 						message_to_send="$message_sms"
 						HEADER=
+						local stack_funcname="$FUNCTION"
 						FUNCTION=
 					else
 						message_to_send="$MESSAGE"
@@ -200,6 +209,7 @@ _log_do ()				# CALL: _log do my_function_name daemon info "mytext"
 					} done
 				}
 
+				[ -n "$stack_funcname" ] && FUNCTION="$stack_funcname"
 				PRIO="alert"
 			}
 
