@@ -3,6 +3,17 @@
 
 echo 1 >/proc/sys/net/ipv4/ip_forward
 
+case "$( uci get wireless.radio0.macaddr )" in
+	"00:15:6d:ad:5c:26")			# nanostation2 max (hardware-error)
+		mii-tool 2>&1 | grep -q "link ok" || {
+			for OPT in R "A 10baseT-HD" "F 10baseT-HD" r v ; do {
+				sleep 3
+				mii-tool -$OPT | _log do mii-tool daemon info
+			} done
+		}
+	;;
+esac
+
 case "$( uci get wireless.radio0.htmode )" in
 	HT40*)
 		case "$( _wifi mode $WIFIDEV )" in
@@ -14,10 +25,6 @@ case "$( uci get wireless.radio0.htmode )" in
 	;;
 esac
 
-# it seems, that sometimes the powersettings are lost
-TXPOWER="$( uci get wireless.radio0.txpower )"
-[ -n "$TXPOWER" ] && iw dev $WIFIDEV set txpower fixed "${TXPOWER}00"
-
 _watch flash_free_space
 
 _watch wifi_mode || sleep 30		# lets settle down to see some neighs
@@ -25,6 +32,7 @@ _watch wifi_mode || sleep 30		# lets settle down to see some neighs
 [ -e "/tmp/service_olsrd_nowatching" ] || {
 	_olsr check_plausi || {
 		_log do olsr_deepwatch daemon info "error during check_plausi, watching again in 65sec"
+
 		sleep 65
 		_olsr build_tables
 
@@ -36,6 +44,7 @@ _watch wifi_mode || sleep 30		# lets settle down to see some neighs
 	}
 }
 
+_watch system_time
 # _watch vpnc
 
 # check vpn connection for devices with internet access via lan gateway 
@@ -44,16 +53,16 @@ _watch wifi_mode || sleep 30		# lets settle down to see some neighs
 		_vpn restart
 	}
 }
-#_watch system_time
+
 _watch dns_resolution
 _watch pppoe
-_watch netserver
+# _watch netserver
 _watch sshd_or_telnet
 _watch random_node_id
 _watch dhcp_space
 
 case "$CONFIG_PROFILE" in
-	ffweimar*|monami*)
+	ffweimar*)
 		:
 	;;
 	*)
@@ -109,6 +118,13 @@ esac
 
 [ -e "/etc/init.d/ulogd" ] && {
 	/etc/init.d/ulogd disable
+}
+
+[ "$( uci get dhcp.@dnsmasq[0].notinterface )" = "wan" ] || {
+	_net local_inet_offer >/dev/null && {
+		uci set dhcp.@dnsmasq[0].notinterface=wan
+		/etc/init.d/dnsmasq restart
+	}
 }
 
 if iptables -t mangle -nL shaper | grep -q ^ACCEPT ; then
