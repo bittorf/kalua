@@ -101,6 +101,15 @@ set_build()
 	esac
 
 	case "$mode" in
+		meta*)
+			local thismode mode_list
+			read mode_list <"$file"
+
+			for thismode in $mode_list; do {
+				log "applying meta-content: $thismode"
+				set_build "$thismode"
+			} done
+		;;
 		kernel*)
 			dir="target/linux/$( get_arch )"
 			config="$( ls -1 $dir/config-* | head -n1 )"
