@@ -102,6 +102,11 @@ set_build()
 		*)
 			dir="kalua/openwrt-config"
 			config=".config"
+
+			[ -e "$config" ] || {
+				log "empty config, starting 'make defconfig' for you"
+				make defconfig
+			}
 		;;
 	esac
 
