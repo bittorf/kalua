@@ -16,6 +16,8 @@ Usage:	$me gitpull
 	$me select_hardware_model
 	$me set_build_openwrtconfig
 	$me set_build_kernelconfig
+	$me config_diff <new_config> <old_config>
+	$me set_build <list|standard|...>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
 	$me build_ffweimar_update_tarball [full]
@@ -51,6 +53,105 @@ log()
 get_arch()
 {
 	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|atheros|???
+}
+
+config_diff()
+{
+	local file_new="${1:-.config}"
+	local file_old="${2:-.config.old}"
+	local line
+
+	diff "$file_new" "$file_old" |
+	 while read line; do {
+		case "$line" in
+			"< # CONFIG"*)
+				echo "$line" | cut -b 5-
+			;;
+			"< CONFIG"*)
+				echo "$line" | cut -b 3-
+			;;
+		esac
+	} done
+}
+
+set_build()
+{
+	local mode="$1"			# e.g. mini|standard|full
+	local line symbol file wish config
+	local dir="kalua/openwrt-config"
+
+	case "$mode" in
+		""|list)
+			echo "possible pregenerated configs are:"
+			ls -1 $dir/config_* | sed 's/^.*config_\(.*\).txt$/\1/'
+			return 1
+		;;
+		*)
+			file="$dir/config_${mode}.txt"
+			[ -e "$file" ] || {
+				log "mode '$mode' not implemented yet"
+				return 1
+			}
+		;;
+	esac
+
+	case "$mode" in
+		kernel*)
+			dir="target/linux/$( get_arch )"
+			config="$( ls -1 $dir/config-* | head -n1 )"
+		;;
+		*)
+			dir="kalua/openwrt-config"
+			config=".config"
+
+			[ -e "$config" ] || {
+				log "empty config, starting 'make defconfig' for you"
+				make defconfig
+			}
+		;;
+	esac
+
+	log "set_build() using '$dir/$config'"
+
+	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
+	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
+
+	# fixme! apply zram to e.g.
+	# build_dir/linux-ar71xx_generic/linux-3.3.8/.config
+	# target/linux/ar71xx/config-3.3
+	# target/linux/generic/config-3.3
+
+	while read line; do {
+		log "apply symbol: $line"
+
+		case "$line" in
+			""|"#"*)
+				# ignore comments
+			;;
+			*"=y")
+				symbol="$( echo "$line" | sed -n 's/\(^.*\)=y/\1/p' )"
+				wish="${symbol}=y"
+
+				if grep -q ^"# $symbol is not set" "$config"; then
+					# if its marked as NO, change it to YES
+					sed -i "s/^# ${symbol} is not set/$wish/" "$config"
+				else
+					echo "$wish" >>"$config"
+				fi
+			;;
+			*" is not set")
+				symbol="$( echo "$line" | sed -n 's/\(^.*\) is not set/\1/p' )"
+				wish="# ${symbol} is not set"
+
+				if grep -q ^"${symbol}=y" "$config"; then
+					# if its marked as YES, change it to NO
+					sed -i "s/^${symbol}=y/$wish/" "$config"
+				else
+					echo "$wish" >>"$config"
+				fi
+			;;
+		esac
+	} done <"$file"
 }
 
 filesize()
@@ -98,11 +199,11 @@ uptime_in_seconds()
 
 build_ffweimar_update_tarball()
 {
-        local option="$1"
-        local mydir="$( pwd )"
-        local tarball="/tmp/tarball.tgz"
-        local options extract
-        local file_timestamp="etc/variables_fff+"       # fixme! hackish, use pre-commit hook?
+	local option="$1"
+	local mydir="$( pwd )"
+	local tarball="/tmp/tarball.tgz"
+	local options extract
+	local file_timestamp="etc/variables_fff+"	# fixme! hackish, use pre-commit hook?
 
 	if tar --version 2>&1 | grep -q ^BusyBox ; then
 		log "detected BusyBox-tar, using simple options"
@@ -367,6 +468,7 @@ applymystuff()
 	file="weimarnetz/openwrt-build/apply_profile"
 	log "copy $( basename "$file" ) - the master controller ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
+	chmod +x "$base/etc/init.d/$( basename "$file" )"
 
 	file="weimarnetz/openwrt-build/apply_profile.watch"
 	log "copy $( basename "$file" ) - controller_watcher ($( filesize "$file" ) bytes)"
@@ -413,6 +515,12 @@ applymystuff()
 	file="weimarnetz/openwrt-patches/regulatory.bin"
 	log "copy $( basename "$file" )  - easy bird grilling included ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
+
+	[ -e "package/mac80211/files/regdb.txt" ] && {
+		file="weimarnetz/openwrt-patches/regulatory.db.txt"
+		log "found package/mac80211/files/regdb.txt - overwriting"
+		cp "$file" "package/mac80211/files/regdb.txt"
+	}
 
 	log "copy all_the_scripts/addons - the weimarnetz-project itself ($( du -sh weimarnetz/openwrt-addons ))"
 	cd weimarnetz/openwrt-addons
