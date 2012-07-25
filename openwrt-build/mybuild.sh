@@ -60,6 +60,28 @@ get_arch()
 	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|atheros|???
 }
 
+get_firmware_filenames()
+{
+	local arch="$( get_arch )"
+
+	test()
+	{
+		local hw="$1"
+
+		grep -q ^"CONFIG_TARGET_${arch}.*_$hw" ".config"
+	}
+
+	if   test TLWR1043 ; then
+		echo "openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
+	elif test Broadcom-b43 ; then
+		echo "openwrt-brcm47xx-squashfs.trx"
+	elif test WZRHPAG300H ; then
+		echo "openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin"
+	else
+		echo ""
+	fi
+}
+
 config_diff()
 {
 	local file_new="${1:-.config}"
@@ -389,6 +411,12 @@ mymake()
 	echo "'make $option' lasts $(( $t2 - $t1 )) seconds (~$(( ($t2 - $t1) / 60 )) min) for your '$hardware' (arch: $( get_arch ))"
 	echo
 	echo "\"Jauchzet und frohlocket...\" ob der Bytes die erschaffen wurden: (revision: $( scripts/getver.sh ))"
+	echo
+
+	echo "use this files:"
+	for file in $( get_firmware_filenames ); do {
+		echo "bin/$( get_arch)/$file"
+	} done
 	echo
 
 	for file in $filelist; do {
