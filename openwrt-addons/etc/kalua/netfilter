@@ -13,6 +13,7 @@ _netfilter_start()
 		_netfilter ipforwarding_start
 	}
 
+	#don't masquerade on local lan gateway internet access (duplicate masquerading)
 	 [ -n "$( uci -q get network.lan.gateway )" ] || {
 	 	_netfilter masquerade_start
 	 }
@@ -30,6 +31,30 @@ _netfilter_start()
 			_netfilter splash_autoadd
 		}
 	}
+
+	_netfilter conntrack_adjust_max
+}
+
+_netfilter_conntrack_adjust_max()
+{
+	local funcname="netfilter_conntrack_adjust_max"
+	local max="$1"
+	local file="/proc/sys/net/nf_conntrack_max"
+
+	[ -e "$file" ] || return 0
+
+	[ -z "$max" ] && {
+		max="$( _system ram_size )"		# kilobytes
+		if [ $max -lt 16384 ]; then
+			max=1024
+		else
+			max=$(( ($max * 3) / 2 ))	# x1.5
+		fi
+	}
+
+	# check with: wc -l /proc/net/nf_conntrack
+	_log do $funcname daemon info "set max to $max entries, each needs 350 bytes"
+	echo "$max" >"$file"
 }
 
 _netfilter_ipforwarding_needed()
@@ -97,7 +122,10 @@ _netfilter_stop()
 	case "$option" in
 		"remember_over_reboot"|"ror")
 			[ -n "$list_user" ] && {
-				cp "/tmp/NETFILTER_AUTOADD" "/www/NETFILTER_AUTOADD"
+				# this file will be sourced during bootup, so
+				# we simulate a battery backed up hardware clock
+				echo "[ \"\$( date +%Y )\" = 1970 ] && date --set '$( date "+%Y-%m-%d %X" )'" >"/www/NETFILTER_AUTOADD"
+				cat "/tmp/NETFILTER_AUTOADD" >>"/www/NETFILTER_AUTOADD"
 			}
 		;;
 	esac
@@ -123,6 +151,9 @@ _netfilter_masquerade_start()
 
 	devname="$( _net local_inet_offer )"
 	case "$devname" in
+		wifi)
+			device="$WIFIDEV"
+		;;
 		wan)
 			device="$WANDEV"
 		;;
@@ -143,8 +174,11 @@ _netfilter_masquerade_start()
 		case "$CONFIG_PROFILE" in
 			tkolleg*)
 				iptables -t nat -I POSTROUTING -s 10.10.0.0/16 -o $LANDEV -j MASQUERADE
-				iptables -t nat -I POSTROUTING -d 10.10.0.10 -j MASQUERADE	# printer
-				iptables -t nat -I POSTROUTING -d 10.10.0.2 -j MASQUERADE	# exNT
+				iptables -t nat -I POSTROUTING -d 10.10.0.10 -j MASQUERADE		# printer
+				iptables -t nat -I POSTROUTING -d 10.10.0.2 -j MASQUERADE		# exNT
+			;;
+			fparkssee*)
+				iptables -t nat -I POSTROUTING -d 192.168.0.0/16 -j MASQUERADE		# external portfw
 			;;
 		esac
 	}
@@ -190,7 +224,7 @@ _netfilter_splash_start()
 	mkdir -p "/tmp/NETFILTER/USER" \
 		 "/tmp/NETFILTER/MAC2IP" \
 		 "/tmp/NETFILTER/IP2MAC"
-	
+
 	# don't cache splash page at this time for ffweimar, because it needs internet access
 	[ "$( uci get system.@profile[0].name )" = "ffweimar_adhoc" ] || { 
 		[ -e "/tmp/weblogin_cached_for_overload" ] || {
@@ -220,6 +254,9 @@ _netfilter_splash_autoadd()
 	local line ip mac file
 
 	if [ -e "/www/NETFILTER_AUTOADD" ]; then
+		read line <"/www/NETFILTER_AUTOADD"
+		eval $line
+
 		_olsr uptime is_short && {
 			_scheduler add "_netfilter splash_autoadd"
 			return 0
@@ -349,7 +386,9 @@ _netfilter_user_add()
 	local dev
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
-	[ -z "$mac" -o -z "$ip" ] && return 1
+
+	_sanitizer do "$mac" mac check || return 1
+	_sanitizer do "$ip"  ip4 check || return 1
 
 	if [ -d "/tmp/NETFILTER/USER/$mac" ]; then
 		return 0
@@ -389,7 +428,7 @@ _netfilter_user_del()
 		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
 
 		dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
-		ip neigh del $ip dev $dev lladdr $mac nud permanent
+		ip neigh change $ip dev $dev lladdr $mac nud reachable
 
 		[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
 			_netfilter user_dataretention_del "$mac" "$ip"
@@ -428,7 +467,7 @@ _netfilter_user_dataretention_add()
 		iptables -t mangle -A FORWARD -j mark_connection_end
 
 		[ -e "/usr/sbin/ulogd" ] && {
-			pidof ulogd >/dev/null || ulogd -d
+			pidof ulogd >/dev/null || /etc/init.d/ulogd start
 		}
 
 		touch "/tmp/NETFILTER/connection_detection"
@@ -467,7 +506,7 @@ _netfilter_user_dataretention_del()
 		iptables -t mangle -X mark_connection_new
 
 		/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+
-		killall ulogd
+		/etc/init.d/ulogd stop
 		rm "/tmp/NETFILTER/connection_detection"
 	}
 
