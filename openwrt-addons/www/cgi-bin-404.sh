@@ -23,16 +23,13 @@ case "$HTTP_USER_AGENT" in
 	"Microsoft NCSI")	# microsoft captive portel checker -> _http spoof_captive_portal_checker_microsoft
 		ERROR=403
 	;;
-	"com.apple.invitation-registration"*|"CaptiveNetworkSupport"*)	# apple captive portel checker -> _http spoof_captive_portal_checker_apple
-		ERROR=403
-	;;
-	"htcUPCTLoader"|"Microsoft BITS"*|"ZoneAlarm"*|*"youtube"*|*"YouTube"*|"WifiHotspot"|"Skype WISPr"|*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*)
+	"htcUPCTLoader"|"Microsoft BITS"*|"ZoneAlarm"*|*"youtube"*|*"YouTube"*|"WifiHotspot"|"Skype WISPr"|*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*|"iTunes"*)
 		ERROR=403
 	;;
 esac
 
 case "$HTTP_HOST" in
-	*"google-analytics"*|"appenda.com"|"init.ess.apple.com"|"media.admob.com"|*".googleapis.com"|"catalog.zune.net"|*".ggpht.com")
+	"weather.msn.com"|*"google-analytics"*|"appenda.com"|"init.ess.apple.com"|"media.admob.com"|*".googleapis.com"|"catalog.zune.net"|*".ggpht.com")
 		HTTP_USER_AGENT="$HTTP_HOST ($HTTP_USER_AGENT)"
 		ERROR=403
 	;;
