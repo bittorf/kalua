@@ -1,5 +1,6 @@
 #!/bin/sh
 read UP REST </proc/uptime
+/sbin/uci get system.@system[0].hostname >/dev/null || UP=999999	# test something essential
 [ ${UP%.*} -gt 129600 ] && {	# 36h
 	rm "/tmp/CRON_IS_CAREFUL"
 	echo "b" >/proc/sysrq-trigger
@@ -7,8 +8,10 @@ read UP REST </proc/uptime
 }
 
 read LOAD REST </proc/loadavg
-# uncomment to log freemem/uptime/load into '/tmp/MEM'
-# while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;echo $((($M+$2)*1024)) $UP $LOAD>>/tmp/MEM;break;;esac;done</proc/meminfo
+# uncomment to log A) network-traffic and B) freemem/uptime/load into '/tmp/MEM'
+# while read L;do case $L in *wlan0*)set $L;echo -n "rx:$2/$3 tx:${10}/${11} ">>/tmp/MEM;;esac;done</proc/net/dev
+# while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;M=$(($M+$2));;Cached:*)set $L;echo $((($M+$2)*1024)) $UP $LOAD>>/tmp/MEM;break;esac;done</proc/meminfo
+
 case "$LOAD" in
 	1.00)
 		if [ -e "/tmp/CRON_PSWORK" ]; then
@@ -18,6 +21,9 @@ case "$LOAD" in
 			touch "/tmp/CRON_PSWORK"
 			ps >/dev/null
 			rm "/tmp/CRON_PSWORK"
+
+			. /tmp/loader
+			_watch topusage_task
 
 			[ -e "/bin/dmesg" ] && . /usr/sbin/cron.check_klog
 			[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
@@ -71,11 +77,18 @@ case "$LOAD" in
 		echo -n '#' >>"/tmp/CRON_OVERLOAD"
 		read I <"/tmp/CRON_OVERLOAD"
 
+		case "$I" in
+			db_ticketcheck*|index_gen*|data_retention*|upgrade_packages*)
+				I=
+			;;
+		esac
+
 		case ${#I} in
 			0|1|2|4)
 			;;
 			3)
-				rm user-*	# maybe orphaned vds-files/ulogd
+				rm /tmp/user-*	# maybe orphaned vds-files/ulogd
+				rm /tmp/log/*
 			;;
 			*)
 				rm "/tmp/CRON_IS_CAREFUL"
