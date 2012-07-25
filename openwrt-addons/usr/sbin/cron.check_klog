@@ -5,8 +5,14 @@
 LINE=
 read LINE <"/tmp/dmesg.recent"
 [ ${#LINE} -eq 0 ] || {
+	. /tmp/loader
 	cat "/tmp/dmesg.recent" >>"/tmp/dmesg.log"
-	[ -e "/tmp/dmesg.boot" ] || cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
+
+	if [ -e "/tmp/dmesg.boot" ]; then
+		_watch counter /tmp/dmesg.counter increment "$( _file lines "/tmp/dmesg.recent" )"
+	else
+		cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
+	fi
 
 	reboot_dirty()
 	{
@@ -46,7 +52,10 @@ read LINE <"/tmp/dmesg.recent"
 	PATTERN="ath: phy0: Failed to stop TX DMA, queues"
 	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && {
 		_log do kernellog daemon alert "$PATTERN"
-		# no reboot
+
+		_net local_inet_offer >/dev/null && {
+			_wifi phy_restart "$WIFIDEV" "$PATTERN"
+		}
 	}
 
 	PATTERN="ath9k/recv.c:"
