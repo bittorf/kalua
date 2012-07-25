@@ -18,6 +18,12 @@ uptime_in_seconds()
 
 jffs2_is_ready()
 {
+	lock -w /tmp/.switch2jffs && {		# ramdisk useable?
+		df | grep -q " /tmp"$ || {
+			return 1
+		}
+	}
+
 	if [ -n "$FAILSAFE" ]; then
 		return 0
 	else
@@ -55,6 +61,32 @@ hwprobe()
 	local machine="$1"
 
 	case "$machine" in
+		"Ubiquiti Nanostation2")
+			fgrep -q "lpj=918528" "$DMESG" && {
+				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
+					fgrep -q "ath5k: phy0: Atheros AR2315 chip found (MAC: 0x86, PHY: 0x48)" "$DMESG" && {
+						return 0
+					}
+				}
+			}
+		;;
+		"Ubiquiti Nanostation5")
+			fgrep -q "lpj=898048" "$DMESG" && {
+				fgrep -q "CPU revision is: 0001800a (MIPS 4Kc)" "$DMESG" && {
+					fgrep -q "ath5k: phy0: Atheros AR2313 chip found (MAC: 0x58, PHY: 0x44)" "$DMESG" && {
+						return 0
+					}
+				}
+			}
+		;;
+		"Ubiquiti Picostation M2HP")
+			fgrep -q "MyLoader: sysp=f0f0f0f0, boardp=f0f0f0f0, parts=f1f0f0f0" "$DMESG" && {
+				# bullet: ofs=390000, len=420000 ???
+				fgrep -q 'ofs=3A0000, len=410000' "$DMESG" && {
+					return 0
+				}
+			}
+		;;
 		"Ubiquiti PicoStation2")
 			fgrep -q "lpj=917504" "$DMESG" && {
 				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
@@ -64,11 +96,13 @@ hwprobe()
 				}
 			}
 		;;
-		"Ubiquiti PicoStation5")
+		"Ubiquiti PicoStation5"|"Ubiquiti Litestation5")	# nanostation5 -> lpj differs
 			fgrep -q "lpj=899072" "$DMESG" && {
 				fgrep -q "CPU revision is: 0001800a (MIPS 4Kc)" "$DMESG" && {
 					fgrep -q "ath5k phy0: Atheros AR2313 chip found (MAC: 0x58, PHY: 0x44)" "$DMESG" && {
-						return 0
+						fgrep -q "ath5k phy0: RF5112B 5GHz radio found (0x36)" "$DMESG" && {
+							return 0
+						}
 					}
 				}
 			}
@@ -96,7 +130,7 @@ try_device()
 		 6) HARDWARE="ASUS WL-HDD" ;;			# brcm47xx
 		 7) HARDWARE="ASUS WL-500g Premium V2" ;;	# brcm47xx
 		 8) HARDWARE="ASUS WL-500g Premium" ;;		# brcm47xx
-		 9) HARDWARE="Dell TrueMobile 2300" ;;		# brcm47xx
+		 9) HARDWARE="Dell TrueMobile 2300" ;;		# brcm47xx // nvram set ModelId=WX-5565 commit
 		10) HARDWARE="Ubiquiti RouterStation Pro" ;;	# ar71xx
 		11) HARDWARE="4G Systems MTX-1 Board" ;;	# au1000 / meshcube
 		12) HARDWARE="Buffalo WZR-HP-AG300H" ;;		# ar71xx
@@ -105,6 +139,7 @@ try_device()
 		15) HARDWARE="TP-LINK TL-WR842ND" ;;		# ar71xx
 		16) HARDWARE="TP-LINK TL-MR3420" ;;		# ar71xx
 		17) HARDWARE="TP-LINK TL-MR3020" ;;		# ar71xx
+		18) HARDWARE="Seagate FreeAgent DockStar" ;;	# kirkwood
 		*)
 			HARDWARE=
 			return 1
@@ -112,9 +147,21 @@ try_device()
 	esac
 }
 
-while try_device; do {
-	fgrep -q "$HARDWARE" "$DMESG" && break
-} done
+  if hwprobe "Ubiquiti Picostation M2HP"; then
+	HARDWARE="Ubiquiti Picostation M2HP"
+elif hwprobe "Ubiquiti Nanostation2"; then
+	HARDWARE="Ubiquiti Nanostation2"
+elif hwprobe "Ubiquiti Nanostation5"; then
+	HARDWARE="Ubiquiti Nanostation5"
+fi
+
+
+
+[ -z "$HARDWARE" ] && {
+	while try_device; do {
+		fgrep -q "$HARDWARE" "$DMESG" && break
+	} done
+}
 
   if [ -n "$HARDWARE" ]; then
 	:
@@ -126,7 +173,7 @@ elif [ -e "/etc/HARDWARE" ]; then
 	log "could not detect hardware, trying /etc/HARDWARE"
 	read HARDWARE </etc/HARDWARE
 else
-	log "could not detect hardware, abort"
+	log "could not detect hardware, please enforce manually with a text in /etc/HARDWARE - abort"
 
 	[ "$1" = "help" ] || exit 1
 fi
@@ -234,6 +281,7 @@ fi
 password_set()
 {
 	local PASSWORD="${1:-admin}"
+	local credentials
 
 	log "password_set() to '$PASSWORD'"
 	sh -c "echo '$PASSWORD'; sleep 1; echo '$PASSWORD'" | passwd>/dev/null 2>&1
@@ -241,6 +289,10 @@ password_set()
 
 	if [ "$INSTALLATION" != "ffweimar" ]; then	#no web server authentication on weimarnetz routers
 		echo "/cgi-bin/:root:$PASSWORD" >/etc/httpd.conf
+
+  	        for credentials in "$HTTPD_CREDENTIALS"; do {
+		        echo "/cgi-bin/:$credentials" >>/etc/httpd.conf
+	        } done
 	fi
 
 	which dropbear >/dev/null || {
@@ -273,11 +325,15 @@ esac
 
 OLD_HOSTNAME="$( uci get system.@system[0].hostname )"
 
-# old_hostname=OpenWrt ==> build a new hostname
-if [ $OLD_HOSTNAME = "OpenWrt" ]; then
-	OLD_HOSTNAME="${INSTALLATION}-${PROFILE_MODE}-${GATEWAY}-${NODENUMBER}"
-	log "using new hostname $OLD_HOSTNAME"
-fi
+case "$OLD_HOSTNAME" in
+	OpenWrt|"")
+		OLD_HOSTNAME="${INSTALLATION}-${PROFILE_MODE}-${GATEWAY}-${NODENUMBER}"
+		log "using new hostname $OLD_HOSTNAME"
+	;;
+	*)
+		log "leaving hostname $OLD_HOSTNAME"
+	;;
+esac
 
 echo "$OLD_HOSTNAME" >/proc/sys/kernel/hostname
 
@@ -458,7 +514,7 @@ _config_softwareinstall ()
 {
 	local service
 
-	for service in olsrd netserver ; do {
+	for service in olsrd crashlog_apport; do {
 		/etc/init.d/$service enable
 	} done
 
@@ -472,6 +528,11 @@ _config_wireless ()			# fixme! channels hardcoded
 	local NODE="$1"
 	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard
 	local temp="/tmp/config_wireless.tmp"
+
+	[ -e "/etc/config/wireless" ] || {
+		log "omitting section wireless, wifi n/a"
+		return 0
+	}
 
 	[ -e "$temp" ] && rm "$temp"
 
@@ -497,6 +558,12 @@ for radiocard in 0 1 2 3; do {
 		;;
 	esac
 
+	case "$( wireless.radio${radiocard}.htmode )" in		# maybe switched off by user
+		"")
+			hideht="#"
+		;;
+	esac
+
 	radiotype="$( uci get wireless.radio${radiocard}.type )"	# e.g. 'mac80211' or 'atheros'
 
 	ht_cap_list="$( uci get wireless.radio${radiocard}.ht_capab )"	# backup current state
@@ -508,31 +575,45 @@ for radiocard in 0 1 2 3; do {
 		} done
 	}
 
+	bssid_wellformed()
+	{
+		local channel="$1"	# e.g. 161
+		local bssid="$2"	# e.g. 02:be:ef:ca:ff:ee
+
+		bssid="$( echo "$bssid" | cut -b 1-11 )"	# 02:be:ef:ca:ff:ee -> 02:be:ef:ca
+
+		if [ "$channel" -lt 100 ]; then
+			echo "${bssid}:00:$channel"
+		else
+			# channel 161 -> bssid ends with ..:01:61"
+			echo "${bssid}:0$( echo "$channel" | cut -b 1 ):$( echo "$channel" | cut -b 2-3 )"
+		fi
+	}
+
 	# detect 5ghz-mode
 	# channel 36 (5180mhz), 161 (5805mhz) is working initially
 
 	case "$hwmode" in
 		11na|11a)
-			if [ "$CHANNEL" = "161" ]; then
-				:
+			local channel_now="$( uci get wireless.radio${radiocard}.channel )"
+			local bssid_now="$( uci get wireless.@wifi-iface[${radiocard}].bssid )"
+
+			if [ "$bssid_now" = "$( bssid_wellformed "$channel_now" "$BSSID" )" ]; then
+				log "[OK] using already configured channel $channel_now"
+				CHANNEL="$channel_now"
 			else
 				CHANNEL=36
 			fi
 
-			BSSID="$( echo "$BSSID" | cut -b 1-11 )"	# 02:be:ef:ca:ff:ee -> 02:be:ef:ca
-
-			if [ "$CHANNEL" -lt 100 ]; then
-				BSSID="${BSSID}:00:$CHANNEL"
-			else
-				BSSID="${BSSID}:0$( echo "$CHANNEL" | cut -b 1 ):$( echo "$CHANNEL" | cut -b 2-3 )"
-			fi
+			BSSID="$( bssid_wellformed "$CHANNEL" "$BSSID" )"
 
 			log "[OK] using mode 801.$hwmode now and channel $CHANNEL with bssid: $BSSID"
 		;;
 	esac
 
 	case "$CHANNEL" in
-		36|37|38|39|40|161) htmode="HT40+" ;;
+		36|37|38|39|40|149|153|161) htmode="HT40+" ;;
+		44|157) htmode="HT40-" ;;
 		1|2|3|4|5|6) htmode="HT40+" ;;
 		   12|13|14) htmode="HT20" ;;		# fixme!
 		          *) htmode="HT40-" ;;
@@ -557,6 +638,19 @@ for radiocard in 0 1 2 3; do {
 		;;
 	esac
 
+	[ "$hideht" = "#" ] && hide_noscan="#"
+
+	local chanbw="$( uci get wireless.radio${radiocard}.ath9k_chanbw )$( uci get wireless.radio${radiocard}.chanbw )"
+	case "$chanbw" in
+		5|10|20)
+			hide_chanbw=
+		;;
+		*)
+			chanbw=20
+			hide_chanbw="#"
+		;;
+	esac
+
 	if   [ -e /etc/init.d/apply_profile.regulatory.bin ]; then
 		country="US		# see hacked /usr/lib/crda/regulatory.bin"
 	elif [ $CHANNEL -gt 13 ]; then
@@ -577,7 +671,8 @@ config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
 	option channel	$CHANNEL
-#	option ath9k_chanbw 20		# temporary, 5, 10 or 20 (default)
+$hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
+$hide_chanbw	option chanbw	$chanbw		# since r32596
 	option macaddr	$MAC
 	option frag	off
 	option txpower	$TXPOWER
@@ -590,6 +685,17 @@ EOF
 ${hideht}	option htmode   $htmode
 $( ht_cap_uci_output )
 EOF
+
+	case "$HARDWARE" in
+		"Buffalo WHR-HP-G54")
+			echo >>"$temp" "	option rxantenna 1"
+			echo >>"$temp" "	option rxantenna 1"
+		;;
+		"Linksys WRT54G:GS:GL"|"ASUS WL-500g Premium")
+			echo >>"$temp" "	option rxantenna 0"
+			echo >>"$temp" "	option rxantenna 0"
+		;;
+	esac
 
 			cat >>"$temp" <<EOF
 
@@ -671,7 +777,8 @@ config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
 	option channel	$CHANNEL
-#	option ath9k_chanbw 20		# temporary, 5, 10 or 20 (default)
+$hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
+$hide_chanbw	option chanbw	$chanbw		# since r32596
 	option macaddr	$MAC
 	option frag	off
 	option txpower	$TXPOWER
@@ -776,7 +883,7 @@ _config_network ()
 
 config 'interface' 'lan'
 	option 'ifname'   '$LANDEV'
-$( test -n "$LANMAC" && echo "	option 'macaddr'	'$LANMAC'" )
+$( test -n "$LANMAC" && echo "	option 'macaddr' '$LANMAC'" )
 	option 'proto'    'static'
 	option 'ipaddr'   '$( _ipsystem do $NODE | grep LANADR= | cut -d'=' -f2 )'
 	option 'netmask'  '$( _ipsystem do $NODE | grep LANMSK= | cut -d'=' -f2 )'
@@ -919,8 +1026,8 @@ fi
 
 config 'interface' 'wan'
 	option 'ifname' '$WANDEV'
-$( test -n "$WANMAC" && echo "	option 'macaddr'	'$WANMAC'" )
-$( test -n "$wan_dns" && echo "	option 'wan_dns'	'$wan_dns'" )
+$( test -n "$WANMAC" && echo "	option 'macaddr' '$WANMAC'" )
+$( test -n "$wan_dns" && echo "	option 'wan_dns' '$wan_dns'" )
 	option 'proto' '$PROTO'
 ${hideip:+#}	option 'ipaddr'	 '$wan_ipaddr'
 ${hideip:+#}	option 'netmask' '$wan_netmask'
@@ -1013,7 +1120,7 @@ config dnsmasq
 	option localise_queries	1
 	option rebind_protection 0	# disable if upstream must serve RFC1918 addresses
 	option rebind_localhost 0	# enable for RBL checking and similar services
-	#list rebind_domain example.lan  # whitelist RFC1918 responses for domains
+	# list rebind_domain example.lan # whitelist RFC1918 responses for domains
 	option local	'/$domain/'
 	option domain	'$domain'
 	option expandhosts	1
@@ -1025,9 +1132,9 @@ config dnsmasq
 	list addnhosts		'/var/etc/hosts'
 	list addnhosts		'/etc/local.hosts'
 	list server 		'$DNSSERVER'
-	#list server		'/mycompany.local/1.2.3.4'
-	#option nonwildcard	1
-	#list interface		br-lan
+	# list server		'/mycompany.local/1.2.3.4'
+	# option nonwildcard	1
+	# list interface	br-lan
 	#list notinterface	lo
 	option dhcpscript	'/etc/dhcp-script.d/10dhcpscript'
 
@@ -1042,8 +1149,8 @@ config dhcp lan
 config dhcp wlan
 	option interface	wlan
 	option start 		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPSTART=" | cut -d'=' -f2 | cut -d'.' -f4 )
-	option netmask		'255.255.255.240'	# fixme! better: 255.255.255.224
-	option limit		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPNUM=" | cut -d'=' -f2 )			# fixme! better: 21
+	option netmask		$( _net cidr2mask "$( _ipsystem do "$NODE" | grep ^"WIFI_DHCP_PRE=" | cut -d'=' -f2 )" ) # 255.255.255.240?
+	option limit		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPNUM=" | cut -d'=' -f2 )			 # fixme! better: 21
 	option leasetime	1h
 	option force		1
 	option ignore		${DHCP_IGNORE_WLAN:-0}
@@ -1174,8 +1281,10 @@ _config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 	cat >/etc/config/olsrd <<EOF
 config olsrd
 	option MainIp			'${main_ip:-0.0.0.0}'
+	option DebugLevel		'0'		# 0...9
+	option ClearScreen		'no'		# start with -dispout
 	option AllowNoInt		'yes'
-        option IpVersion		'4'
+	option IpVersion		'4'
 	option FIBMetric		'flat'		# approx, correct, flat
 	option Willingness		'7'
 	option TcRedundancy		'2'
@@ -1223,15 +1332,15 @@ config Interface
 EOF
 
 	local interface_mode="mesh"
-	case "$PROFILE_MODE" in
-		adhoc*)
-			case "$( uci get wireless.radio0.hwmode )" in
-				*"a"*)
-					interface_mode="ether"		# fixme! not a good idea for multipoint-stations
-				;;
-			esac
-		;;
-	esac
+#	case "$PROFILE_MODE" in
+#		adhoc*)
+#			case "$( uci get wireless.radio0.hwmode )" in
+#				*"a"*)
+#					interface_mode="ether"		# fixme! not a good idea for multipoint-stations
+#				;;
+#			esac
+#		;;
+#	esac
 
 [ "$OLSR_METRIC" = "etx_ffeth" -a -n "$INTERFACES2" ] && {
 	cat >>/etc/config/olsrd <<EOF
@@ -1240,6 +1349,11 @@ EOF
 }
 
 	cat >>/etc/config/olsrd <<EOF
+
+#config LoadPlugin
+#	option library  'olsrd_jsoninfo.so.0.0'
+#	option accept	'0.0.0.0'
+#	option port	'9090'
 
 config LoadPlugin
 	option library	'olsrd_arprefresh.so.0.1'
@@ -1256,9 +1370,6 @@ config 'LoadPlugin'
 	list 'name' '${OLD_HOSTNAME}'
 
 config LoadPlugin
-	option library	'olsrd_nameservice.so.0.3'
-
-config LoadPlugin
 	option library	'olsrd_watchdog.so.0.1'
 
 config LoadPlugin
@@ -1271,6 +1382,14 @@ config LoadPlugin
 config LoadPlugin
 	option library	'olsrd_txtinfo.so.0.1'
 	option accept	'0.0.0.0'
+	option port	'2006'
+
+#config LoadPlugin
+#	option library	'olsrd_dyn_gw.so.0.5'
+#	option 'CheckInterval' '6000'		# milliseconds
+#	option 'PingInterval' '40'		# seconds
+#	option 'Ping' '8.8.8.8'
+#	option 'Ping' '141.1.1.1'
 
 config 'Hna4'
         option 'netaddr' '$hna_net'
