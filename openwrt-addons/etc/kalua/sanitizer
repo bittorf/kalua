@@ -1,7 +1,7 @@
 # ToDo: 
 # - integer
 #   - shortint
-#   - integer		// sed -n 's/^[^0-9-]*\([0-9-]*\)[^0-9-]*/\1/p'
+#   - integer
 #   - longint
 #   - unsigned
 #   - range -500...+800	(round to min or max, or check)
@@ -9,10 +9,8 @@
 #
 # fixme! use POSIX style for function/arg names, e.g. 'digit' = numeric 'xdigit' = hex ... -> POSIX Character Classes
 #
-# snippet: sed -n 's/^.*\(..:..:..:..:..:..\).*/\1/p' /www/users_logged_in|sort|uniq|wc -l
-#
 
-_sanitizer_do ()	# example_call: _sanitizer do "$MYSTRING" mac hex lowercase check
+_sanitizer_do()		# example_call: _sanitizer do "$MYSTRING" mac hex lowercase check
 {			#               _sanitizer do "$MYSTRING" length:24
 	local INPUT="$1"
 	local WORK="$1"
@@ -23,16 +21,19 @@ _sanitizer_do ()	# example_call: _sanitizer do "$MYSTRING" mac hex lowercase che
 
 		KEYWORD="$2"
 		OPTION=
-		
-		[ "${KEYWORD#*:}" != "$KEYWORD" ] && {
+
+		[ "${KEYWORD#*:}" = "$KEYWORD" ] || {
 			OPTION="${KEYWORD#*:}"		# cut string after  "_", e.g.: string "keyword_option" -> string "option"
 			KEYWORD="${KEYWORD%[:]*}"	# cut string before "_", e.g.: string "keyword_option" -> string "keyword"
 		}
 
 		case $KEYWORD in
 			check)
-				[ -n "$WORK" -a "$WORK" = "$INPUT" ] && return 0
-				return 1
+				if [ "${WORK:-dummy}" = "$INPUT" ]; then
+					return 0
+				else
+					return 1
+				fi
 			;;
 			*)							# hex|lowercase|uppercase|email|urlvalue|mac|alphanum
 				WORK="$( _sanitizer_$KEYWORD "$WORK" "$OPTION" )" || {
@@ -44,16 +45,11 @@ _sanitizer_do ()	# example_call: _sanitizer do "$MYSTRING" mac hex lowercase che
 		
 		shift
 	} done
-	
+
 	echo -n "$WORK"
 }
 
-_sanitizer_rot13 ()		# fixme! it does not work
-{
-	echo "$1" | sed -e 'y/nopqrstuvwxyzabcdefghijklm/abcdefghijklmnopqrstuvwxyz/' -e 'y/NAOBPCQDRESFTGUHVIWJXKYLZM/ANBOCPDQERFSGTHUIVJWKXLYMZ/'
-}
-
-_sanitizer_mobilenumber ()	# SENS: cell phone number
+_sanitizer_mobilenumber()	# SENS: cell phone number
 {
 	local NUMBER="$1"
 
@@ -73,7 +69,7 @@ _sanitizer_mobilenumber ()	# SENS: cell phone number
 	esac
 }
 
-_sanitizer_firstword ()		# space is fieldseparator
+_sanitizer_firstword()		# space is fieldseparator
 {
 	local LINE="$1"
 	local WORD
@@ -84,26 +80,26 @@ _sanitizer_firstword ()		# space is fieldseparator
 	} done	
 }
 
-_sanitizer_firstline ()
+_sanitizer_firstline()
 {
 	local FIRSTLINE=$1	# without quotes
 
 	echo -n $FIRSTLINE
 }
 
-_sanitizer_number_humanreadable ()	# 1500000000 -> 1.500.000.000
+_sanitizer_number_humanreadable()	# 1500000000 -> 1.500.000.000
 {
 	echo "$1" | sed -e :a -e 's/\(.*[0-9]\)\([0-9]\{3\}\)/\1\.\2/;ta'
 }
 
-_sanitizer_strip_newlines ()
+_sanitizer_strip_newlines()
 {
 	local LINE
-	
+
 	echo "$1" | while read LINE; do echo -n "$LINE"; done
 }
 
-_sanitizer_newlines2spaces ()
+_sanitizer_newlines2spaces()
 {
 	local line out
 
@@ -141,37 +137,37 @@ _sanitizer_ip4()	# testcase: "1a 1.2.3. 11.12.a.1 523.234.157.254 45.32.0.1 a1"
 	} done
 }
 
-_sanitizer_escape_single_quotes ()
+_sanitizer_escape_single_quotes()
 {
 	echo "$1" | sed -e "s/'/'\\\''/g"
 }
 
-_sanitizer_escape_dots ()
+_sanitizer_escape_dots()
 {
 	echo -n $1 | sed 's/\./\\\./g'
 }
 
-_sanitizer_hex ()
+_sanitizer_hex()
 {
 	echo -n "$1" | sed 's/[^a-fA-F0-9]//g'
 }
 
-_sanitizer_lowercase ()
+_sanitizer_lowercase()
 {
 	echo -n "$1" | sed 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'
 }
 
-_sanitizer_uppercase ()
+_sanitizer_uppercase()
 {
 	echo -n "$1" | sed 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/'
 }
 
-_sanitizer_email ()
+_sanitizer_email()
 {
 	echo -n "$1" | sed 's/[^0-9a-zA-Z@\._-]//g'		# fixme! only one '@'
 }
 
-_sanitizer_mac ()
+_sanitizer_mac()
 {
 	local input="$1"
 	local hex="0-9a-fA-F"
@@ -185,34 +181,34 @@ _sanitizer_mac ()
 	esac
 }
 
-_sanitizer_numeric ()
+_sanitizer_numeric()
 {
 	echo -n "$1" | sed 's/[^0-9]//g'
 }
 
-_sanitizer_alphanum ()
+_sanitizer_alphanum()
 {
 	echo -n "$1" | sed 's/[^a-zA-Z0-9]//g'
 }
 
-_sanitizer_alphanumspacedot ()
+_sanitizer_alphanumspacedot()
 {
 	echo -n "$1" | sed 's/[^a-zA-Z0-9\. ]//g'
 }
 
-_sanitizer_essid ()		# allow only a-z A-Z 0-9 . _ - ~ {} $ ^ () ! * , <> SPACE | = + ? @ # \ / and not ; : ' " [ ]
+_sanitizer_essid()		# allow only a-z A-Z 0-9 . _ - ~ {} $ ^ () ! * , <> SPACE | = + ? @ # \ / and not ; : ' " [ ]
 {
 	echo -n "$1" | sed 's/[^-a-zA-Z0-9\._-~}{$^()!*,<> |=+?@#\\/]//g'		# fixme! allow more and escape it?
 }
 
-_sanitizer_hostname ()		# rfc-952/rfc-1123 - but shorter - respect: rfc-1178 ("good hostnames")
+_sanitizer_hostname()		# rfc-952/rfc-1123 - but shorter - respect: rfc-1178 ("good hostnames")
 {
 	local HOSTNAME="$( echo -n "$1" | sed 's/[^-a-zA-Z0-9]//g' )"
 
 	_sanitizer do "$HOSTNAME" length:63
 }
 
-_sanitizer_length ()
+_sanitizer_length()
 {
 	local STRING="$1"
 	local LENGTH="$2"
@@ -220,18 +216,18 @@ _sanitizer_length ()
 	echo -n "$STRING" | cut -b1-${LENGTH}
 }
 
-_sanitizer_strip_nonsafe_url ()		# SENS: strip all chars, which are not URL-safe (RFC-3986, chapter 2.3. unreserved chars)
+_sanitizer_strip_nonsafe_url()		# SENS: strip all chars, which are not URL-safe (RFC-3986, chapter 2.3. unreserved chars)
 {
 	echo "$1" | sed 's/[^a-zA-Z0-9_\.~-]//g'			# fixme! sed 's/%[0-9a-fA-F][0-9a-fA-F]//g'
 									# -> leave already encoded chars in?!
 }
 
-_sanitizer_strip_nonsafe_url_special ()		# SENS: strip all chars, which are in our special table (see next function!)
+_sanitizer_strip_nonsafe_url_special()		# SENS: strip all chars, which are in our special table (see next function!)
 {
 	echo "$1" | sed -e 's/[}{\$\^[()!*\[,"|	;<>'\\\''=+:?@#\\/ ]//g' -e 's/]//g'	# is: { } $ ^ [ ] ( ) ! * , " | TAB ; < > ' = + : ? @ # / space
 }
 
-_sanitizer_encode_nonsafe_url_special ()	# SENS: converting chars using a fixed table, where we know the URL-encodings
+_sanitizer_encode_nonsafe_url_special()		# SENS: converting chars using a fixed table, where we know the URL-encodings
 {						#   is: , ; : ? # [ ] / @ + = " ' | ( ) TAB < > ! * { } $ ^ space
 	echo "$1" | sed -e 's/,/%2c/g'	\
 			-e 's/;/%3b/g'	\
@@ -261,7 +257,7 @@ _sanitizer_encode_nonsafe_url_special ()	# SENS: converting chars using a fixed 
 			-e 's/ /%20/g'
 }
 
-_sanitizer_urlvalue ()			# fixme! on cmdline this produces error on each "!"-sign, but output is ok
+_sanitizer_urlvalue()			# fixme! on cmdline this produces error on each "!"-sign, but output is ok
 {					# ARG1: string (all chars are allowed)
 	local FUNC="sanitizer_urlvalue"	# OUT1: string (URL-encoded, RFC2396)
 	local TEXT="$1"
@@ -273,7 +269,7 @@ _sanitizer_urlvalue ()			# fixme! on cmdline this produces error on each "!"-sig
 		echo "$TEXT"
 		return
 	}
-	
+
 	[ "$STRIP" = "$( _sanitizer strip_nonsafe_url_special "$TEXT" )" ] && {	# conversion of unsafe chars is possible with a fast table
 		_sanitizer encode_nonsafe_url_special "$TEXT"
 		return
@@ -284,15 +280,15 @@ _sanitizer_urlvalue ()			# fixme! on cmdline this produces error on each "!"-sig
 	# maybe we should auto-generate a table when using this functions for the first time?
 
 	while [ $POS -lt ${#TEXT} ]; do {					# 0...length_of_text
-		
+
 		POS=$(( $POS + 1 ))
 		CHAR="$( echo "$TEXT" | cut -b $POS )"				# char at $POS
-			
+
 		[ -n "$( _sanitizer strip_nonsafe_url "$CHAR" )" ] && {
 		  	OUT="${OUT}${CHAR}"					# append
 		  	continue						# char is safe, continue and check next...
 		}
-		
+
 		HEX="$( echo "$CHAR" | hexdump -C | cut -d' ' -f3 | head -n1 )"	# is unsafe char! do HEX
 		OUT="${OUT}%${HEX}"						# no matter: a-z = A-Z
 	} done
@@ -300,7 +296,7 @@ _sanitizer_urlvalue ()			# fixme! on cmdline this produces error on each "!"-sig
 	echo $OUT
 }
 
-_sanitizer_TODO_split_string ()		# ARG1: string
+_sanitizer_TODO_split_string()		# ARG1: string
 {					# ARG2: max_string_length
 
 	# ToDo: sms > 160 zeichen automatisch splitten
@@ -318,7 +314,7 @@ _sanitizer_TODO_split_string ()		# ARG1: string
 
 	local POS_START
 	local POS_END
-	
+
 	while [ $b -lt $ANZAHL ]; do {
 
 		b=$(( $b + 1 ))
@@ -335,7 +331,7 @@ _sanitizer_TODO_split_string ()		# ARG1: string
 	} done
 }
 
-_sanitizer_list_get_longest_string ()
+_sanitizer_list_get_longest_string()
 {
 	local LIST="$1"
 	local MIN=0
@@ -348,11 +344,11 @@ _sanitizer_list_get_longest_string ()
 			MIN="${#WORD}"
 		}
 	} done
-	
+
 	echo $OUT
 }
 
-_sanitizer_add_length_diff_with_spaces ()	# special: ARG1 is separated by space into ARG1 + ARG2
+_sanitizer_add_length_diff_with_spaces()	# special: ARG1 is separated by space into ARG1 + ARG2
 {
 	local STRING_MAX="${1%[ ]*}"		# e.g. IP_max=123.123.123.123	(15chars)
 	local STRING_COMPARE="${1#*[ ]}"	# e.g. IP_min=1.1.1.1		(7chars) -> DIFF_max = 8
