@@ -1,7 +1,8 @@
 #!/bin/sh
-echo Content-type: text/html
-echo
+
 . /tmp/loader
+
+_http header_mimetype_output "text/html"
 
 cat<<EOF
 <HTML>
