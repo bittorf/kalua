@@ -143,7 +143,7 @@ _olsr_daemon ()
 
 			for ACTION in $LIST; do {
 				_log do "daemon" daemon $LOGPRIO "$ACTION: $REASON"
-				/etc/init.d/*olsrd $ACTION
+				/etc/init.d/*olsrd $ACTION | logger -s
 
 				case "$ACTION" in
 					stop)
@@ -230,6 +230,12 @@ _olsr_uptime ()		# in seconds
 		;;
 		restarts_get)
 			read I 2>/dev/null <$FILE_RESTARTS
+
+			[ ${I:-0} -gt 300 ] && {
+				_log do $FUNC daemon alert "busybox bug: restarts_get: $I"
+				I=0
+			}
+
 			echo ${I:-0}
 		;;
 		restart_time)
@@ -493,7 +499,12 @@ _olsr_restarts_are_suspicious_often ()
 
 	if [ $percent -gt 100 ]; then
 		_log do $func daemon alert "[ERR] olsr restarts > normality (${percent}%: $daemon_restarts > $border)"
-		return 0
+
+		if [ $percent -gt 300 ]; then	# seems to be a busybox-bug of v1.19.4
+			return 0		# sometimes we see values of 35148643% (large restart count)
+		else
+			return 1
+		fi
 	else
 		return 1
 	fi
@@ -853,7 +864,8 @@ _olsr_check_plausi ()				# test 1/7: is each non-infinite neighbour in routing-t
 
 			if [ $percent_diff -le $percent_border ]; then
 				if [ "$option" = "deep" ]; then
-					_wifi phy_restart "$WIFIDEV" "$message"
+					_log do $FUNC daemon info "deep check: fixme: $message"
+					# _wifi phy_restart "$WIFIDEV" "$message"
 				else
 					_log do $FUNC daemon info "no deep check: $message"
 				fi
