@@ -1,29 +1,42 @@
 # _mail send "bittorf wireless )) Breitband Rehungen" "breitband-rehungen@gmx.de" "ANREDE VORNAME NACHNAME" "bittorf@bluebottle.com" "mail3-2010aug26-nach_Zusendung_Vertrag.txt" "STRASSE HAUSNUMMER" "ANREDE VORNAME" "NACHNAME" "/tmp/wlansystem-HotelZumnorde-2010aug05_16uhr42-32x1-Wochen-Ticket-Etiketten.pdf wlansystem-HotelZumnorde-2010aug05_16uhr42-32x1-Wochen-Ticket-Etiketten.pdf"
 
-_mail_pop3_check_stats ()
+_mail_pop3_check_stats()
 {
-	local FUNC="mail_check_pop3_stats"
-	local USER="$(   uci get mail.@pop3[0].username )"
-	local PASS="$(   uci get mail.@pop3[0].password )"
-	local SERVER="$( uci get mail.@pop3[0].server	)"
-	local PORT="$(   uci get mail.@pop3[0].port	)"
-	local OUT LINE RC_NETCAT
-	local NETCAT_BIN="nc"			# tested with busybox-netcat + gmx.net
-	local WINDOW=600			# fixme! time in seconds, when pop_before_smtp is valid, yet unused!
+	local funcname="mail_pop3_check_stats"
+	local user="$(   uci get mail.@pop3[0].username )"
+	local pass="$(   uci get mail.@pop3[0].password )"
+	local server="$( uci get mail.@pop3[0].server	)"
+	local port="$(   uci get mail.@pop3[0].port	)"
+	local line rc_netstat
+	local netcat_bin="nc"			# tested with busybox-netcat + gmx.net
+	local answer answer_short
 
-	_log do $FUNC user notice "contacting server '$SERVER'"
+	local file="/tmp/$funcname"
+	local uptime="$( _system uptime sec )"
+	local uptime_lastcheck
+	read uptime_lastcheck <"$file"
 
-	OUT="$( echo -e "USER $USER\nPASS $PASS\nSTAT\nQUIT\n" | $NETCAT_BIN $SERVER $PORT )"; RC_NETCAT=$?
-	OUT="$( echo "$OUT" | cut -d' ' -f1 | while read LINE; do echo -n "$LINE"; done )"	# removes LF/CR
+	[ $(( $uptime - ${uptime_lastcheck:-0} )) -lt 180 ] && {
+		_log do $funcname daemon debug "no need to auth"
+		return 0	# http://faq.gmx.de/messages/email/mailprogramme/smtp_sicherheit/3.html
+	}
 
-	case "$OUT" in				# normal output:
-		"+OK+OK+OK"*) return 0 ;;	# +OK POP server ready H migmx104
-	esac					# +OK password required for user "0123456789"
-						# +OK mailbox "0123456789" has 0 messages (0 octets) H migmx104
-						# +OK 0 0
-						# +OK POP server signing off
+	_log do $funcname user debug "contacting server '$server'"
 
-	_log do $FUNC user crit "[ERR] returncode netcat: '$RC_NETCAT' - '$SERVER'-serveranswer: '$OUT'"
+	answer="$( echo -e "USER $user\nPASS $pass\nSTAT\nQUIT\n" | $netcat_bin $server $port )"
+	rc_netcat=$?
+	answer_short="$( echo "$answer" | cut -d' ' -f1 | while read line; do echo -n "$line"; done )"	# removes LF/CR
+
+	case "$answer_short" in			# normal answer:
+		"+OK+OK+OK"*)			# +OK POP server ready H migmx104
+			echo "$uptime" >"$file"	# +OK password required for user "0123456789"
+			return 0		# +OK mailbox "0123456789" has 0 messages (0 octets) H migmx104
+		;;				# +OK 0 0
+	esac					# +OK POP server signing off
+
+	_log do $funcname user info "[ERR] returncode netcat: '$rc_netcat' - '$server'-serveranswer: '$answer_short'"
+	echo "$answer" | _log do $funcname user info
+
 	return 1
 }
 
@@ -68,7 +81,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 				echo >>$MAIL -n "\n"
 			;;
 			*"&acute;"*)
-#				echo -n "${text}\r\n" | sed 's/&acute;/Â/g' >>$MAIL	# fixme! it looks strange, here it decodes to "A-Dach"
+#				echo -n "${text}\r\n" | sed 's/&acute;/ï¿½/g' >>$MAIL	# fixme! it looks strange, here it decodes to "A-Dach"
 				echo -n "${text}\r\n" | sed 's/&acute;//g'  >>$MAIL
 			;;
 			*)
@@ -131,7 +144,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 	IFS="
 "
 						# 1st/2nd line subject/empty
-	sed '3,99!d' $MAILFILE |
+	sed '3,999!d' $MAILFILE |
 	 sed	-e "s#\$VAR1#$VAR1#g" \
 		-e "s#\$VAR2#$VAR2#g" \
 	 	-e "s#\$VAR3#$VAR3#g" |
