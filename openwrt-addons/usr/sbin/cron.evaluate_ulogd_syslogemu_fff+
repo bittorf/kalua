@@ -35,10 +35,21 @@ func_ulog_prepare ()
 	local errorfile="/tmp/ulogd_startup_failed"
 	local logprio
 
+	case "$PID_ULOG" in
+		*" "*)
+			_log do $FUNC daemon info "ulogd started 2 times"
+			/etc/init.d/ulogd stop
+			killall ulogd
+			PID_ULOG=
+		;;
+	esac
+
 	[ -z "$PID_ULOG" -a -e /usr/sbin/ulogd ] && {
 		_log do $FUNC daemon debug "ulogd inactive - starting up"
 
-		ulogd -d || {
+		/etc/init.d/ulogd start
+
+		PID_ULOG="$( pidof ulogd )" || {
 			if [ -e "$errorfile" ]; then
 				logprio="info"
 			else
@@ -50,18 +61,20 @@ func_ulog_prepare ()
 			return 1						# needs correct /etc/ulogd.conf
 		}
 
-		PID_ULOG="$( pidof ulogd )"
 		_log do $FUNC daemon debug "ulogd-startup successful"
 	}
 
-	[ ! -e $ULOG_LOGFILE_ORIG ]			&& return 1
-	[ $( _file size $ULOG_LOGFILE_ORIG ) -eq 0 ]	&& return 1
+	if ulogd --version | grep -q " 1.23"$ ; then
+		/etc/init.d/ulogd restart	# memoryleak in this version or plugin?
+	else
+		kill -HUP $PID_ULOG		# logfile touching not needed
+	fi
+
+	[ -e "$ULOG_LOGFILE_ORIG" ]			|| return 1
+	[ $( _file size "$ULOG_LOGFILE_ORIG" ) -eq 0 ]	&& return 1
 
 	_log do $FUNC daemon debug "creating logfile working copy"
-
-	mv $ULOG_LOGFILE_ORIG $ULOG_LOGFILE
-	kill -HUP $PID_ULOG			# logfile touching not needed
-
+	mv "$ULOG_LOGFILE_ORIG" "$ULOG_LOGFILE"
 	_log do $FUNC daemon debug "created"
 
 	return 0
@@ -83,19 +96,13 @@ func_ulog_squeeze_log ()
 	local TIME MAC DIR SRC DST ID PROTO SPT DPT SEQ ACK WINDOW FLAG_ACK FLAG_SYN FLAG_RST FLAG_FIN FLAG_PSH URGP
 	local COUNTER=0
 					# fixme! fetch conn_length from conntrack when connection was closed
-	local HARDWARE
-	[ -e /etc/HARDWARE ] && read HARDWARE </etc/HARDWARE
-	case "$ROUTER_MODEL" in
-		"TP-LINK TL-WR1043ND")				# fixme! measure speed during kalua_init or estimate on previous actions
-			TIME_ESTIMATED="$(( $LINES / 55 ))"	
-		;; 
-		*)
-			TIME_ESTIMATED="$(( $LINES / 10 ))"
-		;;
-	esac
 
-	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in ${TIME_ESTIMATED}sec"
+	local lines_per_sec
+	read lines_per_sec <"/tmp/$FUNC.speed"
+	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in $(( $LINES / ${lines_per_sec:-10} )) sec"
+
 	_stopwatch start $FUNC	
+	echo "data_retention" >"/tmp/CRON_OVERLOAD"
 
 	while read LINE; do {		# func_ulog_make_evalable "$LINE" >>/tmp/vds_debug
 
@@ -123,8 +130,11 @@ func_ulog_squeeze_log ()
 
 	TIMECOUNT="$( _stopwatch stop $FUNC )"
 	LINES_PER_SECOND="$(( ${LINES}00 / $TIMECOUNT )).$(( ${LINES}00 % $TIMECOUNT ))"
+	echo "$(( ${LINES}00 / $TIMECOUNT ))" >"/tmp/$FUNC.speed"
 
+	rm "/tmp/CRON_OVERLOAD"
 	rm "$ULOG_LOGFILE"
+
 	_log do $FUNC daemon info "squeezed to $(( $COUNTER * 100 / ${BYTES:=1} ))% ($COUNTER bytes/$LINES lines @ $LINES_PER_SECOND lines/sec, load: $( _system load 1min full ))"
 }
 
@@ -174,12 +184,13 @@ func_ulog_logsaving ()
 	local LOGPRIO="alert" 
 	local SSH_IDENTITY="/etc/dropbear/dropbear_dss_host_key"
 
-	[ -e /tmp/ERROR_VDS ] && LOGPRIO="info"
-
 	[ -z "$FILELIST" ] && {
 		_log do $FUNC daemon debug "no logs - abort"
+		rm "/tmp/ERROR_VDS"
 		return
 	}
+
+	[ -e /tmp/ERROR_VDS ] && LOGPRIO="info"
 
 	read GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 
@@ -203,7 +214,7 @@ func_ulog_logsaving ()
 				_log do $FUNC daemon alert "moved vds-data from flash to ram"		# maybe scp'ing works next time
 			}
 
-			touch /tmp/ERROR_VDS
+			touch "/tmp/ERROR_VDS"
 			exit 1
 		}			# fixme! remove VDS-data from RAM? or copy to /dev/null?
 	else
@@ -305,7 +316,12 @@ func_backup_userdata ()		# and restore, if missing
 		HASH_LASTSEND=
 
 		if [ -e "$FILE" ]; then
-			HASH="$( _file hash "$FILE" )"
+			if [ "$FILE" = "/www/cgi-bin/db_backup.tgz" ]; then
+				HASH="$( find /tmp/DB -type f | while read HASH; do cat "$HASH"; done | md5sum | cut -d' ' -f1 )"
+			else
+				HASH="$( _file hash "$FILE" )"
+			fi
+
 			read 2>/dev/null HASH_LASTSEND <"$FILE.hashlastsend"
 		else
 			_log do $FUNC daemon info "restoring userdata '$FILE' from monitoring server"
@@ -318,9 +334,9 @@ func_backup_userdata ()		# and restore, if missing
 			echo $restore_counter >/tmp/${FUNC}_restore_counter
 
 			if [ $restore_counter -le 6 ]; then
-
 				HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
-				wget -O "$FILE"	"$( uci get system.@monitoring[0].url )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"	# http://intercity-vpn.de/networks/liszt28
+				URL_BACKUP="$( uci get system.@monitoring[0].url )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"
+				_wget do "$URL_BACKUP" >"$FILE" || rm "$FILE"
 
 				if [ -e "$FILE" ]; then
 					_log do $FUNC daemon info "restored '$FILE' with $( _file size "$FILE" ) bytes"
