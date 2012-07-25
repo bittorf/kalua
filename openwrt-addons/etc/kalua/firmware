@@ -1,3 +1,24 @@
+_firmware_configure_keep_files()
+{
+	local list="
+		/www/cgi-bin/db_backup.tgz
+		/www/NETFILTER_AUTOADD
+		/etc/HARDWARE
+		/www/SIMPLE_MESHNODE_FORCE_DHCP_LAN
+		/www/cgi-bin/check_hosts.txt"
+
+	local config="/lib/upgrade/keep.d/base-files"
+	local file
+
+	for file in $list; do {
+		[ -e "$file" ] && {
+			grep -qs ^"$file" "$config" || {
+				echo "$file" >>"$config"
+			}
+		}
+	} done
+}
+
 _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)files with tarball from repo
 {				# fixme! safe hash of last successful installed tarball /www/TARBALL_STABLE_$HASH and only upgrade, if it differs
 	local FUNC="firmware_update_pmu"
@@ -214,7 +235,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 	list_modules_get()
 	{
-		lsmod | cut -d' ' -f1 | sed '1d'	# ignoring 1st line
+		cut -d' ' -f1 "/proc/modules"
 	}
 
 	case "$filter_option" in
@@ -318,8 +339,8 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 				rmmod $module || {
 					_log do $funcname daemon info "removing kmodule: $module [FAILED1]"
 				}
-		
-				lsmod | fgrep -q "$module" && {
+
+				grep -q ^"$module " "/proc/modules" && {
 					errorcount=$(( $errorcount + 1 ))
 					_log do $funcname daemon debug "rmmod/lsmod: $( lsmod | fgrep "$module" )"
 					_log do $funcname daemon info "removing kmodule: $module [FAILED2] errorcount: $errorcount"
@@ -360,6 +381,9 @@ _firmware_kill_tasks()
 					wifi
 				}
 			;;
+			uhttpd)
+				/etc/init.d/uhttpd stop
+			;;
 			*)
 				_log do $funcname daemon info "killall $task"
 				killall "$task"
@@ -368,7 +392,7 @@ _firmware_kill_tasks()
 	} done
 
 	_log do $funcname daemon info "[OK] still running tasks:"
-	ps | _log do firmware_ps daemon info
+	ps | _log do firmware_process_snapshot daemon info
 }
 
 _firmware_flush_iptables()
@@ -451,9 +475,11 @@ _firmware_burn ()
 	local FILE="${1:-/tmp/fw}"
 	local FUNC="firmware_burn"
 	local funcname="firmware_burn"
-	local OUT
-	local architecture="$( _system architecture )"
-	local pause="6"
+	local OUT pause=
+
+	[ $( _system uptime sec ) -lt 90 ] && {
+		pause=1		# image on flash: invoked from /etc/init.d/boot
+	}
 
 	touch /tmp/LOCKFILE_APPLY	# block scheduler
 	touch /tmp/DEBUG		# syslog verbose, if any...
@@ -472,6 +498,9 @@ _firmware_burn ()
 	}
 
 	_firmware check_image "$FILE" || return 1
+
+	_firmware configure_keep_files
+
 	case "$( _system architecture )" in
 		brcm47xx)
 			local patchfile partition fix
@@ -486,6 +515,7 @@ _firmware_burn ()
 			}
 		;;
 	esac
+
 	local patchfile="/lib/upgrade/common.sh"
 	local loop_begin="I=0; while true; do"
 	local loop_end="\&\& break; v retry_upgrade; I=\$(( \$I + 1 )); test \$I -gt 100 \&\& break; done"
@@ -496,11 +526,13 @@ _firmware_burn ()
 	local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
 			  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
 
-	if _log shell_is_interactive; then
-		pause="10"
+	if [ -n "$pause" ]; then
+		:
+	elif  _log shell_is_interactive; then
+		pause="6"
 	else
-		list_tasks="$list_tasks screen dropbear wifi_down"
-		pause="60"
+		list_tasks="$list_tasks screen wifi_down netifd ubusd"
+		pause="180"
 	fi
 
 	list_tasks="$list_tasks pause $list_tasks"		# double try...
@@ -550,6 +582,7 @@ _firmware_burn ()
 
 	# reverse order, all in one line:
 	removeable_interfaces="$( interfaces | sed '1!G;h;$!d' | while read LINE; do echo -n "$LINE "; done )"
+	LANBRC="${LANBRC:-192.168.1.255}"
 
 	getmem="echo 3 >/proc/sys/vm/drop_caches; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
 	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
@@ -625,6 +658,8 @@ _firmware_upgrade_is_needed()
 
 	local target_version_git hardware
 
+	_system maintenance_window_active || return 1
+
 	[ -e "/etc/HARDWARE" ] && {
 		read hardware <"/etc/HARDWARE"
 	}
@@ -634,19 +669,32 @@ _firmware_upgrade_is_needed()
 			target_version_git="30563"
 
 			case "$CONFIG_PROFILE" in
-				liszt28*|schoeneck*) ;;
-				*) return 1 ;;
+				*)
+					return 1
+				;;
 			esac
 		;;
 		"Buffalo WHR-HP-G54"|"Linksys WRT54G/GS/GL"|"Dell TrueMobile 2300")
-			target_version_git="30406"
-
-			[ -d "/etc/kalua.w" ] || target_version_git=55555		# fixme! this enforces an reflash
+			target_version_git="32764"
 
 			case "$CONFIG_PROFILE" in
-				liszt28*|lisztwe*|monami*|versiliawe*|zumnorde*|elephant*) ;;
-				marinapark*|fparkssee*|satama*|adagio*|apphalle*) ;;
-				*) return 1 ;;
+				elephant*|zumnorde*)
+				;;
+				*)
+					return 1
+				;;
+			esac
+		;;
+		"Ubiquiti Bullet M")
+			target_version_git="32582"
+
+			case "$CONFIG_PROFILE" in
+				rehungen*)
+					:
+				;;
+				*)
+					return 1
+				;;
 			esac
 		;;
 		*)
@@ -662,14 +710,14 @@ _firmware_upgrade_is_needed()
 		return 1
 	}
 
-	case "$CONFIG_PROFILE" in			# explicit global nono!
-		ffweimar_adhoc)
+	case "$CONFIG_PROFILE" in	# explicit global nono!
+		ffweimar*)
 			return 1	# be safe and free
 		;;
 		aschbach*|olympia*)
 			return 1	# needs hybrid-profile
 		;;
-		paltstadt*|tkolleg*)
+		paltstadt*)
 			return 1	# unmaintained
 		;;
 		spbansin*)
@@ -678,7 +726,7 @@ _firmware_upgrade_is_needed()
 	esac
 
 	case "$CONFIG_PROFILE" in
-		*)
+		dummynet*)
 			:
 			# these inet-offer nodes are safe
 		;;
