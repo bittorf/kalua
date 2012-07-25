@@ -1,9 +1,13 @@
-_http_query_string_sanitize ()				# fixme! detect IFS-change
+_http_query_string_sanitize()
 {
-	[ "$REQUEST_METHOD" = "POST" ] && {		# fixme! allow also ':' (and '&') for dividing vars
-		read -t 1 -n $CONTENT_LENGTH POST
-		[ -n "$POST" ] && QUERY_STRING="${QUERY_STRING:=TZ=}&${POST}"		# if method GET is unset, then writeout TZ=
+	[ "$REQUEST_METHOD" = "POST" ] && {
+		[ ${CONTENT_LENGTH:-0} -eq 0 ] || {
+			read -n $CONTENT_LENGTH POST
+			QUERY_STRING="${QUERY_STRING:+&}${POST}"
+		}
 	}
+
+	[ -z "$QUERY_STRING" ] && return
 
 	# 1) now we have joined POST+GET in one string 
 	# 2) special characters like %20 (space) must be decoded (httpd -d)
@@ -13,20 +17,26 @@ _http_query_string_sanitize ()				# fixme! detect IFS-change
 	#    VARNAME=VALUE' >/dev/null 2>/dev/null;
 	# 6) replace the first equal-sign with =' , now we have in each line
 	#    VARNAME='VALUE' >/dev/null 2>/dev/null;
-	# 7) varname must only consist of "a-z A-Z 0-9 _ -" (no spaces), all other things are deleted
+	# 7) varname must only consist of "a-z A-Z 0-9 _" (no spaces), all other things are deleted
 
 	/usr/sbin/*httpd -d "$QUERY_STRING" 2>/dev/null |
 	 sed  -e "s/'/'\\\''/g" \
 	      -e "s/&/' >\/dev\/null 2>\/dev\/null;\n/g" \
 	      -e "s/$/' >\/dev\/null 2>\/dev\/null;\n/" |
-	  sed -n "s/^\([a-zA-Z0-9_-]*\)=\(.*\)/\1='\2/p"
+	  sed -n "s/^\([a-zA-Z0-9_]*\)=\(.*\)/\1='\2/p"
+
+	# fixme! allow separator ; and & for dividing vars
+
+	# fixme! check: "The equals sign may be omitted if the value is an empty string"
 
 	# fixme! values cant have ? or & inside,
 	#	 because we first decode and then split
 
 	# fixme! automatically build php-style array[] -> array=$array $value ...
 	#	 sed -ne 's/^\([a-zA-Z0-9]*\)\[]=\(.*\)/\1=${\1}\2 #/'
-	
+
+	# fixme! security: detect IFS-change
+
 	# here we do the same for our ENV-variables, so user can't overwrite/inject special vars
 	# hole output of this function can be used like:
 	#
@@ -36,18 +46,9 @@ _http_query_string_sanitize ()				# fixme! detect IFS-change
 	 sed -e "s/'/'\\\''/g" \
 	     -e "s/=/='/" \
 	     -e "s/$/' >\/dev\/null 2>\/dev\/null; /"
-
-	[ "$REMOTE_ADDR" = "127.0.0.1" -a -e /var/log/messages ] && {	# syslog: "xrelayd.c:445 Connected ssl client 10.63.3.24 to plain server localhost:80"
-
-		pidof xrelayd >/dev/null || return 0
-	
-		REMOTE_ADDR="$( tail -n200 /var/log/messages | fgrep "to plain server" | tail -n1 | sed -n 's/^.* ssl client \(.*\) to .*/\1/p' )"
-		echo "REMOTE_ADDR='${REMOTE_ADDR:=$WIFIADR}';"
-		echo "SERVER_PORT='443';"				# fixme! detect real localloop-connections?
-	}
 }
 
-_http_query_string_group2list ()	# outputs a list for iterating, formed from all vars beginning with GROUP
+_http_query_string_group2list()		# outputs a list for iterating, formed from all vars beginning with GROUP
 {					# e.g. myform_checkbox_1="foo" myform_checkbox_5="bar" -> 1 5
 	local GROUP="$1"
 
@@ -61,7 +62,7 @@ _http_url_get_serverstring()
 	echo "$1" | sed -n 's|^http://\([a-zA-Z0-9\.-]*\)/.*$|\1|p'	# http://bla.com/blubb -> bla.com
 }
 
-_http_header_mimetype_output ()
+_http_header_mimetype_output()
 {
 	local MIME="$1"
 	local ATTACHMENT="$2"				# filename
@@ -80,24 +81,7 @@ _http_spoof_captive_portal_checker_microsoft()
 	echo -n "Microsoft NCSI"
 }
 
-_http_spoof_captive_portal_checker_apple()
-{
-	_http header_mimetype_output "text/html"
-
-	cat <<EOF
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
-<HTML>
-<HEAD>
-	<TITLE>Success</TITLE>
-</HEAD>
-<BODY>
-Success
-</BODY>
-</HTML>
-EOF
-}
-
-_http_redirect ()
+_http_redirect()
 {
 	local FUNC="http_redirect"
 	local ERRORCODE="$1"
@@ -126,21 +110,35 @@ _http_redirect ()
 				ip_wan)
 					DESTINATION="$WANADR"
 				;;
+				ip_clients_real_gateway)
+					local clientip="$KEYWORD"
+					local nodenumber="$( _ipsystem do "$clientip" )"
+					local client_gateway="$( _ipsystem do "$nodenumber" | grep ^"WIFIADR=" | cut -d'=' -f2 )"
+
+					DESTINATION="$client_gateway"
+				;;
 			esac
-			
+
 			[ "$SERVER_PORT" = "443" ] && PROTO="https"
-			
+
 			DESTINATION="${PROTO}://${DESTINATION:=$WIFIADR}${SCRIPT_NAME:-/$( _weblogin splashscript )}?REDIRECTED=1"
 		;;
 		landing_page)
-			DESTINATION=
-			read DESTINATION 2>/dev/null </www/images/landing_page.txt	# fixme! remove this...
-			[ -z "$DESTINATION" -a -n "$KEYWORD" ] && {
-				eval "$( _db user profile show $KEYWORD )"
-				DESTINATION="$LANDING_URL"
-			}
+			case "$KEYWORD" in
+				"http://"*)
+					DESTINATION="$KEYWORD"
+				;;
+				*)
+					DESTINATION=
+					read DESTINATION 2>/dev/null </www/images/landing_page.txt	# fixme! remove this...
+					[ -z "$DESTINATION" -a -n "$KEYWORD" ] && {
+						eval "$( _db user profile show $KEYWORD )"
+						DESTINATION="$LANDING_URL"
+					}
 
-			DESTINATION="${DESTINATION:=http://google.com}"
+					DESTINATION="${DESTINATION:=http://google.com}"
+				;;
+			esac
 		;;
 	esac
 
