@@ -2,7 +2,7 @@ eval $( _http query_string_sanitize )
 
 case "$REMOTE_ADDR" in
 	"::")
-		_log do detect_strange_remote_addr "is $REMOTE_ADDR"
+		_log do detect_strange_remote_addr daemon alert "is $REMOTE_ADDR"
 		set | logger
 	;;
 	"")
@@ -59,17 +59,35 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 		}
 
 		if   login_ok ; then
-			_netfilter user_add "$MAC" "$REMOTE_ADDR"
-			_log do weblogin_success daemon alert "mac: '$MAC' ip: '$REMOTE_ADDR'"
+			if _netfilter user_add "$MAC" "$REMOTE_ADDR"; then
+				_watch counter "/tmp/WEBLOGIN_SUCCESS" increment
+				_log do weblogin_success daemon info "mac: '$MAC' ip: '$REMOTE_ADDR'"
 
-			PROFILE_ID="$( _db user profile list first )"		# fixme! needs server/client interaction or localmirrored db
-			_http redirect 302 landing_page "$PROFILE_ID"
+				# fixme! needs server/client interaction or localmirrored db
+				PROFILE_ID="$( _db user profile list first )"
+				_http redirect 302 landing_page "$PROFILE_ID"
+			else
+				_watch counter "/tmp/WEBLOGIN_FAIL" increment
+				if [ "${MAC}${REMOTE_ADDR}" = "$REMOTE_ADDR" ]; then		# empty mac
+					_http redirect 302 ip_clients_real_gateway "$REMOTE_ADDR"
+				else
+					_log do weblogin_failed daemon info "auth ok, but not netfilter add: ip: '$REMOTE_ADDR'"
+					_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" "true"
+				fi
+			fi
 		else
-			_weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" "$FORM_LANG" "plaintext"	# for plain logging on gateway
-			_log do weblogin_failed daemon info "ip: '$REMOTE_ADDR'"
-			_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" "true"
+			_watch counter "/tmp/WEBLOGIN_FAIL" increment
+
+			if [ "${MAC}${REMOTE_ADDR}" = "$REMOTE_ADDR" ]; then		# empty mac
+				_http redirect 302 ip_clients_real_gateway "$REMOTE_ADDR"
+			else
+				_weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" "$FORM_LANG" "plaintext"	# for plain logging on gateway
+				_log do weblogin_failed daemon info "auth failed: ip: '$REMOTE_ADDR'"
+				_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" "true"
+			fi
 		fi
 	else						# fixme! send error(s!) to show (user,pass,rules,inetconnection...)
+		_watch counter "/tmp/WEBLOGIN_FAIL" increment
 		_log do weblogin_norules daemon info "ip: '$REMOTE_ADDR' lang: '$LANG' formlang: '$FORM_LANG'"
 		_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" "false" "true"
 	fi
