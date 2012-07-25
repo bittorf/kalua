@@ -1,3 +1,15 @@
+_system_maintenance_window_active()
+{
+	case "$( date +%H )" in
+		02|03|04)
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 _system_architecture()
 {
 	if [ -e "/etc/opkg.conf" ]; then
@@ -41,7 +53,7 @@ _system_globbing ()
 	esac
 }
 
-_system_version ()
+_system_version()	# fixme! use /etc/openwrt_version | /etc/openwrt_release
 {
 	local option="$1"				# e.g. "short"
 	local file="/etc/freifunk-release"
@@ -74,9 +86,9 @@ _system_version ()
 	fi
 }
 
-_system_reboot_safe ()			# fixme! maybe shutting down services like vpn, olsrd?
-{					# fixme! safe vds-data? rrd-data?
-	local FUNC="system_reboot_safe"	# fixme! wait for 'enforce_new_profile', when software_install_ending() runs
+_system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
+{						# fixme! safe vds-data? rrd-data?
+	local FUNC="system_reboot_safe"
 	local REASON="$1"
 	local LOCKFILE="/tmp/SAFE_REBOOT_SCHEDULED"
 
@@ -91,6 +103,11 @@ _system_reboot_safe ()			# fixme! maybe shutting down services like vpn, olsrd?
 
 	[ -e  "$LOCKFILE" ] && return
 	touch "$LOCKFILE"
+
+	[ -e "/tmp/outgoing_mail_"* ] && {
+		mkdir -p "/www/cgi-bin/mail"
+		mv "/tmp/outgoing_mail_"* "/www/cgi-bin/mail"
+	}
 
 	cron.monitoring send_alive_message no_antenna_test	# maybe the last feedback can be helpful
 
@@ -163,15 +180,33 @@ _system_load ()			# load without comma, e.g.
 	echo "${OUT:-100}"
 }
 
-_system_flash_free ()	# [kByte]
+_system_disc_free()
 {
-	local line="$( df | grep " /overlay"$ )"
-	line="${line:-$( df | grep ^"/dev/root" )}"	# fallback
+	local disc="$1"		# e.g. /tmp
+	local unit="$2"		# defaults to [kilobytes]
+
+	local line="$( df | grep " $disc"$ )"
 	set ${line:-0 0 0 0}
-	echo $4
+
+	case "$unit" in
+		percent)
+			local percent_used="${5%[%]*}"		# 89% -> 89
+			echo $(( 100 - ${percent_used:-0} ))
+		;;
+		kilobytes|*)
+			echo "$4"
+		;;
+	esac
 }
 
-_system_flash_size ()	# [kByte]		// fixme! seems to be device-specific
+_system_flash_free()
+{
+	local unit="$1"
+
+	_system disc_free "/overlay" $unit
+}
+
+_system_flash_size()	# [kByte]		// fixme! seems to be device-specific
 {
 	local FILE="/tmp/FLASHSIZE"
 	local PARTITIONS
@@ -221,7 +256,7 @@ _system_uptime ()		# OUT1 = string
 	echo "${OPTION}$UPTIME"
 }
 
-_system_date ()				# fixme! set a fixed path for the binary?
+_system_date()				# fixme! set a fixed path for the binary?
 {					# fixme! make a new class _date()?
 	local FORMAT="$1"
 
@@ -250,12 +285,7 @@ _system_date ()				# fixme! set a fixed path for the binary?
 			echo "$( date +%a ), $( date +%e | sed 's/ //' ) $( date "+%b %Y %X %z" | sed 's/-0/+0/' )"
 		;;
 		unixtime2date)
-			awk -v UNIXTIME="$2" 'BEGIN { print strftime("%c", UNIXTIME) }'		# fixme! doit without awk
-												# newer busybox can do: date -d @1193144433
-			# year (365.24 days): 31556926 sec	# epochconverter.com
-			# month (30.44 days):  2629743 sec
-			# week:			604800 sec
-			# day:			 86400 sec
+			date -d @$2
 		;;
 		2unixtime)
 			local DATE="$2"		# output of 'date', e.g. "Tue Mar  9 11:07:44 CET 2010"
@@ -313,7 +343,7 @@ _system_pids_count ()
 	echo $N
 }
 
-_system_ram_free ()	# [bytes]
+_system_ram_free()	# [bytes]
 {
 	local MEM LINE
 	local OPTION="$1"	# eval-hack OR flush
@@ -335,6 +365,10 @@ _system_ram_free ()	# [bytes]
 			;;
 			Buffers:*)
 				set $LINE
+				MEM=$(( $MEM + $2 ))
+			;;
+			Cached:*)
+				set $LINE
 				MEM=$(( ($MEM + $2) * 1024 ))
 				break
 			;;
@@ -344,29 +378,19 @@ _system_ram_free ()	# [bytes]
 	echo "${OPTION}${MEM}"
 }
 
-_system_ram_size ()	# [kBytes]
+_system_ram_size()	# [kBytes]
 {
-	local FUNC="ram_size"
-	local FILE="/tmp/RAMSIZE"
-	local BORDER="13268"		# /proc/meminfo reports with 16 mb: 14416 (linksys) 13268 (targa wr 500 voip) 
-	local MEM LINE
+	local mem line
 
-	[ -e "$FILE" ] || {
-		while read LINE; do {
-			case $LINE in
-				MemTotal:*) set $LINE; MEM="$2"; break ;;
-			esac
-		} done </proc/meminfo
-
-		echo "$MEM" >"$FILE"
-
-		[ "$MEM" -lt "$BORDER" ] && {
-			_log do $FUNC daemon info "$MEM kb - detected lowmem device, with lower than $BORDER kb"
-			touch /tmp/LOWMEM
-		}
-	}
-
-	cat $FILE
+	while read line; do {
+		case "$line" in
+			MemTotal:*)
+				set $line
+				echo "$2"
+				break
+			;;
+		esac
+	} done </proc/meminfo
 }
 
 _system_flash_mounted_readonly ()	# SENS: check if data-partition is mounted read-only (failsafe or firmware-update-mode)
@@ -385,79 +409,4 @@ _system_flash_mounted_readonly ()	# SENS: check if data-partition is mounted rea
 	} done
 	
 	return 1
-}
-
-_system_insmod ()
-{
-	local FUNC="system_insmod"
-	local KMOD="$1"
-	local OPTIONS="$2"
-	local logprio
-
-	lsmod | grep -q ^$KMOD && return	# already loaded
-
-	case "$KMOD" in
-		ipt_*)
-			local CHANGED_PREFIX_KMOD="$( echo "$KMOD" | sed 's/ipt_/xt_/' )"
-			lsmod | grep -q ^$CHANGED_PREFIX_KMOD && return
-		;;
-	esac
-
-	_log do $FUNC daemon info "loading kernel-module '$KMOD' with options '$OPTIONS'"
-	
-	local MEM_BEFORE="$( _system ram_free )"
-	local MEM_AFTER=0
-	local MEM_DIFF=0
-	local rc
-
-	_log do $FUNC daemon info "[TRY] insmod \"$KMOD\" \"$OPTIONS\""
-	insmod "$KMOD" "$OPTIONS" || {
-		_log do $FUNC daemon info "[TRY] insmod \"$CHANGED_PREFIX_KMOD\" \"$OPTIONS\""
-		insmod "$CHANGED_PREFIX_KMOD" "$OPTIONS"
-	}
-	rc=$?
-
-	if [ $rc -eq 0 ] ; then
-
-		case "$KMOD" in
-			crondog)
-				[ -e /dev/misc/crondog ] && {
-					echo > /dev/misc/crondog	# activate it
-				}
-			;;
-		esac
-
-		MEM_AFTER="$( _system ram_free )"
-		MEM_DIFF=$(( $MEM_BEFORE - $MEM_AFTER ))
-		[ $MEM_DIFF -gt 0 ] && MEM_DIFF="+$MEM_DIFF"
-
-		_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes (lsmod: '$( lsmod | grep ^$KMOD )$( lsmod | grep ^${CHANGED_PREFIX_KMOD:-prefix_is_unset} )')"
-	else
-		logprio="alert"
-
-		case "$KMOD" in
-			ip_conntrack*)			# fixme! kernel2.6 seems different
-				logprio="debug"
-			;;
-		esac
-
-		_log do $FUNC daemon $logprio "[ERR] failing to insert kernel-module '${KMOD}.o' returned with $rc"
-		
-		local FILE
-		FILE="$( find /lib/modules/ | grep ${KMOD}.o )"			# e.g. /lib/modules/2.4.30/ipt_length.o 
-		[ -z "$FILE" ] && {
-			FILE="$( find /lib/modules/ | grep ${KMOD}.ko )"	# e.g. /lib/modules/2.6.32.27/xt_length.ko
-		}
-
-		# /lib/modules/2.4.30/ipt_CONNMARK.o
-		# /lib/modules/2.6.32.27/xt_CONNMARK.ko
-		
-		if [ -n "$FILE" ]; then
-			_log do $FUNC daemon info "but found '$FILE'"
-		else
-			_log do $FUNC daemon info "seems that ${KMOD}.o is not in filesystem"
-		fi
-		
-		return 1
-	fi
 }
