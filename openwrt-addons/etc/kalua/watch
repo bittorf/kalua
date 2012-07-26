@@ -44,7 +44,7 @@ _watch_dhcp_space()
 _watch_vpn ()
 {
 	local func="watch_vpn"
-	
+
 	pidof vtund >/dev/null && {
 	        _log do $func daemon debug "daemon running"
 	        grep -sq ^"Interface .*tap0" /etc/olsrd.conf /var/etc/olsrd.conf || {   # fixme! more abstraction: tun/tapXY + conf-filename
@@ -52,13 +52,13 @@ _watch_vpn ()
 	        	return 1
 		}
 	        _log do $func daemon debug "tunnel-device is in olsr.conf"
-	                                                                                                
+
 	        ps | grep vtund | grep -q connecting && {
 	        	_log do $func daemon debug "daemon running but connection seems broken"
 	                return 1
 	        }
 	        _log do $func daemon debug "connection seems active"
-	                                                                                                                                                                                                                        
+
 	        neigh | grep -q "==" || {                            # fixme! implement: 'neigh has_tunnel_neigh'
 	        	_log do $func daemon debug "no tunnel-olsr neighs?"
 	                return 1
@@ -232,8 +232,14 @@ _watch_hanging_command ()
 
 	if [ "$OLD_PID" = "$COMMAND_PID" ] && [ "$OLD_CMD" = "${COMMAND_CMD:=empty_cmd_line}" ]; then
 
-		_log do $FUNC daemon err "killing '$COMMAND_CMD'"
-		kill $COMMAND_PID
+		if [ -e "/etc/init.d/$COMMAND" ]; then
+			_log do $FUNC daemon info "executing /etc/init.d/$COMMAND stop"
+			/etc/init.d/$COMMAND stop
+		else
+			_log do $FUNC daemon info "killing '$COMMAND_CMD'"
+			kill $COMMAND_PID
+		fi
+
 		sleep 3
 
 		if [ -e "/proc/$COMMAND_PID" ]; then
@@ -300,16 +306,25 @@ _watch_flash_free_space ()
 	} done
 }
 
-_watch_dns_resolution ()	# only with existing dnsmasq and reachable internet-gateway
+_watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gateway
 {
 	local DNS_TESTSERVER="intercity-vpn.de"		# old was 'weimarnetz.de' -> take from fff_server_vpn_ip4 = 87.118.106.19 ?
 	local FUNC="watch_dns_resolution"
+	local ip
 
 	# oldstyle: ln -s /var/etc/dnsmasq.conf /etc/dnsmasq.conf
 	# dnsmasq -p 5353 -A /#/192.168.1.251 -C /dev/null
 
 	[ ! -x /etc/init.d/*dnsmasq ]		&& return 0
-	fgrep -q "127.0.0.1" /etc/resolv.conf	|| return 0	# real server configured, working without local daemon
+
+	fgrep -q "nameserver 127.0.0.1" /etc/resolv.conf || {
+		read ip <"/etc/resolv.conf"
+		ip="$( _sanitizer do "$ip" ip4 )"
+		_sanitizer do "$ip" ip4 check && {
+			return 0			# real server configured, working without local daemon
+		}
+	}
+
 	_net inet_seems_stable			|| return 0
 
 	pidof dnsmasq >/dev/null || {
@@ -453,10 +468,11 @@ _watch_webcam ()
 	}
 }
 
-_watch_webserver ()
+_watch_webserver()
 {
-	local FUNC="watch_webserver"
-	local SERVER
+	local funcname="watch_webserver"
+	local option="$1"	# e.g. force
+	local server="uhttpd"
 	local action=
 
 	case "$( pidof ash )" in
@@ -471,51 +487,66 @@ _watch_webserver ()
 		;;
 	esac
 
+	[ "$option" = "force" ] && action=
+
 	[ -n "$action" ] && {
-		_log do $FUNC daemon info "[OK] no check during webserver forking action"
+		_log do $funcname daemon info "[OK] no check during webserver forking action"
 		return 0
 	}
 
-	SERVER="uhttpd"
-
 	restart_server()
 	{
-		_log do $FUNC daemon info "[OK] trying to stop '$SERVER' with PID '$( pidof $SERVER )'"
+		_log do $funcname daemon info "[OK] trying to stop '$server' with PID '$( pidof $server )'"
 
-		_watch hanging_command $SERVER
-		_watch hanging_command $SERVER
+		_watch hanging_command "$server"
+		_watch hanging_command "$server"
 
-		if pidof $SERVER >/dev/null; then
-			_log do $FUNC daemon alert "[ERR] during kill of $SERVER, rebooting"
+		if pidof $server >/dev/null; then
+			_log do $funcname daemon alert "[ERR] during kill of $server, rebooting"
 			reboot
 		else
-			/etc/init.d/*$SERVER* start
-			_log do $FUNC daemon alert "[OK] server PID after restart: '$( pidof $SERVER )'"
+			/etc/init.d/$server start
+			_log do $funcname daemon alert "[OK] server PID after restart: '$( pidof $server )'"
 		fi
 	}
 
-	pidof $SERVER >/dev/null || {
-
+	pidof $server >/dev/null || {
 		if pidof crond >/dev/null ; then
-			_log do $FUNC daemon err "[ERR] webserver is not running - restarting $SERVER"
+			_log do $funcname daemon alert "[ERR] webserver is not running - restarting $server"
 			restart_server
 		else
-			_log do $FUNC daemon debug "[OK] no crond - no restart"		# crondog will do it
+			_log do $funcname daemon debug "[OK] no crond - no restart"	# maybe intended
 		fi
 	}
 
-	local filesize httpsize
-	local checkfile="favicon.ico"
-	local checkfile_sample="/tmp/$FUNC.sample"
-	local file_seen_good="/tmp/$FUNC.was_good"
+	local size_gethttp filesize httpsize checkfile
+	local checkfile_sample="/tmp/$funcname.sample"
+	local file_seen_good="/tmp/$funcname.was_good"
+	local i=0
+
+	if [ -e "/www/robots.txt" ]; then
+		checkfile="robots.txt"
+	else
+		checkfile="favicon.ico"
+	fi
 
 	if [ -e "/www/$checkfile" ]; then
 
-		size_gethttp="$( _wget do "http://127.0.0.1/$checkfile" 3 >"$checkfile_sample" )"
-		[ -e "$checkfile_sample" ] && {
-			size_gethttp="$( cat "$checkfile_sample" | wc -c )"
-			rm "$checkfile_sample"
-		}
+		while [ ${size_gethttp:-0} -eq 0 ]; do {
+			i=$(( $i + 1 ))
+			[ $i -gt 1 ] && {
+				_log do $funcname daemon info "size_gethttp = 0, try $i"
+				[ $i -gt 5 ] && break
+				sleep 10
+			}
+
+			size_gethttp="$( _wget do "http://127.0.0.1/$checkfile" 20 >"$checkfile_sample" )"
+
+			[ -e "$checkfile_sample" ] && {
+				size_gethttp="$( cat "$checkfile_sample" | wc -c )"
+				rm "$checkfile_sample"
+			}
+		} done
 
 		if [ ${size_gethttp:-0} -gt 0 ]; then
 
@@ -532,18 +563,18 @@ _watch_webserver ()
 			}
 
 			if [ $size_file -eq $size_gethttp ]; then
-				_log do $FUNC daemon debug "[OK] same size for file/httpget: $size_file bytes for $checkfile"
+				_log do $funcname daemon debug "[OK] same size for file/httpget: $size_file bytes for $checkfile"
 				touch "$file_seen_good"
 			else
-				_log do $FUNC daemon err "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
+				_log do $funcname daemon alert "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
 				restart_server
 			fi
 		else
 			if [ -e "$file_seen_good" ]; then
-				_log do $FUNC daemon err "[ERR] gethttp not possible - restarting"
+				_log do $funcname daemon alert "[ERR] gethttp not possible - restarting"
 				restart_server
 			else
-				_log do $FUNC daemon info "[ERR] gethttp not possible - needs investigation"
+				_log do $funcname daemon info "[ERR] gethttp not possible - needs investigation"
 			fi
 		fi
 	else
@@ -619,7 +650,7 @@ _watch_random_node_id ()	# check if nodenumber/id is from random pool
 
 	build_vars ()
 	{
-		local WIFIMAC="$( _sanitizer do "$( _net dev2mac $WIFIDEV )" hex )"
+		local WIFIMAC="$( _sanitizer do "$( _net dev2mac ${WIFIDEV:-$LANDEV} )" hex )"
 		local SSH_PUBKEY_FP_HEXONLY="$( _sanitizer do "$( _ssh key_public_fingerprint_get )" hex )"
 		local SSH_PUBKEY="$( _file convert_bin2hex /etc/dropbear/dropbear_dss_host_key.pub )"
 		local SERVER_URL="$( uci get system.@monitoring[0].url )"
@@ -743,61 +774,37 @@ _watch_counter ()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 ||
 	return 0
 }
 
-_watch_topusage_task ()
+_watch_topusage_task()
 {
-	local FUNC="watch_topusage_task"
-	local WAIT="${1:-1}"
-	local TEMPFILE="/tmp/top_$$"
-	local PID CPU CPU_INT TASK TOPTASK FILESIZE
-	local MAX_ALLOWED_PERCENT=70
+	local funcname="watch_topusage_task"
+	local file="/tmp/$funcname_$$"
+	local line pid cpu cpu_int toptask
+	local crit_percent_border=70
 
-	_watch counter "/tmp/counter_highload" increment 1 max 10 || reboot		# workaround: we can't see, which task causes e.g. high I/O-load
+	top -b -n 1 >"$file"
 
-	top >$TEMPFILE &		# fixme! can lead to race conditions, we don't know exactly when page output is ready, especially under high load
-	PID="$!"			# normally we can use 'top -b -n 1 &', but the busybox-top must have implemented this 8-(
-	sleep $WAIT
+	while read line; do {
+		set -- $line
+		case "$line" in
+			[0-9]*)
+				pid="$1"
+				cpu="$7"
+				cpu_int="${7//%/}"
+				toptask="$8"
 
-	while [ -e "/proc/$PID" ]; do {
-		kill $PID
-		[ -e "/proc/$PID" ] && kill -9 $PID
-	} done
+				break
+			;;
+		esac
+	} done <"$file"
+	rm "$file"
 
-	FILESIZE="$( _file size $TEMPFILE )"
-#	[ "$FILESIZE" = "0" ] && {
-#		_$FUNC "$(( $WAIT + 1 ))"	# or random_integer?
-#		rm $TEMPFILE			# abort after 5x recursion?
-#		return
-#	}
+	[ $cpu_int -gt $crit_percent_border ] || return 0
 
-	eval "$( sed -n 's/^[ ]*\([0-9]\{1,5\}\).* \([0-9]\{1,2\}\)\.\([0-9]\).*[0-9]\{1,2\}\.[0-9].* \(.*\)/PID=\1;CPU=\2.\3;CPU_INT=\2;TOPTASK="\4"/p' $TEMPFILE | head -n1 )"
+	task="$( basename "$toptask" )"
+	_log do $funcname daemon alert "pid: $pid cpu: $cpu toptask: $toptask task: $task"
 
-	read TASK 2>/dev/null </proc/$PID/cmdline	# taskname is limited by TERM? e.g. "cron.evaluate_u" seems to be max length
-	TASK="$( basename "$TASK" )"
-	[ -z "$TASK" ] && TASK="$TOPTASK"
-
-	_log do $FUNC daemon info "output: PID=$PID CPU=$CPU CPU_INT=$CPU_INT TASK=$TOPTASK -> TOPTASK=$TASK TEMPFILE=$TEMPFILE FILESIZE=${FILESIZE}bytes"
-	rm $TEMPFILE
-
-	case "$TASK" in
-		cgi-bin-welcome*)
-			_log do $FUNC daemon alert "killall $TASK"
-			killall $TASK
-		;;
-	esac
-
-	case "$TOPTASK" in
-		syslogd)
-			[ $CPU_INT -gt 10 ] && {
-				_olsr daemon restart "$FUNC high load of $TOPTASK: $CPU"
-			}
-		;;
-	esac
-
-	[ "${CPU_INT:=0}" -gt $MAX_ALLOWED_PERCENT ] && {
-		_log do $FUNC daemon alert "detected task '$TASK' with high cpu-usage ${CPU_INT}% > ${MAX_ALLOWED_PERCENT}% - trying to kill pid '$PID'"
-		_watch hanging_command $TASK	# must be called 2 times
-		_watch hanging_command $TASK
-	}
+	_watch hanging_command $task	# must be called 2 times
+	_watch hanging_command $task
 }
 
 _watch_switch_linkstatus()
