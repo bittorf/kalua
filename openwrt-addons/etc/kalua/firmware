@@ -502,15 +502,17 @@ _firmware_burn ()
 
 	case "$( _system architecture )" in
 		brcm47xx)
-			local patchfile partition fix
+			[ $( _system version short ) -ge 32866 ] || {
+				local patchfile partition fix
 
-			patchfile="/lib/upgrade/common.sh"
-			fgrep -q '"Upgrade completed";' "$patchfile" || {
-				partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
-				fix="mtd fixtrx $partition"
-				_log do $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
-				sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
-				fgrep -q "$fix" "$patchfile" || reboot -f
+				patchfile="/lib/upgrade/common.sh"
+				fgrep -q '"Upgrade completed";' "$patchfile" || {
+					partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
+					fix="mtd fixtrx $partition"
+					_log do $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
+					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
+					fgrep -q "$fix" "$patchfile" || reboot -f
+				}
 			}
 		;;
 	esac
