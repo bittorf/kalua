@@ -17,15 +17,12 @@ show_help()
 
 	cat <<EOF
 Usage:	$me gitpull
-	$me config2git
-	$me select_hardware_model
-	$me set_build_openwrtconfig
-	$me set_build_kernelconfig
 	$me config_diff <new_config> <old_config>
 	$me set_build <list|standard|...> <...> <...>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
 	$me build_kalua_update_tarball [full]
+	$me apport_vmlinux
 
 Hint:   for building multiple config-enforced images use e.g.:
 	APP="$0"
@@ -80,6 +77,16 @@ get_firmware_filenames()
 	else
 		echo ""
 	fi
+}
+
+apport_vmlinux()	# for better debugging of http://intercity-vpn.de/crashlog/
+{
+	local dir=$( echo build_dir/linux-$( get_arch )*/linux-3* )
+	local dest="root@intercity-vpn.de:/var/www/crashlog"
+	local revision="$( scripts/getver.sh )"
+
+	echo "cp '$dir/vmlinux' /tmp; lzma -9 /tmp/vmlinux"
+	echo "scp '/tmp/vmlinux.lzma' '$dest/vmlinux.$( get_arch ).${revision}.lzma'"
 }
 
 config_diff()
