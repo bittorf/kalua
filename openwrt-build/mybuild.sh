@@ -86,7 +86,7 @@ apport_vmlinux()	# for better debugging of http://intercity-vpn.de/crashlog/
 	local revision="$( scripts/getver.sh )"
 
 	echo "cp '$dir/vmlinux' /tmp; lzma -9 /tmp/vmlinux"
-	echo "scp '/tmp/vmlinux.lzma' '$dest/vmlinux.$( get_arch ).${revision}.lzma'"
+	echo "scp '/tmp/vmlinux.lzma' '$dest/vmlinux.$( get_arch ).${revision}.lzma'; rm '/tmp/vmlinux.lzma'"
 }
 
 config_diff()
