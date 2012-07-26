@@ -146,7 +146,7 @@ EOF
 			_translate do "$MYLANG" in_my_lang
 			echo -n "'>&nbsp;${font_start}"
 			_translate do "$MYLANG" langname
-			echo -n "${fontend}</A>&nbsp;&nbsp;"
+			echo -n "${font_end}</A>&nbsp;&nbsp;"
 			TABINDEX="$(( $TABINDEX + 1 ))"
 			
 		} done >"$LANG_CACHE_FILE"
@@ -253,12 +253,11 @@ EOF
 #		*)
 			local hidden_adlink="<a hreflang='en' href='http://bittorf-wireless.de/en/node/66' title='comprehensive wireless internet access throughout the entire hotel complex using mesh technology'>.</a>"
 			local i18n_username i18n_password
-			local config_profile="$( uci get system.@profile[0].name )"
 
-			if _weblogin device_or_customer_needs_admin_interaction "$config_profile" ; then
+			if _weblogin device_or_customer_needs_admin_interaction ; then
 				_weblogin htmlout_needs_admin_interaction "$LANG"
 			else
-				case "$config_profile" in
+				case "$CONFIG_PROFILE" in
 					spbansin*)
 						i18n_username="$( _translate do "$LANG" roomnumber )"
 						# i18n_password="$( _translate do "$LANG" bookingcode )"		# fixme!
@@ -269,8 +268,8 @@ EOF
 					;;
 				esac
 
-				case "$config_profile" in
-					ffweimar*)
+				case "$CONFIG_PROFILE" in
+					ffweimar*|liszt28*)
 						# no credentials are needed, just "click away"
 						_welcome wiki_vars
 						_welcome htmlout_wikipage "title=Vorlage:Startseite.Aktuelles" "$( _translate do $LANG ffweimar_news )" 
@@ -356,12 +355,12 @@ _weblogin_htmlout_rules ()
 		-e 's#Ã¢#\&acirc;#g' \
 		-e 's#Ã´#\&ocirc;#g' \
 		-e 's#Ã¹#\&ugrave;#g' \
-		-e 's/Â/\&sect;/g' \
-		-e 's/§/\&sect;/g' \
-		-e 's/ö/\&ouml;/g' \
-		-e 's/ü/\&uuml;/g' \
-		-e 's/ä/\&auml;/g' \
-		-e 's/ß/\&szlig;/g' $FILE
+		-e 's/ï¿½/\&sect;/g' \
+		-e 's/ï¿½/\&sect;/g' \
+		-e 's/ï¿½/\&ouml;/g' \
+		-e 's/ï¿½/\&uuml;/g' \
+		-e 's/ï¿½/\&auml;/g' \
+		-e 's/ï¿½/\&szlig;/g' $FILE
 
 	echo -n "<BR><BR></TD></TR>"	
 }
@@ -455,10 +454,9 @@ _weblogin_htmlout_inet_broken ()
 _weblogin_device_or_customer_needs_admin_interaction()
 {
 	local funcname="weblogin_device_or_customer_needs_admin_interaction"
-	local config_profile="$1"
-	local hostname="$2"
+	local hostname="$1"
 
-	case "$config_profile" in
+	case "$CONFIG_PROFILE" in
 		rehungen*)
 			case "$hostname" in
 				rehungen-adhoc*)	# unset/never touched
@@ -530,7 +528,7 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		KEYWORD="${USER}+${PASS}"
 	}
 
-	HASH="$( echo -n "${USER}${PASS}" | md5sum | cut -d' ' -f1 )"
+	HASH="$( _db hash "${USER}${PASS}" )"
 
 	mac_is_from_lan()
 	{
@@ -562,13 +560,24 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 				;;
 			esac
 		;;
-		rehungen*|liszt28*|extrawatt*)
+		liszt28*)
+			mac_is_from_lan "$MAC" && {
+				FREE=1
+			}
+
+			case "$WIFIADR" in
+				10.10.8.1|10.10.15.1)		# bar reservebank
+					FREE=1
+				;;
+			esac
+		;;
+		rehungen*|extrawatt*)
 			mac_is_from_lan "$MAC" && {
 				_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV"
 				FREE=1
 			}
 
-			[ "$( uci get network.lan.ipaddr )" = "10.10.152.33" ] && {
+			[ "$LANADR" = "10.10.152.33" ] && {
 				[ "$HASH" = "38178cdf6173811999516635a809ede3" ] && {
 					FREE=1		# fixme!
 				}
@@ -669,7 +678,7 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	elif [ -e /tmp/FREE ]; then
 		_log do $FUNC daemon info "[OK] auth: existing /tmp/FREE"
 		FREE=1
-	elif [ -e /tmp/vds_user_$MAC ]; then
+	elif [ -e /tmp/vds_user_${MAC:-mac_is_empty} ]; then
 		_log do $FUNC daemon info "[OK] auth: existing /tmp/vds_user_$MAC"
 		FREE=1
 	else
@@ -695,8 +704,10 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 	_log do $FUNC daemon info "ANSWER: '$ANSWER' (1=ok) FREE: '$FREE' URL: '${URL:-locally_asked:}?${PARAMETERS}'"
 
 	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
-		echo "$HASH" >/tmp/vds_user_$MAC		# fixme! for building vds, use DB instead (easy/simple mac2hash)
-		return 0
+		[ -n "$MAC" ] && {
+			echo "$HASH" >/tmp/vds_user_$MAC		# fixme! for building vds, use DB instead (easy/simple mac2hash)
+			return 0
+		}
 	}
 
 	return 1
@@ -729,11 +740,11 @@ _weblogin_authserver()
 		;;
 		marinapark*)
 			case "$( uci get system.@profile[0].nodenumber )" in
-				95)
+				10)
 					server="$WIFIADR"
 				;;
 				*)
-					server="10.63.95.1"
+					server="10.63.10.1"
 				;;
 			esac
 		;;
@@ -801,6 +812,8 @@ _weblogin_mail_signature()
 	local MAINTENANCE_PHONE
 	local MAINTENANCE_HINT1="$( _translate do "$LANG" maintenance_hint1 )"
 	local MAINTENANCE_HINT2="$( _translate do "$LANG" maintenance_hint2 )"	
+	local emailat="@"
+	local emaildot="."
 
 	case "$CONFIG_PROFILE" in			# fixme! move to 'mydesign.opk' or userdb()
 		aschbach*|hotello*)
