@@ -693,33 +693,31 @@ _olsr_check_plausi ()				# test 1/7: is each non-infinite neighbour in routing-t
 						#  fixme! maybe it's not a big problem if only metric changes, but not gateway? (2 entrys with metric diff)
 
 	[ "$( uci get olsrd.@olsrd[0].FIBMetric )" = "flat" ] && {	# cat be approx, correct, flat
-	FILE_RT="/tmp/$FUNC-sorted_routing_table"
-	sed -n 's/^\([0-9]\)\([0-9\/\.]*\).*/\1\2/p' /tmp/OLSR/ROUTING_TABLE_MAIN | sort >$FILE_RT	# only "10.63.153.65/26"
-	LINES1="$( cat $FILE_RT | wc -l )"
-	LINES2="$( cat $FILE_RT | uniq | wc -l )"
+		FILE_RT="/tmp/$FUNC-sorted_routing_table"
+		sed -n 's/^\([0-9]\)\([0-9\/\.]*\).*/\1\2/p' /tmp/OLSR/ROUTING_TABLE_MAIN | sort >$FILE_RT	# only "10.63.153.65/26"
+		LINES1="$( cat $FILE_RT | wc -l )"
+		LINES2="$( cat $FILE_RT | uniq | wc -l )"
 
-	[ "$LINES1" != "$LINES2" ] && {	
-		while read LINE; do {
-	  		[ "$LINE" = "$LASTLINE" ] && {
-	  			case "$LINE" in
-	  				"$WIFINET/$WIFIPRE"*)
-	  					# fixme! only ignore when hybrid wifimode?
-	  					_log do $FUNC daemon debug "[ERR] each node in mesh has only 1 route? no - but ignoring wide mask ($( ip route list exact $LINE ))"
-	  				;;
-	  				*)
-						_log do $FUNC daemon crit "[ERR] each node in mesh has only 1 route? no!: ($( ip route list exact $LINE ))"
-		  				return 1
-		  			;;
-		  		esac
-	  		}
-	  		LASTLINE="$LINE"
+		[ "$LINES1" != "$LINES2" ] && {
+			while read LINE; do {
+				[ "$LINE" = "$LASTLINE" ] && {
+					case "$LINE" in
+						"$WIFINET/$WIFIPRE"*)
+							# fixme! only ignore when hybrid wifimode?
+							_log do $FUNC daemon debug "[ERR] each node in mesh has only 1 route? no - but ignoring wide mask ($( ip route list exact $LINE ))"
+						;;
+						*)
+							_log do $FUNC daemon crit "[ERR] each node in mesh has only 1 route? no!: ($( ip route list exact $LINE ))"
+							return 1
+						;;
+					esac
+				}
+				LASTLINE="$LINE"
+			} done <$FILE_RT
+		}
 
-		} done <$FILE_RT
+		_log do $FUNC daemon debug "[OK] (each node in mesh has only 1 route? [checked $LINES1 routes])"
 	}
-	}
-
-	_log do $FUNC daemon debug "[OK] (each node in mesh has only 1 route? [checked $LINES1 routes])"
-
 
 	local lq_algo="$( uci get olsrd.@olsrd[0].LinkQualityAlgorithm )"
 
