@@ -24,6 +24,57 @@ _wifi_driver_is_old_broadcom()
 	test -e /usr/sbin/wl
 }
 
+_wifi_show_station_traffic()
+{
+	local mac="$1"
+	local wifidev="$2"
+	local rx_old="$3"
+	local tx_old="$4"
+	local uptime_old="$5"
+	local uptime="$( _system uptime centisec )"
+	local line rx tx tx_human rx_human rx_diff tx_diff uptime_diff unit
+
+	# while :; do eval $( _wifi show_station_traffic "$mac" $WIFIDEV $rx $tx $up ); sleep 60; done
+
+	iw dev "$wifidev" station get "$mac" |
+	 while read line; do {
+		case "$line" in
+			*"rx bytes:"*)
+				set $line
+				rx="$3"
+			;;
+			*"tx bytes:"*)
+				set $line
+				tx="$3"
+
+				rx_human="$( _sanitizer do "$rx" number_humanreadable )"
+				tx_human="$( _sanitizer do "$tx" number_humanreadable )"
+
+				if [ -n "$rx_old" ]; then
+					rx_diff=$(( $rx - $rx_old ))
+					tx_diff=$(( $tx - $tx_old ))
+				else
+					rx_diff=0
+					tx_diff=0
+				fi
+
+				if [ -n "$uptime_old" ]; then
+					unit="bytes/s"
+					uptime_diff=$(( $uptime - $uptime_old ))
+
+					rx_diff=$(( ($rx_diff * 100) / $uptime_diff ))
+					tx_diff=$(( ($tx_diff * 100) / $uptime_diff ))
+				else
+					unit="bytes"
+				fi
+
+				echo "echo '# overall: tx/rx: $rx_human/$tx_human  diff_rx/tx: $rx_diff/$tx_diff $unit';"
+				echo "rx=$rx; tx=$tx; up=$uptime;"
+			;;
+		esac
+	} done
+}
+
 _wifi_minstrel()
 {
 	local mac="$1"
