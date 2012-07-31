@@ -372,6 +372,32 @@ _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
 	} done
 }
 
+_netfilter_user_reachable()
+{
+	local mac="$1"
+	local ip="$2"
+	local maxtry="5"
+	local dev line
+
+	_sanitizer do "$mac" mac check || return 1
+	_sanitizer do "$ip"  ip4 check || return 1
+
+	for dev in $LANDEV $WIFIDEV $WANDEV; do {
+		arping -I "$dev" -c "$maxtry" -q -f "$ip" && {
+			line="$( grep "$mac" /proc/net/arp | grep ^"$ip" | head -n1 )"
+			set ${line:-empty_line}
+
+			if [ "$ip" = "$1" ]; then
+				return 0
+			else
+				return 1
+			fi
+		}
+	} done
+
+	return 0
+}
+
 _netfilter_user_add()
 {
 	local mac="$1"
@@ -380,8 +406,7 @@ _netfilter_user_add()
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
 
-	_sanitizer do "$mac" mac check || return 1
-	_sanitizer do "$ip"  ip4 check || return 1
+	_netfilter user_reachable "$mac" "$ip" || return 1
 
 	if [ -d "/tmp/NETFILTER/USER/$mac" ]; then
 		return 0
