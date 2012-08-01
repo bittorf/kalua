@@ -1,5 +1,6 @@
 # marks:
 # 0x11 = port80, redirect to local port 80
+# 0x12 = port443, redirect to local port 443
 # 0x22 = adblocking, gets rejected
 # 0x33 = connection_start
 # 0x44 = connection_close
@@ -232,15 +233,24 @@ _netfilter_splash_start()
 
 	_netfilter walledgarden_start
 
-	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11	# redirect
+	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11	# redirect HTTP
+
+	case "$( uci get uhttpd.main.listen_https )" in
+		*":443")
+			iptables -t mangle -A PREROUTING -p tcp --dport 443 -j MARK --set-mark 0x12	# redirect HTTPS
+		;;
+	esac
+
 	iptables -t mangle -A PREROUTING -m mark --mark 0 -j MARK --set-mark 0x88	# not marked? -> reject
 
 	iptables -A FORWARD -m mark --mark 0x88/0xff -j REJECT
 	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer
 	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
-	iptables -t nat -A PREROUTING -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $WIFIADR
-	iptables -t nat -A PREROUTING -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR
+	iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $WIFIADR:80
+	iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR:80
+	iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x12/0xff -j DNAT --to-destination $WIFIADR:443
+	iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x12/0xff -j DNAT --to-destination $LANADR:443
 }
 
 _netfilter_splash_autoadd()
