@@ -512,6 +512,8 @@ _watch_webserver()
 		return 0
 	}
 
+	_stopwatch start $funcname
+
 	restart_server()
 	{
 		_log do $funcname daemon info "[OK] trying to stop '$server' with PID '$( pidof $server )'"
@@ -521,6 +523,7 @@ _watch_webserver()
 
 		if pidof $server >/dev/null; then
 			_log do $funcname daemon alert "[ERR] during kill of $server, rebooting"
+			_stopwatch stop $funcname quiet
 			reboot
 		else
 			/etc/init.d/$server start
@@ -595,6 +598,14 @@ _watch_webserver()
 				_log do $funcname daemon info "[ERR] gethttp not possible - needs investigation"
 			fi
 		fi
+	else
+		:
+	fi
+
+	local duration="$( _stopwatch stop $funcname )"
+
+	if [ $duration -gt 300 ]; then
+		log do $funcname daemon info "last too long: $duration centiseconds"
 	else
 		return 0
 	fi
