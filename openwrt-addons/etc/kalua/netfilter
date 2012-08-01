@@ -215,6 +215,18 @@ _netfilter_myhna()
 	}
 }
 
+_netfilter_is_meshnode()	# fixme! better iterate over olsrd-interface, if one is in wifi-adhoc-mode
+{
+	case "$CONFIG_PROFILE" in
+		*_adhoc)
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 _netfilter_splash_start()
 {
 	local myhna="$( _netfilter myhna )"
@@ -242,6 +254,12 @@ _netfilter_splash_start()
 	esac
 
 	iptables -t mangle -A PREROUTING -m mark --mark 0 -j MARK --set-mark 0x88	# not marked? -> reject
+
+	_netfilter is_meshnode && {
+		iptables -A FORWARD ! -i $WIFIDEV ! -o $WIFIDEV		# wire -> wire
+		iptables -A FORWARD ! -i $WIFIDEV   -o $WIFIDEV		# wire -> wifi
+		iptables -A FORWARD   -i $WIFIDEV   -o $WIFIDEV		# wifi -> wifi
+	}
 
 	iptables -A FORWARD -m mark --mark 0x88/0xff -j REJECT
 	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer
