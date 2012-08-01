@@ -43,6 +43,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	local file_temp="/tmp/db_backup.tgz.temp.$$"
 	local dir="/tmp/DB"
 	local errorcode=0
+	local s1 s2 s3
 
 	[ -d "$dir" ] || return 0
 	[ -e "$dir/USER/login/meta_index" ] || return 0
@@ -66,10 +67,40 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 			_log do $funcname daemon sms "$shrinktext - abort"
 			errorcode=1
 		else
-			if mv "$file_temp" "$file"; then
-				_log do $funcname daemon info "[OK] moved $file_temp -> $file (sizechange: ${percentual_change}%)"
+			s1=$( _file size "$file_temp" )
+
+			if mv "$file_temp" "${file}.safewrite"; then
+				sync
+				s2=$( _file size "${file}.safewrite" )
+
+				if [ $s1 -eq $s2 ]; then
+					_log do $funcname daemon info "[OK] moved $file_temp -> $file.safewrite (sizechange: ${percentual_change}%)"
+
+					if mv "${file}" "${file}.old"; then
+						if mv "${file}.safewrite" "${file}"; then
+							sync
+							s2=$( _file size "${file}" )
+
+							if [ $s1 -eq $s2 ]; then
+								_log do $funcname daemon info "[OK] moved ${file}.safewrite -> ${file}"
+							else
+								_log do $funcname daemon sms "[ERR] moved ${file}.safewrite -> ${file}"
+								errorcode=1
+							fi
+						else
+							_log do $funcname daemon sms "[ERR] moving ${file}.safewrite -> ${file}"
+							errorcode=1
+						fi
+					else
+						_log do $funcname daemon sms "[ERR] moving ${file} -> ${file}.old"
+						errorcode=1
+					fi
+				else
+					_log do $funcname daemon sms "[ERR] moving $file_temp -> $file.safewrite free: $( _system flash_free )"
+					errorcode=1
+				fi
 			else
-				_log do $funcname daemon sms "[ERR] while moving $file_temp -> $file free: $( _system flash_free )"
+				_log do $funcname daemon sms "[ERR] moving $file_temp -> $file free: $( _system flash_free )"
 				errorcode=1
 			fi
 		fi
@@ -92,7 +123,7 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 
 	if [ -e "$file" ]; then
 
-		if [ $( _file size "$file" ) -lt 256 ]; then
+		if [ $( _file size "$file" ) -lt 300 ]; then
 			_log do $funcname daemon info "refusing to unarc '$file', seems too small"
 		else
 			_log do $funcname daemon info "removing dir /tmp/DB, unarc of '$file'"
