@@ -33,6 +33,41 @@ _netfilter_start()
 	_netfilter conntrack_adjust_max
 }
 
+_netfilter_stats()
+{
+	local context="$1"
+	local unit="$2"
+	local line bytes packets
+
+	case "$context" in
+		forward_lan2lan)
+			line="$( iptables -nxvL FORWARD | fgrep "!$WIFIDEV !$WIFIDEV" )"
+		;;
+		forward_lan2wifi)
+			line="$( iptables -nxvL FORWARD | fgrep "!$WIFIDEV $WIFIDEV" )"
+		;;
+		forward_wifi2wifi)
+			line="$( iptables -nxvL FORWARD | fgrep "$WIFIDEV  $WIFIDEV" )"
+		;;
+	esac
+
+	set -- $line
+	packets="${1:-0}"
+	bytes="${2:-0}"
+
+	case "$unit" in
+		packets)
+			echo "$packets"
+		;;
+		bytes)
+			echo "$bytes"
+		;;
+		megabytes)
+			echo $(( $bytes / 1000000 ))
+		;;
+	esac
+}
+
 _netfilter_conntrack_adjust_max()
 {
 	local funcname="netfilter_conntrack_adjust_max"
