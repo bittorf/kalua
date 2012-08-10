@@ -65,7 +65,7 @@ how to build this from scratch on a debian server
 						 ---> kmod-b43 ---> PHY types to include ---> G
 						 	       ---> [-] Enable support for N-PHYs
 						 ---> kmod-mac80211 ---> Configuration ---> [-] Enable 802.11s mesh support
-			   ---> Network Support ---> [-] kmod-ppp
+			   ---> Network Support ---> [-] kmod-ppp (at first Network ppp)
         ==> Network ---> VPN ---> [*] vtun (copy vtun-Makefile before to compile without ssl and lzo)
                     ---> Firewall ---> [*] iptables-mod-ipopt
 		    ---> [-] ppp
