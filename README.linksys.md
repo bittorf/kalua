@@ -80,6 +80,7 @@ how to build this from scratch on a debian server
                  ---> Applications ---> [*] luci-app-olsr
                                    ---> [*] luci-app-olsr-services
                  ---> Themes ---> [*] luci-theme-bootstrap
+        ==> Utilities ---> [*] cobocfg 
 
 	weimarnetz/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"
 	weimarnetz/openwrt-build/mybuild.sh make 		# needs some hours
