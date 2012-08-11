@@ -31,6 +31,133 @@ _netfilter_start()
 	}
 
 	_netfilter conntrack_adjust_max
+
+	_netfilter traffic_control_needed && {
+		grep -q ^"sch_htb " /proc/modules || insmod sch_htb
+		grep -q ^"cls_u32 " /proc/modules || insmod cls_u32
+	}
+}
+
+_netfilter_traffic_control_show()
+{
+	local interface ip mac
+	local tab="	"
+
+	for interface in $LANDEV $WANDEV $WIFIDEV; do {
+		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || continue
+
+		echo "interface: $interface {"
+
+		echo "${tab}qdisc {"
+		tc -s qdisc ls dev "$interface" | sed "s/.*/${tab}${tab}&/"
+		echo "${tab}}"
+
+		echo "${tab}class {"
+		tc class show dev "$interface" | sed "s/.*/${tab}${tab}&/"
+		echo "${tab}}"
+
+		echo "${tab}filter {"
+		tc filter show dev "$interface" | while read line; do {
+			case "$line" in
+				*"match "*)
+					ip="$( echo "$line" | sed -n 's|^\(.*match \)\(..\)\(..\)\(..\)\(..\)/ffffffff\(.*\)|echo $((0x\2)).$((0x\3)).$((0x\4)).$((0x\5))|p' )"
+					ip="$( eval $ip )"
+					echo "${tab}${tab}$line"
+
+					case "$line" in
+						*16)
+							echo "${tab}${tab}${tab}# IP: $ip (destination = incoming)"
+						;;
+						*12)
+							echo "${tab}${tab}${tab}# IP: $ip (source = outgoing)"
+						;;
+					esac
+
+					read mac <"/tmp/NETFILTER/IP2MAC/$ip"
+					echo -n "${tab}${tab}${tab}# remove via: _"
+					echo    "netfilter traffic_control_user_del $mac"
+				;;
+				*)
+					echo "${tab}${tab}$line"
+				;;
+			esac
+		} done
+		echo "${tab}}"
+
+		echo "}"
+	} done
+}
+
+_netfilter_traffic_control_needed()
+{
+	case "$CONFIG_PROFILE" in
+		liszt28*)
+		;;
+		*)
+			return 1
+		;;
+	esac
+
+	local kernel="$( uname -r )"
+
+	[ -e "/usr/sbin/tc" ] || return 1
+	[ -e "/lib/modules/${kernel}/sch_htb.ko" ] || return 1
+	[ -e "/lib/modules/${kernel}/cls_u32.ko" ] || return 1
+
+	return 0
+}
+
+_netfilter_traffic_control_user_add()
+{
+	local funcname="netfilter_traffic_control_user_add"
+	local ip="$1"
+	local speed_up="${2:-32kbit}"		# e.g. 1mbit, 32kbit
+	local speed_down="${3:-1024kbit}"	# # fixme! use profile instead of fix values, e.g. youtube
+	local mac i j				# e.g. 32/1024 = wigo/tv works
+
+	local interface="$( ip -oneline route get "$ip" )"
+	set -- $interface
+	interface="$3"
+
+	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
+
+	# hierarchical token bucket: http://luxik.cdi.cz/~devik/qos/htb/
+	[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || {
+		tc qdisc add dev "$interface" root handle 1: htb default 30 && {
+			touch "/tmp/TRAFFIC_CONTROL_UP_$interface"
+		}
+	}
+
+	# fixme! use a sieve, always fillup from bottom?
+	_watch counter "/tmp/TRAFFIC_CONTROL_users_$interface" increment 2
+	read i <"/tmp/TRAFFIC_CONTROL_users_$interface"
+	j=$(( $i - 1 ))
+	read mac <"/tmp/NETFILTER/IP2MAC/$ip"
+
+	cat >/tmp/NETFILTER/USER/$mac/traffic_control_del <<EOF
+tc filter "del" dev "$interface" protocol ip parent 1:0 prio $i
+tc filter "del" dev "$interface" protocol ip parent 1:0 prio $j
+tc class  "del" dev "$interface" parent 1: classid 1:$i
+tc class  "del" dev "$interface" parent 1: classid 1:$j
+EOF
+
+	tc class  "add" dev "$interface" parent 1: classid 1:$j "htb" rate "$speed_down"
+	tc class  "add" dev "$interface" parent 1: classid 1:$i "htb" rate "$speed_up"
+	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $j u32 match ip dst "$ip/32" flowid 1:$j
+	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $i u32 match ip src "$ip/32" flowid 1:$i
+}
+
+_netfilter_traffic_control_user_del()
+{
+	local mac="$1"
+	local file="/tmp/NETFILTER/USER/$mac/traffic_control_del"
+
+	[ -e "$file" ] && {
+		. "$file"
+		rm "$file"
+	}
+
+	# remove root-class if possible
 }
 
 _netfilter_stats()
@@ -140,15 +267,24 @@ _netfilter_stop()
 	local funcname="netfilter_stop"
 	local mac state table
 	local list_user="$( _netfilter user_list )"
+	local interface
 
 	for mac in $list_user; do {
-		_log do $funcname daemon info "_netfilter user_del $mac"
-
 		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'"
 		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$( _net mac2ip "$mac" )'"
 
 		_netfilter user_del "$mac"
 	} done >"/tmp/NETFILTER_AUTOADD"
+
+	_netfilter traffic_control_needed && {
+		for interface in $LANDEV $WANDEV $WIFIDEV; do {
+			[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] && {
+				tc qdisc del dev "$interface" root
+				rm "/tmp/TRAFFIC_CONTROL_UP_$interface"		# sign for root-qdisc
+				rm "/tmp/TRAFFIC_CONTROL_users_$interface"	# id_counter
+			}
+		} done
+	}
 
 	_db backup
 
@@ -465,6 +601,8 @@ _netfilter_user_add()
 {
 	local mac="$1"
 	local ip="$2"
+	local speed_up="$3"	# e.g. 1mbit, 32kbit
+	local speed_down="$4"
 	local dev
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
@@ -489,6 +627,12 @@ _netfilter_user_add()
 	[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
 		_netfilter user_dataretention_add "$mac" "$ip"
 	}
+
+	_netfilter traffic_control_needed && {
+		_netfilter traffic_control_user_add "$ip" "$speed_up" "$speed_down"
+	}
+
+	return 0
 }
 
 _netfilter_user_probe()
@@ -504,6 +648,8 @@ _netfilter_user_del()
 	local ip dev
 
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
+		_netfilter traffic_control_user_del "$mac"
+
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
 		iptables -t mangle -D PREROUTING -d $ip -j ACCEPT
 		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
