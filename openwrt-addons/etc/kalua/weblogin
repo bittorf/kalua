@@ -110,8 +110,21 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 	LINK="${LINK}${AMP}FORM_LANG"
 
 	read BGCOLOR 2>/dev/null </www/images/bgcolor.txt		# fixme! defaulting to #F2F2F2 ?
-									# fixme! _weblogin metadata slogan()
-	SLOGAN="$( test -e /www/images/logo2.gif && echo -n "<IMG SRC='${LINK_BASE}/images/logo2.gif' TITLE='Hotel-Slogan' ALT='Hotel-Slogan'><BR><BR>" )"
+
+	if [ -e "/www/images/logo2.gif" ]; then
+		# fixme! use: _weblogin metadata slogan
+		SLOGAN="<IMG SRC='${LINK_BASE}/images/logo2.gif' TITLE='Hotel-Slogan' ALT='Hotel-Slogan'>"
+
+		local advert_url="$( _weblogin metadata_locationname advert_url )"
+		[ -n "$advert_url" ] && {
+			local advert_title="$( _weblogin metadata_locationname advert_title )"
+			SLOGAN="<a href='$advert_url' title='$advert_title'>$SLOGAN</a>"
+		}
+
+		SLOGAN="$SLOGAN<BR><BR>"
+	else
+		SLOGAN=
+	fi
 
 	cat <<EOF
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
@@ -311,8 +324,9 @@ EOF
 EOF
 }
 
-_weblogin_metadata_locationname ()
+_weblogin_metadata_locationname()
 {
+	local option="$1"
 	local LANG="$( _translate lang $1 )"
 	local META="/www/images/weblogin_rules_${LANG}_meta"
 
@@ -323,7 +337,17 @@ _weblogin_metadata_locationname ()
 
 	[ -e "$META" ] && eval "$( sed 's/^/local /' $META )"
 
-	echo "${HOTELNAME:-Internet}"
+	case "$option" in
+		advert_url)
+			echo "$ADVERT_URL"
+		;;
+		advert_title)
+			echo "$ADVERT_TITLE"
+		;;
+		*)
+			echo "${HOTELNAME:-Internet}"
+		;;
+	esac
 }
 
 _weblogin_htmlout_rules ()
