@@ -73,7 +73,7 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 	local AMP="&amp;"
 	local TABINDEX="6"	# is hardcoded on most points
 	local SEP=":"		# was "&middot;" but lynx cannot display this 8-) and the ' looks wierd, maybe use "|"?
-	local LOCATION_NAME="$( _weblogin metadata_locationname )"
+	local LOCATION_NAME="$( _weblogin metadata_locationname "$LANG" )"
 	local LOGO_DESCRIPTION="$( _translate do "$LANG" site_logo ) ('$LOCATION_NAME')"	# fixme! we need an better meta-description, e.g. Schriftzug | Bett auf Wolken ...
 
 
@@ -115,9 +115,9 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 		# fixme! use: _weblogin metadata slogan
 		SLOGAN="<IMG SRC='${LINK_BASE}/images/logo2.gif' TITLE='Hotel-Slogan' ALT='Hotel-Slogan'>"
 
-		local advert_url="$( _weblogin metadata_locationname advert_url )"
+		local advert_url="$( _weblogin metadata_locationname "$LANG" advert_url )"
 		[ -n "$advert_url" ] && {
-			local advert_title="$( _weblogin metadata_locationname advert_title )"
+			local advert_title="$( _weblogin metadata_locationname "$LANG" advert_title )"
 			SLOGAN="<a href='$advert_url' title='$advert_title'>$SLOGAN</a>"
 		}
 
@@ -312,11 +312,22 @@ EOF
 		;;
 	esac
 
-	[ -e "/www/advertisement.js" ] && {
+	if [ -e "/www/advertisement.js" ]; then
 		echo -n "<tr><td align='middle'><br><br>&nbsp;"
 		sed "s/INSERT_RANDOM_NUMBER_HERE/$( _math random_integer 1 99999 )/g" "/www/advertisement.js"
 		echo -n "</td></tr>"
-	}
+	elif [ -e "/www/images/logo3.gif" ]; then
+		SLOGAN="<img src='${LINK_BASE}/images/logo3.gif'>"
+		local advert_url="$( _weblogin metadata_locationname "$LANG" advert_url )"
+		[ -n "$advert_url" ] && {
+			local advert_title="$( _weblogin metadata_locationname "$LANG" advert_title )"
+			SLOGAN="<a href='$advert_url' title='$advert_title'>$SLOGAN</a>"
+		}
+
+		echo -n "<tr><td align='middle'><br><br>&nbsp;"
+		echo -n "$SLOGAN"
+		echo -n "</td></tr>"
+	fi
 
 	cat <<EOF
 </TABLE></FORM></CENTER>
@@ -326,11 +337,11 @@ EOF
 
 _weblogin_metadata_locationname()
 {
-	local option="$1"
 	local LANG="$( _translate lang $1 )"
+	local option="$2"
 	local META="/www/images/weblogin_rules_${LANG}_meta"
 
-	[ ! -e "$FILE" ] && {
+	[ -e "$META" ] || {
 		LANG="$( _translate lang default )"
 		META="/www/images/weblogin_rules_${LANG}_meta"
 	}
