@@ -186,6 +186,43 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					pidof dnsmasq >/dev/null || _watch dns_resolution
 					_watch local_proxy
 
+					case "$HOUR" in
+						01|02|03)
+							case "$MINUTE" in
+								00|01|02|03|04|05)
+									_db ticketcheck auto
+								;;
+							esac
+						;;
+						04)
+							case "$MINUTE" in
+								00|01|02|03|04|05)
+									_netfilter stop remember_over_reboot
+									_netfilter ipforwarding_start
+									_netfilter masquerade_start
+									sleep 300	# give time for collecting userdata
+
+									[ "$( uci get system.@system[0].timezone )" = "UTC" ] && {
+										uci set system.@system[0].timezone="CET-1CEST,M3.5.0,M10.5.0/3"
+										uci commit system
+									}
+
+									case "$HARDWARE" in
+										*)
+											[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
+												rm "/www/GOOD_MODULE_UNLOAD"
+											}
+
+											_system reboot_safe "nightly"
+										;;
+									esac
+
+									_netfilter start
+								;;
+							esac
+						;;
+					esac
+
 					case "$MINUTE" in
 						00|15|30|45)
 							_scheduler add gateway_check
@@ -199,40 +236,6 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 							}
 
 							_scheduler add "_tunnel clientside_control check_connection all"
-
-							case "$HOUR" in
-								01|02|03)
-									case "$MINUTE" in
-										00|01|02|03|04|05)
-											_db ticketcheck auto
-										;;
-									esac
-								;;
-								04)
-									case "$MINUTE" in
-										00|01|02|03|04|05)
-											_netfilter stop remember_over_reboot
-											_netfilter ipforwarding_start
-											_netfilter masquerade_start
-											sleep 300	# give time for collecting userdata
-
-											[ "$( uci get system.@system[0].timezone )" = "UTC" ] && {
-												uci set system.@system[0].timezone="CET-1CEST,M3.5.0,M10.5.0/3"
-												uci commit system
-											}
-
-											case "$HARDWARE" in
-												*)
-													[ -e "/www/GOOD_MODULE_UNLOAD" ] && rm "/www/GOOD_MODULE_UNLOAD"
-													_system reboot_safe "nightly"
-												;;
-											esac
-
-											_netfilter start
-										;;
-									esac
-								;;
-							esac
 
 							case "$MINUTE" in
 								00)
