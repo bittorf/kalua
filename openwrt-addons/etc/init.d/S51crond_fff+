@@ -212,14 +212,44 @@ func_cron_config_write ()
 
 		cp "/usr/sbin/cron.minutely" "/tmp/CRON_IS_CAREFUL"
 
+		dont_need_wait_for_zero_ssh_action()
+		{
+			case "$CONFIG_PROFILE" in
+				preskil*|ffweimar*|liszt28*|rehungen*)
+					return 0
+				;;
+			esac
+
+			_net local_inet_offer >/dev/null && return 0
+
+			return 1
+		}
+
+		dont_need_wait_for_zero_ssh_action && {
+			sed -i 's/^.* REM$/#&/g' "/tmp/CRON_IS_CAREFUL"
+		}
+
+		[ $( _system ram_size ) -gt 16384 ] || {
+			_log do $FUNC daemon info "lowram: be even more careful, dont work if load > 0.5"
+
+			case "$CONFIG_PROFILE" in
+				elephant*)
+					sed -i 's/0.8\*/0.8\*|0.7\*|0.6\*|0.5\*|0.4\*/' "/tmp/CRON_IS_CAREFUL"
+				;;
+				*)
+					sed -i 's/0.8\*/0.8\*|0.7\*|0.6\*|0.5\*/' "/tmp/CRON_IS_CAREFUL"
+				;;
+			esac
+		}
+
 		case "$CONFIG_PROFILE" in
-			preskil*|ffweimar*|liszt28*)
-				# dont pause if somebody is logged in via SSH
-				sed -i 's/^.* REM$/#&/g' "/tmp/CRON_IS_CAREFUL"
+			ffweimar*)
+				echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL; . /tmp/loader; _watch switch_linkstatus"
+			;;
+			*)
+				echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL"
 			;;
 		esac
-
-		echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL; _watch switch_linkstatus"
 	fi
 
 	while read LINE; do {
