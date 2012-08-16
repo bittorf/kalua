@@ -89,42 +89,6 @@ _build()
 	netparam_for_uci_devices >$FILE
 }
 
-_restore_original_netparam ()
-{
-	local FUNC="restore_original_netparam"
-	local ORIGINAL="/rom/usr/bin/netparam"
-	local COPY="/usr/bin/netparam"
-
-	_uci is_oldstyle || return 0
-
-	[ "$( _file hash "$ORIGINAL" )" = "$( _file hash "$COPY" )" ] && {
-		_log do $FUNC daemon debug "netparam seems to be fine"
-		return
-	}	
-
-	_log do $FUNC daemon debug "HASH's differ - replacing netparam in filesystem with copy in rom"
-	
-	cp $ORIGINAL $COPY || {
-		_log do $FUNC daemon debug "error during copy? trying to symlink"
-		
-		>$COPY		# create 0 byte-file
-		rm $COPY
-		ln -s $ORIGINAL $COPY && {
-			_log do $FUNC daemon debug "symlinking went fine"
-			return
-		}
-		_log do $FUNC daemon crit "error during symlinking"
-		return 1
-	}
-	
-	_log do $FUNC daemon debug "successfully replaced"
-}
-
-if [ -e /tmp/BOOT ] || [ "$1" = "restore_original_netparam" ]; then
-	_restore_original_netparam
-fi
-
-
 HASH_OLD="$( _file hash /tmp/NETPARAM )"
 _build
 HASH_NEW="$( _file hash /tmp/NETPARAM )"
