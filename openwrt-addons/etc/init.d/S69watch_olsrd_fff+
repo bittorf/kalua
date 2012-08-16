@@ -45,7 +45,7 @@ _watch wifi_mode || sleep 30		# lets settle down to see some neighs
 }
 
 _watch system_time
-# _watch vpnc
+_watch dns_resolution
 
 # check vpn connection for devices with internet access via lan gateway 
 [ -n "$( uci get network.lan.gateway )" ] && {
@@ -54,12 +54,12 @@ _watch system_time
 	}
 }
 
-_watch dns_resolution
 _watch pppoe
 # _watch netserver
 _watch sshd_or_telnet
 _watch random_node_id
 _watch dhcp_space
+_net refresh_dnshosts
 
 case "$CONFIG_PROFILE" in
 	ffweimar*)
@@ -73,7 +73,7 @@ case "$CONFIG_PROFILE" in
 	;;
 esac
 
-#/usr/sbin/cron.reverse_ssh_tunnel
+/usr/sbin/cron.reverse_ssh_tunnel
 
 _firmware upgrade_is_needed && {
 	touch /tmp/START_SYSUPGRADE
@@ -140,18 +140,11 @@ else
 fi
 
 [ -e "/tmp/ENDBOOT" ] || {
-	touch "/tmp/ENDBOOT"
-	killall rcS     # fixme!
+	[ "$( _system uptime min )" -gt 5 ] && {
+		touch "/tmp/ENDBOOT"
+		killall rcS     # fixme!
 
-	[ $( _system ram_size ) -lt 16384 ] && {
-		[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
-			grep -q "ipt_LOG" "/www/GOOD_MODULE_UNLOAD" || {
-				rm "/www/GOOD_MODULE_UNLOAD"
-			}
-		}
 
-		/etc/init.d/S70prepare_fff+ unload_unneeded_kmodules
-	}
-	_wget do "http://localhost/cgi-bin/luci" 5 >/tmp/LUCI_HEADER    #cache luci header for splash page, improve by native lua call?
+
 }
 
