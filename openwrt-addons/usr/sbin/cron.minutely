@@ -26,11 +26,26 @@ case "$LOAD" in
 			_watch topusage_task
 
 			[ -e "/bin/dmesg" ] && . /usr/sbin/cron.check_klog
-			[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
+
+			[ -e "/tmp/CRON_OVERLOAD" ] && {
+				read I <"/tmp/CRON_OVERLOAD"
+				case "$I" in
+					"#"*)
+						rm "/tmp/CRON_OVERLOAD"
+					;;
+				esac
+			}
 		fi
 	;;
 	1.0*|0.9*|0.8*)
-		[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
+		[ -e "/tmp/CRON_OVERLOAD" ] && {
+			read I <"/tmp/CRON_OVERLOAD"
+			case "$I" in
+				"#"*)
+					rm "/tmp/CRON_OVERLOAD"
+				;;
+			esac
+		}
 	;;
 	0*)
 		[ -e "/bin/dmesg" ] && . /usr/sbin/cron.check_klog
@@ -74,26 +89,30 @@ case "$LOAD" in
 		fi
 	;;
 	*)
-		echo -n '#' >>"/tmp/CRON_OVERLOAD"
-		read I <"/tmp/CRON_OVERLOAD"
+		if [ -e "/tmp/CRON_OVERLOAD" ]; then
+			read I <"/tmp/CRON_OVERLOAD"
+		else
+			echo -n '#' >>"/tmp/CRON_OVERLOAD"
+			I="#"
+		fi
 
 		case "$I" in
 			db_ticketcheck*|index_gen*|data_retention*|upgrade_packages*)
-				I=
-			;;
-		esac
-
-		case ${#I} in
-			0|1|2|4)
-			;;
-			3)
-				rm /tmp/user-*	# maybe orphaned vds-files/ulogd
-				rm /tmp/log/*
 			;;
 			*)
-				rm "/tmp/CRON_IS_CAREFUL"
-				echo "b" >/proc/sysrq-trigger
-				/sbin/reboot -f
+				case ${#I} in
+					0|1|2|4)
+					;;
+					3)
+						rm /tmp/user-*	# maybe orphaned vds-files/ulogd
+						rm /tmp/log/*
+					;;
+					*)
+						rm "/tmp/CRON_IS_CAREFUL"
+						echo "b" >/proc/sysrq-trigger
+						/sbin/reboot -f
+					;;
+				esac
 			;;
 		esac
 	;;
