@@ -7,10 +7,12 @@
 }
 
 grep -q ^"b43 " "/proc/modules" && {
-	iw dev $WIFIDEV set bitrates legacy-2.4 6 9 12 18 24 36 48 54
+	[ "$( uci get wireless.@wifi-iface[0].mode )" = "adhoc" ] || {
+		iw dev $WIFIDEV set bitrates legacy-2.4 6 9 12 18 24 36 48 54
+	}
 }
-ERR=1
 
+ERR=1
 while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 	ERR=0
@@ -32,14 +34,16 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 				FILE="/tmp/fw"
 
-				[ $( _system ram_size ) -gt 16384 ] && {
-					_firmware wget "$FILE"
+				[ -e "/www/fw" ] || {
+					[ $( _system ram_size ) -gt 16384 ] && {
+						_firmware wget "$FILE"
 
-					if [ $( _file size "$FILE" kb ) -lt $( _system flash_free ) ]; then
-						mv "$FILE" "/www/fw"
-					else
-						_log do prepare_firmware_update daemon info "using image-on-flash failed, fallback to ram-mode"
-					fi
+						if [ $( _file size "$FILE" kb ) -lt $( _system flash_free ) ]; then
+							mv "$FILE" "/www/fw"
+						else
+							_log do prepare_fwupdate daemon info "image-on-flash failed, fallback to ram-mode"
+						fi
+					}
 				}
 
 				[ -e "/www/fw" ] && {
@@ -81,7 +85,10 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					}
 				fi
 
-				pidof crond >/dev/null || reboot -f
+				pidof crond >/dev/null || {
+					_log do cron_died daemon alert "empty pid"
+					reboot -f
+				}
 
 				[ -e "/tmp/LOCKFILE_APPLY" ] && rm "/tmp/LOCKFILE_APPLY"        # unblock scheduler
 
@@ -179,6 +186,49 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					pidof dnsmasq >/dev/null || _watch dns_resolution
 					_watch local_proxy
 
+					case "$HOUR" in
+						01|02|03)
+							case "$MINUTE" in
+								00|01|02|03|04|05)
+									[ $( _system uptime min ) -gt 60 ] && {
+										_db ticketcheck auto
+									}
+								;;
+							esac
+						;;
+						04)
+							[ $( _system uptime min ) -gt 60 ] || {
+								MINUTE=06
+							}
+
+							case "$MINUTE" in
+								00|01|02|03|04|05)
+									_netfilter stop remember_over_reboot
+									_netfilter ipforwarding_start
+									_netfilter masquerade_start
+									sleep 300	# give time for collecting userdata
+
+									[ "$( uci get system.@system[0].timezone )" = "UTC" ] && {
+										uci set system.@system[0].timezone="CET-1CEST,M3.5.0,M10.5.0/3"
+										uci commit system
+									}
+
+									case "$HARDWARE" in
+										*)
+											[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
+												rm "/www/GOOD_MODULE_UNLOAD"
+											}
+
+											_system reboot_safe "nightly"
+										;;
+									esac
+
+									_netfilter start
+								;;
+							esac
+						;;
+					esac
+
 					case "$MINUTE" in
 						00|15|30|45)
 							_scheduler add gateway_check
@@ -196,36 +246,8 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 							case "$MINUTE" in
 								00)
 									_scheduler add 1h_checks
-									_scheduler add refresh_dnshosts
 
 									case "$HOUR" in
-										00)
-											:
-										;;
-										03)
-											:
-										;;
-										04)
-											_netfilter stop remember_over_reboot
-											_netfilter ipforwarding_start
-											_netfilter masquerade_start
-											sleep 300	# give time for collecting userdata
-
-											[ "$( uci get system.@system[0].timezone )" = "UTC" ] && {
-												uci set system.@system[0].timezone="CET-1CEST,M3.5.0,M10.5.0/3"
-												uci commit system
-											}
-
-											case "$HARDWARE" in
-												*)
-													[ -e "/www/GOOD_MODULE_UNLOAD" ] && rm "/www/GOOD_MODULE_UNLOAD"
-													_system reboot_safe "nightly"
-												;;
-											esac
-
-											_netfilter start
-											_firmware update_pmu
-										;;
 										05)
 											[ -e "/tmp/DB/USER/login/rows" ] && {
 												_db user login index_gen
@@ -240,9 +262,21 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 											[ -e "/tmp/DB/USER/device/stats" ] && {
 												case "$CONFIG_PROFILE" in
-													hotello*|aschbach*|olympia*|liszt28*|rehungen*|preskil*)
+													hotello*|aschbach*|olympia*|liszt28*|rehungen*|preskil*|boltenhagen*|zumnorde*)
 														_log sleep jitter_send_mail "$( _math random_integer 0 100 )" step 5
 														_db statistics_send_mail daily yesterday
+													;;
+												esac
+
+												case "$( date +%A )" in
+													"Monday")
+														_log sleep jitter_send_mail "$( _math random_integer 0 100 )" step 5
+														_db statistics_send_mail weekly_report
+
+														# each first monday in month
+														[ $( date +%e ) -le 7 ] && {
+															_db statistics_send_mail monthly_report
+														}
 													;;
 												esac
 											}
@@ -260,7 +294,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 		w)
 			[ -n "$WIFIDEV" ] && {
 				ip address show dev $WIFIDEV | fgrep -q "inet " || {
-					_wifi phy_restart $WIFIDEV "no ip on dev"
+					_wifi phy_restart $WIFIDEV "no ip on dev" || touch /tmp/WIFI_PHY_ERROR
 				}
 			}
 
@@ -301,7 +335,18 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 				echo "$framecount_new" >"$file_framecount"
 
 				if [ "$framecount_old" = "$framecount_new" ]; then
-					[ "$framecount_new" = "0" ] && logprio="info"
+
+					case "$WIFIMODE" in
+						ap)
+							logprio="info"
+						;;
+						*)
+							[ "$framecount_new" = "0" ] && {
+								logprio="info"
+							}
+						;;
+					esac
+
 					_log do $funcname daemon $logprio "[ERR] framecounter for $check_dev old/new: $framecount_old = $framecount_new timediff: $uptime_diff sec"
 					echo "0" >"$file_framecount"
 
@@ -343,10 +388,10 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					*)
 						if [ -n "$( iw dev $WIFIDEV station dump )" ]; then
 							_wifi check_each_client || {
-								_wifi phy_restart $WIFIDEV "clients active, no incoming_wifi_activity, wifimode $WIFIMODE"
+								_wifi phy_restart $WIFIDEV "clients active, no incoming_wifi_activity, mode $WIFIMODE"
 							}
 						else
-							_wifi phy_restart $WIFIDEV "no clients, no incoming_wifi_activity, wifimode $WIFIMODE"
+							_wifi phy_restart $WIFIDEV "no clients, no incoming_wifi_activity, mode $WIFIMODE" info
 						fi
 					;;
 				esac
