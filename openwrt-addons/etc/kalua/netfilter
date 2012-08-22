@@ -585,12 +585,16 @@ _netfilter_user_reachable()
 	local mac="$1"
 	local ip="$2"
 	local maxtry="5"
-	local dev line
+	local dev line dev_guess
 
 	_sanitizer do "$mac" mac check || return 1
 	_sanitizer do "$ip"  ip4 check || return 1
 
-	for dev in $LANDEV $WIFIDEV $WANDEV; do {
+	dev_guess="$( ip route get $ip )"
+	set -- $dev_guess
+	dev_guess="$3"
+
+	for dev in $dev_guess $LANDEV $WIFIDEV $WANDEV; do {
 		arping -I "$dev" -c "$maxtry" -q -f "$ip" && {
 			line="$( grep "$mac" /proc/net/arp | grep ^"$ip" | head -n1 )"
 			set ${line:-empty_line}
