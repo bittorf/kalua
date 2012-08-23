@@ -164,20 +164,38 @@ _netfilter_traffic_control_user_del()
 {
 	local mac="$1"
 	local file="/tmp/NETFILTER/USER/$mac/traffic_control_del"
+	local device="$( _net mac2dev "$mac" )"
+	local users_old users_new some_mac
 
 	[ -e "$file" ] && {
 		. "$file"
 		rm "$file"
 	}
 
-	# remove root-class if possible
+	file="/tmp/TRAFFIC_CONTROL_UP_${device}"	# fixme! make a list abstraction
+	read users_old <"$file"
+	users_new=
+	for some_mac in $users_old; do {
+		case "$some_mac" in
+			$mac)
+			;;
+			*)
+				users_new="$users_new $some_mac"
+			;;
+		esac
+	} done
+
+	[ -z "$users_new" ] && {
+		_netfilter traffic_control_stop "$device"
+	}
 }
 
 _netfilter_traffic_control_stop()
 {
+	local list="${1:-$LANDEV $WANDEV $WIFIDEV}"
 	local interface
 
-	for interface in $LANDEV $WANDEV $WIFIDEV; do {
+	for interface in $list; do {
 		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] && {
 			tc qdisc del dev "$interface" root
 			rm "/tmp/TRAFFIC_CONTROL_UP_$interface"		# sign for root-qdisc
