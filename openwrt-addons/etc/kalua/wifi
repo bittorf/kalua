@@ -814,6 +814,23 @@ _wifi_phy_restart()
 	echo "$reason: $uptime $vals_rx $vals_tx" >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.reason"
 	_log do $funcname daemon $prio "working on '$wifi_dev' ($reason) $uptime $vals_rx $vals_tx"
 
+	local line mac adduser
+	local userlist="$( _netfilter user_list )"
+	while read line; do {
+		case "$line" in
+			*"$wifi_dev")
+				set -- $line
+				mac="$4"
+
+				case "$userlist" in
+					*"$mac"*)
+						adduser="$adduser $mac"
+					;;
+				esac
+			;;
+		esac
+	} done <"/proc/net/arp"
+
 	# fixme! how to restart a specific interface?
 	/sbin/wifi down
 	_log sleep $funcname 10 step 1
@@ -828,11 +845,18 @@ _wifi_phy_restart()
 		}
 	}
 
-	local mac users ip
+	local ip
+	for mac in $adduser; do {
+		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+		_netfilter make_arp_permanent "$mac" "$ip" "$wifi_dev"
+	} done
+
+	local users
 	local file="/tmp/TRAFFIC_CONTROL_UP_${wifi_dev}"
 	[ -e "$file" ] && {
-		_netfilter traffic_control_stop
 		read users <"$file"
+		_netfilter traffic_control_stop
+
 		for mac in $users; do {
 			read ip <"/tmp/NETFILTER/MAC2IP/$mac"
 			_netfilter traffic_control_user_add "$ip"
