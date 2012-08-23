@@ -160,6 +160,19 @@ _netfilter_traffic_control_user_del()
 	# remove root-class if possible
 }
 
+_netfilter_traffic_control_stop()
+{
+	local interface
+
+	for interface in $LANDEV $WANDEV $WIFIDEV; do {
+		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] && {
+			tc qdisc del dev "$interface" root
+			rm "/tmp/TRAFFIC_CONTROL_UP_$interface"		# sign for root-qdisc
+			rm "/tmp/TRAFFIC_CONTROL_users_$interface"	# id_counter
+		}
+	} done
+}
+
 _netfilter_stats()
 {
 	local context="$1"
@@ -277,13 +290,7 @@ _netfilter_stop()
 	} done >"/tmp/NETFILTER_AUTOADD"
 
 	_netfilter traffic_control_needed && {
-		for interface in $LANDEV $WANDEV $WIFIDEV; do {
-			[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] && {
-				tc qdisc del dev "$interface" root
-				rm "/tmp/TRAFFIC_CONTROL_UP_$interface"		# sign for root-qdisc
-				rm "/tmp/TRAFFIC_CONTROL_users_$interface"	# id_counter
-			}
-		} done
+		_netfilter traffic_control_stop
 	}
 
 	_db backup
