@@ -114,25 +114,38 @@ _netfilter_traffic_control_user_add()
 	local speed_up="${2:-32kbit}"		# e.g. 1mbit, 32kbit
 	local speed_down="${3:-1024kbit}"	# # fixme! use profile instead of fix values, e.g. youtube
 	local mac i j				# e.g. 32/1024 = wigo/tv works
+	local users file
 
 	local interface="$( ip -oneline route get "$ip" )"
 	set -- $interface
 	interface="$3"
-
-	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
+	file="/tmp/TRAFFIC_CONTROL_UP_$interface"
 
 	# hierarchical token bucket: http://luxik.cdi.cz/~devik/qos/htb/
 	[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || {
 		tc qdisc add dev "$interface" root handle 1: htb default 30 && {
-			touch "/tmp/TRAFFIC_CONTROL_UP_$interface"
+			touch "$file"
 		}
 	}
+
+	read mac <"/tmp/NETFILTER/IP2MAC/$ip"
+	read users <"$file"
+	case "$users" in
+		*"$mac"*)
+			_log do $funcname daemon info "$ip/$mac already shaped on this interface"
+			return 0
+		;;
+		*)
+			echo "$users $mac" >"$file"
+		;;
+	esac
+
+	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
 
 	# fixme! use a sieve, always fillup from bottom?
 	_watch counter "/tmp/TRAFFIC_CONTROL_users_$interface" increment 2
 	read i <"/tmp/TRAFFIC_CONTROL_users_$interface"
 	j=$(( $i - 1 ))
-	read mac <"/tmp/NETFILTER/IP2MAC/$ip"
 
 	cat >/tmp/NETFILTER/USER/$mac/traffic_control_del <<EOF
 tc filter "del" dev "$interface" protocol ip parent 1:0 prio $i
