@@ -672,8 +672,7 @@ _netfilter_user_add()
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -j ACCEPT
 
 	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
-	ip neigh add    $ip dev $dev lladdr $mac nud permanent 2>/dev/null
-	ip neigh change $ip dev $dev lladdr $mac nud permanent 2>/dev/null
+	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
 
 	[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
 		_netfilter user_dataretention_add "$mac" "$ip"
@@ -684,6 +683,16 @@ _netfilter_user_add()
 	}
 
 	return 0
+}
+
+_netfilter_make_arp_permanent()
+{
+	local mac="$1"
+	local ip="$2"
+	local dev="${3:-$( _net mac2dev "$mac" )}"
+
+	ip neigh add    $ip dev $dev lladdr $mac nud permanent 2>/dev/null
+	ip neigh change $ip dev $dev lladdr $mac nud permanent 2>/dev/null
 }
 
 _netfilter_user_probe()
