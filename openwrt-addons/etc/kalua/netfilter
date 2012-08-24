@@ -165,17 +165,20 @@ _netfilter_traffic_control_user_del()
 	}
 
 	file="/tmp/TRAFFIC_CONTROL_UP_${device}"	# fixme! make a list abstraction
-	read users_old <"$file"
 	users_new=
-	for some_mac in $users_old; do {
-		case "$some_mac" in
-			$mac)
-			;;
-			*)
-				users_new="$users_new $some_mac"
-			;;
-		esac
-	} done
+
+	[ -e "$file" ] && {
+		read users_old <"$file"
+		for some_mac in $users_old; do {
+			case "$some_mac" in
+				$mac)
+				;;
+				*)
+					users_new="$users_new $some_mac"
+				;;
+			esac
+		} done
+	}
 
 	[ -z "$users_new" ] && {
 		_netfilter traffic_control_stop "$device"
@@ -626,10 +629,10 @@ _netfilter_user_reachable()
 
 	for dev in $dev_guess $LANDEV $WIFIDEV $WANDEV; do {
 		arping -I "$dev" -c "$maxtry" -q -f "$ip" && {
-			line="$( grep "$mac" /proc/net/arp | grep ^"$ip" | head -n1 )"
-			set ${line:-empty_line}
+			line="$( ip neigh show to "$ip" | head -n1 )"
+			set -- ${line:-empty_line}
 
-			if [ "$ip" = "$1" ]; then
+			if [ "$mac" = "$5" ]; then
 				return 0
 			else
 				return 1
