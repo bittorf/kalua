@@ -624,7 +624,7 @@ _netfilter_user_reachable()
 	local mac="$1"
 	local ip="$2"
 	local maxtry="5"
-	local dev line dev_guess
+	local dev line dev_guess devlist
 
 	_sanitizer do "$mac" mac check || return 1
 	_sanitizer do "$ip"  ip4 check || return 1
@@ -636,7 +636,11 @@ _netfilter_user_reachable()
 	set -- $dev_guess
 	dev_guess="$3"
 
-	for dev in $( _list uniq "$dev_guess $LANDEV $WIFIDEV $WANDEV" ); do {
+	devlist="$( _list uniq "$LANDEV $WIFIDEV $WANDEV" )"
+	devlist="$( for dev in $devlist; do test "$dev" = "$dev_guess" || echo "$dev"; done )"
+	devlist="$dev_guess $devlist"
+
+	for dev in $devlist; do {
 		arping -I "$dev" -c "$maxtry" -q -f "$ip" && {
 			line="$( ip neigh show to "$ip" | head -n1 )"
 			set -- ${line:-empty_line}
