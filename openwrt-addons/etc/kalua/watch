@@ -830,11 +830,32 @@ _watch_topusage_task()
 	_watch hanging_command $task
 }
 
+_watch_nanostation_max_ethernet()	# has hardware error
+{
+	[ "$HARDWARE" = "Ubiquiti Nanostation2" ] || return 0
+
+	case "$( uci get wireless.radio0.macaddr )" in
+		"00:15:6d:ad:5c:26")
+			mii-tool 2>&1 | grep -q " 10baseT-HD" || {
+				for OPT in R "A 10baseT-HD" "F 10baseT-HD" r v ; do {
+					sleep 3
+					mii-tool -$OPT | _log do mii-tool daemon info
+				} done
+
+				ifup lan
+				_olsr daemon restart "lan-ethernet was lost"
+			}
+		;;
+	esac
+}
+
 _watch_switch_linkstatus()
 {
 	local funcname="watch_switch_linkstatus"
 	local statfile="/tmp/$funcname.stat"
 	local stat_old stat_new devname interface_name
+
+	_watch nanostation_max_ethernet
 
 	if [ -e "$statfile" ]; then
 		read stat_old <"$statfile"
