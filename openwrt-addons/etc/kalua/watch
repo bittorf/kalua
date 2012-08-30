@@ -836,7 +836,14 @@ _watch_nanostation_max_ethernet()	# has hardware error
 
 	case "$( uci get wireless.radio0.macaddr )" in
 		"00:15:6d:ad:5c:26")
-			mii-tool 2>&1 | grep -q " 10baseT-HD" || {
+			if mii-tool 2>&1 | grep -q " 10baseT-HD"; then
+				pidof olsrd >/dev/null && {
+					grep -q "$LANDEV" /var/etc/olsrd.conf || {
+						ifup lan
+						_olsr daemon restart "lan-ethernet was lost"
+					}
+				}
+			else
 				for OPT in R "A 10baseT-HD" "F 10baseT-HD" r v ; do {
 					sleep 3
 					mii-tool -$OPT | _log do mii-tool daemon info
@@ -844,7 +851,7 @@ _watch_nanostation_max_ethernet()	# has hardware error
 
 				ifup lan
 				_olsr daemon restart "lan-ethernet was lost"
-			}
+			fi
 		;;
 	esac
 }
