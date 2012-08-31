@@ -10,4 +10,3 @@ mybuild.sh
 * 901-minstrel-try-all-rates.patch nach ../../package/mac80211/patches/901-minstrel-try-all-rates.patch kopieren
 * Variable LOCAL_INET_OFFER
 * reverse_ssh_tunnel
-* freifunk-cron rausschmeißen (applyprofile)
