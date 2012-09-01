@@ -101,14 +101,31 @@ _netfilter_traffic_control_needed()
 	return 0
 }
 
+_netfilter_convert_speed_to_bit()
+{
+	local speed="$1"	# 32kbit | 1mbit | 128000
+
+	case "$speed" in
+		*kbit)
+			echo $(( ${speed//kbit/} * 1024 ))
+		;;
+		*mbit)
+			echo $(( ${speed//mbit/} * 1024 * 1024 ))
+		;;
+		*)
+			echo "$speed"
+		;;
+	esac
+}
+
 _netfilter_traffic_control_user_add()
 {
 	local funcname="netfilter_traffic_control_user_add"
 	local ip="$1"
-	local speed_up="${2:-96kbit}"		# e.g. 1mbit, 32kbit
+	local speed_up="${2:-96kbit}"		# e.g. 1mbit, 32kbit or 128000
 	local speed_down="${3:-1024kbit}"	# # fixme! use profile instead of fix values, e.g. youtube
 	local mac i j				# e.g. 32/1024 = wigo/tv works
-	local users file
+	local users file comment
 
 	local interface="$( ip -oneline route get "$ip" )"
 	set -- $interface
@@ -136,22 +153,66 @@ _netfilter_traffic_control_user_add()
 
 	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
 
+	case "$speed_up" in
+		*kbit|*mbit)
+			speed_up="$( _netfilter convert_speed_to_bit "$speed_up" )"
+		;;
+	esac
+
+	case "$speed_down" in
+		*kbit|*mbit)
+			speed_down="$( _netfilter convert_speed_to_bit "$speed_down" )"
+		;;
+	esac
+
 	# fixme! use a sieve, always fillup from bottom?
 	_watch counter "/tmp/TRAFFIC_CONTROL_users_$interface" increment 2
 	read i <"/tmp/TRAFFIC_CONTROL_users_$interface"
 	j=$(( $i - 1 ))
+
+	# this is a helper for next function
+	echo "$mac $ip $interface $j $i $speed_down $speed_up" >/tmp/NETFILTER/USER/$mac/traffic_control_params
 
 	cat >/tmp/NETFILTER/USER/$mac/traffic_control_del <<EOF
 tc filter "del" dev "$interface" protocol ip parent 1:0 prio $i
 tc filter "del" dev "$interface" protocol ip parent 1:0 prio $j
 tc class  "del" dev "$interface" parent 1: classid 1:$i
 tc class  "del" dev "$interface" parent 1: classid 1:$j
+rm /tmp/NETFILTER/USER/$mac/traffic_control_params
 EOF
 
 	tc class  "add" dev "$interface" parent 1: classid 1:$j "htb" rate "$speed_down"
 	tc class  "add" dev "$interface" parent 1: classid 1:$i "htb" rate "$speed_up"
 	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $j u32 match ip dst "$ip/32" flowid 1:$j
 	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $i u32 match ip src "$ip/32" flowid 1:$i
+}
+
+_netfilter_traffic_control_user_change_speed()
+{
+	local funcname="netfilter_traffic_control_user_change_speed"
+	local mac="$1"			# only for logging
+	local ip="$2"			# only for logging
+	local interface="$3"
+	local classid_download="$4"
+	local classid_upload="$5"
+	local speed_down="$6"
+	local speed_up="$7"
+	local speed_change="$8"		# empty = set absolut values OR percentual of given values
+
+	local new_speed_up new_speed_down
+
+	[ -e "/tmp/NETFILTER/USER/$mac/traffic_control_del" ] || return 1
+
+	if [ -n "$speed_change" ]; then
+		:
+	else
+		new_speed_down="$speed_down"
+		new_speed_up="$speed_up"
+	fi
+
+	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface (change: $speed_change)"
+	tc class change dev "$interface" parent 1: classid 1:$classid_download "htb" rate "$new_speed_down"
+	tc class change dev "$interface" parent 1: classid 1:$classid_upload   "htb" rate "$new_speed_up"
 }
 
 _netfilter_traffic_control_user_del()
