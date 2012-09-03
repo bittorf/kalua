@@ -299,11 +299,24 @@ _netfilter_stats()
 		forward_wifi2wifi)
 			line="$( iptables -nxvL FORWARD | fgrep "$WIFIDEV  $WIFIDEV" )"
 		;;
+		*)
+			if _sanitizer do "$context" mac check; then
+				line="$( iptables -t mangle -nxvL FORWARD | fgrep "incoming_$context" )"
+
+				set -- $line
+				packets="${1:-0}"
+				bytes="${2:-0}"
+
+				line="$( iptables -t mangle -nxvL FORWARD | fgrep "outgoing_$context" )"
+			else
+				return 1
+			fi
+		;;
 	esac
 
 	set -- $line
-	packets="${1:-0}"
-	bytes="${2:-0}"
+	packets=$(( ${packets:-0} + ${1:-0} ))
+	bytes=$(( ${bytes:-0} + ${2:-0} ))
 
 	case "$unit" in
 		packets)
@@ -311,6 +324,9 @@ _netfilter_stats()
 		;;
 		bytes)
 			echo "$bytes"
+		;;
+		kilobytes)
+			echo $(( $bytes / 1000 ))
 		;;
 		megabytes)
 			echo $(( $bytes / 1000000 ))
