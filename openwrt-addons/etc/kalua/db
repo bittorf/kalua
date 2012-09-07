@@ -553,167 +553,43 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 	esac
 }
 
-_db_ticketcheck()						# going through list of profiles (user defined or all)
-{								#
-	return 0	# fixme!
+_db_ticketcheck()
+{
+	local funcname="db_ticketcheck"
+	local profile_id="$1"			# id OR auto (=all id's)
+	local border=128
+	local list counter
 
-	local FUNC="db_ticketcheck"				# going reverse through list of last new devices
-	local PROFILE_ID_WISH="$1"	# id or "auto"		# which profile has the login, which have used this device?
-	local DEVICE_ID_LIST_REVERSE="$2"			# if profile = wished, than check:
-	local DEVICE_ID_LIST="$( _db user device list )"	#
-								# go through list of all login's, after the used one
-	local ALIEN_PROFILE_ID ALIEN_ID				# count, which have whished profile X and are unused
-	local USER_ID_LAST ID ID2 USER_ID_STACK
-	local AUTOGENERATE_BORDER=
-	local UNUSED_TICKETS FOUND_DEVICE
-	local i=0
-	local lockfile="/tmp/${FUNC}_is_running"
-	local file_todo="/tmp/DB/USER/profile/2check"
-
-	if [ -n "$PROFILE_ID_WISH" ]; then
-		case "$PROFILE_ID_WISH" in
-			[0-9]*)
-				grep -sq " $PROFILE_ID_WISH " "$file_todo" || {
-					echo -n " $PROFILE_ID_WISH " >>"$file_todo"
-				}
-			;;
-			auto)
-				PROFILE_ID_WISH=
-			;;
-		esac
-
-		if [ -e "$file_todo" ]; then
-			read PROFILE_ID_WISH <"$file_todo"
-		else
-			return 0
-		fi
+	if _sanitizer do "$profile_id" numeric check ; then
+		list="$profile_id"
 	else
-		PROFILE_ID_WISH="$( _db user profile list )"
+		list="$( _db user profile list )"
 	fi
 
-	allow_run()
-	{
-		[ -e "$lockfile" ] && return 1
-
-		[ -e "/tmp/db_ticketcheck_force" ] && {		# for debugging
-			rm "/tmp/db_ticketcheck_force"
-			touch "$lockfile"
-			return 0
-		}
-
-		_system maintenance_window_active || return 1
-
-		touch "$lockfile"
-	}
-
-	allow_run || return 0
-	_log do $FUNC daemon alert "arg1: '$PROFILE_ID_WISH' arg2: '$DEVICE_ID_LIST_REVERSE'"
-	echo "$FUNC" >/tmp/CRON_OVERLOAD
-
-	case "$CONFIG_PROFILE" in
-		hotello*)
-			AUTOGENERATE_BORDER="128"
-		;;
-		preskil*|dhfleesensee*|elephant*)
-			AUTOGENERATE_BORDER="96"	# 3 * 32
-		;;
-		*)
-			AUTOGENERATE_BORDER="64"
-		;;
-	esac
-
-	[ -z "$DEVICE_ID_LIST_REVERSE" ] && {
-		DEVICE_ID_LIST_REVERSE="$( _db user device list reverse )"
-	}
-
-	profiles_are_matching_and_login_is_unused ()		# needs global ID_CHECK + ALIEN_PROFILE_ID + DEVICE_ID_LIST
-	{
-		eval $( _db user login show $ID_CHECK "PROFILE_ID" )
-
-		if [ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ]; then
-			_log do $FUNC daemon debug "mark2: iterating over DEVICE_ID_LIST"
-
-			for ID2 in $DEVICE_ID_LIST; do {
-				eval $( _db user device show $ID2 "USER_ID" )
-				[ "$ID_CHECK" = "$USER_ID" ] && {
-					return 1
-				}
-			} done
-			return 0
-		else
-			return 1
-		fi
-	}
-
-	for ALIEN_PROFILE_ID in $PROFILE_ID_WISH; do {
-
-		sed -i "s/ $ALIEN_PROFILE_ID //" "$file_todo"		# remove ID from todo-file
-
-		eval "$( _db user profile show $ALIEN_PROFILE_ID "AUTOGENERATE NAME" )"
+	for profile_id in $list; do {
+		AUTOGENERATE=
+		eval "$( _db user profile show "$profile_id" "AUTOGENERATE NAME" )"
 
 		if [ "$AUTOGENERATE" = "1" ]; then
-			_log do $FUNC daemon debug "checking for unused tickets with profile $ALIEN_PROFILE_ID ($NAME)"
-		else
-			_log do $FUNC daemon debug "ignoring profile $ALIEN_PROFILE_ID ($NAME) - autogenerate is off"
-			continue
-		fi
-
-		_stopwatch start $FUNC
-
-		FOUND_DEVICE=
-		for ALIEN_ID in $DEVICE_ID_LIST_REVERSE; do {
-
-			if [ $i -eq 10 ]; then
-				i=0
-				_log do $FUNC daemon debug "mark1: 10 iterations done"
+			file="/tmp/DB/USER/profile/id${profile_id}_counterA"
+			if [ -e "$file" ]; then
+				read counter <"$file"
 			else
-				i=$(( $i + 1 ))
+				counter=0
 			fi
 
-			eval "$( _db user device show $ALIEN_ID "USER_ID"  )"
-			eval "$( _db user login show $USER_ID "PROFILE_ID" )"
+			_log do $funcname daemon debug "only $counter tickets for profile $profile_id ($NAME) in $file"
 
-			[ "$PROFILE_ID" = "$ALIEN_PROFILE_ID" ] && {		# matches user/loop_wish?
-
-				FOUND_DEVICE=1
-				UNUSED_TICKETS=0
-				LOGIN_LAST="$( _db user login list last )"
-				DIFF="$(( $LOGIN_LAST - $USER_ID ))"
-
-				for ID_CHECK in $( _db user login list last $DIFF ); do {
-					profiles_are_matching_and_login_is_unused && {
-						UNUSED_TICKETS=$(( $UNUSED_TICKETS + 1 ))
-					}
-				} done
-
-				while [ $UNUSED_TICKETS -lt $AUTOGENERATE_BORDER ]; do {
-					_log do $FUNC daemon alert "[ERR] only $UNUSED_TICKETS/$AUTOGENERATE_BORDER unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $(( $LOGIN_LAST - $DIFF )))"
-				
-					_db autocreate_tickets_and_send_mail "$ALIEN_PROFILE_ID"
-					UNUSED_TICKETS=$(( $UNUSED_TICKETS + 32 ))
-				} done
-
-				echo "$UNUSED_TICKETS" >"/tmp/DB/USER/profile/id${ALIEN_PROFILE_ID}_counterA"
-				_log do $FUNC daemon info "[OK] $UNUSED_TICKETS (enough) unused tickets/logins for profile $ALIEN_PROFILE_ID ($NAME) in database (after login $(( $LOGIN_LAST - $DIFF )))"
-
-				break
-			}
-		} done
-
-		[ -z "$FOUND_DEVICE" ] && {
-			_log do $FUNC daemon info "[ERR] did not found any device, which uses profile $ALIEN_PROFILE_ID ($NAME)"	
-		}
-
-		_stopwatch stop $FUNC quiet
-
+			while [ $counter -lt $border ]; do {
+				_log do $funcname daemon info "found only $counter tickets but $border are needed"
+				_db autocreate_tickets_and_send_mail "$profile_id"
+				counter=$(( $counter + 32 ))
+				_watch counter "$file" increment 32
+			} done
+		else
+			_log do $funcname daemon debug "ignoring profile $profile_id ($NAME) - autogenerate is off"
+		fi
 	} done
-
-	[ $( _file size "$file_todo" ) -eq 0 ] && {
-		rm "$file_todo"
-	}
-
-	rm "/tmp/CRON_OVERLOAD"
-	rm "$lockfile"
 }
 
 _db_autocreate_tickets_and_send_mail()
