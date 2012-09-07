@@ -58,7 +58,9 @@ device_forbidden()
 			esac
 		;;
 		boltenhagen*)
-			return 0
+			[ "$LANADR" = "10.10.2.129" ] || {
+				return 0
+			}
 		;;
 	esac
 
