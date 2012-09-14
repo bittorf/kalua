@@ -40,8 +40,30 @@ _netfilter_start()
 
 _netfilter_traffic_control_show()
 {
-	local interface ip mac
+	local mac="$1"
+	local interface ip file dummy speed down up method
 	local tab="	"
+
+	[ -n "$mac" ] && {
+		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
+		if [ -e "$file" ]; then
+			read dummy dummy dummy dummy dummy down up dummy <"$file"
+			speed="$(( $down / 1024 )):$(( $up / 1024 ))"
+
+			file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
+			[ -e "$file" ] && {
+				read down up method <"$file"
+				[ "$method" = "initial" ] || {
+					speed="$speed -> $method -> $(( $down / 1024 )):$(( $up / 1024 ))"
+				}
+			}
+		else
+			speed="unshaped"
+		fi
+
+		echo "${speed} [kbit]"
+		return 0
+	}
 
 	for interface in $LANDEV $WANDEV $WIFIDEV; do {
 		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || continue
@@ -189,6 +211,7 @@ _netfilter_traffic_control_user_add()
 
 	# this is a helper for next function
 	echo "$mac $ip $interface $j $i $speed_down $speed_up" >/tmp/NETFILTER/USER/$mac/traffic_control_params
+	echo "$speed_down $speed_up initial" >/tmp/NETFILTER/USER/$mac/traffic_control_params
 
 	cat >/tmp/NETFILTER/USER/$mac/traffic_control_del <<EOF
 tc filter "del" dev "$interface" protocol ip parent 1:0 prio $i
@@ -204,30 +227,76 @@ EOF
 	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $i u32 match ip src "$ip/32" flowid 1:$i
 }
 
-_netfilter_traffic_control_user_change_speed()
+_netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 {
 	local funcname="netfilter_traffic_control_user_change_speed"
 	local mac="$1"			# only for logging
 	local ip="$2"			# only for logging
+	local file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
+
+	[ -z "$ip" ] && {
+		echo "Usage:"
+		echo "_$funcname $( cat "$file" )"
+		echo "_$funcname $( cat "$file" ) +8%"
+		echo "_$funcname $( cat "$file" ) 50%"
+		echo "hint: last 2 values are up/down and can be set to 'now'"
+		return 1
+	}
+
 	local interface="$3"
 	local classid_download="$4"
 	local classid_upload="$5"
 	local speed_down="$6"
 	local speed_up="$7"
 	local speed_change="$8"		# empty = set absolut values OR percentual of given values
+	local dummy
 
-	local new_speed_up new_speed_down
+	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
+
+	case "$speed_down" in
+		"now"*)
+			read speed_down dummy dummy <"$file"
+		;;
+	esac
+
+	case "$speed_up" in
+		"now"*)
+			read dummy speed_up dummy <"$file"
+		;;
+	esac
+
+	local new_speed_up new_speed_down method
 
 	[ -e "/tmp/NETFILTER/USER/$mac/traffic_control_del" ] || return 1
 
-	if [ -n "$speed_change" ]; then
-		:
+	if [ -n "$speed_change" ]; then		# e.g. -21% or +4% or 50%
+		method="$speed_change"
+		speed_change="$( _sanitizer do "$method" numeric )"
+
+		case "$method" in
+			"+"*)
+				new_speed_down=$(( $speed_down * ( 100 + ${speed_change} ) / 100 ))
+				new_speed_up=$((   $speed_up   * ( 100 + ${speed_change} ) / 100 ))
+			;;
+			"-"*)
+				new_speed_down=$(( $speed_down * ( 100 - ${speed_change} ) / 100 ))
+				new_speed_up=$((   $speed_up   * ( 100 - ${speed_change} ) / 100 ))
+			;;
+			*"%")
+				new_speed_down=$(( ( $speed_down * ${speed_change} ) / 100 ))
+				new_speed_up=$((   ( $speed_up   * ${speed_change} ) / 100 ))
+			;;
+		esac
 	else
+		method="fix"
 		new_speed_down="$speed_down"
 		new_speed_up="$speed_up"
 	fi
 
-	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface (change: $speed_change)"
+	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
+	echo "$new_speed_down $new_speed_up $method" >"$file"
+
+	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface (method: $method)"
 	tc class change dev "$interface" parent 1: classid 1:$classid_download "htb" rate "$new_speed_down"
 	tc class change dev "$interface" parent 1: classid 1:$classid_upload   "htb" rate "$new_speed_up"
 }
@@ -272,7 +341,11 @@ _netfilter_traffic_control_user_del()
 _netfilter_traffic_control_stop()
 {
 	local list="${1:-$LANDEV $WANDEV $WIFIDEV}"
-	local interface
+	local interface mac
+
+	for mac in $( _netfilter user_list ); do {
+		_netfilter traffic_control_user_del "$mac"
+	} done
 
 	for interface in $list; do {
 		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] && {
@@ -689,15 +762,31 @@ _netfilter_user_list()
 {
 	local option="$1"
 	local dir="/tmp/NETFILTER/USER"
-	local mac dev
+	local mac dev speed traffic ip oct123 oct4
 
 	case "$option" in
 		verbose)
 			for mac in $dir/*; do {
-				mac="$( basename "$mac" )"
+				mac="${mac##*/}"
+				_net mac2vendor "$mac" short >/dev/null 2>&1	# fetch vendors from internet into cache
+			} done
+
+			for mac in $dir/*; do {
+				mac="${mac##*/}"
+				vendor="$( _net mac2vendor "$mac" short )"
+
+				read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+				oct4="${ip##*.}"
+				oct123="${ip%.*}"
+				ip="${oct123}.$( printf "%-3d" $oct4 )"
+
 				dev="$( _net mac2dev "$mac" )"
 				dev="$( _net dev_type "$dev" )"
-				echo "$mac : $dev - $( _netfilter stats "$mac" megabytes )mb"
+				speed="$( _netfilter traffic_control_show "$mac" )"
+				traffic="$( _netfilter stats "$mac" megabytes )"
+				traffic="$( printf "%4s" $traffic )mb"
+
+				echo "$mac : $ip : $dev - $traffic - $speed - $vendor"
 			} done
 		;;
 		*)
