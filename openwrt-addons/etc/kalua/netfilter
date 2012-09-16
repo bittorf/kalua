@@ -227,6 +227,36 @@ EOF
 	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $i u32 match ip src "$ip/32" flowid 1:$i
 }
 
+_netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower the speed
+{
+	local traffic="$1"		# [megabyte]
+	local traffic_border=1000	# [megabyte] fixme! should depend from initial_speed
+
+	local percent=$(( 100 - ( ($traffic * 100) / $traffic_border ) ))
+	[ $percent -lt 1 ] && percent=1
+
+	echo "$percent"
+}
+
+_netfilter_traffic_control_autoapply_speedsuggest()
+{
+	local list_macs="${1:-$( _netfilter user_list )}"
+	local speed_min=64000
+	local mac traffic file ip interface j i speed_down speed_up percent params
+
+	for mac in $list_macs; do {
+		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
+		[ -e "$file" ] || continue
+		read mac ip interface j i speed_down speed_up <"$file"
+
+		traffic="$( _netfilter stats "$mac" megabytes )"
+		percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" )"
+		params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
+
+		[ "$percent" = 100 ] || _netfilter traffic_control_user_change_speed $params
+	} done
+}
+
 _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 {
 	local funcname="netfilter_traffic_control_user_change_speed"
@@ -249,6 +279,7 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 	local speed_down="$6"
 	local speed_up="$7"
 	local speed_change="$8"		# empty = set absolut values OR percentual of given values
+	local speed_min="$9"
 	local dummy
 
 	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
@@ -293,10 +324,15 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 		new_speed_up="$speed_up"
 	fi
 
+	[ -n "$speed_min" ] && {
+		[ $new_speed_down -lt $speed_min ] && new_speed_down="$speed_min"
+		[ $new_speed_up   -lt $speed_min ] && new_speed_up="$speed_min"
+	}
+
 	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
 	echo "$new_speed_down $new_speed_up $method" >"$file"
 
-	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface (method: $method)"
+	_log do $funcname daemon debug "shaping ip $ip to up/down: $new_speed_up/$new_speed_down on dev $interface (method: $method)"
 	tc class change dev "$interface" parent 1: classid 1:$classid_download "htb" rate "$new_speed_down"
 	tc class change dev "$interface" parent 1: classid 1:$classid_upload   "htb" rate "$new_speed_up"
 }
