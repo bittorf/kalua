@@ -227,14 +227,42 @@ EOF
 	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $i u32 match ip src "$ip/32" flowid 1:$i
 }
 
+_netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic peaks
+{
+	local peak percent
+
+	# better ask gateway?
+	# respect day of month! (workday vs. weekend/public holiday)
+
+	case "$( date +%H:%M )" in
+		16:*) peak="++++++++++" ;;	# 10 chars = throttle to 40%
+		17:*) peak="++++++++++" ;;
+		18:*) peak="++++++++++" ;;
+		19:*) peak="++++++++++" ;;
+		20:*) peak="++++++++++" ;;
+		21:*) peak="++++++++++" ;;
+		22:*) peak="++++++++++" ;;
+		   *) peak= ;;
+	esac
+
+	echo $(( 100 - (6*${#peak}) ))
+}
+
 _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower the speed
 {
 	local traffic="$1"		# [megabyte]
+	local option="$2"
 	local traffic_border=1000	# [megabyte] fixme! should depend from initial_speed
+	local percent2=100
+	local percent=$(( 100 - ( ($traffic * 100) / $traffic_border ) ))	# e.g. 50%
 
-	local percent=$(( 100 - ( ($traffic * 100) / $traffic_border ) ))
+	[ "$option" = "respect_time" ] && {
+		percent2="$( _netfilter traffic_control_suggest_timepercent )"
+	}
+
+	percent=$(( ($percent2 * $percent) / 100 ))	# 40% x 75% -> 30%
+
 	[ $percent -lt 1 ] && percent=1
-
 	echo "$percent"
 }
 
@@ -250,7 +278,7 @@ _netfilter_traffic_control_autoapply_speedsuggest()
 		read mac ip interface j i speed_down speed_up <"$file"
 
 		traffic="$( _netfilter stats "$mac" megabytes )"
-		percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" )"
+		percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
 		params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
 
 		[ "$percent" = 100 ] || _netfilter traffic_control_user_change_speed $params
