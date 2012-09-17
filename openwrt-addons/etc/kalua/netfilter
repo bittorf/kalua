@@ -695,8 +695,8 @@ _netfilter_splash_start()
 
 	_netfilter walledgarden_start
 
-	iptables -t mangle -A PREROUTING -p udp --dport 53 -j MARK --set-mark 0x13	# redirect DNS - todo: limit rate
-	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11	# redirect HTTP
+	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13	# redirect DNS - todo: limit rate
+	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11		# redirect HTTP
 
 	case "$( uci get uhttpd.main.listen_https )" in
 		*":443")
@@ -933,6 +933,7 @@ _netfilter_user_add()
 	local speed_up="$3"	# e.g. 1mbit, 32kbit
 	local speed_down="$4"
 	local dev
+	local myhna="$( _netfilter myhna )"
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
 
@@ -950,6 +951,7 @@ _netfilter_user_add()
 
 	iptables -t mangle -I PREROUTING -d $ip -j ACCEPT
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -j ACCEPT
+	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
 
 	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
 	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
