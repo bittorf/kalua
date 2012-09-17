@@ -1,6 +1,7 @@
 # marks:
 # 0x11 = port80, redirect to local port 80
 # 0x12 = port443, redirect to local port 443
+# 0x13 = port53udp, redirect to local port 53
 # 0x22 = adblocking, gets rejected
 # 0x33 = connection_start
 # 0x44 = connection_close
@@ -694,6 +695,7 @@ _netfilter_splash_start()
 
 	_netfilter walledgarden_start
 
+	iptables -t mangle -A PREROUTING -p udp --dport 53 -j MARK --set-mark 0x13	# redirect DNS - todo: limit rate
 	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11	# redirect HTTP
 
 	case "$( uci get uhttpd.main.listen_https )" in
@@ -715,11 +717,13 @@ _netfilter_splash_start()
 	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
 	[ -n "$WIFIADR" ] && {
+		iptables -t nat -A PREROUTING -p udp -i $WIFIDEV -m mark --mark 0x13/0xff -j DNAT --to-destination $WIFIADR:53
 		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $WIFIADR:80
 		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x12/0xff -j DNAT --to-destination $WIFIADR:443
 	}
 
 	[ -n "$LANADR" ] && {
+		iptables -t nat -A PREROUTING -p udp -i $LANDEV  -m mark --mark 0x13/0xff -j DNAT --to-destination $LANADR:53
 		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR:80
 		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x12/0xff -j DNAT --to-destination $LANADR:443
 	}
