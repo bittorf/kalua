@@ -298,6 +298,7 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 		echo "_$funcname $( cat "$file" )"
 		echo "_$funcname $( cat "$file" ) +8%"
 		echo "_$funcname $( cat "$file" ) 50%"
+		echo "_$funcname $( cat "$file" ) initial"
 		echo "hint: last 2 values are up/down and can be set to 'now'"
 		return 1
 	}
@@ -836,15 +837,24 @@ _netfilter_user_list()
 {
 	local option="$1"
 	local dir="/tmp/NETFILTER/USER"
-	local mac dev speed traffic ip oct123 oct4
+	local mac dev speed traffic ip oct123 oct4 list
 
 	case "$option" in
 		verbose)
-			for mac in $( ls -1 "$dir" ); do {
+			list="$( ls -1 "$dir" )"
+			[ -z "$list" ] && continue
+
+			for mac in $list; do {
 				_net mac2vendor "$mac" short >/dev/null 2>&1	# fetch vendors from internet into cache
 			} done
 
-			for mac in $( ls -1 "$dir" ); do {
+			echo "# show life traffic:"
+			echo '# while :; do eval $( _wifi show_station_traffic "$mac" $WIFIDEV $rx $tx $up ); sleep 1; done'
+			echo "# change shaping:"
+			echo '# _netfilter traffic_control_user_change_speed "$mac"'
+			echo
+
+			for mac in $list; do {
 				vendor="$( _net mac2vendor "$mac" short )"
 
 				read ip <"/tmp/NETFILTER/MAC2IP/$mac"
