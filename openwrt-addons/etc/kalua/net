@@ -81,7 +81,7 @@ _net_mac2vendor()
 	local MAC="$1"
 	local KEYWORD="$2"
 	local URL="http://84.38.67.43/macs"	# intercity-vpn.de
-	local MAC_SANITIZED
+	local MAC_SANITIZED byte1 hex2dec
 	local CACHE="/tmp/CACHE_MAC2VENDOR_$MAC"
 
 	[ ! -e "$CACHE" ] && {
@@ -102,17 +102,17 @@ _net_mac2vendor()
 			MAC_SANITIZED="$MAC"
 		fi
 
-		is_locally_administered()	# http://de.wikipedia.org/wiki/MAC-Adresse#Vergabestelle
-		{				# LSB must be set, e.g. 02:... or 2a:.. 
-			local byte1="$( echo "$1" | cut -b 1,2 )"
-			local hex2dec="$( printf "%d" 0x${byte1} )"
-			test $(( $hex2dec & 4 )) -eq 0
+		locally_administered()		# http://de.wikipedia.org/wiki/MAC-Adresse#Vergabestelle
+		{
+			byte1="$( echo "$1" | cut -b 1,2 )"
+			hex2dec="$( printf "%d" 0x${byte1} )"
+			test $(( $hex2dec & 4 )) -eq 0		# LSB must be set, e.g. 02:... or 2a:..
 		}
 
-		if is_locally_administered "$MAC"; then
+		if locally_administered "$MAC"; then
 			echo "locally_administered" >"$CACHE"
 		else
-			_log do $FUNC daemon debug "sanitized '$MAC' to '$MAC_SANITIZED'"		
+			_log do $FUNC daemon debug "sanitized '$MAC' to '$MAC_SANITIZED'"
 			_wget do "$URL/$MAC_SANITIZED" 5 >"$CACHE" 2>/dev/null
 		fi
 
