@@ -75,7 +75,7 @@ _net_dhcp_lease_remove()
 	_scheduler add "/etc/init.d/*dnsmasq restart"
 }
 
-_net_mac2vendor ()
+_net_mac2vendor()
 {
 	local FUNC="net_mac2vendor"
 	local MAC="$1"
@@ -83,19 +83,17 @@ _net_mac2vendor ()
 	local URL="http://84.38.67.43/macs"	# intercity-vpn.de
 	local MAC_SANITIZED
 	local CACHE="/tmp/CACHE_MAC2VENDOR_$MAC"
-	
-	[ ! -e "$CACHE" ] && {
 
+	[ ! -e "$CACHE" ] && {
 		_log do $FUNC daemon debug "not cached yet, working for '$MAC'"
 
 		if [ ${#MAC} -ne 6 ]; then
-
 			if [ ${#MAC} -eq 12 ]; then
 				MAC_SANITIZED="$( _sanitizer do "$MAC" hex lowercase length:6 )"	# input = 112233445566
 			else
 				MAC_SANITIZED="$( _sanitizer do "$MAC" mac hex lowercase length:6 )"	# input = 11:22:33:44:55:66
 			fi
-			
+
 			[ -z "$MAC_SANITIZED" ] && {
 				_log do $FUNC daemon info "could not sanitize: '$MAC'"
 				return 1
@@ -104,9 +102,20 @@ _net_mac2vendor ()
 			MAC_SANITIZED="$MAC"
 		fi
 
-		_log do $FUNC daemon debug "sanitized '$MAC' to '$MAC_SANITIZED'"		
-		_wget do "$URL/$MAC_SANITIZED" 5 >"$CACHE" 2>/dev/null
-		
+		is_locally_administered()	# http://de.wikipedia.org/wiki/MAC-Adresse#Vergabestelle
+		{				# LSB must be set, e.g. 02:... or 2a:.. 
+			local byte1="$( echo "$1" | cut -b 1,2 )"
+			local hex2dec="$( printf "%d" 0x${byte1} )"
+			test $(( $hex2dec & 4 )) -eq 0
+		}
+
+		if is_locally_administered "$MAC"; then
+			echo "locally_administered" >"$CACHE"
+		else
+			_log do $FUNC daemon debug "sanitized '$MAC' to '$MAC_SANITIZED'"		
+			_wget do "$URL/$MAC_SANITIZED" 5 >"$CACHE" 2>/dev/null
+		fi
+
 		[ "$( _file size "$CACHE" )" -eq 0 ] && {
 			rm "$CACHE"
 			return 1
