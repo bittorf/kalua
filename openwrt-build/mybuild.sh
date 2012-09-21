@@ -180,6 +180,7 @@ set_build()
 			config="$( ls -1 $dir/config-* | head -n1 )"
 			pattern=" oops=panic panic=10"
 
+			# tested for brcm47xx
 			fgrep -q "$pattern" "$config" || {
 				sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
 			}

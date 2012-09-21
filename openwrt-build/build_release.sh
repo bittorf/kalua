@@ -101,6 +101,12 @@ mymake package/symlinks
 prepare_build "$@"
 mymake defconfig
 
+case "$@" in
+	unoptimized)
+		prepare_build unoptimized
+	;;
+esac
+
 kalua/openwrt-build/mybuild.sh applymystuff
 kalua/openwrt-build/mybuild.sh make
 
