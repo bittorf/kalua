@@ -5,7 +5,7 @@
 # - autodownload .definitions
 
 # arguments e.g.:
-# "HARDWARE.Linksys WRT54G:GS:GL" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal
+# "HARDWARE.Linksys WRT54G:GS:GL" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf
 # "HARDWARE.TP-LINK TL-WR1043ND"  standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention
 
 log()
