@@ -101,11 +101,13 @@ mymake package/symlinks
 prepare_build "$@"
 mymake defconfig
 
-case "$@" in
-	unoptimized)
-		prepare_build unoptimized
-	;;
-esac
+for SPECIAL in unoptimized kcmdlinetweak; do {
+	case "$@" in
+		*"$SPECIAL"*)
+			prepare_build $SPECIAL
+		;;
+	esac
+} done
 
 kalua/openwrt-build/mybuild.sh applymystuff
 kalua/openwrt-build/mybuild.sh make
