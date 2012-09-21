@@ -71,12 +71,16 @@ prepare_build()
 	local list="$1"		# kalua/openwrt-build/mybuild.sh set_build list
 	local action
 
+	log "list: '$list'"
+
 	for action in $list; do {
 		log "[START] invoking: '$action' from '$list'"
 		kalua/openwrt-build/mybuild.sh set_build "$action"
 		log "[READY] invoking: '$action' from '$list'"
 	} done
 }
+
+args="standard kernel.addzram patch:901-minstrel-try-all-rates.patch nopppoe b43minimal dataretention"
 
 changedir release
 clone "git://nbd.name/openwrt.git"
@@ -88,12 +92,13 @@ prepare_build "reset_config"
 mymake defconfig
 mymake package/symlinks
 
-#prepare_build "standard kernel.addzram vtunZlibLZOnoSSL b43minimal luci dataretention"
-prepare_build "standard kernel.addzram patch:901-minstrel-try-all-rates.patch b43minimal dataretention"
+prepare_build "$args"
 
 mymake defconfig
+log "my dir: '$(pwd)'"
 kalua/openwrt-build/mybuild.sh applymystuff
 kalua/openwrt-build/mybuild.sh make
 
 log "please removing everything via 'rm -fR release' if you are ready"
+log "# buildstring: '$args'"
 
