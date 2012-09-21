@@ -134,6 +134,8 @@ set_build()
 				return 1
 			}
 		;;
+		kcmdline*)
+		;;
 		*)
 			file="$dir/config_${mode}.txt"
 			[ -e "$file" ] || {
