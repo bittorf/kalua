@@ -140,15 +140,18 @@ set_build()
 
 	case "$mode" in
 		"patch:"*)
-			local file="kalua/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )"
-			local line
+			file="kalua/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )"
+			local line dest
 
 			read line <"$file"
 			case "$line" in
 				*"include/net/mac80211.h")
-					cp -v "$file" package/mac80211/patches
+					dest="package/mac80211/patches"
 				;;
 			esac
+
+			log "we are here: '$( pwd )' - cp '$file' '$dest'"
+			cp -v "$file" "$dest"
 
 			file="/dev/null"
 		;;

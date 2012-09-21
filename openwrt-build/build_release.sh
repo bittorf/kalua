@@ -46,11 +46,11 @@ clone()
 	fi
 }
 
-mymake()
+mymake()	# fixme! how to ahve a quiet 'make defconfig'?
 {
-	log "[START] executing 'make $1'"
-	make $1
-	log "[READY] executing 'make $1'"
+	log "[START] executing 'make $1 $2 $3'"
+	make $1 $2 $3
+	log "[READY] executing 'make $1 $2 $3'"
 }
 
 # ath9kdebug
@@ -72,9 +72,9 @@ prepare_build()
 	local action
 
 	for action in $list; do {
-		log "[START] invoking: '$action'"
+		log "[START] invoking: '$action' from '$list'"
 		kalua/openwrt-build/mybuild.sh set_build "$action"
-		log "[READY] invoking: '$action'"
+		log "[READY] invoking: '$action' from '$list'"
 	} done
 }
 
