@@ -115,6 +115,9 @@ set_build()
 	local dir="kalua/openwrt-config"
 
 	case "$mode" in
+		reset_config)
+			rm ".config"
+		;;
 		""|list)
 			echo "possible pregenerated configs are:"
 			ls -1 $dir/config_* | sed 's/^.*config_\(.*\).txt$/\1/'
