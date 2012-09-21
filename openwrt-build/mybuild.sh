@@ -178,8 +178,12 @@ set_build()
 		kcmdlinetweak)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 			dir="target/linux/$( get_arch )"
 			config="$( ls -1 $dir/config-* | head -n1 )"
+			pattern=" oops=panic panic=10"
 
-			sed -i '/^CONFIG_CMDLINE=/s/"$/oops=panic panic=10"/' "$config"
+			fgrep -q "$pattern" "$config" || {
+				sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
+			}
+
 			file="/dev/null"
 		;;
 		*)
