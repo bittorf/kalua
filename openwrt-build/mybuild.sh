@@ -119,6 +119,10 @@ set_build()
 			rm ".config"
 			file="/dev/null"
 		;;
+		unoptimized)
+			sed -i 's/-Os //' ".config"
+			file="/dev/null"
+		;;
 		""|list)
 			echo "possible pregenerated configs are:"
 			ls -1 $dir/config_* | sed 's/^.*config_\(.*\).txt$/\1/'
