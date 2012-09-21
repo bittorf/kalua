@@ -62,7 +62,11 @@ prepare_build()
 	local list="$1"		# kalua/openwrt-build/mybuild.sh set_build list
 	local action
 
-	log "list: '$list'"
+	case "$list" in
+		*" "*)
+			log "list: '$list'"
+		;;
+	esac
 
 	for action in $list; do {
 		log "[START] invoking: '$action' from '$list'"
@@ -94,13 +98,9 @@ changedir openwrt
 clone "git://github.com/bittorf/kalua.git"
 
 prepare_build "reset_config"
-mymake defconfig
 mymake package/symlinks
-
 prepare_build "$@"
 
-mymake defconfig
-log "my dir: '$(pwd)'"
 kalua/openwrt-build/mybuild.sh applymystuff
 kalua/openwrt-build/mybuild.sh make
 

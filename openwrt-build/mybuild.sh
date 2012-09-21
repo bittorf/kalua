@@ -117,6 +117,7 @@ set_build()
 	case "$mode" in
 		reset_config)
 			rm ".config"
+			file="/dev/null"
 		;;
 		""|list)
 			echo "possible pregenerated configs are:"
