@@ -3,6 +3,11 @@
 # todo:
 # - stick to specific git-revision
 # - autodownload .definitions
+# - add correct switch, e.g. robocfg
+
+# arguments e.g.:
+# "HARDWARE.Linksys WRT54G:GS:GL" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal
+# "HARDWARE.TP-LINK TL-WR1043ND"  standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention
 
 log()
 {
@@ -10,7 +15,7 @@ log()
 }
 
 [ -z "$1" ] && {
-	log "Usage: $0 <hardware_model|get_list> <mini|standard|full>"
+	log "Usage: $0 <buildstring>"
 	exit 1
 }
 
@@ -53,19 +58,6 @@ mymake()	# fixme! how to ahve a quiet 'make defconfig'?
 	log "[READY] executing 'make $1 $2 $3'"
 }
 
-# ath9kdebug
-# b43minimal
-# dataretention
-# HARDWARE.mr3020
-# HARDWARE.Ubiquiti Bullet M
-# kernel.addzram
-# luci
-# meta.ffweimar
-# nopppoe
-# standard
-# unencrypted_adhoc_only
-# vtunZlibLZOnoSSL
-
 prepare_build()
 {
 	local list="$1"		# kalua/openwrt-build/mybuild.sh set_build list
@@ -80,7 +72,21 @@ prepare_build()
 	} done
 }
 
-args="standard kernel.addzram patch:901-minstrel-try-all-rates.patch nopppoe b43minimal dataretention"
+show_args()
+{
+	local word
+
+	for word in "$@"; do {
+		case "$word" in
+			*" "*)
+				echo -n " '$word'"
+			;;
+			*)
+				echo -n " $word"
+			;;
+		esac
+	} done
+}
 
 changedir release
 clone "git://nbd.name/openwrt.git"
@@ -92,7 +98,7 @@ prepare_build "reset_config"
 mymake defconfig
 mymake package/symlinks
 
-prepare_build "$args"
+prepare_build "$@"
 
 mymake defconfig
 log "my dir: '$(pwd)'"
@@ -100,5 +106,5 @@ kalua/openwrt-build/mybuild.sh applymystuff
 kalua/openwrt-build/mybuild.sh make
 
 log "please removing everything via 'rm -fR release' if you are ready"
-log "# buildstring: '$args'"
+log "# buildstring: $( show_args "$@" )"
 
