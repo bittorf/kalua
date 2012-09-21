@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# todo:
+# - stick to specific git-revision
+# - autodownload .definitions
+
 log()
 {
 	logger -s "$( date ): [$( pwd )]: $0: $1"
@@ -83,10 +87,12 @@ clone "git://github.com/bittorf/kalua.git"
 mymake defconfig
 mymake package/symlinks
 
-prepare_build "standard kernel.addzram vtunZlibLZOnoSSL b43minimal luci dataretention"
+#prepare_build "standard kernel.addzram vtunZlibLZOnoSSL b43minimal luci dataretention"
+prepare_build "standard kernel.addzram b43minimal dataretention"
 
 mymake defconfig
 kalua/openwrt-build/mybuild.sh applymystuff
 kalua/openwrt-build/mybuild.sh make
 
+log "please removing everything via 'rm -fR release' if you are ready"
 
