@@ -3,7 +3,6 @@
 # todo:
 # - stick to specific git-revision
 # - autodownload .definitions
-# - add correct switch, e.g. robocfg
 
 # arguments e.g.:
 # "HARDWARE.Linksys WRT54G:GS:GL" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal
