@@ -84,11 +84,12 @@ clone "git://nbd.name/packages.git"
 changedir openwrt
 clone "git://github.com/bittorf/kalua.git"
 
+prepare_build "reset_config"
 mymake defconfig
 mymake package/symlinks
 
 #prepare_build "standard kernel.addzram vtunZlibLZOnoSSL b43minimal luci dataretention"
-prepare_build "reset_config kernel.addzram kernel.addzram b43minimal dataretention"
+prepare_build "kernel.addzram kernel.addzram b43minimal dataretention"
 
 mymake defconfig
 kalua/openwrt-build/mybuild.sh applymystuff
