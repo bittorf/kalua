@@ -57,21 +57,20 @@ mymake()	# fixme! how to ahve a quiet 'make defconfig'?
 	log "[READY] executing 'make $1 $2 $3'"
 }
 
-prepare_build()
-{
-	local list="$1"		# kalua/openwrt-build/mybuild.sh set_build list
+prepare_build()		# check possible values via:
+{			# kalua/openwrt-build/mybuild.sh set_build list
 	local action
 
-	case "$list" in
+	case "$@" in
 		*" "*)
-			log "list: '$list'"
+			log "list: '$@'"
 		;;
 	esac
 
-	for action in $list; do {
-		log "[START] invoking: '$action' from '$list'"
+	for action in "$@"; do {
+		log "[START] invoking: '$action' from '$@'"
 		kalua/openwrt-build/mybuild.sh set_build "$action"
-		log "[READY] invoking: '$action' from '$list'"
+		log "[READY] invoking: '$action' from '$@'"
 	} done
 }
 
