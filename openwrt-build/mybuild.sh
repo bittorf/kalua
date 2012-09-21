@@ -134,7 +134,7 @@ set_build()
 				return 1
 			}
 		;;
-		kcmdline*)
+		kcmdlinetweak)
 		;;
 		*)
 			file="$dir/config_${mode}.txt"
@@ -175,14 +175,12 @@ set_build()
 			dir="target/linux/$( get_arch )"
 			config="$( ls -1 $dir/config-* | head -n1 )"
 		;;
-		kcmdline*)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
+		kcmdlinetweak)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 			dir="target/linux/$( get_arch )"
 			config="$( ls -1 $dir/config-* | head -n1 )"
 
-			echo "dir: $dir"
-			echo "config: $config"
-			return 1
-			CONFIG_CMDLINE="root=/dev/mtdblock2 rootfstype=squashfs,jffs2 noinitrd console=ttyS0,115200"
+			sed -i '/^CONFIG_CMDLINE=/s/"$/oops=panic panic=10"/' "$config"
+			file="/dev/null"
 		;;
 		*)
 			dir="kalua/openwrt-config"
