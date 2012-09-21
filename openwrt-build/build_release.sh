@@ -99,6 +99,7 @@ clone "git://github.com/bittorf/kalua.git"
 prepare_build "reset_config"
 mymake package/symlinks
 prepare_build "$@"
+mymake defconfig
 
 kalua/openwrt-build/mybuild.sh applymystuff
 kalua/openwrt-build/mybuild.sh make
