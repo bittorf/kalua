@@ -173,6 +173,15 @@ set_build()
 			dir="target/linux/$( get_arch )"
 			config="$( ls -1 $dir/config-* | head -n1 )"
 		;;
+		kcmdline*)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
+			dir="target/linux/$( get_arch )"
+			config="$( ls -1 $dir/config-* | head -n1 )"
+
+			echo "dir: $dir"
+			echo "config: $config"
+			return 1
+			CONFIG_CMDLINE="root=/dev/mtdblock2 rootfstype=squashfs,jffs2 noinitrd console=ttyS0,115200"
+		;;
 		*)
 			dir="kalua/openwrt-config"
 			config=".config"
