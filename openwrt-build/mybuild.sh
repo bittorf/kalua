@@ -123,6 +123,12 @@ set_build()
 			ls -1 $dir/config_* | sed 's/^.*config_\(.*\).txt$/\1/'
 			return 1
 		;;
+		"patch:"*)
+			[ -e "kalua/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )" ] || {
+				log "patch '$mode' does not exists"
+				return 1
+			}
+		;;
 		*)
 			file="$dir/config_${mode}.txt"
 			[ -e "$file" ] || {
@@ -133,6 +139,19 @@ set_build()
 	esac
 
 	case "$mode" in
+		"patch:"*)
+			local file="kalua/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )"
+			local line
+
+			read line <"$file"
+			case "$line" in
+				*"include/net/mac80211.h")
+					cp -v "$file" package/mac80211/patches
+				;;
+			esac
+
+			file="/dev/null"
+		;;
 		meta*)
 			local thismode mode_list
 			read mode_list <"$file"
@@ -157,7 +176,7 @@ set_build()
 		;;
 	esac
 
-	log "set_build() using '$dir/$config'"
+	[ "$file" = "/dev/null" ] || log "set_build() using '$dir/$config'"
 
 	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
 	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
