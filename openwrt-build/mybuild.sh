@@ -119,7 +119,7 @@ set_build()
 			rm ".config"
 			file="/dev/null"
 		;;
-		unoptimized)
+		unoptimized)		# https://forum.openwrt.org/viewtopic.php?id=30141
 			sed -i 's/-Os //' ".config"
 			sed -i 's/-Os //' "include/target.mk"
 			file="/dev/null"
