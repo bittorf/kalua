@@ -177,15 +177,26 @@ set_build()
 		;;
 		kcmdlinetweak)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 			dir="target/linux/$( get_arch )"
-			config="$( ls -1 $dir/config-* | head -n1 )"
 			pattern=" oops=panic panic=10"
 
-			log "$mode: looking into '$config'"
+			case "$( get_arch )" in
+				ar71xx)
+					config="$dir/image/Makefile"
+					log "$mode: looking into '$config'"
 
-			# tested for brcm47xx
-			fgrep -q "$pattern" "$config" || {
-				sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
-			}
+					fgrep -q "$pattern" "$config" || {
+						sed -i "s/\(KERNEL_CMDLINE=\"\)\(.*\)\(\".*\)/\1\2${pattern}\3/" "$config"
+					}
+				;;
+				*)	# tested for brcm47xx
+					config="$( ls -1 $dir/config-* | head -n1 )"
+					log "$mode: looking into '$config'"
+
+					fgrep -q "$pattern" "$config" || {
+						sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
+					}
+				;;
+			esac
 
 			file="/dev/null"
 		;;
