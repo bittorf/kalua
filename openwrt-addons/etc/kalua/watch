@@ -502,8 +502,6 @@ _watch_webserver()
 		return 0
 	}
 
-	_stopwatch start $funcname
-
 	restart_server()
 	{
 		uci set uhttpd.main.script_timeout=15
@@ -592,16 +590,18 @@ _watch_webserver()
 				_log do $funcname daemon info "[ERR] gethttp not possible - needs investigation"
 			fi
 		fi
+
+		_stopwatch start $funcname
+		wget -qO /dev/null "http://127.0.0.1/$checkfile"
+		local duration="$( _stopwatch stop $funcname nolog )"
+
+		if [ $duration -gt 175 ]; then		# = 1.75 sec
+			_log do $funcname daemon alert "last too long: $(( $duration / 100 )).$(( $duration % 100 )) sec"
+		else
+			return 0
+		fi
 	else
 		:
-	fi
-
-	local duration="$( _stopwatch stop $funcname nolog )"
-
-	if [ $duration -gt 175 ]; then		# = 1.75 sec
-		_log do $funcname daemon alert "last too long: $(( $duration / 100 )).$(( $duration % 100 )) sec"
-	else
-		return 0
 	fi
 }
 
