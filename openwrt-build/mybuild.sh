@@ -54,7 +54,8 @@ log()
 
 get_arch()
 {
-	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|atheros|???
+	sed -n 's/^CONFIG_TARGET_\([a-z0-9]*\)=y$/\1/p' ".config"	# https://dev.openwrt.org/wiki/platforms
+#	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' ".config"		# brcm47xx|ar71xx|atheros|???
 }
 
 get_firmware_filenames()
