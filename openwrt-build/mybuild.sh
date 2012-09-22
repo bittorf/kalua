@@ -344,7 +344,8 @@ build_kalua_update_tarball()
 		private_settings="../../apply_profile.code.definitions"
 		[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
 
-		[ -e "$private_settings" ] && {	# custom definitions
+		[ -e "$private_settings" ] && {
+			log "using file: '$private_settings'"
 			cp -pv "$private_settings" etc/init.d
 
 			# insert default-definitions to custom one's
@@ -589,7 +590,7 @@ applymystuff()
 	local node="$3"
 
 	local base="package/base-files/files"
-	local file destfile hash url
+	local file destfile hash url private_settings
 	local pwd="$( pwd )"
 
 	file="kalua/openwrt-build/apply_profile"
@@ -621,16 +622,19 @@ applymystuff()
 		log "selected generic profile"
 	fi
 
-	file="apply_profile.code.definitions"
+	private_settings="../../apply_profile.code.definitions"
+	[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
+
+	file="$private_settings"
 	if [ -e "$file" ]; then
 		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
 		cp "$file" "$base/etc/init.d"
 
 		# extract defaults
-		sed -n '/^case/,/^	\*)/p' "kalua/openwrt-build/$file" | sed -e '1d' -e '$d' >"/tmp/defs"
+		sed -n '/^case/,/^	\*)/p' "kalua/openwrt-build/$file" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 		# insert defaults into file
 		sed -i '/^case/ r /tmp/defs' "$base/etc/init.d/$file"
-		rm "/tmp/defs"
+		rm "/tmp/defs_$$"
 
 		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$file" ) bytes)"
 	else
