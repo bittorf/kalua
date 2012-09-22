@@ -121,6 +121,7 @@ set_build()
 		;;
 		unoptimized)
 			sed -i 's/-Os //' ".config"
+			sed -i 's/-Os //' "include/target.mk"
 			file="/dev/null"
 		;;
 		""|list)
