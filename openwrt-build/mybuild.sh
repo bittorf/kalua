@@ -123,7 +123,10 @@ set_build()
 		unoptimized)		# https://forum.openwrt.org/viewtopic.php?id=30141
 			sed -i 's/-Os //' ".config"
 			sed -i 's/-Os //' "include/target.mk"
-			file="/dev/null"
+
+			file="/tmp/fake_$$"
+			echo "CONFIG_CC_OPTIMIZE_FOR_SIZE is not set" >"$file"
+			mode="kernel:cc_nooptimize"
 		;;
 		""|list)
 			echo "possible pregenerated configs are:"
@@ -254,6 +257,12 @@ set_build()
 			;;
 		esac
 	} done <"$file"
+
+	case "$file" in
+		"/tmp/fake_"*)
+			rm "$file"
+		;;
+	esac
 
 	shift
 	[ -n "$1" ] && {
