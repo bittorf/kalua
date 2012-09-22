@@ -312,6 +312,7 @@ build_kalua_update_tarball()
 	local tarball="/tmp/tarball.tgz"
 	local options extract
 	local file_timestamp="etc/variables_fff+"	# fixme! hackish, use pre-commit hook?
+	local private_settings
 
 	if tar --version 2>&1 | grep -q ^BusyBox ; then
 		log "detected BusyBox-tar, using simple options"
@@ -331,13 +332,16 @@ build_kalua_update_tarball()
 		cp -pv ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
 		cp -pv ../openwrt-build/apply_profile* etc/init.d
 
-		[ -e "../../apply_profile.code.definitions" ] && {	# custom definitions
-			cp -pv "../../apply_profile.code.definitions" etc/init.d
+		private_settings="../../apply_profile.code.definitions"
+		[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
+
+		[ -e "$private_settings" ] && {	# custom definitions
+			cp -pv "$private_settings" etc/init.d
 
 			# insert default-definitions to custom one's
-			sed -n '/^case/,/^	\*)/p' "../openwrt-build/apply_profile.code.definitions" | sed -e '1d' -e '$d' >"/tmp/defs"
+			sed -n '/^case/,/^	\*)/p' "../openwrt-build/apply_profile.code.definitions" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 			sed -i '/^case/ r /tmp/defs' "etc/init.d/apply_profile.code.definitions"
-			rm "/tmp/defs"
+			rm "/tmp/defs_$$"
 		}
 
 		tar $options -czf "$tarball" .

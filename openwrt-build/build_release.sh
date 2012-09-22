@@ -90,6 +90,12 @@ show_args()
 	} done
 }
 
+[ -e "/tmp/apply_profile.code.definitions" ] || {
+	log "please make sure, that you have placed you settings in '/tmp/apply_profile.code.definitions'"
+	log "otherwise i'll take the community-settings"
+	sleep 5
+}
+
 changedir release
 clone "git://nbd.name/openwrt.git"
 clone "git://nbd.name/packages.git"
