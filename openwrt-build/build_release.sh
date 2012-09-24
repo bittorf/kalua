@@ -69,6 +69,16 @@ prepare_build()		# check possible values via:
 
 	for action in "$@"; do {
 		log "[START] invoking: '$action' from '$@'"
+
+		case "$action" in
+			r[0-9]|r[0-9][0-9]|r[0-9][0-9][0-9]|r[0-9][0-9][0-9][0-9]|r[0-9][0-9][0-9][0-9][0-9]))
+				REV="$( echo "$action" | cut -d'r' -f2 )"
+				log "switching to revision r$REV"
+				git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
+				continue
+			;;
+		esac
+
 		kalua/openwrt-build/mybuild.sh set_build "$action"
 		log "[READY] invoking: '$action' from '$@'"
 	} done
