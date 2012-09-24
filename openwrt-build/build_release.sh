@@ -42,6 +42,8 @@ clone()
 	if [ -d "$dir" ]; then
 		log "git-cloning of '$repo' already done, just pulling"
 		changedir "$dir"
+		git stash
+		git checkout master
 		git pull
 		changedir ..
 	else
