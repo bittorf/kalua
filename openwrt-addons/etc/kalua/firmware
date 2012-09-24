@@ -496,6 +496,31 @@ _firmware_burn ()
 		}
 	}
 
+	local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
+			  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
+
+	if [ -n "$pause" ]; then
+		:
+	elif  _log shell_is_interactive; then
+		pause="60"
+	else
+		list_tasks="$list_tasks screen dropbear wifi_down netifd ubusd"
+		pause="180"
+	fi
+
+	list_tasks="$list_tasks pause $list_tasks"		# double try...
+
+	_firmware remove_cron_stuff $pause || return 1
+	_firmware kill_tasks "$list_tasks"
+
+	_firmware flush_iptables
+
+	_firmware remove_kmodules most
+	_log do $funcname daemon info "[OK] after 'remove_kmodules most' - flushing caches: $( _system ram_free flush ) bytes free"
+
+	_firmware remove_kmodules all
+	_log do $funcname daemon info "[OK] after 'remove_kmodules all' - flushing caches: $( _system ram_free flush ) bytes free"
+
 	_firmware check_image "$FILE" || return 1
 
 	_firmware configure_keep_files
@@ -523,31 +548,6 @@ _firmware_burn ()
 	_log do $funcname daemon info "[OK] patching '$patchfile', adding loop to default_do_upgrade() till it does not fail"
 	sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
 	fgrep -q "v retry_upgrade;" "$patchfile" || reboot -f
-
-	local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
-			  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
-
-	if [ -n "$pause" ]; then
-		:
-	elif  _log shell_is_interactive; then
-		pause="60"
-	else
-		list_tasks="$list_tasks screen dropbear wifi_down netifd ubusd"
-		pause="180"
-	fi
-
-	list_tasks="$list_tasks pause $list_tasks"		# double try...
-
-	_firmware remove_cron_stuff $pause || return 1
-	_firmware kill_tasks "$list_tasks"
-
-	_firmware flush_iptables
-
-	_firmware remove_kmodules most
-	_log do $funcname daemon info "[OK] after 'remove_kmodules most' - flushing caches: $( _system ram_free flush ) bytes free"
-
-	_firmware remove_kmodules all
-	_log do $funcname daemon info "[OK] after 'remove_kmodules all' - flushing caches: $( _system ram_free flush ) bytes free"
 
 	rm -fR /tmp/kalua		# free some RAM	- fixme! better delete all except NEEDED?
 	rm -fR /tmp/OLSR
