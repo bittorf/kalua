@@ -3,14 +3,14 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 	local funcname="switch_show"
 	local type="${1:-$( uci get network.@switch[0].name )}"
 	local debug="$2"
-	local line duplex n
+	local line duplex n list
 
 	[ -z "$type" -o "$type" = "eth0" ] && {
 		type="$( _switch type )"
 	}
 
 	case "$type" in
-		ag71xx|ar231x|mii)
+		ag71xx|ar231x|mii|mii.*)
 			which mii-tool >/dev/null || {
 				_software package_install mii-tool >/dev/null
 
@@ -18,7 +18,15 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 					return 1
 			}
 
-			line="$( mii-tool ${LANDEV:-${WANDEV:-empty_dev}} )"
+			case "$type" in
+				*"."*)
+					line="$( mii-tool ${type#*.} )"		# mii.eth1 -> eth1
+				;;
+				*)
+					line="$( mii-tool ${LANDEV:-${WANDEV:-empty_dev}} )"
+				;;
+			esac
+
 			[ -n "$debug" ] && \
 				_log do $funcname daemon debug "type: $type - line '$line'"
 
@@ -97,14 +105,32 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 				fi
 			} done
 		;;
-		rtl8366rb|ar8316)
+		rtl8366rb|ar8316|ar7240)
 			which swconfig >/dev/null || \
 				return 1
 
-			[ "$type" = "ar8316" ] && type="eth0"	# fixme! these are the LAN-ports only
-								# fixme! wan visible via "mii-tool eth1"
+			case "$type" in
+				ar7240)			# e.g. TP-LINK WR841ND
+					type="eth0"
+					list="$( _switch show mii.eth1 "$debug" ) gap 4 3 2 1"	# special-wan | lan-ports
+				;;
+				ar8316)			# e.g. Buffalo WZR-HP-AG300H
+					type="eth0"
+					list="$( _switch show mii.eth1 "$debug" ) gap 1 2 3 4"	# special-wan | lan-ports
+				;;
+				*)
+					list="0 gap 1 2 3 4"	# [ WAN | LAN LAN LAN LAN ]
+				;;
+			esac
 
-			for port in 0 gap 1 2 3 4; do {		# [ WAN | LAN LAN LAN LAN ]
+			for port in $list; do {
+
+				case "$port" in
+					a|b|c|A|B|C|Z|-)
+						echo -n "$port"
+						continue
+					;;
+				esac
 
 				if [ "$port" = "gap" ]; then
 					echo -n "."
@@ -193,6 +219,12 @@ _switch_type()
 			;;
 		esac
 	else
+		probe_type0()
+		{
+			fgrep -q "AR7240/AR9330" "/tmp/dmesg.boot" && \
+				echo "ar7240"
+		}
+
 		probe_type1()
 		{
 			fgrep "roboswitch:" "/tmp/dmesg.boot" | fgrep -q "found a 53" && \
@@ -229,7 +261,7 @@ _switch_type()
 				echo "mii"
 		}
 
-		for n in 1 2 3 4 5 6; do {
+		for n in 0 1 2 3 4 5 6; do {
 			type="$( probe_type${n} )" && {
 				echo "$type" >/tmp/SWITCH_TYPE
 				break
