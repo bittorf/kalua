@@ -11,6 +11,23 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software)
 
 
+how to get a release for a specific hardware
+--------------------------------------------
+
+	# login as non-root user
+	git clone git://github.com/bittorf/kalua.git
+	mkdir myrelease; cd myrelease
+	DO="../kalua/openwrt-build/build_release.sh"
+
+	# choose your router-model and build, for example:
+	$DO "HARDWARE.Buffalo WZR-HP-AG300H" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
+	$DO "HARDWARE.TP-LINK TL-WR1043ND" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
+	$DO "HARDWARE.TP-LINK WR841ND" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
+	$DO "HARDWARE.Linksys WRT54G:GS:GL" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
+	$DO "HARDWARE.Ekuku-Longshot" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf unoptimized kcmdlinetweak
+	# explanation follows soon
+
+
 how to build this from scratch on a debian server
 -------------------------------------------------
 
