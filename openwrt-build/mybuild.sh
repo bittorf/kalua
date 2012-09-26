@@ -177,8 +177,11 @@ set_build()
 			} done
 		;;
 		kernel*)
+			set -x
+			echo "ARCH: '$( get_arch )'"
 			dir="target/linux/$( get_arch )"
 			config="$( ls -1 $dir/config-* | head -n1 )"
+			exit
 		;;
 		kcmdlinetweak)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 			dir="target/linux/$( get_arch )"
