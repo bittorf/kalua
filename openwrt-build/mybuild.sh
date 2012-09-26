@@ -54,8 +54,7 @@ log()
 
 get_arch()
 {
-	sed -n 's/^CONFIG_TARGET_\([a-z0-9]*\)=y$/\1/p' ".config"	# https://dev.openwrt.org/wiki/platforms
-#	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' ".config"		# brcm47xx|ar71xx|atheros|???
+	sed -n 's/^CONFIG_TARGET_\([a-z0-9]*\)=y$/\1/p' ".config" | head -n1	# https://dev.openwrt.org/wiki/platforms
 }
 
 get_firmware_filenames()
@@ -178,9 +177,7 @@ set_build()
 		;;
 		kernel*)
 			dir="target/linux/$( get_arch )"
-			ls -l $dir
-			config="$( ls -1 $dir/config-* | cut -d' ' -f1 | head -n1 )"
-			exit
+			config="$( ls -1 $dir/config-* | head -n1 )"
 		;;
 		kcmdlinetweak)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 			dir="target/linux/$( get_arch )"
