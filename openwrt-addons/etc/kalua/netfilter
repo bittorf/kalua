@@ -1029,12 +1029,16 @@ _netfilter_user_probe()
 _netfilter_user_del()
 {
 	local mac="${1:-unset}"
-	local ip dev
+	local ip dev myhna
 
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
 		_netfilter traffic_control_user_del "$mac"
 
+		myhna="$( _netfilter myhna )"
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+
+		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
+		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
 		iptables -t mangle -D PREROUTING -d $ip -j ACCEPT
 		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
 
