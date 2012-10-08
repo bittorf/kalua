@@ -313,6 +313,23 @@ uptime_in_seconds()
 	cut -d'.' -f1 /proc/uptime
 }
 
+check_scripts()
+{
+	local dir="$1"
+	local file i
+
+	for file in $( find $dir -type f ); do {
+		sh -n "$file" || {
+			log "error in file '$file' - abort"
+			return 1
+		}
+		i=$(( $i + 1 ))
+	} done
+
+	log "[OK] checked $i files"
+	return 0
+}
+
 build_kalua_update_tarball()
 {
 	local option="$1"
@@ -321,6 +338,7 @@ build_kalua_update_tarball()
 	local options extract
 	local file_timestamp="etc/variables_fff+"	# fixme! hackish, use pre-commit hook?
 	local private_settings
+	local file
 
 	if tar --version 2>&1 | grep -q ^BusyBox ; then
 		log "detected BusyBox-tar, using simple options"
@@ -353,9 +371,11 @@ build_kalua_update_tarball()
 			rm "/tmp/defs_$$"
 		}
 
+		check_scripts . || return 1
 		tar $options -czf "$tarball" .
 		rm etc/init.d/apply_profile*
 	else
+		check_scripts . || return 1
 		tar $options -czf "$tarball" .
 	fi
 
