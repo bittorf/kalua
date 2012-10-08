@@ -104,6 +104,7 @@ eval $OUT	# GATEWAY
 GATEWAY="$( _sanitizer do "$GATEWAY" ip4 )"		# fixme! this is safer, we have seen something like "10.10.27.33/32" for output...
 
 [ -e "/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY" ] || FIRST_RUN="true"
+[ -e "/tmp/USERDB_COPY" ] || FIRST_RUN="true"
 
 echo "$COST_INT"	>/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY
 echo "$GATEWAY"		>/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
@@ -123,4 +124,20 @@ _log do guess_gateway daemon debug "$OUT"
 	MESSAGE="startup/$( uci get system.@system[0].hostname )/$( _system uptime humanreadable )"
 	MESSAGE="$( _sanitizer do "$MESSAGE" urlvalue )"
 	_weblogin login_check "" "" "" "$MESSAGE"
+
+	case "$CONFIG_PROFILE" in
+		*adhoc)
+		;;
+		*)
+			if wget -qO "/tmp/USERDB_COPY" "http://$GATEWAY/cgi-bin-get_userdb.sh"; then
+				if grep -q ^"# ERROR"; then
+					rm "/tmp/USERDB_COPY"
+				else
+					_log do fetch_userdb_copy daemon info "[OK]"
+				fi
+			else
+				rm "/tmp/USERDB_COPY"
+			fi
+		;;
+	esac
 }

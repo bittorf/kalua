@@ -593,6 +593,9 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 		esac
 	}
 
+	if grep -sq "$HASH" "/tmp/USERDB_COPY"; then
+		FREE=1
+	else
 	case "$CONFIG_PROFILE" in
 		ffweimar*)
 			case "$SIGNAL" in
@@ -717,6 +720,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 			fi
 		;;
 	esac
+	fi
 
 	if   [ "$FREE" = "1" ] ; then
 		:
@@ -734,19 +738,21 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 		}
 	fi
 
-	GATEWAY="$( _weblogin authserver )"
-	PARAMETERS="LOGIN=${HASH}&MAC=${MAC//:/%3a}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
+	[ "$FREE" = "1" ] || {
+		GATEWAY="$( _weblogin authserver )"
+		PARAMETERS="LOGIN=${HASH}&MAC=${MAC//:/%3a}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
 
-	if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
-		ANSWER="$( /www/cgi-bin-sql.sh "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
-	else
-		URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
-		ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
-	fi
+		if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
+			ANSWER="$( /www/cgi-bin-sql.sh "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
+		else
+			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
+			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
+		fi
 
-	[ ${#ANSWER} -gt 10 ] && ANSWER="shortened: $( _sanitizer do "$ANSWER" firstline length:30 )"
+		[ ${#ANSWER} -gt 10 ] && ANSWER="shortened: $( _sanitizer do "$ANSWER" firstline length:30 )"
 
-	_log do $FUNC daemon info "ANSWER: '$ANSWER' (1=ok) FREE: '$FREE' URL: '${URL:-locally_asked:}?${PARAMETERS}'"
+		_log do $FUNC daemon info "ANSWER: '$ANSWER' (1=ok) FREE: '$FREE' URL: '${URL:-locally_asked:}?${PARAMETERS}'"
+	}
 
 	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
 		[ -n "$MAC" ] && {
