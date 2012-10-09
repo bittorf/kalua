@@ -156,7 +156,7 @@ set_build()
 
 			read line <"$file"
 			case "$line" in
-				*"include/net/mac80211.h")
+				*"include/net/mac80211.h"|*"net/mac80211/rc80211_minstrel_ht.c")
 					dest="package/mac80211/patches"
 				;;
 			esac
