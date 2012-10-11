@@ -96,6 +96,7 @@ else
 			dev2slave="$WANDEV"
 		;;
 		*)
+			_log do cannot_find_your_hna daemon alert "netaddr: $netaddr netmask: $netmask remote_addr: $REMOTE_ADDR = '$( ip route list exact $netaddr/$netmask )'"
 			ERROR="CANNOT_FIND_YOUR_HNA"
 		;;
 	esac
