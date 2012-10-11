@@ -125,35 +125,43 @@ _log do guess_gateway daemon debug "$OUT"
 	MESSAGE="$( _sanitizer do "$MESSAGE" urlvalue )"
 	_weblogin login_check "" "" "" "$MESSAGE"
 
-	case "$CONFIG_PROFILE" in
-		*adhoc)
-			touch "/tmp/USERDB_COPY"
-		;;
-		*)
-			REMOTE="$( _weblogin authserver )"
-			case "$REMOTE" in
-				$WANADR|$LANADR|$WIFIADR)
-					touch "/tmp/USERDB_COPY"
-				;;
-				*)
-					if [ -e "/tmp/OLSR/ROUTING_TABLE_MAIN" ]; then
-						ROUTES=$( cat /tmp/OLSR/ROUTING_TABLE_MAIN | wc -l )
-					else
-						ROUTES=$( ip route list | wc -l )
-					fi
-					_log sleep fetch_userdb_copy "$( _math random_integer 0 $ROUTES )" step 10
+	userdb_copy_needed()
+	{
+		REMOTE="$( _weblogin authserver )"
 
-					if wget -qO "/tmp/USERDB_COPY" "http://$REMOTE/cgi-bin-get_userdb.sh"; then
-						if [ "$( tail -n1 "/tmp/USERDB_COPY" )" = "# OK" ]; then
-							_log do fetch_userdb_copy daemon info "[OK] in /tmp/USERDB_COPY from $REMOTE"
-						else
-							rm "/tmp/USERDB_COPY"
-						fi
-					else
-						rm "/tmp/USERDB_COPY"
-					fi
-				;;
-			esac
-		;;
-	esac
+		case "$REMOTE" in
+			$WANADR|$LANADR|$WIFIADR)
+				return 1
+			;;
+		esac
+
+		case "$CONFIG_PROFILE" in
+			*adhoc)
+				[ $( _system ram_size ) -gt 16384 ] || return 1
+			;;
+		esac
+
+		return 0
+	}
+
+	if userdb_copy_needed; then
+		if [ -e "/tmp/OLSR/ROUTING_TABLE_MAIN" ]; then
+			ROUTES=$( cat /tmp/OLSR/ROUTING_TABLE_MAIN | wc -l )
+		else
+			ROUTES=$( ip route list | wc -l )
+		fi
+		_log sleep fetch_userdb_copy "$( _math random_integer 0 $ROUTES )" step 10
+
+		if wget -qO "/tmp/USERDB_COPY" "http://$REMOTE/cgi-bin-get_userdb.sh"; then
+			if [ "$( tail -n1 "/tmp/USERDB_COPY" )" = "# OK" ]; then
+				_log do fetch_userdb_copy daemon info "[OK] in /tmp/USERDB_COPY from $REMOTE"
+			else
+				rm "/tmp/USERDB_COPY"
+			fi
+		else
+			rm "/tmp/USERDB_COPY"
+		fi
+	else
+		touch "/tmp/USERDB_COPY"
+	fi
 }
