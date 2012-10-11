@@ -152,15 +152,27 @@ set_build()
 	case "$mode" in
 		"patch:"*)
 			file="kalua/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )"
-			local line dest
+			local line dest old_pwd file2patch
 
-			read line <"$file"
+			read line <"$file"	# diff --git a/package/uhttpd/src/uhttpd-tls.c b/package/uhttpd/src/uhttpd-tls.c
 			case "$line" in
 				*"include/net/mac80211.h"|*"net/mac80211/rc80211_minstrel_ht.c")
 					dest="package/mac80211/patches"
 				;;
+				*"uhttpd/src/"*)
+					# e.g. uhttpd-tls.c
+					dest="package/network/services/uhttpd/src/"
+					old_pwd="$( pwd )"
+					file2patch="$( basename "$( echo "$line" | cut -d' ' -f3 )" )"
+					cd $dest
+
+					patch f1 f2 
+
+					cd $old_pwd
+				;;
 			esac
 
+			mkdir -p "$dest"
 			log "we are here: '$( pwd )' - cp '$file' '$dest'"
 			cp -v "$file" "$dest"
 
