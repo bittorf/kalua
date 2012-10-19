@@ -43,9 +43,9 @@ how to build this from scratch on a debian server
 	git clone git://github.com/bittorf/kalua.git
 
 	# for working with a specific openwrt-revision, do this:
-	# REV=32793	// current testing
-	# REV=31465	// current beta
-	# REV=30823	// current stable
+	# REV=33867	// current testing
+	# REV=33726	// current beta
+	# REV=33726	// current stable
 	# git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
 
 	# now copy your own 'apply_profile.code.definitions' to . or the provided one will be used
