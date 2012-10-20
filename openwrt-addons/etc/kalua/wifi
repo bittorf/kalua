@@ -24,6 +24,57 @@ _wifi_driver_is_old_broadcom()
 	test -e /usr/sbin/wl
 }
 
+_wifi_show_station_traffic()
+{
+	local mac="$1"
+	local wifidev="$2"
+	local rx_old="$3"
+	local tx_old="$4"
+	local uptime_old="$5"
+	local uptime="$( _system uptime centisec )"
+	local line rx tx tx_human rx_human rx_diff tx_diff uptime_diff unit
+
+	# while :; do eval $( _wifi show_station_traffic "$mac" $WIFIDEV $rx $tx $up ); sleep 60; done
+
+	iw dev "$wifidev" station get "$mac" |
+	 while read line; do {
+		case "$line" in
+			*"rx bytes:"*)
+				set $line
+				rx="$3"
+			;;
+			*"tx bytes:"*)
+				set $line
+				tx="$3"
+
+				rx_human="$( _sanitizer do "$rx" number_humanreadable )"
+				tx_human="$( _sanitizer do "$tx" number_humanreadable )"
+
+				if [ -n "$rx_old" ]; then
+					rx_diff=$(( $rx - $rx_old ))
+					tx_diff=$(( $tx - $tx_old ))
+				else
+					rx_diff=0
+					tx_diff=0
+				fi
+
+				if [ -n "$uptime_old" ]; then
+					unit="bytes/s"
+					uptime_diff=$(( $uptime - $uptime_old ))
+
+					rx_diff=$(( ($rx_diff * 100) / $uptime_diff ))
+					tx_diff=$(( ($tx_diff * 100) / $uptime_diff ))
+				else
+					unit="bytes"
+				fi
+
+				echo "echo '# overall: tx/rx: $rx_human/$tx_human  diff_rx/tx: $rx_diff/$tx_diff $unit';"
+				echo "rx=$rx; tx=$tx; up=$uptime;"
+			;;
+		esac
+	} done
+}
+
 _wifi_minstrel()
 {
 	local mac="$1"
@@ -753,13 +804,58 @@ _wifi_phy_restart()
 	echo "$reason: $uptime $vals_rx $vals_tx" >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.reason"
 	_log do $funcname daemon $prio "working on '$wifi_dev' ($reason) $uptime $vals_rx $vals_tx"
 
+	local line mac adduser
+	local userlist="$( _netfilter user_list )"
+	while read line; do {
+		case "$line" in
+			*"$wifi_dev")
+				set -- $line
+				mac="$4"
+
+				case "$userlist" in
+					*"$mac"*)
+						adduser="$adduser $mac"
+					;;
+				esac
+			;;
+		esac
+	} done <"/proc/net/arp"
+
+	# fixme! how to restart a specific interface?
 	/sbin/wifi down
 	_log sleep $funcname 10 step 1
-	/sbin/wifi up		# fixme! how to restart a specific interface?
+	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
+	/sbin/wifi up | grep -q "PHY for wifi device radio. not found" && {
+		_log do $funcname daemon alert "message: PHY for wifi device radioX not found"
+		return 1
+	}
 
 	grep -q ^"b43 " "/proc/modules" && {
-		iw dev $wifi_dev set bitrates legacy-2.4 6 9 12 18 24 36 48 54
+		[ "$( uci get wireless.@wifi-iface[0].mode )" = "adhoc" ] || {
+			iw dev $wifi_dev set bitrates legacy-2.4 6 9 12 18 24 36 48 54
+		}
 	}
+
+	local ip
+	for mac in $adduser; do {
+		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+		_netfilter make_arp_permanent "$mac" "$ip" "$wifi_dev"
+	} done
+
+	local users
+	local file="/tmp/TRAFFIC_CONTROL_UP_${wifi_dev}"
+	[ -e "$file" ] && {
+		read users <"$file"
+		_netfilter traffic_control_stop
+
+		for mac in $users; do {
+			read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+			_netfilter traffic_control_user_add "$ip"
+		} done
+	}
+
+	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
+	return 0
 }
 
 _wifi_phy_txpower_limit ()		# driverlimit/output in [mW]
