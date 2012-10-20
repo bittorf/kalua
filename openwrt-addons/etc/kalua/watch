@@ -475,15 +475,17 @@ _watch_webserver()
 	local server="uhttpd"
 	local action=
 
-	case "$( pidof ash )" in
-		*" "*)
-			action="true"
-		;;
-	esac
+	[ "$( uci get uhttpd.main.max_requests )" = "1" ] && {
+		case "$( pidof ash )" in
+			*" "*)
+				action="no_check"
+			;;
+		esac
+	}
 
 	case "$( pidof userdb )" in
 		*" "*)
-			action="true"
+			action="no_check"
 		;;
 	esac
 
@@ -496,6 +498,10 @@ _watch_webserver()
 
 	restart_server()
 	{
+		uci set uhttpd.main.script_timeout=15
+		uci set uhttpd.main.network_timeout=20
+		uci set uhttpd.main.max_requests=50
+
 		_log do $funcname daemon info "[OK] trying to stop '$server' with PID '$( pidof $server )'"
 
 		_watch hanging_command "$server"
@@ -503,6 +509,7 @@ _watch_webserver()
 
 		if pidof $server >/dev/null; then
 			_log do $funcname daemon alert "[ERR] during kill of $server, rebooting"
+			_stopwatch stop $funcname quiet
 			reboot
 		else
 			/etc/init.d/$server start
@@ -577,8 +584,18 @@ _watch_webserver()
 				_log do $funcname daemon info "[ERR] gethttp not possible - needs investigation"
 			fi
 		fi
+
+		_stopwatch start $funcname
+		wget -qO /dev/null "http://127.0.0.1/$checkfile"
+		local duration="$( _stopwatch stop $funcname nolog )"
+
+		if [ $duration -gt 175 ]; then		# = 1.75 sec
+			_log do $funcname daemon alert "last too long: $(( $duration / 100 )).$(( $duration % 100 )) sec"
+		else
+			return 0
+		fi
 	else
-		return 0
+		:
 	fi
 }
 
