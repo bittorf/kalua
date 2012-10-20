@@ -4,10 +4,9 @@ _system_maintenance_window_active()
 		02|03|04)
 			return 0
 		;;
-		*)
-			return 1
-		;;
 	esac
+
+	test -e /tmp/MAINTENANCE
 }
 
 _system_architecture()
@@ -222,8 +221,8 @@ _system_flash_size()	# [kByte]		// fixme! seems to be device-specific
 	cat $FILE
 }
 
-_system_uptime ()		# OUT1 = string
-{				# ARG1 = string: plain|sec|min|hour|days|humanreadable
+_system_uptime()		# OUT1 = string
+{				# ARG1 = string: plain|centisec|sec|min|hour|days|humanreadable
 	local FORMAT="$1"
 	local OPTION="$2"
 	local UPTIME FLOAT NOP
@@ -247,6 +246,9 @@ _system_uptime ()		# OUT1 = string
 		;;
 		days)
 			UPTIME=$(( $UPTIME / 86400 ))
+		;;
+		centisec|centi)
+			UPTIME="${UPTIME}${FLOAT}"
 		;;
 		plain)
 			UPTIME="$UPTIME.$FLOAT"
@@ -409,78 +411,4 @@ _system_flash_mounted_readonly ()	# SENS: check if data-partition is mounted rea
 	} done
 	
 	return 1
-}
-_system_insmod ()
-{
-	local FUNC="system_insmod"
-	local KMOD="$1"
-	local OPTIONS="$2"
-	local logprio
-
-	lsmod | grep -q ^$KMOD && return	# already loaded
-
-	case "$KMOD" in
-		ipt_*)
-			local CHANGED_PREFIX_KMOD="$( echo "$KMOD" | sed 's/ipt_/xt_/' )"
-			lsmod | grep -q ^$CHANGED_PREFIX_KMOD && return
-		;;
-	esac
-
-	_log do $FUNC daemon info "loading kernel-module '$KMOD' with options '$OPTIONS'"
-
-	local MEM_BEFORE="$( _system ram_free )"
-	local MEM_AFTER=0
-	local MEM_DIFF=0
-	local rc
-
-	_log do $FUNC daemon info "[TRY] insmod \"$KMOD\" \"$OPTIONS\""
-	insmod "$KMOD" "$OPTIONS" || {
-		_log do $FUNC daemon info "[TRY] insmod \"$CHANGED_PREFIX_KMOD\" \"$OPTIONS\""
-		insmod "$CHANGED_PREFIX_KMOD" "$OPTIONS"
-	}
-	rc=$?
-
-	if [ $rc -eq 0 ] ; then
-
-		case "$KMOD" in
-			crondog)
-				[ -e /dev/misc/crondog ] && {
-					echo > /dev/misc/crondog	# activate it
-				}
-			;;
-		esac
-
-		MEM_AFTER="$( _system ram_free )"
-		MEM_DIFF=$(( $MEM_BEFORE - $MEM_AFTER ))
-		[ $MEM_DIFF -gt 0 ] && MEM_DIFF="+$MEM_DIFF"
-
-		_log do $FUNC daemon debug "[OK] memoryusage: ${MEM_DIFF} bytes (lsmod: '$( lsmod | grep ^$KMOD )$( lsmod | grep ^${CHANGED_PREFIX_KMOD:-prefix_is_unset} )')"
-	else
-		logprio="alert"
-
-		case "$KMOD" in
-			ip_conntrack*)			# fixme! kernel2.6 seems different
-				logprio="debug"
-			;;
-		esac
-
-		_log do $FUNC daemon $logprio "[ERR] failing to insert kernel-module '${KMOD}.o' returned with $rc"
-
-		local FILE
-		FILE="$( find /lib/modules/ | grep ${KMOD}.o )"			# e.g. /lib/modules/2.4.30/ipt_length.o 
-		[ -z "$FILE" ] && {
-			FILE="$( find /lib/modules/ | grep ${KMOD}.ko )"	# e.g. /lib/modules/2.6.32.27/xt_length.ko
-		}
-
-		# /lib/modules/2.4.30/ipt_CONNMARK.o
-		# /lib/modules/2.6.32.27/xt_CONNMARK.ko
-
-		if [ -n "$FILE" ]; then
-			_log do $FUNC daemon info "but found '$FILE'"
-		else
-			_log do $FUNC daemon info "seems that ${KMOD}.o is not in filesystem"
-		fi
-
-		return 1
-	fi
 }
