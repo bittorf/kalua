@@ -33,14 +33,16 @@ case "$DEV" in
 	       *) TYPE="unknown" ;;
 esac
 
-_log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV"
+[ "$MODE" = "old" ] || _log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV"
 
 case $MODE in
 	add|old)
 		case "$( uci get system.@weblogin[0].enabled )" in
 			""|0) ;;
 			*)
-				[ "$MODE" = "add" ] || exit 0
+				[ "$MODE" = "old" ] && {
+					_netfilter user_probe "$MAC" && exit 0
+				}
 
 				USER="$MAC"
 				NODE_HOSTNAME="$( uci get system.@system[0].hostname )"
@@ -67,16 +69,15 @@ case $MODE in
 			ffweimar*)
 				if [ "$TYPE" = "lan" ]; then
 					_log do dhcp_$MODE daemon info "this profile is always auto-unsplashed"
+					_netfilter user_add "$MAC" "$IP"
 				else
 					_log do dhcp_$MODE daemon info "'$MAC' is not from lan, exit"
 					exit
 				fi
 			;;
 		esac
-
-		_netfilter user_add "$MAC" "$IP"
 	;;
 	del)
-		_netfilter user_del "$MAC"
+		_scheduler add "_netfilter user_del $MAC"
 	;;
 esac
