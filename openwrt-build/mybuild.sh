@@ -4,6 +4,12 @@ ACTION="$1"
 OPTION="$2"
 OPTION2="$3"
 OPTION3="$4"
+OPTION4="$5"
+OPTION5="$6"
+OPTION6="$7"
+OPTION7="$8"
+OPTION8="$9"
+OPTION9="${10}"
 
 show_help()
 {
@@ -11,16 +17,12 @@ show_help()
 
 	cat <<EOF
 Usage:	$me gitpull
-	$me initial_settings					# prepares the openwrt clone for our needs, should only run one time before compiling the first time
-	$me config2git
-	$me select_hardware_model
-	$me set_build_openwrtconfig
-	$me set_build_kernelconfig
 	$me config_diff <new_config> <old_config>
-	$me set_build <list|standard|...>
+	$me set_build <list|standard|...> <...> <...>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
 	$me build_ffweimar_update_tarball [full]
+	$me apport_vmlinux
 
 Hint:   for building multiple config-enforced images use e.g.:
 	APP="$0"
@@ -52,7 +54,39 @@ log()
 
 get_arch()
 {
-	sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config		# brcm47xx|ar71xx|atheros|???
+	sed -n 's/^CONFIG_TARGET_\([a-z0-9]*\)=y$/\1/p' ".config" | head -n1	# https://dev.openwrt.org/wiki/platforms
+}
+
+get_firmware_filenames()
+{
+	local arch="$( get_arch )"
+
+	test()
+	{
+		local hw="$1"
+
+		grep -q ^"CONFIG_TARGET_${arch}.*_$hw" ".config"
+	}
+
+	if   test TLWR1043 ; then
+		echo "openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
+	elif test Broadcom-b43 ; then
+		echo "openwrt-brcm47xx-squashfs.trx"
+	elif test WZRHPAG300H ; then
+		echo "openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin"
+	else
+		echo ""
+	fi
+}
+
+apport_vmlinux()	# for better debugging of http://intercity-vpn.de/crashlog/
+{
+	local dir=$( echo build_dir/linux-$( get_arch )*/linux-3* )
+	local dest="root@intercity-vpn.de:/var/www/crashlog"
+	local revision="$( scripts/getver.sh )"
+
+	echo "cp -v '$dir/vmlinux' /tmp; lzma -v9e '/tmp/vmlinux'"
+	echo "scp '/tmp/vmlinux.lzma' '$dest/vmlinux.$( get_arch ).${revision}.lzma'; rm '/tmp/vmlinux.lzma'"
 }
 
 config_diff()
@@ -78,13 +112,33 @@ set_build()
 {
 	local mode="$1"			# e.g. mini|standard|full
 	local line symbol file wish config
-	local dir="kalua/openwrt-config"
+	local dir="weimarnetz/openwrt-config"
 
 	case "$mode" in
+		reset_config)
+			rm ".config"
+			file="/dev/null"
+		;;
+		unoptimized)		# https://forum.openwrt.org/viewtopic.php?id=30141
+			sed -i 's/-Os //' ".config"
+			sed -i 's/-Os //' "include/target.mk"
+
+			file="/tmp/fake_$$"
+			echo "CONFIG_CC_OPTIMIZE_FOR_SIZE is not set" >"$file"
+			mode="kernel:cc_nooptimize"
+		;;
 		""|list)
 			echo "possible pregenerated configs are:"
 			ls -1 $dir/config_* | sed 's/^.*config_\(.*\).txt$/\1/'
 			return 1
+		;;
+		"patch:"*)
+			[ -e "weimarnetz/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )" ] || {
+				log "patch '$mode' does not exists"
+				return 1
+			}
+		;;
+		kcmdlinetweak)
 		;;
 		*)
 			file="$dir/config_${mode}.txt"
@@ -96,12 +150,74 @@ set_build()
 	esac
 
 	case "$mode" in
+		"patch:"*)
+			file="weimarnetz/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )"
+			local line dest old_pwd file2patch
+
+			read line <"$file"	# diff --git a/package/uhttpd/src/uhttpd-tls.c b/package/uhttpd/src/uhttpd-tls.c
+			case "$line" in
+				*"include/net/mac80211.h"|*"net/mac80211/rc80211_minstrel_ht.c")
+					dest="package/mac80211/patches"
+				;;
+				*"uhttpd/src/"*)
+					# e.g. uhttpd-tls.c
+					dest="package/network/services/uhttpd/src/"
+					old_pwd="$( pwd )"
+					file2patch="$( basename "$( echo "$line" | cut -d' ' -f3 )" )"
+					cd $dest
+
+					patch f1 f2 
+
+					cd $old_pwd
+				;;
+			esac
+
+			mkdir -p "$dest"
+			log "we are here: '$( pwd )' - cp '$file' '$dest'"
+			cp -v "$file" "$dest"
+
+			file="/dev/null"
+		;;
+		meta*)
+			local thismode mode_list
+			read mode_list <"$file"
+
+			for thismode in $mode_list; do {
+				log "applying meta-content: $thismode"
+				set_build "$thismode"
+			} done
+		;;
 		kernel*)
 			dir="target/linux/$( get_arch )"
 			config="$( ls -1 $dir/config-* | head -n1 )"
 		;;
+		kcmdlinetweak)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
+			dir="target/linux/$( get_arch )"
+			pattern=" oops=panic panic=10"
+
+			case "$( get_arch )" in
+				ar71xx)
+					config="$dir/image/Makefile"
+					log "$mode: looking into '$config'"
+
+					fgrep -q "$pattern" "$config" || {
+						sed -i "s/\(KERNEL_CMDLINE=\"\)\(.*\)\(\".*\)/\1\2${pattern}\3/" "$config"
+					}
+				;;
+				*)	# tested for brcm47xx
+					config="$( ls -1 $dir/config-* | head -n1 )"
+					log "$mode: looking into '$config'"
+
+					fgrep -q "$pattern" "$config" || {
+						sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
+					}
+				;;
+			esac
+
+			file="/dev/null"
+		;;
 		*)
-			dir="kalua/openwrt-config"
+			dir="weimarnetz/openwrt-config"
 			config=".config"
 
 			[ -e "$config" ] || {
@@ -111,7 +227,7 @@ set_build()
 		;;
 	esac
 
-	log "set_build() using '$dir/$config'"
+	[ "$file" = "/dev/null" ] || log "set_build() using '$dir/$config'"
 
 	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
 	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
@@ -152,6 +268,18 @@ set_build()
 			;;
 		esac
 	} done <"$file"
+
+	case "$file" in
+		"/tmp/fake_"*)
+			rm "$file"
+		;;
+	esac
+
+	shift
+	[ -n "$1" ] && {
+		log "parsing next argument: '$1'"
+		set_build "$@"
+	}
 }
 
 filesize()
@@ -197,6 +325,23 @@ uptime_in_seconds()
 	cut -d'.' -f1 /proc/uptime
 }
 
+check_scripts()
+{
+	local dir="$1"
+	local file i
+
+	for file in $( find $dir -type f ); do {
+		sh -n "$file" || {
+			log "error in file '$file' - abort"
+			return 1
+		}
+		i=$(( $i + 1 ))
+	} done
+
+	log "[OK] checked $i files"
+	return 0
+}
+
 build_ffweimar_update_tarball()
 {
 	local option="$1"
@@ -204,6 +349,8 @@ build_ffweimar_update_tarball()
 	local tarball="/tmp/tarball.tgz"
 	local options extract
 	local file_timestamp="etc/variables_fff+"	# fixme! hackish, use pre-commit hook?
+	local private_settings
+	local file
 
 	if tar --version 2>&1 | grep -q ^BusyBox ; then
 		log "detected BusyBox-tar, using simple options"
@@ -223,18 +370,24 @@ build_ffweimar_update_tarball()
 		cp -pv ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
 		cp -pv ../openwrt-build/apply_profile* etc/init.d
 
-		[ -e "../../apply_profile.code.definitions" ] && {	# custom definitions
-			cp -pv "../../apply_profile.code.definitions" etc/init.d
+		private_settings="../../apply_profile.code.definitions"
+		[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
+
+		[ -e "$private_settings" ] && {
+			log "using file: '$private_settings'"
+			cp -pv "$private_settings" etc/init.d
 
 			# insert default-definitions to custom one's
-			sed -n '/^case/,/^	\*)/p' "../openwrt-build/apply_profile.code.definitions" | sed -e '1d' -e '$d' >"/tmp/defs"
+			sed -n '/^case/,/^	\*)/p' "../openwrt-build/apply_profile.code.definitions" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 			sed -i '/^case/ r /tmp/defs' "etc/init.d/apply_profile.code.definitions"
-			rm "/tmp/defs"
+			rm "/tmp/defs_$$"
 		}
 
+		check_scripts . || return 1
 		tar $options -czf "$tarball" .
 		rm etc/init.d/apply_profile*
 	else
+		check_scripts . || return 1
 		tar $options -czf "$tarball" .
 	fi
 
@@ -371,6 +524,12 @@ mymake()
 	echo "\"Jauchzet und frohlocket...\" ob der Bytes die erschaffen wurden: (revision: $( scripts/getver.sh ))"
 	echo
 
+	echo "use this files:"
+	for file in $( get_firmware_filenames ); do {
+		echo "bin/$( get_arch)/$file"
+	} done
+	echo
+
 	for file in $filelist; do {
 		if [ -e "$file" ]; then
 			echo "file '$file': $( filesize "$file" ) bytes ($( filesize "$file" flashblocks ))"
@@ -462,7 +621,7 @@ applymystuff()
 	local node="$3"
 
 	local base="package/base-files/files"
-	local file destfile hash url
+	local file destfile hash url private_settings
 	local pwd="$( pwd )"
 
 	file="weimarnetz/openwrt-build/apply_profile"
@@ -494,16 +653,19 @@ applymystuff()
 		log "selected generic profile"
 	fi
 
-	file="apply_profile.code.definitions"
+	private_settings="../../apply_profile.code.definitions"
+	[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
+
+	file="$private_settings"
 	if [ -e "$file" ]; then
 		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
 		cp "$file" "$base/etc/init.d"
 
 		# extract defaults
-		sed -n '/^case/,/^	\*)/p' "weimarnetz/openwrt-build/$file" | sed -e '1d' -e '$d' >"/tmp/defs"
+		sed -n '/^case/,/^	\*)/p' "weimarnetz/openwrt-build/$file" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 		# insert defaults into file
 		sed -i '/^case/ r /tmp/defs' "$base/etc/init.d/$file"
-		rm "/tmp/defs"
+		rm "/tmp/defs_$$"
 
 		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$file" ) bytes)"
 	else
@@ -799,7 +961,7 @@ case "$ACTION" in
 		} done
 	;;
 	*)
-		$ACTION "$OPTION" "$OPTION2" "$OPTION3"
+		$ACTION "$OPTION" "$OPTION2" "$OPTION3" "$OPTION4" "$OPTION5" "$OPTION6" "$OPTION7" "$OPTION8" "$OPTION9"
 	;;
 esac
 
