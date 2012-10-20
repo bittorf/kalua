@@ -1,0 +1,62 @@
+diff --git a/package/uhttpd/src/uhttpd-tls.c b/package/uhttpd/src/uhttpd-tls.c
+index 9c6eb81..3490aac 100644
+--- a/package/uhttpd/src/uhttpd-tls.c
++++ b/package/uhttpd/src/uhttpd-tls.c
+@@ -30,11 +30,7 @@ SSL_CTX * uh_tls_ctx_init(void)
+ 	SSL_load_error_strings();
+ 	SSL_library_init();
+ 
+-#if TLS_IS_OPENSSL
+ 	if ((c = SSL_CTX_new(SSLv23_server_method())) != NULL)
+-#else
+-	if ((c = SSL_CTX_new(TLSv1_server_method())) != NULL)
+-#endif
+ 		SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
+ 
+ 	return c;
+diff --git a/package/uhttpd/src/uhttpd.c b/package/uhttpd/src/uhttpd.c
+index 1efcbf0..f04014d 100644
+--- a/package/uhttpd/src/uhttpd.c
++++ b/package/uhttpd/src/uhttpd.c
+@@ -365,6 +365,17 @@ static struct http_request * uh_http_header_parse(struct client *cl,
+ 	return NULL;
+ }
+ 
++static bool uh_http_header_check_method(const char *buf, ssize_t rlen)
++{
++	int i;
++
++	for (i = 0; i < sizeof(http_methods)/sizeof(http_methods[0]); i++)
++		if (!strncmp(buf, http_methods[i], min(rlen, strlen(http_methods[i]))))
++			return true;
++
++	return false;
++}
++
+ 
+ static struct http_request * uh_http_header_recv(struct client *cl)
+ {
+@@ -388,6 +399,15 @@ static struct http_request * uh_http_header_recv(struct client *cl)
+ 			return NULL;
+ 		}
+ 
++		/* first read attempt, check for valid method signature */
++		if ((bufptr == cl->httpbuf.buf) &&
++		    !uh_http_header_check_method(bufptr, rlen))
++		{
++			D("SRV: Client(%d) no valid HTTP method, abort\n", cl->fd.fd);
++			uh_http_response(cl, 400, "Bad Request");
++			return NULL;
++		}
++
+ 		blen -= rlen;
+ 		bufptr += rlen;
+ 
+@@ -540,6 +560,7 @@ static void uh_listener_cb(struct uloop_fd *u, unsigned int events)
+ 					D("SRV: Client(%d) SSL handshake failed, drop\n", new_fd);
+ 
+ 					/* remove from global client list */
++					uh_http_response(cl, 400, "Bad Request");
+ 					uh_client_remove(cl);
+ 					return;
+ 				}
