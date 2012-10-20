@@ -1,5 +1,8 @@
 # marks:
 # 0x11 = port80, redirect to local port 80
+# 0x12 = port443, redirect to local port 443
+# 0x13 = port53udp, redirect to local port 53
+# 0x14 = port53tcp, redirect to local port 53
 # 0x22 = adblocking, gets rejected
 # 0x33 = connection_start
 # 0x44 = connection_close
@@ -33,6 +36,459 @@ _netfilter_start()
 	}
 
 	_netfilter conntrack_adjust_max
+
+	_netfilter traffic_control_needed && {
+		grep -q ^"sch_htb " /proc/modules || insmod sch_htb
+		grep -q ^"cls_u32 " /proc/modules || insmod cls_u32
+	}
+}
+
+_netfilter_traffic_control_show()
+{
+	local mac="$1"
+	local interface ip file dummy speed down up method
+	local tab="	"
+
+	[ -n "$mac" ] && {
+		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
+		if [ -e "$file" ]; then
+			read dummy dummy dummy dummy dummy down up dummy <"$file"
+			speed="$(( $down / 1024 )):$(( $up / 1024 ))"
+
+			file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
+			[ -e "$file" ] && {
+				read down up method <"$file"
+				[ "$method" = "initial" ] || {
+					speed="$speed -> $method -> $(( $down / 1024 )):$(( $up / 1024 ))"
+				}
+			}
+		else
+			speed="unshaped"
+		fi
+
+		echo "${speed} [kbit]"
+		return 0
+	}
+
+	for interface in $LANDEV $WANDEV $WIFIDEV; do {
+		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || continue
+
+		echo "interface: $interface {"
+
+		echo "${tab}qdisc {"
+		tc -s qdisc ls dev "$interface" | sed "s/.*/${tab}${tab}&/"
+		echo "${tab}}"
+
+		echo "${tab}class {"
+		tc class show dev "$interface" | sed "s/.*/${tab}${tab}&/"
+		echo "${tab}}"
+
+		echo "${tab}filter {"
+		tc filter show dev "$interface" | while read line; do {
+			case "$line" in
+				*"match "*)
+					ip="$( echo "$line" | sed -n 's|^\(.*match \)\(..\)\(..\)\(..\)\(..\)/ffffffff\(.*\)|echo $((0x\2)).$((0x\3)).$((0x\4)).$((0x\5))|p' )"
+					ip="$( eval $ip )"
+					echo "${tab}${tab}$line"
+
+					case "$line" in
+						*16)
+							echo "${tab}${tab}${tab}# IP: $ip (destination = incoming)"
+						;;
+						*12)
+							echo "${tab}${tab}${tab}# IP: $ip (source = outgoing)"
+						;;
+					esac
+
+					read mac <"/tmp/NETFILTER/IP2MAC/$ip"
+					echo -n "${tab}${tab}${tab}# remove via: _"
+					echo    "netfilter traffic_control_user_del $mac"
+				;;
+				*)
+					echo "${tab}${tab}$line"
+				;;
+			esac
+		} done
+		echo "${tab}}"
+
+		echo "}"
+	} done
+}
+
+_netfilter_traffic_control_needed()
+{
+	local kernel="$( uname -r )"
+
+	[ -e "/usr/sbin/tc" ] || return 1
+	[ -e "/lib/modules/${kernel}/sch_htb.ko" ] || return 1
+	[ -e "/lib/modules/${kernel}/cls_u32.ko" ] || return 1
+
+	[ $( _system version short ) -lt 33160 ] && return 1
+
+	return 0
+}
+
+_netfilter_convert_speed_to_bit()
+{
+	local speed="$1"	# 32kbit | 1mbit | 128000
+
+	case "$speed" in
+		*kbit)
+			echo $(( ${speed//kbit/} * 1024 ))
+		;;
+		*mbit)
+			echo $(( ${speed//mbit/} * 1024 * 1024 ))
+		;;
+		*)
+			echo "$speed"
+		;;
+	esac
+}
+
+_netfilter_traffic_control_user_add()
+{
+	local funcname="netfilter_traffic_control_user_add"
+	local ip="$1"
+	local speed_up="$2"		# e.g. 1mbit, 32kbit or 128000
+	local speed_down="$3"		# # fixme! use profile instead of fix values, e.g. youtube
+	local mac i j				# e.g. 32/1024 = wigo/tv works
+	local users file comment
+
+	[ -z "$speed_up" ] && {
+		case "$CONFIG_PROFILE" in
+			rehungen*|leonardo*)
+				speed_up=768kbit
+				speed_down=6mbit
+			;;
+			liszt28*)
+				case "$LANADR" in
+					10.63.10.33|10.63.22.33)
+						speed_up=256kbit
+						speed_down=5mbit
+					;;
+					*)
+						speed_up=5120kbit
+						speed_down=15mbit
+					;;
+				esac
+			;;
+			*)
+				speed_up=128kbit
+				speed_down=1mbit
+			;;
+		esac
+	}
+
+	local interface="$( ip -oneline route get "$ip" )"
+	set -- $interface
+	interface="$3"
+	file="/tmp/TRAFFIC_CONTROL_UP_$interface"
+
+	# hierarchical token bucket: http://luxik.cdi.cz/~devik/qos/htb/
+	[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || {
+		tc qdisc add dev "$interface" root handle 1: htb default 30 && {
+			touch "$file"
+		}
+	}
+
+	read mac <"/tmp/NETFILTER/IP2MAC/$ip"
+	read users <"$file"
+	case "$users" in
+		*"$mac"*)
+			_log do $funcname daemon info "$ip/$mac already shaped on this interface"
+			return 0
+		;;
+		*)
+			echo "$users $mac" >"$file"
+		;;
+	esac
+
+	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
+
+	case "$speed_up" in
+		*kbit|*mbit)
+			speed_up="$( _netfilter convert_speed_to_bit "$speed_up" )"
+		;;
+	esac
+
+	case "$speed_down" in
+		*kbit|*mbit)
+			speed_down="$( _netfilter convert_speed_to_bit "$speed_down" )"
+		;;
+	esac
+
+	# fixme! use a sieve, always fillup from bottom?
+	_watch counter "/tmp/TRAFFIC_CONTROL_users_$interface" increment 2
+	read i <"/tmp/TRAFFIC_CONTROL_users_$interface"
+	j=$(( $i - 1 ))
+
+	# this is a helper for next function
+	echo "$mac $ip $interface $j $i $speed_down $speed_up" >/tmp/NETFILTER/USER/$mac/traffic_control_params
+	echo "$speed_down $speed_up initial" >/tmp/NETFILTER/USER/$mac/traffic_control_speed
+
+	cat >/tmp/NETFILTER/USER/$mac/traffic_control_del <<EOF
+tc filter "del" dev "$interface" protocol ip parent 1:0 prio $i
+tc filter "del" dev "$interface" protocol ip parent 1:0 prio $j
+tc class  "del" dev "$interface" parent 1: classid 1:$i
+tc class  "del" dev "$interface" parent 1: classid 1:$j
+rm /tmp/NETFILTER/USER/$mac/traffic_control_params
+EOF
+
+	tc class  "add" dev "$interface" parent 1: classid 1:$j "htb" rate "$speed_down"
+	tc class  "add" dev "$interface" parent 1: classid 1:$i "htb" rate "$speed_up"
+	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $j u32 match ip dst "$ip/32" flowid 1:$j
+	tc filter "add" dev "$interface" protocol ip parent 1:0 prio $i u32 match ip src "$ip/32" flowid 1:$i
+}
+
+_netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic peaks
+{
+	local peak percent
+
+	# better ask gateway?
+	# respect day of month! (workday vs. weekend/public holiday)
+
+	case "$( date +%H:%M )" in		# 10 chars = throttle to 40%
+		16:*) peak="+++" ;;
+		17:*) peak="+++++" ;;
+		18:*) peak="+++++++" ;;
+		19:*) peak="++++++++" ;;
+		20:*) peak="++++++++" ;;
+		21:*) peak="++++++" ;;
+		22:*) peak="+++" ;;
+		   *) peak= ;;
+	esac
+
+	echo $(( 100 - (6*${#peak}) ))
+}
+
+_netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower the speed
+{
+	local traffic="$1"		# [megabyte]
+	local option="$2"
+	local traffic_border=2000	# [megabyte] fixme! should depend from initial_speed
+	local percent2=100
+	local percent=$(( 100 - ( ($traffic * 100) / $traffic_border ) ))	# e.g. 50%
+
+	[ "$option" = "respect_time" ] && {
+		percent2="$( _netfilter traffic_control_suggest_timepercent )"
+	}
+
+	percent=$(( ($percent2 * $percent) / 100 ))	# 40% x 75% -> 30%
+
+	[ $percent -lt 1 ] && percent=1
+	echo "$percent"
+}
+
+_netfilter_traffic_control_autoapply_speedsuggest()
+{
+	local list_macs="${1:-$( _netfilter user_list )}"
+	local speed_min=64000
+	local mac traffic file ip interface j i speed_down speed_up percent params
+
+	for mac in $list_macs; do {
+		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
+		[ -e "$file" ] || continue
+		read mac ip interface j i speed_down speed_up <"$file"
+
+		traffic="$( _netfilter stats "$mac" megabytes )"
+		percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
+		params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
+
+		[ "$percent" = 100 ] || _netfilter traffic_control_user_change_speed $params
+	} done
+}
+
+_netfilter_traffic_control_user_change_speed()		# <mac> <ip>
+{
+	local funcname="netfilter_traffic_control_user_change_speed"
+	local mac="$1"			# only for logging
+	local ip="$2"			# only for logging
+	local file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
+
+	[ -z "$ip" ] && {
+		echo "Usage:"
+		echo "_$funcname $( cat "$file" )"
+		echo "_$funcname $( cat "$file" ) +8%"
+		echo "_$funcname $( cat "$file" ) 50%"
+		echo "_$funcname $( cat "$file" ) initial"
+		echo "hint: last 2 values are up/down and can be set to 'now'"
+		return 1
+	}
+
+	local interface="$3"
+	local classid_download="$4"
+	local classid_upload="$5"
+	local speed_down="$6"
+	local speed_up="$7"
+	local speed_change="$8"		# empty = set absolut values OR percentual of given values
+	local speed_min="$9"
+	local dummy params
+
+	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
+
+	case "$speed_down" in
+		"now"*)
+			read speed_down dummy dummy <"$file"
+		;;
+	esac
+
+	case "$speed_up" in
+		"now"*)
+			read dummy speed_up dummy <"$file"
+		;;
+	esac
+
+	local new_speed_up new_speed_down method
+
+	[ -e "/tmp/NETFILTER/USER/$mac/traffic_control_del" ] || return 1
+
+	if [ -n "$speed_change" ]; then		# e.g. -21% or +4% or 50%
+		method="$speed_change"
+		speed_change="$( _sanitizer do "$method" numeric )"
+
+		case "$method" in
+			"+"*)
+				new_speed_down=$(( $speed_down * ( 100 + ${speed_change} ) / 100 ))
+				new_speed_up=$((   $speed_up   * ( 100 + ${speed_change} ) / 100 ))
+			;;
+			"-"*)
+				new_speed_down=$(( $speed_down * ( 100 - ${speed_change} ) / 100 ))
+				new_speed_up=$((   $speed_up   * ( 100 - ${speed_change} ) / 100 ))
+			;;
+			*"%")
+				new_speed_down=$(( ( $speed_down * ${speed_change} ) / 100 ))
+				new_speed_up=$((   ( $speed_up   * ${speed_change} ) / 100 ))
+			;;
+			initial)
+				params="$mac $ip $interface $classid_download $classid_upload $speed_down $speed_up"
+				echo "$params" >/tmp/NETFILTER/USER/$mac/traffic_control_params
+				new_speed_down="$speed_down"
+				new_speed_up="$speed_up"
+			;;
+		esac
+	else
+		method="fix"
+		new_speed_down="$speed_down"
+		new_speed_up="$speed_up"
+	fi
+
+	[ -n "$speed_min" ] && {
+		[ $new_speed_down -lt $speed_min ] && new_speed_down="$speed_min"
+		[ $new_speed_up   -lt $speed_min ] && new_speed_up="$speed_min"
+	}
+
+	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
+	echo "$new_speed_down $new_speed_up $method" >"$file"
+
+	_log do $funcname daemon debug "shaping ip $ip to up/down: $new_speed_up/$new_speed_down on dev $interface (method: $method)"
+	tc class change dev "$interface" parent 1: classid 1:$classid_download "htb" rate "$new_speed_down"
+	tc class change dev "$interface" parent 1: classid 1:$classid_upload   "htb" rate "$new_speed_up"
+}
+
+_netfilter_traffic_control_user_del()
+{
+	local mac="$1"
+	local file="/tmp/NETFILTER/USER/$mac/traffic_control_del"
+	local device="$( _net mac2dev "$mac" )"
+	local users_old users_new some_mac
+
+	if [ -e "$file" ]; then
+		. "$file"
+		rm "$file"
+	else
+		return 1
+	fi
+
+	file="/tmp/TRAFFIC_CONTROL_UP_${device}"	# fixme! make a list abstraction
+	users_new=
+
+	[ -e "$file" ] && {
+		read users_old <"$file"
+		for some_mac in $users_old; do {
+			case "$some_mac" in
+				$mac)
+				;;
+				*)
+					users_new="$users_new $some_mac"
+				;;
+			esac
+		} done
+	}
+
+	if [ -z "$users_new" ]; then
+		_netfilter traffic_control_stop "$device"
+	else
+		echo "$users_new" >"$file"
+	fi
+}
+
+_netfilter_traffic_control_stop()
+{
+	local list="${1:-$LANDEV $WANDEV $WIFIDEV}"
+	local interface mac
+
+	for mac in $( _netfilter user_list ); do {
+		_netfilter traffic_control_user_del "$mac"
+	} done
+
+	for interface in $list; do {
+		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] && {
+			tc qdisc del dev "$interface" root
+			rm "/tmp/TRAFFIC_CONTROL_UP_$interface"		# sign for root-qdisc
+			rm "/tmp/TRAFFIC_CONTROL_users_$interface"	# id_counter
+		}
+	} done
+}
+
+_netfilter_stats()
+{
+	local context="$1"
+	local unit="$2"
+	local line bytes packets
+
+	case "$context" in
+		forward_lan2lan)
+			line="$( iptables -nxvL FORWARD | fgrep "!$WIFIDEV !$WIFIDEV" )"
+		;;
+		forward_lan2wifi)
+			line="$( iptables -nxvL FORWARD | fgrep "!$WIFIDEV $WIFIDEV" )"
+		;;
+		forward_wifi2wifi)
+			line="$( iptables -nxvL FORWARD | fgrep "$WIFIDEV  $WIFIDEV" )"
+		;;
+		*)
+			if _sanitizer do "$context" mac check; then
+				line="$( iptables -t mangle -nxvL FORWARD | fgrep "incoming_$context" )"
+
+				set -- $line
+				packets="${1:-0}"
+				bytes="${2:-0}"
+
+				line="$( iptables -t mangle -nxvL FORWARD | fgrep "outgoing_$context" )"
+			else
+				return 1
+			fi
+		;;
+	esac
+
+	set -- $line
+	packets=$(( ${packets:-0} + ${1:-0} ))
+	bytes=$(( ${bytes:-0} + ${2:-0} ))
+
+	case "$unit" in
+		packets)
+			echo "$packets"
+		;;
+		bytes)
+			echo "$bytes"
+		;;
+		kilobytes)
+			echo $(( $bytes / 1000 ))
+		;;
+		megabytes)
+			echo $(( $bytes / 1000000 ))
+		;;
+	esac
 }
 
 _netfilter_conntrack_adjust_max()
@@ -107,15 +563,18 @@ _netfilter_stop()
 	local funcname="netfilter_stop"
 	local mac state table
 	local list_user="$( _netfilter user_list )"
+	local interface
 
 	for mac in $list_user; do {
-		_log do $funcname daemon info "_netfilter user_del $mac"
-
 		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'"
 		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$( _net mac2ip "$mac" )'"
 
 		_netfilter user_del "$mac"
 	} done >"/tmp/NETFILTER_AUTOADD"
+
+	_netfilter traffic_control_needed && {
+		_netfilter traffic_control_stop
+	}
 
 	_db backup
 
@@ -217,6 +676,20 @@ _netfilter_myhna()
 	}
 }
 
+_netfilter_is_meshnode()	# fixme! better iterate over olsrd-interface, if one is in wifi-adhoc-mode
+{
+	[ -e "/www/SIMPLE_MESHNODE" ] && return 1	# no iptables possible
+
+	case "$CONFIG_PROFILE" in
+		*_adhoc)
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 _netfilter_splash_start()
 {
 	local myhna="$( _netfilter myhna )"
@@ -233,20 +706,47 @@ _netfilter_splash_start()
 		}
 	}
 
+	# how to deny spoofing source-address?
 	iptables -t mangle -A PREROUTING ! -s $myhna -j ACCEPT				# from alien router/client to me/further (also dhcp_in)
 	iptables -t mangle -A PREROUTING -s $myhna -d $WIFINET/$WIFIPRE -j ACCEPT	# picopeer
 
 	_netfilter walledgarden_start
 
-	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11	# redirect
+	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13	# redirect DNS - todo: limit rate via 'recent'
+	iptables -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14	# redirect DNS - dig @8.8.8.8 +tcp google.com
+	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11		# redirect HTTP
+
+	case "$( uci get uhttpd.main.listen_https )" in
+		*":443")
+			iptables -t mangle -A PREROUTING -p tcp --dport 443 -j MARK --set-mark 0x12	# redirect HTTPS
+		;;
+	esac
+
 	iptables -t mangle -A PREROUTING -m mark --mark 0 -j MARK --set-mark 0x88	# not marked? -> reject
+
+	_netfilter is_meshnode && {
+		iptables -A FORWARD ! -i $WIFIDEV ! -o $WIFIDEV		# wire -> wire
+		iptables -A FORWARD ! -i $WIFIDEV   -o $WIFIDEV		# wire -> wifi
+		iptables -A FORWARD   -i $WIFIDEV   -o $WIFIDEV		# wifi -> wifi
+	}
 
 	iptables -A FORWARD -m mark --mark 0x88/0xff -j REJECT
 	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer
 	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
-	iptables -t nat -A PREROUTING -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $WIFIADR
-	iptables -t nat -A PREROUTING -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR
+	[ -n "$WIFIADR" ] && {
+		iptables -t nat -A PREROUTING -p udp -i $WIFIDEV -m mark --mark 0x13/0xff -j DNAT --to-destination $WIFIADR:53
+		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x14/0xff -j DNAT --to-destination $WIFIADR:53
+		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $WIFIADR:80
+		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x12/0xff -j DNAT --to-destination $WIFIADR:443
+	}
+
+	[ -n "$LANADR" ] && {
+		iptables -t nat -A PREROUTING -p udp -i $LANDEV  -m mark --mark 0x13/0xff -j DNAT --to-destination $LANADR:53
+		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x14/0xff -j DNAT --to-destination $LANADR:53
+		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR:80
+		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x12/0xff -j DNAT --to-destination $LANADR:443
+	}
 }
 
 _netfilter_splash_autoadd()
@@ -338,6 +838,8 @@ _netfilter_walledgarden_list()
 		}
 	}
 
+	_weblogin metadata_locationname default walled_garden
+
 	echo "$list"
 }
 
@@ -345,15 +847,54 @@ _netfilter_walledgarden_stop()
 {
 	[ -e "/tmp/NETFILTER/WALLEDGARDEN" ] && {
 		iptables -t mangle -F walledgarden
-		iptables -t mangle -X walledgarden
 		iptables -t mangle -D PREROUTING -j walledgarden
+		iptables -t mangle -X walledgarden
 		rm "/tmp/NETFILTER/WALLEDGARDEN"
 	}
 }
 
 _netfilter_user_list()
 {
-	ls -1 "/tmp/NETFILTER/USER" 2>/dev/null
+	local option="$1"
+	local dir="/tmp/NETFILTER/USER"
+	local mac dev speed traffic ip oct123 oct4 list
+
+	case "$option" in
+		verbose)
+			list="$( ls -1 "$dir" )"
+			[ -z "$list" ] && return 0
+
+			for mac in $list; do {
+				_net mac2vendor "$mac" short >/dev/null 2>&1	# fetch vendors from internet into cache
+			} done
+
+			echo "# show life traffic:"
+			echo '# while :; do eval $( _wifi show_station_traffic "$mac" $WIFIDEV $rx $tx $up ); sleep 1; done'
+			echo "# change shaping:"
+			echo '# _netfilter traffic_control_user_change_speed "$mac"'
+			echo
+
+			for mac in $list; do {
+				vendor="$( _net mac2vendor "$mac" short )"
+
+				read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+				oct4="${ip##*.}"
+				oct123="${ip%.*}"
+				ip="${oct123}.$( printf "%-3d" $oct4 )"
+
+				dev="$( _net mac2dev "$mac" )"
+				dev="$( _net dev_type "$dev" )"
+				speed="$( _netfilter traffic_control_show "$mac" )"
+				traffic="$( _netfilter stats "$mac" megabytes )"
+				traffic="$( printf "%4s" $traffic )mb"
+
+				echo "$mac : $ip : $dev - $traffic - $speed - $vendor"
+			} done
+		;;
+		*)
+			ls -1 "$dir" 2>/dev/null
+		;;
+	esac
 }
 
 _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
@@ -379,35 +920,97 @@ _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
 	} done
 }
 
-_netfilter_user_add()
+_netfilter_user_reachable()
 {
 	local mac="$1"
 	local ip="$2"
-	local dev
-
-	[ -d "/tmp/NETFILTER/USER" ] || return 1
+	local maxtry="5"
+	local dev line dev_guess devlist
 
 	_sanitizer do "$mac" mac check || return 1
 	_sanitizer do "$ip"  ip4 check || return 1
 
+	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1
+	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1
+
+	dev_guess="$( _net ip2dev "$ip" )"
+
+	devlist="$( _list uniq "$LANDEV $WIFIDEV" )"
+	devlist="$( for dev in $devlist; do test "$dev" = "$dev_guess" || echo "$dev"; done )"
+	devlist="$dev_guess $devlist"
+
+	for dev in $devlist; do {
+		arping -I "$dev" -c "$maxtry" -q -f "$ip" && {
+			line="$( ip neigh show to "$ip" | head -n1 )"
+			set -- ${line:-empty_line}
+
+			if [ "$mac" = "$5" ]; then
+				return 0
+			else
+				return 1
+			fi
+		}
+	} done
+
+	return 1
+}
+
+_netfilter_user_add()
+{
+	local funcname="netfilter_user_add"
+	local mac="$1"
+	local ip="$2"
+	local speed_up="$3"	# e.g. 1mbit, 32kbit
+	local speed_down="$4"
+	local dev
+	local myhna="$( _netfilter myhna )"
+
+	[ -d "/tmp/NETFILTER/USER" ] || return 1
+
+	_netfilter user_reachable "$mac" "$ip" || {
+		_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
+		return 1
+	}
+
 	if [ -d "/tmp/NETFILTER/USER/$mac" ]; then
 		return 0
 	else
+		_log do $funcname daemon info "mac: $mac ip: $ip"
 		mkdir -p "/tmp/NETFILTER/USER/$mac"
 		echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
 		echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
 	fi
 
+	# against spoofing, add "-s $ip"?
 	iptables -t mangle -I PREROUTING -d $ip -j ACCEPT
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -j ACCEPT
+	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
+	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
 
 	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
-	ip neigh add    $ip dev $dev lladdr $mac nud permanent 2>/dev/null
-	ip neigh change $ip dev $dev lladdr $mac nud permanent 2>/dev/null
+	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
 
 	[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
 		_netfilter user_dataretention_add "$mac" "$ip"
 	}
+
+	_netfilter traffic_control_needed && {
+		_netfilter traffic_control_user_add "$ip" "$speed_up" "$speed_down"
+	}
+
+	return 0
+}
+
+_netfilter_make_arp_permanent()
+{
+	local mac="$1"
+	local ip="$2"
+	local dev="${3:-$( _net mac2dev "$mac" )}"
+
+	[ "$mac" = "00:00:00:00:00:00" ] && return 1
+
+	ip neigh add    $ip dev $dev lladdr $mac nud permanent 2>/dev/null
+	ip neigh change $ip dev $dev lladdr $mac nud permanent 2>/dev/null
 }
 
 _netfilter_user_probe()
@@ -420,10 +1023,16 @@ _netfilter_user_probe()
 _netfilter_user_del()
 {
 	local mac="${1:-unset}"
-	local ip dev
+	local ip dev myhna
 
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
+		_netfilter traffic_control_user_del "$mac"
+
+		myhna="$( _netfilter myhna )"
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+
+		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
+		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
 		iptables -t mangle -D PREROUTING -d $ip -j ACCEPT
 		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
 
@@ -435,7 +1044,7 @@ _netfilter_user_del()
 		}
 
 		rm -fR "/tmp/NETFILTER/USER/$mac"
-		rm "/tmp/vds_user_$mac"
+		# rm "/tmp/vds_user_$mac"
 	}
 }
 
@@ -558,6 +1167,7 @@ _netfilter_user_stats_process()
 {
 	local server_ip url server_response mac line hash message= count=0
 	local user_list="$( _netfilter user_list )"
+	local ip
 
 	_netfilter user_stats_collect
 
@@ -603,7 +1213,10 @@ _netfilter_user_stats_process()
 		# CAH = client authentication hash
 
 		[ $(( $bytes_incoming_sum + $bytes_outgoing_sum )) -eq 0 ] && {
-			continue
+			read ip </tmp/NETFILTER/MAC2IP/$mac
+			_netfilter user_reachable "$mac" "$ip" || _netfilter user_del "$mac"
+
+			continue	# dont generate any message for this user
 		}
 
 		if [ -e "/tmp/vds_user_$mac" ]; then
