@@ -16,6 +16,13 @@ uptime_in_seconds()
 	exit 0
 }
 
+[ "$( logread | grep "init: process '/bin/ash" | grep "exited. Scheduling for restart." | wc -l )" -gt 10 ] && {
+	# daemon.info init: starting pid 15022, tty '/dev/ttyS0': '/bin/ash --login'		// should correctly detect 'ttyS0'
+	log "detect_respawing_login daemon alert deactive ttyS0 in /etc/inittab"
+	sed -i 's/^ttyS0/# ttyS0/' /etc/inittab
+	kill -HUP 1	# forced process "init" to reload it's config-file
+}
+
 jffs2_is_ready()
 {
 	lock -w /tmp/.switch2jffs && {		# ramdisk useable?
@@ -140,6 +147,7 @@ try_device()
 		16) HARDWARE="TP-LINK TL-MR3420" ;;		# ar71xx
 		17) HARDWARE="TP-LINK TL-MR3020" ;;		# ar71xx
 		18) HARDWARE="Seagate FreeAgent DockStar" ;;	# kirkwood
+		19) HARDWARE="TP-LINK TL-WR841N/ND v7" ;;	# ar71xx
 		*)
 			HARDWARE=
 			return 1
@@ -337,17 +345,6 @@ esac
 
 echo "$OLD_HOSTNAME" >/proc/sys/kernel/hostname
 
-
-[ "$( logread | grep "init: process '/bin/ash" | grep "exited. Scheduling for restart." | wc -l )" -gt 10 ] && {
-
-	# daemon.info init: starting pid 15022, tty '/dev/ttyS0': '/bin/ash --login'		// should correctly detect 'ttyS0'
-
-	log "detect_respawing_login daemon alert deactive ttyS0 in /etc/inittab"
-	sed -i 's/^ttyS0/# ttyS0/' /etc/inittab
-	kill -HUP 1	# forced process "init" to reload it's config-file
-}
-
-
 _config_polipo ()
 {
 	local net_allowed="10.0.0.0/8"		# fixme! hardcoded (restrict to HNA4?)
@@ -419,11 +416,12 @@ EOF
 	fi
 
 	cat >>/etc/config/system <<EOF
-config 'timeserver'
+config 'timeserver' 'ntp'
 	list server 0.openwrt.pool.ntp.org
 	list server 1.openwrt.pool.ntp.org
 	list server 2.openwrt.pool.ntp.org
 	list server 3.openwrt.pool.ntp.org
+	option enable_server 0
 
 EOF
 
@@ -448,11 +446,20 @@ esac
 		;;
 	esac
 
+	local hide_lang="#"	# default-lang
+
+	case "${INSTALLATION}" in
+		preskil*|shankar*|castelfalfi*)
+			hide_lang=
+		;;
+	esac
+
 	cat >>/etc/config/system <<EOF
 
 config 'weblogin'
 ${weblogin_hide}	option enabled	'1'
 	option namespace 'capital_citys_de'
+${hide_lang}	option adminlang 'en'
 EOF
 
 	case "${NODE}_${INSTALLATION}" in
@@ -519,7 +526,7 @@ _config_softwareinstall ()
 		/etc/init.d/$service enable
 	} done
 
-	for service in samba siproxd ; do {
+	for service in samba siproxd netserver ulogd; do {
 		/etc/init.d/$service disable
 	} done
 }
@@ -591,8 +598,15 @@ for radiocard in 0 1 2 3; do {
 		fi
 	}
 
-	# detect 5ghz-mode
-	# channel 36 (5180mhz), 161 (5805mhz) is working initially
+	# detect 5ghz-mode, those are working initially:
+	#
+	# channel  36 (5180mhz) HT40+| --  |NOHT
+	# channel  40 (5200mhz) HT40+|HT40-| --
+	# channel  44 (5220mhz) HT40+|HT40-|NOHT
+	# channel  48 (5240mhz)  --  |HT40-|NOHT
+	# channel 153 (5765mhz)  --  |HT40-|NOHT
+	# channel 157 (5785mhz) HT40+|HT40-
+	# channel 161 (5805mhz) HT40+|NOHT
 
 	case "$hwmode" in
 		11na|11a)
@@ -750,6 +764,10 @@ config wifi-device radio${radiocard}
 ${hide_noscan}	option noscan	1
 EOF
 
+	grep -q ^"b43 " "/proc/modules" && cat >>"$temp" <<EOF
+	option bitrates '6 9 12 18 24 36 48 54'
+EOF
+
 			cat >>"$temp" <<EOF
 	option hwmode   $hwmode
 ${hideht}	option htmode   $htmode
@@ -763,6 +781,8 @@ config wifi-iface
 	option network	wlan
 	option mode	ap
 	option ssid	'${new_essid}'
+	option max_num_sta 16		# since r33400
+	option max_inactivity 300	# since r33412 [sec]
 EOF
 		;;
 		*)
@@ -785,6 +805,10 @@ $hide_chanbw	option chanbw	$chanbw		# since r32596
 	option txpower	$TXPOWER
 	option beacon_int 100
 ${hide_noscan}	option noscan	1
+EOF
+
+	grep -q ^"b43 " "/proc/modules" && cat >>"$temp" <<EOF
+	option bitrates '6 9 12 18 24 36 48 54'
 EOF
 
 			cat >>"$temp" <<EOF
@@ -985,13 +1009,14 @@ EOF
 				wan_gateway="192.168.1.1"
 				hide_gateway=
 			;;
-			99_liszt28)
+			99_liszt28|22_liszt28)
 				PROTO="pppoe"
 				GATEWAY="yes"			# for HNA4/olsrd
 				username="$PPPOE_USERNAME"
 				password="$PPPOE_PASSWORD"
 				hide_gateway=
 				hideip="true"
+				dyndns="$DYNDNS"
 			;;
 			3_paltstadt)
 				PROTO="pppoe"
@@ -1001,13 +1026,13 @@ EOF
 				hide_gateway=
 				hideip="true"
 			;;
-			50_ejbw)
+			50_ejbw|6_leonardo)
 				PROTO="dhcp"
 				GATEWAY=yes			# for HNA4/olsrd
 				hide_gateway=
 				# will/must be 192.168.111.183/24
 			;;
-			8_rehungen)
+			254_rehungen)
 				PROTO="static"
 				GATEWAY=yes			# for HNA4/olsrd
 				wan_ipaddr="10.1.0.8"
@@ -1030,18 +1055,20 @@ config 'interface' 'wan'
 $( test -n "$WANMAC" && echo "	option 'macaddr' '$WANMAC'" )
 $( test -n "$wan_dns" && echo "	option 'wan_dns' '$wan_dns'" )
 	option 'proto' '$PROTO'
+	option 'dyndns' '$dyndns'
 ${hideip:+#}	option 'ipaddr'	 '$wan_ipaddr'
 ${hideip:+#}	option 'netmask' '$wan_netmask'
 $hide_gateway	option 'gateway' '$wan_gateway'
 ${username:+	option 'username' '$username'}
 ${password:+	option 'password' '$password'}
+${password:+	option 'authfail' '1'	# since r33291}
 EOF
 
 
 
 	fi
 
-	local wlan_ipaddr wlan_netmsk wlan_ifname
+	local wlan_ipaddr wlan_netmsk wlan_ifname hide_wifi
 	local alias_ifname alias_proto alias_ipaddr alias_netmask alias_network
 	local hide="#"
 
@@ -1057,17 +1084,19 @@ EOF
 		;;
 	esac
 
+	[ -e "/etc/config/wireless" ] || hide_wifi="#"
+
 	wlan_ipaddr="$( _ipsystem do $NODE | grep WIFIADR= | cut -d'=' -f2 )"
 	wlan_netmsk="$( _ipsystem do $NODE | grep WIFI_PRE= | cut -d'=' -f2 )"
 	wlan_netmsk="$( _net cidr2mask $wlan_netmsk )"
 
 	cat >>/etc/config/network <<EOF
 
-config 'interface' 'wlan'
-	option 'ifname'	'$wlan_ifname'
-	option 'proto'	'static'
-	option 'ipaddr'	 '$wlan_ipaddr'
-	option 'netmask' '$wlan_netmsk'
+${hide_wifi}config 'interface' 'wlan'
+${hide_wifi}	option 'ifname'	'$wlan_ifname'
+${hide_wifi}	option 'proto'	'static'
+${hide_wifi}	option 'ipaddr'	 '$wlan_ipaddr'
+${hide_wifi}	option 'netmask' '$wlan_netmsk'
 
 EOF
 
@@ -1095,6 +1124,7 @@ EOF
 _config_dhcp ()			# domain = .olsr
 {
 	local NODE="$1"
+	local wan_dns="$( uci get network.wan.dns )"
 	local cache, domain
 
 	if [ "$INSTALLATION" = "ffweimar" ]; then       #set domain to olsr for profile ffweimar
@@ -1111,6 +1141,8 @@ _config_dhcp ()			# domain = .olsr
 			cache="100"
 		;;
 	esac
+
+	[ -n "$wan_dns" ] && DNSSERVER="$wan_dns"
 
 	cat >/etc/config/dhcp <<EOF
 config dnsmasq
@@ -1136,7 +1168,7 @@ config dnsmasq
 	# list server		'/mycompany.local/1.2.3.4'
 	# option nonwildcard	1
 	# list interface	br-lan
-	#list notinterface	lo
+	list notinterface	wan
 	option dhcpscript	'/etc/dhcp-script.d/10dhcpscript'
 
 config dhcp lan
@@ -1427,7 +1459,12 @@ EOF
 		log "[OK] building kalua-loader on flash, we are low on RAM =< 16mb"
         	mkdir "/etc/kalua.w"
                 /etc/kalua_init
-                . /tmp/loader	
+                . /tmp/loader
+                [ "$PROFILE_MODE" = "adhoc" ] && {
+			log "[OK] marking this node for mode SIMPLE_MESHNODE"
+			touch "/www/SIMPLE_MESHNODE"
+		}
+	
 	else
 		log "[OK] building kalua-loader in ramdisk"
 		/etc/kalua_init
@@ -1474,7 +1511,10 @@ uci set uhttpd.main.interpreter=".sh=/bin/ash"
 # set bootstrap as new default theme
 uci set luci.main.mediaurlbase="/luci-static/bootstrap"
 
-[ -e /usr/lib/uhttpd_tls.so ] || {
+uci set uhttpd.main.max_requests="1"
+# uci set uhttpd.main.script_timeout=5			// fixme! needs testing
+# uci set uhttpd.main.network_timeout=5
+[ -e "/usr/lib/uhttpd_tls.so" ] || {
 	uci delete uhttpd.main.listen_https
 }
 uci commit 
