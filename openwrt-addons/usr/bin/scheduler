@@ -36,6 +36,12 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 				[ -e "/www/fw" ] || {
 					[ $( _system ram_size ) -gt 16384 ] && {
+						# ssh nexthop
+						# copy fw to /tmp/fw
+						# md5sum /tmp/fw
+						# ln -s /tmp/fw /www/fw
+						# ssh thisrouter
+						# _firmware wget /tmp/fw http://nexthop/fw $md5sum
 						_firmware wget "$FILE"
 
 						if [ $( _file size "$FILE" kb ) -lt $( _system flash_free ) ]; then
@@ -150,11 +156,20 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					[ -e /tmp/.autorun ] && /tmp/.autorun		# can be helpful to make changes an many nodes
 											# script must first delete himself with 'rm $0'
 
-					[ $( _system disc_free /tmp percent ) -lt 25 ] && {
+					while [ $( _system disc_free /tmp percent ) -lt 40 ]; do {
 						df -h | grep /tmp$ | _log do high_discusage_before daemon alert
-						/etc/init.d/ulogd stop
+						pidof ulogd >/dev/null && {
+							/etc/init.d/ulogd stop
+							_watch hanging_command ulogd
+							_watch hanging_command ulogd
+						}
+						rm "/var/log/ulogd.syslogemu"
+						rm "$( ls -S1 /tmp/user-* | head -n1 )"
+						rm /tmp/db_backup.tgz.temp.*
 						df -h | grep /tmp$ | _log do high_discusage_after daemon alert
-					}
+					} done
+
+					_netfilter traffic_control_autoapply_speedsuggest
 
 					_scheduler check_if_every_Nth_minute 360 && {	# e.g. daily restart is at 4:05
 						_scheduler add upgrade_packages		# so: 10:05, 16:05, 22:05
@@ -180,8 +195,6 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					[ "$( uci get network.wan.proto )" = "pppoe" ] && {
 						_watch pppoe
 					}
-
-					_watch webserver
 
 					pidof dnsmasq >/dev/null || _watch dns_resolution
 					_watch local_proxy
@@ -243,6 +256,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 							}
 
 							_scheduler add "_tunnel clientside_control check_connection all"
+							_watch webserver
 
 							case "$MINUTE" in
 								00)
@@ -263,7 +277,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 											[ -e "/tmp/DB/USER/device/stats" ] && {
 												case "$CONFIG_PROFILE" in
-													hotello*|aschbach*|olympia*|liszt28*|rehungen*|preskil*|boltenhagen*|zumnorde*)
+													fparkssee*|marinapark*|dhfleesensee*|hotello*|aschbach*|olympia*|liszt28*|rehungen*|preskil*|boltenhagen*|zumnorde*|galerie*|castelfalfi*)
 														_log sleep jitter_send_mail "$( _math random_integer 0 100 )" step 5
 														_db statistics_send_mail daily yesterday
 													;;
@@ -352,6 +366,8 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 					echo "0" >"$file_framecount"
 
 					if [ $uptime_diff -ge 60 ]; then
+						[ $( _wifi phy_uptime $WIFIDEV ) -ge 60 ] || return 0
+
 						if [ -e "$file_activity_seen" ]; then
 							rm "$file_activity_seen"
 							return 1
