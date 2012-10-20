@@ -73,18 +73,18 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 		_cleanup reschedule
 		return 1
 	}
-	
+
 	tar tzf "$TGZ" >/dev/null || {
 		_log do "$FUNC" daemon info "fail during extract-test '$TGZ' - abort"
 
 		_cleanup reschedule
 		return 1
 	}
-	
+
 	mkdir -p "$WORKINGDIR"
 	mv "$TGZ" "$WORKINGDIR"
 	cd "$WORKINGDIR"
-	
+
 	tar xzf "$FILE" || {
 		 _log do "$FUNC" daemon alert "failed to extract '$TGZ' to '$WORKINGDIR' - abort"
 
@@ -92,6 +92,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 		return 1	 
 	}
 	rm "$FILE"
+	rm /www/cgi-bin/user-*		# from vds
 
 	_log do "$FUNC" daemon debug "tarball extracted - applying only files which differ"
 
@@ -222,8 +223,7 @@ _firmware_wget_prepare_for_lowmem_devices()
 
 	_log do $funcname daemon info "[OK] flushing caches: $( _system ram_free flush ) bytes free"
 
-	scheduler -p
-
+	# fixme! we cannot "remove_kmodules misc" because of ppp
 }
 
 _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one module
@@ -497,48 +497,20 @@ _firmware_burn ()
 		}
 	}
 
-	_firmware check_image "$FILE" || return 1
-
-	_firmware configure_keep_files
-
-	case "$( _system architecture )" in
-		brcm47xx)
-			local patchfile partition fix
-
-			patchfile="/lib/upgrade/common.sh"
-			fgrep -q '"Upgrade completed";' "$patchfile" || {
-				partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
-				fix="mtd fixtrx $partition"
-				_log do $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
-				sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
-				fgrep -q "$fix" "$patchfile" || reboot -f
-			}
-		;;
-	esac
-
-	local patchfile="/lib/upgrade/common.sh"
-	local loop_begin="I=0; while true; do"
-	local loop_end="\&\& break; v retry_upgrade; I=\$(( \$I + 1 )); test \$I -gt 100 \&\& break; done"
-	_log do $funcname daemon info "[OK] patching '$patchfile', adding loop to default_do_upgrade() till it does not fail"
-	sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
-	fgrep -q "v retry_upgrade;" "$patchfile" || reboot -f
-
 	local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
 			  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
 
 	if [ -n "$pause" ]; then
 		:
 	elif  _log shell_is_interactive; then
-		pause="6"
+		pause="60"
 	else
-		list_tasks="$list_tasks screen wifi_down netifd ubusd"
+		list_tasks="$list_tasks screen dropbear wifi_down netifd ubusd"
 		pause="180"
 	fi
 
 	list_tasks="$list_tasks pause $list_tasks"		# double try...
 
-	_firmware log "[OK] detaching upgrade process, output can be found in nohup.out"
-	nohup 							#detach script from shell to prevent hangups while killing processes and deleting data
 	_firmware remove_cron_stuff $pause || return 1
 	_firmware kill_tasks "$list_tasks"
 
@@ -549,6 +521,34 @@ _firmware_burn ()
 
 	_firmware remove_kmodules all
 	_log do $funcname daemon info "[OK] after 'remove_kmodules all' - flushing caches: $( _system ram_free flush ) bytes free"
+
+	_firmware check_image "$FILE" || return 1
+
+	_firmware configure_keep_files
+
+	case "$( _system architecture )" in
+		brcm47xx)
+			[ $( _system version short ) -ge 32866 ] || {
+				local patchfile partition fix
+
+				patchfile="/lib/upgrade/common.sh"
+				fgrep -q '"Upgrade completed";' "$patchfile" || {
+					partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
+					fix="mtd fixtrx $partition"
+					_log do $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
+					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
+					fgrep -q "$fix" "$patchfile" || reboot -f
+				}
+			}
+		;;
+	esac
+
+	local patchfile="/lib/upgrade/common.sh"
+	local loop_begin="I=0; while true; do"
+	local loop_end="\&\& break; v retry_upgrade; I=\$(( \$I + 1 )); test \$I -gt 100 \&\& break; done"
+	_log do $funcname daemon info "[OK] patching '$patchfile', adding loop to default_do_upgrade() till it does not fail"
+	sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
+	fgrep -q "v retry_upgrade;" "$patchfile" || reboot -f
 
 	rm -fR /tmp/kalua		# free some RAM	- fixme! better delete all except NEEDED?
 	rm -fR /tmp/OLSR
@@ -660,25 +660,28 @@ _firmware_upgrade_is_needed()
 
 	_system maintenance_window_active || return 1
 
-	[ -e "/etc/HARDWARE" ] && {
-		read hardware <"/etc/HARDWARE"
+	is_multi_ssid()
+	{
+		test $( uci show | grep wireless.@wifi-iface | fgrep ".ssid=" | wc -l ) -gt 1
 	}
 
-	case "$hardware" in
+	is_multi_ssid && return 1
+
+	case "$HARDWARE" in
 		"TP-LINK TL-WR1043ND")
-			target_version_git="30563"
+			target_version_git="33726"
 
 			case "$CONFIG_PROFILE" in
 				*)
-					return 1
+					:
 				;;
 			esac
 		;;
-		"Buffalo WHR-HP-G54"|"Linksys WRT54G/GS/GL"|"Dell TrueMobile 2300")
-			target_version_git="32764"
+		"Buffalo WHR-HP-G54"|"Linksys WRT54G:GS:GL"|"Dell TrueMobile 2300")
+			target_version_git="33556"
 
 			case "$CONFIG_PROFILE" in
-				elephant*|zumnorde*)
+				liszt28*|adagio*|lisztwe*|marinapark*|fparkssee*|satama*)
 				;;
 				*)
 					return 1
