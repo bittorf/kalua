@@ -3,17 +3,6 @@
 
 echo 1 >/proc/sys/net/ipv4/ip_forward
 
-case "$( uci get wireless.radio0.macaddr )" in
-	"00:15:6d:ad:5c:26")			# nanostation2 max (hardware-error)
-		mii-tool 2>&1 | grep -q "link ok" || {
-			for OPT in R "A 10baseT-HD" "F 10baseT-HD" r v ; do {
-				sleep 3
-				mii-tool -$OPT | _log do mii-tool daemon info
-			} done
-		}
-	;;
-esac
-
 case "$( uci get wireless.radio0.htmode )" in
 	HT40*)
 		case "$( _wifi mode $WIFIDEV )" in
@@ -86,10 +75,18 @@ case "$CONFIG_PROFILE" in
 					SA-leuchtturm-AP|SA-restaurant-MESH)
 					;;
 					*)
-						[ -n "$( uci get dhcp.@dnsmasq[0].dhcpscript )" ] && {
-							uci delete dhcp.@dnsmasq[0].dhcpscript
-							/etc/init.d/dnsmasq restart
-						}
+						case "${CONFIG_PROFILE}_${LANADR}" in
+							liszt28*)
+							;;
+							lisztwe_10.63.15.33)
+							;;
+							*)
+								[ -n "$( uci get dhcp.@dnsmasq[0].dhcpscript )" ] && {
+									uci delete dhcp.@dnsmasq[0].dhcpscript
+									/etc/init.d/dnsmasq restart
+								}
+							;;
+						esac
 					;;
 				esac
 
@@ -98,9 +95,8 @@ case "$CONFIG_PROFILE" in
 				}
 			;;
 			*adhoc)
-				[ $( _system ram_size ) -lt 16384 ] && {
+				[ $( _system ram_size ) -gt 16384 ] || {
 					[ -e "/www/SIMPLE_MESHNODE" ] || {
-						[ -e "/www/SIMPLE_MESH" ] && rm "/www/SIMPLE_MESH"	# accident
 						touch "/www/SIMPLE_MESHNODE"
 						rm "/www/GOOD_MODULE_UNLOAD"
 						reboot
