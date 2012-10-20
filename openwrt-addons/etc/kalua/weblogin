@@ -73,7 +73,7 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 	local AMP="&amp;"
 	local TABINDEX="6"	# is hardcoded on most points
 	local SEP=":"		# was "&middot;" but lynx cannot display this 8-) and the ' looks wierd, maybe use "|"?
-	local LOCATION_NAME="$( _weblogin metadata_locationname )"
+	local LOCATION_NAME="$( _weblogin metadata_locationname "$LANG" )"
 	local LOGO_DESCRIPTION="$( _translate do "$LANG" site_logo ) ('$LOCATION_NAME')"	# fixme! we need an better meta-description, e.g. Schriftzug | Bett auf Wolken ...
 
 
@@ -110,8 +110,21 @@ _weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif            
 	LINK="${LINK}${AMP}FORM_LANG"
 
 	read BGCOLOR 2>/dev/null </www/images/bgcolor.txt		# fixme! defaulting to #F2F2F2 ?
-									# fixme! _weblogin metadata slogan()
-	SLOGAN="$( test -e /www/images/logo2.gif && echo -n "<IMG SRC='${LINK_BASE}/images/logo2.gif' TITLE='Hotel-Slogan' ALT='Hotel-Slogan'><BR><BR>" )"
+
+	if [ -e "/www/images/logo2.gif" ]; then
+		# fixme! use: _weblogin metadata slogan
+		SLOGAN="<IMG SRC='${LINK_BASE}/images/logo2.gif' TITLE='Hotel-Slogan' ALT='Hotel-Slogan'>"
+
+		local advert_url="$( _weblogin metadata_locationname "$LANG" advert_url )"
+		[ -n "$advert_url" ] && {
+			local advert_title="$( _weblogin metadata_locationname "$LANG" advert_title )"
+			SLOGAN="<a href='$advert_url' title='$advert_title'>$SLOGAN</a>"
+		}
+
+		SLOGAN="$SLOGAN<BR><BR>"
+	else
+		SLOGAN=
+	fi
 
 	cat <<EOF
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
@@ -290,7 +303,7 @@ EOF
 						esac
 
 				cat <<EOF
-<INPUT TYPE="checkbox" ID="accept_terms" TABINDEX="4" NAME="FORM_RULES" checked><label for='accept_terms'>&nbsp;${font_start}$( _translate do "$LANG" accept_terms1 )${font_end} <A TABINDEX="5" HREF="${LINK}=${LANG}${AMP}FORM_SHOW_RULES=$( if [ "$FORM_SHOW_RULES" = "true" ]; then echo -n 'false'; else echo -n 'true'; fi )" TITLE="$( _translate do "$LANG" tip_contract )">${font_start}$( _translate do "$LANG" accept_terms2 )${font_end}</A>${hidden_adlink}</label><br/>
+<INPUT TYPE="checkbox" ID="accept_terms" TABINDEX="4" NAME="FORM_RULES"><label for='accept_terms'>&nbsp;${font_start}$( _translate do "$LANG" accept_terms1 )${font_end} <A TABINDEX="5" HREF="${LINK}=${LANG}${AMP}FORM_SHOW_RULES=$( if [ "$FORM_SHOW_RULES" = "true" ]; then echo -n 'false'; else echo -n 'true'; fi )" TITLE="$( _translate do "$LANG" tip_contract )">${font_start}$( _translate do "$LANG" accept_terms2 )${font_end}</A>${hidden_adlink}</label><br/>
 <button type="submit" class="btn info">$( _translate do $LANG ffweimar_startbutton )</button>
 EOF
 			fi
@@ -304,19 +317,33 @@ EOF
 EOF
 }
 
-_weblogin_metadata_locationname ()
+_weblogin_metadata_locationname()
 {
 	local LANG="$( _translate lang $1 )"
+	local option="$2"
 	local META="/www/images/weblogin_rules_${LANG}_meta"
 
-	[ ! -e "$FILE" ] && {
+	[ -e "$META" ] || {
 		LANG="$( _translate lang default )"
 		META="/www/images/weblogin_rules_${LANG}_meta"
 	}
 
 	[ -e "$META" ] && eval "$( sed 's/^/local /' $META )"
 
-	echo "${HOTELNAME:-Internet}"
+	case "$option" in
+		advert_url)
+			echo "$ADVERT_URL"
+		;;
+		advert_title)
+			echo "$ADVERT_TITLE"
+		;;
+		walled_garden)
+			echo "$WALLED_GARDEN"
+		;;
+		*)
+			echo "${HOTELNAME:-Internet}"
+		;;
+	esac
 }
 
 _weblogin_htmlout_rules ()
@@ -347,20 +374,20 @@ _weblogin_htmlout_rules ()
 		-e 's#^[0-9]\.[0-9]#<br><br><b>&</b>#' \
 		-e 's#^[0-9]\. .*#<h3>&</h3>#' \
 		-e 's#^  $#<br><br>#' \
-                -e 's#Ã¨#\&egrave;#g' \
-                -e 's#Ã©#\&eacute;#g' \
-                -e 's#Ã<89>#\&Eacute;#g' \
-                -e 's#Ãª#\&ecirc;#g' \
-                -e 's#Ã #\&agrave;#g' \
-                -e 's#Ã¢#\&acirc;#g' \
-                -e 's#Ã´#\&ocirc;#g' \
-                -e 's#Ã¹#\&ugrave;#g' \
-                -e 's/Â/\&sect;/g' \
-                -e 's/§/\&sect;/g' \
-                -e 's/ö/\&ouml;/g' \
-                -e 's/ü/\&uuml;/g' \
-                -e 's/ä/\&auml;/g' \
-                -e 's/ß/\&szlig;/g' $FILE
+		-e 's#è#\&egrave;#g' \
+		-e 's#é#\&eacute;#g' \
+		-e 's#É#\&Eacute;#g' \
+		-e 's#ê#\&ecirc;#g' \
+		-e 's#à#\&agrave;#g' \
+		-e 's#â#\&acirc;#g' \
+		-e 's#ô#\&ocirc;#g' \
+		-e 's#ù#\&ugrave;#g' \
+		-e 's/�/\&sect;/g' \
+		-e 's/�/\&sect;/g' \
+		-e 's/�/\&ouml;/g' \
+		-e 's/�/\&uuml;/g' \
+		-e 's/�/\&auml;/g' \
+		-e 's/�/\&szlig;/g' $FILE
 
 	echo -n "<BR><BR></TD></TR>"	
 }
@@ -470,7 +497,7 @@ _weblogin_device_or_customer_needs_admin_interaction()
 	return 1
 }
 
-_weblogin_login_check ()		# fixme! send HOSTNAME?
+_weblogin_login_check()			# fixme! send HOSTNAME?
 {					# fixme! answer must be a challenge/response:	// prevent replay attacks!
 	local FUNC="weblogin_login_check"
 	local USER="$1"			#        1. send hash of user/pass
@@ -548,130 +575,134 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		esac
 	}
 
-	case "$CONFIG_PROFILE" in
-		ffweimar*)
-			case "$SIGNAL" in
-				*dhcp*)
-					_log do $FUNC daemon info "DHCP-mode, profile is $CONFIG_PROFILE - ignoring"
-				;;
-				*)
-					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE"
-					FREE=1
-				;;
-			esac
-		;;
-		liszt28*)
-			mac_is_from_lan "$MAC" && {
-				FREE=1
-			}
-
-			case "$WIFIADR" in
-				10.10.8.1|10.10.15.1)		# bar reservebank
-					FREE=1
-				;;
-			esac
-		;;
-		rehungen*|extrawatt*)
-			mac_is_from_lan "$MAC" && {
-				_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV"
-				FREE=1
-			}
-
-			[ "$LANADR" = "10.10.152.33" ] && {
-				[ "$HASH" = "38178cdf6173811999516635a809ede3" ] && {
-					FREE=1		# fixme!
-				}
-			}
-
-			_weblogin device_or_customer_needs_admin_interaction "$CONFIG_PROFILE" "$HOSTNAME" && {
-				FREE=
-			}
-		;;
-		versilia*)
-			[ "$( uci get network.lan.ipaddr )" = "10.63.191.225" ] && {
-				mac_is_from_lan "$MAC" && {
-					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV on 10.63.191.225"
-					FREE=1		# fixme!
-				}
-			}
-		;;
-		spbansin*)
-			is_valid_booking_number()	# 1234-2011 |  12345-2011
-			{
-				local number="$1"
-				local code year
-
-				case "$number" in
-					*-*)
-						code="$( echo "$number" | cut -d'-' -f1 )"
-						year="$( echo "$number" | cut -d'-' -f2 )"
-
-						[ ${#code} -eq 4 -o ${#code} -eq 5 ] && {
-
-							year_now="$( date +%Y )"
-
-							if [ "$year" = "$year_now" ]; then
-								return 0
-							else
-								[ ${#year} -eq 4 ] && {
-									[ "$( date +%m )" = "01" ] && {
-										[ "$year" = "$(( $year_now - 1 ))" ] && {
-											# in januar 2012 we can enter 2011
-											return 0
-										}
-									}
-								}
-							fi
-						}
+	if grep -sq "$HASH" "/tmp/USERDB_COPY"; then
+		FREE=1
+	else
+		case "$CONFIG_PROFILE" in
+			ffweimar*)
+				case "$SIGNAL" in
+					*dhcp*)
+						_log do $FUNC daemon info "DHCP-mode, profile is $CONFIG_PROFILE - ignoring"
+					;;
+					*)
+						_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE"
+						FREE=1
 					;;
 				esac
-
-				return 1
-			}
-
-			is_valid_room_number()
-			{
-				[ ${#1} -eq 3 ] && {
-					case "$1" in
-						100|101|102|103|104|105|106|107|108|109|110|111|112) return 0 ;;
-						200|201|202|203|204|205|206|207|208|209|210|211|212) return 0 ;;
-						300|301|302|303|304|305|306|307|308|309|310|311|312) return 0 ;;
-						400|401|402|403|404|405|406|407|408|409|410|411|412) return 0 ;;
-						# 5xx not under management
-						600|601|602|603|604|605|606|607|608|609|610|611|612) return 0 ;;
-						700|701|702|703|704|705|706|707|708|709|710|711|712) return 0 ;;
-						800|801|802|803|804|805|806|807|808|809|810|811|812) return 0 ;;
-						900|901|902|903|904|905|906|907|908|909|910|911|912) return 0 ;;
-					esac
+			;;
+			liszt28*)
+				mac_is_from_lan "$MAC" && {
+					FREE=1
 				}
 
-				[ ${#1} -eq 4 ] && {
-					case "$1" in
-						1000|1001|1002|1003|1004|1005|1006|1007|1008|1009|1010|1011|1012) return 0 ;;
-						1100|1101|1102|1103|1104|1105|1106|1107|1108|1109|1110|1111|1112) return 0 ;;
-						1200|1201|1202|1203|1204|1205|1206|1207|1208|1209|1210|1211|1212) return 0 ;;
-					esac
+				case "$WIFIADR" in
+					10.10.8.1|10.10.15.1)		# bar reservebank
+						FREE=1
+					;;
+				esac
+			;;
+			rehungen*|extrawatt*)
+				mac_is_from_lan "$MAC" && {
+					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV"
+					FREE=1
 				}
 
-				return 1
-			}
+				[ "$LANADR" = "10.10.152.33" ] && {
+					[ "$HASH" = "38178cdf6173811999516635a809ede3" ] && {
+						FREE=1		# fixme!
+					}
+				}
 
-			is_valid()
-			{
-				is_valid_room_number    "$1" || return 1
-				# is_valid_booking_number "$2" || return 1
+				_weblogin device_or_customer_needs_admin_interaction "$CONFIG_PROFILE" "$HOSTNAME" && {
+					FREE=
+				}
+			;;
+			versilia*)
+				[ "$( uci get network.lan.ipaddr )" = "10.63.191.225" ] && {
+					mac_is_from_lan "$MAC" && {
+						_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV on 10.63.191.225"
+						FREE=1		# fixme!
+					}
+				}
+			;;
+			spbansin*)
+				is_valid_booking_number()	# 1234-2011 |  12345-2011
+				{
+					local number="$1"
+					local code year
+	
+					case "$number" in
+						*-*)
+							code="$( echo "$number" | cut -d'-' -f1 )"
+							year="$( echo "$number" | cut -d'-' -f2 )"
 
-				return 0
-			}
+							[ ${#code} -eq 4 -o ${#code} -eq 5 ] && {
+	
+								year_now="$( date +%Y )"
+	
+								if [ "$year" = "$year_now" ]; then
+									return 0
+								else
+									[ ${#year} -eq 4 ] && {
+										[ "$( date +%m )" = "01" ] && {
+											[ "$year" = "$(( $year_now - 1 ))" ] && {
+												# in januar 2012 we can enter 2011
+												return 0
+											}
+										}	
+									}
+								fi
+							}
+						;;
+					esac
 
-			if is_valid "$USER" "$PASS" ; then
-				_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE"
-				FREE=1
-			else
-				_log do $FUNC daemon info "is not a valid combination: $USER / $PASS"
-			fi
-		;;
-	esac
+					return 1
+				}
+
+				is_valid_room_number()
+				{
+					[ ${#1} -eq 3 ] && {
+						case "$1" in
+							100|101|102|103|104|105|106|107|108|109|110|111|112) return 0 ;;
+							200|201|202|203|204|205|206|207|208|209|210|211|212) return 0 ;;
+							300|301|302|303|304|305|306|307|308|309|310|311|312) return 0 ;;
+							400|401|402|403|404|405|406|407|408|409|410|411|412) return 0 ;;
+							# 5xx not under management
+							600|601|602|603|604|605|606|607|608|609|610|611|612) return 0 ;;
+							700|701|702|703|704|705|706|707|708|709|710|711|712) return 0 ;;
+							800|801|802|803|804|805|806|807|808|809|810|811|812) return 0 ;;
+							900|901|902|903|904|905|906|907|908|909|910|911|912) return 0 ;;
+						esac
+					}
+
+					[ ${#1} -eq 4 ] && {
+						case "$1" in
+							1000|1001|1002|1003|1004|1005|1006|1007|1008|1009|1010|1011|1012) return 0 ;;
+							1100|1101|1102|1103|1104|1105|1106|1107|1108|1109|1110|1111|1112) return 0 ;;
+							1200|1201|1202|1203|1204|1205|1206|1207|1208|1209|1210|1211|1212) return 0 ;;
+						esac
+					}
+
+					return 1
+				}
+
+				is_valid()
+				{
+					is_valid_room_number    "$1" || return 1
+					# is_valid_booking_number "$2" || return 1
+
+					return 0
+				}
+
+				if is_valid "$USER" "$PASS" ; then
+					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE"
+					FREE=1
+				else
+					_log do $FUNC daemon info "is not a valid combination: $USER / $PASS"
+				fi
+			;;
+		esac
+	fi
 
 	if   [ "$FREE" = "1" ] ; then
 		:
@@ -689,19 +720,21 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		}
 	fi
 
-	GATEWAY="$( _weblogin authserver )"
-	PARAMETERS="LOGIN=${HASH}&MAC=${MAC//:/%3a}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
+	[ "$FREE" = "1" ] || {
+		GATEWAY="$( _weblogin authserver )"
+		PARAMETERS="LOGIN=${HASH}&MAC=${MAC//:/%3a}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
 
-	if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
-		ANSWER="$( /www/cgi-bin-sql.sh "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
-	else
-		URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
-		ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
-	fi
+		if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
+			ANSWER="$( /www/cgi-bin-sql.sh "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
+		else
+			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
+			ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
+		fi
 
-	[ ${#ANSWER} -gt 10 ] && ANSWER="shortened: $( _sanitizer do "$ANSWER" firstline length:30 )"
+		[ ${#ANSWER} -gt 10 ] && ANSWER="shortened: $( _sanitizer do "$ANSWER" firstline length:30 )"
 
-	_log do $FUNC daemon info "ANSWER: '$ANSWER' (1=ok) FREE: '$FREE' URL: '${URL:-locally_asked:}?${PARAMETERS}'"
+		_log do $FUNC daemon info "ANSWER: '$ANSWER' (1=ok) FREE: '$FREE' URL: '${URL:-locally_asked:}?${PARAMETERS}'"
+	}
 
 	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
 		[ -n "$MAC" ] && {
@@ -710,72 +743,56 @@ _weblogin_login_check ()		# fixme! send HOSTNAME?
 		}
 	}
 
+	case "$SIGNAL" in
+		*"dhcp"*)
+		;;
+		*)
+			case "$USER" in
+				*":"*|"")	# macaddress OR empty
+				;;
+				*)
+					_log do $FUNC daemon alert "wrong credentials: mac: $MAC user: '$USER' pass: '$PASS' hash: '$HASH'"
+				;;
+			esac
+		;;
+	esac
+
 	return 1
 }
 
 _weblogin_authserver()
 {
-	local server="$( uci get system.@weblogin[0].authserver )"
+	local server
+
+	is()
+	{
+		local server_ip="$1"
+
+		case "$server_ip" in
+			$WIFIADR|$LANADR)
+				server="$WIFIADR"
+			;;
+			*)
+				server="$server_ip"
+			;;
+		esac
+	}
 
 	case "$CONFIG_PROFILE" in
-		monami*)
-			case "$( uci get system.@profile[0].nodenumber )" in
-				7)
-					server="$WIFIADR"
-				;;
-				*)
-					server="10.63.7.1"
-				;;
-			esac
-		;;
-		spbansin*)
-			case "$( uci get system.@profile[0].nodenumber )" in
-				4)
-					server="$WIFIADR"
-				;;
-				*)
-					server="10.10.4.1"
-				;;
-			esac
-		;;
-		marinapark*)
-			case "$( uci get system.@profile[0].nodenumber )" in
-				10)
-					server="$WIFIADR"
-				;;
-				*)
-					server="10.63.10.1"
-				;;
-			esac
-		;;
-		satama*)
-			case "$( uci get system.@profile[0].nodenumber )" in
-				119)
-					server="$WIFIADR"
-				;;
-				*)
-					server="10.63.119.1"
-				;;
-			esac
-		;;
-		fparkssee*)
-			case "$( uci get system.@profile[0].nodenumber )" in
-				222)
-					server="$WIFIADR"
-				;;
-				*)
-					server="10.63.222.1"
-				;;
-			esac
-		;;
+		elephant*)	is 10.63.168.97 ;;
+		rehungen*)	is 10.10.8.33 ;;
+		monami*)	is 10.63.7.1 ;;
+		spbansin*)	is 10.10.4.1 ;;
+		marinapark*)	is 10.63.10.1 ;;
+		satama*)	is 10.63.119.1 ;;
+		fparkssee*)	is 10.63.222.1 ;;
 		*)
 			server="$( uci get system.@weblogin[0].authserver )"
+			[ -z "$server" ] && {
+				read server 2>/dev/null </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
+			}
 		;;
 	esac
-
-	[ -z "$server" ] && {
-		read server 2>/dev/null </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
-	}
 
 	echo "$server"
 }
@@ -853,19 +870,4 @@ $( _translate do "$LANG" letter_finale2 ) "$MAINTENANCE_COMPANY"
 $MAINTENANCE_HINT1
 $MAINTENANCE_HINT2
 EOF
-}
-
-_weblogin_landing_page_ffweimar()
-{
-	_welcome wiki_vars
-
-	echo -n "<TR><TD ALIGN='LEFT' BGCOLOR='#CEF6E3'>"
-	_welcome htmlout_wikipage "$WIKI_MAIN_URL" "$WIKI_ARTICLE_1_HEADLINE"
-	echo -n "</TD></TR>"
-
-	echo -n "<TR><TD BGCOLOR='$BGCOLOR'>&nbsp;<br></TD></TR>"
-
-	echo -n "<TR><TD ALIGN='LEFT' BGCOLOR='#CEF6E3'>"
-	_welcome htmlout_news "$LATEST_NEWS_URL" "$LATEST_NEWS_HEADLINE"
-	echo -n "</TD></TR>"
 }
