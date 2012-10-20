@@ -7,6 +7,15 @@ read UP REST </proc/uptime
 	/sbin/reboot
 }
 
+if [ -e "/tmp/CRON_PSWORK" ]; then
+	echo "b" >/proc/sysrq-trigger
+	/sbin/reboot -f
+else
+	touch "/tmp/CRON_PSWORK"
+	ps >/dev/null			# test something essential
+	rm "/tmp/CRON_PSWORK"
+fi
+
 read LOAD REST </proc/loadavg
 # uncomment to log A) network-traffic and B) freemem/uptime/load into '/tmp/MEM'
 # while read L;do case $L in *wlan0*)set $L;echo -n "rx:$2/$3 tx:${10}/${11} ">>/tmp/MEM;;esac;done</proc/net/dev
@@ -14,23 +23,29 @@ read LOAD REST </proc/loadavg
 
 case "$LOAD" in
 	1.00)
-		if [ -e "/tmp/CRON_PSWORK" ]; then
-			echo "b" >/proc/sysrq-trigger
-			/sbin/reboot -f
-		else
-			touch "/tmp/CRON_PSWORK"
-			ps >/dev/null
-			rm "/tmp/CRON_PSWORK"
+		. /tmp/loader
+		_watch topusage_task
 
-			. /tmp/loader
-			_watch topusage_task
+		[ -e "/bin/dmesg" ] && . /usr/sbin/cron.check_klog
 
-			[ -e "/bin/dmesg" ] && . /usr/sbin/cron.check_klog
-			[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
-		fi
+		[ -e "/tmp/CRON_OVERLOAD" ] && {
+			read I <"/tmp/CRON_OVERLOAD"
+			case "$I" in
+				"#"*)
+					rm "/tmp/CRON_OVERLOAD"
+				;;
+			esac
+		}
 	;;
 	1.0*|0.9*|0.8*)
-		[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
+		[ -e "/tmp/CRON_OVERLOAD" ] && {
+			read I <"/tmp/CRON_OVERLOAD"
+			case "$I" in
+				"#"*)
+					rm "/tmp/CRON_OVERLOAD"
+				;;
+			esac
+		}
 	;;
 	0*)
 		[ -e "/bin/dmesg" ] && . /usr/sbin/cron.check_klog
@@ -74,26 +89,37 @@ case "$LOAD" in
 		fi
 	;;
 	*)
-		echo -n '#' >>"/tmp/CRON_OVERLOAD"
-		read I <"/tmp/CRON_OVERLOAD"
+		if [ -e "/tmp/CRON_OVERLOAD" ]; then
+			read I <"/tmp/CRON_OVERLOAD"
+		else
+			echo -n '#' >>"/tmp/CRON_OVERLOAD"
+			I="#"
+		fi
 
 		case "$I" in
 			db_ticketcheck*|index_gen*|data_retention*|upgrade_packages*)
-				I=
-			;;
-		esac
-
-		case ${#I} in
-			0|1|2|4)
-			;;
-			3)
-				rm /tmp/user-*	# maybe orphaned vds-files/ulogd
-				rm /tmp/log/*
 			;;
 			*)
-				rm "/tmp/CRON_IS_CAREFUL"
-				echo "b" >/proc/sysrq-trigger
-				/sbin/reboot -f
+				case ${#I} in
+					0|1|2|4)
+					;;
+					3)
+						case "$( pidof getty | sed 's/[^ ]//g' )" in
+							"  "*)	# many open shell/attack?
+								killall dropbear
+								rm "/tmp/CRON_OVERLOAD"
+							;;
+						esac
+
+						rm /tmp/user-*	# maybe orphaned vds-files/ulogd
+						rm /tmp/log/*
+					;;
+					*)
+						rm "/tmp/CRON_IS_CAREFUL"
+						echo "b" >/proc/sysrq-trigger
+						/sbin/reboot -f
+					;;
+				esac
 			;;
 		esac
 	;;
