@@ -75,49 +75,43 @@ _net_dhcp_lease_remove()
 	_scheduler add "/etc/init.d/*dnsmasq restart"
 }
 
-_net_mac2vendor ()
+_net_mac2vendor()
 {
-	local FUNC="net_mac2vendor"
-	local MAC="$1"
-	local KEYWORD="$2"
-	local URL="http://84.38.67.43/macs"	# intercity-vpn.de
-	local MAC_SANITIZED
-	local CACHE="/tmp/CACHE_MAC2VENDOR_$MAC"
-	
-	[ ! -e "$CACHE" ] && {
+	local oui="$1"				# ab12cd | AB12CD | 1122334455AA | 11-22-33-44-55-aa | 11:22:33:44:55:AA
+	local option="$2"			# e.g. 'short'
+	local url="http://84.38.67.43/oui"	# see /api.txt
 
-		_log do $FUNC daemon debug "not cached yet, working for '$MAC'"
-
-		if [ ${#MAC} -ne 6 ]; then
-
-			if [ ${#MAC} -eq 12 ]; then
-				MAC_SANITIZED="$( _sanitizer do "$MAC" hex lowercase length:6 )"	# input = 112233445566
-			else
-				MAC_SANITIZED="$( _sanitizer do "$MAC" mac hex lowercase length:6 )"	# input = 11:22:33:44:55:66
-			fi
-			
-			[ -z "$MAC_SANITIZED" ] && {
-				_log do $FUNC daemon info "could not sanitize: '$MAC'"
-				return 1
-			}
-		else
-			MAC_SANITIZED="$MAC"
-		fi
-
-		_log do $FUNC daemon debug "sanitized '$MAC' to '$MAC_SANITIZED'"		
-		_wget do "$URL/$MAC_SANITIZED" 5 >"$CACHE" 2>/dev/null
-		
-		[ "$( _file size "$CACHE" )" -eq 0 ] && {
-			rm "$CACHE"
-			return 1
-		}
-	}
-
-	if [ "$KEYWORD" = "short" ]; then
-		head -n1 $CACHE
+	if   [ ${#oui} -eq 6 -o ${#oui} -eq 12 ]; then
+		:
+	elif [ ${#oui} -eq 17 ]; then
+		oui=${oui//:/}
+		oui=${oui//-/}
+		[ ${#oui} -eq 12 ] || return 1
 	else
-		head -n9 $CACHE
+		[ ${#oui} -eq 0 ] && return 1
+		oui="$( _sanitizer do "$oui" mac hex lowercase length:6 )"
+		[ ${#oui} -eq 6 ] || return 1
 	fi
+
+	case "${oui:1:1}" in
+		*2|*3|*6|*7|*a|*b|*e|*f)
+			echo "locally_administered"
+		;;
+		*)
+			local cache="/tmp/oui/$oui"
+			[ -e "$cache" ] || {
+				mkdir -p "/tmp/oui"
+				url="$url/${oui:0:2}/${oui:2:2}/${oui:4:2}"
+				_wget do "$url" 5 >"$cache" 2>/dev/null
+			}
+
+			if [ "$option" = "short" ]; then
+				head -n1 "$cache"
+			else
+				cat "$cache"
+			fi
+		;;
+	esac
 }
 
 _net_ip4_is_private ()		# RFC-1918
@@ -206,7 +200,7 @@ _net_dns2ip ()
 	} done
 }
 
-_net_dev2ip ()		# only first ip
+_net_dev2ip()		# only first ip
 {
 	local dev="$1"
 	local option="$2"	# "ip"|"mask"
@@ -221,11 +215,19 @@ _net_dev2ip ()		# only first ip
 		inet)
 			key=$5
 
-			if [ "$key" = "brd" ]; then
-				ip_with_mask="$4"
-			else
-				ip_with_mask="$6"	# pppoe, '8: ppp0 inet 84.183.156.159 peer 217.0.116.17/32 scope global ppp0'
-			fi
+			case "$key" in
+				brd|scope)
+					# e.g.:
+					# 6: wlan0    inet 10.63.10.1/8 brd 10.255.255.255 scope global wlan0
+					# 7: wlan0-1    inet 10.63.10.1/32 scope global wlan0-1
+					ip_with_mask="$4"
+				;;
+				*)
+					# e.g.:
+					# 8: ppp0 inet 84.183.156.159 peer 217.0.116.17/32 scope global ppp0
+					ip_with_mask="$6"
+				;;
+			esac
 		;;
 		*)
 			return 1
@@ -424,7 +426,7 @@ _net_local_inet_offer_refresh ()	# SENS: check if default-route is local
 	# default via 10.63.52.36 dev br0 		-> lan-offer|lan-gateway
 	# default via 10.63.99.33 dev eth0.1  metric 2 onlink		-> since ~git29366 "onlink"
 	# default via 192.168.101.112 dev eth0.1  src 192.168.101.222	-> lan-offer via alias-interface
-	# default via 192.168.1.1 dev eth1  proto static ->841nd
+	# # default via 192.168.1.1 dev eth1  proto static ->841nd
 
 	eval $( ip route list exact 0.0.0.0/0 | head -n1 |
 		while read N N D N PHYDEV METRIC N trash; do {	# we must eval it, otherwise		// fixme! look for 'table all'?
@@ -520,10 +522,14 @@ _net_inet_seems_stable ()					# fixme! also check path to gateway (add wireless 
 
 _net_mac2ip ()		# SENS: get client-IP from different sources
 {
+	local mac="$1"
 	local funcname="mac2ip"
+
+	[ -z "$mac" ] && return 1
+
 	_sanitizer include
 
-	local MAC="$( _sanitizer do "${1:-unset_mac}" lowercase )"
+	local MAC="$( _sanitizer do "${mac:-unset_mac}" lowercase )"
 	local IP=
 	local HOSTNAME=
 	local COUNT=
