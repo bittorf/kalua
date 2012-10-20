@@ -15,6 +15,9 @@
 ### sending "i'am alive"-messages to vpn-server in random
 ### intervals (approx. once a day) or/and simply log it
 
+_system include
+CPU_LOAD="$( _system load 15min )"
+
 [ $( _system ram_size ) -gt 16384 ] || {
 	[ $( _file lines /proc/modules ) -gt 23 ] && {		# 3.3.8, apmode = 23, adhoc-mode = 5 (SIMPLEMESH)
 		_log do start daemon info "no execution - waiting for unload of unneeded kmodules"
@@ -38,7 +41,6 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 	_sanitizer include
 	_math include
-	_system include
 	_wifi include
 
 	# fixme! use more abstraction
@@ -67,7 +69,6 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	FORWARDED=	# 327 (unit = megabytes)
 
 	UPTIME="$( _system uptime hours )"									# 1078
-	CPU_LOAD="$( _system load 15min )"									# 088
 	VERSION=$FFF_PLUS_VERSION										# 345678
 	REBOOT="$( cat /www/REBOOT_COUNTER )"									# 15
 	NODE="$( uci get system.@profile[0].nodenumber )"							# 423
@@ -215,6 +216,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 			_log do $FUNC daemon info "public IP changed: '$PUBIP_OLD' -> '$PUBIP'"
 			ARG1="send_alive_message"
 
+			[ -n "$( uci -q get network.wan.dyndns )" ] && {
+				_wget do "$( uci get network.wan.dyndns )" >/dev/null
+			}
+
 			_net local_inet_offer >/dev/null && {		# respect maybe new DHCP-values
 				/etc/init.d/S41build_static_netparam
 				/etc/init.d/S43ethers_fff+ call
@@ -316,6 +321,8 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 	# ----- fixme! start_of_ugly_packetfilter_monitoring
 
+grep -q ^"ip_tables " /proc/modules && {
+
 	PFILTER_NAT="$(			iptables -t nat    -nxvL | grep "\--" | sed -n '$=' )"
 	PFILTER_FILTER="$(		iptables -t filter -nxvL | grep "\--" | sed -n '$=' )"
 	PFILTER_MANGLE="$(		iptables -t mangle -nxvL | grep "\--" | sed -n '$=' )"
@@ -370,7 +377,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	[ -e /tmp/FREE ] && {
 		PFILTER="FREE+$PFILTER"
 	}
-
+}
 	# ----- end_of_ugly_packetfilter_monitoring, output like: 7:39:600:97:10:12:49,49,49,49,49:13,49,49,49,49,49
 
 	# trying to print at first the values that are not likely to change its length/appearance often 
@@ -386,6 +393,19 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 		olsrrestartcount="off"
 	fi
 
+	grep -qs "sched: RT throttling activated" "/tmp/dmesg.log" && {
+		# seconds from klog, when 'throttling' was detected
+		k0="$( grep "sched: RT throttling activated" /tmp/dmesg.log | cut -d'.' -f1 | sed 's/[^0-9]//g' )"
+	}
+
+	[ -e "/tmp/dmesg.boot" ] && {
+		k1="$( sed -n '$=' "/tmp/dmesg.boot" )"
+	}
+
+	[ -e "/tmp/dmesg.log" ] && {
+		k2="$( sed -n '$=' "/tmp/dmesg.log" )"
+	}
+
 	QUERY=
 	QUERY="${QUERY}local=$DATE_LOCAL_HUMAN&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODE&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE&wifidrv=$DRIVER&olsrver=$OLSRVER"
@@ -395,6 +415,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$( uci get system.@profile[0].name )&noise=${NOISE}&rssi=${SIGNAL}&distance=${DISTANCE}"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=${ESSID}&bssid=${BSSID}"
 	QUERY="${QUERY}&gw=$GW&gwnode=$GWNODE&etx2gw=$ETX2GW&hop2gw=$HOP2GW&neigh=$NEIGH&users=$USERS&pubip=$PUBIP&sens=$SENS&wifiscan=$WIFISCAN"
+	QUERY="${QUERY}&k0=$k0&k1=$k1&k2=$k2"
 	QUERY="${QUERY}&v1=$( uname -r )"
 	QUERY="${QUERY}&v2=$( _system version short )"
 	QUERY="${QUERY}&s1=$( _switch show )"
@@ -417,6 +438,7 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 	QUERY="${QUERY}&d0=$( _db user login list last )"
 	QUERY="${QUERY}&d1=$( _weblogin authserver )"
+
 	QUERY="${QUERY}&n0=$N0"
 
 	incoming_and_outgoing_olsr_traff_on_wifi()
@@ -503,6 +525,10 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	}
 
 	QUERY="${QUERY}&u0=$( usbport_something_is_plugged_in && echo "1" )"
+
+	[ -n "$( uci get dhcp.@dnsmasq[0].dhcpscript )" ] && {
+		QUERY="${QUERY}&D0=1"
+	}
 
 	if [ $RAM_SIZE -lt 16384 ]; then
 		echo >/tmp/ARCHIV_MONITORING "$QUERY"
