@@ -176,6 +176,7 @@ set_build()
 					# extract 2nd line from patch file
 					line=$( head -n 2 $file|tail -n 1 )
                                         file2patch="$( echo "$line" | cut -d' ' -f2 |cut -f1 )"
+					dest="$( dirname $file2patch )"
 
                                         patch  $file2patch $file
 
