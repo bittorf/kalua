@@ -170,16 +170,15 @@ set_build()
 
 					cd $old_pwd
 				;;
-                                *"luci/luci/"*)
-                                        # e.g. # luci Makefile
-                                        dest="feeds/luci/luci/"
-                                        old_pwd="$( pwd )"
-                                        file2patch="$( basename "$( echo "$line" | cut -d' ' -f3 )" )"
-                                        cd $dest
+                                *)
+                                        # general, patches created with "diff -up <orig file> <patched file> > patchfile"
+					# assumption: patch root dir is in openwrt directory
+					# extract 2nd line from patch file
+					line=$( head -n 2 $file|tail -n 1 )
+                                        file2patch="$( echo "$line" | cut -d' ' -f2 |cut -f1 )"
 
-                                        patch f1 f2
+                                        patch  $file2patch $file
 
-                                        cd $old_pwd
                                 ;;
 
 			esac
