@@ -170,6 +170,18 @@ set_build()
 
 					cd $old_pwd
 				;;
+                                *"luci/luci/"*)
+                                        # e.g. # luci Makefile
+                                        dest="feeds/luci/luci/"
+                                        old_pwd="$( pwd )"
+                                        file2patch="$( basename "$( echo "$line" | cut -d' ' -f3 )" )"
+                                        cd $dest
+
+                                        patch f1 f2
+
+                                        cd $old_pwd
+                                ;;
+
 			esac
 
 			mkdir -p "$dest"
