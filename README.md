@@ -23,6 +23,8 @@ how to get a release for a specific hardware
 	# choose your router-model and build, for example:
 	$DO "HARDWARE.Linksys WRT54G:GS:GL" ffweimar_standard b43minimal kernel.addzram patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard
 	$DO "HARDWARE.TP-LINK WR841ND" ffweimar_standard kernel.addzram patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard hostapd
+	#build all ar71xx based hardware images 
+	$DO "HARDWARE.ar71xx" ffweimar_standard kernel.addzram patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard hostapd vtunnoZlibnoSSL
 	$DO "HARDWARE.Buffalo WZR-HP-AG300H" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
 	$DO "HARDWARE.TP-LINK TL-WR1043ND" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
 	$DO "HARDWARE.TP-LINK WR841ND" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
