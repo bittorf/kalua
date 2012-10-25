@@ -129,6 +129,23 @@ for SPECIAL in unoptimized kcmdlinetweak; do {
 } done
 
 weimarnetz/openwrt-build/mybuild.sh applymystuff
+
+#strip blank lines and comments on low mem devices to save flash and ram
+case "$@" in
+	*"Linksys"*)
+		#remove comments
+		for file in `dir -d package/base-files/files/etc/init.d/*` ; do cat $f | sed -e 's/#[^!].*$//' > test; mv test $f; done
+		#remove blank lines
+		for file in `dir -d package/base-files/files/etc/init.d/*` ; do cat $f | sed -e '/^$/d' > test; mv test $f; done
+		#remove comments
+		for file in `dir -d package/base-files/files/etc/kalua/*` ; do cat $f | sed -e 's/#[^!].*$//' > test; mv test $f; done
+		#remove blank lines
+		for file in `dir -d package/base-files/files/etc/kalua/*` ; do cat $f | sed -e '/^$/d' > test; mv test $f; done
+	;;
+esac
+
+
+
 weimarnetz/openwrt-build/mybuild.sh make
 
 log "please removing everything via 'rm -fR release' if you are ready"
