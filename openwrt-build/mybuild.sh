@@ -681,7 +681,7 @@ applymystuff()
 
 		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$file" ) bytes)"
 	else
-		file="weimarnetz/openwrt-build/$file"
+		file="weimarnetz/openwrt-build/$( basename $file )"
 		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
 		cp "$file" "$base/etc/init.d"
 	fi
