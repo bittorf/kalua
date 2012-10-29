@@ -85,6 +85,7 @@ olsr_on_wifi()
 
 stop_olsr_and_set_static_routes()
 {
+	local funcname="stop_olsr_and_set_static_routes"
 	local nexthop="$( nexthop )"
 	local nexthop_dev="$( nexthop_dev )"
 
@@ -94,7 +95,13 @@ stop_olsr_and_set_static_routes()
 	eval $( _ipsystem do | grep ^WIFIMSK= )
 	ip address add $WIFIADR/$WIFIMSK dev $WIFIDEV	# add /27
 	ip address del $WIFIADR/$WIFIPRE dev $WIFIDEV	# del /8
-	uci set network.wlan.netmask="$WIFIMSK"		# if something make an 'wifi up'
+	uci set network.wlan.netmask="$WIFIMSK"		# if something makes 'wifi up'
+
+	ip route flush cache
+	ip -oneline route get "$nexthop" | fgrep -q " dev $nexthop_dev " || {
+		_log go $funcname daemon alert "route goes out over wrong device, reboot"
+		reboot
+	}
 
 	touch /tmp/service_olsrd_nowatching
 	_olsr daemon stop "i'am now a hna4-slave from $( nexthop )"
