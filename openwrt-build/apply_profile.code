@@ -507,6 +507,7 @@ _config_wireless ()			# fixme! channels hardcoded
 	local NODE="$1"
 	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard
 	local temp="/tmp/config_wireless.tmp"
+	local driver_path
 
 	[ -e "/etc/config/wireless" ] || {
 		log "omitting section wireless, wifi n/a"
@@ -517,16 +518,24 @@ _config_wireless ()			# fixme! channels hardcoded
 
 for radiocard in 0 1 2 3; do {
 
+	driver_path="$( uci get wireless.radio0.path )"		# e.g. 'platform/ath9k' or 'platform/ar231x-wmac.0'
+
 	[ -n "$( uci get wireless.@wifi-iface[${radiocard}].device )" ] || break
 	[ $radiocard -gt 0 ] && echo "" >>"$temp"
 
 	log "configuring radio${radiocard} ..."
 
+	local hide_mac="#"
 	MAC="$( uci get wireless.radio${radiocard}.macaddr )"
-	[ -z "$MAC" ] && {
-		MAC="11:22:33:44:55:66"
-		log "[ERR] empty mac, we set $MAC"
-	}
+	if [ -z "$MAC" ]; then
+		[ -z "$driver_path" ] && {
+			hide_mac=
+			MAC="11:22:33:44:55:66"
+			log "[ERR] empty mac, we set $MAC"
+		}
+	else
+		hide_mac=
+	fi
 
 	hwmode="$( uci get wireless.radio${radiocard}.hwmode )"		# backup current state
 	hwmode="${hwmode:-11g}"
@@ -659,12 +668,15 @@ config wifi-device radio${radiocard}
 	option channel	$CHANNEL
 $hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
 $hide_chanbw	option chanbw	$chanbw		# since r32596
-	option macaddr	$MAC
+$hide_mac	option macaddr	$MAC
 	option frag	off
 	option txpower	$TXPOWER
 	option beacon_int 1000
 ${hide_noscan}	option noscan	1
 EOF
+
+			[ -n "$driver_path" ] && echo "	option path '$driver_path'" >>"$temp"
+
 
 			cat >>"$temp" <<EOF
 	option hwmode   $hwmode
@@ -730,10 +742,12 @@ config wifi-device radio${radiocard}
 	option country	$country
 	option txpower	$TXPOWER
 	option channel	$CHANNEL
-	option macaddr	$MAC
+$hide_mac	option macaddr	$MAC
 	option frag	off
 ${hide_noscan}	option noscan	1
 EOF
+
+			[ -n "$driver_path" ] && echo " option path '$driver_path'" >>"$temp"
 
 	grep -q ^"b43 " "/proc/modules" && cat >>"$temp" <<EOF
 	option bitrates '6 9 12 18 24 36 48 54'
@@ -771,12 +785,14 @@ config wifi-device radio${radiocard}
 	option channel	$CHANNEL
 $hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
 $hide_chanbw	option chanbw	$chanbw		# since r32596
-	option macaddr	$MAC
+$hide_mac	option macaddr	$MAC
 	option frag	off
 	option txpower	$TXPOWER
 	option beacon_int 1000
 ${hide_noscan}	option noscan	1
 EOF
+
+			[ -n "$driver_path" ] && echo " option path '$driver_path'" >>"$temp"
 
 	grep -q ^"b43 " "/proc/modules" && cat >>"$temp" <<EOF
 	option bitrates '6 9 12 18 24 36 48 54'
