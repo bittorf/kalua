@@ -1025,7 +1025,15 @@ _netfilter_user_add()
 	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
 
 	[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
-		_netfilter user_dataretention_add "$mac" "$ip"
+		case "$CONFIG_PROFILE" in
+                        elephant*|galerie*|dhsylt*)
+                                rmmod ipt_ULOG
+                                rmmod xt_state
+			;;
+			*)
+				_netfilter user_dataretention_add "$mac" "$ip"
+			;;
+		esac
 	}
 
 	_netfilter traffic_control_needed && {
@@ -1109,17 +1117,9 @@ _netfilter_user_dataretention_add()
 		iptables -t mangle -A FORWARD -j mark_connection_new
 		iptables -t mangle -A FORWARD -j mark_connection_end
 
-		case "$CONFIG_PROFILE" in
-			elephant*|galerie*)
-				rmmod ipt_ULOG
-				rmmod xt_state
-			;;
-			*)
-				[ -e "/usr/sbin/ulogd" ] && {
-					pidof ulogd >/dev/null || /etc/init.d/ulogd start
-				}
-			;;
-		esac
+		[ -e "/usr/sbin/ulogd" ] && {
+			pidof ulogd >/dev/null || /etc/init.d/ulogd start
+		}
 
 		touch "/tmp/NETFILTER/connection_detection"
 	}
