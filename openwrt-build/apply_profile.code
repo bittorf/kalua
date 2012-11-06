@@ -328,7 +328,10 @@ esac
 
 case "$HARDWARE" in
 	"Ubiquiti Bullet M")
-		TXPOWER=$(( $TXPOWER - 12 ))	# https://dev.openwrt.org/browser/trunk/package/iwinfo/src/iwinfo_lib.c#L310
+		[ -n "$TXPOWER" ] && {
+			# https://dev.openwrt.org/browser/trunk/package/iwinfo/src/iwinfo_lib.c#L31
+			TXPOWER=$(( $TXPOWER - 12 ))
+		}
 	;;
 esac
 
@@ -513,7 +516,7 @@ _config_softwareinstall ()
 _config_wireless ()			# fixme! channels hardcoded
 {
 	local NODE="$1"
-	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard
+	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard hidetx
 	local temp="/tmp/config_wireless.tmp"
 	local driver_path
 
@@ -523,6 +526,8 @@ _config_wireless ()			# fixme! channels hardcoded
 	}
 
 	[ -e "$temp" ] && rm "$temp"
+
+	[ -z "$TXPOWER" ] && hidetx="#"
 
 for radiocard in 0 1 2 3; do {
 
@@ -678,7 +683,7 @@ $hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
 $hide_chanbw	option chanbw	$chanbw		# since r32596
 $hide_mac	option macaddr	$MAC
 	option frag	off
-	option txpower	$TXPOWER
+$hidetx	option txpower	$TXPOWER
 	option beacon_int 1000
 ${hide_noscan}	option noscan	1
 EOF
@@ -748,7 +753,7 @@ EOF
 config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
-	option txpower	$TXPOWER
+$hidetx	option txpower	$TXPOWER
 	option channel	$CHANNEL
 $hide_mac	option macaddr	$MAC
 	option frag	off
@@ -795,7 +800,7 @@ $hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
 $hide_chanbw	option chanbw	$chanbw		# since r32596
 $hide_mac	option macaddr	$MAC
 	option frag	off
-	option txpower	$TXPOWER
+$hidetx	option txpower	$TXPOWER
 	option beacon_int 1000
 ${hide_noscan}	option noscan	1
 EOF
