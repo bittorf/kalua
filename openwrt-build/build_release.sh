@@ -134,13 +134,17 @@ weimarnetz/openwrt-build/mybuild.sh applymystuff
 case "$@" in
 	*"Linksys"*)
 		#remove comments
-		for file in `dir -d package/base-files/files/etc/init.d/*` ; do cat $f | sed -e 's/#[^!].*$//' > test; mv test $f; done
+		log "remove comments from init.d"
+		for f in `dir -d package/base-files/files/etc/init.d/*` ; do cat $f | sed -e 's/#[^!].*$//' > test; mv test $f; done
 		#remove blank lines
-		for file in `dir -d package/base-files/files/etc/init.d/*` ; do cat $f | sed -e '/^$/d' > test; mv test $f; done
+		log "remove blank lines from init.d"
+		#for f in `dir -d package/base-files/files/etc/init.d/*` ; do cat $f | sed -e '/^$/d' > test; mv test $f; done
 		#remove comments
-		for file in `dir -d package/base-files/files/etc/kalua/*` ; do cat $f | sed -e 's/#[^!].*$//' > test; mv test $f; done
+		log "remove comments from kalua"
+		for f in `dir -d package/base-files/files/etc/kalua/*` ; do cat $f | sed -e 's/#[^!].*$//' > test; mv test $f; done
 		#remove blank lines
-		for file in `dir -d package/base-files/files/etc/kalua/*` ; do cat $f | sed -e '/^$/d' > test; mv test $f; done
+		log "remove blank lines from kalua"
+		#for f in `dir -d package/base-files/files/etc/kalua/*` ; do cat $f | sed -e '/^$/d' > test; mv test $f; done
 	;;
 esac
 
