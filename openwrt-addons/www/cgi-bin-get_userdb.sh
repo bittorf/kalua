@@ -9,7 +9,16 @@ eval $( _ipsystem do "$NODE" | grep "[N|I]ADR=" )
 
 case "$REMOTE_ADDR" in
 	$WANADR|$LANADR|$WIFIADR)
-		if cat /tmp/DB/USER/login/meta_index; then
+		case "$QUERY_STRING" in
+			*tac)
+				COMMAND="sed '1!G;h;$!d' /tmp/DB/USER/login/meta_index"
+			;;
+			*)
+				COMMAND="cat /tmp/DB/USER/login/meta_index"
+			;;
+		esac
+
+		if $COMMAND; then
 			echo "# OK"
 		else
 			echo "# ERROR: could not read"
