@@ -25,6 +25,14 @@ uptime_in_seconds()
 
 jffs2_is_ready()
 {
+	[ -n "$FAILSAFE" ] && {
+		df | grep -q "/overlay"$ || {
+			log "please enter 'mount_root', you are in FAILSAFE-mode"
+			sleep 3
+			return 1
+		}
+	}
+
 	lock -w /tmp/.switch2jffs && {		# ramdisk useable?
 		df | grep -q " /tmp"$ || {
 			return 1
@@ -188,6 +196,11 @@ fi
 log "detected: $HARDWARE and wrote to '/etc/HARDWARE' for later monitoring"
 echo "$HARDWARE" >"/etc/HARDWARE"
 
+case "$HARDWARE" in
+	"Linksys WRT54"*|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
+		rm /etc/modules.d/19-usb-brcm47xx /etc/modules.d/50-usb-ohci /etc/modules.d/20-usb-core
+	;;
+esac
 
 INSTALLATION="$1"
 PROFILE_MODE="$2"
@@ -326,7 +339,10 @@ esac
 
 case "$HARDWARE" in
 	"Ubiquiti Bullet M")
-		TXPOWER=$(( $TXPOWER - 12 ))	# https://dev.openwrt.org/browser/trunk/package/iwinfo/src/iwinfo_lib.c#L310
+		[ -n "$TXPOWER" ] && {
+			# https://dev.openwrt.org/browser/trunk/package/iwinfo/src/iwinfo_lib.c#L31
+			TXPOWER=$(( $TXPOWER - 12 ))
+		}
 	;;
 esac
 
@@ -498,7 +514,6 @@ EOF
 		echo >>/etc/config/system "	option mode  'testing'"
         fi
 
-	cat >>/etc/config/system <<EOF
 config 'admin'
 	option location	'$( contact location )'
 	option latlon	'$( contact latlon )'
@@ -534,8 +549,9 @@ _config_softwareinstall ()
 _config_wireless ()			# fixme! channels hardcoded
 {
 	local NODE="$1"
-	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard
+	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard hidetx
 	local temp="/tmp/config_wireless.tmp"
+	local driver_path
 
 	[ -e "/etc/config/wireless" ] || {
 		log "omitting section wireless, wifi n/a"
@@ -544,18 +560,28 @@ _config_wireless ()			# fixme! channels hardcoded
 
 	[ -e "$temp" ] && rm "$temp"
 
+	[ -z "$TXPOWER" ] && hidetx="#"
+
 for radiocard in 0 1 2 3; do {
+
+	driver_path="$( uci get wireless.radio${radiocard}.path )"		# e.g. 'platform/ath9k' or 'platform/ar231x-wmac.0'
 
 	[ -n "$( uci get wireless.@wifi-iface[${radiocard}].device )" ] || break
 	[ $radiocard -gt 0 ] && echo "" >>"$temp"
 
 	log "configuring radio${radiocard} ..."
 
+	local hide_mac="#"
 	MAC="$( uci get wireless.radio${radiocard}.macaddr )"
-	[ -z "$MAC" ] && {
-		MAC="11:22:33:44:55:66"
-		log "[ERR] empty mac, we set $MAC"
-	}
+	if [ -z "$MAC" ]; then
+		[ -z "$driver_path" ] && {
+			hide_mac=
+			MAC="11:22:33:44:55:66"
+			log "[ERR] empty mac, we set $MAC"
+		}
+	else
+		hide_mac=
+	fi
 
 	hwmode="$( uci get wireless.radio${radiocard}.hwmode )"		# backup current state
 	hwmode="${hwmode:-11g}"
@@ -585,8 +611,8 @@ for radiocard in 0 1 2 3; do {
 
 	bssid_wellformed()
 	{
-		local channel="$1"	# e.g. 161
-		local bssid="$2"	# e.g. 02:be:ef:ca:ff:ee
+		local channel="$1"			# e.g. 161
+		local bssid="${2:-02:ca:ff:ee:ba:be}"
 
 		bssid="$( echo "$bssid" | cut -b 1-11 )"	# 02:be:ef:ca:ff:ee -> 02:be:ef:ca
 
@@ -688,12 +714,15 @@ config wifi-device radio${radiocard}
 	option channel	$CHANNEL
 $hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
 $hide_chanbw	option chanbw	$chanbw		# since r32596
-	option macaddr	$MAC
+$hide_mac	option macaddr	$MAC
 	option frag	off
-	option txpower	$TXPOWER
+$hidetx	option txpower	$TXPOWER
 	option beacon_int 1000
 ${hide_noscan}	option noscan	1
 EOF
+
+			[ -n "$driver_path" ] && echo "	option path '$driver_path'" >>"$temp"
+
 
 			cat >>"$temp" <<EOF
 	option hwmode   $hwmode
@@ -706,11 +735,13 @@ EOF
 			echo >>"$temp" "	option rxantenna 1"
 			echo >>"$temp" "	option rxantenna 1"
 		;;
-		"Linksys WRT54G:GS:GL"|"ASUS WL-500g Premium")
+		"Linksys WRT54G"*|"ASUS WL-500g Premium")
 			echo >>"$temp" "	option rxantenna 0"
 			echo >>"$temp" "	option rxantenna 0"
 		;;
 	esac
+
+			[ -z "$BSSID" ] && BSSID="$( bssid_wellformed "$CHANNEL" )"
 
 			cat >>"$temp" <<EOF
 
@@ -757,12 +788,14 @@ EOF
 config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
-	option txpower	$TXPOWER
+$hidetx	option txpower	$TXPOWER
 	option channel	$CHANNEL
-	option macaddr	$MAC
+$hide_mac	option macaddr	$MAC
 	option frag	off
 ${hide_noscan}	option noscan	1
 EOF
+
+			[ -n "$driver_path" ] && echo "	option path '$driver_path'" >>"$temp"
 
 	grep -q ^"b43 " "/proc/modules" && cat >>"$temp" <<EOF
 	option bitrates '6 9 12 18 24 36 48 54'
@@ -800,12 +833,14 @@ config wifi-device radio${radiocard}
 	option channel	$CHANNEL
 $hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
 $hide_chanbw	option chanbw	$chanbw		# since r32596
-	option macaddr	$MAC
+$hide_mac	option macaddr	$MAC
 	option frag	off
-	option txpower	$TXPOWER
+$hidetx	option txpower	$TXPOWER
 	option beacon_int 100
 ${hide_noscan}	option noscan	1
 EOF
+
+			[ -n "$driver_path" ] && echo "	option path '$driver_path'" >>"$temp"
 
 	grep -q ^"b43 " "/proc/modules" && cat >>"$temp" <<EOF
 	option bitrates '6 9 12 18 24 36 48 54'
@@ -816,6 +851,8 @@ EOF
 ${hideht}	option htmode	$htmode
 $( ht_cap_uci_output )
 EOF
+
+			[ -z "$BSSID" ] && BSSID="$( bssid_wellformed "$CHANNEL" )"
 
 			cat >>"$temp" <<EOF
 
