@@ -650,6 +650,7 @@ applymystuff()
 	destfile="$base/etc/init.d/apply_profile.code"
 	log "copy $( basename "$file" ) - the configurator ($( filesize "$file" ) bytes)"
 	cp "$file" "$destfile"
+	chmod +x "$base/etc/init.d/$( basename "$file" )"
 
 	if [ -n "$node" ]; then
 		log "changing values in '$destfile'"
