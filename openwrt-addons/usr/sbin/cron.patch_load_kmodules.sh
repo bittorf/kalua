@@ -67,7 +67,7 @@ output_new_function()
 	echo '	} done'
 	echo
 	echo '	read t2 trash </proc/uptime; duration=$(( ${t2//./} - ${t1//./} ))'
-	echo '	echo echo >>/tmp/KMODULE.action "# done in $(( $duration / 100 )).$(( $duration % 100 )) sec"'
+	echo '	echo >>/tmp/KMODULE.action "# done in $(( $duration / 100 )).$(( $duration % 100 )) sec"'
 	echo "}"
 }
 
