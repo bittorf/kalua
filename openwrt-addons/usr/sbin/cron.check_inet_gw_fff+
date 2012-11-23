@@ -156,11 +156,23 @@ _log do guess_gateway daemon debug "$OUT"
 		_log sleep fetch_userdb_copy "$( _math random_integer 0 $ROUTES )" step 10
 
 		if wget -qO "/tmp/USERDB_COPY" "http://$REMOTE/cgi-bin-get_userdb.sh"; then
-			if [ "$( tail -n1 "/tmp/USERDB_COPY" )" = "# OK" ]; then
-				_log do fetch_userdb_copy daemon info "[OK] in /tmp/USERDB_COPY from $REMOTE"
-			else
-				rm "/tmp/USERDB_COPY"
-			fi
+			LASTLINE="$( tail -n1 "/tmp/USERDB_COPY" )"
+
+			case "$LASTLINE" in
+				"# OK"*)
+					_log do fetch_userdb_copy daemon info "[OK] in /tmp/USERDB_COPY from $REMOTE"
+
+					case "$LASTLINE" in
+						*"FREE")
+							_log do fetch_userdb_copy daemon info "[OK] free for all"
+							touch "/tmp/FREE"
+						;;
+					esac
+				;;
+				*)
+					rm "/tmp/USERDB_COPY"
+				;;
+			esac
 		else
 			rm "/tmp/USERDB_COPY"
 		fi
