@@ -16,16 +16,15 @@ how to get a release for a specific hardware
 
 	# login as non-root user
 	git clone git://github.com/bittorf/kalua.git
-	mkdir myrelease; cd myrelease
+	mkdir x; cd x
+	
+	REV="r34381"			# leave empty for trunk / latest
+	HW="TP-LINK TL-WR1043ND"	# possible values: ls -1 openwrt-config/config_HARDWARE.* | cut -d'.' -f2
 	DO="../kalua/openwrt-build/build_release.sh"
 
 	# choose your router-model and build, for example:
-	$DO "HARDWARE.Buffalo WZR-HP-AG300H" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
-	$DO "HARDWARE.TP-LINK TL-WR1043ND" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
-	$DO "HARDWARE.TP-LINK WR841ND" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
-	$DO "HARDWARE.Linksys WRT54G:GS:GL" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
-	$DO "HARDWARE.Ekuku-Longshot" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf unoptimized kcmdlinetweak
-	# explanation follows soon
+	$DO "HARDWARE.$HW" $REV standard kernel.addzram dataretention trafficshaping kcmdlinetweak
+	$DO "HARDWARE.$HW" $REV standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
 
 
 how to build this from scratch on a debian server
