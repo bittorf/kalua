@@ -348,14 +348,37 @@ uptime_in_seconds()
 check_scripts()
 {
 	local dir="$1"
-	local file i
+	local file i mimetype
 
 	for file in $( find $dir -type f ); do {
-		sh -n "$file" || {
-			log "error in file '$file' - abort"
-			return 1
-		}
-		i=$(( $i + 1 ))
+		case "$file" in
+			"./etc/kalua/"*)
+				mimetype="text/x-shellscript"
+			;;
+			*)
+				mimetype="$( file --mime-type "$file" )"
+			;;
+		esac
+
+		case "$mimetype" in
+			*"inode/x-empty"*)
+				log "[OK] will not check empty file '$file'"
+			;;
+			*"application/octet-stream"*)
+				log "[OK] will not check binary file '$file'"
+			;;
+			*"text/x-shellscript"*|*"text/plain"*)
+				sh -n "$file" || {
+					log "error in file '$file' - abort"
+					return 1
+				}
+				i=$(( $i + 1 ))
+			;;
+			*)
+				log "computer confused: type: '$mimetype' file: '$file'"
+				return 1
+			;;
+		esac
 	} done
 
 	log "[OK] checked $i files"
