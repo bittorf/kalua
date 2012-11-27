@@ -18,8 +18,8 @@ how to get a release for a specific hardware
 	git clone git://github.com/bittorf/kalua.git
 	mkdir x; cd x
 	
-	REV="r34381"			# leave empty for trunk / latest
-	HW="TP-LINK TL-WR1043ND"	# possible values: ls -1 ../kalua/openwrt-config/config_HARDWARE.* | cut -d'.' -f4
+	REV="r34381"                    # leave empty for trunk / latest
+	HW="TP-LINK TL-WR1043ND"        # possible values: ls -1 ../kalua/openwrt-config/config_HARDWARE.* | cut -d'.' -f4
 	DO="../kalua/openwrt-build/build_release.sh"
 
 	# choose your router-model and build, for example:
