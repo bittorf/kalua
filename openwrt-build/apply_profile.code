@@ -94,14 +94,6 @@ hwprobe()
 				}
 			}
 		;;
-		"Ubiquiti Picostation M2HP")
-			fgrep -q "MyLoader: sysp=f0f0f0f0, boardp=f0f0f0f0, parts=f1f0f0f0" "$DMESG" && {
-				# bullet: ofs=390000, len=420000 ???
-				fgrep -q 'ofs=3A0000, len=410000' "$DMESG" && {
-					return 0
-				}
-			}
-		;;
 		"Ubiquiti PicoStation2")
 			fgrep -q "lpj=917504" "$DMESG" && {
 				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
@@ -134,7 +126,7 @@ DMESG="/tmp/dmesg.boot"
 
 try_device()
 {
-	I=$(( ${I:=0} + 1 ))
+	I=$(( ${I:=0} + 1 ))	# global_var
 
 	case "$I" in
 		 1) HARDWARE="Linksys WRT54G/GS/GL" ;;		# brcm47xx
@@ -159,15 +151,11 @@ try_device()
 	esac
 }
 
-  if hwprobe "Ubiquiti Picostation M2HP"; then
-	HARDWARE="Ubiquiti Picostation M2HP"
-elif hwprobe "Ubiquiti Nanostation2"; then
+if   hwprobe "Ubiquiti Nanostation2"; then
 	HARDWARE="Ubiquiti Nanostation2"
 elif hwprobe "Ubiquiti Nanostation5"; then
 	HARDWARE="Ubiquiti Nanostation5"
 fi
-
-
 
 [ -z "$HARDWARE" ] && {
 	while try_device; do {
@@ -176,7 +164,11 @@ fi
 }
 
   if [ -n "$HARDWARE" ]; then
-	:
+	case "$HARDWARE" in
+		"Ubiquiti Bullet M")
+			ip address show | fgrep -q " 00:27:22:" && HARDWARE="Ubiquiti Picostation M2"
+		;;
+	esac
 elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform
 	HARDWARE="Ubiquiti PicoStation2"
 elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform
