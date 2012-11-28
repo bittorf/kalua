@@ -2,6 +2,7 @@
 . /tmp/loader
 
 _http header_mimetype_output text/html
+echo "<html><head><title>myinfo :: $HOSTNAME :: $CONFIG_PROFILE</title></head><body>"
 
 MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 	_netfilter user_probe "$MAC" && {
@@ -12,7 +13,7 @@ MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 				*":"*)
 					set -- $LINE
 
-					echo "<html><head><title>myinfo :: $HOSTNAME :: $CONFIG_PROFILE</title></head><body><pre>"
+					echo "<pre>"
 					echo "IP-Adresse: $REMOTE_ADDR"
 					echo "MAC-Adresse: $MAC"
 					echo "Verbindungstyp: $5"
@@ -31,9 +32,15 @@ MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 					esac
 
 					echo "Hersteller: $@"
-					echo "</pre></body></html>"
+					echo "</pre>"
 				;;
 			esac
 		} done
 	}
 }
+
+read GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
+
+echo "<h3>Routenverfolgung zum Gateway '$GATEWAY'</h3>"
+echo "<pre>$( traceroute $GATEWAY )</pre>"
+echo "</body></html>"
