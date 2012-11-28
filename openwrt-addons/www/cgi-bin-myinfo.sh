@@ -41,7 +41,7 @@ MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 
 read GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 
-echo "<h3>Routenverfolgung zum Gateway '$GATEWAY'</h3>"
+echo "<h3>Routenverfolgung zum Gateway '$GATEWAY' zum Zeitpunkt $( _system date humanreadable nice )</h3>"
 echo "<pre>$( traceroute $GATEWAY )</pre>"
 
 echo "<h3>Testdownload einer 10 Megabyte-Datei</h3>"
