@@ -43,4 +43,14 @@ read GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 
 echo "<h3>Routenverfolgung zum Gateway '$GATEWAY'</h3>"
 echo "<pre>$( traceroute $GATEWAY )</pre>"
+
+echo "<h3>Testdownload einer 10 Megabyte-Datei</h3>"
+
+echo "<a href='http://$LANADR/cgi-bin-tool.sh?OPT=download'>Testdownload Server1</a>&nbsp;(IP: $LANADR)<br>"
+echo "<a href='http://$GATEWAY/cgi-bin-tool.sh?OPT=download'>Testdownload Server2</a>&nbsp;(IP: $GATEWAY)<br>"
+
+AUTHSERVER="$( _weblogin authserver )"
+[ "$AUTHSERVER" = "$GATEWAY" ] || {
+	echo "<a href='http://$AUTHSERVER/cgi-bin-tool.sh?OPT=download'>Testdownload Server3</a>&nbsp;(IP: $AUTHSERVER)"
+}
 echo "</body></html>"
