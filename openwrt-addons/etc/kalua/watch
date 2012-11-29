@@ -832,13 +832,26 @@ _watch_topusage_task()
 	} done <"$file"
 	rm "$file"
 
-	[ $cpu_int -gt $crit_percent_border ] || return 0
+	case "$CONFIG_PROFILE" in
+		boltenhagendh*)
+			case "$task" in
+				*olsr*)
+					crit_percent_border=95		# fixme!
+				;;
+			esac
+		;;
+	esac
 
-	task="$( basename "$toptask" )"
-	_log do $funcname daemon alert "pid: $pid cpu: $cpu toptask: $toptask task: $task"
+	if [ $cpu_int -gt $crit_percent_border ]; then
+		task="$( basename "$toptask" )"
+		_log do $funcname daemon alert "pid: $pid cpu: $cpu toptask: $toptask task: $task"
 
-	_watch hanging_command $task	# must be called 2 times
-	_watch hanging_command $task
+		_watch hanging_command $task	# must be called 2 times
+		_watch hanging_command $task
+	else
+		_log do $funcname daemon debug "pid: $pid cpu: $cpu toptask: $toptask task: $task"
+		return 0
+	fi
 }
 
 _watch_nanostation_max_ethernet()	# has hardware error
