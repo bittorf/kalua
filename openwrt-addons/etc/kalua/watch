@@ -693,14 +693,19 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 
 	if [ "$DIRTY" = "1" ]; then
 		eval "$( build_vars )"
-		_log do $FUNC daemon info "detected ID from random pool - registering official ID from '$URL'"
+		_log do $FUNC daemon info "detected ID from random pool or a changed nodenumber - registering official ID from '$URL'"
 
  		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _wget do "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
  										# fixme! no wifi -> no wifimac -> no registration?
 	 	if _ipsystem do "${ID:-99999}" >/dev/null ; then		# ipsystem() has a sanitizer built in, so don't worry 8-)
-			uci set system.@profile[0].nodenumber="$ID"
-			/etc/init.d/apply_profile.code boot
-			reboot
+			if [ -e "/tmp/LOCKFILE_APPLY" ]; then
+				log do $FUNC daemon info "will not apply anything, /tmp/LOCKFILE_APPLY exists"
+			else
+				uci set system.@profile[0].nodenumber="$ID"
+				/etc/init.d/apply_profile.code boot
+				_log do $FUNC daemon info "rebooting now"
+				reboot
+			fi
 		else
 			_log do $FUNC daemon info "ID not clean: '$ID' - aborting"
 		fi
