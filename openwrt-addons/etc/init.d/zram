@@ -1,0 +1,74 @@
+#!/bin/sh /etc/rc.common
+
+START=00
+
+ram_size()
+{
+	local line
+
+	while read line; do case "$line" in MemTotal:*) set $line; echo "$2"; break ;; esac; done </proc/meminfo
+}
+
+zram_size()	# in megabytes
+{
+	local zram_size="$( uci get system.@system[0].zram_size_mb )"
+	local profile="$( uci get system.@profile[0].name )"
+	local ram_size="$( ram_size)"
+
+	[ -z "$zram_size" ] && {
+		case "$profile" in
+			ffweimar*)
+				zram_size=8
+			;;
+			*)
+				if [ $mem_size -gt 16384 ]; then
+					zram_size=12
+				else
+					zram_size=4
+				fi
+			;;
+		esac
+	}
+
+	echo "$zram_size"
+}
+
+zram_applicable()
+{
+	local zram_dev="$1"
+
+	grep -sq ^"$zram_dev " /proc/swaps && return 1
+	[ -e "$zram_dev" ] || return 1
+	which mkswap >/dev/null || return 1
+	which swapon >/dev/null || return 1
+}
+
+zram_dev()
+{
+	echo "/dev/zram0"
+}
+
+start()
+{
+	local zram_dev="$( zram_dev )"
+	local zram_size="$( zram_size )"
+
+	zram_applicable "$zram_dev" || return 1
+
+	logger -s -t zram_start -p daemon.info "activating '$zram_dev' for swapping ($zram_size MegaBytes)"
+	echo $(( $zram_size * 1024 * 1024 )) >"/sys/block/$( basename $zram_dev )/disksize"
+	mkswap $zram_dev
+	swapon $zram_dev
+}
+
+stop()
+{
+	local zram_dev="$( zram_dev )"
+	local proc_entry="/sys/block/$( basename "$zram_dev" )/reset"
+
+	logger -s -t zram_stop -p daemon.info "deactivate swap $zram_dev"
+	swapoff $zram_dev
+
+	logger -s -t zram_stop -p daemon.info "claiming memory back via $proc_entry"
+	echo "1" >"$proc_entry"
+}
