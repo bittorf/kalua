@@ -16,11 +16,39 @@ _netfilter_start()
 		_netfilter ipforwarding_start
 	}
 
-	#don't masquerade on local lan gateway internet access (duplicate masquerading)
-	 [ -n "$( uci -q get network.lan.gateway )" ] || {
+	#don't masquerade if configured in /etc/config/system (duplicate masquerading), i.e. on local lan gateways
+	 [ "$( uci -q get system.@netfilter[0].lan_masquerading )" = "0" ] || {
 	 	_netfilter masquerade_start
 	 }
 	_netfilter portforwarding_start
+	_netfilter conntrack_adjust_max
+
+	case "$CONFIG_PROFILE" in
+		boltenhagendh*)
+			case "$LANADR" in
+				10.10.157.*|10.10.81.*|10.10.7.*|10.10.174.*|10.10.175.*|10.10.176.*)
+					return 0
+				;;
+			esac
+		;;
+		elephant*)
+			return 0
+
+			case "$LANADR" in
+				*.6.*|*.58.*|*.8.*)	# lounge|restaurant|ziga
+					return 0
+				;;
+			esac
+		;;
+		ffsundi*)
+			return 0
+		;;
+	esac
+
+	[ -e "/etc/init.d/apply_profile" ] && return 0
+	[ -e "/www/GOOD_MODULE_UNLOAD" ] || {
+		[ $( _system ram_size ) -gt 16384 ] || return 0
+	}
 
 	[ -e "/etc/hosts.drop" ] && {
 		_netfilter adblocking_start
@@ -34,8 +62,6 @@ _netfilter_start()
 			_netfilter splash_autoadd
 		}
 	}
-
-	_netfilter conntrack_adjust_max
 
 	_netfilter traffic_control_needed && {
 		grep -q ^"sch_htb " /proc/modules || insmod sch_htb
@@ -117,6 +143,12 @@ _netfilter_traffic_control_show()
 
 _netfilter_traffic_control_needed()
 {
+	case "$CONFIG_PROFILE" in
+		rehungen*)
+			return 1
+		;;
+	esac
+
 	local kernel="$( uname -r )"
 
 	[ -e "/usr/sbin/tc" ] || return 1
@@ -156,13 +188,33 @@ _netfilter_traffic_control_user_add()
 
 	[ -z "$speed_up" ] && {
 		case "$CONFIG_PROFILE" in
-			rehungen*|leonardo*)
+			rehungen*)
+				case "$LANDADR" in
+					*.36.*|*.37.*|*.76.*|*.77.*|*.92.*|*.95.*)
+						speed_up=768kbit	# haupt52|haupt25|schuetz17
+						speed_down=16mbit
+					;;
+					*.106.*|*.107.*|*.30.*|*.108.*|*.110.*|*.43.*|*.44.*|*.66.*|*.67.*|*.97.*|*.20.*|*.21.*)
+						speed_up=768kbit	# breite6|ONEklausg70|schuetz2|101b|haupt15|ONEhaupt43a|haupt70
+						speed_down=10mbit
+					;;
+					*)
+						speed_up=768kbit
+						speed_down=6mbit
+					;;
+				esac
+			;;
+			limona*)
+				speed_up=768kbit
+				speed_down=8mbit
+			;;
+			leonardo*|castelfalfi*)
 				speed_up=768kbit
 				speed_down=6mbit
 			;;
 			liszt28*)
 				case "$LANADR" in
-					10.63.10.33|10.63.22.33)
+					10.63.10.33|10.63.22.33)	# F36
 						speed_up=256kbit
 						speed_down=5mbit
 					;;
@@ -256,6 +308,15 @@ _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic
 		21:*) peak="++++++" ;;
 		22:*) peak="+++" ;;
 		   *) peak= ;;
+	esac
+
+	case "$CONFIG_PROFILE" in
+		rehungen*)
+			peak=
+		;;
+		*)
+			peak=
+		;;
 	esac
 
 	echo $(( 100 - (6*${#peak}) ))
@@ -506,6 +567,12 @@ _netfilter_conntrack_adjust_max()
 		else
 			max=$(( ($max * 3) / 2 ))	# x1.5
 		fi
+
+		case "$CONFIG_PROFILE" in
+			spbansin*)
+				max=1024		# external pppoe-boxes are low on mem
+			;;
+		esac
 	}
 
 	# check with: wc -l /proc/net/nf_conntrack
@@ -656,7 +723,39 @@ _netfilter_portforwarding_start()
 	case "$CONFIG_PROFILE" in
 		liszt28*)
 			[ "$LANADR" = "10.63.99.33" ] && {
+				# medion
 				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 222 -j DNAT --to-destination 10.63.2.34:22
+				# fusionpbx
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10080 -j DNAT --to-destination 10.63.17.54:80
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10443 -j DNAT --to-destination 10.63.17.54:443
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10022 -j DNAT --to-destination 10.63.17.54:22
+				# Snom300
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 20080 -j DNAT --to-destination 10.63.17.60:80
+				# Snom300
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 50080 -j DNAT --to-destination 10.63.17.62:80
+				# Snom300
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 60080 -j DNAT --to-destination 10.63.17.40:80
+				# Snom821
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 40080 -j DNAT --to-destination 10.63.17.58:80
+				# ATA/FXS-Adapter: SPA112
+				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 30080 -j DNAT --to-destination 10.63.17.39:80
+			}
+		;;
+		ejbw*)
+			[ "$LANADR" = "10.10.50.33" ] && {
+				# fusionpbx
+				iptables -t nat -I POSTROUTING -d 192.168.111.21 -j ACCEPT
+			}
+
+			[ "$LANADR" = "192.168.112.2" ] && {
+				# dachrouter j4
+				iptables -t nat -I POSTROUTING -d 192.168.111.21 -j ACCEPT
+			}
+		;;
+		rehungen*)
+			[ "$LANADR" = "10.10.8.33" ] && {
+				# kindergarten
+				iptables -t nat -I PREROUTING -d 10.1.0.8 -p udp --dport 53 -j DNAT --to-destination 10.10.8.33
 			}
 		;;
 	esac
@@ -698,12 +797,9 @@ _netfilter_splash_start()
 		 "/tmp/NETFILTER/MAC2IP" \
 		 "/tmp/NETFILTER/IP2MAC"
 
-	# don't cache splash page at this time for ffweimar, because it needs internet access
-	[ "$( uci get system.@profile[0].name )" = "ffweimar_adhoc" ] || { 
-		[ -e "/tmp/weblogin_cached_for_overload" ] || {
-			export QUERY_STRING="REDIRECTED=1"
-			/www/cgi-bin-welcome.sh >/dev/null
-		}
+	[ -e "/tmp/weblogin_cached_for_overload" ] || {
+		export QUERY_STRING="REDIRECTED=1"
+		/www/cgi-bin-welcome.sh >/dev/null
 	}
 
 	# how to deny spoofing source-address?
@@ -828,7 +924,6 @@ _netfilter_walledgarden_list()
 		141.54.160.48/32	m18.uni-weimar.de
 		87.118.106.19/32	www.weimarnetz.de
 		77.87.48.19/32		www.weimarnetz.de_newserver
-		188.40.166.25		wireless.subsignal.org
 		"
 
 	[ -e "/www/advertisement.js" ] && {
@@ -838,6 +933,7 @@ _netfilter_walledgarden_list()
 		}
 	}
 
+	# include installation-specific entries:
 	_weblogin metadata_locationname default walled_garden
 
 	echo "$list"
@@ -856,12 +952,13 @@ _netfilter_walledgarden_stop()
 _netfilter_user_list()
 {
 	local option="$1"
+	local list="$2"
 	local dir="/tmp/NETFILTER/USER"
 	local mac dev speed traffic ip oct123 oct4 list
 
 	case "$option" in
 		verbose)
-			list="$( ls -1 "$dir" )"
+			[ -z "$list" ] && list="$( ls -1 "$dir" )"
 			[ -z "$list" ] && return 0
 
 			for mac in $list; do {
@@ -931,7 +1028,7 @@ _netfilter_user_reachable()
 	_sanitizer do "$ip"  ip4 check || return 1
 
 	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1
-	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1
+	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no logins from WAN
 
 	dev_guess="$( _net ip2dev "$ip" )"
 
@@ -967,10 +1064,10 @@ _netfilter_user_add()
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
 
-	_netfilter user_reachable "$mac" "$ip" || {
-		_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
-		return 1
-	}
+#	_netfilter user_reachable "$mac" "$ip" || {
+#		_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
+#		return 1
+#	}
 
 	if [ -d "/tmp/NETFILTER/USER/$mac" ]; then
 		return 0
@@ -979,6 +1076,7 @@ _netfilter_user_add()
 		mkdir -p "/tmp/NETFILTER/USER/$mac"
 		echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
 		echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
+		touch "/tmp/vds_user_$mac"
 	fi
 
 	# against spoofing, add "-s $ip"?
@@ -990,15 +1088,38 @@ _netfilter_user_add()
 	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
 	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
 
-	[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
+	if _netfilter user_dataretention_needed; then
+		grep -q ^"ipt_ULOG " /proc/modules || insmod ipt_ULOG
+		grep -q ^"xt_state " /proc/modules || insmod xt_state
+
 		_netfilter user_dataretention_add "$mac" "$ip"
-	}
+	else
+		[ -e /tmp/ENDBOOT ] || {
+			pidof ulogd >/dev/null && /etc/init.d/ulogd stop
+			rmmod 2>/dev/null ipt_ULOG
+			rmmod 2>/dev/null ipt_REDIRECT
+			rmmod 2>/dev/null xt_state
+		}
+	fi
 
 	_netfilter traffic_control_needed && {
 		_netfilter traffic_control_user_add "$ip" "$speed_up" "$speed_down"
 	}
 
 	return 0
+}
+
+_netfilter_user_dataretention_needed()
+{
+	case "$CONFIG_PROFILE" in
+		elephant*|galerie*|preskil*)
+			return 1
+		;;
+		*)
+			[ $( _system ram_size ) -gt 16384 ] || return 1
+			[ "$( uci get system.@vds[0].enabled )" = "1" ] || return 1
+		;;
+	esac
 }
 
 _netfilter_make_arp_permanent()
@@ -1214,7 +1335,7 @@ _netfilter_user_stats_process()
 
 		[ $(( $bytes_incoming_sum + $bytes_outgoing_sum )) -eq 0 ] && {
 			read ip </tmp/NETFILTER/MAC2IP/$mac
-			_netfilter user_reachable "$mac" "$ip" || _netfilter user_del "$mac"
+#			_netfilter user_reachable "$mac" "$ip" || _netfilter user_del "$mac"
 
 			continue	# dont generate any message for this user
 		}
@@ -1244,10 +1365,20 @@ _netfilter_user_stats_process()
 			;;
 		esac
 
-		[ "$server_response" = "OK" ] && {
-			for mac in $user_list; do {
-				mv "/tmp/NETFILTER/USER/$mac/stats" "/tmp/NETFILTER/USER/$mac/stats.lastsend"
-			} done
-		}
+		case "$server_response" in
+			OK*)
+				for mac in $user_list; do {
+					mv "/tmp/NETFILTER/USER/$mac/stats" "/tmp/NETFILTER/USER/$mac/stats.lastsend"
+				} done
+
+				for mac in $server_response; do {
+					case "$mac" in
+						*:*)
+							[ -e "/tmp/vds_user_$mac" ] || touch "/tmp/vds_user_$mac"
+						;;
+					esac
+				} done
+			;;
+		esac
 	}
 }
