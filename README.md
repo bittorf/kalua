@@ -174,3 +174,14 @@ piggyback kalua on a new router model without building from scratch
 
 	# execute config-writer
 	/etc/init.d/apply_profile.code
+
+
+Cherry Picking Git commits from forked repositories
+---------------------------------------------------
+
+	* git fetch <repository url>
+	* git cherry-pick -x <hash>
+	* resolve conflicts, if any
+	** git commit -ac <hash>
+	* git push
+
