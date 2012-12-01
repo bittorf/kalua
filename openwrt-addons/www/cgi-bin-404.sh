@@ -1,9 +1,13 @@
 #!/bin/sh
 
-[ -e "/tmp/service_ssh_nowatching" ] && {
+# [ -e "/tmp/service_ssh_nowatching" ] && {
+	[ -e "/tmp/weblogin_cached_for_overload" ] || {
+		export QUERY_STRING="REDIRECTED=1"
+		/www/cgi-bin-welcome.sh >/dev/null
+	}
+
 	cat "/tmp/weblogin_cached_for_overload"
 	exit 0
-}
 
 ERROR=302
 
