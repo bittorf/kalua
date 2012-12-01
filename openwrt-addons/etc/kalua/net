@@ -1,3 +1,14 @@
+_net_ip_reachable()
+{
+	local funcname="net_ip_reachable"
+	local ip="$1"
+	local max_attempts="${2:-30}"
+	local dev="$( _net ip2dev "$ip" )"
+
+	_log do $funcname daemon debug "trying arping via dev $dev to ip $ip (max $max_attempts attempts)"
+	arping -I "$dev" -c "$max_attempts" -q -f "$ip"
+}
+
 _net_text2port()
 {
 	local text="$1"
@@ -318,9 +329,9 @@ _net_dev_is_tuntap ()
 	return 1
 }
 
-_net_ip2dev ()		# outputs real devname like 'br0'
+_net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 {
-	ip -oneline route get $1 | sed -n 's/^.* dev \([a-zA-Z0-9@\.]*\)[^a-z]*src .*/\1/p'
+	ip -oneline route get $1 | sed -n 's/^.* dev \([a-zA-Z0-9@\.-]*\)[^a-z]*src .*/\1/p'
 }
 
 _net_iplocal2dev ()		# does it really make sense to have this func?
@@ -331,29 +342,10 @@ _net_iplocal2dev ()		# does it really make sense to have this func?
 	# ip -o route get $1 | cut -d' ' -f3
 }
 
-_net_local_inet_offer()		# caches the local inet offer value to reduce number of calls
-{				# OUT1: string, false|wan|lan|pppoe
-				# RC: true = inetoffer, false = no inetoffer
-	local FUNC="net_local_inet_offer"
-	local LOCAL_INET_OFFER
-	
-	[ -e /tmp/LOCAL_INET_OFFER ] || {
-		echo "$( _net local_inet_offer_refresh )" > /tmp/LOCAL_INET_OFFER
-	}
-	LOCAL_INET_OFFER="$( cat /tmp/LOCAL_INET_OFFER )"
-	[ -z "$LOCAL_INET_OFFER"  ] && {
-		LOCAL_INET_OFFER="$( _net local_inet_offer_refresh )"
-		echo "$LOCAL_INET_OFFER" > /tmp/LOCAL_INET_OFFER
-	}
-	echo $LOCAL_INET_OFFER
-        [ "$LOCAL_INET_OFFER" = "false" ] && return 1          
-	return 0                                                                                      
-}
-
-_net_local_inet_offer_refresh ()	# SENS: check if default-route is local
+_net_local_inet_offer ()		# SENS: check if default-route is local
 {					# OUT1: string, false|wan|lan|pppoe
 	local MODE="false"		# RC: true = inetoffer, false = no inetoffer
-	local FUNC="net_local_inet_offer_refresh"
+	local FUNC="net_local_inet_offer"
 	local PHYDEV=0
 	local METRIC=0
 	local D=0
