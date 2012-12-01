@@ -1,8 +1,6 @@
 #!/bin/sh
 . /tmp/loader		# this script runs ~ every 15 minutes
 
-echo 1 >/proc/sys/net/ipv4/ip_forward
-
 case "$( uci get wireless.radio0.htmode )" in
 	HT40*)
 		case "$( _wifi mode $WIFIDEV )" in
@@ -14,24 +12,37 @@ case "$( uci get wireless.radio0.htmode )" in
 	;;
 esac
 
+case "$HARDWARE" in
+	"Buffalo WHR-HP-G54"|"Linksys WRT54G"*)
+		for FILE in /lib/preinit/*; do {
+			fgrep -q "ifconfig" "$FILE" && {
+				fgrep -q "#ifconfig" "$FILE" || {
+					_log do ifconfig_patch_away daemon info "often produces 'page allocation failure'"
+					sed -i 's/ifconfig/:;#ifconfig/g' "$FILE"
+				}
+			}
+		} done
+	;;
+esac
+
 _watch flash_free_space
 
 _watch wifi_mode || sleep 30		# lets settle down to see some neighs
 
-[ -e "/tmp/service_olsrd_nowatching" ] || {
-	_olsr check_plausi || {
-		_log do olsr_deepwatch daemon info "error during check_plausi, watching again in 65sec"
-
-		sleep 65
-		_olsr build_tables
-
-		if _olsr check_plausi deep; then
-			_log do olsr_deepwatch daemon info "[OK] no error on 2nd check"
-		else
-			_olsr daemon restart "plausi_check_failed"
-		fi
-	}
-}
+#[ -e "/tmp/service_olsrd_nowatching" ] || {
+#	_olsr check_plausi || {
+#		_log do olsr_deepwatch daemon info "error during check_plausi, watching again in 65sec"
+#
+#		sleep 65
+#		_olsr build_tables
+#
+#		if _olsr check_plausi deep; then
+#			_log do olsr_deepwatch daemon info "[OK] no error on 2nd check"
+#		else
+#			_olsr daemon restart "plausi_check_failed"
+#		fi
+#	}
+#}
 
 _watch system_time
 _watch dns_resolution
@@ -68,7 +79,7 @@ _firmware upgrade_is_needed && {
 }
 
 case "$CONFIG_PROFILE" in
-	zumnorde*|adagio*|lisztwe*|apphalle*|fparkssee*|marinapark*|satama*|monami*|liszt28*|elephant*)
+	zumnorde*|adagio*|lisztwe*|apphalle*|fparkssee*|marinapark*|satama*|monami*|liszt28*|elephant*|boltenhagendh*|galerie*|berlinle*)
 		case "$CONFIG_PROFILE" in
 			*ap)
 				case "$HOSTNAME" in
