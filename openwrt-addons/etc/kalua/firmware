@@ -205,13 +205,19 @@ _firmware_wget_prepare_for_lowmem_devices()
 	rm /tmp/messages
 	rm /tmp/CLIENTS*
 
-	#ip route list exact 0.0.0.0/0 | fgrep -q "dev $WIFIDEV" || {
-	#	_log do $funcname daemon info "[OK] wifi not needed, shutting down"
-	#	_firmware kill_tasks wifi_down
-	#	_firmware remove_kmodules wifi
-	#}
+	case "$CONFIG_PROFILE" in
+		ffweimar*)
+		;;
+		*)
+			ip route list exact 0.0.0.0/0 | fgrep -q "dev $WIFIDEV" || {
+				_log do $funcname daemon info "[OK] wifi not needed, shutting down"
+				_firmware kill_tasks wifi_down
+				_firmware remove_kmodules wifi
+			}
+		;;
+	esac
 
-	local list_tasks="ntpd screen hotplug2 vtund S69watch_olsrd_fff+ uhttpd \
+	local list_tasks="ntpd screen dropbear hotplug2 vtund S69watch_olsrd_fff+ uhttpd \
 			  ulogd netserver luci-bwc udhcpc syslogd klogd polipo dnsmasq"
 
 	_firmware kill_tasks "$list_tasks"
@@ -497,9 +503,6 @@ _firmware_burn ()
 	local list_tasks="hotplug2 vtund S69watch_olsrd_fff+ uhttpd ntpd ulogd netserver \
 			  dnsmasq luci-bwc udhcpc syslogd klogd olsrd polipo"
 
-	_firmware log "[OK] detaching upgrade process, output can be found in nohup.out"
-	nohup #detach script from shell to prevent hangups while killing processes and deleting data
-
 	if [ -n "$pause" ]; then
 		:
 	elif  _log shell_is_interactive; then
@@ -510,6 +513,9 @@ _firmware_burn ()
 	fi
 
 	list_tasks="$list_tasks pause $list_tasks"		# double try...
+
+	_firmware log "[OK] detaching upgrade process"
+	nohup 							# detach script from shell
 
 	_firmware remove_cron_stuff $pause || return 1
 	_firmware kill_tasks "$list_tasks"
@@ -654,8 +660,6 @@ _firmware_filelist ()
 
 _firmware_upgrade_is_needed()
 {
-	return 1
-
 	local target_version_git hardware
 
 	_system maintenance_window_active || return 1
@@ -669,11 +673,14 @@ _firmware_upgrade_is_needed()
 
 	case "$HARDWARE" in
 		"TP-LINK TL-WR1043ND")
-			target_version_git="33726"
+			target_version_git="34054"
 
 			case "$CONFIG_PROFILE" in
-				*)
+				leonardo_ap)
 					:
+				;;
+				*)
+					return 1
 				;;
 			esac
 		;;
@@ -782,7 +789,7 @@ _firmware_wget()
 	fi
 }
 
-nohup(){					#poor men's nohup, detaches current process from running terminal
+nohup(){
 	# Close stdin, and make any read attempt an error
 	    if [ -t 0 ]
 	    then
