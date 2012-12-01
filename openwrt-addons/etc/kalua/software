@@ -379,36 +379,28 @@ _software_package_is_installed_lowlevel ()	# OUT1: 0 = not_installed , 1 = insta
 	_log do $FUNC daemon info "'$PACKAGE' not in repository this time"
 }
 
-_software_package_install ()
+_software_package_install()
 {								# fixme! sometimes libopenssl isn't correct installed,
 	local PACKAGE="$1"					# and vtund claims to make an "bus error". We have to
 	local FUNC="software_package_install"			# double-check this and e.g. reinstall - CRC-test?
 	local SLEEP="120"					# look at S52vpn check_for_correct_install()
 	local KEYWORD="$2"	# noautorepoupdate
 	local COMMAND
-        local NOINSTALL="$( uci get system.@system[0].noswinstall )"            
-                                 
-        case $CONFIG_PROFILE in
-                ffweimar*)                                                          
-                        [ "${NOINSTALL:-1}" = "1" ] && {
-                                _log do $FUNC daemon info "No software installation allowed by owner of this device"
-                                return 1
-                        }
-                        ;;
-                *)          
-                        ;;
-        esac                                 
+
+	[ "$( uci get system.@system[0].noswinstall )" = "1" ] && {
+		_log do $FUNC daemon info "No software installation allowed by owner of this device"
+		return 1
+	}
                                                             
-        while [ ! _net inet_seems_stable ] ; do {           
+        while [ ! _net inet_seems_stable ] ; do {
 		_log do $FUNC daemon debug "no default-route found, waiting $SLEEP seconds"
 		sleep $SLEEP
 	} done
 
 	_log do $FUNC daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
-	[ -z "$KEYWORD" ] && _software repos_update	
+	[ -z "$KEYWORD" ] && _software repos_update
 
 	if [ -e /bin/opkg ]; then
-
 		do_install ()
 		{
 			/bin/opkg remove $PACKAGE
