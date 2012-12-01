@@ -636,7 +636,7 @@ _olsr_check_plausi ()				# test 1/7: is each non-infinite neighbour in routing-t
 
 		[ "$DEVTYPE" = "wire" ] && {
 
-			[ "$COST" = "INFINITE" ] || continue
+			[ "$COST" = "INFINITE" ] && continue
 
 			LQ="$(  echo $LQ  | sed -ne 's/\.//' -e 's/^[0]*\([0-9]*\)/\1/p' )"
 			NLQ="$( echo $NLQ | sed -ne 's/\.//' -e 's/^[0]*\([0-9]*\)/\1/p' )"
@@ -669,27 +669,32 @@ _olsr_check_plausi ()				# test 1/7: is each non-infinite neighbour in routing-t
 					}
 				}
 			}
-			
-			I=1				# try to ping a wired neigh, if it does not work, reboot
-			while [ $I -ne 10 ]; do {
 
-				# e.g.:
-				# 10 packets transmitted, 8 packets received, 1 duplicates, 20% packet loss
-				# 10 packets transmitted, 0 packets received, 100% packet loss
-
-				LOSS="$( ping -q -c 1 $REMOTE | sed 's/^.*, \([0-9]*\)% packet loss.*/\1/' )"
-				[ ${LOSS:-100} -eq 0 ] && break
-
-				_log do $FUNC daemon info "[ERR] wired remote/cost $REMOTE/$COST FAIL (${LOSS}% packetloss with ping, after try $I)"
-				sleep 10
-				I=$(( $I + 1 ))
-			} done
-			[ $I -eq 10 ] && _system reboot_safe "wired remote $REMOTE FAIL (${LOSS}% packetloss with ping, after try $I)"
-			
-			_log do $FUNC daemon debug "[OK] wired remote $REMOTE seems ok (${LOSS}% packetloss with ping, after try $I)"
+			if _net ip_reachable "$REMOTE"; then
+				_log do $FUNC daemon debug "[OK] wired remote $REMOTE is reachable"
+			else
+				# e.g. switch fuckup
+				_system reboot_safe "wired remote $REMOTE unreachable"
+			fi
 		}
 	} done <"$FILE"
-	
+
+	for LINE in $( _olsr show_hna4_slaves ); do {
+		REMOTE="$( ip -o route get $LINE | cut -d' ' -f3 )"
+
+		if _net ip_reachable "$REMOTE"; then
+			_log do $FUNC daemon debug "[OK] wired hna4-slave $REMOTE is reachable"
+		else
+			case "$CONFIG_PROFILE" in
+				dhsylt*)
+				;;
+				*)
+					_system reboot_safe "wired hna4-slave $REMOTE unreachable"
+				;;
+			esac
+		fi
+	} done
+
 	_log do $FUNC daemon debug "[OK] (are wired neighbours LQ/NLQ nearly synchronous?)"
 	
 	# each node in mesh has only 1 route?	// fixme! be more correct: is only an error,if in same routing table... (but we check "main")
@@ -1060,6 +1065,19 @@ _olsr_neighs_humanreadable ()			# fixme! ToDo: latitude/longitude/distance + spe
 	local OLSR_INGORE="$( uci get firewall.@ignoreolsr[0].ip )"
 	[ -n "$OLSR_INGORE" ] && echo "ignored stations: $OLSR_INGORE"
 
+	local hna4 route local_ip remote_ip
+	for hna4 in $( _olsr_show_hna4_slaves ); do {
+		route="$( ip -o route get $hna4 )"
+		local_ip="$( echo "$route" | cut -d' ' -f8 )"
+		remote_ip="$( echo "$route" | cut -d' ' -f3 )"
+
+		COUNT=$(( ${COUNT:-0} + 1 ))
+		echo "$COUNT:  $local_ip --1-- $remote_ip (HNA-slave $hna4)"
+	} done
+}
+
+_olsr_show_hna4_slaves()
+{
 	local line slave_found cidr route local_ip remote_ip
 	uci changes >"/tmp/uci_changes.$$"
 
@@ -1078,12 +1096,7 @@ _olsr_neighs_humanreadable ()			# fixme! ToDo: latitude/longitude/distance + spe
 							cidr="$( echo "$line" | cut -d'=' -f2 )"
 							cidr="$( _net mask2cidr "$cidr" )"
 
-							route="$( ip -o route get $slave_found/$cidr )"
-							local_ip="$( echo "$route" | cut -d' ' -f8 )"
-							remote_ip="$( echo "$route" | cut -d' ' -f3 )"
-
-							COUNT=$(( ${COUNT:-0} + 1 ))
-							echo "$COUNT:  $local_ip --1-- $remote_ip (HNA-slave $slave_found/$cidr)"
+							echo "$slave_found/$cidr"
 						}
 					;;
 					*)
