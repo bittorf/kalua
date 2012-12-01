@@ -189,6 +189,6 @@ Cherry Picking Git commits from forked repositories
 * git fetch <repository url>
 * git cherry-pick -x <hash>
 * resolve conflicts, if any
-** git commit -ac <hash>
+    * git commit -ac <hash>
 * git push
 
