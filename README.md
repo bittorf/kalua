@@ -107,6 +107,11 @@ configure the builtin-packages
 		Utilities ---> [*] px5g
 			       [*] rbcfg	# if needed, e.g. 'Linksys WRT54G/GS/GL'
 
+* usage
+    * login via ssh
+    * prepare the router by calling _firmware_wget_prepare_for_lowmem_devices
+    * fetch/copy firmware image to /tmp/fw
+    * call _firmware_burn 
 
 how to development directly on a router
 ---------------------------------------
