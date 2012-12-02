@@ -169,6 +169,8 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 						df -h | grep /tmp$ | _log do high_discusage_after daemon alert
 					} done
 
+					pidof uhttpd >/dev/null || _watch webserver
+
 					_netfilter traffic_control_autoapply_speedsuggest
 
 					_scheduler check_if_every_Nth_minute 360 && {	# e.g. daily restart is at 4:05
@@ -226,17 +228,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 										uci commit system
 									}
 
-									case "$HARDWARE" in
-										*)
-											[ -e "/www/GOOD_MODULE_UNLOAD" ] && {
-												rm "/www/GOOD_MODULE_UNLOAD"
-											}
-
-											_system reboot_safe "nightly"
-										;;
-									esac
-
-									_netfilter start
+									_system reboot_safe "nightly"
 								;;
 							esac
 						;;
@@ -244,7 +236,6 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 					case "$MINUTE" in
 						00|15|30|45)
-							_scheduler add refresh_inet_offer
 							_scheduler add gateway_check
 							_scheduler add 15min_checks
 							_scheduler add monitoring
@@ -310,11 +301,22 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 			[ -n "$WIFIDEV" ] && {
 				ip address show dev $WIFIDEV | fgrep -q "inet " || {
 					_wifi phy_restart $WIFIDEV "no ip on dev" || touch /tmp/WIFI_PHY_ERROR
+					# avoid fail of next checks
+					WIFIDEV=
 				}
 			}
 
 			incoming_wifi_activity()
 			{
+				case "${LANADR}_${CONFIG_PROFILE}" in
+					10.63.3.33_galerie*)
+						return 0
+					;;
+					10.10.218.33_rehungen*|10.10.30.33_rehungen*) # puppenfabrik-hauptstrasse14 | klausgasse70-dach
+						return 0
+					;;
+				esac
+
 				local funcname="incoming_wifi_activity"
 				local framecount_old framecount_new check_dev uptime_old uptime_new uptime_diff
 				local file_framecount="/tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV"
@@ -325,7 +327,9 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 				[ -z "$WIFIDEV" ] && return 0
 
-				if fgrep -q "$monitoring_vif:" /proc/net/dev; then
+				if   fgrep -sq "wlan0-1" /var/etc/olsrd.conf; then	# hybrid adhoc/ap - check adhoc
+					check_dev="wlan0-1"
+				elif fgrep -q "$monitoring_vif:" /proc/net/dev; then
 					check_dev="$monitoring_vif"
 				else
 					check_dev="$WIFIDEV"
@@ -488,7 +492,7 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 				[ "$( uci get olsrd.@meta[0].hnaslave )" = "1" ] && {
 					case "$CONFIG_PROFILE" in
-						hotello*)
+						hotello*|dhsylt*|limona*|boltenhagendh*)
 						;;
 						*)
 							/usr/sbin/cron.olsr-hna-slave
