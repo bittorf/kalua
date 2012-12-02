@@ -128,8 +128,8 @@ for SPECIAL in unoptimized kcmdlinetweak; do {
 	esac
 } done
 
-kalua/openwrt-build/mybuild.sh applymystuff
-kalua/openwrt-build/mybuild.sh make
+weimarnetz/openwrt-build/mybuild.sh applymystuff
+weimarnetz/openwrt-build/mybuild.sh make
 
 log "please removing everything via 'rm -fR release' if you are ready"
 log "# buildstring: $( show_args "$@" )"
