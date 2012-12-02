@@ -1,14 +1,18 @@
 #!/bin/sh
-read UP REST </proc/uptime
-/sbin/uci get system.@system[0].hostname >/dev/null || UP=999999	# test something essential
+if /sbin/uci get system.@system[0].hostname >/dev/null; then	# test something essential
+	read UP REST </proc/uptime
+else
+	UP=999999
+fi
+
 [ ${UP%.*} -gt 129600 ] && {	# 36h
 	rm "/tmp/CRON_IS_CAREFUL"
-	echo "b" >/proc/sysrq-trigger
+	echo "c" >/proc/sysrq-trigger
 	/sbin/reboot
 }
 
 if [ -e "/tmp/CRON_PSWORK" ]; then
-	echo "b" >/proc/sysrq-trigger
+	echo "c" >/proc/sysrq-trigger
 	/sbin/reboot -f
 else
 	touch "/tmp/CRON_PSWORK"
@@ -19,7 +23,7 @@ fi
 read LOAD REST </proc/loadavg
 # uncomment to log A) network-traffic and B) freemem/uptime/load into '/tmp/MEM'
 # while read L;do case $L in *wlan0*)set $L;echo -n "rx:$2/$3 tx:${10}/${11} ">>/tmp/MEM;;esac;done</proc/net/dev
-# while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;M=$(($M+$2));;Cached:*)set $L;echo $((($M+$2)*1024)) $UP $LOAD>>/tmp/MEM;break;esac;done</proc/meminfo
+# while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;M=$(($M+$2));;Cached:*)set $L;echo mem:$((($M+$2)*1024)) up:$UP load:$LOAD>>/tmp/MEM;break;esac;done</proc/meminfo
 
 case "$LOAD" in
 	1.00)
@@ -58,7 +62,7 @@ case "$LOAD" in
 					read I <"/tmp/CRON_UNDERLOAD"
 					[ ${#I} -gt 9 ] && {
 						rm "/tmp/CRON_IS_CAREFUL"
-						echo "b" >/proc/sysrq-trigger
+						echo "c" >/proc/sysrq-trigger
 						/sbin/reboot -f
 					}
 
@@ -100,23 +104,28 @@ case "$LOAD" in
 			db_ticketcheck*|index_gen*|data_retention*|upgrade_packages*)
 			;;
 			*)
-				case ${#I} in
-					0|1|2|4)
-					;;
-					3)
-						case "$( pidof getty | sed 's/[^ ]//g' )" in
-							"  "*)	# many open shell/attack?
-								killall dropbear
-								rm "/tmp/CRON_OVERLOAD"
-							;;
-						esac
+				echo -n '#' >>"/tmp/CRON_OVERLOAD"
 
+				case ${#I} in
+					0|1|2|3)
+					;;
+					4|5|6|7)
+						pidof ulogd >/dev/null && {
+	                                                /etc/init.d/ulogd stop
+							. /tmp/loader
+							_watch hanging_command ulogd
+							_watch hanging_command ulogd
+						}
+
+						killall dropbear	# maybe a script attack
+
+						rm "/var/log/ulogd.syslogemu"
 						rm /tmp/user-*	# maybe orphaned vds-files/ulogd
 						rm /tmp/log/*
 					;;
 					*)
 						rm "/tmp/CRON_IS_CAREFUL"
-						echo "b" >/proc/sysrq-trigger
+						echo "c" >/proc/sysrq-trigger
 						/sbin/reboot -f
 					;;
 				esac
@@ -124,3 +133,14 @@ case "$LOAD" in
 		esac
 	;;
 esac
+
+[ -e /tmp/service_olsrd_nowatching ] || {
+	[ ${UP%.*} -gt 600 ] && {
+		pidof olsrd >/dev/null || {
+			sleep 90
+			pidof olsrd >/dev/null || {
+				reboot
+			}
+		}
+	}
+}
