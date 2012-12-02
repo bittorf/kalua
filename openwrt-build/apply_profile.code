@@ -94,14 +94,6 @@ hwprobe()
 				}
 			}
 		;;
-		"Ubiquiti Picostation M2HP")
-			fgrep -q "MyLoader: sysp=f0f0f0f0, boardp=f0f0f0f0, parts=f1f0f0f0" "$DMESG" && {
-				# bullet: ofs=390000, len=420000 ???
-				fgrep -q 'ofs=3A0000, len=410000' "$DMESG" && {
-					return 0
-				}
-			}
-		;;
 		"Ubiquiti PicoStation2")
 			fgrep -q "lpj=917504" "$DMESG" && {
 				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
@@ -134,7 +126,7 @@ DMESG="/tmp/dmesg.boot"
 
 try_device()
 {
-	I=$(( ${I:=0} + 1 ))
+	I=$(( ${I:=0} + 1 ))	# global_var
 
 	case "$I" in
 		 1) HARDWARE="Linksys WRT54G/GS/GL" ;;		# brcm47xx
@@ -156,6 +148,7 @@ try_device()
 		17) HARDWARE="TP-LINK TL-MR3020" ;;		# ar71xx
 		18) HARDWARE="Seagate FreeAgent DockStar" ;;	# kirkwood
 		19) HARDWARE="TP-LINK TL-WR841N/ND v7" ;;	# ar71xx
+		20) HARDWARE="TP-LINK TL-WR841N/ND v8" ;;	# ar71xx
 		*)
 			HARDWARE=
 			return 1
@@ -163,15 +156,11 @@ try_device()
 	esac
 }
 
-  if hwprobe "Ubiquiti Picostation M2HP"; then
-	HARDWARE="Ubiquiti Picostation M2HP"
-elif hwprobe "Ubiquiti Nanostation2"; then
+if   hwprobe "Ubiquiti Nanostation2"; then
 	HARDWARE="Ubiquiti Nanostation2"
 elif hwprobe "Ubiquiti Nanostation5"; then
 	HARDWARE="Ubiquiti Nanostation5"
 fi
-
-
 
 [ -z "$HARDWARE" ] && {
 	while try_device; do {
@@ -180,10 +169,14 @@ fi
 }
 
   if [ -n "$HARDWARE" ]; then
-	:
-elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform
+	case "$HARDWARE" in
+		"Ubiquiti Bullet M")
+			ip address show | fgrep -q " 00:27:22:" && HARDWARE="Ubiquiti Picostation M2"
+		;;
+	esac
+elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform: http://www.ubnt.com/picostation
 	HARDWARE="Ubiquiti PicoStation2"
-elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform
+elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform: http://www.ubnt.com/picostation5
 	HARDWARE="Ubiquiti PicoStation5"
 elif [ -e "/etc/HARDWARE" ]; then
 	log "could not detect hardware, trying /etc/HARDWARE"
@@ -311,9 +304,9 @@ password_set()
 	if [ "$INSTALLATION" != "ffweimar" ]; then	#no web server authentication on weimarnetz routers
 		echo "/cgi-bin/:root:$PASSWORD" >/etc/httpd.conf
 
-  	        for credentials in "$HTTPD_CREDENTIALS"; do {
-		        echo "/cgi-bin/:$credentials" >>/etc/httpd.conf
-	        } done
+		for credentials in "$HTTPD_CREDENTIALS"; do {
+			echo "/cgi-bin/:$credentials" >>/etc/httpd.conf
+		} done
 	fi
 
 	which dropbear >/dev/null || {
@@ -423,10 +416,10 @@ config 'system'
 	option 'timezone' 'UTC'
 	option 'cronloglevel' '9'
 	option 'log_size' '16'
-	option 'noswinstall' '1'
 EOF
 	if [ "$INSTALLATION" = "ffweimar" ]; then       #restore all settings in profile ffweimar 
-                echo >>/etc/config/system "     option 'keepsettings'  '1'"
+                echo >>/etc/config/system "	option 'keepsettings'  '1'"
+                echo >>/etc/config/system "	option 'noswinstall' '1'"
 	else
 	        echo >>/etc/config/system "     option 'keepsettings'  '0'"
 	fi
@@ -481,6 +474,9 @@ EOF
 	case "${NODE}_${INSTALLATION}" in
 		42_ejbw*)
 			echo >>/etc/config/system "	option authserver '192.168.111.183'"
+		;;
+		6_monami*)
+			echo >>/etc/config/system "	option authserver '10.63.7.1'"
 		;;
 	esac
 
@@ -970,6 +966,54 @@ EOF
 		local username password hideip wan_dns
 
 		case "${NODE}_${INSTALLATION}" in
+			2_castelfalfi)
+				PROTO="static"
+				GATEWAY=yes
+				wan_ipaddr="31.195.132.133"
+				wan_netmask="255.255.255.224"
+				wan_gateway="31.195.132.129"
+				hide_gateway=
+			;;
+			22_adagio)
+				PROTO="static"
+				GATEWAY=yes
+				wan_ipaddr="192.168.2.102"
+				wan_netmask="255.255.255.0"
+				wan_gateway="192.168.2.1"
+				hide_gateway=
+			;;
+			4_lisztwe)
+				PROTO="pppoe"
+				GATEWAY="yes"
+				username="$PPPOE_USERNAME"
+				password="$PPPOE_PASSWORD"
+				hide_gateway=
+				hideip="true"
+			;;
+			3_extrawatt)
+				PROTO="static"
+				GATEWAY=yes
+				wan_ipaddr="192.168.2.100"
+				wan_netmask="255.255.255.0"
+				wan_gateway="192.168.2.1"
+				hide_gateway=
+			;;
+			6_monami)
+				PROTO="static"
+				GATEWAY=yes
+				wan_ipaddr="192.168.2.10"
+				wan_netmask="255.255.255.0"
+				wan_gateway="192.168.2.1"
+				hide_gateway=
+			;;
+			7_monami)
+				PROTO="static"
+				GATEWAY=yes
+				wan_ipaddr="192.168.2.102"
+				wan_netmask="255.255.255.0"
+				wan_gateway="192.168.2.1"
+				hide_gateway=
+			;;
 			2_schoeneck)
 				PROTO="pppoe"
 				GATEWAY="yes"
@@ -978,12 +1022,28 @@ EOF
 				hide_gateway=
 				hideip="true"
 			;;
+			7_zumnorde)
+				PROTO="static"
+				GATEWAY=yes
+				wan_ipaddr="192.168.1.147"
+				wan_netmask="255.255.255.0"
+				wan_gateway="192.168.1.10"
+				hide_gateway=
+			;;
 			14_dhfleesensee)
 				PROTO="static"
 				GATEWAY=yes
 				wan_ipaddr="192.168.10.113"
 				wan_netmask="255.255.255.0"
 				wan_gateway="192.168.10.1"
+				hide_gateway=
+			;;
+			2_versiliaje)
+				PROTO="static"
+				GATEWAY=yes
+				wan_ipaddr="192.168.178.21"
+				wan_netmask="255.255.255.0"
+				wan_gateway="192.168.178.1"
 				hide_gateway=
 			;;
 			6_versiliawe)
@@ -1000,6 +1060,14 @@ EOF
 				wan_ipaddr="192.168.2.101"
 				wan_netmask="255.255.255.0"
 				wan_gateway="192.168.2.1"
+				hide_gateway=
+			;;
+			3_galerie)
+				PROTO="static"
+				GATEWAY=yes			# for HNA4/olsrd
+				wan_ipaddr="192.168.1.9"
+				wan_netmask="255.255.255.0"
+				wan_gateway="192.168.1.1"
 				hide_gateway=
 			;;
 			2_tkolleg)
@@ -1079,9 +1147,10 @@ EOF
 			254_rehungen)
 				PROTO="static"
 				GATEWAY=yes			# for HNA4/olsrd
-				wan_ipaddr="10.1.0.8"
-				wan_netmask="255.255.0.0"
-				wan_gateway="10.1.0.1"
+				wan_ipaddr="109.73.30.34"
+				wan_netmask="255.255.255.252"
+				wan_gateway="109.73.30.33"
+				wan_dns="109.73.31.212"
 				hide_gateway=
 			;;
 		esac
@@ -1555,7 +1624,7 @@ uci set uhttpd.main.interpreter=".sh=/bin/ash"
 # set bootstrap as new default theme
 uci set luci.main.mediaurlbase="/luci-static/bootstrap"
 
-uci set uhttpd.main.max_requests="1"
+uci set uhttpd.main.max_requests="5"
 # uci set uhttpd.main.script_timeout=5			// fixme! needs testing
 # uci set uhttpd.main.network_timeout=5
 [ -e "/usr/lib/uhttpd_tls.so" ] || {
