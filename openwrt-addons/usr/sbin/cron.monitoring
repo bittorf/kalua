@@ -19,7 +19,7 @@ _system include
 CPU_LOAD="$( _system load 15min )"
 
 [ $( _system ram_size ) -gt 16384 ] || {
-	[ $( _file lines /proc/modules ) -gt 23 ] && {		# 3.3.8, apmode = 23, adhoc-mode = 5 (SIMPLEMESH)
+	[ $( _file lines /proc/modules ) -gt 30 ] && {		# 3.3.8, apmode = 23, adhoc-mode = 5 (SIMPLEMESH)
 		_log do start daemon info "no execution - waiting for unload of unneeded kmodules"
 		exit
 	}
@@ -61,8 +61,14 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 	TIME="$( _system date unixtime )"
 
 # takes long!
-	_log do $FUNC daemon debug "build_neighs start"
-	NEIGH="$( _sanitizer do "$( neigh meshrdf )" urlvalue )"		# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
+	case "$CONFIG_PROFILE" in
+		boltenhagendh*)
+		;;
+		*)
+			_log do $FUNC daemon debug "build_neighs start"
+			NEIGH="$( _sanitizer do "$( neigh meshrdf )" urlvalue )"		# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
+		;;
+	esac
 
 	USERS=		# -001122334455:500~112233445566:9888
 
@@ -521,6 +527,12 @@ grep -q ^"ip_tables " /proc/modules && {
 
 	usbport_something_is_plugged_in()
 	{
+		case "$HARDWARE" in
+			"Linksys WRT54G/GS/GL"|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
+				return 1
+			;;
+		esac
+
 		test -n "$( grep -s " Driver=" /proc/bus/usb/devices | grep -v "Driver=hub" )"
 	}
 
