@@ -2,7 +2,7 @@
 
 # [ -e "/tmp/service_ssh_nowatching" ] && {
 	[ -e "/tmp/weblogin_cached_for_overload" ] || {
-		export QUERY_STRING="REDIRECTED=1"
+		export QUERY_STRING="REDIRECTED=1" SCRIPT_NAME=
 		/www/cgi-bin-welcome.sh >/dev/null
 	}
 
