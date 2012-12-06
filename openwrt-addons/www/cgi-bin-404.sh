@@ -1,13 +1,18 @@
 #!/bin/sh
 
-# [ -e "/tmp/service_ssh_nowatching" ] && {
-	[ -e "/tmp/weblogin_cached_for_overload" ] || {
-		export QUERY_STRING="REDIRECTED=1" SCRIPT_NAME=
-		/www/cgi-bin-welcome.sh >/dev/null
-	}
-
-	cat "/tmp/weblogin_cached_for_overload"
-	exit 0
+# [ -e "/tmp/service_ssh_nowatching" ] && {		# means: LOWMEM-Router
+	if   [ -e "/tmp/weblogin_cached_for_overload" ]; then
+		cat "/tmp/weblogin_cached_for_overload"
+		exit 0
+	elif [ -e "/www/weblogin_cached_for_overload" ]; then
+		cat "/www/weblogin_cached_for_overload"
+		exit 0
+	else
+		. /tmp/loader
+		_weblogin generate_prebuilt_splash_htmlfile
+		cat "/tmp/weblogin_cached_for_overload"
+		exit 0
+	fi
 # }
 
 ERROR=302
