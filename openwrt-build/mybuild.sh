@@ -411,7 +411,7 @@ build_kalua_update_tarball()
 
 	cd openwrt-addons
 	cat >"$file_timestamp" <<EOF
-FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $( date -d @$last_commit_unixtime )
+FFF_PLUS_VERSION=$last_commit_unixtime_in_hours		# $( date -d @$last_commit_unixtime )
 FFF_VERSION=2.0.0		# OpenWrt based / unused
 EOF
 
