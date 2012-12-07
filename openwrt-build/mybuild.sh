@@ -146,10 +146,9 @@ set_build()
 			if [ -e "$file" ]; then
 				case "$mode" in
 					"HARDWARE."*)
-						hardware="$( echo "$mode" | cut -'.' -f2 )"
+						hardware="$( echo "$mode" | cut -d'.' -f2 )"
 						log "writing hardware '$hardware' to 'KALUA_HARDWARE' in $(pwd)"
 						echo "$hardware" >"KALUA_HARDWARE"
-						exit 1
 					;;
 				esac
 			else
