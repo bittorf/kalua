@@ -92,7 +92,7 @@ get_arch()
 	sed -n 's/^CONFIG_TARGET_\([a-z0-9]*\)=y$/\1/p' ".config" | head -n1	# https://dev.openwrt.org/wiki/platforms
 }
 
-get_firmware_filenames()
+get_firmware_filenames()	# output is without complete path, only the files in 'bin/$arch/...'
 {
 	local hardware="${1:-$( cat KALUA_HARDWARE )}"
 	local arch="$( get_arch )"
@@ -550,50 +550,15 @@ mymake()
 	subprofile="$( sed -n 's/^SIM_ARG2=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
 	node="$( sed -n 's/^SIM_ARG3=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
 
-	case "$( get_arch )" in
-		brcm47xx)
-			filelist="build_dir/linux-brcm47xx/root.squashfs \
-				build_dir/linux-brcm47xx/vmlinux \
-				build_dir/linux-brcm47xx/vmlinux.lzma \
-				bin/brcm47xx/openwrt-brcm47xx-squashfs.trx"
-
-			case "$hardware" in
-				"Linksys WRT54G:GS:GL")
-					filelist="$filelist bin/brcm47xx/openwrt-wrt54g-squashfs.bin"
-				;;
-			esac
-		;;
-		ar71xx)
-			filelist="build_dir/linux-ar71xx_generic/root.squashfs \
-				build_dir/linux-ar71xx_generic/vmlinux \
-				build_dir/linux-ar71xx_generic/vmlinux.bin.gz"
-
-			if [ -n "$installation" ]; then
-				filelist="$filelist \
-					bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin \
-					bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin"
-			else
-				filelist="$filelist \
-					bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin \
-					bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
-			fi
-		;;
-		atheros)
-			filelist="build_dir/linux-atheros/vmlinux.bin.gz \
-				bin/atheros/openwrt-atheros-combined.squashfs.img \
-				bin/atheros/openwrt-atheros-ubnt2-pico2-squashfs.bin"
-		;;
-	esac
+	filelist="$( get_firmware_filenames )"
 
 	for file in $filelist; do {
-		[ -e "$file" ] && rm "$file"
+		[ -e "bin/$( get_arch )/$file" ] && rm "bin/$( get_arch )/$file"
 	} done
-
 
 	option="-j$(( $cpu_count + 1 ))${option:+ }$option"	# http://www.timocharis.com/help/jn.html
 	echo "executing: 'make $option'"
 	make $option || return 1
-
 
 	t2="$( uptime_in_seconds )"
 	date2="$( date )"
@@ -606,7 +571,7 @@ mymake()
 
 	echo "use these files:"
 	for file in $( get_firmware_filenames ); do {
-		echo "bin/$( get_arch)/$file"
+		echo "bin/$( get_arch )/$file"
 	} done
 	echo
 
