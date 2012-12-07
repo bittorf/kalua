@@ -61,7 +61,7 @@ get_firmware_filenames()
 {
 	local hardware="${1:-$( cat KALUA_HARDWARE )}"
 	local arch="$( get_arch )"
-	local config_file="openwrt-config/config_HARDWARE.${hardware}.txt"
+	local config_file="kalua/openwrt-config/config_HARDWARE.${hardware}.txt"
 	local found="false"
 	local filetype
 
