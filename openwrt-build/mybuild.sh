@@ -73,7 +73,7 @@ get_firmware_filenames()
 			}
 		} done
 	else
-		log "not found '$config_file'"
+		log "not found '$config_file' we are here: '$( pwd )'"
 	fi
 
 	[ "$found" = "false" ] && log "unknown filenames, search in 'bin/$arch/...' and read 'openwrt-config/HowTo_add_new_HARDWARE.md'"
