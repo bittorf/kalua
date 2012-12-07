@@ -13,5 +13,7 @@ How to add a new router model to fastbuilder
 	FILE="kalua/openwrt-config/config_HARDWARE.${NAME}.txt"
 	echo  >"$FILE" "# factory:    \$filename of generated image"
 	echo >>"$FILE" "# sysupgrade: \$filename of generated image"
+	echo >>"$FILE" "# flashsize: 8192"	# [kilobytes]
+	echo >>"$FILE" "# blocksize: 64"	# [kilobytes]
 	kalua/openwrt-build/mybuild.sh config_diff >>"$FILE"
 
