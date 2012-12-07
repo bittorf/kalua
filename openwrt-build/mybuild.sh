@@ -609,6 +609,8 @@ calc_free_flash_space()
 	# recheck with .gz?
 	# fixme! e.g. estimated: 983040 real: 760 1k-blocks
 
+	log "omitting calc free blocks - disabled for now"
+	kernel=
 	[ -n "$kernel" ] && {
 		[ -z "$kernel_blocks" ] && kernel_blocks="$(( $(filesize "$kernel") / $blocksize ))"
 		[ 0 = "$(( $(filesize "$kernel") % $blocksize ))" ] || kernel_blocks="$(( $kernel_blocks + 1 ))"
