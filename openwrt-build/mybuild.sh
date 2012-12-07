@@ -63,13 +63,15 @@ get_firmware_filenames()
 	local arch="$( get_arch )"
 	local config_file="kalua/openwrt-config/config_HARDWARE.${hardware}.txt"
 	local found="false"
-	local filetype
+	local filetype file
 
 	if [ -e "$config_file" ]; then
 		for filetype in factory sysupgrade bootloader; do {
 			grep -sq ^"# ${filetype}: " "$config_file" && {
 				found="true"
-				grep ^"# ${filetype}: " "$config_file" | cut -d' ' -f3
+				set -- $( grep ^"# ${filetype}: " "$config_file" )
+				shift 2
+				echo $@
 			}
 		} done
 	else
