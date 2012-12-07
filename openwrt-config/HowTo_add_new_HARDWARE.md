@@ -11,5 +11,7 @@ How to add a new router model to fastbuilder
 
 	NAME="my new router model"
 	FILE="kalua/openwrt-config/config_HARDWARE.${NAME}.txt"
-	kalua/openwrt-build/mybuild.sh config_diff >"$FILE"
+	echo  >"$FILE" "# factory:    \$filename of generated image"
+	echo >>"$FILE" "# sysupgrade: \$filename of generated image"
+	kalua/openwrt-build/mybuild.sh config_diff >>"$FILE"
 

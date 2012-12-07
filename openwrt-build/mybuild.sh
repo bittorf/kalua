@@ -59,24 +59,24 @@ get_arch()
 
 get_firmware_filenames()
 {
+	local hardware="${1:-$( cat KALUA_HARDWARE )}"
 	local arch="$( get_arch )"
+	local config_file="openwrt-config/config_HARDWARE.${hardware}.txt"
+	local found="false"
+	local filetype
 
-	test()
-	{
-		local hw="$1"
-
-		grep -q ^"CONFIG_TARGET_${arch}.*_$hw" ".config"
-	}
-
-	if   test TLWR1043 ; then
-		echo "openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
-	elif test Broadcom-b43 ; then
-		echo "openwrt-brcm47xx-squashfs.trx"
-	elif test WZRHPAG300H ; then
-		echo "openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin"
+	if [ -e "$config_file" ]; then
+		for filetype in factory sysupgrade bootloader; do {
+			grep -sq ^"# ${filetype}: " "$config_file" && {
+				found="true"
+				grep ^"# ${filetype}: " "$config_file" | cut -d' ' -f3
+			}
+		} done
 	else
-		echo ""
+		log "not found '$config_file'"
 	fi
+
+	[ "$found" = "false" ] && log "unknown filenames, search in 'bin/$arch/...' and read 'openwrt-config/HowTo_add_new_HARDWARE.md'"
 }
 
 apport_vmlinux()	# for better debugging of http://intercity-vpn.de/crashlog/
@@ -113,6 +113,7 @@ set_build()
 	local mode="$1"			# e.g. mini|standard|full
 	local line symbol file wish config
 	local dir="kalua/openwrt-config"
+	local hardware
 
 	case "$mode" in
 		reset_config)
@@ -142,10 +143,18 @@ set_build()
 		;;
 		*)
 			file="$dir/config_${mode}.txt"
-			[ -e "$file" ] || {
+			if [ -e "$file" ]; then
+				case "$mode" in
+					"HARDWARE."*)
+						hardware="$( echo "$mode" | cut -'.' -f2 )"
+						log "writing hardware '$hardware' to 'KALUA_HARDWARE'"
+						echo "$hardware" >"KALUA_HARDWARE"
+					;;
+				esac
+			else
 				log "mode '$mode' not implemented yet"
 				return 1
-			}
+			fi
 		;;
 	esac
 
@@ -559,7 +568,7 @@ mymake()
 	echo "\"Jauchzet und frohlocket...\" ob der Bytes die erschaffen wurden: (revision: $( scripts/getver.sh ))"
 	echo
 
-	echo "use this files:"
+	echo "use these files:"
 	for file in $( get_firmware_filenames ); do {
 		echo "bin/$( get_arch)/$file"
 	} done
