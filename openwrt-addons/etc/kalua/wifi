@@ -9,20 +9,11 @@
 #    (es muss also nur was included werden, wenn es mehrere wireless-karten gibt)
 #    (bei einer wlan-karte gibt es kein $WIFI_DEV_NEXT)
 #
-# for WIFI_DEV in $WIFI_DEVS; do {
+# for WIFIDEV in $LIST_WIFIDEVS; do {
 #	do_some_stuff_with_normal_vars
-#	[ -n "$WIFI_DEV_NEXT" ] && . $WIFI_DEV_NEXT	# inluding VAR-set for next WIFI_DEV
-# } done						# (last entry must point to first-device)
+#	[ -n "$WIFI_NEXT" ] && . $WIFI_NEXT	# inluding VAR-set for next WIFI_DEV
+# } done					# (last entry must point to first-device)
 
-_wl ()		# ARG1: must be WIFI_DEV
-{
-	/usr/sbin/wl -i "$@" 2>/dev/null
-}
-
-_wifi_driver_is_old_broadcom()
-{
-	test -e /usr/sbin/wl
-}
 
 _wifi_show_station_traffic()
 {
@@ -398,31 +389,6 @@ _wifi_math_mcs2rate()			# fixme! output spatial streams, coding rate, modulation
 	echo "$rate"
 }
 
-_wifi_params ()
-{
-	local VAR
-	local WIFI_DEVS="$( _wifi devs_list )"
-	local THIS_WIFI_DEV
-
-	echo "WIFI_DEVS='$WIFI_DEVS'"	
-	
-	for THIS_WIFI_DEV in $WIFI_DEVS; do {
-
-		_wifi vendor_and_model  >/tmp/wifi_hardware
-		. /tmp/wifi_hardware
-
-		if [ "$WIFI_VENDOR" = "broadcom" ]; then
-			_wifi params_broadcom_wlstatus $THIS_WIFI_DEV
-		else
-			_wifi params_iwconfig_status $THIS_WIFI_DEV
-		fi
-
-		cat /tmp/wifi_hardware		
-		_wifi params_config
-		_wifi tx_and_rx $THIS_WIFI_DEV
-	} done
-}
-
 _wifi_tx_and_rx ()		# ARG1 = NETWORK_DEV e.g. WIFI_DEV
 {
 	# WIFI_RX_BYTES=1665694551
@@ -449,25 +415,6 @@ WIFI_CONFIG_FRAG=${FRAG:-2346}
 WIFI_CONFIG_CHANNEL=$CHANNEL
 WIFI_CONFIG_BSSID=$BSSID
 EOF
-}
-
-_wifi_params_broadcom_wlstatus ()	# ARG1 = WIFI_DEV ; safe and fast reformatting of 'wl status'-output
-{					# for easy eval() BSSID is always uppercase
-	# WIFI_DEV=eth1
-	# WIFI_UPTIME=0
-	# WIFI_ESSID='www.freifunk.net (Zugangspunkt)'
-	# WIFI_MODE='Master'
-	# WIFI_RSSI='0'						# is signal in [dBm]?
-	# WIFI_NOISE='0'
-	# WIFI_CHANNEL=7					# convert to MHz ?
-	# WIFI_BSSID=00:1D:73:05:0F:59				# own wifi_mac in AP, master_wifi_mac in STA and cell in ADHOC-mode
-	# WIFI_RATESET='1(b) 2(b) 5.5(b) 6 9 11(b) 12 18 24 36 48 54'
-
-	_wl $1 status 2>/dev/null |
-	 sed -ne "s/'/'\\\''/g;s/^SSID: \"\(.*\)\"/WIFI_DEV=$1\nWIFI_UPTIME=0\nWIFI_ESSID='\1'/p" \
-	     -ne "s/^Mode: \([ a-zA-Z]*\).*RSSI: \(.*\) dBm.*noise: \(.*\) dBm.*Channel: \([0-9]*\).*/WIFI_MODE='\1'\nWIFI_RSSI='\2'\nWIFI_NOISE='\3'\nWIFI_CHANNEL=\4/p" \
-	     -ne "s/^Supported Rates: \[ \(.*\) \]/WIFI_RATESET='\1'/p" \
-	     -ne "/^BSSID: /!d;s/^BSSID: \(..:..:..:..:..:..\).*/WIFI_BSSID=\1/;y/abcdef/ABCDEF/;p"
 }
 
 _wifi_params_iwconfig_status ()		# ARG1 = WIFI_DEV
@@ -504,76 +451,16 @@ _wifi_params_iwconfig_status ()		# ARG1 = WIFI_DEV
 	     -ne "s/^.*Link Quality[:=]\([0-9]*\)\/\([0-9]*\).*Signal level[:=]\([-0-9]*\) dBm.*Noise level[:=]\([-0-9]*\) dBm/WIFI_QUALITY=\1\nWIFI_QUALITY_MAX=\2\nWIFI_SIGNAL='\3'\nWIFI_NOISE='\4'/p"
 }
 
-_wifi_params_iwconfig_status_debug ()		# only for testing above function
-{
-	cat >/dev/null <<EOF
-ath0      IEEE 802.11b  ESSID:"www.freifunk.net (Zugangspunkt)"  
-          Mode:Managed  Frequency:2.442GHz  Access Point: 00:1D:73:05:0F:59  
-          Bit Rate:11Mb/s   Tx-Power:0 dBm   Sensitivity=0/3  
-          Retry:off   RTS thr:off   Fragment thr:off
-          Encryption key:off
-          Power Management:off
-          Link Quality:52/94  Signal level:-43 dBm  Noise level:-95 dBm
-          Rx invalid nwid:8199  Rx invalid crypt:0  Rx invalid frag:0
-          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
-EOF
-
-	cat <<EOF
-ath0      IEEE 802.11g  ESSID:"hier muss was 'kompliziertes' stehen"   
-          Mode:Ad-Hoc  Frequency:2.412 GHz  Cell: 02:0B:6B:DA:95:07   
-          Bit Rate:0 kb/s   Tx-Power:19 dBm   Sensitivity=1/1  
-          Retry:off   RTS thr:off   Fragment thr=256 B   
-          Encryption key:off
-          Power Management:off
-          Link Quality=0/70  Signal level=-96 dBm  Noise level=-96 dBm
-          Rx invalid nwid:389  Rx invalid crypt:0  Rx invalid frag:0
-          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
-EOF
-}
-
-_wifi_feature_probe ()
-{
-	local FUNC="wifi_probe_feature"
-	local FEATURE="$1"
-	
-	eval $( _wifi vendor_and_model )	# WIFI_BANDS
-
-	case "$FEATURE" in
-		802.11a)
-			echo $WIFI_BANDS | grep -q "a" && {
-				_log do $FUNC daemon debug "802.11a capable"
-				return 0
-			}
-		;;
-		802.11b)
-			echo $WIFI_BANDS | grep -q "b" && {
-				_log do $FUNC daemon debug "802.11b capable"
-				return 0
-			}
-		;;
-		802.11g)
-			echo $WIFI_BANDS | grep -q "g" && {
-				_log do $FUNC daemon debug "802.11g capable"
-				return 0
-			}
-		;;
-	esac
-	
-	return 1
-}
-
 _wifi_phy_set ()		# SENS: switching wifi radio on or off
 {
 	local WIFI_DEV="$1"	# ARG1: device-name
 	local MODE="$2"		# ARG2: string: on|off
 	
 	if [ "$MODE" = "on" ]; then
-		_nvram set wl0_radio 1
 		_wifi phy_probe_online $WIFI_DEV || {
 			_wifi phy_restart $WIFI_DEV	# only reinit if yet OFF
 		}
 	else
-		_nvram set wl0_radio 0
 		_wifi phy_probe_online $WIFI_DEV && {
 			_wifi phy_restart $WIFI_DEV	# only reinit if yet ON
 		}
@@ -585,11 +472,7 @@ _wifi_phy_probe_online()		# fixme! more abstraction
 	local WIFI_DEV="$1"
 	local VAR="$( uci get wireless.radio0.disabled )"
 
-	[ "$VAR" = "1" ] && {
-		return 1
-	}
-
-	return 0
+	test "$VAR" = "1"
 }
 
 _wifi_vendor_and_model ()		# fixme! build lookup-table WIFIDEV -> vendor|model
@@ -652,131 +535,14 @@ _wifi_driver_version()
 	local WIFI_DEV="$1"		# fixme! howto connect DEV -> PHY  (DEV -> DRIVER is no problem)
 	local VERSION
 
-	if _wifi driver_is_old_broadcom ; then
+	VERSION="kmod-ath9k_v$( _software package_version kmod-ath9k )"
 
-		VERSION="$( _wl $WIFI_DEV ver | sed -n 's/^wl:[^0-9]*\(.*\)/\1/p;q' | sed 's/[ ]/-/g' )"	# 3.90-RC37.0
-		
-		if [ -n "$VERSION" ]; then
-			VERSION="wl-adv_${VERSION}_v$( _software package_version wl-adv )"
-		else
-			VERSION="wl-simple_v$( _software package_version wl )"
-		fi
-	else
-		VERSION="kmod-ath9k_v$( _software package_version kmod-ath9k )"
-	fi
-	
 	echo "$VERSION"
 }
 
 _wifi_sensitivity ()
 {
-	local WIFI_DEV="$1"
-	local COMMAND="$2"	# short | mode
-	local VALUE
-	local OUT
-
-	if _wifi driver_is_old_broadcom ; then
-
-		VALUE="$( _wl $WIFI_DEV interference )"
-	
-		case "$VALUE" in
-			"Auto Wireless LAN Interference mitigation is enabled and not active")
-				OUT="0,wifi,auto"
-			;;
-			"Auto Wireless LAN Interference mitigation is enabled and active")	# just guessed
-				OUT="1,wifi,auto"
-			;;
-			"Wireless LAN Interference mitigation is enabled.")
-				OUT="1,wifi,user"
-			;;
-			"Non-wireless LAN Interference mitigation is enabled.")
-				OUT="1,nonwifi,user"
-			;;
-			"All interference mitigation is disabled.")
-				OUT="0,all,user"
-			;;
-			*)
-				OUT="?,wifi,auto"		# e.g. if 'wl-adv' is not installed
-			;;
-		esac
-	else
-		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_SENSITIVITY= )"	# e.g. '3/3'
-		OUT="$WIFI_SENSITIVITY"								# fixme! output more common
-	fi
-
-	case $COMMAND in
-		short)
-			OUT="$( echo $OUT | cut -d',' -f1 )"		# "0,wifi,auto" -> "0"
-		;;
-		mode)
-			OUT="$( echo $OUT | cut -d',' -f2-3 )"		# "0,wifi,auto" -> "wifi,auto"
-		;;
-	esac
-	
-	echo "$OUT"
-}
-
-_wifi_install_full_broadcomdriver_if_not_installed ()
-{
-	local FUNC="wifi_install_full_broadcomdriver_if_not_installed"
-	local WIFI_DEV="$( _wifi devs_list )"			# fixme!
-
-	_wl $WIFI_DEV ver | grep -q ^"wl:" && return 0
-	
-	_software packages_install wl-adv && return 0
-
-	_log do $FUNC daemon alert "installing 'wl-adv' was not possible"
-		
-	return 1
-}
-
-_wifi_sensitivity_set ()
-{
-	local FUNC="wifi_set_sensitivity"
-	local WIFI_DEV="$1"
-	local METHOD="$2"	# off | auto | wifi | nonwifi
-
-	if _wifi driver_is_old_broadcom ; then
-	
-		_wifi install_full_broadcomdriver_if_not_installed && {
-		
-			_log do $FUNC daemon info "setting interference mitigation for '$WIFI_DEV' to '$METHOD'"
-		
-			case $METHOD in			# fixme! only apply, when method differs from active method
-				off)
-					_wl $WIFI_DEV interference 0
-				;;
-				nonwifi)
-					_wl $WIFI_DEV interference 1
-				;;
-				wifi)
-					_wl $WIFI_DEV interference 2
-				;;
-				auto)
-					_wl $WIFI_DEV interference 3
-				;;
-			esac
-		}
-	else
-		# http://madwifi-project.org/ticket/820
-		_log do $FUNC daemon info "setting interference mitigation with madwifi does not work"
-	fi
-}
-
-_wifi_scansupress ()
-{
-	local WIFI_DEV="$1"
-	
-	_wl $WIFI_DEV scansuppress
-}
-
-_wifi_retry_limit ()
-{
-	local WIFI_DEV="$1"
-	local RETRYTYPE="$2"		# long / short
-
-	_wl $WIFI_DEV srl		# short retrylimit: empty == default == 7	// non RTS/CTS-packets ("big packets")
-	_wl $WIFI_DEV lrl		# long  retrylimit: empty == default == 4
+	return 0
 }
 
 _wifi_phy_uptime()
@@ -867,27 +633,7 @@ _wifi_phy_restart()
 
 _wifi_phy_txpower_limit ()		# driverlimit/output in [mW]
 {
-	local WIFI_DEV="$1"
-	local FILE="/tmp/WIFI_MAX_DRIVER_TXPOWER_${WIFI_DEV}"
-	local OUT
-
-	if _wifi driver_is_old_broadcom ; then
-	
-		OUT="150"				# fixme! this has to be evaluated!
-	else
-		if [ -e "$FILE" ]; then
-		
-			OUT="$( cat "$FILE" )"
-		else
-			OUT="$( iwlist $WIFI_DEV txpower 2>/dev/null | sed -n 's/^[^a-zA-Z0-9:-]*[0-9]* dBm.*(\([0-9]*\) mW).*/\1/p' | tail -n1 )"
-		
-			[ -z "$OUT" ] && OUT="$( _wifi phy_txpower $WIFI_DEV )"	# initial value seems to be MAX value
-
-			echo "${OUT:=40}" >$FILE	# conservative fallback-value
-		fi
-	fi
-	
-	echo $OUT
+	echo "1000"
 }
 
 _wifi_phy_txpower()		# output in [mW]
@@ -896,103 +642,21 @@ _wifi_phy_txpower()		# output in [mW]
 	local UNIT="$2"		# keyword, can be 'mw', 'dbm', 'qdbm' // fixme! at the moment this IS in [mW]
 	local POWER
 	
-	if _wifi driver_is_old_broadcom ; then
+	POWER="$( /usr/sbin/iwconfig "$WIFI_DEV" | sed -n 's/^.*Tx-Power=\([0-9]*\).*/\1/p' )"	# [dBm]
 
-		POWER="$( _wl $WIFI_DEV txpwr | cut -d" " -f3 )"	# this is in [mW]
-	else
-		POWER="$( /usr/sbin/iwconfig "$WIFI_DEV" | sed -n 's/^.*Tx-Power=\([0-9]*\).*/\1/p' )"	# [dBm]
+	[ -z "$POWER" ] && {
+		POWER="$( uci get wireless.radio0.txpower )"
+	}
 
-		[ -z "$POWER" ] && {
-			POWER="$( uci get wireless.radio0.txpower )"
-		}
+	case "$HARDWARE" in
+		"Ubiquiti Bullet M")
+			POWER=$(( $POWER + 12 ))	# fixme! use package iwinfo for this
+		;;
+	esac
 
-		case "$HARDWARE" in
-			"Ubiquiti Bullet M")
-				POWER=$(( $POWER + 12 ))	# fixme! use package iwinfo for this
-			;;
-		esac
-
-		POWER="$( _wifi math_dbm2mw $POWER )"
-	fi
+	POWER="$( _wifi math_dbm2mw $POWER )"
 
 	echo "${POWER:-0}"	# no wifi-dev
-}
-
-_wifi_phy_txpower_set ()	# e.g.: _wifi phy_txpower_set "$WIFIDEV" 10 mW add overturn
-{
-	local FUNC="wifi_set_txpower"
-	local WIFI_DEV="$1"
-	local TXPWR="$2"
-	local UNIT="$3"		# keyword, can be 'mw', 'dbm', 'qdbm'	// fixme! at the moment this MUST be [mW]
-	local MODE="$4"		# keyword, can be 'add', 'subtract', 'empty = absolute'
-	local KEYWORD="$5"	# keyword: 'overturn' (if value is over max, then flip to min)
-				#          'limit' (if value is over max or under min, than do nothing)
-	
-	local VALUE VALUE_DBM VALUE_OLD VALUE_OLD_MW MIN
-	local PRIO="debug"
-	local MAX="$( _wifi phy_txpower_limit $WIFI_DEV )"	# txpower driverlimit in [mW]
-	local FILE_TREND="/tmp/WIFI_TREND_TXPOWER_${WIFI_DEV}"
-
-	case "$( _wifi mode $WIFI_DEV )" in
-		adhoc) MIN=10 ;;			# this is a not science-based, but IMHO a senseful value
-		    *) MIN=28 ;;			# this is minimal target txpower in [mW]
-	esac
-
-	case $MODE in
-	    	     add) VALUE="$(( $( _wifi phy_txpower $WIFI_DEV mw ) + $TXPWR ))" ;;
-		subtract) VALUE="$(( $( _wifi phy_txpower $WIFI_DEV mw ) - $TXPWR ))" ;;
-		       *)
-		       	  # mode = "absolute"
-
-		          VALUE="$(     _wifi math_mw2qdbm $TXPWR )"		# value is stored in [qdBm]
-			  VALUE_DBM="$( _wifi math_mw2dbm  $TXPWR )"
-
-		       	  VALUE_OLD="$( uci get wireless.radio0.txpower )"
-		       	  # VALUE_OLD_MW="$( _wifi math_qdbm2mw $VALUE_OLD )"
-
-		       	  [ "$VALUE" = "$VALUE_OLD" ] && {
-		       	  	_log do $FUNC daemon debug "leaving '$WIFI_DEV' as it is"
-		       	  	echo "=" >$FILE_TREND
-		       	  	return
-		       	  }
-
-		       	  [ "$VALUE" -lt "$VALUE_OLD" ] && {
-		       	  	PRIO="debug"				# don't spam too much
-		       	  	echo "-" >$FILE_TREND
-		       	  }
-
-		       	  [ "$VALUE" -gt "$VALUE_OLD" ] && {		# fixme! only spam once, if touching into critical power
-		       	  	echo "+" >$FILE_TREND			#	 and getting out of it
-		       	  }
-
-		       	  [ "$TXPWR" -gt 55 ] && PRIO="info"		# fixme! was 'alert'
-
-		       	  _log do $FUNC daemon $PRIO "$( cat $FILE_TREND ) for '$WIFI_DEV' to '$TXPWR' mW ('$VALUE' qdBm / '$VALUE_DBM' dBm)"
-		       	  _nvram set wl0_txpwr "$VALUE"
-
-			  if _wifi driver_is_old_broadcom ; then
-
-				_wl "$WIFI_DEV" txpwr $TXPWR			# must be in [mW]
-			  else
-			  	/usr/sbin/iwconfig "$WIFI_DEV" txpower "$VALUE_DBM"  2>/dev/null
-			  fi
-		       	 
-		       	  return 0
-		       ;;
-	esac
-
-	case "$KEYWORD" in
-		overturn)
-			[ "$VALUE" -gt "$MAX" ] && VALUE="$MIN"		# fixme! log?
-			[ "$VALUE" -lt "$MIN" ] && VALUE="$MAX"
-		;;
-		limit)
-			[ "$VALUE" -gt "$MAX" ] && VALUE="$MAX"
-			[ "$VALUE" -lt "$MIN" ] && VALUE="$MIN"
-		;;
-	esac
-	
-	_wifi phy_txpower_set "$WIFI_DEV" "$VALUE" mw absolute
 }
 
 _wifi_math_mhz2regdomain()
@@ -1174,7 +838,7 @@ _wifi_math_mw2dbm ()			# fixme! _sanitizer_convert VALUE unit_is unit_wish
 _wifi_math_mw2qdbm ()			# for broadcom on freifunk, convert unit [mW] -> [qdBm] = [1/4 dBm]?
 {
 	local o
-					# nvram 0|78 is both 89 mW
+
 	case $1 in
 	 	 2) o=8 ;;
 	 	 3) o=16 ;;
@@ -1243,7 +907,7 @@ _wifi_math_mw2qdbm ()			# for broadcom on freifunk, convert unit [mW] -> [qdBm] 
 	       255) o=97 ;;
 		 *) o=1 ;;
 	esac
-	
+
 	echo -n "$o"
 }
 
@@ -1259,26 +923,19 @@ _wifi_antenna_rx_set ()
 		1) VALUE=1 ;;
 		*) VALUE=-1 ;;
 	esac
-	
-	_nvram set wl0_antdiv "$VALUE"				# fixme! set it also with '_wl $WIFIDEV rxant ?'
 
-	if _wifi driver_is_old_broadcom ; then  	# fixme! must be device specific
-
-		_wl $WIFI_DEV antdiv $ANTENNA
-	else
-		case $VALUE in
-		       -1)
-		       		_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
-				sysctl -w dev.wifi0.diversity=1
-			;;
-			*)
-				_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 0"
-				_log do $FUNC daemon debug "sysctl +dev.wifi0.rxantenna = $(( $VALUE + 1 ))"
-				sysctl -w dev.wifi0.diversity=0
-				sysctl -w dev.wifi0.rxantenna="$(( $VALUE + 1 ))"
-			;;
-		esac
-	fi
+	case $VALUE in
+	       -1)
+	       		_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
+			sysctl -w dev.wifi0.diversity=1
+		;;
+		*)
+			_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 0"
+			_log do $FUNC daemon debug "sysctl +dev.wifi0.rxantenna = $(( $VALUE + 1 ))"
+			sysctl -w dev.wifi0.diversity=0
+			sysctl -w dev.wifi0.rxantenna="$(( $VALUE + 1 ))"
+		;;
+	esac
 }
 
 _wifi_antenna_tx_set ()
@@ -1293,25 +950,18 @@ _wifi_antenna_tx_set ()
 		*) VALUE=-1 ;;
 	esac
 	
-	_nvram set wl0_txant "$VALUE"
-
-	if _wifi driver_is_old_broadcom ; then		# fixme! must be device specific
-
-		_wl $WIFI_DEV txant $ANTENNA
-	else
-		case $VALUE in
-		       -1)
-				_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
-				sysctl -w dev.wifi0.diversity=1
-			;;
-			*)
-				_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 0"
-				_log do $FUNC daemon debug "sysctl +dev.wifi0.txantenna = $(( $VALUE + 1 ))"
-				sysctl -w dev.wifi0.diversity=0
-				sysctl -w dev.wifi0.txantenna="$(( $VALUE + 1 ))"
-			;;
-		esac
-	fi
+	case $VALUE in
+	       -1)
+			_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
+			sysctl -w dev.wifi0.diversity=1
+		;;
+		*)
+			_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 0"
+			_log do $FUNC daemon debug "sysctl +dev.wifi0.txantenna = $(( $VALUE + 1 ))"
+			sysctl -w dev.wifi0.diversity=0
+			sysctl -w dev.wifi0.txantenna="$(( $VALUE + 1 ))"
+		;;
+	esac
 }
 
 _wifi_antenna_rx ()
@@ -1369,13 +1019,8 @@ _wifi_bssid ()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associat
 		esac
 	}
 	
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
+	eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_BSSID= )"
 
-		eval "$( _wifi params_broadcom_wlstatus $WIFI_DEV | grep ^WIFI_BSSID= )"
-	else
-		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_BSSID= )"
-	fi
-	
 	_sanitizer do "$WIFI_BSSID" lowercase
 }
 
@@ -1383,48 +1028,16 @@ _wifi_frag ()
 {
 	local WIFI_DEV="$1"
 	
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-	
-		_wl $WIFI_DEV frag | sed -n 's/^frag is \([0-9]*\).*$/\1/p'
-	else
-		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_FRAG )"
-		echo $WIFI_FRAG
-	fi
+	eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_FRAG )"
+	echo $WIFI_FRAG
 }
 
 _wifi_rts ()
 {
 	local WIFI_DEV="$1"
 
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-	
-		_wl $WIFI_DEV rts | sed -n 's/^rts is \([0-9]*\).*$/\1/p'
-	else
-		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_RTS )"
-		echo $WIFI_RTS
-	fi
-}
-
-_wifi_rate ()
-{
-	local WIFI_DEV="$1"
-	
-	if _wifi driver_is_old_broadcom ; then
-	
-		_wl $WIFI_DEV rate | cut -d' ' -f3		# 1, 2, 5.5, 6, 9, 12 ...
-	else
-		# /proc/net/madwifi/$WIFI_DEV/associated_sta
-		# /proc/net/madwifi/$WIFI_DEV/rate_info		T= max_troughput t=2nd_max_troughput P=max_probability
-		# http://www.sfr-fresh.com/linux/misc/madwifi-0.9.4.tar.gz:a/madwifi-0.9.4/ath_rate/minstrel/minstrel.txt
-		
-		sed -n '/^..P /{s/^...[ ]*\([0-9\.]*\).*/\1/p;q}' /proc/net/madwifi/$WIFI_DEV/rate_info		# first neigh with 'P'
-		
-		# this is only configured rate
-		# Current Bit Rate=54 Mb/s
-		# Current Bit Rate:0 kb/s       // 0 means 'auto' ?
-		
-		# iwlist $WIFI_DEV rate 2>/dev/null | sed -n 's/^.*Bit Rate[:=]\([0-9\.]*\) .*/\1/p'
-	fi
+	eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_RTS )"
+	echo $WIFI_RTS
 }
 
 _wifi_mcastrate()
@@ -1432,19 +1045,14 @@ _wifi_mcastrate()
 	local WIFI_DEV="$1"
 	local LINE
 	
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-	
-		_wl $WIFI_DEV mrate | cut -d' ' -f3		# 1, 2, 5.5, 6, 9, 12 , auto ...
+	LINE="$( uci get wireless.@wifi-iface[0].mcast_rate )"
+	if [ -n "$LINE" ]; then
+		case "$LINE" in
+			5500000) echo 5.5 ;;
+			      *) echo $(( $LINE / 1000 )) ;;
+		esac
 	else
-		LINE="$( uci get wireless.@wifi-iface[0].mcast_rate )"
-		if [ -n "$LINE" ]; then
-			case "$LINE" in
-				5500000) echo 5.5 ;;
-				      *) echo $(( $LINE / 1000 )) ;;
-			esac
-		else
-			echo "auto"
-		fi
+		echo "auto"
 	fi
 }
 
@@ -1453,44 +1061,8 @@ _wifi_noise ()			# OUT1: signed Integer, -93 [dBm]
 	local WIFI_DEV="$1"
 	local WIFI_MODE="$( _wifi mode $WIFI_DEV )"
 	
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-	
-		case "$WIFI_MODE" in
-			adhoc|client)
-				_wl $WIFI_DEV noise | sed 's/[^0-9-]//g'
-			;;
-			ap)
-				echo "0"	# fixme! does not work in broadcom?
-			;;
-			*)
-				echo ""		# ?
-			;;
-		esac
-	else
-		[ -e /usr/sbin/iw ] && {
-			iw dev $WIFI_DEV survey dump |
-			 sed -n '/noise:/{s/^.*noise:.*\(-[0-9]*\).*/\1/p;q}'
-
-			return 0
-		}
-
-		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_NOISE )"
-
-		case "$WIFI_MODE" in
-			adhoc)
-				echo $WIFI_NOISE
-			;;
-			client)
-				echo ""		# fixme!
-			;;
-			ap)
-				echo ""		# fixme!
-			;;
-			*)
-				echo ""		# ?
-			;;
-		esac
-	fi
+	iw dev $WIFI_DEV survey dump |
+	 sed -n '/noise:/{s/^.*noise:.*\(-[0-9]*\).*/\1/p;q}'
 }
 
 _wifi_signal ()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all stations  // fimxe! better concept needed
@@ -1499,38 +1071,15 @@ _wifi_signal ()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all 
 	local WIFI_MODE="$( _wifi mode $WIFI_DEV )"
 	local MAC RSSI LOOP LINE
 
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific	
-
-		case "$WIFI_MODE" in
-			adhoc|client)
-				_wl $WIFI_DEV rssi | sed 's/[^0-9-]//g'
-			;;
-			ap)
-				# for MAC in $( _wifi assoclist $WIFI_DEV ); do {
-				#	RSSI="$( _wl $WIFI_DEV rssi $MAC | sed -n 's/^rssi is \([0-9-]*\).*/\1/p' )"
-				#	echo -n "${LOOP:+:}$( _sanitizer do "$MAC" hex )${RSSI}"
-				#	LOOP=1
-				# } done
-				
-				for MAC in $( _wifi assoclist $WIFI_DEV ); do {		# fixme! have seen some dropouts, even with connected clients (looks the same like wrong mac)
-					_wl $WIFI_DEV rssi $MAC | cut -d' ' -f3		# can be 0 or even an error!
-				} done | sort -n | tail -n1
-			;;
-			*)
-				echo ""		# fixme!
+	iw dev $WIFI_DEV station dump |
+	 while read LINE; do {
+		case "$LINE" in
+			*"signal avg:"*)
+				set $LINE
+				echo "$3"
 			;;
 		esac
-	else
-		iw dev $WIFI_DEV station dump |
-		 while read LINE; do {
-			case "$LINE" in
-				*"signal avg:"*)
-					set $LINE
-					echo "$3"
-				;;
-			esac
-		} done | sort -n | tail -n1
-	fi
+	} done | sort -n | tail -n1
 }
 
 _wifi_channel ()
@@ -1551,39 +1100,12 @@ _wifi_protection_gmode ()	# OUT1: integer, 0 | 1
 {
 	local WIFI_DEV="$1"
 	
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-	
-		_wl $WIFI_DEV gmode_protection | sed -n 's/^gmode_protection is \([0-9]\) .*/\1/p'
-	else
-		iwpriv $WIFI_DEV get_protmode | sed -n 's/^.*:\([01]\).*/\1/p'
-	fi
+	iwpriv $WIFI_DEV get_protmode | sed -n 's/^.*:\([01]\).*/\1/p'
 }
 
 _wifi_assoclist ()		# OUT1: list of associated mac_adresses
 {
-	local WIFI_DEV="$1"
-	local WIFI_MODE="$( _wifi mode $WIFI_DEV )"
-	local NOP MAC
-	
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-
-		case "$WIFI_MODE" in
-			adhoc)
-				echo ""		# fixme! howto distinguish from OLSR-neighs?
-			;;
-			ap)
-				_wl $WIFI_DEV assoclist |
-				 while read NOP MAC; do {
-				 	echo -n "$( _sanitizer do "$MAC" lowercase ) "
-				 } done
-			;;
-			client)
-				echo ""		# fixme!
-			;;
-		esac
-	else
-		echo ""				# fixme!
-	fi
+	return 0
 }
 
 _wifi_devs_list ()		# one device per line
@@ -1612,13 +1134,8 @@ _wifi_probe_mode_infrastructure ()		# fixme! respect WIFI_DEV
 			;;
 		esac
 	else
-		if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-	
-			eval "$( _wifi params_broadcom_wlstatus $WIFI_DEV | grep ^WIFI_MODE= )"
-		else
-			eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_MODE= )"
-		fi
-		
+		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_MODE= )"
+
 		case $WIFI_MODE in
 			Managed|managed|Master|master) return 0 ;;
 						    *) return 1 ;;
@@ -1641,12 +1158,7 @@ _wifi_probe_mode_ap ()				# fixme! respect WIFI_DEV
 			return 1
 		fi
 	else
-		if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-
-			[ "$( _wl $WIFI_DEV ap | cut -d' ' -f3 )" = "1" ] && WIFI_MODE="Managed"	# 0 = station/client
-		else
-			eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_MODE= )"
-		fi
+		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_MODE= )"
 
 		case $WIFI_MODE in
 			Master|master)
@@ -1717,129 +1229,12 @@ _wifi_mode ()			# OUT1: string, ap | client | adhoc             // rename: wifi_
 
 _wifi_scan ()
 {
-	local FUNC="wifi_scan"
-	local WIFI_DEV="$1"
-	local KEYWORD="$2"		# intense | normal = <empty>
-	local FILE="/tmp/WIFI_SCAN_$$"
-	local MYCHANNEL
-
-	[ "$( uci get system.@weblogin[0].enabled )" = "1" ]	&& return		# maybe scanning is unstable
-	[ "$( _wifi mode $WIFI_DEV )" != "adhoc" ]		&& return
-
-	if _wifi driver_is_old_broadcom ; then
-
-		if [ "$KEYWORD" = "intense" ]; then
-
-			for MYCHANNEL in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 $( _wifi channel $WIFI_DEV ); do {
-		
-				_nvram set wl0_channel $MYCHANNEL		# fixme! is a hack!
-				wifi
-				sleep 5
-
-				_wl $WIFI_DEV scan
-				sleep 3
-				_wl $WIFI_DEV scanresults >$FILE
-				_wifi scan_parse_wl $FILE
-			} done
-		else
-			_wl $WIFI_DEV scan
-			sleep 3
-			_wl $WIFI_DEV scanresults >$FILE
-			_wifi scan_parse_wl $FILE
-		fi
-	else
-		touch FILE
-		continue	# fixme! needs a parser for iwconfig/madwifi...
-	fi
-	
-	rm $FILE
-}
-
-_wifi_scan_parse_wl ()			# OUT: 00184d81a0c2:1:-93:-82:6:WEP:NETGEAR;06180a015e3e:1:-88:-76:8:WEP:Zugangspunkt
-{					# which means   BSSID : INFRA/ADHOC=1/0 | RSSI | NOISE | CHANNEL | CRYPT | ESSID + next_entry (separator = ";")
-	local FILE="$1"
-	local FUNC="wifi_scan_parse_wl"
-	local LINE SIGNAL NOISE CHANNEL ESSID BSSID CRYPT INFRA SUMMARY
-
-	while read LINE; do {					# SSID: "FRITZ!Box Fon WLAN 7141"
-								# Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10
-		case "$( echo $LINE | cut -d: -f1 )" in		# BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot
-								# Supported Rates: [ 1(b) 2(b) 5.5(b) 11(b) 6 9 12 18 24 36 48 54 ]
-			SSID)
-				ESSID="$( echo "$LINE" | sed -n 's/^SSID: "\(.*\)"$/\1/p' )"
-				ESSID="$( _sanitizer do "$ESSID" essid )"			# fixme! (escape_all?)
-			;;
-			Mode)
-				# 'Mode: Managed RSSI: -93 dBm noise: -89 dBm Channel: 10'
-				# SIGNAL="-93";NOISE="-89";CHANNEL="10"
-
-				eval "$( echo "$LINE" | sed -n 's/^Mode: .*RSSI: \([0-9-]*\).*dBm.*noise: \([0-9-]*\).*dBm.*Channel: \([0-9]*\).*/SIGNAL="\1";NOISE="\2";CHANNEL="\3"/p' )"
-			;;
-			BSSID)
-				# 'BSSID: 00:04:0E:88:F1:03 Capability: ESS WEP ShortSlot'
-				
-				BSSID="$( echo "$LINE" | sed -n 's/^BSSID: \([0-9a-fA-F:]*\).*/\1/p' )"
-				[ "$( echo $BSSID | cut -d':' -f1 )" = "02" ] && INFRA=0
-				BSSID="$( _sanitizer do "$BSSID" hex lowercase )"
-	
-				echo "$LINE" | grep -q "WEP" && CRYPT="w"	# idea: w = wep / W=WPA ?
-			;;
-			"")
-				[ -z "$BSSID" ] && continue
-				SUMMARY="${BSSID}:${INFRA:=1}:${CRYPT:=0}:${CHANNEL}:${SIGNAL}:${NOISE}:${ESSID}"
-
-				_log do $FUNC daemon info "PHY_${WIFI_DEV}_chan_$( _wifi channel $WIFI_DEV ): '${SUMMARY}'"
-				
-				_wifi scan_summary insert $BSSID "${SUMMARY}"
-
-				BSSID=;INFRA=;SIGNAL=;NOISE=;CHANNEL=;CRYPT=;ESSID=;SUMMARY=
-			;;
-		esac
-			
-	} done <$FILE
+	return 0
 }
 
 _wifi_scan_summary ()
 {
-	local FUNC="scan_summary"
-	local KEYWORD="$1"		# remove | insert | show | get = <empty>
-	local OBJ1="$2"			# when 'insert' -> bssid to insert
-	local OBJ2="$3"			# when 'insert' -> data to insert
-
-	local FILE_BSSID LOOP OUT
-	local DIR="/tmp/WIFI_SCAN_TODAY"
-	
-	[ -d $DIR ] || mkdir $DIR
-
-	case "$KEYWORD" in
-		remove)
-			rm $DIR/* 2>/dev/null
-		;;
-		insert)
-			echo "$OBJ2" >>$DIR/$OBJ1
-		;;
-		*)
-			for FILE_BSSID in $( ls -1 $DIR ); do {
-				OUT="$( sort -n $DIR/$FILE_BSSID | head -n1 )"		# only show strongest received beacon
-
-				[ "$( echo $OUT | cut -d':' -f2 )" = "1" ] && {		# infra=1? / sometimes we get an wrong BSSID even for an AP like: 00:1a:2a:73:14:05 (real) -> 9e:dd:8b:b3:b1:38 (random!)
-					_net mac2vendor $FILE_BSSID 2>/dev/null >/dev/null || {
-						OUT=
-						_log do $FUNC daemon debug "ommitting entry for ESSID '$FILE_BSSID' - mac2vendor() does not work"
-					}
-				}
-
-				[ -n "$OUT" ] && {
-					if [ "$KEYWORD" = "show" ]; then
-						echo $OUT
-					else
-						echo -n "${LOOP:+;}${OUT}"
-						LOOP=1
-					fi
-				}
-			} done
-		;;
-	esac
+	return 0
 }
 
 _wifi_rrdhelper ()		# fixme! is a hack for rrd-tool
