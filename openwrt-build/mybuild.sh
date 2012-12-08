@@ -388,6 +388,19 @@ check_scripts()
 	return 0
 }
 
+generate_version_file()
+{
+	cd kalua/
+	local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
+	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
+	cd ..
+
+	cat <<EOF
+FFF_PLUS_VERSION=$last_commit_unixtime_in_hours		# $( date -d @$last_commit_unixtime )
+FFF_VERSION=2.0.0		# OpenWrt based / unused
+EOF
+}
+
 build_kalua_update_tarball()
 {
 	local option="$1"
@@ -405,15 +418,9 @@ build_kalua_update_tarball()
 		options="--owner=root --group=root"
 	fi
 
+	generate_version_file >"kalua/openwrt-addons/$file_timestamp"
 	cd kalua/
-	local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
-	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
-
 	cd openwrt-addons
-	cat >"$file_timestamp" <<EOF
-FFF_PLUS_VERSION=$last_commit_unixtime_in_hours		# $( date -d @$last_commit_unixtime )
-FFF_VERSION=2.0.0		# OpenWrt based / unused
-EOF
 
 	if [ "$option" = "full" ]; then
 		cp -pv ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
@@ -637,6 +644,9 @@ applymystuff()
 	local base="package/base-files/files"
 	local file destfile hash url private_settings
 	local pwd="$( pwd )"
+
+	log "generating version-information - /etc/variables_fff+"
+	generate_version_file >"$base/etc/variables_fff+"
 
 	file="kalua/openwrt-build/apply_profile"
 	log "copy $( basename "$file" ) - the master controller ($( filesize "$file" ) bytes)"
