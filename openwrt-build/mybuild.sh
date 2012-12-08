@@ -447,6 +447,7 @@ build_kalua_update_tarball()
 		tar $options -czf "$tarball" .
 	fi
 
+	rm "$file_timestamp"
 	cd $mydir
 
 	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
