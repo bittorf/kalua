@@ -483,8 +483,7 @@ build_kalua_update_tarball()
 		tar $options -czf "$tarball" .
 	fi
 
-	sed -i "s/$last_commit_unixtime_in_hours/366686/" "$file_timestamp"
-	touch -r "../../.git/description" "$file_timestamp"
+	rm "$file_timestamp"
 	cd $mydir
 
 	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
