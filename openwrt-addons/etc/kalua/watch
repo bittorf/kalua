@@ -609,11 +609,11 @@ _watch_webserver()
 	fi
 }
 
-_watch_sshd_or_telnet ()
+_watch_sshd_or_telnet()
 {
 	local funcname="watch_sshd_or_telnet"
 	local option="$1"
-	local pid
+	local pid pid_ssh
 
 	[ "$option" = "force" ] || {
 		[ -e /tmp/service_ssh_nowatching ] && return
@@ -621,17 +621,17 @@ _watch_sshd_or_telnet ()
 
 	restart_sshd()
 	{
-		_watch hanging_command dropbear
-		_watch hanging_command dropbear
+		[ -n "$pid_ssh" ] && {
+			_watch hanging_command dropbear
+			_watch hanging_command dropbear
+		}
 
 		/etc/init.d/*dropbear start
 	}
 
-	pidof dropbear >/dev/null && {
-
+	pid_ssh="$( pidof dropbear )" && {
 		which nc >/dev/null && {
 			which dropbear >/dev/null && {
-
 				( nc 127.0.0.1 22 >"/tmp/$funcname" ) &
 				pid="$!"
 				sleep 3
@@ -652,12 +652,12 @@ _watch_sshd_or_telnet ()
 	}
 
 	pidof telnetd >/dev/null || {
-	
-		_log do $funcname daemon err "dropbear nor telnetd not running - restarting"
-		
+		_log do $funcname daemon info "dropbear nor telnetd not running - restarting"
+
 		restart_sshd
+		[ -z "$pid_ssh" ] && return 0
+
 		if pidof dropbear >/dev/null; then
-			
 			_log do $funcname daemon info "dropbear PID now: '$( pidof dropbear )'"
 		else
 			if telnetd; then
