@@ -17,15 +17,26 @@ boot()
 	local i=0
 	local led_loops=10
 	local led_state list_states i
-	local load rest
+	local load rest daemon
 
 	touch "/tmp/lockfile_scheduler_is_running"	# this prevents the scheduler from running, see: _scheduler_allow_run()
 
-	[ -e "/tmp/loader" ] && {			# router is not virgin
-		/etc/init.d/*crond* stop
-		/etc/init.d/ulogd stop
-		/etc/init.d/uhttpd stop
-		/etc/init.d/olsrd stop
+	[ -e "/tmp/loader" ] && {			# router is not virgin (so: re-apply config)
+		for daemon in crond ulogd uhttpd olsrd dnsmasq; do {
+			logger -s "$0: ending daemon '$daemon'"
+			/etc/init.d/$daemon stop
+			/etc/init.d/*${daemon}* stop
+		} done
+
+		case "$( pidof dropbear )" in
+			*" "*)
+			;;
+			*)
+				killall logger		# hangs around in tasklist?
+				killall dropbear
+				wifi down
+			;;
+		esac
 	}
 
 	while true; do {
