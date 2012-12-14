@@ -97,6 +97,12 @@ config_diff()
 	local file_old="${2:-.config.old}"
 	local line
 
+	[ "$file_new" = "kernel" ] && {
+		local kernel_config_dir=build_dir/linux-$( get_arch )*/linux-*
+		file_new="$config_dir/.config"
+		file_old="$config_dir/.config.old"
+	}
+
 	diff "$file_new" "$file_old" |
 	 while read line; do {
 		case "$line" in
