@@ -63,26 +63,17 @@ log()
 kernel_dir()
 {
 	# build_dir/linux-brcm47xx/linux-3.3.8/
-	# !!! invalid: build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-dev/...
-	# !!! invalid: build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-3.6.10/.config
-	# build_dir/target-mips_r2_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.6.10/.config
-
+	# build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-dev/...  !!! invalid !!!
+	# build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-3.6.10/.config
 	local dir
-	log "kernel_dir: pwd: '$( pwd )'"
 
-	if [ -n "$( ls -1 build_dir/linux-* 2>/dev/null )" ]; then
-		log "kernel_dir: type 1"
-		dir="$( find build_dir -maxdepth 1 -type d -name 'linux-*' )"
+	if [ -n "$( ls -1 build_dir/linux-* )" ]; then
+		dir=build_dir/linux-*
 	else
-		log "kernel_dir: type 2"
-		dir="$( find build_dir -maxdepth 1 -type d -name 'target-*' )"
-		log "kernel_dir: now: '$dir'"
-		dir="$( find $dir -maxdepth 1 -type d -name "linux-$( get_arch )*" )"
+		dir=build_dir/toolchain-*
 	fi
 
-	log "kernel_dir: now: '$dir'"
-	dir="$( find $dir -maxdepth 1 -type d -name 'linux-[0-9]*' )"
-	log "kernel_dir: result: '$dir'"
+	dir=$dir/linux-[0-9]*
 
 	echo "$dir"
 }
@@ -509,10 +500,7 @@ config2git()
 	cp -v .config "$destfile"
 	$strip "$destfile"
 
-	architecture="$( get_arch )"
-	dir=build_dir/linux-${architecture}*/linux-*
-	destfile="$REPONAME/openwrt-config/hardware/$hardware/kernel.config"
-	cp -v $dir/.config "$destfile"
+	cp -v "$( kernel_dir )/.config" "$destfile"
 	$strip "$destfile"
 }
 
