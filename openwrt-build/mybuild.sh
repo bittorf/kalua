@@ -66,6 +66,7 @@ kernel_dir()
 	# build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-dev/...  !!! invalid !!!
 	# build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-3.6.10/.config
 	local dir
+	log "kernel_dir: pwd: '$( pwd )'"
 
 	if [ -n "$( ls -1 build_dir/linux-* 2>/dev/null )" ]; then
 		log "kernel_dir: type 1"
