@@ -60,12 +60,12 @@ kernel_dir()
 	local dir
 
 	if [ -n "$( ls -1 build_dir/linux-* )" ]; then
-		dir=build_dir/linux-*
+		dir="$( find build_dir -maxdepth 1 -type d -name 'linux-*' )"
 	else
-		dir=build_dir/toolchain-*
+		dir="$( find build_dir -maxdepth 1 -type d -name 'toolchain*' )"
 	fi
 
-	dir=$dir/linux-[0-9]*
+	dir="$( find build_dir -maxdepth 1 -type d -name 'linux-[0-9]*' )"
 
 	echo "$dir"
 }
