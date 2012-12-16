@@ -68,6 +68,7 @@ kernel_dir()
 		dir="$( find build_dir -maxdepth 1 -type d -name 'toolchain*' )"
 	fi
 
+	log "kernel_dir: now: '$dir'"
 	dir="$( find build_dir -maxdepth 1 -type d -name 'linux-[0-9]*' )"
 	log "kernel_dir: result: '$dir'"
 
