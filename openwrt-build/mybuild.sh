@@ -59,13 +59,16 @@ kernel_dir()
 	# build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-3.6.10/.config
 	local dir
 
-	if [ -n "$( ls -1 build_dir/linux-* )" ]; then
+	if [ -n "$( ls -1 build_dir/linux-* 2>/dev/null )" ]; then
+		log "kernel_dir: type 1"
 		dir="$( find build_dir -maxdepth 1 -type d -name 'linux-*' )"
 	else
+		log "kernel_dir: type 2"
 		dir="$( find build_dir -maxdepth 1 -type d -name 'toolchain*' )"
 	fi
 
 	dir="$( find build_dir -maxdepth 1 -type d -name 'linux-[0-9]*' )"
+	log "kernel_dir: result: '$dir'"
 
 	echo "$dir"
 }
