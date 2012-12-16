@@ -133,9 +133,8 @@ config_diff()
 	local line
 
 	[ "$file_new" = "kernel" ] && {
-		local kernel_config_dir=build_dir/linux-$( get_arch )*/linux-*
-		file_new="$config_dir/.config"
-		file_old="$config_dir/.config.old"
+		file_new="$( kernel_dir )/.config"
+		file_new="$( kernel_dir )/.config.old"
 	}
 
 	diff "$file_new" "$file_old" |
@@ -253,8 +252,9 @@ set_build()
 			} done
 		;;
 		kernel*)
-			dir="target/linux/$( get_arch )"
-			config="$( ls -1 $dir/config-* | head -n1 )"
+			config="$( kernel_dir )/.config"
+			# dir="target/linux/$( get_arch )"
+			# config="$( ls -1 $dir/config-* | head -n1 )"
 		;;
 		kcmdlinetweak)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 			dir="target/linux/$( get_arch )"
@@ -296,11 +296,6 @@ set_build()
 
 	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
 	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
-
-	# fixme! apply zram to e.g.
-	# build_dir/linux-ar71xx_generic/linux-3.3.8/.config
-	# target/linux/ar71xx/config-3.3
-	# target/linux/generic/config-3.3
 
 	while read line; do {
 		log "apply symbol: $line"
@@ -778,6 +773,7 @@ set_build_openwrtconfig()
 	log "applying openwrt/packages-configuration to .config ($( filesize "$file" ) bytes)"
 	cp "$file" .config
 	log "please launch _NOW_ 'make kernel_menuconfig' to stageup the kernel-dirs for architecture $( get_arch )"
+	log "should be in: '$( kernel_dir )/.config'"
 	log "simply select exit and safe the config"
 }
 
@@ -788,7 +784,8 @@ set_build_kernelconfig()
 	read hardware <KALUA_HARDWARE
 	config_dir="$REPONAME/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
 	architecture="$( get_arch )"
-	kernel_config_dir=build_dir/linux-${architecture}*/linux-*		# e.g. build_dir/linux-ar71xx_generic/linux-2.6.39.4
+
+	kernel_config_dir="$( kernel_dir )"
 	file="$config_dir/kernel.config"
 	log "applying kernel-config for arch $architecture to $kernel_config_dir/.config ($( filesize "$file" ) bytes)"
 	cp "$file" $kernel_config_dir/.config
