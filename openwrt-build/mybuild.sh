@@ -55,8 +55,10 @@ log()
 kernel_dir()
 {
 	# build_dir/linux-brcm47xx/linux-3.3.8/
-	# build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-dev/...  !!! invalid !!!
-	# build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-3.6.10/.config
+	# !!! invalid: build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-dev/...
+	# !!! invalid: build_dir/toolchain-mips_r2_gcc-4.6-linaro_uClibc-0.9.33.2/linux-3.6.10/.config
+	# build_dir/target-mips_r2_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.6.10/.config
+
 	local dir
 	log "kernel_dir: pwd: '$( pwd )'"
 
@@ -65,7 +67,9 @@ kernel_dir()
 		dir="$( find build_dir -maxdepth 1 -type d -name 'linux-*' )"
 	else
 		log "kernel_dir: type 2"
-		dir="$( find build_dir -maxdepth 1 -type d -name 'toolchain*' )"
+		dir="$( find build_dir -maxdepth 1 -type d -name 'target-*' )"
+		log "kernel_dir: now: '$dir'"
+		dir="$( find $dir -maxdepth 1 -type d -name 'linux-$( get_arch )*' )"
 	fi
 
 	log "kernel_dir: now: '$dir'"
