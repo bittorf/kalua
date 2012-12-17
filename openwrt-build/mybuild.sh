@@ -77,7 +77,7 @@ kernel_dir()
 		log "kernel_dir: type 2"
 		dir="$( find build_dir -maxdepth 1 -type d -name 'target-*' )"
 		log "kernel_dir: now: '$dir'"
-		dir="$( find $dir -maxdepth 1 -type d -name 'linux-$( get_arch )*' )"
+		dir="$( find $dir -maxdepth 1 -type d -name "linux-$( get_arch )*" )"
 	fi
 
 	log "kernel_dir: now: '$dir'"
