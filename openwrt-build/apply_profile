@@ -22,21 +22,26 @@ boot()
 	touch "/tmp/lockfile_scheduler_is_running"	# this prevents the scheduler from running, see: _scheduler_allow_run()
 
 	[ -e "/tmp/loader" ] && {			# router is not virgin (so: re-apply config)
-		for daemon in crond ulogd uhttpd olsrd dnsmasq; do {
-			logger -s "$0: ending daemon '$daemon'"
-			/etc/init.d/$daemon stop
-			/etc/init.d/*${daemon}* stop
-		} done
+		. /tmp/loader
+		[ $( _system ram_size ) -gt 16384 ] || {
+			_log do $thisfile daemon alert "[OK] ending most daemons"
 
-		case "$( pidof dropbear )" in
-			*" "*)
-			;;
-			*)
-				killall logger		# hangs around in tasklist?
-				killall dropbear
-				wifi down
-			;;
-		esac
+			for daemon in crond ulogd uhttpd olsrd dnsmasq; do {
+				_log do $thisfile daemon info "ending daemon '$daemon'"
+				/etc/init.d/$daemon stop
+				/etc/init.d/*${daemon}* stop
+			} done
+
+			case "$( pidof dropbear )" in
+				*" "*)
+				;;
+				*)
+					killall logger		# hangs around in tasklist?
+					killall dropbear
+					wifi down
+				;;
+			esac
+		}
 	}
 
 	while true; do {
