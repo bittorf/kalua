@@ -1084,16 +1084,33 @@ _wifi_signal ()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all 
 
 _wifi_channel ()
 {
-	local WIFI_DEV="$1"
+	local funcname="wifi_channel"
+	local dev="$1"
+	local channel line
 
-	if _wifi driver_is_old_broadcom ; then		# fixme! hardware-check must be device specific
-	
-		eval "$( _wifi params_broadcom_wlstatus $WIFI_DEV | grep ^WIFI_CHANNEL )"
-	else
-		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_CHANNEL )"
-	fi
+	# e.g. 'Interface wlan0 ifindex 6 wdev 0x2 addr 10:6f:3f:0e:31:8e type IBSS wiphy 0 channel 11 (2462 MHz) NO HT'
+	set -- $( iw dev "$dev" info )
+	line="$*"
+	channel="${line#*channel }"
 
-	echo "$WIFI_CHANNEL"
+	case "$channel" in
+		[0-9]*)
+			echo "${channel%% *}"
+		;;
+		*)
+			case "$line" in
+				*"type AP"*)
+					# e.g. 'Interface wlan0 ifindex 6 type AP wiphy 3'	// iw version 3.3
+					_log do $funcname daemon info "fallback to uci-var"
+					uci get wireless.radio0.channel
+				;;
+				*)
+					_log do $funcname daemon alert "dev $dev has no channel - debug: '$line'"
+					return 1
+				;;
+			esac
+		;;
+	esac
 }
 
 _wifi_protection_gmode ()	# OUT1: integer, 0 | 1
