@@ -19,7 +19,7 @@ motion_generate_conf()			# resolution:
 	mkdir -p "$dir"			#  640 x  480
 
 	# default is 1500 pixel, which is 0.5% for 640 x 480
-	local pixel_change_in_percent_for_motion="5"
+	local pixel_change_in_percent_for_motion="3"
 	local threshold=$(( (($width * height) / 100) * $pixel_change_in_percent_for_motion ))
 
 	grep -q ^"tmpfs /webcam " /proc/mounts || {
@@ -60,6 +60,8 @@ EOF
 	date +%Hh%Mm >"/tmp/webcam.start"
 
 	motion_generate_conf 1280 720 >"/tmp/motion.conf"
+
+	[ -e "/www/webcam.jpg" ] || ln -s "/webcam/lastsnap.jpg" "/www/webcam.jpg"
 }
 
 storage_is()			# measure low/high-jump
@@ -68,6 +70,7 @@ storage_is()			# measure low/high-jump
 
 	set -- $( df | grep "/webcam"$ )
 	logger -s "storage_percent_used: ${5%%%*} mode: check_${mode}"
+	STORAGE_FREE="${5%%%*}"
 
 	case "$mode" in
 		crowded)
@@ -101,8 +104,8 @@ if [ -n "$RUN_ENCODER" ]; then
 	date +%s     >"/tmp/webcam.startunix"
 	date +%Hh%Mm >"/tmp/webcam.start"
 
-	sed -i '/^framerate/s/30/1/' /tmp/motion.conf
-	kill -SIGHUP $( pidof motion )
+#	sed -i '/^framerate/s/30/1/' /tmp/motion.conf
+#	kill -SIGHUP $( pidof motion )
 
 	cd /webcam
 	ls -1t *[0-9].jpg >/tmp/webcam_rename		# newest on top
@@ -111,27 +114,39 @@ if [ -n "$RUN_ENCODER" ]; then
 
 	I=0
 	while read LINE; do {
-		echo "mv '$LINE' '/webcam/img_$(( $COUNT - $I )).ffmpeg.jpg'"
+		FILE="/webcam/img_$(( $COUNT - $I )).ffmpeg.jpg"
+		echo "mv '$LINE' '$FILE'; LIST_DELETEABLE=\"\$LIST_DELETEABLE $FILE\"; "
 		I=$(( $I + 1 ))
 	} done </tmp/webcam_rename | grep -n '' | sort -rn | cut -d: -f2- >/tmp/webcam_rename.sh	# emulate tac
 	. /tmp/webcam_rename.sh
+
 
 	. /tmp/loader
 	echo "video_encoding" >/tmp/CRON_OVERLOAD
 
 	while [ -e "/tmp/webcam_rename.sh" ]; do {
 		while storage_is full; do {
-			# dont delete the newest, can confuse 'motion'
-			FILE="$( ls -1t *[0-9].jpg | head -n2 | tail -n1 )"
+			# dont delete the newest/topmost, can confuse 'motion':
+			# - list files, newest first
+			# - insert empty line after each filename
+			# - list from line 2 till end
+			# - remove empty lines
+			# - show last line
+			FILE="$( ls -1t *[0-9].jpg | sed -e '/.jpg/G' -e '2,999!d' | sed '/^$/d' | head -n1 )"
+
 			if [ -n "$FILE" ]; then
-#				logger "deleting1 '$FILE'"
+				_log do remove_ffmpeg daemon alert "T1: rm '$FILE' free: $STORAGE_FREE%"
 				rm "$FILE"
 			else
-				sleep 5
 				# remove oldest, hopefully ffmpeg has eaten it already
-				FILE="$( ls -1t *.jpg | tail -n1 )"
-				_log do remove_ffmpeg daemon alert "rm '$FILE'"
-#				logger "deleting2 '$FILE'"
+				for FILE in $LIST_DELETEABLE; do {
+					set -- $LIST_DELETEABLE
+					shift
+					LIST_DELETEABLE="$*"
+					break
+				} done
+
+				_log do remove_ffmpeg daemon alert "T2: rm '$FILE' free: $STORAGE_FREE%"
 				rm "$FILE"
 			fi
 		} done
@@ -142,7 +157,7 @@ if [ -n "$RUN_ENCODER" ]; then
 	_stopwatch start video_encoding
 
 	# default bitrate = 200k is crap
-	if ffmpeg -f image2 -i img_%d.ffmpeg.jpg -b 2000k -r 6 -vcodec mpeg4 "$FILENAME"; then
+	if ffmpeg -f image2 -i img_%d.ffmpeg.jpg -b 2000k -r 3 -vcodec mpeg4 "$FILENAME"; then
 		_stopwatch stop video_encoding quiet "$COUNT" "frames"
 
 		rm -f /webcam/img_*
@@ -156,9 +171,11 @@ if [ -n "$RUN_ENCODER" ]; then
 
 	rm -f /webcam/img_* "$FILENAME" "/tmp/CRON_OVERLOAD" /tmp/webcam_rename /tmp/webcam_rename.sh /tmp/webcam_force_safe
 
-	sed -i '/^framerate/s/1/30/' /tmp/motion.conf
-	kill -SIGHUP $( pidof motion )
+#	sed -i '/^framerate/s/1/30/' /tmp/motion.conf
+#	kill -SIGHUP $( pidof motion )
 else
+	cp /webcam/lastsnap.jpg /webcam/snap-${UP:-$$}.jpg
+
 	EVENT_RECENT="$( ls -1t /webcam/[0-9]* | head -n1 | cut -d'-' -f1 )"
 	[ -e "/tmp/webcam_last_event" ] && read EVENT_LAST <"/tmp/webcam_last_event"
 
