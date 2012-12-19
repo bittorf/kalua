@@ -257,21 +257,22 @@ _sanitizer_encode_nonsafe_url_special()		# SENS: converting chars using a fixed 
 			-e 's/ /%20/g'
 }
 
-_sanitizer_urlvalue()			# fixme! on cmdline this produces error on each "!"-sign, but output is ok
-{					# ARG1: string (all chars are allowed)
-	local FUNC="sanitizer_urlvalue"	# OUT1: string (URL-encoded, RFC2396)
-	local TEXT="$1"
-	local STRIP="$( _sanitizer strip_nonsafe_url "$TEXT" )"
-	local  POS=0
-	local  OUT CHAR HEX
+_sanitizer_urlvalue()				# fixme! on cmdline this produces error on each "!"-sign, but output is ok
+{						# ARG1: string (all chars are allowed)
+	local funcname="sanitizer_urlvalue"	# OUT1: string (URL-encoded, RFC2396)
+	local text="$1"
+	local strip="$( _sanitizer strip_nonsafe_url "$text" )"
+	local pos=0
+	local out char hex
 
-	[ "$TEXT" = "$STRIP" ] && {		# no need for conversion, only safe chars
-		echo "$TEXT"
+	[ "$text" = "$strip" ] && {	# no need for conversion, only safe chars
+		echo "$text"
 		return
 	}
 
-	[ "$STRIP" = "$( _sanitizer strip_nonsafe_url_special "$TEXT" )" ] && {	# conversion of unsafe chars is possible with a fast table
-		_sanitizer encode_nonsafe_url_special "$TEXT"
+	# conversion of unsafe chars is possible with a fast table
+	[ "$strip" = "$( _sanitizer strip_nonsafe_url_special "$text" )" ] && {
+		_sanitizer encode_nonsafe_url_special "$text"
 		return
 	}
 
@@ -279,21 +280,21 @@ _sanitizer_urlvalue()			# fixme! on cmdline this produces error on each "!"-sign
 	# so we have to check char by char, which is slow...
 	# maybe we should auto-generate a table when using this functions for the first time?
 
-	while [ $POS -lt ${#TEXT} ]; do {					# 0...length_of_text
+	_log do $funcname daemon info "[OK] activating slow parser"
 
-		POS=$(( $POS + 1 ))
-		CHAR="$( echo "$TEXT" | cut -b $POS )"				# char at $POS
+	while [ $pos -lt ${#text} ]; do {						# 0...length_of_text
+		pos=$(( $pos + 1 ))
+		char="$( echo "$text" | cut -b $pos )"					# char at $pos
 
-		[ -n "$( _sanitizer strip_nonsafe_url "$CHAR" )" ] && {
-		  	OUT="${OUT}${CHAR}"					# append
-		  	continue						# char is safe, continue and check next...
-		}
-
-		HEX="$( echo "$CHAR" | hexdump -C | cut -d' ' -f3 | head -n1 )"	# is unsafe char! do HEX
-		OUT="${OUT}%${HEX}"						# no matter: a-z = A-Z
+		if [ -n "$( _sanitizer strip_nonsafe_url "$char" )" ]; then
+			out="${out}${char}"						# char is safe: append
+		else
+			hex="$( echo "$char" | hexdump -C | cut -d' ' -f3 | head -n1 )"	# is unsafe char! do HEX
+			out="${out}%${hex}"						# no matter: a-z = A-Z
+		fi
 	} done
 
-	echo $OUT
+	echo "$out"
 }
 
 _sanitizer_TODO_split_string()		# ARG1: string
