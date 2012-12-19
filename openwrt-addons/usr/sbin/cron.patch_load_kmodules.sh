@@ -1,8 +1,10 @@
 #!/bin/sh
 
+MYVERSION="v0.2"
+
 modules_blacklist()
 {
-	echo -n "ipt_REJECT|nf_nat_ftp|nf_nat_irc|nf_conntrack_irc|nf_conntrack_ftp|nls_base|arc4|crypto_algapi|ipt_ULOG|xt_state"
+	echo -n "ipt_REDIRECT|nf_nat_ftp|nf_nat_irc|nf_conntrack_irc|nf_conntrack_ftp|nls_base|arc4|crypto_algapi|ipt_ULOG|xt_state"
 }
 
 modules_whitelist()
@@ -23,7 +25,7 @@ modules_allowed()
 output_new_function()
 {
 	echo
-	echo "load_modules()	# patched from $0"
+	echo "load_modules()	# patched $MYVERSION from $0"
 	echo "{"
 	echo "	local line file t1 t2 duration trash list_unload_later list_reverse kmodule"
 	echo
