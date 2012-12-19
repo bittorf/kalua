@@ -17,8 +17,9 @@
 
 _system include
 CPU_LOAD="$( _system load 15min )"
+RAM_SIZE="$( _system ram_size )"
 
-[ $( _system ram_size ) -gt 16384 ] || {
+[ $RAM_SIZE -gt 16384 ] || {
 	[ $( _file lines /proc/modules ) -gt 30 ] && {		# 3.3.8, apmode = 23, adhoc-mode = 5 (SIMPLEMESH)
 		_log do start daemon info "no execution - waiting for unload of unneeded kmodules"
 		exit
@@ -60,13 +61,15 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci get system.@profile[0].nodenumber )" ];
 
 	TIME="$( _system date unixtime )"
 
-# takes long!
 	case "$CONFIG_PROFILE" in
 		boltenhagendh*)
 		;;
 		*)
-			_log do $FUNC daemon debug "build_neighs start"
-			NEIGH="$( _sanitizer do "$( neigh meshrdf )" urlvalue )"		# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
+			[ $RAM_SIZE -gt 16384 ] && {
+				_log do $FUNC daemon debug "[START] build_neighs - takes long"
+				# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
+				NEIGH="$( _sanitizer do "$( neigh meshrdf )" urlvalue )"
+			}
 		;;
 	esac
 
@@ -396,7 +399,6 @@ grep -q ^"ip_tables " /proc/modules && {
 
 
 	DATE_LOCAL_HUMAN="$( date +%d%b%Y-%Huhr%M )"
-	RAM_SIZE="$( _system ram_size )"
 
 	if pidof olsrd >/dev/null; then
 		olsrrestartcount="$( _olsr uptime restarts_get )"
