@@ -73,6 +73,12 @@ output_new_function()
 	echo "}"
 }
 
-grep -q ^"load_modules()	# patched $MYVERSION from" "/etc/functions.sh" || {
-	output_new_function >>"/etc/functions.sh"
+if [ -e "/etc/functions.sh" ]; then
+	FILE="/etc/functions.sh"
+else
+	FILE="/lib/functions.sh"
+fi
+
+grep -q ^"load_modules()	# patched $MYVERSION from" "$FILE" || {
+	output_new_function >>"$FILE"
 }
