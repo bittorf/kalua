@@ -135,15 +135,24 @@ if [ -n "$RUN_ENCODER" ]; then
 			# dont delete the newest, can confuse 'motion'
 			FILE="$( ls -1t *[0-9].jpg | head -n2 | tail -n1 )"
 			if [ -n "$FILE" ]; then
-#				logger "deleting1 '$FILE'"
+				_log do remove_ffmpeg daemon alert "T1: rm '$FILE' free: $STORAGE_FREE%"
+			else
+				# remove oldesti/first element, hopefully ffmpeg has eaten it already
+				for FILE in $LIST_DELETEABLE; do {
+					set -- $LIST_DELETEABLE
+					shift
+					LIST_DELETEABLE="$*"
+					break
+				} done
+
+				_log do remove_ffmpeg daemon alert "T2: rm '$FILE' free: $STORAGE_FREE%"
+			fi
+
+			if [ -n "$FILE" ]; then
 				rm "$FILE"
 			else
-				sleep 5
-				# remove oldest, hopefully ffmpeg has eaten it already
-				FILE="$( ls -1t *.jpg | tail -n1 )"
-				_log do remove_ffmpeg daemon alert "rm '$FILE'"
-#				logger "deleting2 '$FILE'"
-				rm "$FILE"
+				_log do remove_ffmpeg daemon alert "T3: no file to delete - killing motion"
+				killall motion
 			fi
 		} done
 		sleep 5
