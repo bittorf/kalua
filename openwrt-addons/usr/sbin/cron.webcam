@@ -1,22 +1,26 @@
 #!/bin/sh
 
+# todo: choose framerame according to ram_size
+
 # eval $( ls -laR /tmp/motion | while read LINE; do set -- ${LINE:-0}; echo "SIZE=\$(( \$SIZE + ${5:-0} ));"; done ); echo $SIZE; du -s /tmp/motion
 # http://stackoverflow.com/questions/12293853/how-to-use-ffmpeg-timestamp-syntax
 # http://ffmpeg.org/trac/ffmpeg/wiki/x264EncodingGuide
 # mplayer -tv driver=v4l2:device=/dev/video0 tv://
 # v4l2-ctl --all
+# fswebcam -d /dev/video0 --fps 1 -r 640x480 /www/cam.jpg
+# scp .ssh/dropbear_dss_host_key.pub bastian@10.63.2.34:.ssh/authorized_keys.$HOSTNAME
 
 # 3.9 Which are good parameters for encoding high quality MPEG-4?
 # "-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 300 -pass 1/2"
 # try: "-bf 2" - "-flags qprd" - "-flags mv0" or "-flags skiprd"
 
-motion_generate_conf()			# resolution:
-{					# 1920 x 1080
-	local width="${1:-640}"		# 1280 x  720
-	local height="${2:-480}"	#  800 x  450
-	local size_tmpfs		# or
-	local dir="/webcam"		#  800 x  600
-	mkdir -p "$dir"			#  640 x  480
+motion_generate_conf()			# resolution  / motion (needs modulo 16)
+{					# 1920 x 1080 = 1920 x 1072
+	local width="${1:-640}"		# 1280 x  720 = 1280 x  720
+	local height="${2:-480}"	#  800 x  450 =  800 x  448
+	local size_tmpfs		#  640 x  343 =  640 x  336
+	local dir="/webcam"		# or 800 x  600
+	mkdir -p "$dir"			#    640 x  480
 
 	# default is 1500 pixel, which is 0.5% for 640 x 480
 	local pixel_change_in_percent_for_motion="5"
@@ -45,8 +49,8 @@ snapshot_interval	60
 text_left		"$( uci get system.@system[0].hostname ) ($( uci get system.@admin[0].location ))"
 #locate			off		# draw box around moved object
 
-pre_capture		5
-framerate		30		# maximum per second
+#pre_capture		5
+framerate		1		# maximum per second, fast cpu = 30
 
 #webcam_port		8081
 #webcam_localhost	off		# allow from everywhere
@@ -59,25 +63,24 @@ EOF
 	date +%s     >"/tmp/webcam.startunix"
 	date +%Hh%Mm >"/tmp/webcam.start"
 
-	motion_generate_conf 1280 720 >"/tmp/motion.conf"
+	motion_generate_conf 640 336 >"/tmp/motion.conf"
+
+	[ -e "/www/webcam.jpg" ] || ln -s "/webcam/lastsnap.jpg" "/www/webcam.jpg"
 }
 
 storage_is()			# measure low/high-jump
 {
 	local funcname="storage_is"
 	local mode="$1"		# crowded | full
-	local lowram="4000000"	# bytes
+	local lowram="3000000"	# bytes
+	local ram_free
 
 	set -- $( df | grep "/webcam"$ )
 	STORAGE_FREE="${5%%%*}"			# global var
 
-	if type _system >/dev/null; then
-		local ram_free=$( _system ram_free )
-		_log do $funcname daemon info "webcam: percent_used: $STORAGE_FREE% mode: '$mode' - ram: $ram_free bytes"
-		[ $ram_free -lt $lowram ] && return 0		# simulates "storage full"
-	else
-		logger -s "storage_percent_used: ${5%%%*} mode: check_${mode} $( type _system >/dev/null && _system ram_free )"
-	fi
+	while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;ram_free=$((($M+$2)*1024));break;esac;done</proc/meminfo
+	_log do $funcname daemon info "webcam: percent_used: $STORAGE_FREE% mode: '$mode' - ram: $ram_free bytes"
+	[ $ram_free -lt $lowram ] && return 0		# simulates "storage full"
 
 	case "$mode" in
 		crowded)
@@ -182,7 +185,7 @@ else
 	EVENT_RECENT="$( ls -1t /webcam/[0-9]* | head -n1 | cut -d'-' -f1 )"
 	[ -e "/tmp/webcam_last_event" ] && read EVENT_LAST <"/tmp/webcam_last_event"
 
-	[ "$EVENT_RECENT" = "$EVENT_LAST" ] || {
+	[ "${EVENT_RECENT:=/webcam/snap}" = "$EVENT_LAST" ] || {
 		COUNT="$( ls -1 ${EVENT_RECENT}-* | wc -l )"
 		FILE="$(  ls -1 ${EVENT_RECENT}-* | sed "$(( $COUNT / 2 ))q;d" )"
 		. /tmp/loader
