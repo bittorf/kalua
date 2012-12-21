@@ -14,16 +14,30 @@
 # "-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 300 -pass 1/2"
 # try: "-bf 2" - "-flags qprd" - "-flags mv0" or "-flags skiprd"
 
-motion_generate_conf()			# resolution  / motion (needs modulo 16)
+motion_generate_conf()			# resolution: (motion needs modulo 16)
 {					# 1920 x 1080 = 1920 x 1072
 	local width="${1:-640}"		# 1280 x  720 = 1280 x  720
 	local height="${2:-480}"	#  800 x  450 =  800 x  448
-	local size_tmpfs		#  640 x  343 =  640 x  336
-	local dir="/webcam"		# or 800 x  600
-	mkdir -p "$dir"			#    640 x  480
+	local mode="${3:-day}"		#  640 x  343 =  640 x  336
+	local size_tmpfs		#     or
+	local dir="/webcam"		#  800 x  600
+	mkdir -p "$dir"			#  640 x  480
+	local snapshot quali
+
+	case "$mode" in
+		day)
+			snapshot="60"
+			quali="80"
+			pixel_change_in_percent_for_motion="4"
+		;;
+		night)
+			snapshot="600"
+			quali="95"
+			pixel_change_in_percent_for_motion="2"
+		;;
+	esac
 
 	# default is 1500 pixel, which is 0.5% for 640 x 480
-	local pixel_change_in_percent_for_motion="3"
 	local threshold=$(( (($width * height) / 100) * $pixel_change_in_percent_for_motion ))
 
 	grep -q ^"tmpfs /webcam " /proc/mounts || {
@@ -39,14 +53,14 @@ quiet			on
 videodevice		/dev/video0
 width			$width
 height			$height
-quality			80		# jpeg compression
+quality			$quali		# jpeg compression
 threshold		$threshold		# for motion $pixel_change_in_percent_for_motion% of all pixels must change
 
 target_dir		"$dir"
 snapshot_filename	webcam
-snapshot_interval	60
+snapshot_interval	$snapshot
 
-text_left		"$( uci get system.@system[0].hostname ) ($( uci get system.@admin[0].location ))"
+text_left		"host: $( uci get system.@system[0].hostname ) location: ($( uci get system.@admin[0].location )) quali: $quali% mode: $mode"
 #locate			off		# draw box around moved object
 
 #pre_capture		5
@@ -57,13 +71,45 @@ framerate		1		# maximum per second, fast cpu = 30
 EOF
 }
 
-[ -e "/tmp/motion.conf" ] || {
-	. /tmp/loader
-	_ntp set
+force_apply_config()
+{
+	local pid
+
+	motion_generate_conf 640 336 "$( store_startdate )"  >"/tmp/motion.conf"
+	pid="$( pidof motion )" && kill -SIGHUP $pid
+}
+
+store_startdate()
+{
+	local config="/tmp/motion.conf"
+	local mode
+
 	date +%s     >"/tmp/webcam.startunix"
 	date +%Hh%Mm >"/tmp/webcam.start"
 
-	motion_generate_conf 640 336 >"/tmp/motion.conf"
+	case "$( date +%H)" in	# 00..23
+		18|19|20|21|22|23|00|01|02|03|04|05|06)
+			mode="night"
+		;;
+		*)
+			mode="day"
+		;;
+	esac
+
+	echo "$mode"
+
+	[ -e "$config" ] && {
+		grep -q "mode: $mode" "$config" || {
+			force_apply_config
+		}
+	}
+}
+
+[ -e "/tmp/motion.conf" ] || {
+	. /tmp/loader
+	_ntp set
+	store_startdate
+	force_apply_config
 
 	[ -e "/www/webcam.jpg" ] || ln -s "/webcam/lastsnap.jpg" "/www/webcam.jpg"
 }
@@ -79,6 +125,7 @@ storage_is()			# measure low/high-jump
 	STORAGE_FREE="${5%%%*}"			# global var
 
 	while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;ram_free=$((($M+$2)*1024));break;esac;done</proc/meminfo
+
 	_log do $funcname daemon info "webcam: percent_used: $STORAGE_FREE% mode: '$mode' - ram: $ram_free bytes"
 	[ $ram_free -lt $lowram ] && return 0		# simulates "storage full"
 
@@ -90,6 +137,12 @@ storage_is()			# measure low/high-jump
 			test $STORAGE_FREE -ge 80
 		;;
 	esac
+}
+
+store_startdate()
+{
+	date +%s     >"/tmp/webcam.startunix"
+	date +%Hh%Mm >"/tmp/webcam.start"
 }
 
 RUN_ENCODER=
@@ -114,8 +167,7 @@ if [ -n "$RUN_ENCODER" ]; then
 	read STARTDATE <"/tmp/webcam.start"
 	read STARTUNIX <"/tmp/webcam.startunix"
 	FILENAME="/tmp/cam_1-stream-id_${STARTUNIX}-$( date +%Y_%b_%d )-from_${STARTDATE}_to_$( date +%Hh%Mm ).mp4"
-	date +%s     >"/tmp/webcam.startunix"
-	date +%Hh%Mm >"/tmp/webcam.start"
+	store_startdate
 
 #	sed -i '/^framerate/s/30/1/' /tmp/motion.conf
 #	kill -SIGHUP $( pidof motion )
