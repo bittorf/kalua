@@ -216,11 +216,17 @@ if [ -n "$RUN_ENCODER" ]; then
 		sleep 5
 	} done &
 
-	_log do webcam_ffmpeg daemon alert "generating '$FILENAME' with $COUNT frames"
-	_stopwatch start video_encoding
+	if storage_is full; then
+		COMMAND="false"
+	else
+		_log do webcam_ffmpeg daemon alert "generating '$FILENAME' with $COUNT frames"
+		_stopwatch start video_encoding
 
-	# default bitrate = 200k is crap
-	if ffmpeg -f image2 -i img_%d.ffmpeg.jpg -b 2500k -vcodec mpeg4 "$FILENAME"; then
+		# default bitrate = 200k is crap
+		COMMAND="ffmpeg -f image2 -i img_%d.ffmpeg.jpg -b 2500k -vcodec mpeg4 '$FILENAME'"
+	fi
+
+	if $COMMAND; then
 		_stopwatch stop video_encoding quiet "$COUNT" "frames"
 
 		rm -f /webcam/img_*
