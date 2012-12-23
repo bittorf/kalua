@@ -49,30 +49,44 @@ zram_applicable()
 
 zram_dev()
 {
-	echo "/dev/zram0"
+	local core="$1"
+
+	echo "/dev/zram${core:-0}"
+}
+
+list_cpu_idx()
+{
+	grep ^'processor' /proc/cpuinfo | cut -d':' -f2
 }
 
 start()
 {
-	local zram_dev="$( zram_dev )"
 	local zram_size="$( zram_size )"
+	local zram_dev core
 
-	zram_applicable "$zram_dev" || return 1
+	for core in $( list_cpu_idx ); do {
+		zram_dev="$( zram_dev "$core" )"
+		zram_applicable "$zram_dev" || return 1
 
-	logger -s -t zram_start -p daemon.info "activating '$zram_dev' for swapping ($zram_size MegaBytes)"
-	echo $(( $zram_size * 1024 * 1024 )) >"/sys/block/$( basename $zram_dev )/disksize"
-	mkswap $zram_dev
-	swapon $zram_dev
+		logger -s -t zram_start -p daemon.info "activating '$zram_dev' for swapping ($zram_size MegaBytes)"
+		echo $(( $zram_size * 1024 * 1024 )) >"/sys/block/$( basename $zram_dev )/disksize"
+		mkswap $zram_dev
+		swapon $zram_dev
+	} done
 }
 
 stop()
 {
-	local zram_dev="$( zram_dev )"
-	local proc_entry="/sys/block/$( basename "$zram_dev" )/reset"
+	local zram_dev proc_entry
 
-	logger -s -t zram_stop -p daemon.info "deactivate swap $zram_dev"
-	swapoff $zram_dev
+	for core in $( list_cpu_idx ); do {
+		zram_dev="$( zram_dev "$core" )"
+		proc_entry="/sys/block/$( basename "$zram_dev" )/reset"
 
-	logger -s -t zram_stop -p daemon.info "claiming memory back via $proc_entry"
-	echo "1" >"$proc_entry"
+		logger -s -t zram_stop -p daemon.info "deactivate swap $zram_dev"
+		swapoff $zram_dev
+
+		logger -s -t zram_stop -p daemon.info "claiming memory back via $proc_entry"
+		echo "1" >"$proc_entry"
+	} done
 }
