@@ -319,7 +319,12 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	# oldstyle: ln -s /var/etc/dnsmasq.conf /etc/dnsmasq.conf
 	# dnsmasq -p 5353 -A /#/192.168.1.251 -C /dev/null
 
-	[ ! -x /etc/init.d/*dnsmasq ]		&& return 0
+	[ -x /etc/init.d/*dnsmasq ] || return 0
+	[ -x /etc/rc.d/S*dnsmasq ] || {
+		ip="$( uci get dhcp.@dnsmasq[0].server )"
+		echo "nameserver ${ip:-8.8.8.8}" >"/etc/resolv.conf"
+		return 0
+	}
 
 	fgrep -q "nameserver 127.0.0.1" /etc/resolv.conf || {
 		read ip <"/etc/resolv.conf"
@@ -329,7 +334,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		}
 	}
 
-	_net inet_seems_stable			|| return 0
+	_net inet_seems_stable || return 0
 
 	pidof dnsmasq >/dev/null || {
 
