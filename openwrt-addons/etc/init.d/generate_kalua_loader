@@ -22,6 +22,13 @@ boot()
         /etc/kalua_init
 	. /tmp/loader
 
+	[ $( _system ram_size ) -gt 16384 ] || {
+		[ -e "/etc/init.d/apply_profile" ] && {
+			/etc/init.d/telnet disable
+			/etc/init.d/dropbear disable
+		}
+	}
+
 	[ -e "/etc/config/wireless" ] || return 0
 
 	# patch olsrd for using likely an adhoc-interfaces if we are in hybrid mode + fallback to wlan0
@@ -29,7 +36,7 @@ boot()
 		sed -i 's#if network_get_device IFNAME "$interface"; then$#if network_get_device IFNAME "$interface"; then case $IFNAME in wlan*) for IFNAME in $IFNAME $IFNAME-1 $IFNAME-2 $IFNAME-3 $IFNAME; do iw dev $IFNAME info | fgrep -q IBSS \&\& break; done;; esac#' /etc/init.d/olsrd
 	}
 
-	case "$( uci get system.@profile[0].name )" in
+	case "$CONFIG_PROFILE" in
 		ffweimar*)
 		;;
 		schoeneck_adhoc)
@@ -64,7 +71,7 @@ boot()
 		;;
 	esac
 
-	case "$( cat /etc/HARDWARE )" in
+	case "$HARDWARE" in
 		"Buffalo WHR-HP-G54")
 			case "$( uci get wireless.radio0.rxantenna )-$( uci get wireless.radio0.txantenna )" in
 				"1-1")
