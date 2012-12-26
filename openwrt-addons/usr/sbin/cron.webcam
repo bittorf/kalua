@@ -169,8 +169,8 @@ if [ -n "$RUN_ENCODER" ]; then
 	FILENAME="/tmp/cam_1-stream-id_${STARTUNIX}-$( date +%Y_%b_%d )-from_${STARTDATE}_to_$( date +%Hh%Mm ).mp4"
 	store_startdate
 
-	sed -i '/^framerate/s/30/1/' /tmp/motion.conf
-	kill -SIGHUP $( pidof motion )
+#	sed -i '/^framerate/s/30/1/' /tmp/motion.conf
+#	kill -SIGHUP $( pidof motion )
 
 	cd /webcam
 	ls -1t *[0-9].jpg >/tmp/webcam_rename		# newest on top
@@ -179,19 +179,27 @@ if [ -n "$RUN_ENCODER" ]; then
 
 	I=0
 	while read LINE; do {
-		echo "mv '$LINE' '/webcam/img_$(( $COUNT - $I )).ffmpeg.jpg'"
+		FILE="/webcam/img_$(( $COUNT - $I )).ffmpeg.jpg"
+		echo "mv '$LINE' '$FILE'; LIST_DELETEABLE=\"\$LIST_DELETEABLE $FILE\"; "
 		I=$(( $I + 1 ))
 	} done </tmp/webcam_rename | grep -n '' | sort -rn | cut -d: -f2- >/tmp/webcam_rename.sh	# emulate tac
 	cp /tmp/webcam_rename.sh /tmp/WEX
 	. /tmp/webcam_rename.sh
+
 
 	. /tmp/loader
 	echo "video_encoding" >/tmp/CRON_OVERLOAD
 
 	while [ -e "/tmp/webcam_rename.sh" ]; do {
 		while storage_is full; do {
-			# dont delete the newest, can confuse 'motion'
-			FILE="$( ls -1t *[0-9].jpg | head -n2 | tail -n1 )"
+			# dont delete the newest/topmost, can confuse 'motion':
+			# - list files, newest first
+			# - insert empty line after each filename
+			# - list from line 2 till end
+			# - remove empty lines
+			# - show last line
+			FILE="$( ls -1t *[0-9].jpg | sed -e '/.jpg/G' -e '2,999!d' | sed '/^$/d' | head -n1 )"
+
 			if [ -n "$FILE" ]; then
 				_log do remove_ffmpeg daemon alert "T1: rm '$FILE' free: $STORAGE_FREE%"
 			else
@@ -240,8 +248,8 @@ if [ -n "$RUN_ENCODER" ]; then
 
 	rm -f /webcam/img_* "$FILENAME" "/tmp/CRON_OVERLOAD" /tmp/webcam_rename /tmp/webcam_rename.sh /tmp/webcam_force_safe
 
-	sed -i '/^framerate/s/1/30/' /tmp/motion.conf
-	kill -SIGHUP $( pidof motion )
+#	sed -i '/^framerate/s/1/30/' /tmp/motion.conf
+#	kill -SIGHUP $( pidof motion )
 else
 	[ -e "/webcam/MARK" ] || touch "/webcam/MARK"
 	if [ "/webcam/lastsnap.jpg" -ot "/webcam/MARK" ]; then
