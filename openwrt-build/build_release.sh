@@ -57,6 +57,26 @@ clone()
 		log "git-cloning from '$repo'"
 		git clone "$repo"
 	fi
+	
+	[ -e ../../$REPONAME/openwrt-config/git_revs ] && {
+		. ../../$REPONAME/openwrt-config/git_revs
+		case "$repo" in
+			*"openwrt"*)
+				[ -n $MY_OPENWRT ] && {
+					changedir "$dir"
+					git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_OPENWRT " | cut -d' ' -f2 )" -b r$MY_OPENWRT
+					changedir ..
+				}
+			;;
+			*"packages"*)
+                                [ -n $MY_PACKAGES ] && {
+				changedir "$dir"
+				git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_PACKAGES" | cut -d' ' -f2 )" -b r$MY_PACKAGES
+				changedir ..
+				}
+			;;
+		esac
+	}
 }
 
 mymake()	# fixme! how to ahve a quiet 'make defconfig'?
