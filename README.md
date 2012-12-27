@@ -14,14 +14,14 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 Important!
 ----------
 
-> Don't forget to set the variables $REPONAME and $REPOURL before you start playing here. REPONAME is the directory where you checked out REPOURL.
+> Don't forget to set the variables $REPONAME and $REPOURL as global variables (export VARIABLE=VALUE) before you start playing here. REPONAME is the directory where you checked out REPOURL.
 > E.g. REPONAME could be set to weimarnetz and REPOURL to git://github.com/weimarnetz/weimarnetz.git
 
 how to get a release for a specific hardware
 --------------------------------------------
 
 	# login as non-root user
-	REPONAME="weimarnetz" && REPOURL="git://github.com/weimarnetz/weimarnetz.git"
+	export REPONAME="weimarnetz" && export REPOURL="git://github.com/weimarnetz/weimarnetz.git"
 	git clone $REPOURL
 	mkdir myrelease; cd myrelease
 	DO="../$REPONAME/openwrt-build/build_release.sh"
@@ -51,7 +51,7 @@ how to build this from scratch on a debian server
 	git clone git://nbd.name/openwrt.git
 	git clone git://nbd.name/packages.git
 	cd openwrt
-	REPONAME="weimarnetz" && REPOURL="git://github.com/weimarnetz/weimarnetz.git"
+	export REPONAME="weimarnetz" && export REPOURL="git://github.com/weimarnetz/weimarnetz.git"
 	git clone $REPOURL 
 
 	# for working with a specific openwrt-revision, do this:

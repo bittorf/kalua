@@ -3,7 +3,7 @@ How to add a new router model to fastbuilder
 
 	git clone --depth 1 git://nbd.name/openwrt.git
 	cd openwrt
-	REPONAME="weimarnetz" && REPOURL="git://github.com/weimarnetz/weimarnetz.git"
+	export REPONAME="weimarnetz" && export REPOURL="git://github.com/weimarnetz/weimarnetz.git"
 	git clone $REPOURL
 
 	rm .config
