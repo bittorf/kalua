@@ -21,7 +21,7 @@ Usage:	$me gitpull
 	$me set_build <list|standard|...> <...> <...>
 	$me applymystuff <profile> <subprofile> <nodenumber>	# e.g. "ffweimar" "adhoc" "42"
 	$me make <option>
-	$me build_ffweimar_update_tarball [full]
+	$me build_kalua_update_tarball [full]
 	$me apport_vmlinux
 
 Hint:   for building multiple config-enforced images use e.g.:
@@ -30,6 +30,14 @@ Hint:   for building multiple config-enforced images use e.g.:
 
 EOF
 }
+
+if [ -z "$REPONAME" ] || [ -z "$REPOURL" ]; then
+	echo "please set the variables \$REPONAME and \$REPOURL to appropriate values, e. g. \"weimarnetz\" for REPONAME and \"git://github.com/weimarnetz/weimarnetz.git\" for REPOURL"
+	echo "\$REPONAME is the name of the directory where you checked out the repository \$REPOURL"
+	echo ""
+	show_help
+	exit 1
+fi
 
 case "$ACTION" in
 	"")
@@ -41,9 +49,9 @@ case "$ACTION" in
 	;;
 esac
 
-[ -d weimarnetz ] || {
+[ -d $REPONAME ] || {
 	echo "please make sure, that your working directory is in the openwrt-base dir"
-	echo "i want to see the directorys 'package', 'scripts' and 'weimarnetz'"
+	echo "i want to see the directorys 'package', 'scripts' and '$REPONAME'"
 	exit 1
 }
 
@@ -112,7 +120,7 @@ set_build()
 {
 	local mode="$1"			# e.g. mini|standard|full
 	local line symbol file wish config
-	local dir="weimarnetz/openwrt-config"
+	local dir="$REPONAME/openwrt-config"
 
 	case "$mode" in
 		reset_config)
@@ -133,7 +141,7 @@ set_build()
 			return 1
 		;;
 		"patch:"*)
-			[ -e "weimarnetz/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )" ] || {
+			[ -e "$REPONAME/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )" ] || {
 				log "patch '$mode' does not exists"
 				return 1
 			}
@@ -151,7 +159,7 @@ set_build()
 
 	case "$mode" in
 		"patch:"*)
-			file="weimarnetz/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )"
+			file="$REPONAME/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )"
 			local line dest old_pwd file2patch
 
 			read line <"$file"	# diff --git a/package/uhttpd/src/uhttpd-tls.c b/package/uhttpd/src/uhttpd-tls.c
@@ -229,7 +237,7 @@ set_build()
 			file="/dev/null"
 		;;
 		*)
-			dir="weimarnetz/openwrt-config"
+			dir="$REPONAME/openwrt-config"
 			config=".config"
 
 			[ -e "$config" ] || {
@@ -354,7 +362,7 @@ check_scripts()
 	return 0
 }
 
-build_ffweimar_update_tarball()
+build_kalua_update_tarball()
 {
 	local option="$1"
 	local mydir="$( pwd )"
@@ -371,7 +379,7 @@ build_ffweimar_update_tarball()
 		options="--owner=root --group=root"
 	fi
 
-        cd weimarnetz/
+        cd $REPONAME/
 	local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
 	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
 	cd openwrt-addons/
@@ -416,23 +424,23 @@ build_ffweimar_update_tarball()
 	echo "or simply extract with: $extract"
 	echo
 	echo "or copy the config-apply-script with:"
-        echo "scp $USER@$( mypubip ):$( pwd )/weimarnetz/openwrt-build/apply_profile.code /etc/init.d"	
+        echo "scp $USER@$( mypubip ):$( pwd )/$REPONAME/openwrt-build/apply_profile.code /etc/init.d"	
 }
 
 config2git()
 {
 	local hardware destfile arch dir
-	local strip="weimarnetz/openwrt-config/hardware/strip_config.sh"
+	local strip="$REPONAME/openwrt-config/hardware/strip_config.sh"
 	read hardware <KALUA_HARDWARE
 	
 
-	destfile="weimarnetz/openwrt-config/hardware/$hardware/openwrt.config"
+	destfile="$REPONAME/openwrt-config/hardware/$hardware/openwrt.config"
 	cp -v .config "$destfile"
 	$strip "$destfile"
 
 	architecture="$( get_arch )"
 	dir=build_dir/linux-${architecture}*/linux-*
-	destfile="weimarnetz/openwrt-config/hardware/$hardware/kernel.config"
+	destfile="$REPONAME/openwrt-config/hardware/$hardware/kernel.config"
 	cp -v $dir/.config "$destfile"
 	$strip "$destfile"
 }
@@ -636,17 +644,17 @@ applymystuff()
 	local file destfile hash url private_settings
 	local pwd="$( pwd )"
 
-	file="weimarnetz/openwrt-build/apply_profile"
+	file="$REPONAME/openwrt-build/apply_profile"
 	log "copy $( basename "$file" ) - the master controller ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
 	chmod +x "$base/etc/init.d/$( basename "$file" )"
 
-	file="weimarnetz/openwrt-build/apply_profile.watch"
+	file="$REPONAME/openwrt-build/apply_profile.watch"
 	log "copy $( basename "$file" ) - controller_watcher ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
 	chmod +x "$base/etc/init.d/$( basename "$file" )"
 
-	file="weimarnetz/openwrt-build/apply_profile.code"
+	file="$REPONAME/openwrt-build/apply_profile.code"
 	destfile="$base/etc/init.d/apply_profile.code"
 	log "copy $( basename "$file" ) - the configurator ($( filesize "$file" ) bytes)"
 	cp "$file" "$destfile"
@@ -675,30 +683,30 @@ applymystuff()
 		cp "$file" "$base/etc/init.d"
 
 		# extract defaults
-		sed -n '/^case/,/^	\*)/p' "weimarnetz/openwrt-build/$file" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
+		sed -n '/^case/,/^	\*)/p' "$REPONAME/openwrt-build/$file" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 		# insert defaults into file
 		sed -i '/^case/ r /tmp/defs' "$base/etc/init.d/$file"
 		rm "/tmp/defs_$$"
 
 		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$file" ) bytes)"
 	else
-		file="weimarnetz/openwrt-build/$( basename $file )"
+		file="$REPONAME/openwrt-build/$( basename $file )"
 		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
 		cp "$file" "$base/etc/init.d"
 	fi
 
-	file="weimarnetz/openwrt-patches/regulatory.bin"
+	file="$REPONAME/openwrt-patches/regulatory.bin"
 	log "copy $( basename "$file" )  - easy bird grilling included ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
 
 	[ -e "package/mac80211/files/regdb.txt" ] && {
-		file="weimarnetz/openwrt-patches/regulatory.db.txt"
+		file="$REPONAME/openwrt-patches/regulatory.db.txt"
 		log "found package/mac80211/files/regdb.txt - overwriting"
 		cp "$file" "package/mac80211/files/regdb.txt"
 	}
 
-	log "copy all_the_scripts/addons - the weimarnetz-project itself ($( du -sh weimarnetz/openwrt-addons ))"
-	cd weimarnetz/openwrt-addons
+	log "copy all_the_scripts/addons - the weimarnetz-project itself ($( du -sh $REPONAME/openwrt-addons ))"
+	cd $REPONAME/openwrt-addons
 	cp -pR * "../../$base"
 
 	cd "$pwd"
@@ -732,7 +740,7 @@ set_build_openwrtconfig()
 	local config_dir file hardware
 
 	read hardware <KALUA_HARDWARE
-	config_dir="weimarnetz/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
+	config_dir="$REPONAME/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
 	file="$config_dir/openwrt.config"
 	log "applying openwrt/packages-configuration to .config ($( filesize "$file" ) bytes)"
 	cp "$file" .config
@@ -745,7 +753,7 @@ set_build_kernelconfig()
 	local architecture kernel_config_dir kernel_config_file file config_dir hardware
 
 	read hardware <KALUA_HARDWARE
-	config_dir="weimarnetz/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
+	config_dir="$REPONAME/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
 	architecture="$( get_arch )"
 	kernel_config_dir=build_dir/linux-${architecture}*/linux-*		# e.g. build_dir/linux-ar71xx_generic/linux-2.6.39.4
 	file="$config_dir/kernel.config"
@@ -926,7 +934,7 @@ gitpull()
 
 initial_settings()	# prepares the openwrt clone for our needs, should only run one time before compiling the first time
 {
-	cd weimarnetz/openwrt-build
+	cd $REPONAME/openwrt-build
 	cp -pv vtun-Makefile ../../feeds/packages/net/vtun/Makefile
         #remove dependency manually
 	#cp -pv profile-100-Broadcom-b43.mk ../../target/linux/brcm47xx/profiles/100-Broadcom-b43.mk

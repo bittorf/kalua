@@ -11,14 +11,20 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=weimarnetz&url=https://github.com/weimarnetz/weimarnetz&title=weimarnetz&language=&tags=github&category=software)
 
+Important!
+----------
+
+> Don't forget to set the variables $REPONAME and $REPOURL before you start playing here. REPONAME is the directory where you checked out REPOURL.
+> E.g. REPONAME could be set to weimarnetz and REPOURL to git://github.com/weimarnetz/weimarnetz.git
 
 how to get a release for a specific hardware
 --------------------------------------------
 
 	# login as non-root user
-	git clone git://github.com/weimarnetz/weimarnetz.git
+	REPONAME="weimarnetz" && REPOURL="git://github.com/weimarnetz/weimarnetz.git"
+	git clone $REPOURL
 	mkdir myrelease; cd myrelease
-	DO="../weimarnetz/openwrt-build/build_release.sh"
+	DO="../$REPONAME/openwrt-build/build_release.sh"
 
 	# choose your router-model and build, for example:
 	$DO "HARDWARE.Linksys WRT54G:GS:GL" ffweimar_standard b43minimal kernel.addzram patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard
@@ -45,7 +51,8 @@ how to build this from scratch on a debian server
 	git clone git://nbd.name/openwrt.git
 	git clone git://nbd.name/packages.git
 	cd openwrt
-	git clone git://github.com/weimarnetz/weimarnetz.git
+	REPONAME="weimarnetz" && REPOURL="git://github.com/weimarnetz/weimarnetz.git"
+	git clone $REPOURL 
 
 	# for working with a specific openwrt-revision, do this:
 	# REV=33867	// current testing
@@ -62,8 +69,8 @@ how to build this from scratch on a debian server
 	# section "configure the builtin-packages"
 
 	# last 3 arguments enforce a specific configuration (profile: ffweimar, wifmode: adhoc, node: 42)
-	weimarnetz/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"	# omit arguments for a generic image
-	weimarnetz/openwrt-build/mybuild.sh make 					# needs some hours + 5gig of space
+	$REPONAME/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"	# omit arguments for a generic image
+	$REPONAME/openwrt-build/mybuild.sh make 					# needs some hours + 5gig of space
 
 	# flash your image via TFTP
 	FW="/path/to/your/baked/firmware_file"
@@ -75,7 +82,7 @@ configure the builtin-packages
 ------------------------------
 
 	# the fast and easy automatic way:
-	weimarnetz/openwrt-build/mybuild.sh set_build standard
+	$REPONAME/openwrt-build/mybuild.sh set_build standard
 	make defconfig
 
 	# the way to understand what you are doing here:
@@ -134,8 +141,8 @@ how to development directly on a router
 	}
 
 	mkdir -p /tmp/dev; cd /tmp/dev
-	git clone <this_repo>
-	weimarnetz/openwrt-build/mybuild.sh build_ffweimar_update_tarball
+	git clone $REPOURL
+	$REPONAME/openwrt-build/mybuild.sh build_kalua_update_tarball
 	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 
 	cd /tmp/dev/weimarnetz
@@ -170,7 +177,7 @@ piggyback kalua on a new router model without building from scratch
 	opkg install iptables-mod-ulog ulogd ulogd-mod-extra
 
 	# build full ffweimar-tarball on server
-	weimarnetz/openwrt-build/mybuild.sh build_ffweimar_update_tarball full
+	$REPONAME/openwrt-build/mybuild.sh build_kalua_update_tarball full
 
 	# copy from server to your router
 	scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz
