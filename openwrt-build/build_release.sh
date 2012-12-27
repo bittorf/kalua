@@ -23,6 +23,13 @@ log()
 	exit 1
 }
 
+if [ -z "$REPONAME" ] || [ -z "$REPOURL" ]; then
+        log "please set the variables \$REPONAME and \$REPOURL to appropriate values, e. g. \"weimarnetz\" for REPONAME and \"git://github.com/weimarnetz/weimarnetz.git\" for REPOURL"
+        log "\$REPONAME is the name of the directory where you checked out the repository \$REPOURL"
+        echo ""
+        exit 1
+fi
+
 changedir()
 {
 	[ -d "$1" ] || {
@@ -60,7 +67,7 @@ mymake()	# fixme! how to ahve a quiet 'make defconfig'?
 }
 
 prepare_build()		# check possible values via:
-{			# weimarnetz/openwrt-build/mybuild.sh set_build list
+{			# $REPONAME/openwrt-build/mybuild.sh set_build list
 	local action
 
 	case "$@" in
@@ -82,7 +89,7 @@ prepare_build()		# check possible values via:
 			;;
 		esac
 
-		weimarnetz/openwrt-build/mybuild.sh set_build "$action"
+		$REPONAME/openwrt-build/mybuild.sh set_build "$action"
 		log "[READY] invoking: '$action' from '$@'"
 	} done
 }
@@ -113,7 +120,7 @@ changedir release
 clone "git://nbd.name/openwrt.git"
 clone "git://nbd.name/packages.git"
 changedir openwrt
-clone "git://github.com/weimarnetz/weimarnetz.git"
+clone "$REPOURL"
 
 prepare_build "reset_config"
 mymake package/symlinks
@@ -128,8 +135,8 @@ for SPECIAL in unoptimized kcmdlinetweak; do {
 	esac
 } done
 
-weimarnetz/openwrt-build/mybuild.sh applymystuff
-weimarnetz/openwrt-build/mybuild.sh make
+$REPONAME/openwrt-build/mybuild.sh applymystuff
+$REPONAME/openwrt-build/mybuild.sh make
 
 log "please removing everything via 'rm -fR release' if you are ready"
 log "# buildstring: $( show_args "$@" )"
