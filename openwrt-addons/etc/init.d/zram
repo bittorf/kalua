@@ -27,22 +27,22 @@ zram_applicable()
 	local zram_dev="$1"
 
 	grep -sq ^"$zram_dev " /proc/swaps && {
-		logger -s -t zram_start -p daemon.info "[OK] '$zram_dev' already active"
+		logger -s -t zram_applicable -p daemon.notice "[OK] '$zram_dev' already active"
 		return 1
 	}
 
 	[ -e "$zram_dev" ] || {
-		logger -s -t zram_start -p daemon.info "[ERROR] device '$zram_dev' not found"
+		logger -s -t zram_applicable -p daemon.crit "[ERROR] device '$zram_dev' not found"
 		return 1
 	}
 
 	which mkswap >/dev/null || {
-		logger -s -t zram_start -p daemon.info "[ERROR] 'mkswap' not installed"
+		logger -s -t zram_applicable -p daemon.err "[ERROR] 'mkswap' not installed"
 		return 1
 	}
 
 	which swapon >/dev/null || {
-		logger -s -t zram_start -p daemon.info "[ERROR] 'swapon' not installed"
+		logger -s -t zram_applicable -p daemon.err "[ERROR] 'swapon' not installed"
 		return 1
 	}
 }
@@ -80,7 +80,7 @@ start()
 		zram_dev="$( zram_dev "$core" )"
 		zram_applicable "$zram_dev" || return 1
 
-		logger -s -t zram_start -p daemon.info "activating '$zram_dev' for swapping ($zram_size MegaBytes)"
+		logger -s -t zram_start -p daemon.debug "activating '$zram_dev' for swapping ($zram_size MegaBytes)"
 		echo $(( $zram_size * 1024 * 1024 )) >"/sys/block/$( basename $zram_dev )/disksize"
 		mkswap $zram_dev
 		swapon $zram_dev
@@ -95,10 +95,10 @@ stop()
 		zram_dev="$( zram_dev "$core" )"
 		proc_entry="/sys/block/$( basename "$zram_dev" )/reset"
 
-		logger -s -t zram_stop -p daemon.info "deactivate swap $zram_dev"
+		logger -s -t zram_stop -p daemon.debug "deactivate swap $zram_dev"
 		swapoff $zram_dev
 
-		logger -s -t zram_stop -p daemon.info "claiming memory back via $proc_entry"
+		logger -s -t zram_stop -p daemon.debug "claiming memory back via $proc_entry"
 		echo "1" >"$proc_entry"
 	} done
 }
