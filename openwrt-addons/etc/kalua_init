@@ -55,8 +55,8 @@ for CLASS in $( find $BASEDIR -type f -name "[a-z]"* ); do {	# only include lowe
 	MAX_ARGS="$( _kalua_max_arguments "$BASEDIR/$CLASS" )"
 
 	[ "$DEBUG" = "debug" ] && {
-		DEBUG1="logger working in _$CLASS, calling \$1 with args ${MAX_ARGS#* };"	# omit first ARG
-		DEBUG2="logger including _$CLASS subfunc \$1;"
+		DEBUG1="logger -- working in _$CLASS, calling \$1 with args ${MAX_ARGS#* };"	# omit first ARG
+		DEBUG2="logger -- including _$CLASS subfunc \$1;"
 		DEBUG3="|| logger -t $CLASS -s \"invalid call: \$1\""
 	}
 
@@ -75,16 +75,27 @@ EOF
 		_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" "$DEBUG" >>"$POOLDIR/${CLASS}"
 
 		sed -i "/^$CLASS /d" "$POOLDIR/CHECKSUMS"	# remove maybe old checksum
-		sh -n "$POOLDIR/${CLASS}" && echo "$CLASS $HASH" >>"$POOLDIR/CHECKSUMS"
+		if sh -n "$POOLDIR/${CLASS}"; then
+			echo "$CLASS $HASH" >>"$POOLDIR/CHECKSUMS"
+		else
+			DEBUG="compile_error"
+		fi
 	}
 
-	if [ "$DEBUG" = "debug" ]; then
-		. "$POOLDIR/${CLASS}"
-		echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/$CLASS;${DEBUG2}_${CLASS} ${MAX_ARGS}${DEBUG3};}\n"
-	else
-#[3]		echo -en >>"$LOADER" "_${CLASS}(){ _=${CLASS};x \$_;${DEBUG2}_\${_}_\${1:-s} ${MAX_ARGS#* };}\n"
-		echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/$CLASS;${DEBUG2}_${CLASS}_\${1:-s} ${MAX_ARGS#* };}\n"
-	fi
+	case "$DEBUG" in
+		compile_error)
+			DEBUG=
+			echo -en >>"$LOADER" "_${CLASS}(){ logger -s -- CLASSERROR: _$CLASS \$@ ;}\n"
+		;;
+		debug)
+			. "$POOLDIR/${CLASS}"
+			echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/$CLASS;${DEBUG2}_${CLASS} ${MAX_ARGS}${DEBUG3};}\n"
+		;;
+		*)
+# [3]			echo -en >>"$LOADER" "_${CLASS}(){ _=${CLASS};x \$_;${DEBUG2}_\${_}_\${1:-s} ${MAX_ARGS#* };}\n"
+			echo -en >>"$LOADER" "_${CLASS}(){ . $POOLDIR/$CLASS;${DEBUG2}_${CLASS}_\${1:-s} ${MAX_ARGS#* };}\n"
+		;;
+	esac
 } done
 
 if [ -e /tmp/NETPARAM ]; then		# fixme! better concept needed
