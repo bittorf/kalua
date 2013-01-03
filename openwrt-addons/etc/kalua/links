@@ -117,14 +117,33 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 
 					[ "$UPDATEMODE" = "0" ] && i=100
 
-					while [ -z "$CRC" -a $i -lt 100 ]; do {
-						CRC="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | fgrep "'$FILEWISH'" )"
-						sleep 5
-						i=$(( $i + 1 ))
-					} done
+					get_crc()
+					{
+						_wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" |
+						 while read LINE; do {
+							case "$LINE" in
+								*"'$FILEWISH'"*)
+									echo "$LINE" | cut -d' ' -f2
+									return 111
+								;;
+								"# END")
+									echo "0"
+									return 111
+								;;
+							esac
+						} done
 
-					[ -n "$CRC" ] && CRC="$( echo "$CRC" | cut -d' ' -f2 )"
-					echo -n "${CRC:=0}"
+						test $? -eq 111
+					}
+
+					while [ $i -lt 100 ]; do {
+						if get_crc ; then
+							break
+						else
+							_log sleep firmware_getcrc 10 step 1
+							i=$(( $i + 1 ))
+						fi
+					} done
 				;;
 				*)
 					echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/$( _sanitizer do "$FILEWISH" urlvalue )"
