@@ -54,6 +54,16 @@ zram_dev()
 	echo "/dev/zram${core:-0}"
 }
 
+zram_reset()
+{
+	local dev="$1"
+	local message="$2"
+	local proc_entry="/sys/block/$( basename "$dev" )/reset"
+
+	logger -s -t zram_reset -p daemon.debug "$message via $proc_entry"
+	echo "1" >"$proc_entry"
+}
+
 list_cpu_idx()
 {
 	local line i=0
@@ -81,9 +91,11 @@ start()
 		zram_applicable "$zram_dev" || return 1
 
 		logger -s -t zram_start -p daemon.debug "activating '$zram_dev' for swapping ($zram_size MegaBytes)"
+
+		zram_reset "$zram_dev" "enforcing defaults"
 		echo $(( $zram_size * 1024 * 1024 )) >"/sys/block/$( basename $zram_dev )/disksize"
-		mkswap $zram_dev
-		swapon $zram_dev
+		mkswap "$zram_dev"
+		swapon "$zram_dev"
 	} done
 }
 
@@ -96,9 +108,8 @@ stop()
 		proc_entry="/sys/block/$( basename "$zram_dev" )/reset"
 
 		logger -s -t zram_stop -p daemon.debug "deactivate swap $zram_dev"
-		swapoff $zram_dev
+		swapoff "$zram_dev"
 
-		logger -s -t zram_stop -p daemon.debug "claiming memory back via $proc_entry"
-		echo "1" >"$proc_entry"
+		zram_reset "$zram_dev" "claiming memory back"
 	} done
 }
