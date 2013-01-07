@@ -80,6 +80,34 @@ list_cpu_idx()
 	} done <"/proc/cpuinfo"
 }
 
+kmodules_do()
+{
+	local action="$1"
+	local list="zsmalloc lzo_decompress lzo_compress zram"
+	local kmodule list_reverse
+
+	case "$action" in
+		load)
+			for kmodule in $list; do {
+				grep -q ^"$kmodule " "/proc/modules" || {
+					logger -s -t zram_kmodules -p daemon.debug "$action: '$kmodule'"
+					insmod "$kmodule"
+					[ "$kmodule" = "zram" ] && sleep 1
+				}
+			} done
+		;;
+		remove)
+			for kmodule in $list; do list_reverse="$kmodule $list_reverse"; done
+			for kmodule in $list_reverse; do {
+				grep -q ^"$kmodule " "/proc/modules" && {
+					logger -s -t zram_kmodules -p daemon.debug "$action: '$kmodule'"
+					rmmod "$kmodule"
+				}
+			} done
+		;;
+	esac
+}
+
 start()
 {
 	# http://shmilyxbq-compcache.googlecode.com/hg/README
@@ -87,6 +115,8 @@ start()
 
 	local zram_size="$( zram_size )"
 	local zram_dev core
+
+	kmodules_do load
 
 	for core in $( list_cpu_idx ); do {
 		zram_dev="$( zram_dev "$core" )"
@@ -114,4 +144,6 @@ stop()
 
 		zram_reset "$zram_dev" "claiming memory back"
 	} done
+
+	kmodules_do remove
 }
