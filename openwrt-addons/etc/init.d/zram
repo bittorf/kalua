@@ -83,6 +83,7 @@ list_cpu_idx()
 kmodules_do()
 {
 	local action="$1"
+	local num_devices="$2"
 	local list="zsmalloc lzo_decompress lzo_compress zram"
 	local kmodule list_reverse
 
@@ -91,8 +92,13 @@ kmodules_do()
 			for kmodule in $list; do {
 				grep -q ^"$kmodule " "/proc/modules" || {
 					logger -s -t zram_kmodules -p daemon.debug "$action: '$kmodule'"
-					insmod "$kmodule"
-					[ "$kmodule" = "zram" ] && sleep 1
+
+					if [ "$kmodule" = "zram" ]; then
+						insmod "$kmodule" "num_devices=$num_devices"
+						sleep 1
+					else
+						insmod "$kmodule"
+					fi
 				}
 			} done
 		;;
@@ -114,11 +120,23 @@ start()
 	# if >1 cpu_core, reinit kmodule with e.g. num_devices=4
 
 	local zram_size="$( zram_size )"
-	local zram_dev core
+	local list_cores="$( list_cpu_idx )"
+	local zram_dev core num_devices
 
-	kmodules_do load
+	case "$list_cores" in
+		0)
+			num_devices=1
+		;;
+		*)
+			for num_devices in $list_cores; do :; done
+			num_devices=$(( $num_devices + 1 ))
+			stop
+		;;
+	esac
 
-	for core in $( list_cpu_idx ); do {
+	kmodules_do load "$num_devices"
+
+	for core in $list_cores; do {
 		zram_dev="$( zram_dev "$core" )"
 		zram_applicable "$zram_dev" || return 1
 
