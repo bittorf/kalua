@@ -567,7 +567,9 @@ for radiocard in 0 1 2 3; do {
 
 	driver_path="$( uci get wireless.radio${radiocard}.path )"		# e.g. 'platform/ath9k' or 'platform/ar231x-wmac.0'
 
-	[ -n "$( uci get wireless.@wifi-iface[${radiocard}].device )" ] || break
+	# check if real wifi card or only VAP/hybrid interface
+	[ "$( uci get wireless.@wifi-iface[${radiocard}].device )" = "radio${radiocard}" ] || break
+
 	[ $radiocard -gt 0 ] && echo "" >>"$temp"
 
 	log "configuring radio${radiocard} ..."
@@ -713,7 +715,8 @@ for radiocard in 0 1 2 3; do {
 	case "$PROFILE_MODE" in
 		hybrid)
 			local ssid_adhoc='weimarnetz'			# fixme! work with 'hidden'
-			local ssid_ap="${INSTALLATION} $NODE"
+			local ssid_ap="$( uci get wireless.@wifi-iface[$(( ${radiocard} + 1 ))].ssid )"
+			[ -z "$ssid_ap" ] && ssid_ap="${INSTALLATION} $NODE"
 
 			cat >>"$temp" <<EOF
 config wifi-device radio${radiocard}
@@ -755,7 +758,7 @@ EOF
 
 config wifi-iface
 	option device	radio${radiocard}
-	option network	wlan
+	option network	wlanadhoc
 	option mode	adhoc
 	option bssid	'$BSSID'
 	option ssid	'${ssid_adhoc}'
