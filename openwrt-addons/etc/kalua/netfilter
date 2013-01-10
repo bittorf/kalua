@@ -347,7 +347,8 @@ _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower 
 _netfilter_traffic_control_autoapply_speedsuggest()
 {
 	local list_macs="${1:-$( _netfilter user_list )}"
-	local speed_min=64000
+	local traffic_border_for_reaction="1000"		# megabytes
+	local speed_min=64000					# bit/s
 	local mac traffic file ip interface j i speed_down speed_up percent params
 
 	for mac in $list_macs; do {
@@ -356,6 +357,8 @@ _netfilter_traffic_control_autoapply_speedsuggest()
 		read mac ip interface j i speed_down speed_up <"$file"
 
 		traffic="$( _netfilter stats "$mac" megabytes )"
+		[ $traffic -lt $traffic_border_for_reaction ] && continue
+
 		percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
 		params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
 
