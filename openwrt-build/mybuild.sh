@@ -426,7 +426,7 @@ check_scripts()
 
 generate_version_file()
 {
-	cd kalua/
+	cd $REPONAME/
 	local last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
 	local last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
 	cd ..
