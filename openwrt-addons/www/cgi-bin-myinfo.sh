@@ -46,7 +46,9 @@ echo "<h3>Routenverfolgung zum Gateway '$GATEWAY' zum Zeitpunkt $( _system date 
 echo "<pre>$( traceroute $GATEWAY )</pre>"
 
 echo "<h3>Testdownload einer 10 Megabyte-Datei</h3>"
+echo "<small><b>Hinweis</b>: Sie k&ouml;nnen manuell einen Geschwindkeitstest durchf&uuml;hren, indem Sie folgende Dateien herunterladen und die Zeit stoppen den dieser Vorgangs ben&ouml;nigt. Dauert es z.b. 50 Sekunden, errechnet sich die resultierende Geschwindigkeit nach diesem Schema: 80 Mbit / 50 Sekunden = 1,6 Megabit/Sekunde.</small>"
 
+echo "<p>"
 echo "<a href='http://$LANADR/cgi-bin-tool.sh?OPT=download'>Testdownload Server1</a>&nbsp;(IP: $LANADR = '$HOSTNAME')<br>"
 echo "<a href='http://$GATEWAY/cgi-bin-tool.sh?OPT=download'>Testdownload Server2</a>&nbsp;(IP: $GATEWAY)<br>"
 
@@ -54,4 +56,5 @@ AUTHSERVER="$( _weblogin authserver )"
 [ "$AUTHSERVER" = "$GATEWAY" ] || {
 	echo "<a href='http://$AUTHSERVER/cgi-bin-tool.sh?OPT=download'>Testdownload Server3</a>&nbsp;(IP: $AUTHSERVER)"
 }
-echo "</body></html>"
+
+echo "</p></body></html>"
