@@ -57,4 +57,6 @@ AUTHSERVER="$( _weblogin authserver )"
 	echo "<a href='http://$AUTHSERVER/cgi-bin-tool.sh?OPT=download'>Testdownload Server3</a>&nbsp;(IP: $AUTHSERVER)"
 }
 
+
+
 echo "</p></body></html>"
