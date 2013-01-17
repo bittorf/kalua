@@ -72,33 +72,11 @@ log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
 sleep 5
 df | logger
 
-find_all_strings_in_dmesg()
-{
-	local error
-
-	while [ -n "$1" ]; do {
-		if fgrep -q "$1" "$DMESG"; then
-			error=0
-		else
-			error=1
-		fi
-
-		shift
-	} done
-
-	return $error
-}
-
 hwprobe()
 {
 	local machine="$1"
 
 	case "$machine" in
-		"D-Link DIR-300 RevA1")
-			find_all_strings_in_dmesg	"CPU revision is: 00019064 (MIPS 4KEc)" \
-							"ath5k: phy0: Atheros AR2317 chip found (MAC: 0x90, PHY: 0x48)" \
-							"IP17xx: Found IP175C at 0:00"
-		;;
 		"Ubiquiti Nanostation2")
 			fgrep -q "lpj=918528" "$DMESG" && {
 				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
@@ -137,12 +115,9 @@ hwprobe()
 				}
 			}
 		;;
-		*)
-			false
-		;;
 	esac
 
-	return $?
+	return 1
 }
 
 DMESG="/tmp/dmesg.boot"
@@ -177,9 +152,7 @@ try_device()
 	esac
 }
 
-if   hwprobe "D-Link DIR-300 RevA1"; then
-	HARDWARE="D-Link DIR-300 RevA1"
-elif hwprobe "Ubiquiti Nanostation2"; then
+if   hwprobe "Ubiquiti Nanostation2"; then
 	HARDWARE="Ubiquiti Nanostation2"
 elif hwprobe "Ubiquiti Nanostation5"; then
 	HARDWARE="Ubiquiti Nanostation5"
