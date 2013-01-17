@@ -729,9 +729,13 @@ applymystuff()
 	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
 
 	[ -e "package/mac80211/files/regdb.txt" ] && {
-		file="kalua/openwrt-patches/regulatory.db.txt"
-		log "found package/mac80211/files/regdb.txt - overwriting"
-		cp "$file" "package/mac80211/files/regdb.txt"
+		if grep "kmod-ath5k=y" .config; then
+			log "ath5k: will not overwrite regdb.txt, avoiding driver confusion"
+		else
+			file="kalua/openwrt-patches/regulatory.db.txt"
+			log "found package/mac80211/files/regdb.txt - overwriting"
+			cp "$file" "package/mac80211/files/regdb.txt"
+		fi
 	}
 
 	log "copy all_the_scripts/addons - the kalua-project itself ($( du -sh kalua/openwrt-addons ))"
