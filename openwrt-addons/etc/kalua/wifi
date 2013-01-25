@@ -1357,3 +1357,53 @@ _wifi_check_each_client()
 
 	return ${exitcode:-0}
 }
+
+_wifi_bugreport_create()
+{
+	local file="$1"
+	local line
+
+	[ -d "/sys/kernel/debug/ieee80211/phy0/ath9k" ] && {
+		(
+			echo "### host: $HOSTNAME @ $( date ) - up: $( uptime ) - hw: $HARDWARE - $( grep "(" "/etc/banner" )"
+			echo
+			echo "### reason: wifi does not receive frames anymore"
+			echo "[ERR] framecounter for $check_dev old/new: $framecount_old = $framecount_new timediff: $uptime_diff sec"
+			echo
+
+			echo "### xmit:"
+			cat "/sys/kernel/debug/ieee80211/phy0/ath9k/xmit"
+			echo
+
+			echo "### base_eeprom:"
+			cat "/sys/kernel/debug/ieee80211/phy0/ath9k/base_eeprom"
+			echo
+
+			echo "### reset:"
+			cat "/sys/kernel/debug/ieee80211/phy0/ath9k/reset"
+			echo
+
+			echo "### uci show wireless"
+			uci show wireless
+			echo
+
+			echo "### dmesg"
+			while read line; do {
+				case "$line" in
+					*ath*|*wireless*|*wlan*)
+						echo "$line"
+					;;
+				esac
+			} done <"/tmp/dmesg.log"
+			echo
+
+			cat /tmp/OLSR/LINKS
+			echo
+
+			free
+			echo
+
+			df -h
+		) >"$file"
+	}
+}
