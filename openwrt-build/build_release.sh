@@ -30,6 +30,15 @@ if [ -z "$REPONAME" ] || [ -z "$REPOURL" ]; then
         exit 1
 fi
 
+TRUNK=0
+case "$@" in
+	*"use_trunk"*)
+		log "we will be on top of openwrt devopment"
+		TRUNK=1
+	;;
+esac
+
+
 changedir()
 {
 	[ -d "$1" ] || {
@@ -58,25 +67,27 @@ clone()
 		git clone "$repo"
 	fi
 	
-	[ -e ../../$REPONAME/openwrt-config/git_revs ] && {
+	if [ -e ../../$REPONAME/openwrt-config/git_revs ] && [ $TRUNK = 0 ]; then
 		. ../../$REPONAME/openwrt-config/git_revs
 		case "$repo" in
 			*"openwrt"*)
 				[ -n $MY_OPENWRT ] && {
 					changedir "$dir"
+					git branch -D "r$MY_OPENWRT"
 					git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_OPENWRT " | cut -d' ' -f2 )" -b r$MY_OPENWRT
 					changedir ..
 				}
 			;;
 			*"packages"*)
-                                [ -n $MY_PACKAGES ] && {
-				changedir "$dir"
-				git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_PACKAGES" | cut -d' ' -f2 )" -b r$MY_PACKAGES
-				changedir ..
+				[ -n $MY_PACKAGES ] && {
+					changedir "$dir"
+					git branch -D "r$MY_PACKAGES"
+					git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_PACKAGES" | cut -d' ' -f2 )" -b r$MY_PACKAGES
+					changedir ..
 				}
 			;;
 		esac
-	}
+	fi
 }
 
 mymake()	# fixme! how to ahve a quiet 'make defconfig'?
@@ -105,6 +116,9 @@ prepare_build()		# check possible values via:
 				log "switching to revision r$REV"
 				git stash
 				git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
+				continue
+			;;
+			"use_trunk")
 				continue
 			;;
 		esac
@@ -137,8 +151,8 @@ show_args()
 }
 
 changedir release
-clone "git://nbd.name/openwrt.git"
-clone "git://nbd.name/packages.git"
+clone "git://nbd.name/openwrt.git" "$TRUNK"
+clone "git://nbd.name/packages.git" "$TRUNK"
 changedir openwrt
 clone "$REPOURL"
 
