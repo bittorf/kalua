@@ -37,6 +37,7 @@ how to get a release for a specific hardware
 	$DO "HARDWARE.Linksys WRT54G:GS:GL" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
 	$DO "HARDWARE.Ekuku-Longshot" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf unoptimized kcmdlinetweak
 	# explanation follows soon
+	# add "use_trunk" to the params list to use latest openwrt development snapshots
 
 
 how to build this from scratch on a debian server
