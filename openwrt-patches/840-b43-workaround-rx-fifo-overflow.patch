@@ -1,0 +1,53 @@
+--- a/drivers/net/wireless/b43/dma.c
++++ b/drivers/net/wireless/b43/dma.c
+@@ -1689,6 +1692,31 @@
+ 	sync_descbuffer_for_device(ring, dmaaddr, ring->rx_buffersize);
+ }
+ 
++static int dma_rx_check_overflow(struct b43_dmaring *ring)
++{
++	u32 state;
++	u32 rxctl;
++
++	if (ring->type != B43_DMA_32BIT)
++		return 0;
++
++	state = b43_dma_read(ring, B43_DMA32_RXSTATUS) & B43_DMA32_RXSTATE;
++	if (state != B43_DMA32_RXSTAT_IDLEWAIT)
++		return 0;
++
++	rxctl = b43_dma_read(ring, B43_DMA32_RXCTL);
++	b43_dmacontroller_rx_reset(ring->dev, ring->mmio_base, ring->type);
++
++	b43_dma_write(ring, B43_DMA32_RXCTL, rxctl);
++	b43_dma_write(ring, B43_DMA32_RXINDEX, ring->nr_slots *
++		      sizeof(struct b43_dmadesc32));
++	ring->current_slot = 0;
++
++	printk("DMA RX reset due to overflow\n");
++
++	return 1;
++}
++
+ void b43_dma_rx(struct b43_dmaring *ring)
+ {
+ 	const struct b43_dma_ops *ops = ring->ops;
+@@ -1700,6 +1728,18 @@
+ 	B43_WARN_ON(!(current_slot >= 0 && current_slot < ring->nr_slots));
+ 
+ 	slot = ring->current_slot;
++
++	/* XXX: BRCM4318(?) dirty workaround:
++	 *	it seems sometimes the RX ring overflows due to interrupt latencies; 
++	 *	i.e. skb allocations are slow on routers with high CPU load
++	 *	and tight memory constraints */
++	if (slot == current_slot) {
++		/* Try to reset the RX channel, will cost us few lost frames,
++		 * but will recover from an eternal stall */
++		if (dma_rx_check_overflow(ring))
++			return;		
++	}
++	
+ 	for (; slot != current_slot; slot = next_slot(ring, slot)) {
+ 		dma_rx(ring, &slot);
+ 		update_max_used_slots(ring, ++used_slots);
