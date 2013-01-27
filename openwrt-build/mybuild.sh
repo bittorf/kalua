@@ -207,7 +207,7 @@ set_build()
 
 			read line <"$file"	# diff --git a/package/uhttpd/src/uhttpd-tls.c b/package/uhttpd/src/uhttpd-tls.c
 			case "$line" in
-				*"include/net/mac80211.h"|*"net/mac80211/rc80211_minstrel_ht.c")
+				*"include/net/mac80211.h"|*"net/mac80211/rc80211_minstrel_ht.c"|*"net/wireless/b43/dma.c")
 					dest="package/mac80211/patches"
 				;;
 				*"uhttpd/src/"*)
