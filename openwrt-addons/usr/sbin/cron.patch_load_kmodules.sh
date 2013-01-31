@@ -79,6 +79,10 @@ else
 	FILE="/lib/functions.sh"
 fi
 
-grep -q ^"load_modules()	# patched $MYVERSION from" "$FILE" || {
+if grep -q ^"load_modules()	# patched $MYVERSION from" "$FILE"; then
+	# already patched
+	exit 1
+else
 	output_new_function >>"$FILE"
-}
+	exit 0
+fi
