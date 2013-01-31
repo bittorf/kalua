@@ -616,14 +616,23 @@ grep -q ^"ip_tables " /proc/modules && {
  					QUERY="$( echo "$QUERY" | sed 's/:/%3a/g' )"	# fixme! only temporary
 					echo "$QUERY" >"/tmp/ARCHIV_MONITORING.recent"
 
+					if [ -e "/tmp/ARCHIV_MONITORING.errors" ]; then
+						read errors_overall <"/tmp/ARCHIV_MONITORING.errors"
+					else
+						errors_overall=0
+					fi
+
 					i=0
 					OUT=
 					while [ "$OUT" != "OK" -a $i -lt 30 ]; do {
-	 					OUT="$( _wget do "${KEEP_ALIVE_URL}?${QUERY}" 10 )" || {
+						OUT="$( _wget do "${KEEP_ALIVE_URL}?${QUERY}&e0=$i&e1=$errors_overall" 10 )" || {
 							sleep 10
 						}
 						i=$(( $i + 1 ))
 					} done
+
+					errors_overall=$(( $errors_overall + $i - 1 ))
+					echo "$errors_overall" >"/tmp/ARCHIV_MONITORING.errors"
 
  					_log do $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
 
