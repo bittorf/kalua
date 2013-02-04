@@ -73,6 +73,14 @@ output_new_function()
 	echo "}"
 }
 
+permanent_remove_kmodule()
+{
+	local name="$1"
+	local file="/lib/modules/$( uname -r )/${name}.ko"
+
+	[ -e "$file" ] && rm "$file"
+}
+
 if [ -e "/etc/functions.sh" ]; then
 	FILE="/etc/functions.sh"
 else
@@ -81,8 +89,14 @@ fi
 
 if grep -q ^"load_modules()	# patched $MYVERSION from" "$FILE"; then
 	# already patched
-	exit 1
+	EXITCODE=1
 else
 	output_new_function >>"$FILE"
-	exit 0
+	EXITCODE=0
 fi
+
+permanent_remove_kmodule tg3	&& EXITCODE=0
+permanent_remove_kmodule bgmac	&& EXITCODE=0
+permanent_remove_kmodule hwmon	&& EXITCODE=0
+
+exit "$EXITCODE"
