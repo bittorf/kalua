@@ -864,9 +864,10 @@ _watch_topusage_task()
 	fi
 }
 
-_watch_nanostation_max_ethernet()	# has hardware error
+_watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 {
 	local option="$1"
+	local ethmode="10baseT-HD"
 
 	case "$option" in
 		force)
@@ -877,12 +878,20 @@ _watch_nanostation_max_ethernet()	# has hardware error
 		;;
 	esac
 
-	if mii-tool 2>&1 | grep -q " 10baseT-HD"; then
+	lan_olsr_wished()
+	{
+		grep -q "$LANDEV" "/var/etc/olsrd.conf"
+	}
+
+	refire()
+	{
+		ifup lan
+		_olsr daemon restart "lan-ethernet was lost"
+	}
+
+	if mii-tool 2>&1 | grep -q " $ethmode"; then
 		pidof olsrd >/dev/null && {
-			grep -q "$LANDEV" /var/etc/olsrd.conf || {
-				ifup lan
-				_olsr daemon restart "lan-ethernet was lost"
-			}
+			lan_olsr_wished && refire
 		}
 	else
 		for OPT in R "A 10baseT-HD" "F 10baseT-HD" r v ; do {
@@ -890,8 +899,7 @@ _watch_nanostation_max_ethernet()	# has hardware error
 			mii-tool -$OPT | _log do mii-tool daemon info
 		} done
 
-		ifup lan
-		_olsr daemon restart "lan-ethernet was lost"
+		lan_olsr_wished && refire
 	fi
 }
 
