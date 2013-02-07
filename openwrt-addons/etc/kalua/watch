@@ -636,27 +636,29 @@ _watch_sshd_or_telnet()
 	}
 
 	if pid_ssh="$( pidof dropbear )"; then
-		which nc >/dev/null && {
-			which dropbear >/dev/null && {
-				( nc 127.0.0.1 22 >"/tmp/$funcname" ) &
-				pid="$!"
-				sleep 3
-				kill $pid
+		if which nc >/dev/null; then
+			( nc 127.0.0.1 22 >"/tmp/$funcname" ) &
+			pid="$!"
+			sleep 3
+			kill $pid
 
-				if fgrep -i dropbear "/tmp/$funcname" ; then
-					_log do $funcname daemon debug "[OK] dropbear seems to run: '$( cat "/tmp/$funcname" )'"
-				else
-					_log do $funcname daemon alert "[ERR] dropbear seems to hang: '$( cat "/tmp/$funcname" )' - restarting"
-					restart_sshd
-				fi
+			if fgrep -i dropbear "/tmp/$funcname" ; then
+				_log do $funcname daemon debug "[OK] dropbear seems to run: '$( cat "/tmp/$funcname" )'"
+			else
+				_log do $funcname daemon alert "[ERR] dropbear seems to hang: '$( cat "/tmp/$funcname" )' - restarting"
+				restart_sshd
+			fi
 
-				rm "/tmp/$funcname"
-			}
-		}
-
-		return 0
+			rm "/tmp/$funcname"
+		else
+			return 0
+		fi
 	else
-		[ -x /etc/rc.d/*dropbear ] || restart_sshd
+		if [ "$option" = "force" ]; then
+			restart_sshd
+		else
+			[ -x /etc/rc.d/*dropbear ] || restart_sshd
+		fi
 	fi
 
 	pidof telnetd >/dev/null || {
