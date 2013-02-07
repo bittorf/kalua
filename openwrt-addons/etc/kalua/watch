@@ -866,28 +866,33 @@ _watch_topusage_task()
 
 _watch_nanostation_max_ethernet()	# has hardware error
 {
-	[ "$HARDWARE" = "Ubiquiti Nanostation2" ] || return 0
+	local option="$1"
 
-	case "$( uci get wireless.radio0.macaddr )" in
-		"00:15:6d:ad:5c:26")
-			if mii-tool 2>&1 | grep -q " 10baseT-HD"; then
-				pidof olsrd >/dev/null && {
-					grep -q "$LANDEV" /var/etc/olsrd.conf || {
-						ifup lan
-						_olsr daemon restart "lan-ethernet was lost"
-					}
-				}
-			else
-				for OPT in R "A 10baseT-HD" "F 10baseT-HD" r v ; do {
-					sleep 3
-					mii-tool -$OPT | _log do mii-tool daemon info
-				} done
-
-				ifup lan
-				_olsr daemon restart "lan-ethernet was lost"
-			fi
+	case "$option" in
+		force)
+		;;
+		*)
+			[ "$HARDWARE" = "Ubiquiti Nanostation2" ] || return 0
+			[ "$( uci get wireless.radio0.macaddr )" = "00:15:6d:ad:5c:26" ] || return 0
 		;;
 	esac
+
+	if mii-tool 2>&1 | grep -q " 10baseT-HD"; then
+		pidof olsrd >/dev/null && {
+			grep -q "$LANDEV" /var/etc/olsrd.conf || {
+				ifup lan
+				_olsr daemon restart "lan-ethernet was lost"
+			}
+		}
+	else
+		for OPT in R "A 10baseT-HD" "F 10baseT-HD" r v ; do {
+			sleep 3
+			mii-tool -$OPT | _log do mii-tool daemon info
+		} done
+
+		ifup lan
+		_olsr daemon restart "lan-ethernet was lost"
+	fi
 }
 
 _watch_switch_linkstatus()
