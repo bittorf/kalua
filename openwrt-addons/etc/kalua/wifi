@@ -565,8 +565,22 @@ _wifi_phy_restart()
 	local wifi_dev="$1"
 	local reason="${2:-no_reason_given}"
 	local prio="${3:-alert}"
+	local pids="$( pidof wifi )"
 
-	local uptime="up $( _wifi phy_uptime "$wifi_dev" ) sec"
+	[ -n "$pids" ] && {
+		_log do $funcname daemon info "no action during another wifi-action, pids: '$pids'"
+		return 1
+	}
+
+	local uptime="$( _wifi phy_uptime "$wifi_dev" )"
+
+	if [ $uptime -lt 240 ]; then
+		_log do $funcname daemon info "no action during low uptime: $uptime sec"
+		return 1
+	else
+		uptime="up $uptime sec"
+	fi
+
 	_watch counter "/tmp/STATS_WIFI_RESTARTS.$wifi_dev" increment 1
 	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
 
