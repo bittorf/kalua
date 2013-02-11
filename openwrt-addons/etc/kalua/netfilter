@@ -1075,31 +1075,28 @@ _netfilter_user_add()
 	local ip="$2"
 	local speed_up="$3"	# e.g. 1mbit, 32kbit
 	local speed_down="$4"
-	local dev
-	local myhna="$( _netfilter myhna )"
+	local dev myhna
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
+	[ -d "/tmp/NETFILTER/USER/$mac" ] && return 0
 
 #	_netfilter user_reachable "$mac" "$ip" || {
 #		_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
 #		return 1
 #	}
 
-	if [ -d "/tmp/NETFILTER/USER/$mac" ]; then
-		return 0
-	else
-		_log do $funcname daemon info "mac: $mac ip: $ip"
-		mkdir -p "/tmp/NETFILTER/USER/$mac"
-		echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
-		echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
-		touch "/tmp/vds_user_$mac"
-	fi
-
 	# against spoofing, add "-s $ip"?
 	iptables -t mangle -I PREROUTING -d $ip -j ACCEPT
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -j ACCEPT
+	myhna="$( _netfilter myhna )"
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
+
+	_log do $funcname daemon info "mac: $mac ip: $ip"
+	mkdir -p "/tmp/NETFILTER/USER/$mac"
+	echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
+	echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
+	touch "/tmp/vds_user_$mac"
 
 	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
 	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
