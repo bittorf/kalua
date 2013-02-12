@@ -1,10 +1,18 @@
 #!/bin/sh
 
-MYVERSION="v0.2"
+MYVERSION="v0.3"
 
 modules_blacklist()
 {
+	local line
+
 	echo -n "ipt_REDIRECT|nf_nat_ftp|nf_nat_irc|nf_conntrack_irc|nf_conntrack_ftp|nls_base|arc4|crypto_algapi|ipt_ULOG|xt_state|tg3|bgmac|hwmon"
+
+	# todo: respect loaded: ipt_MASQUERADE
+	[ -e "/www/SIMPLE_MESHNODE" ] && {
+		# iptables related
+		echo -n '|xt_*|nf_*|ipt_*|x_*'
+	}
 }
 
 modules_whitelist()
@@ -41,23 +49,23 @@ output_new_function()
 	echo "		while read line; do {"
 	echo '			case "$line" in'
 	echo "				$( modules_blacklist ))"
-	echo '					echo >>/tmp/KMODULE.action "# $line"'
+	echo '					echo >>/tmp/KMODULE.action "# blacklisted: $line"'
 	echo '				;;'
 	echo "				$( modules_allowed )$( modules_whitelist ))"
 	echo '					case "$line" in'
 	echo "						$( modules_whitelist ))"
 	echo '							# without parameters'
-	echo '							echo >>/tmp/KMODULE.action "# + insmod $line - (unload later!)"'
+	echo '							echo >>/tmp/KMODULE.action "# whitelisted: insmod $line - (unload later!)"'
 	echo '							list_unload_later="$list_unload_later ${line/ */}"'
 	echo '						;;'
 	echo '						*)'
-	echo '							echo >>/tmp/KMODULE.action "# + insmod $line"'
+	echo '							echo >>/tmp/KMODULE.action "# allowed: insmod $line"'
 	echo '							insmod $line'
 	echo '						;;'
 	echo '					esac'
 	echo "				;;"
 	echo "				*)"
-	echo '					echo >>/tmp/KMODULE.action "# $line"'
+	echo '					echo >>/tmp/KMODULE.action "# ignored: $line"'
 	echo "				;;"
 	echo "			esac"
 	echo '		} done <"$file"'
