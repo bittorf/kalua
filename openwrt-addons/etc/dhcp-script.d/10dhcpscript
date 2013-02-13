@@ -65,11 +65,13 @@ case $MODE in
 				SIGNAL="${NODE_HOSTNAME}_dhcp-${MODE}"				# keyword 'dhcp' is important for login_check()
 				export REMOTE_ADDR="$IP"
 
-				# fixme! _olsr uptime is_short && scheduler ...
-
 				if _weblogin login_check "$USER" "" "$MAC" "$SIGNAL" ; then
+					# for "very fast unsplashing" and not showing 'please use credentials'
+					iptables -t mangle -I PREROUTING -j ACCEPT
 					_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER"
 					_netfilter user_add "$MAC" "$IP"
+					# remove the hack for "very fast unsplashing"
+					iptables -t mangle -D PREROUTING -j ACCEPT
 				else
 					if _weblogin login_check "$USER" "$NODE_HOSTNAME" "$MAC" "$SIGNAL" ; then
 						_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER/$NODE_HOSTNAME (2nd try)"
