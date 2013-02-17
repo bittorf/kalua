@@ -1,4 +1,5 @@
 #!/bin/sh
+. /tmp/loader
 
 MYVERSION="v0.3"
 
@@ -8,11 +9,19 @@ modules_blacklist()
 
 	echo -n "ipt_REDIRECT|nf_nat_ftp|nf_nat_irc|nf_conntrack_irc|nf_conntrack_ftp|nls_base|arc4|crypto_algapi|ipt_ULOG|xt_state|tg3|bgmac|hwmon"
 
-	# todo: respect loaded: ipt_MASQUERADE
 	[ -e "/www/SIMPLE_MESHNODE" ] && {
 		# iptables related
 		echo -n '|xt_*|nf_*|ipt_*|x_*'
 	}
+}
+
+modules_masquerading()
+{
+	if _net local_inet_offer >/dev/null; then
+		echo -n "ipt_MASQUERADE|iptable_nat|nf_nat|nf_conntrack_ipv4|nf_defrag_ipv4|nf_conntrack|ip_tables|x_tables"
+	else
+		echo -n "no_masquering_needed"
+	fi
 }
 
 modules_whitelist()
@@ -48,6 +57,10 @@ output_new_function()
 	echo
 	echo "		while read line; do {"
 	echo '			case "$line" in'
+	echo "				$( modules_masquerading ))"
+	echo '					echo >>/tmp/KMODULE.action "# allowed-NAT: insmod $line"'
+	echo '					insmod $line'
+	echo '				;;'
 	echo "				$( modules_blacklist ))"
 	echo '					echo >>/tmp/KMODULE.action "# blacklisted: $line"'
 	echo '				;;'
