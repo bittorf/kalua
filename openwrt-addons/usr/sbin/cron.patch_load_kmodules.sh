@@ -69,7 +69,7 @@ output_new_function()
 	echo '			case "$line" in'
 	echo "				$( modules_masquerading ))"
 	echo '					echo >>/tmp/KMODULE.action "# allowed-NAT: insmod $line"'
-	echo '					insmod $line'
+	echo '					insmod $line || echo >>/tmp/KMODULE.action "# error $?"'
 	echo '				;;'
 	echo "				$( modules_blacklist ))"
 	echo '					echo >>/tmp/KMODULE.action "# blacklisted: $line"'
@@ -77,13 +77,13 @@ output_new_function()
 	echo "				$( modules_allowed )$( modules_whitelist ))"
 	echo '					case "$line" in'
 	echo "						$( modules_whitelist ))"
-	echo '							# without parameters'
-	echo '							echo >>/tmp/KMODULE.action "# whitelisted: insmod $line - (unload later!)"'
-	echo '							list_unload_later="$list_unload_later ${line/ */}"'
+	echo '							echo >>/tmp/KMODULE.action "#    whitelisted: insmod $line - (unload later!)"'
+	echo '							insmod $line || echo >>/tmp/KMODULE.action "# error $?"'
+	echo '							list_unload_later="$list_unload_later $line/ */}"'	# ignore parameters during unloading
 	echo '						;;'
 	echo '						*)'
-	echo '							echo >>/tmp/KMODULE.action "# allowed: insmod $line"'
-	echo '							insmod $line'
+	echo '							echo >>/tmp/KMODULE.action "#    allowed: insmod $line"'
+	echo '							insmod $line || echo >>/tmp/KMODULE.action "# error $?"'
 	echo '						;;'
 	echo '					esac'
 	echo "				;;"
