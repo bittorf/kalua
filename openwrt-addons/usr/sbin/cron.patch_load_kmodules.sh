@@ -1,7 +1,7 @@
 #!/bin/sh
 . /tmp/loader
 
-MYVERSION="v0.3"
+MYVERSION="v0.4"
 
 modules_blacklist()
 {
@@ -47,6 +47,16 @@ output_new_function()
 	echo "	local line file t1 t2 duration trash list_unload_later list_reverse kmodule"
 	echo
 	echo "	read t1 trash </proc/uptime"
+	echo
+	echo '	for kmodule in bgmac tg3 hwmon; do {'
+	echo '		grep -q ^"$kmodule " /proc/modules && {'
+	echo '			echo >>/tmp/KMODULE.action "# unloaded: $kmodule"'
+	echo '			rmmod "$kmodule"'
+	echo '		}'
+	echo '	} done'
+	echo
+	echo '	echo >>/tmp/KMODULE.action "# loaded modules now:"'
+	echo "	sed 's/^/# preinit: /' /proc/modules >>/tmp/KMODULE.action"
 	echo
 	echo '	while [ -n "$1" ]; do {'
 	echo '		file="$1"'
