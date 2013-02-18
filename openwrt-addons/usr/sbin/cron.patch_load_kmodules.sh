@@ -1,13 +1,13 @@
 #!/bin/sh
 . /tmp/loader
 
-MYVERSION="v0.4"
+MYVERSION="v0.5"
 
 modules_blacklist()
 {
 	local line
 
-	echo -n "ipt_REDIRECT|nf_nat_ftp|nf_nat_irc|nf_conntrack_irc|nf_conntrack_ftp|nls_base|arc4|crypto_algapi|ipt_ULOG|xt_state|tg3|bgmac|hwmon"
+	echo -n "ipt_REDIRECT|nf_nat_ftp|nf_nat_irc|nf_conntrack_irc|nf_conntrack_ftp|nls_base|crypto_algapi|ipt_ULOG|xt_state|tg3|bgmac|hwmon"
 
 	[ -e "/www/SIMPLE_MESHNODE" ] && {
 		# iptables related
@@ -26,6 +26,12 @@ modules_masquerading()
 
 modules_whitelist()
 {
+	case "$( _system architecture )" in
+		atheros)
+			echo -n "arc4|"
+		;;
+	esac
+
 	echo -n "diag|switch-*"		# are needed, but can be unloaded after netifd-init
 }
 
