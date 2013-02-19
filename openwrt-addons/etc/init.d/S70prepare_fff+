@@ -158,10 +158,6 @@ case $1 in
 			$0 unload_unneeded_kmodules
 		}
 
-		[ -n "$( ip route list exact 0.0.0.0/0 table main )" ] && {
-			scheduler -O
-		}
-
 		grep -sq ^"START=97" "/etc/init.d/watchdog" && {
 			sed -i 's/=97/=01/' "/etc/init.d/watchdog"
 			CMD1="pidof watchdog >/dev/null"
@@ -169,6 +165,8 @@ case $1 in
 			sed -i "s|}|	$CMD1 \&\& $CMD2 \n}|" "/etc/init.d/watchdog"
 			eval $CMD2
 		}
+
+		[ -e "/etc/init.d/apply_profile" ] && exit
 
 		PPPOE=0
 		[ -n "$( uci get network.wan.username )" ] && PPPOE="$(( $PPPOE + 1 ))"
@@ -220,12 +218,13 @@ case $1 in
 		found_specific_hna_offer 6.6.6.7 && attach_lan_ip 6.6.6.7 userdb
 		found_specific_hna_offer 6.6.6.8 && attach_lan_ip 6.6.6.8 tunnelsrv	# only use for ask is_possible?
 
-		[ -e "/etc/init.d/apply_profile" ] || {
+		[ -n "$( ip route list exact 0.0.0.0/0 table main )" ] && {
 			[ "$( _firmware updatemode )" = "testing" ] && {
 				_firmware update_pmu
 			}
 		}
 
+		scheduler -O
 		/usr/sbin/cron.check_inet_gw_fff+
 
 		# cache luci header for splash page, improve by native lua call?
