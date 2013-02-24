@@ -1,23 +1,6 @@
 #!/bin/sh
 . /tmp/loader
 
-watch_cron()
-{
-	pidof crond >/dev/null || {		# wrong place but works
-
-		local pid cmdline
-		read pid 2>/dev/null </tmp/cron_watchdog.pid
-		read cmdline 2>/dev/null </proc/$pid/cmdline
-
-		[ "$cmdline" = "sh/tmp/cron_watchdog.sh" ] || {
-			_log do watch_cron daemon alert "cron died, restarting"
-			/etc/init.d/*crond* start
-		}
-	}
-}
-
-watch_cron
-
 MODE="${1:-unset}"
 MAC="${2:-ff:00:00:00:00:00}"		# fixme! this enforces an invalid mac, see sanitizer_mac()
 IP="${3:-127.0.0.1}"
@@ -46,7 +29,7 @@ esac
 
 [ "$MODE" = "old" ] || _log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV"
 
-case $MODE in
+case "$MODE" in
 	add|old)
 		case "$( uci get system.@weblogin[0].enabled )" in
 			""|0)
@@ -103,3 +86,8 @@ case $MODE in
 		fi
 	;;
 esac
+
+pidof crond >/dev/null || {		# wrong place but works
+	/etc/init.d/S51crond_fff+ start
+	_log do watch_cron daemon alert "cron died, restarted"
+}
