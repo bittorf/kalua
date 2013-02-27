@@ -359,13 +359,18 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			_stopwatch stop $ACTION quiet "$( _db user login list linecount )" "tickets"
 
 			if [ $( _file size "$INDEX" ) -gt 0 ]; then		# fixme! lowram?
-				if mv "$INDEX" "$INDEX_PRODUCTION"; then
+				if [ "${ID} ${OPTION}" = "last 1" ]; then
 					_db lock free "$ACTION"
-					_log do $FUNC daemon info "$ACTION: wrote '$INDEX' -> '$INDEX_PRODUCTION'"
-					_db backup
+					_scheduler add "_db backup"
 				else
-					_log do $FUNC daemon sms "$ACTION: [ERR] during mv '$INDEX' -> '$INDEX_PRODUCTION'"
-					touch /tmp/FREE
+					if mv "$INDEX" "$INDEX_PRODUCTION"; then
+						_db lock free "$ACTION"
+						_log do $FUNC daemon info "$ACTION: wrote '$INDEX' -> '$INDEX_PRODUCTION'"
+						_db backup
+					else
+						_log do $FUNC daemon sms "$ACTION: [ERR] during mv '$INDEX' -> '$INDEX_PRODUCTION'"
+						touch /tmp/FREE
+					fi
 				fi
 			else
 				_log do $FUNC daemon sms "$ACTION: '$INDEX' 0 bytes - removing"
