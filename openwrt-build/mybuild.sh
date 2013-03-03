@@ -249,7 +249,7 @@ set_build()
 		;;
 		kcmdlinetweak)	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 			dir="target/linux/$( get_arch )"
-			pattern=" oops=panic panic=10"
+			pattern=" oops=panic panic=10 "
 
 			case "$( get_arch )" in
 				ar71xx)
@@ -257,7 +257,7 @@ set_build()
 					log "$mode: looking into '$config'"
 
 					fgrep -q "$pattern" "$config" || {
-						sed -i "s/\(KERNEL_CMDLINE=\"\)\(.*\)\(\".*\)/\1\2${pattern}\3/" "$config"
+						sed -i "s/console=/$pattern &/" "$config"
 					}
 				;;
 				*)	# tested for brcm47xx
