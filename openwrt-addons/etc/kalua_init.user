@@ -1,7 +1,43 @@
 #!/bin/sh
 
-cat <<EOF
+get_homedir_from_passwd()
+{
+	grep -e ^"${USER:-root}:" "/etc/passwd" | cut -d ":" -f 6
+}
+
+[ -e "/etc/variables_fff+" ] && . "/etc/variables_fff+"
+
+TIMEZONE_BERLIN="CET-1CEST,M3.5.0,M10.5.0/3"
+TIMEZONE="$( uci get system.@system[0].timezone )"
+TIMEZONE="${TIMEZONE:-$TIMEZONE_BERLIN}"
+
+	cat <<EOF
+# user-vars:
+export TZ='$TIMEZONE'
 CONFIG_PROFILE='$( uci get system.@profile[0].name )'
 HARDWARE='$( cat "/etc/HARDWARE" )'
 HOSTNAME='$( uci get system.@system[0].hostname )'
+export HOME='$( get_homedir_from_passwd )'"
+FFF_PLUS_VERSION=$FFF_PLUS_VERSION;FFF_VERSION=$FFF_VERSION
 EOF
+
+if [ -e "/tmp/NETPARAM" ]; then		# fixme! better concept needed
+	. "/tmp/NETPARAM"
+
+	while read LINE; do {
+		case "$LINE" in
+			*"="*)
+				echo -n "${LINE};"
+			;;
+		esac
+	} done <"/tmp/NETPARAM"
+
+        echo "WIFI_DEVS=$WIFIDEV\n"
+
+	echo -n "$WIFIDEV" >"/tmp/WIFIDEV"	# is a hack for fast seeking our dev/ip
+	echo -n "$WIFIADR" >"/tmp/WIFIADR"
+else
+        logger -s "$0 could'nt work with '/tmp/NETPARAM'"
+fi
+
+echo "_uci() { return 1; }"	# till we remove all references to "_uci is_oldstyle()"
