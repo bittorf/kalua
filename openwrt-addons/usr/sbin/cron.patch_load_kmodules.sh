@@ -79,7 +79,7 @@ output_new_function()
 	echo "						$( modules_whitelist ))"
 	echo '							echo >>/tmp/KMODULE.action "#    whitelisted: insmod $line - (unload later!)"'
 	echo '							insmod $line || echo >>/tmp/KMODULE.action "# error $?"'
-	echo '							list_unload_later="$list_unload_later $line/ */}"'	# ignore parameters during unloading
+	echo '							list_unload_later="$list_unload_later ${line/ */}"'	# ignore parameters during unloading
 	echo '						;;'
 	echo '						*)'
 	echo '							echo >>/tmp/KMODULE.action "#    allowed: insmod $line"'
