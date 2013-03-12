@@ -704,7 +704,7 @@ applymystuff()
 	fi
 
 	file="kalua/openwrt-addons/etc/init.d/zram"
-	destfile="$base/etc/init.d/zram"
+	destfile="$base/../../zram-swap/files/zram.init"
 	log "copy $( basename "$file" ) - zram-init ($( filesize "$file" ) bytes)"
 	cp "$file" "$destfile"
 
