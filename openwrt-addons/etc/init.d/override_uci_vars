@@ -11,4 +11,81 @@ boot()
 			uci set wireless.radio0.channel="$( _math random_integer 1 7 )"
 		;;
 	esac
+
+	case "$CONFIG_PROFILE" in
+		boltenhagen*)
+			[ "$( uci get system.@profile[0].nodenumber )" = "2" ] || {
+				uci set dhcp.lan.ignore=1
+			}
+		;;
+		ffweimar*)
+		;;
+		schoeneck*)
+			case "$( uci get wireless.@wifi-iface[0].mode )" in
+				ap)
+					uci set wireless.@wifi-iface[0].ssid="IFA.$( uci get system.@profile[0].nodenumber )"
+				;;
+				adhoc)
+					uci set wireless.@wifi-iface[0].bssid="02:ca:ff:ee:00:11"
+					uci set wireless.radio0.channel="11"
+					uci set wireless.radio0.htmode="40-"
+					uci set wireless.@wifi-iface[0].ssid="o"
+				;;
+			esac
+		;;
+		*)
+			[ -e "/lib/modules/$( uname -r )/b43.ko" ] && {
+				local file="/lib/wifi/mac80211.sh"
+				local keyword="keyspec}"	# must be at the end of a line
+				local command1='config_get bitrates "$device" bitrates'
+				local command2='test -n "$bitrates" \&\& iw dev "$ifname" set bitrates legacy-2.4 $bitrates'
+
+				[ "$( uci get wireless.@wifi-iface[0].mode )" = "adhoc" ] && {
+					[ -n "$( uci get wireless.radio0.bitrates )" ] || {
+						uci set wireless.radio0.bitrates="6 9 12 18 24 36 48 54"
+
+						case "$( uci get wireless.@wifi-iface[0].mcast_rate )" in
+							1000|2000|5500|11000)
+								uci delete wireless.@wifi-iface[0].mcast_rate
+							;;
+						esac
+					}
+
+					grep -q "$keyword"$ "$file" && {
+						sed -i "s/$keyword$/$keyword ; $command1 ; $command2 /" "$file"
+					}
+				}
+			}
+		;;
+	esac
+
+	case "$HARDWARE" in
+		"Buffalo WHR-HP-G54")
+			case "$( uci get wireless.radio0.rxantenna )-$( uci get wireless.radio0.txantenna )" in
+				"1-1")
+				;;
+				*)
+					uci set wireless.radio0.rxantenna=1
+					uci set wireless.radio0.txantenna=1
+					uci commit wireless
+				;;
+			esac
+		;;
+		"Linksys WRT54G"*)
+			case "$( uci get wireless.radio0.rxantenna )-$( uci get wireless.radio0.txantenna )" in
+				"0-0")
+				;;
+				*)
+					uci set wireless.radio0.rxantenna=0
+					uci set wireless.radio0.txantenna=0
+					uci commit wireless
+				;;
+			esac
+		;;
+		"TP-LINK TL-WR1043ND")
+			# use driver defaults
+			uci delete wireless.radio0.txpower
+			uci set wireless.radio0.beacon_int=100
+		;;
+	esac
 }
