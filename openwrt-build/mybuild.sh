@@ -703,6 +703,11 @@ applymystuff()
 		log "selected generic profile"
 	fi
 
+	file="kalua/openwrt-addons/etc/init.d/zram"
+	destfile="$base/etc/init.d/zram"
+	log "copy $( basename "$file" ) - zram-init ($( filesize "$file" ) bytes)"
+	cp "$file" "$destfile"
+
 	private_settings="../../apply_profile.code.definitions"
 	[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
 
