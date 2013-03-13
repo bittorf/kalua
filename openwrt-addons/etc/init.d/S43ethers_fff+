@@ -7,90 +7,103 @@ build_network_clients()		# build a fgrep-able list, for fast seeking 'is ipX a c
 {
 	local funcname="build_network_clients"
 	local ip_any="$1"	# e.g. $LANADR or 178.24.109.129
-	local ip_brc="$2"	# e.g. $LANBRC or 178.24.111.255
-	local pre="$3"		# e.g. 21 (CIDR-notation)
+	local pre="$2"		# e.g. 21 (CIDR-notation)
+	local networkname="$3"	# e.g. 'WAN'
+	local out myip mygateway oldifs networks i
+	local a1o3start a1o3ready a1o4ready
 
-	local logmessage_networkname="$4"	# e.g. 'wan'
-	local out myip mygateway oldifs ip_min
-
-	ifname_from_dev()
+	ifname_from_dev()	# WAN -> eth0.2
 	{
 		eval echo \$${1}DEV
 	}
 
-	myip="$( _net dev2ip $( ifname_from_dev $NET ) )"
+	myip="$( _net dev2ip $( ifname_from_dev "$networkname" ) )"
 
-	_log do $funcname daemon info "writing client list for ... -> $ip_any -> $ip_brc /$pre - $logmessage_networkname"
+	_log do $funcname daemon info "writing client list for $ip_any/$pre network: '$networkname'"
 
 	oldifs="$IFS"; IFS='.'
 	set -- $ip_any
 	local a1o1="$1"; local a1o2="$2"; local a1o3="$3"; local a1o4="$4"
-	set -- $ip_brc
-	local a2o1="$1"; local a2o2="$2"; local a2o3="$3"; local a2o4="$4"
 	IFS="$oldifs"
+
+	networks=1
+	a1o4ready=254
 
 	case "$pre" in
 		31|32)
 			echo "$myip;"
 		;;
-		24)
-			ip_min="$a1o1.$a1o2.$a1o3.1"
+		29)
+			a1o4ready=6
+		;;
+		28)
+			a1o4ready=14
+		;;
+		27)
+			a1o4ready=30
+		;;
+		26)
+			a1o4ready=62
+		;;
+		25)
+			a1o4ready=126
+		;;
+		23)
+			networks=2
+		;;
+		22)
+			networks=4
+		;;
+		21)
+			networks=8
+		;;
+		20)
+			networks=16
 		;;
 	esac
 
-	while [ "$ip_min" != "$ip_brc" ]; do {
-		echo "$ip_min;"
-		
+	a1o3start=$(( $(( $a1o3 / $networks )) * $networks ))		# 109 / 8 = 13.625 ; 13 * 8 = 104
+	a1o3ready=$(( $a1o3start + $networks - 1 ))			# 104 + 8 - 1 = 111
+
+	while [ $a1o3start -le $a1o3ready ]; do {
+		i=1
+		while [ $i -le $a1o4ready ]; do {
+			[ "$myip" = "$a1o1.$a1o2.$a1o3start.$i" ] || echo "$a1o1.$a1o2.$a1o3start.$i;"
+			i=$(( $i + 1 ))
+		} done
+		a1o3start=$(( $a1o3start + 1 ))
 	} done
 
+#	case "$PRE" in
+#		31|32)
+#			echo "$myip;"
+#		;;
+#		*)					# 24...30
+#			[ "$PRE" = "30" ] && {
+#				OKT4_START=$(( $OKT4_START - 1 ))
+#			}
+#
+#			while [ $OKT4_START -lt $OKT4_END ]; do {
+#
+#				out="$OKT1.$OKT2.$OKT3.$OKT4_START"
+#
+#				[ "$myip" = "$out" ] || {
+#					echo "$out;"
+#				}
+#
+#				OKT4_START=$(( $OKT4_START + 1 ))
+#			} done
+#		;;
+#	esac
 
-	OKT1="$(	echo $STARTIP | cut -d. -f1 )"
-	OKT2="$(	echo $STARTIP | cut -d. -f2 )"
-	OKT3="$(	echo $STARTIP | cut -d. -f3 )"	  
-	OKT4_START="$(	echo $STARTIP | cut -d. -f4 )"
-	OKT4_END="$(	echo $ENDIP   | cut -d. -f4 )"
-
-	OKT4_START=$(( $OKT4_START + 1 ))		# without network
-
-	[ "$PRE" -lt 24 ] && {
-		_log do $FUNC daemon info "error, CIDR-netmask $PRE is <24 or >30 - not implemented yet, fallback to 24"
-		PRE="24"
-	}
-
-	case "$PRE" in
-		31|32)
-			echo "$myip;"
-		;;
-		*)					# 24...30
-			[ "$PRE" = "30" ] && {
-				OKT4_START=$(( $OKT4_START - 1 ))
-			}
-
-			while [ $OKT4_START -lt $OKT4_END ]; do {
-
-				out="$OKT1.$OKT2.$OKT3.$OKT4_START"
-
-				[ "$myip" = "$out" ] || {
-					echo "$out;"
-				}
-
-				OKT4_START=$(( $OKT4_START + 1 ))
-			} done
-		;;
-	esac
-
-	case "$NET" in
+	case "$networkname" in
 		lan|LAN)
-			mygateway="$( uci get network.lan.gateway )"
+			echo "$( uci get network.lan.gateway );"
 		;;
 		wan|WAN)
-			mygateway="$( uci get network.wan.gateway )"
+			echo "$( uci get network.wan.gateway );"
 		;;
 	esac
-
-	[ -n "$mygateway" ] && {
-		echo "$mygateway;"
-	}
 }
 
 _build_hosts ()				# SENS: modulary builds /etc/local.hosts
@@ -377,7 +390,7 @@ fkt_restart_running_dnsserver ()
 	}
 }
 
-fkt_build_clients_list ()	# these lists are used to to a fast 'grep $IP $FILE', to know from which interface, an ip comes from...
+fkt_build_clients_list ()	# these lists are used to to a fast 'fgrep "$IP;" $FILE', to know from which interface, an ip comes from...
 {
 	# fixme! add tunnel-ip's:
 	# 10.63.167.94 cityvpn-serverside-n422.olsr cityvpn-serverside-n422		// for nicer traceroute
@@ -387,13 +400,12 @@ fkt_build_clients_list ()	# these lists are used to to a fast 'grep $IP $FILE', 
 	eval $( _ipsystem do | grep ^WIFINET=		)
 	eval $( _ipsystem do | grep ^WIFIBRC=		)
 
-	build_network_clients "$WIFINET" "$WIFIBRC" "$WIFI_DHCP_PRE"	"WIFI"	>/tmp/CLIENTS_WIFI
-	build_network_clients "$LANNET"  "$LANBRC"  "$LANPRE"		"LAN"	>/tmp/CLIENTS_LAN 
-	build_network_clients "$WANNET"  "$WANBRC"  "$WANPRE"		"WAN"	>/tmp/CLIENTS_WAN
-	
-	cat /tmp/CLIENTS_WIFI /tmp/CLIENTS_LAN /tmp/CLIENTS_WAN	>/tmp/CLIENTS_ALL	# not used 
-}
+	build_network_clients "$WIFINET" "$WIFI_DHCP_PRE"	"WIFI"	>/tmp/CLIENTS_WIFI
+	build_network_clients "$LANNET"  "$LANPRE"		"LAN"	>/tmp/CLIENTS_LAN 
+	build_network_clients "$WANNET"  "$WANPRE"		"WAN"	>/tmp/CLIENTS_WAN
 
+	cat /tmp/CLIENTS_WIFI /tmp/CLIENTS_LAN /tmp/CLIENTS_WAN	>/tmp/CLIENTS_ALL	# not used
+}
 
 uci get system.@system[0].hostname | grep -q ^node && {					# fixme! unneeded?
 	MAC="$( _sanitizer do "$( _net dev2mac $WIFIDEV )" hex )"	
