@@ -686,6 +686,9 @@ _netfilter_masquerade_start()
 	local funcname="netfilter_masquerade_start"
 	local exception="$1"		# fixme! needs source/destination arg
 	local device devname
+	local statfile="/tmp/NETFILTER/MASQUERADING"
+
+	[ -e "$statfile" ] && return 0
 
 	mkdir -p "/tmp/NETFILTER"
 
@@ -703,25 +706,27 @@ _netfilter_masquerade_start()
 		pppoe)
 			device="ppp+"
 		;;
+		*)
+			_netfilter masquerade_stop
+			return 0
+		;;
 	esac
 
-	[ -n "$device" ] && {
-		_log do $funcname daemon info "active for device $device ($devname)"
+	_log do $funcname daemon info "active for device $device ($devname)"
 
-		echo "iptables -t nat -D POSTROUTING -o $device -j MASQUERADE" >"/tmp/NETFILTER/MASQUERADING"
-		iptables -t nat -A POSTROUTING -o $device -j MASQUERADE
+	echo "iptables -t nat -D POSTROUTING -o $device -j MASQUERADE" >"$statfile"
+	iptables -t nat -A POSTROUTING -o $device -j MASQUERADE
 
-		case "$CONFIG_PROFILE" in
-			tkolleg*)
-				iptables -t nat -I POSTROUTING -s 10.10.0.0/16 -o $LANDEV -j MASQUERADE
-				iptables -t nat -I POSTROUTING -d 10.10.0.10 -j MASQUERADE		# printer
-				iptables -t nat -I POSTROUTING -d 10.10.0.2 -j MASQUERADE		# exNT
-			;;
-			fparkssee*)
-				iptables -t nat -I POSTROUTING -d 192.168.0.0/16 -j MASQUERADE		# external portfw
-			;;
-		esac
-	}
+	case "$CONFIG_PROFILE" in
+		tkolleg*)
+			iptables -t nat -I POSTROUTING -s 10.10.0.0/16 -o $LANDEV -j MASQUERADE
+			iptables -t nat -I POSTROUTING -d 10.10.0.10 -j MASQUERADE		# printer
+			iptables -t nat -I POSTROUTING -d 10.10.0.2 -j MASQUERADE		# exNT
+		;;
+		fparkssee*)
+			iptables -t nat -I POSTROUTING -d 192.168.0.0/16 -j MASQUERADE		# external portfw
+		;;
+	esac
 }
 
 _netfilter_masquerade_stop()
