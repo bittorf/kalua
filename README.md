@@ -23,7 +23,7 @@ how to get a release for a specific hardware
 	DO="../kalua/openwrt-build/build_release.sh"
 
 	# choose your router-model and build, for example:
-	$DO "HARDWARE.$HW" $REV standard dataretention trafficshaping kcmdlinetweak
+	$DO "HARDWARE.$HW" $REV standard dataretention trafficshaping vtunZlibLZOnoSSL kcmdlinetweak
 	$DO "HARDWARE.$HW" $REV standard patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
 
 
