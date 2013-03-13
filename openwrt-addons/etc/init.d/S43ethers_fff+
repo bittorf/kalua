@@ -3,14 +3,15 @@
 
 if [ -n "$FAILSAFE" ] || [ -n "$READONLY" ] || [ ! -e "/www/SOFTWARE_FULLY_INSTALLED" ]; then exit; fi
 
-build_network_clients ()
-{						# SENS: print IP-list of (potential) clients
-	local STARTIP="$1"			# ARG1: string, interface-IP (first useable address of network)
-	local   ENDIP="$2"			# ARG2: string, interface-broadcast-address
-	local     PRE="$3"			# ARG3: string, interface-netmask in CIDR-notation (e.g. /24)
-	local     NET="$4"			# ARG4: string, interface info ("wan") - just for logging
-	local    FUNC="build_clients"		# OUT1: list of IP-addresses
-	local out myip mygateway
+build_network_clients()		# build a fgrep-able list, for fast seeking 'is ipX a client from networkZ?"
+{
+	local funcname="build_network_clients"
+	local ip_any="$1"	# e.g. $LANADR or 178.24.109.129
+	local ip_brc="$2"	# e.g. $LANBRC or 178.24.111.255
+	local pre="$3"		# e.g. 21 (CIDR-notation)
+
+	local logmessage_networkname="$4"	# e.g. 'wan'
+	local out myip mygateway oldifs ip_min
 
 	ifname_from_dev()
 	{
@@ -19,7 +20,29 @@ build_network_clients ()
 
 	myip="$( _net dev2ip $( ifname_from_dev $NET ) )"
 
-	_log do $FUNC daemon debug "writing client list for $STARTIP/$ENDIP/$PRE ('$NET'), myip: $myip"
+	_log do $funcname daemon info "writing client list for ... -> $ip_any -> $ip_brc /$pre - $logmessage_networkname"
+
+	oldifs="$IFS"; IFS='.'
+	set -- $ip_any
+	local a1o1="$1"; local a1o2="$2"; local a1o3="$3"; local a1o4="$4"
+	set -- $ip_brc
+	local a2o1="$1"; local a2o2="$2"; local a2o3="$3"; local a2o4="$4"
+	IFS="$oldifs"
+
+	case "$pre" in
+		31|32)
+			echo "$myip;"
+		;;
+		24)
+			ip_min="$a1o1.$a1o2.$a1o3.1"
+		;;
+	esac
+
+	while [ "$ip_min" != "$ip_brc" ]; do {
+		echo "$ip_min;"
+		
+	} done
+
 
 	OKT1="$(	echo $STARTIP | cut -d. -f1 )"
 	OKT2="$(	echo $STARTIP | cut -d. -f2 )"
