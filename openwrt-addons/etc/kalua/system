@@ -148,17 +148,17 @@ _system_load ()			# load without comma, e.g.
 	local TIME="$1"
 	local FORMAT="$2"	# e.g. full or <empty>
 
-	local CPULOAD DECIMALS NOP OUT
+	local CPULOAD DECIMALS NOP OUT oldifs
 
 	case "$TIME" in
 		1min)
-			IFS='. '; read CPULOAD DECIMALS NOP </proc/loadavg; unset IFS
+			oldifs="$IFS"; IFS='. '; read CPULOAD DECIMALS NOP </proc/loadavg; IFS="$oldifs"
 		;;
 		5min)
-			IFS='. '; read CPULOAD DECIMALS CPULOAD DECIMALS NOP </proc/loadavg; unset IFS
+			oldifs="$IFS"; IFS='. '; read CPULOAD DECIMALS CPULOAD DECIMALS NOP </proc/loadavg; IFS="$oldifs"
 		;;
 		15min)
-			IFS='. '; read CPULOAD DECIMALS CPULOAD DECIMALS CPULOAD DECIMALS NOP </proc/loadavg; unset IFS
+			oldifs="$IFS"; IFS='. '; read CPULOAD DECIMALS CPULOAD DECIMALS CPULOAD DECIMALS NOP </proc/loadavg; IFS="$oldifs"
 		;;
 		*)
 			CPULOAD=000
@@ -225,11 +225,12 @@ _system_uptime()		# OUT1 = string
 {				# ARG1 = string: plain|centisec|sec|min|hour|days|humanreadable
 	local FORMAT="$1"
 	local OPTION="$2"
-	local UPTIME FLOAT NOP
-	
+	local UPTIME FLOAT NOP oldifs
+
+	local oldifs="$IFS"
 	IFS='. '
 	read UPTIME FLOAT NOP </proc/uptime		# reads integer = seconds
-	unset IFS
+	IFS="$oldifs"
 
 	case $FORMAT in
 		humanreadable)
@@ -294,7 +295,7 @@ _system_date()				# fixme! set a fixed path for the binary?
 						# fixme! uname -a: "5 Mon Apr 11 11:24:07 CEST 2011"
 						# fixme! uname -a: "1 So 4. Okt 13:34:39 CEST 2009"
 
-			local WEEKDAY MONTH DAY TIME ZONE YEAR HOUR MIN SEC UNIXTIME
+			local WEEKDAY MONTH DAY TIME ZONE YEAR HOUR MIN SEC UNIXTIME oldifs
 	
 			read WEEKDAY MONTH DAY TIME ZONE YEAR <<EOF
 $DATE
@@ -317,12 +318,13 @@ EOF
 			case "$DAY" in
 				[1-9]) DAY="0$DAY" ;;
 			esac
-		
+
+			oldifs="$IFS"
 			IFS=":"
 			read HOUR MIN SEC <<EOF
 $TIME
 EOF
-			unset IFS
+			IFS="$oldifs"
 
 			date --date "${YEAR}-${MONTH}-${DAY} ${HOUR}:${MIN}:${SEC}" +%s
 		;;

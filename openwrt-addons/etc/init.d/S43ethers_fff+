@@ -140,22 +140,21 @@ _build_hosts ()				# SENS: modulary builds /etc/local.hosts
 			DOMAIN="$( uci get dhcp.@dnsmasq[0].domain )"
 			CLIENT=0
 			MODE="$1"
-			
+
 			while read LINE; do {
 				let CLIENT+=1
+				OLDIFS="$IFS"
 				IFS=";"
-				set $LINE
-				
-				OUT="$(grep "\-${MODE}${CLIENT}\-" /etc/ethers)" # exists in /etc/ethers?
-				
+				set -- $LINE
+				IFS="$OLDIFS"
+
+				OUT="$( grep "\-${MODE}${CLIENT}\-" /etc/ethers )" # exists in /etc/ethers?
+
 				if [ -z "$OUT" ]; then				# anonymous without hard /etc/ethers entry
 					echo "$1 ${DEFAULT}-${MODE}${CLIENT}-n$NODE.$DOMAIN ${DEFAULT}-${MODE}${CLIENT}-n$NODE"
 				else						# is in /etc/ethers
 					echo "$1 $(echo "$OUT" | cut -d" " -f2) $(echo "$OUT" | cut -d" " -f2 | cut -d"." -f1)" 	
 				fi
-				
-				unset IFS
-
 			} done <"/tmp/CLIENTS_WIFI" >>$SUB_WIFI
 			
 			echo >>$SUB_WIFI
@@ -180,19 +179,18 @@ _build_hosts ()				# SENS: modulary builds /etc/local.hosts
 			
 			while read LINE; do {
 				let CLIENT+=1
+				OLDIFS="$IFS"
 				IFS=";"
-				set $LINE
-				
-				OUT="$(grep "\-${MODE}${CLIENT}\-" /etc/ethers)"	# exists in /etc/ethers?
+				set -- $LINE
+				IFS="$OLDIFS"
+
+				OUT="$( grep "\-${MODE}${CLIENT}\-" /etc/ethers )"	# exists in /etc/ethers?
 
 				if [ -z "$OUT" ]; then					# anonymous without hard /etc/ethers entry
 					echo "$1 ${DEFAULT}-${MODE}${CLIENT}-n$NODE.$DOMAIN ${DEFAULT}-${MODE}${CLIENT}-n$NODE"
 				else							# is in /etc/ethers
 					echo "$1 $(echo "$OUT" | cut -d" " -f2) $(echo "$OUT" | cut -d" " -f2 | cut -d"." -f1)"
 				fi
-				
-				unset IFS
-
 			} done <"/tmp/CLIENTS_LAN" >>$SUB_LAN
 			
 			echo >>$SUB_LAN 	# just a blank line
@@ -309,6 +307,7 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 
 	[ -e $DEBUG_FILE ] && rm $DEBUG_FILE
 
+	local oldifs="$IFS"
 	IFS=";"
 	for MAC_AND_HOST in $LIST; do {
 		CLIENT=$(( $CLIENT + 1 ))
@@ -359,7 +358,7 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 			CLIENT=$(( $CLIENT - 1 ))
 		fi
 	} done
-	unset IFS
+	IFS="$oldifs"
 
 	[ -e $DEBUG_FILE ] && {
 		DEBUG_VAL="$( sed 's/^\(.*\)\;$/\1/' $DEBUG_FILE )"		# cutting off last ";"
