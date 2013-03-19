@@ -1,50 +1,58 @@
 _switch_query_swconfig()
 {
 	local funcname="switch_query_swconfig"
-	local port="$1"
+	local port_list="$1"
 	local debug="$2"
-	local line
+	local type="$( uci get network.@switch[0].name )"	# switch0 or rtl8366rb 
+	local line port
 
-	line="$( swconfig dev $type port $port show | fgrep "link: port:" )"
-	[ -n "$debug" ] && \
-		_log do $funcname daemon debug "type: $type port: $port line '$line'"
+	for port in $port_list; do {
+		[ "$port" = "gap" ] && {
+			_switch symbol gap
+			continue
+		}
 
-	case "$line" in
-		*"link: port:$port link: down"*)
-			_switch symbol down
-		;;
-		*"link: port:$port link:down"*)
-			_switch symbol down
-		;;
-		*"link:up"*)
-			case "$line" in
-				*"full-duplex"*)
-					duplex="full"
-				;;
-				*)
-					duplex="half"
-				;;
-			esac
+		line="$( swconfig dev "$type" port "$port" show | fgrep "link: port:" )"
+		[ -n "$debug" ] && \
+			_log do $funcname daemon debug "type: $type port: $port line '$line'"
 
-			case "$line" in
-				*"speed:10baseT"*)
-					_switch symbol "$duplex" 10
-				;;
-				*"speed:100baseT"*)
-					_switch symbol "$duplex" 100
-				;;
-				*"speed:1000baseT"*)
-					_switch symbol "$duplex" 1000
-				;;
-				*)
-					_switch symbol "unknown"
-				;;
-			esac
-		;;
-		*)
-			_switch symbol "unknown"
-		;;
-	esac
+		case "$line" in
+			*"link: port:$port link: down"*)
+				_switch symbol down
+			;;
+			*"link: port:$port link:down"*)
+				_switch symbol down
+			;;
+			*"link:up"*)
+				case "$line" in
+					*"full-duplex"*)
+						duplex="full"
+					;;
+					*)
+						duplex="half"
+					;;
+				esac
+
+				case "$line" in
+					*"speed:10baseT"*)
+						_switch symbol "$duplex" 10
+					;;
+					*"speed:100baseT"*)
+						_switch symbol "$duplex" 100
+					;;
+					*"speed:1000baseT"*)
+						_switch symbol "$duplex" 1000
+					;;
+					*)
+						_switch symbol "unknown"
+					;;
+				esac
+			;;
+			*)
+				_switch symbol "unknown"
+			;;
+		esac
+	} done
 }
 
 _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
@@ -56,12 +64,8 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 
 	case "$HARDWARE" in
 		"TP-LINK TL-WR1043ND")
-			_switch query_swconfig 0 "$debug"	# WAN
-			_switch symbol gap
-			_switch query_swconfig 1 "$debug"
-			_switch query_swconfig 2 "$debug"
-			_switch query_swconfig 3 "$debug"
-			_switch query_swconfig 4 "$debug"
+			# WAN | 4 x LAN
+			_switch query_swconfig "0 gap 1 2 3 4" "$debug"
 			return 0
 		;;
 	esac
