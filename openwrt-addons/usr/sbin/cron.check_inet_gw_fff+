@@ -76,9 +76,15 @@ rm $FILE_OLSR_ROUTES
 		_log do guess_gateway daemon info "empty default router, last inet-gateway was: $LAST_GATEWAY"
 		_scheduler add "$0" force
 	else
-		# provider-lan with subnet >/24 is not implemented yet (see /etc/init.d/S43...)
+		if [ $( _system uptime min ) -le 10 ]; then
+			LOGPRIO="info"
+		else
+			LOGPRIO="alert"
+		fi
+
+		# provider-lan with subnet >/21 is not implemented yet (see /etc/init.d/S43...)
 		if [ "$WIFIADR" = "$GW" ]; then
-			_log do guess_gateway daemon alert "strange situation: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
+			_log do guess_gateway daemon $LOGPRIO "strange situation1: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
 			OUT="COST_INT=10; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
 		else
 			if [ -e "/tmp/$( basename $0 )_first_error" ]; then
@@ -89,8 +95,8 @@ rm $FILE_OLSR_ROUTES
 						# lan-inet-offer: fixme!
 					;;
 					*)
-						_log do guess_gateway daemon alert "strange situation: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
-						_olsr daemon restart "gateway: $GW nexthop: $WIFIADR"
+						_log do guess_gateway daemon $LOGPRIO "strange situation2: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
+						[ "$LOGPRIO" = "alert" ] && _olsr daemon restart "gateway: $GW nexthop: $WIFIADR"
 
 						/etc/init.d/S41build_static_netparam
 						/etc/init.d/S43ethers_fff+ build_network_clients
