@@ -39,15 +39,18 @@ _db_purge()
 _db_backup()		# fixme! automatically call this after <prio> changes
 {
 	local funcname="db_backup"
+	local accept_shrink="$1"
 	local file="/www/cgi-bin/db_backup.tgz"
 	local file_temp="/tmp/db_backup.tgz.temp.$$"
 	local dir="/tmp/DB"
 	local errorcode=0
+	local border=-5
 	local s1 s2 s3
 
 	[ -d "$dir" ] || return 0
 	[ -e "$dir/USER/login/meta_index" ] || return 0
 	[ $( _file size "$dir/USER/login/meta_index" ) -eq 0 ] && return 0
+	[ -n "$accept_shrink" ] && border=-999
 
 	_db lock now "$funcname"
 
@@ -66,7 +69,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 			_log do $funcname daemon alert "$shrinktext"
 		}
 
-		if [ $percentual_change -lt -5 ]; then
+		if [ $percentual_change -lt -$border ]; then
 			_log do $funcname daemon sms "$shrinktext - abort"
 			errorcode=1
 		else
