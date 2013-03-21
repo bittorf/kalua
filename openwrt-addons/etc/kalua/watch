@@ -8,7 +8,8 @@ _watch_space_tmpfs()
 {
 	local funcname="watch_space_tmpfs"
 	local border_percent="20"
-	local file success
+	local file success list_logs list_vdsfiles list_orphaned
+	local nothing_deleted="true"
 
 	while [ $( _system disc_free /tmp percent ) -lt $border_percent ]; do {
 		pidof ulogd >/dev/null && {
@@ -17,7 +18,11 @@ _watch_space_tmpfs()
 			_watch hanging_command ulogd
 		}
 
-		for file in "/var/log/ulogd.syslogemu" "$( ls -S1 /tmp/user-* | head -n1 )" /tmp/db_backup.tgz.temp.*; do {
+		list_logs="$( ls -S1 /var/log/* )"
+		list_vdsfiles="$( ls -S1 /tmp/user-* | head -n1 )"
+		list_list_orphaned="$( ls -S1 /tmp/db_backup.tgz.temp.* )"
+
+		for file in $list_logs $list_vdsfiles $list_list_orphaned; do {
 			[ -e "$file" ] && {
 				success="true"
 				rm "$file"
@@ -25,8 +30,15 @@ _watch_space_tmpfs()
 			}
 		} done
 
-		# if there are no files to remove, give up
-		[ "$success" = "true" ] || return 0
+		if [ "$success" = "true" ]; then
+			[ "$nothing_deleted" = "true" ] && {
+				nothing_deleted=
+				_log do $funcname daemon alert "success"
+			}
+		else
+			# if there are no files to remove, give up
+			return 0
+		fi
 	} done
 }
 
