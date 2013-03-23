@@ -963,12 +963,13 @@ _netfilter_user_list()
 	local option="$1"
 	local list="$2"
 	local dir="/tmp/NETFILTER/USER"
-	local mac dev speed traffic ip oct123 oct4 list
+	local mac dev speed traffic ip oct123 oct4 list last_action
 
 	case "$option" in
 		verbose)
 			[ -z "$list" ] && list="$( ls -1 "$dir" )"
 			[ -z "$list" ] && return 0
+			_wifi include
 
 			for mac in $list; do {
 				_net mac2vendor "$mac" short >/dev/null 2>&1	# fetch vendors from internet into cache
@@ -994,7 +995,18 @@ _netfilter_user_list()
 				traffic="$( _netfilter stats "$mac" megabytes )"
 				traffic="$( printf "%4s" $traffic )mb"
 
-				echo "$mac : $ip : $dev - $traffic - $speed - $vendor"
+				if [ "$dev" = "wifi" ]; then
+					last_action="$( _wifi get_station_param "$mac" "inactive time" )"
+					if [ -n "$last_action" ]; then
+						last_action="(last action: $last_action ms)"
+					else
+						last_action="(not connected)"
+					fi
+				else
+					last_action=
+				fi
+
+				echo "$mac : $ip : $dev - $traffic - $speed - $vendor $last_action"
 			} done
 		;;
 		*)
