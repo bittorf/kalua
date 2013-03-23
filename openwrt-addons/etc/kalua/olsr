@@ -510,7 +510,7 @@ _olsr_restarts_are_suspicious_often ()
 	fi
 }
 
-_olsr_check_plausi ()				# test 1/7: is each non-infinite neighbour in routing-table? + at least 1 non-infinite?
+_olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-table? + at least 1 non-infinite?
 {						# test 2/7: each local/remote-pair has only one neighbor/link entry?
 	local FUNC="olsr_plausi_check"		# test 3/7: are minimum-cost neighbours linklocal? + metric seems believeable (<100)
 	local LINE				# test 4/7: each node in mesh has only 1 route?
@@ -527,6 +527,7 @@ _olsr_check_plausi ()				# test 1/7: is each non-infinite neighbour in routing-t
 		}
 	}
 
+	local forced_hash=
 	local OLSR_RESTARTS="$( _olsr uptime restarts_get )"
 	local BORDER="$(( $( _system uptime days ) + 10 ))"
 
@@ -543,18 +544,32 @@ _olsr_check_plausi ()				# test 1/7: is each non-infinite neighbour in routing-t
 	_log do $FUNC daemon debug "[OK] (olsr-plaintext plugin outputs something)"
 
 	case "$CONFIG_PROFILE" in
+		hotello-K80*)
+			if [ "$NODENUMBER" = "2" ]; then
+				forced_hash="c510092fee3c5812d1afeb2cee7be7d6"
+			else
+				forced_hash=
+			fi
+		;;
 		hotello-B01*)
-			case "$( cut -d';' -f5 "$FILE" | md5sum )" in		# hash over costs
-				251e8bd0827f1455a382b13fd723f994*)
-					_log do $FUNC daemon info "[OK] neighbour hash"
-				;;
-				*)
-					_log do $FUNC daemon alert "[ERR] surprising neighbour hash - rebooting"
-					reboot
-				;;
-			esac
+			forced_hash="251e8bd0827f1455a382b13fd723f994"
+		;;
+		*)
+			forced_hash=
 		;;
 	esac
+
+	[ -n "$forced_hash" ] && {
+		case "$( cut -d';' -f5 "$FILE" | md5sum )" in		# hash over costs
+			"$forced_hash"*)
+				_log do $FUNC daemon info "[OK] neighbour hash: $forced_hash"
+			;;
+			*)
+				_log do $FUNC daemon alert "[ERR] surprising neighbour hash - rebooting"
+				reboot
+			;;
+		esac
+	}
 
 	has_default_route()
 	{
