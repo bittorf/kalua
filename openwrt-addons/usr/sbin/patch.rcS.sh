@@ -9,5 +9,10 @@ cat "$SCRIPT" >>"$TEMP"
 sed -n '4,99p' "$FILE" >>"$TEMP"
 
 sh -n "$TEMP" && {
-	cp "$TEMP" "$FILE" && rm "$TEMP"
+	if mv "$TEMP" "$FILE"; then
+		chmod +x "$FILE"
+	else
+		cp "/rom$FILE" "$FILE"
+		rm "$TEMP"
+	fi
 }
