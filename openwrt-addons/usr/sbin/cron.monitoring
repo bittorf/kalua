@@ -611,14 +611,19 @@ grep -q ^"ip_tables " /proc/modules && {
 
 		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "/tmp/ARCHIV_MONITORING" )"		# must be url-encoded
 
- 			if [ -n "$QUERY" ]; then
+			case "$QUERY" in
+				"lo"*)		# e.g. local='...' or log='...'
+					[ ${#QUERY} -gt 3172 ] && {
+						_log do $FUNC daemon info "ignoring long line: '${#QUERY}' bytes"
+						continue
+					}
 
- 				echo "$QUERY" | grep -q ^"lo" && {		# dont send trash/comments; "lo" means local='...' or log='...'
-
- 					echo "$QUERY" | grep -q ^"log=" && {
- 						_log do $FUNC daemon debug "send log-message"
- 						QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC"
- 					}
+					case "$QUERY" in
+						"log="*)
+ 							_log do $FUNC daemon debug "send log-message"
+ 							QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC"
+ 						;;
+					esac
 
  					QUERY="$( echo "$QUERY" | sed 's/:/%3a/g' )"	# fixme! only temporary
 					echo "$QUERY" >"/tmp/ARCHIV_MONITORING.recent"
@@ -629,8 +634,7 @@ grep -q ^"ip_tables " /proc/modules && {
 						errors_overall=0
 					fi
 
-					i=0
-					OUT=
+					i=0; OUT=
 					while [ "$OUT" != "OK" -a $i -lt 30 ]; do {
 						OUT="$( _wget do "${KEEP_ALIVE_URL}?${QUERY}&e0=$i&e1=$errors_overall" 10 )" || {
 							sleep 10
@@ -654,12 +658,13 @@ grep -q ^"ip_tables " /proc/modules && {
  						_scheduler add "$0" force
  						break				# fixme! set comment ("marker") after last sent line
  					}
- 				}
- 			else
- 				_log do $FUNC daemon debug "send alive normally ended"
- 				echo >>"/tmp/ARCHIV_MONITORING" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
- 				break
- 			fi
+ 				;;
+ 				*)
+	 				_log do $FUNC daemon debug "send alive normally ended"
+ 					echo >>"/tmp/ARCHIV_MONITORING" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
+ 					break
+ 				;;
+			esac
 		} done
 	fi
 fi
