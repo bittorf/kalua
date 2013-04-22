@@ -4,7 +4,7 @@ _switch_query_swconfig()
 	local port_list="$1"
 	local debug="$2"
 	local type="$( uci get network.@switch[0].name )"	# switch0 or rtl8366rb 
-	local line port
+	local line port max_try
 
 	for port in $port_list; do {
 		[ "$port" = "gap" ] && {
@@ -12,7 +12,13 @@ _switch_query_swconfig()
 			continue
 		}
 
-		line="$( swconfig dev "$type" port "$port" show | fgrep "link: port:" )"
+		max_try=10
+		while [ -z "$line" ]; do {
+			line="$( swconfig dev "$type" port "$port" show | fgrep "link: port:" )"
+			try=$(( $try - 1 ))
+			[ $try -eq 0 ] && break
+		} done
+
 		[ -n "$debug" ] && \
 			_log do $funcname daemon debug "type: $type port: $port line '$line'"
 
