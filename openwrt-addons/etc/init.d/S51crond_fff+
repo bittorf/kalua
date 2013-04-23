@@ -233,6 +233,20 @@ func_cron_config_write ()
 			sed -i 's/^.* REM$/#&/g' "/tmp/CRON_IS_CAREFUL"
 		}
 
+		rrd_needed()
+		{
+			[ -n "$LOWMEM" ] && return 1
+			which rrdtool >/dev/null || return 1
+			_net local_inet_offer >/dev/null || return 1
+		}
+
+		rrd_needed && {
+			cp "/usr/sbin/cron.rrd" "/tmp"
+			. /tmp/cron.rrd
+			rrd_setup
+			sed -i 's|### CALL_RRD ###|. /tmp/cron.rrd; rrd_update|' "/tmp/CRON_IS_CAREFUL"
+		}
+
 		if [ -e "/etc/init.d/apply_profile" ]; then
 			# wait at least 10 minutes till first cron-action / simulate load
 			sed -i 's|### WAIT_FOR_APPLY_PROFILE ###|[ ${UP%.*} -lt 600 ] \&\& LOAD=0.90|' "/tmp/CRON_IS_CAREFUL"
