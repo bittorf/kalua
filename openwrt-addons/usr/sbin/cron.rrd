@@ -1,0 +1,94 @@
+#!/bin/sh
+
+# rrdtool fetch /tmp/datafile.rrd AVERAGE
+
+rrd_setup()
+{
+	local file="/tmp/datafile.rrd"
+	local interval=60			# [sec]
+	local maxwait=$(( $interval * 2 ))	# [sec] writes 'unknown' into database after this time
+	local countertype="DERIVE"		# or COUNTER or ABSOLUTE (each update new values)
+	local minmax="U:U"			# allow all values, do not limit min or max
+
+	if [ -e "$file" ]; then
+		rm "$file"
+	else
+		_log do setup daemon info "initial setup of $file"
+	fi
+
+	rrdtool create "$file" \
+		DS:upload_packets:${countertype}:${maxwait}:${minmax} \
+		DS:upload_bytes:${countertype}:${maxwait}:${minmax} \
+		DS:download_packets:${countertype}:${maxwait}:${minmax} \
+		DS:download_bytes:${countertype}:${maxwait}:${minmax} \
+		--step $interval \
+		RRA:AVERAGE:0.5:1:1440
+#		RRA:AVERAGE:0.5:4:3600 \
+#		RRA:AVERAGE:0.5:24:3600
+}
+
+rrd_update()
+{
+	local funcname="rrd_update"
+	local file="/tmp/datafile.rrd"
+	local up_packets up_bytes
+	local down_packets down_bytes
+
+	[ -e "$file" ] || rrd_setup
+
+	# show conntrack-entries:
+	# wc -l /proc/net/nf_conntrack | cut -d' ' -f1
+
+	set -- $(iptables -nxvL FORWARD 5 )
+	up_packets="-$(( $1 * 250 ))"		# fixme! use CDEF-expression
+	up_bytes=-$2
+	set -- $(iptables -nxvL FORWARD 4 )
+	down_packets="-$(( $1 * 250 ))"
+	down_bytes=$2
+
+#	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes"
+
+	rrdtool update "$file" N:${up_packets}:${up_bytes}:${down_packets}:${down_bytes} || {
+		_log do rrd_update daemon info "error $?"
+	}
+}
+
+rrd_show()
+{
+	local duration="${1:-15min}"	# 1h, 4h, 1d
+	local webfile="/www/traffic.png"
+	local output="/tmp/graph.png"
+	local file="${2:-/tmp/datafile.rrd}"
+	local context="traffic"
+	local date="$( _system date humanreadable nice )"
+	local label="bytes/sec"
+	local location="$( _weblogin metadata_locationname )"
+	local alpha="44"
+	local color1="#ff0000"
+	local color2="#0000ff${alpha}"
+	local color3="#ccdd00${alpha}"
+	local color4="#00ffdd"
+
+#	logger -s "duration = $duration"
+
+	# supress output of image-size
+	rrdtool >/dev/null graph "$output" \
+		--imgformat PNG --width 900 --height 600 \
+		--start -${duration} \
+		--vertical-label "${label}" \
+		--title "forwarded traffic on dev $WANDEV at host $HOSTNAME at object $location - time: $date (-$duration)" \
+		--watermark "Advanced kalua-framework by bittorf wireless ))" \
+		DEF:upload_packets=${file}:upload_packets:AVERAGE \
+		DEF:upload_bytes=${file}:upload_bytes:AVERAGE \
+		DEF:download_packets=${file}:download_packets:AVERAGE \
+		DEF:download_bytes=${file}:download_bytes:AVERAGE \
+		LINE1:upload_packets${color1}:"upload [packets]" \
+		AREA:upload_bytes${color2}:"upload [bytes]" \
+		LINE1:download_packets${color3}:"download [packets]" \
+		AREA:download_bytes${color4}:"download [bytes]" || {
+			logger -s "error during rrdtool graph ..."
+		}
+
+	[ -h "$webfile" ] || ln -s "$output" "$webfile"
+#	logger -s "wrote: '$output', look at http://$LANADR/$( basename "$webfile" )"
+}
