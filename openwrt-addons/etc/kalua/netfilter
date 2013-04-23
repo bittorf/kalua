@@ -188,6 +188,11 @@ _netfilter_traffic_control_user_add()
 
 	[ -z "$speed_up" ] && {
 		case "$CONFIG_PROFILE" in
+			dhsylt*)
+				[ "$ip" = "10.10.2.130" ] && return 0	# antenne sylt
+				speed_up=128kbit
+				speed_down=1mbit
+			;;
 			rehungen*)
 				case "$LANDADR" in
 					*.36.*|*.37.*|*.76.*|*.77.*|*.92.*|*.95.*)
@@ -572,11 +577,13 @@ _netfilter_stats()
 	esac
 }
 
-_netfilter_conntrack_adjust_max()
+_netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntrack_tuning
 {
 	local funcname="netfilter_conntrack_adjust_max"
 	local max="$1"
 	local file="/proc/sys/net/nf_conntrack_max"
+	local file_buckets="/sys/module/nf_conntrack/parameters/hashsize"
+	local buckets
 
 	[ -e "$file" ] || return 0
 
@@ -589,13 +596,18 @@ _netfilter_conntrack_adjust_max()
 		fi
 	}
 
+	buckets=$(( $max / 8 ))
+
 	grep -q ^"net.netfilter.nf_conntrack_max=${max}"$ "/etc/sysctl.conf" || {
 		echo "net.netfilter.nf_conntrack_max=${max}" >>"/etc/sysctl.conf"
 	}
 
-	# check with: wc -l /proc/net/nf_conntrack
-	_log do $funcname daemon info "set to $max entries, needs $(( ($max * 350) / 1024 )) kilobytes (each 350 bytes)"
+	# check with:
+	# wc -l /proc/net/nf_conntrack
+	# cat /proc/sys/net/netfilter/nf_conntrack_buckets
+	_log do $funcname daemon info "set to $max entries / $buckets buckets, needs $(( ($max * 350) / 1024 )) kilobytes (each 350 bytes)"
 	echo "$max" >"$file"
+	echo "$buckets" >"$file_buckets"
 }
 
 _netfilter_ipforwarding_needed()
