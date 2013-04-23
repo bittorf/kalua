@@ -24,7 +24,12 @@ check_switch_health()
 			if [ ${#good_ports_new} -gt 0 ]; then
 				_log do $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, fewer links)"
 				echo "$switch_new" >"$file"
-				return 0
+
+				if [ -e "/tmp/check_switch_health" ]; then
+					return 0
+				else
+					return 1
+				fi
 			else
 				_log do $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, no links)"
 				rm "$file"
@@ -49,7 +54,9 @@ check_switch_health()
 	return 0
 }
 
-check_switch_health || {
+if check_switch_health; then
+	touch "/tmp/check_switch_health"
+else
 	sleep $( _math random_integer 0 100 )
 	reboot
-}
+fi
