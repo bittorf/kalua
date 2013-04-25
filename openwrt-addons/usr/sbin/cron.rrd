@@ -55,7 +55,7 @@ rrd_update()
 
 rrd_show()
 {
-	local duration="${1:-15min}"	# 1h, 4h, 1d
+	local duration="${1:-$( _system uptime min )min}"	# e.g. 15min, 4h
 	local webfile="/www/traffic.png"
 	local output="/tmp/graph.png"
 	local file="${2:-/tmp/datafile.rrd}"
@@ -76,7 +76,7 @@ rrd_show()
 		--imgformat PNG --width 900 --height 600 \
 		--start -${duration} \
 		--vertical-label "${label}" \
-		--title "forwarded traffic on dev $WANDEV at host $HOSTNAME at object $location - time: $date (-$duration)" \
+		--title "$location: forwarded WAN-traffic $WANDEV host $HOSTNAME - time: $date (-$duration)" \
 		--watermark "Advanced kalua-framework by bittorf wireless ))" \
 		DEF:upload_packets=${file}:upload_packets:AVERAGE \
 		DEF:upload_bytes=${file}:upload_bytes:AVERAGE \
@@ -97,9 +97,8 @@ rrd_upload()
 {
 	local date="$( _system date humanreadable | sed 's/:/./g' )"
 	local dest="$( uci get system.@vds[0].server )../media/traffic_${date}.png"
-	local lookaround="$( _system uptime min )min"
 
-	rrd_show $lookaround
+	rrd_show
 	scp -i /etc/dropbear/dropbear_dss_host_key "/tmp/graph.png" "$dest"
 }
 
