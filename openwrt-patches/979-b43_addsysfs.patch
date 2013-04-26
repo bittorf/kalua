@@ -1,0 +1,121 @@
+Index: compat-wireless-2012-09-07/drivers/net/wireless/b43/dma.h
+===================================================================
+--- compat-wireless-2012-09-07.orig/drivers/net/wireless/b43/dma.h	2013-04-09 17:34:43.461565780 +0200
++++ compat-wireless-2012-09-07/drivers/net/wireless/b43/dma.h	2013-04-09 18:09:16.331844768 +0200
+@@ -303,4 +303,7 @@
+ void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
+ 			    unsigned int engine_index, bool enable);
+ 
++ssize_t b43_attr_slotusage_show(struct device *dev,struct device_attribute *attr, char *buf);
++ssize_t b43_attr_discards_show(struct device *dev,struct device_attribute *attr, char *buf);
++
+ #endif /* B43_DMA_H_ */
+Index: compat-wireless-2012-09-07/drivers/net/wireless/b43/main.c
+===================================================================
+--- compat-wireless-2012-09-07.orig/drivers/net/wireless/b43/main.c	2013-04-09 18:08:01.011471215 +0200
++++ compat-wireless-2012-09-07/drivers/net/wireless/b43/main.c	2013-04-09 18:09:16.335844738 +0200
+@@ -44,6 +44,8 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/slab.h>
+ #include <asm/unaligned.h>
++#include <linux/kernel.h>
++#include <linux/sysfs.h>
+ 
+ #include "b43.h"
+ #include "main.h"
+@@ -5470,6 +5472,9 @@
+ #endif
+ 
+ #ifdef CONFIG_B43_SSB
++static DEVICE_ATTR(slot_usage, 0444,b43_attr_slotusage_show , NULL);
++static DEVICE_ATTR(discards,0444,b43_attr_discards_show, NULL);
++
+ static
+ int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
+ {
+@@ -5503,6 +5508,15 @@
+ 	INIT_WORK(&wl->firmware_load, b43_request_firmware);
+ 	schedule_work(&wl->firmware_load);
+ 
++        if(first){
++           if( 0 > (err= device_create_file(dev->dev, &dev_attr_slot_usage))){
++              printk("b43: error creating slot_usage sysfs entry");
++           }
++           if( 0 > (err= device_create_file(dev->dev, &dev_attr_discards))){
++              printk("b43: error creating discards sysfs entry");
++           }
++        }
++
+       out:
+ 	return err;
+ 
+@@ -5537,6 +5551,9 @@
+ 		 */
+ 		b43_wireless_exit(dev, wl);
+ 	}
++
++        device_remove_file(dev->dev, &dev_attr_slot_usage);
++        device_remove_file(dev->dev, &dev_attr_discards);
+ }
+ 
+ static struct ssb_driver b43_ssb_driver = {
+Index: compat-wireless-2012-09-07/drivers/net/wireless/b43/dma.c
+===================================================================
+--- compat-wireless-2012-09-07.orig/drivers/net/wireless/b43/dma.c	2013-04-09 17:34:43.473565843 +0200
++++ compat-wireless-2012-09-07/drivers/net/wireless/b43/dma.c	2013-04-09 18:28:16.281497331 +0200
+@@ -47,6 +47,24 @@
+  * into separate slots. */
+ #define TX_SLOTS_PER_FRAME	2
+ 
++static int dmarx_max_slots = -1;
++static int dmarx_last_slots = -1;
++static int dmarx_nullruns = 0;
++
++
++ssize_t b43_attr_slotusage_show(struct device *dev,struct device_attribute *attr, char *buf){
++        return( snprintf(buf,PAGE_SIZE,
++                         "max: %d\nlast: %d\nnullruns: %d\n",dmarx_max_slots,dmarx_last_slots,dmarx_nullruns));
++}
++
++
++ssize_t b43_attr_discards_show(struct device *dev,struct device_attribute *attr, char *buf){
++       	struct b43_wldev *wldev = dev_to_b43_wldev(dev);
++        return( snprintf(buf,PAGE_SIZE,
++                         "%d\n",wldev->stats.rxdesc_underruns));
++
++}
++
+ static u32 b43_dma_address(struct b43_dma *dma, dma_addr_t dmaaddr,
+ 			   enum b43_addrtype addrtype)
+ {
+@@ -1708,16 +1726,27 @@
+ {
+ 	const struct b43_dma_ops *ops = ring->ops;
+ 	int slot, current_slot;
+-	int used_slots = 0;
+ 
+ 	B43_WARN_ON(ring->tx);
+ 	current_slot = ops->get_current_rxslot(ring);
+ 	B43_WARN_ON(!(current_slot >= 0 && current_slot < ring->nr_slots));
+ 
+-	slot = ring->current_slot;
++        slot = ring->current_slot;
++
++        if(slot>current_slot){
++          dmarx_last_slots = B43_RXRING_SLOTS-slot+current_slot;
++        }else{
++          dmarx_last_slots = current_slot-slot;
++        }
++        if(dmarx_last_slots>dmarx_max_slots)
++           dmarx_max_slots = dmarx_last_slots;
++
++        if(slot == current_slot){
++           dmarx_nullruns++;
++         }
++
+ 	for (; slot != current_slot; slot = next_slot(ring, slot)) {
+ 		dma_rx(ring, &slot);
+-		update_max_used_slots(ring, ++used_slots);
+ 	}
+ 	wmb();
+ 	ops->set_current_rxslot(ring, slot);
