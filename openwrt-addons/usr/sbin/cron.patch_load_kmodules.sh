@@ -7,7 +7,7 @@ modules_blacklist()
 {
 	local line
 
-	echo -n "ipt_REDIRECT|nf_nat_ftp|nf_nat_irc|nf_conntrack_irc|nf_conntrack_ftp|nls_base|arc4|crypto_algapi|ipt_ULOG|xt_state|tg3|bgmac|hwmon"
+	echo -n "*ipv6*|*ip6*|ipt_REDIRECT|nf_nat_ftp|nf_nat_irc|nf_conntrack_irc|nf_conntrack_ftp|nls_base|arc4|crypto_algapi|ipt_ULOG|xt_state|tg3|bgmac|hwmon"
 
 	[ -e "/www/SIMPLE_MESHNODE" ] && {
 		# iptables related
