@@ -68,6 +68,7 @@ device_forbidden()
 _http header_mimetype_output "text/plain"
 
 if [ -e "/tmp/LOCK_OLSRSLAVE" ]; then
+	_log do htmlout daemon info "sending LOCKED to $REMOTE_ADDR"
 	echo "LOCKED"
 	exit 0
 else
