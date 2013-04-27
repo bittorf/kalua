@@ -41,6 +41,9 @@ how to build this from scratch on a debian server
 	cd openwrt
 	git clone git://github.com/bittorf/kalua.git
 
+	# if you build multiple archs, you can have a central download via
+	# ln -s /tmp/openwrt-downloads dl
+
 	# for working with a specific openwrt-revision, do this:
 	# REV=33867	// current testing
 	# REV=33726	// current beta
