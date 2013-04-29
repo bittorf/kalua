@@ -22,9 +22,15 @@ how to get a release for a specific hardware
 	HW="TP-LINK TL-WR1043ND"        # possible values: ls -1 ../kalua/openwrt-config/config_HARDWARE.* | cut -d'.' -f4
 	DO="../kalua/openwrt-build/build_release.sh"
 
-	# choose your router-model and build, for example:
+	# choose your router-model and do a full-build, for example
 	$DO "HARDWARE.$HW" $REV standard dataretention trafficshaping vtunZlibLZOnoSSL kcmdlinetweak
-	$DO "HARDWARE.$HW" $REV standard patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
+
+	# or for a minimal approach with some tweaks, HW="Linksys WRT54G:GS:GL"
+	$DO "HARDWARE.$HW" $REV standard \
+		patch:841-43-decrease_number_of_rx_dma_slots.patch \
+		patch:978-b43_dmarx_adddisc.patch \
+		patch:979-b43_addsysfs.patch \
+		dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
 
 
 how to build this from scratch on a debian server
