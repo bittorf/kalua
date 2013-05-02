@@ -4,14 +4,15 @@
 FUNC="heartbeat"
 
 # only once a day
-# fixme! implement a simple refresh till we fix the mem-consumption
 [ -n "$LOWMEM" -a -e "/tmp/ARCHIV_MONITORING.recent" ] && {
-	WIFIMAC="$( _sanitizer do "$( _net dev2mac ${WIFIDEV:-$LANDEV} )" hex )"
+	[ -e "/tmp/MONITORING_HEARTBEAT_URL" ] || {
+		WIFIMAC="$( _sanitizer do "$( _net dev2mac ${WIFIDEV:-$LANDEV} )" hex )"
+		KEEP_ALIVE_URL="$( uci -q get system.@monitoring[0].url )/meshrdf/?refresh=true&mac=$WIFIMAC"
+		echo "$KEEP_ALIVE_URL" >"/tmp/MONITORING_HEARTBEAT_URL"
+	}
 
-	_log do $FUNC daemon info "lowmem-device, using simple heartbeat for mac '$WIFIMAC' - already run fullmode today"
-
-	KEEP_ALIVE_URL="$( uci -q get system.@monitoring[0].url )/meshrdf"
-	KEEP_ALIVE_URL="$KEEP_ALIVE_URL/?refresh=true&mac=$WIFIMAC"
+	read KEEP_ALIVE_URL <"/tmp/MONITORING_HEARTBEAT_URL"
+	KEEP_ALIVE_URL="${KEEP_ALIVE_URL}&up=$( _system uptime hours )"
 
 	_wget do "$KEEP_ALIVE_URL" 30 >/dev/null
 	exit 0
