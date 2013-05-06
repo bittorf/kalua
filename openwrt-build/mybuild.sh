@@ -734,12 +734,20 @@ applymystuff()
 	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
 
 	[ -e "package/mac80211/files/regdb.txt" ] && {
-		if grep "kmod-ath5k=y" .config; then
+		if grep -q "kmod-ath5k=y" .config; then
 			log "ath5k: will not overwrite regdb.txt, avoiding driver confusion"
 		else
 			file="kalua/openwrt-patches/regulatory.db.txt"
 			log "found package/mac80211/files/regdb.txt - overwriting"
-			cp "$file" "package/mac80211/files/regdb.txt"
+			cp -v "$file" "package/mac80211/files/regdb.txt"
+
+			grep -q "CONFIG_TARGET_ar71xx=y" .config && {
+				grep -q "CONFIG_PACKAGE_kmod-ath9k=y" .config && {
+					file="kalua/openwrt-patches/jow_reghack/reghack.elf"
+					log "found jow_reghack for ath9k/ar71xx - including"
+					cp -v "$file" "$base/etc/init.d/apply_profile.reghack.elf"
+				}
+			}
 		fi
 	}
 
