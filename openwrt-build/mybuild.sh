@@ -1030,3 +1030,23 @@ esac
 #
 # ./openwrt-firmware-bauen.sh applymystuff liszt28 ap 4
 #
+
+copy_images_to_server()
+{
+	ARCH="ar71xx"
+	KERNEL="$( grep ^"LINUX_VERSION:=" target/linux/$ARCH/Makefile | cut -d'=' -f2 )"
+	REV="$( scripts/getver.sh )"
+	APPEND="sysupgrade-${REV}-${KERNEL}.bin"
+	APPEND="$APPEND'"		# mind the '
+
+	SERVER="root@intercity-vpn.de"
+	SERVER_PATH="/var/www/firmware/$ARCH/images/testing"
+	PRE="$SERVER:'$SERVER_PATH"	# mind the '
+
+	scp bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin "$PRE/TP-LINK TL-WR1043ND.$APPEND"
+	scp bin/ar71xx/openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin "$PRE/TP-LINK TL-WDR3600:4300:4310.$APPEND"
+	scp bin/ar71xx/openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin "$PRE/Buffalo WZR-HP-AG300H.$APPEND"
+	scp bin/ar71xx/openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin "$PRE/Ubiquiti Bullet M.$APPEND"
+	scp bin/ar71xx/openwrt-ar71xx-generic-ubnt-nano-m-squashfs-sysupgrade.bin "$PRE/Ubiquiti Nanostation M.$APPEND"
+}
+
