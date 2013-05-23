@@ -592,7 +592,7 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 	local max="$1"
 	local file="/proc/sys/net/nf_conntrack_max"
 	local file_buckets="/sys/module/nf_conntrack/parameters/hashsize"
-	local buckets
+	local buckets old_buckets
 
 	[ -e "$file" ] || return 0
 
@@ -605,19 +605,17 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 		fi
 	}
 
-	buckets=$(( $max / 8 ))
-	[ $buckets -gt 1816 ] && buckets=1816		# klog/moduleinfo shows that
-
 	grep -q ^"net.netfilter.nf_conntrack_max=${max}"$ "/etc/sysctl.conf" || {
 		echo "net.netfilter.nf_conntrack_max=${max}" >>"/etc/sysctl.conf"
 	}
 
-	# check with:
-	# wc -l /proc/net/nf_conntrack
-	# cat /proc/sys/net/netfilter/nf_conntrack_buckets
-	_log do $funcname daemon info "set to $max entries / $buckets buckets, needs $(( ($max * 350) / 1024 )) kilobytes (each 350 bytes)"
-	echo "$max" >"$file"
-	echo "$buckets" >"$file_buckets"
+	read old_buckets <"/proc/sys/net/netfilter/nf_conntrack_buckets"
+	buckets=$(( $max / 8 ))
+	[ $buckets -gt 1816 ] && buckets=1816		# klog/moduleinfo says this is max
+
+	_log do $funcname daemon info "set to $max entries / $old_buckets -> $buckets buckets, needs $(( ($max * 350) / 1024 )) kilobytes (each 350 bytes)"
+	echo "$max" >"$file"		# check usage via: wc -l /proc/net/nf_conntrack
+#	echo "$buckets" >"$file_buckets"
 }
 
 _netfilter_ipforwarding_needed()
