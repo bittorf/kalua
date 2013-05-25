@@ -383,6 +383,9 @@ check_scripts()
 
 	for file in $( find $dir -type f ); do {
 		case "$file" in
+			"./www/images/web"*)
+				mimetype="application/x-empty"
+			;;
 			"./etc/kalua/"*)
 				mimetype="text/x-shellscript"
 			;;
@@ -392,8 +395,17 @@ check_scripts()
 		esac
 
 		case "$mimetype" in
-			*"inode/x-empty"*)
+			*"text/html"*)
+				log "[OK] will not check html file '$file'"
+			;;
+			*"text/x-c++"*)
+				log "[OK] will not check c++ file '$file'"
+			;;
+			*"inode/x-empty"*|*"application/x-empty"*)
 				log "[OK] will not check empty file '$file'"
+			;;
+			*"image/gif"*)
+				log "[OK] will not check gfx file '$file'"
 			;;
 			*"application/octet-stream"*)
 				log "[OK] will not check binary file '$file'"
