@@ -342,8 +342,11 @@ case "$HARDWARE" in
 	;;
 esac
 
-
-OLD_HOSTNAME="$( uci get system.@system[0].hostname )"
+#get old hostname or hostname set in system config
+OLD_HOSTNAME="$( uci get -q meshwizard.system.hostname )"
+[ -z "$OLD_HOSTNAME" ] && {
+	OLD_HOSTNAME="$( uci get system.@system[0].hostname )"
+}
 
 case "$OLD_HOSTNAME" in
 	OpenWrt|"")
@@ -413,44 +416,44 @@ _config_system ()
 
 	echo "${OLD_HOSTNAME}" >/proc/sys/kernel/hostname
 
-	cat >/etc/config/system <<EOF
-config 'system'
-	option 'hostname' '${OLD_HOSTNAME}'
-	option 'timezone' '${TIMEZONE:-GMT0}'
-	option 'cronloglevel' '9'
-	option 'log_size' '16'
-EOF
+	rm /etc/config/system
+	touch /etc/config/system
+
+	#system section of system
+	uci set system.system="system"
+	uci set system.system.hostname="$HOSTNAME"
+	uci set system.system.timezone="${TIMEZONE:-GMT0}"
+	uci set system.system.cronloglevel="9"
+	uci set system.system.log_size="16"
 	if [ "$INSTALLATION" = "ffweimar" ]; then       #restore all settings in profile ffweimar 
-                echo >>/etc/config/system "	option 'keepsettings'  '1'"
-                echo >>/etc/config/system "	option 'noswinstall' '1'"
+                uci set system.system.keepsettings="1"
+                uci set system.system.noswinstall="1"
 	else
-	        echo >>/etc/config/system "     option 'keepsettings'  '0'"
+                uci set system.system.keepsettings="0"
 	fi
+	[ -n "$( uci get meshwizard.system.conloglevel )" ] && {
+		uci set system.system.conloglevel="$( uci get meshwizard.system.conloglevel )"
+	}
+	[ -n "$( uci get meshwizard.system.latitude )" ] && {
+		uci set system.system.latitude="$( uci get meshwizard.system.latitude )"
+	}
+	[ -n "$( uci get meshwizard.system.longitude )" ] && {
+		uci set system.system.longitude="$( uci get meshwizard.system.longitude )"
+	}
+	[ -n "$( uci get meshwizard.system.location )" ] && {
+		uci set system.system.location="$( uci get meshwizard.system.location )"
+	}
+	
+	#ntp section of system
 
-	cat >>/etc/config/system <<EOF
-config 'timeserver' 'ntp'
-	list server 0.openwrt.pool.ntp.org
-	list server 1.openwrt.pool.ntp.org
-	list server 2.openwrt.pool.ntp.org
-	list server 3.openwrt.pool.ntp.org
-	option enable_server 0
+	uci set system.ntp="timeserver"
+	uci add_list system.ntp.server="0.openwrt.pool.ntp.org"
+	uci add_list system.ntp.server="1.openwrt.pool.ntp.org"
+	uci add_list system.ntp.server="2.openwrt.pool.ntp.org"
+	uci add_list system.ntp.server="3.openwrt.pool.ntp.org"
+	uci set system.ntp.enable_server="0"
 
-EOF
-
-case "$HARDWARE" in
-	"TP-LINK TL-WR1043ND")
-		cat >>/etc/config/system <<EOF
-
-config 'led' 'wlan_led'
-	option name	'WLAN'
-	option sysfs	'tl-wr1043nd:green:wlan'
-	option trigger	'phy0rx'
-EOF
-	;;
-	"BulletM")
-		:
-	;;
-esac
+	#weblogin section of system
 
 	case "${INSTALLATION}" in
 		*)
@@ -465,73 +468,103 @@ esac
 			hide_lang=
 		;;
 	esac
+	
+	uci set system.weblogin="weblogin"
 
-	cat >>/etc/config/system <<EOF
-
-config 'weblogin'
-${weblogin_hide}	option enabled	'1'
-	option namespace 'capital_citys_de'
-${hide_lang}	option adminlang 'en'
-EOF
+	[ -z "$weblogin_hide" ] && {
+		uci set system.weblogin.enabled="1"
+	}
+	uci set system.weblogin.namespace="capital_citys_de"
+	[ -z "$hide_lang" ] && {
+		uci set system.weblogin.adminlang="en"
+	}
 
 	case "${NODE}_${INSTALLATION}" in
 		42_ejbw*)
-			echo >>/etc/config/system "	option authserver '192.168.111.183'"
+			uci set system.weblogin.authserver="192.168.111.183"
 		;;
 		6_monami*)
-			echo >>/etc/config/system "	option authserver '10.63.7.1'"
+			uci set system.weblogin.authserver="10.63.7.1"
 		;;
 	esac
 
-	cat >>/etc/config/system <<EOF
+	#profile section of system
+	uci set system.profile="profile"
+	uci set system.profile.name="${INSTALLATION}_${PROFILE_MODE}"
+	uci set system.profile.nodenumber="$NODE"
+	uci set system.profile.ipsystem="$(IPSYSTEM)"
 
-config 'profile'
-	option name	'${INSTALLATION}_${PROFILE_MODE}'
-	option nodenumber '$NODE'
-	option ipsystem	'${IPSYSTEM}'
-
-config 'vds'
-	option server	'root@intercity-vpn.de:/var/www/networks/${INSTALLATION}/vds/'
-EOF
+	#vds section of system
+	uci set system.vds="vds"
+	uci set system.vds.server="root@intercity-vpn.de:/var/www/networks/${INSTALLATION}/vds/"
 	if [ "$INSTALLATION" = "ffweimar" ]; then	#disable vds in profile ffweimar 
-		echo >>/etc/config/system "	option enabled	'0'"
+		uci set system.vds.enabled="0"
 	else
-		echo >>/etc/config/system "	option enabled	'1'"
+		uci set system.vds.enabled="1"
 	fi
 
-	cat >>/etc/config/system <<EOF
+	#monitoring section of system
+	uci set system.monitoring="monitoring"
+	uci set system.monitoring.url="http://intercity-vpn.de/networks/${INSTALLATION}"
 
-config 'monitoring'
-	option url	'http://intercity-vpn.de/networks/${INSTALLATION}'
-
-config 'fwupdate'
-	option url	'http://intercity-vpn.de/firmware'
-EOF
+	#fwupdate section of system
+	uci set system.fwupdate="fwupdate"
+	uci set url="http://intercity-vpn.de/firmware"
         if [ "$INSTALLATION" = "ffweimar" ]; then	# autoupdate only stable versions in profile ffweimar
-		echo >>/etc/config/system "	option mode  'stable'"
+		uci set system.fwupdate.mode="stable"
 	else
-		echo >>/etc/config/system "	option mode  'testing'"
+		uci set system.fwupdate.mode="testing"
         fi
 
-	cat >>/etc/config/system <<EOF
+	#admin section of system
+	uci set system.admin="admin"
+	uci set system.admin.location="$( contact location )"
+	uci set system.admin.latlon="$( contact latlon )"
+	uci set system.admin.mail="$( contact mail )"
+	uci set system.admin.name="$( contact name )"
+	uci set system.admin.phone="$( contact phone )"
+	uci set system.admin.neturl="$( contact neturl )"
 
-config 'admin'
-	option location	'$( contact location )'
-	option latlon	'$( contact latlon )'
-	option mail	'$( contact mail )'
-	option name	'$( contact name )'
-	option phone	'$( contact phone )'
-	option neturl	'$( contact neturl )'
-
-config 'vpn'
-	option hostname 'weimarnetz.de'
-	option proto	'olsr'
-	option enable 	'1'
-	option ipaddr	'77.87.48.19'
-EOF
+	#vpn section of system
+	uci set system.vpn="vpn"
+	uci set system.vpn.hostname="weimarnetz.de"
+	uci set system.vpn.proto"olsr"
+	uci set system.vpn.enable="1"
+	uci set system.vpn.ipaddr="77.87.48.19"
 	if [ "$INSTALLATION" = "ffweimar" ]; then
-		echo >>/etc/config/system "	option port 	'5001'"
+		uci set system.vpn.port="5001"
 	fi
+
+	uci commit system
+}
+
+_config_freifunk ()
+{
+	#contact section of freifunk
+	uci set freifunk.contact="public"
+	[ -n "$( uci get meshwizard.contact.name )" ] && {
+		uci set freifunk.contact.name="$( uci get meshwizard.contact.name )"
+	}
+	[ -n "$( uci get meshwizard.contact.nickname )" ] && {
+		uci set freifunk.contact.nickname="$( uci get meshwizard.contact.nickname )"
+	}
+	[ -n "$( uci get meshwizard.contact.mail )" ] && {
+		uci set freifunk.contact.mail="$( uci get meshwizard.contact.mail )"
+	}
+	[ -n "$( uci get meshwizard.contact.phone )" ] && {
+		uci set freifunk.contact.phone="$( uci get meshwizard.contact.phone )"
+	}
+	[ -n "$( uci get meshwizard.contact.note )" ] && {
+		uci set freifunk.contact.note="$( uci get meshwizard.contact.note )"
+	}
+	#community section of freifunk
+	[ -n "$( uci get meshwizard.community.name )" ] && {
+		uci set freifunk.community="public"
+		uci set freifunk.community.name="$( uci get meshwizard.community.name )"
+	}
+
+	uci commit freifunk
+ 
 }
 
 _config_softwareinstall ()
@@ -1617,7 +1650,7 @@ EOF
 # keep important settings
 local keepsettings="$( uci get system.@system[0].keepsettings )"           
 [ "$keepsettings" != "1" ] && { 
-	for SECTION in softwareinstall system mail wireless network dhcp aliases olsrd firewall sms polipo; do {
+	for SECTION in softwareinstall system freifunk mail wireless network dhcp aliases olsrd firewall sms polipo; do {
 		log "....working on section '$SECTION'"
 		_config_$SECTION "$NODENUMBER"
 		log "[ok] ready with section '$SECTION'"
