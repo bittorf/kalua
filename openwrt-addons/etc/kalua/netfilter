@@ -1100,7 +1100,10 @@ _netfilter_user_reachable()
 				line="$( ip neigh show to "$ip" | head -n1 )"
 				set -- ${line:-empty_line}
 
-				[ "$mac" = "$5" ] && return 0
+				[ "$mac" = "$5" ] && {
+					echo "$dev"
+					return 0
+				}
 			}
 
 			try=$(( $try - 1 ))
@@ -1122,10 +1125,10 @@ _netfilter_user_add()
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && return 0
 
-#	_netfilter user_reachable "$mac" "$ip" || {
-#		_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
-#		return 1
-#	}
+	dev="$( _netfilter user_reachable "$mac" "$ip" )" || {
+		_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
+		return 1
+	}
 
 	# against spoofing, add "-s $ip"?
 	iptables -t mangle -I PREROUTING -d $ip -j ACCEPT
@@ -1140,7 +1143,7 @@ _netfilter_user_add()
 	echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
 	touch "/tmp/vds_user_$mac"
 
-	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
+#	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
 	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
 
 	if _netfilter user_dataretention_needed; then
