@@ -71,6 +71,19 @@ netparam_for_uci_devices ()
 		echo "${NAME}OLSR="
 	} done
 
+	list_wifi_devs()
+	{
+		local network_name list_wifi_names
+		list_wifi_names="$( sed -n 's/^.*network\(.*\)/\1/p' /etc/config/wireless )"
+
+		for network_name in $list_wifi_names; do {
+			# JSON: "device": "wlan0",
+			ifstatus "$network_name" | grep '"device":' | cut -d':' -f2 | cut -d'"' -f2
+		} done
+	}
+
+	echo "WIFI_DEVS='$( for IFNAME in $( list_wifi_devs ); do echo -n "$IFNAME "; done )'"
+
 	[ -e "/tmp/dmesg.boot" ] || . /usr/sbin/cron.check_klog
 	fgrep -sq "phy0: failed to initialize PHY" "/tmp/dmesg.boot" && {
 		echo "WIFIDEV=	# failed to initialize PHY"
