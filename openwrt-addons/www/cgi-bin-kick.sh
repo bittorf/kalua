@@ -3,7 +3,12 @@
 
 echo -en "Content-type: text/plain\n\nOK"
 
-eval $( _http query_string_sanitize )	# CAH|CMA
+eval $( _http query_string_sanitize )	# CAH|CMA|LOG
+
+[ -n "$LOG" ] && {
+	logger -s "$0: LOG: '$LOG'"
+	exit 1
+}
 
 _netfilter user_probe "$CMA" || exit 1
 
