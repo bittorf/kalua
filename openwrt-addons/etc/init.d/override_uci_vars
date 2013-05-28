@@ -150,4 +150,62 @@ boot()
 			}
 		;;
 	esac
+
+	case "$CONFIG_PROFILE" in
+		liszt28*|olympia*)
+			[ -e "/usr/sbin/batctl" ] && {
+				uci add network alias
+				uci set network.@alias[-1].interface="lan"
+				uci set network.@alias[-1].proto=batadv
+				uci set network.@alias[-1].mesh=bat0
+
+				uci add network alias
+				uci set network.@alias[-1].interface="wan"
+				uci set network.@alias[-1].proto=batadv
+				uci set network.@alias[-1].mesh=bat0
+
+				case "$CONFIG_PROFILE" in
+					*hybrid)
+						uci add network alias
+						uci set network.@alias[-1].interface="wlanadhoc"
+						uci set network.@alias[-1].proto=batadv
+						uci set network.@alias[-1].mesh=bat0
+
+						_scheduler add "brctl addif br-mybridge wlan0"
+					;;
+					*adhoc)
+						uci add network alias
+						uci set network.@alias[-1].interface="wlan"
+						uci set network.@alias[-1].proto=batadv
+						uci set network.@alias[-1].mesh=bat0
+					;;
+					*ap)
+						_scheduler add "brctl addif br-mybridge wlan0"
+					;;
+				esac
+
+				uci set network.mybridge="interface"
+				uci set network.mybridge.type="bridge"
+				uci set network.mybridge.ifname="bat0"
+				uci set network.mybridge.proto="static"
+				uci set network.mybridge.ipaddr="192.168.5.$NODENUMBER"
+				uci set network.mybridge.netmask="255.255.255.0"
+
+				if _net local_inet_offer >/dev/null; then
+					uci set batman-adv.bat0.gw_mode=server
+
+					uci set dhcp.mybridge=dhcp
+					uci set dhcp.mybridge.interface=mybridge
+					uci set dhcp.mybridge.start=10
+					uci set dhcp.mybridge.limit=100
+					uci set dhcp.mybridge.leasetime=1h
+					uci set dhcp.mybridge.force=1
+					uci set dhcp.mybridge.ignore=0
+				else
+					uci set dhcp.wlan.ignore=1
+					uci set dhcp.lan.ignore=1
+				fi
+			}
+		;;
+	esac
 }
