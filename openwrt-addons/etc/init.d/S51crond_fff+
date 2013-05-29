@@ -268,9 +268,18 @@ func_cron_config_write ()
 		}
 
 		backping_needed && {
-			local moni_ip="84.38.67.43"	# fixme!
+			local ip1="84.38.67.43"		# intercity-vpn.de
+			local ip2="8.8.8.8"		# google anycast dns
+			local ip3="46.252.25.48"	# jiffybox
+			local iplist="$ip1 $ip2 $ip3"
 			local size=64
-			local action="ping -s $size -c1 $moni_ip >/dev/null || { . /tmp/loader; _log do cron daemon alert ping_failed_to_$moni_ip; }"
+			local ip testcmd action
+
+			for ip in $iplist; do {
+				testcmd="$testcmd ping -s $size -c1 $ip >/dev/null ||"
+			} done
+
+			local action="$testcmd { . /tmp/loader; _log do cron daemon alert \"ping failed to $iplist\"; }"
 
 			sed -i "s,### PING_MONITORING_SERVER ###,$action," "/tmp/CRON_IS_CAREFUL"
 		}
