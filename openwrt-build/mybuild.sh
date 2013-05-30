@@ -992,40 +992,39 @@ gitpull()
 	log "updated to openwrt-version: $( scripts/getver.sh )"
 }
 
+copy_images_to_server()
+{
+	cd kalua
+	KALUA_REF="$( git log --pretty=oneline --abbrev-commit | head -n1 | cut -d' ' -f1 )"
+	KALUA_REF="git${KALUA_REF=}"								# e.g. git479d47b
+	cd ..
+
+	ARCH="ar71xx"
+	KERNEL="$( grep ^"LINUX_VERSION:=" target/linux/$ARCH/Makefile | cut -d'=' -f2 )"	# e.g. 3.8.13
+	REV="$( scripts/getver.sh )"								# e.g. r37012
+	APPEND="sysupgrade-${REV}-${KERNEL}-${KALUA_REF}.bin"
+	APPEND="$APPEND'"		# mind the '
+
+	SERVER="root@intercity-vpn.de"
+	SERVER_PATH="/var/www/firmware/$ARCH/images/testing"
+	PRE="$SERVER:'$SERVER_PATH"	# mind the '
+
+	work()
+	{
+		logger -s "$1 -> $2"
+		scp "$1" "$2"
+	}
+
+	work bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin "$PRE/TP-LINK TL-WR1043ND.$APPEND"
+	work bin/ar71xx/openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin "$PRE/TP-LINK TL-WDR3600:4300:4310.$APPEND"
+	work bin/ar71xx/openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin "$PRE/Buffalo WZR-HP-AG300H.$APPEND"
+	work bin/ar71xx/openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin "$PRE/Ubiquiti Bullet M.$APPEND"
+	work bin/ar71xx/openwrt-ar71xx-generic-ubnt-nano-m-squashfs-sysupgrade.bin "$PRE/Ubiquiti Nanostation M.$APPEND"
+}
+
 case "$ACTION" in
 	upload)
-		SERVERPATH="root@intercity-vpn.de:/var/www/firmware/$( get_arch )/images/testing/"	
-		[ -n "$OPTION2" ] || SERVERPATH="$SERVERPATH/$OPTION"					# liszt28
-
-		FILEINFO="${OPTION}${OPTION2}${OPTION3}"						# liszt28ap4
-		[ -n "$FILEINFO" ] && FILEINFO="$FILEINFO-"
-
-		case "$( get_arch )" in
-			ar71xx)
-				if   grep -q ^"CONFIG_TARGET_ar71xx_generic_UBNT=y" .config ; then
-					LIST_FILES="            openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-factory.bin"
-					LIST_FILES="$LIST_FILES openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin"
-				elif grep -q ^"CONFIG_TARGET_ar71xx_generic_TLWR1043NDV1=y" .config ; then
-					LIST_FILES="            openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin"
-					LIST_FILES="$LIST_FILES openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin"
-				fi
-			;;
-			brcm47xx)
-
-				# check for
-				# CONFIG_TARGET_brcm47xx_Broadcom-b43=y		@ .config
-				# CONFIG_TARGET_brcm47xx_Atheros-ath5k=y
-
-				LIST_FILES="openwrt-brcm47xx-squashfs.trx openwrt-wrt54g-squashfs.bin"
-			;;
-		esac
-
-		for FILE in $LIST_FILES; do {
-			log "scp-ing file '$FILE' -> '${FILEINFO}${FILE}'"
-			scp bin/$( get_arch )/$FILE "$SERVERPATH/${FILEINFO}${FILE}"
-			WGET_URL="http://intercity-vpn.de/firmware/$( get_arch )/images/testing/${FILEINFO}${FILE}"
-			log "download with: wget -O ${FILEINFO}.bin '$WGET_URL'"
-		} done
+		copy_images_to_server
 	;;
 	*)
 		$ACTION "$OPTION" "$OPTION2" "$OPTION3" "$OPTION4" "$OPTION5" "$OPTION6" "$OPTION7" "$OPTION8" "$OPTION9"
@@ -1042,23 +1041,3 @@ esac
 #
 # ./openwrt-firmware-bauen.sh applymystuff liszt28 ap 4
 #
-
-copy_images_to_server()
-{
-	ARCH="ar71xx"
-	KERNEL="$( grep ^"LINUX_VERSION:=" target/linux/$ARCH/Makefile | cut -d'=' -f2 )"
-	REV="$( scripts/getver.sh )"
-	APPEND="sysupgrade-${REV}-${KERNEL}.bin"
-	APPEND="$APPEND'"		# mind the '
-
-	SERVER="root@intercity-vpn.de"
-	SERVER_PATH="/var/www/firmware/$ARCH/images/testing"
-	PRE="$SERVER:'$SERVER_PATH"	# mind the '
-
-	scp bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin "$PRE/TP-LINK TL-WR1043ND.$APPEND"
-	scp bin/ar71xx/openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin "$PRE/TP-LINK TL-WDR3600:4300:4310.$APPEND"
-	scp bin/ar71xx/openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin "$PRE/Buffalo WZR-HP-AG300H.$APPEND"
-	scp bin/ar71xx/openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin "$PRE/Ubiquiti Bullet M.$APPEND"
-	scp bin/ar71xx/openwrt-ar71xx-generic-ubnt-nano-m-squashfs-sysupgrade.bin "$PRE/Ubiquiti Nanostation M.$APPEND"
-}
-
