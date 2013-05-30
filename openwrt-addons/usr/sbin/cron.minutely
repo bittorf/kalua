@@ -7,26 +7,41 @@ fi
 
 [ ${UP%.*} -gt 129600 ] && {	# 36h
 	rm "/tmp/CRON_IS_CAREFUL"
+	( echo "ALERT: overup - up: $UP" >>/www/everlasting_syslog.txt; sync ) &
+	/bin/sleep 5
+
 	echo "c" >/proc/sysrq-trigger
 	/sbin/reboot
 }
 
 if [ -e "/tmp/CRON_PSWORK" ]; then
+	( echo "ALERT: pswork - up: $UP" >>/www/everlasting_syslog.txt; sync ) &
+	/bin/sleep 5
+
 	echo "c" >/proc/sysrq-trigger
 	/sbin/reboot -f
 else
-	touch "/tmp/CRON_PSWORK"
-	ps >/dev/null			# test something essential
-	rm "/tmp/CRON_PSWORK"
+	ps >"/tmp/CRON_PSWORK"		# test something essential
 fi
 
 read LOAD REST </proc/loadavg
-# uncomment to log A) network-traffic and B) freemem/uptime/load into '/tmp/MEM'
-# while read L;do case $L in *wlan0*)set $L;echo -n "rx:$2/$3 tx:${10}/${11} ">>/tmp/MEM;;esac;done</proc/net/dev
-# while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;echo mem:$((($M+$2)*1024)) up:$UP load:$LOAD>>/tmp/MEM;break;esac;done</proc/meminfo
+# uncomment to collect 1) date 2) lockstatus 3) network-traffic and 4) freemem/uptime/load 5) taskcount and 6) dump into '/tmp/CRONSTATUS'
+#1# REST="$( date ) "
+#2# [ -e /tmp/CRON_LOCK ] && REST="$REST [LOCKED] "
+#3# while read L;do case $L in *wlan*)set $L;REST="$REST $1 rx:$2/$3 tx:${10}/${11} ";;esac;done</proc/net/dev
+#4# while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;REST="$REST mem:$((($M+$2)*1024)) up:$UP load:$LOAD";break;esac;done</proc/meminfo
+#5# REST="$REST tasks: $( wc -l </tmp/CRON_PSWORK )"
+#6# echo "$REST" >>/tmp/CRONSTATUS
+#7# see /etc/kalua/scheduler: scheduler_add() and uncomment the last line in function
+#8# see /usr/bin/scheduler: uncomment line on top
 
+rm "/tmp/CRON_PSWORK"
+
+### PING_MONITORING_SERVER ###
+### CALL_RRD ###
 ### CALL_WEBCAM ###
 ### WAIT_FOR_APPLY_PROFILE ###
+### NOCRON_DURING_CLIENT_ACTION ###
 
 case "$LOAD" in
 	1.00)
@@ -58,15 +73,26 @@ case "$LOAD" in
 	;;
 	0*)
 		[ -e "/bin/dmesg" ] && . /usr/sbin/cron.check_klog
-		[ -e "/tmp/CRON_OVERLOAD" ] && rm "/tmp/CRON_OVERLOAD"
+		[ -e "/tmp/CRON_OVERLOAD" ] && {
+			read I <"/tmp/CRON_OVERLOAD"
+			case "$I" in
+				"#"*)
+					rm "/tmp/CRON_OVERLOAD"
+				;;
+			esac
+		}
 
 		if [ -e /tmp/CRON_LOCK ]; then
 			case "$LOAD" in
 				0.00|0.01|0.02)
 					echo -n '#' >>"/tmp/CRON_UNDERLOAD"
 					read I <"/tmp/CRON_UNDERLOAD"
-					[ ${#I} -gt 9 ] && {
+					[ ${#I} -gt 30 ] && {
 						rm "/tmp/CRON_IS_CAREFUL"
+
+						( echo "ALERT: $( date ) underload - load: $LOAD - I: $I - up: $UP" >>/www/everlasting_syslog.txt; ps >>/www/everlasting_syslog.txt; sync ) &
+						/bin/sleep 5
+
 						echo "c" >/proc/sysrq-trigger
 						/sbin/reboot -f
 					}
@@ -105,6 +131,9 @@ case "$LOAD" in
 			I="#"
 		fi
 
+		# dont complain the first 30 mins
+		[ ${UP%.*} -lt 1800 ] && I=
+
 		case "$I" in
 			"#"*)
 				echo -n '#' >>"/tmp/CRON_OVERLOAD"
@@ -113,21 +142,21 @@ case "$LOAD" in
 					0|1|2|3)
 					;;
 					4|5|6|7)
-						pidof ulogd >/dev/null && {
-	                                                /etc/init.d/ulogd stop
-							. /tmp/loader
-							_watch hanging_command ulogd
-							_watch hanging_command ulogd
-						}
-
 						killall dropbear	# maybe a script attack
 
-						rm "/var/log/ulogd.syslogemu"
-						rm /tmp/user-*	# maybe orphaned vds-files/ulogd
-						rm /tmp/log/*
+						. /tmp/loader
+						_watch space_tmpfs
+						_watch topusage_task
+						[ -n "$LOWMEM" ] && echo "#" >"/tmp/CRON_OVERLOAD"
+
+						echo "ALERT: overload - killed dropbear" >>/www/everlasting_syslog.txt
 					;;
 					*)
 						rm "/tmp/CRON_IS_CAREFUL"
+
+						( echo "ALERT: overload - $LOAD - up: $UP" >>/www/everlasting_syslog.txt; sync ) &
+						/bin/sleep 5
+
 						echo "c" >/proc/sysrq-trigger
 						/sbin/reboot -f
 					;;
