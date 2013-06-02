@@ -245,13 +245,6 @@ EOF
 				case "$( uci get system.@weblogin[0].auth_credentials )" in
 					simple)
 						case "$CONFIG_PROFILE" in
-							shankar*)
-								_log do $funcname daemon sms \
-									"login from $FORM_MOBILE_NUMBER" \
-									"Wi-Cloud Credentials: $PASSWORD - Have a nice day!" \
-									"$FORM_MOBILE_NUMBER" \
-									"force"
-							;;
 							*)
 								_log do $funcname daemon sms \
 									"login from $FORM_MOBILE_NUMBER" \
@@ -295,10 +288,6 @@ EOF
 				_weblogin htmlout_needs_admin_interaction "$LANG"
 			else
 				case "$CONFIG_PROFILE" in
-					spbansin*)
-						i18n_username="$( _translate do "$LANG" roomnumber )"
-						# i18n_password="$( _translate do "$LANG" bookingcode )"		# fixme!
-					;;
 					*)
 						i18n_username="$( _translate do "$LANG" username )"
 						i18n_password="$( _translate do "$LANG" password )"
@@ -312,11 +301,6 @@ EOF
 						_welcome htmlout_wikipage "title=Vorlage:Startseite.Aktuelles" "$( _translate do $LANG ffweimar_news )" 
 						_welcome htmlout_news "http://www.weimarnetz.de/latestnews.html" "$( _translate do $LANG ffweimar_discussions )"
 						_welcome htmlout_wikipage "title=Vorlage:Spendenaufruf" "$( _translate do $LANG ffweimar_funds )"
-					;;
-					spbansin*)
-						cat <<EOF
-<TR><TD ALIGN="CENTER"><label for='username'>${font_start}${i18n_username}:${font_end}&nbsp;</label><INPUT TABINDEX="1" ID="username" TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER" VALUE="$FORM_USER"></TD></TR>
-EOF
 					;;
 					*)
 						cat <<EOF
@@ -507,16 +491,6 @@ _weblogin_device_or_customer_needs_admin_interaction()
 	local funcname="weblogin_device_or_customer_needs_admin_interaction"
 	local hostname="$1"
 
-	case "$CONFIG_PROFILE" in
-		rehungen*)
-			case "$hostname" in
-				rehungen-adhoc*)	# unset/never touched
-					_log do $funcname daemon info "triggered: $REMOTE_ADDR"
-					return 0
-				;;
-			esac
-		;;
-	esac
 
 	return 1
 }
@@ -614,117 +588,6 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 					;;
 				esac
 			;;
-			liszt28*)
-				mac_is_from_lan "$MAC" && {
-					FREE=1
-				}
-
-				case "$WIFIADR" in
-					10.10.8.1|10.10.15.1)		# bar reservebank
-						FREE=1
-					;;
-				esac
-			;;
-			rehungen*|extrawatt*)
-				mac_is_from_lan "$MAC" && {
-					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV"
-					FREE=1
-				}
-
-				[ "$LANADR" = "10.10.152.33" ] && {
-					[ "$HASH" = "38178cdf6173811999516635a809ede3" ] && {
-						FREE=1		# fixme!
-					}
-				}
-
-				_weblogin device_or_customer_needs_admin_interaction "$CONFIG_PROFILE" "$HOSTNAME" && {
-					FREE=
-				}
-			;;
-			versilia*)
-				[ "$( uci get network.lan.ipaddr )" = "10.63.191.225" ] && {
-					mac_is_from_lan "$MAC" && {
-						_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV on 10.63.191.225"
-						FREE=1		# fixme!
-					}
-				}
-			;;
-			spbansin*)
-				is_valid_booking_number()	# 1234-2011 |  12345-2011
-				{
-					local number="$1"
-					local code year
-	
-					case "$number" in
-						*-*)
-							code="$( echo "$number" | cut -d'-' -f1 )"
-							year="$( echo "$number" | cut -d'-' -f2 )"
-
-							[ ${#code} -eq 4 -o ${#code} -eq 5 ] && {
-	
-								year_now="$( date +%Y )"
-	
-								if [ "$year" = "$year_now" ]; then
-									return 0
-								else
-									[ ${#year} -eq 4 ] && {
-										[ "$( date +%m )" = "01" ] && {
-											[ "$year" = "$(( $year_now - 1 ))" ] && {
-												# in januar 2012 we can enter 2011
-												return 0
-											}
-										}	
-									}
-								fi
-							}
-						;;
-					esac
-
-					return 1
-				}
-
-				is_valid_room_number()
-				{
-					[ ${#1} -eq 3 ] && {
-						case "$1" in
-							100|101|102|103|104|105|106|107|108|109|110|111|112) return 0 ;;
-							200|201|202|203|204|205|206|207|208|209|210|211|212) return 0 ;;
-							300|301|302|303|304|305|306|307|308|309|310|311|312) return 0 ;;
-							400|401|402|403|404|405|406|407|408|409|410|411|412) return 0 ;;
-							# 5xx not under management
-							600|601|602|603|604|605|606|607|608|609|610|611|612) return 0 ;;
-							700|701|702|703|704|705|706|707|708|709|710|711|712) return 0 ;;
-							800|801|802|803|804|805|806|807|808|809|810|811|812) return 0 ;;
-							900|901|902|903|904|905|906|907|908|909|910|911|912) return 0 ;;
-						esac
-					}
-
-					[ ${#1} -eq 4 ] && {
-						case "$1" in
-							1000|1001|1002|1003|1004|1005|1006|1007|1008|1009|1010|1011|1012) return 0 ;;
-							1100|1101|1102|1103|1104|1105|1106|1107|1108|1109|1110|1111|1112) return 0 ;;
-							1200|1201|1202|1203|1204|1205|1206|1207|1208|1209|1210|1211|1212) return 0 ;;
-						esac
-					}
-
-					return 1
-				}
-
-				is_valid()
-				{
-					is_valid_room_number    "$1" || return 1
-					# is_valid_booking_number "$2" || return 1
-
-					return 0
-				}
-
-				if is_valid "$USER" "$PASS" ; then
-					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE"
-					FREE=1
-				else
-					_log do $FUNC daemon info "is not a valid combination: $USER / $PASS"
-				fi
-			;;
 		esac
 	fi
 
@@ -803,13 +666,6 @@ _weblogin_authserver()
 	}
 
 	case "$CONFIG_PROFILE" in
-		elephant*)	is 10.63.168.97 ;;
-		rehungen*)	is 10.10.8.33 ;;
-		monami*)	is 10.63.7.1 ;;
-		spbansin*)	is 10.10.4.1 ;;
-		marinapark*)	is 10.63.10.1 ;;
-		satama*)	is 10.63.119.1 ;;
-		fparkssee*)	is 10.63.222.1 ;;
 		*)
 			server="$( uci get system.@weblogin[0].authserver )"
 			[ -z "$server" ] && {
@@ -857,28 +713,6 @@ _weblogin_mail_signature()
 	local emaildot="."
 
 	case "$CONFIG_PROFILE" in			# fixme! move to 'mydesign.opk' or userdb()
-		aschbach*|hotello*)
-			MAINTENANCE_COMPANY="CaNS - Computer and Network Solutions"
-			MAINTENANCE_PHONE="+49 (8167) 88 41"
-#			MAINTENANCE_HINT1=
-			MAINTENANCE_HINT2="$MAINTENANCE_HINT2 $MAINTENANCE_PHONE"
-		;;
-		olympia*)
-			MAINTENANCE_COMPANY="Schlund Networks - Computer und Netzwerk im Raum Muenchen"
-			MAINTENANCE_PHONE="+49 (177) 590 66 89"
-#			MAINTENANCE_HINT1=
-			MAINTENANCE_HINT2="$MAINTENANCE_HINT2 $MAINTENANCE_PHONE"
-		;;
-		paltstadt*)
-			MAINTENANCE_COMPANY="Elektro Steinmetz"
-			MAINTENANCE_PHONE="+49 (03643) 42 18 09"
-			MAINTENANCE_HINT2="$MAINTENANCE_HINT2 $MAINTENANCE_PHONE"
-		;;
-		shankar*|preskil*)
-			MAINTENANCE_COMPANY="Unitech Ltd."
-			MAINTENANCE_PHONE="shankar${emailat}unitechplanet${emaildot}com"
-			MAINTENANCE_HINT2="via email under $MAINTENANCE_PHONE"			# fixme!
-		;;
 		*)
 			MAINTENANCE_COMPANY="bittorf wireless ))"
 			MAINTENANCE_PHONE="+49 (3643) 49 65 235"	

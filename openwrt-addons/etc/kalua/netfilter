@@ -23,27 +23,6 @@ _netfilter_start()
 	_netfilter portforwarding_start
 	_netfilter conntrack_adjust_max
 
-	case "$CONFIG_PROFILE" in
-		boltenhagendh*)
-			case "$LANADR" in
-				10.10.157.*|10.10.81.*|10.10.7.*|10.10.174.*|10.10.175.*|10.10.176.*)
-					return 0
-				;;
-			esac
-		;;
-		elephant*)
-			return 0
-
-			case "$LANADR" in
-				*.6.*|*.58.*|*.8.*)	# lounge|restaurant|ziga
-					return 0
-				;;
-			esac
-		;;
-		ffsundi*)
-			return 0
-		;;
-	esac
 
 	[ -e "/etc/init.d/apply_profile" ] && return 0
 	[ -e "/www/GOOD_MODULE_UNLOAD" ] || {
@@ -143,11 +122,6 @@ _netfilter_traffic_control_show()
 
 _netfilter_traffic_control_needed()
 {
-	case "$CONFIG_PROFILE" in
-		rehungen*|limona*)
-			return 1
-		;;
-	esac
 
 	local kernel="$( uname -r )"
 
@@ -188,46 +162,6 @@ _netfilter_traffic_control_user_add()
 
 	[ -z "$speed_up" ] && {
 		case "$CONFIG_PROFILE" in
-			rehungen*)
-				case "$LANDADR" in
-					*.36.*|*.37.*|*.76.*|*.77.*|*.92.*|*.95.*)
-						speed_up=768kbit	# haupt52|haupt25|schuetz17
-						speed_down=16mbit
-					;;
-					*.106.*|*.107.*|*.30.*|*.108.*|*.110.*|*.43.*|*.44.*|*.66.*|*.67.*|*.97.*|*.20.*|*.21.*)
-						speed_up=768kbit	# breite6|ONEklausg70|schuetz2|101b|haupt15|ONEhaupt43a|haupt70
-						speed_down=10mbit
-					;;
-					*)
-						speed_up=768kbit
-						speed_down=6mbit
-					;;
-				esac
-			;;
-			limona*)
-				speed_up=768kbit
-				speed_down=8mbit
-			;;
-			leonardo*|castelfalfi*)
-				speed_up=768kbit
-				speed_down=6mbit
-			;;
-			hotello*)
-				speed_up=512kbit
-				speed_down=4mbit
-			;;
-			liszt28*)
-				case "$LANADR" in
-					10.63.10.33|10.63.22.33)	# F36
-						speed_up=256kbit
-						speed_down=5mbit
-					;;
-					*)
-						speed_up=5120kbit
-						speed_down=15mbit
-					;;
-				esac
-			;;
 			*)
 				speed_up=128kbit
 				speed_down=1mbit
@@ -315,9 +249,6 @@ _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic
 	esac
 
 	case "$CONFIG_PROFILE" in
-		rehungen*)
-			peak=
-		;;
 		*)
 			peak=
 		;;
@@ -575,11 +506,6 @@ _netfilter_conntrack_adjust_max()
 			max=$(( ($max * 3) / 2 ))	# x1.5
 		fi
 
-		case "$CONFIG_PROFILE" in
-			spbansin*)
-				max=1024		# external pppoe-boxes are low on mem
-			;;
-		esac
 	}
 
 	# check with: wc -l /proc/net/nf_conntrack
@@ -704,16 +630,6 @@ _netfilter_masquerade_start()
 		echo "iptables -t nat -D POSTROUTING -o $device -j MASQUERADE" >"/tmp/NETFILTER/MASQUERADING"
 		iptables -t nat -A POSTROUTING -o $device -j MASQUERADE
 
-		case "$CONFIG_PROFILE" in
-			tkolleg*)
-				iptables -t nat -I POSTROUTING -s 10.10.0.0/16 -o $LANDEV -j MASQUERADE
-				iptables -t nat -I POSTROUTING -d 10.10.0.10 -j MASQUERADE		# printer
-				iptables -t nat -I POSTROUTING -d 10.10.0.2 -j MASQUERADE		# exNT
-			;;
-			fparkssee*)
-				iptables -t nat -I POSTROUTING -d 192.168.0.0/16 -j MASQUERADE		# external portfw
-			;;
-		esac
 	}
 }
 
@@ -725,53 +641,6 @@ _netfilter_masquerade_stop()
 	}
 }
 
-_netfilter_portforwarding_start()
-{
-	case "$CONFIG_PROFILE" in
-		liszt28*)
-			[ "$LANADR" = "10.63.99.33" ] && {
-				# medion
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 222 -j DNAT --to-destination 10.63.2.34:22
-				# fusionpbx
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10080 -j DNAT --to-destination 10.63.17.54:80
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10443 -j DNAT --to-destination 10.63.17.54:443
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10022 -j DNAT --to-destination 10.63.17.54:22
-				# Snom300
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 20080 -j DNAT --to-destination 10.63.17.60:80
-				# Snom300
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 50080 -j DNAT --to-destination 10.63.17.62:80
-				# Snom300
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 60080 -j DNAT --to-destination 10.63.17.40:80
-				# Snom821
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 40080 -j DNAT --to-destination 10.63.17.58:80
-				# ATA/FXS-Adapter: SPA112
-				iptables -t nat -I PREROUTING -i $WANDEV -p tcp --dport 30080 -j DNAT --to-destination 10.63.17.39:80
-			}
-		;;
-		ejbw*)
-			[ "$LANADR" = "10.10.50.33" ] && {
-				# fusionpbx
-				iptables -t nat -I POSTROUTING -d 192.168.111.21 -j ACCEPT
-			}
-
-			[ "$LANADR" = "192.168.112.2" ] && {
-				# dachrouter j4
-				iptables -t nat -I POSTROUTING -d 192.168.111.21 -j ACCEPT
-			}
-		;;
-		rehungen*)
-			[ "$LANADR" = "10.10.8.33" ] && {
-				# kindergarten
-				iptables -t nat -I PREROUTING -d 10.1.0.8 -p udp --dport 53 -j DNAT --to-destination 10.10.8.33
-			}
-		;;
-	esac
-}
-
-_netfilter_portforwarding_stop()
-{
-	:
-}
 
 _netfilter_myhna()
 {
@@ -1116,9 +985,6 @@ _netfilter_user_add()
 _netfilter_user_dataretention_needed()
 {
 	case "$CONFIG_PROFILE" in
-		elephant*|galerie*|preskil*)
-			return 1
-		;;
 		*)
 			[ $( _system ram_size ) -gt 16384 ] || return 1
 			[ "$( uci get system.@vds[0].enabled )" = "1" ] || return 1
