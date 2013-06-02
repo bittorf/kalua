@@ -403,6 +403,9 @@ check_scripts()
 		esac
 
 		case "$mimetype" in
+			*"application/xml"*)
+				log "[OK] will not check xml file '$file'"
+			;;
 			*"text/html"*)
 				log "[OK] will not check html file '$file'"
 			;;
