@@ -49,18 +49,6 @@ device_forbidden()
 {
 	local ip="$1"
 
-	case "$CONFIG_PROFILE" in
-		elephant*)
-			case "$ip" in
-				10.63.75.33|10.63.76.33)
-					return 0
-				;;
-			esac
-		;;
-		boltenhagen*)
-			return 0
-		;;
-	esac
 
 	return 1
 }
