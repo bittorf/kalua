@@ -726,18 +726,23 @@ applymystuff()
 
 	file="$private_settings"
 	if [ -e "$file" ]; then
+		local file_in_image="$base/etc/init.d/$( basename "$file" )"
+		local repo_defaults="kalua/openwrt-build/apply_profile.code.definitions"
+
 		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
 		cp "$file" "$base/etc/init.d"
 
-		# extract defaults, all case-statements/networks without decoration
-		sed -n '/^case/,/^	\*)/p' "$file" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
-		# insert defaults into file
-		sed -n '/#!\/bin\/sh/,/^case .*/p' "$private_settings"   >"$base/etc/init.d/$( basename "$file" )"
-		cat "/tmp/defs_$$"					>>"$base/etc/init.d/$( basename "$file" )"
-		sed -n '/	*)/,/^esac/p' "$private_settings" 	>>"$base/etc/init.d/$( basename "$file" )"
-		rm "/tmp/defs_$$"
+		# 1) head of private_settings including first 'case'
+		# 2) extract defaults, all case-statements/networks without decoration
+		# 3) extract private settings, all case-statements/networks without decoration
+		# 4) append tail of private_settings
 
-		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$( basename "$file" )" bytes)"
+		sed -n '/#!\/bin\/sh/,/^case .*/p' "$private_settings"   	 >"$file_in_image"
+		sed -n '/#!\/bin\/sh/,/^case .*/p' "$repo_defaults"		>>"$file_in_image"
+		sed -n '/^case/,/^      \*)/p' "$file" | sed -e '1d' -e '$d'	>>"$file_in_image"
+		sed -n '/	*)/,/^esac/p' "$private_settings" 		>>"$file_in_image"
+
+		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$file_in_image" ) bytes)"
 	else
 		file="kalua/openwrt-build/$file"
 		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
