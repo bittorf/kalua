@@ -737,10 +737,10 @@ applymystuff()
 		# 3) extract private settings, all case-statements/networks without decoration
 		# 4) append tail of private_settings
 
-		sed -n '/#!\/bin\/sh/,/^case .*/p' "$private_settings"   	 	 >"$file_in_image"
-		sed -n '/^case/,/^      \*)/p' "$repo_defaults"	| sed -e '1d' -e '$d'	>>"$file_in_image"
-		sed -n '/^case/,/^      \*)/p' "$file" 		| sed -e '1d' -e '$d'	>>"$file_in_image"
-		sed -n '/	*)/,/^esac/p' "$private_settings" 			>>"$file_in_image"
+		sed -n '/#!\/bin\/sh/,/^case .*/p' "$private_settings"		 >"$file_in_image"
+		sed -n '/^case/,/\*)/p' "$repo_defaults" | sed -e '1d' -e '$d'	>>"$file_in_image"
+		sed -n '/^case/,/^      \*)/p' "$file" 	 | sed -e '1d' -e '$d'	>>"$file_in_image"
+		sed -n '/	*)/,/^esac/p' "$private_settings"		>>"$file_in_image"
 
 		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$file_in_image" ) bytes)"
 	else
