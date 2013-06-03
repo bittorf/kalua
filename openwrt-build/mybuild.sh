@@ -732,9 +732,11 @@ applymystuff()
 		# extract defaults
 		sed -n '/^case/,/^	\*)/p' "$file" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 		# insert defaults into file
-		sed -i '/^case/ r /tmp/defs' "$base/etc/init.d/$( basename "$file" )"
+read A
+		sed -i "/^case/ r /tmp/defs_$$" "$base/etc/init.d/$( basename "$file" )"
+read B
 		rm "/tmp/defs_$$"
-		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$( basename "$file" ) bytes)"
+		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$( basename "$file" )" bytes)"
 	else
 		file="kalua/openwrt-build/$file"
 		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
