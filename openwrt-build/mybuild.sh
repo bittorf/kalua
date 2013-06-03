@@ -474,6 +474,7 @@ build_kalua_update_tarball()
 			cp -pv "$private_settings" etc/init.d
 
 			# insert default-definitions to custom one's
+
 			sed -n '/^case/,/^	\*)/p' "../openwrt-build/apply_profile.code.definitions" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 			sed -i '/^case/ r /tmp/defs' "etc/init.d/apply_profile.code.definitions"
 			rm "/tmp/defs_$$"
@@ -729,12 +730,11 @@ applymystuff()
 		cp "$file" "$base/etc/init.d"
 
 		# extract defaults
-		sed -n '/^case/,/^	\*)/p' "kalua/openwrt-build/$file" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
+		sed -n '/^case/,/^	\*)/p' "$file" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 		# insert defaults into file
-		sed -i '/^case/ r /tmp/defs' "$base/etc/init.d/$file"
+		sed -i '/^case/ r /tmp/defs' "$base/etc/init.d/$( basename "$file" )"
 		rm "/tmp/defs_$$"
-
-		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$file" ) bytes)"
+		log "copy '$file' - your network descriptions (inserted defaults also) ($( filesize "$base/etc/init.d/$( basename "$file" ) bytes)"
 	else
 		file="kalua/openwrt-build/$file"
 		log "copy '$file' - your network descriptions ($( filesize "$file" ) bytes)"
