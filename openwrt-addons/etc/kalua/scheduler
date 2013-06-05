@@ -285,7 +285,7 @@ _scheduler_run ()
 	scheduler_cleanup ()	# fixme! respect DRY
 	{
 		rm "/tmp/lockfile_scheduler_is_running"
-		_log do scheduler_run daemon info "cleanup called during '$LINE'"
+		_log do scheduler_run daemon alert "cleanup called during '$LINE'"
 
 		exit 1		# fixme! use return?
 	}
@@ -313,16 +313,24 @@ _scheduler_run ()
 		} done
 		cp $FILE_SCHEDULER $FILE_SCHEDULER_COPY		# for checking of DUPs in running queue -> scheduler_add()
 
+		local lines_should=$( wc -l <"$FILE_SCHEDULER" )
+		local lines_worked=0
+
 		while read LINE; do {
-
 			_scheduler wait_till_cpuload_is_low "$LINE"
-
 			_log do $FUNC daemon debug "running '$LINE'"
+			lines_worked=$(( lines_worked + 1 ))
 			echo "$LINE" >$LOCKFILE
 			/bin/sh -c "$LINE"
 			_log do $FUNC daemon debug "ready '$LINE'"
+		} done <"$FILE_SCHEDULER"
 
-		} done <$FILE_SCHEDULER
+		[ $lines_worked -eq $lines_should ] || {
+			local counter=$(( 2000000000 + $$ ))
+			local file="${FILE_SCHEDULER_TMP}${counter}"
+			_log do $FUNC daemon alert "missed some jobs, should: $lines_should worked: $lines_worked, rescheduling to $file"
+			sed "1,${lines_worked}d" "$FILE_SCHEDULER" >>"$file"
+		}
 	else
 		_log do $FUNC daemon debug "empty queue - no action"
 	fi
