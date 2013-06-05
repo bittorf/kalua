@@ -1012,10 +1012,24 @@ copy_images_to_server()
 	KALUA_REF="git.${KALUA_REF=}"								# e.g. git479d47b
 	cd ..
 
+	local enforce_file installation subprofile node destfile imagetype description
+	enforce_file="package/base-files/files/etc/init.d/apply_profile.code"
+	installation="$( sed -n 's/^SIM_ARG1=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+	subprofile="$( sed -n 's/^SIM_ARG2=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+	node="$( sed -n 's/^SIM_ARG3=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
+
+	if [ -n "$installation" ]; then
+		description="-profile.${installation}_${subprofile}${node}"
+		imagetype="factory"
+	else
+		description=
+		imagetype="sysupgrade"
+	fi
+
 	ARCH="ar71xx"
 	KERNEL="$( grep ^"LINUX_VERSION:=" target/linux/$ARCH/Makefile | cut -d'=' -f2 )"	# e.g. 3.8.13
 	REV="$( scripts/getver.sh )"								# e.g. r37012
-	APPEND="sysupgrade-${REV}-kernel${KERNEL}-${KALUA_REF}.bin"
+	APPEND="${imagetype}-${REV}-kernel${KERNEL}-${KALUA_REF}${description}.bin"
 	APPEND="$APPEND'"		# mind the '
 
 	SERVER="root@intercity-vpn.de"
@@ -1028,11 +1042,11 @@ copy_images_to_server()
 		scp "$1" "$2"
 	}
 
-	work bin/ar71xx/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin "$PRE/TP-LINK TL-WR1043ND.$APPEND"
-	work bin/ar71xx/openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin "$PRE/TP-LINK TL-WDR3600:4300:4310.$APPEND"
-	work bin/ar71xx/openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin "$PRE/Buffalo WZR-HP-AG300H.$APPEND"
-	work bin/ar71xx/openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin "$PRE/Ubiquiti Bullet M.$APPEND"
-	work bin/ar71xx/openwrt-ar71xx-generic-ubnt-nano-m-squashfs-sysupgrade.bin "$PRE/Ubiquiti Nanostation M.$APPEND"
+	work bin/$ARCH/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-${imagetype}.bin "$PRE/TP-LINK TL-WR1043ND.$APPEND"
+	work bin/$ARCH/openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-${imagetype}.bin "$PRE/TP-LINK TL-WDR3600:4300:4310.$APPEND"
+	work bin/$ARCH/openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-${imagetype}.bin "$PRE/Buffalo WZR-HP-AG300H.$APPEND"
+	work bin/$ARCH/openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-${imagetype}.bin "$PRE/Ubiquiti Bullet M.$APPEND"
+	work bin/$ARCH/openwrt-ar71xx-generic-ubnt-nano-m-squashfs-${imagetype}.bin "$PRE/Ubiquiti Nanostation M.$APPEND"
 }
 
 case "$ACTION" in
