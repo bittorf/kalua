@@ -51,9 +51,9 @@ how to build this from scratch on a debian server
 	# ln -s /tmp/openwrt-downloads dl
 
 	# for working with a specific openwrt-revision, do this:
-	# REV=33867	// current testing
-	# REV=33726	// current beta
-	# REV=33726	// current stable
+	# REV=36817	// current testing
+	# REV=35880	// current beta
+	# REV=35300	// current stable
 	# git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
 
 	# now copy your own 'apply_profile.code.definitions' to . or the provided one will be used
