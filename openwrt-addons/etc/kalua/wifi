@@ -696,7 +696,24 @@ _wifi_phy_restart()
 
 	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
 
-	ip address show dev $WIFIDEV | fgrep -q "inet " || {
+	good_ip()
+	{
+		local i=30
+
+		while [ $i -gt 0 ]; do {
+			if ip address show dev $WIFIDEV | fgrep -q "inet "; then
+				_log do $funcname daemon info "good ip after $(( 30 - $i )) sec"
+				return 0
+			else
+				i=$(( $i - 1 ))
+				sleep 1
+			fi
+		} done
+
+		return 1
+	}
+
+	good_ip || {
 		_log do $funcname daemon alert "no ip on dev, rebooting"
 		reboot
 		sleep 10
