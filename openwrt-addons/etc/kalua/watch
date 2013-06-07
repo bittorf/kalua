@@ -4,6 +4,46 @@
 # }
 #
 
+_watch_space_tmpfs()
+{
+	local funcname="watch_space_tmpfs"
+	local border_percent="20"
+	local file success list_logs list_vdsfiles list_orphaned
+	local nothing_deleted="true"
+
+	while [ $( _system disc_free /tmp percent ) -lt $border_percent ]; do {
+		pidof ulogd >/dev/null && {
+		/etc/init.d/ulogd stop
+		_watch hanging_command ulogd
+		_watch hanging_command ulogd
+	}
+
+	success=
+	list_logs="$( ls 2>/dev/null -S1 /var/log/* )"
+	list_vdsfiles="$( ls 2>/dev/null -S1 /tmp/user-* | head -n1 )"
+	list_list_orphaned="$( ls 2>/dev/null -S1 /tmp/db_backup.tgz.temp.* )"
+	list_debug="$( ls 2>/dev/null -S1 /tmp/WIFI_INCOMING_FRAME_COUNTER_wlan0.error_debug.* )"
+
+	for file in $list_logs $list_vdsfiles $list_list_orphaned $list_debug; do {
+		[ -e "$file" ] && {
+			success="true"
+			rm "$file"
+			_log do $funcname daemon info "removed: '$file'"
+		}
+	} done
+
+	if [ "$success" = "true" ]; then
+		[ "$nothing_deleted" = "true" ] && {
+		nothing_deleted=
+		_log do $funcname daemon alert "success"
+	}
+	else
+		# if there are no files to remove, give up
+		return 0
+	fi
+	} done
+}
+
 _watch_dhcp_space()
 {
 	local funcname="watch_dhcp_space"
