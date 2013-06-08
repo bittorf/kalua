@@ -1026,7 +1026,7 @@ copy_images_to_server()
 		imagetype="sysupgrade"
 	fi
 
-	ARCH="ar71xx"
+	ARCH="$( get_arch )"
 	KERNEL="$( grep ^"LINUX_VERSION:=" target/linux/$ARCH/Makefile | cut -d'=' -f2 )"	# e.g. 3.8.13
 	REV="$( scripts/getver.sh )"								# e.g. r37012
 	APPEND="${imagetype}-${REV}-kernel${KERNEL}-${KALUA_REF}${description}.bin"
@@ -1042,11 +1042,21 @@ copy_images_to_server()
 		scp "$1" "$2"
 	}
 
+	case "$ARCH" in
+		ar71xx)
 	work bin/$ARCH/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-${imagetype}.bin "$PRE/TP-LINK TL-WR1043ND.$APPEND"
 	work bin/$ARCH/openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-${imagetype}.bin "$PRE/TP-LINK TL-WDR3600:4300:4310.$APPEND"
 	work bin/$ARCH/openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-${imagetype}.bin "$PRE/Buffalo WZR-HP-AG300H.$APPEND"
 	work bin/$ARCH/openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-${imagetype}.bin "$PRE/Ubiquiti Bullet M.$APPEND"
 	work bin/$ARCH/openwrt-ar71xx-generic-ubnt-nano-m-squashfs-${imagetype}.bin "$PRE/Ubiquiti Nanostation M.$APPEND"
+		;;
+		mpc85xx)
+	work bin/$ARCH/openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-${imagetype}.bin "$PRE/TP-LINK TL-WDR4900 v1.$APPEND"
+		;;
+		*)
+			log "arch $ARCH in implemented yet"
+		;;
+	esac
 }
 
 case "$ACTION" in
