@@ -2,16 +2,17 @@
 . /tmp/loader
 . /usr/share/libubox/jshn.sh
 
-URL_BASE="http://reg.js.ars.is"
+URL_BASE="http://reg.weimarnetz.de"
 
 MAC="$( _net dev2mac $WIFIDEV )"
 MAC="$( _sanitizer do "$MAC" urlvalue )"
 PASS="$( _ssh key_public_fingerprint_get )"
 PASS="$( _sanitizer do "$PASS" urlvalue )"
+NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
 
 eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 [ "$NODE_NUMBER_RANDOM" = "false" ] && {
-	URL="$URL_BASE/PUT/knoten/$NODENUMBER?mac=${MAC}&pass=${PASS}"
+	URL="$URL_BASE/PUT/$NETWORK/knoten/$NODENUMBER?mac=${MAC}&pass=${PASS}"
 	_log do heartbeat daemon info "$URL"
 	eval $( jshn -r "$( wget -qO - "$URL" )" )
 
@@ -23,7 +24,7 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 	fi
 }
 
-URL="$URL_BASE/POST/knoten?mac=${MAC}&pass=${PASS}"
+URL="$URL_BASE/POST/$NETWORK/knoten?mac=${MAC}&pass=${PASS}"
 eval $( jshn -r "$( wget -qO - "$URL" )" )
 
 if test 2>/dev/null "$JSON_VAR_status" -lt 400; then
