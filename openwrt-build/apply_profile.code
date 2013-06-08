@@ -1235,6 +1235,27 @@ EOF
 
 	fi
 
+	local radiocard
+	local network_append
+
+	ipv4address_plus_x()
+	{
+		local ip="$1"
+		local x="$2"
+		local o1 o2 o3 o4
+		set -- $ip
+		echo "$o1.$o2.$o3.$(( $o4 + $x ))"
+	}
+
+
+for radiocard in 0 1 2 3; do {
+
+	[ $radiocard -gt 0 ] && {
+		network_append="_radio${radiocard}"
+	}
+
+	grep "option network" "/etc/config/wireless" | grep -q "wlan${network_append}" || continue
+
 	local wlan_ipaddr wlan_netmsk wlan_ifname hide_wifi
 	local alias_ifname alias_proto alias_ipaddr alias_netmask alias_network
 	local hide="#"
@@ -1251,8 +1272,6 @@ EOF
 		;;
 	esac
 
-	[ -e "/etc/config/wireless" ] || hide_wifi="#"
-
 	wlan_ipaddr="$( _ipsystem do $NODE | grep WIFIADR= | cut -d'=' -f2 )"
 	wlan_netmsk="$( _ipsystem do $NODE | grep WIFI_PRE= | cut -d'=' -f2 )"
 	wlan_netmsk="$( _net cidr2mask $wlan_netmsk )"
@@ -1262,10 +1281,24 @@ EOF
 ${hide_wifi}config 'interface' 'wlan'
 #${hide_wifi}	option 'ifname'	'$wlan_ifname'
 ${hide_wifi}	option 'proto'	'static'
-${hide_wifi}	option 'ipaddr'	 '$wlan_ipaddr'
+${hide_wifi}	option 'ipaddr'	 '$( ipv4address_plus_x "$wlan_ipaddr" "$radiocard" )'
 ${hide_wifi}	option 'netmask' '$wlan_netmsk'
 
 EOF
+
+	grep "option network" "/etc/config/wireless" | grep -q "wlanadhoc${network_append}" || continue
+	cat >>/etc/config/network <<EOF
+
+${hide_wifi}config 'interface' 'wlan'
+#${hide_wifi}	option 'ifname'	'$wlan_ifname'
+${hide_wifi}	option 'proto'	'static'
+${hide_wifi}	option 'ipaddr'	 '$( ipv4address_plus_x "$wlan_ipaddr" "$radiocard" )'
+${hide_wifi}	option 'netmask' '$wlan_netmsk'
+
+EOF
+
+
+} done
 
 	case "${NODE}_${INSTALLATION}" in
 		222_fparkssee)
