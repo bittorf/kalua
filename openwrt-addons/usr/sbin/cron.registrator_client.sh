@@ -10,6 +10,8 @@ PASS="$( _ssh key_public_fingerprint_get )"
 PASS="$( _sanitizer do "$PASS" urlvalue )"
 NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
 
+NODENUMBER="$( uci get system.@profile[0].nodenumber )"
+
 eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 [ "$NODE_NUMBER_RANDOM" = "false" ] && {
 	URL="$URL_BASE/PUT/$NETWORK/knoten/$NODENUMBER?mac=${MAC}&pass=${PASS}"
