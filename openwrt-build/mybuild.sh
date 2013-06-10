@@ -1009,6 +1009,12 @@ copy_images_to_server()
 {
 	local option="$1"	# e.g. factory
 
+	[ "$option" = "remove" ] && {
+		log "removing: 'bin/$ARCH'"
+		rm -fR bin/$ARCH
+		exit 0
+	}
+
 	cd kalua
 	KALUA_REF="$( git log --pretty=oneline --abbrev-commit | head -n1 | cut -d' ' -f1 )"
 	KALUA_REF="git.${KALUA_REF=}"								# e.g. git479d47b
@@ -1064,7 +1070,9 @@ copy_images_to_server()
 
 case "$ACTION" in
 	upload)
-		copy_images_to_server "$OPTION"
+		for ARG in "$OPTION" "$OPTION2" "$OPTION3" "$OPTION4" "$OPTION5" "$OPTION6" "$OPTION7" "$OPTION8" "$OPTION9"; do {
+			copy_images_to_server "$ARG"
+		} done
 	;;
 	*)
 		$ACTION "$OPTION" "$OPTION2" "$OPTION3" "$OPTION4" "$OPTION5" "$OPTION6" "$OPTION7" "$OPTION8" "$OPTION9"
