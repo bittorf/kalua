@@ -1063,7 +1063,7 @@ copy_images_to_server()
 
 case "$ACTION" in
 	upload)
-		copy_images_to_server
+		copy_images_to_server "$OPTION"
 	;;
 	*)
 		$ACTION "$OPTION" "$OPTION2" "$OPTION3" "$OPTION4" "$OPTION5" "$OPTION6" "$OPTION7" "$OPTION8" "$OPTION9"
