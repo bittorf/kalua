@@ -1022,6 +1022,7 @@ copy_images_to_server()
 
 	if [ -n "$installation" -o "$option" = "factory" ]; then
 		description="-profile.${installation}_${subprofile}${node}"
+		[ -z "$installation" ] && description=
 		imagetype="factory"
 	else
 		description=
