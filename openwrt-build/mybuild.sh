@@ -1007,6 +1007,8 @@ gitpull()
 
 copy_images_to_server()
 {
+	local option="$1"	# e.g. factory
+
 	cd kalua
 	KALUA_REF="$( git log --pretty=oneline --abbrev-commit | head -n1 | cut -d' ' -f1 )"
 	KALUA_REF="git.${KALUA_REF=}"								# e.g. git479d47b
@@ -1018,7 +1020,7 @@ copy_images_to_server()
 	subprofile="$( sed -n 's/^SIM_ARG2=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
 	node="$( sed -n 's/^SIM_ARG3=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
 
-	if [ -n "$installation" ]; then
+	if [ -n "$installation" -o "$option" = "factory" ]; then
 		description="-profile.${installation}_${subprofile}${node}"
 		imagetype="factory"
 	else
