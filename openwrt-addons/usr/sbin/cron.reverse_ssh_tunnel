@@ -5,7 +5,7 @@ case "$CONFIG_PROFILE" in
 	berlinle*|extrawatt*|shankar*|fparkssee*|limona*|marinapark*|versiliaje*)
 		PORTS="22"
 	;;
-	schoeneck*)
+	marinabh*|schoeneck*)
 		PORTS="22 80"
 	;;
 	*)
@@ -45,9 +45,10 @@ fire_tunnel()
 {
 	local port_here="$1"
 	local port_server="$2"
+	local type="$3"		# message = ssh | http
 	local server="$( _http url_get_serverstring "$( uci get system.@monitoring[0].url )" )"
 
-	_log do reverse_sshtunnel daemon debug "[START] on local port $LOCAL_PORT"
+	_log do reverse_sshtunnel daemon debug "[START] on local port $port_here and server port $port_server type '$type'"
 
 	dbclient -y -I 600 -K 300 -f -N \
 		 -R $port_server:localhost:$port_here \
@@ -71,14 +72,14 @@ for LOCAL_PORT in $PORTS; do {
 					rm "/tmp/service_ssh_nowatching"
 				}
 
-				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )"
+				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )" "ssh"
 			}
 		;;
 		80)
 			_watch webserver
 
 			tunnel_is_running "$LOCAL_PORT" || {
-				fire_tunnel "$LOCAL_PORT" "8080"
+				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}HTTP" )" "http"
 			}
 		;;
 	esac
