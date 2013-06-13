@@ -39,7 +39,7 @@ _db_purge()
 _db_backup()		# fixme! automatically call this after <prio> changes
 {
 	local funcname="db_backup"
-	local accept_shrink="$1"
+	local reason="$1"	# e.g. remove_old_stuff
 	local file="/www/cgi-bin/db_backup.tgz"
 	local file_temp="/tmp/db_backup.tgz.temp.$$"
 	local dir="/tmp/DB"
@@ -50,7 +50,8 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	[ -d "$dir" ] || return 0
 	[ -e "$dir/USER/login/meta_index" ] || return 0
 	[ $( _file size "$dir/USER/login/meta_index" ) -eq 0 ] && return 0
-	[ -n "$accept_shrink" ] && border=-999
+
+	[ "$reason" = "remove_old_stuff" ] && border=-999	# accept_shrink
 
 	_db lock now "$funcname"
 
@@ -160,7 +161,7 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 	[ $( _file lines "/tmp/DB/USER/device/stats" ) -gt 5760 ] && {
 		_log do $funcname daemon alert "removing old stuff, leaving last 45 days"
 		_watch archivsize "/tmp/DB/USER/device/stats" 4320	# 45 days = 45d * 24h * 4/hour
-		_db backup accept_shrink
+		_db backup remove_old_stuff
 	}
 }
 
