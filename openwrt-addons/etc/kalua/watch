@@ -888,6 +888,7 @@ _watch_counter ()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 ||
 _watch_topusage_task()
 {
 	local funcname="watch_topusage_task"
+	local call_reason="$1"
 	local file="/tmp/$funcname_$$"
 	local line pid cpu cpu_int toptask
 	local crit_percent_border=70
@@ -927,14 +928,14 @@ _watch_topusage_task()
 
 	if [ $cpu_int -gt $crit_percent_border ]; then
 		task="$( basename "$toptask" )"
-		_log do $funcname daemon alert "pid: $pid cpu: $cpu toptask: $toptask task: $task crit_percent_border: $crit_percent_border"
+		_log do $funcname daemon alert "pid: $pid cpu: $cpu toptask: $toptask task: $task crit_percent_border: $crit_percent_border call_reason: $call_reason"
 
 		_watch hanging_command $task	# must be called 2 times
 		_watch hanging_command $task
 
 		case "$task" in
 			*hostapd*)
-				_wifi phy_restart $WIFIDEV
+				_wifi phy_restart $WIFIDEV "overload: $task - $cpu cpu"
 			;;
 		esac
 	else
