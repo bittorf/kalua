@@ -64,6 +64,60 @@ _switch_query_swconfig()
 	} done
 }
 
+_switch_query_miitool()
+{
+	local funcname="switch_query_miitool"
+	local port_list="$1"
+	local debug="$2"
+	local line port max_try
+
+	for port in $port_list; do {
+		[ "$port" = "gap" ] && {
+			_switch symbol gap
+			continue
+		}
+
+		line=
+		max_try=10
+		while [ -z "$line" ]; do {
+			line="$( mii-tool "$port" )"
+			max_try=$(( $max_try - 1 ))
+			[ $max_try -eq 0 ] && break
+		} done
+
+		[ -n "$debug" ] && \
+			_log do $funcname daemon debug "port: $port line '$line'"
+
+		case "$line" in
+			*"link ok"*)			# "negotiated 100baseTx-FD, link ok"
+				case "$line" in
+					*"-FD,"*)
+						duplex="full"
+					;;
+					*)
+						duplex="half"
+					;;
+				esac
+
+				case "$line" in
+					*" 100baseTx"*)
+						_switch symbol $duplex 100
+					;;
+					*" 10baseT"*)
+						_switch symbol $duplex 10
+					;;
+					*)
+						_switch symbol unknown
+					;;
+				esac
+			;;
+			*)
+				echo -n "-"
+			;;
+		esac
+	} done
+}
+
 _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 {
 	local funcname="switch_show"
@@ -80,6 +134,12 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 		"TP-LINK TL-WDR3600/4300/4310"|"TP-LINK TL-WDR4900 v1")
 			# WAN | 4 x LAN | CPU = port0
 			_switch query_swconfig "1 gap 2 3 4 5" "$debug"
+			return 0
+		;;
+		"Buffalo WZR-HP-AG300H")
+			# WAN | 4 x LAN
+			_switch query_miitool "eth1" "$debug"
+			_switch query_swconfig "gap 1 2 3 4" "$debug"
 			return 0
 		;;
 	esac
