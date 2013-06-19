@@ -271,6 +271,10 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 				esac
 			} done <"/proc/mounts"
 
+			_log do $funcname daemon info "/proc/mounts: START"
+			cat "/proc/mounts" | _log do $funcname daemon info
+			_log do $funcname daemon info "/proc/mounts: READY"
+
 			/etc/init.d/zram stop
 		;;
 	esac
@@ -279,7 +283,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 		_watch counter "/tmp/$funcname" increment 1 max 25 || break
 		read i <"/tmp/$funcname"
-		_log do $funcname daemon info "mode: '$filter_option', iteration: $i/100"
+		_log do $funcname daemon info "mode: '$filter_option', iteration: $i/25"
 
 		if [ $i -lt 4 ]; then
 			list_modules="$( list_modules_get )"
@@ -514,7 +518,8 @@ _firmware_burn()
 	elif  _log shell_is_interactive; then
 		pause="60"
 	else
-		list_tasks="$list_tasks screen dropbear wifi_down netifd ubusd"
+		list_tasks="$list_tasks screen dropbear wifi_down netifd 6relayd"
+		[ "$( pidof procd )" = 1 ] || list_tasks="$list_tasks ubusd"
 		pause="180"
 	fi
 
@@ -576,6 +581,11 @@ _firmware_burn()
 	sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
 	fgrep -q "v retry_upgrade;" "$patchfile" || reboot -f
 
+	fgrep -q "ubusd" "$patchfile" || {
+		_log do $funcname daemon info "[OK] patching '$patchfile', adding some essential services"
+		sed -i 's/services$/&\n*sh*|*dbclient*|*preinit*|*procd*|*ubusd*);;/' "$patchfile"
+		fgrep -q "ubusd" "$patchfile" || reboot -f
+	}
 
 	mkdir /tmp/fwimage
 	mv "$FILE" /tmp/fwimage
@@ -583,7 +593,7 @@ _firmware_burn()
 	# all dirs, except our special fwdir
 	find /tmp -type d | while read LINE; do {
 		case "$LINE" in
-			"/tmp"|"/tmp/fwimage")
+			"/tmp"|"/tmp/fwimage"|"/tmp/sysinfo")
 			;;
 			*)
 				rm -fR "$LINE"
@@ -621,8 +631,8 @@ _firmware_burn()
 	msg0="/bin/netmsg $LANBRC \"ramdisc-size: $( du -sh /tmp) files: $( find /tmp -type f | wc -l )\""
 	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
 	delifs="for I in $removeable_interfaces; do /bin/echo \"ifconfig \$I down\"; ifconfig \$I down; /bin/echo \"\$I is down\"; done"
-	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; ifconfig >/dev/console"
-	msg3="ifconfig | grep . && { ifconfig >>/www/everlasting_syslog.txt; /sbin/reboot; }"
+	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; /bin/echo ifconfig_START >/dev/console; ifconfig >/dev/console; /bin/echo ifconfig_END >/dev/console"
+	msg3="ifconfig | grep . && { ifconfig >>/www/everlasting_syslog.txt; /sbin/reboot; }; /bin/cat /proc/net/dev >/dev/console"
 
 	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3"
 
@@ -635,7 +645,7 @@ _firmware_burn()
 	# - reducing disk-buffers?
 
 		cat >/etc/crontabs/root <<EOF
-* * * * * rm /etc/crontabs/root; killall crond; $cmds; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f
+* * * * * /bin/echo FIRECRON >/dev/console; rm /etc/crontabs/root; killall crond; $cmds; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f
 EOF
 
 	/usr/sbin/crond -L /dev/null
@@ -644,7 +654,7 @@ EOF
 	pidof crond >/dev/null || reboot -f
 
 	/bin/netmsg $LANBRC "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
-	/bin/echo "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
+	/bin/echo "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'" >/dev/console
 }
 
 _firmware_filelist ()
