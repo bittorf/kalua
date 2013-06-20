@@ -627,6 +627,18 @@ _firmware_burn()
 	removeable_interfaces="$( interfaces | sed '1!G;h;$!d' | while read LINE; do echo -n "$LINE "; done )"
 	LANBRC="${LANBRC:-192.168.1.255}"
 
+	# fixme! remove all ipv6 routes (e.g. gateway)
+	for IFNAME in $( interfaces ); do {
+		ifconfig "$IFNAME" | fgrep "inet6 addr: " | while read IPV6ADDR; do {
+			set -- $IPV6ADDR
+			_log do firmware_ifconfig_del_ipv6 daemon info "ifconfig $IFNAME del $3"
+			ifconfig "$IFNAME" del "$3"
+		} done
+	} done
+
+	_firmware remove_kmodules all
+	ifconfig | _log do firmware_ifconfig_show daemon info
+
 	getmem="echo 3 >/proc/sys/vm/drop_caches; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
 	msg0="/bin/netmsg $LANBRC \"ramdisc-size: $( du -sh /tmp) files: $( find /tmp -type f | wc -l )\""
 	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
