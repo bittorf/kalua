@@ -171,7 +171,7 @@ boot()
 				esac
 			;;
 			olympia*)
-				return 0
+				return 1
 			;;
 		esac
 
@@ -196,14 +196,16 @@ boot()
 			;;
 		esac
 
-		local dns_ip="192.168.$NODENUMBER.1"
+		local dns_ip
 		local router_ip
 		case "$CONFIG_PROFILE" in
 			olympia*)
 				router_ip="192.168.2.1"
+				dns_ip="$router_ip"
 			;;
 			liszt28*)
 				router_ip="192.168.99.1"
+				dns_ip="$router_ip"
 			;;
 		esac
 
@@ -238,7 +240,7 @@ boot()
 			;;
 		esac
 
-		echo "dnsmasq --address=/#/10.63.$NODENUMBER.1 -p 5353" >>"/tmp/WIFI_SPECIALS.sh"
+#		echo "dnsmasq --address=/#/10.63.$NODENUMBER.1 -p 5353" >>"/tmp/WIFI_SPECIALS.sh"
 
 		uci set network.mybridge="interface"
 		uci set network.mybridge.type="bridge"
@@ -253,21 +255,22 @@ boot()
 			;;
 		esac
 
-		uci set batman-adv.bat0.gw_mode=server
 		if _net local_inet_offer >/dev/null; then
+			uci set batman-adv.bat0.gw_mode=server
 			uci set batman-adv.bat0.gw_bandwidth="16384kbit/16384kbit"
 		else
-			uci set batman-adv.bat0.gw_bandwidth="512kbit/512kbit"
+			:
+#			uci set batman-adv.bat0.gw_bandwidth="512kbit/512kbit"
 		fi
 
 		uci set dhcp.mybridge=dhcp
 		uci set dhcp.mybridge.interface=mybridge
 		uci set dhcp.mybridge.start=2
 		uci set dhcp.mybridge.limit=253
-		uci set dhcp.mybridge.leasetime=6m
+		uci set dhcp.mybridge.leasetime=12h
 		uci set dhcp.mybridge.force=1
 		uci set dhcp.mybridge.ignore=0
-		uci set dhcp.mybridge.netmask=255.255.255.0
+		uci set dhcp.mybridge.netmask=255.255.0.0
 		uci set dhcp.mybridge.dhcp_option="option:router,$router_ip,$dns_ip"	# fixme! dynamic set during runtime
 
 		uci set dhcp.wlan.ignore=1
