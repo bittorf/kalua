@@ -1294,12 +1294,29 @@ for radiocard in 0 1 2 3; do {
 	wlan_netmsk="$( _ipsystem do $NODE | grep WIFI_PRE= | cut -d'=' -f2 )"
 	wlan_netmsk="$( _net cidr2mask $wlan_netmsk )"
 
+	### radiocard-0
+	# adhoc = .1	adhoc or ap = .1
+	# ap    = .2
+	### radiocard-1
+	# adhoc = .3	adhoc or ap = .3
+	# ap    = .4
+	### radiocard-2
+	# adhoc = .5	adhoc or ap = .5
+	# ap    = .6
+
+	if grep "option network" "/etc/config/wireless" | grep -q "wlanadhoc${network_append}"; then
+		local ip_1stIF_addvalue=$(( (($radiocard + 1) * 2 )     - 1 ))
+		local ip_2ndIF_addvalue=$(( (($radiocard + 1) * 2 ) - 1 - 1 ))
+	else
+		local ip_1stIF_addvalue=$(( (($radiocard + 1) * 2 ) - 1 - 1 ))
+	fi
+
 	cat >>/etc/config/network <<EOF
 
 ${hide_wifi}config 'interface' 'wlan${network_append}'
 #${hide_wifi}	option 'ifname'	'$wlan_ifname'
 ${hide_wifi}	option 'proto'	'static'
-${hide_wifi}	option 'ipaddr'	 '$( ipv4address_plus_x "$wlan_ipaddr" "$radiocard" )'
+${hide_wifi}	option 'ipaddr'	 '$( ipv4address_plus_x "$wlan_ipaddr" "$ip_1stIF_addvalue" )'
 ${hide_wifi}	option 'netmask' '$wlan_netmsk'
 
 EOF
@@ -1311,7 +1328,7 @@ EOF
 ${hide_wifi}config 'interface' 'wlanadhoc${network_append}'
 #${hide_wifi}	option 'ifname'	'$wlan_ifname'
 ${hide_wifi}	option 'proto'	'static'
-${hide_wifi}	option 'ipaddr'	 '$( ipv4address_plus_x "$wlan_ipaddr" "$radiocard" )'
+${hide_wifi}	option 'ipaddr'	 '$( ipv4address_plus_x "$wlan_ipaddr" "$ip_2ndIF_addvalue" )'
 ${hide_wifi}	option 'netmask' '$wlan_netmsk'
 
 EOF
