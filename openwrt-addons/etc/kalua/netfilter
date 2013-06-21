@@ -1069,6 +1069,7 @@ _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
 
 _netfilter_user_reachable()
 {
+	local funcname="netfilter_user_reachable"
 	local mac="$1"
 	local ip="$2"
 	local maxtry="${3:-5}"
@@ -1077,7 +1078,7 @@ _netfilter_user_reachable()
 	_sanitizer do "$mac" mac check || return 1
 	_sanitizer do "$ip"  ip4 check || return 1
 
-	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1
+	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
 	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no logins from WAN
 
 	dev_guess="$( _net ip2dev "$ip" )"
@@ -1087,6 +1088,7 @@ _netfilter_user_reachable()
 	devlist="$dev_guess $devlist"
 
 	for dev in $devlist; do {
+		_log do $funcname daemon debug "probing: mac: $mac ip: $ip dev: '$dev'"
 		try="$maxtry"
 		while [ $try -gt 0 ]; do {
 			arping -c1 -q -f -I "$dev" "$ip" && {
@@ -1102,6 +1104,12 @@ _netfilter_user_reachable()
 			try=$(( $try - 1 ))
 		} done
 	} done
+
+	if [ -z "$devlist" ]; then
+		_log do $funcname daemon alert "no_success: mac: $mac ip: $ip devlist: empty"
+	else
+		_log do $funcname daemon info "no_success: mac: $mac ip: $ip devlist: '$devlist'"
+	fi
 
 	return 1
 }
