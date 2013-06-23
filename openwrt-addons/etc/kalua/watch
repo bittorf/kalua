@@ -4,6 +4,37 @@
 # }
 #
 
+_watch_coredump()
+{
+	local funcname="watch_coredump"
+	local ignore_pattern="$1"	# e.g. 'hostapd'
+	local storage="/www/coredumps"
+
+	case "$CONFIG_PROFILE" in
+		liszt28*)
+		;;
+		*)
+			return 0
+		;;
+	esac
+
+	local dump="$( ls -1 /tmp/*.core | head -n1 )"	# defined in /etc/init.d/network
+	[ -z "$dump" ] && return 0
+
+	case "$dump" in
+		*${ignore_pattern}*)
+			_log do $funcname daemon info "found '$dump', but ignoring it"
+			rm "$dump"
+			return 0
+		;;
+	esac
+
+	mkdir -p "$storage"
+	mv "$dump" "$storage"
+
+	_log do $funcname daemon sms "wrote: $storage/$( basename "$dump" )"
+}
+
 _watch_space_tmpfs()
 {
 	local funcname="watch_space_tmpfs"
