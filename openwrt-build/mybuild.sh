@@ -1072,12 +1072,12 @@ copy_images_to_server()
 
 	case "$ARCH" in
 		ar71xx)
-			fileX_to_modelY "wr1043nd-v1"	"TP-LINK TL-WR1043ND"
-			fileX_to_modelY "tl-wdr4300-v1" "TP-LINK TL-WDR3600:4300:4310"
-			fileX_to_modelY "wzr-hp-ag300h"	"Buffalo WZR-HP-AG300H"
-			fileX_to_modelY "ubnt-bullet-m"	"Ubiquiti Bullet M"
-			fileX_to_modelY "ubnt-bullet-m"	"Ubiquiti Picostation M2"	# !!!
-			fileX_to_modelY "ubnt-nano-m"	"Ubiquiti Nanostation M"
+			fileX_to_modelY "tl-wr1043nd-v1" "TP-LINK TL-WR1043ND"
+			fileX_to_modelY "tl-wdr4300-v1"  "TP-LINK TL-WDR3600:4300:4310"
+			fileX_to_modelY "wzr-hp-ag300h"  "Buffalo WZR-HP-AG300H"
+			fileX_to_modelY "ubnt-bullet-m"	 "Ubiquiti Bullet M"
+			fileX_to_modelY "ubnt-bullet-m"	 "Ubiquiti Picostation M2"	# !!!
+			fileX_to_modelY "ubnt-nano-m"	 "Ubiquiti Nanostation M"
 		;;
 		mpc85xx)
 			fileX_to_modelY "tl-wdr4900-v1"	"TP-LINK TL-WDR4900 v1"
