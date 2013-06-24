@@ -1404,20 +1404,28 @@ _wifi_check_each_client()
 	local funcname="wifi_check_each_client"
 	local statsdir="/tmp/$funcname"
 	local max_arping=30
+	local inactive_time
 
 	mkdir -p "$statsdir"
 	_net include
 
 	list_macs="$( iw dev $WIFIDEV station dump | grep ^Station | cut -d' ' -f2 )"
 
-	for mac in $list_macs; do {		# fixme! only check client with low inactivity time
+	for mac in $list_macs; do {
+		set -- $( iw dev "$WIFIDEV" station get "$mac" | fgrep "inactive time:" )
+		inactive_time="$3"
+		[ -z "$inactive_time" -o $inactive_time -ge 120000 ] && {
+			_log do $funcname daemon info "ignoring station '$mac' with inactive_time '${inactive_time:-empty}' ms"
+			exitcode=0
+		}
+
 		[ "$exitcode" = "0" ] || {
 			ip="$( _net mac2ip $mac )" && {
 				if _net ip_reachable "$ip" "$max_arping"; then
-					_log do $funcname daemon debug "[OK] arping - mac: $mac ip: $ip"
+					_log do $funcname daemon debug "[OK] arping - mac: $mac ip: $ip inactive_time: $inactive_time ms"
 					exitcode="0"
 				else
-					_log do $funcname daemon info "[ERR] arping - mac: $mac ip: $ip (no success for $max_arping probes)"
+					_log do $funcname daemon info "[ERR] arping - mac: $mac ip: $ip inactive_time: $inactive_time ms (no success for $max_arping probes)"
 					# iw dev "$WIFIDEV" station del "$mac"
 					exitcode="1"
 				fi
