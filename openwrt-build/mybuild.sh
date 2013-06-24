@@ -1047,8 +1047,17 @@ copy_images_to_server()
 
 	work()
 	{
+		local i=0
+
 		logger -s "$1 -> $2"
-		scp "$1" "$2"
+		while ! scp "$1" "$2"; do {
+			i=$(( i + 1 ))
+			test $i -gt 25 && {
+				logger -s "[ERR] scp abort"
+				return 1
+			}
+			sleep 5
+		} done
 	}
 
 	fileX_to_modelY()
