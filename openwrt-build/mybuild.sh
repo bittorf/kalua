@@ -1067,7 +1067,7 @@ copy_images_to_server()
 			;;
 		esac
 
-		work bin/$ARCH/${pre}${resulting_filename}${post} "$PRE/${resulting_filename}.$APPEND"
+		work bin/$ARCH/${pre}${build_filename}${post} "$PRE/${resulting_filename}.$APPEND"
 	}
 
 	case "$ARCH" in
