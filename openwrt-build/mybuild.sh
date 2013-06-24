@@ -1051,16 +1051,36 @@ copy_images_to_server()
 		scp "$1" "$2"
 	}
 
+	fileX_to_modelY()
+	{
+		local build_filename="$1"
+		local resulting_filename="$2"
+		local pre
+		local post="-squashfs-${imagetype}.bin"
+
+		case "$ARCH" in
+			ar71xx)
+				pre="openwrt-ar71xx-generic-"
+			;;
+			mpc85xx)
+				pre="openwrt-mpc85xx-generic-"
+			;;
+		esac
+
+		work bin/$ARCH/${pre}${resulting_filename}${post} "$PRE/${resulting_filename}.$APPEND"
+	}
+
 	case "$ARCH" in
 		ar71xx)
-	work bin/$ARCH/openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-${imagetype}.bin "$PRE/TP-LINK TL-WR1043ND.$APPEND"
-	work bin/$ARCH/openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-${imagetype}.bin "$PRE/TP-LINK TL-WDR3600:4300:4310.$APPEND"
-	work bin/$ARCH/openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-${imagetype}.bin "$PRE/Buffalo WZR-HP-AG300H.$APPEND"
-	work bin/$ARCH/openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-${imagetype}.bin "$PRE/Ubiquiti Bullet M.$APPEND"
-	work bin/$ARCH/openwrt-ar71xx-generic-ubnt-nano-m-squashfs-${imagetype}.bin "$PRE/Ubiquiti Nanostation M.$APPEND"
+			fileX_to_modelY "wr1043nd-v1"	"TP-LINK TL-WR1043ND"
+			fileX_to_modelY "tl-wdr4300-v1" "TP-LINK TL-WDR3600:4300:4310"
+			fileX_to_modelY "wzr-hp-ag300h"	"Buffalo WZR-HP-AG300H"
+			fileX_to_modelY "ubnt-bullet-m"	"Ubiquiti Bullet M"
+			fileX_to_modelY "ubnt-bullet-m"	"Ubiquiti Picostation M2"	# !!!
+			fileX_to_modelY "ubnt-nano-m"	"Ubiquiti Nanostation M"
 		;;
 		mpc85xx)
-	work bin/$ARCH/openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-${imagetype}.bin "$PRE/TP-LINK TL-WDR4900 v1.$APPEND"
+			fileX_to_modelY "tl-wdr4900-v1"	"TP-LINK TL-WDR4900 v1"
 		;;
 		*)
 			log "arch $ARCH in implemented yet"
