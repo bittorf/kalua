@@ -154,7 +154,10 @@ changedir release
 clone "git://nbd.name/openwrt.git" "$TRUNK"
 clone "git://nbd.name/packages.git" "$TRUNK"
 changedir openwrt
+
 clone "$REPOURL"
+#copy feeds.conf to openwrt directory
+cp $REPONAME/openwrt-build/feeds.conf ./
 
 prepare_build "reset_config"
 mymake package/symlinks
