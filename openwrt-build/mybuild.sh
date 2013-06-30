@@ -1007,7 +1007,7 @@ gitpull()
 
 copy_images_to_server()
 {
-	local option="$1"	# e.g. factory
+	local option="$1"	# e.g. factory|sysupgrade|release|remove
 
 	[ "$option" = "remove" ] && {
 		log "removing: 'bin/$ARCH'"
@@ -1038,7 +1038,13 @@ copy_images_to_server()
 	ARCH="$( get_arch )"
 	KERNEL="$( grep ^"LINUX_VERSION:=" target/linux/$ARCH/Makefile | cut -d'=' -f2 )"	# e.g. 3.8.13
 	REV="$( scripts/getver.sh )"								# e.g. r37012
-	APPEND="${REV}-kernel${KERNEL}-${KALUA_REF}${description}.${imagetype}.bin"
+
+	if [ "$option" = "release" ]; then
+		APPEND=".${imagetype}.bin"
+	else
+		APPEND="${REV}-kernel${KERNEL}-${KALUA_REF}${description}.${imagetype}.bin"
+	fi
+
 	APPEND="$APPEND'"		# mind the '
 
 	SERVER="root@intercity-vpn.de"
