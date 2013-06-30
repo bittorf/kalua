@@ -24,11 +24,18 @@ netparam_for_uci_devices ()
 		esac
 
 		IFNAME="$(  uci -q get network.$DEVICE.ifname  )"
-		[ -z "$IFNAME" -a "$DEVICE" = "wlan" ] && {
-			if [ -e "/etc/config/wireless" ]; then
+
+		# make sure, that hybrid interfaces use the adhoc-interface for 'testing', otherwise the first interface
+		[ "$DEVICE" = "wlan" ] && {
+			if [ -e "/sbin/ifstatus" ]; then
+				if   fgrep -q "wlanadhoc" "/etc/config/wireless"; then
+					IFNAME="$( ifstatus "wlanadhoc" | fgrep '"device":' | cut -d'"' -f4 )"
+					DEVICE="wlanadhoc"
+				elif fgrep -q "wlan" "/etc/config/wireless"; then
+					IFNAME="$( ifstatus "wlan" | fgrep '"device":' | cut -d'"' -f4 )"
+				fi
+			elif [ -e "/etc/config/wireless" ]; then
 				IFNAME="wlan0"
-			else
-				IFNAME=
 			fi
 		}
 
