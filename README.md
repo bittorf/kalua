@@ -73,6 +73,9 @@ how to build this from scratch on a debian server
 	IP="your.own.router.ip"
 	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
 
+	# upload images to release-server:
+	for CMD in applymystuff make "upload sysupgrade factory release remove"; do kalua/openwrt-build/mybuild.sh $CMD || break; done
+
 
 configure the builtin-packages
 ------------------------------

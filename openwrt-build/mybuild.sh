@@ -1040,7 +1040,7 @@ copy_images_to_server()
 	REV="$( scripts/getver.sh )"								# e.g. r37012
 
 	if [ "$option" = "release" ]; then
-		APPEND=".${imagetype}.bin"
+		APPEND="${imagetype}.bin"
 	else
 		APPEND="${REV}-kernel${KERNEL}-${KALUA_REF}${description}.${imagetype}.bin"
 	fi
