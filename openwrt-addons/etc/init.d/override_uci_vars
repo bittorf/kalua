@@ -240,12 +240,31 @@ boot()
 		uci set network.@alias[-1].proto=batadv
 		uci set network.@alias[-1].mesh=bat0
 
+
+		integer2fourhex()	# e.g. 8 -> 00:08
+		{			# fixme! max = 999 fixme! generalize it, join with bssid_wellformed()
+			if [ $1 -lt 100 ]; then
+				if [ $1 -lt 10 ]; then
+					echo "00:0$1"
+				else
+					echo "00:$1"
+				fi
+			else
+				echo "0$( echo "$1" | cut -b 1 ):$( echo "$1" | cut -b 2-3 )"
+			fi
+		}
+
 		case "$CONFIG_PROFILE" in
 			*hybrid)
 				uci add network alias
 				uci set network.@alias[-1].interface="wlanadhoc"
 				uci set network.@alias[-1].proto=batadv
 				uci set network.@alias[-1].mesh=bat0
+
+				# ap-interface
+				# wireless.@wifi-iface[0].network=wlan
+				local varname="$( uci show | grep "\.network=wlan"$ | head -n1 | cut -d'=' -f1 | sed 's/\.network//' )"
+				uci set $varname.macaddr="02:00:ca:fe:$( integer2fourhex "$NODENUMBER" )"
 			;;
 			*adhoc)
 				uci add network alias
@@ -254,6 +273,9 @@ boot()
 				uci set network.@alias[-1].mesh=bat0
 			;;
 		esac
+
+		uci set network.lan.macaddr="02:00:ca:b1:$( integer2fourhex "$NODENUMBER" )"
+		uci set network.wan.macaddr="02:00:de:ad:$( integer2fourhex "$NODENUMBER" )"
 
 		case "$CONFIG_PROFILE" in
 			*hybrid|*ap)
