@@ -116,6 +116,13 @@ GATEWAY="$( _sanitizer do "$GATEWAY" ip4 )"		# fixme! this is safer, we have see
 [ -e "/tmp/USERDB_COPY" ] || FIRST_RUN="true"
 [ "$METRIC" = "0" ] && FIRST_RUN=
 
+[ -e "/tmp/vtund.sh" ] && {
+	[ -z "$( ip link show tap0 )" ] && {
+		killall vtund
+		. "/tmp/vtund.sh"
+	}
+}
+
 echo "$COST_INT"	>/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY
 echo "$GATEWAY"		>/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 
@@ -138,19 +145,6 @@ _log do guess_gateway daemon debug "$OUT"
 	[ -e "/etc/vtund.conf" ] && {			# startup-code must be a comment at first line
 		grep -q ^'# vtund ' "/etc/vtund.conf" && {
 			head -n1 "/etc/vtund.conf" | cut -b 2- >"/tmp/vtund.sh"
-
-			sh -n "/tmp/vtund.sh" && {
-				killall vtund
-				_log sleep vtund_startup 600 step 10
-				. "/tmp/vtund.sh"
-				_log sleep vtund_init 10
-			}
-
-			if [ -n "$( ip link show tap0 )" ]; then
-				rm "/tmp/vtund.sh"
-			else
-				_scheduler add ". /tmp/vtund.sh"
-			fi
 		}
 	}
 
