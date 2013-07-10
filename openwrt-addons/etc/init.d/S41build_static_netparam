@@ -25,13 +25,17 @@ netparam_for_uci_devices ()
 
 		IFNAME="$(  uci -q get network.$DEVICE.ifname  )"
 
-		# make sure, that hybrid interfaces use the adhoc-interface for 'testing', otherwise the first interface
+		# make sure, that hybrid interfaces use the adhoc-interface
+		# for 'testing' in scheduler: incoming_wifi_activity()
+		# otherwise use the first interface
 		[ "$DEVICE" = "wlan" ] && {
 			if [ -e "/sbin/ifstatus" ]; then
 				if   fgrep -q "wlanadhoc" "/etc/config/wireless"; then
+					# typical: wlan0-1
 					IFNAME="$( ifstatus "wlanadhoc" | fgrep '"device":' | cut -d'"' -f4 )"
 					DEVICE="wlanadhoc"
 				elif fgrep -q "wlan" "/etc/config/wireless"; then
+					# typical: wlan0
 					IFNAME="$( ifstatus "wlan" | fgrep '"device":' | cut -d'"' -f4 )"
 				fi
 			elif [ -e "/etc/config/wireless" ]; then
@@ -88,12 +92,21 @@ netparam_for_uci_devices ()
 
 		# for old firmwares
 		[ -e "/sbin/ifstatus" ] || {
-			[ -n "$list_wifi_names" ] && echo "wlan0"
+			[ -n "$list_wifi_names" ] && {
+				[ "$( uci get wireless.radio0.disabled )" = "1" ] || echo "wlan0"
+			}
+
 			return 0
 		}
 
+		# uci get wireless.@wifi-iface[0].device -> radio0
+		# uci get wireless.radio0.disabled -> 1?
+
 		for network_name in $list_wifi_names; do {
+			# can be:
 			# JSON: "device": "wlan0",
+			# or:
+			# Interface wlan0 not found
 			ifstatus "$network_name" | fgrep '"device":' | cut -d':' -f2 | cut -d'"' -f2
 		} done
 	}
