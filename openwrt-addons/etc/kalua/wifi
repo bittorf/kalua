@@ -593,6 +593,7 @@ _wifi_phy_restart()
 	local reason="${2:-no_reason_given}"
 	local prio="${3:-alert}"
 	local pids="$( pidof wifi )"
+	local file
 
 	[ -n "$pids" ] && {
 		_log do $funcname daemon info "no action during another wifi-action, pids: '$pids'"
@@ -622,6 +623,12 @@ _wifi_phy_restart()
 		*ap)
 			if pidof hostapd >/dev/null; then
 				if [ $( _system version short ) -ge 36083 ]; then
+					file="/sys/kernel/debug/ieee80211/phy0/ath9k/diag"
+					[ -e "$file" ] && {
+						_log do $funcname daemon alert "resetting HW via: echo 4 >$file"
+						echo 4 >"$file"
+					}
+
 					_log do $funcname daemon info "no restart for this openwrt-revision"
 					return 0
 				else
