@@ -619,16 +619,22 @@ _wifi_phy_restart()
 	echo "$reason: $uptime $vals_rx $vals_tx" >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.reason"
 	_log do $funcname daemon $prio "working on '$wifi_dev' ($reason) $uptime $vals_rx $vals_tx"
 
+	file="/sys/kernel/debug/ieee80211/phy0/ath9k/diag"
+	[ -e "$file" ] && {
+		if [ -e "/tmp/ATH9K_hwreseted" ]; then
+			rm "/tmp/ATH9K_hwreseted"
+		else
+			touch "/tmp/ATH9K_hwreseted"
+			_log do $funcname daemon alert "resetting HW via: echo 4 >$file"
+			echo 4 >"$file"
+			return 0
+		fi
+	}
+
 	case "$CONFIG_PROFILE" in
 		*ap)
 			if pidof hostapd >/dev/null; then
 				if [ $( _system version short ) -ge 36083 ]; then
-					file="/sys/kernel/debug/ieee80211/phy0/ath9k/diag"
-					[ -e "$file" ] && {
-						_log do $funcname daemon alert "resetting HW via: echo 4 >$file"
-						echo 4 >"$file"
-					}
-
 					_log do $funcname daemon info "no restart for this openwrt-revision"
 					return 0
 				else
