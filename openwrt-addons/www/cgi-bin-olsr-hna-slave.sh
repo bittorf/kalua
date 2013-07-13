@@ -57,7 +57,7 @@ device_forbidden()
 				;;
 			esac
 		;;
-		boltenhagen*)
+		boltenhagen*|marinabh*)
 			return 0
 		;;
 	esac
