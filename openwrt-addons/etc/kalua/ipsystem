@@ -21,17 +21,19 @@ _ipsystem_amiga()			# lannet  = 10.10.x.128/25
 	local range_end=254
 	local range_first_random=250
 
-	  if [ -z "$nodenumber" ]; then
+	nodenumber_is_in_range()
+	{
+		test 2>/dev/null $nodenumber -ge $range_start -a $nodenumber -le $range_end
+	}
 
+	  if [ -z "$nodenumber" ]; then
 		nodenumber="$( uci get system.@profile[0].nodenumber )"
 		[ -z "$nodenumber" ] && nodenumber=$( _math random_integer "$range_first_random" "$range_end" )
 
 	elif [ "$nodenumber" = "random" ]; then
-
 		nodenumber=$( _math random_integer "$range_first_random" "$range_end" )
 
 	elif _sanitizer do "$nodenumber" ip4 check ; then	# ip2nodenumber()
-
 		eval $( _ipsystem ipv4_extract_octetts "$nodenumber" )
 		if [ $o1 -eq $network -a $o2 -eq $city ]; then
 				echo "$o3"
@@ -39,6 +41,8 @@ _ipsystem_amiga()			# lannet  = 10.10.x.128/25
 		else
 			return 1
 		fi
+	elif ! nodenumber_is_in_range ; then
+		return 1
 	fi
 
 	# fixme! implement random-case()
