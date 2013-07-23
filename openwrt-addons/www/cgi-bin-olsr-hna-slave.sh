@@ -60,6 +60,9 @@ device_forbidden()
 		boltenhagen*|marinabh*)
 			return 0
 		;;
+		leonardo*)
+			[ "$NODENUMBER" = 6 ] && return 0
+		;;
 	esac
 
 	return 1
