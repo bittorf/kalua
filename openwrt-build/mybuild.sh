@@ -1056,13 +1056,20 @@ copy_images_to_server()
 		local i=0
 
 		logger -s "$1 -> $2"
-		while ! scp "$1" "$2"; do {
-			i=$(( i + 1 ))
-			test $i -gt 25 && {
-				logger -s "[ERR] scp abort"
-				return 1
-			}
-			sleep 5
+
+		while true; do {
+			if scp "$1" "$2"; then
+				return 0
+			else
+				i=$(( i + 1 ))
+
+				if [ $i -gt 25 ]; then
+					logger -s "[ERR] scp abort"
+					return 1
+				else
+					sleep 5
+				fi
+			fi
 		} done
 	}
 
