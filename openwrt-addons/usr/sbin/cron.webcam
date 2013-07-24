@@ -259,9 +259,13 @@ if [ -n "$RUN_ENCODER" ]; then
 
 		DESTINATION="$( uci -q get system.@webcam[0].storage_path )"
 		DESTINATION="${DESTINATION:-$( uci -q get system.@vds[0].server )../media}"
-		[ -n "$DESTINATION" ] && scp -i /etc/dropbear/dropbear_dss_host_key "$FILENAME" $DESTINATION
+		[ -n "$DESTINATION" ] && {
+			scp -i /etc/dropbear/dropbear_dss_host_key "$FILENAME" $DESTINATION || {
+				_log do scp_movie daemon alert "failed to scp"
+			}
+		}
 	else
-		_log do webcam_ffmpeg daemon alert "[ERROR] rc: $?"
+		_log do webcam_ffmpeg daemon alert "[ERROR] encoding rc: $?"
 	fi
 
 	rm -f /webcam/img_* "$FILENAME" "/tmp/CRON_OVERLOAD" /tmp/webcam_rename /tmp/webcam_rename.sh /tmp/webcam_force_safe
@@ -287,6 +291,22 @@ else
 		_log do webcam_upload daemon info "file '$FILE'"
 
 		echo "$EVENT_RECENT" >"/tmp/webcam_last_event"
-		scp -i /etc/dropbear/dropbear_dss_host_key "$FILE" root@intercity-vpn.de:/var/www/1.jpg
+
+		DESTINATION="$( uci -q get system.@webcam[0].storage_path )"			# e.g. bastian@10.63.2.34:
+		DESTINATION="${DESTINATION:-$( uci -q get system.@vds[0].server )../media}"	# e.g. root@intercity-vpn.de:/var/www/networks/liszt28/vds/
+		case "$DESTINATION" in
+			*"/")
+			;;
+			*)
+				DESTINATION="$DESTINATION/"
+			;;
+		esac
+
+		[ -n "$DESTINATION" ] && {
+			_log do scp_snapshot daemon info "scp-ing '$FILE' to '${DESTINATION}$NODENUMBER.jpg'"
+			scp -i /etc/dropbear/dropbear_dss_host_key "$FILE" ${DESTINATION}$NODENUMBER.jpg || {
+				_log do scp_snapshot daemon alert "failed to scp"
+			}
+		}
 	}
 fi
