@@ -16,11 +16,14 @@ rrd_setup()
 		_log do setup daemon info "initial setup of $file"
 	fi
 
+	# DS = Data Source
+
 	rrdtool create "$file" \
 		DS:upload_packets:${countertype}:${maxwait}:${minmax} \
 		DS:upload_bytes:${countertype}:${maxwait}:${minmax} \
 		DS:download_packets:${countertype}:${maxwait}:${minmax} \
 		DS:download_bytes:${countertype}:${maxwait}:${minmax} \
+		DS:wifi_stations:ABSOLUTE:${maxwait}:${minmax} \
 		--step $interval \
 		RRA:AVERAGE:0.5:1:1440
 #		RRA:AVERAGE:0.5:4:3600 \
@@ -33,22 +36,26 @@ rrd_update()
 	local file="/tmp/datafile.rrd"
 	local up_packets up_bytes
 	local down_packets down_bytes
+	local mac stations=0
 
 	[ -e "$file" ] || rrd_setup
 
 	# show conntrack-entries:
 	# wc -l /proc/net/nf_conntrack | cut -d' ' -f1
 
-	set -- $(iptables -nxvL FORWARD 2 )
+	set -- $( iptables -nxvL FORWARD 2 )
 	up_packets="-$(( $1 * 350 ))"		# fixme! use CDEF-expression
 	up_bytes=-$2
-	set -- $(iptables -nxvL FORWARD 1 )
+	set -- $( iptables -nxvL FORWARD 1 )
 	down_packets=$(( $1 * 350 ))
 	down_bytes=$2
 
-#	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes"
+	for mac in /sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations/*; do stations=$(( $stations + 1 )); done
+	stations=$(( stations * 1000000 ))	# upscale
 
-	rrdtool update "$file" N:${up_packets}:${up_bytes}:${down_packets}:${down_bytes} || {
+#	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes stations: $stations"
+
+	rrdtool update "$file" N:${up_packets}:${up_bytes}:${down_packets}:${down_bytes}:${stations} || {
 		_log do rrd_update daemon info "error $?"
 	}
 }
@@ -68,6 +75,7 @@ rrd_show()
 	local color2="#0000ff${alpha}"
 	local color3="#ccdd00"
 	local color4="#00ffdd${alpha}"
+	local color5="#00ffaa"
 
 #	logger -s "duration = $duration"
 
@@ -82,10 +90,12 @@ rrd_show()
 		DEF:upload_bytes=${file}:upload_bytes:AVERAGE \
 		DEF:download_packets=${file}:download_packets:AVERAGE \
 		DEF:download_bytes=${file}:download_bytes:AVERAGE \
+		DEF:wifi_stations=${file}:wifi_stations:ABSOLUTE \
 		LINE1:upload_packets${color1}:"upload [packets]" \
 		AREA:upload_bytes${color2}:"upload [bytes]" \
 		LINE1:download_packets${color3}:"download [packets]" \
-		AREA:download_bytes${color4}:"download [bytes]" || {
+		AREA:download_bytes${color4}:"download [bytes]" \
+		LINE1:wifi_stations${color5}:"wifi_stations" || {
 			logger -s "error during rrdtool graph ..."
 		}
 
