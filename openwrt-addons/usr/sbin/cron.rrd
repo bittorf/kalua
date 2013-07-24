@@ -90,17 +90,20 @@ rrd_show()
 		DEF:upload_bytes=${file}:upload_bytes:AVERAGE \
 		DEF:download_packets=${file}:download_packets:AVERAGE \
 		DEF:download_bytes=${file}:download_bytes:AVERAGE \
-		DEF:wifi_stations=${file}:wifi_stations:ABSOLUTE \
+		DEF:wifi_stations=${file}:wifi_stations:AVERAGE \
 		LINE1:upload_packets${color1}:"upload [packets]" \
 		AREA:upload_bytes${color2}:"upload [bytes]" \
 		LINE1:download_packets${color3}:"download [packets]" \
 		AREA:download_bytes${color4}:"download [bytes]" \
 		LINE1:wifi_stations${color5}:"wifi_stations" || {
 			logger -s "error during rrdtool graph ..."
+			return 1
 		}
 
 	[ -h "$webfile" ] || ln -s "$output" "$webfile"
 #	logger -s "wrote: '$output', look at http://$LANADR/$( basename "$webfile" )"
+
+	return 0
 }
 
 rrd_upload()
@@ -109,7 +112,7 @@ rrd_upload()
 	local dest="$( uci get system.@vds[0].server )../media/traffic_${HOSTNAME}_${date}.png"
 	local try=30
 
-	rrd_show
+	rrd_show || return 1
 
 	while [ $try -gt 0 ]; do {
 		scp -i /etc/dropbear/dropbear_dss_host_key "/tmp/graph.png" "$dest" && break
