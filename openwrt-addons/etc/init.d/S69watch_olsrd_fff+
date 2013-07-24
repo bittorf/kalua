@@ -30,15 +30,32 @@ esac
 
 _watch flash_free_space
 
-_watch wifi_mode || sleep 30		# lets settle down to see some neighs
+_watch wifi_mode || _log sleep let_wifi_settle_down 180 step 5
 
 case "$CONFIG_PROFILE" in
 	leonardo*)
-		[ "$NODENUMBER" = 6 ] && {
-			_net ip4_is_private "$WANADR" && {
-				_log do check_wanadr daemon alert "WANADR: '$WANADR' - restarting WAN, needs public IP"
+		[ "$( _net local_inet_offer )" = "wan" ] && {
+			GATEWAY="$( _sanitizer do "$( ip route list exact 0.0.0.0/0 )" ip4 )"
+			if _net ip_reachable "$GATEWAY" 10 $WANDEV; then
+				_log do check1_wanadr daemon info "[OK] arping to gateway '$GATEWAY'"
+			else
+				_log do check1_wanadr daemon alert "WANADR: '$WANADR' - GATEWAY: '$GATEWAY' unreachable, restarting WAN"
 				ifup wan
-			}
+				sleep 10
+				/etc/init.d/S41build_static_netparam call
+				. /tmp/loader
+			fi
+
+			if _net ip4_is_private "$WANADR" ; then
+				_log do check2_wanadr daemon alert "WANADR: '$WANADR' - restarting WAN, needs public IP"
+				kill -SIGUSR2 $( pidof udhcpc )		# release DHCP-Address
+				ifup wan
+				sleep 10
+				/etc/init.d/S41build_static_netparam call
+				. /tmp/loader
+			else
+				_log do check2_wanadr daemon info "[OK] WANADR: '$WANADR' - is public IP"
+			fi
 		}
 	;;
 	dhsylt*)
