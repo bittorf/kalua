@@ -337,10 +337,28 @@ _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic
 	echo $(( 100 - (6*${#peak}) ))
 }
 
+_netfilter_happy_hour()
+{
+	case "$( date +%H:%M )" in	# 00...23:00...59
+		0*|22:*|23:*)
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower the speed
 {
 	local traffic="$1"		# [megabyte]
 	local option="$2"
+
+	_netfilter happy_hour && {
+		echo "100"
+		return 0
+	}
+
 	local traffic_border=2000	# [megabyte] fixme! should depend from initial_speed
 	local percent2=100
 	local percent=$(( 100 - ( ($traffic * 100) / $traffic_border ) ))	# e.g. 50%
@@ -359,7 +377,7 @@ _netfilter_traffic_control_autoapply_speedsuggest()
 {
 	local list_macs="${1:-$( _netfilter user_list )}"
 	local traffic_border_for_reaction="1000"		# megabytes
-	local speed_min=64000					# bit/s
+	local speed_min=128000					# bit/s
 	local mac traffic file ip interface j i speed_down speed_up percent params
 
 	for mac in $list_macs; do {
