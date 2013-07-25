@@ -1081,6 +1081,9 @@ copy_images_to_server()
 		local post="-squashfs-${imagetype}.bin"
 
 		case "$ARCH" in
+			brcm47xx)
+				pre="openwrt-"
+			;;
 			ar71xx)
 				pre="openwrt-ar71xx-generic-"
 			;;
@@ -1093,6 +1096,12 @@ copy_images_to_server()
 	}
 
 	case "$ARCH" in
+		brcm47xx)
+			fileX_to_modelY "brcm47xx-squashfs.trx" "Linksys WRT54G:GS:GL"
+			fileX_to_modelY "brcm47xx-squashfs.trx" "Buffalo WHR-HP-G54"
+			fileX_to_modelY "brcm47xx-squashfs.trx" "Dell TrueMobile 2300"
+			fileX_to_modelY "brcm47xx-squashfs.trx" "ASUS WL-500g Premium"
+		;;
 		ar71xx)
 			fileX_to_modelY "tl-wr1043nd-v1" "TP-LINK TL-WR1043ND"
 			fileX_to_modelY "tl-wdr4300-v1"  "TP-LINK TL-WDR3600:4300:4310"
