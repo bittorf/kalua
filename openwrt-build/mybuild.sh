@@ -1078,11 +1078,12 @@ copy_images_to_server()
 		local build_filename="$1"
 		local resulting_filename="$2"
 		local pre
-		local post="-squashfs-${imagetype}.bin"
+		local post="-squashfs-${imagetype}.bin"		# 'sysupgrade' or 'factory'
 
 		case "$ARCH" in
 			brcm47xx)
 				pre="openwrt-"
+				post="-squashfs.trx"
 			;;
 			ar71xx)
 				pre="openwrt-ar71xx-generic-"
@@ -1097,10 +1098,10 @@ copy_images_to_server()
 
 	case "$ARCH" in
 		brcm47xx)
-			fileX_to_modelY "brcm47xx-squashfs.trx" "Linksys WRT54G:GS:GL"
-			fileX_to_modelY "brcm47xx-squashfs.trx" "Buffalo WHR-HP-G54"
-			fileX_to_modelY "brcm47xx-squashfs.trx" "Dell TrueMobile 2300"
-			fileX_to_modelY "brcm47xx-squashfs.trx" "ASUS WL-500g Premium"
+			fileX_to_modelY "brcm47xx" "Linksys WRT54G:GS:GL"
+			fileX_to_modelY "brcm47xx" "Buffalo WHR-HP-G54"
+			fileX_to_modelY "brcm47xx" "Dell TrueMobile 2300"
+			fileX_to_modelY "brcm47xx" "ASUS WL-500g Premium"
 		;;
 		ar71xx)
 			fileX_to_modelY "tl-wr1043nd-v1" "TP-LINK TL-WR1043ND"
