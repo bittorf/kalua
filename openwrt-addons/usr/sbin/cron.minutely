@@ -84,7 +84,7 @@ case "$LOAD" in
 			esac
 		}
 
-		if [ -e /tmp/CRON_LOCK ]; then
+		if [ -e "/tmp/CRON_LOCK" ]; then
 			case "$LOAD" in
 				0.00|0.01|0.02)
 					echo -n '#' >>"/tmp/CRON_UNDERLOAD"
@@ -103,6 +103,19 @@ case "$LOAD" in
 					for PRG in mv scp nc wget; do {
 						pidof $PRG && _watch hanging_command $PRG
 					} done
+				;;
+				0.*)
+					. /tmp/loader
+					set -- $( ls -le "/tmp/CRON_LOCK" )
+					UNIXTIME_LOCKFILE="$6 $7 $8 $9 ${10}"
+					UNIXTIME_LOCKFILE="$( _system date 2unixtime "$UNIXTIME_LOCKFILE" )"
+					UNIXTIME_NOW="$( _system date unixtime )"
+
+					[ $(( $UNIXTIME_NOW - $UNIXTIME_LOCKFILE )) -gt 3600 ] && {
+						echo "ALERT: $( date ) very old lockfile: $6 $7 $8 $9 ${10}" >>/www/everlasting_syslog.txt
+						sync
+						/sbin/reboot -f
+					}
 				;;
 			esac
 		else
