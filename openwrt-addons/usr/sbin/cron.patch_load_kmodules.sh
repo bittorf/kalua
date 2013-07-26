@@ -55,6 +55,21 @@ output_new_function()
 	echo '		}'
 	echo '	} done'
 	echo
+	echo '	[ -e /tmp/KMODULES_blacklist ] && {'	# sed -i "s/^${1}$/# &/" "$file"
+	echo '		insmod()'
+	echo '		{'
+	echo '			:'
+	echo '		}'
+	echo '		blacklist()'
+	echo '		{'
+	echo '			sed -i "s/^${1}$/# &/" "$file"'
+	echo '		}'
+	echo '		ignore()'
+	echo '		{'
+	echo '			sed -i "s/^${1}$/# &/" "$file"'
+	echo '		}'
+	echo '	}'
+	echo
 	echo '	echo >>/tmp/KMODULE.action "# loaded modules now:"'
 	echo "	sed 's/^/# preinit: /' /proc/modules >>/tmp/KMODULE.action"
 	echo
@@ -72,6 +87,7 @@ output_new_function()
 	echo '					insmod $line || echo >>/tmp/KMODULE.action "# error $?"'
 	echo '				;;'
 	echo "				$( modules_blacklist ))"
+	echo '					blacklist "$line"'
 	echo '					echo >>/tmp/KMODULE.action "# blacklisted: $line"'
 	echo '				;;'
 	echo "				$( modules_allowed )$( modules_whitelist ))"
@@ -87,7 +103,11 @@ output_new_function()
 	echo '						;;'
 	echo '					esac'
 	echo "				;;"
+	echo '				"#"*)'
+	echo '					echo >>/tmp/KMODULE.action "# user-deselected: $line"'
+	echo '				;;'
 	echo "				*)"
+	echo '					ignore "$line"'
 	echo '					echo >>/tmp/KMODULE.action "# ignored: $line"'
 	echo "				;;"
 	echo "			esac"

@@ -14,7 +14,7 @@ case $1 in
 
 			if [ -e "/tmp/KMODULE.action" ]; then	# generated from /lib/functions.sh during boot
 				. /tmp/KMODULE.action
-				/usr/sbin/cron.patch_load_kmodules.sh
+				/usr/sbin/cron.patch_load_kmodules.sh	# check for new version
 			else
 				while read LINE; do {
 					rmmod "$LINE" || echo "$LINE = $?" >>"/tmp/GOOD_MODULE_UNLOAD.log"
@@ -24,6 +24,12 @@ case $1 in
 					"Buffalo WHR-HP-G54"|"Linksys WRT54G"*|"SPW500V"|"Ubiquiti Nanostation2"|"Ubiquiti Nanostation5")
 						[ -e "/etc/init.d/apply_profile" ] || {
 							/usr/sbin/cron.patch_load_kmodules.sh && {
+								[ $( _system version short ) -gt 37500 ] && {
+									touch "/tmp/KMODULES_blacklist"		# special for load_modules()
+									. /lib/functions.sh
+									load_modules /etc/modules.d/*
+								}
+
 								_log do reboot_new daemon info "trying to boot with clean kmodules list"
 								reboot
 							}
