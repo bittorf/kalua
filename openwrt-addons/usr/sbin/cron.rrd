@@ -58,7 +58,7 @@ rrd_update()
 	for mac in /tmp/vds_user_*; do users=$(( $users + 1 )); done
 	users=$(( $users * 100000 ))
 
-#	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes stations: $stations"
+#	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes stations: $stations users: $users"
 
 	rrdtool update "$file" N:${up_packets}:${up_bytes}:${down_packets}:${down_bytes}:${stations}:${users} || {
 		_log do rrd_update daemon info "error $?"
@@ -80,8 +80,8 @@ rrd_show()
 	local color2="#0000ff${alpha}"	# upload_bytes
 	local color3="#ccdd00"		# download_packets
 	local color4="#00ffdd${alpha}"	# download_bytes
-	local color5="#00ffaa"		# stations
-	local color6="#00bbee"		# users
+	local color5="#00ffaa"		# wifi_stations (connected)
+	local color6="#00bbee"		# users_overall (login ok and valid)
 
 #	logger -s "duration = $duration"
 
@@ -103,7 +103,7 @@ rrd_show()
 		LINE1:download_packets${color3}:"download [packets]" \
 		AREA:download_bytes${color4}:"download [bytes]" \
 		LINE2:wifi_stations${color5}:"wifi_stations" \
-		LINE2:different_users${color6}:"different_users" || {
+		LINE2:different_users${color6}:"users_logged_in" || {
 			logger -s "error during rrdtool graph ..."
 			return 1
 		}
@@ -117,12 +117,13 @@ rrd_show()
 rrd_upload()
 {
 	local funcname="rrd_upload"
+	local duration="$1"
 	local file="/tmp/graph.png"
 	local date="$( _system date humanreadable | sed 's/:/./g' )"
 	local dest="$( uci get system.@vds[0].server )../media/traffic_${HOSTNAME}_${date}.png"
 	local try=30
 
-	rrd_show || return 1
+	rrd_show "$duration" || return 1
 
 	. /tmp/loader
 	while [ $try -gt 0 ]; do {
