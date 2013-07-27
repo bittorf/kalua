@@ -25,6 +25,8 @@ rrd_setup()
 		DS:download_bytes:${countertype}:${maxwait}:${minmax} \
 		DS:wifi_stations:GAUGE:${maxwait}:${minmax} \
 		DS:different_users:GAUGE:${maxwait}:${minmax} \
+		DS:tcp:GAUGE:${maxwait}:${minmax} \
+		DS:udp:GAUGE:${maxwait}:${minmax} \
 		--step $interval \
 		RRA:AVERAGE:0.5:1:1440
 #		RRA:AVERAGE:0.5:4:3600 \
@@ -39,6 +41,7 @@ rrd_update()
 	local down_packets down_bytes
 	local mac stations=0
 	local users=0
+	local line udp=0 tcp=0
 
 	[ -e "$file" ] || rrd_setup
 
@@ -58,9 +61,23 @@ rrd_update()
 	for mac in /tmp/vds_user_*; do users=$(( $users + 1 )); done
 	users=$(( $users * 100000 ))
 
-#	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes stations: $stations users: $users"
+	while read line; do {
+		case "$line" in
+			*" tcp"*)
+				tcp=$(( $tcp + 1 ))
+			;;
+			*)
+				# this is not correct
+				udp=$(( $udp + 1 ))
+			;;
+		esac
+	} done <"/proc/net/nf_conntrack"
+	tcp=$(( $tcp * 1000 ))
+	udp=$(( $udp * 1000 ))
 
-	rrdtool update "$file" N:${up_packets}:${up_bytes}:${down_packets}:${down_bytes}:${stations}:${users} || {
+#	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes stations: $stations users: $users conn-tcp/udp: $tcp/$udp"
+
+	rrdtool update "$file" N:${up_packets}:${up_bytes}:${down_packets}:${down_bytes}:${stations}:${users}:${tcp}:${udp} || {
 		_log do rrd_update daemon info "error $?"
 	}
 }
@@ -73,7 +90,7 @@ rrd_show()
 	local file="${2:-/tmp/datafile.rrd}"
 	local context="traffic"
 	local date="$( _system date humanreadable nice )"
-	local label="bytes/sec & users/stations (1 = 100k)"	# Y-axis
+	local label="bytes/sec & users/stations (1 = 100k) & TCP/UDP-conntrack (1000 = 1M)"	# Y-axis
 	local location="$( _weblogin metadata_locationname )"
 	local alpha="44"
 	local color1="#ff0000"		# upload_packets
@@ -82,6 +99,8 @@ rrd_show()
 	local color4="#00ffdd${alpha}"	# download_bytes
 	local color5="#00ffaa"		# wifi_stations (connected)
 	local color6="#00bbee"		# users_overall (login ok and valid)
+	local color7="#4400bb"		# tcp
+	local color8="#2211ff"		# udp
 
 #	logger -s "duration = $duration"
 
@@ -98,12 +117,16 @@ rrd_show()
 		DEF:download_bytes=${file}:download_bytes:AVERAGE \
 		DEF:wifi_stations=${file}:wifi_stations:AVERAGE \
 		DEF:different_users=${file}:different_users:AVERAGE \
+		DEF:tcp=${file}:tcp:AVERAGE \
+		DEF:udp=${file}:udp:AVERAGE \
 		LINE1:upload_packets${color1}:"upload [packets]" \
 		AREA:upload_bytes${color2}:"upload [bytes]" \
 		LINE1:download_packets${color3}:"download [packets]" \
 		AREA:download_bytes${color4}:"download [bytes]" \
 		LINE2:wifi_stations${color5}:"wifi_stations" \
-		LINE2:different_users${color6}:"users_logged_in" || {
+		LINE2:different_users${color6}:"users_logged_in" \
+		LINE1:tcp${color7}:"TCP" \
+		LINE1:udp${color8}:"UDP" || {
 			logger -s "error during rrdtool graph ..."
 			return 1
 		}
