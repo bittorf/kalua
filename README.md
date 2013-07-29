@@ -54,7 +54,7 @@ how to build this from scratch on a debian server
 	# REV=36817	// current testing
 	# REV=35880	// current beta
 	# REV=35300	// current stable
-	# git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
+	# git checkout $(git log -1 --format=%h --grep=@$REV)
 
 	# now copy your own 'apply_profile.code.definitions' to . or the provided one will be used
 
