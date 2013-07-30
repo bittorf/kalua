@@ -74,6 +74,31 @@ build_http_postdata()
 	cat "$file"
 }
 
+guess_crash_reason()
+{
+	local file="${1:-unknown_file}"
+	local reason
+
+	for reason in \
+		"SysRq : Trigger a crash" \
+		"invoked oom-killer:" \
+		"Unable to handle kernel paging request at virtual address 00000000" \
+		"Unhandled kernel unaligned access" \
+		"Unable to handle kernel paging request at virtual address" \
+		"Reserved instruction in kernel code" \
+		"do_cpu invoked from kernel context" \
+		"unaligned instruction access" \
+		"SQUASHFS error:" \
+		"Kernel bug detected" \
+		"device closed unexpectedly" \
+		do {
+
+		fgrep -q "$reason" "$file" && break
+	} done
+
+	echo "${reason:-unkown_reason}"
+}
+
 start()
 {
 	local funcname="crashlog_apport"		# enforce a crash with 'echo c >/proc/sysrq-trigger'
@@ -82,8 +107,11 @@ start()
 	local answer="false"
 	local maxtry=10
 	local pause=30
+	local destination
 
 	if [ -e "$file" ]; then
+		echo "crash detected: reason: $( guess_crash_reason "$file" )" >>/www/everlasting_syslog.txt
+
 		while [ $maxtry -gt 0 ]; do {
 			logger "$funcname: found log in $file, reporting to server $server_ip"
 			answer="$( build_http_postdata "$file" "$server_ip" | nc "$server_ip" 80 )"
@@ -101,7 +129,9 @@ start()
 		} done
 
 		[ $maxtry -eq 0 ] && {
-			cat "$file" >"/www/crashlog.$( cat /proc/uptime ).$$"
+			destination="/www/crashlog.$( cat /proc/uptime ).$$"
+			cat "$file" >"$destination"
+			echo "upload crash failed, wrote to: '$destination'" >>/www/everlasting_syslog.txt
 		}
 	else
 		return 0
