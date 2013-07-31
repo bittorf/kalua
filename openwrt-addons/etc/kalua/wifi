@@ -599,7 +599,7 @@ _wifi_watch_phy_problems()
 
 	case "$CONFIG_PROFILE" in
 		boltenhagendh_ap|boltenhagendh_hybrid|liszt28_ap|liszt28_hybrid)
-			_net local_inet_offer >/dev/null && return 0
+			_net local_inet_offer >/dev/null && return 1
 
 			if [ -z "$( iw dev "$wifi_dev" station dump )" ]; then
 				_log do $funcname daemon alert "no clients, rebooting"
@@ -607,8 +607,12 @@ _wifi_watch_phy_problems()
 			else
 				_log do $funcname daemon info "clients active - no action"
 			fi
+
+			return 1
 		;;
 	esac
+
+	return 0
 }
 
 _wifi_phy_restart()
@@ -635,7 +639,10 @@ _wifi_phy_restart()
 	fi
 
 	touch "/tmp/WIFI_ERROR.$wifi_dev"
-	_wifi watch_phy_problems
+	_wifi watch_phy_problems || {
+		_log do $funcname daemon info "no action, watch_phy_problems() does not allow"
+		return 1
+	}
 
 	_watch counter "/tmp/STATS_WIFI_RESTARTS.$wifi_dev" increment 1
 	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
