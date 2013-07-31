@@ -501,17 +501,31 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 	return 0
 }
 
-_net_inet_seems_stable ()					# fixme! also check path to gateway (add wireless costs/hops)
+_net_inet_seems_stable()					# fixme! also check path to gateway (add wireless costs/hops)
 {								# fixme! apply these checks regulary
 	local FILE="/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY"	# fixme! test dns also?
 	local FUNC="inet_seems_stable"				# fixme! use dnsfaker if unstable/unfake if stable
 	local max_cost="50000"					# fixme! till we found a better way to guess
+	local file_broken="/tmp/inet_seems_unstable"
 
 	_olsr uptime is_short || {
-		[ -z "$( ip route list exact 0.0.0.0/0 table main )" ] && {
-			_log do $FUNC daemon alert "unstable inet, no default route in main-table"
+		if [ -z "$( ip route list exact 0.0.0.0/0 table main )" ]; then
+			if [ -e "$file_broken" ]; then
+				_log do $FUNC daemon info "(long) unstable inet, no default route in main-table"
+			else
+				touch "$file_broken"
+				_log do $FUNC daemon alert "unstable inet, no default route in main-table"
+				# TODO: change essid
+			fi
+
 			return 1
-		}
+		else
+			[ -e "$file_broken" ] && {
+				_log do $FUNC daemon info "unstable inet fixed, begin was: '$( ls -le "$file_broken" )'"
+				rm "$file_broken"
+				# TODO: change essid back
+			}
+		fi
 	}
 
 	[ -e "$FILE" ] && {
