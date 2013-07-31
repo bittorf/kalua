@@ -1,69 +1,3 @@
-_weblogin_generate_prebuilt_splash_htmlfile()
-{
-	local option="$1"	# ram|persistent
-	local funcname="weblogin_generate_prebuilt_splash_htmlfile"
-
-	[ "$option" = "persistent" ] && {
-		[ -e "/www/weblogin_cached_for_overload" ] && {
-			return 0
-		}
-	}
-
-	_log do $funcname daemon info "[START]"
-	export QUERY_STRING="REDIRECTED=1" SCRIPT_NAME=
-	/www/cgi-bin-welcome.sh >/dev/null
-
-	[ "$option" = "persistent" ] && {
-		[ -e "/www/weblogin_cached_for_overload" ] || {
-			cp "/tmp/weblogin_cached_for_overload" "/www/weblogin_cached_for_overload"
-		}
-	}
-
-	_log do $funcname daemon info "[READY]"
-}
-
-_weblogin_html_logoutpage()
-{
-	eval $( _http query_string_sanitize )
-	_http header_mimetype_output "text/html"
-
-	local mac="$( _net ip2mac "$REMOTE_ADDR" )"
-	local validate_shaped validate_splashed message
-	local destination="http://$WIFIADR"
-	local wait=5
-
-	if _netfilter user_probe "$mac" ; then
-		validate_splashed="nein"
-		_netfilter user_del "$mac"
-		message="[OK] erfolgreich ausgeloggt"
-	else
-		validate_splashed="ja"
-		message="[OK] sie sind schon ausgeloggt"
-	fi
-
-	cat <<EOF
-<html>
-<head>
-<META HTTP-EQUIV="refresh" CONTENT="$wait; URL=$destination">
-</head>
-<body>
-<h3>$message
-<br>Sie werden in $wait Sekunden automatisch <a href='$destination'>auf die Loginseite</a> geleitet</h3>
-<small>
-<pre>
-technische Details ()
-{
-	IP-Adresse:	$REMOTE_ADDR
-	MAC-Adresse:	$mac
-	splashed?:	$validate_splashed
-}
-</pre>
-</small>
-</body>
-</html>
-EOF
-}
-
 _weblogin_splashscript ()
 {
 	if [ -e /usr/sbin/uhttpd ]; then
@@ -73,428 +7,6 @@ _weblogin_splashscript ()
 	fi
 }
 
-_weblogin_htmlout_loginpage ()				# needs: images/logo.gif|logo2.gif              + images/flag_de|en|fr.gif
-{							#        images/button_login_de.gif		+ images/bgcolor.txt
-	_http header_mimetype_output "text/html"	#        /favicon.ico
-	_translate include
-
-	local funcname="weblogin_htmlout_loginpage"
-	local LANG="$( _translate lang $1 )"
-	local SHOW_RULES="$2"				# fixme! can be 'inet_broken'
-	local SHOW_PASSWORD_WRONG="$3"
-	local SHOW_ACCEPT_RULES="$4"
-	local LINK_BASE="$5"				# e.g. http://$WIFIADR
-	local INJECT_TITLE="$6"
-	local MOBILE_MODE="$7"				# show field for mobile-number instead of username/password
-
-	case "$( uci get system.@weblogin[0].auth )" in
-		password2mobile) MOBILE_MODE="mobile_mode" ;;
-	esac
-
-	local LANG_DIRECTION="ltr"			# fixme! left2right or right2left?
-	local CODEPAGE="ISO-8859-15"			# fixme! lang <-> charset/codepage?
-	local BGCOLOR LINK SLOGAN MYLANG MYLANGLIST NEXT_LANG_SUBSET_START
-	local AMP="&amp;"
-	local TABINDEX="6"	# is hardcoded on most points
-	local SEP=":"		# was "&middot;" but lynx cannot display this 8-) and the ' looks wierd, maybe use "|"?
-	local LOCATION_NAME="$( _weblogin metadata_locationname "$LANG" )"
-	local LOGO_DESCRIPTION="$( _translate do "$LANG" site_logo ) ('$LOCATION_NAME')"	# fixme! we need an better meta-description, e.g. Schriftzug | Bett auf Wolken ...
-
-
-	local font_start font_end font_face font_color
-
-	[ -e /www/images/font_face.txt ] && {
-		read font_face </www/images/font_face.txt
-	}
-
-	[ -e /www/images/font_color.txt ] && {
-		read font_color </www/images/font_color.txt
-	}
-
-	[ -n "$font_face" ] && {
-		font_start="<font face='$font_face' color='${font_color:-#000000}'>"	# defaults to black
-		font_end="</font>"
-	}
-
-
-	case "$LANG" in
-		 da|ru|ja) NEXT_LANG_SUBSET_START="de" ; MYLANGLIST="da ru ja" ;;	# fixme! abstraction needed?
-			*) NEXT_LANG_SUBSET_START="da" ; MYLANGLIST="de en fr" ;;	# fixme! distinguish forward/backward
-	esac
-
-	local LANG_CACHE_FILE="/tmp/weblogin_langcache_${LANG_DIRECTION}_${MYLANGLIST}_${INJECT_TITLE}"
-
-	[ -n "$FORM_RULES" -o -n "$MOBILE_MODE" ] && SHOW_ACCEPT_RULES="false"
-	[ "$FORM_SHOW_ACCEPT_RULES"   = "true"  ] && SHOW_ACCEPT_RULES="true"
-	[ "$FORM_SHOW_PASSWORD_WRONG" = "true"  ] && SHOW_PASSWORD_WRONG="true"
-
-	LINK="${LINK_BASE}${SCRIPT_NAME:-/$( _weblogin splashscript )}?REDIRECTED=1"
-	[ "$SHOW_PASSWORD_WRONG" = "true" ] && LINK="${LINK}${AMP}FORM_SHOW_PASSWORD_WRONG=true"
-	[ "$SHOW_ACCEPT_RULES"   = "true" ] && LINK="${LINK}${AMP}FORM_SHOW_ACCEPT_RULES=true"
-	LINK="${LINK}${AMP}FORM_LANG"
-
-	read BGCOLOR 2>/dev/null </www/images/bgcolor.txt		# fixme! defaulting to #F2F2F2 ?
-
-	if [ -e "/www/images/logo2.gif" ]; then
-		# fixme! use: _weblogin metadata slogan
-		SLOGAN="<IMG SRC='${LINK_BASE}/images/logo2.gif' TITLE='Hotel-Slogan' ALT='Hotel-Slogan'>"
-
-		local advert_url="$( _weblogin metadata_locationname "$LANG" advert_url )"
-		[ -n "$advert_url" ] && {
-			local advert_title="$( _weblogin metadata_locationname "$LANG" advert_title )"
-			SLOGAN="<a href='$advert_url' title='$advert_title'>$SLOGAN</a>"
-		}
-
-		SLOGAN="$SLOGAN<BR><BR>"
-	else
-		SLOGAN=
-	fi
-
-	cat <<EOF
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-	"http://www.w3.org/TR/html4/loose.dtd">
-<HTML lang="$LANG" dir="$LANG_DIRECTION"><HEAD>
-<TITLE>Weblogin $SEP Captive portal $SEP Splash screen $SEP $LOCATION_NAME $SEP ${INJECT_TITLE}</TITLE>
-<META HTTP-EQUIV="cache-control" CONTENT="no-cache">
-<META HTTP-EQUIV="pragma" CONTENT="no-cache"> 
-<META HTTP-EQUIV="expires" CONTENT="0">
-<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=${CODEPAGE}">
-<META name="viewport" content="width=device-width, initial-scale=1.0">
-<LINK REL="shortcut icon" TYPE="image/x-icon" HREF="${LINK_BASE}/favicon.ico">
-<LINK href="luci-static/bootstrap/cascade.css" rel="stylesheet">
-</HEAD>
-<BODY BGCOLOR="${BGCOLOR:=#ffffff}" TEXT="#000000">
-EOF
-
-	_welcome htmlout_luciheader
-	cat <<EOF
-<DIV class="container">
-<div class="row">                                                                                                                                             
-<div class="span8">                                                                                                                                           
-<h1>$( _translate do "$LANG" ffweimar_headline )</h1>
-
-EOF
-	cat "$LANG_CACHE_FILE" 2>/dev/null || {
-
-		for MYLANG in $MYLANGLIST; do {
-
-			echo -n "<A TABINDEX='$TABINDEX' HREF='$LINK=$MYLANG' HREFLANG='$MYLANG' CHARSET='$CODEPAGE' TITLE='"
-			_translate do "$MYLANG" in_my_lang							# idea: build it with tables 8-)
-			echo -n "'><IMG SRC='${LINK_BASE}/images/flag_${MYLANG}.gif' BORDER='0' ALT='${MYLANG}' TITLE='"	# each flag is a 16x12/GIF
-			_translate do "$MYLANG" in_my_lang
-			echo -n "'>&nbsp;${font_start}"
-			_translate do "$MYLANG" langname
-			echo -n "${font_end}</A>&nbsp;&nbsp;"
-			TABINDEX="$(( $TABINDEX + 1 ))"
-			
-		} done >"$LANG_CACHE_FILE"
-		cat "$LANG_CACHE_FILE"
-	}				# fixme! each image has to have an 'filename.gif_dimensions' with 'X Y' pixels, to better follow standards
-					# image: fits best with 220px, transparency, GIF
-					# fixme! lynx cannot display the "next" symbol, use image+alt instead!
-					# fixme! maybe group username/pass with <fieldset> + <legend>?
-					# fixme! font zusaetzlich mit CSS festlegen <span style="font-family:'Times New Roman',Times,serif">
-					# fixme! testsuite: dillo1/2, w3m, lynx, links2, IE4+, pirelli-phone + all mainstream browsers
-	cat <<EOF
-
-<br>$( _translate do $LANG ffweimar_intro )
-</div>
-<div class="span4">
-${SLOGAN}<IMG SRC="${LINK_BASE}/images/logo.gif" TITLE="$LOGO_DESCRIPTION" ALT="$LOGO_DESCRIPTION"><FORM METHOD="post" ACTION="${LINK}">
-</div>
-</div>
-EOF
-	[ "$FORM_SHOW_RULES"	 = "true"	 ] && _weblogin htmlout_rules			$LANG
-	[ "$SHOW_PASSWORD_WRONG" = "true"	 ] && _weblogin htmlout_message_wrong_logindata	$LANG
-	[ "$SHOW_ACCEPT_RULES"	 = "true"	 ] && _weblogin htmlout_rules_hint		$LANG
-	[ "$SHOW_RULES"		 = "inet_broken" ] && _weblogin htmlout_inet_broken		$LANG
-
-
-	[ -n "$FORM_MOBILE_NUMBER" ] && {
-
-		local mac="$( _net ip2mac $REMOTE_ADDR )"	# fixme! empty mac -> deny
-
-		[ -e /tmp/login_was_sent_to_mobilenumber_${mac:-unset} ] || {
-
-			FORM_MOBILE_NUMBER="$( echo "$FORM_MOBILE_NUMBER" | sed 's/[^0-9]//g' )"	# fixme!
-			if _sanitizer do "$FORM_MOBILE_NUMBER" mobilenumber check; then
-
-				_weblogin htmlout_message_password_was_send $LANG
-
-				MOBILE_MODE=							# to enforce normal username/password login page
-				touch /tmp/login_was_sent_to_mobilenumber_${mac:-unset}		# fixme! delete on successful login
-
-				local profile=1
-				local devices=1
-				local fuzzy=1
-				local USERNAME PASSWORD
-
-				case "$( uci get system.@weblogin[0].auth_credentials )" in
-					simple)
-						# fixme! if we don't have a local db, outsource to master
-						_db user login add "$profile" "sms-$FORM_MOBILE_NUMBER" "none" "" "$devices" "" "$fuzzy"
-					;;
-					*)
-						# fixme! if we don't have a local db, outsource to master
-						_db user login add "$profile" "sms-$FORM_MOBILE_NUMBER" "" "" "$devices" "" "$fuzzy"
-					;;
-				esac
-
-				_db user login index_gen last 1
-				eval $( _db user login show last "USERNAME PASSWORD" )
-
-				case "$( uci get system.@weblogin[0].auth_credentials )" in
-					simple)
-						case "$CONFIG_PROFILE" in
-							*)
-								_log do $funcname daemon sms \
-									"login from $FORM_MOBILE_NUMBER" \
-									"$( _translate do "$LANG" your_credentials ): $PASSWORD - $( _translate do "$LANG" wishing_a_nice_stay )" \
-									"$FORM_MOBILE_NUMBER" \
-									"force"
-							;;
-						esac
-					;;
-					*)
-						_log do $funcname daemon sms \
-							"login from $FORM_MOBILE_NUMBER" \
-							"$( _translate do "$LANG" your_username_and_password ): $USERNAME/$PASSWORD - $( _translate do "$LANG" wishing_a_nice_stay )" \
-							"$FORM_MOBILE_NUMBER" \
-							"force"
-					;;
-				esac
-			else
-				_weblogin htmlout_message_wrong_mobile_number $LANG
-			fi
-		}
-	}
-
-
-#	cat <<EOF
-#<TR><TD ALIGN="CENTER"><BR><TABLE CELLSPACING="0" CELLPADDING="2" BORDER="0">
-#EOF
-
-#	case "$MOBILE_MODE" in
-#		mobile_mode)
-#			cat <<EOF
-#<TR><TD ALIGN="RIGHT"><label for='mobile_number'>$( _translate do "$LANG" mobile_number ):&nbsp;</label><INPUT TABINDEX="1" ID="mobile_number" TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_MOBILE_NUMBER" VALUE="$FORM_MOBILE_NUMBER"></TD></TR>
-#<TR><TD ALIGN="CENTER"><BR><INPUT TYPE="image" TABINDEX="3" SRC="${LINK_BASE}/images/button_login_de.gif" ALT="&rarr;Login"></TD></TR>
-#EOF
-#		;;
-#		*)
-			local hidden_adlink="<a hreflang='en' href='http://bittorf-wireless.de/en/node/66' title='comprehensive wireless internet access throughout the entire hotel complex using mesh technology'>.</a>"
-			local i18n_username i18n_password
-
-			if _weblogin device_or_customer_needs_admin_interaction ; then
-				_weblogin htmlout_needs_admin_interaction "$LANG"
-			else
-				case "$CONFIG_PROFILE" in
-					*)
-						i18n_username="$( _translate do "$LANG" username )"
-						i18n_password="$( _translate do "$LANG" password )"
-					;;
-				esac
-
-				case "$CONFIG_PROFILE" in
-					ffweimar*|liszt28*)
-						# no credentials are needed, just "click away"
-						_welcome wiki_vars
-						_welcome htmlout_wikipage "title=Vorlage:Startseite.Aktuelles" "$( _translate do $LANG ffweimar_news )" 
-						_welcome htmlout_news "http://www.weimarnetz.de/latestnews.html" "$( _translate do $LANG ffweimar_discussions )"
-						_welcome htmlout_wikipage "title=Vorlage:Spendenaufruf" "$( _translate do $LANG ffweimar_funds )"
-					;;
-					*)
-						cat <<EOF
-<TR><TD ALIGN="RIGHT"><label for='username'>${font_start}${i18n_username}:${font_end}&nbsp;</label><INPUT TABINDEX="1" ID="username" TYPE="text" SIZE="10" MAXLENGTH="30" NAME="FORM_USER" VALUE="$FORM_USER"></TD></TR>
-<TR><TD ALIGN="RIGHT"><label for='password'>${font_start}${i18n_password}:${font_end}&nbsp;</label><INPUT TABINDEX="2" ID="password" TYPE="password" SIZE="10" MAXLENGTH="30" NAME="FORM_PASS"></TD></TR></TABLE></TD></TR>
-EOF
-							;;
-						esac
-
-				cat <<EOF
-<INPUT TYPE="checkbox" ID="accept_terms" TABINDEX="4" NAME="FORM_RULES"><label for='accept_terms'>&nbsp;${font_start}$( _translate do "$LANG" accept_terms1 )${font_end} <A TABINDEX="5" HREF="${LINK}=${LANG}${AMP}FORM_SHOW_RULES=$( if [ "$FORM_SHOW_RULES" = "true" ]; then echo -n 'false'; else echo -n 'true'; fi )" TITLE="$( _translate do "$LANG" tip_contract )">${font_start}$( _translate do "$LANG" accept_terms2 )${font_end}</A>${hidden_adlink}</label><br/>
-<button type="submit" class="btn info">$( _translate do $LANG ffweimar_startbutton )</button>
-EOF
-			fi
-#		;;
-#	esac
-
-	cat <<EOF
-</FORM>
-</div> <!-- /container -->
-</BODY></HTML>
-EOF
-}
-
-_weblogin_metadata_locationname()
-{
-	local LANG="$( _translate lang $1 )"
-	local option="$2"
-	local META="/www/images/weblogin_rules_${LANG}_meta"
-
-	[ -e "$META" ] || {
-		LANG="$( _translate lang default )"
-		META="/www/images/weblogin_rules_${LANG}_meta"
-	}
-
-	[ -e "$META" ] && eval "$( sed 's/^/local /' $META )"
-
-	case "$option" in
-		advert_url)
-			echo "$ADVERT_URL"
-		;;
-		advert_title)
-			echo "$ADVERT_TITLE"
-		;;
-		walled_garden)
-			echo "$WALLED_GARDEN"
-		;;
-		*)
-			echo "${HOTELNAME:-Internet}"
-		;;
-	esac
-}
-
-_weblogin_htmlout_rules ()
-{
-	local LANG="$( _translate lang $1 )"
-	local FILE="/www/images/weblogin_rules_${LANG}.txt"		# fixme! must be coded in ISO_8859-1
-	local META="/www/images/weblogin_rules_${LANG}_meta"
-
-	[ ! -e "$FILE" ] && {
-		LANG="$( _translate lang default )"
-		FILE="/www/images/weblogin_rules_${LANG}.txt"
-		META="/www/images/weblogin_rules_${LANG}_meta"
-	}
-
-	eval "$( sed 's/^/local /' $META )"
-	
-	echo -n "<TR BGCOLOR='#b0c4de'><TD ALIGN="LEFT"><BR>"		# fixme! hardcoded color?
-
-	sed	-e '/^#/d' \
-		-e "s#\${HOTELNAME}#<nobr>$HOTELNAME</nobr>#g" \
-		-e "s#\${BEZAHLMODELL}#$BEZAHLMODELL#g" \
-		-e "s#\${SPEED}#$SPEED#g" \
-		-e "s#\${TECHNIK}#$TECHNIK#g" \
-		-e "s#\${WARTUNGSFENSTER}#$WARTUNGSFENSTER#g" \
-		-e "s#\${SPEICHERDAUER}#$SPEICHERDAUER#g" \
-		-e "s#\${ERSTELLUNGSZEIT}#$ERSTELLUNGSZEIT#g" \
-		-e "s#\${SIGNATUR}#<a title='Administrationszugang' href='../index.html'>\&middot;</a><a title='Benutzerverwaltung' href='../cgi-bin/userdb'>$SIGNATUR</a>#g" \
-		-e 's#^[0-9]\.[0-9]#<br><br><b>&</b>#' \
-		-e 's#^[0-9]\. .*#<h3>&</h3>#' \
-                -e 's#^  $#<br><br>#' \
-                -e 's#Ã¨#\&egrave;#g' \
-                -e 's#Ã©#\&eacute;#g' \
-                -e 's#Ã<89>#\&Eacute;#g' \
-                -e 's#Ãª#\&ecirc;#g' \
-                -e 's#Ã #\&agrave;#g' \
-                -e 's#Ã¢#\&acirc;#g' \
-                -e 's#Ã´#\&ocirc;#g' \
-                -e 's#Ã¹#\&ugrave;#g' \
-                -e 's/Â/\&sect;/g' \
-                -e 's/§/\&sect;/g' \
-                -e 's/ö/\&ouml;/g' \
-                -e 's/ü/\&uuml;/g' \
-                -e 's/ä/\&auml;/g' \
-                -e 's/ß/\&szlig;/g' $FILE
-
-	echo -n "<BR><BR></TD></TR>"	
-}
-
-_weblogin_htmlout_rules_hint ()
-{
-	local LANG="$1"
-	
-	echo -n "<div class='alert-message info'><BR><B>&nbsp;$( _translate do "$LANG" accept_rules )&nbsp;</B><BR><BR></div>"
-}
-
-_weblogin_htmlout_message_password_was_send ()
-{
-	local LANG="$1"
-
-	echo -n "<TR BGCOLOR='lime'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate do "$LANG" password_was_send )&nbsp;</B><BR><BR></TD></TR>"
-}
-
-_weblogin_htmlout_message_wrong_mobile_number ()
-{
-	local LANG="$1"
-
-	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate do "$LANG" wrong_mobile_number )&nbsp;</B><BR><BR></TD></TR>"
-}
-
-_weblogin_htmlout_needs_admin_interaction()
-{
-	local LANG="$1"
-	local i18n_hint
-
-	i18n_hint="$( _translate do "$LANG" needs_admin_interaction )"
-
-	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;${i18n_hint}&nbsp;</B><BR><BR></TD></TR>"
-}
-
-_weblogin_htmlout_message_wrong_logindata ()
-{
-	local LANG="$1"
-	local i18n_hint
-
-	case "$( uci get system.@profile[0].name )" in
-		spbansin*)
-			i18n_hint="$( _translate do "$LANG" wrong_room_number )"
-		;;
-		*)
-			i18n_hint="$( _translate do "$LANG" wrong_logindata )"
-		;;
-	esac
-
-	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;${i18n_hint}&nbsp;</B><BR><BR></TD></TR>"
-}
-
-_weblogin_htmlout_gatepage ()
-{
-	_http header_mimetype_output "text/html"
-
-	cat <<EOF
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-<title>weimarnetz: Netzknoten $( uci get system.@profile[0].nodenumber ) ("$( uci get system.@system[0].hostname )")</title>
-<style type="text/css">
-h1 { margin:0; padding:3pt; background:#333; color:white; font-size:15px; border-bottom:#333 1px solid;}
-li { font-size:14px; font-weight:700; padding:12pt 0pt 0pt 10pt;list-style:none; height:30px; border-bottom:#333 1px solid; background:#fff}
-a{text-decoration:none; color:222;}
-li:hover{background:#3399FF; }
-li:hover a{color:#fff}
-ul {margin:0;padding:0; width: 100%;}
-body {font-family:sans-serif; width:100%; height:100%; background-color:#333; padding:0; margin:0; color:black;}
-</style>
-</head>
-<body>
-<h1>Bitte ausw&auml;hlen</h1>
-<ul>
-<li><a href="http://${WIFIADR}${SCRIPT_NAME:-/$( _weblogin splashscript )}?REDIRECTED=1">weiter ins Internet</a></li>
-<li><a href="http://vikingosegundo.de/mw/">Experiment "hoopy-froods.net"</a></li>
-<li><a href="http://$WIFIADR/cgi-bin-index.html">Startseite dieses Netzknotens</a></li>
-</ul>
-</body>
-</html>
-EOF
-}
-
-_weblogin_htmlout_inet_broken ()
-{
-	local LANG="$1"
-
-	_log do "weblogin_htmlout_inet_broken" daemon alert "during user action"
-	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN="CENTER"><BR><B>&nbsp;$( _translate do "$LANG" inet_broken )&nbsp;</B><BR><BR></TD></TR>"	
-}
-
-_weblogin_device_or_customer_needs_admin_interaction()
-{
-	local funcname="weblogin_device_or_customer_needs_admin_interaction"
-	local hostname="$1"
-
-
-	return 1
-}
 
 _weblogin_login_check()			# fixme! send HOSTNAME?
 {					# fixme! answer must be a challenge/response:	// prevent replay attacks!
@@ -503,7 +15,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	local PASS="$2"			#        2. server answers with hash_of(1+my_secret_sshid) + auth=true/false
 	local MAC="$3"			#        3. we calc same hash and compare
 	local SIGNAL="$4"
-	local LANG="$( _translate lang $5 )"
+	local LANG="de"
 	local KEYWORD="$6"		# can be 'plaintext'
 	local FREE HASH GATEWAY ANSWER
 	local URL PARAMETERS
@@ -648,6 +160,35 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	return 1
 }
 
+_weblogin_metadata_locationname()
+{
+	local LANG="de"
+	option="$2"
+	local META="/www/images/weblogin_rules_${LANG}_meta"
+
+	[ -e "$META" ] || {
+		LANG="de"
+		META="/www/images/weblogin_rules_${LANG}_meta"
+	}
+
+	[ -e "$META" ] && eval "$( sed 's/^/local /' $META )"
+
+	case "$option" in
+		advert_url)
+			echo "$ADVERT_URL"
+		;;
+		advert_title)
+			echo "$ADVERT_TITLE"
+		;;
+		walled_garden)
+			echo "$WALLED_GARDEN"
+		;;
+		*)
+			echo "${HOTELNAME:-Internet}"
+		;;
+	esac
+}
+
 _weblogin_authserver()
 {
 	local server
@@ -678,55 +219,4 @@ _weblogin_authserver()
 	echo "$server"
 }
 
-_weblogin_ticket_mail_text ()
-{
-	local TICKETTYPE="${1:-unset_ticket_name}"
-	local emailat="@"
-	local emaildot="."
 
-	local LOCATION="$( _weblogin metadata_locationname | sed 's#\\&acute;##' )"
-
-	cat <<EOF
-$( _translate do "$LANG" wifi_system ) / $( _translate do "$LANG" new_tickets ) / $LOCATION
-
-$( _translate do "$LANG" letter_salutation ),
-
-$( _translate do "$LANG" letter_line1 )
-
-	$TICKETTYPE
-
-$( _translate do "$LANG" letter_line2 )
-$( _translate do "$LANG" letter_line3 )
-$( _translate do "$LANG" letter_line4 )
-
-EOF
-
-	_weblogin mail_signature
-}
-
-_weblogin_mail_signature()
-{
-	local MAINTENANCE_COMPANY
-	local MAINTENANCE_PHONE
-	local MAINTENANCE_HINT1="$( _translate do "$LANG" maintenance_hint1 )"
-	local MAINTENANCE_HINT2="$( _translate do "$LANG" maintenance_hint2 )"	
-	local emailat="@"
-	local emaildot="."
-
-	case "$CONFIG_PROFILE" in			# fixme! move to 'mydesign.opk' or userdb()
-		*)
-			MAINTENANCE_COMPANY="bittorf wireless ))"
-			MAINTENANCE_PHONE="+49 (3643) 49 65 235"	
-			MAINTENANCE_HINT2="$MAINTENANCE_HINT2 $MAINTENANCE_PHONE"
-		;;
-	esac
-
-	cat <<EOF
-$( _translate do "$LANG" letter_finale1 )
-$( _translate do "$LANG" letter_finale2 ) "$MAINTENANCE_COMPANY"
-
--- 
-$MAINTENANCE_HINT1
-$MAINTENANCE_HINT2
-EOF
-}
