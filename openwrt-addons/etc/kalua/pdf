@@ -37,8 +37,9 @@ _pdf_filename ()
 				-e 's/\\//g'			# strip spaces, "\" and replace ":" - fixme! is a hack
 }
 
-_pdf_output ()
+_pdf_output()
 {
+	local funcname="pdf_output"
 	local METHOD="$1"			# a4digest|a4marker|a4marker_digest|a4test
 	local LIST_LOGIN_ID="$2"
 # METHOD=a4test
@@ -50,6 +51,13 @@ _pdf_output ()
 
 	_pdf output_${METHOD}_body "$LIST_LOGIN_ID"		>$TEMPFILE.body
 	SIZE_BODY="$( _file size "$TEMPFILE.body" )"
+
+	# instead of
+	# '/MediaBox [ 0 0 595 842 ]' we see
+	# '/MediaBox [ 0 0 595=842 ]' - strange! (mostly '=' instead of other chars)
+	fgrep "/MediaBox" "$TEMPFILE.body" | fgrep -q '=' && {
+		_log do $funcname daemon sms "[ERR] error during generating body"
+	}
 
 	_pdf output_header $SIZE_BODY				>$TEMPFILE.header
 	SIZE_HEADER="$( _file size "$TEMPFILE.header" )"
