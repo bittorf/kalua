@@ -1,9 +1,11 @@
 #!/bin/sh
 
-/bin/dmesg -c >"/tmp/dmesg.recent"
-
 LINE=
-read LINE <"/tmp/dmesg.recent"
+[ -e "/bin/dmesg" ] && {
+	/bin/dmesg -c >"/tmp/dmesg.recent"
+	read LINE <"/tmp/dmesg.recent"
+}
+
 [ ${#LINE} -eq 0 ] || {
 	. /tmp/loader
 	cat "/tmp/dmesg.recent" >>"/tmp/dmesg.log"
@@ -82,5 +84,10 @@ read LINE <"/tmp/dmesg.recent"
 		[ $( _system version short ) -lt 33160 ] && {
 			reboot_now
 		}
+	}
+
+	[ -e "/tmp/cron.webcam" ] && {
+		PATTERN="uvcvideo: Failed to set UVC probe control"
+		fgrep -q "$PATTERN" "/tmp/dmesg.recent" && _system reboot_safe "$PATTERN"
 	}
 }
