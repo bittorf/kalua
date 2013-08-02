@@ -200,7 +200,7 @@ set_build()
 			read line <"$file"	# diff --git a/package/uhttpd/src/uhttpd-tls.c b/package/uhttpd/src/uhttpd-tls.c
 			case "$line" in
 				*"include/net/mac80211.h"|*"net/mac80211/rc80211_minstrel_ht.c"|*"net/wireless/"*)
-					dest="package/mac80211/patches"
+					dest="package/kernel/mac80211/patches"
 				;;
 				*"uhttpd/src/"*)
 					# e.g. uhttpd-tls.c
@@ -763,7 +763,7 @@ applymystuff()
 		grep -q "CONFIG_PACKAGE_kmod-ath9k=y" ".config" && {
 			COMPAT_WIRELESS="2013-06-27"
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
-			cp -v "$file" "package/mac80211/patches"
+			cp -v "$file" "package/kernel/mac80211/patches"
 			sed -i "s/YYYY-MM-DD/${$COMPAT_WIRELESS}/g" "package/mac80211/patches/$( basename "$file" )"
 		}
 	}
@@ -949,6 +949,7 @@ apply_tarball_regdb_and_applyprofile()
 		ar71xx)
 			case "$installation" in
 				rehungen*|liszt28*)
+					log "trying to apply ath9k/register-reading patch"
 					scp $pre:$remote_dir/openwrt-patches/999-ath9k-register-reading.patch package/mac80211/patches
 				;;
 				*)
