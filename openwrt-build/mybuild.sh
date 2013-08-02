@@ -463,7 +463,6 @@ build_kalua_update_tarball()
 	cd openwrt-addons
 
 	if [ "$option" = "full" ]; then
-		cp -pv ../openwrt-patches/regulatory.bin etc/init.d/apply_profile.regulatory.bin
 		cp -pv ../openwrt-build/apply_profile* etc/init.d
 
 		private_settings="../../apply_profile.code.definitions"
@@ -754,10 +753,6 @@ applymystuff()
 		cp "$file" "$base/etc/init.d"
 	fi
 
-	file="kalua/openwrt-patches/regulatory.bin"
-	log "copy $( basename "$file" )  - easy bird grilling included ($( filesize "$file" ) bytes)"
-	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
-
 	file="kalua/package/mac80211/patches/900-regulatory-test.patch"
 	[ -e "$file" ] && {
 		grep -q "CONFIG_PACKAGE_kmod-ath9k=y" ".config" && {
@@ -765,6 +760,8 @@ applymystuff()
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
 			cp -v "$file" "package/kernel/mac80211/patches"
 			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
+			log "using another regdb"
+			cp -v "kalua/openwrt-patches/regulatory.db.txt" "package/kernel/mac80211/files/regdb.txt"
 		}
 	}
 
