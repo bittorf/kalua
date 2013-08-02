@@ -758,22 +758,14 @@ applymystuff()
 	log "copy $( basename "$file" )  - easy bird grilling included ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d/apply_profile.regulatory.bin"
 
-	[ -e "package/mac80211/files/regdb.txt" ] && {
-		if grep -q "kmod-ath5k=y" .config; then
-			log "ath5k: will not overwrite regdb.txt, avoiding driver confusion"
-		else
-			file="kalua/openwrt-patches/regulatory.db.txt"
-			log "found package/mac80211/files/regdb.txt - overwriting"
-			cp -v "$file" "package/mac80211/files/regdb.txt"
-
-			grep -q "CONFIG_TARGET_ar71xx=y" .config && {
-				grep -q "CONFIG_PACKAGE_kmod-ath9k=y" .config && {
-					file="kalua/openwrt-patches/jow_reghack/reghack.elf"
-					log "found jow_reghack for ath9k/ar71xx - including"
-					cp -v "$file" "$base/etc/init.d/apply_profile.reghack.elf"
-				}
-			}
-		fi
+	file="kalua/package/mac80211/patches/900-regulatory-test.patch"
+	[ -e "$file" ] && {
+		grep -q "CONFIG_PACKAGE_kmod-ath9k=y" ".config" && {
+			COMPAT_WIRELESS="2013-06-27"
+			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
+			cp -v "$file" "package/mac80211/patches"
+			sed -i "s/YYYY-MM-DD/${$COMPAT_WIRELESS}/g" "package/mac80211/patches/$( basename "$file" )"
+		}
 	}
 
 	log "copy all_the_scripts/addons - the kalua-project itself ($( du -sh kalua/openwrt-addons ))"
