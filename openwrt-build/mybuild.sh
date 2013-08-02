@@ -764,7 +764,7 @@ applymystuff()
 			COMPAT_WIRELESS="2013-06-27"
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
 			cp -v "$file" "package/kernel/mac80211/patches"
-			sed -i "s/YYYY-MM-DD/${$COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
+			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
 		}
 	}
 
