@@ -258,6 +258,15 @@ func_cron_config_write ()
 			sed -i 's|### CALL_ZRAMREBOOT ###|test -e /tmp/ZRAMUSED \&\& { sync; echo "c" >/proc/sysrq-trigger; /bin/sleep 5; /sbin/reboot -f; }|' "/tmp/CRON_IS_CAREFUL"
 		}
 
+		ubus_checker_needed()
+		{
+			ubus call system info | grep -q '"uptime":'
+		}
+
+		ubus_checker_needed && {
+			sed -i 's|### CALL_UBUSCHECKER ###|ubus call system info | grep -q '"uptime":' \|\| { echo "ALERT: $( date ) ubus dead - load: $LOAD - up: $UP" >>/www/everlasting_syslog.txt; sync; echo "c" >/proc/sysrq-trigger; /bin/sleep 5; /sbin/reboot -f; }|' "/tmp/CRON_IS_CAREFUL"
+		}
+
 		rrd_needed()
 		{
 			case "$CONFIG_PROFILE" in
