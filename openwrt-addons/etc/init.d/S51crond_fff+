@@ -239,9 +239,23 @@ func_cron_config_write ()
 			[ -e "/sys/block/zram0/num_writes" ]
 		}
 
-		zram_usage_detector_needed()
-		{
+		zram_usage_detector_needed && {
 			sed -i 's|### CALL_ZRAMCHECK ###|test -e /tmp/ZRAMUSED \|\| { test $( cat /sys/block/zram0/num_writes ) -gt 1 \&\& { echo "ALERT: $( date ) out 1st zram usage - load: $LOAD - up: $UP" >>/www/everlasting_syslog.txt; touch /tmp/ZRAMUSED; }; }|' "/tmp/CRON_IS_CAREFUL"
+		}
+
+		zram_reboot_if_used_needed()
+		{
+			case "$CONFIG_PROFILE" in
+				boltenhagendh*)
+					_net local_inet_offer >/dev/null || return 0
+				;;
+			esac
+
+			return 1
+		}
+
+		zram_reboot_if_used_needed && {
+			sed -i 's|### CALL_ZRAMREBOOT ###|test -e /tmp/ZRAMUSED \&\& { echo "c" >/proc/sysrq-trigger; /bin/sleep 5; /sbin/reboot -f; }/' "/tmp/CRON_IS_CAREFUL"
 		}
 
 		rrd_needed()
