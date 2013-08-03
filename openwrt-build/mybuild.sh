@@ -755,14 +755,19 @@ applymystuff()
 
 	file="kalua/package/mac80211/patches/900-regulatory-test.patch"
 	[ -e "$file" ] && {
-		grep -q "CONFIG_PACKAGE_kmod-ath9k=y" ".config" && {
+		if grep -q "CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
 			COMPAT_WIRELESS="2013-06-27"
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
 			cp -v "$file" "package/kernel/mac80211/patches"
 			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
 			log "using another regdb"
+			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "kalua/openwrt-patches/regulatory.db.txt" "package/kernel/mac80211/files/regdb.txt"
-		}
+		else
+			[ -e "package/kernel/mac80211/files/regdb.txt_old" ] && {
+				cp -v "package/kernel/mac80211/files/regdb.txt_original" "package/kernel/mac80211/files/regdb.txt"
+			}
+		fi
 	}
 
 	log "copy all_the_scripts/addons - the kalua-project itself ($( du -sh kalua/openwrt-addons ))"
