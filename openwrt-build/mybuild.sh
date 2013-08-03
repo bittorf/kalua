@@ -716,9 +716,9 @@ applymystuff()
 	fi
 
 	file="kalua/openwrt-addons/etc/init.d/zram"
-	destfile="$base/../../zram-swap/files/zram.init"
+	destfile="package/system/zram-swap/files/zram.init"
 	log "copy $( basename "$file" ) - zram-init ($( filesize "$file" ) bytes)"
-	cp "$file" "$destfile"
+	cp -v "$file" "$destfile"
 
 	private_settings="../../apply_profile.code.definitions"
 	[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
