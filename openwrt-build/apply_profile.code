@@ -1480,11 +1480,19 @@ _config_aliases ()
 	}
 }
 
-_config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files/olsrd.conf.default.full
+_config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files/olsrd.conf.default.full
 {
 	local NODE="$1"
-	local speed="${OLSR_SPEED:-5}"
+	local speed="${OLSR_SPEED:-6}"
 	local hide_nameservice slave
+	local showspeed=
+	local hidevals=
+
+	# speed makro there since 2013-apr
+	grep -q "sven-ola" "/etc/init.d/olsrd" && {
+		hidevals="#"
+		showspeed="	speed 		'$speed'"
+	}
 
 	if [ -z "$GATEWAY" -a "$PROFILE_MODE" = "ap" ]; then
 		slave=1
@@ -1526,11 +1534,17 @@ _config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 		wandev=
 	}
 
-	# special rule for ejbw/satama here
-
 	[ "$( uci get network.wan.proto )" = "static" ] || {
-				# only olsr on wan, if no pppoe/dhcp...
-		wandev=		# hint: we must be sure, that network-section is already written
+		case "$NETWORK" in
+			satama*|ejbw*)
+			;;
+			*)
+				# only olsr on wan, if no pppoe/dhcp
+				# hint: we must be sure, that network-section is already written
+				wandev=
+			;;
+		esac
+
 	}
 
 	[ -n "$wandev" ] && {
@@ -1589,14 +1603,15 @@ config meta
 config Interface
 	list interface			'$INTERFACES1'
 	option Ip4Broadcast		'255.255.255.255'
-	option HelloInterval		'$hello_interval.0'
-	option HelloValidityTime	'$(( $speed * 25 )).0'
-	option TcValidityTime		'$(( $speed * 100 )).0'
-	option TcInterval		'$tc_interval.0'
-	option MidInterval		'$(( $speed * 5 )).0'
-	option MidValidityTime		'$(( $speed * 100 )).0'
-	option HnaInterval		'$(( $speed * 2 )).0'
-	option HnaValidityTime		'$(( $speed * 25 )).0'
+$showspeed
+$hidev	option HelloInterval		'$hello_interval.0'		# vals for speed $speed
+$hidev	option HelloValidityTime	'$(( $speed * 25 )).0'
+$hidev	option TcValidityTime		'$(( $speed * 100 )).0'
+$hidev	option TcInterval		'$tc_interval.0'
+$hidev	option MidInterval		'$(( $speed * 5 )).0'
+$hidev	option MidValidityTime		'$(( $speed * 100 )).0'
+$hidev	option HnaInterval		'$(( $speed * 2 )).0'
+$hidev	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
 [ "$OLSR_METRIC" = "etx_ffeth" ] && {
 	cat >>/etc/config/olsrd <<EOF
@@ -1608,14 +1623,15 @@ EOF
 config Interface
 	list interface			'$INTERFACES2'
 	option Ip4Broadcast		'255.255.255.255'
-	option HelloInterval		'$hello_interval.0'
-	option HelloValidityTime	'$(( $speed * 25 )).0'
-	option TcValidityTime		'$(( $speed * 100 )).0'
-	option TcInterval		'$tc_interval.0'
-	option MidInterval		'$(( $speed * 5 )).0'
-	option MidValidityTime		'$(( $speed * 100 )).0'
-	option HnaInterval		'$(( $speed * 2 )).0'
-	option HnaValidityTime		'$(( $speed * 25 )).0'
+$showspeed
+$hidev	option HelloInterval		'$hello_interval.0'
+$hidev	option HelloValidityTime	'$(( $speed * 25 )).0'
+$hidev	option TcValidityTime		'$(( $speed * 100 )).0'
+$hidev	option TcInterval		'$tc_interval.0'
+$hidev	option MidInterval		'$(( $speed * 5 )).0'
+$hidev	option MidValidityTime		'$(( $speed * 100 )).0'
+$hidev	option HnaInterval		'$(( $speed * 2 )).0'
+$hidev	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
 
 	local interface_mode="mesh"
