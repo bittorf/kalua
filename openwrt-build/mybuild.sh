@@ -1048,20 +1048,28 @@ copy_images_to_server()
 
 	work()
 	{
-		local i=0
+		local file_local="$1"
+		local destination="$2"
+		local i=0 max=25
 
-		logger -s "$1 -> $2"
+		if [ -e "$file_local" ]; then
+			log "$file_local -> $destination"
+		else
+			log "file not found: '$file_local'"
+			return 1
+		fi
 
 		while true; do {
-			if scp "$1" "$2"; then
+			if scp "$file_local" "$destination"; then
 				return 0
 			else
 				i=$(( i + 1 ))
 
-				if [ $i -gt 25 ]; then
-					logger -s "[ERR] scp abort"
+				if [ $i -gt $max ]; then
+					log "[ERR] scp abort"
 					return 1
 				else
+					log "[scp_retry] $i/$max"
 					sleep 5
 				fi
 			fi
