@@ -1003,6 +1003,7 @@ gitpull()
 copy_images_to_server()
 {
 	local option="$1"	# e.g. factory|sysupgrade|release|remove
+	local testfile bytes
 
 	[ "$option" = "remove" ] && {
 		log "removing: 'bin/$ARCH'"
@@ -1107,12 +1108,20 @@ copy_images_to_server()
 			fileX_to_modelY "brcm47xx" "ASUS WL-500g Premium"
 		;;
 		ar71xx)
-			fileX_to_modelY "tl-wr1043nd-v1" "TP-LINK TL-WR1043ND"
-			fileX_to_modelY "tl-wdr4300-v1"  "TP-LINK TL-WDR3600:4300:4310"
-			fileX_to_modelY "wzr-hp-ag300h"  "Buffalo WZR-HP-AG300H"
-			fileX_to_modelY "ubnt-bullet-m"	 "Ubiquiti Bullet M"
-			fileX_to_modelY "ubnt-bullet-m"	 "Ubiquiti Picostation M2"	# !!!
-			fileX_to_modelY "ubnt-nano-m"	 "Ubiquiti Nanostation M"
+			testfile="bin/$ARCH/openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-sysupgrade.bin"
+			bytes="$( stat --format=%s "$testfile" )"
+
+			if [ ${bytes:-9999999} -le 3670020 ]; then		# 56 blocks
+				fileX_to_modelY "tl-wr841nd-v7"  "TP-LINK TL-WR841N:ND v7"
+				fileX_to_modelY "tl-wr841n-v8"   "TP-LINK TL-WR841N:ND v8"
+			else
+				fileX_to_modelY "tl-wr1043nd-v1" "TP-LINK TL-WR1043ND"
+				fileX_to_modelY "tl-wdr4300-v1"  "TP-LINK TL-WDR3600:4300:4310"
+				fileX_to_modelY "wzr-hp-ag300h"  "Buffalo WZR-HP-AG300H"
+				fileX_to_modelY "ubnt-bullet-m"	 "Ubiquiti Bullet M"
+				fileX_to_modelY "ubnt-bullet-m"	 "Ubiquiti Picostation M2"	# same file for other router
+				fileX_to_modelY "ubnt-nano-m"	 "Ubiquiti Nanostation M"
+			fi
 		;;
 		mpc85xx)
 			fileX_to_modelY "tl-wdr4900-v1"	"TP-LINK TL-WDR4900 v1"
