@@ -1103,15 +1103,27 @@ _netfilter_user_reachable()
 	devlist="$( for dev in $devlist; do test "$dev" = "$dev_guess" || echo "$dev"; done )"
 	devlist="$dev_guess $devlist"
 
+	repair_mac()
+	{
+		local oldIFS="$IFS"; IFS=":"; set -- $1; IFS="$oldIFS"
+		local tupel insert=
+
+		for tupel in $1 $2 $3 $4 $5 $6; do {
+			[ ${#tupel} -eq 1 ] && tupel="0${tupel}"
+			echo -n "${insert}${tupel}"
+			insert=':'
+		} done
+	}
+
 	for dev in $devlist; do {
 		_log do $funcname daemon debug "probing: mac: $mac ip: $ip dev: '$dev'"
 		try="$maxtry"
 		while [ $try -gt 0 ]; do {
-			arping -c1 -q -f -I "$dev" "$ip" && {
-				line="$( ip neigh show to "$ip" | head -n1 )"
-				set -- ${line:-empty_line}
+			line="$( arping -c1 -f -I "$dev" "$ip" | grep ':' )" && {
+				line="$( echo "$line" | cut -d'[' -f2 | cut -d']' -f1 )"	# e.g. '0:80:77:0:22:4c' (missing first 0)
+				line="$( repair_mac "$line" )"
 
-				[ "$mac" = "$5" ] && {
+				[ "$mac" = "$line" ] && {
 					echo "$dev"
 					return 0
 				}
