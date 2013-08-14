@@ -14,6 +14,28 @@
 #	[ -n "$WIFI_NEXT" ] && . $WIFI_NEXT	# inluding VAR-set for next WIFI_DEV
 # } done					# (last entry must point to first-device)
 
+_wifi_change_essid_ap()
+{
+	local option="$1"	# e.g. <empty> OR 'original'
+	local i essid
+
+	for i in 0 1 2 3 4 5 6 7; do {
+		[ "$( uci get wireless.@wifi-iface[$i].mode )" = "ap" ] && {
+			if [ "$option" = "original" ]; then
+				essid="$( uci get wireless.@wifi-iface[$i].ssid_old )"
+				uci delete wireless.@wifi-iface[$i].ssid_old
+				uci set wireless.@wifi-iface[$i].ssid="$essid"
+			else
+				essid="$( uci get wireless.@wifi-iface[$i].ssid )"
+				uci set wireless.@wifi-iface[$i].ssid_old="$essid"
+				uci set wireless.@wifi-iface[$i].ssid="Wartungsmodus $NODENUMBER/$i"
+			fi
+		}
+	} done
+
+	[ -n "$essid" ] && wifi
+}
+
 _wifi_get_station_param()
 {
 	local mac="$1"
