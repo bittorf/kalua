@@ -43,17 +43,29 @@ tunnel_is_running()
 
 fire_tunnel()
 {
+	local funcname="fire_tunnel"
 	local port_here="$1"
 	local port_server="$2"
 	local type="$3"		# message = ssh | http
+	local maxtry="${4:-25}"
+
+	local user="root"
 	local server="$( _http url_get_serverstring "$( uci get system.@monitoring[0].url )" )"
+	local try=0
 
 	_log do reverse_sshtunnel daemon debug "[START] on local port $port_here and server port $port_server type '$type'"
 
-	dbclient -y -I 600 -K 300 -f -N \
-		 -R $port_server:localhost:$port_here \
-		 -p 22 root@${server} \
-		 -i "/etc/dropbear/dropbear_dss_host_key"
+	while [ $try -lt $maxtry ]; do {
+		dbclient -y -I 600 -K 300 -f -N \
+			 -R $port_server:localhost:$port_here \
+			 -p 22 ${user}@${server} \
+			 -i "/etc/dropbear/dropbear_dss_host_key" && break
+
+		_log sleep "$funcname() [ERR] try/max: $try/$maxtry to $server" 10 step 1
+		try=$(( $try + 1 ))
+	} done
+
+	[ $try -eq $maxtry ] && _log do $funcname daemon alert "[ERR] abort after $try retries for type $type"
 
 	if pidof dbclient >/dev/null; then
 		_log do reverse_sshtunnel daemon info "[OK] pid: '$( pidof dbclient )' on local port $port_server"
