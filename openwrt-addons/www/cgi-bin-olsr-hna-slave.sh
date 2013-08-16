@@ -57,7 +57,7 @@ device_forbidden()
 				;;
 			esac
 		;;
-		boltenhagen*|marinabh*)
+		boltenhagen*|marinabh*|fparkssee*)
 			return 0
 		;;
 		leonardo*)

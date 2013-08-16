@@ -5,7 +5,7 @@ _olsr_ip_is_neigh ()
 	test -e /tmp/OLSR/isneigh_$ip
 }
 
-_olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every minute
+_olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every minute
 {						#			   /LINKS
 	local func="olsr_build_tables"		#			   /LINKS.sh
 	local line				# and moving /tmp/OLSR_TMP/* -> /tmp/OLSR (which is used by all functions)
@@ -34,22 +34,20 @@ _olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every mi
 				}
 			}
 
-			[ $max_errors -eq 0 ] && return 1
-
 			_log do $func daemon info "zero txtinfo.plugin-output, trying again"
 		else
-			if [ $max_errors -eq 0 ]; then
-				if pidof olsrd >/dev/null ; then
-					_olsr daemon restart "$func did not work, but daemon is up"
-				else
-					_olsr daemon start   "$func did not work, daemon is not up"
-				fi
-
-				return 1
-			else
-				_log do $func daemon info "wget-error trying again"
-			fi
+			_log do $func daemon info "wget-error trying again"
 		fi
+
+		[ $max_errors -gt 0 ] || {
+			if pidof olsrd >/dev/null ; then
+				_olsr daemon restart "$func did not work, but daemon is up"
+			else
+				_olsr daemon start   "$func did not work, daemon is not up"
+			fi
+
+			return 0
+		}
 
 		max_errors=$(( $max_errors - 1 ))
 		sleep "$( _math random_integer 1 5 )"
