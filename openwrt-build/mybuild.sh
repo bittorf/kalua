@@ -1109,7 +1109,7 @@ copy_images_to_server()
 		;;
 		ar71xx)
 			testfile="bin/$ARCH/openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-sysupgrade.bin"
-			bytes="$( stat --format=%s "$testfile" )"
+			bytes="$( stat --format=%s "$testfile" 2>/dev/null )"
 
 			if [ ${bytes:-9999999} -le 3670020 ]; then		# 56 blocks
 				fileX_to_modelY "tl-wr841nd-v7"  "TP-LINK TL-WR841N:ND v7"
