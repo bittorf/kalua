@@ -41,7 +41,7 @@ _wifi_change_essid_ap()
 		}
 	} done
 
-	[ -n "$essid" ] && wifi
+	[ -n "$essid" ] && _wifi phy_restart "$WIFIDEV" "force: $function()"
 }
 
 _wifi_get_station_param()
@@ -648,7 +648,7 @@ _wifi_phy_restart()
 {
 	local funcname="wifi_phy_restart"
 	local wifi_dev="$1"			# fixme! ATM we restart all interfaces
-	local reason="${2:-no_reason_given}"
+	local reason="${2:-no_reason_given}"	# special, when begins with 'force'
 	local prio="${3:-alert}"
 	local pids="$( pidof wifi )"
 	local file pid
@@ -658,65 +658,72 @@ _wifi_phy_restart()
 		return 1
 	}
 
-	local uptime="$( _wifi phy_uptime "$wifi_dev" )"
+	case "$reason" in
+		force*)
+			_log do $funcname daemon $prio "working on '$wifi_dev' ($reason)"
+		;;
+		*)
+			local uptime="$( _wifi phy_uptime "$wifi_dev" )"
 
-	if [ $uptime -lt 240 ]; then
-		_log do $funcname daemon info "no action during low uptime: $uptime sec"
-		return 1
-	else
-		uptime="up $uptime sec"
-	fi
-
-	touch "/tmp/WIFI_ERROR.$wifi_dev"
-	_wifi watch_phy_problems || {
-		_log do $funcname daemon info "no action, watch_phy_problems() does not allow"
-		return 1
-	}
-
-	_watch counter "/tmp/STATS_WIFI_RESTARTS.$wifi_dev" increment 1
-	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
-
-	eval $( _wifi tx_and_rx $wifi_dev )
-	local vals_rx="rx:bytes/packets/errors/frames $WIFI_RX_BYTES/$WIFI_RX_PACKETS/$WIFI_RX_ERRORS/$WIFI_RX_FRAMES"
-	local vals_tx="tx_bytes/packets/errors: $WIFI_TX_BYTES/$WIFI_TX_PACKETS/$WIFI_TX_ERRORS"
-
-	echo "$reason: $uptime $vals_rx $vals_tx" >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.reason"
-	_log do $funcname daemon $prio "working on '$wifi_dev' ($reason) $uptime $vals_rx $vals_tx"
-
-	file="/sys/kernel/debug/ieee80211/phy0/ath9k/diag"
-	[ -e "$file" ] && {
-		case "$CONFIG_PROFILE" in
-			*ap)
-				# use 'reset' method only with adhoc-mode
-				pidof hostapd >/dev/null || touch "/tmp/ATH9K_hwreseted"
-			;;
-		esac
-
-		if [ -e "/tmp/ATH9K_hwreseted" ]; then
-			rm "/tmp/ATH9K_hwreseted"
-		else
-			touch "/tmp/ATH9K_hwreseted"
-			_log do $funcname daemon alert "resetting HW via: echo 4 >$file"
-			echo 4 >"$file"
-			return 0
-		fi
-	}
-
-	case "$CONFIG_PROFILE" in
-		*ap)
-			if pidof hostapd >/dev/null; then
-				if [ $( _system version short ) -ge 36083 ]; then
-					_log do $funcname daemon info "no restart for this openwrt-revision"
-					return 0
-				else
-					_net local_inet_offer >/dev/null && {
-						_log do $funcname daemon info "no restart for AP with inet_offer"
-						return 0
-					}
-				fi
+			if [ $uptime -lt 240 ]; then
+				_log do $funcname daemon info "no action during low uptime: $uptime sec"
+				return 1
 			else
-				_log do $funcname daemon info "hostapd missing"
+				uptime="up $uptime sec"
 			fi
+
+			touch "/tmp/WIFI_ERROR.$wifi_dev"
+			_wifi watch_phy_problems || {
+				_log do $funcname daemon info "no action, watch_phy_problems() does not allow"
+				return 1
+			}
+
+			_watch counter "/tmp/STATS_WIFI_RESTARTS.$wifi_dev" increment 1
+			_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
+
+			eval $( _wifi tx_and_rx $wifi_dev )
+			local vals_rx="rx:bytes/packets/errors/frames $WIFI_RX_BYTES/$WIFI_RX_PACKETS/$WIFI_RX_ERRORS/$WIFI_RX_FRAMES"
+			local vals_tx="tx_bytes/packets/errors: $WIFI_TX_BYTES/$WIFI_TX_PACKETS/$WIFI_TX_ERRORS"
+
+			echo "$reason: $uptime $vals_rx $vals_tx" >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.reason"
+			_log do $funcname daemon $prio "working on '$wifi_dev' ($reason) $uptime $vals_rx $vals_tx"
+
+			file="/sys/kernel/debug/ieee80211/phy0/ath9k/diag"
+			[ -e "$file" ] && {
+				case "$CONFIG_PROFILE" in
+					*ap)
+						# use 'reset' method only with adhoc-mode
+						pidof hostapd >/dev/null || touch "/tmp/ATH9K_hwreseted"
+					;;
+				esac
+
+				if [ -e "/tmp/ATH9K_hwreseted" ]; then
+					rm "/tmp/ATH9K_hwreseted"
+				else
+					touch "/tmp/ATH9K_hwreseted"
+					_log do $funcname daemon alert "resetting HW via: echo 4 >$file"
+					echo 4 >"$file"
+					return 0
+				fi
+			}
+
+			case "$CONFIG_PROFILE" in
+				*ap)
+					if pidof hostapd >/dev/null; then
+						if [ $( _system version short ) -ge 36083 ]; then
+							_log do $funcname daemon info "no restart for this openwrt-revision"
+							return 0
+						else
+							_net local_inet_offer >/dev/null && {
+								_log do $funcname daemon info "no restart for AP with inet_offer"
+								return 0
+							}
+						fi
+					else
+						_log do $funcname daemon info "hostapd missing"
+					fi
+				;;
+			esac
 		;;
 	esac
 
