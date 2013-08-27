@@ -504,9 +504,9 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless costs/hops)
 {								# fixme! apply these checks regulary
 	local FILE="/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY"	# fixme! test dns also?
-	local FUNC="inet_seems_stable"				# fixme! use dnsfaker if unstable/unfake if stable
+	local funcname="inet_seems_stable"			# fixme! use dnsfaker if unstable/unfake if stable
 	local max_cost="50000"					# fixme! till we found a better way to guess
-	local file_broken="/tmp/inet_seems_unstable"
+	local file_broken="/tmp/$funcname"
 	local routing_proto
 	local proto_uptime_ok="true"
 
@@ -534,17 +534,17 @@ _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless c
 	[ "$proto_uptime_ok" = "true" ] && {
 		if gateway_found "$routing_proto"; then
 			[ -e "$file_broken" ] && {
-				_log do $FUNC daemon alert "unstable inet fixed after: $( _file age "$file_broken" humanreadable )"
+				_log do $funcname daemon alert "unstable inet fixed after: $( _file age "$file_broken" humanreadable )"
 				rm "$file_broken"
 
 				_wifi change_essid_ap original
 			}
 		else
-			if [ -e "$file_broken" ]; then
-				_log do $FUNC daemon info "(long) unstable inet, no default route in main-table"
+			if _watch counter "$file_broken" increment 1 max 5 ; then
+				_log do $funcname daemon info "(long) unstable inet, no default route in main-table"
 			else
 				touch "$file_broken"
-				_log do $FUNC daemon alert "unstable inet, no default route in main-table"
+				_log do $funcname daemon alert "unstable inet, no default route in main-table"
 
 				_wifi change_essid_ap
 			fi
@@ -557,12 +557,12 @@ _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless c
 		read COST_INT <$FILE
 
 		[ "$COST_INT" 2>/dev/null -gt $max_cost ] && {
-			_log do $FUNC daemon alert "unstable inet1, cost_int: '$COST_INT' > $max_cost"
+			_log do $funcname daemon alert "unstable inet1, cost_int: '$COST_INT' > $max_cost"
 			return 1
 		}
 		
 		[ "$COST_INT" = "0" -a "$COST" != "1.00" ] && {
-			_log do $FUNC daemon alert "unstable inet2, cost_int: '$COST_INT'"
+			_log do $funcname daemon alert "unstable inet2, cost_int: '$COST_INT'"
 			return 1
 		}
 	}
