@@ -686,6 +686,12 @@ applymystuff()
 	log "generating version-information - /etc/variables_fff+"
 	generate_version_file >"$base/etc/variables_fff+"
 
+	file="package/base-files/files/lib/preinit/99_10_failsafe_login"
+	tail -n1 "$file" | grep -q "sleep" || {
+		log "patching failsafe for autoreboot after 1h"
+		echo "sleep 3600; /sbin/reboot -f" >>"$file"
+	}
+
 	file="kalua/openwrt-build/apply_profile"
 	log "copy $( basename "$file" ) - the master controller ($( filesize "$file" ) bytes)"
 	cp "$file" "$base/etc/init.d"
