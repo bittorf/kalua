@@ -507,11 +507,39 @@ _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless c
 	local FUNC="inet_seems_stable"				# fixme! use dnsfaker if unstable/unfake if stable
 	local max_cost="50000"					# fixme! till we found a better way to guess
 	local file_broken="/tmp/inet_seems_unstable"
+	local routing_proto
+	local proto_uptime_ok="true"
 
-	# batctl gateways | grep -q MBit
+	if pidof bat_events >/dev/null; then
+		routing_proto="batman"
+	else
+		routing_proto="olsr"
+		_olsr uptime is_short && proto_uptime_ok="false"
+	fi
 
-	_olsr uptime is_short || {
-		if [ -z "$( ip route list exact 0.0.0.0/0 table main )" ]; then
+	gateway_found()
+	{
+		local proto="$1"
+
+		case "$proto" in
+			batman)
+				batctl gateways | grep -q "MBit"
+			;;
+			olsr)
+				test -n "$( ip route list exact 0.0.0.0/0 table main )"
+			;;
+		esac
+	}
+
+	[ "$proto_uptime_ok" = "true" ] && {
+		if gateway_found "$routing_proto"; then
+			[ -e "$file_broken" ] && {
+				_log do $FUNC daemon alert "unstable inet fixed after: $( _file age "$file_broken" humanreadable )"
+				rm "$file_broken"
+
+				_wifi change_essid_ap original
+			}
+		else
 			if [ -e "$file_broken" ]; then
 				_log do $FUNC daemon info "(long) unstable inet, no default route in main-table"
 			else
@@ -522,13 +550,6 @@ _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless c
 			fi
 
 			return 1
-		else
-			[ -e "$file_broken" ] && {
-				_log do $FUNC daemon alert "unstable inet fixed after: $( _file age "$file_broken" humanreadable )"
-				rm "$file_broken"
-
-				_wifi change_essid_ap original
-			}
 		fi
 	}
 
