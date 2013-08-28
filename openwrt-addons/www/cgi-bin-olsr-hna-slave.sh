@@ -98,9 +98,15 @@ else
 	case "$RTABLE" in
 		*" dev $LANDEV "*)
 			dev2slave="$LANDEV"
+			for DEV in $WANDEV $WIFIDEV; do {
+				CHECK_IP="$( _net dev2ip $DEV )" && break
+			} done
 		;;
 		*" dev $WANDEV "*)
 			dev2slave="$WANDEV"
+			for DEV in $LANDEV $WIFIDEV; do {
+				CHECK_IP="$( _net dev2ip $DEV )" && break
+			} done
 		;;
 		*)
 			_log do cannot_find_your_hna daemon info "netaddr: $netaddr netmask: $netmask remote_addr: $REMOTE_ADDR = '$( ip route list exact $netaddr/$netmask )'"
@@ -109,7 +115,7 @@ else
 	esac
 
 	[ -n "$dev2slave" ] && {
-		ERROR="OK"
+		ERROR="OK $CHECK_IP"
 
 		knowing_hna_already "$netaddr" "$netmask" || {
 			hna_add "$netaddr" "$netmask"

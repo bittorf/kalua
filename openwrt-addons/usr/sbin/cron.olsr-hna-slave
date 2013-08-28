@@ -42,7 +42,8 @@ ask_for_slave()
 		"NEVER")
 			uci set olsrd.@meta[0].hnaslave=0
 		;;
-		"OK")
+		"OK "*)
+			echo "$answer"
 			return 0
 		;;
 	esac
@@ -74,10 +75,17 @@ olsr_on_wifi()
 stop_olsr_and_set_static_routes()
 {
 	local funcname="stop_olsr_and_set_static_routes"
+	local check_ip="$1"
 	local nexthop="$( nexthop )"
 	local nexthop_dev="$( nexthop_dev )"
 
+	[ -z "$check_ip" ] && return 1
+	check_ip="$( echo "$check_ip" | cut -d'-' -f2 )"	# OK-10.63.14.25 -> 10.63.14.25
+	_sanitizer do "$check_ip" ip4 check || return 1
+
 	ip route add default via $nexthop dev $nexthop_dev metric 1 onlink
+
+	# better test an IP which is not linklocal
 	echo "$nexthop" >"/tmp/OLSR_HNA_SLAVE_PINGTEST"
 
 	eval $( _ipsystem do | grep ^WIFI_DHCP_PRE= )
@@ -102,9 +110,7 @@ stop_olsr_and_set_static_routes()
 		nexthop_dev >/dev/null && {
 			pidof olsrd >/dev/null && {
 				_net local_inet_offer >/dev/null || {
-					ask_for_slave && {
-						stop_olsr_and_set_static_routes
-					}
+					stop_olsr_and_set_static_routes "$( ask_for_slave )"
 				}
 			}
 		}
