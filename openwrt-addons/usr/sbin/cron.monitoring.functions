@@ -1,3 +1,22 @@
+heartbeat_minimal_send()
+{
+	local file_url="/tmp/MONITORING_HEARTBEAT_URL"
+	local file_archiv="/tmp/ARCHIV_MONITORING"
+	local mac url
+
+	[ -e "$file_url" ] || {
+		mac="$( _sanitizer do "$( _net dev2mac ${WIFIDEV:-$LANDEV} )" hex )"
+		url="$( uci -q get system.@monitoring[0].url )/meshrdf/?refresh=true&mac=$mac"
+		echo "$url" >"$file_url"
+	}
+
+	read url <"$file_url"
+	url="${url}&up=$( _system uptime hours )"
+	echo "$url" >"$file_archiv"
+
+	_wget do "$url" 30 >/dev/null
+}
+
 data_count_tasks()	# each 4 hours
 {
 	local file
@@ -48,5 +67,3 @@ for NAME in count_tasks time node; do {
 #while read LINE; do {
 #	echo -n "wort1=rest&"		# via brace expansion: word1 = bis zum ersten "+"
 #} done <"/tmp/URL.dirty2" >"/tmp/URL.dirty3"
-
-
