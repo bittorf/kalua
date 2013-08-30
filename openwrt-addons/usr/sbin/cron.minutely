@@ -7,6 +7,7 @@ fi
 
 [ ${UP%.*} -gt 129600 ] && {	# 36h
 	rm "/tmp/CRON_IS_CAREFUL"
+	  echo "REBOOT: overup - up: $UP"  >/dev/console
 	( echo "REBOOT: overup - up: $UP" >>/www/everlasting_syslog.txt; sync ) &
 	/bin/sleep 5
 
@@ -15,6 +16,7 @@ fi
 }
 
 if [ -e "/tmp/CRON_PSWORK" ]; then
+	  echo "REBOOT: pswork - up: $UP"  >/dev/console
 	( echo "REBOOT: pswork - up: $UP" >>/www/everlasting_syslog.txt; sync ) &
 	/bin/sleep 5
 
@@ -25,6 +27,7 @@ else
 fi
 
 read LOAD REST </proc/loadavg
+echo "$UP $LOAD $REST" >/dev/console
 # uncomment to collect 1) date 2) lockstatus 3) network-traffic and 4) freemem/uptime/load 5) taskcount and 6) dump into '/tmp/CRONSTATUS'
 #1# REST="$( date ) "
 #2# [ -e /tmp/CRON_LOCK ] && REST="$REST [LOCKED] "
@@ -97,6 +100,7 @@ case "$LOAD" in
 					[ ${#I} -gt 30 ] && {
 						rm "/tmp/CRON_IS_CAREFUL"
 
+						  echo "ALERT: $( date ) underload - load: $LOAD - I: $I - up: $UP"  >/dev/console
 						( echo "ALERT: $( date ) underload - load: $LOAD - I: $I - up: $UP" >>/www/everlasting_syslog.txt; ps >>/www/everlasting_syslog.txt; sync ) &
 						/bin/sleep 5
 
@@ -113,6 +117,7 @@ case "$LOAD" in
 					. /tmp/loader
 
 					[ $(( $( _system date unixtime ) - $( _file unixtime "/tmp/CRON_LOCK" ) )) -gt 3600 -a ${UP%.*} -gt 3600 ] && {
+						echo "ALERT: $( date ) very old lockfile: $( ls -le '/tmp/CRON_LOCK' )"  >/dev/console
 						echo "ALERT: $( date ) very old lockfile: $( ls -le '/tmp/CRON_LOCK' )" >>/www/everlasting_syslog.txt
 						sync
 						/sbin/reboot -f
@@ -171,6 +176,7 @@ case "$LOAD" in
 					*)
 						rm "/tmp/CRON_IS_CAREFUL"
 
+						  echo "REBOOT: overload - $LOAD - up: $UP"  >/dev/console
 						( echo "REBOOT: overload - $LOAD - up: $UP" >>/www/everlasting_syslog.txt; sync ) &
 						/bin/sleep 5
 
