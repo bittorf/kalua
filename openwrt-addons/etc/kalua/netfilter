@@ -888,6 +888,7 @@ _netfilter_is_meshnode()	# fixme! better iterate over olsrd-interface, if one is
 _netfilter_splash_start()
 {
 	local myhna="$( _netfilter myhna )"
+	local debug="#"
 	local ip
 
 	mkdir -p "/tmp/NETFILTER/USER" \
@@ -908,17 +909,21 @@ _netfilter_splash_start()
 
 ### end of ACCEPT
 
-
+$debug	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j LOG --log-prefix "MANGLE.DNSq-UDP: "
 	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13	# redirect DNS - todo: limit rate via 'recent'
+$debug	iptables -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j LOG --log-prefix "MANGLE.DNSq-TCP: "
 	iptables -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14	# redirect DNS - dig @8.8.8.8 +tcp google.com
+$debug	iptables -t mangle -A PREROUTING -p tcp --dport 80	       -j LOG --log-prefix "MANGLE.splash.HTTP: "
 	iptables -t mangle -A PREROUTING -p tcp --dport 80 	       -j MARK --set-mark 0x11	# redirect HTTP
 
 	case "$( uci get uhttpd.main.listen_https )" in
 		*":443")
+$debug			iptables -t mangle -A PREROUTING -p tcp --dport 443 -j LOG --log-prefix "MANGLE.splash.HTTPS: "
 			iptables -t mangle -A PREROUTING -p tcp --dport 443 -j MARK --set-mark 0x12	# redirect HTTPS
 		;;
 	esac
 
+$debug	iptables -t mangle -A PREROUTING -m mark --mark 0 -j LOG --log-prefix "MANGLE.unknown.REJECT"
 	iptables -t mangle -A PREROUTING -m mark --mark 0 -j MARK --set-mark 0x88	# not marked? -> reject
 
 	_netfilter is_meshnode && {
