@@ -286,6 +286,12 @@ boot()
 	}
 
 	if batman_needed; then
+		fgrep 'netmask_dhcpcalc' "/etc/init.d/dnsmasq" || {
+			sed -i 's/start$/&; local netmask_dhcpcalc; config_get netmask_dhcpcalc "$cfg" netmask_dhcpcalc/' "/etc/init.d/dnsmasq"
+			sed -i 's/ $netmask / ${netmask_dhcpcalc:-$netmask} /' "/etc/init.d/dnsmasq"
+			sed -i 's/,$NETMASK,/,$netmask,/' "/etc/init.d/dnsmasq"
+		}
+
 		batman_kmodules_are_deactivated && batman_kmodules_force_activation
 	else
 		batman_kmodules_are_deactivated || batman_kmodules_force_inactivation
@@ -402,6 +408,7 @@ boot()
 		uci set network.mybridge.proto="static"
 		uci set network.mybridge.ipaddr="192.168.$NODENUMBER.1"
 		uci set network.mybridge.netmask="255.255.0.0"
+		uci set network.mybridge.netmask_dhcpcalc="255.255.255.0"
 
 		case "$CONFIG_PROFILE" in
 			*_adhoc|*_hybrid)

@@ -894,15 +894,24 @@ _netfilter_splash_start()
 		 "/tmp/NETFILTER/MAC2IP" \
 		 "/tmp/NETFILTER/IP2MAC"
 
-	# how to deny spoofing source-address?
-	iptables -t mangle -A PREROUTING ! -s $myhna -j ACCEPT				# from alien router/client to me/further (also dhcp_in)
-	iptables -t mangle -A PREROUTING -s $myhna -d $WIFINET/$WIFIPRE -j ACCEPT	# picopeer
+	# todo: how to deny spoofing source-address?
+
+### everything what is 'ACCEPT'ed here, is not splased
+
+	# from alien router/client to me/further (also dhcp_in)
+	iptables -t mangle -A PREROUTING ! -s $myhna -j ACCEPT
+
+	# picopeer: source = this node, destination: all destination in this network
+	iptables -t mangle -A PREROUTING -s $myhna -d $WIFINET/$WIFIPRE -j ACCEPT
 
 	_netfilter walledgarden_start
 
+### end of ACCEPT
+
+
 	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13	# redirect DNS - todo: limit rate via 'recent'
 	iptables -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14	# redirect DNS - dig @8.8.8.8 +tcp google.com
-	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11		# redirect HTTP
+	iptables -t mangle -A PREROUTING -p tcp --dport 80 	       -j MARK --set-mark 0x11	# redirect HTTP
 
 	case "$( uci get uhttpd.main.listen_https )" in
 		*":443")
