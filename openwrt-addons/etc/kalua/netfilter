@@ -889,7 +889,7 @@ _netfilter_splash_start()
 {
 	local myhna="$( _netfilter myhna )"
 	local debug="#"
-	local ip source destination
+	local ip source destination dev
 	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8"
 
 	mkdir -p "/tmp/NETFILTER/USER" \
@@ -901,7 +901,12 @@ _netfilter_splash_start()
 ### everything what is 'ACCEPT'ed here, is not splased
 
 	# from alien router/client to me/further (also dhcp_in)
-	iptables -t mangle -A PREROUTING ! -s $myhna -j ACCEPT
+#	iptables -t mangle -A PREROUTING ! -s $myhna -j ACCEPT
+	iptables -t mangle -N alien
+	iptables -t mangle -A alien -s 192.168.$NODENUMBER.0/24 -j RETURN
+	iptables -t mangle -A alien -s $myhna -j RETURN
+	iptables -t mangle -A alien -j ACCEPT
+	iptables -t mangle -A PREROUTING -j alien
 
 	# picopeer: source = this node, destination: all destination in this network
 	iptables -t mangle -N picopeer
@@ -944,23 +949,16 @@ $debug	iptables -t mangle -A PREROUTING -m mark --mark 0 -j LOG --log-prefix "MA
 
 	grep -q ^"ipt_REJECT " /proc/modules || insmod ipt_REJECT	# fixme! remove later when new cron.patch_patch_kmodules.sh is active
 	iptables -A FORWARD -m mark --mark 0x88/0xff -j REJECT
-	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer
+	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer 2nd time
 	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
-	for WIFIDEV in $WIFI_DEVS; do {
-		ip="$( _net dev2ip $WIFIDEV )"
-		iptables -t nat -A PREROUTING -p udp -i $WIFIDEV -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
-		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:53
-		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
-		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
+	for dev in br-mybridge $WIFI_DEVS $LANDEV; do {
+		ip="$( _net dev2ip $WIFIDEV )" || continue
+		iptables -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
+		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:53
+		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
+		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
 	} done
-
-	[ -n "$LANADR" ] && {
-		iptables -t nat -A PREROUTING -p udp -i $LANDEV  -m mark --mark 0x13/0xff -j DNAT --to-destination $LANADR:53
-		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x14/0xff -j DNAT --to-destination $LANADR:53
-		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR:80
-		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x12/0xff -j DNAT --to-destination $LANADR:443
-	}
 }
 
 _netfilter_splash_autoadd()
