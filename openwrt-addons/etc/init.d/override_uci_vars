@@ -334,14 +334,15 @@ boot()
 		esac
 
 		local dns_ip
-		local router_ip
+		local router_ip="192.168.$NODENUMBER.1"
+		local master_gateway
 		case "$CONFIG_PROFILE" in
 			dhsylt*|olympia*|marinabh*)
-				router_ip="192.168.2.1"
+				master_gateway="192.168.2.1"
 				dns_ip="$router_ip"
 			;;
 			liszt28*)
-				router_ip="192.168.99.1"
+				master_gateway="192.168.99.1"
 				dns_ip="$router_ip"
 			;;
 		esac
@@ -416,12 +417,13 @@ boot()
 			;;
 		esac
 
-		if [ "$( uci get network.mybridge.ipaddr )" = "$router_ip" ]; then
+		# every node is a server, which means: answer DHCP locally
+		if [ "$( uci get network.mybridge.ipaddr )" = "$master_gateway" ]; then
 			uci set batman-adv.bat0.gw_mode=server
 			uci set batman-adv.bat0.gw_bandwidth="16384kbit/16384kbit"
 		else
-			:
-#			uci set batman-adv.bat0.gw_bandwidth="512kbit/512kbit"
+			uci set batman-adv.bat0.gw_mode=server
+			uci set batman-adv.bat0.gw_bandwidth="512kbit/512kbit"
 		fi
 
 		uci set dhcp.mybridge=dhcp
