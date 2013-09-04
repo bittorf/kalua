@@ -437,7 +437,8 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 	# default via 10.63.52.36 dev br0 		-> lan-offer|lan-gateway
 	# default via 10.63.99.33 dev eth0.1  metric 2 onlink		-> since ~git29366 "onlink"
 	# default via 192.168.101.112 dev eth0.1  src 192.168.101.222	-> lan-offer via alias-interface
-	# # default via 192.168.1.1 dev eth1  proto static ->841nd
+	# default via 192.168.1.1 dev eth1  proto static ->841nd
+	# default via 192.168.2.1 dev br-mybridge	-> batman/no_local_inet_offer
 
 	eval $( ip route list exact 0.0.0.0/0 | head -n1 |
 		while read N N D N PHYDEV METRIC N trash; do {	# we must eval it, otherwise		// fixme! look for 'table all'?
@@ -458,10 +459,9 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0.0.0.0/0 -> "default via eth0" or similar
 
 			[ "$LAN_GATEWAY" = "0.0.0.0" ] && {	# fixme! move to early-boot-estimation
-				
 				_nvram set lan_gateway 
 				_nvram set commit "config-mistake, unsetting lan-gateway which was '$LAN_GATEWAY'"
-				
+
 				ip route delete default via $D
 			}
 		else
@@ -471,10 +471,12 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 				MODE="lan"
 			elif [ "$PHYDEV" = "$WIFIDEV" ]; then
 				MODE="wifi"
+			elif [ "$PHYDEV" = "br-mybridge" ]; then
+				MODE="false"	# batman
 			else
 				MODE="pppoe"	# && WANDEV=ppp0          # fixme! this is not exact!
 			fi
-			
+
 			[ "$PHYDEV" = "link" ] && {
 				if   echo $D | grep -q "^tun[0-9]*" ; then
 					MODE=tun
@@ -484,7 +486,7 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 					MODE="$D"				# e.g. tun0 / vpnc
 				fi
 			}
-			
+
 			_log do $FUNC daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
 		fi
 	else
