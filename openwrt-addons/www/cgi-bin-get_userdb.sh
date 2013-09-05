@@ -8,7 +8,8 @@ NODE="$( _ipsystem do "$REMOTE_ADDR" )"
 eval $( _ipsystem do "$NODE" | grep "[N|I]ADR=" )
 
 case "$REMOTE_ADDR" in
-	$WANADR|$LANADR|$WIFIADR)
+	# fixme!
+	$WANADR|$LANADR|$WIFIADR|192.168.*)
 		# why tac? it's likely, that we grep for a new login - this should match faster
 		# this is >1 magnitude faster than sed-tac
 
