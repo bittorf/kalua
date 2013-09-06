@@ -999,8 +999,11 @@ gitpull()
 	cd ../packages
 	git pull
 
-	log "updating core-packages/build-system"
+	log "updating feeds"
 	cd ../openwrt
+	scripts/feeds update
+
+	log "updating core-packages/build-system"
 	git pull
 
 	log "updated to openwrt-version: $( scripts/getver.sh )"
