@@ -56,7 +56,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	REST="interval: $interval f: $frames_now fold: $frames_old f_avg: $frames_average f_avg_overall: $frames_average_overall pchange: $percentual_change"
 	logger -s "$REST"
 
-	test $percentual_change -lt -$border -o $percentual_change -gt $border
+	test $percentual_change -lt -$border -o $percentual_change -gt $border && return 1
 }
 
 check_wifi_phy "phy0" "${UP%.*}" || {
