@@ -8,7 +8,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	local file_old="/tmp/incoming_frames.$phy"
 	local file_window="/tmp/incoming_frames.$phy.window"
 	local border=16		# change in percent
-	local frames_old=0 uptime_old=0 valid=0 percentual_change
+	local frames_old=0 uptime_old=0 valid=1 percentual_change
 	local frames_now frames_diff frames_average frames_average_overall uptime_now interval line value valid val1 val2
 
 	[ -z "$uptime_now" ] && {
@@ -32,8 +32,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 			}
 			echo "$line"
 		else
-			value="$line"
-			continue			# omit first line
+			value="$line"			# omit first line
 		fi
 	} done <"$file_window" >"$file_window.tmp"
 	echo "$frames_average" >>"$file_window.tmp"	# append recent value
@@ -56,7 +55,10 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	REST="interval: $interval f: $frames_now fold: $frames_old f_avg: $frames_average f_avg_overall: $frames_average_overall pchange: $percentual_change"
 	logger -s "$REST"
 
-	test $percentual_change -lt -$border -o $percentual_change -gt $border && return 1
+	test $percentual_change -lt -$border && return 1
+	test $percentual_change -gt $border && return 1
+
+	return 0
 }
 
 check_wifi_phy "phy0" "${UP%.*}" || {
