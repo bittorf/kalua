@@ -419,8 +419,17 @@ boot()
 		uci set network.lan.macaddr="02:00:ca:b1:$( integer2fourhex "$NODENUMBER" )"
 		uci set network.wan.macaddr="02:00:de:ad:$( integer2fourhex "$NODENUMBER" )"
 
+		local i
 		case "$CONFIG_PROFILE" in
-			*hybrid|*ap)
+			*hybrid)
+				# better: use 'ifstatus' to detect real wlanX
+				for i in $(seq 0 15); do {
+					[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "ap" ] && {
+						echo "brctl addif br-mybridge wlan$(( $i - 1 ))" >>"/tmp/WIFI_SPECIALS.sh"
+					}
+				} done
+			;;
+			*ap)
 				echo "brctl addif br-mybridge wlan0" >>"/tmp/WIFI_SPECIALS.sh"
 			;;
 		esac
