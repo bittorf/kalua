@@ -56,7 +56,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	logger -s "$REST"
 
 	test $percentual_change -lt -$border && return 1
-	test $percentual_change -gt $border && return 1
+	test $percentual_change -gt $border && return 1		# positiv values = avg is smaller than avg_overall
 
 	return 0
 }
