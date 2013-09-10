@@ -420,23 +420,26 @@ boot()
 		uci set network.lan.macaddr="02:00:ca:b1:$( integer2fourhex "$NODENUMBER" )"
 		uci set network.wan.macaddr="02:00:de:ad:$( integer2fourhex "$NODENUMBER" )"
 
+		local startup="/tmp/WIFI_SPECIALS.sh"
 		local i
 		case "$CONFIG_PROFILE" in
 			*hybrid)
 				for i in $(seq 0 15); do {
 					[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "ap" ] && {
-						echo >>"/tmp/WIFI_SPECIALS.sh" "NAME=\"\$( uci get wireless.@wifi-iface[$i].network )\""
-						echo >>"/tmp/WIFI_SPECIALS.sh" "DEV=\$( ifstatus \"\$NAME\" | grep '\"device\":' | cut -d'\"' -f4 )"
-						echo >>"/tmp/WIFI_SPECIALS.sh" "brctl addif br-mybridge \$DEV"
+						echo >>"$startup" "NAME=\"\$( uci get wireless.@wifi-iface[$i].network )\""
+						echo >>"$startup" "DEV=\$( ifstatus \"\$NAME\" | grep '\"device\":' | cut -d'\"' -f4 )"
+						echo >>"$startup" "_log do batman daemon info \"$startup: adding DEV \$DEV\" to br-mybridge"
+						echo >>"$startup" "brctl addif br-mybridge \$DEV"
 					}
 				} done
 			;;
 			*ap)
-				echo "brctl addif br-mybridge wlan0" >>"/tmp/WIFI_SPECIALS.sh"
+				echo >>"$startup" "_log do batman daemon info \"$startup: adding DEV wlan0\" to br-mybridge"
+				echo >>"$startup" "brctl addif br-mybridge wlan0"
 			;;
 		esac
 
-#		echo "dnsmasq --address=/#/10.63.$NODENUMBER.1 -p 5353" >>"/tmp/WIFI_SPECIALS.sh"
+#		echo "dnsmasq --address=/#/10.63.$NODENUMBER.1 -p 5353" >>"$startup"
 
 		uci set network.mybridge="interface"
 		uci set network.mybridge.type="bridge"
