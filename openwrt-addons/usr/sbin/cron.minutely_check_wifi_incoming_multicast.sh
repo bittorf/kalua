@@ -55,10 +55,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	REST="interval: $interval f: $frames_now fold: $frames_old f_avg: $frames_average f_avg_overall: $frames_average_overall pchange: $percentual_change"
 	logger -s "$REST"
 
-	test $percentual_change -lt -$border && return 1
-	test $percentual_change -gt $border && return 1		# positiv values = avg is smaller than avg_overall
-
-	return 0
+	test $percentual_change -lt $border	# positiv values = avg is smaller than avg_overall (=lower incoming multicast framerate)
 }
 
 check_wifi_phy "phy0" "${UP%.*}" || {
