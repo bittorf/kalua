@@ -1011,7 +1011,8 @@ gitpull()
 
 copy_images_to_server()
 {
-	local option="$1"	# e.g. factory|sysupgrade|release|remove
+	local option="$1"		# e.g. factory|sysupgrade|release|remove
+	local size_small_image=3670020	# 56 blocks, so jffs2 is working
 	local testfile bytes
 
 	[ "$option" = "remove" ] && {
@@ -1120,7 +1121,7 @@ copy_images_to_server()
 			testfile="bin/$ARCH/openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-sysupgrade.bin"
 			bytes="$( stat --format=%s "$testfile" 2>/dev/null )"
 
-			if [ ${bytes:-9999999} -le 3670020 ]; then		# 56 blocks
+			if [ ${bytes:-9999999} -le $size_small_image ]; then
 				fileX_to_modelY "tl-wr841nd-v7"  "TP-LINK TL-WR841N:ND v7"
 				fileX_to_modelY "tl-wr841n-v8"   "TP-LINK TL-WR841N:ND v8"
 			else
