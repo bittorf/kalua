@@ -687,7 +687,7 @@ applymystuff()
 	generate_version_file >"$base/etc/variables_fff+"
 
 	file="package/base-files/files/lib/preinit/99_10_failsafe_login"
-	tail -n1 "$file" | grep -q "sleep" || {
+	grep -q "sleep" "$file" || {
 		log "patching failsafe for autoreboot after 1h"
 		sed -i 's|\&1|\&1; ( sleep 3600; sync; /sbin/reboot -f ) \&|' "$file"
 	}
