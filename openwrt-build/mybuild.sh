@@ -689,7 +689,7 @@ applymystuff()
 	file="package/base-files/files/lib/preinit/99_10_failsafe_login"
 	tail -n1 "$file" | grep -q "sleep" || {
 		log "patching failsafe for autoreboot after 1h"
-		sed -i 's|"$|"; sleep 3600; sync; /sbin/reboot -f|' "$file"
+		sed -i 's|\&1|\&1; ( sleep 3600; sync; /sbin/reboot -f ) \&|' "$file"
 	}
 
 	file="kalua/openwrt-build/apply_profile"
