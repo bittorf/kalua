@@ -63,6 +63,13 @@ device_forbidden()
 		leonardo*)
 			[ "$NODENUMBER" = 6 ] && return 0
 		;;
+		ejbw*)
+			case "$NODENUMBER" in
+				100|101)
+					return 0
+				;;
+			esac
+		;;
 	esac
 
 	return 1
