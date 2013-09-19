@@ -196,7 +196,9 @@ _log do guess_gateway daemon debug "$OUT"
 		fi
 		_log sleep fetch_userdb_copy "$( _math random_integer 0 $ROUTES )" step 10
 
+		WGET_START="$( _system uptime centisec )"
 		if _wget do "http://$REMOTE/cgi-bin-get_userdb.sh" 240 >"/tmp/USERDB_COPY"; then
+			WGET_READY="$( _system uptime centisec )"
 			LASTLINE="$( tail -n1 "/tmp/USERDB_COPY" )"
 
 			case "$LASTLINE" in
@@ -213,6 +215,25 @@ _log do guess_gateway daemon debug "$OUT"
 							touch "/tmp/FREE"
 						;;
 					esac
+
+					# maybe always calc this during wget()?
+					PATH_SPEED="$(( $( _file size "/tmp/USERDB_COPY" ) / ( $WGET_READY - $WGET_START ) * 100 ))"
+					echo "$PATH_SPEED" >/tmp/USERDB_COPY.speed
+					_log do fetch_userdb_copy daemon info "speed was $PATH_SPEED bytes/sec"
+
+					pidof bat_events >/dev/null && {
+						GATEWAY="$( _weblogin authserver )"
+						batctl traceroute "$GATEWAY" >/tmp/BATCTL_TRACEROUTE
+
+						# ' 1: 02:00:ca:b1:02:22  0.914 ms  1.788 ms  0.872 ms'
+						NEXTHOP="$( grep ^' 1: ' '/tmp/BATCTL_TRACEROUTE' | cut -d' ' -f3 )"
+						NEXTHOP="$( _net mac2ip "$NEXTHOP" )"
+
+						METRIC=$( wc -l </tmp/BATCTL_TRACEROUTE )
+						METRIC=$(( $METRIC - 1 ))
+
+						echo "GATEWAY=$GATEWAY; NEXTHOP=$NEXTHOP; METRIC=$METRIC" >/tmp/GATEWAY_CHECK_RECENT.batman
+					}
 				;;
 				*)
 					rm "/tmp/USERDB_COPY"
