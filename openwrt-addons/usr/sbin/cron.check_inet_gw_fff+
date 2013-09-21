@@ -225,13 +225,18 @@ _log do guess_gateway daemon debug "$OUT"
 					_log do fetch_userdb_copy daemon info "speed was $PATH_SPEED bytes/sec"
 
 					pidof bat_events >/dev/null && {
-						GATEWAY="$( _weblogin authserver )"
-						batctl traceroute "$GATEWAY" >/tmp/BATCTL_TRACEROUTE
 
-						# ' 1: 02:00:ca:b1:02:22  0.914 ms  1.788 ms  0.872 ms'
-						# or
-						# ' 1: *   *   *   *'
-						NEXTHOP_MAC="$( grep ^' 1: ' '/tmp/BATCTL_TRACEROUTE' | cut -d' ' -f3 )"
+						NEXTHOP_MAC='*'
+						while [ "$NEXTHOP_MAC" = '*' ]; do {
+							GATEWAY="$( _weblogin authserver )"
+							batctl traceroute "$GATEWAY" >/tmp/BATCTL_TRACEROUTE
+
+							# ' 1: 02:00:ca:b1:02:22  0.914 ms  1.788 ms  0.872 ms'
+							# or
+							# ' 1: *   *   *   *'
+							NEXTHOP_MAC="$( grep ^' 1: ' '/tmp/BATCTL_TRACEROUTE' | cut -d' ' -f3 )"
+						} done
+
 						NEXTHOP="$( _net mac2ip "$NEXTHOP_MAC" )"
 						[ -z "$NEXTHOP" ] && {
 							# we use special mac's on all nodes, e.g. 02:00:ca:b1:01:11 = node 111
