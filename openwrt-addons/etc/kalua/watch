@@ -225,12 +225,12 @@ _watch_local_proxy()
 
 _watch_archivsize()
 {
+	local funcname="watch_archivsize"
 	local file="$1"
 	local max_lines="$2"
 	local max_bytes=$(( $max_lines * 1024 ))
-	local i=0
-	local bytes=0
-	local line
+	local i=0 bytes=0 line
+	local tempfile="/tmp/$funcname.$$"
 
 	# count lines + bytes
 	while read line; do {
@@ -241,8 +241,10 @@ _watch_archivsize()
 	[ $bytes -gt $max_bytes ] && max_lines=$(( $max_lines - ( ($bytes - $max_bytes) / 1024) ))
 	[ $i -le $max_lines ] && return 0
 
+	cp "$file" "$tempfile"
 	max_lines=$(( $max_lines + 1 ))
-	sed -i "2,${max_lines}!d" "$file"
+	sed "2,${max_lines}!d" "$tempfile" >"$file"
+	rm "$tempfile"
 }
 
 _watch_system_time ()		# firmware-build-date is newer than unixtime?
