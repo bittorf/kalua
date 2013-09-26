@@ -2,12 +2,12 @@
 
 check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of moving average of last 15 values
 {
-	local phy="${1:-phy0}"
-	local uptime_now="$2"	# seconds/integer
+	local uptime_now="$1"	# seconds/integer
+	local phy="${2:-phy0}"
 	local file_source="/sys/kernel/debug/ieee80211/$phy/statistics/multicast_received_frame_count"
 	local file_old="/tmp/incoming_frames.$phy"
 	local file_window="/tmp/incoming_frames.$phy.window"
-	local border=25		# change in percent
+	local border=50		# change in percent
 	local frames_old=0 uptime_old=0 valid=1 percentual_change
 	local frames_now frames_diff frames_average frames_average_overall uptime_now interval line value valid val1 val2
 
@@ -52,13 +52,13 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	}
 
 	# global export
-	REST="interval: $interval f_now/old/avg: $frames_now/$frames_old/$frames_average f_avg_overall: $frames_average_overall p_change: $percentual_change"
+	REST="phy: $phy interval: $interval avg: $frames_average avg_overall: $frames_average_overall change: ${percentual_change}%"
 	logger -s "debug: $REST"
 
 	test $percentual_change -lt $border	# positiv values = avg is smaller than avg_overall (=lower incoming multicast framerate)
 }
 
-check_wifi_phy "phy0" "${UP%.*}" || {
+check_wifi_phy "${UP%.*}" $LIST_OF_PHYS || {
 	. /tmp/loader
 	_log do "check_wifi_phy" daemon alert "$REST"
 }
