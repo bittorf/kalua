@@ -598,7 +598,7 @@ _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless c
 	return 0
 }
 
-_net_mac2ip ()		# SENS: get client-IP from different sources
+_net_mac2ip()		# SENS: get client-IP from different sources
 {
 	local mac="$1"
 	local funcname="mac2ip"
@@ -611,6 +611,24 @@ _net_mac2ip ()		# SENS: get client-IP from different sources
 	local IP=
 	local HOSTNAME=
 	local COUNT=
+
+	try_0()
+	{
+		case "$MAC" in
+			02:00:ca:*)
+				# we use selfdefined mac's on some batman-nodes, e.g.
+				# 02:00:ca:b1:01:11 = node 111 (last 4 digits)
+				# 02:00:ca:fe:02:22 = node 222
+				# 02:00:ca:ff:00:33 = node  33
+				MAC="$( echo "$MAC" | cut -d':' -f5 )$( echo "$MAC" | cut -d':' -f6 )"
+
+				MAC="${MAC#0}"          # e.g. 0002 -> 2
+				MAC="${MAC#0}"
+				MAC="${MAC#0}"
+				IP="$( _ipsystem do "$IP" | grep ^"WIFIADR=" | cut -d'=' -f2 )"
+			;;
+		esac
+	}
 
 	try_1()		# is filled during _netfiler_user_add() (macs are lowercase)
 	{
@@ -655,7 +673,7 @@ _net_mac2ip ()		# SENS: get client-IP from different sources
 		[ -n "$HOSTNAME" ] && IP="$( sed -n "/$HOSTNAME/s/^\([0-9\.]*\) ${HOSTNAME}.*/\1/p" /etc/local.hosts )"
 	}
 
-	for COUNT in 1 2 3 4 ; do {
+	for COUNT in 0 1 2 3 4 ; do {
 
 		try_${COUNT}
 
