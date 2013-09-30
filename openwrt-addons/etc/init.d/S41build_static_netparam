@@ -29,7 +29,7 @@ netparam_for_uci_devices ()
 		# for 'testing' in scheduler: incoming_wifi_activity()
 		# otherwise use the first interface
 		[ "$DEVICE" = "wlan" ] && {
-			if [ -e "/sbin/ifstatus" ]; then
+			[ -e "/sbin/ifstatus" ] && {
 				if   fgrep -q "wlanadhoc" "/etc/config/wireless"; then
 					# typical: wlan0-1
 					IFNAME="$( ifstatus "wlanadhoc" | fgrep '"device":' | cut -d'"' -f4 )"
@@ -38,9 +38,13 @@ netparam_for_uci_devices ()
 					# typical: wlan0
 					IFNAME="$( ifstatus "wlan" | fgrep '"device":' | cut -d'"' -f4 )"
 				fi
-			elif [ -e "/etc/config/wireless" ]; then
-				IFNAME="wlan0"
-			fi
+			}
+
+			[ -z "$IFNAME" -a -e "/etc/config/wireless" ] && {
+				[ "$( uci get wireless.radio0.disabled )" = "1" ] || {
+					IFNAME="wlan0"
+				}
+			}
 		}
 
 		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
