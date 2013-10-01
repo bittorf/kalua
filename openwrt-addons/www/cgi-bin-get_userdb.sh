@@ -4,14 +4,18 @@
 echo -en "Content-type: text/plain\n\n"
 
 _ipsystem include
-NODE="$( _ipsystem do "$REMOTE_ADDR" )"
-eval $( _ipsystem do "$NODE" | grep "[N|I]ADR=" )
+NODE="$( _ipsystem do "$REMOTE_ADDR" )"			# e.g. 10.10.147.1 -> 147
+eval $( _ipsystem do "$NODE" | grep "[N|I]ADR=" )	# e.g. LANADR=|WANADR=|WIFIADR=10.10.147.1
 
 case "$REMOTE_ADDR" in
 	192.168.*.1)
 		# fixme! should match batman-originators
 	;;
-	$LOADR|$WANADR|$LANADR|$WIFIADR)
+	$WANADR|$LANADR|$WIFIADR)
+		# ok, is a real OLSR/Mid
+	;;
+	$LOADR)
+		# localhost
 	;;
 	*)
 		# simple way for ensure, that only real nodes (OLSR/Mid) can do this
