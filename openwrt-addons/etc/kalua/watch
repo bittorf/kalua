@@ -585,7 +585,7 @@ _watch_webserver()
 
 	[ -e "/www/index.html" ] && {
 		[ $( _system version short ) -lt 36645 ] && {
-			mv "/www/index.html" "/www/index2.html"
+			mv "/www/index.html" "/www/index2.html"		# from LuCI
 		}
 	}
 
@@ -645,7 +645,7 @@ _watch_webserver()
 		fi
 	}
 
-	local size_gethttp filesize httpsize checkfile
+	local size_gethttp filesize httpsize checkfile out
 	local checkfile_sample="/tmp/$funcname.sample"
 	local file_seen_good="/tmp/$funcname.was_good"
 	local i=0
@@ -657,7 +657,6 @@ _watch_webserver()
 	fi
 
 	if [ -e "/www/$checkfile" ]; then
-
 		while [ ${size_gethttp:-0} -eq 0 ]; do {
 			i=$(( $i + 1 ))
 			[ $i -gt 1 ] && {
@@ -704,18 +703,33 @@ _watch_webserver()
 			fi
 		fi
 
+		# should work now, measure again how fast:
 		_stopwatch start $funcname
 		wget -qO /dev/null "http://127.0.0.1/$checkfile"
 		local duration="$( _stopwatch stop $funcname nolog )"
 
-		if [ $duration -gt 175 ]; then		# = 1.75 sec
+		[ $duration -gt 175 ] && {		# = 1.75 sec
 			_log do $funcname daemon alert "last too long: $(( $duration / 100 )).$(( $duration % 100 )) sec"
-		else
-			return 0
-		fi
+		}
+
+		[ "$( _weblogin authserver )" = "$WIFIADR" ] && {
+			out="$( _wget do "http://$WIFIADR/cgi-bin-tool.sh?OPT=wifimac" )"
+
+			case "$out" in
+				*:*)
+					# CGI is working, outputs a MAC
+				;;
+				*)
+					_log do $funcname daemon alert "[ERR] CGI didnt work, answer: '$out'"
+					restart_server
+				;;
+			esac
+		}
 	else
 		:
 	fi
+
+	return 0
 }
 
 _watch_sshd_or_telnet()
