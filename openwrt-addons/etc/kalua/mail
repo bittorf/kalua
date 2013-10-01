@@ -2,6 +2,25 @@
 
 # while read LINE; do set -- $LINE; echo "_mail send 'newsletter XY' wlan-assistance@gmx.de '$3 $4' $( for M in $LINE; do :; done; echo $M | sed 's/[<>]//g' ) /tmp/newsletter.txt"; echo "sleep 60"; done </tmp/.muttrc_alias >/tmp/doit.sh
 
+_mail_stash_for_later_resend()
+{
+	[ -e "/tmp/outgoing_mail_"* ] && {
+		mkdir -p "/www/cgi-bin/mail"
+		mv "/tmp/outgoing_mail_"* "/www/cgi-bin/mail"
+        }
+}
+
+_mail_stash_resend()
+{
+	local file
+
+	for file in "/www/cgi-bin/mail/outgoing_mail_"* ; do {
+		[ -e "$file" ] && {
+			_mail send_mailfile "$file"
+		}
+	} done
+}
+
 _mail_pop3_check_stats()
 {
 	local funcname="mail_pop3_check_stats"
@@ -203,7 +222,7 @@ _mail_send ()		# todo: we need a simple addressbook for phone,email,shortname,na
 _mail_send_mailfile()
 {
 	local MAILFILE="$1"			# must be ready formatted
-
+						# important: 'file' will be removed after good sending from this function
 	[ ! -e "$MAILFILE" ] && return 1
 
 	local FUNC="mail_send_mailfile"
@@ -262,16 +281,25 @@ _mail_send_mailfile()
 
 	case "$OUT" in
 		"+220+250+530"*)
-		# 530 = Authentication required
+			# 530 = Authentication required
 			_mail pop3_check_stats force
 			rm "$ERRORFILE"
 			cleanup
 			return 1
 		;;
-		"+220+250+501+"*|"+220")
-		# 501 = Syntax error in parameters or arguments
-		# 220 only = hanging connection with buggy telnet/nc client: e.g. busybox 1.19.4 = b0rken to mail.gmx.net, 1.21.1 = OK
-		_log do $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mailfile deleted"
+		"+220")
+			# 220 only = hanging connection with buggy telnet/nc client: e.g. busybox 1.19.4 = b0rken to mail.gmx.net, 1.21.1 = OK
+			# maybe also, when password is invalid temporarily
+			_log do $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mail stashed"
+			_mail stash_for_later_resend
+			rm "$ERRORFILE"
+			cleanup
+			return 0
+		;;
+		"+220+250+501+"*)
+			# 501 = Syntax error in parameters or arguments
+			# 220 only = hanging connection with buggy telnet/nc client: e.g. busybox 1.19.4 = b0rken to mail.gmx.net, 1.21.1 = OK
+			_log do $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mailfile deleted"
 
 			rm "$MAILFILE"
 			rm "$ERRORFILE"
