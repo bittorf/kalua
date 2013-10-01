@@ -35,7 +35,7 @@ else
 		grep -n '' /tmp/DB/USER/login/meta_index | sort -rn | cut -d: -f2- >/tmp/USERDB_COPY.cgi
 		echo "# OK" >>/tmp/USERDB_COPY.cgi
 
-		[ -h "/www/USERDB_COPY.txt" ] && ln -s "/tmp/USERDB_COPY.cgi" "/www/USERDB_COPY.txt"
+		[ -h "/www/USERDB_COPY.txt" ] || ln -s "/tmp/USERDB_COPY.cgi" "/www/USERDB_COPY.txt"
 	}
 
 	_http redirect 302 "/USERDB_COPY.txt"
