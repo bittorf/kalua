@@ -1,10 +1,9 @@
 #!/bin/sh
 . /tmp/loader
 
-echo -en "Content-type: text/plain\n\n"
-
 _ipsystem include
 NODE="$( _ipsystem do "$REMOTE_ADDR" )"			# e.g. 10.10.147.1 -> 147
+							# warning, we overwrite our own vars here:
 eval $( _ipsystem do "$NODE" | grep "[N|I]ADR=" )	# e.g. LANADR=|WANADR=|WIFIADR=10.10.147.1
 
 case "$REMOTE_ADDR" in
@@ -39,5 +38,5 @@ else
 		[ -h "/www/USERDB_COPY.txt" ] && ln -s "/tmp/USERDB_COPY.cgi" "/www/USERDB_COPY.txt"
 	}
 
-	_http redirect 302 "http://$WIFIADR/USERDB_COPY.txt"
+	_http redirect 302 "/USERDB_COPY.txt"
 fi
