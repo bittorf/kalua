@@ -186,6 +186,32 @@ _log do guess_gateway daemon debug "$OUT"
 		return 0
 	}
 
+	batman_measure_nexthop()
+	{
+		pidof bat_events >/dev/null || return 0
+
+		local file_trace='/tmp/BATCTL_TRACEROUTE'
+		local file_all='/tmp/GATEWAY_CHECK_RECENT.batman'
+		local nexthop_mac='*'
+		local gateway nexthop metric
+
+		while [ "$nexthop_mac" = '*' ]; do {
+			gateway="$( _weblogin authserver )"
+			batctl traceroute "$gateway" >"$file_trace"
+
+			# ' 1: 02:00:ca:b1:02:22  0.914 ms  1.788 ms  0.872 ms'
+			# or
+			# ' 1: *   *   *   *'
+			nexthop_mac="$( grep ^' 1: ' '$file' | cut -d' ' -f3 )"
+		} done
+
+		nexthop="$( _net mac2ip "$nexthop_mac" )"
+		metric=$( wc -l <"$file_trace" )
+		metric=$(( $metric - 1 ))		# headerline
+
+		echo "GATEWAY=$gateway; NEXTHOP=$nexthop; METRIC=$metric" >"$file_all"
+	}
+
 	if userdb_copy_needed; then
 		case "$CONFIG_PROFILE" in
 			schoeneck*)
@@ -232,24 +258,7 @@ _log do guess_gateway daemon debug "$OUT"
 					echo "$PATH_SPEED" >/tmp/USERDB_COPY.speed
 					_log do fetch_userdb_copy daemon info "speed was $PATH_SPEED bytes/sec"
 
-					pidof bat_events >/dev/null && {
-						NEXTHOP_MAC='*'
-						while [ "$NEXTHOP_MAC" = '*' ]; do {
-							GATEWAY="$( _weblogin authserver )"
-							batctl traceroute "$GATEWAY" >/tmp/BATCTL_TRACEROUTE
-
-							# ' 1: 02:00:ca:b1:02:22  0.914 ms  1.788 ms  0.872 ms'
-							# or
-							# ' 1: *   *   *   *'
-							NEXTHOP_MAC="$( grep ^' 1: ' '/tmp/BATCTL_TRACEROUTE' | cut -d' ' -f3 )"
-						} done
-
-						NEXTHOP="$( _net mac2ip "$NEXTHOP_MAC" )"
-						METRIC=$( wc -l </tmp/BATCTL_TRACEROUTE )
-						METRIC=$(( $METRIC - 1 ))
-
-						echo "GATEWAY=$GATEWAY; NEXTHOP=$NEXTHOP; METRIC=$METRIC" >/tmp/GATEWAY_CHECK_RECENT.batman
-					}
+					batman_measure_nexthop
 				;;
 				*)
 					rm "/tmp/USERDB_COPY"
@@ -259,6 +268,7 @@ _log do guess_gateway daemon debug "$OUT"
 			rm "/tmp/USERDB_COPY"
 		fi
 	else
+		batman_measure_nexthop
 		touch "/tmp/USERDB_COPY"
 	fi
 }
