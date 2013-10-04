@@ -34,6 +34,7 @@ else
 	[ -e "/tmp/USERDB_COPY.cgi" ] || {
 		# why tac? it's likely, that we grep for a new login - this should match faster
 		# this is >1 magnitude faster than sed-tac
+		touch '/tmp/USERDB_COPY.cgi'
 		grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2- >'/tmp/USERDB_COPY.cgi'
 		echo "# OK" >>'/tmp/USERDB_COPY.cgi'
 		gzip '/tmp/USERDB_COPY.cgi'	# appends .gz
