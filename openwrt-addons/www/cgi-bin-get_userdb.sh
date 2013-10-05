@@ -35,12 +35,17 @@ else
 		# why tac? it's likely, that we grep for a new login - this should match faster
 		# this is >1 magnitude faster than sed-tac
 		touch '/tmp/USERDB_COPY.cgi'
+
 		grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2- >'/tmp/USERDB_COPY.cgi'
 		echo "# OK" >>'/tmp/USERDB_COPY.cgi'
+
 		gzip '/tmp/USERDB_COPY.cgi'	# appends .gz
 		rm '/tmp/USERDB_COPY.cgi'
 
-		[ -h '/www/USERDB_COPY.txt' ] || ln -s '/tmp/USERDB_COPY.cgi.gz' '/www/USERDB_COPY.txt'
+		ls -1 /www/USERDB_COPY.txt 2>/dev/null || {
+			rm /www/USERDB_COPY.txt
+			ln -s '/tmp/USERDB_COPY.cgi.gz' '/www/USERDB_COPY.txt'
+		}
 	}
 
 	_http redirect 302 '/USERDB_COPY.txt'
