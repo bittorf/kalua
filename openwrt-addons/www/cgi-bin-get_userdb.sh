@@ -43,7 +43,7 @@ else
 		rm '/tmp/USERDB_COPY.cgi'
 
 		ls -1 /www/USERDB_COPY.txt 2>/dev/null || {
-			rm /www/USERDB_COPY.txt
+			rm /www/USERDB_COPY.txt 2>/dev/null
 			ln -s '/tmp/USERDB_COPY.cgi.gz' '/www/USERDB_COPY.txt'
 		}
 	}
