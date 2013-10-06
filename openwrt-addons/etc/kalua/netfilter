@@ -726,7 +726,7 @@ _netfilter_ipforwarding_revert()
 
 _netfilter_stop()
 {
-	local option="$1"	# string: remember_over_reboot
+	local option="$1"	# string: remember_over_reboot = ror
 	local funcname="netfilter_stop"
 	local mac state table
 	local list_user="$( _netfilter user_list )"
@@ -750,8 +750,11 @@ _netfilter_stop()
 			[ -n "$list_user" ] && {
 				# this file will be sourced during bootup, so
 				# we simulate a battery backed up hardware clock
-				echo "[ \"\$( date +%Y )\" = 1970 ] && date --set '$( date "+%Y-%m-%d %X" )'" >"/www/NETFILTER_AUTOADD"
-				cat "/tmp/NETFILTER_AUTOADD" >>"/www/NETFILTER_AUTOADD"
+				# if the time is not stored via crashlog
+				echo  >"/www/NETFILTER_AUTOADD" "grep -sq ' Comm: unx,' '/sys/kernel/debug/crashlog' || {"
+				echo >>"/www/NETFILTER_AUTOADD" "[ \"\$( date +%Y )\" = 1970 ] && date --set '$( date "+%Y-%m-%d %X" )'"
+				echo >>"/www/NETFILTER_AUTOADD" "}"
+				cat  >>"/www/NETFILTER_AUTOADD" "/tmp/NETFILTER_AUTOADD"
 			}
 		;;
 	esac
