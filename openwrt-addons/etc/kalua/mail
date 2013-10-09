@@ -347,35 +347,38 @@ _mail_send_mailfile()
 	esac
 }
 
-_mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable#Example | http://tools.ietf.org/html/rfc2045
+_mail_encode_quoted_printable()		# http://en.wikipedia.org/wiki/Quoted-printable#Example | http://tools.ietf.org/html/rfc2045
 {					# http://rand-mh.sourceforge.net/book/overall/mulmes.html	// debug: apt-get install qprint
-	local FUNC="mail_encode_quoted_printable"
+	local funcname="mail_encode_quoted_printable"
 
 	local FILE="$1"			# fixme! there is no check for special chars, done already:
-	local WRAP=75			# - tab/space at the end of a line to '=09' / '=20'
+	local WRAP=71			# - tab/space at the end of a line to '=09' / '=20'
 	local BUFFER="$WRAP"		# - newlines to '=0A'
 	local WINDOWSTART=1		# - linewrap at 75 column + a softbreak '='
 	local LINE OUTPUT		# - encoded special chars must not be line-wrapped
 
-	_stopwatch start $FUNC
+	_stopwatch start "$funcname"
 
 	local oldifs="$IFS"
 	IFS="
 "
 #	sed -e 's/	$/=09/' -e 's/ $/=20/' -e 's/$/=0A/' "$FILE" | while read LINE; do {
-	sed 's/$/=0A/' "$FILE" | while read LINE; do {
-
+	sed -e 's/=/=3D/g' -e 's/$/=00/' "$FILE" | while read LINE; do {
 		while true; do {
 
 			case $LINE in
-				"."*) LINE="=2E$( echo "$LINE" | cut -b 2-9999 )"
+				"."*) LINE="=2E$( echo "$LINE" | cut -b 2- )"
 			esac
 
 			if   [ ${#LINE} -lt $BUFFER ]; then
 
-				echo -n "$LINE"
-				BUFFER=$(( $BUFFER - ${#LINE} ))
-				break		# fetch next LINE
+				LINE="$( echo "$LINE" | sed 's/=00$//' )"
+				echo -en "$LINE\r\n"
+				break
+
+#				echo -n "$LINE"
+#				BUFFER=$(( $BUFFER - ${#LINE} ))
+#				break		# fetch next LINE
 
 			elif [ ${#LINE} -eq $BUFFER ]; then
 
@@ -388,11 +391,11 @@ _mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable
 				OUTPUT="$( echo "$LINE" | cut -b $WINDOWSTART-$BUFFER )"	# fixme! newer busybox can 'echo ${A:5:7}'
 
 				case "$OUTPUT" in
-					*=)					# =A0 at the end (encoded) must not be wrapped
+					*=|*" ")				# =A0 at the end (encoded) must not be wrapped
 						BUFFER=$(( $BUFFER - 1 ))
 						OUTPUT="$( echo "$OUTPUT" | cut -b $WINDOWSTART-$BUFFER )"
 					;;
-					*=?)					# means: '=' and <anychar> at the end
+					*=?|*" 0")				# means: '=' and <anychar> at the end
 						BUFFER=$(( $BUFFER - 2 ))
 						OUTPUT="$( echo "$OUTPUT" | cut -b $WINDOWSTART-$BUFFER )"
 					;;
@@ -402,8 +405,8 @@ _mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable
 					;;
 				esac
 
-				echo "${OUTPUT}="
-				LINE="$( echo "$LINE" | cut -b $(( $BUFFER + 1 ))-9999 )"	# idea: simply raise startcounter
+				echo -en "${OUTPUT}=\r\n"
+				LINE="$( echo "$LINE" | cut -b $(( $BUFFER + 1 ))- )"	# idea: simply raise startcounter
 				BUFFER=$WRAP
 			fi
 
@@ -413,5 +416,5 @@ _mail_encode_quoted_printable ()	# http://en.wikipedia.org/wiki/Quoted-printable
 
 	IFS="$oldifs"
 
-	_stopwatch stop $FUNC quiet
+	_stopwatch stop "$funcname" quiet
 }
