@@ -1,6 +1,6 @@
-_filetype_check_header ()
+_filetype_check_header()
 {
-	local MAGIC="$1"		# show | regex
+	local MAGIC="$1"		# keyword 'show' or a regex, e.g. ^1f8b:
 	local FILE="$2"
 	local BYTES LINE
 	local GREPFLAG="-q"
@@ -15,24 +15,19 @@ _filetype_check_header ()
 	esac
 
 	dd if="$FILE" bs=${BYTES} count=1 2>&- |
-	
 		hexdump -C |
-	
 			if read LINE; then echo "${LINE#* }"; fi |
-	
 				sed 's/ //g' |
-	
 					grep $GREPFLAG "$MAGIC" && {
 						return 0
 					}
-
 	return 1
 }
 
-_filetype_detect_mimetype ()
+_filetype_detect_mimetype()
 {
 	local FILE="$1"
-	local LIST="gzip pdf gif html"
+	local LIST="tar gzip pdf gif html"
 	local TYPE
 
 	for TYPE in $LIST; do {
@@ -40,6 +35,7 @@ _filetype_detect_mimetype ()
 	} done
 
 	case $TYPE in
+		tar)  TYPE="application/tar" ;;
 		gzip) TYPE="application/gzip" ;;
 		pdf)  TYPE="application/pdf" ;;
 		gif)  TYPE="image/gif" ;;
@@ -50,7 +46,7 @@ _filetype_detect_mimetype ()
 	echo $TYPE
 }
 
-_filetype_compressed ()
+_filetype_compressed()
 {
 	local FILE="$1"
 	local TYPE
@@ -63,44 +59,53 @@ _filetype_compressed ()
 	return 1
 }
 
-_filetype_gif ()
+_filetype_gif()
 {
 	return 1
 }
 
-_filetype_html ()
+_filetype_html()
 {
 	return 1
 }
 
-_filetype_gzip ()
+_filetype_gzip()
 {
 	local FILE="$1"
 	local MAGIC="^1f8b"
 
-	_filetype check_header "$MAGIC" "$FILE" || return 1
+	_filetype check_header "$MAGIC" "$FILE"
 }
 
-_filetype_pdf ()
+_filetype_pdf()
 {
 	local FILE="$1"
 	local MAGIC="^255044462d31"	# '%PDF-1.'
 
-	_filetype check_header "$MAGIC" "$FILE" || return 1
+	_filetype check_header "$MAGIC" "$FILE"
 }
 
-_filetype_script ()
+_filetype_script()
 {
 	local file="$1"
 	local magic="^23212f"		# first 3 bytes of '#!/bin/sh'
 
-	_filetype check_header "$magic" "$file" || return 1
+	_filetype check_header "$magic" "$file"
 }
 
-_filetype_elf ()
+_filetype_elf()
 {
 	local file="$1"
 	local magic="^7f454c46"		# first 4 bytes: '.ELF'
 
-	_filetype check_header "$magic" "$file" || return 1
+	_filetype check_header "$magic" "$file"
+}
+
+_filetype_tar()
+{
+	local file="$1"
+	local check_lines_max=10
+	local magic="00000100  00 75 73 74 61 72 20 20  "
+
+	hexdump -C | head -n "$check_lines_max" | grep -q "$magic"
 }
