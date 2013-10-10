@@ -50,6 +50,7 @@ else
 
 	case "$QUERY_STRING" in
 		*'bonehead'*)
+			_http header_mimetype_output 'text/plain'
 			cat '/tmp/USERDB_COPY.cgi.gz'
 		;;
 		*)
