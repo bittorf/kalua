@@ -31,11 +31,11 @@ if [ -e "/tmp/FREE" ]; then
 	echo "# OK - FREE"
 else
 	# fixme! must be updated if something changes
-	[ -e "/tmp/USERDB_COPY.cgi" ] || {
+	[ -e "/tmp/USERDB_COPY.done" ] || {
+		touch '/tmp/USERDB_COPY.done'
+
 		# why tac? it's likely, that we grep for a new login - this should match faster
 		# this is >1 magnitude faster than sed-tac
-		touch '/tmp/USERDB_COPY.cgi'
-
 		grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2- >'/tmp/USERDB_COPY.cgi'
 		echo "# OK" >>'/tmp/USERDB_COPY.cgi'
 
