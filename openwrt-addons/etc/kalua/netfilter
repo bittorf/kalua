@@ -1149,7 +1149,7 @@ _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
 	iptables -t mangle -nxvL FORWARD |
 	 while read line; do {
 		case "$line" in
-			*'incoming_'*|*'incoming2_'*)
+			*'incoming_'*)
 				set -- $line
 				bytes_incoming=$(( $bytes_incoming + $2 ))
 				mac="${3#*_}"
@@ -1384,7 +1384,7 @@ _netfilter_user_dataretention_add()
 	iptables -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ULOG --ulog-prefix "$mac<"
 
 	iptables -t mangle -A FORWARD -d $ip -j incoming_$mac
-	iptables -t mangle -A FORWARD -s $ip -j incoming2_$mac
+	iptables -t mangle -A FORWARD -s $ip -j incoming_$mac
 	iptables -t mangle -A FORWARD -m mac --mac-source $mac -j outgoing_$mac
 }
 
@@ -1396,6 +1396,7 @@ _netfilter_user_dataretention_del()
 	[ -e "/tmp/NETFILTER/USER/$mac/dataretention" ] || return 1
 
 	iptables -t mangle -D FORWARD -d $ip -j incoming_$mac
+	iptables -t mangle -D FORWARD -s $ip -j incoming_$mac
 	iptables -t mangle -D FORWARD -m mac --mac-source $mac -j outgoing_$mac
 	iptables -t mangle -F outgoing_$mac
 	iptables -t mangle -X outgoing_$mac
