@@ -94,15 +94,28 @@ touch "/tmp/LOCK_OLSRSLAVE"
 elif _olsr uptime is_short; then
 	ERROR="SHORT_OLSR_UPTIME"
 else
-	eval $( _http query_string_sanitize )
+	eval $( _http query_string_sanitize )		# ?netaddr=...&netmask=...&version=...
 
-	RTABLE="$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" || {
-		knowing_hna_already "$netaddr" "$netmask" && {
-			RTABLE="$( ip route list exact $REMOTE_ADDR | fgrep " via $REMOTE_ADDR " )"
+	if _sanitizer do "$version" numeric check; then
+		RTABLE="$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" || {
+			knowing_hna_already "$netaddr" "$netmask" && {
+				RTABLE="$( ip route list exact $REMOTE_ADDR | fgrep " via $REMOTE_ADDR " )"
+			}
 		}
-	}
+
+		test $version -ge $FFF_PLUS_VERSION || {
+			RTABLE='slave_version_to_low:$version'
+			ERROR="$RTABLE"
+		}
+	else
+		RTABLE='error_in_version'
+		ERROR="$RTABLE"
+	fi
 
 	case "$RTABLE" in
+		'slave_version_to_low'*|'error_in_version')
+			dev2slave=
+		;;
 		*" dev $LANDEV "*)
 			dev2slave="$LANDEV"
 			for DEV in $WANDEV $WIFIDEV; do {
