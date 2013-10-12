@@ -1,6 +1,7 @@
 #!/bin/sh
 if /sbin/uci get system.@system[0].hostname >/dev/console; then	# test something essential
 	read UP REST </proc/uptime
+	read LOAD REST </proc/loadavg
 else
 	UP=999999
 fi
@@ -23,10 +24,13 @@ if [ -e "/tmp/CRON_PSWORK" ]; then
 	echo "c" >/proc/sysrq-trigger
 	/sbin/reboot -f
 else
-	ps >"/tmp/CRON_PSWORK"		# test something essential
+	case "$LOAD" in
+		0.*)
+			ps >"/tmp/CRON_PSWORK"		# test something essential
+		;;
+	esac
 fi
 
-read LOAD REST </proc/loadavg
 # uncomment to collect 1) date 2) lockstatus 3) network-traffic and 4) freemem/uptime/load 5) taskcount and 6) dump into '/tmp/CRONSTATUS'
 #1# REST="$( date ) "
 #2# [ -e /tmp/CRON_LOCK ] && REST="$REST [LOCKED] "
@@ -40,17 +44,22 @@ echo "up: $UP load: $LOAD rest: $REST" >/dev/console
 
 rm "/tmp/CRON_PSWORK"
 
+### PING_MONITORING_SERVER ###
+
+case "$LOAD" in
+	0.*)
 ### CALL_APPLYPROFILE ###
 ### CALL_ZRAMCHECK ###
 ### CALL_ZRAMREBOOT ###
 ### CALL_UBUSCHECKER ###
 ### CALL_WIFICHECK ###
 ### CALL_IRQ ###
-### PING_MONITORING_SERVER ###
 ### CALL_RRD ###
 ### CALL_WEBCAM ###
 ### WAIT_FOR_APPLY_PROFILE ###
 ### NOCRON_DURING_CLIENT_ACTION ###
+	;;
+esac
 
 case "$LOAD" in
 	1.00)
@@ -78,7 +87,7 @@ case "$LOAD" in
 			case "$I" in
 				"#"*)
 					rm "/tmp/CRON_OVERLOAD"
-					echo "ALERT: $( date ) loady_after_overload - load: $LOAD - I: $I - up: $UP" >>/www/everlasting_syslog.txt
+					echo "ALERT: $( date ) loady_after_overload - load: $LOAD - I: $I - up: $UP" >>/dev/console
 				;;
 			esac
 		}
@@ -164,9 +173,10 @@ case "$LOAD" in
 				case ${#I} in
 					0|1|2|3)
 					;;
-					4|5|6|7|8|9|10|1*|2*)
+					4|5)
 						killall dropbear	# maybe a script attack
-
+					;;
+					4|5|6|7|8|9|10|1*|2*)
 						. /tmp/loader
 						_watch space_tmpfs
 						_watch topusage_task "cron.minutely: load = $LOAD I=$I"
