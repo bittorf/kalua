@@ -42,6 +42,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	local reason="$1"	# e.g. remove_old_stuff
 	local file="/www/cgi-bin/db_backup.tgz"
 	local file_temp="/tmp/db_backup.tgz.temp.$$"
+	local file_safewrite="$file.safewrite"
 	local dir="/tmp/DB"
 	local errorcode=0
 	local border=-5
@@ -87,28 +88,28 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		else
 			s1=$( _file size "$file_temp" )
 
-			if mv "$file_temp" "${file}.safewrite"; then
+			if mv "$file_temp" "$file_safewrite"; then
 				sync
-				s2=$( _file size "${file}.safewrite" )
+				s2=$( _file size "$file_safewrite" )
 
 				if [ $s1 -eq $s2 ]; then
-					_log do $funcname daemon info "[OK] moved $file_temp -> $file.safewrite (sizechange: ${percentual_change}%)"
+					_log do $funcname daemon info "[OK] moved $file_temp -> $file_safewrite (sizechange: ${percentual_change}%)"
 
 					[ -e "$file" ] || touch "$file"
 					if mv "${file}" "${file}.old"; then
-						if mv "${file}.safewrite" "${file}"; then
+						if mv "$file_safewrite" "${file}"; then
 							sync
 							s2=$( _file size "${file}" )
 
 							if [ $s1 -eq $s2 ]; then
 								rm "${file}.old"
-								_log do $funcname daemon info "[OK] moved ${file}.safewrite -> ${file}"
+								_log do $funcname daemon info "[OK] moved $file_safewrite -> ${file}"
 							else
-								_log do $funcname daemon sms "[ERR] moved ${file}.safewrite -> ${file}"
+								_log do $funcname daemon sms "[ERR] moved $file_safewrite -> ${file}"
 								errorcode=1
 							fi
 						else
-							_log do $funcname daemon sms "[ERR] moving ${file}.safewrite -> ${file}"
+							_log do $funcname daemon sms "[ERR] moving $file_safewrite -> ${file}"
 							errorcode=1
 						fi
 					else
@@ -117,11 +118,11 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 						errorcode=1
 					fi
 				else
-					_log do $funcname daemon sms "[ERR] moving $file_temp -> $file.safewrite free: $( _system flash_free kilobytes ) kb"
+					_log do $funcname daemon sms "[ERR] moving $file_temp -> $file_safewrite free: $( _system flash_free kilobytes ) kb"
 					errorcode=1
 				fi
 			else
-				rm "${file}.safewrite"
+				rm "$file_safewrite"
 				_log do $funcname daemon sms "[ERR] moving $file_temp -> $file free: $( _system flash_free kilobytes ) kb"
 				errorcode=1
 			fi
