@@ -46,7 +46,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	local dir="/tmp/DB"
 	local errorcode=0
 	local border=-5
-	local s1 s2 s3
+	local s1 s2 s3 flash_free
 
 	[ -d "$dir" ] || return 0
 	[ -e "$dir/USER/login/meta_index" ] || return 0
@@ -86,7 +86,14 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 			_log do $funcname daemon sms "$shrinktext - abort"
 			errorcode=1
 		else
-			s1=$( _file size "$file_temp" )
+			s1=$( _file size "$file_temp" )		# bytes
+			flash_free=$( _system flash_free )	# kilobytes
+			flash_free=$(( $flash_free * 800 ))	# kilobytes -> bytes * 0.8
+
+			[ $flash_free -lt $s1 ] && {
+				file_safewrite="/tmp/db_backup_safewrite"
+				_log do $funcname daemon info "low flashspace, bend-over safewrite to '$file_safewrite'"
+			}
 
 			if mv "$file_temp" "$file_safewrite"; then
 				sync
