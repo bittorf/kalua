@@ -46,14 +46,7 @@ rrd_update()
 
 	[ -e "$file" ] || rrd_setup
 
-	set -- $( iptables -nxvL FORWARD 2 )
-	up_packets="-$(( $1 * 350 ))"		# upscale
-	up_bytes=-$2
-	set -- $( iptables -nxvL FORWARD 1 )
-	down_packets=$(( $1 * 350 ))
-	down_bytes=$2
-
-	[ -e "/tmp/STATS_FORWARD" ] && {
+	[ -e "/tmp/STATS_FORWARD" ] && {	# S51cron set this if needed
 		local stats_old
 		read stats_old <"/tmp/STATS_FORWARD"
 		[ "$stats_old" = "${up_packets}:${down_packets}" ] && {
@@ -75,10 +68,43 @@ rrd_update()
 	esac
 
 	# longshot-mode
-	[ $stations -eq 1 ] && {
-		set -- $( iw dev $WIFIDEV station dump | fgrep 'signal avg:' )
-		signal=${3:-0}
-	}
+	if [ $stations -eq 1 ]; then
+		set -- $( iw dev "$WIFIDEV" station dump )
+		shift 7
+
+		while [ -n "$2" ]; do {
+			shift
+			case "$1 $2" in
+				'rx bytes:')
+					up_bytes=-$3
+					shift 2
+				;;
+				'rx packets:')
+					up_packets="-$(( $3 * 350 ))"	# upscale
+					shift 2
+				;;
+				'tx bytes:')
+					down_bytes=-$3
+					shift 2
+				;;
+				'tx packets:')
+					down_packets="-$(( $3 * 350 ))"	# upscale
+					shift 2
+				;;
+				'signal avg:')
+					signal=${3:-0}
+					break
+				;;
+			esac
+		} done
+	else
+		set -- $( iptables -nxvL FORWARD 2 )
+		up_packets="-$(( $1 * 350 ))"		# upscale
+		up_bytes=-$2
+		set -- $( iptables -nxvL FORWARD 1 )
+		down_packets=$(( $1 * 350 ))
+		down_bytes=$2
+	fi
 
 	while read line; do {
 		case "$line" in
