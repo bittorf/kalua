@@ -7,16 +7,18 @@ boot()
 	local line unixtime reason
 	local crashlog='/sys/kernel/debug/crashlog'
 
+	grep -q 'debugfs'$ '/proc/filesystems' && mount -o noatime -t debugfs debugfs '/sys/kernel/debug'
+
 	[ -e "$crashlog" ] && {
 		[ -e '/www/CRASHLOG_WORKS' ] || touch '/www/CRASHLOG_WORKS'
 	}
 
 	[ -e '/www/CRASHLOG_WORKS' ] && {
 		if line="$( grep -s ' Comm: ux.,' "$crashlog" )"; then			# see system_crashreboot()
-			reason="$( echo "$line" | sed 's/.* ux\(.\),.*/\1/' )"		# ux0 -> 0
+			reason="$( echo "$line" | sed -n 's/.* ux\(.\),.*/\1/p' )"	# ux0 -> 0
 			unixtime="$( echo "$line" | head -n1 | cut -d',' -f2 )"
 			date --set @$unixtime
-			echo "$( date ) [OK] reboot reason: '$reason' )" >>'/www/everlasting_syslog.txt'
+			echo "$( date ) [OK] reboot reason: '$reason'" >>'/www/everlasting_syslog.txt'
 		else
 			if [ -e "$crashlog" ]; then
 				echo "$( date ) [ERROR] crash detected in '$crashlog'" >>'/www/everlasting_syslog.txt'
