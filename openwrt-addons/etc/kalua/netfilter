@@ -907,7 +907,7 @@ _netfilter_splash_start()
 {
 	local myhna="$( _netfilter myhna )"
 #	local debug="echo"			# must be empty for debug-mode
-	local ip source destination dev
+	local ip source destination dev temp_dev
 	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8"
 
 	mkdir -p "/tmp/NETFILTER/USER" \
@@ -977,9 +977,13 @@ _netfilter_splash_start()
 	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
 	for dev in br-mybridge gateway0 $WIFI_DEVS $LANDEV; do {
+		temp_dev="$dev"
+		[ "$dev" = 'gateway0' ] && dev=br-mybridge
+
 		ip="$( _net dev2ip $dev )" || sleep 30
 		ip="$( _net dev2ip $dev )" || continue
 
+		[ "$temp_dev" = 'gateway0' ] && dev='gateway0'
 		iptables -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
 		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:53
 		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
