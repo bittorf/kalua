@@ -31,9 +31,10 @@ if [ -z "$REPONAME" ] || [ -z "$REPOURL" ]; then
 fi
 
 TRUNK=0
+
 case "$@" in
 	*"use_trunk"*)
-		log "we will be on top of openwrt devopment"
+		log "we will be on top of openwrt development"
 		TRUNK=1
 	;;
 esac
@@ -88,6 +89,14 @@ clone()
 			;;
 		esac
 	fi
+}
+
+# print a json file with openwrt and weimarnetz revision, we expect to be in the openwrt directory
+print_revisions()
+{
+	OPENWRT_REV="$( ./scripts/getver.sh )"
+	KALUA_REV="$(  cat package/base-files/files/etc/variables_fff+ |grep FFF_PLUS|tr -d ''|cut -d '=' -f 2|cut -d '#' -f 1)"	
+	echo "{'OPENWRT_REV':'$OPENWRT_REV','KALUA_REV':'$KALUA_REV'}" > "revisions.json"
 }
 
 mymake()	# fixme! how to ahve a quiet 'make defconfig'?
@@ -174,6 +183,7 @@ for SPECIAL in unoptimized kcmdlinetweak; do {
 
 $REPONAME/openwrt-build/mybuild.sh applymystuff
 $REPONAME/openwrt-build/mybuild.sh make
+print_revisions
 
 log "please removing everything via 'rm -fR release' if you are ready"
 log "# buildstring: $( show_args "$@" )"
