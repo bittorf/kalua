@@ -91,12 +91,12 @@ clone()
 	fi
 }
 
-# print a json file with openwrt and weimarnetz revision, we expect to be in the openwrt directory
+# print a json file with openwrt and weimarnetz revision, we assume to be in the openwrt directory
 print_revisions()
 {
 	OPENWRT_REV="$( ./scripts/getver.sh )"
-	KALUA_REV="$(  cat package/base-files/files/etc/variables_fff+ |grep FFF_PLUS|tr -d ''|cut -d '=' -f 2|cut -d '#' -f 1)"	
-	echo "{'OPENWRT_REV':'$OPENWRT_REV','KALUA_REV':'$KALUA_REV'}" > "revisions.json"
+	KALUA_REV="$(  cat package/base-files/files/etc/variables_fff+ |grep FFF_PLUS|tr -d '[:space:]'|cut -d '=' -f 2|cut -d '#' -f 1)"	
+	echo "{'OPENWRT_REV':'$OPENWRT_REV','KALUA_REV':'$KALUA_REV'}" > "bin/revisions.json"
 }
 
 mymake()	# fixme! how to ahve a quiet 'make defconfig'?
