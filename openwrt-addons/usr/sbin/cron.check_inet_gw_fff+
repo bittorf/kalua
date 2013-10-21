@@ -190,8 +190,6 @@ _log do guess_gateway daemon debug "$OUT"
 
 	batman_measure_nexthop_and_speedtest()
 	{
-		pidof bat_events >/dev/null || return 0
-
 		local file_trace='/tmp/BATCTL_TRACEROUTE'
 		local file_all='/tmp/GATEWAY_CHECK_RECENT.batman'
 		local nexthop_mac='*'
@@ -277,7 +275,13 @@ _log do guess_gateway daemon debug "$OUT"
 					echo "$PATH_SPEED" >/tmp/USERDB_COPY.speed
 					_log do fetch_userdb_copy daemon info "speed was $PATH_SPEED bytes/sec"
 
-					batman_measure_nexthop_and_speedtest
+					if pidof bat_events >/dev/null; then
+						batman_measure_nexthop_and_speedtest
+					else
+						[ -z "$( _speedtest stats here "$NEXTHOP" )" ] && {
+							_speedtest do here "$NEXTHOP" poormens_tcpdownload
+						}
+					fi
 				;;
 				*)
 					rm "/tmp/USERDB_COPY"
