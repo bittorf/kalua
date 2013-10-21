@@ -72,6 +72,7 @@ rrd_update()
 	# longshot-mode
 	if [ $stations -eq 1 ]; then
 		set -- $( iw dev "$WIFIDEV" station dump )
+		line="$@"
 		shift 7
 
 		# fixme! maybe we should add e.g. 'tx retries:' to get the REAL air-pollution or at least graph it
@@ -100,6 +101,15 @@ rrd_update()
 				;;
 			esac
 		} done
+
+		case "${down_bytes}${down_packets}" in
+			*'-'*)
+				. /tmp/loader
+				_log do rrd_update daemon alert "strange values: down_bytes/packets: $down_bytes/$down_packets line: $line"
+				down_bytes=0
+				down_packets=0
+			;;
+		esac
 	else
 		set -- $( iptables -nxvL FORWARD 2 )
 		up_packets="-$(( $1 * $typical_average_packetsize ))"
