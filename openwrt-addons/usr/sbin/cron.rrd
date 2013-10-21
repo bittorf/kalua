@@ -43,17 +43,19 @@ rrd_update()
 	local mac stations=0
 	local users=0
 	local line udp=0 tcp=0 signal=0
+	local typical_average_packetsize=350	# for upscaling in graph
 
 	[ -e "$file" ] || rrd_setup
 
-	[ -e "/tmp/STATS_FORWARD" ] && {	# S51cron set this if needed
-		local stats_old
-		read stats_old <"/tmp/STATS_FORWARD"
-		[ "$stats_old" = "${up_packets}:${down_packets}" ] && {
-			echo "ALERT: no_forward $( date ) - load: $LOAD - up: $UP stats: $stats_old" >>/www/everlasting_syslog.txt
-		}
-		echo "${up_packets}:${down_packets}" >"/tmp/STATS_FORWARD"
-	}
+# fixme!
+#	[ -e "/tmp/STATS_FORWARD" ] && {	# S51cron set this if needed
+#		local stats_old
+#		read stats_old <"/tmp/STATS_FORWARD"
+#		[ "$stats_old" = "${up_packets}:${down_packets}" ] && {
+#			echo "ALERT: no_forward $( date ) - load: $LOAD - up: $UP stats: $stats_old" >>/www/everlasting_syslog.txt
+#		}
+#		echo "${up_packets}:${down_packets}" >"/tmp/STATS_FORWARD"
+#	}
 
 	for mac in /sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations/*; do stations=$(( $stations + 1 )); done
 	case "$mac" in
@@ -72,6 +74,7 @@ rrd_update()
 		set -- $( iw dev "$WIFIDEV" station dump )
 		shift 7
 
+		# fixme! maybe we should add e.g. 'tx retries:' to get the REAL air-pollution or at least graph it
 		while [ -n "$2" ]; do {
 			shift
 			case "$1 $2" in
@@ -80,7 +83,7 @@ rrd_update()
 					shift 2
 				;;
 				'rx packets:')
-					up_packets="-$(( $3 * 350 ))"	# upscale
+					up_packets="-$(( $3 * $typical_average_packetsize ))"
 					shift 2
 				;;
 				'tx bytes:')
@@ -88,7 +91,7 @@ rrd_update()
 					shift 2
 				;;
 				'tx packets:')
-					down_packets="$(( $3 * 350 ))"	# upscale
+					down_packets=$(( $3 * $typical_average_packetsize ))
 					shift 2
 				;;
 				'signal avg:')
@@ -99,10 +102,10 @@ rrd_update()
 		} done
 	else
 		set -- $( iptables -nxvL FORWARD 2 )
-		up_packets="-$(( $1 * 350 ))"		# upscale
+		up_packets="-$(( $1 * $typical_average_packetsize ))"
 		up_bytes=-$2
 		set -- $( iptables -nxvL FORWARD 1 )
-		down_packets=$(( $1 * 350 ))
+		down_packets=$(( $1 * $typical_average_packetsize ))
 		down_bytes=$2
 	fi
 
