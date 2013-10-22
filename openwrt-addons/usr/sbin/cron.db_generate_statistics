@@ -44,19 +44,23 @@ case "$MODE" in
 	;;
 esac
 
-MAX_DEVICES=0
-BYTES_OVERALL=0
-while read LINE; do {
-	eval $LINE
-	[ $A -gt $UNIXTIME_END ] && break
-	[ $A -gt $UNIXTIME_START ] && WORK=1
-	[ "$WORK" = "1" ] && {
-		DEVICE_LIST="$DEVICE_LIST $D"
-		BYTES_OVERALL=$(( $BYTES_OVERALL + $B ))
-		[ $B -gt ${MAX_BYTES:-0} ] && MAX_BYTES=$B
-		[ $C -gt $MAX_DEVICES ] && MAX_DEVICES=$C
-	}
-} done <"/tmp/DB/USER/device/stats"
+if [ "$( strings '/tmp/DB/USER/device/stats' | wc -c )" = "$( cat '/tmp/DB/USER/device/stats' | wc -c )" ]; then
+	MAX_DEVICES=0
+	BYTES_OVERALL=0
+	while read LINE; do {
+		eval $LINE
+		[ $A -gt $UNIXTIME_END ] && break
+		[ $A -gt $UNIXTIME_START ] && WORK=1
+		[ "$WORK" = "1" ] && {
+			DEVICE_LIST="$DEVICE_LIST $D"
+			BYTES_OVERALL=$(( $BYTES_OVERALL + $B ))
+			[ $B -gt ${MAX_BYTES:-0} ] && MAX_BYTES=$B
+			[ $C -gt $MAX_DEVICES ] && MAX_DEVICES=$C
+		}
+	} done <"/tmp/DB/USER/device/stats"
+else
+	_log do check_statfile daemon alert "potential error in '/tmp/DB/USER/device/stats', please check manually for corruption"
+fi
 
 DEVICES_UNIQ="$( _list uniq "$DEVICE_LIST" | wc -l )"
 DEVICE_LIST=
@@ -98,28 +102,31 @@ echo
 
 [ -e "$FILE" ] && cat "$FILE"
 
-WORK=
-while read LINE; do {
-	eval $LINE
+if [ -n "$MAX_DEVICES" ]; then
+	WORK=
+	while read LINE; do {
+		eval $LINE
 
-	[ $A -gt $UNIXTIME_END ] && break
-	[ $A -gt $UNIXTIME_START ] && WORK=1
+		[ $A -gt $UNIXTIME_END ] && break
+		[ $A -gt $UNIXTIME_START ] && WORK=1
 
-	[ "$WORK" = "1" ] && {
-		TIME="$( _system date unixtime2date "$A" | sed "s/^.* \(..:..\):.. .*/\1/" )"
-		DEVICES="$C"
-		[ ${#DEVICES} -eq 1 ] && DEVICES=" $DEVICES"
+		[ "$WORK" = "1" ] && {
+			TIME="$( _system date unixtime2date "$A" | sed "s/^.* \(..:..\):.. .*/\1/" )"
+			DEVICES="$C"
+			[ ${#DEVICES} -eq 1 ] && DEVICES=" $DEVICES"
 
-		if [ $(( ($B * 100) / $MAX_BYTES )) -gt 25 ]; then	# means 25% of a 100% bytes2blocks()
-			PRINT_BYTES="$( _sanitizer do "$B" number_humanreadable ) bytes"
-		else
-			PRINT_BYTES=
-		fi
+			if [ $(( ($B * 100) / $MAX_BYTES )) -gt 25 ]; then	# means 25% of a 100% bytes2blocks()
+				PRINT_BYTES="$( _sanitizer do "$B" number_humanreadable ) bytes"
+			else
+				PRINT_BYTES=
+			fi
 
-		[ -n "$OPTION" ] || echo "$TIME ($DEVICES) $( bytes2blocks "$MAX_BYTES" "$B" ) $PRINT_BYTES"
-	}
-
-} done <"/tmp/DB/USER/device/stats"
+			[ -n "$OPTION" ] || echo "$TIME ($DEVICES) $( bytes2blocks "$MAX_BYTES" "$B" ) $PRINT_BYTES"
+		}
+	} done <"/tmp/DB/USER/device/stats"
+else
+	echo "potential error in '/tmp/DB/USER/device/stats', please check manually"
+fi
 
 [ ${#DEVICES_UNIQ} -eq 1 ] && DEVICES_UNIQ=" $DEVICES_UNIQ"
 
