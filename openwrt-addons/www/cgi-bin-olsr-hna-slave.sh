@@ -64,6 +64,8 @@ device_forbidden()
 			[ "$NODENUMBER" = 6 ] && return 0
 		;;
 		ejbw*)
+			return 0
+
 			case "$NODENUMBER" in
 				100|101)
 					return 0
