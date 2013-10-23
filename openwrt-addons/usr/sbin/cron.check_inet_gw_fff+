@@ -182,7 +182,7 @@ _log do guess_gateway daemon debug "$OUT"
 		return 0
 	}
 
-	batman_measure_nexthop_and_speedtest()
+	batman_measure_nexthop()
 	{
 		local file_trace='/tmp/BATCTL_TRACEROUTE'
 		local file_all='/tmp/GATEWAY_CHECK_RECENT.batman'
@@ -207,8 +207,6 @@ _log do guess_gateway daemon debug "$OUT"
 		metric=$(( $metric - 1 ))		# headerline
 
 		echo "GATEWAY=$gateway; NEXTHOP=$nexthop; METRIC=$metric" >"$file_all"
-
-		_speedtest do here "$nexthop" poormens_tcpdownload
 	}
 
 	if userdb_copy_needed; then
@@ -269,13 +267,11 @@ _log do guess_gateway daemon debug "$OUT"
 					echo "$PATH_SPEED" >/tmp/USERDB_COPY.speed
 					_log do fetch_userdb_copy daemon info "speed was $PATH_SPEED bytes/sec"
 
-					if pidof bat_events >/dev/null; then
-						batman_measure_nexthop_and_speedtest
-					else
-						[ -z "$( _speedtest stats here "$NEXTHOP" )" ] && {
-							_speedtest do here "$NEXTHOP" poormens_tcpdownload
-						}
-					fi
+					pidof bat_events >/dev/null && {
+						batman_measure_nexthop
+					}
+
+					_wifi sensitivity >/dev/null
 				;;
 				*)
 					rm "/tmp/USERDB_COPY"
