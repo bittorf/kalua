@@ -40,8 +40,8 @@ rrd_update()
 
 	local funcname="rrd_update"
 	local file="/tmp/datafile.rrd"
-	local up_packets up_bytes
-	local down_packets down_bytes
+	local up_packets=0 up_bytes=0
+	local down_packets=0 down_bytes=0
 	local mac stations=0
 	local users=0
 	local line udp=0 tcp=0 signal=0
@@ -73,7 +73,9 @@ rrd_update()
 
 	# longshot-mode
 	if [ $stations -eq 1 -o -n "$force_station_mac" ]; then
-		if [ -n "$force_station_mac" ]; then
+		if   [ "$force_station_mac" = 'all' ]; then
+			set -- $( iw dev "$WIFIDEV" station dump )
+		elif [ -n "$force_station_mac" ]; then
 			set -- $( iw dev "$WIFIDEV" station get "$force_station_mac" )
 		else
 			set -- $( iw dev "$WIFIDEV" station dump )
@@ -87,27 +89,31 @@ rrd_update()
 			shift
 			case "$1 $2" in
 				'rx bytes:')
-					up_bytes=-$3
+					up_bytes=$(( $up_bytes - $3 ))
 					shift 2
 				;;
 				'rx packets:')
-					up_packets="-$(( $3 * $typical_average_packetsize ))"
+					up_packets=$(( $up_packets - $3 ))
 					shift 2
 				;;
 				'tx bytes:')
-					down_bytes=$3
+					down_bytes=$(( $down_bytes + $3 ))
 					shift 2
 				;;
 				'tx packets:')
-					down_packets=$(( $3 * $typical_average_packetsize ))
+					down_packets=$(( $down_packets * $3 ))
 					shift 2
 				;;
 				'signal avg:')
-					signal=${3:-0}
-					break
+					signal=$(( $signal + ${3:-0} ))
+					[ "$force_station_mac" = 'all' ] || break
 				;;
 			esac
 		} done
+
+		signal=$(( $signal / $stations ))
+		up_packets=$((   $up_packets   * $typical_average_packetsize ))		# later: use CDEF
+		down_packets=$(( $down_packets * $typical_average_packetsize ))
 
 		case "${up_bytes}" in
 			*'-'*)
