@@ -43,7 +43,7 @@ rrd_update()
 	local up_packets=0 up_bytes=0
 	local down_packets=0 down_bytes=0
 	local mac stations=0
-	local users=0
+	local users=0 iw_rc
 	local line udp=0 tcp=0 signal=0
 	local typical_average_packetsize=350	# for upscaling in graph
 
@@ -74,11 +74,11 @@ rrd_update()
 	# longshot-mode
 	if [ $stations -eq 1 -o -n "$force_station_mac" ]; then
 		if   [ "$force_station_mac" = 'all' ]; then
-			set -- $( iw dev "$WIFIDEV" station dump )
+			set -- $( iw dev "$WIFIDEV" station dump || iw_rc=$? )
 		elif [ -n "$force_station_mac" ]; then
-			set -- $( iw dev "$WIFIDEV" station get "$force_station_mac" )
+			set -- $( iw dev "$WIFIDEV" station get "$force_station_mac" || iw_rc=$? )
 		else
-			set -- $( iw dev "$WIFIDEV" station dump )
+			set -- $( iw dev "$WIFIDEV" station dump || iw_rc=$? )
 		fi
 
 		line="$@"
@@ -120,7 +120,7 @@ rrd_update()
 			;;
 			*)
 				. /tmp/loader
-				_log do rrd_update daemon alert "strange values: up_bytes: $up_bytes line: '$line'"
+				_log do rrd_update daemon alert "strange values: rc: $iw_rc up_bytes: $up_bytes line: '$line'"
 				up_bytes=0
 			;;
 		esac
@@ -130,7 +130,7 @@ rrd_update()
 			;;
 			*)
 				. /tmp/loader
-				_log do rrd_update daemon alert "strange values: up_packets: $up_packets line: '$line'"
+				_log do rrd_update daemon alert "strange values: rc: $iw_rc up_packets: $up_packets line: '$line'"
 				up_packets=0
 			;;
 		esac
@@ -138,7 +138,7 @@ rrd_update()
 		case "${down_bytes}" in
 			*'-'*)
 				. /tmp/loader
-				_log do rrd_update daemon alert "strange values: down_bytes: $down_bytes line: '$line'"
+				_log do rrd_update daemon alert "strange values: rc: $iw_rc down_bytes: $down_bytes line: '$line'"
 				down_bytes=0
 			;;
 		esac
@@ -146,7 +146,7 @@ rrd_update()
 		case "${down_packets}" in
 			*'-'*)
 				. /tmp/loader
-				_log do rrd_update daemon alert "strange values: down_packets: $down_packets line: '$line'"
+				_log do rrd_update daemon alert "strange values: rc: $iw_rc down_packets: $down_packets line: '$line'"
 				down_packets=0
 			;;
 		esac
