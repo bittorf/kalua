@@ -176,7 +176,12 @@ set_build()
 		kcmdlinetweak)
 		;;
 		*)
-			file="$dir/config_${mode}.txt"
+			if [ -e "$mode" ]; then
+				file="$mode"
+			else
+				file="$dir/config_${mode}.txt"
+			fi
+
 			if [ -e "$file" ]; then
 				case "$mode" in
 					"HARDWARE."*)
