@@ -1013,6 +1013,7 @@ copy_images_to_server()
 {
 	local option="$1"		# e.g. factory|sysupgrade|release|remove
 	local size_small_image=3670020	# 56 blocks, so jffs2 is working
+	local image_bigbrother_pattern='CONFIG_PACKAGE_ffmpeg=y'
 	local testfile bytes
 
 	[ "$option" = "remove" ] && {
@@ -1023,7 +1024,7 @@ copy_images_to_server()
 
 	cd kalua
 	KALUA_REF="$( git log --pretty=oneline --abbrev-commit | head -n1 | cut -d' ' -f1 )"
-	KALUA_REF="git.${KALUA_REF=}"								# e.g. git479d47b
+	KALUA_REF="git.${KALUA_REF}"								# e.g. git479d47b
 	cd ..
 
 	local enforce_file installation subprofile node destfile imagetype description
@@ -1033,6 +1034,7 @@ copy_images_to_server()
 	node="$( sed -n 's/^SIM_ARG3=\(.*\)#.*/\1/p' "$enforce_file" | cut -d' ' -f1 )"
 
 	if [ -n "$installation" -o "$option" = "factory" ]; then
+		# -profile.liszt28_hybrid94
 		description="-profile.${installation}_${subprofile}${node}"
 		[ -z "$installation" ] && description=
 		imagetype="factory"
@@ -1041,6 +1043,11 @@ copy_images_to_server()
 		imagetype="sysupgrade"
 	fi
 
+	grep ^"$image_bigbrother_pattern"$ '.config' && {
+		log "detected bigbrother-image, changing imagetype"
+		imagetype="option=bigbrother.$imagetype"
+	}
+
 	ARCH="$( get_arch )"
 	KERNEL="$( grep ^"LINUX_VERSION:=" target/linux/$ARCH/Makefile | cut -d'=' -f2 )"	# e.g. 3.8.13
 	REV="$( scripts/getver.sh )"								# e.g. r37012
@@ -1048,6 +1055,7 @@ copy_images_to_server()
 	if [ "$option" = "release" ]; then
 		APPEND="${imagetype}.bin"
 	else
+		# r38537-kernel3.10.17-git.17ca90a.sysupgrade.bin
 		APPEND="${REV}-kernel${KERNEL}-${KALUA_REF}${description}.${imagetype}.bin"
 	fi
 
