@@ -1021,6 +1021,7 @@ copy_images_to_server()
 	local option="$1"		# e.g. factory|sysupgrade|release|remove
 	local size_small_image=3670020	# 56 blocks, so jffs2 is working
 	local image_bigbrother_pattern='CONFIG_PACKAGE_ffmpeg=y'
+	local image_audioplay_pattern='CONFIG_PACKAGE_madplay=y'
 	local testfile bytes
 
 	[ "$option" = "remove" ] && {
@@ -1053,6 +1054,11 @@ copy_images_to_server()
 	grep ^"$image_bigbrother_pattern"$ '.config' && {
 		log "detected bigbrother-image, changing imagetype"
 		imagetype="option=bigbrother.$imagetype"
+	}
+
+	grep ^"$image_audioplay_pattern"$ '.config' && {
+		log "detected audioplay-image, changing imagetype"
+		imagetype="option=audioplay.$imagetype"
 	}
 
 	ARCH="$( get_arch )"
