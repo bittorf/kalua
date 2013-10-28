@@ -294,13 +294,13 @@ set_build()
 	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 	while read line; do {
-		log "apply symbol: $line"
-
 		case "$line" in
 			""|"#"*)
 				# ignore comments
 			;;
 			*"=y")
+				log "apply symbol: $line"
+
 				symbol="$( echo "$line" | sed -n 's/\(^.*\)=y/\1/p' )"
 				wish="${symbol}=y"
 
@@ -312,6 +312,8 @@ set_build()
 				fi
 			;;
 			*" is not set")
+				log "apply symbol: $line"
+
 				symbol="$( echo "$line" | sed -n 's/\(^.*\) is not set/\1/p' )"
 				wish="# ${symbol} is not set"
 
