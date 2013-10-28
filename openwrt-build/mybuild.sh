@@ -1141,6 +1141,7 @@ copy_images_to_server()
 			bytes="$( stat --format=%s "$testfile" 2>/dev/null )"
 
 			if [ ${bytes:-9999999} -le $size_small_image ]; then
+				fileX_to_modelY "tl-wr703n-v1"   "TP-LINK TL-WR703N v1"
 				fileX_to_modelY "tl-wr841nd-v7"  "TP-LINK TL-WR841N:ND v7"
 				fileX_to_modelY "tl-wr841n-v8"   "TP-LINK TL-WR841N:ND v8"
 			else
