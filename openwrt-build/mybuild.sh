@@ -1022,6 +1022,7 @@ copy_images_to_server()
 	local size_small_image=3670020	# 56 blocks, so jffs2 is working
 	local image_bigbrother_pattern='CONFIG_PACKAGE_ffmpeg=y'
 	local image_audioplay_pattern='CONFIG_PACKAGE_madplay=y'
+	local image_specialname
 	local testfile bytes
 
 	[ "$option" = "remove" ] && {
@@ -1051,14 +1052,11 @@ copy_images_to_server()
 		imagetype="sysupgrade"
 	fi
 
-	grep ^"$image_bigbrother_pattern"$ '.config' && {
-		log "detected bigbrother-image, changing imagetype"
-		imagetype="option=bigbrother.$imagetype"
-	}
-
-	grep ^"$image_audioplay_pattern"$ '.config' && {
-		log "detected audioplay-image, changing imagetype"
-		imagetype="option=audioplay.$imagetype"
+	grep ^"$image_bigbrother_pattern"$ '.config' && image_specialname='bigbrother'
+	grep ^"$image_audioplay_pattern"$  '.config' && image_specialname='audioplay'
+	[ -n "$image_specialname" ] && {
+		log "detected '$image_specialname'-image"
+		image_specialname="option=${image_specialname}."
 	}
 
 	ARCH="$( get_arch )"
@@ -1066,10 +1064,10 @@ copy_images_to_server()
 	REV="$( scripts/getver.sh )"								# e.g. r37012
 
 	if [ "$option" = "release" ]; then
-		APPEND="${imagetype}.bin"
+		APPEND="${mage_specialname}${imagetype}.bin"
 	else
 		# r38537-kernel3.10.17-git.17ca90a.sysupgrade.bin
-		APPEND="${REV}-kernel${KERNEL}-${KALUA_REF}${description}.${imagetype}.bin"
+		APPEND="${REV}-kernel${KERNEL}-${KALUA_REF}${description}.${mage_specialname}${imagetype}.bin"
 	fi
 
 	APPEND="$APPEND'"		# mind the '
