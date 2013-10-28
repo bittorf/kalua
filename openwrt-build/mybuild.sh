@@ -1052,8 +1052,8 @@ copy_images_to_server()
 		imagetype="sysupgrade"
 	fi
 
-	grep ^"$image_bigbrother_pattern"$ '.config' && image_specialname='bigbrother'
-	grep ^"$image_audioplay_pattern"$  '.config' && image_specialname='audioplay'
+	grep -q ^"$image_bigbrother_pattern"$ '.config' && image_specialname='bigbrother'
+	grep -q ^"$image_audioplay_pattern"$  '.config' && image_specialname='audioplay'
 	[ -n "$image_specialname" ] && {
 		log "detected '$image_specialname'-image"
 		image_specialname="option=${image_specialname}."
@@ -1064,10 +1064,10 @@ copy_images_to_server()
 	REV="$( scripts/getver.sh )"								# e.g. r37012
 
 	if [ "$option" = "release" ]; then
-		APPEND="${mage_specialname}${imagetype}.bin"
+		APPEND="${image_specialname}${imagetype}.bin"
 	else
 		# r38537-kernel3.10.17-git.17ca90a.sysupgrade.bin
-		APPEND="${REV}-kernel${KERNEL}-${KALUA_REF}${description}.${mage_specialname}${imagetype}.bin"
+		APPEND="${REV}-kernel${KERNEL}-${KALUA_REF}${description}.${image_specialname}${imagetype}.bin"
 	fi
 
 	APPEND="$APPEND'"		# mind the '
