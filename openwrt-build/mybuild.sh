@@ -1165,6 +1165,7 @@ copy_images_to_server()
 		;;
 		brcm63xx)
 			fileX_to_modelY "SPW500V" "Targa WR-500-VoIP"
+			fileX_to_modelY "SPW500V" "Speedport W500V"
 		;;
 		brcm47xx)
 			fileX_to_modelY "brcm47xx" "Linksys WRT54G:GS:GL"
