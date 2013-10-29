@@ -1123,6 +1123,10 @@ copy_images_to_server()
 		local post="-squashfs-${imagetype}.bin"		# 'sysupgrade' or 'factory'
 
 		case "$ARCH" in
+			brcm63xx)
+				pre="openwrt-"
+				post="-squashfs-cfe.bin"
+			;;
 			brcm47xx)
 				pre="openwrt-"
 				post="-squashfs.trx"
@@ -1139,6 +1143,9 @@ copy_images_to_server()
 	}
 
 	case "$ARCH" in
+		brcm63xx)
+			fileX_to_modelY "SPW500V" "Targa WR-500-VoIP"
+		;;
 		brcm47xx)
 			fileX_to_modelY "brcm47xx" "Linksys WRT54G:GS:GL"
 			fileX_to_modelY "brcm47xx" "Buffalo WHR-HP-G54"
