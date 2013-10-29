@@ -1123,6 +1123,10 @@ copy_images_to_server()
 		local post="-squashfs-${imagetype}.bin"		# 'sysupgrade' or 'factory'
 
 		case "$ARCH" in
+			au1000)
+				pre="openwrt-au1000-"
+				post="-squashfs.srec"
+			;;
 			atheros)
 				pre="openwrt-"
 				post=".squashfs.img"
@@ -1147,6 +1151,10 @@ copy_images_to_server()
 	}
 
 	case "$ARCH" in
+		au1000)
+			fileX_to_modelY "au1500" "T-Mobile InternetBox.sysupgrade.bin"
+			fileX_to_modelY "au1500" "4G MeshCube.sysupgrade.bin"
+		;;
 		atheros)
 			fileX_to_modelY "atheros-combined" "Ubiquiti Nanostation2.sysupgrade.bin"
 			fileX_to_modelY "atheros-combined" "Ubiquiti Nanostation5.sysupgrade.bin"
