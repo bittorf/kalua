@@ -1123,6 +1123,10 @@ copy_images_to_server()
 		local post="-squashfs-${imagetype}.bin"		# 'sysupgrade' or 'factory'
 
 		case "$ARCH" in
+			atheros)
+				pre="openwrt-"
+				post=".squashfs.img"
+			;;
 			brcm63xx)
 				pre="openwrt-"
 				post="-squashfs-cfe.bin"
@@ -1143,6 +1147,14 @@ copy_images_to_server()
 	}
 
 	case "$ARCH" in
+		atheros)
+			fileX_to_modelY "atheros-combined" "Ubiquiti Nanostation2.sysupgrade.bin"
+			fileX_to_modelY "atheros-combined" "Ubiquiti Nanostation5.sysupgrade.bin"
+			fileX_to_modelY "atheros-combined" "Ubiquiti Picostation2.sysupgrade.bin"
+			fileX_to_modelY "atheros-combined" "Ubiquiti Picostation5.sysupgrade.bin"
+			fileX_to_modelY "atheros-combined" "Ubiquiti PicoStation5.sysupgrade.bin"
+			fileX_to_modelY "atheros-combined" "Ubiquiti Litestation5.sysupgrade.bin"
+		;;
 		brcm63xx)
 			fileX_to_modelY "SPW500V" "Targa WR-500-VoIP"
 		;;
