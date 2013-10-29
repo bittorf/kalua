@@ -295,6 +295,15 @@ set_build()
 
 	while read line; do {
 		case "$line" in
+			'CONFIG_PACKAGE_ATH_DEBUG=y')
+				grep -q 'CONFIG_PACKAGE_kmod-ath=y' "$config" || {
+					log "no 'kmod-ath' involved - ignoring '$line'"
+					line=
+				}
+			;;
+		esac
+
+		case "$line" in
 			""|"#"*)
 				# ignore comments
 			;;
