@@ -62,7 +62,11 @@ how to build this from scratch on a debian server
 	make package/symlinks
 
 	# now configure your image, see next
-	# section "configure the builtin-packages"
+	# section "configure the builtin-packages", e.g.
+	# kalua/openwrt-build/mybuild.sh set_build standard-flash8mb
+	# kalua/openwrt-build/mybuild.sh set_build standard-flash8mb bigbrother
+	# kalua/openwrt-build/mybuild.sh set_build standard-flash4mb nopppoe
+	# kalua/openwrt-build/mybuild.sh set_build standard-flash4mb nopppoe usbaudio
 
 	# last 3 arguments enforce a specific configuration (profile: ffweimar, wifmode: adhoc, node: 42)
 	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"	# omit arguments for a generic image
