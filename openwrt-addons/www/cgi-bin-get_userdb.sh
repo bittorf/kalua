@@ -48,6 +48,8 @@ else
 		}
 	}
 
+	touch '/tmp/USERDB_COPY.cgi.gz'
+
 	case "$QUERY_STRING" in
 		*'bonehead'*)
 			_http header_mimetype_output 'text/plain'
