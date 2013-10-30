@@ -1125,7 +1125,7 @@ copy_images_to_server()
 		case "$ARCH" in
 			au1000)
 				pre="openwrt-au1000-"
-				post="-squashfs.srec"
+				post="-sysupgrade.bin"
 			;;
 			atheros)
 				pre="openwrt-"
