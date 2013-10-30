@@ -611,8 +611,36 @@ _wifi_sensitivity()
 
 	get_speed()
 	{
+		# batman
 		nexthop_interface="$( grep -s ^'NEXTHOP_INTERFACE=' "/tmp/BATCTL_TRACEROUTE" | cut -d'=' -f2 )"
 		[ -n "$nexthop_interface" ] && nexthop_interface="${nexthop_interface}-"
+
+		# olsr
+		[ -z "$nexthop_interface" ] && {
+			nexthop="$( _sanitizer do "$( head -n1 '/tmp/OLSR/ROUTING_TABLE_MAIN' )" ip4 )"
+			[ -n "$nexthop" ] && {
+				nexthop="$( ip route get "$nexthop" )"
+
+				# 10.63.222.3 via 10.63.222.3 dev wlan1-1  src 10.63.15.3 \    cache
+				set -- $( ip --oneline route get "$nexthop" )
+				while [ -n "$2"]; do {
+					shift
+					case "$1" in
+						dev)
+							nexthop_interface="$2"
+							case "$nexthop_interface" in	# e.g.: '   eth0.1'
+								*"$LANDEV")  nexthop_interface='LAN-' ;;
+								*"$WANDEV")  nexthop_interface='WAN-' ;;
+								*"$WIFIDEV") nexthop_interface='WIFI-' ;;
+									  *) nexthop_interface='WIFI2-' ;;
+							esac
+
+							break
+						;;
+					esac
+				} done
+			}
+		}
 
 		# ignore SPEED_MAX=0 (enforce new measurement)
 		speed="$( _speedtest stats here "$nexthop" poormens_tcpdownload | grep 'SPEED_MAX=' | grep -v '=0' | cut -d'=' -f2 )"
