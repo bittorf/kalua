@@ -1154,6 +1154,7 @@ copy_images_to_server()
 		au1000)
 			fileX_to_modelY "au1500" "T-Mobile InternetBox.sysupgrade.bin"
 			fileX_to_modelY "au1500" "4G MeshCube.sysupgrade.bin"
+			fileX_to_modelY 'au1500' '4G Systems MTX-1 Board'
 		;;
 		atheros)
 			fileX_to_modelY "atheros-combined" "Ubiquiti Nanostation2.sysupgrade.bin"
