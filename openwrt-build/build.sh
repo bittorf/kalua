@@ -5,7 +5,7 @@
 # - kcmdlinetweak
 # - apply kernel_symbols
 # - detect kernel_version
-# - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables 
+# - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
 # - kalua: checkout specific version
 # - packages/feeds/openwrt: checkout specific version
 # - build release-dir
@@ -13,23 +13,12 @@
 # - build jffs2-images too
 # - apply_profile
 
+# dir-structure:
+# $HARDWARE/testing/$files
+
 
 # build: release = all arch's + .info-file upload + all options (nopppoe,audiplayer)
-# option=kalua,standard-flash4mb,noPPPoE,noIPv6
-# option=standard-flash2mb
-# CONFIG_TARGET_au1000=y
-# CONFIG_TARGET_ar71xx=y
-# ...
 
-# naming-scheme:
-# now:
-#
-# http://intercity-vpn.de/firmware/ar71xx/images/testing/
-# Ubiquiti Bullet M.r38576-kernel3.10.17-git.5dce00c.factory.bin
-# Ubiquiti Bullet M.r38576-kernel3.10.17-git.5dce00c.sysupgrade.bin
-#
-# later:
-#
 # hardware=	Ubiquiti Bullet M			// special, no option-name and separator='.'
 # rootfs=	jffs2.64k | squash | ext4
 # openwrt=	r38675
@@ -37,11 +26,6 @@
 # image=	sysupgrade | factory | tftp | srec | ...
 # profile=	liszt28.hybrid.4			// optional
 # option=	Standard,USBaudio,BigBrother,kalua.5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI
-#
-# standard = 8mb flash
-# small = 4mb flash
-# mini = noswap/zram + no uhttpd + noiptables + nopppoe + noipv6 + nodropbear + noopkg 
-# micro = micro + nowifi
 #
 # 151 chars:
 # Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua.5dce00c,Standard,VDS,BigBrother_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
@@ -106,6 +90,11 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
 			FILENAME_FACTORY=
+		;;
+		'T-Mobile InternetBox'|'4G Systems MTX-1 Board')
+			TARGET_SYMBOL='CONFIG_TARGET_au1000_au1500=y'
+			FILENAME_SYSUPGRADE='openwrt-au1000-au1500-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec openwrt-au1000-au1500-squashfs.srec'
 		;;
 		'list')
 			log "$funcname() supported models:"
@@ -275,6 +264,16 @@ build_options_set()
 
 				$funcname 'noFW'
 			;;
+			'Small')
+				# 4mb flash - noPPPoE
+			;;
+			'Mini')
+				# be careful: getting firmware and reflash must be possible (or bootloader with TFTP needed)
+				# like small and: noMESH, noSSH, noOPKG, noSwap, noUHTTPD, noIPTables
+			;;
+			'Micro')
+				# like mini and: noWiFi, noJFFS2-support
+			;;
 			'VDS')
 				apply_symbol 'CONFIG_PACKAGE_ulogd=y'			# network: ulogd:
 				apply_symbol 'CONFIG_PACKAGE_ulogd-mod-extra=y'		# ...
@@ -300,6 +299,8 @@ build_options_set()
 			;;
 			'noSwap')
 				apply_symbol kernel 'CONFIG_SWAP is not set'		# general setup: Support for anon mem
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_SWAPONOFF is not set'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_MKSWAP is not set'
 			;;
 			'noFW')
 				apply_symbol 'CONFIG_PACKAGE_firewall is not set'	# base-system: firewall3 *off*
