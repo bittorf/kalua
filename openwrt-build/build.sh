@@ -313,11 +313,11 @@ build_options_set()
 		log "$funcname() apply '$1' ${subcall+(subcall)}"
 
 		# build a comma-separated list for later output/build-documentation
-		case "${subcall}$1" in
-			'kalua'*)
-				# direct call to kalua
+		case "${subcall}-$1" in
+			'-kalua'*)
+				# direct call to kalua (no subcall)
 			;;
-			'')
+			'-'*)
 				# direct call (no subcall)
 				LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
 			;;
