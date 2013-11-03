@@ -313,6 +313,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_ulogd-mod-extra=y'		# ...
 			;;
 			'noIPv6')
+				$funcname 'noFW'
+
 				apply_symbol 'CONFIG_IPV6 is not set'			# global build settings: IPv6 support in packages
 				apply_symbol 'CONFIG_PACKAGE_6relayd is not set'	# network: 6relayd
 				apply_symbol 'CONFIG_PACKAGE_odhcp6c is not set'	# network: odhcp6c
