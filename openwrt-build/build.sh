@@ -200,6 +200,7 @@ apply_symbol()
 
 					case "$hash" in
 						"$VERSION_KALUA"*)
+							hash=
 						;;
 						*)
 							cd kalua
@@ -215,8 +216,10 @@ apply_symbol()
 			cp -Rv 'kalua/openwrt-addons/' "$custom_dir"
 
 			[ -n "$hash" ] && {
+				cd kalua
 				git checkout master
 				git branch -D "view_$hash"
+				cd ..
 			}
 
 			return 0
