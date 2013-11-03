@@ -4,6 +4,7 @@
 # - kalua/custom files to '<buildroot dir>/files/'
 # - kcmdlinetweak
 # - apply kernel_symbols
+#   - ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
 # - detect kernel_version
 # - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
 # - kalua: checkout specific version
