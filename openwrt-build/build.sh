@@ -306,7 +306,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-batman-adv=y'		# kernel-modules: support: batman-adv
 			;;
 			'ebTables')
-				apply_symbol 'CONFIG_PACKAGE_kmod-ebtables=y'		# kernel-modules: netfilter-extensions:
+				apply_symbol 'CONFIG_PACKAGE_ebtables=y'		# # network: firewall: ebtables
 			;;
 			'VDS')
 				apply_symbol 'CONFIG_PACKAGE_ulogd=y'			# network: ulogd:
