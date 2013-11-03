@@ -66,6 +66,11 @@ target_hardware_set()
 	local line start_parse
 
 	case "$model" in
+		'TP-LINK TL-WR1043ND')
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
+			FILENAME_SYSUPGRADE=''
+			FILENAME_FACTORY=''
+		;;
 		'Ubiquiti Bullet M')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_UBNT=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin'
@@ -224,7 +229,8 @@ apply_symbol()
 		;;
 	esac
 
-	grep "$symbol" "$file"
+	grep "$symbol=" "$file"
+	grep "$symbol " "$file"
 }
 
 build_options_set()
