@@ -306,11 +306,12 @@ build_options_set()
 	local subcall="$2"
 	local file='.config'
 
+	# shift args
 	[ "$options" = 'subcall' -a -n "$subcall" ] && options="$subcall"
 
 	local oldIFS="$IFS"; IFS=','; set -- $options; IFS="$oldIFS"
 	while [ -n "$1" ]; do {
-		log "$funcname() apply '$1' ${subcall+(subcall)}"
+		log "$funcname() apply '$1' $( test -n "$subcall" && echo -n "(subcall)" )"
 
 		# build a comma-separated list for later output/build-documentation
 		case "${subcall}-$1" in
