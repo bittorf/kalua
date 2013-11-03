@@ -209,7 +209,7 @@ apply_symbol()
 						;;
 						*)
 							cd kalua
-							git checkout -b "kalua@$hash"
+							git checkout -b "kalua@$hash" "$hash"
 							cd ..
 
 							VERSION_KALUA="$hash"
