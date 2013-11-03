@@ -155,7 +155,7 @@ copy_files()
 
 	log "$funcname() warning - not fully implemented yet"
 
-	echo "hardware: '$HARDWARE'"
+	echo "hardware: '$HARDWARE_MODEL'"
 	echo "options = --option $LIST_OPTIONS"
 	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
 	ls -l "bin/$ARCH/$FILENAME_SYSUPGRADE"
@@ -301,13 +301,16 @@ build_options_set()
 {
 	local funcname='build_options_set'
 	local options="$1"
+	local subcall="$2"
 	local file='.config'
+
+	[ "$options" = 'subcall' -a -n "$subcall" ] && options="$subcall"
 
 	local oldIFS="$IFS"; IFS=','; set -- $options; IFS="$oldIFS"
 	while [ -n "$1" ]; do {
 		log "$funcname() apply '$1'"
 		# build a comma-separated list for later output/build-documentation
-		LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
+		[ -z "$subcall" ] && LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
 
 		case "$1" in
 			'kalua'|'kalua@'*)
@@ -331,11 +334,11 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 
-				$funcname 'vtun'
-				$funcname 'OLSRd'
-				$funcname 'BatmanAdv'
-				$funcname 'noFW'
-				$funcname 'ebTables'
+				$funcname subcall 'vtun'
+				$funcname subcall 'OLSRd'
+				$funcname subcall 'BatmanAdv'
+				$funcname subcall 'noFW'
+				$funcname subcall 'ebTables'
 			;;
 			'Small')
 				# 4mb flash - noPPPoE
@@ -368,7 +371,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_ulogd-mod-extra=y'		# ...
 			;;
 			'noIPv6')
-				$funcname 'noFW'
+				$funcname subcall 'noFW'
 
 				apply_symbol 'CONFIG_IPV6 is not set'			# global build settings: IPv6 support in packages
 				apply_symbol 'CONFIG_PACKAGE_6relayd is not set'	# network: 6relayd
