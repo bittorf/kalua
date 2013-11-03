@@ -216,6 +216,8 @@ apply_symbol()
 		'nuke_customdir')
 			log "$funcname() deleting dir for custom files: '$custom_dir/'"
 			rm -fR "$custom_dir"
+
+			return 0
 		;;
 		'kernel')
 			log "$funcname() not implemented yet '$kernel' -> $2"
@@ -260,9 +262,6 @@ apply_symbol()
 			fi
 		;;
 	esac
-
-	grep "$symbol=" "$file"
-	grep "$symbol " "$file"
 }
 
 build_options_set()
@@ -276,6 +275,9 @@ build_options_set()
 		log "$funcname() apply '$1'"
 
 		case "$1" in
+			'kalua'|'kalua@'*)
+				apply_symbol "$1"
+			;;
 			'Standard')
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
