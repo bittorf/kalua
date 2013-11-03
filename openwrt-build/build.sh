@@ -223,7 +223,7 @@ apply_symbol()
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
 				log "$funcname() using custom '/tmp/apply_profile.code.definitions'"
-				cp '/tmp/apply_profile.code.definitions' "$custom_dir"
+				cp '/tmp/apply_profile.code.definitions' "$custom_dir/etc/init.d"
 			else
 				log "$funcname() no '/tmp/apply_profile.code.definitions' found, using standard kalua file"
 			fi
