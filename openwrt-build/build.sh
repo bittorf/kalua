@@ -307,7 +307,7 @@ build_options_set()
 	while [ -n "$1" ]; do {
 		log "$funcname() apply '$1'"
 		# build a comma-separated list for later output/build-documentation
-		LIST_OPTIONS="${LIST_OPTIONS}{LIST_OPTIONS+,}${1}"
+		LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
 
 		case "$1" in
 			'kalua'|'kalua@'*)
