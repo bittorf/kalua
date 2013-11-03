@@ -223,6 +223,8 @@ apply_symbol()
 				;;
 			esac
 
+			LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}kalua@$hash"
+
 			cd ..
 			log "$funcname() adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cp -R 'kalua/openwrt-addons/' "$custom_dir"
@@ -308,9 +310,16 @@ build_options_set()
 
 	local oldIFS="$IFS"; IFS=','; set -- $options; IFS="$oldIFS"
 	while [ -n "$1" ]; do {
-		log "$funcname() apply '$1'"
+		log "$funcname() apply '$1' ${subcall+(subcall)}"
+
 		# build a comma-separated list for later output/build-documentation
-		[ -z "$subcall" ] && LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
+		case "${subcall}$1" in
+			'kalua'*)
+			;;
+			'')
+				LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
+			;;
+		esac
 
 		case "$1" in
 			'kalua'|'kalua@'*)
