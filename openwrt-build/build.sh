@@ -223,7 +223,7 @@ apply_symbol()
 				;;
 			esac
 
-			LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}kalua@$hash"
+			LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}kalua@$VERSION_KALUA"
 
 			cd ..
 			log "$funcname() adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
@@ -315,8 +315,10 @@ build_options_set()
 		# build a comma-separated list for later output/build-documentation
 		case "${subcall}$1" in
 			'kalua'*)
+				# direct call to kalua
 			;;
 			'')
+				# direct call (no subcall)
 				LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
 			;;
 		esac
@@ -432,6 +434,8 @@ build_options_set()
 				return 1
 			;;
 		esac
+
+		log "$funcname() LIST_OPTIONS: '$LIST_OPTIONS'"
 
 		build 'defconfig'
 		shift
