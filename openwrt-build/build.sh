@@ -4,7 +4,8 @@
 # - kalua/custom files to '<buildroot dir>/files/'
 # - kcmdlinetweak
 # - apply kernel_symbols
-#   - ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
+#   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
+#   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
 # - detect kernel_version
 # - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
 # - kalua: checkout specific version
@@ -250,10 +251,6 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
-				apply_symbol 'CONFIG_PACKAGE_olsrd=y'			# network: routing/redirection: olsrd:
-				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-nameservice=y'	# ...
-				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-txtinfo=y'	# ...
-				apply_symbol 'CONFIG_PACKAGE_kmod-batman-adv=y'		# kernel-modules: support: batman-adv
 				apply_symbol 'CONFIG_PACKAGE_kmod-macvlan=y'		# kernel-modules: network-devices:
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
@@ -262,14 +259,16 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool:
 				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-printer=y'	# kernel-modules: other: kmod-usb-printer
-				apply_symbol 'CONFIG_PACKAGE_vtun=y'			# network: vpn: vtun:
-				apply_symbol 'CONFIG_VTUN_SSL is not set'		# ...
 				apply_symbol 'CONFIG_PACKAGE_rrdtool=y'			# utilities: rrdtool:
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 
+				$funcname 'vtun'
+				$funcname 'OLSRd'
+				$funcname 'BatmanAdv'
 				$funcname 'noFW'
+				$funcname 'ebTables'
 			;;
 			'Small')
 				# 4mb flash - noPPPoE
@@ -280,6 +279,22 @@ build_options_set()
 			;;
 			'Micro')
 				# like mini and: noWiFi, noJFFS2-support
+			;;
+			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'vtun')
+				apply_symbol 'CONFIG_PACKAGE_vtun=y'			# network: vpn: vtun:
+				apply_symbol 'CONFIG_VTUN_SSL is not set'		# ...
+			;;
+			'OLSRd')
+				apply_symbol 'CONFIG_PACKAGE_olsrd=y'			# network: routing/redirection: olsrd:
+				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-nameservice=y'	# ...
+				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-txtinfo=y'	# ...
+			;;
+			'BatmanAdv')
+				apply_symbol 'CONFIG_PACKAGE_kmod-batman-adv=y'		# kernel-modules: support: batman-adv
+			;;
+			'ebTables')
+				apply_symbol 'CONFIG_PACKAGE_kmod-ebtables=y'		# kernel-modules: netfilter-extensions:
 			;;
 			'VDS')
 				apply_symbol 'CONFIG_PACKAGE_ulogd=y'			# network: ulogd:
