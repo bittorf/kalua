@@ -213,7 +213,7 @@ apply_symbol()
 			esac
 
 			log "$funcname() adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
-			cp -Rv 'kalua/openwrt-addons/' "$custom_dir"
+			cp -R 'kalua/openwrt-addons/' "$custom_dir"
 
 			[ -n "$hash" ] && {
 				cd kalua
