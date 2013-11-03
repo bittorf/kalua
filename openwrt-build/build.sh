@@ -511,7 +511,7 @@ while [ -n "$1" ]; do {
 					exit 1
 				;;
 				*)
-					LIST_OPTIONS="$2"
+					LIST_USER_OPTIONS="$2"
 				;;
 			esac
 		;;
@@ -527,12 +527,12 @@ while [ -n "$1" ]; do {
 	shift
 } done
 
-[ -z "$HARDWARE_MODEL" -o -z "$LIST_OPTIONS" ] && {
+[ -z "$HARDWARE_MODEL" -o -z "$LIST_USER_OPTIONS" ] && {
 	print_usage
 	exit 1
 }
 
 openwrt_download "$VERSION_OPENWRT"	|| exit 1
-build_options_set "$LIST_OPTIONS"	|| exit 1
+build_options_set "$LIST_USER_OPTIONS"	|| exit 1
 build					|| exit 1
 copy_files				|| exit 1
