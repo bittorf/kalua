@@ -153,7 +153,16 @@ copy_files()
 {
 	local funcname='copy_files'
 
-	log "$funcname() not implemented yet"
+	log "$funcname() warbing - not fully implemented yet"
+
+	echo "hardware: '$HARDWARE'"
+	echo "options = --option $LIST_OPTIONS"
+	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
+	ls -l "bin/$ARCH/$FILENAME_SYSUPGRADE"
+	echo
+	echo "factory: '$FILENAME_FACTORY'"
+	ls -l "bin/$ARCH/$FILENAME_FACTORY"
+
 	# tarball + .info + readme.markdown?
 }
 
@@ -297,6 +306,8 @@ build_options_set()
 	local oldIFS="$IFS"; IFS=','; set -- $options; IFS="$oldIFS"
 	while [ -n "$1" ]; do {
 		log "$funcname() apply '$1'"
+		# build a comma-separated list for later output/build-documentation
+		LIST_OPTIONS="${LIST_OPTIONS}{LIST_OPTIONS+,}${1}"
 
 		case "$1" in
 			'kalua'|'kalua@'*)
