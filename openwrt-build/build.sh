@@ -171,7 +171,10 @@ build()
 		;;
 		'defconfig')
 			log "$funcname() running 'make defconfig'"
-			make defconfig
+
+			set -o pipefail
+			make defconfig | grep -v ^# || make defconfig
+			set +o pipefail
 		;;
 		*)
 			log "$funcname() running 'make $commandline'"
