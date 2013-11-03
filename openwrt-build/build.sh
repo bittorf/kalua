@@ -195,7 +195,6 @@ apply_symbol()
 			# is a short hash, e.g. 'ed0e11c'
 			cd kalua
 			VERSION_KALUA="$( git log -1 --format=%h )"
-			cd ..
 
 			case "$symbol" in
 				'kalua@'*)
@@ -208,16 +207,14 @@ apply_symbol()
 							hash=
 						;;
 						*)
-							cd kalua
 							git checkout -b "kalua@$hash" "$hash"
-							cd ..
-
 							VERSION_KALUA="$hash"
 						;;
 					esac
 				;;
 			esac
 
+			cd ..
 			log "$funcname() adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cp -R 'kalua/openwrt-addons/' "$custom_dir"
 
