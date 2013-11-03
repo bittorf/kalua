@@ -190,16 +190,24 @@ apply_symbol()
 
 	case "$symbol" in
 		'kalua'*)
+			# is a short hash, e.g. 'ed0e11c'
 			VERSION_KALUA="$( cd kalua; git log -1 --format=%h; cd .. )"
 
 			case "$symbol" in
 				'kalua@'*)
+					# can be a short or a long-hash
 					hash="$( echo "$symbol" | cut -d'@' -f2 )"
-					[ "$hash" = "$VERSION_KALUA" ] || {
-						cd kalua
-						git checkout -b "view_$hash"
-						VERSION_KALUA="$hash"
-					}
+
+					case "$hash" in
+						"$VERSION_KALUA"*)
+						;;
+						*)
+							cd kalua
+							git checkout -b "view_$hash"
+							cd ..
+							VERSION_KALUA="$hash"
+						;;
+					esac
 				;;
 			esac
 
