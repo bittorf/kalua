@@ -26,10 +26,10 @@
 # kernel=	3.6.11
 # image=	sysupgrade | factory | tftp | srec | ...
 # profile=	liszt28.hybrid.4			// optional
-# option=	Standard,USBaudio,BigBrother,kalua.5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI
+# option=	Standard,USBaudio,BigBrother,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI
 #
 # 151 chars:
-# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua.5dce00c,Standard,VDS,BigBrother_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
+# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS,BigBrother_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
 #
 # build-syntax:
 #
@@ -185,13 +185,31 @@ apply_symbol()
 	local funcname='apply_symbol'
 	local symbol="$1"
 	local file='.config'
-	local custom_dir='files'
-	local choice
+	local custom_dir='files'	# standard way to add/customize
+	local choice hash
 
 	case "$symbol" in
 		'kalua'*)
-			log "$funcname() adding kalua-files to custom-dir '$custom_dir/'"
+			VERSION_KALUA="$( cd kalua; git log -1 --format=%h; cd .. )"
+
+			case "$symbol" in
+				'kalua@'*)
+					hash="$( echo "$symbol" | cut -d'@' -f2 )"
+					[ "$hash" = "$VERSION_KALUA" ] || {
+						cd kalua
+						git checkout -b "view_$hash"
+						VERSION_KALUA="$hash"
+					}
+				;;
+			esac
+
+			log "$funcname() adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cp -Rv 'kalua/openwrt-addons/' "$custom_dir"
+
+			[ -n "$hash" ] && {
+				git checkout master
+				git branch -D "view_$hash"
+			}
 
 			return 0
 		;;
@@ -470,6 +488,5 @@ while [ -n "$1" ]; do {
 
 openwrt_download "$VERSION_OPENWRT"	|| exit 1
 build_options_set "$LIST_OPTIONS"	|| exit 1
-build defconfig
 build					|| exit 1
 copy_files				|| exit 1
