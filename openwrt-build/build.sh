@@ -153,7 +153,7 @@ copy_files()
 {
 	local funcname='copy_files'
 
-	log "$funcname() warbing - not fully implemented yet"
+	log "$funcname() warning - not fully implemented yet"
 
 	echo "hardware: '$HARDWARE'"
 	echo "options = --option $LIST_OPTIONS"
@@ -424,13 +424,6 @@ build_options_set()
 		build 'defconfig'
 		shift
 	} done
-}
-
-copy_files()
-{
-	local funcname='copy_files'
-
-	log "$funcname() not implemented yet"
 }
 
 parse_case_patterns()
