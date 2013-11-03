@@ -1,19 +1,18 @@
 #!/bin/sh
 
 # ToDo:
-# - kalua/custom files to '<buildroot dir>/files/'
 # - kcmdlinetweak
 # - apply kernel_symbols
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
 #   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
 # - detect kernel_version
-# - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
-# - kalua: checkout specific version
+# - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe, kalua@version
 # - packages/feeds/openwrt: checkout specific version
 # - build release-dir
 # - hardware: all models
 # - build jffs2-images too
-# - apply_profile
+# - mode: enforced_profile
+# - kalua: copy patches
 
 # dir-structure:
 # $HARDWARE/testing/$files
@@ -118,6 +117,7 @@ target_hardware_set()
 		;;
 	esac
 
+	# e.g. 'CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y' -> 'brcm47xx'
 	ARCH="$( echo "$TARGET_SYMBOL" | cut -d'_' -f3 )"
 
 	log "$funcname() architecure: '$ARCH' model: '$model'"
@@ -135,14 +135,14 @@ openwrt_download()
 	log "$funcname() apply '$wish'"
 
 	case "$wish" in
-		leave_untouched)
+		'leave_untouched')
 		;;
-		trunk)
+		'trunk')
 			# switch to master
 			git pull
 			scripts/feeds update
 		;;
-		r*)
+		'r'*)
 			# checkout openwrt and feed at this date
 		;;
 	esac
@@ -185,9 +185,20 @@ apply_symbol()
 	local funcname='apply_symbol'
 	local symbol="$1"
 	local file='.config'
+	local custom_dir='files'
 	local choice
 
 	case "$symbol" in
+		'kalua'*)
+			log "$funcname() adding kalua-files to custom-dir '$custom_dir/'"
+			cp -Rv 'kalua/openwrt-addons/' "$custom_dir"
+
+			return 0
+		;;
+		'nuke_customdir')
+			log "$funcname() deleting dir for custom files: '$custom_dir/'"
+			rm -fR "$custom_dir"
+		;;
 		'kernel')
 			log "$funcname() not implemented yet '$kernel' -> $2"
 			return 0
@@ -197,6 +208,7 @@ apply_symbol()
 			log "$funcname() starting with an empty config"
 			rm "$file"
 
+			$funcname 'nuke_customdir'
 			build 'nuke_bindir'
 
 			return 0
@@ -207,7 +219,7 @@ apply_symbol()
 		;;
 	esac
 
-	log "$funcname() $symbol"
+	log "$funcname() symbol: $symbol"
 
 	case "$symbol" in
 		*'=y')
