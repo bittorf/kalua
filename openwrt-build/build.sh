@@ -199,8 +199,9 @@ apply_symbol()
 
 			case "$symbol" in
 				'kalua@'*)
-					# can be a short or a long-hash
+					# can be a short or a long-hash -> convert to short
 					hash="$( echo "$symbol" | cut -d'@' -f2 )"
+					hash="$( git rev-parse --short "$hash" )"
 
 					case "$hash" in
 						"$VERSION_KALUA"*)
@@ -221,7 +222,7 @@ apply_symbol()
 			cp -R 'kalua/openwrt-addons/' "$custom_dir"
 
 			log "$funcname() adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
-			cp openwrt-build/apply_profile* "$custom_dir/etc/init.d"
+			cp "kalua/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
 				log "$funcname() using custom '/tmp/apply_profile.code.definitions'"
