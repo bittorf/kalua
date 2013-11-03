@@ -6,13 +6,14 @@
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
 #   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
 # - detect kernel_version
-# - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe, kalua@version
+# - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
 # - packages/feeds/openwrt: checkout specific version
 # - build release-dir
 # - hardware: all models
 # - build jffs2-images too
 # - mode: enforced_profile
 # - kalua: copy patches
+# - minor: fix listing of '--option' (kalua + kalua@)
 
 # dir-structure:
 # $HARDWARE/testing/$files
@@ -192,7 +193,9 @@ apply_symbol()
 	case "$symbol" in
 		'kalua'*)
 			# is a short hash, e.g. 'ed0e11c'
-			VERSION_KALUA="$( cd kalua; git log -1 --format=%h; cd .. )"
+			cd kalua
+			VERSION_KALUA="$( git log -1 --format=%h )"
+			cd ..
 
 			case "$symbol" in
 				'kalua@'*)
@@ -205,8 +208,9 @@ apply_symbol()
 						;;
 						*)
 							cd kalua
-							git checkout -b "view_$hash"
+							git checkout -b "kalua@$hash"
 							cd ..
+
 							VERSION_KALUA="$hash"
 						;;
 					esac
@@ -216,10 +220,20 @@ apply_symbol()
 			log "$funcname() adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cp -R 'kalua/openwrt-addons/' "$custom_dir"
 
+			log "$funcname() adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
+			cp openwrt-build/apply_profile* "$custom_dir/etc/init.d"
+
+			if [ -e '/tmp/apply_profile.code.definitions' ]; then
+				log "$funcname() using custom '/tmp/apply_profile.code.definitions'"
+				cp '/tmp/apply_profile.code.definitions' "$custom_dir"
+			else
+				log "$funcname() no '/tmp/apply_profile.code.definitions' found, using standard kalua file"
+			fi
+
 			[ -n "$hash" ] && {
 				cd kalua
 				git checkout master
-				git branch -D "view_$hash"
+				git branch -D "kalua@$hash"
 				cd ..
 			}
 
