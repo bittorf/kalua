@@ -176,9 +176,9 @@ openwrt_download()
 	esac
 }
 
-copy_files()
+copy_firmware_files()
 {
-	local funcname='copy_files'
+	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH/attic"
 	local file destination rootfs
 
@@ -250,12 +250,16 @@ apply_symbol()
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
 	local choice hash
+	local last_commit_unixtime last_commit_date
 
 	case "$symbol" in
 		'kalua'*)
 			# is a short hash, e.g. 'ed0e11c'
 			cd kalua
 			VERSION_KALUA="$( git log -1 --format=%h )"
+			last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
+			last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
+			last_commit_date="$( date -d @$last_commit_unixtime )"
 
 			case "$symbol" in
 				'kalua@'*)
@@ -283,6 +287,10 @@ apply_symbol()
 
 			log "$funcname() adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "kalua/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
+
+			log "$funcname() adding version-information = '$last_commit_date'"
+			echo  >'files/etc/variables_fff+' "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
+			echo >>'files/etc/variables_fff+' "FFF_VERSION=2.0.0			# OpenWrt based / unused"
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
 				log "$funcname() using custom '/tmp/apply_profile.code.definitions'"
@@ -595,4 +603,4 @@ target_hardware_set "$HARDWARE_MODEL"	|| exit 1
 build_options_set "$LIST_USER_OPTIONS"	|| exit 1
 build					|| exit 1
 openwrt_download 'switch_to_master'	|| exit 1
-copy_files				|| exit 1
+copy_firmware_files			|| exit 1
