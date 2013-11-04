@@ -5,7 +5,6 @@
 # - apply kernel_symbols
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
 #   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
-# - detect kernel_version
 # - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
 # - packages/feeds/openwrt: checkout specific version
 # - build release-dir
@@ -14,6 +13,7 @@
 # - mode: enforced_profile
 # - kalua: copy patches
 # - minor: fix listing of '--option' (kalua + kalua@)
+# - build for whole arch (no subtarget)
 
 # dir-structure:
 # $HARDWARE/testing/$files
@@ -143,6 +143,8 @@ openwrt_download()
 
 	case "$wish" in
 		'leave_untouched')
+			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
+			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 		;;
 		'trunk')
 			$funcname 'switch_to_master'
