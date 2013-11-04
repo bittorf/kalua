@@ -130,8 +130,9 @@ target_hardware_set()
 
 	# e.g. 'CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y' -> 'brcm47xx'
 	ARCH="$( echo "$TARGET_SYMBOL" | cut -d'_' -f3 )"
+	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
 
-	log "$funcname() architecure: '$ARCH' model: '$model'"
+	log "$funcname() architecure: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
 
 	apply_symbol 'nuke_config'
 	apply_symbol "$TARGET_SYMBOL"
@@ -199,6 +200,7 @@ copy_files()
 
 	log "$funcname() warning - not fully implemented yet"
 
+	echo "kernel: '$VERSION_KERNEL'"
 	echo "openwrt-version: '$VERSION_OPENWRT'"
 	echo "hardware: '$HARDWARE_MODEL'"
 	echo "options = --option $LIST_OPTIONS"
