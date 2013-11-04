@@ -18,25 +18,7 @@
 # dir-structure:
 # $HARDWARE/testing/$files
 
-
 # build: release = all arch's + .info-file upload + all options (nopppoe,audiplayer)
-
-# hardware=	Ubiquiti Bullet M			// special, no option-name and separator='.'
-# rootfs=	jffs2.64k | squash | ext4
-# openwrt=	r38675
-# kernel=	3.6.11
-# image=	sysupgrade | factory | tftp | srec | ...
-# profile=	liszt28.hybrid.4			// optional
-# option=	Standard,USBaudio,BigBrother,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI
-#
-# 151 chars:
-# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS,BigBrother_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
-#
-# build-syntax:
-#
-# build --openwrt r38675 --hardware 'Ubiquiti Bullet M' --option kalua,Standard,VDS,USBaudio,BigBrother,noIPv6,noPPPoE --profile liszt28.hybrid.4
-# build --openwrt r38675 --hardware 'Ubiquiti Bullet M' --option kalua,Standard,VDS
-# build --upload attic/stable/beta/testing --release (=sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
 
 log()
 {
@@ -54,7 +36,7 @@ Usage: $0 --openwrt r38675|trunk|<empty> = leave untouched
 	  --option
 	  --profile
 	  --upload
-	  --release
+	  --release	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
 
 e.g. : $0 --openwrt trunk --hardware 'Ubiquiti Bullet M' --option kalua,Standard,VDS
 
@@ -218,6 +200,14 @@ copy_files()
 	destination="${destination}_image=sysupgrade"
 	destination="${destination}.bin"
 
+# hardware=	Ubiquiti Bullet M			// special, no option-name and separator='.'
+# rootfs=	jffs2.64k | squash | ext4
+# openwrt=	r38675
+# kernel=	3.6.11
+# image=	sysupgrade | factory | tftp | srec | ...
+# profile=	liszt28.hybrid.4			// optional
+# option=	Standard,USBaudio,BigBrother,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI
+
 	file="bin/$ARCH/$FILENAME_SYSUPGRADE"
 	ls -l "$file" && cp -v "$file" "$attic/$destination"
 	echo
@@ -238,7 +228,7 @@ build()
 	case "$option" in
 		'nuke_bindir')
 			log "$funcname() $option: removing unneeded firmware/packages, but leaving 'attic'-dir"
-			rm     "bin/$ARCH/*"
+			rm     "bin/$ARCH/"*
 			rm -fR "bin/$ARCH/packages"
 		;;
 		'defconfig')
