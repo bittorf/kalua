@@ -405,6 +405,12 @@ build_options_set()
 				# like mini and: noWiFi, noJFFS2-support
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'LuCI')
+				apply_symbol 'CONFIG_PACKAGE_luci-mod-admin-core=y'	# LuCI: modules
+			;;
+			'LuCIfull')
+				apply_symbol 'CONFIG_PACKAGE_luci=y'			# LuCI: collections
+			;;
 			'vtun')
 				apply_symbol 'CONFIG_PACKAGE_vtun=y'			# network: vpn: vtun:
 				apply_symbol 'CONFIG_VTUN_SSL is not set'		# ...
