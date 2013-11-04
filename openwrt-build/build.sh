@@ -138,22 +138,20 @@ openwrt_download()
 			git pull
 			scripts/feeds update
 
-			log "$funcname() checkout local copy of $VERSION_OPENWRT"
+			log "$funcname() checkout local copy of trunk/$VERSION_OPENWRT"
 			$funcname "$VERSION_OPENWRT"
 		;;
 		'r'*)
 			$funcname 'switch_to_master'
 
-			[ "$wish" = "$VERSION_OPENWRT" ] || {
-				# r12345 -> 12345 -> fe53cab
-				hash="$( echo "$wish" | cut -b2- )"
-				hash="$( git log -1 --format=%h --grep=@$hash )"
+			# r12345 -> 12345 -> fe53cab
+			hash="$( echo "$wish" | cut -b2- )"
+			hash="$( git log -1 --format=%h --grep=@$hash )"
 
-				git checkout -b "openwrt@$hash" "$hash"
+			git checkout -b "openwrt@$hash" "$hash"
 
-				# r12345
-				VERSION_OPENWRT="$wish"
-			}
+			# r12345
+			VERSION_OPENWRT="$wish"
 		;;
 		'switch_to_master')
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
