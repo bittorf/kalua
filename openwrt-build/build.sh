@@ -157,6 +157,9 @@ openwrt_download()
 
 			git pull
 			scripts/feeds update
+
+			log "$funcname() checkout local copy of $VERSION_OPENWRT"
+			$funcname "$VERSION_OPENWRT"
 		;;
 		'r'*)
 			$funcname 'switch_to_master'
