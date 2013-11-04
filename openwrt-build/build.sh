@@ -197,15 +197,29 @@ openwrt_download()
 copy_files()
 {
 	local funcname='copy_files'
+	local attic="bin/$ARCH/attic"
+	local file destination rootfs
 
-	log "$funcname() warning - not fully implemented yet"
+	mkdir -p "$attic"
+	rootfs="squash"
 
 	echo "kernel: '$VERSION_KERNEL'"
 	echo "openwrt-version: '$VERSION_OPENWRT'"
 	echo "hardware: '$HARDWARE_MODEL'"
 	echo "options = --option $LIST_OPTIONS"
 	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
-	ls -l "bin/$ARCH/$FILENAME_SYSUPGRADE"
+
+	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS,BigBrother_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
+	destination="$HARDWARE_MODEL"
+	destination="${destination}.openwrt=${VERSION_OPENWRT}"
+	destination="${destination}_kernel=${VERSION_KERNEL}"
+	destination="${destination}_option=${LIST_OPTIONS}"
+	destination="${destination}_rootfs=$rootfs"
+	destination="${destination}_image=sysupgrade"
+	destination="${destination}.bin"
+
+	file="bin/$ARCH/$FILENAME_SYSUPGRADE"
+	ls -l "$file" && cp -v "$file" "$attic/$destination"
 	echo
 	echo "factory: '$FILENAME_FACTORY'"
 	ls -l "bin/$ARCH/$FILENAME_FACTORY"
@@ -223,8 +237,9 @@ build()
 
 	case "$option" in
 		'nuke_bindir')
-			log "$funcname() $option: rm -fR 'bin/$ARCH'"
-			rm -fR "bin/$ARCH"
+			log "$funcname() $option: removing unneeded firmware/packages, but leaving 'attic'-dir"
+			rm     "bin/$ARCH/*"
+			rm -fR "bin/$ARCH/packages"
 		;;
 		'defconfig')
 			log "$funcname() running 'make defconfig'"
