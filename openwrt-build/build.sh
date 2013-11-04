@@ -184,6 +184,7 @@ copy_firmware_files()
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH/attic"
 	local file destination rootfs
+	local error=
 
 	mkdir -p "$attic"
 	rootfs="squash"
@@ -212,12 +213,23 @@ copy_firmware_files()
 # option=	Standard,USBaudio,BigBrother,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI
 
 	file="bin/$ARCH/$FILENAME_SYSUPGRADE"
-	ls -l "$file" && cp -v "$file" "$attic/$destination"
+	if ls -l "$file"; then
+		cp -v "$file" "$attic/$destination"
+	else
+		error=1
+	fi
+
 	echo
 	echo "factory: '$FILENAME_FACTORY'"
-	ls -l "bin/$ARCH/$FILENAME_FACTORY"
+
+	if ls -l "bin/$ARCH/$FILENAME_FACTORY"; then
+		:
+	else
+		error=1
+	fi
 
 	# tarball + .info + readme.markdown?
+	return $error
 }
 
 build()
@@ -608,5 +620,5 @@ openwrt_download "$VERSION_OPENWRT"	|| exit 1
 target_hardware_set "$HARDWARE_MODEL"	|| exit 1
 build_options_set "$LIST_USER_OPTIONS"	|| exit 1
 build					|| exit 1
-openwrt_download 'switch_to_master'	|| exit 1
 copy_firmware_files			|| exit 1
+openwrt_download 'switch_to_master'	|| exit 1
