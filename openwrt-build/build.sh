@@ -129,9 +129,6 @@ openwrt_download()
 
 	log "$funcname() apply '$wish'"
 
-	# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
-	VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
-
 	case "$wish" in
 		'leave_untouched')
 		;;
@@ -167,6 +164,9 @@ openwrt_download()
 			else
 				log "$funcname() already at master"
 			fi
+
+			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
+			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 		;;
 		*)
 			log "$funcname() unknown option '$wish'"
