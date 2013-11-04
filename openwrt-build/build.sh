@@ -143,11 +143,14 @@ openwrt_download()
 		'leave_untouched')
 		;;
 		'trunk')
-			# switch to master
+			$funcname 'switch_to_master'
+
 			git pull
 			scripts/feeds update
 		;;
 		'r'*)
+			$funcname 'switch_to_master'
+
 			[ "$wish" = "$VERSION_OPENWRT" ] || {
 				# r12345 -> 12345 -> fe53cab
 				hash="$( echo "$wish" | cut -b2- )"
