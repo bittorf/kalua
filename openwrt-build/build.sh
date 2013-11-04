@@ -532,7 +532,6 @@ while [ -n "$1" ]; do {
 				;;
 				*)
 					HARDWARE_MODEL="$2"
-					target_hardware_set "$HARDWARE_MODEL" || exit 1
 				;;
 			esac
 		;;
@@ -566,6 +565,7 @@ while [ -n "$1" ]; do {
 }
 
 openwrt_download "$VERSION_OPENWRT"	|| exit 1
+target_hardware_set "$HARDWARE_MODEL"	|| exit 1
 build_options_set "$LIST_USER_OPTIONS"	|| exit 1
 build					|| exit 1
 openwrt_download 'switch_to_master'	|| exit 1
