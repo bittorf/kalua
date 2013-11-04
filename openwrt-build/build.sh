@@ -68,6 +68,11 @@ target_hardware_set()
 	local line start_parse
 
 	case "$model" in
+		'TP-LINK TL-WDR4300')
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR4300=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-factory.bin'
+		;;
 		'Buffalo WZR-HP-AG300H')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_WZRHPAG300H=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-wlae-ag300n-squashfs-sysupgrade.bin'
