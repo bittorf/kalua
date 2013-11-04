@@ -50,6 +50,11 @@ target_hardware_set()
 	local line start_parse
 
 	case "$model" in
+		'TP-LINK TL-WDR4900 v1')
+			TARGET_SYMBOL='CONFIG_TARGET_mpc85xx_TLWDR4900=y'
+			FILENAME_SYSUPGRADE='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
+		;;
 		'TP-LINK TL-WDR4300')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR4300=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin'
@@ -226,8 +231,8 @@ build()
 	case "$option" in
 		'nuke_bindir')
 			log "$funcname() $option: removing unneeded firmware/packages, but leaving 'attic'-dir"
-			rm     "bin/$ARCH/"*
-			rm -fR "bin/$ARCH/packages"
+			rm     "bin/$ARCH/"*	    2>/dev/null
+			rm -fR "bin/$ARCH/packages" 2>/dev/null
 		;;
 		'defconfig')
 			log "$funcname() running 'make defconfig'"
