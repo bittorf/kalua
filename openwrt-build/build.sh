@@ -292,6 +292,9 @@ apply_symbol()
 			echo  >'files/etc/variables_fff+' "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
 			echo >>'files/etc/variables_fff+' "FFF_VERSION=2.0.0			# OpenWrt based / unused"
 
+			log "$funcname() adding hardware-model to 'files/etc/HARDWARE'"
+			echo >'files/etc/HARDWARE' "$HARDWARE_MODEL"
+
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
 				log "$funcname() using custom '/tmp/apply_profile.code.definitions'"
 				cp '/tmp/apply_profile.code.definitions' "$custom_dir/etc/init.d"
