@@ -118,12 +118,7 @@ target_hardware_set()
 
 	# e.g. 'CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y' -> 'brcm47xx'
 	ARCH="$( echo "$TARGET_SYMBOL" | cut -d'_' -f3 )"
-
-	if [ -n "$VERSION_KERNEL_FORCE" ]; then
-		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
-	else
-		VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
-	fi
+	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
 
 	log "$funcname() architecure: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
 
@@ -176,6 +171,8 @@ openwrt_download()
 
 			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
 			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
+
+			return 0
 		;;
 		*)
 			log "$funcname() unknown option '$wish'"
@@ -185,6 +182,8 @@ openwrt_download()
 	esac
 
 	[ -n "$VERSION_KERNEL_FORCE" ] && {
+		log "$funcname() enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL'"
+		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
 		sed -i "s/^LINUX_VERSION:=.*/LINUX_VERSION:=${VERSION_KERNEL_FORCE}/" "target/linux/ar71xx/Makefile"
 	}
 }
