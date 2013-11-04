@@ -164,10 +164,13 @@ openwrt_download()
 		;;
 		'switch_to_master')
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
-			[ -n "$branch" ] && {
+			if [ -n "$branch" ]; then
 				git checkout master
 				git branch -D "$branch"
-			}
+				log "$funcname() switched back"
+			else
+				log "$funcname() already at master"
+			fi
 		;;
 		*)
 			log "$funcname() unknown option '$wish'"
