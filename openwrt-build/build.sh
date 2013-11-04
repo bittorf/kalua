@@ -33,6 +33,7 @@ print_usage()
 
 Usage: $0 --openwrt r38675|trunk|<empty> = leave untouched
 	  --hardware 'Ubiquiti Bullet M'|<empty> = list supported models
+	  --kernel
 	  --option
 	  --profile
 	  --upload
@@ -117,7 +118,12 @@ target_hardware_set()
 
 	# e.g. 'CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y' -> 'brcm47xx'
 	ARCH="$( echo "$TARGET_SYMBOL" | cut -d'_' -f3 )"
-	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
+
+	if [ -n "$VERSION_KERNEL_FORCE" ]; then
+		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
+	else
+		VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
+	fi
 
 	log "$funcname() architecure: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
 
@@ -177,6 +183,10 @@ openwrt_download()
 			return 1
 		;;
 	esac
+
+	[ -n "$VERSION_KERNEL_FORCE" ] && {
+		sed -i "s/^LINUX_VERSION:=.*/LINUX_VERSION:=${VERSION_KERNEL_FORCE}/" "target/linux/ar71xx/Makefile"
+	}
 }
 
 copy_firmware_files()
@@ -574,6 +584,9 @@ while [ -n "$1" ]; do {
 		;;
 		'--openwrt')
 			VERSION_OPENWRT="$2"
+		;;
+		'--kernel'|'-k')
+			VERSION_KERNEL_FORCE="$2"
 		;;
 		'--hardware'|'-hw')
 			case "$2" in
