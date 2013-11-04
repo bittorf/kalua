@@ -132,8 +132,12 @@ openwrt_download()
 {
 	local funcname='openwrt_download'
 	local wish="${1:-leave_untouched}"
+	local hash branch
 
 	log "$funcname() apply '$wish'"
+
+	# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
+	VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 
 	case "$wish" in
 		'leave_untouched')
@@ -144,7 +148,28 @@ openwrt_download()
 			scripts/feeds update
 		;;
 		'r'*)
-			# checkout openwrt and feed at this date
+			[ "$wish" = "$VERSION_OPENWRT" ] || {
+				# r12345 -> 12345 -> fe53cab
+				hash="$( echo "$wish" | cut -b2- )"
+				hash="$( git log -1 --format=%h --grep=@$REV )"
+
+				git checkout -b "openwrt@$hash" "$hash"
+
+				# r12345
+				VERSION_OPENWRT="$wish"
+			}
+		;;
+		'switch_to_master')
+			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
+			[ -n "$branch" ] && {
+				git checkout master
+				git branch -D "$branch"
+			}
+		;;
+		*)
+			log "$funcname() unknown option '$wish'"
+
+			return 1
 		;;
 	esac
 }
@@ -155,6 +180,7 @@ copy_files()
 
 	log "$funcname() warning - not fully implemented yet"
 
+	echo "openwrt-version: '$VERSION_OPENWRT'"
 	echo "hardware: '$HARDWARE_MODEL'"
 	echo "options = --option $LIST_OPTIONS"
 	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
@@ -306,7 +332,7 @@ build_options_set()
 	local subcall="$2"
 	local file='.config'
 
-	# shift args
+	# shift args, because the call is: $funcname 'subcall' "$opt"
 	[ "$options" = 'subcall' -a -n "$subcall" ] && options="$subcall"
 
 	local oldIFS="$IFS"; IFS=','; set -- $options; IFS="$oldIFS"
@@ -536,4 +562,5 @@ while [ -n "$1" ]; do {
 openwrt_download "$VERSION_OPENWRT"	|| exit 1
 build_options_set "$LIST_USER_OPTIONS"	|| exit 1
 build					|| exit 1
+openwrt_download 'switch_to_master'	|| exit 1
 copy_files				|| exit 1
