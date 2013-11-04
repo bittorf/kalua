@@ -154,7 +154,7 @@ openwrt_download()
 			[ "$wish" = "$VERSION_OPENWRT" ] || {
 				# r12345 -> 12345 -> fe53cab
 				hash="$( echo "$wish" | cut -b2- )"
-				hash="$( git log -1 --format=%h --grep=@$REV )"
+				hash="$( git log -1 --format=%h --grep=@$hash )"
 
 				git checkout -b "openwrt@$hash" "$hash"
 
