@@ -621,7 +621,7 @@ parse_case_patterns()
 	while read line; do {
 		if [ "$start_parse" = 'true' ]; then
 			case "$line" in
-				*')')
+				*')'*)
 					local oldIFS="$IFS"; IFS='|'; set -- $line; IFS="$oldIFS"
 					while [ -n "$1" ]; do {
 						case "$1" in
