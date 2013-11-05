@@ -329,8 +329,12 @@ apply_symbol()
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
 			log "$funcname() adding recent tarball hash from '$url'"
-			hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )" || return 1
-			echo >'files/etc/tarball_last_applied_hash' "$hash"
+			hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
+			if [ -z "$hash" ]; then
+				log "$funcname() cannot fetch tarball hash, be prepared that node will automatically update upon first boot"
+			else
+				echo >'files/etc/tarball_last_applied_hash' "$hash"
+			fi
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
 				log "$funcname() using custom '/tmp/apply_profile.code.definitions'"
