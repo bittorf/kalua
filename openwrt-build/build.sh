@@ -137,6 +137,7 @@ target_hardware_set()
 	log "$funcname() architecure: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
 
 	apply_symbol 'nuke_config'
+	apply_symbol "CONFIG_TARGET_${ARCH}=y"
 	apply_symbol "$TARGET_SYMBOL"
 	build defconfig
 }
