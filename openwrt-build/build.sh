@@ -264,7 +264,7 @@ build()
 			rm -fR "bin/$ARCH/packages" 2>/dev/null
 		;;
 		'defconfig')
-			log "$funcname() running 'make defconfig'"
+			log "$funcname() running 'make defconfig'" debug
 
 			make defconfig >/dev/null || make defconfig
 		;;
@@ -360,7 +360,7 @@ apply_symbol()
 			# target/linux/ar71xx/config-3.10
 		;;
 		'nuke_config')
-			log "$funcname() starting with an empty config"
+			log "$funcname() $symbol: starting with an empty config"
 			rm "$file"
 
 			$funcname 'nuke_customdir'
@@ -371,6 +371,9 @@ apply_symbol()
 		'CONFIG_PACKAGE_ATH_DEBUG=y')
 			# only when atheros-drivers are involved
 			grep -q 'CONFIG_PACKAGE_kmod-ath=y' "$file" || return 0
+		;;
+		*)
+			log "$funcname() symbol: $symbol - not implemented?"
 		;;
 	esac
 
