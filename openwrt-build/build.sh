@@ -146,6 +146,21 @@ target_hardware_set()
 	build defconfig
 }
 
+check_working_directory()
+{
+	local funcname='check_working_directory'
+
+	git log -1 | grep -q 'git-svn-id' || {
+		log "$funcname() please make sure, that you are in OpenWrt's git-root"
+		return 1
+	}
+
+	ls -d kalua >/dev/null || {
+		log "$funcname() please make sure, that directory 'kalua' exists"
+		return 1
+	}
+}
+
 openwrt_download()
 {
 	local funcname='openwrt_download'
@@ -701,6 +716,7 @@ while [ -n "$1" ]; do {
 	exit 1
 }
 
+check_working_directory			|| exit 1
 openwrt_download "$VERSION_OPENWRT"	|| exit 1
 target_hardware_set "$HARDWARE_MODEL"	|| exit 1
 build_options_set "$LIST_USER_OPTIONS"	|| exit 1
