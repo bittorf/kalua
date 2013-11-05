@@ -282,7 +282,7 @@ apply_symbol()
 	local symbol="$1"
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
-	local choice hash
+	local choice hash tarball_hash
 	local last_commit_unixtime last_commit_date url hash
 
 	case "$symbol" in
@@ -330,11 +330,11 @@ apply_symbol()
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
 			log "$funcname() adding recent tarball hash from '$url'"
-			hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
-			if [ -z "$hash" ]; then
+			tarball_hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
+			if [ -z "$tarball_hash" ]; then
 				log "$funcname() cannot fetch tarball hash, be prepared that node will automatically update upon first boot"
 			else
-				echo >'files/etc/tarball_last_applied_hash' "$hash"
+				echo >'files/etc/tarball_last_applied_hash' "$tarball_hash"
 			fi
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
