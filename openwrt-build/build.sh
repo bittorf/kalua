@@ -12,7 +12,6 @@
 # - build jffs2-images too
 # - mode: enforced_profile
 # - kalua: copy patches
-# - minor bug: fix listing of '--option' (kalua + kalua@) -> add option to 'parse_case_patterns' e.g. ignore regex?
 # - build for whole arch (no subtarget)
 
 # dir-structure:
@@ -576,7 +575,13 @@ build_options_set()
 			'list')
 				log "$funcname() supported options:"
 				parse_case_patterns "$funcname" | while read line; do {
-					echo "--option $line"
+					case "$line" in
+						'-'|'-kalua'|'kalua@')
+						;;
+						*)
+							echo "--option $line"
+						;;
+					esac
 				} done
 
 				echo
@@ -584,7 +589,13 @@ build_options_set()
 
 				echo -n '--option '
 				parse_case_patterns "$funcname" | while read line; do {
-					echo -n "$line,"
+					case "$line" in
+						'-'|'-kalua'|'kalua@')
+						;;
+						*)
+							echo -n "$line,"
+						;;
+					esac
 				} done
 				echo
 
