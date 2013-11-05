@@ -449,7 +449,7 @@ build_options_set()
 				$funcname subcall 'noFW'
 				$funcname subcall 'ebTables'
 			;;
-			'Small')	# <4mb flash
+			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
