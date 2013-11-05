@@ -344,6 +344,9 @@ apply_symbol()
 				log "$funcname() no '/tmp/apply_profile.code.definitions' found, using standard kalua file"
 			fi
 
+			log "$funcname() adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
+			echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
+
 			[ -n "$hash" ] && {
 				cd kalua
 				git checkout master
