@@ -175,7 +175,7 @@ openwrt_download()
 			hash="$( echo "$wish" | cut -b2- )"
 			hash="$( git log -1 --format=%h --grep=@$hash )"
 
-			git checkout -b "openwrt@${hash}=${wish}" "$hash"
+			git checkout --force -b "openwrt@${hash}=${wish}" "$hash"
 
 			# r12345
 			VERSION_OPENWRT="$wish"
