@@ -658,6 +658,7 @@ while [ -n "$1" ]; do {
 				HARDWARE_MODEL="$2"
 			else
 				target_hardware_set 'list'
+				exit 1
 			fi
 		;;
 		'--option'|'-o')
