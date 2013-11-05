@@ -5,14 +5,14 @@
 # - apply kernel_symbols
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
 #   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
-# - options: USBaudio, BigBrother, micro, mini, small, LuCI, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
+# - options: USBaudio, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
 # - packages/feeds/openwrt: checkout specific version
 # - build release-dir
 # - hardware: all models
 # - build jffs2-images too
 # - mode: enforced_profile
 # - kalua: copy patches
-# - minor: fix listing of '--option' (kalua + kalua@)
+# - minor bug: fix listing of '--option' (kalua + kalua@)
 # - build for whole arch (no subtarget)
 
 # dir-structure:
@@ -455,6 +455,12 @@ build_options_set()
 				# like mini and: noWiFi, noJFFS2-support
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'BigBrother')
+				apply_symbol 'CONFIG_PACKAGE_kmod-video-uvc=y'
+				apply_symbol 'CONFIG_PACKAGE_ffmpeg=y'
+				apply_symbol 'CONFIG_PACKAGE_motion=y'
+				apply_symbol 'CONFIG_PACKAGE_v4l-utils=y'
+			;;
 			'LuCI')
 				apply_symbol 'CONFIG_PACKAGE_luci-mod-admin-core=y'	# LuCI: modules
 			;;
