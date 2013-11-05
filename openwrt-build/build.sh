@@ -321,7 +321,7 @@ apply_symbol()
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
 			log "$funcname() adding recent tarball hash from '$url'"
-			hash="$( wget -O - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )" || return 1
+			hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )" || return 1
 			echo >'files/etc/tarball_last_applied_hash' "$hash"
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
@@ -540,8 +540,6 @@ build_options_set()
 				return 1
 			;;
 		esac
-
-		log "$funcname() LIST_OPTIONS: '$LIST_OPTIONS'"
 
 		build 'defconfig'
 		shift
