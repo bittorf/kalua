@@ -23,7 +23,9 @@
 log()
 {
 	local message="$1"
+	local debug="$2"
 
+	[ -n "$debug" -a -z "$DEBUG" ] && return 0
 	logger -p user.info -s "$0: $message"
 }
 
@@ -38,6 +40,7 @@ Usage: $0 --openwrt r38675|trunk|<empty> = leave untouched
 	  --profile
 	  --upload
 	  --release	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
+	  --debug
 
 e.g. : $0 --openwrt trunk --hardware 'Ubiquiti Bullet M' --option kalua,Standard,VDS
 
@@ -371,7 +374,7 @@ apply_symbol()
 		;;
 	esac
 
-	log "$funcname() symbol: $symbol"
+	log "$funcname() symbol: $symbol" debug
 
 	case "$symbol" in
 		*'=y')
@@ -659,6 +662,9 @@ while [ -n "$1" ]; do {
 		'--upload'|'-u')
 		;;
 		'--release'|'-r')
+		;;
+		'--debug'|'-d'|'--verbose'|'-v')
+			DEBUG='true'
 		;;
 	esac
 
