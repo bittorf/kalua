@@ -214,7 +214,7 @@ copy_firmware_files()
 	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
 
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
-	destination="$HARDWARE_MODEL"
+	destination="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
 	destination="${destination}.openwrt=${VERSION_OPENWRT}"
 	destination="${destination}_kernel=${VERSION_KERNEL}"
 	destination="${destination}_option=${LIST_OPTIONS}"
