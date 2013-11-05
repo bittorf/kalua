@@ -63,8 +63,8 @@ target_hardware_set()
 		;;
 		'Buffalo WZR-HP-AG300H')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_WZRHPAG300H=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-wlae-ag300n-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-generic-wlae-ag300n-squashfs-factory.bin openwrt-ar71xx-generic-wlae-ag300n-squashfs-tftp.bin'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-factory.bin openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-tftp.bin'
 		;;
 		'TP-LINK TL-WR1043ND')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
