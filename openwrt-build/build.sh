@@ -274,7 +274,7 @@ apply_symbol()
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
 	local choice hash
-	local last_commit_unixtime last_commit_date
+	local last_commit_unixtime last_commit_date url hash
 
 	case "$symbol" in
 		'kalua'*)
@@ -318,6 +318,11 @@ apply_symbol()
 
 			log "$funcname() adding hardware-model to 'files/etc/HARDWARE'"
 			echo >'files/etc/HARDWARE' "$HARDWARE_MODEL"
+
+			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
+			log "$funcname() adding recent tarball hash from '$url'"
+			hash="$( wget -O - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )" || return 1
+			echo >'files/etc/tarball_last_applied_hash' "$hash"
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
 				log "$funcname() using custom '/tmp/apply_profile.code.definitions'"
