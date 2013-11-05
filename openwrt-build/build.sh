@@ -56,6 +56,11 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
 		;;
+		'TP-LINK TL-WR703N v1')
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR703=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr703n-v1-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr703n-v1-squashfs-factory.bin'
+		;;
 		'TP-LINK TL-WDR4300')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR4300=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin'
