@@ -51,7 +51,7 @@ target_hardware_set()
 	local funcname='target_hardware_set'
 	local model="$1"
 	local option="$2"
-	local line start_parse
+	local line
 
 	case "$model" in
 		'TP-LINK TL-WDR4900 v1')
@@ -435,10 +435,10 @@ build_options_set()
 
 		# build a comma-separated list for later output/build-documentation
 		case "${subcall}-$1" in
-			'-kalua'*)
+			'-kalua'*)	# parser_ignore
 				# direct call to kalua (no subcall)
 			;;
-			'-'*)
+			'-'*)		# parser_ignore
 				# direct call (no subcall)
 				LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
 			;;
@@ -446,6 +446,9 @@ build_options_set()
 
 		case "$1" in
 			'kalua'|'kalua@'*)
+				apply_symbol "$1"
+			;;
+			'kalua@'*)	# parser_ignore
 				apply_symbol "$1"
 			;;
 			'Standard')	# >4mb flash
@@ -575,13 +578,7 @@ build_options_set()
 			'list')
 				log "$funcname() supported options:"
 				parse_case_patterns "$funcname" | while read line; do {
-					case "$line" in
-						'-'|'-kalua'|'kalua@')
-						;;
-						*)
-							echo "--option $line"
-						;;
-					esac
+					echo "--option $line"
 				} done
 
 				echo
@@ -589,13 +586,7 @@ build_options_set()
 
 				echo -n '--option '
 				parse_case_patterns "$funcname" | while read line; do {
-					case "$line" in
-						'-'|'-kalua'|'kalua@')
-						;;
-						*)
-							echo -n "$line,"
-						;;
-					esac
+					echo -n "$line,"
 				} done
 				echo
 
@@ -622,6 +613,12 @@ parse_case_patterns()
 		if [ "$start_parse" = 'true' ]; then
 			case "$line" in
 				*')'*)
+					case "$line" in
+						*'# parser_ignore'*)
+							continue
+						;;
+					esac
+
 					local oldIFS="$IFS"; IFS='|'; set -- $line; IFS="$oldIFS"
 					while [ -n "$1" ]; do {
 						case "$1" in
