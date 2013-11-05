@@ -204,7 +204,7 @@ copy_firmware_files()
 	echo "options = --option $LIST_OPTIONS"
 	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
 
-	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS,BigBrother_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
+	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
 	destination="$HARDWARE_MODEL"
 	destination="${destination}.openwrt=${VERSION_OPENWRT}"
 	destination="${destination}_kernel=${VERSION_KERNEL}"
@@ -219,7 +219,7 @@ copy_firmware_files()
 # kernel=	3.6.11
 # image=	sysupgrade | factory | tftp | srec | ...
 # profile=	liszt28.hybrid.4			// optional
-# option=	Standard,USBaudio,BigBrother,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI
+# option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
 	file="bin/$ARCH/$FILENAME_SYSUPGRADE"
 	if ls -l "$file"; then
@@ -456,6 +456,7 @@ build_options_set()
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
 			'BigBrother')
+				apply_symbol 'CONFIG_PACKAGE_kmod-video-core=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-video-uvc=y'
 				apply_symbol 'CONFIG_PACKAGE_ffmpeg=y'
 				apply_symbol 'CONFIG_PACKAGE_motion=y'
