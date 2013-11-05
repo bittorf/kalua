@@ -445,7 +445,7 @@ build_options_set()
 		esac
 
 		case "$1" in
-			'kalua'|'kalua@'*)
+			'kalua')
 				apply_symbol "$1"
 			;;
 			'kalua@'*)	# parser_ignore
