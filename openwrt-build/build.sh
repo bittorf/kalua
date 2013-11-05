@@ -12,7 +12,7 @@
 # - build jffs2-images too
 # - mode: enforced_profile
 # - kalua: copy patches
-# - minor bug: fix listing of '--option' (kalua + kalua@)
+# - minor bug: fix listing of '--option' (kalua + kalua@) -> add option to 'parse_case_patterns' e.g. ignore regex?
 # - build for whole arch (no subtarget)
 
 # dir-structure:
