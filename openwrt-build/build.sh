@@ -362,6 +362,7 @@ apply_symbol()
 		'nuke_config')
 			log "$funcname() $symbol: starting with an empty config"
 			rm "$file"
+			touch "$file"
 
 			$funcname 'nuke_customdir'
 			build 'nuke_bindir'
@@ -372,12 +373,16 @@ apply_symbol()
 			# only when atheros-drivers are involved
 			grep -q 'CONFIG_PACKAGE_kmod-ath=y' "$file" || return 0
 		;;
-		*)
-			log "$funcname() symbol: $symbol - not implemented?"
-		;;
 	esac
 
-	log "$funcname() symbol: $symbol" debug
+	case "$symbol" in
+		*'=y'|*' is not set')
+			log "$funcname() symbol: $symbol"
+		;;
+		*)
+			log "$funcname() symbol: $symbol" debug
+		;;
+	esac
 
 	case "$symbol" in
 		*'=y')
