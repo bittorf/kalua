@@ -668,7 +668,7 @@ while [ -n "$1" ]; do {
 			if target_hardware_set 'list' 'plain' | grep -q ^"$2"$ ; then
 				HARDWARE_MODEL="$2"
 			else
-				target_hardware_set 'list'
+				target_hardware_set 'list' "$3"
 				exit 1
 			fi
 		;;
