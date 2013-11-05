@@ -51,6 +51,7 @@ target_hardware_set()
 {
 	local funcname='target_hardware_set'
 	local model="$1"
+	local option="$2"
 	local line start_parse
 
 	case "$model" in
@@ -112,7 +113,11 @@ target_hardware_set()
 		'list')
 			log "$funcname() supported models:"
 			parse_case_patterns "$funcname" | while read line; do {
-				echo "--hardware '$line'"
+				if [ "$option" = 'plain' ]; then
+					echo "$line"
+				else
+					echo "--hardware '$line'"
+				fi
 			} done
 
 			return 0
@@ -649,16 +654,11 @@ while [ -n "$1" ]; do {
 			VERSION_KERNEL_FORCE="$2"
 		;;
 		'--hardware'|'-hw')
-			case "$2" in
-				'-'*|'')
-					# next arg OR <empty>
-					target_hardware_set 'list'
-					exit 1
-				;;
-				*)
-					HARDWARE_MODEL="$2"
-				;;
-			esac
+			if target_hardware_set 'list' 'plain' | grep -q ^"$2"$ ; then
+				HARDWARE_MODEL="$2"
+			else
+				target_hardware_set 'list'
+			fi
 		;;
 		'--option'|'-o')
 			case "$2" in
