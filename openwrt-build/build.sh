@@ -463,6 +463,7 @@ build_options_set()
 	local options="$1"
 	local subcall="$2"
 	local file='.config'
+	local custom_dir='files'
 
 	# shift args, because the call is: $funcname 'subcall' "$opt"
 	[ "$options" = 'subcall' -a -n "$subcall" ] && options="$subcall"
