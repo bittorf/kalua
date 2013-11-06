@@ -508,8 +508,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 
 				$funcname subcall 'vtun'
-				$funcname subcall 'OLSRd'
-				$funcname subcall 'BatmanAdv'
+				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
@@ -530,8 +529,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 #
 #				$funcname subcall 'vtun'
-				$funcname subcall 'OLSRd'
-				$funcname subcall 'BatmanAdv'
+				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 			;;
 			'Mini')
@@ -544,7 +542,7 @@ build_options_set()
 				$funcname subcall 'noPPPoE'
 			;;
 			'Micro')
-				# like mini and: noWiFi, noJFFS2-support
+				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
 			'b43mini')
@@ -576,6 +574,10 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_vtun=y'			# network: vpn: vtun:
 				apply_symbol 'CONFIG_VTUN_SSL is not set'		# ...
 			;;
+			'mesh')
+				$funcname 'OLSRd'
+				$funcname 'BatmanAdv'
+			;;
 			'OLSRd')
 				apply_symbol 'CONFIG_PACKAGE_olsrd=y'			# network: routing/redirection: olsrd:
 				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-nameservice=y'	# ...
@@ -597,6 +599,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_ulogd=y'			# network: ulogd:
 				apply_symbol 'CONFIG_PACKAGE_ulogd-mod-extra=y'		# ...
 			;;
+			### here starts all 'no'-thingys: remove stuff which is on by OpenWrt-default
 			'noIPv6')
 				$funcname subcall 'noFW'
 
@@ -627,6 +630,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_firewall is not set'	# base-system: firewall3 *off*
 				apply_symbol 'CONFIG_DEFAULT_firewall is not set'	# needed?
 			;;
+			# help/usage-function
 			'list')
 				log "$funcname() supported options:"
 				parse_case_patterns "$funcname" | while read line; do {
