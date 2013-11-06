@@ -650,7 +650,7 @@ build_options_set()
 
 	[ -n "$subcall" ] || {
 		log "$funcname() adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
-		mkdir -p "$custom_dir"
+		mkdir -p "$custom_dir/etc"
 		echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
 	}
 }
