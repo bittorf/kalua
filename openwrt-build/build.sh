@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ToDo:
+# - support for reverting specific openwrt-commits (for building older kernels)
 # - kcmdlinetweak
 # - apply kernel_symbols
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
