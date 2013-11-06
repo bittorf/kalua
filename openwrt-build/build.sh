@@ -190,7 +190,17 @@ openwrt_download()
 			hash="$( echo "$wish" | cut -b2- )"
 			hash="$( git log -1 --format=%h --grep=@$hash )"
 
-			git checkout --force -b "openwrt@${hash}=${wish}" "$hash"
+			git checkout -b "openwrt@${hash}=${wish}" "$hash" || {
+				log "$funcname() checkout failed, trying to stash"
+				git stash save "$funcname() going to checkout ${hash}=${wish}"
+
+				git checkout -b "openwrt@${hash}=${wish}" "$hash" || {
+					log "$funcname() checkout still failing, abort - see stash:" || {
+						git stash list
+						return 1
+					}
+				}
+			}
 
 			# r12345
 			VERSION_OPENWRT="$wish"
@@ -207,6 +217,11 @@ openwrt_download()
 
 			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
 			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
+
+			[ -n "$( git stash list )" ] && {
+				log "$funcname() found openwrt-stash, use e.g. 'git pop' or 'git stash apply stash@{0}' or 'git stash list'"
+				git stash list
+			}
 		;;
 		*)
 			log "$funcname() unknown option '$wish'"
