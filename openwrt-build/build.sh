@@ -541,6 +541,11 @@ build_options_set()
 			'Mini')
 				# be careful: getting firmware and reflash must be possible (or bootloader with TFTP needed)
 				# like small and: noMESH, noSSH, noOPKG, noSwap, noUHTTPD, noIPTables
+				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
+
+				$funcname subcall 'noFW'
+				$funcname subcall 'noIPv6'
+				$funcname subcall 'noPPPoE'
 			;;
 			'Micro')
 				# like mini and: noWiFi, noJFFS2-support
