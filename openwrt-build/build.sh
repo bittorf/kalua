@@ -324,6 +324,8 @@ apply_symbol()
 
 	case "$symbol" in
 		'kalua'*)
+			log "$funcname() kalua: getting files"
+
 			# is a short hash, e.g. 'ed0e11c'
 			cd kalua
 			VERSION_KALUA="$( git log -1 --format=%h )"
@@ -352,21 +354,21 @@ apply_symbol()
 			LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}kalua@$VERSION_KALUA"
 
 			cd ..
-			log "$funcname() adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
+			log "$funcname() kalua: adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cp -R 'kalua/openwrt-addons/' "$custom_dir"
 
-			log "$funcname() adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
+			log "$funcname() kalua: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "kalua/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
 
-			log "$funcname() adding version-information = '$last_commit_date'"
+			log "$funcname() kalua: adding version-information = '$last_commit_date'"
 			echo  >'files/etc/variables_fff+' "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
 			echo >>'files/etc/variables_fff+' "FFF_VERSION=2.0.0			# OpenWrt based / unused"
 
-			log "$funcname() adding hardware-model to 'files/etc/HARDWARE'"
+			log "$funcname() kalua: adding hardware-model to 'files/etc/HARDWARE'"
 			echo >'files/etc/HARDWARE' "$HARDWARE_MODEL"
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
-			log "$funcname() adding recent tarball hash from '$url'"
+			log "$funcname() kalua: adding recent tarball hash from '$url'"
 			tarball_hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
 			if [ -z "$tarball_hash" ]; then
 				log "$funcname() cannot fetch tarball hash, be prepared that node will automatically update upon first boot"
@@ -375,13 +377,13 @@ apply_symbol()
 			fi
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
-				log "$funcname() using custom '/tmp/apply_profile.code.definitions'"
+				log "$funcname() kalua: using custom '/tmp/apply_profile.code.definitions'"
 				cp '/tmp/apply_profile.code.definitions' "$custom_dir/etc/init.d"
 			else
-				log "$funcname() no '/tmp/apply_profile.code.definitions' found, using standard kalua file"
+				log "$funcname() kalua: no '/tmp/apply_profile.code.definitions' found, using standard kalua file"
 			fi
 
-			log "$funcname() adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
+			log "$funcname() kalua: adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
 			echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
 
 			[ -n "$hash" ] && {
