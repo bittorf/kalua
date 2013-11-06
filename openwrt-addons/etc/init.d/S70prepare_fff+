@@ -146,18 +146,6 @@ case $1 in
 		touch "/tmp/service_ssh_nowatching"
 		killall dropbear
 
-		if [ -e /etc/rc.d/*watchdog ]; then
-			/etc/init.d/watchdog stop
-			/etc/init.d/watchdog disable
-			reboot
-		else
-			# older revisions start the watchdog not via init-file
-			pidof watchdog >/dev/null && {
-				rm $( which watchdog )
-				reboot
-			}
-		fi
-
 		while [ -z "$( ip route list exact 0.0.0.0/0 )" ]; do {
 			pidof olsrd || break
 			_log sleep waiting_for_default_route 10 step 10
@@ -167,6 +155,18 @@ case $1 in
 
 		killall netifd
 		[ "$( pidof procd )" = "1" ] || {
+			if [ -e /etc/rc.d/*watchdog ]; then
+				/etc/init.d/watchdog stop
+				/etc/init.d/watchdog disable
+				reboot
+			else
+				# older revisions start the watchdog not via init-file
+				pidof watchdog >/dev/null && {
+					rm $( which watchdog )
+					reboot
+				}
+			fi
+
 			killall procd
 
 			if pidof hostapd >/dev/null; then
