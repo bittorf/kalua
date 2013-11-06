@@ -17,25 +17,14 @@ OLDIFS="$IFS"; IFS=". "; read UP1 UP2 NOP </proc/uptime; IFS="$OLDIFS"
 
 DEBUG="$1"			# keyword "debug" or empty
 BASEDIR="/etc/kalua"		# scriptbase, simply throw your 'class'-files here e.g. wifi
+POOLDIR="/tmp/kalua"
 LOADER="/tmp/loader_$$"
 LOADER_FINAL="/tmp/loader"	# scripts can source this file and automatically use all 'classes'
 
-if [ -d "${BASEDIR}.w" ]; then
-	POOLDIR="${BASEDIR}.w"
-
-	[ -e "$POOLDIR/CHECKSUMS" ] || {
-		rm $POOLDIR/*
-
-		if cat $BASEDIR/* >"$POOLDIR/spacetest"; then
-			rm "$POOLDIR/spacetest"
-		else
-			rm -fR "$POOLDIR"
-			POOLDIR="/tmp/kalua"
-		fi
-	}
-else
-	POOLDIR="/tmp/kalua"
-fi
+[ -d "${BASEDIR}.w" ] && {
+	cd "${BASEDIR}.w"
+	rm -fR *
+}
 
 mkdir -p "$POOLDIR"
 
@@ -66,8 +55,13 @@ _${CLASS}_s(){ _${CLASS}_show ;}
 _${CLASS}_include(){ :;}
 EOF
 
-		# fixme! do it *fast* when booting, and then do it *good-but-slow* after booting
-		_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" "$DEBUG" >>"$POOLDIR/${CLASS}"
+		if [ -d "${BASEDIR}.w" ]; then
+			# lowmem: direct call copy on disc:"
+			echo >>"$POOLDIR/${CLASS}" ". $BASEDIR/$CLASS"
+		else
+			# fixme! do it *fast* when booting, and then do it *good-but-slow* after booting
+			_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" "$DEBUG" >>"$POOLDIR/${CLASS}"
+		fi
 
 		sed -i "/^$CLASS /d" "$POOLDIR/CHECKSUMS"	# remove maybe old checksum
 		if sh -n "$POOLDIR/${CLASS}"; then
