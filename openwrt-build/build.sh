@@ -648,8 +648,11 @@ build_options_set()
 		shift
 	} done
 
-	log "$funcname() adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
-	echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
+	[ -n "$subcall" ] || {
+		log "$funcname() adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
+		mkdir -p "$custom_dir"
+		echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
+	}
 }
 
 parse_case_patterns()
