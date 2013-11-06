@@ -421,7 +421,7 @@ apply_symbol()
 	esac
 
 	case "$symbol" in
-		*'=y'|*' is not set'|'CONFIG_'*)
+		*'=y'|*' is not set')
 			log "$funcname() symbol: $symbol" debug
 		;;
 		*)
