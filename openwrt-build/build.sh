@@ -495,7 +495,6 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
-				apply_symbol 'CONFIG_PACKAGE_kmod-macvlan=y'		# kernel-modules: network-devices:
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
@@ -512,14 +511,12 @@ build_options_set()
 				$funcname subcall 'OLSRd'
 				$funcname subcall 'BatmanAdv'
 				$funcname subcall 'noFW'
-				$funcname subcall 'ebTables'
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
-				apply_symbol 'CONFIG_PACKAGE_kmod-macvlan=y'		# kernel-modules: network-devices:
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 #				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
@@ -536,7 +533,6 @@ build_options_set()
 				$funcname subcall 'OLSRd'
 				$funcname subcall 'BatmanAdv'
 				$funcname subcall 'noFW'
-				$funcname subcall 'ebTables'
 			;;
 			'Mini')
 				# be careful: getting firmware and reflash must be possible (or bootloader with TFTP needed)
@@ -587,6 +583,12 @@ build_options_set()
 			;;
 			'BatmanAdv')
 				apply_symbol 'CONFIG_PACKAGE_kmod-batman-adv=y'		# kernel-modules: support: batman-adv
+
+				$funcname 'ebTables'
+				$funcname 'macVLAN'
+			;;
+			'macVLAN')
+				apply_symbol 'CONFIG_PACKAGE_kmod-macvlan=y'		# kernel-modules: network-devices:
 			;;
 			'ebTables')
 				apply_symbol 'CONFIG_PACKAGE_ebtables=y'		# # network: firewall: ebtables
