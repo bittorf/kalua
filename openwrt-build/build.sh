@@ -5,8 +5,10 @@
 # - apply kernel_symbols
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
 #   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
-# - options: USBaudio, noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
+# - options: noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe, b43mini
 # - packages/feeds/openwrt: checkout specific version
+#   - http://stackoverflow.com/questions/6990484/git-checkout-by-date
+#   - hash="$( git rev-list -n 1 --before="2009-07-27 13:37" master )"
 # - build release-dir
 # - hardware: all models
 # - build jffs2-images too
