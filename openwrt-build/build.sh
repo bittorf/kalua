@@ -6,7 +6,7 @@
 # - apply kernel_symbols
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
 #   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
-# - options: noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe, b43mini
+# - options: noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
 # - packages/feeds/openwrt: checkout specific version
 #   - http://stackoverflow.com/questions/6990484/git-checkout-by-date
 #   - hash="$( git rev-list -n 1 --before="2009-07-27 13:37" master )"
@@ -421,11 +421,11 @@ apply_symbol()
 	esac
 
 	case "$symbol" in
-		*'=y'|*' is not set')
-			log "$funcname() symbol: $symbol"
+		*'=y'|*' is not set'|'CONFIG_'*)
+			log "$funcname() symbol: $symbol" debug
 		;;
 		*)
-			log "$funcname() symbol: $symbol" debug
+			log "$funcname() symbol: $symbol"
 		;;
 	esac
 
@@ -448,6 +448,12 @@ apply_symbol()
 			else
 				grep -sq "$symbol" "$file" || echo >>"$file" "# $@"
 			fi
+		;;
+		'CONFIG_'*)
+			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
+			grep -sq ^"$symbol"$ "$file" || {
+				echo "$symbol" >>"$file"
+			}
 		;;
 	esac
 }
@@ -540,6 +546,12 @@ build_options_set()
 				# like mini and: noWiFi, noJFFS2-support
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'b43mini')
+				apply_symbol 'CONFIG_B43_FW_SQUASH_PHYTYPES="G"'	# kernel-modules: wireless: b43
+				apply_symbol 'CONFIG_PACKAGE_B43_PHY_N is not set'	# ...
+				apply_symbol 'CONFIG_PACKAGE_B43_PHY_HT is not set'	# ...
+				apply_symbol 'CONFIG_PACKAGE_kmod-b43legacy is not set'	# kernel-modules:
+			;;
 			'BigBrother')
 				apply_symbol 'CONFIG_PACKAGE_kmod-video-core=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-video-uvc=y'
