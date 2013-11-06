@@ -222,7 +222,7 @@ openwrt_download()
 			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 
 			[ -n "$( git stash list )" ] && {
-				log "$funcname() found openwrt-stash, use e.g. 'git pop' or 'git stash apply stash@{0}' or 'git stash list'"
+				log "$funcname() found openwrt-stash, use e.g. 'git stash list OR pop OR apply stash@{0}"
 				git stash list
 			}
 		;;
