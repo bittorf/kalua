@@ -269,12 +269,18 @@ has_default_route && {
 
 
 [ -n "$SIM_ARG1" -a -n "$SIM_ARG2" -a -n "$SIM_ARG3" -a -z "$PROFILE_MODE" ] && {
-	echo "detected already set values:"
-	echo "INSTALLATION: $SIM_ARG1"
-	echo "PROFILE_MODE: $SIM_ARG2"
-	echo "NODENUMBER: $SIM_ARG3"
-	echo "GATEWAY: $SIM_ARG4"
-	echo
+	log "detected already set values:"
+	log "INSTALLATION: $SIM_ARG1"
+	log "PROFILE_MODE: $SIM_ARG2"
+	log "NODENUMBER: $SIM_ARG3"
+	log "GATEWAY: $SIM_ARG4"
+
+	mv '/tmp/CRON_IS_CAREFUL' '/tmp/CRON_IS_CAREFUL.old'
+	killall crond
+	for DAEMON in uhttpd olsrd sysntpd 6relayd dnsmasq ulogd; do {
+		log "ending daemon: $DAEMON"
+		/etc/init.d/$DAEMON stop
+	} done
 
 	[ "$1" = "boot" ] || {
 		echo "press <enter> to continue/reapply these values or strg+c to abort"
@@ -1728,7 +1734,7 @@ EOF
 
 [ -e "/etc/kalua_init" ] && {
 	log "[OK] building kalua-loader"
-	/etc/kalua_init
+	[ -e '/tmp/loader' ] || /etc/kalua_init
 	/etc/init.d/S41build_static_netparam		# it's essential for ipsystem()
 	. /tmp/loader
 
