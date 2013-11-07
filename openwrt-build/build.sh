@@ -532,7 +532,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 #
 #				$funcname subcall 'vtun'
-				$funcname subcall 'mesh'
+#				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 			;;
 			'Mini')
