@@ -484,6 +484,9 @@ build_options_set()
 		esac
 
 		case "$1" in
+			'defconfig')
+				# this simply adds or deletes no symbols
+			;;
 			'kalua')
 				apply_symbol "$1"
 			;;
@@ -535,6 +538,7 @@ build_options_set()
 			'Mini')
 				# be careful: getting firmware and reflash must be possible (or bootloader with TFTP needed)
 				# like small and: noMESH, noSSH, noOPKG, noSwap, noUHTTPD, noIPTables
+				# -coredump,-debug,-symbol-table
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
 
 				$funcname subcall 'noFW'
@@ -601,7 +605,14 @@ build_options_set()
 			;;
 			### here starts all 'no'-thingys: remove stuff which is on by OpenWrt-default
 			'noIPv6')
+				# seems not to work with brcm47xx, but with ar71xx?!
 				$funcname subcall 'noFW'
+
+				# CONFIG_PACKAGE_libip6tc=y
+				# CONFIG_PACKAGE_libxtables=y
+				# CONFIG_DEFAULT_6relayd=y
+				# CONFIG_DEFAULT_ip6tables=y
+				# CONFIG_DEFAULT_odhcp6c=y
 
 				apply_symbol 'CONFIG_IPV6 is not set'			# global build settings: IPv6 support in packages
 				apply_symbol 'CONFIG_PACKAGE_6relayd is not set'	# network: 6relayd
