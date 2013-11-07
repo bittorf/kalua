@@ -579,8 +579,8 @@ build_options_set()
 				apply_symbol 'CONFIG_VTUN_SSL is not set'		# ...
 			;;
 			'mesh')
-				$funcname 'OLSRd'
-				$funcname 'BatmanAdv'
+				$funcname subcall 'OLSRd'
+				$funcname subcall 'BatmanAdv'
 			;;
 			'OLSRd')
 				apply_symbol 'CONFIG_PACKAGE_olsrd=y'			# network: routing/redirection: olsrd:
@@ -590,8 +590,8 @@ build_options_set()
 			'BatmanAdv')
 				apply_symbol 'CONFIG_PACKAGE_kmod-batman-adv=y'		# kernel-modules: support: batman-adv
 
-				$funcname 'ebTables'
-				$funcname 'macVLAN'
+				$funcname subcall 'ebTables'
+				$funcname subcall 'macVLAN'
 			;;
 			'macVLAN')
 				apply_symbol 'CONFIG_PACKAGE_kmod-macvlan=y'		# kernel-modules: network-devices:
