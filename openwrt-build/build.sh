@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ToDo:
+# - support for ath9k-reghack-patch
 # - support for reverting specific openwrt-commits (for building older kernels)
 # - kcmdlinetweak
 # - apply kernel_symbols
@@ -16,6 +17,9 @@
 # - mode: enforced_profile
 # - kalua: copy patches
 # - build for whole arch (no subtarget)
+# - automatically use keyword 'kalua' or 'weimarnetz' everywhere
+#   - build with 'weimarnetz'
+# - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 
 # dir-structure:
 # $HARDWARE/testing/$files
@@ -326,7 +330,8 @@ apply_symbol()
 		'kalua'*)
 			log "$funcname() kalua: getting files"
 
-			# is a short hash, e.g. 'ed0e11c'
+			# is a short hash, e.g. 'ed0e11ci', this is enough:
+			# http://lkml.indiana.edu/hypermail/linux/kernel/1309.3/04147.html
 			cd kalua
 			VERSION_KALUA="$( git log -1 --format=%h )"
 			last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
