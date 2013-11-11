@@ -61,6 +61,11 @@ target_hardware_set()
 	local line
 
 	case "$model" in
+		'PC Engines ALIX.2')
+			TARGET_SYMBOL='CONFIG_TARGET_x86_alix2=y'
+			FILENAME_SYSUPGRADE='openwrt-x86-alix2-combined-squashfs.img'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
 		'TP-LINK TL-WDR4900 v1')
 			TARGET_SYMBOL='CONFIG_TARGET_mpc85xx_TLWDR4900=y'
 			FILENAME_SYSUPGRADE='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-sysupgrade.bin'
