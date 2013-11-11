@@ -43,12 +43,12 @@ _stopwatch_stop()		# OUT1: centyseconds = seconds/100
 {
 	local FUNC="stopwatch_stop"
 	local CONTEXT="${1:-unset}"
-	local KEYWORD="$2"				# e.g. quiet|global|nolog
+	local KEYWORD="$2"				# e.g. quiet|global|nolog|speed
 	local object_count="$3"				# e.g. 32
 	local object_type="$4"				# e.g. tickets
 
 	local up rest DIFF humanreadable FILE logprio
-	local START END OUT INTEGER REST message
+	local START END OUT INTEGER REST message speed
 
 	read up rest </proc/uptime
 
@@ -80,10 +80,12 @@ _stopwatch_stop()		# OUT1: centyseconds = seconds/100
 	}
 
 	[ -n "$object_type" -a -n "$object_count" ] && {
-		message="$(( ${object_count}00 / $OUT )).$(( ${object_count}00 % $OUT ))"	# 32 tickets / 12.12sec 
-		message=" ($message $object_type/sec)"						# 3200 / 1212 = 2.64
+		# 32 tickets / 12.12sec -> 3200 / 1212 = 2.64
+		speed="$(( ${object_count}00 / $OUT )).$(( ${object_count}00 % $OUT ))"
+		message=" ($speed $object_type/sec)"
 	}
 
-	[ "$KEYWORD" = "nolog" ] || _log do $FUNC daemon $logprio "task '$CONTEXT' lasts $INTEGER.$REST seconds${humanreadable}${message}"
-	[ "$KEYWORD" = "quiet" ] || echo "$OUT"
+	[ "$KEYWORD" = 'nolog' ] || _log do $FUNC daemon $logprio "task '$CONTEXT' lasts $INTEGER.$REST seconds${humanreadable}${message}"
+	[ "$KEYWORD" = 'quiet' ] || echo "$OUT"
+	[ "$KEYWORD" = 'speed' ] && echo "$speed"
 }
