@@ -17,9 +17,9 @@
 			[ "$REQUEST_METHOD" = "POST" -a ${CONTENT_LENGTH:-0} -gt 0 ] && read -n $CONTENT_LENGTH POST
 
 			if [ -n "$USERNAME" ]; then
-				curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" --user "$USERNAME:$PASSWORD"
+				curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" --user "$USERNAME:$PASSWORD" || echo "ERR 0-$?"
 			else
-				curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}"
+				curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" || echo "ERR: 1-$?"
 			fi
 		else
 			echo "please use https:// for connecting"
