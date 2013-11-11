@@ -45,7 +45,7 @@ read GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 echo "<h3>Routenverfolgung zum Gateway '$GATEWAY' zum Zeitpunkt $( _system date humanreadable nice )</h3>"
 echo "<pre>$( traceroute $GATEWAY )</pre>"
 
-echo "<h3>Testdownload einer 10 Megabyte-Datei</h3>"
+echo "<h3>Testdownload einer 5 Megabyte-Datei</h3>"
 echo "<small><b>Hinweis</b>: Sie k&ouml;nnen manuell einen Geschwindkeitstest durchf&uuml;hren, indem Sie folgende Dateien herunterladen und die Zeit stoppen den dieser Vorgangs ben&ouml;nigt. Dauert es z.b. 50 Sekunden, errechnet sich die resultierende Geschwindigkeit nach diesem Schema: 80 Mbit / 50 Sekunden = 1,6 Megabit/Sekunde.</small>"
 
 echo "<p>"
