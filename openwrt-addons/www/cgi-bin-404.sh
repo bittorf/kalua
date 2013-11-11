@@ -1,7 +1,32 @@
 #!/bin/sh
 
 # [ -e "/tmp/service_ssh_nowatching" ] && {		# means: LOWMEM-Router
-	if   [ -e "/tmp/weblogin_cached_for_overload" ]; then
+	if uci -q get system.@httpsproxy[0].enabled >/dev/null ; then
+		. /tmp/loader
+		_http header_mimetype_output 'text/html'
+
+		if [ "$SERVER_PORT" = '443' ]; then
+			case "$REQUEST_URI" in
+				*'USERNAME='*|*'IPADDR='*)
+					QUERY_STRING="$( echo "$REQUEST_URI" | cut -d'?' -f2 )"
+					eval $( _http query_string_sanitize | grep -E '^USERNAME=|^PASSWORD=|^IPADDR=' )
+				;;
+			esac
+
+			[ -z "$IPADDR" ] && IPADDR="$( uci -q get system.@httpsproxy[0].ipaddr )"
+			[ "$REQUEST_METHOD" = "POST" -a ${CONTENT_LENGTH:-0} -gt 0 ] && read -n $CONTENT_LENGTH POST
+
+			if [ -n "$USERNAME" ]; then
+				curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" --user "$USERNAME:$PASSWORD"
+			else
+				curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}"
+			fi
+		else
+			echo "please use https:// for connecting"
+		fi
+
+		exit 0
+	elif   [ -e "/tmp/weblogin_cached_for_overload" ]; then
 		cat "/tmp/weblogin_cached_for_overload"
 		exit 0
 	elif [ -e "/www/weblogin_cached_for_overload" ]; then
