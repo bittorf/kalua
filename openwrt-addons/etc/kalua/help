@@ -5,6 +5,12 @@ welcome onboard, this is a '$HARDWARE'
 equipped with ~$( _system ram_size ) Kb RAM and ~$( _system flash_size) Kb flash
 and the network switch looks like: '$( _switch show )'
 
+interface-configuration:
+EOF
+	_help list_interfaces
+
+	cat <<EOF
+
 we are running OpenWrt-Linux with kernel $( uname -r ) on architecture $( _system architecture )
 you can explore the system with some functions:
 
@@ -14,4 +20,27 @@ type e.g. _help '_system load'
 
 also visit: https://github.com/bittorf/kalua
 EOF
+}
+
+_help_list_interfaces()
+{
+	local line ifname interface ipaddr netmask cidr
+
+	uci show network | grep '=interface'$ | while read line; do {
+		line="${line%=*}"		# network.lan=interface -> network.lan
+		interface="${line#*.}"		# network.lan -> lan
+		ifname="$( uci get $line.ifname )"
+
+		case "$ifname" in
+			'@'*|'lo')
+			;;
+			*)
+				ipaddr="$(  uci get $line.ipaddr   )"
+				netmask="$( uci get $line.netmask  )"
+				cidr="$( _net mask2cidr "$netmask" )"
+
+				echo "$interface/$ifname: $ipaddr/$cidr (=$netmask)"
+			;;
+		esac
+	} done
 }
