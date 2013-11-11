@@ -43,7 +43,7 @@ Usage: $0 --openwrt r38675|trunk|<empty> = leave untouched
 	  --hardware 'Ubiquiti Bullet M'|<empty> = list supported models
 	  --kernel
 	  --option
-	  --profile
+	  --profile 'ffweimar.hybrid.120'
 	  --upload
 	  --release	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
 	  --debug
@@ -258,12 +258,14 @@ copy_firmware_files()
 	echo "hardware: '$HARDWARE_MODEL'"
 	echo "options = --option $LIST_OPTIONS"
 	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
+	echo "enforced_profile: $CONFIG_PROFILE"
 
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
 	destination="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
 	destination="${destination}.openwrt=${VERSION_OPENWRT}"
 	destination="${destination}_kernel=${VERSION_KERNEL}"
 	destination="${destination}_option=${LIST_OPTIONS}"
+	[ -n "$CONFIG_PROFILE" ] && destination="${destination}_profile=${CONFIG_PROFILE}"
 	destination="${destination}_rootfs=$rootfs"
 	destination="${destination}_image=sysupgrade"
 	destination="${destination}.bin"
@@ -330,6 +332,7 @@ apply_symbol()
 	local custom_dir='files'	# standard way to add/customize
 	local choice hash tarball_hash
 	local last_commit_unixtime last_commit_date url hash
+	local file installation sub_profile node
 
 	case "$symbol" in
 		'kalua'*)
@@ -392,6 +395,18 @@ apply_symbol()
 			else
 				log "$funcname() kalua: no '/tmp/apply_profile.code.definitions' found, using standard kalua file"
 			fi
+
+			[ -n "$CONFIG_PROFILE" ] && {
+				file="$custom_dir/etc/init.d/apply_profile.code"
+				installation="$( echo "$CONFIG_PROFILE" | cut -d'.' -f1 )"
+				sub_profile="$(  echo "$CONFIG_PROFILE" | cut -d'.' -f2 )"
+				node="$(         echo "$CONFIG_PROFILE" | cut -d'.' -f3 )"
+
+				log "$funcname() kalua: enforced profile: $installation - $sub_profile - $node"
+				sed -i "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$file"
+				sed -i "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$file"
+				sed -i "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$file"
+			}
 
 			[ -n "$hash" ] && {
 				cd kalua
@@ -765,6 +780,7 @@ while [ -n "$1" ]; do {
 			esac
 		;;
 		'--profile'|'-p')
+			# e.g. ffweimar.hybrid.120
 			CONFIG_PROFILE="$2"
 		;;
 		'--upload'|'-u')
