@@ -14,6 +14,7 @@
 			esac
 
 			[ -z "$IPADDR" ] && IPADDR="$( uci -q get system.@httpsproxy[0].ipaddr )"
+			[ "$IPADDR" = 'auto' ] && IPADDR="$( head -n1 '/tmp/dhcp.leases' | cut -d' ' -f3 )"
 			[ "$REQUEST_METHOD" = "POST" -a ${CONTENT_LENGTH:-0} -gt 0 ] && read -n $CONTENT_LENGTH POST
 
 			if [ -n "$USERNAME" ]; then
