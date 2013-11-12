@@ -2,8 +2,9 @@
 
 # ToDo:
 # - support for ath9k-reghack-patch
+# - kcmdlinetweak (oops_on_panic, panic_on_oom)
+
 # - support for reverting specific openwrt-commits (for building older kernels)
-# - kcmdlinetweak
 # - apply kernel_symbols
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
 #   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
@@ -14,12 +15,12 @@
 # - build release-dir
 # - hardware: all models
 # - build jffs2-images too
-# - mode: enforced_profile
 # - kalua: copy patches
-# - build for whole arch (no subtarget)
+# - build for whole arch (no subtarget)?
 # - automatically use keyword 'kalua' or 'weimarnetz' everywhere
 #   - build with 'weimarnetz'
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
+# - build for each router in monitoring? "build for network olympia"
 
 # dir-structure:
 # $HARDWARE/testing/$files
