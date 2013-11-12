@@ -278,7 +278,12 @@ copy_firmware_files()
 # profile=	liszt28.hybrid.4			// optional
 # option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
-	file="bin/$ARCH/$FILENAME_SYSUPGRADE"
+	if [ -n "$CONFIG_PROFILE" ]; then
+		file="bin/$ARCH/$FILENAME_FACTORY"
+	else
+		file="bin/$ARCH/$FILENAME_SYSUPGRADE"
+	fi
+
 	if ls -l "$file"; then
 		cp -v "$file" "$attic/$destination"
 	else
@@ -286,7 +291,8 @@ copy_firmware_files()
 	fi
 
 	echo
-	echo "factory: '$FILENAME_FACTORY'"
+	echo "sysupgrade: '$FILENAME_SYSUPGRADE'"
+	echo "factory:    '$FILENAME_FACTORY'"
 
 	if ls -l "bin/$ARCH/$FILENAME_FACTORY"; then
 		:
