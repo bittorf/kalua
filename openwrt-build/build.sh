@@ -49,7 +49,7 @@ Usage: $0 --openwrt r38675|trunk|<empty> = leave untouched
 	  --release	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
 	  --debug
 
-e.g. : $0 --openwrt trunk --hardware 'Ubiquiti Bullet M' --option kalua,Standard,VDS
+e.g. : $0 --openwrt trunk --hardware 'Ubiquiti Bullet M' --option $KALUA_DIRNAME,Standard,VDS
 
 EOF
 }
@@ -169,8 +169,8 @@ check_working_directory()
 		return 1
 	}
 
-	ls -d kalua >/dev/null || {
-		log "$funcname() please make sure, that directory 'kalua' exists"
+	ls -d "$KALUA_DIRNAME" >/dev/null || {
+		log "$funcname() please make sure, that directory '$KALUA_DIRNAME' exists"
 		return 1
 	}
 }
@@ -347,19 +347,19 @@ apply_symbol()
 	local file installation sub_profile node
 
 	case "$symbol" in
-		'kalua'*)
-			log "$funcname() kalua: getting files"
+		"$KALUA_DIRNAME"*)
+			log "$funcname() $KALUA_DIRNAME: getting files"
 
 			# is a short hash, e.g. 'ed0e11ci', this is enough:
 			# http://lkml.indiana.edu/hypermail/linux/kernel/1309.3/04147.html
-			cd kalua
+			cd $KALUA_DIRNAME
 			VERSION_KALUA="$( git log -1 --format=%h )"
 			last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
 			last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
 			last_commit_date="$( date -d @$last_commit_unixtime )"
 
 			case "$symbol" in
-				'kalua@'*)
+				"$KALUA_DIRNAME@"*)
 					# can be a short or a long-hash -> convert to short
 					hash="$( echo "$symbol" | cut -d'@' -f2 )"
 					hash="$( git rev-parse --short "$hash" )"
@@ -369,31 +369,31 @@ apply_symbol()
 							hash=
 						;;
 						*)
-							git checkout -b "kalua@$hash" "$hash"
+							git checkout -b "$KALUA_DIRNAME@$hash" "$hash"
 							VERSION_KALUA="$hash"
 						;;
 					esac
 				;;
 			esac
 
-			LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}kalua@$VERSION_KALUA"
+			LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}$KALUA_DIRNAME@$VERSION_KALUA"
 
 			cd ..
-			log "$funcname() kalua: adding kalua-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
-			cp -R 'kalua/openwrt-addons/' "$custom_dir"
+			log "$funcname() $KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
+			cp -R '$KALUA_DIRNAME/openwrt-addons/' "$custom_dir"
 
-			log "$funcname() kalua: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
-			cp "kalua/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
+			log "$funcname() $KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
+			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
 
-			log "$funcname() kalua: adding version-information = '$last_commit_date'"
+			log "$funcname() $KALUA_DIRNAME: adding version-information = '$last_commit_date'"
 			echo  >'files/etc/variables_fff+' "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
 			echo >>'files/etc/variables_fff+' "FFF_VERSION=2.0.0			# OpenWrt based / unused"
 
-			log "$funcname() kalua: adding hardware-model to 'files/etc/HARDWARE'"
+			log "$funcname() $KALUA_DIRNAME: adding hardware-model to 'files/etc/HARDWARE'"
 			echo >'files/etc/HARDWARE' "$HARDWARE_MODEL"
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
-			log "$funcname() kalua: adding recent tarball hash from '$url'"
+			log "$funcname() $KALUA_DIRNAME: adding recent tarball hash from '$url'"
 			tarball_hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
 			if [ -z "$tarball_hash" ]; then
 				log "$funcname() cannot fetch tarball hash, be prepared that node will automatically update upon first boot"
@@ -402,10 +402,10 @@ apply_symbol()
 			fi
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
-				log "$funcname() kalua: using custom '/tmp/apply_profile.code.definitions'"
+				log "$funcname() $KALUA_DIRNAME: using custom '/tmp/apply_profile.code.definitions'"
 				cp '/tmp/apply_profile.code.definitions' "$custom_dir/etc/init.d"
 			else
-				log "$funcname() kalua: no '/tmp/apply_profile.code.definitions' found, using standard kalua file"
+				log "$funcname() $KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
 			fi
 
 			[ -n "$CONFIG_PROFILE" ] && {
@@ -414,7 +414,7 @@ apply_symbol()
 				sub_profile="$(  echo "$CONFIG_PROFILE" | cut -d'.' -f2 )"
 				node="$(         echo "$CONFIG_PROFILE" | cut -d'.' -f3 )"
 
-				log "$funcname() kalua: enforced profile: $installation - $sub_profile - $node"
+				log "$funcname() $KALUA_DIRNAME: enforced profile: $installation - $sub_profile - $node"
 				sed -i "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$file"
 				sed -i "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$file"
 				sed -i "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$file"
@@ -422,9 +422,9 @@ apply_symbol()
 			}
 
 			[ -n "$hash" ] && {
-				cd kalua
+				cd $KALUA_DIRNAME
 				git checkout master
-				git branch -D "kalua@$hash"
+				git branch -D "$KALUA_DIRNAME@$hash"
 				cd ..
 			}
 
@@ -512,10 +512,10 @@ build_options_set()
 
 		# build a comma-separated list for later output/build-documentation
 		case "${subcall}-$1" in
-			'-kalua'*)	# parser_ignore
-				# direct call to kalua (no subcall)
+			"-$KALUA_DIRNAME"*)	# parser_ignore
+						# direct call to kalua (no subcall)
 			;;
-			'-'*)		# parser_ignore
+			'-'*)	# parser_ignore
 				# direct call (no subcall)
 				LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
 			;;
@@ -525,10 +525,10 @@ build_options_set()
 			'defconfig')
 				# this simply adds or deletes no symbols
 			;;
-			'kalua')
+			"$KALUA_DIRNAME")
 				apply_symbol "$1"
 			;;
-			'kalua@'*)	# parser_ignore
+			"$KALUA_DIRNAME@"*)	# parser_ignore
 				apply_symbol "$1"
 			;;
 			'Standard')	# >4mb flash
@@ -759,6 +759,10 @@ parse_case_patterns()
 		fi
 	} done <"$0"
 }
+
+# kalua/openwrt-build/build.sh      -> kalua
+# weimarnetz/openwrt-build/build.sh -> weimarnetz
+KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 
 while [ -n "$1" ]; do {
 	case "$1" in
