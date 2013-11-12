@@ -416,6 +416,7 @@ apply_symbol()
 				sed -i "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$file"
 				sed -i "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$file"
 				sed -i "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$file"
+				sed -i 's|^#\[ "$SIM_ARG3|\[ "$SIM_ARG3|' "$file"	# wan-dhcp for node 2
 			}
 
 			[ -n "$hash" ] && {
