@@ -122,7 +122,8 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec openwrt-au1000-au1500-squashfs.srec'
 		;;
 		'list')
-			log "$funcname() supported models:" debug
+			[ "$option" = 'plain' ] || log "$funcname() supported models:"
+
 			parse_case_patterns "$funcname" | while read line; do {
 				if [ "$option" = 'plain' ]; then
 					echo "$line"
