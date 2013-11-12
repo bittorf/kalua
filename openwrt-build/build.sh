@@ -267,7 +267,11 @@ copy_firmware_files()
 	destination="${destination}_option=${LIST_OPTIONS}"
 	[ -n "$CONFIG_PROFILE" ] && destination="${destination}_profile=${CONFIG_PROFILE}"
 	destination="${destination}_rootfs=$rootfs"
-	destination="${destination}_image=sysupgrade"
+	if [ -n "$CONFIG_PROFILE" ]; then
+		destination="${destination}_image=factory"
+	else
+		destination="${destination}_image=sysupgrade"
+	fi
 	destination="${destination}.bin"
 
 # hardware=	Ubiquiti Bullet M			// special, no option-name and separator='.'
