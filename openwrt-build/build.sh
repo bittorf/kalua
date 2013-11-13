@@ -380,7 +380,7 @@ apply_symbol()
 
 			cd ..
 			log "$funcname() $KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
-			cp -R '$KALUA_DIRNAME/openwrt-addons/' "$custom_dir"
+			cp -R "$KALUA_DIRNAME/openwrt-addons/" "$custom_dir"
 
 			log "$funcname() $KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
