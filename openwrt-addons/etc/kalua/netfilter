@@ -18,7 +18,7 @@ _netfilter_start()
 
 	_netfilter masquerade_start
 	_netfilter portforwarding_start
-#	_netfilter conntrack_adjust_max
+	_netfilter conntrack_adjust_max
 
 	case "$CONFIG_PROFILE" in
 		ejbw*)
@@ -652,6 +652,15 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 	local file_buckets="/sys/module/nf_conntrack/parameters/hashsize"
 	local buckets old_buckets old_max
 
+	# dont conntrack DNS/olsrd
+	iptables -t raw -I PREROUTING -p udp --dport 53 -j NOTRACK
+	iptables -t raw -I OUTPUT     -p udp --dport 53 -j NOTRACK
+	iptables -t raw -I PREROUTING -p udp --dport 698 -d 255.255.255.255 -j NOTRACK
+	iptables -t raw -I OUTPUT     -p udp --dport 698 -d 255.255.255.255 -j NOTRACK
+
+	# below still needs fixing
+	return 0
+
 	[ -e "$file" ] || return 0
 	read old_max <"$file"
 
@@ -756,7 +765,7 @@ _netfilter_stop()
 		;;
 	esac
 
-	for table in mangle filter nat; do {
+	for table in mangle filter nat raw; do {
 		_log do $funcname daemon info "unloading table $table"
 		iptables -t $table -F
 		iptables -t $table -X
