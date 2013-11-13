@@ -15,6 +15,18 @@ check_switch_health()
 		read switch_old <"$file"
 		[ "$switch_new" = "$switch_old" ] && return 0
 
+		[ $( _file age "$file" sec ) -lt 600 ] && {
+			_watch counter '/tmp/switch_flapping' increment 1 max 25 || {
+				if [ -e '/tmp/switch_strange' ]; then
+					return 0
+				else
+					_log do $funcname daemon sms "[ERR] flapping switchports: $switch_new / $switch_old"
+					touch '/tmp/switch_strange'
+					return 0
+				fi
+			}
+		}
+
 		good_ports_new="$( echo "$switch_new" | sed 's/[^a-cA-C]//g' )"		# e.g. C.Ba-C -> CBaC (only used ports)
 		good_ports_old="$( echo "$switch_old" | sed 's/[^a-cA-C]//g' )"
 
