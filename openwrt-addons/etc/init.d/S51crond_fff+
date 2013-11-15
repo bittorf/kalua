@@ -24,94 +24,6 @@ func_cron_daemon_start ()
 	_log do $funcname daemon info "[OK] started"
 }
 
-cron_watchdog()
-{
-	return 0
-
-	local func="cron_watchdog"
-	local mode="$1"		# start|stop
-
-	local interval_sec=60
-	local cronpid watchdog_id
-	local watchdog_id_file="/tmp/cron_watchdog.id"
-	local watchdog_cronpid_file="/tmp/cron_watchdog.cronpid"
-	local watchdog_pid_file="/tmp/cron_watchdog.pid"
-
-	case "$mode" in
-		start)
-			cronpid="$( _system get_first_pid crond )"
-			echo ${cronpid:=nonexistent} >"$watchdog_cronpid_file"
-
-			_cron watchdog_is_running && {
-				_log do $func daemon info "[OK] watchdog already exists, no need to start one"
-				return
-			}
-
-			watchdog_id="$( _math random_integer 1 999999 )"
-			echo $watchdog_id >"$watchdog_id_file"
-
-			cat >/tmp/cron_watchdog.sh <<EOF
-#!/bin/sh
-
-logger -t $func -p daemon.info "checking each $interval_sec sec for crondpid $cronpid, see /tmp/cron_watchdog.sh"
-
-while true; do {
-
-	[ -z "\$FIRSTRUN" ] && {
-		FIRSTRUN=0
-
-		while [ "\$( date +%S )" != "55" ]; do sleep 1; done	# script should work, when its quiet...
-
-		logger -t $func -p daemon.info "[OK] starting up with pid \$( cat $watchdog_pid_file )"
-	}
-
-	watchdog_id=$watchdog_id
-	if [ -e /tmp/cron_watchdog_please_end_yourself_\$watchdog_id ]; then		# poor mens IPC
-		rm /tmp/cron_watchdog_please_end_yourself_*
-		. /tmp/loader
-		_log do cron_watchdog daemon info "[OK] ending myself with ID \$watchdog_id"
-		exit
-	else
-		read cronpid_to_watch <"$watchdog_cronpid_file"
-		[ -d /proc/\${cronpid_to_watch:-nonexistent} ] || {
-			. /tmp/loader
-			_log do cron_watchdog daemon alert "no crond found, starting cron + watchdog"
-			$0 start
-			exit
-		}
-	fi
-
-	sleep $interval_sec
-} done &
-
-echo \$! >$watchdog_pid_file
-EOF
-			sh /tmp/cron_watchdog.sh
-		;;
-		stop)
-			if _cron watchdog_is_running ; then
-
-				read watchdog_id <$watchdog_id_file
-
-				[ -n "$watchdog_id" ] && {
-					touch /tmp/cron_watchdog_please_end_yourself_$watchdog_id
-
-					while [ -e /tmp/cron_watchdog_please_end_yourself_$watchdog_id ]; do {
-						_log do cron_watchdog daemon debug "waiting for deletion of '/tmp/cron_watchdog_please_end_yourself_$watchdog_id'"
-						sleep 10
-					} done
-				}
-
-				_log do cron_watchdog daemon info "[OK] watchdog gone"
-			else
-				_log do cron_watchdog daemon info "[OK] watchdog was not active"
-			fi
-
-			rm /tmp/cron_watchdog.*
-		;;
-	esac
-}
-
 func_cron_daemon_stop ()
 {
 	local FUNC="cron_daemon_stop"
@@ -128,14 +40,11 @@ func_cron_daemon_stop ()
 func_cron_start ()
 {
 	func_cron_config_write $1
-	func_cron_daemon_start && cron_watchdog start
+	func_cron_daemon_start
 }
 
 func_cron_stop ()
 {
-	local option="$1"
-
-	[ "$option" = "leave_watchdog" ] || cron_watchdog stop
 	func_cron_daemon_stop
 }
 
