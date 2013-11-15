@@ -228,18 +228,16 @@ _scheduler_wait_till_cpuload_is_low()
 _scheduler_allow_run()
 {
 	local funcname="scheduler_allow_run"
-	local lockfile="/tmp/lockfile_scheduler_is_running"
+	local lockfile="$1"
 
-	if [ -e "$lockfile" ]; then
+	[ -e "$lockfile" ] && {
 		if [ $( _file age "$lockfile" sec ) -gt 3600 ]; then
 			_log do $funcname daemon alert "removing lockfile, which seems to be left by accident"
 			rm "$lockfile"
 		else
 			return 1
 		fi
-	else
-		rm '/tmp/scheduler_lockfile_counter' 2>/dev/null
-	fi
+	}
 
 	if [ -e "/tmp/START_SYSUPGRADE" ]; then
 		return 1
@@ -255,22 +253,8 @@ _scheduler_run()
 	local lockfile="/tmp/lockfile_scheduler_is_running"
 	local lines_should lines_worked counter
 
+	_scheduler allow_run "$lockfile" || return 1
 	_scheduler vars
-				# fixme! better use 'scheduler_run.sh' instead of lockfile
-	scheduler_cleanup ()	# fixme! respect DRY
-	{
-		rm "$lockfile"
-		_log do $funcname daemon alert "cleanup called during '$LINE'"
-
-		exit 1		# fixme! use return?
-	}
-
-	if _scheduler allow_run ; then
-		touch "$lockfile"
-		trap "scheduler_cleanup" SIGINT		# SIGINT = CTRL+C, SIGHUP/SIGTERM?
-	else
-		return 1
-	fi
 
 	for file in "$FILE_SCHEDULER_TMP"*; do {	# this builds the running queue from temp_queue
 		case "$file" in

@@ -4,6 +4,7 @@
 # - support for ath9k-reghack-patch
 # - kcmdlinetweak (oops_on_panic, panic_on_oom)
 
+# - support for tarball
 # - support for reverting specific openwrt-commits (for building older kernels)
 # - apply kernel_symbols
 #   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
