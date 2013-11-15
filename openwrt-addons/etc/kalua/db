@@ -161,7 +161,27 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 			rm -fR /tmp/DB
 
 			if tar -C / -xzf "$file" ; then
-				_log do $funcname daemon info "[OK]"
+				_log do $funcname daemon info "[OK] untar"
+
+				output_grepable_index()
+				{
+					# why tac? it's likely, that we grep for a new login - this should match faster
+					# this is >1 magnitude faster than sed-tac
+					grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2-
+					echo '# OK'
+				}
+
+				output_grepable_index	>"/tmp/USERDB_COPY.cgi"
+				gzip			 '/tmp/USERDB_COPY.cgi'		# appends .gz
+				rm			 '/tmp/USERDB_COPY.cgi'
+
+				# is it really a working link? see: cgi-bin-get_userdb.sh
+				ls -1 '/www/USERDB_COPY.txt' 2>/dev/null || {
+					rm 2>/dev/null 			'/www/USERDB_COPY.txt'
+					ln -s '/tmp/USERDB_COPY.cgi.gz' '/www/USERDB_COPY.txt'
+				}
+
+				_log do $funcname daemon info "[OK] copy size: $( _file size '/tmp/USERDB_COPY.cgi.gz' ) bytes"
 			else
 				_log do $funcname daemon alert "[ERR] untar of '$file' went wrong - rescheduling"
 				touch /tmp/FREE

@@ -30,24 +30,7 @@ if [ -e "/tmp/FREE" ]; then
 	_http header_mimetype_output text/plain
 	echo "# OK - FREE"
 else
-	# fixme! must be updated if something changes
-	[ -e "/tmp/USERDB_COPY.done" ] || {
-		touch '/tmp/USERDB_COPY.done'
-
-		# why tac? it's likely, that we grep for a new login - this should match faster
-		# this is >1 magnitude faster than sed-tac
-		grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2- >'/tmp/USERDB_COPY.cgi'
-		echo "# OK" >>'/tmp/USERDB_COPY.cgi'
-
-		gzip '/tmp/USERDB_COPY.cgi'	# appends .gz
-		rm '/tmp/USERDB_COPY.cgi'
-
-		ls -1 /www/USERDB_COPY.txt 2>/dev/null || {
-			rm /www/USERDB_COPY.txt 2>/dev/null
-			ln -s '/tmp/USERDB_COPY.cgi.gz' '/www/USERDB_COPY.txt'
-		}
-	}
-
+	# generate via '_db_restore()'
 	touch '/tmp/USERDB_COPY.cgi.gz'
 
 	case "$QUERY_STRING" in
