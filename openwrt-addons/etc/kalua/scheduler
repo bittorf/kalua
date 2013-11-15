@@ -249,9 +249,10 @@ _scheduler_allow_run()
 _scheduler_run()
 {
 	local funcname="scheduler_run"
-	local file line
+	local file line counter
 	local lockfile="/tmp/lockfile_scheduler_is_running"
-	local lines_should lines_worked counter
+	local lines_should=0
+	local lines_worked=0
 
 	_scheduler allow_run "$lockfile" || return 1
 	_scheduler vars
@@ -264,6 +265,7 @@ _scheduler_run()
 				while read line; do {
 					_log do $funcname daemon debug "fetching '$line' from file '$file'"
 					echo "$line" >>"$FILE_SCHEDULER"
+					lines_should=$(( $lines_should + 1 ))
 				} done <"$file"
 
 				rm "$file"
@@ -272,15 +274,15 @@ _scheduler_run()
 	} done
 	cp "$FILE_SCHEDULER" "$FILE_SCHEDULER_COPY"	# for checking of DUPs in running queue -> scheduler_add()
 
-	lines_should=$( wc -l <"$FILE_SCHEDULER" )
-	lines_worked=0
-
 	while read line; do {
 		_scheduler wait_till_cpuload_is_low "$line"
 		_log do $funcname daemon debug "[START] '$line'"
+
 		lines_worked=$(( lines_worked + 1 ))
+
 		echo "$line" >"$lockfile"
 		/bin/sh -c "$line"
+
 		_log do $funcname daemon debug "[READY] '$line'"
 	} done <"$FILE_SCHEDULER"
 
@@ -292,7 +294,7 @@ _scheduler_run()
 		sed "1,${lines_worked}d" "$FILE_SCHEDULER" >>"$file"
 	}
 
-	rm "$FILE_SCHEDULER" "$FILE_SCHEDULER_COPY" "$LOCKFILE" 2>/dev/null
+	rm "$FILE_SCHEDULER" "$FILE_SCHEDULER_COPY" "$lockfile" 2>/dev/null
 
 	return 0
 }
