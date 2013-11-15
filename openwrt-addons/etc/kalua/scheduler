@@ -231,11 +231,11 @@ _scheduler_allow_run()
 	local lockfile="/tmp/lockfile_scheduler_is_running"
 
 	if [ -e "$lockfile" ]; then
-		if _watch counter "/tmp/scheduler_lockfile_counter" increment 1 max 60 ; then
-			return 1
-		else
+		[ $( _file age "$lockfile" sec ) -gt 3600 ]; then
 			_log do $funcname daemon alert "removing lockfile, which seems to be left by accident"
 			rm "$lockfile"
+		else
+			return 1
 		fi
 	else
 		rm '/tmp/scheduler_lockfile_counter' 2>/dev/null
@@ -253,7 +253,7 @@ _scheduler_run()
 	local funcname="scheduler_run"
 	local file line
 	local lockfile="/tmp/lockfile_scheduler_is_running"
-	lines_should lines_worked counter
+	local lines_should lines_worked counter
 
 	_scheduler vars
 				# fixme! better use 'scheduler_run.sh' instead of lockfile
