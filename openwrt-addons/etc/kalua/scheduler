@@ -214,27 +214,14 @@ _scheduler_check_if_every_Nth_minute ()
 	return 1
 }
 
-_scheduler_wait_till_cpuload_is_low ()
+_scheduler_wait_till_cpuload_is_low()
 {
-	[ -e "/tmp/CRON_IS_CAREFUL" ] && return 0
+	local funcname='scheduler_wait_till_cpuload_is_low'
+	local task="$1"
 
-	_system include
-
-	local WAITING_TASK="$1"
-	local FUNC="scheduler_wait_till_cpuload_is_low"
-	local CPU_LOAD="$( _system load 1min )"
-	local TARGET=60
-	local WAIT
-
-	while [ ${CPU_LOAD:=100} -gt $TARGET ]; do {
-		WAIT=$(( 5 + ($CPU_LOAD - $TARGET) / 2 ))
-		[ ${WAIT:=100} -gt 300 ] && WAIT=300
-		
-		_log do $FUNC daemon debug "PID:'$$' - load >=0.$TARGET ($CPU_LOAD) - waiting $WAIT sec (for '$WAITING_TASK')"
-		
-		TARGET=$(( $TARGET + 1 ))
-		sleep $WAIT
-		CPU_LOAD="$( _system load 1min )"
+	while _system load quiet; test $LOAD -gt 80 ; do {
+		_log do $funcname daemon debug "PID: $$ - load: $LOAD - waiting 30 sec for '$task'"
+		sleep 30
 	} done
 }
 
