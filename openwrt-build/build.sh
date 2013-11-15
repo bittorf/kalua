@@ -63,6 +63,11 @@ target_hardware_set()
 	local line
 
 	case "$model" in
+		'Ubiquiti Nanostation5')
+			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
+			FILENAME_FACTORY='openwrt-atheros-ubnt5-squashfs.bin'
+		;;
 		'PC Engines ALIX.2')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_alix2=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-alix2-combined-squashfs.img'
