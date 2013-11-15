@@ -263,64 +263,60 @@ _scheduler_allow_run()
 
 _scheduler_run()
 {
+	local funcname="scheduler_run"
+	local file line
+	local lockfile="/tmp/lockfile_scheduler_is_running"
+	lines_should lines_worked counter
+
 	_scheduler vars
-
-	local FUNC="scheduler_run"
-	local FILE LINE
-	local LOCKFILE="/tmp/lockfile_scheduler_is_running"
-
 				# fixme! better use 'scheduler_run.sh' instead of lockfile
 	scheduler_cleanup ()	# fixme! respect DRY
 	{
-		rm "/tmp/lockfile_scheduler_is_running"
-		_log do scheduler_run daemon alert "cleanup called during '$LINE'"
+		rm "$lockfile"
+		_log do $funcname daemon alert "cleanup called during '$LINE'"
 
 		exit 1		# fixme! use return?
 	}
 
 	if _scheduler allow_run ; then
-		trap "scheduler_cleanup" SIGINT	# SIGINT = CTRL+C, SIGHUP/SIGTERM?
-		touch "$LOCKFILE"
+		touch "$lockfile"
+		trap "scheduler_cleanup" SIGINT		# SIGINT = CTRL+C, SIGHUP/SIGTERM?
 	else
 		return 1
 	fi
 
-	local list_scheduler_file_parts="$( ls -1 ${FILE_SCHEDULER_TMP}* 2>/dev/null )"
-	if [ -n "$list_scheduler_file_parts" ]; then
+	for file in "$FILE_SCHEDULER_TMP"*; do {	# this builds the running queue from temp_queue
+		[ -e "$file" ] || continue
 
-		for FILE in $list_scheduler_file_parts; do {	# this builds the running queue from temp_queue
-			while read LINE; do {
-				_log do $FUNC daemon debug "fetching '$LINE' from file '$FILE'"
-				echo "$LINE" >>$FILE_SCHEDULER
-			} done <$FILE
-			rm $FILE
-		} done
-		cp $FILE_SCHEDULER $FILE_SCHEDULER_COPY		# for checking of DUPs in running queue -> scheduler_add()
+		while read line; do {
+			_log do $funcname daemon debug "fetching '$line' from file '$file'"
+			echo "$line" >>"$FILE_SCHEDULER"
+		} done <"$file"
+		rm "$file"
+	} done
+	cp "$FILE_SCHEDULER" "$FILE_SCHEDULER_COPY"	# for checking of DUPs in running queue -> scheduler_add()
 
-		local lines_should=$( wc -l <"$FILE_SCHEDULER" )
-		local lines_worked=0
+	lines_should=$( wc -l <"$FILE_SCHEDULER" )
+	lines_worked=0
 
-		while read LINE; do {
-			_scheduler wait_till_cpuload_is_low "$LINE"
-			_log do $FUNC daemon debug "running '$LINE'"
-			lines_worked=$(( lines_worked + 1 ))
-			echo "$LINE" >$LOCKFILE
-			/bin/sh -c "$LINE"
-			_log do $FUNC daemon debug "ready '$LINE'"
-		} done <"$FILE_SCHEDULER"
+	while read line; do {
+		_scheduler wait_till_cpuload_is_low "$line"
+		_log do $funcname daemon debug "[START] '$line'"
+		lines_worked=$(( lines_worked + 1 ))
+		echo "$line" >"$lockfile"
+		/bin/sh -c "$line"
+		_log do $funcname daemon debug "[READY] '$line'"
+	} done <"$FILE_SCHEDULER"
 
-		[ $lines_worked -eq $lines_should ] || {
-			local counter=$(( 2000000000 + $$ ))
-			local file="${FILE_SCHEDULER_TMP}${counter}"
-			# fixme! why can this happen?
-			_log do $FUNC daemon info "missed some jobs, should: $lines_should worked: $lines_worked, rescheduling to $file"
-			sed "1,${lines_worked}d" "$FILE_SCHEDULER" >>"$file"
-		}
-	else
-		_log do $FUNC daemon debug "empty queue - no action"
-	fi
+	[ $lines_worked -eq $lines_should ] || {
+		counter=$(( 2000000000 + $$ ))
+		file="${FILE_SCHEDULER_TMP}${counter}"
+		# fixme! why can this happen?
+		_log do $funcname daemon info "missed some jobs, should: $lines_should worked: $lines_worked, rescheduling to $file"
+		sed "1,${lines_worked}d" "$FILE_SCHEDULER" >>"$file"
+	}
 
-	rm $FILE_SCHEDULER $FILE_SCHEDULER_COPY $LOCKFILE 2>/dev/null
+	rm "$FILE_SCHEDULER" "$FILE_SCHEDULER_COPY" "$LOCKFILE" 2>/dev/null
 
 	return 0
 }
