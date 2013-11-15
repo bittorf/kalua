@@ -286,13 +286,18 @@ _scheduler_run()
 	fi
 
 	for file in "$FILE_SCHEDULER_TMP"*; do {	# this builds the running queue from temp_queue
-		[ -e "$file" ] || continue
+		case "$file" in
+			*'*')
+			;;
+			*)
+				while read line; do {
+					_log do $funcname daemon debug "fetching '$line' from file '$file'"
+					echo "$line" >>"$FILE_SCHEDULER"
+				} done <"$file"
 
-		while read line; do {
-			_log do $funcname daemon debug "fetching '$line' from file '$file'"
-			echo "$line" >>"$FILE_SCHEDULER"
-		} done <"$file"
-		rm "$file"
+				rm "$file"
+			;;
+		esac
 	} done
 	cp "$FILE_SCHEDULER" "$FILE_SCHEDULER_COPY"	# for checking of DUPs in running queue -> scheduler_add()
 
