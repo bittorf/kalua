@@ -243,36 +243,22 @@ _scheduler_allow_run()
 	local funcname="scheduler_allow_run"
 	local lockfile="/tmp/lockfile_scheduler_is_running"
 
-	[ -e "/tmp/START_SYSUPGRADE" ] && return	# fixme! why?
-
-	local load_border="3"		# means load of 0.03 // fixme! check dynamic lowest load ever and take this...
-	_scheduler vars
-
-	[ $( _system uptime min ) -lt 5 ] && {
-		return 1
-	}
-
 	if [ -e "$lockfile" ]; then
-
-		_watch counter "/tmp/scheduler_lockfile_counter" increment 1 max 60 || {
+		if _watch counter "/tmp/scheduler_lockfile_counter" increment 1 max 60 ; then
+			return 1
+		else
 			_log do $funcname daemon alert "removing lockfile, which seems to be left by accident"
 			rm "$lockfile"
-		}
-
-		return 1
-
-#		if [ "$( _system load 1min )" -lt $load_border ]; then
-#			_log do $funcname daemon info "lockfile exists, but allowing due to low system load < 0.${load_border}"
-#			return 0
-#		else
-#			_log do $funcname daemon info "already running, ignoring call (task: $( cat $lockfile ))"
-#			return 1
-#		fi
+		fi
 	else
-		_watch counter "/tmp/scheduler_lockfile_counter" set 1
+		rm '/tmp/scheduler_lockfile_counter' 2>/dev/null
 	fi
 
-	return 0
+	if [ -e "/tmp/START_SYSUPGRADE" ]; then
+		return 1
+	else
+		return 0
+	fi
 }
 
 _scheduler_run()
