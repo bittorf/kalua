@@ -501,6 +501,13 @@ apply_symbol()
 	esac
 }
 
+serialize_comma_list()
+{
+	local oldIFS="$IFS"; IFS=','; set -- $1; IFS="$oldIFS"
+
+	echo "$@"
+}
+
 build_options_set()
 {
 	local funcname='build_options_set'
@@ -512,7 +519,7 @@ build_options_set()
 	# shift args, because the call is: $funcname 'subcall' "$opt"
 	[ "$options" = 'subcall' -a -n "$subcall" ] && options="$subcall"
 
-	local oldIFS="$IFS"; IFS=','; set -- $options; IFS="$oldIFS"
+	set -- $( serialize_comma_list "$options" )
 	while [ -n "$1" ]; do {
 		log "$funcname() apply '$1' $( test -n "$subcall" && echo -n "(subcall)" )"
 
@@ -798,12 +805,14 @@ while [ -n "$1" ]; do {
 			fi
 		;;
 		'--option'|'-o')
-			if build_options_set 'list' 'plain' | grep -q ^"$2"$ ; then
-				LIST_USER_OPTIONS="$2"
-			else
-				build_options_set 'list' "$3"
-				exit 1
-			fi
+			for LIST_USER_OPTIONS in $( serialize_comma_list "$2" ); do {
+				if build_options_set 'list' 'plain' | grep -q ^"$LIST_USER_OPTIONS"$ ; then
+					LIST_USER_OPTIONS="$2"
+				else
+					build_options_set 'list' "$3"
+					exit 1
+				fi
+			} done
 		;;
 		'--profile'|'-p')
 			# e.g. ffweimar.hybrid.120
