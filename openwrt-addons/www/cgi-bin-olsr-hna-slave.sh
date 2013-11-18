@@ -106,7 +106,7 @@ else
 		}
 
 		test $version -ge $FFF_PLUS_VERSION || {
-			RTABLE='slave_version_to_low:$version'
+			RTABLE="slave_version_to_low:$version"
 			ERROR="$RTABLE"
 		}
 	else
