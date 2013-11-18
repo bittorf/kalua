@@ -1,8 +1,6 @@
 #!/bin/sh
 
 # ToDo:
-# - support for ath9k-reghack-patch
-
 # - support for tarball
 # - support for reverting specific openwrt-commits (for building older kernels)
 # - apply kernel_symbols
@@ -80,6 +78,30 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			}
 		;;
 	esac
+}
+
+apply_wifi_reghack()
+{
+	local funcname='apply_wifi_reghack'
+	local file="kalua/package/mac80211/patches/900-regulatory-test.patch"
+	local COMPAT_WIRELESS="2013-06-27"
+
+	[ -e "$file" ] && {
+		if grep -q "CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
+			log "$funcname() patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
+
+			cp -v "$file" "package/kernel/mac80211/patches"
+			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
+
+			log "$funcname() using another regdb"
+			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
+			cp -v "kalua/openwrt-patches/regulatory.db.txt" "package/kernel/mac80211/files/regdb.txt"
+		else
+			[ -e "package/kernel/mac80211/files/regdb.txt_old" ] && {
+				cp -v "package/kernel/mac80211/files/regdb.txt_original" "package/kernel/mac80211/files/regdb.txt"
+			}
+		fi
+	}
 }
 
 target_hardware_set()
@@ -427,6 +449,9 @@ apply_symbol()
 
 			log "$funcname() $KALUA_DIRNAME: tweaking kernel commandline"
 			kernel_commandline_tweak
+
+			log "$funcname() $KALUA_DIRNAME: apply_wifi_reghack"
+			apply_wifi_reghack
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
 			log "$funcname() $KALUA_DIRNAME: adding recent tarball hash from '$url'"
