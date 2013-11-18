@@ -687,17 +687,17 @@ build_options_set()
 			;;
 			# help/usage-function
 			'list')
-				[ "$option" = 'plain' ] || log "$funcname() supported options:"
+				[ "$subcall" = 'plain' ] || log "$funcname() supported options:"
 
 				parse_case_patterns "$funcname" | while read line; do {
-					if [ "$option" = 'plain' ]; then
+					if [ "$subcall" = 'plain' ]; then
 						echo "$line"
 					else
 						echo "--option $line"
 					fi
 				} done
 
-				[ "$option" = 'plain' ] || {
+				[ "$subcall" = 'plain' ] || {
 					echo
 					echo '# or short:'
 
