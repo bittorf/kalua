@@ -818,7 +818,7 @@ while [ -n "$1" ]; do {
 			fi
 		;;
 		'--option'|'-o')
-			for LIST_USER_OPTIONS in $( serialize_comma_list "$2" ); do {
+			for LIST_USER_OPTIONS in $( serialize_comma_list "${2:-help}" ); do {
 				if build_options_set 'list' 'plain' | grep -q ^"$( echo "$LIST_USER_OPTIONS" | cut -d'@' -f1 )"$ ; then
 #				if build_options_set 'list' 'plain' | grep -q ^"$LIST_USER_OPTIONS"$ ; then
 					LIST_USER_OPTIONS="$2"
