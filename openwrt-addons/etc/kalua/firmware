@@ -28,8 +28,9 @@ _firmware_configure_keep_files()
 _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)files with tarball from repo
 {				# fixme! safe hash of last successful installed tarball /www/TARBALL_STABLE_$HASH and only upgrade, if it differs
 	local FUNC="firmware_update_pmu"
-	local MODE="$( _firmware updatemode "$1" override)"
+	local MODE="$1"		# can be a tar-file or e.g. stable|beta|testing
 
+	[ -e "$MODE" ] || MODE="$( _firmware updatemode "$MODE" override )"
 	[ $( _system flash_free ) -lt 128 ] && MODE='low_flash'
 
 	case "$MODE" in
@@ -37,14 +38,16 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 			:
 		;;
 		*)
-			_log do "$FUNC" daemon debug "abort, updatemode: $MODE"
-			return
+			if [ -e "$MODE" ]; then
+				:
+			else
+				_log do "$FUNC" daemon debug "abort, updatemode: $MODE"
+				return
+			fi
 		;;
 	esac
 
-	local URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing
-	local hash_last_applied
-	local hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"	# fixme! abort when fetching hash fails
+	local hash_last_applied URL hash_tarball
 	local FILE_HASH_APPLIED="/etc/tarball_last_applied_hash"
 	local WORKINGDIR="/tmp/pmu"
 	local FILE="tarball.tgz"
@@ -53,39 +56,50 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 	local COUNT=0
 	local COUNT_ERROR=0
 
-	_cleanup ()
-	{
-		local option="$1"
+	if [ -e "$MODE" ]; then
+		TGZ="$MODE"
 
-		_log do "$FUNC" daemon debug "cleaning up - applied $COUNT files ($COUNT_ERROR errors)"
-		cd /tmp
-		rm -fR "$WORKINGDIR"
-		rm -f  "$TGZ"
-
-		[ "$option" = "reschedule" ] && {
-			_scheduler add "_$FUNC $MODE" force
+		cleanup()
+		{
+			:
 		}
-	}
+	else
+		cleanup()
+		{
+			local option="$1"
 
-	read hash_last_applied <"$FILE_HASH_APPLIED"
+			_log do "$FUNC" daemon debug "cleaning up - applied $COUNT files ($COUNT_ERROR errors)"
+			cd /tmp
+			rm -fR "$WORKINGDIR"
+			rm -f  "$TGZ"
 
-	[ "$hash_tarball" = "${hash_last_applied:-empty}" ] && {
-		_log do "$FUNC" daemon info "[OK] applied nothing - all seems up to date (tarball-hash known: $FILE_HASH_APPLIED)"
-		return 0
-	}
+			[ "$option" = "reschedule" ] && {
+				_scheduler add "_$FUNC $MODE" force
+			}
+		}
 
-	_log do "$FUNC" daemon debug "fetching tarball in '$MODE'-mode: '$URL'"
-	_firmware wget "$TGZ" "$URL" "$hash_tarball" 100 || {
-		_log do "$FUNC" daemon info "failed to download '$URL' - abort"
+		URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing if needed
+		hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"	# fixme! abort when fetching hash fails
 
-		_cleanup reschedule
-		return 1
-	}
+		read hash_last_applied <"$FILE_HASH_APPLIED"
+
+		[ "$hash_tarball" = "${hash_last_applied:-empty}" ] && {
+			_log do "$FUNC" daemon info "[OK] applied nothing - all seems up to date (tarball-hash known: $FILE_HASH_APPLIED)"
+			return 0
+		}
+
+		_log do "$FUNC" daemon debug "fetching tarball in '$MODE'-mode: '$URL'"
+		_firmware wget "$TGZ" "$URL" "$hash_tarball" 100 || {
+			_log do "$FUNC" daemon info "failed to download '$URL' - abort"
+
+			cleanup reschedule
+			return 1
+		}
+	fi
 
 	tar tzf "$TGZ" >/dev/null || {
 		_log do "$FUNC" daemon info "fail during extract-test '$TGZ' - abort"
-
-		_cleanup reschedule
+		cleanup reschedule
 		return 1
 	}
 
@@ -95,8 +109,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 
 	tar xzf "$FILE" || {
 		 _log do "$FUNC" daemon alert "failed to extract '$TGZ' to '$WORKINGDIR' - abort"
-
-		_cleanup reschedule
+		cleanup reschedule
 		return 1	 
 	}
 	rm "$FILE"
@@ -130,11 +143,10 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 		fi
 	} done
 
-	_cleanup
+	cleanup
 	echo -n "$hash_tarball" >"$FILE_HASH_APPLIED"
 
 	if [ $COUNT -gt 0 ]; then
-
 		/etc/kalua_init
 
 		[ "$CRON_RESTART" = "1" ] && {
@@ -143,7 +155,7 @@ _firmware_update_pmu ()		# poor mens update - simply overwrites all (shell-)file
 
 		[ "$REPATCH_ALL"  = "1" ] && /etc/init.d/*patch-o-matic* repatch all
 
-		cat /rom/etc/banner | head -n14 >/etc/banner
+		head -n14 '/rom/etc/banner' >/etc/banner
 
 		echo >>/etc/banner
 		echo >>/etc/banner "# manually updated with poormens method on $( date ) by '$0' to this version:"
