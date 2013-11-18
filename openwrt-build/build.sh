@@ -22,6 +22,7 @@
 #   - build with 'weimarnetz'
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 # - build for each router in monitoring? "build for network olympia"
+# - attic not in bin/$ARCH/attic but ../attic? -> make dirclean will remove it
 
 # dir-structure:
 # $HARDWARE/testing/$files
