@@ -738,7 +738,7 @@ build_options_set()
 parse_case_patterns()
 {
 	local fname="$1"		# function to parse
-	local start_parse line
+	local start_parse line temp
 
 	while read line; do {
 		if [ "$start_parse" = 'true' ]; then
@@ -756,6 +756,18 @@ parse_case_patterns()
 							"'list')")
 								# parser at end of the function
 								return 1
+							;;
+							'"'*)
+								temp="$( echo "$@" | cut -d'"' -f2 )"
+
+								case "$temp" in
+									'$'*)
+										eval echo "$temp"
+									;;
+									*)
+										echo "$temp"
+									;;
+								esac
 							;;
 							"'"*)
 								echo "$@" | cut -d"'" -f2
@@ -806,9 +818,11 @@ while [ -n "$1" ]; do {
 		;;
 		'--option'|'-o')
 			for LIST_USER_OPTIONS in $( serialize_comma_list "$2" ); do {
-				if build_options_set 'list' 'plain' | grep -q ^"$LIST_USER_OPTIONS"$ ; then
+				if build_options_set 'list' 'plain' | grep -q ^"$( echo "$LIST_USER_OPTIONS" | cut -d'@' -f1 )"$ ; then
+#				if build_options_set 'list' 'plain' | grep -q ^"$LIST_USER_OPTIONS"$ ; then
 					LIST_USER_OPTIONS="$2"
 				else
+					logger -s "problem: '$LIST_USER_OPTIONS'"
 					build_options_set 'list' "$3"
 					exit 1
 				fi
