@@ -2,7 +2,6 @@
 
 # ToDo:
 # - support for ath9k-reghack-patch
-# - kcmdlinetweak (oops_on_panic, panic_on_oom)
 
 # - support for tarball
 # - support for reverting specific openwrt-commits (for building older kernels)
@@ -54,6 +53,33 @@ Usage: $0 --openwrt r38675|trunk|<empty> = leave untouched
 e.g. : $0 --openwrt trunk --hardware 'Ubiquiti Bullet M' --option $KALUA_DIRNAME,Standard,VDS
 
 EOF
+}
+
+kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
+{
+	local funcname='kernel_commandline_tweak'
+	local dir="target/linux/$ARCH"
+	local pattern=" oops=panic panic=10 "
+	local config
+
+	case "$ARCH" in
+		ar71xx)
+			config="$dir/image/Makefile"
+			log "$funcname() looking into '$config', adding $pattern"
+
+			fgrep -q "$pattern" "$config" || {
+				sed -i "s/console=/$pattern &/" "$config"
+			}
+		;;
+		*)	# tested for brcm47xx
+			config="$( ls -1 $dir/config-* | head -n1 )"
+			log "$mode: looking into '$config', adding $pattern"
+
+			fgrep -q "$pattern" "$config" || {
+				sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
+			}
+		;;
+	esac
 }
 
 target_hardware_set()
@@ -398,6 +424,9 @@ apply_symbol()
 
 			log "$funcname() $KALUA_DIRNAME: adding hardware-model to 'files/etc/HARDWARE'"
 			echo >'files/etc/HARDWARE' "$HARDWARE_MODEL"
+
+			log "$funcname() $KALUA_DIRNAME: tweaking kernel commandline"
+			kernel_commandline_tweak
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
 			log "$funcname() $KALUA_DIRNAME: adding recent tarball hash from '$url'"
