@@ -687,19 +687,26 @@ build_options_set()
 			;;
 			# help/usage-function
 			'list')
-				log "$funcname() supported options:"
+				[ "$option" = 'plain' ] || log "$funcname() supported options:"
+
 				parse_case_patterns "$funcname" | while read line; do {
-					echo "--option $line"
+					if [ "$option" = 'plain' ]; then
+						echo "$line"
+					else
+						echo "--option $line"
+					fi
 				} done
 
-				echo
-				echo '# or short:'
+				[ "$option" = 'plain' ] || {
+					echo
+					echo '# or short:'
 
-				echo -n '--option '
-				parse_case_patterns "$funcname" | while read line; do {
-					echo -n "$line,"
-				} done
-				echo
+					echo -n '--option '
+					parse_case_patterns "$funcname" | while read line; do {
+						echo -n "$line,"
+					} done
+					echo
+				}
 
 				return 1
 			;;
@@ -791,16 +798,12 @@ while [ -n "$1" ]; do {
 			fi
 		;;
 		'--option'|'-o')
-			case "$2" in
-				'-'*|'')
-					# next arg OR <empty>
-					build_options_set 'list'
-					exit 1
-				;;
-				*)
-					LIST_USER_OPTIONS="$2"
-				;;
-			esac
+			if build_options_set 'list' 'plain' | grep -q ^"$2"$ ; then
+				LIST_USER_OPTIONS="$2"
+			else
+				build_options_set 'list' "$3"
+				exit 1
+			fi
 		;;
 		'--profile'|'-p')
 			# e.g. ffweimar.hybrid.120
