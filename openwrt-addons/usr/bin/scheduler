@@ -577,12 +577,16 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 						set -- $( fgrep "$IP" "/tmp/OLSR/ALL" | head -n1 )
 						case "$6" in
 							# ETX-value
-							1.*|2.*|3.*)
+							'0.100'|1.*|2.*|3.*)
 								echo "0" >"/tmp/check_$IP"
 							;;
 							*)
-								_log do "check_$IP" daemon alert "bad value: $6 - rebooting"
-								_watch counter "/tmp/check_$IP" increment 1 max 20 || /sbin/reboot
+								if _watch counter "/tmp/check_$IP" increment 1 max 20 ; then
+									_log do "check_$IP" daemon info "bad value: $6"
+								else
+									_log do "check_$IP" daemon alert "bad value: $6 - rebooting"
+									/sbin/reboot
+								fi
 							;;
 						esac
 					;;
