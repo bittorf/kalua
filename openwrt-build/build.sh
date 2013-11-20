@@ -607,7 +607,6 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
-				apply_symbol 'CONFIG_PACKAGE_tc=y'			# network: tc
 				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool:
 				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-printer=y'	# kernel-modules: other: kmod-usb-printer
@@ -616,6 +615,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 
+				$funcname subcall 'shaping'
 				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
@@ -655,6 +655,10 @@ build_options_set()
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'shaping')
+				apply_symbol 'CONFIG_PACKAGE_kmod-sched=y'		# kernel-modules: network support: kmod-sched
+				apply_symbol 'CONFIG_PACKAGE_tc=y'			# network: tc
+			;;
 			'b43mini')
 				apply_symbol 'CONFIG_B43_FW_SQUASH_PHYTYPES="G"'	# kernel-modules: wireless: b43
 				apply_symbol 'CONFIG_PACKAGE_B43_PHY_N is not set'	# ...
