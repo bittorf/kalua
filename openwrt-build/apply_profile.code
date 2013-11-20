@@ -572,6 +572,31 @@ _config_softwareinstall ()
 	} done
 }
 
+wireless_reghack_available()
+{
+	local lines="$( fgrep ' cfg80211: ' '/tmp/dmesg.boot' | fgrep 'KHz @ ' | wc -l )"
+
+	# see: https://github.com/bittorf/kalua/tree/master/openwrt-patches/jow_reghack
+	#
+	# root@EG-garageDodge:~ fgrep ' cfg80211: ' /tmp/dmesg.log | fgrep 'KHz @ '
+	# [   18.570000] cfg80211:   (2400000 KHz - 2494000 KHz @ 40000 KHz), (N/A, 3000 mBm)
+	# [   18.570000] cfg80211:   (4910000 KHz - 5895000 KHz @ 40000 KHz), (N/A, 3000 mBm)
+	# [   18.850000] cfg80211:   (2400000 KHz - 2494000 KHz @ 40000 KHz), (N/A, 3000 mBm)
+	# [   18.860000] cfg80211:   (4910000 KHz - 5895000 KHz @ 40000 KHz), (N/A, 3000 mBm)
+
+	case "$lines" in
+		2|4)
+			return 0
+		;;
+	esac
+
+	# e.g. see hacked /usr/lib/crda/regulatory.bin
+	test -e '/etc/init.d/apply_profile.regulatory.bin' && return 0
+	test -e '/etc/init.d/apply_profile.reghack.elf' && return 0
+
+	return 1
+}
+
 _config_wireless()			# fixme! channels hardcoded
 {
 	local NODE="$1"
@@ -729,13 +754,15 @@ for radiocard in 0 1 2 3; do {
 		;;
 	esac
 
-	case "$CHANNEL" in
-		36|37|38|39|40|149|153|161) htmode="HT40+" ;;
-		44|157) htmode="HT40-" ;;
-		1|2|3|4|5|6) htmode="HT40+" ;;
-		   12|13|14) htmode="HT20" ;;		# fixme!
-		          *) htmode="HT40-" ;;
-	esac
+	wireless_reghack_available || {
+		case "$CHANNEL" in
+			36|37|38|39|40|149|153|161) htmode="HT40+" ;;
+			44|157) htmode="HT40-" ;;
+			1|2|3|4|5|6) htmode="HT40+" ;;
+			   12|13|14) htmode="HT20" ;;		# fixme!
+			          *) htmode="HT40-" ;;
+		esac
+	}
 
 	case "$PROFILE_MODE" in
 		hybrid)
@@ -769,8 +796,8 @@ for radiocard in 0 1 2 3; do {
 		;;
 	esac
 
-	if   [ -e "/etc/init.d/apply_profile.regulatory.bin" -o -e "/etc/init.d/apply_profile.reghack.elf" ]; then
-		country="US		# see hacked /usr/lib/crda/regulatory.bin"
+	if   wireless_reghack_available; then
+		country='US'
 	elif [ -e "/etc/init.d/apply_profile.reghack.elf" ]; then
 		country="US"
 	elif [ $CHANNEL -gt 13 -a "$( get_wifi_band )" = 'g' ]; then
