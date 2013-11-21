@@ -65,43 +65,27 @@ _file_convert_hex2bin ()
 	fi
 }
 
-_file_size ()	# if we have a busybox without 'stat'-command compiled
-{		# ls is much faster, than a 'wc -c /path/to/10mb-file'
+_file_size()			# fixme! use 'stat' if possible
+{				# hint: scraping 'ls -la' is dirty, but much faster than 'wc -c <$file'
+	local file="$1"
+	local unit="$2"
+	local size
 
-	local FILE="$1"
-	local UNIT="$2"
+	# root@box:~ ls -l /etc/init.d/myfile
+	# -rwxr-xr-x    1 1000     1000            0 Jan  3 16:50 /etc/init.d/myfile
 
-	_fsize ()
-	{
-		ls -la "$1" 2>/dev/null | sed -n 's/^[^0-9]*[0-9]*[a-zA-Z ]*\([0-9]*\).*/\1/p' || {
-			_log do file_size daemon crit "file '$FILE' does't exist"	# fixme! is never reached
-			return 1
-		}
-	}
+	set -- $( ls -la "$file" 2>/dev/null || echo O O O O x O )
+	size="$5"
 
-	# bug, when user/group is numeric:
-	# root@oss47dach:~ _file size "/etc/init.d/S54batman_fff+"
-	# 1000
-	# root@oss47dach:~ ls -l /etc/init.d/S54batman_fff+
-	# -rwxr-xr-x    1 1000     1000            0 Jan  3 16:50 /etc/init.d/S54batman_fff+
+	[ "$size" = 'x' ] && return 1	# file does not exist
 
-	[ -n "$UNIT" ] && {	# needs forking
-	
-		OUT="$( _fsize "$FILE" )"
-		
-		case $UNIT in
-			kb)
-				echo -n "$(( ${OUT:-0} / 1024 ))"
-			;;
-			*)
-				echo -n "$OUT"
-			;;
-		esac
-		
-		return
-	}
+	case "$unit" in
+		kb)
+			size=$(( size / 1024 ))
+		;;
+	esac
 
-	_fsize "$FILE" || return 1
+	echo "$size"
 }
 
 _file_lines ()		# fixme! output of 0 only works, if file does not exist, but not when really 0 bytes
