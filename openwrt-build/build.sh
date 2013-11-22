@@ -480,7 +480,7 @@ apply_symbol()
 				for file in $dir/*; do {
 					git am --signoff <"$file"
 				} done
-			}
+			} done
 
 			[ -n "$CONFIG_PROFILE" ] && {
 				file="$custom_dir/etc/init.d/apply_profile.code"
