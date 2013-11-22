@@ -24,22 +24,32 @@ EOF
 
 _help_list_interfaces()
 {
-	local line ifname interface ipaddr netmask cidr
+	local line ifname interface ipaddr netmask cidr proto
 
 	uci show network | grep '=interface'$ | while read line; do {
 		line="${line%=*}"		# network.lan=interface -> network.lan
 		interface="${line#*.}"		# network.lan -> lan
 		ifname="$( uci -q get $line.ifname || ifstatus "$interface" | fgrep '"device": "' | cut -d'"' -f4 )"
+		proto="$( uci -q get network.$interface.proto )"
 
 		case "$ifname" in
 			'@'*|'lo')
 			;;
 			*)
-				ipaddr="$(  uci get $line.ipaddr   )"
-				netmask="$( uci get $line.netmask  )"
-				cidr="$( _net mask2cidr "$netmask" )"
+				case "$proto" in
+					'pppoe')
+						ipaddr="$( ifstatus "$interface" | fgrep '"address": "' | cut -d'"' -f4 )"
+						netmask='255.255.255.255'
+						cidr='32'
+					;;
+					*)
+						ipaddr="$(  uci get $line.ipaddr   )"
+						netmask="$( uci get $line.netmask  )"
+						cidr="$( _net mask2cidr "$netmask" )"
+					;;
+				esac
 
-				echo "$interface/$ifname: $ipaddr/$cidr (=$netmask)"
+				echo "$interface/$ifname: ${proto:-static} - $ipaddr/$cidr (=$netmask)"
 			;;
 		esac
 	} done
