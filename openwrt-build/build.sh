@@ -1,6 +1,8 @@
 #!/bin/sh
 
 # ToDo:
+# - failsafe patch
+
 # - support for tarball
 # - support for reverting specific openwrt-commits (for building older kernels)
 # - apply kernel_symbols
@@ -15,8 +17,7 @@
 # - build jffs2-images too
 # - kalua: copy patches
 # - build for whole arch (no subtarget)?
-# - automatically use keyword 'kalua' or 'weimarnetz' everywhere
-#   - build with 'weimarnetz'
+# - build with 'weimarnetz'
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 # - build for each router in monitoring? "build for network olympia"
 # - attic not in bin/$ARCH/attic but ../attic? -> make dirclean will remove it

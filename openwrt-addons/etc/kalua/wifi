@@ -1458,14 +1458,45 @@ _wifi_mode()			# OUT1: string, ap | client | adhoc             // rename: wifi_g
 	fi
 }
 
-_wifi_scan ()
+_wifi_scan()
 {
-	return 0
+	local dev="$1"		# e.g. wlan0
+	local line value remote
+
+	iw dev "$dev" scan | while read line; do {
+		case "$line" in
+			# BSS 02:00:ca:fe:02:22(on wlan0)
+			'BSS '*)
+				set -- $line
+				value="${2%(*}"
+				remote="$value"
+			;;
+			# freq: 2462
+			*'freq: '*)
+				set -- $line
+				value="$2"
+				remote="${remote}-$value"
+			;;
+			# signal: -52.00 dBm
+			*'signal: -'*)
+				set -- $line
+				value="${2%.*}"
+				remote="${remote}${value}"
+			;;
+			# SSID: Schlachtfest
+			*'SSID: '*)
+				set -- $line
+				value="$2"
+
+				echo "${remote}-${value}
+			;;
+		esac
+	} done
 }
 
-_wifi_scan_summary ()
+_wifi_scan_summary()
 {
-	return 0
+	:
 }
 
 _wifi_rrdhelper ()		# fixme! is a hack for rrd-tool

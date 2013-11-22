@@ -327,20 +327,16 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci -q get system.@profile[0].nodenumber )"
 	HOSTNAME="$( uci -q get system.@system[0].hostname )"
 	HOSTNAME="$( _sanitizer do "$HOSTNAME" hostname urlvalue )"
 
-	case "$( date +%H )" in			# only at night
-		00)
-			_wifi scan_summary remove
-		;;
-		01|02|03|04|06)
-			_wifi scan $WIFIDEV
-		;;
-		05)
-			_wifi scan $WIFIDEV intense
-		;;
-		07)
-			WIFISCAN="$( _wifi scan_summary )"
-		;;
-	esac
+	if [ -e '/tmp/WIFISCAN' ]; then
+		case "$( date +%H )" in			# only at night
+			03)
+				_wifi scan "$WIFIDEV" >'/tmp/WIFISCAN'
+			;;
+		esac
+	else
+		WIFISCAN="$( cat '/tmp/WIFISCAN' )"
+		WIFISCAN="$( _sanitizer do "$WIFISCAN" urlvalue )"
+	fi
 
 	only_one_wired_neigh()
 	{
@@ -365,8 +361,6 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci -q get system.@profile[0].nodenumber )"
 	else
 		N0=
 	fi
-
-	[ -n "$WIFISCAN" ] && WIFISCAN="$( _sanitizer do "$WIFISCAN" urlvalue )"
 
 	# ----- fixme! start_of_ugly_packetfilter_monitoring
 
