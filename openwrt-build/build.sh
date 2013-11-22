@@ -1,8 +1,6 @@
 #!/bin/sh
 
 # ToDo:
-# - failsafe patch
-
 # - support for tarball
 # - support for reverting specific openwrt-commits (for building older kernels)
 # - apply kernel_symbols
@@ -21,6 +19,7 @@
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 # - build for each router in monitoring? "build for network olympia"
 # - attic not in bin/$ARCH/attic but ../attic? -> make dirclean will remove it
+# - option: failsafe-image: add 'failsafe=' to kernel-commandline
 
 # dir-structure:
 # $HARDWARE/testing/$files
@@ -221,6 +220,8 @@ check_working_directory()
 	local funcname='check_working_directory'
 
 	git log -1 | grep -q 'git-svn-id' || {
+		# if we have private commits on top, we can roll back several times via
+		# git reset --soft "HEAD^"
 		log "$funcname() please make sure, that you are in OpenWrt's git-root"
 		return 1
 	}
@@ -260,6 +261,11 @@ openwrt_download()
 			hash="$( echo "$wish" | cut -b2- )"
 			hash="$( git log -1 --format=%h --grep=@$hash )"
 
+			git branch | grep -q ^"  openwrt@${hash}=${wish}"$ && {
+				log "$funcname() removing old? branch 'openwrt@${hash}=${wish}'"
+				git branch -D "openwrt@${hash}=${wish}"
+			}
+
 			git checkout -b "openwrt@${hash}=${wish}" "$hash" || {
 				log "$funcname() checkout failed, trying to stash"
 				git stash save "$funcname() going to checkout ${hash}=${wish}"
@@ -289,7 +295,9 @@ openwrt_download()
 			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 
 			[ -n "$( git stash list )" ] && {
-				log "$funcname() found openwrt-stash, use e.g. 'git stash list OR pop OR apply stash@{0}"
+				log "$funcname() found openwrt-stash, ignore via press 'q'"
+				log "$funcname() or use e.g. 'git stash list OR pop OR apply stash@{0} OR clear"
+
 				git stash list
 			}
 		;;
