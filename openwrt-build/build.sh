@@ -401,6 +401,7 @@ apply_symbol()
 	local choice hash tarball_hash
 	local last_commit_unixtime last_commit_date url hash
 	local file installation sub_profile node
+	local dir basedir
 
 	case "$symbol" in
 		"$KALUA_DIRNAME"*)
@@ -469,6 +470,17 @@ apply_symbol()
 			else
 				log "$funcname() $KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
 			fi
+
+			basedir="$KALUA_DIRNAME/openwrt-patches/add2trunk"
+			log "$funcname() $KALUA_DIRNAME: adding private patchsets from $basedir"
+			for dir in $basedir/*; do {
+				[ -d "$dir" ] || continue
+
+				log "$funcname() $KALUA_DIRNAME: adding patchset '$dir'"
+				for file in $dir/*; do {
+					git am --signoff <"$file"
+				} done
+			}
 
 			[ -n "$CONFIG_PROFILE" ] && {
 				file="$custom_dir/etc/init.d/apply_profile.code"
