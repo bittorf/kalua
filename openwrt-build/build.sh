@@ -476,9 +476,9 @@ apply_symbol()
 			for dir in $basedir/*; do {
 				[ -d "$dir" ] || continue
 
-				log "$funcname() $KALUA_DIRNAME: adding patchset '$dir'"
+				log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
 				for file in $dir/*; do {
-					git am --signoff <"$file"
+					git am --signoff <"$file" || log "$funcname() ERROR during 'git am'"
 				} done
 			} done
 
