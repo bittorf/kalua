@@ -295,7 +295,7 @@ openwrt_download()
 			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
 			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 
-			[ -n "$( git stash list )" ] && {
+			[ -n "$( git stash list | grep -v '() going to checkout ' )" ] && {
 				log "$funcname() found openwrt-stash, ignore via press 'q'"
 				log "$funcname() or use e.g. 'git stash list OR pop OR apply stash@{0} OR clear"
 
