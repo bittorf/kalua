@@ -20,6 +20,7 @@
 # - build for each router in monitoring? "build for network olympia"
 # - attic not in bin/$ARCH/attic but ../attic? -> make dirclean will remove it
 # - option: failsafe-image: add 'failsafe=' to kernel-commandline
+# - include/renew patches for awk-remove
 
 # dir-structure:
 # $HARDWARE/testing/$files
