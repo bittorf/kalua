@@ -1,0 +1,80 @@
+From 26af8bf108617ea979693e2eb26bbb2a964d6335 Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bittorf@bluebottle.com>
+Date: Sat, 23 Nov 2013 20:06:32 +0100
+Subject: [PATCH 14/15] hotplug: firmware/ath9k-eeprom: refactor hotplug-script for working without 'exit'
+
+
+Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
+---
+ .../etc/hotplug.d/firmware/10-ath9k-eeprom         |   18 ++++++++++--------
+ 1 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/target/linux/ar71xx/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom b/target/linux/ar71xx/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
+index fa4b98c..831a4e8 100644
+--- a/target/linux/ar71xx/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
++++ b/target/linux/ar71xx/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
+@@ -1,8 +1,8 @@
+ #!/bin/sh
++# sourced from /sbin/hotplug-call
+ 
+ ath9k_eeprom_die() {
+ 	echo "ath9k eeprom: " "$*"
+-	exit 1
+ }
+ 
+ ath9k_eeprom_extract() {
+@@ -13,10 +13,12 @@ ath9k_eeprom_extract() {
+ 
+ 	mtd=$(find_mtd_chardev $part)
+ 	[ -n "$mtd" ] || \
+-		ath9k_eeprom_die "no mtd device found for partition $part"
++		ath9k_eeprom_die "no mtd device found for partition $part" && return 1
+ 
+ 	dd if=$mtd of=/lib/firmware/$FIRMWARE bs=1 skip=$offset count=$count 2>/dev/null || \
+-		ath9k_eeprom_die "failed to extract from $mtd"
++		ath9k_eeprom_die "failed to extract from $mtd" && return 1
++
++	return 0
+ }
+ 
+ ath9k_patch_firmware_mac() {
+@@ -27,7 +29,7 @@ ath9k_patch_firmware_mac() {
+ 	macaddr_2bin $mac | dd of=/lib/firmware/$FIRMWARE conv=notrunc bs=1 seek=2 count=6
+ }
+ 
+-[ -e /lib/firmware/$FIRMWARE ] && exit 0
++[ -e "/lib/firmware/$FIRMWARE" ] && return 0
+ 
+ . /lib/ar71xx.sh
+ . /lib/functions.sh
+@@ -38,11 +40,11 @@ case "$FIRMWARE" in
+ "soc_wmac.eeprom")
+ 	case $board in
+ 	wndr4300)
+-		ath9k_eeprom_extract "caldata" 4096 2048
++		ath9k_eeprom_extract "caldata" 4096 2048 || return 1
+ 		ath9k_patch_firmware_mac $(mtd_get_mac_binary caldata 0)
+ 		;;
+ 	*)
+-		ath9k_eeprom_die "board $board is not supported yet"
++		ath9k_eeprom_die "board $board is not supported yet" && return 1
+ 		;;
+ 	esac
+ 	;;
+@@ -50,11 +52,11 @@ case "$FIRMWARE" in
+ "pci_wmac0.eeprom")
+ 	case $board in
+ 	wndr4300)
+-		ath9k_eeprom_extract "caldata" 20480 2048
++		ath9k_eeprom_extract "caldata" 20480 2048 || return 1
+ 		ath9k_patch_firmware_mac $(mtd_get_mac_binary caldata 12)
+ 		;;
+ 	*)
+-		ath9k_eeprom_die "board $board is not supported yet"
++		ath9k_eeprom_die "board $board is not supported yet" && return 1
+ 		;;
+ 	esac
+ 	;;
+-- 
+1.7.2.5
+

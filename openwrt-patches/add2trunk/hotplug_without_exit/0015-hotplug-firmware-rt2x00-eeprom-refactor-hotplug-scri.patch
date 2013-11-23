@@ -1,0 +1,101 @@
+From 2bbb5faf60686233d3b54d92e5f8507af467f323 Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bittorf@bluebottle.com>
+Date: Sat, 23 Nov 2013 20:09:08 +0100
+Subject: [PATCH 15/15] hotplug: firmware/rt2x00-eeprom: refactor hotplug-script for working without 'exit'
+
+
+Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
+---
+ .../etc/hotplug.d/firmware/10-rt2x00-eeprom        |   26 ++++++++++---------
+ 1 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/target/linux/ramips/base-files/etc/hotplug.d/firmware/10-rt2x00-eeprom b/target/linux/ramips/base-files/etc/hotplug.d/firmware/10-rt2x00-eeprom
+index 40e1796..b2705c1 100644
+--- a/target/linux/ramips/base-files/etc/hotplug.d/firmware/10-rt2x00-eeprom
++++ b/target/linux/ramips/base-files/etc/hotplug.d/firmware/10-rt2x00-eeprom
+@@ -1,8 +1,8 @@
+ #!/bin/sh
++# sourced from /sbin/hotplug-call
+ 
+ rt2x00_eeprom_die() {
+ 	echo "rt2x00 eeprom: " "$*"
+-	exit 1
+ }
+ 
+ rt2x00_eeprom_extract() {
+@@ -15,13 +15,15 @@ rt2x00_eeprom_extract() {
+ 
+ 	mtd=$(find_mtd_part $part)
+ 	[ -n "$mtd" ] || \
+-		rt2x00_eeprom_die "no mtd device found for partition $part"
++		rt2x00_eeprom_die "no mtd device found for partition $part" && return 1
+ 
+ 	dd if=$mtd of=/lib/firmware/$FIRMWARE bs=1 skip=$offset count=$count 2>/dev/null || \
+-		rt2x00_eeprom_die "failed to extract from $mtd"
++		rt2x00_eeprom_die "failed to extract from $mtd" && return 1
++
++	return 0
+ }
+ 
+-[ -e /lib/firmware/$FIRMWARE ] && exit 0
++[ -e "/lib/firmware/$FIRMWARE" ] && return 0
+ 
+ . /lib/ramips.sh
+ 
+@@ -36,21 +38,21 @@ case "$FIRMWARE" in
+ 	dir-600-b2 | \
+ 	dir-610-a1 | \
+ 	dir-615-d)
+-		rt2x00_eeprom_extract "devdata" 16384 512
++		rt2x00_eeprom_extract "devdata" 16384 512 || return 1
+ 		;;
+ 
+ 	dap-1350)
+-		rt2x00_eeprom_extract "devdata" 0 512
++		rt2x00_eeprom_extract "devdata" 0 512 || return 1
+ 		;;
+ 
+ 	rt-n10-plus | \
+ 	rt-g32-b1)
+-		rt2x00_eeprom_extract "devconf" 0 512
++		rt2x00_eeprom_extract "devconf" 0 512 || return 1
+ 		;;
+ 
+ 	f5d8235-v1 | \
+ 	f5d8235-v2)
+-		rt2x00_eeprom_extract "u-boot" 262144 512
++		rt2x00_eeprom_extract "u-boot" 262144 512 || return 1
+ 		;;
+ 
+ 	3g-6200n | \
+@@ -112,15 +114,15 @@ case "$FIRMWARE" in
+ 	ur-336un | \
+ 	xdxrn502j | \
+ 	hg255d)
+-		rt2x00_eeprom_extract "factory" 0 512
++		rt2x00_eeprom_extract "factory" 0 512 || return 1
+ 		;;
+ 
+ 	wl341v3)
+-		rt2x00_eeprom_extract "board-nvram" 64880 512
++		rt2x00_eeprom_extract "board-nvram" 64880 512 || return 1
+ 		;;
+ 
+ 	*)
+-		rt2x00_eeprom_die "board $board is not supported yet"
++		rt2x00_eeprom_die "board $board is not supported yet" && return 1
+ 		;;
+ 	esac
+ 	;;
+@@ -128,7 +130,7 @@ case "$FIRMWARE" in
+ "rt2x00pci_1_0.eeprom")
+ 	case $board in
+ 	rt-n56u)
+-		rt2x00_eeprom_extract "factory" 32768 512
++		rt2x00_eeprom_extract "factory" 32768 512 || return 1
+ 		;;
+ 	esac
+ 	;;
+-- 
+1.7.2.5
+
