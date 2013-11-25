@@ -594,24 +594,20 @@ boot()
 		uci set network.mybridge.netmask="255.255.0.0"
 		uci set network.mybridge.netmask_dhcpcalc="255.255.255.0"
 
+		# https://lists.open-mesh.org/pipermail/b.a.t.m.a.n/2013-November/010913.html
+		local mac_gateway="02:00:c0:ca:c0:1a"
+		which ebtables >/dev/null && {
+			echo >>"$startup" "ebtables -A FORWARD -j DROP -d '$mac_gateway'"
+			echo >>"$startup" "ebtables -t nat -A POSTROUTING -o bat0 -j DROP -s '$mac_gateway'"
+			echo >>"$startup" "#  query via: ebtables -L FORWARD --Lc; ebtables -t nat -L POSTROUTING --Lc"
+		}
+
 		case "$CONFIG_PROFILE" in
 			*_adhoc)
 			;;
 			liszt28*|schoeneck*)
-				local mac_gateway="02:00:c0:ca:c0:1a"
-
 				# depends on kmod-macvlan
 				echo >>"$startup" "_log do batman daemon info \"$startup: forcing gateways ip/mac: $router_ip/$mac_gateway\""
-
-				# https://lists.open-mesh.org/pipermail/b.a.t.m.a.n/2013-November/010913.html
-				# show usage via:
-				# ebtables -L FORWARD --Lc
-				# ebtables -t nat -L POSTROUTING --Lc
-				which ebtables >/dev/null && {
-					echo >>"$startup" "ebtables -A FORWARD -j DROP -d '$mac_gateway'"
-					echo >>"$startup" "ebtables -t nat -A POSTROUTING -o bat0 -j DROP -s '$mac_gateway'"
-				}
-
 				echo >>"$startup" "ip link add link 'br-mybridge' 'gateway0' address '$mac_gateway' type macvlan"
 				echo >>"$startup" "ip address add $router_ip/32 dev gateway0"
 				echo >>"$startup" "ip link set dev gateway0 up"
