@@ -39,7 +39,12 @@ else
 			cat '/tmp/USERDB_COPY.cgi.gz'
 		;;
 		*)
-			_http redirect 302 '/USERDB_COPY.txt'
+			if [ "$REMOTE_ADDR" = "$LOADR" ]; then
+				_http header_mimetype_output 'text/plain'
+				echo "# OK - ignore localhost"
+			else
+				_http redirect 302 '/USERDB_COPY.txt'
+			fi
 		;;
 	esac
 fi
