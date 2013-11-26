@@ -1,0 +1,54 @@
+#!/bin/sh /etc/rc.common
+START=99
+
+APP=cgminer
+PID_FILE=/var/run/$APP.pid
+
+
+start() {
+	local _pool1url
+	local _pool1user
+	local _pool1pw
+
+	local _aa
+	local _mo
+
+	config_load cgminer
+
+	config_get _pool1url default pool1url
+	config_get _pool1user default pool1user
+	config_get _pool1pw default pool1pw
+
+
+	config_get _aa default api_allow
+	config_get _mo default more_options
+
+	if [ "$_pool1url" != "" -a "$_pool1user" != "" -a "$_pool1pw" != "" ]; then
+	    POOL1="-o $_pool1url -O $_pool1user:$_pool1pw"
+	fi
+
+	PARAMS=" --lowmem $POOL1 --api-allow $_aa --api-listen $_mo"
+
+	$APP --lowmem -q >/dev/null 2>&1
+	sleep 1
+
+	if [ ! -f /tmp/cgminer-ntpd-done ]; then
+		while [ "$NTPD_RET" != "0" ]; do
+			ntpd -d -n -q -N \
+			    -p 0.openwrt.pool.ntp.org \
+			    -p 1.openwrt.pool.ntp.org \
+			    -p 2.openwrt.pool.ntp.org \
+			    -p 3.openwrt.pool.ntp.org
+
+			NTPD_RET=$?
+		done
+
+		touch /tmp/cgminer-ntpd-done
+	fi
+
+	start-stop-daemon -S -x $APP -p $PID_FILE -m -b -- $PARAMS
+}
+
+stop() {
+	start-stop-daemon -K -n $APP -p $PID_FILE -s TERM
+}
