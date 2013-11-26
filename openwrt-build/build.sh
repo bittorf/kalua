@@ -110,12 +110,15 @@ copy_additional_packages()
 	local funcname='copy_additional_packages'
 	local dir install_section
 
-	for dir in openwrt-packages/* ; do {
-		[ -e "$dir/Makefile" ] && {
+	for dir in $KALUA_DIRNAME/openwrt-packages/* ; do {
+		if [ -e "$dir/Makefile" ]; then
 			install_section="$( fgrep 'SECTION:=' "$dir/Makefile" | cut -d'=' -f2 )"
 			log "$funcname() working on '$dir', destination: '$install_section'"
 			cp -Rv "$dir" "package/$install_section"
-		}
+		else
+			log "$funcname() no Makefile found in '$dir' - please check"
+			return 1
+		fi
 	} done
 
 	return 0
