@@ -503,16 +503,41 @@ boot()
 			;;
 		esac
 
-		uci add network alias
-		uci set network.@alias[-1].interface="lan"
-		uci set network.@alias[-1].proto=batadv
-		uci set network.@alias[-1].mesh=bat0
+		batalias_add_if_needed()
+		{
+			local funcname='batalias_add_if_needed'
+			local ifname_ask="$1"
+			local ifname proto i j
+			local exists=
+
+			for i in $(seq 100); do {
+				proto="$( uci -q get network.@alias[${i}].proto )" || break
+
+				case "$proto" in
+					'batadv')
+						ifname="$( uci -q get network.@alias[${i}].interface )"
+						[ "$ifname_ask" = "$ifname" ] && {
+							j=$(( $j + 1 ))
+							exists='true'
+						}
+					;;
+				esac
+			} done
+
+			[ ${j:-0} -gt 1 ] && _log do $funcname daemon alert "ifname '$ifname_ask'-count: $j"
+
+			[ -z "$exists" ] && {
+				uci add network alias
+				uci set network.@alias[-1].interface="$ifname_ask"
+				uci set network.@alias[-1].proto=batadv
+				uci set network.@alias[-1].mesh=bat0
+			}
+		}
+
+		batalias_add_if_needed 'lan'
 
 		[ -n "$( uci get network.wan )" ] && {
-			uci add network alias
-			uci set network.@alias[-1].interface="wan"
-			uci set network.@alias[-1].proto=batadv
-			uci set network.@alias[-1].mesh=bat0
+			batalias_add_if_needed 'wan'
 		}
 
 		integer2fourhex()	# e.g. 8 -> 00:08
@@ -531,10 +556,7 @@ boot()
 		# fixme! iterate over all wifi-interfaces
 		case "$CONFIG_PROFILE" in
 			*hybrid)
-				uci add network alias
-				uci set network.@alias[-1].interface="wlanadhoc"
-				uci set network.@alias[-1].proto=batadv
-				uci set network.@alias[-1].mesh=bat0
+				batalias_add_if_needed 'wlanadhoc'
 
 				# ap-interface:
 				# wireless.@wifi-iface[1].network=wlan
@@ -542,10 +564,7 @@ boot()
 				uci set $varname.macaddr="02:00:ca:fe:$( integer2fourhex "$NODENUMBER" )"
 
 				[ "$( uci get network.wlanadhocRADIO1 )" = "interface" ] && {
-					uci add network alias
-					uci set network.@alias[-1].interface="wlanadhocRADIO1"
-					uci set network.@alias[-1].proto=batadv
-					uci set network.@alias[-1].mesh=bat0
+					batalias_add_if_needed 'wlanadhocRADIO1'
 
 					# ap-interface:
 					# wireless.@wifi-iface[3].network=wlanRADIO1
@@ -554,10 +573,7 @@ boot()
 				}
 			;;
 			*adhoc)
-				uci add network alias
-				uci set network.@alias[-1].interface="wlan"
-				uci set network.@alias[-1].proto=batadv
-				uci set network.@alias[-1].mesh=bat0
+				batalias_add_if_needed 'wlan'
 			;;
 		esac
 
