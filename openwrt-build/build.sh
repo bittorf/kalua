@@ -105,6 +105,22 @@ apply_wifi_reghack()
 	}
 }
 
+copy_additional_packages()
+{
+	local funcname='copy_additional_packages'
+	local dir install_section
+
+	for dir in openwrt-packages/* ; do {
+		[ -e "$dir/Makefile" ] && {
+			install_section="$( fgrep 'SECTION:=' "$dir/Makefile" | cut -d'=' -f2 )"
+			log "$funcname() working on '$dir', destination: '$install_section'"
+			cp -Rv "$dir" "package/$install_section"
+		}
+	} done
+
+	return 0
+}
+
 target_hardware_set()
 {
 	local funcname='target_hardware_set'
@@ -935,6 +951,7 @@ while [ -n "$1" ]; do {
 check_working_directory			|| exit 1
 openwrt_download "$VERSION_OPENWRT"	|| exit 1
 target_hardware_set "$HARDWARE_MODEL"	|| exit 1
+copy_additional_packages		|| exit 1
 build_options_set "$LIST_USER_OPTIONS"	|| exit 1
 build					|| exit 1
 copy_firmware_files			|| exit 1
