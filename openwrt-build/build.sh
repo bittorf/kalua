@@ -698,6 +698,10 @@ build_options_set()
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'BTCminer')
+				# for now its hardcoded to '--enable-bflsc' / Butterfly ASIC
+				apply_symbol 'CONFIG_PACKAGE_cgminer=y'			# utilities: cgminer
+			;;
 			'shaping')
 				apply_symbol 'CONFIG_PACKAGE_kmod-sched=y'		# kernel-modules: network support: kmod-sched
 				apply_symbol 'CONFIG_PACKAGE_tc=y'			# network: tc
