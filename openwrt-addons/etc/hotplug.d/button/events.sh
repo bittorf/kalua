@@ -1,19 +1,20 @@
 #!/bin/sh
 # sourced from /sbin/hotplug-call
 
-case "$ACTION" in
-	'pressed')
+case "${BUTTON}-${ACTION}" in
+	# wps = WiFi Protected Setup: http://wiki.openwrt.org/doc/uci/wireless#wps.options
+	'wps-pressed')
 		read UP REST </proc/uptime
 		echo "${UP%.*}${UP#*.}" >'/tmp/BUTTON'
 	;;
-	'released')
+	'wps-released')
 		read UP REST </proc/uptime
 		read START <'/tmp/BUTTON'
 
 		END="${UP%.*}${UP#*.}"
 		DIFF=$(( $END - $START ))
 
-		logger "$0: button released after $DIFF millisec"
+		logger "$0: button '$BUTTON' released after $DIFF millisec"
 
 		next_radio()
 		{
@@ -72,5 +73,8 @@ case "$ACTION" in
 		else
 			next_radio
 		fi
+	;;
+	*)
+		logger "$0: button '$BUTTON' ignoring args: $@"
 	;;
 esac
