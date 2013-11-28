@@ -27,6 +27,7 @@ case "${BUTTON}-${ACTION}" in
 			local url4='soma.fm indiepop http://sfstream1.somafm.com:8090'
 			local url5='mdr figaro http://avw.mdr.de/livestreams/mdr_figaro_live_128.m3u'
 			local url6='radio-blau main http://www.radioblau.de/stream/radioblau.m3u'
+			local url7='apollo-radio main http://stream.apolloradio.de/APOLLO/mp3.m3u'
 
 			if [ -e "$file" ]; then
 				read dummy i <"$file"
@@ -39,7 +40,7 @@ case "${BUTTON}-${ACTION}" in
 			fi
 
 			case "$i" in
-				2|3|4|5|6)
+				2|3|4|5|6|7)
 					eval url="\$url$i"
 				;;
 				*)
