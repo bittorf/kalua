@@ -75,6 +75,6 @@ case "${BUTTON}-${ACTION}" in
 		fi
 	;;
 	*)
-		logger "$0: button '$BUTTON' ignoring args: $@"
+		logger "$0: button '$BUTTON' action: '$ACTION' ignoring args: $@"
 	;;
 esac
