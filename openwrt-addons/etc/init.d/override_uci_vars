@@ -264,8 +264,6 @@ boot()
 		schoeneck*)
 			case "$( uci get wireless.@wifi-iface[0].mode )" in
 				ap)
-#					uci set wireless.@wifi-iface[0].ssid="IFA Schoeneck $( uci get system.@profile[0].nodenumber )"
-					uci set wireless.@wifi-iface[0].ssid='IFA'
 					uci set wireless.radio0.txpower=8
 				;;
 				adhoc)
@@ -274,7 +272,6 @@ boot()
 					uci set wireless.radio0.htmode="HT20"
 					uci set wireless.@wifi-iface[0].ssid="o"
 					uci set wireless.@wifi-iface[0].mcast_rate=6000
-#					uci set wireless.radio0.txpower=20
 				;;
 			esac
 
@@ -387,7 +384,7 @@ boot()
 		case "$CONFIG_PROFILE" in
 			liszt28*)
 				case "$NODENUMBER" in
-					223|45|21|3|13|2|23|76|98|25|24|222|20|15|58|99|8)
+					62|223|45|21|3|13|2|23|76|98|25|24|222|20|15|58|99|8)
 						return 0
 					;;
 					*)
@@ -435,6 +432,22 @@ boot()
 		sed -i 's/^/# &/' '/etc/modules.d/macvlan'
 	}
 
+	set_wifi()
+	{
+		local wifimode="$1"	# e.g. 'ap'
+		local band="$2"		# e.g. '5ghz'
+		local var="$3"		# e.g. 'ssid'
+		local value="$4"	# e.g. 'myssid'
+
+		for i in $(seq 16); do {
+			uci -q get wireless.@wifi-iface[$i].$wifimode >/dev/null && {
+				[ "$band" = '2ghz' ] && is_2ghz "$i" || continue
+				[ "$band" = '5ghz' ] && is_2ghz "$i" && continue
+				uci set wireless.@wifi-iface[$i].$var="$value"
+			}
+		} done
+	}
+
 	if batman_needed; then
 		uci set batman-adv.bat0.orig_interval=1000	# default = 1000 ms
 
@@ -453,8 +466,17 @@ boot()
 		case "$CONFIG_PROFILE" in
 			schoeneck_ap)
 				uci set wireless.radio0.htmode="HT20"
-#				uci set wireless.@wifi-iface[0].ssid="IFA Schoeneck"
-				[ -n "$( uci get wireless.@wifi-iface[1].ssid )" ] && uci set wireless.@wifi-iface[1].ssid="IFA Schoeneck"
+				uci set wireless.@wifi-iface[0].ssid='IFA'
+			;;
+			schoeneck_hybrid)
+				uci set wireless.@wifi-iface[1].ssid='IFA'
+				uci get wireless.@wifi-iface[3].ssid >/dev/null && {
+					if is_2ghz '3'; then
+						uci set wireless.@wifi-iface[3].ssid='IFA'
+					else
+						uci set wireless.@wifi-iface[3].ssid='IFA highspeed'
+					fi
+				}
 			;;
 			olympia_hybrid)
 				uci set wireless.radio0.htmode="HT20"
@@ -463,13 +485,14 @@ boot()
 			;;
 			liszt28_hybrid)
 				uci set wireless.radio0.htmode="HT20"
-				uci set wireless.@wifi-iface[0].ssid="o"
-				uci set wireless.@wifi-iface[1].ssid="Schlachtfest"
+				set_wifi ap 5ghz ssid 'Schlachtfest highspeed'
+				set_wifi ap 2ghz ssid 'Schlachtfest'
+				set_wifi adhoc 5ghz ssid 'i5'
+				set_wifi adhoc 2ghz ssid 'i2'
 			;;
 			liszt28_ap)
 				uci set wireless.radio0.htmode="HT20"
 				uci set wireless.@wifi-iface[0].ssid="Schlachtfest"
-				[ -n "$( uci get wireless.@wifi-iface[1].ssid )" ] && uci set wireless.@wifi-iface[1].ssid="Schlachtfest"
 			;;
 			dhsylt_hybrid)
 				uci set wireless.radio0.htmode="HT20"
