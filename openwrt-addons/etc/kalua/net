@@ -722,10 +722,10 @@ _net_mac2hostname ()
 	echo ${NAME:=anonym}                                                                                                                                          
 }
 
-_net_mac2dev ()
+_net_mac2dev()
 {
 	local get_mac="$1"
-	local mac dev dummy
+	local mac dev dummy wifidev
 
 	_sanitizer include
 
@@ -733,7 +733,15 @@ _net_mac2dev ()
 		mac="$( _sanitizer do "$mac" lowercase )"
 
 		[ "$get_mac" = "$mac" ] && {
-			echo $dev
+			case "$dev" in
+				'br-mybridge'|'gateway0')
+					for wifidev in $WIFI_DEVS; do {
+						iw dev iw dev "$wifidev" station get "$mac" 2>/dev/null && dev="$wifidev"
+					} done
+				;;
+			esac
+
+			echo "$dev"
 			return
 		}
 
