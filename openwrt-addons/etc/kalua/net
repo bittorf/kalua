@@ -725,6 +725,7 @@ _net_mac2hostname ()
 _net_mac2dev()
 {
 	local get_mac="$1"
+	local exact="$2"		# e.g. for arp_permanent we need 'br-mybridge' and not 'wlan1'
 	local mac dev dummy wifidev
 
 	_sanitizer include
@@ -733,16 +734,18 @@ _net_mac2dev()
 		mac="$( _sanitizer do "$mac" lowercase )"
 
 		[ "$get_mac" = "$mac" ] && {
-			case "$dev" in
-				'br-mybridge'|'gateway0')
-					for wifidev in $WIFI_DEVS; do {
-						iw dev "$wifidev" station get "$mac" 2>/dev/null >/dev/null && {
-							dev="$wifidev"
-							break
-						}
-					} done
-				;;
-			esac
+			[ -n "$exact" ] || {
+				case "$dev" in
+					'br-mybridge'|'gateway0')
+						for wifidev in $WIFI_DEVS; do {
+							iw dev "$wifidev" station get "$mac" 2>/dev/null >/dev/null && {
+								dev="$wifidev"
+								break
+							}
+						} done
+					;;
+				esac
+			}
 
 			echo "$dev"
 			return
@@ -756,7 +759,7 @@ _net_mac2media()
 	local MAC="$1"				# ARG1: (string) mac-address
 	local SHORT="$2"			# ARG2: (string) keyword "short" (optional)
 	local OUT=0				# OUT1: (string) wifi,wire OR ~,-
-	local DEV="$( _net mac2dev $MAC )"
+	local DEV="$( _net mac2dev "$MAC" )"
 
 	  if [ "$DEV" = "$WIFIDEV" ]; then
 	  	OUT=wifi
@@ -800,7 +803,7 @@ _net_arp_permanent ()					# ARG1:ip ARG2:mac ARG3:wifi or wire
 		MODE="add"
 	fi
 
-	DEV="$( _net mac2dev $MAC )"		# fixme! probe up to 3 times?
+	DEV="$( _net mac2dev "$MAC" )"		# fixme! probe up to 3 times?
 
  	if [ -z "$DEV" ]; then
 		_log do $FUNC daemon info "not in neigh-list, probing"
