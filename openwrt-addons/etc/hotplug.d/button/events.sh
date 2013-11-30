@@ -18,6 +18,8 @@ case "${BUTTON}-${ACTION}" in
 
 		next_radio()
 		{
+			route -n | grep -q ^"0\.0\.0\.0" || return 0
+
 			local file="/tmp/audioplayer.sh"
 			local dummy url
 			local i=1
@@ -67,6 +69,7 @@ case "${BUTTON}-${ACTION}" in
 
 		if PID="$( pidof madplay )" ; then
 			if [ $DIFF -ge 100 ]; then	# long pressed
+				rm '/tmp/audioplayer.sh'
 				kill $PID
 			else
 				next_radio
