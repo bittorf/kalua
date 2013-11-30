@@ -251,9 +251,8 @@ _watch_archivsize()	# e.g. if a file exceeds 300 lines it will be truncated to t
 		lines=$(( $lines + 1 ))
 	} done <"$file"
 
-	# is a number?
+	# is a number? http://stackoverflow.com/questions/806906/how-do-i-test-if-a-variable-is-a-number-in-bash
 	test "$lines_tolerate" -eq "$lines_tolerate" 2>/dev/null || lines_tolerate="$max_lines"
-#	case "$lines_tolerate" in ''|*[!0-9]*) lines_tolerate="$max_lines" ;; esac
 
 	if [ $lines -gt $lines_tolerate ]; then
 		if tail -n $lines_max "$file" >"/tmp/$funcname.$$"; then
@@ -316,28 +315,36 @@ _watch_netserver ()
 	}
 }
 
-_watch_hanging_command ()
+_watch_hanging_command()
 {
 	local FUNC="watch_hanging_command"
 	local COMMAND="$1"						# e.g. wget|scp|mv|nc|olsrd|own_keyword
 	local COMMAND_PID="$2"						# e.g. direct PID or autoget if empty
 	local COMMAND_CMD
-
-	pid2taskname()
-	{
-		_sanitizer do "$( cut -d: -f2 /proc/${1:-unset}/status )" firstword
-	}
+	local foundpid
 
 	if [ -z "$COMMAND_PID" ]; then
-		COMMAND_PID="$( _system get_first_pid $COMMAND )"
-	else
-		COMMAND="$( pid2taskname $COMMAND_PID )"
-	fi
+		for COMMAND_PID in $( pidof "$COMMAND" ); do {
+			read COMMAND_CMD </proc/$COMMAND_PID/cmdline
+			case "$COMMAND_CMD" in
+				*'user-agentAUDIOPLAYER-'*)
+				;;
+				*)
+					foundpid='true'
+					break
+				;;
+			esac
+		} done
 
-	[ -z "$COMMAND_PID" ] && {
-		_log do $FUNC daemon debug "no running '$COMMAND'-process"
-		return 0
-	}
+		[ -n "$foundpid" ] || return 0
+	else
+		pid2taskname()
+		{
+			_sanitizer do "$( cut -d: -f2 /proc/${1:-unset}/status )" firstword
+		}
+
+		COMMAND="$( pid2taskname "$COMMAND_PID" )"
+	fi
 
 	read COMMAND_CMD </proc/$COMMAND_PID/cmdline			# remember exact commandline
 

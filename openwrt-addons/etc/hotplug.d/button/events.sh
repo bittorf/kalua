@@ -61,7 +61,7 @@ case "${BUTTON}-${ACTION}" in
 
 			logger "i: $i - url: $url"
 			echo  >"$file" "# $i"
-			echo >>"$file" "( wget -qO - '$url' | madplay -v - ) &"
+			echo >>"$file" "( wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url' | madplay -v - ) &"
 			chmod +x "$file"
 
 			exec "$file"
