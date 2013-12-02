@@ -712,6 +712,7 @@ build_options_set()
 			'BTCminerBFL')
 				# for now its hardcoded to '--enable-bflsc' / Butterfly ASIC
 				apply_symbol 'CONFIG_PACKAGE_cgminer=y'			# utilities: cgminer
+			;;
 			'BTCminerCPU')
 				# copy_additional_packages() will tweak the Makefile
 				apply_symbol 'CONFIG_PACKAGE_cgminer=y'			# utilities: cgminer
