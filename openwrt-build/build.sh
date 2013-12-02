@@ -108,21 +108,23 @@ apply_wifi_reghack()
 copy_additional_packages()
 {
 	local funcname='copy_additional_packages'
-	local dir install_section file
+	local dir install_section file package
 
 	for dir in $KALUA_DIRNAME/openwrt-packages/* ; do {
 		if [ -e "$dir/Makefile" ]; then
 			install_section="$( fgrep 'SECTION:=' "$dir/Makefile" | cut -d'=' -f2 )"
+			package="$( basename "$dir" )"
+
 			log "$funcname() working on '$dir', destination: '$install_section'"
 			cp -Rv "$dir" "package/$install_section"
-
-			[ "$( basename "$dir" )" = 'cgminer' ] && {
+			
+			[ "$package" = 'cgminer' ] && {
 				case "$LIST_USER_OPTIONS" in
 					*'BTCminerCPU'*)
-						file="package/$install_section/Makefile"
-							sed -i 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
-							sed -i 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
-							sed -i 's/--enable-bflsc/--enable-cpumining/' "$file"
+						file="package/$install_section/$package/Makefile"
+						sed -i 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
+						sed -i 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
+						sed -i 's/--enable-bflsc/--enable-cpumining/' "$file"
 					;;
 				esac
 			}
