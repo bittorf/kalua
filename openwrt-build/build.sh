@@ -116,7 +116,7 @@ copy_additional_packages()
 			log "$funcname() working on '$dir', destination: '$install_section'"
 			cp -Rv "$dir" "package/$install_section"
 
-			[ "$dir" = 'cgminer' ] && {
+			[ "$( basename "$dir" )" = 'cgminer' ] && {
 				case "$LIST_USER_OPTIONS" in
 					*'BTCminerCPU'*)
 						file="package/$install_section/Makefile"
