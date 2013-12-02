@@ -717,7 +717,6 @@ build_options_set()
 				# copy_additional_packages() will tweak the Makefile
 				apply_symbol 'CONFIG_PACKAGE_cgminer=y'			# utilities: cgminer
 			;;
-			;;
 			'shaping')
 				apply_symbol 'CONFIG_PACKAGE_kmod-sched=y'		# kernel-modules: network support: kmod-sched
 				apply_symbol 'CONFIG_PACKAGE_tc=y'			# network: tc
