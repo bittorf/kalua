@@ -108,13 +108,24 @@ apply_wifi_reghack()
 copy_additional_packages()
 {
 	local funcname='copy_additional_packages'
-	local dir install_section
+	local dir install_section file
 
 	for dir in $KALUA_DIRNAME/openwrt-packages/* ; do {
 		if [ -e "$dir/Makefile" ]; then
 			install_section="$( fgrep 'SECTION:=' "$dir/Makefile" | cut -d'=' -f2 )"
 			log "$funcname() working on '$dir', destination: '$install_section'"
 			cp -Rv "$dir" "package/$install_section"
+
+			[ "$dir" = 'cgminer' ] && {
+				case "$LIST_USER_OPTIONS" in
+					*'BTCminerCPU'*)
+						file="package/$install_section/Makefile"
+							sed -i 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
+							sed -i 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
+							sed -i 's/--enable-bflsc/--enable-cpumining/' "$file"
+					;;
+				esac
+			}
 		else
 			log "$funcname() no Makefile found in '$dir' - please check"
 			return 1
@@ -698,9 +709,13 @@ build_options_set()
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
-			'BTCminer')
+			'BTCminerBFL')
 				# for now its hardcoded to '--enable-bflsc' / Butterfly ASIC
 				apply_symbol 'CONFIG_PACKAGE_cgminer=y'			# utilities: cgminer
+			'BTCminerCPU')
+				# copy_additional_packages() will tweak the Makefile
+				apply_symbol 'CONFIG_PACKAGE_cgminer=y'			# utilities: cgminer
+			;;
 			;;
 			'shaping')
 				apply_symbol 'CONFIG_PACKAGE_kmod-sched=y'		# kernel-modules: network support: kmod-sched
