@@ -509,9 +509,12 @@ build_kalua_update_tarball()
 	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
 
 	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes with MD5: $( md5sum "$tarball" | cut -d' ' -f1 )"
-	echo "to copy this tarball (timestamp: $last_commit_unixtime_in_hours) to your device, use ON the device:"
+	echo "to copy this tarball (timestamp: $last_commit_unixtime_in_hours) to your device, use _on_ the device:"
 	echo
 	echo "scp $USER@$( mypubip ):$tarball $tarball; $extract"
+	echo "OR"
+	echo "scp $USER@$( mypubip ):$tarball $tarball && _firmware update_pmu $tarball"
+	echo "OR"
 	echo "or simply extract with: $extract"
 	echo
 	echo "or copy the config-apply-script with:"
