@@ -148,27 +148,28 @@ _scheduler_task2command ()
 
 _scheduler_add()
 {
+	# remove this function, scheduler_run should take care of double entries
+
 	_scheduler vars
-	
+
 	local TASK="$1"
 	local KEYWORD="$2"		# move2top|force
-	local COMMAND COUNTER
+	local COMMAND counter
 	local FUNC="scheduler_add"
 	local logprio="debug"
 
 	COMMAND="$( _scheduler task2command "$TASK" )" || return 0
 
 	case "$KEYWORD" in
-		move2top)				# insert on top, if not already in waiting_queue
-
-			cat ${FILE_SCHEDULER_TMP}1000* 2>/dev/null | head -n1 | grep -q ^"$COMMAND" && {
+		move2top)
+			if grep -q ^"$COMMAND" "$SCHEDULER_IMPORTANT"; then
 				_log do $FUNC daemon $logprio "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring"
-				return
-			}
-
-			COUNTER="$(( 1000000000 + $$ ))"
+			else
+				echo >>"$SCHEDULER_IMPORTANT" "$COMMAND	# $TASK"
+			fi
 		;;
 		force)
+			
 			[ "$( fgrep -s "$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY | wc -l )" -ge 2 ] && {
 				_log do $FUNC daemon info "not adding '$COMMAND', already more then 2 times in queue"
 				return
@@ -185,12 +186,8 @@ _scheduler_add()
 		;;
 	esac
 
-	[ -z "$COUNTER" ] && {
-		COUNTER="$( _system date unixtime )"	# we need a monotonic + always_same_length-counter here, so better not use $$ (process-id)
-	}						# this is only true from 2001-Sep-10 ... 2038-Jan-19
-
 	_log do $FUNC daemon $logprio "PID:'$$' +'$TASK'"
-	echo "$COMMAND   # $TASK" >>${FILE_SCHEDULER_TMP}${COUNTER}
+	echo >>"$SCHEDULER" "$COMMAND   # $TASK"
 
 #	echo "$FUNC: $COMMAND" >>/tmp/CRONSTATUS
 }
