@@ -239,18 +239,36 @@ _scheduler_allow_run()
 }
 
 
-_scheduler_run2()
+_scheduler_run()
 {
+	local funcname='scheduler_run'
 	local file line
+	local logfile='/tmp/scheduler.log'
 
 	for file in $SCHEDULER_QUEUE; do {
 		while read line; do {
-			echo "# $line"
+			if fgrep -sq "$line" "$logfile"; then
+				_log do $funcname daemon debug "ignoring twin '$line'"
+			else
+				echo "$line" >>"$logfile"
+				_scheduler wait_till_cpuload_is_low "$line"
+
+				_log do $funcname daemon debug "[START] '$line'"
+				set -- $line
+				if type "$1" | grep -q 'is a shell function'; then
+					eval $@
+				else
+					/bin/sh -c "$line"
+				fi
+				_log do $funcname daemon debug "[READY] '$line'"
+			fi
 		} done <"$file"
 	} done
+
+	rm "$logfile"
 }
 
-_scheduler_run()
+_scheduler_run2()
 {
 	local funcname="scheduler_run"
 	local file line counter
