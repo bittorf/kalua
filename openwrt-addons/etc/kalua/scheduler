@@ -2,40 +2,30 @@
 # option einbauen, um einen task zu einer bestimmten Uhrzeit in der Zukunft ausfuehren zu lassen,
 # z.b. +werbefilter-liste_update in 24h
 
-_scheduler_vars ()
-{
-	FILE_SCHEDULER_TMP="/tmp/scheduler_queue_tmp_"		# scheduler_add() appends an counter to filename
-	FILE_SCHEDULER="/tmp/scheduler_queue"			# HINT: it is also possible to (scp-)upload a file
-	FILE_SCHEDULER_COPY="/tmp/scheduler_queue_copy"		#       called ${FILE_SCHEDULER_TMP}xyz for automatic
-}								#       execution on many devices...
-
-_scheduler_queue_purge ()		# fixme! wait till running jobs have ended?
+_scheduler_queue_purge()
 {
 	_log do purge_queues daemon info "removing"
-	_scheduler vars
-	rm $FILE_SCHEDULER_TMP* $FILE_SCHEDULER $FILE_SCHEDULER_COPY 2>/dev/null
+	rm $SCHEDULER_QUEUE
 
 	return 0
 }
 
-_scheduler_queue_list ()
+_scheduler_queue_list()
 {
 	local funcname="scheduler_list_queue"
 	local option="$1"
 	local empty1 empty2
 
-	_scheduler vars
-
 	_log do $funcname daemon debug "working with option: '$option'"
 
 	echo "# actual,running queue:"
-	cat $FILE_SCHEDULER_COPY 2>/dev/null || {
+	cat '/tmp/scheduler.log' 2>/dev/null || {
 		echo -en "# empty!\n\n"
 		empty1="true"
 	}
 
 	echo -en "\n# waiting queue:\n"
-	cat ${FILE_SCHEDULER_TMP}* 2>/dev/null || {
+	cat $SCHEDULER_QUEUE 2>/dev/null || {
 		echo -en "# empty!\n\n"
 		empty2="true"
 	}
@@ -150,8 +140,6 @@ _scheduler_add()
 {
 	# remove this function, scheduler_run should take care of double entries
 
-	_scheduler vars
-
 	local TASK="$1"
 	local KEYWORD="$2"		# move2top|force
 	local COMMAND counter
@@ -238,12 +226,13 @@ _scheduler_allow_run()
 	fi
 }
 
-
 _scheduler_run()
 {
 	local funcname='scheduler_run'
 	local file line
 	local logfile='/tmp/scheduler.log'
+
+	_scheduler allow_run "$logfile"
 
 	for file in $SCHEDULER_QUEUE; do {
 		while read line; do {
@@ -262,61 +251,8 @@ _scheduler_run()
 				fi
 				_log do $funcname daemon debug "[READY] '$line'"
 			fi
-		} done <"$file"
+		} done <"$file" && rm "$file"
 	} done
 
 	rm "$logfile"
-}
-
-_scheduler_run2()
-{
-	local funcname="scheduler_run"
-	local file line counter
-	local lockfile="/tmp/lockfile_scheduler_is_running"
-	local lines_should=0
-	local lines_worked=0
-
-	_scheduler allow_run "$lockfile" || return 1
-	_scheduler vars
-
-	for file in "$FILE_SCHEDULER_TMP"*; do {	# this builds the running queue from temp_queue
-		case "$file" in
-			*'*')
-			;;
-			*)
-				while read line; do {
-					_log do $funcname daemon debug "fetching '$line' from file '$file'"
-					echo "$line" >>"$FILE_SCHEDULER"
-					lines_should=$(( $lines_should + 1 ))
-				} done <"$file"
-
-				rm "$file"
-			;;
-		esac
-	} done
-	cp "$FILE_SCHEDULER" "$FILE_SCHEDULER_COPY"	# for checking of DUPs in running queue -> scheduler_add()
-
-	while read line; do {
-		_scheduler wait_till_cpuload_is_low "$line"
-		_log do $funcname daemon debug "[START] '$line'"
-
-		lines_worked=$(( lines_worked + 1 ))
-
-		echo "$line" >"$lockfile"
-		/bin/sh -c "$line"
-
-		_log do $funcname daemon debug "[READY] '$line'"
-	} done <"$FILE_SCHEDULER"
-
-	[ $lines_worked -eq $lines_should ] || {
-		counter=$(( 2000000000 + $$ ))
-		file="${FILE_SCHEDULER_TMP}${counter}"
-		# fixme! why can this happen?
-		_log do $funcname daemon info "missed some jobs, should: $lines_should worked: $lines_worked, rescheduling to $file"
-		sed "1,${lines_worked}d" "$FILE_SCHEDULER" >>"$file"
-	}
-
-	rm "$FILE_SCHEDULER" "$FILE_SCHEDULER_COPY" "$lockfile" 2>/dev/null
-
-	return 0
 }
