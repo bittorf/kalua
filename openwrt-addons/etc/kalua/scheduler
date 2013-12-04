@@ -162,34 +162,30 @@ _scheduler_add()
 
 	case "$KEYWORD" in
 		move2top)
-			if grep -q ^"$COMMAND" "$SCHEDULER_IMPORTANT"; then
+			if grep -q ^"$COMMAND" "$SCHEDULER_IMPORTANT_QUEUE"; then
 				_log do $FUNC daemon $logprio "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring"
 			else
 				echo >>"$SCHEDULER_IMPORTANT" "$COMMAND	# $TASK"
 			fi
 		;;
 		force)
-			
-			[ "$( fgrep -s "$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY | wc -l )" -ge 2 ] && {
+			if [ "$( fgrep -s "$COMMAND" $SCHEDULER_QUEUE" | wc -l )" -ge 2 ]; then
 				_log do $FUNC daemon info "not adding '$COMMAND', already more then 2 times in queue"
-				return
-			}
+			else
+				echo >>"$SCHEDULER" "$COMMAND	# $TASK"
+			fi
 		;;
 		*)
 			# fixme! better begin search at line_start
 			# but if we use regex, we have to escape special chars like * and .
 
-			fgrep -sq "$COMMAND" ${FILE_SCHEDULER_TMP}* $FILE_SCHEDULER_COPY && {
+			if fgrep -q "$COMMAND" "$SCHEDULER_QUEUE"; then
 				_log do $FUNC daemon $logprio "PID:'$$' - '$TASK' - already in queue, ignoring"
-				return
-			}
+			else
+				echo >>"$SCHEDULER" "$COMMAND	# $TASK"
+			fi
 		;;
 	esac
-
-	_log do $FUNC daemon $logprio "PID:'$$' +'$TASK'"
-	echo >>"$SCHEDULER" "$COMMAND   # $TASK"
-
-#	echo "$FUNC: $COMMAND" >>/tmp/CRONSTATUS
 }
 
 _scheduler_check_if_every_Nth_minute ()
