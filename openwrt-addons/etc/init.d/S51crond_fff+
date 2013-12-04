@@ -154,6 +154,22 @@ func_cron_config_write ()
 			sed -i -e 's|^#\(if /sbin/uci \)|\1|' -e 's|if true|#&|' '/tmp/CRON_IS_CAREFUL'
 		}
 
+		lan_olsr_counter_needed()
+		{
+			case "$CONFIG_PROFILE" in
+				hotello-B01*)
+					return 0
+				;;
+			esac
+
+			return 1
+		}
+
+		lan_olsr_counter_needed && {
+			iptables -I INPUT -p udp --dport 698 -i $LANDEV ! -s $LANADR
+			_file insert_at "^### CHECK_OLSR_RATE_LAN ###" '/usr/sbin/cron.check_olsr_rate_lan' '/tmp/CRON_IS_CAREFUL'
+		}
+
 		zram_usage_detector_needed()
 		{
 			[ -n "$LOWMEM" ] && return 1
