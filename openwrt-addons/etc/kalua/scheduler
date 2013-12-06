@@ -244,11 +244,17 @@ _scheduler_run()
 
 				_log do $funcname daemon debug "[START] '$line'"
 				set -- $line
-				if type "$1" | grep -q 'is a shell function'; then
-					eval $@
-				else
-					/bin/sh -c "$line"
-				fi
+				case "$( type "$1" )" in
+					# this is not enough:
+					# test e.g. '. /tmp/loader; _list show >/tmp/bla'
+					# we can also include a file, e.g. if the filename end with X?
+					"$1 is a shell function")
+						eval $@
+					;;
+					*)
+						/bin/sh -c "$line"	# exec? or simply?: $line
+					;;
+				esac
 				_log do $funcname daemon debug "[READY] '$line'"
 			fi
 		} done <"$file" && rm "$file"
