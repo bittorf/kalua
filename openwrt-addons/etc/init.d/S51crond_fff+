@@ -154,6 +154,23 @@ func_cron_config_write ()
 			sed -i -e 's|^#\(if /sbin/uci \)|\1|' -e 's|if true|#&|' '/tmp/CRON_IS_CAREFUL'
 		}
 
+		forced_wifi_rate_needed()
+		{
+			grep -q ^'b43 ' '/proc/modules' && {
+				[ "$( uci get wireless.@wifi-iface[0].mode )" = 'adhoc' ] || {
+					[ $( _system version short ) -ge 36083 ] || {
+						return 0
+					}
+				}
+			}
+
+			return 1
+		}
+
+		forced_wifi_rate_needed && {
+			sed -i "s|### FORCE_WIFIRATE ###|iw dev $WIFIDEV set bitrates legacy-2.4 6 9 12 18 24 36 48 54|" '/tmp/CRON_IS_CAREFUL'
+		}
+
 		lan_olsr_counter_needed()
 		{
 			case "$CONFIG_PROFILE" in
