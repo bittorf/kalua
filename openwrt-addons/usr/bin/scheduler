@@ -157,28 +157,25 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 						ffweimar*)
 						;;
 						*)
-							_netfilter user_stats_collect
+							echo >>$SCHEDULER '_netfilter user_stats_collect'
 						;;
 					esac
 
-					[ "$( uci get network.wan.proto )" = "pppoe" ] && {
-						_watch pppoe
-					}
-
-					pidof dnsmasq >/dev/null || _watch dns_resolution
-					_watch local_proxy
+					echo >>$SCHEDULER '_watch pppoe'
+					pidof dnsmasq >/dev/null || echo >>$SCHEDULER '_watch dns_resolution'
+					echo >>$SCHEDULER '_watch local_proxy'
 
 					case "$HOUR" in
 						01|02|03)
 							case "$MINUTE" in
 								00|01|02|03|04|05)
 									[ $( _system uptime min ) -gt 60 ] && {
-										_db ticketcheck auto
+										echo >>$SCHEDULER '_db ticketcheck auto'
 									}
 								;;
 							esac
 
-							_firmware update_pmu
+							echo >>$SCHEDULER '_firmware update_pmu'
 						;;
 						04)
 							[ $( _system uptime min ) -gt 60 ] || {
@@ -187,22 +184,23 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 							case "$MINUTE" in
 								00|01|02|03|04|05)
-									_netfilter stop remember_over_reboot
-									_netfilter ipforwarding_start
-									_netfilter masquerade_start
+									echo >>$SCHEDULER '_netfilter stop remember_over_reboot'
+									echo >>$SCHEDULER '_netfilter ipforwarding_start'
+									echo >>$SCHEDULER '_netfilter masquerade_start'
 
 									[ -e "/tmp/cron.webcam" ] && {
-										touch /tmp/webcam_force_safe
-										. /tmp/cron.webcam
+										echo >>$SCHEDULER 'touch /tmp/webcam_force_safe'
+										echo >>$SCHEDULER '. /tmp/cron.webcam'
 									}
 
-									[ -e /tmp/cron.rrd ] && {
-										. /tmp/cron.rrd
-										rrd_upload
+									[ -e '/tmp/cron.rrd' ] && {
+										echo >>$SCHEDULER '. /tmp/cron.rrd'
+										echo >>$SCHEDULER 'rrd_upload'
 									}
 
-									_log sleep "give time for collecting userdata" 300 step 10
-									_system reboot_safe "nightly_reboot"
+									# give time for collecting userdata from all nodes
+									echo >>$SCHEDULER 'sleep 300'
+									echo >>$SCHEDULER '_system reboot_safe nightly_reboot'
 								;;
 							esac
 						;;
@@ -213,42 +211,47 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 					case "$MINUTE" in
 						00|15|30|45)
-							command . /tmp/cron.rrd && rrd_show
+							[ -e '/tmp/cron.rrd' ] && {
+								echo >>$SCHEDULER '. /tmp/cron.rrd'
+								echo >>$SCHEDULER 'rrd_show'
+							}
 
 							echo >>$SCHEDULER '/usr/sbin/cron.check_inet_gw_fff+'
 							echo >>$SCHEDULER '/etc/init.d/S69watch_olsrd_fff+'
 							echo >>$SCHEDULER 'cron.monitoring'
 
-							[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
+							[ "$( uci -q get system.@vds[0].enabled )" = "1" ] && {
 								[ -n "$( _netfilter user_list )" ] && {
 									echo >>$SCHEDULER '/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+'
 								}
 							}
 
 							echo >>$SCHEDULER '_tunnel clientside_control check_connection all'
-							_watch webserver
-							_watch cgminer
+							echo >>$SCHEDULER '_watch webserver'
+							echo >>$SCHEDULER '_watch cgminer'
 
 							case "$MINUTE" in
 								00)
 									case "$HOUR" in
 										05)
 											[ -e "/tmp/DB/USER/login/rows" ] && {
-												_db user login index_gen
+												echo >>$SCHEDULER '_db user login index_gen'
 											}
 										;;
 										06)
-											killall dbclient	# reinit reverse ssh-tunnel
+											# reinit reverse ssh-tunnel
+											echo >>$SCHEDULER 'killall dbclient'
 
 											[ "$( _system uptime hours )" -gt 2 ] && {
-												/etc/init.d/netfilter restart
+												echo >>$SCHEDULER '/etc/init.d/netfilter restart'
 											}
 
 											[ -e "/tmp/DB/USER/device/stats" ] && {
 												case "$CONFIG_PROFILE" in
 													fparkssee*|marinapark*|dhfleesensee*|hotello*|aschbach*|olympia*|liszt28*|rehungen*|boltenhagen*|galerie*|castelfalfi*|dhsylt*|berlinle*)
-														_log sleep jitter_send_mail "$( _math random_integer 0 100 )" step 5
-														_db statistics_send_mail daily yesterday
+														SLEEP="$( _math random_integer 0 100 )"
+														echo >>$SCHEDULER "sleep $SLEEP"
+														echo >>$SCHEDULER '_db statistics_send_mail daily yesterday'
 													;;
 												esac
 
