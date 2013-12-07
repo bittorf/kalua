@@ -1,0 +1,126 @@
+#!/bin/sh
+. /tmp/loader
+
+[ -e '/tmp/.autorun' ] && _watch autorun
+
+# MINUTE = 00...59
+# HOUR   = 00...23
+eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%e;' )
+
+echo >>$SCHEDULER '_watch monitoring'
+echo >>$SCHEDULER '_watch coredump'
+echo >>$SCHEDULER '_wifi watch_phy_problems'
+echo >>$SCHEDULER '_watch space_tmpfs'
+echo >>$SCHEDULER '. /usr/sbin/cron.check_switch'
+echo >>$SCHEDULER '_netfilter traffic_control_autoapply_speedsuggest'
+echo >>$SCHEDULER '_watch pppoe'
+echo >>$SCHEDULER '_watch local_proxy'
+pidof uhttpd  >/dev/null || echo >>$SCHEDULER '_watch webserver'
+pidof dnsmasq >/dev/null || echo >>$SCHEDULER '_watch dns_resolution'
+
+_scheduler check_if_every_Nth_minute 360 && {		# e.g. daily restart is at 4:05
+	echo >>$SCHEDULER 'cron.upgrade_packages'	# so: 10:05, 16:05, 22:05
+	echo >>$SCHEDULER '_firmware update_pmu'
+}
+
+case "$CONFIG_PROFILE" in
+	ffweimar*)
+	;;
+	*)
+		echo >>$SCHEDULER '_netfilter user_stats_collect'
+	;;
+esac
+
+case "$HOUR" in
+	01|02|03)
+		case "$MINUTE" in
+			05)
+				echo >>$SCHEDULER '_db ticketcheck auto'
+			;;
+		esac
+
+		echo >>$SCHEDULER '_firmware update_pmu'
+	;;
+	04)
+		case "$MINUTE" in
+			05)
+				[ -e "/tmp/cron.webcam" ] && {
+					echo >>$SCHEDULER 'touch /tmp/webcam_force_safe'
+					echo >>$SCHEDULER '. /tmp/cron.webcam'
+				}
+
+				[ -e '/tmp/cron.rrd' ] && {
+					echo >>$SCHEDULER '. /tmp/cron.rrd'
+					echo >>$SCHEDULER 'rrd_upload'
+				}
+
+				echo >>$SCHEDULER '_netfilter stop remember_over_reboot'
+				echo >>$SCHEDULER '_netfilter ipforwarding_start'
+				echo >>$SCHEDULER '_netfilter masquerade_start'
+				# give time for collecting userdata from all nodes
+				echo >>$SCHEDULER 'sleep 300'
+				echo >>$SCHEDULER '_system reboot_safe nightly_reboot'
+			;;
+		esac
+	;;
+	05)
+		[ -e "/tmp/DB/USER/login/rows" ] && {
+			echo >>$SCHEDULER '_db user login index_gen'
+		}
+	;;
+	06)
+		# reinit reverse ssh-tunnel
+		echo >>$SCHEDULER 'killall dbclient'
+
+		[ "$( _system uptime hours )" -gt 2 ] && {
+			echo >>$SCHEDULER '/etc/init.d/netfilter restart'
+		}
+
+		[ -e "/tmp/DB/USER/device/stats" ] && {
+			case "$CONFIG_PROFILE" in
+				fparkssee*|marinapark*|dhfleesensee*|hotello*|aschbach*|olympia*|liszt28*|rehungen*|boltenhagen*|castelfalfi*|dhsylt*|berlinle*)
+					SLEEP="$( _math random_integer 0 100 )"
+					echo >>$SCHEDULER "sleep $SLEEP"
+					echo >>$SCHEDULER '_db statistics_send_mail daily yesterday'
+				;;
+			esac
+
+			case "$WEEKDAY" in
+				'Monday')
+					SLEEP="$( _math random_integer 0 100 )"
+					echo >>$SCHEDULER "sleep $SLEEP"
+					echo >>$SCHEDULER '_db statistics_send_mail weekly report'
+
+					# each first monday in month
+					[ $DAYOFMONTH -le 7 ] && {
+						echo >>$SCHEDULER '_db statistics_send_mail monthly_report'
+					}
+				;;
+			esac
+		}
+	;;
+	11)
+		echo >>$SCHEDULER '_mail stash_resend'
+	;;
+esac
+
+case "$MINUTE" in
+	00|15|30|45)
+		[ -e '/tmp/cron.rrd' ] && {
+			echo >>$SCHEDULER '. /tmp/cron.rrd'
+			echo >>$SCHEDULER 'rrd_show'
+		}
+
+		[ "$( uci -q get system.@vds[0].enabled )" = '1' ] && {
+			echo >>$SCHEDULER '/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+'
+		}
+
+		echo >>$SCHEDULER '/usr/sbin/cron.check_inet_gw_fff+'
+		echo >>$SCHEDULER '/etc/init.d/S69watch_olsrd_fff+'
+		echo >>$SCHEDULER 'cron.monitoring'
+		echo >>$SCHEDULER '_tunnel clientside_control check_connection all'
+		echo >>$SCHEDULER '_watch webserver'
+		echo >>$SCHEDULER '_watch cgminer'
+		echo >>$SCHEDULER '_watch hanging_command usual_suspects'
+	;;
+esac
