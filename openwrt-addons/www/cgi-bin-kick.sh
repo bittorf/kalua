@@ -17,4 +17,4 @@ _netfilter user_probe "$CMA" || exit 1
 read HASH <"/tmp/vds_user_$CMA"
 [ "$HASH" = "$CAH" ] || exit
 
-_scheduler add "_netfilter user_del $CMA"
+echo >>$SCHEDULER "_netfilter user_del $CMA"
