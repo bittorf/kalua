@@ -39,7 +39,7 @@ _wget_do()								# SENS: fetching an URL $1, aborting after $2 seconds if no su
 	_log do $FUNC daemon debug "max ${MAX}s, ${#URL} bytes, wget $proxy_command -qO $filename $file_option '$URL'"
 
 	list_wget_pids_initial="$( pidof wget )"
-	( wget $proxy_command -qO $filename $file_option "$URL" 2>/tmp/${FUNC}_$$.error || echo "$?" >/tmp/${FUNC}_$$ ) &
+	( wget $proxy_command -qO $filename $file_option "$URL" 2>"/tmp/${FUNC}_$$.error" || echo "$?" >"/tmp/${FUNC}_$$" ) &
 	pidbackground=$!
 	list_wget_pids_after_launch="$( pidof wget )"
 
@@ -82,14 +82,13 @@ _wget_do()								# SENS: fetching an URL $1, aborting after $2 seconds if no su
 
 	[ -e "/tmp/${FUNC}_$$.error" ] && {
 		read myerror <"/tmp/${FUNC}_$$.error"
+		rm "/tmp/${FUNC}_$$.error"
 
 		if [ ${#myerror} -eq 0 ]; then
 			_log do $FUNC daemon debug "[MESSAGE] empty"
 		else
-			_log do $FUNC daemon debug "[MESSAGE] $( cat "/tmp/${FUNC}_$$.error" )"
+			_log do $FUNC daemon debug "[MESSAGE] '$myerror"
 		fi
-
-		rm "/tmp/${FUNC}_$$.error"
 	}
 
 	case ${PID_WGET:-unset} in
@@ -137,9 +136,10 @@ _wget_do()								# SENS: fetching an URL $1, aborting after $2 seconds if no su
 		}
 	} done
 
-	if [ -e /tmp/${FUNC}_$$ ]; then
-		read RC </tmp/${FUNC}_$$
-		rm /tmp/${FUNC}_$$
+	if [ -e "/tmp/${FUNC}_$$" ]; then
+		read RC <"/tmp/${FUNC}_$$"
+		rm "/tmp/${FUNC}_$$"
+
 		_log do $FUNC daemon info "[ERR] returning $RC after fetching '$URL'"
 		return $RC
 	else
