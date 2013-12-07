@@ -876,3 +876,91 @@ nohup(){
 	# Trap the HUP signal to ignore it
 	    trap : HUP
 }
+
+_firmware_check_forced_upgrade()
+{
+	rm "/www/START_SYSUPGRADE" "/tmp/START_SYSUPGRADE"
+
+	_firmware configure_keep_files
+
+	local FILE="/tmp/fw"
+
+	[ -e "/www/fw" ] || {
+		[ -z "$LOWMEM" ] && {
+			# ssh nexthop
+			# copy fw to /tmp/fw
+			# md5sum /tmp/fw
+			# ln -s /tmp/fw /www/fw
+			# ssh thisrouter
+			# _firmware wget /tmp/fw http://nexthop/fw $md5sum
+
+			_firmware wget "$FILE"
+			_firmware check_image "$FILE" || rm "$FILE"
+
+			[ $( _file size "$FILE" kb ) -lt $( _system flash_free ) ] && {
+				mv "$FILE" "/www/fw" || rm "/www/fw"
+			}
+
+			[ -e "/www/fw" ] || {
+				_log do prepare_firmware_update daemon info "image-on-flash failed, fallback to ram-mode"
+			}
+		}
+	}
+
+	[ -e "/www/fw" ] && {
+		# patching early startup for:
+		# - not loading any kernel-modules if "/www/fw" exists
+		# - disable any wireless action
+		# - moving "/www/fw" to "/tmp/fw"
+		# - sysupgrade this firmware file
+
+		_log do prepare_firmware_update daemon info "we will modify /etc/init.d/boot now, reboot and flash/sysupgrade the image during early boot"
+
+		if grep -q "_firmware burn" "/etc/init.d/boot"; then
+			reboot
+		else
+			if fgrep -q "kmodloader" "/etc/init.d/boot"; then
+				sed -i 's|/sbin/kmodloader$|if test -e /www/fw; then mv /www/fw /tmp; . /tmp/loader; _firmware burn /tmp/fw; else /sbin/kmodloader; fi|' \
+				"/etc/init.d/boot" && reboot
+			else
+				if fgrep -q "# another round of" "/etc/init.d/boot"; then
+					sed  -i -e 's/^.*\.failsafe$/&\ntest -e \/www\/fw || {/' \
+						-e 's/^.*rm -f \/tmp\/wireless.tmp$/&\n}/' \
+						-e 's/# another round of/test -e \/www\/fw \&\& {\n. \/tmp\/loader\nuci set wireless.radio0.disabled=1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\n\n&/' \
+							"/etc/init.d/boot" && reboot
+				else
+					sed  -i -e 's/^.*\.failsafe$/&\ntest -e \/www\/fw || {/' \
+						-e 's/^.*rm -f \/tmp\/wireless.tmp$/&\n}/' \
+						-e 's/^.*\/dev\/root$/&\n}\ntest -e \/www\/fw \&\& {\n. \/tmp\/loader\nuci set wireless.radio0.disabled=1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\nbla()\n{\n:/' \
+							"/etc/init.d/boot" && reboot
+				fi
+			fi
+		fi
+	}
+
+	[ -e "$FILE" ] || {
+		_firmware wget_prepare_for_lowmem_devices && {
+			LOWMEM="true"
+		}
+
+		_firmware wget "$FILE" || {	# or add manually: FILE | URL | HASH
+			rm "$FILE"
+		}
+	}
+
+	if [ -e "$FILE" ]; then
+		_firmware burn $FILE
+	else
+		[ "$LOWMEM" = "true" ] && {
+			_log do wget_firmware daemon alert "download failed on lowmem-device, rebooting"
+			reboot -f
+		}
+	fi
+
+	pidof crond >/dev/null || {
+		_log do cron_died daemon alert "empty pid"
+		reboot -f
+	}
+
+	[ -e "/tmp/LOCKFILE_APPLY" ] && rm "/tmp/LOCKFILE_APPLY"        # unblock scheduler
+}
