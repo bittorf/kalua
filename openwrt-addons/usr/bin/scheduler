@@ -158,12 +158,10 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 				minimal)
 					case "$MINUTE" in
 						00|15|30|45)
-							_scheduler add 15min_checks
+							echo >>$SCHEDULER '/etc/init.d/S69watch_olsrd_fff+'
 
 							case "$MINUTE" in
 								00)
-									_scheduler add 1h_checks
-
 									case "$HOUR" in
 										04)
 											_firmware update_pmu
@@ -181,8 +179,6 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 					case "$MINUTE" in
 						00|15|30|45)
-							:
-							# _scheduler add monitoring
 						;;
 					esac
 				;;
@@ -203,8 +199,8 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 					_netfilter traffic_control_autoapply_speedsuggest
 
-					_scheduler check_if_every_Nth_minute 360 && {	# e.g. daily restart is at 4:05
-						_scheduler add upgrade_packages		# so: 10:05, 16:05, 22:05
+					_scheduler check_if_every_Nth_minute 360 && {		# e.g. daily restart is at 4:05
+						echo >>$SCHEDULER 'cron.upgrade_packages'	# so: 10:05, 16:05, 22:05
 						_firmware update_pmu
 					}
 
@@ -278,13 +274,13 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 						00|15|30|45)
 							command . /tmp/cron.rrd && rrd_show
 
-							_scheduler add gateway_check
-							_scheduler add 15min_checks
-							_scheduler add monitoring
+							echo >>$SCHEDULER '/usr/sbin/cron.check_inet_gw_fff+'
+							echo >>$SCHEDULER '/etc/init.d/S69watch_olsrd_fff+'
+							echo >>$SCHEDULER 'cron.monitoring'
 
 							[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
 								[ -n "$( _netfilter user_list )" ] && {
-									_scheduler add vds
+									echo >>$SCHEDULER '/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+'
 								}
 							}
 
@@ -294,8 +290,6 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 							case "$MINUTE" in
 								00)
-									_scheduler add 1h_checks
-
 									case "$HOUR" in
 										05)
 											[ -e "/tmp/DB/USER/login/rows" ] && {
@@ -500,22 +494,11 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 		;;
 		r)
 			[ -e /tmp/SEND_ALIVE_FAILED ] && {				# fixme! this is a hack
-				_scheduler queue_list | grep -q 15min_checks || {
-					_scheduler add 15min_checks move2top
-				}
+				echo >>$SCHEDULER_IMPORTANT '/etc/init.d/S69watch_olsrd_fff+'
 			}
-
-			_scheduler run
 		;;
 		l)
 			_scheduler queue_list
-		;;
-		A)									# fixme! doubled entrys with -A ?
-			_log do user_defined_now daemon debug "start '$OPTARG'"
-			COMMAND="$( _scheduler task2command "$OPTARG" )"
-			_log do user_defined_now daemon debug "start '$OPTARG' ('$COMMAND')"
-			/bin/sh -c "${COMMAND:-true}"
-			_log do user_defined_now daemon debug "ready '$OPTARG' ('$COMMAND')"
 		;;
 		P)
 			case "$( uci get network.@gatewaycheck[0].mode )" in

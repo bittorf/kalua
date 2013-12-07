@@ -55,7 +55,6 @@ Sens:	 Adds program calls to a queue and executes all
 Usage:	 $0 -option1 -option2 -optionN
  
 Options: -a "TASK"   adds an TASK to queue, where TASK can be keyword
-	 -A "TASK"   immediately runs TASK, does not respect cpu-load
 	 -r          runs the queue, step by step
 	 -l          lists running and waitung queue
 	 -p	     purge all queues
@@ -86,35 +85,6 @@ Example: $0 -s3 -a do_this -a do_that -r -a do_another_thing -r
 EOF
 }
 
-_scheduler_task2command ()
-{
-	local FUNC="scheduler_task2command"
-	local TASK="$1"
-	local COMMAND
-	
-	case "$TASK" in
-			   rrdhelper)	COMMAND=". /tmp/loader; _wifi rrdhelper \$WIFIDEV" ;;
-			  monitoring)	COMMAND="/usr/sbin/cron.monitoring" ;;
-		    upgrade_packages)	COMMAND="/usr/sbin/cron.upgrade_packages" ;;
-	       watch_hanging_command)	COMMAND=". /tmp/loader; for option in mv scp wget nc; do _watch hanging_command \$option; done" ;;
-	            build_accounting)   COMMAND="wget -qO /tmp/accounting.tmp 'http://127.0.0.1/cgi-bin-tool_fff+?OPT=accounting&GUI=1'; mv /tmp/accounting.tmp /tmp/accounting.html" ;;
-		        restart_olsr) 	COMMAND=". /tmp/loader; _olsr daemon restart olsrd_restart_scheduler_controlled" ;;
-		        15min_checks)  	COMMAND="/etc/init.d/S69watch_olsrd_fff+" ;;
-		     	 restart_vpn)	COMMAND="/etc/init.d/S52vpn_fff+ restart" ;;
-		           1h_checks)	COMMAND="/usr/sbin/cron.hourly"; >/tmp/SEND_ALIVE_FAILED ;;
-		       gateway_check)	COMMAND="/usr/sbin/cron.check_inet_gw_fff+" ;;	
-	   			 vds)	COMMAND="/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+" ;;
-				   *)
-					COMMAND="$TASK"
-					TASK=
-
-				        _log do $FUNC daemon debug "user defined: '$COMMAND'"
-				;;
-	esac
-	
-	echo "$COMMAND"
-}
-
 _scheduler_add()
 {
 	# remove this function, scheduler_run should take care of double entries
@@ -125,15 +95,11 @@ _scheduler_add()
 	local FUNC="scheduler_add"
 	local logprio="debug"
 
-	COMMAND="$( _scheduler task2command "$TASK" )" || return 0
+	COMMAND="$TASK"
 
 	case "$KEYWORD" in
 		move2top)
-			if grep -q ^"$COMMAND" "$SCHEDULER_IMPORTANT_QUEUE"; then
-				_log do $FUNC daemon $logprio "$KEYWORD - PID: '$$' - '$TASK' - already in queue, ignoring"
-			else
-				echo >>"$SCHEDULER_IMPORTANT" "$COMMAND	# $TASK"
-			fi
+			echo >>"$SCHEDULER_IMPORTANT" "$COMMAND	# $TASK"
 		;;
 		force)
 			if [ "$( fgrep -s "$COMMAND" "$SCHEDULER_QUEUE" | wc -l )" -ge 2 ]; then
@@ -143,14 +109,7 @@ _scheduler_add()
 			fi
 		;;
 		*)
-			# fixme! better begin search at line_start
-			# but if we use regex, we have to escape special chars like * and .
-
-			if fgrep -q "$COMMAND" "$SCHEDULER_QUEUE"; then
-				_log do $FUNC daemon $logprio "PID:'$$' - '$TASK' - already in queue, ignoring"
-			else
-				echo >>"$SCHEDULER" "$COMMAND	# $TASK"
-			fi
+			echo >>"$SCHEDULER" "$COMMAND	# $TASK"
 		;;
 	esac
 }
