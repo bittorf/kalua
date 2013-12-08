@@ -240,7 +240,7 @@ target_hardware_set()
 		sed -i "s/^LINUX_VERSION:=.*/LINUX_VERSION:=${VERSION_KERNEL_FORCE}/" "target/linux/$ARCH/Makefile"
 	}
 
-	log "$funcname() architecure: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
+	log "$funcname() architecture: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
 
 	apply_symbol 'nuke_config'
 	apply_symbol "CONFIG_TARGET_${ARCH}=y"
@@ -518,6 +518,9 @@ apply_symbol()
 				[ -d "$dir" ] || continue
 
 				log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
+
+				# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
+				git rebase --abort
 				git am --abort
 
 				for file in $dir/*; do {
