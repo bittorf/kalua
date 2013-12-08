@@ -519,12 +519,11 @@ apply_symbol()
 
 				log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
 
-				# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
-				git rebase --abort
-				git am --abort
-
 				for file in $dir/*; do {
-					git am --signoff <"$file" || log "$funcname() ERROR during 'git am'"
+					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
+					git rebase --abort
+					git am --abort
+					git am --signoff <"$file" || log "$funcname() ERROR during 'git am <$file'"
 				} done
 			} done
 
