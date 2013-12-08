@@ -318,7 +318,8 @@ openwrt_download()
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
 			if [ -n "$branch" ]; then
 				log "$funcname() switching back to branch 'master'"
-				git checkout master
+				# dont show which files have changed
+				git checkout master >/dev/null
 				log "$funcname() deleting branch '$branch'"
 				git branch -D "$branch"
 			else
