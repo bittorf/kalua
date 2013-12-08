@@ -317,8 +317,9 @@ openwrt_download()
 		'switch_to_master')
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
 			if [ -n "$branch" ]; then
+				log "$funcname() switching back to branch 'master'"
 				git checkout master
-				log "$funcname() switched back to branch 'master', deleting branch '$branch'"
+				log "$funcname() deleting branch '$branch'"
 				git branch -D "$branch"
 			else
 				log "$funcname() already at branch 'master"
