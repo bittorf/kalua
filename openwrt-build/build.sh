@@ -318,10 +318,10 @@ openwrt_download()
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
 			if [ -n "$branch" ]; then
 				git checkout master
+				log "$funcname() switched back to branch 'master', deleting branch '$branch'"
 				git branch -D "$branch"
-				log "$funcname() switched back"
 			else
-				log "$funcname() already at master"
+				log "$funcname() already at branch 'master"
 			fi
 
 			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
