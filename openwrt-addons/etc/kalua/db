@@ -1,5 +1,21 @@
 #!/bin/sh
 
+_db_check()
+{
+	local funcname='db_check'
+	local file line
+
+	for file in /tmp/DB/USER/device/rows /tmp/DB/USER/device/stats /tmp/DB/USER/login/rows /tmp/DB/USER/profile/rows; do {
+		_log do $funcname daemon info "eval each line in '$file'"
+
+		while read line; do {
+			eval $line
+		} done <"$file"
+
+		_log do $funcname daemon info "[OK] file '$file'"
+	} done
+}
+
 _db_lock()
 {
 	local funcname="db_lock"
@@ -757,6 +773,15 @@ _db_autocreate_tickets_and_send_mail()
 	_pdf output a4digest		"$LIST_ID" >$FILE_OVERVIEW
 	_pdf output a4marker		"$LIST_ID" >$FILE_LABELS
 	_pdf output a4marker_digest	"$LIST_ID" >$FILE_LABELS2
+
+	# on router:
+	# scp -P 222 .ssh/dropbear_dss_host_key.pub bastian@bwireless.mooo.com:.ssh/authorized_keys.$CONFIG_PROFILE.$HOSTNAME
+	# on server:
+	# cat .ssh/authorized_keys.* >.ssh/authorized_keys
+
+#	for FILE in "$FILE_OVERVIEW" "$FILE_LABELS" "$FILE_LABELS2"; do {
+#		scp -i "/etc/dropbear/dropbear_dss_host_key" -P 222 "$FILE" bastian@bwireless.mooo.com:
+#	} done
 
 	_weblogin ticket_mail_text "$NAME" >$FILE_MAIL
 	echo "$( _translate do "$LANG" wifi_system ) ($( _translate do "$LANG" overall filename ): $COUNTER) $( _translate do "$LANG" in_an_overview )" >$FILE_OVERVIEW.desc
