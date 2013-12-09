@@ -715,6 +715,11 @@ build_options_set()
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'Bluetooth')
+				apply_symbol 'CONFIG_PACKAGE_bluez-utils=y'		# utilities: bluez-utils
+				apply_symbol 'CONFIG_PACKAGE_bluez-hcidump=y'		# utilities: bluez-hcidump
+				apply_symbol 'CONFIG_PACKAGE_kmod-bluetooth=y'		# kmodules: others: bluetooth
+			;;
 			'BTCminerBFL')
 				# for now its hardcoded to '--enable-bflsc' / Butterfly ASIC
 				apply_symbol 'CONFIG_PACKAGE_cgminer=y'			# utilities: cgminer
