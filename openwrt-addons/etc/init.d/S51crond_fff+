@@ -417,10 +417,17 @@ func_cron_config_write ()
 
 case $1 in
 	start)
-		while pidof network; do {
+		network_still_upstarting()
+		{
+			pidof network >/dev/null && return 0
+			pidof iw >/dev/null && return 0
+		}
+
+		while network_still_upstarting; do {
 			_watch counter "/tmp/wait4network" increment 1 max 10 || _system crashreboot 'network_hangs'
 			_log sleep wait4network 10
 		} done
+		rm '/tmp/wait4network'
 
 		func_cron_start $2
 	;;
