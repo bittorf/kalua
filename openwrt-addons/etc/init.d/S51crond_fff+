@@ -211,8 +211,24 @@ func_cron_config_write ()
 
 		ubus_checker_needed()
 		{
+			local funcname='ubus_checker_needed'
+			local file='/tmp/UBUSDEAD'
+
 			[ -n "$LOWMEM" ] && return 1
-			ubus call system info | grep -q '"uptime":'
+
+			# can hang during bootup
+			touch "$file"
+			( ubus call system info | grep -q '"uptime":' && rm "$file" ) &
+			sleep 3
+
+			if [ -e "$file" ]; then
+				# can hang during bootup, seen with r38993
+				# http://intercity-vpn.de/files/openwrt/ps_tasklist_r38993_hanging_cron.txt
+				_log do $funcname daemon alert "file $file still exist"
+				return 1
+			else
+				return 0
+			fi
 		}
 
 		ubus_checker_needed && {
