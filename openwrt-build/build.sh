@@ -668,8 +668,6 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
 				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool:
-				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
-				apply_symbol 'CONFIG_PACKAGE_kmod-usb-printer=y'	# kernel-modules: other: kmod-usb-printer
 				apply_symbol 'CONFIG_PACKAGE_rrdtool=y'			# utilities: rrdtool:
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
@@ -715,6 +713,10 @@ build_options_set()
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'USBprinter')
+				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-printer=y'	# kernel-modules: other: kmod-usb-printer
+			;;
 			'Bluetooth')
 				apply_symbol 'CONFIG_PACKAGE_bluez-utils=y'		# utilities: bluez-utils
 				apply_symbol 'CONFIG_PACKAGE_bluez-hcidump=y'		# utilities: bluez-hcidump
