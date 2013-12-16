@@ -251,11 +251,12 @@ target_hardware_set()
 check_working_directory()
 {
 	local funcname='check_working_directory'
+	local pattern='git-svn-id'
 
-	git log -1 | grep -q 'git-svn-id' || {
-		# if we have private commits on top, we can roll back several times via
-		# git reset --soft "HEAD^"
+	git log -1 | grep -q "$pattern" || {
 		log "$funcname() please make sure, that you are in OpenWrt's git-root"
+		log "$funcname() the last commit must include '$pattern', if you have private"
+		log "$funcname() commits, rollback several times via: git reset --soft 'HEAD^'"
 		return 1
 	}
 
