@@ -252,12 +252,12 @@ check_working_directory()
 {
 	local funcname='check_working_directory'
 	local pattern='git-svn-id'
-	local i=1
+	local i=0
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
-			log "$funcname() the last commit must include '$pattern', seems you have private"
-			log "$funcname() commits, rollback several times via: git reset --soft HEAD^"
+			log "$funcname() the last commit MUST include '$pattern', seems you have private"
+			log "$funcname() commits - please rollback several times via: git reset --soft HEAD^"
 
 			while ! git log -$i | grep -q "$pattern"; do {
 				i=$(( $i + 1 ))
