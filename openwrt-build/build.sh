@@ -252,11 +252,23 @@ check_working_directory()
 {
 	local funcname='check_working_directory'
 	local pattern='git-svn-id'
+	local i=1 mark
 
 	git log -1 | grep -q "$pattern" || {
-		log "$funcname() please make sure, that you are in OpenWrt's git-root"
-		log "$funcname() the last commit must include '$pattern', if you have private"
-		log "$funcname() commits, rollback several times via: git reset --soft 'HEAD^'"
+		if git log | grep -q "$pattern"; then
+			log "$funcname() the last commit must include '$pattern', seems you have private"
+			log "$funcname() commits, rollback several times via: git reset --soft HEAD^"
+
+			while ! git log -$i | grep -q "$pattern"; do {
+				mark="${mark}^"
+				i=$(( $i + 1 ))
+			} done
+
+			log "$funcname() or just do: git reset --soft HEAD${mark}"i
+		else
+			log "$funcname() please make sure, that you are in OpenWrt's git-root"
+		fi
+
 		return 1
 	}
 
