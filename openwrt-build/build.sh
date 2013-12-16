@@ -252,7 +252,7 @@ check_working_directory()
 {
 	local funcname='check_working_directory'
 	local pattern='git-svn-id'
-	local i=1 mark
+	local i=1
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
@@ -260,11 +260,11 @@ check_working_directory()
 			log "$funcname() commits, rollback several times via: git reset --soft HEAD^"
 
 			while ! git log -$i | grep -q "$pattern"; do {
-				mark="${mark}^"
 				i=$(( $i + 1 ))
 			} done
 
-			log "$funcname() or just do: git reset --soft HEAD${mark}"i
+			log "$funcname() or just do: git reset --soft HEAD~$i"
+			log "$funcname() you can switch back via: git reflog; git rest \$hash"
 		else
 			log "$funcname() please make sure, that you are in OpenWrt's git-root"
 		fi
