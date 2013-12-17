@@ -164,6 +164,10 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR703=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr703n-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr703n-v1-squashfs-factory.bin'
+
+#			MAX_SIZE='3.735.556'	# 57 erase-blocks * 64k + 4 bytes padding = 3.735.552 -> klog: jffs2: Too few erase blocks (4)
+#			confirmed: 3.604.484 = ok
+			MAX_SIZE=$(( 56 * 65536 ))
 		;;
 		'TP-LINK TL-WDR4300')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR4300=y'
@@ -966,10 +970,9 @@ while [ -n "$1" ]; do {
 		'--option'|'-o')
 			for LIST_USER_OPTIONS in $( serialize_comma_list "${2:-help}" ); do {
 				if build_options_set 'list' 'plain' | grep -q ^"$( echo "$LIST_USER_OPTIONS" | cut -d'@' -f1 )"$ ; then
-#				if build_options_set 'list' 'plain' | grep -q ^"$LIST_USER_OPTIONS"$ ; then
 					LIST_USER_OPTIONS="$2"
 				else
-					logger -s "problem: '$LIST_USER_OPTIONS'"
+					log "problem for argument '$LIST_USER_OPTIONS'"
 					build_options_set 'list' "$3"
 					exit 1
 				fi
