@@ -63,7 +63,7 @@ case "${BUTTON}-${ACTION}" in
 			logger "i: $i - url: $url"
 			echo  >"$file" "# $i"
 			# rmmod because of https://dev.openwrt.org/ticket/13392
-			echo >>"$file" "( wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url' | madplay -v - || { rmmod snd_usb_audio; modprobe rmmod snd_usb_audio; } ) &"
+			echo >>"$file" "( wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url' | madplay --quiet - || { rmmod snd_usb_audio; modprobe snd_usb_audio; } ) &"
 
 			chmod +x "$file"
 			exec "$file"
