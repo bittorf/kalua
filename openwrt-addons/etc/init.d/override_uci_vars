@@ -473,10 +473,13 @@ boot()
 	if batman_needed; then
 		uci set batman-adv.bat0.orig_interval=1000	# default = 1000 ms
 
-		fgrep -q 'netmask_dhcpcalc' "/etc/init.d/dnsmasq" || {
-			sed -i 's/start$/&; local netmask_dhcpcalc; config_get netmask_dhcpcalc "$cfg" netmask_dhcpcalc/' "/etc/init.d/dnsmasq"
-			sed -i 's/ $netmask / ${netmask_dhcpcalc:-$netmask} /' "/etc/init.d/dnsmasq"
-			sed -i 's/,$NETMASK,/,$netmask,/' "/etc/init.d/dnsmasq"
+		local file='/etc/init.d/dnsmasq'
+		fgrep -q 'netmask_dhcpcalc' "$file" || {
+			sed -i 's/start$/&; local netmask_dhcpcalc; config_get netmask_dhcpcalc "$cfg" netmask_dhcpcalc/' "$file"
+			sed -i 's/ $netmask / ${netmask_dhcpcalc:-$netmask} /' "$file"
+			sed -i 's/,$NETMASK,/,$netmask,/' "$file"
+			# since r39101 needed:
+			sed -i 's/eval \(.*\)/&\n	test "$PREFIX" = "${netmask_dhcpcalc:-$netmask}" \&\& netmask="$NETMASK"/' "$file"
 		}
 
 		batman_kmodules_are_deactivated && batman_kmodules_force_activation
