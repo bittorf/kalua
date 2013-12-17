@@ -1,5 +1,7 @@
 #!/bin/sh
 # sourced from /sbin/hotplug-call
+# or call via:
+# BUTTON=wps; ACTION=released; . /etc/hotplug.d/button/events.sh
 
 case "${BUTTON}-${ACTION}" in
 	# wps = WiFi Protected Setup: http://wiki.openwrt.org/doc/uci/wireless#wps.options
@@ -9,12 +11,12 @@ case "${BUTTON}-${ACTION}" in
 	;;
 	'wps-released')
 		read UP REST </proc/uptime
-		read START <'/tmp/BUTTON'
+		read START 2>/dev/null <'/tmp/BUTTON' || START="${UP%.*}"
 
 		END="${UP%.*}${UP#*.}"
 		DIFF=$(( $END - $START ))
 
-		logger "$0: button '$BUTTON' released after $DIFF millisec"
+		logger -s -- "$0: button '$BUTTON' released after $DIFF millisec"
 
 		next_radio()
 		{
@@ -52,7 +54,7 @@ case "${BUTTON}-${ACTION}" in
 				;;
 			esac
 
-			logger "station: $url"
+			logger -s -- "$0: audioplayer: station: $url"
 			url="$( echo $url | cut -d' ' -f3 )"
 			case "$url" in
 				*'.m3u'|*.'M3U')
@@ -60,7 +62,7 @@ case "${BUTTON}-${ACTION}" in
 				;;
 			esac
 
-			logger "i: $i - url: $url"
+			logger -s -- "$0: audiplayer: i: $i - url: $url"
 			echo  >"$file" "# $i"
 			# rmmod because of https://dev.openwrt.org/ticket/13392
 			echo >>"$file" "( wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url' | madplay --quiet - || { rmmod snd_usb_audio; modprobe snd_usb_audio; } ) &"
@@ -81,6 +83,6 @@ case "${BUTTON}-${ACTION}" in
 		fi
 	;;
 	*)
-		logger "$0: button '$BUTTON' action: '$ACTION' ignoring args: $@"
+		logger -s -- "$0: button '$BUTTON' action: '$ACTION' ignoring args: $@"
 	;;
 esac
