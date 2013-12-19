@@ -2,17 +2,25 @@ heartbeat_minimal_send()
 {
 	local file_url="/tmp/MONITORING_HEARTBEAT_URL"
 	local file_archiv="/tmp/ARCHIV_MONITORING"
-	local mac url
+	local mac url line
 
-	tail -n1 "$file_archiv" | grep -sq ^"# alive-message was send" || return 1
+	line="$( tail -n1 "$file_archiv" )"
+	case "$line" in
+		'# alive-message was send'*|*'olsrrestarttime='*)
+		;;
+		*)
+			return 1
+		;;
+	esac
 
-	[ -e "$file_url" ] || {
+	if [ -e "$file_url" ]; then
+		read url <"$file_url"
+	else
 		mac="$( _sanitizer do "$( _net dev2mac ${WIFIDEV:-$LANDEV} )" hex )"
 		url="$( uci -q get system.@monitoring[0].url )/meshrdf/?refresh=true&mac=$mac"
 		echo "$url" >"$file_url"
-	}
+	fi
 
-	read url <"$file_url"
 	url="${url}&up=$( _system uptime hours )"
 
 	case "$( _wget do "$url" 30 )" in
