@@ -3,6 +3,9 @@
 # or call via:
 # BUTTON=wps; ACTION=released; . /etc/hotplug.d/button/events.sh
 
+# also must take care of '/etc/rc.button/reset'
+[ "$BUTTON" = 'reset' ] && BUTTON='wps'
+
 case "${BUTTON}-${ACTION}" in
 	# wps = WiFi Protected Setup: http://wiki.openwrt.org/doc/uci/wireless#wps.options
 	'wps-pressed')
