@@ -1504,9 +1504,10 @@ _netfilter_adblocking_start()
 
 _netfilter_user_stats_process()
 {
+	local funcname='netfilter_user_stats_process'
 	local server_ip url server_response mac line hash message= count=0
 	local user_list="$( _netfilter user_list )"
-	local ip
+	local ip unixtime_server unixtime_now datestring
 
 	_netfilter user_stats_collect
 
@@ -1578,7 +1579,7 @@ _netfilter_user_stats_process()
 		;;
 		*)
 			url="http://$server_ip/cgi-bin-collect.sh?${message}"
-		server_response="$( _wget do "$url" 20 )"
+			server_response="$( _wget do "$url" 20 )"
 		;;
 	esac
 
@@ -1591,7 +1592,19 @@ _netfilter_user_stats_process()
 			for mac in $server_response; do {
 				case "$mac" in
 					*:*)
+						# add allowed macs from server to this station
 						[ -e "/tmp/vds_user_$mac" ] || touch "/tmp/vds_user_$mac"
+					;;
+					'OK - UNIXTIME = '*)
+						for unixtime_server in $server_response; do :; done
+						unixtime_now="$( date +%s )"
+
+						[ $(( $unixtime_now - $unixtime_server )) -gt 600 -o \
+						  $(( $unixtime_server - $unixtime_now )) -gt 600 ] && {
+							_log do $funcname daemon info "timeset to $unixtime_server - was: $unixtime_now"
+							datestring="$( date -d @$unixtime_server )"
+							date --set "$datestring"
+						}
 					;;
 				esac
 			} done
