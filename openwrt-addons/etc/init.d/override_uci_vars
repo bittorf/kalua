@@ -564,7 +564,7 @@ boot()
 		{
 			local funcname='batalias_add_if_needed'
 			local ifname_ask="$1"
-			local ifname proto i j
+			local ifname proto i j devname
 			local exists=
 
 			for i in $(seq 100); do {
@@ -590,15 +590,18 @@ boot()
 				uci set network.@alias[-1].mesh=bat0
 			}
 
-			grep -q " add $ifname"$ "$startup" || echo >>"$startup" "batctl interface | grep -q ^'$ifname: active' || batctl if add $ifname"
+			devname="$( uci -q get network.$ifname.ifname )"
+			devname="${devname:-notfound-$ifname}"
+			grep -q " add $devname"$ "$startup" || echo >>"$startup" "batctl interface | grep -q ^'$devname: active' || batctl if add $devname"
 		}
 
 		batalias_add_if_needed 'lan'
 
-		[ -n "$( uci get network.wan )" ] && {
+		uci -q get network.wan >/dev/null && {
 			# fixme! ejbw needs an override
 			case "$( _net local_inet_offer )" in
 				'wan'|'pppoe')
+					echo >>"$startup" "# wan not added, because local inet-offer"
 				;;
 				*)
 					batalias_add_if_needed 'wan'
