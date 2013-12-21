@@ -1273,7 +1273,7 @@ EOF
 				hideip="true"
 				dyndns="$DYNDNS"
 			;;
-			3_paltstadt|11_apphalle)
+			3_paltstadt|3_apphalle)
 				PROTO="pppoe"
 				GATEWAY="yes"			# for HNA4/olsrd
 				username="$PPPOE_USERNAME"
@@ -1412,11 +1412,17 @@ EOF
 } done
 
 	case "${NODE}_${INSTALLATION}" in
-		222_fparkssee)
+		'222_fparkssee'*)
 			alias_network="lan"
 			alias_ipaddr="192.168.101.222"
 			alias_netmask="255.255.255.0"
 			alias_gateway="192.168.101.112"		# 250 = office_gw
+		;;
+		'8_rehungen'*)
+			alias_network="lan"
+			alias_ipaddr="10.1.0.8"
+			alias_netmask="255.255.255.255"
+			alias_gateway=
 		;;
 	esac
 
@@ -1436,7 +1442,7 @@ _config_dhcp ()			# domain = .olsr
 {
 	local NODE="$1"
 	local wan_dns="$( uci get network.wan.dns )"
-	local cache
+	local cache hide
 
 	case $HARDWARE in
 		"TP-LINK TL-WR1043ND"|"BulletM")
@@ -1444,6 +1450,13 @@ _config_dhcp ()			# domain = .olsr
 		;;
 		*)
 			cache="100"
+		;;
+	esac
+
+	case "${NODE}_${INSTALLATION}" in
+		8_rehungen*)
+			hide='#'
+			DNSSERVER='10.10.254.33'
 		;;
 	esac
 
@@ -1473,7 +1486,7 @@ config dnsmasq
 	# list server		'/mycompany.local/1.2.3.4'
 	# option nonwildcard	1
 	# list interface	br-lan
-	list notinterface	wan
+$hide	list notinterface	wan
 	option dhcpscript	'/etc/dhcp-script.d/10dhcpscript'
 
 config dhcp lan
@@ -1764,6 +1777,18 @@ config 'Hna4'
 
 EOF
 	}
+
+	case "${NODE}_${INSTALLATION}" in
+		8_rehungen*)
+			cat >>/etc/config/olsrd <<EOF
+
+config 'Hna4'
+        option 'netaddr' '10.1.0.8'
+        option 'netmask' '255.255.255.255'
+
+EOF
+		;;
+	esac
 }
 
 [ -e /etc/init.d/apply_profile.regulatory.bin ] && {
