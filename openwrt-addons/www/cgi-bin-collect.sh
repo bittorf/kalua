@@ -9,4 +9,4 @@ echo -en "Content-type: text/plain\n\n"
 
 # report which mac's are ok to allow (e.g. DHCP)
 ls -1 /tmp/vds_user_* 2>/dev/null | cut -d'_' -f3
-echo "OK - UNIXTIME = $( date +%s )"
+echo "OK-UNIXTIME=$( date +%s )"
