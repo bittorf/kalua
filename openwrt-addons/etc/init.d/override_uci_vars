@@ -437,6 +437,9 @@ boot()
 			schoeneck*)
 				return 0
 			;;
+			boltenhagendh*|apphalle*)
+				return 0
+			;;
 		esac
 
 		return 1
@@ -500,6 +503,20 @@ boot()
 
 	batman_needed && {
 		case "$CONFIG_PROFILE" in
+			apphalle*)
+				uci set wireless.radio0.htmode="HT20"
+				set_wifi ap 5ghz ssid 'Appartementhaus highspeed'
+				set_wifi ap 2ghz ssid 'Appartementhaus'
+				set_wifi adhoc 5ghz ssid 'x'
+				set_wifi adhoc 2ghz ssid ':'
+			;;
+			boltenhagendh*)
+				uci set wireless.radio0.htmode="HT20"
+				set_wifi ap 5ghz ssid 'Weisse Wiek highspeed'
+				set_wifi ap 2ghz ssid 'Weisse Wiek'
+				set_wifi adhoc 5ghz ssid 'x'
+				set_wifi adhoc 2ghz ssid ':'
+			;;
 			schoeneck_ap)
 				uci set wireless.radio0.htmode="HT20"
 				set_wifi ap 2ghz ssid 'IFA Schoeneck'
@@ -545,12 +562,18 @@ boot()
 		local dns_ip i
 		local router_ip="192.168.$NODENUMBER.1"
 		local master_gateway
+
 		case "$CONFIG_PROFILE" in
 			dhsylt*|olympia*|marinabh*)
 				master_gateway="192.168.2.1"
 				dns_ip="$router_ip"
 			;;
-			schoeneck*)
+			apphalle*)
+				router_ip="192.168.0.1"
+				master_gateway="192.168.3.1"
+				dns_ip="$router_ip"
+			;;
+			schoeneck*|boltenhagendh*)
 				router_ip="192.168.0.1"
 				master_gateway="192.168.2.1"
 				dns_ip="$router_ip"
@@ -693,7 +716,7 @@ EOF
 		case "$CONFIG_PROFILE" in
 			*_adhoc)
 			;;
-			liszt28*|schoeneck*)
+			liszt28*|schoeneck*|boltenhagendh*|apphalle*)
 				# depends on kmod-macvlan
 				echo >>"$startup" "_log do batman daemon info \"$startup: forcing gateways ip/mac: $router_ip/$mac_gateway\""
 				echo >>"$startup" "ip link add link 'br-mybridge' 'gateway0' address '$mac_gateway' type macvlan"
@@ -717,7 +740,7 @@ EOF
 			uci set batman-adv.bat0.gw_bandwidth="512kbit/512kbit"
 
 			case "$CONFIG_PROFILE" in
-				schoeneck*)
+				schoeneck*|boltenhagendh*|apphalle*)
 					# no l3-routing proto running, so we need a fix master-gateway
 					uci set network.mybridge.gateway="$master_gateway"
 					uci set system.@weblogin[0].authserver="$master_gateway"

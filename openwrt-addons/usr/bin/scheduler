@@ -229,10 +229,12 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 		;;
 		O)
 			case "$CONFIG_PROFILE" in
-				schoeneck*)
+				schoeneck*|boltenhagendh*|apphalle*)
 					# this means, no wired clients or we must speak batman on ethernet too
 					olsr_unneeded()
 					{
+						$( _system uptime min ) -gt 30 || return 1
+						batctl gateways | grep -q "MBit" || return 1
 						test -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" && return 0
 						test -e "/tmp/service_olsrd_nowatching" || return 0
 
@@ -241,17 +243,10 @@ while getopts "S:a:A:wrlpfOPHU" FLAG; do {
 
 					olsr_unneeded && {
 						_log do schoeneck_noolsr daemon info "olsr_unneeded() ok"
-						batctl gateways | grep -q "MBit" && {
-							_log do schoeneck_noolsr daemon info "found batman-gateway"
-							[ $( _system uptime min ) -gt 60 ] && {
-								_log do schoeneck_noolsr daemon info "system-uptime > 1h"
-								rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
-								touch "/tmp/service_olsrd_nowatching"
-								_olsr daemon stop "batman_active_now"
-
-								_net local_inet_offer >/dev/null || ip route add default via 192.168.2.1
-							}
-						}
+						rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
+						touch "/tmp/service_olsrd_nowatching"
+						_olsr daemon stop "batman_active_now"
+						_net local_inet_offer >/dev/null || ip route add default via 192.168.2.1
 					}
 				;;
 			esac
