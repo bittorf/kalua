@@ -36,6 +36,8 @@ for CLASS in $( find $BASEDIR -type f -name "[a-z]"* ); do {	# only include lowe
 
 	CLASS="$( basename $CLASS )"				# generate loader and add methods 'show'+'include'
 
+	# normal output is like:
+	# "$1" "$2" "$3"	// the first element is later cut off via "${MAX_ARGS#* }"
 	MAX_ARGS="$( _kalua_max_arguments "$BASEDIR/$CLASS" )"
 
 	[ "$DEBUG" = "debug" ] && {
@@ -46,15 +48,22 @@ for CLASS in $( find $BASEDIR -type f -name "[a-z]"* ); do {	# only include lowe
 
 	HASH="$( md5sum "$BASEDIR/$CLASS" )"
 	HASH="${HASH%% *}"
-	grep -qs "$CLASS $HASH" "$POOLDIR/CHECKSUMS" || {
 
+	class_needs_new_build()
+	{
+		sh -n "$POOLDIR/${CLASS}" || return 0
+		grep -qs "$CLASS $HASH" "$POOLDIR/CHECKSUMS" || return 0
+
+		return 1
+	}
+
+	class_needs_new_build || {
 		cat >"$POOLDIR/${CLASS}" <<EOF
 _${CLASS}(){ ${DEBUG1}_${CLASS}_\${1:-s} ${MAX_ARGS#* }${DEBUG3};}
 _${CLASS}_show(){ sed -n "s/\(_${CLASS}_.*\)()/\1/p" $BASEDIR/${CLASS}|sort ;}
 _${CLASS}_s(){ _${CLASS}_show ;}
 _${CLASS}_include(){ :;}
 EOF
-
 		if [ -d "${BASEDIR}.w" ]; then
 			# lowmem: direct call copy on disc:"
 			echo >>"$POOLDIR/${CLASS}" ". $BASEDIR/$CLASS"
