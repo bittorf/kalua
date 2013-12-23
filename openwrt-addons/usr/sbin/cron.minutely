@@ -119,6 +119,8 @@ case "$LOAD" in
 		}
 
 		if [ -e "/tmp/CRON_LOCK" ]; then
+			. /tmp/loader
+
 			case "$LOAD" in
 				0.00|0.01|0.02)
 					echo -n '#' >>"/tmp/CRON_UNDERLOAD"
@@ -134,18 +136,17 @@ case "$LOAD" in
 						/sbin/reboot -f
 					}
 
-					. /tmp/loader
 					for PRG in mv scp nc wget; do {
 						pidof $PRG && _watch hanging_command $PRG
 					} done
 				;;
 				0.*)
 					[ -e "/tmp/CRON_UNDERLOAD" ] && rm "/tmp/CRON_UNDERLOAD"
-					. /tmp/loader
 
 					[ -e '/tmp/CRON_LOCK' -a $( _file age '/tmp/CRON_LOCK' sec ) -gt 3600 -a ${UP%.*} -gt 3600 ] && {
 						echo "ALERT: $( date ) very old lockfile: '$( ls -le '/tmp/CRON_LOCK' )'"  >/dev/console
 						echo "ALERT: $( date ) very old lockfile: '$( ls -le '/tmp/CRON_LOCK' )'" >>/www/everlasting_syslog.txt
+						_watch coredump
 						_system crashreboot 'old_lockfile'
 					}
 				;;
