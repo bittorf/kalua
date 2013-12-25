@@ -13,7 +13,7 @@ boot()
 		[ -e '/www/CRASHLOG_WORKS' ] || touch '/www/CRASHLOG_WORKS'
 	}
 
-	[ -e '/www/CRASHLOG_WORKS' ] && {
+	if [ -e '/www/CRASHLOG_WORKS' ]; then
 		export TZ="$( uci -q get system.@system[0].timezone )"
 
 		if line="$( grep -s ' Comm: ux.,' "$crashlog" )"; then			# see system_crashreboot()
@@ -30,16 +30,23 @@ boot()
 
 			date --set @$unixtime
 			echo "$( date ) [OK] reboot reason: '$reason'" >>'/www/everlasting_syslog.txt'
+			echo "$reason" >'/tmp/REBOOT_REASON'
 		else
 			if [ -e "$crashlog" ]; then
 				echo "$( date ) [ERROR] crash detected in '$crashlog'" >>'/www/everlasting_syslog.txt'
+				echo "crash" >'/tmp/REBOOT_REASON'
 			else
 				echo "$( date ) [ERROR] reboot without reason/crash" >>'/www/everlasting_syslog.txt'
+				echo "nocrash" >'/tmp/REBOOT_REASON'
 			fi
 		fi
-	}
+	else
+		echo "unknown" >'/tmp/REBOOT_REASON'
+	fi
 
+	echo '# /www/everlasting_syslog.txt'   >/dev/console
 	tail -n5 '/www/everlasting_syslog.txt' >/dev/console
+	echo '# /www/everlasting_syslog.txt'   >/dev/console
 
 	# http://www.kernel.org/doc/Documentation/sysctl/kernel.txt
 	# http://www.kernel.org/doc/Documentation/sysctl/vm.txt
