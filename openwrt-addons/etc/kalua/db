@@ -3,16 +3,18 @@
 _db_check()
 {
 	local funcname='db_check'
-	local file line
+	local file line i
 
 	for file in /tmp/DB/USER/device/rows /tmp/DB/USER/device/stats /tmp/DB/USER/login/rows /tmp/DB/USER/profile/rows; do {
 		_log do $funcname daemon info "eval each line in '$file'"
 
+		i=0
 		while read line; do {
+			i=$(( $i + 1 ))
 			eval $line
 		} done <"$file"
 
-		_log do $funcname daemon info "[OK] file '$file'"
+		_log do $funcname daemon info "[OK] file '$file' / $i lines"
 	} done
 }
 
@@ -190,11 +192,12 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 				}
 
 				output_grepable_index	>"/tmp/USERDB_COPY.cgi"
+				rm 2>/dev/null		 '/tmp/USERDB_COPY.cgi.gz'
 				gzip			 '/tmp/USERDB_COPY.cgi'		# appends .gz
 				rm			 '/tmp/USERDB_COPY.cgi'
 
 				# is it really a working link? see: cgi-bin-get_userdb.sh
-				ls -1 '/www/USERDB_COPY.txt' 2>/dev/null || {
+				ls -1 '/www/USERDB_COPY.txt' 2>/dev/null >/dev/null || {
 					rm 2>/dev/null 			'/www/USERDB_COPY.txt'
 					ln -s '/tmp/USERDB_COPY.cgi.gz' '/www/USERDB_COPY.txt'
 				}
