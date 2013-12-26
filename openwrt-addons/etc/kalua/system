@@ -157,12 +157,9 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 	local REASON="$1"
 	local LOCKFILE="/tmp/SAFE_REBOOT_SCHEDULED"
 
-	_linklocal wifi_users $WIFIDEV >/dev/null && {
+	_linklocal wifi_users "$WIFIDEV" >/dev/null && {
 		_log do $FUNC daemon info "waiting till all wifi-clients disconnect, rescheduling myself"
-
-		echo -e "#!/bin/sh\nrm \$0\n. /tmp/loader\n_system reboot_safe '$1'" >/tmp/.autorun	# cron.minutely calls this
-		chmod +x /tmp/.autorun
-
+		echo >>$SCHEDULER "_system reboot_safe '$1'"
 		return
 	}
 
@@ -175,16 +172,13 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 
 	_log do $FUNC daemon alert "scheduling reboot - reason: '$REASON'"
 
-	tail -n1 /tmp/ARCHIV_MONITORING | grep -q ^# || {			# found comment at fileend
-
+	tail -n1 '/tmp/ARCHIV_MONITORING' | grep -q ^'#' || {			# found comment at fileend
 		_log do $FUNC daemon info "send_alive_message was unsuccessful, backing up '/tmp/ARCHIV_MONITORING'"		
-
 		local LINENUMBER_LAST_SUCCESS="$( grep -n "^#" /tmp/ARCHIV_MONITORING | tail -n1 | cut -d':' -f1 )"
 		sed -n "$(( $LINENUMBER_LAST_SUCCESS + 1 )),\$p" /tmp/ARCHIV_MONITORING >/www/backup_archiv_node_data
 	}
 
 	if [ ! -e "/www/SOFTWARE_FULLY_INSTALLED" ]; then			# fixme! check free flash space?
-	
 		_log do $FUNC daemon info "safing syslog to '/www/SYSLOG_SAFED'"
 		grep -v "kern.err olsrd" /var/log/messages >/www/SYSLOG_SAFED		# we don't need the "add route/del route" errors
 	else
