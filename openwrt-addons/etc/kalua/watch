@@ -76,37 +76,28 @@ _watch_coredump()
 	local ignore_pattern="${1:-we_will_not_ignore_anything}"	# e.g. 'hostapd'
 	local storage="/www/coredumps"
 	local logprio="alert"
-	local revision="$( _system version short )"
-	local file
+	local file dump revision
 
-	case "$CONFIG_PROFILE" in
-		liszt28*)
-			[ $revision -ge 39114 ] && {
-				logprio='sms'
-			}
-		;;
-	esac
-
-	local dump="$( ls -1 /tmp/*.core | head -n1 )"	# defined in /etc/init.d/network
-	[ -z "$dump" ] && return 0
+	# filename/format defined in /etc/init.d/network
+	dump="$( ls -1 /tmp/*.core 2>/dev/null | head -n1 )"
 
 	case "$dump" in
-		*${ignore_pattern}*)
+		'')
+			return 0
+		;;
+		*"${ignore_pattern}"*)
 			_log do $funcname daemon info "found '$dump', but ignoring it"
 			rm "$dump"
 			return 0
 		;;
 	esac
 
-	file="r${revision}.$( basename "$dump" )"	# r37513.6relayd.1599.10.1374552373.core
+	revision="$( _system version short )"
+	# r37513.ar71xx.6relayd.1599.10.1374552373.core
+	file="r${revision}.$( _system architecture ).$( basename "$dump" )"
+
 	mkdir -p "$storage"
 	mv "$dump" "$storage/$file"
-
-	case "$file" in
-		*'cron'*)
-			logprio='sms'
-		;;
-	esac
 
 	_log do $funcname daemon $logprio "wrote: $storage/$file"
 }
