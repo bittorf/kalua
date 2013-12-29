@@ -92,7 +92,7 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	local FILE
 	local NETCAT_BIN="nc"
 
-	[ ! -e "$MAILFILE" ] && {
+	[ -e "$MAILFILE" ] || {
 		_log do $FUNC user crit "can't read '$MAILFILE' - aborting (usage: _$FUNC myname me@world.org yourname you@world.org mailfile"
 		return
 	}
@@ -260,7 +260,7 @@ _mail_send_mailfile()
 {
 	local MAILFILE="$1"			# must be ready formatted
 						# important: 'file' will be removed after good sending from this function
-	[ ! -e "$MAILFILE" ] && return 1
+	[ -e "$MAILFILE" ] || return 1
 
 	local FUNC="mail_send_mailfile"
 	local LINE OUT RC ERROR
@@ -268,11 +268,16 @@ _mail_send_mailfile()
 	local SERVER="$( uci get mail.@smtp[0].server )"
 	local PORT="$(   uci get mail.@smtp[0].port   )"
 	local ERRORFILE="/tmp/$FUNC.error.$$"
+	local auth="$( uci get mail.@smtp[0].auth )"
 
-	_mail pop3_check_stats || {			# pop before smtp must be configured on mailserver
-		_mail stash_for_later_resend "$MAILFILE"
-		return 0
-	}
+	case "$auth" in
+		*'smtp'*)
+			_mail pop3_check_stats || {			# pop before smtp must be configured on mailserver
+				_mail stash_for_later_resend "$MAILFILE"
+				return 0
+			}
+		;;
+	esac
 
 	# normal netcat output:
 	# 220 mail.gmx.net GMX Mailservices ESMTP {mp017}
@@ -314,8 +319,20 @@ _mail_send_mailfile()
 		  } done
 	}
 
-	OUT="$( echo -e "$( cat "$MAILFILE" )" | $NETCAT_BIN $SERVER $PORT 2>"$ERRORFILE" )"; RC=$?
-	OUT="$( sanitize_server_answer "$OUT" )"
+	case "$auth" in
+		*'smtp'*)
+			OUT="$( echo -e "$( cat "$MAILFILE" )" | $NETCAT_BIN $SERVER $PORT 2>"$ERRORFILE" )"; RC=$?
+			OUT="$( sanitize_server_answer "$OUT" )"
+		;;
+		*)
+			_log do $FUNC daemon info "scp '$MAILFILE' $auth"
+			if scp "$MAILFILE" "$auth"; then
+				OUT='+220+250+250+250+354+250+221'
+			else
+				_log do $FUNC daemon info "scp '$MAILFILE' $auth - failed"
+			fi
+		;;
+	esac
 
 	case "$OUT" in
 		"+220+250+530"*)
