@@ -165,13 +165,14 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	}
 
 	_do init	
-	_do raw_smtp "HELO ${FQDN}"
-#	_do "MAIL FROM: $( wellform_mailaddress_and_realname "$FROM_MAIL" "$FROM_REAL"		 )"
-	_do "MAIL FROM: $FROM_MAIL"
-#	_do "RCPT TO: $(   wellform_mailaddress_and_realname "$RECIPIENT_MAIL" "$RECIPIENT_REAL" )"
-	_do "RCPT TO: $RECIPIENT_MAIL"
 
-	_do "DATA"
+	_do raw_smtp "HELO ${FQDN}"
+#	_do raw_smtp "MAIL FROM: $( wellform_mailaddress_and_realname "$FROM_MAIL" "$FROM_REAL"		 )"
+	_do raw_smtp "MAIL FROM: $FROM_MAIL"
+#	_do raw_smtp "RCPT TO: $(   wellform_mailaddress_and_realname "$RECIPIENT_MAIL" "$RECIPIENT_REAL" )"
+	_do raw_smtp "RCPT TO: $RECIPIENT_MAIL"
+	_do raw_smtp "DATA"
+
 	_do "From: $( wellform_mailaddress_and_realname "$FROM_MAIL" "$FROM_REAL"		)"
 	_do "To: $(   wellform_mailaddress_and_realname "$RECIPIENT_MAIL" "$RECIPIENT_REAL"	)"	# can be multiple RCPT's:
 #	_do "Cc: $(   wellform_mailaddress_and_realname "$ADMIN_MAIL" "$ADMIN_REAL"		)"
@@ -326,10 +327,12 @@ _mail_send_mailfile()
 		;;
 		*)
 			_log do $FUNC daemon info "scp '$MAILFILE' $auth"
-			if scp "$MAILFILE" "$auth"; then
+			echo -e "$( cat "$MAILFILE" )" >"$MAILFILE.readable"
+
+			if scp "$MAILFILE.readable" "$auth"; then
 				OUT='+220+250+250+250+354+250+221'
 			else
-				_log do $FUNC daemon info "scp '$MAILFILE' $auth - failed"
+				_log do $FUNC daemon info "scp '$MAILFILE' $auth - failed: rc: $?"
 			fi
 		;;
 	esac
