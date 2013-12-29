@@ -111,6 +111,11 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	{
 		case "$1" in
 			'raw_smtp')
+				# copy key manually:
+				# scp .ssh/dropbear_dss_host_key.pub bastian@10.63.2.34:.ssh/authorized_keys.$CONFIG_PROFILE.$HOSTNAME
+				# on server:
+				# cat .ssh/authorized_keys.* >.ssh/authorized_keys
+				# e.g. 'bastian@10.63.2.34:'
 				case "$( uci get mail.@smtp[0].auth )" in
 					*'smtp'*)
 						shift
@@ -329,11 +334,13 @@ _mail_send_mailfile()
 			_log do $FUNC daemon info "scp '$MAILFILE' $auth"
 			echo -e "$( cat "$MAILFILE" )" >"$MAILFILE.readable"
 
-			if scp "$MAILFILE.readable" "$auth"; then
+			if scp -i '/etc/dropbear/dropbear_dss_host_key' "$MAILFILE.readable" "$auth"; then
 				OUT='+220+250+250+250+354+250+221'
 			else
 				_log do $FUNC daemon info "scp '$MAILFILE' $auth - failed: rc: $?"
 			fi
+
+			rm "$MAILFILE.readable"
 		;;
 	esac
 
