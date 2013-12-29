@@ -109,8 +109,21 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 
 	_do ()
 	{
+		case "$1" in
+			'raw_smtp')
+				case "$( uci get mail.@smtp[0].auth )" in
+					*'smtp'*)
+						shift
+					;;
+					*)
+						# ignore in 'scp'-mode
+						return 0
+					;;
+				esac
+			;;
+		esac
+
 		local text="$1"
-		local mode="$2"
 
 		_log do $FUNC daemon debug "do() '$text'"
 
@@ -152,19 +165,19 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	}
 
 	_do init	
-	_do "HELO ${FQDN}" debug
+	_do raw_smtp "HELO ${FQDN}"
 #	_do "MAIL FROM: $( wellform_mailaddress_and_realname "$FROM_MAIL" "$FROM_REAL"		 )"
-	_do "MAIL FROM: $FROM_MAIL" debug
+	_do "MAIL FROM: $FROM_MAIL"
 #	_do "RCPT TO: $(   wellform_mailaddress_and_realname "$RECIPIENT_MAIL" "$RECIPIENT_REAL" )"
-	_do "RCPT TO: $RECIPIENT_MAIL" debug
+	_do "RCPT TO: $RECIPIENT_MAIL"
 
-	_do "DATA" debug
-	_do "From: $( wellform_mailaddress_and_realname "$FROM_MAIL" "$FROM_REAL"		)" debug
-	_do "To: $(   wellform_mailaddress_and_realname "$RECIPIENT_MAIL" "$RECIPIENT_REAL"	)" debug	# can be multiple RCPT's:
+	_do "DATA"
+	_do "From: $( wellform_mailaddress_and_realname "$FROM_MAIL" "$FROM_REAL"		)"
+	_do "To: $(   wellform_mailaddress_and_realname "$RECIPIENT_MAIL" "$RECIPIENT_REAL"	)"	# can be multiple RCPT's:
 #	_do "Cc: $(   wellform_mailaddress_and_realname "$ADMIN_MAIL" "$ADMIN_REAL"		)"
 
-	_do "Date: $( _system date mail )" debug
-	_do "Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>" debug			# 121016909907May08-16_04@buffalo422.local
+	_do "Date: $( _system date mail )"
+	_do "Message-ID: <$( date +%s%d%b%y-%H_%M )@${FQDN}>"		# 121016909907May08-16_04@buffalo422.local
 
 	_do "MIME-Version: 1.0"
 	_do "Content-Type: multipart/mixed; boundary=\"${BOUNDARY}\""
@@ -231,8 +244,8 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 		_do "--${BOUNDARY}--"
 	}
 
-	_do "."
-	_do "QUIT"
+	_do raw_smtp "."
+	_do raw_smtp "QUIT"
 
 	_log do $FUNC daemon info "sending mail to '${RECIPIENT_MAIL}'"
 	if _mail send_mailfile "$MAIL" ; then
