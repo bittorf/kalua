@@ -461,7 +461,7 @@ apply_symbol()
 	local choice hash tarball_hash
 	local last_commit_unixtime last_commit_date url hash
 	local file installation sub_profile node
-	local dir basedir
+	local dir basedir pre
 
 	case "$symbol" in
 		"$KALUA_DIRNAME"*)
@@ -514,6 +514,9 @@ apply_symbol()
 
 			log "$funcname() $KALUA_DIRNAME: apply_wifi_reghack"
 			apply_wifi_reghack
+
+			log "$funcname() $KALUA_DIRNAME: compiler tweaks"
+			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-check"'
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
 			log "$funcname() $KALUA_DIRNAME: adding recent tarball hash from '$url'"
@@ -627,6 +630,13 @@ apply_symbol()
 		'CONFIG_'*)
 			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
 			grep -sq ^"$symbol"$ "$file" || {
+				pre="$( echo "$symbol" | cut -d'=' -f1 )"
+
+				grep -q "$pre" "$file" && {
+					# remove symbol
+					sed -i "/${pre}=.*/d" "$file"
+				}
+
 				echo "$symbol" >>"$file"
 			}
 		;;
