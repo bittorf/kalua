@@ -268,7 +268,7 @@ check_working_directory()
 			} done
 
 			log "$funcname() or just do: git reset --soft HEAD~$i"
-			log "$funcname() you can switch back via: git reflog; git rest \$hash"
+			log "$funcname() you can switch back via: git reflog; git reset \$hash"
 		else
 			log "$funcname() please make sure, that you are in OpenWrt's git-root"
 		fi
