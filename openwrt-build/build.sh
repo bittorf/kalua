@@ -516,6 +516,7 @@ apply_symbol()
 			apply_wifi_reghack
 
 			log "$funcname() $KALUA_DIRNAME: compiler tweaks"
+			apply_symbol 'CONFIG_DEVEL=y'		# 'Advanced configuration options'
 			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-check"'
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
