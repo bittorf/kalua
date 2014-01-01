@@ -1214,3 +1214,161 @@ _watch_switch_linkstatus()
 		fi
 	fi
 }
+
+_watch_wifistuff()
+{
+	[ -n "$WIFIDEV" ] && {
+		ip address show dev $WIFIDEV | fgrep -q "inet " || {
+			_wifi phy_restart $WIFIDEV "no ip on dev" || touch /tmp/WIFI_PHY_ERROR
+			# avoid fail of next checks
+			WIFIDEV=
+		}
+	}
+
+	incoming_wifi_activity()
+	{
+		[ -z "$WIFIDEV" ] && return 0
+
+		case "${NODENUMBER}_${CONFIG_PROFILE}" in
+			3_galerie*|22_liszt28*|2_hotello-B01*|239_marinabh*)
+				return 0
+			;;
+			# kindergarten-feld | puppenfabrik-hauptstrasse14 | klausgasse70-dach
+			248_rehungen*|218_rehungen*|30_rehungen*)
+				return 0
+			;;
+		esac
+
+		local funcname="incoming_wifi_activity"
+		local framecount_old framecount_new check_dev uptime_old uptime_new uptime_diff
+		local file_framecount="/tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV"
+		local file_activity_seen="$file_framecount.active"
+		local file_uptime="$file_framecount.uptime"
+		local monitoring_vif="mon.$WIFIDEV"
+		local logprio="alert"
+
+		if   fgrep -sq '"wlan0-1"' /var/etc/olsrd.conf; then	# hybrid adhoc/ap - check adhoc
+			check_dev='wlan0-1'
+		elif fgrep -sq '"wlan0"' /var/etc/olsrd.conf; then
+			check_dev='wlan0'
+		elif fgrep -q "$monitoring_vif:" /proc/net/dev; then
+			check_dev="$monitoring_vif"
+		else
+			check_dev="$WIFIDEV"
+		fi
+
+		eval "$( sed -n "s/.*${check_dev}: *[0-9]* *\([0-9]*\).*/framecount_new=\1/p" /proc/net/dev )"
+
+		uptime_new="$( _system uptime )"
+		read uptime_old 2>/dev/null <"$file_uptime"
+		echo "$uptime_new" >"$file_uptime"
+		uptime_diff="$(( $uptime_new - ${uptime_old:-0} ))"
+
+		[ $uptime_diff -gt 65 ] && \
+			_log do $funcname daemon info "[ERR] timediff > 60 sec = $uptime_diff"
+
+		if [ -e "$file_framecount" ]; then
+			read framecount_old <"$file_framecount"
+		else
+			framecount_old="-1"			# ensures, that first start is without errors
+		fi
+
+		echo "$framecount_new" >"$file_framecount"
+
+		if [ "$framecount_old" = "$framecount_new" ]; then
+			case "$WIFIMODE" in
+				*ap*)
+					logprio="debug"
+				;;
+				*)
+					[ "$framecount_new" = "0" ] && {
+						logprio="info"
+					}
+				;;
+			esac
+
+			_log do $funcname daemon $logprio "[ERR] framecounter for $check_dev old/new: $framecount_old = $framecount_new timediff: $uptime_diff sec"
+			echo "0" >"$file_framecount"
+
+			if [ $uptime_diff -ge 60 ]; then
+				[ $( _wifi phy_uptime $WIFIDEV ) -ge 60 ] || return 0
+
+				if [ -e "$file_activity_seen" ]; then
+					[ "$logprio" = "debug" ] || {
+						_wifi bugreport_create "$check_dev" "[ERR] framecounter hanging for $check_dev old/new: $framecount_old = $framecount_new timediff: $uptime_diff sec" "${file_framecount}.error_debug.${uptime_new}"
+					}
+
+					rm "$file_activity_seen"
+					return 1
+				else
+					return 0
+				fi
+			else
+				return 0
+			fi
+		else
+			[ -e "$file_activity_seen" ] || {
+				[ "$framecount_old" = "-1" ] || {
+					_log do $funcname daemon info "[OK] first activity seen on dev $check_dev ($framecount_old packets) - marking"
+					touch "$file_activity_seen"
+				}
+			}
+
+			_log do $funcname daemon debug "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer do "$framecount_old + $(( $framecount_new - $framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
+			return 0
+		fi
+	}
+
+	# we check:
+	# wlan0 in adhoc-mode or
+	# mon.wlan0 in ap-mode
+	# on newstyle-devices
+
+	WIFIMODE="$( _wifi mode $WIFIDEV )"
+
+	incoming_wifi_activity || {
+		case "$WIFIMODE" in
+			*adhoc*)
+				_wifi phy_restart $WIFIDEV "no incoming_wifi_activity"
+			;;
+			*)
+				if [ -n "$( iw dev $WIFIDEV station dump )" ]; then
+					_wifi check_each_client || {
+						_wifi phy_restart $WIFIDEV "clients active, no incoming_wifi_activity, mode $WIFIMODE"
+					}
+				else
+					# _wifi phy_restart $WIFIDEV "no clients, no incoming_wifi_activity, mode $WIFIMODE" info
+					_log do incoming_wifi_activity daemon info "no clients, no incoming_wifi_activity, mode $WIFIMODE"
+				fi
+			;;
+		esac
+	}
+
+	case "$WIFIMODE" in
+		*adhoc*)
+		;;
+		*)
+			_wifi check_each_client || {
+				_log do check_each_client daemon info "tx/arping to all clients failed"
+			}
+
+			case "$WIFIMODE" in
+				*ap*|*client*)
+					which hostapd >/dev/null && {
+						if pidof hostapd >/dev/null; then
+							touch "/tmp/DAEMON_hostapd_seen"
+						else
+							if [ -z "$( _net dev2ip $WIFIDEV )" ]; then
+								_system reboot_safe "missing hostapd and no IP on wifidev $WIFIDEV - $( tail -n1 "/tmp/dmesg.recent" )"
+							else
+								[ -e "/tmp/DAEMON_hostapd_seen" ] && {
+									_wifi phy_restart $WIFIDEV "missing_hostapd"
+								}
+							fi
+						fi
+					}
+				;;
+			esac
+		;;
+	esac
+}
