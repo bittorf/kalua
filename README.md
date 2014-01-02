@@ -9,6 +9,7 @@ needing support?
 join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bittorf-wireless.de)
 
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software)
+donations in bitcoins are welcome and can be sent to 184Rzvif2EfpW1EycmL3SWt64n8L1vHQdJ
 
 
 how to get a release for a specific hardware
