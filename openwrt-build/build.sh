@@ -515,9 +515,21 @@ apply_symbol()
 			log "$funcname() $KALUA_DIRNAME: apply_wifi_reghack"
 			apply_wifi_reghack
 
+			# http://stackoverflow.com/questions/1018853/why-is-alloca-not-considered-good-practice
+			#
+			# no-caller-saves:
+			# http://gcc.gnu.org/onlinedocs/gccint/Caller-Saves.html
+			#
+			# stack-check / stack-protector / stack-protector-all / stack-protector-strong / ssp-buffer-size:
+			# http://stackoverflow.com/questions/2369886/how-does-the-gcc-option-fstack-check-exactly-work
+			# http://gcc.gnu.org/onlinedocs/gccint/Stack-Checking.html
+			# http://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#Optimize-Options
+			# http://www.research.ibm.com/trl/projects/security/ssp/
+			# http://www.phrack.org/issues.html?issue=49&id=14#article
+			#
 			log "$funcname() $KALUA_DIRNAME: compiler tweaks"
 			apply_symbol 'CONFIG_DEVEL=y'		# 'Advanced configuration options'
-			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-check"'
+			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-check -fstack-protector-all"'
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
 			log "$funcname() $KALUA_DIRNAME: adding recent tarball hash from '$url'"
