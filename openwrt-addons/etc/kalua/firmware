@@ -507,6 +507,7 @@ _firmware_burn()
 
 	touch /tmp/DEBUG		# syslog verbose, if any...
 
+	_system include			# we need a copy in ram
 	_log shell_is_interactive && {
 		screen -ls | fgrep -qi "Attached" || {
 
@@ -673,13 +674,13 @@ EOF
 	/usr/sbin/crond -L /dev/null
 
 	grep -q "f$" /etc/crontabs/root || reboot -f
-	pidof crond >/dev/null || reboot -f
+	pidof crond >/dev/null || _system crashreboot 'cron_died'
 
 	/bin/netmsg $LANBRC "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
 	/bin/echo "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'" >/dev/console
 }
 
-_firmware_filelist ()
+_firmware_filelist()
 {
 	local FUNC="firmware_filelist"
 	local FILE="$1"
@@ -957,16 +958,13 @@ _firmware_check_forced_upgrade()
 	if [ -e "$FILE" ]; then
 		_firmware burn $FILE
 	else
-		[ "$LOWMEM" = "true" ] && {
+		[ -n "$LOWMEM" ] && {
 			_log do wget_firmware daemon alert "download failed on lowmem-device, rebooting"
 			reboot -f
 		}
 	fi
 
-	pidof crond >/dev/null || {
-		_log do cron_died daemon alert "empty pid"
-		reboot -f
-	}
+	pidof crond >/dev/null || _system crashreboot 'cron_died'
 
 	[ -e "/tmp/LOCKFILE_APPLY" ] && rm "/tmp/LOCKFILE_APPLY"        # unblock scheduler
 }
