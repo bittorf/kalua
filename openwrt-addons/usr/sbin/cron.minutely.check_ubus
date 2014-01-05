@@ -10,6 +10,19 @@ else
 	case "$REST" in
 		*'uptime'*)
 			# https://dev.openwrt.org/ticket/14620
+			REST="$( ubus call network.interface.lan status )" || RC=$?
+
+			case "$REST" in
+				*'"address":'*)
+				;;
+				*)
+					UBUS_OUT="$REST"	# loader changes var
+
+					. /tmp/loader
+					_log do ubus_checker daemon alert "out: '$UBUS_OUT' rc: $RC duration: $( _file age '/tmp/UBUSDEAD' sec )s"
+					_system crashreboot 'ubus_hangs'
+				;;
+			esac
 		;;
 		*)
 			UBUS_OUT="$REST"	# loader changes var
