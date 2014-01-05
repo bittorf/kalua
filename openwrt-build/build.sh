@@ -527,9 +527,9 @@ apply_symbol()
 			# http://www.research.ibm.com/trl/projects/security/ssp/
 			# http://www.phrack.org/issues.html?issue=49&id=14#article
 			#
-			log "$funcname() $KALUA_DIRNAME: compiler tweaks"
-			apply_symbol 'CONFIG_DEVEL=y'		# 'Advanced configuration options'
-			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-check -fstack-protector-all"'
+#			log "$funcname() $KALUA_DIRNAME: compiler tweaks"
+#			apply_symbol 'CONFIG_DEVEL=y'		# 'Advanced configuration options'
+#			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-check -fstack-protector-all"'
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
 			log "$funcname() $KALUA_DIRNAME: adding recent tarball hash from '$url'"
