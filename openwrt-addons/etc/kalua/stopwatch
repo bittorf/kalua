@@ -6,7 +6,7 @@ _stopwatch_start()
 	local keyword="$2"		# e.g. global
 	local up rest file
 
-	if [ "$keyword" = "global" ]; then
+	if [ "$keyword" = 'global' ]; then
 		file="/tmp/STOPWATCH_${job}"
 	else
 		file="/tmp/STOPWATCH_${job}_$$"
@@ -45,32 +45,29 @@ _stopwatch_seconds2humanreadable()
 
 _stopwatch_stop()		# OUT1: centyseconds = seconds/100
 {
-	local FUNC="stopwatch_stop"
+	local funcname='stopwatch_stop'
 	local CONTEXT="${1:-unset}"
-	local KEYWORD="$2"				# e.g. quiet|global|nolog|speed
+	local KEYWORD="$2"				# e.g. quiet|nolog|speed
 	local object_count="$3"				# e.g. 32
 	local object_type="$4"				# e.g. tickets
 
-	local up rest DIFF humanreadable FILE logprio
+	local up rest DIFF humanreadable file logprio
 	local START END OUT INTEGER REST message speed
+	local logprio='info'
 
 	read up rest </proc/uptime
 
-	if [ "$KEYWORD" = "global" ]; then
-		logprio="alert"
-		FILE="/tmp/STOPWATCH_${CONTEXT}"
+	  if [ -e "/tmp/STOPWATCH_${CONTEXT}" ]; then
+		file="/tmp/STOPWATCH_${CONTEXT}"
+	elif [ -e "/tmp/STOPWATCH_${CONTEXT}_$$" ]; then
+		file="/tmp/STOPWATCH_${CONTEXT}_$$"
 	else
-		logprio="info"
-		FILE="/tmp/STOPWATCH_${CONTEXT}_$$"
+		_log do $funcname daemon info "timefile '/tmp/STOPWATCH_${CONTEXT}'* not found - abort"
+		return 1
 	fi
 
-	[ ! -e "$FILE" ] && {
-		_log do $FUNC daemon debug "timefile '$FILE' not found - abort"
-		return 1
-	}
-
-	read START <$FILE
-	rm $FILE
+	read START <"$file"
+	rm "$file"
 	END="${up%.*}${up#*.}"
 
 	OUT="$(( $END - $START ))"
@@ -90,6 +87,6 @@ _stopwatch_stop()		# OUT1: centyseconds = seconds/100
 	}
 
 	[ "$KEYWORD" = 'speed' ] && echo "$speed" && return 0
-	[ "$KEYWORD" = 'nolog' ] || _log do $FUNC daemon $logprio "task '$CONTEXT' lasts $INTEGER.$REST seconds${humanreadable}${message}"
+	[ "$KEYWORD" = 'nolog' ] || _log do $funcname daemon $logprio "task '$CONTEXT' lasts $INTEGER.$REST seconds${humanreadable}${message}"
 	[ "$KEYWORD" = 'quiet' ] || echo "$OUT"
 }
