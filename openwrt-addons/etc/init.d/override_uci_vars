@@ -640,7 +640,7 @@ boot()
 		{
 			local funcname='batalias_add_if_needed'
 			local ifname_ask="$1"
-			local ifname proto i j devname
+			local ifname proto i j devname mac
 			local exists=
 
 			for i in $(seq 0 100); do {
@@ -664,6 +664,20 @@ boot()
 				uci set network.@alias[-1].interface="$ifname_ask"
 				uci set network.@alias[-1].proto=batadv
 				uci set network.@alias[-1].mesh=bat0
+
+				case "$ifname_ask" in
+					'lan')
+						mac="02:00:ca:b1:$( integer2fourhex "$NODENUMBER" )"
+					;;
+					'wan')
+						mac="02:00:de:ad:$( integer2fourhex "$NODENUMBER" )"
+					;;
+				esac
+
+				# fixme! add possible wifi-macs
+				[ -n "$mac" -a -z "$( uci get network.$ifname_ask.macaddr )" ] && {
+					uci set network.$ifname_ask.macaddr="$mac"
+				}
 			}
 
 			cat >>"$startup" <<EOF
@@ -705,7 +719,7 @@ EOF
 				batalias_add_if_needed 'wlanadhoc'
 
 				# ap-interface:
-				# wireless.@wifi-iface[1].network=wlan
+				# wireless.@wifi-iface[1].network=wlan -> varname = wireless.@wifi-iface[1]
 				local varname="$( uci show wireless | grep "\.network=wlan"$ | head -n1 | cut -d'=' -f1 | sed 's/\.network//' )"
 				uci set $varname.macaddr="02:00:ca:fe:$( integer2fourhex "$NODENUMBER" )"
 
@@ -713,7 +727,7 @@ EOF
 					batalias_add_if_needed 'wlanadhocRADIO1'
 
 					# ap-interface:
-					# wireless.@wifi-iface[3].network=wlanRADIO1
+					# wireless.@wifi-iface[3].network=wlanRADIO1 -> varname = wireless.@wifi-iface[3]
 					local varname="$( uci show wireless | grep "\.network=wlanRADIO1"$ | head -n1 | cut -d'=' -f1 | sed 's/\.network//' )"
 					uci set $varname.macaddr="02:00:ca:ff:$( integer2fourhex "$NODENUMBER" )"
 				}
@@ -722,9 +736,6 @@ EOF
 				batalias_add_if_needed 'wlan'
 			;;
 		esac
-
-		uci set network.lan.macaddr="02:00:ca:b1:$( integer2fourhex "$NODENUMBER" )"
-		uci set network.wan.macaddr="02:00:de:ad:$( integer2fourhex "$NODENUMBER" )"
 
 		case "$CONFIG_PROFILE" in
 			*hybrid)
