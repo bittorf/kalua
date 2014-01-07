@@ -41,7 +41,8 @@ case "$ACTION" in
 	;;
 esac
 
-[ -d kalua ] || {
+# use e.g. 'ln -s source kalua' on devstation
+[ -d 'kalua' ] || {
 	echo "please make sure, that your working directory is in the openwrt-base dir"
 	echo "i want to see the directorys 'package', 'scripts' and 'kalua'"
 	exit 1
@@ -689,7 +690,37 @@ calc_free_flash_space()
 
 mypubip()
 {
-	wget -qO - http://intercity-vpn.de/scripts/getip/
+	local default_route="$( ip route list exact '0.0.0.0/0' )"
+	local ip
+
+	if [ -n "$default_route" ]; then
+		wget -qO - 'http://intercity-vpn.de/scripts/getip/' || {
+			set -- $default_route
+			while shift; do {
+				case "$1" in
+					*'.'*)
+						ip="$1"
+						break
+					;;
+				esac
+			} done
+
+			# 192.168.0.1 dev wlan0  src 192.168.0.61 \    cache
+			set -- $( ip -oneline route get "$ip" )
+
+			while shift; do {
+				case "$1" in
+					'src')
+						echo "$2"
+						break
+					;;
+				esac
+			} done
+		}
+	else
+		:
+		# first ip of wifi or lan?
+	fi
 }
 
 applymystuff()
