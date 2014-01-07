@@ -120,9 +120,9 @@ _scheduler_allow_run()
 	local lockfile="$1"
 
 	[ -e "$lockfile" ] && {
-		if [ $( _file age "$lockfile" sec ) -gt 3600 ]; then
+		if [ $( _stopwatch stop "$lockfile.start" interim ) -gt 3600 ]; then
 			_log do $funcname daemon alert "removing lockfile, which seems to be left by accident"
-			rm "$lockfile"
+			rm "$lockfile" "$lockfile.start"
 		else
 			return 1
 		fi
@@ -146,6 +146,7 @@ _scheduler_run()
 			else
 				echo "$line" >>"$logfile"
 				_scheduler wait_till_cpuload_is_low "$line"
+				_stopwatch start "$logfile.start" global
 
 				_log do $funcname daemon debug "[START] '$line'"
 				case "$line" in
@@ -163,10 +164,13 @@ _scheduler_run()
 				case "$line" in
 					'_firmware check_forced_upgrade'|'_firmware burn')
 						_log do $funcname daemon info "[OK] premature exit after '$line'"
+						break
 					;;
 				esac
 			fi
-		} done <"$file" && rm "$file"
+		} done <"$file"
+
+		rm "$file"
 	} done
 
 	rm "$logfile"
