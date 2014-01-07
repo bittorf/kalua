@@ -336,7 +336,9 @@ _mail_send_mailfile()
 			if scp -i '/etc/dropbear/dropbear_dss_host_key' "$MAILFILE.readable" $auth; then
 				OUT='+220+250+250+250+354+250+221'
 			else
-				_log do $FUNC daemon info "scp '$MAILFILE' $auth - failed: rc: $?"
+				RC=$?
+				_log do $FUNC daemon info "scp '$MAILFILE' $auth - failed: rc: $RC"
+				echo "scp-error" >"$ERRORFILE"
 			fi
 
 			rm "$MAILFILE.readable"
@@ -387,13 +389,17 @@ _mail_send_mailfile()
 			_log do $FUNC user info "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - debug file '$MAILFILE'"
 
 			case "$ERROR" in
+				*'scp-error'*)
+					_mail stash_for_later_resend
+					return 0
+				;;
 				*"No route to host"*)
 					_log do $FUNC user alert "[ERR] during smtp to $SERVER $PORT, message: $ERROR, file: $MAILFILE, port blocked? try 587"
 					_mail stash_for_later_resend
 					return 0
 				;;
 				*)
-					echo >>$SCHEDULER "_$FUNC $MAILFILE"
+					echo >>$SCHEDULER "_mail send_mailfile '$MAILFILE'"
 				;;
 			esac
 
