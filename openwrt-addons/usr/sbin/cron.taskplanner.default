@@ -1,9 +1,20 @@
 #!/bin/sh
+
+# MINUTE = 00...59
+# HOUR   = 00...23
+eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%e;' )
+
+# fixme!
+# still needed for $CONFIG_PROFILE + $LOWMEM + _ntp set is_unset + _math random_integer
 [ -z "$LODEV" ] && . /tmp/loader
 
-[ -e '/tmp/.autorun' ] && _watch autorun	# direct call
+[ -e '/tmp/.autorun' ] && {
+	[ -z "$LODEV" ] && . /tmp/loader
+	_watch autorun		# direct call
+}
 
 [ -e "/tmp/START_SYSUPGRADE" ] && {
+	[ -z "$LODEV" ] && . /tmp/loader
 	_scheduler queue_list is_empty >/dev/null && {
 		echo >$SCHEDULER '_firmware check_forced_upgrade'
 	}
@@ -12,10 +23,6 @@
 [ -e "/www/START_SYSUPGRADE" ] && {
 	echo >$SCHEDULER '_firmware check_forced_upgrade'
 }
-
-# MINUTE = 00...59
-# HOUR   = 00...23
-eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%e;' )
 
 echo >>$SCHEDULER '_watch wifistuff'
 echo >>$SCHEDULER '_watch olsrstuff'
@@ -32,9 +39,11 @@ echo >>$SCHEDULER '_watch local_proxy'
 pidof uhttpd  >/dev/null || echo >>$SCHEDULER '_watch webserver'
 pidof dnsmasq >/dev/null || echo >>$SCHEDULER '_watch dns_resolution'
 
-_scheduler check_if_every_Nth_minute 360 && {		# e.g. daily restart is at 4:05
-	echo >>$SCHEDULER 'cron.upgrade_packages'	# so: 10:05, 16:05, 22:05
-	echo >>$SCHEDULER '_firmware update_pmu'
+# _scheduler_check_if_every_Nth_minute()
+# is uptime in seconds dividable (without rest) by 360? -> each 360 mins
+[ $(( ${UP%.*} % 360 )) -eq 0 ] && {
+	echo >>$SCHEDULER 'cron.upgrade_packages'	# e.g. daily restart is at 4:05
+	echo >>$SCHEDULER '_firmware update_pmu'	# so: 10:05, 16:05, 22:05
 }
 
 case "$CONFIG_PROFILE" in
@@ -58,6 +67,7 @@ case "$HOUR" in
 	04)
 		case "$MINUTE" in
 			05)
+				# dont make serious action, when time is not set yet
 				_ntp set is_unset || {
 					[ -e "/tmp/cron.webcam" ] && {
 						echo >>$SCHEDULER 'touch /tmp/webcam_force_safe'
