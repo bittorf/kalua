@@ -501,9 +501,7 @@ _watch_flash_free_space()
 		[ $( _system flash_free ) -ge $border ] && break
 
 		_watch counter "/tmp/$funcname" increment 1 max 100 || {
-			_log do $funcname daemon info "[ERR] rebooting, in an ultralow jffs2-situation, this is the only chance to survive"
-			reboot
-			break
+			_system crashreboot 'jffs2_full'
 		}
 
 		file="$( list_files_removeable | head -n1 )"
@@ -947,8 +945,7 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 			else
 				uci set system.@profile[0].nodenumber="$ID"
 				/etc/init.d/apply_profile.code boot
-				_log do $FUNC daemon info "rebooting now"
-				reboot
+				_system crashreboot 'applied_nodeid'
 			fi
 		else
 			_log do $FUNC daemon info "ID not clean: '$ID' - aborting"
@@ -1100,9 +1097,7 @@ _watch_topusage_task()
 		case "$task" in
 			*procd*)
 				[ $( pidof procd ) -eq 1 ] && {
-					_log do $funcname daemon alert "procd = init, rebooting hard"
-					sync
-					reboot -f
+					_system crashreboot 'procd_overload'
 				}
 			;;
 			*hostapd*)
@@ -1451,7 +1446,7 @@ _watch_olsrstuff()
 							_log do "check_$IP" daemon info "bad value: $6"
 						else
 							_log do "check_$IP" daemon alert "bad value: $6 - rebooting"
-							/sbin/reboot
+							_system crashreboot 'BLIBB'
 						fi
 					;;
 				esac

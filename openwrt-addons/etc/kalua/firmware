@@ -579,7 +579,7 @@ _firmware_burn()
 					fix="mtd fixtrx $partition"
 					_log do $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
 					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
-					fgrep -q "$fix" "$patchfile" || reboot -f
+					fgrep -q "$fix" "$patchfile" || _system crashreboot 'patching_failed'
 				}
 			}
 		;;
@@ -590,12 +590,12 @@ _firmware_burn()
 	local loop_end="\&\& break; v retry_upgrade; I=\$(( \$I + 1 )); test \$I -gt 100 \&\& break; done"
 	_log do $funcname daemon info "[OK] patching '$patchfile', adding loop to default_do_upgrade() till it does not fail"
 	sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
-	fgrep -q "v retry_upgrade;" "$patchfile" || reboot -f
+	fgrep -q "v retry_upgrade;" "$patchfile" || _system crashreboot 'patching_failed'
 
 	fgrep -q "ubusd" "$patchfile" || {
 		_log do $funcname daemon info "[OK] patching '$patchfile', adding some essential services"
 		sed -i 's/services$/&\n*sh*|*dbclient*|*preinit*|*procd*|*ubusd*);;/' "$patchfile"
-		fgrep -q "ubusd" "$patchfile" || reboot -f
+		fgrep -q "ubusd" "$patchfile" || _system crashreboot 'patching_failed'
 	}
 
 	mkdir /tmp/fwimage
@@ -655,7 +655,7 @@ _firmware_burn()
 	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
 	delifs="for I in $removeable_interfaces; do /bin/echo \"ifconfig \$I down\"; ifconfig \$I down; /bin/echo \"\$I is down\"; done"
 	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; /bin/echo ifconfig_START >/dev/console; ifconfig >/dev/console; /bin/echo ifconfig_END >/dev/console"
-	msg3="ifconfig | grep . && { ifconfig >>/www/everlasting_syslog.txt; /sbin/reboot; }; /bin/cat /proc/net/dev >/dev/console"
+	msg3="ifconfig | grep . && { ifconfig >>/www/everlasting_syslog.txt; /sbin/reboot -f; }; /bin/cat /proc/net/dev >/dev/console"
 
 	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3"
 
@@ -673,7 +673,7 @@ EOF
 
 	/usr/sbin/crond -L /dev/null
 
-	grep -q "f$" /etc/crontabs/root || reboot -f
+	grep -q "f$" /etc/crontabs/root || _system crashreboot 'patching_failed'
 	pidof crond >/dev/null || _system crashreboot 'cron_died'
 
 	/bin/netmsg $LANBRC "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
@@ -924,22 +924,21 @@ _firmware_check_forced_upgrade()
 		_log do prepare_firmware_update daemon info "we will modify /etc/init.d/boot now, reboot and flash/sysupgrade the image during early boot"
 
 		if grep -q "_firmware burn" "/etc/init.d/boot"; then
-			reboot
+			_system crashreboot 'sysupgrade_start'
 		else
 			if fgrep -q "kmodloader" "/etc/init.d/boot"; then
-				sed -i 's|/sbin/kmodloader$|if test -e /www/fw; then mv /www/fw /tmp; . /tmp/loader; _firmware; _firmware burn /tmp/fw; else /sbin/kmodloader; fi|' \
-				"/etc/init.d/boot" && reboot
+				sed -i 's|/sbin/kmodloader$|if test -e /www/fw; then mv /www/fw /tmp; . /tmp/loader; _firmware; _firmware burn /tmp/fw; else /sbin/kmodloader; fi|' "/etc/init.d/boot" && _system crashreboot 'sysupgrade_start'
 			else
 				if fgrep -q "# another round of" "/etc/init.d/boot"; then
 					sed  -i -e 's/^.*\.failsafe$/&\ntest -e \/www\/fw || {/' \
 						-e 's/^.*rm -f \/tmp\/wireless.tmp$/&\n}/' \
 						-e 's/# another round of/test -e \/www\/fw \&\& {\n. \/tmp\/loader\nuci set wireless.radio0.disabled=1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\n\n&/' \
-							"/etc/init.d/boot" && reboot
+							"/etc/init.d/boot" && _system crashreboot 'sysupgrade_start'
 				else
 					sed  -i -e 's/^.*\.failsafe$/&\ntest -e \/www\/fw || {/' \
 						-e 's/^.*rm -f \/tmp\/wireless.tmp$/&\n}/' \
 						-e 's/^.*\/dev\/root$/&\n}\ntest -e \/www\/fw \&\& {\n. \/tmp\/loader\nuci set wireless.radio0.disabled=1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\nbla()\n{\n:/' \
-							"/etc/init.d/boot" && reboot
+							"/etc/init.d/boot" && _system crashreboot 'sysupgrade_start'
 				fi
 			fi
 		fi
@@ -959,8 +958,7 @@ _firmware_check_forced_upgrade()
 		_firmware burn $FILE
 	else
 		[ -n "$LOWMEM" ] && {
-			_log do wget_firmware daemon alert "download failed on lowmem-device, rebooting"
-			reboot -f
+			_system crashreboot 'download_failed'
 		}
 	fi
 
