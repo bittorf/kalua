@@ -75,7 +75,6 @@ _watch_coredump()
 	local funcname="watch_coredump"
 	local ignore_pattern="${1:-we_will_not_ignore_anything}"	# e.g. 'hostapd'
 	local storage="/www/coredumps"
-	local logprio="alert"
 	local file dump revision
 
 	# http://stackoverflow.com/questions/5115613/core-dump-file-analysis
@@ -113,14 +112,20 @@ _watch_coredump()
 		;;
 	esac
 
-	revision="$( _system version short )"
-	# r37513.ar71xx.6relayd.1599.10.1374552373.core
-	file="r${revision}.$( _system architecture ).$( basename "$dump" )"
+	# coredump = 2mb and free = 1mb -> OK (is good compressable)
+	if [ $(( $( _file size "$dump" 'bytes' ) / 2 )) -gt $( _flash free_space 'bytes' ) ]; then
+		storage='/dev'
+		file='null (low storage)'
+	else
+		revision="$( _system version short )"
+		# r37513.ar71xx.6relayd.1599.10.1374552373.core
+		file="r${revision}.$( _system architecture ).$( basename "$dump" )"
 
-	mkdir -p "$storage"
-	mv "$dump" "$storage/$file"
+		mkdir -p "$storage"
+		mv "$dump" "$storage/$file"
+	fi
 
-	_log do $funcname daemon $logprio "wrote: $storage/$file"
+	_log do $funcname daemon alert "wrote: $storage/$file"
 }
 
 _watch_space_tmpfs()
