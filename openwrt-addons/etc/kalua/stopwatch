@@ -2,30 +2,31 @@
 
 _stopwatch_start()
 {
-	local job="${1:-unset}"
+	local context="${1:-unset}"
 	local keyword="$2"		# e.g. global
-	local option="$3"		# e.g. 'if_not_startet_yet'
 	local up rest file
 
 	case "$job" in
 		# this needs bash, why? -> ${job////} 
 		# e.g. /tmp/bla -> tmpbla (no problem with paths)
 		*'/'*)
-			job="$( echo "$job" | sed 's|/||g' )"
+			context="$( echo "$context" | sed 's|/||g' )"
 		;;
 	esac
 
-	if [ "$keyword" = 'global' ]; then
-		file="/tmp/STOPWATCH_${job}"
+	if [ -e "$context" ]; then
+		file="$context"		# e.g. /tmp/CRON_LOCK
 	else
-		file="/tmp/STOPWATCH_${job}_$$"
+		if [ "$keyword" = 'global' ]; then
+			file="/tmp/STOPWATCH_${context}"
+		else
+			file="/tmp/STOPWATCH_${context}_$$"
+		fi
 	fi
 
-	[ "$option" = 'if_not_startet_yet' -a -e "$file" ] && return 1
-
-	read up rest </proc/uptime
+	read up rest <'/proc/uptime'
 	# 61332.59 -> 6133259
-	echo "${up%.*}${up#*.}" >$file
+	echo "${up%.*}${up#*.}" >"$file"
 }
 
 _stopwatch_seconds2humanreadable()
@@ -77,13 +78,17 @@ _stopwatch_stop()		# OUT1: centyseconds = seconds/100
 		;;
 	esac
 
-	if   [ -e "/tmp/STOPWATCH_${context}" ]; then
-		file="/tmp/STOPWATCH_${context}"
-	elif [ -e "/tmp/STOPWATCH_${context}_$$" ]; then
-		file="/tmp/STOPWATCH_${context}_$$"
+	if [ -e "$context" ]; then
+		file="$context"
 	else
-		_log do $funcname daemon info "timefile '/tmp/STOPWATCH_${context}'* not found - abort"
-		return 1
+		if   [ -e "/tmp/STOPWATCH_${context}" ]; then
+			file="/tmp/STOPWATCH_${context}"
+		elif [ -e "/tmp/STOPWATCH_${context}_$$" ]; then
+			file="/tmp/STOPWATCH_${context}_$$"
+		else
+			_log do $funcname daemon info "timefile '/tmp/STOPWATCH_${context}'* not found - abort"
+			return 1
+		fi
 	fi
 
 	has()
