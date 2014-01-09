@@ -151,10 +151,10 @@ case "$LOAD" in
 				0.*)
 					[ -e "/tmp/CRON_UNDERLOAD" ] && rm "/tmp/CRON_UNDERLOAD"
 
-					[ -e '/tmp/CRON_LOCK' -a $( _file age '/tmp/CRON_LOCK' sec ) -gt 3600 -a ${UP%.*} -gt 3600 ] && {
+					[ -e '/tmp/CRON_LOCK' -a $( _stopwatch stop '/tmp/CRON_LOCK' interim,nolog,seconds ) -gt 3600 ] && {
 						echo "ALERT: $( date ) very old lockfile: '$( ls -le '/tmp/CRON_LOCK' )'"  >/dev/console
 						echo "ALERT: $( date ) very old lockfile: '$( ls -le '/tmp/CRON_LOCK' )'" >>/www/everlasting_syslog.txt
-						ps >>/www/everlasting_syslog.txt
+						ps >>'/www/everlasting_syslog.txt'
 						_watch coredump
 						_system crashreboot 'old_lockfile'
 					}
@@ -167,15 +167,13 @@ case "$LOAD" in
 				*" "*)								# REM
 				;;								# REM
 				*)								# REM
-#					trap "rm /tmp/CRON_LOCK; exit" INT TERM EXIT
-					>/tmp/CRON_LOCK
+					# mimics the stopwatch() API
+					echo "${UP%.*}${UP#*.}" >'/tmp/CRON_LOCK'
 
-					# olsr | wificheck
 					[ -z "$LODEV" ] && . /tmp/loader
 					_scheduler run
 
-					rm /tmp/CRON_LOCK
-#					trap - INT TERM EXIT
+					rm '/tmp/CRON_LOCK'
 				;;								# REM
 			esac									# REM
 		fi
