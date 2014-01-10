@@ -61,13 +61,15 @@ boot()
 	set_wifi()	# e.g.: set_wifi ap 5ghz ssid 'Appartementhaus'
 	{
 		local i radio
-		local wifimode="$1"	# e.g. 'ap'
-		local band="$2"		# e.g. '5ghz'
+		local wifimode="$1"	# e.g. 'ap' or 'any'
+		local band="$2"		# e.g. '5ghz' or 'any'
 		local var="$3"		# e.g. 'ssid'
 		local value="$4"	# e.g. 'myssid'
 
 		for i in $(seq 0 15); do {
-			[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" ] && {
+			[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' ] && {
+				if [ "$band" = 'any' ]; then
+					:
 				if [ "$band" = '2ghz' ]; then
 					is_2ghz "$i" || continue
 				else 	# wish: 5ghz
@@ -560,11 +562,10 @@ boot()
 	batman_needed && {
 		case "$CONFIG_PROFILE" in
 			apphalle*)
-				uci set wireless.radio0.htmode="HT20"
-				set_wifi ap 5ghz ssid 'Appartementhaus'
-				set_wifi ap 2ghz ssid 'Appartementhaus'
-				set_wifi adhoc 5ghz txpower '12'
-				set_wifi adhoc 2ghz txpower '8'
+				set_wifi ap any ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 )"
+				set_wifi any 5ghz txpower '12'
+				set_wifi any 2ghz txpower '8'
+				set_wifi any any 'HT20'
 				set_wifi adhoc 5ghz ssid 'x'
 				set_wifi adhoc 2ghz ssid ':'
 			;;
