@@ -54,17 +54,18 @@ device_forbidden()
 
 _http header_mimetype_output "text/plain"
 
-[ -e "/tmp/LOCK_OLSRSLAVE" ] && {
-	[ $( _file age "/tmp/LOCK_OLSRSLAVE" sec ) -gt 3600 ] || {
+if [ -e "/tmp/LOCK_OLSRSLAVE" ]; then
+	[ $( _stopwatch stop '/tmp/LOCK_OLSRSLAVE' interim,nolog,seconds ) -gt 3600 ] || {
 		_log do htmlout daemon info "sending LOCKED to $REMOTE_ADDR"
 		echo "LOCKED"
 		exit 0
 	}
-}
+else
+	touch "/tmp/LOCK_OLSRSLAVE"
+fi
 
 trap "rm /tmp/LOCK_OLSRSLAVE; exit" HUP INT QUIT TERM EXIT
-touch "/tmp/LOCK_OLSRSLAVE"
-
+_stopwatch start '/tmp/LOCK_OLSRSLAVE' global
 
   if device_forbidden "$REMOTE_ADDR"; then
 	ERROR="NEVER"
