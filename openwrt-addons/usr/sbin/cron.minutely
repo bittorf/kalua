@@ -154,9 +154,13 @@ case "$LOAD" in
 					# still exists?
 					[ -e '/tmp/CRON_LOCK' ] && {
 						[ $( _stopwatch stop '/tmp/CRON_LOCK' interim,nolog,seconds ) -gt 3600 ] && {
-							ps >>'/www/everlasting_syslog.txt'
-							_watch coredump
-							_system crashreboot 'old_lockfile'
+							if _watch coredump; then
+								_log do old_lockfile daemon alert "removing after coredump"
+								rm '/tmp/CRON_LOCK'
+							else
+								ps >>'/www/everlasting_syslog.txt'
+								_watch coredump || _system crashreboot 'old_lockfile'
+							fi
 						}
 					}
 				;;
