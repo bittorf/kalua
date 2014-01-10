@@ -60,7 +60,7 @@ boot()
 
 	set_wifi()	# e.g.: set_wifi ap 5ghz ssid 'Appartementhaus'
 	{
-		local i
+		local i radio
 		local wifimode="$1"	# e.g. 'ap'
 		local band="$2"		# e.g. '5ghz'
 		local var="$3"		# e.g. 'ssid'
@@ -74,7 +74,17 @@ boot()
 					is_2ghz "$i" && continue
 				fi
 
-				uci set wireless.@wifi-iface[$i].$var="$value"
+				case "$var" in
+					'txpower')
+						# http://opus4.kobv.de/opus4-tuberlin/files/3939/huehn_thomas.pdf
+						# get the corresponding radio till minstrel-blues/power control is not active
+						radio="$( uci get wireless.@wifi-iface[$i].device )"
+						uci set wireless.$radio.txpower="$value"
+					;;
+					*)
+						uci set wireless.@wifi-iface[$i].$var="$value"
+					;;
+				esac
 			}
 		} done
 	}
@@ -553,6 +563,8 @@ boot()
 				uci set wireless.radio0.htmode="HT20"
 				set_wifi ap 5ghz ssid 'Appartementhaus'
 				set_wifi ap 2ghz ssid 'Appartementhaus'
+				set_wifi adhoc 5ghz txpower '12'
+				set_wifi adhoc 2ghz txpower '8'
 				set_wifi adhoc 5ghz ssid 'x'
 				set_wifi adhoc 2ghz ssid ':'
 			;;
