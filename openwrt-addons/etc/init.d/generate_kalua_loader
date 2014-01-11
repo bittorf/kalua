@@ -13,6 +13,15 @@ boot()
 		[ -e '/www/CRASHLOG_WORKS' ] || touch '/www/CRASHLOG_WORKS'
 	}
 
+	reason_long()
+	{
+		local reason="$1"
+		local reason_long
+
+		reason_long="$( grep "reason=$reason " '/etc/kalua/system' | cut -d')' -f1 )"
+		echo "${reason_long:-unknown_reason}"
+	}
+
 	if [ -e '/www/CRASHLOG_WORKS' ]; then
 		export TZ="$( uci -q get system.@system[0].timezone )"
 
@@ -31,6 +40,7 @@ boot()
 			} done
 
 			date --set @$unixtime
+			reason="$( reason_long "$reason" )"
 			echo "$( date ) [OK] reboot reason: '$reason'" >>'/www/everlasting_syslog.txt'
 			echo "$reason" >'/tmp/REBOOT_REASON'
 		else
@@ -44,6 +54,7 @@ boot()
 		fi
 	else
 		reason="$( tail -n1 '/www/everlasting_syslog.txt' | grep 'system_crashreboot' | cut -d'=' -f2 )"
+		reason="$( reason_long "$reason" )"
 		echo "${reason:-nocrash}" >'/tmp/REBOOT_REASON'
 	fi
 
