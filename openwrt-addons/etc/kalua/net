@@ -5,25 +5,37 @@ _net_ip_reachable()
 	local funcname="net_ip_reachable"
 	local ip="$1"
 	local max_attempts="${2:-30}"
-	local dev="$( _net ip2dev "$ip" )"
+	local dev="${3:-$( _net ip2dev "$ip" )}"
+	local dev_list="$dev"
 
-	[ -z "$dev" ] && {
-		_log do $funcname daemon info "[ERR] empty devname"
-		return 0
-	}
+	case "$dev" in
+		'')
+			_log do $funcname daemon info "[ERR] empty devname"
+			return 0
+		;;
+		'wlan'*)
+			# ip2dev() net reliable for multiradio
+			# fixme! introduce $WIFI_DEVS_ADHOC?
+			for $dev in $dev $WIFI_DEVS; do {
+				iw dev "$dev" info | grep -q 'type IBSS'$ && dev_list="$dev_list $dev"
+			} done
+			dev_list="$( _list uniq "$dev_list" )"
+		;;
+	esac
 
 	_log do $funcname daemon debug "trying arping via dev $dev to ip $ip (max $max_attempts attempts)"
 	echo "$funcname" >"/tmp/CRON_OVERLOAD"
 
-	while [ $max_attempts -gt 0 ]; do {
-		if arping -c 1 -I "$dev" -q -f "$ip"; then
-			rm "/tmp/CRON_OVERLOAD"
-			return 0
-		else
-			_log do $funcname daemon info "ip: $ip dev: $dev remaining_try: $max_attempts"
-			max_attempts=$(( $max_attempts - 1 ))
-			sleep 1
-		fi
+	while ! let max_attempts=max_attempts-1 ; do {
+		for dev in $dev_list; do {
+			if arping -c 1 -I "$dev" -q -f "$ip"; then
+				rm "/tmp/CRON_OVERLOAD"
+				return 0
+			else
+				_log do $funcname daemon info "ip: $ip dev: $dev remaining_try: $max_attempts"
+				sleep 1
+			fi
+		} done
 	} done
 
 	rm "/tmp/CRON_OVERLOAD"
