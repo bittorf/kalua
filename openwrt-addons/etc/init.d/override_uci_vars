@@ -723,7 +723,7 @@ boot()
 				uci set network.@alias[-1].proto=batadv
 				uci set network.@alias[-1].mesh=bat0
 
-				case "$ifname_ask" in
+				case "${ifname_ask}$( test -e '/www/monitoring.wifimac' || echo 'no_mac_change' )" in
 					'lan'|'wan')
 						case "$ifname_ask" in
 							'lan')
@@ -741,6 +741,7 @@ boot()
 						index="$( get_wifi network "$ifname_ask" index )" && {
 							channel="$( get_wifi network "$ifname_ask" channel )"
 							mac="ca:$( integer2fourhex "$channel" ):00:$( integer2fourhex "$NODENUMBER" )"
+
 							uci set wireless.@wifi-iface[$index].macaddr="$mac"
 						}
 					;;
@@ -784,16 +785,18 @@ EOF
 				get_wifi network 'wlanadhoc'       check && batalias_add_if_needed 'wlanadhoc'
 				get_wifi network 'wlanadhocRADIO1' check && batalias_add_if_needed 'wlanadhocRADIO1'
 
-				# first AP
-				index="$( get_wifi network "wlan" index )" && {
-					mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
-					uci set wireless.@wifi-iface[$index].macaddr="$mac"
-				}
+				[ -e '/www/monitoring.wifimac' ] && {
+					# first AP
+					index="$( get_wifi network "wlan" index )" && {
+						mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
+						uci set wireless.@wifi-iface[$index].macaddr="$mac"
+					}
 
-				# second AP
-				index="$( get_wifi network "wlanRADIO1" index )" && {
-					mac="02:00:0b:00:$( integer2fourhex "$NODENUMBER" )"
-					uci set wireless.@wifi-iface[$index].macaddr="$mac"
+					# second AP
+					index="$( get_wifi network "wlanRADIO1" index )" && {
+						mac="02:00:0b:00:$( integer2fourhex "$NODENUMBER" )"
+						uci set wireless.@wifi-iface[$index].macaddr="$mac"
+					}
 				}
 			;;
 			*adhoc)

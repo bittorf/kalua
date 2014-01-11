@@ -111,14 +111,23 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci -q get system.@profile[0].nodenumber )"
 		[ "$( uci -q get wireless.radio0.disabled )" = '1' ] || exit 0
 	}
 
-	WIFIMAC="$( _sanitizer do "$( _net dev2mac ${WIFIDEV:-$LANDEV} )" hex )"
-	[ -z "$WIFIMAC" ] && {
-		WIFIMAC="$( _sanitizer do "$( uci -q get wireless.radio0.macaddr )" hex )"
+	if [ -e '/www/monitoring.wifimac' ]; then
+		read WIFIMAC <'/www/monitoring.wifimac'
+	else
+		WIFIMAC="$( _sanitizer do "$( _net dev2mac ${WIFIDEV:-$LANDEV} )" hex )"
 		[ -z "$WIFIMAC" ] && {
-			_log do $FUNC daemon alert "empty wifimac, rebuilding netparam"
-			/etc/init.d/S41build_static_netparam
-			exit 1
+			WIFIMAC="$( _sanitizer do "$( uci -q get wireless.radio0.macaddr )" hex )"
+			[ -z "$WIFIMAC" ] && {
+				_log do $FUNC daemon alert "empty wifimac, rebuilding netparam"
+				/etc/init.d/S41build_static_netparam
+				exit 1
+			}
 		}
+	fi
+
+	[ -e '/www/monitoring.wifimac' ] || {
+		echo "$WIFIMAC" >'/www/monitoring.wifimac'
+		_system crashreboot 'wifimac_safed'
 	}
 
 	UPDATE="$( _firmware updatemode )"									# testing
