@@ -701,7 +701,6 @@ boot()
 			local funcname='batalias_add_if_needed'
 			local ifname_ask="$1"
 			local ifname proto i j devname mac index channel avoid
-			local exists=
 
 			for i in $(seq 0 100); do {
 				proto="$( uci -q get network.@alias[${i}].proto )" || continue
@@ -710,52 +709,45 @@ boot()
 					'batadv')
 						ifname="$( uci -q get network.@alias[${i}].interface )"
 						[ "$ifname_ask" = "$ifname" ] && {
-							j=$(( $j + 1 ))
-							exists='true'
+							uci delete "network.@alias[$i]"
 						}
 					;;
 				esac
 			} done
 
-			if [ -z "$exists" ]; then
-				uci add network alias
-				uci set network.@alias[-1].interface="$ifname_ask"
-				uci set network.@alias[-1].proto=batadv
-				uci set network.@alias[-1].mesh=bat0
+			uci add network alias
+			uci set network.@alias[-1].interface="$ifname_ask"
+			uci set network.@alias[-1].proto=batadv
+			uci set network.@alias[-1].mesh=bat0
 
-				[ -e '/www/monitoring.wifimac' ] || avoid='true'
+			[ -e '/www/monitoring.wifimac' ] || avoid='true'
 
-				case "${avoid}${ifname_ask}" in
-					'lan'|'wan')
-						case "$ifname_ask" in
-							'lan')
-								mac="02:00:ca:b1:$( integer2fourhex "$NODENUMBER" )"
-							;;
-							'wan')
-								mac="02:00:de:ad:$( integer2fourhex "$NODENUMBER" )"
-							;;
-						esac
+			case "${avoid}${ifname_ask}" in
+				'lan'|'wan')
+					case "$ifname_ask" in
+						'lan')
+							mac="02:00:ca:b1:$( integer2fourhex "$NODENUMBER" )"
+						;;
+						'wan')
+							mac="02:00:de:ad:$( integer2fourhex "$NODENUMBER" )"
+						;;
+					esac
 
-						uci set network.$ifname_ask.macaddr="$mac"
-					;;
-					'wlan'*)
-						# e.g. wlan | wlanadhoc | wlanadhocRADIO1
-						index="$( get_wifi network "$ifname_ask" index )" && {
-							channel="$( get_wifi network "$ifname_ask" channel )"
-							mac="ca:$( integer2fourhex "$channel" ):00:$( integer2fourhex "$NODENUMBER" )"
+					uci set network.$ifname_ask.macaddr="$mac"
+				;;
+				'wlan'*)
+					# e.g. wlan | wlanadhoc | wlanadhocRADIO1
+					index="$( get_wifi network "$ifname_ask" index )" && {
+						channel="$( get_wifi network "$ifname_ask" channel )"
+						mac="ca:$( integer2fourhex "$channel" ):00:$( integer2fourhex "$NODENUMBER" )"
 
-							uci set wireless.@wifi-iface[$index].macaddr="$mac"
-						}
-					;;
-				esac
-			else
-				_log do $funcname daemon alert "ifname '$ifname_ask'-count: $j"
-			fi
+						uci set wireless.@wifi-iface[$index].macaddr="$mac"
+					}
+				;;
+			esac
 
-			cat >>"$startup" <<EOF
-DEVNAME=\$( ifstatus "$ifname_ask" | grep '"device":' | cut -d'"' -f4 )
-batctl interface | grep -q ^"\$DEVNAME: active" || batctl if add \$DEVNAME
-EOF
+			echo >>"$startup" "DEVNAME=\$( ifstatus \"$ifname_ask\" | grep '\"device\":' | cut -d'\"' -f4 )"
+			echo >>"$startup" "batctl interface | grep -q ^\"\$DEVNAME: active\" || batctl if add \$DEVNAME"
 		}
 
 		batalias_add_if_needed 'lan'
@@ -774,6 +766,7 @@ EOF
 
 		local index mac
 
+		# ifname = macaddress:
 		# lan    = 02:00:ca:b1:$nodenumber
 		# wan    = 02:00:de:ad:$nodenumber
 		# ap1    = 02:00:0a:00:$nodenumber
@@ -783,7 +776,7 @@ EOF
 
 		# fixme! iterate over all wifi-interfaces, e.g. 'add adhoc any/5ghz'
 		case "$CONFIG_PROFILE" in
-			*hybrid)
+			*'_hybrid')
 				get_wifi network 'wlanadhoc'       check && batalias_add_if_needed 'wlanadhoc'
 				get_wifi network 'wlanadhocRADIO1' check && batalias_add_if_needed 'wlanadhocRADIO1'
 
@@ -801,8 +794,15 @@ EOF
 					}
 				}
 			;;
-			*adhoc)
+			*'_adhoc')
 				get_wifi network 'wlan' check && batalias_add_if_needed 'wlan'
+			;;
+			*'_ap')
+				# first AP
+				index="$( get_wifi network "wlan" index )" && {
+					mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
+					uci set wireless.@wifi-iface[$index].macaddr="$mac"
+				}
 			;;
 		esac
 
