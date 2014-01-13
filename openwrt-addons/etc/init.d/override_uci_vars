@@ -297,6 +297,12 @@ boot()
 			uci set wireless.@wifi-iface[0].bssid="02:ca:ff:ee:00:11"
 		;;
 		rehungen*)
+			case "$NODENUMBER" in
+				113)
+					uci set system.@weblogin[0].blocked='true'
+				;;
+			esac
+
 			case "$HARDWARE" in
 				"TP-LINK TL-WR1043ND")
 					case "$CONFIG_PROFILE" in
@@ -310,6 +316,7 @@ boot()
 					esac
 				;;
 				*)
+					uci set system.@weblogin[0].blocked='true'
 					uci set dhcp.lan.ignore=1
 					uci set dhcp.wlan.ignore=1
 				;;
@@ -750,6 +757,7 @@ boot()
 			echo >>"$startup" "batctl interface | grep -q ^\"\$DEVNAME: active\" || batctl if add \$DEVNAME"
 		}
 
+		# the first added interface is our originator-address (mac)
 		batalias_add_if_needed 'lan'
 
 		uci -q get network.wan >/dev/null && {
@@ -767,6 +775,9 @@ boot()
 		local index mac
 
 		# ifname = macaddress:
+		# bat0   = 02:00:b0:0b:$nodenumber
+		# gw0    = 02:00:c0:ca:c0:1a
+		#
 		# lan    = 02:00:ca:b1:$nodenumber
 		# wan    = 02:00:de:ad:$nodenumber
 		# ap1    = 02:00:0a:00:$nodenumber
@@ -829,6 +840,7 @@ boot()
 		uci set network.mybridge="interface"
 		uci set network.mybridge.type="bridge"
 		uci set network.mybridge.ifname="bat0"
+		uci set network.mybridge.macaddr="02:00:b0:0b:$( integer2fourhex "$NODENUMBER" )"
 		uci set network.mybridge.proto="static"
 		uci set network.mybridge.ipaddr="192.168.$NODENUMBER.1"
 		uci set network.mybridge.netmask="255.255.0.0"

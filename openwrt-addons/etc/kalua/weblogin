@@ -522,32 +522,7 @@ _weblogin_htmlout_inet_broken ()
 
 _weblogin_device_or_customer_needs_admin_interaction()
 {
-	local funcname="weblogin_device_or_customer_needs_admin_interaction"
-	local hostname="$1"
-
-	case "$CONFIG_PROFILE" in
-		rehungen*)
-			case "$HARDWARE" in
-				"TP-LINK TL-WR1043ND")
-				;;
-				*)
-					[ -n "$MAC" ] && {
-						_log do $FUNC daemon alert "login on longshot not allowed: user: $USER pass: $PASS mac: $MAC"
-						return 1
-					}
-				;;
-			esac
-
-			case "$hostname" in
-				rehungen-adhoc*)	# unset/never touched
-					_log do $funcname daemon info "triggered: $REMOTE_ADDR"
-					return 0
-				;;
-			esac
-		;;
-	esac
-
-	return 1
+	uci -q get system.@weblogin[0].blocked >/dev/null
 }
 
 _weblogin_login_check()			# fixme! send HOSTNAME?
@@ -688,10 +663,6 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 						}
 					;;
 				esac
-
-				_weblogin device_or_customer_needs_admin_interaction "$CONFIG_PROFILE" "$HOSTNAME" && {
-					FREE=
-				}
 			;;
 			versilia*)
 				[ "$( uci get network.lan.ipaddr )" = "10.63.191.225" ] && {
@@ -780,7 +751,9 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 		esac
 	fi
 
-	if   [ "$FREE" = "1" ] ; then
+	if   _weblogin device_or_customer_needs_admin_interaction; then
+		_log do catch daemon sms "nexthop: $( ip route list exact '0.0.0.0/0' | head -n1 | cut -d' ' -f3 )"
+	elif [ "$FREE" = "1" ] ; then
 		:
 	elif [ -e /tmp/FREE ]; then
 		_log do $FUNC daemon info "[OK] auth: existing /tmp/FREE"
