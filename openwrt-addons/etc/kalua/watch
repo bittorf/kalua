@@ -520,9 +520,9 @@ _watch_flash_free_space()
 
 _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gateway
 {
-	local DNS_TESTSERVER="intercity-vpn.de"		# old was 'weimarnetz.de' -> take from fff_server_vpn_ip4 = 87.118.106.19 ?
-	local FUNC="watch_dns_resolution"
-	local ip line
+	local funcname='watch_dns_resolution'
+	local testserver="intercity-vpn.de"	# fixme! use a fallback list
+	local ip line pid script
 
 	# oldstyle: ln -s /var/etc/dnsmasq.conf /etc/dnsmasq.conf
 	# dnsmasq -p 5353 -A /#/192.168.1.251 -C /dev/null
@@ -535,38 +535,58 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		return 0
 	}
 
-	fgrep -q "nameserver 127.0.0.1" /etc/resolv.conf || {
-		read ip <"/etc/resolv.conf"
-		ip="$( _sanitizer do "$ip" ip4 )"
-		_sanitizer do "$ip" ip4 check && {
-			return 0			# real server configured, working without local daemon
-		}
+	pid_good()
+	{
+		if [ -n "$script" -a -e "$script" ]; then
+			case "$pid" in
+				*' '*)
+					# 2 tasks must run
+					return 0
+				;;
+			esac
+		else
+			[ -n "$pid" ] && return 0
+		fi
+
+		return 1
 	}
 
-	_net inet_seems_stable || return 0
+	pid="$( pidof dnsmasq )"
+	script="$( uci -q get dhcp.@dnsmasq[0].dhcpscript )"
 
-	pidof dnsmasq >/dev/null || {
-		_log do $FUNC daemon error "restarting dnsmasq"
+	pid_good "$pid" "$script" || {
+		if fgrep -q "nameserver 127.0.0.1" '/etc/resolv.conf'; then
+			_log do $funcname daemon error "restarting dnsmasq"
 
-		pidof udhcpd >/dev/null && {			# otherwise the server-port cannot bound to new daemon
-			_log do $FUNC daemon error "killing old DNS-server 'udhcpd'"	
-			killall udhcpd
-		}
+			pidof udhcpd >/dev/null && {			# otherwise the server-port cannot bound to new daemon
+				_log do $funcname daemon error "killing old DNS-server 'udhcpd'"
+				killall udhcpd
+			}
 
-		/etc/init.d/*dnsmasq start
-		/etc/init.d/*fake_dns_server_fff+ remove_fake_dnsserver
-		sleep 3
+			/etc/init.d/*dnsmasq restart
+			/etc/init.d/*fake_dns_server_fff+ remove_fake_dnsserver
+			sleep 3
 
-		_log do $FUNC daemon alert "dnsmasq died - restarted, PID now '$( pidof dnsmasq )'"
+			_log do $funcname daemon alert "dnsmasq died, old PIDs: '$pid', restarted, PID now '$( pidof dnsmasq )'"
+			return 0
+		else
+			read ip <"/etc/resolv.conf"
+			ip="$( _sanitizer do "$ip" ip4 )"
+			_sanitizer do "$ip" ip4 check && {
+				return 0			# real server configured, working without local daemon
+			}
+		fi
 	}
 
-	nslookup "$$.$DNS_TESTSERVER" 2>/dev/null >/dev/null || {		# can we resolv a random address?
-		_log do $FUNC daemon error "error in dns-resolution, sending SIGHUP to DNSmasq"
+	nslookup "$$.$testserver" 2>/dev/null >/dev/null || {		# can we resolv a random address?
+		_net inet_seems_stable || return 0
+
+		_log do $funcname daemon error "error in dns-resolution, sending SIGHUP to DNSmasq"
 		kill -SIGHUP $( _system get_first_pid dnsmasq )
 		sleep 5
 
-		nslookup "$$.$DNS_TESTSERVER" 2>/dev/null >/dev/null || {	# again: can we resolv a random address?
-			_log do $FUNC daemon alert "error in dns-resolution, restarting DNSmasq"
+		nslookup "$$.$testserver" 2>/dev/null >/dev/null || {	# again: can we resolv a random address?
+			_log do $funcname daemon alert "error in dns-resolution, restarting DNSmasq"
 			kill -SIGUSR1 $( _system get_first_pid dnsmasq )	# stats to syslog
 			/etc/init.d/*dnsmasq restart
 		}
