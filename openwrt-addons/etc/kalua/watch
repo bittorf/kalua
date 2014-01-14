@@ -483,16 +483,10 @@ _watch_hanging_command()
 _watch_flash_free_space()
 {
 	local funcname="watch_flash_free_space"
-	local border="150"
-	local statfile="/tmp/$funcname.boottime"
-	local file flash_free
+	local border="200"
+	local file size flash_free
 
-	[ -e "$statfile" ] || {
-		_system flash_free >"$statfile"		# is filled during early boot
-	}
-
-	read flash_free <"$statfile"
-	[ $flash_free -lt $border ] && border="$flash_free"
+	_watch counter "/tmp/$funcname" increment 1 max 100 || return 0
 
 	list_files_removeable()
 	{
@@ -503,18 +497,16 @@ _watch_flash_free_space()
 		}
 	}
 
-	echo "0" >"/tmp/$funcname"
 	while [ -n "$( list_files_removeable )" ]; do {
-
 		[ $( _system flash_free ) -ge $border ] && break
-
-		_watch counter "/tmp/$funcname" increment 1 max 100 || {
-			_system crashreboot 'jffs2_full'
-		}
+		_watch counter "/tmp/$funcname" increment 1 max 100 || break
 
 		file="$( list_files_removeable | head -n1 )"
-		_log do $funcname daemon info "only $( _system flash_free ) kb free - removing '$file' with $( _file size "$file" ) bytes"
+		size="$( _file size "$file" )"
+		flash_free="$( _system flash_free )"
 		rm "$file"
+
+		_log do $funcname daemon info "only $flash_free kb free - removing '$file' with $size bytes"
 	} done
 }
 
