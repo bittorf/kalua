@@ -5,12 +5,16 @@ if [ -e '/tmp/UBUSDEAD' ]; then
 	_system crashreboot 'ubus_hangs'
 else
 	touch '/tmp/UBUSDEAD'
+#	echo "[START] ubus call system info" >/dev/console
 	REST="$( ubus call system info )" || RC=$?
+#	echo "[READY] ubus call system info - RC: $RC" >/dev/console
 
 	case "$REST" in
 		*'uptime'*)
 			# https://dev.openwrt.org/ticket/14620
+#			echo "[START] ubus call network.interface.lan status" >/dev/console
 			REST="$( ubus call network.interface.lan status )" || RC=$?
+#			echo "[READY] ubus call network.interface.lan status - RC: $RC" >/dev/console
 
 			case "$REST" in
 				*'"address":'*)
@@ -25,11 +29,13 @@ else
 			esac
 
 			REST="$( pidof logd )"
-			ubus call log read >/dev/null
+#			echo "[START] ubus call log read" >/dev/console
+			ubus call log read >/dev/null || RC=$?
+#			echo "[READY] ubus call log read - RC: $RC" >/dev/console
 			[ "$REST" = "$( pidof logd )" ] || {
 				PID_LOGD="$REST"		# loader changes var
 				. /tmp/loader
-				_log do logd_checker daemon alert "logd-pid changed, was '$PID_LOGD'"
+				_log do logd_checker daemon alert "logd-pid changed, was '$PID_LOGD', RC: $RC"
 			}
 		;;
 		*)
