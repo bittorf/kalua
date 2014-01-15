@@ -1058,20 +1058,37 @@ _netfilter_splash_autoadd()
 	} done </proc/net/arp
 }
 
-_netfilter_splash_alien_batman()
+_netfilter_splash_batman_alien_unauth()
 {
+	local funcname='netfilter_splash_alien_batman'
+	local dev line mac
 	# bridge name bridge id STP enabled interfaces br-mybridge 7fff.4ed11242eff1 no bat0 wlan0-1 wlan1-1
 	local list_devs="$( brctl show )"
 	set -- $list_devs
 
-	case "$list_devs" in
+	case "$@" in
 		*' bat0 '*)
 			while shift; do {
-				test "$1" = 'bat0' && {
+				[ "$1" = 'bat0' ] && {
 					shift
 					list_devs="$@"
 					break
 				}
+			} done
+
+			for dev in $list_devs; do {
+				iw dev "$dev" station dump | while read line; do {
+					# Station ca:00:11:00:00:15 (on wlan0)
+					case "$line" in
+						'Station '*)
+							set -- $line
+							mac="$2"
+							[ -e "vds_user_$mac" ] || {
+								_log do $funcname daemon info "mac $mac needs splash"
+							}
+						;;
+					esac
+				} done
 			} done
 		;;
 	esac
