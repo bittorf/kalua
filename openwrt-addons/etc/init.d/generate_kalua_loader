@@ -7,6 +7,10 @@ boot()
 	local line unixtime reason
 	local crashlog='/sys/kernel/debug/crashlog'
 
+	export TZ="$( uci -q get system.@system[0].timezone )"
+	# https://lists.openwrt.org/pipermail/openwrt-devel/2014-January/023196.html
+	unixtime="$( date +%s -r '/www/everlasting_syslog.txt' )" && date -s @$(( $unixtime + 30 ))
+
 	grep -q 'debugfs'$ '/proc/filesystems' && mount -o noatime -t debugfs debugfs '/sys/kernel/debug'
 
 	[ -e "$crashlog" ] && {
@@ -58,6 +62,7 @@ boot()
 		reason="$( tail -n1 '/www/everlasting_syslog.txt' | grep 'system_crashreboot' | cut -d'=' -f2 )"
 		reason="$( reason_long "$reason" )"
 		echo "${reason:-nocrash}" >'/tmp/REBOOT_REASON'
+		echo "BOOTUP: reason: ${reason:-nocrash}" >>'/www/everlasting_syslog.txt'
 	fi
 
 	echo '# /www/everlasting_syslog.txt'   >/dev/console
