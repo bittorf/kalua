@@ -531,9 +531,43 @@ boot()
 		;;
 	esac
 
+	case "$CONFIG_PROFILE" in
+		liszt28*)
+			# not needed for >= r39139
+			[ -e '/lib/wifi/hostapd.sh' ] && {
+				grep -q "unlimited" "/lib/wifi/hostapd.sh" || {
+					sed -i 's/hostapd -P/ulimit -c unlimited; &/' '/lib/wifi/hostapd.sh'
+				}
+			}
+		;;
+	esac
+
+	batman_kmodules_are_deactivated()
+	{
+		grep -q ^"#" "/etc/modules.d/50-batman-adv"
+	}
+
+	batman_kmodules_force_activation()
+	{
+		sed -i 's/^[^a-z]*//' '/etc/modules.d/50-batman-adv'
+		sed -i 's/^[^a-z]*//' '/etc/modules.d/ebtables'
+		sed -i 's/^[^a-z]*//' '/etc/modules.d/macvlan'
+	}
+
+	batman_kmodules_force_inactivation()
+	{
+		sed -i 's/^/# &/' '/etc/modules.d/50-batman-adv'
+		sed -i 's/^/# &/' '/etc/modules.d/ebtables'
+		sed -i 's/^/# &/' '/etc/modules.d/macvlan'
+	}
+
 	batman_needed()
 	{
 		[ -e "/usr/sbin/batctl" ] || return 1
+
+		batman_kmodules_are_deactivated || {
+			grep -q ^'batman_adv ' '/proc/modules' || return 1
+		}
 
 		case "$CONFIG_PROFILE" in
 			liszt28*)
@@ -565,25 +599,6 @@ boot()
 		esac
 
 		return 1
-	}
-
-	batman_kmodules_are_deactivated()
-	{
-		grep -q ^"#" "/etc/modules.d/50-batman-adv"
-	}
-
-	batman_kmodules_force_activation()
-	{
-		sed -i 's/^[^a-z]*//' '/etc/modules.d/50-batman-adv'
-		sed -i 's/^[^a-z]*//' '/etc/modules.d/ebtables'
-		sed -i 's/^[^a-z]*//' '/etc/modules.d/macvlan'
-	}
-
-	batman_kmodules_force_inactivation()
-	{
-		sed -i 's/^/# &/' '/etc/modules.d/50-batman-adv'
-		sed -i 's/^/# &/' '/etc/modules.d/ebtables'
-		sed -i 's/^/# &/' '/etc/modules.d/macvlan'
 	}
 
 	if batman_needed; then
