@@ -1041,6 +1041,6 @@ openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 copy_additional_packages		|| die_and_exit
 build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
-build					|| die_and_exit
+build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'	|| die_and_exit
