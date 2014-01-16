@@ -73,7 +73,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		;;
 		*)	# tested for brcm47xx
 			config="$( ls -1 $dir/config-* | head -n1 )"
-			log "$mode: looking into '$config', adding $pattern"
+			log "$funcname: looking into '$config', adding $pattern"
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"

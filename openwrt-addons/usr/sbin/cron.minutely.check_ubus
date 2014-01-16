@@ -32,11 +32,22 @@ else
 #			echo "[START] ubus call log read" >/dev/console
 			ubus call log read >/dev/null || RC=$?
 #			echo "[READY] ubus call log read - RC: $RC" >/dev/console
-			[ "$REST" = "$( pidof logd )" ] || {
+			if [ "$REST" = "$( pidof logd )" ]; then
+				touch '/tmp/UBUSDEAD'
+#				echo "[START] logread" >/dev/console
+				REST="$( logread )" || RC=$?
+#				echo "[READY] logread - RC: $?" >/dev/console
+				[ -z "$REST" ] && {
+					UBUS_OUT="$REST"	# loader changes var
+					. /tmp/loader
+					_log do logread_checker daemon alert "out3: '$UBUS_OUT' rc: $RC duration: $( _file age '/tmp/UBUSDEAD' sec )s"
+					ubus list -v >>'/www/everlasting_syslog.txt'
+				}
+			else
 				PID_LOGD="$REST"		# loader changes var
 				. /tmp/loader
 				_log do logd_checker daemon alert "logd-pid changed, was '$PID_LOGD', RC: $RC"
-			}
+			fi
 		;;
 		*)
 			UBUS_OUT="$REST"	# loader changes var
