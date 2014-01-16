@@ -40,16 +40,17 @@ print_usage()
 {
 	cat <<EOF
 
-Usage: $0 --openwrt r38675|trunk|<empty> = leave untouched
-	  --hardware 'Ubiquiti Bullet M'|<empty> = list supported models
-	  --kernel
-	  --option
-	  --profile 'ffweimar.hybrid.120'
-	  --upload
-	  --release	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
-	  --debug
+Use: $0	--openwrt r38675|trunk|<empty> = leave untouched
+	--hardware 'Ubiquiti Bullet M'|<empty> = list supported models
+	--kernel
+	--option
+	--profile 'ffweimar.hybrid.120'
+	--upload
+	--release	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
+	--debug
+	--force
 
-e.g. : $0 --openwrt trunk --hardware 'Ubiquiti Bullet M' --option $KALUA_DIRNAME,Standard,VDS
+e.g. $0	--openwrt trunk --hardware 'Ubiquiti Bullet M' --option $KALUA_DIRNAME,Standard,VDS
 
 EOF
 }
@@ -256,7 +257,10 @@ check_working_directory()
 {
 	local funcname='check_working_directory'
 	local pattern='git-svn-id'
+	local error=1
 	local i=0
+
+	[ -n "$FORCE" ] && error=0
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
@@ -273,12 +277,12 @@ check_working_directory()
 			log "$funcname() please make sure, that you are in OpenWrt's git-root"
 		fi
 
-		return 1
+		return $error
 	}
 
 	ls -d "$KALUA_DIRNAME" >/dev/null || {
 		log "$funcname() please make sure, that directory '$KALUA_DIRNAME' exists"
-		return 1
+		return $error
 	}
 }
 
@@ -975,6 +979,9 @@ while [ -n "$1" ]; do {
 		'--help'|'-h')
 			print_usage
 			exit 0
+		;;
+		'--force'|'-f')
+			FORCE='true'
 		;;
 		'--openwrt')
 			VERSION_OPENWRT="$2"
