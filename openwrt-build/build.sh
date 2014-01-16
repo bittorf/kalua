@@ -1029,11 +1029,18 @@ while [ -n "$1" ]; do {
 	exit 1
 }
 
-check_working_directory			|| exit 1
-openwrt_download "$VERSION_OPENWRT"	|| exit 1
-target_hardware_set "$HARDWARE_MODEL"	|| exit 1
-copy_additional_packages		|| exit 1
-build_options_set "$LIST_USER_OPTIONS"	|| exit 1
-build					|| exit 1
-copy_firmware_files			|| exit 1
-openwrt_download 'switch_to_master'	|| exit 1
+die_and_exit()
+{
+	echo
+	echo '[ERROR] the brave can try --force'
+	exit 1
+}
+
+check_working_directory			|| die_and_exit
+openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
+target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
+copy_additional_packages		|| die_and_exit
+build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
+build					|| die_and_exit
+copy_firmware_files			|| die_and_exit
+openwrt_download 'switch_to_master'	|| die_and_exit
