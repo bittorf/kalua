@@ -117,7 +117,7 @@ _watch_coredump()
 	# coredump = 2mb and free = 1mb -> OK (is good compressable)
 	if [ $(( $( _file size "$dump" 'bytes' ) / 2 )) -gt $( _system flash_free 'bytes' ) ]; then
 		storage='/dev'
-		file='null (low storage)'
+		file="null (low storage: was: $dump)"
 	else
 		revision="$( _system version short )"
 		# r37513.ar71xx.6relayd.1599.10.1374552373.core
@@ -1103,7 +1103,7 @@ _watch_topusage_task()
 	case "$CONFIG_PROFILE" in
 		boltenhagendh*)
 			case "$toptask" in
-				*olsrd)
+				*'olsrd')
 					crit_percent_border=98		# fixme!
 				;;
 			esac
@@ -1111,7 +1111,7 @@ _watch_topusage_task()
 	esac
 
 	case "$toptask" in
-		*olsrd)
+		*'olsrd')
 			[ $( _olsr uptime ) -lt 240 ] && crit_percent_border=101
 		;;
 	esac
@@ -1121,20 +1121,25 @@ _watch_topusage_task()
 		_log do $funcname daemon alert "pid: $pid cpu: $cpu toptask: $toptask task: $task crit_percent_border: $crit_percent_border call_reason: $call_reason"
 
 		case "$task" in
-			*procd*)
+			*'procd'*)
 				[ $( pidof procd ) -eq 1 ] && {
 					_system crashreboot 'procd_overload'
 				}
 			;;
-			*hostapd*)
+			*'hostapd'*)
 				_log do $funcname daemon alert "task: $task stations: $( iw dev $WIFIDEV station dump | grep ^"Station" | wc -l )"
 			;;
 		esac
 
-		# e.g. 'cpu: 83% toptask: [ksoftirqd/0] task: 0] crit_percent_border: 70'
 		case "$toptask" in
 			'['*)
+				# e.g. 'cpu: 83% toptask: [ksoftirqd/0] task: 0] crit_percent_border: 70'
 				_log do $funcname daemon info "no further action for kernel-task '$toptask'"
+			;;
+			'{'*'}')
+				# e.g. 'cpu: 83% toptask: {cron.monitoring} task: {cron.monitoring}'
+				_watch hanging_command $pid
+				_watch hanging_command $pid
 			;;
 			*)
 				_watch hanging_command $task	# must be called 2 times
@@ -1143,8 +1148,8 @@ _watch_topusage_task()
 		esac
 
 		case "$task" in
-			*hostapd*)
-				grep -q "unlimited" "/lib/wifi/hostapd.sh" && {
+			*'hostapd'*)
+				grep -q 'unlimited' '/lib/wifi/hostapd.sh' && {
 					kill -SIGSEGV $pid	# gen coredump
 				}
 
