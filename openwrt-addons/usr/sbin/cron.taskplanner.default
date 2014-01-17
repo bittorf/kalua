@@ -8,33 +8,29 @@ eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%e;' )
 # still needed for $SCHEDULER + $CONFIG_PROFILE + $LOWMEM + _ntp set is_unset + _math random_integer
 [ -z "$LODEV" ] && . /tmp/loader
 
-[ -e '/tmp/.autorun' ] && {
-	[ -z "$LODEV" ] && . /tmp/loader
+if   [ -e '/tmp/.autorun' ]; then
 	_watch autorun		# direct call
-}
-
-[ -e "/tmp/START_SYSUPGRADE" ] && {
-	[ -z "$LODEV" ] && . /tmp/loader
+elif [ -e "/tmp/START_SYSUPGRADE" ]; then
 	_scheduler queue_list is_empty >/dev/null && {
 		echo >$SCHEDULER '_firmware check_forced_upgrade'
 	}
-}
-
-[ -e "/www/START_SYSUPGRADE" ] && {
+elif [ -e "/www/START_SYSUPGRADE" ]; then
 	echo >$SCHEDULER '_firmware check_forced_upgrade'
-}
+fi
 
-echo >>$SCHEDULER '_watch wifistuff'
-echo >>$SCHEDULER '_watch olsrstuff'
-echo >>$SCHEDULER '_watch monitoring'
-echo >>$SCHEDULER '_watch coredump'
-echo >>$SCHEDULER '_wifi watch_phy_problems'
-echo >>$SCHEDULER '_watch space_tmpfs'
-echo >>$SCHEDULER '. /usr/sbin/cron.check_switch'
-echo >>$SCHEDULER '_netfilter traffic_control_autoapply_speedsuggest'
-echo >>$SCHEDULER '_watch pppoe'
-echo >>$SCHEDULER '_watch local_proxy'
-echo >>$SCHEDULER '_netfilter splash_batman_alien_unauth'
+cat >>$SCHEDULER <<EOF
+_watch wifistuff
+_watch olsrstuff
+_watch monitoring
+_watch coredump
+_wifi watch_phy_problems
+_watch space_tmpfs
+. /usr/sbin/cron.check_switch
+_netfilter traffic_control_autoapply_speedsuggest
+_watch pppoe
+_watch local_proxy
+_netfilter splash_batman_alien_unauth
+EOF
 
 # full test is every 15min
 pidof uhttpd  >/dev/null || echo >>$SCHEDULER '_watch webserver'
@@ -150,20 +146,21 @@ case "$MINUTE" in
 			echo >>$SCHEDULER '/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+'
 		}
 
-		echo >>$SCHEDULER '/usr/sbin/cron.check_inet_gw_fff+'
-		echo >>$SCHEDULER '/etc/init.d/S69watch_olsrd_fff+'
-		echo >>$SCHEDULER 'cron.monitoring'
-#		echo >>$SCHEDULER '_tunnel clientside_control check_connection all'
-		echo >>$SCHEDULER '_watch webserver'
-		echo >>$SCHEDULER '_watch dns_resolution'
-		echo >>$SCHEDULER '_watch cgminer'
-		echo >>$SCHEDULER '_watch hanging_command usual_suspects'
-		echo >>$SCHEDULER '_watch flash_free_space'
-		echo >>$SCHEDULER '_watch system_time'
-		echo >>$SCHEDULER '_watch sshd_or_telnet'
-		echo >>$SCHEDULER '_watch random_node_id'
-		echo >>$SCHEDULER '_watch dhcp_space'
-		echo >>$SCHEDULER '_net refresh_dnshosts'
+		cat >>$SCHEDULER <<EOF
+/usr/sbin/cron.check_inet_gw_fff+
+/etc/init.d/S69watch_olsrd_fff+
+cron.monitoring
+_watch webserver
+_watch dns_resolution
+_watch cgminer
+_watch hanging_command usual_suspects
+_watch flash_free_space
+_watch system_time
+_watch sshd_or_telnet
+_watch random_node_id
+_watch dhcp_space
+_net refresh_dnshosts
+EOF
 
 		[ -z "$LOWMEM" ] && echo >>$SCHEDULER '/usr/sbin/cron.reverse_ssh_tunnel'
 	;;
