@@ -14,14 +14,22 @@ boot()
 		sed -i 's/^STOP=/# &/' '/etc/init.d/network'
 	}
 
-	[ -e '/etc/init.d/apply_profile' ] && {
+	if [ -e '/etc/init.d/apply_profile' ]; then
 		[ -s '/www/cgi-bin-welcome.sh'	] || ln -s '/www/cgi-bin-welcome'   '/www/cgi-bin-welcome.sh'
 		[ -s '/www/cgi-bin-sql.sh'	] || ln -s '/www/cgi-bin-sql'	    '/www/cgi-bin-sql.sh'
 		[ -s '/www/cgi-bin-tool.sh'	] || ln -s '/www/cgi-bin-tool_fff+' '/www/cgi-bin-tool.sh'
 
 		uci set uhttpd.main.interpreter=".sh=/bin/ash"
+
+		# b43
+		# 20-ipv6
+		# 42-ip6tables
+		# disabled ipt-
 		return 0
-	}
+	else
+		:
+		# enable ipt-
+	fi
 
 	case "$HARDWARE" in
 		'TP-LINK TL-WDR4900'*)
@@ -542,23 +550,38 @@ boot()
 		;;
 	esac
 
+	kmodule_is_deactivated()
+	{
+		grep -q ^"#" "/etc/modules.d/*$1"	# e.g. batman-adv -> 50-batman-adv
+	}						# e.g. ebtables -> ebtables
+
+	kmodule_force_activation()
+	{
+		sed -i 's/^[^a-z]*//' "/etc/modules.d/*$1"
+	}
+
+	kmodule_force_inactivation()
+	{
+		sed -i 's/^/# &/' "/etc/modules.d/*$1"
+	}
+
 	batman_kmodules_are_deactivated()
 	{
-		grep -q ^"#" "/etc/modules.d/50-batman-adv"
+		kmodule_is_deactivated 'batman-adv'
 	}
 
 	batman_kmodules_force_activation()
 	{
-		sed -i 's/^[^a-z]*//' '/etc/modules.d/50-batman-adv'
-		sed -i 's/^[^a-z]*//' '/etc/modules.d/ebtables'
-		sed -i 's/^[^a-z]*//' '/etc/modules.d/macvlan'
+		kmodule_force_activation 'batman-adv'
+		kmodule_force_activation 'ebtables'
+		kmodule_force_activation 'macvlan'
 	}
 
 	batman_kmodules_force_inactivation()
 	{
-		sed -i 's/^/# &/' '/etc/modules.d/50-batman-adv'
-		sed -i 's/^/# &/' '/etc/modules.d/ebtables'
-		sed -i 's/^/# &/' '/etc/modules.d/macvlan'
+		kmodule_force_inactivation 'batman-adv'
+		kmodule_force_inactivation 'ebtables'
+		kmodule_force_inactivation 'macvlan'
 	}
 
 	batman_needed()
