@@ -734,11 +734,11 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 #				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
 #				apply_symbol 'CONFIG_PACKAGE_tc=y'			# network: tc
-				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool:
+				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool: (very small)
 #				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
 #				apply_symbol 'CONFIG_PACKAGE_kmod-usb-printer=y'	# kernel-modules: other: kmod-usb-printer
 #				apply_symbol 'CONFIG_PACKAGE_rrdtool=y'			# utilities: rrdtool:
-				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
+#				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless: (but debugFS-export still active)
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 #
@@ -849,6 +849,7 @@ build_options_set()
 				apply_symbol 'CONFIG_IPV6 is not set'			# global build settings: IPv6 support in packages
 				apply_symbol 'CONFIG_PACKAGE_6relayd is not set'	# network: 6relayd
 				apply_symbol 'CONFIG_PACKAGE_odhcp6c is not set'	# network: odhcp6c
+				apply_symbol 'CONFIG_PACKAGE_odhcpd is not set'		# network: odhcpd
 				apply_symbol 'CONFIG_PACKAGE_kmod-ip6tables is not set'	# kernel-modules: netfilter-extensions: ip6tables
 				apply_symbol 'CONFIG_PACKAGE_kmod-ipv6 is not set'	# kernel-modules: network-support: kmod-ipv6
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IPV6 is not set'	# base/busybox/networking/ipv6-support
