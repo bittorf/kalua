@@ -3,6 +3,43 @@
 
 START=01
 
+kmodule_is_deactivated()
+{
+	grep -q ^"#" "/etc/modules.d/"*"$1"	# e.g. batman-adv -> 50-batman-adv
+}						# e.g. ebtables -> ebtables
+
+kmodule_force_activation()
+{
+	kmodule_is_deactivated "$1" && sed -i 's/^[^a-z]*//' "/etc/modules.d/"*"$1"
+}
+
+kmodule_force_deactivation()
+{
+	kmodule_is_deactivated "$1" || sed -i 's/^/# &/' "/etc/modules.d/"*"$1"
+}
+
+kmodules_group_deactivate()
+{
+	local group="$1"	# e.g. 'ipt-*'
+	local file
+
+	for file in /etc/modules.d/$group ; do {
+		file="$( basename "$file" )"
+		kmodule_is_deactivated "$file" || kmodule_force_deactivation "$file"
+	} done
+}
+
+kmodules_group_activate()
+{
+	local group="$1"	# e.g. 'ipt-*'
+	local file
+
+	for file in /etc/modules.d/$group ; do {
+		file="$( basename "$file" )"
+		kmodule_is_deactivated "$file" && kmodule_force_activation "$file"
+	} done
+}
+
 boot()
 {
 	for PROG in ulogd firewall sysntpd; do {
@@ -21,10 +58,11 @@ boot()
 
 		uci set uhttpd.main.interpreter=".sh=/bin/ash"
 
-		# b43
-		# 20-ipv6
-		# 42-ip6tables
-		# disabled ipt-
+		kmodules_group_deactivate  'ipt-*'
+		kmodule_force_deactivation 'b43'
+		kmodule_force_deactivation 'ipv6'
+		kmodule_force_deactivation 'ip6tables'
+
 		return 0
 	else
 		:
@@ -550,21 +588,6 @@ boot()
 		;;
 	esac
 
-	kmodule_is_deactivated()
-	{
-		grep -q ^"#" "/etc/modules.d/"*"$1"	# e.g. batman-adv -> 50-batman-adv
-	}						# e.g. ebtables -> ebtables
-
-	kmodule_force_activation()
-	{
-		sed -i 's/^[^a-z]*//' "/etc/modules.d/"*"$1"
-	}
-
-	kmodule_force_inactivation()
-	{
-		sed -i 's/^/# &/' "/etc/modules.d/"*"$1"
-	}
-
 	batman_kmodules_are_deactivated()
 	{
 		kmodule_is_deactivated 'batman-adv'
@@ -577,11 +600,11 @@ boot()
 		kmodule_force_activation 'macvlan'
 	}
 
-	batman_kmodules_force_inactivation()
+	batman_kmodules_force_deactivation()
 	{
-		kmodule_force_inactivation 'batman-adv'
-		kmodule_force_inactivation 'ebtables'
-		kmodule_force_inactivation 'macvlan'
+		kmodule_force_deactivation 'batman-adv'
+		kmodule_force_deactivation 'ebtables'
+		kmodule_force_deactivation 'macvlan'
 	}
 
 	batman_needed()
@@ -642,7 +665,7 @@ boot()
 
 		batman_kmodules_are_deactivated && batman_kmodules_force_activation
 	else
-		batman_kmodules_are_deactivated || batman_kmodules_force_inactivation
+		batman_kmodules_are_deactivated || batman_kmodules_force_deactivation
 	fi
 
 	batman_needed && {
