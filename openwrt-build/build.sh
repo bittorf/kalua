@@ -837,7 +837,7 @@ build_options_set()
 			;;
 			### here starts all 'no'-thingys: remove stuff which is on by OpenWrt-default
 			'noIPv6')
-				# seems not to work with brcm47xx, but with ar71xx?!
+				# seems not to work with brcm47xx, but with ar71xx?! -> see 'DEFAULT's
 				$funcname subcall 'noFW'
 
 				# CONFIG_PACKAGE_libip6tc=y
