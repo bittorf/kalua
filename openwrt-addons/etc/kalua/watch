@@ -1478,27 +1478,27 @@ _watch_olsrstuff()
 			esac
 		}
 
-		case "$NODENUMBER-$CONFIG_PROFILE" in
-			99-liszt28*)
-				IP='10.63.2.25'
+		local watch_olsr_ip
+		local watch_value
+		watch_olsr_ip="$( uci -q get olsrd.@meta[0].watch_ip )" && {		# e.g. 10.63.2.25
+			watch_value="$( uci -q get olsrd.@meta[0].watch_value )"	# e.g. "1.*|2.*"
 
-				set -- $( fgrep "$IP" "/tmp/OLSR/ALL" | head -n1 )
-				case "$6" in
-					# ETX-value
-					'0.100'|1.*|2.*|3.*)
-						echo "0" >"/tmp/check_$IP"
-					;;
-					*)
-						if _watch counter "/tmp/check_$IP" increment 1 max 20 ; then
-							_log do "check_$IP" daemon info "bad value: $6"
-						else
-							_log do "check_$IP" daemon alert "bad value: $6 - rebooting"
-							_system crashreboot 'bad_link'
-						fi
-					;;
-				esac
-			;;
-		esac
+			set -- $( fgrep "$watch_olsr_ip" "/tmp/OLSR/ALL" | head -n1 )
+			case "$6" in
+				# ETX-value
+				"$watch_value")
+						echo "0" >"/tmp/check_$watch_olsr_ip"
+				;;
+				*)
+					if _watch counter "/tmp/check_$watch_olsr_ip" increment 1 max 20 ; then
+						_log do "check_$watch_olsr_ip" daemon info  "bad value for $watch_olsr_ip: $6"
+					else
+						_log do "check_$watch_olsr_ip" daemon alert "bad value for $watch_olsr_ip: $6 - rebooting"
+						_system crashreboot 'bad_link'
+					fi
+				;;
+			esac
+		}
 	else
 		if [ -e "/tmp/service_olsrd_nowatching" ]; then
 			[ -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" ] && {
