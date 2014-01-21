@@ -974,6 +974,21 @@ parse_case_patterns()
 	} done <"$0"
 }
 
+check_git_settings()
+{
+	local funcname='check_git_settings'
+
+	git config --global user.email >/dev/null || {
+		log "$funcname() please set: git config --global user.email 'your@email.tld'"
+		return 1
+	}
+
+	git config --global user.name  >/dev/null || {
+		log "$funcname() please set: git config --global user.name 'Your Name'"
+		return 1
+	}
+}
+
 # kalua/openwrt-build/build.sh      -> kalua
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
@@ -1040,6 +1055,7 @@ die_and_exit()
 	exit 1
 }
 
+check_git_settings			|| die_and_exit
 check_working_directory			|| die_and_exit
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
@@ -1047,4 +1063,4 @@ copy_additional_packages		|| die_and_exit
 build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
 build					|| exit 1
 copy_firmware_files			|| die_and_exit
-openwrt_download 'switch_to_master'	|| die_and_exit
+openwrt_download 'switch_to_master'
