@@ -1480,24 +1480,33 @@ _watch_olsrstuff()
 
 		local watch_olsr_ip
 		local watch_value
+		local value bad
 		watch_olsr_ip="$( uci -q get olsrd.@meta[0].watch_ip )" && {		# e.g. 10.63.2.25
-			watch_value="$( uci -q get olsrd.@meta[0].watch_value )"	# e.g. "1.*|2.*"
+			watch_value="$( uci -q get olsrd.@meta[0].watch_value )"	# e.g. "2500" = max 2.500
 
 			set -- $( fgrep "$watch_olsr_ip" "/tmp/OLSR/ALL" | head -n1 )
-			case "$6" in
-				# ETX-value
-				$watch_value)
-						echo "0" >"/tmp/check_$watch_olsr_ip"
-				;;
-				*)
-					if _watch counter "/tmp/check_$watch_olsr_ip" increment 1 max 20 ; then
-						_log do "check_$watch_olsr_ip" daemon info  "bad value for $watch_olsr_ip: $6"
-					else
-						_log do "check_$watch_olsr_ip" daemon alert "bad value for $watch_olsr_ip: $6 - rebooting"
-						_system crashreboot 'bad_link'
-					fi
-				;;
-			esac
+			value="${6//./}"	# ETX-value, e.g 1.234 -> 1234
+
+			if   [ "$value" = '0100' ]; then
+				:
+			elif [ "$value" = 'INFINITE' ]; then
+				bad='true'
+			elif [ "$value" -le "$watch_value" ]; then
+				:
+			else
+				bad='true'
+			fi
+
+			if [ -n "$bad" ]; then
+				if _watch counter "/tmp/check_$watch_olsr_ip" increment 1 max 20 ; then
+					_log do "check_$watch_olsr_ip" daemon info  "bad value for $watch_olsr_ip: $value max: $watch_value"
+				else
+					_log do "check_$watch_olsr_ip" daemon alert "bad value for $watch_olsr_ip: $value - rebooting"
+					_system crashreboot 'bad_link'
+				fi
+			else
+				echo "0" >"/tmp/check_$watch_olsr_ip"
+			fi
 		}
 	else
 		if [ -e "/tmp/service_olsrd_nowatching" ]; then
