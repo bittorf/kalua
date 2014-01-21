@@ -1050,6 +1050,8 @@ while [ -n "$1" ]; do {
 
 die_and_exit()
 {
+	[ -n "$FORCE" ] && return 0
+
 	echo
 	echo '[ERROR] the brave can try --force'
 	exit 1
