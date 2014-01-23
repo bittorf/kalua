@@ -94,6 +94,7 @@ _watch_coredump()
 		case "$dump" in
 			*'/crond.'*)
 				_log do $funcname daemon alert "cron died, restarting"
+				_stopwatch start '/tmp/CRON_LASTCALL' global
 				/etc/init.d/S51crond_fff+ start
 			;;
 			*'/iptables.'*)
@@ -110,6 +111,11 @@ _watch_coredump()
 				pidof olsrd >/dev/null || _olsr daemon start 'has_crashed'
 			;;
 		esac
+
+		[ "$( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds )" -gt 300 ] && {
+			_log do $funcname daemon alert "cron hangs, restarting"
+			/etc/init.d/S51crond_fff+ start
+		}
 
 		case "$dump" in
 			*"${ignore_pattern}"*)
