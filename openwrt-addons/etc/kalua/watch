@@ -88,62 +88,53 @@ _watch_coredump()
 	# http://stackoverflow.com/questions/5115613/core-dump-file-analysis
 	# filename/format defined in /etc/init.d/network
 	# e.g. /tmp/olsrd.5403.11.1389960024.core
-	dump="$( ls -1t /tmp/*.core 2>/dev/null | tail -n1 )"	# oldest first
 
-	case "$dump" in
-		'')
-			return 1
-		;;
-		*'/crond.'*)
-			_log do $funcname daemon alert "cron died, restarting"
-			/etc/init.d/S51crond_fff+ start
-		;;
-		*'/iptables.'*)
-			_log do $funcname daemon alert "stopping netfilter"
-			_netfilter stop
-			_netfilter masquerade_start
-		;;
-		*'/sh.'*)
-			_log do $funcname daemon alert "segfault in script, removing lockfiles"
-			rm '/tmp/CRON_LOCK'
-			rm '/tmp/scheduler.log'
-		;;
-		*'/olsrd.'*)
-			pidof olsrd >/dev/null || _olsr daemon start 'has_crashed'
-		;;
-	esac
+	# oldest first
+	while dump="$( ls -1t /tmp/*.core 2>/dev/null | tail -n1 )"; do {
+		case "$dump" in
+			*'/crond.'*)
+				_log do $funcname daemon alert "cron died, restarting"
+				/etc/init.d/S51crond_fff+ start
+			;;
+			*'/iptables.'*)
+				_log do $funcname daemon alert "stopping netfilter"
+				_netfilter stop
+				_netfilter masquerade_start
+			;;
+			*'/sh.'*)
+				_log do $funcname daemon alert "segfault in script, removing lockfiles"
+				rm '/tmp/CRON_LOCK'
+				rm '/tmp/scheduler.log'
+			;;
+			*'/olsrd.'*)
+				pidof olsrd >/dev/null || _olsr daemon start 'has_crashed'
+			;;
+		esac
 
-	case "$dump" in
-		*"${ignore_pattern}"*)
-			_log do $funcname daemon info "found '$dump', but ignoring it"
-			rm "$dump"
+		case "$dump" in
+			*"${ignore_pattern}"*)
+				_log do $funcname daemon info "found '$dump', but ignoring it"
+				rm "$dump"
+			;;
+			*)
+				# coredump = 2mb and free = 1mb -> OK (is good compressable)
+				if [ $(( $( _file size "$dump" 'bytes' ) / 2 )) -gt $( _system flash_free 'bytes' ) ]; then
+					storage='/dev'
+					file="null (low storage: was: $dump)"
+					rm "$dump"
+				else
+					revision="$( _system version short )"
+					# r37513.ar71xx.6relayd.1599.10.1374552373.core
+					file="r${revision}.$( _system architecture ).$( basename "$dump" )"
 
-			if ls -1 /tmp/*.core >/dev/null 2>/dev/null; then
-				_watch coredump
-			else
-				return 0
-			fi
-		;;
-	esac
+					mkdir -p "$storage"
+					mv "$dump" "$storage/$file"
+				fi
 
-	# coredump = 2mb and free = 1mb -> OK (is good compressable)
-	if [ $(( $( _file size "$dump" 'bytes' ) / 2 )) -gt $( _system flash_free 'bytes' ) ]; then
-		storage='/dev'
-		file="null (low storage: was: $dump)"
-		rm "$dump"
-	else
-		revision="$( _system version short )"
-		# r37513.ar71xx.6relayd.1599.10.1374552373.core
-		file="r${revision}.$( _system architecture ).$( basename "$dump" )"
-
-		mkdir -p "$storage"
-		mv "$dump" "$storage/$file"
-	fi
-
-	_log do $funcname daemon alert "wrote: $storage/$file"
-
-	ls -1 /tmp/*.core >/dev/null 2>/dev/null && _watch coredump
-	return 0
+				_log do $funcname daemon alert "wrote: $storage/$file"
+			;;
+		esac
+	} done
 }
 
 _watch_space_tmpfs()
