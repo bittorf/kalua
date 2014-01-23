@@ -59,10 +59,13 @@ boot()
 		uci set uhttpd.main.interpreter=".sh=/bin/ash"
 
 		[ -n "$LOWMEM" ] && {
-			kmodules_group_deactivate  'ipt-*'
-			kmodule_force_deactivation 'b43'
-			kmodule_force_deactivation 'ipv6'
-			kmodule_force_deactivation 'ip6tables'
+			kmodules_group_deactivate '*'
+#			kmodules_group_deactivate  'ipt-*'
+#			kmodule_force_deactivation 'b43'
+#			kmodule_force_deactivation 'mac80211'
+#			kmodule_force_deactivation 'cfg80211'	# includes compat
+#			kmodule_force_deactivation 'ipv6'
+#			kmodule_force_deactivation 'ip6tables'
 
 			/etc/init.d/odhcpd disable
 		}
@@ -71,6 +74,34 @@ boot()
 	else
 		[ -n "$LOWMEM" ] && {
 			kmodule_force_activation 'b43'
+			kmodule_force_activation 'mac80211'
+			kmodule_force_activation 'cfg80211'	# includes compat
+			# allow 'switch', 'diag'
+
+			# for F in /etc/modules.d/*; do echo "# $F"; cat $F; done
+			[ -e '/www/SIMPLE_MESHNODE' ] || {
+				kmodule_force_activation 'ipt-core'
+						# has:  x_tables xt_tcpudp ip_tables iptable_filter iptable_mangle xt_limit 
+						#       xt_mac xt_multiport xt_comment ipt_LOG xt_TCPMSS ipt_REJECT
+						# need: x_tables xt_tcpudp ip_tables iptable_filter iptable_mangle   ---
+						#       xt_mac    ---          ---      ---    xt_TCPMSS ipt_REJECT
+
+				kmodule_force_activation 'ipt-conntrack'
+						# has:  nf_conntrack nf_defrag_ipv4 nf_conntrack_ipv4 xt_state
+						#       iptable_raw xt_NOTRACK xt_CT xt_conntrack
+						# need: nf_conntrack nf_defrag_ipv4 nf_conntrack_ipv4   ---
+						#           ---        ---      ---     ---
+
+				kmodule_force_activation 'ipt-nat'
+						# has:  nf_nat iptable_nat ipt_MASQUERADE
+						# need: nf_nat iptable_nat     ---
+
+				# spätestens hier braucht es eine funktion die spezifisches
+				# kernelmodul (egal in welcher datei) freischaltet
+				kmodule_force_activation 'ipt-ipopt'
+						# has:  xt_mark + sehr viele
+						# need: xt_mark
+			}
 		}
 	fi
 
