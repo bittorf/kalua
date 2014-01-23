@@ -1278,11 +1278,25 @@ _watch_switch_linkstatus()
 
 _watch_wifistuff()
 {
+	local funcname='watch_wifistuff'
+
 	[ -n "$WIFIDEV" ] && {
 		ip address show dev $WIFIDEV | fgrep -q "inet " || {
 			_wifi phy_restart $WIFIDEV "no ip on dev" || touch /tmp/WIFI_PHY_ERROR
 			# avoid fail of next checks
 			WIFIDEV=
+		}
+
+		local file='/tmp/WIFI_SPECIALS.sh'
+		fgrep -sq 'brctl addif ' "$file" && {
+			case "$( brctl show )" in
+				*'wlan'*)
+				;;
+				*)
+					_log do $funcname daemon alert "lost batman-bridge, calling '$file'"
+					. "$file"
+				;;
+			esac
 		}
 	}
 
