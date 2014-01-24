@@ -23,33 +23,17 @@ LINE=
 		}
 	fi
 
-	reboot_dirty()
-	{
-		_log do kernellog daemon alert "$PATTERN"
-#		( _log do kernellog daemon alert "$PATTERN" ) &
-#		sleep 10
-#		echo "c" >/proc/sysrq-trigger
-#		sleep 20
-#		/sbin/reboot -f		# if sysrq not allowed
-	}
-
-	reboot_now()
-	{
-		:
-		# /sbin/reboot
-	}
-
 	PATTERN="Unhandled kernel unaligned access"
-	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && reboot_dirty
+	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'kernel_unaligned_access'
 
 	PATTERN="page allocation failure: "
-	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && reboot_dirty
+	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'page_alloc_fail'
 
 	PATTERN="BUG: Bad page state in process"
-	fgrep -q " $PATTERN " "/tmp/dmesg.recent" && reboot_dirty
+	fgrep -q " $PATTERN " "/tmp/dmesg.recent" && _system crashreboot 'BUG_bad_page'
 
 	PATTERN="Fixing recursive fault but reboot is needed"
-	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && reboot_dirty
+	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'recursive_fault'
 
 	# NETDEV WATCHDOG: eth0 (fsl-gianfar): transmit queue 0 timed out
 	PATTERN="NETDEV WATCHDOG:"
@@ -113,7 +97,7 @@ LINE=
 		cat "/tmp/dmesg.recent" >>"/www/everlasting_syslog.txt"
 
 		[ $( _system version short ) -lt 33160 ] && {
-			reboot_now
+			:
 		}
 	}
 
