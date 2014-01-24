@@ -591,13 +591,27 @@ _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless c
 
 		case "$proto" in
 			batman)
+				local i=3
+				local authserver="$( _weblogin authserver )"
+
 				# special agreement: every node is a server (answers DHCP-requests)
 				# and announces 512kbit, the real gateway announces 16mbit
 
-				if batctl gateways | grep -q "MBit"; then
-					return 0
+				if batctl gateways | grep -q 'MBit'; then
+					case "$CONFIG_PROFILE" in
+						'apphalle'*)
+							while let i=i-1; do {
+								ping -q -c1 "$authserver" && return 0
+							} done
+
+							return 1
+						;;
+						*)
+							return 0
+						;;
+					esac
 				else
-					test "$( uci get batman-adv.bat0.gw_bandwidth )" = "16384kbit/16384kbit"
+					test "$( uci get batman-adv.bat0.gw_bandwidth )" = '16384kbit/16384kbit'
 				fi
 			;;
 			olsr)
