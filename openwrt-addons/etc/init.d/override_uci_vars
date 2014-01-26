@@ -834,11 +834,24 @@ boot()
 			fi
 		}
 
+		set_mac()
+		{
+			local uci_path="$1"
+			local mac="$2"
+			local file='/www/monitoring.wifimac'
+
+			if [ -e "$file" ]; then
+				uci set "$uci_path"="$mac"
+			else
+				uci delete "$uci_path"
+			fi
+		}
+
 		batalias_add_if_needed()
 		{
 			local funcname='batalias_add_if_needed'
 			local ifname_ask="$1"
-			local ifname proto i j devname mac index channel avoid
+			local ifname proto i j devname mac index channel
 
 			for i in $(seq 0 100); do {
 				proto="$( uci -q get network.@alias[${i}].proto )" || continue
@@ -858,9 +871,7 @@ boot()
 			uci set network.@alias[-1].proto=batadv
 			uci set network.@alias[-1].mesh=bat0
 
-			[ -e '/www/monitoring.wifimac' ] || avoid='true'
-
-			case "${avoid}${ifname_ask}" in
+			case "$ifname_ask" in
 				'lan'|'wan')
 					case "$ifname_ask" in
 						'lan')
@@ -871,7 +882,7 @@ boot()
 						;;
 					esac
 
-					uci set network.$ifname_ask.macaddr="$mac"
+					set_mac "network.$ifname_ask.macaddr" "$mac"
 				;;
 				'wlan'*)
 					# e.g. wlan | wlanadhoc | wlanadhocRADIO1
@@ -879,7 +890,7 @@ boot()
 						channel="$( get_wifi network "$ifname_ask" channel )"
 						mac="ca:$( integer2fourhex "$channel" ):00:$( integer2fourhex "$NODENUMBER" )"
 
-						uci set wireless.@wifi-iface[$index].macaddr="$mac"
+						set_mac "wireless.@wifi-iface[$index].macaddr" "$mac"
 					}
 				;;
 			esac
@@ -921,30 +932,26 @@ boot()
 				get_wifi network 'wlanadhoc'       check && batalias_add_if_needed 'wlanadhoc'
 				get_wifi network 'wlanadhocRADIO1' check && batalias_add_if_needed 'wlanadhocRADIO1'
 
-				[ -e '/www/monitoring.wifimac' ] && {
-					# first AP
-					index="$( get_wifi network "wlan" index )" && {
-						mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
-						uci set wireless.@wifi-iface[$index].macaddr="$mac"
-					}
+				# first AP
+				index="$( get_wifi network "wlan" index )" && {
+					mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
+					set_mac "wireless.@wifi-iface[$index].macaddr" "$mac"
+				}
 
-					# second AP
-					index="$( get_wifi network "wlanRADIO1" index )" && {
-						mac="02:00:0b:00:$( integer2fourhex "$NODENUMBER" )"
-						uci set wireless.@wifi-iface[$index].macaddr="$mac"
-					}
+				# second AP
+				index="$( get_wifi network "wlanRADIO1" index )" && {
+					mac="02:00:0b:00:$( integer2fourhex "$NODENUMBER" )"
+					set_mac "wireless.@wifi-iface[$index].macaddr" "$mac"
 				}
 			;;
 			*'_adhoc')
 				get_wifi network 'wlan' check && batalias_add_if_needed 'wlan'
 			;;
 			*'_ap')
-				[ -e '/www/monitoring.wifimac' ] && {
-					# first AP
-					index="$( get_wifi network "wlan" index )" && {
-						mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
-						uci set wireless.@wifi-iface[$index].macaddr="$mac"
-					}
+				# first AP
+				index="$( get_wifi network "wlan" index )" && {
+					mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
+					set_mac "wireless.@wifi-iface[$index].macaddr" "$mac"
 				}
 			;;
 		esac
