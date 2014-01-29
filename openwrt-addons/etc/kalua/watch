@@ -1554,3 +1554,182 @@ _watch_olsrstuff()
 		fi
 	fi
 }
+
+_watch_lowmem_freemem()
+{
+		# ubus call network.interface.lan status
+
+		if [ -e "/www/GOOD_MODULE_UNLOAD" ]; then
+			_net local_inet_offer >/dev/null || {
+				[ -e "/www/SIMPLE_MESHNODE" ] && {
+					/etc/init.d/netfilter stop
+				}
+			}
+
+			if [ -e "/tmp/KMODULE.action" ]; then	# generated from /lib/functions.sh during boot
+				. /tmp/KMODULE.action
+				/usr/sbin/cron.patch_load_kmodules.sh	# check for new version
+			else
+				while read LINE; do {
+					rmmod "$LINE" || echo "$LINE = $?" >>"/tmp/GOOD_MODULE_UNLOAD.log"
+				} done <"/www/GOOD_MODULE_UNLOAD"
+
+				case "$HARDWARE" in
+					"Buffalo WHR-HP-G54"|"Linksys WRT54G"*|"SPW500V"|"Ubiquiti Nanostation2"|"Ubiquiti Nanostation5")
+						[ -e "/etc/init.d/apply_profile" ] || {
+							/usr/sbin/cron.patch_load_kmodules.sh && {
+								[ $( _system version short ) -gt 37500 ] && {
+									touch "/tmp/KMODULES_blacklist"		# special for load_modules()
+									[ -e '/lib/functions.sh' ] && . /lib/functions.sh
+
+									type 'load_modules' | grep -q 'shell function'$ && {
+										load_modules /etc/modules.d/*
+									}
+								}
+
+								type 'load_modules' | grep -q 'shell function'$ && {
+									_system crashreboot 'kmodules_tidyup'
+								}
+							}
+						}
+					;;
+				esac
+			fi
+		else
+			# ath5k mac80211 ath cfg80211 compat arc4 crypto_algapi
+
+			L1="pppox pppoe slhc ppp_generic"
+			L2="ppp_async switch_adm switch_robo switch_core diag"
+			L3="ts_fsm ts_bm ts_kmp"
+			L4="crc_ccitt aes_generic"
+			L5="compat_xtables compat b43legacy bcma_hcd ssb_hcd ohci_hcd nls_base usbcore usb_common"
+			L6="xt_multiport xt_comment xt_CLASSIFY xt_time xt_tcpmss xt_statistic"
+			L7="xt_DSCP xt_dscp xt_string xt_layer7 xt_quota xt_pkttype xt_owner xt_ecn"
+			L8="xt_recent xt_helper xt_conntrack xt_CT xt_NOTRACK xt_HL xt_hl xt_ipp2p"
+			L9="ipt_ecn ipt_ECN ipt_NETMAP iptable_raw"
+			L0="nf_nat_proto_gre nf_nat_tftp nf_nat_sip nf_nat_pptp nf_nat_h323 nf_nat_amanda nf_nat_irc nf_nat_ftp"
+			LA="nf_conntrack_tftp nf_conntrack_sip nf_conntrack_pptp nf_conntrack_h323 nf_conntrack_proto_gre nf_conntrack_amanda nf_conntrack_irc nf_conntrack_ftp xt_length xt_connmark xt_connbytes xt_limit ipt_LOG"
+
+			LB="ipt_ULOG xt_mark xt_length ipt_REDIRECT iptable_nat nf_nat xt_connmark xt_connbytes xt_state nf_conntrack_ipv4 nf_defrag_ipv4 nf_conntrack ipt_REJECT xt_TCPMSS ipt_LOG xt_mac xt_limit iptable_mangle iptable_filter ip_tables xt_tcpudp x_tables"
+			[ -e "/www/SIMPLE_MESHNODE" ] || LB=
+
+			[ "$( uci get network.wan.proto )" = "pppoe" ] && L1=
+			LIST="$L1 $L2 $L3 $L4 $L5 $L6 $L7 $L8 $L9 $L0 $LA $LB"
+
+			_net local_inet_offer >/dev/null || {
+				[ -e "/www/SIMPLE_MESHNODE" ] && {
+					/etc/init.d/netfilter stop
+				}
+				LIST="$LIST ipt_MASQUERADE"
+			}
+
+			unload()
+			{
+				local list="$1"
+				local kmod
+
+				for kmod in $list; do {
+
+					_log do kmodule_unloader daemon info "rmmod '$kmod'" 
+					rmmod $kmod
+
+					if grep -q ^"$kmod " "/proc/modules"; then
+						echo "$kmod"
+					else
+						echo "$kmod" >>"/www/GOOD_MODULE_UNLOAD"
+					fi
+				} done
+			}
+
+			I=0
+			while [ -n "$LIST" ]; do {
+				I=$(( $I + 1 ))
+				[ $I -eq 100 ] && break
+				LIST="$( unload "$LIST" )"
+				LIST="$( _list shuffle "$LIST" )"
+			} done
+		fi
+
+		killall klogd
+		killall hotplug2
+		killall syslogd
+
+		[ -e /www/SIMPLE_MESHNODE ] && {
+			touch /tmp/service_ulog_nowatching
+			killall ulogd
+
+			list_ip_from_dhcp_leases()
+			{
+				cut -d' ' -f3 /tmp/dhcp.leases
+			}
+
+			list_ip_from_arp_cache()
+			{
+				ip neigh show | cut -d' ' -f1
+			}
+
+			can_see_lan_clients()
+			{
+				local ip
+
+				for ip in $( list_ip_from_dhcp_leases ) $( list_ip_from_arp_cache ); do {
+					fgrep -q "$ip;" "/tmp/CLIENTS_LAN" && return 0
+				} done
+
+				test -e "/www/SIMPLE_MESHNODE_FORCE_DHCP_LAN"
+			}
+
+			uci set dhcp.wlan.ignore=1
+			uci delete dhcp.@dnsmasq[0].dhcpscript
+
+			if can_see_lan_clients; then
+				/etc/init.d/dnsmasq restart
+			else
+				uci set dhcp.lan.ignore=1
+				/etc/init.d/dnsmasq stop
+				echo "nameserver $( uci get dhcp.@dnsmasq[0].server )" >"/etc/resolv.conf"
+			fi
+		}
+
+		[ -e "/bin/dmesg" ] && {
+			dmesg -c >>"/tmp/dmesg.boot"
+		}
+
+		ROOTETHERNET="$( echo $LANDEV | cut -d'.' -f1 )"	# eth0.1 -> eth0
+		ip link set dev $ROOTETHERNET txqueuelen 32
+
+		touch "/tmp/service_ssh_nowatching"
+		killall dropbear
+
+#		pidof olsrd || /etc/init.d/olsrd start
+#
+#		while [ -z "$( ip route list exact 0.0.0.0/0 )" ]; do {
+#			pidof olsrd || break
+#			_log sleep waiting_for_default_route 10 step 10
+#		} done
+#
+#		pidof olsrd || sleep 300
+#
+#		killall netifd
+		[ "$( pidof procd )" = "1" ] || {
+			if [ -e /etc/rc.d/*watchdog ]; then
+				/etc/init.d/watchdog stop
+				/etc/init.d/watchdog disable
+				_system crashreboot 'watchdog_disable'
+			else
+				# older revisions start the watchdog not via init-file
+				pidof watchdog >/dev/null && {
+					rm $( which watchdog )
+					_system crashreboot 'watchdog_disable'
+				}
+			fi
+
+			killall procd
+
+			if pidof hostapd >/dev/null; then
+				grep -q "ubus_connect" /usr/sbin/hostapd || killall ubusd
+			else
+				killall ubusd
+			fi
+		}
+}
