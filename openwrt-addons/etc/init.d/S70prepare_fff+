@@ -3,50 +3,52 @@
 
 [ -n "$FAILSAFE" ] && exit
 
-		[ -e "/tmp/WIFI_SPECIALS.sh" ] && . "/tmp/WIFI_SPECIALS.sh"
+[ -e "/tmp/WIFI_SPECIALS.sh" ] && . "/tmp/WIFI_SPECIALS.sh"
 
-		echo >>$SCHEDULER '_watch nanostation_max_ethernet'
-		echo >>$SCHEDULER '_firmware update_pmu'
-		echo >>$SCHEDULER '_mail stash_resend'
-		echo >>$SCHEDULER '/usr/sbin/cron.check_inet_gw_fff+'
-		echo >>$SCHEDULER '/etc/init.d/S41build_static_netparam'
+cat >>$SCHEDULER <<EOF
+_watch nanostation_max_ethernet
+_firmware update_pmu
+/usr/sbin/cron.check_inet_gw_fff+
+/etc/init.d/S41build_static_netparam
+_mail stash_resend
+EOF
 
-		[ -e "/etc/init.d/deactivated_cron_daemon" ] && {
-			mv /etc/init.d/deactivated_cron_daemon /etc/init.d/S51crond_fff+
-			/etc/init.d/S51crond_fff+ start
+[ -e "/etc/init.d/deactivated_cron_daemon" ] && {
+	mv /etc/init.d/deactivated_cron_daemon /etc/init.d/S51crond_fff+
+	/etc/init.d/S51crond_fff+ start
+}
+
+case "$CONFIG_PROFILE" in
+	liszt28*)
+		echo >>$SCHEDULER '_watch usbstick_rehungen'
+	;;
+	aschbach*)
+		[ "$LANADR" = "10.10.2.33" ] && {
+			ip address add 192.168.134.254/24 dev $LANDEV label $LANDEV:kasseGW		# kassen gateway
 		}
+	;;
+esac
 
-		case "$CONFIG_PROFILE" in
-			liszt28*)
-				echo >>$SCHEDULER '_watch usbstick_rehungen'
-			;;
-			aschbach*)
-				[ "$LANADR" = "10.10.2.33" ] && {
-					ip address add 192.168.134.254/24 dev $LANDEV label $LANDEV:kasseGW		# kassen gateway
-				}
-			;;
-		esac
-
-#		found_specific_hna_offer()
-#		{
-#			uci show olsrd | grep -q "olsrd.@Hna4\[.\].netaddr=$1"
+#	found_specific_hna_offer()
+#	{
+#		uci show olsrd | grep -q "olsrd.@Hna4\[.\].netaddr=$1"
+#	}
+#
+#	attach_lan_ip()		# fixme! build an uci-representation
+#	{
+#		local ip="$1"
+#		local label="$2"
+#
+#		ip address show dev $LANDEV | fgrep -q " $ip/32 " || {
+#			_log do attach_lan_ip daemon info "adding $ip to $LANDEV:$label"
+#			ip address add $ip dev $LANDEV label "$( _sanitizer do "$LANDEV:$label" length:15 )"
 #		}
+#	}
 #
-#		attach_lan_ip()		# fixme! build an uci-representation
-#		{
-#			local ip="$1"
-#			local label="$2"
-#
-#			ip address show dev $LANDEV | fgrep -q " $ip/32 " || {
-#				_log do attach_lan_ip daemon info "adding $ip to $LANDEV:$label"
-#				ip address add $ip dev $LANDEV label "$( _sanitizer do "$LANDEV:$label" length:15 )"
-#			}
-#		}
-#
-#		found_specific_hna_offer 6.6.6.5 && attach_lan_ip 6.6.6.5 monitor	# internal monitor aggregator
-#		found_specific_hna_offer 6.6.6.6 && attach_lan_ip 6.6.6.6 dns
-#		found_specific_hna_offer 6.6.6.7 && attach_lan_ip 6.6.6.7 userdb
-#		found_specific_hna_offer 6.6.6.8 && attach_lan_ip 6.6.6.8 tunnelsrv	# only use for ask is_possible?
+#	found_specific_hna_offer 6.6.6.5 && attach_lan_ip 6.6.6.5 monitor	# internal monitor aggregator
+#	found_specific_hna_offer 6.6.6.6 && attach_lan_ip 6.6.6.6 dns
+#	found_specific_hna_offer 6.6.6.7 && attach_lan_ip 6.6.6.7 userdb
+#	found_specific_hna_offer 6.6.6.8 && attach_lan_ip 6.6.6.8 tunnelsrv	# only use for ask is_possible?
 
-		# cache luci header for splash page, improve by native lua call?
-		_wget do "http://127.0.0.1/cgi-bin/luci" 5 >/tmp/LUCI_HEADER
+# cache luci header for splash page, improve by native lua call?
+_wget do "http://127.0.0.1/cgi-bin/luci" 5 >/tmp/LUCI_HEADER
