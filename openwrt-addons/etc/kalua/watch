@@ -1558,88 +1558,75 @@ _watch_olsrstuff()
 
 _watch_lowmem_freemem()
 {
-		# ubus call network.interface.lan status
+	# ubus call network.interface.lan status
 
-		killall klogd
-		killall hotplug2
-		killall syslogd
+	killall klogd
+	killall hotplug2
+	killall syslogd
 
-		[ -e /www/SIMPLE_MESHNODE ] && {
-			touch /tmp/service_ulog_nowatching
-			killall ulogd
+	[ -e /www/SIMPLE_MESHNODE ] && {
+		touch /tmp/service_ulog_nowatching
+		killall ulogd
 
-			list_ip_from_dhcp_leases()
-			{
-				cut -d' ' -f3 /tmp/dhcp.leases
-			}
-
-			list_ip_from_arp_cache()
-			{
-				ip neigh show | cut -d' ' -f1
-			}
-
-			can_see_lan_clients()
-			{
-				local ip
-
-				for ip in $( list_ip_from_dhcp_leases ) $( list_ip_from_arp_cache ); do {
-					fgrep -q "$ip;" "/tmp/CLIENTS_LAN" && return 0
-				} done
-
-				test -e "/www/SIMPLE_MESHNODE_FORCE_DHCP_LAN"
-			}
-
-			uci set dhcp.wlan.ignore=1
-			uci delete dhcp.@dnsmasq[0].dhcpscript
-
-			if can_see_lan_clients; then
-				/etc/init.d/dnsmasq restart
-			else
-				uci set dhcp.lan.ignore=1
-				/etc/init.d/dnsmasq stop
-				echo "nameserver $( uci get dhcp.@dnsmasq[0].server )" >"/etc/resolv.conf"
-			fi
+		list_ip_from_dhcp_leases()
+		{
+			cut -d' ' -f3 /tmp/dhcp.leases
 		}
 
-		[ -e "/bin/dmesg" ] && {
-			dmesg -c >>"/tmp/dmesg.boot"
+		list_ip_from_arp_cache()
+		{
+			ip neigh show | cut -d' ' -f1
 		}
 
-		ROOTETHERNET="$( echo $LANDEV | cut -d'.' -f1 )"	# eth0.1 -> eth0
-		ip link set dev $ROOTETHERNET txqueuelen 32
+		can_see_lan_clients()
+		{
+			local ip
 
-		touch "/tmp/service_ssh_nowatching"
-		killall dropbear
+			for ip in $( list_ip_from_dhcp_leases ) $( list_ip_from_arp_cache ); do {
+				fgrep -q "$ip;" "/tmp/CLIENTS_LAN" && return 0
+			} done
 
-#		pidof olsrd || /etc/init.d/olsrd start
-#
-#		while [ -z "$( ip route list exact 0.0.0.0/0 )" ]; do {
-#			pidof olsrd || break
-#			_log sleep waiting_for_default_route 10 step 10
-#		} done
-#
-#		pidof olsrd || sleep 300
-#
-#		killall netifd
-		[ "$( pidof procd )" = "1" ] || {
-			if [ -e /etc/rc.d/*watchdog ]; then
-				/etc/init.d/watchdog stop
-				/etc/init.d/watchdog disable
+			test -e "/www/SIMPLE_MESHNODE_FORCE_DHCP_LAN"
+		}
+
+		uci set dhcp.wlan.ignore=1
+		uci delete dhcp.@dnsmasq[0].dhcpscript
+
+		if can_see_lan_clients; then
+			/etc/init.d/dnsmasq restart
+		else
+			uci set dhcp.lan.ignore=1
+			/etc/init.d/dnsmasq stop
+			echo "nameserver $( uci get dhcp.@dnsmasq[0].server )" >"/etc/resolv.conf"
+		fi
+	}
+
+	ROOTETHERNET="$( echo $LANDEV | cut -d'.' -f1 )"	# eth0.1 -> eth0
+	ip link set dev $ROOTETHERNET txqueuelen 32
+
+	touch "/tmp/service_ssh_nowatching"
+	killall dropbear
+
+	killall netifd
+	[ "$( pidof procd )" = "1" ] || {
+		if [ -e /etc/rc.d/*watchdog ]; then
+			/etc/init.d/watchdog stop
+			/etc/init.d/watchdog disable
+			_system crashreboot 'watchdog_disable'
+		else
+			# older revisions start the watchdog not via init-file
+			pidof watchdog >/dev/null && {
+				rm $( which watchdog )
 				_system crashreboot 'watchdog_disable'
-			else
-				# older revisions start the watchdog not via init-file
-				pidof watchdog >/dev/null && {
-					rm $( which watchdog )
-					_system crashreboot 'watchdog_disable'
-				}
-			fi
+			}
+		fi
 
-			killall procd
+		killall procd
 
-			if pidof hostapd >/dev/null; then
-				grep -q "ubus_connect" /usr/sbin/hostapd || killall ubusd
-			else
-				killall ubusd
-			fi
-		}
+		if pidof hostapd >/dev/null; then
+			grep -q "ubus_connect" /usr/sbin/hostapd || killall ubusd
+		else
+			killall ubusd
+		fi
+	}
 }
