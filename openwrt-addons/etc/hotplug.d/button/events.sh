@@ -44,8 +44,11 @@ case "${BUTTON}-${ACTION}" in
 				killall madplay
 				# play a jingle? -> http://ctrlq.org/listen/
 			else
-				which madplay >/dev/null || return
+				[ -e '/tmp/audioplayer.dev' ] || return
 			fi
+
+			# file generated during cron-startup
+			read DSPDEV <'/tmp/audioplayer.dev'
 
 			case "$i" in
 				2|3|4|5|6|7|8)
@@ -68,7 +71,7 @@ case "${BUTTON}-${ACTION}" in
 			logger -s -- "$0: audiplayer: i: $i - url: $url"
 			echo  >"$file" "# $i"
 			# rmmod because of https://dev.openwrt.org/ticket/13392
-			echo >>"$file" "( wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url' | madplay --quiet - || { rmmod snd_usb_audio; modprobe snd_usb_audio; } ) &"
+			echo >>"$file" "( wget --output="$DSPDEV" --user-agent 'AUDIOPLAYER' --quiet -O - '$url' | madplay --quiet - || { rmmod snd_usb_audio; modprobe snd_usb_audio; } ) &"
 
 			chmod +x "$file"
 			exec "$file"

@@ -279,7 +279,23 @@ func_cron_config_write ()
 
 		audioplayer_check_needed()
 		{
-			which madplay >/dev/null
+			local dev
+			local file='/tmp/audioplayer.dev'
+
+			which madplay >/dev/null || return 1
+
+			# testplay a 0-byte file
+			touch "$file"
+
+			for dev in /dev/dsp*; do {
+				madplay --output="$dev" "$file" && {
+					echo "$dev" >"$file"
+					return 0
+				}
+			} done
+
+			rm "$file"
+			return 1
 		}
 
 		audioplayer_check_needed && {
