@@ -437,6 +437,8 @@ build()
 	local cpu_count="$( grep -c ^'processor' '/proc/cpuinfo' )"
 	local jobs=$(( $cpu_count + 1 ))
 	local commandline="--jobs $jobs"
+	local verbose
+	[ -n "$DEBUG" ] && verbose='V=s'
 
 	case "$option" in
 		'nuke_bindir')
@@ -447,11 +449,11 @@ build()
 		'defconfig')
 			log "$funcname() running 'make defconfig'" debug
 
-			make defconfig >/dev/null || make defconfig
+			make $verbose defconfig >/dev/null || make defconfig
 		;;
 		*)
 			log "$funcname() running 'make $commandline'"
-			make $commandline
+			make $verbose $commandline
 		;;
 	esac
 }
