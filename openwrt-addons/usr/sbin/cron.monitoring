@@ -128,10 +128,14 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci -q get system.@profile[0].nodenumber )"
 	# iterate over all devs...first wifi...first non-locally_administered = valid
 	[ -e '/www/monitoring.wifimac' ] || {
 		# OK and not 'locally_administered'
-		_net mac2vendor "$WIFIMAC" >/dev/null && {
-			echo "$WIFIMAC" >'/www/monitoring.wifimac'
-			_system crashreboot 'wifimac_safed'
-		}
+		for DEV in $WIFI_DEVS $LANDEV $WANDEV; do {
+			MYMAC="$( _net dev2mac "$DEV" )"
+			MYMAC="$( _sanitizer do "$MYMAC" hex )"
+			_net mac2vendor "$MYMAC" >/dev/null && {
+				echo "$MYMAC" >'/www/monitoring.wifimac'
+				_system crashreboot 'wifimac_safed'
+			}
+		} done
 	}
 
 	UPDATE="$( _firmware updatemode )"									# testing
