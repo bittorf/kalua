@@ -91,16 +91,16 @@ EOF
 
 force_apply_config()
 {
-	local pid
-	local x=640
-	local y=336
+	local pid nop memtotal x y
+	read nop memtotal nop <"/proc/meminfo"
 
-	case "$HARDWARE" in
-		"Buffalo WZR-HP-AG300H")
-			x=1280
-			y=720
-		;;
-	esac
+	if [ $memtotal -gt 32768 ]; then
+		x=1280
+		y=720
+	else
+		x=640
+		y=336
+	fi
 
 	motion_generate_conf "$x" "$y" "$( store_startdate )"  >"/tmp/motion.conf"
 	pid="$( pidof motion )" && kill -SIGHUP $pid
@@ -277,7 +277,7 @@ if [ -n "$RUN_ENCODER" ]; then
 		DESTINATION="${DESTINATION:-$( uci -q get system.@vds[0].server )../media}"
 		[ -n "$DESTINATION" ] && {
 			scp -i /etc/dropbear/dropbear_dss_host_key "$FILENAME" $DESTINATION || {
-				_log do scp_movie daemon alert "failed to scp"
+				_log do scp_movie daemon alert "failed to scp '$FILENAME' -> '$DESTINATION'"
 			}
 		}
 	else
@@ -339,7 +339,7 @@ else
 			else
 				_log do scp_snapshot daemon info "scp-ing '$FILE' to '${DESTINATION}$NODENUMBER.jpg'"
 				scp -i /etc/dropbear/dropbear_dss_host_key "$FILE" ${DESTINATION}$NODENUMBER.jpg || {
-					_log do scp_snapshot daemon alert "failed to scp"
+					_log do scp_snapshot daemon alert "failed to scp '$FILE' -> '${DESTINATION}$NODENUMBER.jpg'"
 				}
 			fi
 		}
