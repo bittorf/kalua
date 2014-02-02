@@ -23,7 +23,9 @@
 # - include/renew patches for awk-remove
 
 # dir-structure:
-# $HARDWARE/testing/$files
+# model/$HARDWARE/stable/$files
+# model/$HARDWARE/beta/$files
+# model/$HARDWARE/testing/$files
 
 # build: release = all arch's + .info-file upload + all options (nopppoe,audiplayer)
 
@@ -261,6 +263,11 @@ check_working_directory()
 	local i=0
 
 	[ -n "$FORCE" ] && error=0
+
+	[ -d 'package/feeds' ] || {
+		log "$funcname() missing 'package/symlinks', getting feeds"
+		make package/symlinks
+	}
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
