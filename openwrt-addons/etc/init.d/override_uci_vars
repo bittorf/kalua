@@ -221,6 +221,7 @@ boot()
 		} done
 	}
 
+	# AP = autochannel
 	case "$CONFIG_PROFILE" in
 		*_ap)
 			# typically the mesh is on channel 11
@@ -234,17 +235,41 @@ boot()
 		;;
 	esac
 
-	case "$CONFIG_PROFILE" in
-		boltenhagendh*|dhsylt*|schoeneck*)
-			/etc/init.d/6relayd enabled && /etc/init.d/6relayd disable
-			uci set network.wan6.disabled=1
-			uci set network.wan6.ifname=
+	needs_ipv6_disable()
+	{
+		case "$CONFIG_PROFILE" in
+			boltenhagendh*|dhsylt*|schoeneck*)
+				return 0
+			;;
+		esac
 
-			grep "::askconsole:" "/etc/inittab" | grep -q ^"#" || sed -i 's/^.*::askconsole:.*/# &/' "/etc/inittab"
-			grep "::askfirst:"   "/etc/inittab" | grep -q ^"#" || sed -i 's/^.*::askfirst:.*/# &/'   "/etc/inittab"
-		;;
-	esac
+		test -n "$LOWMEM"
+	}
 
+	needs_ipv6_disable && {
+		/etc/init.d/6relayd enabled && /etc/init.d/6relayd disable
+		/etc/init.d/odhcpd  enabled && /etc/init.d/odhcpd  disable
+		uci set network.wan6.disabled=1
+		uci set network.wan6.ifname=
+	}
+
+	needs_serial_console_disable()
+	{
+		case "$CONFIG_PROFILE" in
+			boltenhagendh*|dhsylt*|schoeneck*)
+				return 0
+			;;
+		esac
+
+		test -n "$LOWMEM"
+	}
+
+	needs_serial_console_disable && {
+		grep "::askconsole:" "/etc/inittab" | grep -q ^"#" || sed -i 's/^.*::askconsole:.*/# &/' "/etc/inittab"
+		grep "::askfirst:"   "/etc/inittab" | grep -q ^"#" || sed -i 's/^.*::askfirst:.*/# &/'   "/etc/inittab"
+	}
+
+	# mail: send via scp OR oldskool
 	case "$CONFIG_PROFILE" in
 		ffweimar*|extrawatt*|ibfleesensee*|tuberlin*|versilia*)
 			# needs setup
@@ -256,10 +281,6 @@ boot()
 	esac
 
 	if [ -n "$LOWMEM" ]; then
-		# disable unneeded task during normal operation:
-		grep "::askconsole:" "/etc/inittab" | grep -q ^"#" || sed -i 's/^.*::askconsole:.*/# &/' "/etc/inittab"
-		grep "::askfirst:"   "/etc/inittab" | grep -q ^"#" || sed -i 's/^.*::askfirst:.*/# &/'   "/etc/inittab"
-
 		case "${CONFIG_PROFILE}-${NODENUMBER}" in
 			lisztwe_ap-15)
 			;;
