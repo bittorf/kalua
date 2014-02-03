@@ -311,17 +311,24 @@ else
 		cp /webcam/lastsnap.jpg /webcam/snap-${UP:-$$}.jpg
 	fi
 
+	# get first/recent file
 	for FILE in $( ls -1t /webcam/*-*-*.jpg /webcam/webcam.jpg ); do break; done
 	set $( ls -l '/webcam/lastsnap.jpg' ); shift 10
 	# only renew symlink of source has changed
 	[ "${FILE#*m/}" = "${1#*m/}" ] || ln -fs "$FILE" '/webcam/lastsnap.jpg'
 
+	# /webcam/06-20140203112306-01.jpg -> /webcam/06
 	EVENT_RECENT="$( ls -1t /webcam/[0-9]* 2>/dev/null | head -n1 | cut -d'-' -f1 )"
 	[ -e "/tmp/webcam_last_event" ] && read EVENT_LAST <"/tmp/webcam_last_event"
 
-	[ "${EVENT_RECENT:=/webcam/snap}" = "$EVENT_LAST" ] || {
-		COUNT="$( ls -1 ${EVENT_RECENT}-* | wc -l )"
-		FILE="$(  ls -1 ${EVENT_RECENT}-* | sed "$(( $COUNT / 2 ))q;d" )"
+	[ "${EVENT_RECENT:=/webcam/snap}" != "$EVENT_LAST" -n "$FORCE" ] && {
+		[ -z "$FORCE" ] && {
+			# upload the file which is in the middle of an event, e.g.
+			# 08-20140203110041-00.jpg
+			COUNT="$( ls -1 ${EVENT_RECENT}-* | wc -l )"
+			FILE="$(  ls -1 ${EVENT_RECENT}-* | sed "$(( $COUNT / 2 ))q;d" )"
+		}
+
 		. /tmp/loader
 		_log do webcam_upload daemon info "file '$FILE'"
 
