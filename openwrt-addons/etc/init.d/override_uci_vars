@@ -328,33 +328,30 @@ boot()
 		apphalle*)
 			uci set olsrd.@meta[0].hnaslave=0
 
-			set_wifi ap any ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 ) $NODENUMBER"
-			set_wifi ap 5ghz disabled '1'	# !!!
-			set_wifi any 5ghz txpower '19'
-			set_wifi any 2ghz txpower '16'
-			set_wifi any any 'HT20'
+			set_wifi ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 ) $NODENUMBER"
+			set_wifi ap    5ghz disabled '1'	# !!!
+			set_wifi any   5ghz txpower '19'
+			set_wifi any   2ghz txpower '16'
+			set_wifi any   any  htmode 'HT20'
 			set_wifi adhoc 5ghz ssid 'x'
 			set_wifi adhoc 2ghz ssid 'X'
 		;;
-		liszt28_adhoc)
-			uci set wireless.@wifi-iface[0].mcast_rate=6000
-			uci set wireless.@wifi-iface[1].mcast_rate=6000
-
+		liszt28*)
 			case "$NODENUMBER" in
-				45|62|3|78|6)
-					is_2ghz '0' && uci set wireless.@wifi-iface[0].mcast_rate=1000
-					is_2ghz '1' && uci set wireless.@wifi-iface[1].mcast_rate=1000
+				22|46|10|6)	# keller|mitte|stube|dach
+					set_wifi ap    5ghz disabled '1'
 				;;
-			esac
-		;;
-		liszt28_hybrid)
-			uci set wireless.@wifi-iface[0].mcast_rate=6000
-			uci set wireless.@wifi-iface[2].mcast_rate=6000
-
-			case "$NODENUMBER" in
-				45|62|3|78|6)
-					is_2ghz '0' && uci set wireless.@wifi-iface[0].mcast_rate=1000
-					is_2ghz '2' && uci set wireless.@wifi-iface[2].mcast_rate=1000
+				78)		# alrik
+					set_wifi ap    5ghz disabled '1'
+					set_wifi adhoc 2ghz mcast_rate '1000'
+				;;
+				48|62|3|6)	# danny|frenzel|carsten|F36dach
+					set_wifi ap    5ghz disabled '1'
+					set_wifi adhoc 2ghz mcast_rate '1000'
+				;;
+				*)
+					set_wifi adhoc any  mcast_rate '6000'
+					set_wifi ap    2ghz ssid "Schlachthof $NODENUMBER"
 				;;
 			esac
 		;;
@@ -512,7 +509,7 @@ boot()
 			set_wifi ap 5ghz ssid 'Weisse Wiek Konferenz'
 			set_wifi ap 2ghz ssid "Weisse Wiek $NODENUMBER"
 			set_wifi adhoc 5ghz ssid 'x'
-			set_wifi adhoc 2ghz ssid ':'
+			set_wifi adhoc 2ghz ssid 'X'
 		;;
 		spbansin*)
 			uci set olsrd.@meta[0].hnaslave=0
@@ -520,7 +517,7 @@ boot()
 			set_wifi ap 5ghz ssid 'Seepark highspeed'
 			set_wifi ap 2ghz ssid "Seepark $NODENUMBER"
 			set_wifi adhoc 5ghz ssid 'x'
-			set_wifi adhoc 2ghz ssid ':'
+			set_wifi adhoc 2ghz ssid 'X'
 		;;
 		dhfleesensee*)
 			uci set olsrd.@meta[0].hnaslave=0
@@ -528,43 +525,34 @@ boot()
 			set_wifi ap 5ghz ssid 'Dorfhotel highspeed'
 			set_wifi ap 2ghz ssid "Dorfhotel $NODENUMBER"
 			set_wifi adhoc 5ghz ssid 'x'
-			set_wifi adhoc 2ghz ssid ':'
-		;;
-		ffweimar*)
+			set_wifi adhoc 2ghz ssid 'X'
 		;;
 		schoeneck*)
-			case "$( uci get wireless.@wifi-iface[0].mode )" in
-				ap)
-					uci set wireless.radio0.txpower=8
-				;;
-				adhoc)
-					uci set wireless.@wifi-iface[0].bssid="02:ca:ff:ee:00:11"
-					uci set wireless.radio0.channel="11"
-					uci set wireless.radio0.htmode="HT20"
-					uci set wireless.@wifi-iface[0].ssid="o"
-					uci set wireless.@wifi-iface[0].mcast_rate=6000
-				;;
-			esac
+			set_wifi ap    2ghz txpower '8'
+			set_wifi adhoc 2ghz bssid '02:ca:ff:ee:00:11'
+			set_wifi adhoc 2ghz channel '11'
+			set_wifi adhoc any  htmode 'HT20'
+			set_wifi adhoc 2ghz ssid 'o'
+			set_wifi adhoc 2ghz mcast_rate '6000'
 
 			case "$NODENUMBER" in
 				228|230|234|231|235|232|229|233)
 					# all switched together, netio230b on master
 					uci set dhcp.lan.ignore=1
 				;;
+				2)
+					set_wifi any any disabled '1'
+
+					uci add network alias
+					uci set network.@alias[-1].interface="wan"
+					uci set network.@alias[-1].proto='static'
+					uci set network.@alias[-1].ipaddr='192.168.2.108'
+					uci set network.@alias[-1].netmask='255.255.255.0'
+				;;
 			esac
-
-			[ "$NODENUMBER" = "2" ] && {
-				uci set wireless.radio0.disabled=1
-				uci set wireless.radio1.disabled=1
-
-				uci add network alias
-				uci set network.@alias[-1].interface="wan"
-				uci set network.@alias[-1].proto='static'
-				uci set network.@alias[-1].ipaddr='192.168.2.108'
-				uci set network.@alias[-1].netmask='255.255.255.0'
-			}
 		;;
 		*)
+			# enforce b43-hack
 			[ -e "/lib/modules/$( uname -r )/b43.ko" ] && {
 				local file="/lib/wifi/mac80211.sh"
 				local keyword="keyspec}"	# must be at the end of a line
@@ -619,20 +607,14 @@ boot()
 				*ap)
 				;;
 				*)
-					case "$NETWORK" in
-						schoeneck_ap)
-						;;
-						*)
-							uci delete wireless.radio0.txpower
-						;;
-					esac
+					uci delete wireless.radio0.txpower
 				;;
 			esac
 		;;
 	esac
 
 	case "$( uci get wireless.radio0.hwmode )" in
-		*"n"*)
+		*'n'*)
 			# 802.11n works with distributed beaconing
 			uci set wireless.radio0.beacon_int=100
 		;;
@@ -644,6 +626,7 @@ boot()
 		;;
 	esac
 
+	# fix for forgotten network
 	case "$CONFIG_PROFILE" in
 		*hybrid)
 			grep -q "wlanadhoc" "/etc/config/wireless" && {
@@ -657,6 +640,7 @@ boot()
 		;;
 	esac
 
+	# specials for testnetwork
 	case "$CONFIG_PROFILE" in
 		liszt28*)
 			[ -h '/www/webcam.jpg' ] && {
@@ -744,14 +728,9 @@ boot()
 					;;
 				esac
 			;;
-#			olympia*)
-#			;;
 			schoeneck*|xxx-apphalle*|marinabh*)
 				return 0
 			;;
-#			boltenhagendh*)
-#				return 0
-#			;;
 		esac
 
 		return 1
@@ -781,19 +760,19 @@ boot()
 	batman_needed && {
 		case "$CONFIG_PROFILE" in
 			apphalle*)
-				set_wifi ap any ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 )"
-				set_wifi any 5ghz txpower '19'
-				set_wifi any 2ghz txpower '10'
-				set_wifi any any 'HT20'
+				set_wifi ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 )"
+				set_wifi any   5ghz txpower '19'
+				set_wifi any   2ghz txpower '10'
+				set_wifi any   any  htmode 'HT20'
 				set_wifi adhoc 5ghz ssid 'x'
-				set_wifi adhoc 2ghz ssid ':'
+				set_wifi adhoc 2ghz ssid 'X'
 			;;
 			boltenhagendh*)
 				uci set wireless.radio0.htmode="HT20"
-				set_wifi ap 5ghz ssid 'Weisse Wiek highspeed'
-				set_wifi ap 2ghz ssid 'Weisse Wiek'
+				set_wifi ap    5ghz ssid 'Weisse Wiek highspeed'
+				set_wifi ap    2ghz ssid 'Weisse Wiek'
 				set_wifi adhoc 5ghz ssid 'x'
-				set_wifi adhoc 2ghz ssid ':'
+				set_wifi adhoc 2ghz ssid 'X'
 			;;
 			schoeneck_ap)
 				uci set wireless.radio0.htmode="HT20"
@@ -811,8 +790,8 @@ boot()
 			;;
 			liszt28*)
 				uci set wireless.radio0.htmode="HT20"
-				set_wifi ap 5ghz ssid 'Schlachtfest highspeed'
-				set_wifi ap 2ghz ssid 'Schlachtfest'
+				set_wifi ap    5ghz ssid 'Schlachtfest highspeed'
+				set_wifi ap    2ghz ssid 'Schlachtfest'
 				set_wifi adhoc 5ghz ssid 'x'
 				set_wifi adhoc 2ghz ssid ':'
 			;;
