@@ -70,6 +70,21 @@ _stopwatch_stop()		# OUT1: centyseconds = seconds/100
 
 	read up rest </proc/uptime
 
+	has()
+	{
+		local list="$1"
+		local keyword="$2"
+
+		case ",$list," in		# e.g. quiet,log,interim
+			*",$keyword,"*)
+				return 0
+			;;
+			*)
+				return 1
+			;;
+		esac
+	}
+
 	if [ -e "$context" ]; then
 		file="$context"
 	else
@@ -86,28 +101,17 @@ _stopwatch_stop()		# OUT1: centyseconds = seconds/100
 		elif [ -e "/tmp/STOPWATCH_${context}_$$" ]; then
 			file="/tmp/STOPWATCH_${context}_$$"
 		else
-			# fallback to max
-			_system uptime centisec
+			# fallback to possible max (full uptime)
+			if has "$option" 'seconds'; then
+				_system uptime sec
+			else
+				_system uptime centisec
+			fi
 
 			_log do $funcname daemon info "timefile '/tmp/STOPWATCH_${context}'* not found - abort"
 			return 1
 		fi
 	fi
-
-	has()
-	{
-		local list="$1"
-		local keyword="$2"
-
-		case ",$list," in		# e.g. quiet,log,interim
-			*",$keyword,"*)
-				return 0
-			;;
-			*)
-				return 1
-			;;
-		esac
-	}
 
 	read START <"$file"
 	has "$option" 'interim' || rm "$file"
