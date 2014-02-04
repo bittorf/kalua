@@ -1041,10 +1041,15 @@ while [ -n "$1" ]; do {
 			CONFIG_PROFILE="$2"
 		;;
 		'--upload'|'-u')
+			log "[ERR] option '--upload' not implemented yet"
+			exit 1
 		;;
 		'--release'|'-r')
+			log "[ERR] option '--release' not implemented yet"
+			exit 1
 		;;
 		'--debug'|'-d'|'--verbose'|'-v')
+			log "[OK] mode DEBUG / VERBOSE activated"
 			DEBUG='true'
 		;;
 	esac
