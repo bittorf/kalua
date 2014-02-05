@@ -59,18 +59,6 @@ LINE=
 		_wifi watch_phy_problems
 	}
 
-	PATTERN="ath: phy.: DMA failed to stop"
-	grep -q "$PATTERN" "/tmp/dmesg.recent" && {
-		touch "/tmp/WIFI_ERROR.$WIFIDEV"
-		_wifi watch_phy_problems
-	}
-
-	PATTERN="ath: phy.: Could not stop RX"
-	grep -q "$PATTERN" "/tmp/dmesg.recent" && {
-		touch "/tmp/WIFI_ERROR.$WIFIDEV"
-		_wifi watch_phy_problems
-	}
-
 	PATTERN="ath: phy.: Failed to stop TX DMA, queues"
 	grep -q "$PATTERN" "/tmp/dmesg.recent" && {
 		touch "/tmp/WIFI_ERROR.$WIFIDEV"
@@ -88,10 +76,12 @@ LINE=
 			*ap)
 			;;
 			*)
-				_log do kernellog daemon alert "$PATTERN"
-				_net local_inet_offer >/dev/null && {
-					_wifi phy_restart "$WIFIDEV" "$PATTERN"
-				}
+				[ $( _system version short ) -ge 39455 ] || {
+					_log do kernellog daemon alert "$PATTERN"
+					_net local_inet_offer >/dev/null && {
+						_wifi phy_restart "$WIFIDEV" "$PATTERN"
+					}
+				)
 			;;
 		esac
 	}
