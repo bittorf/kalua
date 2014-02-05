@@ -176,25 +176,32 @@ _net_ip4_is_private ()		# RFC-1918
 	return 1
 }
 
-_net_ip2dns ()
+_net_ip2dns()
 {
-	local IP="$1"
-	local OLSR
+	local ip="$1"
+	local startparse
 
-	if   [ -e /var/etc/hosts ]; then
-		OLSR="/var/etc/hosts"			# freifunk-firmware
-	elif [ -e /var/run/hosts_olsr ]; then
-		OLSR="/var/run/hosts_olsr"		# openwrt
-	fi
+	# root@box:~ nslookup 10.63.6.3
+	# Server:    127.0.0.1
+	# Address 1: 127.0.0.1 localhost
+	#
+	# Name:      10.63.6.3
+	# Address 1: 10.63.6.3 mid1.F36-Dach4900er-MESH
 
-	[ -n "$OLSR" ] && {
-		fgrep -q "$IP	" $OLSR && {
-			sed -n "/$IP	/{s/^.*	\([a-zA-Z0-9\._-]*\)	.*/\1/p;q}" $OLSR
-			return 0
-		}
-	}
-
-	nslookup $IP | sed -n "s/^Name:[^a-zA-Z0-9]*\(.*\)/\1/p"
+	set -- $( nslookup "$ip" 2>/dev/null )
+	while shift; do {
+		case "$1" in
+			'Name:')
+				startparse='true'
+			;;
+			'Address')
+				[ -n "$startparse" ] && {
+					echo "$4"
+					break
+				}
+			;;
+		esac
+	} done
 }
 
 _net_ip2mac()		# ofcourse this works only for local IP's, but: maybe we want to "guess" using /etc/ethers...?
