@@ -213,8 +213,8 @@ _netfilter_traffic_control_user_add()
 	local funcname="netfilter_traffic_control_user_add"
 	local ip="$1"
 	local speed_up="$2"		# e.g. 1mbit, 32kbit or 128000
-	local speed_down="$3"		# # fixme! use profile instead of fix values, e.g. youtube
-	local mac i j				# e.g. 32/1024 = wigo/tv works
+	local speed_down="$3"		# fixme! use profile instead of fix values, e.g. youtube
+	local mac i j						# e.g. 32/1024 = wigo/tv works
 	local users file comment
 
 	[ -z "$speed_up" ] && {
@@ -310,8 +310,8 @@ _netfilter_traffic_control_user_add()
 				# antenne sylt = constant 160kbit/s upload
 				# antenne sylt   | netio230b       | radiopark
 				00:01:e3:06:88:05|24:a4:2c:10:2c:91|00:19:66:0c:a0:db)
-					speed_up=4048kbit
-					speed_down=4048kbit
+					speed_up='4048kbit'
+					speed_down='4048kbit'
 				;;
 			esac
 		;;
@@ -454,22 +454,30 @@ _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower 
 _netfilter_traffic_control_autoapply_speedsuggest()
 {
 	local list_macs="${1:-$( _netfilter user_list )}"
-	local traffic_border_for_reaction="1000"		# megabytes
+	local traffic_border_for_inactivity='250'		# megabytes
+	local traffic_border_for_reaction='1000'		# megabytes
 	local speed_min=128000					# bit/s
 	local mac traffic file ip interface j i speed_down speed_up percent params
 
+	_netfilter traffic_control_needed || return 0
+
 	for mac in $list_macs; do {
-		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
-		[ -e "$file" ] || continue
-		read mac ip interface j i speed_down speed_up <"$file"
-
 		traffic="$( _netfilter stats "$mac" megabytes )"
-		[ $traffic -lt $traffic_border_for_reaction ] && continue
+		[ $traffic -lt $traffic_border_for_inactivity ] && continue
 
-		percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
-		params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
+		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
+		if [ -e "$file" ]; then
+			[ $traffic -lt $traffic_border_for_reaction ] && continue
+			read mac ip interface j i speed_down speed_up <"$file"
 
-		[ "$percent" = 100 ] || _netfilter traffic_control_user_change_speed $params
+			percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
+			params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
+
+			[ "$percent" = 100 ] || _netfilter traffic_control_user_change_speed $params
+		else
+			ip="$( _net mac2ip "$mac" )"
+			_netfilter traffic_control_user_add "$ip"
+		fi
 	} done
 }
 
@@ -1382,10 +1390,6 @@ _netfilter_user_add()
 			rmmod 2>/dev/null xt_state
 		}
 	fi
-
-	_netfilter traffic_control_needed && {
-		_netfilter traffic_control_user_add "$ip" "$speed_up" "$speed_down"
-	}
 
 	return 0
 }
