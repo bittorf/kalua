@@ -322,12 +322,15 @@ _netfilter_traffic_control_user_add()
 	echo "$mac $ip $interface $j $i $speed_down $speed_up" >/tmp/NETFILTER/USER/$mac/traffic_control_params
 	echo "$speed_down $speed_up initial" >/tmp/NETFILTER/USER/$mac/traffic_control_speed
 
-	cat >/tmp/NETFILTER/USER/$mac/traffic_control_del <<EOF
+	file="/tmp/NETFILTER/USER/$mac/traffic_control_del"
+	[ -e "${file}.forced_stop" ] && rm "${file}.forced_stop"
+	cat >"$file" <<EOF
+# for later cleanup
 tc filter "del" dev "$interface" protocol ip parent 1:0 prio $i
 tc filter "del" dev "$interface" protocol ip parent 1:0 prio $j
 tc class  "del" dev "$interface" parent 1: classid 1:$i
 tc class  "del" dev "$interface" parent 1: classid 1:$j
-rm /tmp/NETFILTER/USER/$mac/traffic_control_params
+rm "/tmp/NETFILTER/USER/$mac/traffic_control_params"
 EOF
 
 	tc class  "add" dev "$interface" parent 1: classid 1:$j "htb" rate "$speed_down"
@@ -457,8 +460,10 @@ _netfilter_traffic_control_autoapply_speedsuggest()
 
 			[ "$percent" = 100 ] || _netfilter traffic_control_user_change_speed $params
 		else
-			ip="$( _net mac2ip "$mac" )"
-			_netfilter traffic_control_user_add "$ip"
+			[ -e "/tmp/NETFILTER/USER/$mac/traffic_control_del.forced_stop" ] || {
+				ip="$( _net mac2ip "$mac" )"
+				_netfilter traffic_control_user_add "$ip"
+			}
 		fi
 	} done
 }
@@ -560,6 +565,7 @@ _netfilter_traffic_control_user_del()
 	if [ -e "$file" ]; then
 		. "$file"
 		rm "$file"
+		touch "${file}.forced_stop"
 	else
 		return 1
 	fi
