@@ -369,7 +369,36 @@ _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic
 	echo $(( 100 - (6*${#peak}) ))
 }
 
-_netfilter_happy_hour()
+_netfilter_noshaping_time()
+{
+	local mac="$1"
+	local date="$( date +%H:%M )"	# 00...23 : 00...59
+
+	case "$CONFIG_PROFILE" in
+		liszt28*)
+			case "$NODENUMBER" in
+				20|48)		# wigo|danny
+					case "$date" in
+						0*|17:*|18:*|19:*|20:*|21:*|22:*|23:*)
+							return 0
+						;;
+					esac
+				;;
+				*)
+					case "$date" in
+						0*|22:*|23:*)
+							return 0
+						;;
+					esac
+				;;
+			esac
+		;;
+	esac
+
+	return 1
+}
+
+_netfilter_happy_hour()		# no additional shaping during this time, so initial values are respected (100%)
 {
 	local mac="$1"
 	local mac_source
@@ -458,11 +487,13 @@ _netfilter_traffic_control_autoapply_speedsuggest()
 			percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
 			params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
 
-			[ "$percent" = 100 ] || _netfilter traffic_control_user_change_speed $params
+			[ "$percent" = '100' ] || _netfilter traffic_control_user_change_speed $params
 		else
 			[ -e "/tmp/NETFILTER/USER/$mac/traffic_control_del.forced_stop" ] || {
-				ip="$( _net mac2ip "$mac" )"
-				_netfilter traffic_control_user_add "$ip"
+				_netfilter noshaping_time "$mac" || {
+					ip="$( _net mac2ip "$mac" )"
+					_netfilter traffic_control_user_add "$ip"
+				}
 			}
 		fi
 	} done
