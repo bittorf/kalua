@@ -754,11 +754,19 @@ _netfilter_stop()
 	local funcname="netfilter_stop"
 	local mac state table
 	local list_user="$( _netfilter user_list )"
-	local interface
+	local interface ip mediatype dev
 
 	for mac in $list_user; do {
-		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'"
-		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$( _net mac2ip "$mac" )' check_if_reachable"
+		ip="$( _net mac2ip "$mac" )"
+		dev="$( _net mac2dev "$mac" )"
+		if _net dev_is_wifi "$dev"; then
+			mediatype='wifi'
+		else
+			mediatype='non_wifi'
+		fi
+
+		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype"
+		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable	# $mediatype"
 
 		_netfilter user_del "$mac"
 	} done >"/tmp/NETFILTER_AUTOADD"
@@ -771,9 +779,11 @@ _netfilter_stop()
 
 	case "$option" in
 		"remember_over_reboot"|"ror")
-			[ -n "$list_user" ] && {
-				cat '/tmp/NETFILTER_AUTOADD' >>"/www/NETFILTER_AUTOADD"
-			}
+			if grep -sq '# non_wifi' '/tmp/NETFILTER_AUTOADD' ; then
+				grep '# non_wifi' '/tmp/NETFILTER_AUTOADD' >'/www/NETFILTER_AUTOADD'
+			else
+				rm '/www/NETFILTER_AUTOADD'
+			fi
 		;;
 	esac
 
@@ -1038,9 +1048,6 @@ _netfilter_splash_autoadd()
 	local line ip mac file
 
 	if [ -e "/www/NETFILTER_AUTOADD" ]; then
-		grep -v ^'_log' '/www/NETFILTER_AUTOADD' | grep -v 'dhcpscript' >'/tmp/SET_TIME'
-		. '/tmp/SET_TIME' && rm '/tmp/SET_TIME'
-
 		/usr/sbin/cron.check_inet_gw_fff+
 		. "/www/NETFILTER_AUTOADD"		# dont delete - in case we have an unscheduled reboot
 	else

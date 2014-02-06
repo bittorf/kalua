@@ -744,8 +744,6 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
 #				apply_symbol 'CONFIG_PACKAGE_tc=y'			# network: tc
 				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool: (very small)
-#				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
-#				apply_symbol 'CONFIG_PACKAGE_kmod-usb-printer=y'	# kernel-modules: other: kmod-usb-printer
 #				apply_symbol 'CONFIG_PACKAGE_rrdtool=y'			# utilities: rrdtool:
 #				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless: (but debugFS-export still active)
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
