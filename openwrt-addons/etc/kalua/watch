@@ -91,7 +91,7 @@ _watch_coredump()
 	# e.g. /tmp/olsrd.5403.11.1389960024.core
 
 	while file_list="$( ls -1t /tmp/*.core 2>/dev/null )"; do {
-		# oldest first first
+		# reverse order / work on oldest first
 		for dump in $file_list; do :; done
 		exitcode=0
 
@@ -125,14 +125,12 @@ _watch_coredump()
 		case "$dump" in
 			*"${ignore_pattern}"*)
 				_log do $funcname daemon info "found '$dump', but ignoring it"
-				rm "$dump"
 			;;
 			*)
 				# coredump = 2mb and free = 1mb -> OK (is good compressable)
 				if [ $(( $( _file size "$dump" 'bytes' ) / 2 )) -gt $( _system flash_free 'bytes' ) ]; then
 					storage='/dev'
 					file="null (low storage: was: $dump)"
-					rm "$dump"
 				else
 					revision="$( _system version short )"
 					# r37513.ar71xx.6relayd.1599.10.1374552373.core
@@ -140,11 +138,12 @@ _watch_coredump()
 
 					mkdir -p "$storage"
 					mv "$dump" "$storage/$file"
-					[ -e "$dump" ] && rm "$dump"	# in case 'mv' fails
 				fi
 
 				_log do $funcname daemon alert "wrote: $storage/$file"
 			;;
+
+			[ -e "$dump" ] && rm "$dump"
 		esac
 	} done
 
