@@ -321,6 +321,30 @@ boot()
 		test $channel -lt 15
 	}
 
+	apply_cronwatchdog()
+	{
+		# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
+		uci add network 'alias'
+		uci set network.@alias[-1].interface='loopback'
+		uci set network.@alias[-1].proto='dhcp'
+		uci set network.@alias[-1].defaultroute='0'	# dont apply default route
+		uci set network.@alias[-1].peerdns='0'		# and DNS
+
+		uci add dhcp 'host'
+		uci set dhcp.@host[-1]='host'
+		uci set dhcp.@host[-1].ip='127.0.0.2'
+		uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
+		uci set dhcp.@host[-1].name='lo-alias'
+
+		uci add dhcp 'dhcp'
+		uci set dhcp.@dhcp[-1].interface='loopback'
+		uci set dhcp.@dhcp[-1].start='2'
+		uci set dhcp.@dhcp[-1].limit='2'
+		uci set dhcp.@dhcp[-1].leasetime='1h'
+		uci set dhcp.@dhcp[-1].force='1'
+		uci set dhcp.@dhcp[-1].ignore='0'
+	}
+
 	case "$CONFIG_PROFILE" in
 		fparkssee*)
 			[ -z "$LOWMEM" ] && uci set olsrd.@meta[0].hnaslave=0
@@ -342,6 +366,8 @@ boot()
 			set_wifi any   any  htmode 'HT20'
 			set_wifi adhoc 5ghz ssid 'x'
 			set_wifi adhoc 2ghz ssid 'X'
+
+			apply_cronwatchdog
 		;;
 		liszt28*)
 			case "$NODENUMBER" in
@@ -362,26 +388,7 @@ boot()
 				;;
 			esac
 
-			# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
-			uci add network 'alias'
-			uci set network.@alias[-1].interface='loopback'
-			uci set network.@alias[-1].proto='dhcp'
-			uci set network.@alias[-1].defaultroute='0'	# dont apply default route
-			uci set network.@alias[-1].peerdns='0'		# and DNS
-
-			uci add dhcp 'host'
-			uci set dhcp.@host[-1]='host'
-			uci set dhcp.@host[-1].ip='127.0.0.2'
-			uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
-			uci set dhcp.@host[-1].name='lo-alias'
-
-			uci add dhcp 'dhcp'
-			uci set dhcp.@dhcp[-1].interface='loopback'
-			uci set dhcp.@dhcp[-1].start='2'
-			uci set dhcp.@dhcp[-1].limit='2'
-			uci set dhcp.@dhcp[-1].leasetime='1h'
-			uci set dhcp.@dhcp[-1].force='1'
-			uci set dhcp.@dhcp[-1].ignore='0'
+			apply_cronwatchdog
 		;;
 		ejbw*)
 			uci set olsrd.@meta[0].hnaslave=0
@@ -423,6 +430,8 @@ boot()
 					uci set olsrd.@Hna4[-1].netmask=255.255.255.0
 				;;
 			esac
+
+			apply_cronwatchdog
 		;;
 		dhsylt_adhoc)
 			uci set wireless.radio0.htmode="HT20"
@@ -556,6 +565,8 @@ boot()
 			set_wifi adhoc 2ghz ssid 'X'
 		;;
 		schoeneck*)
+			apply_cronwatchdog
+
 			set_wifi ap    2ghz txpower '15'
 			set_wifi ap    2ghz ssid "IFA Schoeneck $NODENUMBER"
 			set_wifi ap    5ghz disabled '1'			# !!!
