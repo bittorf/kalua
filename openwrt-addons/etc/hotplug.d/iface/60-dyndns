@@ -16,12 +16,19 @@ case "$ACTION" in
 		# wrong place but works:
 		[ -e '/etc/crontabs/root' ] && {
 			. /tmp/loader
-			[ "$( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds )" -gt 3000 ] && {
+			[ "$( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds )" -gt 300 ] && {
 				# locking maybe unneeded
 				mkdir '/tmp/LOCK_dhcpscript_cron_restart' && {
-					_stopwatch start '/tmp/CRON_LASTCALL' global
-					_log do hotplug_dyndns daemon alert "cron died, restarting"
-					/etc/init.d/S51crond_fff+ restart
+					if pidof crond >/dev/null; then
+						_stopwatch start '/tmp/CRON_LASTCALL' global
+						_log do iface_$ACTION daemon alert "cron hangs, restarting"
+						/etc/init.d/S51crond_fff+ restart
+					else
+						_stopwatch start '/tmp/CRON_LASTCALL' global
+						_log do iface_$ACTION daemon alert "cron died, starting"
+						/etc/init.d/S51crond_fff+ start
+					fi
+
 					rm -fR '/tmp/LOCK_dhcpscript_cron_restart'
 				}
 			}
