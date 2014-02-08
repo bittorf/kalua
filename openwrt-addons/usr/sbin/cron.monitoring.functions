@@ -4,14 +4,14 @@ heartbeat_minimal_send()
 	local file_archiv="/tmp/ARCHIV_MONITORING"
 	local mac url line
 
-	# at least on normal sending/monitoring-run is needed
-	grep -q ^'# alive-message was send' "$file_archiv" || {
-		grep -q 'olsrrestarttime=' "$file_archiv" || return 1
-	}
-
 	if [ -e "$file_url" ]; then
 		read url <"$file_url"
 	else
+		# at least on normal sending/monitoring-run is needed
+		grep -q ^'# alive-message was send' "$file_archiv" || {
+			grep -q 'olsrrestarttime=' "$file_archiv" || return 1
+		}
+
 		read mac <'/www/monitoring.wifimac'
 		url="$( uci -q get system.@monitoring[0].url )/meshrdf/?refresh=true&mac=$mac"
 		echo "$url" >"$file_url"
@@ -20,7 +20,7 @@ heartbeat_minimal_send()
 	url="${url}&up=$( _system uptime hours )&h2=$( _system ram_free )&load=$( _system load 15min )"
 
 	case "$( _wget do "$url" 30 )" in
-		REFRESHED)
+		'REFRESHED')
 			echo "$url" >"$file_archiv"
 		;;
 	esac
