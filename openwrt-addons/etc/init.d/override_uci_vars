@@ -321,11 +321,16 @@ boot()
 		test $channel -lt 15
 	}
 
-	apply_cronwatchdog()
+	apply_cronwatchdog()	# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
 	{
 		local i=0
 
-		# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
+		for i in $( seq 0 15 ); do {
+			[ "$( uci get -q network.@alias[$i].interface )" = 'loopback' ] && {
+				uci delete network.@alias[$i]
+			}
+		} done
+
 		uci add network 'alias'
 		uci set network.@alias[-1].interface='loopback'
 		uci set network.@alias[-1].proto='dhcp'
@@ -334,33 +339,22 @@ boot()
 
 		for i in $( seq 0 15 ); do {
 			[ "$( uci get -q dhcp.@host[$i].name )" = 'lo-alias' ] && {
-				uci delete dhcp.@host[$i].name
-				uci delete dhcp.@host[$i].mac
-				uci delete dhcp.@host[$i].ip
-				uci delete dhcp.@host[$i]=host
+				uci delete dhcp.@host[$i]
 			}
 		} done
 
 		uci add dhcp 'host'
-		uci set dhcp.@host[-1]='host'
 		uci set dhcp.@host[-1].ip='127.0.0.2'
 		uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
 		uci set dhcp.@host[-1].name='lo-alias'
 
 		for i in $( seq 0 15 ); do {
 			[ "$( uci get -q dhcp.@host[$i].interface )" = 'loopback' ] && {
-				uci delete dhcp.@host[$i].interface
-				uci delete dhcp.@host[$i].start
-				uci delete dhcp.@host[$i].limit
-				uci delete dhcp.@host[$i].leasetime
-				uci delete dhcp.@host[$i].force
-				uci delete dhcp.@host[$i].ignore
-				uci delete dhcp.@host[$i]=dhcp
+				uci delete dhcp.@host[$i]
 			}
 		} done
 
 		uci add dhcp 'dhcp'
-		uci set dhcp.@dhcp[-1]='dhcp'
 		uci set dhcp.@dhcp[-1].interface='loopback'
 		uci set dhcp.@dhcp[-1].start='2'
 		uci set dhcp.@dhcp[-1].limit='2'
