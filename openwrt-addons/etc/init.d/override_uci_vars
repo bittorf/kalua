@@ -323,6 +323,8 @@ boot()
 
 	apply_cronwatchdog()
 	{
+		local i=0
+
 		# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
 		uci add network 'alias'
 		uci set network.@alias[-1].interface='loopback'
@@ -330,13 +332,35 @@ boot()
 		uci set network.@alias[-1].defaultroute='0'	# dont apply default route
 		uci set network.@alias[-1].peerdns='0'		# and DNS
 
+		for i in $( seq 0 15 ); do {
+			[ "$( uci get -q dhcp.@host[$i].name )" = 'lo-alias' ] && {
+				uci delete dhcp.@host[$i].name
+				uci delete dhcp.@host[$i].mac
+				uci delete dhcp.@host[$i].ip
+				uci delete dhcp.@host[$i]=host
+			}
+		} done
+
 		uci add dhcp 'host'
 		uci set dhcp.@host[-1]='host'
 		uci set dhcp.@host[-1].ip='127.0.0.2'
 		uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
 		uci set dhcp.@host[-1].name='lo-alias'
 
+		for i in $( seq 0 15 ); do {
+			[ "$( uci get -q dhcp.@host[$i].interface )" = 'loopback' ] && {
+				uci delete dhcp.@host[$i].interface
+				uci delete dhcp.@host[$i].start
+				uci delete dhcp.@host[$i].limit
+				uci delete dhcp.@host[$i].leasetime
+				uci delete dhcp.@host[$i].force
+				uci delete dhcp.@host[$i].ignore
+				uci delete dhcp.@host[$i]=dhcp
+			}
+		} done
+
 		uci add dhcp 'dhcp'
+		uci set dhcp.@dhcp[-1]='dhcp'
 		uci set dhcp.@dhcp[-1].interface='loopback'
 		uci set dhcp.@dhcp[-1].start='2'
 		uci set dhcp.@dhcp[-1].limit='2'
