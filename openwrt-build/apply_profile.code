@@ -601,6 +601,9 @@ _config_wireless ()			# fixme! channels hardcoded
 	local MAC htmode hwmode country ht_cap ht_cap_list hideht i radiotype radiocard hidetx
 	local temp="/tmp/config_wireless.tmp"
 	local driver_path
+	local network_append=
+	local default_channel="$CHANNEL"
+	local pointing2device
 
 	[ -e "/etc/config/wireless" ] || {
 		log "omitting section wireless, wifi n/a"
@@ -610,13 +613,33 @@ _config_wireless ()			# fixme! channels hardcoded
 	[ -e "$temp" ] && rm "$temp"
 
 	[ -z "$TXPOWER" ] && hidetx="#"
+	for radiocard in 0 1 2 3; do {
+		[ "$( uci get wireless.radio${radiocard}.disabled )" = "1" ] && {
+			uci set wireless.radio${radiocard}.disabled=0
+		}
+	} done
+
+	local profile_mode_tmp=$PROFILE_MODE
 
 for radiocard in 0 1 2 3; do {
 
 	driver_path="$( uci get wireless.radio${radiocard}.path )"		# e.g. 'platform/ath9k' or 'platform/ar231x-wmac.0'
 
-	# check if real wifi card or only VAP/hybrid interface
-	[ "$( uci get wireless.@wifi-iface[${radiocard}].device )" = "radio${radiocard}" ] || break
+	# check if real wifi card or only VAP/hybrid interface                                                                     
+        pointing2device="$( uci get wireless.@wifi-iface[${radiocard}].device )" # e.g. radio1                                     
+        [ "$( uci get wireless.${pointing2device} )" = "wifi-device" ] || continue                                                 
+        [ -n "$( uci get wireless.${pointing2device}.type )" ] || continue                                                         
+                                                                                                                                   
+        radiotype="$( uci get wireless.radio${radiocard}.type )" # e.g. 'mac80211' or 'atheros'                                    
+        [ -z "$radiotype" ] && continue                                                                                            
+                                                                                                                                   
+        [ $radiocard -gt 0 ] && {                                                                                                  
+                echo >>"$temp"                                                                                                     
+                echo "### next radio ###" >>"$temp"                                                                                
+                echo >>"$temp"                                                                                                     
+                PROFILE_MODE="adhoc"                                            # only first wifi card will profide an ap          
+                network_append="RADIO${radiocard}"                                                                                 
+        }
 
 	[ $radiocard -gt 0 ] && echo "" >>"$temp"
 
@@ -775,7 +798,7 @@ config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
 	option channel	$CHANNEL
-$hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
+#	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
 $hide_chanbw	option chanbw	$chanbw		# since r32596
 $hide_mac	option macaddr	$MAC
 	option frag	off
@@ -810,7 +833,7 @@ EOF
 
 config wifi-iface
 	option device	radio${radiocard}
-	option network	wlanadhoc
+	option network	wlanadhoc${network_append}
 	option mode	adhoc
 	option bssid	'$BSSID'
 	option ssid	'${ssid_adhoc}'
@@ -819,7 +842,7 @@ config wifi-iface
 
 config wifi-iface
 	option device	radio${radiocard}
-	option network	wlan
+	option network	wlan${network_append}
 	option mode	ap
 	option ssid	'${ssid_ap}'
 EOF
@@ -874,10 +897,10 @@ EOF
 
 config wifi-iface
 	option device	radio${radiocard}
-	option network	wlan
+	option network	wlan${network_append}
 	option mode	ap
 	option ssid	'${new_essid}'
-	option max_num_sta 16		# since r33400
+	option max_num_sta 64		# since r33400
 	option max_inactivity 300	# since r33412 [sec]
 EOF
 		;;
@@ -894,12 +917,12 @@ config wifi-device radio${radiocard}
 	option type	$radiotype
 	option country	$country
 	option channel	$CHANNEL
-$hide_chanbw	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
+#	option ath9k_chanbw $chanbw		# temporary, 5, 10 or 20 (default)
 $hide_chanbw	option chanbw	$chanbw		# since r32596
 $hide_mac	option macaddr	$MAC
 	option frag	off
 $hidetx	option txpower	$TXPOWER
-	option beacon_int 100
+	option beacon_int 1000
 ${hide_noscan}	option noscan	1
 EOF
 
@@ -921,7 +944,7 @@ EOF
 
 config wifi-iface
 	option device	radio${radiocard}
-	option network	wlan
+	option network	wlan${network_append}
 	option mode	adhoc
 	option bssid	'$BSSID'
 	option ssid	'${new_essid}'
@@ -940,6 +963,7 @@ config auto_optimize
 EOF
 
 	mv "$temp" /etc/config/wireless
+	PROFILE_MODE=$profile_mode_tmp                                  #reset original profile mode
 }
 
 _config_mail ()
@@ -998,10 +1022,12 @@ _config_network ()
 		PROTO="static"
 	fi
 
-	uci delete network.wan
-	uci delete network.lan
-	uci delete network.wlan
-	uci commit
+	# see 9d88ce9279c0e54ea53508d7636cdfdc8fc147be, delete really old network-sections for e.g. multiple wifi-ifs
+	for section in $( uci show network | grep "=interface"$ | grep -v "6=interface"$ | grep -v "loopback=interface"$ | cut -d'=' -f1 ); do {
+		uci delete $section
+	} done
+	_log do uci_commit daemon alert 'network: remove old sections'
+	uci commit network
 
 	[ -n "$LANDEV" ] && {
 		cat >>/etc/config/network <<EOF
@@ -1051,12 +1077,35 @@ EOF
 
 
 	fi
+	local radiocard
+	local network_append
+	local profile_mode_tmp=$PROFILE_MODE
+
+	ipv4address_plus_x()
+	{
+		local ip="$1"
+		local x="$2"
+
+		local oldIFS="$IFS"; IFS='.'; set -- $ip; IFS="$oldIFS"
+		echo "$1.$2.$3.$(( $4 + $x ))"
+	}
+
+for radiocard in 0 1 2 3; do {
+
+	[ $radiocard -gt 0 ] && {
+		network_append="RADIO${radiocard}"
+                PROFILE_MODE="adhoc"                                            # only first wifi card will provide an ap          
+	}
+
+	grep "option network" "/etc/config/wireless" | grep -q "wlan${network_append}" || continue
 
 	local wlan_ipaddr wlan_netmsk wlan_ifname hide_wifi
 	local alias_ifname alias_proto alias_ipaddr alias_netmask alias_network
 	local hide="#"
-
-	case "$( uci get wireless.radio0.type )" in
+	
+	local pointing2type="$( uci get wireless.@wifi-iface[${radiocard}].type )"
+	
+	case "$pointing2type" in
 		mac80211)
 			wlan_ifname="wlan0"
 		;;
@@ -1068,36 +1117,53 @@ EOF
 		;;
 	esac
 
-	[ -e "/etc/config/wireless" ] || hide_wifi="#"
-
 	wlan_ipaddr="$( _ipsystem do $NODE | grep WIFIADR= | cut -d'=' -f2 )"
-	wlan_netmsk="$( _ipsystem do $NODE | grep WIFI_PRE= | cut -d'=' -f2 )"
-	wlan_netmsk="$( _net cidr2mask $wlan_netmsk )"
+
+	### radiocard-0
+	# adhoc = .1	adhoc or ap = .1
+	# ap    = .2
+	### radiocard-1
+	# adhoc = .3	adhoc or ap = .3
+	# ap    = .4
+	### radiocard-2
+	# adhoc = .5	adhoc or ap = .5
+	# ap    = .6
+
+	if grep "option network" "/etc/config/wireless" | grep -q "wlanadhoc${network_append}"; then
+		local ip_1stIF_addvalue=$(( (($radiocard + 1) * 2 )     - 1 ))
+		local ip_2ndIF_addvalue=$(( (($radiocard + 1) * 2 ) - 1 - 1 ))
+		wlan_netmsk="$( _ipsystem do $NODE | grep ^"WIFI_DHCP_PRE=" | cut -d'=' -f2 )"
+	else
+		local ip_1stIF_addvalue=$(( (($radiocard + 1) * 2 ) - 1 - 1 ))
+		wlan_netmsk="$( _ipsystem do $NODE | grep ^"WIFI_PRE=" | cut -d'=' -f2 )"
+	fi
 
 	cat >>/etc/config/network <<EOF
 
-${hide_wifi}config 'interface' 'wlan'
-${hide_wifi}	option 'ifname'	'$wlan_ifname'
+${hide_wifi}config 'interface' 'wlan${network_append}'
+#${hide_wifi}	option 'ifname'	'$wlan_ifname'
 ${hide_wifi}	option 'proto'	'static'
-${hide_wifi}	option 'ipaddr'	 '$wlan_ipaddr'
-${hide_wifi}	option 'netmask' '$wlan_netmsk'
+${hide_wifi}	option 'ipaddr'	 '$( ipv4address_plus_x "$wlan_ipaddr" "$ip_1stIF_addvalue" )'
+${hide_wifi}	option 'netmask' '$( _net cidr2mask "$wlan_netmsk" )'
 
 EOF
 
-	case "$PROFILE_MODE" in
-		hybrid)
-			cat >>/etc/config/network <<EOF
+	grep "option network" "/etc/config/wireless" | grep -q "wlanadhoc${network_append}" || continue
 
-${hide_wifi}config 'interface' 'wlanadhoc'
-${hide_wifi}	option 'ifname'	'${wlan_ifname}-1'
+	wlan_netmsk="$( _ipsystem do $NODE | grep ^"WIFI_PRE=" | cut -d'=' -f2 )"
+
+	cat >>/etc/config/network <<EOF
+
+${hide_wifi}config 'interface' 'wlanadhoc${network_append}'
+#${hide_wifi}	option 'ifname'	'$wlan_ifname'
 ${hide_wifi}	option 'proto'	'static'
-${hide_wifi}	option 'ipaddr'	 '$wlan_ipaddr'
-${hide_wifi}	option 'netmask' '$wlan_netmsk'
+${hide_wifi}	option 'ipaddr'	 '$( ipv4address_plus_x "$wlan_ipaddr" "$ip_2ndIF_addvalue" )'
+${hide_wifi}	option 'netmask' '$( _net cidr2mask "$wlan_netmsk" )'
 
 EOF
-		;;
-	esac
 
+
+} done
 
 	[ -n "$alias_ipaddr" ] && hide=
 
@@ -1109,6 +1175,9 @@ $hide	option 'ipaddr' '$alias_ipaddr'
 $hide	option 'netmask' '${alias_netmask:-255.255.255.255}'
 $( test -n "$alias_gateway" && echo "	option 'gateway' '$alias_gateway'" )
 EOF
+
+PROFILE_MODE=$profile_mode_tmp                                  #reset original profile mode
+
 }
 
 _config_dhcp ()			# domain = .olsr
@@ -1234,9 +1303,18 @@ _config_aliases ()
 
 _config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files/olsrd.conf.default.full
 {
+
 	local NODE="$1"
-	local speed="${OLSR_SPEED:-5}"
+	local speed="${OLSR_SPEED:-6}"
 	local hide_nameservice slave
+	local showspeed=
+	local hidevals=
+
+	# speed makro there since 2013-apr
+	grep -q "sven-ola" "/etc/init.d/olsrd" && {
+		hidev="#"
+		showspeed="	option speed 		'$speed'"
+	}
 
 	if [ -z "$GATEWAY" -a "$PROFILE_MODE" = "ap" ]; then
 		slave=1
@@ -1256,17 +1334,39 @@ _config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 
 	local landev="lan"
 	local wandev="wan"
-	local wifidev="wlan"
+
+	output_useable_wifi_networks()
+	{
+		local wifidev="wlan"
+		local radiocard network_append spacer
+
+		for radiocard in 0 1 2 3; do {
+			[ $radiocard -gt 0 ] && network_append="RADIO${radiocard}"
+			if   grep "option network" "/etc/config/wireless" | grep -q "wlanadhoc${network_append}"; then
+				echo -n "${spacer}wlanadhoc${network_append}"
+				spacer=" "
+			elif grep "option network" "/etc/config/wireless" | grep -q "wlan${network_append}"; then
+				echo -n "${spacer}wlan${network_append}"
+				spacer=" "
+			fi
+		} done
+	}
 
 	[ -z "$( uci get network.wan.ifname )" ] && {
 		wandev=
 	}
 
-	# special rule for ejbw/satama here
-
 	[ "$( uci get network.wan.proto )" = "static" ] || {
-				# only olsr on wan, if no pppoe/dhcp...
-		wandev=		# hint: we must be sure, that network-section is already written
+		case "$NETWORK" in
+			satama*|ejbw*)
+			;;
+			*)
+				# only olsr on wan, if no pppoe/dhcp
+				# hint: we must be sure, that network-section is already written
+				wandev=
+			;;
+		esac
+
 	}
 
 	[ -n "$wandev" ] && {
@@ -1280,7 +1380,7 @@ _config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 		;;
 		adhoc*|hybrid)
 			INTERFACES1="${landev}${wandev}"
-			INTERFACES2="$wifidev"
+			INTERFACES2="$( output_useable_wifi_networks )"
 		;;
 	esac
 
@@ -1325,14 +1425,15 @@ config meta
 config Interface
 	list interface			'$INTERFACES1'
 	option Ip4Broadcast		'255.255.255.255'
-	option HelloInterval		'$hello_interval.0'
-	option HelloValidityTime	'$(( $speed * 25 )).0'
-	option TcValidityTime		'$(( $speed * 100 )).0'
-	option TcInterval		'$tc_interval.0'
-	option MidInterval		'$(( $speed * 5 )).0'
-	option MidValidityTime		'$(( $speed * 100 )).0'
-	option HnaInterval		'$(( $speed * 2 )).0'
-	option HnaValidityTime		'$(( $speed * 25 )).0'
+$showspeed
+$hidev	option HelloInterval		'$hello_interval.0'		# vals for speed $speed
+$hidev	option HelloValidityTime	'$(( $speed * 25 )).0'
+$hidev	option TcValidityTime		'$(( $speed * 100 )).0'
+$hidev	option TcInterval		'$tc_interval.0'
+$hidev	option MidInterval		'$(( $speed * 5 )).0'
+$hidev	option MidValidityTime		'$(( $speed * 100 )).0'
+$hidev	option HnaInterval		'$(( $speed * 2 )).0'
+$hidev	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
 [ "$OLSR_METRIC" = "etx_ffeth" ] && {
 	cat >>/etc/config/olsrd <<EOF
@@ -1344,14 +1445,15 @@ EOF
 config Interface
 	list interface			'$INTERFACES2'
 	option Ip4Broadcast		'255.255.255.255'
-	option HelloInterval		'$hello_interval.0'
-	option HelloValidityTime	'$(( $speed * 25 )).0'
-	option TcValidityTime		'$(( $speed * 100 )).0'
-	option TcInterval		'$tc_interval.0'
-	option MidInterval		'$(( $speed * 5 )).0'
-	option MidValidityTime		'$(( $speed * 100 )).0'
-	option HnaInterval		'$(( $speed * 2 )).0'
-	option HnaValidityTime		'$(( $speed * 25 )).0'
+$showspeed
+$hidev	option HelloInterval		'$hello_interval.0'
+$hidev	option HelloValidityTime	'$(( $speed * 25 )).0'
+$hidev	option TcValidityTime		'$(( $speed * 100 )).0'
+$hidev	option TcInterval		'$tc_interval.0'
+$hidev	option MidInterval		'$(( $speed * 5 )).0'
+$hidev	option MidValidityTime		'$(( $speed * 100 )).0'
+$hidev	option HnaInterval		'$(( $speed * 2 )).0'
+$hidev	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
 
 	local interface_mode="mesh"
