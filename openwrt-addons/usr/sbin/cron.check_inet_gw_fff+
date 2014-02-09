@@ -150,7 +150,16 @@ pidof bat_events >/dev/null && {
 
 # will be generated on 'FIRST_RUN=true'
 [ -e '/tmp/vtund.sh' ] && {
-	pidof vtund >/dev/null || . '/tmp/vtund.sh'
+	if pidof vtund >/dev/null; then
+		logread | fgrep -q 'Connection timed out' && {
+			[ $( logread | fgrep 'Connection timed out' | fgrep ' vtund[' | wc -l ) -gt 5 ] && {
+				killall vtund
+				. '/tmp/vtund.sh'	# rereads server IP
+			}
+		}
+	else
+		. '/tmp/vtund.sh'
+	fi
 }
 
 echo "$COST_INT"	>'/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY'
