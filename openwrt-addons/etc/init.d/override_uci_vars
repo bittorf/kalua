@@ -346,8 +346,6 @@ boot()
 
 	apply_cronwatchdog()	# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
 	{
-		[ -n "$LOWMEM" ] && return 0
-
 		remove_section "network.@alias[].interface" 'loopback'
 		uci add network 'alias'
 		uci set network.@alias[-1].interface='loopback'
@@ -371,19 +369,23 @@ boot()
 		uci set dhcp.@dhcp[-1].ignore='0'
 	}
 
+	[ -z "$LOWMEM" ] && apply_cronwatchdog
+
 	case "$CONFIG_PROFILE" in
-		fparkssee*)
+		fparkssee*|satama*|marinapark*)
 			[ -z "$LOWMEM" ] && uci set olsrd.@meta[0].hnaslave=0
-			set_wifi adhoc any mcast_rate '6000'
-		;;
-		satama*)
-			set_wifi adhoc any mcast_rate '6000'
-		;;
-		marinapark*)
-			set_wifi adhoc any mcast_rate '6000'
+
+			case "$NODENUMBER" in
+				# fparkssee-E1-buero|marinapark-buero
+				223|10)
+					set_wifi adhoc any mcast_rate '1000'
+				;;
+				*)
+					set_wifi adhoc any mcast_rate '6000'
+				;;
+			esac
 		;;
 		apphalle*)
-			apply_cronwatchdog
 			uci set olsrd.@meta[0].hnaslave=0
 
 			set_wifi ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 ) $NODENUMBER"
@@ -395,8 +397,6 @@ boot()
 			set_wifi adhoc 2ghz ssid 'X'
 		;;
 		liszt28*)
-			apply_cronwatchdog
-
 			case "$NODENUMBER" in
 				22|46|10|6)	# keller|mitte|stube|dach
 					set_wifi ap    5ghz disabled '1'
@@ -416,7 +416,6 @@ boot()
 			esac
 		;;
 		ejbw*)
-			apply_cronwatchdog
 			uci set olsrd.@meta[0].hnaslave=0
 
 			case "$NODENUMBER" in
@@ -462,7 +461,6 @@ boot()
 			uci set wireless.@wifi-iface[0].ssid="o"
 		;;
 		leonardo*)
-			apply_cronwatchdog
 			uci set olsrd.@meta[0].hnaslave=0
 		;;
 		tkolleg*)
@@ -590,8 +588,6 @@ boot()
 			set_wifi adhoc 2ghz ssid 'X'
 		;;
 		schoeneck*)
-			apply_cronwatchdog
-
 			set_wifi ap    2ghz txpower '15'
 			set_wifi ap    2ghz ssid "IFA Schoeneck $NODENUMBER"
 			set_wifi ap    5ghz disabled '1'			# !!!
