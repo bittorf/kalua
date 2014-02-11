@@ -801,6 +801,10 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_motion=y'
 				apply_symbol 'CONFIG_PACKAGE_v4l-utils=y'
 			;;
+			'DSLR')	# http://en.wikipedia.org/wiki/Digital_single-lens_reflex_camera
+				apply_symbol 'CONFIG_PACKAGE_gphoto2=y'			# multimedia
+				apply_symbol 'CONFIG_PACKAGE_libgphoto2-drivers'	# libraries
+			;;
 			'USBaudio')
 				apply_symbol 'CONFIG_PACKAGE_madplay=y'			# sound: madplay
 				apply_symbol 'CONFIG_PACKAGE_kmod-sound-core=y'		# kernel-modules: sound:
