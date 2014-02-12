@@ -1485,7 +1485,7 @@ _netfilter_user_dataretention_add()
 {
 	local mac="$1"
 	local ip="$2"
-
+	local ulogd=
 	local myhna="$( _netfilter myhna )"
 
 	if [ -e "/tmp/NETFILTER/USER/$mac/dataretention" ]; then
@@ -1515,11 +1515,24 @@ _netfilter_user_dataretention_add()
 		touch "/tmp/NETFILTER/connection_detection"
 	}
 
+	grep -q ^'ipt_ULOG ' '/proc/modules' || {
+		ulogd='true'
+		_log do $funcname daemon info "kmodule 'ipt_ULOG' missing - no connection-detection for $mac"
+	}
+
 	iptables -t mangle -N outgoing_$mac
-	iptables -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ULOG --ulog-prefix "$mac>"
+	if [ -n "$ulogd" ]; then
+		iptables -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ULOG --ulog-prefix "$mac>"
+	else
+		iptables -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ACCEPT
+	fi
 
 	iptables -t mangle -N incoming_$mac
-	iptables -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ULOG --ulog-prefix "$mac<"
+	if [ -n "$ulogd" ]; then
+		iptables -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ULOG --ulog-prefix "$mac<"
+	else
+		iptables -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ACCEPT
+	fi
 
 	iptables -t mangle -A FORWARD -d $ip                            -j incoming_$mac
 	iptables -t mangle -A FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
