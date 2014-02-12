@@ -489,9 +489,11 @@ copy_firmware_files()
 	[ -n "$RELEASE" ] && {
 		# TODO: escape special chars/spaces
 		# models/$HARDWARE/$updatemode/$config/$files
-		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS"
+		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
+#		logger -s "ssh \"${RELEASE_SERVER%:*}\" \"mkdir -p '$server_dir'\""
 		ssh "${RELEASE_SERVER%:*}" "mkdir -p '$server_dir'"
-		scp "$file" "$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS/$destination"
+#		logger -s "scp \"$file\" \"$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination\""
+		scp "$file" "$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
 	}
 
 	# tarball + .info + readme.markdown?
@@ -567,7 +569,8 @@ apply_symbol()
 				;;
 			esac
 
-			LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}$KALUA_DIRNAME@$VERSION_KALUA"
+			LIST_OPTIONS_DOWNLOAD="${LIST_OPTIONS}${LIST_OPTIONS+,}$KALUA_DIRNAME"
+			LIST_OPTIONS="${LIST_OPTIONS_DOWNLOAD}@$VERSION_KALUA"
 
 			cd ..
 			log "$funcname() $KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
