@@ -429,7 +429,7 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH/attic"
-	local file destination rootfs server_dir
+	local file destination destination_scpsafe rootfs server_dir
 	local error=0
 
 	mkdir -p "$attic"
@@ -487,13 +487,14 @@ copy_firmware_files()
 	fi
 
 	[ -n "$RELEASE" ] && {
-		# TODO: escape special chars/spaces
 		# models/$HARDWARE/$updatemode/$config/$files
 		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
+		destination_scpsafe="$( echo "$destination" | sed 's| |\\\\ |g' )"	# 'a b' -> 'a\\ b'
+
 #		logger -s "ssh \"${RELEASE_SERVER%:*}\" \"mkdir -p '$server_dir'\""
 		ssh "${RELEASE_SERVER%:*}" "mkdir -p '$server_dir'"
 #		logger -s "scp \"$file\" \"$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination\""
-		scp "$file" "$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
+		scp "$file" "$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination_scpsafe"
 	}
 
 	# tarball + .info + readme.markdown?
