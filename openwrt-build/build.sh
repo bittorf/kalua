@@ -429,8 +429,8 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH/attic"
-	local file destination rootfs
-	local error=
+	local file destination rootfs server_dir
+	local error=0
 
 	mkdir -p "$attic"
 	rootfs="squash"
@@ -487,8 +487,10 @@ copy_firmware_files()
 	fi
 
 	[ -n "$RELEASE" ] && {
-		# TODO: escape special chars/spaces + make dir on server
+		# TODO: escape special chars/spaces
 		# models/$HARDWARE/$updatemode/$config/$files
+		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS"
+		ssh "${RELEASE_SERVER%:*}" "mkdir -p '$server_dir'"
 		scp "$file" "$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS/$destination"
 	}
 
