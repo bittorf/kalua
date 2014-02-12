@@ -489,6 +489,7 @@ copy_firmware_files()
 	[ -n "$RELEASE" ] && {
 		# models/$HARDWARE/$updatemode/$config/$files
 		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
+		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
 		destination_scpsafe="$( echo "$destination" | sed 's| |\\\\ |g' )"	# 'a b' -> 'a\\ b'
 
 #		logger -s "ssh \"${RELEASE_SERVER%:*}\" \"mkdir -p '$server_dir'\""
