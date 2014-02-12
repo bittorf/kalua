@@ -23,11 +23,46 @@
 # - include/renew patches for awk-remove
 
 # dir-structure:
-# model/$HARDWARE/stable/$files
-# model/$HARDWARE/beta/$files
-# model/$HARDWARE/testing/$files
+# models/$HARDWARE/$updatemode/$config/$files
 
 # build: release = all arch's + .info-file upload + all options (nopppoe,audiplayer)
+# 
+
+
+cat >/dev/null <<EOL
+list_options()
+{
+	echo 'Standard'					# sizecheck
+	echo 'Standard,kalua'				# valid for community
+	echo 'Standard,VDS,kalua'			# typical hotel
+	echo 'Standard,VDS,USBprinter,kalua'		# roehr30
+	echo 'Standard,VDS,BTCminerBFL,kalua'		# ejbw/16
+	echo 'Standard,VDS,BigBrother,kalua'		# buero/fenster
+	echo 'Standard,VDS,USBaudio,kalua'		# f36stube
+	echo 'Standard,VDS,BigBrother,USBaudio,kalua'	# buero/kueche
+	echo 'Small'					# sizecheck
+	echo 'Small,OLSRd,kalua'
+	echo 'Small,BatmanAdv,kalua'
+	echo 'Small,OLSRd,BatmanAdv,kalua'
+	echo 'Mini'
+
+	# + alles mit LuCIfull
+	# Bluetooth
+EOF
+}
+
+list_hw()
+{
+	kalua/openwrt-build/build.sh --hardware list plain
+}
+
+for HW in $( list_hw ); do {
+	kalua/openwrt-build/build.sh --hardware "$HW" \
+				     --option "Standard,VDS,kalua" \
+				     --openwrt "r39455" \
+				     --release 'stable'
+} done
+EOL
 
 log()
 {
@@ -48,7 +83,7 @@ Use: $0	--openwrt r38675|trunk|<empty> = leave untouched
 	--option
 	--profile 'ffweimar.hybrid.120'
 	--upload
-	--release	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
+	--release 'stable'	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
 	--debug
 	--force
 
@@ -171,6 +206,16 @@ target_hardware_set()
 #			MAX_SIZE='3.735.556'	# 57 erase-blocks * 64k + 4 bytes padding = 3.735.552 -> klog: jffs2: Too few erase blocks (4)
 #			confirmed: 3.604.484 = ok
 			MAX_SIZE=$(( 56 * 65536 ))
+		;;
+		'TP-LINK TL-WR841N/ND v8')
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-factory.bin'
+		;;
+		'TP-LINK TL-WR841N/ND v7')
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr841nd-v7-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr841nd-v7-squashfs-factory.bin'
 		;;
 		'TP-LINK TL-WDR4300')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR4300=y'
@@ -432,6 +477,11 @@ copy_firmware_files()
 	else
 		error=1
 	fi
+
+#	[ -n "$RELEASE" ] && {
+#		mkdir ...
+#		cp "$file"
+#	}
 
 	# tarball + .info + readme.markdown?
 	return $error
@@ -1047,8 +1097,15 @@ while [ -n "$1" ]; do {
 			exit 1
 		;;
 		'--release'|'-r')
-			log "[ERR] option '--release' not implemented yet"
-			exit 1
+			case "$2" in
+				'stable'|'beta'|'testing')
+					RELEASE="$2"
+				;;
+				*)
+					log "[ERR] --release stable|beta|testing"
+					exit 1
+				;;
+			esac
 		;;
 		'--debug'|'-d'|'--verbose'|'-v')
 			log "[OK] mode DEBUG / VERBOSE activated"
