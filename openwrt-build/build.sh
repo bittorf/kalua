@@ -91,7 +91,7 @@ Use: $0	--openwrt r38675|trunk|<empty> = leave untouched
 	--option
 	--profile 'ffweimar.hybrid.120'
 	--upload
-	--release 'stable'	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
+	--release 'stable' 'user@server:/your/path'	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
 	--debug
 	--force
 
@@ -486,10 +486,11 @@ copy_firmware_files()
 		error=1
 	fi
 
-#	[ -n "$RELEASE" ] && {
-#		mkdir ...
-#		cp "$file"
-#	}
+	[ -n "$RELEASE" ] && {
+		# TODO: escape special chars/spaces + make dir on server
+		# models/$HARDWARE/$updatemode/$config/$files
+		scp "$file" "$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS/$destination"
+	}
 
 	# tarball + .info + readme.markdown?
 	return $error
@@ -1108,6 +1109,7 @@ while [ -n "$1" ]; do {
 			case "$2" in
 				'stable'|'beta'|'testing')
 					RELEASE="$2"
+					RELEASE_SERVER="$3"
 				;;
 				*)
 					log "[ERR] --release stable|beta|testing"
