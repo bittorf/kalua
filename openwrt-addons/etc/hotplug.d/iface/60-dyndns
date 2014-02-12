@@ -8,9 +8,21 @@ case "$ACTION" in
 		}
 
 		[ "$( uci -q get network.$INTERFACE.proto )" = 'dhcp' ] && {
-			. /tmp/loader
+			[ -z "$LODEV" ] && . /tmp/loader
 			echo >>$SCHEDULER '/etc/init.d/S41build_static_netparam'
 		}
+
+		case "$INTERFACE" in
+			'wan')
+				[ -z "$LODEV" ] && . /tmp/loader
+				WANADR="$( ubus call network.interface.wan status | grep '"address": ' | head -n1 | cut -d'"' -f4 )"
+				_net ip4_is_private "$WANADR" || {
+					_log do dyndns.$ACTION "prevent DNS-AmpAttac on dev '$DEVICE' for IP $WANADR"
+					iptables -I INPUT -i $DEVICE -p tcp --dport 53 -j DROP
+					iptables -I INPUT -i $DEVICE -p udp --dport 53 -j DROP
+				}
+			;;
+		esac
 	;;
 	ifupdate|ifdown)
 		# wrong place but works:
