@@ -493,7 +493,7 @@ copy_firmware_files()
 		checksum="$( md5sum "$file" | cut -d' ' -f1 )"
 
 		cat >'info.txt' <<EOF
-# build on $(date) in XXX sec
+# build on $( TZ='CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00' date ) in $BUILD_DURATION sec
 file='$destination' checksum_md5='$checksum'
 EOF
 		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
@@ -524,7 +524,7 @@ build()
 	local cpu_count="$( grep -c ^'processor' '/proc/cpuinfo' )"
 	local jobs=$(( $cpu_count + 1 ))
 	local commandline="--jobs $jobs"
-	local verbose
+	local verbose t1 t2 rest
 	[ -n "$DEBUG" ] && verbose='V=s'
 
 	case "$option" in
@@ -540,7 +540,12 @@ build()
 		;;
 		*)
 			log "$funcname() running 'make $commandline'"
+			read t1 rest </proc/uptime
 			make $verbose $commandline
+			read t2 rest </proc/uptime
+			BUILD_DURATION=$(( ${t2%.*}${t2#*.} - ${t1%.*}${t1#*.} ))
+			BUILD_DURATION=$(( $BUILD_DURATION / 100 )).$(( %BUILD_DURATION % 100 ))
+			log "$funcname() running 'make $commandline' lasts $BUILD_DURATION sec"
 		;;
 	esac
 }
