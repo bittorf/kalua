@@ -43,11 +43,11 @@ list_hw()
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 REV="${1:-r39455}"
-HARDWARE="${2:-$( list_hw )}"
+HARDWARE="$2"
 MODE="${3:-testing}"
 
 for OPT in $( list_options ); do {
-	for HW in $HARDWARE; do {
+	for HW in ${HARDWARE:-$( list_hw )}; do {
 		$KALUA_DIRNAME/openwrt-build/build.sh --hardware "$HW" --option "$OPT" --openwrt "$REV" --release "$MODE"
 	} done
 } done
