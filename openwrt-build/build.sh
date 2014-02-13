@@ -22,30 +22,31 @@
 # - option: failsafe-image: add 'failsafe=' to kernel-commandline
 # - include/renew patches for awk-remove
 
-# dir-structure:
-# models/$HARDWARE/$updatemode/$config/$files
-
 # build: release = all arch's + .info-file upload + all options (nopppoe,audiplayer)
-# 
 
 
 cat >/dev/null <<EOL
 list_options()
 {
 	echo 'Standard'					# sizecheck
+
 	echo 'Standard,VDS,kalua'			# typical hotel
 	echo 'Standard,VDS,USBprinter,kalua'		# roehr30
 	echo 'Standard,VDS,BTCminerBFL,kalua'		# ejbw/16
 	echo 'Standard,VDS,BigBrother,kalua'		# buero/fenster
 	echo 'Standard,VDS,USBaudio,kalua'		# f36stube
 	echo 'Standard,VDS,BigBrother,USBaudio,kalua'	# buero/kueche
+
 	echo 'Small'					# sizecheck
+
 	echo 'Small,OLSRd,kalua'
 	echo 'Small,BatmanAdv,kalua'
 	echo 'Small,OLSRd,BatmanAdv,kalua'
+
 	echo 'Small,VDS,OLSRd,kalua'
 	echo 'Small,VDS,BatmanAdv,kalua'
 	echo 'Small,VDS,OLSRd,BatmanAdv,kalua'
+
 	echo 'Small,noPPPoE'				# sizecheck
 	echo 'Small,noPPPoE,OLSRd,kalua'
 	echo 'Small,noPPPoE,BatmanAdv,kalua'
@@ -486,19 +487,24 @@ copy_firmware_files()
 		error=1
 	fi
 
-	[ -n "$RELEASE" ] && {
-		# models/$HARDWARE/$updatemode/$config/$files
+	[ -n "$RELEASE" -a -e "$file" ] && {
 		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
 		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
 		destination_scpsafe="$( echo "$destination" | sed 's| |\\\\ |g' )"	# 'a b' -> 'a\\ b'
 
-#		logger -s "ssh \"${RELEASE_SERVER%:*}\" \"mkdir -p '$server_dir'\""
+		# info.txt: filename + hash + buildstring
+		# readme.md
+		# tarball
+
+		log "ssh \"${RELEASE_SERVER%:*}\" \"mkdir -p '$server_dir'\""
 		ssh "${RELEASE_SERVER%:*}" "mkdir -p '$server_dir'"
-#		logger -s "scp \"$file\" \"$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination\""
-		scp "$file" "$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination_scpsafe"
+		log  "scp \"$file\" \"$destination_scpsafe\""
+		echo "scp \"$file\" \"$destination_scpsafe\"" >'DO_SCP.sh'
+
+		# a direct call fails with 'scp: ambiguous target'
+		. 'DO_SCP.sh' && rm 'DO_SCP.sh'
 	}
 
-	# tarball + .info + readme.markdown?
 	return $error
 }
 
