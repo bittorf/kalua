@@ -36,7 +36,7 @@ list_options()
 
 list_hw()
 {
-	$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain
+	$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | grep ^"${1:-.}"$
 }
 
 # kalua/openwrt-build/build.sh      -> kalua
@@ -47,7 +47,7 @@ HARDWARE="$2"
 MODE="${3:-testing}"
 
 for OPT in $( list_options ); do {
-	for HW in ${HARDWARE:-$( list_hw )}; do {
+	list_hw "$HARDWARE" | while read HW; do {
 		$KALUA_DIRNAME/openwrt-build/build.sh --hardware "$HW" --option "$OPT" --openwrt "$REV" --release "$MODE"
 	} done
 } done
