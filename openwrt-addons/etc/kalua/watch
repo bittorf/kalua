@@ -582,10 +582,17 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 	uci show dhcp | grep -q '.mac=00:00:00:00:00:00' && {
 		leases="$( uci -q get dhcp.@dnsmasq[0].leasefile )" && {
-			grep ' 00:00:00:00:00:00 127.0.0.2 lo-alias ' "$leases" || {
+			if line="$( grep ' 00:00:00:00:00:00 127.0.0.2 lo-alias ' "$leases" )"; then
+				set -- $line
+				[ $1 -lt $( _system date unixtime ) ] && {
+					_log do $funcname daemon alert "loopback-alias/dhcp-lease too old"
+					/etc/init.d/*dnsmasq restart
+					ifup loopback
+				}
+			else
 				_log do $funcname daemon alert "loopback-alias/cron-watchdog seems down"
 				ifup loopback
-			}
+			fi
 		}
 	}
 
