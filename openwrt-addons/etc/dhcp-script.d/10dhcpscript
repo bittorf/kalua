@@ -39,17 +39,22 @@ fi
 case "$MODE" in
 	add|old)
 		case "$( uci get system.@weblogin[0].enabled )" in
-			""|0)
+			''|0)
 			;;
 			*)
-				[ "$HOST" = "check_if_reachable" ] && {	# during early boot
-					_netfilter user_reachable "$MAC" "$IP" >/dev/null || exit 0
-					touch "/tmp/vds_user_$MAC"	# login_check() will be OK even without DB
-				}
-
-				[ "$MODE" = "old" ] && {
-					_netfilter user_probe "$MAC" && exit 0
-				}
+				case "$HOST" in
+					'check_if_reachable')
+						_netfilter user_reachable "$MAC" "$IP" >/dev/null || exit 0
+						touch "/tmp/vds_user_$MAC"	# login_check() will be OK even without DB
+					;;
+					'old')
+						_netfilter user_probe "$MAC" && exit 0
+					;;
+					'reanimate'*)
+						# seed watch_reanimate_dead_neighbour()
+						exit 0
+					;;
+				esac
 
 				USER="$MAC"
 				NODE_HOSTNAME="$( uci get system.@system[0].hostname )"
