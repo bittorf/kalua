@@ -430,7 +430,8 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH/attic"
-	local file destination destination_scpsafe rootfs server_dir
+	local file checksum rootfs server_dir
+	local destination destination_scpsafe destination_info destination_info_scpsafa
 	local error=0
 
 	mkdir -p "$attic"
@@ -489,20 +490,28 @@ copy_firmware_files()
 
 	[ -n "$RELEASE" -a -e "$file" ] && {
 		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
+		checksum="$( md5sum "$file" | cut -d' ' -f1 )"
+
+		cat >'info.txt' <<EOF
+# build on $(date) in XXX sec
+file='$destination' checksum_md5='$checksum'
+EOF
 		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
 		destination_scpsafe="$( echo "$destination" | sed 's| |\\\\ |g' )"	# 'a b' -> 'a\\ b'
+		destination_info="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/info.txt"
+		destination_info_scpsafe="$( echo "$destination_info" | sed 's| |\\\\ |g' )"
 
-		# info.txt: filename + hash + buildstring
-		# readme.md
-		# tarball
+		# readme.md?
+		# tarball?
 
 		log "ssh \"${RELEASE_SERVER%:*}\" \"mkdir -p '$server_dir'\""
 		ssh "${RELEASE_SERVER%:*}" "mkdir -p '$server_dir'"
-		log  "scp \"$file\" \"$destination_scpsafe\""
-		echo "scp \"$file\" \"$destination_scpsafe\"" >'DO_SCP.sh'
+		log  "scp '$file' '$destination_scpsafe'"
+		echo "scp '$file' '$destination_scpsafe'"		 >'DO_SCP.sh'
+		echo "scp 'info.txt' '$destination_info_scpsafe'"	>>'DO_SCP.sh'
 
 		# a direct call fails with 'scp: ambiguous target'
-		. 'DO_SCP.sh' && rm 'DO_SCP.sh'
+		. './DO_SCP.sh' && rm 'DO_SCP.sh' 'info.txt'
 	}
 
 	return $error
