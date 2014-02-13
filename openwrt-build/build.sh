@@ -22,57 +22,6 @@
 # - option: failsafe-image: add 'failsafe=' to kernel-commandline
 # - include/renew patches for awk-remove
 
-# build: release = all arch's + .info-file upload + all options (nopppoe,audiplayer)
-
-
-cat >/dev/null <<EOL
-list_options()
-{
-	echo 'Standard'					# sizecheck
-
-	echo 'Standard,VDS,kalua'			# typical hotel
-	echo 'Standard,VDS,USBprinter,kalua'		# roehr30
-	echo 'Standard,VDS,BTCminerBFL,kalua'		# ejbw/16
-	echo 'Standard,VDS,BigBrother,kalua'		# buero/fenster
-	echo 'Standard,VDS,USBaudio,kalua'		# f36stube
-	echo 'Standard,VDS,BigBrother,USBaudio,kalua'	# buero/kueche
-
-	echo 'Small'					# sizecheck
-
-	echo 'Small,OLSRd,kalua'
-	echo 'Small,BatmanAdv,kalua'
-	echo 'Small,OLSRd,BatmanAdv,kalua'
-
-	echo 'Small,VDS,OLSRd,kalua'
-	echo 'Small,VDS,BatmanAdv,kalua'
-	echo 'Small,VDS,OLSRd,BatmanAdv,kalua'
-
-	echo 'Small,noPPPoE'				# sizecheck
-	echo 'Small,noPPPoE,OLSRd,kalua'
-	echo 'Small,noPPPoE,BatmanAdv,kalua'
-	echo 'Small,noPPPoE,OLSRd,BatmanAdv,kalua'
-	echo 'Small,noPPPoE,VDS,OLSRd,kalua'
-	echo 'Small,noPPPoE,VDS,BatmanAdv,kalua'
-	echo 'Small,noPPPoE,VDS,OLSRd,BatmanAdv,kalua'
-	echo 'Mini'
-
-	# + alles mit LuCIfull
-	# Bluetooth
-EOF
-}
-
-list_hw()
-{
-	kalua/openwrt-build/build.sh --hardware list plain
-}
-
-for OPT in $( list_options ); do {
-	for HW in $( list_hw ); do {
-		kalua/openwrt-build/build.sh --hardware "$HW" --option "$OPT" --openwrt "r39455" --release 'testing'
-	} done
-} done
-EOL
-
 log()
 {
 	local message="$1"
@@ -493,7 +442,7 @@ copy_firmware_files()
 		checksum="$( md5sum "$file" | cut -d' ' -f1 )"
 
 		cat >'info.txt' <<EOF
-# build on $( TZ='CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00' date ) in $BUILD_DURATION sec
+# server: $( hostname ) buildtime: $( TZ='CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00' date ) in $BUILD_DURATION sec
 file='$destination' checksum_md5='$checksum'
 EOF
 		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
