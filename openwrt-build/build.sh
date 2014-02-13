@@ -544,7 +544,7 @@ build()
 			make $verbose $commandline
 			read t2 rest </proc/uptime
 			BUILD_DURATION=$(( ${t2%.*}${t2#*.} - ${t1%.*}${t1#*.} ))
-			BUILD_DURATION=$(( $BUILD_DURATION / 100 )).$(( %BUILD_DURATION % 100 ))
+			BUILD_DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
 			log "$funcname() running 'make $commandline' lasts $BUILD_DURATION sec"
 		;;
 	esac
