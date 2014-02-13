@@ -39,15 +39,22 @@ list_hw()
 	$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | grep ^"${1:-.}"$
 }
 
+[ -z "$1" ] && {
+	echo "Usage: $0 <OpenWrt-Revision> <model> <mode> <server-path>"
+	echo " e.g.: $0 'r39455' 'Ubiquiti Bullet M' 'testing' 'root@intercity-vpn.de:/var/www/blubb/firmware'"
+	exit 1
+}
+
 # kalua/openwrt-build/build.sh      -> kalua
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
-REV="${1:-r39455}"
+REV="$1"
 HARDWARE="$2"
-MODE="${3:-testing}"
+MODE="$3"
+DEST="$4"
 
 for OPT in $( list_options ); do {
 	list_hw "$HARDWARE" | while read HW; do {
-		$KALUA_DIRNAME/openwrt-build/build.sh --hardware "$HW" --option "$OPT" --openwrt "$REV" --release "$MODE"
+		$KALUA_DIRNAME/openwrt-build/build.sh --hardware "$HW" --option "$OPT" --openwrt "$REV" --release "$MODE" "$DEST"
 	} done
 } done
