@@ -27,6 +27,7 @@ log()
 	local message="$1"
 	local debug="$2"
 
+	[ -n "$QUIET" ] && return 0
 	[ -n "$debug" -a -z "$DEBUG" ] && return 0
 	logger -p user.info -s "$0: $message"
 }
@@ -44,6 +45,7 @@ Use: $0	--openwrt r38675|trunk|<empty> = leave untouched
 	--release 'stable' 'user@server:/your/path'	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
 	--debug
 	--force
+	--quiet
 
 e.g. $0	--openwrt trunk --hardware 'Ubiquiti Bullet M' --option $KALUA_DIRNAME,Standard,VDS
 
@@ -1096,6 +1098,9 @@ while [ -n "$1" ]; do {
 		'--debug'|'-d'|'--verbose'|'-v')
 			log "[OK] mode DEBUG / VERBOSE activated"
 			DEBUG='true'
+		;;
+		'--quiet'|'-q')
+			QUIET='true'
 		;;
 	esac
 

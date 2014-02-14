@@ -80,9 +80,9 @@ BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
 for OPT in $( list_options ); do {
 	list_hw "$HARDWARE" | while read HW; do {
 		stopwatch start
-		log "# $BUILD --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
+		log "# $BUILD --quiet --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
 
-		if     $BUILD --hardware  "$HW"  --option  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
+		if     $BUILD --quiet --hardware  "$HW"  --option  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
 			log "[OK] in $( stopwatch stop "$T1" ) sec"
 		else
 			log "[FAILED] after $( stopwatch stop "$T1" ) sec"
