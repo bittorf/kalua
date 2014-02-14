@@ -42,6 +42,7 @@ list_hw()
 [ -z "$1" ] && {
 	echo "Usage: $0 <OpenWrt-Revision> <model> <mode> <server-path>"
 	echo " e.g.: $0 'r39455' 'Ubiquiti Bullet M' 'testing' 'root@intercity-vpn.de:/var/www/blubb/firmware'"
+	echo " e.g.: $0 'trunk'  ''                  'stable'  'root@intercity-vpn.de:/var/www/blubb/firmware'"
 	exit 1
 }
 
@@ -55,6 +56,9 @@ DEST="$4"
 
 for OPT in $( list_options ); do {
 	list_hw "$HARDWARE" | while read HW; do {
-		$KALUA_DIRNAME/openwrt-build/build.sh --hardware "$HW" --option "$OPT" --openwrt "$REV" --release "$MODE" "$DEST"
+		$KALUA_DIRNAME/openwrt-build/build.sh --hardware "$HW" --option "$OPT" --openwrt "$REV" --release "$MODE" "$DEST" || {
+			# e.g. image too large, so do next
+			git checkout master
+		}
 	} done
 } done
