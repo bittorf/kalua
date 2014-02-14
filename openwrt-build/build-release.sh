@@ -40,17 +40,16 @@ list_hw()
 	$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | grep ^"${1:-.}"$
 }
 
-stopwatch_start()
+stopwatch()
 {
-	read T1 REST </proc/uptime
-}
-
-stopwatch_stop()
-{
-	read T2 REST </proc/uptime
-	DURATION=$(( ${T2%.*}${T2#*.} - ${1%.*}${1#*.} ))
-	DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
-	echo "$DURATION"
+	if [ -z "$2" ]; then
+		read T1 REST </proc/uptime
+	else
+		read T2 REST </proc/uptime
+		DURATION=$(( ${T2%.*}${T2#*.} - ${1%.*}${1#*.} ))
+		DURATION=$(( $DURATION / 100 )).$(( $DURATION % 100 ))
+		echo "$DURATION"
+	fi
 }
 
 log()
@@ -58,7 +57,7 @@ log()
 	local file='release.txt'
 
 	logger -s "$file : $1"
-	echo >>"$file" "$( date ) - $1"
+	echo >>"$file" "$1"
 }
 
 if [ -z "$1" ]; then
@@ -80,14 +79,14 @@ BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
 
 for OPT in $( list_options ); do {
 	list_hw "$HARDWARE" | while read HW; do {
-		stopwatch_start
+		stopwatch start
 		log "# $BUILD --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
 
 		if     $BUILD --hardware  "$HW"  --option  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
-			log "[OK] in $( stopwatch_stop $T1 ) sec"
+			log "[OK] in $( stopwatch stop "$T1" ) sec"
 		else
-			log "[FAILED] after $( stopwatch_stop $T1 ) sec"
-			# e.g. image too large, so do next
+			log "[FAILED] after $( stopwatch stop "$T1" ) sec"
+			# e.g. image too large - ignore and do next
 			git checkout master
 		fi
 	} done
