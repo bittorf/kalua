@@ -28,7 +28,8 @@ list_options()
 	echo 'Small,noPPPoE,VDS,OLSRd,kalua'
 	echo 'Small,noPPPoE,VDS,BatmanAdv,kalua'
 	echo 'Small,noPPPoE,VDS,OLSRd,BatmanAdv,kalua'
-	echo 'Mini'
+
+#	echo 'Mini'
 
 	# + alles mit LuCIfull
 	# Bluetooth
