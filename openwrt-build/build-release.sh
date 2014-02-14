@@ -39,26 +39,55 @@ list_hw()
 	$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | grep ^"${1:-.}"$
 }
 
-[ -z "$1" ] && {
+stopwatch_start()
+{
+	read T1 REST </proc/uptime
+}
+
+stopwatch_stop()
+{
+	read T2 REST </proc/uptime
+	DURATION=$(( ${T2%.*}${T2#*.} - ${T1%.*}${T1#*.} ))
+	DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
+	echo "$DURATION"
+}
+
+log()
+{
+	local file='release.txt'
+
+	logger -s "$file : $1"
+	echo >>"$file" "$( date ) - $1"
+}
+
+if [ -z "$1" ]; then
 	echo "Usage: $0 <OpenWrt-Revision> <model> <mode> <server-path>"
 	echo " e.g.: $0 'r39455' 'Ubiquiti Bullet M' 'testing' 'root@intercity-vpn.de:/var/www/blubb/firmware'"
 	echo " e.g.: $0 'trunk'  ''                  'stable'  'root@intercity-vpn.de:/var/www/blubb/firmware'"
 	exit 1
-}
+else
+	REV="$1"
+	HARDWARE="$2"
+	MODE="$3"
+	DEST="$4"
+fi
 
 # kalua/openwrt-build/build.sh      -> kalua
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
-REV="$1"
-HARDWARE="$2"
-MODE="$3"
-DEST="$4"
+BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
 
 for OPT in $( list_options ); do {
 	list_hw "$HARDWARE" | while read HW; do {
-		$KALUA_DIRNAME/openwrt-build/build.sh --hardware "$HW" --option "$OPT" --openwrt "$REV" --release "$MODE" "$DEST" || {
+		stopwatch_start
+		log "# $BUILD --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
+
+		if     $BUILD --hardware  "$HW"  --option  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
+			log "[OK] in $( stopwatch_stop ) sec"
+		else
+			log "[FAILED] after $( stopwatch_stop ) sec"
 			# e.g. image too large, so do next
 			git checkout master
-		}
+		fi
 	} done
 } done
