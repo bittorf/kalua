@@ -47,7 +47,7 @@ stopwatch_start()
 stopwatch_stop()
 {
 	read T2 REST </proc/uptime
-	DURATION=$(( ${T2%.*}${T2#*.} - ${T1%.*}${T1#*.} ))
+	DURATION=$(( ${T2%.*}${T2#*.} - ${1%.*}${1#*.} ))
 	DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
 	echo "$DURATION"
 }
@@ -83,9 +83,9 @@ for OPT in $( list_options ); do {
 		log "# $BUILD --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
 
 		if     $BUILD --hardware  "$HW"  --option  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
-			log "[OK] in $( stopwatch_stop ) sec"
+			log "[OK] in $( stopwatch_stop $T1 ) sec"
 		else
-			log "[FAILED] after $( stopwatch_stop ) sec"
+			log "[FAILED] after $( stopwatch_stop $T1 ) sec"
 			# e.g. image too large, so do next
 			git checkout master
 		fi
