@@ -37,7 +37,17 @@ list_options()
 
 list_hw()
 {
-	$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | grep ^"${1:-.}"$
+	case "$1" in
+		''|'all')
+			$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain
+		;;
+		*)
+			$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | grep ^"${1:-.}"$ || {
+				log "list_hw() hardware '$1' not found"
+				exit 1
+			}
+		;;
+	esac
 }
 
 stopwatch()
