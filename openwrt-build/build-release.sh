@@ -37,7 +37,17 @@ list_options()
 
 list_hw()
 {
+	local line
+
 	case "$1" in
+		'hash')
+			$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | while read line; do {
+				[ "$( echo -n "$line" | md5sum | cut -d' ' -f1 )" = "$2" ] && {
+					echo "$line"
+					return
+				}
+			} done
+		;;
 		''|'all')
 			$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain
 		;;
@@ -75,7 +85,7 @@ log()
 if [ -z "$1" ]; then
 	echo "Usage: $0 <OpenWrt-Revision> <model> <mode> <server-path>"
 	echo " e.g.: $0 'r39455' 'Ubiquiti Bullet M' 'testing' 'root@intercity-vpn.de:/var/www/blubb/firmware'"
-	echo " e.g.: $0 'trunk'  ''                  'stable'  'root@intercity-vpn.de:/var/www/blubb/firmware'"
+	echo " e.g.: $0 'trunk'  'all                'stable'  'root@intercity-vpn.de:/var/www/blubb/firmware'"
 	exit 1
 else
 	REV="$1"
@@ -88,8 +98,11 @@ fi
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
+HW_LIST="$( list_hw "$HARDWARE" | while read LINE; do echo -n "$LINE" | md5sum | cut -d' ' -f1; done )"
 
-list_hw "$HARDWARE" | while read HW; do {
+for HW in $HW_LIST; do {
+	HW="$( list_hw hash "$HW" )"	# dirty trick because of spaces in list members
+
 	for OPT in $( list_options ); do {
 		stopwatch start
 		log "# $BUILD --quiet --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""

@@ -762,6 +762,11 @@ build_options_set()
 				apply_symbol "$1"
 			;;
 			'Standard')	# >4mb flash
+				[ "$2" = 'info' ] && {
+					:
+					# also automatically output subcall
+				}
+
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
