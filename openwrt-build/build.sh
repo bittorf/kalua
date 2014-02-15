@@ -221,7 +221,8 @@ target_hardware_set()
 		'T-Mobile InternetBox'|'4G Systems MTX-1 Board')
 			TARGET_SYMBOL='CONFIG_TARGET_au1000_au1500=y'
 			FILENAME_SYSUPGRADE='openwrt-au1000-au1500-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec openwrt-au1000-au1500-squashfs.srec'
+			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec'
+			# 'openwrt-au1000-au1500-squashfs.srec'
 		;;
 		'list')
 			[ "$option" = 'plain' ] || log "$funcname() supported models:"
@@ -245,6 +246,9 @@ target_hardware_set()
 
 	# e.g. 'CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y' -> 'brcm47xx'
 	ARCH="$( echo "$TARGET_SYMBOL" | cut -d'_' -f3 )"
+
+	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
+	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"
 
 	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
 	[ -n "$VERSION_KERNEL_FORCE" ] && {
@@ -397,7 +401,7 @@ copy_firmware_files()
 	echo "enforced_profile: $CONFIG_PROFILE"
 
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
-	destination="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
+	destination="$HARDWARE_MODEL_FILENAME"
 	destination="${destination}.openwrt=${VERSION_OPENWRT}"
 	destination="${destination}_kernel=${VERSION_KERNEL}"
 	destination="${destination}_option=${LIST_OPTIONS}"
@@ -444,7 +448,7 @@ copy_firmware_files()
 		# workaround: when build without kalua
 		[ -z "$LIST_OPTIONS_DOWNLOAD" ] && LIST_OPTIONS_DOWNLOAD="$LIST_OPTIONS"
 
-		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
+		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
 		checksum="$( md5sum "$file" | cut -d' ' -f1 )"
 
 		cat >'info.txt' <<EOF
@@ -454,9 +458,9 @@ copy_firmware_files()
 
 file='$destination' checksum_md5='$checksum'
 EOF
-		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
+		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
 		destination_scpsafe="$( echo "$destination" | sed 's| |\\\\ |g' )"	# 'a b' -> 'a\\ b'
-		destination_info="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/info.txt"
+		destination_info="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$LIST_OPTIONS_DOWNLOAD/info.txt"
 		destination_info_scpsafe="$( echo "$destination_info" | sed 's| |\\\\ |g' )"
 
 		# readme.md?
