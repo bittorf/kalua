@@ -89,8 +89,8 @@ fi
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
 
-for OPT in $( list_options ); do {
-	list_hw "$HARDWARE" | while read HW; do {
+list_hw "$HARDWARE" | while read HW; do {
+	for OPT in $( list_options ); do {
 		stopwatch start
 		log "# $BUILD --quiet --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
 
