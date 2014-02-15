@@ -441,11 +441,17 @@ copy_firmware_files()
 	fi
 
 	[ -n "$RELEASE" -a -e "$file" ] && {
+		# workaround: when build without kalua
+		[ -z "$LIST_OPTIONS_DOWNLOAD" ] && LIST_OPTIONS_DOWNLOAD="$LIST_OPTIONS"
+
 		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
 		checksum="$( md5sum "$file" | cut -d' ' -f1 )"
 
 		cat >'info.txt' <<EOF
-# server: $( hostname ) buildtime: $( TZ='CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00' date ) in $BUILD_DURATION sec
+# server: $( hostname )
+# build at: $( TZ='CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00' date )
+# build time: $BUILD_DURATION sec
+
 file='$destination' checksum_md5='$checksum'
 EOF
 		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
