@@ -46,8 +46,6 @@ netparam_for_uci_devices()
 					grep -q 'wlan0:' '/proc/net/dev' && IFNAME="wlan0"
 				}
 			}
-
-			export WIFIDEV="$IFNAME"	# for later using in this script
 		}
 
 		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
@@ -148,16 +146,14 @@ else
 	_build
 
 	if [ -e "/www/NETPARAM" ]; then
-		# empty WIFIDEV in file? -> filled WIFIDEV during this run? -> renew!
-		grep -q '^WIFIDEV='$ '/www/NETPARAM' && {
-			[ -n "$WIFIDEV" ] && {
-				_log do earlyboot_netparam daemon alert "stored new version, now with WIFIDEV=$WIFIDEV"
-				cp "/tmp/NETPARAM" "/www/NETPARAM"
-			}
+		. '/tmp/NETPARAM'
+		grep -q ^"WIFIDEV=$WIFIDEV"$ '/www/NETPARAM' || {
+			_log do earlyboot_netparam daemon alert "stored new version, now with WIFIDEV='$WIFIDEV'"
+			cp '/tmp/NETPARAM' '/www/NETPARAM'
 		}
 	else
-		_log do earlyboot_netparam daemon alert "stored initial version"
-		cp "/tmp/NETPARAM" "/www/NETPARAM"
+		_log do earlyboot_netparam daemon alert "stored initial version, WIFIDEV='$WIFIDEV'"
+		cp '/tmp/NETPARAM' '/www/NETPARAM'
 	fi
 fi
 

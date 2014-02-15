@@ -55,7 +55,7 @@ stopwatch()
 	if [ -z "$2" ]; then
 		read T1 REST </proc/uptime
 	else
-		T1="$1"
+		T1="$2"
 		read T2 REST </proc/uptime
 		DURATION=$(( ${T2%.*}${T2#*.} - ${T1%.*}${T1#*.} ))
 		DURATION=$(( $DURATION / 100 )).$(( $DURATION % 100 ))
