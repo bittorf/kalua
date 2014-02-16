@@ -33,6 +33,7 @@ list_options()
 
 	# + alles mit LuCIfull
 	# Bluetooth
+	# noWiFi
 }
 
 list_hw()
@@ -82,6 +83,21 @@ log()
 	echo >>"$file" "$1"
 }
 
+show_progress()
+{
+	[ -z "$TIME_START" ] && TIME_START="$( date )"
+	[ -z "$UNIXTIME_START" ] && UNIXTIME_START="$( date +%s )"
+
+	TIME_SPENDED=$(( $(date +%s) - $UNIXTIME_START ))
+	BUILD_DONE=$(( $BUILD_GOOD + $BUILD_BAD + 1 ))
+	TIME_PER_IMAGE=$(( $TIME_SPENDED / $BUILD_DONE ))
+	TIME_LEFT=$(( ($TIME_SPENDED * $BUILD_PENDING) / 60 ))		# mins
+	BUILD_PENDING=$(( $BUILD_ALL - $BUILD_DONE ))
+	BUILD_PROGRESS="[images build: $BUILD_DONE/$BUILD_ALL -> $BUILD_PENDING left - $TIME_PER_IMAGE sec/image - $TIME_LEFT mins left]"
+
+	log "# $BUILD_PROGRESS"
+}
+
 if [ -z "$1" ]; then
 	echo "Usage: $0 <OpenWrt-Revision> <model> <mode> <server-path>"
 	echo " e.g.: $0 'r39455' 'Ubiquiti Bullet M' 'testing' 'root@intercity-vpn.de:/var/www/blubb/firmware'"
@@ -100,15 +116,22 @@ KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
 HW_LIST="$( list_hw "$HARDWARE" | while read LINE; do echo -n "$LINE" | md5sum | cut -d' ' -f1; done )"
 
-TIME_START="$( date )"
 BUILD_GOOD=0
 BUILD_BAD=0
+BUILD_ALL=0
+
+for HW in $HW_LIST; do {
+	for OPT in $( list_options ); do {
+		BUILD_ALL=$(( $BUILD_ALL + 1 ))
+	} done
+} done
 
 for HW in $HW_LIST; do {
 	HW="$( list_hw hash "$HW" )"	# dirty trick because of spaces in list members
 
 	for OPT in $( list_options ); do {
 		stopwatch start
+		show_progress
 		log "# $BUILD --quiet --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
 
 		if     $BUILD --quiet --hardware  "$HW"  --option  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
