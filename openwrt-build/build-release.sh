@@ -100,6 +100,10 @@ KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
 HW_LIST="$( list_hw "$HARDWARE" | while read LINE; do echo -n "$LINE" | md5sum | cut -d' ' -f1; done )"
 
+TIME_START="$( date )"
+BUILD_GOOD=0
+BUILD_BAD=0
+
 for HW in $HW_LIST; do {
 	HW="$( list_hw hash "$HW" )"	# dirty trick because of spaces in list members
 
@@ -108,11 +112,17 @@ for HW in $HW_LIST; do {
 		log "# $BUILD --quiet --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
 
 		if     $BUILD --quiet --hardware  "$HW"  --option  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
+			BUILD_GOOD=$(( $BUILD_GOOD + 1 ))
 			log "[OK] in $( stopwatch stop "$T1" ) sec"
 		else
+			BUILD_BAD=$(( $BUILD_BAD + 1 ))
 			log "[FAILED] after $( stopwatch stop "$T1" ) sec"
 			# e.g. image too large - ignore and do next
 			git checkout master
 		fi
 	} done
 } done
+
+log "START: $TIME_START"
+log "READY: $( date )"
+log "good: $BUILD_GOOD bad: $BUILD_BAD"
