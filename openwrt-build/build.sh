@@ -220,7 +220,7 @@ target_hardware_set()
 		;;
 		'T-Mobile InternetBox'|'4G Systems MTX-1 Board')
 			TARGET_SYMBOL='CONFIG_TARGET_au1000_au1500=y'
-			FILENAME_SYSUPGRADE='openwrt-au1000-au1500-sysupgrade.bin'
+			FILENAME_SYSUPGRADE='openwrt-au1000-au1500-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec'
 			# 'openwrt-au1000-au1500-squashfs.srec'
 		;;
