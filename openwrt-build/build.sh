@@ -380,6 +380,8 @@ openwrt_download()
 			return 1
 		;;
 	esac
+
+	return 0
 }
 
 copy_firmware_files()
