@@ -1,6 +1,6 @@
 #!/bin/sh
 
-list_options()
+list_options()		# disable e.g. USB-builds for router without USB or images that are too big?
 {
 	echo 'Standard'					# sizecheck
 
