@@ -91,8 +91,8 @@ show_progress()
 	TIME_SPENDED=$(( $(date +%s) - $UNIXTIME_START ))
 	BUILD_DONE=$(( $BUILD_GOOD + $BUILD_BAD + 1 ))
 	TIME_PER_IMAGE=$(( $TIME_SPENDED / $BUILD_DONE ))
-	TIME_LEFT=$(( ($TIME_SPENDED * $BUILD_PENDING) / 60 ))		# mins
 	BUILD_PENDING=$(( $BUILD_ALL - $BUILD_DONE ))
+	TIME_LEFT=$(( ($TIME_SPENDED * $BUILD_PENDING) / 60 ))		# mins
 	BUILD_PROGRESS="[images build: $BUILD_DONE/$BUILD_ALL -> $BUILD_PENDING left - $TIME_PER_IMAGE sec/image - $TIME_LEFT mins left]"
 
 	log "# $BUILD_PROGRESS"
