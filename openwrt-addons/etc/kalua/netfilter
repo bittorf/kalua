@@ -1365,7 +1365,7 @@ _netfilter_user_add()
 	local dev myhna
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
-	[ -d "/tmp/NETFILTER/USER/$mac" ] && return 0
+	mkdir "/tmp/NETFILTER/USER/$mac" || return 0
 
 	dev="$( _netfilter user_reachable "$mac" "$ip" )" || {
 		_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
@@ -1390,8 +1390,16 @@ _netfilter_user_add()
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
 
+	cat >"/tmp/NETFILTER/USER/$mac/user_del" <<EOF
+local dev='$dev'
+iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
+iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
+iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
+iptables -t mangle -D PREROUTING -s $ip -j ACCEPT
+iptables -t mangle -D PREROUTING -d $ip -j ACCEPT
+EOF
+
 	_log do $funcname daemon info "mac: $mac ip: $ip"
-	mkdir -p "/tmp/NETFILTER/USER/$mac"
 	echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
 	echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
 	touch "/tmp/vds_user_$mac"
@@ -1420,6 +1428,13 @@ _netfilter_user_add()
 		iptables -t mangle -A FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
 		iptables -t mangle -A FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
 
+		cat >>"/tmp/NETFILTER/USER/$mac/user_del" <<EOF
+iptables -t mangle -D FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
+iptables -t mangle -D FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
+iptables -t mangle -D FORWARD -d $ip                            -j incoming_$mac
+iptables -t mangle -X incoming_$mac
+iptables -t mangle -X outgoing_$mac
+EOF
 		[ -e /tmp/ENDBOOT ] || {
 			pidof ulogd >/dev/null && /etc/init.d/ulogd stop
 			rmmod 2>/dev/null ipt_ULOG
@@ -1468,24 +1483,17 @@ _netfilter_user_probe()
 _netfilter_user_del()
 {
 	local mac="${1:-unset}"
-	local ip dev myhna
+	local ip dev
 
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
-		_netfilter traffic_control_user_del "$mac"
-
-		myhna="$( _netfilter myhna )"
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
 
-		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
-		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
-		iptables -t mangle -D PREROUTING -d $ip -j ACCEPT
-		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
+		_netfilter traffic_control_user_del "$mac"
+		_netfilter user_dataretention_del "$mac" "$ip"
 
-		dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
-		ip neigh change $ip dev $dev lladdr $mac nud reachable
-
-		[ "$( uci -q get system.@vds[0].enabled )" = "1" ] && {
-			_netfilter user_dataretention_del "$mac" "$ip"
+		[ -e "/tmp/NETFILTER/USER/$mac/user_del" ] && {
+			. "/tmp/NETFILTER/USER/$mac/user_del"
+			ip neigh change $ip dev $dev lladdr $mac nud reachable
 		}
 
 		rm -fR "/tmp/NETFILTER/USER/$mac" "/tmp/vds_user_$mac"
