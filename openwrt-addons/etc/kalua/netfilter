@@ -1057,8 +1057,8 @@ _netfilter_splash_start()
 		temp_dev="$dev"
 		[ "$dev" = 'gateway0' ] && dev='br-mybridge'
 
-		ip="$( _net dev2ip $dev )" || sleep 30
-		ip="$( _net dev2ip $dev )" || continue
+		ip="$( _net dev2ip "$dev" )" || sleep 30
+		ip="$( _net dev2ip "$dev" )" || continue
 
 		[ "$temp_dev" = 'gateway0' ] && dev='gateway0'
 		iptables -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
@@ -1068,10 +1068,12 @@ _netfilter_splash_start()
 	} done
 
 	# control-group: any packets left?
-	iptables -t nat -A PREROUTING -p udp -m mark --mark 0x13/0xff
-	iptables -t nat -A PREROUTING -p tcp -m mark --mark 0x14/0xff
-	iptables -t nat -A PREROUTING -p tcp -m mark --mark 0x11/0xff
-	iptables -t nat -A PREROUTING -p tcp -m mark --mark 0x12/0xff
+	for dev in '-i eth+' '-i wlan+' ''; do {
+		iptables -t nat -A PREROUTING -p udp $dev -m mark --mark 0x13/0xff -j REDIRECT --to-port 53
+		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x14/0xff -j REDIRECT --to-port 53
+		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x11/0xff -j REDIRECT --to-port 80
+		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x12/0xff -j REDIRECT --to-port 443
+	} done
 }
 
 _netfilter_splash_autoadd()
