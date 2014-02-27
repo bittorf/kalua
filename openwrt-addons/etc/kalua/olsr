@@ -1,9 +1,3 @@
-_olsr_ip_is_neigh ()
-{
-	local ip="$1"
-
-	test -e /tmp/OLSR/isneigh_$ip
-}
 
 _olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every minute
 {						#			   /LINKS
@@ -68,12 +62,8 @@ _olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every mi
 		esac
 	} done </tmp/OLSR_TMP/ALL >/tmp/OLSR_TMP/LINKS
 								# COST of 'INFINITE' is converted to ''
-	if _olsr version | fgrep -q 2009-10-27 ; then		# newstyle vs. old-style textinfo-plugin output
 
-		sed -n 's/^\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)[^0-9]\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$(( \$COUNT + 1 ))/p' "/tmp/OLSR_TMP/LINKS" >"/tmp/OLSR_TMP/LINKS.sh"
-	else
-		sed -n '/0\.00/s/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*0\.00[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$\(\( \$COUNT \+ 1 \)\)/p' "/tmp/OLSR_TMP/LINKS" >"/tmp/OLSR_TMP/LINKS.sh"
-	fi
+	sed -n '/0\.00/s/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*0\.00[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$\(\( \$COUNT \+ 1 \)\)/p' "/tmp/OLSR_TMP/LINKS" >"/tmp/OLSR_TMP/LINKS.sh"
 
 	mv /tmp/OLSR_TMP/* /tmp/OLSR
 
@@ -164,36 +154,6 @@ _olsr_daemon()
 			} done
 		;;
 	esac
-}
-
-_olsr_neigh_list_macs ()
-{
-	echo "fixme!"	# webconfig needs this!
-}
-
-_olsr_version ()
-{
-	local VERSION
-
-	case "$( _file hash /usr/sbin/olsrd )" in
-		0e2e2a7075ab294e1f784bf1191e099a) VERSION="pre-0.6.0_2010-04-10_ff1.6.38" ;;
-		0f5db811586d06a2eddd84e7d83f14e4) VERSION="pre-0.5.6-r7_2009-10-27_ff1.6.37" ;;
-		64a7b006218164827df8c43e4a5574d4) VERSION="pre-0.5.6-r4_2009-01-02_ff1.6.36" ;;
-		033811480fbd2cf9801a10f0112c5987) VERSION="pre-0.5.7-tip_2008-12-28_ff1.x.x" ;;
-		*)
-			if [ -e /etc/olsrd-release ]; then
-				while read VERSION; do echo -n "$VERSION "; done </etc/olsrd-release
-				VERSION="unknown build: $VERSION"
-			else
-				# exstract everything between *** [...] *** and strip spaces
-
-				VERSION="$( olsrd -v 2>/dev/null | fgrep olsr.org | head -n1 | sed -n 's/^.*\*\*\*\(.*\)\*\*\*.*/\1/p' )"
-				VERSION="$( echo "$VERSION" | sed 's/ //g' )"
-			fi
-		;;
-	esac
-
-	echo "$VERSION"
 }
 
 _olsr_uptime ()		# in seconds
@@ -675,36 +635,3 @@ _olsr_neighs_humanreadable ()			# fixme! ToDo: latitude/longitude/distance + spe
 	} done
 }
 
-_olsr_show_hna4_slaves()
-{
-	local line slave_found cidr route local_ip remote_ip
-	uci changes >"/tmp/uci_changes.$$"
-
-	while read line; do {
-		case "$line" in
-			"olsrd."*)
-				case "$line" in				# olsrd.cfg126b70=Hna4
-					*"=Hna4")			# olsrd.cfg126b70.netaddr=10.10.12.0
-						slave_found="true"	# olsrd.cfg126b70.netmask=255.255.255.192
-					;;
-					*".netaddr="*)
-						slave_found="$( echo "$line" | cut -d'=' -f2 )"
-					;;
-					*".netmask="*)
-						[ -n "$slave_found" ] && {
-							cidr="$( echo "$line" | cut -d'=' -f2 )"
-							cidr="$( _net mask2cidr "$cidr" )"
-
-							echo "$slave_found/$cidr"
-						}
-					;;
-					*)
-						slave_found=
-					;;
-				esac
-			;;
-		esac
-	} done <"/tmp/uci_changes.$$"
-
-	rm "/tmp/uci_changes.$$"
-}
