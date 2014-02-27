@@ -113,67 +113,6 @@ _watch_vpn ()
 	return 1
 }
 
-_watch_local_proxy()
-{
-	local func="watch_local_proxy"
-	local pidfile="/var/run/polipo.pid"
-
-	[ -e /usr/sbin/polipo ] || {
-		return 0
-	}
-
-	[ "$( uci get polipo.general.enabled )" = "1" ] || {
-		return 0
-	}
-
-	local cache_path="$( uci get polipo.cache.diskCacheRoot )"
-	if [ -z "$cache_path" ]; then
-		return 0
-	else
-		# polipo.general.logFile=/tmp/usb0/polipo.log
-		# this should try to read from disk-cache-device
-
-		ls -1 "$cache_path/polipo.log" >/dev/null 2>/dev/null || {
-			return 0
-		}
-	fi
-
-	daemon_restart()
-	{
-		local reason="$1"
-
-		[ -e "$pidfile" ] && {
-			rm "$pidfile"
-		}
-
-		_log do $func daemon alert "$reason, restarting"
-
-		pidof polipo >/dev/null && {
-			_watch hanging_command polipo
-			_watch hanging_command polipo
-		}
-
-		pidof polipo >/dev/null || {
-			/etc/init.d/polipo start
-		}
-	}
-
-	pidof polipo >/dev/null || {
-		daemon_restart "polipo is not running"
-		return 0
-	}
-
-	_wget do "http://127.0.0.1:8123/polipo/status?" 5 >"/tmp/${func}_$$"
-	fgrep -q "Polipo status report" "/tmp/${func}_$$" || {
-		daemon_restart "cannot fetch local status-page"
-	}
-	rm "/tmp/${func}_$$"
-
-	# testdownload:
-	# export http_proxy=http://127.0.0.1:8123
-	# _wget do "http://bla"
-}
-
 _watch_archivsize ()
 {
 	local FILE="$1"
@@ -218,26 +157,6 @@ _watch_wifi_mode ()		# check e.g. adhoc in config but managed in real?
 	fi
 }
 
-_watch_netserver ()
-{
-	[ -x /usr/bin/netserver ] && {
-		pidof netserver >/dev/null || {
-			_log do watch_netserver daemon info "netserver offline, restarting"
-			/etc/init.d/*netserver start
-		}
-	}
-}
-
-_watch_vpnc ()
- 
-{
-	local PID
-	
-	PID="$( pidof vpnc )" && {                                                                                                                                              
-		_log do vpnc_helper daemon info "petting PID '$PID' - fixme!"                                                                                                 
-		# kill -SIGHUP "$PID"           # fixme! (howto reconnect?)                                                                                                   
-	}              
-}
 
 _watch_hanging_command ()
 {
@@ -499,16 +418,6 @@ _watch_pppoe ()
 
 		_scheduler add "_watch pppoe"
 	fi
-}
-
-_watch_webcam ()
-{
-	[ ! -e /tmp/WEBCAM ] && return
-	
-	pidof motion >/dev/null || {
-		_log do webcam_watchdog daemon alert "restarting webcam"
-		/etc/init.d/S90webcam_fff+ restart
-	}
 }
 
 _watch_webserver()
