@@ -1,31 +1,3 @@
-_net_ip_reachable()
-{
-	local funcname="net_ip_reachable"
-	local ip="$1"
-	local max_attempts="${2:-30}"
-	local dev="$( _net ip2dev "$ip" )"
-
-	_log do $funcname daemon debug "trying arping via dev $dev to ip $ip (max $max_attempts attempts)"
-	arping -I "$dev" -c "$max_attempts" -q -f "$ip"
-}
-
-_net_text2port()
-{
-	local text="$1"
-	local position char ascii sum value
-
-	while [ ${position:=1} -le ${#text} ]; do {
-		char="$( echo "$text" | cut -b $position )"
-		ascii="$( printf '%d' "'$char" )"
-		value=$(( ( $ascii * 17 ) / 3 ))	# nearly no collisions in testsuite
-		sum=$(( ${sum:-1025} + $value ))
-		position=$(( $position + 1 ))
-	} done
-
-	[ ${sum:=1025} -gt 65535 ] && sum="65535"
-	echo "${sum:-1025}"
-}
-
 _net_refresh_dnshosts ()
 {
 	local pid="$( _system get_first_pid dnsmasq )"
@@ -57,33 +29,6 @@ _net_dhcp_lease_filename()
 	}
 
 	echo "$file"
-}
-
-_net_dhcp_lease_show()
-{
-	cat "$( _net dhcp_lease_filename )"
-}
-
-_net_dhcp_lease_remove()
-{
-	local mac="$1"
-	local line
-	local dhcp_lease_file="$( _net dhcp_lease_filename )"
-	local tempfile="/tmp/dhcp_leases_$$"
-
-	while read line; do {
-	
-		case "$line" in
-			*$mac*) ;;
-			     *) echo "$line" ;;
-		esac
-
-	} done <$dhcp_lease_file >$tempfile
-
-	mv "$tempfile" "$dhcp_lease_file"
-
-	kill -SIGUSR1 $( _system get_first_pid dnsmasq )	# logging stats
-	_scheduler add "/etc/init.d/*dnsmasq restart"
 }
 
 _net_mac2vendor()
@@ -299,21 +244,6 @@ _net_dev_type ()		# OUT1: string, "wifi/tunnel/wire"
 	echo -n "$OUT"
 }
 
-_net_ip2metric ()
-{
-	local ip="$1"
-	local option="$2"
-
-	case "$option" in
-		olsr)
-			_olsr remoteip2metric $ip
-		;;
-		*)
-			ip route list $ip | sed -n 's/^.*metric \([0-9]*\).*/\1/p;q'
-		;;
-	esac
-}
-
 _net_dev_is_wifi ()
 {
 	grep -q "^.*$1:" /proc/net/wireless && return 0
@@ -332,14 +262,6 @@ _net_dev_is_tuntap ()
 _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 {
 	ip -oneline route get $1 | sed -n 's/^.* dev \([a-zA-Z0-9@\.-]*\)[^a-z]*src .*/\1/p'
-}
-
-_net_iplocal2dev ()		# does it really make sense to have this func?
-{
-	ip -oneline address show | sed -ne "/ inet $1\//{s/^[0-9]*: \([a-zA-Z0-9@\.]*\).*/\1/p;q}"
-	
-	# does not work for local IP's:
-	# ip -o route get $1 | cut -d' ' -f3
 }
 
 _net_local_inet_offer ()		# SENS: check if default-route is local
@@ -584,12 +506,6 @@ _net_mac2ip ()		# SENS: get client-IP from different sources
 	return 1
 }
 
-_net_mac2hostname ()
-{
-	local MAC="$1"                                                                                                                                                
-	local NAME="$( grep -i $MAC /etc/ethers | sed -n 's/^..:..:..:..:..:.. \(.*\)-.*-.*\..*$/\1/p' )"	# cutting off e.g. "-lan1-n364.domain"
-	echo ${NAME:=anonym}                                                                                                                                          
-}
 
 _net_mac2dev ()
 {
@@ -629,59 +545,6 @@ _net_mac2media()
 	[ -n "$SHORT" ] && OUT="$( _net devtype2symbol $DEV )"
 
 	echo -n "$OUT"
-}
-
-_net_arp_permanent ()					# ARG1:ip ARG2:mac ARG3:wifi or wire
-{
-	local FUNC="net_arp_permanent"
-        local IP="$1"
-        local MAC="$( _sanitizer do "$2" lowercase )"
-        local FORCE="$3"						# fixme! use also IP to guess interface
-	local nudmode="${4:-permanent}"
-	local dev_keyword MODE LINE DEV
-
-        _log do $FUNC daemon info "IP: '$IP' MAC: '$MAC' FORCE: '$FORCE' nudmode: '$nudmode'"
-
-	[ "$MAC" = "00:00:00:00:00:00" ] && {		# fixme! see dhcp-script
-		return 1
-	}
-
-	LINE="$( ip neigh show to $IP 2>/dev/null )"
-	echo "$LINE" | fgrep -i -q " $nudmode" && {
-		_log do $FUNC daemon info "already nud '$nudmode' - do nothing"
-		return
-	}
-
-	if [ -n "$LINE" ]; then
-		MODE="change"
-	else
-		MODE="add"
-	fi
-
-	DEV="$( _net mac2dev $MAC )"		# fixme! probe up to 3 times?
-
- 	if [ -z "$DEV" ]; then
-		_log do $FUNC daemon info "not in neigh-list, probing"
-
- 		  if [ "$FORCE" = "wifi" ]; then
-
-			dev_keyword="wifi (forced)"
- 			DEV="$WIFIDEV"
-
- 		elif [ "$( _net mac2media $MAC )" = "wire" ]; then		# why a 2nd try? -> checked: is needed somethimes
-
-			dev_keyword="wire (detected at 2nd try)"
- 			DEV="$LANDEV"
- 		else
- 			dev_keyword="wifi (defaulting)"
- 			DEV="$WIFIDEV"
- 		fi
- 	else
- 		dev_keyword="$DEV (correctly detected)"
- 	fi
-
-	_log do $FUNC daemon info "detected physical-device ${dev_keyword:-unknown}: ip neigh $MODE $IP dev $DEV lladdr $MAC nud $nudmode"
-	ip neigh $MODE $IP dev $DEV lladdr $MAC nud "$nudmode" 2>/dev/null
 }
 
 _net_mask2cidr ()
@@ -768,30 +631,3 @@ _net_cidr2mask ()		# OUT1: string
 	echo -n $o
 }
 
-_net_hosts2cidr ()
-{
-	local o
-	local HOSTS="$1"
-
-	  if [ $HOSTS -le 1 ]; then
-		o=32
-	elif [ $HOSTS -le 2 ]; then
-		o=31
-	elif [ $HOSTS -le 4 ]; then
-		o=30
-	elif [ $HOSTS -le 8 ]; then
-		o=29
-	elif [ $HOSTS -le 16 ]; then
-		o=28
-	elif [ $HOSTS -le 32 ]; then
-		o=27
-	elif [ $HOSTS -le 64 ]; then
-		o=26
-	elif [ $HOSTS -le 128 ]; then
-		o=25
-	elif [ $HOSTS -le 256 ]; then
-		o=24
-	fi
-
-	echo -n $o
-}
