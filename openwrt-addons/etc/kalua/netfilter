@@ -34,7 +34,6 @@ _netfilter_start()
 	}
 
 	[ "$( uci -q get system.@weblogin[0].enabled )" = "1" ] && {
-		_db restore
 
 		[ -e "/www/SIMPLE_MESHNODE" ] || {
 			_netfilter splash_start
@@ -576,8 +575,6 @@ _netfilter_stop()
 		_netfilter traffic_control_stop
 	}
 
-	_db backup
-
 	case "$option" in
 		"remember_over_reboot"|"ror")
 			[ -n "$list_user" ] && {
@@ -1030,10 +1027,6 @@ _netfilter_user_del()
 		dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
 		ip neigh change $ip dev $dev lladdr $mac nud reachable
 
-		[ "$( uci get system.@vds[0].enabled )" = "1" ] && {
-			_netfilter user_dataretention_del "$mac" "$ip"
-		}
-
 		rm -fR "/tmp/NETFILTER/USER/$mac" "/tmp/vds_user_$mac"
 	}
 }
@@ -1209,11 +1202,7 @@ _netfilter_user_stats_process()
 			continue	# dont generate any message for this user
 		}
 
-		if [ -e "/tmp/vds_user_$mac" ]; then
-			read hash <"/tmp/vds_user_$mac"
-		else
-			hash=
-		fi
+		hash=
 
 		count=$(( $count + 1 ))
 		mac="${mac//:/%3a}"		# urlencode
