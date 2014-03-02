@@ -958,20 +958,6 @@ _netfilter_user_add()
 	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
 	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
 
-	if _netfilter user_dataretention_needed; then
-		grep -q ^"ipt_ULOG " /proc/modules || insmod ipt_ULOG
-		grep -q ^"xt_state " /proc/modules || insmod xt_state
-
-		_netfilter user_dataretention_add "$mac" "$ip"
-	else
-		[ -e /tmp/ENDBOOT ] || {
-			pidof ulogd >/dev/null && /etc/init.d/ulogd stop
-			rmmod 2>/dev/null ipt_ULOG
-			rmmod 2>/dev/null ipt_REDIRECT
-			rmmod 2>/dev/null xt_state
-		}
-	fi
-
 	_netfilter traffic_control_needed && {
 		_netfilter traffic_control_user_add "$ip" "$speed_up" "$speed_down"
 	}
@@ -979,15 +965,6 @@ _netfilter_user_add()
 	return 0
 }
 
-_netfilter_user_dataretention_needed()
-{
-	case "$CONFIG_PROFILE" in
-		*)
-			[ $( _system ram_size ) -gt 16384 ] || return 1
-			[ "$( uci get system.@vds[0].enabled )" = "1" ] || return 1
-		;;
-	esac
-}
 
 _netfilter_make_arp_permanent()
 {
@@ -1029,92 +1006,6 @@ _netfilter_user_del()
 
 		rm -fR "/tmp/NETFILTER/USER/$mac" "/tmp/vds_user_$mac"
 	}
-}
-
-_netfilter_user_dataretention_add()
-{
-	local mac="$1"
-	local ip="$2"
-
-	local myhna="$( _netfilter myhna )"
-
-	if [ -e "/tmp/NETFILTER/USER/$mac/dataretention" ]; then
-		return 1
-	else
-		touch "/tmp/NETFILTER/USER/$mac/dataretention"
-	fi
-
-	[ -e "/tmp/NETFILTER/connection_detection" ] || {
-		iptables -t mangle -N mark_connection_new
-		iptables -t mangle -A mark_connection_new -m state --state NEW -j MARK --set-mark 0x33
-		iptables -t mangle -A mark_connection_new -j RETURN
-
-		iptables -t mangle -N mark_connection_end
-		iptables -t mangle -A mark_connection_end -p tcp --tcp-flags fin,ack fin,ack -j MARK --set-mark 0x44
-		iptables -t mangle -A mark_connection_end -p tcp --tcp-flags rst rst -j MARK --set-mark 0x44
-		iptables -t mangle -A mark_connection_end -p tcp --tcp-flags syn,ack syn,ack -j MARK --set-mark 0x44
-		iptables -t mangle -A mark_connection_end -j RETURN
-
-		iptables -t mangle -A FORWARD -j mark_connection_new
-		iptables -t mangle -A FORWARD -j mark_connection_end
-
-		[ -e "/usr/sbin/ulogd" ] && {
-			pidof ulogd >/dev/null || /etc/init.d/ulogd start
-		}
-
-		touch "/tmp/NETFILTER/connection_detection"
-	}
-
-	iptables -t mangle -N outgoing_$mac
-	iptables -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ULOG --ulog-prefix "$mac>"
-
-	iptables -t mangle -N incoming_$mac
-	iptables -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ULOG --ulog-prefix "$mac<"
-
-	iptables -t mangle -A FORWARD -d $ip -j incoming_$mac
-	iptables -t mangle -A FORWARD -m mac --mac-source $mac -j outgoing_$mac
-}
-
-_netfilter_user_dataretention_del()
-{
-	local mac="$1"
-	local ip="$2"
-
-	[ -e "/tmp/NETFILTER/USER/$mac/dataretention" ] || return 1
-
-	iptables -t mangle -D FORWARD -d $ip -j incoming_$mac
-	iptables -t mangle -D FORWARD -m mac --mac-source $mac -j outgoing_$mac
-	iptables -t mangle -F outgoing_$mac
-	iptables -t mangle -X outgoing_$mac
-	iptables -t mangle -F incoming_$mac
-	iptables -t mangle -X incoming_$mac
-
-	[ "$( _netfilter user_list )" = "$mac" ] && {		# last remaining user
-		iptables -t mangle -D FORWARD -j mark_connection_end
-		iptables -t mangle -D FORWARD -j mark_connection_new
-		iptables -t mangle -F mark_connection_end
-		iptables -t mangle -X mark_connection_end
-		iptables -t mangle -F mark_connection_new
-		iptables -t mangle -X mark_connection_new
-
-		/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+
-		/etc/init.d/ulogd stop
-		rm "/tmp/NETFILTER/connection_detection"
-	}
-
-	rm "/tmp/NETFILTER/USER/$mac/dataretention"
-}
-
-_netfilter_user_quota_add()
-{
-	local mac="$1"
-	local upload="$2"
-	local download="$3"
-}
-
-_netfilter_user_quota_del()
-{
-	local option="$mac"
 }
 
 _netfilter_user_quota_query()
