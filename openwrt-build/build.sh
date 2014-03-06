@@ -32,7 +32,7 @@ log()
 	logger -p user.info -s "$0: $message"
 }
 
-print_usage()
+print_usage_and_exit()
 {
 	cat <<EOF
 
@@ -49,6 +49,8 @@ Use: $0	--openwrt r38675|trunk|<empty> = leave untouched
 e.g. $0	--openwrt trunk --hardware 'Ubiquiti Bullet M' --usecase $KALUA_DIRNAME,Standard,VDS
 
 EOF
+
+	exit 1
 }
 
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
@@ -1058,8 +1060,7 @@ KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 while [ -n "$1" ]; do {
 	case "$1" in
 		'--help'|'-h')
-			print_usage
-			exit 0
+			print_usage_and_exit
 		;;
 		'--force'|'-f')
 			FORCE='true'
@@ -1074,6 +1075,7 @@ while [ -n "$1" ]; do {
 			if target_hardware_set 'list' 'plain' | grep -q ^"$2"$ ; then
 				HARDWARE_MODEL="$2"
 			else
+				# e.g. option 'plain'
 				target_hardware_set 'list' "$3"
 				exit 1
 			fi
@@ -1117,11 +1119,6 @@ while [ -n "$1" ]; do {
 	shift
 } done
 
-[ -z "$HARDWARE_MODEL" -o -z "$LIST_USER_OPTIONS" ] && {
-	print_usage
-	exit 1
-}
-
 die_and_exit()
 {
 	[ -n "$FORCE" ] && return 0
@@ -1134,6 +1131,9 @@ die_and_exit()
 check_git_settings			|| die_and_exit
 check_working_directory			|| die_and_exit
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
+
+[ -z "$HARDWARE_MODEL" -o -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit
+
 target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 copy_additional_packages		|| die_and_exit
 build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
