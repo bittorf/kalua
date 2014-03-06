@@ -985,8 +985,20 @@ _netfilter_splash_start()
 {
 	local myhna="$( _netfilter myhna )"
 #	local debug="echo"			# must be empty for debug-mode
-	local ip source destination dev temp_dev
+	local ip source destination dev temp_dev dnsport
+	local dnsport dnsfake_ip
 	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8"
+
+	if [ -n "$LOWMEM" ]; then
+		dnsport=53
+	else
+		dnsport=5353
+		dnsfake_ip="${WIFIADR:-$LANADR}"
+
+		[ -h '/sbin/fakedns' ] || ln -s "$( which dnsmasq )" '/sbin/fakedns'
+		/sbin/fakedns --address=/#/$dnsfake_ip -p $dnsport
+		# check with: nslookup gmx.de $SERVER -port=5353
+	fi
 
 	mkdir -p "/tmp/NETFILTER/USER" \
 		 "/tmp/NETFILTER/MAC2IP" \
@@ -1062,16 +1074,16 @@ _netfilter_splash_start()
 		ip="$( _net dev2ip "$dev" )" || continue
 
 		[ "$temp_dev" = 'gateway0' ] && dev='gateway0'
-		iptables -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
-		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:53
+		iptables -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:$dnsport
+		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:$dnsport
 		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
 		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
 	} done
 
 	# control-group: any packets left?
 	for dev in '-i eth+' '-i wlan+' ''; do {
-		iptables -t nat -A PREROUTING -p udp $dev -m mark --mark 0x13/0xff -j REDIRECT --to-port 53
-		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x14/0xff -j REDIRECT --to-port 53
+		iptables -t nat -A PREROUTING -p udp $dev -m mark --mark 0x13/0xff -j REDIRECT --to-port $dnsport
+		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x14/0xff -j REDIRECT --to-port $dnsport
 		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x11/0xff -j REDIRECT --to-port 80
 		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x12/0xff -j REDIRECT --to-port 443
 	} done
