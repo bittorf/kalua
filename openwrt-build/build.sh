@@ -39,15 +39,14 @@ print_usage()
 Use: $0	--openwrt r38675|trunk|<empty> = leave untouched
 	--hardware 'Ubiquiti Bullet M'|<empty> = list supported models
 	--kernel
-	--option
+	--usecase
 	--profile 'ffweimar.hybrid.120'
-	--upload
 	--release 'stable' 'user@server:/your/path'	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
 	--debug
 	--force
 	--quiet
 
-e.g. $0	--openwrt trunk --hardware 'Ubiquiti Bullet M' --option $KALUA_DIRNAME,Standard,VDS
+e.g. $0	--openwrt trunk --hardware 'Ubiquiti Bullet M' --usecase $KALUA_DIRNAME,Standard,VDS
 
 EOF
 }
@@ -398,7 +397,7 @@ copy_firmware_files()
 	echo "kernel: '$VERSION_KERNEL'"
 	echo "openwrt-version: '$VERSION_OPENWRT'"
 	echo "hardware: '$HARDWARE_MODEL'"
-	echo "options = --option $LIST_OPTIONS"
+	echo "usecase = --usecase $LIST_OPTIONS"
 	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
 	echo "enforced_profile: $CONFIG_PROFILE"
 
@@ -945,7 +944,7 @@ build_options_set()
 					if [ "$subcall" = 'plain' ]; then
 						echo "$line"
 					else
-						echo "--option $line"
+						echo "--usecase $line"
 					fi
 				} done
 
@@ -953,7 +952,7 @@ build_options_set()
 					echo
 					echo '# or short:'
 
-					echo -n '--option '
+					echo -n '--usecase '
 					parse_case_patterns "$funcname" | while read line; do {
 						echo -n "$line,"
 					} done
@@ -1079,7 +1078,7 @@ while [ -n "$1" ]; do {
 				exit 1
 			fi
 		;;
-		'--option'|'-o')
+		'--usecase'|'-u')
 			for LIST_USER_OPTIONS in $( serialize_comma_list "${2:-help}" ); do {
 				if build_options_set 'list' 'plain' | grep -q ^"$( echo "$LIST_USER_OPTIONS" | cut -d'@' -f1 )"$ ; then
 					LIST_USER_OPTIONS="$2"
@@ -1093,10 +1092,6 @@ while [ -n "$1" ]; do {
 		'--profile'|'-p')
 			# e.g. ffweimar.hybrid.120
 			CONFIG_PROFILE="$2"
-		;;
-		'--upload'|'-u')
-			log "[ERR] option '--upload' not implemented yet"
-			exit 1
 		;;
 		'--release'|'-r')
 			case "$2" in

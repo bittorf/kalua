@@ -132,9 +132,9 @@ for HW in $HW_LIST; do {
 	for OPT in $( list_options ); do {
 		stopwatch start
 		show_progress
-		log "# $BUILD --quiet --hardware \"$HW\" --option \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
+		log "# $BUILD --quiet --hardware \"$HW\" --usecase \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
 
-		if     $BUILD --quiet --hardware  "$HW"  --option  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
+		if     $BUILD --quiet --hardware  "$HW"  --usecase  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
 			BUILD_GOOD=$(( $BUILD_GOOD + 1 ))
 			log "[OK] in $( stopwatch stop "$T1" ) sec"
 		else
