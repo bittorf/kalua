@@ -981,6 +981,33 @@ _netfilter_is_meshnode()	# fixme! better iterate over olsrd-interface, if one is
 	esac
 }
 
+_netfilter_fakedns_start()
+{
+	local dnsfake_ip="${WIFIADR:-$LANADR}"
+	local pid
+
+	[ -h '/sbin/fakedns' ] || ln -s "$( which dnsmasq )" '/sbin/fakedns'
+
+	# check with GNU: nslookup gmx.de $SERVER -port=5353
+	/sbin/fakedns --address=/#/$dnsfake_ip -p $dnsport && {
+		pid=$( pidof fakedns ) && {
+			echo >'/tmp/SERVICE/FAKEDNS.pid'     "$pid"
+			cat  >'/tmp/SERVICE/FAKEDNS.cmdline' "/proc/$pid/cmdline"
+		}
+	}
+}
+
+_netfilter_fakedns_stop()
+{
+	local pid
+
+	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] || return 0
+
+	read pid <'/tmp/SERVICE/FAKEDNS.pid'
+	kill $pid
+	rm /tmp/SERVICE/FAKEDNS.*
+}
+
 _netfilter_splash_start()
 {
 	local myhna="$( _netfilter myhna )"
@@ -993,11 +1020,7 @@ _netfilter_splash_start()
 		dnsport=53
 	else
 		dnsport=5353
-		dnsfake_ip="${WIFIADR:-$LANADR}"
-
-		[ -h '/sbin/fakedns' ] || ln -s "$( which dnsmasq )" '/sbin/fakedns'
-		/sbin/fakedns --address=/#/$dnsfake_ip -p $dnsport
-		# check with: nslookup gmx.de $SERVER -port=5353
+		_netfilter fakedns_start
 	fi
 
 	mkdir -p "/tmp/NETFILTER/USER" \
@@ -1158,7 +1181,7 @@ _netfilter_splash_batman_alien_unauth()
 
 _netfilter_splash_stop()
 {
-	:
+	_netfilter fakedns_stop
 }
 
 _netfilter_walledgarden_start()
