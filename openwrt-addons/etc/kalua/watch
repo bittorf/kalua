@@ -81,19 +81,25 @@ _watch_coredump()
 	local funcname="watch_coredump"
 	local ignore_pattern="${1:-we_will_not_ignore_anything}"	# e.g. 'hostapd'
 	local storage="/www/coredumps"
-	local file dump revision file_list
-	local exitcode=1
+	local file dump revision file_list overall
+	local exitcode=1	# means: no crash found
+	local count=0
 
 	# enforce a crash with: kill -SIGSEGV $PID
 	#
 	# http://stackoverflow.com/questions/5115613/core-dump-file-analysis
 	# filename/format defined in /etc/init.d/network
+	# means: filename + pid + signal + unixtime
 	# e.g. /tmp/olsrd.5403.11.1389960024.core
 
 	while file_list="$( ls -1t /tmp/*.core 2>/dev/null )"; do {
-		# reverse order / work on oldest first
-		for dump in $file_list; do :; done
-		exitcode=0
+		# reverse order / work on oldest (=last) first
+		for dump in $file_list; do count=$(( $count + 1 )); done
+
+		[ $exitcode -eq 0 ] || {
+			exitcode=0		# only during first iteration
+			overall=$count
+		}
 
 		case "$dump" in
 			*'/crond.'*)
@@ -124,7 +130,7 @@ _watch_coredump()
 
 		case "$dump" in
 			*"${ignore_pattern}"*)
-				_log do $funcname daemon info "found '$dump', but ignoring it"
+				_log do $funcname daemon info "$count/$overall: found '$dump', but ignoring it"
 			;;
 			*)
 				# coredump = 2mb and free = 1mb -> OK (is good compressable)
@@ -140,7 +146,7 @@ _watch_coredump()
 					mv "$dump" "$storage/$file"
 				fi
 
-				_log do $funcname daemon alert "wrote: $storage/$file"
+				_log do $funcname daemon alert "$count/$overall: wrote: $storage/$file"
 			;;
 		esac
 
