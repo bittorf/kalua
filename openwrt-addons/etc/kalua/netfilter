@@ -5,6 +5,8 @@
 # 0x12 = port443, redirect to local port 443
 # 0x13 = port53udp, redirect to local port 53
 # 0x14 = port53tcp, redirect to local port 53
+# 0x15 = port53udp, redirect to local port 5353
+# 0x16 = port53tcp, redirect to local port 5353
 # 0x22 = adblocking, gets rejected
 # 0x33 = connection_start
 # 0x44 = connection_close
@@ -999,8 +1001,8 @@ _netfilter_fakedns_start()
 			echo >'/tmp/SERVICE/FAKEDNS.pid'     "$pid"
 			cat  >'/tmp/SERVICE/FAKEDNS.cmdline' "/proc/$pid/cmdline"
 
-			iptables -t mangle -A INPUT -p udp --dport 53 -j MARK --set-mark 0x13
-			iptables -t mangle -A INPUT -p tcp --dport 53 -j MARK --set-mark 0x14
+			iptables -t mangle -A INPUT -p udp --dport 53 -j MARK --set-mark 0x15
+			iptables -t mangle -A INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
 		}
 	}
 }
@@ -1011,8 +1013,8 @@ _netfilter_fakedns_stop()
 
 	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] || return 0
 
-	iptables -t mangle -D INPUT -p tcp --dport 53 -j MARK --set-mark 0x14
-	iptables -t mangle -D INPUT -p udp --dport 53 -j MARK --set-mark 0x13
+	iptables -t mangle -D INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
+	iptables -t mangle -D INPUT -p udp --dport 53 -j MARK --set-mark 0x15
 
 	read pid <'/tmp/SERVICE/FAKEDNS.pid'
 	kill $pid
@@ -1067,9 +1069,9 @@ _netfilter_splash_start()
 ### end of ACCEPT
 
 #$debug	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j LOG --log-prefix "MANGLE.DNSq-UDP: "
-	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13	# redirect DNS - todo: limit rate via 'recent'
+	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x15	# redirect DNS - todo: limit rate via 'recent'
 #$debug	iptables -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j LOG --log-prefix "MANGLE.DNSq-TCP: "
-	iptables -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14	# redirect DNS - dig @8.8.8.8 +tcp google.com
+	iptables -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x16	# redirect DNS - dig @8.8.8.8 +tcp google.com
 #$debug	iptables -t mangle -A PREROUTING -p tcp --dport 80	       -j LOG --log-prefix "MANGLE.splash.HTTP: "
 	iptables -t mangle -A PREROUTING -p tcp --dport 80 	       -j MARK --set-mark 0x11	# redirect HTTP
 
@@ -1438,9 +1440,11 @@ _netfilter_user_add()
 	myhna="$( _netfilter myhna )"
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
 	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
+	iptables -t mangle -I INPUT      -m mac --mac-source $mac -j ACCEPT
 
 	cat >"/tmp/NETFILTER/USER/$mac/user_del" <<EOF
 dev='$dev'
+iptables -t mangle -D INPUT      -m mac --mac-source $mac -j ACCEPT
 iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
 iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
 iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
