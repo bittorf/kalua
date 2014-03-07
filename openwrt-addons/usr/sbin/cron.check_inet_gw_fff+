@@ -150,15 +150,28 @@ pidof bat_events >/dev/null && {
 
 # will be generated on 'FIRST_RUN=true'
 [ -e '/tmp/vtund.sh' ] && {
+	# todo: use a function and more varnames
+	# maybe better?: grep "tap[0-9]:" /proc/net/dev
 	if pidof vtund >/dev/null; then
-		logread | fgrep -q 'Connection timed out' && {
-			[ $( logread | fgrep 'Connection timed out' | fgrep ' vtund[' | wc -l ) -gt 5 ] && {
-				logread | grep -q ' vtund: link_up ' || {
+		logread >'/tmp/logread.out'
+
+		if   grep -q 'vtund\[[0-9]*]: Connection timed out' '/tmp/logread.out'; then
+			[ $( grep -q 'vtund\[[0-9]*]: Connection timed out' '/tmp/logread.out' | wc -l ) -gt 5 ] && {
+				grep -q ' vtund: link_up ' '/tmp/logread.out' || {
+					# our pubip has changed
 					killall vtund
-					. '/tmp/vtund.sh'	# rereads server IP
+					. '/tmp/vtund.sh'
 				}
 			}
-		}
+		elif grep -q "vtund\[[0-9]*]: Can't resolv server address" '/tmp/logread.out'; then
+			[ $( grep "vtund\[[0-9]*]: Can't resolv server address" '/tmp/logread.out' | wc -l ) -gt 5 ] && {
+				# servers pubip has changed
+				killall vtund
+				. '/tmp/vtund.sh'
+			}
+		fi
+
+		rm '/tmp/logread.out'
 	else
 		. '/tmp/vtund.sh'
 	fi
