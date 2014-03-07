@@ -993,6 +993,9 @@ _netfilter_fakedns_start()
 		pid=$( pidof fakedns ) && {
 			echo >'/tmp/SERVICE/FAKEDNS.pid'     "$pid"
 			cat  >'/tmp/SERVICE/FAKEDNS.cmdline' "/proc/$pid/cmdline"
+
+			iptables -t mangle -A INPUT -p udp --dport 53 -j MARK --set-mark 0x13
+			iptables -t mangle -A INPUT -p tcp --dport 53 -j MARK --set-mark 0x14
 		}
 	}
 }
@@ -1002,6 +1005,9 @@ _netfilter_fakedns_stop()
 	local pid
 
 	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] || return 0
+
+	iptables -t mangle -D INPUT -p tcp --dport 53 -j MARK --set-mark 0x14
+	iptables -t mangle -D INPUT -p udp --dport 53 -j MARK --set-mark 0x13
 
 	read pid <'/tmp/SERVICE/FAKEDNS.pid'
 	kill $pid
