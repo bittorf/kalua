@@ -1102,6 +1102,9 @@ _netfilter_splash_start()
 		local dev_list="$WIFI_DEVS $LANDEV"
 	fi
 
+	iptables -t nat -A PREROUTING -p tcp -m mark --mark 0x16/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
+	iptables -t nat -A PREROUTING -p udp -m mark --mark 0x15/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
+
 	for dev in $dev_list; do {
 		temp_dev="$dev"
 		[ "$dev" = 'gateway0' ] && dev='br-mybridge'
@@ -1110,16 +1113,16 @@ _netfilter_splash_start()
 		ip="$( _net dev2ip "$dev" )" || continue
 
 		[ "$temp_dev" = 'gateway0' ] && dev='gateway0'
-		iptables -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:$dnsport
-		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:$dnsport
+		iptables -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
+		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:53
 		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
 		iptables -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
 	} done
 
 	# control-group: any packets left?
 	for dev in '-i eth+' '-i wlan+' ''; do {
-		iptables -t nat -A PREROUTING -p udp $dev -m mark --mark 0x13/0xff -j REDIRECT --to-port $dnsport
-		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x14/0xff -j REDIRECT --to-port $dnsport
+		iptables -t nat -A PREROUTING -p udp $dev -m mark --mark 0x13/0xff -j REDIRECT --to-port 53
+		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x14/0xff -j REDIRECT --to-port 53
 		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x11/0xff -j REDIRECT --to-port 80
 		iptables -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x12/0xff -j REDIRECT --to-port 443
 	} done
