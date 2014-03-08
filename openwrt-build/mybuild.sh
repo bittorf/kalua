@@ -303,6 +303,17 @@ set_build()
 			""|"#"*)
 				# ignore comments
 			;;
+			*"=m")
+				symbol="$( echo "$line" | sed -n 's/\(^.*\)=m/\1/p' )"
+				wish="${symbol}=m"
+
+				if grep -q ^"# $symbol is not set" "$config"; then
+					# if its marked as NO, change it to m
+					sed -i "s/^# ${symbol} is not set/$wish/" "$config"
+				else
+					echo "$wish" >>"$config"
+				fi
+			;;
 			*"=y")
 				symbol="$( echo "$line" | sed -n 's/\(^.*\)=y/\1/p' )"
 				wish="${symbol}=y"
