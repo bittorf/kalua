@@ -34,6 +34,10 @@ log()
 
 print_usage_and_exit()
 {
+	local hint="$1"
+
+	[ -n "$hint" ] && echo "[HINT:] $hint"
+
 	cat <<EOF
 
 Use: $0	--openwrt r38675|trunk|<empty> = leave untouched
@@ -1132,7 +1136,8 @@ check_git_settings			|| die_and_exit
 check_working_directory			|| die_and_exit
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 
-[ -z "$HARDWARE_MODEL" -o -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit
+[ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
+[ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
 
 target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 copy_additional_packages		|| die_and_exit
