@@ -148,22 +148,21 @@ target_hardware_set()
 	local line
 
 	case "$model" in
-		'Ubiquiti Nanostation5')
-			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
-			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
-			FILENAME_FACTORY='openwrt-atheros-ubnt5-squashfs.bin'
-		;;
 		'PC Engines ALIX.2')
+			# http://wiki.openwrt.org/toh/pcengines/alix
 			TARGET_SYMBOL='CONFIG_TARGET_x86_alix2=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-alix2-combined-squashfs.img'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
-		'TP-LINK TL-WDR4900 v1')
-			TARGET_SYMBOL='CONFIG_TARGET_mpc85xx_TLWDR4900=y'
-			FILENAME_SYSUPGRADE='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
+		'Buffalo WZR-HP-AG300H')
+			# http://wiki.openwrt.org/toh/buffalo/wzr-hp-ag300h
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_WZRHPAG300H=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-factory.bin'
+			# openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-tftp.bin
 		;;
 		'TP-LINK TL-WR703N v1')
+			# http://wiki.openwrt.org/toh/tp-link/tl-wr703n
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR703=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr703n-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr703n-v1-squashfs-factory.bin'
@@ -172,29 +171,47 @@ target_hardware_set()
 #			confirmed: 3.604.484 = ok
 			MAX_SIZE=$(( 56 * 65536 ))
 		;;
-		'TP-LINK TL-WR841N/ND v8')
-			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-factory.bin'
+		'TP-LINK TL-MR3020')
+			# http://wiki.openwrt.org/toh/tp-link/tl-mr3020
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLMR3020=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-mr3020-v1-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-mr3020-v1-squashfs-factory.bin'
+		;;
+		'TP-LINK TL-WR741ND v4')
+			# http://wiki.openwrt.org/toh/tp-link/tl-wr741nd
+			# todo: v1, v2, v4
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR741=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr741nd-v4-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr741nd-v4-squashfs-factory.bin'
 		;;
 		'TP-LINK TL-WR841N/ND v7')
+			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr841nd-v7-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr841nd-v7-squashfs-factory.bin'
 		;;
+		'TP-LINK TL-WR841N/ND v8')
+			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-factory.bin'
+		;;
 		'TP-LINK TL-WDR4300')
+			# http://wiki.openwrt.org/toh/tp-link/tl-wdr4300
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR4300=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-factory.bin'
 		;;
-		'Buffalo WZR-HP-AG300H')
-			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_WZRHPAG300H=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-factory.bin'
-			# openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-tftp.bin
+		'TP-LINK TL-WDR4900 v1')
+			# http://wiki.openwrt.org/toh/tp-link/tl-wdr4900
+			TARGET_SYMBOL='CONFIG_TARGET_mpc85xx_TLWDR4900=y'
+			FILENAME_SYSUPGRADE='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
 		;;
-		'TP-LINK TL-WR940N'|'TP-LINK TL-WR941ND')
+		'TP-LINK TL-WR940N'|'TP-LINK TL-WR941ND v4')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr940n
+			# http://wiki.openwrt.org/toh/tp-link/tl-wr941nd
+			# todo: can be v2, v3, v4, v6
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR941=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-tl-wr941nd-v4-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-tl-wr941nd-v4-squashfs-factory.bin'
@@ -203,6 +220,11 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin'
+		;;
+		'Ubiquiti Nanostation5')
+			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
+			FILENAME_FACTORY='openwrt-atheros-ubnt5-squashfs.bin'
 		;;
 		'Ubiquiti Bullet M')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_UBNT=y'
