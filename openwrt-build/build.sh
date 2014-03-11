@@ -213,8 +213,8 @@ target_hardware_set()
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr941nd
 			# todo: can be v2, v3, v4, v6
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR941=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-tl-wr941nd-v4-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-tl-wr941nd-v4-squashfs-factory.bin'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr941nd-v4-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr941nd-v4-squashfs-factory.bin'
 		;;
 		'TP-LINK TL-WR1043ND')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
@@ -256,6 +256,12 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-au1000-au1500-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec'
 			# 'openwrt-au1000-au1500-squashfs.srec'
+		;;
+		'D-Link DIR-300-B1')
+			# http://wiki.openwrt.org/toh/d-link/dir-300revb
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_rt305x_Default=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-rt305x-dir-300-b1-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ramips-rt305x-dir-300-b1-squashfs-factory.bin'
 		;;
 		'list')
 			[ "$option" = 'plain' ] || log "$funcname() supported models:"
