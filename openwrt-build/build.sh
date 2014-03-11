@@ -333,9 +333,15 @@ openwrt_download()
 		'r'*)
 			$funcname 'switch_to_master'
 
-			# r12345 -> 12345 -> fe53cab
-			hash="$( echo "$wish" | cut -b2- )"
-			hash="$( git log -1 --format=%h --grep=@$hash )"
+			# typical entry:
+			# git-svn-id: svn://svn.openwrt.org/openwrt/trunk@39864 3c298f89-4303-0410-b956-a3cf2f4a3e73
+			hash="$( echo "$wish" | cut -b2- )"			# r12345 -> 12345  (remove leading 'r')
+			hash="$( git log --format=%h --grep="@$hash " )"	# 12345 -> fe53cab (number -> hash)
+
+			[ -z "$hash" ] && {
+				# can happen if 'rXXXXX' is in packages/feeds, just use newest:
+				hash="$( git log -1 --format=%h )"
+			}
 
 			git branch | grep -q ^"  openwrt@${hash}=${wish}"$ && {
 				log "$funcname() removing old? branch 'openwrt@${hash}=${wish}'"
