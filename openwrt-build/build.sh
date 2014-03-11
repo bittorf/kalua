@@ -193,6 +193,12 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-factory.bin'
 			# openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-tftp.bin
 		;;
+		'TP-LINK TL-WR940N'|'TP-LINK TL-WR941ND')
+			# http://wiki.openwrt.org/toh/tp-link/tl-wr940n
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR941=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-tl-wr941nd-v4-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-tl-wr941nd-v4-squashfs-factory.bin'
+		;;
 		'TP-LINK TL-WR1043ND')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin'
