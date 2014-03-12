@@ -680,14 +680,7 @@ _db_ticketcheck()
 
 	echo "$funcname" >/tmp/CRON_OVERLOAD
 
-	_system maintenance_window_active && {
-		for profile_id in $list; do {
-			file="/tmp/DB/USER/profile/id${profile_id}_counterA"
-			counter=
-			[ -e "$file" ] && read counter <"$file"
-			[ "$counter" = "0" ] || _db count_unused_logins "$profile_id"
-		} done
-	}
+	counter="$( _db count_unused_logins "$profile_id" fast )"
 
 	for profile_id in $list; do {
 		AUTOGENERATE=
@@ -1237,10 +1230,28 @@ _db_count_unused_logins()
 {
 	local funcname="db_count_unused_logins"
 	local wish_id="$1"
+	local option="$2"	# e.g. 'fast'
+
 	local list="$( _db user login list reverse )"
-	local profile_id login_id state
+	local profile_id login_id state j
 	local i=0
 	local file="/tmp/DB/USER/profile/id${wish_id}_counterA"
+
+	[ "$option" = 'fast' ] && {
+		[ -e "$file" ] && read j <"$file"
+
+		if [ ${j:=0} -eq 0 ]; then
+			if _system maintenance_window_active ; then
+				:	# check deeper/exact
+			else
+				echo "$j"
+				return 0
+			fi
+		else
+			echo "$j"
+			return 0
+		fi
+	}
 
 	_log do $funcname daemon info "checking profile $wish_id"
 
@@ -1270,4 +1281,6 @@ _db_count_unused_logins()
 
 	_log do $funcname daemon info "unused logins for profile $wish_id: $i"
 	echo "$i" >"$file"
+
+	echo "$i"
 }
