@@ -36,7 +36,7 @@ print_usage_and_exit()
 {
 	local hint="$1"
 
-	[ -n "$hint" ] && echo "[HINT:] $hint"
+	[ -n "$hint" ] && log "[HINT:] $hint"
 
 	cat <<EOF
 
@@ -440,12 +440,12 @@ copy_firmware_files()
 	mkdir -p "$attic"
 	rootfs="squash"
 
-	echo "kernel: '$VERSION_KERNEL'"
-	echo "openwrt-version: '$VERSION_OPENWRT'"
-	echo "hardware: '$HARDWARE_MODEL'"
-	echo "usecase = --usecase $LIST_OPTIONS"
-	echo "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
-	echo "enforced_profile: $CONFIG_PROFILE"
+	log "kernel: '$VERSION_KERNEL'"
+	log "openwrt-version: '$VERSION_OPENWRT'"
+	log "hardware: '$HARDWARE_MODEL'"
+	log "usecase = --usecase $LIST_OPTIONS"
+	log "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
+	log "enforced_profile: $CONFIG_PROFILE"
 
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
 	destination="$HARDWARE_MODEL_FILENAME"
@@ -481,9 +481,9 @@ copy_firmware_files()
 		error=1
 	fi
 
-	echo
-	echo "sysupgrade: '$FILENAME_SYSUPGRADE'"
-	echo "factory:    '$FILENAME_FACTORY'"
+	log
+	log "sysupgrade: '$FILENAME_SYSUPGRADE'"
+	log "factory:    '$FILENAME_FACTORY'"
 
 	if ls -l "bin/$ARCH/$FILENAME_FACTORY"; then
 		:
@@ -1167,8 +1167,8 @@ die_and_exit()
 {
 	[ -n "$FORCE" ] && return 0
 
-	echo
-	echo '[ERROR] the brave can try --force'
+	log
+	log '[ERROR] the brave can try --force'
 	exit 1
 }
 
@@ -1185,3 +1185,6 @@ build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
 build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
+
+log "[OK]"
+exit 0
