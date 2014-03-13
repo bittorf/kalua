@@ -23,6 +23,7 @@ _netfilter_start()
 	_netfilter masquerade_start
 	_netfilter portforwarding_start
 	_netfilter conntrack_adjust_max
+	_netfilter mssfix
 
 	case "$CONFIG_PROFILE" in
 		ejbw*)
@@ -841,6 +842,18 @@ _netfilter_stop_all_tables()
 	ebtables -t filter -F
 }
 
+_netfilter_mssfix()
+{
+	local file='/tmp/MSSFIX'
+
+	[ -e "$file" ] && {
+		iptables -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+	}
+
+	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+	touch "$file"
+}
+
 _netfilter_masquerade_start()
 {
 	local funcname="netfilter_masquerade_start"
@@ -1094,7 +1107,7 @@ _netfilter_splash_start()
 	grep -q ^"ipt_REJECT " /proc/modules || insmod ipt_REJECT	# fixme! remove later when new cron.patch_patch_kmodules.sh is active
 	iptables -A FORWARD -m mark --mark 0x88/0xff -j REJECT
 	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer 2nd time
-	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+	_netfilter mssfix
 
 	if pidof bat_events >/dev/null; then
 		local dev_list="br-mybridge gateway0 $WIFI_DEVS $LANDEV"
