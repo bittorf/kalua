@@ -181,8 +181,8 @@ target_hardware_set()
 		'TP-LINK TL-WR741ND v1'|'TP-LINK TL-WR741ND v2'|'TP-LINK TL-WR741ND v4')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr741nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR741=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr741nd-v${version}-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr741nd-v${version}-squashfs-factory.bin'
+			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr741nd-v${version}-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr741nd-v${version}-squashfs-factory.bin"
 		;;
 		'TP-LINK TL-WR841N/ND v7')
 			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
