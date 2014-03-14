@@ -28,8 +28,8 @@ case "${BUTTON}-${ACTION}" in
 			local file="/tmp/audioplayer.sh"
 			local dummy url
 			local i=1
-			local url1='soma.fm space-station http://sfstream1.somafm.com:2020'
-			local url2='soma.fm secret-agent http://mp3.somafm.com:443'
+			local url1='soma.fm secret-agent http://mp3.somafm.com:443'
+			local url2='soma.fm space-station http://sfstream1.somafm.com:2020'
 			local url3='soma.fm xmasinfrisko http://sfstream1.somafm.com:2100'
 			local url4='soma.fm indiepop http://sfstream1.somafm.com:8090'
 			local url5='mdr figaro http://avw.mdr.de/livestreams/mdr_figaro_live_128.m3u'
