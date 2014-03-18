@@ -891,6 +891,11 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_B43_PHY_HT is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_kmod-b43legacy is not set'	# kernel-modules:
 			;;
+			'Arduino')
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-acm=y'		# kernel-modules: USB-support
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial=y'
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial-ftdi=y'
+			;;
 			'BigBrother')
 				apply_symbol 'CONFIG_PACKAGE_kmod-video-core=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-video-uvc=y'
