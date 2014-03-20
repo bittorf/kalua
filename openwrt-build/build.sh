@@ -783,6 +783,7 @@ build_options_set()
 	local subcall="$2"
 	local file='.config'
 	local custom_dir='files'
+	local kmod
 
 	# shift args, because the call is: $funcname 'subcall' "$opt"
 	[ "$options" = 'subcall' -a -n "$subcall" ] && options="$subcall"
@@ -890,6 +891,14 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_B43_PHY_N is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_B43_PHY_HT is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_kmod-b43legacy is not set'	# kernel-modules:
+			;;
+			'WiFi-'*)
+				# generic approach:
+				# e.g usb-wifi-stick: rtl8192cu
+				# ID 7392:7811 Edimax Technology Co., Ltd EW-7811Un 802.11n Wireless Adapter [Realtek RTL8188CUS]
+
+				kmod="$( echo "$1" | cut -d'-' -f2 )"			# WiFi-rtl8192cu -> rtl8192cu
+				apply_symbol "CONFIG_PACKAGE_kmod-${kmod}=y"		# kernel-modules: wireless:
 			;;
 			'Arduino')
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-acm=y'		# kernel-modules: USB-support
