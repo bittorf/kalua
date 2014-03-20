@@ -1140,7 +1140,10 @@ while [ -n "$1" ]; do {
 		;;
 		'--usecase'|'-u')
 			for LIST_USER_OPTIONS in $( serialize_comma_list "${2:-help}" ); do {
-				if build_options_set 'list' 'plain' | grep -q ^"$( echo "$LIST_USER_OPTIONS" | cut -d'@' -f1 )"$ ; then
+				OPTION_SHORT="$( echo "$LIST_USER_OPTIONS" | cut -d'@' -f1 )"	# e.g. kalua@$githash
+				OPTION_SHORT="$( echo "$LIST_USER_OPTIONS" | cut -d'-' -f1 )"	# e.g. WiFi-$symbolname
+
+				if build_options_set 'list' 'plain' | grep -q ^"$OPTION_SHORT"$ ; then
 					LIST_USER_OPTIONS="$2"
 				else
 					log "problem for argument '$LIST_USER_OPTIONS'"
