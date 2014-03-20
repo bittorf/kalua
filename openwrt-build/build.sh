@@ -892,7 +892,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_B43_PHY_HT is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_kmod-b43legacy is not set'	# kernel-modules:
 			;;
-			'WiFi-'*)
+			'WiFi'*)
 				# generic approach:
 				# e.g usb-wifi-stick: rtl8192cu
 				# ID 7392:7811 Edimax Technology Co., Ltd EW-7811Un 802.11n Wireless Adapter [Realtek RTL8188CUS]
@@ -1140,8 +1140,9 @@ while [ -n "$1" ]; do {
 		;;
 		'--usecase'|'-u')
 			for LIST_USER_OPTIONS in $( serialize_comma_list "${2:-help}" ); do {
-				OPTION_SHORT="$( echo "$LIST_USER_OPTIONS" | cut -d'@' -f1 )"	# e.g. kalua@$githash
-				OPTION_SHORT="$( echo "$LIST_USER_OPTIONS" | cut -d'-' -f1 )"	# e.g. WiFi-$symbolname
+				OPTION_SHORT="$LIST_USER_OPTIONS"
+				OPTION_SHORT="$( echo "$OPTION_SHORT" | cut -d'@' -f1 )"	# e.g. kalua@$githash
+				OPTION_SHORT="$( echo "$OPTION_SHORT" | cut -d'-' -f1 )"	# e.g. WiFi-$symbolname
 
 				if build_options_set 'list' 'plain' | grep -q ^"$OPTION_SHORT"$ ; then
 					LIST_USER_OPTIONS="$2"
