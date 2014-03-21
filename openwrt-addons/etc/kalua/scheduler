@@ -134,10 +134,16 @@ _scheduler_allow_run()
 _scheduler_run()
 {
 	local funcname='scheduler_run'
-	local file line
+	local file line strong_debug
 	local logfile='/tmp/scheduler.log'
 
 	_scheduler allow_run "$logfile" || return 1
+
+	case "$CONFIG_PROFILE" in
+		liszt28*)
+			strong_debug='true'
+		;;
+	esac
 
 	for file in $SCHEDULER_QUEUE; do {
 		while read line; do {
@@ -155,7 +161,13 @@ _scheduler_run()
 					;;
 					*)
 						# TODO: if '$line' leads to a 'Segmentation fault' this breaks here
-						$line
+						if [ -n "$strong_debug" ]; then
+							set -x
+							$line 2>"$logfile.debug"
+							set +x
+						else
+							$line
+						fi
 					;;
 				esac
 
