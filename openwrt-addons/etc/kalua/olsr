@@ -214,13 +214,14 @@ _olsr_version ()
 	echo "$VERSION"
 }
 
-_olsr_uptime ()		# in seconds
+_olsr_uptime()		# in seconds
 {
 	local KEYWORD="$1"		# string: "is_short", "mark_restart", "restarts_get", "restart_time" or <empty> = get
 	local FUNC="olsr_uptime"
 	local FILE_RESTART_TIME="/tmp/STATS_OLSR_RESTART_LAST"
 	local FILE_RESTARTS="/tmp/STATS_OLSR_RESTARTS"
-	local TIME_LAST_START TIME_NOW DIFF I
+	local TIME_LAST_START TIME_NOW DIFF
+	local I=
 
 	TIME_NOW="$( _system uptime )"
 
@@ -250,10 +251,15 @@ _olsr_uptime ()		# in seconds
 		restarts_get)
 			read I 2>/dev/null <$FILE_RESTARTS
 
-			[ ${I:-0} -gt 300 ] && {
-				_log do $FUNC daemon alert "busybox bug: restarts_get: $I"
+			if [ 2>/dev/null "$I" -eq "$I" ]; then
+				[ ${I:-0} -gt 300 ] && {
+					_log do $FUNC daemon alert "busybox bug: restarts_get: $I"
+					I=0
+				}
+			else
+				_log do $FUNC daemon alert "not a number: I: '$I' from '$FILE_RESTARTS'"
 				I=0
-			}
+			fi
 
 			echo ${I:-0}
 		;;
