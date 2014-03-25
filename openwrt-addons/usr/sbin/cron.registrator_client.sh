@@ -32,16 +32,22 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 	eval $( jshn -r "$( wget -qO - "$URL" )" )
 
 	# check if we've got HTTP Status 401 'Not Authorized'
-	if test 2>/dev/null "${JSON_VAR_status:-0}" -eq 401; then
-		# TODO: resetting the number here would auto-recover lost passwords 
-		#       and asign new NODENUMBER on next try. like this:
-		# uci delete system.@profile[0].nodenumber
-		_log do error daemon alert "somebody has your number '$NODENUMBER'"
-	else
-		# FIXME: this should be inside an 'if "status" -lt 400'!
-		_log do heartbeat daemon info "OK: HTTP-Status: '$JSON_VAR_status'"
-		exit 0
-	fi
+	case "$JSON_VAR_status" in
+		'401')
+			# TODO: resetting the number here would auto-recover lost passwords
+			#       and asign new NODENUMBER on next try. like this:
+			# uci delete system.@profile[0].nodenumber
+			_log do registrator daemon alert "[ERR] somebody has your number '$NODENUMBER'"
+		;;
+		'200')
+			_log do heartbeat daemon info "OK"
+			exit 0
+		;;
+		*)
+			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status'"
+			exit 0
+		;;
+	esac
 }
 
 # API call is: Send a 'Create', with MAC and PASS.
