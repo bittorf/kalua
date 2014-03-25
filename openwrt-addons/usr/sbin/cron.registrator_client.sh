@@ -4,10 +4,16 @@
 
 URL_BASE="http://reg.weimarnetz.de"
 
-MAC="$( _net dev2mac $WIFIDEV )"
-MAC="$( _sanitizer do "$MAC" urlvalue )"
+if [ -e '/www/monitoring.wifimac' ]; then
+	read MAC <'/www/monitoring.wifimac'
+else
+	MAC="$( _net dev2mac "$WIFIDEV" )"
+	MAC="$( _sanitizer do "$MAC" urlvalue )"
+fi
+
 PASS="$( _ssh key_public_fingerprint_get )"
 PASS="$( _sanitizer do "$PASS" urlvalue )"
+
 NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
 [ "$NETWORK" = 'liszt28' ] && NETWORK='ffweimar'
 
