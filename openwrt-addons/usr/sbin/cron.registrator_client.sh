@@ -29,6 +29,18 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 	_log do heartbeat daemon info "$URL"
 
 	# call API and convert JSON answer to shell variables
+	# answer e.g.:
+	# {
+	#  "status": 200,
+	#  "message": "updated",
+	#  "result": {
+	#    "number": 261,
+	#    "mac": "106f3f0e318e",
+	#    "last_seen": 1395749203533,
+	#    "network": "ffweimar",
+	#    "location": "/ffweimar/knoten/261"
+	#  }
+	# }
 	eval $( jshn -r "$( wget -qO - "$URL" )" )
 
 	# check if we've got HTTP Status 401 'Not Authorized'
