@@ -18,7 +18,7 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 
 # only if RANDOM is set to false, …
 [ "$NODE_NUMBER_RANDOM" = "false" ] && {
-	
+
 	# API call is: Send an 'Update' for our NODENUMBER, with MAC and PASS.
 	# - if the NODENUMBER did not exist, it will be created with the supplied data
 	# - if the NODENUMBER did exist,
@@ -26,7 +26,7 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 	#     - and PASS did match: Success (and extension of lease in registrator)
 	URL="$URL_BASE/PUT/$NETWORK/knoten/$NODENUMBER?mac=${MAC}&pass=${PASS}"
 	_log do heartbeat daemon info "$URL"
-	
+
 	# call API and convert JSON answer to shell variables
 	eval $( jshn -r "$( wget -qO - "$URL" )" )
 
@@ -72,4 +72,3 @@ if test 2>/dev/null "$JSON_VAR_status" -lt 400; then
 else
 	_log do error daemon info "message: '$JSON_VAR_msg'"
 fi
-
