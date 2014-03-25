@@ -38,44 +38,42 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 			#       and asign new NODENUMBER on next try. like this:
 			# uci delete system.@profile[0].nodenumber
 			_log do registrator daemon alert "[ERR] somebody has your number '$NODENUMBER'"
+
+			# API call is: Send a 'Create', with MAC and PASS.
+			# - successful answer *always* contains our NODENUMBER
+			# - if a new NODENUMBER was registered for us, status is 201 Created
+			# - if a NODENUMBER with same MAC already existed, status is 303 Redirect
+			URL="$URL_BASE/POST/$NETWORK/knoten?mac=${MAC}&pass=${PASS}"
+
+			# call API and convert JSON answer to shell variables
+			eval $( jshn -r "$( wget -qO - "$URL" )" )
+
+			# if the status is >400, there was some kind of error
+			if test 2>/dev/null "$JSON_VAR_status" -lt 400; then
+				# check if the answer contains a NODENUMBER
+				if test 2>/dev/null "$JSON_TABLE1_number" -gt 1 ; then
+					echo "zahl: '$JSON_TABLE1_number'"
+					# check with `_ipsystem` if it is a *valid* NODENUMBER
+					if _ipsystem do "$JSON_TABLE1_number" >/dev/null ; then
+						# TODO: does one of these already save the number to uci ???
+						NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
+						MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
+						/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$JSON_TABLE1_number"
+					else
+						_log do error daemon info "nodenumber invalid: '$JSON_TABLE1_number'"
+					fi
+				else
+					_log do error daemon info "number format wrong: '$JSON_TABLE1_number'"
+				fi
+			else
+				_log do error daemon info "message: '$JSON_VAR_msg'"
+			fi
 		;;
 		'200')
 			_log do heartbeat daemon info "OK"
-			exit 0
 		;;
 		*)
 			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status'"
-			exit 0
 		;;
 	esac
 }
-
-# API call is: Send a 'Create', with MAC and PASS.
-# - successful answer *always* contains our NODENUMBER
-# - if a new NODENUMBER was registered for us, status is 201 Created
-# - if a NODENUMBER with same MAC already existed, status is 303 Redirect
-URL="$URL_BASE/POST/$NETWORK/knoten?mac=${MAC}&pass=${PASS}"
-
-# call API and convert JSON answer to shell variables
-eval $( jshn -r "$( wget -qO - "$URL" )" )
-
-# if the status is >400, there was some kind of error
-if test 2>/dev/null "$JSON_VAR_status" -lt 400; then
-	# check if the answer contains a NODENUMBER
-	if test 2>/dev/null "$JSON_TABLE1_number" -gt 1 ; then
-		echo "zahl: '$JSON_TABLE1_number'"
-		# check with `_ipsystem` if it is a *valid* NODENUMBER
-		if _ipsystem do "$JSON_TABLE1_number" >/dev/null ; then
-			# TODO: does one of these already save the number to uci ???
-			NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
-			MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
-			/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$JSON_TABLE1_number"
-		else
-			_log do error daemon info "nodenumber invalid: '$JSON_TABLE1_number'"
-		fi
-	else
-		_log do error daemon info "number format wrong: '$JSON_TABLE1_number'"
-	fi
-else
-	_log do error daemon info "message: '$JSON_VAR_msg'"
-fi
