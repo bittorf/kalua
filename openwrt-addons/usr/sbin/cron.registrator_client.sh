@@ -104,13 +104,13 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 			fi
 		;;
 		'201')
-			_log do heartbeat daemon alert "OK: '$JSON_VAR_status'"
+			_log do heartbeat daemon alert "OK: HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_msg'"
 		;;
 		'200')
 			_log do heartbeat daemon info "OK"
 		;;
 		*)
-			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status'"
+			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_msg'"
 		;;
 	esac
 }
