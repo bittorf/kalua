@@ -41,6 +41,20 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 	#    "location": "/ffweimar/knoten/261"
 	#  }
 	# }
+	#
+	# or:
+	#
+	# {
+	#  "status": 201,
+	#  "message": "Created!",
+	#  "result": {
+	#    "number": 269,
+	#    "mac": "6466b3ded9d7",
+	#    "last_seen": 1395752262820,
+	#    "network": "ffweimar",
+	#    "location": "/ffweimar/knoten/269"
+	#  }
+	# }
 	HTTP_ANSWER="$( _wget do "$URL" 30 )"
 	eval $( jshn -r "$HTTP_ANSWER" )
 
@@ -82,6 +96,9 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 			else
 				_log do error daemon info "message: '$JSON_VAR_msg'"
 			fi
+		;;
+		'201')
+			_log do heartbeat daemon alert "OK: '$JSON_VAR_status'"
 		;;
 		'200')
 			_log do heartbeat daemon info "OK"
