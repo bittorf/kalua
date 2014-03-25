@@ -41,7 +41,8 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 	#    "location": "/ffweimar/knoten/261"
 	#  }
 	# }
-	eval $( jshn -r "$( wget -qO - "$URL" )" )
+	HTTP_ANSWER="$( _wget do "$URL" 30 )"
+	eval $( jshn -r "$HTTP_ANSWER" )
 
 	# check if we've got HTTP Status 401 'Not Authorized'
 	case "$JSON_VAR_status" in
@@ -58,7 +59,8 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 			URL="$URL_BASE/POST/$NETWORK/knoten?mac=${MAC}&pass=${PASS}"
 
 			# call API and convert JSON answer to shell variables
-			eval $( jshn -r "$( wget -qO - "$URL" )" )
+			HTTP_ANSWER="$( _wget do "$URL" 30 )"
+			eval $( jshn -r "$HTTP_ANSWER" )
 
 			# if the status is >400, there was some kind of error
 			if test 2>/dev/null "$JSON_VAR_status" -lt 400; then
