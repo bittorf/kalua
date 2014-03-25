@@ -52,7 +52,7 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 			if test 2>/dev/null "$JSON_VAR_status" -lt 400; then
 				# check if the answer contains a NODENUMBER
 				if test 2>/dev/null "$JSON_TABLE1_number" -gt 1 ; then
-					echo "zahl: '$JSON_TABLE1_number'"
+					_log do registrator daemon alert "[OK] new nodenumber: '$JSON_TABLE1_number'"
 					# check with `_ipsystem` if it is a *valid* NODENUMBER
 					if _ipsystem do "$JSON_TABLE1_number" >/dev/null ; then
 						# TODO: does one of these already save the number to uci ???
