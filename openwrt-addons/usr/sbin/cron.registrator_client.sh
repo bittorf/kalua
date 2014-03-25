@@ -9,6 +9,7 @@ MAC="$( _sanitizer do "$MAC" urlvalue )"
 PASS="$( _ssh key_public_fingerprint_get )"
 PASS="$( _sanitizer do "$PASS" urlvalue )"
 NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
+[ "$NETWORK" = 'liszt28' ] && NETWORK='ffweimar'
 
 # try to get existing nodenumber from config
 NODENUMBER="$( uci get system.@profile[0].nodenumber )"
