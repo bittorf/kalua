@@ -32,14 +32,14 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 	eval $( jshn -r "$( wget -qO - "$URL" )" )
 
 	# check if we've got HTTP Status 401 'Not Authorized'
-	if test 2>/dev/null "$JSON_VAR_status" -eq 401; then
+	if test 2>/dev/null "${JSON_VAR_status:-0}" -eq 401; then
 		# TODO: resetting the number here would auto-recover lost passwords 
 		#       and asign new NODENUMBER on next try. like this:
 		# uci delete system.@profile[0].nodenumber
 		_log do error daemon alert "somebody has your number '$NODENUMBER'"
 	else
 		# FIXME: this should be inside an 'if "status" -lt 400'!
-		_log do heartbeat daemon info "OK"
+		_log do heartbeat daemon info "OK: HTTP-Status: '$JSON_VAR_status'"
 		exit 0
 	fi
 }
