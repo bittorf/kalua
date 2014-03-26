@@ -788,17 +788,24 @@ _netfilter_stop()
 	local funcname="netfilter_stop"
 	local mac state table
 	local list_user="$( _netfilter user_list )"
-	local interface ip mediatype dev
+	local interface ip mediatype dev hash
 
 	[ -d '/tmp/NETFILTER' ] || return 0
 
 	for mac in $list_user; do {
 		ip="$( _net mac2ip "$mac" )"
 		dev="$( _net mac2dev "$mac" )"
+
 		if _net dev_is_wifi "$dev"; then
-			mediatype='wifi'
+			if   grep -sq "$hash" '/tmp/USERDB_COPY'; then
+				mediatype="DB: mac allowed # non_wifi"
+			elif grep -sq "$hash" '/tmp/DB/USER/login/meta_index'; then
+				mediatype="DB: mac allowed # non_wifi"
+			else
+				mediatype='wifi'
+			fi
 		else
-			mediatype='non_wifi'
+			mediatype='non_wifi'	# keyword for keeping over reboot
 		fi
 
 		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype"
