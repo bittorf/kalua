@@ -387,23 +387,23 @@ if [ "$ARG1" != "fast" ] && [ -n "$( uci -q get system.@profile[0].nodenumber )"
 
 grep -q ^"ip_tables " /proc/modules && {
 
-	PFILTER_NAT="$(			iptables -t nat    -nxvL | grep "\--" | sed -n '$=' )"
-	PFILTER_FILTER="$(		iptables -t filter -nxvL | grep "\--" | sed -n '$=' )"
-	PFILTER_MANGLE="$(		iptables -t mangle -nxvL | grep "\--" | sed -n '$=' )"
+	PFILTER_NAT="$(			$IPT -t nat    -nxvL | grep "\--" | sed -n '$=' )"
+	PFILTER_FILTER="$(		$IPT -t filter -nxvL | grep "\--" | sed -n '$=' )"
+	PFILTER_MANGLE="$(		$IPT -t mangle -nxvL | grep "\--" | sed -n '$=' )"
 	PFILTER_MANGLE_REAL="${PFILTER_MANGLE:=0}"
 
-	PFILTER_MANGLE_USER_REAL="$(    iptables -t mangle -nxvL traff_users | grep    traff_99:99:99:99:99:9 | sed -n '$=' )"
-	PFILTER_MANGLE_USER_RESERVE="$( iptables -t mangle -nxvL traff_users | grep -v traff_99:99:99:99:99:9 | sed -n '$=' )"
+	PFILTER_MANGLE_USER_REAL="$(    $IPT -t mangle -nxvL traff_users | grep    traff_99:99:99:99:99:9 | sed -n '$=' )"
+	PFILTER_MANGLE_USER_RESERVE="$( $IPT -t mangle -nxvL traff_users | grep -v traff_99:99:99:99:99:9 | sed -n '$=' )"
 
 	_meshrdf_count_user_real ()
 	{
-		local LIST="$( iptables -t mangle -nxvL | sed -n 's/^Chain traff_\(..:..:..:..:..:..\) .*/\1/p' | grep -v 99:99:99:99:99:9 )"
+		local LIST="$( $IPT -t mangle -nxvL | sed -n 's/^Chain traff_\(..:..:..:..:..:..\) .*/\1/p' | grep -v 99:99:99:99:99:9 )"
 		local LOOP=
 		local COUNT
 		local MAC
 		
 		for MAC in $LIST; do {
-			COUNT="$( iptables -t mangle -nxvL traff_$MAC | sed -n '$=' )"
+			COUNT="$( $IPT -t mangle -nxvL traff_$MAC | sed -n '$=' )"
 			echo -n "${LOOP:+,}${COUNT:-0}"
 			LOOP=1
 		} done
@@ -413,13 +413,13 @@ grep -q ^"ip_tables " /proc/modules && {
 	
 	_meshrdf_count_user_reserve ()
 	{
-		local LIST="$( iptables -t mangle -nxvL | sed -n 's/^Chain traff_\(..:..:..:..:..:..\) .*/\1/p' | grep    99:99:99:99:99:9 )"
+		local LIST="$( $IPT -t mangle -nxvL | sed -n 's/^Chain traff_\(..:..:..:..:..:..\) .*/\1/p' | grep    99:99:99:99:99:9 )"
 		local LOOP=
 		local COUNT
 		local MAC
 		
 		for MAC in $LIST; do {
-			COUNT="$( iptables -t mangle -nxvL traff_$MAC | sed -n '$=' )"
+			COUNT="$( $IPT -t mangle -nxvL traff_$MAC | sed -n '$=' )"
 			echo -n "${LOOP:+,}${COUNT:-0}"
 			LOOP=1
 		} done
@@ -532,11 +532,11 @@ grep -q ^"ip_tables " /proc/modules && {
 
 		get_bytes()
 		{
-			iptables -nxvL "$1" 1 | while read packets bytes rest; do echo ${bytes:-0}; done
+			$IPT -nxvL "$1" 1 | while read packets bytes rest; do echo ${bytes:-0}; done
 		}
 
-		iptables -I $ruleset_in
-		iptables -I $ruleset_out
+		$IPT -I $ruleset_in
+		$IPT -I $ruleset_out
 
 		_log do $funcname daemon info "counting olsr-traff for $interval sec"
 		sleep $interval
@@ -547,8 +547,8 @@ grep -q ^"ip_tables " /proc/modules && {
 		bytes_in_sec="$((  $bytes_in  / $interval ))"
 		bytes_out_sec="$(( $bytes_out / $interval ))"
 
-		iptables -D $ruleset_in
-		iptables -D $ruleset_out
+		$IPT -D $ruleset_in
+		$IPT -D $ruleset_out
 
 		_log do $funcname daemon info "in: $bytes_in = $bytes_in_sec bytes/s out: $bytes_out = $bytes_out_sec bytes/s"
 		echo "&t0=${bytes_in_sec}&t1=${bytes_out_sec}"
