@@ -83,9 +83,9 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 			eval $( jshn -r "$HTTP_ANSWER" )
 
 			# if the status is >400, there was some kind of error
-			if test 2>/dev/null "${JSON_VAR_status:-0}" -lt 400; then
+			if [ 2>/dev/null "${JSON_VAR_status:-0}" -lt 400 ]; then
 				# check if the answer contains a NODENUMBER
-				if test 2>/dev/null "$JSON_TABLE1_number" -gt 1 ; then
+				if [ 2>/dev/null "$JSON_TABLE1_number" -gt 1 -a "$JSON_TABLE1_number" != "$NODENUMBER" ]; then
 					_log do registrator daemon alert "[OK] new nodenumber: '$JSON_TABLE1_number'"
 					# check with `_ipsystem` if it is a *valid* NODENUMBER
 					if _ipsystem do "$JSON_TABLE1_number" >/dev/null ; then
@@ -97,7 +97,7 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 						_log do error daemon info "nodenumber invalid: '$JSON_TABLE1_number'"
 					fi
 				else
-					_log do error daemon info "number format wrong: '$JSON_TABLE1_number'"
+					_log do error daemon info "new number invalid: '$JSON_TABLE1_number'"
 				fi
 			else
 				_log do error daemon info "message: '$JSON_VAR_msg'"
