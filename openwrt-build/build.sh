@@ -221,6 +221,11 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin'
 		;;
+		'Ubiquiti Nanostation2')
+			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
+			FILENAME_FACTORY='openwrt-atheros-ubnt2-squashfs.bin'
+		;;
 		'Ubiquiti Nanostation5')
 			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
