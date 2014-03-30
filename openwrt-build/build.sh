@@ -269,15 +269,40 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-ramips-rt305x-dir-300-b1-squashfs-factory.bin'
 		;;
 		'list')
-			[ "$option" = 'plain' ] || log "$funcname() supported models:"
+			case "$option" in
+				'plain'|'js')
+					FIRSTRUN=
+				;;
+				*)
+					log "$funcname() supported models:"
+				;;
+			esac
 
 			parse_case_patterns "$funcname" | while read line; do {
-				if [ "$option" = 'plain' ]; then
-					echo "$line"
-				else
-					echo "--hardware '$line'"
-				fi
+				case "$option" in
+					'plain')
+						echo "$line"
+					;;
+					'js')
+						if [ -z "$FIRSTRUN" ]; then
+							FIRSTRUN='false'
+							echo -n "var models = ['$line'"
+						else
+							echo -n ", '$line'"
+						fi
+					;;
+					*)
+						echo "--hardware '$line'"
+					;;
+				esac
 			} done
+
+			case "$option" in
+				'js')
+					echo
+					echo '];'
+				;;
+			esac
 
 			return 0
 		;;
@@ -1138,7 +1163,7 @@ while [ -n "$1" ]; do {
 			if target_hardware_set 'list' 'plain' | grep -q ^"$2"$ ; then
 				HARDWARE_MODEL="$2"
 			else
-				# e.g. option 'plain'
+				# e.g. option 'plain' or 'js'
 				target_hardware_set 'list' "$3"
 				exit 1
 			fi
