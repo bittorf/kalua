@@ -24,7 +24,7 @@ NODENUMBER="$( uci get system.@profile[0].nodenumber )"
 eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 
 # only if RANDOM is set to false, …
-[ "$NODE_NUMBER_RANDOM" = "false" ] && {
+if [ "$NODE_NUMBER_RANDOM" = "false" ]; then
 
 	# API call is: Send an 'Update' for our NODENUMBER, with MAC and PASS.
 	# - if the NODENUMBER did not exist, it will be created with the supplied data
@@ -105,6 +105,7 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 		;;
 		'201')
 			_log do heartbeat daemon alert "OK: HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_msg'"
+			_log do heartbeat daemon alert "OK: HTTP-Answer: '$HTTP_ANSWER'"
 		;;
 		'200')
 			_log do heartbeat daemon info "OK"
@@ -113,4 +114,37 @@ eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_msg'"
 		;;
 	esac
-}
+else
+	URL="http://reg.weimarnetz.de/$NETWORK/list"
+	FILE="/tmp/LIST_NODES_REGISTRATED"
+	_wget do "$URL" >"$FILE"
+
+	# fully loaded? JSON must be closed correctly:
+	if [ "$( tail -n1 "$FILE" )" = '}' ]; then
+		NODENUMBER_TRY=290	# fixme! hardcoded, till we have this function in the API
+		NODENUMBER_MAX=969	# fixme! see ipsystem_ffweimar() every ipsystem() should implement this var
+		NODENUMBER_NEW=
+
+		while [ $NODENUMBER_TRY -lt $NODENUMBER_MAX ]; do {
+			if grep -q "\"number\": $TRY," "$FILE"; then
+				NODENUMBER_NEW="$NODENUMBER_TRY"
+				break
+			else
+				NODENUMBER_TRY=$(( $NODENUMBER_TRY + 1 ))
+			fi
+		} done
+		rm "$FILE"
+
+		if [ -n "$NODENUMBER_NEW" ]; then
+			_log do request_nodenumber daemon alert "apply new nodenumber '$NODENUMBER_NEW'"
+
+			NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
+			MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
+			/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$NODENUMBER_NEW"
+		else
+			_log do request_nodenumber daemon info "could not get new nodenumber"
+		fi
+	else
+		_log do load_reglist daemon info "[ERR] invalid download from '$URL' to '$FILE'"
+	fi
+fi
