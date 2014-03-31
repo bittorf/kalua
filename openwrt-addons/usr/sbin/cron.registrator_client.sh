@@ -125,8 +125,16 @@ else
 		NODENUMBER_MAX=969	# fixme! see ipsystem_ffweimar() every ipsystem() should implement this var
 		NODENUMBER_NEW=
 
+		# ...
+		# {
+		#    "number": 10,
+		#    "created_at": 1370952204310,
+		#    "last_seen": 1370952204310
+		# },
+		# ...
+
 		while [ $NODENUMBER_TRY -lt $NODENUMBER_MAX ]; do {
-			if grep -q "\"number\": $TRY," "$FILE"; then
+			if fgrep -q "\"number\": $NODENUMBER_TRY," "$FILE"; then
 				NODENUMBER_NEW="$NODENUMBER_TRY"
 				break
 			else
