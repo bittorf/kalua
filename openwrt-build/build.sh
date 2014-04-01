@@ -258,7 +258,10 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
 			FILENAME_FACTORY=
 		;;
-		'T-Mobile InternetBox'|'4G Systems MTX-1 Board')
+		'T-Mobile InternetBox TMD SB1-S'|'4G Systems MTX-1 Board')
+			# http://wiki.openwrt.org/inbox/t-mobile-internetbox
+			# http://download.berlin.freifunk.net/sven-ola/nylon/readme.txt
+			# http://webcache.googleusercontent.com/search?q=cache:PHP_RlZ-_qMJ:comments.gmane.org/gmane.org.freifunk.berlin/214+&cd=1&hl=de&ct=clnk&gl=de&lr=lang_de%7Clang_en
 			TARGET_SYMBOL='CONFIG_TARGET_au1000_au1500=y'
 			FILENAME_SYSUPGRADE='openwrt-au1000-au1500-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec'
