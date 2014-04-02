@@ -2,6 +2,8 @@
 . /tmp/loader
 . /usr/share/libubox/jshn.sh
 
+OPTION="$1"	# e.g. 'show_next_free'
+
 URL_BASE="http://reg.weimarnetz.de"
 
 if [ -e '/www/monitoring.wifimac' ]; then
@@ -15,7 +17,7 @@ PASS="$( _ssh key_public_fingerprint_get )"
 PASS="$( _sanitizer do "$PASS" urlvalue )"
 
 NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
-[ "$NETWORK" = 'liszt28' ] && NETWORK='ffweimar'
+[ "$NETWORK" = 'liszt28' ] && NETWORK='ffweimar'		# both share same IP-space
 
 # try to get existing nodenumber from config
 NODENUMBER="$( uci get system.@profile[0].nodenumber )"
@@ -24,7 +26,7 @@ NODENUMBER="$( uci get system.@profile[0].nodenumber )"
 eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 
 # only if RANDOM is set to false, …
-if [ "$NODE_NUMBER_RANDOM" = "false" ]; then
+if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
 
 	# API call is: Send an 'Update' for our NODENUMBER, with MAC and PASS.
 	# - if the NODENUMBER did not exist, it will be created with the supplied data
@@ -112,6 +114,7 @@ if [ "$NODE_NUMBER_RANDOM" = "false" ]; then
 		;;
 		*)
 			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_msg'"
+			_log do heartbeat daemon alert "[ERR] HTTP-Answer: '$HTTP_ANSWER'"
 		;;
 	esac
 else
@@ -143,14 +146,18 @@ else
 		} done
 		rm "$FILE"
 
-		if [ -n "$NODENUMBER_NEW" ]; then
-			_log do request_nodenumber daemon alert "apply new nodenumber '$NODENUMBER_NEW'"
-
-			NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
-			MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
-			/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$NODENUMBER_NEW"
+		if [ "$OPTION" = 'show_next_free' ]; then
+			_log do request_nodenumber daemon info "next free nodenumber is '$NODENUMBER_NEW'"
 		else
-			_log do request_nodenumber daemon info "could not get new nodenumber"
+			if [ -n "$NODENUMBER_NEW" ]; then
+				_log do request_nodenumber daemon alert "apply new nodenumber '$NODENUMBER_NEW'"
+
+				NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
+				MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
+				/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$NODENUMBER_NEW"
+			else
+				_log do request_nodenumber daemon info "could not get new nodenumber"
+			fi
 		fi
 	else
 		_log do load_reglist daemon info "[ERR] invalid download from '$URL' to '$FILE'"
