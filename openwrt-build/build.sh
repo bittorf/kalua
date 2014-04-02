@@ -260,6 +260,8 @@ target_hardware_set()
 		;;
 		'T-Mobile InternetBox TMD SB1-S'|'4G Systems MTX-1 Board')
 			# http://wiki.openwrt.org/inbox/t-mobile-internetbox
+			# http://fylvestre.inria.fr/pub/nylon-meshcubes/meshcube.org/meshwiki/YamonNetConsole.shtml
+			# http://mirror2.openwrt.org/sources/yamonnetcon.tar.gz
 			# http://wiki.freifunk-hannover.de/mediawiki/wiki/wiki/index.php?title=Meshcube
 			# http://download.berlin.freifunk.net/sven-ola/nylon/readme.txt
 			# http://webcache.googleusercontent.com/search?q=cache:PHP_RlZ-_qMJ:comments.gmane.org/gmane.org.freifunk.berlin/214+&cd=1&hl=de&ct=clnk&gl=de&lr=lang_de%7Clang_en
