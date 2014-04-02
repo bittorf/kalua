@@ -138,10 +138,10 @@ else
 
 		while [ $NODENUMBER_TRY -lt $NODENUMBER_MAX ]; do {
 			if fgrep -q "\"number\": $NODENUMBER_TRY," "$FILE"; then
+				NODENUMBER_TRY=$(( $NODENUMBER_TRY + 1 ))
+			else
 				NODENUMBER_NEW="$NODENUMBER_TRY"
 				break
-			else
-				NODENUMBER_TRY=$(( $NODENUMBER_TRY + 1 ))
 			fi
 		} done
 		rm "$FILE"
