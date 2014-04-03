@@ -1639,20 +1639,22 @@ _netfilter_user_dataretention_add()
 		touch "/tmp/NETFILTER/connection_detection"
 	}
 
-	grep -q ^'ipt_ULOG ' '/proc/modules' || {
+	if grep -q ^'ipt_ULOG ' '/proc/modules'; then
 		ulogd='true'
+	else
 		_log do $funcname daemon info "kmodule 'ipt_ULOG' missing - no connection-detection for $mac"
-	}
+		ulogd='false'
+	fi
 
 	$IPT -t mangle -N outgoing_$mac
-	if [ -n "$ulogd" ]; then
+	if [ "$ulogd" = 'true' ]; then
 		$IPT -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ULOG --ulog-prefix "$mac>"
 	else
 		$IPT -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ACCEPT
 	fi
 
 	$IPT -t mangle -N incoming_$mac
-	if [ -n "$ulogd" ]; then
+	if [ "$ulogd" = 'true' ]; then
 		$IPT -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ULOG --ulog-prefix "$mac<"
 	else
 		$IPT -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ACCEPT
