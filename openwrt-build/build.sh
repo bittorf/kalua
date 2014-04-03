@@ -273,6 +273,13 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec'
 			# 'openwrt-au1000-au1500-squashfs.srec'
 		;;
+		'La Fonera 2.0N')
+			# http://wiki.openwrt.org/toh/fon/fonera2.0n
+			# SoC Type: Ralink RT3052 id:1 rev:3
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_rt305x_FONERA20N=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-rt305x-fonera20n-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ramips-rt305x-fonera20n-squashfs-factory.bin'
+		;;
 		'D-Link DIR-300-B1')
 			# http://wiki.openwrt.org/toh/d-link/dir-300revb
 			TARGET_SYMBOL='CONFIG_TARGET_ramips_rt305x_Default=y'
