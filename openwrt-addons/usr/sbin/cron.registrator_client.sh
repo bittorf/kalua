@@ -102,18 +102,18 @@ if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
 					_log do error daemon info "new number invalid: '$JSON_TABLE1_number'"
 				fi
 			else
-				_log do error daemon info "message: '$JSON_VAR_msg'"
+				_log do error daemon info "message: '$JSON_VAR_message'"
 			fi
 		;;
 		'201')
-			_log do heartbeat daemon alert "OK: HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_msg'"
+			_log do heartbeat daemon alert "OK: HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_message'"
 			_log do heartbeat daemon alert "OK: HTTP-Answer: '$HTTP_ANSWER'"
 		;;
 		'200')
 			_log do heartbeat daemon info "OK"
 		;;
 		*)
-			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_msg'"
+			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_message'"
 			_log do heartbeat daemon alert "[ERR] HTTP-Answer: '$HTTP_ANSWER'"
 		;;
 	esac
