@@ -14,6 +14,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	local uptime_was_short			# also collecting routing_table
 	local configfile="/var/etc/olsrd.conf"
 	local max_errors=3
+	local route_count=0
 
 	mkdir -p /tmp/OLSR /tmp/OLSR_TMP
 
@@ -24,12 +25,12 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 	while _olsr uptime is_short ; do {
 		_log do $func daemon info "waiting till olsr-uptime is long enough"
-		uptime_was_short="true"
+		uptime_was_short='true'
 		sleep 10
 	} done
 
 	while true; do {
-		if _wget do "http://127.0.0.1:2006/all" >/tmp/OLSR_TMP/ALL ; then
+		if _wget do "http://127.0.0.1:2006/all" >'/tmp/OLSR_TMP/ALL' ; then
 			# needed for very fast devices, otherwise filesize=0
 			sleep 3
 
@@ -58,18 +59,45 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		sleep "$( _math random_integer 1 5 )"
 	} done
 
-	ip route show table main >/tmp/OLSR_TMP/ROUTING_TABLE_MAIN	# fixme! update also when fetching neighbour table fails?
+	# fixme! update also when fetching neighbour table fails?
+	ip route show table main >'/tmp/OLSR_TMP/ROUTING_TABLE_MAIN'
 
 	while read line; do {
+		route_count=$(( $route_count + 1 ))
+	} done <'/tmp/OLSR_TMP/ALL'
+	echo "$route_count" >'/tmp/OLSR_TMP/ROUTE_COUNT'
+
+	# fixme! we need a generic approach:
+	# measure 'average' and detect breakdown.
+	# e.g. average = 195 -> count = 146 (75%) -> restart + new buildup of 'average'
+	case "${NODENUMBER}_${CONFIG_PROFILE}" in
+		'2_ejbw'*)
+			[ $route_count -lt 150 ] && {
+				_olsr daemon restart "$func: too few routes: $route_count"
+				return 0
+			}
+		;;
+	esac
+
+	# output Links - we are naiv and believe that 'Table: Links' is on top
+	#
+	# Table: Links
+	# Local IP        Remote IP       Hyst.   LQ      NLQ     Cost
+	# 10.63.39.65     10.63.8.67      0.00    1.000   0.851   1.175
+	# 10.63.39.65     10.63.34.65     0.00    1.000   1.000   1.000
+	# 10.63.39.65     10.63.10.65     0.00    0.819   0.819   1.488
+	#
+	while read line; do {
 		case "$line" in
-			"Table: Neighbors")			# fixme! safe all paragraphs? (All, Links, Neighbours, Topology, HNA, MID, Routes)
+			"Table: Neighbors")
+				# fixme! safe all paragraphs? (All, Links, Neighbours, Topology, HNA, MID, Routes)
 				break
 			;;
 			*)
 				echo "$line"
 			;;
 		esac
-	} done </tmp/OLSR_TMP/ALL >/tmp/OLSR_TMP/LINKS
+	} done <'/tmp/OLSR_TMP/ALL' >'/tmp/OLSR_TMP/LINKS'
 								# COST of 'INFINITE' is converted to ''
 	if _olsr version | fgrep -q 2009-10-27 ; then		# newstyle vs. old-style textinfo-plugin output
 
