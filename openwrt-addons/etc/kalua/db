@@ -204,6 +204,7 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 					# why tac? it's likely, that we grep for a new login - this should match faster
 					# this is >1 magnitude faster than sed-tac
 					# fixme! ATM it limits to ~1mb size (4000 lines)
+					grep ' # mac: ' '/tmp/DB/USER/login/meta_index'
 					grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2- | head -n 4000
 					echo '# OK'
 				}
@@ -332,6 +333,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			local REST_USERNAME REST_PASSWORD LIST_LOGINS HOST LIST_HOSTS
 			local USERNAME_CHAR1_LOWER USERNAME_CHAR1_UPPER PASSWORD_CHAR1_LOWER PASSWORD_CHAR1_UPPER
 			local H1 H2 H3 H4 H5 H6 H7 H8
+			local is_mac
 
 			is_macaddress()
 			{
@@ -369,7 +371,13 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 						;;
 					esac
 
-					if   is_macaddress "$USERNAME"; then
+					if is_macaddress "$USERNAME" ; then
+						is_mac="$USERNAME"
+					else
+						is_mac=
+					fi
+
+					if [ -n "$is_mac" ]; then
 
 						LIST_HOSTS="$PASSWORD"
 						if [ -z "$LIST_HOSTS" ]; then
@@ -424,7 +432,8 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 						HASH="${HASH}$( _db hash "$HASH_INPUT" ) "
 					} done
 
-					[ -n "$LIST_HASH_INPUT" ] && echo "$HASH"
+					# append mac-address in plaintext if 'is_mac' was set
+					[ -n "$LIST_HASH_INPUT" ] && echo "${HASH}${is_mac:+ # mac: $is_mac}"
 
 				} done
 			}
