@@ -118,22 +118,23 @@ start()
 		[ -z "$option" ] && {
 			echo "crash detected: reason: $( guess_crash_reason "$file" )" >>/www/everlasting_syslog.txt
 			. /tmp/loader
-			echo >>$SCHEDULER "$0 start upload_crash"
+			echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"
 
 			return 0
 		}
 
 		while [ $maxtry -gt 0 ]; do {
-			logger "$funcname: found log in $file, reporting to server $server_ip"
+			logger -s "$funcname: found log in $file, reporting to server $server_ip"
 			answer="$( build_http_postdata "$file" "$server_ip" | nc "$server_ip" 80 )"
 
 			case "$answer" in
-				*OK)
+				*'OK')
+					logger -s "$funcname: send OK"
 					break
 				;;
 				*)
 					maxtry=$(( $maxtry - 1 ))
-					logger "$funcname: error during send (answer: '$answer'), trying again in $pause sec"
+					logger -s "$funcname: error during send (answer: '$answer'), trying again in $pause sec"
 					sleep $pause
 				;;
 			esac
