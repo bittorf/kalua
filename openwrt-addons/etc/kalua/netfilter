@@ -1426,6 +1426,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 			# Unicast reply from 192.168.0.1 [0:e:56:0:f:c5] 0.232ms
 			#
 			# or e.g.: works only with '-D' = 'Duplicated address detection mode'
+			# but not all systems do this e.g. LANCOM
 			# root@box:~ arping -I wlan0 10.10.183.74 -b
 			# ARPING to 10.10.183.74 from 10.10.183.1 via wlan0
 			# Sent 7 probe(s) (7 broadcast(s))
@@ -1436,8 +1437,21 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 			# Unicast reply from 10.10.183.74 [a4:d1:d2:3a:e9:62] 172.323ms
 			# Sent 1 probe(s) (1 broadcast(s))
 			# Received 1 replies (0 request(s), 0 broadcast(s))
+			#
+			# !!! the 1st mac is the searched one, the 2nd is ???
+			# root@box:~ arping -D -c1 -f -I $LANDEV 10.63.22.101
+			# ARPING to 10.63.22.101 from 0.0.0.0 via eth0.1
+			# Unicast reply from 10.63.22.101 [0:4:13:2f:65:cb]for 10.63.22.101 [0:0:1f:79:69:6e] 0.584ms
+			# Sent 1 probe(s) (1 broadcast(s))
+			# Received 1 replies (0 request(s), 0 broadcast(s))
 
-			line="$( arping -D -c1 -f -I "$dev" "$ip" | grep ':' )" && {
+			# with '-D' = 'Duplicated address detection mode'
+			line="$( arping -D -c1 -f -I "$dev" "$ip" | fgrep ':' )" || {
+				# not all systems do this e.g. LANCOM
+				line="$( arping -c1 -f -I "$dev" "$ip" | fgrep ':' )"
+			}
+
+			[ -n "$line" ] && {
 				line="$( echo "$line" | cut -d'[' -f2 | cut -d']' -f1 )"
 				line="$( repair_mac "$line" )"
 
