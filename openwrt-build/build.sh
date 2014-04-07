@@ -656,7 +656,7 @@ apply_symbol()
 			# r40296 = [mac80211]: skip antenna gain when compiling regdb.txt
 			# r40293 = [mac80211]: update regulatory database to 2013-11-27
 			for rev in 40296 40293; do {
-				log "preparing git-revert r$rev"
+				log "preparing git-revert r$rev / pwd: '$( pwd )'"
 				hash="$( git log --format=%h --grep="@$rev " )"
 				[ -n "$hash" ] && {
 					log "git-revert r$rev / $hash"
