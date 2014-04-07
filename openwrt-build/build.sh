@@ -657,7 +657,10 @@ apply_symbol()
 			# r40293 = [mac80211]: update regulatory database to 2013-11-27
 			for rev in 40296 40293; do {
 				hash="$( git log --format=%h --grep="@$rev " )"
-				[ -n "$hash" ] && git revert $hash
+				[ -n "$hash" ] && {
+					log "git-revert r$rev / $hash"
+					git revert $hash
+				}
 			} done
 
 			cd ..
