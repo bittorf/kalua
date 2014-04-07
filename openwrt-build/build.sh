@@ -615,8 +615,8 @@ apply_symbol()
 	local symbol="$1"
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
-	local choice hash tarball_hash
-	local last_commit_unixtime last_commit_date url hash
+	local choice hash tarball_hash rev
+	local last_commit_unixtime last_commit_date url
 	local file installation sub_profile node
 	local dir basedir pre
 
@@ -652,6 +652,13 @@ apply_symbol()
 
 			LIST_OPTIONS_DOWNLOAD="${LIST_OPTIONS}${LIST_OPTIONS+,}$KALUA_DIRNAME"
 			LIST_OPTIONS="${LIST_OPTIONS_DOWNLOAD}@$VERSION_KALUA"
+
+			# r40296 = [mac80211]: skip antenna gain when compiling regdb.txt
+			# r40293 = [mac80211]: update regulatory database to 2013-11-27
+			for rev in 40296 40293; do {
+				hash="$( git log --format=%h --grep="@$rev " )"
+				[ -n "$hash" ] && git revert $hash
+			} done
 
 			cd ..
 			log "$funcname() $KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
