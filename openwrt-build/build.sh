@@ -653,10 +653,11 @@ apply_symbol()
 			LIST_OPTIONS_DOWNLOAD="${LIST_OPTIONS}${LIST_OPTIONS+,}$KALUA_DIRNAME"
 			LIST_OPTIONS="${LIST_OPTIONS_DOWNLOAD}@$VERSION_KALUA"
 
+			cd ..
+
 			# r40296 = [mac80211]: skip antenna gain when compiling regdb.txt
 			# r40293 = [mac80211]: update regulatory database to 2013-11-27
 			for rev in 40296 40293; do {
-				log "preparing git-revert r$rev / pwd: '$( pwd )'"
 				hash="$( git log --format=%h --grep="@$rev " )"
 				[ -n "$hash" ] && {
 					log "git-revert r$rev / $hash"
@@ -664,7 +665,6 @@ apply_symbol()
 				}
 			} done
 
-			cd ..
 			log "$funcname() $KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cp -R "$KALUA_DIRNAME/openwrt-addons/" "$custom_dir"
 
