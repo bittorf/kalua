@@ -22,18 +22,19 @@ _db_lock()
 {
 	local funcname="db_lock"
 	local mode="$1"			# now|free
-	local context="${2:-unset}"
-	local file="/tmp/$funcname"
+	local context="${2:-unset_context}"
+	local dir="/tmp/$funcname"
+	local file="$dir/reason"
 
 	case "$mode" in
 		free)
-			rm "$file"
+			rm -fR "$dir"
 		;;
-		now)
-			while [ -e "$file" ]; do {
+		now|*)
+			while ! mkdir "$dir"; do {
 				read reason <"$file"
 				_log do $funcname daemon info "db is locked, task '$context' must wait for '${reason:-unknown_reason}'"
-				sleep 30
+				sleep 33
 			} done
 
 			echo "${context}_$( date )" >"$file"
