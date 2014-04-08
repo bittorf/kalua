@@ -212,8 +212,7 @@ target_hardware_set()
 		;;
 		'TP-LINK TL-WR940N'|'TP-LINK TL-WR941ND v4')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr940n
-			# http://wiki.openwrt.org/toh/tp-link/tl-wr941nd
-			# todo: can be v2, v3, v4, v6
+			# http://wiki.openwrt.org/toh/tp-link/tl-wr941nd	// todo: can be v2, v3, v4, v6
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR941=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr941nd-v4-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr941nd-v4-squashfs-factory.bin'
