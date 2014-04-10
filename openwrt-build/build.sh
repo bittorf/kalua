@@ -287,10 +287,15 @@ target_hardware_set()
 		;;
 		'Mikrotik Routerboard 532')
 			# http://wiki.openwrt.org/toh/mikrotik/rb532
+			# PCI: 168C:001B Qualcomm Atheros AR5413/AR5414 Wireless Network Adapter [AR5006X(S) 802.11abg] = R52
 			TARGET_SYMBOL='CONFIG_TARGET_rb532_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-rb532-combined-jffs2-128k.bin'
 			FILENAME_FACTORY='openwrt-rb532-combined-jffs2-128k.bin'	# via 'dd' to CF-card
+			# apply:
 			# CONFIG_TARGET_ROOTFS_JFFS2=y
+			# CONFIG_PACKAGE_kmod-madwifi is not set
+			# CONFIG_PACKAGE_kmod-ath5k=y
+			# yaffs2?
 		;;
 		'list')
 			case "$option" in
