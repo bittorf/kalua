@@ -285,6 +285,13 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-ramips-rt305x-dir-300-b1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ramips-rt305x-dir-300-b1-squashfs-factory.bin'
 		;;
+		'Mikrotik Routerboard 532')
+			# http://wiki.openwrt.org/toh/mikrotik/rb532
+			TARGET_SYMBOL='CONFIG_TARGET_rb532_Default=y'
+			FILENAME_SYSUPGRADE='openwrt-rb532-combined-jffs2-128k.bin'
+			FILENAME_FACTORY='openwrt-rb532-combined-jffs2-128k.bin'	# via 'dd' to CF-card
+			# CONFIG_TARGET_ROOTFS_JFFS2=y
+		;;
 		'list')
 			case "$option" in
 				'plain'|'js')
