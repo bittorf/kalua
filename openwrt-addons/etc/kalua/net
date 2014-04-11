@@ -73,19 +73,16 @@ _net_dhcp_lease_filename()
 {
 	local file
 
-	if   [ -e /tmp/dhcp.leases ]; then		# openwrt
-
+	if   [ -e '/tmp/dhcp.leases' ]; then		# openwrt
 		file="/tmp/dhcp.leases"
-
-	elif [ -e /var/run/dhcp.leases ]; then		# freifunk-firmware
-
+	elif [ -e '/var/run/dhcp.leases' ]; then	# freifunk-firmware
 		file="/var/run/dhcp.leases"
 	else
-		file="$( uci get dhcp.@dnsmasq[0].leasefile )"
+		file="$( uci -q get dhcp.@dnsmasq[0].leasefile )"
 	fi
 
-	[ -z "$file" ] && {
-		file="/tmp/fake_dhcp_lease_file"
+	[ -z "$file" -o ! -e "$file" ] && {
+		file='/tmp/fake_dhcp_lease_file'
 		touch "$file"
 	}
 
@@ -104,14 +101,18 @@ _net_dhcp_lease_remove()
 	local dhcp_lease_file="$( _net dhcp_lease_filename )"
 	local tempfile="/tmp/dhcp_leases_$$"
 
+	# typical leasfile:
+	# 1397204975 f8:e0:79:de:e9:fc 10.10.12.6 anonymous-lan6-n12 *
+	# 1397204779 e4:ce:8f:0e:4f:9e 10.10.12.5 anonymous-lan5-n12 01:e4:ce:8f:0e:4f:9e
 	while read line; do {
-	
 		case "$line" in
-			*$mac*) ;;
-			     *) echo "$line" ;;
+			*" $mac "*)
+			;;
+			*)
+				echo "$line"
+			;;
 		esac
-
-	} done <$dhcp_lease_file >$tempfile
+	} done <"$dhcp_lease_file" >"$tempfile"
 
 	mv "$tempfile" "$dhcp_lease_file"
 
