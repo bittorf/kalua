@@ -119,16 +119,15 @@ _scheduler_allow_run()
 	local funcname="scheduler_allow_run"
 	local lockfile="$1"
 
-	[ -e "$lockfile" ] && {
-		if [ $( _stopwatch stop "$lockfile.start" interim,nolog,seconds ) -gt 3600 ]; then
-			_log do $funcname daemon alert "removing lockfile, which seems to be left by accident"
-			rm "$lockfile" "$lockfile.start"
-		else
-			return 1
-		fi
-	}
+	[ -e "$lockfile" ] || return 0
 
-	return 0
+	if [ $( _stopwatch stop "$lockfile.start" interim,nolog,seconds ) -gt 3600 ]; then
+		_log do $funcname daemon alert "removing lockfile, which seems to be left by accident"
+		rm "$lockfile" "$lockfile.start"
+		return 0
+	else
+		return 1
+	fi
 }
 
 _scheduler_run()
@@ -138,6 +137,7 @@ _scheduler_run()
 	local logfile='/tmp/scheduler.log'
 
 	_scheduler allow_run "$logfile" || return 1
+	touch "$logfile"
 
 	case "$CONFIG_PROFILE" in
 		liszt28*)
