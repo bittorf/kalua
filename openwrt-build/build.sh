@@ -288,6 +288,9 @@ target_hardware_set()
 		'Mikrotik Routerboard 532')
 			# http://wiki.openwrt.org/toh/mikrotik/rb532
 			# PCI: 168C:001B Qualcomm Atheros AR5413/AR5414 Wireless Network Adapter [AR5006X(S) 802.11abg] = R52
+			# http://www.dd-wrt.com/wiki/index.php/Mikrotik_Routerboard_RB/532
+			### 1 x IDT Korina 10/100 Mbit/s Fast Ethernet port  supporting Auto-MDI/X
+			### 2 x VIA VT6105 10/100 Mbit/s Fast Ethernet ports supporting Auto-MDI/X
 			TARGET_SYMBOL='CONFIG_TARGET_rb532_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-rb532-combined-jffs2-128k.bin'
 			FILENAME_FACTORY='openwrt-rb532-combined-jffs2-128k.bin'	# via 'dd' to CF-card
