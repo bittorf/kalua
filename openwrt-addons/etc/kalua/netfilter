@@ -261,8 +261,8 @@ _netfilter_traffic_control_user_add()
 			;;
 			liszt28*)
 				case "$mac" in
-					# T61|f36NAS|schlachtNAS|danny
-					00:13:e8:82:7e:4b|02:50:43:ab:1c:91|02:50:43:34:25:bc|9c:b7:0d:a2:49:a5)
+					# R30mb|T61|f36NAS|schlachtNAS|danny
+					70:1a:04:b1:5f:cf|00:13:e8:82:7e:4b|02:50:43:ab:1c:91|02:50:43:34:25:bc|9c:b7:0d:a2:49:a5)
 						return 0
 					;;
 					*)
@@ -1386,7 +1386,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	_sanitizer do "$ip"  ip4 check || return 1
 
 	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
-	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no logins from WAN
+	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no direct logins from WAN
 
 	if [ -n "$DNSMASQ_INTERFACE" ]; then
 		dev_guess="$DNSMASQ_INTERFACE"
@@ -1394,12 +1394,18 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 		dev_guess="$( _net ip2dev "$ip" )"
 	fi
 
-	_net dev_is_wifi "$dev_guess" && {
+	if   [ "$dev_guess" = "$LANDEV" ]; then
+		[ "$( uci -q get system.@weblogin[0].force_lan_reachable )" = '1' ] && {
+			echo "$LANDEV"
+			return 0
+		}
+
+	elif _net dev_is_wifi "$dev_guess"; then
 		iw dev "$dev_guess" station get "$mac" >/dev/null 2>/dev/null && {
 			echo "$dev_guess"
 			return 0
 		}
-	}
+	fi
 
 	devlist="$( _list uniq "${LANDEV:-$( uci -q get network.lan.ifname )} $WIFI_DEVS" )"
 	devlist="$( for dev in $devlist; do test "$dev" = "$dev_guess" || echo -n " $dev "; done )"
