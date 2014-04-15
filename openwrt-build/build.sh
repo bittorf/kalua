@@ -252,7 +252,8 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
 			FILENAME_FACTORY='openwrt-wrt54g-squashfs.bin'
 		;;
-		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium')
+		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2')
+			# hint: the 'ASUS WL-500g Premium v2' needs the 'low power phy' compiled into b43
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
 			FILENAME_FACTORY=
@@ -979,15 +980,22 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial-ftdi=y'
 			;;
 			'BigBrother')
-				apply_symbol 'CONFIG_PACKAGE_kmod-video-core=y'
-				apply_symbol 'CONFIG_PACKAGE_kmod-video-uvc=y'
+				$funcname subcall 'USBcam'
 				apply_symbol 'CONFIG_PACKAGE_ffmpeg=y'
 				apply_symbol 'CONFIG_PACKAGE_motion=y'
-				apply_symbol 'CONFIG_PACKAGE_v4l-utils=y'
+			;;
+			'Photograph')
+				$funcname subcall 'USBcam'
+				apply_symbol 'CONFIG_PACKAGE_fswebcam=y'		# multimedia:
 			;;
 			'DSLR')	# http://en.wikipedia.org/wiki/Digital_single-lens_reflex_camera
 				apply_symbol 'CONFIG_PACKAGE_gphoto2=y'			# multimedia
 				apply_symbol 'CONFIG_PACKAGE_libgphoto2-drivers'	# libraries
+			;;
+			'USBcam')
+				apply_symbol 'CONFIG_PACKAGE_kmod-video-core=y'
+				apply_symbol 'CONFIG_PACKAGE_kmod-video-uvc=y'
+				apply_symbol 'CONFIG_PACKAGE_v4l-utils=y'
 			;;
 			'USBaudio')
 				apply_symbol 'CONFIG_PACKAGE_madplay=y'			# sound: madplay
