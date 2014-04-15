@@ -47,16 +47,22 @@ output_table()
 		if _net dev_is_wifi "$iface_out"; then
 			if mac="$( _net ip2mac "$REMOTE" )"; then
 				snr="$( iw dev "$iface_out" station get "$mac" | fgrep 'signal avg:' )"
-				set -- $snr
-				snr="$(( 95 + $3 ))"	# 95 = noise_base
 
-				if   [ $snr -gt 30 ]; then
-					snr_color='green'
-				elif [ $snr -gt 20 ]; then
-					snr_color='yellow'
-				elif [ $snr -gt 5  ]; then
-					snr_color='orange'
+				if [ -n "$snr" ]; then
+					set -- $snr
+					snr="$(( 95 + $3 ))"	# 95 = noise_base
+
+					if   [ $snr -gt 30 ]; then
+						snr_color='green'
+					elif [ $snr -gt 20 ]; then
+						snr_color='yellow'
+					elif [ $snr -gt 5  ]; then
+						snr_color='orange'
+					else
+						snr_color='red'
+					fi
 				else
+					snr='error'
 					snr_color='red'
 				fi
 			else
