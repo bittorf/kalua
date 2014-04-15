@@ -88,6 +88,7 @@ apply_wifi_reghack()
 {
 	local funcname='apply_wifi_reghack'
 	local file="kalua/package/mac80211/patches/900-regulatory-test.patch"
+	local file_regdb_hacked
 	local COMPAT_WIRELESS="2013-06-27"
 
 	[ -e "$file" ] && {
@@ -97,9 +98,15 @@ apply_wifi_reghack()
 			cp -v "$file" "package/kernel/mac80211/patches"
 			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
 
-			log "$funcname() using another regdb"
+			if [ "$( echo "$VERSION_OPENWRT" | cut -b2- )" -lt 40293 ]; then
+				file_regdb_hacked='kalua/openwrt-patches/regulatory.db.txt'
+			else
+				file_regdb_hacked='kalua/openwrt-patches/regulatory.db.txt-r40293++'
+			fi
+
+			log "$funcname() using another regdb: '$file_regdb_hacked'"
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
-			cp -v "kalua/openwrt-patches/regulatory.db.txt" "package/kernel/mac80211/files/regdb.txt"
+			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
 		else
 			[ -e "package/kernel/mac80211/files/regdb.txt_old" ] && {
 				cp -v "package/kernel/mac80211/files/regdb.txt_original" "package/kernel/mac80211/files/regdb.txt"
