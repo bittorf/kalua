@@ -30,6 +30,7 @@ output_table()
 		# did not work (e.g. via nameservice-plugin), so ask the remote directly
 		[ "$remote_hostname" = "$REMOTE" ] && {
 			remote_hostname="$( _tool remote "$REMOTE" hostname )"
+			[ -z "$remote_hostname" ] && remote_hostname="$REMOTE"
 		}
 
 		case "$toggle" in
