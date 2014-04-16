@@ -25,10 +25,12 @@ output_table()
 	while read line; do {
 		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=;COUNT=$(( $COUNT + 1 ))
 		eval $line
-		remote_hostname="$( _net ip2dns "$REMOTE" )" || {
+		iface_out="$( _net ip2dev "$REMOTE" )"
+		remote_hostname="$( _net ip2dns "$REMOTE" )"
+		# did not work (e.g. via nameservice-plugin), so ask the remote directly
+		[ "$remote_hostname" = "$REMOTE" ] && {
 			remote_hostname="$( _tool remote "$REMOTE" hostname )"
 		}
-		iface_out="$( _net ip2dev "$REMOTE" )"
 
 		case "$toggle" in
 			'even')
