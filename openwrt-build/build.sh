@@ -225,6 +225,7 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr941nd-v4-squashfs-factory.bin'
 		;;
 		'TP-LINK TL-WR1043ND')
+			# http://wiki.openwrt.org/toh/tp-link/tl-wr1043nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin'

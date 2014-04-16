@@ -219,10 +219,10 @@ _net_ip2dns()
 	} done
 }
 
-_net_ip2mac()		# ofcourse this works only for local IP's, but: maybe we want to "guess" using /etc/ethers...?
+_net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess" using /etc/ethers...?
 {
 	local get_ip="$1"
-	local line ip mac
+	local line ip mac dev
 
 	[ -e "/tmp/IP2MAC_${get_ip}" ] && {
 		cat "/tmp/IP2MAC_${get_ip}"
@@ -246,11 +246,18 @@ _net_ip2mac()		# ofcourse this works only for local IP's, but: maybe we want to 
 			cat "/tmp/IP2MAC_${get_ip}"
 			return 0
 		}
-	} done </proc/net/arp
+	} done <'/proc/net/arp'
 
-	[ -e "/tmp/IP2MAC_${get_ip}" ] && {
+	if [ -e "/tmp/IP2MAC_${get_ip}" ]; then
 		cat "/tmp/IP2MAC_${get_ip}"
-	}
+	else
+		# translate IPs from local interfaces (which are not in arp-cache)
+		dev="$( ip --oneline address show to "$get_ip" | cut -d' ' -f2 )"
+		mac="$( _net dev2mac "$dev" )" && {
+			echo "$mac" >"/tmp/IP2MAC_${get_ip}"
+			cat "/tmp/IP2MAC_${get_ip}"
+		}
+	fi
 }
 
 _net_dns2ip ()
@@ -343,9 +350,9 @@ _net_dev2ip()		# only first ip
 
 _net_dev2mac()
 {
-	local dev="$1"
+	local dev="${1:-empty_dev}"
 
-	set -- $( ip -o link show dev "$dev" )
+	set -- $( ip --oneline link show dev "$dev" )
 
 	while [ -n "$1" ]; do {
 		case "$1" in
