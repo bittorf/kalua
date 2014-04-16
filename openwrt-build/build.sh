@@ -1020,6 +1020,7 @@ build_options_set()
 			'vtun')
 				apply_symbol 'CONFIG_PACKAGE_vtun=y'			# network: vpn: vtun:
 				apply_symbol 'CONFIG_VTUN_SSL is not set'		# ...
+				apply_symbol 'CONFIG_VTUN_LZO is not set'		# ...
 			;;
 			'mesh')
 				$funcname subcall 'OLSRd'
