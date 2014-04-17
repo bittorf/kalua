@@ -1501,19 +1501,19 @@ _netfilter_user_add()
 		mkdir "/tmp/NETFILTER/USER/$mac" || return 0
 	else
 		# maybe in /www/NETFILTER_AUTOADD is the ip from another day, so try another lookup
-		unexpected_ip="$( _net mac2ip "$mac" )"
-		if [ "$unexpected_ip" = "$ip" ]; then
-			_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
-			return 1
-		else
+		for unexpected_ip in $( ip neigh | fgrep " $mac " | cut -d' ' -f1 ); do {
 			if dev="$( _netfilter user_reachable "$mac" "$unexpected_ip" )"; then
 				_log do $funcname daemon alert "taking another ip: $unexpected_ip (was: $ip)"
 				ip="$unexpected_ip"
 			else
-				_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' unexpected_ip: '$unexpected_ip'"
-				return 1
+				unexpected_ip=
 			fi
-		fi
+		} done
+
+		[ -z "$unexpected_ip" ] && {
+			_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
+			return 1
+		}
 	fi
 
 	# in case we have an unscheduled reboot, autoadd at least for servers/wired
