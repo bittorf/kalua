@@ -987,6 +987,10 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial-ftdi=y'
 			;;
+			'NTPfull')
+				apply_symbol 'CONFIG_PACKAGE_ntp-utils=y'	# network -> time_syncronisation
+				apply_symbol 'CONFIG_PACKAGE_ntpd=y'		# network -> time_syncronisation
+			;;
 			'BigBrother')
 				$funcname subcall 'USBcam'
 				apply_symbol 'CONFIG_PACKAGE_ffmpeg=y'
