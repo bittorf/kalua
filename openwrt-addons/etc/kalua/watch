@@ -1162,7 +1162,7 @@ _watch_topusage_task()
 	local funcname="watch_topusage_task"
 	local call_reason="$1"
 	local file="/tmp/$funcname_$$"
-	local line pid cpu cpu_int toptask
+	local line pid cpu cpu_int toptask khubd_state
 	local crit_percent_border=70
 
 	[ $( _system uptime min ) -lt 30 ] && return 0		# same like in cron.minutely
@@ -1182,6 +1182,13 @@ _watch_topusage_task()
 			;;
 		esac
 	} done <"$file"
+
+	# https://lists.openwrt.org/pipermail/openwrt-devel/2014-April/024995.html
+	if fgrep '[khubd]' "$file" | grep -q ' DW'; then
+		khubd_state='blocked'
+	else
+		[ -e '/tmp/khubd_blocked' ] && rm '/tmp/khubd_blocked'
+	fi
 	rm "$file"
 
 	case "$CONFIG_PROFILE" in
@@ -1247,7 +1254,13 @@ _watch_topusage_task()
 			;;
 		esac
 	else
-		_log do $funcname daemon debug "pid: $pid cpu: $cpu toptask: $toptask task: $task crit_percent_border: $crit_percent_border"
+		[ "$khubd_state" = 'blocked' ] && {
+			_watch counter '/tmp/khubd_blocked' increment 1 max 15 || {
+				_system crashreboot 'khubd_blocked'
+			}
+		}
+
+		_log do $funcname daemon debug "pid: $pid cpu: $cpu toptask: $toptask task: $task crit_percent_border: $crit_percent_border khubd_state: $khubd_state"
 		return 0
 	fi
 }
