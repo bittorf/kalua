@@ -1059,6 +1059,10 @@ build_options_set()
 				# seems not to work with brcm47xx, but with ar71xx?! -> see 'DEFAULT's
 				$funcname subcall 'noFW'
 
+				# after apply, we can still see:
+				# CONFIG_DEFAULT_ip6tables=y
+				# CONFIG_PACKAGE_libip6tc=y
+
 				# CONFIG_PACKAGE_libip6tc=y
 				# CONFIG_PACKAGE_libxtables=y
 				# CONFIG_DEFAULT_6relayd=y
