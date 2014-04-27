@@ -11,7 +11,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 {						#			   /LINKS
 	local func="olsr_build_tables"		#			   /LINKS.sh
 	local line				# and moving /tmp/OLSR_TMP/* -> /tmp/OLSR (which is used by all functions)
-	local uptime_was_short			# also collecting routing_table
+	local uptime_was_short cost		# also collecting routing_table
 	local configfile="/var/etc/olsrd.conf"
 	local max_errors=3
 	local route_count=0
@@ -94,17 +94,27 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 				break
 			;;
 			*)
-				echo "$line"
+				echo "$line" >'/tmp/OLSR_TMP/LINKS'
+				set -- $line
+
+				case "$1" in
+					'.')
+						if [ "$6" = 'INFINITE' ]; then
+							cost=
+						else
+							cost="$6"
+						fi
+
+						if [ -e '/tmp/OLSR_TMP/LINKS.sh' ]; then
+							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=\$(( \$COUNT + 1 ))"
+						else
+							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=1"
+						fi
+					;;
+				esac
 			;;
 		esac
-	} done <'/tmp/OLSR_TMP/ALL' >'/tmp/OLSR_TMP/LINKS'
-								# COST of 'INFINITE' is converted to ''
-	if _olsr version | fgrep -q 2009-10-27 ; then		# newstyle vs. old-style textinfo-plugin output
-
-		sed -n 's/^\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)[^0-9]\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)[^0-9a-zA-Z\.]*\([0-9a-zA-Z\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$(( \$COUNT + 1 ))/p' "/tmp/OLSR_TMP/LINKS" >"/tmp/OLSR_TMP/LINKS.sh"
-	else
-		sed -n '/0\.00/s/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*0\.00[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LOCAL=\1;REMOTE=\2;LQ=\3;NLQ=\4;COST=\5;COUNT=\$\(\( \$COUNT \+ 1 \)\)/p' "/tmp/OLSR_TMP/LINKS" >"/tmp/OLSR_TMP/LINKS.sh"
-	fi
+	} done <'/tmp/OLSR_TMP/ALL' >'/tmp/OLSR_TMP/LINKS.sh'
 
 	mv /tmp/OLSR_TMP/* /tmp/OLSR
 
