@@ -22,8 +22,6 @@ _vpn_start ()
 	_vpn_server_participation_request
 	_vpn_remove_vtun_conf
 	_vpn_write_vtun_conf
-	_vpn_remove_olsr_conf
-	_vpn_write_olsr_conf
 	_vpn_tunnel_start && {
 		/etc/init.d/network reload
 		pidof olsrd >/dev/null && {
@@ -41,7 +39,6 @@ _vpn_stop ()
 {
 	_vpn_build_vars "stop"
 	_vpn_remove_vtun_conf
-	_vpn_remove_olsr_conf
 	_vpn_tunnel_stop
 	
 }
@@ -222,96 +219,6 @@ _vpn_defer_start ()
 		_log do init daemon debug "call: '$1' - abort: '$DIRTY'"
 		exit
 	}
-}
-
-_vpn_remove_olsr_conf()
-{
-	local FUNC="vpn_remove_olsr_conf"
-	local UCIRETURN
-	local OLSRIFACECOUNT=0
-
-	#remove network config
-	#uci delete network.tap0
-	_log do $FUNC daemon debug "removed network config"
-	#remove olsr config
-	UCIRETURN=$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface="tap0" )
-	while ([ "$UCIRETURN" != "tap0" ] && [ -n "$UCIRETURN" ]); do {
-		OLSRIFACECOUNT=$(( OLSRIFACECOUNT + 1 ))
-		_log do $FUNC daemon debug "scanning olsrd.conf for interface tap0, round $OLSRIFACECOUNT Last output: $UCIRETURN iface"
-		UCIRETURN="$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )"
-		} done
-
-	[ "$UCIRETURN" = "tap0" ] && {
-		uci delete olsrd.@Interface[$OLSRIFACECOUNT]
-		_log do $FUNC daemon debug "removed olsr config"
-		}
-
-	_log do $FUNC daemon debug "ready, committing uci settings"
-	uci commit
-}
-
-_vpn_write_olsr_conf()
-{
-	local FUNC="vpn_write_olsr_conf"
-	local LINE=""
-	local INTERFACE="tap0"
-	local OLSRIFACECOUNT=0
-	local TAPFOUND=""
-	local UCIRETURN
-
-	[ "$( _vpn_proto )" != "olsr" ] && INTERFACE=none		# fixme! this is dirty...
-	
-	SPEED=$( uci get olsrd.@olsrd[0].speed )			# fixme! maybe multiply by 10? (lowering traffic)
-	SPEED=${SPEED:=5}
-
-        FEYE=$( uci get olsrd.@olsrd[0].fisheye )
-	if [ "0" != "$FEYE" ];then
-		TCINT=$(( 2 * SPEED / 4 ))
-		test $TCINT -eq 0 && TCINT=1
-		COVER=7
-		FEYE=1
-	else
-		TCINT=$(( 2 * SPEED ))
-		COVER=3
-		FEYE=0
-	fi
-	
-	#network settings
-	uci set network.tap0="interface"
-	uci set network.tap0.ifname="tap0"
-	_log do $FUNC daemon debug "network settings done"
-
-	#olsrd settings
-	UCIRETURN=$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )
-	while ([ "$UCIRETURN" != "tap0" ] && [ -n "$UCIRETURN" ]); do {
-		OLSRIFACECOUNT=$(( OLSRIFACECOUNT + 1 ))
-		_log do $FUNC daemon debug "scanning olsrd.conf for interface tap0, round $OLSRIFACECOUNT Last output: $UCIRETURN iface"
-		UCIRETURN="$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )"
-		} done
-
-	[ "$UCIRETURN" = "tap0" ] && TAPFOUND="jep"
-
-	[ -z "$TAPFOUND" ] && {
-		uci add olsrd Interface
-		OLSRIFACECOUNT=-1
-		}
-
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].interface="tap0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].HelloInterval="$(( SPEED / 2 + 1 )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].HelloValidityTime="$(( 25 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].TcInterval="$TCINT.0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].TcValidityTime="$(( 100 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].MidInterval="$(( 5 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].MidValidityTime="$(( 100 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].HnaInterval="$(( 2 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].HnaValidityTime="$(( 25 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].Ip4Broadcast="$WIFIVPNSERVERADR"
-
-						# these are the values for fff v1.6.34
-	_log do $FUNC daemon debug "ready, committing uci settings"
-						# todo: log olsrd settings to debug log
-	uci commit
-
 }
 
 _vpn_build_vars ()
