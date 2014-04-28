@@ -15,6 +15,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	local configfile="/var/etc/olsrd.conf"
 	local max_errors=3
 	local route_count=0
+	local firstping_lan firstping_wan
 
 	mkdir -p /tmp/OLSR /tmp/OLSR_TMP
 
@@ -104,9 +105,30 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							cost="$6"
 						fi
 
-# TODO:
-# check if is OR was default-route AND cost = 1.000/0.100/INFINITE/
-# ping
+						case "$1" in
+							$LANADR)
+								[ "$firstping_lan" = 'false' ] || {
+									if _net ip_reachable "$2" '3' "$LANDEV"; then
+										# ok, only 1 check per dev
+										firstping_lan='false'
+									else
+										# = we _have_ a wired neigh, but unreachable
+										firstping_lan='error'
+									fi
+								}
+							;;
+							$WANADR)
+								[ "$firstping_wan" = 'false' ] || {
+									if _net ip_reachable "$2" '3' "$WANDEV"; then
+										# ok, only 1 check per dev
+										firstping_wan='false'
+									else
+										# = we _have_ a wired neigh, but unreachable
+										firstping_wan='error'
+									fi
+								}
+							;;
+						esac
 
 						if [ "$firstrun" = 'false' ]; then
 							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=\$(( \$COUNT + 1 ))"
@@ -123,6 +145,18 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	} done <'/tmp/OLSR_TMP/ALL' >'/tmp/OLSR_TMP/LINKS.sh'
 
 	mv /tmp/OLSR_TMP/* /tmp/OLSR
+
+	if [ "$firstping_lan" = 'error' ]; then
+		_watch counter "/tmp/error_lanping_$func" increment 1 max 3 || _system crashreboot 'lanping'
+	else
+		[ -e "/tmp/error_lanping_$func" ] && rm "/tmp/error_lanping_$func"
+	fi
+
+	if [ "$firstping_wan" = 'error' ]; then
+		_watch counter "/tmp/error_wanping_$func" increment 1 max 3 || _system crashreboot 'wanping'
+	else
+		[ -e "/tmp/error_wanping_$func" ] && rm "/tmp/error_wanping_$func"
+	fi
 
 	did_we_ever_had_neighbours()
 	{
