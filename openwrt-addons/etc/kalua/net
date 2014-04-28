@@ -28,10 +28,19 @@ _net_ip_reachable()
 
 	while let max_attempts=max_attempts-1 ; do {
 		for dev in $dev_list; do {
-			if   arping -D -c 1 -I "$dev" -q -f "$ip"; then
+			# arping also returns with 0, without reply (so we grep the output)
+			#
+			# root@feld-sollstedt:~ arping -D -c 1 -I eth0 -f 10.10.249.33
+			# ARPING to 10.10.249.33 from 0.0.0.0 via eth0
+			# Sent 1 probe(s) (1 broadcast(s))
+			# Received 0 reply (0 request(s), 0 broadcast(s))
+			# root@feld-sollstedt:~ echo $?
+			# 0
+
+			if   arping -D -c 1 -I "$dev" -q -f "$ip" | grep -q ^'Received 1 replies'; then
 				rm "/tmp/CRON_OVERLOAD"
 				return 0
-			elif arping    -c 1 -I "$dev" -q -f "$ip"; then
+			elif arping    -c 1 -I "$dev" -q -f "$ip" | grep -q ^'Received 1 replies'; then
 				rm "/tmp/CRON_OVERLOAD"
 				return 0
 			else
