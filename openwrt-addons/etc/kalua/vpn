@@ -19,18 +19,9 @@ _vpn_start ()
 		return 1
 	}
 		
-	_vpn_server_participation_request
 	_vpn_remove_vtun_conf
 	_vpn_write_vtun_conf
-	_vpn_tunnel_start && {
-		/etc/init.d/network reload
-		pidof olsrd >/dev/null && {
-			[ "$( _vpn_proto )" = "olsr" ] && {
-				_scheduler add "restart_olsr"
-				return
-			}
-		}
-		_log_do $FUNC daemon debug "olsr not up or olsr-proto unwished, no need for restart of olsrd"
+	_vpn_tunnel_start 
 	}
 }
 
@@ -239,27 +230,6 @@ _vpn_build_vars ()
 	eval "$( _ipsystem do )"
 }
 
-_vpn_server_participation_request ()
-{
-	local func="vpn_server_participation_request" 
-	local OUTPUT=""
-	local URL="http://$VPN_SERVER/freifunk/vpn/"
-	local QUERY=""
-	local ADMINMAIL="$( uci get freifunk.contact.mail )"
-	
-	QUERY="${QUERY}?CLIENTIP=${WIFIVPNCLIENTADR}"
-	QUERY="${QUERY}&SERVERIP=${WIFIVPNSERVERADR}"
-	QUERY="${QUERY}&NAME=$HOSTNAME"
-	QUERY="${QUERY}&PROTO=$( _vpn_proto )"
-	QUERY="${QUERY}&EMAIL=$( _sanitizer do "${ADMINMAIL:=unset@box.local}" urlvalue )"
-	QUERY="${QUERY}&COMMENT=city${FFF_CITY}_node${NODE_NUMBER}_profile$( uci get system.@profile[0].name )"
-
-	_log do $FUNC daemon debug "query: '${URL}${QUERY}'"
-	
-	OUTPUT="$( wget 2>/dev/null -O - "${URL}${QUERY}" )"	# fixme! encode unsafe URL chars (like email above)
-
-	_log do $FUNC daemon debug "answer: '$OUTPUT'"
-}
 
 _vpn_proto ()						# defaults to 'olsr'
 {
