@@ -71,14 +71,24 @@ _net_text2port()
 	echo "${sum:-1025}"
 }
 
-_net_refresh_dnshosts ()
+_net_refresh_dnshosts()
 {
-	local pid="$( _system get_first_pid dnsmasq )"
+	local pid cmdline
+	local list_pids="$( pidof dnsmasq )"
 
-	[ -n "$pid" ] && {
-		kill -SIGUSR1 $pid		# logging stats
-		kill -HUP $pid			# reread e.g. /etc/hosts + /etc/ethers + /var/run/hosts_olsr
-	}
+	for pid in $list_pids; do {
+		read cmdline <"/proc/$pid/cmdline"
+
+		case "$cmdline" in
+			*'fakedns'*)
+			;;
+			*)
+				kill -SIGUSR1 $pid	# logging stats
+				kill -HUP $pid		# reread e.g. /etc/hosts + /etc/ethers + /var/run/hosts_olsr
+				return 0
+			;;
+		esac
+	} done
 }
 
 _net_dhcp_lease_filename()
