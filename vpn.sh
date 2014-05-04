@@ -3,11 +3,11 @@
 . /usr/share/libubox/jshn.sh
 
 #vpn domain
-DOMAIN="weimarnetz.de"
+DOMAIN="$( uci get system.@vpn[0].domain )"
 #vpn prefix
-PREFIX="vpn"
+PREFIX="$( uci get system.@vpn[0].prefix )"
 #json info url
-JSONPATH="/freifunk/vpn/vpn.php"
+JSONPATH="$( uci get system.@vpn[0].jsonpath )"
 
 #temporary number for comparisons
 CLIENTS=12345
