@@ -34,7 +34,7 @@ output_table()
 				remote_hostname="$REMOTE"
 			else
 				# otherwise we could include a redirect/404
-				remote_hostname="$( _sanitizer do "$remote_hostname" hostname )"
+				remote_hostname="$( _sanitizer do "$remote_hostname" strip_newlines hostname )"
 			fi
 		}
 
