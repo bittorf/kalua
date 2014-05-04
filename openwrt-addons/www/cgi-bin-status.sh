@@ -30,7 +30,12 @@ output_table()
 		# did not work (e.g. via nameservice-plugin), so ask the remote directly
 		[ "$remote_hostname" = "$REMOTE" ] && {
 			remote_hostname="$( _tool remote "$REMOTE" hostname )"
-			[ -z "$remote_hostname" ] && remote_hostname="$REMOTE"
+			if [ -z "$remote_hostname" ]; then
+				remote_hostname="$REMOTE"
+			else
+				# otherwise we could include a redirect/404
+				remote_hostname="$( _sanitizer do "$remote_hostname" hostname )"
+			fi
 		}
 
 		case "$toggle" in
