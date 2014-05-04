@@ -385,7 +385,9 @@ check_working_directory()
 	[ -n "$FORCE" ] && error=0
 
 	[ -d 'package/feeds' ] || {
+		# seems, everything is really untouced
 		log "$funcname() missing 'package/symlinks', getting feeds"
+		make defconfig
 		make package/symlinks
 	}
 
