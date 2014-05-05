@@ -6,11 +6,23 @@ _http header_mimetype_output 'text/html'
 output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
-	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes
-	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric
+	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all
+	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway percent
 	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Out In'
-	local gateway="$( _sanitizer do "$( ip route list exact '0.0.0.0/0' table main )" ip4 )"
 	local symbol_infinite='<big>&infin;</big>'
+
+	gateway="$( ip route list exact '0.0.0.0/0' table main )"
+	gateway="$( _sanitizer do "$gateway" ip4 )"
+
+	all=0
+	for file in /tmp/OLSR/DEFGW_*; do {
+		if [ -e "$file" ]; then
+			read i <"$file"
+			all=$(( $all + $i ))
+		else
+			percent='100%'
+		fi
+	} done
 
 	for word in $head_list; do {
 		echo -n "<th> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
