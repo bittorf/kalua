@@ -22,14 +22,10 @@ output_table()
 		}
 	} done
 
+	# tablehead
 	for word in $head_list; do {
 		echo -n "<th> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
 	} done
-
-	# todo:
-	# - wenn wlan, dann probieren ueber welche 'iw dev wlanX' die mac erreichbar ist, dann stimmt auch SNR
-	# - channel mit anzeigen bzw. band (a/g)
-	# - schnittstelle = lan/wire? -> gruen
 
 	_net include
 	_olsr include
@@ -82,7 +78,7 @@ output_table()
 		if [ "$gateway" = "$REMOTE" ]; then
 			bgcolor='#ffff99'	# lightyellow
 			set -- $( grep ^'0\.0\.0\.0/0' '/tmp/OLSR/ALL' | fgrep "$REMOTE" | head -n1 )
-			gateway_percent="${gateway_percent:-100%} - ${3:-?} Hops, ETX ${4:-?}"
+			gateway_percent="${gateway_percent:-100%} &nbsp; ${3:-?} Hops, ETX ${4:-?}"
 		else
 			[ -n "$gateway_percent" ] && {
 				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ))"
@@ -203,7 +199,7 @@ cat <<EOF
   <title>$HOSTNAME - Nachbarn</title>
  </head>
  <body>
-  <h1>$HOSTNAME (with OpenWrt r$( _system version short ))</h1>
+  <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a></h3>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen</big><br>
 
