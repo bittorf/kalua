@@ -70,6 +70,8 @@ output_table()
 		esac
 
 		case "$remote_hostname" in
+			"$remote_ip")
+			;;
 			*'.'*)
 				# myhost.lan -> myhost
 				remote_hostname="${remote_hostname%.*}"
