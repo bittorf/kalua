@@ -8,7 +8,7 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list
+	local head_list neigh_list neigh_file neigh age
 	local symbol_infinite='<big>&infin;</big>'
 
 	gateway="$( ip route list exact '0.0.0.0/0' table main )"
@@ -19,6 +19,12 @@ output_table()
 		[ -e "$gw_file" ] && {
 			read i <"$gw_file"
 			all=$(( $all + $i ))
+		}
+	} done
+
+	for neigh_file in /tmp/OLSR/ISNEIGH_*; do {
+		[ -e "$neigh_file" ] && {
+			neigh_list="$neigh_list ${neigh_file#*_}"
 		}
 	} done
 
@@ -41,6 +47,7 @@ output_table()
 		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=;COUNT=$(( $COUNT + 1 ))
 		eval $line
 		iface_out="$( _net ip2dev "$REMOTE" )"
+		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" )"
 
 		remote_hostname="$( _net ip2dns "$REMOTE" )"
 		# did not work (e.g. via nameservice-plugin), so ask the remote directly
@@ -199,6 +206,11 @@ output_table()
 </tr>
 EOF
 	} done <"$file"
+
+	for neigh in $neigh_list; do {
+		age="$( _file age "/tmp/OLSR/ISNEIGH_$neigh" humanreadable )"
+		echo "<tr><td> $neigh </td><td> vermisst, zuletzt gesehen vor $age </td></tr>"
+	} done
 }
 
 cat <<EOF
