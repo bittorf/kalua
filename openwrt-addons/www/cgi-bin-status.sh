@@ -16,12 +16,10 @@ output_table()
 
 	all=0
 	for gw_file in /tmp/OLSR/DEFGW_*; do {
-		if [ -e "$gw_file" ]; then
+		[ -e "$gw_file" ] && {
 			read i <"$gw_file"
 			all=$(( $all + $i ))
-		else
-			gateway_percent=100
-		fi
+		}
 	} done
 
 	for word in $head_list; do {
@@ -73,16 +71,23 @@ output_table()
 			;;
 		esac
 
-		[ -e "/tmp/OLSR/DEFGW_$REMOTE" ] && {
+		if [ -e "/tmp/OLSR/DEFGW_$REMOTE" ]; then
 			read i <"/tmp/OLSR/DEFGW_$REMOTE"
 			gateway_percent=$(( ($i * 100) / $all ))
 			gateway_percent="${gateway_percent}%"
-		}
+		else
+			gateway_percent=
+		fi
 
-		[ "$gateway" = "$REMOTE" ] && {
+		if [ "$gateway" = "$REMOTE" ]; then
 			bgcolor='#ffff99'	# lightyellow
-			gateway_percent="${gateway_percent} Internet"
-		}
+			set -- $( grep ^'0\.0\.0\.0/0' '/tmp/OLSR/ALL' | fgrep "$REMOTE" | head -n1 )
+			gateway_percent="${gateway_percent:-100%} - ${3:-?} Hops, ETX ${4:-?}"
+		else
+			[ -n "$gateway_percent" ] && {
+				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ))"
+			}
+		fi
 
 		metric="$( _olsr remoteip2metric "$REMOTE" )"
 		case "$metric" in
@@ -94,14 +99,13 @@ output_table()
 			;;
 		esac
 
-		channel=
+		channel=; snr=; rx_mbytes=; tx_mbytes=
 		if _net dev_is_wifi "$iface_out"; then
 			mac="$( _net ip2mac "$REMOTE" )" || {
 				mac="$( _tool remote "$REMOTE" ip2mac )"
 				mac="$( _sanitizer do "$mac" mac )"
 			}
 
-			channel=; snr=; rx_mbytes=; tx_mbytes=
 			if [ -n "$mac" ]; then
 				for dev in $WIFI_DEVS; do {
 
