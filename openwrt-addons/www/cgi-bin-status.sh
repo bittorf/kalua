@@ -6,9 +6,9 @@ _http header_mimetype_output 'text/html'
 output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
-	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle
+	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel
-	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR'
+	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Out In'
 	local gateway="$( _sanitizer do "$( ip route list exact '0.0.0.0/0' table main )" ip4 )"
 	local symbol_infinite='<big>&infin;</big>'
 
@@ -62,17 +62,36 @@ output_table()
 
 			if [ -n "$mac" ]; then
 				for dev in $WIFI_DEVS; do {
-					snr="$( iw dev "$dev" station get "$mac" | fgrep 'signal avg:' )" && {
-						channel="$( iw dev "$dev" info | grep 'channel ' | cut -d' ' -f2 )"
-						channel="/Kanal $channel"
-						iface_out="$dev"
-						break
-					}
+					channel=; snr=; rx_mbytes=; tx_mbytes=
+
+					# maybe use: wifi_get_station_param / wifi_show_station_traffic
+					set -- $( iw dev "$dev" station get "$mac" )
+					while [ -n "$1" ]; do {
+						shift
+						case "$1 $2" in
+							'signal avg:')
+								snr="$3"
+								break 2
+							;;
+							'rx bytes:')
+								rx_mbytes=$(( $3 / 1024 / 1024 ))
+								[ $3 -eq 0 ] && rx_mbytes='&mdash;'
+							;;
+							'tx bytes:')
+								tx_mbytes=$(( $3 / 1024 / 1024 ))
+							;;
+						esac
+					} done
 				} done
 
 				if [ -n "$snr" ]; then
-					set -- $snr
-					snr="$(( 95 + $3 ))"	# 95 = noise_base
+					channel="$( _wifi channel "$dev" )"
+					channel="/Kanal $channel"
+
+					# 95 = noise_base / drivers_default
+					# http://en.wikipedia.org/wiki/Thermal_noise#Noise_power_in_decibels
+					# https://lists.open-mesh.org/pipermail/b.a.t.m.a.n/2014-April/011911.html
+					snr="$(( 95 + $snr ))"
 
 					if   [ $snr -gt 30 ]; then
 						snr_color='green'
@@ -123,6 +142,8 @@ output_table()
  <td> $NLQ </td>
  <td bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
  <td bgcolor='$snr_color'> $snr </td>
+ <td align='right'> $rx_mbytes </td>
+ <td align='right'> $tx_mbytes </td>
 </tr>
 EOF
 	} done <"$file"
@@ -148,6 +169,8 @@ cat <<EOF
 
   <h3>Legende:</h3>
   <ul>
+   <li> <b>Out/b>: Tx = gesendete Daten [Megabytes] </li>
+   <li> <b>In/b>: Rx = empfangene Daten [Megabytes] </li>
    <li> <b>LQ</b>: Erfolgsquote vom Nachbarn empfangener Pakete </li>
    <li> <b>NLQ</b>: Erfolgsquote zum Nachbarn gesendeter Pakete </li>
    <li> <b>ETX</b>: Zu erwartende Sendeversuche pro Paket </li>
