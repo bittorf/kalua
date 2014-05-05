@@ -7,8 +7,8 @@ output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all
-	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway percent
-	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Out In'
+	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
+	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Out In Gateway'
 	local symbol_infinite='<big>&infin;</big>'
 
 	gateway="$( ip route list exact '0.0.0.0/0' table main )"
@@ -20,7 +20,7 @@ output_table()
 			read i <"$file"
 			all=$(( $all + $i ))
 		else
-			percent='100%'
+			gateway_percent=100
 		fi
 	} done
 
@@ -57,6 +57,7 @@ output_table()
 				remote_hostname="${remote_hostname#*.}"
 			;;
 			'xmlversion'*)
+				# fetched 404/error-page
 				remote_hostname="$REMOTE"
 			;;
 		esac
@@ -72,8 +73,15 @@ output_table()
 			;;
 		esac
 
+		[ -e "/tmp/OLSR/DEFGW_$REMOTE" ] && {
+			read i <"/tmp/OLSR/DEFGW_$REMOTE"
+			gateway_percent=$(( ($i * 100) / $all ))
+			gateway_percent="${gateway_percent}%"
+		}
+
 		[ "$gateway" = "$REMOTE" ] && {
 			bgcolor='#ffff99'	# lightyellow
+			gateway_percent="${gateway_percent} Internet"
 		}
 
 		metric="$( _olsr remoteip2metric "$REMOTE" )"
@@ -179,6 +187,7 @@ output_table()
  <td align='middle'> $metric </td>
  <td align='right'> $rx_mbytes </td>
  <td align='right'> $tx_mbytes </td>
+ <td> $gateway_percent </td>
 </tr>
 EOF
 	} done <"$file"
