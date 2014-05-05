@@ -41,6 +41,42 @@ output_table()
 		echo -n "<th> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
 	} done
 
+	build_remote_hostname()
+	{
+		local remote_ip="$1"
+
+		remote_hostname="$( _net ip2dns "$remote_ip" )"
+
+		# did not work (e.g. via nameservice-plugin), so ask the remote directly
+		[ "$remote_hostname" = "$remote_ip" ] && {
+			remote_hostname="$( _tool remote "$remote_ip" hostname )"
+			if [ -z "$remote_hostname" ]; then
+				remote_hostname="$remote_ip"
+			else
+				# otherwise we could include a redirect/404
+				remote_hostname="$( _sanitizer do "$remote_hostname" strip_newlines hostname )"
+			fi
+		}
+
+		case "$remote_hostname" in
+			mid[0-9].*)
+				# mid3.F36-Dach4900er-MESH -> F36-Dach4900er-MESH
+				remote_hostname="${remote_hostname#*.}"
+			;;
+			'xmlversion'*)
+				# fetched 404/error-page
+				remote_hostname="$remote_ip"
+			;;
+		esac
+
+		case "$remote_hostname" in
+			*'.'*)
+				# myhost.lan -> myhost
+				remote_hostname="${remote_hostname%.*}"
+			;;
+		esac
+	}
+
 	_net include
 	_olsr include
 	while read line; do {
@@ -49,27 +85,7 @@ output_table()
 		iface_out="$( _net ip2dev "$REMOTE" )"
 		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" )"
 
-		remote_hostname="$( _net ip2dns "$REMOTE" )"
-		# did not work (e.g. via nameservice-plugin), so ask the remote directly
-		[ "$remote_hostname" = "$REMOTE" ] && {
-			remote_hostname="$( _tool remote "$REMOTE" hostname )"
-			if [ -z "$remote_hostname" ]; then
-				remote_hostname="$REMOTE"
-			else
-				# otherwise we could include a redirect/404
-				remote_hostname="$( _sanitizer do "$remote_hostname" strip_newlines hostname )"
-			fi
-		}
-		case "$remote_hostname" in
-			mid[0-9].*)
-				# mid3.F36-Dach4900er-MESH -> F36-Dach4900er-MESH
-				remote_hostname="${remote_hostname#*.}"
-			;;
-			'xmlversion'*)
-				# fetched 404/error-page
-				remote_hostname="$REMOTE"
-			;;
-		esac
+		build_remote_hostname "$REMOTE"
 
 		case "$toggle" in
 			'even')
@@ -209,7 +225,12 @@ EOF
 
 	for neigh in $neigh_list; do {
 		age="$( _file age "/tmp/OLSR/ISNEIGH_$neigh" humanreadable )"
-		echo "<tr><td> $neigh </td><td> vermisst, zuletzt gesehen vor $age </td></tr>"
+		build_remote_hostname "$neigh"
+		echo "<tr>"
+		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
+		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
+		echo " <td colspan='10'> vermisst, zuletzt gesehen vor $age </td>"
+		echo "</tr>"
 	} done
 }
 
