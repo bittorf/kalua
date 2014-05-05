@@ -7,8 +7,8 @@ output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes
-	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel
-	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Out In'
+	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric
+	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Out In'
 	local gateway="$( _sanitizer do "$( ip route list exact '0.0.0.0/0' table main )" ip4 )"
 	local symbol_infinite='<big>&infin;</big>'
 
@@ -22,10 +22,12 @@ output_table()
 	# - schnittstelle = lan/wire? -> gruen
 
 	_net include
+	_olsr include
 	while read line; do {
 		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=;COUNT=$(( $COUNT + 1 ))
 		eval $line
 		iface_out="$( _net ip2dev "$REMOTE" )"
+
 		remote_hostname="$( _net ip2dns "$REMOTE" )"
 		# did not work (e.g. via nameservice-plugin), so ask the remote directly
 		[ "$remote_hostname" = "$REMOTE" ] && {
@@ -37,6 +39,15 @@ output_table()
 				remote_hostname="$( _sanitizer do "$remote_hostname" strip_newlines hostname )"
 			fi
 		}
+		case "$remote_hostname" in
+			mid[0-9].*)
+				# mid3.F36-Dach4900er-MESH -> F36-Dach4900er-MESH
+				remote_hostname="${remote_hostname#*.}"
+			;;
+			'xmlversion'*)
+				remote_hostname="$REMOTE"
+			;;
+		esac
 
 		case "$toggle" in
 			'even')
@@ -53,6 +64,16 @@ output_table()
 			bgcolor='#ffff99'	# lightyellow
 		}
 
+		metric="$( _olsr remoteip2metric "$REMOTE" )"
+		case "$metric" in
+			'1')
+				metric='direkt'
+			;;
+			'')
+				metric='&mdash;'
+			;;
+		esac
+
 		channel=
 		if _net dev_is_wifi "$iface_out"; then
 			mac="$( _net ip2mac "$REMOTE" )" || {
@@ -60,9 +81,9 @@ output_table()
 				mac="$( _sanitizer do "$mac" mac )"
 			}
 
+			channel=; snr=; rx_mbytes=; tx_mbytes=
 			if [ -n "$mac" ]; then
 				for dev in $WIFI_DEVS; do {
-					channel=; snr=; rx_mbytes=; tx_mbytes=
 
 					# maybe use: wifi_get_station_param / wifi_show_station_traffic
 					set -- $( iw dev "$dev" station get "$mac" )
@@ -75,10 +96,11 @@ output_table()
 							;;
 							'rx bytes:')
 								rx_mbytes=$(( $3 / 1024 / 1024 ))
-								[ $3 -eq 0 ] && rx_mbytes='&mdash;'
+								[ $rx_mbytes -eq 0 ] && rx_mbytes='&mdash;'
 							;;
 							'tx bytes:')
 								tx_mbytes=$(( $3 / 1024 / 1024 ))
+								[ $tx_mbytes -eq 0 ] && tx_mbytes='&mdash;'
 							;;
 						esac
 					} done
@@ -142,6 +164,7 @@ output_table()
  <td> $NLQ </td>
  <td bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
  <td bgcolor='$snr_color'> $snr </td>
+ <td align='middle'> $metric </td>
  <td align='right'> $rx_mbytes </td>
  <td align='right'> $tx_mbytes </td>
 </tr>
@@ -169,8 +192,9 @@ cat <<EOF
 
   <h3>Legende:</h3>
   <ul>
-   <li> <b>Out/b>: Tx = gesendete Daten [Megabytes] </li>
-   <li> <b>In/b>: Rx = empfangene Daten [Megabytes] </li>
+   <li> <b>Metrik</b>: Daten werden direkt oder &uuml;ber Zwischenstationen gesendet </li>
+   <li> <b>Out</b>: Tx = gesendete Daten [Megabytes] </li>
+   <li> <b>In</b>: Rx = empfangene Daten [Megabytes] </li>
    <li> <b>LQ</b>: Erfolgsquote vom Nachbarn empfangener Pakete </li>
    <li> <b>NLQ</b>: Erfolgsquote zum Nachbarn gesendeter Pakete </li>
    <li> <b>ETX</b>: Zu erwartende Sendeversuche pro Paket </li>
