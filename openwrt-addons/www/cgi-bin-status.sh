@@ -11,6 +11,7 @@ output_table()
 	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR'
 	local gateway="$( _sanitizer do "$( ip route list exact '0.0.0.0/0' table main )" ip4 )"
 	local symbol_infinite='<big>&infin;</big>'
+	local openwrt_revision="r$( _system version short )"
 
 	for word in $head_list; do {
 		echo -n "<th> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
@@ -134,7 +135,7 @@ cat <<EOF
   <title>$HOSTNAME - Nachbarn</title>
  </head>
  <body>
-  <h1>$HOSTNAME</h1>
+  <h1>$HOSTNAME (with OpenWrt $openwrt_revision)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a></h3>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen</big><br>
 
