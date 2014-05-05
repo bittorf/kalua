@@ -8,7 +8,7 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Out In Gateway'
+	local head_list
 	local symbol_infinite='<big>&infin;</big>'
 
 	gateway="$( ip route list exact '0.0.0.0/0' table main )"
@@ -23,7 +23,15 @@ output_table()
 	} done
 
 	# tablehead
+	head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Out In Gateway'
 	for word in $head_list; do {
+		[ "$word" = "Gateway" ] && {
+			[ -e '/tmp/OLSR/DEFGW_empty' ] && {
+				read i <'/tmp/OLSR/DEFGW_empty'
+				word="$word ($(( ($i * 100) / $all ))% Inselbetrieb)"
+			}
+		}
+
 		echo -n "<th> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
 	} done
 
