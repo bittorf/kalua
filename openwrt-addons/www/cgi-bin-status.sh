@@ -6,7 +6,7 @@ _http header_mimetype_output 'text/html'
 output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
-	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all
+	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
 	local head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Out In Gateway'
 	local symbol_infinite='<big>&infin;</big>'
@@ -15,9 +15,9 @@ output_table()
 	gateway="$( _sanitizer do "$gateway" ip4 )"
 
 	all=0
-	for file in /tmp/OLSR/DEFGW_*; do {
-		if [ -e "$file" ]; then
-			read i <"$file"
+	for gw_file in /tmp/OLSR/DEFGW_*; do {
+		if [ -e "$gw_file" ]; then
+			read i <"$gw_file"
 			all=$(( $all + $i ))
 		else
 			gateway_percent=100
