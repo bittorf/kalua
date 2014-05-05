@@ -15,7 +15,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	local configfile="/var/etc/olsrd.conf"
 	local max_errors=3
 	local route_count=0
-	local firstping_lan firstping_wan
+	local firstping_lan firstping_wan gateway i
 
 	mkdir -p /tmp/OLSR /tmp/OLSR_TMP
 
@@ -64,6 +64,25 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	ip route show table main >'/tmp/OLSR_TMP/ROUTING_TABLE_MAIN'
 
 	while read line; do {
+		[ $route_count -eq 0 ] && {
+			case "$line" in
+				'default '*)
+					gateway="$( _sanitizer do "$line" ip4 )"
+				;;
+				*)
+					gateway='empty'
+				;;
+			esac
+
+			if [ -e "/tmp/OLSR_TMP/DEFGW_$gateway" ]; then
+				read i <"/tmp/OLSR_TMP/DEFGW_$gateway"
+			else
+				i=1
+			fi
+
+			echo "$i" >"/tmp/OLSR_TMP/DEFGW_$gateway"
+		}
+
 		route_count=$(( $route_count + 1 ))
 	} done <'/tmp/OLSR_TMP/ROUTING_TABLE_MAIN'
 	echo "$route_count" >'/tmp/OLSR_TMP/ROUTE_COUNT'
