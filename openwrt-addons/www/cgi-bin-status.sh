@@ -257,6 +257,8 @@ EOF
 	} done
 }
 
+read ROUTE_COUNT <'/tmp/OLSR/ROUTE_COUNT'
+
 cat <<EOF
 <html>
  <head>
@@ -265,7 +267,7 @@ cat <<EOF
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a> &nbsp; ($( remote_hops ) Hops zu Betrachter $REMOTE_ADDR) </h3>
-  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen</big><br>
+  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($ROUTE_COUNT Routen)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0'>
 EOF
