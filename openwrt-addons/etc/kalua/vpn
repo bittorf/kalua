@@ -2,7 +2,6 @@ _vpn_start ()
 {
 	local FUNC="vpn_start"
 	_vpn_defer_start
-	_vpn_build_vars
 
 	[ $INETOFFER = "false" -a -z "$( uci get system.@vpn[0].force )" ] && {
 		_log do $FUNC daemon debug "no local default gateway - abort"
@@ -14,6 +13,8 @@ _vpn_start ()
 		return 1
 	}
 
+	_vpn_build_vars
+	
 	[ -z "$NODE_NUMBER" ] && {
 		_log do $FUNC daemon debug "node not configured yet - abort"
 		return 1
@@ -43,7 +44,7 @@ _vpn_get_static_route ()			# prevents tunneling over mesh, when local defgw gets
 {
 	local DEFAULT_GATEWAY_IP="$( ip route list exact 0.0.0.0/0 | head -n1 | cut -d" " -f3 )"
 	
-	[ -n "$( uci get system.@vpn[0].force )" ] && return
+	#[ -n "$( uci get system.@vpn[0].force )" ] && return
 	
 	case $INETOFFER in
 		lan)
@@ -131,13 +132,13 @@ _vpn_write_vtun_conf()
 	}
 
 	cat >$VTUN <<EOF
-$HOSTNAME {
+Node$KNOT {
 	passwd ff ;
 	type ether ;		# fixme! olsrd-bug: /32 interface needed?
 	persist yes ;		# fixme! add 'timeout 60' ?
 
 	up {
-		program "logger -p daemon.info -t $0_vtund.conf link_up %%:$HOSTNAME" ;
+		program "logger -p daemon.info -t vtund.conf link_up %%:$HOSTNAME" ;
 
 		program "ip address add $WIFIVPNCLIENTADR/$WIFIVPNPRE dev %% label %%:Node$KNOT" wait ;
 		program "sleep 10" wait;
@@ -154,7 +155,7 @@ $HOSTNAME {
 	} ;
 		# fixme! static_route must only be valid for programs on this machine
 	down {
-		program "logger -p daemon.info -t $0_vtund.conf link_down %%:$HOSTNAME" ;
+		program "logger -p daemon.info -t vtund.conf link_down %%:$HOSTNAME" ;
 
 		program "$anonym ip route del default via $WIFIVPNSERVERADR dev %% table $mytable" ;
 		program "$anonym ip rule del from $LANNET/$LANPRE prio 30000 table main" ;
@@ -212,6 +213,13 @@ _vpn_build_vars ()
 
   #temporary number for comparisons
   CLIENTS=12345
+  #clean variables
+  JSON_VAR_clients=
+  responseTime=
+  MTU=
+  PORT=
+  VPN_SERVER=
+  SERV=
   vpnNr=1
   SERVER=$PREFIX$vpnNr.$DOMAIN
   vpnServerResponse="$( ping -q -c 1 -W 1 $SERVER 2>/dev/null |grep round-trip|cut -f 4 -d ' '|cut -f 0 -d '/'|sed -e 's/\.//g' )"
@@ -220,6 +228,7 @@ _vpn_build_vars ()
     eval $( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )
     [ -n "$JSON_VAR_clients" ] && {
       CLIENTS=${JSON_VAR_clients}
+      echo "$JSON_VAR_clients"
       PORT=${JSON_VAR_port_vtun_nossl_nolzo}
       MTU=${JSON_VAR_maxmtu}
       vpnServerName=$SERVER
@@ -255,7 +264,7 @@ _vpn_build_vars ()
 	[ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
 
 	
-	SERV="$( uci get system.@vpn[0].hostname )"	# _ip4|_ip6 fallback?
+	SERV="$vpnServerName"	# _ip4|_ip6 fallback?
 	CONF="/var/etc/olsrd.conf"			# old_style
 	KNOT=$NODE_NUMBER
 	VTUN="/tmp/vtund.conf"
