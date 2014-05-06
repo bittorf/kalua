@@ -18,7 +18,7 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list neigh_list neigh_file neigh age inet_offer
+	local head_list neigh_list neigh_file neigh age inet_offer bytes
 	local symbol_infinite='<big>&infin;</big>'
 
 	gateway="$( ip route list exact '0.0.0.0/0' table main )"
@@ -204,6 +204,15 @@ output_table()
 			snr='ethernet'
 			snr_color='green'
 			iface_out_color='green'
+
+			# RX bytes:1659516 (1.5 MiB)  TX bytes:12571064 (11.9 MiB)
+			bytes="$( ifconfig "$iface_out" | fgrep 'RX bytes:' )"
+			set -- ${bytes//:/ }
+
+			rx_mbytes=$(( $3 / 1024 / 1024 ))
+			[ $rx_mbytes -eq 0 ] && rx_mbytes='&mdash;'
+			tx_mbytes=$(( $8 / 1024 / 1024 ))
+			[ $tx_mbytes -eq 0 ] && tx_mbytes='&mdash;'
 		fi
 
 		cost_int="${COST%.*}${COST#*.}"
