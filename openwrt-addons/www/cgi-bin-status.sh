@@ -32,7 +32,7 @@ output_table()
 		}
 	} done
 
-	for neigh_file in /tmp/OLSR/ISNEIGH_*; do {
+	for neigh_file in /tmp/OLSR/isneigh_*; do {
 		[ -e "$neigh_file" ] && {
 			neigh_list="$neigh_list ${neigh_file#*_}"
 		}
@@ -238,7 +238,7 @@ EOF
 	} done <"$file"
 
 	for neigh in $neigh_list; do {
-		age="$( _file age "/tmp/OLSR/ISNEIGH_$neigh" humanreadable )"
+		age="$( _file age "/tmp/OLSR/isneigh_$neigh" humanreadable )"
 		build_remote_hostname "$neigh"
 		echo "<tr>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
