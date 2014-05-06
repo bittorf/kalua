@@ -298,8 +298,8 @@ cat <<EOF
  </head>
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
-  <h3><a href='#'> OLSR-Verbindungen </a> &nbsp; ($( remote_hops ) Hops zu Betrachter $REMOTE_ADDR) </h3>
-  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen)</big><br>
+  <h3><a href='#'> OLSR-Verbindungen </a></h3>
+  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0'>
 EOF
