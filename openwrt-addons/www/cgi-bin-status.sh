@@ -257,6 +257,38 @@ EOF
 	} done
 }
 
+
+# count all uniq entries/destinations in table 'Topology'
+NODE_COUNT=0
+NODE_LIST=
+PARSE=
+while read LINE; do {
+	case "${PARSE}${LINE}" in
+		'Table: Topology')
+			PARSE='true-'
+		;;
+		'true-Dest. IP'*)
+		;;
+		'true-')
+			NODE_LIST=
+			break
+		;;
+		'true-'*)
+			# 10.63.1.97  10.63.183.33  0.121  0.784  10.487
+			set -- $LINE
+			case "$NODE_LIST" in
+				*" $1 "*)
+					# already in list
+				;;
+				*)
+					NODE_LIST="$NODE_LIST $1 "
+					NODE_COUNT=$(( $NODE_COUNT + 1 ))
+				;;
+			esac
+		;;
+	esac
+} done <'/tmp/OLSR/ALL'
+
 read ROUTE_COUNT <'/tmp/OLSR/ROUTE_COUNT'
 
 cat <<EOF
@@ -267,7 +299,7 @@ cat <<EOF
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a> &nbsp; ($( remote_hops ) Hops zu Betrachter $REMOTE_ADDR) </h3>
-  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($ROUTE_COUNT Routen)</big><br>
+  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0'>
 EOF
