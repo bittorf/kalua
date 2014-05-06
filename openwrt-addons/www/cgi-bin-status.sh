@@ -3,6 +3,16 @@
 
 _http header_mimetype_output 'text/html'
 
+remote_hops()
+{
+	local remote_nodenumber remote_lanadr
+
+	remote_nodenumber="$( _ipsystem do "$REMOTE_ADDR" )"
+	remote_lanadr="$( _ipsystem do "$remote_nodenumber" | grep ^'LANADR=' | cut -d'=' -f2 )"
+
+	_olsr remoteip2metric "$remote_lanadr"
+}
+
 output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
@@ -29,7 +39,7 @@ output_table()
 	} done
 
 	# tablehead
-	head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Out In Gateway'
+	head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Raus Rein Gateway'
 	for word in $head_list; do {
 		[ "$word" = "Gateway" ] && {
 			if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
@@ -111,9 +121,9 @@ output_table()
 		fi
 
 		if [ "$gateway" = "$REMOTE" ]; then
-			bgcolor='#ffff99'	# lightyellow
-			set -- $( grep ^'0\.0\.0\.0/0' '/tmp/OLSR/ALL' | fgrep "$REMOTE" | head -n1 )
-			gateway_percent="${gateway_percent:-100%} &nbsp; ${3:-?} Hops, ETX ${4:-?}"
+			bgcolor='#ffff99'			# lightyellow
+			eval $( _olsr best_inetoffer )		# GATEWAY,METRIC,ETX,INTERFACE
+			gateway_percent="${gateway_percent:-100%}, $METRIC Hops, ETX $ETX"
 		else
 			[ -n "$gateway_percent" ] && {
 				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ))"
@@ -245,7 +255,7 @@ cat <<EOF
  </head>
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
-  <h3><a href='#'> OLSR-Verbindungen </a></h3>
+  <h3><a href='#'> OLSR-Verbindungen </a> &nbsp; ($( remote_hops ) Hops zu Betrachter $REMOTE_ADDR) </h3>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0'>
@@ -259,18 +269,18 @@ cat <<EOF
   <h3>Legende:</h3>
   <ul>
    <li> <b>Metrik</b>: Daten werden direkt oder &uuml;ber Zwischenstationen gesendet </li>
-   <li> <b>Out</b>: Tx = gesendete Daten [Megabytes] </li>
-   <li> <b>In</b>: Rx = empfangene Daten [Megabytes] </li>
+   <li> <b>Raus</b>: Tx = gesendete Daten = Upload [Megabytes] </li>
+   <li> <b>Rein</b>: Rx = empfangene Daten = Download [Megabytes] </li>
    <li> <b>LQ</b>: Erfolgsquote vom Nachbarn empfangener Pakete </li>
    <li> <b>NLQ</b>: Erfolgsquote zum Nachbarn gesendeter Pakete </li>
-   <li> <b>ETX</b>: Zu erwartende Sendeversuche pro Paket </li>
+   <li> <b>ETX</b>: zu erwartende Sendeversuche pro Paket </li>
    <ul>
     <li> <b><font color='green'>Gr&uuml;n</font></b>: sehr gut (ETX < 2) </li>
     <li> <b><font color='yellow'>Gelb</font></b>: gut (2 < ETX < 4) </li>
     <li> <b><font color='orange'>Orange</font></b>: Nnch nutzbar (4 < ETX < 10) </li>
     <li> <b><font color='red'>Rot</font></b>: schlecht (ETX > 10) </li>
    </ul>
-   <li> <b>SNR</b>: Signal Noise Ratio in dB </li>
+   <li> <b>SNR</b>: Signal/Noise-Ratio = Signal/Rausch-Abstand [dB] </li>
    <ul>
     <li> <b><font color='green'>Gr&uuml;n</font></b>: sehr gut (SNR > 30) </li>
     <li> <b><font color='yellow'>Gelb</font></b>: gut (30 > SNR > 20) </li>
