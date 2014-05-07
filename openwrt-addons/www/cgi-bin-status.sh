@@ -33,9 +33,15 @@ output_table()
 	} done
 
 	for neigh_file in /tmp/OLSR/isneigh_*; do {
-		[ -e "$neigh_file" ] && {
-			neigh_list="$neigh_list ${neigh_file#*_}"
-		}
+		case "$neigh_file" in
+			*'_bestcost')
+			;;
+			*)
+				[ -e "$neigh_file" ] && {
+					neigh_list="$neigh_list ${neigh_file#*_}"
+				}
+			;;
+		esac
 	} done
 
 	# tablehead
@@ -259,7 +265,7 @@ EOF
 		echo "<tr>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
-		echo " <td colspan='10'> vermisst, zuletzt gesehen vor $age </td>"
+		echo " <td colspan='11'> vermisst, zuletzt gesehen vor $age </td>"
 		echo "</tr>"
 	} done
 }
@@ -316,7 +322,7 @@ output_table
 cat <<EOF
   </table>
 
-  <h3>Legende:</h3>
+  <h3> Legende: </h3>
   <ul>
    <li> <b>Metrik</b>: Daten werden direkt oder &uuml;ber Zwischenstationen gesendet </li>
    <li> <b>Raus</b>: Tx = gesendete Daten = Upload [Megabytes] </li>
