@@ -211,6 +211,18 @@ output_table()
 			snr_color='green'
 			iface_out_color='green'
 
+			case "$iface_out" in
+				$LANDEV)
+					channel='/LAN'
+				;;
+				$WANDEV)
+					channel='/WAN'
+				;;
+				'tun'*|'tap'*)
+					channel='/VPN'
+				;;
+			esac
+
 			# RX bytes:1659516 (1.5 MiB)  TX bytes:12571064 (11.9 MiB)
 			bytes="$( ifconfig "$iface_out" | fgrep 'RX bytes:' )"
 			set -- ${bytes//:/ }
