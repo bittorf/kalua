@@ -59,6 +59,17 @@ output_table()
 		echo -n "<th> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
 	} done
 
+	build_cost_best()
+	{
+		local remote_ip="$1"
+
+		if [ -e "/tmp/OLSR/isneigh_${remote_ip}_bestcost" ]; then
+			read cost_best <"/tmp/OLSR/isneigh_${remote_ip}_bestcost"
+		else
+			cost_best='&mdash;'
+		fi
+	}
+
 	build_remote_hostname()
 	{
 		local remote_ip="$1"
@@ -246,11 +257,7 @@ output_table()
 			cost_color='green'
 		fi
 
-		if [ -e "/tmp/OLSR/isneigh_${REMOTE}_bestcost" ]; then
-			read cost_best <"/tmp/OLSR/isneigh_${REMOTE}_bestcost"
-		else
-			cost_best='&mdash;'
-		fi
+		build_cost_best "$REMOTE"
 
 		cat <<EOF
 <tr bgcolor='$bgcolor'>
@@ -274,10 +281,13 @@ EOF
 	for neigh in $neigh_list; do {
 		age="$( _file age "/tmp/OLSR/isneigh_$neigh" humanreadable )"
 		build_remote_hostname "$neigh"
+		build_cost_best "$neigh"
+
 		echo "<tr>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
-		echo " <td colspan='11'> vermisst, zuletzt gesehen vor $age </td>"
+		echo " <td colspan='5'> vermisst, zuletzt gesehen vor $age </td>"
+		echo " <td colspan='5'> $cost_best </td>"
 		echo "</tr>"
 	} done
 }
