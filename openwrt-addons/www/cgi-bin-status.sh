@@ -18,7 +18,7 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list neigh_list neigh_file neigh age inet_offer bytes
+	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best
 	local symbol_infinite='<big>&infin;</big>'
 
 	gateway="$( ip route list exact '0.0.0.0/0' table main )"
@@ -39,7 +39,7 @@ output_table()
 	} done
 
 	# tablehead
-	head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX SNR Metrik Raus Rein Gateway'
+	head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX ETXmin SNR Metrik Raus Rein Gateway'
 	for word in $head_list; do {
 		[ "$word" = "Gateway" ] && {
 			if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
@@ -228,6 +228,12 @@ output_table()
 			cost_color='green'
 		fi
 
+		if [ -e "/tmp/OLSR/isneigh_${REMOTE}_bestcost" ]; then
+			read cost_best <"/tmp/OLSR/isneigh_${REMOTE}_bestcost"
+		else
+			cost_best='&mdash;'
+		fi
+
 		cat <<EOF
 <tr bgcolor='$bgcolor'>
  <td> <a href='http://$REMOTE/cgi-bin-status.html'>$REMOTE</a> </td>
@@ -237,6 +243,7 @@ output_table()
  <td> $LQ </td>
  <td> $NLQ </td>
  <td bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
+ <td> $cost_best </td>
  <td bgcolor='$snr_color'> $snr </td>
  <td align='middle'> $metric </td>
  <td align='right'> $rx_mbytes </td>
