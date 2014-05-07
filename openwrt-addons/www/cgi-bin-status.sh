@@ -20,6 +20,7 @@ output_table()
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
 	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best
 	local symbol_infinite='<big>&infin;</big>'
+	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
 	gateway="$( ls -1t /tmp/OLSR/DEFGW_* | head -n1 )"	# get recent
 	gateway="$( _sanitizer do "${gateway#*_}" ip4 )"
@@ -111,8 +112,9 @@ output_table()
 	_net include
 	_olsr include
 	while read line; do {
-		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=;COUNT=$(( $COUNT + 1 ))
+		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=1.875;COUNT=$(( $COUNT + 1 ))
 		eval $line
+
 		iface_out="$( _net ip2dev "$REMOTE" )"
 		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" )"
 
@@ -190,7 +192,7 @@ output_table()
 
 				if [ -n "$snr" ]; then
 					channel="$( _wifi channel "$dev" )"
-					channel="/Kanal $channel"
+					channel="/Kanal&nbsp;$channel"
 
 					# 95 = noise_base / drivers_default
 					# http://en.wikipedia.org/wiki/Thermal_noise#Noise_power_in_decibels
@@ -257,12 +259,21 @@ output_table()
 			cost_color='green'
 		fi
 
+		[ -n "$COST" ] && {
+			case " $mult_list " in
+				*" $REMOTE "*)
+					# e.g. 10.10.12.1 0.7 -> 0.7
+					COST="${COST}&nbsp;&lowast;&nbsp;${mult_list#*$REMOTE }"
+				;;
+			esac
+		}
+
 		build_cost_best "$REMOTE"
 
 		cat <<EOF
 <tr bgcolor='$bgcolor'>
- <td> <a href='http://$REMOTE/cgi-bin-status.html'>$REMOTE</a> </td>
- <td> <a href='http://$REMOTE/cgi-bin-status.html'>$remote_hostname</a> </td>
+ <td nowrap> <a href='http://$REMOTE/cgi-bin-status.html'>$REMOTE</a> </td>
+ <td nowrap> <a href='http://$REMOTE/cgi-bin-status.html'>$remote_hostname</a> </td>
  <td bgcolor='$iface_out_color'> ${iface_out}${channel} </td>
  <td> $LOCAL </td>
  <td> $LQ </td>
@@ -273,7 +284,7 @@ output_table()
  <td align='middle'> $metric </td>
  <td align='right'> $rx_mbytes </td>
  <td align='right'> $tx_mbytes </td>
- <td> $gateway_percent </td>
+ <td nowrap> $gateway_percent </td>
 </tr>
 EOF
 	} done <"$file"
@@ -351,7 +362,7 @@ cat <<EOF
    <li> <b>Rein</b>: Rx = empfangene Daten = Download [Megabytes] </li>
    <li> <b>LQ</b>: Erfolgsquote vom Nachbarn empfangener Pakete </li>
    <li> <b>NLQ</b>: Erfolgsquote zum Nachbarn gesendeter Pakete </li>
-   <li> <b>ETX</b>: zu erwartende Sendeversuche pro Paket </li>
+   <li> <b>ETX</b>: zu erwartende Sendeversuche pro Paket (k&uuml;nstlicher Multiplikator wird angezeigt)</li>
    <ul>
     <li> <b><font color='green'>Gr&uuml;n</font></b>: sehr gut (ETX < 2) </li>
     <li> <b><font color='yellow'>Gelb</font></b>: gut (2 < ETX < 4) </li>
