@@ -21,8 +21,8 @@ output_table()
 	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best
 	local symbol_infinite='<big>&infin;</big>'
 
-	gateway="$( ip route list exact '0.0.0.0/0' table main )"
-	gateway="$( _sanitizer do "$gateway" ip4 )"
+	gateway="$( ls -1t /tmp/OLSR/DEFGW_* | head -n1 )"	# get recent
+	gateway="$( _sanitizer do "${gateway#*_}" ip4 )"
 
 	all=0
 	for gw_file in /tmp/OLSR/DEFGW_*; do {
