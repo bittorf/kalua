@@ -155,13 +155,28 @@ _scheduler_run()
 			case "$line" in
 				'_'*)   # is a kalua-function
 					case "$line" in
+						*' '*' '*)
+							# e.g. '_sms_send bla blubb' = 2 spaces or more
+							local without_first_underliner="${line#_}"		# sms_send bla blubb
+							local first_word="${without_first_underliner%_*}"	# sms
+
+							if [ -e "/etc/kalua/$first_word" ]; then
+								_log do $funcname daemon info "2 spaces, needs rewrite: line: '$line'"
+								local lastpart="${without_first_underliner#*_}"	# send bla blubb
+								line="_$first_word $lastpart"
+								_log do $funcname daemon info "2 spaces, rewrote: '$line'"
+							else
+								_log do $funcname daemon debug "2 spaces but rewrite unneeded: line: '$line'"
+							fi
+						;;
 						*' '*)
 							# OK: has a 'space' e.g. '_system load'
 						;;
 						*)
+							# e.g. '_netfilter_splash_autoadd' -> '_netfilter splash_autoadd'
+
 							# TODO: fix this in kalua_init
 							# needs rewrite, replace second '_' with a 'space'
-							# e.g. '_netfilter_splash_autoadd' -> '_netfilter splash_autoadd'
 							local without_first_underliner="${line#_}"
 							line="_${without_first_underliner/_/ }"		# replace 1st occurence
 						;;
