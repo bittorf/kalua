@@ -303,6 +303,15 @@ EOF
 	} done
 }
 
+# in /tmp/OLSR/ALL
+# Table: Links
+# Table: Neighbors
+# Table: Topology
+# Table: HNA
+# Table: MID
+# Table: Routes
+
+# TODO: 'Table: HNA' -> $1 = 0.0.0.0/0 = Einspeiser
 
 # count all uniq entries/destinations in table 'Topology'
 NODE_COUNT=0
