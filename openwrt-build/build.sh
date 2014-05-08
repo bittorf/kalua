@@ -87,12 +87,13 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 apply_wifi_reghack()
 {
 	local funcname='apply_wifi_reghack'
+	local option="$1"	# e.g. 'disable'
 	local file="kalua/package/mac80211/patches/900-regulatory-test.patch"
 	local file_regdb_hacked
 	local COMPAT_WIRELESS="2013-06-27"
 
 	[ -e "$file" ] && {
-		if grep -q "CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
+		if grep -q "${option}CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
 			log "$funcname() patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
 
 			cp -v "$file" "package/kernel/mac80211/patches"
@@ -706,8 +707,16 @@ apply_symbol()
 			log "$funcname() $KALUA_DIRNAME: tweaking kernel commandline"
 			kernel_commandline_tweak
 
-			log "$funcname() $KALUA_DIRNAME: apply_wifi_reghack"
-			apply_wifi_reghack
+			case "$LIST_USER_OPTIONS" in
+				*'noReghack'*)
+					log "$funcname() $KALUA_DIRNAME: disable Reghack"
+					apply_wifi_reghack 'disable'
+				;;
+				*)
+					log "$funcname() $KALUA_DIRNAME: apply_wifi_reghack"
+					apply_wifi_reghack
+				;;
+			esac
 
 			# http://stackoverflow.com/questions/1018853/why-is-alloca-not-considered-good-practice
 			#
@@ -896,6 +905,9 @@ build_options_set()
 			;;
 			"$KALUA_DIRNAME@"*)	# parser_ignore
 				apply_symbol "$1"
+			;;
+			'noReghack')
+				# we work on this during above $KALUA_DIRNAME
 			;;
 			'Standard')	# >4mb flash
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
