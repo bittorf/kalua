@@ -18,7 +18,7 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best
+	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best th_insert
 	local symbol_infinite='<big>&infin;</big>'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
@@ -55,9 +55,11 @@ output_table()
 			elif inet_offer="$( _net local_inet_offer )"; then
 				word="$word (Einspeiser: $inet_offer)"
 			fi
+
+			[ -z "$gateway" ] && th_insert=" bgcolor='crimson'"
 		}
 
-		echo -n "<th> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
+		echo -n "<th${th_insert}> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
 	} done
 
 	build_cost_best()
