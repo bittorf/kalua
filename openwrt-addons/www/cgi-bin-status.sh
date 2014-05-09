@@ -142,9 +142,12 @@ output_table()
 		fi
 
 		if [ "$gateway" = "$REMOTE" ]; then
-			bgcolor='#ffff99'			# lightyellow
 			eval $( _olsr best_inetoffer )		# GATEWAY,METRIC,ETX,INTERFACE
-			gateway_percent="${gateway_percent:-100%}, $METRIC Hops, ETX $ETX"
+
+			[ -n "$METRIC" ] && {
+				bgcolor='#ffff99'		# lightyellow
+				gateway_percent="${gateway_percent:-100%}, $METRIC Hops, ETX $ETX"
+			}
 		else
 			[ -n "$gateway_percent" ] && {
 				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ))"
