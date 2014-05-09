@@ -23,7 +23,7 @@ output_table()
 	local symbol_infinite='<big>&infin;</big>'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
-	gateway="$( ls -1t /tmp/OLSR/DEFGW_* | head -n1 )"	# get recent
+	gateway="$( ls -1t /tmp/OLSR/DEFGW_* | head -n1 )"	# get recent, maybe use 'DEFGW_NOW'?
 	gateway="$( _sanitizer do "${gateway#*_}" ip4 )"
 
 	all=0
