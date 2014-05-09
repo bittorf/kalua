@@ -3,6 +3,7 @@
 
 _http header_mimetype_output 'text/html'
 
+
 remote_hops()
 {
 	local remote_nodenumber remote_lanadr
@@ -302,11 +303,13 @@ EOF
 		echo "<tr>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
-		echo " <td colspan='5'> vermisst, zuletzt gesehen vor $age </td>"
+		echo " <td colspan='5' nowrap> vermisst, zuletzt gesehen vor $age </td>"
 		echo " <td colspan='5'> $cost_best </td>"
 		echo "</tr>"
 	} done
 }
+
+[ -e '/tmp/OLSR/ALL' ] || _olsr build_tables
 
 # in /tmp/OLSR/ALL
 # Table: Links
@@ -350,7 +353,13 @@ while read LINE; do {
 } done <'/tmp/OLSR/ALL'
 
 read ROUTE_COUNT <'/tmp/OLSR/ROUTE_COUNT'
-AGE_DATABASE="$( _file age '/tmp/OLSR/ALL' sec )"
+
+if [ -e '/tmp/OLSR/ALL' ]; then
+	AGE_DATABASE="$( _file age '/tmp/OLSR/ALL' sec )"
+else
+	AGE_DATABASE="$( _system uptime sec )"
+fi
+
 [ $AGE_DATABASE -gt 120 ] && {
 	echo >>$SCHEDULER_IMPORTANT "_olsr build_tables"
 	AGE_HUMANREADABLE="&nbsp;&nbsp; Achtung: Datengrundlage >$( _stopwatch seconds2humanreadable "$AGE_DATABASE" ) alt"
