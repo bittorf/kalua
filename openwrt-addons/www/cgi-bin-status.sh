@@ -370,7 +370,13 @@ fi
 
 # changes/min
 if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
-	GATEWAY_JITTER=$(( $( _system uptime min) / $( wc -l <'/tmp/OLSR/DEFGW_changed' ) ))
+	GATEWAY_JITTER=$( wc -l <'/tmp/OLSR/DEFGW_changed' )
+	if [ $GATEWAY_JITTER -eq 1 ]; then
+		GATEWAY_JITTER='nie'
+	else
+		GATEWAY_JITTER=$(( $( _system uptime min) / $GATEWAY_JITTER ))
+		GATEWAY_JITTER="&Oslash; ~ $GATEWAY_JITTER min"
+	fi
 else
 	GATEWAY_JITTER='nie'
 fi
