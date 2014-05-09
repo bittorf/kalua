@@ -347,6 +347,11 @@ while read LINE; do {
 } done <'/tmp/OLSR/ALL'
 
 read ROUTE_COUNT <'/tmp/OLSR/ROUTE_COUNT'
+AGE_DATABASE="$( _file age '/tmp/OLSR/ALL' sec )"
+[ $AGE_DATABASE -gt 120 ] && {
+	echo >>$SCHEDULER_IMPORTANT "_olsr build_tables"
+	AGE_HUMANREADABLE="&nbsp;&nbsp; Achtung: Datengrundlage >$( _stopwatch seconds2humanreadable "$AGE_DATABASE" ) alt"
+}
 
 cat <<EOF
 <html>
@@ -355,7 +360,7 @@ cat <<EOF
  </head>
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
-  <h3><a href='#'> OLSR-Verbindungen </a></h3>
+  <h3><a href='#'> OLSR-Verbindungen </a> $AGE_HUMANREADABLE </h3>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0'>
