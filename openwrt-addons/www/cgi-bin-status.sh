@@ -295,7 +295,7 @@ EOF
 	} done <"$file"
 
 	for neigh in $neigh_list; do {
-		age="$( _file age "/tmp/OLSR/isneigh_$neigh" humanreadable )"
+		age="$( _file age "/tmp/OLSR/isneigh_$neigh" humanreadable_verbose )"
 		build_remote_hostname "$neigh"
 		build_cost_best "$neigh"
 
