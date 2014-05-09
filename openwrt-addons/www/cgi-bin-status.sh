@@ -370,12 +370,13 @@ fi
 
 # changes/min
 if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
-	GATEWAY_JITTER=$( wc -l <'/tmp/OLSR/DEFGW_changed' )
+	UP_MIN=$( _system uptime min )
+	GATEWAY_JITTER=$( _file lines '/tmp/OLSR/DEFGW_changed' )
+
 	if [ $GATEWAY_JITTER -eq 1 ]; then
 		GATEWAY_JITTER='nie'
 	else
-		GATEWAY_JITTER=$(( $( _system uptime min) / $GATEWAY_JITTER ))
-		GATEWAY_JITTER="&Oslash; ~ $GATEWAY_JITTER min"
+		GATEWAY_JITTER="$GATEWAY_JITTER in $UP_MIN min &Oslash; alle $(( $UP_MIN / $GATEWAY_JITTER )) min"
 	fi
 else
 	GATEWAY_JITTER='nie'
@@ -389,7 +390,7 @@ cat <<EOF
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a> $AGE_HUMANREADABLE </h3>
-  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, wechselnder Gateway: $GATEWAY_JITTER)</big><br>
+  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, Gatewaywechsel: $GATEWAY_JITTER)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0'>
 EOF
