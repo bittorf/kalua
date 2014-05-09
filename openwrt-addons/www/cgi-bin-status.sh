@@ -365,6 +365,9 @@ fi
 	AGE_HUMANREADABLE="&nbsp;&nbsp; Achtung: Datengrundlage >$( _stopwatch seconds2humanreadable "$AGE_DATABASE" ) alt"
 }
 
+# changes/min
+GATEWAY_JITTER=$(( $( _system uptime min) / $( wc -l <'/tmp/OLSR/DEFGW_changed' ) ))
+
 cat <<EOF
 <html>
  <head>
@@ -373,7 +376,7 @@ cat <<EOF
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a> $AGE_HUMANREADABLE </h3>
-  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR)</big><br>
+  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, wechselnder Gateway: $GATEWAY_JITTER/min)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0'>
 EOF
