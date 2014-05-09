@@ -23,11 +23,14 @@ output_table()
 	local symbol_infinite='<big>&infin;</big>'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
-	gateway="$( ls -1t /tmp/OLSR/DEFGW_* | head -n1 )"	# get recent, maybe use 'DEFGW_NOW'?
-	gateway="$( _sanitizer do "${gateway#*_}" ip4 )"
+	if [ -e '/tmp/OLSR/DEFGW_NOW' ]; then
+		read gateway <'/tmp/OLSR/DEFGW_NOW'
+	else
+		gateway=
+	fi
 
 	all=0
-	for gw_file in /tmp/OLSR/DEFGW_*; do {
+	for gw_file in /tmp/OLSR/DEFGW_[0-9]*; do {
 		[ -e "$gw_file" ] && {
 			read i <"$gw_file"
 			all=$(( $all + $i ))
@@ -366,7 +369,11 @@ fi
 }
 
 # changes/min
-GATEWAY_JITTER=$(( $( _system uptime min) / $( wc -l <'/tmp/OLSR/DEFGW_changed' ) ))
+if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
+	GATEWAY_JITTER=$(( $( _system uptime min) / $( wc -l <'/tmp/OLSR/DEFGW_changed' ) ))
+else
+	GATEWAY_JITTER='nie'
+fi
 
 cat <<EOF
 <html>
@@ -376,7 +383,7 @@ cat <<EOF
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a> $AGE_HUMANREADABLE </h3>
-  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, wechselnder Gateway: $GATEWAY_JITTER/min)</big><br>
+  <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, wechselnder Gateway: $GATEWAY_JITTER)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0'>
 EOF
