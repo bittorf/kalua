@@ -11,7 +11,7 @@ remote_hops()
 	remote_nodenumber="$( _ipsystem do "$REMOTE_ADDR" )"
 	remote_lanadr="$( _ipsystem do "$remote_nodenumber" | grep ^'LANADR=' | cut -d'=' -f2 )"
 
-	_olsr remoteip2metric "$remote_lanadr"
+	_olsr remoteip2metric "$remote_lanadr" || echo '?'
 }
 
 output_table()
@@ -19,7 +19,7 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best th_insert
+	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best th_insert mult_ip
 	local symbol_infinite='<big>&infin;</big>'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
@@ -63,7 +63,7 @@ output_table()
 			[ -z "$gateway" ] && th_insert=" bgcolor='crimson'"
 		}
 
-		echo -n "<th${th_insert}> $word &nbsp;&nbsp;&nbsp;&nbsp;</th>"
+		echo -n "<th nowrap ${th_insert}>$word</th>"
 	} done
 
 	build_cost_best()
@@ -271,8 +271,10 @@ output_table()
 		[ -n "$COST" ] && {
 			case " $mult_list " in
 				*" $REMOTE "*)
-					# e.g. 10.10.12.1 0.7 -> 0.7
-					COST="${COST}&nbsp;&lowast;&nbsp;${mult_list#*$REMOTE }"
+					# e.g. '10.10.12.1 0.7 10.10.99.1 0.3' -> 0.7
+					mult_ip="${mult_list#*$REMOTE }"
+					mult_ip="${mult_ip%% *}"
+					COST="${mult_ip}&nbsp;&lowast;&nbsp;${COST}"
 				;;
 			esac
 		}
@@ -287,9 +289,9 @@ output_table()
  <td> $LOCAL </td>
  <td> $LQ </td>
  <td> $NLQ </td>
- <td bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
- <td> $cost_best </td>
- <td bgcolor='$snr_color'> $snr </td>
+ <td align='right' bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
+ <td align='right'> $cost_best </td>
+ <td align='right' bgcolor='$snr_color'> $snr </td>
  <td align='middle'> $metric </td>
  <td align='right'> $rx_mbytes </td>
  <td align='right'> $tx_mbytes </td>
@@ -307,7 +309,8 @@ EOF
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
 		echo " <td colspan='5' nowrap> vermisst, zuletzt gesehen vor $age </td>"
-		echo " <td colspan='5'> $cost_best </td>"
+		echo " <td align='right'> $cost_best </td>"
+		echo " <td colspan='3'> &nbsp; </td>"
 		echo "</tr>"
 	} done
 }
