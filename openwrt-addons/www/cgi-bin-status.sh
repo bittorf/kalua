@@ -363,13 +363,23 @@ read ROUTE_COUNT <'/tmp/OLSR/ROUTE_COUNT'
 if [ -e '/tmp/OLSR/ALL' ]; then
 	AGE_DATABASE="$( _file age '/tmp/OLSR/ALL' sec )"
 else
-	AGE_DATABASE="$( _system uptime sec )"
+	if _olsr uptime is_short; then
+		AGE_DATABASE=-1
+	else
+		if _olsr build_tables; then
+			AGE_DATABASE="$( _file age '/tmp/OLSR/ALL' sec )"
+		else
+			AGE_DATABASE="$( _system uptime sec )"
+		fi
+	fi
 fi
 
-[ $AGE_DATABASE -gt 120 ] && {
+if   [ $AGE_DATABASE -gt 120 ]; then
 	echo >>$SCHEDULER_IMPORTANT "_olsr build_tables"
 	AGE_HUMANREADABLE="&nbsp;&nbsp; Achtung: Datengrundlage >$( _stopwatch seconds2humanreadable "$AGE_DATABASE" ) alt"
-}
+elif [ $AGE_DATABASE -eq -1 ]; then
+	AGE_HUMANREADABLE="&nbsp;&nbsp; Achtung: OLSR-Dienst gerade erst gestartet, keine Daten vorhanden"
+fi
 
 # changes/min
 if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
