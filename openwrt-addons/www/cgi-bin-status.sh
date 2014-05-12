@@ -19,7 +19,7 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best th_insert mult_ip count
+	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best th_insert mult_ip count cost_align
 	local symbol_infinite='<big>&infin;</big>'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
@@ -274,7 +274,7 @@ output_table()
 			cost_color='green'
 		fi
 
-		[ -n "$COST" ] && {
+		if [ -n "$COST" ]; then
 			case " $mult_list " in
 				*" $REMOTE "*)
 					# e.g. '10.10.12.1 0.7 10.10.99.1 0.3' -> 0.7
@@ -283,7 +283,11 @@ output_table()
 					COST="${mult_ip}&nbsp;&lowast;&nbsp;${COST}"
 				;;
 			esac
-		}
+
+			cost_align='right'
+		else
+			cost_align='middle'
+		fi
 
 		build_cost_best "$REMOTE"
 
@@ -296,7 +300,7 @@ output_table()
  <td> $LOCAL </td>
  <td> $LQ </td>
  <td> $NLQ </td>
- <td align='right' bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
+ <td align='$cost_align' bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
  <td align='right'> $cost_best </td>
  <td align='right' bgcolor='$snr_color'> $snr </td>
  <td align='middle'> $metric </td>
