@@ -22,20 +22,9 @@
 # - option: failsafe-image: add 'failsafe=' to kernel-commandline
 # - include/renew patches for awk-remove
 
-log()
-{
-	local message="$1"
-	local debug="$2"
-
-	[ -n "$QUIET" ] && return 0
-	[ -n "$debug" -a -z "$DEBUG" ] && return 0
-	logger -p user.info -s "$0: $message"
-}
-
 print_usage_and_exit()
 {
 	local hint="$1"
-
 	[ -n "$hint" ] && log "[HINT:] $hint"
 
 	cat <<EOF
@@ -55,6 +44,16 @@ e.g. $0	--openwrt trunk --hardware 'Ubiquiti Bullet M' --usecase $KALUA_DIRNAME,
 EOF
 
 	exit 1
+}
+
+log()
+{
+	local message="$1"
+	local debug="$2"
+
+	[ -n "$QUIET" ] && return 0
+	[ -n "$debug" -a -z "$DEBUG" ] && return 0
+	logger -p user.info -s "$0: $message"
 }
 
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html

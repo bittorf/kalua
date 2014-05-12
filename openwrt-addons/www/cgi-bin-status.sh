@@ -19,12 +19,13 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best th_insert mult_ip
+	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best th_insert mult_ip count
 	local symbol_infinite='<big>&infin;</big>'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
 	if [ -e '/tmp/OLSR/DEFGW_NOW' ]; then
 		read gateway <'/tmp/OLSR/DEFGW_NOW'
+		[ "$gateway" = 'empty' ] && gateway=
 	else
 		gateway=
 	fi
@@ -50,7 +51,7 @@ output_table()
 	} done
 
 	# tablehead
-	head_list='Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX ETXmin SNR Metrik Raus Rein Gateway'
+	head_list='No. Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX ETXmin SNR Metrik Raus Rein Gateway'
 	for word in $head_list; do {
 		[ "$word" = "Gateway" ] && {
 			if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
@@ -117,10 +118,12 @@ output_table()
 
 	_net include
 	_olsr include
+	count=0
 	while read line; do {
 		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=1.875;COUNT=$(( $COUNT + 1 ))
 		eval $line
 
+		count=$(( $count + 1 ))
 		iface_out="$( _net ip2dev "$REMOTE" )"
 		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" )"
 
@@ -146,12 +149,15 @@ output_table()
 		fi
 
 		if [ "$gateway" = "$REMOTE" ]; then
+			bgcolor='#ffff99'			# lightyellow
 			eval $( _olsr best_inetoffer )		# GATEWAY,METRIC,ETX,INTERFACE
 
-			[ -n "$METRIC" ] && {
-				bgcolor='#ffff99'		# lightyellow
+
+			if [ -n "$METRIC" ]; then
 				gateway_percent="${gateway_percent:-100%}, $METRIC Hops, ETX $ETX"
-			}
+			else
+				gateway_percent="(kein HNA!)"
+			fi
 		else
 			[ -n "$gateway_percent" ] && {
 				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ))"
@@ -283,6 +289,7 @@ output_table()
 
 		cat <<EOF
 <tr bgcolor='$bgcolor'>
+ <td align='right'><small>$count</small></td>
  <td nowrap> <a href='http://$REMOTE/cgi-bin-status.html'>$REMOTE</a> </td>
  <td nowrap> <a href='http://$REMOTE/cgi-bin-status.html'>$remote_hostname</a> </td>
  <td bgcolor='$iface_out_color'> ${iface_out}${channel} </td>
@@ -300,12 +307,15 @@ output_table()
 EOF
 	} done <"$file"
 
+	# old neighs, which are unknown now
 	for neigh in $neigh_list; do {
 		age="$( _file age "/tmp/OLSR/isneigh_$neigh" humanreadable_verbose )"
 		build_remote_hostname "$neigh"
 		build_cost_best "$neigh"
+		count=$(( $count + 1 ))
 
 		echo "<tr>"
+		echo " <td align='right'><small>$count</small></td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
 		echo " <td colspan='5' nowrap> vermisst, zuletzt gesehen vor $age </td>"
