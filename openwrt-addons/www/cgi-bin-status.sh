@@ -51,6 +51,7 @@ output_table()
 	} done
 
 	# tablehead
+	echo -n "<tr>"
 	head_list='No. Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX ETXmin SNR Metrik Raus Rein Gateway'
 	for word in $head_list; do {
 		[ "$word" = "Gateway" ] && {
@@ -66,6 +67,7 @@ output_table()
 
 		echo -n "<th nowrap ${th_insert}>$word</th>"
 	} done
+	echo -n "</tr>"
 
 	build_cost_best()
 	{
@@ -286,7 +288,7 @@ output_table()
 
 			cost_align='right'
 		else
-			cost_align='middle'
+			cost_align='center'
 		fi
 
 		build_cost_best "$REMOTE"
@@ -303,7 +305,7 @@ output_table()
  <td align='$cost_align' bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
  <td align='right'> $cost_best </td>
  <td align='right' bgcolor='$snr_color'> $snr </td>
- <td align='middle'> $metric </td>
+ <td align='center'> $metric </td>
  <td align='right'> $rx_mbytes </td>
  <td align='right'> $tx_mbytes </td>
  <td nowrap> $gateway_percent </td>
@@ -410,9 +412,12 @@ else
 fi
 
 cat <<EOF
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
 <html>
  <head>
   <title>$HOSTNAME - Nachbarn</title>
+  <META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15">
  </head>
  <body>
   <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
@@ -435,21 +440,25 @@ cat <<EOF
    <li> <b>LQ</b>: Erfolgsquote vom Nachbarn empfangener Pakete </li>
    <li> <b>NLQ</b>: Erfolgsquote zum Nachbarn gesendeter Pakete </li>
    <li> <b>ETX</b>: zu erwartende Sendeversuche pro Paket (k&uuml;nstlicher Multiplikator wird angezeigt)</li>
+   <li>
    <ul>
     <li> <b><font color='green'>Gr&uuml;n</font></b>: sehr gut (ETX < 2) </li>
     <li> <b><font color='yellow'>Gelb</font></b>: gut (2 < ETX < 4) </li>
     <li> <b><font color='orange'>Orange</font></b>: Nnch nutzbar (4 < ETX < 10) </li>
     <li> <b><font color='red'>Rot</font></b>: schlecht (ETX > 10) </li>
    </ul>
+   </li>
    <li> <b>SNR</b>: Signal/Noise-Ratio = Signal/Rausch-Abstand [dB] </li>
+   <li>
    <ul>
     <li> <b><font color='green'>Gr&uuml;n</font></b>: sehr gut (SNR > 30) </li>
     <li> <b><font color='yellow'>Gelb</font></b>: gut (30 > SNR > 20) </li>
     <li> <b><font color='orange'>Orange</font></b>: noch nutzbar (20 > SNR > 5) </li>
     <li> <b><font color='red'>Rot</font></b>: schlecht (SNR < 5) </li>
    </ul>
+   </li>
   </ul>
 
- <body>
+ </body>
 </html>
 EOF
