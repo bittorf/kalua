@@ -382,16 +382,29 @@ check_working_directory()
 	local file_feeds='feeds.conf.default'
 	local error=1
 	local i=0
+	local do_symlinking='no'
 
 	[ -n "$FORCE" ] && error=0
 
-	fgrep -q ' oonfapi ' "$file_feeds" || echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git' && make package/symlinks
-	fgrep -q ' olsrd2 '  "$file_feeds" || echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'   && make package/symlinks
+	fgrep -q ' oonfapi ' "$file_feeds" || {
+		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
+		do_symlinking='true'
+	}
+
+	fgrep -q ' olsrd2 '  "$file_feeds" || {
+		echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'
+		do_symlinking='true'
+	}
 
 	[ -d 'package/feeds' ] || {
 		# seems, everything is really untouced
 		log "$funcname() missing 'package/symlinks', getting feeds"
 		make defconfig
+		do_symlinking='true'
+	}
+
+	[ "$do_symlinking" = 'true' ] && {
+		log "$funcname() enforce/updating symlinking of packages"
 		make package/symlinks
 	}
 
