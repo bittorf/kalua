@@ -46,6 +46,46 @@ EOF
 	exit 1
 }
 
+build_tarball_package()
+{
+	local funcname='build_tarball_package'
+	local package_name='kalua-framework'
+	local kalua_unixtime="$( cd kalua; git log -1 --pretty=format:%ct; cd .. )"
+	local package_version="$(( $kalua_unixtime / 3600 ))"
+	local url='https://github.com/bittorf/kalua'
+	local tar_options='--owner=root --group=root'
+	local architecture='all'
+	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
+	local builddir='kalua/builddir'
+	local destdir="bin/$ARCH/packages"	# because 'all' does not exist
+
+	mkdir -p "$builddir"
+	cd "$builddir"
+
+	echo '2.0' >'debian-binary'
+
+	cat >'control' <<EOF
+Package: $package_name
+Priority: optional
+Version: $package_version
+Maintainer: Bastian Bittorf <kontakt@weimarnetz.de>
+Section: utils
+Description: some helper scripts for making debugging easier on meshed openwrt nodes
+Architecture: $architecture
+Source: $url
+EOF
+
+	tar $tar_options -cvzf 'control.tar.gz' ./control
+	tar $tar_options -cvzf 'data.tar.gz' $( ls -1 openwrt-addons/ )
+	tar $tar_options -cvzf "$file_tarball" ./debian-binary ./control.tar.gz ./data.tar.gz
+
+	cd ..
+	cd ..
+
+	log "$funcname() moving '$file_tarball' from dir '$builddir' to '$destdir'"
+	mv "$builddir/$file_tarball" "$destdir"
+}
+
 log()
 {
 	local message="$1"
