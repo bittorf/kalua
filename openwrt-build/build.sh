@@ -385,8 +385,8 @@ check_working_directory()
 
 	[ -n "$FORCE" ] && error=0
 
-	grep -q ^' oonfapi ' "$file_feeds" || echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
-	grep -q ^' olsrd2 '  "$file_feeds" || echo >>"$file_feeds" 'src-git olsrd2 http://olsr.org/git/olsrd2.git'
+	fgrep -q ' oonfapi ' "$file_feeds" || echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
+	fgrep -q ' olsrd2 '  "$file_feeds" || echo >>"$file_feeds" 'src-git olsrd2 http://olsr.org/git/olsrd2.git'
 
 	[ -d 'package/feeds' ] || {
 		# seems, everything is really untouced
