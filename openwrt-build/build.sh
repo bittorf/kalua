@@ -379,10 +379,14 @@ check_working_directory()
 {
 	local funcname='check_working_directory'
 	local pattern='git-svn-id'
+	local file_feeds='feeds.conf.default'
 	local error=1
 	local i=0
 
 	[ -n "$FORCE" ] && error=0
+
+	grep -q ^' oonfapi ' "$file_feeds" || echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
+	grep -q ^' olsrd2 '  "$file_feeds" || echo >>"$file_feeds" 'src-git olsrd2 http://olsr.org/git/olsrd2.git'
 
 	[ -d 'package/feeds' ] || {
 		# seems, everything is really untouced
