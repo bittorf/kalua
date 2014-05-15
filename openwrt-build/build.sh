@@ -1055,6 +1055,9 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-watchdog=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-dyn-gw-plain=y'	# ...
 			;;
+			'OLSRd2')
+				apply_symbol 'CONFIG_PACKAGE_olsrd2-git=y'		# network:
+			;;
 			'BatmanAdv')
 				apply_symbol 'CONFIG_PACKAGE_kmod-batman-adv=y'		# kernel-modules: support: batman-adv
 
