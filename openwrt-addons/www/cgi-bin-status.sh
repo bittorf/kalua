@@ -263,6 +263,23 @@ output_table()
 			[ $tx_mbytes -eq 0 ] && tx_mbytes='&mdash;'
 		fi
 
+		case "$LOCAL" in
+			$LANADR|$WANADR)
+				snr='ethernet'
+				snr_color='green'
+				iface_out_color='green'
+
+				case "$LOCAL" in
+					$LANADR)
+						channel='/LAN'
+					;;
+					$WANADR)
+						channel='/WAN'
+					;;
+				esac
+			;;
+		esac
+
 		cost_int="${COST%.*}${COST#*.}"
 		if   [ -z "$cost_int" ]; then
 			cost_color='red'
