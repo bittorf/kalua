@@ -54,20 +54,35 @@ output_table()
 	echo -n "<tr>"
 	head_list='No. Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX ETXmin SNR Metrik Raus Rein Gateway'
 	for word in $head_list; do {
-		[ "$word" = "Gateway" ] && {
-			if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
-				read i <'/tmp/OLSR/DEFGW_empty'
-				word="$word ($(( ($i * 100) / $all ))% Inselbetrieb)"
-			elif inet_offer="$( _net local_inet_offer )"; then
-				word="$word (Einspeiser: $inet_offer)"
-			fi
+		case "$word" in
+			'Gateway')
+				if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
+					read i <'/tmp/OLSR/DEFGW_empty'
+					word="$word ($(( ($i * 100) / $all ))% Inselbetrieb)"
+				elif inet_offer="$( _net local_inet_offer )"; then
+					word="$word (Einspeiser: $inet_offer)"
+				fi
 
-			[ -z "$gateway" ] && th_insert=" bgcolor='crimson'"
-		}
+				[ -z "$gateway" ] && th_insert=" bgcolor='crimson'"
+			;;
+			'ETX')
+				th_insert='class="sorttable_numeric"'
+			;;
+		esac
 
 		echo -n "<th nowrap ${th_insert}>$word</th>"
 	} done
 	echo -n "</tr>"
+
+	local octet3
+	get_octet3()
+	{
+		local ip="$1"
+
+		ip=${ip#*.}
+		ip=${ip#*.}
+		octet3=${ip%.*}
+	}
 
 	build_cost_best()
 	{
@@ -282,6 +297,7 @@ output_table()
 
 		cost_int="${COST%.*}${COST#*.}"
 		if   [ -z "$cost_int" ]; then
+			cost_int=99999		# for sorting - TODO: does not work
 			cost_color='red'
 		elif [ $cost_int -gt 10000 ]; then
 			cost_color='red'
@@ -309,17 +325,18 @@ output_table()
 		fi
 
 		build_cost_best "$REMOTE"
+		get_octet3 "$REMOTE"
 
 		cat <<EOF
 <tr bgcolor='$bgcolor'>
  <td align='right'><small>$count</small></td>
- <td nowrap> <a href='http://$REMOTE/cgi-bin-status.html'>$REMOTE</a> </td>
+ <td nowrap sorttable_customkey='$octet3'> <a href='http://$REMOTE/cgi-bin-status.html'>$REMOTE</a> </td>
  <td nowrap> <a href='http://$REMOTE/cgi-bin-status.html'>$remote_hostname</a> </td>
  <td bgcolor='$iface_out_color'> ${iface_out}${channel} </td>
  <td> $LOCAL </td>
  <td> $LQ </td>
  <td> $NLQ </td>
- <td align='$cost_align' bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
+ <td sorttable_customkey='$cost_int' align='$cost_align' bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
  <td align='right'> $cost_best </td>
  <td align='right' bgcolor='$snr_color'> $snr </td>
  <td align='center'> $metric </td>
@@ -332,6 +349,7 @@ EOF
 
 	# old neighs, which are unknown now
 	for neigh in $neigh_list; do {
+		get_octet3 "$neigh"
 		age="$( _file age "/tmp/OLSR/isneigh_$neigh" humanreadable_verbose )"
 		build_remote_hostname "$neigh"
 		build_cost_best "$neigh"
@@ -339,7 +357,7 @@ EOF
 
 		echo "<tr>"
 		echo " <td align='right'><small>$count</small></td>"
-		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
+		echo " <td sorttable_customkey='$octet3'> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
 		echo " <td colspan='5' nowrap> vermisst, zuletzt gesehen vor $age </td>"
 		echo " <td align='right'> $cost_best </td>"
@@ -435,13 +453,25 @@ cat <<EOF
  <head>
   <title>$HOSTNAME - Nachbarn</title>
   <META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15">
+EOF
+
+# adds 7kb to HTML-output
+if [ -e '/tmp/sorttable.js' ]; then
+	cat '/tmp/sorttable.js'
+else
+	wget -qO '/tmp/sorttable.js' 'http://intercity-vpn.de/scripts/sorttable.js_googleclosure.includeable' && {
+		cat '/tmp/sorttable.js'
+	}
+fi
+
+cat <<EOF
  </head>
  <body>
-  <h1>$HOSTNAME (with OpenWrt r$( _system version short ) on $HARDWARE)</h1>
+  <h1>$HOSTNAME (mit OpenWrt r$( _system version short ) auf $HARDWARE)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a> $AGE_HUMANREADABLE </h3>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, Gatewaywechsel: $GATEWAY_JITTER)</big><br>
 
-  <table cellspacing='5' cellpadding='5' border='0'>
+  <table cellspacing='5' cellpadding='5' border='0' class='sortable'>
 EOF
 
 output_table
