@@ -370,6 +370,7 @@ EOF
 		build_remote_hostname "$neigh"
 		build_cost_best "$neigh"
 		count=$(( $count + 1 ))
+		metric="$( _olsr remoteip2metric "$REMOTE" )"
 
 		echo "<tr>"
 		echo " <td align='right'><small>$count</small></td>"
@@ -377,6 +378,8 @@ EOF
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
 		echo " <td colspan='5' nowrap> vermisst, zuletzt gesehen vor $age </td>"
 		echo " <td align='right'> $cost_best </td>"
+		echo " <td>&nbsp;</td>"
+		echo " <td align='center'> ${metric:-&mdash;} </td>"
 		echo " <td colspan='3'> &nbsp; </td>"
 		echo "</tr>"
 	} done
