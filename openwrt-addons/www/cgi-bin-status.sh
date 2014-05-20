@@ -191,8 +191,23 @@ output_table()
 			;;
 		esac
 
+		is_wifi()
+		{
+			_net dev_is_wifi "$1" && return 0
+
+			case "$COST" in
+				'1.000'|'0.100')
+					return 1
+				;;
+				*)
+					# likely no ethernet/VPN
+					return 0
+				;;
+			esac
+		}
+
 		channel=; snr=; rx_mbytes=; tx_mbytes=
-		if _net dev_is_wifi "$iface_out"; then
+		if is_wifi "$iface_out"; then
 			mac="$( _net ip2mac "$REMOTE" )" || {
 				mac="$( _tool remote "$REMOTE" ip2mac )"
 				mac="$( _sanitizer do "$mac" mac )"
