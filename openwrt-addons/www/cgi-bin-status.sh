@@ -278,7 +278,8 @@ output_table()
 			[ $tx_mbytes -eq 0 ] && tx_mbytes='&mdash;'
 		fi
 
-		case "$LOCAL" in
+		# TODO: detect proper $REMOTE - type, $LOCAL is wrong
+		case "x$LOCAL" in
 			$LANADR|$WANADR)
 				snr='ethernet'
 				snr_color='green'
@@ -286,10 +287,10 @@ output_table()
 
 				case "$LOCAL" in
 					$LANADR)
-						channel='/LAN'
+						channel='/LAN_bla'
 					;;
 					$WANADR)
-						channel='/WAN'
+						channel='/WAN_bla'
 					;;
 				esac
 			;;
