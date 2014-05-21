@@ -530,13 +530,17 @@ _watch_flash_free_space()
 	}
 
 	while [ -n "$( list_files_removeable )" ]; do {
-		[ $( _system flash_free ) -ge $border ] && break
-		_watch counter "/tmp/$funcname" increment 1 max 100 || break
+		if [ $( _system flash_free ) -ge $border ]; then
+			_watch counter "/tmp/$funcname" remove
+			break
+		else
+			_watch counter "/tmp/$funcname" increment 1 max 100 || break
+		fi
 
 		file="$( list_files_removeable | head -n1 )"
 		size="$( _file size "$file" )"
 		flash_free="$( _system flash_free )"
-		rm "$file"
+		[ -e "$file" ] && rm "$file"
 
 		_log do $funcname daemon info "only $flash_free kb free - removing '$file' with $size bytes"
 	} done
@@ -1113,11 +1117,11 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 	fi
 }
 
-_watch_counter ()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || action
+_watch_counter()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || action
 {
 	local func="watch_counter"
 	local FILE="$1"
-	local MODE="$2"		# increment|decrement|set
+	local MODE="$2"		# increment|decrement|set|remove
 	local MODE_VALUE="${3:-1}"
 	local OPTION="$4"	# max|min
 	local OPTION_VALUE="$5"
@@ -1135,8 +1139,12 @@ _watch_counter ()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 ||
 		set)
 			VALUE="$MODE_VALUE"
 		;;
+		remove)
+			[ -e "$FILE" ] && rm "$FILE"
+			return 0
+		;;
 		*)
-			return
+			return 0
 		;;
 	esac
 
