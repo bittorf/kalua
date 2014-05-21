@@ -534,8 +534,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	local SIGNAL="$4"
 	local LANG="$( _translate lang $5 )"
 	local KEYWORD="$6"		# can be 'plaintext'
-	local FREE HASH GATEWAY ANSWER
-	local URL PARAMETERS
+	local FREE HASH ANSWER URL
 
 	case "$( uci get system.@weblogin[0].auth_credentials )" in
 		simple)
@@ -777,36 +776,9 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	fi
 
 	[ "$FREE" = "1" ] || {
-		GATEWAY="$( _weblogin authserver )"
-		PARAMETERS="LOGIN=${HASH}&MAC=${MAC//:/%3a}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${LANG}"
-
-		if [ "${GATEWAY:-127.0.0.1}" = "127.0.0.1" -o "$GATEWAY" = "$WIFIADR" -o "$GATEWAY" = "$LANADR" ]; then
-			ANSWER="$( /www/cgi-bin-sql.sh "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$USER_LANG" )"
-		else
-			URL="http://${GATEWAY:-127.0.0.1}/cgi-bin-sql.sh"
-
-			case "$0" in
-				*dhcpscript)
-					if [ -e '/tmp/USERDB_COPY' ]; then
-						if [ $( _system uptime min ) -gt 10 ]; then
-							_log do $FUNC daemon info "dont ask gateway '$GATEWAY' for this profile"
-							ANSWER=
-						else
-							ANSWER="$( _wget do "${URL}?${PARAMETERS}" 10 )"
-						fi
-					else
-						ANSWER="$( _wget do "${URL}?${PARAMETERS}" 10 )"
-					fi
-				;;
-				*)
-					ANSWER="$( _wget do "${URL}?${PARAMETERS}" 5 )"
-				;;
-			esac
-		fi
-
-		[ ${#ANSWER} -gt 10 ] && ANSWER="shortened: $( _sanitizer do "$ANSWER" firstline length:30 )"
-
-		_log do $FUNC daemon info "ANSWER: '$ANSWER' (1=ok) FREE: '$FREE' URL: '${URL:-locally_asked:}?${PARAMETERS}'"
+		_weblogin authserver_ask "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$LANG" && {
+			ANSWER=1
+		}
 	}
 
 	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
@@ -880,6 +852,54 @@ _weblogin_authserver()
 
 	is "$server"
 	echo "$server"
+}
+
+_weblogin_authserver_ask()
+{
+	local funcname='weblogin_authserver_ask'
+
+	local hash="$1"
+	local mac="$2"
+	local signal="$3"
+	local keyword="$4"
+	local lang="$5"
+
+	local answer url
+	local authserver="$( _weblogin authserver )"
+	local params="LOGIN=${hash}&MAC=${mac//:/%3a}&SIGNAL=${signal}&KEYWORD=${keyword}&USER_LANG=${lang}"
+
+	case "$authserver" in
+		''|'127.0.0.1'|"$WIFIADR"|"$LANADR")
+			answer="$( /www/cgi-bin-sql.sh "$hash" "$mac" "$signal" "$keyword" "$lang" )"
+		;;
+		*)
+			url="http://${authserver:-127.0.0.1}/cgi-bin-sql.sh"
+
+			case "$0" in
+				*'dhcpscript')
+					if [ -e '/tmp/USERDB_COPY' ]; then
+						if [ $( _system uptime min ) -gt 10 ]; then
+							_log do $funcname daemon info "dont ask authserver '$authserver' during low uptime"
+							answer=
+						else
+							answer="$( _wget do "${url}?${params}" 10 )"
+						fi
+					else
+						answer="$( _wget do "${url}?${params}" 10 )"
+					fi
+				;;
+				*)
+					answer="$( _wget do "${url}?${params}" 5 )"
+				;;
+			esac
+		;;
+	esac
+
+	[ ${#answer} -gt 10 ] && answer="shortened: $( _sanitizer do "$answer" firstline length:30 )"
+
+	_log do $funcname daemon info "ANSWER: '$answer' (1=ok) FREE: '$FREE' URL: '${url:-locally_asked:}?${params}'"
+
+	test "$answer" = '1'
 }
 
 _weblogin_ticket_mail_text ()
