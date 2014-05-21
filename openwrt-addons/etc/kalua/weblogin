@@ -761,25 +761,29 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 		}
 	elif [ "$FREE" = "1" ] ; then
 		:
-	elif [ -e /tmp/FREE ]; then
+	elif [ -e '/tmp/FREE' ]; then
 		_log do $FUNC daemon info "[OK] auth: existing /tmp/FREE"
 		FREE=1
-	elif [ -e /tmp/vds_user_${MAC:-mac_is_empty} ]; then
+	elif [ -e "/tmp/vds_user_${MAC:-mac_is_empty}" ]; then
 		_log do $FUNC daemon info "[OK] auth: existing /tmp/vds_user_$MAC"
 		FREE=1
 	else
 		_log do $FUNC daemon info "query local db for '$HASH'"
+
 		[ -n "$( _db user login query hash2id "$HASH" )" ] && {
 			_log do $FUNC daemon info "[OK] auth: local db knows hash '$HASH'"
-			FREE=1	# use local DB, if available - but also send logmsg to GW
+			FREE=1
 		}
 	fi
 
-	[ "$FREE" = "1" ] || {
+	if [ "$FREE" = "1" ]; then
+		# authserver must know, if somebody NEW has logged in
+		echo >>$SCHEDULER "_weblogin authserver_ask '$HASH' '$MAC' '$SIGNAL' '$KEYWORD' '$LANG'"
+	else
 		_weblogin authserver_ask "$HASH" "$MAC" "$SIGNAL" "$KEYWORD" "$LANG" && {
 			ANSWER=1
 		}
-	}
+	fi
 
 	[ "$ANSWER" = "1" -o "$FREE" = "1" ] && {
 		[ -n "$MAC" ] && {
