@@ -311,7 +311,7 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 	return 1
 }
 
-_net_dns2ip_NEW()
+_net_dns2ip()
 {
 	local dns="$1"
 	local go ip
@@ -331,52 +331,22 @@ _net_dns2ip_NEW()
 			'Address:'|'Address')
 				[ "$go" = 'true' ] || continue
 
+				# 'Address 1: 84.38.67.43'
+				# 'Address 1: 2a02:2e0:3fe:100::8 redirector.heise.de'
+				# 'Address 2: 193.99.144.80 redirector.heise.de'
+				# 'Address:    193.99.144.80'	// spaces on kernel 2.4
 				[ "$1" = 'Address' ] && shift
 				shift
 
 				case "$1" in
 					*':'*)
+						# ignore IPv6
 					;;
 					*)
 						echo "$1"
 						return 0
 					;;
 				esac
-			;;
-		esac
-	} done
-}
-
-_net_dns2ip()
-{
-	local line ip go
-
-	nslookup "$1" |
-	 while read line; do {
-		case "$line" in
-			Name*)
-				go=1
-			;;
-			Address*)
-				[ -z "$go" ] && continue
-
-				ip="${line#*: }"	# e.g. 'Address 1: 2a02:2e0:3fe:100::8 redirector.heise.de'
-
-				case "$ip" in
-					*:*)
-						continue	# for now we omit ipv6
-					;;
-					" "*)
-						ip="${ip#* }"
-						ip="${ip#* }"
-						ip="${ip#* }"
-					;;
-				esac
-
-				ip="${ip% *}"		# e.g. 'Address 1: 84.38.67.43'
-							# e.g. 'Address 2: 193.99.144.80 redirector.heise.de'
-							# e.g. 'Address:    193.99.144.80'	// spaces on kernel 2.4
-				echo "$ip"
 			;;
 		esac
 	} done
