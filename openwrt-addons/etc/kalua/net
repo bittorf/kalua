@@ -231,9 +231,12 @@ _net_ip2dns()
 	# Name:      10.63.6.3
 	# Address 1: 10.63.6.3 mid1.F36-Dach4900er-MESH		// hostname is missing if lookup fails
 
-	set -- $( nslookup "$ip" 2>/dev/null )
+	set -- $( nslookup "$ip" 2>/dev/null || echo 'ERROR ERROR' )
 	while shift; do {
 		case "$1" in
+			'ERROR')
+				break
+			;;
 			'Name:')
 				startparse='true'
 			;;
@@ -315,11 +318,11 @@ _net_dns2ip_NEW()
 
 	# set -- $( nslookup host86-139-31-49.range86-139.btcentralplus.com )
 	# Server: 127.0.0.1 Address 1: 127.0.0.1 localhost Name: host86-139-31-49.range86-139.btcentralplus.com Address 1: 86.139.31.49 host86-139-31-49.range86-139.btcentralplus.com
-	set -- $( nslookup "$dns" || echo 'ERR' )
+	set -- $( nslookup "$dns" || echo 'ERROR ERROR' )
 
 	while shift; do {
 		case "$1" in
-			'ERR')
+			'ERROR')
 				return 1
 			;;
 			'Name:')
@@ -545,11 +548,11 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 	# e.g.
 	# 192.168.99.243 dev br-mybridge  src 192.168.99.1 \ cache
 	# fe80::221:6aff:fe32:7c1c from :: dev eth0  src fe80::da5d:4cff:fe9c:2f1a  metric 0 \ cache
-	set -- $( ip -oneline route get "$ip" 2>/dev/null || echo 'found error' )
+	set -- $( ip -oneline route get "$ip" 2>/dev/null || echo 'ERROR ERROR' )
 
 	while shift; do {
 		case "$1" in
-			dev)
+			'dev')
 				dev="$2"
 				# batman/macvlan-hack, maybe unneeded
 				[ "$dev" = "gateway0" ] && dev="br-mybridge"
@@ -557,7 +560,7 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 
 				return 0
 			;;
-			error|metric|cache)
+			'ERROR'|'metric'|'cache')
 				return 1
 			;;
 		esac
