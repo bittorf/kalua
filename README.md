@@ -15,63 +15,41 @@ donations in bitcoins are welcome and can be sent to 184Rzvif2EfpW1EycmL3SWt64n8
 how to get a release for a specific hardware
 --------------------------------------------
 
-	# login as non-root user
-	git clone git://github.com/bittorf/kalua.git
-	mkdir x; cd x
-	
-	REV="r34381"                    # leave empty for trunk / latest
-	HW="TP-LINK TL-WR1043ND"        # possible values: ls -1 ../kalua/openwrt-config/config_HARDWARE.* | cut -d'.' -f4
-	DO="../kalua/openwrt-build/build_release.sh"
+	# download and initial fetching of all sources
+	wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh
+	sh build.sh
 
-	# choose your router-model and do a full-build, for example
-	$DO "HARDWARE.$HW" $REV standard dataretention trafficshaping vtunZlibLZOnoSSL kcmdlinetweak
+	# full build for specific target
+	build.sh --openwrt r40860 --hardware 'PC Engines ALIX.2' --usecase 'Standard'
 
-	# or for a minimal approach with some tweaks, HW="Linksys WRT54G:GS:GL"
-	$DO "HARDWARE.$HW" $REV standard \
-		patch:841-43-decrease_number_of_rx_dma_slots.patch \
-		patch:978-b43_dmarx_adddisc.patch \
-		patch:979-b43_addsysfs.patch \
-		dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
+	# get detailed help with
+	build.sh --help
 
 
 how to build this from scratch on a debian server
 -------------------------------------------------
 
-	# be root user
+	# work as root:
 	apt-get update
 	LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen"
 	for PACKAGE in $LIST; do apt-get -y install $PACKAGE; done
 
-	# now login as non-root user, use 'git clone --depth 1 ...' if history doesnt matter (faster download)
+	# now login as non-root user
 	git clone git://nbd.name/openwrt.git
 	git clone git://nbd.name/packages.git
 	cd openwrt
 	git clone git://github.com/bittorf/kalua.git
 
-	# if you build multiple archs, you can have a central download via
-	# ln -s /tmp/openwrt-downloads dl
-
 	# for working with a specific openwrt-revision, do this:
-	# REV=36817	// current testing
-	# REV=35880	// current beta
-	# REV=35300	// current stable
+	# REV=40860
 	# git checkout $(git log -1 --format=%h --grep=@$REV)
-
-	# now copy your own 'apply_profile.code.definitions' to . or the provided one will be used
 
 	make menuconfig				# select your "Target System" / "Target Profile" and exit
 	make package/symlinks
 
-	# now configure your image, see next
-	# section "configure the builtin-packages", e.g.
-	# kalua/openwrt-build/mybuild.sh set_build standard-flash8mb
-	# kalua/openwrt-build/mybuild.sh set_build standard-flash8mb bigbrother
-	# kalua/openwrt-build/mybuild.sh set_build standard-flash4mb nopppoe
-	# kalua/openwrt-build/mybuild.sh set_build standard-flash4mb nopppoe usbaudio
-
-	# last 3 arguments enforce a specific configuration (profile: ffweimar, wifmode: adhoc, node: 42)
-	kalua/openwrt-build/mybuild.sh applymystuff "ffweimar" "adhoc" "42"	# omit arguments for a generic image
-	kalua/openwrt-build/mybuild.sh make 					# needs some hours + 5gig of space
+	# now configure your image and build:
+	make menuconfig
+	make
 
 	# flash your image via TFTP
 	FW="/path/to/your/baked/firmware_file"
@@ -82,14 +60,9 @@ how to build this from scratch on a debian server
 	for CMD in applymystuff make "upload sysupgrade factory release remove"; do kalua/openwrt-build/mybuild.sh $CMD || break; done
 
 
-configure the builtin-packages
-------------------------------
+manually configure the builtin-packages
+---------------------------------------
 
-	# the fast and easy automatic way:
-	kalua/openwrt-build/mybuild.sh set_build standard
-	make defconfig
-
-	# the way to understand what you are doing here:
 	make kernel_menuconfig		# will safe in 'build_dir/linux-${platform}/linux-${kernelversion}/.config'
 
 		General setup ---> [*] Support for paging of anonymous memory (swap)
@@ -124,11 +97,6 @@ configure the builtin-packages
 		Utilities ---> [*] px5g
 			       [*] rbcfg	# if needed, e.g. 'Linksys WRT54G/GS/GL'
 
-* usage
-    * login via ssh
-    * prepare the router by calling _firmware_wget_prepare_for_lowmem_devices
-    * fetch/copy firmware image to /tmp/fw
-    * call _firmware_burn 
 
 how to development directly on a router
 ---------------------------------------
