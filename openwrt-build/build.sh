@@ -185,7 +185,7 @@ copy_additional_packages()
 			}
 		else
 			log "$funcname() no Makefile found in '$dir' - please check"
-			return 1
+			return 0
 		fi
 	} done
 
