@@ -25,12 +25,15 @@
 print_usage_and_exit()
 {
 	local hint="$1"
+	local rev="r$( openwrt_revision_number_get )"
+	local hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
+
 	[ -n "$hint" ] && log "[HINT:] $hint"
 
 	cat <<EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
 
-e.g. : $0 --openwrt r$( openwrt_revision_number_get ) --hardware '$( target_hardware_set 'list' 'plain' | head -n1 )' --usecase 'Standard,$KALUA_DIRNAME'
+e.g. : $0 --openwrt $rev --hardware '$hardware' --usecase 'Standard,$KALUA_DIRNAME'
 
 Get help without args, e.g.: --hardware <empty>
 EOF
@@ -424,7 +427,7 @@ check_working_directory()
 	local file_feeds='feeds.conf.default'
 	local i=0
 	local do_symlinking='no'
-	local package list error
+	local package list error repo
 
 	if [ -n "$FORCE" ]; then
 		error=0
@@ -448,11 +451,16 @@ check_working_directory()
 		git clone 'git://nbd.name/openwrt.git'  || return $error
 		git clone 'git://nbd.name/packages.git' || return $error
 		cd openwrt
-		git clone 'git://github.com/bittorf/kalua.git' || return $error
+
+#		repo='git://github.com/weimarnetz/weimarnetz.git'
+		repo='git://github.com/bittorf/kalua.git'
+		git clone "$repo" || return $error
+		KALUA_DIRNAME="$( basename $repo | cut -d'.' -f1 )"
 
 		log "$funcname() please run again, after doing 'cd openwrt' with"
 		log "$funcname() e.g.: $KALUA_DIRNAME/openwrt-build/build.sh --help"
-		return 0
+
+		exit $error
 	}
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
