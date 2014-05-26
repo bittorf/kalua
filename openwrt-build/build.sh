@@ -28,7 +28,7 @@ print_usage_and_exit()
 	[ -n "$hint" ] && log "[HINT:] $hint"
 
 	cat <<EOF
-Usage: $0 --openwrt <version> --hardware <hardware> --usecase <metapackagenames>
+Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
 
 e.g. : $0 --openwrt r$( openwrt_revision_number_get ) --hardware '$( target_hardware_set 'list' 'plain' | head -n1 )' --usecase 'Standard,$KALUA_DIRNAME'
 
