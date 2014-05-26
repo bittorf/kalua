@@ -28,20 +28,22 @@ print_usage_and_exit()
 	[ -n "$hint" ] && log "[HINT:] $hint"
 
 	cat <<EOF
+Usage: $0 --openwrt <version> --hardware <hardware> --usecase <metapackagenames>
 
-Use: $0	--openwrt r38675|trunk|<empty> = leave untouched
-	--hardware 'Ubiquiti Bullet M'|<empty> = list supported models
-	--kernel
-	--usecase
-	--profile 'ffweimar.hybrid.120'
-	--release 'stable' 'user@server:/your/path'	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
-	--debug
-	--force
-	--quiet
+e.g. : $0 --openwrt r$( openwrt_revision_number_get ) --hardware '$( target_hardware_set 'list' 'plain' | head -n1 )' --usecase 'Standard,$KALUA_DIRNAME'
 
-e.g. $0	--openwrt trunk --hardware 'Ubiquiti Bullet M' --usecase $KALUA_DIRNAME,Standard,VDS
-
+Get help without args, e.g.: --hardware <empty>
 EOF
+
+#        --openwrt trunk | <empty> 
+#	--hardware 'Ubiquiti Bullet M'|<empty> = list supported models
+#	--kernel
+#	--usecase
+#	--profile 'ffweimar.hybrid.120'
+#	--release 'stable' 'user@server:/your/path'	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
+#	--debug
+#	--force
+#	--quiet
 
 	exit 1
 }
@@ -435,16 +437,22 @@ check_working_directory()
 
 		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen'
 		for package in $list; do {
-			dpkg >/dev/null -s "$package" || {
+			if dpkg >/dev/null -s "$package"; then
+				log "$funcname() found package '$package' - OK" debug
+			else
 				log "$funcname() missing package '$package': please run as root: apt-get install -y --force-yes '$package'"
 				return $error
-			}
+			fi
 		} done
 
 		git clone 'git://nbd.name/openwrt.git'  || return $error
 		git clone 'git://nbd.name/packages.git' || return $error
 		cd openwrt
 		git clone 'git://github.com/bittorf/kalua.git' || return $error
+
+		log "$funcname() please run again, after doing 'cd openwrt' with"
+		log "$funcname() e.g.: $KALUA_DIRNAME/openwrt-build/build.sh --help"
+		return 0
 	}
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
@@ -493,6 +501,12 @@ check_working_directory()
 	}
 }
 
+openwrt_revision_number_get()
+{
+	# command 'scripts/getver.sh' is not available in all revisions
+	git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1
+}
+
 openwrt_download()
 {
 	local funcname='openwrt_download'
@@ -503,8 +517,8 @@ openwrt_download()
 
 	case "$wish" in
 		'leave_untouched')
-			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
-			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
+			# e.g.: r12345
+			VERSION_OPENWRT="r$( openwrt_revision_number_get )"
 		;;
 		'trunk')
 			$funcname 'switch_to_master'
