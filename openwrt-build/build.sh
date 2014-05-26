@@ -1395,7 +1395,7 @@ die_and_exit()
 	[ -n "$FORCE" ] && return 0
 
 	log
-	log '[ERROR] the brave can try --force'
+	log '[ERROR] the brave can try --force, all others should do: git checkout master'
 	exit 1
 }
 
