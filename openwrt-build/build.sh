@@ -422,7 +422,7 @@ check_working_directory()
 	local file_feeds='feeds.conf.default'
 	local i=0
 	local do_symlinking='no'
-	local package list apt_ok error
+	local package list error
 
 	if [ -n "$FORCE" ]; then
 		error=0
@@ -430,16 +430,14 @@ check_working_directory()
 		error=1
 	fi
 
-	[ -z "$( grep -v ^'build.sh'$ )" ] && {
+	[ -z "$( ls -1 | grep -v ^'build.sh'$ )" ] && {
 		log "$funcname() first start - fetching OpenWrt-source"
 
 		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen'
 		for package in $list; do {
-			pkg >/dev/null -s "$package" || {
-				[ "$apt_ok" = "true" ] || apt-get update && apt_ok="true"
-				# autocorrect install errors
-				dpkg --configure -a
-				apt-get install -y --force-yes "$package" || return $error
+			dpkg >/dev/null -s "$package" || {
+				log "$funcname() missing package '$package': please run as root: apt-get install -y --force-yes '$package'"
+				return $error
 			}
 		} done
 
