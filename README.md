@@ -21,7 +21,7 @@ how to get a release for a specific hardware
 	sh build.sh
 
 	# full build for specific target
-	build.sh --openwrt r40860 --hardware 'PC Engines ALIX.2' --usecase 'Standard'
+	build.sh --openwrt r40861 --hardware 'PC Engines ALIX.2' --usecase 'Standard'
 
 	# get detailed help with
 	build.sh --help
