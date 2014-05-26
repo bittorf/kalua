@@ -430,7 +430,7 @@ check_working_directory()
 		error=1
 	fi
 
-	[ -z "$( ls -1 )" ] && {
+	[ -z "$( grep -v ^'build.sh'$ )" ] && {
 		log "$funcname() first start - fetching OpenWrt-source"
 
 		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen'
