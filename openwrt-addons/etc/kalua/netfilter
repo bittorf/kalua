@@ -164,22 +164,12 @@ _netfilter_traffic_control_needed()
 				;;
 			esac
 		;;
-		limona*|olympia*|marinabh*)
+		limona*|olympia*|marinabh*|castelfalfi*)
 			return 1
 		;;
-		boltenhagendh*|dhsylt*|rehungen*|dhfleesensee*|schoeneck*|leonardo*|tkolleg*)
+		boltenhagendh*|tkolleg*)
 			# till we fix the "high ping under high load/many users"-issue
 			_net local_inet_offer >/dev/null && return 1
-		;;
-	esac
-
-	case "$CONFIG_PROFILE" in
-		dhsylt_*)
-			case "$NODENUMBER" in
-				18|25|26)
-					return 1
-				;;
-			esac
 		;;
 	esac
 
@@ -226,19 +216,20 @@ _netfilter_traffic_control_user_add()
 				speed_up=384kbit
 				speed_down=3mbit
 			;;
-			dhsylt*)
-				[ "$ip" = "10.10.2.130" ] && return 0	# antenne sylt
-				speed_up=128kbit
-				speed_down=1mbit
-			;;
 			rehungen*)
-				case "$LANADR" in
-					*.36.*|*.37.*|*.76.*|*.77.*|*.92.*|*.95.*)
-						speed_up=768kbit	# haupt52|haupt25|schuetz17
+				case "$NODENUMBER" in
+					36)
+						# haupt52 (was: 16mbit)
+						speed_up=64kbit
+						speed_down=64kbit
+					;;
+					37|76|77|92|95)
+						speed_up=768kbit	# haupt25|schuetz17
 						speed_down=16mbit
 					;;
-					*.106.*|*.107.*|*.30.*|*.108.*|*.110.*|*.43.*|*.44.*|*.66.*|*.67.*|*.97.*|*.20.*|*.21.*)
-						speed_up=768kbit	# breite6|ONEklausg70|schuetz2|101b|haupt15|ONEhaupt43a|haupt70
+					106|107|30|108|110|43|44|66|67|97|20|21)
+						# breite6|ONEklausg70|schuetz2|101b|haupt15|ONEhaupt43a|haupt70
+						speed_up=768kbit	
 						speed_down=10mbit
 					;;
 					*)
@@ -345,11 +336,13 @@ EOF
 _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic peaks
 {
 	local peak percent
+	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
+	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
 
 	# better ask gateway?
 	# respect day of month! (workday vs. weekend/public holiday)
 
-	case "$( date +%H:%M )" in		# 10 chars = throttle to 40%
+	case "$hour:$minute" in		# 10 chars = throttle to 40%
 		16:*) peak="+++" ;;
 		17:*) peak="+++++" ;;
 		18:*) peak="+++++++" ;;
@@ -375,7 +368,9 @@ _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic
 _netfilter_noshaping_time()
 {
 	local mac="$1"
-	local date="$( date +%H:%M )"	# 00...23 : 00...59
+	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
+	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
+	local date="$HOUR:$MINUTE"
 
 	case "$CONFIG_PROFILE" in
 		liszt28*)
@@ -405,32 +400,13 @@ _netfilter_happy_hour()		# no additional shaping during this time, so initial va
 {
 	local mac="$1"
 	local mac_source
-	local date="$( date +%H:%M )"	# 00...23 : 00...59
+	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
+	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
+	local date="$HOUR:$MINUTE"
 
 	case "$CONFIG_PROFILE" in
 		rehungen*)
 			return 0
-		;;
-		dhsylt*)
-			case "$NODENUMBER" in
-				5|34|20)
-					case "$date" in
-						0*)
-							return 0
-						;;
-					esac
-				;;
-			esac
-
-			case "$( batctl translate "$mac" )" in
-				*:00:34|*:00:20|*:00:05)
-					case "$date" in
-						0*)
-							return 0
-						;;
-					esac
-				;;
-			esac
 		;;
 		*)
 			case "$date" in
@@ -928,14 +904,6 @@ _netfilter_masquerade_stop()
 _netfilter_portforwarding_start()
 {
 	case "$CONFIG_PROFILE" in
-		dhsylt*)
-			[ "$LANADR" = "10.10.2.129" ] && {
-				# radiopark
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 222 -j DNAT --to-destination 10.10.2.131:22
-				# netio230b
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10080 -j DNAT --to-destination 10.10.2.132:80
-			}
-		;;
 		liszt28*)
 			[ "$NODENUMBER" = '276' ] && {
 				# NAS
@@ -1610,7 +1578,7 @@ EOF
 _netfilter_user_dataretention_needed()	# disabled till memory-probs are solved
 {
 	case "$CONFIG_PROFILE" in
-		elephant*|galerie*|preskil*|schoeneck*|dhsylt*|boltenhagendh*)
+		elephant*|galerie*|preskil*|schoeneck*|boltenhagendh*)
 			return 1
 		;;
 		liszt28*)
