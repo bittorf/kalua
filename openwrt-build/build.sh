@@ -420,11 +420,34 @@ check_working_directory()
 	local funcname='check_working_directory'
 	local pattern='git-svn-id'
 	local file_feeds='feeds.conf.default'
-	local error=1
 	local i=0
 	local do_symlinking='no'
+	local package list apt_ok error
 
-	[ -n "$FORCE" ] && error=0
+	if [ -n "$FORCE" ]; then
+		error=0
+	else
+		error=1
+	fi
+
+	[ -z "$( ls -1 )" ] && {
+		log "$funcname() first start - fetching OpenWrt-source"
+
+		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen'
+		for package in $list; do {
+			pkg >/dev/null -s "$package" || {
+				[ "$apt_ok" = "true" ] || apt-get update && apt_ok="true"
+				# autocorrect install errors
+				dpkg --configure -a
+				apt-get install -y --force-yes "$package" || return $error
+			}
+		} done
+
+		git clone 'git://nbd.name/openwrt.git'  || return $error
+		git clone 'git://nbd.name/packages.git' || return $error
+		cd openwrt
+		git clone 'git://github.com/bittorf/kalua.git' || return $error
+	}
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
 		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
@@ -437,7 +460,7 @@ check_working_directory()
 	}
 
 	[ -d 'package/feeds' ] || {
-		# seems, everything is really untouced
+		# seems, everything is really untouched
 		log "$funcname() missing 'package/symlinks', getting feeds"
 		make defconfig
 		do_symlinking='true'
