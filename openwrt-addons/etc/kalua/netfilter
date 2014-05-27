@@ -1281,11 +1281,12 @@ _netfilter_user_list()
 			echo
 
 			for mac in $list; do {
-				# mac-entries can be doubled during db_restore() -> output_grepable_index()
-				comment="$( grep -s "$mac" '/tmp/USERDB_COPY' '/tmp/DB/USER/login/meta_index' | head -n1 | cut -d'=' -f2 )"
+				comment="$( _db user_macenabled_comment_get "$mac" )"
 				vendor="$( _net mac2vendor "$mac" short )"
 
 				read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+
+				# same length/space for all IP's
 				oct4="${ip##*.}"
 				oct123="${ip%.*}"
 				ip="${oct123}.$( printf "%-3d" $oct4 )"
@@ -1613,14 +1614,15 @@ _netfilter_user_del()
 {
 	local funcname='netfilter_user_del'
 	local mac="${1:-unset}"
-	local ip dev traffic
+	local ip dev traffic comment
 
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
 
 		[ "$( uci -q get system.@weblogin[0].logtraffic )" = '1' ] && {
+			comment="$( _db user_macenabled_comment_get "$mac" )"
 			traffic="$( _netfilter stats "$mac" megabytes )"
-			_log do $funcname daemon alert "mac: $mac ip: $ip traffic: $traffic mb"
+			_log do $funcname daemon alert "mac: $mac ip: $ip traffic: $traffic mb comment: $comment"
 		}
 
 		_netfilter traffic_control_user_del "$mac"
