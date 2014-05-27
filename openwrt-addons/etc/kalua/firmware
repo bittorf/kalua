@@ -271,7 +271,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 	local funcname="firmware_remove_kmodules"
 	local module remove
 	local filter_option="${1:-most}"			# most | all | iptables | wifi | misc
-	local errorcount list_modules i line pid_rmmod
+	local errorcount list_modules i j line pid_rmmod
 
 	list_modules_get()
 	{
@@ -378,15 +378,22 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 				( rmmod $module ) &
 				pid_rmmod="$!"
-				sleep 2
 
-				case " $( pidof rmmod ) " in
-					*" $pid_rmmod "*)
-						_log do $funcname daemon alert "removing kmodule: $module [FAILED3 = hangs]"
-					;;
-				esac
+				j=10
+				while let j-=1; do {
+					pidof rmmod >/dev/null || break
+					sleep 1
+				} done
 
-				grep -q ^"$module " "/proc/modules" && {
+				[ $j -eq 0 ] && {
+					case " $( pidof rmmod ) " in	# can be more than 1
+						*" $pid_rmmod "*)
+							_log do $funcname daemon alert "removing kmodule: $module [FAILED3 = hangs]"
+						;;
+					esac
+				}
+
+				grep -q ^"$module " '/proc/modules' && {
 					errorcount=$(( $errorcount + 1 ))
 					_log do $funcname daemon debug "rmmod/lsmod: $( lsmod | fgrep "$module" )"
 					_log do $funcname daemon info "removing kmodule: $module [FAILED2] errorcount: $errorcount"
