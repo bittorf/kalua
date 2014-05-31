@@ -474,14 +474,7 @@ cat <<EOF
   <META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15">
 EOF
 
-# adds 7kb to HTML-output
-if [ -e '/tmp/sorttable.js' ]; then
-	cat '/tmp/sorttable.js'
-else
-	wget -qO '/tmp/sorttable.js' 'http://intercity-vpn.de/scripts/sorttable.js_googleclosure.includeable' && {
-		cat '/tmp/sorttable.js'
-	}
-fi
+_http include_js_sorttable
 
 cat <<EOF
  </head>
