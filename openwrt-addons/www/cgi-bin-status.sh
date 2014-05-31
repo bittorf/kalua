@@ -52,7 +52,7 @@ output_table()
 
 	# tablehead
 	echo -n "<tr>"
-	head_list='No. Nachbar-IP Hostname Schnittstelle Lokale_Interface-IP LQ NLQ ETX ETXmin SNR Metrik Raus Rein Gateway'
+	head_list='No. Nachbar-IP Hostname Schnittstelle lokale&nbsp;Interface-IP LQ NLQ ETX ETX<small><sub>min</sub></small> SNR Metrik raus rein Gateway'
 	for word in $head_list; do {
 		case "$word" in
 			'Gateway')
@@ -70,7 +70,7 @@ output_table()
 			;;
 		esac
 
-		echo -n "<th nowrap ${th_insert}>$word</th>"
+		echo -n "<th valign='top' nowrap ${th_insert}>$word</th>"
 	} done
 	echo -n "</tr>"
 
