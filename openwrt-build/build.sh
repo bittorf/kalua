@@ -1191,7 +1191,7 @@ build_options_set()
 				# CONFIG_DEFAULT_odhcp6c=y
 
 				apply_symbol 'CONFIG_IPV6 is not set'			# global build settings: IPv6 support in packages
-				apply_symbol 'CONFIG_PACKAGE_6relayd is not set'	# network: 6relayd
+				apply_symbol 'CONFIG_PACKAGE_6relayd is not set'	# network: 6relayd - removed in r40893
 				apply_symbol 'CONFIG_PACKAGE_odhcp6c is not set'	# network: odhcp6c
 				apply_symbol 'CONFIG_PACKAGE_odhcpd is not set'		# network: odhcpd
 				apply_symbol 'CONFIG_PACKAGE_kmod-ip6tables is not set'	# kernel-modules: netfilter-extensions: ip6tables

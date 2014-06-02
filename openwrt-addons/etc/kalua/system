@@ -203,6 +203,7 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 	local FUNC="system_reboot_safe"
 	local REASON="$1"
 	local LOCKFILE="/tmp/SAFE_REBOOT_SCHEDULED"
+	local uptime
 
 	_linklocal wifi_users "$WIFIDEV" >/dev/null && {
 		_log do $FUNC daemon info "waiting till all wifi-clients disconnect, rescheduling myself"
@@ -217,7 +218,13 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 
 	cron.monitoring send_alive_message no_antenna_test	# maybe the last feedback can be helpful
 
-	_log do $FUNC daemon alert "scheduling reboot - reason: '$REASON'"
+	uptime=$( _system uptime sec )
+	if [ $uptime -gt 85771 -a $uptime -lt 86775 -a "$reason" = 'nightly_reboot' ]; then
+		# scheduled each 24h = 86400
+		:
+	else
+		_log do $FUNC daemon alert "scheduling reboot - reason: '$REASON'"
+	fi
 
 	tail -n1 '/tmp/ARCHIV_MONITORING' | grep -q ^'#' || {			# found comment at fileend
 		_log do $FUNC daemon info "send_alive_message was unsuccessful, backing up '/tmp/ARCHIV_MONITORING'"		
