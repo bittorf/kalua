@@ -707,7 +707,7 @@ build()
 	local option="$1"
 	local cpu_count="$( grep -c ^'processor' '/proc/cpuinfo' )"
 	local jobs=$(( $cpu_count + 1 ))
-	local commandline="--jobs $jobs"
+	local commandline="--jobs $jobs BUILD_LOG=1"
 	local verbose t1 t2 rest
 	[ -n "$DEBUG" ] && verbose='V=s'
 
@@ -725,11 +725,16 @@ build()
 		*)
 			log "$funcname() running 'make $commandline'"
 			read t1 rest </proc/uptime
-			make $verbose $commandline
-			read t2 rest </proc/uptime
-			BUILD_DURATION=$(( ${t2%.*}${t2#*.} - ${t1%.*}${t1#*.} ))
-			BUILD_DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
-			log "$funcname() running 'make $commandline' lasts $BUILD_DURATION sec"
+
+			if make $verbose $commandline ; then
+				read t2 rest </proc/uptime
+				BUILD_DURATION=$(( ${t2%.*}${t2#*.} - ${t1%.*}${t1#*.} ))
+				BUILD_DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
+				log "$funcname() running 'make $commandline' lasts $BUILD_DURATION sec"
+			else
+				log "$funcname() ERROR during make: check directory logs/"
+				return 1
+			fi
 		;;
 	esac
 }
