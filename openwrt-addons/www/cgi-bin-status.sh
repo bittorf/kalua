@@ -160,7 +160,7 @@ output_table()
 		if [ -e "/tmp/OLSR/DEFGW_$REMOTE" ]; then
 			read i <"/tmp/OLSR/DEFGW_$REMOTE"
 			gateway_percent=$(( ($i * 100) / $all ))
-			gateway_percent="${gateway_percent}%"
+			gateway_percent="${gateway_percent}%"		# TODO: sometimes >100%
 		else
 			gateway_percent=
 		fi
@@ -470,7 +470,7 @@ cat <<EOF
 	"http://www.w3.org/TR/html4/loose.dtd">
 <html>
  <head>
-  <title>$HOSTNAME - Nachbarn</title>
+  <title>$HOSTNAME - No. $NODENUMBER - Nachbarn</title>
   <META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15">
 EOF
 
@@ -479,7 +479,7 @@ _http include_js_sorttable
 cat <<EOF
  </head>
  <body>
-  <h1>$HOSTNAME (mit OpenWrt r$( _system version short ) auf $HARDWARE)</h1>
+  <h1>$HOSTNAME &ndash; No. $NODENUMBER (mit OpenWrt r$( _system version short ) auf $HARDWARE)</h1>
   <h3><a href='#'> OLSR-Verbindungen </a> $AGE_HUMANREADABLE </h3>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, Gatewaywechsel: $GATEWAY_JITTER)</big><br>
 
