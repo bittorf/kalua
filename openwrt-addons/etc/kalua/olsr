@@ -161,7 +161,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 								}
 							;;
 							*)
-								# is WiFi
+								# special marker for 'is a WiFi neigh'
 								touch "/tmp/OLSR_TMP/isneigh_$2"
 
 								if [ -e "/tmp/OLSR/isneigh_${2}_bestcost" ]; then
@@ -189,6 +189,8 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							firstrun='false'
 							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=1"
 						fi
+
+						[ -e "/tmp/OLSR_TMP/isneigh_fixed_arp_$2" ] || echo >>$SCHEDULER "_olsr force_static_arp '$2'"
 					;;
 				esac
 
@@ -257,6 +259,18 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	}
 
 	return 0
+}
+
+_olsr_force_static_arp()
+{
+	local ip="$1"
+	local mac
+
+	mac="$( _net ip2mac "$ip" )" && {
+		_netfilter make_arp_permanent "$mac" "$ip" && {
+			touch "/tmp/OLSR_TMP/isneigh_fixed_arp_$ip"
+		}
+	}
 }
 
 _olsr_remoteip2metric ()	# need OLSR_ROUTES
