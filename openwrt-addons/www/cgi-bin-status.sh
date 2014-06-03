@@ -370,7 +370,7 @@ EOF
 		build_remote_hostname "$neigh"
 		build_cost_best "$neigh"
 		count=$(( $count + 1 ))
-		metric="$( _olsr remoteip2metric "$REMOTE" )"
+		metric="$( _olsr remoteip2metric "$neigh" )"
 
 		echo "<tr>"
 		echo " <td align='right'><small>$count</small></td>"
