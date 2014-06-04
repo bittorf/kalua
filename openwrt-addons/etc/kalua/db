@@ -361,7 +361,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			esac
 		;;
 		index_gen)
-			_db lock now "$ACTION"
+			_db lock now "$ACTION $@"
 
 			local INDEX_PRODUCTION="$DIR/meta_index"
 			local INDEX="$INDEX_PRODUCTION.temp"
@@ -392,10 +392,11 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			create_index()
 			{
 				LIST_LOGINS="$( _db user login list ${ID:-all} $OPTION )"
+
 				for LOGIN_ID in $LIST_LOGINS; do {
 
 					USERNAME=
-					eval $( _db user login show $LOGIN_ID "USERNAME PASSWORD FUZZY DEVICE_QUANTITY COMMENT" )
+					eval $( _db user login show "$LOGIN_ID" 'USERNAME PASSWORD FUZZY DEVICE_QUANTITY COMMENT' )
 
 					[ -z "$USERNAME" ] && {
 						echo "#"
@@ -476,10 +477,18 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			}
 
 			_stopwatch start $ACTION
-			echo "index_gen" >"/tmp/CRON_OVERLOAD"
+			echo "index_gen.ID:${ID}_OPTION:$OPTION" >'/tmp/CRON_OVERLOAD'
+
+			# e.g.:
+			# _db user login index_gen
+			# _db user login index_gen last 1
+			# _db user login index_gen lock "$LOGIN_ID"
+			#
+			# $ID     = last|lock
+			# $OPTION = 1 or $LOGIN_ID
 
 			case "$ID" in
-				"")
+				'')
 					create_index >"$INDEX"
 				;;
 				lock)
