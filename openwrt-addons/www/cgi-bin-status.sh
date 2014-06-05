@@ -487,10 +487,10 @@ cat <<EOF
 EOF
 
 output_table
+echo '  </table>'
+_switch show '' 'html.Ansicht der Netzwerkanschl&uuml;sse:&nbsp;'
 
 cat <<EOF
-  </table>
-
   <h3> Legende: </h3>
   <ul>
    <li> <b>Metrik</b>: Daten werden direkt oder &uuml;ber Zwischenstationen gesendet </li>
