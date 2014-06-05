@@ -1337,6 +1337,8 @@ check_git_settings()
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 
+[ -z "$1" ] && print_usage_and_exit
+
 while [ -n "$1" ]; do {
 	case "$1" in
 		'--help'|'-h')
