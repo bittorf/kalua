@@ -137,58 +137,68 @@ _switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
 	local funcname="switch_show"
 	local type="${1:-$( uci -q get network.@switch[0].name )}"
 	local debug="$2"
-	local line duplex n list
+	local line duplex n list oldstyle
+
+	if [ "$debug" = 'html' ]; then
+		echo -n "<table cellspacing='1' cellpadding='0'><tr>"
+		SWITCH_SYMBOL_HTML='true'
+	else
+		unset SWITCH_SYMBOL_HTML
+	fi
 
 	case "$HARDWARE" in
 		'Linksys WRT54G/GS/GL'|'La Fonera 2.0N'|'ASUS WL-500g Premium v2')
 			# older revisions cannot work with 'swconfig' and use 'robocfg'
 			# WAN | 4 x LAN  - tested with r38650
-			_switch query_swconfig "4 gap 3 2 1 0" "$debug" && return 0
+			_switch query_swconfig "4 gap 3 2 1 0" "$debug"
 		;;
 		'TP-LINK TL-WR841N/ND v8')
 			# WAN | 4 x LAN
 			_switch query_miitool "eth0" "$debug"
 			_switch query_swconfig "gap 2 3 4 1" "$debug"
-			return 0
 		;;
 		'TP-LINK TL-WR940N')
 			# WAN | 4 x LAN
 			_switch query_miitool "eth1" "$debug"
 			_switch query_swconfig "gap 4 3 2 1" "$debug"
-			return 0
 		;;
 		"TP-LINK TL-WR1043ND"|"TP-LINK TL-WR841N/ND v7")
 			# WAN | 4 x LAN
 			_switch query_swconfig "0 gap 1 2 3 4" "$debug"
-			return 0
 		;;
 		'TP-LINK TL-WDR3600'|'TP-LINK TL-WDR4300'|'TP-LINK TL-WDR4310'|"TP-LINK TL-WDR3600/4300/4310"|"TP-LINK TL-WDR4900 v1")
 			# WAN | 4 x LAN | CPU = port0
 			_switch query_swconfig "1 gap 2 3 4 5" "$debug"
-			return 0
 		;;
 		"Buffalo WZR-HP-AG300H")
 			# WAN | 4 x LAN
 			_switch query_miitool "eth1" "$debug"
 			_switch query_swconfig "gap 1 2 3 4" "$debug"
-			return 0
 		;;
 		"Ubiquiti Nanostation M")
 			# WAN | LAN
 			_switch query_swconfig '1'
 			_switch query_miitool 'eth0' "$debug"
-			return 0
 		;;
 		"TP-LINK TL-WR703N v1"|"Speedport W500V"|"T-Mobile InternetBox")
 			_switch query_miitool "eth0" "$debug"
-			return 0
 		;;
 		'PC Engines ALIX.2')
 			# power | WAN | LAN | LAN2 | serial
 			_switch query_miitool "eth0 gap eth1 gap eth2" "$debug"
-			return 0
+		;;
+		*)
+			oldstyle='yes'
 		;;
 	esac
+
+	[ "$oldstyle" = 'yes' ] || {
+		[ -n "$SWITCH_SYMBOL_HTML" ] && {
+			unset SWITCH_SYMBOL_HTML
+			echo -n '</tr></table>'
+		}
+		return 0
+	}
 
 	case "$type" in
 		""|eth0|switch0)
@@ -370,31 +380,44 @@ _switch_symbol()	# [a-cA-C] 10/100/100 half/full-duplex
 	local funcname="switch_symbol"
 	local duplex="$1"
 	local speed="$2"
+	local symbol_html symbol_text
+	local color_green_colorless='#99FF99'
+	local color_green_normal='#00FF00'
+	local color_green_strong='#00CC00'
+	local port_width='&ensp;'
 
 	case "${duplex}${speed}" in
 		"down")
-			echo -n "-"
+			symbol_text='-'
+			symbol_html="<td bgcolor='black' title='unconnected'>$port_width</td>"
 		;;
 		"gap")
-			echo -n "."
+			symbol_text='.'
+			symbol_html='<td bgcolor="white" title="gap">&thinsp;</td>'	# thin_width
 		;;
 		"half10")
-			echo -n "a"
+			symbol_text='a'
+			symbol_html="<td bgcolor='$color_green_colorless' title='10mbit/halfduplex'>&frac12;</td>"	# ½
 		;;
 		"half100")
-			echo -n "b"
+			symbol_text='b'
+			symbol_html="<td bgcolor='$color_green_normal' title='100mbit/halfduplex'>&frac12;</td>"	# ½
 		;;
 		"half1000")
-			echo -n "c"
+			symbol_text='c'
+			symbol_html="<td bgcolor='$color_green_strong' title='1000mbit/halfduplex'>&frac12;</td>"	# ½
 		;;
 		"full10")
-			echo -n "A"
+			symbol_text='A'
+			symbol_html="<td bgcolor='$color_green_colorless' title='10mbit/fullduplex'>$port_width</td>"
 		;;
 		"full100")
-			echo -n "B"
+			symbol_text='B'
+			symbol_html="<td bgcolor='$color_green_normal' title='100mbit/fullduplex'>$port_width</td>"
 		;;
 		"full1000")
-			echo -n "C"
+			symbol_text='C'
+			symbol_html="<td bgcolor='$color_green_strong' title='1000mbit/fullduplex'>$port_width</td>"
 		;;
 		*)
 			[ -e "/tmp/switch_unknown" ] || {
@@ -402,9 +425,16 @@ _switch_symbol()	# [a-cA-C] 10/100/100 half/full-duplex
 				_log do $funcname daemon alert "$duplex: $speed"
 			}
 
-			echo -n "Z"		# means: 'unknown'
+			symbol_text='Z'		# means: 'unknown'
+			symbol_html="<td bgcolor='grey' title='unknown'>?</td>"
 		;;
 	esac
+
+	if [ -n "$SWITCH_SYMBOL_HTML" ]; then
+		echo -n "$symbol_html"
+	else
+		echo -n "$symbol_text"
+	fi
 }
 
 _switch_type()
