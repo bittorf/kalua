@@ -4,7 +4,7 @@ _net_ip_reachable()
 {
 	local funcname="net_ip_reachable"
 	local ip="$1"
-	local max_attempts="${2:-30}"
+	local max_attempts="${2:-30}"			# must be >1
 	local dev="${3:-$( _net ip2dev "$ip" )}"
 	local dev_list="$dev"
 
@@ -14,8 +14,8 @@ _net_ip_reachable()
 			return 0
 		;;
 		'wlan'*)
-			# ip2dev() net reliable for multiradio
-			# fixme! introduce $WIFI_DEVS_ADHOC?
+			# TODO: ip2dev() net reliable for multiradio - introduce $WIFI_DEVS_ADHOC?
+			# without known arp-entry, we must check all adhoc-channels
 			for dev in $dev $WIFI_DEVS; do {
 				iw dev "$dev" info | grep -q 'type IBSS'$ && dev_list="$dev_list $dev"
 			} done
@@ -23,7 +23,6 @@ _net_ip_reachable()
 		;;
 	esac
 
-	_log do $funcname daemon debug "trying arping via dev $dev to ip $ip (max $max_attempts attempts)"
 	echo "$funcname" >"/tmp/CRON_OVERLOAD"
 
 	while let max_attempts=max_attempts-1 ; do {
@@ -44,7 +43,7 @@ _net_ip_reachable()
 				rm "/tmp/CRON_OVERLOAD"
 				return 0
 			else
-				_log do $funcname daemon info "ip: $ip dev: $dev remaining_try: $max_attempts"
+				_log do $funcname daemon info "arping: ip: $ip dev: $dev remaining_try: $max_attempts"
 				sleep 1
 			fi
 		} done
@@ -500,7 +499,7 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 				set -- $line
 				set +f		# globbing ON (default)
 
-				_log do $funcname daemon info "try1: $6 <- $@"
+				_log do $funcname daemon debug "try1: $6 <- $@"
 				echo "$6"
 				return 0
 			;;
