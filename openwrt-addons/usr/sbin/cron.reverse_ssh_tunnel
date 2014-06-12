@@ -3,23 +3,16 @@
 
 ARG1="$1"	# e.g. 'no_check_ssh'
 
-case "$CONFIG_PROFILE" in
-	berlinle*|extrawatt*|shankar*|fparkssee*|limona*|marinapark*|versiliaje*|cupandcoffee*|hotello-B01*)
-		PORTS="22"
-	;;
-	marinabh*|amalienhof*)
-		PORTS="22 80"
-	;;
-	*)
-		PORTS=
-	;;
-esac
-
 [ "$( uci get system.@monitoring[0].maintenance )" = "reverse_sshtunnel" ] && {
-	PORTS="22"
+	PORTS="$( uci get system.@monitoring[0].maintenance_ports )"
+	PORTS="${PORTS:-22}"
 }
 
-_net local_inet_offer || exit 1
+_net local_inet_offer || {
+	[ "$( uci get system.@monitoring[0].maintenance_force )" = '1' ] || {
+		exit 1
+	}
+}
 
 tunnel_is_running()
 {
