@@ -19,7 +19,7 @@ output_table()
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
-	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best th_insert mult_ip count cost_align
+	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best cost_best_time th_insert mult_ip count cost_align
 	local symbol_infinite='<big>&infin;</big>'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
@@ -87,9 +87,11 @@ output_table()
 	build_cost_best()
 	{
 		local remote_ip="$1"
+		local cost_file="/tmp/OLSR/isneigh_${remote_ip}_bestcost"
 
-		if [ -e "/tmp/OLSR/isneigh_${remote_ip}_bestcost" ]; then
-			read cost_best <"/tmp/OLSR/isneigh_${remote_ip}_bestcost"
+		if [ -e "$cost_file" ]; then
+			cost_best_time="$( _file time "$cost_file" humanreadable )"
+			read cost_best <"$cost_file"
 		else
 			cost_best='&mdash;'
 		fi
@@ -353,7 +355,7 @@ output_table()
  <td> $LQ </td>
  <td> $NLQ </td>
  <td sorttable_customkey='$cost_int' align='$cost_align' bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
- <td align='right'> $cost_best </td>
+ <td align='right' title='$cost_best_time'> $cost_best </td>
  <td align='right' bgcolor='$snr_color'> $snr </td>
  <td align='center'> $metric </td>
  <td align='right'> $rx_mbytes </td>
@@ -377,7 +379,7 @@ EOF
 		echo " <td sorttable_customkey='$octet3'> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
 		echo " <td colspan='5' nowrap> vermisst, zuletzt gesehen vor $age </td>"
-		echo " <td align='right'> $cost_best </td>"
+		echo " <td align='right' title='$cost_best_time'> $cost_best </td>"
 		echo " <td>&nbsp;</td>"
 		echo " <td align='center'> ${metric:-&mdash;} </td>"
 		echo " <td colspan='3'> &nbsp; </td>"
