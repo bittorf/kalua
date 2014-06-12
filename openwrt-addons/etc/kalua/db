@@ -213,6 +213,14 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 			if tar -C / -xzf "$file" ; then
 				_log do $funcname daemon info "[OK] untar"
 
+				grep -q "''" '/tmp/DB/USER/device/rows' && {
+					# fixed in 157d75a777bd1dcd573aac91cd281260abdb89c8 / 2014jun12
+					_log do $funcname daemon alert "repairing DB with doubled quotation marks"
+					# no action: A='value'
+					# repairing: A=''value'' -> A='value'
+					sed -i "/''[^']''/s/''/'/g" '/tmp/DB/USER/device/rows'
+				}
+
 				output_grepable_index()
 				{
 					# why tac? it's likely, that we grep for a new login - this should match faster
