@@ -176,3 +176,51 @@ Cherry Picking Git commits from forked repositories
 	** git commit -ac <hash>
 	* git push
 
+
+Special UCI-variables
+---------------------
+
+system.@weblogin[0].enabled		- bool
+system.@weblogin[0].dhcpautologout	- bool
+system.@weblogin[0].namespace		- string
+system.@weblogin[0].logtraffic		- bool
+
+system.@admin[0].location		- string
+system.@admin[0].latlon			- string
+system.@admin[0].mail			- string
+system.@admin[0].name			- string
+system.@admin[0].phone			- string
+system.@admin[0].neturl			- string
+
+system.@vpn[0].hostname			- hostname
+system.@vpn[0].ipaddr			- IP
+
+system.@system[0].noswinstall		- bool
+
+system.@profile[0].name			- string
+system.@profile[0].nodenumber		- integer
+system.@profile[0].ipsystem		- string
+
+system.@monitoring[0].url		- url
+
+system.@fwupdate[0].url			- url
+system.@fwupdate[0].mode		- string: 0|stable|beta|testing
+
+system.@vds[0].server			- scp-destination
+system.@vds[0].enabled			- bool
+
+system.@community[0].splash		- bool
+
+firewall.@adblock[0].enabled		- bool
+network.$INTERFACE.dyndns		- url
+
+mail.@pop3[0].username			- string
+mail.@pop3[0].password			- string
+mail.@pop3[0].server			- hostname
+mail.@pop3[0].port			- integer
+mail.@smtp[0].server			- hostname
+mail.@smtp[0].port			- integer
+mail.@smtp[0].name			- string: e.g. realname
+mail.@smtp[0].mail			- mailadresse
+mail.@smtp[0].auth=-P 222 bastian@bwireless.mooo.com:kalua_mail
+
