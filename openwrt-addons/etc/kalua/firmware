@@ -37,6 +37,8 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	local option="$2"	# e.g. force
 	local pwd="$( pwd )"
 
+	# uci get system.@system[0].noswinstall = 1?
+
 	[ -e "$MODE" ] || MODE="$( _firmware updatemode "$MODE" override )"
 	[ $( _system flash_free ) -lt 128 -a "$option" != 'force' ] && MODE='low_flash'
 
@@ -188,31 +190,37 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 
 _firmware_updatemode()		# updatemode <empty>		= string of configured update-mode
 {				# updatemode "stable"		= bool, true if "stable" = "configured update-mode", false if not
-	local CHECKMODE="$1"	# updatemode "beta" "override"	= string if mode "beta" is known, otherwise configured mode (fallback)
-	local KEYWORD="$2"
-	local OUT MODE
+	local check_mode="$1"	# updatemode "beta" "override"	= string if mode "beta" is known, otherwise configured mode (fallback)
+	local keyword="$2"
+	local out mode
 
-	if [ "$KEYWORD" = "override" ]; then
-		MODE="$CHECKMODE"
-		[ -z "$MODE" ] && MODE="$( uci get system.@fwupdate[0].mode )"
+	if [ "$keyword" = 'override' ]; then
+		if [ -n "$check_mode" ]; then
+			mode="$check_mode"
+		else
+			mode="$( uci get system.@fwupdate[0].mode )"
+		fi
 	else		
-		MODE="$( uci get system.@fwupdate[0].mode )"
+		mode="$( uci get system.@fwupdate[0].mode )"
 	fi
 
-	case $MODE in
-		0|beta|testing)
-			OUT="$MODE"
+	case "$mode" in
+		'0'|'beta'|'testing')
+			out="$mode"
 		;;
 		*)
-			OUT="stable"
+			out='stable'
 		;;
 	esac
 
-	if [ -n "$CHECKMODE" ] && [ -z "$KEYWORD" ]; then
-		[ "$OUT" = "$CHECKMODE" ] && return 0
-		return 1
+	if [ -n "$check_mode" -a -z "$keyword" ]; then
+		if [ "$out" = "$check_mode" ]; then
+			return 0
+		else
+			return 1
+		fi
 	else
-		echo -n "$OUT"
+		echo "$out"
 	fi
 }
 
