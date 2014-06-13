@@ -490,7 +490,7 @@ EOF
 
 output_table
 echo '  </table>'
-_switch show '' 'html.Ansicht der Netzwerkanschl&uuml;sse:&nbsp;'
+_switch show 'html' 'Ansicht der Netzwerkanschl&uuml;sse:&nbsp;'
 
 cat <<EOF
   <h3> Legende: </h3>
