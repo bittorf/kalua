@@ -882,13 +882,15 @@ apply_symbol()
 
 							if git am --signoff <"$file"; then
 								log "$funcname() ERROR during 'git am <$file'"
+								cd ..
+								cd ..
 							else
-								log "$funcname() ok - apply worked"
+								log "$funcname() OK - apply for '$file' worked"
+
+								cd ..
+								cd ..
 								break
 							fi
-
-							cd ..
-							cd ..
 						} done
 					}
 				} done
