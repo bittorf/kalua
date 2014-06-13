@@ -874,13 +874,13 @@ apply_symbol()
 						for dir in feeds/*; do {
 							[ -d "$dir" ] || continue
 
-							log "$funcname() trying in '$dir'"
+							log "$funcname() trying in '$dir' (now '$( pwd )')"
 							cd $dir
 
 							git rebase --abort
 							git am --abort
 
-							if git am --signoff <"$file"; then
+							if git am --signoff <"../../$file"; then
 								log "$funcname() ERROR during 'git am <$file'"
 								cd ..
 								cd ..
