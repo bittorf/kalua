@@ -617,13 +617,6 @@ _wifi_speed()
 {
 	local option="$1"	# e.g. 'force'
 
-	case "$CONFIG_PROFILE" in
-		ejbw*)
-			echo '1111'	# fixme!
-			return 0
-		;;
-	esac
-
 	local speed nexthop_interface
 	local nexthop="$( cut -d'=' -f3 /tmp/GATEWAY_CHECK_RECENT.batman 2>/dev/null | cut -d';' -f1 )"
 	[ -z "$nexthop" ] && nexthop="$( cut -d'=' -f6 /tmp/GATEWAY_CHECK_RECENT 2>/dev/null | cut -d';' -f1 )"
@@ -642,8 +635,9 @@ _wifi_speed()
 				set -- $( ip --oneline route get "$nexthop" )
 				while [ -n "$2" ]; do {
 					shift
+
 					case "$1" in
-						dev)
+						'dev')
 							nexthop_interface="$2"
 							case "$nexthop_interface" in	# e.g.: '   eth0.1'
 								*"${LANDEV:-nolan}")   nexthop_interface='LAN-' ;;
@@ -660,6 +654,12 @@ _wifi_speed()
 		}
 
 		# ignore SPEED_MAX=0 (enforce new measurement)
+		#
+		# SAMPLES=2
+		# SPEED_AVG=4695
+		# SPEED_MIN=3566
+		# SPEED_MAX=5825
+		# SPEED_SUM=9391
 		speed="$( _speedtest stats here "$nexthop" poormens_tcpdownload | grep 'SPEED_MAX=' | grep -v '=0' | cut -d'=' -f2 )"
 
 		[ -n "$speed" ] && {
@@ -669,6 +669,7 @@ _wifi_speed()
 
 	if [ -n "$nexthop" ]; then
 		speed="$( get_speed )"
+
 		if [ -z "$speed" -o "$option" = 'force' ]; then
 			_speedtest do here "$nexthop" poormens_tcpdownload
 			get_speed
