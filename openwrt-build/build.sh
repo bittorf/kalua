@@ -875,7 +875,7 @@ apply_symbol()
 							[ -d "$dir" ] || continue
 
 							log "$funcname() trying in '$dir'"
-							cd $file
+							cd $dir
 
 							git rebase --abort
 							git am --abort
