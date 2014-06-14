@@ -876,10 +876,12 @@ apply_symbol()
 
 							log "$funcname() trying in '$dir' (now '$( pwd )')"
 							cd $dir
+							log "$funcname() changed dir to '$( pwd )'"
 
 							git rebase --abort
 							git am --abort
 
+							log "$funcname() exec: git am --signoff <../../$file"
 							if git am --signoff <"../../$file"; then
 								log "$funcname() ERROR during 'git am <$file'"
 								cd ..
