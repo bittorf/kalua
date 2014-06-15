@@ -3,19 +3,23 @@
 _db_check()
 {
 	local funcname='db_check'
+	local statfile='/tmp/$funcname'
 	local file line i
 
 	for file in /tmp/DB/USER/device/rows /tmp/DB/USER/device/stats /tmp/DB/USER/login/rows /tmp/DB/USER/profile/rows; do {
-		_log do $funcname daemon info "eval each line in '$file'"
+		_log do $funcname daemon info "eval each line in '$file', check '$statfile' after errors"
 
 		i=0
 		while read line; do {
 			i=$(( $i + 1 ))
+			echo "file: $file lineno: $i line: $line" >"$statfile"
 			eval $line
 		} done <"$file"
 
 		_log do $funcname daemon info "[OK] file '$file' / $i lines"
 	} done
+
+	rm "$statfile"
 }
 
 _db_lock()
@@ -108,6 +112,12 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 			return 0
 		;;
 	esac
+
+	( _db check ) || {
+		# this will only happn once, the DB is locked now
+		_log do $funcname daemon sms "abort, db_check() fails"
+		return 1
+	}
 
 	_db lock now "$funcname"
 
