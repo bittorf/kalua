@@ -117,7 +117,7 @@ _log_do()				# CALL: _log do my_function_name daemon info "mytext"
 	local phonenumber="$6"
 	local force="$7"
 	local EVERLOG="/www/everlasting_syslog.txt"
-	local MEM UPTIME DATE i
+	local MEM UPTIME DATE i list message_to_send username password sms_header dest
 
 	[ -z "$MESSAGE" ] && {		# from stdin (pipe into function)
 		while read -t 3 MESSAGE; do {
@@ -137,9 +137,10 @@ _log_do()				# CALL: _log do my_function_name daemon info "mytext"
 		;;
 	esac
 
-	[ -e /tmp/LOWMEM ] && return	# fixme! maybe everlasting and log to console should work?
+	# fixme! maybe everlasting and log to console should work?
+	[ -e '/tmp/LOWMEM' ] && return
 
-	mem_uptime_and_date ()
+	mem_uptime_and_date()
 	{
 		[ -z "$MEM" -o -z "$UPTIME" -o -z "$DATE" ] && {
 			_system ram_free	MEM=
@@ -153,81 +154,31 @@ _log_do()				# CALL: _log do my_function_name daemon info "mytext"
 			eval $( mem_uptime_and_date )
 
 			[ "$PRIO" = "sms" ] && {
-				[ "$( uci get system.@weblogin[0].enabled )" = "1" ] && {
-					local I dest VAL1 VAL2 HEADER list
-					local reboots=10
-					[ -e /www/REBOOT_COUNTER ] && \
-						read reboots </www/REBOOT_COUNTER
+				if [ -n "$phonenumber" ]; then
+					list="$phonenumber"
+				else
+					list="$( uci -q get sms.@sms[0].admin )"
+				fi
 
-					VAL1="$( echo "123456" | sed 'y/654321/ecrofg/' )"
-					VAL2="$( echo 123456789abc | sed 'y/cba987654321/smspnusjmevm/' )77"
-					read I 2>/dev/null </www/REBOOT_COUNTER
-
-					HEADER="$( _system date humanreadable )$CONFIG_PROFILE $HOSTNAME ip:$WIFIADR up:${UPTIME}s reboots:$I"
-
-					case "$CONFIG_PROFILE" in
-						apphalle*)
-							list="0174/3564025"
-						;;
-						schoeneck*)
-							list="01729094456"
-						;;
-						aschbach*|hotello*)
-							list="01728117657 01727772555 01775906689"
-						;;
-						liszt28*)
-							force='true'
-						;;
-						spbansin*|itzehoe*)
-							list="01601531855"
-						;;
-						tkolleg*)
-							list="01714338506"
-						;;
-						dhfleesensee*)
-							list="01604797497"
-						;;
-						satama*)
-							# list="016096378028"
-						;;
-						ejbw*)
-							list="01622666169"	# lars
-						;;
-						rehungen*)
-							force='true'
-						;;
-					esac
-
-					list="$list 0$(( 999 - 823 ))/$(( 99999999 - 75776580 ))"	# bb
-
-					local message_to_send
-
-					if [ -n "$message_sms" ]; then
-						message_to_send="$message_sms"
-						HEADER=
-						local stack_funcname="$FUNCTION"
-						FUNCTION=
-					else
-						message_to_send="$MESSAGE"
-						HEADER="$HEADER "
-						FUNCTION="$FUNCTION "
-					fi
-
-					[ -n "$phonenumber" ] && {
-						list="$phonenumber"
-					}
-
-					[ -z "$force" ] && {
-						[ ${reboots:-0} -lt 3 ] && {
-							_log do logger daemon info "no sms, reboot counter = '$reboots', which is < 3"
-							list=
-						}
-					}
-
-					for dest in $list; do {
-						_sms send $dest "${HEADER}${FUNCTION}${message_to_send}" "" $VAL1 $VAL2
-					} done
+				[ -n "$list" ] && {
+					username="$( uci -q get sms.@sms[0].username )"
+					password="$( uci -q get sms.@sms[0].password )"
 				}
+
+				if [ -n "$message_sms" ]; then
+					message_to_send="$message_sms"
+					sms_header=
+					local stack_funcname="$FUNCTION"
+					FUNCTION=
+				else
+					message_to_send="$MESSAGE"
+					sms_header="$( _system date humanreadable )$CONFIG_PROFILE $HOSTNAME ip:$WIFIADR up:${UPTIME}s"
+					FUNCTION="$FUNCTION "
+				fi
+
+				for dest in $list; do {
+					_sms send $dest "${sms_header}${FUNCTION}${message_to_send}" '' $username $password
+				} done
 
 				[ -n "$stack_funcname" ] && FUNCTION="$stack_funcname"
 				PRIO="alert"
