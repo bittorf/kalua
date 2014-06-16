@@ -278,7 +278,7 @@ target_hardware_set()
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2')
 			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
-			FILENAME_FACTORY='openwrt-atheros-ubnt2-squashfs.bin'
+			FILENAME_FACTORY='openwrt-atheros-ubnt2-pico2-squashfs.bin'
 		;;
 		'Ubiquiti Nanostation5'|'Ubiquiti Picostation5')
 			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
