@@ -874,7 +874,7 @@ apply_symbol()
 						for dir in feeds/*; do {
 							[ -d "$dir" ] || continue
 
-							log "$funcname() trying in '$dir' (now '$( pwd )')"
+							log "$funcname() trying in dir '$dir' (now: '$( pwd )')"
 							cd $dir
 							log "$funcname() changed dir to '$( pwd )'"
 
@@ -883,15 +883,17 @@ apply_symbol()
 
 							log "$funcname() exec: git am --signoff <../../$file"
 							if git am --signoff <"../../$file"; then
+								log "$funcname() OK - apply for '$file' worked"
 								log "$funcname() ERROR during 'git am <$file'"
 								cd ..
 								cd ..
+
+								break
 							else
-								log "$funcname() OK - apply for '$file' worked"
+								log "$funcname() ERROR during 'git am <$file'"
 
 								cd ..
 								cd ..
-								break
 							fi
 						} done
 					}
