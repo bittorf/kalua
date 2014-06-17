@@ -276,11 +276,14 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin'
 		;;
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2')
+			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
+			# the other one is: Picostation M2 (HP) = MIPS 24KC / 400 MHz
 			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
 			FILENAME_FACTORY='openwrt-atheros-ubnt2-pico2-squashfs.bin'
 		;;
 		'Ubiquiti Nanostation5'|'Ubiquiti Picostation5')
+			# Atheros MIPS 4Kc / ath5k / 32 mb RAM / 8 mb FLASH
 			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
 			FILENAME_FACTORY='openwrt-atheros-ubnt5-squashfs.bin'
