@@ -349,15 +349,19 @@ func_backup_userdata ()		# and restore, if missing
 			if [ $restore_counter -le 6 ]; then
 				HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
 				URL_BACKUP="$( uci get system.@monitoring[0].url )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"
-				_wget do "$URL_BACKUP" >"$FILE" 60 || rm "$FILE"
+
+				if _wget do "$URL_BACKUP" >"$FILE" 120 ; then
+					_log do $FUNC daemon info "[OK] restored '$FILE' with $( _file size "$FILE" ) bytes"
+				else
+					_log do $FUNC daemon info "[ERR] download '$FILE' from '$URL_BACKUP' failed"
+					rm "$FILE"
+				fi
 
 				if [ -e "$FILE" ]; then
-					_log do $FUNC daemon info "restored '$FILE' with $( _file size "$FILE" ) bytes"
-
 					HASH="$( _file hash "$FILE" )"
 					echo -n "$HASH" >"$FILE.hashlastsend"
 
-					_db restore
+					_db restore && rm "/tmp/${FUNC}_restore_counter"
 				else
 					_log do $FUNC daemon info "[ERR] restoring/download failed, try $restore_counter in /tmp/${FUNC}_restore_counter"
 				fi
