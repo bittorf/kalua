@@ -71,6 +71,8 @@ _stopwatch start '/tmp/LOCK_OLSRSLAVE' global
 	ERROR="NEVER"
 elif _olsr uptime is_short; then
 	ERROR="SHORT_OLSR_UPTIME"
+elif [ ! -e '/tmp/OLSR/daemon_version' ]; then
+	ERROR="SHORT_OLSR_UPTIME"
 else
 	eval $( _http query_string_sanitize )		# ?netaddr=...&netmask=...&version=...
 
