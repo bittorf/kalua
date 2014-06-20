@@ -69,10 +69,16 @@ if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
 	# check if we've got HTTP Status 401 'Not Authorized'
 	case "$JSON_VAR_status" in
 		'401')
+			# {
+			#   "status": 401,
+			#   "msg": "Unauthorized!",
+			#   "result": "Wrong $PASS"
+			# }
+
 			# TODO: resetting the number here would auto-recover lost passwords
 			#       and asign new NODENUMBER on next try. like this:
 			# uci delete system.@profile[0].nodenumber
-			_log do registrator daemon alert "[ERR] somebody has your number '$NODENUMBER'"
+			_log do registrator daemon alert "[ERR] somebody has your number '$NODENUMBER' or your pass/sshkey-fingerprint has changed"
 
 			# API call is: Send a 'Create', with MAC and PASS.
 			# - successful answer *always* contains our NODENUMBER
