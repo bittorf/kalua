@@ -177,11 +177,15 @@ cat <<EOF
 <h1>$( _weblogin metadata_locationname )</h1>
 EOF
 
-grep -s ^"$HTTP_USER_AGENT"$ "/tmp/AUTH_USERDB_${REMOTE_ADDR}" || {
+grep -qs ^"$HTTP_USER_AGENT"$ "/tmp/AUTH_USERDB_${REMOTE_ADDR}" || {
 	if grep -q ^"/cgi-bin/:$FORM_AUTH_USER:$FORM_AUTH_PASS"$ '/etc/httpd.conf'; then
 		_log do userdb_gui daemon info "[OK] auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT'"
 		echo "$HTTP_USER_AGENT" >"/tmp/AUTH_USERDB_${REMOTE_ADDR}"
 	else
+		[ -z "$FORM_AUTH_USER" -o -z "$FORM_AUTH_PASS" ] && {
+			_log do userdb_gui daemon alert "[ERR] missing auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT'"
+		}
+
 		cat <<EOF
 <form name='login' action=''>
 <br>Username<br><input type='text' name='FORM_AUTH_USER'>
