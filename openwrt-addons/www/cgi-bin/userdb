@@ -178,7 +178,11 @@ cat <<EOF
 EOF
 
 grep -qs ^"$HTTP_USER_AGENT"$ "/tmp/AUTH_USERDB_${REMOTE_ADDR}" || {
-	if grep -q ^"/cgi-bin/:$FORM_AUTH_USER:$FORM_AUTH_PASS"$ '/etc/httpd.conf'; then
+	CONFIG="$( uci -q get uhttpd.main.config )"
+
+	if   [ ! -e "$CONFIG" ]; then
+		_log do userdb_gui daemon info "[OK] auth unneeded, no config file '$CONFIG'"
+	elif grep -q ^"/cgi-bin/:$FORM_AUTH_USER:$FORM_AUTH_PASS"$ "$CONFIG"; then
 		_log do userdb_gui daemon info "[OK] auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT'"
 		echo "$HTTP_USER_AGENT" >"/tmp/AUTH_USERDB_${REMOTE_ADDR}"
 	else
