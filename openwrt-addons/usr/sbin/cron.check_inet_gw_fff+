@@ -40,16 +40,14 @@ START="$( grep -n ^"Table: Routes"$ /tmp/OLSR/ALL | cut -d':' -f1 )"
 sed -n "$(( $START + 2 )),999999p" /tmp/OLSR/ALL >$FILE_OLSR_ROUTES
 
 while read LINE; do {
-
 	set ${LINE:-dummy}
-	GATEWAY=$1		# is "$IP/32"
-	NEXTHOP=$2
-	METRIC=$3
-	COST=$4
+	GATEWAY="$1"		# is "$IP/32"
+	NEXTHOP="$2"
+	METRIC="$3"
+	COST="$4"
 
 	for IP in $LIST_GATEWAYS; do {
 		[ "$IP/32" = "$GATEWAY" ] && {
-
 			if [ "${COST%.*}" = "0" ]; then			# 0.100 -> 100
 				COST_INT="${COST#*.}"
 			else						# 2.345 -> 2345
@@ -57,26 +55,20 @@ while read LINE; do {
 			fi
 
 			[ $COST_INT -lt $MINCOST ] && {
-				MINCOST=$COST_INT
+				_ipsystem do "$NEXTHOP" >/dev/null || {
+					# e.g. ejbw = 192.168.111.183 -> 10.10.50.33
+					# or ibfleesensee = 10.99.201.1 (olsr over VLANs)
+					set -- $( sed -n '/Table: MID/,/Table: Routes/ p' '/tmp/OLSR/ALL' | fgrep "$NEXTHOP" )
+					NEXTHOP="$1"
+				}
 
-				case "$CONFIG_PROFILE" in
-					ejbw*)
-						case "$NEXTHOP" in
-							192.168.111.183)
-								set -- $( sed -n '/Table: MID/,/Table: Routes/ p' '/tmp/OLSR/ALL' | fgrep "$NEXTHOP" )
-								NEXTHOP="$1"	# e.g. 10.10.50.33
-							;;
-						esac
-					;;
-				esac
-
+				MINCOST="$COST_INT"
 				OUT="COST_INT=$COST_INT; GATEWAY=$IP; NEXTHOP=$NEXTHOP; METRIC=$METRIC"
 			}
 		}
 	} done	
-
-} done <$FILE_OLSR_ROUTES
-rm $FILE_OLSR_ROUTES
+} done <"$FILE_OLSR_ROUTES"
+rm "$FILE_OLSR_ROUTES"
 
 [ -z "$OUT" ] && {
 	# gatewayip from routing table  // fixme! 'default dev tun0  scope link' -> no ip!
