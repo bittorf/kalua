@@ -184,6 +184,9 @@ system.@weblogin[0].enabled		- bool
 system.@weblogin[0].dhcpautologout	- bool
 system.@weblogin[0].namespace		- string
 system.@weblogin[0].logtraffic		- bool
+system.@weblogin[0].default_speed_up	- string: e.g. 16mbit
+system.@weblogin[0].default_speed_down	- string: e.g. 384kbit
+system.@weblogin[0].mac_unshaped	- string/list
 
 system.@admin[0].location		- string
 system.@admin[0].latlon			- string

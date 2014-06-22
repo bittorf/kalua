@@ -206,76 +206,18 @@ _netfilter_traffic_control_user_add()
 	local funcname="netfilter_traffic_control_user_add"
 	local ip="$1"
 	local speed_up="$2"		# e.g. 1mbit, 32kbit or 128000
-	local speed_down="$3"		# fixme! use profile instead of fix values, e.g. youtube
+	local speed_down="$3"		# TODO: use profile instead of fix values, e.g. youtube
 	local mac i j						# e.g. 32/1024 = wigo/tv works
-	local users file comment
+	local users file comment interface
 
-	[ -z "$speed_up" ] && {
-		case "$CONFIG_PROFILE" in
-			apphalle*)
-				speed_up=384kbit
-				speed_down=3mbit
-			;;
-			rehungen*)
-				case "$NODENUMBER" in
-					36)
-						# haupt52 (was: 16mbit)
-						speed_up=64kbit
-						speed_down=64kbit
-					;;
-					37|76|77|92|95)
-						speed_up=768kbit	# haupt25|schuetz17
-						speed_down=16mbit
-					;;
-					106|107|30|108|110|43|44|66|67|97|20|21)
-						# breite6|ONEklausg70|schuetz2|101b|haupt15|ONEhaupt43a|haupt70
-						speed_up=768kbit	
-						speed_down=10mbit
-					;;
-					*)
-						speed_up=768kbit
-						speed_down=6mbit
-					;;
-				esac
-			;;
-			limona*)
-				speed_up=768kbit
-				speed_down=8mbit
-			;;
-			leonardo*|castelfalfi*|adagio*)
-				speed_up=768kbit
-				speed_down=6mbit
-			;;
-			hotello*)
-				speed_up=512kbit
-				speed_down=4mbit
-			;;
-			liszt28*)
-				case "$mac" in
-					# R30mb|T61|f36NAS|schlachtNAS|danny|ApplePhotograf
-					70:1a:04:b1:5f:cf|00:13:e8:82:7e:4b|02:50:43:ab:1c:91|02:50:43:34:25:bc|9c:b7:0d:a2:49:a5|5c:96:9d:7a:9f:8d)
-						return 0
-					;;
-					*)
-						speed_up=384kbit
-						speed_down=1500kbit
-					;;
-				esac
-			;;
-			*)
-				speed_up=128kbit
-				speed_down=1mbit
-			;;
-		esac
-	}
-
-	local interface="$( ip -oneline route get "$ip" )"
+	interface="$( ip -oneline route get "$ip" )"
 	set -- $interface
 	interface="$3"
 	file="/tmp/TRAFFIC_CONTROL_UP_$interface"
 
 	# hierarchical token bucket: http://luxik.cdi.cz/~devik/qos/htb/
-	[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || {
+	[ -e "$file" ] || {
+		# fixme! we should only add if really needed (e.g. unshaped mac?)
 		tc qdisc add dev "$interface" root handle 1: htb default 30 && {
 			touch "$file"
 		}
@@ -292,6 +234,18 @@ _netfilter_traffic_control_user_add()
 			echo "$users $mac" >"$file"
 		;;
 	esac
+
+	[ -z "$speed_up" ] && {
+		# TODO: fetch from DB
+		speed_up="$(   uci -q get system.@weblogin[0].default_speed_up   )" || return 0
+		speed_down="$( uci -q get system.@weblogin[0].default_speed_down )" || return 0
+
+		case " $( uci -q get system.@weblogin[0].mac_unshaped ) " in
+			*" $mac "*)
+				return 0
+			;;
+		esac
+	}
 
 	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
 
