@@ -2,6 +2,53 @@
 
 # swconfig dev switch0 set reset 1; /etc/init.d/network restart
 
+_switch_query_robocfg()
+{
+	local funcname='switch_query_robocfg'
+	local port_list="$1"
+	local debug="$2"
+	local line port duplex
+
+	for port in $port_list; do {
+		[ "$port" = 'gap' ] && {
+			_switch symbol gap
+			continue
+		}
+
+		line="$( robocfg show 2>/dev/null | fgrep "Port ${port}(" )"
+		[ -n "$debug" ] && \
+			_log do $funcname daemon debug "type: $type port: $port line '$line'"
+
+		case "$line" in
+			*'DOWN'*)
+				_switch symbol down
+			;;
+			*)
+				case "$line" in
+					*'0FD enabled'*)
+						duplex="full"
+					;;
+					*)
+						duplex="half"
+					;;
+				esac
+
+				case "$line" in
+					*':  10'*)
+						_switch symbol "$duplex" 10
+					;;
+					*': 100'*)
+						_switch symbol "$duplex" 100
+					;;
+					*)
+						_switch symbol unknown
+					;;
+				esac
+			;;
+		esac
+	} done
+}
+
 _switch_query_swconfig()	# SENS: show a single switch-port of a 'swconfig'-controlled switch
 {
 	local funcname='switch_query_swconfig'
@@ -9,7 +56,7 @@ _switch_query_swconfig()	# SENS: show a single switch-port of a 'swconfig'-contr
 	local debug="$2"
 
 	local type="$( uci -q get network.@switch[0].name || echo "switch0" )"	# switch0 or rtl8366rb
-	local line port max_try
+	local line port max_try duplex
 
 	[ -e '/sbin/swconfig' ] || return 1
 
@@ -77,7 +124,7 @@ _switch_query_miitool()		# SENS: show a single switch-port of a 'mii-tool'-contr
 	local port_list="$1"
 	local debug="$2"
 
-	local line port max_try
+	local line port max_try duplex
 
 	for port in $port_list; do {
 		[ "$port" = "gap" ] && {
@@ -149,10 +196,14 @@ _switch_show()		# SENS: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit/
 	}
 
 	case "$HARDWARE" in
-		'Linksys WRT54G/GS/GL'|'La Fonera 2.0N'|'ASUS WL-500g Premium v2')
+		'Linksys WRT54G/GS/GL'|'Buffalo WHR-HP-G54'|'La Fonera 2.0N'|'ASUS WL-500g Premium v2')
 			# older revisions cannot work with 'swconfig' and use 'robocfg'
 			# WAN | 4 x LAN  - tested with r38650
-			_switch query_swconfig "4 gap 3 2 1 0" "$debug"
+			if [ -e '/sbin/robocfg' ]; then
+				_switch query_robocfg "0 gap 1 2 3 4" "$debug"
+			else
+				_switch query_swconfig "4 gap 3 2 1 0" "$debug"
+			fi
 		;;
 		'TP-LINK TL-WR841N/ND v8')
 			# WAN | 4 x LAN
