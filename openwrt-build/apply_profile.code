@@ -344,11 +344,20 @@ password_was_never_set()
 password_set()
 {
 	local PASSWORD="${1:-admin}"
+	local config_uhttpd='/etc/httpd.conf'
 	local credentials
 
 	which dropbear >/dev/null || {
 		log "missing dropbear, allowing telnet login permanentely in /bin/login.sh"
 		sed -i 's/exit 0/# exit 0/' /bin/login.sh
+	}
+
+	[ -e "$config_uhttpd" ] || {
+		echo "/cgi-bin/:root:$PASSWORD" >"$config_uhttpd"
+
+		for credentials in $HTTPD_CREDENTIALS; do {
+			echo "/cgi-bin/:$credentials" >>"$config_uhttpd"
+		} done
 	}
 
 	password_was_never_set || {
@@ -359,12 +368,6 @@ password_set()
 	log "password_set() to '$PASSWORD'"
 	sh -c "echo '$PASSWORD'; sleep 1; echo '$PASSWORD'" | passwd>/dev/null 2>&1
 	log "password_set() [OK]"
-
-	echo "/cgi-bin/:root:$PASSWORD" >/etc/httpd.conf
-
-	for credentials in $HTTPD_CREDENTIALS; do {
-		echo "/cgi-bin/:$credentials" >>/etc/httpd.conf
-	} done
 }
 
 contact()
