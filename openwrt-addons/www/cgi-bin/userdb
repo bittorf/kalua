@@ -180,15 +180,19 @@ EOF
 grep -qs ^"$HTTP_USER_AGENT"$ "/tmp/AUTH_USERDB_${REMOTE_ADDR}" || {
 	CONFIG="$( uci -q get uhttpd.main.config )"
 
-	if   [ ! -e "$CONFIG" ]; then
-		_log do userdb_gui daemon info "[OK] auth unneeded, no config file '$CONFIG'"
-	elif grep -q ^"/cgi-bin/:$FORM_AUTH_USER:$FORM_AUTH_PASS"$ "$CONFIG"; then
+	if   grep -q ^"/cgi-bin/:$FORM_AUTH_USER:$FORM_AUTH_PASS"$ "$CONFIG"; then
 		_log do userdb_gui daemon info "[OK] auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT'"
 		echo "$HTTP_USER_AGENT" >"/tmp/AUTH_USERDB_${REMOTE_ADDR}"
 	else
-		[ -z "$FORM_AUTH_USER" -o -z "$FORM_AUTH_PASS" ] && {
-			_log do userdb_gui daemon alert "[ERR] missing auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT'"
+		[ -e "$CONFIG" ] && {
+			_log do userdb_gui daemon info "config '$CONFIG' n/a"
 		}
+
+		if [ -z "$FORM_AUTH_USER" -o -z "$FORM_AUTH_PASS" ]; then
+			_log do userdb_gui daemon alert "[ERR] missing auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT'"
+		else
+			_log do userdb_gui daemon info "[ERR] wrong auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT' and USER: '$FORM_AUTH_USER' PASS: '$FORM_AUTH_PASS'"
+		fi
 
 		cat <<EOF
 <form name='login' action=''>
