@@ -120,6 +120,10 @@ else
 		knowing_hna_already "$netaddr" "$netmask" || {
 			hna_add "$netaddr" "$netmask"
 			add_static_routes "$REMOTE_ADDR" "$netaddr" "$netmask" "$dev2slave"
+
+			grep -sq "$REMOTE_ADDR" '/www/OLSR_has_neigh_LAN' && rm '/www/OLSR_has_neigh_LAN'
+			grep -sq "$REMOTE_ADDR" '/www/OLSR_has_neigh_WAN' && rm '/www/OLSR_has_neigh_WAN'
+
 			_olsr daemon restart "becoming hna-master for $REMOTE_ADDR: $netaddr/$netmask"
 		}
 	}
