@@ -1584,6 +1584,7 @@ _watch_wifistuff()
 _watch_olsrstuff()
 {
 	local funcname='watch_olsrstuff'
+	local firstrun
 
 	case "$CONFIG_PROFILE" in
 		# we can leave this here, even if batman is disabled for those networks (we test if batman runs)
@@ -1612,12 +1613,18 @@ _watch_olsrstuff()
 	esac
 
 	if pidof olsrd >/dev/null ; then
-		local firstrun
 		[ -e '/tmp/OLSR/ALL' ] || firstrun='true'
+
+		# TODO: neigh? + (potential olsr-master = slave on the other side) -> wait till we are master
+		[ -n "$LOWMEM" -a -e "/www/SIMPLE_MESHNODE" ] && {
+			[ $( _system uptime min ) -lt 60 ] && firstrun=
+		}
+
 		_olsr build_tables && {
 			[ "$firstrun" = 'true' ] && {
 				[ -e '/tmp/OLSR/ALL' ] && {
 					_log do $funcname daemon info "first successful OLSR-query"
+
 					[ -n "$LOWMEM" ] && _watch lowmem_freemem
 				}
 			}
