@@ -269,11 +269,11 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr941nd-v4-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr941nd-v4-squashfs-factory.bin'
 		;;
-		'TP-LINK TL-WR1043ND')
+		'TP-LINK TL-WR1043ND'|'TP-LINK TL-WR1043ND v2')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr1043nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-factory.bin'
+			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-factory.bin"
 		;;
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2')
 			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
