@@ -327,19 +327,24 @@ output_table()
 			cost_color='green'
 		fi
 
-		if [ -n "$COST" ]; then
-			case " $mult_list " in
-				*" $REMOTE "*)
-					# e.g. '10.10.12.1 0.7 10.10.99.1 0.3' -> 0.7
-					mult_ip="${mult_list#*$REMOTE }"
-					mult_ip="${mult_ip%% *}"
-					COST="${mult_ip}&nbsp;&lowast;&nbsp;${COST}"
-				;;
-			esac
+		case " $mult_list " in
+			*" $REMOTE "*)
+				# e.g. '10.10.12.1 0.7 10.10.99.1 0.3' -> 0.7
+				mult_ip="${mult_list#*$REMOTE }"
+				mult_ip="${mult_ip%% *}"
+			;;
+			*)
+				mult_ip=
+			;;
+		esac
 
+		if [ -n "$COST" ]; then
 			cost_align='right'
+			[ -n "$mult_ip" ] && COST="${mult_ip}&nbsp;&lowast;&nbsp;${COST}"
 		else
 			cost_align='center'
+			COST="$symbol_infinite"
+			[ -n "$mult_ip" ] && COST="(${mult_ip}&nbsp;&lowast;)&nbsp;$COST"
 		fi
 
 		build_cost_best "$REMOTE"
@@ -354,7 +359,7 @@ output_table()
  <td> $LOCAL </td>
  <td> $LQ </td>
  <td> $NLQ </td>
- <td sorttable_customkey='$cost_int' align='$cost_align' bgcolor='$cost_color'> ${COST:-$symbol_infinite} </td>
+ <td sorttable_customkey='$cost_int' align='$cost_align' bgcolor='$cost_color'> $COST </td>
  <td align='right' title='$cost_best_time'> $cost_best </td>
  <td align='right' bgcolor='$snr_color'> $snr </td>
  <td align='center'> $metric </td>
