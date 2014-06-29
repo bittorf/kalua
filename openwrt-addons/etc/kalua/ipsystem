@@ -193,124 +193,127 @@ _ipsystem_leonardo ()
 	_ipsystem ffweimar "$1" "10"
 }
 
-_ipsystem_ffweimar ()			# ARG1: - empty       -> has_nodenumber? -> output for my nodenumber
+_ipsystem_ffweimar()			# ARG1: - empty       -> has_nodenumber? -> output for my nodenumber
 {					#  	- "random" or empty && no_nodenumber?  -> output for random nodenumber
-	local NODE_NUMBER="$1"		#       - IP-address  -> output nodenumber
-	local CITY="${2:-63}"		#	- node-number -> output for this nodenumber, return 1 if not in range
-	local NW="${3:-10}"
-	local RANGE_START="${4:-2}"
-	local RANGE_END="${5:-1020}"
-	local RANGE_FIRST_RANDOM="${6:-970}"
-	local WIFI_MASK="${7:-8}"
+	local node_number="$1"		#       - IP-address  -> output nodenumber
+	local city="${2:-63}"		#	- node-number -> output for this nodenumber, return 1 if not in range
+	local network="${3:-10}"
+	local range_start="${4:-2}"
+	local range_end="${5:-1020}"
+	local range_first_random="${6:-970}"
+	local wifi_mask="${7:-8}"
+	local oct1 oct2 oct3 oct4 oldIFS s n random
 
-	  if [ -z "$NODE_NUMBER" ]; then
-
-		NODE_NUMBER="$( uci get system.@profile[0].nodenumber )"
-		[ -z "$NODE_NUMBER" ] && NODE_NUMBER=$( _math random_integer $RANGE_FIRST_RANDOM $RANGE_END )
-
-	elif [ "$NODE_NUMBER" = "random" ]; then
-
-		NODE_NUMBER=$( _math random_integer $RANGE_FIRST_RANDOM $RANGE_END )
-
-	elif [ "$( echo $NODE_NUMBER | sed 's/[^\.]//g' )" = '...' ]; then	# is IPv4
-		
-		eval $(echo $NODE_NUMBER|sed -n 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/local OCT1=\1\nlocal OCT2=\2\nlocal OCT3=\3\nlocal OCT4=\4/p')
-
-		[ $OCT1 -eq $NW ] && [ $OCT2 -eq $CITY ] && {
-		     	  if [ $OCT4 -gt 191 ]; then echo $(( $OCT3 + 765 ))
-			elif [ $OCT4 -gt 127 ]; then echo $(( $OCT3 + 510 ))
-			elif [ $OCT4 -gt  63 ]; then echo $(( $OCT3 + 255 ))
-			else 			     echo     $OCT3; fi
-			return 0
+	if   [ -z "$node_number" ]; then
+		node_number="$( uci -q get system.@profile[0].nodenumber )" || {
+			node_number="$( _math random_integer "$range_first_random" "$range_end" )"
 		}
+	elif [ "$node_number" = 'random' ]; then
+		node_number=$( _math random_integer "$range_first_random" "$range_end" )
+	elif _sanitizer ip4 "$node_number" >/dev/null ; then
+		oldIFS="$IFS"; IFS='.'; set -- $node_number; IFS="$oldIFS"
+		oct1="$1"; oct2="$2"; oct3="$3"; oct4="$4"
 
-		return 1
+		if [ $oct1 -eq $network -a $oct2 -eq $city ]; then
+			if   [ $oct4 -gt 191 ]; then
+				echo $(( $oct3 + 765 ))
+			elif [ $oct4 -gt 127 ]; then
+				echo $(( $oct3 + 510 ))
+			elif [ $oct4 -gt  63 ]; then
+				echo $(( $oct3 + 255 ))
+			else
+				echo $oct3
+			fi
+
+			return 0
+		else
+			return 1
+		fi
 	fi
-	
-	if [ 2>/dev/null "$NODE_NUMBER" -ge $RANGE_START -a "$NODE_NUMBER" -le $RANGE_END ]; then
-			
-		local S=0			# subnetstart 	e.g. network.city.100.${S}
-		local N=$NODE_NUMBER		# nodenumber_id	e.g. network.city.${N}.0
-		local RANDOM=false
-		
-		  if [ "$NODE_NUMBER" -ge $RANGE_FIRST_RANDOM ]; then
-			N=$(( $NODE_NUMBER - 765 ))
-			S=192
-			RANDOM=true
-		elif [ "$NODE_NUMBER" -gt 765 ]; then
-			N=$(( $NODE_NUMBER - 765 ))
-			S=192
-		elif [ "$NODE_NUMBER" -gt 510 ]; then
-			N=$(( $NODE_NUMBER - 510 ))
-			S=128
-		elif [ "$NODE_NUMBER" -gt 255 ]; then
-			N=$(( $NODE_NUMBER - 255 ))
-			S=64
+
+	if [ 2>/dev/null "$node_number" -ge $range_start -a "$node_number" -le $range_end ]; then
+		s='0'			# subnetstart 	e.g. network.city.100.${S}
+		n="$node_number"	# nodenumber_id	e.g. network.city.${N}.0
+		random='false'
+
+		if   [ "$node_number" -ge $range_first_random ]; then
+			n=$(( $node_number - 765 ))
+			s=192
+			random='true'
+		elif [ "$node_number" -gt 765 ]; then
+			n=$(( $node_number - 765 ))
+			s=192
+		elif [ "$node_number" -gt 510 ]; then
+			n=$(( $node_number - 510 ))
+			s=128
+		elif [ "$node_number" -gt 255 ]; then
+			n=$(( $node_number - 255 ))
+			s=64
 		fi
 	else
 		return 1
 	fi
 
-	cat<<EOF
-NODE_NUMBER=$NODE_NUMBER
-NODE_NUMBER_RANDOM=$RANDOM
-OLSR_HNA=$NW.$CITY.$N.$S/26
+	cat <<EOF
+NODE_NUMBER=$node_number
+NODE_NUMBER_RANDOM=$random
+OLSR_HNA=$network.$city.$n.$s/26
 
-LAN_ADR=$NW.$CITY.$N.$(( S + 33 ))
-LAN_IP=$NW.$CITY.$N.$(( S + 33 ))/27
-LAN_IP_1ST=$NW.$CITY.$N.$(( S + 34 ))/27
+LAN_ADR=$network.$city.$n.$(( $s + 33 ))
+LAN_IP=$network.$city.$n.$(( $s + 33 ))/27
+LAN_IP_1ST=$network.$city.$N.$(( $s + 34 ))/27
 LAN_PRE=27
 LAN_DHCP_PRE=27
 LAN_DHCP_NUM=29
 LAN_DHCP_LEASETIME=12h
 
-WAN_ADR=$NW.$CITY.$N.$(( S + 25 ))
+WAN_ADR=$network.$city.$n.$(( $s + 25 ))
 WAN_PRE=30
-WAN_IP=$NW.$CITY.$N.$(( S + 25 ))/30
+WAN_IP=$network.$city.$n.$(( $s + 25 ))/30
 
-WIFI_ADR=$NW.$CITY.$N.$(( S + 1 ))
-WIFI_IP=$NW.$CITY.$N.$(( S + 1 ))/$WIFI_MASK
-WIFI_IP_1ST=$NW.$CITY.$N.$(( S + 2 ))
+WIFI_ADR=$network.$city.$n.$(( $s + 1 ))
+WIFI_IP=$network.$city.$n.$(( $s + 1 ))/$wifi_mask
+WIFI_IP_1ST=$network.$city.$n.$(( $s + 2 ))
 WIFI_PRE=8
 WIFI_DHCP_PRE=28
 WIFI_DHCP_NUM=13
 WIFI_DHCP_LEASETIME=2h
 
-DHCP_LAN="$NW.$CITY.$N.$(( S + 34 ))/27,29,12h"
-DHCP_WIFI="$NW.$CITY.$N.$(( S + 2 ))/28,13,2h"
+DHCP_LAN="$network.$city.$n.$(( $s + 34 ))/27,29,12h"
+DHCP_WIFI="$network.$city.$n.$(( $s + 2 ))/28,13,2h"
 # ---
-FFF_CITY=$CITY
-FFF_NET=$NW
-FFF_NODE=$NODE_NUMBER
-FFF_HNA=$NW.$CITY.$N.$S/26
-LANADR=$NW.$CITY.$N.$(( S + 33 ))
-LAN1ST=$NW.$CITY.$N.$(( S + 34 ))
+FFF_CITY=$city
+FFF_NET=$network
+FFF_NODE=$node_number
+FFF_HNA=$network.$city.$n.$s/26
+LANADR=$network.$city.$n.$(( $s + 33 ))
+LAN1ST=$network.$city.$n.$(( $s + 34 ))
 LANMSK=255.255.255.224
-LANBRC=$NW.$CITY.$N.$(( S + 63 ))
-LANNET=$NW.$CITY.$N.$(( S + 32 ))
+LANBRC=$network.$city.$n.$(( $s + 63 ))
+LANNET=$network.$city.$n.$(( $s + 32 ))
 LANPRE=27
-LANDHCPSTART=$(( S + 34 ))
+LANDHCPSTART=$(( $s + 34 ))
 LANDHCPNUM=29
-WIFIADR=$NW.$CITY.$N.$(( S + 1 ))
-WIFI1ST=$NW.$CITY.$N.$(( S + 2 ))
+WIFIADR=$network.$city.$n.$(( $s + 1 ))
+WIFI1ST=$network.$city.$n.$(( $s + 2 ))
 WIFIMSK=255.255.255.224
-WIFIBRC=$NW.$CITY.$N.$(( S + 31 ))
-WIFINET=$NW.$CITY.$N.$S
+WIFIBRC=$network.$city.$n.$(( $s + 31 ))
+WIFINET=$network.$city.$n.$s
 WIFIPRE=27
-WANADR=$NW.$CITY.$N.$(( S + 25 ))
-WAN1ST=$NW.$CITY.$N.$(( S + 26 ))
+WANADR=$network.$city.$n.$(( $s + 25 ))
+WAN1ST=$network.$city.$n.$(( $s + 26 ))
 WANMSK=255.255.255.252
-WANBRC=$NW.$CITY.$N.$(( S + 27 ))
-WANNET=$NW.$CITY.$N.$(( S + 24 ))
+WANBRC=$network.$city.$n.$(( $s + 27 ))
+WANNET=$network.$city.$n.$(( $s + 24 ))
 WANPRE=30
-WIFIDHCPSTART=$NW.$CITY.$N.$(( S + 2 ))
+WIFIDHCPSTART=$network.$city.$n.$(( $s + 2 ))
 WIFIDHCPNUM=13
-WIFIVPNSERVERADR=$NW.$CITY.$N.$(( S + 30 ))
-WIFIVPNCLIENTADR=$NW.$CITY.$N.$(( S + 29 ))
-WIFIVPNNET=$NW.$CITY.$N.$(( S + 28 ))
-WIFIVPNBRC=$NW.$CITY.$N.$(( S + 31 ))
+WIFIVPNSERVERADR=$network.$city.$n.$(( $s + 30 ))
+WIFIVPNCLIENTADR=$network.$city.$n.$(( $s + 29 ))
+WIFIVPNNET=$network.$city.$n.$(( $s + 28 ))
+WIFIVPNBRC=$network.$city.$n.$(( $s + 31 ))
 WIFIVPNPRE=30
-ROAMING_IP4=172.31.$CITY.$NW
+ROAMING_IP4=172.31.$city.$network
 ROAMING_PRE=24
 EOF
 }
