@@ -201,6 +201,7 @@ target_hardware_set()
 
 	# # must match ' v[0-9]' and will be e.g. ' v7' -> '7'
 	local version="$( echo "$model" | sed -n 's/^.* v\([0-9]\)$/\1/p' )"
+	[ -z "$version" ] && version='1'
 
 	case "$model" in
 		'PC Engines ALIX.2')
