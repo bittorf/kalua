@@ -62,7 +62,7 @@ build_tarball_package()
 	local tar_options='--owner=root --group=root'
 	local architecture='all'
 	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
-	local builddir='kalua/builddir'
+	local builddir="$KALUA_DIRNAME/builddir"
 	local destdir="bin/${ARCH:-$architecture}/packages"
 
 	mkdir -p "$builddir"
@@ -82,7 +82,7 @@ Source: $url
 EOF
 
 	tar $tar_options -cvzf 'control.tar.gz' ./control
-	tar $tar_options -cvzf 'data.tar.gz' -C "$KALUA_DIRNAME/openwrt-addons" $( ls -1 "$KALUA_DIRNAME/openwrt-addons/" )
+	tar $tar_options -cvzf 'data.tar.gz' -C ../openwrt-addons $( ls -1 ../openwrt-addons )
 	tar $tar_options -cvzf "$file_tarball" ./debian-binary ./control.tar.gz ./data.tar.gz
 
 	cd ..
