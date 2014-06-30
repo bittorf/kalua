@@ -32,7 +32,7 @@ print_usage_and_exit()
 
 	cat <<EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
-       $0 --${KALUA_DIRNAME}_package
+       $0 --debug --${KALUA_DIRNAME}_package
 
 e.g. : $0 --openwrt $rev --hardware '$hardware' --usecase 'Standard,$KALUA_DIRNAME'
 
@@ -59,11 +59,13 @@ build_tarball_package()
 	local kalua_unixtime="$( cd kalua; git log -1 --pretty='format:%ct'; cd .. )"
 	local package_version="$(( $kalua_unixtime / 3600 ))"
 	local url='https://github.com/bittorf/kalua'		# TODO: ffweimar?
-	local tar_options='--owner=root --group=root'
 	local architecture='all'
 	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
 	local builddir="$KALUA_DIRNAME/builddir"
 	local destdir="bin/${ARCH:-$architecture}/packages"
+	local verbose="${DEBUG+v}"
+	local tar_flags="-c${verbose}zf"
+	local tar_options='--owner=root --group=root'
 
 	mkdir -p "$builddir"
 	cd "$builddir"
@@ -81,9 +83,9 @@ Architecture: $architecture
 Source: $url
 EOF
 
-	tar $tar_options -cvzf 'control.tar.gz' ./control
-	tar $tar_options -cvzf 'data.tar.gz' -C ../openwrt-addons $( ls -1 ../openwrt-addons )
-	tar $tar_options -cvzf "$file_tarball" ./debian-binary ./control.tar.gz ./data.tar.gz
+	tar $tar_options $tar_flags 'control.tar.gz' ./control
+	tar $tar_options $tar_flags 'data.tar.gz' -C ../openwrt-addons $( ls -1 ../openwrt-addons )
+	tar $tar_options $tar_flags "$file_tarball" ./debian-binary ./control.tar.gz ./data.tar.gz
 
 	cd ..
 	cd ..
