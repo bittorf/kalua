@@ -82,7 +82,7 @@ Source: $url
 EOF
 
 	tar $tar_options -cvzf 'control.tar.gz' ./control
-	tar $tar_options -cvzf 'data.tar.gz' -C 'kalua/openwrt-addons' $( ls -1 'openwrt-addons/' )
+	tar $tar_options -cvzf 'data.tar.gz' -C "$KALUA_DIRNAME/openwrt-addons" $( ls -1 "$KALUA_DIRNAME/openwrt-addons/" )
 	tar $tar_options -cvzf "$file_tarball" ./debian-binary ./control.tar.gz ./data.tar.gz
 
 	cd ..
