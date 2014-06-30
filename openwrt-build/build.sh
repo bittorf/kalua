@@ -32,6 +32,7 @@ print_usage_and_exit()
 
 	cat <<EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
+       $0 --${KALUA_DIRNAME}_tarball
 
 e.g. : $0 --openwrt $rev --hardware '$hardware' --usecase 'Standard,$KALUA_DIRNAME'
 
@@ -1388,6 +1389,10 @@ KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 
 while [ -n "$1" ]; do {
 	case "$1" in
+		"--${KALUA_DIRNAME}_tarball"|'-t')
+			build_tarball_package || print_usage_and_exit
+			exit 0
+		;;
 		'--help'|'-h')
 			print_usage_and_exit
 		;;
