@@ -55,7 +55,7 @@ EOF
 build_tarball_package()
 {
 	local funcname='build_tarball_package'
-	local package_name='kalua-framework'
+	local package_name="$KALUA_DIRNAME-framework"
 	local kalua_unixtime="$( cd kalua; git log -1 --pretty='format:%ct'; cd .. )"
 	local package_version="$(( $kalua_unixtime / 3600 ))"
 	local url='https://github.com/bittorf/kalua'		# TODO: ffweimar?
