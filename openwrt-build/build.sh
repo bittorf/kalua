@@ -56,14 +56,14 @@ build_tarball_package()
 {
 	local funcname='build_tarball_package'
 	local package_name='kalua-framework'
-	local kalua_unixtime="$( cd kalua; git log -1 --pretty=format:%ct; cd .. )"
+	local kalua_unixtime="$( cd kalua; git log -1 --pretty='format:%ct'; cd .. )"
 	local package_version="$(( $kalua_unixtime / 3600 ))"
-	local url='https://github.com/bittorf/kalua'
+	local url='https://github.com/bittorf/kalua'		# TODO: ffweimar?
 	local tar_options='--owner=root --group=root'
 	local architecture='all'
 	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
 	local builddir='kalua/builddir'
-	local destdir="bin/$ARCH/packages"	# because 'all' does not exist
+	local destdir="bin/${ARCH:-$architecture}/packages"
 
 	mkdir -p "$builddir"
 	cd "$builddir"
@@ -82,13 +82,14 @@ Source: $url
 EOF
 
 	tar $tar_options -cvzf 'control.tar.gz' ./control
-	tar $tar_options -cvzf 'data.tar.gz' $( ls -1 openwrt-addons/ )
+	tar $tar_options -cvzf 'data.tar.gz' -C 'kalua/openwrt-addons' $( ls -1 'openwrt-addons/' )
 	tar $tar_options -cvzf "$file_tarball" ./debian-binary ./control.tar.gz ./data.tar.gz
 
 	cd ..
 	cd ..
 
 	log "$funcname() moving '$file_tarball' from dir '$builddir' to '$destdir'"
+	mkdir -p "$destdir"
 	mv "$builddir/$file_tarball" "$destdir"
 }
 
