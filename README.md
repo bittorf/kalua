@@ -27,6 +27,7 @@ Patch files must be saved in openwrt-patches/ and their name should descripe wha
 You need to choose exactly one hardware and use it as the first argument prefixed with ```HARDWARE.``` (see example).
 
 hardware bundles:
+
 hardware | comment
 --|--
 ar71xx | build all ar71xx based hardware (recommanded)
@@ -36,6 +37,7 @@ Ubiquiti Bullet M | build Ubiquity images, mostly suitable for Bullets and Nanos
 Sometimes we need to patch some errors, because the won't be fixed that fast in openwrt or our requirements differ from the default approach. A patch in a commandline starts with ```patch:``` followed by the file name.
 
 patches:
+
 patch|comment
 --|--
 luci-remove-freifunk-firewall.patch | removes the firewall package from dependencies as we use our own tools
@@ -44,11 +46,12 @@ luci-remove-freifunk-firewall.patch | removes the firewall package from dependen
 There some features you can add to your image and to the build process. They're simply added to the commandline by name.
 
 feature packs:
+
 feature | explanation
 ------- | -----------
 ffweimar_standard | contains packages suitable and required for all weimarnetz installations
 ffweimar_luci_standard | adds luci as standard web interface
-hostapd | installs hostapd|mini to enable wireless AP (note: WPA isn't included)
+hostapd | installs hostapd-mini to enable wireless AP (note: WPA isn't included)
 https | enables https feature for uhhtpd
 i18n_german | adds german translations
 imagesbuilder | creates the imagebuilder file that is used for meshkit installations
@@ -57,7 +60,7 @@ owm | installs openwifimap client to support http://map.weimarnetz.de
 shrink | removes debug symbols to save space
 tc | adds traffic control, i.e. to optimize olsr links
 vtunnoZlibnoSSL | vpn client configured to connect to our vpn servers
-use_trunk | build latest openwrt trunk instead of revisions written in openwrt|config/git|revs. add this option at the end of your line.
+use_trunk | build latest openwrt trunk instead of revisions written in openwrt-config/git_revs. add this option at the end of your line.
 
 In the following box you'll find an example that builds our default image for weimarnetz routers based on ar71xx hardware. Simply call it step by step. Sometimes the build process will be interrupted. Mostly it's not an error, but some packages or dependencies of openwrt could not be downloaded. Try the last line again, if that happens. You could also debug that error by changing the directory to ```release/openwrt``` and call ```make V=s```.
 
