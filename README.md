@@ -29,7 +29,7 @@ You need to choose exactly one hardware and use it as the first argument prefixe
 hardware bundles:
 
 hardware | comment
---|--
+-------- | -------
 ar71xx | build all ar71xx based hardware (recommanded)
 TP-LINK TLWR841ND | build TP-Link WR841N/ND images
 Ubiquiti Bullet M | build Ubiquity images, mostly suitable for Bullets and Nanostations
@@ -38,8 +38,8 @@ Sometimes we need to patch some errors, because the won't be fixed that fast in 
 
 patches:
 
-patch|comment
---|--
+patch | comment
+----- | -------
 luci-remove-freifunk-firewall.patch | removes the firewall package from dependencies as we use our own tools
 901-minstrel-try-all-rates-patch | changes minstrel behaviour to try all Wifi rates, without this patch wifi will fall back very often to 1MBit/s
 
