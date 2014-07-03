@@ -6,8 +6,8 @@ kalua - build mesh-networks _without_ pain
 * documentation: [API](http://wireless.subsignal.org/index.php?title=Firmware-Dokumentation_API)
 
 
-needing support?
-join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bittorf-wireless.de)
+Need support?
+join the [club](http://www.weimarnetz.de) or ask for [consulting](http://bittorf-wireless.de)
 
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=weimarnetz&url=https://github.com/weimarnetz/weimarnetz&title=weimarnetz&language=&tags=github&category=software)
 
@@ -19,6 +19,47 @@ Important!
 
 how to get a release for a specific hardware
 --------------------------------------------
+To build weimarnetz images on your own, you need some preparation steps and one line together with some options for hardware, features and packages. The commands are shown below.
+
+All config options reside in openwrt-config/ and consist of fragments of openwrt config files or patch scripts you need to modify some files. You can add your own config file,hardware files must be named ```config_HARDWARE.NAME.txt```, features names are ```config_NAME.txt```.
+Patch files must be saved in openwrt-patches/ and their name should descripe what they do.
+
+You need to choose exactly one hardware and use it as the first argument prefixed with ```HARDWARE.``` (see example).
+
+hardware bundles:
+hardware | comment
+--|--
+ar71xx | build all ar71xx based hardware (recommanded)
+TP-LINK TLWR841ND | build TP-Link WR841N/ND images
+Ubiquiti Bullet M | build Ubiquity images, mostly suitable for Bullets and Nanostations
+
+Sometimes we need to patch some errors, because the won't be fixed that fast in openwrt or our requirements differ from the default approach. A patch in a commandline starts with ```patch:``` followed by the file name.
+
+patches:
+patch|comment
+--|--
+luci-remove-freifunk-firewall.patch | removes the firewall package from dependencies as we use our own tools
+901-minstrel-try-all-rates-patch | changes minstrel behaviour to try all Wifi rates, without this patch wifi will fall back very often to 1MBit/s
+
+There some features you can add to your image and to the build process. They're simply added to the commandline by name.
+
+feature packs:
+feature|explanation
+--|--
+ffweimar_standard | contains packages suitable and required for all weimarnetz installations
+ffweimar_luci_standard | adds luci as standard web interface
+hostapd | installs hostapd|mini to enable wireless AP (note: WPA isn't included)
+https | enables https feature for uhhtpd
+i18n_german | adds german translations
+imagesbuilder | creates the imagebuilder file that is used for meshkit installations
+options | creates a lot of modules that won't be included to the image by default. you can find these packages in bin/_arch_/packages
+owm | installs openwifimap client to support http://map.weimarnetz.de
+shrink | removes debug symbols to save space
+tc | adds traffic control, i.e. to optimize olsr links
+vtunnoZlibnoSSL | vpn client configured to connect to our vpn servers
+use_trunk | build latest openwrt trunk instead of revisions written in openwrt|config/git|revs. add this option at the end of your line.
+
+In the following box you'll find an example that builds our default image for weimarnetz routers based on ar71xx hardware. Simply call it step by step. Sometimes the build process will be interrupted. Mostly it's not an error, but some packages or dependencies of openwrt could not be downloaded. Try the last line again, if that happens. You could also debug that error by changing the directory to ```release/openwrt``` and call ```make V=s```.
 
 	# login as non-root user
 	export REPONAME="weimarnetz" && export REPOURL="git://github.com/weimarnetz/weimarnetz.git"
@@ -27,18 +68,8 @@ how to get a release for a specific hardware
 	DO="../$REPONAME/openwrt-build/build_release.sh"
 
 	# choose your router-model and build, for example:
-	$DO "HARDWARE.Linksys WRT54G:GS:GL" ffweimar_standard b43minimal patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard
-	$DO "HARDWARE.TP-LINK WR841ND" ffweimar_standard patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard i18n_german hostapd vtunnoZlibnoSSL i18n_german https owm 
-	#build all ar71xx based hardware images 
-	$DO "HARDWARE.ar71xx" ffweimar_standard patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard hostapd vtunnoZlibnoSSL i18n_german https owm shrink 
-	$DO "HARDWARE.Buffalo WZR-HP-AG300H" standard patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
-	$DO "HARDWARE.TP-LINK TL-WR1043ND" standard patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
-	$DO "HARDWARE.TP-LINK WR841ND" standard patch:901-minstrel-try-all-rates.patch dataretention trafficshaping kcmdlinetweak
-	$DO "HARDWARE.Linksys WRT54G:GS:GL" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf kcmdlinetweak
-	$DO "HARDWARE.Ekuku-Longshot" standard kernel.addzram patch:901-minstrel-try-all-rates.patch dataretention nopppoe b43minimal olsrsimple nohttps nonetperf unoptimized kcmdlinetweak
-	# explanation follows soon
-	# add "use_trunk" to the params list to use latest openwrt development snapshots
-	# add "options" to the build line to create some additional openwrt packages
+	#build all ar71xx based hardware images
+	$DO "HARDWARE.ar71xx" ffweimar_standard patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard hostapd vtunnoZlibnoSSL i18n_german https owm shrink tc
 
 
 how to build this from scratch on a debian server
@@ -54,7 +85,7 @@ how to build this from scratch on a debian server
 	git clone git://nbd.name/packages.git
 	cd openwrt
 	export REPONAME="weimarnetz" && export REPOURL="git://github.com/weimarnetz/weimarnetz.git"
-	git clone $REPOURL 
+	git clone $REPOURL
 
 	# for working with a specific openwrt-revision, do this:
 	# REV=33867	// current testing
@@ -200,4 +231,3 @@ Cherry Picking Git commits from forked repositories
 * resolve conflicts, if any
     * git commit -ac [hash]
 * git push
-
