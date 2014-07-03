@@ -44,8 +44,8 @@ luci-remove-freifunk-firewall.patch | removes the firewall package from dependen
 There some features you can add to your image and to the build process. They're simply added to the commandline by name.
 
 feature packs:
-feature|explanation
---|--
+feature | explanation
+------- | -----------
 ffweimar_standard | contains packages suitable and required for all weimarnetz installations
 ffweimar_luci_standard | adds luci as standard web interface
 hostapd | installs hostapd|mini to enable wireless AP (note: WPA isn't included)
