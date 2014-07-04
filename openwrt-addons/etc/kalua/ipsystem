@@ -204,15 +204,16 @@ _ipsystem_ffweimar()			# ARG1: - empty       -> has_nodenumber? -> output for my
 	local wifi_mask="${7:-8}"
 
 	local wifi_leasetime='30m'	# dnsmasq-syntax = 30 min
-	local wifi_leasenum='28'
+	local wifi_leasenum='29'
+	local lan_leasenum='13'
 	local oct1 oct2 oct3 oct4 oldIFS s n random
 
 	# a typical node 16:
 	# all:  10.63.16.0  /26  (=  0...64)
-	# WIFI: 10.63.16.0  /27  (=  1...30)
-	# LAN:  10.63.16.32 /27  (= 33...62)
-	# WAN:  10.63.16.60 /30  (= 61...62)
-	# VPN:  10.63.16.56 /30  (= 57...58)
+	# WIFI: 10.63.16.0  /27  (=  1...30) = 29 x DHCP
+	# LAN:  10.63.16.32 /28  (= 33...46) = 13 x DHCP
+	# VPN:  10.63.16.56 /30  (= 57...58) =  1 x here, 1 x remote
+	# WAN:  10.63.16.60 /30  (= 61...62) =  1 x here, 1 x remote
 
 	if   [ -z "$node_number" ]; then
 		node_number="$( uci -q get system.@profile[0].nodenumber )" || {
@@ -270,12 +271,20 @@ NODE_NUMBER_RANDOM=$random
 OLSR_HNA=$network.$city.$n.$s/26
 
 LAN_ADR=$network.$city.$n.$(( $s + 33 ))
-LAN_IP=$network.$city.$n.$(( $s + 33 ))/27
-LAN_IP_1ST=$network.$city.$n.$(( $s + 34 ))/27
-LAN_PRE=27
-LAN_DHCP_PRE=27
-LAN_DHCP_NUM=29
+LAN_IP=$network.$city.$n.$(( $s + 33 ))/28
+LAN_IP_1ST=$network.$city.$n.$(( $s + 34 ))/28
+LAN_PRE=28
+LAN_DHCP_PRE=28
+LAN_DHCP_NUM=$lan_leasenum
 LAN_DHCP_LEASETIME=12h
+LANADR=$network.$city.$n.$(( $s + 33 ))
+LAN1ST=$network.$city.$n.$(( $s + 34 ))
+LANMSK=255.255.255.240
+LANBRC=$network.$city.$n.$(( $s + 47 ))
+LANNET=$network.$city.$n.$(( $s + 32 ))
+LANPRE=28
+LANDHCPSTART=$(( $s + 34 ))
+LANDHCPNUM=$lan_leasenum
 
 WIFI_ADR=$network.$city.$n.$(( $s + 1 ))
 WIFI_IP=$network.$city.$n.$(( $s + 1 ))/$wifi_mask
@@ -285,22 +294,13 @@ WIFI_DHCP_PRE=27
 WIFI_DHCP_NUM=$wifi_leasenum
 WIFI_DHCP_LEASETIME=$wifi_leasetime
 
-DHCP_LAN="$network.$city.$n.$(( $s + 34 ))/27,29,12h"
+DHCP_LAN="$network.$city.$n.$(( $s + 34 ))/28,$lan_leasenum,12h"
 DHCP_WIFI="$network.$city.$n.$(( $s + 2 ))/27,$wifi_leasenum,$wifi_leasetime"
 
 FFF_CITY=$city
 FFF_NET=$network
 FFF_NODE=$node_number
 FFF_HNA=$network.$city.$n.$s/26
-
-LANADR=$network.$city.$n.$(( $s + 33 ))
-LAN1ST=$network.$city.$n.$(( $s + 34 ))
-LANMSK=255.255.255.224
-LANBRC=$network.$city.$n.$(( $s + 63 ))
-LANNET=$network.$city.$n.$(( $s + 32 ))
-LANPRE=27
-LANDHCPSTART=$(( $s + 34 ))
-LANDHCPNUM=29
 
 WIFIADR=$network.$city.$n.$(( $s + 1 ))
 WIFI1ST=$network.$city.$n.$(( $s + 2 ))

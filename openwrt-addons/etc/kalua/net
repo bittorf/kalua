@@ -726,6 +726,7 @@ _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless c
 	gateway_found()
 	{
 		local proto="$1"
+		local gateway_check="$( uci -q get system.@weblogin[0].gateway_check )"
 
 		case "$proto" in
 			batman)
@@ -753,7 +754,17 @@ _net_inet_seems_stable()					# fixme! also check path to gateway (add wireless c
 				fi
 			;;
 			olsr)
-				test -n "$( ip route list exact 0.0.0.0/0 table main )"
+				[ -n "$gateway_check" ] && {
+					_olsr gateways_get | grep -q ^"$( _sanitizer escape_dots "$gateway_check" )"$ || {
+						# gateway dont see the other GW's
+						_net local_inet_offer >/dev/null || {
+							_log do $funcname daemon info "[ERR] gateway '$gateway_check' not found"
+							return 1
+						}
+					}
+				}
+
+				test -n "$( ip route list exact '0.0.0.0/0' table main )"
 			;;
 		esac
 	}

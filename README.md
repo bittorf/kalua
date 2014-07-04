@@ -188,6 +188,7 @@ system.@weblogin[0].default_speed_up	- string: e.g. 16mbit
 system.@weblogin[0].default_speed_down	- string: e.g. 384kbit
 system.@weblogin[0].mac_unshaped	- string/list
 system.@weblogin[0].authserver		- IP
+system.@weblogin[0].gateway_check	- IP
 
 system.@admin[0].location		- string
 system.@admin[0].latlon			- string
