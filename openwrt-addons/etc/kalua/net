@@ -9,6 +9,7 @@ _net_mac2linklocal()	# SENS: mac-address to IPv6 fe80::*
 		*':'*)
 		;;
 		*)
+			# 112233445566 -> 11:22:33:44:55:66
 			mac="$( echo "$mac" | sed 's/\(\w\w\)\(\w\w\)\(\w\w\)\(\w\w\)\(\w\w\)\(\w\w\)/\1:\2:\3:\4:\5:\6/g' )"
 		;;
 	esac
@@ -18,11 +19,17 @@ _net_mac2linklocal()	# SENS: mac-address to IPv6 fe80::*
 
 _net_ip_reachable()
 {
-	local funcname="net_ip_reachable"
+	local funcname='net_ip_reachable'
 	local ip="$1"
-	local max_attempts="${2:-30}"			# must be >1
+	local max_attempts="${2:-30}"			# must be >1 or 'ping'
 	local dev="${3:-$( _net ip2dev "$ip" )}"
 	local dev_list="$dev"
+	local pingtest='127.0.0.1'
+
+	[ "$max_attempts" = 'ping' ] && {
+		max_attempts=3
+		pingtest="$ip"
+	}
 
 	case "$dev" in
 		'')
@@ -54,9 +61,11 @@ _net_ip_reachable()
 
 			if   arping -D -c 1 -I "$dev" -f "$ip" | grep -q ^'Received 1 replies'; then
 				rm "/tmp/CRON_OVERLOAD"
+				ping -c1 "$pingtest" >/dev/null || return 1
 				return 0
 			elif arping    -c 1 -I "$dev" -f "$ip" | grep -q ^'Received 1 replies'; then
 				rm "/tmp/CRON_OVERLOAD"
+				ping -c1 "$pingtest" >/dev/null || return 1
 				return 0
 			else
 				_log do $funcname daemon info "arping: ip: $ip dev: $dev remaining_try: $max_attempts"

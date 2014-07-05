@@ -153,7 +153,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 								[ -e '/www/OLSR_has_neigh_LAN' ] || echo "$2" >'/www/OLSR_has_neigh_LAN'
 
 								[ "$firstping_lan" = 'false' ] || {
-									if _net ip_reachable "$2" '3' "$LANDEV"; then
+									if _net ip_reachable "$2" 'ping' "$LANDEV"; then
 										# ok, only 1 check per dev
 										firstping_lan='false'
 										echo "$2" >"/tmp/OLSR/goodping_$LANDEV"
@@ -168,7 +168,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 								[ -e '/www/OLSR_has_neigh_WAN' ] || echo "$2" >'/www/OLSR_has_neigh_WAN'
 
 								[ "$firstping_wan" = 'false' ] || {
-									if _net ip_reachable "$2" '3' "$WANDEV"; then
+									if _net ip_reachable "$2" 'ping' "$WANDEV"; then
 										# ok, only 1 check per dev
 										firstping_wan='false'
 										echo "$2" >"/tmp/OLSR/goodping_$WANDEV"
@@ -249,7 +249,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		elif [ -e "/tmp/OLSR/goodping_$LANDEV" ]; then
 			read ip <"/tmp/OLSR/goodping_$LANDEV"
 
-			if _net ip_reachable "$ip" '3' "$LANDEV"; then
+			if _net ip_reachable "$ip" 'ping' "$LANDEV"; then
 				[ -e "/tmp/error_lanping_$func" ] && rm "/tmp/error_lanping_$func"
 			else
 				_log do $func daemon alert "lan-ping to '$ip' failed"
@@ -267,7 +267,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		elif [ -e "/tmp/OLSR/goodping_$WANDEV" ]; then
 			read ip <"/tmp/OLSR/goodping_$WANDEV"
 
-			if _net ip_reachable "$ip" '3' "$WANDEV"; then
+			if _net ip_reachable "$ip" 'ping' "$WANDEV"; then
 				[ -e "/tmp/error_wanping_$func" ] && rm "/tmp/error_wanping_$func"
 			else
 				_log do $func daemon alert "wan-ping to '$ip' failed"
@@ -980,18 +980,12 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 	} done <"$FILE"
 
 	for LINE in $( _olsr show_hna4_slaves ); do {
-		REMOTE="$( ip -o route get $LINE | cut -d' ' -f3 )"
+		REMOTE="$( ip -o route get "$LINE" | cut -d' ' -f3 )"
 
 		if _net ip_reachable "$REMOTE"; then
 			_log do $FUNC daemon debug "[OK] wired hna4-slave $REMOTE is reachable"
 		else
-			case "$CONFIG_PROFILE" in
-				dhsylt*)
-				;;
-				*)
-					_system reboot_safe "wired hna4-slave $REMOTE unreachable"
-				;;
-			esac
+			_system reboot_safe "wired hna4-slave $REMOTE unreachable"
 		fi
 	} done
 
