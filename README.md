@@ -232,3 +232,5 @@ mail.@smtp[0].auth			- string: e.g. -P 222 user@domain.tld:myfolder
 sms.@sms[0].admin			- string: phonenumber
 
 wireless.radio0.cronactive		- string: '18:00 - 08:00'
+
+network.wan.public_ip			- bool
