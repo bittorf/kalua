@@ -1067,7 +1067,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_rrdtool=y'			# utilities: rrdtool:
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
-				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
+				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools (=iwconfig)
+				apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 
 				$funcname subcall 'shaping'
 				$funcname subcall 'vtun'
