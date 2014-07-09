@@ -975,6 +975,7 @@ _netfilter_fakedns_stop()
 
 _netfilter_splash_start()
 {
+	local funcname='netfilter_splash_start'
 	local myhna="$( _netfilter myhna )"
 #	local debug="echo"			# must be empty for debug-mode
 	local ip source destination dev temp_dev dnsport
@@ -1057,19 +1058,31 @@ _netfilter_splash_start()
 	$IPT -t nat -A PREROUTING -p tcp -m mark --mark 0x16/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
 	$IPT -t nat -A PREROUTING -p udp -m mark --mark 0x15/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
 
-	for dev in $dev_list; do {
+	add_dev()
+	{
 		temp_dev="$dev"
 		[ "$dev" = 'gateway0' ] && dev='br-mybridge'
 
-		ip="$( _net dev2ip "$dev" )" || sleep 30
-		ip="$( _net dev2ip "$dev" )" || continue
-
+		ip="$( _net dev2ip "$dev" )" || return 1
 		[ "$temp_dev" = 'gateway0' ] && dev='gateway0'
+
 		$IPT -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
 		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:53
 		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
 		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
+	}
+
+	# TODO: hotplug
+	for dev in $dev_list; do {
+		add_dev "$dev" && dev_list="$( _list remove_element "$dev_list" "$dev" )"
 	} done
+
+	for dev in $dev_list; do {
+		_log do $funcname daemon alert "2nd try needed for dev '$dev'"
+		add_dev "$dev" && dev_list="$( _list remove_element "$dev_list" "$dev" )"
+	} done
+
+	[ -n "$dev_list" ] && _log do $funcname daemon alert "unable to add dev '$dev'"
 
 	# control-group: any packets left?
 	for dev in '-i eth+' '-i wlan+' ''; do {
