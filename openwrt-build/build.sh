@@ -1251,6 +1251,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-ip6tables is not set'	# kernel-modules: netfilter-extensions: ip6tables
 				apply_symbol 'CONFIG_PACKAGE_kmod-ipv6 is not set'	# kernel-modules: network-support: kmod-ipv6
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IPV6 is not set'	# base/busybox/networking/ipv6-support
+				apply_symbol 'CONFIG_PACKAGE_libip6tc is not set'
 			;;
 			'noPPPoE')
 				apply_symbol 'CONFIG_PACKAGE_ppp is not set'		# network: ppp

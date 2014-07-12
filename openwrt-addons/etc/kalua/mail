@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# _mail send "bittorf wireless )) Breitband Rehungen" "breitband-rehungen@gmx.de" "ANREDE VORNAME NACHNAME" "bittorf@bluebottle.com" "mail3-2010aug26-nach_Zusendung_Vertrag.txt" "STRASSE HAUSNUMMER" "ANREDE VORNAME" "NACHNAME" "/tmp/wlansystem-HotelZumnorde-2010aug05_16uhr42-32x1-Wochen-Ticket-Etiketten.pdf wlansystem-HotelZumnorde-2010aug05_16uhr42-32x1-Wochen-Ticket-Etiketten.pdf"
-
 # while read LINE; do set -- $LINE; echo "_mail send 'newsletter XY' wlan-assistance@gmx.de '$3 $4' $( for M in $LINE; do :; done; echo $M | sed 's/[<>]//g' ) /tmp/newsletter.txt"; echo "sleep 60"; done </tmp/.muttrc_alias >/tmp/doit.sh
 
 _mail_stash_for_later_resend()
@@ -75,6 +73,58 @@ _mail_pop3_check_stats()
 	echo "$answer" | _log do $funcname user info
 
 	return 1
+}
+
+_mail_send_newsletter()
+{
+	local funcname='mail_send_newsletter'
+	local file="$1"			# 'file' must look like:
+	local sendername="$2"		# email1
+	local senderemail="$3"		# email2
+					#
+					# subject
+					# .
+					# bodytext with X lines and keywords
+					# $VAR1 and $VAR2 (which is firstname+lastname and firstname)
+	local emailbody="/tmp/$funcname.$$"
+	local line email firstname lastname subject
+
+	while read line; do {
+		case "$line" in
+			*'@'*|'#'*)
+				# list of emails or comments
+			;;
+			*)
+				if [ -z "$subject" ]; then
+					subject="$line"
+					echo  >"$emailbody" "$subject"
+				else
+					echo >>"$emailbody" "$line"
+				fi
+			;;
+		esac
+	} done <"$file"
+
+	while read line; do {
+		case "$line" in
+			*'@'*)
+				set -- $line	# e.g.: <email@domain.tld> Full Name
+				email="$1"
+				firstname="$2"
+				shift 2
+				lastname="$@"
+
+				_mail send "$sendername" "$senderemail" \
+					   "$firstname $lastname" "$email" \
+					   "$emailbody" \
+					   "$firstname $lastname" "$firstname"
+			;;
+			'')
+				rm "$emailbody"
+				break
+			;;
+		esac
+	} done <"$file"
 }
 
 _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,name...
