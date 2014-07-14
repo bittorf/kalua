@@ -1,15 +1,13 @@
 #!/bin/sh
 . /tmp/loader
 
-# fixme! Idee: - es wird direkt eine Seite erzeugt, die man sich direkt ausdrucken kann mit allen
-#              - technischen Daten fuer diesen Router und freies Feld fuer das Passwort
-
-if [ -z "$1" ]; then		# call from httpd
-	eval $( _http query_string_sanitize )
+if [ -n "$REMOTE_ADDR" ]; then
+	# called from httpd/cgi
+	eval $( _http query_string_sanitize )			# e.g. http://url/?OPT=sysinfo
 
 	[ "$REQUEST_METHOD" = "POST" ] && {			# do this, if submit-button was pressed
 								# (POST-method) - GET arguments are passed too(!)
-		[ -n "$FORM_LATITUDE" ] && [ -n "$FORM_LONGITUDE" ] && {
+		[ -n "$FORM_LATITUDE" -a -n "$FORM_LONGITUDE" ] && {
 			_log do setting_gps user info "LATITUDE='$FORM_LATITUDE' LONGITUDE='$FORM_LONGITUDE'"
 			_nvram set ff_adm_latlon "$FORM_LATITUDE;$FORM_LONGITUDE"
 			_nvram set commit "changed ff_adm_latlon"
@@ -27,11 +25,27 @@ if [ -z "$1" ]; then		# call from httpd
 			exit
 		}
 	}
-else				# call from shell
+else
+	# call from shell (not via webserver)
 	OPT="$1"	
 fi
 
 case "$OPT" in
+	portforwarding)
+		# sort of poormens-UPnP:
+		# e.g. a remote node, asks if we can forward a port (tcp+udp) to him
+		# e.g. OPT=portforwarding&CLIENT=$ip&PORT=80&MAC=11:22:33:44:55:66&NAME=webcam
+		#
+		# ANSWER='number of external-port', e.g. 10080 or 'ERR'
+
+		_http header_mimetype_output text/plain
+
+		if _net local_inet_offer >/dev/null; then
+			_netfilter portforwarding_add "$WANDEV" "$REMOTE_ADDR-$MAC-$PORT" "$PORT" "$CLIENT" "$NAME ip: $REMOTE_ADDR mac: $MAC"
+		else
+			echo 'ERROR - no local inet offer'
+		fi
+	;;
 	hostname)
 		_http header_mimetype_output text/plain
 		echo "$HOSTNAME"

@@ -864,19 +864,81 @@ _netfilter_masquerade_stop()
 	}
 }
 
+_netfilter_portforwarding_request()
+{
+	local ip="$1"
+	local mac="$2"
+	local host="$3"
+	local gateway port
+	local dynamic="$( uci -q get system.@weblogin[0].dynamic_portfw )"
+
+	# TODO: reschedule if fails
+	case "$mac" in
+		"${dynamic:-empty}"*)
+			for port in 22 80 443; do {
+				nc 2>/dev/null "$ip" "$port" </dev/null && {
+					read gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
+					_tool remote "$gateway" "portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host"
+				}
+			} done
+		;;
+	esac
+}
+
+_netfilter_portforwarding_add()
+{
+	local incoming_dev="$1"		# e.g. $WANDEV = eth0.2
+	local port_ext="$2"		# e.g. 10080 or webcam-11:22:33:44:55:66
+	local port="$3"			# e.g. 80
+	local ip="$4"			# client/destination
+	local message="$5"		# node: 276 router: 10.63.21.65 hostname: ICS230 mac: 11:22:33:44:55:66
+	local file='/tmp/NETFILTER/portfw'
+	local marker command
+	local command="-t nat -I PREROUTING -i $incoming_dev -p tcp --dport $port_ext -j DNAT --to-destination $ip:$port"
+
+	# is a number?
+	[ 2>/dev/null ${port_ext:-nonumber} -eq $port_ext ] || port_ext="$( _net text2port "$port_ext" )"
+
+	case "$1" in
+		"$IPT "*)
+			# custom rule, description is ARG2
+			marker="# $2"
+			command="$1"
+		;;
+		*)
+			command="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+			marker="# client: $ip port: $port port_ext: $port_ext dev: $incoming_dev $message"
+		;;
+	esac
+
+	if grep -qs ^"$marker" "$file"; then
+		:
+	else
+		echo >>"$file" "$marker"
+
+		case "$command" in
+			"$IPT "*)
+				echo >>"$file" "$command"
+			;;
+			*)
+				echo >>"$file" "$IPT -p tcp $command"
+				echo >>"$file" "$IPT -p udp $command"
+			;;
+		esac
+	fi
+}
+
 _netfilter_portforwarding_start()
 {
+	# TODO: make it possible to start|stop ruleset
+
 	# TODO: convert to userscript: /etc/firewall.user -> /tmp/firewall.user
 	case "$CONFIG_PROFILE" in
 		liszt28*)
 			[ "$NODENUMBER" = '276' ] && {
-				# NAS
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10022 -j DNAT --to-destination 10.63.21.111:22
-				# medion: SSH/bitcoind/http
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport  222 -j DNAT --to-destination 10.63.2.34:22
-#				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 8333 -j DNAT --to-destination 10.63.2.34:8333
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport   80 -j DNAT --to-destination 10.63.2.34:80
-				$IPT -t nat -I POSTROUTING -d 10.63.2.34 -j MASQUERADE
+				_netfilter portforwarding_add "$WANDEV" '10022' '22' '10.63.21.111' 'KellerNAS:SSH'
+				_netfilter portforwarding_add "$WANDEV"   '222' '22' '10.63.2.34'   'Medion:SSH'
+				_netfilter portforwarding_add "$IPT -t nat -I POSTROUTING -d 10.63.2.34 -j MASQUERADE" 'Medion:MASQ'
 			}
 
 			[ "$NODENUMBER" = '99' ] && {
@@ -908,6 +970,8 @@ _netfilter_portforwarding_start()
 			}
 		;;
 	esac
+
+	[ -e '/tmp/NETFILTER/portfw' ] && . '/tmp/NETFILTER/portfw'
 }
 
 _netfilter_portforwarding_stop()
@@ -1047,7 +1111,7 @@ _netfilter_splash_start()
 		$IPT -A FORWARD   -i $WIFIDEV   -o $WIFIDEV		# wifi -> wifi
 	}
 
-	grep -q ^"ipt_REJECT " /proc/modules || insmod ipt_REJECT	# fixme! remove later when new cron.patch_patch_kmodules.sh is active
+	grep -q ^'ipt_REJECT ' /proc/modules || insmod ipt_REJECT	# fixme! remove later when new cron.patch_patch_kmodules.sh is active
 	$IPT -A FORWARD -m mark --mark 0x88/0xff -j REJECT
 	$IPT -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer 2nd time
 	_netfilter mssfix
