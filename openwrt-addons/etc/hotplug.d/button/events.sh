@@ -36,6 +36,7 @@ case "${BUTTON}-${ACTION}" in
 			local url6='radio-blau main http://www.radioblau.de/stream/radioblau.m3u'
 			local url7='apollo-radio main http://stream.apolloradio.de/APOLLO/mp3.m3u'
 			local url8='radio-lotte main http://www.radio-lotte.de/stream/radiolotte.m3u'
+			local url9='FM4 main http://mp3stream1.apasf.apa.at:8000'
 
 			if [ -e "$file" ]; then
 				read dummy i <"$file"
@@ -51,7 +52,7 @@ case "${BUTTON}-${ACTION}" in
 			read DSPDEV <'/tmp/audioplayer.dev'
 
 			case "$i" in
-				2|3|4|5|6|7|8)
+				2|3|4|5|6|7|8|9)
 					eval url="\$url$i"
 				;;
 				*)
