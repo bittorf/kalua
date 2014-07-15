@@ -891,7 +891,8 @@ _netfilter_portforwarding_add()
 	local port_ext="$2"		# e.g. 10080 or webcam-11:22:33:44:55:66
 	local port="$3"			# e.g. 80
 	local ip="$4"			# client/destination
-	local message="$5"		# node: 276 router: 10.63.21.65 hostname: ICS230 mac: 11:22:33:44:55:66
+	local uniq_id="$5"		# e.g. mac
+	local message="$6"		# e.g. node: 276 router: 10.63.21.65 hostname: ICS230
 	local file='/tmp/NETFILTER/portfw'
 	local marker command date
 	local command="-t nat -I PREROUTING -i $incoming_dev -p tcp --dport $port_ext -j DNAT --to-destination $ip:$port"
@@ -909,11 +910,12 @@ _netfilter_portforwarding_add()
 		;;
 		*)
 			command="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
-			marker="# client: $ip port: $port port_ext: $port_ext dev: $incoming_dev $message"
+			marker="# client: $ip mac/id: $uniq_id port: $port port_ext: $port_ext msg: $message"
 		;;
 	esac
 
 	# TODO: same mac on another router? -> remove old entry
+	# TODO: dont complain if HOSTNAME has changed
 	if grep -qs ^"$marker" "$file"; then
 		:
 	else
@@ -940,8 +942,8 @@ _netfilter_portforwarding_start()
 	case "$CONFIG_PROFILE" in
 		liszt28*)
 			[ "$NODENUMBER" = '276' ] && {
-				_netfilter portforwarding_add "$WANDEV" '10022' '22' '10.63.21.111' 'KellerNAS:SSH'
-				_netfilter portforwarding_add "$WANDEV"   '222' '22' '10.63.2.34'   'Medion:SSH'
+				_netfilter portforwarding_add "$WANDEV" '10022' '22' '10.63.21.111' '02:50:43:ab:1c:91' 'KellerNAS:SSH'
+				_netfilter portforwarding_add "$WANDEV"   '222' '22' '10.63.2.34'   '00:1d:92:52:11:20' 'Medion:SSH'
 				_netfilter portforwarding_add "$IPT -t nat -I POSTROUTING -d 10.63.2.34 -j MASQUERADE" 'Medion:MASQ'
 			}
 
