@@ -869,8 +869,8 @@ _netfilter_portforwarding_request()
 	local ip="$1"
 	local mac="$2"
 	local host="$3"
-	local gateway port
-	local dynamic="$( uci -q get system.@weblogin[0].dynamic_portfw )"
+	local gateway port dynamic
+	dynamic="$( uci -q get system.@weblogin[0].dynamic_portfw )" || return 0
 
 	# TODO: reschedule if fails
 	case "$mac" in
@@ -893,7 +893,7 @@ _netfilter_portforwarding_add()
 	local ip="$4"			# client/destination
 	local message="$5"		# node: 276 router: 10.63.21.65 hostname: ICS230 mac: 11:22:33:44:55:66
 	local file='/tmp/NETFILTER/portfw'
-	local marker command
+	local marker command date
 	local command="-t nat -I PREROUTING -i $incoming_dev -p tcp --dport $port_ext -j DNAT --to-destination $ip:$port"
 
 	# TODO: add autoreload without setting rules twice: -> stop/start
@@ -913,9 +913,11 @@ _netfilter_portforwarding_add()
 		;;
 	esac
 
+	# TODO: same mac on another router? -> remove old entry
 	if grep -qs ^"$marker" "$file"; then
 		:
 	else
+		date="$( _system date humanreadable nice )"
 		echo >>"$file" "$marker"
 
 		case "$command" in
@@ -923,8 +925,8 @@ _netfilter_portforwarding_add()
 				echo >>"$file" "$command"
 			;;
 			*)
-				echo >>"$file" "$IPT -p tcp $command"
-				echo >>"$file" "$IPT -p udp $command"
+				echo >>"$file" "$IPT -p tcp $command	# $date"
+				echo >>"$file" "$IPT -p udp $command	# $date"
 			;;
 		esac
 	fi
