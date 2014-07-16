@@ -901,7 +901,7 @@ _netfilter_portforwarding_add()
 	local uniq_id="$5"		# e.g. mac
 	local message="$6"		# e.g. node: 276 router: 10.63.21.65 hostname: ICS230
 	local file='/tmp/NETFILTER/portfw'
-	local marker command date
+	local marker infoline command date
 	local command="-t nat -I PREROUTING -i $incoming_dev -p tcp --dport $port_ext -j DNAT --to-destination $ip:$port"
 
 	# TODO: add autoreload without setting rules twice: -> stop/start
@@ -911,31 +911,36 @@ _netfilter_portforwarding_add()
 
 	case "$1" in
 		"$IPT "*)
-			# custom rule, description is ARG2
-			marker="# $2"
 			command="$1"
+			marker="# $2"	# ARG2 = description
+			infoline='# custom userdefined rule'
 		;;
 		*)
 			command="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
-			marker="# client: $ip mac/id: $uniq_id port: $port port_ext: $port_ext msg: $message"
+			marker="# client: $ip mac/id: $uniq_id port: $port port_ext: $port_ext"
+			infoline="# $( date ) msg: $message"
 		;;
 	esac
 
 	# TODO: same mac on another router? -> remove old entry
-	# TODO: dont complain if HOSTNAME has changed
 	if grep -qs ^"$marker" "$file"; then
 		:
 	else
 		date="$( _system date humanreadable nice )"
 		echo >>"$file" "$marker"
+		echo >>"$file" "$infoline"
 
 		case "$command" in
 			"$IPT "*)
+				# custom userdefined rule
 				echo >>"$file" "$command"
+				$command
 			;;
 			*)
 				echo >>"$file" "$IPT -p tcp $command	# $date"
 				echo >>"$file" "$IPT -p udp $command	# $date"
+				$IPT -p tcp $command
+				$IPT -p udp $command
 			;;
 		esac
 	fi
