@@ -876,7 +876,7 @@ _netfilter_portforwarding_request()
 	local ip="$1"
 	local mac="$2"
 	local host="$3"
-	local gateway port dynamic
+	local gateway port dynamic answer
 	dynamic="$( uci -q get system.@weblogin[0].dynamic_portfw )" || return 0
 
 	# TODO: reschedule if fails
@@ -886,7 +886,15 @@ _netfilter_portforwarding_request()
 			for port in 22 80 443 554; do {
 				nc 2>/dev/null "$ip" "$port" </dev/null && {
 					read gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
-					_tool remote "$gateway" "portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host"
+					answer="$( _tool remote "$gateway" "portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host" )"
+
+					case "$answer" in
+						'OK'*)
+						;;
+						*)
+							echo >>$SCHEDULER "_tool remote $gateway 'portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host'"
+						;;
+					esac
 				}
 			} done
 		;;
