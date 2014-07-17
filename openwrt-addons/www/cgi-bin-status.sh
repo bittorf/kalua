@@ -510,7 +510,7 @@ cat <<EOF
    <ul>
     <li> <b><font color='green'>Gr&uuml;n</font></b>: sehr gut (ETX < 2) </li>
     <li> <b><font color='yellow'>Gelb</font></b>: gut (2 < ETX < 4) </li>
-    <li> <b><font color='orange'>Orange</font></b>: Nnch nutzbar (4 < ETX < 10) </li>
+    <li> <b><font color='orange'>Orange</font></b>: noch nutzbar (4 < ETX < 10) </li>
     <li> <b><font color='red'>Rot</font></b>: schlecht (ETX > 10) </li>
    </ul>
    </li>
