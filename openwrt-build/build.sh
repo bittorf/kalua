@@ -1194,7 +1194,7 @@ build_options_set()
 			;;
 			'mesh')
 				$funcname subcall 'OLSRd'
-				$funcname subcall 'BatmanAdv'
+#				$funcname subcall 'BatmanAdv'
 			;;
 			'OLSRd')
 				apply_symbol 'CONFIG_PACKAGE_olsrd=y'			# network: routing/redirection: olsrd:
