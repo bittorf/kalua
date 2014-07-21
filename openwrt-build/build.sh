@@ -583,9 +583,15 @@ openwrt_download()
 			if [ -n "$branch" ]; then
 				log "$funcname() switching back to branch 'master'"
 				# dont show which files have changed
-				git checkout master >/dev/null
-				log "$funcname() deleting branch '$branch'"
-				git branch -D "$branch"
+				if git checkout master >/dev/null; then
+					log "$funcname() deleting branch '$branch'"
+					git branch -D "$branch"
+				else
+					log "$funcname() cannot switch to master"
+					git stash list
+
+					return 1
+				fi
 			else
 				log "$funcname() already at branch 'master"
 			fi
