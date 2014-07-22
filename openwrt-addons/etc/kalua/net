@@ -15,6 +15,7 @@ _net_mac2linklocal()	# SENS: mac-address to IPv6 fe80::*
 {
 	local mac="$1"
 	local url="http://ben.akrin.com/ipv6_mac_address_to_link_local_converter/?mode=api"
+	local line
 
 	case "$mac" in
 		*':'*)
@@ -25,7 +26,16 @@ _net_mac2linklocal()	# SENS: mac-address to IPv6 fe80::*
 		;;
 	esac
 
-	wget -qO - "${url}&mac=${mac}"
+	# root@R4-Revklappe-AP:~ ip neigh | grep ^'fe80::' | grep "lladdr $mac"
+	# fe80::1cfc:fe65:769:3784 dev wlan0 lladdr 84:b1:53:b2:b8:b3 STALE
+	# fe80::cea:3b47:5812:96be dev wlan0 lladdr 84:b1:53:b2:b8:b3 STALE
+	line="$( ip neigh | grep ^'fe80::' | grep "lladdr $mac" | cut -d' ' -f1 )"
+
+	if [ -n "$line" ]; then
+		echo "$line"
+	else
+		wget -qO - "${url}&mac=${mac}"
+	fi
 }
 
 _net_ip_reachable()
