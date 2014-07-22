@@ -876,23 +876,23 @@ _netfilter_portforwarding_request()
 	local ip="$1"
 	local mac="$2"
 	local host="$3"
-	local gateway port dynamic answer
+	local gateway port dynamic answer option
 	dynamic="$( uci -q get system.@weblogin[0].dynamic_portfw )" || return 0
 
-	# TODO: reschedule if fails
 	case "$mac" in
 		"${dynamic:-empty}"*)
 			# ssh | http | https | rstp
 			for port in 22 80 443 554; do {
 				nc 2>/dev/null "$ip" "$port" </dev/null && {
 					read gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
-					answer="$( _tool remote "$gateway" "portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host" )"
+					option="portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host"
+					answer="$( _tool remote "$gateway" "$option" )"
 
 					case "$answer" in
 						'OK'*)
 						;;
 						*)
-							echo >>$SCHEDULER "_tool remote $gateway 'portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host'"
+							echo >>$SCHEDULER "_tool remote $gateway '$option'"
 						;;
 					esac
 				}
@@ -950,6 +950,9 @@ _netfilter_portforwarding_add()
 				echo >>"$file" "$IPT -p udp $command	# $date"
 				$IPT -p tcp $command
 				$IPT -p udp $command
+
+				# TODO: build a readable public description (e.g. for minitoring server)
+				# mac: xxx hostname: xxx port_ext: xxx port_int: xxx
 			;;
 		esac
 	fi
@@ -1689,6 +1692,12 @@ _netfilter_user_del()
 	local funcname='netfilter_user_del'
 	local mac="${1:-unset}"
 	local ip dev traffic comment
+
+	[ "$mac" = 'all' ] && {
+		for mac in $( _netfilter user_list ); do {
+			_netfilter user_del "$mac"
+		} done
+	}
 
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
