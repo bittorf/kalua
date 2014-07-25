@@ -27,7 +27,8 @@ AUTHSERVER="$( _weblogin authserver )"
 [ "$AUTHSERVER" = "$LANADR" ] || {
 	_log do cgi-bin-sql daemon info "forwarding request for '$REMOTE_ADDR' to $AUTHSERVER"
 
-	URL="LOGIN=${LOGIN}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${USER_LANG}"	# simple reuse QUERY_STRING?
+	# fixme! simply reuse QUERY_STRING?
+	URL="LOGIN=${LOGIN}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${USER_LANG}"
 
 	if [ -e /usr/sbin/uhttpd ]; then
 		URL="http://$AUTHSERVER/cgi-bin-sql.sh?$URL"
@@ -53,20 +54,20 @@ build_vars ()
 		[ "$SIGNAL" != "lan" ] && DEVTYPE=0	# wifi
 }
 
-USER_ID="$( _db user login query hash2id "$LOGIN" )"		# fixme! use always HASH for keyword
-  if [ -e /tmp/FREE ]; then
+if   [ -e '/tmp/FREE' ]; then
 	_log do detect_free_user daemon info "[OK] free: user $MAC - $OUT"
   	echo "1"
 elif [ -e "/tmp/vds_user_${MAC}" -a "$KEYWORD" != "deepcheck" ]; then
 	_log do detect_free_mac daemon info "[OK] mac '$MAC' already known"
 	echo "1"
-elif [ -n "$USER_ID" ]; then
+elif [ -n "${USER_ID:=$( _db user login query hash2id "$LOGIN" )}" ]; then
+	# fixme! use always HASH for keyword
+	# fixme! this can last long
 
 	USER_ID_STACK="$USER_ID"
 
 	DEVICE_ID="$( _db user device query string2id "A='$USER_ID_STACK';B='${MAC:-unsetmacaddress}'" )"	# fixme!
 	if [ -n "$DEVICE_ID" ]; then
-
 		eval "$( _db user device show $DEVICE_ID )"	# fixme! check for time or traffic-range overrun
 
 		build_vars
