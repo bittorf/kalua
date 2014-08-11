@@ -1732,89 +1732,89 @@ _wifi_bugreport_create()
 
 _wifi_get()
 {
-		local var="$1"		# e.g. network
-		local value="$2"	# e.g. value-wish
-		local output="$3"	# e.g. index OR channel OR check
-		local i radio
+	local var="$1"		# e.g. network
+	local value="$2"	# e.g. value-wish
+	local output="$3"	# e.g. index OR channel OR check
+	local i radio
 
-		for i in $(seq 0 15); do {
-			[ "$( uci -q get wireless.@wifi-iface[$i].$var )" = "$value" ] && {
-				case "$output" in
-					'check')
-					;;
-					'channel')
-						radio="$( uci -q get wireless.@wifi-iface[$i].device )"
-						uci get wireless.$radio.channel
-					;;
-					*)
-						echo "$i"
-					;;
-				esac
+	for i in $(seq 0 15); do {
+		[ "$( uci -q get wireless.@wifi-iface[$i].$var )" = "$value" ] && {
+			case "$output" in
+				'check')
+				;;
+				'channel')
+					radio="$( uci -q get wireless.@wifi-iface[$i].device )"
+					uci get wireless.$radio.channel
+				;;
+				*)
+					echo "$i"
+				;;
+			esac
 
-				return 0
-			}
-		} done
+			return 0
+		}
+	} done
 
-		return 1
+	return 1
 }
 
 _wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
 {
-		local i radio
-		local wifimode="$1"	# e.g. 'ap' or 'any'
-		local band="$2"		# e.g. '5ghz' or 'any'
-		local var="$3"		# e.g. 'ssid'
-		local value="$4"	# e.g. 'myssid'
-		local option="$5"
+	local i radio
+	local wifimode="$1"	# e.g. 'ap' or 'any'
+	local band="$2"		# e.g. '5ghz' or 'any'
+	local var="$3"		# e.g. 'ssid'
+	local value="$4"	# e.g. 'myssid'
+	local option="$5"
 
-		for i in $( seq 0 15 ); do {
-			[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' ] && {
-				if   [ "$band" = 'any' ]; then
-					:
-				elif [ "$band" = '2ghz' ]; then
-					is_2ghz "$i" || continue
-				else 	# wish: 5ghz
-					is_2ghz "$i" && continue
-				fi
+	for i in $( seq 0 15 ); do {
+		[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' ] && {
+			if   [ "$band" = 'any' ]; then
+				:
+			elif [ "$band" = '2ghz' ]; then
+				is_2ghz "$i" || continue
+			else 	# wish: 5ghz
+				is_2ghz "$i" && continue
+			fi
 
-				case "$var" in
-					'txpower'|'htmode')
-						# http://opus4.kobv.de/opus4-tuberlin/files/3939/huehn_thomas.pdf
-						# get the corresponding radio till minstrel-blues/power control is not active
-						radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
-							uci set wireless.$radio.$var="$value"
-						}
-					;;
-					'channel'|'chanbw')
-						radio="$( uci -q get wireless.@wifi-iface[$i].device )"
+			case "$var" in
+				'txpower'|'htmode')
+					# http://opus4.kobv.de/opus4-tuberlin/files/3939/huehn_thomas.pdf
+					# get the corresponding radio till minstrel-blues/power control is not active
+					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
 						uci set wireless.$radio.$var="$value"
+					}
+				;;
+				'channel'|'chanbw')
+					radio="$( uci -q get wireless.@wifi-iface[$i].device )"
+					uci set wireless.$radio.$var="$value"
 
-						[ "$var" = 'channel' ] && {
-							[ $value -ge 1 -a $value -le 11 ] && {
-								uci set wireless.$radio.country='US'
-							}
-
-							[ "$option" = 'bssid_wellformed' ] && {
-								local bssid='02:be:ef:ca'
-
-								if [ "$value" -lt 100 ]; then
-									if [ "$var" -lt 10 ]; then
-										bssid="${bssid}:00:0${value}"
-									else
-										bssid="${bssid}:00:${value}"
-									fi
-								else
-									bssid="${bssid}:0$( echo "$value" | cut -b 1 ):$( echo "$value" | cut -b 2-3 )"
-								fi
-
-								uci set wireless.@wifi-iface[$i].bssid="$bssid"
-							}
+					[ "$var" = 'channel' ] && {
+						[ $value -ge 1 -a $value -le 11 ] && {
+							uci set wireless.$radio.country='US'
 						}
-					;;
-					*)
-						uci set wireless.@wifi-iface[$i].$var="$value"
-					;;
-				esac
-			}
-		} done
+
+						[ "$option" = 'bssid_wellformed' ] && {
+							local bssid='02:be:ef:ca'
+
+							if [ "$value" -lt 100 ]; then
+								if [ "$var" -lt 10 ]; then
+									bssid="${bssid}:00:0${value}"
+								else
+									bssid="${bssid}:00:${value}"
+								fi
+							else
+								bssid="${bssid}:0$( echo "$value" | cut -b 1 ):$( echo "$value" | cut -b 2-3 )"
+							fi
+
+							uci set wireless.@wifi-iface[$i].bssid="$bssid"
+						}
+					}
+				;;
+				*)
+					uci set wireless.@wifi-iface[$i].$var="$value"
+				;;
+			esac
+		}
+	} done
 }
