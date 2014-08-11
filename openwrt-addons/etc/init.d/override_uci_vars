@@ -177,95 +177,6 @@ boot()
 		}
 	}
 
-	get_wifi()
-	{
-		local var="$1"		# e.g. network
-		local value="$2"	# e.g. value-wish
-		local output="$3"	# e.g. index OR channel OR check
-		local i radio
-
-		for i in $(seq 0 15); do {
-			[ "$( uci -q get wireless.@wifi-iface[$i].$var )" = "$value" ] && {
-				case "$output" in
-					'check')
-					;;
-					'channel')
-						radio="$( uci -q get wireless.@wifi-iface[$i].device )"
-						uci get wireless.$radio.channel
-					;;
-					*)
-						echo "$i"
-					;;
-				esac
-
-				return 0
-			}
-		} done
-
-		return 1
-	}
-
-	set_wifi()	# e.g.: set_wifi ap 5ghz ssid 'Appartementhaus'
-	{
-		local i radio
-		local wifimode="$1"	# e.g. 'ap' or 'any'
-		local band="$2"		# e.g. '5ghz' or 'any'
-		local var="$3"		# e.g. 'ssid'
-		local value="$4"	# e.g. 'myssid'
-		local option="$5"
-
-		for i in $(seq 0 15); do {
-			[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' ] && {
-				if   [ "$band" = 'any' ]; then
-					:
-				elif [ "$band" = '2ghz' ]; then
-					is_2ghz "$i" || continue
-				else 	# wish: 5ghz
-					is_2ghz "$i" && continue
-				fi
-
-				case "$var" in
-					'txpower'|'htmode')
-						# http://opus4.kobv.de/opus4-tuberlin/files/3939/huehn_thomas.pdf
-						# get the corresponding radio till minstrel-blues/power control is not active
-						radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
-							uci set wireless.$radio.$var="$value"
-						}
-					;;
-					'channel'|'chanbw')
-						radio="$( uci -q get wireless.@wifi-iface[$i].device )"
-						uci set wireless.$radio.$var="$value"
-
-						[ "$var" = 'channel' ] && {
-							[ $value -ge 1 -a $value -le 11 ] && {
-								uci set wireless.$radio.country='US'
-							}
-
-							[ "$option" = 'bssid_wellformed' ] && {
-								local bssid='02:be:ef:ca'
-
-								if [ "$value" -lt 100 ]; then
-									if [ "$var" -lt 10 ]; then
-										bssid="${bssid}:00:0${value}"
-									else
-										bssid="${bssid}:00:${value}"
-									fi
-								else
-									bssid="${bssid}:0$( echo "$value" | cut -b 1 ):$( echo "$value" | cut -b 2-3 )"
-								fi
-
-								uci set wireless.@wifi-iface[$i].bssid="$bssid"
-							}
-						}
-					;;
-					*)
-						uci set wireless.@wifi-iface[$i].$var="$value"
-					;;
-				esac
-			}
-		} done
-	}
-
 	# AP = autochannel
 	case "$CONFIG_PROFILE" in
 		*_ap)
@@ -565,40 +476,40 @@ boot()
 			case "$NODENUMBER" in
 				# fparkssee-E1-buero|marinapark-buero
 				223|10)
-					set_wifi adhoc any mcast_rate '1000'
+					_wifi set adhoc any mcast_rate '1000'
 				;;
 				*)
-					set_wifi adhoc any mcast_rate '6000'
+					_wifi set adhoc any mcast_rate '6000'
 				;;
 			esac
 
-			set_wifi adhoc 2ghz channel '11'
-			set_wifi adhoc 2ghz bssid '02:ca:ff:ee:00:11'
+			_wifi set adhoc 2ghz channel '11'
+			_wifi set adhoc 2ghz bssid '02:ca:ff:ee:00:11'
 
 			uci set olsrd.@olsrd[0].LinkQualityAlgorithm='etx_ffeth'
 		;;
 		apphalle*)
 			uci set olsrd.@meta[0].hnaslave=0
 
-			set_wifi ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 ) $NODENUMBER"
-			set_wifi ap    5ghz disabled '1'	# !!!
-			set_wifi any   5ghz txpower '19'
-			set_wifi any   2ghz txpower '16'
-			set_wifi any   any  htmode 'HT20'
-			set_wifi adhoc 5ghz ssid 'x'
-			set_wifi adhoc 2ghz ssid 'X'
+			_wifi set ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 ) $NODENUMBER"
+			_wifi set ap    5ghz disabled '1'	# !!!
+			_wifi set any   5ghz txpower '19'
+			_wifi set any   2ghz txpower '16'
+			_wifi set any   any  htmode 'HT20'
+			_wifi set adhoc 5ghz ssid 'x'
+			_wifi set adhoc 2ghz ssid 'X'
 		;;
 		xoai*)
 			uci set system.@weblogin[0].dynamic_portfw='00:1a:97:'	# cam/ICS2030
 			uci set system.@system[0].timezone='ICT-7'
 
-			set_wifi any   5ghz disabled '1'	# !!!
-			set_wifi ap    2ghz ssid 'hotelxoai.com'
-			set_wifi adhoc 2ghz ssid 'x'
+			_wifi set any   5ghz disabled '1'	# !!!
+			_wifi set ap    2ghz ssid 'hotelxoai.com'
+			_wifi set adhoc 2ghz ssid 'x'
 		;;
 		amalienhof*)
 			uci set olsrd.@meta[0].hnaslave=0
-			set_wifi ap 2ghz ssid 'Borbing'
+			_wifi set ap 2ghz ssid 'Borbing'
 		;;
 		liszt28*)
 			uci set system.@weblogin[0].logtraffic='1'
@@ -606,61 +517,62 @@ boot()
 			case "$NODENUMBER" in
 				# alrik|danny|frenzel|bueroAussen|carsten|F36dach|rewe|bueroInnen|eckermann1|TobiNoEther|SchwanNTP
 				278|280|262|261|273|269|279|222|33|265|375)
-					set_wifi ap    5ghz disabled '1'
-					set_wifi adhoc 2ghz mcast_rate '1000'
+					_wifi set ap    5ghz disabled '1'
+					_wifi set adhoc 2ghz mcast_rate '1000'
 				;;
 				*)
-					set_wifi adhoc any  mcast_rate '6000'
+					_wifi set adhoc any  mcast_rate '6000'
 				;;
 			esac
 
 			case "$NODENUMBER" in
 				290)
-					set_wifi ap 2ghz ssid 'radio'
+					_wifi set ap 2ghz ssid 'radio'
 					touch "/tmp/vds_user_00:90:3e:fc:81:c2"		# phillips radio
 				;;
 				292)
-					set_wifi ap 2ghz ssid 'radioquelle'
+					_wifi set ap 2ghz ssid 'radioquelle'
 				;;
 				339)
-					set_wifi ap 2ghz ssid 'weimarnetz (Wolfsheim)'
+					_wifi set ap 2ghz ssid 'weimarnetz (Wolfsheim)'
 				;;
 				375)
-					set_wifi ap 2ghz ssid 'weimarnetz (WeisserSchwan)'
+					_wifi set ap 2ghz ssid 'weimarnetz (WeisserSchwan)'
 				;;
 				337)
-					set_wifi ap 2ghz ssid 'weimarnetz (Emilio)'
+					_wifi set ap 2ghz ssid 'weimarnetz (Emilio)'
+					_wifi set adhoc any mcast_rate '1000'
 				;;
 				279)
-					set_wifi ap 2ghz ssid 'weimarnetz (REWE)'
+					_wifi set ap 2ghz ssid 'weimarnetz (REWE)'
 				;;
 				280)
-					set_wifi ap 2ghz ssid 'weimarnetz (Danny)'
+					_wifi set ap 2ghz ssid 'weimarnetz (Danny)'
 				;;
 				274)
-					set_wifi ap 2ghz ssid 'weimarnetz (F36dach)'
+					_wifi set ap 2ghz ssid 'weimarnetz (F36dach)'
 				;;
 				276)
-					set_wifi ap 2ghz ssid 'weimarnetz (F36keller)'
+					_wifi set ap 2ghz ssid 'weimarnetz (F36keller)'
 				;;
 				275)
-					set_wifi ap 2ghz ssid 'weimarnetz (F36mitte)'
+					_wifi set ap 2ghz ssid 'weimarnetz (F36mitte)'
 				;;
 				277)
-					set_wifi ap 2ghz ssid 'weimarnetz (F36stube)'
+					_wifi set ap 2ghz ssid 'weimarnetz (F36stube)'
 				;;
 				278)
-					set_wifi ap 2ghz ssid 'weimarnetz (meyer8)'
-					set_wifi ap 5ghz ssid 'weimarnetz (meyer8a)'
+					_wifi set ap 2ghz ssid 'weimarnetz (meyer8)'
+					_wifi set ap 5ghz ssid 'weimarnetz (meyer8a)'
 				;;
 				602)
 					# ewerk
 					touch '/tmp/FREE'
-					set_wifi ap 2ghz ssid 'Mitarbeiter'
+					_wifi set ap 2ghz ssid 'Mitarbeiter'
 				;;
 				*)
-					set_wifi ap    2ghz ssid "weimarnetz (Schlachthof-${NODENUMBER})"
-					set_wifi ap    5ghz ssid "weimarnetz (Schlachthof-${NODENUMBER}a)"
+					_wifi set ap    2ghz ssid "weimarnetz (Schlachthof-${NODENUMBER})"
+					_wifi set ap    5ghz ssid "weimarnetz (Schlachthof-${NODENUMBER}a)"
 				;;
 			esac
 
@@ -676,8 +588,8 @@ boot()
 			case "$NODENUMBER" in
 				348|350)
 					# TowerPower/Wachturm
-					set_wifi adhoc any mcast_rate '12000'
-					set_wifi adhoc any chanbw 20
+					_wifi set adhoc any mcast_rate '12000'
+					_wifi set adhoc any chanbw 20
 				;;
 			esac
 
@@ -702,13 +614,13 @@ boot()
 			uci set olsrd.@meta[0].hnaslave=0
 			uci set olsrd.@olsrd[0].LinkQualityAlgorithm='etx_ff'
 
-			set_wifi adhoc 2ghz ssid 'weimarnetz'
-			set_wifi adhoc 2ghz channel '5'
-			set_wifi adhoc 2ghz bssid '02:ca:ff:ee:ba:be'
+			_wifi set adhoc 2ghz ssid 'weimarnetz'
+			_wifi set adhoc 2ghz channel '5'
+			_wifi set adhoc 2ghz bssid '02:ca:ff:ee:ba:be'
 
-			set_wifi adhoc 5ghz ssid 'weimarnetz-5Ghz'
-			set_wifi adhoc 5ghz channel '40'
-			set_wifi adhoc 5ghz bssid '02:ca:ff:ee:00:40'
+			_wifi set adhoc 5ghz ssid 'weimarnetz-5Ghz'
+			_wifi set adhoc 5ghz channel '40'
+			_wifi set adhoc 5ghz bssid '02:ca:ff:ee:00:40'
 
 			case "x$NODENUMBER" in
 				# 14 devices:
@@ -720,10 +632,10 @@ boot()
 					uci set system.@vds[0].enabled='0'
 					# TODO: channel = auto (after everybody has ethernet)
 
-					set_wifi any 2ghz txpower '1'
-					set_wifi adhoc 2ghz mcast_rate '12000'
-					set_wifi ap 2ghz ssid 'digital_bauhaus'
-					set_wifi ap 5ghz ssid 'digital_bauhaus_5GHz'
+					_wifi set any 2ghz txpower '1'
+					_wifi set adhoc 2ghz mcast_rate '12000'
+					_wifi set ap 2ghz ssid 'digital_bauhaus'
+					_wifi set ap 5ghz ssid 'digital_bauhaus_5GHz'
 				;;
 			esac
 		;;
@@ -732,14 +644,14 @@ boot()
 			uci set dhcp.wlan.leasetime='5m'
 			uci set olsrd.@meta[0].hnaslave=0
 
-			set_wifi adhoc 2ghz bssid '02:be:ef:ca:ff:ee'
-			set_wifi ap    2ghz ssid 'EJB Weimar'		# PMR: poor mens roaming
+			_wifi set adhoc 2ghz bssid '02:be:ef:ca:ff:ee'
+			_wifi set ap    2ghz ssid 'EJB Weimar'		# PMR: poor mens roaming
 
 			case "$NODENUMBER" in
 				100)
-					set_wifi adhoc any chanbw 10
-					set_wifi any any txpower 19
-					set_wifi any any htmode HT20
+					_wifi set adhoc any chanbw 10
+					_wifi set any any txpower 19
+					_wifi set any any htmode HT20
 
 					uci set dhcp.lan.ignore=1
 
@@ -754,9 +666,9 @@ boot()
 					uci set system.@netfilter[-1].lan_masquerading=0	# disables lan-masq
 				;;
 				101)
-					set_wifi adhoc any chanbw 10
-					set_wifi any any txpower 19
-					set_wifi any any htmode HT20
+					_wifi set adhoc any chanbw 10
+					_wifi set any any txpower 19
+					_wifi set any any htmode HT20
 
 					uci add network alias
 					uci set network.@alias[-1].interface="lan"
@@ -798,8 +710,8 @@ boot()
 			uci set wireless.@wifi-iface[0].mcast_rate=18000
 		;;
 		adagio*)
-			set_wifi adhoc 2ghz channel '11'
-			set_wifi adhoc 2ghz bssid '02:ca:ff:ee:00:11'
+			_wifi set adhoc 2ghz channel '11'
+			_wifi set adhoc 2ghz bssid '02:ca:ff:ee:00:11'
 		;;
 		rehungen*)
 			uci set system.@weblogin[0].logtraffic='1'
@@ -864,18 +776,18 @@ boot()
 									for node in $2; do {
 										[ "$NODENUMBER" = "$node" ] && {
 											[ -n "$channel" ] && {
-												set_wifi adhoc any channel "$channel" bssid_wellformed
+												_wifi set adhoc any channel "$channel" bssid_wellformed
 											}
 
 											[ -n "$chanbw" ] && {
-												set_wifi adhoc any chanbw "$chanbw"
+												_wifi set adhoc any chanbw "$chanbw"
 											}
 
 											[ -n "$mcast_rate" ] && {
-												set_wifi adhoc any mcast_rate "$mcast_rate"
+												_wifi set adhoc any mcast_rate "$mcast_rate"
 											}
 
-											set_wifi any any htmode 'HT20'
+											_wifi set any any htmode 'HT20'
 										}
 									} done
 								;;
@@ -984,41 +896,41 @@ boot()
 				;;
 			esac
 
-#			set_wifi ap 5ghz ssid 'Weisse Wiek Konferenz'
-			set_wifi ap 5ghz disabled '1'
-#			set_wifi ap 2ghz ssid "Weisse Wiek $NODENUMBER"
-			set_wifi ap 2ghz ssid "Weisse Wiek"
-			set_wifi adhoc 5ghz ssid 'x'
-			set_wifi adhoc 2ghz ssid 'X'
+#			_wifi set ap 5ghz ssid 'Weisse Wiek Konferenz'
+			_wifi set ap 5ghz disabled '1'
+#			_wifi set ap 2ghz ssid "Weisse Wiek $NODENUMBER"
+			_wifi set ap 2ghz ssid "Weisse Wiek"
+			_wifi set adhoc 5ghz ssid 'x'
+			_wifi set adhoc 2ghz ssid 'X'
 		;;
 		spbansin*)
 			uci set olsrd.@meta[0].hnaslave=0
 
-			set_wifi ap 5ghz ssid 'Seepark highspeed'
-			set_wifi ap 2ghz ssid "Seepark"			# TODO
-			set_wifi adhoc 5ghz ssid 'x'
-			set_wifi adhoc 2ghz ssid 'X'
+			_wifi set ap 5ghz ssid 'Seepark highspeed'
+			_wifi set ap 2ghz ssid "Seepark"			# TODO
+			_wifi set adhoc 5ghz ssid 'x'
+			_wifi set adhoc 2ghz ssid 'X'
 		;;
 		dhfleesensee*)
 			uci set olsrd.@meta[0].hnaslave=0
 
-			set_wifi ap 5ghz ssid 'Dorfhotel highspeed'
-			set_wifi ap 2ghz ssid "Dorfhotel $NODENUMBER"
-			set_wifi adhoc 5ghz ssid 'x'
-			set_wifi adhoc 2ghz ssid 'X'
+			_wifi set ap 5ghz ssid 'Dorfhotel highspeed'
+			_wifi set ap 2ghz ssid "Dorfhotel $NODENUMBER"
+			_wifi set adhoc 5ghz ssid 'x'
+			_wifi set adhoc 2ghz ssid 'X'
 		;;
 		schoeneck*)
 			uci set system.@monitoring[0].switch_error='ignore'
 			uci set olsrd.@meta[0].hnaslave=0
 
-			set_wifi ap    2ghz txpower '15'
-			set_wifi ap    2ghz ssid "IFA Schoeneck $NODENUMBER"
-			set_wifi ap    5ghz disabled '1'			# !!!
-			set_wifi adhoc 2ghz bssid '02:ca:ff:ee:00:11'
-			set_wifi adhoc 2ghz channel '11'
-			set_wifi adhoc any  htmode 'HT20'
-			set_wifi adhoc 2ghz ssid 'x'
-			set_wifi adhoc 2ghz mcast_rate '6000'
+			_wifi set ap    2ghz txpower '15'
+			_wifi set ap    2ghz ssid "IFA Schoeneck $NODENUMBER"
+			_wifi set ap    5ghz disabled '1'			# !!!
+			_wifi set adhoc 2ghz bssid '02:ca:ff:ee:00:11'
+			_wifi set adhoc 2ghz channel '11'
+			_wifi set adhoc any  htmode 'HT20'
+			_wifi set adhoc 2ghz ssid 'x'
+			_wifi set adhoc 2ghz mcast_rate '6000'
 
 			case "$NODENUMBER" in
 				228|230|234|231|235|232|229|233)
@@ -1026,7 +938,7 @@ boot()
 					uci set dhcp.lan.ignore=1
 				;;
 				2)
-					set_wifi any any disabled '1'
+					_wifi set any any disabled '1'
 
 					uci add network alias
 					uci set network.@alias[-1].interface="wan"
@@ -1248,28 +1160,28 @@ boot()
 	batman_needed && {
 		case "$CONFIG_PROFILE" in
 			apphalle*)
-				set_wifi ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 )"
-				set_wifi any   5ghz txpower '19'
-				set_wifi any   2ghz txpower '10'
-				set_wifi any   any  htmode 'HT20'
-				set_wifi adhoc 5ghz ssid 'x'
-				set_wifi adhoc 2ghz ssid 'X'
+				_wifi set ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 )"
+				_wifi set any   5ghz txpower '19'
+				_wifi set any   2ghz txpower '10'
+				_wifi set any   any  htmode 'HT20'
+				_wifi set adhoc 5ghz ssid 'x'
+				_wifi set adhoc 2ghz ssid 'X'
 			;;
 			boltenhagendh*)
 				uci set wireless.radio0.htmode="HT20"
-				set_wifi ap    5ghz ssid 'Weisse Wiek highspeed'
-				set_wifi ap    2ghz ssid 'Weisse Wiek'
-				set_wifi adhoc 5ghz ssid 'x'
-				set_wifi adhoc 2ghz ssid 'X'
+				_wifi set ap    5ghz ssid 'Weisse Wiek highspeed'
+				_wifi set ap    2ghz ssid 'Weisse Wiek'
+				_wifi set adhoc 5ghz ssid 'x'
+				_wifi set adhoc 2ghz ssid 'X'
 			;;
 			schoeneck_ap)
 				uci set wireless.radio0.htmode="HT20"
-				set_wifi ap 2ghz ssid 'IFA Schoeneck'
-				set_wifi ap 5ghz ssid 'IFA highspeed'
+				_wifi set ap 2ghz ssid 'IFA Schoeneck'
+				_wifi set ap 5ghz ssid 'IFA highspeed'
 			;;
 			schoeneck_hybrid)
-				set_wifi ap 2ghz ssid 'IFA Schoeneck'
-				set_wifi ap 5ghz ssid 'IFA highspeed'
+				_wifi set ap 2ghz ssid 'IFA Schoeneck'
+				_wifi set ap 5ghz ssid 'IFA highspeed'
 			;;
 			olympia_hybrid)
 				uci set wireless.radio0.htmode="HT20"
@@ -1278,10 +1190,10 @@ boot()
 			;;
 			liszt28*)
 				uci set wireless.radio0.htmode="HT20"
-				set_wifi ap    5ghz ssid 'Schlachtfest highspeed'
-				set_wifi ap    2ghz ssid 'Schlachtfest'
-				set_wifi adhoc 5ghz ssid 'x'
-				set_wifi adhoc 2ghz ssid ':'
+				_wifi set ap    5ghz ssid 'Schlachtfest highspeed'
+				_wifi set ap    2ghz ssid 'Schlachtfest'
+				_wifi set adhoc 5ghz ssid 'x'
+				_wifi set adhoc 2ghz ssid ':'
 			;;
 			marinabh_hybrid)
 				uci set wireless.radio0.htmode="HT20"
@@ -1387,8 +1299,8 @@ boot()
 				;;
 				'wlan'*)
 					# e.g. wlan | wlanadhoc | wlanadhocRADIO1
-					index="$( get_wifi network "$ifname_ask" index )" && {
-						channel="$( get_wifi network "$ifname_ask" channel )"
+					index="$( _wifi get network "$ifname_ask" index )" && {
+						channel="$( _wifi get network "$ifname_ask" channel )"
 						mac="ca:$( integer2fourhex "$channel" ):00:$( integer2fourhex "$NODENUMBER" )"
 
 						set_mac "wireless.@wifi-iface[$index].macaddr" "$mac"
@@ -1430,27 +1342,27 @@ boot()
 		# fixme! iterate over all wifi-interfaces, e.g. 'add adhoc any/5ghz'
 		case "$CONFIG_PROFILE" in
 			*'_hybrid')
-				get_wifi network 'wlanadhoc'       check && batalias_add_if_needed 'wlanadhoc'
-				get_wifi network 'wlanadhocRADIO1' check && batalias_add_if_needed 'wlanadhocRADIO1'
+				_wifi get network 'wlanadhoc'       check && batalias_add_if_needed 'wlanadhoc'
+				_wifi get network 'wlanadhocRADIO1' check && batalias_add_if_needed 'wlanadhocRADIO1'
 
 				# first AP
-				index="$( get_wifi network "wlan" index )" && {
+				index="$( _wifi get network "wlan" index )" && {
 					mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
 					set_mac "wireless.@wifi-iface[$index].macaddr" "$mac"
 				}
 
 				# second AP
-				index="$( get_wifi network "wlanRADIO1" index )" && {
+				index="$( _wifi get network "wlanRADIO1" index )" && {
 					mac="02:00:0b:00:$( integer2fourhex "$NODENUMBER" )"
 					set_mac "wireless.@wifi-iface[$index].macaddr" "$mac"
 				}
 			;;
 			*'_adhoc')
-				get_wifi network 'wlan' check && batalias_add_if_needed 'wlan'
+				_wifi get network 'wlan' check && batalias_add_if_needed 'wlan'
 			;;
 			*'_ap')
 				# first AP
-				index="$( get_wifi network "wlan" index )" && {
+				index="$( _wifi get network "wlan" index )" && {
 					mac="02:00:0a:00:$( integer2fourhex "$NODENUMBER" )"
 					set_mac "wireless.@wifi-iface[$index].macaddr" "$mac"
 				}

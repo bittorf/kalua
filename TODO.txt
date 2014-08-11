@@ -1,3 +1,7 @@
+# http://tjworld.net/wiki/Linux/Kernel/Build/CustomiseVersionString -> automat@bittorf-wireless.de
+
+# git checkout master; git branch | fgrep 'openwrt@' | while read LINE; do git branch -D $LINE; done; git stash clear
+
 # Debug info is already staged in staging_dir/target-*/root-*. This path is used by scripts/remote-gdb, which also accepts corefiles.
 
 # ip monitor route | while read LINE; do case "$LINE" in '192.168.1.1 via'*) ip route del $LINE ;; esac; done
@@ -5,8 +9,6 @@
 # dell truemobile 2300: tftp geht nur bis 6170 = 3.159.040 bytes = 48.bischen erase-blocks
 
 # check: /sbin/snapshot
-
-# in case of an switch error, try: swconfig dev switch0 set apply 1
 
 # noIPv6:
 Making all in iptables
@@ -23,15 +25,16 @@ collect2: error: ld returned 1 exit status
 
 
 
-# nvram show|grep ^ff_ | sed 's/./nvram unset &/' | cut -d'=' -f1 | sh
+# nvram show | grep ^ff_ | sed 's/./nvram unset &/' | cut -d'=' -f1 | sh
 
 # openwrt-build: iwinfo -> dont build when no wireless is there
 
-# ip monitor route|while read L; do case "$L" in def*)IP="$(echo "$L"|cut -d\  -f3 )";echo "$(date) $HOSTNAME: defgw: $(n|grep $IP)";;esac;done
+# monitor changing defgw:
+# ip monitor route | while read L; do case "$L" in def*) IP="$( echo "$L" | cut -d\  -f3 )"; echo "$(date) $HOSTNAME: defgw: $( n | grep $IP )";; esac; done
 
 # etx * mqmult -> fixed math
 # 4.047 * 0.7 = 2,832
-# 4047  * 7   = 28329
+# 4047  * 7   = 28329 -> rule: '.' -> '' and '0.' -> ''
 
 # IPv6-Watchdog:
 # - coldboot: interval = 15 mins (auch wenn kein ping kommt Zwangsausloesung)
@@ -43,9 +46,11 @@ collect2: error: ld returned 1 exit status
 #   - so kann man bei einem unbekannten reboot rausfinden, ob es die Watchdog war oder was anderes
 # - ueber SIZE interval einstellen
 
-
+# delete route to 192.168.1.1
 # while :;do sleep 1; R="$( ip r | grep ^'192\.168\.1\.1' )" && ip r d $R; done
 
+
+# high load during tar.gz
 Mem: 106556K used, 19960K free, 0K shrd, 3084K buff, 79984K cached
 CPU:  75% usr   8% sys   0% nic   0% idle   0% io   0% irq  16% sirq
 Load average: 1.59 1.89 2.11 3/39 6351
@@ -58,9 +63,8 @@ Load average: 1.59 1.89 2.11 3/39 6351
 # ping6 -L -c 1 -W 2 ff02::1%$iface
 # ping6 ff02::1%$LANDEV
 
+# howto:
 # wget -O - http://[f8:d1:11:a9:c8:e0%25wlan0] -> http://tools.ietf.org/html/rfc6874
-
-# howto?
 # wget -O - "http://[fe80::f6ec:38ff:fe9d:856e%wlan0]/cgi-bin-tool.sh?OPT=startshell"
 
 # ubus call network.interface dump
@@ -982,15 +986,32 @@ Local IP        Remote IP       Hyst.   LQ      NLQ     Cost
 
 
 TODO-important:
-# maybe use: make image PROFILE=NBG6716
+# meta-function: wifi_down
+# mark "sysupgrade"-reason in crashreboot
+# autorenew of https-cert
+# adblock 1.1.0.0/20 -> 127.0.53.53? https://www.icann.org/news/announcement-2-2014-08-01-en
+# switch: wenn auf halfduplex abfaellt: reboot?
+# - generell: warten ob default-route wegfaellt oder route-count dramatisch sinkt -> reboot
+# - in case of an switch error, try: swconfig dev switch0 set apply 1
+# maybe use: 'make image PROFILE=NBG6716'
 # before wifi-down: kick all stations via ubus-call
+# - ubus call hostapd.wlan0 del_client '{ "addr" : "00:21:6a:32:7c:1c", "reason" : "assoc toomany", "ban_time" : 10000 }'
+
+for mac in $( iw dev wlan0 station dump | grep ^Station | cut -d' ' -f2 ) $( iw dev wlan0-1 station dump | grep ^Station | cut -d' ' -f2 ); do 
+        cat >>/tmp/RMSTA <<EOF                                                                                                                 
+ubus call hostapd.wlan0 del_client '{ "addr" : "$mac", "reason" : "assoc toomany", "ban_time" : 10000 }'                                       
+EOF                                                                                                                                            
+} done                                                                                                                                         
+[ -n "$mac" ] && . /tmp/RMSTA
+
+
+
 # test: env-space gets exhausted with 128k VARS= ???
 # dhcp-script runs parallel - maybe offload via hotplug-event?
 # sed-load boltenhagendh
 #  - wer benutzt cgi-bin-sql.sh?
-#  - hash2id -> cache (in every node local)
 # olsr-prio
-# backup-problem loesen (boltenhagendh)
+# backup-problem loesen (boltenhagendh): 4320 -> 432 8-)
 # lr | grep "OLSR: sendto IPv4 Resource temporarily unavailable" | wc -l 	# = 118	-> reboot
 # root@R4-Revklappe-AP:~ ls -l /tmp/kalua/CHECKSUMS
 ---xr-x--T    1 4204726  21451802      1593 Jul 22 14:11 CHECKSUMS
@@ -1013,17 +1034,16 @@ TODO-important:
 # pass fuer sms-versenden (keine ip -> ejbw)
 # immer ping (auf gateway? authserver? nexthop?) nach 'scheduler' wenn noch zeit bis zur naechsten runde, statistik fuehren
 # show chanbw in monitoring
-# howto: count traffic which comes FROM or goes TO a neigh (but src or dst is far away)
+# howto: ("which neighbour relation seems important?") count traffic which comes FROM or goes TO a neigh (but src or dst is far away)
 # db in eigener tmpfs ODER usb-stick
 # apply_profile: profile-wechsel? opkg remove mydesign mysettings sshpubkeys fff-adblock-list
 # check path: db_backup_error -> locked -> check()?
 # igmp-snooping: https://dev.openwrt.org/ticket/13097#comment:2
 # /usr/sbin/cron.add_collected_userdata_into_db: line 139: can't create /tmp/DB/USER/device/stats: nonexistent directory
-# remove: db: sleep 33
-# abstraction: is_enabled (fuer init-skripte und uci-vars)
+# abstraction: is_enabled && ... (fuer init-skripte und uci-vars)
 # olsr-slave: slave startet neu und master hat sein olsr aus: was dann? -> master muss schauen, ob sein slave noch da ist -> wenn slave, dann?
-# switch buffalo WHR54HP
-# switch 741nd v2
+# switch: buffalo WHR54HP
+# switch: 741nd v2
 # use the cool wifi-helpers in override() for e.g. _wifi_change_essid_ap()
 # wget returncode = 1 on http status code 201 :: https://dev.openwrt.org/ticket/16885 -> testcase registrator
 # private monitoring on every node during build_tables() = passiv monitoring (lookout HNA's/nodes/mid's)
@@ -1711,8 +1731,6 @@ Local IP        Remote IP       Hyst.   LQ      NLQ     Cost
 
 # Friwo Tischnetzteil ErP 12V 1A
 
-# switch: wenn auf halfduplex abfaellt: reboot
-
 # build tables: always restart if 0
 
 # git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git linux-git
@@ -1755,8 +1773,6 @@ Local IP        Remote IP       Hyst.   LQ      NLQ     Cost
 
 # apply_profile: nanostationM: uci set wireless.@wifi-iface[0].antenna=mode - vertical|horizontal|external
 
-# overrid_uci: makro fuer 'disable 2ghz adhoc' (double-hybrid-router)
-
 # add a printk to the reghack.patch
 
 # webcam: dont add files to movie when hash already was used before
@@ -1773,9 +1789,7 @@ Local IP        Remote IP       Hyst.   LQ      NLQ     Cost
 
 #### incoming_wifi_activity spams log. only once for each changed framecounter
 
-# workaround: long boot because long list in /www/NETFILTER_AUTOADD
-
-# keine defaultroute in ap-mode? go hybrid (nicht permanent)
+# keine defaultroute in ap-mode? go hybrid (nicht permanent) -> cool_wifi_makro
 
 # rrd: better colors
 
