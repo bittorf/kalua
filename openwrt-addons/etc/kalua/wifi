@@ -1758,6 +1758,16 @@ _wifi_get()
 	return 1
 }
 
+_wifi_is2ghz()
+{
+	local wifi_iface="$1"
+	local radio="$( uci -q get wireless.@wifi-iface[${wifi_iface}].device )"
+	local channel="$( uci -q get wireless.${radio}.channel )"
+
+	# this is dirty, we must take hwmode into account, because 7-12 can also be 5ghz
+	test ${channel:-0} -lt 15
+}
+
 _wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
 {
 	local i radio
@@ -1766,15 +1776,18 @@ _wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
 	local var="$3"		# e.g. 'ssid'
 	local value="$4"	# e.g. 'myssid'
 	local option="$5"
+	local radio carry
 
 	for i in $( seq 0 15 ); do {
 		[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' ] && {
+			radio=
+
 			if   [ "$band" = 'any' ]; then
 				:
 			elif [ "$band" = '2ghz' ]; then
-				is_2ghz "$i" || continue
+				_wifi is2ghz "$i" || continue
 			else 	# wish: 5ghz
-				is_2ghz "$i" && continue
+				_wifi is2ghz "$i" && continue
 			fi
 
 			case "$var" in
@@ -1785,16 +1798,51 @@ _wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
 						uci set wireless.$radio.$var="$value"
 					}
 				;;
-				'channel'|'chanbw')
-					radio="$( uci -q get wireless.@wifi-iface[$i].device )"
-					uci set wireless.$radio.$var="$value"
+				'channel'|'chanbw'|'disabled')
+					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
+						if [ "$var" = 'disabled' ]; then
+							case "$value" in
+								'kmod_unload')
+									# switch on radio's if needed
+									carry="$( uci get wireless.$radio.disabled )"
+									if [ "$carry" = '0' ]; then
+										# radio already on
+										carry=
+									else
+										_wifi set any any disabled '0'
+									fi
 
-					[ "$var" = 'channel' ] && {
+									# this works globally (every radio)
+									grep -q ^'mac80211 ' '/proc/modules' && {
+										wifi down
+										iw dev wlan0 info >/dev/null || _firmware remove_kmodules wifi
+									}
+
+									# switch off (old state, see above)
+									[ -n "$carry" ] && {
+										_wifi set any any disabled '1'
+									}
+								;;
+								'kmod_load')
+									# TODO
+								;;
+								*)
+									uci set wireless.$radio.$var="$value"
+									# TODO: wifi down
+								;;
+							esac
+						else
+							uci set wireless.$radio.$var="$value"
+						fi
+					}
+
+					[ -n "$radio" -a "$var" = 'channel' ] && {
 						[ $value -ge 1 -a $value -le 11 ] && {
 							uci set wireless.$radio.country='US'
 						}
 
 						[ "$option" = 'bssid_wellformed' ] && {
+							# TODO: hardcoded magic - how to separate different networks in the same area?
 							local bssid='02:be:ef:ca'
 
 							if [ "$value" -lt 100 ]; then

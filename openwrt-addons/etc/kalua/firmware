@@ -254,7 +254,7 @@ _firmware_wget_prepare_for_lowmem_devices()
 			ip route list exact 0.0.0.0/0 | fgrep -q "dev $WIFIDEV" || {
 				_log do $funcname daemon info "[OK] wifi not needed, shutting down"
 				_firmware kill_tasks wifi_down
-				_firmware remove_kmodules wifi
+				_wifi set any any disabled kmod_unload
 			}
 		;;
 	esac
@@ -449,11 +449,7 @@ _firmware_kill_tasks()
 				_log sleep $funcname 5 step 1
 			;;
 			wifi_down)
-				[ "$( uci get wireless.radio0.disabled )" = 1 ] || {
-					_log do $funcname daemon info "[OK] bringing wifi down"
-					uci set wireless.radio0.disabled=1
-					wifi
-				}
+				_wifi set any any disabled '1'
 			;;
 			uhttpd)
 				/etc/init.d/uhttpd stop
@@ -913,12 +909,12 @@ _firmware_check_forced_upgrade()
 				if fgrep -q "# another round of" "/etc/init.d/boot"; then
 					sed  -i -e 's/^.*\.failsafe$/&\ntest -e \/www\/fw || {/' \
 						-e 's/^.*rm -f \/tmp\/wireless.tmp$/&\n}/' \
-						-e 's/# another round of/test -e \/www\/fw \&\& {\n. \/tmp\/loader\nuci set wireless.radio0.disabled=1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\n\n&/' \
+						-e 's/# another round of/test -e \/www\/fw \&\& {\n. \/tmp\/loader\n_wifi set any any disabled 1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\n\n&/' \
 							"/etc/init.d/boot" && _system crashreboot 'sysupgrade_start'
 				else
 					sed  -i -e 's/^.*\.failsafe$/&\ntest -e \/www\/fw || {/' \
 						-e 's/^.*rm -f \/tmp\/wireless.tmp$/&\n}/' \
-						-e 's/^.*\/dev\/root$/&\n}\ntest -e \/www\/fw \&\& {\n. \/tmp\/loader\nuci set wireless.radio0.disabled=1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\nbla()\n{\n:/' \
+						-e 's/^.*\/dev\/root$/&\n}\ntest -e \/www\/fw \&\& {\n. \/tmp\/loader\n_wifi set any any disabled 1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\nbla()\n{\n:/' \
 							"/etc/init.d/boot" && _system crashreboot 'sysupgrade_start'
 				fi
 			fi
