@@ -281,12 +281,17 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		ls -1 /tmp/OLSR/isneigh_* >/dev/null 2>/dev/null
 	}
 
-	did_we_ever_had_neighbours && {
+	if did_we_ever_had_neighbours; then
 		[ $( _file size "/tmp/OLSR/LINKS.sh" ) -eq 0 ] && {
 			_log do $func daemon alert "detected 0 neighbours"
 			return 1
 		}
-	}
+	else
+		_watch counter "/tmp/OLSR/watch_noneighs" increment 1 max 60 || {
+			rm "/tmp/OLSR/watch_noneighs"
+			_olsr daemon restart "no neigh for 60 calls"
+		}
+	fi
 
 	[ "$uptime_was_short" = "true" ] && {
 		/usr/sbin/cron.check_inet_gw_fff+
