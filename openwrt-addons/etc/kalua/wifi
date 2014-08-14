@@ -1778,7 +1778,7 @@ _wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
 	local var="$3"		# e.g. 'ssid'
 	local value="$4"	# e.g. 'myssid'
 	local option="$5"
-	local radio carry
+	local radio carry j=10
 
 	for i in $( seq 0 15 ); do {
 		[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' ] && {
@@ -1817,13 +1817,19 @@ _wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
 									# this works globally (every radio)
 									grep -q ^'mac80211 ' '/proc/modules' && {
 										wifi down
-										# grep for 'nl80211 not found'?
-										iw dev wlan0 info >/dev/null || _firmware remove_kmodules wifi
-									}
 
-									# switch off (old state, see above)
-									[ -n "$carry" ] && {
-										_wifi set any any disabled '1'
+										# switch off (old state, see above)
+										[ -n "$carry" ] && {
+											_wifi set any any disabled '1'
+										}
+
+										while let j-=1; do {
+											# grep for 'nl80211 not found'?
+											iw dev wlan0 info >/dev/null || break
+											sleep 1
+										} done
+
+										_firmware remove_kmodules wifi
 									}
 								;;
 								'kmod_load')
@@ -1831,7 +1837,7 @@ _wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
 								;;
 								*)
 									uci set wireless.$radio.$var="$value"
-									# TODO: wifi down
+									# TODO: wifi down?
 								;;
 							esac
 						else
