@@ -543,6 +543,7 @@ _watch_flash_free_space()
 {
 	local funcname="watch_flash_free_space"
 	local border="200"
+	local topposition=1
 	local file size flash_free
 
 	_watch counter "/tmp/$funcname" increment 1 max 100 || return 0
@@ -564,19 +565,22 @@ _watch_flash_free_space()
 			_watch counter "/tmp/$funcname" increment 1 max 100 || break
 		fi
 
-		file="$( list_files_removeable | head -n1 )"
-		size="$( _file size "$file" )"
-		flash_free="$( _system flash_free )"
+		file="$( list_files_removeable | head -n${topposition} | tail -n1 )"
 
 		[ -e "$file" ] && {
-			if [ $size -eq 0 ]; then
-				rm "$file"
-			else
-				>"$file"
-			fi
-		}
+			size="$( _file size "$file" )"
+			flash_free="$( _system flash_free )"
 
-		_log do $funcname daemon info "only $flash_free kb free - removing '$file' with $size bytes"
+			# sometimes deleting is not possible when JFFS2 is really full
+			if rm "$file"; then
+				:
+			else
+				# if this fails, exclude this file from next try
+				>"$file" || topposition=$(( $topposition + 1 ))
+			fi
+
+			_log do $funcname daemon info "only $flash_free kb free - removed '$file' with $size bytes"
+		}
 	} done
 }
 
