@@ -550,61 +550,6 @@ _wifi_phy_probe_online()		# fixme! more abstraction
 	test "$VAR" = "1"
 }
 
-_wifi_vendor_and_model ()		# fixme! build lookup-table WIFIDEV -> vendor|model
-{
-	local WIFI_DEV="$1"
-
-	_wifi vendor_and_model_pci
-
-	case "$HARDWARE" in
-		"Linksys WRT54G/GS/GL"|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
-		;;
-		*)
-			_wifi vendor_and_model_usb
-		;;
-	esac
-}
-
-_wifi_vendor_and_model_pci ()			# output can be more than one, how to handle?
-{						# ARG1 = WIFI_DEV
-	local FILE="/proc/bus/pci/devices"	# evalable_output: WIFI_VENDOR=broadcom;WIFI_MODEL=4318;WIFI_BANDS='b g'
-
-	# Atheros5413 = AR5006X-family = MikroTik RouterBOARD R5H (miniPCI)
-
-	if fgrep -q "0" "$FILE"; then		# dirty but works
-
-		sed	-ne "/168c001b/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5413 ;WIFI_BANDS='a'" \
-			-ne "/14e44318/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4318 ;WIFI_BANDS='b g'" \
-			-ne "/14e44320/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4306 ;WIFI_BANDS='b g'" \
-			-ne "/14e44319/c\WIFI_VENDOR=broadcom;WIFI_MODEL=4319 ;WIFI_BANDS='b g a'" \
-			-ne "/168c0012/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5211a;WIFI_BANDS='b g a'" \
-			-ne "/168c0013/c\WIFI_VENDOR=atheros ;WIFI_MODEL=5212a;WIFI_BANDS='b g a'" \
-			-ne "/168c002a/c\WIFI_VENDOR=atheros ;WIFI_MODEL=AR928X;WIFI_BANDS='a'" \
-			"$FILE"
-	else
-		FILE="/tmp/WIFI_VENDOR_AND_MODEL"
-
-		[ -e "$FILE" ] || {
-			if   grep -q "Atheros AR9100 MAC/BB Rev:[0-9a-zA-Z]* AR2133" "/tmp/dmesg.boot"; then
-				echo "WIFI_VENDOR=atheros;WIFI_MODEL=2133;WIFI_BANDS='b g'" >"$FILE"
-			elif fgrep -q "b43-phy0: Broadcom 5352" "/tmp/dmesg.boot"; then
-				echo "WIFI_VENDOR=broadcom;WIFI_MODEL=5352;WIFI_BANDS='b g'" >"$FILE"
-			else
-				echo "WIFI_VENDOR=unknown;WIFI_MODEL=unknown;WIFI_BANDS='b g'" >"$FILE"
-			fi
-		}
-
-		cat "$FILE"
-	fi
-}
-
-_wifi_vendor_and_model_usb ()
-{
-	# WIFI_VENDOR=ralink;WIFI_MODEL=rt73usb
-
-	sed -ne "/Vendor=148f ProdID=2573/cWIFI_VENDOR=ralink;WIFI_MODEL=rt73usb;WIFI_BANDS='b g'" /proc/bus/usb/devices 2>/dev/null
-}
-
 _wifi_driver_version()
 {
 	local WIFI_DEV="$1"		# fixme! howto connect DEV -> PHY  (DEV -> DRIVER is no problem)

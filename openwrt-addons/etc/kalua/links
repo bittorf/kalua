@@ -26,39 +26,6 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 
 	[ -e "/tmp/PPPOE_NEEDED" ] && local OPT="_opt=PPPOE"
 
-	local WIFI_VENDOR WIFI_MODEL WIFIDRIVER
-	[ -z "$WIFI_VENDOR" ] && eval $( _wifi vendor_and_model )
-
-	case $WIFI_VENDOR in					# BROADCOM, BROADCOMFULL, B43, RT73, MADWIFI, NONE
-		atheros)
-			case "$WIFI_MODEL" in
-				2133|AR928X)
-					WIFI_DRIVER="ATH9K"
-				;;
-				*)
-					WIFI_DRIVER="MADWIFI"
-				;;
-			esac
-		;;
-		broadcom)					# fixme! send chipset, server must decide which driver fits
-			case "$WIFI_MODEL" in
-				5352)
-					WIFI_DRIVER="B43"
-				;;
-				*)
-					if _wifi driver_version $WIFIDEV | grep -q wl-adv ; then
-						WIFI_DRIVER="BROADCOMFULL"
-					else
-						WIFI_DRIVER="BROADCOM"
-					fi
-				;;
-			esac
-		;;
-		*)
-			WIFIDRIVER="NONE"
-		;;
-	esac
-
 	BASE="${BASE:-http://intercity-vpn.de/firmware}"
 
 	case "$COMMAND" in
@@ -66,7 +33,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			echo -n "$( uci get system.@monitoring[0].url )/whitelist/"
 		;;
 		tarball)
-			echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/tarball.tgz?host=$( uci get system.@system[0].hostname )"
+			echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/tarball.tgz?host=$HOSTNAME"
 		;;
 		tarball_hash)
 			local i=0
@@ -103,13 +70,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 		*)
 			local FILEWISH
 
-			if [ -e "/etc/HARDWARE" ]; then
-				read FILEWISH <"/etc/HARDWARE"
-				FILEWISH="${FILEWISH}.sysupgrade.bin"
-			else
-				FILEWISH="linux=${MYKERNEL}_format=TRX_wifidriver=${WIFI_DRIVER}${OPT}.bin"
-			fi	
-
+			FILEWISH="$HARDWARE.sysupgrade.bin"
 			FILEWISH="$( echo "$FILEWISH" | sed 's|/|:|g' )"	# very special: slashes are not allowed in filename
 
 			case "$COMMAND" in
