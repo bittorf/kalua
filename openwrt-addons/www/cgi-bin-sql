@@ -6,8 +6,10 @@ if [ -z "$1" ]; then
 
 	eval $( _http query_string_sanitize )		# LOGIN={md5sum_of_user+pass} | MAC=00:11:22:33:44:55 | SIGNAL=-64 | KEYWORD=username+pass | USER_LANG=de
 
-	[ "$( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds )" -gt 300 ] && {
-		/etc/init.d/S51crond_fff+ restart
+	[ -e '/tmp/CRON_LASTCALL' ] && {
+		[ $( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds ) -gt 300 ] && {
+			/etc/init.d/S51crond_fff+ restart
+		}
 	}
 else
 	LOGIN="$1"
@@ -25,12 +27,12 @@ fi
 AUTHSERVER="$( _weblogin authserver )"
 # TODO: dont forward, if I have the IP (no matter on what interface or alias)
 [ "$AUTHSERVER" = "$LANADR" ] || {
-	_log do cgi-bin-sql daemon info "forwarding request for '$REMOTE_ADDR' to $AUTHSERVER"
+	_log do authserver_not_local daemon info "forwarding request for '$REMOTE_ADDR' to $AUTHSERVER"
 
 	# fixme! simply reuse QUERY_STRING?
 	URL="LOGIN=${LOGIN}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=${USER_LANG}"
 
-	if [ -e /usr/sbin/uhttpd ]; then
+	if [ -e '/usr/sbin/uhttpd' ]; then
 		URL="http://$AUTHSERVER/cgi-bin-sql.sh?$URL"
 	else
 		URL="http://$AUTHSERVER/cgi-bin-sql?$URL"
@@ -42,6 +44,7 @@ AUTHSERVER="$( _weblogin authserver )"
 
 _system include				# fixme! move all from this line down to weblogin()
 
+# TODO: DATE/DNS is only for logging, remove?
 DATE="$( _system date full )"
 DNS="$( nslookup ${REMOTE_ADDR:=127.0.0.1} 2>/dev/null | sed -n 's/^Name:[^a-zA-Z0-9]*\(.*\)\.olsr/\1/p' )"	# https?
 OUT="'$DATE' - IP:'$REMOTE_ADDR' - DNS:'${DNS:-unresolveable}' = HASH:'$LOGIN' - MAC:'$MAC' - SIGNAL:'$SIGNAL' - KEYWORD:'$KEYWORD' - LANG:'$USER_LANG'"
@@ -83,7 +86,7 @@ elif [ -n "${USER_ID:=$( _db user login query hash2id "$LOGIN" )}" ]; then
 		_log do login_ok daemon info "NEW user, adding to DB '$LOGIN' - $OUT"
 		echo >>$SCHEDULER "_db user device add '$USER_ID_STACK' '$MAC' '$DEVTYPE' '$LANG' '$FIRSTSEEN' '$LASTSEEN' '$USED_TRAFFIC' '$USED_TIME' '$USED_TRAFFIC_TODAY' '$USED_TIME_TODAY' '$ISOLATION'"
 
-		echo "$LOGIN" >/tmp/vds_user_$MAC			# LOGIN = HASH
+		echo "$LOGIN" >"/tmp/vds_user_$MAC"			# LOGIN = HASH
 
 		eval $( _db user device show last "USER_ID" )		# use $USER_ID_STACK ?
 		DEVICE_ID="$ID"
