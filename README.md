@@ -18,7 +18,8 @@ how to get a release for a specific hardware
 	# download and initial fetching of all sources
 	# (start in an empty directory)
 	wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh
-	sh build.sh
+	sh build.sh --openwrt trunk
+	cd openwrt
 
 	# full build for specific target
 	build.sh --openwrt r40861 --hardware 'PC Engines ALIX.2' --usecase 'Standard'

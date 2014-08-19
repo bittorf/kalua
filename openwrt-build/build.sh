@@ -30,7 +30,13 @@ print_usage_and_exit()
 
 	[ -n "$hint" ] && log "[HINT:] $hint"
 
-	cat <<EOF
+	if [ -e 'build.sh' ]; then
+		cat <<EOF
+Usage: sh $0 --openwrt trunk
+       (this will download/checkout a recent OpenWrt)
+EOF
+	else
+		cat <<EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
        $0 --debug --${KALUA_DIRNAME}_package
 
@@ -443,7 +449,7 @@ check_working_directory()
 		error=1
 	fi
 
-	[ -z "$( ls -1 | grep -v ^'build.sh'$ )" ] && {
+	[ -e 'build.sh' ] && {
 		log "$funcname() first start - fetching OpenWrt-source"
 
 		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen'
@@ -1383,6 +1389,7 @@ check_git_settings()
 {
 	local funcname='check_git_settings'
 
+	# TODO: only relevant, if we want to commit something?
 	git config --global user.email >/dev/null || {
 		log "$funcname() please set: git config --global user.email 'your@email.tld'"
 		return 1
