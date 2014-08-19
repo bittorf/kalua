@@ -42,11 +42,11 @@ kmodules_group_activate()
 
 boot()
 {
-	local list
+	local list pattern proc
 
-	for PROG in ulogd firewall sysntpd; do {
-		[ -e "/etc/init.d/$PROG" ] || continue
-		/etc/init.d/$PROG enabled && /etc/init.d/$PROG disable
+	for daemon in ulogd firewall sysntpd; do {
+		[ -e "/etc/init.d/$daemon" ] || continue
+		/etc/init.d/$daemon enabled && /etc/init.d/$daemon disable
 	} done
 
 	grep -sq ^'STOP=' '/etc/init.d/network' && {
@@ -143,6 +143,12 @@ boot()
 	# mark end of startup-sequence
 	grep -q "ENDBOOT" '/etc/init.d/done' || sed -i 's|^}|\n	touch /tmp/ENDBOOT\n}|' '/etc/init.d/done'
 
+	pattern='procd_open_instance'
+	file='/etc/init.d/dnsmasq'
+	grep -q "$patter"$ "$file" && {
+		sed -i "s/${pattern}$/&; procd_set_param limits core='unlimited'/" "$file"
+	}
+
 	# fix sysupgrade, see patch in r39169:
 	[ $( _system version short ) -eq 39139 ] && {
 		grep -q ' mount ' '/etc/init.d/boot' && {
@@ -157,8 +163,8 @@ boot()
 
 	# https://dev.openwrt.org/ticket/14705
 	[ $( _system version short ) -le 39218 ] && {
-		local file='/lib/netifd/wireless/mac80211.sh'
-		local pattern='json_get_vars bssid ssid basic_rate key'
+		file='/lib/netifd/wireless/mac80211.sh'
+		pattern='json_get_vars bssid ssid basic_rate key'
 		grep -sq "$pattern"$ "$file" && {
 			sed -i "s/$pattern/$pattern mcast_rate/" "$file"
 		}
@@ -350,7 +356,7 @@ boot()
 
 	# see /usr/sbin/cron.reverse_ssh_tunnel
 	case "$CONFIG_PROFILE" in
-		extrawatt*|shankar*|fparkssee*|limona*|marinapark*|versiliaje*|cupandcoffee*)
+		extrawatt*|shankar*|fparkssee*|limona*|marinapark*|versiliaje*|cupandcoffee*|adagio*)
 			uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
 
 			case "$NODENUMER-$CONFIG_PROFILE" in
@@ -561,8 +567,8 @@ boot()
 					_wifi set ap 2ghz ssid 'Mitarbeiter'
 				;;
 				*)
-					_wifi set ap    2ghz ssid "Sommerfest-${NODENUMBER})"
-					_wifi set ap    5ghz ssid "Sommerfest-${NODENUMBER}a)"
+					_wifi set ap    2ghz ssid "Sommerfest-${NODENUMBER}"
+					_wifi set ap    5ghz ssid "Sommerfest-${NODENUMBER}a"
 				;;
 			esac
 

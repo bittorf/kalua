@@ -591,12 +591,12 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 {
 	local funcname='watch_dns_resolution'
 	local testserver="intercity-vpn.de"	# fixme! use a fallback list
-	local ip line pid script leases cmdline
+	local ip line pid pid_fakedns pid_parent script leases cmdline
 
 	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] && {
-		read pid     <'/tmp/SERVICE/FAKEDNS.pid'
-		read line    <'/tmp/SERVICE/FAKEDNS.cmdline'
-		read cmdline <"/proc/$pid/cmdline"
+		read pid_fakedns <'/tmp/SERVICE/FAKEDNS.pid'
+		read line        <'/tmp/SERVICE/FAKEDNS.cmdline'
+		read cmdline     <"/proc/$pid_fakedns/cmdline"
 
 		[ "$line" = "$cmdline" ] || {
 			_log do $funcname daemon alert "fakedns missing"
@@ -665,10 +665,11 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	}
 
 	pid="$( pidof dnsmasq )"
+	pid="$( _list remove_element "$pid" "$pid_fakedns" )"
 	script="$( uci -q get dhcp.@dnsmasq[0].dhcpscript )"
 
 	pid_good "$pid" "$script" || {
-		if fgrep -q "nameserver 127.0.0.1" '/etc/resolv.conf'; then
+		if fgrep -q 'nameserver 127.0.0.1' '/etc/resolv.conf'; then
 			_log do $funcname daemon error "restarting dnsmasq"
 
 			pidof udhcpd >/dev/null && {			# otherwise the server-port cannot bound to new daemon
@@ -683,7 +684,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 			_log do $funcname daemon alert "dnsmasq died, old PIDs: '$pid', restarted, PID now '$( pidof dnsmasq )'"
 			return 0
 		else
-			read ip <"/etc/resolv.conf"
+			ip="$( grep 'nameserver' '/etc/resolv.conf' | head -n1 )"
 			ip="$( _sanitizer do "$ip" ip4 )"
 			_sanitizer do "$ip" ip4 check && {
 				return 0			# real server configured, working without local daemon
@@ -692,15 +693,24 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	}
 
 	nslookup "$$.$testserver" 2>/dev/null >/dev/null || {		# can we resolv a random address?
+		for pid_parent in $pid; do {
+			# ignore nobody-pid / dhcp-script child
+			grep ^'Uid:' "/proc/$pid_parent/status" | grep -q '65534' || break
+		} done
+
 		_net inet_seems_stable || return 0
 
-		_log do $funcname daemon error "error in dns-resolution, sending SIGHUP to DNSmasq"
-		kill -SIGHUP $( _system get_first_pid dnsmasq )
+		_log do $funcname daemon alert "[ERR] sending SIGHUP to DNSmasq: $pid_parent"
+		kill -SIGHUP "$pid_parent"
 		sleep 5
 
-		nslookup "$$.$testserver" 2>/dev/null >/dev/null || {	# again: can we resolv a random address?
-			_log do $funcname daemon alert "error in dns-resolution, restarting DNSmasq"
-			kill -SIGUSR1 $( _system get_first_pid dnsmasq )	# stats to syslog
+		# again: can we resolv a random address?
+		nslookup "$$.$testserver" 2>/dev/null >/dev/null || {
+			_log do $funcname daemon alert "[ERR] restarting dnsmasq: $pid_parent"
+			kill -SIGUSR1 "$pid_parent"	# stats to syslog
+			kill -SIGSEGV "$pid_parent"	# produce coredump
+
+			sleep 5
 			/etc/init.d/*dnsmasq restart
 		}
 	}
