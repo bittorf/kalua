@@ -368,6 +368,17 @@ target_hardware_set()
 			# CONFIG_PACKAGE_kmod-ath5k=y
 			# yaffs2?
 		;;
+		'Seagate GoFlex home')
+			# CONFIG_TARGET_kirkwood_Generic=y
+			# http://wiki.openwrt.org/toh/seagate/goflexnet
+			# http://archlinuxarm.org/platforms/armv5/seagate-goflex-home
+			# http://judepereira.com/blog/hacking-your-goflex-home-2-uart-serial-console/
+			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_Generic=y'
+			FILENAME_SYSUPGRADE='openwrt-kirkwood-generic-jffs2-nand-2048-128k.img'
+			FILENAME_FACTORY='openwrt-kirkwood-generic-jffs2-nand-2048-128k.img'
+			# kernel: openwrt-kirkwood-uImage
+			# rootfs: openwrt-kirkwood-generic-jffs2-nand-2048-128k.img
+		;;
 		'list')
 			case "$option" in
 				'plain'|'js')
