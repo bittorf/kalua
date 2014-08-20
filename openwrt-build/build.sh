@@ -369,7 +369,7 @@ target_hardware_set()
 			# CONFIG_PACKAGE_kmod-ath5k=y
 			# yaffs2?
 		;;
-		'Seagate GoFlex home')
+		'Seagate GoFlex Home'|'Seagate GoFlex Net')
 			# http://wiki.openwrt.org/toh/seagate/goflexnet
 			# http://archlinuxarm.org/platforms/armv5/seagate-goflex-home
 			# http://judepereira.com/blog/hacking-your-goflex-home-2-uart-serial-console/
