@@ -502,6 +502,14 @@ check_working_directory()
 		do_symlinking='true'
 	}
 
+	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
+		# uncomment feed 'oldpackages'
+		sed -i '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
+
+		# https://forum.openwrt.org/viewtopic.php?id=52219
+		./scripts/feeds update oldpackages  && ./scripts/feeds install -a -p oldpackages
+	}
+
 	[ -d 'package/feeds' ] || {
 		# seems, everything is really untouched
 		log "$funcname() missing 'package/symlinks', getting feeds"
