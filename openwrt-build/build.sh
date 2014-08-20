@@ -376,10 +376,9 @@ target_hardware_set()
 			# https://dev.openwrt.org/ticket/14938#comment:5
 
 			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_GOFLEXNET=y'
-			FILENAME_SYSUPGRADE='openwrt-kirkwood-generic-jffs2-nand-2048-128k.img'
-			FILENAME_FACTORY='openwrt-kirkwood-generic-jffs2-nand-2048-128k.img'
-			# kernel: bin/kirkwood/openwrt-kirkwood-uImage
-			# rootfs: bin/kirkwood/openwrt-kirkwood-generic-jffs2-nand-2048-128k.img
+			FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'	# = rootfs
+			FILENAME_FACTORY='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'
+			# kernel: bin/kirkwood/openwrt-kirkwood-goflexnet-uImage
 			#
 			# CONFIG_PACKAGE_uboot-kirkwood-goflexhome=y
 			# uboot:  bin/kirkwood/uboot-kirkwood-goflexhome/openwrt-kirkwood-goflexhome-u-boot.kwb
