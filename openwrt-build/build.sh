@@ -369,15 +369,19 @@ target_hardware_set()
 			# yaffs2?
 		;;
 		'Seagate GoFlex home')
-			# CONFIG_TARGET_kirkwood_Generic=y
 			# http://wiki.openwrt.org/toh/seagate/goflexnet
 			# http://archlinuxarm.org/platforms/armv5/seagate-goflex-home
 			# http://judepereira.com/blog/hacking-your-goflex-home-2-uart-serial-console/
-			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_Generic=y'
+			# https://dev.openwrt.org/ticket/14938#comment:5
+
+			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_GOFLEXNET=y'
 			FILENAME_SYSUPGRADE='openwrt-kirkwood-generic-jffs2-nand-2048-128k.img'
 			FILENAME_FACTORY='openwrt-kirkwood-generic-jffs2-nand-2048-128k.img'
-			# kernel: openwrt-kirkwood-uImage
-			# rootfs: openwrt-kirkwood-generic-jffs2-nand-2048-128k.img
+			# kernel: bin/kirkwood/openwrt-kirkwood-uImage
+			# rootfs: bin/kirkwood/openwrt-kirkwood-generic-jffs2-nand-2048-128k.img
+			#
+			# CONFIG_PACKAGE_uboot-kirkwood-goflexhome=y
+			# uboot:  bin/kirkwood/uboot-kirkwood-goflexhome/openwrt-kirkwood-goflexhome-u-boot.kwb
 		;;
 		'list')
 			case "$option" in

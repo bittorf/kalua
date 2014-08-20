@@ -105,7 +105,7 @@ _watch_coredump()
 {
 	local funcname="watch_coredump"
 	local ignore_pattern="${1:-we_will_not_ignore_anything}"	# e.g. 'hostapd'
-	local file dump revision file_list overall storage
+	local file dump revision file_list overall storage checkolsr
 	local exitcode=1	# means: no crash found
 	local count=0
 
@@ -137,16 +137,17 @@ _watch_coredump()
 			*'/iptables.'*)
 				_log do $funcname daemon alert "stopping netfilter"
 				_netfilter stop
-				_netfilter masquerade_start
+				_net local_inet_offer >/dev/null && _netfilter masquerade_start
 			;;
 			*'/sh.'*)
-				# fixme! can also be e.g. 'mac80211.sh'
+				# TODO: can also be e.g. 'mac80211.sh'
 				_log do $funcname daemon alert "segfault in script, removing lockfiles"
 				rm '/tmp/CRON_LOCK'
 				rm '/tmp/scheduler.log'
 			;;
 			*'/olsrd.'*)
-				pidof olsrd >/dev/null || _olsr daemon start 'has_crashed'
+				# have seen alot of restarts at once, so only try once at the end
+				checkolsr='true'
 			;;
 		esac
 
@@ -182,6 +183,10 @@ _watch_coredump()
 
 		[ -e "$dump" ] && rm "$dump"
 	} done
+
+	[ -n "$checkolsr" ] && {
+		pidof olsrd >/dev/null || _olsr daemon start 'has_crashed'
+	}
 
 	return $exitcode
 }
