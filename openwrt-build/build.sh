@@ -54,6 +54,7 @@ EOF
 #	--debug
 #	--force
 #	--quiet
+	fi
 
 	exit 1
 }
