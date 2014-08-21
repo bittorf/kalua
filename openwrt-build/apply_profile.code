@@ -136,6 +136,13 @@ DMESG="/tmp/dmesg.boot"
 	dmesg >"$DMESG"
 }
 
+uboot_getvar()
+{
+	local var="$1"
+
+	strings '/dev/mtd0' | grep ^"${var}=" | cut -d'=' -f2
+}
+
 try_device()
 {
 	I=$(( ${I:=0} + 1 ))	# global_var
@@ -165,7 +172,7 @@ try_device()
 		21) HARDWARE='PC Engines ALIX.2 ' ;;		# x86
 		22) HARDWARE='Asus WL500GP V1' ;;		# brcm47xx -> rename
 		23) HARDWARE='La Fonera 2.0N' ;;		# ramips_24kec
-		24) HARDWARE='Seagate GoFlex Net' ;;		# kirkwood
+		25) HARDWARE='Seagate GoFlex Net' ;;		# kirkwood
 		*)
 			HARDWARE=
 			return 1
@@ -208,12 +215,10 @@ if [ -n "$HARDWARE" ]; then
 			}
 		;;
 		'Seagate GoFlex Net')
-			case "$( strings '/dev/mtd0' | grep ^'machid=' )" in
-				'machid=0xd0a')
-					# see https://dev.openwrt.org/ticket/14303
-					HARDWARE='Seagate GoFlex Home'
-				;;
-			esac
+			[ "$( uboot_getvar 'machid' )" = '0xd0a' ] && {
+				# see https://dev.openwrt.org/ticket/14303
+				HARDWARE='Seagate GoFlex Home'
+			}
 		;;
 	esac
 elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform: http://www.ubnt.com/picostation
@@ -236,7 +241,7 @@ echo "$HARDWARE" >"/etc/HARDWARE"
 
 case "$HARDWARE" in
 	"Linksys WRT54"*|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
-		rm /etc/modules.d/19-usb-brcm47xx /etc/modules.d/50-usb-ohci /etc/modules.d/20-usb-core
+		rm /etc/modules.d/*usb*
 	;;
 esac
 
@@ -250,6 +255,16 @@ GATEWAY="$4"
  SIM_ARG1="$( uci get system.@profile[0].name | cut -d'_' -f1 )"
  SIM_ARG2="$( uci get system.@profile[0].name | cut -d'_' -f2 )"
  SIM_ARG3="$( uci get system.@profile[0].nodenumber )"
+
+	[ -z "$SIM_ARG1" ] && {
+		case "$HARDWARE" in
+			'Seagate GoFlex Home')
+				SIM_ARG1="$( uboot_getvar 'x_profile_name' | cut -d'_' -f1 )"
+				SIM_ARG2="$( uboot_getvar 'x_profile_name' | cut -d'_' -f2 )"
+				SIM_ARG3="$( uboot_getvar 'x_profile_nodenumber' )"
+			;;
+		esac
+	}
 }
 
 has_default_route ()
