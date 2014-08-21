@@ -3,12 +3,18 @@
 _net_ping6()
 {
 	local dev=${1:-$LANDEV}
+	local line
 
 	# option '-L' ("Suppress loopback of multicast packets") is not supported by busybox
 	# ip=$(ping6 -L -c 1 -W 2 ff02::1%$iface | grep "^64 bytes" | head -n1 | cut -d ' ' -f 4 | sed "s/:$/%$iface/") ;echo ${ip:-no_reply}
 
 	# e.g. 64 bytes from fe80::6670:2ff:fed3:240a: seq=0 ttl=64 time=2.187 ms
-	ping -6 -c1 "ff02::1%$dev" | grep ^'64 bytes' | cut -d' ' -f4
+	ping -6 -c1 "ff02::1%$dev" | grep ^'64 bytes' | cut -d' ' -f4 | while read line; do {
+		# remove last ":"
+		line="$( echo "$line" | sed 's/:$//' )"
+		# suppress my own
+		ip address show dev "$dev" | grep -q "inet6 $line/64" || echo "$line"
+	} done
 }
 
 _net_mac2linklocal()	# SENS: mac-address to IPv6 fe80::*
