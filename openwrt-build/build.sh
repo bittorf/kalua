@@ -477,7 +477,18 @@ check_working_directory()
 			fi
 		} done
 
+		[ -d 'openwrt' ] && {
+			log "$funcname() first start - removing (old?) dir openwrt"
+			rm -fR 'openwrt'
+		}
+
 		git clone 'git://nbd.name/openwrt.git'  || return $error
+
+		[ -d 'packages' ] && {
+			log "$funcname() first start - removing (old?) dir packages"
+			rm -fR 'packages'
+		}
+
 		git clone 'git://nbd.name/packages.git' || return $error
 		cd openwrt
 
