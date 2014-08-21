@@ -493,17 +493,19 @@ check_working_directory()
 	}
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
+		log "$funcname() addfeed 'oonfapi'"
 		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
 		do_symlinking='true'
 	}
 
 	fgrep -q ' olsrd2 '  "$file_feeds" || {
+		log "$funcname() addfeed 'olsrd2'"
 		echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'
 		do_symlinking='true'
 	}
 
 	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
-		# uncomment feed 'oldpackages'
+		log "$funcname() enable feed 'oldpackages'"
 		sed -i '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
 
 		# https://forum.openwrt.org/viewtopic.php?id=52219
