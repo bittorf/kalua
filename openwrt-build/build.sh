@@ -484,6 +484,11 @@ check_working_directory()
 
 		git clone 'git://nbd.name/openwrt.git'  || return $error
 
+		[ -d 'openwrt_download' ] && {
+			log "$funcname() symlinking our central download pool"
+			ln -s ../openwrt_download 'openwrt/dl'
+		}
+
 		[ -d 'packages' ] && {
 			log "$funcname() first start - removing (old?) dir packages"
 			rm -fR 'packages'
