@@ -111,7 +111,7 @@ _netfilter_traffic_control_show()
 		return 0
 	}
 
-	for interface in $LANDEV $WANDEV $WIFIDEV; do {
+	for interface in $LANDEV $WANDEV $WIFI_DEVS; do {
 		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || continue
 
 		echo "interface: $interface {"
@@ -158,6 +158,9 @@ _netfilter_traffic_control_show()
 
 _netfilter_traffic_control_needed()
 {
+	# TODO: fix shaping
+	return 1
+
 	case "$CONFIG_PROFILE" in
 		rehungen*)
 			case "$NODENUMBER" in
@@ -220,7 +223,7 @@ _netfilter_traffic_control_user_add()
 	# hierarchical token bucket: http://luxik.cdi.cz/~devik/qos/htb/
 	[ -e "$file" ] || {
 		# fixme! we should only add if really needed (e.g. unshaped mac?)
-		tc qdisc add dev "$interface" root handle 1: htb default 30 && {
+		tc qdisc add dev "$interface" root handle 1: htb default 1 && {
 			touch "$file"
 		}
 	}
@@ -462,6 +465,11 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 
 	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
 
+	[ -e "$file" ] || {
+		echo '_netfilter traffic_control_user_add <ip> <up> <down>'
+		return 1
+	}
+
 	case "$speed_down" in
 		"now"*)
 			read speed_down dummy dummy <"$file"
@@ -562,9 +570,12 @@ _netfilter_traffic_control_user_del()
 
 _netfilter_traffic_control_stop()
 {
-	local list="${1:-$LANDEV $WANDEV $WIFIDEV}"
+	local list="${1:-$LANDEV $WANDEV $WIFI_DEVS}"
 	local interface mac
 
+	# TODO:
+	# maybe we can omit this, just deleting root-qdisc's
+	# this will also remove applied 'tc filter' for that interface
 	for mac in $( _netfilter user_list ); do {
 		_netfilter traffic_control_user_del "$mac"
 	} done
