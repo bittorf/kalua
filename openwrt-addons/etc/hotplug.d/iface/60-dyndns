@@ -24,17 +24,20 @@ case "$ACTION" in
 						;;
 					esac
 				else
-					_log do dyndns.$ACTION daemon info "prevent DNS-AmpAttac on dev '$DEVICE' for IP $WANADR"
-					$IPT -I INPUT -i $DEVICE -p tcp --dport 53 -j DROP
-					$IPT -I INPUT -i $DEVICE -p udp --dport 53 -j DROP
+					_system maintenance_window_active || {
+						_log do $ACTION.$INTERFACE daemon alert "unscheduled event"
+					}
 
-					case "$CONFIG_PROFILE" in
-						xoai*)
-							# till we implement fail2ban
-							$IPT -I INPUT ! -s 84.38.67.43 -p tcp --dport 22 -j REJECT
-							$IPT -I INPUT   -s 127.0.0.1   -p tcp --dport 22 -j ACCEPT
-						;;
-					esac
+					# TODO: implement fail2ban
+					mkdir '/tmp/NETFILTER/fail2ban' && {
+						_log do dyndns.$ACTION daemon info "prevent DNS-AmpAttac on dev '$DEVICE' for IP $WANADR"
+
+						$IPT -I INPUT -i $DEVICE -p tcp --dport 53 -j DROP
+						$IPT -I INPUT -i $DEVICE -p udp --dport 53 -j DROP
+
+						$IPT -I INPUT ! -s $MONITORING_SERVERIP -p tcp --dport 22 -j REJECT
+						$IPT -I INPUT   -s 127.0.0.1            -p tcp --dport 22 -j ACCEPT
+					}
 
 					. /usr/sbin/cron.monitoring.functions
 					heartbeat_minimal_send
