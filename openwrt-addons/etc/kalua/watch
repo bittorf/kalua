@@ -1176,28 +1176,29 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 
 _watch_counter()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || action
 {
-	local func="watch_counter"
-	local FILE="$1"
-	local MODE="$2"		# increment|decrement|set|remove
-	local MODE_VALUE="${3:-1}"
-	local OPTION="$4"	# max|min
-	local OPTION_VALUE="$5"
-	local VALUE
+	local funcname='watch_counter'
+	local file="$1"
+	local mode="$2"		# increment|decrement|set|remove
+	local mode_value="${3:-1}"
+	local option="$4"	# max|min
+	local option_value="$5"
+	local special="$6"	# autoremove
+	local value
 
-	read VALUE 2>/dev/null <"$FILE"
+	read value 2>/dev/null <"$file"
 
-	case "$MODE" in
-		increment)
-			VALUE="$(( ${VALUE:-0} + $MODE_VALUE ))"
+	case "$file" in
+		'increment')
+			value="$(( ${value:-0} + $mode_value ))"
 		;;
-		decrement)
-			VALUE="$(( ${VALUE:-0} - $MODE_VALUE ))"
+		'decrement')
+			value="$(( ${value:-0} - $mode_value ))"
 		;;
-		set)
-			VALUE="$MODE_VALUE"
+		'set')
+			value="$mode_value"
 		;;
-		remove)
-			[ -e "$FILE" ] && rm "$FILE"
+		'remove')
+			[ -e "$file" ] && rm "$file"
 			return 0
 		;;
 		*)
@@ -1205,18 +1206,22 @@ _watch_counter()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || 
 		;;
 	esac
 
-	echo $VALUE >"$FILE"
+	echo "$value" >"$file"
 
-	case "$OPTION" in
-		max)
-			[ $VALUE -ge $OPTION_VALUE ] && {
-				_log do $func daemon info "[$FILE] max: $VALUE >= $OPTION_VALUE"
+	case "$option" in
+		'max')
+			[ $value -ge $option_value ] && {
+				[ "$special" = 'autoremove' ] && rm "$file"
+				_log do $funcname daemon info "[$file] max: $value >= $option_value"
+
 				return 1
 			}
 		;;
-		min)
-			[ $VALUE -le $OPTION_VALUE ] && {
-				_log do $func daemon info "[$FILE] min: $VALUE =< $OPTION_VALUE"
+		'min')
+			[ $value -le $option_value ] && {
+				[ "$special" = 'autoremove' ] && rm "$file"
+				_log do $funcname daemon info "[$file] min: $value =< $option_value"
+
 				return 1
 			}
 		;;
