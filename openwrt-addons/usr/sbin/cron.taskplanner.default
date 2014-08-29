@@ -133,6 +133,18 @@ case "$MINUTE" in
 
 		[ "$( uci -q get system.@vds[0].enabled )" = '1' ] && {
 			echo >>$SCHEDULER '/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+'
+
+			# only call if needed
+			[ -e '/tmp/COLLECT_DATA' ] && echo >>$SCHEDULER 'cron.add_collected_userdata_into_db'
+
+			# wait for process (=http to master) if we are not the master/authserver
+			# this should help against too much load on master
+			# TODO: _weblogin_authserver "isme?"
+			[ -e '/tmp/DB/USER/device/stats' ] || {
+				echo >>$SCHEDULER '_log sleep jitter_user_stats_process networksize step 5'
+			}
+
+			echo >>$SCHEDULER '_netfilter user_stats_process'
 		}
 
 		cat >>$SCHEDULER <<EOF
