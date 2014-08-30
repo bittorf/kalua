@@ -37,7 +37,6 @@ _db_lock()
 	local context="${2:-unset_context}"
 	local dir="/tmp/$funcname"
 	local file="$dir/reason"
-	local prio='alert'
 	local i=1
 
 	case "$mode" in
@@ -63,11 +62,9 @@ _db_lock()
 				;;
 			esac
 
-			prio='info'
 			while ! mkdir "$dir"; do {
 				read reason <"$file"
-				[ $i -gt 30 ] && prio='alert'
-				_log do $funcname daemon "$prio" "task '$context' must wait $i sec for '${reason:-unknown_reason}'"
+				_log do $funcname daemon info "task '$context' must wait $i sec for '${reason:-unknown_reason}'"
 
 				case "$reason" in
 					'locked_forever'*)
@@ -75,12 +72,12 @@ _db_lock()
 					;;
 				esac
 
-				prio='debug'
 				sleep $i
 				i=$(( $i + 1 ))
 			} done
 
 			echo "${context}_$( date )" >"$file"
+			[ $i -gt 30 ] && _log do $funcname daemon alert "longlock: task '$context' looped $i times for '${reason:-unknown_reason}'"
 		;;
 	esac
 
