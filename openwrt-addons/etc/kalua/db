@@ -7,7 +7,7 @@ _db_check()
 	local statfile="/tmp/$funcname"
 	local file line i
 
-	[ "$option" = 'force' ] || _db lock now "$funcname" || return 1
+	[ "$option" = 'force' ] || _db lock now "$funcname() $@" || return 1
 	_stopwatch start "$funcname"
 
 	for file in /tmp/DB/USER/device/rows /tmp/DB/USER/device/stats /tmp/DB/USER/login/rows /tmp/DB/USER/profile/rows; do {
@@ -23,7 +23,7 @@ _db_check()
 		_log do $funcname daemon info "[OK] file '$file' / $i lines"
 	} done
 
-	[ "$option" = 'force' ] || _db lock free "$funcname"
+	[ "$option" = 'force' ] || _db lock free
 	rm "$statfile"
 
 	_log do $funcname daemon alert "[OK] lasts $( _stopwatch stop "$funcname" humanreadable )"
@@ -54,7 +54,7 @@ _db_lock()
 				rm -fR "$dir"
 			fi
 		;;
-		forever|now|*)
+		now|forever|*)
 			case "${mode}-${context}" in
 				'forever-locked_forever'*)
 					echo "$context" >"$file"
@@ -89,14 +89,14 @@ _db_purge()
 	local funcname="db_purge"
 	local obj
 
-	_db lock now "$funcname" || return 1
+	_db lock now "$funcname() $@" || return 1
 
 	for obj in "/tmp/DB" "/www/cgi-bin/db_backup.tgz"; do {
 		_log do $funcname daemon info "[OK] removing '$obj'"
 		rm -fR "$obj"
 	} done
 
-	_db lock free "$funcname"
+	_db lock free
 }
 
 _db_backup()		# fixme! automatically call this after <prio> changes
@@ -139,8 +139,8 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	esac
 
 	# short check if locking works, otherwise 'db check' fails with sms
-	_db lock now "$funcname" || return 1
-	_db lock free "$funcname"
+	_db lock now "$funcname() $@" || return 1
+	_db lock free
 
 	( _db check ) || {
 		# forever!
@@ -149,11 +149,11 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		return 1
 	}
 
-	_db lock now "$funcname" || return 1
+	_db lock now "$funcname() $@" || return 1
 
 	# ramdisc too small?
 	if tar czf "$file_temp" "$dir" 2>/dev/null ; then
-		_db lock free "$funcname"
+		_db lock free
 		_log do $funcname daemon info "[OK] wrote $( _file size "$file_temp" ) bytes to $file_temp"
 
 		local filesize_new="$( _file size "$file_temp" )"
@@ -230,7 +230,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		_log do $funcname daemon sms "[ERR] while working on $file_temp - disk full? free: $( _system disc_free "/tmp" kilobytes ) kb"
 		errorcode=1
 
-		_db lock free "$funcname"
+		_db lock free
 	fi
 
 	return $errorcode
@@ -241,7 +241,7 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 	local funcname="db_restore"
 	local file="/www/cgi-bin/db_backup.tgz"
 
-	_db lock now "$funcname" || return 1
+	_db lock now "$funcname() $@" || return 1
 
 	if [ -e "$file" ]; then
 
@@ -300,7 +300,7 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 		_log do $funcname daemon info "[ERR] '$file' not found"
 	fi
 
-	_db lock free "$funcname"
+	_db lock free
 
 	# stats are generated via cron.add_collected_userdata_into_db
 	# 60 days = 60d * 24h * 4/hour = 5760
@@ -343,15 +343,14 @@ _db_user_macenabled_comment_get()
 
 _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;   	# autocreated is ID = linenumber = index
 {
-	local FUNC="db_user"
-
+	local funcname="db_user"
 	local TABLE="$1"
 	local ACTION="$2"
 	local ID="$3"		# is set to 'autoid' when action is 'add'
 	local OPTION="$4"
 	local OPTION2="$5"
 
-#	_log do $FUNC daemon info "$FUNC \"$1\" \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" \"$8\" \"$9\" \"${10}\" \"${11}\" \"${12}\" \"${13}\" \"${14}\""
+#	_log do $funcname daemon info "\"$1\" \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" \"$8\" \"$9\" \"${10}\" \"${11}\" \"${12}\" \"${13}\" \"${14}\""
 
 	local FIXME="$5$6$7$8$9${10}${11}${12}${13}${14}"
 	local OBJ= ELEMENTS= REWRITE_VARS= SHORT_VAR= N= LIST= VALUE= FILL=
@@ -426,7 +425,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			esac
 		;;
 		index_gen)
-			_db lock now "$ACTION $@" || return 1
+			_db lock now "$funcname() $@" || return 1
 
 			local INDEX_PRODUCTION="$DIR/meta_index"
 			local INDEX="$INDEX_PRODUCTION.temp"
@@ -573,24 +572,24 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 
 			if [ $( _file size "$INDEX" ) -gt 0 ]; then		# fixme! lowram?
 				if [ "${ID} ${OPTION}" = "last 1" ]; then
-					_db lock free "$ACTION"
+					_db lock free
 					echo >>$SCHEDULER '_db backup index_generated_last1'
 				else
 					if mv "$INDEX" "$INDEX_PRODUCTION"; then
-						_db lock free "$ACTION"
-						_log do $FUNC daemon info "$ACTION: wrote '$INDEX' -> '$INDEX_PRODUCTION'"
+						_db lock free
+						_log do $funcname daemon info "$ACTION: wrote '$INDEX' -> '$INDEX_PRODUCTION'"
 						_db backup "index_generated_full"
 					else
-						_db lock free "$ACTION"
-						_log do $FUNC daemon sms "$ACTION: [ERR] during mv '$INDEX' -> '$INDEX_PRODUCTION'"
+						_db lock free
+						_log do $funcname daemon sms "$ACTION: [ERR] during mv '$INDEX' -> '$INDEX_PRODUCTION'"
 						touch /tmp/FREE
 					fi
 				fi
 			else
-				_log do $FUNC daemon sms "$ACTION: '$INDEX' 0 bytes - removing"
+				_log do $funcname daemon sms "$ACTION: '$INDEX' 0 bytes - removing"
 				rm "$INDEX"
 
-				_db lock free "$ACTION"
+				_db lock free
 			fi
 		;;
 		list)
@@ -678,12 +677,12 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			sed -n "${ID}{${REWRITE_VARS}p;q}" "$DIR/rows"		# fixme! return ERROR on nonexisting line
 		;;
 		del)
-			_db lock now "$ACTION" || return 1
+			_db lock now "$funcname() $@" || return 1
 			sed -i "${ID}s/^.*/#/" "$DIR/rows"
-			_db lock free "$ACTION"
+			_db lock free
 		;;
 		add|update)				# fixme! if "add" is used, ID=<integer> is not in line?
-			_db lock now "$ACTION" || return 1
+			_db lock now "$funcname() $@" || return 1
 
 			local USERNAME
 
@@ -779,7 +778,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 				;;
 			esac
 
-			_db lock free "$ACTION"
+			_db lock free
 		;;
 	esac
 }
