@@ -20,16 +20,16 @@ case "$ACTION" in
 				if _net ip4_is_private "$WANADR"; then
 					case "$( uci -q get network.wan.public_ip )" in
 						1|on|true|enabled)
+							# we know it should be a public ip, but by accident... (e.g. 2nd internal DCHP)
 							echo >>$SCHEDULER_IMPORTANT 'ifup wan'
 						;;
 					esac
 				else
 					_system maintenance_window_active || {
-						_log do $ACTION.$INTERFACE daemon alert "unscheduled event"
+						_log do $ACTION.$INTERFACE daemon alert "unscheduled event: WANADR: $WANADR"
 					}
 
-					# TODO: implement fail2ban
-					mkdir '/tmp/NETFILTER/fail2ban' && {
+					mkdir '/tmp/fail2ban' && {
 						_log do dyndns.$ACTION daemon info "prevent DNS-AmpAttac on dev '$DEVICE' for IP $WANADR"
 
 						$IPT -I INPUT -i $DEVICE -p tcp --dport 53 -j DROP
