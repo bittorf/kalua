@@ -20,6 +20,7 @@ MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 					echo "Verbindungstyp: $5"
 					echo "verursachter Datenverkehr heute: $7"
 					echo "initiale Geschwindigkeit: runterladen/hochladen: $9 [Kilobit/Sekunde]"
+					echo "Nexthop: $( cat /tmp/OLSR/DEFGW_NOW ) - $( _wifi speed )"
 
 					case "${11}" in
 						*"%"*)
