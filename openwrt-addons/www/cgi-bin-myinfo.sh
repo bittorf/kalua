@@ -65,11 +65,20 @@ echo "<small><b>Hinweis</b>: Sie k&ouml;nnen manuell einen Geschwindkeitstest du
 
 echo "<p>"
 echo "<a href='http://$LANADR/cgi-bin-tool.sh?OPT=download'>Testdownload Server1</a>&nbsp;(IP: $LANADR = '$HOSTNAME')<br>"
+echo "<small><pre>"
+ping -c3 $LANADR
+echo "</pre></small>"
 echo "<a href='http://$GATEWAY/cgi-bin-tool.sh?OPT=download'>Testdownload Server2</a>&nbsp;(IP: $GATEWAY)<br>"
+echo "<small><pre>"
+ping -c3 $GATEWAY
+echo "</pre></small>"
 
 AUTHSERVER="$( _weblogin authserver )"
 [ "$AUTHSERVER" = "$GATEWAY" ] || {
 	echo "<a href='http://$AUTHSERVER/cgi-bin-tool.sh?OPT=download'>Testdownload Server3</a>&nbsp;(IP: $AUTHSERVER)"
+	echo "<small><pre>"
+	ping -c3 $AUTHSERVER
+	echo "</pre></small>"
 }
 
 
