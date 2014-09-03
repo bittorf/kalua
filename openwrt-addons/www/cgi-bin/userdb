@@ -206,6 +206,46 @@ EOF
 }
 
 
+profile_selector()
+{
+	local option="$1"
+	local ID NAME COMMENT
+
+	echo "<select name='FORM_PROFILE_ID' size='1'>"
+	[ "$option" = 'allow_unspecific' ] && {
+		FORM_PROFILE_ID=
+		echo "<option value='' selected>$( _translate do "$LANG" for_all_profiles )</option>"
+	}
+
+	for ID in $( _db user profile list ); do {
+		eval "$( _db user profile show "$ID" "NAME COMMENT" )"
+		echo "<option value='$ID'"
+		[ "$FORM_PROFILE_ID" = "$ID" ] && echo -n " selected"
+		echo ">${NAME}: ${COMMENT}</option>"
+	} done
+
+	echo "</select>"
+}
+
+theme_selector()
+{
+	local THEME NAME COMMENT
+
+	[ -z "$FORM_THEME_NAME" ] && {
+		FORM_THEME_NAME="$( uci get system.@weblogin[0].namespace )"
+	}
+	echo "<select name='FORM_THEME_NAME' size='1'>"
+
+	for THEME in $( _random_username themes ); do {
+		echo "<option value='$THEME'"
+		[ "$FORM_THEME_NAME" = "$THEME" ] && echo -n " selected"	# fixme! select "uniform_name", if THEME is special
+		echo ">$( _random_username themeinfo "$THEME" )</option>"
+	} done
+
+	echo "</select>"
+}
+
+
 case "$FORM_ACTION" in
 	profile_add|profile_update)
 		echo "<h3> $( _translate do "$LANG" rights_management ) $ARROW <a href='?FORM_ACTION='>$( _translate do "$LANG" main_menu )</a> $ARROW $( _translate do "$LANG" profile_edit ) </h3>"
@@ -378,40 +418,6 @@ case "$FORM_ACTION" in
 			;;
 		esac
 
-		profile_selector ()
-		{
-			local ID NAME COMMENT
-			
-			echo "<select name='FORM_PROFILE_ID' size='1'>"
-			
-			for ID in $( _db user profile list ); do {
-				eval "$( _db user profile show $ID "NAME COMMENT" )"
-				echo "<option value='$ID'"
-				test "$FORM_PROFILE_ID" = "$ID" && echo -n " selected"
-				echo ">${NAME}: ${COMMENT}</option>"
-			} done
-		
-			echo "</select>"
-		}
-
-		theme_selector ()
-		{
-			local THEME NAME COMMENT
-
-			[ -z "$FORM_THEME_NAME" ] && {
-				FORM_THEME_NAME="$( uci get system.@weblogin[0].namespace )"
-			}
-			echo "<select name='FORM_THEME_NAME' size='1'>"
-
-			for THEME in $( _random_username themes ); do {
-				echo "<option value='$THEME'"
-				[ "$FORM_THEME_NAME" = "$THEME" ] && echo -n " selected"	# fixme! select "uniform_name", if THEME is special
-				echo ">$( _random_username themeinfo "$THEME" )</option>"
-			} done
-
-			echo "</select>"
-		}
-
 		eval $( _db user login show $FORM_ID )
 
 		echo "<form action='' method='get'>"
@@ -575,12 +581,15 @@ case "$FORM_ACTION" in
 		local translation_delete="$( _translate do "$LANG" delete )"
 
 		for MY_ID in $LIST_ID; do {
-
 			PROFILE_ID=
-			eval "$( _db user login show $MY_ID )"
+			eval "$( _db user login show "$MY_ID" )"
 			if [ -z "$PROFILE_ID" ]; then
 				continue
 			else
+				[ -n "$FORM_PROFILE_ID" ] && {
+					[ "$FORM_PROFILE_ID" = "$MY_ID" ] || continue
+				}
+
 				eval "$( _db user profile show $PROFILE_ID "NAME" )"
 			fi
 
@@ -715,6 +724,7 @@ EOF
 				echo "<form action='' method='get'>"
 				echo "<input type='hidden' name='FORM_ACTION' value='login_search'>"
 				echo "<input name='FORM_SEARCH_PATTERN' type='text' size='16' value='$( _translate do "$LANG" eg_username )'>"
+				profile_selector 'allow_unspecific'
 				echo "<input type='submit' name='' value='$( _translate do "$LANG" find )'>"
 				echo "</form>"
 				echo "</li></ul>"
