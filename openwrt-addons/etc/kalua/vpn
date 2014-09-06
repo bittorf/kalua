@@ -2,7 +2,6 @@ _vpn_start ()
 {
 	local FUNC="vpn_start"
 	_vpn_defer_start
-	_vpn_build_vars
 
 	[ $INETOFFER = "false" -a -z "$( uci get system.@vpn[0].force )" ] && {
 		_log do $FUNC daemon debug "no local default gateway - abort"
@@ -14,26 +13,26 @@ _vpn_start ()
 		return 1
 	}
 
+	_vpn_build_vars
+	
+	[ -n $SERV ] || {
+		_log do $FUNC daemon debug "no suitable server found"
+		return 1
+	}
+	
+	[ -n $PORT ] || {
+		_log do $FUNC daemon debug "no server with suitable vtun setup found for you, please try again later"
+		return 1
+	}
+	
 	[ -z "$NODE_NUMBER" ] && {
 		_log do $FUNC daemon debug "node not configured yet - abort"
 		return 1
 	}
 		
-	_vpn_server_participation_request
 	_vpn_remove_vtun_conf
 	_vpn_write_vtun_conf
-	_vpn_remove_olsr_conf
-	_vpn_write_olsr_conf
-	_vpn_tunnel_start && {
-		/etc/init.d/network reload
-		pidof olsrd >/dev/null && {
-			[ "$( _vpn_proto )" = "olsr" ] && {
-				_scheduler add "restart_olsr"
-				return
-			}
-		}
-		_log_do $FUNC daemon debug "olsr not up or olsr-proto unwished, no need for restart of olsrd"
-	}
+	_vpn_tunnel_start 
 }
 
 
@@ -41,7 +40,6 @@ _vpn_stop ()
 {
 	_vpn_build_vars "stop"
 	_vpn_remove_vtun_conf
-	_vpn_remove_olsr_conf
 	_vpn_tunnel_stop
 	
 }
@@ -56,7 +54,7 @@ _vpn_get_static_route ()			# prevents tunneling over mesh, when local defgw gets
 {
 	local DEFAULT_GATEWAY_IP="$( ip route list exact 0.0.0.0/0 | head -n1 | cut -d" " -f3 )"
 	
-	[ -n "$( uci get system.@vpn[0].force )" ] && return
+	#[ -n "$( uci get system.@vpn[0].force )" ] && return
 	
 	case $INETOFFER in
 		lan)
@@ -98,7 +96,6 @@ _vpn_tunnel_stop ()
 _vpn_tunnel_start ()
 {
 	local FUNC="vpn_tunnel_start"
-	local PORT="$( uci get system.@vpn[0].port )"
 	[ -n "$PORT" ] && {
 		PORT="-P $PORT"
 	}
@@ -111,7 +108,7 @@ _vpn_tunnel_start ()
 	
 	_log do $FUNC daemon debug "starting vtun with config '$VTUN'"
 	
-	vtund -f $VTUN $HOSTNAME $SERV $PORT 2>/dev/null || {
+	vtund -f $VTUN Node$KNOT $SERV $PORT 2>/dev/null || {
 
 		_log do $FUNC daemon debug "error"	
 		
@@ -119,22 +116,11 @@ _vpn_tunnel_start ()
 		
 			_log do $FUNC daemon debug "vtund and/or kmod-tun not installed"
 		
-			_vpn_remove_vtun_conf
-			
-			_software make_free_space 1000
-			_software package_install vtun		# +27 k
-								# ----
-								# +27 k
 		else
 			vtund - 2>/dev/null | grep -q -i vtun || {
 			
 				_log do $FUNC daemon debug "vtund is installed, but has an serious problem"
 
-				# under mysterious circumstances (e.g. low disk space during installing),
-				# vtund claims to have a "bus error", so we should reinstall it
-			
-				_software package_remove  vtun
-				_software package_install vtun
 			}
 		fi
 		
@@ -149,7 +135,6 @@ _vpn_write_vtun_conf()
 	local STATIC_ROUTE="$( _vpn_get_static_route )"
 	local particpant_net="10.63.0.0/16"			# fixme! hardcoded
 	local mytable="weimarnetz_anonym"
-	local mtu="1500"					# fixme!
 	local anonym
 
 	[ -n "$( uci get system.@vpn[0].anonym )" ] && {
@@ -157,18 +142,18 @@ _vpn_write_vtun_conf()
 	}
 
 	cat >$VTUN <<EOF
-$HOSTNAME {
+Node$KNOT {
 	passwd ff ;
 	type ether ;		# fixme! olsrd-bug: /32 interface needed?
 	persist yes ;		# fixme! add 'timeout 60' ?
 
 	up {
-		program "logger -p daemon.info -t $0_vtund.conf link_up %%:$HOSTNAME" ;
+		program "logger -p daemon.info -t vtund.conf link_up %%:$HOSTNAME" ;
 
-		program "ip address add $WIFIVPNCLIENTADR/$WIFIVPNPRE dev %% label %%:$(expr substr $HOSTNAME 1 10)" wait ;
+		program "ip address add $WIFIVPNCLIENTADR/$WIFIVPNPRE dev %% " wait ;
 		program "sleep 10" wait;
 		program "ip address add $WIFIVPNCLIENTADR/32 dev %%" wait;
-		program "ip link set dev %% mtu $mtu up" wait;
+		program "ip link set dev %% mtu $MTU up" wait;
 		program "ip route add $VPN_SERVER via $STATIC_ROUTE" wait;		# + table local?
 
 		program "grep -q $mytable /etc/iproute2/rt_tables || echo 50 $mytable >>/etc/iproute2/rt_tables" ;
@@ -180,7 +165,7 @@ $HOSTNAME {
 	} ;
 		# fixme! static_route must only be valid for programs on this machine
 	down {
-		program "logger -p daemon.info -t $0_vtund.conf link_down %%:$HOSTNAME" ;
+		program "logger -p daemon.info -t vtund.conf link_down %%:$HOSTNAME" ;
 
 		program "$anonym ip route del default via $WIFIVPNSERVERADR dev %% table $mytable" ;
 		program "$anonym ip rule del from $LANNET/$LANPRE prio 30000 table main" ;
@@ -224,105 +209,104 @@ _vpn_defer_start ()
 	}
 }
 
-_vpn_remove_olsr_conf()
+_vpn_probe_vtund_type ()
 {
-	local FUNC="vpn_remove_olsr_conf"
-	local UCIRETURN
-	local OLSRIFACECOUNT=0
-
-	#remove network config
-	#uci delete network.tap0
-	_log do $FUNC daemon debug "removed network config"
-	#remove olsr config
-	UCIRETURN=$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface="tap0" )
-	while ([ "$UCIRETURN" != "tap0" ] && [ -n "$UCIRETURN" ]); do {
-		OLSRIFACECOUNT=$(( OLSRIFACECOUNT + 1 ))
-		_log do $FUNC daemon debug "scanning olsrd.conf for interface tap0, round $OLSRIFACECOUNT Last output: $UCIRETURN iface"
-		UCIRETURN="$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )"
-		} done
-
-	[ "$UCIRETURN" = "tap0" ] && {
-		uci delete olsrd.@Interface[$OLSRIFACECOUNT]
-		_log do $FUNC daemon debug "removed olsr config"
-		}
-
-	_log do $FUNC daemon debug "ready, committing uci settings"
-	uci commit
+	set -- $( ldd /usr/sbin/vtund )
+	case "$@" in
+		*'liblzo'*'libcrypto'*)
+			echo "ssl_lzo"
+		;;
+		*'liblzo'*)
+			echo "nossl_lzo"
+		;;
+		*)
+			echo "nossl_nolzo"
+		;;
+	esac
 }
 
-_vpn_write_olsr_conf()
+_vpn_vtund_port ()
 {
-	local FUNC="vpn_write_olsr_conf"
-	local LINE=""
-	local INTERFACE="tap0"
-	local OLSRIFACECOUNT=0
-	local TAPFOUND=""
-	local UCIRETURN
-
-	[ "$( _vpn_proto )" != "olsr" ] && INTERFACE=none		# fixme! this is dirty...
-	
-	SPEED=$( uci get olsrd.@olsrd[0].speed )			# fixme! maybe multiply by 10? (lowering traffic)
-	SPEED=${SPEED:=5}
-
-        FEYE=$( uci get olsrd.@olsrd[0].fisheye )
-	if [ "0" != "$FEYE" ];then
-		TCINT=$(( 2 * SPEED / 4 ))
-		test $TCINT -eq 0 && TCINT=1
-		COVER=7
-		FEYE=1
-	else
-		TCINT=$(( 2 * SPEED ))
-		COVER=3
-		FEYE=0
-	fi
-	
-	#network settings
-	uci set network.tap0="interface"
-	uci set network.tap0.ifname="tap0"
-	_log do $FUNC daemon debug "network settings done"
-
-	#olsrd settings
-	UCIRETURN=$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )
-	while ([ "$UCIRETURN" != "tap0" ] && [ -n "$UCIRETURN" ]); do {
-		OLSRIFACECOUNT=$(( OLSRIFACECOUNT + 1 ))
-		_log do $FUNC daemon debug "scanning olsrd.conf for interface tap0, round $OLSRIFACECOUNT Last output: $UCIRETURN iface"
-		UCIRETURN="$( uci get olsrd.@Interface[$OLSRIFACECOUNT].interface )"
-		} done
-
-	[ "$UCIRETURN" = "tap0" ] && TAPFOUND="jep"
-
-	[ -z "$TAPFOUND" ] && {
-		uci add olsrd Interface
-		OLSRIFACECOUNT=-1
-		}
-
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].interface="tap0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].HelloInterval="$(( SPEED / 2 + 1 )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].HelloValidityTime="$(( 25 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].TcInterval="$TCINT.0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].TcValidityTime="$(( 100 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].MidInterval="$(( 5 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].MidValidityTime="$(( 100 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].HnaInterval="$(( 2 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].HnaValidityTime="$(( 25 * SPEED )).0"
-	uci set olsrd.@Interface[$OLSRIFACECOUNT].Ip4Broadcast="$WIFIVPNSERVERADR"
-
-						# these are the values for fff v1.6.34
-	_log do $FUNC daemon debug "ready, committing uci settings"
-						# todo: log olsrd settings to debug log
-	uci commit
-
+	case "$1" in
+		'ssl_lzo')
+			echo "$JSON_VAR_port_vtun_ssl_lzo"
+		;;
+		'nossl_lzo')
+			echo "$JSON_VAR_port_vtun_nossl_lzo"
+		;;
+		'nossl_nolzo')
+			echo "$JSON_VAR_port_vtun_nossl_nolzo"
+		;;
+	esac
 }
 
 _vpn_build_vars ()
 {
+  # load json lib
+  . /usr/share/libubox/jshn.sh
+
+  #vpn domain
+  DOMAIN="$( uci get system.@vpn[0].domain )"
+  #vpn prefix
+  PREFIX="$( uci get system.@vpn[0].prefix )"
+  #json info url
+  JSONPATH="$( uci get system.@vpn[0].jsonpath )"
+  #vtuntype
+  VTUNDTYPE="$( _vpn probe_vtund_type )"
+
+  #temporary number for comparisons
+  CLIENTS=12345
+  #clean variables
+  JSON_VAR_clients=
+  responseTime=
+  MTU=
+  PORT=
+  VPN_SERVER=
+  SERV=
+  vpnNr=1
+  SERVER=$PREFIX$vpnNr.$DOMAIN
+  vpnServerResponse="$( ping -q -c 1 -W 1 $SERVER 2>/dev/null |grep round-trip|cut -f 4 -d ' '|cut -f 0 -d '/'|sed -e 's/\.//g' )"
+  [ -n "$responseTime" ] && {
+    URL="http://$SERVER$JSONPATH"
+    eval $( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )
+    [ -n "$JSON_VAR_clients" ] && {
+      CLIENTS=${JSON_VAR_clients}
+      PORT=$( _vpn vtun_port $VTUNDTYPE )
+      MTU=${JSON_VAR_maxmtu}
+      vpnServerName=$SERVER
+   }
+  }
+
+  for vpnNr in 2 3 4 5 6 7 8 9 10
+  do
+    SERVER=$PREFIX$vpnNr.$DOMAIN
+    responseTime="$( ping -q -c 1 -W 1 $SERVER 2>/dev/null |grep round-trip|cut -f 4 -d " "|cut -f 0 -d "/"|sed -e 's/\.//g' )"
+    [ -n $responseTime  ] && {
+      URL="http://$SERVER$JSONPATH"
+      eval $( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )
+      if  test 2>/dev/null "$JSON_VAR_clients" -lt "$CLIENTS" ;
+      then
+        CLIENTS=${JSON_VAR_clients}
+        PORT=$( _vpn vtund_port $VTUNDTYPE )
+        MTU=${JSON_VAR_maxmtu}
+        vpnServerResponse=$responseTime
+        vpnServerName="$SERVER"
+      fi
+    }
+  done
+
+  [[ $CLIENTS = 12345 ]] && {
+    CLIENTS=
+  }
+
+	VPN_SERVER="$vpnServerName"
+
 	NODE_NUMBER="$( uci get system.@profile[0].nodenumber )"
 	HOSTNAME="$( uci get system.@system[0].hostname )"
 	[ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
 
-	VPN_SERVER="$( uci get system.@vpn[0].ipaddr )"
 	
-	SERV="$( uci get system.@vpn[0].hostname )"	# _ip4|_ip6 fallback?
+	SERV="$vpnServerName"	# _ip4|_ip6 fallback?
 	CONF="/var/etc/olsrd.conf"			# old_style
 	KNOT=$NODE_NUMBER
 	VTUN="/tmp/vtund.conf"
@@ -332,27 +316,6 @@ _vpn_build_vars ()
 	eval "$( _ipsystem do )"
 }
 
-_vpn_server_participation_request ()
-{
-	local func="vpn_server_participation_request" 
-	local OUTPUT=""
-	local URL="http://$VPN_SERVER/freifunk/vpn/"
-	local QUERY=""
-	local ADMINMAIL="$( uci get freifunk.contact.mail )"
-	
-	QUERY="${QUERY}?CLIENTIP=${WIFIVPNCLIENTADR}"
-	QUERY="${QUERY}&SERVERIP=${WIFIVPNSERVERADR}"
-	QUERY="${QUERY}&NAME=$HOSTNAME"
-	QUERY="${QUERY}&PROTO=$( _vpn_proto )"
-	QUERY="${QUERY}&EMAIL=$( _sanitizer do "${ADMINMAIL:=unset@box.local}" urlvalue )"
-	QUERY="${QUERY}&COMMENT=city${FFF_CITY}_node${NODE_NUMBER}_profile$( uci get system.@profile[0].name )"
-
-	_log do $FUNC daemon debug "query: '${URL}${QUERY}'"
-	
-	OUTPUT="$( wget 2>/dev/null -O - "${URL}${QUERY}" )"	# fixme! encode unsafe URL chars (like email above)
-
-	_log do $FUNC daemon debug "answer: '$OUTPUT'"
-}
 
 _vpn_proto ()						# defaults to 'olsr'
 {
