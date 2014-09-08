@@ -191,6 +191,7 @@ system.@weblogin[0].mac_unshaped	- string/list
 system.@weblogin[0].authserver		- IP
 system.@weblogin[0].gateway_check	- IP
 system.@monitoring[0].serverip		- IP
+system.@monitoring[0].pingcheck		- IP
 system.@weblogin[0].dynamic_portfw	- pattern of macs
 
 system.@admin[0].location		- string

@@ -155,6 +155,21 @@ func_cron_config_write ()
 			sed -i -e 's|^#\(if /sbin/uci \)|\1|' -e 's|if true|#&|' '/tmp/CRON_IS_CAREFUL'
 		}
 
+		pingcheck_needed()
+		{
+			local ip="$( uci get system.@monitoring[0].pingcheck )"
+
+			echo "$ip"
+			test -n "$ip"
+		}
+
+		pingcheck_needed >/dev/null && {
+			sed -i "s/^### PINGCHECK ###/IP=$( pingcheck_needed )\n&/" '/tmp/CRON_IS_CAREFUL'
+			_file insert_at	"^### PINGCHECK ###" \
+					'/usr/sbin/cron.pingchecker' \
+					'/tmp/CRON_IS_CAREFUL'
+		}
+
 		forced_wifi_rate_needed()
 		{
 			grep -q ^'b43 ' '/proc/modules' && {

@@ -1,0 +1,26 @@
+#!/bin/sh
+
+fgrep -sq ' 0% packet loss' '/tmp/PING' || {
+	# ignore error during early UP and reboot_nightly
+	[ ${UP%.*} -lt 300 -o ${UP%.*} -gt 86000 ] && rm '/tmp/PING'
+
+	[ -e '/tmp/PING' ] || {
+		date				 	 >'/tmp/PING.failed'
+		echo "IP:$IP up:$UP load:$LOAD $REST"	>>'/tmp/PING.failed'
+
+		if fgrep -q ' 100% packet loss'; then
+			# --- 10.10.249.33 ping statistics ---
+			# 59 packets transmitted, 0 packets received, 100% packet loss
+			tail -n1 '/tmp/PING.tmp' >>'/tmp/PING.failed'
+		else
+			# --- 10.63.21.97 ping statistics ---
+			# 50 packets transmitted, 50 packets received, 0% packet loss
+			# round-trip min/avg/max = 3.678/7.829/19.125 ms
+			tail -n2 '/tmp/PING.tmp' >>'/tmp/PING.failed'
+		fi
+
+		[ -z "$LODEV" ] && . /tmp/loader
+		_sanitizer do "$( cat '/tmp/PING.failed' )" newlines2spaces >>'/www/PINGCHECK'
+	}
+}
+ping -q -w59 -c59 $IP >'/tmp/PING' &
