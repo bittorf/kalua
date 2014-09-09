@@ -119,14 +119,27 @@ _system_maintenance_window_active()
 _system_architecture()
 {
 	local file='/tmp/system_architecture'
-	local arch
+	local arch DISTRIB_TARGET
 
 	[ -e "$file" ] || {
 		# e.g. Architecture: ramips_24kec
 		arch="$( _software package_status kernel | grep ^'Architecture:' )"
 		arch="${arch#*: }"
 		arch="${arch%%_*}"
-		echo "$arch" >"$file"
+
+		if [ -n "$arch" ]; then
+			echo "$arch" >"$file"
+		else
+			# DISTRIB_TARGET='ar71xx/generic'
+			# DISTRIB_TARGET='brcm47xx/generic'
+			# DISTRIB_TARGET="rb532/generic"
+			# DISTRIB_TARGET="ramips/generic"
+			eval $( grep ^'DISTRIB_TARGET=' '/etc/openwrt_release' )
+			arch="$DISTRIB_TARGET"
+			arch="${arch%%/*}"
+
+			echo "$arch" >"$file"
+		fi
 	}
 
 	cat "$file"
