@@ -182,6 +182,7 @@ _ipsystem_ffweimar ()			# ARG1: - empty       -> has_nodenumber? -> output for m
 	local NODE_NUMBER="$1"		#       - IP-address  -> output nodenumber
 	local CITY="${2:-63}"		#	- node-number -> output for this nodenumber, return 1 if not in range
 	local NW="${3:-10}"
+	local IPV6="2001:bf7:193"
 	local RANGE_START="${4:-2}"
 	local RANGE_END="${5:-1020}"
 	local RANGE_FIRST_RANDOM="${6:-970}"
@@ -210,26 +211,38 @@ _ipsystem_ffweimar ()			# ARG1: - empty       -> has_nodenumber? -> output for m
 
 		return 1
 	fi
+
+	
 	
 	if [ 2>/dev/null "$NODE_NUMBER" -ge $RANGE_START -a "$NODE_NUMBER" -le $RANGE_END ]; then
 			
 		local S=0			# subnetstart 	e.g. network.city.100.${S}
 		local N=$NODE_NUMBER		# nodenumber_id	e.g. network.city.${N}.0
 		local RANDOM=false
+		local HEXNODE=$( printf "%X" $NODE_NUMBER; )
+		local NODEINHEX=0:$HEXNODE
 		
 		  if [ "$NODE_NUMBER" -ge $RANGE_FIRST_RANDOM ]; then
 			N=$(( $NODE_NUMBER - 765 ))
 			S=192
 			RANDOM=true
+			HEXNODE=$( printf "%X" $NODE_NUMBER; )
+			NODEINHEX=$( echo $HEXNODE|sed 's/^.*\(.\)\(..\)$/\1:\2/g' )
 		elif [ "$NODE_NUMBER" -gt 765 ]; then
 			N=$(( $NODE_NUMBER - 765 ))
 			S=192
+			HEXNODE=$( printf "%X" $NODE_NUMBER; )
+			NODEINHEX=$( echo $HEXNODE|sed 's/^.*\(.\)\(..\)$/\1:\2/g' )
 		elif [ "$NODE_NUMBER" -gt 510 ]; then
 			N=$(( $NODE_NUMBER - 510 ))
 			S=128
+			HEXNODE=$( printf "%X" $NODE_NUMBER; )
+			NODEINHEX=$( echo $HEXNODE|sed 's/^.*\(.\)\(..\)$/\1:\2/g' )
 		elif [ "$NODE_NUMBER" -gt 255 ]; then
 			N=$(( $NODE_NUMBER - 255 ))
 			S=64
+			HEXNODE=$( printf "%X" $NODE_NUMBER; )
+			NODEINHEX=$( echo $HEXNODE|sed 's/^.*\(.\)\(..\)$/\1:\2/g' )
 		fi
 	else
 		return 1
@@ -274,6 +287,8 @@ LANBRC=$NW.$CITY.$N.$(( S + 63 ))
 LANNET=$NW.$CITY.$N.$(( S + 32 ))
 LANPRE=27
 LANDHCPSTART=$(( S + 34 ))
+LAN6ADR=$IPV6$NODEINHEX$(echo "00::")
+LAN6MSK=64
 LANDHCPNUM=29
 WIFIADR=$NW.$CITY.$N.$(( S + 1 ))
 WIFI1ST=$NW.$CITY.$N.$(( S + 2 ))
@@ -281,6 +296,10 @@ WIFIMSK=255.255.255.224
 WIFIBRC=$NW.$CITY.$N.$(( S + 31 ))
 WIFINET=$NW.$CITY.$N.$S
 WIFIPRE=27
+WIFI6ADR1=$IPV6$NODEINHEX$(echo "01::")
+WIFI6MSK1=64
+WIFI6ADR2=$IPV6$NODEINHEX$(echo "02::")
+WIFI6MSK2=64
 WANADR=$NW.$CITY.$N.$(( S + 25 ))
 WAN1ST=$NW.$CITY.$N.$(( S + 26 ))
 WANMSK=255.255.255.252
@@ -294,6 +313,8 @@ WIFIVPNCLIENTADR=$NW.$CITY.$N.$(( S + 29 ))
 WIFIVPNNET=$NW.$CITY.$N.$(( S + 28 ))
 WIFIVPNBRC=$NW.$CITY.$N.$(( S + 31 ))
 WIFIVPNPRE=30
+VPN6ADR=$IPV6$NODEINHEX$(echo "ff::")
+VPN6MSK=64
 ROAMING_IP4=172.31.$CITY.$NW
 ROAMING_PRE=24
 EOF
