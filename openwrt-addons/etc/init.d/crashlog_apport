@@ -104,32 +104,36 @@ start()
 {
 	local option="$1"
 	local funcname="crashlog_apport"		# enforce a crash with 'echo c >/proc/sysrq-trigger' (SysRq: Trigger a crash) or
-	local file="/sys/kernel/debug/crashlog"		# enforce a crash with 'tail -f /dev/zero' (out-of-memory = oom)
-	local server_ip="$MONITORING_SERVERIP"		# is 84.38.67.43 (crashlog.o works since r32788)
+	local crashlog="/sys/kernel/debug/crashlog"	# enforce a crash with 'tail -f /dev/zero' (out-of-memory = oom)
+	local pause=30					# (crashlog.o works since r32788)
 	local answer="false"
 	local maxtry=10
-	local pause=30
 	local destination
 
-	if [ -e "$file" ]; then
-		grep -q 'SysRq : Trigger a crash' "$file" && return 0
+	. /tmp/loader
 
-		# upload later - not during bootup, each script is terminated after 15 sec
-		[ -z "$option" ] && {
-			echo "crash detected: reason: $( guess_crash_reason "$file" )" >>/www/everlasting_syslog.txt
-			. /tmp/loader
-			echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"
+	# upload later - not during bootup, each script is terminated after 15 sec
+	[ -z "$option" ] && {
+		echo "crash detected: reason: $( guess_crash_reason "$file" )" >>/www/everlasting_syslog.txt
+		echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"
 
-			return 0
-		}
+		return 0
+	}
+
+	for file in $crashlog /www/crashlog.* ; do {
+		[ -e "$file" ] || continue
+		grep -q 'SysRq : Trigger a crash' "$file" && continue
 
 		while [ $maxtry -gt 0 ]; do {
-			logger -s "$funcname: found log in $file, reporting to server $server_ip"
-			answer="$( build_http_postdata "$file" "$server_ip" | nc "$server_ip" 80 )"
+			# default SERVERIP is 84.38.67.43
+			logger -s "$funcname: found log in $file, reporting to server $MONITORING_SERVERIP"
+			answer="$( build_http_postdata "$file" "$MONITORING_SERVERIP" | nc "$MONITORING_SERVERIP" 80 )"
 
 			case "$answer" in
 				*'OK')
-					logger -s "$funcname: send OK"
+					logger -s "$funcname: send of '$file' OK"
+					[ "$file" = "$crashlog" ] || rm "$file"		# only delete on-disc
+					maxtry=10
 					break
 				;;
 				*)
@@ -144,9 +148,9 @@ start()
 			destination="/www/crashlog.$( cat /proc/uptime ).$$"
 			cat "$file" >"$destination"
 			echo "upload crash failed, wrote to: '$destination'" >>/www/everlasting_syslog.txt
+
+			echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"
 		}
-	else
-		return 0
-	fi
+	} done
 }
 
