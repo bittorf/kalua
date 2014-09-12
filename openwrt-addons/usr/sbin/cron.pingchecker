@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if fgrep -s ' 0% packet loss' '/tmp/PING'; then
-	mv '/tmp/PING' '/tmp/PING.lastgood'
+	mv '/tmp/PING' '/tmp/PING.last'
 else
 	REST="$( fgrep -s '% packet loss' '/tmp/PING' )"
 
@@ -27,7 +27,7 @@ else
 		;;
 	esac
 
-	[ -n "$REST" ] && {
+	if [ -n "$REST" ]; then
 		(
 			date
 			echo "IP:$IP up:$UP load:$LOAD"
@@ -37,6 +37,9 @@ else
 		[ -z "$LODEV" ] && . /tmp/loader
 		REST="$( _sanitizer do "$( cat '/tmp/PING.failed' )" newlines2spaces )"
 		echo "$REST" >>'/www/PINGCHECK'
-	}
+		mv '/tmp/PING' '/tmp/PING.last'
+	else
+		[ -e '/tmp/PING' ] && mv '/tmp/PING' '/tmp/PING.last'
+	fi
 fi
 ping -q -w59 -c59 ${IP:-127.0.0.1} >'/tmp/PING' &
