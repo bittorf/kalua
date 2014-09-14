@@ -92,7 +92,7 @@ _watch_vpn ()
 	        }
 	        _log do $func daemon debug "connection seems active"
 
-	        if sed -n '/Neighbors/,/Topology/'p   /tmp/OLSR/ALL | grep -q 10.63.1.1 ; then
+	        if sed -n '/Neighbors/,/Topology/'p   /tmp/OLSR/ALL | grep -q 10.63.1 ; then
 	        	_log do $func daemon debug "tunnel-olsr neigh available"
 	        	return 0
 	        else
@@ -107,13 +107,15 @@ _watch_vpn ()
 
 _watch_archivsize ()
 {
-	local FILE="$1"
-	local MAX_LINES="$2"
-	local TEMP="/tmp/watch_archivsize_temp_$$"
-	
-	tail -n $MAX_LINES "$FILE" >"$TEMP"
-	mv "$TEMP"  "$FILE"
+       local FILE="$1"
+       local MAX_LINES="$2"
+       local TEMP="/tmp/watch_archivsize_temp_$$"
+       
+       tail -n $MAX_LINES "$FILE" >"$TEMP"
+       mv "$TEMP"  "$FILE"
+
 }
+
 
 _watch_system_time ()		# firmware-build-date is newer than unixtime?
 {				# firmware-build-date + 1 year is older than date? (yes, i have seen _many_ routers with date 2020/2037!) -> set time
@@ -148,7 +150,6 @@ _watch_wifi_mode ()		# check e.g. adhoc in config but managed in real?
 		return 0
 	fi
 }
-
 
 _watch_hanging_command ()
 {
@@ -666,9 +667,15 @@ _watch_switch_linkstatus()
 	if [ "$stat_new" = "$stat_old" ]; then
 		_log do $funcname daemon debug "[OK] nothing changed"
 		if [ "$stat_new" != "DOWN" ]; then
-			_watch vpn || {
-				_vpn restart
-			}
+			if _watch vpn; then
+				rm "/tmp/vpnproblemcounter"
+			else
+				_log do $funcname daemon debug "Error in VPN connection"
+				_watch counter "/tmp/vpnproblemcounter" increment 1 max 5 || {
+					_vpn restart
+				}
+			fi	
+			
 		fi
 		return 0
 	else

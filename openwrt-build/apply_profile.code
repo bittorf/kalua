@@ -488,13 +488,12 @@ _config_system ()
 
 	#vpn section of system
 	uci set system.vpn="vpn"
-	uci set system.vpn.hostname="vpn.weimarnetz.de"
-	uci set system.vpn.proto"olsr"
+	uci set system.vpn.domain="weimarnetz.de"
+	uci set system.vpn.prefix="vpn"
+	uci set system.vpn.jsonpath="/freifunk/vpn/"
+	uci set system.vpn.proto="olsr"
 	uci set system.vpn.enable="1"
 	uci set system.vpn.ipaddr="vpn.weimarnetz.de"
-	if [ "$INSTALLATION" = "ffweimar" ]; then
-		uci set system.vpn.port="5001"
-	fi
 
 	uci commit system
 }
@@ -1128,6 +1127,11 @@ EOF
 
 PROFILE_MODE=$profile_mode_tmp                                  #reset original profile mode
 
+  cat >>/etc/config/network <<EOF
+config interface 'tap0'
+  option ifname 'tap0'
+EOF
+
 }
 
 _config_dhcp ()			# domain = .olsr
@@ -1278,14 +1282,17 @@ _config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 
 	local INTERFACES1		# Mode: ether
 	local INTERFACES2		# Mode: adhoc
+	local INTERFACES3   # tap interface for vpn
 	local hna_net hna_mask main_ip
 
 	hna_net="$(  _ipsystem do $NODE | grep OLSR_HNA= | cut -d'=' -f2 | cut -d'/' -f1 )"
 	hna_mask="$( _ipsystem do $NODE | grep OLSR_HNA= | cut -d'/' -f2 )"
 	hna_mask="$( _net cidr2mask $hna_mask )"
+	tap_broadcast="$( _ipsystem do $NODE | grep WIFIVPNSERVERADR= | cut -d'=' -f2 )"
 
 	local landev="lan"
 	local wandev="wan"
+	local tapdev="tap0"
 
 	output_useable_wifi_networks()
 	{
@@ -1328,11 +1335,13 @@ _config_olsrd ()	# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 	case "$PROFILE_MODE" in 
 		ap*)
 			INTERFACES1="${landev}${wandev}"
-			INTERFACES2=
+			INTERFACES2="${tapdev}"
+      INTERFACES3=
 		;;
 		adhoc*|hybrid)
 			INTERFACES1="${landev}${wandev}"
 			INTERFACES2="$( output_useable_wifi_networks )"
+      INTERFACES3="${tapdev}"
 		;;
 	esac
 
@@ -1392,11 +1401,14 @@ EOF
 	option Mode			'ether'		# enforces cost of 0.100
 EOF
 }
-	[ -n "$INTERFACES2" ] && cat >>/etc/config/olsrd <<EOF
+	[ -n "$INTERFACES2" ] && { 
+  BROADCASTADR='255.255.255.255'
+  [ "$INTERFACES2" = "$tapdev" ] && BROADCASTADR="$tap_broadcast"
+  cat >>/etc/config/olsrd <<EOF
 
 config Interface
 	list interface			'$INTERFACES2'
-	option Ip4Broadcast		'255.255.255.255'
+	option Ip4Broadcast		'$BROADCASTADR'
 $showspeed
 $hidev	option HelloInterval		'$hello_interval.0'
 $hidev	option HelloValidityTime	'$(( $speed * 25 )).0'
@@ -1408,6 +1420,29 @@ $hidev	option HnaInterval		'$(( $speed * 2 )).0'
 $hidev	option HnaValidityTime		'$(( $speed * 25 )).0'
 EOF
 
+}
+
+[ -n "$INTERFACES3" ] && {
+
+  BROADCASTADR='255.255.255.255'
+  [ "$INTERFACES3" = "$tapdev" ] && BROADCASTADR="$tap_broadcast"
+  cat >>/etc/config/olsrd <<EOF
+
+config Interface
+	list interface			'$INTERFACES3'
+	option Ip4Broadcast		'$BROADCASTADR'
+$showspeed
+$hidev	option HelloInterval		'$hello_interval.0'
+$hidev	option HelloValidityTime	'$(( $speed * 25 )).0'
+$hidev	option TcValidityTime		'$(( $speed * 100 )).0'
+$hidev	option TcInterval		'$tc_interval.0'
+$hidev	option MidInterval		'$(( $speed * 5 )).0'
+$hidev	option MidValidityTime		'$(( $speed * 100 )).0'
+$hidev	option HnaInterval		'$(( $speed * 2 )).0'
+$hidev	option HnaValidityTime		'$(( $speed * 25 )).0'
+EOF
+
+}
 	local interface_mode="mesh"
 #	case "$PROFILE_MODE" in
 #		adhoc*)
@@ -1482,7 +1517,7 @@ EOF
 #EOF
 #	}
 
-EOF
+#EOF
 }
 
 [ -e /etc/init.d/apply_profile.regulatory.bin ] && {
