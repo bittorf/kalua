@@ -1714,19 +1714,23 @@ _wifi_is2ghz()
 	local radio="$( uci -q get wireless.@wifi-iface[${wifi_iface}].device )"
 	local channel="$( uci -q get wireless.${radio}.channel )"
 
-	# this is dirty, we must take hwmode into account, because 7-12 can also be 5ghz
+	# TODO: this is dirty, we must take hwmode into account, because 7-12 can also be 5ghz
 	test ${channel:-0} -lt 15
 }
 
-_wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
+_wifi_set()
 {
 	local i radio
 	local wifimode="$1"	# e.g. 'ap' or 'any'
 	local band="$2"		# e.g. '5ghz' or 'any'
-	local var="$3"		# e.g. 'ssid'
-	local value="$4"	# e.g. 'myssid'
+	local var="$3"		# e.g. 'ssid' or 'disabled'
+	local value="$4"	# e.g. 'myssid' or '1'
 	local option="$5"
 	local radio carry j=10
+
+	# _wifi set ap  5ghz ssid 'Appartementhaus'
+	# _wifi set ap  5ghz disabled '1'
+	# _wifi set any any  disabled kmod_unload
 
 	for i in $( seq 0 15 ); do {
 		[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' ] && {
@@ -1783,9 +1787,17 @@ _wifi_set()	# e.g.: _wifi set ap 5ghz ssid 'Appartementhaus'
 								'kmod_load')
 									# TODO
 								;;
-								*)
-									uci set wireless.$radio.$var="$value"
+								'disabled'|*)
 									# TODO: wifi down?
+									if [ "$wifimode" = 'any' ]; then
+										# set RADIO
+										uci set wireless.$radio.$var="$value"
+									else
+										# set vIF
+										[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" ] && {
+											uci set wireless.@wifi-iface[$i].$var='1'
+										}
+									fi
 								;;
 							esac
 						else
