@@ -414,23 +414,27 @@ _watch_archivsize()	# e.g. if a file exceeds 300 lines it will be truncated to t
 	fi
 }
 
-_watch_system_time ()		# firmware-build-date is newer than unixtime?
-{				# firmware-build-date + 1 year is older than date? (yes, i have seen _many_ routers with date 2020/2037!) -> set time
-	local NTP_TIME_OK=	# fallback 347681 = 2009'aug-30                         
+_watch_system_time()
+{
+	local funcname='watch_system_time'
+	local unixtime="$( _system date unixtime )"
+	local ntp_ok
 
-	local UNIXTIME="$( _system date unixtime )"
-	      UNIXTIME="${UNIXTIME:=0}"
+	# clock older than buildtime OR
+	# buildtime is newer than clock?
+	[ $((  $FFF_PLUS_VERSION * 3600 ))		-gt $unixtime ] && ntp_ok='false'
 
-	[ $(( ${FFF_PLUS_VERSION:=347681} * 3600 ))            -gt $UNIXTIME ] && NTP_TIME_OK="false"
-	[ $(( ${FFF_PLUS_VERSION:=347681} * 3600 + 135000000)) -lt $UNIXTIME ] && NTP_TIME_OK="false"
+	# buildtime much older (4 years) than clock
+	# (yes, i have seen _many_ routers with date 2020/2037!)
+	[ $(( ($FFF_PLUS_VERSION * 3600) + 135000000 ))	-lt $unixtime ] && ntp_ok='false'
 
-	_ntp set is_unset && NTP_TIME_OK="false"
-	
-	[ "$NTP_TIME_OK" = "false" ] && {
+	_ntp set is_unset && ntp_ok='false'
+
+	[ "$ntp_ok" = 'false' ] && {
 		_ntp set force
 
-		[ "$(( ${FFF_PLUS_VERSION:=347681} * 3600 ))" -gt "$( _system date unixtime )" ] && {
-			_log do set_time daemon info "could'nt set time - trying poor mens timeserver - fixme!"
+		[ $(( $FFF_PLUS_VERSION * 3600 )) -gt $( _system date unixtime ) ] && {
+			_log do $funcname daemon alert "could'nt set time - trying poor mens timeserver - fixme!"
 		}
 	}
 }
