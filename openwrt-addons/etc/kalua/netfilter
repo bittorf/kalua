@@ -1716,11 +1716,20 @@ _netfilter_user_del()
 {
 	local funcname='netfilter_user_del'
 	local mac="${1:-unset}"
+	local option="$2"
 	local ip dev traffic comment
+
+	[ "$option" = 'dhcp_del' ] && {
+		# ignore calls for users, which have a lease (again)
+		grep -sq " $mac " "$( _net dhcp_lease_filename )" && {
+			_log do $funcname daemon alert "ignoring call for $mac"
+			return 1
+		}
+	}
 
 	[ "$mac" = 'all' ] && {
 		for mac in $( _netfilter user_list ); do {
-			_netfilter user_del "$mac"
+			_netfilter user_del "$mac" 'all'
 		} done
 	}
 
@@ -1728,7 +1737,7 @@ _netfilter_user_del()
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
 
 		[ "$( uci -q get system.@weblogin[0].logtraffic )" = '1' ] && {
-			comment="$( _db user_macenabled_comment_get "$mac" )"
+			comment="$option $( _db user_macenabled_comment_get "$mac" )"
 			traffic="$( _netfilter stats "$mac" megabytes )"
 			_log do $funcname daemon alert "mac: $mac ip: $ip traffic: $traffic mb comment: $comment"
 		}
