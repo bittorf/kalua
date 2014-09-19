@@ -126,10 +126,38 @@ boot()
 		}
 	fi
 
+	integer2fourhex()	# e.g. 8 -> 00:08
+	{			# fixme! max = 999 fixme! generalize it, join with bssid_wellformed()
+		if [ $1 -lt 100 ]; then
+			if [ $1 -lt 10 ]; then
+				echo "00:0$1"
+			else
+				echo "00:$1"
+			fi
+		else
+			echo "0$( echo "$1" | cut -b 1 ):$( echo "$1" | cut -b 2-3 )"
+		fi
+	}
+
 	case "$HARDWARE" in
 		'TP-LINK TL-WDR4900'*|'TP-LINK TL-WR703N v1')
 			# we use the button to trigger an WPS-action/soundplayer
 			[ -e '/etc/rc.button/reset' ] && rm '/etc/rc.button/reset'
+		;;
+	esac
+
+	case "$HARDWARE" in
+		'TP-LINK TL-WDR4900'*)
+			# fix default mac: 00:04:9f:ef:01:01
+			# https://dev.openwrt.org/ticket/14714
+
+			[ -e '/www/monitoring.wifimac' ] && {
+				read wmac <'/www/monitoring.wifimac'
+				wmac="${wmac:0:2}:${wmac:2:2}:${wmac:4:2}:00:$( integer2fourhex "$NODENUMBER" )"
+
+				uci set network.lan.macaddr="$wmac"
+				uci set network.wan.macaddr="$wmac"
+			}
 		;;
 	esac
 
@@ -1294,19 +1322,6 @@ boot()
 		esac
 
 		local startup="/tmp/WIFI_SPECIALS.sh"
-
-		integer2fourhex()	# e.g. 8 -> 00:08
-		{			# fixme! max = 999 fixme! generalize it, join with bssid_wellformed()
-			if [ $1 -lt 100 ]; then
-				if [ $1 -lt 10 ]; then
-					echo "00:0$1"
-				else
-					echo "00:$1"
-				fi
-			else
-				echo "0$( echo "$1" | cut -b 1 ):$( echo "$1" | cut -b 2-3 )"
-			fi
-		}
 
 		set_mac()
 		{
