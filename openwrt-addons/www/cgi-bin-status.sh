@@ -384,11 +384,11 @@ EOF
 		echo " <td align='right'><small>$count</small></td>"
 		echo " <td sorttable_customkey='$octet3'> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
-		echo " <td colspan='6' nowrap> vermisst, zuletzt gesehen vor $age </td>"
+		echo " <td colspan='5' nowrap> vermisst, zuletzt gesehen vor $age </td>"
 		echo " <td align='right' title='$cost_best_time'> $cost_best </td>"
 		echo " <td>&nbsp;</td>"
 		echo " <td align='center'> ${metric:-&mdash;} </td>"
-		echo " <td colspan='3'> &nbsp; </td>"
+		echo " <td colspan='4'> &nbsp; </td>"
 		echo "</tr>"
 	} done
 }
