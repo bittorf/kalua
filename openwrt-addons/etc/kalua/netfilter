@@ -761,7 +761,7 @@ _netfilter_stop()
 		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype"
 		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable	# $mediatype"
 
-		_netfilter user_del "$mac"
+		_netfilter user_del "$mac" "$funcname"
 	} done >"/tmp/NETFILTER_AUTOADD"
 
 	_netfilter traffic_control_needed && {
@@ -1716,20 +1716,22 @@ _netfilter_user_del()
 {
 	local funcname='netfilter_user_del'
 	local mac="${1:-unset}"
-	local option="$2"
+	local reason="$2"
 	local ip dev traffic comment
 
-	[ "$option" = 'dhcp_del' ] && {
-		# ignore calls for users, which have a lease (again)
-		grep -sq " $mac " "$( _net dhcp_lease_filename )" && {
-			_log do $funcname daemon alert "ignoring call for $mac"
-			return 1
-		}
-	}
+	case "$reason" in
+		*'dhcp_del'*)
+			# ignore calls for users, which have a lease (again)
+			grep -sq " $mac " "$( _net dhcp_lease_filename )" && {
+				_log do $funcname daemon alert "ignoring call for $mac - reason: $reason"
+				return 1
+			}
+		;;
+	esac
 
 	[ "$mac" = 'all' ] && {
 		for mac in $( _netfilter user_list ); do {
-			_netfilter user_del "$mac" 'all'
+			_netfilter user_del "$mac" "$reason all"
 		} done
 	}
 
@@ -1737,7 +1739,7 @@ _netfilter_user_del()
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
 
 		[ "$( uci -q get system.@weblogin[0].logtraffic )" = '1' ] && {
-			comment="$option $( _db user_macenabled_comment_get "$mac" )"
+			comment="$reason $( _db user_macenabled_comment_get "$mac" )"
 			traffic="$( _netfilter stats "$mac" megabytes )"
 			_log do $funcname daemon alert "mac: $mac ip: $ip traffic: $traffic mb comment: $comment"
 		}
@@ -1942,7 +1944,7 @@ _netfilter_user_stats_process()
 
 		[ $(( $bytes_incoming_sum + $bytes_outgoing_sum )) -eq 0 ] && {
 			read ip </tmp/NETFILTER/MAC2IP/$mac
-#			_netfilter user_reachable "$mac" "$ip" >/dev/null || _netfilter user_del "$mac"
+#			_netfilter user_reachable "$mac" "$ip" >/dev/null || _netfilter user_del "$mac" 'no_traffic'
 
 			continue	# dont generate any message for this user
 		}

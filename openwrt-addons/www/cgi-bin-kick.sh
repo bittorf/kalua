@@ -2,19 +2,17 @@
 . /tmp/loader
 
 echo -en "Content-type: text/plain\n\nOK"
-
 eval $( _http query_string_sanitize )	# CAH|CMA|LOG
 
-[ -n "$LOG" ] && {
+if [ -n "$LOG" ]; then
 	logger -s "$0: LOG: '$LOG'"
-	exit 1
-}
+else
+	_netfilter user_probe "$CMA" || exit 1
 
-_netfilter user_probe "$CMA" || exit 1
+	[ -e "/tmp/vds_user_$CMA" ] || exit 1
 
-[ -e "/tmp/vds_user_$CMA" ] || exit 1
+	read HASH <"/tmp/vds_user_$CMA"
+	[ "$HASH" = "$CAH" ] || exit
 
-read HASH <"/tmp/vds_user_$CMA"
-[ "$HASH" = "$CAH" ] || exit
-
-echo >>$SCHEDULER "_netfilter user_del $CMA"
+	echo >>$SCHEDULER "_netfilter user_del $CMA kick_user"
+fi
