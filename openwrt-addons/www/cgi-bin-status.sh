@@ -50,9 +50,9 @@ output_table()
 		esac
 	} done
 
-	# tablehead
+	# tablehead - change also 'colspan' in 'old neighs' when we add/del something here
 	echo -n "<tr>"
-	head_list='No. Nachbar-IP Hostname Schnittstelle lokale&nbsp;Interface-IP LQ NLQ ETX ETX<small><sub>min</sub></small> SNR Metrik raus rein Gateway'
+	head_list='No. Nachbar-IP Hostname Schnittstelle lokale&nbsp;Interface-IP LQ NLQ ETX ETX<small><sub>min</sub></small> Speed<small><sub>best</sub></small> SNR Metrik raus rein Gateway'
 	for word in $head_list; do {
 		case "$word" in
 			'Gateway')
@@ -119,7 +119,7 @@ output_table()
 				# mid3.F36-Dach4900er-MESH -> F36-Dach4900er-MESH
 				remote_hostname="${remote_hostname#*.}"
 			;;
-			'xmlversion'*)
+			'xmlversion'*|'htmlxml'*)
 				# fetched 404/error-page
 				remote_hostname="$remote_ip"
 			;;
@@ -361,6 +361,7 @@ output_table()
  <td> $NLQ </td>
  <td sorttable_customkey='$cost_int' align='$cost_align' bgcolor='$cost_color'> $COST </td>
  <td align='right' title='$cost_best_time'> $cost_best </td>
+ <td align='right'>$( _wifi speed cached $REMOTE | cut -d'-' -f2 )</td>
  <td align='right' bgcolor='$snr_color'> $snr </td>
  <td align='center'> $metric </td>
  <td align='right'> $rx_mbytes </td>
@@ -383,7 +384,7 @@ EOF
 		echo " <td align='right'><small>$count</small></td>"
 		echo " <td sorttable_customkey='$octet3'> <a href='http://$neigh/cgi-bin-status.html'>$neigh</a> </td>"
 		echo " <td> <a href='http://$neigh/cgi-bin-status.html'>$remote_hostname</a> </td>"
-		echo " <td colspan='5' nowrap> vermisst, zuletzt gesehen vor $age </td>"
+		echo " <td colspan='6' nowrap> vermisst, zuletzt gesehen vor $age </td>"
 		echo " <td align='right' title='$cost_best_time'> $cost_best </td>"
 		echo " <td>&nbsp;</td>"
 		echo " <td align='center'> ${metric:-&mdash;} </td>"
