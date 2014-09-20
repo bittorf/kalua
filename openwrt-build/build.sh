@@ -648,7 +648,7 @@ openwrt_download()
 
 			[ -n "$( git stash list | grep -v '() going to checkout ' )" ] && {
 				log "$funcname() found openwrt-stash, ignore via press 'q'"
-				log "$funcname() or use e.g. 'git stash list OR pop OR apply stash@{0} OR clear"
+				log "$funcname() or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git clear'"
 
 				git stash list
 			}
