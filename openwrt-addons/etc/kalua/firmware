@@ -75,6 +75,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	local SIZE TEMPFILE CRON_RESTART REPATCH_ALL
 	local COUNT=0
 	local COUNT_ERROR=0
+	local banner='/etc/banner'
 
 	if [ -e "$MODE" ]; then
 		TGZ="$MODE"
@@ -139,11 +140,9 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	_log do "$FUNC" daemon debug "tarball extracted - applying only files which differ"
 
 	for TEMPFILE in $( find -type f ); do {
-
 		if [ "$( _file hash "$TEMPFILE" )" = "$( _file hash "/$TEMPFILE" )" ]; then
 			rm "$TEMPFILE"
 		else
-
 			_log do "$FUNC" daemon info "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" kb ) ))"
 
@@ -182,16 +181,16 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 
 		[ "$REPATCH_ALL"  = "1" ] && /etc/init.d/*patch-o-matic* repatch all
 
-		head -n14 '/rom/etc/banner' >/etc/banner
+		head -n14 "/rom${banner}" >"$banner"
 
-		echo >>/etc/banner
-		echo >>/etc/banner "# manually updated with poormens method on $( date ) by '$0' to this version:"
-		echo >>/etc/banner "# originally flashed version: $( _system version )"
-		tail >>/etc/banner -n2 /etc/variables_fff+
-		echo >>/etc/banner "#"
-		echo >>/etc/banner
-		
-		_log do "$FUNC" daemon alert "[OK] applied tarball in '$MODE'-mode from '$URL' ($COUNT files), wrote new banner"
+		echo >>"$banner"
+		echo >>"$banner" "# manually updated with $FUNC() on $( date ) by '$0' to this version:"
+		echo >>"$banner" "# originally flashed version: $( _system version )"
+		tail >>"$banner" -n2 /etc/variables_fff+
+		echo >>"$banner" "#"
+		echo >>"$banner"
+
+		_log do "$FUNC" daemon alert "[OK] applied tarball in '$MODE'-mode from '${URL:-local}' ($COUNT files), wrote new '$banner'"
 
 		echo "0" >'/www/REBOOT_COUNTER'		# fixme!
 	else
