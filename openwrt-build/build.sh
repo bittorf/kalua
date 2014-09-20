@@ -117,9 +117,19 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 	local funcname='kernel_commandline_tweak'
 	local dir="target/linux/$ARCH"
 	local pattern=" oops=panic panic=10 "
-	local config
+	local config kernelversion
 
 	case "$ARCH" in
+		mpc85xx)
+			# config-3.10 -> 3.10
+			kernelversion="$( ls -1 $dir/config-* | head -n1 | cut -d'-' -f2 )"
+			config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
+			log "$funcname: looking into '$config', adding $pattern"
+
+			fgrep -q "$pattern" "$config" || {
+				sed -i "s/console=ttyS0,115200/$pattern &/" "$config"
+			}
+		;;
 		ar71xx)
 			config="$dir/image/Makefile"
 			log "$funcname() looking into '$config', adding $pattern"
