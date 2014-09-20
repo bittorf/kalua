@@ -862,6 +862,10 @@ apply_symbol()
 			log "$funcname() $KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
 
+			log "$funcname() $KALUA_DIRNAME: adding initial crontab"
+			mkdir -p "$custom_dir/etc/crontabs"
+			echo >"$custom_dir/etc/crontabs/root" '* * * * * /etc/init.d/cron.user boot'
+
 			log "$funcname() $KALUA_DIRNAME: adding version-information = '$last_commit_date'"
 			echo  >'files/etc/variables_fff+' "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
 			echo >>'files/etc/variables_fff+' "FFF_VERSION=2.0.0			# OpenWrt based / unused"
