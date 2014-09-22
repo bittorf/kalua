@@ -26,13 +26,21 @@ print_usage_and_exit()
 {
 	local hint="$1"
 	local rev="r$( openwrt_revision_number_get )"
-	local hardware
+	local hardware usecase
 
 	if [ -e 'files/etc/HARDWARE' ]; then
 		# last used one
 		read hardware <'files/etc/HARDWARE'
 	else
 		hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
+	fi
+
+	if [ -e 'files/etc/openwrt_build' ]; then
+		# last used one, e.g.: Standard,noPPPoE,BigBrother,kalua@e678dd6
+		read usecase <'files/etc/openwrt_build'
+		usecase="$( echo "$usecase" | cut -d'@' -f1 )"
+	else
+		usecase="Standard,$KALUA_DIRNAME"
 	fi
 
 	[ -n "$hint" ] && log "[HINT:] $hint"
@@ -47,7 +55,7 @@ EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
        $0 --debug --${KALUA_DIRNAME}_package
 
-e.g. : $0 --openwrt $rev --hardware '$hardware' --usecase 'Standard,$KALUA_DIRNAME'
+e.g. : $0 --openwrt $rev --hardware '$hardware' --usecase '$usecase'
 
 Get help without args, e.g.: --hardware <empty>
 EOF
