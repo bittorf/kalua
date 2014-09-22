@@ -591,8 +591,14 @@ check_working_directory()
 
 openwrt_revision_number_get()
 {
-	# command 'scripts/getver.sh' is not available in all revisions
-	git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1
+	local rev="$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
+
+	if [ -n "$rev" ]; then
+		echo "$rev"
+	else
+		# command 'scripts/getver.sh' is not available in all revisions
+		scripts/getver.sh | cut -d'r' -f2
+	fi
 }
 
 openwrt_download()
