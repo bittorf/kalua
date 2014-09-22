@@ -11,8 +11,6 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	local firstping_lan firstping_wan gateway gateway_old ip i cost cost_best
 	local has_wired_neigh
 
-	mkdir -p /tmp/OLSR /tmp/OLSR_TMP
-
 	[ -e "$configfile" ] || {
 		_log do $func daemon info "config file not found, daemon was never started"
 		return 0
@@ -20,9 +18,13 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 	while _olsr uptime is_short ; do {
 		_log do $func daemon info "waiting till olsr-uptime is long enough"
-		uptime_was_short='true'
+
 		sleep 10
+		uptime_was_short='true'
+		[ -d '/tmp/OLSR' ] && rm -fR '/tmp/OLSR' '/tmp/OLSR_TMP'
 	} done
+
+	mkdir -p '/tmp/OLSR' '/tmp/OLSR_TMP'
 
 	while true; do {
 		if _wget do "http://127.0.0.1:2006/all" >'/tmp/OLSR_TMP/ALL' ; then
@@ -312,7 +314,7 @@ _olsr_force_static_arp()
 	# this can lead to strange effects when we replug wired routers from e.g. lan2wan
 
 	mac="$( _net ip2mac "$ip" )" && {
-		_netfilter make_arp_permanent "$mac" "$ip" && {
+		_netfilter set_arp permanent "$mac" "$ip" && {
 			touch "/tmp/OLSR/fixed_arp_$ip"
 		}
 	}
@@ -337,7 +339,7 @@ _olsr_daemon()
 	local ACTION="$1"
 	local REASON="${2:-no_reason_given}"
 	local LOGPRIO="alert"
-	local LIST
+	local LIST ip
 
 	case "$REASON" in
 		'batman_active_now'|'olsrd_restart_scheduler_controlled'|'plausi_check_failed'|'becoming hna-master'*)
@@ -360,6 +362,10 @@ _olsr_daemon()
 					# is generated via olsr_version() which is called from build_tables()
 					# without this file we refuse to be a OLSR-master for slaves
 					rm '/tmp/OLSR/daemon_version'
+
+					for ip in $( ls -1 /tmp/OLSR/fixed_arp_* | cut -d'_' -f3 ); do {
+						_netfilter set_arp reachable 'mac?' "$ip"
+					} done
 				;;
 				start|restart)
 					[ -e "/sbin/netifd" ] && {
@@ -896,7 +902,7 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 		eval $LINE
 
 		mac="$( _net ip2mac "$REMOTE" )" && {
-			_netfilter make_arp_permanent "$mac" "$REMOTE"
+			_netfilter set_arp permanent "$mac" "$REMOTE"
 		}
 
 		[ -e /tmp/OLSR/isneigh_$REMOTE ] || {

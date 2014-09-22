@@ -1645,7 +1645,7 @@ EOF
 		'br-mybridge'|'gateway0')
 		;;
 		*)
-			_netfilter make_arp_permanent "$mac" "$ip" "$dev"
+			_netfilter set_arp permanent "$mac" "$ip" "$dev"
 		;;
 	esac
 
@@ -1693,16 +1693,31 @@ _netfilter_user_dataretention_needed()	# disabled till memory-probs are solved
 	return 1
 }
 
-_netfilter_make_arp_permanent()
+_netfilter_set_arp()
 {
-	local mac="$1"
-	local ip="$2"
-	local dev="${3:-$( _net mac2dev "$mac" exact )}"
+	local nudmode="$1"	# e.g permanent|reachable
+	local mac="$2"
+	local ip="$3"
+	local dev="${4:-$( _net mac2dev "$mac" exact )}"
 
-	[ "$mac" = "00:00:00:00:00:00" -o -z "$dev" ] && return 1
+	[ -z "$dev" ] && return 1
 
-	ip neigh add    $ip dev $dev lladdr $mac nud permanent 2>/dev/null
-	ip neigh change $ip dev $dev lladdr $mac nud permanent 2>/dev/null
+	case "$mac" in
+		'00:00:00:00:00:00')
+			return 1
+		;;
+		*':'*)
+			# ok
+		;;
+		*)
+			mac="$( _net ip2mac "$ip" )" || return 1
+		;;
+	esac
+
+	ip neigh add    $ip dev $dev lladdr $mac nud $nudmode 2>/dev/null
+	ip neigh change $ip dev $dev lladdr $mac nud $nudmode 2>/dev/null
+
+	return 0
 }
 
 _netfilter_user_probe()
