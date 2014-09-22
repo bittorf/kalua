@@ -26,7 +26,14 @@ print_usage_and_exit()
 {
 	local hint="$1"
 	local rev="r$( openwrt_revision_number_get )"
-	local hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
+	local hardware
+
+	if [ -e 'files/etc/HARDWARE' ]; then
+		# last used one
+		read hardware <'files/etc/HARDWARE'
+	else
+		hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
+	fi
 
 	[ -n "$hint" ] && log "[HINT:] $hint"
 
