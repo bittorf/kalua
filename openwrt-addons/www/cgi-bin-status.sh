@@ -246,7 +246,12 @@ output_table()
 					# 95 = noise_base / drivers_default
 					# http://en.wikipedia.org/wiki/Thermal_noise#Noise_power_in_decibels
 					# https://lists.open-mesh.org/pipermail/b.a.t.m.a.n/2014-April/011911.html
+					#
+					# see on b43: snr=-98
 					snr="$(( 95 + $snr ))"
+
+					# TODO: auto-adjust noise_base for this dev/channel
+					[ $snr -lt 0 ] && snr=0
 
 					if   [ $snr -gt 30 ]; then
 						snr_color='green'
