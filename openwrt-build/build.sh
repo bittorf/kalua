@@ -897,6 +897,10 @@ apply_symbol()
 			log "$funcname() $KALUA_DIRNAME: adding initial crontab"
 			mkdir -p "$custom_dir/etc/crontabs"
 			echo >"$custom_dir/etc/crontabs/root" '* * * * * /etc/init.d/cron.user boot'
+			#
+			echo  >"$custom_dir/etc/rc.local" "#!/bin/sh"
+			echo >>"[ -e '/tmp/loader' ] || /etc/init.d/cron.user boot"
+			echo >>"exit 0"
 
 			log "$funcname() $KALUA_DIRNAME: adding version-information = '$last_commit_date'"
 			echo  >'files/etc/variables_fff+' "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
