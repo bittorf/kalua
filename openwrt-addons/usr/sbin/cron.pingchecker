@@ -28,18 +28,25 @@ else
 	esac
 
 	if [ -n "$REST" ]; then
-		(
-			date
-			echo "IP:$IP up:$UP load:$LOAD"
-			tail -n${REST} '/tmp/PING'
-		) >'/tmp/PING.failed'
+		pingstat()
+		{
+			local line
 
-		[ -z "$LODEV" ] && . /tmp/loader
-		REST="$( _sanitizer do "$( cat '/tmp/PING.failed' )" newlines2spaces )"
-		echo "$REST" >>'/www/PINGCHECK'
+			while read line; do {
+				case "$line" in
+					*'packets transmitted'*|'round-trip'*)
+						echo -n "$line "
+					;;
+				esac
+			} done <'/tmp/PING'
+		}
+
+		echo "$( date ) IP:$IP up:$UP load:$LOAD $( pingstat )" >>'/www/PINGCHECK'
 		mv '/tmp/PING' '/tmp/PING.last'
 	else
 		[ -e '/tmp/PING' ] && mv '/tmp/PING' '/tmp/PING.last'
 	fi
+
+#	grep 'round-trip' '/tmp/PING.last' | logger
 fi
 ping -q -w59 -c59 ${IP:-127.0.0.1} >'/tmp/PING' &
