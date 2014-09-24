@@ -207,6 +207,7 @@ copy_additional_packages()
 			package="$( basename "$dir" )"
 
 			log "$funcname() working on '$dir', destination: '$install_section'"
+			# only 'v' if DEBUG?
 			cp -Rv "$dir" "package/$install_section"
 
 			[ "$package" = 'cgminer' ] && {
