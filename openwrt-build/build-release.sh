@@ -101,7 +101,7 @@ show_progress()
 if [ -z "$1" ]; then
 	echo "Usage: $0 <OpenWrt-Revision> <model> <mode> <server-path>"
 	echo " e.g.: $0 'r39455' 'Ubiquiti Bullet M' 'testing' 'root@intercity-vpn.de:/var/www/blubb/firmware'"
-	echo " e.g.: $0 'trunk'  'all                'stable'  'root@intercity-vpn.de:/var/www/blubb/firmware'"
+	echo " e.g.: $0 'trunk'  'all'               'stable'  'root@intercity-vpn.de:/var/www/blubb/firmware'"
 	exit 1
 else
 	REV="$1"
@@ -132,9 +132,9 @@ for HW in $HW_LIST; do {
 	for OPT in $( list_options ); do {
 		stopwatch start
 		show_progress
-		log "# $BUILD --quiet --hardware \"$HW\" --usecase \"$OPT\" --openwrt \"$REV\" --release \"$MODE\" \"$DEST\""
+		log "# $BUILD --quiet --hardware '$HW' --usecase '$OPT' --openwrt $REV --release '$MODE' '$DEST'"
 
-		if     $BUILD --quiet --hardware  "$HW"  --usecase  "$OPT"  --openwrt  "$REV"  --release  "$MODE"   "$DEST" ; then
+		if     $BUILD --quiet --hardware "$HW" --usecase "$OPT" --openwrt $REV --release "$MODE" "$DEST" ; then
 			BUILD_GOOD=$(( $BUILD_GOOD + 1 ))
 			log "[OK] in $( stopwatch stop "$T1" ) sec"
 		else
