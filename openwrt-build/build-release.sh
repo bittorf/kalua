@@ -2,32 +2,32 @@
 
 list_options()		# disable e.g. USB-builds for router without USB or images that are too big?
 {
-	echo 'Standard'					# sizecheck
+#	echo 'Standard'					# sizecheck
 
-	echo 'Standard,VDS,kalua'			# typical hotel
-	echo 'Standard,VDS,USBprinter,kalua'		# roehr30
-	echo 'Standard,VDS,BTCminerBFL,kalua'		# ejbw/16
-	echo 'Standard,VDS,BigBrother,kalua'		# buero/fenster
-	echo 'Standard,VDS,USBaudio,kalua'		# f36stube
-	echo 'Standard,VDS,BigBrother,USBaudio,kalua'	# buero/kueche
-
-	echo 'Small'					# sizecheck
-
-	echo 'Small,OLSRd,kalua'
-	echo 'Small,BatmanAdv,kalua'
-	echo 'Small,OLSRd,BatmanAdv,kalua'
-
-	echo 'Small,VDS,OLSRd,kalua'
-	echo 'Small,VDS,BatmanAdv,kalua'
-	echo 'Small,VDS,OLSRd,BatmanAdv,kalua'
-
-	echo 'Small,noPPPoE'				# sizecheck
-	echo 'Small,noPPPoE,OLSRd,kalua'
-	echo 'Small,noPPPoE,BatmanAdv,kalua'
-	echo 'Small,noPPPoE,OLSRd,BatmanAdv,kalua'
-	echo 'Small,noPPPoE,VDS,OLSRd,kalua'
-	echo 'Small,noPPPoE,VDS,BatmanAdv,kalua'
-	echo 'Small,noPPPoE,VDS,OLSRd,BatmanAdv,kalua'
+	echo 'Standard,VDS,kalua'			# typical hotel / 8mb-flash
+#	echo 'Standard,VDS,USBprinter,kalua'		# roehr30
+#	echo 'Standard,VDS,BTCminerBFL,kalua'		# ejbw/16
+#	echo 'Standard,VDS,BigBrother,kalua'		# buero/fenster
+#	echo 'Standard,VDS,USBaudio,kalua'		# f36stube
+#	echo 'Standard,VDS,BigBrother,USBaudio,kalua'	# buero/kueche
+#
+#	echo 'Small'					# sizecheck
+#
+#	echo 'Small,OLSRd,kalua'
+#	echo 'Small,BatmanAdv,kalua'
+#	echo 'Small,OLSRd,BatmanAdv,kalua'
+#
+#	echo 'Small,VDS,OLSRd,kalua'
+#	echo 'Small,VDS,BatmanAdv,kalua'
+#	echo 'Small,VDS,OLSRd,BatmanAdv,kalua'
+#
+#	echo 'Small,noPPPoE'				# sizecheck
+	echo 'Small,noPPPoE,OLSRd,kalua'		# typical hotel / 4mb-flash
+#	echo 'Small,noPPPoE,BatmanAdv,kalua'
+#	echo 'Small,noPPPoE,OLSRd,BatmanAdv,kalua'
+#	echo 'Small,noPPPoE,VDS,OLSRd,kalua'
+#	echo 'Small,noPPPoE,VDS,BatmanAdv,kalua'
+#	echo 'Small,noPPPoE,VDS,OLSRd,BatmanAdv,kalua'
 
 #	echo 'Mini'
 
