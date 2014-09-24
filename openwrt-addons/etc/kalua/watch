@@ -599,8 +599,8 @@ _watch_flash_free_space()
 _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gateway
 {
 	local funcname='watch_dns_resolution'
-	local testserver="intercity-vpn.de"	# fixme! use a fallback list
-	local ip line pid pid_fakedns pid_parent script leases cmdline
+	local testserver='intercity-vpn.de'	# fixme! use a fallback list
+	local ip line pid pid_fakedns pid_parent pid_main script leases cmdline
 
 	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] && {
 		read pid_fakedns <'/tmp/SERVICE/FAKEDNS.pid'
@@ -617,10 +617,12 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	# dnsmasq -p 5353 -A /#/192.168.1.251 -C /dev/null
 
 	[ -x /etc/init.d/*dnsmasq ] || return 0
+
 	[ -x /etc/rc.d/S*dnsmasq ] || {
-		ip="$( uci get dhcp.@dnsmasq[0].server )"
+		ip="$( uci -q get dhcp.@dnsmasq[0].server )"
 		line="nameserver ${ip:-8.8.8.8}"
-		fgrep -q "$line" "/etc/resolv.conf" || echo "$line" >"/etc/resolv.conf"
+		fgrep -q "$line" '/etc/resolv.conf' || echo "$line" >'/etc/resolv.conf'
+
 		return 0
 	}
 
@@ -680,10 +682,10 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 	pid_good "$pid" "$script" || {
 		if fgrep -q 'nameserver 127.0.0.1' '/etc/resolv.conf'; then
-			_log do $funcname daemon error "restarting dnsmasq"
+			_log do $funcname daemon info "restarting dnsmasq"
 
 			pidof udhcpd >/dev/null && {			# otherwise the server-port cannot bound to new daemon
-				_log do $funcname daemon error "killing old DNS-server 'udhcpd'"
+				_log do $funcname daemon info "killing old DNS-server 'udhcpd'"
 				killall udhcpd
 			}
 
@@ -703,12 +705,18 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	}
 
 	nslookup "$$.$testserver" 2>/dev/null >/dev/null || {		# can we resolv a random address?
-		for pid_parent in $pid; do {
-			# ignore nobody-pid / dhcp-script child
-			grep ^'Uid:' "/proc/$pid_parent/status" | grep -q '65534' || break
-		} done
-
 		_net inet_seems_stable || return 0
+
+		# if we have 2 pid's, we must use nobody-pid
+		# for SIGUSR1/SIGHUP and main-pid for SIGSEGV
+		for pid_parent in $pid; do {
+			# nobody-pid / dhcp-script child
+			if grep ^'Uid:' "/proc/$pid_parent/status" | grep -q '65534'; then
+				:
+			else
+				pid_main="$pid_parent"
+			fi
+		} done
 
 		_log do $funcname daemon alert "[ERR] sending SIGHUP to DNSmasq: $pid_parent"
 		kill -SIGHUP "$pid_parent"
@@ -718,7 +726,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		nslookup "$$.$testserver" 2>/dev/null >/dev/null || {
 			_log do $funcname daemon alert "[ERR] restarting dnsmasq: $pid_parent"
 			kill -SIGUSR1 "$pid_parent"	# stats to syslog
-			kill -SIGSEGV "$pid_parent"	# produce coredump
+			kill -SIGSEGV "$pid_main"	# produce coredump
 
 			sleep 5
 			/etc/init.d/*dnsmasq restart
