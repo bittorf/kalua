@@ -79,7 +79,7 @@ build_http_postdata()
 
 guess_crash_reason()
 {
-	local file="${1:-unknown_file}"
+	local file="$1"
 	local reason
 
 	for reason in \
@@ -97,10 +97,14 @@ guess_crash_reason()
 		"device closed unexpectedly"
 		do {
 
-		fgrep -q "$reason" "$file" && break
+		fgrep -sq "$reason" "$file" && {
+			echo "$reason"
+			return 0
+		}
 	} done
 
-	echo "${reason:-unkown_reason}"
+	echo 'unknown_reason'
+	return 1
 }
 
 start()
@@ -111,14 +115,16 @@ start()
 	local pause=1					# (crashlog.o works since r32788)
 	local answer="false"
 	local maxtry=3
-	local destination
+	local destination reason
 
 	. /tmp/loader
 
 	# upload later - not during bootup, each script is terminated after 15 sec
 	[ -z "$option" ] && {
-		echo "$( date ) $funcname() crash detected: reason: $( guess_crash_reason "$file" )" >>'/www/everlasting_syslog.txt'
-		echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"
+		reason="$( guess_crash_reason "$file" )" && {
+			echo "$( date ) $funcname() crash detected: reason: $( guess_crash_reason "$file" )" >>'/www/everlasting_syslog.txt'
+			echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"
+		}
 
 		return 0
 	}
