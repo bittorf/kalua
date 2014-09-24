@@ -1117,12 +1117,13 @@ _netfilter_splash_start()
 
 	# todo: how to deny spoofing source-address?
 
-### everything what is 'ACCEPT'ed here, is not splased
+### everything what is 'ACCEPT'ed here, is not splashed
 
 	# from alien router/client to me/further (also dhcp_in)
 #	$IPT -t mangle -A PREROUTING ! -s $myhna -j ACCEPT
 	$IPT -t mangle -N alien
-	$IPT -t mangle -A alien -s 192.168.$NODENUMBER.0/24 -j RETURN		# fixme! $ROAMING_IP
+	# fixme! $ROAMING_IP
+	[ $NODENUMBER -lt 256 ] && $IPT -t mangle -A alien -s 192.168.$NODENUMBER.0/24 -j RETURN
 	$IPT -t mangle -A alien -s $myhna -j RETURN
 	$IPT -t mangle -A alien -j ACCEPT
 	$IPT -t mangle -A PREROUTING -j alien
@@ -1738,7 +1739,7 @@ _netfilter_user_del()
 		*'dhcp_del'*)
 			# ignore calls for users, which have a lease (again)
 			grep -sq " $mac " "$( _net dhcp_lease_filename )" && {
-				_log do $funcname daemon alert "ignoring call for $mac - reason: $reason"
+				_log do $funcname daemon info "ignoring call for $mac - reason: $reason"
 				return 1
 			}
 		;;
@@ -1764,7 +1765,7 @@ _netfilter_user_del()
 
 		[ -e "/tmp/NETFILTER/USER/$mac/user_del" ] && {
 			. "/tmp/NETFILTER/USER/$mac/user_del"
-			ip neigh change $ip dev $dev lladdr $mac nud reachable
+			_netfilter set_arp reachable "$mac" "$ip" "$dev"
 		}
 
 		rm -fR "/tmp/NETFILTER/USER/$mac" "/tmp/vds_user_$mac"

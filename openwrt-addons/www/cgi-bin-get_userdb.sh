@@ -26,7 +26,7 @@ else
 	esac
 fi
 
-if [ -e "/tmp/FREE" ]; then
+if [ -e '/tmp/FREE' ]; then
 	_http header_mimetype_output text/plain
 	echo "# OK - FREE"
 else
