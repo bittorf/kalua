@@ -694,11 +694,13 @@ _wifi_phy_restart()
 	}
 
 	[ $( _system version short ) -ge 38988 ] && {
-		_log do $funcname daemon alert "doing newstyle wifi-up, because '$reason'"
+		_log do $funcname daemon $prio "doing newstyle wifi-up, because '$reason'"
 		wifi
 
-		sleep 10
-		[ -e "/tmp/WIFI_SPECIALS.sh" ] && . "/tmp/WIFI_SPECIALS.sh"
+		[ -e "/tmp/WIFI_SPECIALS.sh" ] && {
+			sleep 10
+			. "/tmp/WIFI_SPECIALS.sh"
+		}
 
 		# autoadd netfilter?
 		return 0
@@ -1255,17 +1257,16 @@ _wifi_noise ()			# OUT1: signed Integer, -93 [dBm]
 	 sed -n '/noise:/{s/^.*noise:.*\(-[0-9]*\).*/\1/p;q}'
 }
 
-_wifi_signal ()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all stations  // fimxe! better concept needed
+_wifi_signal()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all stations  // fimxe! better concept needed
 {
-	local WIFI_DEV="$1"
-	local WIFI_MODE="$( _wifi mode $WIFI_DEV )"
-	local MAC RSSI LOOP LINE
+	local dev="$1"
+	local line
 
-	iw dev $WIFI_DEV station dump |
-	 while read LINE; do {
-		case "$LINE" in
+	iw dev $dev station dump |
+	 while read line; do {
+		case "$line" in
 			*"signal avg:"*)
-				set $LINE
+				set -- $line
 				echo "$3"
 			;;
 		esac
@@ -1838,9 +1839,52 @@ _wifi_set()
 	} done
 }
 
+_wifi_longshot_test()	# must be timed on both (or more) ends
+{
+	local funcname='wifi_longshot_test'
+	local channels="$1"	# 36...165
+	local node_list="$2"	# 100 101
+	local channel_start channel_end channel chanbw mac ip node
+	local pause=15
+
+	channels="${channels//./ }"
+	set -- $channels
+	channel_start="$1"
+	channel_ready="$2"
+
+	for channel in $( seq $channel_start $channel_ready ); do {
+		iw phy phy0 info | fgrep -q " MHz [$channel]" || continue
+
+		for chanbw in 5 10 20; do {
+			_log do $funcname daemon info "testing channel $channel with chanbw $chanbw"
+
+			_wifi longshot channel $channel
+			_wifi phy_restart $funcname info
+			sleep $pause
+
+			echo "### channel: $channel chanbw: $chanbw MHz"
+
+			for node in $node_list; do {
+				ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
+				mac="$( _net ip2mac "$ip" )" || continue
+				# TODO: abort if route not over wifi or not direct
+
+				echo "# ip: $ip mac: $mac"
+				iw dev $WIFIDEV station get $mac
+				echo '#'
+				_wifi minstrel $mac debug
+				echo '#'
+				_wifi speed force $ip
+				echo '###'
+			} done
+		} done
+	} done
+}
+
 _wifi_longshot()
 {
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 name 'j2-reithaus' nodes '100 101'
+	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 name 'j2-reithaus' nodes '100 101' testtime '04:32' testchannel '36...165'
 
 	# option: chantest? chanbwtest? -> testtime 3:50
 	local channel chanbw node mcast_rate name
