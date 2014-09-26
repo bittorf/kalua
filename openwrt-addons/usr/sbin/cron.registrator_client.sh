@@ -19,9 +19,6 @@ PASS="$( _sanitizer do "$PASS" urlvalue )"
 NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
 [ "$NETWORK" = 'liszt28' ] && NETWORK='ffweimar'		# both share same IP-space
 
-# try to get existing nodenumber from config
-NODENUMBER="$( uci get system.@profile[0].nodenumber )"
-
 # get the config for "NODE_NUMBER_RANDOM"
 eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
 
@@ -76,8 +73,8 @@ if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
 			# }
 
 			# TODO: resetting the number here would auto-recover lost passwords
-			#       and asign new NODENUMBER on next try. like this:
-			# uci delete system.@profile[0].nodenumber
+			#       and assign new NODENUMBER on next try. like this:
+			#	uci delete system.@profile[0].nodenumber
 			_log do registrator daemon alert "[ERR] somebody has your number '$NODENUMBER' or your pass/sshkey-fingerprint has changed"
 
 			# API call is: Send a 'Create', with MAC and PASS.
