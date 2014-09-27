@@ -189,7 +189,7 @@ apply_wifi_reghack()
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
 		else
-			# TODO: make mac80211/ath9k clean?
+			# TODO: make mac80211/ath9k clean?: make package/mac80211/clean
 			[ -e "package/kernel/mac80211/files/regdb.txt_old" ] && {
 				cp -v "package/kernel/mac80211/files/regdb.txt_original" "package/kernel/mac80211/files/regdb.txt"
 			}
