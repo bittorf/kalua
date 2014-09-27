@@ -90,10 +90,22 @@ case "$OPT" in
 		_http header_mimetype_output "application/octet-stream" "testdownload_from_${HOSTNAME}_to_${REMOTE_ADDR}.bin"
 		_stopwatch start "download_${REMOTE_ADDR}"
 
+		# 5120 kb
 		if dd if=/dev/zero bs=128k count=40 2>&- ; then
 			_stopwatch stop "download_${REMOTE_ADDR}" quiet,speed 5243 kilobytes >"/tmp/STATS/download_${REMOTE_ADDR}"
 		else
 			_stopwatch stop "download_${REMOTE_ADDR}" quiet,speed 0 "aborted_download:rc$?"
+		fi
+
+		DEV="$( _net ip2dev "$REMOTE_ADDR" )"
+		MAC="$( _net ip2mac "$REMOTE_ADDR" )"
+		PHY='phy0'	# fixme!
+		FILE="/sys/kernel/debug/ieee80211/$PHY/netdev:$DEV/stations/$MAC/rc_stats"
+
+		if [ -e "$FILE" ]; then
+			cat "$FILE" "/tmp/STATS/minstrel_${REMOTE_ADDR}_${MAC}"
+		else
+			_log do tool_download daemon info "REMOTE_ADDR: $REMOTE_ADDR - cannot stat '$FILE'"
 		fi
 	;;
 	download_results)
