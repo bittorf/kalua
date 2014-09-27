@@ -1844,52 +1844,89 @@ _wifi_set()
 _wifi_longshot_test()	# must be timed on both (or more) ends
 {
 	local funcname='wifi_longshot_test'
-	local channels="$1"	# 36...165
-	local node_list="$2"	# 100 101
-	local channel_start channel_end channel chanbw mac ip node
-	local pause=15
+	local channels="$1"	# 36...165 or minimal: 36...40
+	local node_list="$2"	# 100 101  or minimal: 100
+
+	local channel_start channel_end channel chanbw mac ip node file
 	local channel_initial="$( _wifi channel $WIFIDEV )"
 	local chanbw_initial="$( uci -q get wireless.radio0.chanbw || echo '20' )"
+
+	# TODO: generate mail/pdf
 
 	channels="${channels//./ }"
 	set -- $channels
 	channel_start="$1"
 	channel_ready="$2"
 
+	wait_till_sec()
+	{
+		local sec="$1"		# e.g. 00 or 07 or 56
+
+		# TODO: get initial value and count down
+		while true; do {
+			case "$( date "+%S" )" in
+				$sec)
+					return 0
+				;;
+				*)
+					sleep 1
+				;;
+			esac
+		} done
+	}
+
+	wait_till_sec '00'
+
 	for channel in $( seq $channel_start $channel_ready ); do {
-		iw phy phy0 info | fgrep -q " MHz [$channel]" || continue
+		iw phy phy0 info | fgrep -q " MHz [$channel]" || continue	# invalid/unuseable channel
 
 		for chanbw in 5 10 20; do {
+			# TODO: test different txpower levels
+
 			_log do $funcname daemon info "testing channel $channel with chanbw $chanbw"
-
 			_wifi longshot channel $channel chanbw $chanbw
-			_wifi phy_restart $WIFIDEV $funcname info
-			sleep $pause
-
-			# wait till other side downloaded from me: a touched /tmp/STATS/download_${REMOTE_ADDR}
-			# prob: REMOTE_ADDR can be any interface
-			# and store MY minstrel stats (when somebody fetches the results -> hook
-
-			# be carful, that we are synchronised
+			_wifi phy_restart $WIFIDEV $funcname info	# execution time depends and can change...
 
 			echo "### channel: $channel chanbw: $chanbw MHz"
+			echo '#'
+
+			wait_till_sec '15'	# till wifi has settled and link is useable
 
 			for node in $node_list; do {
 				ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
 				mac="$( _net ip2mac "$ip" )" || continue
-				# TODO: abort if route not over wifi or not direct
 
-				echo "# ip: $ip mac: $mac"
-				iw dev $WIFIDEV station get $mac
-				echo '#'
-				_wifi minstrel $mac debug
-				echo '#'
-				_wifi speed force $ip
-				echo '###'
+				if [ $node -eq $NODENUMBER ]; then
+					echo "# downloading from $ip"
+					_wifi speed force $ip
+					echo "# downloaded"
+				else
+					_log do $funcname daemon info "waiting, node $node downloads now"
+					sleep 30
+
+					for node in $node_list; do {
+						file="/tmp/STATS/minstrel_"*"_$mac"
+						echo "# $( date ) # node: $node ip: $ip mac: $mac"
+
+						if [ $( _file age "$file" ) -lt 30 ]; then
+							echo "# station dump :"
+							iw dev $WIFIDEV station get $mac
+							echo "# station dump #"
+							echo "#"
+							echo "# minstrel-table :"
+							cat "$file"
+							echo "# minstrel-table #"
+							echo '#'
+						else
+							echo "# no new '$file' - download not from me"
+						fi
+					} done
+				fi
 			} done
 		} done
 	} done
 
+	# go back to initial values:
 	_wifi longshot channel $channel_initial chanbw $chanbw_initial
 	_wifi phy_restart $WIFIDEV $funcname info
 }
