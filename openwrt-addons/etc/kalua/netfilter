@@ -729,18 +729,14 @@ _netfilter_ipforwarding_revert()
 _netfilter_stop()
 {
 	local option="$1"	# string: remember_over_reboot = ror
-	local funcname="netfilter_stop"
+	local funcname='netfilter_stop'
 	local mac state table
 	local list_user="$( _netfilter user_list )"
 	local interface ip mediatype dev hash
 
 	[ -d '/tmp/NETFILTER' ] || return 0
 
-	case "$option" in
-		'remember_over_reboot'|'ror')
-			mkdir "/tmp/NETFILTER/isrunning_$funcname" || return 0
-		;;
-	esac
+	mkdir "/tmp/NETFILTER/isrunning_$funcname" || return 0
 
 	for mac in $list_user; do {
 		ip="$( _net mac2ip "$mac" )"
@@ -758,8 +754,8 @@ _netfilter_stop()
 			mediatype='non_wifi'	# keyword for keeping over reboot
 		fi
 
-		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype"
-		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable	# $mediatype"
+		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype option: $option"
+		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable		# $mediatype option: $option"
 
 		_netfilter user_del "$mac" "$funcname"
 	} done >"/tmp/NETFILTER_AUTOADD"
@@ -768,7 +764,7 @@ _netfilter_stop()
 		_netfilter traffic_control_stop
 	}
 
-	_db backup "netfilter_stop"
+	_db backup "$funcname"
 
 	case "$option" in
 		'remember_over_reboot'|'ror')
@@ -790,7 +786,7 @@ _netfilter_stop()
 	esac
 
 	_netfilter stop_all_tables
-	rm -fR "/tmp/NETFILTER"
+	rm -fR "/tmp/NETFILTER" "/tmp/NETFILTER/isrunning_$funcname"
 	_netfilter ipforwarding_revert
 }
 
