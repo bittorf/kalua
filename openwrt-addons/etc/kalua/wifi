@@ -1843,7 +1843,7 @@ _wifi_set()
 	} done
 }
 
-_wifi_longshot_test()	# must be timed on both (or more) ends
+_wifi_longshot_test()		# only works with single-radio devices
 {
 	local funcname='wifi_longshot_test'
 	local channels="$1"	# 36...165 or minimal: 36...40
@@ -1852,6 +1852,8 @@ _wifi_longshot_test()	# must be timed on both (or more) ends
 	local channel_start channel_end channel chanbw mac ip node file
 	local channel_initial="$( _wifi channel $WIFIDEV )"
 	local chanbw_initial="$( uci -q get wireless.radio0.chanbw || echo '20' )"
+	# fixme!
+	local bssid_initial="$( uci show wireless | fgrep '.bssid=' | head -n1 | cut -d'=' -f2 )"
 
 	# TODO: generate mail/pdf
 
@@ -1865,14 +1867,14 @@ _wifi_longshot_test()	# must be timed on both (or more) ends
 		local sec="$1"		# e.g. 00 or 07 or 56
 		local date
 
-		# TODO: get initial value and count down
+		# TODO: better algo: get initial value and count down
 		while date="$( date "+%S" )"; do {
 			case "$date" in
 				$sec)
 					return 0
 				;;
 				*)
-					echo "# waiting, sec :$date"
+#					echo "# waiting, sec :$date"
 					sleep 1
 				;;
 			esac
@@ -1904,7 +1906,7 @@ _wifi_longshot_test()	# must be timed on both (or more) ends
 				if [ $node -eq $NODENUMBER ]; then
 					# we must download now from the others
 					for node in $node_list; do {
-						[ $node -eq $NODENUMBER ] || continue
+						[ $node -eq $NODENUMBER ] && continue
 
 						ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
 						echo "# downloading from $ip # $( date )"
@@ -1940,7 +1942,7 @@ _wifi_longshot_test()	# must be timed on both (or more) ends
 	} done
 
 	# go back to initial values:
-	_wifi longshot channel $channel_initial chanbw $chanbw_initial nodes $NODENUMBER
+	_wifi longshot channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial nodes $NODENUMBER
 	_wifi phy_restart $WIFIDEV $funcname info
 }
 
@@ -1950,10 +1952,14 @@ _wifi_longshot()
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 name 'j2-reithaus' nodes '100 101' testtime '04:32' testchannel '36...165'
 
 	# option: chantest? chanbwtest? -> testtime 3:50
-	local channel chanbw node mcast_rate name
+	local channel chanbw node mcast_rate name bssid
 
 	while [ -n "$1" ]; do {
 		case "$1" in
+			'bssid')
+				bssid="$2"
+				shift
+			;;
 			'name')
 				name="$2"
 				shift
@@ -1974,7 +1980,12 @@ _wifi_longshot()
 				for node in $2; do {
 					[ "$NODENUMBER" = "$node" ] && {
 						[ -n "$channel" ] && {
-							_wifi set adhoc any channel "$channel" bssid_wellformed
+							if [ -n "$bssid" ]; then
+								_wifi set adhoc any channel "$channel"
+								_wifi set adhoc any bssid "$bssid"
+							else
+								_wifi set adhoc any channel "$channel" bssid_wellformed
+							fi
 						}
 
 						[ -n "$chanbw" ] && {
