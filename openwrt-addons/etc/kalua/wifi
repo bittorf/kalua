@@ -1862,6 +1862,11 @@ _wifi_longshot_test()		# only works with single-radio devices
 	channel_start="$1"
 	channel_ready="$2"
 
+	e()
+	{
+		echo "# $( date ) | $1"
+	}
+
 	wait_till_sec()
 	{
 		local sec="$1"		# e.g. 00 or 07 or 56
@@ -1874,7 +1879,6 @@ _wifi_longshot_test()		# only works with single-radio devices
 					return 0
 				;;
 				*)
-#					echo "# waiting, sec :$date"
 					sleep 1
 				;;
 			esac
@@ -1889,12 +1893,12 @@ _wifi_longshot_test()		# only works with single-radio devices
 		for chanbw in 5 10 20; do {
 			# TODO: test different txpower levels
 
-			_log do $funcname daemon info "testing channel $channel with chanbw $chanbw"
+			e "testing channel $channel with chanbw $chanbw"
 			_wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER
 			_wifi phy_restart $WIFIDEV $funcname info	# execution time depends and can change...
 
-			echo "### channel: $channel chanbw: $chanbw MHz $( date )"
-			echo '#'
+			e "channel: $channel chanbw: $chanbw MHz $( date )"
+			e
 
 			wait_till_sec '15'	# till wifi has settled and link is useable
 
@@ -1902,38 +1906,38 @@ _wifi_longshot_test()		# only works with single-radio devices
 				ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
 				mac="$( _net ip2mac "$ip" )"
 
-				echo "# start $( date ) ip: $ip mac: $mac"
+				e "ip: $ip mac: $mac"
 				if [ $node -eq $NODENUMBER ]; then
-					# we must download now from the others
+					# we download now from the others
 					for node in $node_list; do {
 						[ $node -eq $NODENUMBER ] && continue
 
 						ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
-						echo "# downloading from $ip # $( date )"
+						e "downloading from $ip # $( date )"
 						_wifi speed force $ip
-						echo "# downloaded # $( date )"
+						e "downloaded # $( date )"
 
 						wait_till_sec '15'
 					} done
 				else
-					_log do $funcname daemon info "waiting, node $node downloads now"
-					sleep 30
+					e "waiting, node $node should downloads now"
+					sleep 50
 
 					for node in $node_list; do {
 						file="/tmp/STATS/minstrel_"*"_$mac"
-						echo "# $( date ) # node: $node ip: $ip mac: $mac"
+						e "node: $node ip: $ip mac: $mac file: $file"
 
-						if [ $( _file age "$file" ) -lt 30 ]; then
-							echo "# station dump :"
+						if [ $( _file age "$file" ) -lt 90 ]; then
+							e "station dump :"
 							iw dev $WIFIDEV station get $mac
-							echo "# station dump #"
-							echo "#"
-							echo "# minstrel-table :"
+							e "station dump #"
+							e
+							e "minstrel-table :"
 							cat "$file"
-							echo "# minstrel-table #"
-							echo '#'
+							e "minstrel-table #"
+							e
 						else
-							echo "# no new '$file' - download not from me"
+							e "no new '$file' - download not from me"
 						fi
 					} done
 				fi
