@@ -1736,13 +1736,13 @@ _wifi_is2ghz()
 
 _wifi_set()
 {
-	local i radio
+	local funcname='wifi_set'
 	local wifimode="$1"	# e.g. 'ap' or 'any'
 	local band="$2"		# e.g. '5ghz' or 'any'
 	local var="$3"		# e.g. 'ssid' or 'disabled'
 	local value="$4"	# e.g. 'myssid' or '1'
 	local option="$5"
-	local bssid chanbw radio carry j=10
+	local i radio bssid chanbw radio carry j=10
 
 	# _wifi set ap  5ghz ssid 'Appartementhaus'
 	# _wifi set ap  5ghz disabled '1'
@@ -1857,6 +1857,7 @@ _wifi_set()
 								bssid="${bssid}:0$( echo "$value" | cut -b 1 ):$( echo "$value" | cut -b 2-3 )"
 							fi
 
+							_log do $funcname daemon info "bssid_wellformed: $bssid"
 							uci set wireless.@wifi-iface[$i].bssid="$bssid"
 						}
 					}
@@ -1875,7 +1876,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	local channels="$1"	# 36...165 or minimal: 36...40
 	local node_list="$2"	# 100 101  or minimal: 100
 
-	local channel_start channel_end channel chanbw mac ip node file bssid
+	local channel_start channel_end channel chanbw mac ip node file bssid quality
 	local channel_initial="$( _wifi channel $WIFIDEV )"
 	local chanbw_initial="$( uci -q get wireless.radio0.chanbw || echo '20' )"
 	# fixme!
@@ -1890,7 +1891,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 	e()
 	{
-		echo "# $( date ) | $channel/$chanbw | $1"
+		echo "# $( date ) | $channel/$chanbw/$bssid/$quality | $1"
 	}
 
 	wait_till_sec()
@@ -1925,10 +1926,12 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 			e "waiting for link"
 
-			wait_till_sec '15'	# till wifi has settled and link is useable
+			wait_till_sec '25'	# till wifi has settled and link is useable
 
 			set -- $( iwinfo $WIFIDEV info | grep -i ':be:ef:' )
 			bssid="$3"
+			set -- $( iwinfo wlan0 info | fgrep 'Link Quality:' )
+			quality="$5"
 
 			for node in $node_list; do {
 				ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
