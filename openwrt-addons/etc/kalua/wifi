@@ -1875,7 +1875,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 	e()
 	{
-		echo "# $( date ) | $1"
+		echo "# $( date ) | $channel/$chanbw | $1"
 	}
 
 	wait_till_sec()
@@ -1896,7 +1896,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 		} done
 	}
 
-	wait_till_sec '00'
+	wait_till_sec '05'
 
 	for channel in $( seq $channel_start $channel_ready ); do {
 		iw phy phy0 info | fgrep -q " MHz [$channel]" || continue	# invalid/unuseable channel
@@ -1904,11 +1904,11 @@ _wifi_longshot_test()		# only works with single-radio devices
 		for chanbw in 5 10 20; do {
 			# TODO: test different txpower levels
 
-			e "testing channel $channel with chanbw $chanbw"
+			e "test start"
 			_wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER
 			_wifi phy_restart $WIFIDEV $funcname info	# execution time depends and can change...
 
-			e "settled: channel: $channel chanbw: $chanbw MHz"
+			e "waiting for link"
 
 			wait_till_sec '15'	# till wifi has settled and link is useable
 
@@ -1930,19 +1930,22 @@ _wifi_longshot_test()		# only works with single-radio devices
 					} done
 				else
 					e "waiting, node $node should downloads now"
-					sleep 50
+					sleep 30
 
 					for node in $node_list; do {
+						# is generated during www/cgi-bin-tool.sh
 						file=/tmp/STATS/minstrel_*_$mac
+						[ -e "$file" ] || file="$( ls /tmp/STATS/minstrel_* | head -n1 )"
+
 						e "node: $node ip: $ip mac: $mac file: $file"
 
 						if [ $( _file age "$file" ) -lt 90 ]; then
-							e "station dump :"
+							e "station dump:"
 							iw dev $WIFIDEV station get $mac
-							e "minstrel-table :"
+							e "minstrel-table:"
 							cat "$file"
 						else
-							e "no new '$file' - download not from me"
+							e "no new '$file' - nobody downloaded from me"
 						fi
 					} done
 				fi
