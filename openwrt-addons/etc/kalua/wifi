@@ -1742,7 +1742,7 @@ _wifi_set()
 	local var="$3"		# e.g. 'ssid' or 'disabled'
 	local value="$4"	# e.g. 'myssid' or '1'
 	local option="$5"
-	local radio carry j=10
+	local bssid chanbw radio carry j=10
 
 	# _wifi set ap  5ghz ssid 'Appartementhaus'
 	# _wifi set ap  5ghz disabled '1'
@@ -1769,6 +1769,8 @@ _wifi_set()
 					}
 				;;
 				'channel'|'chanbw'|'disabled')
+					[ "$var" = 'chanbw' ] && chanbw="$value"
+
 					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
 						if [ "$var" = 'disabled' ]; then
 							case "$value" in
@@ -1827,10 +1829,23 @@ _wifi_set()
 						}
 
 						[ "$option" = 'bssid_wellformed' ] && {
+							# e.g.
+							# channel:  36 chanbw: 10 -> 02:be:ef:10:00:36
+							# channel: 149 chanbw: 20 -> 02:be:ef:20:01:49
+							# channel:   1 chanbw:  5 -> 02:be:ef:05:00:01
+
 							# TODO: hardcoded magic - how to separate different networks in the same area?
-							local bssid="02:be:ef"
+							bssid="02:be:ef"
+
+							# TODO: chanbw can be 7.5?
+							[ -z "$chanbw" ] && chanbw="$( uci -q get wireless.${radio}.chanbw || echo '20' )"
+
 							# channel-bandwidth in bssid:
-							bssid="$bssid:$( uci -q get wireless.${radio}.chanbw || echo '20' )"
+							if [ $chanbw -lt 10 ]; then
+								bssid="$bssid:0$chanbw"
+							else
+								bssid="$bssid:$chanbw"
+							fi
 
 							if [ $value -lt 100 ]; then
 								if [ $value -lt 10 ]; then
@@ -1860,7 +1875,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	local channels="$1"	# 36...165 or minimal: 36...40
 	local node_list="$2"	# 100 101  or minimal: 100
 
-	local channel_start channel_end channel chanbw mac ip node file
+	local channel_start channel_end channel chanbw mac ip node file bssid
 	local channel_initial="$( _wifi channel $WIFIDEV )"
 	local chanbw_initial="$( uci -q get wireless.radio0.chanbw || echo '20' )"
 	# fixme!
@@ -1911,6 +1926,9 @@ _wifi_longshot_test()		# only works with single-radio devices
 			e "waiting for link"
 
 			wait_till_sec '15'	# till wifi has settled and link is useable
+
+			set -- $( iwinfo $WIFIDEV info | grep -i ':be:ef:' )
+			bssid="$3"
 
 			for node in $node_list; do {
 				ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
