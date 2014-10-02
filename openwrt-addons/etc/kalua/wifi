@@ -1951,27 +1951,25 @@ _wifi_longshot_test()		# only works with single-radio devices
 		} done
 	}
 
+	wait_till_sec '05'
 	e "initial channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial"
 	_stopwatch start $funcname
 
 	for channel in $( seq $channel_start $channel_ready ); do {
 		iw phy phy0 info | fgrep -q " MHz [$channel]" || continue	# invalid/unuseable channel
 
-		wait_till_sec '05'
 		for chanbw in 5 10 20; do {
 			# TODO: test different txpower levels
-
+###
 			bssid=;quality=
-			e "test start: _wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER"
+			e "[TIME] test start: channel $channel chanbw $chanbw nodes $NODENUMBER"
 			_wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER
-			uci show wireless | fgrep .chan
-			uci show wireless | fgrep .bssid
+			uci show wireless | fgrep '.chan'
+			uci show wireless | fgrep '.bssid'
 			_wifi phy_restart $WIFIDEV $funcname info	# execution time depends and can change...
-
 			e "waiting for link"
-
-			wait_till_sec '25'	# till wifi has settled and link is useable
-
+			wait_till_sec '20'	# till wifi has settled and link is useable
+###
 			set -- $( iwinfo $WIFIDEV info | grep -i ':be:ef:' )
 			bssid="$3"
 			set -- $( iwinfo $WIFIDEV info | fgrep 'Link Quality:' )
@@ -1981,9 +1979,9 @@ _wifi_longshot_test()		# only works with single-radio devices
 				ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
 				mac="$( _net ip2mac "$ip" )"
 
-				e "LINKed - ip: $ip mac: $mac"
+				e "[TIME] LINKed? - ip: $ip mac: $mac"
 				if [ $node -eq $NODENUMBER ]; then
-					# we download now from the others
+					# we download now from the X others
 					for node in $node_list; do {
 						[ $node -eq $NODENUMBER ] && continue
 
@@ -1997,10 +1995,10 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 						e "downloading from $ip"
 						_wifi speed force $ip
-
-						wait_till_sec '15'
+						e "[TIME] $NODENUMBER has ready downloaded from $node/$ip"
 					} done
 				else
+					# the others download from me:
 					for node in $node_list; do {
 						e "waiting, node $node should downloads now"
 
@@ -2011,7 +2009,8 @@ _wifi_longshot_test()		# only works with single-radio devices
 						fi
 					} done
 
-					sleep 20
+					wait_till_sec '50'
+					e "[TIME] looking for downloads/minstrel"
 
 					for node in $node_list; do {
 						ip="$( _ipsystem do "$node" | grep ^'WIFIADR=' | cut -d'=' -f2 )"
@@ -2020,7 +2019,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 						# is generated during www/cgi-bin-tool.sh
 						file=/tmp/STATS/minstrel_*_$mac
 						[ -e "$file" ] || file="$( ls /tmp/STATS/minstrel_* | head -n1 )"
-						e "node: $node ip: $ip mac: $mac file: $( ls -l $file )"
+						e "node: $node ip: $ip mac: $mac file: '$( ls -l $file )'"
 
 						if [ $( _file age "$file" ) -lt 90 ]; then
 							e "station dump: $mac"
@@ -2039,8 +2038,8 @@ _wifi_longshot_test()		# only works with single-radio devices
 	# go back to initial values:
 	e "READY: switching back: _wifi longshot channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial nodes $NODENUMBER"
 	_wifi longshot channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial nodes $NODENUMBER
-	uci show wireless | fgrep .chan
-	uci show wireless | fgrep .bssid
+	uci show wireless | fgrep '.chan'
+	uci show wireless | fgrep '.bssid'
 	_wifi phy_restart $WIFIDEV $funcname info
 	_stopwatch stop $funcname
 }
