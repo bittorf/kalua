@@ -735,30 +735,31 @@ _netfilter_stop()
 	local interface ip mediatype dev hash
 
 	[ -d '/tmp/NETFILTER' ] || return 0
-
 	mkdir "/tmp/NETFILTER/isrunning_$funcname" || return 0
 
-	for mac in $list_user; do {
-		ip="$( _net mac2ip "$mac" )"
-		dev="$( _net mac2dev "$mac" )"
+	[ -n "$list_user" ] && {
+		for mac in $list_user; do {
+			ip="$( _net mac2ip "$mac" )"
+			dev="$( _net mac2dev "$mac" )"
 
-		if _net dev_is_wifi "$dev"; then
-			if   grep -sq "$hash" '/tmp/USERDB_COPY'; then
-				mediatype="DB: mac allowed # non_wifi"
-			elif grep -sq "$hash" '/tmp/DB/USER/login/meta_index'; then
-				mediatype="DB: mac allowed # non_wifi"
+			if _net dev_is_wifi "$dev"; then
+				if   grep -sq "$hash" '/tmp/USERDB_COPY'; then
+					mediatype="DB: mac allowed # non_wifi"
+				elif grep -sq "$hash" '/tmp/DB/USER/login/meta_index'; then
+					mediatype="DB: mac allowed # non_wifi"
+				else
+					mediatype='wifi'
+				fi
 			else
-				mediatype='wifi'
+				mediatype='non_wifi'	# keyword for keeping over reboot
 			fi
-		else
-			mediatype='non_wifi'	# keyword for keeping over reboot
-		fi
 
-		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype option: $option"
-		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable		# $mediatype option: $option"
+			echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype option: $option"
+			echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable		# $mediatype option: $option"
 
-		_netfilter user_del "$mac" "$funcname"
-	} done >"/tmp/NETFILTER_AUTOADD"
+			_netfilter user_del "$mac" "$funcname"
+		} done >"/tmp/NETFILTER_AUTOADD"
+	}
 
 	_netfilter traffic_control_needed && {
 		_netfilter traffic_control_stop

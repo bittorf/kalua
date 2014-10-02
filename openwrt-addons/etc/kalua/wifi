@@ -1201,32 +1201,56 @@ _wifi_timing_distance ()
 	uci get wireless.radio0.distance
 }
 
-_wifi_bssid ()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associated ap in client-mode
+_wifi_bssid()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associated ap in client-mode
 {
-	local WIFI_DEV="$1"		# fixme! check, if this works with broadcom AND madwifi in all conditions
-	local SWITCH="$2"		# can be 'config'
-	local WIFI_BSSID
+	local funcname='wifi_bssid'
+	local wifidev="$1"
+	local option="$2"		# can be 'config'
+	local bssid mode
 
-	[ "$SWITCH" = "config" ] && {
+	if [ "$option" = 'config' ]; then
+		mode="$( _wifi mode $wifidev )"
 
-		case "$( _wifi mode $WIFI_DEV )" in
-			adhoc)
-				_sanitizer do "$( uci get wireless.@wifi-iface[0].bssid )" lowercase
-				return
+		case "$mode" in
+			'adhoc')
+				_sanitizer do "$( uci -q get wireless.@wifi-iface[0].bssid )" lowercase
 			;;
-			ap)
-				_net dev2mac $WIFI_DEV
-				return
+			'ap')
+				_net dev2mac $wifidev
 			;;
-			client)
-				:	# fixme! return real bssid, because we don't enforce specific AP to connect to (?)
+			'client'|*)
+				_log do $funcname daemon info "fixme - mode: $mode"
+				# return real bssid, because we dont enforce specific AP to connect to
+				echo 'unknown'
 			;;
 		esac
-	}
-	
-	eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_BSSID= )"
+	else
+		# fixme! implement this in 'iw'
 
-	_sanitizer do "$WIFI_BSSID" lowercase
+		which iwinfo >/dev/null && {
+			# Access Point: 02:CA:FF:EE:BA:BE
+			set -- $( iwinfo $WIFIDEV info | fgrep 'Access Point:' )
+			bssid="$3"
+		}
+
+		which iwconfig >/dev/null && test -z "$bssid" && {
+			# Mode:Ad-Hoc  Frequency:2.432 GHz  Cell: 02:CA:FF:EE:BA:BE
+			set -- $( iwconfig $WIFIDEV | fgrep 'Cell:' )
+
+			while [ -n "$1" ]; do {
+				shift
+
+				case "$1" in
+					'Cell:')
+						bssid="$2"
+						break
+					;;
+				esac
+			} done
+		}
+
+		_sanitizer do "$bssid" lowercase
+	fi
 }
 
 _wifi_frag ()
@@ -1877,11 +1901,22 @@ _wifi_longshot_test()		# only works with single-radio devices
 	local node_list="$2"	# 100 101  or minimal: 100
 
 	local channel_start channel_end channel chanbw mac ip node file bssid quality
-	local channel_initial="$( uci -q get wireless.radio0.channel )"
-	local chanbw_initial="$( uci -q get wireless.radio0.chanbw || echo '20' )"
-	# fixme!
-	local bssid_initial="$( uci show wireless | fgrep '.bssid=' | head -n1 | cut -d'=' -f2 )"
+	local channel_initial chanbw_initial bssid_initial
 
+	### get real data! ###
+	channel_initial="$( _wifi channel $WIFIDEV )"
+#	channel_initial="$( uci -q get wireless.radio0.channel )"
+
+	chanbw_initial="$( cat /sys/kernel/debug/ieee80211/phy0/ath9k/chanbw )"
+	[ -z "$chanbw_initial" ] && chanbw_initial="$( cat /sys/kernel/debug/ieee80211/phy0/ath5k/bwmode )"
+	[ -z "$chanbw_initial" ] && chanbw_initial=20
+#	chanbw_initial="$( uci -q get wireless.radio0.chanbw || echo '20' )"
+
+	bssid_initial="$( _wifi bssid $WIFIDEV )"
+#	bssid_initial="$( uci show wireless | fgrep '.bssid=' | head -n1 | cut -d'=' -f2 )"
+
+
+	# TODO: initial sync via http? needed
 	# TODO: generate mail/pdf
 
 	channels="${channels//./ }"
