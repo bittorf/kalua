@@ -37,6 +37,10 @@ case "$@" in
 		log "we will be on top of openwrt development"
 		TRUNK=1
 	;;
+	*"use_bb1407"*)
+		log "we will use the 14.07 barrier breaker stable version"
+		TRUNK=bb1407
+	;;
 esac
 
 
@@ -127,7 +131,7 @@ prepare_build()		# check possible values via:
 				git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
 				continue
 			;;
-			"use_trunk")
+			*"use_"*)
 				continue
 			;;
 		esac
@@ -160,13 +164,21 @@ show_args()
 }
 
 changedir release
-clone "git://nbd.name/openwrt.git" "$TRUNK"
-clone "git://nbd.name/packages.git" "$TRUNK"
+if [ "$TRUNK" = "bb1407" ]; then
+	clone "git://git.openwrt.org/14.07/openwrt.git" "$TRUNK"
+else
+	clone "git://nbd.name/openwrt.git" "$TRUNK"
+	clone "git://nbd.name/packages.git" "$TRUNK"
+fi
 changedir openwrt
 
 clone "$REPOURL"
 #copy feeds.conf to openwrt directory
-cp $REPONAME/openwrt-build/feeds.conf ./
+if [ "$TRUNK" = "bb1407" ]; then
+	cp $REPONAME/openwrt-build/feeds.conf.1407 ./
+else
+	cp $REPONAME/openwrt-build/feeds.conf ./
+fi
 
 prepare_build "reset_config"
 mymake package/symlinks

@@ -61,6 +61,7 @@ shrink | removes debug symbols to save space
 tc | adds traffic control, i.e. to optimize olsr links
 vtunnoZlibnoSSL | vpn client configured to connect to our vpn servers
 use_trunk | build latest openwrt trunk instead of revisions written in openwrt-config/git_revs. add this option at the end of your line.
+use_bb1407 | build from trunk ofbarrier breaker 14.07 final repo instead of revisions written in openwrt-config/git_revs from dev repos. add this option at the end of your line.
 
 In the following box you'll find an example that builds our default image for weimarnetz routers based on ar71xx hardware. Simply call it step by step. Sometimes the build process will be interrupted. Mostly it's not an error, but some packages or dependencies of openwrt could not be downloaded. Try the last line again, if that happens. You could also debug that error by changing the directory to ```release/openwrt``` and call ```make V=s```.
 
@@ -71,8 +72,8 @@ In the following box you'll find an example that builds our default image for we
 	DO="../$REPONAME/openwrt-build/build_release.sh"
 
 	# choose your router-model and build, for example:
-	#build all ar71xx based hardware images
-	$DO "HARDWARE.ar71xx" ffweimar_standard patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard hostapd vtunnoZlibnoSSL i18n_german https owm shrink tc
+	#build all ar71xx based hardware images with barrier breaker 14.07 final
+	$DO "HARDWARE.ar71xx" ffweimar_standard patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard hostapd vtunnoZlibnoSSL i18n_german https owm shrink tc use_bb1407
 
 
 how to build this from scratch on a debian server
