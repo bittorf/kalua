@@ -1897,11 +1897,38 @@ _wifi_set()
 _wifi_longshot_test()		# only works with single-radio devices
 {
 	local funcname='wifi_longshot_test'
-	local channels="$1"	# 36...165 or minimal: 36...40
-	local node_list="$2"	# 100 101  or minimal: 100
+	local starttime="$1"	# e.g. '23:45' or '01:09' or 'now'
+	local channels="$2"	# 36...165 or minimal: 36...40
+	local node_list="$3"	# 100 101  or minimal: 100
 
 	local channel_start channel_end channel chanbw mac ip node file bssid quality
 	local channel_initial chanbw_initial bssid_initial
+
+	e()
+	{
+		echo "# $( date ) | ch:$channel bw:$chanbw bssid:$bssid q:$quality | $1"
+	}
+
+	wait_till_time()
+	{
+		local time="$1"		# e.g. :00 or :07 or :59 or 10:45:00
+		local date
+
+		# TODO: better algo: get initial value and count down
+		while date="$( date "+%H:%M:%S" )"; do {
+			case "$date" in
+				*"$time")
+					return 0
+				;;
+				*)
+					sleep 1
+				;;
+			esac
+		} done
+	}
+
+	e "waiting till $starttime"
+	[ "$starttime" = 'now' ] && wait_till_time "$starttime"
 
 	### get real data! ###
 	channel_initial="$( _wifi channel $WIFIDEV )"
@@ -1922,34 +1949,10 @@ _wifi_longshot_test()		# only works with single-radio devices
 	# TODO: initial sync via http? needed
 	# TODO: generate mail/pdf
 
-	channels="${channels//./ }"
+	channels="${channels//./ }"	# e.g. 36...44
 	set -- $channels
 	channel_start="$1"
 	channel_ready="$2"
-
-	e()
-	{
-		echo "# $( date ) | $channel/$chanbw/$bssid/$quality | $1"
-	}
-
-	wait_till_sec()
-	{
-		local sec="$1"		# e.g. 00 or 07 or 56
-		local reason="$2"
-		local date
-
-		# TODO: better algo: get initial value and count down
-		while date="$( date "+%S" )"; do {
-			case "$date" in
-				$sec)
-					return 0
-				;;
-				*)
-					sleep 1
-				;;
-			esac
-		} done
-	}
 
 	e "initial channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial"
 	_stopwatch start $funcname
@@ -1960,7 +1963,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 		for chanbw in 5 10 20; do {
 			# TODO: test different txpower levels
 ###
-			wait_till_sec '05'
+			wait_till_time ':05'
 			bssid=;quality=
 			e "[TIME] test start: channel $channel chanbw $chanbw nodes $NODENUMBER"
 			_wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER
@@ -1968,7 +1971,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 			uci show wireless | fgrep '.bssid'
 			_wifi phy_restart $WIFIDEV $funcname info	# execution time depends and can change...
 			e "waiting for link"
-			wait_till_sec '20'	# till wifi has settled and link is useable
+			wait_till_time ':20'	# till wifi has settled and link is useable
 ###
 			set -- $( iwinfo $WIFIDEV info | grep -i ':be:ef:' )
 			bssid="$3"
@@ -1995,7 +1998,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 						e "downloading from $ip"
 						_wifi speed force $ip
-						e "[TIME] $NODENUMBER has ready downloaded from $node/$ip"
+						e "[TIME] we/$NODENUMBER now ready downloading from $node/$ip"
 					} done
 				else
 					# the others download from me:
@@ -2009,7 +2012,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 						fi
 					} done
 
-					wait_till_sec '50'
+					wait_till_time ':50'
 					e "[TIME] looking for downloads/minstrel"
 
 					for node in $node_list; do {
@@ -2018,10 +2021,9 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 						# is generated during www/cgi-bin-tool.sh
 						file=/tmp/STATS/minstrel_*_$mac
-						[ -e "$file" ] || file="$( ls /tmp/STATS/minstrel_* | head -n1 )"
 						e "node: $node ip: $ip mac: $mac file: '$( ls -l $file )'"
 
-						if [ $( _file age "$file" ) -lt 90 ]; then
+						if [ $( _file age "$file" ) -lt 30 ]; then
 							e "station dump: $mac"
 							iw dev $WIFIDEV station get $mac
 							e "minstrel-table: $file"
