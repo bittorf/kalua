@@ -175,7 +175,7 @@ changedir openwrt
 clone "$REPOURL"
 #copy feeds.conf to openwrt directory
 if [ "$TRUNK" = "bb1407" ]; then
-	cp $REPONAME/openwrt-build/feeds.conf.1407 ./
+	cp $REPONAME/openwrt-build/feeds.conf.1407 ./feeds.conf
 else
 	cp $REPONAME/openwrt-build/feeds.conf ./
 fi
