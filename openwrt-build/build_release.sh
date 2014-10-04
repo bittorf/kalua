@@ -193,7 +193,7 @@ for SPECIAL in unoptimized kcmdlinetweak; do {
 	esac
 } done
 
-$REPONAME/openwrt-build/mybuild.sh applymystuff
+#$REPONAME/openwrt-build/mybuild.sh applymystuff
 $REPONAME/openwrt-build/mybuild.sh make
 print_revisions
 
