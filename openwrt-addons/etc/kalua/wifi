@@ -1927,11 +1927,17 @@ _wifi_longshot_test()		# only works with single-radio devices
 		} done
 	}
 
+	show_uci_wireless()
+	{
+		uci show wireless | fgrep '.chan'
+		uci show wireless | fgrep '.bssid'
+	}
+
 	e "waiting till $starttime"
 	[ "$starttime" = 'now' ] || wait_till_time "$starttime"
 
 	e 'uci/iwconfig'
-	uci show wireless
+	show_uci_wireless
 	iwconfig
 	e 'now'
 
@@ -1972,14 +1978,12 @@ _wifi_longshot_test()		# only works with single-radio devices
 			bssid=;quality=
 			e "[TIME] test start: channel $channel chanbw $chanbw nodes $NODENUMBER"
 			_wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER
-			uci show wireless | fgrep '.chan'
-			uci show wireless | fgrep '.bssid'
+			show_uci_wireless
 			_wifi phy_restart $WIFIDEV $funcname info	# execution time depends and can change...
 			e "waiting for link"
 			wait_till_time ':20'	# till wifi has settled and link is useable
 ###
-			set -- $( iwinfo $WIFIDEV info | grep -i ':be:ef:' )
-			bssid="$3"
+			bssid="$( _wifi bssid $WIFIDEV )"
 			set -- $( iwinfo $WIFIDEV info | fgrep 'Link Quality:' )
 			quality="$6"
 
@@ -2023,14 +2027,14 @@ _wifi_longshot_test()		# only works with single-radio devices
 						mac="$( _net ip2mac "$ip" )"
 
 						# is generated during www/cgi-bin-tool.sh
-						file=/tmp/STATS/minstrel_*_$mac
-						e "node: $node ip: $ip mac: $mac file: '$( ls -l $file )'"
+						file="$( ls -1 /tmp/STATS/minstrel_*_$mac )"
+						e "node: $node ip: $ip mac: $mac file: '$( ls -l "$file" )'"
 
-						if [ -e $file ]; then
-							e "station dump: $mac fage: $( _file age $file ) fage2: $( _file age "$file" )"
+						if [ -e "$file" ]; then
+							e "station dump: $mac fage: $( _file age "$file" ) fage2: $( _file age "$file" )"
 							iw dev $WIFIDEV station get $mac
 							e "minstrel-table: $file"
-							cat $file
+							cat "$file" && rm "$file"
 						else
 							e "no new '$file' - nobody downloaded from me"
 						fi
@@ -2043,8 +2047,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	# go back to initial values:
 	e "READY: switching back: _wifi longshot channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial nodes $NODENUMBER"
 	_wifi longshot channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial nodes $NODENUMBER
-	uci show wireless | fgrep '.chan'
-	uci show wireless | fgrep '.bssid'
+	show_uci_wireless
 	_wifi phy_restart $WIFIDEV $funcname info
 	_stopwatch stop $funcname
 }
