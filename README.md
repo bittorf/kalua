@@ -42,6 +42,8 @@ patch | comment
 ----- | -------
 luci-remove-freifunk-firewall.patch | removes the firewall package from dependencies as we use our own tools
 901-minstrel-try-all-rates-patch | changes minstrel behaviour to try all Wifi rates, without this patch wifi will fall back very often to 1MBit/s
+openwrt-remove-ppp-firewall-from-deps.patch | removes pppoe and firewall from standard build, helps to reduce size
+openwrt-remove-wpad-mini-from-deps.patch | removes wpad-mini from standard build, helps to reduce size
 
 There some features you can add to your image and to the build process. They're simply added to the commandline by name.
 
@@ -73,7 +75,7 @@ In the following box you'll find an example that builds our default image for we
 
 	# choose your router-model and build, for example:
 	#build all ar71xx based hardware images with barrier breaker 14.07 final
-	$DO "HARDWARE.ar71xx" ffweimar_standard patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch ffweimar_luci_standard hostapd vtunnoZlibnoSSL i18n_german https owm shrink tc use_bb1407
+	$DO "HARDWARE.ar71xx" ffweimar_standard patch:901-minstrel-try-all-rates.patch patch:luci-remove-freifunk-firewall.patch patch:openwrt-remove-ppp-firewall-from-deps.patch patch:openwrt-remove-wpad-mini-from-deps.patch ffweimar_luci_standard hostapd vtunnoZlibnoSSL i18n_german https owm shrink tc use_bb1407
 
 
 how to build this from scratch on a debian server
