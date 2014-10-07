@@ -1766,7 +1766,7 @@ _wifi_set()
 	local var="$3"		# e.g. 'ssid' or 'disabled'
 	local value="$4"	# e.g. 'myssid' or '1'
 	local option="$5"
-	local i= radio= bssid= chanbw= carry= j=10
+	local i= radio= bssid= chanbw= carry= distance= j=10
 
 	# _wifi set ap  5ghz ssid 'Appartementhaus'
 	# _wifi set ap  5ghz disabled '1'
@@ -1785,7 +1785,7 @@ _wifi_set()
 			fi
 
 			case "$var" in
-				'txpower'|'htmode')
+				'txpower'|'htmode'|'distance')
 					# http://opus4.kobv.de/opus4-tuberlin/files/3939/huehn_thomas.pdf
 					# get the corresponding radio till minstrel-blues/power control is not active
 					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
@@ -2052,16 +2052,20 @@ _wifi_longshot_test()		# only works with single-radio devices
 	_stopwatch stop $funcname
 }
 
-_wifi_longshot()
+_wifi_longshot()	# this works only for single-radio units in adhoc-mode
 {
-	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 name 'j2-reithaus' nodes '100 101'
-	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 name 'j2-reithaus' nodes '100 101' testtime '04:32' testchannel '36...165'
+	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101'
+	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101' testtime '04:32' testchannel '36...165'
 
 	# option: chantest? chanbwtest? -> testtime 3:50
-	local channel= chanbw= node= mcast_rate= name= bssid=
+	local channel= chanbw= node= mcast_rate= name= bssid= distance=
 
 	while [ -n "$1" ]; do {
 		case "$1" in
+			'distance')
+				distance="$2"
+				shift
+			;;
 			'bssid')
 				bssid="$2"
 				shift
@@ -2085,8 +2089,22 @@ _wifi_longshot()
 			'nodes')
 				for node in $2; do {
 					[ "$NODENUMBER" = "$node" ] && {
+						[ -n "$mcast_rate" ] && {
+							_wifi set adhoc any mcast_rate "$mcast_rate"
+						}
+
+						[ -n "$name" ] && {
+							_wifi set adhoc any ssid "$name"
+						}
+
 						[ -n "$chanbw" ] && {
 							_wifi set adhoc any chanbw "$chanbw"
+						}
+
+						[ -n "$distance" ] && {
+							# use the longest range for point-2-multipoint in [meters] and dont forget the height-diff
+							# and better use 'auto' (dynack/dynamic ack) only for p2p with same slottiming
+							_wifi set adhoc any distance "$distance"
 						}
 
 						[ -n "$channel" ] && {
@@ -2098,16 +2116,8 @@ _wifi_longshot()
 							fi
 						}
 
-						[ -n "$mcast_rate" ] && {
-							_wifi set adhoc any mcast_rate "$mcast_rate"
-						}
-
-						[ -n "$name" ] && {
-							_wifi set adhoc any ssid "$name"
-						}
-
 						# TODO: enforce 802.11n only if possible - same like in override_uci_vars
-						_wifi set any any htmode 'HT20'
+						_wifi set adhoc any htmode 'HT20'
 					}
 				} done
 			;;
