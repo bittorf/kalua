@@ -211,6 +211,8 @@ system.@profile[0].name			- string
 system.@profile[0].nodenumber		- integer
 system.@profile[0].ipsystem		- string
 
+olsrd.@meta[0].fixedarp			- bool
+
 system.@monitoring[0].url		- url
 
 system.@fwupdate[0].url			- url

@@ -166,6 +166,14 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 										firstping_lan='error'
 									fi
 								}
+
+								case "$cost" in
+									'1.000'|'0.100')
+									;;
+									*)
+										_log do $func daemon alert "unstable LAN neigh: $line"
+									;;
+								esac
 							;;
 							$WANADR)
 								has_wired_neigh='true'
@@ -181,6 +189,14 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 										firstping_wan='error'
 									fi
 								}
+
+								case "$cost" in
+									'1.000'|'0.100')
+									;;
+									*)
+										_log do $func daemon alert "unstable WAN neigh: $line"
+									;;
+								esac
 							;;
 							*)
 								# special marker for 'is a WiFi neigh'
@@ -213,8 +229,8 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=1"
 						fi
 
-						case "$CONFIG_PROFILE" in
-							liszt28*)
+						case "$( uci -q set olsrd.@meta[0].fixedarp )" in
+							1|on|true|enabled|yes)
 								[ -e "/tmp/OLSR/fixed_arp_$2" ] || echo >>$SCHEDULER "_olsr force_static_arp $2"
 							;;
 						esac
@@ -313,9 +329,11 @@ _olsr_force_static_arp()
 	# TODO: when ip2mac fails, use '_tool remote "$ip" ip2mac'
 	# this can lead to strange effects when we replug wired routers from e.g. lan2wan
 
-	mac="$( _net ip2mac "$ip" )" && {
-		_netfilter set_arp permanent "$mac" "$ip" && {
-			touch "/tmp/OLSR/fixed_arp_$ip"
+	[ -e "/tmp/OLSR/fixed_arp_$ip" ] || {
+		mac="$( _net ip2mac "$ip" )" && {
+			_netfilter set_arp permanent "$mac" "$ip" && {
+				touch "/tmp/OLSR/fixed_arp_$ip"
+			}
 		}
 	}
 }
