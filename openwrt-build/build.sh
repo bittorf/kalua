@@ -1203,6 +1203,11 @@ build_options_set()
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
+			'debug')
+				apply_symbol 'CONFIG_USE_STRIP=y'			# Global build settings: Binary stripping method
+				apply_symbol 'CONFIG_USE_SSTRIP is not set'
+				apply_symbol 'ONFIG_STRIP_ARGS="--strip-all"'
+			;;
 			'USBprinter')
 				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-printer=y'	# kernel-modules: other: kmod-usb-printer
