@@ -1206,7 +1206,7 @@ build_options_set()
 			'debug')
 				apply_symbol 'CONFIG_USE_STRIP=y'			# Global build settings: Binary stripping method
 				apply_symbol 'CONFIG_USE_SSTRIP is not set'
-				apply_symbol 'ONFIG_STRIP_ARGS="--strip-all"'
+				apply_symbol 'CONFIG_STRIP_ARGS="--strip-all"'
 			;;
 			'USBprinter')
 				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
