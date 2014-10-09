@@ -3,6 +3,28 @@
 
 START=01
 
+apply_olsr_roaming()
+{
+	return 0
+
+	[ -e /lib/modules/*/macvlan.ko ] || return 1
+	uci -q get network.roaming >/dev/null && return 1
+
+	# TODO: always do remove_section()
+	# TODO: search ifname of e.g. 2nd_5ghz_ap
+
+	uci set network.mastergate='interface'
+	uci set network.mastergate.ifname='roaming'
+	uci set network.mastergate.proto='static'
+	uci set network.mastergate.ipaddr='192.168.0.1'
+	uci set network.mastergate.netmask='255.255.0.0'
+	uci set network.roaming='device'
+	uci set network.roaming.type='macvlan'
+	uci set network.roaming.name='roaming'
+	uci set network.roaming.ifname='@wlanRADIO1'
+	uci set network.roaming.macaddr='02:ca:ff:ee:00:01'
+}
+
 kmodule_is_deactivated()
 {
 	grep -q ^"#" "/etc/modules.d/"*"$1"	# e.g. batman-adv -> 50-batman-adv
@@ -724,6 +746,8 @@ boot()
 			# http://jumk.de/pythagoras/
 			# 345m + heigh-diff = 351 - test: distance 360
 			_wifi longshot channel 36 chanbw 20 mhz mcast 12000 name 'f36-schlacht' nodes '719 670'
+
+			apply_olsr_roaming
 		;;
 		ejbw*)
 			uci set system.@weblogin[0].authserver='172.17.0.2'
