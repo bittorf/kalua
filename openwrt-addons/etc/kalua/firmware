@@ -3,6 +3,7 @@
 _firmware_get_usecase()		# TODO: think about reordering
 {
 	local file='/etc/openwrt_build'		# generated on image build-time
+	local option="$1"			# e.g. 'hash'
 	local line oldIFS
 
 	# e.g. Standard,debug,VDS,OLSRd2,kalua@41eba50,xy
@@ -11,12 +12,20 @@ _firmware_get_usecase()		# TODO: think about reordering
 	# split words after ','
 	oldIFS="$IFS"; IFS=','; set -- $line; IFS="$oldIFS"
 
-	# print each word without appended version @...
-	# e.g. Standard,debug,VDS,OLSRd2,kalua,xy
-	while [ -n "$1" ]; do {
-		echo -n "${1%@*}${2:+,}"
-		shift
-	} done
+	if [ "$option" = 'hash' ]; then
+		# output the same hash, no matter in which order the words are
+		while [ -n "$1" ]; do {
+			echo "${1%@*}"
+			shift
+		} done | sort | md5sum | cut -d' ' -f1
+	else
+		# print each word without appended version @...
+		# e.g. Standard,debug,VDS,OLSRd2,kalua,xy
+		while [ -n "$1" ]; do {
+			echo -n "${1%@*}${2:+,}"
+			shift
+		} done
+	fi
 }
 
 _firmware_configure_keep_files()
