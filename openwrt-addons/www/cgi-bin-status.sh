@@ -253,6 +253,7 @@ output_table()
 					# TODO: auto-adjust noise_base for this dev/channel
 					[ $snr -lt 0 ] && snr=0
 
+					# TODO: 5ghz needs other margins (e.g. 13 gives e.g. 1MByte/s)
 					if   [ $snr -gt 30 ]; then
 						snr_color='green'
 					elif [ $snr -gt 20 ]; then

@@ -311,7 +311,7 @@ func_backup_userdata ()		# and restore, if missing
 {
 	local FUNC="backup_userdata"
 	local DESTINATION="$( uci get system.@vds[0].server )"	# root@intercity-vpn.de:/var/www/networks/liszt28/vds/ 
-	local FILE HASH HASH_LASTSEND HASH_SSH_PRIV
+	local FILE HASH HASH_LASTSEND HASH_SSH_PRIV size timefile
 	local I=0
 	local FILELIST="/www/cgi-bin/db_backup.tgz"		# was: "/www/users_logged_in /www/cgi-bin/userdata.txt"
 	local SSH_IDENTITY="/etc/dropbear/dropbear_dss_host_key"
@@ -322,9 +322,9 @@ func_backup_userdata ()		# and restore, if missing
 	}
 
 	for FILE in $FILELIST; do {
-
 		HASH=
 		HASH_LASTSEND=
+		tempfile="/tmp/$( dirname "$FILE" | md5sum | cut -d' ' -f1 )$( basename "$FILE" )"
 
 		if [ -e "$FILE" ]; then
 			if [ "$FILE" = "/www/cgi-bin/db_backup.tgz" ]; then
@@ -348,18 +348,24 @@ func_backup_userdata ()		# and restore, if missing
 				HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
 				URL_BACKUP="$( uci get system.@monitoring[0].url )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"
 
-				if _wget do "$URL_BACKUP" >"$FILE" 120 ; then
-					_log do $FUNC daemon info "[OK] restored '$FILE' with $( _file size "$FILE" ) bytes"
+				if _wget do "$URL_BACKUP" >"$tempfile" 120 ; then
+					size=$( _file size "$tempfile" )
+					_log do $FUNC daemon info "[OK] restored '$FILE'/'$tempfile' with $size bytes"
 				else
 					_log do $FUNC daemon info "[ERR] download '$FILE' from '$URL_BACKUP' failed"
-					rm "$FILE"
+					rm "$tempfile"
 				fi
 
-				if [ -e "$FILE" ]; then
-					HASH="$( _file hash "$FILE" )"
-					echo -n "$HASH" >"$FILE.hashlastsend"
+				if [ -e "$tempfile" ]; then
+					if [ $size -eq 0 ]; then
+						rm "$tempfile"
+					else
+						mv "$tempfile" "$FILE"
+						HASH="$( _file hash "$FILE" )"
+						echo -n "$HASH" >"$FILE.hashlastsend"
 
-					_db restore && rm "/tmp/${FUNC}_restore_counter"
+						_db restore && rm "/tmp/${FUNC}_restore_counter"
+					fi
 				else
 					_log do $FUNC daemon info "[ERR] restoring/download failed, try $restore_counter in /tmp/${FUNC}_restore_counter"
 				fi
