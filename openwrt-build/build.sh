@@ -477,6 +477,7 @@ target_hardware_set()
 	apply_symbol 'nuke_config'
 	apply_symbol "CONFIG_TARGET_${ARCH}=y"
 	apply_symbol "$TARGET_SYMBOL"
+
 	build defconfig
 }
 

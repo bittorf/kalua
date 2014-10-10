@@ -61,12 +61,21 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			echo -n "${FFF_PLUS_VERSION:=000000}"
 		;;
 		*)
-			local FILEWISH
+			local FILEWISH dir=
 
+			if FILEWISH="$( _firmware get_usecase )"; then
+				# see copy_firmware_files() in build.sh
+				# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
+				# Ubiquiti Bullet M.sysupgrade -> symlink to real file in directory xy
+				dir="$FILEWISH/"
+				FILEWISH="$HARDWARE.bin"
+			else
+				FILEWISH="$HARDWARE.sysupgrade.bin"
+				FILEWISH="$( echo "$FILEWISH" | sed 's|/|:|g' )"
+			fi
 
-			# use firmware_get_usecase()
-			FILEWISH="$HARDWARE.sysupgrade.bin"
-			FILEWISH="$( echo "$FILEWISH" | sed 's|/|:|g' )"	# very special: slashes are not allowed in filename
+			# very special: slashes are not allowed in filename
+			FILEWISH="$( echo "$FILEWISH" | sed 's|/|:|g' )"
 
 			case "$COMMAND" in
 				crc)
@@ -77,10 +86,12 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 
 					get_crc()
 					{
+						# if pattern/filename matches, get 2nd word:
+						# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db  SIZE[byte]: 3276804  BLOCKS[64k]: 49  FILE: 'TP-LINK TL-WDR3600:4300:4310.sysupgrade.bin'
 						_wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" |
 						 while read LINE; do {
 							case "$LINE" in
-								*"'$FILEWISH'"*)
+								*"'${dir}${FILEWISH}'"*)
 									echo "$LINE" | cut -d' ' -f2
 									return 111
 								;;
@@ -104,7 +115,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 					} done
 				;;
 				*)
-					echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/$( _sanitizer do "$FILEWISH" urlvalue )"
+					echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/${dir}$( _sanitizer do "$FILEWISH" urlvalue )"
 				;;
 			esac
 		;;
