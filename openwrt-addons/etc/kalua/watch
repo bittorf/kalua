@@ -600,7 +600,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 {
 	local funcname='watch_dns_resolution'
 	local testserver='intercity-vpn.de'	# fixme! use a fallback list
-	local ip line pid pid_fakedns pid_parent pid_main script leases cmdline
+	local ip line pid pid_fakedns pid_parent pid_main script leases cmdline testdomain dump_core
 
 	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] && {
 		read pid_fakedns <'/tmp/SERVICE/FAKEDNS.pid'
@@ -722,11 +722,23 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		kill -SIGHUP "$pid_parent"
 		sleep 5
 
-		# again: can we resolv a random address?
+		# again: can we resolv first a local and then random address?
+		testdomain="$( grep -v ^'#' '/etc/local.hosts' | tail -n1 '/etc/local.hosts' | cut -d' ' -f2 )"
+		_log do $funcname daemon info "trying to resolv '$testdomain' from /etc/local.hosts"
+		if nslookup "$testdomain" 2>/dev/null >/dev/null; then
+			_log do $funcname daemon info "[OK] resolv '$testdomain' good"
+			dump_core=
+		else
+			# only dump core, if local lookup fails too
+			dump_core='true'
+		fi
+
 		nslookup "$$.$testserver" 2>/dev/null >/dev/null || {
-			_log do $funcname daemon alert "[ERR] restarting dnsmasq: $pid_parent"
-			kill -SIGUSR1 "$pid_parent"	# stats to syslog
-			kill -SIGSEGV "$pid_main"	# produce coredump
+			_log do $funcname daemon alert "[ERR] sending SIGHUP to dnsmasq: $pid_parent"
+			[ -n "$dump_core" ] && {
+				kill -SIGUSR1 "$pid_parent"	# stats to syslog
+				kill -SIGSEGV "$pid_main"	# produce coredump
+			}
 
 			sleep 5
 			/etc/init.d/*dnsmasq restart
