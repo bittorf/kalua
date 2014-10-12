@@ -4,13 +4,12 @@ _translate_lang ()
 {
 	local lang="$1"		# ISO 639-1
 				# fixme! we need a way to know, if lang = left2right or right2left	
-
 	case "$lang" in
 		de|en|ru|da|ja|fr)
 			echo "$lang"
 		;;
 		*)
-			lang="$( uci get system.@weblogin[0].adminlang )"
+			lang="$( uci -q get system.@weblogin[0].adminlang )"
 
 			[ -z "$lang" ] && {
 				case "$CONFIG_PROFILE" in
@@ -25,14 +24,15 @@ _translate_lang ()
 	esac
 }
 
-_translate_do ()			# todo: chinese-simplified/arabic/hebrew (right2left) - espaniol/vietnam/hindu - tuerkisch/italienisch/esperanto/klingon
-{
+_translate_do ()			# TODO: chinese-simplified/arabic/hebrew (right2left)
+{					#       espaniol/vietnam/hindu
+					#       tuerkisch/italienisch/esperanto/klingon
 	local LANG="$( _translate lang "$1" )"		# fixme! do it without fork? (use returncode as lang)
 	local KEYWORD="${2:-empty}"
 	local context="$3"				# html|filename (weblogin?|admin-panel?)
 	local o="element_${KEYWORD}_is_unset"
 
-	case $KEYWORD in
+	case "$KEYWORD" in
 		switched_off) case $LANG in
 			de) o='ausgeschaltet';;
 			en) o='switched off';; esac
@@ -114,10 +114,11 @@ _translate_do ()			# todo: chinese-simplified/arabic/hebrew (right2left) - espan
 			en) o="protocol" ;; esac
 		;;
 		# this is used for ESSID = max 31 chars, so:
-		# Locationname (13 chars) + <space> + 'maintenance' + <space> + $NODENUMBER / $interface = 18 chars
-		maintenance_mode) case $LANG in
-			de) o="$( _sanitizer do "$( _weblogin metadata_locationname )" length:11 ) Wartungsmodus" ;;
-			en) o="$( _sanitizer do "$( _weblogin metadata_locationname )" length:13 ) maintenance" ;; esac
+		# Locationname + <space> + 'maintenance' + <space> + $context = $NODENUMBER/$interface			# 5 = 13
+		# =    13      +    1    +       11      +    1    +          3...5                    = 16...18 chars	# 4 = 14
+		maintenance_mode) case $LANG in									        # 3 = 15
+			de) o="$( _sanitizer do "$( _weblogin metadata_locationname )" length:$(( 16 - ${#context} )) ) Wartungsmodus $context" ;;
+			en) o="$( _sanitizer do "$( _weblogin metadata_locationname )" length:$(( 18 - ${#context} )) ) maintenance $context" ;; esac
 		;;
 		maintenance_hint1) case $LANG in
 			de) o="Gerne beantworten wir Ihnen Fragen zum System" ;;

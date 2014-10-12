@@ -39,13 +39,13 @@ _wifi_change_essid_ap()
 		[ "$( uci get wireless.@wifi-iface[$i].mode )" = "ap" ] && {
 			if [ "$option" = "original" ]; then
 				essid="$( uci get wireless.@wifi-iface[$i].ssid_old )"
-#				uci delete wireless.@wifi-iface[$i].ssid_old
+				uci delete wireless.@wifi-iface[$i].ssid_old
 				uci set wireless.@wifi-iface[$i].ssid="${essid:-$CONFIG_PROFILE-$NODENUMBER}"
 				rm "$file"
 			else
 				essid="$( uci get wireless.@wifi-iface[$i].ssid )"
 				uci set wireless.@wifi-iface[$i].ssid_old="$essid"
-				uci set wireless.@wifi-iface[$i].ssid="$( _translate do "$LANG" maintenance_mode ) $NODENUMBER/$i"
+				uci set wireless.@wifi-iface[$i].ssid="$( _translate do "$LANG" maintenance_mode "$NODENUMBER/$i" )"
 				touch "$file"
 			fi
 		}
@@ -912,7 +912,7 @@ _wifi_math_mhz2channel ()		# http://en.wikipedia.org/wiki/Lost_of_WLAN_channels
 {
 	local o				# idea: add to each freq regdomain/countrycode
 					#       and choose corresponding countrycode, which fits channel 8-)
-	case $1 in
+	case "$1" in
 		2412) o=1 ;;  # 276	# block of 802.11b/g/n-freqs
 		2417) o=2 ;;  # 276
 		2422) o=3 ;;  # 276
@@ -1006,7 +1006,7 @@ _wifi_math_mw2dbm ()			# fixme! _sanitizer_convert VALUE unit_is unit_wish
 {
 	local o				# dBm = 10 * log(mW)	(but -ash can't calc with log)
 					# mW  = 10 ^ (dBm/10)
-	case $1 in			# (+10 dBm = mW x 10)
+	case "$1" in			# (+10 dBm = mW x 10)
 	        0) o=0 ;;
 	        1) o=1 ;;		# iwlist ath0 txpower
 	        2) o=4 ;;		# - Wistron CM9         - Wistron DCM82  - ergo:
@@ -1047,7 +1047,7 @@ _wifi_math_mw2qdbm ()			# for broadcom on freifunk, convert unit [mW] -> [qdBm] 
 {
 	local o
 
-	case $1 in
+	case "$1" in
 	 	 2) o=8 ;;
 	 	 3) o=16 ;;
 	 	 4) o=22 ;;		
@@ -1132,7 +1132,7 @@ _wifi_antenna_rx_set ()
 		*) VALUE=-1 ;;
 	esac
 
-	case $VALUE in
+	case "$VALUE" in
 	       -1)
 	       		_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
 			sysctl -w dev.wifi0.diversity=1
@@ -1158,7 +1158,7 @@ _wifi_antenna_tx_set ()
 		*) VALUE=-1 ;;
 	esac
 	
-	case $VALUE in
+	case "$VALUE" in
 	       -1)
 			_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
 			sysctl -w dev.wifi0.diversity=1
@@ -1177,7 +1177,7 @@ _wifi_antenna_rx ()
 	local WIFI_DEV="$1"
 	local RX="$( uci get wireless.radio0.diversity )"
 
-	case $RX in
+	case "$RX" in
 		0) echo "0" ;;
 		1) echo "1" ;;
 		*) echo "auto" ;;
@@ -1376,7 +1376,7 @@ _wifi_probe_mode_infrastructure ()		# fixme! respect WIFI_DEV
 	else
 		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_MODE= )"
 
-		case $WIFI_MODE in
+		case "$WIFI_MODE" in
 			Managed|managed|Master|master) return 0 ;;
 						    *) return 1 ;;
 		esac
@@ -1400,7 +1400,7 @@ _wifi_probe_mode_ap ()				# fixme! respect WIFI_DEV
 	else
 		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_MODE= )"
 
-		case $WIFI_MODE in
+		case "$WIFI_MODE" in
 			Master|master)
 				return 0
 			;;
@@ -1542,7 +1542,7 @@ _wifi_math_dbm2mw ()			# mW  = 10 ^ (dBm/10)
 {
 	local o
 
-	case $1 in
+	case "$1" in
 		0) o=1 ;;
 		4) o=2 ;;
 		5) o=3 ;;
