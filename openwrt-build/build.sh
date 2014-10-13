@@ -701,6 +701,19 @@ openwrt_download()
 	return 0
 }
 
+usecase_hash()		# see: _firmware_get_usecase()
+{
+	local usecase="$1"
+	local oldIFS="$IFS"; IFS=','; set -- $usecase; IFS="$oldIFS"
+
+	# print each word without appended version @...
+	# output the same hash, no matter in which order the words are
+	while [ -n "$1" ]; do {
+		echo "${1%@*}"
+		shift
+	} done | sort | md5sum | cut -d' ' -f1
+}
+
 copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
@@ -715,9 +728,14 @@ copy_firmware_files()
 	log "kernel: '$VERSION_KERNEL'"
 	log "openwrt-version: '$VERSION_OPENWRT'"
 	log "hardware: '$HARDWARE_MODEL'"
-	log "usecase = --usecase $LIST_OPTIONS"
+	log "usecase: --usecase $LIST_OPTIONS"
+	log "usecase-hash: $( usecase_hash "$LIST_OPTIONS" )"
 	log "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
+
+	# http://intercity-vpn.de/firmware/mpc85xx/images/testing/1c78c7a701714cddd092279587e719a3/TP-LINK%20TL-WDR4900%20v1.bin
+	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/$( usecase_hash "$LIST_OPTIONS" )/$HARDWARE_MODEL.bin"
 	log "enforced_profile: $CONFIG_PROFILE"
+
 
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
 	destination="$HARDWARE_MODEL_FILENAME"
