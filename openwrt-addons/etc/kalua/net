@@ -275,7 +275,7 @@ _net_ip4_is_private ()		# RFC-1918
 _net_ip2dns()
 {
 	local ip="$1"
-	local startparse last
+	local startparse last line
 
 	# root@box:~ nslookup 10.63.6.3
 	# Server:    127.0.0.1			// these 2 lines are
@@ -285,6 +285,21 @@ _net_ip2dns()
 	# Address 1: 10.63.6.3 mid1.F36-Dach4900er-MESH		// hostname is missing if lookup fails
 
 	set -- $( nslookup "$ip" 2>/dev/null || echo 'ERROR ERROR' )
+
+	[ "$1" = 'ERROR' ] && {
+		while read line; do {
+			set -- $line
+			case "$1" in
+				"$ip")
+					echo "$2"
+					return 0
+				;;
+			esac
+		} done <'/var/run/hosts_olsr'
+
+		return 1
+	}
+
 	while shift; do {
 		case "$1" in
 			'ERROR')
