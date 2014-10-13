@@ -60,7 +60,7 @@ e.g. : $0 --openwrt $rev --hardware '$hardware' --usecase '$usecase'
 Get help without args, e.g.: --hardware <empty>
 EOF
 
-#        --openwrt trunk | <empty> 
+#        --openwrt trunk | <empty>
 #	--hardware 'Ubiquiti Bullet M'|<empty> = list supported models
 #	--kernel
 #	--usecase

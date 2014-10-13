@@ -1,8 +1,6 @@
 #!/bin/sh
 . /tmp/loader
-
-_http header_mimetype_output 'text/html'
-
+[ -n "$REMOTE_ADDR" ] && _http header_mimetype_output 'text/html'
 
 remote_hops()
 {

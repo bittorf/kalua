@@ -215,7 +215,7 @@ set_build()
 					file2patch="$( basename "$( echo "$line" | cut -d' ' -f3 )" )"
 					cd $dest
 
-					patch f1 f2 
+					patch f1 f2
 
 					cd $old_pwd
 				;;
