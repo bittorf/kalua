@@ -61,9 +61,9 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			echo -n "${FFF_PLUS_VERSION:=000000}"
 		;;
 		*)
-			local FILEWISH dir=
+			local FILEWISH dir= usecase=
 
-			if FILEWISH="$( _firmware get_usecase )"; then
+			if usecase="$( _firmware get_usecase )"; then
 				# see copy_firmware_files() in build.sh
 				# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
 				# Ubiquiti Bullet M.sysupgrade -> symlink to real file in directory xy
@@ -81,19 +81,26 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			case "$COMMAND" in
 				crc)
 					local i=0
-					local GENERATED VERSION KERNEL MAINTAINER CRC
+					local GENERATED VERSION KERNEL MAINTAINER CRC url
 
 					[ "$UPDATEMODE" = "0" ] && i=100
 
+					url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
+				# if pattern/filename matches, get 2nd word:
+				# NEW:
+				# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db SIZE[byte]: 999999 BLOCKS[64k]: 49 FILE: 'La Fonera 2.0N.bin' USECASE: Standard,LuCIfull,VDS,kalua HASH[md5]: b1cc2a438170a6fff4d08b08da4030af
+				# OLD:
+				# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db SIZE[byte]: 999999 BLOCKS[64k]: 49 FILE: 'La Fonera 2.0N.bin'
+
 					get_crc()
 					{
-						# if pattern/filename matches, get 2nd word:
-						# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db SIZE[byte]: 999999 BLOCKS[64k]: 49 FILE: 'La Fonera 2.0N.bin'
+						local url="$1"
+						local usecase="$2"
 
-						_wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" |
+						_wget do "$url" |
 						 while read LINE; do {
 							case "$LINE" in
-								*"'${dir}${FILEWISH}'"*)
+								*"'${FILEWISH}'${usecase:+ USECASE: }${usecase}${usecase:+ }"*)
 									echo "$LINE" | cut -d' ' -f2
 									return 111
 								;;
@@ -108,7 +115,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 					}
 
 					while [ $i -lt 100 ]; do {
-						if get_crc ; then
+						if get_crc "$url" "$usecase"; then
 							break
 						else
 							_log sleep "firmware_getcrc_run_${i}_outof_100" 10 step 1
