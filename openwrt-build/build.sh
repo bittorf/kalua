@@ -686,7 +686,7 @@ openwrt_download()
 
 			[ -n "$( git stash list | grep -v '() going to checkout ' )" ] && {
 				log "$funcname() found openwrt-stash, ignore via press 'q'"
-				log "$funcname() or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git clear'"
+				log "$funcname() or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git stash clear'"
 
 				git stash list
 			}
@@ -733,7 +733,7 @@ copy_firmware_files()
 	log "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
 
 	# http://intercity-vpn.de/firmware/mpc85xx/images/testing/1c78c7a701714cddd092279587e719a3/TP-LINK%20TL-WDR4900%20v1.bin
-	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/$( usecase_hash "$LIST_OPTIONS" )/$HARDWARE_MODEL.bin"
+	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/usecase/$( usecase_hash "$LIST_OPTIONS" )/$HARDWARE_MODEL.bin"
 	log "enforced_profile: $CONFIG_PROFILE"
 
 
