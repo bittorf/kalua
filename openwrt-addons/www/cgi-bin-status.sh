@@ -58,7 +58,7 @@ output_table()
 			'Gateway')
 				if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
 					read i <'/tmp/OLSR/DEFGW_empty'
-					word="$word ($(( ($i * 100) / $all ))% Inselbetrieb)"
+					[ $all -gt 0 ] && word="$word ($(( ($i * 100) / $all ))% Inselbetrieb)"
 				elif inet_offer="$( _net local_inet_offer )"; then
 					word="$word (Einspeiser: $inet_offer)"
 				fi
@@ -161,7 +161,7 @@ output_table()
 
 		if [ -e "/tmp/OLSR/DEFGW_$REMOTE" ]; then
 			read i <"/tmp/OLSR/DEFGW_$REMOTE"
-			gateway_percent=$(( ($i * 100) / $all ))
+			[ $all -gt 0 ] && gateway_percent=$(( ($i * 100) / $all ))
 			gateway_percent="${gateway_percent}%"		# TODO: sometimes >100%
 		else
 			gateway_percent=
