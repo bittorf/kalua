@@ -171,7 +171,6 @@ output_table()
 			bgcolor='#ffff99'			# lightyellow
 			eval $( _olsr best_inetoffer )		# GATEWAY,METRIC,ETX,INTERFACE
 
-
 			if [ -n "$METRIC" ]; then
 				gateway_percent="${gateway_percent:-100%}, $METRIC Hops, ETX $ETX"
 			else
@@ -288,6 +287,10 @@ output_table()
 				;;
 				'tun'*|'tap'*)
 					channel='/VPN'
+
+					snr='vpn'
+					snr_color='SpringGreen'
+					iface_out_color='SpringGreen'
 				;;
 			esac
 
