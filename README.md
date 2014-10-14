@@ -211,8 +211,6 @@ system.@profile[0].name			- string
 system.@profile[0].nodenumber		- integer
 system.@profile[0].ipsystem		- string
 
-olsrd.@meta[0].fixedarp			- bool
-
 system.@monitoring[0].url		- url
 
 system.@fwupdate[0].url			- url
@@ -222,6 +220,10 @@ system.@vds[0].server			- scp-destination
 system.@vds[0].enabled			- bool
 
 system.@community[0].splash		- bool
+
+system.@httpsproxy[0].enabled		- bool
+
+olsrd.@meta[0].fixedarp			- bool
 
 firewall.@adblock[0].enabled		- bool
 network.$INTERFACE.dyndns		- url

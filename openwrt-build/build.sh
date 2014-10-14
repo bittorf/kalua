@@ -394,11 +394,8 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_rb532_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-rb532-combined-jffs2-128k.bin'
 			FILENAME_FACTORY='openwrt-rb532-combined-jffs2-128k.bin'	# via 'dd' to CF-card
-			# apply:
-			# CONFIG_TARGET_ROOTFS_JFFS2=y
-			# CONFIG_PACKAGE_kmod-madwifi is not set
-			# CONFIG_PACKAGE_kmod-ath5k=y
-			# yaffs2?
+
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_JFFS2=y"
 		;;
 		'Seagate GoFlex Home'|'Seagate GoFlex Net')
 			# http://wiki.openwrt.org/toh/seagate/goflexnet
@@ -1603,8 +1600,10 @@ openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 [ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
 [ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
 
+SPECIAL_OPTIONS=
 target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 copy_additional_packages		|| die_and_exit
+build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
 build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
 build					|| exit 1
 copy_firmware_files			|| die_and_exit
