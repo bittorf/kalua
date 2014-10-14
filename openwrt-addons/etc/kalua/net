@@ -506,25 +506,25 @@ _net_devtype2symbol ()
 	esac
 }
 
-_net_dev_type ()		# OUT1: string, "wifi/tunnel/wire"
+_net_dev_type()		# out: string, "wifi/tunnel/wire"
 {
-	local DEV="$1"
-	local OPTION="$2"	# short
-	local OUT
-	
+	local dev="$1"
+	local option="$2"	# short
+	local out
+
 	if   _net dev_is_wifi $DEV ; then
-		OUT="wifi"
+		out="wifi"
 	elif _net dev_is_tuntap $DEV ; then
-		OUT="tunnel"
+		out="tunnel"
 	else
-		OUT="wire"
+		out="wire"
 	fi
-	
-	[ "$OPTION" = "short" ] && {
-		OUT="$( _net devtype2symbol )"
-	}
-	
-	echo -n "$OUT"
+
+	if [ "$option" = 'short' ]; then
+		_net devtype2symbol "$out"
+	else
+		echo "$out"
+	fi
 }
 
 _net_ip2metric ()
@@ -547,12 +547,19 @@ _net_dev_is_wifi()
 	grep -q "^.*${1:-empty_devname}:" '/proc/net/wireless'
 }
 
-_net_dev_is_tuntap ()
+_net_dev_is_tuntap()
 {
-	local KEYWORD="$( echo $1 | sed -n 's/^\([a-z]*\)[0-9]*/\1/p' )"
-	
-	[ "$KEYWORD" = "tun" ] && return 0
-	[ "$KEYWORD" = "tap" ] && return 0
+	local dev="$1"
+
+	case "$dev" in
+		'tun'*|'tap'*)
+			return 0
+		;;
+		*)
+			[ -d "/etc/tinc/$dev" ] && return 0
+		;;
+	esac
+
 	return 1
 }
 

@@ -113,7 +113,7 @@ output_table()
 		}
 
 		case "$remote_hostname" in
-			mid[0-9].*)
+			mid[0-9].*|mid[0-9][0-9].*)
 				# mid3.F36-Dach4900er-MESH -> F36-Dach4900er-MESH
 				remote_hostname="${remote_hostname#*.}"
 			;;
@@ -200,9 +200,11 @@ output_table()
 				;;
 				*)
 					# likely no ethernet/VPN
-					return 0
+					_net dev_is_tuntap "$1" || return 0
 				;;
 			esac
+
+			return 1
 		}
 
 		channel=; snr=; rx_mbytes=; tx_mbytes=
@@ -283,12 +285,14 @@ output_table()
 				$WANDEV)
 					channel='/WAN'
 				;;
-				'tun'*|'tap'*)
-					channel='/VPN'
+				*)
+					_net dev_is_tuntap "$iface_out" && {
+						channel='/VPN'
 
-					snr='vpn'
-					snr_color='SpringGreen'
-					iface_out_color='SpringGreen'
+						snr='vpn'
+						snr_color='SpringGreen'
+						iface_out_color='SpringGreen'
+					}
 				;;
 			esac
 
