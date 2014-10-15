@@ -209,6 +209,7 @@ output_table()
 
 		channel=; snr=; rx_mbytes=; tx_mbytes=
 		if is_wifi "$iface_out"; then
+			iface_out_color=
 			mac="$( _net ip2mac "$REMOTE" )" || {
 				mac="$( _tool remote "$REMOTE" ip2mac )"
 				mac="$( _sanitizer do "$mac" mac )"
@@ -240,6 +241,7 @@ output_table()
 
 				if [ -n "$snr" ]; then
 					channel="$( _wifi channel "$dev" )"
+					[ $channel -ge 36 ] && iface_out_color='YellowGreen'
 					channel="/Kanal&nbsp;$channel"
 
 					# 95 = noise_base / drivers_default
@@ -270,8 +272,6 @@ output_table()
 				snr='error/no_mac'
 				snr_color='red'
 			fi
-
-			iface_out_color=
 		else
 			# use net_dev_type()
 			snr='ethernet'
