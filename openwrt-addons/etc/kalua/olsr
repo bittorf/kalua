@@ -66,14 +66,23 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 					# TODO: dont take a public IP into account
 					gateway="$( _sanitizer do "$line" ip4 )"
 
-					# TODO: all default rules in _last_ line and with ipv4
-					# root@server1:/# grep default /tmp/OLSR/ROUTING_TABLE_MAIN
+					# TODO: ipv6?
+					# TODO: default routes can be in at the end:
+
+					# root@server1:/# tail -n5 /tmp/OLSR/ROUTING_TABLE_MAIN
+					# 10.142.0.0/16 via 10.63.1.49 dev wnvpn  metric 2 onlink
+					# 10.139.0.0/16 via 10.63.1.49 dev wnvpn  metric 2 onlink
+					# 10.64.0.0/11 via 10.63.1.49 dev wnvpn  metric 2 onlink
 					# default dev venet0  scope link
 					# default via 10.63.21.121 dev tap276  metric 2 onlink
 				;;
 				*)
-					echo >>$SCHEDULER_IMPORTANT '_net inet_seems_stable'
-					gateway='empty'
+					gateway="$( grep ^'default' '/tmp/OLSR_TMP/ROUTING_TABLE_MAIN' | head -n1 )"
+					[ -n "$gateway" ] && gateway="$( _sanitizer do "$line" ip4 )"
+					[ -z "$gateway" ] && {
+						echo >>$SCHEDULER_IMPORTANT '_net inet_seems_stable'
+						gateway='empty'
+					}
 				;;
 			esac
 
