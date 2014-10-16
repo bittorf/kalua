@@ -133,9 +133,12 @@ GATEWAY="$( _sanitizer do "$GATEWAY" ip4 )"		# fixme! this is safer, we have see
 
 [ -e "/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY" ] || FIRST_RUN="true"
 [ -e "/tmp/USERDB_COPY" ] || FIRST_RUN="true"
+
+# not needed on inet_offer:
 [ "$METRIC" = "0" ] && {
 	[ -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" ] || FIRST_RUN=
 }
+
 pidof bat_events >/dev/null && {
 	[ -e "/tmp/USERDB_COPY" ] || FIRST_RUN="true"
 }
@@ -143,8 +146,7 @@ pidof bat_events >/dev/null && {
 # should not happen:
 [ "$( _file size '/tmp/USERDB_COPY' )" = '0' ] && FIRST_RUN="true"
 
-# will be generated on 'FIRST_RUN=true'
-[ -e '/tmp/vtund.sh' ] && {
+if [ -e '/tmp/vtund.sh' ]; then
 	# todo: use a function and more varnames
 	# maybe better?: grep "tap[0-9]:" /proc/net/dev
 	if pidof vtund >/dev/null; then
@@ -170,7 +172,13 @@ pidof bat_events >/dev/null && {
 	else
 		. '/tmp/vtund.sh'
 	fi
-}
+else
+	[ -e "/etc/vtund.conf" ] && {			# startup-code must be a comment at first line
+		grep -q ^'# vtund ' "/etc/vtund.conf" && {
+			head -n1 "/etc/vtund.conf" | cut -b 2- >"/tmp/vtund.sh"
+		}
+	}
+fi
 
 echo "$COST_INT"	>'/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY'
 echo "$GATEWAY"		>'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
@@ -193,12 +201,6 @@ _log do guess_gateway daemon debug "$OUT"
 	MESSAGE="startup/${CONFIG_PROFILE#*_}/n$NODENUMBER/$HOSTNAME/$REASON/$( _system uptime humanreadable )"
 	MESSAGE="$( _sanitizer do "$MESSAGE" urlvalue )"
 	_weblogin login_check "" "" "" "$MESSAGE"
-
-	[ -e "/etc/vtund.conf" ] && {			# startup-code must be a comment at first line
-		grep -q ^'# vtund ' "/etc/vtund.conf" && {
-			head -n1 "/etc/vtund.conf" | cut -b 2- >"/tmp/vtund.sh"
-		}
-	}
 
 	userdb_copy_needed()
 	{
