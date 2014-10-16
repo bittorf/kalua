@@ -56,7 +56,7 @@ if [ -e '/tmp/BATCTL_TRACEROUTE' ]; then
 else
 	read GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 
-	echo "<h3>Routenverfolgung zum Gateway '$GATEWAY' zum Zeitpunkt $( _system date humanreadable nice )</h3>"
+	echo "<h3>Routenverfolgung zum Gateway '$GATEWAY' zum Zeitpunkt $( _system date humanreadable pretty )</h3>"
 	echo "<pre>$( traceroute $GATEWAY )</pre>"
 fi
 

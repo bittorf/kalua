@@ -490,7 +490,7 @@ cat <<EOF
 	"http://www.w3.org/TR/html4/loose.dtd">
 <html>
  <head>
-  <title>$HOSTNAME - No. $NODENUMBER - Nachbarn</title>
+  <title>$HOSTNAME - No. $NODENUMBER - Nachbarn @$( _system date humanreadable pretty )</title>
   <META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15">
 EOF
 
