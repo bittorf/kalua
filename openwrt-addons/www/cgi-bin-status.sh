@@ -102,7 +102,7 @@ output_table()
 		remote_hostname="$( _net ip2dns "$remote_ip" )"
 
 		# did not work (e.g. via nameservice-plugin), so ask the remote directly
-		[ "$remote_hostname" = "$remote_ip" ] && {
+		[ -z "$remote_hostname" -o "$remote_hostname" = "$remote_ip" ] && {
 			remote_hostname="$( _tool remote "$remote_ip" hostname )"
 			if [ -z "$remote_hostname" ]; then
 				remote_hostname="$remote_ip"
@@ -117,7 +117,7 @@ output_table()
 				# mid3.F36-Dach4900er-MESH -> F36-Dach4900er-MESH
 				remote_hostname="${remote_hostname#*.}"
 			;;
-			'xmlversion'*|'htmlxml'*)
+			'DOCTYPEhtml'*|'xmlversion'*|'htmlxml'*)
 				# fetched 404/error-page
 				remote_hostname="$remote_ip"
 			;;
