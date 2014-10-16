@@ -53,6 +53,17 @@ case "$HOUR:$MINUTE" in
 		echo >>$SCHEDULER '_firmware update_pmu'
 	;;
 	04:00)
+		case "$( uci -q get 'wireless.radio0.longshot' )" in
+			1|on|true|enabled)
+				IP="$( ip neigh | fgrep "dev $WIFIDEV lladdr" | head -n1 | cut -d' ' -f1 )"
+				[ -n "$IP" ] && {
+					DONT_WORK='true'
+					. /usr/sbin/cron.pingchecker
+					_log do longshort_report daemon alert "pingstat: $( pingstat )"
+				}
+			;;
+		esac
+
 		# dont make serious action, when we are not sure if time is correct
 		_ntp set is_unset || {
 			[ -e "/tmp/cron.webcam" ] && {
