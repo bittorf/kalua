@@ -194,6 +194,7 @@ system.@monitoring[0].serverip		- IP
 system.@monitoring[0].pingcheck		- IP
 system.@monitoring[0].pingcheck_lazy	- bool
 system.@weblogin[0].dynamic_portfw	- pattern of macs
+system.@weblogin[0].auth_credentials	- string
 
 system.@admin[0].location		- string
 system.@admin[0].latlon			- string
@@ -236,10 +237,12 @@ mail.@smtp[0].server			- hostname
 mail.@smtp[0].port			- integer
 mail.@smtp[0].name			- string: e.g. realname
 mail.@smtp[0].mail			- mailadresse
-mail.@smtp[0].auth			- string: e.g. -P 222 user@domain.tld:myfolder
+mail.@smtp[0].auth			- string: e.g. '-P 222 user@domain.tld:myfolder'
 
 sms.@sms[0].admin			- string: phonenumber
 
 wireless.radio0.cronactive		- string: '18:00 - 08:00'
 
 network.wan.public_ip			- bool
+
+system.@webcam[0].storage_path		- string: e.g. 'bastian@10.63.2.34:bigbrother'
