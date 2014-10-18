@@ -2,7 +2,8 @@
 
 pingstat()
 {
-	local line
+	local ip="$1"
+	local line= packets= retries=
 
 	while read line; do {
 		case "$line" in
@@ -14,15 +15,35 @@ pingstat()
 
 	# append some wifi debug, e.g.:
 	# bytes: 10729533 packets: 35965 retries: 4230 failed: 2 avg: -75 bitrate: 39.0
-	ip route get $IP | fgrep -q " dev $WIFIDEV " && {
+	ip route get "$ip" | fgrep -q " dev $WIFIDEV " && {
 		. /tmp/loader
 
-		iw dev $WIFIDEV station get "$( _net ip2mac "$IP" )" |
+		iw dev $WIFIDEV station get "$( _net ip2mac "$ip" )" |
 		 while read line; do {
 			case "$line" in
+				# tx packets:     435790
+				# tx retries:     1775
+				# tx failed:      0
+				# signal avg:     -46 [-46] dBm
+				# tx bitrate:     65.0 MBit/s MCS 7
 				*'tx '*|*'signal avg:'*)
 					set -- $line
-					echo -n "$2 $3 "	# TODO: show packets/retries-ratio [%]
+					case "$line" in
+						'packets:'|'retries:')
+							echo -n "$2 $( _sanitizer do "$3" number_humanreadable ) "
+
+							if [ -n "$packets" ]; then
+								retries=$3
+								# show packets/retries-ratio [%]
+								echo -n "ratio: $( _math percentof "$retries" "$packets" )%"
+							else
+								packets=$3
+							fi
+						;;
+						*)
+							echo -n "$2 $3 "
+						;;
+					esac
 				;;
 			esac
 		} done
@@ -84,7 +105,7 @@ else
 	esac
 
 	if [ -n "$REST" ]; then
-		echo "$( date ) IP:$IP up:$UP load:$LOAD $( pingstat ) OLSR: $( olsr_stats )" >>'/www/PINGCHECK'
+		echo "$( date ) IP:$IP up:$UP load:$LOAD $( pingstat "$IP" ) OLSR: $( olsr_stats )" >>'/www/PINGCHECK'
 		mv '/tmp/PING' '/tmp/PING.last'
 	else
 		[ -e '/tmp/PING' ] && mv '/tmp/PING' '/tmp/PING.last'

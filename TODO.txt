@@ -55,17 +55,25 @@ root@box:~ eval $( jshn -r "$( wget -qO - "$URL" )" )
 #
 # ROUTER1+2+3:
 # insmod macvlan
-# ip link add link $WIFI-AP-INTERFACE name roaming0 address 02:ca:ff:ee:00:02 type macvlan
-# ip address add 192.168.5.1/24 dev roaming0
-# ip link set dev roaming0 up
+# ip link add link $WIFI-AP2-INTERFACE name roaming address 02:ca:ff:ee:00:01 type macvlan
+# ip address add 192.168.5.1/16 dev roaming
+# ip link set dev roaming up
+# iptables -t nat -I POSTROUTING -s 192.168.0.0/16 -j MASQUERADE
 #
 # LAPTOP:
-# ip address add 192.168.5.2/24 dev wlan0
+# ip address add 192.168.5.2/16 dev wlan0-2
 # ping -c3 192.168.5.1
 # ip neigh show to 192.168.5.1
 #
 # dann rumlaufen und ping laufen lassen
+#
+# script hoert mit 'iw event'
+wlan0-1: new station 00:eb:2d:d4:6d:cd
+wlan0-1: del station 00:1d:0d:b3:e3:13
+-> olsrd2 = hna setzen/wegnehmen
 
+# network:
+#
 config interface 'mastergate'
         option ifname 'roaming'
         option proto static
@@ -75,11 +83,27 @@ config interface 'mastergate'
 config device 'roaming'
         option type 'macvlan'
         option name 'roaming'
-        option ifname '@wlanRADIO1'
+        option ifname '@wlanROAMING'
         option macaddr '02:ca:ff:ee:00:01'
 
+# wireless: (2nd AP)
+config wifi-iface
+	option device 'radio0'
+	option network 'wlanROAMING'
+	option mode 'ap'
+	option ssid 'weimarnetz (mobile)'
+
+# dhcp:
+#
+config dhcp 'roaming'
+	option interface 'mastergate'
+	option start '192.168.8.1'
+	option limit '253'
+#
+# dnsmasq-dhcp[4813]: DHCP, IP range 192.168.8.1 -- 192.168.8.253, lease time 1h
+
 # ip a
-20: roaming@wlan0-1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
+20: roaming@wlan0-2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default 
     link/ether 02:ca:ff:ee:00:01 brd ff:ff:ff:ff:ff:ff
     inet 192.168.0.1/16 brd 192.168.255.255 scope global roaming
        valid_lft forever preferred_lft forever
@@ -98,6 +122,21 @@ network.roaming.type=macvlan
 network.roaming.name=roaming
 network.roaming.ifname=@wlanRADIO1
 network.roaming.macaddr=02:ca:ff:ee:00:01
+
+Fri Oct 17 21:25:48 2014 daemon.info hostapd: wlan0-2: STA 00:21:6a:32:7c:1c IEEE 802.11: authenticated
+Fri Oct 17 21:25:48 2014 daemon.info hostapd: wlan0-2: STA 00:21:6a:32:7c:1c IEEE 802.11: associated (aid 1)
+Fri Oct 17 21:25:48 2014 daemon.warn dnsmasq-dhcp[13640]: DHCP packet received on wlan0-2 which has no address
+Fri Oct 17 21:25:48 2014 daemon.info dnsmasq-dhcp[13640]: DHCPREQUEST(roaming) 192.168.8.60 00:21:6a:32:7c:1c 
+Fri Oct 17 21:25:48 2014 daemon.info dnsmasq-dhcp[13640]: DHCPNAK(roaming) 192.168.8.60 00:21:6a:32:7c:1c wrong address
+Fri Oct 17 21:25:48 2014 daemon.warn dnsmasq-dhcp[13640]: DHCP packet received on wlan0-2 which has no address
+Fri Oct 17 21:25:51 2014 daemon.info dnsmasq-dhcp[13640]: DHCPDISCOVER(roaming) 00:21:6a:32:7c:1c 
+Fri Oct 17 21:25:51 2014 daemon.info dnsmasq-dhcp[13640]: DHCPOFFER(roaming) 192.168.8.60 00:21:6a:32:7c:1c 
+Fri Oct 17 21:25:51 2014 daemon.warn dnsmasq-dhcp[13640]: DHCP packet received on wlan0-2 which has no address
+Fri Oct 17 21:25:51 2014 daemon.info dnsmasq-dhcp[13640]: DHCPREQUEST(roaming) 192.168.8.60 00:21:6a:32:7c:1c 
+Fri Oct 17 21:25:51 2014 daemon.info dnsmasq-dhcp[13640]: DHCPACK(roaming) 192.168.8.60 00:21:6a:32:7c:1c X301
+
+
+
 
 
 
@@ -656,9 +695,57 @@ endef
 
 
 
-# rebuild kernel:
+# patch / upgrade new kernel:
+# git checkout -n kernel_upgrade
+#
+# (loop starts here)
+# vi target/linux/ar71xx/Makefile
 # make target/linux/clean
-# make target/install		-> will generate the image files
+# make -j5 target/linux/compile		# rebuild kernel
+#
+# make -j5 target/install		# rebuild kernel + image files
+# 
+# ??? make package/kernel/mac80211/clean + compile
+
+
+
+URL='https://www.kernel.org/pub/linux/kernel/v3.x/ChangeLog-3.10.50'
+shortlog() {
+clear; echo "$URL"; echo; wget -qO - "$URL" |
+ while read LINE; do
+	case "$LINE" in
+		'commit'*|'Signed-off-by: '*|'Acked-by: '*|'Cc: '*|'Reported-by:'*|'Link: '*|'Fixes: '*|'['*)
+			PARSE=
+		;;
+		'Date:'*)
+			PARSE=1
+		;;
+		*': '*)
+			test -n "$PARSE" && echo "$LINE"
+		;;
+	esac
+done | sort
+}
+shortlog "$URL"
+
+# git rm/add $changed/deleted_patchfiles
+# git add target/linux/ar71xx/Makefile
+# git diff --cached --color
+# git commit
+  [ar71xx/kernel] upgrade 3.10.49 to 3.10.50 - released 2014-07-28
+
+  [ar71xx/kernel] upgrade 3.10.49 to 3.10.50 - released 2014-07-28
+
+  compile tested. runtime tested.
+
+  shortlog from https://www.kernel.org/pub/linux/kernel/v3.x/ChangeLog-3.10.50
+  ...
+
+# (or loop here)
+# git format-patch -s -1
+# git checkout master
+
+
 
 # /sys/kernel/debug/ieee80211/phy0/ath9k/reset
 # /sys/kernel/debug/ieee80211/phy*/ath9k/interrupt
@@ -1167,23 +1254,32 @@ Local IP        Remote IP       Hyst.   LQ      NLQ     Cost
 
 
 TODO-important:
+# read quilt: http://wiki.openwrt.org/doc/devel/patches
 # openwrt: firstboot: 4900er mac
 # openwrt: git grep 'md5sum -'
 # openwrt: git grep ' '$
-# openwrt: patch kernel up to 3.10.57
 # openwrt: git grep 'case "\${#'
 # openwrt: git grep 'case \$'
 # openwrt: failsafe via crashlog
 # openwrt: git grep ' () {'
-# openwrt: rework: http://patchwork.openwrt.org/patch/3553/ - test 'reboot -f'
+# openwrt: git grep -e '((\$'	// wrong parenthesis
+# openwrt: git grep ' -le "'	// dont calc wit ""
+# openwrt: git grep '=""'	// enforce empty var is enough with: A=
 # openwrt: refactor postinst()
+# openwrt: cleanup 'package/base-files/files/bin/login.sh'
 # http://patchwork.openwrt.org/project/openwrt/list/?order=submitter
 #
-# test: dhcp-trick/jow
+#
+### test: dhcp-trick/jow
+#
+# build: Small: disable station-mode? disable ap-mode? -> "CONFIG_PACKAGE_wpad-mini is not set"
+# rewrite: A=$(( A + 1 )) instead of A=$(( $A + 1 ))
+# enhance syntax: '_wifi set apX 2ghz ssid ROAMING' - if X is set, then explicitely set the 2nd occurence
+# olsrd_build_tables() nicht alle permanent-eintraege bleiben, ab und zu auffrischen?
 # nutzen?: /lib/netifd/dhcp.script wird alle 15-30mins mit renew+setup_interface() aufgerufen
 # fix RRD
 # fix weekly report
-# firmware: include default design
+# firmware: include default design (flags!)
 # support for login = community (loginmask without username/pass) -> system.@weblogin[0].auth_credentials
 # include pubkey entry of 10.63.2.34
 # get rid of: /www/SOFTWARE_FULLY_INSTALLED

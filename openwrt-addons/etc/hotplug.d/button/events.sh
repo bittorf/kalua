@@ -90,14 +90,7 @@ case "${BUTTON}-${ACTION}" in
 		fi
 
 		. /tmp/loader
-		case "$CONFIG_PROFILE" in
-			boltenhagendh*|liszt28*)
-				_weblogin authserver_message "button_pressed.$HOSTNAME.$DIFF.msec"
-			;;
-			*)
-				echo >>$SCHEDULER_IMPORTANT "_weblogin authserver_message button_pressed.$HOSTNAME.$DIFF.msec"
-			;;
-		esac
+		_weblogin authserver_message "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
 	;;
 	*)
 		logger -s -- "$0: button '$BUTTON' action: '$ACTION' ignoring args: $@"
