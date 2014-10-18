@@ -195,6 +195,7 @@ system.@monitoring[0].pingcheck		- IP
 system.@monitoring[0].pingcheck_lazy	- bool
 system.@weblogin[0].dynamic_portfw	- pattern of macs
 system.@weblogin[0].auth_credentials	- string
+system.@weblogin[0].blocked		- bool
 
 system.@admin[0].location		- string
 system.@admin[0].latlon			- string
