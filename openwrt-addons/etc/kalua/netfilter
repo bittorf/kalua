@@ -1738,7 +1738,7 @@ _netfilter_user_del()
 	local funcname='netfilter_user_del'
 	local mac="${1:-unset}"
 	local reason="$2"
-	local ip dev traffic comment
+	local ip dev traffic comment message
 
 	case "$reason" in
 		*'dhcp_del'*)
@@ -1762,7 +1762,12 @@ _netfilter_user_del()
 		[ "$( uci -q get system.@weblogin[0].logtraffic )" = '1' ] && {
 			comment="$reason $( _db user_macenabled_comment_get "$mac" )"
 			traffic="$( _netfilter stats "$mac" megabytes )"
-			_log do $funcname daemon alert "mac: $mac ip: $ip traffic: $traffic mb comment: $comment"
+			message="mac: $mac ip: $ip traffic: $traffic mb comment: $comment"
+			_log do $funcname daemon alert "$message"
+
+			[ $traffic -gt 1000 ] && {
+				_weblogin authserver_message "$funcname() $message"
+			}
 		}
 
 		_netfilter traffic_control_user_del "$mac"
