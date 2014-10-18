@@ -14,13 +14,14 @@ pingstat()
 	} done <'/tmp/PING'
 
 	# append some wifi debug, e.g.:
-	# bytes: 10729533 packets: 35965 retries: 4230 failed: 2 avg: -75 bitrate: 39.0
+	# bytes: 10.729.533 packets: 35.965 retries: 4230 pack/retry-ratio: 11.76% failed: 2 avg: -75 bitrate: 39.0
 	ip route get "$ip" | fgrep -q " dev $WIFIDEV " && {
 		. /tmp/loader
 
 		iw dev $WIFIDEV station get "$( _net ip2mac "$ip" )" |
 		 while read line; do {
 			case "$line" in
+				# tx bytes:	  96028494
 				# tx packets:     435790
 				# tx retries:     1775
 				# tx failed:      0
@@ -29,15 +30,14 @@ pingstat()
 				*'tx '*|*'signal avg:'*)
 					set -- $line
 					case "$line" in
-						'packets:'|'retries:')
+						*' bytes:'*|*' packets:'*|*' retries:'*)
 							echo -n "$2 $( _sanitizer do "$3" number_humanreadable ) "
 
 							if [ -n "$packets" ]; then
 								retries=$3
-								# show packets/retries-ratio [%]
-								echo -n "ratio: $( _math percentof "$retries" "$packets" )%"
+								echo -n "pack/retry-ratio: $( _math percentof "$retries" "$packets" )% "
 							else
-								packets=$3
+								[ "$2" = 'packets:' ] && packets=$3
 							fi
 						;;
 						*)
