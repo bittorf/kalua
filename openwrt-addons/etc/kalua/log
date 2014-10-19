@@ -131,7 +131,8 @@ _log_do()				# CALL: _log do my_function_name daemon info "mytext"
 	local phonenumber="$6"
 	local force="$7"
 	local EVERLOG="/www/everlasting_syslog.txt"
-	local MEM UPTIME DATE i list message_to_send username password sms_header dest
+	lcoal EVERLOG_RAM='/tmp/everlasting_syslog.txt'
+	local MEM UPTIME DATE i list message_to_send username password sms_header dest text
 
 	[ -z "$MESSAGE" ] && {		# from stdin (pipe into function)
 		while read -t 3 MESSAGE; do {
@@ -199,15 +200,19 @@ _log_do()				# CALL: _log do my_function_name daemon info "mytext"
 			}
 
 			[ "$PRIO" != "debug" ] && {		# write to logfile in flash, which is not lost after reboot
-				[ "$( _system flash_free )" -gt 150 ] && {
-					echo >>$EVERLOG "$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
-				}
+				text="$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
+
+				if [ "$( _system flash_free )" -gt 150 ]; then
+					echo >>$EVERLOG "$text"
+				else
+					echo >>$EVERLOG_RAM "$text"
+				fi
 
 				MESSAGE="$( _sanitizer do "$MESSAGE" strip_newlines )"
 				local UNIXTIME="$( _system date unixtime )"
-				local ARCHIV_NODE_MESSAGE="$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
-				echo >>/tmp/ARCHIV_MONITORING "log=$( _sanitizer do "$ARCHIV_NODE_MESSAGE" shellsafe urlvalue )&time=${UNIXTIME}"
-				touch /tmp/SEND_ALIVE_FAILED
+				local ARCHIV_NODE_MESSAGE="$text"
+				echo >>'/tmp/ARCHIV_MONITORING' "log=$( _sanitizer do "$ARCHIV_NODE_MESSAGE" shellsafe urlvalue )&time=${UNIXTIME}"
+				touch '/tmp/SEND_ALIVE_FAILED'
 			}
 		;;
 	esac
