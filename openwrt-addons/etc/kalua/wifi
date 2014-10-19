@@ -2178,12 +2178,21 @@ _wifi_longshot_report()
 	local funcname='wifi_longshot_report'
 	local wifidev="${1:-$WIFIDEV}"
 	local ip phy_up message name
+	local report=
 
-	name="$( uci -q get wireless.radio0.longshot )" && {
+	if name="$( uci -q get wireless.radio0.longshot )"; then
+		report='true'
+	else
+		# exactly 1 neigh
+		[ "$( iw dev "$wifidev" station dump | grep ^'Station ' | wc -l )" = '1' ] && report='true'
+	fi
+
+	[ "$report" = 'true' ] && {
 		ip="$( ip neigh | fgrep "dev $wifidev lladdr" | head -n1 | cut -d' ' -f1 )"
 		[ -n "$ip" ] && {
 			DONT_WORK='true'; . /usr/sbin/cron.pingchecker; DONT_WORK=
 
+			name="${name:-no_longshot}"
 			phy_up="$( _wifi phy_uptime "$wifidev" )"
 			phy_up="$( _stopwatch seconds2humanreadable "$phy_up" )"
 			speed="$( _wifi speed check "$ip" )"	# e.g. WIFI-2345
