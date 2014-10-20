@@ -54,6 +54,8 @@ defconfig()
 	local url='git://nbd.name/openwrt.git'
 
 	case "$base" in
+		'openwrt')
+		;;
 		'openwrt'*)
 			log "(removing old dir '$base')"
 			rm -fR "$base"
