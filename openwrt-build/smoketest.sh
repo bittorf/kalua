@@ -20,12 +20,20 @@ log()
 	echo "[$( date )] $0: $1" >>"$MYLOG"
 }
 
-CPU=$(( $(grep -c ^'processor' /proc/cpuinfo) + 1 ))
-if [ "$TYPE" = 'full' ]; then
-	MAKECOMMAND="-j$CPU"
-else
-	MAKECOMMAND="-j$CPU target/linux/compile"
-fi
+mymake()
+{
+	local cpu=$(( $(grep -c ^'processor' /proc/cpuinfo) + 1 ))
+
+	if [ "$TYPE" = 'full' ]; then
+		make -j$cpu
+	else
+		make -j$cpu tools/install
+		make -j$cpu toolchain/install
+		make -j$cpu target/linux/compile
+	fi
+
+	return 1
+}
 
 list_architectures()
 {
@@ -42,7 +50,7 @@ clean()
 {
 	for DIR in bin build_dir staging_dir target toolchain; do {
 		[ -e "$DIR" ] && {
-			log "${ARCH:-init/clean} - du: $( du -sh "$DIR" )"
+			log "${ARCH:-init/clean} - discusage: $( du -sh "$DIR" )"
 			rm -fR "$DIR"
 		}
 	} done
@@ -89,7 +97,7 @@ defconfig
 for ARCH in $LIST_ARCH; do {
 	defconfig
 
-	if make $MAKECOMMAND; then
+	if mymake; then
 		log "$ARCH - OK"
 		clean
 	else
