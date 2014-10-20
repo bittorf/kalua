@@ -60,6 +60,7 @@ defconfig()
 		;;
 		'openwrt'*)
 			# e.g. openwrt-x86
+			cd ..
 			log "(removing old dir '$base')"
 			rm -fR "$base"
 		;;
@@ -74,12 +75,11 @@ defconfig()
 		;;
 	esac
 
-	cd ..
 	log "(make a clean copy of 'openwrt-$ARCH')"
 	cp -v 'openwrt' "$openwrt-$ARCH"
 	cd "$openwrt-$ARCH"
 
-	log "$ARCH - starting with '$MAKECOMMAND' (out of '$LIST_ARCH')"
+	log "$ARCH - starting in '$( pwd )' with '$MAKECOMMAND' (out of '$LIST_ARCH')"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
 	make defconfig
 }
