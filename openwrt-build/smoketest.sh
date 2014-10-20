@@ -53,7 +53,7 @@ defconfig()
 	local base="$( basename "$(pwd)" )"
 	local url='git://nbd.name/openwrt.git'
 
-	log "defconfig: base: '$base' pwd: '$( pwd )'"
+	log "defconfig() base: '$base' pwd: '$( pwd )'"
 
 	case "$base" in
 		'openwrt')
@@ -77,7 +77,7 @@ defconfig()
 
 	log "(make a clean copy of 'openwrt-$ARCH')"
 	cp -v 'openwrt' "openwrt-$ARCH"
-	cd "$openwrt-$ARCH"
+	cd "openwrt-$ARCH"
 
 	log "$ARCH - starting in '$( pwd )' with '$MAKECOMMAND' (out of '$LIST_ARCH')"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
