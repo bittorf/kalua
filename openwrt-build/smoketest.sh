@@ -30,9 +30,12 @@ fi
 list_architectures()
 {
 	local with_kernel="$1"		# empty = all
+	local line
 
 	# target/linux/gemini/Makefile:LINUX_VERSION:=3.10.49 -> gemini
-	grep ^"LINUX_VERSION:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3
+	grep ^"LINUX_VERSION:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3 | while read line; do {
+		echo -n "$line "
+	} done
 }
 
 clean()
@@ -61,18 +64,17 @@ defconfig()
 
 			cd openwrt
 			LIST_ARCH="$( list_architectures "$OPTION" )"
-			log "will build for these architectures: '$LIST_ARCH'"
-			cd ..
 
 			return 0
 		;;
 	esac
 
-	log "(make a clean copy of 'openwrt')"
+	cd ..
+	log "(make a clean copy of 'openwrt-$ARCH')"
 	cp -v 'openwrt' "$openwrt-$ARCH"
 	cd "$openwrt-$ARCH"
 
-	log "$ARCH - starting with '$MAKECOMMAND'"
+	log "$ARCH - starting with '$MAKECOMMAND' (out of '$LIST_ARCH')"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
 	make defconfig
 }
