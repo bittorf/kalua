@@ -57,6 +57,7 @@ defconfig()
 
 	case "$base" in
 		'openwrt')
+			cd ..
 		;;
 		'openwrt-'*)
 			# e.g. openwrt-x86
