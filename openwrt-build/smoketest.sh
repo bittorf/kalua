@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# TODO: build specific arch, e.g 'x86 gemini avr32'
+
 TYPE="$1"
 OPTION="$2"
 MYLOG='/tmp/special_log.txt'
@@ -47,6 +49,7 @@ defconfig()
 {
 	local base="$( basename "$(pwd)" )"
 	local url='git://nbd.name/openwrt.git'
+	local fresh=
 
 	case "$base" in
 		'openwrt'*)
@@ -56,6 +59,7 @@ defconfig()
 		*)
 			log "fresh checkout of '$url'"
 			git clone "$url"
+			fresh='true'
 		;;
 	esac
 
@@ -63,12 +67,12 @@ defconfig()
 	cp -v 'openwrt' "$openwrt-$ARCH"
 	cd "$openwrt-$ARCH"
 
+	[ -n "$fresh" ] && log "will build for these architectures: '$( list_architectures "$OPTION" )'"
+
 	log "$ARCH - starting with '$MAKECOMMAND'"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
 	make defconfig
 }
-
-log "will build for these architectures: '$( list_architectures "$OPTION" )'"
 
 for ARCH in $( list_architectures "$OPTION" ); do {
 	defconfig
