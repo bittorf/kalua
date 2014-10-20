@@ -37,16 +37,23 @@ list_architectures()
 	grep ^"LINUX_VERSION:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3
 }
 
+clean()
+{
+	for DIR in bin build_dir staging_dir target; do {
+		[ -e "$DIR" ] && {
+			log "${ARCH:-init/clean} - du: $( du -sh "$DIR" )"
+			rm -fR "$DIR"
+		}
+	} done
+}
+
 for ARCH in $( list_architectures "$OPTION" ); do {
 	log "$ARCH - start"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config' && make defconfig
 
 	if make $MAKECOMMAND; then
 		log "$ARCH - OK"
-
-		for DIR in bin build_dir staging_dir; do {
-			du -sh "$DIR" && rm -fR "$DIR"
-		} done
+		clean
 	else
 		log "$ARCH - ERROR"
 	fi
