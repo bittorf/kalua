@@ -2,7 +2,7 @@
 
 TYPE="$1"
 OPTION="$2"
-MYLOG='special_log.txt'
+MYLOG='/tmp/special_log.txt'
 
 [ -z "$TYPE" ] && {
 	echo "Usage: $0 <type> <architecture>"
@@ -14,19 +14,15 @@ MYLOG='special_log.txt'
 
 log()
 {
-	logger -s "$0: $1"
+	logger -s "$MYLOG: $0: $1"
 	echo "[$( date )] $0: $1" >>"$MYLOG"
 }
 
-[ -e 'Config.in' ] || {
-	git clone git://nbd.name/openwrt.git
-	cd openwrt
-}
-
+CPU="-j$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))"
 if [ "$TYPE" = 'full' ]; then
-	MAKECOMMAND="-j25"
+	MAKECOMMAND="-j$CPU"
 else
-	MAKECOMMAND="-j25 target/linux/compile"
+	MAKECOMMAND="-j$CPU target/linux/compile"
 fi
 
 list_architectures()
@@ -47,11 +43,35 @@ clean()
 	} done
 }
 
-for ARCH in $( list_architectures "$OPTION" ); do {
-	clean
+defconfig()
+{
+	local base="$( basename "$(pwd)" )"
+	local url='git://nbd.name/openwrt.git'
 
-	log "$ARCH - start"
-	echo "CONFIG_TARGET_${ARCH}=y" >'.config' && make defconfig
+	case "$base" in
+		'openwrt'*)
+			log "(removing old dir '$base')"
+			rm -fR "$base"
+		;;
+		*)
+			log "fresh checkout of '$url'"
+			git clone "$url"
+		;;
+	esac
+
+	log "(make a clean copy of 'openwrt')"
+	cp -v 'openwrt' "$openwrt-$ARCH"
+	cd "$openwrt-$ARCH"
+
+	log "$ARCH - starting with '$MAKECOMMAND'"
+	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
+	make defconfig
+}
+
+log "will build for these architectures: '$( list_architectures "$OPTION" )'"
+
+for ARCH in $( list_architectures "$OPTION" ); do {
+	defconfig
 
 	if make $MAKECOMMAND; then
 		log "$ARCH - OK"
