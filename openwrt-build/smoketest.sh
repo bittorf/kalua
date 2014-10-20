@@ -20,7 +20,7 @@ log()
 	echo "[$( date )] $0: $1" >>"$MYLOG"
 }
 
-CPU="-j$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))"
+CPU=$(( $(grep -c ^'processor' /proc/cpuinfo) + 1 ))
 if [ "$TYPE" = 'full' ]; then
 	MAKECOMMAND="-j$CPU"
 else
@@ -77,6 +77,7 @@ defconfig()
 	make defconfig
 }
 
+defconfig
 for ARCH in $LIST_ARCH; do {
 	defconfig
 
