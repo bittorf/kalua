@@ -119,6 +119,7 @@ boot()
 			kmodule_force_activation 'b43'
 			kmodule_force_activation 'mac80211'
 			kmodule_force_activation 'cfg80211'	# includes compat
+			kmodule_force_activation 'ath'		# ath5k
 			# allow 'switch', 'diag'
 
 			needs_full_kmodules()
@@ -766,6 +767,28 @@ boot()
 
 			apply_olsr_roaming
 		;;
+		ilm1*)
+			uci set system.@weblogin[0].authserver='10.63.35.225'
+			uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
+			uci set system.@monitoring[0].maintenance_ports='22 80'
+
+			case "$NODENUMBER" in
+				800)
+					_wifi set ap 2ghz ssid 'Ilmstrasse1-Erdgeschoss'
+					_wifi set ap 5ghz ssid 'Ilmstrasse1-Erdgeschoss-5GHz'
+				;;
+				801)
+					_wifi set ap 2ghz ssid 'Ilmstrasse1-OG1'
+					_wifi set ap 5ghz ssid 'Ilmstrasse1-OG1-5GHz'
+				;;
+				802)
+					_wifi set ap 2ghz ssid 'Ilmstrasse1-OG2'
+					_wifi set ap 5ghz ssid 'Ilmstrasse1-OG2-5GHz'
+				;;
+			esac
+
+			_wifi set ap 5ghz disabled '1'
+		;;
 		ejbw*)
 			uci set system.@weblogin[0].authserver='172.17.0.2'
 			uci set dhcp.wlan.leasetime='5m'
@@ -868,48 +891,37 @@ boot()
 				;;
 			esac
 
-			case "$HARDWARE" in
-				"TP-LINK TL-WR1043ND")
-					case "$CONFIG_PROFILE" in
-						*adhoc)
-							uci set wireless.@wifi-iface[0].bssid="02:be:ef:ca:ff:ee"
-						;;
-						*hybrid)
-							uci set wireless.@wifi-iface[0].bssid="02:be:ef:ca:ff:ee"
-							uci set wireless.@wifi-iface[1].ssid="Rehungen $NODENUMBER"
-						;;
-					esac
-				;;
-				*)
-					uci set system.@weblogin[0].blocked='true'
-					uci set dhcp.lan.ignore=1
-					uci set dhcp.wlan.ignore=1
+			_wifi set adhoc 2ghz bssid '02:be:ef:ca:ff:ee'
+			_wifi set ap    2ghz  ssid "Rehungen $NODENUMBER"
 
-					# TODO: sort nodenumber-order <-> hostname
-					# distance: roundup to 50m
-					_wifi longshot name 'heidenroder-thalmann'  distance  100 channel 157 chanbw 20 mhz mcast 18000 nodes '253 252'
+			uci set system.@weblogin[0].blocked='true'
+			uci set dhcp.lan.ignore=1
+			uci set dhcp.wlan.ignore=1
 
-					_wifi longshot name 'feld-sollstedt-krahl'  distance 3100 channel  48 chanbw 20 mhz mcast 18000 nodes '251 250 247'	# 247 missing
-					_wifi longshot name 'feld-kiga'             distance  950 channel 165 chanbw 20 mhz mcast 18000 nodes '249 248 237'
+			# TODO: sort nodenumber-order <-> hostname
+			# distance: roundup to 50m
+			_wifi longshot name 'heidenroder-thalmann'  distance  100 channel 157 chanbw 20 mhz mcast 18000 nodes '253 252'
 
-					_wifi longshot name 'kiga-kirchg40b'        distance  200 channel  36 chanbw 20 mhz mcast  6000 nodes '236'		# nolink
-					_wifi longshot name 'kiga-hauptstr25'       distance   50 channel  36 chanbw 20 mhz mcast  6000 nodes '234'		# nolink
-					_wifi longshot name 'kiga-kirchg38'         distance  400 channel  36 chanbw 20 mhz mcast  6000 nodes '232'		# nolink
-					_wifi longshot name 'kiga-klausg70'         distance  200 channel 161 chanbw 20 mhz mcast 18000 nodes '230 229'
-					_wifi longshot name 'kiga-kirchg33'         distance  150 channel 153 chanbw 20 mhz mcast 18000 nodes '228 227'
-#					_wifi longshot name 'kiga-klausg67b3'       distance  350 channel  40 chanbw 20 mhz mcast  6000 nodes '212'		# nolink
-					_wifi longshot name 'kiga-dietzelsg39b'     distance  200 channel  36 chanbw 20 mhz mcast  6000 nodes '224'		# nolink
-					_wifi longshot name 'kiga-nussberg116/73a'  distance  350 channel  40 chanbw 20 mhz mcast 18000 nodes '222 221 212'	# 223 missing = kiga - now 212
-					_wifi longshot name 'kiga-puppe'            distance  400 channel  60 chanbw 20 mhz mcast 18000 nodes '214 213'
+			_wifi longshot name 'feld-sollstedt-krahl'  distance 3100 channel  48 chanbw 20 mhz mcast 18000 nodes '251 250 247'	# 247 missing
+			_wifi longshot name 'feld-kiga'             distance  950 channel 165 chanbw 20 mhz mcast 18000 nodes '249 248 237'
 
-					_wifi longshot name 'puppe-hauptstr14'      distance  250 channel 153 chanbw 20 mhz mcast 18000 nodes '220 219'
-					_wifi longshot name 'puppe-breitestr14'     distance  300 channel  36 chanbw 20 mhz mcast  6000 nodes '218'		# nolink
-					_wifi longshot name 'puppe-schuetzeng'      distance  250 channel 112 chanbw 20 mhz mcast 18000 nodes '216 215'
+			_wifi longshot name 'kiga-kirchg40b'        distance  200 channel  36 chanbw 20 mhz mcast  6000 nodes '236'		# nolink
+			_wifi longshot name 'kiga-hauptstr25'       distance   50 channel  36 chanbw 20 mhz mcast  6000 nodes '234'		# nolink
+			_wifi longshot name 'kiga-kirchg38'         distance  400 channel  36 chanbw 20 mhz mcast  6000 nodes '232'		# nolink
+			_wifi longshot name 'kiga-klausg70'         distance  200 channel 161 chanbw 20 mhz mcast 18000 nodes '230 229'
+			_wifi longshot name 'kiga-kirchg33'         distance  150 channel 153 chanbw 20 mhz mcast 18000 nodes '228 227'
+#			_wifi longshot name 'kiga-klausg67b3'       distance  350 channel  40 chanbw 20 mhz mcast  6000 nodes '212'		# nolink
+			_wifi longshot name 'kiga-dietzelsg39b'     distance  200 channel  36 chanbw 20 mhz mcast  6000 nodes '224'		# nolink
+			_wifi longshot name 'kiga-nussberg116/73a'  distance  350 channel  40 chanbw 20 mhz mcast 18000 nodes '222 221 212'	# 223 missing = kiga - now 212
+			_wifi longshot name 'kiga-puppe'            distance  400 channel  60 chanbw 20 mhz mcast 18000 nodes '214 213'
 
-					_wifi longshot name 'kirchg33-hauptstr52'   distance  200 channel 149 chanbw 20 mhz mcast 18000 nodes '226 225'
-					_wifi longshot name 'klaus101b-klausg67b3'  distance  200 channel  36 chanbw 20 mhz mcast  6000 nodes '201 203'		# 203 missing
-				;;
-			esac
+			_wifi longshot name 'puppe-hauptstr14'      distance  250 channel 153 chanbw 20 mhz mcast 18000 nodes '220 219'
+			_wifi longshot name 'puppe-breitestr14'     distance  300 channel  36 chanbw 20 mhz mcast  6000 nodes '218'		# nolink
+			_wifi longshot name 'puppe-schuetzeng'      distance  250 channel 112 chanbw 20 mhz mcast 18000 nodes '216 215'
+
+			_wifi longshot name 'kirchg33-hauptstr52'   distance  200 channel 149 chanbw 20 mhz mcast 18000 nodes '226 225'
+#			_wifi longshot name 'klaus101b-klausg67b3'  distance  200 channel  36 chanbw 20 mhz mcast  6000 nodes '201 203'		# 201 missing
+			_wifi longshot name 'klaus101b-klausg67b3'  distance 1200 channel  48 chanbw 20 mhz mcast  6000 nodes '201 203'		# 201 missing -> feld/249?
 		;;
 		boltenhagen*)
 			uci set system.@weblogin[0].authserver='10.10.111.129'	# Festscheune3

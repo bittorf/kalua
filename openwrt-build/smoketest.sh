@@ -60,6 +60,7 @@ defconfig()
 {
 	local base="$( basename "$(pwd)" )"
 	local url='git://nbd.name/openwrt.git'
+	local cachedir='openwrt_download_cache'
 
 	log "defconfig() base: '$base' pwd: '$( pwd )'"
 
@@ -70,12 +71,16 @@ defconfig()
 		'openwrt-'*)
 			# e.g. openwrt-x86
 			cd ..
-			log "(removing old dir '$base')"
+#			log "(removing old dir '$base')"
 			rm -fR "$base"
 		;;
 		*)
 			log "fresh checkout of '$url'"
 			git clone "$url"
+
+			log "all downloads are going into '$( pwd )/$cachedir'"
+			mkdir "$cachedir"
+			ln -s $cachedir 'openwrt/dl'
 
 			cd 'openwrt'
 			LIST_ARCH="$( list_architectures "$OPTION" )"
@@ -84,7 +89,7 @@ defconfig()
 		;;
 	esac
 
-	log "(make a clean copy of 'openwrt-$ARCH')"
+#	log "(make a clean copy of 'openwrt-$ARCH')"
 	cp -R 'openwrt' "openwrt-$ARCH"
 	cd "openwrt-$ARCH"
 
