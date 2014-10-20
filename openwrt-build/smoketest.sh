@@ -76,7 +76,7 @@ defconfig()
 	esac
 
 	log "(make a clean copy of 'openwrt-$ARCH')"
-	cp -v 'openwrt' "openwrt-$ARCH"
+	cp -R 'openwrt' "openwrt-$ARCH"
 	cd "openwrt-$ARCH"
 
 	log "$ARCH - starting in '$( pwd )' with '$MAKECOMMAND' (out of '$LIST_ARCH')"
