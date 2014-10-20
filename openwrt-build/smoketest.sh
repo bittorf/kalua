@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# TODO: build always in step: tools/toolchain/kernel/all
 # TODO: build specific arch, e.g 'x86 gemini avr32'
 
 TYPE="$1"
@@ -106,7 +107,7 @@ defconfig()
 	[ -d 'dl' ] && rm -fR 'dl'
 	ln -s ../$cachedir 'dl'
 
-	log "$ARCH - starting in '$( pwd )' with '$MAKECOMMAND' (out of '$LIST_ARCH')"
+	log "$ARCH - starting in '$( pwd )' (out of '$LIST_ARCH')"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
 	make defconfig
 }
