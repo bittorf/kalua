@@ -39,7 +39,7 @@ list_architectures()
 
 clean()
 {
-	for DIR in bin build_dir staging_dir target; do {
+	for DIR in bin build_dir staging_dir target toolchain; do {
 		[ -e "$DIR" ] && {
 			log "${ARCH:-init/clean} - du: $( du -sh "$DIR" )"
 			rm -fR "$DIR"
@@ -48,6 +48,8 @@ clean()
 }
 
 for ARCH in $( list_architectures "$OPTION" ); do {
+	clean
+
 	log "$ARCH - start"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config' && make defconfig
 
