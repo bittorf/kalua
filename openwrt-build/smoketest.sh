@@ -16,13 +16,19 @@ MYLOG='/tmp/special_log.txt'
 
 log()
 {
-	logger -s "$MYLOG: $0: $1"
-	echo "[$( date )] $0: $1" >>"$MYLOG"
+	local message="$1"
+	local prio="$2"
+
+	logger -s "$MYLOG: $0: $message"
+	[ "$prio" = 'debug' ] || echo "[$( date )] $0: $message" >>"$MYLOG"
 }
 
 mymake()
 {
+	local force_cpu="$1"
 	local cpu=$(( $(grep -c ^'processor' /proc/cpuinfo) + 1 ))
+
+	[ -n "$force_cpu" ] && cpu="$force_cpu"
 
 	if [ "$TYPE" = 'full' ]; then
 		make -j$cpu
@@ -50,7 +56,7 @@ clean()
 {
 	for DIR in bin build_dir staging_dir target toolchain; do {
 		[ -e "$DIR" ] && {
-			log "${ARCH:-init/clean} - discusage: $( du -sh "$DIR" )"
+			log "${ARCH:-init/clean} - discusage: $( du -sh "$DIR" )" debug
 			rm -fR "$DIR"
 		}
 	} done
@@ -62,7 +68,7 @@ defconfig()
 	local url='git://nbd.name/openwrt.git'
 	local cachedir='openwrt_download_cache'
 
-	log "defconfig() base: '$base' pwd: '$( pwd )'"
+	log "defconfig() base: '$base' pwd: '$( pwd )'" debug
 
 	case "$base" in
 		'openwrt')
@@ -71,7 +77,7 @@ defconfig()
 		'openwrt-'*)
 			# e.g. openwrt-x86
 			cd ..
-#			log "(removing old dir '$base')"
+			log "(removing old dir '$base')" debug
 			rm -fR "$base"
 		;;
 		*)
@@ -89,7 +95,7 @@ defconfig()
 		;;
 	esac
 
-#	log "(make a clean copy of 'openwrt-$ARCH')"
+	log "(make a clean copy of 'openwrt-$ARCH')" debug
 	cp -R 'openwrt' "openwrt-$ARCH"
 	cd "openwrt-$ARCH"
 
@@ -106,6 +112,16 @@ for ARCH in $LIST_ARCH; do {
 		log "$ARCH - OK"
 		clean
 	else
-		log "$ARCH - ERROR"
+		log "$ARCH - ERROR - building again" debug
+		mymake '1' >"${MYLOG}-logfail-$ARCH"
+
+		if [ $? -eq 0 ]; then
+			log "$ARCH - OK - after rebuild with -j1"
+		else
+			log "$ARCH - ERROR"
+		fi
 	fi
 } done
+
+cd ..
+rm -fR "openwrt-$ARCH"
