@@ -36,6 +36,7 @@ mymake()
 		make -j$cpu tools/install
 		make -j$cpu toolchain/install
 		make -j$cpu target/linux/compile
+		# build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/vmlinux*
 	fi
 
 	return 1
@@ -81,11 +82,13 @@ defconfig()
 			rm -fR "$base"
 		;;
 		*)
-			log "fresh checkout of '$url'"
-			git clone "$url"
+			[ -d 'openwrt' ] || {
+				log "fresh checkout of '$url'"
+				git clone "$url"
+			}
 
 			log "all downloads are going into '$( pwd )/$cachedir'"
-			mkdir "$cachedir"
+			mkdir -p "$cachedir"
 			ln -s $cachedir 'openwrt/dl'
 
 			cd 'openwrt'
