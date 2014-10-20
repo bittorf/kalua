@@ -49,7 +49,6 @@ defconfig()
 {
 	local base="$( basename "$(pwd)" )"
 	local url='git://nbd.name/openwrt.git'
-	local fresh=
 
 	case "$base" in
 		'openwrt'*)
@@ -59,7 +58,13 @@ defconfig()
 		*)
 			log "fresh checkout of '$url'"
 			git clone "$url"
-			fresh='true'
+
+			cd openwrt
+			LIST_ARCH="$( list_architectures "$OPTION" )"
+			log "will build for these architectures: '$LIST_ARCH'"
+			cd ..
+
+			return 0
 		;;
 	esac
 
@@ -67,14 +72,12 @@ defconfig()
 	cp -v 'openwrt' "$openwrt-$ARCH"
 	cd "$openwrt-$ARCH"
 
-	[ -n "$fresh" ] && log "will build for these architectures: '$( list_architectures "$OPTION" )'"
-
 	log "$ARCH - starting with '$MAKECOMMAND'"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
 	make defconfig
 }
 
-for ARCH in $( list_architectures "$OPTION" ); do {
+for ARCH in $LIST_ARCH; do {
 	defconfig
 
 	if make $MAKECOMMAND; then
