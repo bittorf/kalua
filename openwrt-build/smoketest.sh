@@ -53,10 +53,13 @@ defconfig()
 	local base="$( basename "$(pwd)" )"
 	local url='git://nbd.name/openwrt.git'
 
+	log "defconfig: base: '$base' pwd: '$( pwd )'"
+
 	case "$base" in
 		'openwrt')
 		;;
 		'openwrt'*)
+			# e.g. openwrt-x86
 			log "(removing old dir '$base')"
 			rm -fR "$base"
 		;;
