@@ -31,11 +31,14 @@ mymake()
 	[ -n "$force_cpu" ] && cpu="$force_cpu"
 
 	if [ "$TYPE" = 'full' ]; then
-		make -j$cpu
+		make -j$cpu && return 0
 	else
-		make -j$cpu tools/install
-		make -j$cpu toolchain/install
-		make -j$cpu target/linux/compile
+		make -j$cpu tools/install	 || return 1
+		log "make ok: tools"
+		make -j$cpu toolchain/install	 || return 1
+		log "make ok: toolchain"
+		make -j$cpu target/linux/compile || return 1
+		log "make ok: linux"
 		# build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/vmlinux*
 	fi
 
@@ -89,7 +92,6 @@ defconfig()
 
 			log "all downloads are going into '$( pwd )/$cachedir'"
 			mkdir -p "$cachedir"
-			ln -s $cachedir 'openwrt/dl'
 
 			cd 'openwrt'
 			LIST_ARCH="$( list_architectures "$OPTION" )"
@@ -101,6 +103,8 @@ defconfig()
 	log "(make a clean copy of 'openwrt-$ARCH')" debug
 	cp -R 'openwrt' "openwrt-$ARCH"
 	cd "openwrt-$ARCH"
+	[ -d 'dl' ] && rm -fR 'dl'
+	ln -s ../$cachedir 'dl'
 
 	log "$ARCH - starting in '$( pwd )' with '$MAKECOMMAND' (out of '$LIST_ARCH')"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
