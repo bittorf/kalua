@@ -58,7 +58,7 @@ defconfig()
 	case "$base" in
 		'openwrt')
 		;;
-		'openwrt'*)
+		'openwrt-'*)
 			# e.g. openwrt-x86
 			cd ..
 			log "(removing old dir '$base')"
@@ -68,7 +68,7 @@ defconfig()
 			log "fresh checkout of '$url'"
 			git clone "$url"
 
-			cd openwrt
+			cd 'openwrt'
 			LIST_ARCH="$( list_architectures "$OPTION" )"
 
 			return 0
@@ -76,7 +76,7 @@ defconfig()
 	esac
 
 	log "(make a clean copy of 'openwrt-$ARCH')"
-	cp -v 'openwrt' "$openwrt-$ARCH"
+	cp -v 'openwrt' "openwrt-$ARCH"
 	cd "$openwrt-$ARCH"
 
 	log "$ARCH - starting in '$( pwd )' with '$MAKECOMMAND' (out of '$LIST_ARCH')"
