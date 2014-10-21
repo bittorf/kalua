@@ -44,6 +44,9 @@ mymake()
 		log "make ok: toolchain"
 		make -j$cpu target/linux/compile || return 1
 		log "make ok: linux"
+#		package/compile
+#		package/install
+#		target/install
 		return 0
 		# build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/vmlinux*
 	fi
