@@ -91,7 +91,7 @@ defconfig()
 				git clone "$url"
 			}
 
-			log "all downloads are going into '$( pwd )/$cachedir'"
+			log "TYPE: $TYPE OPTION: $OPTION - all downloads are going into '$( pwd )/$cachedir'"
 			mkdir -p "$cachedir"
 
 			cd 'openwrt'
@@ -121,7 +121,7 @@ for ARCH in $LIST_ARCH; do {
 		clean
 	else
 		log "$ARCH - ERROR - building again" debug
-		mymake '1' >"${MYLOG}-logfail-$ARCH"
+		mymake '1 V=s' >"${MYLOG}-logfail-$ARCH"
 
 		if [ $? -eq 0 ]; then
 			log "$ARCH - OK - after rebuild with -j1"
