@@ -20,8 +20,12 @@ log()
 	local message="$1"
 	local prio="$2"
 
+	message="${ARCH:-init/clean} - $message"
+
 	logger -s "$MYLOG: $0: $message"
 	[ "$prio" = 'debug' ] || echo "[$( date )] $0: $message" >>"$MYLOG"
+
+	return 0
 }
 
 mymake()
@@ -40,6 +44,7 @@ mymake()
 		log "make ok: toolchain"
 		make -j$cpu target/linux/compile || return 1
 		log "make ok: linux"
+		return 0
 		# build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/vmlinux*
 	fi
 
@@ -61,7 +66,7 @@ clean()
 {
 	for DIR in bin build_dir staging_dir target toolchain; do {
 		[ -e "$DIR" ] && {
-			log "${ARCH:-init/clean} - discusage: $( du -sh "$DIR" )" debug
+			log "discusage: $( du -sh "$DIR" )" debug
 			rm -fR "$DIR"
 		}
 	} done
@@ -111,7 +116,7 @@ defconfig()
 	}
 	ln -s ../$cachedir 'dl'
 
-	log "$ARCH - starting in '$( pwd )' (out of '$LIST_ARCH')"
+	log "starting in '$( pwd )' (out of '$LIST_ARCH')"
 	echo "CONFIG_TARGET_${ARCH}=y" >'.config'
 	make defconfig
 }
@@ -121,16 +126,16 @@ for ARCH in $LIST_ARCH; do {
 	defconfig
 
 	if mymake; then
-		log "$ARCH - OK"
+		log "OK"
 		clean
 	else
-		log "$ARCH - ERROR - building again" debug
+		log "ERROR - building again" debug
 		mymake '1 V=s' >"${MYLOG}-logfail-$ARCH"
 
 		if [ $? -eq 0 ]; then
-			log "$ARCH - OK - after rebuild with -j1"
+			log "OK - after rebuild with -j1"
 		else
-			log "$ARCH - ERROR"
+			log "ERROR"
 		fi
 	fi
 } done
