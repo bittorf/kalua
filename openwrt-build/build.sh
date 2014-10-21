@@ -411,6 +411,20 @@ target_hardware_set()
 			# CONFIG_PACKAGE_uboot-kirkwood-goflexhome=y
 			# uboot:  bin/kirkwood/uboot-kirkwood-goflexhome/openwrt-kirkwood-goflexhome-u-boot.kwb
 		;;
+		'Pandaboard')	# tested with: PandaBoard ES Rev B3
+			TARGET_SYMBOL='CONFIG_TARGET_omap_Default=y'
+			FILENAME_SYSUPGRADE='bla'
+			FILENAME_FACTORY='bla'
+			# openwrt-omap-Default-rootfs.tar.gz
+			# openwrt-omap-zImage
+			# bin/omap/dtbs/omap4-panda-es.dtb
+			# uboot-omap-omap4_panda/MLO
+			# uboot-omap-omap4_panda/u-boot.img
+
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS uboot..."
+		;;
+		'Beagleboard')
+		;;
 		'list')
 			case "$option" in
 				'plain'|'js')
