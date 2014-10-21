@@ -104,7 +104,11 @@ defconfig()
 	log "(make a clean copy of 'openwrt-$ARCH')" debug
 	cp -R 'openwrt' "openwrt-$ARCH"
 	cd "openwrt-$ARCH"
-	[ -d 'dl' ] && rm -fR 'dl'
+
+	[ -d 'dl' ] && {
+		# only remove if no symbolic link:
+		[ -h 'dl' ] || rm -fR 'dl'
+	}
 	ln -s ../$cachedir 'dl'
 
 	log "$ARCH - starting in '$( pwd )' (out of '$LIST_ARCH')"
