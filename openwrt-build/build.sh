@@ -188,6 +188,8 @@ apply_wifi_reghack()
 	local COMPAT_WIRELESS="2013-06-27"
 
 	[ -e "$file" ] && {
+		MAC80211_CLEAN='true'
+
 		if grep -q "${option}CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
 			log "$funcname() patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
 
@@ -207,7 +209,6 @@ apply_wifi_reghack()
 			register_patch "$file"
 			register_patch "$file_regdb_hacked"
 		else
-			# TODO: make mac80211/ath9k clean?: make package/mac80211/clean
 			[ -e "package/kernel/mac80211/files/regdb.txt_old" ] && {
 				cp -v "package/kernel/mac80211/files/regdb.txt_original" "package/kernel/mac80211/files/regdb.txt"
 			}
@@ -869,6 +870,11 @@ build()
 			make $verbose defconfig >/dev/null || make defconfig
 		;;
 		*)
+			[ -n "$MAC80211_CLEAN" ] && {
+				log "$funcname() running 'make package/kernel/mac80211/clean'"
+				make package/kernel/mac80211/clean
+			}
+
 			log "$funcname() running 'make $commandline'"
 			read t1 rest </proc/uptime
 
@@ -1018,10 +1024,17 @@ apply_symbol()
 					log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
 
 					for file in $dir/*; do {
-						git apply --check <"$file" || {
-							log "$funcname() $KALUA_DIRNAME: [ERR] cannot apply: git apply --check <'$file'"
+						if head -n1 "$file" | fgrep -q '/net/mac80211/'; then
+							cp -v "$file" 'package/kernel/mac80211/patches'
+							register_patch "$file"
+							MAC80211_CLEAN='true'
 							continue
-						}
+						else
+							git apply --check <"$file" || {
+								log "$funcname() $KALUA_DIRNAME: [ERR] cannot apply: git apply --check <'$file'"
+								continue
+							}
+						fi
 
 						# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
 						git rebase --abort
