@@ -164,6 +164,20 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 	esac
 }
 
+register_patch()
+{
+	local name="$1"
+	local file='files/etc/openwrt_patches'
+
+	if [ "$name" = 'init' ]; then
+		[ -e "$file" ] && rm "$file"
+	else
+		grep -sq ^"$name"$ "$file" || {
+			echo "$name" >>"$file"
+		}
+	fi
+}
+
 apply_wifi_reghack()
 {
 	local funcname='apply_wifi_reghack'
@@ -188,6 +202,9 @@ apply_wifi_reghack()
 			log "$funcname() using another regdb: '$file_regdb_hacked'"
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
+
+			register_patch "$file"
+			register_patch "$file_regdb_hacked"
 		else
 			# TODO: make mac80211/ath9k clean?: make package/mac80211/clean
 			[ -e "package/kernel/mac80211/files/regdb.txt_old" ] && {
@@ -999,10 +1016,18 @@ apply_symbol()
 				log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
 
 				for file in $dir/*; do {
+					git apply --check <"$file" || {
+						log "$funcname() $KALUA_DIRNAME: [ERR] cannot apply: git apply --check <'$file'"
+						continue
+					}
+
 					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
 					git rebase --abort
 					git am --abort
-					git am --signoff <"$file" || {
+
+					if git am --signoff <"$file"; then
+						register_patch "$file"
+					else
 						log "$funcname() ERROR during 'git am <$file'"
 
 						for dir in feeds/*; do {
@@ -1023,6 +1048,8 @@ apply_symbol()
 
 							log "$funcname() exec: git am --signoff <../../$file"
 							if git am --signoff <"../../$file"; then
+								register_patch "$file"
+
 								log "$funcname() OK - apply for '$file' worked"
 								log "$funcname() ERROR during 'git am <$file'"
 								cd ..
@@ -1036,7 +1063,7 @@ apply_symbol()
 								cd ..
 							fi
 						} done
-					}
+					fi
 				} done
 			} done
 
@@ -1074,6 +1101,8 @@ apply_symbol()
 			# target/linux/ar71xx/config-3.10
 		;;
 		'nuke_config')
+			register_patch 'init'
+
 			log "$funcname() $symbol: starting with an empty config"
 			rm "$file"
 			touch "$file"

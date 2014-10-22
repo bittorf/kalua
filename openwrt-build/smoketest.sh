@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# TODO: report: if NO/$number of error occurs, write it when finished
 # TODO: build always in step: tools/toolchain/kernel/all
 # TODO: build specific arch, e.g 'x86 gemini avr32'
 
