@@ -206,6 +206,7 @@ apply_wifi_reghack()
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
 
+			register_patch "$funcname()"
 			register_patch "$file"
 			register_patch "$file_regdb_hacked"
 		else
@@ -1018,15 +1019,16 @@ apply_symbol()
 			for basedir in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
 				log "$funcname() $KALUA_DIRNAME: adding private patchsets from '$basedir'"
 
-				for dir in $basedir/*; do {
+				for dir in $basedir $basedir/*; do {
 					[ -d "$dir" ] || continue
 
+					register_patch "DIR: $basedir"
 					log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
 
 					for file in $dir/*; do {
 						if head -n1 "$file" | fgrep -q '/net/mac80211/'; then
-							cp -v "$file" 'package/kernel/mac80211/patches'
 							register_patch "$file"
+							cp -v "$file" 'package/kernel/mac80211/patches'
 							MAC80211_CLEAN='true'
 							continue
 						else
