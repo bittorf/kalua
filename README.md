@@ -190,12 +190,15 @@ system.@weblogin[0].default_speed_down	- string: e.g. 384kbit
 system.@weblogin[0].mac_unshaped	- string/list
 system.@weblogin[0].authserver		- IP
 system.@weblogin[0].gateway_check	- IP
-system.@monitoring[0].serverip		- IP
-system.@monitoring[0].pingcheck		- IP
-system.@monitoring[0].pingcheck_lazy	- bool
 system.@weblogin[0].dynamic_portfw	- pattern of macs
 system.@weblogin[0].auth_credentials	- string
 system.@weblogin[0].blocked		- bool
+
+system.@monitoring[0].serverip		- IP
+system.@monitoring[0].pingcheck		- IP
+system.@monitoring[0].pingcheck_lazy	- bool
+system.@monitoring[0].button_smstext	- text
+system.@monitoring[0].button_phone	- list phonenumbers
 
 system.@admin[0].location		- string
 system.@admin[0].latlon			- string
