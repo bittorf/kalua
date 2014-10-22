@@ -60,7 +60,8 @@ e.g. : $0 --openwrt $rev --hardware '$hardware' --usecase '$usecase'
 Get help without args, e.g.: --hardware <empty>
 EOF
 
-#        --openwrt trunk | <empty>
+#	--patchdir \$dir
+#       --openwrt trunk | <empty>
 #	--hardware 'Ubiquiti Bullet M'|<empty> = list supported models
 #	--kernel
 #	--usecase
@@ -1008,62 +1009,64 @@ apply_symbol()
 				log "$funcname() $KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
 			fi
 
-			basedir="$KALUA_DIRNAME/openwrt-patches/add2trunk"
-			log "$funcname() $KALUA_DIRNAME: adding private patchsets from $basedir"
-			for dir in $basedir/*; do {
-				[ -d "$dir" ] || continue
+			for basedir in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
+				log "$funcname() $KALUA_DIRNAME: adding private patchsets from '$basedir'"
 
-				log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
+				for dir in $basedir/*; do {
+					[ -d "$dir" ] || continue
 
-				for file in $dir/*; do {
-					git apply --check <"$file" || {
-						log "$funcname() $KALUA_DIRNAME: [ERR] cannot apply: git apply --check <'$file'"
-						continue
-					}
+					log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
 
-					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
-					git rebase --abort
-					git am --abort
+					for file in $dir/*; do {
+						git apply --check <"$file" || {
+							log "$funcname() $KALUA_DIRNAME: [ERR] cannot apply: git apply --check <'$file'"
+							continue
+						}
 
-					if git am --signoff <"$file"; then
-						register_patch "$file"
-					else
-						log "$funcname() ERROR during 'git am <$file'"
+						# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
+						git rebase --abort
+						git am --abort
 
-						for dir in feeds/*; do {
-							[ -d "$dir" ] || continue
+						if git am --signoff <"$file"; then
+							register_patch "$file"
+						else
+							log "$funcname() ERROR during 'git am <$file'"
 
-							case "$dir" in
-								*'.tmp')
-									continue
-								;;
-							esac
+							for dir in feeds/*; do {
+								[ -d "$dir" ] || continue
 
-							log "$funcname() trying in dir '$dir' (now: '$( pwd )')"
-							cd $dir
-							log "$funcname() changed dir to '$( pwd )'"
+								case "$dir" in
+									*'.tmp')
+										continue
+									;;
+								esac
 
-							git rebase --abort
-							git am --abort
+								log "$funcname() trying in dir '$dir' (now: '$( pwd )')"
+								cd $dir
+								log "$funcname() changed dir to '$( pwd )'"
 
-							log "$funcname() exec: git am --signoff <../../$file"
-							if git am --signoff <"../../$file"; then
-								register_patch "$file"
+								git rebase --abort
+								git am --abort
 
-								log "$funcname() OK - apply for '$file' worked"
-								log "$funcname() ERROR during 'git am <$file'"
-								cd ..
-								cd ..
+								log "$funcname() exec: git am --signoff <../../$file"
+								if git am --signoff <"../../$file"; then
+									register_patch "$file"
 
-								break
-							else
-								log "$funcname() ERROR during 'git am <$file'"
+									log "$funcname() OK - apply for '$file' worked"
+									log "$funcname() ERROR during 'git am <$file'"
+									cd ..
+									cd ..
 
-								cd ..
-								cd ..
-							fi
-						} done
-					fi
+									break
+								else
+									log "$funcname() ERROR during 'git am <$file'"
+
+									cd ..
+									cd ..
+								fi
+							} done
+						fi
+					} done
 				} done
 			} done
 
@@ -1554,6 +1557,7 @@ check_git_settings()
 # kalua/openwrt-build/build.sh      -> kalua
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
+PATCHDIR=
 
 [ -z "$1" ] && print_usage_and_exit
 
@@ -1565,6 +1569,9 @@ while [ -n "$1" ]; do {
 		;;
 		'--help'|'-h')
 			print_usage_and_exit
+		;;
+		'--patchdir')
+			PATCHDIR="$PATCHDIR $2"
 		;;
 		'--force'|'-f')
 			FORCE='true'
