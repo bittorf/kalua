@@ -183,7 +183,7 @@ apply_wifi_reghack()
 {
 	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
-	local file="kalua/package/mac80211/patches/900-regulatory-test.patch"
+	local file='kalua/openwrt-patches/reghack/900-regulatory-compliance_test.patch'
 	local file_regdb_hacked
 	local COMPAT_WIRELESS="2013-06-27"
 
@@ -197,9 +197,9 @@ apply_wifi_reghack()
 			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
 
 			if [ "$( echo "$VERSION_OPENWRT" | cut -b2- )" -lt 40293 ]; then
-				file_regdb_hacked='kalua/openwrt-patches/regulatory.db.txt'
+				file_regdb_hacked='kalua/openwrt-patches/reghack/regulatory.db.txt'
 			else
-				file_regdb_hacked='kalua/openwrt-patches/regulatory.db.txt-r40293++'
+				file_regdb_hacked='kalua/openwrt-patches/reghack/regulatory.db.txt-r40293++'
 			fi
 
 			log "$funcname() using another regdb: '$file_regdb_hacked'"

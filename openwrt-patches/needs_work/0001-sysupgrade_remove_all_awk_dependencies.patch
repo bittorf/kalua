@@ -1,0 +1,59 @@
+From 44f991264ca5db2c134eb3376434ae7f6cbc4f69 Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bittorf@bluebottle.com>
+Date: Thu, 17 Jan 2013 15:31:36 +0100
+Subject: [PATCH] sysupgrade_remove_all_awk_dependencies
+
+---
+ package/base-files/files/lib/upgrade/common.sh |   22 +++++++++++++++++++---
+ 1 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/package/base-files/files/lib/upgrade/common.sh b/package/base-files/files/lib/upgrade/common.sh
+index 2e123ab..dbaca5b 100644
+--- a/package/base-files/files/lib/upgrade/common.sh
++++ b/package/base-files/files/lib/upgrade/common.sh
+@@ -3,7 +3,16 @@
+ RAM_ROOT=/tmp/root
+ 
+ ldd() { LD_TRACE_LOADED_OBJECTS=1 $*; }
+-libs() { ldd $* | awk '{print $3}'; }
++
++libs() {
++	local line file
++
++	ldd $* | while read line; do
++		set -- $line
++		file="$3"
++		echo "$file"
++	done
++}
+ 
+ install_file() { # <file> [ <file> ... ]
+ 	for file in "$@"; do
+@@ -53,7 +62,7 @@ run_ramfs() { # <command> [...]
+ 	install_bin /bin/busybox /bin/ash /bin/sh /bin/mount /bin/umount        \
+ 		/sbin/pivot_root /usr/bin/wget /sbin/reboot /bin/sync /bin/dd   \
+ 		/bin/grep /bin/cp /bin/mv /bin/tar /usr/bin/md5sum "/usr/bin/[" \
+-		/bin/vi /bin/ls /bin/cat /usr/bin/awk /usr/bin/hexdump          \
++		/bin/vi /bin/ls /bin/cat /usr/bin/hexdump          \
+ 		/bin/sleep /bin/zcat /usr/bin/bzcat /usr/bin/printf /usr/bin/wc
+ 
+ 	install_bin /sbin/mtd
+@@ -144,7 +153,14 @@ v() {
+ }
+ 
+ rootfs_type() {
+-	mount | awk '($3 ~ /^\/$/) && ($5 !~ /rootfs/) { print $5 }'
++	local line mountpoint fstype
++
++	while read line; do {
++		set -- $line
++		mountpoint="$2"
++		fstype="$3"
++		[ "$mountpoint" = "/" -a "$fstype" != "rootfs" ] && echo "$fstype"
++	} done </proc/mounts
+ }
+ 
+ get_image() { # <source> [ <command> ]
+-- 
+1.7.2.5
+
