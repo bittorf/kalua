@@ -1033,6 +1033,7 @@ apply_symbol()
 							continue
 						else
 							git apply --check <"$file" || {
+								register_patch "FAILED: $file"
 								log "$funcname() $KALUA_DIRNAME: [ERR] cannot apply: git apply --check <'$file'"
 								continue
 							}
@@ -1077,6 +1078,7 @@ apply_symbol()
 
 									break
 								else
+									register_patch "FAILED: $file"
 									log "$funcname() ERROR during 'git am <$file'"
 
 									cd ..
