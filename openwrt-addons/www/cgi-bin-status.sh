@@ -193,6 +193,7 @@ output_table()
 		is_wifi()
 		{
 			_net dev_is_wifi "$1" && return 0
+			[ "$LOCAL" = "$WIFIADR" ] && return 0	# TODO: will not work for 2nd wifi
 
 			case "$COST" in
 				'1.000'|'0.100')
