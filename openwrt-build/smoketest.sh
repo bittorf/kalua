@@ -1,8 +1,10 @@
 #!/bin/sh
 
+# TODO: generate HTML-page
 # TODO: report: if NO/$number of error occurs, write it when finished
 # TODO: build always in step: tools/toolchain/kernel/all
 # TODO: build specific arch, e.g 'x86 gemini avr32'
+# TODO: since r43047 we should grep for KERNEL_PATCHVER:=3.10 instead if LINUX_VERSION:=3.10.49
 
 TYPE="$1"
 OPTION="$2"
