@@ -167,7 +167,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 
 register_patch()
 {
-	local name="$1"
+	local name="$( basename "$1" )"
 	local file='files/etc/openwrt_patches'
 
 	if [ "$name" = 'init' ]; then
