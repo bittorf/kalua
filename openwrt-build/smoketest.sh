@@ -11,9 +11,10 @@ OPTION="$2"
 MYLOG='/tmp/special_log.txt'
 
 [ -z "$TYPE" ] && {
-	echo "Usage: $0 <type> <architecture>"
+	echo "Usage: $0 <type> <option>"
 	echo "       type can be 'kernel' or 'full'"
-	echo "       with you can select the kernel-version of which arch's are taken, e.g. '3\.10\.'"
+	echo "       <option> can be the kernel-version of which arch's are taken,"
+	echo "       e.g. '3\.10\.' - this builds for all archs which are at 3.10"
 
 	exit 1
 }
@@ -38,23 +39,21 @@ mymake()
 
 	[ -n "$force_cpu" ] && cpu="$force_cpu"
 
-	if [ "$TYPE" = 'full' ]; then
-		make -j$cpu && return 0
-	else
-		make -j$cpu tools/install	 || return 1
-		log "make ok: tools"
-		make -j$cpu toolchain/install	 || return 1
-		log "make ok: toolchain"
-		make -j$cpu target/linux/compile || return 1
-		log "make ok: linux"
-#		package/compile
-#		package/install
-#		target/install
-		return 0
-		# build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/vmlinux*
-	fi
+	make -j$cpu tools/install	 || return 1
+	log "make ok: tools"
+	make -j$cpu toolchain/install	 || return 1
+	log "make ok: toolchain"
+	make -j$cpu target/linux/compile || return 1
+	# now in e.g.: build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/vmlinux
+	log "make ok: linux"
 
-	return 1
+	[ "$TYPE" = 'full' ] && return 0
+
+	make -j$cpu package/compile	|| return 1
+	log "make ok: package/compile"
+	make -j$cpu package/install	|| return 1
+	log "make ok: package/install"
+	make -j$cpu target/install	|| return 1
 }
 
 list_architectures()
@@ -64,6 +63,12 @@ list_architectures()
 
 	# target/linux/gemini/Makefile:LINUX_VERSION:=3.10.49 -> gemini
 	grep ^"LINUX_VERSION:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3 | while read line; do {
+		echo -n "$line "
+	} done
+
+	# since r43047
+	# KERNEL_PATCHVER:=3.10
+	grep ^"KERNEL_PATCHVER:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3 | while read line; do {
 		echo -n "$line "
 	} done
 }
