@@ -141,7 +141,11 @@ output_table()
 		eval $line
 
 		count=$(( $count + 1 ))
-		iface_out="$( _net ip2dev "$REMOTE" )"
+		if [ "$LOCAL" = "$WIFIADR" ]; then
+			iface_out="$WIFIDEV"
+		else
+			iface_out="$( _net ip2dev "$REMOTE" )"
+		fi
 		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" )"
 
 		build_remote_hostname "$REMOTE"

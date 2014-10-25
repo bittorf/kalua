@@ -170,7 +170,18 @@ register_patch()
 	local name="$1"
 	local file='files/etc/openwrt_patches'	# we can read the file later on the router
 
-	[ -f "$name" ] && name="$( basename "$name" )"
+	if [ -f "$name" ]; then
+		name="$( basename "$name" )"
+	else
+		case "$name" in
+			'FAILED: '*)
+				set -- $name
+				shift
+				name="$( basename "$@" )"
+				name="FAILED: $name"
+			;;
+		esac
+	fi
 
 	if [ "$name" = 'init' ]; then
 		[ -e "$file" ] && rm "$file"
@@ -208,7 +219,7 @@ apply_wifi_reghack()
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
 
-			register_patch "$funcname()"
+			register_patch "REGHACK:"
 			register_patch "$file"
 			register_patch "$file_regdb_hacked"
 		else
@@ -1019,78 +1030,35 @@ apply_symbol()
 			fi
 
 			for basedir in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
-				log "$funcname() $KALUA_DIRNAME: adding private patchsets from '$basedir'"
-
-				for dir in $basedir $basedir/*; do {
-					[ -d "$dir" ] || continue
-
-					register_patch "DIR: $basedir"
-					log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
-
-					for file in $dir/*; do {
-						[ -d "$file" ] && continue
-
+				find $basedir | while read file; do {
+					if [ -d "$file" ]; then
+						log "$funcname() $KALUA_DIRNAME: adding private patchsets from '$file'"
+						register_patch "DIR: $file"
+					else
 						if head -n1 "$file" | fgrep -q '/net/mac80211/'; then
 							register_patch "$file"
 							cp -v "$file" 'package/kernel/mac80211/patches'
 							MAC80211_CLEAN='true'
-							continue
 						else
-							git apply --check <"$file" || {
+							if git apply --check <"$file"; then
+								# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
+								# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
+								[ -d 'rebase-merge' -o -d 'rebase-apply' ] && {
+									git rebase --abort
+									git am --abort
+								}
+
+								if git am --signoff <"$file"; then
+									register_patch "$file"
+								else
+									log "$funcname() ERROR during 'git am <$file'"
+								fi
+							else
 								register_patch "FAILED: $file"
 								log "$funcname() $KALUA_DIRNAME: [ERR] cannot apply: git apply --check <'$file'"
-								continue
-							}
+							fi
 						fi
-
-						# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
-						# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
-						[ -d 'rebase-merge' -o -d 'rebase-apply' ] && {
-							git rebase --abort
-							git am --abort
-						}
-
-						if git am --signoff <"$file"; then
-							register_patch "$file"
-						else
-							log "$funcname() ERROR during 'git am <$file'"
-
-							for dir in feeds/*; do {
-								[ -d "$dir" ] || continue
-
-								case "$dir" in
-									*'.tmp')
-										continue
-									;;
-								esac
-
-								log "$funcname() trying in dir '$dir' (now: '$( pwd )')"
-								cd $dir
-								log "$funcname() changed dir to '$( pwd )'"
-
-								git rebase --abort
-								git am --abort
-
-								log "$funcname() exec: git am --signoff <../../$file"
-								if git am --signoff <"../../$file"; then
-									register_patch "$file"
-
-									log "$funcname() OK - apply for '$file' worked"
-									log "$funcname() ERROR during 'git am <$file'"
-									cd ..
-									cd ..
-
-									break
-								else
-									register_patch "FAILED: $file"
-									log "$funcname() ERROR during 'git am <$file'"
-
-									cd ..
-									cd ..
-								fi
-							} done
-						fi
-					} done
+					fi
 				} done
 			} done
 
