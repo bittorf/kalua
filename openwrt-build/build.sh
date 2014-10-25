@@ -167,8 +167,10 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 
 register_patch()
 {
-	local name="$( basename "$1" )"
-	local file='files/etc/openwrt_patches'
+	local name="$1"
+	local file='files/etc/openwrt_patches'	# we can read the file later on the router
+
+	[ -f "$name" ] && name="$( basename "$name" )"
 
 	if [ "$name" = 'init' ]; then
 		[ -e "$file" ] && rm "$file"
