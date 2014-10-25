@@ -1026,6 +1026,8 @@ apply_symbol()
 					log "$funcname() $KALUA_DIRNAME: adding patchset '$( basename "$dir" )'"
 
 					for file in $dir/*; do {
+						[ -d "$file" ] && continue
+
 						if head -n1 "$file" | fgrep -q '/net/mac80211/'; then
 							register_patch "$file"
 							cp -v "$file" 'package/kernel/mac80211/patches'
