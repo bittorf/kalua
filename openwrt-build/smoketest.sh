@@ -2,8 +2,6 @@
 
 # TODO: generate HTML-page
 # TODO: report: if NO/$number of error occurs, write it when finished
-# TODO: build specific arch, e.g 'x86 gemini avr32'
-# TODO: since r43047 we should grep for KERNEL_PATCHVER:=3.10 instead if LINUX_VERSION:=3.10.49
 
 TYPE="$1"
 OPTION="$2"
@@ -11,10 +9,10 @@ MYLOG='/tmp/special_log.txt'
 
 [ -z "$TYPE" ] && {
 	echo "Usage: $0 <type> <option>"
-	echo "       type can be 'kernel' or 'full'"
+	echo "       type can be 'tools', 'toolchain', 'kernel' or 'full'"
 	echo "       <option> can be the kernel-version of which arch's are taken,"
-	echo "       e.g. '3\.10\.' - this builds for all archs which are at 3.10"
-
+	echo "       e.g. '3\.10\.' - this builds for all archs which are at 3.10 or"
+	echo "       e.g. 'ar71xx x86' which directly builds these architectures"
 	exit 1
 }
 
@@ -40,12 +38,15 @@ mymake()
 
 	make -j$cpu tools/install	 || return 1
 	log "make ok: tools"
+	[ "$TYPE" = 'tools' ] && return 0
+
 	make -j$cpu toolchain/install	 || return 1
 	log "make ok: toolchain"
+	[ "$TYPE" = 'toolchain' ] && return 0
+
 	make -j$cpu target/linux/compile || return 1
 	# now in e.g.: build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/vmlinux
 	log "make ok: linux"
-
 	[ "$TYPE" = 'kernel' ] && return 0
 
 	make -j$cpu package/compile	|| return 1
@@ -58,8 +59,21 @@ mymake()
 
 list_architectures()
 {
-	local with_kernel="$1"		# empty = all
-	local line
+	local with_kernel="$1"		# <empty> = all
+	local archlist line
+
+	for line in $with_kernel; do {
+		if [ -e "target/linux/$line/Makefile" ]; then
+			archlist="$archlist $line"
+		else
+			archlist=
+			break
+		fi
+	} done
+	[ -n "$archlist" ] && {
+		echo "$archlist"
+		return 0
+	}
 
 	# target/linux/gemini/Makefile:LINUX_VERSION:=3.10.49 -> gemini
 	grep ^"LINUX_VERSION:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3 | while read line; do {
