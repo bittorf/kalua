@@ -2,7 +2,6 @@
 
 # TODO: generate HTML-page
 # TODO: report: if NO/$number of error occurs, write it when finished
-# TODO: build always in step: tools/toolchain/kernel/all
 # TODO: build specific arch, e.g 'x86 gemini avr32'
 # TODO: since r43047 we should grep for KERNEL_PATCHVER:=3.10 instead if LINUX_VERSION:=3.10.49
 
@@ -47,13 +46,14 @@ mymake()
 	# now in e.g.: build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/vmlinux
 	log "make ok: linux"
 
-	[ "$TYPE" = 'full' ] && return 0
+	[ "$TYPE" = 'kernel' ] && return 0
 
 	make -j$cpu package/compile	|| return 1
 	log "make ok: package/compile"
 	make -j$cpu package/install	|| return 1
 	log "make ok: package/install"
 	make -j$cpu target/install	|| return 1
+	log "make ok: target/install"
 }
 
 list_architectures()
