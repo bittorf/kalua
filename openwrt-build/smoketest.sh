@@ -35,6 +35,7 @@ mymake()
 	local cpu=$(( $(grep -c ^'processor' /proc/cpuinfo) + 1 ))
 
 	[ -n "$force_cpu" ] && cpu="$force_cpu"
+	log "mymake() using parallel-build: -j$cpu"
 
 	make -j$cpu tools/install	 || return 1
 	log "make ok: tools"
