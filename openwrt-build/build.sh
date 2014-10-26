@@ -1287,9 +1287,13 @@ build_options_set()
 			;;
 			'b43mini')
 				apply_symbol 'CONFIG_B43_FW_SQUASH_PHYTYPES="G"'	# kernel-modules: wireless: b43
+				apply_symbol 'CONFIG_PACKAGE_B43_PHY_LP is not set'
 				apply_symbol 'CONFIG_PACKAGE_B43_PHY_N is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_B43_PHY_HT is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_kmod-b43legacy is not set'	# kernel-modules:
+				apply_symbol 'CONFIG_PACKAGE_kmod-bgmac is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-tg3 is not set'
+				# apply_symbol 'CONFIG_PACKAGE_B43_DEBUG=y'
 			;;
 			'WiFi'*)
 				# generic approach:

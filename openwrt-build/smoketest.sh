@@ -1,7 +1,9 @@
 #!/bin/sh
 
+# TODO: make tools/install - only ONCE? (for all platforms) - how to detect if it was build already?
 # TODO: generate HTML-page
 # TODO: report: if NO/$number of error occurs, write it when finished
+# TODO: mymake: if it fails only build the last step with -j1 not everything before
 
 TYPE="$1"
 OPTION="$2"
