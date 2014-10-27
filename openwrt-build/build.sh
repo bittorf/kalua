@@ -223,6 +223,8 @@ apply_wifi_reghack()
 			register_patch "$file"
 			register_patch "$file_regdb_hacked"
 		else
+			file="$( basename "$file" )"
+
 			[ -e "package/kernel/mac80211/files/regdb.txt_old" ] && {
 				cp -v "package/kernel/mac80211/files/regdb.txt_original" "package/kernel/mac80211/files/regdb.txt"
 			}
