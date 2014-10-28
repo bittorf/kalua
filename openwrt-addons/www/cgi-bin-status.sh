@@ -221,7 +221,7 @@ output_table()
 
 				[ -z "$mac" ] && {
 					mac="$( _wget do "http://$REMOTE/cgi-bin/luci/freifunk/status" | grep -- '-bssid">' | grep -v '>02:' )"
-					mac="$( _sanitizer do "$mac" mac )"
+					mac="$( _sanitizer do "$mac" mac lowercase )"
 				}
 
 				[ -n "$mac" ] && {
