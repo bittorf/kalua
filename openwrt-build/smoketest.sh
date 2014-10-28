@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# TODO: build in ramdisc?
 # TODO: make tools/install - only ONCE? (for all platforms) - how to detect if it was build already?
 # TODO: generate HTML-page
 # TODO: report: if NO/$number of error occurs, write it when finished

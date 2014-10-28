@@ -1221,6 +1221,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools (=iwconfig)
 				apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
+				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 
 				$funcname subcall 'shaping'
 				$funcname subcall 'vtun'
@@ -1235,13 +1236,15 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 #				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
-#				apply_symbol 'CONFIG_PACKAGE_tc=y'			# network: tc
 				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool: (very small)
 #				apply_symbol 'CONFIG_PACKAGE_rrdtool1=y'		# utilities: rrdtool:
 #				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless: (but debugFS-export still active)
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
-#
+#				apply_symbol 'CONFIG_PACKAGE_curl=y'
+#				apply_symbol 'CONFIG_PACKAGE_memtester=y'
+
+#				$funcname subcall 'shaping'
 #				$funcname subcall 'vtun'
 #				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
