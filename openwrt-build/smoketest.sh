@@ -23,12 +23,17 @@ log()
 	local message="$1"
 	local prio="$2"
 
-	message="${ARCH:-init/clean} - $message"
+	message="${ARCH:-init/clean} - r${OPENWRT_REV:-?} - $message"
 
 	logger -s "$MYLOG: $0: $message"
 	[ "$prio" = 'debug' ] || echo "[$( date )] $0: $message" >>"$MYLOG"
 
 	return 0
+}
+
+openwrt_revision_get()
+{
+	git log -1 | fgrep 'git-svn-id:' | cut -d'@' -f2 | cut -d' ' -f1
 }
 
 mymake()
@@ -129,6 +134,7 @@ defconfig()
 
 			cd 'openwrt'
 			LIST_ARCH="$( list_architectures "$OPTION" )"
+			OPENWRT_REV="$( openwrt_revision_get )"
 
 			return 0
 		;;
