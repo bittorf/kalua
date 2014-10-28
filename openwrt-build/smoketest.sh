@@ -163,17 +163,13 @@ for ARCH in $LIST_ARCH; do {
 		log "OK"
 		clean
 	else
-		log "ERROR - building again" debug
+		log "ERROR - building again with -j1" debug
+
 		if mymake '1 V=s' >"${MYLOG}-logfail-$ARCH"; then
+			log "build with -j1: OK"
 			rm "${MYLOG}-logfail-$ARCH"
 		else
-			log "ERROR - see: ${MYLOG}-logfail-$ARCH"
-		fi
-
-		if [ $? -eq 0 ]; then
-			log "OK - after rebuild with -j1"
-		else
-			log "ERROR"
+			log "ERROR - even with -j1 - see: ${MYLOG}-logfail-$ARCH"
 		fi
 	fi
 } done
