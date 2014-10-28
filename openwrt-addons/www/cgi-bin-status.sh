@@ -218,6 +218,16 @@ output_table()
 			mac="$( _net ip2mac "$REMOTE" )" || {
 				mac="$( _tool remote "$REMOTE" ip2mac )"
 				mac="$( _sanitizer do "$mac" mac )"
+
+				[ -z "$mac" ] && {
+					mac="$( _wget do "http://$REMOTE/cgi-bin/luci/freifunk/status" | grep -- '-bssid">' | grep -v '>02:' )"
+					mac="$( _sanitizer do "$mac" mac )"
+				}
+
+				[ -n "$mac" ] && {
+					# for faster net_ip2mac()
+					echo "$mac" >"/tmp/IP2MAC_$REMOTE"
+				}
 			}
 
 			if [ -n "$mac" ]; then
