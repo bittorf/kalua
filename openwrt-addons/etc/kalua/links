@@ -64,10 +64,19 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			local FILEWISH dir= usecase=
 
 			if usecase="$( _firmware get_usecase )"; then
+				# e.g. http://intercity-vpn.de/firmware/ar71xx/images/testing/usecase/18c5d9ba35511b0b03491993b9507089/TP-LINK%20TL-WR1043ND.bin
 				# see copy_firmware_files() in build.sh
-				# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
-				# Ubiquiti Bullet M.sysupgrade -> symlink to real file in directory xy
-				# the dirhash is also symlinked to a readable one
+				#
+				# [symlink]
+				# /var/www/firmware/ar71xx/images/testing/usecase/
+				#	18c5d9ba35511b0b03491993b9507089/TP-LINK TL-WR1043ND.bin
+				# [symlink]
+				# /var/www/firmware/ar71xx/images/testing/usecase/
+				#	Standard,VDS,kalua/TP-LINK TL-WR1043ND.bin
+				# [realfile]
+				# /var/www/firmware/ar71xx/images/testing/usecase/
+				#	Standard,VDS,kalua/TP-LINK TL-WR1043ND.openwrt=r43102_kernel=_option=Standard,debug,VDS,kalua@3731799_rootfs=squash_image=sysupgrade.bin
+
 				dir="usecase/$( _firmware get_usecase 'hash' )/"
 				FILEWISH="$HARDWARE.bin"
 			else
@@ -86,11 +95,11 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 					[ "$UPDATEMODE" = "0" ] && i=100
 
 					url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
-				# if pattern/filename matches, get 2nd word:
-				# NEW:
-				# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db SIZE[byte]: 999999 BLOCKS[64k]: 49 FILE: 'La Fonera 2.0N.bin' USECASE: Standard,LuCIfull,VDS,kalua HASH[md5]: b1cc2a438170a6fff4d08b08da4030af REV: r45678
-				# OLD:
-				# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db SIZE[byte]: 999999 BLOCKS[64k]: 49 FILE: 'La Fonera 2.0N.bin'
+# if pattern/filename matches, get 2nd word:
+# NEW:
+# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db  SIZE[byte]: 999999  BLOCKS[64k]: 49  FILE: 'La Fonera 2.0N.bin'  USECASE: b1cc2a438170a6fff4d08b08da4030af = Standard,LuCIfull,VDS,kalua  REV: r45678
+# OLD:
+# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db  SIZE[byte]: 999999  BLOCKS[64k]: 49  FILE: 'La Fonera 2.0N.bin'
 
 					get_crc()
 					{
@@ -100,7 +109,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 						_wget do "$url" |
 						 while read LINE; do {
 							case "$LINE" in
-								*"'${FILEWISH}'${usecase:+ USECASE: }${usecase}${usecase:+ }"*)
+								*"'${FILEWISH}'${usecase:+  USECASE: }${usecase}${usecase:+ = }"*)
 									echo "$LINE" | cut -d' ' -f2
 									return 111
 								;;
