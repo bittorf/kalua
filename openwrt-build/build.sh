@@ -512,10 +512,30 @@ target_hardware_set()
 	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"
 
 	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
-	[ -n "$VERSION_KERNEL_FORCE" ] && {
+	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
 		log "$funcname() enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL'"
 		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
 		sed -i "s/^LINUX_VERSION:=.*/LINUX_VERSION:=${VERSION_KERNEL_FORCE}/" "target/linux/$ARCH/Makefile"
+	}
+
+	[ -z "$VERSION_KERNEL" ] && {
+		# since r43047
+		# KERNEL_PATCHVER:=3.10
+		VERSION_KERNEL="$( grep ^'KERNEL_PATCHVER:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
+		# and in 'include/kernel-version.mk'
+		# LINUX_VERSION-3.10 = .58
+		VERSION_KERNEL="$( grep ^"LINUX_VERSION-$VERSION_KERNEL = " 'include/kernel-version.mk' )"
+		VERSION_KERNEL="$( echo "$VERSION_KERNEL" | sed 's/ = //' | sed 's/LINUX_VERSION-//' )"
+
+		[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
+			log "$funcname() enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL' for r43047+"
+			VERSION_KERNEL="$VERSION_KERNEL_FORCE"
+			# replace in 'include/kernel-version.mk'
+			# LINUX_VERSION-3.10 = .49
+			# with e.g.
+			# LINUX_VERSION-3.10 = .58
+			log "$funcname() fixme r43047+"
+		}
 	}
 
 	log "$funcname() architecture: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
