@@ -215,22 +215,8 @@ output_table()
 		channel=; snr=; rx_mbytes=; tx_mbytes=
 		if is_wifi "$iface_out"; then
 			iface_out_color=
-			mac="$( _net ip2mac "$REMOTE" )" || {
-				mac="$( _tool remote "$REMOTE" ip2mac )"
-				mac="$( _sanitizer do "$mac" mac )"
 
-				[ -z "$mac" ] && {
-					mac="$( _wget do "http://$REMOTE/cgi-bin/luci/freifunk/status" | grep -- '-bssid">' | grep -v '>02:' )"
-					mac="$( _sanitizer do "$mac" mac lowercase )"
-				}
-
-				[ -n "$mac" ] && {
-					# for faster net_ip2mac()
-					echo "$mac" >"/tmp/IP2MAC_$REMOTE"
-				}
-			}
-
-			if [ -n "$mac" ]; then
+			if mac="$( _net ip2mac "$REMOTE" lazy )"; then
 				for dev in $WIFI_DEVS; do {
 
 					# maybe use: wifi_get_station_param / wifi_show_station_traffic
