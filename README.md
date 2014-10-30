@@ -22,7 +22,7 @@ how to get a release for a specific hardware
 	cd openwrt
 
 	# full build for specific target
-	build.sh --openwrt r40861 --hardware 'PC Engines ALIX.2' --usecase 'Standard'
+	build.sh --openwrt r43102 --hardware 'all' --usecase 'Standard,kalua'
 
 	# get detailed help with
 	build.sh --help
