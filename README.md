@@ -192,6 +192,7 @@ system.@weblogin[0].authserver		- IP
 system.@weblogin[0].gateway_check	- IP
 system.@weblogin[0].dynamic_portfw	- pattern of macs
 system.@weblogin[0].auth_credentials	- string
+system.@weblogin[0].auth_type		- none, roomnumber, userpass
 system.@weblogin[0].blocked		- bool
 
 system.@monitoring[0].serverip		- IP
