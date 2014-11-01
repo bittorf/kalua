@@ -93,6 +93,8 @@ case "${BUTTON}-${ACTION}" in
 		_weblogin authserver_message "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
 
 		[ $DIFF -gt 300 ] && {
+			_log do firmware_button daemon info "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
+
 			PID="$( uci -q get system.@monitoring[0].button_smstext )" && {
 				for END in $( uci -q get system.@monitoring[0].button_phone ); do {
 					_sms send "$END" "$PID" '' "$( uci -q get sms.@sms[0].username )" "$( uci -q get sms.@sms[0].password )"
