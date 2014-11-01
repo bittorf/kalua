@@ -18,6 +18,31 @@ case "$ACTION" in
 			'wan')
 				. /tmp/loader
 
+				case "$( uci -q get system.@weblogin[0].enabled )" in
+					1|on|true|enabled|yes)
+						ip --oneline address show dev $DEVICE | while read WANADR; do {
+							# 19: eth0.2 inet 10.63.99.61/30 brd 10.63.99.63  scope global eth0.2\ ...
+							# 19: eth0.2 inet6 fe80::da5d:4cff:fe9c:2f1a/64   scope link \ ...
+							case "$LINE" in
+								*'inet '*)
+									# fetch alias-adresses
+									set -- $WANADR
+									WANADR="${4%/*}"
+									WANMSK="${4#*/}"
+
+									_net ip4_is_private "$WANADR" && {
+										mkdir "/tmp/netfilter_allow_privnet_$WANADR-$WANMSK" && {
+											# dont splash these hosts
+											$IPT -t mangle -I PREROUTING -s $WANADR/$WANMSK -j ACCEPT
+										}
+									}
+								;;
+							esac
+						} done
+					;;
+				esac
+
+				# here we get the main-IP and no aliases
 				WANADR="$( ubus call network.interface.wan status | grep '"address": ' | head -n1 | cut -d'"' -f4 )"
 				if _net ip4_is_private "$WANADR"; then
 					case "$( uci -q get network.wan.public_ip )" in

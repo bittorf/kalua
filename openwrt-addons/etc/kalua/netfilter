@@ -69,14 +69,16 @@ _netfilter_start()
 		_netfilter adblocking_start
 	}
 
-	[ "$( uci -q get system.@weblogin[0].enabled )" = "1" ] && {
-		_db restore
+	case "$( uci -q get system.@weblogin[0].enabled )" in
+		1|on|true|enabled|yes)
+			_db restore
 
-		[ -e "/www/SIMPLE_MESHNODE" ] || {
-			_netfilter splash_start
-			echo >>$SCHEDULER '_netfilter splash_autoadd'
-		}
-	}
+			[ -e "/www/SIMPLE_MESHNODE" ] || {
+				_netfilter splash_start
+				echo >>$SCHEDULER '_netfilter splash_autoadd'
+			}
+		;;
+	esac
 
 	_netfilter traffic_control_needed && {
 		grep -q ^"sch_htb " /proc/modules || insmod sch_htb
@@ -1130,8 +1132,10 @@ _netfilter_splash_start()
 	# from alien router/client to me/further (also dhcp_in)
 #	$IPT -t mangle -A PREROUTING ! -s $myhna -j ACCEPT
 	$IPT -t mangle -N alien
+
 	# fixme! $ROAMING_IP
 	[ $NODENUMBER -lt 256 ] && $IPT -t mangle -A alien -s 192.168.$NODENUMBER.0/24 -j RETURN
+
 	$IPT -t mangle -A alien -s $myhna -j RETURN
 	$IPT -t mangle -A alien -j ACCEPT
 	$IPT -t mangle -A PREROUTING -j alien
