@@ -337,58 +337,80 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 {			# TODO: automatically invoke tool_remote() when non-local IP's are asked?
 	local get_ip="$1"
 	local option="$2"	# string: 'lazy'
-	local line ip mac dev
+	local mac=
+	local line ip dev
 
 	# this can be outdated, see http://www.intercity-vpn.de/files/openwrt/login_error.ejbw.wrong.mac.txt
 	[ "$option" = 'lazy' ] && {
 		cat "/tmp/IP2MAC_${get_ip}" 2>/dev/null && return 0
 	}
 
-	while read line; do {
-		set -- ${line:-unset}
-		ip="$1"
-		mac="$4"
+	# get mac from interface
+	case "$get_ip" in
+		$WIFIADR)
+			mac="$( _net dev2mac "$WIFIDEV" )"
+		;;
+		$LANADR)
+			mac="$( _net dev2mac "$LANDEV" )"
+		;;
+		$WANADR)
+			mac="$( _net dev2mac "$WANDEV" )"
+		;;
+	esac
 
-		case "$mac" in
-			'00:00:00:00:00:00')
-				continue
-			;;
-			'24:a4:2c'*)
-				# KOUKAAM / NetIO-230b
-				[ -e '/tmp/WATCHDOG_TYPE1' ] || _sanitizer do "$ip-$mac" alphanum >'/tmp/WATCHDOG_TYPE1'
-			;;
-		esac
+	# get mac from arp-cache
+	if [ -z "$mac" ]; then
+		while read line; do {
+			set -- ${line:-unset}
+			ip="$1"
+			mac="$4"
 
-		if [ "$ip" = "$get_ip" ]; then
-			_sanitizer do "$mac" lowercase >"/tmp/IP2MAC_$get_ip"
-			break
-		else
-			mac=
-		fi
-	} done <'/proc/net/arp'
+			case "$mac" in
+				'00:00:00:00:00:00')
+					continue
+				;;
+				'24:a4:2c'*)
+					# KOUKAAM / NetIO-230b
+					[ -e '/tmp/WATCHDOG_TYPE1' ] || _sanitizer do "$ip-$mac" alphanum >'/tmp/WATCHDOG_TYPE1'
+				;;
+			esac
 
-	[ -z "$mac" ] && {
-		mac="$( _tool remote "$get_ip" ip2mac )"
-		mac="$( _sanitizer do "$mac" mac )"
+			if [ "$ip" = "$get_ip" ]; then
+				_sanitizer do "$mac" lowercase >"/tmp/IP2MAC_$get_ip"
+				break
+			else
+				mac=
+			fi
+		} done <'/proc/net/arp'
+	else
+		echo "$mac" >"/tmp/IP2MAC_$get_ip"
+	fi
+
+	# get mac from OLSR-neigh
+	if [ -z "$mac" ]; then
+		[ -e "/tmp/OLSR/isneigh_$get_ip" ] && {
+			mac="$( _tool remote "$get_ip" ip2mac )"
+			mac="$( _sanitizer do "$mac" mac )"
+
+			[ -z "$mac" ] && {
+				mac="$( _wget do "http://$get_ip/cgi-bin/luci/freifunk/status" | grep -- '-bssid">' | grep -v '>02:' )"
+				mac="$( _sanitizer do "$mac" mac lowercase )"
+			}
+		}
 
 		if [ -n "$mac" ]; then
 			echo "$mac" >"/tmp/IP2MAC_$get_ip"
 		else
-			mac="$( _wget do "http://$get_ip/cgi-bin/luci/freifunk/status" | grep -- '-bssid">' | grep -v '>02:' )"
-			mac="$( _sanitizer do "$mac" mac lowercase )"
-
-			if [ -n "$mac" ]; then
-				echo "$mac" >"/tmp/IP2MAC_$get_ip"
-			else
-				# translate IPs from local interfaces (which are not in arp-cache)
-				dev="$( ip --oneline address show to "$get_ip" | cut -d' ' -f2 )"
-				# dev is empty, when IP is not local
-				mac="$( _net dev2mac "$dev" )" && {
-					echo "$mac" >"/tmp/IP2MAC_${get_ip}"
-				}
-			fi
+			# translate IPs from local interfaces (which are not in arp-cache), e.g. WIFI-2
+			dev="$( ip --oneline address show to "$get_ip" | cut -d' ' -f2 )"
+			# dev is empty, when IP is not local
+			mac="$( _net dev2mac "$dev" )" && {
+				echo "$mac" >"/tmp/IP2MAC_${get_ip}"
+			}
 		fi
-	}
+	else
+		echo "$mac" >"/tmp/IP2MAC_$get_ip"
+	fi
 
 	cat "/tmp/IP2MAC_$get_ip" 2>/dev/null
 }
