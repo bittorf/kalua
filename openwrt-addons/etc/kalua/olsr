@@ -231,7 +231,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 								[ -e "/tmp/OLSR/isneigh_$2" ] || {
 									touch "/tmp/OLSR/isneigh_$2"
 									_log do $func daemon info "1st contact to WiFi-neigh: $2"
-									_net ip2mac "$2" lazy >/dev/null
+									_net ip2mac "$2" >/dev/null
 								}
 								touch "/tmp/OLSR/isneigh_$2"
 
@@ -260,6 +260,12 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							firstrun='false'
 							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=1"
 						fi
+
+						case "$( uci -q get olsrd.@meta[0].throttle_traffic )" in
+							1|on|true|enabled|yes)
+								[ -e "/tmp/OLSR/throttle/$2" ] || _olsr throttle_traffic "$2"
+							;;
+						esac
 
 						case "$( uci -q get olsrd.@meta[0].fixedarp )" in
 							1|on|true|enabled|yes)
@@ -353,13 +359,33 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	return 0
 }
 
-_olsr_force_static_arp()
+_olsr_throttle_traffic()
 {
+	local funcname='olsr_throttle_traffic'
+	local ip="$1"
+
+	[ -e "/tmp/OLSR/throttle/$ip" ] || {
+		[ -d '/tmp/OLSR/throttle' ] || {
+			_log do $funcname daemon info "initial setup"
+			$IPT -N OLSR
+			$IPT -I INPUT  -p udp --dport 698 -j olsr_in
+			$IPT -I OUTPUT -p udp --dport 698 -j olsr_out
+			mkdir '/tmp/OLSR/throttle'
+		}
+
+		_log do $funcname daemon info "ip: $ip"
+		$IPT -I OLSR -s $ip -j DROP
+		$IPT -I OLSR -s $ip -m limit --limit 3/s --limit-burst 2 -j ACCEPT
+		$IPT -I OLSR -d $ip -j DROP
+		$IPT -I OLSR -d $ip -m limit --limit 3/s --limit-burst 2 -j ACCEPT
+		touch "/tmp/OLSR/throttle/$ip"
+	}
+}
+
+_olsr_force_static_arp()	# ATTENTION: a fixed arp-entry leads to strange effects
+{				#	     when we replug wired routers from e.g. lan to wan
 	local ip="$1"
 	local mac
-
-	# TODO: when ip2mac fails, use '_tool remote "$ip" ip2mac'
-	# this can lead to strange effects when we replug wired routers from e.g. lan2wan
 
 	[ -e "/tmp/OLSR/fixed_arp_$ip" ] || {
 		mac="$( _net ip2mac "$ip" )" && {

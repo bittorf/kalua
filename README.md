@@ -230,6 +230,7 @@ system.@community[0].splash		- bool
 system.@httpsproxy[0].enabled		- bool
 
 olsrd.@meta[0].fixedarp			- bool
+olsrd.@meta[0].throttle_traffic		- bool
 
 firewall.@adblock[0].enabled		- bool
 network.$INTERFACE.dyndns		- url
