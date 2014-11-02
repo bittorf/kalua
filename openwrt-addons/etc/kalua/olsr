@@ -363,13 +363,29 @@ _olsr_throttle_traffic()
 {
 	local funcname='olsr_throttle_traffic'
 	local ip="$1"
+	local myip dev
 
 	[ -e "/tmp/OLSR/throttle/$ip" ] || {
 		[ -d '/tmp/OLSR/throttle' ] || {
 			_log do $funcname daemon info "initial setup"
 			$IPT -N OLSR
-			$IPT -I INPUT  -p udp --dport 698 -j olsr_in
-			$IPT -I OUTPUT -p udp --dport 698 -j olsr_out
+			$IPT -I INPUT  -p udp --dport 698 -j OLSR
+			$IPT -I OUTPUT -p udp --dport 698 -j OLSR
+
+			list()
+			{
+				for dev in $WIFI_DEVS; do _net dev2ip $dev; done
+				_ipsystem getvar WIFIVPNCLIENTADR
+				echo $WANADR
+				echo $LANADR
+				echo $WIFIADR
+			}
+
+			for myip in $( list ) ; do {
+				$IPT -I OLSR -s $myip -j ACCEPT
+			} done
+
+			$IPT -A OLSR -j LOG --log-prefix 'OLSR: unknown: '
 			mkdir '/tmp/OLSR/throttle'
 		}
 
