@@ -352,8 +352,9 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		/usr/sbin/cron.check_inet_gw_fff+
 	}
 
-	[ -e '/tmp/OLSR/throttle.firstrun' ] && {
-		rm '/tmp/OLSR/throttle.firstrun'
+	[ -e '/tmp/olsr_throttle.firstrun' ] && {
+		rm '/tmp/olsr_throttle.firstrun'
+		# removing the ALLOW rule (otherwise we spam the LOG)
 		iptables -D OLSR 1
 	}
 
@@ -364,10 +365,11 @@ _olsr_throttle_traffic()
 {
 	local funcname='olsr_throttle_traffic'
 	local ip_or_dev="$1"
-	local option="$2"	# e.g. myself
+	local option="$2"	# e.g. 'myself'
 	local myip ip
+	local dir='/tmp/OLSR_throttle'
 
-	[ -e "/tmp/OLSR/throttle/$ip_or_dev" ] && return 0
+	[ -e "$dir/$ip_or_dev" ] && return 0
 
 	case "$( uci -q get olsrd.@meta[0].throttle_traffic )" in
 		1|on|true|enabled|yes)
@@ -377,9 +379,8 @@ _olsr_throttle_traffic()
 		;;
 	esac
 
-	[ -d '/tmp/OLSR/throttle' ] || {
-		mkdir -p '/tmp/OLSR/throttle'
-		touch '/tmp/OLSR/throttle.firstrun'
+	mkdir "$dir" 2>/dev/null && {
+		touch '/tmp/olsr_throttle.firstrun'
 
 		_log do $funcname daemon info "initial setup"
 		$IPT -N OLSR
@@ -411,7 +412,7 @@ _olsr_throttle_traffic()
 		$IPT -I OLSR -d $ip -m limit --limit 5/s --limit-burst 3 -j ACCEPT
 	fi
 
-	touch "/tmp/OLSR/throttle/$ip_or_dev" "/tmp/OLSR/throttle/$ip"
+	touch "$dir/$ip_or_dev" "$dir/$ip"
 }
 
 _olsr_force_static_arp()	# ATTENTION: a fixed arp-entry leads to strange effects
