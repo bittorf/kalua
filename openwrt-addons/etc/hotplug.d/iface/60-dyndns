@@ -3,21 +3,20 @@
 case "$ACTION" in
 	ifup)
 		[ -e '/tmp/loader' ] || . /etc/rc.common /etc/init.d/cron.user boot
+		. /tmp/loader
 
 		uci -q get network.$INTERFACE.dyndns >/dev/null && {
-			. /tmp/loader
 			_wget do "$( uci -q get network.$INTERFACE.dyndns )"
 		}
 
 		[ "$( uci -q get network.$INTERFACE.proto )" = 'dhcp' ] && {
-			. /tmp/loader
 			echo >>$SCHEDULER '/etc/init.d/S41build_static_netparam'
 		}
 
+		_olsr throttle_traffic "$( _net dev2ip "$DEVICE" )" myself
+
 		case "$INTERFACE" in
 			'wan')
-				. /tmp/loader
-
 				case "$( uci -q get system.@weblogin[0].enabled )" in
 					1|on|true|enabled|yes)
 						ip --oneline address show dev "$DEVICE" | while read LINE; do {
