@@ -358,11 +358,11 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 _olsr_throttle_traffic()
 {
 	local funcname='olsr_throttle_traffic'
-	local ip="$1"
+	local ip_or_dev="$1"
 	local option="$2"	# e.g. myself
-	local myip dev
+	local myip ip
 
-	[ -e "/tmp/OLSR/throttle/$ip" ] && return 0
+	[ -e "/tmp/OLSR/throttle/$ip_or_dev" ] && return 0
 
 	case "$( uci -q get olsrd.@meta[0].throttle_traffic )" in
 		1|on|true|enabled|yes)
@@ -373,31 +373,24 @@ _olsr_throttle_traffic()
 	esac
 
 	[ -d '/tmp/OLSR/throttle' ] || {
-		mkdir '/tmp/OLSR/throttle'
+		mkdir -p '/tmp/OLSR/throttle'
 
 		_log do $funcname daemon info "initial setup"
 		$IPT -N OLSR
 		$IPT -N OLSR_MYSELF
 		$IPT -I INPUT  -p udp --dport 698 -j OLSR
 		$IPT -I OUTPUT -p udp --dport 698 -j OLSR
-
-		list()
-		{
-			for dev in $WIFI_DEVS; do _net dev2ip $dev; done
-			_ipsystem getvar WIFIVPNCLIENTADR
-			echo $WANADR
-			echo $LANADR
-			echo $WIFIADR
-		}
-
-		$IPT -I OLSR -j OLSR_MYSELF
-		for myip in $( list ) ; do {
-			$IPT -I OLSR_MYSELF -s $myip -j ACCEPT
-			touch "/tmp/OLSR/throttle/$myip"
-		} done
-
 		$IPT -A OLSR -j LOG --log-prefix 'OLSR: unknown: '
 	}
+
+	case "$ip_or_dev" in
+		*'.'*)
+			ip="$ip_or_dev"
+		;;
+		*)
+			ip="$( _net dev2ip "$ip_or_dev" )"
+		;;
+	esac
 
 	if [ "$option" = 'myself' ]; then
 		_log do $funcname daemon info "ip: $ip ($option)"
@@ -410,7 +403,7 @@ _olsr_throttle_traffic()
 		$IPT -I OLSR -d $ip -m limit --limit 5/s --limit-burst 3 -j ACCEPT
 	fi
 
-	touch "/tmp/OLSR/throttle/$ip"
+	touch "/tmp/OLSR/throttle/$ip_or_dev" "/tmp/OLSR/throttle/$ip"
 }
 
 _olsr_force_static_arp()	# ATTENTION: a fixed arp-entry leads to strange effects
