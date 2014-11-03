@@ -1258,7 +1258,7 @@ _watch_topusage_task()
 	local funcname="watch_topusage_task"
 	local call_reason="$1"
 	local file="/tmp/$funcname_$$"
-	local line pid cpu cpu_int toptask khubd_state
+	local line pid cpu cpu_int toptask khubd_state logprio logmessage
 	local crit_percent_border=70
 
 	[ $( _system uptime min ) -lt 30 ] && return 0		# same like in cron.minutely
@@ -1307,9 +1307,11 @@ _watch_topusage_task()
 		;;
 	esac
 
+	task="$( basename "$toptask" )"
+	logmessage="pid: $pid cpu: $cpu toptask: $toptask task: $task crit%border: $crit_percent_border khubd_state: $khubd_state reason: $call_reason"
+
 	if [ $cpu_int -gt $crit_percent_border ]; then
-		task="$( basename "$toptask" )"
-		_log do $funcname daemon alert "pid: $pid cpu: $cpu toptask: $toptask task: $task crit_percent_border: $crit_percent_border call_reason: $call_reason"
+		_log do $funcname daemon alert "$logmessage"
 
 		case "$task" in
 			*'procd'*)
@@ -1363,7 +1365,17 @@ _watch_topusage_task()
 			}
 		}
 
-		_log do $funcname daemon debug "pid: $pid cpu: $cpu toptask: $toptask task: $task crit_percent_border: $crit_percent_border khubd_state: $khubd_state"
+		# injected from cron.minutley
+		case "$LOAD" in
+			'0.0'*|'0.1'*|'0.2'*|'0.3'*|'0.4'*|'0.5'*)
+				logprio='info'
+			;;
+			*)
+				logprio='alert'
+			;;
+		esac
+
+		_log do $funcname daemon alert "$logmessage"
 		return 0
 	fi
 }
