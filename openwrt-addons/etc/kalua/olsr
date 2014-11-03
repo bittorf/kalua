@@ -352,6 +352,11 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		/usr/sbin/cron.check_inet_gw_fff+
 	}
 
+	[ -e '/tmp/OLSR/throttle.firstrun' ] && {
+		rm '/tmp/OLSR/throttle.firstrun'
+		iptables -D OLSR 1
+	}
+
 	return 0
 }
 
@@ -374,12 +379,15 @@ _olsr_throttle_traffic()
 
 	[ -d '/tmp/OLSR/throttle' ] || {
 		mkdir -p '/tmp/OLSR/throttle'
+		touch '/tmp/OLSR/throttle.firstrun'
 
 		_log do $funcname daemon info "initial setup"
 		$IPT -N OLSR
 		$IPT -N OLSR_MYSELF
 		$IPT -I INPUT  -p udp --dport 698 -j OLSR
 		$IPT -I OUTPUT -p udp --dport 698 -j OLSR
+		$IPT -I OLSR -j OLSR_MYSELF
+		$IPT -I OLSR -j ACCEPT		# will be removed after first call of build_tables()
 		$IPT -A OLSR -j LOG --log-prefix 'OLSR: unknown: '
 	}
 
