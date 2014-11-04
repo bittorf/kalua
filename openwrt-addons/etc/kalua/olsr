@@ -363,9 +363,9 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 _olsr_throttle_traffic()
 {
 	local funcname='olsr_throttle_traffic'
-	local ip_or_dev="$1"
+	local ip_or_dev="$1"	# when called with 'myself' likely a device
 	local option="$2"	# e.g. 'myself'
-	local myip ip
+	local myip ip dev
 	local dir='/tmp/OLSR_throttle'
 
 	[ -e "$dir/$ip_or_dev" ] && return 0
@@ -402,8 +402,14 @@ _olsr_throttle_traffic()
 		_log do $funcname daemon info "ip: $ip"
 		$IPT -I OLSR -s $ip -j DROP
 		$IPT -I OLSR -s $ip -m limit --limit 5/s --limit-burst 3 -j ACCEPT
-		$IPT -I OLSR -d $ip -j DROP
-		$IPT -I OLSR -d $ip -m limit --limit 5/s --limit-burst 3 -j ACCEPT
+
+		# destination is normally 255.255.255.255
+		dev="$( _net ip2dev "$ip" )"
+		[ -e "$dir/outgoing_dev-$dev" ] || {
+			touch "$dir/outgoing_dev-$dev"
+			$IPT -I OLSR -o $dev -j DROP
+			$IPT -I OLSR -o $dev -m limit --limit 5/s --limit-burst 3 -j ACCEPT
+		}
 	fi
 
 	touch "$dir/$ip_or_dev" "$dir/$ip"
