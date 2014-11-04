@@ -19,6 +19,7 @@ case "$ACTION" in
 			'wan')
 				case "$( uci -q get system.@weblogin[0].enabled )" in
 					1|on|true|enabled|yes)
+						# TODO: special call of 'dev2ip'
 						ip --oneline address show dev "$DEVICE" | while read LINE; do {
 							# 19: eth0.2 inet 10.63.99.61/30 brd 10.63.99.63  scope global eth0.2\ ...
 							# 19: eth0.2 inet6 fe80::da5d:4cff:fe9c:2f1a/64   scope link \ ...
@@ -26,13 +27,13 @@ case "$ACTION" in
 								*'inet '*)
 									# fetch alias-adresses
 									set -- $LINE
-									WANADR="${4%/*}"
-									WANMSK="${4#*/}"
+									PWANADR="${4%/*}"
+									PWANMSK="${4#*/}"
 
-									_net ip4_is_private "$WANADR" && {
-										mkdir "/tmp/netfilter_allow_privnet_$WANADR-$WANMSK" && {
+									_net ip4_is_private "$PWANADR" && {
+										mkdir "/tmp/netfilter_allow_privnet_$PWANADR-$PWANMSK" && {
 											# dont splash these hosts
-											$IPT -t mangle -I PREROUTING -s $WANADR/$WANMSK -j ACCEPT
+											$IPT -t mangle -I PREROUTING -s $PWANADR/$PWANMSK -j ACCEPT
 										}
 									}
 								;;
@@ -60,6 +61,8 @@ case "$ACTION" in
 
 						$IPT -I INPUT -i $DEVICE -p tcp --dport 53 -j DROP
 						$IPT -I INPUT -i $DEVICE -p udp --dport 53 -j DROP
+						# see 'allow_privnet' above
+						[ -n "$PWANADR" ] && $IPT -I INPUT -s $PWANADR/$PWANMSK -j ACCEPT
 
 						# WIFI_IP=10.63.99.1/8
 						WIFI_ADR="$( _ipsystem getvar 'WIFI_ADR' )"
