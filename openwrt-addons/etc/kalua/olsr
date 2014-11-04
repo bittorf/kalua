@@ -364,11 +364,11 @@ _olsr_throttle_traffic()
 {
 	local funcname='olsr_throttle_traffic'
 	local ip_or_dev="$1"	# when called with 'myself' likely a device
-	local option="$2"	# e.g. 'myself'
-	local myip ip dev
+	local option="$2"	# e.g. 'myself' or 'restart'
+	local myip ip dev list
 	local dir='/tmp/OLSR_throttle'
 
-	[ -e "$dir/$ip_or_dev" ] && return 0
+	[ -e "$dir/${ip_or_dev:-no_value}" ] && return 0
 
 	case "$( uci -q get olsrd.@meta[0].throttle_traffic )" in
 		1|on|true|enabled|yes)
@@ -377,6 +377,22 @@ _olsr_throttle_traffic()
 			return 1
 		;;
 	esac
+
+	[ "$option" = 'restart' ] && {
+		$IPT -D INPUT  -p udp --dport 698 -j OLSR
+		$IPT -D OUTPUT -p udp --dport 698 -j OLSR
+		$IPT --flush OLSR_MYSELF
+		$IPT --flush OLSR
+		$IPT --delete-chain OLSR_MYSELF
+		$IPT --delete-chain OLSR
+
+		list="$( ls -1 "$dir/myself_dev-*" | cut -d'-' -f2 )"
+		rm -fR "$dir"
+
+		for dev in $list; do {
+			_olsr throttle_traffic "$dev" 'myself'
+		} done
+	}
 
 	mkdir "$dir" 2>/dev/null && {
 		touch '/tmp/olsr_throttle.firstrun'
@@ -390,6 +406,7 @@ _olsr_throttle_traffic()
 	}
 
 	if _net dev_is_valid "$ip_or_dev"; then
+		touch "$dir/myself_dev-$ip_or_dev"
 		ip="$( _net dev2ip "$ip_or_dev" )"
 	else
 		ip="$ip_or_dev"
