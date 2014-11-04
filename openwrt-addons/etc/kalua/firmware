@@ -681,6 +681,9 @@ _firmware_burn()
 	mkdir /tmp/fwimage
 	mv "$FILE" /tmp/fwimage
 
+	. /usr/sbin/cron.check_klog
+	_wifi watch_phy_problems || _system crashreboot 'wifiphy_probs'
+
 	# all dirs, except our special fwdir
 	find /tmp -type d | while read LINE; do {
 		case "$LINE" in
@@ -915,9 +918,9 @@ _firmware_check_forced_upgrade()
 {
 	_firmware configure_keep_files
 
-	local FILE="/tmp/fw"
+	local FILE='/tmp/fw'
 
-	[ -e "/www/fw" ] || {
+	[ -e '/www/fw' ] || {
 		[ -z "$LOWMEM" ] && {
 			# ssh nexthop
 			# copy fw to /tmp/fw
@@ -934,13 +937,13 @@ _firmware_check_forced_upgrade()
 #				mv "$FILE" "/www/fw" || rm "/www/fw"
 #			}
 
-			[ -e "/www/fw" ] || {
+			[ -e '/www/fw' ] || {
 				_log do prepare_firmware_update daemon info "image-on-flash failed, fallback to ram-mode"
 			}
 		}
 	}
 
-	[ -e "/www/fw" ] && {
+	[ -e '/www/fw' ] && {
 		# patching early startup for:
 		# - not loading any kernel-modules if "/www/fw" exists
 		# - disable any wireless action
@@ -981,6 +984,7 @@ _firmware_check_forced_upgrade()
 	}
 
 	if [ -e "$FILE" ]; then
+		_wifi watch_phy_problems || _system crashreboot 'wifiphy_probs'
 		_firmware burn $FILE
 	else
 		[ -n "$LOWMEM" ] && {
