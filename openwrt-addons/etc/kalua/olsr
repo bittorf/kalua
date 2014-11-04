@@ -360,7 +360,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	return 0
 }
 
-_olsr_throttle_traffic()
+_olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed
 {
 	local funcname='olsr_throttle_traffic'
 	local ip_or_dev="$1"	# when called with 'myself' likely a device
@@ -425,9 +425,12 @@ _olsr_throttle_traffic()
 		dev="$( _net ip2dev "$ip" )"
 		[ -e "$dir/outgoing_dev-$dev" ] || {
 			touch "$dir/outgoing_dev-$dev"
+			$IPT -I OLSR -i $dev		# just measuring
 			$IPT -I OLSR -o $dev -j DROP
 			$IPT -I OLSR -o $dev -m limit --limit 5/s --limit-burst 3 -j ACCEPT
 		}
+
+		# sed -i '/.* OLSR: unknown: .* SRC=$ip DST=255.255.255.255.*/d' /tmp/dmesg.log
 	fi
 
 	touch "$dir/$ip_or_dev" "$dir/myself_dev-$ip"
