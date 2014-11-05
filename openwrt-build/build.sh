@@ -1341,6 +1341,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-storage-extras=y'	# kernel-modules: USB-support
 				apply_symbol 'CONFIG_PACKAGE_kmod-fs-ext4=y'		# kernel-modules: filesystems
 				apply_symbol 'CONFIG_PACKAGE_kmod-fs-vfat=y'		# kernel-modules: filesystems
+				apply_symbol 'CONFIG_PACKAGE_kmod-nls-cp437=y'		# kernel-modules: nls-support (USA)
+				apply_symbol 'CONFIG_PACKAGE_kmod-nls-iso8859-1=y'	# kernel-modules: nls-support (EU)
 			;;
 			'NTPfull')
 				apply_symbol 'CONFIG_PACKAGE_ntp-utils=y'	# network -> time_syncronisation
