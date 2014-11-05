@@ -710,11 +710,17 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		_net inet_seems_stable || return 0
 
 		# if we have 2 pid's, we must use nobody-pid
-		# for SIGUSR1/SIGHUP and main-pid for SIGSEGV
+		# for SIGUSR1 (=stats to syslog) or SIGHUP (=reread config)
+		# and main-pid for SIGSEGV (=coredump)
 		for pid_parent in $pid; do {
-			# nobody-pid / dhcp-script child
 			if grep ^'Uid:' "/proc/$pid_parent/status" | grep -q '65534'; then
 				:
+				# nobody-pid = dhcp-script child
+				# after SIGUSR1 in syslog:
+				# dnsmasq[3843]: time 1415187118
+				# dnsmasq[3843]: cache size 1000, 0/0 cache insertions re-used unexpired cache entries.
+				# dnsmasq[3843]: queries forwarded 65, queries answered locally 93
+				# dnsmasq[3843]: server 8.8.8.8#53: queries sent 65, retried or failed 0
 			else
 				pid_main="$pid_parent"
 			fi

@@ -1336,6 +1336,12 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial-ftdi=y'
 			;;
+			'USBstorage')
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-storage=y'	# kernel-modules: USB-support
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-storage-extras=y'	# kernel-modules: USB-support
+				apply_symbol 'CONFIG_PACKAGE_kmod-fs-ext4=y'		# kernel-modules: filesystems
+				apply_symbol 'CONFIG_PACKAGE_kmod-fs-vfat=y'		# kernel-modules: filesystems
+			;;
 			'NTPfull')
 				apply_symbol 'CONFIG_PACKAGE_ntp-utils=y'	# network -> time_syncronisation
 				apply_symbol 'CONFIG_PACKAGE_ntpd=y'		# network -> time_syncronisation
