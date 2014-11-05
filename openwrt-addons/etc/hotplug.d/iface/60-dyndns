@@ -17,30 +17,32 @@ case "$ACTION" in
 
 		case "$INTERFACE" in
 			'wan')
-				case "$( uci -q get system.@weblogin[0].enabled )" in
-					1|on|true|enabled|yes)
-						# TODO: special call of 'dev2ip'
-						ip --oneline address show dev "$DEVICE" | while read LINE; do {
-							# 19: eth0.2 inet 10.63.99.61/30 brd 10.63.99.63  scope global eth0.2\ ...
-							# 19: eth0.2 inet6 fe80::da5d:4cff:fe9c:2f1a/64   scope link \ ...
-							case "$LINE" in
-								*'inet '*)
-									# fetch alias-adresses
-									set -- $LINE
-									PWANADR="${4%/*}"
-									PWANMSK="${4#*/}"
+				# TODO: special call of 'dev2ip'
+				ip --oneline address show dev "$DEVICE" | while read LINE; do {
+					# 19: eth0.2 inet 10.63.99.61/30 brd 10.63.99.63  scope global eth0.2\ ...
+					# 19: eth0.2 inet6 fe80::da5d:4cff:fe9c:2f1a/64   scope link \ ...
+					case "$LINE" in
+						*'inet '*)
+							# fetch alias-adresses
+							set -- $LINE
+							PWANADR="${4%/*}"
+							PWANMSK="${4#*/}"
 
-									_net ip4_is_private "$PWANADR" && {
+							_net ip4_is_private "$PWANADR" && {
+								LIST_PRIV_WAN="$LIST_PRIV_WAN $PWANADR/$PWANMSK"
+
+								case "$( uci -q get system.@weblogin[0].enabled )" in
+									1|on|true|enabled|yes)
 										mkdir "/tmp/netfilter_allow_privnet_$PWANADR-$PWANMSK" && {
 											# dont splash these hosts
 											$IPT -t mangle -I PREROUTING -s $PWANADR/$PWANMSK -j ACCEPT
 										}
-									}
-								;;
-							esac
-						} done
-					;;
-				esac
+									;;
+								esac
+							}
+						;;
+					esac
+				} done
 
 				# here we get the main-IP and no aliases
 				WANADR="$( ubus call network.interface.wan status | grep '"address": ' | head -n1 | cut -d'"' -f4 )"
@@ -62,7 +64,9 @@ case "$ACTION" in
 						$IPT -I INPUT -i $DEVICE -p tcp --dport 53 -j DROP
 						$IPT -I INPUT -i $DEVICE -p udp --dport 53 -j DROP
 						# see 'allow_privnet' above
-						[ -n "$PWANADR" ] && $IPT -I INPUT -s $PWANADR/$PWANMSK -j ACCEPT
+						for PRIV_WAN in $LIST_PRIV_WAN; do {
+							$IPT -I INPUT -s $PPRIV_WAN -j ACCEPT
+						} done
 
 						# WIFI_IP=10.63.99.1/8
 						WIFI_ADR="$( _ipsystem getvar 'WIFI_ADR' )"
