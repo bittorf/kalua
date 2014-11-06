@@ -1046,8 +1046,9 @@ apply_symbol()
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
 				log "$funcname() $KALUA_DIRNAME: using custom '/tmp/apply_profile.code.definitions'"
-				cp '/tmp/apply_profile.code.definitions' "$custom_dir/etc/init.d"
+				cp '/tmp/apply_profile.code.definitions' "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 			else
+				[ -e "$custom_dir/etc/init.d/apply_profile.code.definitions.private" ] && rm "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 				log "$funcname() $KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
 			fi
 
