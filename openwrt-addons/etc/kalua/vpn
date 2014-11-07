@@ -20,6 +20,7 @@ _vpn_hideandseek_user_add()
 		grep -q ^"$table_id $table_name" '/etc/iproute2/rt_tables' || {
 			_log do $funcname daemon info "initial setup"
 			echo "$table_id $table_name" >>'/etc/iproute2/rt_tables'
+			ip route add default via "$( _ipsystem getvar WIFIVPNSERVERADR )" dev "$tunnel_dev" table "$table_name"
 
 			#     0 = table local
 			# 32766 = table main
@@ -36,7 +37,6 @@ _vpn_hideandseek_user_add()
 
 		ip rule add from "$ip/32" prio "$user_id" table "$table_name"
 		ip rule add to   "$ip/32" prio "$(( user_id + 1 ))" lookup main
-		ip route add default via "$( _ipsystem getvar WIFIVPNSERVERADR )" dev "$tunnel_dev" table "$table_name"
 		ip route flush cache
 
 		_log do $funcname daemon info "activated for $ip"
@@ -56,11 +56,18 @@ _vpn_hideandseek_user_del()
 {
 	local funcname='vpn_hideandseek_user_del'
 	local ip="$1"
+	local user_id
 	local table_name='hideandseek'
 	local markerfile="/tmp/$table_name.$ip"
 
-	# already deleted?
-	[ -e "$markerfile" ] || return 0
+	if [ -e "$markerfile" ]; then
+		read user_id "$markerfile"
+	else
+		return 0
+	fi
 
-	# fixme!
+	ip rule del from "$ip/32" prio "$user_id" table "$table_name"
+	ip rule del to   "$ip/32" prio "$(( user_id + 1 ))" lookup main
+
+	_log do $funcname daemon info "deleted $ip"
 }
