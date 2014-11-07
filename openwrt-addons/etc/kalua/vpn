@@ -1,0 +1,59 @@
+_vpn_hideandseek_master_get()
+{
+	echo $ip
+}
+
+_vpn_hideandseek_user_add()
+{
+	local funcname='vpn_hideandseek_user_add'
+	local ip="$1"
+	local table_name='hideandseek'
+	local table_id=50
+	local tunnel_dev='tap0'
+	local user_id myhna
+	local markerfile="/tmp/$table_name.$ip"
+
+	# already applied?
+	[ -e "$markerfile" ] && return 0
+
+	if _net local_inet_offer >/dev/null; then
+		grep -q ^"$table_id $table_name" '/etc/iproute2/rt_tables' || {
+			_log do $funcname daemon info "initial setup"
+			echo "$table_id $table_name" >>'/etc/iproute2/rt_tables'
+
+			# 32767 = default table
+			# 32766 = main table
+			echo '30000' >/tmp/$funcname
+# needed?
+#			myhna="$( _netfilter_myhna )"
+#			ip rule add from "$myhna" prio 30000 table main
+		}
+
+		read user_id <"/tmp/$funcname"
+		echo "$user_id" >"$markerfile"
+		_watch counter "/tmp/$funcname" increment 2
+
+		ip rule add from "$ip/32" prio "$user_id" table "$table_name"
+		ip rule add to   "$ip/32" prio "$(( user_id + ))" lookup main
+		ip route add default via "$( _ipsystem getvar WIFIVPNSERVERADR )" dev "$tunnel_dev" table "$table_name"
+		ip route flush cache
+
+		_log do $funcname daemon info "activated for $ip"
+	else
+		:
+		# delegate
+	fi
+}
+
+_vpn_hideandseek_user_del()
+{
+	local funcname='vpn_hideandseek_user_del'
+	local ip="$1"
+	local table_name='hideandseek'
+	local markerfile="/tmp/$table_name.$ip"
+
+	# already deleted?
+	[ -e "$markerfile" ] || return 0
+
+	# fixme!
+}
