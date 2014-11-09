@@ -186,6 +186,15 @@ register_patch()
 	if [ "$name" = 'init' ]; then
 		[ -e "$file" ] && rm "$file"
 	else
+		case "$name" in
+			'DIR:'|*':')
+			;;
+			*)
+				# better readable
+				name="  $name"
+			;;
+		esac
+
 		grep -sq ^"$name"$ "$file" || {
 			echo "$name" >>"$file"
 		}
