@@ -1,3 +1,107 @@
+_vpn_innercity_master_vtund_write_config()
+{
+	local config="${1:-/tmp/vtund.conf}"
+	local password="${2:-ff}"
+	local node=2
+	local node_max=1024
+
+	cat >"$config" <<EOF
+default {
+	type ether ;
+	compress no ;
+	encrypt no ;
+	keepalive yes ;
+	multi no ;
+	stat no ;
+}
+EOF
+
+	while [ $node -lt $node_max ]; do {
+
+		cat >>"$config" <<EOF
+
+Node$node {
+	device tap$node ;
+	passwd $password ;
+
+	up {   program ". /tmp/loader; _vpn innercity_master_iface up   %%" wait; } ;
+	down { program ". /tmp/loader; _vpn innercity_master_iface down %%" wait; } ;
+}
+EOF
+		node=$(( node + 1 ))
+	} done
+}
+
+_vpn_innercity_master_vtund()
+{
+	local action="$1"
+	local config="${2:-/tmp/vtund.conf}"
+
+	case "$action" in
+		fire)
+			/usr/local/sbin/vtund -f "$config" -P 5001 -s
+		;;
+		start)
+			_vpn innercity_master_vtund_write_config
+			_vpn innercity_master_vtund fire
+		;;
+		stop)
+			killall vtund
+		;;
+		restart)
+			_vpn innercity_master_vtund stop
+			_vpn innercity_master_vtund fire
+		;;
+	esac
+}
+
+_vpn_innercity_master_iface()
+{
+	local action="$1"	# up|down
+	local dev="$2"
+
+	local limit=8		# throttling
+	local limit_burst=5
+	local mask=30
+	local mtu=1450
+	local olsrd_config='/etc/olsrd.conf'
+	local olsrd_bin='/usr/sbin/olsrd'	# ln -s /root/olsrd1/olsrd-0.6.7/olsrd /usr/sbin/olsrd
+
+	if [ "$action" = 'up' ]; then
+		local remote_nodenumber="${dev//tap/}"		# tap276 -> 276
+		local tunnel_ip_here="$( ipsystem getvar 'WIFIVPNSERVERADR' $remote_nodenumber )"
+
+		ip address add $tunnel_ip_here/$mask dev $dev
+		ip link set dev $dev mtu $mtu up
+		iptables -I INPUT  -p udp --dport 698 -i $dev -j DROP
+		iptables -I INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+		iptables -I OUTPUT -p udp --dport 698 -o $dev -j DROP
+		iptables -I OUTPUT -p udp --dport 698 -o $dev -m limit --limit $limit/s --limit-burst $ -j ACCEPT
+		iptables -I FORWARD -i $dev -j ACCEPT
+		iptables -I FORWARD -o $dev -j ACCEPT
+
+		mkdir /tmp/FREIFUNK_TUNNEL && {
+			iptables -t nat -I POSTROUTING -s 10.0.0.0/8 ! -d 10.0.0.0/8 -j MASQUERADE
+			# TODO: activate forwarding in kernel
+		}
+
+		grep -q "\"$dev\"" "$olsrd_config" || {
+			sed -i "s/Interface /Interface \"$dev\" /" "$olsrd_config"
+		}
+
+		# ln -s /root/olsrd1/olsrd-0.6.7/olsrd /usr/sbin/olsrd
+		pidof olsrd >/dev/null || $olsrd_bin -f "$olsrd_config" -nofork &
+	else
+		ip link set dev $dev down
+		$IPT -D FORWARD -o $dev -j ACCEPT
+		$IPT -D FORWARD -i $dev -j ACCEPT
+		$IPT -D OUTPUT -p udp --dport 698 -o $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+		$IPT -D OUTPUT -p udp --dport 698 -o $dev -j DROP
+		$IPT -D INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+		$IPT -D INPUT  -p udp --dport 698 -i $dev -j DROP
+	fi
+}
+
 _vpn_hideandseek_master_get()
 {
 	echo '/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
