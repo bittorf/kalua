@@ -7,6 +7,7 @@
 	show_pregenerated()
 	{
 		[ -e '/tmp/statuspage_neigh_pregenerated' ] || return 1
+		_net ip4_is_private "$REMOTE_ADDR" || return 0
 
 		if [ -e "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR" ]; then
 			if [ $( _file age "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR" ) -gt 600 ]; then
