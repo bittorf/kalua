@@ -1,6 +1,30 @@
 #!/bin/sh
 . /tmp/loader
-[ -n "$REMOTE_ADDR" ] && _http header_mimetype_output 'text/html'
+
+[ -n "$REMOTE_ADDR" ] && {
+	_http header_mimetype_output 'text/html'
+
+	show_pregenerated()
+	{
+		[ -e '/tmp/statuspage_neigh_pregenerated' ] || return 1
+
+		if [ -e "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR" ]; then
+			if [ $( _file age "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR" ) -gt 600 ]; then
+				return 0
+			else
+				return 1
+			fi
+		else
+			return 0
+		fi
+	}
+
+	show_pregenerated && {
+		touch "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR"
+		cat '/tmp/statuspage_neigh_pregenerated'
+		exit 0
+	}
+}
 
 remote_hops()
 {
