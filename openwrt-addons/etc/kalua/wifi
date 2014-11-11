@@ -25,7 +25,7 @@ _wifi_change_essid_ap()
 	local funcname="wifi_change_essid_ap"
 	local option="$1"	# e.g. <empty> OR 'original'
 	local file="/tmp/$funcname"
-	local i essid		# find $i -> WIFIDEV and restart these via phy_restart()
+	local i essid age	# find $i -> WIFIDEV and restart these via phy_restart()
 
 	if [ "$option" = "original" ]; then
 		# dont work, when it was never changed
@@ -41,8 +41,10 @@ _wifi_change_essid_ap()
 				essid="$( uci get wireless.@wifi-iface[$i].ssid_old )"
 				uci delete wireless.@wifi-iface[$i].ssid_old
 				uci set wireless.@wifi-iface[$i].ssid="${essid:-$CONFIG_PROFILE-$NODENUMBER}"
+
+				age="$( _file age "$file" humanreadable)"
+				echo >>$SCHEDULER "_weblogin authserver_message '$funcname() $option after $age'"
 				rm "$file"
-				echo >>$SCHEDULER "_weblogin authserver_message '$funcname() $option'"
 			else
 				essid="$( uci get wireless.@wifi-iface[$i].ssid )"
 				uci set wireless.@wifi-iface[$i].ssid_old="$essid"
