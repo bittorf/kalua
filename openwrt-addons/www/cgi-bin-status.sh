@@ -271,8 +271,17 @@ output_table()
 					channel="/Kanal&nbsp;$channel"
 
 					# 95 = noise_base / drivers_default
+					#
 					# http://en.wikipedia.org/wiki/Thermal_noise#Noise_power_in_decibels
 					# https://lists.open-mesh.org/pipermail/b.a.t.m.a.n/2014-April/011911.html
+					# http://comments.gmane.org/gmane.linux.drivers.ath9k.devel/6100
+					#
+					# root@box:~ cat /sys/kernel/debug/ieee80211/phy0/ath9k/dump_nfcal
+					# Channel Noise Floor : -95
+					# Chain | privNF | # Readings | NF Readings
+					#  0	 -117	 5		 -116 -117 -117 -117 -117
+					#  3	 -117	 5		 -116 -117 -116 -117 -117
+					#
 					#
 					# see on b43: snr=-98
 					snr="$(( 95 + $snr ))"

@@ -201,6 +201,8 @@ system.@monitoring[0].pingcheck		- IP
 system.@monitoring[0].pingcheck_lazy	- bool
 system.@monitoring[0].button_smstext	- text
 system.@monitoring[0].button_phone	- list phonenumbers
+system.@monitoring[0].url		- url
+system.@monitoring[0].statusprecache    - bool
 
 system.@admin[0].location		- string
 system.@admin[0].latlon			- string
@@ -217,8 +219,6 @@ system.@system[0].noswinstall		- bool
 system.@profile[0].name			- string
 system.@profile[0].nodenumber		- integer
 system.@profile[0].ipsystem		- string
-
-system.@monitoring[0].url		- url
 
 system.@fwupdate[0].url			- url
 system.@fwupdate[0].mode		- string: 0|stable|beta|testing
