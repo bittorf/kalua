@@ -57,6 +57,7 @@ _vpn_innercity_master_vtund()
 
 _vpn_innercity_master_iface()
 {
+	local funcname='vpn_innercity_master_iface'
 	local action="$1"	# up|down
 	local dev="$2"		# e.g. tap276
 
@@ -71,17 +72,28 @@ _vpn_innercity_master_iface()
 		local remote_nodenumber="${dev//tap/}"		# tap276 -> 276
 		local tunnel_ip_here="$( _ipsystem getvar 'WIFIVPNSERVERADR' $remote_nodenumber )"
 
+		ip link show dev $dev || {
+			_log do $funcname daemon alert "dev $dev still active, removing it"
+			ip tuntap del dev $dev mode tap
+			# will be restarted later
+			killall olsrd
+
+			ip link show dev $dev || {
+				_log do $funcname daemon alert "dev $dev unremoveable"
+			}
+		}
+
 		ip address add $tunnel_ip_here/$mask dev $dev
 		ip link set dev $dev mtu $mtu up
-		iptables -I INPUT  -p udp --dport 698 -i $dev -j DROP
-		iptables -I INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
-		iptables -I OUTPUT -p udp --dport 698 -o $dev -j DROP
-		iptables -I OUTPUT -p udp --dport 698 -o $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
-		iptables -I FORWARD -i $dev -j ACCEPT
-		iptables -I FORWARD -o $dev -j ACCEPT
+		$IPT -I INPUT  -p udp --dport 698 -i $dev -j DROP
+		$IPT -I INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+		$IPT -I OUTPUT -p udp --dport 698 -o $dev -j DROP
+		$IPT -I OUTPUT -p udp --dport 698 -o $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+		$IPT -I FORWARD -i $dev -j ACCEPT
+		$IPT -I FORWARD -o $dev -j ACCEPT
 
 		mkdir /tmp/FREIFUNK_TUNNEL && {
-			iptables -t nat -I POSTROUTING -s 10.0.0.0/8 ! -d 10.0.0.0/8 -j MASQUERADE
+			$IPT -t nat -I POSTROUTING -s 10.0.0.0/8 ! -d 10.0.0.0/8 -j MASQUERADE
 			# TODO: activate forwarding in kernel
 		}
 
@@ -99,6 +111,8 @@ _vpn_innercity_master_iface()
 		$IPT -D OUTPUT -p udp --dport 698 -o $dev -j DROP
 		$IPT -D INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
 		$IPT -D INPUT  -p udp --dport 698 -i $dev -j DROP
+
+#		ip link show dev $dev || ip tuntap del dev $dev mode tap
 	fi
 }
 
