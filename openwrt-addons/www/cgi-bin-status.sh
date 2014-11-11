@@ -123,7 +123,7 @@ output_table()
 	build_remote_hostname()
 	{
 		local remote_ip="$1"
-		local cachefile="/tmp/build_remote_hostname_$ip"
+		local cachefile="/tmp/build_remote_hostname_${remote_ip}"
 		local temp_hostname
 
 		[ -e "$cachefile" ] && {
