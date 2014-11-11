@@ -54,16 +54,14 @@ _netfilter_start()
 		_netfilter adblocking_start
 	}
 
-	case "$( uci -q get system.@weblogin[0].enabled )" in
-		1|on|true|enabled|yes)
-			_db restore
+	bool_true 'system.@weblogin[0].enabled' && {
+		_db restore
 
-			[ -e "/www/SIMPLE_MESHNODE" ] || {
-				_netfilter splash_start
-				echo >>$SCHEDULER '_netfilter splash_autoadd'
-			}
-		;;
-	esac
+		[ -e "/www/SIMPLE_MESHNODE" ] || {
+			_netfilter splash_start
+			echo >>$SCHEDULER '_netfilter splash_autoadd'
+		}
+	}
 
 	_netfilter traffic_control_needed && {
 		grep -q ^"sch_htb " /proc/modules || insmod sch_htb
@@ -1678,28 +1676,19 @@ EOF
 		}
 	fi
 
-	case "$( uci -q get system.@weblogin[0].hideandseek )" in
-		1|on|true|enabled|yes)
-			_vpn hideandseek_user_add "$ip"
-		;;
-	esac
+	bool_true 'system.@weblogin[0].hideandseek' && {
+		_vpn hideandseek_user_add "$ip"
+	}
 
 	return 0
 }
 
-_netfilter_user_dataretention_needed()	# disabled till memory-probs are solved
+_netfilter_user_dataretention_needed()
 {
-	case "$CONFIG_PROFILE" in
-		elephant*|galerie*|preskil*|schoeneck*|boltenhagendh*)
-			return 1
-		;;
-		liszt28*)
-			[ -n "$LOWMEM" ] || return 0
-		;;
-	esac
-
-	[ "$( uci -q get system.@vds[0].enabled )" = "1" ] || return 1
+	# disabled till memory-probs are solved
 	return 1
+
+	bool_true 'system.@vds[0].enabled'
 }
 
 _netfilter_set_arp()
@@ -1762,7 +1751,7 @@ _netfilter_user_del()
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
 
-		[ "$( uci -q get system.@weblogin[0].logtraffic )" = '1' ] && {
+		bool_true 'system.@weblogin[0].logtraffic' && {
 			comment="$reason $( _db user_macenabled_comment_get "$mac" )"
 			traffic="$( _netfilter stats "$mac" megabytes )"
 			message="mac: $mac ip: $ip traffic: $traffic mb comment: $comment"
@@ -1776,11 +1765,9 @@ _netfilter_user_del()
 		_netfilter traffic_control_user_del "$mac"
 		_netfilter user_dataretention_del "$mac" "$ip"
 
-		case "$( uci -q get system.@weblogin[0].hideandseek )" in
-			1|on|true|enabled|yes)
-				_vpn hideandseek_user_del "$ip"
-			;;
-		esac
+		bool_true 'system.@weblogin[0].hideandseek' && {
+			_vpn hideandseek_user_del "$ip"
+		}
 
 		[ -e "/tmp/NETFILTER/USER/$mac/user_del" ] && {
 			. "/tmp/NETFILTER/USER/$mac/user_del"
@@ -1876,7 +1863,7 @@ _netfilter_user_dataretention_del()
 		$IPT -t mangle -F mark_connection_new
 		$IPT -t mangle -X mark_connection_new
 
-		[ "$( uci -q get system.@vds[0].enabled )" = '1' ] && {
+		bool_true 'system.@vds[0].enabled' && {
 			/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+
 		}
 		/etc/init.d/ulogd stop

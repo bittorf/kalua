@@ -533,11 +533,12 @@ _weblogin_device_or_customer_needs_admin_interaction()
 		;;
 	esac
 
-	uci -q get system.@weblogin[0].blocked >/dev/null
+	bool_true 'system.@weblogin[0].blocked'
 }
 
 _weblogin_login_check()			# fixme! send HOSTNAME?
 {					# fixme! answer must be a challenge/response:	// prevent replay attacks!
+	local funcname='weblogin_login_check'
 	local FUNC="weblogin_login_check"
 	local USER="$1"			#        1. send hash of user/pass
 	local PASS="$2"			#        2. server answers with hash_of(1+my_secret_sshid) + auth=true/false
@@ -545,9 +546,9 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	local SIGNAL="$4"
 	local LANG="$( _translate lang $5 )"
 	local KEYWORD="$6"		# can be 'plaintext'
-	local FREE HASH ANSWER URL
+	local FREE HASH ANSWER URL dbsize
 
-	case "$( uci get system.@weblogin[0].auth_credentials )" in
+	case "$( uci -q get system.@weblogin[0].auth_credentials )" in
 		simple)
 		;;
 		*)
@@ -567,10 +568,10 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 		local string="$1"
 
 		case "$string" in
-			" "*|*" ")		# spaces
+			' '*|*' ')		# spaces
 				return 0
 			;;
-			"	"*|*"	")	# tabs
+			'	'*|*'	')	# tabs
 				return 0
 			;;
 			*)
@@ -615,84 +616,13 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 		esac
 	}
 
-	if grep -sq "$HASH" "/tmp/USERDB_COPY"; then
+	if   bool_true 'system.@weblogin[0].freelan'; then
+		_log do $funcname daemon info '[OK] is from LAN'
+		FREE=1
+	elif grep -sq "$HASH" "/tmp/USERDB_COPY"; then
 		FREE=1
 	else
 		case "$CONFIG_PROFILE" in
-			ilm1*)
-				case "$MAC" in
-					'f8:d0:ac:47:fc:94'|'7c:dd:90:43:1a:4d')
-						_log do $FUNC daemon info "[OK] special mac: $MAC"
-						FREE=1
-					;;
-				esac
-			;;
-			ejbw*)
-				case "$NODENUMBER" in
-					43)
-						mac_is_from_lan "$MAC" && {
-							_log do $FUNC daemon info "FREE - is from LAN"
-							FREE=1
-						}
-					;;
-				esac
-			;;
-			ffweimar*)
-				case "$SIGNAL" in
-					*dhcp*)
-						_log do $FUNC daemon info "DHCP-mode, profile is $CONFIG_PROFILE - ignoring"
-					;;
-					*)
-						_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE"
-						FREE=1
-					;;
-				esac
-			;;
-			liszt28*)
-				mac_is_from_lan "$MAC" && {
-					FREE=1
-				}
-
-				case "$WIFIADR" in
-					10.10.8.1|10.10.15.1)		# bar reservebank
-						FREE=1
-					;;
-				esac
-			;;
-			leonardo*)
-				case "$LANADR" in
-					10.10.3.33)
-						_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV"
-						FREE=1
-					;;
-				esac
-			;;
-			rehungen*|extrawatt*)
-				mac_is_from_lan "$MAC" && {
-					_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV"
-					FREE=1
-				}
-
-				case "$LANADR" in
-					10.10.254.*)
-						_log do $FUNC daemon info "login not allowed: user: $USER pass: $PASS mac: $MAC"
-						return 1
-					;;
-					10.10.152.33)
-						[ "$HASH" = "38178cdf6173811999516635a809ede3" ] && {
-							FREE=1		# fixme!
-						}
-					;;
-				esac
-			;;
-			versilia*)
-				[ "$( uci get network.lan.ipaddr )" = "10.63.191.225" ] && {
-					mac_is_from_lan "$MAC" && {
-						_log do $FUNC daemon info "FREE, is profile $CONFIG_PROFILE from LANDEV on 10.63.191.225"
-						FREE=1		# fixme!
-					}
-				}
-			;;
 			spbansin*)
 				is_valid_booking_number()	# 1234-2011 |  12345-2011
 				{
@@ -824,7 +754,6 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 				*":"*|"")	# macaddress OR empty
 				;;
 				*)
-					local dbsize
 					if [ -e "/tmp/DB/USER/login/meta_index" ]; then
 						dbsize="/tmp/DB/USER/login/meta_index = $( _file size "/tmp/DB/USER/login/meta_index" ) bytes"
 					else

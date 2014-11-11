@@ -288,11 +288,9 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 						_olsr throttle_traffic "$2"
 
-						case "$( uci -q get olsrd.@meta[0].fixedarp )" in
-							1|on|true|enabled|yes)
-								[ -e "/tmp/OLSR/fixed_arp_$2" ] || echo >>$SCHEDULER "_olsr force_static_arp $2"
-							;;
-						esac
+						bool_true 'olsrd.@meta[0].fixedarp' && {
+							[ -e "/tmp/OLSR/fixed_arp_$2" ] || echo >>$SCHEDULER "_olsr force_static_arp $2"
+						}
 					;;
 				esac
 
@@ -395,13 +393,7 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed
 
 	[ -e "$dir/${ip_or_dev:-no_value}" ] && return 0
 
-	case "$( uci -q get olsrd.@meta[0].throttle_traffic )" in
-		1|on|true|enabled|yes)
-		;;
-		*)
-			return 1
-		;;
-	esac
+	bool_true 'olsrd.@meta[0].throttle_traffic' || return 1
 
 	[ "$ip_or_dev" = 'restart' -o "$option" = 'restart' ] && {
 		$IPT -D INPUT  -p udp --dport 698 -j OLSR

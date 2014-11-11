@@ -33,14 +33,12 @@ case "$ACTION" in
 							_net ip4_is_private "$PWANADR" && {
 								LIST_PRIV_WAN="$LIST_PRIV_WAN $PWANADR/$PWANMSK"
 
-								case "$( uci -q get system.@weblogin[0].enabled )" in
-									1|on|true|enabled|yes)
-										mkdir "/tmp/netfilter_allow_privnet_$PWANADR-$PWANMSK" && {
-											# dont splash these hosts
-											$IPT -t mangle -I PREROUTING -s $PWANADR/$PWANMSK -j ACCEPT
-										}
-									;;
-								esac
+								bool_true 'system.@weblogin[0].enabled' && {
+									mkdir "/tmp/netfilter_allow_privnet_$PWANADR-$PWANMSK" && {
+										# dont splash these hosts
+										$IPT -t mangle -I PREROUTING -s $PWANADR/$PWANMSK -j ACCEPT
+									}
+								}
 							}
 						;;
 					esac
@@ -49,12 +47,10 @@ case "$ACTION" in
 				# here we get the main-IP and no aliases
 				WANADR="$( ubus call network.interface.wan status | grep '"address": ' | head -n1 | cut -d'"' -f4 )"
 				if _net ip4_is_private "$WANADR"; then
-					case "$( uci -q get network.wan.public_ip )" in
-						1|on|true|enabled)
-							# we know it should be a public ip, but by accident... (e.g. 2nd internal DCHP)
-							echo >>$SCHEDULER_IMPORTANT 'ifup wan'
-						;;
-					esac
+					bool_true 'network.wan.public_ip' && {
+						# we know it should be a public ip, but by accident... (e.g. 2nd internal DCHP)
+						echo >>$SCHEDULER_IMPORTANT 'ifup wan'
+					}
 				else
 					_system maintenance_window_active || {
 						_log do $ACTION.$INTERFACE daemon alert "unscheduled event: WANADR: $WANADR"

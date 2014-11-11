@@ -195,6 +195,7 @@ system.@weblogin[0].auth_credentials	- string
 system.@weblogin[0].auth_type		- none, roomnumber, userpass
 system.@weblogin[0].blocked		- bool
 system.@weblogin[0].hideandseek		- bool
+system.@weblogin[0].freelan		- bool
 
 system.@monitoring[0].serverip		- IP
 system.@monitoring[0].pingcheck		- IP

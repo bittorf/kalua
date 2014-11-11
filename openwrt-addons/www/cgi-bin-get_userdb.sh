@@ -12,6 +12,9 @@ else
 		192.168.*.1)
 			# fixme! should match batman-originators
 		;;
+		192.168.112.2)
+			# fixme! (ejbw)
+		;;
 		$LOADR)
 			# localhost
 		;;

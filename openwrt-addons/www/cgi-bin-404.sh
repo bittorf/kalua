@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # [ -e "/tmp/service_ssh_nowatching" ] && {		# means: LOWMEM-Router
-	if uci -q get system.@httpsproxy[0].enabled >/dev/null ; then
+	if bool_true 'system.@httpsproxy[0].enabled'; then
 		. /tmp/loader
 		_http header_mimetype_output 'text/html'
 
