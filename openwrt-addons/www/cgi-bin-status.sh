@@ -140,15 +140,7 @@ output_table()
 				remote_hostname="$remote_ip"
 			else
 				# otherwise we could include a redirect/404
-				temp_hostname="$( _sanitizer do "$remote_hostname" strip_newlines hostname )"
-				if [ -z "$temp_hostname" ]; then
-					# generic: take website-title
-					temp_hostname="$( echo "$remote_hostname" | grep '<title>' | head -n1 )"
-					temp_hostname="$( echo "$temp_hostname" | cut -d'>' -f2 | cut -d'<' -f1 )"
-					remote_hostname="$( _sanitizer do "$temp_hostname" strip_newlines hostname )"
-				else
-					remote_hostname="$temp_hostname"
-				fi
+				remote_hostname="$( _sanitizer do "$remote_hostname" strip_newlines hostname )"
 			fi
 		}
 
@@ -159,7 +151,14 @@ output_table()
 			;;
 			'DOCTYPEhtml'*|'xmlversion'*|'htmlxml'*)
 				# fetched 404/error-page
-				remote_hostname="$remote_ip"
+				case "$remote_hostname" in
+					*'title'*)
+						remote_hostname="$( echo "$remote_hostname" | sed 's/^.*title\(.*\)title.*/\1/' )"
+					;;
+					*)
+						remote_hostname="$remote_ip"
+					;;
+				esac
 			;;
 		esac
 
