@@ -399,7 +399,7 @@ target_hardware_set()
 			# hint: the 'ASUS WL-500g Premium v2' needs the 'low power phy' compiled into b43
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
-			FILENAME_FACTORY=
+			FILENAME_FACTORY='openwrt-brcm47xx-squashfs.trx'
 		;;
 		'T-Mobile InternetBox TMD SB1-S'|'4G Systems MTX-1 Board')
 			# http://wiki.openwrt.org/inbox/t-mobile-internetbox
