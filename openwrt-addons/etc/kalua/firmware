@@ -402,14 +402,17 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 				;;
 				'b43'*|'ath'*|'cfg80211'|'mac80211'*|'compat'|'rt'??'00')
 					# dont unload compat_xtables
-					# Fonera/ralink-SoC with r42657 also affected
 					case "$filter_option" in
 						all|most|wifi)
-							# https://dev.openwrt.org/ticket/17706
-							# TODO: _system version 41391...42330
-							[ $( _system version short ) -ge 41391 -a $( _system version short ) -le 42330 ] || {
-								remove="true"
-							}
+							case "$( uname -r )" in
+								'3.10'*)
+									# https://dev.openwrt.org/ticket/17706
+									_system version '41391...42330' || remove='true'
+								;;
+								'3.14'*)
+									_system version '42657...43223' || remove='true'
+								;;
+							esac
 						;;
 					esac
 				;;
@@ -431,9 +434,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 			# https://dev.openwrt.org/ticket/14631
 			[ "$module" = 'gpio_button_hotplug' ] && {
-				[ $( _system version short ) -ge 39021 -a $( _system version short ) -le 39124 ] && {
-					remove=
-				}
+				_system version '39021...39124' && remote=
 			}
 
 			[ -n "$remove" ] && {
@@ -641,12 +642,10 @@ _firmware_burn()
 
 	_firmware configure_keep_files
 
-	case "$( _system version short )" in
-		34794|34795|34796|34797|34798|34799|34800|34801|34802|34803|34804|34805|34806|34807|34808|34809|34810|34811|34812|34813|34814)
-			# b0rken sysupgrade: https://dev.openwrt.org/changeset/34815/trunk
-			sed -i -e 's/pivot $RAM_ROOT/supivot $RAM_ROOT/' -e 's/pivot()/supivot()/' "/lib/upgrade/common.sh"
-		;;
-	esac
+	_system version '34794...34814' && {
+		# b0rken sysupgrade: https://dev.openwrt.org/changeset/34815/trunk
+		sed -i -e 's/pivot $RAM_ROOT/supivot $RAM_ROOT/' -e 's/pivot()/supivot()/' "/lib/upgrade/common.sh"
+	}
 
 	case "$( _system architecture )" in
 		brcm47xx)

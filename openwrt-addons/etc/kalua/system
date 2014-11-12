@@ -180,8 +180,9 @@ _system_globbing ()
 
 _system_version()	# fixme! use /etc/openwrt_version | /etc/openwrt_release
 {
-	local option="$1"				# e.g. "short"
+	local option="$1"				# e.g. 'short' or '41391...42330'
 	local file="/etc/freifunk-release"
+	local begin end short
 
 	if [ -e "$file" ]; then
 		case "$option" in
@@ -189,20 +190,28 @@ _system_version()	# fixme! use /etc/openwrt_version | /etc/openwrt_release
 				head -n1 "$file"			# e.g. '1.6.37'
 			;;
 			*)
-				grep ^Kit: "$file"			# e.g. 'fff_plus-26c3-000-12Feb2010-08uhr48'
+				grep ^'Kit:' "$file"			# e.g. 'fff_plus-26c3-000-12Feb2010-08uhr48'
 			;;
 		esac
 	else
 		if   [ -e '/etc/openwrt_version' ]; then
+			short="$( cut -b2- '/etc/openwrt_version' )"	# e.g. '12345'
+
 			case "$option" in
 				short)
+					echo "$short"
+				;;
+				*'...'*)
+					# e.g. 12345...23456
+					begin="$( echo "${option//./ }" | cut -d'.' -f1 )"
+					end="$(   echo "${option//./ }" | cut -d'.' -f2 )"
+
+					test $short -ge $begin -a $short -le $short || return 1
 				;;
 				*)
-					echo -n 'git'
+					echo "git$short"
 				;;
 			esac
-
-			cut -b2- '/etc/openwrt_version'			# e.g. '12345'
 
 			return 0
 		elif [ -e "/rom/etc/banner" ]; then
