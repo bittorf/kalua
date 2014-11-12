@@ -187,7 +187,7 @@ register_patch()
 		[ -e "$file" ] && rm "$file"
 	else
 		case "$name" in
-			'DIR:'|*':')
+			'DIR:'*|*':')
 			;;
 			*)
 				# better readable
