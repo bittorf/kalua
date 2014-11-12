@@ -1242,6 +1242,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
+				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
@@ -1253,6 +1254,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 
+
 				$funcname subcall 'shaping'
 				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
@@ -1263,6 +1265,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
+				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 #				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
