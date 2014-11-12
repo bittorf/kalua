@@ -398,8 +398,14 @@ target_hardware_set()
 		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2')
 			# hint: the 'ASUS WL-500g Premium v2' needs the 'low power phy' compiled into b43
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
-			FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
-			FILENAME_FACTORY='openwrt-brcm47xx-squashfs.trx'
+
+			if [ $( openwrt_revision_number_get ) -gt 41530 ]; then
+				FILENAME_SYSUPGRADE='openwrt-brcm47xx-generic-squashfs.trx'
+				FILENAME_FACTORY='openwrt-brcm47xx-generic-squashfs.trx'
+			else
+				FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
+				FILENAME_FACTORY='openwrt-brcm47xx-squashfs.trx'
+			fi
 		;;
 		'T-Mobile InternetBox TMD SB1-S'|'4G Systems MTX-1 Board')
 			# http://wiki.openwrt.org/inbox/t-mobile-internetbox
@@ -671,7 +677,7 @@ check_working_directory()
 	}
 }
 
-openwrt_revision_number_get()
+openwrt_revision_number_get()		# e.g. 43234
 {
 	local rev="$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 
