@@ -862,6 +862,13 @@ copy_firmware_files()
 		error=1
 	fi
 
+	# scp bin/ar71xx/attic/TP-LINK\ TL-WR1043ND.openwrt\=r43238_kernel\=3.10.58_option\=Standard\,VDS\,kalua\@5415ee5_rootfs\=squash_image\=sysupgrade.bin root@intercity-vpn.de:/var/www/firmware/ar71xx/images/testing/usecase/
+	# auf server:
+	# cd /var/www/firmware/ar71xx/images/testing/usecase/
+	# cd Standard,VDS,kalua
+	# rm "TP-LINK TL-WR1043ND.bin"
+	# ln -s ../TP-LINK\ TL-WR1043ND.openwrt\=r43238_kernel\=3.10.58_option\=Standard\,VDS\,kalua\@5415ee5_rootfs\=squash_image\=sysupgrade.bin "TP-LINK TL-WR1043ND.bin"
+
 	[ -n "$RELEASE" -a -e "$file" ] && {
 		# workaround: when build without kalua
 		[ -z "$LIST_OPTIONS_DOWNLOAD" ] && LIST_OPTIONS_DOWNLOAD="$LIST_OPTIONS"
