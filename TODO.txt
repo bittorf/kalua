@@ -1336,6 +1336,8 @@ TODO-important:
   - hostapd-crash: test: r43059+
   - odhcp6c-crash: test: r43056+ https://dev.openwrt.org/ticket/18212 - r43056 still affected
   - ag71xx-fix:                  https://dev.openwrt.org/ticket/6754
+                                 https://dev.openwrt.org/ticket/14035
+                                 https://dev.openwrt.org/ticket/11217
   - ar8216-fix:			 https://dev.openwrt.org/ticket/17800 - solved, but not commited yet
   - atheros-watchdog:		 ???				      - r43102 still affected (dhfl)
   - pppoe/autoreconnect fails:   https://dev.openwrt.org/ticket/18026
@@ -1361,7 +1363,28 @@ mac-schutz ejbw ausschalten
 
 
 # fix olsrd2-build: v.0.6.0
-# vtund: link up/down - make sure IF is not blocked by olsrd: before 'up', clean old ifs or even kill olsrd
+# vtund: link up/down
+  - make sure IF is not blocked by olsrd: before 'up', clean old ifs or even kill olsrd
+  - check in intervals, if all tap's have an ipv6 - if not - kill olsrd
+  - script can hang:
+  root@server1:~# lsof | grep tun|grep -v vtun
+  tincd      2852          root    4u      CHR             10,200      0t0 1269554737 /dev/net/tun
+  sh        24056          root    4u      CHR             10,200      0t0 1269554737 /dev/net/tun
+  olsrd     24059          root    4u      CHR             10,200      0t0 1269554737 /dev/net/tun
+  - ps:
+  24056 ?        S      0:00 sh -c . /tmp/loader; _vpn; _vpn_innercity_master_iface up   tap81
+  #
+dev_ok()
+{
+  cut -d':' -f1 /proc/net/dev | while read DEV; do
+    case "$DEV" in 'tap'*|' tap'*)
+      ip address show dev $DEV | grep -q 'inet6 ' || return 1
+    esac
+  done
+}
+
+dev_ok || olsr_restart
+
 # $IPT -> function?
 # vpn-server: ordentliche index-page + robots.txt
 # test: env-space gets exhausted with 128k VARS= ??? (including funcs?)
