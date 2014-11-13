@@ -40,7 +40,7 @@ remote_hops()
 output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
-	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
+	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file noisefloor
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
 	local head_list neigh_list neigh_file neigh age inet_offer bytes cost_best cost_best_time th_insert mult_ip count cost_align
 	local symbol_infinite='<big>&infin;</big>'
@@ -299,8 +299,21 @@ output_table()
 					#  0	 -117	 5		 -116 -117 -117 -117 -117
 					#  3	 -117	 5		 -116 -117 -116 -117 -117
 					#
+					# root@TP1043-2.4GHz:~ cat /sys/kernel/debug/ieee80211/phy0/ath9k/dump_nfcal
+					# Channel Noise Floor : -95
+					# Chain | privNF | # Readings | NF Readings
+					#  0	 -93	 5		 -92 -93 -93 -93 -91
+					#  1	 -89	 5		 -89 -89 -89 -89 -88
+					#  2	 -85	 5		 -85 -85 -85 -85 -85
 					#
 					# see on b43: snr=-98
+
+#					if [ -z "$noisefloor" -a -e "/sys/kernel/debug/ieee80211/phy0/ath9k/dump_nfcal" ]; then
+#						:
+#					else
+#						noisefloor=95
+#					fi
+
 					snr="$(( 95 + $snr ))"
 
 					# TODO: auto-adjust noise_base for this dev/channel
