@@ -565,7 +565,8 @@ cat <<EOF
  </head>
  <body>
   <h1>$HOSTNAME &ndash; No. $NODENUMBER (mit OpenWrt r$( _system version short ) auf $HARDWARE)</h1>
-  <big><a href='#'> OLSRv1-Verbindungen </a> ${AGE_HUMANREADABLE}&emsp;</big><small>Version: $( _olsr version )</small><br><br>
+  <big><a href='#'> OLSRv1-Verbindungen </a> ${AGE_HUMANREADABLE}&emsp;</big>
+   <small>Version: $( _olsr version ) | system uptime: $( _system uptime humanreadable )</small><br><br>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, Gatewaywechsel: $GATEWAY_JITTER)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0' class='sortable'>
