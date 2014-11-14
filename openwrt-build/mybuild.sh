@@ -527,7 +527,6 @@ config2git()
 	local hardware destfile arch dir
 	local strip="kalua/openwrt-config/hardware/strip_config.sh"
 	read hardware <KALUA_HARDWARE
-	
 
 	destfile="kalua/openwrt-config/hardware/$hardware/openwrt.config"
 	cp -v .config "$destfile"
