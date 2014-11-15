@@ -152,30 +152,48 @@ if [ -e '/tmp/vtund.sh' ]; then
 	if pidof vtund >/dev/null; then
 		logread >'/tmp/logread.out'
 
-		if   grep -q 'Connection timed out' '/tmp/logread.out'; then
+		dev_has_probs()
+		{
+			if ip address show dev "$1" | grep -q 'inet6 '; then
+				return 1
+			else
+				return 0
+			fi
+		}
+
+		restart_vtund()
+		{
+			_log do check_vtund daemon alert "restarting: $1"
+			killall vtund
+			. '/tmp/vtund.sh'
+		}
+
+		if   dev_has_probs 'tap0'; then
+			restart_vtund "dev is not fully up"
+		elif grep -q 'Connection timed out' '/tmp/logread.out'; then
 			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | grep 'Connection timed out' '/tmp/logread.out' | wc -l ) -gt 5 ] && {
 				grep -q ' vtund: link_up ' '/tmp/logread.out' || {
-					_log do check_vtund daemon info "restarting: our pubip has changed?"
-					killall vtund
-					. '/tmp/vtund.sh'
+					restart_vtund "our pubip has changed?"
 				}
 			}
 		elif grep -q "Can't resolv server address" '/tmp/logread.out'; then
 			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | grep "Can't resolv server address" '/tmp/logread.out' | wc -l ) -gt 5 ] && {
-				_log do check_vtund daemon info "restarting: servers pubip has changed?"
-				killall vtund
-				. '/tmp/vtund.sh'
+				restart_vtund "servers pubip has changed?"
 			}
 		fi
 
 		rm '/tmp/logread.out'
 	else
+		_log do check_vtund daemon alert "starting up after crash"
 		. '/tmp/vtund.sh'
 	fi
 else
 	[ -e "/etc/vtund.conf" ] && {			# startup-code must be a comment at first line
 		grep -q ^'# vtund ' "/etc/vtund.conf" && {
 			head -n1 "/etc/vtund.conf" | cut -b 2- >"/tmp/vtund.sh"
+
+			_log do check_vtund daemon info "starting up"
+			. '/tmp/vtund.sh'
 		}
 	}
 fi
