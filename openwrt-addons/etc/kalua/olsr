@@ -546,7 +546,24 @@ _olsr_daemon()
 
 			for ACTION in $LIST; do {
 				_log do $funcname daemon $LOGPRIO "$ACTION: $REASON"
-				/etc/init.d/*olsrd $ACTION | logger -s
+
+				if [ -e /etc/init.d/*olsrd ]; then
+					/etc/init.d/*olsrd $ACTION | logger -s
+				else
+					# on vpn-server:
+					# ln -s /root/olsrd1/olsrd-0.6.7/olsrd /usr/sbin/olsrd
+					local olsrd_bin='/usr/sbin/olsrd'
+					local olsrd_config='/etc/olsrd.conf'
+
+					case "$ACTION" in
+						stop)
+							killall olsrd
+						;;
+						start)
+							$olsrd_bin -f "$olsrd_config" -nofork &
+						;;
+					esac
+				fi
 
 				case "$ACTION" in
 					stop)
