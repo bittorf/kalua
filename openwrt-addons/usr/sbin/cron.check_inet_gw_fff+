@@ -146,62 +146,12 @@ pidof bat_events >/dev/null && {
 # should not happen:
 [ "$( _file size '/tmp/USERDB_COPY' )" = '0' ] && FIRST_RUN="true"
 
-if [ -e '/tmp/vtund.sh' ]; then
-	# todo: use a function and more varnames
-	# maybe better?: grep "tap[0-9]:" /proc/net/dev
-	if pidof vtund >/dev/null; then
-		logread >'/tmp/logread.out'
-
-		dev_has_probs()
-		{
-			if ip address show dev "$1" | grep -q 'inet6 '; then
-				return 1
-			else
-				return 0
-			fi
-		}
-
-		restart_vtund()
-		{
-			_log do check_vtund daemon alert "restarting: $1"
-			killall vtund
-			. '/tmp/vtund.sh'
-		}
-
-		if   dev_has_probs 'tap0'; then
-			restart_vtund "dev is not fully up"
-		elif grep -q 'Connection timed out' '/tmp/logread.out'; then
-			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | grep 'Connection timed out' '/tmp/logread.out' | wc -l ) -gt 5 ] && {
-				grep -q ' vtund: link_up ' '/tmp/logread.out' || {
-					restart_vtund "our pubip has changed?"
-				}
-			}
-		elif grep -q "Can't resolv server address" '/tmp/logread.out'; then
-			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | grep "Can't resolv server address" '/tmp/logread.out' | wc -l ) -gt 5 ] && {
-				restart_vtund "servers pubip has changed?"
-			}
-		fi
-
-		rm '/tmp/logread.out'
-	else
-		_log do check_vtund daemon alert "starting up after crash"
-		. '/tmp/vtund.sh'
-	fi
-else
-	[ -e "/etc/vtund.conf" ] && {			# startup-code must be a comment at first line
-		grep -q ^'# vtund ' "/etc/vtund.conf" && {
-			head -n1 "/etc/vtund.conf" | cut -b 2- >"/tmp/vtund.sh"
-
-			_log do check_vtund daemon info "starting up"
-			. '/tmp/vtund.sh'
-		}
-	}
-fi
+# _vpn hideandseek_vtund check_on_client
 
 echo "$COST_INT"	>'/tmp/GATEWAY_CHECK_RECENT_COSTINT_ONLY'
 echo "$GATEWAY"		>'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
 
-echo "DATE=$( _system date humanreadable ); HOSTNAME=$( _net ip2dns $GATEWAY ); $OUT"		>/tmp/GATEWAY_CHECK_RECENT
+echo "DATE=$( _system date humanreadable ); HOSTNAME=$( _net ip2dns $GATEWAY ); $OUT" >'/tmp/GATEWAY_CHECK_RECENT'
 
 if [ -e "/tmp/service_ssh_nowatching" ]; then
 	cp "/tmp/GATEWAY_CHECK_RECENT" "/tmp/ARCHIV_TRACEINET"
@@ -299,13 +249,7 @@ _log do guess_gateway daemon debug "$OUT"
 	}
 
 	if userdb_copy_needed; then
-		case "$CONFIG_PROFILE" in
-			schoeneck*|limona*|liszt28*|rehungen*)
-			;;
-			*)
-				touch '/tmp/FREE'
-			;;
-		esac
+		bool_true 'system.@weblogin[0].respect_missing_db' || touch '/tmp/FREE'
 
 		_system maintenance_window_active && {
 			if [ -e "/tmp/OLSR/ROUTING_TABLE_MAIN" ]; then

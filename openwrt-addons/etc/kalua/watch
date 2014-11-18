@@ -1451,13 +1451,28 @@ _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 {
 	local option="$1"
 	local ethmode="10baseT-HD"
+	local out
 
 	case "$option" in
 		force)
 		;;
 		*)
-			[ "$HARDWARE" = "Ubiquiti Nanostation2" ] || return 0
-			[ "$( uci get wireless.radio0.macaddr )" = "00:15:6d:ad:5c:26" ] || return 0
+			case "$HARDWARE" in
+				'Ubiquiti Bullet M')
+					out="$( mii-tool eth0 )"
+					[ "$out" = 'eth0: 100 Mbit, full duplex, link ok' ] || {
+						mii-tool --force=100baseTx-FD 'eth0'
+					}
+
+					return 0
+				;;
+				'Ubiquiti Nanostation2')
+					[ "$( uci get wireless.radio0.macaddr )" = "00:15:6d:ad:5c:26" ] || return 0
+				;;
+				*)
+					return 0
+				;;
+			esac
 		;;
 	esac
 

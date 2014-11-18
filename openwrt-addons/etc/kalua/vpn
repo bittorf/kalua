@@ -35,7 +35,7 @@ EOF
 _vpn_innercity_master_vtund()
 {
 	local funcname='vpn_innercity_master_vtund'
-	local action="$1"
+	local action="$1"	# check_on_server|fire|start|stop|restart
 	local config="${2:-/tmp/vtund.conf}"
 	local line
 
@@ -131,6 +131,7 @@ _vpn_innercity_master_iface()
 
 _vpn_hideandseek_master_get()
 {
+	# the effective inet_offering node
 	echo '/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
 }
 
@@ -169,11 +170,12 @@ _vpn_hideandseek_user_add()
 			echo "$table_id $table_name" >>'/etc/iproute2/rt_tables'
 		}
 
-		[ -e "/tmp/$funcname" ] && {
+		[ -e "/tmp/$funcname" ] || {
 			#         0 = table local
+			#       ... = table hideandseek *this*
 			#     32766 = table main
 			#     32767 = table default
-			echo '30000' >/tmp/$funcname
+			echo '20000' >/tmp/$funcname
 			ip route add default via "$( _ipsystem getvar WIFIVPNSERVERADR )" dev "$tunnel_dev" table "$table_name"
 		}
 
@@ -195,7 +197,7 @@ _vpn_hideandseek_user_add()
 _vpn_hideandseek_user_disable()
 {
 	:
-	# todo: call during bad/lost tunnel and automatically reenable if tunnel up again
+	# TODO: call during bad/lost tunnel and automatically reenable if tunnel up again
 }
 
 _vpn_hideandseek_user_del()
@@ -220,4 +222,112 @@ _vpn_hideandseek_user_del()
 	rm "$markerfile"
 
 	_log do $funcname daemon info "deleted $ip"
+}
+
+_vpn_hideandseek_master_vtund_write_config()
+{
+	local file="${1:-/tmp/vtund.conf}"
+	local name="Node$NODENUMBER"
+
+	[ -e "$file" ] || cat >"$file" <<EOF
+$name {
+	passwd ff ;
+	type ether ;
+	persist yes ;
+
+	up {   program "ifup   innercityvpn" wait; };
+	down { program "ifdown innercityvpn" wait; };
+}
+EOF
+}
+
+_vpn_hideandseek_vtund()
+{
+	local action="$1"	# check_on_client|fire|start|stop|restart
+	local config="${2:-/tmp/vtund.conf}"
+	local server='4.v.weimarnetz.de'
+	local server_port='5001'
+	local name="Node$NODENUMBER"
+
+	case "$action" in
+		check_on_client)
+			if _vpn hideandseek_master_vtund_write_config; then
+				# config written
+				_vpn hideandseek_vtund fire
+			else
+				# config already there
+
+			fi
+		;;
+		fire)
+			vtund -f "$config" "$name" "$server" -P "$server_port"
+		;;
+		start)
+			_vpn hideandseek_master_vtund_write_config
+			_vpn hideandseek_vtund fire
+		;;
+		stop)
+			killall vtund
+		;;
+		restart)
+			_vpn hideandseek_vtund stop
+			_vpn hideandseek_vtund fire
+		;;
+	esac
+}
+
+_vpn_x()
+{
+if [ -e '/tmp/vtund.sh' ]; then
+	# todo: use a function and more varnames
+	# maybe better?: grep "tap[0-9]:" /proc/net/dev
+	if pidof vtund >/dev/null; then
+		logread >'/tmp/logread.out'
+
+		dev_has_probs()
+		{
+			if ip address show dev "$1" | grep -q 'inet6 '; then
+				return 1
+			else
+				return 0
+			fi
+		}
+
+		restart_vtund()
+		{
+			_log do check_vtund daemon alert "restarting: $1"
+			killall vtund
+			. '/tmp/vtund.sh'
+		}
+
+		if   dev_has_probs 'tap0'; then
+			restart_vtund "dev is not fully up"
+		elif grep -q 'Connection timed out' '/tmp/logread.out'; then
+			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | grep 'Connection timed out' '/tmp/logread.out' | wc -l ) -gt 5 ] && {
+				grep -q ' vtund: link_up ' '/tmp/logread.out' || {
+					restart_vtund "our pubip has changed?"
+				}
+			}
+		elif grep -q "Can't resolv server address" '/tmp/logread.out'; then
+			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | grep "Can't resolv server address" '/tmp/logread.out' | wc -l ) -gt 5 ] && {
+				restart_vtund "servers pubip has changed?"
+			}
+		fi
+
+		rm '/tmp/logread.out'
+	else
+		_log do check_vtund daemon alert "starting up after crash"
+		. '/tmp/vtund.sh'
+	fi
+else
+	[ -e "/etc/vtund.conf" ] && {			# startup-code must be a comment at first line
+		grep -q ^'# vtund ' "/etc/vtund.conf" && {
+			head -n1 "/etc/vtund.conf" | cut -b 2- >"/tmp/vtund.sh"
+
+			_log do check_vtund daemon info "starting up"
+			. '/tmp/vtund.sh'
+		}
+	}
+fi
+
 }

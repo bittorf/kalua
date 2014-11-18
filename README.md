@@ -196,6 +196,7 @@ system.@weblogin[0].auth_type		- none, roomnumber, userpass
 system.@weblogin[0].blocked		- bool
 system.@weblogin[0].hideandseek		- bool
 system.@weblogin[0].freelan		- bool
+system.@weblogin[0].respect_missing_db	- bool
 
 system.@monitoring[0].serverip		- IP
 system.@monitoring[0].pingcheck		- IP
@@ -204,6 +205,7 @@ system.@monitoring[0].button_smstext	- text
 system.@monitoring[0].button_phone	- list phonenumbers
 system.@monitoring[0].url		- url
 system.@monitoring[0].statusprecache    - bool
+system.@monitoring[0].ignore_switch_error - bool
 
 system.@admin[0].location		- string
 system.@admin[0].latlon			- string
