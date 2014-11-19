@@ -154,15 +154,22 @@ _vpn_hideandseek_user_add()
 {
 	local funcname='vpn_hideandseek_user_add'
 	local ip="$1"
-	local mask="${2:-32}"
 
+	local mask=32
+	local local_net='10.0.0.0/8'
 	local table_name='hideandseek'
 	local table_id=50
 	local tunnel_dev='tap0'
-	local user_id myhna
-	local markerfile="/tmp/$table_name-$ip"
+	local user_id myhna markerfile
 
-	# already applied?
+	case "$ip" in
+		*'/'*)
+			mask="${ip#*/}"
+			ip="${ip%/*}"
+		;;
+	esac
+
+	markerfile="/tmp/$table_name-$ip-$mask"
 	[ -e "$markerfile" ] && return 0
 
 	if _net local_inet_offer >/dev/null; then
@@ -181,16 +188,18 @@ _vpn_hideandseek_user_add()
 
 		read user_id <"/tmp/$funcname"
 		echo "$user_id" >"$markerfile"
-		_watch counter "/tmp/$funcname" increment 2
+		_watch counter "/tmp/$funcname" increment 4
 
-		ip rule add from "$ip/$mask" prio "$user_id" table "$table_name"
-		ip rule add to   "$ip/$mask" prio "$(( user_id + 1 ))" lookup main
+		ip rule add from "$ip/$mask"   to "$local_net" prio "$user_id"           lookup main		# internal traf
+		ip rule add from "$local_net"  to "$ip/$mask"  prio "$(( user_id + 1 ))" lookup main		# internal traf
+		ip rule add from "$ip/$mask"                   prio "$(( user_id + 2 ))" table "$table_name"	# client to internet
+		ip rule add to   "$ip/$mask"                   prio "$(( user_id + 3 ))" lookup main		# internet to client
 		ip route flush cache
 
 		_log do $funcname daemon info "activated for $ip"
 	else
 		:
-		# delegate
+		# delegate to master
 	fi
 }
 
