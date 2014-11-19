@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# is called when this is the 'weblogin_authserver'
+# from any node in the network via netfilter_user_stats_process()
+
 [ -n "$QUERY_STRING" ] && {
 	read UPTIME REST <"/proc/uptime"; UPTIME="${UPTIME%.*}"
 	echo "UPTIME=${UPTIME}&REMOTE_ADDR=${REMOTE_ADDR}&$QUERY_STRING" >>"/tmp/COLLECT_DATA"

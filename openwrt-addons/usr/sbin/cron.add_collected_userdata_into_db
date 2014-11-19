@@ -17,8 +17,9 @@ while read QUERY_STRING; do {
 	eval $( _http query_string_sanitize )	# UPTIME|REMOTE_ADDR|CMA|CTU|CBI|CBO
 	LIST="$( _http query_string_group2list CMA_ )"
 
-	for ID in $LIST; do {
+	for ID in $LIST; do {			# defined in netfilter_user_stats_process()
 		eval CMA="\$CMA_${ID}"		# client mac address
+		eval CIA="\$CIA_${ID}"		# client ip address
 		eval CTU="\$CTU_${ID}"		# client time used
 		eval CBI="\$CBI_${ID}"		# client bytes incoming
 		eval CBO="\$CBO_${ID}"		# client bytes outgoing
@@ -32,13 +33,13 @@ while read QUERY_STRING; do {
 
 		LOGIN_ID="$( _db user login query hash2id "$CAH" )"
 		[ -z "$LOGIN_ID" ] && {
-			_log do map2login daemon info "ignoring: no db-entry/hash for $CMA @ $REMOTE_ADDR with $CBI/$CBO bytes"
+			_log do map2login daemon info "ignoring: no db-entry/hash for $CMA/$CIA @ $REMOTE_ADDR with $CBI/$CBO bytes"
 			continue
 		}
 
 		DEVICE_ID="$( _db user device query string2id "A='$LOGIN_ID';B='${CMA:-unsetmacaddress}'" )"	# fixme! build database-abstraction
 		[ -n "$DEVICE_ID" ] || {
-			_log do plot_remote_user_into_local_db daemon info "from $REMOTE_ADDR with mac $CMA and hash $CAH"
+			_log do plot_remote_user_into_local_db daemon info "from $REMOTE_ADDR with mac/ip $CMA/$CIA and hash $CAH"
 			/www/cgi-bin-sql.sh "$CAH" "$CMA" "" deepcheck
 		}
 
@@ -57,7 +58,7 @@ while read QUERY_STRING; do {
 			USED_TRAFFIC_TODAY=$(( $USED_TRAFFIC_TODAY + $CBO ))	# USED_TRAFFIC_TODAY -> USED_TRAFFIC_UPLOAD
 			USED_TIME=$(( $USED_TIME + $CTU ))
 
-			_log do loop daemon info "updating $CMA from node $REMOTE_ADDR: +$CBI/$CBO bytes, +$CTU sec"
+			_log do loop daemon info "updating $CMA/$CIA from node $REMOTE_ADDR: +$CBI/$CBO bytes, +$CTU sec"
 			_db user device update \
 				"$DEVICE_ID" \
 				"$USER_ID" \
