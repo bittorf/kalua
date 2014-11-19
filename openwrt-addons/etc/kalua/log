@@ -223,24 +223,26 @@ _log_do()				# CALL: _log do my_function_name daemon info "mytext"
 		echo "$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE" 1>&2   # to stderr
 	}
 
-	boot_and_debug_message ()
+	boot_and_debug_message()
 	{
 		if [ -e "/tmp/service_ssh_nowatching" ]; then
+			# why?
 			[ -e "/tmp/messages" ] && rm "/tmp/messages"
 		else
-			pidof syslogd >/dev/null || {		# write to special logfile
-				pidof procd >/dev/null || {
-					eval $( mem_uptime_and_date )
-					echo >>/tmp/messages "$DATE ' [up ${UPTIME}s $MEM bytes free] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
-					# _log netmessage "$MESSAGE"	# fixme!
-				}
-			}
+			# of nobody is listening for 'logger', we store to file
+			pidof syslogd >/dev/null && return 0
+			pidof procd >/dev/null && return 0
+
+			eval $( mem_uptime_and_date )
+			echo >>'/tmp/messages' "$DATE ' [up ${UPTIME}s $MEM bytes free] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
+
+			# TODO:
+			# _log netmessage "$MESSAGE"
 		fi
 	}
 
 	if [ "$PRIO" = "debug" ]; then
-
-		[ ! -e /tmp/DEBUG ] && {
+		[ -e '/tmp/DEBUG' ] || {
 			_log shell_is_interactive || return 0
 		}
 		boot_and_debug_message
@@ -248,9 +250,8 @@ _log_do()				# CALL: _log do my_function_name daemon info "mytext"
 		boot_and_debug_message
 	fi
 
-	# fixme! howto print out logging when webserver executes a script?
-
-	logger -t "fff+ $FATHER_PROCESS ${FUNCTION}()" -p "${FACILITY}.${PRIO}" -- "$MESSAGE"
+	# TODO: howto print out logging when webserver executes a script?
+	logger -t "kalua: $FATHER_PROCESS ${FUNCTION}()" -p "${FACILITY}.${PRIO}" -- "$MESSAGE"
 }
 
 _log_append_info()

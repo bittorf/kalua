@@ -51,24 +51,26 @@ fi
 
 pidof()
 {
+	local task="$1"
 	local rc=0
 
-#	echo "$( date +%s ) pidof: $1 \$\$: $$ \$0: $0 funcname: $funcname" >>/tmp/PID
+#	echo "$( date +%s ) pidof: $task \$\$: $$ \$0: $0 funcname: $funcname" >>/tmp/PIDOF
 
 	if [ -e '/tmp/PIDOF' ]; then
-		sleep 5
+		# be a little bit variant
+		sleep ${#task}
 
 		if [ -e '/tmp/PIDOF' ]; then
 			. /tmp/loader
 			_system crashreboot 'pidof_hangs'
 		else
 			touch '/tmp/PIDOF'
-			/bin/pidof "$1" || rc=$?
+			/bin/pidof "$task" || rc=$?
 			rm '/tmp/PIDOF'
 		fi
 	else
 		touch '/tmp/PIDOF'
-		/bin/pidof "$1" || rc=$?
+		/bin/pidof "$task" || rc=$?
 		rm '/tmp/PIDOF'
 	fi
 
@@ -172,6 +174,8 @@ case "$LOAD" in
 		if [ -e "/tmp/CRON_LOCK" ]; then
 			. /tmp/loader
 
+			# on 'locked' state, check at least some essential services
+			# otherwise this is done in taskplanner
 			[ -e '/tmp/service_olsrd_nowatching' ] || {
 				pidof olsrd >/dev/null || {
 					_olsr daemon start 'no running daemon'
