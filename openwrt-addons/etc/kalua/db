@@ -239,10 +239,49 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	return $errorcode
 }
 
+_db_generate_grepable_index()
+{
+	local funcname='db_generate_grepable_index'
+	local option="$1"
+	local file='/tmp/USERDB_COPY.cgi.gz'
+	local logprio='info'
+	local size
+
+	[ "$option" = 'check' ] && {
+		size=$( _file size "$file" )
+		[ $size -gt 0 ] && return 0
+	}
+
+	do_index()
+	{
+		# why tac? it's likely, that we grep for a new login - this should match faster
+		# this is >1 magnitude faster than sed-tac
+		# fixme! ATM it limits to ~1mb size (4000 lines)
+		grep ' mac: ' '/tmp/DB/USER/login/meta_index'
+		grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2- | head -n 4000
+		echo '# OK'
+	}
+
+	do_index	>"/tmp/USERDB_COPY.cgi"
+	rm 2>/dev/null	"$file"
+	gzip		'/tmp/USERDB_COPY.cgi'		# will append .gz
+	rm		'/tmp/USERDB_COPY.cgi'
+
+	# is it really a working link? see: cgi-bin-get_userdb.sh
+	ls -1 '/www/USERDB_COPY.txt' 2>/dev/null >/dev/null || {
+		rm 2>/dev/null 	'/www/USERDB_COPY.txt'
+		ln -s "$file" 	'/www/USERDB_COPY.txt'
+	}
+
+	size=$( _file size "$file" )
+	[ $size -gt 0 ] || logprio='alert'
+	_log do $funcname daemon $logprio "[OK] copy size: $size bytes"
+}
+
 _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 {
-	local funcname="db_restore"
-	local file="/www/cgi-bin/db_backup.tgz"
+	local funcname='db_restore'
+	local file='/www/cgi-bin/db_backup.tgz'
 
 	_db lock now "$funcname() $@" || return 1
 
@@ -266,28 +305,7 @@ _db_restore()		# is called during boot: see /etc/init.d/S70prepare_fff+
 					sed -i "/''[^']''/s/''/'/g" '/tmp/DB/USER/device/rows'
 				}
 
-				output_grepable_index()
-				{
-					# why tac? it's likely, that we grep for a new login - this should match faster
-					# this is >1 magnitude faster than sed-tac
-					# fixme! ATM it limits to ~1mb size (4000 lines)
-					grep ' mac: ' '/tmp/DB/USER/login/meta_index'
-					grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2- | head -n 4000
-					echo '# OK'
-				}
-
-				output_grepable_index	>"/tmp/USERDB_COPY.cgi"
-				rm 2>/dev/null		 '/tmp/USERDB_COPY.cgi.gz'
-				gzip			 '/tmp/USERDB_COPY.cgi'		# appends .gz
-				rm			 '/tmp/USERDB_COPY.cgi'
-
-				# is it really a working link? see: cgi-bin-get_userdb.sh
-				ls -1 '/www/USERDB_COPY.txt' 2>/dev/null >/dev/null || {
-					rm 2>/dev/null 			'/www/USERDB_COPY.txt'
-					ln -s '/tmp/USERDB_COPY.cgi.gz' '/www/USERDB_COPY.txt'
-				}
-
-				_log do $funcname daemon info "[OK] copy size: $( _file size '/tmp/USERDB_COPY.cgi.gz' ) bytes"
+				_db generate_grepable_index
 			else
 				_log do $funcname daemon alert "[ERR] untar of '$file' went wrong - rescheduling"
 				touch '/tmp/FREE'
