@@ -1,3 +1,5 @@
+#!/bin/sh
+
 _vpn_innercity_master_vtund_write_config()
 {
 	local config="${1:-/tmp/vtund.conf}"
@@ -86,10 +88,11 @@ _vpn_innercity_master_iface()
 	echo "action: $action dev: $dev" >"/tmp/lock-$funcname/info"
 	_log do $funcname daemon alert "[START] action: $action dev: $dev"
 
-	local limit=8		# throttling
+	local limit=8		# throttling - FIXME! use olsr_throttle?
 	local limit_burst=5
-	local mask=30
-	local mtu=1450
+	local mask=30		# ip here + ip other side + net + broadcast = 4 = /30
+	local mtu=1450		# why? example-conf does it too
+				# see: http://sourceforge.net/p/vtun/mailman/message/27935441/
 
 	if [ "$action" = 'up' ]; then
 		local remote_nodenumber="${dev//tap/}"		# tap276 -> 276
@@ -185,15 +188,33 @@ _vpn_hideandseek_user_add()
 		}
 
 		[ -e "/tmp/$funcname" ] || {
-			#         0 = table local
-			#       ... = table hideandseek *this*
-			#     32766 = table main
-			#     32767 = table default
-			echo '20000' >/tmp/$funcname
 			ip route add default via "$( _ipsystem getvar WIFIVPNSERVERADR )" dev "$tunnel_dev" table "$table_name"
 		}
 
-		read user_id <"/tmp/$funcname"
+		read user_id 2>/dev/null <"/tmp/$funcname-$mask" || {
+			case "$mask" in
+				32) user_id=10000 ;;	# wider masks are later processed,
+				31) user_id=11000 ;;	# otherwise we cannot make finer rules
+				30) user_id=12000 ;;	# for single ip's from a big subnet:
+				29) user_id=13000 ;;	#
+				28) user_id=14000 ;;	#     0 = table local
+				27) user_id=15000 ;;	#   ... = table hideandseek *this*
+				26) user_id=16000 ;;	# 32766 = table main
+				25) user_id=17000 ;;	# 32767 = table default
+				24) user_id=18000 ;;
+				23) user_id=19000 ;;
+				22) user_id=20000 ;;
+				21) user_id=21000 ;;
+				20) user_id=22000 ;;
+				19) user_id=23000 ;;
+				18) user_id=24000 ;;
+				17) user_id=25000 ;;
+				16) user_id=26000 ;;
+			esac
+
+			echo "$user_id" >"/tmp/$funcname-$mask"
+		}
+
 		echo "$user_id" >"$markerfile"
 		_watch counter "/tmp/$funcname" increment 4
 
