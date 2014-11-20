@@ -1449,9 +1449,9 @@ _watch_topusage_task()
 
 _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 {
+	local funcname='watch_nanostation_max_ethernet'
 	local option="$1"
-	local ethmode="10baseT-HD"
-	local out
+	local out ethmode
 
 	case "$option" in
 		force)
@@ -1461,7 +1461,13 @@ _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 				'Ubiquiti Bullet M')
 					out="$( mii-tool eth0 )"
 					[ "$out" = 'eth0: 100 Mbit, full duplex, link ok' ] || {
+						# in case something is wrong we must toggle,
+						# other mii-tool will not apply
+						_log do $funcname daemon info 'enforcing 100baseTx-FD'
+						mii-tool --force=10baseT-FD   'eth0'
+						sleep 3
 						mii-tool --force=100baseTx-FD 'eth0'
+						_log do $funcname daemon info "now: '$( mii-tool eth0 )'"
 					}
 
 					return 0
@@ -1487,6 +1493,7 @@ _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 		_olsr daemon restart "lan-ethernet was lost"
 	}
 
+	ethmode='10baseT-HD'
 	if mii-tool 2>&1 | grep -q " $ethmode"; then
 		pidof olsrd >/dev/null && {
 			lan_olsr_wished && refire
