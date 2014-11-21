@@ -1459,34 +1459,35 @@ _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 		*)
 			case "$HARDWARE" in
 				'Ubiquiti Bullet M')
-					out="$( mii-tool eth0 )"
-					[ "$out" = 'eth0: 100 Mbit, full duplex, link ok' ] || {
-						# in case something is wrong we must toggle,
-						# other mii-tool will not apply
-						_log do $funcname daemon info 'enforcing 100baseTx-FD'
-						mii-tool --force=10baseT-FD   'eth0'
-						sleep 3
-						mii-tool --force=100baseTx-FD 'eth0'
+					case "$( mii-tool eth0 )" in
+						'eth0: 10 Mbit, full duplex, link ok'|'eth0: 100 Mbit, full duplex, link ok')
+							# in case something is wrong we must toggle,
+							# other mii-tool will not apply
+							_log do $funcname daemon info 'enforcing 100baseTx-FD'
+							mii-tool --force=10baseT-FD   'eth0'
+							sleep 3
+							mii-tool --force=100baseTx-FD 'eth0'
 
-						out="$( mii-tool eth0 )"
-						case "$out" in
-							*'no link'*)
-								# F36dach:
-								# mii-tool --restart
-								#   -> 'eth0: negotiated 100baseTx-FD, link ok'
-								# but
-								# mii-tool --force=100baseTx-FD eth0
-								#   -> 'eth0: 100 Mbit, full duplex, no link'
-								_log do $funcname daemon alert "must fallback: '$out'"
-								mii-tool --force=10baseT-FD 'eth0'
-								out="$( mii-tool eth0 )"
-								_log do $funcname daemon alert "fallback now: '$out'"
-							;;
-							*)
-								_log do $funcname daemon info "[OK] now: '$out'"
-							;;
-						esac
-					}
+							out="$( mii-tool eth0 )"
+							case "$out" in
+								*'no link'*)
+									# F36dach:
+									# mii-tool --restart
+									#   -> 'eth0: negotiated 100baseTx-FD, link ok'
+									# but
+									# mii-tool --force=100baseTx-FD eth0
+									#   -> 'eth0: 100 Mbit, full duplex, no link'
+									_log do $funcname daemon alert "must fallback: '$out'"
+									mii-tool --force=10baseT-FD 'eth0'
+									out="$( mii-tool eth0 )"
+									_log do $funcname daemon alert "fallback now: '$out'"
+								;;
+								*)
+									_log do $funcname daemon info "[OK] now: '$out'"
+								;;
+							esac
+						;;
+					esac
 
 					return 0
 				;;
