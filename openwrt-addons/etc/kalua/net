@@ -689,19 +689,36 @@ _net_iplocal2dev ()		# does it really make sense to have this func?
 	# ip -o route get $1 | cut -d' ' -f3
 }
 
-_net_local_inet_offer ()		# SENS: check if default-route is local
+_net_local_inet_offer()			# SENS: check if default-route is local
 {					# OUT1: string, false|wan|lan|pppoe
-	local MODE="false"		# RC: true = inetoffer, false = no inetoffer
-	local FUNC="net_local_inet_offer"
-	local PHYDEV=0
-	local METRIC=0
-	local D=0
-	local N=0
-	local trash
-	local wan_proto="$( uci get network.wan.proto )"
+	local funcname='net_local_inet_offer'
+	local option="$1"
 
+	local cachefile="/tmp/$funcname-cache"
+	local MODE="false"		# RC: true = inetoffer, false = no inetoffer
+	local PHYDEV=0 METRIC=0 D=0 N=0 trash wan_proto cache
+
+	case "$option" in
+		'update_cache')
+			_net local_inet_offer >"$cachefile"
+			return 0
+		;;
+		'cached')
+			read cache 2>/dev/null <"$cachefile" && {
+				echo "$cache"
+
+				if [ "$cache" = 'false' ]; then
+					return 1
+				else
+					return 0
+				fi
+			}
+		;;
+	esac
+
+	wan_proto="$( uci -q get network.wan.proto )"
 	[ "$wan_proto" = "pppoe" ] && {
-		_log do $FUNC daemon info "early_boot_estimation: pppoe"
+		_log do $funcname daemon info "early_boot_estimation: pppoe"
 		echo "pppoe"
 		return 0
 	}
@@ -714,32 +731,32 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 				_nvram set commit "config-mistake, unsetting wan-gateway which was '$WAN_GATEWAY'"
 			else
 				[ "$wan_proto" = "pppoe" ] && {
-					_log do $FUNC daemon info "early_boot_estimation: pppoe"
+					_log do $funcname daemon info "early_boot_estimation: pppoe"
 					echo "pppoe"
 					return 0			# fixme!
 				}
 			
-				_log do $FUNC daemon info "early_boot_estimation: wan"
+				_log do $funcname daemon info "early_boot_estimation: wan"
 				echo "wan"
 				return 0
 			fi
 		}
 
 		[ -n "$( uci get network.lan.gateway )" ] && {
-			_log do $FUNC daemon info "early_boot_estimation: lan"
+			_log do $funcname daemon info "early_boot_estimation: lan"
 			echo "lan"
 			return 0
 		}
 
 #		/etc/init.d/S52vpnc_fff+ check && {
-#			_log do $FUNC daemon info "early_boot_estimation: tun"
+#			_log do $funcname daemon info "early_boot_estimation: tun"
 #			echo "tun"
 #			return 0
 #		}
 
 		# fixme! wan-dhcp?
 
-		_log do $FUNC daemon info "early_boot_estimation: false"
+		_log do $funcname daemon info "early_boot_estimation: false"
 		echo "false"
 		return 1
 	}
@@ -748,7 +765,7 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 	[ -n "$LAN_GATEWAY" ] && {
 		[ -z "$( ip route list exact 0.0.0.0/0 via $LAN_GATEWAY )" ] && {
 			[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
-				_log do $FUNC daemon info "alien_gateway '$LAN_GATEWAY': lan"
+				_log do $funcname daemon info "alien_gateway '$LAN_GATEWAY': lan"
 				echo "lan"
 				return 0
 			}
@@ -782,7 +799,7 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 
 	if [ -z "$METRIC" ]; then				# found no metric = local inet-offer
 
-		_log do $FUNC daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
+		_log do $funcname daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
 
 		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0.0.0.0/0 -> "default via eth0" or similar
 
@@ -815,13 +832,13 @@ _net_local_inet_offer ()		# SENS: check if default-route is local
 				fi
 			}
 
-			_log do $FUNC daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
+			_log do $funcname daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
 		fi
 	else
 		if [ $N -eq 0 ]; then
-			_log do $FUNC daemon info "no local default-gateway, no default-gateway, no internet 8-("
+			_log do $funcname daemon info "no local default-gateway, no default-gateway, no internet 8-("
 		else
-			_log do $FUNC daemon info "no local default-gateway found, only $N hops away 8-)"
+			_log do $funcname daemon info "no local default-gateway found, only $N hops away 8-)"
 		fi
 	fi
 
