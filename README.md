@@ -197,6 +197,7 @@ system.@weblogin[0].blocked		- bool
 system.@weblogin[0].hideandseek		- bool
 system.@weblogin[0].freelan		- bool
 system.@weblogin[0].respect_missing_db	- bool
+system.@weblogin[0].allow_wan		- bool
 
 system.@monitoring[0].serverip		- IP
 system.@monitoring[0].pingcheck		- IP
