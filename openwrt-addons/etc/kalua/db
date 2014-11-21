@@ -244,8 +244,18 @@ _db_generate_grepable_index()
 	local funcname='db_generate_grepable_index'
 	local option="$1"
 	local file='/tmp/USERDB_COPY.cgi.gz'
+	local file_index='/tmp/DB/USER/login/meta_index'
 	local logprio='info'
+	local marker_ok='# OK'
 	local size
+
+	# we cannot work if db_restore() was not fired yet
+	if [ -e "$file_index" ]; then
+		# maybe we are the client? hotfix for 168e3da346b8fa4594f86d0dbd245f3b6cc611fa
+		head -n1 '/tmp/USERDB_COPY' | grep -q ^"$marker_ok"$ && rm '/tmp/USERDB_COPY'
+	else
+		return 1
+	fi
 
 	[ "$option" = 'check' ] && {
 		size=$( _file size "$file" )
@@ -257,9 +267,9 @@ _db_generate_grepable_index()
 		# why tac? it's likely, that we grep for a new login - this should match faster
 		# this is >1 magnitude faster than sed-tac
 		# fixme! ATM it limits to ~1mb size (4000 lines)
-		grep ' mac: ' '/tmp/DB/USER/login/meta_index'
-		grep -n '' '/tmp/DB/USER/login/meta_index' | sort -rn | cut -d: -f2- | head -n 4000
-		echo '# OK'
+		grep ' mac: ' "$file_index"
+		grep -n '' "$file_index" | sort -rn | cut -d: -f2- | head -n 4000
+		echo "$marker_ok"
 	}
 
 	do_index	>"/tmp/USERDB_COPY.cgi"
