@@ -82,7 +82,7 @@ output_table()
 				if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
 					read i <'/tmp/OLSR/DEFGW_empty'
 					[ $all -gt 0 ] && word="$word ($(( ($i * 100) / $all ))% Inselbetrieb)"
-				elif inet_offer="$( _net local_inet_offer )"; then
+				elif inet_offer="$( _net local_inet_offer cached )"; then
 					word="$word (Einspeiser: $inet_offer)"
 				fi
 
