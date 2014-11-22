@@ -704,7 +704,9 @@ _net_local_inet_offer()			# SENS: check if default-route is local
 			return 0
 		;;
 		'cached')
-			read cache 2>/dev/null <"$cachefile" && {
+			[ -e "$cachefile" ] || _net local_inet_offer >"$cachefile"
+
+			read cache <"$cachefile" && {
 				echo "$cache"
 
 				if [ "$cache" = 'false' ]; then
@@ -723,7 +725,7 @@ _net_local_inet_offer()			# SENS: check if default-route is local
 		return 0
 	}
 
-	[ -e /tmp/NETPARAM ] || {
+	[ -e '/tmp/NETPARAM' ] || {
 		local WAN_GATEWAY="$( uci get network.wan.gateway )"
 		[ -n "$WAN_GATEWAY" ] && {
 			if [ "$WAN_GATEWAY" = "0.0.0.0" ]; then
@@ -761,12 +763,12 @@ _net_local_inet_offer()			# SENS: check if default-route is local
 		return 1
 	}
 
-	local LAN_GATEWAY="$( uci get network.lan.gateway )"
+	local LAN_GATEWAY="$( uci -q get network.lan.gateway )"
 	[ -n "$LAN_GATEWAY" ] && {
-		[ -z "$( ip route list exact 0.0.0.0/0 via $LAN_GATEWAY )" ] && {
-			[ "$LAN_GATEWAY" != "0.0.0.0" ] && {
+		[ -z "$( ip route list exact '0.0.0.0/0' via $LAN_GATEWAY )" ] && {
+			[ "$LAN_GATEWAY" = '0.0.0.0' ] || {
 				_log do $funcname daemon info "alien_gateway '$LAN_GATEWAY': lan"
-				echo "lan"
+				echo 'lan'
 				return 0
 			}
 		}
@@ -779,6 +781,7 @@ _net_local_inet_offer()			# SENS: check if default-route is local
 	# default via 191.255.255.1 dev venet0		-> root-server
 	# default via 217.0.116.253 dev ppp0		-> pppoe
 	# default dev tun0  scope link			-> vpnc
+	# default dev venet0  scope link		-> on vpn-server
 	# default via 10.63.52.36 dev br0 		-> lan-offer|lan-gateway
 	# default via 10.63.99.33 dev eth0.1  metric 2 onlink		-> since ~git29366 "onlink"
 	# default via 192.168.101.112 dev eth0.1  src 192.168.101.222	-> lan-offer via alias-interface
