@@ -89,6 +89,8 @@ _vpn_innercity_master_iface()
 	echo "action: $action dev: $dev" >"/tmp/lock-$funcname/info"
 	_log do $funcname daemon alert "[START] action: $action dev: $dev"
 
+	local remote_nodenumber="${dev//tap/}"		# tap276 -> 276
+	local tunnel_ip_here="$( _ipsystem getvar 'WIFIVPNSERVERADR' $remote_nodenumber )"
 	local limit=8		# throttling - FIXME! use olsr_throttle?
 	local limit_burst=5
 	local mask=30		# ip here + ip other side + net + broadcast = 4 = /30
@@ -96,9 +98,6 @@ _vpn_innercity_master_iface()
 				# see: http://sourceforge.net/p/vtun/mailman/message/27935441/
 
 	if [ "$action" = 'up' ]; then
-		local remote_nodenumber="${dev//tap/}"		# tap276 -> 276
-		local tunnel_ip_here="$( _ipsystem getvar 'WIFIVPNSERVERADR' $remote_nodenumber )"
-
 		ip address add $tunnel_ip_here/$mask dev $dev
 		ip link set dev $dev mtu $mtu up
 		$IPT -I INPUT  -p udp --dport 698 -i $dev -j DROP
