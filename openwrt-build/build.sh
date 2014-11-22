@@ -1370,9 +1370,13 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-nls-cp437=y'		# kernel-modules: nls-support (USA)
 				apply_symbol 'CONFIG_PACKAGE_kmod-nls-iso8859-1=y'	# kernel-modules: nls-support (EU)
 			;;
+			'NAS')
+				apply_symbol 'CONFIG_PACKAGE_smartd=y'			# utilities -> smart
+				apply_symbol 'CONFIG_PACKAGE_smartmontools=y'		# utilities -> smart
+			;;
 			'NTPfull')
-				apply_symbol 'CONFIG_PACKAGE_ntp-utils=y'	# network -> time_syncronisation
-				apply_symbol 'CONFIG_PACKAGE_ntpd=y'		# network -> time_syncronisation
+				apply_symbol 'CONFIG_PACKAGE_ntp-utils=y'		# network -> time_syncronisation
+				apply_symbol 'CONFIG_PACKAGE_ntpd=y'			# network -> time_syncronisation
 				apply_symbol 'CONFIG_PACKAGE_ntpdate=y'
 				apply_symbol 'CONFIG_PACKAGE_ntpclient=y'
 			;;
