@@ -207,13 +207,14 @@ output_table()
 			read i <"/tmp/OLSR/DEFGW_$REMOTE"
 			[ $all -gt 0 ] && gateway_percent=$(( ($i * 100) / $all ))
 			gateway_percent="${gateway_percent}%"		# TODO: sometimes >100%
+
+			command . "/tmp/OLSR/DEFGW_VALUES_$REMOTE"	# GATEWAY,METRIC,ETX,INTERFACE
 		else
 			gateway_percent=
 		fi
 
 		if [ "$gateway" = "$REMOTE" ]; then
 			bgcolor='#ffff99'				# lightyellow
-			command . "/tmp/OLSR/DEFGW_VALUES_$REMOTE"	# GATEWAY,METRIC,ETX,INTERFACE
 
 			if [ -n "$METRIC" ]; then
 				gateway_percent="${gateway_percent:-100%}, $METRIC Hops, ETX $ETX"
@@ -221,8 +222,6 @@ output_table()
 				gateway_percent="(kein HNA!)"
 			fi
 		else
-			command . "/tmp/OLSR/DEFGW_VALUES_$REMOTE"	# GATEWAY,METRIC,ETX,INTERFACE
-
 			[ -n "$gateway_percent" ] && {
 				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ), ETX: $ETX)"
 			}
