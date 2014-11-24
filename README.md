@@ -219,6 +219,7 @@ system.@vpn[0].hostname			- hostname
 system.@vpn[0].ipaddr			- IP
 
 system.@system[0].noswinstall		- bool
+system.@system[0].avoid_autoreboot	- bool
 
 system.@profile[0].name			- string
 system.@profile[0].nodenumber		- integer
