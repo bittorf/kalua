@@ -212,8 +212,8 @@ output_table()
 		fi
 
 		if [ "$gateway" = "$REMOTE" ]; then
-			bgcolor='#ffff99'			# lightyellow
-			eval $( _olsr best_inetoffer )		# GATEWAY,METRIC,ETX,INTERFACE
+			bgcolor='#ffff99'				# lightyellow
+			. "/tmp/OLSR/DEFGW_${REMOTE}_values"		# GATEWAY,METRIC,ETX,INTERFACE
 
 			if [ -n "$METRIC" ]; then
 				gateway_percent="${gateway_percent:-100%}, $METRIC Hops, ETX $ETX"
@@ -221,8 +221,10 @@ output_table()
 				gateway_percent="(kein HNA!)"
 			fi
 		else
+			. "/tmp/OLSR/DEFGW_${REMOTE}_values"		# GATEWAY,METRIC,ETX,INTERFACE
+
 			[ -n "$gateway_percent" ] && {
-				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ))"
+				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ), ETX: $ETX)"
 			}
 		fi
 
