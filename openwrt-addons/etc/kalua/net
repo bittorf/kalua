@@ -26,6 +26,43 @@ _net_ping6()
 	} done
 }
 
+_net_dns_resolvconf_change_first_nameserver()
+{
+	local ip_wish="$1"
+	local file='/tmp/resolv.conf'
+	local temp='/tmp/resolv.tmp'
+	local replaced='false' line ip
+
+	while read line; do {
+		case "$line" in
+			'nameserver '*)
+				if [ "$replaced" = 'false' ]; then
+					if [ "$line" = "nameserver $ip_wish" ]; then
+						# first entry is already our wish, no action needed
+						return 0
+					else
+						echo "nameserver $ip_wish"
+						echo "$line"
+						replaced='true'
+					fi
+				else
+					if [ "$line" = "nameserver $ip_wish" ]; then
+						# no action, ignore the old entry
+						:
+					else
+						echo "$line"
+					fi
+				fi
+			;;
+			*)
+				echo "$line"
+			;;
+		esac
+	} done <"$file" >"$temp"
+
+	mv "$temp" "$file"
+}
+
 _net_mac2linklocal()	# SENS: mac-address to IPv6 fe80::*
 {
 	local mac="$1"
