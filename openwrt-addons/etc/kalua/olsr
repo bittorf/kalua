@@ -132,8 +132,8 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 			if [ -e '/tmp/OLSR/DEFGW_NOW' ]; then
 				read gateway_old <'/tmp/OLSR/DEFGW_NOW'
 			else
+				# first gateway seen
 				gateway_old="$gateway"
-				_olsr best_inetoffer "/tmp/OLSR_TMP/ALL" >"/tmp/OLSR_TMP/DEFGW_VALUES_$gateway"
 				echo >>$SCHEDULER "_wifi speed check $gateway_old"
 
 				bool_true 'olsrd.@meta[0].nexthop_dns' && {
@@ -145,7 +145,12 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 				}
 			fi
 
-			[ "$gateway_old" = "$gateway" ] || {
+			if [ "$gateway_old" = "$gateway" ]; then
+				# no gw-change:
+				[ -e "/tmp/OLSR_TMP/DEFGW_VALUES_$gateway" ] || {
+					_olsr best_inetoffer "/tmp/OLSR_TMP/ALL" >"/tmp/OLSR_TMP/DEFGW_VALUES_$gateway"
+				}
+			else
 				# write to working dir: otherwise append does not work
 				# format is: unixtime + time 20:29:47 (machine + humanreadable)
 				date +"%s %X $gateway" >>'/tmp/OLSR/DEFGW_changed'
@@ -159,7 +164,9 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 						_net dns_resolvconf_change_first_nameserver 'remove' simple
 					fi
 				}
-			}
+
+				_olsr best_inetoffer "/tmp/OLSR_TMP/ALL" >"/tmp/OLSR_TMP/DEFGW_VALUES_$gateway"
+			fi
 
 			echo "$gateway" >'/tmp/OLSR_TMP/DEFGW_NOW'
 		}
