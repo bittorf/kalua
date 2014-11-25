@@ -261,3 +261,5 @@ system.@webcam[0].storage_path		- string: e.g. 'bastian@10.63.2.34:bigbrother'
 
 olsrd.@meta[0].watch_value		- integer
 olsrd.@meta[0].watch_ip			- ipaddr
+
+network.@switch[0].disable_autoneg	- bool
