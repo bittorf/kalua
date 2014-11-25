@@ -1,16 +1,24 @@
 #!/bin/sh
 
-get_homedir_from_passwd()
-{
-	grep -e ^"${USER:-root}:" "/etc/passwd" | cut -d ":" -f 6
-}
-
 [ -e "/etc/variables_fff+" ] && . "/etc/variables_fff+"
 
 which uci >/dev/null || {
-	# e.g. vpn-server / non-OpenWrt - TODO: translate calls, e.g. hostname
+	# missing on e.g. vpn-server / debian
+
+	# output nothing with returncode 0 but
+	# allow config-file with e.g. system.@profile[0].nodenumber=123
+	cat <<EOF
+uci()
+{
+	case "\$1" in
+		get)
+			grep -s ^"\$2=" /etc/kalua_uci | cut -d'=' -f2
+		;;
+	esac
+}
+EOF
+	# for next calls in this script
 	uci() { :; }
-	echo 'uci() { :; }	# no native uci'
 
 	case "$( readlink /bin/sh )" in
 		'dash')
@@ -58,8 +66,8 @@ export TZ='$TIMEZONE'
 [ -z "\$CONFIG_PROFILE" ] && CONFIG_PROFILE='$( uci get system.@profile[0].name )'
 HARDWARE='$HARDWARE'
 HOSTNAME='$HOSTNAME'
-MONITORING_SERVERIP='$( uci -q get system.@monitoring[0].serverip || echo "84.38.67.43" )'
-export HOME='$( get_homedir_from_passwd )'
+MONITORING_SERVERIP='$( uci -q get system.@monitoring[0].serverip || echo '84.38.67.43' )'
+export HOME="$( grep -e ^"${USER:-root}:" '/etc/passwd' | cut -d':' -f6 )"
 FFF_PLUS_VERSION=$FFF_PLUS_VERSION;FFF_VERSION=$FFF_VERSION;OPENWRT_REV=$( cut -b2- '/etc/openwrt_version' || echo '0' )
 
 bool_true()
