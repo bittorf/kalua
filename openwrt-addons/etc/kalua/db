@@ -12,7 +12,7 @@ _db_check()
 	[ "$option" = 'force' ] || _db lock now "$funcname() $@" || return 1
 	_stopwatch start "$funcname"
 
-	for file in /tmp/DB/USER/device/rows /tmp/DB/USER/device/stats /tmp/DB/USER/login/rows /tmp/DB/USER/profile/rows; do {
+	for file in $DIR_DATABASE/USER/device/rows $DIR_DATABASE/USER/device/stats $DIR_DATABASE/USER/login/rows $DIR_DATABASE/USER/profile/rows; do {
 		_log do $funcname daemon info "eval-ing each line in '$file', in case of an error: check '$statfile'"
 
 		i=0
@@ -43,8 +43,8 @@ _db_lock()
 
 	case "$mode" in
 		free)
-			if [ ! -e '/tmp/DB/USER/login/rows' -a -e '/tmp/DB/USER/login/meta_index' ]; then
-				if [ $( _file size "/tmp/DB/USER/login/meta_index" ) -eq 0 ]; then
+			if [ ! -e "$DIR_DATABASE/USER/login/rows" -a -e "$DIR_DATABASE/USER/login/meta_index" ]; then
+				if [ $( _file size "$DIR_DATABASE/USER/login/meta_index" ) -eq 0 ]; then
 					# ok, e.g. special decentral auth
 					rm -fR "$dir"
 				else
@@ -93,7 +93,7 @@ _db_purge()
 
 	_db lock now "$funcname() $@" || return 1
 
-	for obj in 	'/tmp/DB' \
+	for obj in 	"$DIR_DATABASE" \
 			'/www/cgi-bin/db_backup.tgz' \
 			'/www/cgi-bin/db_backup.tgz.hashlastsend' \
 			'/tmp/USERDB_COPY.cgi.gz'; do {
@@ -121,14 +121,13 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	local file="/www/cgi-bin/db_backup.tgz"
 	local file_temp="/tmp/db_backup.tgz.temp.$$"
 	local file_safewrite="$file.safewrite"
-	local dir="/tmp/DB"
 	local errorcode=0
 	local border=-5
 	local s1 s2 s3 flash_free
 
-	[ -d "$dir" ] || return 0
-	[ -e "$dir/USER/login/meta_index" ] || return 0
-	[ $( _file size "$dir/USER/login/meta_index" ) -eq 0 ] && return 0
+	[ -d "$DIR_DATABASE" ] || return 0
+	[ -e "$DIR_DATABASE/USER/login/meta_index" ] || return 0
+	[ $( _file size "$DIR_DATABASE/USER/login/meta_index" ) -eq 0 ] && return 0
 
 	_log do $funcname daemon info "reason: '$reason'"
 
@@ -157,7 +156,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	_db lock now "$funcname() $@" || return 1
 
 	# ramdisc too small?
-	if tar czf "$file_temp" "$dir" 2>/dev/null ; then
+	if tar czf "$file_temp" "$DIR_DATABASE" 2>/dev/null ; then
 		_db lock free
 		_log do $funcname daemon info "[OK] wrote $( _file size "$file_temp" ) bytes to $file_temp"
 
@@ -232,7 +231,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		fi
 	else
 		rm "$file_temp"
-		_log do $funcname daemon sms "[ERR] while working on $file_temp - disk full? free: $( _system disc_free "/tmp" kilobytes ) kb"
+		_log do $funcname daemon sms "[ERR] while working on $file_temp - disk full? free: $( _system disc_free "$DIR_DATABASE" kilobytes ) kb"
 		errorcode=1
 
 		_db lock free
@@ -246,7 +245,7 @@ _db_generate_grepable_index()
 	local funcname='db_generate_grepable_index'
 	local option="$1"
 	local file='/tmp/USERDB_COPY.cgi.gz'
-	local file_index='/tmp/DB/USER/login/meta_index'
+	local file_index="$DIR_DATABASE/USER/login/meta_index"
 	local logprio='info'
 	local marker_ok='# OK'
 	local size
@@ -301,19 +300,19 @@ _db_restore()
 		if [ $( _file size "$file" ) -lt 300 ]; then
 			_log do $funcname daemon info "refusing to unarc '$file', seems too small"
 		else
-			_log do $funcname daemon info "removing dir /tmp/DB, unarc of '$file'"
-			rm -fR /tmp/DB
+			_log do $funcname daemon info "removing dir $DIR_DATABASE, unarc of '$file'"
+			rm -fR "$DIR_DATABASE"
 
 			if tar -C / -xzf "$file" ; then
 				_log do $funcname daemon info "[OK] untar"
 
 				# match for a single char inclosed in marks, e.g. A=''1''
-				grep -qE "''[^']''" '/tmp/DB/USER/device/rows' && {
+				grep -qE "''[^']''" "$DIR_DATABASE/USER/device/rows" && {
 					# fixed in 157d75a777bd1dcd573aac91cd281260abdb89c8 / 2014jun12
 					_log do $funcname daemon alert "repairing DB with doubled quotation marks"
 					# no action: A='value'
 					# repairing: A=''value'' -> A='value'
-					sed -i "/''[^']''/s/''/'/g" '/tmp/DB/USER/device/rows'
+					sed -i "/''[^']''/s/''/'/g" "$DIR_DATABASE/USER/device/rows"
 				}
 
 				_db generate_grepable_index
@@ -336,9 +335,9 @@ _db_restore()
 
 	# stats are generated via cron.add_collected_userdata_into_db
 	# 60 days = 60d * 24h * 4/hour = 5760
-	[ $( _file lines "/tmp/DB/USER/device/stats" ) -gt 5760 ] && {
+	[ $( _file lines "$DIR_DATABASE/USER/device/stats" ) -gt 5760 ] && {
 		_log do $funcname daemon alert "removing old stuff, leaving last 45 days"
-		_watch archivsize "/tmp/DB/USER/device/stats" 4320	# 45 days = 45d * 24h * 4/hour
+		_watch archivsize "$DIR_DATABASE/USER/device/stats" 4320	# 45 days = 45d * 24h * 4/hour
 		_db backup "remove_old_stuff"
 	}
 }
@@ -357,7 +356,7 @@ _db_user_macenabled_comment_get()
 	# 398313da5cc16596a9babb7ea25be762  mac: 00:16:e3:b9:e8:64 = Laptop Mario
 	#
 	# mac-entries can be doubled during db_restore() -> output_grepable_index()
-	set -- $( fgrep -m 1 -hs "mac: $mac" '/tmp/USERDB_COPY' '/tmp/DB/USER/login/meta_index' )
+	set -- $( fgrep -m 1 -hs "mac: $mac" '/tmp/USERDB_COPY' "$DIR_DATABASE/USER/login/meta_index" )
 
 	while shift; do {
 		case "$1" in
@@ -402,7 +401,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 		;;
 	esac
 
-	local DIR="/tmp/DB/USER/$TABLE"
+	local DIR="$DIR_DATABASE/USER/$TABLE"
 	mkdir -p "$DIR"
 
 	case "$ACTION" in
@@ -835,7 +834,7 @@ _db_ticketcheck()
 		list="$( _db user profile list )"
 	fi
 
-	echo "$funcname" >/tmp/CRON_OVERLOAD
+	echo "$funcname" >'/tmp/CRON_OVERLOAD'
 
 	for profile_id in $list; do {
 		if _system maintenance_window_active; then
@@ -848,7 +847,7 @@ _db_ticketcheck()
 		eval "$( _db user profile show "$profile_id" "AUTOGENERATE NAME" )"
 
 		if [ "$AUTOGENERATE" = "1" ]; then
-			file="/tmp/DB/USER/profile/id${profile_id}_counterA"
+			file="$DIR_DATABASE/USER/profile/id${profile_id}_counterA"
 			if [ -e "$file" ]; then
 				read counter <"$file"
 			else
@@ -868,7 +867,7 @@ _db_ticketcheck()
 		fi
 	} done
 
-	rm /tmp/CRON_OVERLOAD
+	rm '/tmp/CRON_OVERLOAD'
 }
 
 _db_autocreate_tickets_and_send_mail()
@@ -1394,7 +1393,7 @@ _db_count_unused_logins()
 
 	local list profile_id login_id state j
 	local i=0
-	local file="/tmp/DB/USER/profile/id${wish_id}_counterA"
+	local file="$DIR_DATABASE/USER/profile/id${wish_id}_counterA"
 
 	[ "$option" = 'fast' ] && {
 		[ -e "$file" ] && read j <"$file"
@@ -1418,7 +1417,7 @@ _db_count_unused_logins()
 
 	is_used()
 	{
-		grep -q "A='$1';" /tmp/DB/USER/device/rows
+		grep -q "A='$1';" "$DIR_DATABASE/USER/device/rows"
 	}
 
 	for login_id in $list; do {
