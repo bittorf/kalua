@@ -5,14 +5,21 @@
 which uci >/dev/null || {
 	# missing on e.g. vpn-server / debian
 
-	# output nothing with returncode 0 but
-	# allow config-file with e.g. system.@profile[0].nodenumber=123
+	# output nothing with returncode 0 but allow config-file
 	cat <<EOF
-uci()
+uci()	# e.g. uci get system.@profile[0].nodenumber
 {
 	case "\$1" in
 		get)
-			grep -s ^"\$2=" /etc/kalua_uci | cut -d'=' -f2
+			[ -e /etc/kalua_uci ] || return 0
+			local line
+			while read line; do
+				case "\$line" in
+					"\$2="*)
+						echo "\$line" | cut -d'=' -f2
+					;;
+				esac
+			done </etc/kalua_uci
 		;;
 	esac
 }
