@@ -199,14 +199,27 @@ rrd_update()
 rrd_show()
 {
 	local duration="${1:-$( _system uptime min )min}"	# e.g. 15min, 4h
+
 	local webfile="/www/traffic.png"
 	local output="/tmp/graph.png"
 	local file="${2:-/tmp/datafile.rrd}"
+	local rrd_version="$( rrdtool --version | head -n1 )"
+	local date="$( _system date humanreadable pretty )"
+	local location="$( _weblogin metadata_locationname )"
+	local title="--title '$location: forwarded WAN-traffic $WANDEV host-$NODENUMBER: $HOSTNAME - time: $date (-$duration)'"
+	local watermark
+
+	case "$rrd_version" in
+		*'1.0.50'*|*'1.0.'*)
+			watermark=
+		;;
+		*'1.2.30'*|*'1.2.'*)
+			watermark='--watermark "Advanced kalua-framework by bittorf wireless ))"'
+		;;
+	esac
 
 	local context="traffic"
-	local date="$( _system date humanreadable pretty )"
 	local label="bytes/sec & users/stations (1 = 100k) & TCP/UDP-conntrack (1000 = 1M)"	# Y-axis
-	local location="$( _weblogin metadata_locationname )"
 	local alpha="44"
 	local tab='	'
 
@@ -235,10 +248,9 @@ rrd_show()
 	# supress output of image-size
 	rrdtool >/dev/null graph "$output"				\
 		--imgformat PNG --width 900 --height 600		\
-		--start -${duration}					\
-		--vertical-label "${label}"				\
-		--title "$location: forwarded WAN-traffic $WANDEV host-$NODENUMBER: $HOSTNAME - time: $date (-$duration)" \
-		--watermark "Advanced kalua-framework by bittorf wireless ))" \
+		--start -$duration					\
+		--vertical-label "$label"				\
+		$title $watermark 					\
 		DEF:upload_packets=${file}:upload_packets:AVERAGE	\
 		DEF:upload_bytes=${file}:upload_bytes:AVERAGE		\
 		DEF:download_packets=${file}:download_packets:AVERAGE	\
