@@ -131,7 +131,7 @@ _scheduler_allow_run()
 _scheduler_run()
 {
 	local funcname='scheduler_run'
-	local file line strong_debug age time
+	local file line strong_debug age time lastpart without_first_underliner first_word without_first_underliner
 	local logfile='/tmp/scheduler.log'
 
 	_scheduler allow_run "$logfile" || return 1
@@ -156,20 +156,20 @@ _scheduler_run()
 				_log do $funcname daemon debug "ignoring twin '$line'"
 			else
 				case "$line" in
-					'_'*)   # is a kalua-function
+					'_'*)   # seems like a kalua-function, e.g. _vpn_adduser argX
 						case "$line" in
 							*' '*' '*)
 								# e.g. '_sms_send bla blubb' = 2 spaces or more
-								local without_first_underliner="${line#_}"		# sms_send bla blubb
-								local first_word="${without_first_underliner%_*}"	# sms
+								without_first_underliner="${line#_}"		# sms_send bla blubb
+								first_word="${without_first_underliner%_*}"	# sms
 
 								if [ -e "/etc/kalua/$first_word" ]; then
 									_log do $funcname daemon info "2 spaces, needs rewrite: line: '$line'"
-									local lastpart="${without_first_underliner#*_}"	# send bla blubb
+									lastpart="${without_first_underliner#*_}"	# send bla blubb
 									line="_$first_word $lastpart"
 									_log do $funcname daemon info "2 spaces, rewrote: '$line'"
 								else
-									_log do $funcname daemon debug "2 spaces but rewrite unneeded: line: '$line'"
+									_log do $funcname daemon debug "rewrite unneeded: '$line'"
 								fi
 							;;
 							*' '*)
@@ -180,7 +180,7 @@ _scheduler_run()
 
 								# TODO: fix this in kalua_init
 								# needs rewrite, replace second '_' with a 'space'
-								local without_first_underliner="${line#_}"
+								without_first_underliner="${line#_}"
 								line="_${without_first_underliner/_/ }"		# replace 1st occurence
 							;;
 						esac
