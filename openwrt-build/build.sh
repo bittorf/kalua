@@ -815,21 +815,38 @@ copy_firmware_files()
 
 	# http://intercity-vpn.de/firmware/mpc85xx/images/testing/1c78c7a701714cddd092279587e719a3/TP-LINK%20TL-WDR4900%20v1.bin
 	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/usecase/$( usecase_hash "$LIST_OPTIONS" )/$HARDWARE_MODEL.bin"
-	log "enforced_profile: $CONFIG_PROFILE"
+	log "http://intercity-vpn.de/firmware/$HARDWARE_MODEL/testing/usecase/..."
 
-
-	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_option=kalua@5dce00c,Standard,VDS_profile=liszt28.hybrid.4_rootfs=squash_image=sysupgrade.bin
+	# Ubiquiti Bullet M
 	destination="$HARDWARE_MODEL_FILENAME"
+
+	# Ubiquiti Bullet M.openwrt=r38576
 	destination="${destination}.openwrt=${VERSION_OPENWRT}"
+
+	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11
 	destination="${destination}_kernel=${VERSION_KERNEL}"
-	destination="${destination}_option=${LIST_OPTIONS}"
-	[ -n "$CONFIG_PROFILE" ] && destination="${destination}_profile=${CONFIG_PROFILE}"
+
+	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_rootfs=squash
 	destination="${destination}_rootfs=$rootfs"
+
+	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_rootfs=squash_image=sysupgrade
 	if [ -n "$CONFIG_PROFILE" ]; then
 		destination="${destination}_image=factory"
 	else
 		destination="${destination}_image=sysupgrade"
 	fi
+	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_rootfs=squash_image=sysupgrade_option=Standard,kalua@5dce00c
+	destination="${destination}_option=${LIST_OPTIONS}"
+
+	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_rootfs=squash_image=sysupgrade_option=Standard,kalua@5dce00c_profile=liszt28.hybrid.4
+	[ -n "$CONFIG_PROFILE" ] && {
+		log "enforced_profile: $CONFIG_PROFILE"
+		destination="${destination}_profile=${CONFIG_PROFILE}"
+	}
+
+	# Ubiquiti Bullet M.openwrt=r41000_kernel=3.10.5_rootfs=squash_image=sysupgrade_option=Small,OLSRd,kalua@5dce00c.bin
+	# Ubiquiti Bullet M.openwrt=r41000_kernel=3.10.5_rootfs=squash_image=sysupgrade_option=Standard,kalua@5dce00c.bin
+	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_rootfs=squash_image=sysupgrade_option=Standard,kalua@5dce00c.bin
 	destination="${destination}.bin"
 
 # hardware=	Ubiquiti Bullet M			// special, no option-name and separator='.'
