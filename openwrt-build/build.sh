@@ -1267,7 +1267,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 
-
+				$funcname subcall 'netcatFull'
 				$funcname subcall 'shaping'
 				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
@@ -1290,6 +1290,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'
 
+#				$funcname subcall 'netcatFull'
 #				$funcname subcall 'shaping'
 #				$funcname subcall 'vtun'
 #				$funcname subcall 'mesh'
@@ -1313,6 +1314,12 @@ build_options_set()
 				apply_symbol 'CONFIG_USE_STRIP=y'			# Global build settings: Binary stripping method
 				apply_symbol 'CONFIG_USE_SSTRIP is not set'
 				apply_symbol 'CONFIG_STRIP_ARGS="--strip-all"'
+			;;
+			'netcatFull')
+				apply_symbol 'CONFIG_BUSYBOX_CUSTOM=y'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_NC_SERVER=y'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_NC_EXTRA=y'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_NC_110_COMPAT=y'
 			;;
 			'USBprinter')
 				apply_symbol 'CONFIG_PACKAGE_p910nd=y'			# network: printing: p910
