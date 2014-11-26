@@ -156,7 +156,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	_db lock now "$funcname() $@" || return 1
 
 	# ramdisc too small?
-	if tar czf "$file_temp" "$DIR_DATABASE" 2>/dev/null ; then
+	if tar -czf "$file_temp" "$DIR_DATABASE" 2>/dev/null ; then
 		_db lock free
 		_log do $funcname daemon info "[OK] wrote $( _file size "$file_temp" ) bytes to $file_temp"
 
@@ -305,10 +305,19 @@ _db_restore()
 			if tar -C "$( dirname "$DIR_DATABASE" )" -xzf "$file" ; then
 				_log do $funcname daemon info "[OK] untar"
 
+				# /database/tmp/...
 				[ -d "$( dirname "$DIR_DATABASE" )/tmp" ] && {
 					_log do $funcname daemon info "[OK] migrating oldstyle dirstructure"
 					mv $( dirname "$DIR_DATABASE" )/tmp/* $( dirname "$DIR_DATABASE" )
 					rm -fR $( dirname "$DIR_DATABASE" )/tmp
+				}
+
+				# FIXME in backup()
+				# /database/database/...
+				[ -d "$( dirname "$DIR_DATABASE" )/$( dirname "$DIR_DATABASE" )" ] && {
+					_log do $funcname daemon info "[OK] restructure path"
+					mv $( dirname "$DIR_DATABASE" )/$( dirname "$DIR_DATABASE" )/* $( dirname "$DIR_DATABASE" )
+					rm -fR $( dirname "$DIR_DATABASE" )/$( dirname "$DIR_DATABASE" )
 				}
 
 				# match for a single char inclosed in marks, e.g. A=''1''
