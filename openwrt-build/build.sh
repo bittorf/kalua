@@ -1290,7 +1290,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'
 
-#				$funcname subcall 'netcatFull'
+				$funcname subcall 'netcatFull'
 #				$funcname subcall 'shaping'
 #				$funcname subcall 'vtun'
 #				$funcname subcall 'mesh'
@@ -1316,6 +1316,9 @@ build_options_set()
 				apply_symbol 'CONFIG_STRIP_ARGS="--strip-all"'
 			;;
 			'netcatFull')
+				# without / with
+				# 353.824 / 355.095 bytes - staging_dir/target-mips_34kc_uClibc-0.9.33.2/root-ar71xx/bin/busybox
+				# 203.141 / 205.202 bytes - bin/ar71xx/packages/base/busybox_1.22.1-4_ar71xx.ipk
 				apply_symbol 'CONFIG_BUSYBOX_CUSTOM=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_NC_SERVER=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_NC_EXTRA=y'
