@@ -539,7 +539,21 @@ elif [ $AGE_DATABASE -eq -1 ]; then
 fi
 
 BOOTTIME=$(( $( date +%s ) - $( _system uptime sec ) ))
-BOOTTIME="$( _system date unixtime2date "$BOOTTIME" )"
+BOOTTIME="$( _system date unixtime2date "$BOOTTIME" )"		# Thu Nov 27 04:10:39 CET 2014
+
+# TODO: move to unixtime2date() ???
+case "$BOOTTIME" in
+	# Thu Nov 27
+	"$( date "+%a %b %e" ) "*)
+		set -- $BOOTTIME
+		shift 3
+		BOOTTIME="heute $1 Uhr"
+	;;
+	*)
+		BOOTTIME="seit $BOOTTIME"
+	;;
+esac
+
 
 # changes/min
 if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
@@ -571,7 +585,7 @@ cat <<EOF
  <body>
   <h1>$HOSTNAME &ndash; No. $NODENUMBER (mit OpenWrt r$( _system version short ) auf $HARDWARE)</h1>
   <big><a href='#'> OLSRv1-Verbindungen </a> ${AGE_HUMANREADABLE}&emsp;</big>
-   <small>Version: $( _olsr version ) | system <b>uptime</b>: $( _system uptime humanreadable ) (seit $BOOTTIME)</small><br><br>
+   <small>Version: $( _olsr version ) | system <b>uptime</b>: $( _system uptime humanreadable ) ($BOOTTIME)</small><br><br>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, Gatewaywechsel: $GATEWAY_JITTER)</big><br>
 
   <table cellspacing='5' cellpadding='5' border='0' class='sortable'>
