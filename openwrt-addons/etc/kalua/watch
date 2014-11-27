@@ -282,8 +282,9 @@ _watch_dhcp_space()
 
 _watch_mount_storage()
 {
+	local funcname='watch_mount_storage'
 	local dir='/tmp/storage'
-	local line dev size
+	local line dev size=
 
 	# TODO:
 	# when using this for a samba-share we must make sure, that
@@ -321,6 +322,7 @@ _watch_mount_storage()
 					;;
 					"/dev/$dev: UUID="*)
 						mkdir -p "$dir/$dev"
+						_log do $funcname daemon info "trying /dev/$dev"
 						mount "/dev/$dev" "$dir/$dev" && {
 							set -- $( df -h | grep "$dir/$dev"$ )
 							size="$2"
@@ -328,6 +330,7 @@ _watch_mount_storage()
 							umount "$dir/$dev" && {
 								rm -fR "$dir/$dev"
 								mkdir -p "$dir/${dev}_$size"
+								_log do $funcname daemon info "[OK] /dev/$dev -> $dir/${dev}_$size"
 								mount "/dev/$dev" "$dir/${dev}_$size"
 							}
 						}
@@ -336,6 +339,17 @@ _watch_mount_storage()
 			;;
 		esac
 	} done <'/proc/partitions'
+
+	[ -n "$size" ] && {
+		# e.g. 7200 or 'Solid State Device'
+		set -- $( hdparm -I "/dev/sda" | fgrep 'Nominal Media Rotation Rate: ' )
+		shift 4
+
+		[ ${1:-0} -gt 0 ] && {
+			_log do $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now"
+			hdparm -y -S 60 "/dev/sda"
+		}
+	}
 }
 
 _watch_usbstick_proxystorage()
