@@ -1,56 +1,64 @@
-_wget_do()								# SENS: fetching an URL $1, aborting after $2 seconds if no success
+#!/bin/sh
+
+# this is a wrapper for 'wget', which works around a bug/behaviour
+# which can lead to a hanging-daemon which will 'never' exit.
+# ask the net for all sorts of strange corner cases.
+#
+# here we simply start 'wget' in background, wait some
+# seconds (default: 15) and kill it (hard) if it's still there.
+
+_wget_do()
 {
-	local FUNC="wget_do"
-	local URL="$1"
-	local MAX="${2:-15}"						# maximal running time in seconds, defaults to 15sec
-	local option="$3"						# e.g. "noproxy"|"continue $filename" or even "noproxy,continue $filename"
-	local MASK1="$3"
-	local MASK2="$4"						# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
+	local funcname='wget_do'
+	local url="$1"
+	local max="${2:-15}"	# maximal running time in seconds, defaults to 15sec
+	local option="$3"	# e.g. "noproxy" or "continue $filename" or combined: "noproxy,continue $filename"
+	local mask1="$3"
+	local mask2="$4"	# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
 
-	local PID_WGET PID_LINE PID_LINE_NOW RC
-	local C=0							# counter (raising) for maximal seconds
-	local proxy_command file_option filename
+	local remaining_wgets pid_wget pid_line pid_line_now rc i c=0
+	local proxy_command file_option filename pid_background pid_num mycmdline myerror
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
-	local pidbackground i pidnum mycmdline myerror
 
-	case "$URL" in
-		*127.0.0.1*|*:[0-9]*)			# not for local urls or urls with special ports
-		;;					# fixme! be more correct: 127.0.0.0/8 + ipv6
+	case "$url" in
+		*'127.0.0.1'*|*:[0-9]*)			# no PROXY for local URLs or URLs with special ports
+		;;					# FIXME! be more correct: 127.0.0.0/8 + ipv6
 		*)
 			[ -n "$http_proxy" -a -z "$option" ] && {
-				_log do $FUNC daemon debug "using proxy $http_proxy"
-				proxy_command="-Y on"
+				_log do $funcname daemon debug "using proxy $http_proxy"
+				proxy_command='-Y on'
 			}
 		;;
 	esac
 
 	case "$option" in
-		*"continue"*)
+		*'continue'*)
 			filename="$( echo "$option" | cut -d' ' -f2 )"
-			file_option="-c"
+			file_option='-c'
 		;;
 		*)
-			filename="-"
+			filename='-'
+			file_option=
 		;;
 	esac
 
-	_log do $FUNC daemon debug "max ${MAX}s, ${#URL} bytes, wget $proxy_command -qO $filename $file_option '$URL'"
+	_log do $funcname daemon debug "max ${max}s, ${#url} bytes, wget $proxy_command -qO $filename $file_option '$url'"
 
+	# get pids and fire the real 'wget':
 	list_wget_pids_initial="$( pidof wget )"
-	( wget $proxy_command -qO $filename $file_option "$URL" 2>/tmp/${FUNC}_$$.error || echo "$?" >/tmp/${FUNC}_$$ ) &
-	pidbackground=$!
+	( wget $proxy_command -qO $filename $file_option "$url" 2>"/tmp/${funcname}_$$.error" || echo "$?" >"/tmp/${funcname}_$$" ) &
+	pid_background=$!
 	list_wget_pids_after_launch="$( pidof wget )"
 
+	# get PID of wget
 	[ -z "$list_wget_pids_after_launch" ] && {
-		[ -n "$pidbackground" ] && {
+		[ -n "$pid_background" ] && {
 			for i in 1 2 3 4 5; do {
-				pidnum=$(( $pidbackground + $i ))
-				[ -e "/proc/$pidnum/cmdline" ] && {
-					read mycmdline <"/proc/$pidnum/cmdline"
+				pid_num=$(( pid_background + i ))
+				read mycmdline 2>/dev/null <"/proc/$pid_num/cmdline" && {
 					case "$mycmdline" in
-						wget*)
-							_log do $FUNC daemon info "pidnum by parent process: $pidbackground -> $pidnum"
-							list_wget_pids_after_launch="$pidnum"
+						'wget'*)
+							list_wget_pids_after_launch="$pid_num"
 							break
 						;;
 					esac
@@ -67,79 +75,86 @@ _wget_do()								# SENS: fetching an URL $1, aborting after $2 seconds if no su
 		echo " $list " | grep -q " $element "
 	}
 
+	# join PIDs initial + after_launch
 	for element in $list_wget_pids_after_launch; do {
 		element_in_list "$element" "$list_wget_pids_initial" || {
 			list_wget_pids_myself="$list_wget_pids_myself $element"
 		}
 	} done
 
+	# get first pid of joined list
 	for element in $list_wget_pids_myself; do {
-		PID_WGET="$element"
+		pid_wget="$element"
 		break
 	} done
 
-	[ -e "/tmp/${FUNC}_$$.error" ] && {
-		read myerror <"/tmp/${FUNC}_$$.error"
+	[ -e "/tmp/${funcname}_$$.error" ] && {
+		read myerror 2>/dev/null <"/tmp/${funcname}_$$.error"
+		rm "/tmp/${funcname}_$$.error"
 
 		if [ ${#myerror} -eq 0 ]; then
-			_log do $FUNC daemon debug "[MESSAGE] empty"
+			_log do $funcname daemon debug '[OK] no error message'
 		else
-			_log do $FUNC daemon debug "[MESSAGE] $( cat "/tmp/${FUNC}_$$.error" )"
+			_log do $funcname daemon debug "error: '$myerror'"
 		fi
-
-		rm "/tmp/${FUNC}_$$.error"
 	}
 
-	case ${PID_WGET:-unset} in
-		unset)
-			_log do $FUNC daemon debug "empty PID after fetching '$URL' - was faster than light?"
+	case "${pid_wget:-unset}" in
+		'unset')
+			_log do $funcname daemon debug "[OK] empty PID after fetching '$url' - was faster than light?"
 			return 0
 		;;
 		*)
-			read PID_LINE 2>/dev/null </proc/$PID_WGET/cmdline	# exact line of ps-output
+			# exact line like shown with 'ps'
+			read pid_line 2>/dev/null <"/proc/$pid_wget/cmdline"
 		;;
 	esac
 
-	while [ -e "/proc/$PID_WGET" ]; do {				# wget-process in tasklist?
+	while [ -e "/proc/$pid_wget" ]; do {				# wget-process in tasklist?
 		sleep 1
-		C=$(( $C + 1 ))
-		
-		[ $C -gt $MAX ] && {					# maximal execution time reached
+		c=$(( c + 1 ))
 
-			PID_LINE_NOW=
-			read PID_LINE_NOW 2>/dev/null </proc/$PID_WGET/cmdline		# is now empty, when task has ended
+		# maximal execution time reached?
+		[ $c -gt $max ] && {
+			pid_line_now=
+			# keeps empty, when task has ended
+			read pid_line_now 2>/dev/null <"/proc/$pid_wget/cmdline"
 
-			[ "$PID_LINE" = "$PID_LINE_NOW" ] && {		# is this really the started process?
-	
-				[ -n "$MASK1" ] && {
-					URL="$( echo "$URL" | sed -e "s/$MASK1/hidden/" -e "s/$MASK2/hidden/" )"
+			# really the started process?
+			[ "$pid_line" = "$pid_line_now" ] && {
+				[ -n "$mask1" ] && {
+					url="$( echo "$url" | sed -e "s/${mask1:-nomask1}/hidden/" -e "s/${mask2:-nomask2}/hidden/" )"
 				}
 
 				for element in $list_wget_pids_myself; do {
-					_log do $FUNC daemon info "error during fetching '$URL' - killing PID '$element' after $C seconds"
+					_log do $funcname daemon info "error during fetching '$url' - killing PID '$element' after $c seconds"
 					_watch hanging_command wget_selfkill $element
 					_watch hanging_command wget_selfkill $element
 				} done
 
+				# FIXME! this is unneeded? and racy: we can kill other wgets which have just started
 				[ -z "$initial_wgets" ] && {
-					leaving_wgets="$( pidof wget )" && {
-						_log do $FUNC daemon info "leaving wgets: $leaving_wgets , do killall"
+					remaining_wgets="$( pidof wget )" && {
+						_log do $funcname daemon info "leaving wgets: $remaining_wgets , do killall"
 						killall wget
 					}
 				}
 
-				return 1				# fixme! check if still there? zombie? reboot?
+				# FIXME! check if still there? zombie? reboot?
+				return 1
 			}
 
-			return 0					# OK, is another/new process with same PID
+			# OK, is another/new process with same PID
+			return 0
 		}
 	} done
 
-	if [ -e /tmp/${FUNC}_$$ ]; then
-		read RC </tmp/${FUNC}_$$
-		rm /tmp/${FUNC}_$$
-		_log do $FUNC daemon info "[ERR] returning $RC after fetching '$URL'"
-		return $RC
+	if [ -e "/tmp/${funcname}_$$" ]; then
+		read rc <"/tmp/${funcname}_$$"
+		rm "/tmp/${funcname}_$$"
+
+		_log do $funcname daemon info "[ERR] returning $rc after fetching '$url'"
+		return $rc
 	else
 		return 0
 	fi
