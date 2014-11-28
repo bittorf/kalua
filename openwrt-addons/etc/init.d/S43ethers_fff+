@@ -129,14 +129,14 @@ _build_hosts()				# SENS: modulary builds /etc/local.hosts
 		'join')
 			_log do $FUNC daemon debug "joining '$SUB_LAN', '$SUB_WIFI', '$SUB_VIRT', '$SUB_DROP' to '$FILE'"
 
-			for file in "$SUB_LAN" "$SUB_WIFI" "$SUB_VIRT" "$SUB_DROP"; do {
+			for file in "$SUB_VIRT" "$SUB_LAN" "$SUB_WIFI" "$SUB_DROP"; do {
+				echo "# BEGIN: $file ($( wc -l <"$file" ) lines)"
 				cat "$file" && rm "$file"
+				echo "# READY: $file"
+				echo
 			} done >"$FILE"
 		;;
 		'wifi')
-			_log do $FUNC daemon debug "building wifi-entrys"
-			echo  >$SUB_WIFI "# entrys for wifi-subnet"
-
 			# on OS-X the client accept this build hostname, e.g.: user-wifi7-n387.lan
 			DEFAULT='user'
 			DOMAIN="$( uci get dhcp.@dnsmasq[0].domain )"
@@ -162,20 +162,16 @@ _build_hosts()				# SENS: modulary builds /etc/local.hosts
 			echo >>$SUB_WIFI
 		;;
 		'lan')
-			_log do $FUNC daemon debug "building lan/wan-entrys"
-			echo  >$SUB_LAN "# entrys for lan-subnet"
-
-			local HOSTNAME="$( uci get system.@system[0].hostname )"
-
 			[ -n "$WANADR" ] && {
-				echo >>$SUB_LAN "# WAN (start)"
+				echo >>$SUB_LAN "# BEGIN: wan"
 				echo >>$SUB_LAN "$WANADR $HOSTNAME.$DOMAIN $HOSTNAME"
-				echo >>$SUB_LAN "# WAN (end)"
+				echo >>$SUB_LAN "# READY: wan"
+				echo >>$SUB_LAN
 			}
 
 			# on OS-X the client accept this build hostname, e.g.: user-lan7-n387.lan
 			DEFAULT='user'
-			DOMAIN="$( uci get dhcp.@dnsmasq[0].domain )"
+			DOMAIN="$( uci -q get dhcp.@dnsmasq[0].domain )"
 			CLIENT=0
 			MODE="$1"
 
@@ -198,8 +194,6 @@ _build_hosts()				# SENS: modulary builds /etc/local.hosts
 			echo >>$SUB_LAN 	# just a blank line
 		;;
 		'virtual')
-			_log do $FUNC daemon debug "building virtual-entrys"
-
 			echo  >$SUB_VIRT "# for neccesary lookups and safe reaching of device"
 			echo >>$SUB_VIRT "255.255.255.255 anyhost.$DOMAIN anyhost"
 			echo >>$SUB_VIRT "104.0.0.0 oldstyle_freifunk_net.$DOMAIN oldstyle_freifunk_net"
@@ -243,32 +237,32 @@ _build_hosts()				# SENS: modulary builds /etc/local.hosts
 		'drop')
 			echo  >$SUB_DROP "# for dropping known advertisement servers"
 			echo >>$SUB_DROP "# (1.1.0.0/20 gets REJECTed, range is enough for ~4096 hosts)"
-			
-			local LIST="/etc/hosts.drop"		# see fff-adblock-list.ipk, list of bad domains
+
+			local LIST='/etc/hosts.drop'		# see fff-adblock-list.ipk, list of bad domains
 
 			[ -e "$LIST" ] || {
 				_log do $FUNC daemon debug "no drop-list '$LIST' - do nothing"
 				return
 			}
-			
+
 			_log do $FUNC daemon debug "building drop-list"
-			
+
 			local X=0
 			local Y=0
 			local COUNT=0
 			local LINE
 
 			while read LINE; do {
-				
+
 				Y=$(( $Y + 1 ))
 				[ $Y -gt 254 ] && {
 					Y=1
 					X=$(( $X + 1 ))
 					COUNT=$(( $COUNT + 255 ))
 				}
-					
+
 				echo "1.1.$X.$Y $LINE"		# e.g. '1.1.5.200 www.ebay.de' -> packetfilter knows, that this range must be dropped
-				
+
 			} done <$LIST >>$SUB_DROP
 
 			_log do $FUNC daemon debug "building drop-list ready ($(( $COUNT + $Y )) hosts)"
@@ -329,10 +323,10 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 			}
 
 			HOSTNAME="$( echo $HOSTNAME | sed 's/[^0-9a-zA-Z-]//g' )"	# sanitized / RFC-952
-			
+
 			echo -en "${HWADRESS}=${HOSTNAME};" >>$DEBUG_FILE		# must include the sanitized output
 											# and must be the same syntax like nvram
-			
+
 			HOSTNAME="${HOSTNAME}-${MODE}${CLIENT}-n$NODENUMBER.$DOMAIN"		# fixme! remove leading/trailing "-"
 
 			_log do $FUNC daemon debug "writing '$HWADRESS' with hostname '$HOSTNAME' to '$FILE'"
@@ -341,7 +335,7 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 		else
 			[ -z "$HWADRESS" ] && _log do $FUNC daemon debug "no mac-address given"
 			[ -z "$HOSTNAME" ] && _log do $FUNC daemon debug "no hostname-address given"
-			
+
 			[ -n "$HWADRESS" ] && {
 				grep -sq ^"$HWADRESS" "$FILE" && {
 					_log do $FUNC daemon debug "suppressing doubled mac '$HWADRESS'"
@@ -358,9 +352,9 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 
 		if [ "$LIST" != "$DEBUG_VAL" ]; then
 			# fixme! we need a sanitizer for non allowed characters, e.g. ":"
-				
+
 			_log do $FUNC daemon alert "error in config: is '$LIST' must be '$DEBUG_VAL' - correcting"
-			
+
 			_nvram set "${DEBUG_VAR}" "$DEBUG_VAL"
 			_nvram set commit "repaired error in fff_ethers_$MODE"
 		else
