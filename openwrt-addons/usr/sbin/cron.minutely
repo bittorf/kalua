@@ -4,16 +4,16 @@ if true; then								# will be activated during cron-startup
 	read UP REST </proc/uptime
 	read LOAD REST </proc/loadavg
 else
-	UP=999999
+	UP=999999999
 fi
 
 [ ${UP%.*} -gt 129600 ] && {	# 36h
 	. /tmp/loader
 
-	if [ $UP -eq 999999 ]; then
+	if [ $UP -eq 999999999 ]; then
 		_system crashreboot 'procfs_broken'
 	else
-		_system crashreboot 'over_uptime'
+		bool_true 'system.@system[0].avoid_autoreboot' || _system crashreboot 'over_uptime'
 	fi
 }
 
@@ -190,7 +190,7 @@ case "$LOAD" in
 					read I <"/tmp/CRON_UNDERLOAD"
 					[ ${#I} -gt 90 ] && {
 						rm "/tmp/CRON_IS_CAREFUL"
-						_system crashreboot 'underload'
+						bool_true 'system.@system[0].avoid_autoreboot' || _system crashreboot 'underload'
 					}
 
 					_watch hanging_command 'usual_suspects'
@@ -288,7 +288,7 @@ case "$LOAD" in
 					*)
 						rm "/tmp/CRON_IS_CAREFUL"
 						. /tmp/loader
-						_system crashreboot 'overload'
+						bool_true 'system.@system[0].avoid_autoreboot' || _system crashreboot 'overload'
 					;;
 				esac
 			;;
