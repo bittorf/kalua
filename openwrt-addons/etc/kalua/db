@@ -119,7 +119,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 				# minor_update_user_foo
 				# login_update_index_gen_last1
 	local file="/www/cgi-bin/db_backup.tgz"
-	local file_temp="/tmp/db_backup.tgz.temp.$$"
+	local file_temp="/$funcname/db_backup.tgz.temp.$$"
 	local file_safewrite="$file.safewrite"
 	local errorcode=0
 	local border=-5
@@ -127,7 +127,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 
 	[ -d "$DIR_DATABASE" ] || return 0
 	[ -e "$DIR_DATABASE/USER/login/meta_index" ] || return 0
-	[ $( _file size "$DIR_DATABASE/USER/login/meta_index" ) -eq 0 ] && return 0
+	[ -s "$DIR_DATABASE/USER/login/meta_index" ] || return 0
 
 	_log do $funcname daemon info "reason: '$reason'"
 
@@ -137,7 +137,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		;;
 		*)
 			# fixme! distinguish between backup to FLASH or USB
-			_log do $funcname daemon info "ignoring call for '$reason'"
+			_log do $funcname daemon info "ignoring call for '$reason' - use 'force' if needed"
 			return 0
 		;;
 	esac
@@ -154,6 +154,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	}
 
 	_db lock now "$funcname() $@" || return 1
+	_system add_ramdisc "$funcname"
 
 	# ramdisc too small?
 	if tar -czf "$file_temp" "$DIR_DATABASE" 2>/dev/null ; then
@@ -237,6 +238,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		_db lock free
 	fi
 
+	umount "/$funcname"
 	return $errorcode
 }
 
