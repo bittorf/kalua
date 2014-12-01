@@ -959,6 +959,11 @@ build()
 				BUILD_DURATION=$(( ${t2%.*}${t2#*.} - ${t1%.*}${t1#*.} ))
 				BUILD_DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
 				log "$funcname() running 'make $commandline' lasts $BUILD_DURATION sec"
+
+				[ "$FAIL" = 'true' ] && {
+					log "$funcname() keeping state, so you can make changes and build again"
+					return 1
+				}
 			else
 				log "$funcname() ERROR during make: check directory logs/ with"
 				log "$funcname() find logs -type f -exec stat -c '%y %N' {} \; | sort -n"
@@ -1662,6 +1667,9 @@ while [ -n "$1" ]; do {
 		;;
 		'--force'|'-f')
 			FORCE='true'
+		;;
+		'--fail')
+			FAIL='true'
 		;;
 		'--openwrt')
 			VERSION_OPENWRT="$2"
