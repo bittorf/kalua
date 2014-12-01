@@ -123,7 +123,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	local file_safewrite="$file.safewrite"
 	local errorcode=0
 	local border=-5
-	local s1 s2 s3 flash_free
+	local s1 s2 s3 flash_free disc_free rc
 
 	[ -d "$DIR_DATABASE" ] || return 0
 	[ -e "$DIR_DATABASE/USER/login/meta_index" ] || return 0
@@ -231,9 +231,13 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 			fi
 		fi
 	else
+		rc=$?
 		rm "$file_temp"
-		_log do $funcname daemon sms "[ERR] while working on $file_temp - disk full? free: $( _system disc_free "$DIR_DATABASE" kilobytes ) kb"
+		disc_free="$( _system disc_free "$DIR_DATABASE" kilobytes ) kb"
 		errorcode=1
+
+		_log do $funcname daemon sms "[ERR] rc $rc while 'tar -czf \"$file_temp\" \"$DIR_DATABASE\"' - disc_free: $disc_free"
+		uci set system.@system[0].avoid_autoreboot='true'
 
 		_db lock free
 	fi
