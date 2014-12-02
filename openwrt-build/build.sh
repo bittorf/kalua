@@ -726,7 +726,11 @@ openwrt_download()
 
 			git branch | grep -q ^"  openwrt@${hash}=${wish}"$ && {
 				log "$funcname() removing old? branch 'openwrt@${hash}=${wish}'"
-				git branch -D "openwrt@${hash}=${wish}"
+				git branch -D "openwrt@${hash}=${wish}" || {
+					log "$funcname() removing failed, will 'stash' and try again"
+					git stash
+					git branch -D "openwrt@${hash}=${wish}"
+				}
 			}
 
 			git checkout -b "openwrt@${hash}=${wish}" "$hash" || {
