@@ -1406,6 +1406,7 @@ build_options_set()
 			'NAS')
 				apply_symbol 'CONFIG_PACKAGE_smartd=y'			# utilities -> smart
 				apply_symbol 'CONFIG_PACKAGE_smartmontools=y'		# utilities -> smart
+				apply_symbol 'CONFIG_PACKAGE_kmod-loop=y'		# kernel-modules: block-devices
 			;;
 			'NTPfull')
 				apply_symbol 'CONFIG_PACKAGE_ntp-utils=y'		# network -> time_syncronisation
