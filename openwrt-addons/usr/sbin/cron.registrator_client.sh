@@ -4,7 +4,20 @@
 
 OPTION="$1"	# e.g. 'show_next_free'
 
+NETWORK="${CONFIG_PROFILE%_*}"
+case "$NETWORK" in
+	# share same IP-space
+	'ffweimar'|'liszt28'|'paltstadt'|'ilm1')
+		NETWORK='ffweimar'
+	;;
+	*)
+		return 0
+	;;
+esac
+
 URL_BASE='http://reg.weimarnetz.de'
+PASS="$( _ssh key_public_fingerprint_get )"
+PASS="$( _sanitizer do "$PASS" urlvalue )"
 
 if [ -e '/www/monitoring.wifimac' ]; then
 	read MAC <'/www/monitoring.wifimac'
@@ -12,20 +25,6 @@ else
 	MAC="$( _net dev2mac "$WIFIDEV" )"
 	MAC="$( _sanitizer do "$MAC" urlvalue )"
 fi
-
-PASS="$( _ssh key_public_fingerprint_get )"
-PASS="$( _sanitizer do "$PASS" urlvalue )"
-
-NETWORK="${CONFIG_PROFILE%_*}"
-case "$NETWORK" in
-	# share same IP-space
-	'liszt28'|'paltstadt'|'ilm1')
-		NETWORK='ffweimar'
-	;;
-	*)
-		return 0
-	;;
-esac
 
 if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; then
 
@@ -160,6 +159,11 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 			_log do heartbeat daemon alert "[ERR] HTTP-Answer: '$HTTP_ANSWER'"
 		;;
 	esac
+
+	# cleanup env-space
+	for VARGROUP in JSON_ KEYS_JSON_ SEQ_JSON_ TYPE_JSON_ UP_JSON_ HTTP_ANSWER; do {
+		eval $( set | grep ^"$VARGROUP" | cut -d'=' -f1 | sed "s/$VARGROUP/unset &/" )
+	} done
 else
 	URL="http://reg.weimarnetz.de/$NETWORK/list"
 	FILE="/tmp/LIST_NODES_REGISTRATED"
@@ -195,8 +199,8 @@ else
 			if [ -n "$NODENUMBER_NEW" ]; then
 				_log do request_nodenumber daemon alert "apply new nodenumber '$NODENUMBER_NEW'"
 
-				NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
-				MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
+				NETWORK="${CONFIG_PROFILE%_*}"
+				MODE="${CONFIG_PROFILE#*_}"
 				/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$NODENUMBER_NEW"
 			else
 				_log do request_nodenumber daemon info "could not get new nodenumber"
