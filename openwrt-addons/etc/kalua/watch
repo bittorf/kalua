@@ -11,21 +11,30 @@ _watch_configchange()
 	local funcname='watch_configchange'
 	local hashfile='/etc/openwrt_confighash'
 	local old_hash new_hash
-	local server='root@intercity-vpn.de'
-	local server_path="/var/www/networks/${CONFIG_PROFILE%_*}/settings"
-	local server_file="config-$NODENUMBER-$( date +%s ).tar.gz"
-	local identity='/etc/dropbear/dropbear_dss_host_key'
+
+	case "$CONFIG_PROFILE" in
+		ffweimar*|liszt28*)
+		;;
+		*)
+			return 0
+		;;
+	esac
 
 	[ -e "$hashfile" ] && read old_hash <"$hashfile"
 	new_hash="$( cat /etc/config/* | md5sum )"
 
 	[ "$new_hash" = "$old_hash" ] || {
+		local server='root@intercity-vpn.de'
+		local server_path="/var/www/networks/${CONFIG_PROFILE%_*}/settings"
+		local server_file="config-$NODENUMBER-$( date +%s ).tar.gz"
+		local identity='/etc/dropbear/dropbear_dss_host_key'
+
 		_log do $funcname daemon alert "[OK] detected change"
 
-		# about 5 kilobytes
-		tar -czf /tmp/config.tar.gz /etc/config
+		# ~5 kilobytes
+		tar -czf '/tmp/config.tar.gz' '/etc/config'
 
-		if scp -i "$identity" /tmp/config.tar.gz "$server:$server_path/$server_file"; then
+		if scp -i "$identity" '/tmp/config.tar.gz' "$server:$server_path/$server_file"; then
 			_log do $funcname daemon info "[OK] upload to $server"
 			echo "$new_hash" >"$hashfile"
 		else

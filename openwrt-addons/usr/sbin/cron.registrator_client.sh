@@ -16,7 +16,7 @@ fi
 PASS="$( _ssh key_public_fingerprint_get )"
 PASS="$( _sanitizer do "$PASS" urlvalue )"
 
-NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
+NETWORK="${CONFIG_PROFILE%_*}"
 case "$NETWORK" in
 	# share same IP-space
 	'liszt28'|'paltstadt'|'ilm1')
