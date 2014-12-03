@@ -964,10 +964,12 @@ build()
 				BUILD_DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
 				log "$funcname() running 'make $commandline' lasts $BUILD_DURATION sec"
 
-				[ "$FAIL" = 'true' ] && {
+				if [ "$FAIL" = 'true' ]; then
 					log "$funcname() keeping state, so you can make changes and build again"
 					return 1
-				}
+				else
+					return 0
+				fi
 			else
 				log "$funcname() ERROR during make: check directory logs/ with"
 				log "$funcname() find logs -type f -exec stat -c '%y %N' {} \; | sort -n"

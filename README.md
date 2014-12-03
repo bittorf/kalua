@@ -238,6 +238,7 @@ system.@httpsproxy[0].enabled		- bool
 olsrd.@meta[0].fixedarp			- bool
 olsrd.@meta[0].throttle_traffic		- bool
 olsrd.@meta[0].nexthop_dns		- bool
+olsrd.@meta[0].reboot_weak_ethernet	- bool
 
 firewall.@adblock[0].enabled		- bool
 network.$INTERFACE.dyndns		- url

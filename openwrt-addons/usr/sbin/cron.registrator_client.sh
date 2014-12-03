@@ -17,13 +17,18 @@ PASS="$( _ssh key_public_fingerprint_get )"
 PASS="$( _sanitizer do "$PASS" urlvalue )"
 
 NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
-[ "$NETWORK" = 'liszt28' ] && NETWORK='ffweimar'		# both share same IP-space
+case "$NETWORK" in
+	# share same IP-space
+	'liszt28'|'paltstadt'|'ilm1')
+		NETWORK='ffweimar'
+	;;
+esac
 
 # get the config for "NODE_NUMBER_RANDOM"
-eval $( _ipsystem do "$NODENUMBER" | grep ^"NODE_NUMBER_RANDOM=" )
+eval $( _ipsystem getvar 'NODE_NUMBER_RANDOM' )
 
 # only if RANDOM is set to false, …
-if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
+if [ "$NODE_NUMBER_RANDOM" = 'false' -a -z "$OPTION" ]; then
 
 	# API call is: Send an 'Update' for our NODENUMBER, with MAC and PASS.
 	# - if the NODENUMBER did not exist, it will be created with the supplied data
@@ -31,7 +36,7 @@ if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
 	#     - and the PASS did not match: Error
 	#     - and PASS did match: Success (and extension of lease in registrator)
 	URL="$URL_BASE/PUT/$NETWORK/knoten/$NODENUMBER?mac=${MAC}&pass=${PASS}"
-	_log do heartbeat daemon info "$URL"
+	HTTP_ANSWER="$( _wget do "$URL" 30 )"
 
 	# call API and convert JSON answer to shell variables
 	# answer e.g.:
@@ -60,8 +65,10 @@ if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
 	#    "location": "/ffweimar/knoten/269"
 	#  }
 	# }
-	HTTP_ANSWER="$( _wget do "$URL" 30 )"
-	eval $( jshn -r "$HTTP_ANSWER" )
+
+	json_load "$HTTP_ANSWER"
+	json_get_var 'JSON_VAR_status' 'status'
+	json_get_var 'JSON_VAR_message' 'message'
 
 	# check if we've got HTTP Status 401 'Not Authorized'
 	case "$JSON_VAR_status" in
@@ -82,27 +89,61 @@ if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
 			# - if a new NODENUMBER was registered for us, status is 201 Created
 			# - if a NODENUMBER with same MAC already existed, status is 303 Redirect
 			URL="$URL_BASE/POST/$NETWORK/knoten?mac=${MAC}&pass=${PASS}"
+			HTTP_ANSWER="$( _wget do "$URL" 30 )"
 
 			# call API and convert JSON answer to shell variables
-			HTTP_ANSWER="$( _wget do "$URL" 30 )"
-			eval $( jshn -r "$HTTP_ANSWER" )
+			#
+			# {
+			#   "status": 404,
+			#   "msg": "Not Found!",
+			#   "result": "Network liszt28 not found!"
+			# }
+			#
+			# {
+			#   "status": 303,
+			#   "msg": "MAC already registered!",
+			#   "result": {
+			#     "number": 808,
+			#     "mac": "00049fef0101",
+			#     "last_seen": 1414295261121,
+			#     "network": "ffweimar",
+			#     "location": "/ffweimar/knoten/808"
+			#   }
+			# }
+			#
+			# {
+			#   "status": 201,
+			#   "message": "Created!",
+			#   "result": {
+			#     "number": 4,
+			#     "mac": "345678123499",
+			#     "last_seen": 1417554501131,
+			#     "network": "ffweimar",
+			#     "location": "/ffweimar/knoten/4"
+			#   }
+			# }
+
+			json_load "$HTTP_ANSWER"
+			json_get_var 'JSON_VAR_status' 'status'
+			json_get_var 'JSON_VAR_message' 'message'
+			json_get_var 'JSON_VAR_result_number' 'number'
 
 			# if the status is >400, there was some kind of error
 			if [ 2>/dev/null "${JSON_VAR_status:-0}" -lt 400 ]; then
 				# check if the answer contains a NODENUMBER
-				if [ 2>/dev/null "$JSON_TABLE1_number" -gt 1 -a "$JSON_TABLE1_number" != "$NODENUMBER" ]; then
-					_log do registrator daemon alert "[OK] new nodenumber: '$JSON_TABLE1_number'"
+				if [ 2>/dev/null "$JSON_VAR_result_number" -gt 1 -a "$JSON_VAR_result_number" != "$NODENUMBER" ]; then
+					_log do registrator daemon alert "[OK] new nodenumber: '$JSON_VAR_result_number'"
 					# check with `_ipsystem` if it is a *valid* NODENUMBER
-					if _ipsystem do "$JSON_TABLE1_number" >/dev/null ; then
+					if _ipsystem do "$JSON_VAR_result_number" >/dev/null ; then
 						# TODO: does one of these already save the number to uci ???
 						NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
 						MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
-						/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$JSON_TABLE1_number"
+						/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$JSON_VAR_result_number"
 					else
-						_log do error daemon info "nodenumber invalid: '$JSON_TABLE1_number'"
+						_log do error daemon info "nodenumber invalid: '$JSON_VAR_result_number'"
 					fi
 				else
-					_log do error daemon info "new number invalid: '$JSON_TABLE1_number'"
+					_log do error daemon info "new number invalid: '$JSON_VAR_result_number'"
 				fi
 			else
 				_log do error daemon info "message: '$JSON_VAR_message'"
@@ -113,7 +154,7 @@ if [ "$NODE_NUMBER_RANDOM" = "false" -a -z "$OPTION" ]; then
 			_log do heartbeat daemon alert "OK: HTTP-Answer: '$HTTP_ANSWER'"
 		;;
 		'200')
-			_log do heartbeat daemon info "OK"
+			_log do heartbeat daemon info 'OK'
 		;;
 		*)
 			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_message'"
