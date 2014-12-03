@@ -4,7 +4,7 @@
 
 OPTION="$1"	# e.g. 'show_next_free'
 
-URL_BASE="http://reg.weimarnetz.de"
+URL_BASE='http://reg.weimarnetz.de'
 
 if [ -e '/www/monitoring.wifimac' ]; then
 	read MAC <'/www/monitoring.wifimac'
@@ -22,13 +22,12 @@ case "$NETWORK" in
 	'liszt28'|'paltstadt'|'ilm1')
 		NETWORK='ffweimar'
 	;;
+	*)
+		return 0
+	;;
 esac
 
-# get the config for "NODE_NUMBER_RANDOM"
-eval $( _ipsystem getvar 'NODE_NUMBER_RANDOM' )
-
-# only if RANDOM is set to false, …
-if [ "$NODE_NUMBER_RANDOM" = 'false' -a -z "$OPTION" ]; then
+if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; then
 
 	# API call is: Send an 'Update' for our NODENUMBER, with MAC and PASS.
 	# - if the NODENUMBER did not exist, it will be created with the supplied data
