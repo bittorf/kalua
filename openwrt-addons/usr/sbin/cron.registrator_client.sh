@@ -165,6 +165,8 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 		eval $( set | grep ^"$VARGROUP" | cut -d'=' -f1 | sed "s/$VARGROUP/unset &/" )
 	} done
 else
+	[ "$OPTION" = 'show_next_free' ] || return 0
+
 	URL="http://reg.weimarnetz.de/$NETWORK/list"
 	FILE="/tmp/LIST_NODES_REGISTRATED"
 	_wget do "$URL" >"$FILE"
