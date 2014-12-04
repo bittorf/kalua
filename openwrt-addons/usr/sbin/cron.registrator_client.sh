@@ -162,9 +162,8 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 	esac
 
 	# cleanup env-space
-	for VARGROUP in JSON_ KEYS_JSON_ SEQ_JSON_ TYPE_JSON_ UP_JSON_ HTTP_ANSWER; do {
-		eval $( set | grep ^"$VARGROUP" | cut -d'=' -f1 | sed "s/$VARGROUP/unset &/" )
-	} done
+	unset HTTP_ANSWER
+	json_cleanup
 else
 	[ "$OPTION" = 'show_next_free' ] || return 0
 
