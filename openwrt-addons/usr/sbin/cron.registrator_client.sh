@@ -2,7 +2,8 @@
 . /tmp/loader
 . /usr/share/libubox/jshn.sh
 
-OPTION="$1"	# e.g. 'show_next_free'
+OPTION="$1"
+[ "$OPTION" = 'show_next_free' ] || unset OPTION	# only for debug
 
 NETWORK="${CONFIG_PROFILE%_*}"
 case "$NETWORK" in
