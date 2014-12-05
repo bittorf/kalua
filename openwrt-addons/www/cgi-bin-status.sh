@@ -547,7 +547,7 @@ case "$BOOTTIME" in
 	"$( date "+%a %b %e" ) "*)
 		set -- $BOOTTIME
 		shift 3
-		BOOTTIME="heute $1 Uhr"
+		BOOTTIME="seit heute $1 Uhr"
 	;;
 	*)
 		BOOTTIME="seit $BOOTTIME"

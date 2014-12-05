@@ -6,37 +6,36 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 				#	- call service-specific function
 				#	- when something fails, use another service
 				#	this should be executed by cron every minute (to process queue-file)
-
 	local   FUNC="sms_send"
 	local   DEST="$1"					# ARG1: string (name or number)
 	local   TEXT="$2"					# ARG2: string (text to send, codepage ISO_8859-1)
 	local NOPOST="$3"					# ARG3: string (optional, keyword: nopost)
 
-	local   USER="${4:-$( uci get sms.@sms[0].username )}"	#	string 		// fixme! same username/pass for every provider?
-	local   PASS="${5:-$( uci get sms.@sms[0].password )}"	#	string
+	local   USER="${4:-$( uci -q get sms.@sms[0].username )}"	# string // fixme! same username/pass for every provider?
+	local   PASS="${5:-$( uci -q get sms.@sms[0].password )}"	# string
 
-	local   POST="${6:-$( uci get sms.@sms[0].post )}"	#       string (something like: "from klaus [03643/110]" )
+	local   POST="${6:-$( uci -q get sms.@sms[0].post )}"	# string (something like: "from klaus [03643/110]" )
 	local NUMBER
 
 	[ -z "$USER" ] && {
-		_log do $FUNC user crit "username not given - aborting"
+		_log do $FUNC user crit "username not given - aborting: $TEXT"
 		return 1
 	}
 
 	[ -z "$PASS" ] && {
-		_log do $FUNC user crit "password not given - aborting"
+		_log do $FUNC user crit "password not given - aborting: $TEXT"
 		return 1
 	}
 
 	[ -z "$TEXT" ] && {
-		_log do $FUNC user crit "text not given - aborting"
+		_log do $FUNC user crit "text not given - aborting: $TEXT"
 		return 1
 	}
 
 	[ -n "$NOPOST" ] && POST=
 
 	NUMBER="$( _phone book_name2number "$DEST" )" || {			# can return a comma-separated list of numbers
-		_log do $FUNC user notice "wrong name/number - aborting"
+		_log do $FUNC user notice "wrong name/number - aborting: $TEXT"
 		return 1
 	}
 
