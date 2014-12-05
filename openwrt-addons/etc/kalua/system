@@ -267,55 +267,59 @@ _system_version()	# fixme! use /etc/openwrt_version | /etc/openwrt_release
 
 _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 {						# fixme! safe vds-data? rrd-data?
-	local FUNC="system_reboot_safe"
-	local REASON="$1"			# first word must be valid for crashreboot()
-	local LOCKFILE="/tmp/SAFE_REBOOT_SCHEDULED"
+	local funcname='system_reboot_safe'
+	local reason="$1"			# first word must be valid for crashreboot()
+	local lockfile="/tmp/$funcname-active"
 	local uptime
 
 	_linklocal wifi_users "$WIFIDEV" >/dev/null && {
-		_log do $FUNC daemon info "waiting till all wifi-clients disconnect, rescheduling myself"
-		echo >>$SCHEDULER "_system reboot_safe '$1'"
+		_log do $funcname daemon info "waiting till all wifi-clients disconnect, rescheduling myself"
+		echo >>$SCHEDULER "_system reboot_safe '$reason'"
 		return
 	}
 
-	[ -e  "$LOCKFILE" ] && return
-	touch "$LOCKFILE"
+	[ -e  "$lockfile" ] && return
+	touch "$lockfile"
 
 	_mail stash_for_later_resend
 
 	cron.monitoring send_alive_message no_antenna_test	# maybe the last feedback can be helpful
 
 	uptime=$( _system uptime sec )
-	if [ $uptime -gt 85771 -a $uptime -lt 86775 -a "$reason" = 'nightly_reboot' ]; then
+	if [ $uptime -gt 85000 -a $uptime -lt 87000 -a "$reason" = 'nightly_reboot' ]; then
 		# scheduled each 24h = 86400
 		:
 	else
-		_log do $FUNC daemon alert "scheduling reboot - reason: '$REASON'"
+		_log do $funcname daemon alert "scheduling reboot - reason: '$reason'"
 	fi
 
 	tail -n1 '/tmp/ARCHIV_MONITORING' | grep -q ^'#' || {			# found comment at fileend
-		_log do $FUNC daemon info "send_alive_message was unsuccessful, backing up '/tmp/ARCHIV_MONITORING'"		
-		local LINENUMBER_LAST_SUCCESS="$( grep -n "^#" /tmp/ARCHIV_MONITORING | tail -n1 | cut -d':' -f1 )"
-		sed -n "$(( $LINENUMBER_LAST_SUCCESS + 1 )),\$p" /tmp/ARCHIV_MONITORING >/www/backup_archiv_node_data
+		_log do $funcname daemon info "send_alive_message was unsuccessful, backing up '/tmp/ARCHIV_MONITORING'"		
+
+		local LINENUMBER_LAST_SUCCESS="$( grep -n "^#" '/tmp/ARCHIV_MONITORING' | tail -n1 | cut -d':' -f1 )"
+		sed -n "$(( $LINENUMBER_LAST_SUCCESS + 1 )),\$p" '/tmp/ARCHIV_MONITORING' >'/www/backup_archiv_node_data'
 	}
 
-	if [ ! -e "/www/SOFTWARE_FULLY_INSTALLED" ]; then			# fixme! check free flash space?
-		_log do $FUNC daemon info "safing syslog to '/www/SYSLOG_SAFED'"
-		grep -v "kern.err olsrd" /var/log/messages >/www/SYSLOG_SAFED		# we don't need the "add route/del route" errors
-	else
-		[ "$REASON" = "nightly" ] || {
-			_log do $FUNC daemon info "safing last 100 lines of syslog to '/www/SYSLOG_SAFED'"
-			grep -v "kern.err olsrd" /var/log/messages | tail -n 100 >/www/SYSLOG_SAFED
+	if [ -e '/www/SOFTWARE_FULLY_INSTALLED' ]; then
+		[ "$reason" = 'nightly_reboot' ] || {
+			_log do $funcname daemon info "safing last 100 lines of syslog to '/www/SYSLOG_SAFED'"
+			logread | grep -v 'kern.err olsrd' | tail -n 100 >'/www/SYSLOG_SAFED'
 		}
+	else
+		_log do $funcname daemon info "safing syslog to '/www/SYSLOG_SAFED'"
+
+		# we don't need the "add route/del route" errors
+		logread | grep -v 'kern.err olsrd' >'/www/SYSLOG_SAFED'
 	fi	
 
-	_log do $FUNC daemon info "flash free: '$( _system flash_free )', rebooting in 10 sec"
+	_log do $funcname daemon info "flash free: '$( _system flash_free )', rebooting in 10 sec"
 
-	[ "$( uci get network.wan.proto )" = "dhcp" ] && {
-		ifup wan	# renew lease, so we will have it again after reboot?
+	[ "$( uci -q get network.wan.proto )" = 'dhcp' ] && {
+		# renew lease, so we will have it again after reboot?
+		( ifup wan ) &
 	}
 
-	set -- $REASON
+	set -- $reason
 	_system crashreboot "$1"
 }
 
