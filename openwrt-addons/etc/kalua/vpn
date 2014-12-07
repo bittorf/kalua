@@ -185,7 +185,7 @@ _vpn_hideandseek_user_probe()
 _vpn_hideandseek_user_add()
 {
 	local funcname='vpn_hideandseek_user_add'
-	local ip="$1"
+	local ip="$1"		# 1.2.3.4 or 2.3.4.5/26 or 'setup_default_route'
 	local option="$2"	# e.g. 'exclude'
 
 	local mask=32
@@ -196,6 +196,18 @@ _vpn_hideandseek_user_add()
 	local user_id myhna markerfile special_table
 
 	case "$ip" in
+		'setup_default_route')
+			# is called from hotplug, when interface comes up:
+
+			grep -q ^"$table_id $table_name" '/etc/iproute2/rt_tables' || {
+				echo "$table_id $table_name" >>'/etc/iproute2/rt_tables'
+			}
+
+			ip route add default via "$( _ipsystem getvar WIFIVPNSERVERADR )" dev "$tunnel_dev" table "$table_name"
+			ip route flush cache
+
+			return 0
+		;;
 		*'/'*)
 			mask="${ip#*/}"
 			ip="${ip%/*}"
@@ -212,14 +224,6 @@ _vpn_hideandseek_user_add()
 	fi
 
 	if _net local_inet_offer >/dev/null; then
-		grep -q ^"$table_id $table_name" '/etc/iproute2/rt_tables' || {
-			echo "$table_id $table_name" >>'/etc/iproute2/rt_tables'
-		}
-
-		ip route show table "$table_name" | grep -q ^'default' || {
-			ip route add default via "$( _ipsystem getvar WIFIVPNSERVERADR )" dev "$tunnel_dev" table "$table_name"
-		}
-
 		read user_id 2>/dev/null <"/tmp/$funcname-$mask" || {
 			case "$mask" in
 				32) user_id=10000 ;;	# wider masks are later processed,
