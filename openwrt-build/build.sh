@@ -475,6 +475,11 @@ target_hardware_set()
 		;;
 		'Beagleboard')
 		;;
+		'FritzBox 7170')
+			TARGET_SYMBOL='CONFIG_TARGET_ar7_Default=y'
+			FILENAME_SYSUPGRADE='bla'
+			FILENAME_FACTORY='bla'
+		;;
 		'list')
 			case "$option" in
 				'plain'|'js')
