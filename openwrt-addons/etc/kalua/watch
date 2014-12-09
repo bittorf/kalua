@@ -10,7 +10,7 @@ _watch_configchange()
 {
 	local funcname='watch_configchange'
 	local hashfile='/etc/openwrt_confighash'
-	local old_hash new_hash
+	local old_hash new_hash server_path server_file identity server
 
 	case "$CONFIG_PROFILE" in
 		ffweimar*|liszt28*)
@@ -25,10 +25,13 @@ _watch_configchange()
 	[ -e "$hashfile" ] && read old_hash <"$hashfile"
 
 	[ "$new_hash" = "$old_hash" ] || {
-		local server='root@intercity-vpn.de'
-		local server_path="/var/www/networks/${CONFIG_PROFILE%_*}/settings"
-		local server_file="config-$NODENUMBER-$( date +%s ).tar.gz"
-		local identity='/etc/dropbear/dropbear_dss_host_key'
+		server='intercity-vpn.de'	# user 'root'
+		server_path="/var/www/networks/${CONFIG_PROFILE%_*}/settings"
+		server_file="config-$NODENUMBER-$( date +%s ).tar.gz"
+		identity='/etc/dropbear/dropbear_dss_host_key'
+
+		# otherwise 'scp' will prompt for accepting fingerprint
+		grep -q ^"$server " "$HOME/.ssh/known_hosts" || return 1
 
 		_log do $funcname daemon alert "[OK] detected change"
 
