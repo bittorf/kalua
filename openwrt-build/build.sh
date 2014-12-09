@@ -285,7 +285,7 @@ target_hardware_set()
 	local option="$2"
 	local line
 
-	# # must match ' v[0-9]' and will be e.g. ' v7' -> '7'
+	# must match ' v[0-9]' and will be e.g. ' v7' -> '7' and defaults to '1'
 	local version="$( echo "$model" | sed -n 's/^.* v\([0-9]\)$/\1/p' )"
 	[ -z "$version" ] && version='1'
 
@@ -361,6 +361,12 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-factory.bin"
+		;;
+		'TP-LINK TL-WDR7500'|'TP-Link Archer C7'|'TP-Link Archer C7 v2')
+			# http://wiki.openwrt.org/toh/tp-link/tl-wdr7500
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_ARCHERC7=y'
+			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-factory.bin"
 		;;
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2'|'Ubiquiti Bullet2')
 			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
