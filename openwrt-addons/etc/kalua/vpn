@@ -88,7 +88,7 @@ _vpn_innercity_master_iface()
 	local action="$1"	# up|down
 	local dev="$2"		# e.g. tap276
 	local i=0
-	local bytes packets uptime numbers
+	local bytes packets uptime uptime_sec numbers
 
 	while ! mkdir "/tmp/lock-$funcname"; do {
 		i=$(( i + 1 ))
@@ -135,7 +135,9 @@ _vpn_innercity_master_iface()
 		_log do $funcname daemon info "[READY] action: $action dev: $dev"
 	else
 		ip link set dev $dev down
-		uptime=$( _file age "/tmp/$funcname-devup-$dev" humanreadable_verbose )
+
+		uptime_sec=$( _file age "/tmp/$funcname-devup-$dev" )
+		uptime=$( _stopwatch seconds2humanreadable "$uptime_sec" )
 		rm "/tmp/$funcname-devup-$dev"
 
 		set -- $( iptables -nxvL | fgrep " $dev " | head -n1 )
@@ -154,7 +156,7 @@ _vpn_innercity_master_iface()
 		$IPT -D INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
 		$IPT -D INPUT  -p udp --dport 698 -i $dev -j DROP
 
-		numbers="bytes/packets: $( _sanitizer do "$bytes/$packets" number_humanreadable )"
+		numbers="bytes/packets: $( _sanitizer do "$bytes/$packets" number_humanreadable ) = $(( bytes / uptime_sec / 1000 )) KB/s"
 		_log do $funcname daemon alert "[READY] action: $action dev: $dev $numbers uptime: $uptime"
 	fi
 
