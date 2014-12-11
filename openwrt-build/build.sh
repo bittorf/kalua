@@ -362,7 +362,7 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-factory.bin"
 		;;
-		'TP-LINK TL-WDR7500'|'TP-Link Archer C7'|'TP-Link Archer C7 v2')
+		'TP-LINK TL-WDR7500'|'TP-LINK Archer C7'|'TP-LINK Archer C7 v2')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wdr7500
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_ARCHERC7=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-sysupgrade.bin"
