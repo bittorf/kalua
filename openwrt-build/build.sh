@@ -281,8 +281,8 @@ copy_additional_packages()
 target_hardware_set()
 {
 	local funcname='target_hardware_set'
-	local model="$1"
-	local option="$2"
+	local model="$1"	# 'list' or <modelname>
+	local option="$2"	# 'plain', 'js' or <empty>
 	local line
 
 	# must match ' v[0-9]' and will be e.g. ' v7' -> '7' and defaults to '1'
@@ -502,6 +502,7 @@ target_hardware_set()
 						echo "$line"
 					;;
 					'js')
+						# e.g. for 'typeahead.js'
 						if [ -z "$FIRSTRUN" ]; then
 							FIRSTRUN='false'
 							echo -n "var models = ['$line'"
