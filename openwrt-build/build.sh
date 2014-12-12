@@ -174,6 +174,9 @@ register_patch()
 		name="$( basename "$name" )"
 	else
 		case "$name" in
+			'CONFIG_'*)
+				return 0
+			;;
 			'FAILED: '*)
 				set -- $name
 				shift
