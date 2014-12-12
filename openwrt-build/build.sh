@@ -1612,6 +1612,8 @@ build_options_set()
 		mkdir -p "$custom_dir/etc"
 		echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
 	}
+
+	return 0
 }
 
 parse_case_patterns()
