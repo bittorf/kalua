@@ -401,7 +401,8 @@ target_hardware_set()
 		;;
 		'Linksys WRT54G/GS/GL')
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_legacy_Broadcom-b43=y'
-			FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
+			# image was 'openwrt-brcm47xx-squashfs.trx' in revision before r41530
+			FILENAME_SYSUPGRADE='openwrt-brcm47xx-legacy-squashfs.trx'
 			FILENAME_FACTORY='openwrt-wrt54g-squashfs.bin'
 
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y"
