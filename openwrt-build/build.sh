@@ -397,9 +397,11 @@ target_hardware_set()
 			FILENAME_FACTORY=
 		;;
 		'Linksys WRT54G/GS/GL')
-			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
+			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_legacy_Broadcom-b43=y'
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
 			FILENAME_FACTORY='openwrt-wrt54g-squashfs.bin'
+
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y"
 		;;
 		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2')
 			# hint: the 'ASUS WL-500g Premium v2' needs the 'low power phy' compiled into b43
