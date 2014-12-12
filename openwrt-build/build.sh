@@ -1274,13 +1274,16 @@ build_options_set()
 			"-$KALUA_DIRNAME"*)	# parser_ignore
 						# direct call to kalua (no subcall)
 			;;
-			'-'*)	# parser_ignore
+			'-'*)	# parser_ignore, e.g. ???
 				# direct call (no subcall)
 				LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
 			;;
 		esac
 
 		case "$1" in
+			'CONFIG_'*)
+				apply_symbol "$1"
+			;;
 			'defconfig')
 				# this simply adds or deletes no symbols
 			;;
