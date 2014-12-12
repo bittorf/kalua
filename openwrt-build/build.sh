@@ -1593,7 +1593,21 @@ build_options_set()
 		shift
 	} done
 
-	[ -n "$subcall" ] || {
+	buildinfo_needs_adding()
+	{
+		[ -n "$subcall" ] && return 1
+
+		case "$LIST_OPTIONS" in
+			'CONFIG_'*)
+				return 1
+			;;
+			*)
+				return 0
+			;;
+		esac
+	}
+
+	buildinfo_needs_adding && {
 		log "$funcname() adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
 		mkdir -p "$custom_dir/etc"
 		echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
