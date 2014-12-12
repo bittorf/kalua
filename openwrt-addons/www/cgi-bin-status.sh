@@ -183,11 +183,20 @@ output_table()
 		eval $line
 
 		count=$(( $count + 1 ))
-		if [ "$LOCAL" = "$WIFIADR" ]; then
-			iface_out="$WIFIDEV"
-		else
-			iface_out="$( _net ip2dev "$REMOTE" )"
-		fi
+		case "$LOCAL" in
+			"$WIFIADR")
+				iface_out="$WIFIDEV"
+			;;
+			"$LANADR")
+				iface_out="$LANDEV"
+			;;
+			"$WANADR")
+				iface_out="$WANDEV"
+			;;
+			*)
+				iface_out="$( _net ip2dev "$REMOTE" )"
+			;;
+		esac
 		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" )"
 
 		build_remote_hostname "$REMOTE"

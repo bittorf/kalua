@@ -421,6 +421,7 @@ target_hardware_set()
 		;;
 		'T-Mobile InternetBox TMD SB1-S'|'4G Systems MTX-1 Board')
 			# http://wiki.openwrt.org/inbox/t-mobile-internetbox
+			# http://wiki.openwrt.org/toh/4g.systems/access.cube
 			#
 			# http://www.linux-mips.org/wiki/YAMON		// 0.2.17 seems used
 			# http://www.lara.prd.fr/imara/platforms/hardware/communications/4gcube/hack
