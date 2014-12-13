@@ -551,14 +551,26 @@ _system_ram_free()		# [bytes]
 	local option="$1"	# eval-hack OR flush
 	local mem line
 
-	[ "$option" = "flush" ] && {
-		option=
+	case "$option" in
+		'flush'|'flush_hard')
+			option=
 
-		[ -e "/proc/sys/vm/drop_caches" ] && {
-			sync
-			echo 3 > /proc/sys/vm/drop_caches
-		}
-	}
+			case "$option" in
+				'flush_hard')
+					# will be restarted later via cron.minutely
+					/etc/init.d/uhttpd stop
+					/etc/init.d/dnsmasq stop
+					/etc/init.d/dropbear stop
+					. /etc/rc.common /etc/init.d/zram restart
+				;;
+			esac
+
+			[ -e '/proc/sys/vm/drop_caches' ] && {
+				sync
+				echo 3 > /proc/sys/vm/drop_caches
+			}
+		;;
+	esac
 
 	while read line; do {
 		case "$line" in

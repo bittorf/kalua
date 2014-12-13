@@ -715,46 +715,54 @@ fkt_print_html_tracearchiv () {
 	echo "</pre></small>"
 }
 
-fkt_print_html_sysinfo ()
+tool_sysinfo()
 {
-	echo "<small><pre>"
-	cat /etc/banner
-	echo "<hr>"
+	echo '<small><pre><!-- banner -->'
+	cat '/etc/banner'
+
+	echo '<hr><!-- uptime -->'
 	uptime
-	echo "<hr>"
+
+	echo '<hr><!-- ps -->'
 	ps
-	echo "<hr>"
+
+	echo '<hr><!-- free -->'
 	free
-	echo "<hr>"
+
+	[ -e '/tmp/RAM_FREE_FLUSHED' ] && {
+		echo '<hr><!-- free_flushed -->'
+		cat '/tmp/RAM_FREE_FLUSHED'
+	}
+
+	echo '<hr><!-- df -h -->'
 	df -h
-	echo "<hr>"
+
+	echo '<hr><!-- mount -->'
 	mount
-	echo "<hr>"
 
 	local number vif ifname
 	for number in 0 1 2 3; do {
-		for vif in "" "-0" "-1" "-2" "-3"; do {
+		for vif in '' '-0' '-1' '-2' '-3'; do {
 			ifname="wlan${number}${vif}"
-			fgrep -q "$ifname:" "/proc/net/dev" && {
+			fgrep -q "$ifname:" '/proc/net/dev' && {
+				echo "<hr><!-- iw dev $ifname link -->"
 				iw dev $ifname link
+				echo "<hr><!-- iw dev $ifname info -->"
 				iw dev $ifname info
+				echo "<hr><!-- iw dev $ifname station dump"
+				iw dev $ifname station dump
 			}
 		} done
 	} done
 
-	echo "<hr>"
-	[ -e "/tmp/CRONSTATUS" ] && cat "/tmp/CRONSTATUS"		# from cron.minutely
+	[ -e '/tmp/CRONSTATUS' ] && {
+		# if enabled in cron.minutely-debug
+		echo '<hr><!-- CRONSTATUS -->'
+		cat "/tmp/CRONSTATUS"
 
-	case "$CONFIG_PROFILE" in
-		*adhoc)
-		;;
-		*)
-			iw dev $WIFIDEV station dump
-		;;
-	esac
+	echo '</pre></small>'
 
-	echo "</pre></small>"
-
+	echo >>$SCHEDULER '_system ram_free flush_hard >/tmp/RAM_FREE_FLUSHED; free >>/tmp/RAM_FREE_FLUSHED'
 }
 
 fkt_print_html_internet_trace () {
