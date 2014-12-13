@@ -907,7 +907,7 @@ _netfilter_portforwarding_request()
 
 _netfilter_portforwarding_add()
 {
-	local incoming_dev="$1"		# e.g. $WANDEV = eth0.2
+	local incoming_dev="$1"		# e.g. $WANDEV = eth0.2 or 'get_table'
 	local port_ext="$2"		# e.g. 10080 or webcam-11:22:33:44:55:66
 	local port="$3"			# e.g. 80
 	local ip="$4"			# client/destination
@@ -923,6 +923,10 @@ _netfilter_portforwarding_add()
 	[ 2>/dev/null ${port_ext:-nonumber} -eq $port_ext ] || port_ext="$( _net text2port "$port_ext" )"
 
 	case "$1" in
+		'get_table')
+			cat "$file"
+			return 0
+		;;
 		"$IPT "*)
 			command="$1"
 			marker="# $2"	# ARG2 = description
@@ -957,6 +961,20 @@ _netfilter_portforwarding_add()
 
 				# TODO: build a readable public description (e.g. for minitoring server)
 				# mac: xxx hostname: xxx port_ext: xxx port_int: xxx
+
+				# at the moment:
+				# client: 10.10.6.148 mac/id: 00:1a:97:01:8b:18 port: 554 port_ext: 7833
+
+
+				local remote_nodeip="$( _sanitizer do "$message" ip4 )"
+				local remote_mac="$( _net ip2mac "$remote_nodeip" )"
+				local remote_nodenumber="$( _ipsystem do "$remote_nodeip" )"
+
+				# we want this on monitoring-server:
+				# case "$WIFIMAC" in
+				#	19|'6470028b2260') PORT=7534 ;; # F5-front / 00:1a:97:01:8b:19
+				#       ...
+				echo >>"$file" "### $remote_nodenumber|'$remote_nodeip') PORT=$port_ext ;; # $marker"
 			;;
 		esac
 	fi
