@@ -266,16 +266,27 @@ case "$HARDWARE" in
 	;;
 esac
 
-INSTALLATION="$1"
-PROFILE_MODE="$2"
-NODENUMBER="$3"
+INSTALLATION="$1"	# e.g. mynetwork
+PROFILE_MODE="$2"	# e.g. adhoc
+NODENUMBER="$3"		# e.g. 123
 GATEWAY="$4"
 
+[ -n "$INSTALLATION" ] && {
+	OLD_INSTALLATION="$( uci -q get system.@profile[0].name | cut -d'_' -f1 )"
+	[ -n "$OLD_INSTALLATION" ] && {
+		[ "$INSTALLATION" = "$OLD_INSTALLATION" ] || {
+			for SOFTWARE in mydesign mysettings sshpubkeys fff-adblock-list; do {
+				log "[OK] network changes, removing: $SOFTWARE"
+				opkg remove "$SOFTWARE"
+			} done
+		}
+	}
+}
 
 [ "$INSTALLATION" = "?" ] || {
- SIM_ARG1="$( uci get system.@profile[0].name | cut -d'_' -f1 )"
- SIM_ARG2="$( uci get system.@profile[0].name | cut -d'_' -f2 )"
- SIM_ARG3="$( uci get system.@profile[0].nodenumber )"
+ SIM_ARG1="$( uci -q get system.@profile[0].name | cut -d'_' -f1 )"
+ SIM_ARG2="$( uci -q get system.@profile[0].name | cut -d'_' -f2 )"
+ SIM_ARG3="$( uci -q get system.@profile[0].nodenumber )"
 
 	[ -z "$SIM_ARG1" ] && {
 		case "$HARDWARE" in
