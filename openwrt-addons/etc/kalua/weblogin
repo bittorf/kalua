@@ -540,7 +540,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	local SIGNAL="$4"
 	local LANG="$( _translate lang $5 )"
 	local KEYWORD="$6"		# can be 'plaintext'
-	local FREE HASH ANSWER URL dbsize nexthop
+	local FREE HASH ANSWER URL dbsize nexthop logprio
 
 	case "$( uci -q get system.@weblogin[0].auth_credentials )" in
 		simple)
@@ -691,8 +691,14 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 					_log do $FUNC daemon info "is_valid: user: '$USER' pass: '$PASS'"
 					FREE=1
 				else
-					echo >>$SCHEDULER_IMPORTANT "_weblogin authserver_message NOT_valid:${USER}_${PASS}"
-					_log do $FUNC daemon alert "not valid: user: '$USER' pass: '$PASS'"
+					if [ -z "${$USER}${PASS}" ]; then
+						logprio='info'
+					else
+						logprio='alert'
+						echo >>$SCHEDULER_IMPORTANT "_weblogin authserver_message NOT_valid:${USER}_${PASS}"
+					fi
+
+					_log do $FUNC daemon $logprio "not valid: user: '$USER' pass: '$PASS'"
 				fi
 			;;
 		esac
