@@ -59,17 +59,26 @@ _sms_send ()			# SENS: wrapper for SMS-sending independent from service
 
 _sms_send_sms77()
 {
-	local funcname="sms_send_sms77"
+	local funcname='sms_send_sms77'
 	local user="$1"
 	local pass="$2"
 	local number="$3"
 	local text="$4"		# must be URL encoded
-	local type="quality"	# basicplus|standard|quality|festnetz|flash - hardcoded, needs abstraction
-	local trash out rc o from
+	local type='quality'	# basicplus|standard|quality|festnetz|flash - hardcoded, needs abstraction
+	local trash out rc o from last_action uptime file_last_action
+	local file_last_action="/tmp/$funcname"
 	local url="http://www.sms77.de/gateway/?type=$type"
 
+	# pause between several messages, otherwise "error 402"
+	uptime=$( _system uptime sec )
+	read last_action <"$file_last_action" || last_action=0
+	echo $(( uptime + 60 )) >"$file_last_action"
+	[ $(( uptime - last_action )) -lt 60 ] && {
+		_log sleep $funcname 60 step 10
+	}
+
 	case "$type" in
-		quality)
+		'quality')
 			[ ${#text} -gt 160 ] && {
 				trash="$( echo "$text" | cut -b 161-999 )"
 				text="$(  echo "$text" | cut -b 1-160 )"		# fixme! respect encoding borders, e.g. %20 -> %2 does not work
@@ -77,16 +86,6 @@ _sms_send_sms77()
 			}
 
 			from="$( _weblogin metadata_locationname )"
-
-			case "$CONFIG_PROFILE" in
-				cupandcoffee)
-					from="Cup+Coffee"
-				;;
-				*)
-					from="$( _weblogin metadata_locationname )"
-				;;
-			esac
-
 			from="$( _sanitizer do "$from" length:11 urlvalue )"
 
 			url="${url}&from=${from}"
@@ -96,10 +95,11 @@ _sms_send_sms77()
 	_log do $funcname daemon debug "[${#text} chars] ${url}&u=${user}&p=${pass}&to=${number}&text=${text}"
 
 	out="$( _wget do "${url}&u=${user}&p=${pass}&to=${number}&text=${text}" 10 "$user" "$pass" )"
-	rc="$?"
+	rc=$?
 
 	[ $rc -eq 0 ] || {
 		case "$out" in
+			# http://www.sms77.de/api.pdf
 			# not implemented:
 			# 101 = "Sending failed at least to one recipient"
 			# 306 = "Sending ID/Nummer is wrong"
