@@ -614,7 +614,22 @@ boot()
 			[ -z "$LOWMEM" ] && uci set system.@monitoring[0].statusprecache='1'
 		;;
 		liszt28*)
-			[ -n "$LOWMEM" -a $OPENWRT_REV -eq 43735 ] && uci set wireless.radio0.disabled=1
+			[ -n "$LOWMEM" -a $OPENWRT_REV -eq 43735 ] && {
+				uci set wireless.radio0.disabled='1'
+				uci delete network.wan6
+				uci set network.wan.proto='static'
+
+				/etc/init.d/odhcpd disable
+				/usr/sbin/uhttpd disable
+				/etc/init.d/sysntpd disable
+				/etc/init.d/dropbear disable
+				/etc/init.d/dnsmasq disable
+				/etc/init.d/log disable
+
+				grep 'askconsole' '/etc/inittab' | grep -q ^'#' || {
+					sed -i 's/.*askconsole/# &/' /etc/inittab
+				}
+			}
 
 			[ -n "$LOWMEM" ] && uci set system.@weblogin[0].enabled='0'
 			[ -z "$LOWMEM" ] && uci set system.@monitoring[0].statusprecache='1'
