@@ -640,6 +640,9 @@ check_working_directory()
 		exit $error
 	}
 
+	# user directory for private/overlay-files
+	mkdir -p 'files'
+
 	fgrep -q ' oonfapi ' "$file_feeds" || {
 		log "$funcname() addfeed 'oonfapi'"
 		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
