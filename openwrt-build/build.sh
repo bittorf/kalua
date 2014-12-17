@@ -1317,6 +1317,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools (=iwconfig)
 				apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
+				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
+				apply_symbol 'CONFIG_PROCD_ZRAM_TMPFS=y'		# since r43489
 
 				$funcname subcall 'netcatFull'
 				$funcname subcall 'shaping'
@@ -1340,6 +1342,8 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'
+				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
+				apply_symbol 'CONFIG_PROCD_ZRAM_TMPFS=y'		# since r43489
 
 				$funcname subcall 'netcatFull'
 #				$funcname subcall 'shaping'
