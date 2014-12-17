@@ -1181,8 +1181,9 @@ apply_symbol()
 			return 0
 		;;
 		'nuke_customdir')
-			log "$funcname() deleting dir for custom files: '$custom_dir/'"
+			log "$funcname() emptying dir for custom files: '$custom_dir/'"
 			rm -fR "$custom_dir"
+			mkdir  "$custom_dir"
 
 			return 0
 		;;
