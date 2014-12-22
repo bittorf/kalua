@@ -77,15 +77,29 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 				# /var/www/firmware/ar71xx/images/testing/usecase/
 				#	Standard,VDS,kalua/TP-LINK TL-WR1043ND.openwrt=r43102_kernel=_option=Standard,debug,VDS,kalua@3731799_rootfs=squash_image=sysupgrade.bin
 
-				dir="usecase/$usecase/"
-				FILEWISH="$HARDWARE.bin"
+				case "$CONFIG_PROFILE" in
+					liszt28*)
+						# https://$monitoringserver/networks/$NET/firmware/models/$HW/testing/$fullname.bin
+
+						# http://intercity-vpn.de/networks/liszt28
+						dir="$( uci get system.@monitoring[0].url )"
+						# https://intercity-vpn.de/networks/liszt28/firmware/models/$HW/testing/$fullname.bin
+						dir="$dir/firmware/models/$HARDWARE/$usecase/"
+
+						FILEWISH="$HARDWARE.bin"
+					;;
+					*)
+						dir="usecase/$usecase/"
+						FILEWISH="$HARDWARE.bin"
+					;;
+				esac
 			else
 				FILEWISH="$HARDWARE.sysupgrade.bin"
-				FILEWISH="$( echo "$FILEWISH" | sed 's|/|:|g' )"
 			fi
 
-			# very special: slashes are not allowed in filename
-			FILEWISH="$( echo "$FILEWISH" | sed 's|/|:|g' )"
+			# very special: slashes are not allowed in filename,
+			# e.g. 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
+			FILEWISH="${FILEWISH////:}"
 
 			case "$COMMAND" in
 				crc)
@@ -94,7 +108,16 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 
 					[ "$UPDATEMODE" = "0" ] && i=100
 
-					url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
+					case "$CONFIG_PROFILE" in
+						liszt28*)
+							# TODO: newstyle
+							url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
+						;;
+						*)
+							url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
+						;;
+					esac
+
 # if pattern/filename matches, get 2nd word:
 # NEW:
 # CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db  SIZE[byte]: 999999  BLOCKS[64k]: 49  FILE: 'La Fonera 2.0N.bin'  USECASE: b1cc2a438170a6fff4d08b08da4030af = Standard,LuCIfull,VDS,kalua  REV: r45678

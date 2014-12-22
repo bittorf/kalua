@@ -122,10 +122,20 @@ log()
 {
 	local message="$1"
 	local debug="$2"
+	local iserror=
 
 	[ -n "$QUIET" ] && return 0
 	[ -n "$debug" -a -z "$DEBUG" ] && return 0
+
+	case "$message" in
+		*'[ERROR]'*)
+			iserror='true'
+		;;
+	esac
+
+	[ -n "$iserror" ] && logger -p user.info -s '|'
 	logger -p user.info -s "$0: $message"
+	[ -n "$iserror" ] && logger -p user.info -s '|'
 }
 
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
@@ -742,6 +752,7 @@ openwrt_download()
 			hash="$( git log --format=%h --grep="@$hash " )"	# 12345 -> fe53cab (number -> hash)
 
 			[ -z "$hash" ] && {
+				log "$funcname() [ERROR] - unable to find $wish"
 				# can happen if 'rXXXXX' is in packages/feeds, just use newest:
 				hash="$( git log -1 --format=%h )"
 			}
@@ -993,7 +1004,7 @@ build()
 					return 0
 				fi
 			else
-				log "$funcname() ERROR during make: check directory logs/ with"
+				log "$funcname() [ERROR] during make: check directory logs/ with"
 				log "$funcname() find logs -type f -exec stat -c '%y %N' {} \; | sort -n"
 				return 1
 			fi
@@ -1147,11 +1158,11 @@ apply_symbol()
 								if git am --signoff <"$file"; then
 									register_patch "$file"
 								else
-									log "$funcname() ERROR during 'git am <$file'"
+									log "$funcname() [ERROR] during 'git am <$file'"
 								fi
 							else
 								register_patch "FAILED: $file"
-								log "$funcname() $KALUA_DIRNAME: [ERR] cannot apply: git apply --check <'$file'"
+								log "$funcname() $KALUA_DIRNAME: [ERROR] cannot apply: git apply --check <'$file'"
 							fi
 						fi
 					fi
@@ -1361,12 +1372,17 @@ build_options_set()
 				# -coredump,-debug,-symbol-table
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
 
+				# CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=1024
+				# CONFIG_PACKAGE_dropbear is not set
+				# CONFIG_PACKAGE_opkg is not set
+
 				$funcname subcall 'noFW'
 				$funcname subcall 'noIPv6'
 				$funcname subcall 'noPPPoE'
 			;;
 			'Micro')
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
+				# remove 'mtd' if device can be flashed via bootloader?
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
 			'debug')
@@ -1768,7 +1784,7 @@ while [ -n "$1" ]; do {
 					RELEASE_SERVER="$3"
 				;;
 				*)
-					log "[ERR] --release stable|beta|testing"
+					log "[ERROR] --release stable|beta|testing"
 					exit 1
 				;;
 			esac
