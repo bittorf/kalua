@@ -1,14 +1,22 @@
 #!/bin/sh
 
 LINE=
-[ -e "/bin/dmesg" ] && {
-	/bin/dmesg -c >"/tmp/dmesg.recent"
-	read LINE <"/tmp/dmesg.recent"
+[ -e '/bin/dmesg' ] && {
+	/bin/dmesg -c >'/tmp/dmesg.recent'
+	read LINE     <'/tmp/dmesg.recent'
 }
 
 [ ${#LINE} -eq 0 ] || {
 	. /tmp/loader
-	cat "/tmp/dmesg.recent" >>"/tmp/dmesg.log"
+
+	while read LINE; do {
+		*' UDP: bad checksum. From '*)
+			# not interesting for monitoring
+		;;
+		*)
+			echo "$LINE" >>'/tmp/dmesg.log'
+		;;
+	} done <'/tmp/dmesg.recent'
 
 	if [ -e "/tmp/dmesg.boot" ]; then
 		_watch counter /tmp/dmesg.counter increment "$( _file lines "/tmp/dmesg.recent" )"
