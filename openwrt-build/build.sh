@@ -790,10 +790,17 @@ openwrt_download()
 					log "$funcname() deleting branch '$branch'"
 					git branch -D "$branch"
 				else
-					log "$funcname() cannot switch to master"
+					log "$funcname() [ERROR] cannot switch to master, stashing"
 					git stash list
 
-					return 1
+					git stash save "$funcname() going to checkout master"
+
+					if git checkout master >/dev/null; then
+						log "$funcname() leaving branch '$branch'"
+					else
+						log "$funcname() [ERROR] cannot switch to master"
+						return 1
+					fi
 				fi
 			else
 				log "$funcname() already at branch 'master"
