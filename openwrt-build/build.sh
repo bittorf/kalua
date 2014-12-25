@@ -122,20 +122,20 @@ log()
 {
 	local message="$1"
 	local debug="$2"
-	local iserror=
 
 	[ -n "$QUIET" ] && return 0
 	[ -n "$debug" -a -z "$DEBUG" ] && return 0
 
 	case "$message" in
 		*'[ERROR]'*)
-			iserror='true'
+			logger -p user.info -s '! \'
+			logger -p user.info -s "!  )- $0: $message"
+			logger -p user.info -s '! /'
+		;;
+		*)
+			logger -p user.info -s "$0: $message"
 		;;
 	esac
-
-	[ -n "$iserror" ] && logger -p user.info -s '|'
-	logger -p user.info -s "$0: $message"
-	[ -n "$iserror" ] && logger -p user.info -s '|'
 }
 
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
