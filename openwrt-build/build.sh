@@ -1013,6 +1013,7 @@ build()
 			else
 				log "$funcname() [ERROR] during make: check directory logs/ with"
 				log "$funcname() find logs -type f -exec stat -c '%y %N' {} \; | sort -n"
+				log "$funcname() first build unparallel with 'make -j1 BUILD_LOG=1'"
 				return 1
 			fi
 		;;

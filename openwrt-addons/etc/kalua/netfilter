@@ -914,7 +914,7 @@ _netfilter_portforwarding_add()
 	local uniq_id="$5"		# e.g. mac
 	local message="$6"		# e.g. node: 276 router: 10.63.21.65 hostname: ICS230
 	local file='/tmp/NETFILTER/portfw'
-	local marker infoline command date
+	local marker infoline command date remote_nodeip remote_nodenumber remote_mac
 	local command="-t nat -I PREROUTING -i $incoming_dev -p tcp --dport $port_ext -j DNAT --to-destination $ip:$port"
 
 	# TODO: add autoreload without setting rules twice: -> stop/start
@@ -968,13 +968,19 @@ _netfilter_portforwarding_add()
 				# at the moment:
 				# client: 10.10.6.148 mac/id: 00:1a:97:01:8b:18 port: 554 port_ext: 7833
 
+				# e.g. msg: Buffi:HTTP
+				# e.g. msg: msg: camF4back ip: 10.10.18.125
+				remote_nodeip="$( _sanitizer do "$message" ip4 )"
+				if [ -z "$remote_nodeip" ]; then
+					remote_nodenumber=
+				else
+					remote_nodenumber="$( _ipsystem do "$remote_nodeip" )"
 
-				local remote_nodeip="$( _sanitizer do "$message" ip4 )"
-				local remote_nodenumber="$( _ipsystem do "$remote_nodeip" )"
-
-# FIXME!			local remote_mac="$( _net ip2mac "$remote_nodeip" )"
-				# it shoud be the same like in monitoring (xoai!)
-				local remote_mac="$( _wget do "http://$remote_nodeip/monitoring.wifimac" )"
+					# FIXME!
+					remote_mac="$( _net ip2mac "$remote_nodeip" )"
+					# it shoud be the same like in monitoring (xoai!)
+					remote_mac="$( _wget do "http://$remote_nodeip/monitoring.wifimac" )"
+				fi
 
 				# we want this on monitoring-server:
 				# case "$WIFIMAC" in
@@ -1044,7 +1050,10 @@ _netfilter_portforwarding_start()
 		;;
 	esac
 
-	[ -e '/tmp/NETFILTER/portfw' ] && . '/tmp/NETFILTER/portfw'
+	[ -e '/tmp/NETFILTER/portfw' ] && {
+		# this file is generated, so better check syntax
+		sh -n '/tmp/NETFILTER/portfw' && . '/tmp/NETFILTER/portfw'
+	}
 }
 
 _netfilter_portforwarding_stop()
