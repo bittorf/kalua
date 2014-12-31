@@ -33,6 +33,21 @@ apply_olsr_roaming()
 	uci set dhcp.mastergate.leasetime='10m'
 }
 
+apply_olsr_speed()
+{
+	local value="$1"
+	local i=0
+
+	# search for the string, which was added with this value
+	# https://github.com/openwrt-routing/packages/commit/34e1ff5702372099599f764d272069ba914661c4
+	grep -sq 'sven-ola' '/etc/init.d/olsrd' '/lib/functions/olsrd.sh' || return 1
+
+	while uci -q get olsrd.@Interface[$i] >/dev/null; do {
+		uci set olsrd.@Interface[$i].speed="$value"
+		i=$(( i + 1 ))
+	} done
+}
+
 kmodule_is_deactivated()
 {
 	grep -q ^"#" "/etc/modules.d/"*"$1"	# e.g. batman-adv -> 50-batman-adv
@@ -170,6 +185,8 @@ boot()
 			echo "0$( echo "$1" | cut -b 1 ):$( echo "$1" | cut -b 2-3 )"
 		fi
 	}
+
+	apply_olsr_speed '6'
 
 	case "$HARDWARE" in
 		'TP-LINK TL-WDR4900'*|'TP-LINK TL-WR703N v1')
@@ -631,9 +648,7 @@ boot()
 				}
 			}
 
-			grep -sq 'sven-ola' '/etc/init.d/olsrd' '/lib/functions/olsrd.sh' && {
-				uci set olsrd.@Interface[0].speed='7'
-			}
+			apply_olsr_speed '7'
 
 			[ -n "$LOWMEM" ] && uci set system.@weblogin[0].enabled='0'
 			[ -z "$LOWMEM" ] && uci set system.@monitoring[0].statusprecache='1'
@@ -1066,9 +1081,7 @@ boot()
 			uci set system.@weblogin[0].authserver='10.10.111.129'	# Festscheune3
 			uci set olsrd.@meta[0].hnaslave=0
 
-			grep -sq 'sven-ola' '/etc/init.d/olsrd' '/lib/functions/olsrd.sh' && {
-				uci set olsrd.@Interface[0].speed='20'
-			}
+			apply_olsr_speed '20'
 
 			case "$NODENUMBER" in
 				2|170|139)
