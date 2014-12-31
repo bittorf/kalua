@@ -270,7 +270,6 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 	local funcname='system_reboot_safe'
 	local reason="$1"			# first word must be valid for crashreboot()
 	local lockfile="/tmp/$funcname-active"
-	local uptime
 
 	_linklocal wifi_users "$WIFIDEV" >/dev/null && {
 		_log do $funcname daemon info "waiting till all wifi-clients disconnect, rescheduling myself"
@@ -285,13 +284,9 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 
 	cron.monitoring send_alive_message no_antenna_test	# maybe the last feedback can be helpful
 
-	uptime=$( _system uptime sec )
-	if [ $uptime -gt 85000 -a $uptime -lt 87000 -a "$reason" = 'nightly_reboot' ]; then
-		# scheduled each 24h = 86400
-		:
-	else
+	[ -e '/www/CRASHLOG_WORKS' -a "$reason" = 'nightly_reboot' ] || {
 		_log do $funcname daemon alert "scheduling reboot - reason: '$reason'"
-	fi
+	}
 
 	tail -n1 '/tmp/ARCHIV_MONITORING' | grep -q ^'#' || {			# found comment at fileend
 		_log do $funcname daemon info "send_alive_message was unsuccessful, backing up '/tmp/ARCHIV_MONITORING'"		
