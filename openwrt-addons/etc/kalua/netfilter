@@ -915,7 +915,6 @@ _netfilter_portforwarding_add()
 	local message="$6"		# e.g. node: 276 router: 10.63.21.65 hostname: ICS230
 	local file='/tmp/NETFILTER/portfw'
 	local marker infoline command date remote_nodeip remote_nodenumber remote_mac
-	local command="-t nat -I PREROUTING -i $incoming_dev -p tcp --dport $port_ext -j DNAT --to-destination $ip:$port"
 
 	# TODO: add autoreload without setting rules twice: -> stop/start
 
@@ -933,7 +932,15 @@ _netfilter_portforwarding_add()
 			infoline='# custom userdefined rule'
 		;;
 		*)
-			command="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+			# in $command '-p $proto' is added later
+
+			if _sanitizer do "$incoming_dev" ipv4 check; then
+				# requests to external IP from internal network must also work
+				command="-t nat -I PREROUTING -d $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+			else
+				command="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+			fi
+
 			marker="# client: $ip mac/id: $uniq_id port: $port port_ext: $port_ext"
 			infoline="# $( date ) msg: $message"
 		;;
@@ -994,29 +1001,32 @@ _netfilter_portforwarding_add()
 
 _netfilter_portforwarding_start()
 {
+	local dev="$1"		# override incoming_dev with IP
+
 	# TODO: make it possible to start|stop ruleset
 
 	# TODO: convert to userscript: /etc/firewall.user -> /tmp/firewall.user
 	case "$CONFIG_PROFILE" in
 		boltenhagendh*)
 			[ "$NODENUMBER" = '2' ] && {
-				_netfilter portforwarding_add "$WANDEV" '10022'  '22' '10.10.2.129'   'bla' 'master:SSH'
-				_netfilter portforwarding_add "$WANDEV" '10080'  '80' '10.10.2.129'   'bla' 'master:HTTP'
-				_netfilter portforwarding_add "$WANDEV" '10443' '443' '10.10.2.129'   'bla' 'master:HTTPS'
-				_netfilter portforwarding_add "$WANDEV"   '443' '443' '10.10.111.129' 'bla' 'authserver:HTTPS'
-				_netfilter portforwarding_add "$WANDEV"    '80'  '80' '10.10.111.129' 'bla' 'authserver:HTTP'
-				_netfilter portforwarding_add "$WANDEV"    '22'  '22' '10.10.111.129' 'bla' 'authserver:SSH'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10022'  '22' '10.10.2.129'   'bla' 'master:SSH'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080'  '80' '10.10.2.129'   'bla' 'master:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10443' '443' '10.10.2.129'   'bla' 'master:HTTPS'
+				_netfilter portforwarding_add "${dev:-$WANDEV}"   '443' '443' '10.10.111.129' 'bla' 'authserver:HTTPS'
+				_netfilter portforwarding_add "${dev:-$WANDEV}"    '80'  '80' '10.10.111.129' 'bla' 'authserver:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}"    '22'  '22' '10.10.111.129' 'bla' 'authserver:SSH'
 			}
 		;;
 		liszt28*)
 			[ "$NODENUMBER" = '276' ] && {
 				# kg-f36
-				_netfilter portforwarding_add "$WANDEV" '20080' '80' '10.63.6.125'   'superbuffi'        'buffi:HTTP'
-				_netfilter portforwarding_add "$WANDEV" '10022' '22' '10.63.195.161' '02:50:43:ab:1c:91' 'KellerNAS:SSH'
-				_netfilter portforwarding_add "$WANDEV"   '222' '22' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:SSH'
-				_netfilter portforwarding_add "$WANDEV" '10080' '80' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:HTTP'
-				_netfilter portforwarding_add "$WANDEV" '55555' '80' '10.63.97.225'  'f8:d1:11:a9:ce:ba' 'Zwickau:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '20080' '80' '10.63.6.125'   'superbuffi'        'buffi:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10022' '22' '10.63.195.161' '02:50:43:ab:1c:91' 'KellerNAS:SSH'
+				_netfilter portforwarding_add "${dev:-$WANDEV}"   '222' '22' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:SSH'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080' '80' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '55555' '80' '10.63.97.225'  'f8:d1:11:a9:ce:ba' 'Zwickau:HTTP'
 
+				# when link is not symetric (other outgoing gateway than incoming)
 				_netfilter portforwarding_add "$IPT -t nat -I POSTROUTING -d 10.63.2.34 -j MASQUERADE" 'Medion:MASQ'
 			}
 
