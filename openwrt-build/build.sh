@@ -620,7 +620,7 @@ check_working_directory()
 			dpkg 2>/dev/null >/dev/null --status "$package:$arch"
 		}
 
-		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen'
+		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev'
 		for package in $list; do {
 			log "$funcname() testing for '$package'" debug
 
