@@ -614,10 +614,10 @@ check_working_directory()
 			local package="$1"
 			local arch
 
-			dpkg >/dev/null --status "$package" && return 0
+			dpkg 2>/dev/null >/dev/null --status "$package" && return 0
 
 			arch="$( dpkg-architecture -qDEB_BUILD_ARCH )"	# e.g. 'amd64' or 'i368'
-			dpkg >/dev/null --status "$package:$arch"
+			dpkg 2>/dev/null >/dev/null --status "$package:$arch"
 		}
 
 		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen'
