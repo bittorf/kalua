@@ -609,9 +609,29 @@ check_working_directory()
 	[ -e 'build.sh' ] && {
 		log "$funcname() first start - fetching OpenWrt-source"
 
+		is_installed()
+		{
+			local package="$1"
+			local arch
+
+			dpkg >/dev/null --status "$package" && return 0
+
+			arch="$( dpkg-architecture -qDEB_BUILD_ARCH )"	# e.g. 'amd64' or 'i368'
+			dpkg >/dev/null --status "$package:$arch"
+		}
+
 		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen'
 		for package in $list; do {
-			if dpkg >/dev/null -s "$package"; then
+			log "$funcname() testing for '$package'" debug
+
+			if is_installed "$package"; then
+				# bastian@gcc20:~$ dpkg --status zlib1g-dev
+				# dpkg-query: error: --status needs a valid package name but 'zlib1g-dev' is not:
+				# ambiguous package name 'zlib1g-dev' with more than one installed instance
+				#
+				# bastian@gcc20:~$ dpkg -l | grep zlib1g-dev
+				# ii  zlib1g-dev:amd64   1:1.2.7.dfsg-13    amd64    compression library - development
+				# ii  zlib1g-dev:i386    1:1.2.7.dfsg-13    i386     compression library - development
 				log "$funcname() found package '$package' - OK" debug
 			else
 				log "$funcname() missing package '$package': please run as root: apt-get install -y --force-yes '$package'"
