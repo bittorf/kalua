@@ -21,7 +21,31 @@ _cron_vpnserver()
 		_log do $funcname daemon sms 'firstrun/bootup'
 
 		# from default init-script with dummy-config
-		killall vtund
+		pidof vtund && killall vtund
+
+		[ -e '/etc/olsrd.conf' ] || {
+			cat >'/etc/olsrd.conf' <<EOF
+DebugLevel 0
+
+LoadPlugin "olsrd_txtinfo.so.0.1"
+{
+}
+
+Interface "dummy0"
+{
+	# values for speed 7
+	Ip4Broadcast 255.255.255.255
+	HelloInterval 4.0
+	HelloValidityTime 175.0
+	TcValidityTime 700.0
+	TcInterval 3.0
+	MidInterval 35.0
+	MidValidityTime 700.0
+	HnaInterval 14.0
+	HnaValidityTime 175.0
+}
+EOF
+		}
 	}
 
 	ping -s 64 -c1 "$ip" >/dev/null || _log do $funcname daemon alert "ping to $ip failed"
@@ -34,4 +58,43 @@ _cron_vpnserver()
 		_firmware update_pmu
 		_watch archivsize '/www/everlasting_syslog.txt' 200 300
 	}
+
+	### install 'innercity-VPN' on a fresh debian7 VPS-server:
+	# apt-get -y install build-essential bison flex zlib1g-dev liblzo2-dev
+	# enable tun/tap via webinterface
+	# maybe: http://lowendbox.com/blog/yes-you-can-run-18-static-sites-on-a-64mb-link-1-vps/
+	#
+	### OLSR:
+	# wget http://www.olsr.org/releases/0.6/latest.tar.bz2; tar xjf latest.tar.bz2; cd olsrd-*
+	# make build_all && make install_all
+	# cd ..; rm -fR olsrd-*; rm latest.tar.bz2
+	# ln -s /root/olsrd-*/olsrd /usr/sbin/olsrd
+	#
+	### VTUN:
+	# wget http://downloads.sourceforge.net/project/vtun/vtun/3.0.3/vtun-3.0.3.tar.gz
+	# tar xzf vtun-*; cd vtun-*
+	# ./configure --disable-ssl
+	# test -e /usr/local/bin/strip || ln -s /bin/true /usr/local/bin/strip
+	# make && make install
+	# cd ..; rm -fR vtun-*
+	#
+	### KALUA:
+	# wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/x86_64/images/testing/tarball.tgz
+	# cd /; tar xzf /tmp/tarball.tgz && rm /tmp/tarball.tgz; cd ~
+	# /etc/kalua_init
+	#
+	# UCI-override:
+	# echo >>/etc/kalua_uci 'system.@system[0].hostname=ChicagoVPS'
+	# echo >>/etc/kalua_uci 'system.@fwupdate[0].mode=testing'
+	# - sms_password
+	# - external vtun-port
+	#
+	### crontab -e
+	# * * * * * . /tmp/loader && _cron vpnserver
+	#
+	### TODO:
+	# DNS-TXT-record
+	# /etc/profile: . /tmp/loader
+	# olsr-HNA4?: https://github.com/weimarnetz/vpnconfig#ip-schema
+	# tinc
 }
