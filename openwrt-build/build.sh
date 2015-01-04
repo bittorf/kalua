@@ -62,7 +62,7 @@ EOF
 
 #	--patchdir \$dir
 #       --openwrt trunk | <empty>
-#	--hardware 'Ubiquiti Bullet M'|<empty> = list supported models
+#	--hardware 'Ubiquiti Bullet M5'|<empty> = list supported models
 #	--kernel
 #	--usecase
 #	--profile 'ffweimar.hybrid.120'
@@ -394,12 +394,12 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
 			FILENAME_FACTORY='openwrt-atheros-ubnt5-squashfs.bin'
 		;;
-		'Ubiquiti Bullet M')
+		'Ubiquiti Bullet M2'|'Ubiquiti Bullet M5')
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_UBNT=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-factory.bin'
 		;;
-		'Ubiquiti Nanostation M')
+		'Ubiquiti Nanostation M2'|'Ubiquiti Nanostation M5')
 			TARGET_SYMBOL="CONFIG_TARGET_ar71xx_generic_UBNT=y"
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-nano-m-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-ubnt-nano-m-squashfs-factory.bin'
@@ -1522,6 +1522,12 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-audio=y'		# ...
 #				apply_symbol 'CONFIG_PACKAGE_kmod-input-core=y'		# ...
 			;;
+#			'SPEECHsynth-espeak')
+#				# + 1.5mb
+#			;;
+#			'SPEECHsynth-flite')
+#				# + 6.3mb
+#			;;
 			'LuCI')
 				apply_symbol 'CONFIG_PACKAGE_luci-mod-admin-core=y'	# LuCI: modules
 			;;

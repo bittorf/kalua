@@ -100,7 +100,7 @@ show_progress()
 
 if [ -z "$1" ]; then
 	echo "Usage: $0 <OpenWrt-Revision> <model> <mode> <server-path>"
-	echo " e.g.: $0 'r39455' 'Ubiquiti Bullet M' 'testing' 'root@intercity-vpn.de:/var/www/blubb/firmware'"
+	echo " e.g.: $0 'r39455' 'Ubiquiti Bullet M5' 'testing' 'root@intercity-vpn.de:/var/www/blubb/firmware'"
 	echo " e.g.: $0 'trunk'  'all'               'stable'  'root@intercity-vpn.de:/var/www/blubb/firmware'"
 	exit 1
 else
