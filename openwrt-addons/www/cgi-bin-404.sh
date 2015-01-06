@@ -100,8 +100,7 @@ EOF
 			;;
 			*)
 				read SERVER_IP 2>/dev/null </tmp/MY_PUBLIC_IP || {
-					URL="$( uci get system.@monitoring[0].url )/getip"
-					SERVER_IP="$( wget -qO - "$URL" )"
+					SERVER_IP="$( _net get_external_ip )"
 					echo "$SERVER_IP" >/tmp/MY_PUBLIC_IP
 				}
 			;;

@@ -15,6 +15,7 @@ _cron_vpnserver()
 	local funcname='cron_vpnserver'
 	local ip="${1:-84.38.67.43}"
 	local firstrun="/dev/shm/firstrun_$funcname"
+	local public_ip
 
 	[ -e "$firstrun" ] || {
 		touch "$firstrun"
@@ -24,6 +25,8 @@ _cron_vpnserver()
 		pidof vtund && killall vtund
 
 		[ -e '/etc/olsrd.conf' ] || {
+			public_ip="$( _net get_external_ip )"
+
 			cat >'/etc/olsrd.conf' <<EOF
 DebugLevel 0
 
@@ -34,6 +37,7 @@ LoadPlugin "olsrd_txtinfo.so.0.1"
 LoadPlugin "olsrd_nameservice.so.0.3"
 {
 	PlParam "name" "$HOSTNAME"
+	PlParam "service" "http://$HOSTNAME:80|tcp|VPN-hideandseek:$public_ip"
 }
 
 Interface "dummy0"
@@ -116,9 +120,12 @@ EOF
 	# - external vtun-port
 	#
 	### WEBSERVER:
-	# apt-get -y install $YOUR_CHOICE
+	# apt-get -y install $YOUR_CHOICE (e.g. apache2 or http://zeniv.linux.org.uk/~alan/%C2%B5Web/ )
 	# mv /var/www/index.html /var/www/index.html_old
 	# touch /var/www/cgi-bin-status.html && ln -s /var/www/cgi-bin-status.html /var/www/index.html
+	# wget -O /var/www/favicon.ico http://intercity-vpn.de/favicon.ico
+	# cp /www/robots.txt /var/www
+	# touch /var/www/cgi-bin-tool.sh
 	#
 	### crontab -e
 	# * * * * * . /tmp/loader && _cron vpnserver
