@@ -1,3 +1,5 @@
+#!/bin/sh
+
 _vpn_start ()
 {
 	local FUNC="vpn_start"
@@ -34,7 +36,6 @@ _vpn_start ()
 	_vpn_write_vtun_conf
 	_vpn_tunnel_start 
 }
-
 
 _vpn_stop ()
 {
@@ -266,8 +267,8 @@ _vpn_build_vars ()
   SERV=
   vpnNr=1
   SERVER=$vpnNr.$PREFIX.$DOMAIN
-  vpnServerResponse="$( ping -q -c 1 -W 1 $SERVER 2>/dev/null |grep round-trip|cut -f 4 -d ' '|cut -f 0 -d '/'|sed -e 's/\.//g' )"
-  [ -n "$responseTime" ] && {
+
+  vpnServerResponse="$( _net ping_getlatency "$SERVER" )" && {
     URL="http://$SERVER$JSONPATH"
     eval $( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )
     [ -n "$JSON_VAR_clients" ] && {
@@ -281,8 +282,7 @@ _vpn_build_vars ()
   for vpnNr in 2 3 4 5 6 7 8 9 10
   do
     SERVER=$vpnNr.$PREFIX.$DOMAIN
-    responseTime="$( ping -q -c 1 -W 1 $SERVER 2>/dev/null |grep round-trip|cut -f 4 -d " "|cut -f 0 -d "/"|sed -e 's/\.//g' )"
-    [ -n $responseTime  ] && {
+    vpnServerResponse="$( _net ping_getlatency "$SERVER" )" && {
       URL="http://$SERVER$JSONPATH"
       eval $( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )
       if  test 2>/dev/null "$JSON_VAR_clients" -lt "$CLIENTS" ;
