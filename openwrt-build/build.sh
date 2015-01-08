@@ -25,7 +25,7 @@
 print_usage_and_exit()
 {
 	local hint="$1"
-	local rev="r$( openwrt_revision_number_get )"
+	local rev="$( openwrt_revision_number_get )"
 	local hardware usecase
 
 	if [ -e 'files/etc/HARDWARE' ]; then
@@ -55,7 +55,7 @@ EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
        $0 --debug --${KALUA_DIRNAME}_package
 
-e.g. : $0 --openwrt $rev --hardware '$hardware' --usecase '$usecase'
+e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase'
 
 Get help without args, e.g.: --hardware <empty>
 EOF

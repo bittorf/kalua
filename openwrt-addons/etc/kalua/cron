@@ -15,19 +15,20 @@ _cron_vpnserver()
 	local funcname='cron_vpnserver'
 	local ip="${1:-84.38.67.43}"
 	local firstrun="/dev/shm/firstrun_$funcname"
-	local public_ip port
+	local public_ip port loopback_interface='lo'
 
 	[ -e "$firstrun" ] || {
 		touch "$firstrun"
 		_log do $funcname daemon sms 'firstrun/bootup'
 
-		# from default init-script with dummy-config
+		# left from default init-script with dummy-config
 		pidof vtund && killall vtund
 
 		[ -e '/etc/olsrd.conf' ] || {
 			public_ip="$( _net get_external_ip )"
 			port="$( _vpn innercity_master_vtund get_port )"
 
+			# TODO: own func + configure MainIP on loopback and use for service
 			cat >'/etc/olsrd.conf' <<EOF
 DebugLevel 0
 
@@ -38,10 +39,10 @@ LoadPlugin "olsrd_txtinfo.so.0.1"
 LoadPlugin "olsrd_nameservice.so.0.3"
 {
 	PlParam "name" "$HOSTNAME"
-	PlParam "service" "http://$HOSTNAME:80|tcp|VPN-hideandseek@$public_ip:$port"
+	PlParam "service" "http://$HOSTNAME:80|tcp|VPN-hideandseek:$public_ip:$port"
 }
 
-Interface "dummy0"
+Interface "$loopback_interface"
 {
 	# values for speed 7
 	Ip4Broadcast 255.255.255.255
