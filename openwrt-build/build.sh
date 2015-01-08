@@ -1402,7 +1402,6 @@ build_options_set()
 				# -coredump,-debug,-symbol-table
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
 
-				# CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=1024
 				# CONFIG_PACKAGE_dropbear is not set
 				# CONFIG_PACKAGE_opkg is not set
 
@@ -1531,6 +1530,7 @@ build_options_set()
 #				# + 6.3mb
 #			;;
 			'LuCI')
+				# FIXME!
 				apply_symbol 'CONFIG_PACKAGE_luci-mod-admin-core=y'	# LuCI: modules
 			;;
 			'LuCIfull')
@@ -1621,6 +1621,9 @@ build_options_set()
 			'noFW')
 				apply_symbol 'CONFIG_PACKAGE_firewall is not set'	# base-system: firewall3 *off*
 				apply_symbol 'CONFIG_DEFAULT_firewall is not set'	# needed?
+			;;
+			'squashfsplus')
+				apply_symbol 'CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=1024'	# target images: squashfs
 			;;
 			# help/usage-function
 			'list')
