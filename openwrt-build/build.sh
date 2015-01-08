@@ -191,7 +191,7 @@ register_patch()
 				set -- $name
 				shift
 				name="$( basename "$@" )"
-				name="FAILED: $name"
+				name="* failed: $name"
 			;;
 		esac
 	fi
@@ -201,9 +201,11 @@ register_patch()
 	else
 		case "$name" in
 			'DIR:'*|*':')
+				# directory
+				name="=== $name ==="
 			;;
 			*)
-				# better readable
+				# individual files
 				name="  $name"
 			;;
 		esac
