@@ -42,124 +42,18 @@ log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
 sleep 5
 df | logger
 
-hwprobe()
-{
-	local machine="$1"
-
-	case "$machine" in
-		"Ubiquiti Nanostation2")
-			fgrep -q "lpj=918528" "$DMESG" && {
-				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
-					fgrep -q "ath5k: phy0: Atheros AR2315 chip found (MAC: 0x86, PHY: 0x48)" "$DMESG" && {
-						return 0
-					}
-				}
-			}
-		;;
-		"Ubiquiti Nanostation5")
-			fgrep -q "lpj=898048" "$DMESG" && {
-				fgrep -q "CPU revision is: 0001800a (MIPS 4Kc)" "$DMESG" && {
-					fgrep -q "ath5k: phy0: Atheros AR2313 chip found (MAC: 0x58, PHY: 0x44)" "$DMESG" && {
-						return 0
-					}
-				}
-			}
-		;;
-		"Ubiquiti PicoStation2")
-			fgrep -q "lpj=917504" "$DMESG" && {
-				fgrep -q "CPU revision is: 00019064 (MIPS 4KEc)" "$DMESG" && {
-					fgrep -q "ath5k phy0: Atheros AR2317 chip found (MAC: 0x90, PHY: 0x48)" "$DMESG" && {
-						return 0
-					}
-				}
-			}
-		;;
-		"Ubiquiti PicoStation5"|"Ubiquiti Litestation5")	# nanostation5 -> lpj differs
-			fgrep -q "lpj=899072" "$DMESG" && {
-				fgrep -q "CPU revision is: 0001800a (MIPS 4Kc)" "$DMESG" && {
-					fgrep -q "ath5k phy0: Atheros AR2313 chip found (MAC: 0x58, PHY: 0x44)" "$DMESG" && {
-						fgrep -q "ath5k phy0: RF5112B 5GHz radio found (0x36)" "$DMESG" && {
-							return 0
-						}
-					}
-				}
-			}
-		;;
-	esac
-
-	return 1
-}
-
 DMESG="/tmp/dmesg.boot"
 [ -e "$DMESG" ] || {
 	dmesg >"$DMESG"
 }
 
-try_device()
-{
-	I=$(( ${I:=0} + 1 ))	# global_var
-
-	case "$I" in
-		 1) HARDWARE="Linksys WRT54G/GS/GL" ;;		# brcm47xx
-		 2) HARDWARE="Ubiquiti Bullet M" ;;		# ar71xx
-		 3) HARDWARE="TP-LINK TL-WR1043ND" ;;		# ar71xx
-		 4) HARDWARE="Buffalo WHR-HP-G54" ;;		# brcm47xx
-		 5) HARDWARE="SPW500V" ;;			# speedport w500v / aldi router
-		 6) HARDWARE="ASUS WL-HDD" ;;			# brcm47xx
-		 7) HARDWARE="ASUS WL-500g Premium V2" ;;	# brcm47xx
-		 8) HARDWARE="ASUS WL-500g Premium" ;;		# brcm47xx
-		 9) HARDWARE="Dell TrueMobile 2300" ;;		# brcm47xx // nvram set ModelId=WX-5565 commit
-		10) HARDWARE="Ubiquiti RouterStation Pro" ;;	# ar71xx
-		11) HARDWARE="4G Systems MTX-1 Board" ;;	# au1000 / meshcube
-		12) HARDWARE="Buffalo WZR-HP-AG300H" ;;		# ar71xx
-		13) HARDWARE="Ubiquiti Nanostation M" ;;	# ar71xx
-		14) HARDWARE="TP-LINK TL-WR703N" ;;             # ar71xx
-		15) HARDWARE="TP-LINK TL-WR842ND" ;;		# ar71xx
-		16) HARDWARE="TP-LINK TL-MR3420" ;;		# ar71xx
-		17) HARDWARE="TP-LINK TL-MR3020" ;;		# ar71xx
-		18) HARDWARE="Seagate FreeAgent DockStar" ;;	# kirkwood
-		19) HARDWARE="TP-LINK TL-WR841N/ND v7" ;;	# ar71xx
-		20) HARDWARE="TP-LINK TL-WR841N/ND v8" ;;	# ar71xx
-		21) HARDWARE="TP-LINK TL-WDR3600/4300/4310" ;;	# ar71xx
-		*)
-			HARDWARE=
-			return 1
-		;;
-	esac
-}
-
-if   hwprobe "Ubiquiti Nanostation2"; then
-	HARDWARE="Ubiquiti Nanostation2"
-elif hwprobe "Ubiquiti Nanostation5"; then
-	HARDWARE="Ubiquiti Nanostation5"
-fi
-
-[ -z "$HARDWARE" ] && {
-	while try_device; do {
-		fgrep -q "$HARDWARE" "$DMESG" && break
-	} done
-}
-
-  if [ -n "$HARDWARE" ]; then
-	case "$HARDWARE" in
-		"Ubiquiti Bullet M")
-			ip address show | fgrep -q " 00:27:22:" && HARDWARE="Ubiquiti Picostation M2"
-		;;
-	esac
-elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform: http://www.ubnt.com/picostation
-	HARDWARE="Ubiquiti PicoStation2"
-elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform: http://www.ubnt.com/picostation5
-	HARDWARE="Ubiquiti PicoStation5"
-elif [ -e "/etc/HARDWARE" ]; then
-	log "could not detect hardware, trying /etc/HARDWARE"
+if [ -e "/etc/HARDWARE" ]; then
+	log "trying to read HARDWARE from /etc/HARDWARE"
 	read HARDWARE </etc/HARDWARE
 else
 	log "could not detect hardware, please enforce manually with a text in /etc/HARDWARE - abort"
-
 	[ "$1" = "help" ] || exit 1
 fi
-log "detected: $HARDWARE and wrote to '/etc/HARDWARE' for later monitoring"
-echo "$HARDWARE" >"/etc/HARDWARE"
 
 case "$HARDWARE" in
 	"Linksys WRT54"*|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
