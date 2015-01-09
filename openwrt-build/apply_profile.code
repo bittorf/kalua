@@ -38,51 +38,6 @@ merge_options()
 	kill -HUP 1	# forced process "init" to reload it's config-file
 }
 
-jffs2_is_ready()
-{
-	[ -n "$FAILSAFE" ] && {
-		df | grep -q "/overlay"$ || {
-			log "please enter 'mount_root', you are in FAILSAFE-mode"
-			sleep 3
-			return 1
-		}
-	}
-
-	lock -w /tmp/.switch2jffs && {		# ramdisk useable?
-		df | grep -q " /tmp"$ || {
-			return 1
-		}
-	}
-
-	if [ -n "$FAILSAFE" ]; then
-		return 0
-	else
-		[ -e "/lib/functions.sh" ] && . /lib/functions.sh
-		[ -e "/etc/functions.sh" ] && . /etc/functions.sh		# deprecated
-		[ -e "/lib/functions/boot.sh" ] && . /lib/functions/boot.sh	# removed in r34794
-		jffs2_ready && return 0
-	fi
-
-	[ -e "/etc/init.d/apply_profile" ] || {
-		log "already applied profile, filesystem should be ok"
-		return 0
-	}
-
-	[ $( uptime_in_seconds ) -gt 240 ] && {
-		return 0
-	}
-
-	logread | grep -q "jffs2_build_xattr_subsystem: complete building xattr subsystem" && {
-		touch "/tmp/JFFS2_OK"
-	}
-
-	test -e "/tmp/JFFS2_OK"
-}
-
-while ! jffs2_is_ready ; do {
-	log "waiting for JFFS2 to be ready"
-	sleep 10
-} done
 log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
 sleep 5
 df | logger
@@ -1635,13 +1590,12 @@ touch /www/SOFTWARE_FULLY_INSTALLED
 
 . /tmp/loader
 
-jffs2_is_ready && {
-	has_default_route && {
+has_default_route && {
 		_ssh sanitize_and_cleanup_keys
 		[ -e /tmp/REGISTRATED ] && rm /tmp/REGISTRATED
 		/usr/sbin/cron.registrator_client.sh
 	}
-}
+
 
 echo
 echo "[ok] R E A D Y"
