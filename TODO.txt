@@ -1535,31 +1535,86 @@ system.vpn.enable=1
   - laptop: nc -l 9999 >request + open in browser 127.0.0.1:9999 + CTRL+C
   - cat request | nc www.google.de 80 >response -> see headers 8-)
     - Content-Encoding: gzip
+full:
+bastian@X301:~$ more response
+HTTP/1.1 200 OK
+Date: Thu, 08 Jan 2015 10:10:51 GMT
+Expires: -1
+Cache-Control: private, max-age=0
+Content-Type: text/html; charset=UTF-8
+Set-Cookie: NID=67=jXeenU8io_2QnBFCf-0JlEhEXhaTM3fZ_V_nf4OacdZgpEIKZ2ruV_9nNVpBULabLun_3SNPNZIvGiJfkJlCjNtAPzNAlASGq-d0jv_yd5WMsrvQFjXA-X4q_IKXi0TX; expires=Fr
+i, 10-Jul-2015 10:10:51 GMT; path=/; domain=.; HttpOnly
+P3P: CP="This is not a P3P policy! See http://www.google.com/support/accounts/bin/answer.py?hl=en&answer=151657 for more info."
+Content-Encoding: gzip
+Server: gws
+X-XSS-Protection: 1; mode=block
+X-Frame-Options: SAMEORIGIN
+Transfer-Encoding: chunked
+Alternate-Protocol: 80:quic,p=0.02
+
+7872
+[...]
+
 
 00000270  50 72 6f 74 6f 63 6f 6c  3a 20 38 30 3a 71 75 69  |Protocol: 80:qui|
 00000280  63 2c 70 3d 30 2e 30 32  0d 0a 0d 0a 37 38 37 32  |c,p=0.02....7872|
+                                   ^^^^^^^^^^^
 00000290  0d 0a 1f 8b 08 00 00 00  00 00 02 ff ec bd d9 76  |...............v|
           ^^^^^^^^^^^
 000002a0  db c8 92 00 f8 5e 5f 41  d1 dd 12 d9 82 28 80 fb  |.....^_A.....(..|
 
-gzip = 1f8b - aber vorher kommt noch 37 38 37 32 , 0d 0a + 1f 8b
+---> gzip = 1f8b - aber vorher kommt noch 0d 0a + 0d 0a + 37 38 37 32 , 0d 0a + 1f 8b
+
+
 
 printf "HEAD / HTTP/1.0\r\n\r\n" | nc -n -i1 10.63.96.225 80
+printf "HEAD /cgi-bin-status.sh HTTP/1.0\r\n\r\n" | nc -n -i1 10.63.22.65 80
+printf "GET /cgi-bin-status.sh HTTP/1.0\r\n\r\n" | nc -n -i1 10.63.22.65 80
 
 00000020  73 65 0d 0a 43 6f 6e 74  65 6e 74 2d 74 79 70 65  |se..Content-type|
 00000030  3a 20 74 65 78 74 2f 68  74 6d 6c 0d 0a 0d 0a 3c  |: text/html....<|
                                             ^^^^^^^^^^^ = linebreak
 00000040  21 44 4f 43 54 59 50 45  20 48 54 4d 4c 20 50 55  |!DOCTYPE HTML PU|
 
+# transfer-encoding:
+bastian@X301:~$ printf "GET /cgi-bin-status.sh HTTP/1.0\r\n\r\n" | nc -n -i1 10.63.22.65 80 | hexdump -C
+00000000  48 54 54 50 2f 31 2e 30  20 32 30 30 20 4f 4b 0d  |HTTP/1.0 200 OK.|
+00000010  0a 43 6f 6e 6e 65 63 74  69 6f 6e 3a 20 63 6c 6f  |.Connection: clo|
+00000020  73 65 0d 0a 43 6f 6e 74  65 6e 74 2d 74 79 70 65  |se..Content-type|
+00000030  3a 20 74 65 78 74 2f 68  74 6d 6c 0d 0a 54 72 61  |: text/html..Tra|
+00000040  6e 73 66 65 72 2d 45 6e  63 6f 64 69 6e 67 3a 20  |nsfer-Encoding: |
+00000050  67 7a 69 70 0d 0a 0d 0a  37 38 37 32 0d 0a 1f 8b  |gzip....7872....|
+                      ^^^^^^^^^^^              ^^^^^^^^^^^
+00000060  08 00 49 2e b0 54 02 03  ed 5b 7b 73 db 38 92 ff  |..I..T...[{s.8..|
 
+# content-encoding:
+bastian@X301:~$ printf "GET /cgi-bin-status.sh HTTP/1.0\r\n\r\n" | nc -n -i1 10.63.22.65 80 | hexdump -C >/tmp/BLA
+00000000  48 54 54 50 2f 31 2e 30  20 32 30 30 20 4f 4b 0d  |HTTP/1.0 200 OK.|
+00000010  0a 43 6f 6e 6e 65 63 74  69 6f 6e 3a 20 63 6c 6f  |.Connection: clo|
+00000020  73 65 0d 0a 43 6f 6e 74  65 6e 74 2d 74 79 70 65  |se..Content-type|
+00000030  3a 20 74 65 78 74 2f 68  74 6d 6c 0d 0a 43 6f 6e  |: text/html..Con|
+00000040  74 65 6e 74 2d 45 6e 63  6f 64 69 6e 67 3a 20 67  |tent-Encoding: g|
+00000050  7a 69 70 0d 0a 0d 0a 37  38 37 32 0d 0a 1f 8b 08  |zip....7872.....|
+                   ^^^^^^^^^^^              ^^^^^^^^^^^
+00000060  00 49 2e b0 54 02 03 ed  5b 7b 73 db 38 92 ff fb  |.I..T...[{s.8...|
+
+
+hmmm... Content-Lengt: 1234 (gzip-size)
+bringt auch nix
 
 _http_header_mimetype_output() -> inject gzip-header
 
 http://www.gzip.org/zlib/rfc-gzip.html#file-format
 http://stackoverflow.com/questions/388595/why-use-deflate-instead-of-gzip-for-text-files-served-by-apache
 http://www.vervestudios.co/projects/compression-tests/results
+http://stackoverflow.com/questions/11584390/on-linux-use-the-compress-and-uncompress-functions-of-zlib-it-sometimes-re
+http://stackapps.com/questions/916/why-content-encoding-gzip-rather-than-transfer-encoding-gzip
+http://stackoverflow.com/questions/2308389/gzip-without-server-support
+http://stackoverflow.com/questions/3894794/node-js-gzip-compression
+https://github.com/tomgco/gzippo/blob/master/lib/staticGzip.js
 
 
+# use 'readonly $var' ?
 # announce reboot to neighs via netmsg - e.g. against false positives of switch() / lost olsr neigh
 # switch: rb532
 # S43ether: alles ist client und alle interfaces die hochkommen werden abgezogen. loest das prob mit .3 = user-lan3-n222 -> soll = node222adhoc?
