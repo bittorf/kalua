@@ -25,7 +25,7 @@ merge_options()
 
   if [ -n "$FIRST" ]; then
     echo "$FIRST"
-  elif [-n "$SECOND"]; then
+  elif [ -n "$SECOND" ]; then
     echo "$SECOND"
   else
     echo "$THIRD"
@@ -38,7 +38,7 @@ merge_options()
 	exit 0
 }
 
-[ "$( logread | grep "init: process '/bin/ash" | grep "exited. Scheduling for restart." | wc -l )" -gt 10 ] && {
+[ "$( logread | grep "init: process '/bin/ash" | grep -c "exited. Scheduling for restart." )" -gt 10 ] && {
 	# daemon.info init: starting pid 15022, tty '/dev/ttyS0': '/bin/ash --login'		// should correctly detect 'ttyS0'
 	log "detect_respawing_login daemon alert deactivating ttyS0 in /etc/inittab"
 	sed -i 's/^ttyS0/# ttyS0/' /etc/inittab
@@ -68,9 +68,9 @@ case "$HARDWARE" in
 	;;
 esac
 
-SIM_ARG1="$( merge_options $1 $( uci get meshwizard.community.ipschema ) $( uci get system.@profile[0].name | cut -d'_' -f1 ) )"
-SIM_ARG2="$( merge_options $2 $( uci get meshwizard.community.wifimode ) $( uci get system.@profile[0].name | cut -d'_' -f2 ) )"
-SIM_ARG3="$( merge_options $3 $( uci get meshwizard.community.nodenumber ) $( uci get system.@profile[0].nodenumber ) )"
+SIM_ARG1="$( merge_options "$1" $( uci get meshwizard.community.ipschema ) $( uci get system.@profile[0].name | cut -d'_' -f1 ) )"
+SIM_ARG2="$( merge_options "$2" $( uci get meshwizard.community.wifimode ) $( uci get system.@profile[0].name | cut -d'_' -f2 ) )"
+SIM_ARG3="$( merge_options "$3" $( uci get meshwizard.community.nodenumber ) $( uci get system.@profile[0].nodenumber ) )"
 
 has_default_route ()
 {
@@ -115,7 +115,7 @@ has_default_route && {
 
 	[ "$ISBOOT" = "ja" ] || {
 		echo "press <enter> to continue/reapply these values or strg+c to abort"
-		read DUMMY
+		read 
 	}
 
 	INSTALLATION=$SIM_ARG1
@@ -129,7 +129,7 @@ has_default_route && {
 	echo
 	echo "		 installation = {"
 
-	grep ^"	[a-z0-9|]*)" $0.definitions | sed 's/)//g' | while read line; do {
+	grep ^"	[a-z0-9|]*)" "$0.definitions" | sed 's/)//g' | while read line; do {
 		echo "					$line"
 	} done
 
@@ -1384,7 +1384,7 @@ EOF
 [ -e "/etc/kalua_init" ] && {
 	local PARTITION="$( mount | sed -n 's/\(^.*mtd.*\) on .*/\1/p' )"       
         local flash_free=$(df | sed -n "s#^${PARTITION:-/dev/root}[^0-9]*[0-9]*[^0-9]*[0-9]*[^0-9]*\([0-9]*\).*#\1#p")
-	local total_ram=$( cat /proc/meminfo|grep MemTotal| cut -f2 -d ':'| cut -f1 -d 'k'| tr -d ' ')
+	local total_ram=$( grep MemTotal /proc/meminfo | cut -f2 -d ':'| cut -f1 -d 'k'| tr -d ' ')
 	if [ $total_ram -lt 16384 ] && [ $flash_free -gt 340 ]; then
 		log "[OK] building kalua-loader on flash, we are low on RAM =< 16mb"
         	mkdir "/etc/kalua.w"
