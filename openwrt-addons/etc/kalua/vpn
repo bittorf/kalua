@@ -34,7 +34,7 @@ _vpn_start ()
 		
 	_vpn_remove_vtun_conf
 	_vpn_write_vtun_conf
-	_vpn_tunnel_start 
+	_vpn_tunnel_start
 }
 
 _vpn_stop ()
@@ -109,7 +109,7 @@ _vpn_tunnel_start ()
 	
 	_log do $FUNC daemon debug "starting vtun with config '$VTUN'"
 	
-	vtund -f "$VTUN Node$KNOT $SERV $PORT" 2>/dev/null || {
+	vtund -f "$VTUN" "Node$KNOT" "$SERV" "$PORT" 2>/dev/null || {
 
 		_log do $FUNC daemon debug "error"	
 		
@@ -142,7 +142,7 @@ _vpn_write_vtun_conf()
 		anonym="# (inactiv):"
 	}
 
-	cat >"$VTUN" <<EOF
+	cat > "$VTUN" <<EOF
 Node$KNOT {
 	passwd ff ;
 	type ether ;		# fixme! olsrd-bug: /32 interface needed?
@@ -244,6 +244,9 @@ _vpn_vtund_port ()
 
 _vpn_build_vars ()
 {
+
+  local FUNC="vpn_build_vars"
+
   # load json lib
   . /usr/share/libubox/jshn.sh
 
@@ -268,52 +271,42 @@ _vpn_build_vars ()
   vpnNr=1
   SERVER=$vpnNr.$PREFIX.$DOMAIN
 
-  vpnServerResponse="$( _net ping_getlatency "$SERVER" )" && {
-    URL="http://$SERVER$JSONPATH"
-    eval "$( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
-    [ -n "$JSON_VAR_clients" ] && {
-      CLIENTS=${JSON_VAR_clients}
-      PORT=$( _vpn vtun_port "$VTUNDTYPE" )
-      MTU=${JSON_VAR_maxmtu}
-      vpnServerName=$SERVER
-   }
-  }
-
-  for vpnNr in 2 3 4 5 6 7 8 9 10
+  for vpnNr in 1 2 3 4 5 6 7 8 9 10
   do
     SERVER=$vpnNr.$PREFIX.$DOMAIN
     vpnServerResponse="$( _net ping_getlatency "$SERVER" )" && {
       URL="http://$SERVER$JSONPATH"
       eval "$( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
-      if  test "$JSON_VAR_clients" -lt "$CLIENTS" ;
+      if [ ! -z "$JSON_VAR_clients" ] && [ "$JSON_VAR_clients" -lt "$CLIENTS" ];
       then
         CLIENTS=${JSON_VAR_clients}
         PORT=$( _vpn vtund_port "$VTUNDTYPE" )
         MTU=${JSON_VAR_maxmtu}
         vpnServerName="$SERVER"
+        _log do $FUNC daemon notice "got $SERVER as valid VPN"
+      else
+        _log do $FUNC daemon err "error: $SERVER is not a valid VPN"
       fi
     }
   done
 
-  [ $CLIENTS = 12345 ] && {
+  [ "$CLIENTS" = 12345 ] && {
     CLIENTS=
   }
 
-	VPN_SERVER="$vpnServerName"
+ VPN_SERVER="$vpnServerName"
 
-	NODE_NUMBER="$( uci get system.@profile[0].nodenumber )"
-	HOSTNAME="$( uci get system.@system[0].hostname )"
-	[ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
+ NODE_NUMBER="$( uci get system.@profile[0].nodenumber )"
+ HOSTNAME="$( uci get system.@system[0].hostname )"
+ [ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
+ SERV="$vpnServerName"	# _ip4|_ip6 fallback?
+ CONF="/var/etc/olsrd.conf"			# old_style
+ KNOT=$NODE_NUMBER
+ VTUN="/tmp/vtund.conf"
 
+ [ "$1" != "stop" ] && INETOFFER=$( _net local_inet_offer )
 	
-	SERV="$vpnServerName"	# _ip4|_ip6 fallback?
-	CONF="/var/etc/olsrd.conf"			# old_style
-	KNOT=$NODE_NUMBER
-	VTUN="/tmp/vtund.conf"
-
-	[ "$1" != "stop" ] && INETOFFER=$( _net local_inet_offer )
-	
-	eval "$( _ipsystem do )"
+ eval "$( _ipsystem do )"
 }
 
 
