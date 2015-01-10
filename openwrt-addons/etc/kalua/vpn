@@ -5,7 +5,7 @@ _vpn_start ()
 	local FUNC="vpn_start"
 	_vpn_defer_start
 
-	[ $INETOFFER = "false" -a -z "$( uci get system.@vpn[0].force )" ] && {
+	[ "$INETOFFER" = "false" -a -z "$( uci get system.@vpn[0].force )" ] && {
 		_log do $FUNC daemon debug "no local default gateway - abort"
 		return 1
 	}
@@ -17,12 +17,12 @@ _vpn_start ()
 
 	_vpn_build_vars
 	
-	[ -n $SERV ] || {
+	[ -n "$SERV" ] || {
 		_log do $FUNC daemon debug "no suitable server found"
 		return 1
 	}
 	
-	[ -n $PORT ] || {
+	[ -n "$PORT" ] || {
 		_log do $FUNC daemon debug "no server with suitable vtun setup found for you, please try again later"
 		return 1
 	}
@@ -109,7 +109,7 @@ _vpn_tunnel_start ()
 	
 	_log do $FUNC daemon debug "starting vtun with config '$VTUN'"
 	
-	vtund -f $VTUN Node$KNOT $SERV $PORT 2>/dev/null || {
+	vtund -f "$VTUN Node$KNOT $SERV $PORT" 2>/dev/null || {
 
 		_log do $FUNC daemon debug "error"	
 		
@@ -142,7 +142,7 @@ _vpn_write_vtun_conf()
 		anonym="# (inactiv):"
 	}
 
-	cat >$VTUN <<EOF
+	cat >"$VTUN" <<EOF
 Node$KNOT {
 	passwd ff ;
 	type ether ;		# fixme! olsrd-bug: /32 interface needed?
@@ -183,16 +183,16 @@ EOF
 	_log do $func daemon debug "ready"
 	while read LINE; do {
 		_log do $func daemon debug "${VTUN} +'$LINE'"
-	} done <$VTUN
+	} done <"$VTUN"
 }
 
 _vpn_remove_vtun_conf ()
 {
 	local FUNC="vpn_remove_vtun_conf"
 
-	[ -e $VTUN ] && {
+	[ -e "$VTUN" ] && {
 		_log do $FUNC daemon debug "working"
-		rm $VTUN
+		rm "$VTUN"
 	}
 }
 
@@ -213,7 +213,7 @@ _vpn_defer_start ()
 
 _vpn_probe_vtund_type ()
 {
-	set -- $( ldd /usr/sbin/vtund )
+	set -- "$( ldd /usr/sbin/vtund )"
 	case "$@" in
 		*'liblzo'*'libcrypto'*)
 			echo "ssl_lzo"
@@ -270,10 +270,10 @@ _vpn_build_vars ()
 
   vpnServerResponse="$( _net ping_getlatency "$SERVER" )" && {
     URL="http://$SERVER$JSONPATH"
-    eval $( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )
+    eval "$( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
     [ -n "$JSON_VAR_clients" ] && {
       CLIENTS=${JSON_VAR_clients}
-      PORT=$( _vpn vtun_port $VTUNDTYPE )
+      PORT=$( _vpn vtun_port "$VTUNDTYPE" )
       MTU=${JSON_VAR_maxmtu}
       vpnServerName=$SERVER
    }
@@ -284,18 +284,18 @@ _vpn_build_vars ()
     SERVER=$vpnNr.$PREFIX.$DOMAIN
     vpnServerResponse="$( _net ping_getlatency "$SERVER" )" && {
       URL="http://$SERVER$JSONPATH"
-      eval $( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )
-      if  test 2>/dev/null "$JSON_VAR_clients" -lt "$CLIENTS" ;
+      eval "$( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
+      if  test "$JSON_VAR_clients" -lt "$CLIENTS" ;
       then
         CLIENTS=${JSON_VAR_clients}
-        PORT=$( _vpn vtund_port $VTUNDTYPE )
+        PORT=$( _vpn vtund_port "$VTUNDTYPE" )
         MTU=${JSON_VAR_maxmtu}
         vpnServerName="$SERVER"
       fi
     }
   done
 
-  [[ $CLIENTS = 12345 ]] && {
+  [ $CLIENTS = 12345 ] && {
     CLIENTS=
   }
 
