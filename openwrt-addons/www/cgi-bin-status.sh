@@ -22,7 +22,16 @@
 
 	show_pregenerated && {
 		touch "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR"
-		cat '/tmp/statuspage_neigh_pregenerated'
+
+		case "$HTTP_ACCEPT_ENCODING" in
+			*'gzip'*)
+				cat '/tmp/statuspage_neigh_pregenerated.gz'
+			;;
+			*)
+				cat '/tmp/statuspage_neigh_pregenerated'
+			;;
+		esac
+
 		exit 0
 	}
 }
