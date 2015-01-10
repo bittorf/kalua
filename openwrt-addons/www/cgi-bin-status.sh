@@ -2,8 +2,6 @@
 . /tmp/loader
 
 [ -n "$REMOTE_ADDR" ] && {
-	_http header_mimetype_output 'text/html'
-
 	show_pregenerated()
 	{
 		[ -e '/tmp/statuspage_neigh_pregenerated' ] || return 1
@@ -25,9 +23,11 @@
 
 		case "$HTTP_ACCEPT_ENCODING" in
 			*'gzip'*)
+				_http header_mimetype_output 'text/html' 'gzip'
 				cat '/tmp/statuspage_neigh_pregenerated.gz'
 			;;
 			*)
+				_http header_mimetype_output 'text/html'
 				cat '/tmp/statuspage_neigh_pregenerated'
 			;;
 		esac
