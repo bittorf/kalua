@@ -36,7 +36,7 @@ _ipsystem_amiga()			# lannet  = 10.10.x.128/25
 
 	nodenumber_is_in_range()
 	{
-		test 2>/dev/null $nodenumber -ge $range_start -a $nodenumber -le $range_end
+		test $nodenumber -ge $range_start -a $nodenumber -le $range_end
 	}
 
 	  if [ -z "$nodenumber" ]; then
@@ -107,7 +107,7 @@ _ipsystem_ffsundi ()			# ARG1: - empty       -> has_nodenumber? -> output for my
 		return 1
 	fi
 
-	if [ 2>/dev/null "$NODE_NUMBER" -ge $RANGE_START -a "$NODE_NUMBER" -le $RANGE_END ]; then
+	if [ "$NODE_NUMBER" -ge $RANGE_START -a "$NODE_NUMBER" -le $RANGE_END ]; then
 
 		local S=0			# subnetstart 	e.g. network.city.100.${S}
 		local N=$NODE_NUMBER		# nodenumber_id	e.g. network.city.${N}.0
@@ -189,16 +189,12 @@ _ipsystem_classc()
 	_ipsystem ffweimar "$1" "168" "192" "1" "254" "250" "16"	# fixme!
 }
 
-_ipsystem_leonardo()
-{
-	_ipsystem ffweimar "$1" "10"
-}
-
 _ipsystem_ffweimar()			# ARG1: - empty       -> has_nodenumber? -> output for my nodenumber
 {					#  	- "random" or empty && no_nodenumber?  -> output for random nodenumber
 	local node_number="$1"		#       - IP-address  -> output nodenumber
 	local city="${2:-63}"		#	- node-number -> output for this nodenumber, return 1 if not in range
 	local network="${3:-10}"
+    local ipv6_prefix="2001:bf7:193"
 	local range_start="${4:-2}"
 	local range_end="${5:-1020}"
 	local range_first_random="${6:-970}"
@@ -207,7 +203,7 @@ _ipsystem_ffweimar()			# ARG1: - empty       -> has_nodenumber? -> output for my
 	local wifi_leasetime='30m'	# dnsmasq-syntax = 30 min
 	local wifi_leasenum='29'
 	local lan_leasenum='13'
-	local oct1 oct2 oct3 oct4 oldIFS s n random
+	local oct1 oct2 oct3 oct4 oldIFS s n random node_number_hex node_hex
 
 	# a typical node 16:
 	# all:  10.63.16.0  /26  (=  0...64)
@@ -242,24 +238,34 @@ _ipsystem_ffweimar()			# ARG1: - empty       -> has_nodenumber? -> output for my
 		fi
 	fi
 
-	if [ 2>/dev/null "$node_number" -ge $range_start -a "$node_number" -le $range_end ]; then
+	if [ "$node_number" -ge $range_start -a "$node_number" -le $range_end ]; then
 		s='0'			# subnetstart 	e.g. network.city.100.${S}
 		n="$node_number"	# nodenumber_id	e.g. network.city.${N}.0
-		random='false'
-
-		if   [ "$node_number" -ge $range_first_random ]; then
-			n=$(( $node_number - 765 ))
+        random='false'
+        node_number_hex=$( printf "%X" "$node_number"; )
+        node_hex="0:$node_number_hex"
+        
+		if [ "$node_number" -ge "$range_first_random" ]; then
+			n=$(( "$node_number" - 765 ))
 			s=192
 			random='true'
+            node_number_hex=$( printf "%X" "$node_number"; )
+            node_hex=$( echo "$node_number_hex" | sed 's/^.*\(.\)\(..\)$/\1:\2/g' )
 		elif [ "$node_number" -gt 765 ]; then
-			n=$(( $node_number - 765 ))
+			n=$(( "$node_number" - 765 ))
 			s=192
+            node_number_hex=$( printf "%X" "$node_number"; )
+            node_hex=$( echo "$node_number_hex" | sed 's/^.*\(.\)\(..\)$/\1:\2/g' )
 		elif [ "$node_number" -gt 510 ]; then
-			n=$(( $node_number - 510 ))
+			n=$(( "$node_number" - 510 ))
 			s=128
+            node_number_hex=$( printf "%X" "$node_number"; )
+            node_hex=$( echo "$node_number_hex" | sed 's/^.*\(.\)\(..\)$/\1:\2/g' )
 		elif [ "$node_number" -gt 255 ]; then
-			n=$(( $node_number - 255 ))
+			n=$(( "$node_number" - 255 ))
 			s=64
+            node_number_hex=$( printf "%X" "$node_number"; )
+            node_hex=$( echo "$node_number_hex" | sed 's/^.*\(.\)\(..\)$/\1:\2/g' )
 		fi
 	else
 		return 1
@@ -280,6 +286,8 @@ LAN_DHCP_LEASETIME=12h
 LANADR=$network.$city.$n.$(( $s + 33 ))
 LAN1ST=$network.$city.$n.$(( $s + 34 ))
 LANMSK=255.255.255.240
+LAN6ADR=$ipv6_prefix$node_hex$(echo "00::")
+LAN6MSK=64
 LANBRC=$network.$city.$n.$(( $s + 47 ))
 LANNET=$network.$city.$n.$(( $s + 32 ))
 LANPRE=28
@@ -302,9 +310,16 @@ FFF_NET=$network
 FFF_NODE=$node_number
 FFF_HNA=$network.$city.$n.$s/26
 
+IPV6NET=$ipv6_prefix$node_hex$(echo "::")
+IPV6MSK=56
+
 WIFIADR=$network.$city.$n.$(( $s + 1 ))
 WIFI1ST=$network.$city.$n.$(( $s + 2 ))
 WIFIMSK=255.255.255.224
+WIFI6ADR1=$ipv6_prefix$node_hex$(echo "01::")
+WIFI6MSK1=64
+WIFI6ADR2=$ipv6_prefix$node_hex$(echo "02::")
+WIFI6MSK2=64
 WIFIBRC=$network.$city.$n.$(( $s + 31 ))
 WIFINET=$network.$city.$n.$s
 WIFIPRE=27
@@ -327,6 +342,9 @@ WIFIVPNSERVERADR=$network.$city.$n.$(( $s + 57 ))
 WIFIVPNCLIENTADR=$network.$city.$n.$(( $s + 58 ))
 WIFIVPNBRC=$network.$city.$n.$(( $s + 59 ))
 WIFIVPNPRE=30
+
+VPN6ADR=$ipv6_prefix$node_hex$(echo "ff::")
+VPN6MSK=64
 
 ROAMING_IP4=172.31.$city.$network
 ROAMING_PRE=24
