@@ -1,92 +1,99 @@
 #!/bin/sh
-. /tmp/loader
-
-watch_cron()
-{
-	pidof crond >/dev/null || {		# wrong place but works
-
-		local pid cmdline
-		read pid 2>/dev/null </tmp/cron_watchdog.pid
-		read cmdline 2>/dev/null </proc/$pid/cmdline
-
-		[ "$cmdline" = "sh/tmp/cron_watchdog.sh" ] || {
-			_log do watch_cron daemon alert "cron died, restarting"
-			/etc/init.d/*crond* start
-		}
-	}
-}
-
-watch_cron
+command . /tmp/loader || exit 0		# TODO: rebuild loader + enable cron?
 
 MODE="${1:-unset}"
 MAC="${2:-ff:00:00:00:00:00}"		# fixme! this enforces an invalid mac, see sanitizer_mac()
 IP="${3:-127.0.0.1}"
 HOST="${4:-unset}"
 
-DEV="$( _net ip2dev $IP )"
+case "$MAC" in
+	*"-"*)
+		_log do dhcp_script daemon info "ignore non-ethernet events: $MAC"
+		exit 0
+	;;
+esac
+
+if [ -n "$DNSMASQ_INTERFACE" ]; then
+	DEV="$DNSMASQ_INTERFACE"
+else
+	DEV="$( _net ip2dev $IP )"
+fi
 
 case "$DEV" in
 	 $WANDEV) TYPE="wan" ;;
 	 $LANDEV) TYPE="lan" ;;
 	$WIFIDEV) TYPE="wifi" ;;
-	  $LODEV) TYPE="loopback" ;;
+	  $LODEV) TYPE="loopback"
+		[ "$MAC" = '00:00:00:00:00:00' ] && MODE='cron-watchdog'
+	;;
+	'by-mybridge'|'gateway0') TYPE='batman' ;;	# just for better logging
 	       *) TYPE="unknown" ;;
 esac
 
-[ "$MODE" = "old" ] || _log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV"
+if [ "$MODE" = "old" ]; then
+	[ -e "/tmp/CRON_OVERLOAD" ] && exit 0
+else
+	_log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV"
+fi
 
-case $MODE in
-	add|old)
-		case "$( uci get system.@weblogin[0].enabled )" in
-			""|0)
-			;;
-			*)
-				[ "$HOST" = "check_if_reachable" ] && {
-					_netfilter user_reachable "$MAC" "$IP" || exit 0
-				}
-
-				[ "$MODE" = "old" ] && {
-					_netfilter user_probe "$MAC" && exit 0
-				}
-
-				USER="$MAC"
-				NODE_HOSTNAME="$( uci get system.@system[0].hostname )"
-				SIGNAL="${NODE_HOSTNAME}_dhcp-${MODE}"				# keyword 'dhcp' is important for login_check()
-				export REMOTE_ADDR="$IP"
-
-				# fixme! _olsr uptime is_short && scheduler ...
-
-				if _weblogin login_check "$USER" "" "$MAC" "$SIGNAL" ; then
-					_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER"
-					_netfilter user_add "$MAC" "$IP"
-				else
-					if _weblogin login_check "$USER" "$NODE_HOSTNAME" "$MAC" "$SIGNAL" ; then
-						_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER/$NODE_HOSTNAME (2nd try)"
-						_netfilter user_add "$MAC" "$IP"
-					else
-						_log do $SIGNAL daemon info "[ERR] _weblogin login_check $USER/$NODE_HOSTNAME"
-					fi
-				fi
-			;;
-		esac
-
-		case "$CONFIG_PROFILE" in
-			ffweimar*)
-				if [ "$TYPE" = "lan" ]; then
-					_log do dhcp_$MODE daemon info "this profile is always auto-unsplashed"
-					_netfilter user_add "$MAC" "$IP"
-				else
-					_log do dhcp_$MODE daemon info "'$MAC' is not from lan, exit"
-					exit
-				fi
-			;;
-		esac
-	;;
-	del)
-		if [ "$( uci get system.@weblogin[0].dhcpautologout )" = "1" ]; then
-			_scheduler add "_netfilter user_del $MAC"
-		else
-			ip neigh change $IP dev $DEV lladdr $MAC nud reachable
-		fi
+case "$MODE-$HOST" in
+	'add-check_if_reachable')
+		MODE="$HOST"
+		_log do dhcp_add_check_if_reachable daemon info "MAC: $MAC IP: $IP DEV: $DEV"
+		_netfilter user_add "$MAC" "$IP"
 	;;
 esac
+
+case "$MODE" in
+	add|old)
+		bool_true 'system.@weblogin[0].enabled' && {
+			case "$HOST" in
+				'old')
+					_netfilter user_probe "$MAC" && exit 0
+				;;
+				'reanimate'*)
+					# seed watch_reanimate_dead_neighbour()
+					exit 0
+				;;
+			esac
+
+			case "$MODE" in
+				'old')
+					_netfilter user_probe "$MAC" && exit 0
+				;;
+			esac
+
+			USER="$MAC"
+			NODE_HOSTNAME="$( uci get system.@system[0].hostname )"
+			SIGNAL="${NODE_HOSTNAME}_dhcp-${MODE}"				# keyword 'dhcp' is important for login_check()
+			export REMOTE_ADDR="$IP"
+
+			if _weblogin login_check "$USER" "" "$MAC" "$SIGNAL" ; then
+				# for "very fast unsplashing" and not showing 'please use credentials'
+				$IPT -t mangle -I PREROUTING -j ACCEPT
+				_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER"
+				_netfilter user_add "$MAC" "$IP"
+				# remove the hack for "very fast unsplashing"
+				$IPT -t mangle -D PREROUTING -j ACCEPT
+			else
+				if _weblogin login_check "$USER" "$NODE_HOSTNAME" "$MAC" "$SIGNAL" ; then
+					_log do $SIGNAL daemon info "[OK] _weblogin login_check $USER/$NODE_HOSTNAME (2nd try)"
+					_netfilter user_add "$MAC" "$IP"
+				else
+					_log do $SIGNAL daemon info "[ERR] _weblogin login_check $USER/$NODE_HOSTNAME"
+				fi
+			fi
+		}
+
+		echo >>$SCHEDULER "_netfilter portforwarding_request $IP $MAC $HOST"
+	;;
+	del)
+#		if bool_true 'system.@weblogin[0].dhcpautologout'; then
+			echo >>$SCHEDULER "_netfilter user_del $MAC dhcp_del"
+#		else
+#			_netfilter set_arp reachable "$MAC" "$IP" "$DEV"
+#		fi
+	;;
+esac
+
+true
