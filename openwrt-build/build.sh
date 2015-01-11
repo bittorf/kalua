@@ -746,10 +746,27 @@ openwrt_revision_number_get()		# e.g. 43234
 openwrt_download()
 {
 	local funcname='openwrt_download'
-	local wish="${1:-leave_untouched}"
+	local wish="$1"		# <empty> = 'leave_untouched' or 'r12345' or 'stable' or 'beta' or 'testing' or 'trunk'
 	local hash branch
 
 	log "$funcname() apply '$wish'"
+
+	case "$wish" in
+		'')
+			wish='leave_untouched'
+		;;
+		'stable')
+			wish='r41037'
+		;;
+		'beta')
+			wish='r43238'
+		;;
+		'testing')
+			wish='r43930'
+		;;
+	esac
+
+	log "$funcname() apply '$wish' (sanitized)"
 
 	case "$wish" in
 		'leave_untouched')
