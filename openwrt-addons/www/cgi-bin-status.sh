@@ -23,6 +23,7 @@
 
 		case "$HTTP_ACCEPT_ENCODING" in
 			*'gzip'*)
+				# e.g. 'gzip, deflate, sdch'
 				_http header_mimetype_output 'text/html' 'gzip'
 				cat '/tmp/statuspage_neigh_pregenerated.gz'
 			;;
