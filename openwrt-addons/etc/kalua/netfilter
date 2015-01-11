@@ -1,8 +1,12 @@
+#!/bin/sh
+
 # marks:
 # 0x11 = port80, redirect to local port 80
 # 0x12 = port443, redirect to local port 443
 # 0x13 = port53udp, redirect to local port 53
 # 0x14 = port53tcp, redirect to local port 53
+# 0x15 = port53udp, redirect to local port 5353
+# 0x16 = port53tcp, redirect to local port 5353
 # 0x22 = adblocking, gets rejected
 # 0x33 = connection_start
 # 0x44 = connection_close
@@ -16,28 +20,46 @@ _netfilter_start()
 		_netfilter ipforwarding_start
 	}
 
-	# don't masquerade if configured in /etc/config/system (duplicate masquerading), i.e. on local lan gateways
-	[ "$( uci -q get system.@netfilter[0].lan_masquerading )" = "0" ] || {
-		_netfilter masquerade_start
-	}
+	_netfilter masquerade_start
 	_netfilter portforwarding_start
 	_netfilter conntrack_adjust_max
+	_netfilter mssfix
 
+	case "$CONFIG_PROFILE" in
+		ejbw*)
+			case "$NODENUMBER" in
+				100)	# j4
+					$IPT -I FORWARD -i $LANDEV -o $WIFIDEV	# 2nd rule = up
+					$IPT -I FORWARD -i $WIFIDEV -o $LANDEV	# 1st rule = down
+					$IPT -t nat -I POSTROUTING -s 10.10.0.0/16 ! -d 10.10.0.0/16 -j MASQUERADE
+
+					return 0
+				;;
+				101)	# reithaus
+					$IPT -I FORWARD -i $LANDEV -o $WIFIDEV	# 2nd rule = up
+					$IPT -I FORWARD -i $WIFIDEV -o $LANDEV	# 1st rule = down
+
+					return 0
+				;;
+			esac
+		;;
+	esac
 
 	[ -e "/etc/init.d/apply_profile" ] && return 0
 	[ -e "/www/GOOD_MODULE_UNLOAD" ] || {
-		[ $( _system ram_size ) -gt 16384 ] || return 0
+		[ -n "$LOWMEM" ] && return 0
 	}
 
 	[ -e "/etc/hosts.drop" ] && {
 		_netfilter adblocking_start
 	}
 
-	[ "$( uci -q get system.@weblogin[0].enabled )" = "1" ] && {
+	_db restore
 
+	bool_true 'system.@weblogin[0].enabled' && {
 		[ -e "/www/SIMPLE_MESHNODE" ] || {
 			_netfilter splash_start
-			_netfilter splash_autoadd
+			echo >>$SCHEDULER '_netfilter splash_autoadd'
 		}
 	}
 
@@ -74,7 +96,7 @@ _netfilter_traffic_control_show()
 		return 0
 	}
 
-	for interface in $LANDEV $WANDEV $WIFIDEV; do {
+	for interface in $LANDEV $WANDEV $WIFI_DEVS; do {
 		[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || continue
 
 		echo "interface: $interface {"
@@ -121,6 +143,31 @@ _netfilter_traffic_control_show()
 
 _netfilter_traffic_control_needed()
 {
+	case "$CONFIG_PROFILE" in
+		rehungen*)
+			[ "$NODENUMBER" = '36' ] && return 0
+		;;
+	esac
+
+	# TODO: fix shaping
+	return 1
+
+	case "$CONFIG_PROFILE" in
+		rehungen*)
+			case "$NODENUMBER" in
+				30)	# klausgasse70
+					return 1
+				;;
+			esac
+		;;
+		olympia*|marinabh*|castelfalfi*)
+			return 1
+		;;
+		boltenhagendh*|tkolleg*)
+			# till we fix the "high ping under high load/many users"-issue
+			_net local_inet_offer >/dev/null && return 1
+		;;
+	esac
 
 	local kernel="$( uname -r )"
 
@@ -155,27 +202,19 @@ _netfilter_traffic_control_user_add()
 	local funcname="netfilter_traffic_control_user_add"
 	local ip="$1"
 	local speed_up="$2"		# e.g. 1mbit, 32kbit or 128000
-	local speed_down="$3"		# # fixme! use profile instead of fix values, e.g. youtube
-	local mac i j				# e.g. 32/1024 = wigo/tv works
-	local users file comment
+	local speed_down="$3"		# TODO: use profile instead of fix values, e.g. youtube
+	local mac i j						# e.g. 32/1024 = wigo/tv works
+	local users file comment interface
 
-	[ -z "$speed_up" ] && {
-		case "$CONFIG_PROFILE" in
-			*)
-				speed_up=128kbit
-				speed_down=1mbit
-			;;
-		esac
-	}
-
-	local interface="$( ip -oneline route get "$ip" )"
+	interface="$( ip -oneline route get "$ip" )"
 	set -- $interface
 	interface="$3"
 	file="/tmp/TRAFFIC_CONTROL_UP_$interface"
 
 	# hierarchical token bucket: http://luxik.cdi.cz/~devik/qos/htb/
-	[ -e "/tmp/TRAFFIC_CONTROL_UP_$interface" ] || {
-		tc qdisc add dev "$interface" root handle 1: htb default 30 && {
+	[ -e "$file" ] || {
+		# fixme! we should only add if really needed (e.g. unshaped mac?)
+		tc qdisc add dev "$interface" root handle 1: htb default 1 && {
 			touch "$file"
 		}
 	}
@@ -191,6 +230,18 @@ _netfilter_traffic_control_user_add()
 			echo "$users $mac" >"$file"
 		;;
 	esac
+
+	[ -z "$speed_up" ] && {
+		# TODO: fetch from DB
+		speed_up="$(   uci -q get system.@weblogin[0].default_speed_up   )" || return 0
+		speed_down="$( uci -q get system.@weblogin[0].default_speed_down )" || return 0
+
+		case " $( uci -q get system.@weblogin[0].mac_unshaped ) " in
+			*" $mac "*)
+				return 0
+			;;
+		esac
+	}
 
 	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
 
@@ -215,12 +266,15 @@ _netfilter_traffic_control_user_add()
 	echo "$mac $ip $interface $j $i $speed_down $speed_up" >/tmp/NETFILTER/USER/$mac/traffic_control_params
 	echo "$speed_down $speed_up initial" >/tmp/NETFILTER/USER/$mac/traffic_control_speed
 
-	cat >/tmp/NETFILTER/USER/$mac/traffic_control_del <<EOF
+	file="/tmp/NETFILTER/USER/$mac/traffic_control_del"
+	[ -e "${file}.forced_stop" ] && rm "${file}.forced_stop"
+	cat >"$file" <<EOF
+# for later cleanup
 tc filter "del" dev "$interface" protocol ip parent 1:0 prio $i
 tc filter "del" dev "$interface" protocol ip parent 1:0 prio $j
 tc class  "del" dev "$interface" parent 1: classid 1:$i
 tc class  "del" dev "$interface" parent 1: classid 1:$j
-rm /tmp/NETFILTER/USER/$mac/traffic_control_params
+rm "/tmp/NETFILTER/USER/$mac/traffic_control_params"
 EOF
 
 	tc class  "add" dev "$interface" parent 1: classid 1:$j "htb" rate "$speed_down"
@@ -232,11 +286,13 @@ EOF
 _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic peaks
 {
 	local peak percent
+	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
+	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
 
 	# better ask gateway?
 	# respect day of month! (workday vs. weekend/public holiday)
 
-	case "$( date +%H:%M )" in		# 10 chars = throttle to 40%
+	case "$hour:$minute" in		# 10 chars = throttle to 40%
 		16:*) peak="+++" ;;
 		17:*) peak="+++++" ;;
 		18:*) peak="+++++++" ;;
@@ -248,6 +304,9 @@ _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic
 	esac
 
 	case "$CONFIG_PROFILE" in
+		rehungen*)
+			peak=
+		;;
 		*)
 			peak=
 		;;
@@ -256,10 +315,71 @@ _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic
 	echo $(( 100 - (6*${#peak}) ))
 }
 
+_netfilter_noshaping_time()
+{
+	local mac="$1"
+	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
+	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
+	local date="$HOUR:$MINUTE"
+
+	case "$CONFIG_PROFILE" in
+		liszt28*)
+			case "$NODENUMBER" in
+				20|48)		# wigo|danny
+					case "$date" in
+						0*|17:*|18:*|19:*|20:*|21:*|22:*|23:*)
+							return 0
+						;;
+					esac
+				;;
+				*)
+					case "$date" in
+						0*|22:*|23:*)
+							return 0
+						;;
+					esac
+				;;
+			esac
+		;;
+	esac
+
+	return 1
+}
+
+_netfilter_happy_hour()		# no additional shaping during this time, so initial values are respected (100%)
+{
+	local mac="$1"
+	local mac_source
+	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
+	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
+	local date="$HOUR:$MINUTE"
+
+	case "$CONFIG_PROFILE" in
+		rehungen*)
+			return 0
+		;;
+		*)
+			case "$date" in
+				0*|22:*|23:*)
+					return 0
+				;;
+			esac
+		;;
+	esac
+
+	return 1
+}
+
 _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower the speed
 {
 	local traffic="$1"		# [megabyte]
 	local option="$2"
+
+	_netfilter happy_hour && {
+		echo "100"
+		return 0
+	}
+
 	local traffic_border=2000	# [megabyte] fixme! should depend from initial_speed
 	local percent2=100
 	local percent=$(( 100 - ( ($traffic * 100) / $traffic_border ) ))	# e.g. 50%
@@ -277,22 +397,34 @@ _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower 
 _netfilter_traffic_control_autoapply_speedsuggest()
 {
 	local list_macs="${1:-$( _netfilter user_list )}"
-	local traffic_border_for_reaction="1000"		# megabytes
-	local speed_min=64000					# bit/s
+	local traffic_border_for_inactivity='2500'		# megabytes
+	local traffic_border_for_reaction='1000'		# megabytes
+	local speed_min=128000					# bit/s
 	local mac traffic file ip interface j i speed_down speed_up percent params
 
+	_netfilter traffic_control_needed || return 0
+
 	for mac in $list_macs; do {
-		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
-		[ -e "$file" ] || continue
-		read mac ip interface j i speed_down speed_up <"$file"
-
 		traffic="$( _netfilter stats "$mac" megabytes )"
-		[ $traffic -lt $traffic_border_for_reaction ] && continue
+		[ $traffic -lt $traffic_border_for_inactivity ] && continue
 
-		percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
-		params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
+		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
+		if [ -e "$file" ]; then
+			[ $traffic -lt $traffic_border_for_reaction ] && continue
+			read mac ip interface j i speed_down speed_up <"$file"
 
-		[ "$percent" = 100 ] || _netfilter traffic_control_user_change_speed $params
+			percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
+			params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
+
+			[ "$percent" = '100' ] || _netfilter traffic_control_user_change_speed $params
+		else
+			[ -e "/tmp/NETFILTER/USER/$mac/traffic_control_del.forced_stop" ] || {
+				_netfilter noshaping_time "$mac" || {
+					ip="$( _net mac2ip "$mac" )"
+					_netfilter traffic_control_user_add "$ip"
+				}
+			}
+		fi
 	} done
 }
 
@@ -323,6 +455,11 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 	local dummy params
 
 	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
+
+	[ -e "$file" ] || {
+		echo '_netfilter traffic_control_user_add <ip> <up> <down>'
+		return 1
+	}
 
 	case "$speed_down" in
 		"now"*)
@@ -387,13 +524,15 @@ _netfilter_traffic_control_user_del()
 {
 	local mac="$1"
 	local file="/tmp/NETFILTER/USER/$mac/traffic_control_del"
-	local device="$( _net mac2dev "$mac" )"
+	local device="$( _net mac2dev "$mac" exact )"
 	local users_old users_new some_mac
 
 	if [ -e "$file" ]; then
 		. "$file"
 		rm "$file"
+		touch "${file}.forced_stop"
 	else
+		touch "${file}.forced_stop"
 		return 1
 	fi
 
@@ -422,9 +561,12 @@ _netfilter_traffic_control_user_del()
 
 _netfilter_traffic_control_stop()
 {
-	local list="${1:-$LANDEV $WANDEV $WIFIDEV}"
+	local list="${1:-$LANDEV $WANDEV $WIFI_DEVS}"
 	local interface mac
 
+	# TODO:
+	# maybe we can omit this, just deleting root-qdisc's
+	# this will also remove applied 'tc filter' for that interface
 	for mac in $( _netfilter user_list ); do {
 		_netfilter traffic_control_user_del "$mac"
 	} done
@@ -446,23 +588,23 @@ _netfilter_stats()
 
 	case "$context" in
 		forward_lan2lan)
-			line="$( iptables -nxvL FORWARD | fgrep "!$WIFIDEV !$WIFIDEV" )"
+			line="$( $IPT -nxvL FORWARD | fgrep "!$WIFIDEV !$WIFIDEV" )"
 		;;
 		forward_lan2wifi)
-			line="$( iptables -nxvL FORWARD | fgrep "!$WIFIDEV $WIFIDEV" )"
+			line="$( $IPT -nxvL FORWARD | fgrep "!$WIFIDEV $WIFIDEV" )"
 		;;
 		forward_wifi2wifi)
-			line="$( iptables -nxvL FORWARD | fgrep "$WIFIDEV  $WIFIDEV" )"
+			line="$( $IPT -nxvL FORWARD | fgrep "$WIFIDEV  $WIFIDEV" )"
 		;;
 		*)
 			if _sanitizer do "$context" mac check; then
-				line="$( iptables -t mangle -nxvL FORWARD | fgrep "incoming_$context" )"
+				line="$( $IPT -t mangle -nxvL FORWARD | fgrep "incoming_$context" )"
 
 				set -- $line
 				packets="${1:-0}"
 				bytes="${2:-0}"
 
-				line="$( iptables -t mangle -nxvL FORWARD | fgrep "outgoing_$context" )"
+				line="$( $IPT -t mangle -nxvL FORWARD | fgrep "outgoing_$context" )"
 			else
 				return 1
 			fi
@@ -489,13 +631,25 @@ _netfilter_stats()
 	esac
 }
 
-_netfilter_conntrack_adjust_max()
+_netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntrack_tuning
 {
 	local funcname="netfilter_conntrack_adjust_max"
 	local max="$1"
 	local file="/proc/sys/net/nf_conntrack_max"
+	local file_buckets="/sys/module/nf_conntrack/parameters/hashsize"
+	local buckets old_buckets old_max
+
+	# dont conntrack DNS/olsrd
+#	$IPT -t raw -I PREROUTING -p udp --dport 53 -j NOTRACK	# with this rule contacting external DNS over >1 hop does not work
+	$IPT -t raw -I OUTPUT     -p udp --dport 53 -j NOTRACK
+	$IPT -t raw -I PREROUTING -p udp --dport 698 -d 255.255.255.255 -j NOTRACK
+	$IPT -t raw -I OUTPUT     -p udp --dport 698 -d 255.255.255.255 -j NOTRACK
+
+	# below still needs fixing
+	return 0
 
 	[ -e "$file" ] || return 0
+	read old_max <"$file"
 
 	[ -z "$max" ] && {
 		max="$( _system ram_size )"		# kilobytes
@@ -504,18 +658,25 @@ _netfilter_conntrack_adjust_max()
 		else
 			max=$(( ($max * 3) / 2 ))	# x1.5
 		fi
-
 	}
 
-	# check with: wc -l /proc/net/nf_conntrack
-	_log do $funcname daemon info "set max to $max entries, each needs 350 bytes"
-	echo "$max" >"$file"
+	grep -q ^"net.netfilter.nf_conntrack_max=${max}"$ "/etc/sysctl.conf" || {
+		echo "net.netfilter.nf_conntrack_max=${max}" >>"/etc/sysctl.conf"
+	}
+
+	read old_buckets <"/proc/sys/net/netfilter/nf_conntrack_buckets"
+	buckets=$(( $max / 8 ))
+	[ $buckets -gt 1816 ] && buckets=1816		# klog/moduleinfo says this is max
+
+	_log do $funcname daemon info "set $old_max -> $max conntrack-entries / $old_buckets -> $buckets buckets, needs $(( ($max * 350) / 1024 )) kilobytes (each 350 bytes)"
+#	echo "$max" >"$file"		# check usage via: wc -l /proc/net/nf_conntrack
+#	echo "$buckets" >"$file_buckets"
 }
 
 _netfilter_ipforwarding_needed()
 {
 	[ -x "/usr/sbin/olsrd" ] || return 1
-	[ "$( uci get olsrd.@olsrd[0].disabled )" = "1" ] && return 1
+	[ "$( uci -q get olsrd.@olsrd[0].disabled )" = "1" ] && return 1
 
 	return 0
 }
@@ -558,43 +719,97 @@ _netfilter_ipforwarding_revert()
 
 _netfilter_stop()
 {
-	local option="$1"	# string: remember_over_reboot
-	local funcname="netfilter_stop"
+	local option="$1"	# string: remember_over_reboot = ror
+	local funcname='netfilter_stop'
 	local mac state table
 	local list_user="$( _netfilter user_list )"
-	local interface
+	local interface ip mediatype dev hash
 
-	for mac in $list_user; do {
-		echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'"
-		echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$( _net mac2ip "$mac" )' check_if_reachable"
+	[ -d '/tmp/NETFILTER' ] || return 0
+	mkdir "/tmp/NETFILTER/isrunning_$funcname" || return 0
 
-		_netfilter user_del "$mac"
-	} done >"/tmp/NETFILTER_AUTOADD"
+	[ -n "$list_user" ] && {
+		for mac in $list_user; do {
+			ip="$( _net mac2ip "$mac" )"
+			dev="$( _net mac2dev "$mac" )"
+
+			if _net dev_is_wifi "$dev"; then
+				if   grep -sq "$hash" '/tmp/USERDB_COPY'; then
+					mediatype="DB: mac allowed # non_wifi"
+				elif grep -sq "$hash" "$DIR_DATABASE/USER/login/meta_index"; then
+					mediatype="DB: mac allowed # non_wifi"
+				else
+					mediatype='wifi'
+				fi
+			else
+				mediatype='non_wifi'	# keyword for keeping over reboot
+			fi
+
+			echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype option: $option"
+			echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable		# $mediatype option: $option"
+
+			_netfilter user_del "$mac" "$funcname"
+		} done >"/tmp/NETFILTER_AUTOADD"
+	}
 
 	_netfilter traffic_control_needed && {
 		_netfilter traffic_control_stop
 	}
 
+	_db backup "$funcname"
+
 	case "$option" in
-		"remember_over_reboot"|"ror")
-			[ -n "$list_user" ] && {
-				# this file will be sourced during bootup, so
-				# we simulate a battery backed up hardware clock
-				echo "[ \"\$( date +%Y )\" = 1970 ] && date --set '$( date "+%Y-%m-%d %X" )'" >"/www/NETFILTER_AUTOADD"
-				cat "/tmp/NETFILTER_AUTOADD" >>"/www/NETFILTER_AUTOADD"
-			}
+		'remember_over_reboot'|'ror')
+			case "$CONFIG_PROFILE" in
+				liszt28*)
+					# TODO: removeme/debug - maybe we call this function twice?
+					cp "/tmp/NETFILTER_AUTOADD" "/www/NETFILTER_AUTOADD.$( date ).$( cat /proc/uptime )"
+				;;
+			esac
+
+			# avoid writing an empty file
+			if grep -sq '# non_wifi' '/tmp/NETFILTER_AUTOADD' ; then
+				grep '# non_wifi' '/tmp/NETFILTER_AUTOADD' >'/www/NETFILTER_AUTOADD'
+			else
+
+				rm '/www/NETFILTER_AUTOADD'
+			fi
 		;;
 	esac
 
-	for table in mangle filter nat; do {
+	_netfilter stop_all_tables
+	rm -fR "/tmp/NETFILTER" "/tmp/NETFILTER/isrunning_$funcname"
+	_netfilter ipforwarding_revert
+}
+
+_netfilter_stop_all_tables()
+{
+	local funcname='netfilter_stop_all_tables'
+
+	for table in mangle filter nat raw; do {
 		_log do $funcname daemon info "unloading table $table"
-		iptables -t $table -F
-		iptables -t $table -X
+		$IPT -t $table -F
+		$IPT -t $table -X
 	} done
 
-	rm -fR "/tmp/NETFILTER"
+	# batman-stuff
+	[ -e '/usr/sbin/ebtables' ] && {
+		ebtables -t nat    -F
+		ebtables -t filter -F
+	}
+}
 
-	_netfilter ipforwarding_revert
+_netfilter_mssfix()
+{
+	local file='/tmp/MSSFIX'
+
+	# dont double apply, remove old entry
+	[ -e "$file" ] && {
+		$IPT -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+	}
+
+	$IPT -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+	touch "$file"
 }
 
 _netfilter_masquerade_start()
@@ -602,6 +817,9 @@ _netfilter_masquerade_start()
 	local funcname="netfilter_masquerade_start"
 	local exception="$1"		# fixme! needs source/destination arg
 	local device devname
+	local statfile="/tmp/NETFILTER/MASQUERADING"
+
+	[ -e "$statfile" ] && return 0
 
 	mkdir -p "/tmp/NETFILTER"
 
@@ -614,20 +832,36 @@ _netfilter_masquerade_start()
 			device="$WANDEV"
 		;;
 		lan)
+			# don't masquerade if configured in /etc/config/system (duplicate masquerading)
+			[ "$( uci -q get system.@netfilter[0].lan_masquerading )" = "0" ] && return 0
 			device="$LANDEV"
 		;;
 		pppoe)
 			device="ppp+"
 		;;
+		*)
+			_netfilter masquerade_stop
+			return 0
+		;;
 	esac
 
-	[ -n "$device" ] && {
-		_log do $funcname daemon info "active for device $device ($devname)"
+	_log do $funcname daemon info "active for device $device ($devname)"
 
-		echo "iptables -t nat -D POSTROUTING -o $device -j MASQUERADE" >"/tmp/NETFILTER/MASQUERADING"
-		iptables -t nat -A POSTROUTING -o $device -j MASQUERADE
+	echo "$IPT -t nat -D POSTROUTING -o $device -j MASQUERADE" >"$statfile"
+	$IPT -t nat -A POSTROUTING -o $device -j MASQUERADE
+	$IPT -A FORWARD -i $device
+	$IPT -A FORWARD -o $device
 
-	}
+	case "$CONFIG_PROFILE" in
+		tkolleg*)
+			$IPT -t nat -I POSTROUTING -s 10.10.0.0/16 -o $LANDEV -j MASQUERADE
+			$IPT -t nat -I POSTROUTING -d 10.10.0.10 -j MASQUERADE		# printer
+			$IPT -t nat -I POSTROUTING -d 10.10.0.2 -j MASQUERADE		# exNT
+		;;
+		fparkssee*)
+			$IPT -t nat -I POSTROUTING -d 192.168.0.0/16 -j MASQUERADE		# external portfw
+		;;
+	esac
 }
 
 _netfilter_masquerade_stop()
@@ -638,13 +872,208 @@ _netfilter_masquerade_stop()
 	}
 }
 
+_netfilter_portforwarding_request()
+{
+	local ip="$1"
+	local mac="$2"
+	local host="$3"
+	local gateway port dynamic answer option
+	dynamic="$( uci -q get system.@weblogin[0].dynamic_portfw )" || return 0
+
+	case "$mac" in
+		"${dynamic:-empty}"*)
+			# ssh | http | https | rstp
+			for port in 22 80 443 554; do {
+				nc 2>/dev/null "$ip" "$port" </dev/null && {
+					read gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
+					option="portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host"
+					answer="$( _tool remote "$gateway" "$option" )"
+
+					case "$answer" in
+						'OK'*)
+						;;
+						*)
+							echo >>$SCHEDULER "_tool remote $gateway '$option'"
+						;;
+					esac
+				}
+			} done
+		;;
+	esac
+}
+
+_netfilter_portforwarding_add()
+{
+	local incoming_dev="$1"		# e.g. $WANDEV = eth0.2 or 'get_table'
+	local port_ext="$2"		# e.g. 10080 or webcam-11:22:33:44:55:66
+	local port="$3"			# e.g. 80
+	local ip="$4"			# client/destination
+	local uniq_id="$5"		# e.g. mac
+	local message="$6"		# e.g. node: 276 router: 10.63.21.65 hostname: ICS230
+	local file='/tmp/NETFILTER/portfw'
+	local marker infoline command date remote_nodeip remote_nodenumber remote_mac
+
+	# TODO: add autoreload without setting rules twice: -> stop/start
+
+	# is a number?
+	[ 2>/dev/null ${port_ext:-nonumber} -eq $port_ext ] || port_ext="$( _net text2port "$port_ext" )"
+
+	case "$1" in
+		'get_table')
+			cat "$file"
+			return 0
+		;;
+		"$IPT "*)
+			command="$1"
+			marker="# $2"	# ARG2 = description
+			infoline='# custom userdefined rule'
+		;;
+		*)
+			# in $command '-p $proto' is added later
+
+			if _sanitizer do "$incoming_dev" ip4 check; then
+				# requests to external IP from internal network must also work
+				command="-t nat -I PREROUTING -d $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+			else
+				command="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+			fi
+
+			marker="# client: $ip indev: $incoming_dev mac/id: $uniq_id port: $port port_ext: $port_ext"
+			infoline="# $( date ) msg: $message"
+		;;
+	esac
+
+	# TODO: same mac on another router? -> remove old entry
+	if grep -qs ^"$marker" "$file"; then
+		:
+	else
+		date="$( _system date humanreadable pretty )"
+		echo >>"$file" "$marker"
+		echo >>"$file" "$infoline"
+
+		case "$command" in
+			"$IPT "*)
+				# custom userdefined rule
+				echo >>"$file" "$command"
+				$command
+			;;
+			*)
+				echo >>"$file" "$IPT -p tcp $command	# $date"
+				echo >>"$file" "$IPT -p udp $command	# $date"
+				echo >>"$file" "$IPT -t nat -I POSTROUTING -d $ip -j MASQUERADE"
+				$IPT -p tcp $command
+				$IPT -p udp $command
+				# otherwise it does not work from extern?
+				$IPT -t nat -I POSTROUTING -d $ip -j MASQUERADE
+
+				# TODO: build a readable public description (e.g. for minitoring server)
+				# mac: xxx hostname: xxx port_ext: xxx port_int: xxx
+
+				# at the moment:
+				# client: 10.10.6.148 mac/id: 00:1a:97:01:8b:18 port: 554 port_ext: 7833
+
+				# e.g. msg: Buffi:HTTP
+				# e.g. msg: msg: camF4back ip: 10.10.18.125
+				remote_nodeip="$( _sanitizer do "$message" ip4 )"
+				if [ -z "$remote_nodeip" ]; then
+					remote_nodenumber=
+				else
+					remote_nodenumber="$( _ipsystem do "$remote_nodeip" )"
+
+					# FIXME!
+					remote_mac="$( _net ip2mac "$remote_nodeip" )"
+					# it shoud be the same like in monitoring (xoai!)
+					remote_mac="$( _wget do "http://$remote_nodeip/monitoring.wifimac" )"
+				fi
+
+				# we want this on monitoring-server:
+				# case "$WIFIMAC" in
+				#	19|'6470028b2260') PORT=7534 ;; # F5-front / 00:1a:97:01:8b:19
+				#       ...
+				echo >>"$file" "### $remote_nodenumber|'$remote_mac') PORT=$port_ext ;; $marker"
+			;;
+		esac
+	fi
+}
+
+_netfilter_portforwarding_start()
+{
+	local dev="$1"		# override incoming_dev with IP
+
+	# TODO: make it possible to start|stop ruleset
+
+	# TODO: convert to userscript: /etc/firewall.user -> /tmp/firewall.user
+	case "$CONFIG_PROFILE" in
+		boltenhagendh*)
+			[ "$NODENUMBER" = '2' ] && {
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10022'  '22' '10.10.2.129'   'bla' 'master:SSH'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080'  '80' '10.10.2.129'   'bla' 'master:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10443' '443' '10.10.2.129'   'bla' 'master:HTTPS'
+				_netfilter portforwarding_add "${dev:-$WANDEV}"   '443' '443' '10.10.111.129' 'bla' 'authserver:HTTPS'
+				_netfilter portforwarding_add "${dev:-$WANDEV}"    '80'  '80' '10.10.111.129' 'bla' 'authserver:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}"    '22'  '22' '10.10.111.129' 'bla' 'authserver:SSH'
+			}
+		;;
+		liszt28*)
+			[ "$NODENUMBER" = '276' ] && {
+				# kg-f36
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '20080' '80' '10.63.6.125'   'superbuffi'        'buffi:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10022' '22' '10.63.195.161' '02:50:43:ab:1c:91' 'KellerNAS:SSH'
+				_netfilter portforwarding_add "${dev:-$WANDEV}"   '222' '22' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:SSH'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080' '80' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:HTTP'
+				_netfilter portforwarding_add "${dev:-$WANDEV}" '55555' '80' '10.63.97.225'  'f8:d1:11:a9:ce:ba' 'Zwickau:HTTP'
+
+				# when link is not symetric (other outgoing gateway than incoming)
+				_netfilter portforwarding_add "$IPT -t nat -I POSTROUTING -d 10.63.2.34 -j MASQUERADE" 'Medion:MASQ'
+			}
+
+			[ "$NODENUMBER" = '99' ] && {
+				# medion: SSH/bitcoind/http
+				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport  222 -j DNAT --to-destination 10.63.2.34:22
+#				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 8333 -j DNAT --to-destination 10.63.2.34:8333
+				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport   80 -j DNAT --to-destination 10.63.2.34:80
+			}
+		;;
+		ejbw*)
+			[ "$LANADR" = "10.10.50.33" ] && {
+				# fusionpbx
+				$IPT -t nat -I POSTROUTING -d 172.17.0.81 -j ACCEPT
+			}
+
+#			[ "$LANADR" = "192.168.112.2" ] && {
+#				# dachrouter j4
+#				$IPT -t nat -I POSTROUTING -d 192.168.111.21 -j ACCEPT
+#			}
+		;;
+		rehungen*)
+			[ "$LANADR" = "10.10.8.33" ] && {
+				# kindergarten
+				$IPT -t nat -I PREROUTING -d 10.1.0.8 -p udp --dport 53 -j DNAT --to-destination 10.10.8.33
+			}
+
+			[ "$LANADR" = "10.10.254.33" ] && {
+				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10080 -j DNAT --to-destination 10.10.8.33:80
+			}
+		;;
+	esac
+
+	[ -e '/tmp/NETFILTER/portfw' ] && {
+		# this file is generated, so better check syntax
+		sh -n '/tmp/NETFILTER/portfw' && . '/tmp/NETFILTER/portfw'
+	}
+}
+
+_netfilter_portforwarding_stop()
+{
+	:
+}
 
 _netfilter_myhna()
 {
-	local mask="$( uci get olsrd.@Hna4[0].netmask )"
+	local mask="$( uci -q get olsrd.@Hna4[0].netmask )"
 
 	[ -n "$mask" ] && {
-		echo "$( uci get olsrd.@Hna4[0].netaddr )/$( _net mask2cidr $mask )"
+		echo "$( uci -q get olsrd.@Hna4[0].netaddr )/$( _net mask2cidr $mask )"
 	}
 }
 
@@ -662,75 +1091,176 @@ _netfilter_is_meshnode()	# fixme! better iterate over olsrd-interface, if one is
 	esac
 }
 
+_netfilter_fakedns_start()
+{
+	local dnsport="${1:-5353}"
+	local dnsfake_ip="${LANADR:-$WIFIADR}"
+	local pid
+
+	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] && {
+		pidof fakedns >/dev/null && return 0
+	}
+
+	[ -h '/sbin/fakedns' ] || ln -s "$( which dnsmasq )" '/sbin/fakedns'
+
+	# check with GNU: nslookup gmx.de $SERVER -port=5353
+	/sbin/fakedns --address=/#/$dnsfake_ip -p $dnsport && {
+		pid=$( pidof fakedns ) && {
+			echo >'/tmp/SERVICE/FAKEDNS.pid'     "$pid"
+			cat  >'/tmp/SERVICE/FAKEDNS.cmdline' "/proc/$pid/cmdline"
+
+			$IPT -t mangle -A INPUT -p udp --dport 53 -j MARK --set-mark 0x15
+			$IPT -t mangle -A INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
+		}
+	}
+}
+
+_netfilter_fakedns_stop()
+{
+	local pid
+
+	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] || return 0
+
+	$IPT -t mangle -D INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
+	$IPT -t mangle -D INPUT -p udp --dport 53 -j MARK --set-mark 0x15
+
+	read pid <'/tmp/SERVICE/FAKEDNS.pid'
+	kill $pid
+	rm /tmp/SERVICE/FAKEDNS.*
+}
+
 _netfilter_splash_start()
 {
+	local funcname='netfilter_splash_start'
 	local myhna="$( _netfilter myhna )"
+#	local debug="echo"			# must be empty for debug-mode
+	local ip source destination dev temp_dev dnsport
+	local dnsport dnsfake_ip
+	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8"
+
+	if [ -n "$LOWMEM" ]; then
+		dnsport=53
+	else
+		dnsport=5353
+		_netfilter fakedns_start "$dnsport"
+	fi
 
 	mkdir -p "/tmp/NETFILTER/USER" \
 		 "/tmp/NETFILTER/MAC2IP" \
 		 "/tmp/NETFILTER/IP2MAC"
 
-	# how to deny spoofing source-address?
-	iptables -t mangle -A PREROUTING ! -s $myhna -j ACCEPT				# from alien router/client to me/further (also dhcp_in)
-	iptables -t mangle -A PREROUTING -s $myhna -d $WIFINET/$WIFIPRE -j ACCEPT	# picopeer
+	# todo: how to deny spoofing source-address?
+
+### everything what is 'ACCEPT'ed here, is not splashed
+
+	# from alien router/client to me/further (also dhcp_in)
+#	$IPT -t mangle -A PREROUTING ! -s $myhna -j ACCEPT
+	$IPT -t mangle -N alien
+
+	# fixme! $ROAMING_IP
+	[ $NODENUMBER -lt 256 ] && $IPT -t mangle -A alien -s 192.168.$NODENUMBER.0/24 -j RETURN
+
+	$IPT -t mangle -A alien -s $myhna -j RETURN
+	$IPT -t mangle -A alien -j ACCEPT
+	$IPT -t mangle -A PREROUTING -j alien
+
+	# picopeer: source = this node, destination: all destination in this network
+	$IPT -t mangle -N picopeer
+	for source in $private_networks; do {
+		for destination in $private_networks; do {
+			$IPT -t mangle -A picopeer -s $source -d $destination -j ACCEPT
+		} done
+	} done
+	$IPT -t mangle -A PREROUTING -j picopeer
+
+	# olsr
+	$IPT -t mangle -A PREROUTING -p udp --dport 698 -s $WIFINET/$WIFIPRE -d 255.255.255.255 -j ACCEPT
 
 	_netfilter walledgarden_start
 
-	iptables -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13	# redirect DNS - todo: limit rate via 'recent'
-	iptables -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14	# redirect DNS - dig @8.8.8.8 +tcp google.com
-	iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 0x11		# redirect HTTP
+### end of ACCEPT
 
-	case "$( uci get uhttpd.main.listen_https )" in
+#$debug	$IPT -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j LOG --log-prefix "MANGLE.DNSq-UDP: "
+	$IPT -t mangle -A PREROUTING -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x15	# redirect DNS - todo: limit rate via 'recent'
+#$debug	$IPT -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j LOG --log-prefix "MANGLE.DNSq-TCP: "
+	$IPT -t mangle -A PREROUTING -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x16	# redirect DNS - dig @8.8.8.8 +tcp google.com
+#$debug	$IPT -t mangle -A PREROUTING -p tcp --dport 80	       -j LOG --log-prefix "MANGLE.splash.HTTP: "
+	$IPT -t mangle -A PREROUTING -p tcp --dport 80 	       -j MARK --set-mark 0x11	# redirect HTTP
+
+	case "$( uci -q get uhttpd.main.listen_https )" in
 		*":443")
-			iptables -t mangle -A PREROUTING -p tcp --dport 443 -j MARK --set-mark 0x12	# redirect HTTPS
+#$debug			$IPT -t mangle -A PREROUTING -p tcp --dport 443 -j LOG --log-prefix "MANGLE.splash.HTTPS: "
+			$IPT -t mangle -A PREROUTING -p tcp --dport 443 -j MARK --set-mark 0x12	# redirect HTTPS
 		;;
 	esac
 
-	iptables -t mangle -A PREROUTING -m mark --mark 0 -j MARK --set-mark 0x88	# not marked? -> reject
+#$debug	$IPT -t mangle -A PREROUTING -m mark --mark 0 -j LOG --log-prefix "MANGLE.unknown.REJECT"
+	$IPT -t mangle -A PREROUTING -m mark --mark 0 -j MARK --set-mark 0x88	# not marked? -> reject
 
 	_netfilter is_meshnode && {
-		iptables -A FORWARD ! -i $WIFIDEV ! -o $WIFIDEV		# wire -> wire
-		iptables -A FORWARD ! -i $WIFIDEV   -o $WIFIDEV		# wire -> wifi
-		iptables -A FORWARD   -i $WIFIDEV   -o $WIFIDEV		# wifi -> wifi
+		$IPT -A FORWARD ! -i $WIFIDEV ! -o $WIFIDEV		# wire -> wire
+		$IPT -A FORWARD ! -i $WIFIDEV   -o $WIFIDEV		# wire -> wifi
+		$IPT -A FORWARD   -i $WIFIDEV   -o $WIFIDEV		# wifi -> wifi
 	}
 
-	grep -q ^"ipt_REJECT " /proc/modules || insmod ipt_REJECT	# fixme! remove later when new cron.patch_patch_kmodules.sh is active
-	iptables -A FORWARD -m mark --mark 0x88/0xff -j REJECT
-	iptables -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer
-	iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+	grep -q ^'ipt_REJECT ' /proc/modules || insmod ipt_REJECT	# fixme! remove later when new cron.patch_patch_kmodules.sh is active
+	$IPT -A FORWARD -m mark --mark 0x88/0xff -j REJECT
+	$IPT -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer 2nd time
+	_netfilter mssfix
 
-	[ -n "$WIFIADR" ] && {
-		iptables -t nat -A PREROUTING -p udp -i $WIFIDEV -m mark --mark 0x13/0xff -j DNAT --to-destination $WIFIADR:53
-		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x14/0xff -j DNAT --to-destination $WIFIADR:53
-		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x11/0xff -j DNAT --to-destination $WIFIADR:80
-		iptables -t nat -A PREROUTING -p tcp -i $WIFIDEV -m mark --mark 0x12/0xff -j DNAT --to-destination $WIFIADR:443
+	if pidof bat_events >/dev/null; then
+		local dev_list="br-mybridge gateway0 $WIFI_DEVS $LANDEV"
+	else
+		local dev_list="$WIFI_DEVS $LANDEV"
+	fi
+
+	$IPT -t nat -A PREROUTING -p tcp -m mark --mark 0x16/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
+	$IPT -t nat -A PREROUTING -p udp -m mark --mark 0x15/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
+
+	add_dev()
+	{
+		temp_dev="$dev"
+		[ "$dev" = 'gateway0' ] && dev='br-mybridge'
+
+		ip="$( _net dev2ip "$dev" )" || return 1
+		[ "$temp_dev" = 'gateway0' ] && dev='gateway0'
+
+		$IPT -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
+		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:53
+		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
+		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
 	}
 
-	[ -n "$LANADR" ] && {
-		iptables -t nat -A PREROUTING -p udp -i $LANDEV  -m mark --mark 0x13/0xff -j DNAT --to-destination $LANADR:53
-		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x14/0xff -j DNAT --to-destination $LANADR:53
-		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x11/0xff -j DNAT --to-destination $LANADR:80
-		iptables -t nat -A PREROUTING -p tcp -i $LANDEV  -m mark --mark 0x12/0xff -j DNAT --to-destination $LANADR:443
-	}
+	# TODO: hotplug
+	for dev in $dev_list; do {
+		add_dev "$dev" && dev_list="$( _list remove_element "$dev_list" "$dev" )"
+	} done
+
+	for dev in $dev_list; do {
+		_log do $funcname daemon alert "2nd try needed for dev '$dev'"
+		add_dev "$dev" && dev_list="$( _list remove_element "$dev_list" "$dev" )"
+	} done
+
+	[ -n "$dev_list" ] && _log do $funcname daemon alert "unable to add dev '$dev'"
+
+	# control-group: any packets left?
+	for dev in '-i eth+' '-i wlan+' ''; do {
+		$IPT -t nat -A PREROUTING -p udp $dev -m mark --mark 0x13/0xff -j REDIRECT --to-port 53
+		$IPT -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x14/0xff -j REDIRECT --to-port 53
+		$IPT -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x11/0xff -j REDIRECT --to-port 80
+		$IPT -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x12/0xff -j REDIRECT --to-port 443
+	} done
 }
 
 _netfilter_splash_autoadd()
 {
 	local line ip mac file
 
-	if [ -e "/www/NETFILTER_AUTOADD" ]; then
-		read line <"/www/NETFILTER_AUTOADD"
-		eval $line
-
-		_olsr uptime is_short && {
-			_scheduler add "_netfilter splash_autoadd"
-			return 0
-		}
-
+	if [ -e '/www/NETFILTER_AUTOADD' ]; then
 		/usr/sbin/cron.check_inet_gw_fff+
-		. "/www/NETFILTER_AUTOADD"		# dont delete - in case we have an unscheduled reboot
+		. '/www/NETFILTER_AUTOADD'		# dont delete - in case we have an unscheduled reboot
 	else
-		file="/tmp/NETFILTER_AUTOADD"
+		file='/tmp/NETFILTER_AUTOADD'
 		[ -e "$file" ] && {
 			. "$file"
 			rm "$file"
@@ -738,23 +1268,62 @@ _netfilter_splash_autoadd()
 	fi
 
 	while read line; do {
-		set ${line:-empty}
+		set -- ${line:-empty}
 		ip="$1"
 		mac="$4"
 
 		if _netfilter user_probe "$mac"; then
 			:	# already known
 		else
-			fgrep -sq "$ip;" /tmp/CLIENTS_ALL && {
+			fgrep -sq "$ip;" '/tmp/CLIENTS_ALL' && {
 				/etc/dhcp-script.d/10dhcpscript add "$mac" "$ip"
 			}
 		fi
-	} done </proc/net/arp
+	} done <'/proc/net/arp'
+}
+
+_netfilter_splash_batman_alien_unauth()
+{
+	local funcname='netfilter_splash_batman_alien_unauth'
+	local dev line mac ip
+	# bridge name bridge id STP enabled interfaces br-mybridge 7fff.4ed11242eff1 no bat0 wlan0-1 wlan1-1
+	# or:
+	# bridge name bridge id STP enabled interfaces
+	local list_devs="$( brctl show )"
+	set -- $list_devs
+
+	case "$@" in
+		*' bat0 '*)
+			while shift; do {
+				[ "$1" = 'bat0' ] && {
+					shift
+					list_devs="$@"
+					break
+				}
+			} done
+
+			for dev in $list_devs; do {
+				iw dev "$dev" station dump | while read line; do {
+					# Station ca:00:11:00:00:15 (on wlan0)
+					case "$line" in
+						'Station '*)
+							set -- $line
+							mac="$2"
+							[ -e "/tmp/vds_user_$mac" ] || {
+								ip="$( _net mac2ip "$mac" )"
+								_log do $funcname daemon info "mac/ip $mac/$ip needs splash on node $NODENUMBER"
+							}
+						;;
+					esac
+				} done
+			} done
+		;;
+	esac
 }
 
 _netfilter_splash_stop()
 {
-	:
+	_netfilter fakedns_stop
 }
 
 _netfilter_walledgarden_start()
@@ -768,18 +1337,18 @@ _netfilter_walledgarden_start()
 		touch "/tmp/NETFILTER/WALLEDGARDEN"
 	fi
 
-	iptables -t mangle -N walledgarden
+	$IPT -t mangle -N walledgarden
 
 	for ip in $list; do {
 		case "$ip" in
 			[0-9]*)
-				iptables -t mangle -A walledgarden -s $ip -j ACCEPT
-				iptables -t mangle -A walledgarden -d $ip -j ACCEPT
+				$IPT -t mangle -A walledgarden -s $ip -j ACCEPT
+				$IPT -t mangle -A walledgarden -d $ip -j ACCEPT
 			;;
 		esac
 	} done
 
-	iptables -t mangle -A PREROUTING -j walledgarden
+	$IPT -t mangle -A PREROUTING -j walledgarden
 }
 
 _netfilter_walledgarden_list()
@@ -812,9 +1381,9 @@ _netfilter_walledgarden_list()
 _netfilter_walledgarden_stop()
 {
 	[ -e "/tmp/NETFILTER/WALLEDGARDEN" ] && {
-		iptables -t mangle -F walledgarden
-		iptables -t mangle -D PREROUTING -j walledgarden
-		iptables -t mangle -X walledgarden
+		$IPT -t mangle -F walledgarden
+		$IPT -t mangle -D PREROUTING -j walledgarden
+		$IPT -t mangle -X walledgarden
 		rm "/tmp/NETFILTER/WALLEDGARDEN"
 	}
 }
@@ -824,12 +1393,13 @@ _netfilter_user_list()
 	local option="$1"
 	local list="$2"
 	local dir="/tmp/NETFILTER/USER"
-	local mac dev speed traffic ip oct123 oct4 list
+	local mac dev speed traffic ip oct123 oct4 list last_action comment vendor hideandseek
 
 	case "$option" in
-		verbose)
+		v|verbose)
 			[ -z "$list" ] && list="$( ls -1 "$dir" )"
 			[ -z "$list" ] && return 0
+			_wifi include
 
 			for mac in $list; do {
 				_net mac2vendor "$mac" short >/dev/null 2>&1	# fetch vendors from internet into cache
@@ -837,14 +1407,19 @@ _netfilter_user_list()
 
 			echo "# show life traffic:"
 			echo '# while :; do eval $( _wifi show_station_traffic "$mac" $WIFIDEV $rx $tx $up ); sleep 1; done'
+			echo '# while :; do _netfilter stats 00:01:e3:06:88:05 kilobytes; sleep 1; done'
 			echo "# change shaping:"
 			echo '# _netfilter traffic_control_user_change_speed "$mac"'
+			echo '# _netfilter traffic_control_user_del "$mac"'
 			echo
 
 			for mac in $list; do {
+				comment="$( _db user_macenabled_comment_get "$mac" )"
 				vendor="$( _net mac2vendor "$mac" short )"
 
 				read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+
+				# same length/space for all IP's
 				oct4="${ip##*.}"
 				oct123="${ip%.*}"
 				ip="${oct123}.$( printf "%-3d" $oct4 )"
@@ -854,8 +1429,24 @@ _netfilter_user_list()
 				speed="$( _netfilter traffic_control_show "$mac" )"
 				traffic="$( _netfilter stats "$mac" megabytes )"
 				traffic="$( printf "%4s" $traffic )mb"
+				if _vpn hideandseek_user_probe "$ip"; then
+					hideandseek='true'
+				else
+					hideandseek=
+				fi
 
-				echo "$mac : $ip : $dev - $traffic - $speed - $vendor"
+				if [ "$dev" = "wifi" ]; then
+					last_action="$( _wifi get_station_param "$mac" "inactive time" )"
+					if [ -n "$last_action" ]; then
+						last_action="(last action: $last_action ms)"
+					else
+						last_action="(not connected)"
+					fi
+				else
+					last_action=
+				fi
+
+				echo "$mac : $ip : $dev - $traffic - $speed - ${hideandseek:+HIDE+SEEK} $vendor $last_action [$comment]"
 			} done
 		;;
 		*)
@@ -866,59 +1457,141 @@ _netfilter_user_list()
 
 _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
 {
-	local mac line bytes_incoming bytes_outgoing uptime rest
+	local bytes_incoming=0
+	local mac line bytes_outgoing uptime rest
 	read uptime rest <"/proc/uptime"; uptime="${uptime%.*}"
 
-	iptables -t mangle -nxvL FORWARD |
+	$IPT -t mangle -nxvL FORWARD |
 	 while read line; do {
 		case "$line" in
-			*"incoming_"*)
-				set $line
-				bytes_incoming="$2"
+			*'incoming_'*)
+				set -- $line
+				bytes_incoming=$(( $bytes_incoming + $2 ))
 				mac="${3#*_}"
 			;;
 			*"outgoing_"*)
-				set $line
+				set -- $line
 				bytes_outgoing="$2"
 
-				echo "$uptime $bytes_incoming $bytes_outgoing" >>"/tmp/NETFILTER/USER/$mac/stats"
+				echo "$uptime $bytes_incoming $bytes_outgoing" >>"/tmp/NETFILTER/USER/${mac:-empty_mac}/stats"
+				bytes_incoming=0
 			;;
 		esac
 	} done
 }
 
-_netfilter_user_reachable()
+_netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 {
+	local funcname="netfilter_user_reachable"
 	local mac="$1"
 	local ip="$2"
-	local maxtry="5"
-	local dev line dev_guess devlist
+	local maxtry="${3:-5}"
+	local dev line dev_guess devlist try
+
+	# 00:00:00 = vendor 'xerox', but ofcourse this is invalid and comes from loopback/dhcp
+	[ "$mac" = '00:00:00:00:00:00' ] && return 1
 
 	_sanitizer do "$mac" mac check || return 1
 	_sanitizer do "$ip"  ip4 check || return 1
 
-	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1
-	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no logins from WAN
+	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
+	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no direct logins from WAN
 
-	dev_guess="$( _net ip2dev "$ip" )"
+	# TODO: ip can change when called via dnsmasq: e.g. 02:50:43:34:25:bc - if arping fails? refetch ip via 'ip neigh'
 
-	devlist="$( _list uniq "$LANDEV $WIFIDEV" )"
-	devlist="$( for dev in $devlist; do test "$dev" = "$dev_guess" || echo "$dev"; done )"
+	if [ -n "$DNSMASQ_INTERFACE" ]; then
+		dev_guess="$DNSMASQ_INTERFACE"
+	else
+		dev_guess="$( _net ip2dev "$ip" )"
+	fi
+
+	if   [ "$dev_guess" = "$LANDEV" ]; then
+		[ "$( uci -q get system.@weblogin[0].force_lan_reachable )" = '1' ] && {
+			echo "$LANDEV"
+			return 0
+		}
+
+	elif _net dev_is_wifi "$dev_guess"; then
+		iw dev "$dev_guess" station get "$mac" >/dev/null 2>/dev/null && {
+			echo "$dev_guess"
+			return 0
+		}
+	fi
+
+	devlist="$( _list uniq "${LANDEV:-$( uci -q get network.lan.ifname )} $WIFI_DEVS" )"
+	devlist="$( for dev in $devlist; do test "$dev" = "$dev_guess" || echo -n " $dev "; done )"
 	devlist="$dev_guess $devlist"
 
-	for dev in $devlist; do {
-		arping -I "$dev" -c "$maxtry" -q -f "$ip" && {
-			line="$( ip neigh show to "$ip" | head -n1 )"
-			set -- ${line:-empty_line}
+	repair_mac()
+	{
+		local oldIFS="$IFS"; IFS=":"; set -- $1; IFS="$oldIFS"
+		local tupel insert=
 
-			if [ "$mac" = "$5" ]; then
-				return 0
-			else
-				return 1
-			fi
-		}
+		# e.g. '0:80:77:0:22:4c' (missing first 0)
+		for tupel in $1 $2 $3 $4 $5 $6; do {
+			[ ${#tupel} -eq 1 ] && tupel="0${tupel}"
+			echo -n "${insert}${tupel}"
+			insert=':'
+		} done
+	}
+
+	for dev in $devlist; do {
+		_log do $funcname daemon debug "probing: mac: $mac ip: $ip dev: '$dev'"
+		try="$maxtry"
+		while [ $try -gt 0 ]; do {
+			# root@box:~ arping -c1 -f -I $LANDEV 10.63.2.40
+			# ARPING to 10.63.2.40 from 10.63.2.33 via eth0.1
+			# Unicast reply from 10.63.2.40 [0:80:77:0:22:4c] 1.152ms
+			# Sent 1 probe(s) (1 broadcast(s))
+			# Received 1 replies (0 request(s), 0 broadcast(s))
+			#
+			# or e.g.:
+			# Unicast reply from 192.168.0.1 [0:e:56:0:f:c5] 0.232ms
+			#
+			# or e.g.: works only with '-D' = 'Duplicated address detection mode'
+			# but not all systems do this e.g. LANCOM
+			# root@box:~ arping -I wlan0 10.10.183.74 -b
+			# ARPING to 10.10.183.74 from 10.10.183.1 via wlan0
+			# Sent 7 probe(s) (7 broadcast(s))
+			# Received 0 reply (0 request(s), 0 broadcast(s))
+			#
+			# root@box:~ arping -I wlan0 10.10.183.74 -D
+			# ARPING to 10.10.183.74 from 0.0.0.0 via wlan0
+			# Unicast reply from 10.10.183.74 [a4:d1:d2:3a:e9:62] 172.323ms
+			# Sent 1 probe(s) (1 broadcast(s))
+			# Received 1 replies (0 request(s), 0 broadcast(s))
+			#
+			# !!! the 1st mac is the searched one, the 2nd is ???
+			# root@box:~ arping -D -c1 -f -I $LANDEV 10.63.22.101
+			# ARPING to 10.63.22.101 from 0.0.0.0 via eth0.1
+			# Unicast reply from 10.63.22.101 [0:4:13:2f:65:cb]for 10.63.22.101 [0:0:1f:79:69:6e] 0.584ms
+			# Sent 1 probe(s) (1 broadcast(s))
+			# Received 1 replies (0 request(s), 0 broadcast(s))
+
+			# with '-D' = 'Duplicated address detection mode'
+			line="$( arping -D -c1 -f -I "$dev" "$ip" | fgrep ':' )" || {
+				# not all systems do this e.g. LANCOM
+				line="$( arping -c1 -f -I "$dev" "$ip" | fgrep ':' )"
+			}
+
+			[ -n "$line" ] && {
+				line="$( echo "$line" | cut -d'[' -f2 | cut -d']' -f1 )"
+				line="$( repair_mac "$line" )"
+
+				[ "$mac" = "$line" ] && {
+					echo "$dev"
+					return 0
+				}
+			}
+
+			try=$(( $try - 1 ))
+		} done
 	} done
 
+	local prio='info'
+	[ -z "$devlist" -o "$dev_guess" = "$LANDEV" ] && prio='alert'
+
+	_log do $funcname daemon $prio "no_success: mac: $mac ip: $ip devlist: '$devlist' dev_guess: '$dev_guess'"
 	return 1
 }
 
@@ -926,56 +1599,165 @@ _netfilter_user_add()
 {
 	local funcname="netfilter_user_add"
 	local mac="$1"
-	local ip="$2"
+	local ip="$2"		# can be empty
 	local speed_up="$3"	# e.g. 1mbit, 32kbit
 	local speed_down="$4"
-	local dev
-	local myhna="$( _netfilter myhna )"
+	local dev myhna unexpected_ip
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1
+	[ -e "/tmp/OLSR/fixed_arp_$ip" ] && return 1
 
-#	_netfilter user_reachable "$mac" "$ip" || {
-#		_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
-#		return 1
-#	}
-
-	if [ -d "/tmp/NETFILTER/USER/$mac" ]; then
-		return 0
+	if dev="$( _netfilter user_reachable "$mac" "$ip" )"; then
+		mkdir "/tmp/NETFILTER/USER/$mac" || return 0
 	else
-		_log do $funcname daemon info "mac: $mac ip: $ip"
-		mkdir -p "/tmp/NETFILTER/USER/$mac"
-		echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
-		echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
-		touch "/tmp/vds_user_$mac"
+		# maybe in /www/NETFILTER_AUTOADD is the ip from another day, so try another lookup
+		for unexpected_ip in $( ip neigh | fgrep " $mac " | cut -d' ' -f1 ); do {
+			if dev="$( _netfilter user_reachable "$mac" "$unexpected_ip" )"; then
+				if [ "$unexpected_ip" = "$ip" ]; then
+					_log do $funcname daemon alert "same IP $ip 2nd call to user_reachable() works - mac: $mac"
+				else
+					_log do $funcname daemon alert "taking another IP: $unexpected_ip (was: '$ip') mac: $mac"
+					ip="$unexpected_ip"
+				fi
+
+				break
+			else
+				unexpected_ip=
+			fi
+		} done
+
+		if [ -z "$unexpected_ip" ]; then
+			# maybe it helps during bootup, reschedule once
+			[ -n "$ip" ] && echo >>$SCHEDULER "_netfilter user_add $mac"
+
+			_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
+			return 1
+		else
+			mkdir "/tmp/NETFILTER/USER/$mac" || return 0
+		fi
 	fi
 
+	# in case we have an unscheduled reboot, autoadd at least for servers/wired
+	_net dev_is_wifi "$dev" || {
+		fgrep -q " add '$mac' '$ip' " '/www/NETFILTER_AUTOADD' || {
+			fgrep -q " add '$mac' " '/www/NETFILTER_AUTOADD' && {
+				case "$CONFIG_PROFILE" in
+					liszt28*)	# removeme/debug
+						cp "/www/NETFILTER_AUTOADD" "/www/NETFILTER_AUTOADD.$(date)"
+					;;
+				esac
+
+				# hide/comment entry with other ip but same mac
+				sed -i "s/^.*$mac/# IP changed # &/" '/www/NETFILTER_AUTOADD'
+			}
+
+			echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable	# $funcname() $(date)" >>'/www/NETFILTER_AUTOADD'
+		}
+	}
+
 	# against spoofing, add "-s $ip"?
-	iptables -t mangle -I PREROUTING -d $ip -j ACCEPT
-	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -j ACCEPT
-	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
-	iptables -t mangle -I PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
+	$IPT -t mangle -I PREROUTING -d $ip -j ACCEPT
+	# needed for batman, because mac can be changed from kernel-view:
+	# https://lists.open-mesh.org/pipermail/b.a.t.m.a.n/2013-October/010722.html
+	$IPT -t mangle -I PREROUTING -s $ip -j ACCEPT			# normally unneeded because of next rule
+	$IPT -t mangle -I PREROUTING -m mac --mac-source $mac -j ACCEPT	# we should not see packets in above rule
 
-	dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
-	_netfilter make_arp_permanent "$mac" "$ip" "$dev"
+	myhna="$( _netfilter myhna )"
+	$IPT -t mangle -I PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
+	$IPT -t mangle -I PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
+	$IPT -t mangle -I INPUT      -m mac --mac-source $mac -j ACCEPT
 
-	_netfilter traffic_control_needed && {
-		_netfilter traffic_control_user_add "$ip" "$speed_up" "$speed_down"
+	cat >"/tmp/NETFILTER/USER/$mac/user_del" <<EOF
+dev='$dev'
+$IPT -t mangle -D INPUT      -m mac --mac-source $mac -j ACCEPT
+$IPT -t mangle -D PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
+$IPT -t mangle -D PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
+$IPT -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
+$IPT -t mangle -D PREROUTING -s $ip -j ACCEPT
+$IPT -t mangle -D PREROUTING -d $ip -j ACCEPT
+EOF
+
+	_log do $funcname daemon info "mac: $mac ip: $ip"
+	echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
+	echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
+	touch "/tmp/vds_user_$mac"
+
+	# maybe doing this for batman has side-effects
+	# also: to be correct it must be done (only?) for gateway0/macvlan
+	case "$dev" in
+		'br-mybridge'|'gateway0')
+		;;
+		*)
+			_netfilter set_arp permanent "$mac" "$ip" "$dev"
+		;;
+	esac
+
+	if _netfilter user_dataretention_needed; then
+		_netfilter user_dataretention_add "$mac" "$ip"
+	else
+		# at least install some counters
+		$IPT -t mangle -N outgoing_$mac
+		$IPT -t mangle -N incoming_$mac
+
+		$IPT -t mangle -A FORWARD -d $ip                            -j incoming_$mac
+		$IPT -t mangle -A FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
+		$IPT -t mangle -A FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
+
+		cat >>"/tmp/NETFILTER/USER/$mac/user_del" <<EOF
+$IPT -t mangle -D FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
+$IPT -t mangle -D FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
+$IPT -t mangle -D FORWARD -d $ip                            -j incoming_$mac
+$IPT -t mangle -X incoming_$mac
+$IPT -t mangle -X outgoing_$mac
+EOF
+		[ -e '/tmp/ENDBOOT' ] || {
+			pidof ulogd >/dev/null && /etc/init.d/ulogd stop
+			rmmod 2>/dev/null ipt_ULOG
+			rmmod 2>/dev/null ipt_REDIRECT
+			rmmod 2>/dev/null xt_state
+		}
+	fi
+
+	bool_true 'system.@weblogin[0].hideandseek' && {
+		_vpn hideandseek_user_add "$ip"
 	}
 
 	return 0
 }
 
-
-_netfilter_make_arp_permanent()
+_netfilter_user_dataretention_needed()
 {
-	local mac="$1"
-	local ip="$2"
-	local dev="${3:-$( _net mac2dev "$mac" )}"
+	# disabled till memory-probs are solved
+	return 1
 
-	[ "$mac" = "00:00:00:00:00:00" ] && return 1
+	bool_true 'system.@vds[0].enabled'
+}
 
-	ip neigh add    $ip dev $dev lladdr $mac nud permanent 2>/dev/null
-	ip neigh change $ip dev $dev lladdr $mac nud permanent 2>/dev/null
+_netfilter_set_arp()
+{
+	local nudmode="$1"	# e.g permanent|reachable
+	local mac="$2"
+	local ip="$3"
+	local dev="${4:-$( _net mac2dev "$mac" exact )}"
+
+	[ -z "$dev" ] && return 1
+
+	case "$mac" in
+		'00:00:00:00:00:00')
+			return 1
+		;;
+		*':'*)
+			# ok
+		;;
+		*)
+			mac="$( _net ip2mac "$ip" )" || return 1
+		;;
+	esac
+
+	ip neigh add    $ip dev $dev lladdr $mac nud $nudmode 2>/dev/null
+	ip neigh change $ip dev $dev lladdr $mac nud $nudmode 2>/dev/null
+
+	return 0
 }
 
 _netfilter_user_probe()
@@ -987,25 +1769,162 @@ _netfilter_user_probe()
 
 _netfilter_user_del()
 {
+	local funcname='netfilter_user_del'
 	local mac="${1:-unset}"
-	local ip dev myhna
+	local reason="$2"
+	local ip dev traffic comment message
+
+	case "$reason" in
+		*'dhcp_del'*)
+			# ignore calls for users, which have a lease (again)
+			grep -sq " $mac " "$( _net dhcp_lease_filename )" && {
+				_log do $funcname daemon info "ignoring call for $mac - reason: $reason"
+				return 1
+			}
+		;;
+	esac
+
+	[ "$mac" = 'all' ] && {
+		for mac in $( _netfilter user_list ); do {
+			_netfilter user_del "$mac" "$reason all"
+		} done
+	}
 
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
-		_netfilter traffic_control_user_del "$mac"
-
-		myhna="$( _netfilter myhna )"
 		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
 
-		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p tcp --dport 53 ! -d $myhna -j MARK --set-mark 0x14
-		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -p udp --dport 53 ! -d $myhna -j MARK --set-mark 0x13
-		iptables -t mangle -D PREROUTING -d $ip -j ACCEPT
-		iptables -t mangle -D PREROUTING -m mac --mac-source $mac -j ACCEPT
+		bool_true 'system.@weblogin[0].logtraffic' && {
+			comment="$reason $( _db user_macenabled_comment_get "$mac" )"
+			traffic="$( _netfilter stats "$mac" megabytes )"
+			message="mac: $mac ip: $ip traffic: $traffic mb comment: $comment"
+			_log do $funcname daemon alert "$message"
 
-		dev="$( ip -oneline route get "$ip" | cut -d' ' -f3 )"
-		ip neigh change $ip dev $dev lladdr $mac nud reachable
+			[ $traffic -gt 1000 ] && {
+				_weblogin authserver_message "$funcname() $message"
+			}
+		}
+
+		_netfilter traffic_control_user_del "$mac"
+		_netfilter user_dataretention_del "$mac" "$ip"
+
+		bool_true 'system.@weblogin[0].hideandseek' && {
+			_vpn hideandseek_user_del "$ip"
+		}
+
+		[ -e "/tmp/NETFILTER/USER/$mac/user_del" ] && {
+			. "/tmp/NETFILTER/USER/$mac/user_del"
+			_netfilter set_arp reachable "$mac" "$ip" "$dev"
+		}
 
 		rm -fR "/tmp/NETFILTER/USER/$mac" "/tmp/vds_user_$mac"
 	}
+}
+
+_netfilter_user_dataretention_add()
+{
+	local mac="$1"
+	local ip="$2"
+	local ulogd=
+	local myhna="$( _netfilter myhna )"
+
+	if [ -e "/tmp/NETFILTER/USER/$mac/dataretention" ]; then
+		return 1
+	else
+		touch "/tmp/NETFILTER/USER/$mac/dataretention"
+	fi
+
+	if grep -q ^'ipt_ULOG ' '/proc/modules'; then
+		ulogd='true'
+		grep -q ^"ipt_ULOG " /proc/modules || insmod ipt_ULOG
+		grep -q ^"xt_state " /proc/modules || insmod xt_state
+	else
+		_log do $funcname daemon info "kmodule 'ipt_ULOG' missing - no connection-detection for $mac"
+		ulogd='false'
+	fi
+
+	[ -e "/tmp/NETFILTER/connection_detection" ] || {
+		$IPT -t mangle -N mark_connection_new
+		$IPT -t mangle -A mark_connection_new -m state --state NEW -j MARK --set-mark 0x33
+		$IPT -t mangle -A mark_connection_new -j RETURN
+
+		$IPT -t mangle -N mark_connection_end
+		$IPT -t mangle -A mark_connection_end -p tcp --tcp-flags fin,ack fin,ack -j MARK --set-mark 0x44
+		$IPT -t mangle -A mark_connection_end -p tcp --tcp-flags rst rst -j MARK --set-mark 0x44
+		$IPT -t mangle -A mark_connection_end -p tcp --tcp-flags syn,ack syn,ack -j MARK --set-mark 0x44
+		$IPT -t mangle -A mark_connection_end -j RETURN
+
+		$IPT -t mangle -A FORWARD -j mark_connection_new
+		$IPT -t mangle -A FORWARD -j mark_connection_end
+
+		[ -e "/usr/sbin/ulogd" -a "$ulogd" = 'true' ] && {
+			pidof ulogd >/dev/null || /etc/init.d/ulogd start
+		}
+
+		touch "/tmp/NETFILTER/connection_detection"
+	}
+
+	$IPT -t mangle -N outgoing_$mac
+	if [ "$ulogd" = 'true' ]; then
+		$IPT -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ULOG --ulog-prefix "$mac>"
+	else
+		$IPT -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ACCEPT
+	fi
+
+	$IPT -t mangle -N incoming_$mac
+	if [ "$ulogd" = 'true' ]; then
+		$IPT -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ULOG --ulog-prefix "$mac<"
+	else
+		$IPT -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ACCEPT
+	fi
+
+	$IPT -t mangle -A FORWARD -d $ip                            -j incoming_$mac
+	$IPT -t mangle -A FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
+	$IPT -t mangle -A FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
+}
+
+_netfilter_user_dataretention_del()
+{
+	local mac="$1"
+	local ip="$2"
+
+	[ -e "/tmp/NETFILTER/USER/$mac/dataretention" ] || return 1
+
+	$IPT -t mangle -D FORWARD -d $ip                            -j incoming_$mac
+	$IPT -t mangle -D FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
+	$IPT -t mangle -D FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
+	$IPT -t mangle -F outgoing_$mac
+	$IPT -t mangle -X outgoing_$mac
+	$IPT -t mangle -F incoming_$mac
+	$IPT -t mangle -X incoming_$mac
+
+	[ "$( _netfilter user_list )" = "$mac" ] && {		# last remaining user
+		$IPT -t mangle -D FORWARD -j mark_connection_end
+		$IPT -t mangle -D FORWARD -j mark_connection_new
+		$IPT -t mangle -F mark_connection_end
+		$IPT -t mangle -X mark_connection_end
+		$IPT -t mangle -F mark_connection_new
+		$IPT -t mangle -X mark_connection_new
+
+		bool_true 'system.@vds[0].enabled' && {
+			/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+
+		}
+		/etc/init.d/ulogd stop
+		rm "/tmp/NETFILTER/connection_detection"
+	}
+
+	rm "/tmp/NETFILTER/USER/$mac/dataretention"
+}
+
+_netfilter_user_quota_add()
+{
+	local mac="$1"
+	local upload="$2"
+	local download="$3"
+}
+
+_netfilter_user_quota_del()
+{
+	local option="$mac"
 }
 
 _netfilter_user_quota_query()
@@ -1032,16 +1951,17 @@ _netfilter_user_shaping_del()
 
 _netfilter_adblocking_start()
 {
-	iptables -t mangle -A FORWARD -d 1.1.0.0/20 -j MARK --set-mark 0x22	# see /etc/hosts.drop
-	iptables -t mangle -A FORWARD -m mark --mark 0x22/0xff -j ACCEPT	# don't overwrite mark on later rules
-	iptables -A FORWARD -m mark --mark 0x22/0xff -j REJECT
+	$IPT -t mangle -A FORWARD -d 1.1.0.0/20 -j MARK --set-mark 0x22	# see /etc/hosts.drop
+	$IPT -t mangle -A FORWARD -m mark --mark 0x22/0xff -j ACCEPT	# don't overwrite mark on later rules
+	$IPT -A FORWARD -m mark --mark 0x22/0xff -j REJECT
 }
 
 _netfilter_user_stats_process()
 {
+	local funcname='netfilter_user_stats_process'
 	local server_ip url server_response mac line hash message= count=0
 	local user_list="$( _netfilter user_list )"
-	local ip
+	local ip unixtime_server unixtime_now datestring
 
 	_netfilter user_stats_collect
 
@@ -1081,53 +2001,68 @@ _netfilter_user_stats_process()
 		} done <"/tmp/NETFILTER/USER/$mac/stats"
 
 		# CMA = client mac address
+		# CIA = client ip address
 		# CTU = client time used
 		# CBI = client bytes incoming ("downloaded")
 		# CBO = client bytes outgoing ("uploaded")
 		# CAH = client authentication hash
 
+		read ip </tmp/NETFILTER/MAC2IP/$mac
 		[ $(( $bytes_incoming_sum + $bytes_outgoing_sum )) -eq 0 ] && {
-			read ip </tmp/NETFILTER/MAC2IP/$mac
-#			_netfilter user_reachable "$mac" "$ip" || _netfilter user_del "$mac"
+#			_netfilter user_reachable "$mac" "$ip" >/dev/null || _netfilter user_del "$mac" 'no_traffic'
 
 			continue	# dont generate any message for this user
 		}
 
-		hash=
+		if [ -e "/tmp/vds_user_$mac" ]; then
+			read hash <"/tmp/vds_user_$mac"
+		else
+			hash=
+		fi
 
 		count=$(( $count + 1 ))
 		mac="${mac//:/%3a}"		# urlencode
-		message="${message}${message:+&}CMA_${count}=${mac}&CTU_${count}=${time_used}&CBI_${count}=${bytes_incoming_sum}&CBO_${count}=${bytes_outgoing_sum}&CAH_${count}=${hash}"
+		message="${message}${message:+&}CMA_${count}=${mac}&CIA=${ip}&CTU_${count}=${time_used}&CBI_${count}=${bytes_incoming_sum}&CBO_${count}=${bytes_outgoing_sum}&CAH_${count}=${hash}"
 	} done
 
-	[ -n "$message" ] && {
-		server_ip="$( _weblogin authserver )"
+	server_ip="$( _weblogin authserver )"
 
-		case "$server_ip" in
-			$WIFIADR|$LANADR|$WANADR)
-				echo "UPTIME=${uptime}&REMOTE_ADDR=${WIFIADR}&${message}" >>"/tmp/COLLECT_DATA"
-				server_response="OK"
-			;;
-			*)
-				url="http://$server_ip/cgi-bin-collect.sh?${message}"
-				server_response="$( _wget do "$url" 20 )"
-			;;
-		esac
+	case "$server_ip" in
+		$LOADR|$WIFIADR|$LANADR|$WANADR)
+			echo "UPTIME=${uptime}&REMOTE_ADDR=${WIFIADR}&${message}" >>"/tmp/COLLECT_DATA"
+			server_response="OK"
+		;;
+		*)
+			url="http://$server_ip/cgi-bin-collect.sh?${message}"
+			server_response="$( _wget do "$url" 20 )"
+		;;
+	esac
 
-		case "$server_response" in
-			OK*)
-				for mac in $user_list; do {
-					mv "/tmp/NETFILTER/USER/$mac/stats" "/tmp/NETFILTER/USER/$mac/stats.lastsend"
-				} done
+	case "$server_response" in
+		OK*|*:*)
+			for mac in $user_list; do {
+				mv "/tmp/NETFILTER/USER/$mac/stats" "/tmp/NETFILTER/USER/$mac/stats.lastsend"
+			} done
 
-				for mac in $server_response; do {
-					case "$mac" in
-						*:*)
-							[ -e "/tmp/vds_user_$mac" ] || touch "/tmp/vds_user_$mac"
-						;;
-					esac
-				} done
-			;;
-		esac
-	}
+			for mac in $server_response; do {
+				case "$mac" in
+					*:*)
+						# add allowed macs from server to this station
+						[ -e "/tmp/vds_user_$mac" ] || touch "/tmp/vds_user_$mac"
+					;;
+					'OK-UNIXTIME='*)
+						unixtime_server="$( echo "$mac" | cut -d'=' -f2 )"
+						unixtime_now="$( date +%s )"
+
+						[ $(( $unixtime_now - $unixtime_server )) -gt 600 -o \
+						  $(( $unixtime_server - $unixtime_now )) -gt 600 ] && {
+							_log do $funcname daemon info "timeset to $unixtime_server - was: $unixtime_now"
+							datestring="$( date -d @$unixtime_server "+%Y-%m-%d %H:%M:%S" )"
+							date --set "$datestring"
+						}
+					;;
+				esac
+			} done
+		;;
+	esac
 }
