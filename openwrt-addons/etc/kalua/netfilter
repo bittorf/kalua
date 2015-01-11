@@ -21,29 +21,8 @@ _netfilter_start()
 	}
 
 	_netfilter masquerade_start
-	_netfilter portforwarding_start
 	_netfilter conntrack_adjust_max
 	_netfilter mssfix
-
-	case "$CONFIG_PROFILE" in
-		ejbw*)
-			case "$NODENUMBER" in
-				100)	# j4
-					$IPT -I FORWARD -i $LANDEV -o $WIFIDEV	# 2nd rule = up
-					$IPT -I FORWARD -i $WIFIDEV -o $LANDEV	# 1st rule = down
-					$IPT -t nat -I POSTROUTING -s 10.10.0.0/16 ! -d 10.10.0.0/16 -j MASQUERADE
-
-					return 0
-				;;
-				101)	# reithaus
-					$IPT -I FORWARD -i $LANDEV -o $WIFIDEV	# 2nd rule = up
-					$IPT -I FORWARD -i $WIFIDEV -o $LANDEV	# 1st rule = down
-
-					return 0
-				;;
-			esac
-		;;
-	esac
 
 	[ -e "/etc/init.d/apply_profile" ] && return 0
 	[ -e "/www/GOOD_MODULE_UNLOAD" ] || {
@@ -53,8 +32,6 @@ _netfilter_start()
 	[ -e "/etc/hosts.drop" ] && {
 		_netfilter adblocking_start
 	}
-
-	_db restore
 
 	bool_true 'system.@weblogin[0].enabled' && {
 		[ -e "/www/SIMPLE_MESHNODE" ] || {
@@ -143,31 +120,8 @@ _netfilter_traffic_control_show()
 
 _netfilter_traffic_control_needed()
 {
-	case "$CONFIG_PROFILE" in
-		rehungen*)
-			[ "$NODENUMBER" = '36' ] && return 0
-		;;
-	esac
-
 	# TODO: fix shaping
 	return 1
-
-	case "$CONFIG_PROFILE" in
-		rehungen*)
-			case "$NODENUMBER" in
-				30)	# klausgasse70
-					return 1
-				;;
-			esac
-		;;
-		olympia*|marinabh*|castelfalfi*)
-			return 1
-		;;
-		boltenhagendh*|tkolleg*)
-			# till we fix the "high ping under high load/many users"-issue
-			_net local_inet_offer >/dev/null && return 1
-		;;
-	esac
 
 	local kernel="$( uname -r )"
 
@@ -852,16 +806,6 @@ _netfilter_masquerade_start()
 	$IPT -A FORWARD -i $device
 	$IPT -A FORWARD -o $device
 
-	case "$CONFIG_PROFILE" in
-		tkolleg*)
-			$IPT -t nat -I POSTROUTING -s 10.10.0.0/16 -o $LANDEV -j MASQUERADE
-			$IPT -t nat -I POSTROUTING -d 10.10.0.10 -j MASQUERADE		# printer
-			$IPT -t nat -I POSTROUTING -d 10.10.0.2 -j MASQUERADE		# exNT
-		;;
-		fparkssee*)
-			$IPT -t nat -I POSTROUTING -d 192.168.0.0/16 -j MASQUERADE		# external portfw
-		;;
-	esac
 }
 
 _netfilter_masquerade_stop()
@@ -870,202 +814,6 @@ _netfilter_masquerade_stop()
 		. "/tmp/NETFILTER/MASQUERADING"
 		rm "/tmp/NETFILTER/MASQUERADING"
 	}
-}
-
-_netfilter_portforwarding_request()
-{
-	local ip="$1"
-	local mac="$2"
-	local host="$3"
-	local gateway port dynamic answer option
-	dynamic="$( uci -q get system.@weblogin[0].dynamic_portfw )" || return 0
-
-	case "$mac" in
-		"${dynamic:-empty}"*)
-			# ssh | http | https | rstp
-			for port in 22 80 443 554; do {
-				nc 2>/dev/null "$ip" "$port" </dev/null && {
-					read gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
-					option="portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host"
-					answer="$( _tool remote "$gateway" "$option" )"
-
-					case "$answer" in
-						'OK'*)
-						;;
-						*)
-							echo >>$SCHEDULER "_tool remote $gateway '$option'"
-						;;
-					esac
-				}
-			} done
-		;;
-	esac
-}
-
-_netfilter_portforwarding_add()
-{
-	local incoming_dev="$1"		# e.g. $WANDEV = eth0.2 or 'get_table'
-	local port_ext="$2"		# e.g. 10080 or webcam-11:22:33:44:55:66
-	local port="$3"			# e.g. 80
-	local ip="$4"			# client/destination
-	local uniq_id="$5"		# e.g. mac
-	local message="$6"		# e.g. node: 276 router: 10.63.21.65 hostname: ICS230
-	local file='/tmp/NETFILTER/portfw'
-	local marker infoline command date remote_nodeip remote_nodenumber remote_mac
-
-	# TODO: add autoreload without setting rules twice: -> stop/start
-
-	# is a number?
-	[ 2>/dev/null ${port_ext:-nonumber} -eq $port_ext ] || port_ext="$( _net text2port "$port_ext" )"
-
-	case "$1" in
-		'get_table')
-			cat "$file"
-			return 0
-		;;
-		"$IPT "*)
-			command="$1"
-			marker="# $2"	# ARG2 = description
-			infoline='# custom userdefined rule'
-		;;
-		*)
-			# in $command '-p $proto' is added later
-
-			if _sanitizer do "$incoming_dev" ip4 check; then
-				# requests to external IP from internal network must also work
-				command="-t nat -I PREROUTING -d $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
-			else
-				command="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
-			fi
-
-			marker="# client: $ip indev: $incoming_dev mac/id: $uniq_id port: $port port_ext: $port_ext"
-			infoline="# $( date ) msg: $message"
-		;;
-	esac
-
-	# TODO: same mac on another router? -> remove old entry
-	if grep -qs ^"$marker" "$file"; then
-		:
-	else
-		date="$( _system date humanreadable pretty )"
-		echo >>"$file" "$marker"
-		echo >>"$file" "$infoline"
-
-		case "$command" in
-			"$IPT "*)
-				# custom userdefined rule
-				echo >>"$file" "$command"
-				$command
-			;;
-			*)
-				echo >>"$file" "$IPT -p tcp $command	# $date"
-				echo >>"$file" "$IPT -p udp $command	# $date"
-				echo >>"$file" "$IPT -t nat -I POSTROUTING -d $ip -j MASQUERADE"
-				$IPT -p tcp $command
-				$IPT -p udp $command
-				# otherwise it does not work from extern?
-				$IPT -t nat -I POSTROUTING -d $ip -j MASQUERADE
-
-				# TODO: build a readable public description (e.g. for minitoring server)
-				# mac: xxx hostname: xxx port_ext: xxx port_int: xxx
-
-				# at the moment:
-				# client: 10.10.6.148 mac/id: 00:1a:97:01:8b:18 port: 554 port_ext: 7833
-
-				# e.g. msg: Buffi:HTTP
-				# e.g. msg: msg: camF4back ip: 10.10.18.125
-				remote_nodeip="$( _sanitizer do "$message" ip4 )"
-				if [ -z "$remote_nodeip" ]; then
-					remote_nodenumber=
-				else
-					remote_nodenumber="$( _ipsystem do "$remote_nodeip" )"
-
-					# FIXME!
-					remote_mac="$( _net ip2mac "$remote_nodeip" )"
-					# it shoud be the same like in monitoring (xoai!)
-					remote_mac="$( _wget do "http://$remote_nodeip/monitoring.wifimac" )"
-				fi
-
-				# we want this on monitoring-server:
-				# case "$WIFIMAC" in
-				#	19|'6470028b2260') PORT=7534 ;; # F5-front / 00:1a:97:01:8b:19
-				#       ...
-				echo >>"$file" "### $remote_nodenumber|'$remote_mac') PORT=$port_ext ;; $marker"
-			;;
-		esac
-	fi
-}
-
-_netfilter_portforwarding_start()
-{
-	local dev="$1"		# override incoming_dev with IP
-
-	# TODO: make it possible to start|stop ruleset
-
-	# TODO: convert to userscript: /etc/firewall.user -> /tmp/firewall.user
-	case "$CONFIG_PROFILE" in
-		boltenhagendh*)
-			[ "$NODENUMBER" = '2' ] && {
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10022'  '22' '10.10.2.129'   'bla' 'master:SSH'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080'  '80' '10.10.2.129'   'bla' 'master:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10443' '443' '10.10.2.129'   'bla' 'master:HTTPS'
-				_netfilter portforwarding_add "${dev:-$WANDEV}"   '443' '443' '10.10.111.129' 'bla' 'authserver:HTTPS'
-				_netfilter portforwarding_add "${dev:-$WANDEV}"    '80'  '80' '10.10.111.129' 'bla' 'authserver:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}"    '22'  '22' '10.10.111.129' 'bla' 'authserver:SSH'
-			}
-		;;
-		liszt28*)
-			[ "$NODENUMBER" = '276' ] && {
-				# kg-f36
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '20080' '80' '10.63.6.125'   'superbuffi'        'buffi:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10022' '22' '10.63.195.161' '02:50:43:ab:1c:91' 'KellerNAS:SSH'
-				_netfilter portforwarding_add "${dev:-$WANDEV}"   '222' '22' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:SSH'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080' '80' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '55555' '80' '10.63.97.225'  'f8:d1:11:a9:ce:ba' 'Zwickau:HTTP'
-
-				# when link is not symetric (other outgoing gateway than incoming)
-				_netfilter portforwarding_add "$IPT -t nat -I POSTROUTING -d 10.63.2.34 -j MASQUERADE" 'Medion:MASQ'
-			}
-
-			[ "$NODENUMBER" = '99' ] && {
-				# medion: SSH/bitcoind/http
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport  222 -j DNAT --to-destination 10.63.2.34:22
-#				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 8333 -j DNAT --to-destination 10.63.2.34:8333
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport   80 -j DNAT --to-destination 10.63.2.34:80
-			}
-		;;
-		ejbw*)
-			[ "$LANADR" = "10.10.50.33" ] && {
-				# fusionpbx
-				$IPT -t nat -I POSTROUTING -d 172.17.0.81 -j ACCEPT
-			}
-
-#			[ "$LANADR" = "192.168.112.2" ] && {
-#				# dachrouter j4
-#				$IPT -t nat -I POSTROUTING -d 192.168.111.21 -j ACCEPT
-#			}
-		;;
-		rehungen*)
-			[ "$LANADR" = "10.10.8.33" ] && {
-				# kindergarten
-				$IPT -t nat -I PREROUTING -d 10.1.0.8 -p udp --dport 53 -j DNAT --to-destination 10.10.8.33
-			}
-
-			[ "$LANADR" = "10.10.254.33" ] && {
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10080 -j DNAT --to-destination 10.10.8.33:80
-			}
-		;;
-	esac
-
-	[ -e '/tmp/NETFILTER/portfw' ] && {
-		# this file is generated, so better check syntax
-		sh -n '/tmp/NETFILTER/portfw' && . '/tmp/NETFILTER/portfw'
-	}
-}
-
-_netfilter_portforwarding_stop()
-{
-	:
 }
 
 _netfilter_myhna()
@@ -1091,44 +839,6 @@ _netfilter_is_meshnode()	# fixme! better iterate over olsrd-interface, if one is
 	esac
 }
 
-_netfilter_fakedns_start()
-{
-	local dnsport="${1:-5353}"
-	local dnsfake_ip="${LANADR:-$WIFIADR}"
-	local pid
-
-	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] && {
-		pidof fakedns >/dev/null && return 0
-	}
-
-	[ -h '/sbin/fakedns' ] || ln -s "$( which dnsmasq )" '/sbin/fakedns'
-
-	# check with GNU: nslookup gmx.de $SERVER -port=5353
-	/sbin/fakedns --address=/#/$dnsfake_ip -p $dnsport && {
-		pid=$( pidof fakedns ) && {
-			echo >'/tmp/SERVICE/FAKEDNS.pid'     "$pid"
-			cat  >'/tmp/SERVICE/FAKEDNS.cmdline' "/proc/$pid/cmdline"
-
-			$IPT -t mangle -A INPUT -p udp --dport 53 -j MARK --set-mark 0x15
-			$IPT -t mangle -A INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
-		}
-	}
-}
-
-_netfilter_fakedns_stop()
-{
-	local pid
-
-	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] || return 0
-
-	$IPT -t mangle -D INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
-	$IPT -t mangle -D INPUT -p udp --dport 53 -j MARK --set-mark 0x15
-
-	read pid <'/tmp/SERVICE/FAKEDNS.pid'
-	kill $pid
-	rm /tmp/SERVICE/FAKEDNS.*
-}
-
 _netfilter_splash_start()
 {
 	local funcname='netfilter_splash_start'
@@ -1138,12 +848,7 @@ _netfilter_splash_start()
 	local dnsport dnsfake_ip
 	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8"
 
-	if [ -n "$LOWMEM" ]; then
-		dnsport=53
-	else
-		dnsport=5353
-		_netfilter fakedns_start "$dnsport"
-	fi
+	dnsport=53
 
 	mkdir -p "/tmp/NETFILTER/USER" \
 		 "/tmp/NETFILTER/MAC2IP" \
@@ -1213,9 +918,6 @@ _netfilter_splash_start()
 	else
 		local dev_list="$WIFI_DEVS $LANDEV"
 	fi
-
-	$IPT -t nat -A PREROUTING -p tcp -m mark --mark 0x16/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
-	$IPT -t nat -A PREROUTING -p udp -m mark --mark 0x15/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
 
 	add_dev()
 	{
@@ -1323,7 +1025,6 @@ _netfilter_splash_batman_alien_unauth()
 
 _netfilter_splash_stop()
 {
-	_netfilter fakedns_stop
 }
 
 _netfilter_walledgarden_start()
@@ -1362,15 +1063,10 @@ _netfilter_walledgarden_list()
 		141.54.160.48/32	m18.uni-weimar.de
 		87.118.106.19/32	www.weimarnetz.de
 		77.87.48.19/32		www.weimarnetz.de_newserver
+        176.28.11.93        freifunk.net
+        217.197.80.242      wiki.freifunk.net
 		188.40.166.25		wireless.subsignal.org
 		"
-
-	[ -e "/www/advertisement.js" ] && {
-		fgrep -q "www.openxdemo.com" "/www/advertisement.js" && {
-			ip="$( _net dns2ip www.openxdemo.com )"
-			list="$list $ip www.openxdemo.com"
-		}
-	}
 
 	# include installation-specific entries:
 	_weblogin metadata_locationname default walled_garden
@@ -1818,123 +1514,6 @@ _netfilter_user_del()
 
 		rm -fR "/tmp/NETFILTER/USER/$mac" "/tmp/vds_user_$mac"
 	}
-}
-
-_netfilter_user_dataretention_add()
-{
-	local mac="$1"
-	local ip="$2"
-	local ulogd=
-	local myhna="$( _netfilter myhna )"
-
-	if [ -e "/tmp/NETFILTER/USER/$mac/dataretention" ]; then
-		return 1
-	else
-		touch "/tmp/NETFILTER/USER/$mac/dataretention"
-	fi
-
-	if grep -q ^'ipt_ULOG ' '/proc/modules'; then
-		ulogd='true'
-		grep -q ^"ipt_ULOG " /proc/modules || insmod ipt_ULOG
-		grep -q ^"xt_state " /proc/modules || insmod xt_state
-	else
-		_log do $funcname daemon info "kmodule 'ipt_ULOG' missing - no connection-detection for $mac"
-		ulogd='false'
-	fi
-
-	[ -e "/tmp/NETFILTER/connection_detection" ] || {
-		$IPT -t mangle -N mark_connection_new
-		$IPT -t mangle -A mark_connection_new -m state --state NEW -j MARK --set-mark 0x33
-		$IPT -t mangle -A mark_connection_new -j RETURN
-
-		$IPT -t mangle -N mark_connection_end
-		$IPT -t mangle -A mark_connection_end -p tcp --tcp-flags fin,ack fin,ack -j MARK --set-mark 0x44
-		$IPT -t mangle -A mark_connection_end -p tcp --tcp-flags rst rst -j MARK --set-mark 0x44
-		$IPT -t mangle -A mark_connection_end -p tcp --tcp-flags syn,ack syn,ack -j MARK --set-mark 0x44
-		$IPT -t mangle -A mark_connection_end -j RETURN
-
-		$IPT -t mangle -A FORWARD -j mark_connection_new
-		$IPT -t mangle -A FORWARD -j mark_connection_end
-
-		[ -e "/usr/sbin/ulogd" -a "$ulogd" = 'true' ] && {
-			pidof ulogd >/dev/null || /etc/init.d/ulogd start
-		}
-
-		touch "/tmp/NETFILTER/connection_detection"
-	}
-
-	$IPT -t mangle -N outgoing_$mac
-	if [ "$ulogd" = 'true' ]; then
-		$IPT -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ULOG --ulog-prefix "$mac>"
-	else
-		$IPT -t mangle -A outgoing_$mac -m mark --mark 0x33/0xff -j ACCEPT
-	fi
-
-	$IPT -t mangle -N incoming_$mac
-	if [ "$ulogd" = 'true' ]; then
-		$IPT -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ULOG --ulog-prefix "$mac<"
-	else
-		$IPT -t mangle -A incoming_$mac -m mark --mark 0x44/0xff -j ACCEPT
-	fi
-
-	$IPT -t mangle -A FORWARD -d $ip                            -j incoming_$mac
-	$IPT -t mangle -A FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
-	$IPT -t mangle -A FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
-}
-
-_netfilter_user_dataretention_del()
-{
-	local mac="$1"
-	local ip="$2"
-
-	[ -e "/tmp/NETFILTER/USER/$mac/dataretention" ] || return 1
-
-	$IPT -t mangle -D FORWARD -d $ip                            -j incoming_$mac
-	$IPT -t mangle -D FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
-	$IPT -t mangle -D FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
-	$IPT -t mangle -F outgoing_$mac
-	$IPT -t mangle -X outgoing_$mac
-	$IPT -t mangle -F incoming_$mac
-	$IPT -t mangle -X incoming_$mac
-
-	[ "$( _netfilter user_list )" = "$mac" ] && {		# last remaining user
-		$IPT -t mangle -D FORWARD -j mark_connection_end
-		$IPT -t mangle -D FORWARD -j mark_connection_new
-		$IPT -t mangle -F mark_connection_end
-		$IPT -t mangle -X mark_connection_end
-		$IPT -t mangle -F mark_connection_new
-		$IPT -t mangle -X mark_connection_new
-
-		bool_true 'system.@vds[0].enabled' && {
-			/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+
-		}
-		/etc/init.d/ulogd stop
-		rm "/tmp/NETFILTER/connection_detection"
-	}
-
-	rm "/tmp/NETFILTER/USER/$mac/dataretention"
-}
-
-_netfilter_user_quota_add()
-{
-	local mac="$1"
-	local upload="$2"
-	local download="$3"
-}
-
-_netfilter_user_quota_del()
-{
-	local option="$mac"
-}
-
-_netfilter_user_quota_query()
-{
-	local option="$mac"
-}
-
-_netfilter_user_quota_diff()
-{
-	local option="$mac"
 }
 
 _netfilter_user_shaping_add()
