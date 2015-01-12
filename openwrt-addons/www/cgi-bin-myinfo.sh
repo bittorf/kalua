@@ -34,6 +34,12 @@ MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 					esac
 
 					echo "Hersteller: $@"
+					echo "WLAN-Empfang:"
+
+					# TODO: get real interface
+					iw dev 'wlan0'   station get "$MAC" | grep "signal\|bitrate:"
+					iw dev 'wlan0-1' station get "$MAC" | grep "signal\|bitrate:"
+
 					echo "</pre>"
 				;;
 			esac
