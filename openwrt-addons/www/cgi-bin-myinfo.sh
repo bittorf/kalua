@@ -39,6 +39,7 @@ MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 					# TODO: get real interface
 					iw dev 'wlan0'   station get "$MAC" | grep "signal\|bitrate:"
 					iw dev 'wlan0-1' station get "$MAC" | grep "signal\|bitrate:"
+					_wifi minstrel "$MAC" debug
 
 					echo "</pre>"
 				;;
