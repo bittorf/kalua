@@ -10,13 +10,13 @@ ifname2mtu()
 	 sed -n 's/^.* mtu \([0-9]*\).*/\1/p;q'
 }
 
-netparam_for_uci_devices ()
+netparam_for_uci_devices()
 {
 	local NAME IFNAME ADDRESS NETMASK MTU BROADCAST NETWORK PREFIX HOSTNAME CONFIG_PROFILE
 
 	for DEVICE in loopback wlan lan wan ; do {
 
-		case $DEVICE in
+		case "$DEVICE" in
 			loopback) NAME="LO" ;;
 			wlan)	  NAME="WIFI" ;;
 			lan)	  NAME="LAN" ;;
@@ -24,12 +24,28 @@ netparam_for_uci_devices ()
 		esac
 
 		IFNAME="$(  uci -q get network.$DEVICE.ifname  )"
-		[ -z "$IFNAME" -a "$DEVICE" = "wlan" ] && {
-			if [ -e "/etc/config/wireless" ]; then
-				IFNAME="wlan0"
-			else
-				IFNAME=
-			fi
+
+		# make sure, that hybrid interfaces use the adhoc-interface
+		# for 'testing' in scheduler: incoming_wifi_activity()
+		# otherwise use the first interface
+		[ "$DEVICE" = "wlan" -a -e '/etc/config/wireless' ] && {
+			[ -e "/sbin/ifstatus" ] && {
+				if   fgrep -q "wlanadhoc" "/etc/config/wireless"; then
+					# typical: wlan0-1
+					IFNAME="$( ifstatus "wlanadhoc" | fgrep '"device":' | cut -d'"' -f4 )"
+					DEVICE="wlanadhoc"
+				elif fgrep -q "wlan" "/etc/config/wireless"; then
+					# typical: wlan0
+					IFNAME="$( ifstatus "wlan" | fgrep '"device":' | cut -d'"' -f4 )"
+				fi
+			}
+
+			[ -z "$IFNAME" ] && {
+				[ "$( uci -q get wireless.radio0.disabled )" = "1" ] || {
+					# if we have only disabled all VIF's, there is also not wifi:
+					grep -q 'wlan0:' '/proc/net/dev' && IFNAME="wlan0"
+				}
+			}
 		}
 
 		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
@@ -57,7 +73,7 @@ netparam_for_uci_devices ()
 			;;
 		esac
 
-		echo "${NAME}DEV=$IFNAME"
+		echo "${NAME}DEV=$( _sanitizer do "$IFNAME" firstword )"
 		echo "${NAME}MTU=$MTU"
 		echo "${NAME}ADR=$ADDRESS"
 		echo "${NAME}MSK=$NETMASK"
@@ -71,13 +87,39 @@ netparam_for_uci_devices ()
 		echo "${NAME}OLSR="
 	} done
 
-	CONFIG_PROFILE="$( uci get system.@profile[0].name )"
-	echo "CONFIG_PROFILE='$CONFIG_PROFILE'"
+	list_wifi_devs()
+	{
+		local network_name list_wifi_names i
 
-	HOSTNAME="$( uci get system.@system[0].hostname )"
-	echo "HOSTNAME='${HOSTNAME:-OpenWrt}'"
+		for i in 0 1 2 3 4 5 6 7; do {
+			list_wifi_names="$list_wifi_names $( uci -q get wireless.@wifi-iface[$i].network )"
+		} done
 
-	echo "HARDWARE='$( cat /etc/HARDWARE )'"
+		# for old firmwares
+		[ -e "/sbin/ifstatus" ] || {
+			[ -n "$list_wifi_names" ] && {
+				[ -e '/etc/config/wireless' ] && {
+					[ "$( uci get wireless.radio0.disabled )" = "1" ] || echo "wlan0"
+				}
+			}
+
+			return 0
+		}
+
+		# uci get wireless.@wifi-iface[0].device -> radio0
+		# uci get wireless.radio0.disabled -> 1?
+
+		for network_name in $list_wifi_names; do {
+			# can be:
+			# JSON: "device": "wlan0",
+			# or:
+			# Interface wlan0 not found
+			ifstatus "$network_name" | fgrep '"device":' | cut -d':' -f2 | cut -d'"' -f2
+		} done
+	}
+
+	# force to 1 line
+	echo "WIFI_DEVS='$( for IFNAME in $( list_wifi_devs ); do echo -n "$IFNAME "; done )'"
 
 	[ -e "/tmp/dmesg.boot" ] || . /usr/sbin/cron.check_klog
 	fgrep -sq "phy0: failed to initialize PHY" "/tmp/dmesg.boot" && {
@@ -94,10 +136,30 @@ _build()
 	netparam_for_uci_devices >$FILE
 }
 
-HASH_OLD="$( _file hash /tmp/NETPARAM )"
-_build
-HASH_NEW="$( _file hash /tmp/NETPARAM )"
 
+if [ $( _system uptime sec ) -lt 60 ]; then
+	if [ -e "/www/NETPARAM" ]; then
+		cp "/www/NETPARAM" "/tmp/NETPARAM"
+	else
+		sleep 30		# fixme! ifstatus wlanadhoc empty, needs about 18 sec till OK on 1043ND
+	fi
+else
+	HASH_OLD="$( _file hash '/tmp/NETPARAM' )"
+	_build
+
+	if [ -e "/www/NETPARAM" ]; then
+		. '/tmp/NETPARAM'
+		grep -q ^"WIFIDEV=$WIFIDEV"$ '/www/NETPARAM' || {
+			_log do earlyboot_netparam daemon alert "stored new version, now with WIFIDEV='$WIFIDEV'"
+			cp '/tmp/NETPARAM' '/www/NETPARAM'
+		}
+	else
+		_log do earlyboot_netparam daemon alert "stored initial version, WIFIDEV='$WIFIDEV'"
+		cp '/tmp/NETPARAM' '/www/NETPARAM'
+	fi
+fi
+
+HASH_NEW="$( _file hash /tmp/NETPARAM )"
 [ "$HASH_OLD" = "$HASH_NEW" ] || {
 	/etc/kalua_init			# this includes a static version of NETPARAM
-}					# fixme! hook when 'ifup wan' gets an dhcp-lease
+}
