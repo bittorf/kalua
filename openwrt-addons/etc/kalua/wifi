@@ -1747,30 +1747,48 @@ _wifi_bugreport_create()
 	}
 }
 
-_wifi_get()
-{
-	local network="$1"	# e.g. 'wlanadhoc'
+_wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
+{				# e.g. '_wifi get any mode ap'
+	local network="$1"	# e.g. 'wlanadhoc' or 'any'
 	local value="$2"	# e.g. 'channel'/'ssid'/'mode' or 'check' or 'index'
-	local i radio
+	local option="$3"	# e.g. 'ap'
+	local i radio out
+
+	interesting()
+	{
+		[ "$1" = 'any' ] && return 0
+		[ "$( uci -q get wireless.@wifi-iface[$i].network )" = "$1" ]
+	}
 
 	for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do {
-		[ "$( uci -q get wireless.@wifi-iface[$i].network )" = "$network" ] && {
+		interesting "$network" && {
 			case "$value" in
 				'index')
 					echo "$i"
 				;;
-				'channel')
-					radio="$( uci -q get wireless.@wifi-iface[$i].device )"
-					test -n "$radio" && uci get wireless.$radio.$value
+				'channel'|'hwmode'|'htmode')
+					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
+						if [ "$network" = 'any' ]; then
+							echo "$i"
+						else
+							uci get wireless.$radio.$value
+						fi
+					}
 				;;
 				'ssid'|'mode'|'bssid')
-					uci -q get "wireless.@wifi-iface[$i].$value"
+					out="$( uci -q get "wireless.@wifi-iface[$i].$value" )" && {
+						if [ "$network" = 'any' ]; then
+							[ "$out" = "$option" ] && echo "$i"
+						else
+							echo "$out"
+						fi
+					}
 				;;
-				*|'check')
+				'check'|*)
 				;;
 			esac
 
-			return 0
+			[ "$network" = 'any' ] || return 0
 		}
 	} done
 
