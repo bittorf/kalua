@@ -23,9 +23,10 @@ LINE=
 	} done <'/tmp/dmesg.recent'
 
 	if [ -e "/tmp/dmesg.boot" ]; then
-		_watch counter /tmp/dmesg.counter increment "$( _file lines "/tmp/dmesg.recent" )"
+		_watch counter '/tmp/dmesg.counter' increment "$( _file lines "/tmp/dmesg.recent" )"
 	else
-		cp "/tmp/dmesg.recent" "/tmp/dmesg.boot"
+		FIRST_RUN='true'
+		cp '/tmp/dmesg.recent' '/tmp/dmesg.boot'
 
 		# early ramcheck / Alina Friedrichsen
 		PATTERN="Bad RAM at address"
@@ -65,7 +66,12 @@ LINE=
 	grep -q "$PATTERN" '/tmp/dmesg.recent' && {
 		# TODO:
 		# rmmod ath9k; rmmod ath9k_common; rmmod ath9k_hw; rmmod ath; rmmod mac80211; rmmod cfg80211; rmmod compat; modprobe ath9k; wifi
-		_system crashreboot 'irq_probs'
+		if [ -n "$FIRST_RUN" ]; then
+			_wifi watch_phy_problems notify
+			_wifi watch_phy_problems
+		else
+			_system crashreboot 'irq_probs'
+		fi
 	}
 
 	PATTERN="ath: phy.: Could not stop RX"
