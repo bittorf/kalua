@@ -1189,7 +1189,11 @@ apply_symbol()
 						log "$funcname() $KALUA_DIRNAME: adding private patchsets from '$file'"
 						register_patch "DIR: $file"
 					else
-						if head -n1 "$file" | fgrep -q '/net/mac80211/'; then
+						if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
+							register_patch "$file"
+							cp -v "$file" 'package/kernel/mac80211/patches'
+							MAC80211_CLEAN='true'
+						elif head -n1 "$file" | fgrep -q '/drivers/net/wireless/ath/'; then
 							register_patch "$file"
 							cp -v "$file" 'package/kernel/mac80211/patches'
 							MAC80211_CLEAN='true'
