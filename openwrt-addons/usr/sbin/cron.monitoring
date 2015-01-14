@@ -674,12 +674,12 @@ grep -q ^"ip_tables " /proc/modules && {
 
 		_ntp set
 
-		[ -e /www/backup_archiv_node_data ] && {			# see _system reboot_safe()
+		[ -e '/www/backup_archiv_node_data' ] && {			# see _system reboot_safe()
 
 			_log do $FUNC daemon info "found node-data backup, including"
 
 			mv "/tmp/ARCHIV_MONITORING" "/tmp/ARCHIV_MONITORING.temp"	# copy backup-file
-			mv /www/backup_archiv_node_data "/tmp/ARCHIV_MONITORING"	# on top of
+			mv '/www/backup_archiv_node_data' "/tmp/ARCHIV_MONITORING"	# on top of
 			cat "/tmp/ARCHIV_MONITORING.temp" >>"/tmp/ARCHIV_MONITORING"	# normal node_data_file
 			rm  "/tmp/ARCHIV_MONITORING.temp"				# and remove backup
 		}
@@ -692,18 +692,21 @@ grep -q ^"ip_tables " /proc/modules && {
 
 		while true; do {							# start one line after last comment
 			LINENUMBER_LAST_SUCCESS=$(( $LINENUMBER_LAST_SUCCESS + 1 ))	# worst case is line one
-
 		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "/tmp/ARCHIV_MONITORING" )"		# must be url-encoded
 
 			case "$QUERY" in
-				"lo"*)		# e.g. local='...' or log='...'
-					[ ${#QUERY} -gt 3172 ] && {
-						_log do $FUNC daemon alert "ignoring long line: '${#QUERY}' bytes"
+				'local='*|'log='*)
+					# http://stackoverflow.com/questions/2659952/maximum-length-of-http-get-request
+					# REQUEST="$( I=8000; while let I-=1; do echo -n 'x'; done )"
+					# wget -O - "${KEEP_ALIVE_URL}?log=$REQUEST"
+					# check length of QUERY_STRING on server
+					[ ${#QUERY} -gt 8000 ] && {
+						_log do $FUNC daemon info "ignoring long line: '${#QUERY}' bytes"
 						continue
 					}
 
 					case "$QUERY" in
-						"log="*)
+						'log='*)
  							_log do $FUNC daemon debug "send log-message"
  							QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC"
  						;;
@@ -740,8 +743,9 @@ grep -q ^"ip_tables " /proc/modules && {
 						sed -n "$LINENUMBER_LAST_SUCCESS,999p" "/tmp/ARCHIV_MONITORING" >"/tmp/ARCHIV_MONITORING.tmp"
 						mv "/tmp/ARCHIV_MONITORING.tmp" "/tmp/ARCHIV_MONITORING"
 
- 						touch /tmp/SEND_ALIVE_FAILED
+ 						touch '/tmp/SEND_ALIVE_FAILED'
  						echo >>$SCHEDULER "$0"
+
  						break				# fixme! set comment ("marker") after last sent line
  					}
  				;;
