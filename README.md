@@ -19,6 +19,8 @@ how to get a release for a specific hardware
 	# (start in an empty directory)
 	wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh
 	sh build.sh --openwrt trunk
+
+	mkdir openwrt_download    # all downloads are going into this dir
 	cd openwrt
 
 	# full build for specific target
