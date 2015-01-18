@@ -5,6 +5,7 @@ START=01
 
 apply_olsr_roaming()
 {
+	[ -e /lib/modules/*/macvlan.ko ] || return 1
 	kmodule_force_activation 'macvlan'
 
 	return 0
@@ -12,7 +13,6 @@ apply_olsr_roaming()
 	local router_ip='192.168.0.1'
 	local dns_ip='192.168.0.1'
 
-	[ -e /lib/modules/*/macvlan.ko ] || return 1
 	uci -q get network.roaming >/dev/null && return 1
 
 	# TODO: always do remove_section()
@@ -23,6 +23,7 @@ apply_olsr_roaming()
 	uci set network.mastergate.proto='static'
 	uci set network.mastergate.ipaddr='192.168.0.1'
 	uci set network.mastergate.netmask='255.255.0.0'
+
 	uci set network.roaming='device'
 	uci set network.roaming.type='macvlan'
 	uci set network.roaming.name='roaming'
@@ -31,6 +32,10 @@ apply_olsr_roaming()
 
 	uci set dhcp.mastergate.dhcp_option="option:router,$router_ip,$dns_ip"
 	uci set dhcp.mastergate.leasetime='10m'
+
+	for INDEX in $( _wifi get any mode ap ); do {
+		uci set wireless.@wifi-iface[$INDEX].disassoc_low_ack='1'
+	} done
 }
 
 apply_olsr_speed()
@@ -611,6 +616,10 @@ boot()
 			uci set system.@weblogin[0].adminlang='en'
 		;;
 		xoai*)
+			for INDEX in $( _wifi get any mode ap ); do {
+				uci set wireless.@wifi-iface[$INDEX].disassoc_low_ack='0'
+			} done
+
 			uci set system.@weblogin[0].adminlang='en'
 			uci set system.@weblogin[0].enabled='1'
 			uci set system.@weblogin[0].dynamic_portfw='00:1a:97:'	# cam/ICS2030
@@ -656,6 +665,10 @@ boot()
 			} done
 
 			apply_olsr_speed '7'
+
+			[ "$( uci -q show network.wan.proto )" = 'pppoe' ] && {
+				uci set system.@system[0].avoid_autoreboot='true'
+			}
 
 			[ -n "$LOWMEM" ] && uci set system.@weblogin[0].enabled='0'
 			[ -z "$LOWMEM" ] && uci set system.@monitoring[0].statusprecache='1'
@@ -927,6 +940,10 @@ boot()
 			_wifi set ap 5ghz disabled '1'
 		;;
 		ejbw*)
+			for INDEX in $( _wifi get any mode ap ); do {
+				uci set wireless.@wifi-iface[$INDEX].disassoc_low_ack='0'
+			} done
+
 			uci set system.@weblogin[0].authserver='172.17.0.2'
 			uci set dhcp.wlan.leasetime='5m'
 			uci set olsrd.@meta[0].hnaslave=0
