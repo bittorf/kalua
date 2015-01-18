@@ -1,23 +1,18 @@
 #!/bin/sh /etc/rc.common 
-# set /etc/HARDWARE from machine field of /proc/cpuinfo
+# set /etc/HARDWARE early at boot.. apply_profile.code is later doing more specific detections 
 
 START=15 
 
 boot()
 {
-    HARDWARE=$(grep ^machine /proc/cpuinfo | sed 's/.*: \(.*\)/\1/')
-
-    if [ -z "$HARDWARE" ]; then
-        logger -t set_etc_hardware -p user.err "error: found no machine entry in /proc/cpuinfo"
-        exit 1
-    else
+    if [ ! -s /etc/HARDWARE ]; then
+        read HARDWARE < /tmp/sysinfo/model
+        [ -z "$HARDWARE" ] && { 
+            HARDWARE=$(grep ^machine /proc/cpuinfo | sed 's/.*: \(.*\)/\1/')
+        }
+        [ -z "$HARDWARE" ] && { 
+            HARDWARE="unknown" 
+        }
         echo "$HARDWARE" > /etc/HARDWARE
-        if [ $? -eq 0 ]; then        
-           logger -t set_etc_hardware -p user.notice "wrote $HARDWARE to /etc/HARDWARE"
-        else 
-           logger -t set_etc_hardware -p user.err "error writing $HARDWARE to /etc/HARDWARE"
-           exit 1
-        fi
-    fi 
-}
+    fi
 
