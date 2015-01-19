@@ -53,6 +53,23 @@ apply_olsr_speed()
 	} done
 }
 
+hostapd_activate_coredump()
+{
+	# not needed for >= r39139 (why?)
+	[ -e '/lib/wifi/hostapd.sh' ] && {
+		grep -q "unlimited" "/lib/wifi/hostapd.sh" || {
+			sed -i 's/hostapd -P/ulimit -c unlimited; &/' '/lib/wifi/hostapd.sh'
+		}
+	}
+
+	# since r38988
+	[ -e '/lib/netifd/wireless/mac80211.sh' ] && {
+		grep -q 'unlimited' '/lib/netifd/wireless/mac80211.sh' || {
+			sed -i 's|/usr/sbin/hostapd -P|ulimit -c unlimited; &|g' '/lib/netifd/wireless/mac80211.sh'
+		}
+	}
+}
+
 kmodule_is_deactivated()
 {
 	grep -q ^"#" "/etc/modules.d/"*"$1"	# e.g. batman-adv -> 50-batman-adv
@@ -659,6 +676,8 @@ boot()
 					sed -i 's/.*askconsole/# &/' /etc/inittab
 				}
 			}
+
+			hostapd_activate_coredump
 
 			for INDEX in $( _wifi get any mode ap ); do {
 				uci set wireless.@wifi-iface[$INDEX].disassoc_low_ack='0'
@@ -1293,12 +1312,6 @@ boot()
 				}
 			}
 
-			# not needed for >= r39139
-			[ -e '/lib/wifi/hostapd.sh' ] && {
-				grep -q "unlimited" "/lib/wifi/hostapd.sh" || {
-					sed -i 's/hostapd -P/ulimit -c unlimited; &/' '/lib/wifi/hostapd.sh'
-				}
-			}
 
 			case "x-$NODENUMBER" in
 				99)
