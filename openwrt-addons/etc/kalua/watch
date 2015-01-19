@@ -12,13 +12,7 @@ _watch_configchange()
 	local hashfile='/etc/openwrt_confighash'
 	local old_hash new_hash server_path server_file identity server
 
-	case "$CONFIG_PROFILE" in
-		ffweimar*|liszt28*)
-		;;
-		*)
-			return 0
-		;;
-	esac
+	bool_true 'system.@monitoring[0].autoupload_config' || return 0
 
 	# we dont take temporary changes into account ("uci show")
 	new_hash="$( cat /etc/config/* $HOME/.ssh/dropbear_*_key | md5sum )"
@@ -40,7 +34,7 @@ _watch_configchange()
 
 		pidof scp && return 1
 		if scp -i "$identity" '/tmp/config.tar.gz' "$server:$server_path/$server_file"; then
-			_log do $funcname daemon info "[OK] upload to $server"
+			_log do $funcname daemon alert "[OK] upload to $server"
 			echo "$new_hash" >"$hashfile"
 		else
 			_log do $funcname daemon info '[ERR] upload failed'
