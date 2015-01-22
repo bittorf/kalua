@@ -2,6 +2,7 @@
 
 log()
 {
+        echo "$0: $1" >/dev/console
 	logger -s "$0: $1"
 }
 
@@ -16,22 +17,6 @@ if [ "$1" = "boot" ]; then
     shift
 fi 
 
-
-merge_options()
-{
-  local FIRST=$1        # e.g. meshwizard values
-  local SECOND=$2       # e.g. system values from previous install
-  local THIRD=${3:-""}  # e.g. default value we want to have else
-
-  if [ -n "$FIRST" ]; then
-    echo "$FIRST"
-  elif [ -n "$SECOND" ]; then
-    echo "$SECOND"
-  else
-    echo "$THIRD"
-  fi
-
-}
 
 [ "${USER:-root}" = "root" ] || {
 	log "[ERR] user = $USER: seems we are in cross compiling stage?"
@@ -49,24 +34,205 @@ log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
 sleep 5
 df | logger
 
+find_all_strings_in_dmesg()
+{
+	local error
+
+	while [ -n "$1" ]; do {
+		if fgrep -q "$1" "$DMESG"; then
+			error=0
+		else
+			error=1
+		fi
+
+		shift
+	} done
+
+	return $error
+}
+
+hwprobe()
+{
+	local machine="$1"
+
+	case "$machine" in
+		"D-Link DIR-300 RevA1")
+			find_all_strings_in_dmesg	"CPU revision is: 00019064 (MIPS 4KEc)" \
+							"ath5k: phy0: Atheros AR2317 chip found (MAC: 0x90, PHY: 0x48)" \
+							"IP17xx: Found IP175C at 0:00"
+		;;
+		"Ubiquiti Nanostation2")
+			find_all_strings_in_dmesg	"CPU revision is: 00019064 (MIPS 4KEc)" \
+							"ath5k: phy0: Atheros AR2315 chip found (MAC: 0x86, PHY: 0x48)" \
+							"lpj=918528"
+		;;
+		"Ubiquiti PicoStation2")
+			find_all_strings_in_dmesg	"CPU revision is: 00019064 (MIPS 4KEc)" \
+							"ath5k phy0: Atheros AR2317 chip found (MAC: 0x90, PHY: 0x48)" \
+							"lpj=917504"
+		;;
+		"Ubiquiti Nanostation5")
+			find_all_strings_in_dmesg	"CPU revision is: 0001800a (MIPS 4Kc)" \
+							"ath5k: phy0: Atheros AR2313 chip found (MAC: 0x58, PHY: 0x44)" \
+							"lpj=898048"
+		;;
+		"Ubiquiti PicoStation5"|"Ubiquiti Litestation5")	# nanostation5 -> lpj differs
+			find_all_strings_in_dmesg	"CPU revision is: 0001800a (MIPS 4Kc)" \
+							"ath5k phy0: Atheros AR2313 chip found (MAC: 0x58, PHY: 0x44)" \
+							"lpj=899072"
+		;;
+		*)
+			false
+		;;
+	esac
+
+	return $?
+}
+
 DMESG="/tmp/dmesg.boot"
 [ -e "$DMESG" ] || {
 	dmesg >"$DMESG"
 }
 
-if [ -e "/etc/HARDWARE" ]; then
-	log "trying to read HARDWARE from /etc/HARDWARE"
+uboot_getvar()
+{
+	local var="$1"
+
+	strings '/dev/mtd0' | grep ^"${var}=" | cut -d'=' -f2
+}
+
+try_device()
+{
+	I=$(( ${I:=0} + 1 ))	# global_var
+
+	case "$I" in
+		 1) HARDWARE="Linksys WRT54G/GS/GL" ;;		# brcm47xx
+		 2) HARDWARE="Ubiquiti Bullet M" ;;		# ar71xx
+		 3) HARDWARE="TP-LINK TL-WR1043ND v2" ;;	# ar71xx
+		24) HARDWARE='TP-LINK TL-WR1043ND' ;;		# ar71xx
+		 4) HARDWARE="Buffalo WHR-HP-G54" ;;		# brcm47xx
+		 5) HARDWARE="SPW500V" ;;			# speedport w500v / aldi router
+		 6) HARDWARE="ASUS WL-HDD" ;;			# brcm47xx
+		 7) HARDWARE="ASUS WL-500g Premium V2" ;;	# brcm47xx
+		 8) HARDWARE="ASUS WL-500g Premium" ;;		# brcm47xx
+		 9) HARDWARE="Dell TrueMobile 2300" ;;		# brcm47xx // nvram set ModelId=WX-5565 commit
+		10) HARDWARE="Ubiquiti RouterStation Pro" ;;	# ar71xx
+		11) HARDWARE="4G Systems MTX-1 Board" ;;	# au1000 / meshcube
+		12) HARDWARE="Buffalo WZR-HP-AG300H" ;;		# ar71xx
+		13) HARDWARE="Ubiquiti Nanostation M" ;;	# ar71xx
+		14) HARDWARE="Seagate FreeAgent DockStar" ;;	# kirkwood
+		15) HARDWARE="TP-LINK TL-WR841N/ND v7" ;;	# ar71xx
+		16) HARDWARE="SPW500V" ;;			# brcm63xx / Targa WR 500 VoIP
+		17) HARDWARE="TP-LINK TL-WDR3600/4300/4310" ;;	# ar71xx
+		18) HARDWARE="TP-LINK TL-WR703N v1" ;;		# ar71xx
+		19) HARDWARE="TL-WDR4900 v1" ;;			# mpc85xx / vendor: tplink
+		20) HARDWARE="TP-LINK TL-WR841N/ND v8" ;;	# ar71xx
+		21) HARDWARE='PC Engines ALIX.2 ' ;;		# x86
+		22) HARDWARE='Asus WL500GP V1' ;;		# brcm47xx -> rename
+		23) HARDWARE='La Fonera 2.0N' ;;		# ramips_24kec
+		25) HARDWARE='Seagate GoFlex Net' ;;		# kirkwood
+		26) HARDWARE='TP-LINK Archer C7' ;;		# ar71xx
+		*)
+			HARDWARE=
+			return 1
+		;;
+	esac
+}
+
+if   hwprobe "D-Link DIR-300 RevA1"; then
+	HARDWARE="D-Link DIR-300 RevA1"
+elif hwprobe "Ubiquiti Nanostation2"; then
+	HARDWARE="Ubiquiti Nanostation2"
+elif hwprobe "Ubiquiti Nanostation5"; then
+	HARDWARE="Ubiquiti Nanostation5"
+fi
+
+[ -z "$HARDWARE" ] && {
+	while try_device; do {
+		fgrep -q "$HARDWARE" "$DMESG" && break
+	} done
+}
+
+if [ -n "$HARDWARE" ]; then
+	case "$HARDWARE" in
+		'TP-LINK Archer C7')
+			. /tmp/loader
+			[ $( _system flash_size ) -eq 16384 ] && {
+				HARDWARE="$HARDWARE v2"
+			}
+		;;
+		'Asus WL500GP V1')
+			HARDWARE='ASUS WL-500g Premium'
+		;;
+		"4G Systems MTX-1 Board")
+			HARDWARE="T-Mobile InternetBox"	# also: '4G MeshCube'
+		;;
+		"SPW500V")
+			HARDWARE="Speedport W500V"	# also: 'Targa WR 500 VoIP'
+		;;
+		"TL-WDR4900 v1")
+			HARDWARE="TP-LINK $HARDWARE"
+		;;
+		"Ubiquiti Bullet M")
+			ip address show | fgrep -q " 00:27:22:" && {
+				log "is it a 'Ubiquiti Picostation M2'?"
+				# HARDWARE="Ubiquiti Picostation M2"
+			}
+		;;
+		'Seagate GoFlex Net')
+			[ "$( uboot_getvar 'machid' )" = '0xd0a' ] && {
+				# see https://dev.openwrt.org/ticket/14303
+				HARDWARE='Seagate GoFlex Home'
+			}
+		;;
+	esac
+elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform: http://www.ubnt.com/picostation
+	HARDWARE="Ubiquiti PicoStation2"
+elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform: http://www.ubnt.com/picostation5
+	HARDWARE="Ubiquiti PicoStation5"
+elif grep -sq ^'loco-m-xw'$ '/tmp/sysinfo/board_name'; then
+	if iw phy phy0 info | grep -q '5180 MHz'; then
+		HARDWARE="Ubiquiti Nanostation loco M5"
+	else
+		HARDWARE="Ubiquiti Nanostation loco M2"
+	fi
+elif [ -e "/etc/HARDWARE" ]; then
+	log "could not detect hardware, trying /etc/HARDWARE"
 	read HARDWARE </etc/HARDWARE
 else
 	log "could not detect hardware, please enforce manually with a text in /etc/HARDWARE - abort"
+
 	[ "$1" = "help" ] || exit 1
 fi
 
+HARDWARE="$( echo "$HARDWARE" | sed 's/[ ]*$//' )"	# strip trailing whitespace (see alix2)
+
+log "detected: '$HARDWARE' and wrote to '/etc/HARDWARE' for later monitoring"
+echo "$HARDWARE" >"/etc/HARDWARE"
+
 case "$HARDWARE" in
 	"Linksys WRT54"*|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
-		rm /etc/modules.d/19-usb-brcm47xx /etc/modules.d/50-usb-ohci /etc/modules.d/20-usb-core
+		rm /etc/modules.d/*usb*
 	;;
 esac
+
+
+
+merge_options()
+{
+  local FIRST=$1        # e.g. meshwizard values
+  local SECOND=$2       # e.g. system values from previous install
+  local THIRD=${3:-""}  # e.g. default value we want to have else
+
+  if [ -n "$FIRST" ]; then
+    echo "$FIRST"
+  elif [ -n "$SECOND" ]; then
+    echo "$SECOND"
+  else
+    echo "$THIRD"
+  fi
+
+}
 
 SIM_ARG1="$( merge_options "$1" $( uci get meshwizard.community.ipschema ) $( uci get system.@profile[0].name | cut -d'_' -f1 ) )"
 SIM_ARG2="$( merge_options "$2" $( uci get meshwizard.community.wifimode ) $( uci get system.@profile[0].name | cut -d'_' -f2 ) )"
@@ -309,7 +475,7 @@ _config_system ()
 			uci set system.weblogin.authserver="10.63.7.1"
 		;;
 	esac
-
+	
 	#profile section of system
 	uci set system.profile="profile"
 	uci set system.profile.name="${INSTALLATION}_${PROFILE_MODE}"
@@ -414,6 +580,7 @@ _config_wireless ()			# fixme! channels hardcoded
 	[ -e "$temp" ] && rm "$temp"
 
 	[ -z "$TXPOWER" ] && hidetx="#"
+	
 	for radiocard in 0 1 2 3; do {
 		[ "$( uci get wireless.radio${radiocard}.disabled )" = "1" ] && {
 			uci set wireless.radio${radiocard}.disabled=0
