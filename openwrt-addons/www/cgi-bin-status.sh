@@ -5,6 +5,8 @@
 	show_pregenerated()
 	{
 		[ -e '/tmp/statuspage_neigh_pregenerated' ] || return 1
+
+		# no cpu-cycles for crawlers
 		_net ip4_is_private "$REMOTE_ADDR" || return 0
 
 		if [ -e "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR" ]; then
@@ -22,10 +24,15 @@
 		touch "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR"
 
 		case "$HTTP_ACCEPT_ENCODING" in
+			# e.g. 'gzip, deflate, sdch'
 			*'gzip'*)
-				# e.g. 'gzip, deflate, sdch'
 				_http header_mimetype_output 'text/html' 'gzip'
-				cat '/tmp/statuspage_neigh_pregenerated.gz'
+
+				if [ -e '/tmp/statuspage_neigh_pregenerated.gz' ]; then
+					cat '/tmp/statuspage_neigh_pregenerated.gz'
+				else
+					gzip -c '/tmp/statuspage_neigh_pregenerated'
+				fi
 			;;
 			*)
 				_http header_mimetype_output 'text/html'
