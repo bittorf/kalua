@@ -20,7 +20,7 @@
 		fi
 	}
 
-	show_pregenerated && {
+	if show_pregenerated ; then
 		touch "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR"
 
 		case "$HTTP_ACCEPT_ENCODING" in
@@ -41,7 +41,9 @@
 		esac
 
 		exit 0
-	}
+	else
+		_http header_mimetype_output 'text/html'
+	fi
 }
 
 remote_hops()
