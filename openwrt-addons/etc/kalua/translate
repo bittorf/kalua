@@ -1,16 +1,101 @@
 #!/bin/sh
 
+_translate_sanitize_userwish()
+{
+	local accept="$1"
+	local obj lang val
+
+	# TODO: remove artificial added 'lang' later, if also normally listed
+	#       - mark with e.g. '80 en:' and if 'en' exist -> remove
+
+	# https://github.com/iain/http_accept_language
+	# http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+
+	local oldIFS="$IFS"; IFS=',;' ; set -- $accept; IFS="$oldIFS"
+
+	for obj in $*; do {
+		case "$obj" in
+			'q='*)
+				case "${obj%.*}" in
+					'q=0')
+						val="${obj#*=}"
+					;;
+					*)
+						# invalid values or <empty>
+						val='1.00'
+					;;
+				esac
+
+				echo "$val $lang"
+
+				case "$lang" in
+					*'-'*)	# en-US -> en (main lang from sublang)
+						echo "$val ${lang%-*}"
+					;;
+				esac
+
+				lang=
+			;;
+			*)
+				[ -n "$lang" ] && {
+					echo "1.00 $lang"
+
+					case "$lang" in
+						*'-'*)	# en-US -> en
+							echo "1.00 ${lang%-*}"
+						;;
+					esac
+				}
+
+				lang="$obj"
+			;;
+		esac
+	} done
+}
+
+_translate_effective_lang()
+{
+	local accept="${1:-$HTTP_ACCEPT_LANGUAGE}"	# e.g. en-ca,en;q=0.8,en-us;q=0.6,de-de;q=0.4,de;q=0.2
+	local cachefile='/tmp/accept_lang_cache'	#      za;de-CH;q=0.843,de-DE,de;q=0.8,en-US;q=0.6,en;q=0.4,ru;q=0.39
+	local line default_fallback
+
+	if line="$( grep -s " $accept"$ "$cachefile" )"; then
+		echo ${line% *}
+	else
+		_translate sanitize_userwish "$accept" | sort -nr | while read lang; do {
+			set -- $lang
+
+			case "$2" in
+				# supported languages
+				de|en|ru|da|ja|fr)
+					echo "$2 $accept" >>"$cachefile"
+					break
+				;;
+			esac
+		} done
+
+		if line="$( grep -s " $accept"$ "$cachefile" )"; then
+			echo ${line% *}
+		else
+			default_fallback="$( uci -q get system.@weblogin[0].defaultlang )"
+			default_fallback="${default_fallback:-de}"
+
+			echo "$default_fallback $accept" >>"$cachefile"
+			echo "$default_fallback"
+		fi
+	fi
+}
+
 _translate_lang()
 {
 	local lang="$1"		# ISO 639-1
-				# fixme! we need a way to know, if lang = left2right or right2left
+				# FIXME! we need a way to transport/know, if lang = left2right or right2left
 	case "$lang" in
 		de|en|ru|da|ja|fr)
 			echo "$lang"
 		;;
 		*)
-			lang="$( uci -q get system.@weblogin[0].adminlang )"
-			echo "${lang:-de}"	# hardcoded default
+			_translate effective_lang
 		;;
 	esac
 }
