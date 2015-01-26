@@ -43,7 +43,6 @@ _pdf_output ()
 {
 	local METHOD="$1"			# a4digest|a4marker|a4marker_digest|a4test
 	local LIST_LOGIN_ID="$2"
-# METHOD=a4test
 	local FUNC="pdf_output"
 	local TEMPFILE="/tmp/${FUNC}_${METHOD}_$$"
 	local FILEPART
@@ -56,7 +55,7 @@ _pdf_output ()
 	_pdf output_header $SIZE_BODY				>$TEMPFILE.header
 	SIZE_HEADER="$( _file size "$TEMPFILE.header" )"
 
-	_pdf output_footer $(( $SIZE_BODY + SIZE_HEADER ))	>$TEMPFILE.footer
+	_pdf output_footer "$TEMPFILE.header" "$(( $SIZE_BODY + SIZE_HEADER ))"	>$TEMPFILE.footer
 
 	for FILEPART in header body footer; do {
 		cat $TEMPFILE.$FILEPART
@@ -186,16 +185,21 @@ EOF
 _pdf_output_header()				# http://www.gnupdf.org/Introduction_to_PDF
 {						# http://www.aivosto.com/vbtips/pdf-optimize2.html
 	local bodysize_in_bytes="${1:-100}"	# http://search.cpan.org/~ftassin/PDF-Create-0.01/lib/PDF/Create.pm
-	local fontname='Times-Roman'
+	local fontname
 
 	# http://en.wikipedia.org/wiki/Portable_Document_Format#Standard_Type_1_Fonts_.28Standard_14_Fonts.29
 	# no need to embed: Times, Couries, Helvetica, Symbol, Zapf Dingbats
 	case "$CONFIG_PROFILE" in
-		schoeneck*)
+		liszt28*|schoeneck*)
 			fontname='ArialNarrow'
+		;;
+		*)
+			fontname='Times-Roman'
 		;;
 	esac
 
+	# any changes to these objects must be reflected on
+	# footer-xref-table, which is done in output_footer()
 	cat <<EOF
 %PDF-1.7
 
@@ -244,21 +248,31 @@ stream
 EOF
 }
 
-_pdf_output_footer ()
+_pdf_object_byte_offset()
 {
-	local XREF_START_BYTE_OFFSET="${1:-999}"	# length of body + header
-	XREF_START_BYTE_OFFSET="$(( $XREF_START_BYTE_OFFSET + 18 ))"	# adding 'endstream...' after body
+	local file="$1"
+	local object="$2"		# e.g. '2' or ^'2 0 obj'$
+	local byteoffset
 
-						# http://khkonsulting.com/2013/01/the-trouble-with-the-xref-table/
-	local BYTE_OFFSET_OBJ1="0000000010"	# in vim we can see the decimal-byte-counter with
-	local BYTE_OFFSET_OBJ2="0000000079"	# ESC + g + CTRL <g> (minus 1) when going to an
-	local BYTE_OFFSET_OBJ3="0000000173"	# object start, e.g. '3 0 obj' having the coursor on '3'
-	local BYTE_OFFSET_OBJ4="0000000300"
-	local BYTE_OFFSET_OBJ5="0000000379"	# we have 6 hardcoded objects
+	# http://khkonsulting.com/2013/01/the-trouble-with-the-xref-table/
+	# in vim we can see the decimal-byte-counter with
+	# ESC + g + CTRL <g> (minus 1) when going to an
+	# object start, e.g. '3 0 obj' having the coursor on '3'
 
-	local GENERATION_NO="00000"		# all objects are new and never changed
-	local OBJ_USED="n "
-	local OBJ_HIDDEN="f "
+	[ ${#object} = 1 ] && object="^$object 0 obj"
+
+	byteoffset=$( sed -n "/%PDF-/,/$object/p" "$file" | head -n -1 | wc -c )
+	printf "%010d" $byteoffset
+}
+
+_pdf_output_footer()
+{
+	local file="$1"
+	local start_byteoffset="$(( $2 + 18 ))"	# length of body + header + adding 'endstream...' after body
+
+	local generation_number='00000'		# all objects are new and never changed
+	local object_used='n '
+	local object_hidden='f '
 
 	cat <<EOF
 endstream
@@ -266,19 +280,19 @@ endobj
 
 xref
 0 6
-0000000000 65535 $OBJ_HIDDEN
-$BYTE_OFFSET_OBJ1 $GENERATION_NO $OBJ_USED
-$BYTE_OFFSET_OBJ2 $GENERATION_NO $OBJ_USED
-$BYTE_OFFSET_OBJ3 $GENERATION_NO $OBJ_USED
-$BYTE_OFFSET_OBJ4 $GENERATION_NO $OBJ_USED
-$BYTE_OFFSET_OBJ5 $GENERATION_NO $OBJ_USED
+0000000000 65535 $object_hidden
+$( _pdf object_byte_offset "$file" 1 ) $generation_number $object_used
+$( _pdf object_byte_offset "$file" 2 ) $generation_number $object_used
+$( _pdf object_byte_offset "$file" 3 ) $generation_number $object_used
+$( _pdf object_byte_offset "$file" 4 ) $generation_number $object_used
+$( _pdf object_byte_offset "$file" 5 ) $generation_number $object_used
 trailer
 <<
   /Size 6
   /Root 1 0 R
 >>
 startxref
-$XREF_START_BYTE_OFFSET
+$start_byteoffset
 %%EOF
 EOF
 }
