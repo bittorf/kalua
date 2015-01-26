@@ -81,11 +81,11 @@ build_http_postdata()
 guess_crash_reason()
 {
 	local file="$1"
+	local manually_crashed='SysRq : Trigger a crash'
 	local reason
 
 	for reason in \
 		"Instruction bus error" \
-		"SysRq : Trigger a crash" \
 		"invoked oom-killer:" \
 		"Unable to handle kernel paging request at virtual address 00000000" \
 		"Unhandled kernel unaligned access" \
@@ -97,6 +97,8 @@ guess_crash_reason()
 		"Kernel bug detected" \
 		"device closed unexpectedly"
 		do {
+
+		fgrep -sq "$manually_crashed" "$file" && continue
 
 		fgrep -sq "$reason" "$file" && {
 			echo "$reason"
@@ -111,28 +113,39 @@ guess_crash_reason()
 start()
 {
 	local option="$1"
-	local funcname="crashlog_apport"		# enforce a crash with 'echo c >/proc/sysrq-trigger' (SysRq: Trigger a crash) or
+	local funcname="crashlog_apport"		# enforce a crash with 'echo c >/proc/sysrq-trigger' or
 	local crashlog="/sys/kernel/debug/crashlog"	# enforce a crash with 'tail -f /dev/zero' (out-of-memory = oom)
 	local pause=1					# (crashlog.o works since r32788)
 	local answer="false"
 	local maxtry=3
+	local manually_crashed='SysRq : Trigger a crash'
 	local destination reason
 
 	. /tmp/loader
 
 	# upload later - not during bootup, each script is terminated after 15 sec
 	[ -z "$option" ] && {
-		reason="$( guess_crash_reason "$file" )" && {
+		if reason="$( guess_crash_reason "$crashlog" )" ; then
 			_log do $funcname daemon alert "crash detected: reason: $reason"
 			echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"
-		}
+		else
+			if grep -sq "$manually_crashed" "$crashlog"; then
+				_log do $funcname daemon info "[OK] no real crash in $crashlog"
+			else
+				if [ -e "$crashlog" ]; then
+					_log do $funcname daemon alert "[ERR] unknown crash in $crashlog"
+				else
+					_log do $funcname daemon debug "[OK] empty $crashlog"
+				fi
+			fi
+		fi
 
 		return 0
 	}
 
 	for file in $crashlog /www/crashlog.* ; do {
 		[ -e "$file" ] || continue
-		grep -q 'SysRq : Trigger a crash' "$file" && continue
+		grep -sq "$manually_crashed" "$file" && continue
 
 		while [ $maxtry -gt 0 ]; do {
 			# default SERVERIP is 84.38.67.43
