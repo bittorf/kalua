@@ -63,6 +63,7 @@ EOF
 #	--patchdir \$dir
 #       --openwrt trunk | <empty>
 #	--hardware 'Ubiquiti Bullet M5'|<empty> = list supported models
+#	--buildid 'user@domain.tld'
 #	--kernel
 #	--usecase
 #	--profile 'ffweimar.hybrid.120'
@@ -1855,6 +1856,19 @@ while [ -n "$1" ]; do {
 		;;
 		'--quiet'|'-q')
 			QUIET='true'
+		;;
+		'--buildid')
+			# http://tjworld.net/wiki/Linux/Kernel/Build/CustomiseVersionString
+			log "[OK] set $2 via fake hostname/whoami in ~"
+
+			echo -e "#!/bin/sh\necho $( echo "$2" | cut -d'@' -f1 )" >~/whoami   && chmod +x ~/whoami
+			echo -e "#!/bin/sh\necho $( echo "$2" | cut -d'@' -f2 )" >~/hostname && chmod +x ~/hostname
+
+			case "$PATH" in
+				'~:'*)
+					log "[ERR] adjust your path with: export PATH='~:$PATH'"
+				;;
+			esac
 		;;
 	esac
 
