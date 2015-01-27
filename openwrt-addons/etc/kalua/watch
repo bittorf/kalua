@@ -1862,18 +1862,20 @@ _watch_olsrstuff()
 	if pidof olsrd >/dev/null ; then
 		[ -e '/tmp/OLSR/ALL' ] || firstrun='true'
 
-		# TODO: neigh? + (potential olsr-master = slave on the other side) -> wait till we are master
-		[ -n "$LOWMEM" -a -e "/www/SIMPLE_MESHNODE" ] && {
-			[ $( _system uptime min ) -lt 60 ] && firstrun=
-		}
-
 		_olsr build_tables && {
 			[ "$firstrun" = 'true' ] && {
 				[ -e '/tmp/OLSR/ALL' ] && {
 					_log do $funcname daemon info "first successful OLSR-query"
-
-					[ -n "$LOWMEM" ] && _watch lowmem_freemem
 				}
+			}
+
+			[ -n "$LOWMEM" ] && {
+				if [ -e '/www/SIMPLE_MESHNODE' ]; then
+					# TODO: neigh? + (potential olsr-master = slave on the other side) -> wait till we are master
+					[ $( _system uptime min ) -gt 60 ] && _watch lowmem_freemem
+				else
+					_watch lowmem_freemem
+				fi
 			}
 		}
 
@@ -1948,6 +1950,10 @@ _watch_olsrstuff()
 
 _watch_lowmem_freemem()
 {
+	local markerfile='/tmp/watch_lowmem_freemem'
+
+	[ -e "$markerfile" ] && return 0
+
 	killall klogd
 	killall hotplug2
 	killall syslogd
@@ -2019,4 +2025,6 @@ _watch_lowmem_freemem()
 			killall ubusd
 		fi
 	}
+
+	touch "$markerfile"
 }
