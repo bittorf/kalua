@@ -763,7 +763,7 @@ openwrt_download()
 			wish='r43238'
 		;;
 		'testing')
-			wish='r43930'
+			wish='r44150'
 		;;
 	esac
 
