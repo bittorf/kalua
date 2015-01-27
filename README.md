@@ -211,6 +211,7 @@ system.@monitoring[0].url		- url
 system.@monitoring[0].statusprecache    - bool
 system.@monitoring[0].ignore_switch_error - bool
 system.@monitoring[0].autoupload_config - bool
+system.@monitoring[0].ignore_wifi_framecounter - bool
 
 system.@admin[0].location		- string
 system.@admin[0].latlon			- string
