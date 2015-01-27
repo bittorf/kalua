@@ -1180,8 +1180,8 @@ config 'interface' 'lan'
 	option 'ifname'   '$LANDEV'
 $( test -n "$LANMAC" && echo "	option 'macaddr' '$LANMAC'" )
 	option 'proto'    'static'
-	option 'ipaddr'   '$( _ipsystem do $NODE | grep LANADR= | cut -d'=' -f2 )'
-	option 'netmask'  '$( _ipsystem do $NODE | grep LANMSK= | cut -d'=' -f2 )'
+	option 'ipaddr'   '$( _ipsystem getvar 'LANADR' $NODE )'
+	option 'netmask'  '$( _ipsystem getvar 'LANMSK' $NODE )'
 
 EOF
 	}
@@ -1190,8 +1190,8 @@ EOF
 			:		# no wandev/singleport
 	else
 		local hide_gateway="#"
-		local wan_ipaddr="$(  _ipsystem do $NODE | grep WANADR= | cut -d'=' -f2 )"
-		local wan_netmask="$( _ipsystem do $NODE | grep WANMSK= | cut -d'=' -f2 )"
+		local wan_ipaddr="$(  _ipsystem getvar 'WANADR' $NODE )"
+		local wan_netmask="$( _ipsystem getvar 'WANMSK' $NODE )"
 		local wan_gateway=
 		local username password hideip wan_dns
 
@@ -1374,7 +1374,7 @@ for radiocard in 0 1 2 3; do {
 		;;
 	esac
 
-	wlan_ipaddr="$( _ipsystem do $NODE | grep WIFIADR= | cut -d'=' -f2 )"
+	wlan_ipaddr="$( _ipsystem getvar 'WIFIADR' $NODE )"
 
 	### radiocard-0
 	# adhoc = .1	adhoc or ap = .1
@@ -1389,10 +1389,10 @@ for radiocard in 0 1 2 3; do {
 	if grep "option network" "/etc/config/wireless" | grep -q "wlanadhoc${network_append}"; then
 		local ip_1stIF_addvalue=$(( (($radiocard + 1) * 2 )     - 1 ))
 		local ip_2ndIF_addvalue=$(( (($radiocard + 1) * 2 ) - 1 - 1 ))
-		wlan_netmsk="$( _ipsystem do $NODE | grep ^"WIFI_DHCP_PRE=" | cut -d'=' -f2 )"
+		wlan_netmsk="$( _ipsystem getvar 'WIFI_DHCP_PRE' $NODE )"
 	else
 		local ip_1stIF_addvalue=$(( (($radiocard + 1) * 2 ) - 1 - 1 ))
-		wlan_netmsk="$( _ipsystem do $NODE | grep ^"WIFI_PRE=" | cut -d'=' -f2 )"
+		wlan_netmsk="$( _ipsystem getvar 'WIFI_PRE' $NODE )"
 	fi
 
 	cat >>/etc/config/network <<EOF
@@ -1407,7 +1407,7 @@ EOF
 
 	grep "option network" "/etc/config/wireless" | grep -q "wlanadhoc${network_append}" || continue
 
-	wlan_netmsk="$( _ipsystem do $NODE | grep ^"WIFI_PRE=" | cut -d'=' -f2 )"
+	wlan_netmsk="$( _ipsystem getvar 'WIFI_PRE' $NODE )"
 
 	cat >>/etc/config/network <<EOF
 
@@ -1502,17 +1502,17 @@ $hide	list notinterface	wan
 
 config dhcp lan
 	option interface	lan
-	option start 		$( _ipsystem do "$NODE" | grep ^"LANDHCPSTART=" | cut -d'=' -f2 )
-	option limit		$( _ipsystem do "$NODE" | grep ^"LANDHCPNUM="   | cut -d'=' -f2 )
+	option start 		$( _ipsystem getvar 'LANDHCPSTART' $NODE )
+	option limit		$( _ipsystem getvar 'LANDHCPNUM' $NODE )
 	option leasetime	2h
 	option force		1
 	option ignore		${DHCP_IGNORE_LAN:-0}
 
 config dhcp wlan
 	option interface	wlan
-	option start 		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPSTART=" | cut -d'=' -f2 | cut -d'.' -f4 )
-	option netmask		$( _net cidr2mask "$( _ipsystem do "$NODE" | grep ^"WIFI_DHCP_PRE=" | cut -d'=' -f2 )" ) 	# maybe lower than wifimask
-	option limit		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPNUM=" | cut -d'=' -f2 )			 # fixme! better: 21
+	option start 		$( _ipsystem getvar 'WIFIDHCPSTART' $NODE )
+	option netmask		$( _net cidr2mask "$( _ipsystem getvar 'WIFI_DHCP_PRE' $NODE )" )	# maybe lower than wifimask
+	option limit		$( _ipsystem getvar 'WIFIDHCPNUM' $NODE )				# fixme! better: 21
 	option leasetime	1h
 	option force		1
 	option ignore		${DHCP_IGNORE_WLAN:-0}
@@ -1601,8 +1601,8 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 	local INTERFACES2		# Mode: adhoc
 	local hna_net hna_mask main_ip
 
-	hna_net="$(  _ipsystem do $NODE | grep OLSR_HNA= | cut -d'=' -f2 | cut -d'/' -f1 )"
-	hna_mask="$( _ipsystem do $NODE | grep OLSR_HNA= | cut -d'/' -f2 )"
+	hna_net="$(  _ipsystem getvar 'OLSR_HNA' | cut -d'/' -f1 )"
+	hna_mask="$( _ipsystem getvar 'OLSR_HNA' | cut -d'/' -f2 )"
 	hna_mask="$( _net cidr2mask $hna_mask )"
 
 	local landev="lan"
