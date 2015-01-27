@@ -54,11 +54,23 @@ _translate_sanitize_userwish()
 	} done
 }
 
+_translate_default_lang()
+{
+	local default_fallback="$( uci -q get system.@weblogin[0].defaultlang )"
+
+	echo "${default_fallback:-de}"
+}
+
 _translate_effective_lang()
 {
 	local accept="${1:-$HTTP_ACCEPT_LANGUAGE}"	# e.g. en-ca,en;q=0.8,en-us;q=0.6,de-de;q=0.4,de;q=0.2
 	local cachefile='/tmp/accept_lang_cache'	#      za;de-CH;q=0.843,de-DE,de;q=0.8,en-US;q=0.6,en;q=0.4,ru;q=0.39
 	local line default_fallback
+
+	[ -z "$accept" ] && {
+		_translate default_lang
+		return 0
+	}
 
 	if line="$( grep -s " $accept"$ "$cachefile" )"; then
 		echo ${line% *}
@@ -78,8 +90,7 @@ _translate_effective_lang()
 		if line="$( grep -s " $accept"$ "$cachefile" )"; then
 			echo ${line% *}
 		else
-			default_fallback="$( uci -q get system.@weblogin[0].defaultlang )"
-			default_fallback="${default_fallback:-de}"
+			default_fallback="$( _translate default_lang )"
 
 			echo "$default_fallback $accept" >>"$cachefile"
 			echo "$default_fallback"
