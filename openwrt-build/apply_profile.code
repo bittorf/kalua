@@ -24,53 +24,32 @@ uptime_in_seconds()
 	kill -HUP 1	# forced process "init" to reload it's config-file
 }
 
+DMESG='/tmp/dmesg.boot'
+[ -e "$DMESG" ] || dmesg >"$DMESG"
+
 jffs2_is_ready()
 {
 	local funcname='jffs2_is_ready'
+	local pattern='jffs2_build_xattr_subsystem: complete building xattr subsystem'
 
-	if grep -q ' jffs2 rw' '/proc/mounts'; then
-		log "$funcname() yes"
-	else
-		log "$funcname() no"
-	fi
-
-	[ -n "$FAILSAFE" ] && {
-		df | grep -q "/overlay"$ || {
-			log "please enter 'mount_root', you are in FAILSAFE-mode"
-			sleep 3
-			return 1
-		}
-	}
-
-	lock -w /tmp/.switch2jffs && {		# ramdisk useable?
-		df | grep -q " /tmp"$ || {
-			return 1
-		}
-	}
-
-	if [ -n "$FAILSAFE" ]; then
+	if   [ -n "$FAILSAFE" ]; then
+		log "[OK] $funcname() failsafe mode active"
+		return 0
+	elif grep -q "$pattern" "$DMESG"; then
+		log "[OK] $funcname() found ready marker in klog"
+		return 0
+	elif [ ! -e '/etc/init.d/apply_profile' ]; then
+		log "[OK] $funcname() already applied profile, filesystem should be ok"
 		return 0
 	else
-		[ -e "/lib/functions.sh" ] && . /lib/functions.sh
-		[ -e "/etc/functions.sh" ] && . /etc/functions.sh		# deprecated
-		[ -e "/lib/functions/boot.sh" ] && . /lib/functions/boot.sh	# removed in r34794
-		jffs2_ready && return 0
+		[ $( uptime_in_seconds ) -gt 240 ] && {
+			log "[OK] $funcname() uptime >4 min"
+			return 0
+		}
 	fi
 
-	[ -e "/etc/init.d/apply_profile" ] || {
-		log "already applied profile, filesystem should be ok"
-		return 0
-	}
-
-	[ $( uptime_in_seconds ) -gt 240 ] && {
-		return 0
-	}
-
-	logread | grep -q "jffs2_build_xattr_subsystem: complete building xattr subsystem" && {
-		touch "/tmp/JFFS2_OK"
-	}
-
-	test -e "/tmp/JFFS2_OK"
+	log "[ERR] $funcname() does not seems ready yet"
+	return 1
 }
 
 while ! jffs2_is_ready ; do {
@@ -137,11 +116,6 @@ hwprobe()
 	esac
 
 	return $?
-}
-
-DMESG="/tmp/dmesg.boot"
-[ -e "$DMESG" ] || {
-	dmesg >"$DMESG"
 }
 
 uboot_getvar()
