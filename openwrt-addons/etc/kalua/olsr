@@ -44,7 +44,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	local configfile="/var/etc/olsrd.conf"
 	local max_errors=3
 	local route_count=0
-	local firstping_lan firstping_wan gateway gateway_old ip i cost cost_best
+	local firstping_lan firstping_wan gateway gateway_old ip i cost cost_best prio
 	local has_wired_neigh
 
 	[ -e "$configfile" ] || {
@@ -189,7 +189,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	# marker file for being HNA-master
 	_olsr version >/dev/null
 
-	# fixme! we need a generic approach:
+	# FIXME! we need a generic approach:
 	# measure 'average' and detect breakdown.
 	# e.g. average = 195 -> count = 146 (75%) -> restart + new buildup of 'average'
 	case "${NODENUMBER}_${CONFIG_PROFILE}" in
@@ -257,7 +257,10 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 									;;
 									*)
 										[ $( _system uptime min ) -lt 15 ] || {
-											_log do $func daemon alert "unstable LAN: $1 $2 $4 $5 $6"
+											prio='alert'
+											bool_true 'system.@monitoring[0].ignore_lossyethernet' && prio='info'	# e.g. powerline or airOS
+
+											_log do $func daemon $prio "unstable LAN: $@"
 											_watch counter "/tmp/$funcname-unstableLAN" increment 1 max 5 || {
 												bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
 													_system crashreboot 'flappy_olsr'
@@ -288,7 +291,10 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 									;;
 									*)
 										[ $( _system uptime min ) -lt 15 ] || {
-											_log do $func daemon alert "unstable WAN: $1 $2 $4 $5 $6"
+											prio='alert'
+											bool_true 'system.@monitoring[0].ignore_lossyethernet' && prio='info'	# powerline or airOS
+
+											_log do $func daemon $prio "unstable WAN: $@"
 											_watch counter "/tmp/$funcname-unstableWAN" increment 1 max 5 || {
 												bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
 													_system crashreboot 'flappy_olsr'
