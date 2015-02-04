@@ -306,6 +306,12 @@ target_hardware_set()
 	[ -z "$version" ] && version='1'
 
 	case "$model" in
+		'PC Engines WRAP')
+			# http://wiki.openwrt.org/toh/pcengines/wrap
+			TARGET_SYMBOL='CONFIG_TARGET_x86_generic_Wrap=y'
+			FILENAME_SYSUPGRADE='openwrt-x86-generic-combined-squashfs.img'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
 		'PC Engines ALIX.2')
 			# http://wiki.openwrt.org/toh/pcengines/alix
 			TARGET_SYMBOL='CONFIG_TARGET_x86_alix2=y'
