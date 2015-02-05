@@ -307,6 +307,7 @@ target_hardware_set()
 
 	case "$model" in
 		'PC Engines WRAP')
+			# tinybios: enter by pressing 's' during mem-counter
 			# http://wiki.openwrt.org/toh/pcengines/wrap
 			TARGET_SYMBOL='CONFIG_TARGET_x86_generic_Wrap=y'
 			# gunzip file.gz && dd if=file of=/dev/sdX bs=1M && boot it!
@@ -317,6 +318,7 @@ target_hardware_set()
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_INITRAMFS=y"
 		;;
 		'PC Engines ALIX.2')
+			# tinybios: enter by pressing 's' during mem-counter
 			# http://wiki.openwrt.org/toh/pcengines/alix
 			TARGET_SYMBOL='CONFIG_TARGET_x86_alix2=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-alix2-combined-squashfs.img'
