@@ -310,7 +310,9 @@ target_hardware_set()
 			# http://wiki.openwrt.org/toh/pcengines/wrap
 			TARGET_SYMBOL='CONFIG_TARGET_x86_generic_Wrap=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-generic-combined-squashfs.img'
-			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+			# dnsmasq -i eth0 --dhcp-range=192.168.1.100,192.168.1.200 --dhcp-boot=bzImage --enable-tftp --tftp-root=/tmp -u root -p0 -K --log-dhcp --bootp-dynamic
+			FILENAME_FACTORY='openwrt-x86-generic-ramfs.bzImage'
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_INITRAMFS=y"
 		;;
 		'PC Engines ALIX.2')
 			# http://wiki.openwrt.org/toh/pcengines/alix
@@ -1490,8 +1492,10 @@ build_options_set()
 			;;
 			'WiFi'*)
 				# generic approach:
-				# e.g usb-wifi-stick: rtl8192cu
+				# e.g usb-wifi-stick: rtl8192cu -> WiFi-rtl8192cu
 				# ID 7392:7811 Edimax Technology Co., Ltd EW-7811Un 802.11n Wireless Adapter [Realtek RTL8188CUS]
+				# or
+				# CONFIG_PACKAGE_kmod-ath5k=y -> WiFi-ath5k
 
 				kmod="$( echo "$1" | cut -d'-' -f2 )"			# WiFi-rtl8192cu -> rtl8192cu
 				apply_symbol "CONFIG_PACKAGE_kmod-${kmod}=y"		# kernel-modules: wireless:
