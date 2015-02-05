@@ -1,0 +1,129 @@
+#!/bin/sh
+. /tmp/loader
+
+_log do serving_ssh_keys daemon debug "trying to install $( grep "^NODE=" $0 | wc -l ) objects"
+
+SSH_HOME="/etc/dropbear"
+# [ "$VERSION" = "0.1" -o "$VERSION" = "0.2" ] && {
+	rm -fR "$HOME/.ssh"
+	ln -s $SSH_HOME "$HOME/.ssh"		# normally known_hosts goes to .ssh and the rest to /etc/dropbear
+# }
+
+AUTHORIZED_KEYS_ORIG="/etc/dropbear/authorized_keys"
+AUTHORIZED_KEYS="/tmp/authorized_keys_temp_$$"
+
+# [ "$VERSION" = "0.1" ] && {
+	rm $AUTHORIZED_KEYS_ORIG
+# }
+
+touch $AUTHORIZED_KEYS_ORIG
+cp $AUTHORIZED_KEYS_ORIG $AUTHORIZED_KEYS
+
+KNOWN_HOSTS_ORIG="$SSH_HOME/known_hosts"
+KNOWN_HOSTS="/tmp/known_hosts_temp_$$"
+
+# [ "$VERSION" = "0.1" ] && {
+	rm $KNOWN_HOSTS_ORIG
+# }
+
+touch $KNOWN_HOSTS_ORIG
+cp $KNOWN_HOSTS_ORIG $KNOWN_HOSTS
+
+FILE_SSHPUBKEY="/tmp/sshpubkey_decoded_temp_$$"
+
+COUNT_AUTH_KEYS_BEGIN="$(   _file lines $AUTHORIZED_KEYS )"
+COUNT_KNOWN_HOSTS_BEGIN="$( _file lines $KNOWN_HOSTS	 )"
+
+ESTIMATED_COUNT_KEY_BEING_ADDED="$( grep ^"NODE=" "$0" | wc -l )"
+# _software make_free_space $(( 100 + ($ESTIMATED_COUNT_KEY_BEING_ADDED * 2) ))
+
+grep ^"NODE=" "$0" | while read LINE; do {
+	
+	eval "$LINE"							# SSHPUBKEY|NODE
+	eval "$( _ipsystem do $NODE | grep ^WIFI_ADR= )"		# WIFI_ADR
+
+	[ -z "$SSHPUBKEY" ] && {
+		_log do fetch_sshpubkey daemon debug "node '$NODE' ($WIFI_ADR) has no sshpubkey?! '$LINE'"
+		continue
+	}
+
+	echo -n "$SSHPUBKEY" >$FILE_SSHPUBKEY
+	SSHPUBKEY_DECODED="$( _file convert_hex2bin $FILE_SSHPUBKEY )"	# from url-friendly representation to printable chars
+	rm $FILE_SSHPUBKEY
+
+	set $SSHPUBKEY_DECODED
+	ALGO=$1			# ssh-dss
+	KEY=$2			# AAAAB3Nza...==
+	USER_AT_HOST=$3		# root@E1-112-AP
+
+	DNS_GUESSED=
+	[ "$USER_AT_HOST" = "root@(none)" ] && {
+		USER_AT_HOST="$( _net ip2dns $WIFI_ADR )"			# leaves IP, if no dns works
+
+		if _sanitizer do $USER_AT_HOST ip4 check; then
+			USER_AT_HOST=
+		else
+			USER_AT_HOST=$( echo $USER_AT_HOST | cut -d'.' -f1 )	# without domain
+		fi
+
+		USER_AT_HOST="root@${USER_AT_HOST:=unkownhost}"
+		DNS_GUESSED=" (dns_guessed)"					# for logging
+	}
+
+	[ -z "$USER_AT_HOST" ] && \
+		_log do fetch_user@host daemon alert "'user@host' unset! '$LINE'/'$SSHPUBKEY_DECODED'"
+
+        HOST="$( echo $USER_AT_HOST | cut -d'@' -f2 )"			# root@E1-112-AP -> E1-112-AP
+
+	FOUND_KEY="$( fgrep "$KEY" "$AUTHORIZED_KEYS" )"
+	[ -n "$FOUND_KEY" ] && {
+		HASH1="$( echo "$KEY" | md5sum )"
+		HASH2="$( echo "$FOUND_KEY" | md5sum )"
+		[ "$HASH1" != "$HASH2" ] && FOUND_KEY=
+	}
+
+	[ -z "$FOUND_KEY" ] && {
+		_log do ssh_adding_auth_host daemon debug "+${USER_AT_HOST}${DNS_GUESSED}"
+		echo "$SSHPUBKEY_DECODED" >>"$AUTHORIZED_KEYS"		# same format like own pubkey
+	}
+
+	FOUND_KEY="$( fgrep "$KEY" "$KNOWN_HOSTS" )"
+	[ -n "$FOUND_KEY" ] && {	
+		HASH1="$( echo "$KEY" | md5sum )"
+		HASH2="$( echo "$FOUND_KEY" | md5sum )"
+		[ "$HASH1" != "$HASH2" ] && FOUND_KEY=
+	}		
+
+	[ -z "$FOUND_KEY" ] && {
+		_log do ssh_adding_known_host daemon debug "+${HOST}${DNS_GUESSED} +${WIFI_ADR}"
+		echo     "$HOST $ALGO $KEY" >>"$KNOWN_HOSTS"		# host + algo + key
+		echo "$WIFI_ADR $ALGO $KEY" >>"$KNOWN_HOSTS"		# ip   + algo + key
+	}
+} done
+
+SERVER1='intercity-vpn.de ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAwvIoOnV1sOOgogcfxVlIVgYSWH2looAyBQEr+So7XeaLHIWyTOqv4DXs3x/f2YrBk7epu5N0M349klKgk6OlDLTIVf0Dt7bYrEO1vsUZQNV+qNUiLCxifjhSxihrzuCfWtmv3EeB6i/ni2lGMwONYQ/kXNS4WCC8PYt5/+0QoSPtmwe5xyu9yLDqkC5XqKYQh2S8aIuMf9YwpyBoEJDQoIrkoiPhNlE39LswdFwYONyPp9nn6Jgn9MCy0Q0fgan9n7DSPkokCKmW1NtZtdxW7LN7SxmKcVvhItZQkbt/Jcz+y0yluUhgo6YVzjhOe4bQpTW6SNthxK2DNvg4VRvBaQ=='
+SERVER2='www.datenkiste.org ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAwVUjNUM6P7gnkNY1Do7gi26X5x/+NHWUhwhqLxF4AlkBXtc4NvCMzvAZs17+7BGuh24MWauMF5txM4atXLBBAHTGGKERXHO2KSm7rpPmIxugwzrPAeNMMIqPiKUUtg5wEYgnCR1oBRBSg3GTy+lNuClVfwyWeThzCzyENSCGXo8Y08lW48tUlrXIW25syUxYjNS93q4+57FvoztH0B6NOSgayJwRiFIXpYbt9Jb/MBYNY4lRKVyW01f/gd6DWFMaQTNWV0LAj0cl2IALSWbpY0CXPeAovh8T26eufZHuU6xIWcGRKIXithaEPWA2DJWa7FHaF3i7S/lpARmC0Y6Tew=='
+SERVER3='10.63.2.34 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCy/B5uLPM/b/VzvUF6yJ7f5c/MCOYOOXIrimq50FQBKj6hIgZry1kwmHpmC5PiLuVpgHWAjtGevtRvicjIF+s2GSTchtUG/Svyx2S5wVF7MjBNXgU3iEKWQR+jFi3KhDO/NbuDqpXAOAzMZ9VgE2bqxHASrCdNLYhGmeawFTmPb1VWaI5RK8SmMEAx3d9zS+8fIXX0VOo1nvSkTRJmQVOEYG3eW1JsXaDsG2THix7FcKaut1jLQ5EVCd3SEY6m6GRFrQzKsQkTFkRQNtowM6HJd6n26ISPnPLkc+yQ7cUrMYOh4GrAMs6n/fanvuXYnlhFV1qTZ8VnCXnQlNCuaKwR'
+SERVER4='bwireless.mooo.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCy/B5uLPM/b/VzvUF6yJ7f5c/MCOYOOXIrimq50FQBKj6hIgZry1kwmHpmC5PiLuVpgHWAjtGevtRvicjIF+s2GSTchtUG/Svyx2S5wVF7MjBNXgU3iEKWQR+jFi3KhDO/NbuDqpXAOAzMZ9VgE2bqxHASrCdNLYhGmeawFTmPb1VWaI5RK8SmMEAx3d9zS+8fIXX0VOo1nvSkTRJmQVOEYG3eW1JsXaDsG2THix7FcKaut1jLQ5EVCd3SEY6m6GRFrQzKsQkTFkRQNtowM6HJd6n26ISPnPLkc+yQ7cUrMYOh4GrAMs6n/fanvuXYnlhFV1qTZ8VnCXnQlNCuaKwR'
+
+for SERVER in "$SERVER1" "$SERVER2" "$SERVER3" "$SERVER4"; do {
+	fgrep -sq ^"$SERVER" "$KNOWN_HOSTS" || {
+		_log do ssh_known_host daemon debug "adding: ${SERVER% *}"
+		echo "$SERVER" >>"$KNOWN_HOSTS"
+	}
+} done
+
+COUNT_AUTH_KEYS_ADDED="$((   $( _file lines $AUTHORIZED_KEYS ) - ${COUNT_AUTH_KEYS_BEGIN:-0}   ))"
+COUNT_KNOWN_HOSTS_ADDED="$(( $( _file lines $KNOWN_HOSTS     ) - ${COUNT_KNOWN_HOSTS_BEGIN:-0} ))"
+_log do adding_ssh_stuff daemon alert "added $COUNT_AUTH_KEYS_ADDED keys to '$AUTHORIZED_KEYS' and $COUNT_KNOWN_HOSTS_ADDED hosts to '$KNOWN_HOSTS'"
+
+_log do tempfile2realfile daemon info "copy from /tmp to ssh-dir '$SSH_HOME'"
+mv $AUTHORIZED_KEYS $AUTHORIZED_KEYS_ORIG || {
+	rm "$AUTHORIZED_KEYS_ORIG"
+	_log do tempfile2realfile daemon alert "[ERR] writing $AUTHORIZED_KEYS_ORIG"
+}
+
+mv $KNOWN_HOSTS	$KNOWN_HOSTS_ORIG || {
+	rm "$KNOWN_HOSTS_ORIG"
+	_log do tempfile2realfile daemon alert "[ERR] writing $KNOWN_HOSTS_ORIG"
+}
