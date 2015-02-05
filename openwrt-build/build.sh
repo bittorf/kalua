@@ -309,8 +309,10 @@ target_hardware_set()
 		'PC Engines WRAP')
 			# http://wiki.openwrt.org/toh/pcengines/wrap
 			TARGET_SYMBOL='CONFIG_TARGET_x86_generic_Wrap=y'
-			FILENAME_SYSUPGRADE='openwrt-x86-generic-combined-squashfs.img'
-			# dnsmasq -i eth0 --dhcp-range=192.168.1.100,192.168.1.200 --dhcp-boot=bzImage --enable-tftp --tftp-root=/tmp -u root -p0 -K --log-dhcp --bootp-dynamic
+			# gunzip file.gz && dd if=file of=/dev/sdX bs=1M && boot it!
+			FILENAME_SYSUPGRADE='openwrt-x86-generic-combined-ext4.img.gz'
+			# dnsmasq -i eth0 --dhcp-range=192.168.1.100,192.168.1.200 \
+			# --dhcp-boot=bzImage --enable-tftp --tftp-root=/tmp -u root -p0 -K --log-dhcp --bootp-dynamic
 			FILENAME_FACTORY='openwrt-x86-generic-ramfs.bzImage'
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_INITRAMFS=y"
 		;;
