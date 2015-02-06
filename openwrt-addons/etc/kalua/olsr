@@ -377,8 +377,10 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	# other side (we) will crashreboot:
 
 	if [ "$firstping_lan" = 'error' ]; then
-		_log do $func daemon alert "lan-ping failed"
-		_watch counter "/tmp/error_lanping_$func" increment 1 max 5 || _system crashreboot 'lanping'
+		bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
+			_log do $func daemon alert "lan-ping failed"
+			_watch counter "/tmp/error_lanping_$func" increment 1 max 5 || _system crashreboot 'lanping'
+		}
 	else
 		if   [ "$firstping_lan" = 'false' ]; then
 			[ -e "/tmp/error_lanping_$func" ] && rm "/tmp/error_lanping_$func"
@@ -388,15 +390,19 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 			if _net ip_reachable "$ip" 'ping' "$LANDEV"; then
 				[ -e "/tmp/error_lanping_$func" ] && rm "/tmp/error_lanping_$func"
 			else
-				_log do $func daemon alert "lan-ping to '$ip' failed"
-				_watch counter "/tmp/error_lanping_$func" increment 1 max 5 || _system crashreboot 'lanping'
+				bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
+					_log do $func daemon alert "lan-ping to '$ip' failed"
+					_watch counter "/tmp/error_lanping_$func" increment 1 max 5 || _system crashreboot 'lanping'
+				}
 			fi
 		fi
 	fi
 
 	if [ "$firstping_wan" = 'error' ]; then
-		_log do $func daemon alert "wan-ping failed"
-		_watch counter "/tmp/error_wanping_$func" increment 1 max 5 || _system crashreboot 'wanping'
+		bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
+			_log do $func daemon alert "wan-ping failed"
+			_watch counter "/tmp/error_wanping_$func" increment 1 max 5 || _system crashreboot 'wanping'
+		}
 	else
 		if   [ "$firstping_wan" = 'false' ]; then
 			[ -e "/tmp/error_wanping_$func" ] && rm "/tmp/error_wanping_$func"
@@ -406,8 +412,10 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 			if _net ip_reachable "$ip" 'ping' "$WANDEV"; then
 				[ -e "/tmp/error_wanping_$func" ] && rm "/tmp/error_wanping_$func"
 			else
-				_log do $func daemon alert "wan-ping to '$ip' failed"
-				_watch counter "/tmp/error_wanping_$func" increment 1 max 5 || _system crashreboot 'wanping'
+				bool_true 'system.@monitoring[0].ignore_lossyethernet' {
+					_log do $func daemon alert "wan-ping to '$ip' failed"
+					_watch counter "/tmp/error_wanping_$func" increment 1 max 5 || _system crashreboot 'wanping'
+				}
 			fi
 		fi
 	fi
