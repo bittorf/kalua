@@ -143,7 +143,8 @@ _watch_cgminer()
 _watch_coredump()
 {
 	local funcname="watch_coredump"
-	local ignore_pattern="${1:-we_will_not_ignore_anything}"	# e.g. 'hostapd'
+	local ignore_pattern="${1:-we_will_not_ignore_anything}"	# e.g. 'hostapd' or <infotext with spaces> (for logging)
+
 	local file dump revision file_list overall storage checkolsr
 	local exitcode=1	# means: no crash found
 	local count=0
@@ -165,6 +166,14 @@ _watch_coredump()
 		[ $exitcode -eq 0 ] || {
 			exitcode=0		# only during first iteration
 			overall=$count
+
+			# include infotext into log-messages
+			case "$ignore_pattern" in
+				*' '*)
+					# spaces to _
+					funcname="$funcname.${ignore_pattern// /_}"
+				;;
+			esac
 		}
 
 		case "$dump" in
@@ -1796,7 +1805,7 @@ _watch_wifistuff()
 							touch "/tmp/DAEMON_hostapd_seen"
 						else
 							if [ -z "$( _net dev2ip $WIFIDEV )" ]; then
-								_watch coredump
+								_watch coredump 'after: hostapd-check'
 								_system reboot_safe "lost_ip_and_hostapd on $WIFIDEV - $( tail -n1 "/tmp/dmesg.recent" )"
 							else
 								if pidof wpa_supplicant >/dev/null; then
