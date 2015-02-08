@@ -1,5 +1,30 @@
 #!/bin/sh
 
+_net_show_traffic()
+{
+	local iface="$1"
+	local bytes_rx bytes_tx old_rx old_tx diff_rx diff_tx
+	local oldIFS="$IFS"
+
+	while true; do {
+		# RX bytes:4863348071 (4.5 GiB)  TX bytes:2369902904 (2.2 GiB)
+		IFS=': '
+		set -- $( ifconfig "$iface" | fgrep 'RX bytes:' )
+		IFS="$oldIFS"
+
+		bytes_rx="$3"
+		bytes_tx="$8"
+		diff_rx=$(( bytes_rx - ${old_rx:-0} ))
+		diff_tx=$(( bytes_tx - ${old_tx:-0} ))
+		old_rx=$bytes_rx
+		old_tx=$bytes_tx
+
+		_sanitizer do "$iface: rx/tx = down/upload : $diff_rx | $diff_tx [bytes/s]" number_humanreadable
+		echo
+		sleep 1
+	} done
+}
+
 _net_get_external_ip()
 {
 	local url="$( uci get system.@monitoring[0].url )"
