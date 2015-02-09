@@ -154,7 +154,13 @@ output_table()
 
 		# did not work (e.g. via nameservice-plugin), so ask the remote directly
 		[ -z "$remote_hostname" -o "$remote_hostname" = "$remote_ip" ] && {
-			remote_hostname="$( _tool remote "$remote_ip" hostname )"
+			# nameservice-plugin needs some time
+			if [ $( _olsr uptime ) -gt 600 ]; then
+				remote_hostname="$( _tool remote "$remote_ip" hostname )"
+			else
+				remote_hostname=
+			fi
+
 			if [ -z "$remote_hostname" ]; then
 				remote_hostname="$remote_ip"
 			else
