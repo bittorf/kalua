@@ -151,7 +151,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			# config-3.10 -> 3.10
 			kernelversion="$( ls -1 $dir/config-* | head -n1 | cut -d'-' -f2 )"
 			config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
-			log "$funcname: looking into '$config', adding $pattern"
+			log "$funcname: looking into '$config', adding '$pattern'"
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "s/console=ttyS0,115200/$pattern &/" "$config"
@@ -159,7 +159,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		;;
 		ar71xx)
 			config="$dir/image/Makefile"
-			log "$funcname() looking into '$config', adding $pattern"
+			log "$funcname() looking into '$config', adding '$pattern'"
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "s/console=/$pattern &/" "$config"
@@ -167,7 +167,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		;;
 		*)	# tested for brcm47xx
 			config="$( ls -1 $dir/config-* | head -n1 )"
-			log "$funcname: looking into '$config', adding $pattern"
+			log "$funcname: looking into '$config', adding '$pattern'"
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
@@ -179,7 +179,8 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 register_patch()
 {
 	local name="$1"
-	local file='files/etc/openwrt_patches'	# we can read the file later on the router
+	local dir='files/etc'
+	local file="$dir/openwrt_patches"	# we can read the file later on the router
 
 	if [ -f "$name" ]; then
 		name="$( basename "$name" )"
@@ -210,6 +211,8 @@ register_patch()
 				name="  $name"
 			;;
 		esac
+
+		[ -d "$dir" ] || mkdir "$dir"
 
 		grep -sq ^"$name"$ "$file" || {
 			echo "$name" >>"$file"
@@ -1378,10 +1381,15 @@ build_options_set()
 
 		# build a comma-separated list for later output/build-documentation
 		case "${subcall}-$1" in
-			"-$KALUA_DIRNAME"*)	# parser_ignore
-						# direct call to kalua (no subcall)
+			"-$KALUA_DIRNAME"*)
+				# parser_ignore
+				# direct call to kalua (no subcall)
 			;;
-			'-'*)	# parser_ignore, e.g. ???
+			*'=y')
+				# parser_ignore
+				# e.g. CONFIG_TARGET_ROOTFS_INITRAMFS=y
+			;;
+			'-'*)	# parser_process
 				# direct call (no subcall)
 				LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
 			;;
