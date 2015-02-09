@@ -235,7 +235,7 @@ apply_minstrel_blues()
 			[ -e "$kernel_dir/$base" ] && rm "$kernel_dir/$base"
 		} done
 	else
-		register_patch "$dir"
+		register_patch "DIR: $dir"
 		for file in $dir/*; do {
 			register_patch "$file"
 			cp $file $kernel_dir
@@ -338,10 +338,11 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_x86_generic_Wrap=y'
 			# gunzip file.gz && dd if=file of=/dev/sdX bs=1M && boot it!
 			FILENAME_SYSUPGRADE='openwrt-x86-generic-combined-ext4.img.gz'
+			# tftp only via LAN1: layout: |power LAN1 LAN2 serial|
 			# dnsmasq -i eth0 --dhcp-range=192.168.1.100,192.168.1.200 \
 			# --dhcp-boot=bzImage --enable-tftp --tftp-root=/tmp -u root -p0 -K --log-dhcp --bootp-dynamic
 			FILENAME_FACTORY='openwrt-x86-generic-ramfs.bzImage'
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_INITRAMFS=y"
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_INITRAMFS=y CONFIG_PACKAGE_hostapd-mini=y"
 		;;
 		'PC Engines ALIX.2')
 			# tinybios: enter by pressing 's' during mem-counter
