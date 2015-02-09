@@ -333,10 +333,11 @@ target_hardware_set()
 
 	case "$model" in
 		'PC Engines WRAP')
+			# TODO: apply kernel-symbols: CONFIG_X86_REBOOTFIXUPS=y + CONFIG_MGEODEGX1=y
 			# tinybios: enter by pressing 's' during mem-counter
 			# http://wiki.openwrt.org/toh/pcengines/wrap
 			TARGET_SYMBOL='CONFIG_TARGET_x86_generic_Wrap=y'
-			# gunzip file.gz && dd if=file of=/dev/sdX bs=1M && boot it!
+			# gunzip file.gz && dd if=file of=/dev/sdX bs=1M bs=16k && boot it!
 			FILENAME_SYSUPGRADE='openwrt-x86-generic-combined-ext4.img.gz'
 			# tftp only via LAN1: layout: |power LAN1 LAN2 serial|
 			# dnsmasq -i eth0 --dhcp-range=192.168.1.100,192.168.1.200 \
