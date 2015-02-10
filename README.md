@@ -212,6 +212,7 @@ system.@monitoring[0].statusprecache    - bool
 system.@monitoring[0].ignore_switch_error - bool
 system.@monitoring[0].autoupload_config - bool
 system.@monitoring[0].ignore_wifi_framecounter - bool
+system.@monitoring[0].lazy_wifi_framecounter - bool
 system.@monitoring[0].ignore_lossyethernet - bool
 
 system.@admin[0].location		- string
