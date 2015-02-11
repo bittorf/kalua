@@ -332,6 +332,11 @@ target_hardware_set()
 	[ -z "$version" ] && version='1'
 
 	case "$model" in
+		'Soekris net5501')
+			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
+			FILENAME_SYSUPGRADE='openwrt-x86-net5501-combined-ext4.img.gz'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
 		'PC Engines WRAP')
 			# TODO: apply kernel-symbols: CONFIG_X86_REBOOTFIXUPS=y + CONFIG_MGEODEGX1=y
 			# tinybios: enter by pressing 's' during mem-counter
