@@ -336,6 +336,7 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-net5501-combined-ext4.img.gz'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_PACKAGE_kmod-via-rhine=y"
 		;;
 		'PC Engines WRAP')
 			# TODO: apply kernel-symbols: CONFIG_X86_REBOOTFIXUPS=y + CONFIG_MGEODEGX1=y
