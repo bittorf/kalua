@@ -627,7 +627,11 @@ target_hardware_set()
 			# LINUX_VERSION-3.10 = .49
 			# with e.g.
 			# LINUX_VERSION-3.10 = .58
-			log "$funcname() fixme r43047+"
+			# and
+			# target/linux/$ARCH/Makefile
+			#   -> KERNEL_PATCHVER:=3.14
+			#   -> KERNEL_PATCHVER:=3.18
+			sed -i "s/^KERNEL_PATCHVER:=.*/KERNEL_PATCHVER:=${VERSION_KERNEL_FORCE}/" "target/linux/$ARCH/Makefile"
 		}
 	}
 

@@ -1241,7 +1241,7 @@ _net_arp_permanent()
         local MAC="$( _sanitizer do "$2" lowercase )"
         local FORCE="$3"				# or <dev>
 	local nudmode="${4:-permanent}"			# or 'reachable'
-	local dev_keyword MODE LINE DEV
+	local dev_keyword= MODE LINE DEV
 
         _log do $FUNC daemon info "IP: '$IP' MAC: '$MAC' FORCE: '$FORCE' nudmode: '$nudmode'"
 
@@ -1263,6 +1263,7 @@ _net_arp_permanent()
 
 	if fgrep -q "$FORCE:" '/proc/net/dev'; then
 		DEV="$FORCE"
+		dev_keyword="$DEV (user input)"
 	else
 		DEV="$( _net mac2dev "$MAC" )"		# fixme! probe up to 3 times?
 	fi
@@ -1272,16 +1273,16 @@ _net_arp_permanent()
 
  		  if [ "$FORCE" = 'wifi' ]; then
 			dev_keyword="wifi (forced)"
- 			DEV="$WIFIDEV"
+			DEV="$WIFIDEV"
  		elif [ "$( _net mac2media $MAC )" = 'wire' ]; then		# why a 2nd try? -> checked: is needed somethimes
 			dev_keyword="wire (detected at 2nd try)"
- 			DEV="$LANDEV"
+			DEV="$LANDEV"
  		else
- 			dev_keyword="wifi (defaulting)"
- 			DEV="$WIFIDEV"
+			dev_keyword="wifi (defaulting)"
+			DEV="$WIFIDEV"
  		fi
  	else
- 		dev_keyword="$DEV (correctly detected)"
+		[ -z "$dev_keyword" ] && dev_keyword="$DEV (autodetected)"
  	fi
 
 	_log do $FUNC daemon info "detected physical-device ${dev_keyword:-unknown}: ip neigh $MODE $IP dev $DEV lladdr $MAC nud $nudmode"
