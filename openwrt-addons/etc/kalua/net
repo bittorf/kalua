@@ -1,5 +1,16 @@
 #!/bin/sh
 
+_net_arp_reset()
+{
+	local line
+
+	while read line; do {
+		# 10.63.196.161  0x1  0x6  00:10:75:2d:80:e1  *  eth0.1
+		set -- $line
+		_net arp_permanent "$1" "$4" "$6" 'reachable'
+	} done
+}
+
 _net_show_traffic()
 {
 	local iface="$1"
@@ -1223,13 +1234,13 @@ _net_mac2media()
 	echo -n "$OUT"
 }
 
-_net_arp_permanent()					# ARG1:ip ARG2:mac ARG3:wifi or wire
+_net_arp_permanent()
 {
 	local FUNC="net_arp_permanent"
         local IP="$1"
         local MAC="$( _sanitizer do "$2" lowercase )"
-        local FORCE="$3"						# fixme! use also IP to guess interface
-	local nudmode="${4:-permanent}"
+        local FORCE="$3"				# or <dev>
+	local nudmode="${4:-permanent}"			# or 'reachable'
 	local dev_keyword MODE LINE DEV
 
         _log do $FUNC daemon info "IP: '$IP' MAC: '$MAC' FORCE: '$FORCE' nudmode: '$nudmode'"
@@ -1250,18 +1261,19 @@ _net_arp_permanent()					# ARG1:ip ARG2:mac ARG3:wifi or wire
 		MODE="add"
 	fi
 
-	DEV="$( _net mac2dev "$MAC" )"		# fixme! probe up to 3 times?
+	if fgrep -q "$FORCE:" '/proc/net/dev'; then
+		DEV="$FORCE"
+	else
+		DEV="$( _net mac2dev "$MAC" )"		# fixme! probe up to 3 times?
+	fi
 
  	if [ -z "$DEV" ]; then
 		_log do $FUNC daemon info "not in neigh-list, probing"
 
- 		  if [ "$FORCE" = "wifi" ]; then
-
+ 		  if [ "$FORCE" = 'wifi' ]; then
 			dev_keyword="wifi (forced)"
  			DEV="$WIFIDEV"
-
- 		elif [ "$( _net mac2media $MAC )" = "wire" ]; then		# why a 2nd try? -> checked: is needed somethimes
-
+ 		elif [ "$( _net mac2media $MAC )" = 'wire' ]; then		# why a 2nd try? -> checked: is needed somethimes
 			dev_keyword="wire (detected at 2nd try)"
  			DEV="$LANDEV"
  		else
