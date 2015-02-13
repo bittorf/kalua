@@ -31,28 +31,36 @@ jffs2_is_ready()
 {
 	local funcname='jffs2_is_ready'
 	local pattern='jffs2_build_xattr_subsystem: complete building xattr subsystem'
+	local markerfile="/tmp/$funcname"
 
-	if   [ -n "$FAILSAFE" ]; then
-		log "[OK] $funcname() failsafe mode active"
+	is_ok()
+	{
+		touch "$markerfile"
+		log "[OK] $funcname() $1"
+	}
+
+	if   [ -e "$markerfile" ]; then
 		return 0
+	elif [ -n "$FAILSAFE" ]; then
+		is_ok 'failsafe mode active'
 	elif grep -q 'rootfstype=ext[2|4]' '/proc/cmdline'; then
-		log "[OK] $funcname() rootfs = ext-FS"
-		return 0
+		is_ok 'rootfs = ext-FS'
 	elif grep -q "$pattern" "$DMESG"; then
-		log "[OK] $funcname() found ready marker in klog"
-		return 0
+		is_ok 'found ready marker in klog'
 	elif [ ! -e '/etc/init.d/apply_profile' ]; then
-		log "[OK] $funcname() already applied profile, filesystem should be ok"
-		return 0
+		is_ok 'already applied profile, filesystem should be ok'
 	else
 		[ $( uptime_in_seconds ) -gt 240 ] && {
-			log "[OK] $funcname() uptime >4 min"
-			return 0
+			is_ok 'uptime >4 min'
 		}
 	fi
 
-	log "[ERR] $funcname() does not seems ready yet"
-	return 1
+	if [ -e "$markerfile" ]; then
+		return 0
+	else
+		log "[ERR] $funcname() does not seems ready yet"
+		return 1
+	fi
 }
 
 while ! jffs2_is_ready ; do {
@@ -1256,6 +1264,11 @@ EOF
 				wan_netmask="255.255.255.252"
 				wan_gateway="109.73.30.33"
 				wan_dns="109.73.31.212"
+			;;
+			2_abtpark)
+				wan_ipaddr='192.168.178.21'
+				wan_netmask='255.255.255.0'
+				wan_gateway='192.168.178.1'
 			;;
 		esac
 
