@@ -615,8 +615,8 @@ _watch_hanging_command()
 				*'user-agentAUDIOPLAYER-'*)
 					# see /etc/hotplug.d/button/events.sh
 				;;
-				'scp-t/tmp/storage/sd'*)
-					# if somebody copies via scp on this node,
+				'scp-t/tmp/storage/sd'*|'scp/tmp/storage/sdb'*)
+					# if somebody copies via scp on/from this node,
 					# this is not an error - see mount_storage()
 				;;
 				*)
@@ -1799,15 +1799,16 @@ _watch_wifistuff()
 				_wifi phy_restart "$WIFIDEV" "no incoming_wifi_activity"
 			;;
 			*)
-				# AP-mode
+				# AP-mode:     WIFIDEV =    ap-interface
+				# HYBRID-mode: WIFIDEV = adhoc-interface
 				if [ -n "$( iw dev $WIFIDEV station dump )" ]; then
-					touch '/tmp/apmode_hasclients'
+					touch "/tmp/wifi_hasclients_$WIFIDEV"
 					_wifi check_each_client || {
 						_wifi phy_restart "$WIFIDEV" "clients active, no incoming_wifi_activity, mode $WIFIMODE"
 					}
 				else
-					[ -e '/tmp/apmode_hasclients' ] && {
-						rm '/tmp/apmode_hasclients'
+					[ -e "/tmp/wifi_hasclients_$WIFIDEV" ] && {
+						rm "/tmp/wifi_hasclients_$WIFIDEV"
 						_wifi phy_restart "$WIFIDEV" 'cleanup after last client'
 					}
 
@@ -1817,6 +1818,46 @@ _watch_wifistuff()
 			;;
 		esac
 	}
+
+	case "$CONFIG_PROFILE" in
+		*_adhoc)
+		;;
+		*)
+			# or: grep interface=wlan0-1 /var/run/hostapd-phy0.conf
+
+			local APDEV=
+			if grep -q 'wlan0-1:' '/proc/net/dev'; then
+				# AP-interface in hybrid-mode
+				if iw dev 'wlan0-1' info | grep -q 'type AP'; then
+					APDEV='wlan0-1'
+				else
+					APDEV=
+				fi
+			else
+				# normal AP-interface
+				if iw dev 'wlan0' info | grep -q 'type AP'; then
+					APDEV='wlan0'
+				else
+					APDEV=
+				fi
+			fi
+
+			if [ -n "$( iw dev "$APDEV" station dump )" ]; then
+				_log do $funcname daemon info "1 or more clients on APDEV '$APDEV'"
+				touch "/tmp/wifi_hasclients_$APDEV"
+			else
+				_log do $funcname daemon info "NO clients on APDEV '$APDEV'"
+
+				# enforce every hour
+				_watch counter "/tmp/$funcname-apmode" increment 1 max 60 || touch "/tmp/wifi_hasclients_$APDEV"
+
+				[ -e "/tmp/wifi_hasclients_$APDEV" ] && {
+					rm "/tmp/wifi_hasclients_$APDEV" "/tmp/$funcname-apmode"
+					_wifi phy_restart "$APDEV" 'cleanup after last client'
+				}
+			fi
+		;;
+	esac
 
 	case "$WIFIMODE" in
 		*adhoc*)
