@@ -1880,8 +1880,17 @@ while [ -n "$1" ]; do {
 			if target_hardware_set 'list' 'plain' | grep -q ^"$2"$ ; then
 				HARDWARE_MODEL="$2"
 			else
-				# e.g. option 'plain' or 'js'
-				target_hardware_set 'list' "$3"
+				# ARG3 = e.g. option 'plain' or 'js'
+				case "plain-$2" in
+					plain-[0-9]*)
+						# e.g. 1043 -> only list models with this number
+						target_hardware_set 'list' "$3" | fgrep "$2"
+					;;
+					*)
+						target_hardware_set 'list' "$3"
+					;;
+				esac
+
 				exit 1
 			fi
 		;;
