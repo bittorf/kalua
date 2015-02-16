@@ -73,7 +73,8 @@ EOF
 #	--quiet
 	fi
 
-	exit 1
+	test -n "$FORCE"
+	exit $?
 }
 
 build_tarball_package()
