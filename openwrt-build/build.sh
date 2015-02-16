@@ -1609,6 +1609,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_kmod-input-core=y'		# ...
 			;;
 			'MPDmini')
+				# + 1.5mb -> 1043er = too slow
 				apply_symbol 'CONFIG_PACKAGE_mpd-mini=y'		# sound: mpd-mini
 			;;
 #			'SPEECHsynth-espeak')
@@ -1881,7 +1882,7 @@ while [ -n "$1" ]; do {
 				HARDWARE_MODEL="$2"
 			else
 				# ARG3 = e.g. option 'plain' or 'js'
-				case "plain-$2" in
+				case "$3-$2" in
 					plain-[0-9]*)
 						# e.g. 1043 -> only list models with this number
 						target_hardware_set 'list' "$3" | fgrep "$2"
