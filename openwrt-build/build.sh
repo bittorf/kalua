@@ -1850,22 +1850,29 @@ check_scripts()
 		esac
 
 		case "$mimetype" in
-			*"text/html"*)
-				log "[OK] will not check html file '$file'"
-			;;
-			*"text/x-c++"*)
-				log "[OK] will not check c++ file '$file'"
+			*'text/plain'*)
+				log "[OK] will not check '$mimetype' file '$file'"
 			;;
 			*"inode/x-empty"*|*"application/x-empty"*)
 				log "[OK] will not check empty file '$file'"
 			;;
+			*'text/html'*)
+				# w3c-validator?
+				log "[OK] will not check '$mimetype' file '$file'"
+			;;
+			*"text/x-c++"*)
+				# cppcheck?
+				log "[OK] will not check '$mimetype' file '$file'"
+			;;
 			*"image/gif"*)
+				# imagemagick?
 				log "[OK] will not check gfx file '$file'"
 			;;
 			*"application/octet-stream"*)
 				log "[OK] will not check binary file '$file'"
 			;;
 			*"text/x-shellscript"*|*"text/plain"*)
+				# http://www.shellcheck.net/about.html ?
 				sh -n "$file" || {
 					log "error in file '$file' - abort"
 					return 1
