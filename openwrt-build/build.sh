@@ -1834,15 +1834,12 @@ parse_case_patterns()
 check_scripts()
 {
 	local dir="$1"
+	local tempfile="/tmp/check_scripts"
 	local file i mimetype
 
-	for file in $( find $dir -type f -printf '"%P" ' ); do {
-		case "$file" in
-			*'.git'*)
-				continue
-			;;
-		esac
+	find $dir -type f "$dir" -not -iwholename '*.git*' >"$tempfile"
 
+	while read file; do {
 		set -- $( file '--mime-type' "$file" )
 		mimetype="$@"
 		mimetype=${mimetype##* }	# last word
@@ -1873,18 +1870,21 @@ check_scripts()
 				# http://www.shellcheck.net/about.html ?
 				sh -n "$file" || {
 					log "error in file '$file' - abort"
+					rm "$tempfile"
 					return 1
 				}
 				i=$(( $i + 1 ))
 			;;
 			*)
-				log "computer confused: type: '$mimetype' file: '$file'"
+				log "unknown mimetype: '$mimetype' file: '$file'"
+				rm "$tempfile"
 				return 1
 			;;
 		esac
-	} done
+	} done <"$tempfile"
 
 	log "[OK] checked $i files"
+	rm "$tempfile"
 	return 0
 }
 
