@@ -1846,29 +1846,29 @@ check_scripts()
 
 		case "$mimetype" in
 			'text/plain')
-				log "[OK] will not check '$mimetype' file '$file'"
+				log "[OK] will not check '$mimetype' file '$file'" debug
 			;;
 			'inode/x-empty'|'application/x-empty')
-				log "[OK] will not check empty file '$file'"
+				log "[OK] will not check empty file '$file'" debug
 			;;
 			'text/html')
 				# w3c-validator?
-				log "[OK] will not check '$mimetype' file '$file'"
+				log "[OK] will not check '$mimetype' file '$file'" debug
 			;;
 			'text/x-php')
 				# php -l $file
-				log "[OK] will not check '$mimetype' file '$file'"
+				log "[OK] will not check '$mimetype' file '$file'" debug
 			;;
 			'text/x-c'|'text/x-c++')
 				# cppcheck?
-				log "[OK] will not check '$mimetype' file '$file'"
+				log "[OK] will not check '$mimetype' file '$file'" debug
 			;;
 			'image/gif')
 				# imagemagick?
-				log "[OK] will not check gfx file '$file'"
+				log "[OK] will not check gfx file '$file'" debug
 			;;
 			'application/octet-stream'|'application/x-gzip'|'text/x-diff'|'application/x-executable')
-				log "[OK] will not check binary file '$file'"
+				log "[OK] will not check binary file '$file'" debug
 			;;
 			'text/x-shellscript'|'text/plain')
 				# http://www.shellcheck.net/about.html ?
@@ -1922,7 +1922,13 @@ while [ -n "$1" ]; do {
 			exit 0
 		;;
 		'--check'|'-c')
-			check_scripts $KALUA_DIRNAME
+			if [ "$KALUA_DIRNAME" = "$( dirname "$0" )" ]; then
+				# openwrt-build/build.sh -> openwrt-build
+				check_scripts .
+			else
+				check_scripts ${2:-$KALUA_DIRNAME}
+			fi
+
 			exit $?
 		;;
 		'--help'|'-h')
