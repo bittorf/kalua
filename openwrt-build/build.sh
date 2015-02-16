@@ -1608,6 +1608,9 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-audio=y'		# ...
 #				apply_symbol 'CONFIG_PACKAGE_kmod-input-core=y'		# ...
 			;;
+			'MPDmini')
+				apply_symbol 'CONFIG_PACKAGE_mpd-mini=y'		# sound: mpd-mini
+			;;
 #			'SPEECHsynth-espeak')
 #				# + 1.5mb
 #			;;
