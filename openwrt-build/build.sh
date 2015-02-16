@@ -1836,7 +1836,7 @@ check_scripts()
 	local dir="$1"
 	local file i mimetype
 
-	for file in $( find $dir -type f ); do {
+	for file in $( find $dir -type f -printf '"%P" ' ); do {
 		case "$file" in
 			*'.git'*)
 				continue
