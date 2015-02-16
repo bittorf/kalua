@@ -1837,7 +1837,7 @@ check_scripts()
 	local tempfile="/tmp/check_scripts"
 	local file i mimetype
 
-	find $dir -type f "$dir" -not -iwholename '*.git*' >"$tempfile"
+	find "$dir" -type f -not -iwholename '*.git*' >"$tempfile"
 
 	while read file; do {
 		set -- $( file '--mime-type' "$file" )
