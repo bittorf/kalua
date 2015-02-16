@@ -1838,16 +1838,14 @@ check_scripts()
 
 	for file in $( find $dir -type f ); do {
 		case "$file" in
-			"./www/images/web"*)
-				mimetype="application/x-empty"
-			;;
-			"./etc/kalua/"*)
-				mimetype="text/x-shellscript"
-			;;
-			*)
-				mimetype="$( file --mime-type "$file" )"
+			*'.git'*)
+				continue
 			;;
 		esac
+
+		set -- $( file '--mime-type' "$file" )
+		mimetype="$@"
+		mimetype=${mimetype##* }	# last word
 
 		case "$mimetype" in
 			*'text/plain'*)
