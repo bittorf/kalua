@@ -1859,7 +1859,7 @@ check_scripts()
 				# php -l $file
 				log "[OK] will not check '$mimetype' file '$file'"
 			;;
-			'text/x-c++')
+			'text/x-c'|'text/x-c++')
 				# cppcheck?
 				log "[OK] will not check '$mimetype' file '$file'"
 			;;
