@@ -1855,6 +1855,10 @@ check_scripts()
 				# w3c-validator?
 				log "[OK] will not check '$mimetype' file '$file'"
 			;;
+			'text/x-php')
+				# php -l $file
+				log "[OK] will not check '$mimetype' file '$file'"
+			;;
 			'text/x-c++')
 				# cppcheck?
 				log "[OK] will not check '$mimetype' file '$file'"
