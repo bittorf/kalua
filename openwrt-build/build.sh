@@ -1845,28 +1845,28 @@ check_scripts()
 		mimetype=${mimetype##* }	# last word
 
 		case "$mimetype" in
-			*'text/plain'*)
+			'text/plain')
 				log "[OK] will not check '$mimetype' file '$file'"
 			;;
-			*"inode/x-empty"*|*"application/x-empty"*)
+			'inode/x-empty'|'application/x-empty')
 				log "[OK] will not check empty file '$file'"
 			;;
-			*'text/html'*)
+			'text/html')
 				# w3c-validator?
 				log "[OK] will not check '$mimetype' file '$file'"
 			;;
-			*"text/x-c++"*)
+			'text/x-c++')
 				# cppcheck?
 				log "[OK] will not check '$mimetype' file '$file'"
 			;;
-			*"image/gif"*)
+			'image/gif')
 				# imagemagick?
 				log "[OK] will not check gfx file '$file'"
 			;;
-			*"application/octet-stream"*)
+			'application/octet-stream'|'application/x-gzip')
 				log "[OK] will not check binary file '$file'"
 			;;
-			*"text/x-shellscript"*|*"text/plain"*)
+			'text/x-shellscript'|'text/plain')
 				# http://www.shellcheck.net/about.html ?
 				sh -n "$file" || {
 					log "error in file '$file' - abort"
