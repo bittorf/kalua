@@ -1799,11 +1799,18 @@ _watch_wifistuff()
 				_wifi phy_restart "$WIFIDEV" "no incoming_wifi_activity"
 			;;
 			*)
+				# AP-mode
 				if [ -n "$( iw dev $WIFIDEV station dump )" ]; then
+					touch '/tmp/apmode_hasclients'
 					_wifi check_each_client || {
 						_wifi phy_restart "$WIFIDEV" "clients active, no incoming_wifi_activity, mode $WIFIMODE"
 					}
 				else
+					[ -e '/tmp/apmode_hasclients' ] && {
+						rm '/tmp/apmode_hasclients'
+						_wifi phy_restart "$WIFIDEV" 'cleanup after last client'
+					}
+
 					# _wifi phy_restart "$WIFIDEV" "no clients, no incoming_wifi_activity, mode $WIFIMODE" info
 					_log do incoming_wifi_activity daemon info "no clients, no incoming_wifi_activity, mode $WIFIMODE"
 				fi
