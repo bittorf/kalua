@@ -1831,6 +1831,58 @@ parse_case_patterns()
 	} done <"$0"
 }
 
+check_scripts()
+{
+	local dir="$1"
+	local file i mimetype
+
+	for file in $( find $dir -type f ); do {
+		case "$file" in
+			"./www/images/web"*)
+				mimetype="application/x-empty"
+			;;
+			"./etc/kalua/"*)
+				mimetype="text/x-shellscript"
+			;;
+			*)
+				mimetype="$( file --mime-type "$file" )"
+			;;
+		esac
+
+		case "$mimetype" in
+			*"text/html"*)
+				log "[OK] will not check html file '$file'"
+			;;
+			*"text/x-c++"*)
+				log "[OK] will not check c++ file '$file'"
+			;;
+			*"inode/x-empty"*|*"application/x-empty"*)
+				log "[OK] will not check empty file '$file'"
+			;;
+			*"image/gif"*)
+				log "[OK] will not check gfx file '$file'"
+			;;
+			*"application/octet-stream"*)
+				log "[OK] will not check binary file '$file'"
+			;;
+			*"text/x-shellscript"*|*"text/plain"*)
+				sh -n "$file" || {
+					log "error in file '$file' - abort"
+					return 1
+				}
+				i=$(( $i + 1 ))
+			;;
+			*)
+				log "computer confused: type: '$mimetype' file: '$file'"
+				return 1
+			;;
+		esac
+	} done
+
+	log "[OK] checked $i files"
+	return 0
+}
+
 check_git_settings()
 {
 	local funcname='check_git_settings'
@@ -1859,6 +1911,10 @@ while [ -n "$1" ]; do {
 		"--${KALUA_DIRNAME}_package"|'-P')
 			build_tarball_package || print_usage_and_exit
 			exit 0
+		;;
+		'--check'|'-c')
+			check_scripts $KALUA_DIRNAME
+			exit $?
 		;;
 		'--help'|'-h')
 			print_usage_and_exit
