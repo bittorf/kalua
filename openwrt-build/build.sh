@@ -1867,7 +1867,7 @@ check_scripts()
 				# imagemagick?
 				log "[OK] will not check gfx file '$file'"
 			;;
-			'application/octet-stream'|'application/x-gzip')
+			'application/octet-stream'|'application/x-gzip'|'text/x-diff')
 				log "[OK] will not check binary file '$file'"
 			;;
 			'text/x-shellscript'|'text/plain')
