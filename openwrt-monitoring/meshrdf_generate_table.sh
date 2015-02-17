@@ -3250,8 +3250,8 @@ esac
 
 } done | sort -rn >>$OUT
 
-ROUTER_ALL="$( ls -1 recent/ | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | wc -l )"
-ROUTER_OMITTED="$( grep -s 'omitted:' "$OUT" | wc -l )"
+ROUTER_ALL="$( ls -1 recent/ | grep -c "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
+ROUTER_OMITTED="$( grep -sc 'omitted:' "$OUT" )"
 ROUTER_COUNT=$(( $ROUTER_ALL - $ROUTER_OMITTED ))
 
 FILESIZE_DATA="$( stat -c %s meshrdf.txt )"

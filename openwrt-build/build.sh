@@ -811,10 +811,11 @@ openwrt_download()
 			wish='r41037'
 		;;
 		'beta')
-			wish='r43238'
+			wish='r44150'
 		;;
 		'testing')
-			wish='r44150'
+			# maybe this is too simply, because applies to all platforms?
+			wish='r44482'
 		;;
 	esac
 
