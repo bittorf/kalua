@@ -15,9 +15,9 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 [travis]:	https://travis-ci.org/bittorf/kalua
 [travisGFX]:	https://travis-ci.org/bittorf/kalua.png
 
-* [![flattr this repo]([flattrGFX])]([flattr])
-* [![sending bitcoins]([bitcoinGFX])]([bitcoin])
-* [![build status now]([travisGFX])]([travis])
+* [![flattr this repo][flattrGFX]][flattr]
+* [![sending bitcoins][bitcoinGFX]][bitcoin]
+* [![build status now][travisGFX]][travis]
 
 how to get a release for a specific hardware
 --------------------------------------------
