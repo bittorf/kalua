@@ -1956,7 +1956,7 @@ while [ -n "$1" ]; do {
 			else
 				# ARG3 = e.g. option 'plain' or 'js'
 				case "$3-$2" in
-					plain-[0-9]*|-[0-9]*)
+					plain-[0-9]*|*-[0-9]*)
 						# e.g. 1043 -> only list models with this number
 						target_hardware_set 'list' "$3" | fgrep "$2"
 					;;

@@ -286,11 +286,41 @@ _switch_show()		# SENS: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit/
 	return 0
 }
 
+_switch_test()
+{
+	_switch symbol html_init
+
+	_switch symbol html      'Cisco Catalyst WS-C2960G-24TC-L'
+	_switch symbol newline
+
+	_switch symbol full      100  1    'X'
+	_switch symbol full      100  3
+	_switch symbol down      -    5
+	_switch symbol full      100  7    '&clubs;'
+	_switch symbol gap
+	_switch symbol downFIBER -   LWL-1
+	_switch symbol downFIBER -   LWL-2
+
+	_switch symbol newline
+
+	_switch symbol error
+	_switch symbol down      -    4
+	_switch symbol full      10   6
+	_switch symbol down      -    8
+	_switch symbol gap
+	_switch symbol FIBER     1G  LWL-3 'X'
+	_switch symbol FIBER     1G  LWL-4 'Y'
+
+	_switch symbol html_end
+}
+
 _switch_symbol()	# SENS: represent each port with a short letter: [a-cA-C] = 10/100/100 half-duplex / full-duplex (capitalized)
 {
 	local funcname="switch_symbol"
 	local duplex="$1"
-	local speed="$2"
+	local speed="$2"		# 10, 100, 1000, 1G
+	local port_no="$3"
+	local fillchar="$4"		# e.g. 'X'
 
 	local symbol_html symbol_text
 	local color_green_colorless='#99FF99'
@@ -299,43 +329,76 @@ _switch_symbol()	# SENS: represent each port with a short letter: [a-cA-C] = 10/
 	local halfduplex='<big>&frac12;</big>'	# 1/2
 	local port_width='&emsp;'		# has nearly the same width like 'halfduplex'
 	local unimplemented='<big>?</big>'
+	local port="Port${port_no}"
+	local align="align='center' valign='middle'"
+
+	[ -n "$fillchar" ] && {
+		halfduplex="$fillchar"
+		port_width="$fillchar"
+	}
+
+	[ "$speed" = '1G' ] && speed=1000
 
 	case "${duplex}${speed}" in
-		"down")
-			symbol_text='-'
-			symbol_html="<td bgcolor='black' title='unconnected'>$port_width</td>"
+		'html_init'*)
+			SWITCH_SYMBOL_HTML='true'
+			symbol_html="<table cellspacing='1' cellpadding='0'><tr>$speed"
 		;;
-		"gap")
+		'html_end')
+			unset SWITCH_SYMBOL_HTML
+			echo -n '</tr></table'
+			return 0
+		;;
+		'html'*)
+			symbol_html="$speed"
+		;;
+		'newline')
+			symbol_text='\'
+			symbol_html='</tr><tr>'
+		;;
+		'downFIBER'*)
+			symbol_text='_'
+			symbol_html="<td bgcolor='darkred' title='$port,unconnected'>$port_width</td>"
+		;;
+		'down'*)
+			symbol_text='-'
+			symbol_html="<td bgcolor='black' title='$port,unconnected'>$port_width</td>"
+		;;
+		'gap')
 			symbol_text='.'
 			symbol_html='<td bgcolor="white" title="gap">&thinsp;</td>'	# thin_width
 		;;
-		"half10")
+		'half10')
 			symbol_text='a'
-			symbol_html="<td bgcolor='$color_green_colorless' title='10mbit/halfduplex'>$halfduplex</td>"
+			symbol_html="<td bgcolor='$color_green_colorless' title='$port,10mbit/halfduplex' $align>$halfduplex</td>"
 		;;
-		"half100")
+		'half100')
 			symbol_text='b'
-			symbol_html="<td bgcolor='$color_green_normal' title='100mbit/halfduplex'>$halfduplex</td>"
+			symbol_html="<td bgcolor='$color_green_normal' title='$port,100mbit/halfduplex' $align>$halfduplex</td>"
 		;;
-		"half1000")
+		'half1000')
 			symbol_text='c'
-			symbol_html="<td bgcolor='$color_green_strong' title='1000mbit/halfduplex'>$halfduplex</td>"
+			symbol_html="<td bgcolor='$color_green_strong' title='$port,1000mbit/halfduplex' $align>$halfduplex</td>"
 		;;
-		"full10")
+		'full10')
 			symbol_text='A'
-			symbol_html="<td bgcolor='$color_green_colorless' title='10mbit/fullduplex'>$port_width</td>"
+			symbol_html="<td bgcolor='$color_green_colorless' title='$port,10mbit/fullduplex' $align>$port_width</td>"
 		;;
-		"full100")
+		'full100')
 			symbol_text='B'
-			symbol_html="<td bgcolor='$color_green_normal' title='100mbit/fullduplex'>$port_width</td>"
+			symbol_html="<td bgcolor='$color_green_normal' title='$port,100mbit/fullduplex' $align>$port_width</td>"
 		;;
-		"full1000")
+		'full1000')
 			symbol_text='C'
-			symbol_html="<td bgcolor='$color_green_strong' title='1000mbit/fullduplex'>$port_width</td>"
+			symbol_html="<td bgcolor='$color_green_strong' title='$port,1000mbit/fullduplex' $align>$port_width</td>"
+		;;
+		'FIBER1000')
+			symbol_text='D'
+			symbol_html="<td bgcolor='gold' title='$port,opticalfiber/1000mbit/fullduplex' $align>$port_width</td>"
 		;;
 		'unimplemented')
 			symbol_text='u'
-			symbol_html="<td bgcolor='crimson' title='unimplemented'>$unimplemented</td>"
+			symbol_html="<td bgcolor='crimson' title='$port,unimplemented' $align>$unimplemented</td>"
 		;;
 		*)
 			[ -e "/tmp/switch_unknown" ] || {
@@ -344,7 +407,7 @@ _switch_symbol()	# SENS: represent each port with a short letter: [a-cA-C] = 10/
 			}
 
 			symbol_text='Z'		# means: 'unknown/error'
-			symbol_html="<td bgcolor='grey' title='unknown'>?</td>"
+			symbol_html="<td bgcolor='grey' title='$port,unknown' $align>:?:</td>"
 		;;
 	esac
 
