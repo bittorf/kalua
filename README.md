@@ -8,9 +8,16 @@ kalua - build mesh-networks _without_ pain
 needing support?
 join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bittorf-wireless.de)
 
-* [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software)
-* donations in bitcoins are welcome and can be sent to 184Rzvif2EfpW1EycmL3SWt64n8L1vHQdJ
-* [![Build Status](https://travis-ci.org/bittorf/kalua.png)](https://travis-ci.org/bittorf/kalua)
+[flattr]:	https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software
+[flattrGFX]:	http://api.flattr.com/button/flattr-badge-large.png
+[bitcoin]:	https://blockchain.info/address/184Rzvif2EfpW1EycmL3SWt64n8L1vHQdJ
+[bitcoinGFX]:	http://intercity-vpn.de/files/bitcoin-button.png
+[travis]:	https://travis-ci.org/bittorf/kalua
+[travisGFX]:	https://travis-ci.org/bittorf/kalua.png
+
+* [![flattr this repo]([flattrGFX])]([flattr])
+* [![sending bitcoins]([bitcoinGFX])]([bitcoin])
+* [![build status now]([travisGFX])]([travis])
 
 how to get a release for a specific hardware
 --------------------------------------------
@@ -183,93 +190,93 @@ Cherry Picking Git commits from forked repositories
 Special UCI-variables
 ---------------------
 
-system.@weblogin[0].enabled		- bool
-system.@weblogin[0].dhcpautologout	- bool
-system.@weblogin[0].namespace		- string
-system.@weblogin[0].logtraffic		- bool
-system.@weblogin[0].defaultlang		- ISO 639-1
-system.@weblogin[0].default_speed_up	- string: e.g. 16mbit
-system.@weblogin[0].default_speed_down	- string: e.g. 384kbit
-system.@weblogin[0].mac_unshaped	- string/list
-system.@weblogin[0].authserver		- IP
-system.@weblogin[0].gateway_check	- IP
-system.@weblogin[0].dynamic_portfw	- pattern of macs
-system.@weblogin[0].auth_credentials	- string
-system.@weblogin[0].auth_type		- none, roomnumber, userpass
-system.@weblogin[0].blocked		- bool
-system.@weblogin[0].hideandseek		- bool
-system.@weblogin[0].freelan		- bool
-system.@weblogin[0].respect_missing_db	- bool
-system.@weblogin[0].allow_wan		- bool
-system.@weblogin[0].ticketstock		- integer
+	system.@weblogin[0].enabled		- bool
+	system.@weblogin[0].dhcpautologout	- bool
+	system.@weblogin[0].namespace		- string
+	system.@weblogin[0].logtraffic		- bool
+	system.@weblogin[0].defaultlang		- ISO 639-1
+	system.@weblogin[0].default_speed_up	- string: e.g. 16mbit
+	system.@weblogin[0].default_speed_down	- string: e.g. 384kbit
+	system.@weblogin[0].mac_unshaped	- string/list
+	system.@weblogin[0].authserver		- IP
+	system.@weblogin[0].gateway_check	- IP
+	system.@weblogin[0].dynamic_portfw	- pattern of macs
+	system.@weblogin[0].auth_credentials	- string
+	system.@weblogin[0].auth_type		- none, roomnumber, userpass
+	system.@weblogin[0].blocked		- bool
+	system.@weblogin[0].hideandseek		- bool
+	system.@weblogin[0].freelan		- bool
+	system.@weblogin[0].respect_missing_db	- bool
+	system.@weblogin[0].allow_wan		- bool
+	system.@weblogin[0].ticketstock		- integer
+	
+	system.@monitoring[0].serverip		- IP
+	system.@monitoring[0].pingcheck		- IP
+	system.@monitoring[0].pingcheck_lazy	- bool
+	system.@monitoring[0].button_smstext	- text
+	system.@monitoring[0].button_phone	- list phonenumbers
+	system.@monitoring[0].url		- url
+	system.@monitoring[0].statusprecache    - bool
+	system.@monitoring[0].ignore_switch_error - bool
+	system.@monitoring[0].autoupload_config - bool
+	system.@monitoring[0].ignore_wifi_framecounter - bool
+	system.@monitoring[0].lazy_wifi_framecounter - bool
+	system.@monitoring[0].ignore_lossyethernet - bool
+	
+	system.@admin[0].location		- string
+	system.@admin[0].latlon			- string
+	system.@admin[0].mail			- string
+	system.@admin[0].name			- string
+	system.@admin[0].phone			- string
+	system.@admin[0].neturl			- string
+	
+	system.@vpn[0].hostname			- hostname
+	system.@vpn[0].ipaddr			- IP
+	
+	system.@system[0].noswinstall		- bool
+	system.@system[0].avoid_autoreboot	- bool
+	
+	system.@profile[0].name			- string
+	system.@profile[0].nodenumber		- integer
+	system.@profile[0].ipsystem		- string
 
-system.@monitoring[0].serverip		- IP
-system.@monitoring[0].pingcheck		- IP
-system.@monitoring[0].pingcheck_lazy	- bool
-system.@monitoring[0].button_smstext	- text
-system.@monitoring[0].button_phone	- list phonenumbers
-system.@monitoring[0].url		- url
-system.@monitoring[0].statusprecache    - bool
-system.@monitoring[0].ignore_switch_error - bool
-system.@monitoring[0].autoupload_config - bool
-system.@monitoring[0].ignore_wifi_framecounter - bool
-system.@monitoring[0].lazy_wifi_framecounter - bool
-system.@monitoring[0].ignore_lossyethernet - bool
+	system.@fwupdate[0].url			- url
+	system.@fwupdate[0].mode		- string: 0|stable|beta|testing
 
-system.@admin[0].location		- string
-system.@admin[0].latlon			- string
-system.@admin[0].mail			- string
-system.@admin[0].name			- string
-system.@admin[0].phone			- string
-system.@admin[0].neturl			- string
+	system.@vds[0].server			- scp-destination
+	system.@vds[0].enabled			- bool
 
-system.@vpn[0].hostname			- hostname
-system.@vpn[0].ipaddr			- IP
+	system.@community[0].splash		- bool
 
-system.@system[0].noswinstall		- bool
-system.@system[0].avoid_autoreboot	- bool
+	system.@httpsproxy[0].enabled		- bool
 
-system.@profile[0].name			- string
-system.@profile[0].nodenumber		- integer
-system.@profile[0].ipsystem		- string
+	olsrd.@meta[0].fixedarp			- bool
+	olsrd.@meta[0].throttle_traffic		- bool
+	olsrd.@meta[0].nexthop_dns		- bool
+	olsrd.@meta[0].reboot_weak_ethernet	- bool
 
-system.@fwupdate[0].url			- url
-system.@fwupdate[0].mode		- string: 0|stable|beta|testing
+	firewall.@adblock[0].enabled		- bool
+	network.$INTERFACE.dyndns		- url
 
-system.@vds[0].server			- scp-destination
-system.@vds[0].enabled			- bool
+	mail.@pop3[0].username			- string
+	mail.@pop3[0].password			- string
+	mail.@pop3[0].server			- hostname
+	mail.@pop3[0].port			- integer
+	mail.@smtp[0].server			- hostname
+	mail.@smtp[0].port			- integer
+	mail.@smtp[0].name			- string: e.g. realname
+	mail.@smtp[0].mail			- mailadresse
+	mail.@smtp[0].auth			- string: e.g. '-P 222 user@domain.tld:myfolder'
 
-system.@community[0].splash		- bool
+	sms.@sms[0].admin			- string: phonenumber
 
-system.@httpsproxy[0].enabled		- bool
+	wireless.radio0.cronactive		- string: '18:00 - 08:00'
 
-olsrd.@meta[0].fixedarp			- bool
-olsrd.@meta[0].throttle_traffic		- bool
-olsrd.@meta[0].nexthop_dns		- bool
-olsrd.@meta[0].reboot_weak_ethernet	- bool
+	network.wan.public_ip			- bool
 
-firewall.@adblock[0].enabled		- bool
-network.$INTERFACE.dyndns		- url
+	system.@webcam[0].storage_path		- string: e.g. 'bastian@10.63.2.34:bigbrother'
 
-mail.@pop3[0].username			- string
-mail.@pop3[0].password			- string
-mail.@pop3[0].server			- hostname
-mail.@pop3[0].port			- integer
-mail.@smtp[0].server			- hostname
-mail.@smtp[0].port			- integer
-mail.@smtp[0].name			- string: e.g. realname
-mail.@smtp[0].mail			- mailadresse
-mail.@smtp[0].auth			- string: e.g. '-P 222 user@domain.tld:myfolder'
+	olsrd.@meta[0].watch_value		- integer
+	olsrd.@meta[0].watch_ip			- ipaddr
 
-sms.@sms[0].admin			- string: phonenumber
-
-wireless.radio0.cronactive		- string: '18:00 - 08:00'
-
-network.wan.public_ip			- bool
-
-system.@webcam[0].storage_path		- string: e.g. 'bastian@10.63.2.34:bigbrother'
-
-olsrd.@meta[0].watch_value		- integer
-olsrd.@meta[0].watch_ip			- ipaddr
-
-network.@switch[0].disable_autoneg	- bool
+	network.@switch[0].disable_autoneg	- bool
