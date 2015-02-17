@@ -1,45 +1,183 @@
 #!/bin/sh
 
-get_homedir_from_passwd()
-{
-	grep -e ^"${USER:-root}:" "/etc/passwd" | cut -d ":" -f 6
-}
-
 [ -e "/etc/variables_fff+" ] && . "/etc/variables_fff+"
 
+which uci >/dev/null || {
+	# missing on e.g. vpn-server / debian
+
+	# output nothing with returncode 0 but allow config-file
+	cat >>"$LOADER" <<EOF
+uci()	# e.g. uci -q get system.@profile[0].nodenumber
+{
+	case "\$1" in
+		'-q')
+			shift
+		;;
+	esac
+
+	case "\$1" in
+		show)
+			[ -e /etc/kalua_uci ] && cat /etc/kalua_uci
+		;;
+		set)
+			grep -q ^"\$2" /etc/kalua_uci || echo "\$2" >>/etc/kalua_uci
+		;;
+		get)
+			[ -e /etc/kalua_uci ] || return 0
+			local line
+			while read line; do
+				case "\$line" in
+					"\$2="*)
+						echo "\$line" | cut -d'=' -f2
+					;;
+					"\$2='"*)
+						echo "\$line" | cut -d"'" -f2 | cut -d"'" -f1
+					;;
+					"\$2=\""*)
+						echo "\$line" | cut -d'"' -f2 | cut -d'"' -f1
+					;;
+				esac
+			done </etc/kalua_uci
+		;;
+	esac
+}
+EOF
+	. "$LOADER"	# for above uci()
+
+	case "$( readlink /bin/sh )" in
+		'dash')
+			# TODO: a lot of scripts fail in dash
+			logger -s '[ERR] please symlink /bin/sh to /bin/bash: rm /bin/sh && ln -s /bin/bash /bin/sh'
+		;;
+	esac
+
+	MYPATH="$( grep 'PATH=' "/etc/profile" | head -n1 )"
+	case "$MYPATH" in
+		'export PATH='*)
+			echo "$MYPATH"
+		;;
+		*'PATH='*)
+			echo "export $MYPATH"
+		;;
+	esac
+}
+
+which logread >/dev/null || {
+	# e.g. vpn-server
+	echo 'logread() { tail -n300 "/var/log/syslog" $1; }	# no native logread'
+}
+
+# http://wiki.openwrt.org/doc/uci/system#time.zones
 TIMEZONE_BERLIN="CET-1CEST,M3.5.0,M10.5.0/3"
-TIMEZONE="$( uci get system.@system[0].timezone )"
+TIMEZONE="$( uci -q get system.@system[0].timezone )"
 TIMEZONE="${TIMEZONE:-$TIMEZONE_BERLIN}"
 
+HOSTNAME="$( uci -q get system.@system[0].hostname )"
+HOSTNAME="${HOSTNAME:-$( cat '/etc/hostname' )}"
+HOSTNAME="${HOSTNAME:-$( hostname 2>/dev/null || echo 'anonymous' )}"
+
+MONITORING_SERVERIP="$( uci -q get system.@monitoring[0].serverip )"
+MONITORING_SERVERIP="${MONITORING_SERVERIP:-84.38.67.43}"
+OPENWRT_REV="$( cut -b2- '/etc/openwrt_version' 2>/dev/null || echo '0' )"
+
+read HARDWARE 2>/dev/null <'/etc/HARDWARE' || {
+	# model name  : Intel(R) Xeon(R) CPU E5-2620 0 @ 2.00GHz
+	set -- $( grep ^'model name' '/proc/cpuinfo' | head -n1 )
+	shift 3
+	HARDWARE="$@"
+}
 	cat <<EOF
 
 # user-vars from $0.user
 export TZ='$TIMEZONE'
-[ -z "\$NODENUMBER" ] && NODENUMBER="$( uci get system.@profile[0].nodenumber )"
-[ -z "\$CONFIG_PROFILE" ] && CONFIG_PROFILE='$( uci get system.@profile[0].name )'
-HARDWARE='$( cat "/etc/HARDWARE" )'
-HOSTNAME='$( uci get system.@system[0].hostname )'
-export HOME='$( get_homedir_from_passwd )'
-FFF_PLUS_VERSION=$FFF_PLUS_VERSION;FFF_VERSION=$FFF_VERSION
-_uci() { return 1; }
+test "\$NODENUMBER" || NODENUMBER="$( uci get system.@profile[0].nodenumber )"
+test "\$CONFIG_PROFILE" || CONFIG_PROFILE='$( uci get system.@profile[0].name )'
+HARDWARE='$HARDWARE'
+HOSTNAME='$HOSTNAME'
+MONITORING_SERVERIP='$MONITORING_SERVERIP'
+export HOME="$( grep -e ^"${USER:-root}:" '/etc/passwd' | cut -d':' -f6 )"
+FFF_PLUS_VERSION=$FFF_PLUS_VERSION;FFF_VERSION=$FFF_VERSION;OPENWRT_REV=$OPENWRT_REV
+
+bool_true()
+{
+	case "\$( uci -q get \$1 )" in
+		1|on|true|enabled|yes)
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
 EOF
 
-read NOP MEMTOTAL NOP <"/proc/meminfo"
-[ $MEMTOTAL -gt 16384 ] || echo "LOWMEM=true"
+# we need a monotonic counter for both: SCHEDULER / SCHEDULER_IMPORTANT
+# case 5 is most likely: 10000...99999 sec = 2h46min...1d3h uptime
+# max is 11 days = 999.999 sec
 
-if [ -e "/tmp/NETPARAM" ]; then		# fixme! better concept needed
+# PID = UP, but we dont want to overwrite the existing UP-var
+	cat <<EOF
+
+read PID REST </proc/uptime
+PID=\${PID%.*}
+case "\${#PID}" in
+5) REST="0\$PID" ;;
+4) REST="00\$PID" ;;
+3) REST="000\$PID" ;;
+2) REST="0000\$PID" ;;
+1) REST="00000\$PID" ;;
+esac
+SCHEDULER="/tmp/SCHEDULER/job_\$REST"
+SCHEDULER_QUEUE='/tmp/SCHEDULER/*'
+
+PID="\$\$"
+case "\${#PID}" in
+5) REST="0\$PID" ;;
+4) REST="00\$PID" ;;
+3) REST="000\$PID" ;;
+2) REST="0000\$PID" ;;
+1) REST="00000\$PID" ;;
+esac
+SCHEDULER_IMPORTANT="/tmp/SCHEDULER/important_\$REST"
+SCHEDULER_IMPORTANT_QUEUE='/tmp/SCHEDULER/important_*'
+
+EOF
+
+mkdir -p '/tmp/SCHEDULER'
+
+read NOP MEMTOTAL NOP <"/proc/meminfo"
+[ $MEMTOTAL -gt 16384 ] || {
+	echo "LOWMEM=true"
+#	echo 'while read LOAD </proc/loadavg; do case $PRELOAD$LOAD in 0.*) break ;; *) echo "kalua-loader: $0: $$: LOAD: $LOAD - wait 60 sec" >/dev/console; /bin/sleep 60 ;; esac; done'
+	# PRELOAD is a (normally unset) var, which can be filled to fool this check, e.g. PRELOAD=0.
+}
+
+if iptables --help | fgrep -q -- '--wait'; then
+	echo "IPT='iptables --wait'"
+else
+	echo "IPT='iptables'"
+fi
+
+if [ -e "$LOADER_FINAL" ]; then
+	FILE_NETPARAM="/tmp/NETPARAM"
+else
+	FILE_NETPARAM="/www/NETPARAM"
+fi
+
+if [ -e "$FILE_NETPARAM" ]; then		# fixme! better concept needed
 	while read LINE; do {
 		case "$LINE" in
 			*"="*)
 				echo -n "${LINE};"
 			;;
 		esac
-	} done <"/tmp/NETPARAM"
+	} done <"$FILE_NETPARAM"
+	echo "BATADR='$( uci -q get network.mybridge.ipaddr )'"
 
-	. "/tmp/NETPARAM"
+	. "$FILE_NETPARAM"
 
 	echo -n "$WIFIDEV" >"/tmp/WIFIDEV"	# is a hack for fast seeking our dev/ip
 	echo -n "$WIFIADR" >"/tmp/WIFIADR"
 else
-        logger -s "$0 could'nt work with '/tmp/NETPARAM'"
+        logger -s "$0 [OK] could not use '$FILE_NETPARAM' - maybe later"
 fi
