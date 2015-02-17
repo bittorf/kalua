@@ -2,7 +2,6 @@
 
 log()
 {
-        echo "$0: $1" >/dev/console
 	logger -s "$0: $1"
 }
 
@@ -186,6 +185,7 @@ if [ -n "$HARDWARE" ]; then
 			}
 		;;
 	esac
+
 elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform: http://www.ubnt.com/picostation
 	HARDWARE="Ubiquiti PicoStation2"
 elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform: http://www.ubnt.com/picostation5
@@ -1220,7 +1220,7 @@ config dhcp wlan
 	option leasetime	1h
 	option force		1
 	option ignore		${DHCP_IGNORE_WLAN:-0}
-	list dhcp_option        '121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep WIFIADR= | cut -d"=" -f2 )'
+	list dhcp_option        '121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d"=" -f2 )'
 
 config dhcp wan
 	option interface	wan
@@ -1587,7 +1587,7 @@ EOF
 # keep important settings
 local keepsettings="$( uci get system.@system[0].keepsettings )"           
 [ "$keepsettings" != "1" ] && { 
-	for SECTION in softwareinstall system mail wireless network dhcp aliases olsrd firewall sms polipo; do {
+	for SECTION in softwareinstall system mail wireless network dhcp aliases firewall sms polipo; do {
 		log "....working on section '$SECTION'"
 		_config_$SECTION "$NODENUMBER"
 		log "[ok] ready with section '$SECTION'"
@@ -1610,9 +1610,11 @@ for SECTION in freifunk olsrd; do {
 /etc/init.d/cron.user enable
 /etc/init.d/cron disable
 
-log "disabling olsrd6"
-/etc/init.d6/olsr6 stop
-/etc/init.d/olsrd6 disable
+[ -e "/etc/init.d/olsrd6" ] && {
+    log "disabling olsrd6"
+    /etc/init.d/olsrd6 stop
+    /etc/init.d/olsrd6 disable
+}
 
 [ -e "/etc/init.d/firewall" ] && {
 	/etc/init.d/firewall disable
