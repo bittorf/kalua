@@ -1,3 +1,5 @@
+#!/bin/sh
+
 power_and_freq_to_regdomain()
 {
 	local needed_freq="$1"		# e.g. 2450
