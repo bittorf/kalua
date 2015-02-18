@@ -1,0 +1,197 @@
+#!/bin/sh
+
+_cisco_query()
+{
+	local ip="$1"
+	local auth="$2"		# 1x or 2x
+	local word
+
+	_log do query daemon info "ip: $ip auth: $auth"
+
+	(
+	sleep 1
+
+	for word in $auth; do {
+		echo "$word"; sleep 1
+	} done
+
+	echo 'terminal length 0'; sleep 1
+	echo 'show ip interface brief'; sleep 1
+	echo 'show inventory | include SFP'; sleep 1
+	echo 'show version | include uptime\ is'; sleep 1
+	echo 'show version | include Model\ number'; sleep 1
+	echo 'show version | include Product/Model\ Number'; sleep 1
+	echo 'show version | include Base\ ethernet\ MAC\ Address:'; sleep 1	# only on AP
+	echo 'exit'
+	) | telnet $ip | tr -d '\r'	# tr: autoremove windows line break ^M
+}
+
+_cisco_parse()
+{
+	local file="$1"
+	local hardware uptime hostname ip i
+
+	portstatus()
+	{
+		local name="$1"		# GigabitEthernet0/23
+		local mode="$2"		# FIBER
+		local port="$( grep "$name " "$file" )"
+
+		set -- $port
+		local state="$5"
+
+		# NAME: "GigabitEthernet0/2", DESCR: "1000BaseSX SFP"
+		# NAME: "GigabitEthernet0/23", DESCR: "1000BaseSX SFP"
+		if grep -q ": \"$name\", DESCR: " "$file" ; then
+			# thats sure: this port IS fiber
+			[ "$mode" = 'FIBER' ] || {
+				# user queries the copper port
+				state='down'
+			}
+		else
+			# thats sure: this port is copper (no fiber)
+			[ "$mode" = 'FIBER' ] && {
+				# user queries the (potential) fiber port
+				state='down'
+			}
+		fi
+
+		if [ "$state" = 'up' ]; then
+			echo "${mode:-full}"
+		else
+			echo "down${mode}"
+		fi
+	}
+
+	hostname="$( grep '>terminal length' "$file" | cut -d'>' -f1 )"
+
+	set -- $( grep ^'Vlan1' "$file" )		# on switch
+	[ -z "$2" ] && set -- $( grep ^'BVI1' "$file" )	# on AP
+	ip="$2"
+
+	# FIXME! convert to seconds?
+	set -- $( grep 'uptime is ' "$file" )
+	shift 3
+	uptime="$@"
+
+	set -- $( grep 'Model .umber' "$file" )
+	shift 3
+	hardware="$@"
+
+	_switch symbol html_init
+	_switch symbol html "$hostname | $ip | $hardware | $uptime"
+	_switch symbol newline
+
+	case "$hardware" in
+		'AIR-AP1242AG-E-K9')
+			_switch symbol "$( portstatus FastEthernet0 )" 100 1
+		;;
+		'WS-C2960-48TT-L')
+			# FIXME: each 12 ports are grouped (little gap)
+
+			for i in $(seq 1 2 48); do {
+				_switch symbol "$( portstatus FastEthernet0/$i )" 100 $i
+			} done
+
+			_switch symbol newline
+
+			for i in $(seq 2 2 48); do {
+				_switch symbol "$( portstatus FastEthernet0/$i )" 100 $i
+			} done
+
+			_switch symbol gap
+			_switch symbol "$( portstatus GigabitEthernet0/1 )" 1G A
+			_switch symbol "$( portstatus GigabitEthernet0/2 )" 1G B
+		;;
+		'WS-C2960-24TT-L')
+			for i in $(seq 1 2 24); do {
+				_switch symbol "$( portstatus FastEthernet0/$i )" 100 $i
+			} done
+
+			_switch symbol newline
+
+			for i in $(seq 2 2 24); do {
+				_switch symbol "$( portstatus FastEthernet0/$i )" 100 $i
+			} done
+
+			_switch symbol gap
+			_switch symbol "$( portstatus GigabitEthernet0/1 )" 1G A
+			_switch symbol "$( portstatus GigabitEthernet0/2 )" 1G B
+		;;
+		'WS-C2960-24PC-L')
+			for i in $(seq 1 2 24); do {
+				_switch symbol "$( portstatus FastEthernet0/$i )" 1G $i
+			} done
+
+			_switch symbol gap
+			_switch symbol "$( portstatus GigabitEthernet0/1 FIBER )" 1G 25
+			_switch symbol "$( portstatus GigabitEthernet0/2 FIBER )" 1G 26
+			_switch symbol newline
+
+			for i in $(seq 2 2 24); do {
+				_switch symbol "$( portstatus FastEthernet0/$i )" 1G $i
+			} done
+
+			_switch symbol gap
+			_switch symbol "$( portstatus GigabitEthernet0/1 )" 1G 25
+			_switch symbol "$( portstatus GigabitEthernet0/2 )" 1G 26
+		;;
+		'WS-C2960G-24TC-L')
+			for i in $(seq 1 2 20); do {
+				_switch symbol "$( portstatus GigabitEthernet0/$i )" 1G $i
+			} done
+
+			_switch symbol gap
+			_switch symbol "$( portstatus GigabitEthernet0/21 FIBER )" 1G 21
+			_switch symbol "$( portstatus GigabitEthernet0/22 FIBER )" 1G 22
+			_switch symbol "$( portstatus GigabitEthernet0/23 FIBER )" 1G 23
+			_switch symbol "$( portstatus GigabitEthernet0/24 FIBER )" 1G 24
+			_switch symbol newline
+
+			for i in $(seq 2 2 20); do {
+				_switch symbol "$( portstatus GigabitEthernet0/$i )" 1G $i
+			} done
+
+			_switch symbol gap
+			_switch symbol "$( portstatus GigabitEthernet0/21 )" 1G 21
+			_switch symbol "$( portstatus GigabitEthernet0/22 )" 1G 22
+			_switch symbol "$( portstatus GigabitEthernet0/23 )" 1G 23
+			_switch symbol "$( portstatus GigabitEthernet0/24 )" 1G 24
+		;;
+		*)
+			_switch symbol html "$hardware"
+			_switch symbol unimplemented
+		;;
+	esac
+
+	_switch symbol html_end
+	echo -n '<br>'
+}
+
+_cisco_collect()	# FIXME! this is a sample
+{
+	local PASS_WIFIAP='Cisco Cisco'
+	local PASS_SWITCH='geheim'
+
+	if [ -z "$1" ]; then
+		for I in $(seq 3 35); do {
+			_cisco query 192.168.202.$I   "$PASS_WIFIAP" >/tmp/cisco-AP-$( printf "%03d" $I )
+		} done
+
+		_cisco query 192.168.202.251 "$PASS_SWITCH" >/tmp/cisco-E2-251
+		_cisco query 192.168.202.252 "$PASS_SWITCH" >/tmp/cisco-E2-252
+		_cisco query 192.168.202.254 "$PASS_SWITCH" >/tmp/cisco-E2-254
+
+		_cisco query 192.168.202.232 "$PASS_SWITCH" >/tmp/cisco-E3-232
+		_cisco query 192.168.202.231 "$PASS_SWITCH" >/tmp/cisco-E3-231
+		_cisco query 192.168.202.230 "$PASS_SWITCH" >/tmp/cisco-E3-230
+
+		_cisco query 192.168.202.247 "$PASS_SWITCH" >/tmp/cisco-E5-247
+		_cisco query 192.168.202.248 "$PASS_SWITCH" >/tmp/cisco-E5-248
+		_cisco query 192.168.202.249 "$PASS_SWITCH" >/tmp/cisco-E5-249
+	else
+		for FILE in /tmp/cisco*; do {
+			_cisco parse $FILE
+		} done
+	fi
+}
