@@ -1,5 +1,39 @@
 #!/bin/sh
 
+_net_fulltrace()
+{
+	local ip interface speed output
+	local ip_list=
+
+	# 10.63.160.161 LAN 4369
+	set -- $( _wifi speed cached verbose )
+
+	while true; do {
+		output="$( _tool remote "$1" speed_nexthop )"
+
+		case "$output" in
+			'?'|'')
+				return 0
+			;;
+			*)
+				case " $ip_list " in
+					" $1 ")
+						# avoid loop: maintain list of already asked nodes
+						# and abort if the same comes again
+						echo "loop/abort: $1"
+						return
+					;;
+				esac
+
+				# 10.63.160.161 LAN 4369
+				set -- $output
+				echo "IP: $1 interface: $2 speed: $3 kilobyte/s"
+				ip_list="$ip_list $1 "
+			;;
+		esac
+	} done
+}
+
 _net_arp_reset()
 {
 	local line
