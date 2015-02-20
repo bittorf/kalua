@@ -1904,16 +1904,23 @@ check_scripts()
 
 unittest_do()
 {
+	logger -s 'building loader: openwrt-addons/etc/kalua_init'
 	openwrt-addons/etc/kalua_init
 
 	sh -n '/tmp/loader' && {
+		logger -s '. /tmp/loader'
 		. /tmp/loader
+
+		logger -s '_ | wc -l'
+		_ | wc -l
+
+		logger -s 'list="$( ls -1R openwrt-addons )"'
 		local list="$( ls -1R openwrt-addons )"
 
 		logger -s '_list count_elements "$list"'
 		_list count_elements "$list"
 
-		logger -s "_list random_element"
+		logger -s '_list random_element "$list"'
 		_list random_element "$list"
 
 		logger -s "_system architecture"
@@ -1927,6 +1934,7 @@ unittest_do()
 
 		logger -s "cleanup"
 		rm -fR /tmp/loader /tmp/kalua
+		echo
 	}
 }
 
