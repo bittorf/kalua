@@ -222,6 +222,7 @@ Special UCI-variables
 	system.@monitoring[0].ignore_wifi_framecounter - bool
 	system.@monitoring[0].lazy_wifi_framecounter - bool
 	system.@monitoring[0].ignore_lossyethernet - bool
+	system.@monitoring[0].cdp_send		- bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
