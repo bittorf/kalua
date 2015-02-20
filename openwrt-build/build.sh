@@ -668,9 +668,14 @@ check_working_directory()
 			local package="$1"
 			local arch
 
+			# e.g. on fedora
+			which yum >/dev/null && return 0
+			# yum list installed 'package_name'
+
 			dpkg 2>/dev/null >/dev/null --status "$package" && return 0
 
-			arch="$( dpkg-architecture -qDEB_BUILD_ARCH )"	# e.g. 'amd64' or 'i368'
+#			arch="$( dpkg-architecture -qDEB_BUILD_ARCH )"	# e.g. 'amd64', 'i368' or 'x86_64'
+			arch="$( arch )"				# works on debian and fedora
 			dpkg 2>/dev/null >/dev/null --status "$package:$arch"
 		}
 
