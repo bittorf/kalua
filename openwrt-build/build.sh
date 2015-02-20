@@ -124,7 +124,9 @@ log()
 {
 	local message="$1"
 	local debug="$2"
+	local name
 
+	[ -n "$funcname" ] && name=" $funcname()"
 	[ -n "$QUIET" ] && return 0
 	[ -n "$debug" -a -z "$DEBUG" ] && return 0
 
@@ -135,7 +137,7 @@ log()
 			logger -p user.info -s '! /'
 		;;
 		*)
-			logger -p user.info -s "$0: $message"
+			logger -p user.info -s "$0:$name $message"
 		;;
 	esac
 }
@@ -1904,37 +1906,45 @@ check_scripts()
 
 unittest_do()
 {
-	logger -s 'building loader: openwrt-addons/etc/kalua_init'
-	openwrt-addons/etc/kalua_init
+	local funcname='unittest_do'
+
+	log '[START]'
+	log 'building loader: openwrt-addons/etc/kalua_init'
+	openwrt-addons/etc/kalua_init || return 1
 
 	sh -n '/tmp/loader' && {
-		logger -s '. /tmp/loader'
+		log '. /tmp/loader'
 		. /tmp/loader
 
-		logger -s '_ | wc -l'
+		log '_ | wc -l'
 		_ | wc -l
 
-		logger -s 'list="$( ls -1R openwrt-addons )"'
+		log 'list="$( ls -1R openwrt-addons )"'
 		local list="$( ls -1R openwrt-addons )"
 
-		logger -s '_list count_elements "$list"'
-		_list count_elements "$list"
+		log '_list count_elements "$list"'
+		_list count_elements "$list" || return 1
 
-		logger -s '_list random_element "$list"'
-		_list random_element "$list"
+		log '_list random_element "$list"'
+		_list random_element "$list" || return 1
 
-		logger -s "_system architecture"
-		_system architecture
+		log "_system architecture"
+		_system architecture || return 1
 
-		logger -s "_system ram_free"
-		_system ram_free
+		log "_system ram_free"
+		_system ram_free || return 1
 
-		logger -s '_filetype detect_mimetype /tmp/loader'
-		_filetype detect_mimetype /tmp/loader
+		log '_filetype detect_mimetype /tmp/loader'
+		_filetype detect_mimetype /tmp/loader || return 1
 
-		logger -s "cleanup"
+		log '_system load 1min full ; _system load'
+		_system load 1min full || return 1
+		_system load || return 1
+
+		log 'cleanup'
 		rm -fR /tmp/loader /tmp/kalua
-		echo
+
+		log '[READY]'
 	}
 }
 
