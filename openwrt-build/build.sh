@@ -1843,7 +1843,6 @@ parse_case_patterns()
 check_scripts()
 {
 	local dir="$1"
-	local unittest="$2"
 	local tempfile="/tmp/check_scripts"
 	local file i mimetype
 
@@ -1899,8 +1898,6 @@ check_scripts()
 
 	log "[OK] checked $i files"
 	rm "$tempfile"
-
-	[ "$unittest" = 'true' ] && unittest_do || return 1
 	return 0
 }
 
@@ -1986,17 +1983,21 @@ while [ -n "$1" ]; do {
 			exit 0
 		;;
 		'--check'|'-c')
-			[ "$2" = '--unittest' ] && UNITTEST='true'
-			[ "$3" = '--unittest' ] && UNITTEST='true'
-
 			if [ "$KALUA_DIRNAME" = "$( dirname "$0" )" ]; then
 				# openwrt-build/build.sh -> openwrt-build
-				check_scripts . $UNITTEST
+				check_scripts .
 			else
-				check_scripts ${2:-$KALUA_DIRNAME} $UNITTEST
+				check_scripts ${2:-$KALUA_DIRNAME}
 			fi
 
-			exit $?
+			test $? -eq 0 || exit 1
+			STOP_PARSE='true'
+		;;
+		'--unittest')
+			unittest_do
+
+			test $? -eq 0 || exit 1
+			STOP_PARSE='true'
 		;;
 		'--help'|'-h')
 			print_usage_and_exit
@@ -2089,6 +2090,8 @@ while [ -n "$1" ]; do {
 
 	shift
 } done
+
+[ -n "$STOP_PARSE" ] && exit 0
 
 die_and_exit()
 {
