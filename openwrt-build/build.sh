@@ -1841,6 +1841,7 @@ parse_case_patterns()
 check_scripts()
 {
 	local dir="$1"
+	local unittest="$2"
 	local tempfile="/tmp/check_scripts"
 	local file i mimetype
 
@@ -1896,7 +1897,37 @@ check_scripts()
 
 	log "[OK] checked $i files"
 	rm "$tempfile"
+
+	[ "$unittest" = 'true' ] && unittest_do || return 1
 	return 0
+}
+
+unittest_do()
+{
+	openwrt-addons/etc/kalua_init
+
+	sh -n '/tmp/loader' && {
+		. /tmp/loader
+		local list="$( ls -1R openwrt-addons )"
+
+		logger -s '_list count_elements "$list"'
+		_list count_elements "$list"
+
+		logger -s "_list random_element"
+		_list random_element "$list"
+
+		logger -s "_system architecture"
+		_system architecture
+
+		logger -s "_system ram_free"
+		_system ram_free
+
+		logger -s '_filetype detect_mimetype /tmp/loader'
+		_filetype detect_mimetype /tmp/loader
+
+		logger -s "cleanup"
+		rm -fR /tmp/loader /tmp/kalua
+	}
 }
 
 check_git_settings()
@@ -1929,11 +1960,14 @@ while [ -n "$1" ]; do {
 			exit 0
 		;;
 		'--check'|'-c')
+			[ "$2" = '--unittest' ] && UNITTEST='true'
+			[ "$3" = '--unittest' ] && UNITTEST='true'
+
 			if [ "$KALUA_DIRNAME" = "$( dirname "$0" )" ]; then
 				# openwrt-build/build.sh -> openwrt-build
-				check_scripts .
+				check_scripts . $UNITTEST
 			else
-				check_scripts ${2:-$KALUA_DIRNAME}
+				check_scripts ${2:-$KALUA_DIRNAME} $UNITTEST
 			fi
 
 			exit $?
