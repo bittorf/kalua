@@ -1907,10 +1907,17 @@ check_scripts()
 unittest_do()
 {
 	local funcname='unittest_do'
+	local build_loader
+
+	if [ "$KALUA_DIRNAME" = 'openwrt-build' ]; then
+		build_loader='openwrt-addons/etc/kalua_init'
+	else
+		build_loader="$KALUA_DIRNAME/openwrt-addons/etc/kalua_init"
+	fi
 
 	log '[START]'
-	log 'building loader: openwrt-addons/etc/kalua_init'
-	openwrt-addons/etc/kalua_init || return 1
+	log "building loader: $build_loader"
+	$build_loader || return 1
 
 	sh -n '/tmp/loader' && {
 		log '. /tmp/loader'
@@ -1964,8 +1971,9 @@ check_git_settings()
 	}
 }
 
-# kalua/openwrt-build/build.sh      -> kalua
-# weimarnetz/openwrt-build/build.sh -> weimarnetz
+# kalua/openwrt-build/build.sh		-> kalua
+# weimarnetz/openwrt-build/build.sh	-> weimarnetz
+# openwrt-build/build.sh		-> openwrt-build
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 PATCHDIR=
 
