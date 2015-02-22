@@ -442,7 +442,7 @@ _net_ip4_is_private()		# RFC-1918
 _net_ip2dns()
 {
 	local ip="$1"
-	local startparse last line
+	local startparse last line error output do_olsr
 
 	# root@box:~ nslookup 10.63.6.3
 	# Server:    127.0.0.1			// these 2 lines are
@@ -451,9 +451,22 @@ _net_ip2dns()
 	# Name:      10.63.6.3
 	# Address 1: 10.63.6.3 mid1.F36-Dach4900er-MESH		// hostname is missing if lookup fails
 
-	set -- $( nslookup "$ip" 2>/dev/null || echo 'ERROR ERROR' )
+	output="$( nslookup "$ip" 2>/dev/null || echo 'ERROR ERROR' )"
+	set -- $output
 
-	[ "$1" = 'ERROR' ] && {
+	case "$6" in
+		*'mywifi'*|*'user-lan'*)
+			do_olsr='true'
+		;;
+		*)
+			[ "$1" = 'ERROR' ] && {
+				do_olsr='true'
+				error='true'
+			}
+		;;
+	esac
+
+	[ -n "$do_olsr" ] && {
 		while read line; do {
 			# 10.63.194.131   mid1.Sommerbar-Kamera   # 10.63.194.161 (mid #1)
 			set -- $line
@@ -466,7 +479,12 @@ _net_ip2dns()
 			esac
 		} done <'/var/run/hosts_olsr'
 
-		return 1
+		if [ -n "$error" ]; then
+			return 1
+		else
+			# use nslookup-output
+			set -- $output
+		fi
 	}
 
 	while shift; do {
