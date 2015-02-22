@@ -1923,8 +1923,8 @@ unittest_do()
 		log '_ | wc -l'
 		_ | wc -l
 
-		log 'list="$( ls -1R openwrt-addons )"'
-		local list="$( ls -1R openwrt-addons )"
+		log 'list="$( ls -1R . )"'
+		local list="$( ls -1R . )"
 
 		log '_list count_elements "$list"'
 		_list count_elements "$list" || return 1
