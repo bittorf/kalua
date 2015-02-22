@@ -1920,6 +1920,11 @@ unittest_do()
 		log '. /tmp/loader'
 		. /tmp/loader
 
+		log 'echo "$HARDWARE" + cpu + diskspace'
+		echo "'$HARDWARE'"
+		grep -c ^'processor' '/proc/cpuinfo'
+		df -h
+
 		log '_ | wc -l'
 		_ | wc -l
 
