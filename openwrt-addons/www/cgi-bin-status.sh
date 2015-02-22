@@ -188,7 +188,7 @@ output_table()
 		esac
 
 		case "$remote_hostname" in
-			"$remote_ip"|'mywifi')	# see S43ethers
+			"$remote_ip"|'mywifi'*|'user-lan'*)	# see S43ethers
 				return 0
 			;;
 			*'.'*)
