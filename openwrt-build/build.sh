@@ -223,7 +223,7 @@ register_patch()
 	fi
 }
 
-apply_minstrel_blues()
+apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.linuxplumbersconf.org/2014/ocw/sessions/2439
 {
 	local funcname='apply_minstrel_blues'
 	local option="$1"	# e.g. 'disable'
@@ -1434,10 +1434,10 @@ build_options_set()
 				# we work on this during above $KALUA_DIRNAME
 			;;
 			'MinstrelBlues')
-				apply_minstrel_blues
+				apply_minstrel_rhapsody
 			;;
 			'noMinstrelBlues')
-				apply_minstrel_blues 'disable'
+				apply_minstrel_rhapsody 'disable'
 			;;
 			'Standard')	# >4mb flash
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
