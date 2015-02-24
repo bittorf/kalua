@@ -225,25 +225,27 @@ register_patch()
 
 apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.linuxplumbersconf.org/2014/ocw/sessions/2439
 {
-	local funcname='apply_minstrel_blues'
-	local option="$1"	# e.g. 'disable'
-	local dir='kalua/openwrt-patches/interesting/minstrel-blues'
-	local kernel_dir='package/kernel/mac80211/patches'
+	local funcname='apply_minstrel_rhapsody'
+	local dir='kalua/openwrt-patches/interesting/minstrel-rhapsody'
+	local kernel_dir='package/kernel/mac80211'
 	local file base
 
+	# applysymbol: CONFIG_PACKAGE_MAC80211_RC_RHAPSODY_BLUES
+
 	MAC80211_CLEAN='true'
-	if [ "$option" = 'disable' ]; then
-		for file in $dir/*; do {
-			base="$( basename "$file" )"
-			[ -e "$kernel_dir/$base" ] && rm "$kernel_dir/$base"
-		} done
-	else
-		register_patch "DIR: $dir"
-		for file in $dir/*; do {
-			register_patch "$file"
-			cp $file $kernel_dir
-		} done
-	fi
+	register_patch "DIR: $dir"
+
+	register_patch $dir/Makefile
+	cp $dir/Makefile $kernel_dir
+	git add $kernel_dir/Makefile
+
+	for file in $dir/patches/*; do {
+		register_patch "$file"
+		cp $file $kernel_dir/patches
+		git add $kernel_dir/patches/$file
+	} done
+
+	git commit -m "$funcname()"
 }
 
 apply_wifi_reghack()
@@ -1433,11 +1435,8 @@ build_options_set()
 			'noReghack')
 				# we work on this during above $KALUA_DIRNAME
 			;;
-			'MinstrelBlues')
+			'MinstrelRhapsody')
 				apply_minstrel_rhapsody
-			;;
-			'noMinstrelBlues')
-				apply_minstrel_rhapsody 'disable'
 			;;
 			'Standard')	# >4mb flash
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
