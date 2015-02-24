@@ -242,10 +242,10 @@ apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.
 	for file in $dir/patches/*; do {
 		register_patch "$file"
 		cp $file $kernel_dir/patches
-		git add $kernel_dir/patches/$file
+		git add $kernel_dir/patches/$( basename "$file" )
 	} done
 
-	git commit -m "$funcname()"
+	git commit --signoff -m "$funcname()"
 }
 
 apply_wifi_reghack()
