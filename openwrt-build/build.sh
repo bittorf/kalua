@@ -230,8 +230,6 @@ apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.
 	local kernel_dir='package/kernel/mac80211'
 	local file base
 
-	# applysymbol: CONFIG_PACKAGE_MAC80211_RC_RHAPSODY_BLUES
-
 	MAC80211_CLEAN='true'
 	register_patch "DIR: $dir"
 
@@ -1437,6 +1435,7 @@ build_options_set()
 			;;
 			'MinstrelRhapsody')
 				apply_minstrel_rhapsody
+				apply_symbol 'CONFIG_PACKAGE_MAC80211_RC_RHAPSODY_BLUES=y'
 			;;
 			'Standard')	# >4mb flash
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
