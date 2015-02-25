@@ -1819,50 +1819,33 @@ _watch_wifistuff()
 		esac
 	}
 
-	case "$CONFIG_PROFILE" in
-		*_adhoc)
-		;;
-		*)
-			# or: grep interface=wlan0-1 /var/run/hostapd-phy0.conf
+	local interface line file
+	for file in /var/run/hostapd-phy[0-3].conf; do {
+		while read line; do {
+			case "$line" in
+				'interface='*)
+					eval $line
 
-			local APDEV=
-			if   [ -z "$WIFIDEV" ]; then
-				:
-			elif grep -q 'wlan0-1:' '/proc/net/dev'; then
-				# AP-interface in hybrid-mode
-				if iw dev 'wlan0-1' info | grep -q 'type AP'; then
-					APDEV='wlan0-1'
-				else
-					APDEV=
-				fi
-			else
-				# normal AP-interface
-				if iw dev 'wlan0' info | grep -q 'type AP'; then
-					APDEV='wlan0'
-				else
-					APDEV=
-				fi
-			fi
+					if [ -n "$( iw dev "$interface" station dump )" ]; then
+						_log do $funcname daemon info "1 or more clients on APDEV '$interface'"
+						touch "/tmp/wifi_hasclients_$interface"
+					else
+						_log do $funcname daemon info "NO clients on APDEV '$interface'"
 
-			if   [ -z "$WIFIDEV" ]; then
-				:
-			elif [ -n "$( iw dev "$APDEV" station dump )" ]; then
-				_log do $funcname daemon info "1 or more clients on APDEV '$APDEV'"
-				touch "/tmp/wifi_hasclients_$APDEV"
-			else
-				_log do $funcname daemon info "NO clients on APDEV '$APDEV'"
+						# FIXME: on hybrid too? on inetoffer too?
+						# enforce every hour:
+						_watch counter "/tmp/$funcname-apmode" increment 1 max 60 || touch "/tmp/wifi_hasclients_$interface"
 
-				# enforce every hour: FIXME: on hybrid too?
-				_watch counter "/tmp/$funcname-apmode" increment 1 max 60 || touch "/tmp/wifi_hasclients_$APDEV"
-
-				[ -e "/tmp/wifi_hasclients_$APDEV" ] && {
-					rm "/tmp/wifi_hasclients_$APDEV" "/tmp/$funcname-apmode"
-					_wifi phy_restart "$APDEV" 'cleanup after last client'
-					sleep 15
-				}
-			fi
-		;;
-	esac
+						[ -e "/tmp/wifi_hasclients_$interface" ] && {
+							rm "/tmp/wifi_hasclients_$interface" "/tmp/$funcname-apmode"
+							_wifi phy_restart "$interface" 'cleanup after last client'
+							sleep 15
+						}
+					fi
+				;;
+			esac
+		} done <"$file"
+	} done
 
 	case "$WIFIMODE" in
 		*adhoc*)
