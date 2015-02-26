@@ -1055,15 +1055,19 @@ boot()
 				100)
 					uci set dhcp.lan.ignore=1
 
-					uci add network alias
-					uci set network.@alias[-1].interface="lan"
-					uci set network.@alias[-1].proto=static
-					uci set network.@alias[-1].ipaddr=192.168.112.2
-					uci set network.@alias[-1].netmask=255.255.255.0
-					uci set network.@alias[-1].gateway=192.168.112.1
+					uci show 'network' | grep "network.@alias\[.\].ipaddr" | fgrep -q 'ipaddr=192.168.112.2' || {
+						uci add network alias
+						uci set network.@alias[-1].interface="lan"
+						uci set network.@alias[-1].proto=static
+						uci set network.@alias[-1].ipaddr=192.168.112.2
+						uci set network.@alias[-1].netmask=255.255.255.0
+						uci set network.@alias[-1].gateway=192.168.112.1
+					}
 
-					uci add system netfilter
-					uci set system.@netfilter[-1].lan_masquerading='0'
+					[ "$( uci get system.@netfilter[0].lan_masquerading )" = '0' ] || {
+						uci add system netfilter
+						uci set system.@netfilter[-1].lan_masquerading='0'
+					}
 
 					uci set system.@monitoring[0].pingcheck='10.10.101.1'
 				;;
@@ -1222,6 +1226,7 @@ boot()
 				;;
 			esac
 
+			uci set system.@monitoring[0].maxcost='5000'
 			uci set system.@monitoring[0].ignore_lossyethernet='true'	# too much restarting OLSR/fully wired switched
 			uci set system.@weblogin[0].authserver='10.10.111.129'		# Festscheune3
 			uci set olsrd.@meta[0].hnaslave=0
@@ -1251,10 +1256,10 @@ boot()
 					# serverraum/surfstation DH
 					_wifi set adhoc 2ghz mcast_rate '1000'
 				;;
-				33|34|35|36|37|38|39|40|41|42|43|44)
-					_wifi set ap    5ghz ssid 'Mitarbeiter5'
-					_wifi set ap    2ghz ssid 'Mitarbeiter2'
-				;;
+#				33|34|35|36|37|38|39|40|41|42|43|44)
+#					_wifi set ap    5ghz ssid 'Mitarbeiter5'
+#					_wifi set ap    2ghz ssid 'Mitarbeiter2'
+#				;;
 			esac
 		;;
 		spbansin*)
