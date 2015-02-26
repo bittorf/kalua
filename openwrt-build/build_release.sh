@@ -48,7 +48,7 @@ changedir()
 {
 	[ -d "$1" ] || {
 		log "creating dir $1"
-		mkdir -p "$1"
+		mkdir -p "$1" 
 	}
 
 	log "going into $1"
@@ -65,29 +65,41 @@ clone()
 		changedir "$dir"
 		git stash
 		git checkout master
-		git pull
+		git pull || {
+            log "error pulling repo"
+            exit 1
+        }
 		changedir ..
 	else
 		log "git-cloning from '$repo'"
-		git clone "$repo"
+		git clone "$repo" || { 
+           log "error cloning repo" 
+           exit 1
+       }
 	fi
 	
-	if [ -e ../../$REPONAME/openwrt-config/git_revs ] && [ $TRUNK = 0 ]; then
-		. ../../$REPONAME/openwrt-config/git_revs
+	if [ -e "../../$REPONAME/openwrt-config/git_revs" ] && [ $TRUNK = 0 ]; then
+		. "../../$REPONAME/openwrt-config/git_revs"
 		case "$repo" in
 			*"openwrt"*)
-				[ -n $MY_OPENWRT ] && {
+				[ -n "$MY_OPENWRT" ] && {
 					changedir "$dir"
 					git branch -D "r$MY_OPENWRT"
-					git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_OPENWRT " | cut -d' ' -f2 )" -b r$MY_OPENWRT
+					git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_OPENWRT " | cut -d' ' -f2 )" -b r$MY_OPENWRT || {
+                       log "error during git checkout"
+                       exit 1
+                    }
 					changedir ..
 				}
 			;;
 			*"packages"*)
-				[ -n $MY_PACKAGES ] && {
+				[ -n "$MY_PACKAGES" ] && {
 					changedir "$dir"
 					git branch -D "r$MY_PACKAGES"
-					git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_PACKAGES" | cut -d' ' -f2 )" -b r$MY_PACKAGES
+					git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$MY_PACKAGES" | cut -d' ' -f2 )" -b r$MY_PACKAGES || {
+                       log "error during git checkout" 
+                       exit 1
+                   }
 					changedir ..
 				}
 			;;
@@ -128,7 +140,10 @@ prepare_build()		# check possible values via:
 				REV="$( echo "$action" | cut -d'r' -f2 )"
 				log "switching to revision r$REV"
 				git stash
-				git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV
+				git checkout "$( git log -z | tr '\n\0' ' \n' | grep "@$REV " | cut -d' ' -f2 )" -b r$REV || {
+                log "error while git checkout" 
+                exit 1
+            }
 				continue
 			;;
 			*"use_"*)
@@ -136,7 +151,7 @@ prepare_build()		# check possible values via:
 			;;
 		esac
 
-		$REPONAME/openwrt-build/mybuild.sh set_build "$action"
+		"$REPONAME/openwrt-build/mybuild.sh" set_build "$action"
 		log "[READY] invoking: '$action' from '$@'"
 	} done
 }
@@ -175,9 +190,9 @@ changedir openwrt
 clone "$REPOURL"
 #copy feeds.conf to openwrt directory
 if [ "$TRUNK" = "bb1407" ]; then
-	cp $REPONAME/openwrt-build/feeds.conf.1407 ./feeds.conf
+	cp "$REPONAME/openwrt-build/feeds.conf.1407" ./feeds.conf
 else
-	cp $REPONAME/openwrt-build/feeds.conf ./
+	cp "$REPONAME/openwrt-build/feeds.conf" ./
 fi
 
 prepare_build "reset_config"
@@ -194,7 +209,7 @@ for SPECIAL in unoptimized kcmdlinetweak; do {
 } done
 
 #$REPONAME/openwrt-build/mybuild.sh applymystuff
-$REPONAME/openwrt-build/mybuild.sh make
+"$REPONAME/openwrt-build/mybuild.sh" make
 print_revisions
 
 log "please removing everything via 'rm -fR release' if you are ready"
