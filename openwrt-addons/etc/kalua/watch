@@ -1839,7 +1839,6 @@ _watch_wifistuff()
 						[ -e "/tmp/wifi_hasclients_$interface" ] && {
 							rm "/tmp/wifi_hasclients_$interface" "/tmp/$funcname-apmode"
 							_wifi phy_restart "$interface" 'cleanup after last client'
-							_log sleep after_phy_restart 46 step 10
 							break
 						}
 					fi
@@ -1859,6 +1858,14 @@ _watch_wifistuff()
 			case "$WIFIMODE" in
 				*ap*|*client*)
 					which hostapd >/dev/null && {
+						local i=12
+						while [ -z "$( _net dev2ip "$WIFIDEV" debug )" ]; do {
+							_log do $funcname daemon info "waiting for IP on $WIFIDEV - $i/12"
+							sleep 10
+
+							let i-=1 || break
+						} done
+
 						if pidof hostapd >/dev/null; then
 							touch "/tmp/DAEMON_hostapd_seen"
 						else
@@ -1869,7 +1876,7 @@ _watch_wifistuff()
 							else
 								if pidof wpa_supplicant >/dev/null; then
 									# maybe manually configured for maintenance
-									_log do $funcname daemon info "OK: found wpa_supplicant"
+									_log do $funcname daemon info '[OK] found wpa_supplicant'
 								else
 									[ -e "/tmp/DAEMON_hostapd_seen" ] && {
 										_wifi phy_restart "$WIFIDEV" "missing_hostapd"
