@@ -301,8 +301,10 @@ boot()
 
 	case "$CONFIG_PROFILE" in
 		abtpark*)
-			uci del wireless.radio1.htmode
-			uci del wireless.radio0.htmode
+			[ $OPENWRT_REV -eq 44420 ] && {
+				uci del wireless.radio1.htmode
+				uci del wireless.radio0.htmode
+			}
 		;;
 	esac
 
@@ -587,6 +589,16 @@ boot()
 		uci set wireless.@wifi-iface[$INDEX].disassoc_low_ack='0'
 	} done
 
+	# let wifi-dhcp be on 2ghz - till we fix it
+	# e.g. TPLINK 4900 has 2ghz on 2nd wifi-phy
+	for INDEX in $( _wifi get any mode ap ); do {
+		_wifi is2ghz $INDEX && {
+			NAME="$( uci get wireless.@wifi-iface[$INDEX].network )"
+			uci set dhcp.wlan.interface="$NAME"
+			break
+		}
+	} done
+
 	_wifi set ap 5ghz disabled '1'
 
 	case "$CONFIG_PROFILE" in
@@ -695,8 +707,10 @@ boot()
 		abtpark*)
 			uci set system.@weblogin[0].ticketstock='32'
 
-			uci del wireless.radio1.htmode		# FIXME!
-			uci del wireless.radio0.htmode
+			[ $OPENWRT_REV -eq 44420 ] && {
+				uci del wireless.radio1.htmode		# FIXME!
+				uci del wireless.radio0.htmode
+			}
 
 			_wifi set adhoc 2ghz 'x'
 			_wifi set ap    2ghz 'a-park.de'
