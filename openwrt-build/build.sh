@@ -1902,6 +1902,7 @@ check_scripts()
 unittest_do()
 {
 	local funcname='unittest_do'
+	local shellcheck_bin=
 	local build_loader
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' ]; then
@@ -1950,6 +1951,24 @@ unittest_do()
 		log '_system load 1min full ; _system load'
 		_system load 1min full || return 1
 		_system load || return 1
+
+		shellcheck_bin="$( which shellcheck )"
+		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
+		if [ -z "$shellcheck_bin" ]; then
+			log "[OK] shellcheck not installed - no deeper tests"
+		else
+			log "testing with '$shellcheck_bin'"
+
+			$shellcheck_bin -e SC1010,SC2086,SC2154 openwrt-addons/etc/kalua/wget || return 1
+		fi
+
+		if which sloccount; then
+			log "counting lines of code:"
+
+			sloccount .
+		else
+			log '[OK] sloccount not installed'
+		fi
 
 		log 'cleanup'
 		rm -fR /tmp/loader /tmp/kalua
