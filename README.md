@@ -237,6 +237,7 @@ Special UCI-variables
 	
 	system.@system[0].noswinstall		- bool
 	system.@system[0].avoid_autoreboot	- bool
+	system.@system[0].db_backup_force	- bool
 	
 	system.@profile[0].name			- string
 	system.@profile[0].nodenumber		- integer
@@ -256,9 +257,10 @@ Special UCI-variables
 	olsrd.@meta[0].throttle_traffic		- bool
 	olsrd.@meta[0].nexthop_dns		- bool
 	olsrd.@meta[0].reboot_weak_ethernet	- bool
+	olsrd.@meta[0].watch_value		- integer
+	olsrd.@meta[0].watch_ip			- ipaddr
 
 	firewall.@adblock[0].enabled		- bool
-	network.$INTERFACE.dyndns		- url
 
 	mail.@pop3[0].username			- string
 	mail.@pop3[0].password			- string
@@ -274,11 +276,8 @@ Special UCI-variables
 
 	wireless.radio0.cronactive		- string: '18:00 - 08:00'
 
+	network.$INTERFACE.dyndns		- url
 	network.wan.public_ip			- bool
+	network.@switch[0].disable_autoneg	- bool
 
 	system.@webcam[0].storage_path		- string: e.g. 'bastian@10.63.2.34:bigbrother'
-
-	olsrd.@meta[0].watch_value		- integer
-	olsrd.@meta[0].watch_ip			- ipaddr
-
-	network.@switch[0].disable_autoneg	- bool
