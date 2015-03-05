@@ -1878,7 +1878,6 @@ check_scripts()
 				log "[OK] will not check binary file '$file'" debug
 			;;
 			'text/x-shellscript'|'text/plain')
-				# http://www.shellcheck.net/about.html ?
 				sh -n "$file" || {
 					log "error in file '$file' - abort"
 					rm "$tempfile"
@@ -1902,8 +1901,7 @@ check_scripts()
 unittest_do()
 {
 	local funcname='unittest_do'
-	local shellcheck_bin=
-	local build_loader
+	local shellcheck_bin build_loader
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' ]; then
 		build_loader='openwrt-addons/etc/kalua_init'
@@ -1952,8 +1950,14 @@ unittest_do()
 		_system load 1min full || return 1
 		_system load || return 1
 
+		[ -n "$TRAVIS" ] && {
+			wget -O 'shellsheck.deb' 'http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.5-2_amd64.deb'
+			sudo dpkg -i 'shellsheck.deb'
+		}
+
 		shellcheck_bin="$( which shellcheck )"
 		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
+
 		if [ -z "$shellcheck_bin" ]; then
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
@@ -1972,7 +1976,7 @@ unittest_do()
 			sloc
 		else
 			if [ -n "$TRAVIS" ]; then
-				sudo apt-get install sloccount
+				sudo apt-get -y install sloccount
 				sloc
 			else
 				log '[OK] sloccount not installed'
