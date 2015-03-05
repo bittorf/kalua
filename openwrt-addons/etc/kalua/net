@@ -21,14 +21,33 @@ _net_my_isp()
 
 _net_fulltrace()
 {
-	local ip interface speed output mbit
+	local ip interface speed output mbit nexthop
 	local ip_list=
 
 	# '?' or '10.63.160.161 LAN 4369'
 	set -- $( _wifi speed cached verbose )
+	nexthop="$1"
+	interface="$2"
+	speed="${3:-0}"
+	[ "$nexthop" = '?' ] && read nexthop <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
+
+	case "$interface" in
+		WAN|LAN)
+			speed=12500	# 100 mbit FIXME! - not true with a transparent wifi bridge
+		;;
+	esac
+
+	mbit=$(( speed * 8 / 1000 ))
+	ip_list="$ip_list $nexthop "
+	echo "ip: $ip nexthop: $nexthop interface: $interface speed: $speed kilobyte/s = $mbit megabit/s"
 
 	while true; do {
-		output="$( _tool remote "$1" speed_nexthop )"
+		if [ "$1" = '?' ]; then
+			output='?'
+		else
+			output="$( _tool remote "$1" speed_nexthop )"
+		fi
+
 		ip="$1"
 
 		case "$output" in
