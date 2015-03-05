@@ -1963,7 +1963,8 @@ unittest_do()
 		else
 			log "testing with '$shellcheck_bin'"
 
-			$shellcheck_bin -e SC1010,SC2086,SC2154 openwrt-addons/etc/kalua/wget || return 1
+			$shellcheck_bin -e SC2034,SC2046,SC2086 openwrt-addons/www/cgi-bin-404.sh || return 1
+#			$shellcheck_bin -e SC1010,SC2086,SC2154 openwrt-addons/etc/kalua/wget || return 1
 		fi
 
 		sloc()
