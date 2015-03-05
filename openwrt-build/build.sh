@@ -1919,11 +1919,10 @@ unittest_do()
 		log '. /tmp/loader'
 		. /tmp/loader
 
-		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace + env'
+		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace'
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
 		grep -c ^'processor' '/proc/cpuinfo'
 		df -h
-		env
 
 		log '_ | wc -l'
 		_ | wc -l
@@ -1963,13 +1962,21 @@ unittest_do()
 			$shellcheck_bin -e SC1010,SC2086,SC2154 openwrt-addons/etc/kalua/wget || return 1
 		fi
 
-		if which sloccount; then
+		sloc()
+		{
 			log "counting lines of code:"
-
 			sloccount .
+		}
+
+		if which sloccount; then
+			sloc
 		else
-			# sudo apt-get install sloccount
-			log '[OK] sloccount not installed'
+			if [ -n "$TRAVIS" ]; then
+				sudo apt-get install sloccount
+				sloc
+			else
+				log '[OK] sloccount not installed'
+			fi
 		fi
 
 		log 'cleanup'
