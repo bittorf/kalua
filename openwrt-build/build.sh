@@ -1919,10 +1919,11 @@ unittest_do()
 		log '. /tmp/loader'
 		. /tmp/loader
 
-		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace'
+		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace + env'
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
 		grep -c ^'processor' '/proc/cpuinfo'
 		df -h
+		env
 
 		log '_ | wc -l'
 		_ | wc -l
@@ -1967,6 +1968,7 @@ unittest_do()
 
 			sloccount .
 		else
+			# sudo apt-get install sloccount
 			log '[OK] sloccount not installed'
 		fi
 
