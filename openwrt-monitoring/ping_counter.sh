@@ -125,6 +125,7 @@ list_networks()
 		return 0
 	elif [ "$1" = 'maintenance' ]; then
 		cat <<EOF
+malchowpension
 abtpark
 ilm1
 adagio
@@ -150,6 +151,7 @@ rehungen
 EOF
 	else
 		cat <<EOF
+malchowpension
 abtpark
 ilm1
 chicagovps
@@ -387,6 +389,9 @@ send_sms()
 		;;
 		dhfleesensee)
 			list_numbers="$list_numbers 0170/5661165 0160/4797497"
+		;;
+		malchowpension)
+			list_numbers="$list_numbers 0173/6234581"
 		;;
 	esac
 

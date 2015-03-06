@@ -1963,6 +1963,7 @@ unittest_do()
 		else
 			log "testing with '$shellcheck_bin'"
 
+			# strip non-ascii: tr -cd '\11\12\15\40-\176' <"$file" >"$newfile"
 			for file in openwrt-addons/www/cgi-bin-404.sh; do {
 				$shellcheck_bin -e SC2034,SC2046,SC2086 "$file" || return 1
 #				$shellcheck_bin -e SC1010,SC2086,SC2154 openwrt-addons/etc/kalua/wget || return 1
@@ -1976,7 +1977,7 @@ unittest_do()
 
 			sloccount . | while read line; do {
 				case "$line" in
-					[0-9]*|*'%)'|*'):'|*' = '*|'SLOC'*)
+					[0-9]*|*'%)'|*'):'|*' = '*|'SLOC '*)
 						# only show interesting lines
 						echo "$line"
 					;;
