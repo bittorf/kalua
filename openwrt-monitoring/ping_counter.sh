@@ -125,6 +125,7 @@ list_networks()
 		return 0
 	elif [ "$1" = 'maintenance' ]; then
 		cat <<EOF
+abtpark
 ilm1
 adagio
 ibfleesensee
@@ -149,8 +150,8 @@ rehungen
 EOF
 	else
 		cat <<EOF
+abtpark
 ilm1
-js.ars.is
 chicagovps
 adagio
 ibfleesensee

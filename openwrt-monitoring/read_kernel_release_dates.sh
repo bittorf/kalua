@@ -20,7 +20,7 @@ monthname2number()
 	esac
 }
 
-for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x'; do {
+for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 	URL="https://www.kernel.org/pub/linux/kernel/$MAIN_VERSION"
 	mkdir -p "$DIR"
 	logger -s "fetching '$URL' and filling '$DIR'"

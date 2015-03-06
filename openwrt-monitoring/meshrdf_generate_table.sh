@@ -1,6 +1,6 @@
 #!/bin/sh
 # tail -n1 "/tmp/schoeneck.dot" | grep -q '}' || echo "}" >>/tmp/schoeneck.dot; dot -Tpng /tmp/schoeneck.dot > /var/www/1.png
-
+# set -x
 # take screenshot into account:
 # /var/www/networks/gnm/settings/2a40d30a6b01.screenshot.jpg
 
@@ -187,6 +187,14 @@ TARBALL_TIME='394915'	# 902738296ce2ade3df7729cf0a783204042867ee
 TARBALL_TIME='395079'	# 1b0167281d355b461366465f13044f0aa6df65d9
 TARBALL_TIME='395102'	# 4606bff141c4702e75f3411b5274a3a75d2ca69f
 TARBALL_TIME='395324'	# a501128dd626314b36efbaf600dc3f82ae40cf46
+TARBALL_TIME='395417'	# 782765685738caaa714a2190702e0ed29021989b
+TARBALL_TIME='395588'	# 2e9a0138fa60fc228d92fcf39c6900c1c73eaa0c
+TARBALL_TIME='395781'	# 71b178421da5bd672e832a5430aeca59b406ab93
+TARBALL_TIME='395801'	# bf3679752d94578c1f06ddea5b3adbf01fffc13d
+TARBALL_TIME='395804'	# af3fa35882632b32e64afb27acab4b920a718130
+TARBALL_TIME='395945'	# f688242edb2031a79c16b526d546dc45e7d26bda
+TARBALL_TIME='395983'
+TARBALL_TIME='395997'	# ba208e25add903efa528defc1ff27940ca6a0227
 
 
 
@@ -206,7 +214,29 @@ command . /tmp/RM && rm /tmp/RM
 # logger -s "0: pwd: $(pwd)"
 
 REAL_OUT="./meshrdf.html"
-NETWORK="$( pwd | sed -n 's#^/var/www/networks/\(.*\)/.*#\1#p' )"
+
+get_network_name()
+{
+	local oldIFS="$IFS"
+	local IFS='/'
+
+	set -- $( pwd )
+
+	while :; do {
+		case "$1" in
+			'networks')
+				echo "$2"
+				break
+			;;
+		esac
+
+		shift
+	} done
+}
+
+NETWORK="$( get_network_name )"
+# NETWORK="$( pwd | sed -n 's#^/var/www/networks/\(.*\)/.*#\1#p' )"
+
 TOOLS="./tools.txt"
 IPKG="./ipkg.txt" ; >$IPKG
 DOTFILE="/tmp/$NETWORK.dot"
@@ -255,18 +285,13 @@ last_remote_addr()
 	local file ip
 	local unixtime_max=0
 
-# logger -s "last_remote_addr: start"
-
-	for file in $( ls -1 recent/ | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ ); do {
-		. "recent/$file"
+	for file in $( ls -1 /var/www/networks/$NETWORK/meshrdf/recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ ); do { 
+		command . "/var/www/networks/$NETWORK/meshrdf/recent/$file"
 		[ ${UNIXTIME:-0} -gt $unixtime_max ] && {
 			unixtime_max="$UNIXTIME"
 			ip="$PUBIP_REAL"
-#			export LAST_REMOTE_ADDR_NODE="$file"
 		}
 	} done
-
-# logger -s "last_remote_addr: ready: $ip"
 
 	echo "$ip"
 }
@@ -497,12 +522,12 @@ func_update2color ()
 	esac
 }
 
-rm recent/autonode* 2>/dev/null
-LIST_FILES="$( find recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
+rm /var/www/networks/$NETWORK/meshrdf/recent/autonode* 2>/dev/null
+LIST_FILES="$( find /var/www/networks/$NETWORK/meshrdf/recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
 
 for FILE in $LIST_FILES ; do {
 #	IFS="[~:-=]"
-	. "$FILE"
+	command . "$FILE"
 
 	grep -q ^"$WIFIMAC" ../ignore/macs.txt 2>/dev/null && {		# format: "0014bfbfb374    # linksys115"
 		continue
@@ -582,7 +607,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	if [ -e "$FILE" ]; then
 		LAST_UPDATE_UNIXTIME="$( stat --printf %Y "$FILE" )"
 #		echo "<!-- worked on $FILE -->"
-		. "$FILE"
+		command . "$FILE"
 
 		# updates
 		REMEMBER_VERSION="$VERSION"
@@ -1541,7 +1566,9 @@ func_cell_nexthop()
 		for FILE in $LIST_FILES LASTFILE; do {
        		 	[ -e "$FILE" ] && {
 				nodenumber_nexthop="$( sed 's/;/\n/g' "$FILE" | grep ^'NODE='     | cut -d'"' -f2 )"
-				hostname_nexthop="$( hostname_sanitizer "$nodenumber_nexthop" )"
+
+				[ "$NETWORK" = 'schoeneck' ] && hostname_nexthop="$( hostname_sanitizer "$nodenumber_nexthop" )"
+
 				[ -z "$hostname_nexthop" ] && {
 					hostname_nexthop="$(   sed 's/;/\n/g' "$FILE" | grep ^'HOSTNAME=' | cut -d'"' -f2 )"
 				}
@@ -2618,7 +2645,7 @@ echo -n "<!-- spacer: $spacer :spacer -->"
 				local correction_value_upstream="81"	# 81%
 				[ "$symetric" = "true" ] && correction_value_upstream="$correction_value_downstream"
 
-				[ -n "$should_down" ] && {
+				[ -n "$should_down" -a "${should_down:-0}" -gt 0 ] && {
 					should_down="$(( (($should_down * 100) * $correction_value_downstream) / 10000 ))"	# 93%
 					[ $inet_offer_down -ge $should_down ] || {
 						speed="${linebreak}SlowDownlink(target:$should_down/$(( ($inet_offer_down * 100) / $should_down ))%)-${linebreak}$speed"
@@ -2627,7 +2654,7 @@ echo -n "<!-- spacer: $spacer :spacer -->"
 					}
 				}
 
-				[ -n "$should_up" ] && {
+				[ -n "$should_up" -a "${should_up:-0}" -gt 0 ] && {
 					should_up="$(( (($should_up * 100) * $correction_value_upstream) / 10000 ))"	# 81%
 					[ $inet_offer_up -ge $should_up ] || {
 						speed="SlowUplink(target:$should_up/$(( ($inet_offer_up * 100) / $should_up ))%)-$speed"
@@ -2993,7 +3020,11 @@ esac
 				echo "$COLOR_DARK_GREEN"
 			;;
 			*)
-				return 1
+				if [ "$1" -gt 44150 ]; then
+					func_update2color 'testing'
+				else
+					return 1
+				fi
 			;;
 		esac
 	}
@@ -3007,7 +3038,7 @@ esac
 			"3.2.13")				# brcm47xx
 				echo "$COLOR_BRIGHT_GREEN"
 			;;
-			'3.14.29')				# ar71xx
+			'3.14.29'|'3.18.8')			# ar71xx
 				echo "$COLOR_BRIGHT_GREEN"
 			;;
 			"3.4.0"*)				# pandaboards
@@ -3250,8 +3281,8 @@ esac
 
 } done | sort -rn >>$OUT
 
-ROUTER_ALL="$( ls -1 recent/ | grep -c "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
-ROUTER_OMITTED="$( grep -sc 'omitted:' "$OUT" )"
+ROUTER_ALL="$( ls -1 recent/ | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | wc -l )"
+ROUTER_OMITTED="$( grep -s 'omitted:' "$OUT" | wc -l )"
 ROUTER_COUNT=$(( $ROUTER_ALL - $ROUTER_OMITTED ))
 
 FILESIZE_DATA="$( stat -c %s meshrdf.txt )"
@@ -3496,7 +3527,7 @@ show_rrdimages()
 	fi
 }
 
-PERCENT_GOOD=$(( (${NODE_GOOD:-0} * 100) / $ROUTER_COUNT ))
+[ $ROUTER_COUNT -gt 0 ] && PERCENT_GOOD=$(( (${NODE_GOOD:-0} * 100) / $ROUTER_COUNT ))
 [ $PERCENT_GOOD -gt 80 ] && touch "/dev/shm/${NETWORK}_good_over_80percent"
 [ $PERCENT_GOOD -lt 50 -a -e "/dev/shm/${NETWORK}_good_over_80percent" ] && {
 	touch "/tmp/DETECTED_FAULTY_$NETWORK"

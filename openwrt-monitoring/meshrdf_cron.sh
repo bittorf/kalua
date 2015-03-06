@@ -129,9 +129,15 @@ I=0
 for NET in $LIST; do {		# e.g. /var/www/networks/ffweimar/meshrdf/recent
 
 	# build often!
+	gen_meshrdf_for_network ilm1
 	gen_meshrdf_for_network gnm
 	gen_meshrdf_for_network limona
 	gen_meshrdf_for_network malchow		# demo
+	gen_meshrdf_for_network malchowperde
+	gen_meshrdf_for_network malchowpension
+	gen_meshrdf_for_network abtpark
+	gen_meshrdf_for_network ffweimar-vhs
+	gen_meshrdf_for_network ffweimar-dnt
 
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
 
