@@ -1901,7 +1901,7 @@ check_scripts()
 unittest_do()
 {
 	local funcname='unittest_do'
-	local shellcheck_bin build_loader
+	local shellcheck_bin build_loader file
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' ]; then
 		build_loader='openwrt-addons/etc/kalua_init'
@@ -1963,14 +1963,25 @@ unittest_do()
 		else
 			log "testing with '$shellcheck_bin'"
 
-			$shellcheck_bin -e SC2034,SC2046,SC2086 openwrt-addons/www/cgi-bin-404.sh || return 1
-#			$shellcheck_bin -e SC1010,SC2086,SC2154 openwrt-addons/etc/kalua/wget || return 1
+			for file in openwrt-addons/www/cgi-bin-404.sh; do {
+				$shellcheck_bin -e SC2034,SC2046,SC2086 "$file" || return 1
+#				$shellcheck_bin -e SC1010,SC2086,SC2154 openwrt-addons/etc/kalua/wget || return 1
+				log "[OK] shellcheck: $file"
+			} done
 		fi
 
 		sloc()
 		{
 			log "counting lines of code:"
-			sloccount .
+
+			sloccount . | while read line; do {
+				case "$line" in
+					[0-9]*|*'%)'|*'):'|*' = '*|'SLOC'*)
+						# only show interesting lines
+						echo "$line"
+					;;
+				esac
+			} done
 		}
 
 		if which sloccount; then
