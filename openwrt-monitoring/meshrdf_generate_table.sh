@@ -599,7 +599,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 		continue
 	}
 
-	D0=;k0=;k1=;k2=;k3=;u0=;w0=;w1=;w2=;w3=;t0=;t1=;n0=;d0=;d1=;i0=;i1=;i2=;i3=;i4=;i5=;i6=;r0=;r1=;r2=;r3=;h0=;h1=;h2=;h3=;h4=;h5=;h6=;h7=;s1=;s2=;v1=;v2=;NODE=;UP=;VERSION=;HOSTNAME=;WIFIMAC=;REBOOT=;CITY=;UPDATE=;NEIGH=;LATLON=;GWNODE=;TXPWR=;WIFIMODE=;CHANNEL=;COST2GW=;HOP2GW=;USERS=;MRATE=;LOAD=;HW=;UNIXTIME=;HUMANTIME=;FORWARDED=;SERVICES=;PUBIP_REAL=;PUBIP_SIMU=;MAIL=;PHONE=;SSHPUBKEYFP=;FRAG=;RTS=;GMODEPROT=;GW=;PROFILE=;NOISE=;RSSI=;GMODE=;ESSID=;BSSID=;WIFIDRV=;LOG=;OLSRVER=;OPTIMIZENLQ=;OPTIMIZENEIGH=;PORTFW=;WIFISCAN=;SENS=;PFILTER=
+	D0=;k0=;k1=;k2=;k3=;u0=;w0=;w1=;w2=;w3=;t0=;t1=;n0=;d0=;d1=;i0=;i1=;i2=;i3=;i4=;i5=;i6=;r0=;r1=;r2=;r3=;r4=;h0=;h1=;h2=;h3=;h4=;h5=;h6=;h7=;s1=;s2=;v1=;v2=;NODE=;UP=;VERSION=;HOSTNAME=;WIFIMAC=;REBOOT=;CITY=;UPDATE=;NEIGH=;LATLON=;GWNODE=;TXPWR=;WIFIMODE=;CHANNEL=;COST2GW=;HOP2GW=;USERS=;MRATE=;LOAD=;HW=;UNIXTIME=;HUMANTIME=;FORWARDED=;SERVICES=;PUBIP_REAL=;PUBIP_SIMU=;MAIL=;PHONE=;SSHPUBKEYFP=;FRAG=;RTS=;GMODEPROT=;GW=;PROFILE=;NOISE=;RSSI=;GMODE=;ESSID=;BSSID=;WIFIDRV=;LOG=;OLSRVER=;OPTIMIZENLQ=;OPTIMIZENEIGH=;PORTFW=;WIFISCAN=;SENS=;PFILTER=
 
 	# use real file, otherwise the stat-command is not useful
 	[ -h "$FILE" ] && FILE="$( readlink -f "$FILE" )"
@@ -2719,6 +2719,7 @@ cell_essid()
 	local rssi1="$3"
 	local rssi2="$4"
 	local rssi3="$5"
+	local clients="$6"
 	local essid bgcolor rssi spacer title
 	local i=0
 
@@ -2730,6 +2731,12 @@ cell_essid()
 				bgcolor="$COLOR_LOWRED"
 			;;
 		esac
+	}
+
+	[ -n "$clients" ] && {
+		[ $clients -gt 0 ] && {
+			echo "<td>${clients}x&nbsp;|&nbsp;</td>"
+		}
 	}
 
 	[ -z "$list_essid" ] && {
@@ -3247,9 +3254,7 @@ case "$NETWORK" in
 	;;
 esac
 
-
-
-	cell_essid "$ESSID" "$r0" "$r1" "$r2" "$r3"
+	cell_essid "$ESSID" "$r0" "$r1" "$r2" "$r3" "$r4"
 	cell_channel "$CHANNEL"
 	cell_node "$NODE"
 
