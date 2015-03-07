@@ -1859,12 +1859,21 @@ check_scripts()
 				log "[OK] will not check empty file '$file'" debug
 			;;
 			'text/html')
-				# w3c-validator?
-				log "[OK] will not check '$mimetype' file '$file'" debug
+				# w3c-markup-validator + https://github.com/ysangkok/w3c-validator-runner
+				if which validator-runner.py >/dev/null; then
+					log "checking $mimetype / $file"
+					validator-runner.py "$file" || log "FIXME! - it always fails?"
+				else
+					log "[OK] will not check '$mimetype' file '$file'" debug
+				fi
 			;;
 			'text/x-php')
-				# php -l $file
-				log "[OK] will not check '$mimetype' file '$file'" debug
+				if which php >/dev/null; then
+					log "checking $mimetype / $file"
+					php -l "$file" || return 1
+				else
+					log "[OK] will not check '$mimetype' file '$file'" debug
+				fi
 			;;
 			'text/x-c'|'text/x-c++')
 				# cppcheck?
