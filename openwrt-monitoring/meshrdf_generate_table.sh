@@ -2694,6 +2694,8 @@ echo -n "<!-- spacer: $spacer :spacer -->"
 		echo -n "<td bgcolor='$color' title='${hint}${linebreak}${name}${linebreak}${speed:+:}${speed}'><tt>$spacer</tt></td>"
 	} done
 
+	[ $i -eq 0 ] && echo -n '<td>&nbsp;</td>'	# valid html
+
 	echo -n "</tr></table>"
 	echo -n "</td>"
 }
@@ -2733,11 +2735,15 @@ cell_essid()
 		esac
 	}
 
-	[ -n "$clients" ] && {
-		[ $clients -gt 0 ] && {
-			echo "<td>${clients}x&nbsp;|&nbsp;</td>"
-		}
-	}
+	if [ -n "$clients" ]; then
+		if [ $clients -gt 0 ]; then
+			echo -n "<td>${clients}x&nbsp;|&nbsp;</td>"
+		else
+			echo -n '<td>&nbsp;</td>'
+		fi
+	else
+		echo -n '<td>&nbsp;</td>'
+	fi
 
 	[ -z "$list_essid" ] && {
 		echo -n "<td>&nbsp;</td>"
@@ -2773,7 +2779,7 @@ cell_essid()
 					;;
 					*)
 						bgcolor="lime"
-						title="Signal:$rssi"
+						title="Signal:$rssi,$clients"
 					;;
 				esac
 			;;
