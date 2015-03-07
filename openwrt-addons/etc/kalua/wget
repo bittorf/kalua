@@ -16,7 +16,7 @@ _wget_do()
 	local mask1="$3"
 	local mask2="$4"	# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
 
-	local remaining_wgets pid_wget pid_line pid_line_now rc i c=0
+	local remaining_wgets pid_wget pid_line pid_line_now rc i c=-1
 	local proxy_command file_option filename pid_background pid_num mycmdline myerror
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
 
@@ -95,14 +95,20 @@ _wget_do()
 		if [ ${#myerror} -eq 0 ]; then
 			_log do $funcname daemon debug '[OK] no error message'
 		else
-			_log do $funcname daemon debug "error: '$myerror'"
+			# test with unresolveable: _wget do http://a.b.c.d/foo
+			_log do $funcname daemon info "error: '$myerror'"
 		fi
 	}
 
 	case "${pid_wget:-unset}" in
 		'unset')
-			_log do $funcname daemon debug '[OK] empty PID - this was lightning fast...'
-			return 0
+			if [ ${#myerror} -eq 0 ]; then
+				_log do $funcname daemon debug '[OK] empty PID - this was lightning fast...'
+			else
+				_log do $funcname daemon debug '[ERR] empty PID - failed'
+			fi
+
+			return ${#myerror}
 		;;
 		*)
 			# exact line like shown with 'ps'
@@ -110,12 +116,15 @@ _wget_do()
 		;;
 	esac
 
+	# sanitize user input
+	test $max -ge 0 -a $max -le 3600 || max=15
+
 	while [ -e "/proc/$pid_wget" ]; do {				# wget-process in tasklist?
 		sleep 1
 		c=$(( c + 1 ))
 
 		# maximal execution time reached?
-		[ $c -gt $max ] && {
+		[ $c -ge $max ] && {
 			pid_line_now=
 			# keeps empty, when task has ended
 			read pid_line_now 2>/dev/null <"/proc/$pid_wget/cmdline"
