@@ -3655,6 +3655,7 @@ echo >>$TOOLS '#	}'
 echo >>$TOOLS ""
 echo >>$TOOLS '#	if scp -p -i /etc/dropbear/dropbear_dss_host_key /tmp/fw ${WIFIADR}:/tmp ; then'
 echo >>$TOOLS '#	ping -c 5 $WIFIADR; _tool remote $WIFIADR startshell'
+echo >>$TOOLS '#	if _tool remote "$WIFIADR" net_fulltrace >>/tmp/BLA; then	# grep -v ^"ready:" /tmp/BLA'
 echo >>$TOOLS '	if scp -p -i /etc/dropbear/dropbear_dss_host_key "script.sh" "${WIFIADR}:/tmp/.autorun"; then'
 echo >>$TOOLS '		: # watch_sysupgrade'
 echo >>$TOOLS '	else'

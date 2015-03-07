@@ -5,9 +5,9 @@ heartbeat_minimal_send()
 	local up="$1"		# hours
 	local load="$2"		# 15mins
 
-	local file_url="/tmp/MONITORING_HEARTBEAT_URL"
-	local file_archiv="/tmp/ARCHIV_MONITORING"
-	local mac url line
+	local file_url='/tmp/MONITORING_HEARTBEAT_URL'
+	local file_archiv='/tmp/ARCHIV_MONITORING'
+	local mac url line up free load file clients clients_sum=0
 
 	if [ -e "$file_url" ]; then
 		read url <"$file_url"
@@ -22,7 +22,15 @@ heartbeat_minimal_send()
 		echo "$url" >"$file_url"
 	fi
 
-	url="${url}&up=$( _system uptime hours )&h2=$( _system ram_free )&load=$( _system load 15min )&version=$FFF_PLUS_VERSION"
+	up="$( _system uptime hours )"
+	free="$( _system ram_free )"
+	load="$( _system load 15min )"
+
+	for file in /tmp/wifi_hasclients_*; do {
+                read clients 2>/dev/null <"$file" && clients_sum=$(( clients_sum + clients ))
+        } done
+
+	url="$url&up=$up&h2=$free&load=$load&version=$FFF_PLUS_VERSION&r4=$clients_sum"
 
 	case "$( _wget do "$url" 30 )" in
 		'REFRESHED')
