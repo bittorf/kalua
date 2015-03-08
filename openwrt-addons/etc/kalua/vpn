@@ -267,47 +267,40 @@ _vpn_build_vars ()
   #vtuntype
   VTUNDTYPE="$( _vpn probe_vtund_type )"
 
-  #temporary number for comparisons
-  CLIENTS=12345
-  #clean variables
-  JSON_VAR_clients=
-  responseTime=
-  MTU=
-  PORT=
-  VPN_SERVER=
-  SERV=
-  vpnNr=1
-  SERVER=$vpnNr.$PREFIX.$DOMAIN
+  TABLE=""
 
-  for vpnNr in 1 2 3 4 5 6 7 8 9 10
+  for i in 1 2 3 4 5 6 7 8 9 10
   do
-    SERVER=$vpnNr.$PREFIX.$DOMAIN
-    vpnServerResponse="$( _net ping_getlatency "$SERVER" )" && {
+    SERVER=$i.$PREFIX.$DOMAIN
+    LATENCY="$( _net ping_getlatency "$SERVER" )" && {
       URL="http://$SERVER$JSONPATH"
-      eval "$( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
-      if [ ! -z "$JSON_VAR_clients" ] && [ "$JSON_VAR_clients" -lt "$CLIENTS" ];
-      then
-        CLIENTS=${JSON_VAR_clients}
+      json_load "$(<  "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
+      json_get_var CLIENTS clients
+      json_get_var MTU mtu
+      if [ -z $CLIENTS ]; then
         PORT=$( _vpn vtund_port "$VTUNDTYPE" )
-        MTU=${JSON_VAR_maxmtu}
-        vpnServerName="$SERVER"
         _log do $FUNC daemon notice "got $SERVER as valid VPN"
+        TABLE="$TABLE:$LATENCY $I"
       else
         _log do $FUNC daemon err "error: $SERVER is not a valid VPN"
       fi
     }
   done
 
-  [ "$CLIENTS" = 12345 ] && {
-    CLIENTS=
-  }
+  # get VPN with lowest latency 
+  tr ':' '\n' <<< $TABLE | sort -n | head -n1 | cut -d" " -f2 | read BEST
 
- VPN_SERVER="$vpnServerName"
+  if [ -z $BEST ]; then 
+   SERV=
+   exit 1
+  fi
+ 
+ VPN_SERVER="$BEST.$PREFIX.$DOMAIN"
 
  NODE_NUMBER="$( uci get system.@profile[0].nodenumber )"
  HOSTNAME="$( uci get system.@system[0].hostname )"
  [ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
- SERV="$vpnServerName"	# _ip4|_ip6 fallback?
+ SERV="$VPN_SERVER"	# _ip4|_ip6 fallback?
  CONF="/var/etc/olsrd.conf"			# old_style
  KNOT=$NODE_NUMBER
  VTUN="/tmp/vtund.conf"
