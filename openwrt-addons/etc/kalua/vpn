@@ -260,20 +260,24 @@ _vpn_build_vars ()
     SERVER=$i.$PREFIX.$DOMAIN
     PING="$( _net ping_getlatency "$SERVER" )" && {
       URL="http://$SERVER$JSONPATH"
-      JSON=$( _wget do "$URL" ) 
-      #_log do $FUNC daemon notice "JSON: $JSON"
-      json_load "$JSON"
-      json_get_var SERVER server
-      json_get_var CLIENTS clients
-      json_get_var MTU maxmtu
-      json_get_var PORT port_vtun_${VTUNDTYPE}
-      if [ ! -z $CLIENTS ] && [ ! -z $PORT ]; then
-        #PORT=$( _vpn vtund_port "$VTUNDTYPE" )
-        _log do $FUNC daemon notice "got $SERVER as valid VPN"
-        TABLE="$TABLE:$PING $i $CLIENTS $MTU $PORT $SERVER"
+      JSON=$( _wget do "$URL" )
+      if [ "$?" -ne 0 ]; then 
+         _log do $FUNC daemon err "error: Could not reach $SERVER"
       else
-        _log do $FUNC daemon err "error: $SERVER is not a valid VPN"
-      fi
+          #_log do $FUNC daemon notice "JSON: $JSON"
+          json_load "$JSON"
+          json_get_var SERVER server
+          CLIENTS=-1  json_get_var CLIENTS clients
+          MTU=-1      json_get_var MTU maxmtu
+          PORT=-1     json_get_var PORT port_vtun_${VTUNDTYPE}
+          if [ "$CLIENTS" -ge 0 ] && [ "$PORT" -ge 0 ] && [ "$MTU" -ge 0 ]; then
+              #PORT=$( _vpn vtund_port "$VTUNDTYPE" )
+             _log do $FUNC daemon notice "got $SERVER as valid VPN"
+             TABLE="$TABLE:$PING $i $CLIENTS $MTU $PORT $SERVER"
+          else
+            _log do $FUNC daemon err "error: $SERVER is not a valid VPN"
+         fi
+     fi
     }
   done
 
@@ -281,7 +285,7 @@ _vpn_build_vars ()
  _log do $FUNC daemon notice "VPN table: $TABLE" 
  
 read PING NUMBER CLIENTS MTU PORT SERVER <<EOF 
-  "$( echo $TABLE | tr ':' '\n' | sed '/^$/d' | sort -n | head -n1 )"
+  $( echo $TABLE | tr ':' '\n' | sed '/^$/d' | sort -n | head -n1 )
 EOF
 
  VPN_SERVER="$SERVER"
