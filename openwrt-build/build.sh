@@ -1852,6 +1852,18 @@ check_scripts()
 		mimetype=${mimetype##* }	# last word
 
 		case "$mimetype" in
+			'text/html')
+				case "$( basename "$file" )" in
+					*'.js'*)
+						# support missing:
+						# https://github.com/file/file/blob/master/magic/Magdir/javascript
+						mimetype='application/javascript'
+					;;
+				esac
+			;;
+		esac
+
+		case "$mimetype" in
 			'text/plain')
 				log "[OK] will not check '$mimetype' file '$file'" debug
 			;;
@@ -1859,10 +1871,11 @@ check_scripts()
 				log "[OK] will not check empty file '$file'" debug
 			;;
 			'text/html')
-				# w3c-markup-validator + https://github.com/ysangkok/w3c-validator-runner
-				if which validator-runner.py >/dev/null; then
+				# w3c-markup-validator + https://github.com/ysangkok/w3c-validator-runner -> always fails?
+				# tidy works: http://www.html-tidy.org/
+				if which tidy >/dev/null; then
 					log "checking $mimetype / $file"
-					validator-runner.py "$file" || log "FIXME! - it always fails?"
+					tidy -errors "$file" 2>/dev/null || return 1
 				else
 					log "[OK] will not check '$mimetype' file '$file'" debug
 				fi
@@ -1877,6 +1890,10 @@ check_scripts()
 			;;
 			'text/x-c'|'text/x-c++')
 				# cppcheck?
+				log "[OK] will not check '$mimetype' file '$file'" debug
+			;;
+			'application/javascript')
+				# how?
 				log "[OK] will not check '$mimetype' file '$file'" debug
 			;;
 			'image/gif')
