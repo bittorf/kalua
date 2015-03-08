@@ -274,13 +274,13 @@ _vpn_build_vars ()
     SERVER=$i.$PREFIX.$DOMAIN
     LATENCY="$( _net ping_getlatency "$SERVER" )" && {
       URL="http://$SERVER$JSONPATH"
-      json_load "$(<  "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
+      json_load "$( "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
       json_get_var CLIENTS clients
       json_get_var MTU mtu
       if [ -z $CLIENTS ]; then
         PORT=$( _vpn vtund_port "$VTUNDTYPE" )
         _log do $FUNC daemon notice "got $SERVER as valid VPN"
-        TABLE="$TABLE:$LATENCY $I $CLIENTS $MTU"
+        TABLE="$TABLE:$LATENCY $I $CLIENTS $MTU $PORT"
       else
         _log do $FUNC daemon err "error: $SERVER is not a valid VPN"
       fi
@@ -288,15 +288,16 @@ _vpn_build_vars ()
   done
 
   # get VPN with lowest latency 
-  tr ':' '\n' <<< $TABLE | sort -n | head -n1 read LATENCY BEST CLIENTS MTU
+  echo $TABLE | tr ':' '\n' | sort -n | head -n1 | read LATENCY BEST CLIENTS MTU PORT
 
   if [ -z $BEST ]; then 
    SERV=
    exit 1
   fi
- 
+
  VPN_SERVER="$BEST.$PREFIX.$DOMAIN"
 
+ _log do $FUNC daemon notice "using VPN $BEST with $LATENCY ping and $CLIENTS clients on port $PORT with MTU $MTU"
  NODE_NUMBER="$( uci get system.@profile[0].nodenumber )"
  HOSTNAME="$( uci get system.@system[0].hostname )"
  [ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
