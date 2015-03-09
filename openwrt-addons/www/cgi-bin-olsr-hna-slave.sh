@@ -124,7 +124,9 @@ else
 			grep -sq "$REMOTE_ADDR" '/www/OLSR_has_neigh_LAN' && rm '/www/OLSR_has_neigh_LAN'
 			grep -sq "$REMOTE_ADDR" '/www/OLSR_has_neigh_WAN' && rm '/www/OLSR_has_neigh_WAN'
 
-			_olsr daemon restart "becoming hna-master for $REMOTE_ADDR: $netaddr/$netmask"
+			[ "$mode" = 'dirty' ] || {
+				_olsr daemon restart "becoming hna-master for $REMOTE_ADDR: $netaddr/$netmask"
+			}
 		}
 	}
 fi

@@ -1889,31 +1889,29 @@ _watch_olsrstuff()
 	local funcname='watch_olsrstuff'
 	local firstrun
 
-	case "$CONFIG_PROFILE" in
-		# we can leave this here, even if batman is disabled for those networks (we test if batman runs)
-		schoeneck*|boltenhagendh*|apphalle*)
-			# this means, no wired clients or we must speak batman on ethernet too
-			olsr_unneeded()
-			{
-				pidof bat_events >/dev/null || return 1
-				$( _system uptime min ) -gt 30 || return 1
-				batctl gateways | grep -q "MBit" || return 1
+	# during early init we deactivate the module if unneeded
+	grep -q ^'batman_adv ' '/proc/modules' && {
+		# this means, no wired clients or we must speak batman on ethernet too
+		olsr_unneeded()
+		{
+			pidof bat_events >/dev/null || return 1
+			$( _system uptime min ) -gt 30 || return 1
+			batctl gateways | grep -q "MBit" || return 1
 
-				test -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" && return 0
-				test -e "/tmp/service_olsrd_nowatching" || return 0
+			test -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" && return 0
+			test -e "/tmp/service_olsrd_nowatching" || return 0
 
-				return 1
-			}
+			return 1
+		}
 
-			olsr_unneeded && {
-				_log do schoeneck_noolsr daemon info "olsr_unneeded() ok"
-				rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
-				touch "/tmp/service_olsrd_nowatching"
-				_olsr daemon stop "batman_active_now"
-				_net local_inet_offer >/dev/null || ip route add default via "$( uci get network.mybridge.gateway )"
-			}
-		;;
-	esac
+		olsr_unneeded && {
+			_log do $funcname daemon info 'OK - olsr_unneeded'
+			rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
+			touch "/tmp/service_olsrd_nowatching"
+			_olsr daemon stop "batman_active_now"
+			_net local_inet_offer >/dev/null || ip route add default via "$( uci get network.mybridge.gateway )"
+		}
+	}
 
 	if pidof olsrd >/dev/null ; then
 		[ -e '/tmp/OLSR/ALL' ] || firstrun='true'
@@ -1940,19 +1938,7 @@ _watch_olsrstuff()
 		}
 
 		bool_true 'olsrd.@meta[0].hnaslave' && {
-			case "$CONFIG_PROFILE" in
-				hotello*|limona*|boltenhagendh*)
-				;;
-				*)
-					case "${NODENUMBER}-${CONFIG_PROFILE}" in
-						'6-monami'*|'7-monami'*)
-						;;
-						*)
-							/usr/sbin/cron.olsr-hna-slave
-						;;
-					esac
-				;;
-			esac
+			/usr/sbin/cron.olsr-hna-slave
 		}
 
 		local watch_olsr_ip

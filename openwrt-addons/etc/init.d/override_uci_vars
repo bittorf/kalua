@@ -84,6 +84,7 @@ kmodule_force_activation()
 
 kmodule_force_deactivation()
 {
+	# FIXME! unload already loaded module?
 	kmodule_is_deactivated "$1" || sed -i 's/^/# &/' "/etc/modules.d/"*"$1"
 }
 
@@ -1309,10 +1310,14 @@ boot()
 					_wifi set adhoc 2ghz mcast_rate '1000'
 				;;
 #				33|34|35|36|37|38|39|40|41|42|43|44)
-#					_wifi set ap    5ghz ssid 'Mitarbeiter5'
-#					_wifi set ap    2ghz ssid 'Mitarbeiter2'
 #				;;
 			esac
+
+			[ -e '/www/hnaslave_dirty' ] && {
+				# generated during shutdown, if: 2 = nexthop and 'AP-only'
+				uci set olsrd.@meta[0].hnaslave=1
+				uci set olsrd.@meta[0].hnaslave_dirty='true'
+			}
 		;;
 		spbansin*)
 			uci set system.@weblogin[0].auth_type='roomnumber'
@@ -1531,10 +1536,6 @@ boot()
 	batman_needed()
 	{
 		[ -e '/usr/sbin/batctl' ] || return 1
-
-#		batman_kmodules_are_deactivated || {
-#			grep -q ^'batman_adv ' '/proc/modules' || return 1
-#		}
 
 		case "$CONFIG_PROFILE" in
 			marinabh*)
