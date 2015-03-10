@@ -235,21 +235,6 @@ _vpn_probe_vtund_type ()
 	esac
 }
 
-_vpn_vtund_port ()
-{
-	case "$1" in
-		'ssl_lzo')
-			echo "$JSON_VAR_port_vtun_ssl_lzo"
-		;;
-		'nossl_lzo')
-			echo "$JSON_VAR_port_vtun_nossl_lzo"
-		;;
-		'nossl_nolzo')
-			echo "$JSON_VAR_port_vtun_nossl_nolzo"
-		;;
-	esac
-}
-
 _vpn_build_vars ()
 {
 
@@ -267,47 +252,48 @@ _vpn_build_vars ()
   #vtuntype
   VTUNDTYPE="$( _vpn probe_vtund_type )"
 
-  #temporary number for comparisons
-  CLIENTS=12345
-  #clean variables
-  JSON_VAR_clients=
-  responseTime=
-  MTU=
-  PORT=
-  VPN_SERVER=
-  SERV=
-  vpnNr=1
-  SERVER=$vpnNr.$PREFIX.$DOMAIN
+  # ugly hack
+  local TABLE=
 
-  for vpnNr in 1 2 3 4 5 6 7 8 9 10
+  for i in $(seq 1 10) 
   do
-    SERVER=$vpnNr.$PREFIX.$DOMAIN
-    vpnServerResponse="$( _net ping_getlatency "$SERVER" )" && {
-      URL="http://$SERVER$JSONPATH"
-      eval "$( jshn -r "$( _wget do "$URL" 1 2>/dev/null )" 2>/dev/null )"
-      if [ ! -z "$JSON_VAR_clients" ] && [ "$JSON_VAR_clients" -lt "$CLIENTS" ];
-      then
-        CLIENTS=${JSON_VAR_clients}
-        PORT=$( _vpn vtund_port "$VTUNDTYPE" )
-        MTU=${JSON_VAR_maxmtu}
-        vpnServerName="$SERVER"
-        _log do $FUNC daemon notice "got $SERVER as valid VPN"
-      else
-        _log do $FUNC daemon err "error: $SERVER is not a valid VPN"
-      fi
-    }
+    HOST=$i.$PREFIX.$DOMAIN
+    URL="http://$HOST$JSONPATH"
+    if ! JSON=$( _wget do "$URL" 2>/dev/null ); then
+      _log do $FUNC daemon err "error fetching $URL"
+    else
+       json_cleanup # json_get_var variables are not cleaned otherwise.
+       json_load "$JSON" 2>/dev/null
+       SERVER=     json_get_var SERVER server
+       CLIENTS=-1  json_get_var CLIENTS clients
+       MTU=-1      json_get_var MTU maxmtu
+       PORT=-1     json_get_var PORT port_vtun_${VTUNDTYPE}
+       PING="$( _net ping_getlatency "$SERVER" )"
+       if [ 2>/dev/null -n "$SERVER" -a "$CLIENTS" -ge 0 -a "$MTU" -ge 0 -a "$PORT" -ge 0 -a "$PING" -ge 1 ]; then
+             _log do $FUNC daemon notice "got $SERVER - ping: ${PING}ms"
+             TABLE="$TABLE;$PING $i $CLIENTS $MTU $PORT $SERVER"
+       else
+            _log do $FUNC daemon err "error: invalid data on $URL"
+       fi
+    fi
   done
 
-  [ "$CLIENTS" = 12345 ] && {
-    CLIENTS=
-  }
+# no vpn exit early
+[ -n "$TABLE" ] || return 1
 
- VPN_SERVER="$vpnServerName"
+# get VPN with lowest latency
+# warning: leading spaces somehow break this
+read PING NUMBER CLIENTS MTU PORT SERVER <<EOF 
+  $( echo $TABLE | tr ';' '\n' | sed '/^$/d' | sort -n | head -n1 )
+EOF
 
- NODE_NUMBER="$( uci get system.@profile[0].nodenumber )"
- HOSTNAME="$( uci get system.@system[0].hostname )"
+ VPN_SERVER="$SERVER"
+
+ _log do $FUNC daemon notice "using $VPN_SERVER - ping: ${PING}ms  clients: $CLIENTS  port: $PORT  mtu: $MTU"
+ NODE_NUMBER="$( uci -q get system.@profile[0].nodenumber )"
+ HOSTNAME="$( uci -q get system.@system[0].hostname )"
  [ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
- SERV="$vpnServerName"	# _ip4|_ip6 fallback?
+ SERV="$VPN_SERVER"	# _ip4|_ip6 fallback?
  CONF="/var/etc/olsrd.conf"			# old_style
  KNOT=$NODE_NUMBER
  VTUN="/tmp/vtund.conf"
