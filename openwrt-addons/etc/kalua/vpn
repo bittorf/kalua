@@ -255,26 +255,25 @@ _vpn_build_vars ()
   # ugly hack
   local TABLE=
 
-  for i in 1 2 3 4 5 6 7 8 9 10
+  for i in $(seq 1 10) 
   do
     HOST=$i.$PREFIX.$DOMAIN
     URL="http://$HOST$JSONPATH"
-    JSON=$( _wget do "$URL" )
-    if [ "$?" -ne 0 ]; then 
-      _log do $FUNC daemon err "error: Could not reach $URL"
+    if ! JSON=$( _wget do "$URL" 2>/dev/null ); then
+      _log do $FUNC daemon err "error fetching $URL"
     else
        json_cleanup # json_get_var variables are not cleaned otherwise.
-       json_load "$JSON"
+       json_load "$JSON" 2>/dev/null
        SERVER=     json_get_var SERVER server
        CLIENTS=-1  json_get_var CLIENTS clients
        MTU=-1      json_get_var MTU maxmtu
        PORT=-1     json_get_var PORT port_vtun_${VTUNDTYPE}
        PING="$( _net ping_getlatency "$SERVER" )"
-       if [ -n "$SERVER" -a "$CLIENTS" -ge 0 -a "$MTU" -ge 0 -a "$PORT" -ge 0 -a "$PING" -ge 1 ]; then
-             _log do $FUNC daemon notice "got $SERVER as valid VPN"
+       if [ 2>/dev/null -n "$SERVER" -a "$CLIENTS" -ge 0 -a "$MTU" -ge 0 -a "$PORT" -ge 0 -a "$PING" -ge 1 ]; then
+             _log do $FUNC daemon notice "got $SERVER - ping: ${PING}ms"
              TABLE="$TABLE;$PING $i $CLIENTS $MTU $PORT $SERVER"
        else
-            _log do $FUNC daemon err "error: $URL does not contain a valid VPN"
+            _log do $FUNC daemon err "error: invalid data on $URL"
        fi
     fi
   done
@@ -290,9 +289,9 @@ EOF
 
  VPN_SERVER="$SERVER"
 
- _log do $FUNC daemon notice "using $VPN_SERVER with $PING ms ping and $CLIENTS clients on port $PORT with MTU $MTU"
- NODE_NUMBER="$( uci get system.@profile[0].nodenumber )"
- HOSTNAME="$( uci get system.@system[0].hostname )"
+ _log do $FUNC daemon notice "using $VPN_SERVER - ping: ${PING}ms  clients: $CLIENTS  port: $PORT  mtu: $MTU"
+ NODE_NUMBER="$( uci -q get system.@profile[0].nodenumber )"
+ HOSTNAME="$( uci -q get system.@system[0].hostname )"
  [ -z "$HOSTNAME" ] && HOSTNAME="node$NODE_NUMBER"
  SERV="$VPN_SERVER"	# _ip4|_ip6 fallback?
  CONF="/var/etc/olsrd.conf"			# old_style
