@@ -336,9 +336,17 @@ target_hardware_set()
 
 	case "$model" in
 		'UML')
+			# boot via (circument noexec-shm-problem)
+			#
+			# mkdir /tmp/uml
+			# chown $USER.$USER /tmp/uml
+			# chmod 777 /tmp/uml
+			# export TMPDIR=/tmp/uml
+			#
+			# bin/uml/openwrt-uml-vmlinux ubd0=bin/uml/openwrt-uml-ext4.img
 			TARGET_SYMBOL='CONFIG_TARGET_uml_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
-			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+			FILENAME_FACTORY='openwrt-uml-ext4.img'
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
 		;;
 		'Soekris net5501')
