@@ -335,6 +335,12 @@ target_hardware_set()
 	[ -z "$version" ] && version='1'
 
 	case "$model" in
+		'UML')
+			TARGET_SYMBOL='CONFIG_TARGET_uml_Default=y'
+			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-net5501-combined-ext4.img.gz'
