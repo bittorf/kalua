@@ -343,7 +343,7 @@ target_hardware_set()
 			# chmod 777 /tmp/uml
 			# export TMPDIR=/tmp/uml
 			#
-			# bin/uml/openwrt-uml-vmlinux ubd0=bin/uml/openwrt-uml-ext4.img
+			# bin/uml/openwrt-uml-vmlinux ubd0=bin/uml/openwrt-uml-ext4.img ethX=tuntap,,,192.168.0.254
 			TARGET_SYMBOL='CONFIG_TARGET_uml_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
