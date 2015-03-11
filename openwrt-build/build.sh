@@ -347,7 +347,7 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_uml_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=12"	# [megabytes]
 		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
