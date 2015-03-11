@@ -336,7 +336,7 @@ target_hardware_set()
 
 	case "$model" in
 		'UML')
-			# boot via (circument noexec-shm-problem)
+			# boot via (circument PROT_EXEC mmap/noexec-shm-problem: http://www.ime.usp.br/~baroni/docs/uml-en.html)
 			#
 			# mkdir /tmp/uml
 			# chown $USER.$USER /tmp/uml
