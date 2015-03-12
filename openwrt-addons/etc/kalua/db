@@ -9,7 +9,7 @@ _db_check()
 	local statfile="/tmp/$funcname"
 	local file line i
 
-	[ "$option" = 'force' ] || _db lock now "$funcname() $@" || return 1
+	[ "$option" = 'force' ] || _db lock now "$funcname() $*" || return 1
 	_stopwatch start "$funcname"
 
 	for file in $DIR_DATABASE/USER/device/rows $DIR_DATABASE/USER/device/stats $DIR_DATABASE/USER/login/rows $DIR_DATABASE/USER/profile/rows; do {
@@ -99,7 +99,7 @@ _db_purge()
 	local funcname="db_purge"
 	local obj serverfile identity
 
-	_db lock now "$funcname() $@" || return 1
+	_db lock now "$funcname() $*" || return 1
 
 	for obj in 	"$DIR_DATABASE" \
 			'/www/cgi-bin/db_backup.tgz' \
@@ -163,7 +163,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	esac
 
 	# short check if locking works, otherwise 'db check' fails with sms
-	_db lock now "$funcname() $@" || return 1
+	_db lock now "$funcname() $*" || return 1
 	_db lock free
 
 	( _db check ) || {
@@ -173,7 +173,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		return 1
 	}
 
-	_db lock now "$funcname() $@" || return 1
+	_db lock now "$funcname() $*" || return 1
 	_system add_ramdisc "$funcname" compressable
 	echo "$funcname:$reason" >'/tmp/CRON_OVERLOAD'
 
@@ -322,7 +322,7 @@ _db_restore()
 	local funcname='db_restore'
 	local file='/www/cgi-bin/db_backup.tgz'
 
-	_db lock now "$funcname() $@" || return 1
+	_db lock now "$funcname() $*" || return 1
 
 	if [ -e "$file" ]; then
 		if [ $( _file size "$file" ) -lt 300 ]; then
@@ -429,10 +429,6 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 	local ID="$3"		# is set to 'autoid' when action is 'add'
 	local OPTION="$4"
 	local OPTION2="$5"
-
-#	_log do $funcname daemon info "\"$1\" \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" \"$8\" \"$9\" \"${10}\" \"${11}\" \"${12}\" \"${13}\" \"${14}\""
-
-	local FIXME="$5$6$7$8$9${10}${11}${12}${13}${14}"
 	local OBJ= ELEMENTS= REWRITE_VARS= SHORT_VAR= N= LIST= VALUE= FILL=
 
 	case "$TABLE" in
@@ -508,7 +504,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			esac
 		;;
 		index_gen)
-			_db lock now "$funcname() $@" || return 1
+			_db lock now "$funcname() $*" || return 1
 
 			local INDEX_PRODUCTION="$DIR/meta_index"
 			local INDEX="$INDEX_PRODUCTION.temp"
@@ -762,12 +758,12 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			sed -n "${ID}{${REWRITE_VARS}p;q}" "$DIR/rows"		# fixme! return ERROR on nonexisting line
 		;;
 		del)
-			_db lock now "$funcname() $@" || return 1
+			_db lock now "$funcname() $*" || return 1
 			sed -i "${ID}s/^.*/#/" "$DIR/rows"
 			_db lock free
 		;;
 		add|update)				# fixme! if "add" is used, ID=<integer> is not in line?
-			_db lock now "$funcname() $@" || return 1
+			_db lock now "$funcname() $*" || return 1
 
 			local USERNAME
 
