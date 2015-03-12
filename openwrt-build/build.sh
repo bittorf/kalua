@@ -1907,10 +1907,16 @@ check_scripts()
 			;;
 			'text/x-c'|'text/x-c++')
 				# cppcheck?
-				log "[OK] will not check '$mimetype' file '$file'" debug
+				if which cppcheck >/dev/null; then
+					cppcheck "$file" || return 1
+				else
+					log "[OK] will not check '$mimetype' file '$file'" debug
+				fi
 			;;
 			'application/javascript')
-				# how?
+				# TODO:
+				# http://stackoverflow.com/questions/1802478/running-v8-javascript-engine-standalone
+				# http://www.quora.com/What-can-be-used-to-unit-test-JavaScript-from-the-command-line
 				log "[OK] will not check '$mimetype' file '$file'" debug
 			;;
 			'image/gif')
