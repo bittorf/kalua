@@ -102,8 +102,21 @@ _net_arp_reset()
 _net_show_traffic()
 {
 	local iface="$1"
+	local interval="${2:-1}"
 	local bytes_rx bytes_tx old_rx old_tx diff_rx diff_tx
 	local oldIFS="$IFS"
+
+	# TODO:
+	# - show % of max
+	# - show [mbit]
+	# - respect interval >1s
+
+	[ -z "$iface" ] && {
+		# default via 10.63.99.61 dev eth0.2  metric 2 onlink
+		set -- $( ip route list exact '0.0.0.0/0' | head -n1 )
+		while test ! "$1" = 'dev' -a -n "$1"; do shift; done
+		iface="$2"
+	}
 
 	while true; do {
 		# RX bytes:4863348071 (4.5 GiB)  TX bytes:2369902904 (2.2 GiB)
@@ -120,7 +133,7 @@ _net_show_traffic()
 
 		_sanitizer do "$iface: rx/tx = down/upload : $diff_rx | $diff_tx [bytes/s]" number_humanreadable
 		echo
-		sleep 1
+		sleep $interval
 	} done
 }
 
