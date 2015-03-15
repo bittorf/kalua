@@ -71,6 +71,7 @@ EOF
 #	--debug
 #	--force
 #	--quiet
+#	--buildid automat@bittorf-wireless.de
 	fi
 
 	test -n "$FORCE"
