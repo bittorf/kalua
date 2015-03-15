@@ -103,13 +103,9 @@ _net_show_traffic()
 {
 	local iface="$1"
 	local interval="${2:-1}"
-	local bytes_rx bytes_tx old_rx old_tx diff_rx diff_tx
+	local bytes_rx bytes_tx old_rx old_tx diff_rx diff_tx mbit_rx mbit_tx percent_tx percent_rx txt change
+	local max_tx=1 max_rx=1
 	local oldIFS="$IFS"
-
-	# TODO:
-	# - show % of max
-	# - show [mbit]
-	# - respect interval >1s
 
 	[ -z "$iface" ] && {
 		# default via 10.63.99.61 dev eth0.2  metric 2 onlink
@@ -126,13 +122,23 @@ _net_show_traffic()
 
 		bytes_rx="$3"
 		bytes_tx="$8"
-		diff_rx=$(( bytes_rx - ${old_rx:-0} ))
-		diff_tx=$(( bytes_tx - ${old_tx:-0} ))
+		diff_rx=$(( ( bytes_rx - ${old_rx:-0} ) / interval ))
+		diff_tx=$(( ( bytes_tx - ${old_tx:-0} ) / interval ))
+		mbit_rx=$(( $diff_rx / 80000 ))
+		mbit_tx=$(( $diff_tx / 80000 ))
 		old_rx=$bytes_rx
 		old_tx=$bytes_tx
 
-		_sanitizer do "$iface: rx/tx = down/upload : $diff_rx | $diff_tx [bytes/s]" number_humanreadable
+		change=
+		test $diff_rx -gt $max_rx -a -n "$txt" && { max_rx=$diff_rx; change='newMAX'; }
+		test $diff_tx -gt $max_tx -a -n "$txt" && { max_tx=$diff_tx; change='nexMAX'; }
+		percent_tx="$( _math percentof $diff_tx $max_tx )"
+		percent_rx="$( _math percentof $diff_rx $max_rx )"
+
+		txt="$iface: rx/tx = down/upload: $diff_rx | $diff_tx [bytes/s] = $mbit_rx/$mbit_tx [mbit/s] = ${percent_rx%.*}/${percent_tx%.*}% $change"
+		_sanitizer do "$txt" number_humanreadable
 		echo
+
 		sleep $interval
 	} done
 }
