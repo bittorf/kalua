@@ -2187,7 +2187,7 @@ while [ -n "$1" ]; do {
 				'~:'*)
 				;;
 				*)
-					log "[ERR] $1: adjust your path with: export PATH='~:\$PATH'"
+					log "[ERR] $1: adjust your path with: export PATH=\"~:\$PATH\""
 					STOP_PARSE='true'
 				;;
 			esac
