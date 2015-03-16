@@ -629,6 +629,10 @@ output_table
 echo '  </table>'
 _switch show 'html' 'Ansicht der Netzwerkanschl&uuml;sse:&nbsp;'
 
+bool_true 'system.@monitoring[0].cisco_collect' && {
+	_cisco collect show
+}
+
 cat <<EOF
   <h3> Legende: </h3>
   <ul>
