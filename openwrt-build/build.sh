@@ -71,7 +71,6 @@ EOF
 #	--debug
 #	--force
 #	--quiet
-#	--buildid automat@bittorf-wireless.de
 	fi
 
 	test -n "$FORCE"
@@ -2178,14 +2177,17 @@ while [ -n "$1" ]; do {
 		;;
 		'--buildid')
 			# http://tjworld.net/wiki/Linux/Kernel/Build/CustomiseVersionString
-			log "[OK] set $2 via fake hostname/whoami in ~"
+			log "[OK] $1: set $2 via fake hostname/whoami in ~"
 
 			echo -e "#!/bin/sh\necho $( echo "$2" | cut -d'@' -f1 )" >~/whoami   && chmod +x ~/whoami
 			echo -e "#!/bin/sh\necho $( echo "$2" | cut -d'@' -f2 )" >~/hostname && chmod +x ~/hostname
 
 			case "$PATH" in
 				'~:'*)
-					log "[ERR] adjust your path with: export PATH='~:$PATH'"
+				;;
+				*)
+					log "[ERR] $1: adjust your path with: export PATH='~:$PATH'"
+					STOP_PARSE='true'
 				;;
 			esac
 		;;
