@@ -1737,8 +1737,10 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_firewall is not set'	# base-system: firewall3 *off*
 				apply_symbol 'CONFIG_DEFAULT_firewall is not set'	# needed?
 			;;
-			'squashfsplus')
-				apply_symbol 'CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=1024'	# target images: squashfs
+			'squash64'|'squash1024')
+				# smaller -> bigger image, but lowering ram-usage
+				# bigger  -> smaller image, needs more ram
+				apply_symbol "CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=${1#*squash}"	# target images: squashfs
 			;;
 			# help/usage-function
 			'list')
