@@ -1416,7 +1416,11 @@ build_options_set()
 
 	set -- $( serialize_comma_list "$options" )
 	while [ -n "$1" ]; do {
-		log "$funcname() apply '$1' $( test -n "$subcall" && echo -n "(subcall)" )"
+		if [ "$1" = 'list' ]; then
+			log "$funcname() apply '$1' ${subcall:+(subcall)}" debug
+		else
+			log "$funcname() apply '$1' ${subcall:+(subcall)}"
+		fi
 
 		# build a comma-separated list for later output/build-documentation
 		case "${subcall}-$1" in
