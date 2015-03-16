@@ -1424,9 +1424,10 @@ build_options_set()
 				# parser_ignore
 				# direct call to kalua (no subcall)
 			;;
-			*'=y')
+			*'=y'|*[.0-9])
 				# parser_ignore
 				# e.g. CONFIG_TARGET_ROOTFS_INITRAMFS=y
+				# e.g. SQUASHFS_BLOCK_SIZE=64
 			;;
 			'-'*)	# parser_process
 				# direct call (no subcall)
