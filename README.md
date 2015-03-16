@@ -223,6 +223,7 @@ Special UCI-variables
 	system.@monitoring[0].lazy_wifi_framecounter - bool
 	system.@monitoring[0].ignore_lossyethernet - bool
 	system.@monitoring[0].cdp_send		- bool
+	system.@monitoring[0].cisco_collect	- bool
 	system.@monitoring[0].maxcost		- integer
 	
 	system.@admin[0].location		- string
