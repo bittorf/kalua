@@ -55,6 +55,27 @@ apply_olsr_speed()
 	} done
 }
 
+config_add_alias()
+{
+	local network="$1"
+	local ip_and_mask="$2"
+	local gateway="$3"
+	local ip mask
+
+	ip="${ip_and_mask%/*}"
+	mask="${ip_and_mask#*/}"
+	mask="$( _net cidr2mask "$mask" )"
+
+	uci show 'network' | grep "network.@alias\[.\].ipaddr" | fgrep -q "ipaddr=$ip" || {
+		uci add network alias
+		uci set network.@alias[-1].interface="$network"
+		uci set network.@alias[-1].proto='static'
+		uci set network.@alias[-1].ipaddr="$ip"
+		uci set network.@alias[-1].netmask="$mask"
+		[ -n "$gateway" ] && uci set network.@alias[-1].gateway="$gateway"
+	}
+}
+
 hostapd_activate_coredump()
 {
 	# not needed for >= r39139 (why?)
@@ -697,6 +718,8 @@ boot()
 
 			_wifi set ap 2ghz ssid 'Iberotel'
 			_wifi set ap 5ghz ssid 'Konferenz'
+
+			[ "$NODENUMBER" = '2' ] && config_add_alias 'lan' '192.168.112.2/24' '192.168.112.1'
 		;;
 		paltstadt*)
 			uci set olsrd.@meta[0].throttle_traffic='1'
@@ -1074,14 +1097,7 @@ boot()
 				100)
 					uci set dhcp.lan.ignore=1
 
-					uci show 'network' | grep "network.@alias\[.\].ipaddr" | fgrep -q 'ipaddr=192.168.112.2' || {
-						uci add network alias
-						uci set network.@alias[-1].interface="lan"
-						uci set network.@alias[-1].proto=static
-						uci set network.@alias[-1].ipaddr=192.168.112.2
-						uci set network.@alias[-1].netmask=255.255.255.0
-						uci set network.@alias[-1].gateway=192.168.112.1
-					}
+					config_add_alias 'lan' '192.168.112.2/24' '192.168.112.1'
 
 					[ "$( uci get system.@netfilter[0].lan_masquerading )" = '0' ] || {
 						uci add system netfilter
@@ -1372,13 +1388,8 @@ boot()
 				2)
 					_wifi set any any disabled '1'
 
-					uci show network | fgrep -q '=192.168.2.108' || {
-						uci add network alias
-						uci set network.@alias[-1].interface="wan"
-						uci set network.@alias[-1].proto='static'
-						uci set network.@alias[-1].ipaddr='192.168.2.108'
-						uci set network.@alias[-1].netmask='255.255.255.0'
-					}
+					# DHCP is 192.168.2.107 / gateway = 192.168.2.1
+					config_add_alias 'wan' '192.168.2.108/24'
 				;;
 			esac
 		;;
