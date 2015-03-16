@@ -114,6 +114,8 @@ _net_show_traffic()
 		iface="$2"
 	}
 
+	local pre="$( _net dev2name "$iface" )/$iface"
+
 	while true; do {
 		# RX bytes:4863348071 (4.5 GiB)  TX bytes:2369902904 (2.2 GiB)
 		IFS=': '
@@ -135,7 +137,7 @@ _net_show_traffic()
 		percent_tx="$( _math percentof $diff_tx $max_tx )"
 		percent_rx="$( _math percentof $diff_rx $max_rx )"
 
-		txt="$iface: rx/tx = down/upload: $diff_rx | $diff_tx [bytes/s] = $mbit_rx/$mbit_tx [mbit/s] = ${percent_rx%.*}/${percent_tx%.*}% $change"
+		txt="$pre: rx/tx = down/upload: $diff_rx | $diff_tx [bytes/s] = $mbit_rx/$mbit_tx [mbit/s] = ${percent_rx%.*}/${percent_tx%.*}% $change"
 		_sanitizer do "$txt" number_humanreadable
 		echo
 
@@ -728,6 +730,17 @@ _net_dns2ip()
 			;;
 		esac
 	} done
+}
+
+_net_dev2name()
+{
+	local dev="$1"	# e.g. eth0.2
+
+	if _net dev_is_wifi "$dev"; then
+		echo 'wifi'
+	else
+		uci show network | grep "\.ifname=$dev"$ | cut -d'.' -f2
+	fi
 }
 
 _net_dev2ip()		# only first ip
