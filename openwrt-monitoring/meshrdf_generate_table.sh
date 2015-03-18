@@ -2737,7 +2737,9 @@ cell_essid()
 
 	if [ -n "$clients" ]; then
 		if [ $clients -gt 0 ]; then
-			echo -n "<td>${clients}x&nbsp;|&nbsp;</td>"
+			local symbol_antenna='&#x16c9;'
+			local symbol_n_times='&#x00d7;'
+			echo -n "<td>${symbol_antenna}${symbol_n_times}${clients}&nbsp;|&nbsp;</td>"
 		else
 			echo -n '<td>&nbsp;</td>'
 		fi
