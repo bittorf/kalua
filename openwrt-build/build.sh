@@ -815,8 +815,8 @@ openwrt_revision_number_get()		# e.g. 43234
 	if [ -n "$rev" ]; then
 		echo "$rev"
 	else
-		# command 'scripts/getver.sh' is not available in all revisions
-		scripts/getver.sh | cut -d'r' -f2
+		# is not available in all revisions or during early bootstrapping
+		[ -e 'scripts/getver.sh' ] && scripts/getver.sh | cut -d'r' -f2
 	fi
 }
 
@@ -825,6 +825,7 @@ openwrt_download()
 	local funcname='openwrt_download'
 	local wish="$1"		# <empty> = 'leave_untouched' or 'r12345' or 'stable' or 'beta' or 'testing' or 'trunk'
 	local hash branch
+	local old_wish="$wish"
 
 	log "$funcname() apply '$wish'"
 
@@ -844,7 +845,7 @@ openwrt_download()
 		;;
 	esac
 
-	log "$funcname() apply '$wish' (sanitized)"
+	[ "$old_wish" = "$wish" ] || log "$funcname() apply '$wish' (sanitized)"
 
 	case "$wish" in
 		'leave_untouched')
