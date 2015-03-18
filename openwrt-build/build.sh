@@ -273,7 +273,7 @@ apply_wifi_reghack()
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
 
-			register_patch "REGHACK:"
+			register_patch 'REGHACK:'
 			register_patch "$file"
 			register_patch "$file_regdb_hacked"
 		else
@@ -966,7 +966,7 @@ copy_firmware_files()
 	local error=0
 
 	mkdir -p "$attic"
-	rootfs="squash"
+	rootfs='squash'
 
 	log "kernel: '$VERSION_KERNEL'"
 	log "openwrt-version: '$VERSION_OPENWRT'"
@@ -1746,6 +1746,7 @@ build_options_set()
 				# smaller -> bigger image, but lowering ram-usage
 				# bigger  -> smaller image, needs more ram
 				apply_symbol "CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=${1#*squash}"	# target images: squashfs
+				register_patch "$1"
 			;;
 			# help/usage-function
 			'list')
