@@ -44,7 +44,7 @@ print_usage_and_exit()
 	fi
 
 	[ -e ~/whoami -a -e ~/hostname ] && {
-		more_options="--buildid '$( cat ~/whoami )@$( cat ~/hostname )'"
+		more_options="--buildid '$( tail -n1 ~/whoami | cut -d' ' -f2 )@$( tail -n1 ~/hostname | cut -d' ' -f2 )'"
 	}
 
 	[ -n "$hint" ] && log "[HINT:] $hint"
@@ -2187,12 +2187,17 @@ while [ -n "$1" ]; do {
 			QUIET='true'
 		;;
 		'--buildid')
-			# e.g. user@domain.tld
+			# e.g. 'user@domain.tld'
 			# http://tjworld.net/wiki/Linux/Kernel/Build/CustomiseVersionString
 			log "[OK] $1: set $2 via fake hostname/whoami in ~"
 
-			echo -e "#!/bin/sh\necho $( echo "$2" | cut -d'@' -f1 )" >~/whoami   && chmod +x ~/whoami
-			echo -e "#!/bin/sh\necho $( echo "$2" | cut -d'@' -f2 )" >~/hostname && chmod +x ~/hostname
+			echo    >~/whoami '#!/bin/sh'
+			echo   >>~/whoami "echo $( echo "$2" | cut -d'@' -f1 )"
+			chmod +x ~/whoami
+
+			echo    >~/hostname '#!/bin/sh'
+			echo   >>~/hostname "echo $( echo "$2" | cut -d'@' -f2 )"
+			chmod +x ~/hostname
 
 			case "$PATH" in
 				'~:'*)
