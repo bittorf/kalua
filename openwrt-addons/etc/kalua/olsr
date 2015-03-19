@@ -696,56 +696,58 @@ _olsr_version()
 	echo "$version"
 }
 
-_olsr_uptime()		# in seconds
+_olsr_uptime()			# in seconds
 {
-	local KEYWORD="$1"		# string: "is_short", "mark_restart", "restarts_get", "restart_time" or <empty> = get
-	local FUNC="olsr_uptime"
+	local option="$1"	# string: "is_short", "mark_restart", "restarts_get", "restart_time" or <empty> = get
+	local funcname='olsr_uptime'
+
 	local FILE_RESTART_TIME="/tmp/STATS_OLSR_RESTART_LAST"
 	local FILE_RESTARTS="/tmp/STATS_OLSR_RESTARTS"
 	local TIME_LAST_START TIME_NOW DIFF
 	local I=
 
-	TIME_NOW="$( _system uptime )"
+	TIME_NOW="$( _system uptime sec )"
 
-	if [ -e $FILE_RESTART_TIME ]; then
-		read TIME_LAST_START <$FILE_RESTART_TIME
+	if [ -e "$FILE_RESTART_TIME" ]; then
+		read TIME_LAST_START <"$FILE_RESTART_TIME"
 	else
-		echo "$TIME_NOW" >$FILE_RESTART_TIME
+		echo "$TIME_NOW" >"$FILE_RESTART_TIME"
 		TIME_LAST_START="$TIME_NOW"
 	fi
 
 	DIFF="$(( $TIME_NOW - ${TIME_LAST_START:-0} ))"
 
-	case "$KEYWORD" in
-		is_short)
+	case "$option" in
+		'is_short')
 			if [ $DIFF -lt 90 ]; then
 				pidof olsrd >/dev/null || {
 					[ $TIME_NOW -gt 600 ] && {
-						_olsr daemon restart "$FUNC() no running daemon"
+						_olsr daemon restart "$funcname() no running daemon"
 					}
 				}
 				return 0
 			else
+				_log do $funcname daemon info "$option: $DIFF sec"
 				return 1
 			fi
 		;;
-		mark_restart)
-			echo "$TIME_NOW" >$FILE_RESTART_TIME
+		'mark_restart')
+			echo "$TIME_NOW" >"$FILE_RESTART_TIME"
 
-			read I 2>/dev/null <$FILE_RESTARTS
-			echo $(( ${I:-0} + 1 )) >$FILE_RESTARTS
+			read I 2>/dev/null <"$FILE_RESTARTS"
+			echo $(( ${I:-0} + 1 )) >"$FILE_RESTARTS"
 		;;
-		restarts_get)
+		'restarts_get')
 			if [ -e "$FILE_RESTARTS" ]; then
 				read I 2>/dev/null <"$FILE_RESTARTS"
 
 				if [ 2>/dev/null "$I" -eq "$I" ]; then
 					[ ${I:-0} -gt 300 ] && {
-						_log do $FUNC daemon alert "busybox bug: restarts_get: $I"
+						_log do $funcname daemon alert "busybox bug: restarts_get: $I"
 						I=0
 					}
 				else
-					_log do $FUNC daemon alert "not a number: I: '$I' from '$FILE_RESTARTS'"
+					_log do $funcname daemon alert "not a number: I: '$I' from '$FILE_RESTARTS'"
 					I=0
 				fi
 			else
@@ -754,12 +756,12 @@ _olsr_uptime()		# in seconds
 
 			echo ${I:-0}
 		;;
-		restart_time)
+		'restart_time')
 			DIFF="$(( $TIME_NOW - ${TIME_LAST_START:-0} ))"
 			echo "$(( $( _system date unixtime ) - $DIFF ))"
 		;;
-		*)
-			echo -n $DIFF
+		'get'|*)
+			echo -n "$DIFF"
 		;;
 	esac
 }
