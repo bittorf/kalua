@@ -26,7 +26,7 @@ print_usage_and_exit()
 {
 	local hint="$1"
 	local rev="$( openwrt_revision_number_get )"
-	local hardware usecase
+	local hardware usecase more_options
 
 	if [ -e 'files/etc/HARDWARE' ]; then
 		# last used one
@@ -43,6 +43,10 @@ print_usage_and_exit()
 		usecase="Standard,$KALUA_DIRNAME"
 	fi
 
+	[ -e ~/whoami -a -e ~/hostname ] && {
+		more_options="--buildid '$( cat ~/whoami )@$( cat ~/hostname )'"
+	}
+
 	[ -n "$hint" ] && log "[HINT:] $hint"
 
 	if [ -e 'build.sh' ]; then
@@ -55,7 +59,7 @@ EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
        $0 --debug --${KALUA_DIRNAME}_package
 
-e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase'
+e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
 
 Get help without args, e.g.: --hardware <empty>
 EOF
@@ -2183,6 +2187,7 @@ while [ -n "$1" ]; do {
 			QUIET='true'
 		;;
 		'--buildid')
+			# e.g. user@domain.tld
 			# http://tjworld.net/wiki/Linux/Kernel/Build/CustomiseVersionString
 			log "[OK] $1: set $2 via fake hostname/whoami in ~"
 
