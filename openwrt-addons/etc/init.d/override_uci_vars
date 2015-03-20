@@ -11,14 +11,17 @@ START=01
 
 apply_olsr_roaming()
 {
+	local list_ap="$( _wifi get any mode ap )"
+	[ -z "$list_ap" ] && return 0
+
 	[ -e /lib/modules/*/macvlan.ko ] || return 1
 	kmodule_force_activation 'macvlan'
-
-	[ -e '/www/roaming' ] || return 0
 
 	local router_ip='192.168.0.1'
 	local dns_ip='192.168.0.1'
 	local nearly_uniq_nodenumber="$NODENUMBER"
+	local i=0
+	local index network mac
 
 	# each node has it's own "uniq" dhcp-range
 	# which must be valid across the whole network,
@@ -46,27 +49,20 @@ apply_olsr_roaming()
 	_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
 	_wifi set adhoc 5ghz ssid 'ffintern.5GHz'
 
-	# iptables -t nat -I POSTROUTING -s 192.168.0.0/16 ! -d 192.168.0.0/16 -j MASQUERADE
-
-	index="$( _wifi get 'wlan' index )" && {
+	for index in $list_ap; do {
+		_wifi is2ghz $index
+		mac="02:ff:ff:ff:$( integer2fourhex $? )"		# should be uniq per band
+		network="$( uci get wireless.@wifi-iface[$index].network )"
 		uci set wireless.@wifi-iface[$index].disabled='0'	# activate
 
-		uci set network.roaming0='device'
-		uci set network.roaming0.type='macvlan'
-		uci set network.roaming0.name='roaming0'
-		uci set network.roaming0.ifname='@wlan'
-		uci set network.roaming0.macaddr='02:ff:ff:ff:00:00'
-	}
+		uci set network.roaming${i}='device'
+		uci set network.roaming${i}.type='macvlan'
+		uci set network.roaming${i}.name="roaming$i"
+		uci set network.roaming${i}.ifname="@$network"
+		uci set network.roaming${i}.macaddr="$mac"
 
-	index="$( _wifi get 'wlanRADIO1' index )" && {
-		uci set wireless.@wifi-iface[$index].disabled='0'	# activate
-
-		uci set network.roaming1='device'
-		uci set network.roaming1.type='macvlan'
-		uci set network.roaming1.name='roaming1'
-		uci set network.roaming1.ifname='@wlanRADIO1'
-		uci set network.roaming1.macaddr='02:ff:ff:ff:00:01'
-	}
+		i=$(( i + 1 ))
+	} done
 }
 
 apply_olsr_speed()
