@@ -467,7 +467,9 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
 			FILENAME_FACTORY='openwrt-atheros-ubnt5-squashfs.bin'
 		;;
-		'Ubiquiti Bullet M2'|'Ubiquiti Bullet M5')
+		'Ubiquiti Bullet M2'|'Ubiquiti Bullet M5'|'Ubiquiti Picostation M2'|'Ubiquiti Picostation M5')
+			# http://wiki.openwrt.org/toh/ubiquiti/bullet
+			# http://wiki.openwrt.org/toh/ubiquiti/picostationm2
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_UBNT=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-factory.bin'
