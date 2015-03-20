@@ -37,14 +37,17 @@ _db_check()
 _db_lock()
 {
 	local funcname="db_lock"
-	local mode="$1"			# now|free
+	local mode="$1"			# now|free|reason
 	local context="${2:-unset_context}"
 	local dir="/tmp/$funcname"
 	local file="$dir/reason"
 	local i=1
 
 	case "$mode" in
-		free)
+		'reason')
+			cat "$file"
+		;;
+		'free')
 			if [ ! -e "$DIR_DATABASE/USER/login/rows" -a -e "$DIR_DATABASE/USER/login/meta_index" ]; then
 				if [ $( _file size "$DIR_DATABASE/USER/login/meta_index" ) -eq 0 ]; then
 					# ok, e.g. special decentral auth
@@ -58,7 +61,7 @@ _db_lock()
 				rm -fR "$dir"
 			fi
 		;;
-		now|forever|*)
+		'now'|'forever'|*)
 			case "${mode}-${context}" in
 				'forever-locked_forever'*)
 					echo "$context" >"$file"
@@ -506,7 +509,17 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 			esac
 		;;
 		index_gen)
-			_db lock now "$funcname() $*" || return 1
+			_db lock now "$funcname() $*" || {
+				# FIXME! why is 'index_gen' fired that often?
+				case "$( _db lock reason )" in
+					*' index_gen  '*)
+						_log do $funcname daemon alert "[OK] simulate success for '$*', full 'index_gen' already in progress"
+						return 0
+					;;
+				esac
+
+				return 1
+			}
 
 			local INDEX_PRODUCTION="$DIR/meta_index"
 			local INDEX="$INDEX_PRODUCTION.temp"
