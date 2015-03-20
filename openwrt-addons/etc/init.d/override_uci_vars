@@ -32,26 +32,34 @@ apply_olsr_roaming()
 	uci set network.mastergate.ipaddr='192.168.0.1'
 	uci set network.mastergate.netmask='255.255.0.0'
 
+	# we occupy the existing 'wlan'
 	uci set dhcp.wlan.interface='mastergate'
+	uci set dhcp.wlan.dhcp_option="option:router,$router_ip,$dns_ip"
+	uci set dhcp.wlan.leasetime='10m'
 
-	_wifi get 'wlan' check && {
-		uci set network.roaming='device'
-		uci set network.roaming.type='macvlan'
-		uci set network.roaming.name='roaming0'
-		uci set network.roaming.ifname='@wlan'
-		uci set network.roaming.macaddr='02:ff:ff:ff:00:00'
+	_wifi set ap    any  ssid 'weimar.freifunk.net'
+	_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
+	_wifi set adhoc 5ghz ssid 'ffintern.5GHz'
+
+	index="$( _wifi get 'wlan' index )" && {
+		uci set wireless.@wifi-iface[$index].disabled='0'	# activate
+
+		uci set network.roaming0='device'
+		uci set network.roaming0.type='macvlan'
+		uci set network.roaming0.name='roaming0'
+		uci set network.roaming0.ifname='@wlan'
+		uci set network.roaming0.macaddr='02:ff:ff:ff:00:00'
 	}
 
-	_wifi get 'wlanRADIO1' check && {
-		uci set network.roaming='device'
-		uci set network.roaming.type='macvlan'
-		uci set network.roaming.name='roaming1'
-		uci set network.roaming.ifname='@wlanRADIO1'
-		uci set network.roaming.macaddr='02:ff:ff:ff:00:01'
-	}
+	index="$( _wifi get 'wlanRADIO1' index )" && {
+		uci set wireless.@wifi-iface[$index].disabled='0'	# activate
 
-	uci set dhcp.mastergate.dhcp_option="option:router,$router_ip,$dns_ip"
-	uci set dhcp.mastergate.leasetime='10m'
+		uci set network.roaming1='device'
+		uci set network.roaming1.type='macvlan'
+		uci set network.roaming1.name='roaming1'
+		uci set network.roaming1.ifname='@wlanRADIO1'
+		uci set network.roaming1.macaddr='02:ff:ff:ff:00:01'
+	}
 }
 
 apply_olsr_speed()
@@ -603,7 +611,7 @@ boot()
 
 	uci delete 'system.@weblogin[0].mac_unshaped'
 	for mac in $unshaped; do {
-		uci get "system.@weblogin[0].mac_unshaped" | grep -q "$mac" || {
+		uci -q get "system.@weblogin[0].mac_unshaped" | grep -q "$mac" || {
 			uci add_list system.@weblogin[0].mac_unshaped="$mac"
 		}
 	} done
@@ -977,8 +985,8 @@ boot()
 			uci set olsrd.@olsrd[0].LinkQualityAlgorithm='etx_ff'
 
 			# old from metric=etxff_eth
-			uci delete 'olsrd.@Interface[0].Mode'
-			uci delete 'olsrd.@Interface[1].Mode'
+			uci delete 'olsrd.@Interface[0].Mode' 2>/dev/null
+			uci delete 'olsrd.@Interface[1].Mode' 2>/dev/null
 
 			_wifi set adhoc 2ghz ssid 'weimarnetz'
 			_wifi set adhoc 2ghz channel '5'
