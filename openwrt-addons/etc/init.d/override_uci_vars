@@ -14,27 +14,38 @@ apply_olsr_roaming()
 	[ -e /lib/modules/*/macvlan.ko ] || return 1
 	kmodule_force_activation 'macvlan'
 
-	return 0
+	[ -e /www/roaming ] || return 0
 
 	local router_ip='192.168.0.1'
 	local dns_ip='192.168.0.1'
 
+	# already applied?
 	uci -q get network.roaming >/dev/null && return 1
 
 	# TODO: always do remove_section()
 	# TODO: search ifname of e.g. 2nd_5ghz_ap
 
-	uci set network.mastergate='interface'
-	uci set network.mastergate.ifname='roaming'
+	uci set network.mastergate='interface'			# here we collect all interfaces
+	uci set network.mastergate.ifname='roaming0 roaming1'	# see below
 	uci set network.mastergate.proto='static'
 	uci set network.mastergate.ipaddr='192.168.0.1'
 	uci set network.mastergate.netmask='255.255.0.0'
 
-	uci set network.roaming='device'
-	uci set network.roaming.type='macvlan'
-	uci set network.roaming.name='roaming'
-	uci set network.roaming.ifname='@wlanRADIO1'
-	uci set network.roaming.macaddr='02:ca:ff:ee:00:01'
+	_wifi get 'wlan' check && {
+		uci set network.roaming='device'
+		uci set network.roaming.type='macvlan'
+		uci set network.roaming.name='roaming0'
+		uci set network.roaming.ifname='@wlan'
+		uci set network.roaming.macaddr='02:ff:ff:ff:00:00'
+	}
+
+	_wifi get 'wlanRADIO1' check && {
+		uci set network.roaming='device'
+		uci set network.roaming.type='macvlan'
+		uci set network.roaming.name='roaming1'
+		uci set network.roaming.ifname='@wlanRADIO1'
+		uci set network.roaming.macaddr='02:ff:ff:ff:00:01'
+	}
 
 	uci set dhcp.mastergate.dhcp_option="option:router,$router_ip,$dns_ip"
 	uci set dhcp.mastergate.leasetime='10m'
