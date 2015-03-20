@@ -1,45 +1,44 @@
 #!/bin/sh
 
-# [ -e "/tmp/service_ssh_nowatching" ] && {		# means: LOWMEM-Router
-	if bool_true 'system.@httpsproxy[0].enabled'; then
-		. /tmp/loader
-		_http header_mimetype_output 'text/html'
+# FIXME! this means 'bool_true' but we need the loader for this...
+if uci -q get 'system.@httpsproxy[0].enabled'; then
+	. /tmp/loader
+	_http header_mimetype_output 'text/html'
 
-		if [ "$SERVER_PORT" = '443' ]; then
-			case "$REQUEST_URI" in
-				*'USERNAME='*|*'IPADDR='*)
-					QUERY_STRING="$( echo "$REQUEST_URI" | cut -d'?' -f2 )"
-					eval $( _http query_string_sanitize | grep -E '^USERNAME=|^PASSWORD=|^IPADDR=' )
-				;;
-			esac
+	if [ "$SERVER_PORT" = '443' ]; then
+		case "$REQUEST_URI" in
+			*'USERNAME='*|*'IPADDR='*)
+				QUERY_STRING="$( echo "$REQUEST_URI" | cut -d'?' -f2 )"
+				eval $( _http query_string_sanitize | grep -E '^USERNAME=|^PASSWORD=|^IPADDR=' )
+			;;
+		esac
 
-			[ -z "$IPADDR" ] && IPADDR="$( uci -q get system.@httpsproxy[0].ipaddr )"
-			[ "$IPADDR" = 'auto' ] && IPADDR="$( head -n1 '/tmp/dhcp.leases' | cut -d' ' -f3 )"
-			[ "$REQUEST_METHOD" = "POST" -a ${CONTENT_LENGTH:-0} -gt 0 ] && read -n $CONTENT_LENGTH POST
+		[ -z "$IPADDR" ] && IPADDR="$( uci -q get system.@httpsproxy[0].ipaddr )"
+		[ "$IPADDR" = 'auto' ] && IPADDR="$( head -n1 '/tmp/dhcp.leases' | cut -d' ' -f3 )"
+		[ "$REQUEST_METHOD" = "POST" -a ${CONTENT_LENGTH:-0} -gt 0 ] && read -n $CONTENT_LENGTH POST
 
-			if [ -n "$USERNAME" ]; then
-				curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" --user "$USERNAME:$PASSWORD" || echo "ERR 0-$?"
-			else
-				curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" || echo "ERR: 1-$?"
-			fi
+		if [ -n "$USERNAME" ]; then
+			curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" --user "$USERNAME:$PASSWORD" || echo "ERR 0-$?"
 		else
-			echo "please use https:// for connecting"
+			curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" || echo "ERR: 1-$?"
 		fi
-
-		exit 0
-	elif   [ -e "/tmp/weblogin_cached_for_overload" ]; then
-		cat "/tmp/weblogin_cached_for_overload"
-		exit 0
-	elif [ -e "/www/weblogin_cached_for_overload" ]; then
-		cat "/www/weblogin_cached_for_overload"
-		exit 0
 	else
-		. /tmp/loader
-		_weblogin generate_prebuilt_splash_htmlfile
-		cat "/tmp/weblogin_cached_for_overload"
-		exit 0
+		echo "please use https:// for connecting"
 	fi
-# }
+
+	exit 0
+elif   [ -e "/tmp/weblogin_cached_for_overload" ]; then
+	cat "/tmp/weblogin_cached_for_overload"
+	exit 0
+elif [ -e "/www/weblogin_cached_for_overload" ]; then
+	cat "/www/weblogin_cached_for_overload"
+	exit 0
+else
+	. /tmp/loader
+	_weblogin generate_prebuilt_splash_htmlfile
+	cat "/tmp/weblogin_cached_for_overload"
+	exit 0
+fi
 
 ERROR=302
 
