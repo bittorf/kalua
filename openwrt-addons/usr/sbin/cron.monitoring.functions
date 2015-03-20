@@ -7,7 +7,7 @@ heartbeat_minimal_send()
 
 	local file_url='/tmp/MONITORING_HEARTBEAT_URL'
 	local file_archiv='/tmp/ARCHIV_MONITORING'
-	local mac url line up free load file clients clients_sum=0
+	local mac url line up free load file clients lan_clients wifi_clients_sum=0
 
 	if [ -e "$file_url" ]; then
 		read url <"$file_url"
@@ -26,11 +26,14 @@ heartbeat_minimal_send()
 	free="$( _system ram_free )"
 	load="$( _system load 15min )"
 
+	# build during watch_wifistuff()
 	for file in /tmp/wifi_hasclients_*; do {
-                read clients 2>/dev/null <"$file" && clients_sum=$(( clients_sum + clients ))
+		[ -e "$file" ] && read clients 2>/dev/null <"$file" && wifi_clients_sum=$(( clients_sum + clients ))
         } done
 
-	url="$url&up=$up&h2=$free&load=$load&version=$FFF_PLUS_VERSION&r4=$clients_sum"
+	lan_clients="$( _net count_wired )"
+
+	url="$url&up=$up&h2=$free&load=$load&version=$FFF_PLUS_VERSION&r4=$wifi_clients_sum&r5=$lan_clients"
 
 	case "$( _wget do "$url" 30 )" in
 		'REFRESHED')
