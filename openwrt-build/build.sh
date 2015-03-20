@@ -1805,7 +1805,11 @@ build_options_set()
 		[ -n "$subcall" ] && return 1
 
 		case "$LIST_OPTIONS" in
-			''|'CONFIG_'*)
+			'CONFIG_'*)
+				return 1
+			;;
+			'')
+				echo	# last command doesnt set the cursor at line begin ("Collecting package info: done")
 				return 1
 			;;
 			*)
