@@ -1612,6 +1612,10 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-nls-cp437=y'		# kernel-modules: nls-support (USA)
 				apply_symbol 'CONFIG_PACKAGE_kmod-nls-iso8859-1=y'	# kernel-modules: nls-support (EU)
 			;;
+			'BTRfs')
+				apply_symbol 'CONFIG_PACKAGE_kmod-fs-btrfs=y'		# kernel-modules: filesystems
+				apply_symbol 'CONFIG_PACKAGE_btrfs-progs=y'		# utilities: filesystem
+			;;
 			'NAS')
 				apply_symbol 'CONFIG_PACKAGE_smartd=y'			# utilities -> smart
 				apply_symbol 'CONFIG_PACKAGE_smartmontools=y'		# utilities -> smart
