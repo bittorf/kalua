@@ -304,20 +304,26 @@ copy_additional_packages()
 			install_section="$( fgrep 'SECTION:=' "$dir/Makefile" | cut -d'=' -f2 )"
 			package="$( basename "$dir" )"
 
-			log "$funcname() working on '$dir', destination: '$install_section'"
-			# only 'v' if DEBUG?
-			cp -Rv "$dir" "package/$install_section"
+			do_copy()
+			{
+				log "$funcname() working on '$dir', destination: '$install_section'"
+				cp -Rv "$dir" "package/$install_section"
+			}
 
-			[ "$package" = 'cgminer' ] && {
+			if [ "$package" = 'cgminer' ]; then
 				case "$LIST_USER_OPTIONS" in
 					*'BTCminerCPU'*)
+						do_copy
+
 						file="package/$install_section/$package/Makefile"
 						sed -i 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
 						sed -i 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
 						sed -i 's/--enable-bflsc/--enable-cpumining/' "$file"
 					;;
 				esac
-			}
+			else
+				do_copy
+			fi
 		else
 			log "$funcname() no Makefile found in '$dir' - please check"
 			return 0
@@ -927,7 +933,7 @@ openwrt_download()
 					fi
 				fi
 			else
-				log "$funcname() already at branch 'master"
+				log "$funcname() already at branch 'master" debug
 			fi
 
 			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
