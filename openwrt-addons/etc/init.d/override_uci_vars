@@ -11,7 +11,7 @@ START=01
 
 apply_olsr_roaming()
 {
-	local list_ap="$( _wifi get any mode ap )"
+	local list_ap="$( _wifi get any mode ap ) $1"
 	[ -z "$list_ap" ] && return 1
 
 	[ -e /lib/modules/*/macvlan.ko ] || return 1
@@ -44,8 +44,14 @@ apply_olsr_roaming()
 	uci delete dhcp.wlan.netmask	# otherwise 'wlan.start' has no effect
 
 	for index in $list_ap; do {
-		network="$( uci get wireless.@wifi-iface[$index].network )"	# e.g. wlanRADIO1
-		uci set wireless.@wifi-iface[$index].disabled='0'		# force active
+		if network="$( uci -q get wireless.@wifi-iface[$index].network )"; then
+			# e.g. 'wlanRADIO1'
+			uci set wireless.@wifi-iface[$index].disabled='0'		# force active
+		else
+			# e.g. 'lan'
+			network="$index"
+			uci delete dhcp.$index
+		fi
 
 		uci set network.roaming${index}='device'
 		uci set network.roaming${index}.type='macvlan'
@@ -58,7 +64,7 @@ apply_olsr_roaming()
 			*"roaming${index}"*)
 			;;
 			*)
-				uci set network.mastergate.ifname="$list roaming${index}"
+				uci set network.mastergate.ifname="${list}${list:+ }roaming${index}"
 			;;
 		esac
 	} done
@@ -1073,9 +1079,13 @@ boot()
 					_wifi set ap    2ghz ssid 'weimar.freifunk.net'
 					_wifi set adhoc 2ghz mcast_rate '1000'
 				;;
+				704)
+					# sommerbar
+					ROAMING='lan wan'
+				;;
 			esac
 
-			apply_olsr_roaming && {
+			apply_olsr_roaming "$ROAMING" && {
 				_wifi set ap    any  ssid 'weimar.freifunk.net'
 				_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
 				_wifi set adhoc 5ghz ssid 'ffintern.5GHz'
