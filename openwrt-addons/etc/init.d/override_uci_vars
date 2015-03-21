@@ -11,7 +11,8 @@ START=01
 
 apply_olsr_roaming()
 {
-	local list_ap="$( _wifi get any mode ap ) $1"
+	local wired_networks="$1"
+	local list_ap="$( _wifi get any mode ap ) $wired_networks"
 	[ -z "$list_ap" ] && return 1
 
 	[ -e /lib/modules/*/macvlan.ko ] || return 1
@@ -1227,12 +1228,17 @@ boot()
 				# olsrd-hna: 0/0 + 10.10.0.1/32 + 10.10.0.2/32 + 10.10.0.10/32
 			}
 		;;
-		marinabh_ap)
-			[ "$NODENUMBER" = "2" ] && uci set wireless.radio0.disabled=1
+		marinabh*)
+			[ "$NODENUMBER" = "2" ] && _wifi set any any disabled '1'
 			uci set olsrd.@meta[0].hnaslave=0
-		;;
-		marinabh_hybrid)
-			uci set wireless.@wifi-iface[0].mcast_rate=18000
+
+			apply_olsr_roaming && {
+				_wifi set ap    any  ssid 'Marina Boltenhagen'
+				_wifi set adhoc 2ghz ssid 'intern.2GHz'
+				_wifi set adhoc 5ghz ssid 'intern.5GHz'
+			}
+
+			_wifi set adhoc 2ghz mcast_rate '18000'
 		;;
 		adagio*)
 			uci set olsrd.@meta[0].hnaslave=0
@@ -1597,15 +1603,14 @@ boot()
 		[ -e '/usr/sbin/batctl' ] || return 1
 
 		case "$CONFIG_PROFILE" in
-			marinabh*)
+			testbatman*)
 				return 0
 			;;
 			*)
 				batman_kmodules_are_deactivated || batman_kmodules_force_deactivation
+				return 1
 			;;
 		esac
-
-		return 1
 	}
 
 	if batman_needed; then
@@ -1636,67 +1641,12 @@ boot()
 	fi
 
 	batman_needed && {
-		case "$CONFIG_PROFILE" in
-			apphalle*)
-				_wifi set ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 )"
-				_wifi set any   5ghz txpower '19'
-				_wifi set any   2ghz txpower '10'
-				_wifi set adhoc 5ghz ssid 'x'
-				_wifi set adhoc 2ghz ssid 'X'
-			;;
-			boltenhagendh*)
-				_wifi set ap    5ghz ssid 'Weisse Wiek highspeed'
-				_wifi set ap    2ghz ssid 'Weisse Wiek'
-				_wifi set adhoc 5ghz ssid 'x'
-				_wifi set adhoc 2ghz ssid 'X'
-			;;
-			schoeneck_ap)
-				_wifi set ap 2ghz ssid 'IFA Schoeneck'
-				_wifi set ap 5ghz ssid 'IFA highspeed'
-			;;
-			schoeneck_hybrid)
-				_wifi set ap 2ghz ssid 'IFA Schoeneck'
-				_wifi set ap 5ghz ssid 'IFA highspeed'
-			;;
-			olympia_hybrid)
-				uci set wireless.@wifi-iface[0].ssid="o"
-				uci set wireless.@wifi-iface[1].ssid="Hotel Olympia"
-			;;
-			liszt28*)
-				_wifi set ap    5ghz ssid 'weimar.freifunk.net'
-				_wifi set ap    2ghz ssid 'weImar.freifunk.net'
-				_wifi set adhoc 5ghz ssid 'ff.intern'
-				_wifi set adhoc 2ghz ssid 'ff.Intern'
-			;;
-			marinabh_hybrid)
-				uci set wireless.@wifi-iface[0].ssid="o"
-				uci set wireless.@wifi-iface[1].ssid="Marina Boltenhagen"
-			;;
-			marinabh_ap)
-				uci set wireless.@wifi-iface[0].ssid="Marina Boltenhagen"
-			;;
-		esac
-
 		local dns_ip i
 		local router_ip="192.168.$NODENUMBER.1"
 		local master_gateway
 
 		case "$CONFIG_PROFILE" in
-			olympia*|marinabh*)
-				master_gateway="192.168.2.1"
-				dns_ip="$router_ip"
-			;;
-			apphalle*)
-				router_ip="192.168.0.1"
-				master_gateway="192.168.3.1"
-				dns_ip="$router_ip"
-			;;
-			schoeneck*|boltenhagendh*)
-				router_ip="192.168.0.1"
-				master_gateway="192.168.2.1"
-				dns_ip="$router_ip"
-			;;
-			liszt28*)
+			testnet*)
 				router_ip="192.168.0.1"		# every router has this ip (there is never a NODE 0)
 				master_gateway="192.168.99.1"
 				dns_ip="$router_ip"
