@@ -12,7 +12,7 @@ START=01
 apply_olsr_roaming()
 {
 	local list_ap="$( _wifi get any mode ap )"
-	[ -z "$list_ap" ] && return 0
+	[ -z "$list_ap" ] && return 1
 
 	[ -e /lib/modules/*/macvlan.ko ] || return 1
 	kmodule_force_activation 'macvlan'
@@ -20,8 +20,7 @@ apply_olsr_roaming()
 	local router_ip='192.168.0.1'
 	local dns_ip='192.168.0.1'
 	local nearly_uniq_nodenumber="$NODENUMBER"
-	local i=0
-	local index network mac
+	local index network list
 
 	# each node has it's own "uniq" dhcp-range
 	# which must be valid across the whole network,
@@ -31,9 +30,8 @@ apply_olsr_roaming()
 	} done
 
 	uci set network.mastergate='interface'			# here we collect all interfaces, see below
-	uci set network.mastergate.type='bridge'		# needed for multiple interfaces
-	uci set network.mastergate.ifname='roaming0 roaming1'
-	uci set network.mastergate.proto='static'
+	uci set network.mastergate.type='bridge'		# bridge needed for multiple interfaces
+	uci set network.mastergate.proto='static'		# list of ifnames is added below
 	uci set network.mastergate.ipaddr='192.168.0.1'
 	uci set network.mastergate.netmask='255.255.0.0'
 
@@ -41,28 +39,31 @@ apply_olsr_roaming()
 	uci set dhcp.wlan.interface='mastergate'
 	uci set dhcp.wlan.dhcp_option="option:router,$router_ip,$dns_ip"
 	uci set dhcp.wlan.leasetime='10m'
-	uci delete dhcp.wlan.netmask	# otherwise .start has no effect
 	uci set dhcp.wlan.start="192.168.${nearly_uniq_nodenumber}.1"
 	uci set dhcp.wlan.limit='254'
-
-	_wifi set ap    any  ssid 'weimar.freifunk.net'
-	_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
-	_wifi set adhoc 5ghz ssid 'ffintern.5GHz'
+	uci delete dhcp.wlan.netmask	# otherwise 'wlan.start' has no effect
 
 	for index in $list_ap; do {
-		_wifi is2ghz $index
-		mac="02:ff:ff:ff:$( integer2fourhex $? )"		# should be uniq per band
-		network="$( uci get wireless.@wifi-iface[$index].network )"
-		uci set wireless.@wifi-iface[$index].disabled='0'	# activate
+		network="$( uci get wireless.@wifi-iface[$index].network )"	# e.g. wlanRADIO1
+		uci set wireless.@wifi-iface[$index].disabled='0'		# force active
 
-		uci set network.roaming${i}='device'
-		uci set network.roaming${i}.type='macvlan'
-		uci set network.roaming${i}.name="roaming$i"
-		uci set network.roaming${i}.ifname="@$network"
-		uci set network.roaming${i}.macaddr="$mac"
+		uci set network.roaming${index}='device'
+		uci set network.roaming${index}.type='macvlan'
+		uci set network.roaming${index}.name="roaming${index}"
+		uci set network.roaming${index}.ifname="@$network"
+		uci set network.roaming${index}.macaddr='02:ff:ff:ff:00:00'		# same on all bands
 
-		i=$(( i + 1 ))
+		list="$( uci -q get network.mastergate.ifname )"
+		case "$list" in
+			*"roaming${index}"*)
+			;;
+			*)
+				uci set network.mastergate.ifname="$list roaming${index}"
+			;;
+		esac
 	} done
+
+	return 0
 }
 
 apply_olsr_speed()
@@ -1074,7 +1075,11 @@ boot()
 				;;
 			esac
 
-			apply_olsr_roaming
+			apply_olsr_roaming && {
+				_wifi set ap    any  ssid 'weimar.freifunk.net'
+				_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
+				_wifi set adhoc 5ghz ssid 'ffintern.5GHz'
+			}
 		;;
 		ilm1*)
 			uci set system.@monitoring[0].statusprecache='true'
