@@ -39,10 +39,10 @@ apply_olsr_roaming()
 	# we occupy the existing 'wlan'-section (generated from apply_profile)
 	uci set dhcp.wlan.interface='mastergate'
 	uci set dhcp.wlan.dhcp_option="option:router,$router_ip,$dns_ip"
-	uci set dhcp.wlan.leasetime='10m'
+	uci set dhcp.wlan.leasetime='10m'	# very short
 	uci set dhcp.wlan.start="192.168.${nearly_uniq_nodenumber}.1"
 	uci set dhcp.wlan.limit='254'
-	uci delete dhcp.wlan.netmask	# otherwise 'wlan.start' has no effect
+	uci delete dhcp.wlan.netmask		# otherwise 'wlan.start' has no effect
 
 	for index in $list_ap; do {
 		if network="$( uci -q get wireless.@wifi-iface[$index].network )"; then
@@ -813,7 +813,7 @@ boot()
 
 			uci set olsrd.@meta[0].fixedarp='1'
 			uci set olsrd.@meta[0].throttle_traffic='1'
-			uci set olsrd.@meta[0].nexthop_dns='true'
+			uci set olsrd.@meta[0].nexthop_dns='false'	# FIXME!
 
 			case "$HARDWARE" in
 				'Seagate GoFlex Home')
@@ -893,12 +893,16 @@ boot()
 					_wifi set adhoc any mcast_rate '1000'
 					_wifi set ap 2ghz ssid 'radio'
 					touch "/tmp/vds_user_00:90:3e:fc:81:c2"		# phillips radio
+
+					ROAMING='false'
 				;;
 				292)
 					# ralf oben
 					_wifi set adhoc any mcast_rate '1000'
 					_wifi set ap 2ghz ssid 'radioquelle'
 					uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
+
+					ROAMING='false'
 				;;
 				339)
 					_wifi set ap 2ghz ssid 'weimarnetz (Wolfsheim)'
@@ -927,7 +931,7 @@ boot()
 				;;
 				277)
 					_wifi set ap 2ghz ssid 'weimarnetz (F36stube)'
-					uci set system.@monitoring[0].button_smstext='Fries36: Knopf wurde gedrueckt - bitte anrufen: 03643-827407'
+					uci set system.@monitoring[0].button_smstext='Fries36: Knopf gedrueckt: bitte anrufen 03643-827407'
 					uci set system.@monitoring[0].button_phone='0176/24223419 0179/7465017'
 				;;
 				303)
@@ -1043,6 +1047,8 @@ boot()
 					_wifi set ap any ssid 'Kurt-Eisner-76'
 					_wifi set adhoc any ssid 'o'
 					uci set system.@weblogin[0].freelan='false'
+
+					ROAMING='false'
 				;;
 				806)
 					_wifi set adhoc 5ghz bssid '02:ca:ff:ee:00:40'
@@ -1065,6 +1071,8 @@ boot()
 					uci set system.@weblogin[0].authserver='10.63.85.225'
 					_wifi set adhoc 2ghz ssid 'x'
 					uci set system.@weblogin[0].freelan='false'
+
+					ROAMING='false'
 				;;
 				851)
 					# demo2
@@ -1072,12 +1080,12 @@ boot()
 					uci set system.@weblogin[0].authserver='10.63.85.225'
 					_wifi set adhoc 2ghz ssid 'x'
 					uci set system.@weblogin[0].freelan='false'
+
+					ROAMING='false'
 				;;
 				6|810)
 					# ute:drucker/inet
 					touch '/tmp/vds_user_00:21:6a:8b:38:76'
-					_wifi set adhoc 2ghz ssid 'intern.freifunk'
-					_wifi set ap    2ghz ssid 'weimar.freifunk.net'
 					_wifi set adhoc 2ghz mcast_rate '1000'
 				;;
 				704)
@@ -1086,8 +1094,11 @@ boot()
 				;;
 			esac
 
-			apply_olsr_roaming "$ROAMING" && {
-				_wifi set ap    any  ssid 'weimar.freifunk.net'
+			[ "$ROAMING" = 'false' ] || {
+				apply_olsr_roaming "$ROAMING" && {
+					_wifi set ap any ssid 'weimar.freifunk.net'
+				}
+
 				_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
 				_wifi set adhoc 5ghz ssid 'ffintern.5GHz'
 			}
@@ -1233,11 +1244,11 @@ boot()
 			uci set olsrd.@meta[0].hnaslave=0
 
 			apply_olsr_roaming && {
-				_wifi set ap    any  ssid 'Marina Boltenhagen'
-				_wifi set adhoc 2ghz ssid 'intern.2GHz'
-				_wifi set adhoc 5ghz ssid 'intern.5GHz'
+				_wifi set ap any ssid 'Marina Boltenhagen'
 			}
 
+			_wifi set adhoc 2ghz ssid 'intern.2GHz'
+			_wifi set adhoc 5ghz ssid 'intern.5GHz'
 			_wifi set adhoc 2ghz mcast_rate '18000'
 		;;
 		adagio*)
