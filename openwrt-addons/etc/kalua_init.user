@@ -85,6 +85,14 @@ OPENWRT_REV="$( cut -b2- '/etc/openwrt_version' 2>/dev/null || echo '0' )"
 OPKG="$( which /bin/[o,i]pkg )"
 OPKG="${OPKG:-false}"
 
+# each node has it's own "neary uniq" DHCP-range
+# which must be valid across the whole network,
+# e.g. 192.168.8.0/16 on node 8
+NODENUMBER_ROAMING="$( uci get system.@profile[0].nodenumber )"
+while [ ${NODENUMBER_ROAMING:=2} -gt 254 ]; do {
+	NODENUMBER_ROAMING=$(( $NODENUMBER_ROAMING - 254 ))	# e.g. node 255 -> 1
+} done
+
 read HARDWARE 2>/dev/null <'/etc/HARDWARE' || {
 	# model name  : Intel(R) Xeon(R) CPU E5-2620 0 @ 2.00GHz
 	set -- $( grep ^'model name' '/proc/cpuinfo' | head -n1 )
@@ -95,7 +103,8 @@ read HARDWARE 2>/dev/null <'/etc/HARDWARE' || {
 
 # user-vars from $0.user
 export TZ='$TIMEZONE'
-test "\$NODENUMBER" || NODENUMBER="$( uci get system.@profile[0].nodenumber )"
+NODENUMBER_ROAMING='$NODENUMBER_ROAMING'
+test "\$NODENUMBER" || NODENUMBER='$( uci get system.@profile[0].nodenumber )'
 test "\$CONFIG_PROFILE" || CONFIG_PROFILE='$( uci get system.@profile[0].name )'
 HARDWARE='$HARDWARE'
 HOSTNAME='$HOSTNAME'
