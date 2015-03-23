@@ -255,7 +255,7 @@ apply_wifi_reghack()
 	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
 	local file='kalua/openwrt-patches/reghack/900-regulatory-compliance_test.patch'
-	local file_regdb_hacked
+	local file_regdb_hacked countries
 	local COMPAT_WIRELESS="2013-06-27"
 
 	[ -e "$file" ] && {
@@ -277,7 +277,10 @@ apply_wifi_reghack()
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
 
-			register_patch 'REGHACK:'
+			# e.g. '00 US FM'
+			countries="$( grep ^'country ' "$file_regdb_hacked" | cut -d' ' -f2 | cut -d':' -f1 )"
+
+			register_patch "REGHACK: valid countries: $countries"
 			register_patch "$file"
 			register_patch "$file_regdb_hacked"
 		else
