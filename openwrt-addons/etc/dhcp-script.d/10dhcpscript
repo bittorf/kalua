@@ -30,33 +30,30 @@ case "$DEV" in
 	       *) TYPE="unknown" ;;
 esac
 
-if [ "$MODE" = "old" ]; then
-	[ -e "/tmp/CRON_OVERLOAD" ] && exit 0
-else
-	_log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV"
-fi
-
-case "$MODE-$HOST" in
-	'add-check_if_reachable')
-		MODE="$HOST"
-		_log do dhcp_add_check_if_reachable daemon info "MAC: $MAC IP: $IP DEV: $DEV"
-		_netfilter user_add "$MAC" "$IP"
+case "$HOST" in
+	'reanimateV2')
+		# seed watch_reanimate_dead_neighbour()
+		MODE='invalid'
 	;;
 esac
+
+if [ "$MODE" = 'old' ]; then
+	[ -e '/tmp/CRON_OVERLOAD' ] && exit 0
+else
+	_log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV HOST: $HOST"
+
+	case "$MODE-$HOST" in
+		'add-check_if_reachable')
+			MODE="$HOST"
+			_log do dhcp_add_check_if_reachable daemon info "MAC: $MAC IP: $IP DEV: $DEV"
+			_netfilter user_add "$MAC" "$IP"
+		;;
+	esac
+fi
 
 case "$MODE" in
 	add|old)
 		bool_true 'system.@weblogin[0].enabled' && {
-			case "$HOST" in
-				'old')
-					_netfilter user_probe "$MAC" && exit 0
-				;;
-				'reanimate'*)
-					# seed watch_reanimate_dead_neighbour()
-					exit 0
-				;;
-			esac
-
 			case "$MODE" in
 				'old')
 					_netfilter user_probe "$MAC" && exit 0
