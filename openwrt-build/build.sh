@@ -209,7 +209,7 @@ register_patch()
 		[ -e "$file" ] && rm "$file"
 	else
 		case "$name" in
-			'DIR:'*|*':')
+			'DIR:'*|*':'|'REGHACK:'*)	# FIXME!
 				# directory
 				name="=== $name ==="
 			;;
@@ -255,7 +255,7 @@ apply_wifi_reghack()
 	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
 	local file='kalua/openwrt-patches/reghack/900-regulatory-compliance_test.patch'
-	local file_regdb_hacked countries
+	local file_regdb_hacked countries code
 	local COMPAT_WIRELESS="2013-06-27"
 
 	[ -e "$file" ] && {
@@ -279,6 +279,7 @@ apply_wifi_reghack()
 
 			# e.g. '00 US FM'
 			countries="$( grep ^'country ' "$file_regdb_hacked" | cut -d' ' -f2 | cut -d':' -f1 )"
+			countries="$( echo "$countries" | while read code; do echo -n "$code "; done )"		# remove CR/LF
 
 			register_patch "REGHACK: valid countries: $countries"
 			register_patch "$file"
