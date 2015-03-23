@@ -1837,11 +1837,17 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 _wifi_is2ghz()
 {
 	local wifi_iface="$1"
-	local radio="$( uci -q get wireless.@wifi-iface[${wifi_iface}].device )"
-	local channel="$( uci -q get wireless.${radio}.channel )"
+	local radio="$( uci get wireless.@wifi-iface[${wifi_iface}].device )"
+	local hwmode="$( uci get wireless.${radio}.hwmode )"
 
-	# TODO: this is dirty, we must take hwmode into account, because 7-12 can also be 5ghz
-	test ${channel:-0} -lt 15
+	case "$hwmode" in
+		*'a'*)
+			return 1
+		;;
+		*)
+			return 0
+		;;
+	esac
 }
 
 _wifi_set()
@@ -1941,9 +1947,11 @@ _wifi_set()
 					}
 
 					[ -n "$radio" -a "$var" = 'channel' ] && {
-						[ $value -ge 1 -a $value -le 11 ] && {
+						if   [ "$value" = 'auto' ]; then
+							uci set wireless.$radio.country='FM'
+						elif [ $value -ge 1 -a $value -le 11 ]; then
 							uci set wireless.$radio.country='US'
-						}
+						fi
 
 						[ "$option" = 'bssid_wellformed' ] && {
 							# e.g.
