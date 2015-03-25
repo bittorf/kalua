@@ -455,3 +455,33 @@ _software_package_install()
 		# fixme! do cleanup, e.g. remove '/tmp/mydesign_0.2_29132.ipk'
 	fi
 }
+
+_software_opkg_raminstaller()
+{
+	# if the real 'opkg' is not included, autodownload and call it with all args
+	local funcname='software_opkg_raminstaller'
+	local arch url file
+
+	[ -e '/tmp/bin/opkg' ] || {
+		local arch="$( _system architecture )"
+		local url="http://downloads.openwrt.org/barrier_breaker/14.07/$arch/generic/packages/base"
+
+		_log do $funcname daemon info "fetching filename from $url"
+		local file="$( wget -O - "$url" | fgrep 'opkg_' | cut -d'"' -f2 )"
+
+		url="$url/$file"
+		_log do $funcname daemon info "fetching package from $url"
+
+		(
+			cd /tmp
+			wget -O 'opkg.ipk' "$url"
+			tar xzf 'opkg.ipk'
+			rm 'debian-binary' 'control.tar.gz' 'opkg.ipk'
+			tar xvzf 'data.tar.gz' ./bin/opkg
+			rm 'data.tar.gz'
+		)
+	}
+
+	# if on debian, it report via 'file opkg' -> 'corrupted section header size'
+	/tmp/bin/opkg $*
+}

@@ -167,10 +167,13 @@ _system_architecture()
 	local arch DISTRIB_TARGET
 
 	[ -e "$file" ] || {
-		# e.g. Architecture: ramips_24kec
-		arch="$( _software package_status kernel | grep ^'Architecture:' )"
-		arch="${arch#*: }"
-		arch="${arch%%_*}"
+		# prevents chicken/egg problem with software_opkg_raminstaller()
+		which $OPKG >/dev/null || {
+			# e.g. Architecture: ramips_24kec
+			arch="$( _software package_status kernel | grep ^'Architecture:' )"
+			arch="${arch#*: }"
+			arch="${arch%%_*}"
+		}
 
 		if [ -n "$arch" ]; then
 			echo "$arch" >"$file"
@@ -185,7 +188,8 @@ _system_architecture()
 				arch="$DISTRIB_TARGET"
 				arch="${arch%%/*}"
 			else
-				arch="$( uname -m )"	# e.g. 'x86_64' or 'mips'
+				arch="$( uname -m )"			# e.g. 'x86_64' or 'mips'
+				[ "$arch" = 'i686' ] && arch='x86'	# debian
 			fi
 
 			echo "$arch" >"$file"

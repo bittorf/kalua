@@ -1742,6 +1742,9 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IPV6 is not set'	# base/busybox/networking/ipv6-support
 				apply_symbol 'CONFIG_PACKAGE_libip6tc is not set'
 			;;
+			'noOPKG')
+				apply_symbol 'CONFIG_PACKAGE_opkg is not set'		# base-system: opkg
+			;;
 			'noPPPoE')
 				apply_symbol 'CONFIG_PACKAGE_ppp is not set'		# network: ppp
 				apply_symbol 'CONFIG_PACKAGE_kmod-ppp is not set'	# kernel-modules: network-support: ppp
