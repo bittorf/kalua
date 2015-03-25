@@ -1377,6 +1377,16 @@ apply_symbol()
 	esac
 
 	case "$symbol" in
+		'CONFIG_BUSYBOX'*)
+			# maybe unneeded
+			grep -q 'CONFIG_BUSYBOX_CUSTOM=y' "$file" || {
+				log "$funcname() enabling BUSYBOX_CUSTOM"
+				echo 'CONFIG_BUSYBOX_CUSTOM=y' >>"$file"
+			}
+		;;
+	esac
+
+	case "$symbol" in
 		*'=y')
 			symbol="$( echo "$symbol" | cut -d'=' -f1 )"
 
@@ -1476,8 +1486,13 @@ build_options_set()
 				apply_minstrel_rhapsody
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_RC_RHAPSODY_BLUES=y'
 			;;
-			'Standard')	# >4mb flash
+			'zRAM')
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_SWAPONOFF=y'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_SWAPON_PRI=y'
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
+#				apply_symbol 'CONFIG_PROCD_ZRAM_TMPFS=y'		# since r43489
+			;;
+			'Standard')	# >4mb flash
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
@@ -1493,8 +1508,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
-				apply_symbol 'CONFIG_PROCD_ZRAM_TMPFS=y'		# since r43489
 
+				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
 				$funcname subcall 'shaping'
 				$funcname subcall 'vtun'
@@ -1502,7 +1517,6 @@ build_options_set()
 				$funcname subcall 'noFW'
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
-				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
@@ -1517,9 +1531,9 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'
-				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
-				apply_symbol 'CONFIG_PROCD_ZRAM_TMPFS=y'		# since r43489
+#				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 
+				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
 #				$funcname subcall 'shaping'
 #				$funcname subcall 'vtun'
