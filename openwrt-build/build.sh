@@ -1163,7 +1163,7 @@ apply_symbol()
 	local choice hash tarball_hash rev
 	local last_commit_unixtime last_commit_date url
 	local file installation sub_profile node
-	local dir basedir pre
+	local dir basedir pre size1 size2
 
 	case "$symbol" in
 		"$KALUA_DIRNAME"*)
@@ -1334,6 +1334,13 @@ apply_symbol()
 				git branch -D "$KALUA_DIRNAME@$hash"
 				cd ..
 			}
+
+			set -- $( du -s "$custom_dir" )
+			size1="$1"
+			tar czf "$custom_dir.tgz" "$custom_dir"
+			set -- $( du -s "$custom_dir.tgz" && rm "$custom_dir.tgz" )
+			size2="$1"
+			log "[OK] custom dir '$custom_dir' adds $size1 kilobytes ($size2 compressed) to your image"
 
 			return 0
 		;;
