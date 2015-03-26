@@ -2277,5 +2277,5 @@ build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
 
-log "[OK]"
+log "[OK] - check size of files with: find bin -type f -exec stat -c '%s %N' {} \; | sort -n"
 exit 0
