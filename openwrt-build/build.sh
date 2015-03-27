@@ -350,21 +350,27 @@ target_hardware_set()
 
 	case "$model" in
 		'UML')
-			# boot via (circument PROT_EXEC mmap/noexec-shm-problem: http://www.ime.usp.br/~baroni/docs/uml-en.html)
-			#
-			# mkdir /tmp/uml
-			# chown $USER.$USER /tmp/uml
-			# chmod 777 /tmp/uml
-			# export TMPDIR=/tmp/uml
-			#
-			# bin/uml/openwrt-uml-vmlinux ubd0=bin/uml/openwrt-uml-ext4.img ethX=tuntap,,,192.168.0.254
-			#
-			# better: rename 'vmlinux' to e.g. 'openwrt-uml-r12345' (more readable tasklist)
-			# better: rename 'ext4-img' to rootfs?
+			# TODO: rename 'vmlinux' to e.g. 'openwrt-uml-r12345' (more readable tasklist)
+			# TODO: rename 'ext4-img' to rootfs?
 			TARGET_SYMBOL='CONFIG_TARGET_uml_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+
+			[ "$option" = 'info' ] && {
+				cat <<EOF
+# simple boot via:
+bin/uml/$FILENAME_SYSUPGRADE ubd0=bin/uml/$FILENAME_FACTORY ethX=tuntap,,,192.168.0.254
+
+# circumvent PROT_EXEC mmap/noexec-shm-problem:
+# http://www.ime.usp.br/~baroni/docs/uml-en.html
+mkdir /tmp/uml
+chown $USER.$USER /tmp/uml
+chmod 777 /tmp/uml
+export TMPDIR=/tmp/uml
+EOF
+				return 0
+			}
 		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
@@ -2139,6 +2145,10 @@ while [ -n "$1" ]; do {
 			build_tarball_package || print_usage_and_exit
 			exit 0
 		;;
+		'--info'|'-i')
+			target_hardware_set "$2" info
+			exit 0
+		;;
 		'--check'|'-c')
 			if [ "$KALUA_DIRNAME" = "$( dirname "$0" )" ]; then
 				# openwrt-build/build.sh -> openwrt-build
@@ -2284,5 +2294,6 @@ build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
 
+log "[OK] - get help with: $0 --info '$HARDWARE_MODEL'"
 log "[OK] - check size of files with: find bin -type f -exec stat -c '%s %N' {} \; | sort -n"
 exit 0
