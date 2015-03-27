@@ -769,13 +769,13 @@ check_working_directory()
 	mkdir -p 'files'
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
-		log "$funcname() addfeed 'oonfapi'"
+		log "$funcname() addfeed 'oonfapi'" debug
 		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
 		do_symlinking='true'
 	}
 
 	fgrep -q ' olsrd2 '  "$file_feeds" || {
-		log "$funcname() addfeed 'olsrd2'"
+		log "$funcname() addfeed 'olsrd2'" debug
 		echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'
 		do_symlinking='true'
 	}

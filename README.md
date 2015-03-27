@@ -225,6 +225,7 @@ Special UCI-variables
 	system.@monitoring[0].cdp_send		- bool
 	system.@monitoring[0].cisco_collect	- bool
 	system.@monitoring[0].maxcost		- integer
+	system.@monitoring[0].max_wificlients	- bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
