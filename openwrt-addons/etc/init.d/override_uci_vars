@@ -120,18 +120,49 @@ hostapd_activate_coredump()
 
 kmodule_is_deactivated()
 {
-	grep -q ^"#" "/etc/modules.d/"*"$1"	# e.g. batman-adv -> 50-batman-adv
-}						# e.g. ebtables -> ebtables
+	local kmodule="$1"
+	local file
+
+	# e.g. 'sch_teql' in /etc/modules.d/73-sched
+	for file in /etc/modules.d/*; do {
+		grep -q ^"# $kmodule" "$file" && return 0
+		grep -q  ^"#$kmodule" "$file" && return 0
+	} done
+
+	return 1
+}
 
 kmodule_force_activation()
 {
-	kmodule_is_deactivated "$1" && sed -i 's/^[^a-z]*//' "/etc/modules.d/"*"$1"
+	local kmodule="$1"
+	local file
+
+	# e.g. 'sch_teql' in /etc/modules.d/73-sched
+	for file in /etc/modules.d/*; do {
+		grep -q ^"# $kmodule" "$file" && {
+			sed -i 's/^[^a-z]*//' "$file"
+			return 0
+		}
+
+		grep -q ^"#$kmodule" "$file" && {
+			sed -i 's/^[^a-z]*//' "$file"
+			return 0
+		}
+	} done
 }
 
 kmodule_force_deactivation()
 {
-	# FIXME! unload already loaded module?
-	kmodule_is_deactivated "$1" || sed -i 's/^/# &/' "/etc/modules.d/"*"$1"
+	local kmodule="$1"
+	local file
+
+	# e.g. 'sch_teql' in /etc/modules.d/73-sched
+	for file in /etc/modules.d/*; do {
+		grep -q ^"$kmodule" "$file" && {
+			sed -i 's/^/# &/' "$file"
+			return 0
+		}
+	} done
 }
 
 kmodules_group_deactivate()
@@ -261,6 +292,9 @@ boot()
 	}
 
 	apply_olsr_speed '6'
+
+	kmodule_force_deactivation sch_teql
+	kmodule_force_deactivation ifb
 
 	case "$HARDWARE" in
 		'TP-LINK TL-WDR4900'*|'TP-LINK TL-WR703N v1')
