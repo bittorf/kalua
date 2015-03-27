@@ -220,13 +220,6 @@ wireless_reghack_available()
 	exit 0
 }
 
-if [ -e /tmp/LOCKFILE_APPLY ]; then
-	log "abort: /tmp/LOCKFILE_APPLY exists"
-	exit 1
-else
-	touch /tmp/LOCKFILE_APPLY
-fi
-
 [ $( logread | grep "init: process '/bin/ash" | grep -c 'exited. Scheduling for restart.' ) -gt 10 ] && {
 	# daemon.info init: starting pid 15022, tty '/dev/ttyS0': '/bin/ash --login'		// should correctly detect 'ttyS0'
 	log "detect_respawing_login daemon alert deactivating ttyS0 in /etc/inittab"
@@ -248,84 +241,6 @@ log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
 sleep 5
 df | logger
 
-
-if   hwprobe "D-Link DIR-300 RevA1"; then
-	HARDWARE="D-Link DIR-300 RevA1"
-elif hwprobe "Ubiquiti Nanostation2"; then
-	HARDWARE="Ubiquiti Nanostation2"
-elif hwprobe "Ubiquiti Nanostation5"; then
-	HARDWARE="Ubiquiti Nanostation5"
-fi
-
-[ -z "$HARDWARE" ] && {
-	while try_device; do {
-		fgrep -q "$HARDWARE" "$DMESG" && break
-	} done
-}
-
-if [ -n "$HARDWARE" ]; then
-	case "$HARDWARE" in
-		'TP-LINK Archer C7')
-			. /tmp/loader
-			[ $( _system flash_size ) -eq 16384 ] && {
-				HARDWARE="$HARDWARE v2"
-			}
-		;;
-		'Asus WL500GP V1')
-			HARDWARE='ASUS WL-500g Premium'
-		;;
-		"4G Systems MTX-1 Board")
-			HARDWARE="T-Mobile InternetBox"	# also: '4G MeshCube'
-		;;
-		"SPW500V")
-			HARDWARE="Speedport W500V"	# also: 'Targa WR 500 VoIP'
-		;;
-		"TL-WDR4900 v1")
-			HARDWARE="TP-LINK $HARDWARE"
-		;;
-		"Ubiquiti Bullet M")
-			ip address show | fgrep -q " 00:27:22:" && {
-				log "is it a 'Ubiquiti Picostation M2'?"
-				# HARDWARE="Ubiquiti Picostation M2"
-			}
-		;;
-		'Seagate GoFlex Net')
-			[ "$( uboot_getvar 'machid' )" = '0xd0a' ] && {
-				# see https://dev.openwrt.org/ticket/14303
-				HARDWARE='Seagate GoFlex Home'
-			}
-		;;
-	esac
-elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform: http://www.ubnt.com/picostation
-	HARDWARE="Ubiquiti PicoStation2"
-elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform: http://www.ubnt.com/picostation5
-	HARDWARE="Ubiquiti PicoStation5"
-elif grep -sq ^'loco-m-xw'$ '/tmp/sysinfo/board_name'; then
-	if iw phy phy0 info | grep -q '5180 MHz'; then
-		HARDWARE="Ubiquiti Nanostation loco M5"
-	else
-		HARDWARE="Ubiquiti Nanostation loco M2"
-	fi
-elif [ -e "/etc/HARDWARE" ]; then
-	log "could not detect hardware, trying /etc/HARDWARE"
-	read HARDWARE </etc/HARDWARE
-else
-	log "could not detect hardware, please enforce manually with a text in /etc/HARDWARE - abort"
-
-	[ "$1" = "help" ] || exit 1
-fi
-
-HARDWARE="$( echo "$HARDWARE" | sed 's/[ ]*$//' )"	# strip trailing whitespace (see alix2)
-
-log "detected: '$HARDWARE' and wrote to '/etc/HARDWARE' for later monitoring"
-echo "$HARDWARE" >"/etc/HARDWARE"
-
-case "$HARDWARE" in
-	"Linksys WRT54"*|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
-		rm /etc/modules.d/*usb*
-	;;
-esac
-
 INSTALLATION="$1"	# e.g. mynetwork
 PROFILE_MODE="$2"	# e.g. adhoc
 NODENUMBER="$3"		# e.g. 123
@@ -336,8 +251,10 @@ GATEWAY="$4"
 	[ -n "$OLD_INSTALLATION" -a -n "$OLD_INSTALLATION" ] && {
 		[ "$INSTALLATION" = "$OLD_INSTALLATION" ] || {
 			for SOFTWARE in mydesign mysettings sshpubkeys fff-adblock-list; do {
-				log "[OK] network changes, removing: $SOFTWARE"
-				opkg remove "$SOFTWARE"
+				opkg status "$SOFTWARE" | grep -q ^'Package:' && {
+					log "[OK] network changes, removing: $SOFTWARE"
+					opkg remove "$SOFTWARE"
+				}
 			} done
 		}
 	}
@@ -423,6 +340,13 @@ case "$PROFILE_MODE" in
 	;;
 esac
 
+if [ -e /tmp/LOCKFILE_APPLY ]; then
+	log "abort: /tmp/LOCKFILE_APPLY exists"
+	exit 1
+else
+	touch /tmp/LOCKFILE_APPLY
+fi
+
 [ -e '/tmp/loader' ] && . /tmp/loader
 
 [ -n "$LOWMEM" ] && {
@@ -433,6 +357,83 @@ esac
 		/etc/init.d/$DAEMON stop
 	} done
 }
+
+if   hwprobe "D-Link DIR-300 RevA1"; then
+	HARDWARE="D-Link DIR-300 RevA1"
+elif hwprobe "Ubiquiti Nanostation2"; then
+	HARDWARE="Ubiquiti Nanostation2"
+elif hwprobe "Ubiquiti Nanostation5"; then
+	HARDWARE="Ubiquiti Nanostation5"
+fi
+
+[ -z "$HARDWARE" ] && {
+	while try_device; do {
+		fgrep -q "$HARDWARE" "$DMESG" && break
+	} done
+}
+
+if [ -n "$HARDWARE" ]; then
+	case "$HARDWARE" in
+		'TP-LINK Archer C7')
+			. /tmp/loader
+			[ $( _system flash_size ) -eq 16384 ] && {
+				HARDWARE="$HARDWARE v2"
+			}
+		;;
+		'Asus WL500GP V1')
+			HARDWARE='ASUS WL-500g Premium'
+		;;
+		"4G Systems MTX-1 Board")
+			HARDWARE="T-Mobile InternetBox"	# also: '4G MeshCube'
+		;;
+		"SPW500V")
+			HARDWARE="Speedport W500V"	# also: 'Targa WR 500 VoIP'
+		;;
+		"TL-WDR4900 v1")
+			HARDWARE="TP-LINK $HARDWARE"
+		;;
+		"Ubiquiti Bullet M")
+			ip address show | fgrep -q " 00:27:22:" && {
+				log "is it a 'Ubiquiti Picostation M2'?"
+				# HARDWARE="Ubiquiti Picostation M2"
+			}
+		;;
+		'Seagate GoFlex Net')
+			[ "$( uboot_getvar 'machid' )" = '0xd0a' ] && {
+				# see https://dev.openwrt.org/ticket/14303
+				HARDWARE='Seagate GoFlex Home'
+			}
+		;;
+	esac
+elif hwprobe "Ubiquiti PicoStation2"; then		# Atheros-Platform: http://www.ubnt.com/picostation
+	HARDWARE="Ubiquiti PicoStation2"
+elif hwprobe "Ubiquiti PicoStation5"; then		# Atheros-Platform: http://www.ubnt.com/picostation5
+	HARDWARE="Ubiquiti PicoStation5"
+elif grep -sq ^'loco-m-xw'$ '/tmp/sysinfo/board_name'; then
+	if iw phy phy0 info | grep -q '5180 MHz'; then
+		HARDWARE="Ubiquiti Nanostation loco M5"
+	else
+		HARDWARE="Ubiquiti Nanostation loco M2"
+	fi
+elif [ -e "/etc/HARDWARE" ]; then
+	log "could not detect hardware, trying /etc/HARDWARE"
+	read HARDWARE </etc/HARDWARE
+else
+	log "could not detect hardware, please enforce manually with a text in /etc/HARDWARE - abort"
+
+	[ "$1" = "help" ] || exit 1
+fi
+
+HARDWARE="$( echo "$HARDWARE" | sed 's/[ ]*$//' )"	# strip trailing whitespace (see alix2)
+
+log "detected: '$HARDWARE' and wrote to '/etc/HARDWARE' for later monitoring"
+echo "$HARDWARE" >"/etc/HARDWARE"
+
+case "$HARDWARE" in
+	"Linksys WRT54"*|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
+		rm /etc/modules.d/*usb*
+	;;
+esac
 
 
 case "$PROFILE_MODE" in
