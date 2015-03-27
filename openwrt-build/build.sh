@@ -1771,6 +1771,24 @@ build_options_set()
 			;;
 			'noOPKG')
 				apply_symbol 'CONFIG_PACKAGE_opkg is not set'		# base-system: opkg
+
+				log "noOPKG: writing under 'files/etc/opkg.conf'"
+				mkdir -p 'files/etc'
+				cat >'files/etc/opkg.conf' <<EOF
+dest root /
+dest ram /tmp
+lists_dir ext /var/opkg-lists
+option overlay_root /overlay
+src/gz chaos_calmer_base http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/base
+src/gz chaos_calmer_luci http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/luci
+src/gz chaos_calmer_management http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/management
+src/gz chaos_calmer_oldpackages http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/oldpackages
+src/gz chaos_calmer_olsrd2 http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/olsrd2
+src/gz chaos_calmer_oonfapi http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/oonfapi
+src/gz chaos_calmer_packages http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/packages
+src/gz chaos_calmer_routing http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/routing
+src/gz chaos_calmer_telephony http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/telephony
+EOF
 			;;
 			'noPPPoE')
 				apply_symbol 'CONFIG_PACKAGE_ppp is not set'		# network: ppp
