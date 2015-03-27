@@ -1,22 +1,27 @@
 #!/bin/sh
 
-_vpn_start ()
+_vpn_needed()
 {
-	local FUNC="vpn_start"
-	_vpn_defer_start
+	[ -z "$INETOFFER" ] && INETOFFER="$( _net local_inet_offer )"
 
 	[ "$INETOFFER" = "false" -a -z "$( uci get system.@vpn[0].force )" ] && {
 		_log do $FUNC daemon debug "no local default gateway - abort"
 		return 1
 	}
-	
+
 	[ "$( uci get system.@vpn[0].enable )" = "1" ] || {
 		_log do $FUNC daemon debug "vpn disabled by config - abort"
 		return 1
 	}
+}
 
+_vpn_start ()
+{
+	local FUNC="vpn_start"
+	_vpn_defer_start
+	_vpn needed || return 1
 	_vpn_build_vars
-	
+
 	[ -n "$SERV" ] || {
 		_log do $FUNC daemon debug "no suitable server found"
 		return 1
@@ -108,7 +113,7 @@ _vpn_tunnel_start ()
 	
 	
 	_log do $FUNC daemon debug "starting vtun with config '$VTUN'"
-	
+
 	vtund -f "$VTUN" "Node$KNOT" "$SERV" "$PORT" 2>/dev/null || {
 
 		_log do $FUNC daemon debug "error"	
@@ -171,6 +176,7 @@ Node$KNOT {
 		program "$anonym ip rule add from $LANNET/$LANPRE prio 30000 table main" wait;
 		program "$anonym ip route add default via $WIFIVPNSERVERADR dev %% table $mytable" wait;
 		program "$anonym ip route flush cache" wait;
+		program ". /tmp/loader; _vpn include; _vpn blocking remove" wait;
 	} ;
 		# fixme! static_route must only be valid for programs on this machine
 	down {
@@ -183,6 +189,7 @@ Node$KNOT {
 
 		program "ip route del $VPN_SERVER via $STATIC_ROUTE" wait;
 		program "ip link set dev %% down" wait;
+		program ". /tmp/loader; _vpn include; _vpn blocking start_after_last_client" wait;
 	} ;
 }
 EOF
@@ -191,6 +198,46 @@ EOF
 	while read LINE; do {
 		_log do $func daemon debug "${VTUN} +'$LINE'"
 	} done <"$VTUN"
+}
+
+_vpn_block()
+{
+	local funcname='vpn_block'
+	local option="$1"	# start|remove|start_after_last_client
+
+	case "$option" in
+		'start_after_last_client')
+			grep -q 'tap.:' '/proc/net/dev' || {
+				option='start'
+				_log do $funcname daemon info 'no connection active'
+			}
+		;;
+	esac
+
+	case "$option" in
+		'start')
+			bool_true 'system.vpn.force_block_wifi' && {
+				_log do $funcname daemon info 'start: wifi'
+				$IPT -I FORWARD ! -i $LANDEV -j REJECT
+			}
+
+			bool_true 'system.vpn.force_block_lan' && {
+				_log do $funcname daemon info 'start: lan'
+				$IPT -I FORWARD   -i $LANDEV -j REJECT
+			}
+		;;
+		'remove')
+			bool_true 'system.vpn.force_block_wifi' && {
+				_log do $funcname daemon info 'remove: wifi'
+				$IPT -D FORWARD ! -i $LANDEV -j REJECT
+			}
+
+			bool_true 'system.vpn.force_block_lan' && {
+				_log do $funcname daemon info 'remove: lan'
+				$IPT -D FORWARD   -i $LANDEV -j REJECT
+			}
+		;;
+	esac
 }
 
 _vpn_remove_vtun_conf ()
