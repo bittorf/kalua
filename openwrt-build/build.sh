@@ -364,7 +364,7 @@ bin/uml/$FILENAME_SYSUPGRADE ubd0=bin/uml/$FILENAME_FACTORY ethX=tuntap,,,192.16
 
 # circumvent PROT_EXEC mmap/noexec-shm-problem:
 # http://www.ime.usp.br/~baroni/docs/uml-en.html
-mkdir /tmp/uml
+mkdir -p /tmp/uml
 chown $USER.$USER /tmp/uml
 chmod 777 /tmp/uml
 export TMPDIR=/tmp/uml
