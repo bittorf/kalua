@@ -11,21 +11,46 @@ uptime_in_seconds()
 	cut -d'.' -f1 /proc/uptime
 }
 
+has_default_route()
+{
+	route -n | grep -q ^'0\.0\.0\.0' && return 0
 
-[ "${USER:-root}" = "root" ] || {
-	log "[ERR] user = $USER: seems we are in cross compiling stage?"
-	exit 0
+	ip route list exact '0.0.0.0/0' | grep -q ^'default'
 }
 
-[ $( logread | grep "init: process '/bin/ash" | grep -c 'exited. Scheduling for restart.' ) -gt 10 ] && {
-	# daemon.info init: starting pid 15022, tty '/dev/ttyS0': '/bin/ash --login'		// should correctly detect 'ttyS0'
-	log "detect_respawing_login daemon alert deactivating ttyS0 in /etc/inittab"
-	sed -i 's/^ttyS0/# ttyS0/' /etc/inittab
-	kill -HUP 1	# forced process "init" to reload it's config-file
+password_was_never_set()
+{
+	grep -qs '^root:[!x]\?:' /etc/shadow
 }
 
-DMESG='/tmp/dmesg.boot'
-[ -e "$DMESG" ] || dmesg >"$DMESG"
+password_set()
+{
+	local PASSWORD="${1:-admin}"
+	local config_uhttpd='/etc/httpd.conf'
+	local credentials
+
+	which dropbear >/dev/null || {
+		log "missing dropbear, allowing telnet login permanentely in /bin/login.sh"
+		sed -i 's/exit 0/# exit 0/' /bin/login.sh
+	}
+
+	[ -e "$config_uhttpd" ] || {
+		echo "/cgi-bin/:root:$PASSWORD" >"$config_uhttpd"
+
+		for credentials in $HTTPD_CREDENTIALS; do {
+			echo "/cgi-bin/:$credentials" >>"$config_uhttpd"
+		} done
+	}
+
+	password_was_never_set || {
+		log "password_set() ignore call, password already set"
+		return 0
+	}
+
+	log "password_set() to '$PASSWORD'"
+	sh -c "echo '$PASSWORD'; sleep 1; echo '$PASSWORD'" | passwd>/dev/null 2>&1
+	log "password_set() [OK]"
+}
 
 jffs2_is_ready()
 {
@@ -64,17 +89,6 @@ jffs2_is_ready()
 		return 1
 	fi
 }
-
-while ! jffs2_is_ready ; do {
-	log "waiting for JFFS2 to be ready"
-	read FRESHFLASH </etc/openwrt_version
-	sleep 5
-} done
-log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
-[ -n "$FRESHFLASH" ] && echo "fresh flashed with $FRESHFLASH" >>/www/everlasting_syslog.txt
-
-sleep 5
-df | logger
 
 find_all_strings_in_dmesg()
 {
@@ -175,6 +189,65 @@ try_device()
 		;;
 	esac
 }
+
+wireless_reghack_available()
+{
+	local lines="$( fgrep ' cfg80211: ' '/tmp/dmesg.boot' | fgrep -c 'KHz @ ' )"
+
+	# see: https://github.com/bittorf/kalua/tree/master/openwrt-patches/jow_reghack
+	#
+	# root@EG-garageDodge:~ fgrep ' cfg80211: ' /tmp/dmesg.log | fgrep 'KHz @ '
+	# [   18.570000] cfg80211:   (2400000 KHz - 2494000 KHz @ 40000 KHz), (N/A, 3000 mBm)
+	# [   18.570000] cfg80211:   (4910000 KHz - 5895000 KHz @ 40000 KHz), (N/A, 3000 mBm)
+	# [   18.850000] cfg80211:   (2400000 KHz - 2494000 KHz @ 40000 KHz), (N/A, 3000 mBm)
+	# [   18.860000] cfg80211:   (4910000 KHz - 5895000 KHz @ 40000 KHz), (N/A, 3000 mBm)
+
+	case "$lines" in
+		2|4)
+			return 0
+		;;
+	esac
+
+	# e.g. see hacked /usr/lib/crda/regulatory.bin
+	test -e '/etc/init.d/apply_profile.regulatory.bin' && return 0
+	test -e '/etc/init.d/apply_profile.reghack.elf' && return 0
+
+	return 1
+}
+
+[ "${USER:-root}" = "root" ] || {
+	log "[ERR] user = $USER: seems we are in cross compiling stage?"
+	exit 0
+}
+
+if [ -e /tmp/LOCKFILE_APPLY ]; then
+	log "abort: /tmp/LOCKFILE_APPLY exists"
+	exit 1
+else
+	touch /tmp/LOCKFILE_APPLY
+fi
+
+[ $( logread | grep "init: process '/bin/ash" | grep -c 'exited. Scheduling for restart.' ) -gt 10 ] && {
+	# daemon.info init: starting pid 15022, tty '/dev/ttyS0': '/bin/ash --login'		// should correctly detect 'ttyS0'
+	log "detect_respawing_login daemon alert deactivating ttyS0 in /etc/inittab"
+	sed -i 's/^ttyS0/# ttyS0/' /etc/inittab
+	kill -HUP 1	# forced process "init" to reload it's config-file
+}
+
+DMESG='/tmp/dmesg.boot'
+[ -e "$DMESG" ] || dmesg >"$DMESG"
+
+while ! jffs2_is_ready ; do {
+	log "waiting for JFFS2 to be ready"
+	read FRESHFLASH </etc/openwrt_version
+	sleep 5
+} done
+log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
+[ -n "$FRESHFLASH" ] && echo "fresh flashed with $FRESHFLASH" >>/www/everlasting_syslog.txt
+
+sleep 5
+df | logger
+
 
 if   hwprobe "D-Link DIR-300 RevA1"; then
 	HARDWARE="D-Link DIR-300 RevA1"
@@ -286,13 +359,6 @@ GATEWAY="$4"
 	}
 }
 
-has_default_route ()
-{
-	route -n | grep -q ^'0\.0\.0\.0' && return 0
-
-	ip route list exact '0.0.0.0/0' | grep -q ^'default'
-}
-
 has_default_route && {
 	[ "$( uci get network.wan.proto )" = "dhcp" ] && {
 		SIM_ARG4="dhcp"		# auf masq=1 testen?
@@ -357,13 +423,6 @@ case "$PROFILE_MODE" in
 	;;
 esac
 
-if [ -e /tmp/LOCKFILE_APPLY ]; then
-	log "abort: /tmp/LOCKFILE_APPLY exists"
-	exit 1
-else
-	touch /tmp/LOCKFILE_APPLY
-fi
-
 [ -e '/tmp/loader' ] && . /tmp/loader
 
 [ -n "$LOWMEM" ] && {
@@ -375,39 +434,6 @@ fi
 	} done
 }
 
-password_was_never_set()
-{
-	grep -qs '^root:[!x]\?:' /etc/shadow
-}
-
-password_set()
-{
-	local PASSWORD="${1:-admin}"
-	local config_uhttpd='/etc/httpd.conf'
-	local credentials
-
-	which dropbear >/dev/null || {
-		log "missing dropbear, allowing telnet login permanentely in /bin/login.sh"
-		sed -i 's/exit 0/# exit 0/' /bin/login.sh
-	}
-
-	[ -e "$config_uhttpd" ] || {
-		echo "/cgi-bin/:root:$PASSWORD" >"$config_uhttpd"
-
-		for credentials in $HTTPD_CREDENTIALS; do {
-			echo "/cgi-bin/:$credentials" >>"$config_uhttpd"
-		} done
-	}
-
-	password_was_never_set || {
-		log "password_set() ignore call, password already set"
-		return 0
-	}
-
-	log "password_set() to '$PASSWORD'"
-	sh -c "echo '$PASSWORD'; sleep 1; echo '$PASSWORD'" | passwd>/dev/null 2>&1
-	log "password_set() [OK]"
-}
 
 case "$PROFILE_MODE" in
 	hybrid)
@@ -452,7 +478,7 @@ esac
 
 echo "$OLD_HOSTNAME" >/proc/sys/kernel/hostname
 
-_config_polipo ()
+_config_polipo()
 {
 	local net_allowed="10.0.0.0/8"		# fixme! hardcoded (restrict to HNA4?)
 	local dropfile="/etc/hosts.drop"
@@ -502,7 +528,7 @@ config 'polipo' 'pmm'
 EOF
 }
 
-_config_system ()
+_config_system()
 {
 	local NODE="$1"
 	local webcam_old="$( uci -q get system.@webcam[0].storage_path )"
@@ -619,30 +645,6 @@ _config_softwareinstall()
 	} done
 }
 
-wireless_reghack_available()
-{
-	local lines="$( fgrep ' cfg80211: ' '/tmp/dmesg.boot' | fgrep -c 'KHz @ ' )"
-
-	# see: https://github.com/bittorf/kalua/tree/master/openwrt-patches/jow_reghack
-	#
-	# root@EG-garageDodge:~ fgrep ' cfg80211: ' /tmp/dmesg.log | fgrep 'KHz @ '
-	# [   18.570000] cfg80211:   (2400000 KHz - 2494000 KHz @ 40000 KHz), (N/A, 3000 mBm)
-	# [   18.570000] cfg80211:   (4910000 KHz - 5895000 KHz @ 40000 KHz), (N/A, 3000 mBm)
-	# [   18.850000] cfg80211:   (2400000 KHz - 2494000 KHz @ 40000 KHz), (N/A, 3000 mBm)
-	# [   18.860000] cfg80211:   (4910000 KHz - 5895000 KHz @ 40000 KHz), (N/A, 3000 mBm)
-
-	case "$lines" in
-		2|4)
-			return 0
-		;;
-	esac
-
-	# e.g. see hacked /usr/lib/crda/regulatory.bin
-	test -e '/etc/init.d/apply_profile.regulatory.bin' && return 0
-	test -e '/etc/init.d/apply_profile.reghack.elf' && return 0
-
-	return 1
-}
 
 _config_wireless()			# fixme! channels hardcoded
 {
@@ -1075,7 +1077,7 @@ EOF
 	mv "$temp" /etc/config/wireless
 }
 
-_config_mail ()
+_config_mail()
 {
 	cat >/etc/config/mail <<EOF
 config pop3
@@ -1093,7 +1095,7 @@ config smtp
 EOF
 }
 
-_config_sms ()
+_config_sms()
 {
 	cat >/etc/config/sms <<EOF
 config sms
@@ -1437,7 +1439,7 @@ $( test -n "$alias_gateway" && echo "	option 'gateway' '$alias_gateway'" )
 EOF
 }
 
-_config_dhcp ()			# domain = .olsr
+_config_dhcp()			# domain = .olsr
 {
 	local NODE="$1"
 	local wan_dns="$( uci get network.wan.dns )"
@@ -1503,7 +1505,7 @@ config dhcp wan
 EOF
 }
 
-_config_aliases ()
+_config_aliases()
 {
 	local FILE="/etc/profile"
 	touch $FILE

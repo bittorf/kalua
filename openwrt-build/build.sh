@@ -787,7 +787,7 @@ check_working_directory()
 	}
 
 	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
-		log "$funcname() enable feed 'oldpackages'"
+		log "$funcname() enable feed 'oldpackages'" debug
 		sed -i '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
 
 		# https://forum.openwrt.org/viewtopic.php?id=52219
