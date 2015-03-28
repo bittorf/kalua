@@ -370,7 +370,7 @@ chmod 777 /tmp/uml
 export TMPDIR=/tmp/uml
 EOF
 				return 0
-			}
+			}	# parser_ignore
 		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
@@ -1901,7 +1901,7 @@ parse_case_patterns()
 								# parser at end of the function
 								return 1
 							;;
-							'"'*)
+							'"'*)	# e.g. "myword"
 								temp="$( echo "$@" | cut -d'"' -f2 )"
 
 								case "$temp" in
@@ -1914,6 +1914,7 @@ parse_case_patterns()
 								esac
 							;;
 							"'"*)
+								# e.g. 'myword'
 								echo "$@" | cut -d"'" -f2
 							;;
 						esac
