@@ -46,8 +46,8 @@ AUTHSERVER="$( _weblogin authserver )"
 _system include				# fixme! move all from this line down to weblogin()
 
 # TODO: DATE/DNS is only for logging, remove?
-DATE="$( _system date full )"
-DNS="$( nslookup ${REMOTE_ADDR:=127.0.0.1} 2>/dev/null | sed -n 's/^Name:[^a-zA-Z0-9]*\(.*\)\.olsr/\1/p' )"	# https?
+# DATE="$( _system date full )"
+# DNS="$( nslookup ${REMOTE_ADDR:=127.0.0.1} 2>/dev/null | sed -n 's/^Name:[^a-zA-Z0-9]*\(.*\)\.olsr/\1/p' )"	# https?
 OUT="'$DATE' - IP:'$REMOTE_ADDR' - DNS:'${DNS:-unresolveable}' = HASH:'$LOGIN' - MAC:'$MAC' - SIGNAL:'$SIGNAL' - KEYWORD:'$KEYWORD' - LANG:'$USER_LANG'"
 
 build_vars ()
@@ -70,7 +70,14 @@ elif [ -n "${USER_ID:=$( _db user login query hash2id "$LOGIN" )}" ]; then
 
 	USER_ID_STACK="$USER_ID"
 
-	DEVICE_ID="$( _db user device query string2id "A='$USER_ID_STACK';B='${MAC:-unsetmacaddress}'" )"	# fixme!
+	# FIXME!
+	if [ -e "/tmp/cache_device_string2id_$USER_ID_STACK.$MAC" ]; then
+		read DEVICE_ID <"/tmp/cache_device_string2id_$USER_ID_STACK.$MAC"
+	else
+		DEVICE_ID="$( _db user device query string2id "A='$USER_ID_STACK';B='${MAC:-unsetmacaddress}'" )"
+		echo $DEVICE_ID >"/tmp/cache_device_string2id_$USER_ID_STACK.$MAC"
+	fi
+
 	if [ -n "$DEVICE_ID" ]; then
 		eval "$( _db user device show $DEVICE_ID )"	# fixme! check for time or traffic-range overrun
 
