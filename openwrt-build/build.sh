@@ -1801,6 +1801,14 @@ EOF
 				apply_symbol kernel 'CONFIG_EARLY_PRINTK is not set'	# kernel hacking: early printk
 				apply_symbol kernel 'CONFIG_SYS_HAS_EARLY_PRINTK is not set'
 			;;
+			'noWIFI')
+				apply_symbol 'CONFIG_PACKAGE_kmod-cfg80211 is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-mac80211 is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-mac80211-hwsim is not set'
+				apply_symbol 'CONFIG_PACKAGE_hostapd-common is not set'
+				apply_symbol 'CONFIG_PACKAGE_iw is not set'
+				apply_symbol 'CONFIG_PACKAGE_wpad-mini is not set'
+			;;
 			'noSwap')
 				apply_symbol kernel 'CONFIG_SWAP is not set'		# general setup: Support for anon mem
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_SWAPONOFF is not set'
