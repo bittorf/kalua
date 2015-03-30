@@ -2173,7 +2173,7 @@ while [ -n "$1" ]; do {
 			exit 0
 		;;
 		'--info'|'-i')
-			target_hardware_set "$2" info
+			target_hardware_set "${2:-$( cat files/etc/HARDWARE )}" info
 			exit 0
 		;;
 		'--check'|'-c')
