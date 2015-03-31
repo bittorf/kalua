@@ -1108,6 +1108,18 @@ EOF
 	return $error
 }
 
+calc_time_diff()
+{
+	local t1="$2"		# e.g. read t1 rest </proc/uptime
+	local t2="$2"
+	local duration
+
+	duration=$(( ${t2%.*}${t2#*.} - ${t1%.*}${t1#*.} ))
+	duration=$(( duration / 100 )).$(( duration % 100 ))
+
+	echo "$duration"
+}
+
 build()
 {
 	local funcname='build'
@@ -1140,8 +1152,7 @@ build()
 
 			if make $verbose $commandline ; then
 				read t2 rest </proc/uptime
-				BUILD_DURATION=$(( ${t2%.*}${t2#*.} - ${t1%.*}${t1#*.} ))
-				BUILD_DURATION=$(( $BUILD_DURATION / 100 )).$(( $BUILD_DURATION % 100 ))
+				BUILD_DURATION="$( calc_time_diff "$t1" "$t2" )"
 				log "$funcname() running 'make $commandline' lasts $BUILD_DURATION sec"
 
 				if [ "$FAIL" = 'true' ]; then
@@ -2295,6 +2306,7 @@ while [ -n "$1" ]; do {
 } done
 
 [ -n "$STOP_PARSE" ] && exit 0
+read T1 REST </proc/uptime
 
 die_and_exit()
 {
@@ -2321,6 +2333,10 @@ build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
 
+read T2 REST </proc/uptime
+
+log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
 log "[OK] - get help with: $0 --info '$HARDWARE_MODEL'"
 log "[OK] - check size of files with: find bin -type f -exec stat -c '%s %N' {} \; | sort -n"
+
 exit 0
