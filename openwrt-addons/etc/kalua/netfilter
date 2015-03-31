@@ -144,39 +144,21 @@ _netfilter_traffic_control_show()
 
 _netfilter_traffic_control_needed()
 {
-	case "$CONFIG_PROFILE" in
-		rehungen*)
-			[ "$NODENUMBER" = '36' ] && return 0
-		;;
-	esac
-
-	# TODO: fix shaping
-	return 1
-
-	case "$CONFIG_PROFILE" in
-		rehungen*)
-			case "$NODENUMBER" in
-				30)	# klausgasse70
-					return 1
-				;;
-			esac
-		;;
-		olympia*|marinabh*|castelfalfi*)
-			return 1
-		;;
-		boltenhagendh*|tkolleg*)
-			# till we fix the "high ping under high load/many users"-issue
-			_net local_inet_offer >/dev/null && return 1
-		;;
-	esac
-
 	local kernel="$( uname -r )"
 
 	[ -e "/usr/sbin/tc" ] || return 1
 	[ -e "/lib/modules/${kernel}/sch_htb.ko" ] || return 1
 	[ -e "/lib/modules/${kernel}/cls_u32.ko" ] || return 1
 
-	[ $( _system version short ) -lt 33160 ] && return 1
+	[ $OPENWRT_REV -lt 33160 ] && return 1
+
+	case "$CONFIG_PROFILE" in
+		boltenhagendh*|dhfleesensee*|liszt28*)
+		;;
+		*)
+			return 1
+		;;
+	esac
 
 	return 0
 }
@@ -398,8 +380,8 @@ _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower 
 _netfilter_traffic_control_autoapply_speedsuggest()
 {
 	local list_macs="${1:-$( _netfilter user_list )}"
-	local traffic_border_for_inactivity='2500'		# megabytes
-	local traffic_border_for_reaction='1000'		# megabytes
+	local traffic_border_for_inactivity='500'		# megabytes
+	local traffic_border_for_reaction='500'			# megabytes
 	local speed_min=128000					# bit/s
 	local mac traffic file ip interface j i speed_down speed_up percent params
 
