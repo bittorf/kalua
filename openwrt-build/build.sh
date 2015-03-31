@@ -856,14 +856,14 @@ openwrt_download()
 			wish='leave_untouched'
 		;;
 		'stable')
-			wish='r41037'
+			wish='r44150'
 		;;
 		'beta')
-			wish='r44150'
+			wish='r45039'
 		;;
 		'testing')
 			# maybe this is too simply, because it applies to all platforms?
-			wish='r44900'
+			wish='r45160'
 		;;
 	esac
 
@@ -1346,7 +1346,7 @@ apply_symbol()
 			tar czf "$custom_dir.tgz" "$custom_dir"
 			set -- $( du -s "$custom_dir.tgz" && rm "$custom_dir.tgz" )
 			size2="$1"
-			log "[OK] custom dir '$custom_dir' adds $size1 kilobytes ($size2 compressed) to your image"
+			log "[OK] custom dir '$custom_dir' adds $size1 kilobytes (around $size2 compressed) to your image"
 
 			return 0
 		;;

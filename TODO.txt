@@ -427,11 +427,19 @@ root@box:~ eval $( jshn -r "$( wget -qO - "$URL" )" )
 #
 # dann rumlaufen und ping laufen lassen
 # wechsel auf laptop zeigen lassen:
-# NOW=;LAST=;GW=192.168.0.1; URL="http://$GW/cgi-bin-tool.sh?OPT=hostname"
-# signal() { iw dev wlan0 station dump | grep 'signal:' | cut -d'-' -f2; }
-# TODO: show rssi each sec + ping lost
-# while :;do NOW="$(iw dev wlan0 station dump | grep ^Station)"; test "$NOW" = "$LAST" || echo "$(date) $NOW : -$(signal) : $(wget -qO - $URL)"; LAST="$NOW"; sleep 1; done
 #
+NOW=;LAST=;GW=192.168.0.1
+URL="http://$GW/cgi-bin-tool.sh?OPT=hostname"
+rm /tmp/MAC_*
+get_apmac() { set -- $( iw dev wlan0 station dump | grep ^Station ); MAC=$2; echo $2; }
+get_signal() { set -- $( iw dev wlan0 station dump | grep 'signal:' ); echo $2; }
+get_hostname() { o=;read o 2>/dev/null </tmp/MAC_${MAC:-x}; while [ -z "$o" ]; do o="$(wget -qO - $URL || sleep 1)"; done; echo $o >/tmp/MAC_$MAC; echo $o; }
+### TODO: show rssi each sec + ping lost
+while :;do NOW="$(get_apmac)"; test "$NOW" = "$LAST" || echo; echo -en "$(date) $NOW: $(get_signal) : $(get_hostname)\r"; LAST="$NOW"; sleep 1; done
+#
+#
+# kick via:
+# ubus call hostapd.wlan0 del_client '{ "addr" : "00:21:6a:32:7c:1c", "reason" : "assoc toomany", "ban_time" : 10000 }'
 # script hoert mit 'iw event'
 wlan0-1: new station 00:eb:2d:d4:6d:cd
 wlan0-1: del station 00:1d:0d:b3:e3:13
@@ -1779,7 +1787,9 @@ dev_ok || olsr_restart
 
 === kkk ===
 # switch to whatsapp instead of sms?
-# introduce _monitoring with list_networks() arg1 = network or 'maintenance' or <empty> = all and 'smallest size first' + 'allow_symlinks' (dont filter -> )
+# introduce _monitoring with list_networks()
+  - arg1 = network or 'maintenance' or <empty> = all and 'smallest size first' + 'allow_symlinks' (dont filter -> )
+  - arg = show_small?
 # dont send mail, when bwireless is not in known hosts (berlinle)
 # roaming: idee: nur NAT fuer aliens, ansonsten durch HNA -> hna-code anschauen
 # _netfilter_portforwarding_request: use also for static arp entries?
