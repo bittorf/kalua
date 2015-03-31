@@ -283,6 +283,7 @@ _switch_show()		# SENS: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit/
 		echo -n '</tr></table>'
 	}
 
+	unset I		# port counter, see symbol()
 	return 0
 }
 
@@ -319,8 +320,11 @@ _switch_symbol()	# SENS: represent each port with a short letter: [a-cA-C] = 10/
 	local funcname="switch_symbol"
 	local duplex="$1"		# full|half|FIBER|unknown
 	local speed="$2"		# 10, 100, 1000, 1G
-	local port_no="$3"
+	local port_no="${3:-${I:-0}}"	# fallback $I = global var for iterating over the ports
 	local fillchar="$4"		# e.g. 'X'
+
+	[ "$port_no" = "$I" -a "$duplex" != 'gap' ] && I=$(( I + 1 ))
+	local port="Port${port_no}"
 
 	local symbol_html symbol_text
 	local color_green_colorless='#99FF99'
@@ -329,7 +333,6 @@ _switch_symbol()	# SENS: represent each port with a short letter: [a-cA-C] = 10/
 	local halfduplex='<big>&frac12;</big>'	# 1/2
 	local port_width='&emsp;'		# has nearly the same width like 'halfduplex'
 	local unimplemented='<big>?</big>'
-	local port="Port${port_no}"
 	local align="align='center' valign='middle'"
 
 	[ -n "$fillchar" ] && {
@@ -401,13 +404,13 @@ _switch_symbol()	# SENS: represent each port with a short letter: [a-cA-C] = 10/
 			symbol_html="<td bgcolor='crimson' title='$port,unimplemented' $align>$unimplemented</td>"
 		;;
 		*)
-			[ -e "/tmp/switch_unknown_port$port_no" ] || {
-				touch "/tmp/switch_unknown_port$port_no"
-				_log do $funcname daemon alert "$duplex: ${speed:-nospeed} port: $port_no"
+			[ -e "/tmp/switch_unknown_$port" ] || {
+				touch "/tmp/switch_unknown_$port"
+				_log do $funcname daemon alert "$duplex: ${speed:-nospeed} $port"
 			}
 
 			symbol_text='Z'		# means: 'unknown/error'
-			symbol_html="<td bgcolor='grey' title='$port_no,unknown' $align>:?:</td>"
+			symbol_html="<td bgcolor='grey' title='$port,unknown' $align>:?:</td>"
 		;;
 	esac
 
@@ -415,9 +418,9 @@ _switch_symbol()	# SENS: represent each port with a short letter: [a-cA-C] = 10/
 		'.'|'Z')
 		;;
 		*)
-			[ -e "/tmp/switch_unknown_port$port_no" ] && {
-				rm "/tmp/switch_unknown_port$port_no"
-				_log do $funcname daemon alert "recover from error: $symbol_text $duplex: ${speed:-nospeed} port: $port_no"
+			[ -e "/tmp/switch_unknown_$port" ] && {
+				rm "/tmp/switch_unknown_$port"
+				_log do $funcname daemon alert "recover from error: $symbol_text $duplex: ${speed:-nospeed} $port"
 			}
 		;;
 	esac
