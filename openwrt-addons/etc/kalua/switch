@@ -401,15 +401,22 @@ _switch_symbol()	# SENS: represent each port with a short letter: [a-cA-C] = 10/
 			symbol_html="<td bgcolor='crimson' title='$port,unimplemented' $align>$unimplemented</td>"
 		;;
 		*)
-			[ -e "/tmp/switch_unknown" ] || {
-				touch "/tmp/switch_unknown"
-				_log do $funcname daemon alert "$duplex: ${speed:-nospeed}"
+			[ -e "/tmp/switch_unknown_port$port" ] || {
+				touch "/tmp/switch_unknown_port$port"
+				_log do $funcname daemon alert "$duplex: ${speed:-nospeed} port: $port"
 			}
 
 			symbol_text='Z'		# means: 'unknown/error'
 			symbol_html="<td bgcolor='grey' title='$port,unknown' $align>:?:</td>"
 		;;
 	esac
+
+	[ "$symbol_text" = 'Z' ] || {
+		[ -e "/tmp/switch_unknown_port$port" ] && {
+			rm "/tmp/switch_unknown_port$port"
+			_log do $funcname daemon alert "recovering from error, now: $symbol_text $duplex: ${speed:-nospeed} port: $port"
+		}
+	}
 
 	if [ -n "$SWITCH_SYMBOL_HTML" ]; then
 		echo -n "$symbol_html"
