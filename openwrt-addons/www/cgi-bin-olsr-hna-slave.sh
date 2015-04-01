@@ -54,7 +54,9 @@ device_forbidden()
 
 _http header_mimetype_output "text/plain"
 
-if [ -e "/tmp/LOCK_OLSRSLAVE" ]; then
+# var "$mode" comes via QUERY_STRING - see ask_for_slave() in
+# /usr/sbin/cron.olsr-hna-slave and olsrd.@meta[0].hnaslave_dirty
+if [ -e "/tmp/LOCK_OLSRSLAVE" -a "$mode" != 'dirty' ]; then
 	[ $( _stopwatch stop '/tmp/LOCK_OLSRSLAVE' interim,nolog,seconds ) -gt 3600 ] || {
 		_log do htmlout daemon info "sending LOCKED to $REMOTE_ADDR"
 		echo "LOCKED"
