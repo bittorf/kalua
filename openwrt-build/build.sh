@@ -1110,7 +1110,7 @@ EOF
 
 calc_time_diff()
 {
-	local t1="$2"		# e.g. read t1 rest </proc/uptime
+	local t1="$1"		# e.g. read t1 rest </proc/uptime
 	local t2="$2"
 	local duration
 
