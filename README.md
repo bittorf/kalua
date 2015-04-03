@@ -248,6 +248,7 @@ Special UCI-variables
 	olsrd.@meta[0].hnaslave			- bool
 	olsrd.@meta[0].hnaslave_dirty		- bool
 	olsrd.@meta[0].hnaslave_condition	- e.g. '2 ap'
+	olsrd.@meta[0].ignore_restarts		- bool
 
 	system.@fwupdate[0].url			- url
 	system.@fwupdate[0].mode		- string: 0|stable|beta|testing
