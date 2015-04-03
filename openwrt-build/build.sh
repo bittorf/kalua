@@ -250,7 +250,7 @@ apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.
 	git commit --signoff -m "$funcname()"
 }
 
-apply_wifi_reghack()
+apply_wifi_reghack()		# maybe unneeded with r45252
 {
 	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
