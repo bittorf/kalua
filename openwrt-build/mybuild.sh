@@ -45,7 +45,7 @@ esac
 [ -d 'kalua' ] || {
 	echo "please make sure, that your working directory is in the openwrt-base dir"
 	echo "i want to see the directorys 'package', 'scripts' and 'kalua'"
-	exit 1
+#	exit 1
 }
 
 log()

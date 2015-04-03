@@ -1017,31 +1017,31 @@ _olsr_neighs ()
 	return 1
 }
 
-_olsr_restarts_are_suspicious_often ()
+_olsr_restarts_are_suspicious_often()
 {
-	local func="olsr_restarts_are_suspicious_often"
+	local funcname='olsr_restarts_are_suspicious_often'
 	local daemon_restarts="$( _olsr uptime restarts_get )"
-	local basecount="30"
+	local basecount=30
 	local percent border
 
-	border="$(( $( _system uptime days ) * 3 ))"	# normally we hard restart 3 times a day:
-	border="$(( $border + $basecount ))"		# 1 x cron.minutely + at 4 and 6 o'clock
+	border=$(( $( _system uptime days ) * 3 ))	# normally we hard restart 3 times a day:
+	border=$(( border + basecount ))		# 1 x cron.minutely + at 4 and 6 o'clock
 
-	percent="$(( $daemon_restarts * 100 ))"
-	percent="$(( $percent / $border ))"
+	percent=$(( daemon_restarts * 100 ))
+	percent=$(( percent / border ))
 
-	_log do $func daemon debug "percent from border: ${percent}% restarts: $daemon_restarts border: $border"
+	_log do $funcname daemon debug "percent from border: ${percent}% restarts: $daemon_restarts border: $border"
 
 	if [ $percent -gt 100 ]; then
-		_log do $func daemon alert "[ERR] olsr restarts > normality (${percent}%: $daemon_restarts > $border)"
+		_log do $funcname daemon alert "[ERR] ${percent}%: $daemon_restarts > $border"
 
 		if [ $percent -gt 300 ]; then	# seems to be a busybox-bug of v1.19.4
-			return 0		# sometimes we see values of 35148643% (large restart count)
+			return 1		# sometimes we see values of 35148643% (large restart count)
 		else
-			return 1
+			return 0
 		fi
 	else
-		return 1
+		return 0
 	fi
 }
 
@@ -1066,10 +1066,7 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 	local OLSR_RESTARTS="$( _olsr uptime restarts_get )"
 	local BORDER="$(( $( _system uptime days ) + 10 ))"
 
-	_olsr restarts_are_suspicious_often && {
-		_system reboot_safe "[ERR] olsr restarts > normality"
-		return 1
-	}
+	_olsr restarts_are_suspicious_often && _system crashreboot 'olsr_resart_toomuch'
 
 	[ -z "$FILE" ] && {
 		_log do $FUNC daemon crit "[ERR] olsr-plaintext plugin has no output!"
