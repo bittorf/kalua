@@ -14,7 +14,8 @@ knowing_hna_already()
 				_log do $funcname daemon info "already know: $netaddr/$netmask"
 				return 0
 			;;
-			"/")
+			'/')
+				# empty output/end of list
 				_log do $funcname daemon info "new hna: $netaddr/$netmask"
 				return 1
 			;;
@@ -41,7 +42,7 @@ add_static_routes()
 	local netmask="$3"
 	local dev="$4"
 
-	rm "/tmp/OLSR/isneigh_$ip"
+	[ -e "/tmp/OLSR/isneigh_$ip" ] && rm "/tmp/OLSR/isneigh_$ip"
 	ip route add $netaddr/$netmask via $ip dev $dev metric 1 onlink
 }
 
@@ -119,9 +120,11 @@ else
 	[ -n "$dev2slave" ] && {
 		ERROR="OK $CHECK_IP"
 
+		# does not hurt if we do it twice
+		add_static_routes "$REMOTE_ADDR" "$netaddr" "$netmask" "$dev2slave"
+
 		knowing_hna_already "$netaddr" "$netmask" || {
 			hna_add "$netaddr" "$netmask"
-			add_static_routes "$REMOTE_ADDR" "$netaddr" "$netmask" "$dev2slave"
 
 			grep -sq "$REMOTE_ADDR" '/www/OLSR_has_neigh_LAN' && rm '/www/OLSR_has_neigh_LAN'
 			grep -sq "$REMOTE_ADDR" '/www/OLSR_has_neigh_WAN' && rm '/www/OLSR_has_neigh_WAN'
