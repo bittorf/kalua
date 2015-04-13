@@ -829,8 +829,10 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		else
 			ip="$( grep 'nameserver' '/etc/resolv.conf' | head -n1 )"
 			ip="$( _sanitizer do "$ip" ip4 )"
+
 			_sanitizer do "$ip" ip4 check && {
-				return 0			# real server configured, working without local daemon
+				# real server configured, working without local daemon
+				return 0
 			}
 		fi
 	}
@@ -855,9 +857,13 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 			fi
 		} done
 
-		_log do $funcname daemon alert "after DNS fail: sending SIGHUP to dnsmasq: $pid_parent (reread config)"
-		kill -SIGHUP "$pid_parent"
-		sleep 5
+		if [ -z "$pid" ]; then
+			_log do $funcname daemon alert 'no pid, will restart soon'
+		else
+			_log do $funcname daemon alert "after DNS fail: sending SIGHUP to dnsmasq: $pid_parent (reread config)"
+			kill -SIGHUP "$pid_parent"
+			sleep 5
+		fi
 
 		# again: can we resolv first a local and then random address?
 		testdomain="$( grep ^"[0-9]" '/etc/local.hosts' | head -n1 | cut -d' ' -f2 )"
@@ -872,7 +878,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		fi
 
 		nslookup "$$.$testserver" 2>/dev/null >/dev/null || {
-			[ -n "$dump_core" ] && {
+			[ -n "$dump_core" -a -n "$pid" ] && {
 				_log do $funcname daemon alert "[ERR] dns hangs - we will crash dnsmasq: $pid_parent"
 				kill -SIGUSR1 "$pid_parent"	# stats to syslog
 				kill -SIGSEGV "$pid_main"	# produce coredump
