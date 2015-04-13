@@ -167,6 +167,11 @@ _watch_coredump()
 			exitcode=0		# only during first iteration
 			overall=$count
 
+			[ "$( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds )" -gt 300 ] && {
+				_log do $funcname daemon alert "cron hangs, restarting"
+				/etc/init.d/S51crond_fff+ start
+			}
+
 			# include infotext into log-messages
 			case "$ignore_pattern" in
 				*' '*)
@@ -178,9 +183,11 @@ _watch_coredump()
 
 		case "$dump" in
 			*'/crond.'*)
-				_log do $funcname daemon alert "cron died, restarting"
-				_stopwatch start '/tmp/CRON_LASTCALL' global
-				/etc/init.d/S51crond_fff+ start
+				pidof crond || {
+					_log do $funcname daemon alert 'cron died, restarting'
+					_stopwatch start '/tmp/CRON_LASTCALL' global
+					/etc/init.d/S51crond_fff+ start
+				}
 			;;
 			*'/iptables.'*)
 				_log do $funcname daemon alert "stopping netfilter"
@@ -198,11 +205,6 @@ _watch_coredump()
 				checkolsr='true'
 			;;
 		esac
-
-		[ "$( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds )" -gt 300 ] && {
-			_log do $funcname daemon alert "cron hangs, restarting"
-			/etc/init.d/S51crond_fff+ start
-		}
 
 		case "$dump" in
 			*"${ignore_pattern}"*)
