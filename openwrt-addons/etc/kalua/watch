@@ -1168,10 +1168,10 @@ _watch_sshd_or_telnet()
 {
 	local funcname="watch_sshd_or_telnet"
 	local option="$1"	# force
-	local pid pid_ssh
+	local pid pid_ssh pid_telnetd
 
 	[ "$option" = "force" ] || {
-		[ -e /tmp/service_ssh_nowatching ] && return
+		[ -e '/tmp/service_ssh_nowatching' ] && return
 	}
 
 	restart_sshd()
@@ -1189,7 +1189,10 @@ _watch_sshd_or_telnet()
 	}
 
 	if pid_ssh="$( pidof dropbear )"; then
-		pidof telnetd >/dev/null && killall telnetd
+		pid_telnetd="$( pidof telnetd )" && {
+			_log do $funcname daemon alert "[OK] ssh running $pid_ssh, killing telnet $pid_telnetd"
+			kill $pid_telnetd
+		}
 
 		[ "$option" = "force" -a -z "$LOWMEM" ] && {
 			/usr/sbin/cron.reverse_ssh_tunnel no_check_ssh
@@ -1229,9 +1232,9 @@ _watch_sshd_or_telnet()
 		_log do $funcname daemon info "telnetd not running - restarting"
 
 		if telnetd; then
-			_log do $funcname daemon info "telnetd PID now: '$( pidof telnetd )'"
+			_log do $funcname daemon alert "telnetd PID now: '$( pidof telnetd )'"
 		else
-			_log do $funcname daemon err "dropbear nor telnetd not startable?"
+			_log do $funcname daemon alert 'dropbear nor telnetd not startable'
 		fi
 	}
 }
