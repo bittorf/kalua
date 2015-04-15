@@ -29,7 +29,9 @@ _net_track_ap()		# helper/debug for a roaming laptop
 		local url="$2"
 		local hostname
 
-		read hostname 2>/dev/null <"/tmp/MAC_${mac:-x}"
+		[ -z "$mac" ] && return 1
+		read hostname 2>/dev/null <"/tmp/MAC_$mac"
+
 		while [ -z "$hostname" ]; do {
 			hostname="$( wget -qO - "$url" || sleep 1 )"
 		} done
@@ -43,11 +45,13 @@ _net_track_ap()		# helper/debug for a roaming laptop
 		gateway_ip="$( get_gateway_ip )"
 		url="http://$gateway_ip/cgi-bin-tool.sh?OPT=hostname"
 		apmac="$( get_apmac )"
+		hostname='???'
+		[ -n "$gateway_ip" ] && hostname="$( get_hostname "$apmac" "$url" )"
 
 		test "$apmac" = "$last" || echo		# dont overwrite old entries
 		last="$apmac"
 
-		echo -en "$( date ) $apmac: $( get_signal ) : $( get_hostname "$apmac" "$url" )   \r"
+		echo -en "$( date ) $apmac: $( get_signal ) : $hostname   \r"
 		sleep 1
 	} done
 }
