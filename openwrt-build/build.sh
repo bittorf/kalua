@@ -1533,6 +1533,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 
+				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
 				$funcname subcall 'shaping'
@@ -1557,6 +1558,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 
+#				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
 #				$funcname subcall 'shaping'
@@ -1829,7 +1831,7 @@ EOF
 				apply_symbol 'CONFIG_PACKAGE_firewall is not set'	# base-system: firewall3 *off*
 				apply_symbol 'CONFIG_DEFAULT_firewall is not set'	# needed?
 			;;
-			'squash64'|'squash1024')
+			'squash64'|'squash256'|'squash1024')
 				# smaller -> bigger image, but lowering ram-usage
 				# bigger  -> smaller image, needs more ram
 				apply_symbol "CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=${1#*squash}"	# target images: squashfs
