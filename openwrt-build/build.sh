@@ -1759,6 +1759,19 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_ulogd-mod-extra=y'		# ...
 			;;
 			### here starts all 'no'-thingys: remove stuff which is on by OpenWrt-default
+			'noDebug')
+				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG is not set'
+				apply_symbol 'CONFIG_PACKAGE_MAC80211_DEBUGFS is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_FS is not set'
+
+				apply_symbol 'CONFIG_KERNEL_PRINTK is not set'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_DMESG is not set'
+
+				apply_symbol 'CONFIG_KERNEL_KALLSYMS is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_KERNEL is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_INFO is not set'
+				apply_symbol 'CONFIG_KERNEL_ELF_CORE is not set'
+			;;
 			'noIPv6')
 				# seems not to work with brcm47xx, but with ar71xx?! -> see 'DEFAULT's
 				$funcname subcall 'noFW'
