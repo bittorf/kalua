@@ -48,12 +48,12 @@ EOF
 		;;
 	esac
 
-	local IP_LOCAL="${1:-$WIFIADR}"			# [ip4]
+	local IP_LOCAL="${1:-${WIFIADR:-${LANADR:-${WANADR}}}}"		# [ip4]
 	local KEYWORD="${2:-gateway}"			# [ip4 = IP_TARGET] or keyword - fixme! allow lists
 	local METHOD="${3:-poormens_tcpdownload}"	# keyword, e.g. tcpdownload, netperfTCP, netperfUDP
 	local DURATION="${4:-10}"			# [seconds]
 	local INITIATOR="${REMOTE_ADDR:-local}"
-	local LIST IP I IP_LOCAL IP_REMOTE
+	local LIST IP I IP_REMOTE
 
 	_log do $FUNC daemon debug "$IP_LOCAL <-> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 
@@ -62,7 +62,7 @@ EOF
 			:
 		;;
 		here)
-			IP_LOCAL="$WIFIADR"
+			IP_LOCAL="${WIFIADR:-${LANADR:-${WANADR}}}"
 			[ "$KEYWORD" = "$IP_LOCAL" ] && {
 				_log do $FUNC daemon info "will not test loopback"
 				return 1
@@ -89,11 +89,11 @@ EOF
 
 			I=0
 			for IP in $LIST; do {
-					I=$(( $I + 1 ))
-					IP_LOCAL="$(  list_get_element "$LIST" $I )"
-					IP_REMOTE="$( list_get_element "$LIST" $(( $I + 1 )) )"
+				I=$(( $I + 1 ))
+				IP_LOCAL="$(  list_get_element "$LIST" $I )"
+				IP_REMOTE="$( list_get_element "$LIST" $(( $I + 1 )) )"
 
-					[ -n "$IP_REMOTE" ] && _speedtest do $IP_LOCAL $IP_REMOTE $METHOD $DURATION
+				[ -n "$IP_REMOTE" ] && _speedtest do $IP_LOCAL $IP_REMOTE $METHOD $DURATION
 			} done
 
 			return
@@ -160,12 +160,11 @@ EOF
 		_log do $FUNC daemon info "looping with method $METHOD from $IP_LOCAL over list $IP_LIST"
 	fi
 
-	# fixme! onehop, but metric >1 && continue
-	# fixme! calculate EFFECTIV_PROCENTUAL_THROUGHPUT -> 34 mbit rate_avg, but 207kb/s -> xy% from max
-	# fixme! udpupload >1 hop does not make sense - we only fill the buffers (here -> wire -> nextrouter -> wifi)
+	# FIXME! onehop, but metric >1 && continue
+	# FIXME! calculate EFFECTIV_PROCENTUAL_THROUGHPUT -> 34 mbit rate_avg, but 207kb/s -> xy% from max
+	# FIXME! udpupload >1 hop does not make sense - we only fill the buffers (here -> wire -> nextrouter -> wifi)
 
 	for IP_TARGET in $IP_LIST; do {
-
 		[ "$IP_LIST" != "$KEYWORD" ] && {
 			_log do $FUNC daemon debug "$IP_LOCAL <-> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 		}
