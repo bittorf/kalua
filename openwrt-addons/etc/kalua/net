@@ -78,17 +78,23 @@ _net_count_wireless()
 
 _net_count_wired()
 {
+	local funcname='net_count_wired'
 	local line dev ip mac
 	local i=0
 
+	# /proc/net/arp is not always correct
+	ip neigh show >"/tmp/$funcname"
+
 	while read line; do {
 		set -- $line
-		dev="$6"
-		mac="$4"
 		ip="$1"
+		dev="$3"
+		mac="$5"
 
 		case "$mac" in
-			'00:00:00:00:00:00')
+			*':'*)
+			;;
+			*)
 				# no valid arp
 				continue
 			;;
@@ -107,7 +113,7 @@ _net_count_wired()
 				fgrep -q "REMOTE=$ip;" '/tmp/OLSR/LINKS.sh' || i=$(( i + 1 ))
 			;;
 		esac
-	} done <'/proc/net/arp'
+	} done <"/tmp/$funcname" && rm "/tmp/$funcname"
 
 	echo "$i"
 }
