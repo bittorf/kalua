@@ -1759,6 +1759,9 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_ulogd-mod-extra=y'		# ...
 			;;
 			### here starts all 'no'-thingys: remove stuff which is on by OpenWrt-default
+			'noSSH')
+				apply_symbol 'CONFIG_PACKAGE_dropbear is not set'
+			;;
 			'noDebug')
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG is not set'
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_DEBUGFS is not set'
@@ -2352,6 +2355,6 @@ read T2 REST </proc/uptime
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
 log "[OK] - get help with: $0 --info '$HARDWARE_MODEL'"
-log "[OK] - check size of files with: find bin -type f -exec stat -c '%s %N' {} \; | sort -n"
+log "[OK] - check size of files with: find bin/$ARCH -type f -exec stat -c '%s %N' {} \; | sort -n"
 
 exit 0
