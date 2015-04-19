@@ -17,7 +17,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	}
 
 	read frames_old uptime_old <"$file_old" || echo -e "0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0" >"$file_window"	# prefill
-	read frames_now <"$file_source"
+	read frames_now <"$file_source" || return 0	# maybe no debugfs
 	echo "$frames_now $uptime_now" >"$file_old"
 
 	interval=$(( $uptime_now - $uptime_old ))
