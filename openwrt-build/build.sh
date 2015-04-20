@@ -863,7 +863,7 @@ openwrt_download()
 		;;
 		'testing')
 			# maybe this is too simply, because it applies to all platforms?
-			wish='r45503'
+			wish='r45514'
 		;;
 	esac
 
