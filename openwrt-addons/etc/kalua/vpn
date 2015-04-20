@@ -171,10 +171,11 @@ Node$KNOT {
 		program "$anonym ip rule add to 10.0.0.0/8     prio 30004 lookup main" wait;
 		program "$anonym ip rule add to 192.168.0.0/16 prio 30003 lookup main" wait;
 		program "$anonym ip rule add to 172.16.0.0/12  prio 30002 lookup main" wait;
-
+		#
 		program "$anonym ip rule add to $particpant_net prio 30001 lookup main" wait;
 		program "$anonym ip rule add from $LANNET/$LANPRE prio 30000 table main" wait;
 		program "$anonym ip route add default via $WIFIVPNSERVERADR dev %% table $mytable" wait;
+
 		program "$anonym ip route flush cache" wait;
 		program ". /tmp/loader; _vpn include; _vpn blocking remove" wait;
 	} ;
@@ -182,10 +183,15 @@ Node$KNOT {
 	down {
 		program "logger -p daemon.info -t vtund.conf link_down %%:$HOSTNAME" ;
 
+		# ordering vice versa (see above)
 		program "$anonym ip route del default via $WIFIVPNSERVERADR dev %% table $mytable" wait;
 		program "$anonym ip rule del from $LANNET/$LANPRE prio 30000 table main" wait;
 		program "$anonym ip rule del to $particpant_net prio 30001 lookup main" wait;
-		program "$anonym ip rule del from $particpant_net prio 30002 table $mytable" wait;
+		#
+		program "$anonym ip rule del from 172.16.0.0/12 prio 30002 table $mytable" wait;
+		program "$anonym ip rule add to 192.168.0.0/16 prio 30003 lookup main" wait;
+		program "$anonym ip rule add to 10.0.0.0/8     prio 30004 lookup main" wait;
+		program "$anonym ip rule add to 169.254.0.0/24 prio 30005 lookup main" wait;
 
 		program "ip route del $VPN_SERVER via $STATIC_ROUTE" wait;
 		program "ip link set dev %% down" wait;
