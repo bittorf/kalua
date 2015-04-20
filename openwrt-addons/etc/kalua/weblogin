@@ -777,8 +777,15 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 
 _weblogin_authserver()
 {
+	local cachefile="/tmp/$funcname-cache"
+
+	read server 2>/dev/null <"$cachefile" && {
+		echo "$server"
+		return 0
+	}
+
 	local server="$( uci -q get system.@weblogin[0].authserver )"
-	local file="/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
+	local file='/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
 
 	is()
 	{
@@ -808,14 +815,16 @@ _weblogin_authserver()
 		;;
 	esac
 
-	is "$server"
+	is "$server"		# rewrite var if needed
+
+	_net inet_seems_stable && echo "$server" >"$cachefile"
 	echo "$server"
 }
 
 _weblogin_authserver_message()
 {
 	local message="$1"
-	local server="$( _weblogin authserver )"
+	local server="${2:-$( _weblogin authserver )}"
 	local url_message="$( _sanitizer do "$message" urlvalue )"
 
 	_wget do "http://$server/cgi-bin-tool.sh?OPT=message&MSG=$url_message" || {

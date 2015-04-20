@@ -219,8 +219,8 @@ Special UCI-variables
 	system.@monitoring[0].statusprecache    - bool
 	system.@monitoring[0].ignore_switch_error - bool
 	system.@monitoring[0].autoupload_config - bool
-	system.@monitoring[0].ignore_wifi_framecounter - bool
-	system.@monitoring[0].lazy_wifi_framecounter - bool
+	system.@monitoring[0].ignore_wifi_framecounter - bool		# true = never restart wifi, even if no incoming wififrames for a long time
+	system.@monitoring[0].lazy_wifi_framecounter - bool		# true = dont take missing incoming wififrames too serious (restart wifi after 10mins)
 	system.@monitoring[0].ignore_lossyethernet - bool
 	system.@monitoring[0].cdp_send		- bool
 	system.@monitoring[0].cisco_collect	- bool
