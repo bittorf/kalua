@@ -27,14 +27,18 @@ _net_track_ap()		# helper/debug for a roaming laptop
 	{
 		local mac="$1"
 		local url="$2"
+		local i=10
 		local hostname
 
 		[ -z "$mac" ] && return 1
 		read hostname 2>/dev/null <"/tmp/MAC_$mac"
 
 		while [ -z "$hostname" ]; do {
-			# FIXME! sanitize output (e.g. WISPr / Telekom / XML / HTTP)
-			hostname="$( wget -qO - "$url" || sleep 1 )"
+			hostname="$( wget -qO - "$url" || sleep 3 )"
+			let i-=1 || {
+				echo 'unknown_hostname'
+				return 1
+			}
 		} done
 
 		echo "$hostname" >"/tmp/MAC_${mac}"
@@ -52,7 +56,7 @@ _net_track_ap()		# helper/debug for a roaming laptop
 		test "$apmac" = "$last" || echo		# dont overwrite old entries
 		last="$apmac"
 
-		echo -en "$( date ) $apmac: $( get_signal ) : $hostname   \r"
+		echo -en "$( date ) $apmac $( get_signal ) : $hostname   \r"
 		sleep 1
 	} done
 }
