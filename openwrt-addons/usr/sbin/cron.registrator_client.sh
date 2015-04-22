@@ -167,6 +167,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 else
 	[ "$OPTION" = 'show_next_free' ] || return 0
 
+	# FIXME! ask with wrong ssh-key
 	URL="http://reg.weimarnetz.de/$NETWORK/list"
 	FILE="/tmp/LIST_NODES_REGISTRATED"
 	_wget do "$URL" >"$FILE"

@@ -470,6 +470,12 @@ EOF
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-factory.bin"
 		;;
+		'Mercury MAC1200R')
+			# http://wiki.openwrt.org/toh/mercury/mac1200r
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_MAC1200R=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-mc-mac1200r-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-mc-mac1200r-squashfs-factory.bin'
+		;;
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2'|'Ubiquiti Bullet2')
 			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
 			# the other one is: Picostation M2 (HP) = MIPS 24KC / 400 MHz
