@@ -1569,7 +1569,7 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 {
 	local NODE="$1"
 	local speed="${OLSR_SPEED:-6}"
-	local hide_nameservice slave
+	local hide_nameservice slave interface
 	local showspeed=
 	local hidevals=
 
@@ -1595,12 +1595,12 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 	hna_mask="$( _ipsystem getvar 'OLSR_HNA' | cut -d'/' -f2 )"
 	hna_mask="$( _net cidr2mask $hna_mask )"
 
-	local landev="lan"
-	local wandev="wan"
+	local landev='lan'
+	local wandev='wan'
 
 	output_useable_wifi_networks()
 	{
-		local wifidev="wlan"
+		local wifidev='wlan'
 		local radiocard network_append spacer
 
 		for radiocard in 0 1 2 3; do {
@@ -1619,7 +1619,7 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 		wandev=
 	}
 
-	[ "$( uci get network.wan.proto )" = "static" ] || {
+	[ "$( uci get network.wan.proto )" = 'static' ] || {
 		case "$NETWORK" in
 			satama*)
 				# allow: node 119
@@ -1668,7 +1668,7 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 		tc_interval="$(( $speed * 2 ))"
 	fi
 
-	cat >/etc/config/olsrd <<EOF
+	cat >'/etc/config/olsrd' <<EOF
 config olsrd
 	option MainIp			'${main_ip:-0.0.0.0}'
 	option DebugLevel		'0'		# 0...9
@@ -1689,7 +1689,9 @@ config meta
 	option hnaslave			'$slave'
 
 config Interface
-	list interface			'$INTERFACES1 innercityVPN'
+$(	for interface in $INTERFACES1 innercityVPN; do
+		echo "	list interface '$interface'"
+	done )
 	option Ip4Broadcast		'255.255.255.255'
 $showspeed
 $hidev	option HelloInterval		'$hello_interval.0'		# vals for speed $speed
@@ -1709,7 +1711,9 @@ EOF
 	[ -n "$INTERFACES2" ] && cat >>/etc/config/olsrd <<EOF
 
 config Interface
-	list interface			'$INTERFACES2'
+$(	for interface in $INTERFACES2; do
+		echo "	list interface '$interface'"
+	done )
 	option Ip4Broadcast		'255.255.255.255'
 $showspeed
 $hidev	option HelloInterval		'$hello_interval.0'
