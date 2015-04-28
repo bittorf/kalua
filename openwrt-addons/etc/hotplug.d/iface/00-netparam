@@ -1,0 +1,37 @@
+#!/bin/sh
+
+### during hotplug-ifup maintain list with interface = device = ssid,
+#    - e.g. mkdir -p /var/run/interfaces wan (content = eth0.2) and eth0.2 (content = wan)
+#    + mode + ssid? + driver
+#    -> build NETPARAM or replace it?
+
+case "$ACTION" in
+        ifup)
+		mkdir -p '/var/run/interfaces'
+
+		# INTERFACE = wan
+		# DEVICE = eth0.2
+		echo "$DEVICE"    >"/var/run/interfaces/name2dev_$INTERFACE"
+		echo "$INTERFACE" >"/var/run/interfaces/dev2name_$DEVICE"
+		touch		   "/var/run/interfaces/nameUP_$INTERFACE"
+		touch		   "/var/run/interfaces/deviceUP_$DEVICE"
+
+		# TODO: history up/down?
+
+		grep -q "^.*${DEVICE}:" '/proc/net/wireless' && {
+			set -- $( iw dev "$DEVICE" info | grep 'wiphy ' )
+			echo "phy$2" >"/var/run/interfaces/dev2radio_$DEVICE"
+			echo "phy$2" >"/var/run/interfaces/name2radio_$INTERFACE"
+
+			# FIXME! e.g. ath10k ath9k ath5k rt2x00-mmio b43
+			echo "unknown" >"/var/run/interfaces/dev2driver_$DEVICE"
+			echo "unknown" >"/var/run/interfaces/name2driver_$INTERFACE"
+		}
+	;;
+	ifupdate)
+	;;
+	ifdown)
+		rm "/var/run/interfaces/nameUP_$INTERFACE"
+		rm "/var/run/interfaces/deviceUP_$DEVICE"
+	;;
+esac
