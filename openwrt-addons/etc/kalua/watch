@@ -860,9 +860,13 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		if [ -z "$pid" ]; then
 			_log do $funcname daemon alert 'no pid, will restart soon'
 		else
-			_log do $funcname daemon alert "after DNS fail: sending SIGHUP to dnsmasq: $pid_parent (reread config)"
-			kill -SIGHUP "$pid_parent"
-			sleep 5
+			if _watch counter "/tmp/$funcname" increment 1 max 20 ; then
+				_log do $funcname daemon alert "after DNS fail: sending SIGHUP to dnsmasq: $pid_parent (reread config)"
+				kill -SIGHUP "$pid_parent"
+				sleep 5
+			else
+				_system crashreboot 'dns_hangs'
+			fi
 		fi
 
 		# again: can we resolv first a local and then random address?
@@ -872,6 +876,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		if nslookup "$testdomain" 2>/dev/null >/dev/null; then
 			_log do $funcname daemon info "[OK] resolv '$testdomain' good"
 			dump_core=
+			[ -e "/tmp/$funcname" ] && rm "/tmp/$funcname"
 		else
 			# only dump core, if local lookup fails too
 			dump_core='true'
