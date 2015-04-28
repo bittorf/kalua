@@ -63,9 +63,11 @@ apply_olsr_roaming()
 	} done
 
 	uci show olsrd | fgrep -q "netaddr=192.168.${NODENUMBER_ROAMING}.0" || {
-		uci add olsrd Hna4 >/dev/null
-		uci set olsrd.@Hna4[-1].netaddr="192.168.${NODENUMBER_ROAMING}.0"
-		uci set olsrd.@Hna4[-1].netmask='255.255.255.0'
+		uci show olsrd | fgrep -q "netaddr='192.168.${NODENUMBER_ROAMING}.0'" || {
+			uci add olsrd Hna4 >/dev/null
+			uci set olsrd.@Hna4[-1].netaddr="192.168.${NODENUMBER_ROAMING}.0"
+			uci set olsrd.@Hna4[-1].netmask='255.255.255.0'
+		}
 	}
 
 	config_add_alias 'mastergate' "192.168.${NODENUMBER_ROAMING}.1/24"
@@ -107,12 +109,14 @@ config_add_alias()
 	mask="$( _net cidr2mask "$mask" )"
 
 	uci show 'network' | grep "network.@alias\[.\].ipaddr" | fgrep -q "ipaddr=$ip" || {
-		uci add network alias >/dev/null
-		uci set network.@alias[-1].interface="$network"
-		uci set network.@alias[-1].proto='static'
-		uci set network.@alias[-1].ipaddr="$ip"
-		uci set network.@alias[-1].netmask="$mask"
-		[ -n "$gateway" ] && uci set network.@alias[-1].gateway="$gateway"
+		uci show 'network' | grep "network.@alias\[.\].ipaddr" | fgrep -q "ipaddr='$ip'" || {
+			uci add network alias >/dev/null
+			uci set network.@alias[-1].interface="$network"
+			uci set network.@alias[-1].proto='static'
+			uci set network.@alias[-1].ipaddr="$ip"
+			uci set network.@alias[-1].netmask="$mask"
+			[ -n "$gateway" ] && uci set network.@alias[-1].gateway="$gateway"
+		}
 	}
 }
 
@@ -1256,9 +1260,11 @@ i						uci add system netfilter >/dev/null
 #					uci set network.@route[-1].gateway=192.168.10.1
 
 					uci show olsrd | fgrep -q "netaddr=192.168.10.0" || {
-						uci add olsrd Hna4 >/dev/null
-						uci set olsrd.@Hna4[-1].netaddr=192.168.10.0
-						uci set olsrd.@Hna4[-1].netmask=255.255.255.0
+						uci show olsrd | fgrep -q "netaddr='192.168.10.0'" || {
+							uci add olsrd Hna4 >/dev/null
+							uci set olsrd.@Hna4[-1].netaddr=192.168.10.0
+							uci set olsrd.@Hna4[-1].netmask=255.255.255.0
+						}
 					}
 
 #					uci add olsrd Hna4
