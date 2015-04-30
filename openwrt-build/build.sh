@@ -1521,9 +1521,10 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_SWAPON_PRI=y'
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
 
-				apply_symbol 'CONFIG_PROCD_ZRAM_TMPFS=y'		# since r43489
-				apply_symbol 'CONFIG_PACKAGE_kmod-fs-ext4=y'		# needed for compressed ramdisc
-				apply_symbol 'CONFIG_PACKAGE_e2fsprogs=y'		# dito | utilities: filesystem:
+# https://dev.openwrt.org/ticket/19586
+#				apply_symbol 'CONFIG_PROCD_ZRAM_TMPFS=y'		# since r43489
+#				apply_symbol 'CONFIG_PACKAGE_kmod-fs-ext4=y'		# needed for compressed ramdisc
+#				apply_symbol 'CONFIG_PACKAGE_e2fsprogs=y'		# dito | utilities: filesystem:
 			;;
 			'Standard')	# >4mb flash
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
