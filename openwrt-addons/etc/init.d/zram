@@ -24,10 +24,15 @@ zram_size()	# in megabytes
 
 zram_applicable()
 {
-	local zram_dev="$1"
+	local zram_dev="$1"	# e.g. /dev/zram1
 
 	grep -sq ^"$zram_dev " /proc/swaps && {
-		logger -s -t zram_applicable -p daemon.notice "[OK] '$zram_dev' already active"
+		logger -s -t zram_applicable -p daemon.notice "[OK] '$zram_dev' already active swap"
+		return 1
+	}
+
+	grep -sq ^"$zram_dev " /proc/mounts && {
+		logger -s -t zram_applicable -p daemon.notice "[OK] '$zram_dev' already mounted"
 		return 1
 	}
 
@@ -92,10 +97,12 @@ kmodules_do()
 					logger -s -t zram_kmodules -p daemon.debug "$action: '$kmodule'"
 
 					if [ "$kmodule" = "zram" ]; then
-						insmod "$kmodule" "num_devices=$num_devices" || logger -s -t zram_kmodules -p daemon.err "$action: '$kmodule'"
+						insmod "$kmodule" "num_devices=$num_devices" || \
+							logger -s -t zram_kmodules -p daemon.err "$action: '$kmodule'"
 						sleep 1
 					else
-						insmod "$kmodule" || logger -s -t zram_kmodules -p daemon.err "$action: '$kmodule'"
+						insmod "$kmodule" || \
+							logger -s -t zram_kmodules -p daemon.err "$action: '$kmodule'"
 					fi
 				}
 			} done
@@ -115,11 +122,11 @@ kmodules_do()
 start()
 {
 	# http://shmilyxbq-compcache.googlecode.com/hg/README
-	# if >1 cpu_core, reinit kmodule with e.g. num_devices=4
+	# if >1 cpu_core or zram0 already used, reinit kmodule with e.g. num_devices=4
 
 	local zram_size="$( zram_size )"
 	local list_cores="$( list_cpu_idx )"
-	local zram_dev core num_devices
+	local zram_dev core num_devices offset
 
 	case "$list_cores" in
 		0)
@@ -132,11 +139,14 @@ start()
 		;;
 	esac
 
-	kmodules_do load "$num_devices"
+	for offset in 0 1 2 3; do test -d "/sys/block/zram$offset" || break; done
+	kmodules_do load "$(( num_devices + offset ))"
 
 	for core in $list_cores; do {
-		zram_dev="$( zram_dev "$core" )"
-		zram_applicable "$zram_dev" || return 1
+		for offset in 0 1 2 3; do {
+			zram_dev="$( zram_dev "$(( core + offset ))" )"
+			zram_applicable "$zram_dev" && break
+		} done || return 1
 
 		logger -s -t zram_start -p daemon.debug "activating '$zram_dev' for swapping ($zram_size MegaBytes)"
 
@@ -158,15 +168,10 @@ stop()
 {
 	local zram_dev proc_entry
 
-	for core in $( list_cpu_idx ); do {
-		zram_dev="$( zram_dev "$core" )"
+	for zram_dev in $( grep ^/dev/zram[0-9] '/proc/swaps' | cut -d' ' -f1 ); do {
 		proc_entry="/sys/block/$( basename "$zram_dev" )/reset"
-
-		grep -sq ^"$zram_dev " /proc/swaps && {
-			logger -s -t zram_stop -p daemon.debug "deactivate swap $zram_dev"
-			swapoff "$zram_dev"
-		}
-
+		logger -s -t zram_stop -p daemon.debug "deactivate swap $zram_dev"
+		swapoff "$zram_dev"
 		zram_reset "$zram_dev" "claiming memory back"
 	} done
 
