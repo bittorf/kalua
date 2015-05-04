@@ -1,0 +1,101 @@
+#!/bin/sh
+. /tmp/loader
+
+mac2ipv4()	# rename
+{
+	local funcname='mac2ipv4'
+	local mac="$1"
+	local dev='br-mastergate'
+	local file="/tmp/ROAMING_remove_host_route_$mac"
+	local i=5
+	local ip
+
+	while let i-=1; do {
+		# ignore IPv6 and show IPv4
+		set -- $( ip neigh show dev "$dev" | fgrep "$mac" | grep -v '::' )
+		ip="$1"
+
+		case "$ip" in
+			*'.'*)
+				case "$ip" in
+					"192.168.${NODENUMBER_ROAMING}."*)
+						# no action needed: our own HNA4-range
+					;;
+					*)
+						_log do $funcname daemon info "setting host route for alien $ip"
+						ip route add "$ip/32" dev $dev && {
+							echo "ip route del $ip/32 dev $dev && rm $file" >"$file"
+						}
+					;;
+				esac
+
+				echo "$ip"
+				return 0
+			;;
+			*)
+				sleep 1
+			;;
+		esac
+	} done
+
+	# FIXME! set route later via scheduler
+}
+
+worker()
+{
+	local wifidev="$1"	# e.g. 'wlan0-1'
+	local mode="$2"		# e.g. 'new' or 'del'
+	local mac="$3"
+	local file='/tmp/IWLOG'
+	local ip txt
+
+	txt="$(date) WIFIDEV: $wifidev MODE: $mode MAC: $mac"
+	echo "$txt" >>"$file"
+	logger -s "$txt"
+
+	case "$mode" in
+		'new')
+			txt="$txt - $( mac2ipv4 "$mac" )"
+			echo "$txt" >>"$file"
+			logger -s "$txt"
+		;;
+		'del')
+			[ -e "/tmp/ROAMING_remove_host_route_$mac" ] && {
+				. "/tmp/ROAMING_remove_host_route_$mac"
+			}
+		;;
+	esac
+}
+
+active_ap_devices()
+{
+	local dev
+	# FIXME! dynamisch aus file holen, was via hotplug gebaut wird
+	# e.g. ' wlan0 wlan1-1 wlan1-2 '
+	grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read dev; do echo -n " $dev "; done
+}
+
+[ -z "$( _wifi get any mode ap )" ] && exit 1
+
+iw event | while read LINE; do {
+	case "$LINE" in
+		*': del station '*|*': new station '*)
+			# wlan0-1: del station 00:21:6a:32:7c:1c
+			# wlan0: new station dc:9f:db:02:b8:ee
+			case "$( active_ap_devices )" in
+				*" ${LINE%: *} "*)
+					set -- $LINE
+					worker "${1%:*}" "$2" "$4"
+				;;
+			esac
+		;;
+		'regulatory domain change: set to '*)
+			# e.g. iw reg set US
+			# TODO: find better method
+			_log do iwevent daemon info "stopped by user via regset"
+			break
+		;;
+	esac
+} done
+
+_log do iwevent daemon alert "unexspected event loop exit, rc: $?"
