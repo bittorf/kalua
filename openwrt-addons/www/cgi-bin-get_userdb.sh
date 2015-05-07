@@ -30,10 +30,10 @@ else
 fi
 
 if [ -e '/tmp/FREE' ]; then
-	_http header_mimetype_output text/plain
-	echo "# OK - FREE"
+	_http header_mimetype_output 'text/plain'
+	echo '# OK - FREE'
 else
-	# generate via '_db_restore()'
+	# generated via '_db_restore()'
 	touch '/tmp/USERDB_COPY.cgi.gz'
 
 	case "$QUERY_STRING" in
@@ -44,9 +44,15 @@ else
 		*)
 			if [ "$REMOTE_ADDR" = "$LOADR" ]; then
 				_http header_mimetype_output 'text/plain'
-				echo "# OK - ignore localhost"
+				echo '# OK - ignore localhost'
 			else
-				_http redirect 302 '/USERDB_COPY.txt'
+				if [ -s '/tmp/USERDB_COPY.cgi.gz' ]; then
+					_http redirect 302 '/USERDB_COPY.txt'
+				else
+					_http header_mimetype_output 'text/plain'
+					echo '# ERR - db missing'
+					echo >>$SCHEDULER_IMPORTANT '_db restore'
+				fi
 			fi
 		;;
 	esac
