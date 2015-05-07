@@ -1620,50 +1620,34 @@ _olsr_neighs_humanreadable ()			# fixme! ToDo: latitude/longitude/distance + spe
 
 	} done <"$FILE"
 
-	local OLSR_INGORE="$( uci get firewall.@ignoreolsr[0].ip )"
-	[ -n "$OLSR_INGORE" ] && echo "ignored stations: $OLSR_INGORE"
+	local hna4 route local_ip remote_ip olsr_ignore
+	olsr_ignore="$( uci -q get firewall.@ignoreolsr[0].ip )"
+	[ -n "$olsr_ignore" ] && echo "ignored stations: $olsr_ignore"
 
-	local hna4 route local_ip remote_ip
-	for hna4 in $( _olsr_show_hna4_slaves ); do {
-		route="$( ip -o route get $hna4 )"
-		local_ip="$( echo "$route" | cut -d' ' -f8 )"
-		remote_ip="$( echo "$route" | cut -d' ' -f3 )"
+	for hna4 in $( _olsr show_hna4_slaves ); do {
+		case "$hna4" in
+			"192.168.$NODENUMBER_ROAMING.0/24")
+			;;
+			*)
+				route="$( ip -o route get $hna4 )"
+				local_ip="$( echo "$route" | cut -d' ' -f8 )"
+				remote_ip="$( echo "$route" | cut -d' ' -f3 )"
 
-		COUNT=$(( ${COUNT:-0} + 1 ))
-		echo "$COUNT:  $local_ip --1-- $remote_ip (HNA-slave $hna4)"
+				COUNT=$(( ${COUNT:-0} + 1 ))
+				echo "$COUNT:  $local_ip --1-- $remote_ip (HNA-slave $hna4)"
+			;;
+		esac
 	} done
 }
 
 _olsr_show_hna4_slaves()
 {
-	local line slave_found cidr route local_ip remote_ip
-	uci changes >"/tmp/uci_changes.$$"
+	local netaddr mask
+	local i=0
 
-	while read line; do {
-		case "$line" in
-			"olsrd."*)
-				case "$line" in				# olsrd.cfg126b70=Hna4
-					*"=Hna4")			# olsrd.cfg126b70.netaddr=10.10.12.0
-						slave_found="true"	# olsrd.cfg126b70.netmask=255.255.255.192
-					;;
-					*".netaddr="*)
-						slave_found="$( echo "$line" | cut -d'=' -f2 )"
-					;;
-					*".netmask="*)
-						[ -n "$slave_found" ] && {
-							cidr="$( echo "$line" | cut -d'=' -f2 )"
-							cidr="$( _net mask2cidr "$cidr" )"
-
-							echo "$slave_found/$cidr"
-						}
-					;;
-					*)
-						slave_found=
-					;;
-				esac
-			;;
-		esac
-	} done <"/tmp/uci_changes.$$"
-
-	rm "/tmp/uci_changes.$$"
+	while netaddr="$( uci -q get olsrd.@Hna4[$i].netaddr )"; do {
+		mask="$( uci -q get olsrd.@Hna4[$i].netmask )"
+		echo "$netaddr/$( _net mask2cidr "$mask" )"
+		i=$(( i + 1 ))
+	} done
 }
