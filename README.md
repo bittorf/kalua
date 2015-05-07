@@ -209,6 +209,7 @@ Special UCI-variables
 	system.@weblogin[0].respect_missing_db	- bool
 	system.@weblogin[0].allow_wan		- bool
 	system.@weblogin[0].ticketstock		- integer
+	system.@weblogin[0].db_cachesize	- integer
 	
 	system.@monitoring[0].serverip		- IP
 	system.@monitoring[0].pingcheck		- IP
