@@ -12,6 +12,32 @@
 #	[ -n "$WIFI_NEXT" ] && . $WIFI_NEXT	# inluding VAR-set for next WIFI_DEV
 # } done					# (last entry must point to first-device)
 
+_wifi_kick()
+{
+	local funcname='wifi_kick'
+	local mac="$1"
+	local dev_list="${2:-$WIFI_DEVS}"
+	local file="/tmp/$funcname"
+	local dev
+
+	for dev in $dev_list; do {
+		iw dev $dev station get "$mac" 1>&- 2>&- && {
+			command="ubus call hostapd.$dev del_client"
+			_log do $funcname daemon info "exec: $command"
+
+			# ban_time can be omitted
+			# http://resin.csoft.net/cgi-bin/man.cgi?section=5&topic=hostapd.conf
+			echo >"$file" <<EOF
+rm $file
+$command '{ "addr" : "$mac", "reason" : "assoc toomany", "ban_time" : 10000 }'
+EOF
+			. $file && return 0
+		}
+	} done
+
+	_log do $funcname daemon info "did not found $mac on $dev"
+}
+
 _wifi_change_essid_ap()
 {
 	local funcname='wifi_change_essid_ap'
