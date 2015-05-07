@@ -15,6 +15,7 @@ else
 fi
 
 if [ -n "$LOG" ]; then
+	# outdated: we write to '/tmp/monilog.txt' - see $0.php
 	echo "$1" >>./meshrdf.txt
 	echo "$UNIXTIME|$HOSTNAME|$WIFIMAC|$LOG" >>../log/log.txt
 else

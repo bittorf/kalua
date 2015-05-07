@@ -3,7 +3,7 @@
 OPTION="$1"		# e.g. cache
 WISH_NETWORK="$2"
 
-log ()
+log()
 {
 	local MESSAGE="$1"
 
@@ -18,6 +18,18 @@ uptime_in_seconds()
 	cut -d'.' -f1 /proc/uptime
 }
 
+list_networks()
+{
+	local network
+
+	ls -1 /var/www/networks | while read network; do {
+		# allow symlinks, dont filter ' -> '
+		[ -n "$( ls -l /var/www/networks/$network/meshrdf/recent 2>/dev/null | grep -v ^'total' )" ] && {
+			echo "$network"
+		}
+	} done
+}
+
 # this detroys the ping-counter! we really should send out an SMS
 log "checking: disk full?"
 df -h /dev/xvda1 | fgrep -q "100%" && {
@@ -29,7 +41,8 @@ df -h /dev/xvda1 | fgrep -q "100%" && {
 	fi
 }
 
-/var/www/networks/fuerstengruft/gruft.html_for_all_dates.sh
+
+# /var/www/networks/fuerstengruft/gruft.html_for_all_dates.sh
 
 [ "$OPTION" = "cache" ] && {
 	if ls -1 /tmp/lockfile_meshrdf_cache_* >/dev/null 2>/dev/null; then
@@ -92,16 +105,36 @@ list_meshrdf_files_with_zero_size()
 
 gen_meshrdf_for_network()
 {
+	local funcname='gen_meshrdf_for_network'
 	local network="$1"
 	local html="/var/www/networks/$network/index.html"
 	local temp="$html.temp"
 	local url="http://127.0.0.1/networks/$network/meshrdf/?ORDER=hostname"
+	local datadir="/var/www/networks/$network/meshrdf/recent"
+	local hash_file="/dev/shm/meshrdf_hash_$network"
+	local newest_file="$datadir/$( ls -1t "$datadir" | head -n1 )"
+	local hash_now="$( date +%s -r "$newest_file" )"
+	local hash_last
 
+	read hash_last <"$hash_file"
+	if [ "$hash_last" = "$hash_now" ]; then
+		log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
+		return 0
+	else
+		log "$funcname() NEEDED? found changes network $network - was: $hash_last != $hash_now (now)"
+		echo "$hash_now" >"$hash_file"
+	fi
+
+	# file age:
+	local unixtime_file="$( date +%s -r "$html" )"
+	local unixtime_here="$( date +%s )"
+	local unixtime_diff=$(( unixtime_here - unixtime_file ))
+
+	log "[START] network $network (last build before $unixtime_diff sec)"
 	touch "$temp" && chmod 777 "$temp"
-	wget -O "$temp" "$url"
+	wget -qO "$temp" "$url"
 	mv "$temp" "$html"
-
-	log "[READY] fetching $network"
+	log "[READY] fetched $network"
 }
 
 [ -n "$( list_meshrdf_files_with_zero_size )" ] && {
@@ -115,7 +148,8 @@ gen_meshrdf_for_network()
 }
 
 
-LIST="$( find /var/www/networks/ -type d | grep meshrdf/recent )"
+# LIST="$( find /var/www/networks/ -type d | grep meshrdf/recent )"
+LIST="$( list_networks )"
 TEMP="/tmp/meshrdf_check_$$"
 MESSAGE=
 
@@ -126,14 +160,15 @@ for NET in $LIST; do {
 IALL=$I
 
 I=0
-for NET in $LIST; do {		# e.g. /var/www/networks/ffweimar/meshrdf/recent
+for NET in $LIST; do {
+	NET="/var/www/networks/$NET/meshrdf/recent"
 
 	# build often!
 	gen_meshrdf_for_network ilm1
 	gen_meshrdf_for_network gnm
 	gen_meshrdf_for_network limona
 	gen_meshrdf_for_network malchow		# demo
-	gen_meshrdf_for_network malchowperde
+	gen_meshrdf_for_network malchowpferde
 	gen_meshrdf_for_network malchowpension
 	gen_meshrdf_for_network abtpark
 	gen_meshrdf_for_network ffweimar-vhs
@@ -141,14 +176,14 @@ for NET in $LIST; do {		# e.g. /var/www/networks/ffweimar/meshrdf/recent
 
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
 
-	FILE="$( ls -1t $NET/* | head -n1 )"
-	UNIXTIME_FILE="$( date +%s -r "$FILE" )"
-	UNIXTIME_HERE="$( date +%s )"
-	UNIXTIME_DIFF=$(( UNIXTIME_HERE - UNIXTIME_FILE ))
-	[ $DIFF -gt 3600 ] && {
-		log "[OK] diff = $UNIXTIME_DIFF sec - omitting network $NET"
-		continue
-	}
+#	FILE="$( ls -1t $NET/* | head -n1 )"
+#	UNIXTIME_FILE="$( date +%s -r "$FILE" )"
+#	UNIXTIME_HERE="$( date +%s )"
+#	UNIXTIME_DIFF=$(( UNIXTIME_HERE - UNIXTIME_FILE ))
+#	[ $UNIXTIME_DIFF -gt 3600 ] && {
+#		log "[OK] diff = $UNIXTIME_DIFF sec - omitting network $NET"
+#		continue
+#	}
 
 	[ -d "$NET/../../getip" ] || {
 		ln -s "/var/www/scripts/getip/" "$NET/../../getip"
@@ -254,19 +289,19 @@ for NET in $LIST; do {		# e.g. /var/www/networks/ffweimar/meshrdf/recent
 				;;
 			esac
 
-			touch "/var/www/networks/$NETWORK/meshrdf/meshrdf.html.temp"
-			chmod 777 "/var/www/networks/$NETWORK/meshrdf/meshrdf.html.temp"
-			wget -qO "/var/www/networks/$NETWORK/index.html.temp" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=$MYORDER"
-			mv "/var/www/networks/$NETWORK/index.html.temp" "/var/www/networks/$NETWORK/index.html"
+#			touch "/var/www/networks/$NETWORK/meshrdf/meshrdf.html.temp"
+#			chmod 777 "/var/www/networks/$NETWORK/meshrdf/meshrdf.html.temp"
+# BLA			wget -qO "/var/www/networks/$NETWORK/index.html.temp" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=$MYORDER"
+#			mv "/var/www/networks/$NETWORK/index.html.temp" "/var/www/networks/$NETWORK/index.html"
 			gen_meshrdf_for_network "$NETWORK"
 			log "[READY] fetching $NETWORK"
 
-			log "[START] building map for $NETWORK"
-			/var/www/scripts/meshrdf_generate_map.sh "/var/www/networks/$NETWORK/meshrdf" >/tmp/map_$$.txt
-			log "[READY] building map for $NETWORK"
+#			log "[START] building map for $NETWORK"
+#			/var/www/scripts/meshrdf_generate_map.sh "/var/www/networks/$NETWORK/meshrdf" >/tmp/map_$$.txt
+#			log "[READY] building map for $NETWORK"
 
 			case "$( date +%M )" in
-				*)
+				INACTIVE)
 					for FORMAT in svg ; do {			# fixme! png / pdf
 						log "[START] building format $FORMAT for $NETWORK"
 						dot 1>/dev/null 2>/dev/null -Goverlap=scale -Gsplines=true -Gstart=3 -v -T$FORMAT -o /tmp/map_$$.$FORMAT /tmp/map_$$.txt
@@ -282,7 +317,7 @@ for NET in $LIST; do {		# e.g. /var/www/networks/ffweimar/meshrdf/recent
 					rm "/var/www/networks/$NETWORK/meshrdf/map_"*				# fixme!
 				;;
 				*)
-					log "[OK] not building format svg or png"
+#					log "[OK] not building format svg or png"
 				;;
 			esac
 		else
@@ -356,7 +391,7 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 		NETWORK="$( echo $NET | cut -d'/' -f5 )"        # e.g. elephant
 
 		case "$NETWORK" in
-			dhsylt|elephant|ffweimar*|galerie|ibfleesensee|tkolleg|ffsundi|sachsenhausen|artotel|versiliawe|paltstadt|liszt28|zumnorde|versiliaje|preskil|gnm|hotello-K80|hotello-H09|hotello-B01|tuberlin|marinapark|vivaldi)
+			dhsylt|elephant|ffweimar*|galerie|ibfleesensee|tkolleg|ffsundi|sachsenhausen|artotel|versiliawe|paltstadt|liszt28|zumnorde|versiliaje|preskil|gnm|hotello-K80|hotello-H09|hotello-B01|tuberlin|marinapark|vivaldi|satama|fparkssee|marinapark)
 				log "summary: [OK] omitting network '$NETWORK' for summary"
 				continue
 			;;
@@ -371,7 +406,7 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 			CONTACT_DATA="bitte eintragen in $FILE_CONTACT_DATA"
 		fi
 
-		log "[OK] including '$NETWORK'-contacts: $CONTACT_DATA"
+#		log "[OK] including '$NETWORK'-contacts: $CONTACT_DATA"
 
 		fgrep -q " title='MISS " $NET/../../index.html && {
 			echo "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small><br></small><big><a href='$LINK' title='$CONTACT_DATA'>$NETWORK</a></big></small><br></small></td></tr>" >>$FILE_SUMMARY_TEMP

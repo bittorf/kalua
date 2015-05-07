@@ -195,6 +195,20 @@ TARBALL_TIME='395804'	# af3fa35882632b32e64afb27acab4b920a718130
 TARBALL_TIME='395945'	# f688242edb2031a79c16b526d546dc45e7d26bda
 TARBALL_TIME='395983'
 TARBALL_TIME='395997'	# ba208e25add903efa528defc1ff27940ca6a0227
+TARBALL_TIME='396093'	# 8e78780d05e25ef5732831b2e010724ea66ca58a
+TARBALL_TIME='396133'	# 9d330169e8de3b68aa034cc0134bd26cdc71a92a
+TARBALL_TIME='396158'	# a7d53dfd9fa1ba672029f513b0b15123538708fb
+TARBALL_TIME='396187'	# 004045d067a68c9254a1f44aa431f3085741c9f5
+TARBALL_TIME='396418'	# 085dc0f89865969923c927db0d2f832c22a53b35
+TARBALL_TIME='396595'	# 2e50d9a67357a76ea31898575d9600290f0ed62e
+TARBALL_TIME='396644'	# 127a5a8000a35348933cc7584d3e3e2e73e5d7aa
+TARBALL_TIME='397003'	# 93df9b842b20f076e9bdd02bff798d64307fdc47
+TARBALL_TIME='397015'	# 084f496aebd40d5f5130544cf8e943f06cd8a838
+TARBALL_TIME='397018'	# 20f5f6d07d47524dd03d27792efcb73eaf16a7e7
+TARBALL_TIME='397100'	# 0d3b71d322f5598b717267252fa4ab0b096603b8
+TARBALL_TIME='397165'	# 2b441df4612eecb60485aae42a85456c330c301d
+TARBALL_TIME='397433'	# 66c44c54e61f8eba4b7cc2938f0ab1082ecfdcd4
+TARBALL_TIME='397507'	# 1292f62f3f2059a38be850b42f25f2fb2bbb733a
 
 
 
@@ -282,21 +296,33 @@ echo >>"$FILE_FAILURE_OVERVIEW" "-----------------------------------------------
 
 last_remote_addr()
 {
-	local file ip
+	local file ip r4
 	local unixtime_max=0
+	SUM_WIRELESS_CLIENTS=0
 
 	for file in $( ls -1 /var/www/networks/$NETWORK/meshrdf/recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ ); do { 
+
+		r4=
 		command . "/var/www/networks/$NETWORK/meshrdf/recent/$file"
+		case "$r4" in
+			[0-9]*)
+				SUM_WIRELESS_CLIENTS=$(( SUM_WIRELESS_CLIENTS + r4 ))
+			;;
+		esac
+
 		[ ${UNIXTIME:-0} -gt $unixtime_max ] && {
 			unixtime_max="$UNIXTIME"
 			ip="$PUBIP_REAL"
 		}
 	} done
 
+	echo "$SUM_WIRELESS_CLIENTS" >'/tmp/SUM_WIRELESS_CLIENTS'
 	echo "$ip"
 }
 
 LAST_REMOTE_ADDR="$( last_remote_addr )"
+read SUM_WIRELESS_CLIENTS <'/tmp/SUM_WIRELESS_CLIENTS'
+echo "$(date) | $SUM_WIRELESS_CLIENTS" >>"/var/www/networks/$NETWORK/media/SUM_WIRELESS_CLIENTS.txt"
 
 cd "/var/www/networks/$NETWORK/meshrdf"				# fixme! or better use absolute paths everywhere?
 
@@ -395,7 +421,7 @@ echo  >$OUT '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 echo >>$OUT '	"http://www.w3.org/TR/html4/loose.dtd">'
 echo >>$OUT '<html><head><meta http-equiv="content-type" content="text/html; charset=UTF-8">'
 echo >>$OUT '<LINK REL="shortcut icon" TYPE="image/x-icon" HREF="/favicon.ico">'
-echo >>$OUT "<title>$NETWORK|meshRDF|$LOCALTIME|order=$SPECIAL_ORDER_BY</title>"
+echo >>$OUT "<title>$NETWORK|meshRDF|$LOCALTIME|order=$SPECIAL_ORDER_BY|wireless:$SUM_WIRELESS_CLIENTS</title>"
 
 echo >>$OUT '<script type="text/javascript">'
 echo >>$OUT '<!-- stripped down version of http://kryogenix.org/code/browser/sorttable/ and applied crunchme'
@@ -512,9 +538,12 @@ hostname_sanitizer()
 	hostnames_override	# always sets all $NODENUMBER -> $HOSTNAME
 }
 
-func_update2color ()
+func_update2color()
 {
-	case $1 in
+	local reason="$1"
+
+	case "$reason" in
+		'bad_version'*) echo 'crimson' ;;
 		 stable) echo "green" ;;
 	 	   beta) echo "orange" ;;
 	  	testing) echo "#E0ACAC" ;;	# blassrot
@@ -599,7 +628,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 		continue
 	}
 
-	D0=;k0=;k1=;k2=;k3=;u0=;w0=;w1=;w2=;w3=;t0=;t1=;n0=;d0=;d1=;i0=;i1=;i2=;i3=;i4=;i5=;i6=;r0=;r1=;r2=;r3=;r4=;h0=;h1=;h2=;h3=;h4=;h5=;h6=;h7=;s1=;s2=;v1=;v2=;NODE=;UP=;VERSION=;HOSTNAME=;WIFIMAC=;REBOOT=;CITY=;UPDATE=;NEIGH=;LATLON=;GWNODE=;TXPWR=;WIFIMODE=;CHANNEL=;COST2GW=;HOP2GW=;USERS=;MRATE=;LOAD=;HW=;UNIXTIME=;HUMANTIME=;FORWARDED=;SERVICES=;PUBIP_REAL=;PUBIP_SIMU=;MAIL=;PHONE=;SSHPUBKEYFP=;FRAG=;RTS=;GMODEPROT=;GW=;PROFILE=;NOISE=;RSSI=;GMODE=;ESSID=;BSSID=;WIFIDRV=;LOG=;OLSRVER=;OPTIMIZENLQ=;OPTIMIZENEIGH=;PORTFW=;WIFISCAN=;SENS=;PFILTER=
+	D0=;k0=;k1=;k2=;k3=;u0=;w0=;w1=;w2=;w3=;t0=;t1=;n0=;d0=;d1=;i0=;i1=;i2=;i3=;i4=;i5=;i6=;r0=;r1=;r2=;r3=;r4=;r5=;h0=;h1=;h2=;h3=;h4=;h5=;h6=;h7=;s1=;s2=;v1=;v2=;NODE=;UP=;VERSION=;HOSTNAME=;WIFIMAC=;REBOOT=;CITY=;UPDATE=;NEIGH=;LATLON=;GWNODE=;TXPWR=;WIFIMODE=;CHANNEL=;COST2GW=;HOP2GW=;USERS=;MRATE=;LOAD=;HW=;UNIXTIME=;HUMANTIME=;FORWARDED=;SERVICES=;PUBIP_REAL=;PUBIP_SIMU=;MAIL=;PHONE=;SSHPUBKEYFP=;FRAG=;RTS=;GMODEPROT=;GW=;PROFILE=;NOISE=;RSSI=;GMODE=;ESSID=;BSSID=;WIFIDRV=;LOG=;OLSRVER=;OPTIMIZENLQ=;OPTIMIZENEIGH=;PORTFW=;WIFISCAN=;SENS=;PFILTER=
 
 	# use real file, otherwise the stat-command is not useful
 	[ -h "$FILE" ] && FILE="$( readlink -f "$FILE" )"
@@ -2360,10 +2389,8 @@ _cell_switch()
 					case "$HOSTNAME" in
 						*'-HWR-'*)
 							[ $inet_offer_down -eq 0 ] && {
-# FIXME!
-:
-#								global_bgcolor='crimson'
-#								global_tooltip='ADSL broken'
+								global_bgcolor='crimson'
+								global_tooltip='ADSL broken'
 							}
 						;;
 					esac
@@ -2721,8 +2748,9 @@ cell_essid()
 	local rssi1="$3"
 	local rssi2="$4"
 	local rssi3="$5"
-	local clients="$6"
-	local essid bgcolor rssi spacer title
+	local wifi_clients="$6"
+	local wired_clients="$7"
+	local essid bgcolor rssi spacer title wired_clients_formatted
 	local i=0
 
 	echo -n "<td nowrap><table cellspacing='1' cellpadding='0' border='0'><tr>"
@@ -2735,13 +2763,27 @@ cell_essid()
 		esac
 	}
 
-	if [ -n "$clients" ]; then
-		if [ $clients -gt 0 ]; then
-			local symbol_antenna='&#x16c9;'
-			local symbol_n_times='&#x00d7;'
-			echo -n "<td>${symbol_antenna}${symbol_n_times}${clients}&nbsp;|&nbsp;</td>"
+	local symbol_Nary_times='&#x00d7;'
+
+	[ -n "$wired_clients" ] && {
+		if [ $wired_clients -gt 0 ]; then
+			local symbol_wired='&#x27db'
+			wired_clients_formatted="${symbol_wired}${symbol_Nary_times}${wired_clients}&nbsp;|&nbsp;"
 		else
-			echo -n '<td>&nbsp;</td>'
+			wired_clients_formatted=
+		fi
+	}
+
+	if [ -n "$wifi_clients" ]; then
+		if [ $wifi_clients -gt 0 ]; then
+			local symbol_antenna='&#x16c9;'
+			echo -n "<td>${wired_clients_formatted}${symbol_antenna}${symbol_Nary_times}${wifi_clients}&nbsp;|&nbsp;</td>"
+		else
+			if [ -n "$wired_clients_formatted" ]; then
+				echo -n "<td>${wired_clients_formatted}</td>"
+			else
+				echo -n '<td>&nbsp;</td>'
+			fi
 		fi
 	else
 		echo -n '<td>&nbsp;</td>'
@@ -2774,14 +2816,20 @@ cell_essid()
 				}
 			;;
 			*)
+				if [ ${#essid} -le 3 ]; then
+					# adhoc
+					bgcolor=
+					title=
+				else
+					# ap
+					bgcolor="lime"
+					title="Signal:$rssi,$wifi_clients,$wired_clients"
+				fi
+
 				case "$essid" in
-					"bb"|"o")
+					'ffintern'*|'intern'*)
 						bgcolor=
 						title=
-					;;
-					*)
-						bgcolor="lime"
-						title="Signal:$rssi,$clients"
 					;;
 				esac
 			;;
@@ -3010,14 +3058,6 @@ esac
 	good_git_color()
 	{
 		case "$1" in
-			4029[3-9]|403*|404*|40500|40501|40502|40503)
-				# b0rken wifi / regdb
-				echo "crimson"
-			;;
-			34794|34795|34796|34797|34798|34799|34800|34801|34802|34803|34804|34805|34806|34807|34808|34809|34810|34811|34812|34813|34814|34815)
-				# b0rken sysupgrade
-				echo "crimson"
-			;;
 			28879|29366)			# brcm47xx + ar71xx
 				echo "$COLOR_BRIGHT_ORANGE"
 			;;
@@ -3035,7 +3075,21 @@ esac
 				echo "$COLOR_DARK_GREEN"
 			;;
 			*)
-				if [ "$1" -gt 44150 ]; then
+				if   [ $1 -ge 34794 -a $1 -lt 34815 ]; then
+					func_update2color 'bad_version:broken_sysupgrade'
+				elif [ $1 -ge 40293 -a $1 -lt 40503 ]; then
+					func_update2color 'bad_version:broken_wifi_regdb'
+				elif [ $1 -ge 45040 -a $1 -lt 45189 ]; then
+					func_update2color 'bad_version:uci_broken'
+				elif [ $1 -ge 44942 -a $1 -lt 145440 ]; then
+					# https://dev.openwrt.org/ticket/19564
+					# seen also with r45568 - not fixed with r45440
+					func_update2color 'bad_version:fstools_broken'
+#				elif [ $1 -ge 44946 -a $1 -lt 45579 ]; then
+#					# fixed in /tmp/loader and used from r45579+
+#					# https://dev.openwrt.org/ticket/19539 - visible on dualradio-routers
+#					func_update2color 'bad_version:uci_lists_broken'
+				elif [ $1 -gt 44150 ]; then
 					func_update2color 'testing'
 				else
 					return 1
@@ -3262,7 +3316,7 @@ case "$NETWORK" in
 	;;
 esac
 
-	cell_essid "$ESSID" "$r0" "$r1" "$r2" "$r3" "$r4"
+	cell_essid "$ESSID" "$r0" "$r1" "$r2" "$r3" "$r4" "$r5"
 	cell_channel "$CHANNEL"
 	cell_node "$NODE"
 
@@ -3668,7 +3722,6 @@ echo >>$TOOLS '#	}'
 echo >>$TOOLS ""
 echo >>$TOOLS '#	if scp -p -i /etc/dropbear/dropbear_dss_host_key /tmp/fw ${WIFIADR}:/tmp ; then'
 echo >>$TOOLS '#	ping -c 5 $WIFIADR; _tool remote $WIFIADR startshell'
-echo >>$TOOLS '#	if _tool remote "$WIFIADR" net_fulltrace >>/tmp/BLA; then	# grep -v ^"ready:" /tmp/BLA'
 echo >>$TOOLS '	if scp -p -i /etc/dropbear/dropbear_dss_host_key "script.sh" "${WIFIADR}:/tmp/.autorun"; then'
 echo >>$TOOLS '		: # watch_sysupgrade'
 echo >>$TOOLS '	else'

@@ -2,7 +2,7 @@
 
 # folgender aufruf ist moeglich
 # /var/www/scripts/ping_counter.sh list_pubips_from_network marinabh
-
+#
 # ToDo:
 # - nach abbruch, ausgeben: ls -lt /dev/shm/pingcheck/*.faulty
 # - testfunction for 'fetch_testfile'
@@ -257,10 +257,10 @@ fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if t
 		aschbach)
 			port=5480
 		;;
-		dhfleesensee)
-			proto="https"
-			port=50000
-		;;
+#		dhfleesensee)
+#			proto="https"
+#			port=50000
+#		;;
 		liszt28:Buero)
 			proto='https'
 			port='443'
@@ -463,7 +463,7 @@ add_new_ipaddresses_from_network()
 
 			case "$3" in
 				'myping_'*)
-					iptables -nxvL $3 | fgrep -q "$ip" && {
+					iptables -nxvL $3 | fgrep -q " $ip " && {
 #						log "will not add $ip - found it already in $3"
 						echo "YES"
 						return 0
@@ -473,7 +473,7 @@ add_new_ipaddresses_from_network()
 		} done
 
 #		log "is_in_another_network: $ip - no - rc: $?"
-		echo "NO"
+		echo 'NO'
 		return $rc
 	}
 
@@ -481,8 +481,9 @@ add_new_ipaddresses_from_network()
 		# we must make sure, that already applied
 		# IP 84.184.176.218 is not the same like new
 		# IP 84.184.176.21
+
 		iptables -nL myping_$network | fgrep -q " $ip " || {
-			[ "$(is_in_another_network "$ip")" = "NO" ] && {
+			[ "$( is_in_another_network "$ip" )" = 'NO' ] && {
 				for network in $list_network; do {
 					log "adding new pub-ip $ip for network $network"
 					iptables -I myping_$network -s $ip -j ACCEPT
@@ -494,19 +495,6 @@ add_new_ipaddresses_from_network()
 	} done
 
 	return $rc
-}
-
-# TODO: remove
-SEEMS_UNSUED_check_pingcounter_has_raised()
-{
-	local network="$1"
-	local old_counter
-	local new_counter=$( count_pings "$network" )
-
-	mkdir -p '/dev/shm/pingcheck'
-	read old_counter <"/dev/shm/pingcheck/$network"
-
-	echo $old_counter
 }
 
 iptables -nL myping 1 >/dev/null || {

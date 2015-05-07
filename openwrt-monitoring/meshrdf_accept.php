@@ -3,19 +3,23 @@
 error_reporting(E_ALL ^ E_NOTICE);		// meldet alle fehler ausser E_NOTICE = vorgabe von php.ini
 // error_reporting(E_ALL);		// haufenweise: 'PHP Notice:  Undefined index: optimizenlq in /var/www/scripts/meshrdf_accept.php on line 64'
 
-if(isset($_GET["refresh"])) {
+if(isset($_GET["refresh"])) {		// refresh='true' -> monitoring_heartbeat
 	$mac = strval($_GET["mac"]);
 
 	if (file_exists("recent/$mac")) {
 		touch("recent/$mac");
+
+		// ?refresh=true&mac=14cc20ed2513&up=10&h2=98926592&load=14&version=396349&r4=0&r5=1
 
 		$v0 = $_SERVER["REMOTE_ADDR"];
 		$v1 = strval($_GET["up"]);		// uptime
 		$v2 = strval($_GET["h2"]);		// ram_free
 		$v3 = strval($_GET["load"]);		// load
 		$v4 = strval($_GET["version"]);		// kalua-version
+		$r4 = strval($_GET["r4"]);		// wifi-clients
+		$r5 = strval($_GET["r5"]);		// wired-clients
 
-		file_put_contents("recent/".$mac.".changes", "UP=".$v1.";LOAD=".$v3.";h2=".$v2.";VERSION=".$v4.";PUBIP_REAL=".$v0.";");
+		file_put_contents("recent/".$mac.".changes", "UP=".$v1.";LOAD=".$v3.";h2=".$v2.";VERSION=".$v4.";r4=".$r4.";r5=".$r5.";PUBIP_REAL=".$v0.";");
 		print("REFRESHED");
 
 	} else {
@@ -102,7 +106,8 @@ $r0 = strval($_GET["r0"]);			// rssi wlan0
 $r1 = strval($_GET["r1"]);			// rssi wlan1
 $r2 = strval($_GET["r2"]);			// rssi wlan2
 $r3 = strval($_GET["r3"]);			// rssi wlan3
-$r4 = strval($_GET["r4"]);			// clients_sum
+$r4 = strval($_GET["r4"]);			// wifi_clients_sum
+$r5 = strval($_GET["r5"]);			// wired_clients_sum
 
 $h0 = strval($_GET["h0"]);			// simple_meshnode = 1
 $h1 = strval($_GET["h1"]);			// ram_size
@@ -172,7 +177,7 @@ $pfilter = strval($_GET["pfilter"]);
 $olsrrestartcount = strval($_GET["olsrrestartcount"]);
 $olsrrestarttime = strval($_GET["olsrrestarttime"]);
 
-$script = "./meshrdf_accept.sh 1>/dev/null 2>/dev/null 'D0=\"".$D0."\";e0=\"".$e0."\";e1=\"".$e1."\";k0=\"".$k0."\";k1=\"".$k1."\";k2=\"".$k2."\";k3=\"".$k3."\";u0=\"".$u0."\";w0=\"".$w0."\";w1=\"".$w1."\";w2=\"".$w2."\";w3=\"".$w3."\";t0=\"".$t0."\";t1=\"".$t1."\";t2=\"".$t2."\";t3=\"".$t3."\";d0=\"".$d0."\";n0=\"".$n0."\";d1=\"".$d1."\";i0=\"".$i0."\";i1=\"".$i1."\";i2=\"".$i2."\";i3=\"".$i3."\";i4=\"".$i4."\";i6=\"".$i6."\";i5=\"".$i5."\";r0=\"".$r0."\";r1=\"".$r1."\";r2=\"".$r2."\";r3=\"".$r3."\";r4=\"".$r4."\";h0=\"".$h0."\";h1=\"".$h1."\";h2=\"".$h2."\";h3=\"".$h3."\";h4=\"".$h4."\";h5=\"".$h5."\";h6=\"".$h6."\";h7=\"".$h7."\";s2=\"".$s2."\";s1=\"".$s1."\";v1=\"".$v1."\";v2=\"".$v2."\";NODE=\"".$node."\";UP=\"".$up."\";VERSION=\"".$version."\";HOSTNAME=\"".$hostname."\";WIFIMAC=\"".$mac."\";REBOOT=\"".$reboot."\";CITY=\"".$city."\";UPDATE=\"".$update."\";NEIGH=\"".$neigh."\";LATLON=\"".$latlon."\";GWNODE=\"".$gwnode."\";TXPWR=\"".$txpwr."\";WIFIMODE=\"".$wifimode."\";CHANNEL=\"".$channel."\";COST2GW=\"".$etx2gw."\";HOP2GW=\"".$hop2gw."\";USERS=\"".$users."\";MRATE=\"".$mrate."\";LOAD=\"".$load."\";HW=\"".$hw."\";UNIXTIME=\"".$unixtime."\";HUMANTIME=\"".$humantime."\";FORWARDED=\"".$forwarded."\";SERVICES=\"".$services."\";PUBIP_REAL=\"".$remoteaddr."\";PUBIP_SIMU=\"".$pubip."\";MAIL=\"".$mail."\";PHONE=\"".$phone."\";SSHPUBKEYFP=\"".$pubkey."\";FRAG=\"".$frag."\";RTS=\"".$rts."\";GMODEPROT=\"".$gmodeprot."\";GW=\"".$gw."\";PROFILE=\"".$profile."\";NOISE=\"".$noise."\";RSSI=\"".$rssi."\";GMODE=\"".$gmode."\";ESSID='\''".$essid."'\'';BSSID=\"".$bssid."\";WIFIDRV=\"".$wifidrv."\";LOG=\"".$log."\";OLSRVER=\"".$olsrver."\";OPTIMIZENLQ=\"".$optimizenlq."\";OPTIMIZENEIGH=\"".$optimizeneigh."\";PORTFW=\"".$portfw."\";PFILTER=\"".$pfilter."\";WIFISCAN=\"".$wifiscan."\";OLSRRESTARTTIME=\"".$olsrrestarttime."\";OLSRRESTARTCOUNT=\"".$olsrrestartcount."\";SENS=\"".$sens."\"' || logger $0 error $? during meshrdf_accept.sh in $( pwd )";
+$script = "./meshrdf_accept.sh 1>/dev/null 2>/dev/null 'D0=\"".$D0."\";e0=\"".$e0."\";e1=\"".$e1."\";k0=\"".$k0."\";k1=\"".$k1."\";k2=\"".$k2."\";k3=\"".$k3."\";u0=\"".$u0."\";w0=\"".$w0."\";w1=\"".$w1."\";w2=\"".$w2."\";w3=\"".$w3."\";t0=\"".$t0."\";t1=\"".$t1."\";t2=\"".$t2."\";t3=\"".$t3."\";d0=\"".$d0."\";n0=\"".$n0."\";d1=\"".$d1."\";i0=\"".$i0."\";i1=\"".$i1."\";i2=\"".$i2."\";i3=\"".$i3."\";i4=\"".$i4."\";i6=\"".$i6."\";i5=\"".$i5."\";r0=\"".$r0."\";r1=\"".$r1."\";r2=\"".$r2."\";r3=\"".$r3."\";r4=\"".$r4."\";r5=\"".$r5."\";h0=\"".$h0."\";h1=\"".$h1."\";h2=\"".$h2."\";h3=\"".$h3."\";h4=\"".$h4."\";h5=\"".$h5."\";h6=\"".$h6."\";h7=\"".$h7."\";s2=\"".$s2."\";s1=\"".$s1."\";v1=\"".$v1."\";v2=\"".$v2."\";NODE=\"".$node."\";UP=\"".$up."\";VERSION=\"".$version."\";HOSTNAME=\"".$hostname."\";WIFIMAC=\"".$mac."\";REBOOT=\"".$reboot."\";CITY=\"".$city."\";UPDATE=\"".$update."\";NEIGH=\"".$neigh."\";LATLON=\"".$latlon."\";GWNODE=\"".$gwnode."\";TXPWR=\"".$txpwr."\";WIFIMODE=\"".$wifimode."\";CHANNEL=\"".$channel."\";COST2GW=\"".$etx2gw."\";HOP2GW=\"".$hop2gw."\";USERS=\"".$users."\";MRATE=\"".$mrate."\";LOAD=\"".$load."\";HW=\"".$hw."\";UNIXTIME=\"".$unixtime."\";HUMANTIME=\"".$humantime."\";FORWARDED=\"".$forwarded."\";SERVICES=\"".$services."\";PUBIP_REAL=\"".$remoteaddr."\";PUBIP_SIMU=\"".$pubip."\";MAIL=\"".$mail."\";PHONE=\"".$phone."\";SSHPUBKEYFP=\"".$pubkey."\";FRAG=\"".$frag."\";RTS=\"".$rts."\";GMODEPROT=\"".$gmodeprot."\";GW=\"".$gw."\";PROFILE=\"".$profile."\";NOISE=\"".$noise."\";RSSI=\"".$rssi."\";GMODE=\"".$gmode."\";ESSID='\''".$essid."'\'';BSSID=\"".$bssid."\";WIFIDRV=\"".$wifidrv."\";LOG=\"".$log."\";OLSRVER=\"".$olsrver."\";OPTIMIZENLQ=\"".$optimizenlq."\";OPTIMIZENEIGH=\"".$optimizeneigh."\";PORTFW=\"".$portfw."\";PFILTER=\"".$pfilter."\";WIFISCAN=\"".$wifiscan."\";OLSRRESTARTTIME=\"".$olsrrestarttime."\";OLSRRESTARTCOUNT=\"".$olsrrestartcount."\";SENS=\"".$sens."\"' || logger $0 error $? during meshrdf_accept.sh in $( pwd )";
 
 system($script);
 print "OK";
