@@ -28,10 +28,10 @@ mac2ipv4()	# TODO: better name
 			*'.'*)
 				case "$ip" in
 					"192.168.${NODENUMBER_ROAMING}."*)
-						log "[OK] no action for $mac/$ip needed: our own HNA4-range"
+						log "$funcname($i) OK: no action for $mac/$ip needed: our own HNA4-range"
 					;;
 					*)
-						log "$funcname() setting host route for alien $ip"
+						log "$funcname($i) setting host route for alien $ip"
 						ip route add "$ip/32" dev $dev && {
 							echo "ip route del $ip/32 dev $dev && rm $file" >"$file"
 						}
@@ -56,20 +56,22 @@ worker()
 	local wifidev="$1"	# e.g. 'wlan0-1'
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
-	local ip txt
-
-	txt="worker() WIFIDEV: $wifidev MODE: $mode MAC: $mac"
-	log "$txt"
+	local ip
+	local txt="worker() WIFIDEV: $wifidev MODE: $mode MAC: $mac"
 
 	case "$mode" in
 		'new')
+			log "$txt"
 			txt="$txt - ip: '$( mac2ipv4 "$mac" "$wifidev" )'"
 			log "$txt"
 		;;
 		'del')
-			[ -e "/tmp/ROAMING_remove_host_route_$mac" ] && {
+			if [ -e "/tmp/ROAMING_remove_host_route_$mac" ]; then
+				log "$txt - alien: deleting route"
 				. "/tmp/ROAMING_remove_host_route_$mac"
-			}
+			else
+				log "$txt - native (no route del)"
+			fi
 		;;
 	esac
 }
@@ -100,7 +102,7 @@ active_ap_devices()
 				esac
 			;;
 			'regulatory domain change: set to '*)
-				# e.g. iw reg set US
+				# e.g. iw reg set 00; iw reg set US
 				# TODO: find better method
 				log "stopped by user via regset"
 				break
