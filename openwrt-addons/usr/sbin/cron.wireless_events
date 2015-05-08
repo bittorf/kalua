@@ -82,30 +82,31 @@ active_ap_devices()
 	grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read dev; do echo -n " $dev "; done
 }
 
-[ -n "$INCLUDE" ] && return 1
-[ -z "$( _wifi get any mode ap )" ] && return 1
+[ -z "$INCLUDE" ] && {
+	[ -z "$( _wifi get any mode ap )" ] && return 1
 
-log "start listening on '$( active_ap_devices )'"
+	log "start listening on '$( active_ap_devices )'"
 
-iw event | while read LINE; do {
-	case "$LINE" in
-		*': del station '*|*': new station '*)
-			# wlan0-1: del station 00:21:6a:32:7c:1c
-			# wlan0: new station dc:9f:db:02:b8:ee
-			case "$( active_ap_devices )" in
-				*" ${LINE%: *} "*)
-					set -- $LINE
-					worker "${1%:*}" "$2" "$4"
-				;;
-			esac
-		;;
-		'regulatory domain change: set to '*)
-			# e.g. iw reg set US
-			# TODO: find better method
-			log "stopped by user via regset"
-			break
-		;;
-	esac
-} done
+	iw event | while read LINE; do {
+		case "$LINE" in
+			*': del station '*|*': new station '*)
+				# wlan0-1: del station 00:21:6a:32:7c:1c
+				# wlan0: new station dc:9f:db:02:b8:ee
+				case "$( active_ap_devices )" in
+					*" ${LINE%: *} "*)
+						set -- $LINE
+						worker "${1%:*}" "$2" "$4"
+					;;
+				esac
+			;;
+			'regulatory domain change: set to '*)
+				# e.g. iw reg set US
+				# TODO: find better method
+				log "stopped by user via regset"
+				break
+			;;
+		esac
+	} done
 
-_log do iwevent daemon alert "unexspected event loop exit, rc: $?"
+	_log do iwevent daemon alert "unexspected event loop exit, rc: $?"
+}
