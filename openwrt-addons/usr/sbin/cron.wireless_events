@@ -1,6 +1,12 @@
 #!/bin/sh
 . /tmp/loader
 
+log()
+{
+	echo "$(date) $1" >>'/tmp/IWLOG'
+	_log do iwevent daemon info "$1"
+}
+
 mac2ipv4()	# rename
 {
 	local funcname='mac2ipv4'
@@ -22,7 +28,7 @@ mac2ipv4()	# rename
 						# no action needed: our own HNA4-range
 					;;
 					*)
-						_log do $funcname daemon info "setting host route for alien $ip"
+						log "$funcname() setting host route for alien $ip"
 						ip route add "$ip/32" dev $dev && {
 							echo "ip route del $ip/32 dev $dev && rm $file" >"$file"
 						}
@@ -46,18 +52,15 @@ worker()
 	local wifidev="$1"	# e.g. 'wlan0-1'
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
-	local file='/tmp/IWLOG'
 	local ip txt
 
-	txt="$(date) WIFIDEV: $wifidev MODE: $mode MAC: $mac"
-	echo "$txt" >>"$file"
-	logger -s "$txt"
+	txt="worker() WIFIDEV: $wifidev MODE: $mode MAC: $mac"
+	log "$txt"
 
 	case "$mode" in
 		'new')
-			txt="$txt - $( mac2ipv4 "$mac" )"
-			echo "$txt" >>"$file"
-			logger -s "$txt"
+			txt="$txt - ip: '$( mac2ipv4 "$mac" )'"
+			log "$txt"
 		;;
 		'del')
 			[ -e "/tmp/ROAMING_remove_host_route_$mac" ] && {
@@ -92,7 +95,7 @@ iw event | while read LINE; do {
 		'regulatory domain change: set to '*)
 			# e.g. iw reg set US
 			# TODO: find better method
-			_log do iwevent daemon info "stopped by user via regset"
+			log "stopped by user via regset"
 			break
 		;;
 	esac
