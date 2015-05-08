@@ -1531,14 +1531,14 @@ _olsr_neighs_meshrdf_evalable ()		# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COS
 	} done <"$FILE"
 }
 
-_olsr_neighs_humanreadable ()			# fixme! ToDo: latitude/longitude/distance + speed
+_olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 {
 	local FILE="/tmp/OLSR/LINKS.sh"
-	local GATEWAY_IP="$( ip route list exact 0.0.0.0/0 | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )"	# fixme! more abstraction, works
+	local GATEWAY_IP="$( ip route list exact 0.0.0.0/0 | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )" # FIXME! more abstraction, works
 	local CONFIG_FILE
 	local minstrel minstrel_stats file value txrate txthroughput
 
-	[ "$( uci get wireless.radio0.type )" = "mac80211" ] && {
+	[ "$( uci -q get wireless.radio0.type )" = "mac80211" ] && {
 		[ -d "/sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations" ] && {
 			minstrel="true"
 		}
@@ -1620,35 +1620,38 @@ _olsr_neighs_humanreadable ()			# fixme! ToDo: latitude/longitude/distance + spe
 
 	} done <"$FILE"
 
-	local hna4 route local_ip remote_ip olsr_ignore my_hna4
-	my_hna4="$( _ipsystem getvar OLSR_HNA )"
+	local hna4 route local_ip remote_ip olsr_ignore
 	olsr_ignore="$( uci -q get firewall.@ignoreolsr[0].ip )"
 	[ -n "$olsr_ignore" ] && echo "ignored stations: $olsr_ignore"
 
 	for hna4 in $( _olsr show_hna4_slaves ); do {
-		case "$hna4" in
-			"192.168.$NODENUMBER_ROAMING.0/24"|"$my_hna4"|'0.0.0.0/0')
-			;;
-			*)
-				route="$( ip -o route get $hna4 )"
-				local_ip="$( echo "$route" | cut -d' ' -f8 )"
-				remote_ip="$( echo "$route" | cut -d' ' -f3 )"
+		route="$( ip -o route get $hna4 )"
+		local_ip="$( echo "$route" | cut -d' ' -f8 )"
+		remote_ip="$( echo "$route" | cut -d' ' -f3 )"
 
-				COUNT=$(( ${COUNT:-0} + 1 ))
-				echo "$COUNT:  $local_ip --1-- $remote_ip (HNA-slave $hna4)"
-			;;
-		esac
+		COUNT=$(( ${COUNT:-0} + 1 ))
+		echo "$COUNT:  $local_ip --1-- $remote_ip (HNA-slave $hna4)"
 	} done
 }
 
 _olsr_show_hna4_slaves()
 {
-	local netaddr mask
+	local netaddr mask hna4
+	local my_hna4="$( _ipsystem getvar OLSR_HNA )"
 	local i=0
 
 	while netaddr="$( uci -q get olsrd.@Hna4[$i].netaddr )"; do {
 		mask="$( uci -q get olsrd.@Hna4[$i].netmask )"
-		echo "$netaddr/$( _net mask2cidr "$mask" )"
+		hna4="$netaddr/$( _net mask2cidr "$mask" )"
+
+		case "$hna4" in
+			"192.168.$NODENUMBER_ROAMING.0/24"|"$my_hna4"|'0.0.0.0/0')
+			;;
+			*)
+				echo "$hna4"
+			;;
+		esac
+
 		i=$(( i + 1 ))
 	} done
 }
