@@ -7,17 +7,19 @@ log()
 	_log do iwevent daemon info "$1"
 }
 
-mac2ipv4()	# rename
+mac2ipv4()	# TODO: better name
 {
 	local funcname='mac2ipv4'
 	local mac="$1"
 	local dev='br-mastergate'
 	local file="/tmp/ROAMING_remove_host_route_$mac"
-	local i=5
+	local i=8
 	local ip
 
 	while let i-=1; do {
 		# ignore IPv6 and show IPv4
+		# fe80::221:6aff:fe32:7c1c dev wlan1-1 lladdr 00:21:6a:32:7c:1c STALE
+		# 192.168.158.61 dev br-mastergate lladdr 00:21:6a:32:7c:1c REACHABLE
 		set -- $( ip neigh show dev "$dev" | fgrep "$mac" | grep -v '::' )
 		ip="$1"
 
@@ -44,7 +46,8 @@ mac2ipv4()	# rename
 		esac
 	} done
 
-	# FIXME! set route later via scheduler
+	log "$funcname() failed to get mac - scheduling"
+	echo >>$SCHEDULER_IMPORTANT "INCLUDE=1 . /usr/sbin/cron.wireless_events; mac2ipv4 $mac"
 }
 
 worker()
@@ -78,7 +81,8 @@ active_ap_devices()
 	grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read dev; do echo -n " $dev "; done
 }
 
-[ -z "$( _wifi get any mode ap )" ] && exit 1
+[ -n "$INCLUDE" ] && return 1
+[ -z "$( _wifi get any mode ap )" ] && return 1
 
 iw event | while read LINE; do {
 	case "$LINE" in
