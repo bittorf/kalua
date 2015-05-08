@@ -11,6 +11,7 @@ mac2ipv4()	# TODO: better name
 {
 	local funcname='mac2ipv4'
 	local mac="$1"
+	local wifidev="$2"
 	local dev='br-mastergate'
 	local file="/tmp/ROAMING_remove_host_route_$mac"
 	local i=15
@@ -27,7 +28,7 @@ mac2ipv4()	# TODO: better name
 			*'.'*)
 				case "$ip" in
 					"192.168.${NODENUMBER_ROAMING}."*)
-						# no action needed: our own HNA4-range
+						log "[OK] no action for $mac/$ip needed: our own HNA4-range"
 					;;
 					*)
 						log "$funcname() setting host route for alien $ip"
@@ -47,7 +48,7 @@ mac2ipv4()	# TODO: better name
 	} done
 
 	log "$funcname() failed to get IP for $mac - scheduling"
-	echo >>$SCHEDULER_IMPORTANT "INCLUDE=1 . /usr/sbin/cron.wireless_events; mac2ipv4 $mac"
+	echo >>$SCHEDULER_IMPORTANT "INCLUDE=1 . /usr/sbin/cron.wireless_events; worker $wifidev new $mac"
 }
 
 worker()
@@ -62,7 +63,7 @@ worker()
 
 	case "$mode" in
 		'new')
-			txt="$txt - ip: '$( mac2ipv4 "$mac" )'"
+			txt="$txt - ip: '$( mac2ipv4 "$mac" "$wifidev" )'"
 			log "$txt"
 		;;
 		'del')
