@@ -268,6 +268,7 @@ Special UCI-variables
 	olsrd.@meta[0].reboot_weak_ethernet	- bool
 	olsrd.@meta[0].watch_value		- integer
 	olsrd.@meta[0].watch_ip			- ipaddr
+	olsrd.@meta[0].allow_no_neigh		- bool
 
 	firewall.@adblock[0].enabled		- bool
 	firewall.@ignoreolsr[0].ip		- IP
