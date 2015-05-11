@@ -385,14 +385,18 @@ _db_restore()
 				# force new index
 				_db generate_grepable_index
 			else
-				_log do $funcname daemon alert "[ERR] untar of '$file' went wrong - rescheduling"
-				touch '/tmp/FREE'
+				bool_true 'system.@weblogin[0].respect_missing_db' || touch '/tmp/FREE'
 
-				# dont try again after some tries
-				[ $( _system uptime min ) -lt 60 ] && {
+				if _watch counter "/tmp/$funcname" increment 1 max 10 ; then
+					_log do $funcname daemon alert "[ERR] untar of '$file' went wrong - rescheduling"
 					echo >>$SCHEDULER 'rm /tmp/FREE'
 					echo >>$SCHEDULER '_db restore'
-				}
+				else
+					# TODO: sms_once
+					mkdir "/tmp/${funcname}_smssend" && {
+						_log do $funcname daemon sms "[ERR] untar of '$file' went wrong - giving up"
+					}
+				fi
 			fi
 		fi
 	else
