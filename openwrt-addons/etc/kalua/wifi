@@ -623,7 +623,16 @@ _wifi_speed()
 		fi
 	}
 
-	_net ip4_is_private "$nexthop" || return 1
+	# refuse to test neighbours which are not mesh
+	if _net ip4_is_private "$nexthop" ; then
+		# ignore private over WAN, e.g. fritzbox
+		_net local_inet_offer >/dev/null && {
+			[ -n "$( ip route list exact '0.0.0.0/0' via "$nexthop" )" ] && return 1
+		}
+	else
+		# dont test public IP
+		return 1
+	fi
 
 	get_speed()
 	{
