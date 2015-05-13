@@ -51,11 +51,13 @@ print_usage_and_exit()
 
 	if [ -e 'build.sh' ]; then
 		cat <<EOF
+
 Usage: sh $0 --openwrt trunk
        (this will download/checkout a recent OpenWrt)
 EOF
 	else
 		cat <<EOF
+
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
        $0 --debug --${KALUA_DIRNAME}_package
 
@@ -84,19 +86,26 @@ EOF
 build_tarball_package()
 {
 	local funcname='build_tarball_package'
+
+	[ "$KALUA_DIRNAME" = 'openwrt-build' ] && {
+		log "wrong patch, i dont want to see 'openwrt-build'"
+		return 1
+	}
+
+	local architecture='all'
 	local package_name="$KALUA_DIRNAME-framework"
 	local kalua_unixtime="$( cd kalua; git log -1 --pretty='format:%ct'; cd .. )"
 	local package_version="$(( $kalua_unixtime / 3600 ))"
-	local url='https://github.com/bittorf/kalua'		# TODO: ffweimar?
-	local architecture='all'
 	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
+
+	local url='https://github.com/bittorf/kalua'		# TODO: ffweimar?
 	local builddir="$KALUA_DIRNAME/builddir"
 	local destdir="bin/${ARCH:-$architecture}/packages"
 	local verbose="${DEBUG+v}"
 	local tar_flags="-c${verbose}zf"
 	local tar_options='--owner=root --group=root'
 
-	mkdir -p "$builddir"
+	mkdir "$builddir" || return 1
 	cd "$builddir"
 
 	echo '2.0' >'debian-binary'
@@ -115,6 +124,7 @@ EOF
 	tar $tar_options $tar_flags 'control.tar.gz' ./control
 	tar $tar_options $tar_flags 'data.tar.gz' -C ../openwrt-addons $( ls -1 ../openwrt-addons )
 	tar $tar_options $tar_flags "$file_tarball" ./debian-binary ./control.tar.gz ./data.tar.gz
+	rm 'control' 'debian-binary'
 
 	cd ..
 	cd ..
