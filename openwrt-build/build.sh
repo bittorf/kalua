@@ -1788,13 +1788,12 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_DEBUGFS is not set'
 				apply_symbol 'CONFIG_KERNEL_DEBUG_FS is not set'
 
-				apply_symbol 'CONFIG_KERNEL_PRINTK is not set'
-				apply_symbol 'CONFIG_BUSYBOX_CONFIG_DMESG is not set'
-
 				apply_symbol 'CONFIG_KERNEL_KALLSYMS is not set'
 				apply_symbol 'CONFIG_KERNEL_DEBUG_KERNEL is not set'
 				apply_symbol 'CONFIG_KERNEL_DEBUG_INFO is not set'
 				apply_symbol 'CONFIG_KERNEL_ELF_CORE is not set'
+
+				$funcname subcall 'noPrintK'
 			;;
 			'noIPv6')
 				# seems not to work with brcm47xx, but with ar71xx?! -> see 'DEFAULT's
@@ -1847,6 +1846,9 @@ EOF
 				apply_symbol 'CONFIG_PACKAGE_kmod-pppox is not set'	# needed?
 			;;
 			'noPrintK')
+				apply_symbol 'CONFIG_KERNEL_PRINTK is not set'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_DMESG is not set'
+
 				apply_symbol kernel 'CONFIG_PRINTK is not set'		# general setup: standard kernel features
 				apply_symbol kernel 'CONFIG_EARLY_PRINTK is not set'	# kernel hacking: early printk
 				apply_symbol kernel 'CONFIG_SYS_HAS_EARLY_PRINTK is not set'
