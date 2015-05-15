@@ -52,8 +52,8 @@ print_usage_and_exit()
 	if [ -e 'build.sh' ]; then
 		cat <<EOF
 
-Usage: sh $0 --openwrt trunk
-       (this will download/checkout a recent OpenWrt)
+Usage: sh $0 --openwrt
+       (this will download/checkout OpenWrt)
 EOF
 	else
 		cat <<EOF
@@ -761,7 +761,15 @@ check_working_directory()
 			rm -fR 'openwrt'
 		}
 
-		git clone 'git://nbd.name/openwrt.git'  || return $error
+		case "$VERSION_OPENWRT" in
+			'trunk')
+				git clone "git://nbd.name/openwrt.git"  || return $error
+			;;
+			*'.'*)
+				# e.g. 14.07
+				git clone "git://nbd.name/$VERSION_OPENWRT/openwrt.git"  || return $error
+			;;
+		esac
 
 		[ -d 'openwrt_download' ] && {
 			log "$funcname() symlinking our central download pool"
@@ -861,7 +869,10 @@ openwrt_revision_number_get()		# e.g. 43234
 openwrt_download()
 {
 	local funcname='openwrt_download'
-	local wish="$1"		# <empty> = 'leave_untouched' or 'r12345' or 'stable' or 'beta' or 'testing' or 'trunk'
+	local wish="$1"		# <empty> = 'leave_untouched'
+				# or 'r12345' or
+				# or 'stable' or 'beta' or 'testing'
+				# or 'trunk'
 	local hash branch
 	local old_wish="$wish"
 
@@ -2258,7 +2269,15 @@ while [ -n "$1" ]; do {
 			FAIL='true'
 		;;
 		'--openwrt')
-			VERSION_OPENWRT="$2"
+			case "$2" in
+				'trunk'|'12.09'|'14.07'|'15.05'|'r'[0-9]*)
+					VERSION_OPENWRT="$2"
+				;;
+				*)
+					log '[ERR] please specify: --openwrt trunk|12.09|14.07|15.05 or e.g. r12345'
+					STOP_PARSE='true'
+				;;
+			esac
 		;;
 		'--kernel'|'-k')
 			VERSION_KERNEL_FORCE="$2"
