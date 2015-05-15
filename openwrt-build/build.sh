@@ -729,7 +729,7 @@ check_working_directory()
 			# yum list installed 'package_name'
 
 			dpkg --list | grep -q "$package " && return 0
-			dpkg --list | grep -q "$package: "
+			dpkg --list | grep -q "$package:"	# e.g. zlib1g-dev:amd64
 		}
 
 		# fedora: build-essential = 'make automake gcc gcc-c++ kernel-devel'
@@ -747,7 +747,8 @@ check_working_directory()
 				# ii  zlib1g-dev:i386    1:1.2.7.dfsg-13    i386     compression library - development
 				log "$funcname() found package '$package' - OK" debug
 			else
-				log "$funcname() missing package '$package': please run as root: apt-get install -y --force-yes '$package'"
+				log "$funcname() missing package '$package'"
+				log "$funcname() please run: apt-get install --yes --force-yes '$package'"
 				return $error
 			fi
 		} done
