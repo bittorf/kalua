@@ -758,11 +758,11 @@ check_working_directory()
 
 		case "$VERSION_OPENWRT" in
 			'trunk')
-				git_url='git://nbd.name/openwrt.git'
+				git_url='git://git.openwrt.org/openwrt.git'
 			;;
 			*'.'*)
 				# e.g. 14.07
-				git_url="git://nbd.name/$VERSION_OPENWRT/openwrt.git"
+				git_url="git://git.openwrt.org/$VERSION_OPENWRT/openwrt.git"
 			;;
 		esac
 
