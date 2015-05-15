@@ -709,7 +709,7 @@ check_working_directory()
 	local file_feeds='feeds.conf.default'
 	local i=0
 	local do_symlinking='no'
-	local package list error repo
+	local package list error repo git_url
 
 	if [ -n "$FORCE" ]; then
 		error=0
@@ -718,8 +718,6 @@ check_working_directory()
 	fi
 
 	[ -e 'build.sh' ] && {
-		log "$funcname() first start - fetching OpenWrt-source"
-
 		is_installed()
 		{
 			local package="$1"
@@ -760,13 +758,16 @@ check_working_directory()
 
 		case "$VERSION_OPENWRT" in
 			'trunk')
-				git clone "git://nbd.name/openwrt.git"  || return $error
+				git_url='git://nbd.name/openwrt.git'
 			;;
 			*'.'*)
 				# e.g. 14.07
-				git clone "git://nbd.name/$VERSION_OPENWRT/openwrt.git"  || return $error
+				git_url="git://nbd.name/$VERSION_OPENWRT/openwrt.git"
 			;;
 		esac
+
+		log "$funcname() first start - fetching OpenWrt: git clone '$git_url'"
+		git clone "$git_url" || return $error
 
 		[ -d 'openwrt_download' ] && {
 			log "$funcname() symlinking our central download pool"
