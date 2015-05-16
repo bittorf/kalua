@@ -1389,7 +1389,7 @@ apply_symbol()
 			return 0
 		;;
 		'kernel')
-			log "not implemented yet '$kernel' -> $2"
+			log "not implemented yet '$symbol' -> $2"
 			return 0
 			# target/linux/ar71xx/config-3.10
 		;;
