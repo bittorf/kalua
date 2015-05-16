@@ -1396,7 +1396,7 @@ apply_symbol()
 		'kernel')
 			# apply_symbol kernel 'CONFIG_PRINTK is not set' -> 'CONFIG_KERNEL_PRINTK is not set'
 			log "working on kernel-symbol $2"
-			apply_symbol "$( echo "$symbol" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
+			apply_symbol "$( echo "$2" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
 			return 0
 		;;
 		'nuke_config')
