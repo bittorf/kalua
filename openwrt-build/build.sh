@@ -1394,9 +1394,10 @@ apply_symbol()
 			return 0
 		;;
 		'kernel')
-			log "not implemented yet '$symbol' -> $2"
+			# apply_symbol kernel 'CONFIG_PRINTK is not set' -> 'CONFIG_KERNEL_PRINTK is not set'
+			log "working on kernel-symbol $2"
+			apply_symbol "$( echo "$symbol" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
 			return 0
-			# target/linux/ar71xx/config-3.10
 		;;
 		'nuke_config')
 			register_patch 'init'
@@ -1794,12 +1795,12 @@ build_options_set()
 			'noDebug')
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG is not set'
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_DEBUGFS is not set'
-				apply_symbol 'CONFIG_KERNEL_DEBUG_FS is not set'
 
-				apply_symbol 'CONFIG_KERNEL_KALLSYMS is not set'
-				apply_symbol 'CONFIG_KERNEL_DEBUG_KERNEL is not set'
-				apply_symbol 'CONFIG_KERNEL_DEBUG_INFO is not set'
-				apply_symbol 'CONFIG_KERNEL_ELF_CORE is not set'
+				apply_symbol kernel 'CONFIG_DEBUG_FS is not set'
+				apply_symbol kernel 'CONFIG_KALLSYMS is not set'
+				apply_symbol kernel 'CONFIG_DEBUG_KERNEL is not set'
+				apply_symbol kernel 'CONFIG_DEBUG_INFO is not set'
+				apply_symbol kernel 'CONFIG_ELF_CORE is not set'
 
 				$funcname subcall 'noPrintK'
 			;;
@@ -1854,7 +1855,6 @@ EOF
 				apply_symbol 'CONFIG_PACKAGE_kmod-pppox is not set'	# needed?
 			;;
 			'noPrintK')
-				apply_symbol 'CONFIG_KERNEL_PRINTK is not set'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_DMESG is not set'
 
 				apply_symbol kernel 'CONFIG_PRINTK is not set'		# general setup: standard kernel features
