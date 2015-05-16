@@ -949,11 +949,8 @@ openwrt_download()
 		'switch_to_master')
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
 			if [ -n "$branch" ]; then
-				log "switching back to branch 'master'"
-				# dont show which files have changed
 				if git checkout master >/dev/null; then
-					log "deleting branch '$branch'"
-					git branch -D "$branch"
+					git branch -D "$branch" || log "[ERR] failed deleting branch '$branch'"
 				else
 					log "[ERROR] cannot switch to master, stashing"
 					git stash list
@@ -1015,12 +1012,10 @@ copy_firmware_files()
 	mkdir -p "$attic"
 	rootfs='squash'
 
-	log "kernel: '$VERSION_KERNEL'"
-	log "openwrt-version: '$VERSION_OPENWRT'"
+	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch '$ARCH'"
 	log "hardware: '$HARDWARE_MODEL'"
 	log "usecase: --usecase $LIST_OPTIONS"
 	log "usecase-hash: $( usecase_hash "$LIST_OPTIONS" )"
-	log "sysupgrade: '$FILENAME_SYSUPGRADE' in arch '$ARCH'"
 
 	# http://intercity-vpn.de/firmware/mpc85xx/images/testing/1c78c7a701714cddd092279587e719a3/TP-LINK%20TL-WDR4900%20v1.bin
 	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/usecase/$( usecase_hash "$LIST_OPTIONS" )/$HARDWARE_MODEL.bin"
