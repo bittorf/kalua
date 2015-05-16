@@ -129,7 +129,7 @@ EOF
 	cd ..
 	cd ..
 
-	log "$funcname() moving '$file_tarball' from dir '$builddir' to '$destdir'"
+	log "moving '$file_tarball' from dir '$builddir' to '$destdir'"
 	mkdir -p "$destdir"
 	mv "$builddir/$file_tarball" "$destdir"
 }
@@ -176,7 +176,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		;;
 		ar71xx)
 			config="$dir/image/Makefile"
-			log "$funcname() looking into '$config', adding '$pattern'"
+			log "looking into '$config', adding '$pattern'"
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "s/console=/$pattern &/" "$config"
@@ -272,7 +272,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 		MAC80211_CLEAN='true'
 
 		if grep -q "${option}CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
-			log "$funcname() patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
+			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
 
 			cp -v "$file" "package/kernel/mac80211/patches"
 			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
@@ -283,7 +283,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 				file_regdb_hacked='kalua/openwrt-patches/reghack/regulatory.db.txt-r40293++'
 			fi
 
-			log "$funcname() using another regdb: '$file_regdb_hacked'"
+			log "using another regdb: '$file_regdb_hacked'"
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
 
@@ -320,7 +320,7 @@ copy_additional_packages()
 
 			do_copy()
 			{
-				log "$funcname() working on '$dir', destination: '$install_section'"
+				log "working on '$dir', destination: '$install_section'"
 				cp -Rv "$dir" "package/$install_section"
 			}
 
@@ -339,7 +339,7 @@ copy_additional_packages()
 				do_copy
 			fi
 		else
-			log "$funcname() no Makefile found in '$dir' - please check"
+			log "no Makefile found in '$dir' - please check"
 			return 0
 		fi
 	} done
@@ -616,7 +616,7 @@ EOF
 					FIRSTRUN=
 				;;
 				*)
-					log "$funcname() supported models:"
+					log "supported models:"
 				;;
 			esac
 
@@ -664,7 +664,7 @@ EOF
 
 	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
 	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
-		log "$funcname() enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL'"
+		log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL'"
 		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
 		sed -i "s/^LINUX_VERSION:=.*/LINUX_VERSION:=${VERSION_KERNEL_FORCE}/" "target/linux/$ARCH/Makefile"
 	}
@@ -679,7 +679,7 @@ EOF
 		VERSION_KERNEL="$( echo "$VERSION_KERNEL" | sed 's/ = //' | sed 's/LINUX_VERSION-//' )"
 
 		[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
-			log "$funcname() enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL' for r43047+"
+			log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL' for r43047+"
 			VERSION_KERNEL="$VERSION_KERNEL_FORCE"
 			# replace in 'include/kernel-version.mk'
 			# LINUX_VERSION-3.10 = .49
@@ -693,7 +693,7 @@ EOF
 		}
 	}
 
-	log "$funcname() architecture: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
+	log "architecture: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
 
 	apply_symbol 'nuke_config'
 	apply_symbol "CONFIG_TARGET_${ARCH}=y"
@@ -733,7 +733,7 @@ check_working_directory()
 		# fedora: build-essential = 'make automake gcc gcc-c++ kernel-devel'
 		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev'
 		for package in $list; do {
-			log "$funcname() testing for '$package'" debug
+			log "testing for '$package'" debug
 
 			if is_installed "$package"; then
 				# bastian@gcc20:~$ dpkg --status zlib1g-dev
@@ -743,16 +743,16 @@ check_working_directory()
 				# bastian@gcc20:~$ dpkg -l | grep zlib1g-dev
 				# ii  zlib1g-dev:amd64   1:1.2.7.dfsg-13    amd64    compression library - development
 				# ii  zlib1g-dev:i386    1:1.2.7.dfsg-13    i386     compression library - development
-				log "$funcname() found package '$package' - OK" debug
+				log "found package '$package' - OK" debug
 			else
-				log "$funcname() missing package '$package'"
-				log "$funcname() please run: apt-get install --yes --force-yes '$package'"
+				log "missing package '$package'"
+				log "please run: apt-get install --yes --force-yes '$package'"
 				return $error
 			fi
 		} done
 
 		[ -d 'openwrt' ] && {
-			log "$funcname() first start - removing (old?) dir openwrt"
+			log "first start - removing (old?) dir openwrt"
 			rm -fR 'openwrt'
 		}
 
@@ -766,16 +766,16 @@ check_working_directory()
 			;;
 		esac
 
-		log "$funcname() first start - fetching OpenWrt: git clone '$git_url'"
+		log "first start - fetching OpenWrt: git clone '$git_url'"
 		git clone "$git_url" || return $error
 
 		[ -d 'openwrt_download' ] && {
-			log "$funcname() symlinking our central download pool"
+			log "symlinking our central download pool"
 			ln -s ../openwrt_download 'openwrt/dl'
 		}
 
 		[ -d 'packages' ] && {
-			log "$funcname() first start - removing (old?) dir packages"
+			log "first start - removing (old?) dir packages"
 			rm -fR 'packages'
 		}
 
@@ -787,8 +787,8 @@ check_working_directory()
 		git clone "$repo" || return $error
 		KALUA_DIRNAME="$( basename $repo | cut -d'.' -f1 )"
 
-		log "$funcname() please run again, after doing 'cd openwrt' with"
-		log "$funcname() e.g.: $KALUA_DIRNAME/openwrt-build/build.sh --help"
+		log "please run again, after doing 'cd openwrt' with"
+		log "e.g.: $KALUA_DIRNAME/openwrt-build/build.sh --help"
 
 		exit $error
 	}
@@ -797,19 +797,19 @@ check_working_directory()
 	mkdir -p 'files'
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
-		log "$funcname() addfeed 'oonfapi'" debug
+		log "addfeed 'oonfapi'" debug
 		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
 		do_symlinking='true'
 	}
 
 	fgrep -q ' olsrd2 '  "$file_feeds" || {
-		log "$funcname() addfeed 'olsrd2'" debug
+		log "addfeed 'olsrd2'" debug
 		echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'
 		do_symlinking='true'
 	}
 
 	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
-		log "$funcname() enable feed 'oldpackages'" debug
+		log "enable feed 'oldpackages'" debug
 		sed -i '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
 
 		# https://forum.openwrt.org/viewtopic.php?id=52219
@@ -818,36 +818,36 @@ check_working_directory()
 
 	[ -d 'package/feeds' ] || {
 		# seems, everything is really untouched
-		log "$funcname() missing 'package/symlinks', getting feeds"
+		log "missing 'package/symlinks', getting feeds"
 		make defconfig
 		do_symlinking='true'
 	}
 
 	[ "$do_symlinking" = 'true' ] && {
-		log "$funcname() enforce/updating symlinking of packages"
+		log "enforce/updating symlinking of packages"
 		make package/symlinks
 	}
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
-			log "$funcname() the last commit MUST include '$pattern', seems you have private"
-			log "$funcname() commits - please rollback several times via: git reset --soft HEAD^"
+			log "the last commit MUST include '$pattern', seems you have private"
+			log "commits - please rollback several times via: git reset --soft HEAD^"
 
 			while ! git log -$i | grep -q "$pattern"; do {
 				i=$(( $i + 1 ))
 			} done
 
-			log "$funcname() or just do: git reset --soft HEAD~$i"
-			log "$funcname() you can switch back via: git reflog; git reset \$hash"
+			log "or just do: git reset --soft HEAD~$i"
+			log "you can switch back via: git reflog; git reset \$hash"
 		else
-			log "$funcname() please make sure, that you are in OpenWrt's git-root"
+			log "please make sure, that you are in OpenWrt's git-root"
 		fi
 
 		return $error
 	}
 
 	ls -d "$KALUA_DIRNAME" >/dev/null || {
-		log "$funcname() please make sure, that directory '$KALUA_DIRNAME' exists"
+		log "please make sure, that directory '$KALUA_DIRNAME' exists"
 		return $error
 	}
 }
@@ -874,7 +874,7 @@ openwrt_download()
 	local hash branch
 	local old_wish="$wish"
 
-	log "$funcname() apply '$wish'"
+	log "apply '$wish'"
 
 	case "$wish" in
 		'')
@@ -892,7 +892,7 @@ openwrt_download()
 		;;
 	esac
 
-	[ "$old_wish" = "$wish" ] || log "$funcname() apply '$wish' (sanitized)"
+	[ "$old_wish" = "$wish" ] || log "apply '$wish' (sanitized)"
 
 	case "$wish" in
 		'leave_untouched')
@@ -905,7 +905,7 @@ openwrt_download()
 			git pull
 			scripts/feeds update
 
-			log "$funcname() checkout local copy of trunk/$VERSION_OPENWRT"
+			log "checkout local copy of trunk/$VERSION_OPENWRT"
 			$funcname "$VERSION_OPENWRT"
 		;;
 		'r'*)
@@ -917,26 +917,26 @@ openwrt_download()
 			hash="$( git log --format=%h --grep="@$hash " )"	# 12345 -> fe53cab (number -> hash)
 
 			[ -z "$hash" ] && {
-				log "$funcname() [ERROR] - unable to find $wish"
+				log "[ERROR] - unable to find $wish"
 				# can happen if 'rXXXXX' is in packages/feeds, just use newest:
 				hash="$( git log -1 --format=%h )"
 			}
 
 			git branch | grep -q ^"  openwrt@${hash}=${wish}"$ && {
-				log "$funcname() removing old? branch 'openwrt@${hash}=${wish}'"
+				log "removing old? branch 'openwrt@${hash}=${wish}'"
 				git branch -D "openwrt@${hash}=${wish}" || {
-					log "$funcname() removing failed, will 'stash' and try again"
+					log "removing failed, will 'stash' and try again"
 					git stash
 					git branch -D "openwrt@${hash}=${wish}"
 				}
 			}
 
 			git checkout -b "openwrt@${hash}=${wish}" "$hash" || {
-				log "$funcname() checkout failed, trying to stash"
-				git stash save "$funcname() going to checkout ${hash}=${wish}"
+				log "checkout failed, trying to stash"
+				git stash save "going to checkout ${hash}=${wish}"
 
 				git checkout -b "openwrt@${hash}=${wish}" "$hash" || {
-					log "$funcname() checkout still failing, abort - see stash:" || {
+					log "checkout still failing, abort - see stash:" || {
 						git stash list
 						return 1
 					}
@@ -949,40 +949,40 @@ openwrt_download()
 		'switch_to_master')
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
 			if [ -n "$branch" ]; then
-				log "$funcname() switching back to branch 'master'"
+				log "switching back to branch 'master'"
 				# dont show which files have changed
 				if git checkout master >/dev/null; then
-					log "$funcname() deleting branch '$branch'"
+					log "deleting branch '$branch'"
 					git branch -D "$branch"
 				else
-					log "$funcname() [ERROR] cannot switch to master, stashing"
+					log "[ERROR] cannot switch to master, stashing"
 					git stash list
 
-					git stash save "$funcname() going to checkout master"
+					git stash save "going to checkout master"
 
 					if git checkout master >/dev/null; then
-						log "$funcname() leaving branch '$branch'"
+						log "leaving branch '$branch'"
 					else
-						log "$funcname() [ERROR] cannot switch to master"
+						log "[ERROR] cannot switch to master"
 						return 1
 					fi
 				fi
 			else
-				log "$funcname() already at branch 'master" debug
+				log "already at branch 'master" debug
 			fi
 
 			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
 			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 
 			[ -n "$( git stash list | grep -v '() going to checkout ' )" ] && {
-				log "$funcname() found openwrt-stash, ignore via press 'q'"
-				log "$funcname() or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git stash clear'"
+				log "found openwrt-stash, ignore via press 'q'"
+				log "or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git stash clear'"
 
 				git stash list
 			}
 		;;
 		*)
-			log "$funcname() unknown option '$wish'"
+			log "unknown option '$wish'"
 
 			return 1
 		;;
@@ -1073,17 +1073,16 @@ copy_firmware_files()
 		file="bin/$ARCH/$FILENAME_SYSUPGRADE"
 	fi
 
-	if ls -l "$file"; then
+	if [ -e "$file" ]; then
 		cp -v "$file" "$attic/$destination"
 	else
 		error=1
 	fi
 
-	log
 	log "sysupgrade: '$FILENAME_SYSUPGRADE'"
 	log "factory:    '$FILENAME_FACTORY'"
 
-	if ls -l "bin/$ARCH/$FILENAME_FACTORY"; then
+	if [ -e "bin/$ARCH/$FILENAME_FACTORY" ]; then
 		:
 	else
 		error=1
@@ -1157,39 +1156,39 @@ build()
 
 	case "$option" in
 		'nuke_bindir')
-			log "$funcname() $option: removing unneeded firmware/packages, but leaving 'attic'-dir"
+			log "$option: removing unneeded firmware/packages, but leaving 'attic'-dir"
 			rm     "bin/$ARCH/"*	    2>/dev/null
 			rm -fR "bin/$ARCH/packages" 2>/dev/null
 		;;
 		'defconfig')
-			log "$funcname() running 'make defconfig'" debug
+			log "running 'make defconfig'" debug
 
 			make $verbose defconfig >/dev/null || make defconfig
 		;;
 		*)
 			[ -n "$MAC80211_CLEAN" ] && {
-				log "$funcname() running 'make package/kernel/mac80211/clean'"
+				log "running 'make package/kernel/mac80211/clean'"
 				make package/kernel/mac80211/clean
 			}
 
-			log "$funcname() running 'make $commandline'"
+			log "running 'make $commandline'"
 			read t1 rest </proc/uptime
 
 			if make $verbose $commandline ; then
 				read t2 rest </proc/uptime
 				BUILD_DURATION="$( calc_time_diff "$t1" "$t2" )"
-				log "$funcname() running 'make $commandline' lasts $BUILD_DURATION sec"
+				log "running 'make $commandline' lasts $BUILD_DURATION sec"
 
 				if [ "$FAIL" = 'true' ]; then
-					log "$funcname() keeping state, so you can make changes and build again"
+					log "keeping state, so you can make changes and build again"
 					return 1
 				else
 					return 0
 				fi
 			else
-				log "$funcname() [ERROR] during make: check directory logs/ with"
-				log "$funcname() find logs -type f -exec stat -c '%y %N' {} \; | sort -n"
-				log "$funcname() first build unparallel with 'make -j1 BUILD_LOG=1'"
+				log "[ERROR] during make: check directory logs/ with"
+				log "find logs -type f -exec stat -c '%y %N' {} \; | sort -n"
+				log "first build unparallel with 'make -j1 BUILD_LOG=1'"
 				return 1
 			fi
 		;;
@@ -1209,7 +1208,7 @@ apply_symbol()
 
 	case "$symbol" in
 		"$KALUA_DIRNAME"*)
-			log "$funcname() $KALUA_DIRNAME: getting files"
+			log "$KALUA_DIRNAME: getting files"
 
 			# is a short hash, e.g. 'ed0e11ci', this is enough:
 			# http://lkml.indiana.edu/hypermail/linux/kernel/1309.3/04147.html
@@ -1252,34 +1251,34 @@ apply_symbol()
 #				}
 #			} done
 
-			log "$funcname() $KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
+			log "$KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cp -R $KALUA_DIRNAME/openwrt-addons/* "$custom_dir"
 
-			log "$funcname() $KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
+			log "$KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
 
-			log "$funcname() $KALUA_DIRNAME: adding initial rc.local"
+			log "$KALUA_DIRNAME: adding initial rc.local"
 			echo  >'package/base-files/files/etc/rc.local' '#!/bin/sh'
 			echo >>'package/base-files/files/etc/rc.local' "[ -e '/tmp/loader' ] || /etc/init.d/cron.user boot"
 			echo >>'package/base-files/files/etc/rc.local' 'exit 0'
 
-			log "$funcname() $KALUA_DIRNAME: adding version-information = '$last_commit_date'"
+			log "$KALUA_DIRNAME: adding version-information = '$last_commit_date'"
 			echo  >'files/etc/variables_fff+' "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
 			echo >>'files/etc/variables_fff+' "FFF_VERSION=2.0.0			# OpenWrt based / unused"
 
-			log "$funcname() $KALUA_DIRNAME: adding hardware-model to 'files/etc/HARDWARE'"
+			log "$KALUA_DIRNAME: adding hardware-model to 'files/etc/HARDWARE'"
 			echo >'files/etc/HARDWARE' "$HARDWARE_MODEL"
 
-			log "$funcname() $KALUA_DIRNAME: tweaking kernel commandline"
+			log "$KALUA_DIRNAME: tweaking kernel commandline"
 			kernel_commandline_tweak
 
 			case "$LIST_USER_OPTIONS" in
 				*'noReghack'*)
-					log "$funcname() $KALUA_DIRNAME: disable Reghack"
+					log "$KALUA_DIRNAME: disable Reghack"
 					apply_wifi_reghack 'disable'
 				;;
 				*)
-					log "$funcname() $KALUA_DIRNAME: apply_wifi_reghack"
+					log "$KALUA_DIRNAME: apply_wifi_reghack"
 					apply_wifi_reghack
 				;;
 			esac
@@ -1299,31 +1298,31 @@ apply_symbol()
 			# no-delete-null-pointer-checks:
 			# http://www.chromium.org/chromium-os/chromiumos-design-docs/system-hardening
 			#
-#			log "$funcname() $KALUA_DIRNAME: compiler tweaks"
+#			log "$KALUA_DIRNAME: compiler tweaks"
 #			apply_symbol 'CONFIG_DEVEL=y'		# 'Advanced configuration options'
 #			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-protector -fstack-protector-all -fno-delete-null-pointer-checks"'
 
 			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
-			log "$funcname() $KALUA_DIRNAME: adding recent tarball hash from '$url'"
+			log "$KALUA_DIRNAME: adding recent tarball hash from '$url'"
 			tarball_hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
 			if [ -z "$tarball_hash" ]; then
-				log "$funcname() cannot fetch tarball hash, be prepared that node will automatically update upon first boot"
+				log "cannot fetch tarball hash, be prepared that node will automatically update upon first boot"
 			else
 				echo >'files/etc/tarball_last_applied_hash' "$tarball_hash"
 			fi
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
-				log "$funcname() $KALUA_DIRNAME: using custom '/tmp/apply_profile.code.definitions'"
+				log "$KALUA_DIRNAME: using custom '/tmp/apply_profile.code.definitions'"
 				cp '/tmp/apply_profile.code.definitions' "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 			else
 				[ -e "$custom_dir/etc/init.d/apply_profile.code.definitions.private" ] && rm "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
-				log "$funcname() $KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
+				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
 			fi
 
 			for basedir in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
 				find $basedir | while read file; do {
 					if [ -d "$file" ]; then
-						log "$funcname() $KALUA_DIRNAME: adding private patchsets from '$file'"
+						log "$KALUA_DIRNAME: adding private patchsets from '$file'"
 						register_patch "DIR: $file"
 					else
 						if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
@@ -1346,11 +1345,11 @@ apply_symbol()
 								if git am --signoff <"$file"; then
 									register_patch "$file"
 								else
-									log "$funcname() [ERROR] during 'git am <$file'"
+									log "[ERROR] during 'git am <$file'"
 								fi
 							else
 								register_patch "FAILED: $file"
-								log "$funcname() $KALUA_DIRNAME: [ERROR] cannot apply: git apply --check <'$file'"
+								log "$KALUA_DIRNAME: [ERROR] cannot apply: git apply --check <'$file'"
 							fi
 						fi
 					fi
@@ -1363,7 +1362,7 @@ apply_symbol()
 				sub_profile="$(  echo "$CONFIG_PROFILE" | cut -d'.' -f2 )"
 				node="$(         echo "$CONFIG_PROFILE" | cut -d'.' -f3 )"
 
-				log "$funcname() $KALUA_DIRNAME: enforced profile: $installation - $sub_profile - $node"
+				log "$KALUA_DIRNAME: enforced profile: $installation - $sub_profile - $node"
 				sed -i "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$file"
 				sed -i "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$file"
 				sed -i "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$file"
@@ -1388,21 +1387,21 @@ apply_symbol()
 			return 0
 		;;
 		'nuke_customdir')
-			log "$funcname() emptying dir for custom files: '$custom_dir/'"
+			log "emptying dir for custom files: '$custom_dir/'"
 			rm -fR "$custom_dir"
 			mkdir  "$custom_dir"
 
 			return 0
 		;;
 		'kernel')
-			log "$funcname() not implemented yet '$kernel' -> $2"
+			log "not implemented yet '$kernel' -> $2"
 			return 0
 			# target/linux/ar71xx/config-3.10
 		;;
 		'nuke_config')
 			register_patch 'init'
 
-			log "$funcname() $symbol: starting with an empty config"
+			log "$symbol: starting with an empty config"
 			rm "$file"
 			touch "$file"
 
@@ -1419,10 +1418,10 @@ apply_symbol()
 
 	case "$symbol" in
 		*'=y'|*' is not set')
-			log "$funcname() symbol: $symbol" debug
+			log "symbol: $symbol" debug
 		;;
 		*)
-			log "$funcname() symbol: $symbol"
+			log "symbol: $symbol"
 		;;
 	esac
 
@@ -1430,7 +1429,7 @@ apply_symbol()
 		'CONFIG_BUSYBOX'*)
 			# maybe unneeded
 			grep -q 'CONFIG_BUSYBOX_CUSTOM=y' "$file" || {
-				log "$funcname() enabling BUSYBOX_CUSTOM"
+				log "enabling BUSYBOX_CUSTOM"
 				echo 'CONFIG_BUSYBOX_CUSTOM=y' >>"$file"
 			}
 		;;
@@ -1494,9 +1493,9 @@ build_options_set()
 	set -- $( serialize_comma_list "$options" )
 	while [ -n "$1" ]; do {
 		if [ "$1" = 'list' ]; then
-			log "$funcname() apply '$1' ${subcall:+(subcall)}" debug
+			log "apply '$1' ${subcall:+(subcall)}" debug
 		else
-			log "$funcname() apply '$1' ${subcall:+(subcall)}"
+			log "apply '$1' ${subcall:+(subcall)}"
 		fi
 
 		# build a comma-separated list for later output/build-documentation
@@ -1887,7 +1886,7 @@ EOF
 			;;
 			# help/usage-function
 			'list')
-				[ "$subcall" = 'plain' ] || log "$funcname() supported options:"
+				[ "$subcall" = 'plain' ] || log "supported options:"
 
 				parse_case_patterns "$funcname" | while read line; do {
 					if [ "$subcall" = 'plain' ]; then
@@ -1911,7 +1910,7 @@ EOF
 				return 1
 			;;
 			*)
-				log "$funcname() unknown option '$1'"
+				log "unknown option '$1'"
 
 				return 1
 			;;
@@ -1940,7 +1939,7 @@ EOF
 	}
 
 	buildinfo_needs_adding && {
-		log "$funcname() adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
+		log "adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
 		mkdir -p "$custom_dir/etc"
 		echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
 	}
@@ -2209,12 +2208,12 @@ check_git_settings()
 
 	# TODO: only relevant, if we want to commit something?
 	git config --global user.email >/dev/null || {
-		log "$funcname() please set: git config --global user.email 'your@email.tld'"
+		log "please set: git config --global user.email 'your@email.tld'"
 		return 1
 	}
 
 	git config --global user.name  >/dev/null || {
-		log "$funcname() please set: git config --global user.name 'Your Name'"
+		log "please set: git config --global user.name 'Your Name'"
 		return 1
 	}
 }
