@@ -356,6 +356,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=1"
 						fi
 
+						# accidentally added to netfilter?
 						[ -e "/tmp/NETFILTER/IP2MAC/$2" ] && {
 							_netfilter user_del "$( _net ip2mac "$2" )"
 						}
@@ -1162,9 +1163,9 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 	local mac
 
 	while read LINE; do {
-		eval $LINE
+		eval -- $LINE
 
-		mac="$( _net ip2mac "$REMOTE" )" && {
+		mac="$( _net ip2mac "$REMOTE" lazy )" && {
 			_netfilter set_arp permanent "$mac" "$REMOTE"
 		}
 
@@ -1522,7 +1523,7 @@ _olsr_neighs_meshrdf_evalable ()		# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COS
 		REMOTE_ID="$( _ipsystem do $REMOTE )"
 
 		[ "$minstrel" = "true" ] && {
-			mac="$( _net ip2mac $REMOTE )"
+			mac="$( _net ip2mac "$REMOTE" lazy )"
 
 			txrate=; txtroughput= ; efficiency=
 			eval $( _wifi minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate "$mac" )
@@ -1571,7 +1572,7 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 		DEVTYPE="$( _net devtype2symbol $( _net dev_type $(_net iplocal2dev $LOCAL ) ) )"
 		DEVTYPE="${DEVTYPE}${DEVTYPE}"		# looks better
 
-		MAC="$( _net ip2mac $REMOTE )"
+		MAC="$( _net ip2mac "$REMOTE" lazy )"
 		SPACER1="$( _sanitizer do "$MAX1 $LOCAL"  add_length_diff_with_spaces )"			# ip's should always have
 		SPACER2="$( _sanitizer do "$MAX2 $REMOTE" add_length_diff_with_spaces )"			# the same length
 		DNS="$( _net ip2dns $REMOTE )"
@@ -1587,7 +1588,7 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 
 			[ -z "$MAC" ] && {
 				_net ip_reachable $REMOTE
-				MAC="$( _net ip2mac $REMOTE )"
+				MAC="$( _net ip2mac "$REMOTE" lazy )"
 			}
 
 			file="/sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations/$MAC"
