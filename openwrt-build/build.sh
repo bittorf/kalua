@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ToDo:
+# - autoremove old branches: for B in $(git branch|grep @); do git branch -D $B; done
 # - support for tarball
 # - support for reverting specific openwrt-commits (for building older kernels)
 # - apply kernel_symbols
