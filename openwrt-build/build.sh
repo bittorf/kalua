@@ -351,7 +351,7 @@ target_hardware_set()
 {
 	local funcname='target_hardware_set'
 	local model="$1"	# 'list' or <modelname>
-	local option="$2"	# 'plain', 'js' or <empty>
+	local option="$2"	# 'plain', 'js', 'info' or <empty>
 	local line
 
 	# must match ' v[0-9]' and will be e.g. ' v7' -> '7' and defaults to '1'
@@ -651,10 +651,14 @@ EOF
 		;;
 		*)
 			log "model '$model' not supported"
-
 			return 1
 		;;
 	esac
+
+	[ "$option" = 'info' ] && {
+		log "no additional info for '$mode' available"
+		return 1
+	}
 
 	# e.g. 'CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y' -> 'brcm47xx'
 	ARCH="$( echo "$TARGET_SYMBOL" | cut -d'_' -f3 )"
@@ -2388,7 +2392,7 @@ openwrt_download 'switch_to_master'
 read T2 REST </proc/uptime
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
-log "[OK] - get help with: $0 --info '$HARDWARE_MODEL'"
+target_hardware_set "$HARDWARE_MODEL" info >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
 log "[OK] - check size of files with: find bin/$ARCH -type f -exec stat -c '%s %N' {} \; | sort -n"
 
 exit 0
