@@ -212,6 +212,7 @@ Special UCI-variables
 	system.@weblogin[0].db_cachesize	- integer
 	
 	system.@monitoring[0].serverip		- IP
+	system.@monitoring[0].backping		- nodenumber
 	system.@monitoring[0].pingcheck		- IP
 	system.@monitoring[0].pingcheck_lazy	- bool
 	system.@monitoring[0].button_smstext	- text
