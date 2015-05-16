@@ -141,7 +141,17 @@ log()
 	local debug="$2"
 	local name
 
-	[ -n "$funcname" ] && name=" $funcname()"
+	case "$funcname" in
+		'')
+		;;
+		'quiet_'*)
+			return 0
+		;;
+		*)
+			name=" $funcname()"
+		;;
+	esac
+
 	[ -n "$QUIET" ] && return 0
 	[ -n "$debug" -a -z "$DEBUG" ] && return 0
 
@@ -353,7 +363,10 @@ target_hardware_set()
 	local funcname='target_hardware_set'
 	local model="$1"	# 'list' or <modelname>
 	local option="$2"	# 'plain', 'js', 'info' or <empty>
+	local quiet="$3"	# e.g. 'quiet' (not logging)
 	local line
+
+	[ -n "$quiet" ] && funcname="quiet_$funcname"
 
 	# must match ' v[0-9]' and will be e.g. ' v7' -> '7' and defaults to '1'
 	local version="$( echo "$model" | sed -n 's/^.* v\([0-9]\)$/\1/p' )"
@@ -657,7 +670,7 @@ EOF
 	esac
 
 	[ "$option" = 'info' ] && {
-		log "no additional info for '$mode' available"
+		log "no additional info for '$model' available"
 		return 1
 	}
 
@@ -2393,7 +2406,7 @@ openwrt_download 'switch_to_master'
 read T2 REST </proc/uptime
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
-target_hardware_set "$HARDWARE_MODEL" info >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
+target_hardware_set "$HARDWARE_MODEL" info quiet && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
 log "[OK] - check size of files with: find bin/$ARCH -type f -exec stat -c '%s %N' {} \; | sort -n"
 
 exit 0
