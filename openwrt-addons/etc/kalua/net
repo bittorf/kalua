@@ -3,7 +3,7 @@
 _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 {
 	local wifidev="${1:-wlan0}"
-	local gateway_ip url apmac last
+	local gateway_ip url apmac last unixtime_connstart elapsed diff
 	rm /tmp/MAC_* 2>/dev/null
 
 	get_gateway_ip()
@@ -53,12 +53,18 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 		url="http://$gateway_ip/cgi-bin-tool.sh?OPT=hostname"
 		apmac="$( get_apmac )"
 
-		test "$apmac" = "$last" || { echo; echo "$( date ) new: $apmac"; }
+		test "$apmac" = "$last" || {
+			unixtime_connstart="$( _system date unixtime )"
+			echo
+			echo "$( date ) new: $apmac"
+		}
 		last="$apmac"
 
 		hostname='???'
 		[ -n "$gateway_ip" -a -n "$apmac" ] && hostname="$( get_hostname "$apmac" "$url" )"
-		echo -en "$( date )      $apmac $( get_signal ) : $hostname   \r"
+		diff=$(( $( _system date unixtime ) - unixtime_connstart ))
+		elapsed="$( _stopwatch seconds2humanreadable $diff )"
+		echo -en "$( date )      $apmac $( get_signal ) : $hostname ($elapsed)  \r"
 		sleep 1
 	} done
 }
