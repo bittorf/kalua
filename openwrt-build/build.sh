@@ -1074,8 +1074,8 @@ copy_firmware_files()
 		error=1
 	fi
 
-	log "sysupgrade: '$FILENAME_SYSUPGRADE'"
-	log "factory:    '$FILENAME_FACTORY'"
+	log "$( wc -c <"bin/$ARCH/$FILENAME_SYSUPGRADE" ) Bytes: '$FILENAME_SYSUPGRADE'"
+	log "$( wc -c <"bin/$ARCH/$FILENAME_FACTORY" ) Bytes: '$FILENAME_FACTORY'"
 
 	if [ -e "bin/$ARCH/$FILENAME_FACTORY" ]; then
 		:
