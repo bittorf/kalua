@@ -179,7 +179,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			# config-3.10 -> 3.10
 			kernelversion="$( ls -1 $dir/config-* | head -n1 | cut -d'-' -f2 )"
 			config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
-			log "$funcname: looking into '$config', adding '$pattern'"
+			log "looking into '$config', adding '$pattern'"
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "s/console=ttyS0,115200/$pattern &/" "$config"
@@ -195,11 +195,16 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		;;
 		*)	# tested for brcm47xx
 			config="$( ls -1 $dir/config-* | head -n1 )"
-			log "$funcname: looking into '$config', adding '$pattern'"
 
-			fgrep -q "$pattern" "$config" || {
-				sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
-			}
+			if [ -e "$config" ]; then
+				log "looking into '$config', adding '$pattern'"
+
+				fgrep -q "$pattern" "$config" || {
+					sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
+				}
+			else
+				log "can not find '$config'"
+			fi
 		;;
 	esac
 }
@@ -384,9 +389,9 @@ target_hardware_set()
 			[ "$option" = 'info' ] && {
 				cat <<EOF
 # simple boot via:
-bin/uml/$FILENAME_SYSUPGRADE ubd0=bin/uml/$FILENAME_FACTORY ethX=tuntap,,,192.168.0.254
+bin/uml/$FILENAME_SYSUPGRADE ubd0=bin/uml/$FILENAME_FACTORY eth8=tuntap,,,192.168.0.254
 
-# circumvent PROT_EXEC mmap/noexec-shm-problem:
+# when starts fails, circumvent PROT_EXEC mmap/noexec-shm-problem with:
 # http://www.ime.usp.br/~baroni/docs/uml-en.html
 mkdir -p /tmp/uml
 chown $USER.$USER /tmp/uml
@@ -800,13 +805,14 @@ check_working_directory()
 		git clone 'git://nbd.name/packages.git' || return $error
 		cd openwrt
 
+# FIXME (use global var?)
 #		repo='git://github.com/weimarnetz/weimarnetz.git'
 		repo='git://github.com/bittorf/kalua.git'
 		git clone "$repo" || return $error
 		KALUA_DIRNAME="$( basename $repo | cut -d'.' -f1 )"
 
-		log "please run again, after doing 'cd openwrt' with"
-		log "e.g.: $KALUA_DIRNAME/openwrt-build/build.sh --help"
+		log "[OK] after doing 'cd openwrt' you should do:"
+		log "$KALUA_DIRNAME/openwrt-build/build.sh --help"
 
 		exit $error
 	}
@@ -1335,7 +1341,7 @@ apply_symbol()
 			for basedir in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
 				find $basedir | while read file; do {
 					if [ -d "$file" ]; then
-						log "$KALUA_DIRNAME: adding private patchsets from '$file'"
+						log "dir: $file"
 						register_patch "DIR: $file"
 					else
 						if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
@@ -2406,7 +2412,7 @@ openwrt_download 'switch_to_master'
 read T2 REST </proc/uptime
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
-target_hardware_set "$HARDWARE_MODEL" info quiet && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
+target_hardware_set "$HARDWARE_MODEL" info quiet >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
 log "[OK] - check size of files with: find bin/$ARCH -type f -exec stat -c '%s %N' {} \; | sort -n"
 
 exit 0
