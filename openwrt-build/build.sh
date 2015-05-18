@@ -159,7 +159,12 @@ log()
 
 	has "$option" 'gitadd' && {
 		git add "$gitfile"
-		git commit --signoff -m "autocommit: $message (file: $gitfile)"
+		git commit --signoff -m "autocommit:
+file: $gitfile
+$message
+
+git-svn-id: based_on@$( echo "$VERSION_OPENWRT" | sed 's/r//' )	# mimics OpenWrt-style
+"
 	}
 
 	case "$funcname" in
