@@ -169,13 +169,12 @@ log()
 
 		# we need 'force' here, because e.g. files/ is in .gitignore
 		git add --force "$gitfile"
-		git commit --quiet --signoff -m "
+		git commit --signoff -m "
 autocommit: $message
 | $filetype: $gitfile $count
 
 # mimic OpenWrt-style:
-git-svn-id: based_on@$( echo "$VERSION_OPENWRT" | sed 's/r//' )
-"
+git-svn-id: based_on@$( echo "$VERSION_OPENWRT" | sed 's/r//' )" | grep -v ^' create mode'
 	}
 
 	case "$funcname" in
