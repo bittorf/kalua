@@ -158,6 +158,10 @@ log()
 	}
 
 	has "$option" 'gitadd' && {
+		git branch | grep -q ^'* master' || {
+			log "[ERR] warning: autocommit on master"
+		}
+
 		git add "$gitfile"
 		git commit --signoff -m "autocommit:
 file: $gitfile
