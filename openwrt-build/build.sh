@@ -160,6 +160,7 @@ log()
 	has "$option" 'gitadd' && {
 		git branch | grep -q ^'* master' || {
 			logger -p user.info -s "[ERR] warning: autocommit on master"
+			git branch
 		}
 
 		local count_files="$( find "$gitfile" -type f | wc -l )"
@@ -169,7 +170,7 @@ log()
 
 		# we need 'force' here, because e.g. files/ is in .gitignore
 		git add --force "$gitfile"
-		git commit --signoff -m "
+		git commit --quiet --signoff -m "
 autocommit: $message
 | $filetype: $gitfile $count
 
