@@ -1308,7 +1308,7 @@ apply_symbol()
 			echo  >'package/base-files/files/etc/rc.local' '#!/bin/sh'
 			echo >>'package/base-files/files/etc/rc.local' "[ -e '/tmp/loader' ] || /etc/init.d/cron.user boot"
 			echo >>'package/base-files/files/etc/rc.local' 'exit 0'
-			log "own rc.local" gitadd "$package/base-files/files/etc/rc.local"
+			log "own rc.local" gitadd "package/base-files/files/etc/rc.local"
 
 			log "$KALUA_DIRNAME: adding version-information = '$last_commit_date'"
 			echo  >"$custom_dir/etc/variables_fff+" "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
@@ -1317,7 +1317,7 @@ apply_symbol()
 			log "$KALUA_DIRNAME: adding hardware-model to 'files/etc/HARDWARE'"
 			echo >"$custom_dir/etc/HARDWARE" "$HARDWARE_MODEL"
 
-			log "[OK] added custom dir" gitadd "$custum_dir"
+			log "[OK] added custom dir" gitadd "$custom_dir"
 
 			log "$KALUA_DIRNAME: tweaking kernel commandline"
 			kernel_commandline_tweak
