@@ -209,6 +209,8 @@ TARBALL_TIME='397100'	# 0d3b71d322f5598b717267252fa4ab0b096603b8
 TARBALL_TIME='397165'	# 2b441df4612eecb60485aae42a85456c330c301d
 TARBALL_TIME='397433'	# 66c44c54e61f8eba4b7cc2938f0ab1082ecfdcd4
 TARBALL_TIME='397507'	# 1292f62f3f2059a38be850b42f25f2fb2bbb733a
+TARBALL_TIME='397531'	# d01d8e66a72e6caf4e6fd07bf936181626de8a9b
+TARBALL_TIME='397769'	# 57f048701c09aafe7aeecbcc86a09fe9a14f223d
 
 
 
@@ -974,10 +976,18 @@ func_cell_wifimode ()
 	esac
 
 	case "$OLSRVER" in
-		*2010-11-17*) COLOR="pink" ;;
-		*ff1.6.36*) COLOR="crimson" ;;
-		*0.5.6-r4*) COLOR="crimson" ;;
-		*git_f73979c*) COLOR="lightblue" ;;	# 2011-mar-23
+		*'2010-11-17'*) COLOR="pink" ;;
+		*'ff1.6.36'*) COLOR="crimson" ;;
+		*'0.5.6-r'*)
+			case "$OLSRVER" in
+				# https://lists.olsr.org/pipermail/olsr-users/2010-September/004179.html
+				# https://lists.olsr.org/pipermail/olsr-users/2010-September/004163.html
+				*'0.5.6-r1'*|*'0.5.6-r2'*|*'0.5.6-r3'*|*'0.5.6-r4'*|*'0.5.6-r5'*)
+					COLOR="crimson"
+				;;
+			esac
+		;;
+		*'git_f73979c'*) COLOR="lightblue" ;;	# 2011-mar-23
 	esac
 
 	case "$WIFIDRV" in
