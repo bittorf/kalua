@@ -162,12 +162,14 @@ log()
 			log "[ERR] warning: autocommit on master"
 		}
 
-		git add "$gitfile"
-		git commit --signoff -m "autocommit:
+		# we need 'force' here, because e.g. files/ is in .gitignore
+		git add --force "$gitfile"
+		git commit --signoff -m "
+autocommit: $message
 file: $gitfile
-$message
 
-git-svn-id: based_on@$( echo "$VERSION_OPENWRT" | sed 's/r//' )	# mimics OpenWrt-style
+# mimic OpenWrt-style:
+git-svn-id: based_on@$( echo "$VERSION_OPENWRT" | sed 's/r//' )
 "
 	}
 
