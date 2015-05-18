@@ -164,7 +164,7 @@ log()
 
 		local count_files="$( find "$gitfile" -type f | wc -l )"
 		local count_dirs="$(  find "$gitfile" -type d | wc -l )"
-		local count="($count_files files$( test $count_dirs -gt 0 && echo " and $count_dirs dirs" )"
+		local count="($count_files files$( test $count_dirs -gt 0 && echo " and $count_dirs dirs" ))"
 		local filetype="$( test -d "$gitfile" && echo 'directory' || echo 'file' )"
 
 		# we need 'force' here, because e.g. files/ is in .gitignore
@@ -1371,7 +1371,8 @@ apply_symbol()
 			log "$KALUA_DIRNAME: adding recent tarball hash from '$url'"
 			tarball_hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
 			if [ -z "$tarball_hash" ]; then
-				log "[ERR] cannot fetch tarball hash from '$url', be prepared that node will automatically update upon first boot"
+				log "[ERR] cannot fetch tarball hash from '$url'"
+				log "[ERR] be prepared that node will automatically update upon first boot"
 			else
 				echo >'files/etc/tarball_last_applied_hash' "$tarball_hash"
 			fi
