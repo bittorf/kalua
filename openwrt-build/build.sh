@@ -1356,7 +1356,7 @@ apply_symbol()
 							if git apply --check <"$file"; then
 								# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
 								# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
-								[ -d 'rebase-merge' -o -d 'rebase-apply' ] && {
+								[ -d '.git/rebase-merge' -o -d '.git/rebase-apply' ] && {
 									git rebase --abort
 									git am --abort
 								}
