@@ -1375,11 +1375,13 @@ apply_symbol()
 				log "[ERR] be prepared that node will automatically update upon first boot"
 			else
 				echo >'files/etc/tarball_last_applied_hash' "$tarball_hash"
+				log "added tarball hash" gitadd 'files/etc/tarball_last_applied_hash'
 			fi
 
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
-				log "$KALUA_DIRNAME: using custom '/tmp/apply_profile.code.definitions'"
-				cp '/tmp/apply_profile.code.definitions' "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
+				file="$custom_dir/etc/init.d/apply_profile.code.definitions.private"
+				cp '/tmp/apply_profile.code.definitions' "$file"
+				log "$KALUA_DIRNAME: using custom '/tmp/apply_profile.code.definitions'" gitadd "$file"
 			else
 				[ -e "$custom_dir/etc/init.d/apply_profile.code.definitions.private" ] && rm "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
@@ -1429,12 +1431,14 @@ apply_symbol()
 				sub_profile="$(  echo "$CONFIG_PROFILE" | cut -d'.' -f2 )"
 				node="$(         echo "$CONFIG_PROFILE" | cut -d'.' -f3 )"
 
-				log "$KALUA_DIRNAME: enforced profile: $installation - $sub_profile - $node"
 				sed -i "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$file"
 				sed -i "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$file"
 				sed -i "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$file"
 				sed -i 's|^#\[ "$SIM_ARG3|\[ "$SIM_ARG3|' "$file"	# wan-dhcp for node 2
+				log "$KALUA_DIRNAME: enforced profile: $installation - $sub_profile - $node" gitadd "$file"
 			}
+
+			log "adding patchlist" gitadd "$custom_dir/etc/openwrt_patches"
 
 			[ -n "$hash" ] && {
 				cd $KALUA_DIRNAME
