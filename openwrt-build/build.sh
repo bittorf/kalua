@@ -138,8 +138,29 @@ EOF
 log()
 {
 	local message="$1"
-	local debug="$2"
+	local option="$2"	# e.g. debug,gitadd
+	local gitfile="$3"
 	local name
+
+	has()
+	{
+		local list="$1"
+		local keyword="$2"
+
+		case ",$list," in               # e.g. debug,gitadd
+			*",$keyword,"*)
+				return 0
+			;;
+			*)
+				return 1
+			;;
+		esac
+	}
+
+	has "$option" 'gitadd' && {
+		git add "$gitfile"
+		git commit -m "autocommit: $message"
+	}
 
 	case "$funcname" in
 		'')
@@ -153,7 +174,7 @@ log()
 	esac
 
 	[ -n "$QUIET" ] && return 0
-	[ -n "$debug" -a -z "$DEBUG" ] && return 0
+	has "$option" 'debug' && test -z "$DEBUG" && return 0
 
 	case "$message" in
 		*'[ERROR]'*)
@@ -821,19 +842,19 @@ check_working_directory()
 	mkdir -p 'files'
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
-		log "addfeed 'oonfapi'" debug
+		log "addfeed 'oonfapi'" debug,gitadd "$file_feeds"
 		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
 		do_symlinking='true'
 	}
 
 	fgrep -q ' olsrd2 '  "$file_feeds" || {
-		log "addfeed 'olsrd2'" debug
+		log "addfeed 'olsrd2'" debug,gitadd "$file_feeds"
 		echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'
 		do_symlinking='true'
 	}
 
 	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
-		log "enable feed 'oldpackages'" debug
+		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
 		sed -i '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
 
 		# https://forum.openwrt.org/viewtopic.php?id=52219
