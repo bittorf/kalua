@@ -194,7 +194,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			}
 		;;
 		*)	# tested for brcm47xx
-			config="$( ls -1 $dir/config-* | head -n1 )"
+			config="$( ls -1 $dir/config-* 2>/dev/null | head -n1 )"
 
 			if [ -e "$config" ]; then
 				log "looking into '$config', adding '$pattern'"
@@ -1325,7 +1325,7 @@ apply_symbol()
 			log "$KALUA_DIRNAME: adding recent tarball hash from '$url'"
 			tarball_hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
 			if [ -z "$tarball_hash" ]; then
-				log "cannot fetch tarball hash, be prepared that node will automatically update upon first boot"
+				log "[ERR] cannot fetch tarball hash from '$url', be prepared that node will automatically update upon first boot"
 			else
 				echo >'files/etc/tarball_last_applied_hash' "$tarball_hash"
 			fi
@@ -1364,6 +1364,7 @@ apply_symbol()
 								if git am --signoff <"$file"; then
 									register_patch "$file"
 								else
+									git am --abort
 									log "[ERROR] during 'git am <$file'"
 								fi
 							else
@@ -1401,7 +1402,7 @@ apply_symbol()
 			set -- $( du -s "$custom_dir.tgz" && rm "$custom_dir.tgz" )
 			size2="$1"
 			gain=$(( $size2 * 100 / $size1 ))
-			log "[OK] custom dir '$custom_dir' adds $size1 kilobytes (around ${size2}k = ${gain}% compressed) to your image"
+			log "[OK] custom dir '$custom_dir' adds $size1 kilobytes (~${size2}k = ${gain}% compressed) to your image"
 
 			return 0
 		;;
