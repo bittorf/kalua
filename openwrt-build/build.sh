@@ -1786,6 +1786,7 @@ build_options_set()
 			;;
 			'OLSRd2')
 				apply_symbol 'CONFIG_PACKAGE_olsrd2-git=y'		# network:
+				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH=y'
 			;;
 			'DCF77')
 				$funcname subcall 'USBserial'
