@@ -159,14 +159,19 @@ log()
 
 	has "$option" 'gitadd' && {
 		git branch | grep -q ^'* master' || {
-			log "[ERR] warning: autocommit on master"
+			logger -p user.info -s "[ERR] warning: autocommit on master"
 		}
+
+		local count_files="$( find "$gitfile" -type f | wc -l )"
+		local count_dirs="$(  find "$gitfile" -type d | wc -l )"
+		local count="($count_files files$( test $count_dirs -gt 0 && echo " and $count_dirs dirs" )"
+		local filetype="$( test -d "$gitfile" && echo 'directory' || echo 'file' )"
 
 		# we need 'force' here, because e.g. files/ is in .gitignore
 		git add --force "$gitfile"
 		git commit --signoff -m "
 autocommit: $message
-file: $gitfile
+| $filetype: $gitfile $count
 
 # mimic OpenWrt-style:
 git-svn-id: based_on@$( echo "$VERSION_OPENWRT" | sed 's/r//' )
