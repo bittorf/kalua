@@ -89,7 +89,7 @@ build_tarball_package()
 	local funcname='build_tarball_package'
 
 	[ "$KALUA_DIRNAME" = 'openwrt-build' ] && {
-		log "wrong patch, i dont want to see 'openwrt-build'"
+		log "wrong path, i dont want to see 'openwrt-build'"
 		return 1
 	}
 
@@ -139,7 +139,7 @@ log()
 {
 	local message="$1"
 	local option="$2"	# e.g. debug,gitadd
-	local gitfile="$3"
+	local gitfile="$3"	# can also be a directory
 	local name
 
 	has()
@@ -159,7 +159,7 @@ log()
 
 	has "$option" 'gitadd' && {
 		git add "$gitfile"
-		git commit -m "autocommit: $message"
+		git commit --signoff -m "autocommit: $message (file: $gitfile)"
 	}
 
 	case "$funcname" in
@@ -200,18 +200,18 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			# config-3.10 -> 3.10
 			kernelversion="$( ls -1 $dir/config-* | head -n1 | cut -d'-' -f2 )"
 			config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
-			log "looking into '$config', adding '$pattern'"
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "s/console=ttyS0,115200/$pattern &/" "$config"
+				log "looking into '$config', adding '$pattern'" gitadd "$config"
 			}
 		;;
 		ar71xx)
 			config="$dir/image/Makefile"
-			log "looking into '$config', adding '$pattern'"
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "s/console=/$pattern &/" "$config"
+				log "looking into '$config', adding '$pattern'" gitadd "$config"
 			}
 		;;
 		*)	# tested for brcm47xx
@@ -222,9 +222,10 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 
 				fgrep -q "$pattern" "$config" || {
 					sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
+					log "looking into '$config', adding '$pattern'" gitadd "$config"
 				}
 			else
-				log "can not find '$config'"
+				log "cannot find '$config' from '$dir/config-*'"
 			fi
 		;;
 	esac
@@ -232,6 +233,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 
 register_patch()
 {
+	local funcname='register_patch'
 	local name="$1"
 	local dir='files/etc'
 	local file="$dir/openwrt_patches"	# we can read the file later on the router
@@ -261,7 +263,8 @@ register_patch()
 				name="=== $name ==="
 			;;
 			*)
-				# individual files
+				# individual files, e.g.
+				# 0004-base-files-hotplug-call-minor-optimization-use-shell.patch
 				name="  $name"
 			;;
 		esac
@@ -269,6 +272,7 @@ register_patch()
 		[ -d "$dir" ] || mkdir "$dir"
 
 		grep -sq ^"$name"$ "$file" || {
+			[ -e "$name" ] && log "adding patchfile" gitadd "$name"
 			echo "$name" >>"$file"
 		}
 	fi
@@ -294,6 +298,7 @@ apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.
 		git add $kernel_dir/patches/$( basename "$file" )
 	} done
 
+	# TODO: use log()
 	git commit --signoff -m "$funcname()"
 }
 
@@ -359,6 +364,7 @@ copy_additional_packages()
 			{
 				log "working on '$dir', destination: '$install_section'"
 				cp -Rv "$dir" "package/$install_section"
+				log "whole dir" gitadd "package/$install_section"
 			}
 
 			if [ "$package" = 'cgminer' ]; then
@@ -370,6 +376,7 @@ copy_additional_packages()
 						sed -i 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
 						sed -i 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
 						sed -i 's/--enable-bflsc/--enable-cpumining/' "$file"
+						log "cgminer" gitadd "$file"
 					;;
 				esac
 			else
@@ -1301,13 +1308,16 @@ apply_symbol()
 			echo  >'package/base-files/files/etc/rc.local' '#!/bin/sh'
 			echo >>'package/base-files/files/etc/rc.local' "[ -e '/tmp/loader' ] || /etc/init.d/cron.user boot"
 			echo >>'package/base-files/files/etc/rc.local' 'exit 0'
+			log "own rc.local" gitadd "$package/base-files/files/etc/rc.local"
 
 			log "$KALUA_DIRNAME: adding version-information = '$last_commit_date'"
-			echo  >'files/etc/variables_fff+' "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
-			echo >>'files/etc/variables_fff+' "FFF_VERSION=2.0.0			# OpenWrt based / unused"
+			echo  >"$custom_dir/etc/variables_fff+" "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
+			echo >>"$custom_dir/etc/variables_fff+" "FFF_VERSION=2.0.0			# OpenWrt based / unused"
 
 			log "$KALUA_DIRNAME: adding hardware-model to 'files/etc/HARDWARE'"
-			echo >'files/etc/HARDWARE' "$HARDWARE_MODEL"
+			echo >"$custom_dir/etc/HARDWARE" "$HARDWARE_MODEL"
+
+			log "[OK] added custom dir" gitadd "$custum_dir"
 
 			log "$KALUA_DIRNAME: tweaking kernel commandline"
 			kernel_commandline_tweak
