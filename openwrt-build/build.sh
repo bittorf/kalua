@@ -158,9 +158,8 @@ log()
 	}
 
 	has "$option" 'gitadd' && {
-		git branch | grep -q ^'* master' || {
+		git branch | grep -q ^'* master' && {
 			logger -p user.info -s "[ERR] warning: autocommit on master"
-			git branch
 		}
 
 		local count_files="$( find "$gitfile" -type f | wc -l )"
