@@ -865,19 +865,19 @@ check_working_directory()
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
 		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
-		log "addfeed 'oonfapi'" debug,gitadd "$file_feeds"
+		log "addfeed 'oonfapi'" debug,gitadd "$file_feeds"	# FIXME! apply on master?
 		do_symlinking='true'
 	}
 
 	fgrep -q ' olsrd2 '  "$file_feeds" || {
 		echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'
-		log "addfeed 'olsrd2'" debug,gitadd "$file_feeds"
+		log "addfeed 'olsrd2'" debug,gitadd "$file_feeds"	# FIXME! apply on master?
 		do_symlinking='true'
 	}
 
 	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
 		sed -i '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
-		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
+		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"	# FIXME! apply on master?
 
 		# https://forum.openwrt.org/viewtopic.php?id=52219
 		./scripts/feeds update oldpackages  && ./scripts/feeds install -a -p oldpackages
