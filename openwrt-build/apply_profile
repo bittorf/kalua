@@ -7,7 +7,7 @@
 # $BASE/apply_profile.watch
 
 START=98
-EXTRA_COMMANDS="call"
+EXTRA_COMMANDS='call'
 
 boot()
 {
@@ -16,22 +16,22 @@ boot()
 
 call()
 {
-	local thisfile="/etc/init.d/apply_profile"
+	local thisfile='/etc/init.d/apply_profile'
 	local max_try=30
-	local stopfile="/tmp/STOP"
+	local stopfile='/tmp/STOP'
 	local interval=60
 	local i=0
 	local led_loops=10
-	local led_state list_states i
-	local load rest daemon
+	local led_state list_states i load rest daemon
 
-	[ -e  "/tmp/lockfile_apply_profile" ] && return 0
-	touch "/tmp/lockfile_apply_profile"
+	[ -e  '/tmp/lockfile_apply_profile' ] && return 0
+	touch '/tmp/lockfile_apply_profile'
 
-	touch "/tmp/lockfile_scheduler_is_running"	# this prevents the scheduler from running, see: _scheduler_allow_run()
+	touch '/tmp/lockfile_scheduler_is_running'	# this prevents the scheduler from running, see: _scheduler_allow_run()
 
-	[ -e "/tmp/loader" ] && {			# router is not virgin (so: re-apply config)
+	[ -e '/tmp/loader' ] && {			# router is not virgin (so: re-apply config)
 		. /tmp/loader
+
 		[ -n "$LOWMEM" ] && {
 			_log do $thisfile daemon alert "[OK] ending most daemons"
 
@@ -65,6 +65,16 @@ call()
 		}
 	}
 
+	telnet_is_used()
+	{
+		local pid cmdline
+
+		for pid in $( pidof ash ); do {
+			read cmdline <"/proc/$pid/cmdline"
+			[ "$cmdline" = '/bin/ash--login' ] && break
+		} done
+	}
+
 	while [ $max_try -gt 1 ]; do {
 		logger -s "$thisfile [BOOT] start - $thisfile"
 		"${thisfile}.code" boot && break
@@ -74,7 +84,7 @@ call()
 
 		[ -e "/tmp/LOCKFILE_APPLY" ] || {
 			pidof apply_profile.code >/dev/null || {	# interactive run/user invoked
-				/etc/init.d/telnet restart
+				telnet_is_used || /etc/init.d/telnet restart
 				/etc/init.d/dropbear restart
 			}
 		}
