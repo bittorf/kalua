@@ -1,0 +1,61 @@
+--- target/linux/ar71xx/patches-3.3/750-mtd_erasecount.patch
++++ target/linux/ar71xx/patches-3.3/750-mtd_erasecount.patch
+@@ -0,0 +1,58 @@
++--- a/include/linux/mtd/mtd.h.orig
+++++ b/include/linux/mtd/mtd.h
++@@ -174,7 +174,7 @@
++ 	 */
++ 	int numeraseregions;
++ 	struct mtd_erase_region_info *eraseregions;
++-
+++	unsigned int erasecount;
++ 	/*
++ 	 * Do not call via these pointers, use corresponding mtd_*()
++ 	 * wrappers instead.
++--- a/drivers/mtd/mtdcore.c
+++++ b/drivers/mtd/mtdcore.c
++@@ -250,6 +250,16 @@
++ }
++ static DEVICE_ATTR(name, S_IRUGO, mtd_name_show, NULL);
++ 
+++static ssize_t mtd_erasecount_show(struct device *dev,
+++		struct device_attribute *attr, char *buf)
+++{
+++	struct mtd_info *mtd = dev_get_drvdata(dev);
+++
+++	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->erasecount);
+++
+++}
+++static DEVICE_ATTR(erasecount, S_IRUGO, mtd_erasecount_show, NULL);
+++
++ static struct attribute *mtd_attrs[] = {
++ 	&dev_attr_type.attr,
++ 	&dev_attr_flags.attr,
++@@ -260,6 +270,7 @@
++ 	&dev_attr_oobsize.attr,
++ 	&dev_attr_numeraseregions.attr,
++ 	&dev_attr_name.attr,
+++	&dev_attr_erasecount.attr,
++ 	NULL,
++ };
++ 
++@@ -322,6 +333,8 @@
++ 	mtd->index = i;
++ 	mtd->usecount = 0;
++ 
+++	mtd->erasecount = 0;
+++
++ 	if (is_power_of_2(mtd->erasesize))
++ 		mtd->erasesize_shift = ffs(mtd->erasesize) - 1;
++ 	else
++diff -rud a/drivers/mtd/mtdpart.c b/drivers/mtd/mtdpart.c
++--- a/drivers/mtd/mtdpart.c
+++++ b/drivers/mtd/mtdpart.c
++@@ -313,6 +313,7 @@
++ 
++ void mtd_erase_callback(struct erase_info *instr)
++ {
+++	instr->mtd->erasecount += (instr->len+instr->mtd->erasesize-1)>>instr->mtd->erasesize_shift;
++ 	if (instr->mtd->erase == part_erase) {
++ 		struct mtd_part *part = PART(instr->mtd);
++ 		size_t wrlen = 0;
