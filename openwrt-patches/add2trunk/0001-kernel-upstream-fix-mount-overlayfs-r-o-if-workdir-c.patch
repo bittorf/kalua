@@ -1,0 +1,138 @@
+From efc241356f05be8e9da873a14925731d0bc2025f Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bittorf@bluebottle.com>
+Date: Tue, 19 May 2015 15:48:39 +0200
+Subject: [PATCH] [kernel] upstream fix: mount overlayfs r/o if workdir cannot
+ be created
+
+runtime tested on ar71xx with kernel 3.18.11
+this paritially fixes #19564
+
+Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
+---
+ ...unt-read-only-if-workdir-can-t-be-created.patch |  114 ++++++++++++++++++++
+ 1 file changed, 114 insertions(+)
+ create mode 100644 target/linux/ar71xx/patches-3.18/910-overlayfs-mount-read-only-if-workdir-can-t-be-created.patch
+
+diff --git a/target/linux/ar71xx/patches-3.18/910-overlayfs-mount-read-only-if-workdir-can-t-be-created.patch b/target/linux/ar71xx/patches-3.18/910-overlayfs-mount-read-only-if-workdir-can-t-be-created.patch
+new file mode 100644
+index 0000000..e563398
+--- /dev/null
++++ b/target/linux/ar71xx/patches-3.18/910-overlayfs-mount-read-only-if-workdir-can-t-be-created.patch
+@@ -0,0 +1,114 @@
++From cc6f67bcafcb6bbbb2d1be1603dcd95125a52800 Mon Sep 17 00:00:00 2001
++From: Miklos Szeredi <mszeredi@suse.cz>
++Date: Tue, 19 May 2015 14:30:12 +0200
++Subject: [PATCH] ovl: mount read-only if workdir can't be created
++
++OpenWRT folks reported that overlayfs fails to mount if upper fs is full,
++because workdir can't be created.  Wordir creation can fail for various
++other reasons too.
++
++There's no reason that the mount itself should fail, overlayfs can work
++fine without a workdir, as long as the overlay isn't modified.
++
++So mount it read-only and don't allow remounting read-write.
++
++Add a couple of WARN_ON()s for the impossible case of workdir being used
++despite being read-only.
++
++Reported-by: Bastian Bittorf <bittorf@bluebottle.com>
++Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
++Cc: <stable@vger.kernel.org> # v3.18+
++Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
++
++---
++ fs/overlayfs/copy_up.c |    3 +++
++ fs/overlayfs/dir.c     |    9 +++++++++
++ fs/overlayfs/super.c   |   10 +++++-----
++ 3 files changed, 17 insertions(+), 5 deletions(-)
++
++diff --git a/fs/overlayfs/copy_up.c b/fs/overlayfs/copy_up.c
++index 24f6404..84d693d 100644
++--- a/fs/overlayfs/copy_up.c
+++++ b/fs/overlayfs/copy_up.c
++@@ -299,6 +299,9 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
++ 	struct cred *override_cred;
++ 	char *link = NULL;
++ 
+++	if (WARN_ON(!workdir))
+++		return -EROFS;
+++
++ 	ovl_path_upper(parent, &parentpath);
++ 	upperdir = parentpath.dentry;
++ 
++diff --git a/fs/overlayfs/dir.c b/fs/overlayfs/dir.c
++index 2578a0c..692ceda 100644
++--- a/fs/overlayfs/dir.c
+++++ b/fs/overlayfs/dir.c
++@@ -222,6 +222,9 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
++ 	struct kstat stat;
++ 	int err;
++ 
+++	if (WARN_ON(!workdir))
+++		return ERR_PTR(-EROFS);
+++
++ 	err = ovl_lock_rename_workdir(workdir, upperdir);
++ 	if (err)
++ 		goto out;
++@@ -322,6 +325,9 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
++ 	struct dentry *newdentry;
++ 	int err;
++ 
+++	if (WARN_ON(!workdir))
+++		return -EROFS;
+++
++ 	err = ovl_lock_rename_workdir(workdir, upperdir);
++ 	if (err)
++ 		goto out;
++@@ -506,6 +512,9 @@ static int ovl_remove_and_whiteout(struct dentry *dentry, bool is_dir)
++ 	struct dentry *opaquedir = NULL;
++ 	int err;
++ 
+++	if (WARN_ON(!workdir))
+++		return -EROFS;
+++
++ 	if (is_dir) {
++ 		if (OVL_TYPE_MERGE_OR_LOWER(ovl_path_type(dentry))) {
++ 			opaquedir = ovl_check_empty_and_clear(dentry);
++diff --git a/fs/overlayfs/super.c b/fs/overlayfs/super.c
++index 5f0d199..bf8537c 100644
++--- a/fs/overlayfs/super.c
+++++ b/fs/overlayfs/super.c
++@@ -529,7 +529,7 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
++ {
++ 	struct ovl_fs *ufs = sb->s_fs_info;
++ 
++-	if (!(*flags & MS_RDONLY) && !ufs->upper_mnt)
+++	if (!(*flags & MS_RDONLY) && (!ufs->upper_mnt || !ufs->workdir))
++ 		return -EROFS;
++ 
++ 	return 0;
++@@ -925,9 +925,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
++ 		ufs->workdir = ovl_workdir_create(ufs->upper_mnt, workpath.dentry);
++ 		err = PTR_ERR(ufs->workdir);
++ 		if (IS_ERR(ufs->workdir)) {
++-			pr_err("overlayfs: failed to create directory %s/%s\n",
++-			       ufs->config.workdir, OVL_WORKDIR_NAME);
++-			goto out_put_upper_mnt;
+++			pr_warn("overlayfs: failed to create directory %s/%s (errno: %i); mounting read-only\n",
+++				ufs->config.workdir, OVL_WORKDIR_NAME, -err);
+++			sb->s_flags |= MS_RDONLY;
+++			ufs->workdir = NULL;
++ 		}
++ 	}
++ 
++@@ -997,7 +998,6 @@ out_put_lower_mnt:
++ 	kfree(ufs->lower_mnt);
++ out_put_workdir:
++ 	dput(ufs->workdir);
++-out_put_upper_mnt:
++ 	mntput(ufs->upper_mnt);
++ out_put_lowerpath:
++ 	for (i = 0; i < numlower; i++)
++-- 
++1.7.10.4
++
+-- 
+1.7.10.4
+
