@@ -16,7 +16,10 @@ list_networks()
 
 for NETWORK in $( list_networks ); do {
 	FILE="/var/www/networks/$NETWORK/meshrdf/recent/$MAC"
-	[ -e "$FILE" ] && {
+	if [ -e "$FILE" ]; then
 		echo "found $FILE"
-	}
+	else
+		# e.g. 11223344*
+		ls -l /var/www/networks/$NETWORK/meshrdf/recent/${MAC}* 2>/dev/null && echo "(in network $NETWORK)"
+	fi
 } done

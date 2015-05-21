@@ -1,5 +1,16 @@
 #!/bin/sh
 
+# for every kernel-version, we write a file with the unixtime and
+# changelog which can later easily retrieved via HTTP and searched, e.g.:
+# grep -i JFFS2: /var/www/kernel_history/*changelog.txt
+#
+# root@box:~# ls -1 /var/www/kernel_history/3.7.10*
+# /var/www/kernel_history/3.7.10
+# /var/www/kernel_history/3.7.10-changelog.txt
+#
+# root@box:~# cat /var/www/kernel_history/3.7.10
+# 1361953324
+
 DIR='/var/www/kernel_history'
 
 monthname2number()
@@ -42,7 +53,13 @@ for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 					;;
 					*)
 						# ChangeLog-3.0.12 -> 3.0.12
+						FILE="$LINK"
 						VERSION="$( echo "$LINK" | cut -d'-' -f2 )"
+
+						[ -e "$DIR/${VERSION}-changelog.txt" ] || {
+							logger -s "downloading changelog: $FILE"
+							wget -qO "$DIR/${VERSION}-changelog.txt" "$URL/$FILE"
+						}
 
 						if [ -e "$DIR/$VERSION" ]; then
 #							logger -s "kernel $VERSION already known"
@@ -77,6 +94,7 @@ for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 							esac
 						} done
 
+						# FIXME! can this work (set in a subshell!)
 						[ -z "$DATE_WELLFORMED" ] && {
 							logger -s "changelog without good date - taking filedate: $FILEDATE"
 							# source: 22-Feb-2001 01:02
