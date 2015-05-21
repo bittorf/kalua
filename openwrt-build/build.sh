@@ -2448,6 +2448,8 @@ die_and_exit()
 	exit 1
 }
 
+[ "$UID" = '0' ] && log "REMINDER: dont build as root, you have UID: $UID"
+
 check_git_settings			|| die_and_exit
 check_working_directory			|| die_and_exit
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
