@@ -329,10 +329,10 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 		MAC80211_CLEAN='true'
 
 		if grep -q "${option}CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
-			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')"
-
 			cp -v "$file" "package/kernel/mac80211/patches"
 			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
+			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')" \
+				gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
 
 			if [ "$( echo "$VERSION_OPENWRT" | cut -b2- )" -lt 40293 ]; then
 				file_regdb_hacked='kalua/openwrt-patches/reghack/regulatory.db.txt'
@@ -340,13 +340,15 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 				file_regdb_hacked='kalua/openwrt-patches/reghack/regulatory.db.txt-r40293++'
 			fi
 
-			log "using another regdb: '$file_regdb_hacked'"
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
+			log "using another regdb: '$file_regdb_hacked'" gitadd 'package/kernel/mac80211/files/regdb.txt'
 
 			# e.g. '00 US FM'
 			countries="$( grep ^'country ' "$file_regdb_hacked" | cut -d' ' -f2 | cut -d':' -f1 )"
 			countries="$( echo "$countries" | while read code; do echo -n "$code "; done )"		# remove CR/LF
+			log "using another regdb: '$file_regdb_hacked' for $countries" \
+				gitadd 'package/kernel/mac80211/files/regdb.txt'
 
 			register_patch "REGHACK: valid countries: $countries"
 			register_patch "$file"
