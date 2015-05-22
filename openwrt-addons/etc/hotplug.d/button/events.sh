@@ -19,6 +19,7 @@ case "${BUTTON}-${ACTION}" in
 		END="${UP%.*}${UP#*.}"
 		DIFF=$(( $END - $START ))
 
+		# FIXME! DIFF = 1000 -> 10 seconds
 		logger -s -- "$0: button '$BUTTON' released after $DIFF millisec"
 
 		next_radio()
