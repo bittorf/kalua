@@ -789,17 +789,21 @@ _wifi_phy_restart()
 				local bytes=0
 
 				# measure forwarding of wired -> wifi or wifi -> wired 
-				iptables -I FORWARD   -i eth+ ! -o eth+
-				iptables -I FORWARD ! -i eth+   -o eth+
+				$IPT -I FORWARD   -i eth+ ! -o eth+
+				$IPT -I FORWARD ! -i eth+   -o eth+
 
 				sleep 10
-#				iptables -
+				set -- $( $IPT -nxvL FORWARD 1 )
+				bytes=$2
+				set -- $( $IPT -nxvL FORWARD 2 )
+				bytes=$(( bytes + $2 ))
 
 				# unroll
-				iptables -D FORWARD ! -i eth+   -o eth+
-				iptables -D FORWARD   -i eth+ ! -o eth+
+				$IPT -D FORWARD ! -i eth+   -o eth+
+				$IPT -D FORWARD   -i eth+ ! -o eth+
 
-				return 1
+				_log do wifi_forwarding_still_active daemon info "bytes: $bytes"
+				test $bytes -gt 0
 			}
 
 			wifi_forwarding_still_active && {
