@@ -784,7 +784,31 @@ _wifi_phy_restart()
 
 	case "$reason" in
 		'cleanup after last client')
+			wifi_forwarding_still_active()
+			{
+				local bytes=0
+
+				# measure forwarding of wired -> wifi or wifi -> wired 
+				iptables -I FORWARD   -i eth+ ! -o eth+
+				iptables -I FORWARD ! -i eth+   -o eth+
+
+				sleep 10
+#				iptables -
+
+				# unroll
+				iptables -D FORWARD ! -i eth+   -o eth+
+				iptables -D FORWARD   -i eth+ ! -o eth+
+
+				return 1
+			}
+
+			wifi_forwarding_still_active && {
+				echo "$reason" >"/tmp/REQUESTED_PHY_RESTART-$wifi_dev"
+				return 1
+			}
+
 			prio='info'
+			[ -e "/tmp/REQUESTED_PHY_RESTART-$wifi_dev" ] && rm "/tmp/REQUESTED_PHY_RESTART-$wifi_dev"
 		;;
 	esac
 
