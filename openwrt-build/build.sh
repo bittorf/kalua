@@ -866,9 +866,12 @@ check_working_directory()
 		repo="$KALUA_REPO_URL"
 		git clone "$repo" || return $error
 		KALUA_DIRNAME="$( basename $repo | cut -d'.' -f1 )"
+		echo "$KALUA_DIRNAME" >'KALUA_REPO_URL'
 
 		log "[OK] after doing 'cd openwrt' you should do:"
 		log "$KALUA_DIRNAME/openwrt-build/build.sh --help"
+		log 'or'
+		log 'sh ../build.sh --help'
 
 		exit $error
 	}
@@ -2304,7 +2307,13 @@ check_git_settings()
 }
 
 # or: --myrepo 'git://github.com/weimarnetz/weimarnetz.git'
-KALUA_REPO_URL='git://github.com/bittorf/kalua.git'
+
+if [ -e 'KALUA_REPO_URL' ]; then
+	read KALUA_REPO_URL <'KALUA_REPO_URL'
+else
+	KALUA_REPO_URL='git://github.com/bittorf/kalua.git'
+fi
+
 KALUA_DIRNAME="$( basename "$KALUA_REPO_URL" | cut -d'.' -f1 )"		# e.g. kalua|weimarnetz
 PATCHDIR=
 
@@ -2420,6 +2429,7 @@ while [ -n "$1" ]; do {
 			QUIET='true'
 		;;
 		'--myrepo'|'-m')
+			# only valid after virgin build-script download
 			KALUA_REPO_URL="$2"
 		;;
 		'--buildid')
