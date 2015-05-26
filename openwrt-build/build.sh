@@ -53,7 +53,9 @@ print_usage_and_exit()
 Usage: sh $0 --openwrt
        sh $0 --openwrt trunk  --myrepo $KALUA_REPO_URL
        sh $0 --openwrt stable --myrepo git://github.com/weimarnetz/weimarnetz.git
-       (this will download/checkout OpenWrt)
+
+       This will download/checkout OpenWrt-buildscripts.
+
 EOF
 	else
 		cat <<EOF
@@ -105,7 +107,7 @@ build_tarball_package()
 
 	local architecture='all'
 	local package_name="$KALUA_DIRNAME-framework"
-	local kalua_unixtime="$( cd kalua; git log -1 --pretty='format:%ct'; cd .. )"
+	local kalua_unixtime="$( cd $KALUA_DIRNAME; git log -1 --pretty='format:%ct'; cd .. )"
 	local package_version="$(( $kalua_unixtime / 3600 ))"
 	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
 
@@ -305,7 +307,7 @@ register_patch()
 apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.linuxplumbersconf.org/2014/ocw/sessions/2439
 {
 	local funcname='apply_minstrel_rhapsody'
-	local dir='kalua/openwrt-patches/interesting/minstrel-rhapsody'
+	local dir="$KALUA_DIRNAME/openwrt-patches/interesting/minstrel-rhapsody"
 	local kernel_dir='package/kernel/mac80211'
 	local file base
 
@@ -330,7 +332,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 {
 	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
-	local file='kalua/openwrt-patches/reghack/900-regulatory-compliance_test.patch'
+	local file="$KALUA_DIRNAME/openwrt-patches/reghack/900-regulatory-compliance_test.patch"
 	local file_regdb_hacked countries code
 	local COMPAT_WIRELESS="2013-06-27"
 
@@ -344,9 +346,9 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 				gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
 
 			if [ "$( echo "$VERSION_OPENWRT" | cut -b2- )" -lt 40293 ]; then
-				file_regdb_hacked='kalua/openwrt-patches/reghack/regulatory.db.txt'
+				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt"
 			else
-				file_regdb_hacked='kalua/openwrt-patches/reghack/regulatory.db.txt-r40293++'
+				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt-r40293++"
 			fi
 
 			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
