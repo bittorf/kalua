@@ -1,5 +1,32 @@
 #!/bin/sh
 
+_cron_watchdog_is_running()
+{
+  local funcname="cron_watchdog_is_running"
+  local crondog_pid crondog_cmdline
+  local logprio="info"
+
+  [ -e /tmp/service_cronwatchdog_nowatching ] && return 0
+
+  read crondog_pid </tmp/cron_watchdog.pid
+  read crondog_cmdline </proc/${crondog_pid:-nonexistent}/cmdline
+
+  [ "$crondog_cmdline" = "sh/tmp/cron_watchdog.sh" ] || {
+
+    _watch counter "/tmp/$funcname" increment 1 max 2 || logprio="alert"
+
+    _log do $funcname daemon $logprio "cron_watchdog is missing"
+    return 1
+  }
+
+  return 0
+}
+
+_cron_daemon_stop()
+{
+  :
+}
+
 _cron_daemon_restart()
 {
 	local func="cron_daemon_restart"
