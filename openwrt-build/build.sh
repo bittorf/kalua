@@ -75,7 +75,7 @@ special arguments:
 	  --unittest	# complete testsuite
 	  --fail	# keep patched branch after building
 
-	  # apply own patches on top of OpenWrt
+	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
           --patchdir \$dir1 --patchdir \$dir2
 
 	  # add own servertring to image in dmesg/uname
@@ -2194,7 +2194,7 @@ unittest_do()
 	local funcname='unittest_do'
 	local shellcheck_bin build_loader file
 
-	if [ "$KALUA_DIRNAME" = 'openwrt-build' ]; then
+	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
 		build_loader='openwrt-addons/etc/kalua_init'
 	else
 		build_loader="$KALUA_DIRNAME/openwrt-addons/etc/kalua_init"
