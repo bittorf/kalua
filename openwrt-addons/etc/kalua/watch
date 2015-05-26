@@ -1853,7 +1853,7 @@ _watch_wifistuff()
 		esac
 	}
 
-	local interface line file clients clients_max
+	local interface line file clients clients_max file2 dev reason
 	for file in /var/run/hostapd-phy[0-3].conf; do {
 		while read line; do {
 			case "$line" in
@@ -1890,7 +1890,7 @@ _watch_wifistuff()
 							;;
 						esac
 
-						[ -e "/tmp/wifi_hasclients_$interface" ] && {
+						if [ -e "/tmp/wifi_hasclients_$interface" ]; then
 							rm "/tmp/wifi_hasclients_$interface" "/tmp/$funcname-apmode"
 
 							_net local_inet_offer >/dev/null || {
@@ -1898,7 +1898,16 @@ _watch_wifistuff()
 							}
 
 							break
-						}
+						else
+							for file2 in /tmp/REQUESTED_PHY_RESTART-*;do {
+								[ -e "$file2" ] && {
+									rm "$file2"
+									dev="$( echo "$file2" | cut -d'-' -f2 )"
+									read reason <"$file2"
+									_wifi phy_restart "$dev" "$reason"
+								}
+							} done
+						fi
 					fi
 				;;
 			esac
