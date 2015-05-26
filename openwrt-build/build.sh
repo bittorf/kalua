@@ -1,27 +1,23 @@
 #!/bin/sh
 
-# ToDo:
-# - autoremove old branches: for B in $(git branch|grep @); do git branch -D $B; done
+# TODO:
+# - autoremove old branches?:
+#   - for B in $(git branch|grep @); do git branch -D $B; done
 # - support for tarball
 # - support for reverting specific openwrt-commits (for building older kernels)
-# - apply kernel_symbols
-#   - NO: ??? /home/bastian/j/openwrt/build_dir/target-mips_34kc_uClibc-0.9.33.2/linux-ar71xx_generic/linux-3.10.17/.config
-#   - back to normal state: git checkout -- /home/bastian/j/openwrt/target/linux/ar71xx/config-3.10
-# - options: noWiFi, noSSH (+login-patch), noOPKG, noIPTables, Failsafe
+# - options: noWiFi, noSSH (+login-patch), noIPTables, Failsafe (like sven-ola)
 # - packages/feeds/openwrt: checkout specific version
 #   - http://stackoverflow.com/questions/6990484/git-checkout-by-date
 #   - hash="$( git rev-list -n 1 --before="2009-07-27 13:37" master )"
 # - build release-dir
-# - hardware: all models
-# - build jffs2-images too
+# - build jffs2-only-images too?
 # - kalua: copy patches
 # - build for whole arch (no subtarget)?
-# - build with 'weimarnetz'
+# - build with 'weimarnetz' or own fork
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 # - build for each router in monitoring? "build for network olympia"
-# - attic not in bin/$ARCH/attic but ../attic? -> make dirclean will remove it
 # - option: failsafe-image: add 'failsafe=' to kernel-commandline
-# - include/renew patches for awk-remove
+# - include/renew patches for awk-removal
 
 print_usage_and_exit()
 {
@@ -51,33 +47,47 @@ print_usage_and_exit()
 	[ -n "$hint" ] && log "[HINT:] $hint"
 
 	if [ -e 'build.sh' ]; then
+		# virgin script-download
 		cat <<EOF
 
 Usage: sh $0 --openwrt
+       sh $0 --openwrt trunk --myrepo $KALUA_REPO_URL
        (this will download/checkout OpenWrt)
 EOF
 	else
 		cat <<EOF
 
-Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names>
-       $0 --debug --${KALUA_DIRNAME}_package
+Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
+       $0 --myrepo $KALUA_REPO_URL
 
 e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
 
-Get help without args, e.g.: --hardware <empty>
-EOF
+get help without args, e.g.: --hardware <empty>
 
-#	--patchdir \$dir
-#       --openwrt trunk | <empty>
-#	--hardware 'Ubiquiti Bullet M5'|<empty> = list supported models
-#	--buildid 'user@domain.tld'
-#	--kernel
-#	--usecase
-#	--profile 'ffweimar.hybrid.120'
-#	--release 'stable' 'user@server:/your/path'	# copy sysupgrade-file without all details = 'Ubiquiti Bullet M.sysupgrade.bin'
-#	--debug
-#	--force
-#	--quiet
+special arguments:
+	  # continuous integration / development
+	  --check 	# shell-scripts only
+	  --unittest	# complete testsuite
+	  --fail	# keep patched branch after building
+
+	  # apply own patches on top of OpenWrt
+          --patchdir \$dir1 --patchdir \$dir2
+
+	  # add own servertring to image in dmesg/uname
+	  --buildid user@domain.tld
+
+	  # enforce specific kernel, see 'include/kernel-version.mk'
+	  --kernel 3.18
+
+	  # enforce specific apply_profile configuration/nodenumber
+	  --profile ffweimar.hybrid.120
+
+	  # build .ipk-package from 'myrepo'
+	  --tarball_package
+
+	  # autoupload to release-server
+	  --release 'stable' 'user@server:/your/path'
+EOF
 	fi
 
 	test -n "$FORCE"
@@ -99,7 +109,6 @@ build_tarball_package()
 	local package_version="$(( $kalua_unixtime / 3600 ))"
 	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
 
-	local url='https://github.com/bittorf/kalua'		# TODO: ffweimar?
 	local builddir="$KALUA_DIRNAME/builddir"
 	local destdir="bin/${ARCH:-$architecture}/packages"
 	local verbose="${DEBUG+v}"
@@ -119,7 +128,7 @@ Maintainer: Bastian Bittorf <kontakt@weimarnetz.de>
 Section: utils
 Description: some helper scripts for making debugging easier on meshed openwrt nodes
 Architecture: $architecture
-Source: $url
+Source: $KALUA_REPO_URL
 EOF
 
 	tar $tar_options $tar_flags 'control.tar.gz' ./control
@@ -850,9 +859,9 @@ check_working_directory()
 		git clone 'git://nbd.name/packages.git' || return $error
 		cd openwrt
 
-# FIXME (use global var?)
-#		repo='git://github.com/weimarnetz/weimarnetz.git'
-		repo='git://github.com/bittorf/kalua.git'
+		# git://github.com/weimarnetz/weimarnetz.git
+		# git://github.com/bittorf/kalua.git
+		repo="$KALUA_REPO_URL"
 		git clone "$repo" || return $error
 		KALUA_DIRNAME="$( basename $repo | cut -d'.' -f1 )"
 
@@ -2292,17 +2301,15 @@ check_git_settings()
 	}
 }
 
-# kalua/openwrt-build/build.sh		-> kalua
-# weimarnetz/openwrt-build/build.sh	-> weimarnetz
-# openwrt-build/build.sh		-> openwrt-build
-KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 PATCHDIR=
+KALUA_REPO_URL='git://github.com/bittorf/kalua.git'
+KALUA_DIRNAME="$( basename "$KALUA_REPO_URL" | cut -d'.' -f1 )"		# e.g. kalua|weimarnetz
 
 [ -z "$1" ] && print_usage_and_exit
 
 while [ -n "$1" ]; do {
 	case "$1" in
-		"--${KALUA_DIRNAME}_package"|'-P')
+		'--tarball_package'|'-P')
 			build_tarball_package || print_usage_and_exit
 			exit 0
 		;;
@@ -2408,6 +2415,9 @@ while [ -n "$1" ]; do {
 		;;
 		'--quiet'|'-q')
 			QUIET='true'
+		;;
+		'--myrepo'|'-m')
+			KALUA_REPO_URL="$2"
 		;;
 		'--buildid')
 			# e.g. 'user@domain.tld'
