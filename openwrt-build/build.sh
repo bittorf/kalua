@@ -23,7 +23,7 @@ print_usage_and_exit()
 {
 	local hint="$1"
 	local rev="$( openwrt_revision_number_get )"
-	local hardware usecase more_options
+	local hardware usecase more_options x
 
 	if [ -e 'files/etc/HARDWARE' ]; then
 		# last used one
@@ -58,11 +58,14 @@ Usage: sh $0 --openwrt
 
 EOF
 	else
+		# better helptext
+		test -x "$0" || x='sh '
+
 		cat <<EOF
 
-Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
+Usage: ${x}$0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
 
-e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
+e.g. : ${x}$0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
 
 get help without args, e.g.: --hardware <empty>
 
