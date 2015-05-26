@@ -58,7 +58,6 @@ EOF
 		cat <<EOF
 
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
-       $0 --myrepo $KALUA_REPO_URL
 
 e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
 
