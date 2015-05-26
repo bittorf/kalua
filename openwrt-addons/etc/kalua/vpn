@@ -296,13 +296,13 @@ _vpn_build_vars ()
   # load json lib
   . /usr/share/libubox/jshn.sh
 
-  #vpn domain
+  # ex: weimarnetz.de
   DOMAIN="$( uci get system.@vpn[0].domain )"
-  #vpn prefix
+  # ex: vpn
   PREFIX="$( uci get system.@vpn[0].prefix )"
-  #json info url
+  # ex: /freifunk/vpn/
   JSONPATH="$( uci get system.@vpn[0].jsonpath )"
-  #vtuntype
+  # ex: nossl_nolzo
   VTUNDTYPE="$( _vpn probe_vtund_type )"
 
   # ugly hack
@@ -310,22 +310,29 @@ _vpn_build_vars ()
 
   for i in $(seq 1 10) 
   do
-    HOST=$i.$PREFIX.$DOMAIN
-    URL="http://$HOST$JSONPATH"
-    if ! JSON=$( _wget do "$URL" 2>/dev/null ); then
-      _log do $FUNC daemon err "error fetching $URL"
+    HOST="${i}.${PREFIX}.${DOMAIN}"
+    URL="http://${HOST}${JSONPATH}"
+    if ! JSON=$( _wget do "${URL}" 2>/dev/null ); then
+      _log do ${FUNC} daemon err "error fetching ${URL}"
     else
        json_cleanup # json_get_var variables are not cleaned otherwise.
-       json_load "$JSON" 2>/dev/null
+       json_load "${JSON}" 2>/dev/null
        SERVER=     json_get_var SERVER server
        CLIENTS=-1  json_get_var CLIENTS clients
        MTU=-1      json_get_var MTU maxmtu
        PORT=-1     json_get_var PORT port_vtun_${VTUNDTYPE}
 
-       if PING="$( _net ping_getlatency "$SERVER" )"; then
+       PING="$( _net ping_getlatency "${SERVER}" )";
+       if [ -z "${PING}" ]; then
 	    _log do $FUNC daemon info "ping not possible"
-       elif [ 2>/dev/null -n "$SERVER" -a "$CLIENTS" -ge 0 -a "$MTU" -ge 0 -a "$PORT" -ge 0 -a -n "$PING" ]; then
-             _log do $FUNC daemon notice "got $SERVER - ping: ${PING}ms"
+       elif [ -n "${SERVER}" \
+              -a "${CLIENTS}" \
+              -ge 0 -a "${MTU}" \
+              -ge 0 -a "${PORT}" \
+              -ge 0 -a -n "${PING}" \
+              2>/dev/null ]; 
+            then
+             _log do ${FUNC} daemon notice "got ${SERVER} - ping: ${PING}ms"
              TABLE="$TABLE;$PING $i $CLIENTS $MTU $PORT $SERVER"
        else
             _log do $FUNC daemon err "error: invalid data on $URL"
@@ -333,7 +340,7 @@ _vpn_build_vars ()
     fi
   done
 
-# no vpn exit early
+# no vpn, then exit early
 [ -n "$TABLE" ] || return 1
 
 # get VPN with lowest latency
