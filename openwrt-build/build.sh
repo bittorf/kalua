@@ -2180,9 +2180,10 @@ check_scripts()
 		esac
 	} done <"$tempfile"
 
-	log "[OK] checked $i files"
+	log "[OK] checked ${i:=0} files"
 	rm "$tempfile"
-	return 0
+
+	test $i -gt 0
 }
 
 unittest_do()
@@ -2330,11 +2331,13 @@ while [ -n "$1" ]; do {
 			exit 0
 		;;
 		'--check'|'-c')
+			log "KALUA_DIRNAME: '$KALUA_DIRNAME' \$0: $0" debug
+
 			if [ "$KALUA_DIRNAME" = "$( dirname "$0" )" ]; then
 				# openwrt-build/build.sh -> openwrt-build
 				check_scripts .
 			else
-				check_scripts ${2:-$KALUA_DIRNAME}
+				check_scripts "${2:-$KALUA_DIRNAME}"
 			fi
 
 			test $? -eq 0 || exit 1
