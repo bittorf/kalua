@@ -51,7 +51,8 @@ print_usage_and_exit()
 		cat <<EOF
 
 Usage: sh $0 --openwrt
-       sh $0 --openwrt trunk --myrepo $KALUA_REPO_URL
+       sh $0 --openwrt trunk  --myrepo $KALUA_REPO_URL
+       sh $0 --openwrt stable --myrepo git://github.com/weimarnetz/weimarnetz.git
        (this will download/checkout OpenWrt)
 EOF
 	else
@@ -2300,9 +2301,10 @@ check_git_settings()
 	}
 }
 
-PATCHDIR=
+# or: --myrepo 'git://github.com/weimarnetz/weimarnetz.git'
 KALUA_REPO_URL='git://github.com/bittorf/kalua.git'
 KALUA_DIRNAME="$( basename "$KALUA_REPO_URL" | cut -d'.' -f1 )"		# e.g. kalua|weimarnetz
+PATCHDIR=
 
 [ -z "$1" ] && print_usage_and_exit
 
