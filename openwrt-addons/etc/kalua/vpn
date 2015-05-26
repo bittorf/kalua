@@ -94,7 +94,7 @@ _vpn_innercity_master_iface()
 	local action="$1"	# up|down
 	local dev="$2"		# e.g. tap276
 	local i=0
-	local bytes packets uptime uptime_sec numbers
+	local bytes packets uptime uptime_sec numbers linenumber
 
 	while ! mkdir "/tmp/lock-$funcname"; do {
 		i=$(( i + 1 ))
@@ -127,12 +127,15 @@ _vpn_innercity_master_iface()
 		$IPT -I FORWARD -o $dev -j ACCEPT
 
 		mkdir '/tmp/FREIFUNK_TUNNEL' && {
-			$IPT -t nat -I POSTROUTING -s 10.0.0.0/8 ! -d 10.0.0.0/8 -j MASQUERADE
+			$IPT -t nat -I POSTROUTING -s '10.0.0.0/8' ! -d '10.0.0.0/8' -j MASQUERADE
 			# TODO: activate forwarding in kernel
 		}
 
+		# if we cannot find the interface name, insert it
+		# only do it for 1st occurence - and dont touch 'private' sections
 		grep -q "\"$dev\"" "$olsrd_config" || {
-			sed -i "s/Interface /Interface \"$dev\" /" "$olsrd_config"
+			linenumber="$( grep -n ^'Interface ' | head -n1 | cut -d':' -f1 )"
+			sed -i "${linenumber}s/Interface /Interface \"$dev\" /" "$olsrd_config"
 			_olsr daemon restart "new interface '$dev' added"
 		}
 
