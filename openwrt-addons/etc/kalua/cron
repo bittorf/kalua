@@ -1,29 +1,4 @@
-_cron_watchdog_is_running()
-{
-	local funcname="cron_watchdog_is_running"
-	local crondog_pid crondog_cmdline
-	local logprio="info"
-
-	[ -e /tmp/service_cronwatchdog_nowatching ] && return 0
-
-	read crondog_pid </tmp/cron_watchdog.pid
-	read crondog_cmdline </proc/${crondog_pid:-nonexistent}/cmdline
-
-	[ "$crondog_cmdline" = "sh/tmp/cron_watchdog.sh" ] || {
-
-		_watch counter "/tmp/$funcname" increment 1 max 2 || logprio="alert"
-
-		_log do $funcname daemon $logprio "cron_watchdog is missing"
-		return 1
-	}
-
-	return 0
-}
-
-_cron_daemon_stop()
-{
-	:
-}
+#!/bin/sh
 
 _cron_daemon_restart()
 {
@@ -33,4 +8,153 @@ _cron_daemon_restart()
 	_log do $func daemon info "[START] $reason"
 	/etc/init.d/*crond* restart
 	_log do $func daemon info "[READY]"
+}
+
+_cron_vpnserver()
+{
+	local funcname='cron_vpnserver'
+	local ip="${1:-84.38.67.43}"
+	local firstrun="/dev/shm/firstrun_$funcname"
+	local public_ip port loopback_interface='lo'
+
+	[ -e "$firstrun" ] || {
+		touch "$firstrun"
+		_log do $funcname daemon sms 'firstrun/bootup'
+
+		# left from default init-script with dummy-config
+		pidof vtund && killall vtund
+
+		[ -e '/etc/olsrd.conf' ] || {
+			public_ip="$( _net get_external_ip )"
+			port="$( _vpn innercity_master_vtund get_port )"
+
+			get_plugin()
+			{
+				# print highest number (sorting)
+				basename "$( ls -1 /usr/local/lib/olsrd_$1.so.* /usr/lib/olsrd_$1.so.* 2>/dev/null | tail -n1 )"
+			}
+
+			# TODO: own func + configure MainIP on loopback/VPN? and use for service
+			cat >'/etc/olsrd.conf' <<EOF
+DebugLevel 0
+
+LoadPlugin "$( get_plugin txtinfo )"
+{
+}
+
+LoadPlugin "$( get_plugin nameservice )"
+{
+	PlParam "name" "$HOSTNAME"
+	PlParam "service" "http://$HOSTNAME:80|tcp|VPN-hideandseek:$public_ip:$port"
+}
+
+Hna4
+{
+	0.0.0.0 0.0.0.0		# we have internet
+}
+
+Interface "$loopback_interface"
+{
+	# values for speed 7
+	Ip4Broadcast 255.255.255.255
+	HelloInterval 4.0
+	HelloValidityTime 175.0
+	TcValidityTime 700.0
+	TcInterval 3.0
+	MidInterval 35.0
+	MidValidityTime 700.0
+	HnaInterval 14.0
+	HnaValidityTime 175.0
+}
+EOF
+			ln -s '/etc/olsrd.conf' '/var/etc/olsrd.conf'
+		}
+	}
+
+	ping -s 64 -c1 "$ip" >/dev/null || _log do $funcname daemon alert "ping to $ip failed"
+	_olsr build_overview_static
+	_vpn innercity_master_vtund check_on_server
+
+	# uptime.sec->minutes divideable (without rest) by 360? -> each 360 mins
+	read UP REST </proc/uptime
+	[ $(( $(( ${UP%.*} / 60 )) % 360 )) -eq 0 ] && {
+		_firmware update_pmu
+		_watch archivsize '/www/everlasting_syslog.txt' 200 300
+	}
+
+	# TODO: build an interactive 'vpn_setup'
+	#
+	### install 'innercity-VPN' on a fresh debian7 VPS-server:
+	# apt-get -y install build-essential bison flex zlib1g-dev liblzo2-dev libncurses5-dev libreadline6-dev libcurl4-openssl-dev lsof
+	# enable tun/tap via webinterface
+	# maybe: http://lowendbox.com/blog/yes-you-can-run-18-static-sites-on-a-64mb-link-1-vps/
+	#
+	### OLSR:
+	# wget -O olsrd-latest.tar.bz2 http://www.olsr.org/releases/0.6/latest.tar.bz2
+	# tar xjf olsrd-*; cd olsrd-*
+	# make build_all && make install_all
+	# cd ..; rm -fR olsrd-*
+	# mkdir -p /var/etc
+	# ln -s /usr/local/sbin/olsrd /usr/sbin/olsrd
+	# ln -s /etc/olsrd.conf /var/etc/olsrd.conf
+	#
+	### TINC:
+	# wget http://www.tinc-vpn.org/packages/tinc-1.1pre11.tar.gz
+	# tar xzf tinc-*; cd tinc-*
+	# ./configure && make && make install
+	# rm -fR tinc-*
+	#
+	### TINC-config:
+	# wget -O vpnconfig-master.tar.gz https://github.com/weimarnetz/vpnconfig/archive/latest.tar.gz
+	# tar xzf vpnconfig-*; cd vpnconfig-*
+	# mkdir -p /etc/tinc/wnvpn
+	# cp -vR tinc/wnvpn/* /etc/tinc/wnvpn
+	# cp -vR tinc/wnvpn/* /usr/local/etc/tinc/wnvpn
+	# READ: https://github.com/weimarnetz/vpnconfig#ip-schema (e.g. 'vpn4' = .52)
+	# vi /etc/tinc/wnvpn/tinc-up
+	# vi /etc/tinc/wnvpn/tinc-down
+	# vi /etc/tinc/wnvpn/tinc.conf
+	# tinc -n 'wnvpn' init 'vpn4'
+	# ls -l /usr/local/etc/tinc/wnvpn/rsa_key.priv
+	# tincd -c /etc/tinc/wnvpn
+	#
+	### VTUN:
+	# wget http://downloads.sourceforge.net/project/vtun/vtun/3.0.3/vtun-3.0.3.tar.gz
+	# tar xzf vtun-*; cd vtun-*
+	# test -e /usr/local/bin/strip || ln -s /bin/true /usr/local/bin/strip
+	# ./configure --disable-ssl && make && make install
+	# cd ..; rm -fR vtun-*
+	#
+	### UCI:
+	# echo >>/etc/kalua_uci 'system.@system[0].hostname=ChicagoVPS'
+	# echo >>/etc/kalua_uci 'system.@fwupdate[0].mode=testing'
+	# echo >>/etc/kalua_uci 'system.vpn.port=5001'
+	# - sms_password
+	#
+	### KALUA:
+	# wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/tarball.tgz
+	# cd /; tar xzf /tmp/tarball.tgz && rm -f /tmp/tarball.tgz; cd ~
+	# /etc/kalua_init
+	# (respect possible error-messages)
+	#
+	### WEBSERVER:
+	# apt-get -y install $YOUR_CHOICE (e.g. apache2 or http://zeniv.linux.org.uk/~alan/%C2%B5Web/ )
+	# mkdir -p /var/www
+	# test -e /var/www/index.html && mv /var/www/index.html /var/www/index.html_old
+	# touch /var/www/cgi-bin-status.html && ln -s /var/www/cgi-bin-status.html /var/www/index.html
+	# wget -O /var/www/favicon.ico http://intercity-vpn.de/favicon.ico
+	# cp /www/robots.txt /var/www
+	# touch /var/www/cgi-bin-tool.sh
+	#
+	### crontab -e
+	# (before enabling this crontab, fire this line manually first and solve problems)
+	# * * * * * test -e /tmp/loader || /etc/kalua_init && . /tmp/loader && _cron vpnserver
+	#
+	### TODO:
+	# /etc/profile: . /tmp/loader
+	# /etc/profile: olsr-neighs via cmdline: alias n='wget -qO - http://127.0.0.1:2006/neighbours'
+	# olsr-HNA4/MainIP?: https://github.com/weimarnetz/vpnconfig#ip-schema
+	# remove packages for compiling?
+	# unalias cp/rm/mv -> avoiding 'cp -i' (always asking)
+	# auto-key-update for tinc (1 server changes, all other must update)
 }
