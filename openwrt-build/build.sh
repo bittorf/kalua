@@ -2333,7 +2333,7 @@ while [ -n "$1" ]; do {
 		'--check'|'-c')
 			log "KALUA_DIRNAME: '$KALUA_DIRNAME' \$0: $0" debug
 
-			if [ "$KALUA_DIRNAME" = "$( dirname "$0" )" ]; then
+			if [ "$KALUA_DIRNAME" = "$( dirname "$0" )" -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
 				# openwrt-build/build.sh -> openwrt-build
 				check_scripts .
 			else
