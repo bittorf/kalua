@@ -52,7 +52,7 @@ print_usage_and_exit()
 
 Usage: sh $0 --openwrt
        sh $0 --openwrt trunk  --myrepo $KALUA_REPO_URL
-       sh $0 --openwrt stable --myrepo git://github.com/weimarnetz/weimarnetz.git
+       sh $0 --openwrt r44150 --myrepo git://github.com/weimarnetz/weimarnetz.git
 
        This will download/checkout OpenWrt-buildscripts.
 
