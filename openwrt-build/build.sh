@@ -861,12 +861,15 @@ check_working_directory()
 			rm -fR 'packages'
 		}
 
-		git clone 'git://nbd.name/packages.git' || return $error
+		repo='git://nbd.name/packages.git'
+		log "first start - fetching OpenWrt-packages: git clone '$repo'"
+		git clone "$repo" || return $error
 		cd openwrt
 
 		# git://github.com/weimarnetz/weimarnetz.git
 		# git://github.com/bittorf/kalua.git
 		repo="$KALUA_REPO_URL"
+		log "first start - fetching own-repo: git clone '$repo'"
 		git clone "$repo" || return $error
 		KALUA_DIRNAME="$( basename $repo | cut -d'.' -f1 )"
 		echo "$KALUA_DIRNAME" >'KALUA_REPO_URL'
