@@ -960,7 +960,9 @@ openwrt_download()
 				# or 'r12345' or
 				# or 'stable' or 'beta' or 'testing'
 				# or 'trunk'
-	local hash branch
+				# or 'switch_to_master'
+				# or 'reset_autocommits'
+	local hash branch commit
 	local old_wish="$wish"
 
 	log "apply '$wish'"
@@ -1034,6 +1036,18 @@ openwrt_download()
 
 			# r12345
 			VERSION_OPENWRT="$wish"
+		;;
+		'reset_autocommits')
+			found_autocommit()
+			{
+				# from log/gitadd
+				git log HEAD...HEAD^^ | fgrep -q '# mimic OpenWrt-style:'
+			}
+
+			while found_autocommit; do {
+				commit="$( git log HEAD...HEAD^^ | grep ^'commit ' | tail -n1 | cut -d' ' -f2 )"
+				git reset --hard $commit
+			} done
 		;;
 		'switch_to_master')
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
@@ -2497,6 +2511,7 @@ build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
 build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
+openwrt_download 'reset_autocommits'
 
 read T2 REST </proc/uptime
 
