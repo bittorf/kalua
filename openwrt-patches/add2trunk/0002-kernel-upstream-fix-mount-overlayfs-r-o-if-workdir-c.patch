@@ -1,8 +1,8 @@
-From 0f38ebee71dec26653548f16f05084274ee7d037 Mon Sep 17 00:00:00 2001
+From 4e3afe459f40aef8c9d7a2150f512674688bf7be Mon Sep 17 00:00:00 2001
 From: Bastian Bittorf <bittorf@bluebottle.com>
-Date: Wed, 27 May 2015 15:32:12 +0200
-Subject: [PATCH] [kernel] upstream fix: mount overlayfs r/o if workdir cannot
- be created
+Date: Wed, 27 May 2015 15:50:20 +0200
+Subject: [PATCH] [PATCH] [kernel] upstream fix: mount overlayfs r/o if
+ workdir cannot be created
 
 This is the case e.g. if JFFS2 partition is full.
 
@@ -18,7 +18,7 @@ Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
 
 diff --git a/target/linux/ar71xx/patches-3.18/910-overlayfs-fallback-to-readonly-when-full.patch b/target/linux/ar71xx/patches-3.18/910-overlayfs-fallback-to-readonly-when-full.patch
 new file mode 100644
-index 0000000..3433cbc
+index 0000000..21f11fd
 --- /dev/null
 +++ b/target/linux/ar71xx/patches-3.18/910-overlayfs-fallback-to-readonly-when-full.patch
 @@ -0,0 +1,109 @@
@@ -26,25 +26,25 @@ index 0000000..3433cbc
 +
 +On Tue, May 19, 2015 at 09:51:20AM +0200, Bastian Bittorf wrote:
 +> Hi Miklos,
-+> 
++>
 +> sorry for writing directly to you, feel free to forward
 +> this to the appropriate mailinglist.
-+> 
++>
 +> we have a problem with mainline overlay filesystem on kernel 3.18:
 +> https://dev.openwrt.org/ticket/19564
-+> 
++>
 +> 2 things are odd:
 +> when the working filesystem is full, overlays fails with:
-+> 
++>
 +> overlayfs: failed to create directory /overlay/work/work
-+> 
++>
 +> what is strange, that we call it with:
-+> 
++>
 +> mount(overlay, "/mnt", "overlay", MS_NOATIME, lowerdir)
-+> 
++>
 +> see here:
 +> http://nbd.name/gitweb.cgi?p=fstools.git;a=blob;f=libfstools/mount.c;h=81176ce399b4cd8e2d347c0008c13dec92407f55;hb=e6004000ff15d7bd32cf5663e8690fc94d7ec747#l125
-+> 
++>
 +> do you have an idea whats wrong?
 +> 1) is it really needed, that we need space for creating dir "/overlay/work"?
 +> 2) why does overlay need "/overlay/work/work"?
@@ -69,53 +69,53 @@ index 0000000..3433cbc
 +--- a/fs/overlayfs/copy_up.c
 ++++ b/fs/overlayfs/copy_up.c
 +@@ -300,6 +300,9 @@ int ovl_copy_up_one(struct dentry *paren
-+ 	struct cred *override_cred;
-+ 	char *link = NULL;
-+ 
++	struct cred *override_cred;
++	char *link = NULL;
++
 ++	if (WARN_ON(!workdir))
 ++		return -EROFS;
 ++
-+ 	ovl_path_upper(parent, &parentpath);
-+ 	upperdir = parentpath.dentry;
-+ 
++	ovl_path_upper(parent, &parentpath);
++	upperdir = parentpath.dentry;
++
 +--- a/fs/overlayfs/dir.c
 ++++ b/fs/overlayfs/dir.c
 +@@ -222,6 +222,9 @@ static struct dentry *ovl_clear_empty(st
-+ 	struct kstat stat;
-+ 	int err;
-+ 
++	struct kstat stat;
++	int err;
++
 ++	if (WARN_ON(!workdir))
 ++		return ERR_PTR(-EROFS);
 ++
-+ 	err = ovl_lock_rename_workdir(workdir, upperdir);
-+ 	if (err)
-+ 		goto out;
++	err = ovl_lock_rename_workdir(workdir, upperdir);
++	if (err)
++		goto out;
 +@@ -322,6 +325,9 @@ static int ovl_create_over_whiteout(stru
-+ 	struct dentry *newdentry;
-+ 	int err;
-+ 
++	struct dentry *newdentry;
++	int err;
++
 ++	if (WARN_ON(!workdir))
 ++		return -EROFS;
 ++
-+ 	err = ovl_lock_rename_workdir(workdir, upperdir);
-+ 	if (err)
-+ 		goto out;
++	err = ovl_lock_rename_workdir(workdir, upperdir);
++	if (err)
++		goto out;
 +@@ -506,6 +512,9 @@ static int ovl_remove_and_whiteout(struc
-+ 	struct dentry *opaquedir = NULL;
-+ 	int err;
-+ 
++	struct dentry *opaquedir = NULL;
++	int err;
++
 ++	if (WARN_ON(!workdir))
 ++		return -EROFS;
 ++
-+ 	if (is_dir) {
-+ 		opaquedir = ovl_check_empty_and_clear(dentry);
-+ 		err = PTR_ERR(opaquedir);
++	if (is_dir) {
++		opaquedir = ovl_check_empty_and_clear(dentry);
++		err = PTR_ERR(opaquedir);
 +--- a/fs/overlayfs/super.c
 ++++ b/fs/overlayfs/super.c
 +@@ -740,9 +740,15 @@ static int ovl_fill_super(struct super_b
-+ 	ufs->workdir = ovl_workdir_create(ufs->upper_mnt, workpath.dentry);
-+ 	err = PTR_ERR(ufs->workdir);
-+ 	if (IS_ERR(ufs->workdir)) {
++	ufs->workdir = ovl_workdir_create(ufs->upper_mnt, workpath.dentry);
++	err = PTR_ERR(ufs->workdir);
++	if (IS_ERR(ufs->workdir)) {
 +-		pr_err("overlayfs: failed to create directory %s/%s\n",
 +-		       ufs->config.workdir, OVL_WORKDIR_NAME);
 +-		goto out_put_lower_mnt;
@@ -128,9 +128,9 @@ index 0000000..3433cbc
 ++			       ufs->config.workdir, OVL_WORKDIR_NAME);
 ++			goto out_put_lower_mnt;
 ++		}
-+ 	}
-+ 
-+ 	/*
++	}
++
++	/*
 -- 
 1.7.10.4
 
