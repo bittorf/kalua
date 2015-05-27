@@ -57,12 +57,12 @@ print_usage_and_exit()
 		# virgin script-download
 		cat <<EOF
 
-Usage: $0 --openwrt
-       $0 --openwrt trunk
-       $0 --openwrt 15.05 --myrepo git://github.com/weimarnetz/weimarnetz.git
+Usage: ./$0 --openwrt
+       ./$0 --openwrt trunk
+       ./$0 --openwrt 15.05 --myrepo git://github.com/weimarnetz/weimarnetz.git
 
-       this will download/checkout OpenWrt-buildscripts.
-       default 'myrepo' is '$KALUA_REPO_URL'.
+       This will download/checkout OpenWrt-buildscripts,
+       and 'myrepo' defaults to '$KALUA_REPO_URL'.
 
 EOF
 	else
@@ -881,7 +881,7 @@ check_working_directory()
 		echo "$KALUA_DIRNAME" >'KALUA_REPO_URL'
 
 		log "[OK] after doing 'cd openwrt' you should do:"
-		log 'sh ../build.sh --help'
+		log '../build.sh --help'
 
 		exit $error
 	}
