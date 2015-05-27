@@ -63,6 +63,7 @@ Usage: $0 --openwrt
 
        this will download/checkout OpenWrt-buildscripts.
        default 'myrepo' is '$KALUA_REPO_URL'.
+
 EOF
 	else
 		cat <<EOF
@@ -96,6 +97,7 @@ special arguments:
 
 	  # autoupload to release-server
 	  --release 'stable' 'user@server:/your/path'
+
 EOF
 	fi
 
@@ -945,6 +947,8 @@ check_working_directory()
 
 openwrt_revision_number_get()		# e.g. 43234
 {
+	[ -d '.git' ] || return 1	# e.g. virgin script-download
+
 	local rev="$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 
 	if [ -n "$rev" ]; then
