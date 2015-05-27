@@ -23,10 +23,16 @@ print_usage_and_exit()
 {
 	local hint="$1"
 	local rev="$( openwrt_revision_number_get )"
-	local hardware usecase more_options x
+	local hardware usecase more_options
+
+	[ -x "$0" ] || {
+		log "[OK] executing for you: 'chmod +x $0'"
+		chmod +x $0
+	}
 
 	if [ -e 'files/etc/HARDWARE' ]; then
 		# last used one
+		# FIXME! gets lost after git cleanup
 		read hardware <'files/etc/HARDWARE'
 	else
 		hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
@@ -34,6 +40,7 @@ print_usage_and_exit()
 
 	if [ -e 'files/etc/openwrt_build' ]; then
 		# last used one, e.g.: Standard,noPPPoE,BigBrother,kalua@e678dd6
+		# FIXME! gets lost after git cleanup
 		read usecase <'files/etc/openwrt_build'
 		usecase="$( echo "$usecase" | cut -d'@' -f1 )"
 	else
@@ -50,22 +57,19 @@ print_usage_and_exit()
 		# virgin script-download
 		cat <<EOF
 
-Usage: sh $0 --openwrt
-       sh $0 --openwrt trunk --myrepo $KALUA_REPO_URL
-       sh $0 --openwrt 15.05 --myrepo git://github.com/weimarnetz/weimarnetz.git
+Usage: $0 --openwrt
+       $0 --openwrt trunk
+       $0 --openwrt 15.05 --myrepo git://github.com/weimarnetz/weimarnetz.git
 
-       This will download/checkout OpenWrt-buildscripts.
-
+       this will download/checkout OpenWrt-buildscripts.
+       default 'myrepo' is '$KALUA_REPO_URL'.
 EOF
 	else
-		# better helptext
-		test -x "$0" || x='sh '
-
 		cat <<EOF
 
-Usage: ${x}$0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
+Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
 
-e.g. : ${x}$0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
+e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
 
 get help without args, e.g.: --hardware <empty>
 
@@ -875,8 +879,6 @@ check_working_directory()
 		echo "$KALUA_DIRNAME" >'KALUA_REPO_URL'
 
 		log "[OK] after doing 'cd openwrt' you should do:"
-		log "$KALUA_DIRNAME/openwrt-build/build.sh --help"
-		log 'or'
 		log 'sh ../build.sh --help'
 
 		exit $error
