@@ -1005,7 +1005,8 @@ openwrt_download()
 			log "checkout local copy of trunk/$VERSION_OPENWRT"
 			$funcname "$VERSION_OPENWRT"
 		;;
-		'r'*)
+		'r'[0-9]*)
+			# e.g. r12345
 			$funcname 'switch_to_master'
 
 			# typical entry:
