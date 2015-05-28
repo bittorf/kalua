@@ -2433,7 +2433,7 @@ while [ -n "$1" ]; do {
 			STOP_PARSE='true'
 		;;
 		'--update')
-			wget -O ../build.sh 'https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
+			wget -O $0 'https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 			STOP_PARSE='true'
 		;;
 		'--unittest')
@@ -2469,19 +2469,13 @@ while [ -n "$1" ]; do {
 			VERSION_KERNEL_FORCE="$2"
 		;;
 		'--hardware'|'-hw')
+			# exact match in our list?
 			if target_hardware_set 'list' 'plain' | grep -q ^"$2"$ ; then
 				HARDWARE_MODEL="$2"
 			else
-				# ARG3 = e.g. option 'plain' or 'js'
-				case "$3-$2" in
-					plain-[0-9]*|*-[0-9]*)
-						# e.g. 1043 -> only list models with this number
-						target_hardware_set 'list' "$3" | fgrep "$2"
-					;;
-					*)
-						target_hardware_set 'list' "$3"
-					;;
-				esac
+				# ARG3 = e.g. option 'plain' or 'json'
+				# first try a submatch (e.g. 1043 or asus) - when this fails, show all
+				target_hardware_set 'list' "$3" | fgrep "$2" || target_hardware_set 'list' "$3"
 
 				exit 1
 			fi
