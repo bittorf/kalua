@@ -97,10 +97,18 @@ active_ap_devices()
 	grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read dev; do echo -n " $dev "; done
 }
 
+stop()
+{
+	[ -e '/tmp/IWLOG' ] && {
+		iw reg set 00
+		iw reg set US
+	}
+}
+
 if   [ -n "$INCLUDE" ]; then
 	:
 elif [ -z "$( _wifi get any mode ap )" ]; then
-	log "exit - no wifi AP configured"
+	_log do check_ap daemon info '[OK] exit, no wifi AP configured'
 	INCLUDE='exit'
 else
 	log "start listening on '$( active_ap_devices )'"
@@ -129,5 +137,8 @@ fi
 		esac
 	} done
 
-	_log do iwevent daemon alert "unexspected event loop exit, rc: $?"
+	RC=$?
+	[ "$( tail -n1 '/tmp/IWLOG' )" = 'stopped by user via regset' ] || {
+		_log do iwevent daemon alert "unexspected event loop exit, rc: $RC"
+	}
 }
