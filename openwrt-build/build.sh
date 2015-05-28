@@ -152,8 +152,10 @@ EOF
 	cd ..
 
 	log "moving '$file_tarball' from dir '$builddir' to '$destdir'"
+
 	mkdir -p "$destdir"
 	mv "$builddir/$file_tarball" "$destdir"
+	ls -l "$destdir/$file_tarball"
 }
 
 log()
