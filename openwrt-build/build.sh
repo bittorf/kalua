@@ -151,6 +151,7 @@ EOF
 	cd ..
 	cd ..
 
+	log "timestamp of latest commit: $kalua_unixtime / 3600 = $package_version"
 	log "moving '$file_tarball' from dir '$builddir' to '$destdir'"
 
 	mkdir -p "$destdir"
