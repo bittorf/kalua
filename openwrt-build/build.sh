@@ -79,6 +79,7 @@ special arguments:
 	  --check 	# shell-scripts only
 	  --unittest	# complete testsuite
 	  --fail	# simulate error: keep patched branch after building
+	  --update	# refresh this buildscript
 
 	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
           --patchdir \$dir1 --patchdir \$dir2
@@ -2364,6 +2365,10 @@ while [ -n "$1" ]; do {
 			fi
 
 			test $? -eq 0 || exit 1
+			STOP_PARSE='true'
+		;;
+		'--update')
+			wget -O ../build.sh 'https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 			STOP_PARSE='true'
 		;;
 		'--unittest')
