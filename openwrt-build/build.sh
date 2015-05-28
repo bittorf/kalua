@@ -361,7 +361,6 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt-r40293++"
 			fi
 
-			cp "package/kernel/mac80211/files/regdb.txt" "package/kernel/mac80211/files/regdb.txt_original"
 			cp -v "$file_regdb_hacked" "package/kernel/mac80211/files/regdb.txt"
 			log "using another regdb: '$file_regdb_hacked'" gitadd 'package/kernel/mac80211/files/regdb.txt'
 
