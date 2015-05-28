@@ -78,7 +78,7 @@ special arguments:
 	  # continuous integration / development
 	  --check 	# shell-scripts only
 	  --unittest	# complete testsuite
-	  --fail	# keep patched branch after building
+	  --fail	# simulate error: keep patched branch after building
 
 	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
           --patchdir \$dir1 --patchdir \$dir2
@@ -178,10 +178,6 @@ log()
 	}
 
 	has "$option" 'gitadd' && {
-		git branch | grep -q ^'* master' && {
-			logger -p user.info -s "[ERR] warning: autocommit on master"
-		}
-
 		local count_files="$( find "$gitfile" -type f | wc -l )"
 		local count_dirs="$(  find "$gitfile" -type d | wc -l )"
 		local count="($count_files files$( test $count_dirs -gt 0 && echo " and $count_dirs dirs" ))"
@@ -193,7 +189,7 @@ log()
 autocommit: $message
 | $filetype: $gitfile $count
 
-# mimic OpenWrt-style:
+# mimic OpenWrt-style: (is unrolled after clean build)
 git-svn-id: based_on_OpenWrt@$( echo "$VERSION_OPENWRT" | sed 's/r//' )" | grep -v ^' create mode'
 	}
 
