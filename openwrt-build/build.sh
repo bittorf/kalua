@@ -2098,9 +2098,10 @@ EOF
 	}
 
 	buildinfo_needs_adding && {
-		log "adding build-information '$LIST_OPTIONS' to '$custom_dir/etc/openwrt_build'"
 		mkdir -p "$custom_dir/etc"
-		echo "$LIST_OPTIONS" >"$custom_dir/etc/openwrt_build"
+		file="$custom_dir/etc/openwrt_build"
+		echo "$LIST_OPTIONS" >"$file"
+		log "adding build-information '$LIST_OPTIONS' to '$file'" gitadd "$file"
 	}
 
 	return 0
