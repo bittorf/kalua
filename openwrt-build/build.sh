@@ -1776,6 +1776,15 @@ build_options_set()
 				apply_symbol 'CONFIG_USE_SSTRIP is not set'
 				apply_symbol 'CONFIG_STRIP_ARGS="--strip-all"'
 			;;
+			'OWM')
+				# http://openwifimap.net
+				apply_symbol 'CONFIG_PACKAGE_luci-app-owm=y'
+				apply_symbol 'CONFIG_PACKAGE_luci-app-owm-ant is not set'
+				apply_symbol 'CONFIG_PACKAGE_luci-app-owm-cmd=y'
+				apply_symbol 'CONFIG_PACKAGE_luci-app-owm-gui is not set'
+				apply_symbol 'CONFIG_PACKAGE_luci-lib-httpclient=y'
+				apply_symbol 'CONFIG_PACKAGE_luaneightbl=y'
+			;;
 			'netcatFull')
 				# without / with
 				# 353.824 / 355.095 bytes - staging_dir/target-mips_34kc_uClibc-0.9.33.2/root-ar71xx/bin/busybox
