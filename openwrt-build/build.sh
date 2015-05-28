@@ -712,7 +712,7 @@ EOF
 		;;
 		'list')
 			case "$option" in
-				'plain'|'js')
+				'plain'|'js'|'json')
 					FIRSTRUN=
 				;;
 				*)
@@ -725,8 +725,9 @@ EOF
 					'plain')
 						echo "$line"
 					;;
-					'js')
+					'js'|'json')
 						# e.g. for 'typeahead.js'
+						# see: http://intercity-vpn.de/files/typeahead-test/html/
 						if [ -z "$FIRSTRUN" ]; then
 							FIRSTRUN='false'
 							echo -n "var models = ['$line'"
