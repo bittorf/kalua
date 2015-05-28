@@ -7,7 +7,6 @@
 # idee: methode 'unload' ?
 # idee: methode help?
 # idee: $FUNCNAME fuellen ODER alle Vorkommen von FUNCNAME durch realen zur "compile-zeit" ersetzen
-# idee: passend zur klasse automatisch einen bestimmten variablensatz aktivieren (z.b. $INTRANET bei pfilter)?
 # idee: statistik anzeigen lassen per befehl: sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/${CLASS} | wc -l | sed 's/ //g'
 # idee: netparam ohne *MTU|BRC|OLSR|MSK|LO*
 # todo: option zum entfernen aller logmeldungen? (bzw. nur log-debug)
@@ -19,21 +18,19 @@ OLDIFS="$IFS"; IFS=". "; read UP1 UP2 NOP </proc/uptime; IFS="$OLDIFS"
 
 DEBUG="$1"			# keyword "debug" or empty
 BASEDIR="$( dirname $0 )/kalua"	# scriptbase, simply throw your 'class'-files here e.g. wifi
-POOLDIR="/tmp/kalua"
+POOLDIR='/tmp/kalua'
 LOADER="/tmp/loader_$$"
-LOADER_FINAL="/tmp/loader"	# scripts can source this file and automatically use all 'classes'
+LOADER_FINAL='/tmp/loader'	# scripts can source this file and automatically use all 'classes'
 
-ls /tmp/loader_* 2>/dev/null && {
+if [ -e /tmp/loader_* ]; then
 	logger -s "$0: ignoring call - please remove /tmp/loader_*"
 	exit 0
-}
+else
+	mkdir -p "$POOLDIR"
+fi
 
-[ -d "${BASEDIR}.w" ] && {
-	cd "${BASEDIR}.w"
-	rm -fR *
-}
-
-mkdir -p "$POOLDIR"
+# LOWMEM: directly call copy on disc
+cd "${BASEDIR}.w" 2>/dev/null && rm -fR *
 
 cat >"$LOADER" <<EOF
 #!/bin/sh
@@ -77,7 +74,7 @@ _${CLASS}_s(){ _${CLASS}_show;}
 _${CLASS}_include(){ :;}
 EOF
 		if [ -d "${BASEDIR}.w" ]; then
-			# lowmem: direct call copy on disc:"
+			# LOWMEM: directly call copy on disc
 			echo >>"$POOLDIR/${CLASS}" ". $BASEDIR/$CLASS"
 		else
 			# fixme! do it *fast* when booting, and then do it *good-but-slow* after booting
