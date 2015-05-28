@@ -2,13 +2,25 @@
 
 ARG1="$1"		# e.g. 'start'
 OPTION="$2"		# e.g. 'strip'
+MYPWD=
+DIR=
 
 [ -z "$ARG1" ] && {
 	echo "Usage: $0 start		# builds 'Packages' from all *.ipk-files in actual DIR"
 	echo "       $0 start strip		# same, but only shows elementary tags: Package|Version|Filename"
+	echo "       $0 name		# builds 'Packages' for network 'name'"
 	exit 1
 }
 
+# typical (alphabetical) order is:
+# fff-adblock-list mydesign mysettings sshpubkeys
+
+[ -d "/var/www/networks/$ARG1" ] && {
+	MYPWD="$( pwd )"
+	DIR="/var/www/networks/$ARG1/packages"
+	logger -s "working in: '$DIR'"
+	cd "$DIR"
+}
 
 # fixme! when in 'strip'-mode, make an directory mini/
 # and copy all packages in there, after fetching control-file
@@ -21,7 +33,6 @@ OUT="Packages"
 [ -e "$OUT" ] && rm "$OUT"
 
 for FILE in $( ls -1 *.ipk ); do {
-
 	tar xzf "$FILE" ./control.tar.gz
 	tar xzf control.tar.gz ./control
 
@@ -48,3 +59,4 @@ for FILE in $( ls -1 *.ipk ); do {
 } done
 
 ls -l "$OUT"
+[ -n "$MYPWD" ] && cd $MYPWD
