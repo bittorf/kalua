@@ -465,6 +465,17 @@ EOF
 		;;
 		'x86_64')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_64=y'
+			FILENAME_SYSUPGRADE='openwrt-x86-64-vmlinuz'
+			FILENAME_FACTORY='openwrt-x86-64-rootfs-ext4.img'
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+
+			[ "$option" = 'info' ] && {
+				cat <<EOF
+# FIXME! needs virtio-kmodules
+qemu-system-x86_64 -kernel $FILENAME_SYSUPGRADE -hda $FILENAME_FACTORY -nographic -append console=ttyS0
+EOF
+				return 0
+			}	# parser_ignore
 		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
@@ -894,19 +905,19 @@ check_working_directory()
 
 	fgrep -q ' oonfapi ' "$file_feeds" || {
 		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
-		log "addfeed 'oonfapi'" debug,gitadd "$file_feeds"	# FIXME! apply on master?
+		log "addfeed 'oonfapi'" debug,gitadd "$file_feeds"
 		do_symlinking='true'
 	}
 
 	fgrep -q ' olsrd2 '  "$file_feeds" || {
 		echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'
-		log "addfeed 'olsrd2'" debug,gitadd "$file_feeds"	# FIXME! apply on master?
+		log "addfeed 'olsrd2'" debug,gitadd "$file_feeds"
 		do_symlinking='true'
 	}
 
 	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
 		sed -i '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
-		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"	# FIXME! apply on master?
+		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
 
 		# https://forum.openwrt.org/viewtopic.php?id=52219
 		./scripts/feeds update oldpackages  && ./scripts/feeds install -a -p oldpackages
@@ -1617,7 +1628,7 @@ serialize_comma_list()
 build_options_set()
 {
 	local funcname='build_options_set'
-	local options="$1"
+	local options="$1"	# FIXME! support 'xy is not set' (spaces!)
 	local subcall="$2"
 	local file='.config'
 	local custom_dir='files'
@@ -1654,6 +1665,13 @@ build_options_set()
 		case "$1" in
 			'CONFIG_'*)
 				apply_symbol "$1"
+
+				# FIXME! remove if parsing '$SPECIAL_OPTIONS' with spaces it fixed
+				case "$1" in
+					'CONFIG_TARGET_ROOTFS_PARTSIZE='*)
+						apply_symbol 'CONFIG_TARGET_IMAGES_GZIP is not set'
+					;;
+				esac
 			;;
 			'defconfig')
 				# this simply adds or deletes no symbols
