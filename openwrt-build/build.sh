@@ -71,6 +71,8 @@ EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
 
 e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
+       $0 --openwrt r${rev:-12345} --hardware '4mb_flash' --usecase 'Small,noPPPoE,noDebug,OLSRd,$KALUA_DIRNAME'
+       $0 --openwrt r${rev:-12345} --hardware '8mb_flash' --usecase 'Standard,$KALUA_DIRNAME'
 
 get help without args, e.g.: --hardware <empty>
 
