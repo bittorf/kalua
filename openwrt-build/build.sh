@@ -463,6 +463,9 @@ EOF
 				return 0
 			}	# parser_ignore
 		;;
+		'x86_64')
+			TARGET_SYMBOL='CONFIG_TARGET_x86_64=y'
+		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-net5501-combined-ext4.img.gz'
