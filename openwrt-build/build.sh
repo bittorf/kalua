@@ -228,7 +228,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 {
 	local funcname='kernel_commandline_tweak'
 	local dir="target/linux/$ARCH"
-	local pattern=" oops=panic panic=10 "
+	local pattern=' oops=panic panic=10 '
 	local config kernelversion
 
 	case "$ARCH" in
@@ -906,15 +906,14 @@ check_working_directory()
 	# user directory for private/overlay-files
 	mkdir -p 'files'
 
-	fgrep -q ' oonfapi ' "$file_feeds" || {
-		echo >>"$file_feeds" 'src-git oonfapi http://olsr.org/git/oonf_api.git'
-		log "addfeed 'oonfapi'" debug,gitadd "$file_feeds"
-		do_symlinking='true'
-	}
-
-	fgrep -q ' olsrd2 '  "$file_feeds" || {
-		echo >>"$file_feeds" 'src-git olsrd2  http://olsr.org/git/olsrd2.git'
-		log "addfeed 'olsrd2'" debug,gitadd "$file_feeds"
+	fgrep -q ' oonf '  "$file_feeds" || {
+		# using 'src-git-full' possible since r45668
+		# needs:
+		# CMake version 2.8.12 or better
+		# libnl3-dev or libnl-tiny for the nl80211-listener plugin
+		# libtomcrypt-dev for the hash_tomcrypt plugin
+		echo >>"$file_feeds" 'src-git-full oonf http://olsr.org/git/oonf.git'
+		log "addfeed 'olsrd2/oonf'" debug,gitadd "$file_feeds"
 		do_symlinking='true'
 	}
 
@@ -1487,6 +1486,10 @@ apply_symbol()
 									git rebase --abort
 									git am --abort
 								}
+
+# FIXME!
+# automatically add 'From:' if missing
+# sed '1{s/^/From: name@domain.com (Proper Name)\n/}'
 
 								if git am --signoff <"$file"; then
 									register_patch "$file"

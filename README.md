@@ -31,7 +31,7 @@ how to get a release for a specific hardware
 	cd openwrt
 
 	# full build for specific target
-	build.sh --openwrt r43102 --hardware 'all' --usecase 'Standard,kalua'
+	build.sh --openwrt r45806 --hardware 'TP-LINK TL-WR1043ND' --usecase 'Standard,kalua'
 
 	# get detailed help with
 	build.sh --help
