@@ -857,10 +857,13 @@ check_working_directory()
 		log "first start - fetching OpenWrt: git clone '$git_url'"
 		git clone "$git_url" || return $error
 
-		[ -d 'openwrt_download' ] && {
+		if [ -d 'openwrt_download' ]; then
 			log "symlinking our central download pool"
 			ln -s ../openwrt_download 'openwrt/dl'
-		}
+		else
+			log "[OK] no central download pool - if you want this,"
+			log "do: mkdir openwrt_download (before starting this script)"
+		fi
 
 		[ -d 'packages' ] && {
 			log "first start - removing (old?) dir packages"
@@ -947,15 +950,33 @@ check_working_directory()
 
 openwrt_revision_number_get()		# e.g. 43234
 {
-	[ -d '.git' ] || return 1	# e.g. virgin script-download
+	local rev
 
-	local rev="$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
+	if [ -d '.git' ]; then
+		rev="$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
+	else
+		# e.g. virgin script-download
+		rev='UNKNOWN_REVISION'
+	fi
 
 	if [ -n "$rev" ]; then
 		echo "$rev"
 	else
 		# is not available in all revisions or during early bootstrapping
-		[ -e 'scripts/getver.sh' ] && scripts/getver.sh | cut -d'r' -f2
+		if [ -e 'scripts/getver.sh' ]; then
+			rev="$( scripts/getver.sh )"
+			case "$rev" in
+				'r'[0-9]*)
+					# r12345
+					echo "$rev" | cut -d'r' -f2
+				;;
+				*)
+					echo 'UNKNOWN_REVISION'
+				;;
+			esac
+		else
+			echo 'UNKNOWN_REVISION'
+		fi
 	fi
 }
 
