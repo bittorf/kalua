@@ -2509,6 +2509,7 @@ die_and_exit()
 
 check_git_settings			|| die_and_exit
 check_working_directory			|| die_and_exit
+openwrt_download 'reset_autocommits'
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 
 [ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
