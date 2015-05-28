@@ -155,6 +155,7 @@ EOF
 
 	mkdir -p "$destdir"
 	mv "$builddir/$file_tarball" "$destdir"
+	rm -fR "$builddir"
 	ls -l "$destdir/$file_tarball"
 }
 
