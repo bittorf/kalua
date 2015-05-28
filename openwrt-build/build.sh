@@ -2366,7 +2366,10 @@ fi
 KALUA_DIRNAME="$( basename "$KALUA_REPO_URL" | cut -d'.' -f1 )"		# e.g. kalua|weimarnetz
 PATCHDIR=
 
-[ -z "$1" ] && print_usage_and_exit
+[ -z "$1" ] && {
+	openwrt_download 'reset_autocommits'
+	print_usage_and_exit
+}
 
 while [ -n "$1" ]; do {
 	case "$1" in
