@@ -30,18 +30,20 @@ print_usage_and_exit()
 		chmod +x $0
 	}
 
-	if [ -e 'files/etc/HARDWARE' ]; then
+	# format: usecase hardware
+	if [ -e 'KALUA_HISTORY' ]; then
 		# last used one
-		# FIXME! gets lost after git cleanup
-		read hardware <'files/etc/HARDWARE'
+		set -- $( tail -n1 'KALUA_HISTORY' )
+		shift
+		hardware="$@"
 	else
 		hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
 	fi
 
-	if [ -e 'files/etc/openwrt_build' ]; then
+	# format: usecase hardware
+	if [ -e 'KALUA_HISTORY' ]; then
 		# last used one, e.g.: Standard,noPPPoE,BigBrother,kalua@e678dd6
-		# FIXME! gets lost after git cleanup
-		read usecase <'files/etc/openwrt_build'
+		usecase="$( tail -n1 'KALUA_HISTORY' | cut -d' ' -f1 )"
 		usecase="$( echo "$usecase" | cut -d'@' -f1 )"
 	else
 		usecase="Standard,$KALUA_DIRNAME"
@@ -2580,6 +2582,7 @@ build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
 openwrt_download 'reset_autocommits'
+echo "$LIST_OPTIONS $HARDWARE_MODEL" >>'KALUA_HISTORY'
 
 read T2 REST </proc/uptime
 
