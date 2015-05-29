@@ -2001,7 +2001,7 @@ build_options_set()
 			;;
 			'noOPKG')
 				apply_symbol 'CONFIG_PACKAGE_opkg is not set'		# base-system: opkg
-				apply_symbol 'CONFIG_PACKAGE_usign is not set'		# since r45283
+				apply_symbol 'CONFIG_PACKAGE_usign is not set'		# since r45283 - FIXME! still in image
 
 				log "noOPKG: writing under 'files/etc/opkg.conf'"
 				mkdir -p 'files/etc'
