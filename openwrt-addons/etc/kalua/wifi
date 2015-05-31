@@ -1963,10 +1963,10 @@ _wifi_is2ghz()
 _wifi_set()
 {
 	local funcname='wifi_set'
-	local wifimode="$1"	# e.g. 'ap' (all ap-interface) or 'any' or 'adhoc' or 'ap2' (only the 2nd one)
-	local band="$2"		# e.g. '5ghz' or 'any'
+	local wifimode="$1"	# e.g. 'ap' (all ap-interface) or any/anymode or 'adhoc' or 'ap2' (only the 2nd one)
+	local band="$2"		# e.g. '5ghz' or 'any' or 'anyfreq'
 	local var="$3"		# e.g. 'ssid' or 'disabled'
-	local value="$4"	# e.g. 'myssid' or '1'
+	local value="$4"	# e.g. 'myssid' or '1'	# FIXME! allow 'true'
 	local option="$5"
 	local radio= bssid= chanbw= carry= distance= specific_interface= change_applied=0 i= j=10
 
@@ -1977,15 +1977,15 @@ _wifi_set()
 		;;
 	esac
 
-	# _wifi set ap  5ghz ssid 'Appartementhaus'
-	# _wifi set ap  5ghz disabled '1'
-	# _wifi set any any  disabled kmod_unload
+	# _wifi set ap      5ghz     ssid 'Appartementhaus'
+	# _wifi set ap      5ghz     disabled '1'
+	# _wifi set anymode anyfreq  disabled kmod_unload
 
 	for i in $( seq 0 15 ); do {
-		[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' ] && {
+		[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' -o "$wifimode" = 'anymode' ] && {
 			radio=
 
-			if   [ "$band" = 'any' ]; then
+			if   [ "$band" = 'any' -o "$band" = 'anyfreq' ]; then
 				:
 			elif [ "$band" = '2ghz' ]; then
 				_wifi is2ghz "$i" || continue
@@ -2014,7 +2014,7 @@ _wifi_set()
 										# radio already on
 										carry=
 									else
-										_wifi set any any disabled '0'
+										_wifi set anymode anyfreq disabled '0'
 									fi
 
 									# this works globally (every radio)
@@ -2023,7 +2023,7 @@ _wifi_set()
 
 										# switch off (old state, see above)
 										[ -n "$carry" ] && {
-											_wifi set any any disabled '1'
+											_wifi set anymode anyfreq disabled '1'
 										}
 
 										while let j-=1; do {
@@ -2040,7 +2040,7 @@ _wifi_set()
 								;;
 								'disabled'|*)
 									# TODO: wifi down?
-									if [ "$wifimode" = 'any' ]; then
+									if [ "$wifimode" = 'any' -o "$wifimode" = 'anymode' ]; then
 										# set RADIO
 										uci set wireless.$radio.$var="$value"
 									else
