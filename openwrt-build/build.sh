@@ -1,19 +1,17 @@
 #!/bin/sh
 
 # TODO:
+# - fix formatting of /etc/openwrt_patches (add2trunk)
+# - rename $LIST_OPTIONS to $USECASE
 # - autoremove old branches?:
 #   - for B in $(git branch|grep @); do git branch -D $B; done
-# - support for tarball
 # - support for reverting specific openwrt-commits (for building older kernels)
-# - options: noWiFi, noSSH (+login-patch), noIPTables, Failsafe (like sven-ola)
+# - options: noWiFi, noSSH (+login-patch), noIPTables, noIPv6, Failsafe (like sven-ola)
 # - packages/feeds/openwrt: checkout specific version
 #   - http://stackoverflow.com/questions/6990484/git-checkout-by-date
 #   - hash="$( git rev-list -n 1 --before="2009-07-27 13:37" master )"
 # - build release-dir
 # - build jffs2-only-images too?
-# - kalua: copy patches
-# - build for whole arch (no subtarget)?
-# - build with 'weimarnetz' or own fork
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 # - build for each router in monitoring? "build for network olympia"
 # - option: failsafe-image: add 'failsafe=' to kernel-commandline
@@ -1645,6 +1643,21 @@ build_options_set()
 	local custom_dir='files'
 	local kmod
 
+	case "$options" in
+		'ready')
+			file="$custom_dir/etc/openwrt_build"
+
+			(
+				echo
+				cat "${file}.details"
+				rm  "${file}.details"
+			) >>"$file"
+
+			log "[OK] writing details" gitadd "$file"
+			return 0
+		;;
+	esac
+
 	# shift args, because the call is: $funcname 'subcall' "$opt"
 	[ "$options" = 'subcall' -a -n "$subcall" ] && options="$subcall"
 
@@ -2120,12 +2133,15 @@ EOF
 		esac
 	}
 
-	buildinfo_needs_adding && {
-		mkdir -p "$custom_dir/etc"
-		file="$custom_dir/etc/openwrt_build"
+	mkdir -p "$custom_dir/etc"
+	file="$custom_dir/etc/openwrt_build"
+
+	if buildinfo_needs_adding ; then
 		echo "$LIST_OPTIONS" >"$file"
 		log "adding build-information '$LIST_OPTIONS' to '$file'" gitadd "$file"
-	}
+	else
+		echo "$LIST_OPTIONS" >>"${file}.details"
+	fi
 
 	return 0
 }
@@ -2585,6 +2601,7 @@ target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 copy_additional_packages		|| die_and_exit
 build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
 build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
+build_options_set 'ready'
 build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
