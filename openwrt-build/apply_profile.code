@@ -1177,54 +1177,61 @@ _config_dhcp ()			# domain = .olsr
 
 	[ -n "$wan_dns" ] && DNSSERVER="$wan_dns"
 
-  uci set dhcp.dnsmasq="dnsmasq"
-	uci set dhcp.dnsmasq.cachesize="$cache"	# query with 'kill -SIGUSR1 \$( pidof dnsmasq ); logread | tail -n5'
-	uci set dhcp.dnsmasq.domainneeded="0"	# forward querys without dots
-	uci set dhcp.dnsmasq.boguspriv="1"
-	uci set dhcp.dnsmasq.filterwin2k="0"	# enable for dial on demand
-	uci set dhcp.dnsmasq.localise_queries="1"
-  uci set dhcp.dnsmasq.rebind_protection="0"	# disable if upstream must serve RFC1918 addresses
-	uci set dhcp.dnsmasq.rebind_localhost="0"	# enable for RBL checking and similar services
+  uci -q delete dhcp.@dnsmasq[0]
+  uci -q add dhcp dnsmasq
+	uci -q set dhcp.@dnsmasq[0].cachesize="$cache"	# query with 'kill -SIGUSR1 \$( pidof dnsmasq ); logread | tail -n5'
+	uci -q set dhcp.@dnsmasq[0].domainneeded="0"	# forward querys without dots
+	uci -q set dhcp.@dnsmasq[0].boguspriv="1"
+	uci -q set dhcp.@dnsmasq[0].filterwin2k="0"	# enable for dial on demand
+	uci -q set dhcp.@dnsmasq[0].localise_queries="1"
+  uci -q set dhcp.@dnsmasq[0].rebind_protection="0"	# disable if upstream must serve RFC1918 addresses
+	uci -q set dhcp.@dnsmasq[0].rebind_localhost="0"	# enable for RBL checking and similar services
 	## list rebind_domain example.lan # whitelist RFC1918 responses for domains
-	uci set dhcp.dnsmasq.local="$domain/"
-	uci set dhcp.dnsmasq.domain="$domain"
-	uci set dhcp.dnsmasq.expandhosts="1"
-	uci set dhcp.dnsmasq.nonegcache="0"
-	uci set dhcp.dnsmasq.authoritative="1"
-	uci set dhcp.dnsmasq.readethers="1"
-	uci set dhcp.dnsmasq.leasefile="/tmp/dhcp.leases"
-	uci set dhcp.dnsmasq.resolvfile="/tmp/resolv.conf.auto"
-	uci add_list dhcp.dnsmasq.addnhosts="/var/etc/hosts"
-	uci add_list dhcp.dnsmasq.addnhosts="/etc/local.hosts"
-	uci add_list dhcp.dnsmasq.server="$DNSSERVER"
+	uci -q set dhcp.@dnsmasq[0].local="$domain/"
+	uci -q set dhcp.@dnsmasq[0].domain="$domain"
+	uci -q set dhcp.@dnsmasq[0].expandhosts="1"
+	uci -q set dhcp.@dnsmasq[0].nonegcache="0"
+	uci -q set dhcp.@dnsmasq[0].authoritative="1"
+	uci -q set dhcp.@dnsmasq[0].readethers="1"
+	uci -q set dhcp.@dnsmasq[0].leasefile="/tmp/dhcp.leases"
+	uci -q set dhcp.@dnsmasq[0].resolvfile="/tmp/resolv.conf.auto"
+	uci -q add_list dhcp.@dnsmasq[0].addnhosts="/var/etc/hosts"
+	uci -q add_list dhcp.@dnsmasq[0].addnhosts="/etc/local.hosts"
+	uci -q add_list dhcp.@dnsmasq[0].server="$DNSSERVER"
 	# list server		'/mycompany.local/1.2.3.4'
 	# option nonwildcard	1
 	# list interface	br-lan
-	uci add_list dhcp.dnsmasq.notinterface="wan"
-	uci set dhcp.dnsmasq.dhcpscript="/etc/dhcp-script.d/10dhcpscript"
+	uci -q add_list dhcp.@dnsmasq[0].notinterface="wan"
+	uci -q set dhcp.@dnsmasq[0].dhcpscript="/etc/dhcp-script.d/10dhcpscript"
 
-config dhcp lan
-	option interface	lan
-	option start 		$( _ipsystem do "$NODE" | grep ^"LANDHCPSTART=" | cut -d'=' -f2 )
-	option limit		$( _ipsystem do "$NODE" | grep ^"LANDHCPNUM="   | cut -d'=' -f2 )
-	option leasetime	2h
-	option force		1
-	option ignore		${DHCP_IGNORE_LAN:-0}
-	list dhcp_option        '121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d"=" -f2 )'
+  uci -q delete dhcp.lan
+  uci -q set dhcp.lan="dhcp"
 
-config dhcp wlan
-	option interface	wlan
-	option start 		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPSTART=" | cut -d'=' -f2 | cut -d'.' -f4 )
-	option netmask		$( _net cidr2mask "$( _ipsystem do "$NODE" | grep ^"WIFI_DHCP_PRE=" | cut -d'=' -f2 )" ) # 255.255.255.240?
-	option limit		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPNUM=" | cut -d'=' -f2 )			 # fixme! better: 21
-	option leasetime	1h
-	option force		1
-	option ignore		${DHCP_IGNORE_WLAN:-0}
-	list dhcp_option        '121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d"=" -f2 )'
+	uci -q set dhcp.lan.interface="lan"
+  uci -q set dhcp.lan.start=$( _ipsystem do "$NODE" | grep ^"LANDHCPSTART=" | cut -d'=' -f2 )
+	uci -q set dhcp.lan.limit=$( _ipsystem do "$NODE" | grep ^"LANDHCPNUM="   | cut -d'=' -f2 )
+	uci -q set dhcp.lan.leasetime="2h"
+	uci -q set dhcp.lan.force="1"
+	uci -q set dhcp.lan.ignore="${DHCP_IGNORE_LAN:-0}"
+	uci -q add_list list dhcp.lan.dhcp_option='121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d"=" -f2 )'
 
-config dhcp wan
-	option interface	wan
-	option ignore		1
+  uci -q delete dhcp.wlan
+  uci -q set dhcp.wlan="dhcp"
+	uci -q set dhcp.wlan.interface="wlan"
+	uci -q set dhcp.wlan.start=$( _ipsystem do "$NODE" | grep ^"WIFIDHCPSTART=" | cut -d'=' -f2 | cut -d'.' -f4 )
+	uci -q set dhcp.wlan.netmask=$( _net cidr2mask "$( _ipsystem do "$NODE" | grep ^"WIFI_DHCP_PRE=" | cut -d'=' -f2 )" ) # 255.255.255.240?
+	uci -q set dhcp.wlan.limit=$( _ipsystem do "$NODE" | grep ^"WIFIDHCPNUM=" | cut -d'=' -f2 )			 # fixme! better: 21
+  uci -q set dhcp.wlan.leasetime="1h"
+	uci -q set dhcp.wlan.force="1"
+	uci -q set dhcp.wlan.ignore=${DHCP_IGNORE_WLAN:-0}
+	uci -q add_list dhcp.wlan.dhcp_option='121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d"=" -f2 )'
+
+  uci -q delete dhcp.wan
+  uci -q set dhcp.wan="dhcp"
+	uci -q set dhcp.wan.interface="wan"
+	uci -q set dhcp.wan.ignore="1"
+
+  uci commit dhcp
 }
 
 _config_aliases ()
@@ -1586,7 +1593,7 @@ EOF
 # keep important settings
 local keepsettings="$( uci -q get system.@system[0].keepsettings )"           
 [ "$keepsettings" != "1" ] && { 
-	for SECTION in softwareinstall system mail wireless network dhcp aliases firewall sms polipo; do {
+	for SECTION in softwareinstall system mail wireless network aliases firewall sms polipo; do {
 		log "....working on section '$SECTION'"
 		_config_$SECTION "$NODENUMBER"
 		log "[ok] ready with section '$SECTION'"
@@ -1594,7 +1601,7 @@ local keepsettings="$( uci -q get system.@system[0].keepsettings )"
 }
 
 # rewrite new settings
-for SECTION in freifunk olsrd; do {
+for SECTION in freifunk olsrd dhcp; do {
 	log "....working on section '$SECTION'"
 	_config_$SECTION "$NODENUMBER"
 	log "[ok] ready with section '$SECTION'"
