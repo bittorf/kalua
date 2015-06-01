@@ -1734,6 +1734,11 @@ build_options_set()
 				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
+
+				fgrep -q 'CONFIG_USB_SUPPORT=y' "$file" && {
+					log '[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
+					$funcname subcall 'USBstorage'
+				}
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
