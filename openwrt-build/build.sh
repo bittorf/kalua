@@ -2,7 +2,6 @@
 
 # TODO:
 # - fix formatting of /etc/openwrt_patches (add2trunk)
-# - rename $LIST_OPTIONS to $USECASE
 # - autoremove old branches?:
 #   - for B in $(git branch|grep @); do git branch -D $B; done
 # - support for reverting specific openwrt-commits (for building older kernels)
@@ -1161,11 +1160,11 @@ copy_firmware_files()
 
 	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch '$ARCH'"
 	log "hardware: '$HARDWARE_MODEL'"
-	log "usecase: --usecase $LIST_OPTIONS"
-	log "usecase-hash: $( usecase_hash "$LIST_OPTIONS" )"
+	log "usecase: --usecase $USECASE"
+	log "usecase-hash: $( usecase_hash "$USECASE" )"
 
 	# http://intercity-vpn.de/firmware/mpc85xx/images/testing/1c78c7a701714cddd092279587e719a3/TP-LINK%20TL-WDR4900%20v1.bin
-	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/usecase/$( usecase_hash "$LIST_OPTIONS" )/$HARDWARE_MODEL.bin"
+	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/usecase/$( usecase_hash "$USECASE" )/$HARDWARE_MODEL.bin"
 	log "http://intercity-vpn.de/firmware/$HARDWARE_MODEL/testing/usecase/..."
 	log "http://intercity-vpn.de/networks/xyz/firmware/$HARDWARE_MODEL/testing/usecase/..."
 
@@ -1188,7 +1187,7 @@ copy_firmware_files()
 		destination="${destination}_image=sysupgrade"
 	fi
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_rootfs=squash_image=sysupgrade_option=Standard,kalua@5dce00c
-	destination="${destination}_option=${LIST_OPTIONS}"
+	destination="${destination}_option=${USECASE}"
 
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_rootfs=squash_image=sysupgrade_option=Standard,kalua@5dce00c_profile=liszt28.hybrid.4
 	[ -n "$CONFIG_PROFILE" ] && {
@@ -1239,9 +1238,9 @@ copy_firmware_files()
 
 	[ -n "$RELEASE" -a -e "$file" ] && {
 		# workaround: when build without kalua
-		[ -z "$LIST_OPTIONS_DOWNLOAD" ] && LIST_OPTIONS_DOWNLOAD="$LIST_OPTIONS"
+		[ -z "$USECASE_DOWNLOAD" ] && USECASE_DOWNLOAD="$USECASE"
 
-		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$LIST_OPTIONS_DOWNLOAD"
+		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
 		checksum="$( md5sum "$file" | cut -d' ' -f1 )"
 
 		cat >'info.txt' <<EOF
@@ -1251,9 +1250,9 @@ copy_firmware_files()
 
 file='$destination' checksum_md5='$checksum'
 EOF
-		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$LIST_OPTIONS_DOWNLOAD/$destination"
+		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
 		destination_scpsafe="$( echo "$destination" | sed 's| |\\\\ |g' )"	# 'a b' -> 'a\\ b'
-		destination_info="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$LIST_OPTIONS_DOWNLOAD/info.txt"
+		destination_info="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.txt"
 		destination_info_scpsafe="$( echo "$destination_info" | sed 's| |\\\\ |g' )"
 
 		# readme.md?
@@ -1378,8 +1377,8 @@ apply_symbol()
 				;;
 			esac
 
-			LIST_OPTIONS_DOWNLOAD="${LIST_OPTIONS}${LIST_OPTIONS+,}$KALUA_DIRNAME"
-			LIST_OPTIONS="${LIST_OPTIONS_DOWNLOAD}@$VERSION_KALUA"
+			USECASE_DOWNLOAD="${USECASE}${USECASE+,}$KALUA_DIRNAME"
+			USECASE="${USECASE_DOWNLOAD}@$VERSION_KALUA"
 
 			cd ..
 
@@ -1682,7 +1681,7 @@ build_options_set()
 			;;
 			'-'*)	# parser_process
 				# direct call (no subcall)
-				LIST_OPTIONS="${LIST_OPTIONS}${LIST_OPTIONS+,}${1}"
+				USECASE="${USECASE}${USECASE+,}${1}"
 			;;
 		esac
 
@@ -2119,7 +2118,7 @@ EOF
 	{
 		[ -n "$subcall" ] && return 1
 
-		case "$LIST_OPTIONS" in
+		case "$USECASE" in
 			'CONFIG_'*)
 				return 1
 			;;
@@ -2137,10 +2136,10 @@ EOF
 	file="$custom_dir/etc/openwrt_build"
 
 	if buildinfo_needs_adding ; then
-		echo "$LIST_OPTIONS" >"$file"
-		log "adding build-information '$LIST_OPTIONS' to '$file'" gitadd "$file"
+		echo "$USECASE" >"$file"
+		log "adding build-information '$USECASE' to '$file'" gitadd "$file"
 	else
-		echo "$LIST_OPTIONS" >>"${file}.details"
+		echo "$USECASE" >>"${file}.details"
 	fi
 
 	return 0
@@ -2606,7 +2605,7 @@ build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
 openwrt_download 'reset_autocommits'
-echo "$LIST_OPTIONS $HARDWARE_MODEL" >>'KALUA_HISTORY'
+echo "$USECASE $HARDWARE_MODEL" >>'KALUA_HISTORY'
 
 read T2 REST </proc/uptime
 
