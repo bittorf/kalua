@@ -73,10 +73,10 @@ EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
 
 e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
-       $0 --openwrt r${rev:-12345} --hardware '4mb_flash' --usecase 'Small,noPPPoE,noDebug,OLSRd,$KALUA_DIRNAME'
-       $0 --openwrt r${rev:-12345} --hardware '8mb_flash' --usecase 'Standard,$KALUA_DIRNAME'
+       $0 --openwrt r${rev:-12345} --hardware '4mb_model' --usecase 'Small,noOPKG,noPPPoE,noDebug,OLSRd,$KALUA_DIRNAME'
+       $0 --openwrt r${rev:-12345} --hardware '8mb_model' --usecase 'Standard,$KALUA_DIRNAME'
 
-get help without args, e.g.: --hardware <empty>
+get help without args, e.g.: --hardware <empty> or --hardware 'substring'
 
 special arguments:
 	  # continuous integration / development
@@ -1742,7 +1742,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
-#				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
+#				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g +9k
 				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool: (very small)
 #				apply_symbol 'CONFIG_PACKAGE_rrdtool1=y'		# utilities: rrdtool:
 #				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless: (but debugFS-export still active)
@@ -1969,6 +1969,8 @@ build_options_set()
 			'noDebug')
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG is not set'
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_DEBUGFS is not set'
+				apply_symbol 'CONFIG_PACKAGE_libiwinfo is not set'	# -41k
+				apply_symbol 'CONFIG_PACKAGE_iwinfo is not set'		# -23k
 
 				apply_symbol kernel 'CONFIG_DEBUG_FS is not set'
 				apply_symbol kernel 'CONFIG_KALLSYMS is not set'
