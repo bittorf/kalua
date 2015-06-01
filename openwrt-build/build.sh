@@ -1736,7 +1736,7 @@ build_options_set()
 				$funcname subcall 'noFW'
 
 				fgrep -q 'CONFIG_USB_SUPPORT=y' "$file" && {
-					log '[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
+					log "[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
 					$funcname subcall 'USBstorage'
 				}
 			;;
