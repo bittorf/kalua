@@ -114,6 +114,7 @@ list_pubips_from_network()	# parses status-files from monitoring of each node fo
 
 list_networks()
 {
+	local option="$1"	# networkname or 'maintenance' or <empty> = all
 	# in wartung:
 	# aschbach = 15 euro/monat -> CANS
 	# olympia  = 15 euro/monat -> CANS
@@ -125,6 +126,9 @@ list_networks()
 		return 0
 	elif [ "$1" = 'maintenance' ]; then
 		cat <<EOF
+malchow
+malchowit
+malchowpferde
 malchowpension
 abtpark
 ilm1
@@ -151,6 +155,9 @@ rehungen
 EOF
 	else
 		cat <<EOF
+malchow
+malchowit
+malchowpferde
 malchowpension
 abtpark
 ilm1
@@ -312,18 +319,9 @@ fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if t
 sms_allowed()
 {
 	local network="$1"
-	local line
+	local effective_name="$( echo "$network" | cut -d':' -f1 )"	# e.g. ffweimar:vhs
 
-	# TODO: fixme!
-	return 0
-
-	list_networks 'maintenance' | while read line; do {
-		case "$line" in
-			"$network"*)
-				return 0
-			;;
-		esac
-	} done
+	list_networks 'maintenance' | grep -q ^"$effective_name"$ && return 0
 
 	log "$network: no sms allowed"
 	return 1
@@ -390,7 +388,7 @@ send_sms()
 		dhfleesensee)
 			list_numbers="$list_numbers 0170/5661165 0160/4797497"
 		;;
-		malchowpension)
+		'malchow'*)
 			list_numbers="$list_numbers 0173/6234581"
 		;;
 	esac
@@ -569,6 +567,14 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 					else
 						log "[ERR] $NETWORK: get_fileage: $J - still dead"
 					fi
+				;;
+				*)
+					FILE="/var/www/networks/$NETWORK/index.html"
+					URL="http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=hostname"
+
+					grep -sq 'Totalausfall' "$FILE" || {
+						wget -O "$FILE" "$URL"
+					}
 				;;
 			esac
 

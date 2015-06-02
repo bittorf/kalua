@@ -3092,9 +3092,9 @@ esac
 					func_update2color 'bad_version:broken_wifi_regdb'
 				elif [ $1 -ge 45040 -a $1 -lt 45189 ]; then
 					func_update2color 'bad_version:uci_broken'
-				elif [ $1 -ge 44942 -a $1 -lt 145440 ]; then
+				elif [ $1 -ge 44942 -a $1 -lt 45790 ]; then
 					# https://dev.openwrt.org/ticket/19564
-					# seen also with r45568 - not fixed with r45440
+					# internally fixed since ~45790
 					func_update2color 'bad_version:fstools_broken'
 #				elif [ $1 -ge 44946 -a $1 -lt 45579 ]; then
 #					# fixed in /tmp/loader and used from r45579+
