@@ -2149,6 +2149,23 @@ parse_case_patterns()
 	local fname="$1"		# function to parse
 	local start_parse line temp
 
+	# the idea is to get all possible arguments for a function
+	# by parsing it line for line and grep all 'case' statements.
+	# this is ugly, but has the advantage that we dont need to
+	# maintain a special list, e.g.
+	#
+	# function_xy()
+	# {
+	#   case "$1" in
+	#     option1|option2)
+	#     ;;
+	#     optionN)
+	#     ;;
+	#   esac
+	# }
+	#
+	# running our parser on this function will output 'option1 option2 optionN'
+
 	while read line; do {
 		if [ "$start_parse" = 'true' ]; then
 			case "$line" in
