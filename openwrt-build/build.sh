@@ -1549,7 +1549,7 @@ apply_symbol()
 			return 0
 		;;
 		'nuke_customdir')
-			log "wipeout dir for custom files: '$custom_dir/'"
+			log "removing dir for custom files: '$custom_dir/'"
 			rm -fR "$custom_dir"
 			mkdir  "$custom_dir"
 
@@ -2145,7 +2145,7 @@ EOF
 		echo "$USECASE" >"$file"
 		log "adding build-information '$USECASE' to '$file'" gitadd "$file"
 	else
-		echo "$USECASE" >>"${file}.details"
+		echo "${subcall:-$USECASE}" >>"${file}.details"
 	fi
 
 	return 0
