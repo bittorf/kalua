@@ -440,8 +440,9 @@ target_hardware_set()
 
 	[ -n "$quiet" ] && funcname="quiet_$funcname"
 
-	# must match ' v[0-9]' and will be e.g. ' v7' -> '7' and defaults to '1'
-	local version="$( echo "$model" | sed -n 's/^.* v\([0-9]\)$/\1/p' )"
+	# must match ' v[0-9]' and will be e.g.
+	# ' v7' -> '7' or ' v1.5' -> '1.5' and defaults to '1'
+	local version="$( echo "$model" | sed -n 's/^.* v\([0-9\.]*\)$/\1/p' )"
 	[ -z "$version" ] && version='1'
 
 	case "$model" in
@@ -537,17 +538,23 @@ EOF
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr741nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr741nd-v${version}-squashfs-factory.bin"
 		;;
-		'TP-LINK TL-WR841N/ND v7')
+		'TP-LINK TL-WR841N/ND v1.5'|'TP-LINK TL-WR841N/ND v3'|'TP-LINK TL-WR841N/ND v5'|'TP-LINK TL-WR841N/ND v7')
 			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr841nd-v7-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr841nd-v7-squashfs-factory.bin'
+			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841nd-v${version}-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841nd-v${version}-squashfs-factory.bin"
 		;;
-		'TP-LINK TL-WR841N/ND v8')
+		'TP-LINK TL-WR841N/ND v8'|'TP-LINK TL-WR841N/ND v9')
 			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wr841n-v8-squashfs-factory.bin'
+			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841n-v${version}-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841n-v${version}-squashfs-factory.bin"
+		;;
+		'TP-LINK TL-WR847N v8')
+			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
+			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr847n-v8-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr847n-v8-squashfs-factory.bin"
 		;;
 		'TP-LINK TL-WDR4300')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wdr4300
@@ -1542,7 +1549,7 @@ apply_symbol()
 			return 0
 		;;
 		'nuke_customdir')
-			log "emptying dir for custom files: '$custom_dir/'"
+			log "wipeout dir for custom files: '$custom_dir/'"
 			rm -fR "$custom_dir"
 			mkdir  "$custom_dir"
 
