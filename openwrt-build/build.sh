@@ -466,7 +466,7 @@ chmod 777 /tmp/uml
 export TMPDIR=/tmp/uml
 EOF
 				return 0
-			}
+			}	# parser_ignore
 		;;
 		'x86_64')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_64=y'
@@ -480,7 +480,7 @@ EOF
 qemu-system-x86_64 -kernel $FILENAME_SYSUPGRADE -hda $FILENAME_FACTORY -nographic -append console=ttyS0
 EOF
 				return 0
-			}
+			}	# parser_ignore
 		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
