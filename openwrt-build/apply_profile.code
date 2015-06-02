@@ -405,37 +405,36 @@ _config_system ()
 
 	echo "${OLD_HOSTNAME}" >/proc/sys/kernel/hostname
 
-	rm /etc/config/system
 	touch /etc/config/system
 
 	#system section of system
-	uci set system.system="system"
-	uci set system.system.hostname="$OLD_HOSTNAME"
-	uci set system.system.timezone="${TIMEZONE:-GMT0}"
-	uci set system.system.cronloglevel="9"
-	uci set system.system.log_size="16"
+	uci set system.@system[0].hostname="$OLD_HOSTNAME"
+	uci set system.@system[0].timezone="${TIMEZONE:-GMT0}"
+	uci set system.@system[0].cronloglevel="9"
+	uci set system.@system[0].log_size="16"
 	if [ "$INSTALLATION" = "ffweimar" ]; then       #restore all settings in profile ffweimar 
-                uci set system.system.keepsettings="1"
-                uci set system.system.noswinstall="1"
+                uci set system.@system[0].keepsettings="1"
+                uci set system.@system[0].noswinstall="1"
 	else
-                uci set system.system.keepsettings="0"
+                uci set system.@system[0].keepsettings="0"
 	fi
 	[ -n "$( uci -q get meshwizard.system.conloglevel )" ] && {
-		uci set system.system.conloglevel="$( uci -q get meshwizard.system.conloglevel )"
+		uci set system.@system[0].conloglevel="$( uci -q get meshwizard.system.conloglevel )"
 	}
 	[ -n "$( uci -q get meshwizard.system.latitude )" ] && {
-		uci set system.system.latitude="$( uci -q get meshwizard.system.latitude )"
+		uci set system.@system[0].latitude="$( uci -q get meshwizard.system.latitude )"
 	}
 	[ -n "$( uci -q get meshwizard.system.longitude )" ] && {
-		uci set system.system.longitude="$( uci -q get meshwizard.system.longitude )"
+		uci set system.@system[0].longitude="$( uci -q get meshwizard.system.longitude )"
 	}
 	[ -n "$( uci -q get meshwizard.system.location )" ] && {
-		uci set system.system.location="$( uci -q get meshwizard.system.location )"
+		uci set system.@system[0].location="$( uci -q get meshwizard.system.location )"
 	}
 	
 	#ntp section of system
 
-	uci set system.ntp="timeserver"
+	uci delete system.@ntp[0]
+  uci set system.ntp="timeserver"
 	uci add_list system.ntp.server="0.openwrt.pool.ntp.org"
 	uci add_list system.ntp.server="1.openwrt.pool.ntp.org"
 	uci add_list system.ntp.server="2.openwrt.pool.ntp.org"
@@ -452,12 +451,7 @@ _config_system ()
 
 	local hide_lang="#"	# default-lang
 
-	case "${INSTALLATION}" in
-		preskil*|shankar*|castelfalfi*)
-			hide_lang=
-		;;
-	esac
-	
+  uci delete system.@weblogin[0]
 	uci set system.weblogin="weblogin"
 
 	[ -z "$weblogin_hide" ] && {
@@ -468,26 +462,20 @@ _config_system ()
 		uci set system.weblogin.adminlang="en"
 	}
 
-	case "${NODE}_${INSTALLATION}" in
-		42_ejbw*)
-			uci set system.weblogin.authserver="192.168.111.183"
-		;;
-		6_monami*)
-			uci set system.weblogin.authserver="10.63.7.1"
-		;;
-	esac
-	
 	#profile section of system
+  uci delete system.@profile[0]
 	uci set system.profile="profile"
 	uci set system.profile.name="${INSTALLATION}_${PROFILE_MODE}"
 	uci set system.profile.nodenumber="$NODE"
 	uci set system.profile.ipsystem="${IPSYSTEM:-ffweimar}"
 
 	#monitoring section of system
+  uci delete system.@monitoring[0]
 	uci set system.monitoring="monitoring"
 	uci set system.monitoring.url="http://intercity-vpn.de/networks/${INSTALLATION}"
 
 	#fwupdate section of system
+  uci delete system.@fwupdate[0]
 	uci set system.fwupdate="fwupdate"
 	uci set url="http://intercity-vpn.de/firmware"
         if [ "$INSTALLATION" = "ffweimar" ]; then	# autoupdate only stable versions in profile ffweimar
@@ -497,6 +485,7 @@ _config_system ()
         fi
 
 	#admin section of system
+  uci delete system.@admin[0]
 	uci set system.admin="admin"
 	uci set system.admin.location="$( contact location )"
 	uci set system.admin.latlon="$( contact latlon )"
@@ -506,6 +495,7 @@ _config_system ()
 	uci set system.admin.neturl="$( contact neturl )"
 
 	#vpn section of system
+  uci delete system.@vpn[0]
 	uci set system.vpn="vpn"
 	uci set system.vpn.domain="weimarnetz.de"
 	uci set system.vpn.prefix="v"
@@ -1564,7 +1554,7 @@ EOF
 # keep important settings
 local keepsettings="$( uci -q get system.@system[0].keepsettings )"           
 [ "$keepsettings" != "1" ] && { 
-	for SECTION in softwareinstall system wireless network aliases firewall; do {
+	for SECTION in system wireless network; do {
 		log "....working on section '$SECTION'"
 		_config_$SECTION "$NODENUMBER"
 		log "[ok] ready with section '$SECTION'"
@@ -1572,7 +1562,7 @@ local keepsettings="$( uci -q get system.@system[0].keepsettings )"
 }
 
 # rewrite new settings
-for SECTION in freifunk olsrd dhcp; do {
+for SECTION in softwareinstall freifunk olsrd dhcp aliases; do {
 	log "....working on section '$SECTION'"
 	_config_$SECTION "$NODENUMBER"
 	log "[ok] ready with section '$SECTION'"
