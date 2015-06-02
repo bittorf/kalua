@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # TODO:
+# - add usecase 'community_small' and 'community_standard'
 # - fix formatting of /etc/openwrt_patches (add2trunk)
 # - autoremove old branches?:
 #   - for B in $(git branch|grep @); do git branch -D $B; done
@@ -27,7 +28,7 @@ print_usage_and_exit()
 		chmod +x $0
 	}
 
-	# format: usecase hardware
+	# format: $USECASE $HARDWARE
 	if [ -e 'KALUA_HISTORY' ]; then
 		# last used one
 		set -- $( tail -n1 'KALUA_HISTORY' )
@@ -37,7 +38,7 @@ print_usage_and_exit()
 		hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
 	fi
 
-	# format: usecase hardware
+	# format: $USECASE $HARDWARE
 	if [ -e 'KALUA_HISTORY' ]; then
 		# last used one, e.g.: Standard,noPPPoE,BigBrother,kalua@e678dd6
 		usecase="$( tail -n1 'KALUA_HISTORY' | cut -d' ' -f1 )"
@@ -465,7 +466,7 @@ chmod 777 /tmp/uml
 export TMPDIR=/tmp/uml
 EOF
 				return 0
-			}	# parser_ignore
+			}
 		;;
 		'x86_64')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_64=y'
@@ -479,7 +480,7 @@ EOF
 qemu-system-x86_64 -kernel $FILENAME_SYSUPGRADE -hda $FILENAME_FACTORY -nographic -append console=ttyS0
 EOF
 				return 0
-			}	# parser_ignore
+			}
 		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
@@ -1670,14 +1671,12 @@ build_options_set()
 
 		# build a comma-separated list for later output/build-documentation
 		case "${subcall}-$1" in
-			"-$KALUA_DIRNAME"*)
-				# parser_ignore
-				# direct call to kalua (no subcall)
+			"-$KALUA_DIRNAME"*)	# parser_ignore
+						# direct call to kalua (no subcall)
 			;;
-			*'=y'|*[.0-9])
-				# parser_ignore
-				# e.g. CONFIG_TARGET_ROOTFS_INITRAMFS=y
-				# e.g. SQUASHFS_BLOCK_SIZE=64
+			*'=y'|*[.0-9])		# parser_ignore
+						# e.g. CONFIG_TARGET_ROOTFS_INITRAMFS=y
+						# e.g. SQUASHFS_BLOCK_SIZE=64
 			;;
 			'-'*)	# parser_process
 				# direct call (no subcall)
@@ -2149,8 +2148,14 @@ parse_case_patterns()
 {
 	local fname="$1"		# function to parse
 	local start_parse line temp
-
+#set -x
+logger -s "parsing $0 for $fname()"
 	while read line; do {
+case "$line" in
+	*'USBaudio'*)
+		logger -s "### $lines ###"
+	;;
+esac
 		if [ "$start_parse" = 'true' ]; then
 			case "$line" in
 				*')'*)
@@ -2162,6 +2167,8 @@ parse_case_patterns()
 
 					local oldIFS="$IFS"; IFS='|'; set -- $line; IFS="$oldIFS"
 					while [ -n "$1" ]; do {
+#set -x
+logger -s "1: $1"
 						case "$1" in
 							"'list')")
 								# parser at end of the function
@@ -2197,6 +2204,7 @@ parse_case_patterns()
 				"$fname()"*)
 					# parser at begin of the function
 					start_parse='true'
+logger -s "startparse: $line"
 				;;
 			esac
 		fi
