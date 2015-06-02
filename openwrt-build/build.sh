@@ -1644,7 +1644,7 @@ build_options_set()
 	local kmod
 
 	case "$options" in
-		'ready')
+		'ready')	# parser_ignore
 			file="$custom_dir/etc/openwrt_build"
 
 			(
@@ -1678,7 +1678,7 @@ build_options_set()
 						# e.g. CONFIG_TARGET_ROOTFS_INITRAMFS=y
 						# e.g. SQUASHFS_BLOCK_SIZE=64
 			;;
-			'-'*)	# parser_process
+			'-'*)	# parser_ignore
 				# direct call (no subcall)
 				USECASE="${USECASE}${USECASE+,}${1}"
 			;;
@@ -1690,13 +1690,13 @@ build_options_set()
 
 				# FIXME! remove if parsing '$SPECIAL_OPTIONS' with spaces it fixed
 				case "$1" in
-					'CONFIG_TARGET_ROOTFS_PARTSIZE='*)
+					'CONFIG_TARGET_ROOTFS_PARTSIZE='*)	# parser_ignore
 						apply_symbol 'CONFIG_TARGET_IMAGES_GZIP is not set'
 					;;
 				esac
 			;;
-			'defconfig')
-				# this simply adds or deletes no symbols
+			'defconfig')	# parser_ignore
+					# this simply adds or deletes no symbols
 			;;
 			"$KALUA_DIRNAME")
 				apply_symbol "$1"
@@ -1749,7 +1749,7 @@ build_options_set()
 				fgrep -q 'CONFIG_USB_SUPPORT=y' "$file" && {
 					log "[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
 					$funcname subcall 'USBstorage'
-				}
+				}	# parser_ignore
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
@@ -2148,27 +2148,19 @@ parse_case_patterns()
 {
 	local fname="$1"		# function to parse
 	local start_parse line temp
-#set -x
-logger -s "parsing $0 for $fname()"
+
 	while read line; do {
-case "$line" in
-	*'USBaudio'*)
-		logger -s "### $lines ###"
-	;;
-esac
 		if [ "$start_parse" = 'true' ]; then
 			case "$line" in
-				*')'*)
-					case "$line" in
-						*'# parser_ignore'*)
-							continue
-						;;
-					esac
+				*'# parser_ignore'*)
+					continue
+				;;
+			esac
 
+			case "$line" in
+				*')'*)
 					local oldIFS="$IFS"; IFS='|'; set -- $line; IFS="$oldIFS"
 					while [ -n "$1" ]; do {
-#set -x
-logger -s "1: $1"
 						case "$1" in
 							"'list')")
 								# parser at end of the function
@@ -2204,7 +2196,6 @@ logger -s "1: $1"
 				"$fname()"*)
 					# parser at begin of the function
 					start_parse='true'
-logger -s "startparse: $line"
 				;;
 			esac
 		fi
