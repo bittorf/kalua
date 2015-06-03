@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # TODO:
-# - add usecase 'community_small' and 'community_standard'
+# - simulate apply-run: show symbols
+# - add usecase 'freifunk' and 'freifunk-4mb'
 # - fix formatting of /etc/openwrt_patches (add2trunk)
 # - autoremove old branches?:
 #   - for B in $(git branch|grep @); do git branch -D $B; done
@@ -1655,7 +1656,6 @@ build_options_set()
 			file="$custom_dir/etc/openwrt_build"
 
 			(
-				echo
 				cat "${file}.details"
 				rm  "${file}.details"
 			) >>"$file"
