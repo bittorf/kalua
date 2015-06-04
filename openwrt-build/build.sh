@@ -270,6 +270,10 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			fi
 		;;
 	esac
+
+	grep -q "$pattern" "$config" || {
+		log "[ERROR] while adding '$pattern' to '$config'"
+	}
 }
 
 register_patch()
