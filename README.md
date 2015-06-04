@@ -255,6 +255,8 @@ Special UCI-variables
 
 	system.@fwupdate[0].url			- url
 	system.@fwupdate[0].mode		- string: 0|stable|beta|testing
+	system.@fwupdate[0].confirm_needed	- bool
+	system.@fwupdate[0].confirm_timeout	- integer (days)
 
 	system.@vds[0].server			- scp-destination
 	system.@vds[0].enabled			- bool

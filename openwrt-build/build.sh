@@ -6,7 +6,7 @@
 # - autoremove old branches?:
 #   - for BRANCH in $(git branch|grep @); do git branch -D $BRANCH; done
 # - support for reverting specific openwrt-commits (for building older kernels)
-# - options: noWiFi, noSSH (+login-patch), noIPTables, noIPv6, Failsafe (like sven-ola)
+# - options: noWiFi, noIPTables, noIPv6, Failsafe (like sven-ola)
 # - packages/feeds/openwrt: checkout specific version
 #   - http://stackoverflow.com/questions/6990484/git-checkout-by-date
 #   - hash="$( git rev-list -n 1 --before="2009-07-27 13:37" master )"
