@@ -2,10 +2,9 @@
 
 # TODO:
 # - simulate apply-run: show symbols
-# - add usecase 'freifunk' and 'freifunk-4mb'
 # - fix formatting of /etc/openwrt_patches (add2trunk)
 # - autoremove old branches?:
-#   - for B in $(git branch|grep @); do git branch -D $B; done
+#   - for BRANCH in $(git branch|grep @); do git branch -D $BRANCH; done
 # - support for reverting specific openwrt-commits (for building older kernels)
 # - options: noWiFi, noSSH (+login-patch), noIPTables, noIPv6, Failsafe (like sven-ola)
 # - packages/feeds/openwrt: checkout specific version
@@ -72,8 +71,12 @@ EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
 
 e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
+       or:
+       $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase 'freifunk,$KALUA_DIRNAME' $more_options
+       $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase 'freifunk-4mb,$KALUA_DIRNAME' $more_options
        $0 --openwrt r${rev:-12345} --hardware '4mb_model' --usecase 'Small,noOPKG,noPPPoE,noDebug,OLSRd,$KALUA_DIRNAME'
        $0 --openwrt r${rev:-12345} --hardware '8mb_model' --usecase 'Standard,$KALUA_DIRNAME'
+
 
 get help without args, e.g.: --hardware <empty> or --hardware 'substring'
 
@@ -1809,6 +1812,19 @@ build_options_set()
 				# TODO!
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 				# remove 'mtd' if device can be flashed via bootloader?
+			;;
+			'freifunk')
+				$funcname subcall 'Standard'
+				$funcname subcall 'OWM'
+				$funcname subcall 'LuCIfull'
+			;;
+			'freifunk-4mb')
+				$funcname subcall 'Small'
+				$funcname subcall 'noOPKG'
+				$funcname subcall 'noPPPoE'
+				$funcname subcall 'noDebug'
+				$funcname subcall 'OLSRd'
+				$funcname subcall 'LuCI'
 			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
 			'debug')
