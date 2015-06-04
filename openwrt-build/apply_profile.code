@@ -405,37 +405,40 @@ _config_system ()
 
 	echo "${OLD_HOSTNAME}" >/proc/sys/kernel/hostname
 
-	rm /etc/config/system
 	touch /etc/config/system
 
 	#system section of system
-	uci set system.system="system"
-	uci set system.system.hostname="$OLD_HOSTNAME"
-	uci set system.system.timezone="${TIMEZONE:-GMT0}"
-	uci set system.system.cronloglevel="9"
-	uci set system.system.log_size="16"
+	uci set system.@system[0].hostname="$OLD_HOSTNAME"
+	uci set system.@system[0].timezone="${TIMEZONE:-GMT0}"
+	uci set system.@system[0].cronloglevel="9"
+	uci set system.@system[0].log_size="16"
 	if [ "$INSTALLATION" = "ffweimar" ]; then       #restore all settings in profile ffweimar 
-                uci set system.system.keepsettings="1"
-                uci set system.system.noswinstall="1"
+                uci set system.@system[0].keepsettings="1"
+                uci set system.@system[0].noswinstall="1"
 	else
-                uci set system.system.keepsettings="0"
+                uci set system.@system[0].keepsettings="0"
 	fi
-	[ -n "$( uci -q get meshwizard.system.conloglevel )" ] && {
-		uci set system.system.conloglevel="$( uci -q get meshwizard.system.conloglevel )"
-	}
-	[ -n "$( uci -q get meshwizard.system.latitude )" ] && {
-		uci set system.system.latitude="$( uci -q get meshwizard.system.latitude )"
-	}
-	[ -n "$( uci -q get meshwizard.system.longitude )" ] && {
-		uci set system.system.longitude="$( uci -q get meshwizard.system.longitude )"
-	}
-	[ -n "$( uci -q get meshwizard.system.location )" ] && {
-		uci set system.system.location="$( uci -q get meshwizard.system.location )"
+	
+	# set location only when data is fresh from meshkit, else leave all values
+	[ -n "$FRESHMESHKIT" ] && {
+		[ -n "$( uci -q get meshwizard.system.conloglevel )" ] && {
+			uci set system.@system[0].conloglevel="$( uci -q get meshwizard.system.conloglevel )"
+		}
+		[ -n "$( uci -q get meshwizard.system.latitude )" ] && {
+			uci set system.@system[0].latitude="$( uci -q get meshwizard.system.latitude )"
+		}
+		[ -n "$( uci -q get meshwizard.system.longitude )" ] && {
+			uci set system.@system[0].longitude="$( uci -q get meshwizard.system.longitude )"
+		}
+		[ -n "$( uci -q get meshwizard.system.location )" ] && {
+			uci set system.@system[0].location="$( uci -q get meshwizard.system.location )"
+		}
 	}
 	
 	#ntp section of system
 
-	uci set system.ntp="timeserver"
+	uci delete system.@ntp[0]
+  uci set system.ntp="timeserver"
 	uci add_list system.ntp.server="0.openwrt.pool.ntp.org"
 	uci add_list system.ntp.server="1.openwrt.pool.ntp.org"
 	uci add_list system.ntp.server="2.openwrt.pool.ntp.org"
@@ -452,12 +455,7 @@ _config_system ()
 
 	local hide_lang="#"	# default-lang
 
-	case "${INSTALLATION}" in
-		preskil*|shankar*|castelfalfi*)
-			hide_lang=
-		;;
-	esac
-	
+  uci delete system.@weblogin[0]
 	uci set system.weblogin="weblogin"
 
 	[ -z "$weblogin_hide" ] && {
@@ -468,26 +466,20 @@ _config_system ()
 		uci set system.weblogin.adminlang="en"
 	}
 
-	case "${NODE}_${INSTALLATION}" in
-		42_ejbw*)
-			uci set system.weblogin.authserver="192.168.111.183"
-		;;
-		6_monami*)
-			uci set system.weblogin.authserver="10.63.7.1"
-		;;
-	esac
-	
 	#profile section of system
+  uci delete system.@profile[0]
 	uci set system.profile="profile"
 	uci set system.profile.name="${INSTALLATION}_${PROFILE_MODE}"
 	uci set system.profile.nodenumber="$NODE"
 	uci set system.profile.ipsystem="${IPSYSTEM:-ffweimar}"
 
 	#monitoring section of system
+  uci delete system.@monitoring[0]
 	uci set system.monitoring="monitoring"
 	uci set system.monitoring.url="http://intercity-vpn.de/networks/${INSTALLATION}"
 
 	#fwupdate section of system
+  uci delete system.@fwupdate[0]
 	uci set system.fwupdate="fwupdate"
 	uci set url="http://intercity-vpn.de/firmware"
         if [ "$INSTALLATION" = "ffweimar" ]; then	# autoupdate only stable versions in profile ffweimar
@@ -497,6 +489,7 @@ _config_system ()
         fi
 
 	#admin section of system
+  uci delete system.@admin[0]
 	uci set system.admin="admin"
 	uci set system.admin.location="$( contact location )"
 	uci set system.admin.latlon="$( contact latlon )"
@@ -506,6 +499,7 @@ _config_system ()
 	uci set system.admin.neturl="$( contact neturl )"
 
 	#vpn section of system
+  uci delete system.@vpn[0]
 	uci set system.vpn="vpn"
 	uci set system.vpn.domain="weimarnetz.de"
 	uci set system.vpn.prefix="v"
@@ -519,27 +513,30 @@ _config_system ()
 
 _config_freifunk ()
 {
-	#contact section of freifunk
-	uci set freifunk.contact="public"
-	[ -n "$( uci -q get meshwizard.contact.name )" ] && {
-		uci set freifunk.contact.name="$( uci -q get meshwizard.contact.name )"
-	}
-	[ -n "$( uci -q get meshwizard.contact.nickname )" ] && {
-		uci set freifunk.contact.nickname="$( uci -q get meshwizard.contact.nickname )"
-	}
-	[ -n "$( uci -q get meshwizard.contact.mail )" ] && {
-		uci set freifunk.contact.mail="$( uci -q get meshwizard.contact.mail )"
-	}
-	[ -n "$( uci -q get meshwizard.contact.phone )" ] && {
-		uci set freifunk.contact.phone="$( uci -q get meshwizard.contact.phone )"
-	}
-	[ -n "$( uci -q get meshwizard.contact.note )" ] && {
-		uci set freifunk.contact.note="$( uci -q get meshwizard.contact.note )"
-	}
-	#community section of freifunk
-	uci set freifunk.community="public"
-	[ -n "$( uci -q get meshwizard.community.name )" ] && {
-		uci set freifunk.community.name="$( uci -q get meshwizard.community.name )"
+	# set contact and user info only when data is fresh from meshkit, else leave all values
+	[ -n "$FRESHMESHKIT" ] && {
+		#contact section of freifunk
+		uci set freifunk.contact="public"
+		[ -n "$( uci -q get meshwizard.contact.name )" ] && {
+			uci set freifunk.contact.name="$( uci -q get meshwizard.contact.name )"
+		}
+		[ -n "$( uci -q get meshwizard.contact.nickname )" ] && {
+			uci set freifunk.contact.nickname="$( uci -q get meshwizard.contact.nickname )"
+		}
+		[ -n "$( uci -q get meshwizard.contact.mail )" ] && {
+			uci set freifunk.contact.mail="$( uci -q get meshwizard.contact.mail )"
+		}
+		[ -n "$( uci -q get meshwizard.contact.phone )" ] && {
+			uci set freifunk.contact.phone="$( uci -q get meshwizard.contact.phone )"
+		}
+		[ -n "$( uci -q get meshwizard.contact.note )" ] && {
+			uci set freifunk.contact.note="$( uci -q get meshwizard.contact.note )"
+		}
+		#community section of freifunk
+		uci set freifunk.community="public"
+		[ -n "$( uci -q get meshwizard.community.name )" ] && {
+			uci set freifunk.community.name="$( uci -q get meshwizard.community.name )"
+		}
 	}
 	if [ "$INSTALLATION" = "ffweimar" ]; then
 		uci set freifunk.community.owm_api="http://mapapi.weimarnetz.de"
@@ -935,35 +932,6 @@ EOF
 	PROFILE_MODE=$profile_mode_tmp                                  #reset original profile mode
 }
 
-_config_mail ()
-{
-	cat >/etc/config/mail <<EOF
-config pop3
-	option username	'$POP3_USERNAME'
-	option password	'$POP3_PASSWORD'
-	option server	'pop.gmx.net'
-	option port	'110'
-
-config smtp
-	option server	'mail.gmx.net'
-	option port 	'25'
-	option auth	'pop-before-smtp'
-	option mail	'wlan-assistance@gmx.de'
-	option name	'Ticket-Assistent'
-EOF
-}
-
-_config_sms ()
-{
-	cat >/etc/config/sms <<EOF
-config sms
-	option username	'$SMS77_USERNAME'
-	option password	'$SMS77_PASSWORD'
-	option post	''
-	option phonebook	''
-EOF
-}
-
 _config_network ()
 {
 	local NODE="$1"
@@ -1158,13 +1126,13 @@ _config_dhcp ()			# domain = .olsr
 {
 	local NODE="$1"
 	local wan_dns="$( uci -q get network.wan.dns )"
-	local cache, domain
+	local cache domain
 
 	if [ "$INSTALLATION" = "ffweimar" ]; then       #set domain to olsr for profile ffweimar
 		domain="olsr" 
-        else
-                domain="lan"
-        fi
+  else
+    domain="lan"
+  fi
 
 	case $HARDWARE in
 		"TP-LINK TL-WR1043ND"|"BulletM")
@@ -1177,56 +1145,61 @@ _config_dhcp ()			# domain = .olsr
 
 	[ -n "$wan_dns" ] && DNSSERVER="$wan_dns"
 
-	cat >/etc/config/dhcp <<EOF
-config dnsmasq
-	option cachesize	$cache	# query with 'kill -SIGUSR1 \$( pidof dnsmasq ); logread | tail -n5'
-	option domainneeded	0	# forward querys without dots
-	option boguspriv	1
-	option filterwin2k	0	# enable for dial on demand
-	option localise_queries	1
-	option rebind_protection 0	# disable if upstream must serve RFC1918 addresses
-	option rebind_localhost 0	# enable for RBL checking and similar services
-	# list rebind_domain example.lan # whitelist RFC1918 responses for domains
-	option local	'/$domain/'
-	option domain	'$domain'
-	option expandhosts	1
-	option nonegcache	0
-	option authoritative	1
-	option readethers	1
-	option leasefile	'/tmp/dhcp.leases'
-	option resolvfile	'/tmp/resolv.conf.auto'
-	list addnhosts		'/var/etc/hosts'
-	list addnhosts		'/etc/local.hosts'
-	list server 		'$DNSSERVER'
+  uci -q delete dhcp.@dnsmasq[0]
+  uci -q add dhcp dnsmasq
+	uci -q set dhcp.@dnsmasq[0].cachesize="$cache"	# query with 'kill -SIGUSR1 \$( pidof dnsmasq ); logread | tail -n5'
+	uci -q set dhcp.@dnsmasq[0].domainneeded="0"	# forward querys without dots
+	uci -q set dhcp.@dnsmasq[0].boguspriv="1"
+	uci -q set dhcp.@dnsmasq[0].filterwin2k="0"	# enable for dial on demand
+	uci -q set dhcp.@dnsmasq[0].localise_queries="1"
+  uci -q set dhcp.@dnsmasq[0].rebind_protection="0"	# disable if upstream must serve RFC1918 addresses
+	uci -q set dhcp.@dnsmasq[0].rebind_localhost="0"	# enable for RBL checking and similar services
+	## list rebind_domain example.lan # whitelist RFC1918 responses for domains
+	uci -q set dhcp.@dnsmasq[0].local="/$domain/"
+	uci -q set dhcp.@dnsmasq[0].domain="$domain"
+	uci -q set dhcp.@dnsmasq[0].expandhosts="1"
+	uci -q set dhcp.@dnsmasq[0].nonegcache="0"
+	uci -q set dhcp.@dnsmasq[0].authoritative="1"
+	uci -q set dhcp.@dnsmasq[0].readethers="1"
+	uci -q set dhcp.@dnsmasq[0].leasefile="/tmp/dhcp.leases"
+	uci -q set dhcp.@dnsmasq[0].resolvfile="/tmp/resolv.conf.auto"
+	uci -q add_list dhcp.@dnsmasq[0].addnhosts="/var/etc/hosts"
+	uci -q add_list dhcp.@dnsmasq[0].addnhosts="/etc/local.hosts"
+	uci -q add_list dhcp.@dnsmasq[0].server="$DNSSERVER"
 	# list server		'/mycompany.local/1.2.3.4'
 	# option nonwildcard	1
 	# list interface	br-lan
-	list notinterface	wan
-	option dhcpscript	'/etc/dhcp-script.d/10dhcpscript'
+	uci -q add_list dhcp.@dnsmasq[0].notinterface="wan"
+	uci -q set dhcp.@dnsmasq[0].dhcpscript="/etc/dhcp-script.d/10dhcpscript"
 
-config dhcp lan
-	option interface	lan
-	option start 		$( _ipsystem do "$NODE" | grep ^"LANDHCPSTART=" | cut -d'=' -f2 )
-	option limit		$( _ipsystem do "$NODE" | grep ^"LANDHCPNUM="   | cut -d'=' -f2 )
-	option leasetime	2h
-	option force		1
-	option ignore		${DHCP_IGNORE_LAN:-0}
-	list dhcp_option        '121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d"=" -f2 )'
+  uci -q delete dhcp.lan
+  uci -q set dhcp.lan="dhcp"
 
-config dhcp wlan
-	option interface	wlan
-	option start 		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPSTART=" | cut -d'=' -f2 | cut -d'.' -f4 )
-	option netmask		$( _net cidr2mask "$( _ipsystem do "$NODE" | grep ^"WIFI_DHCP_PRE=" | cut -d'=' -f2 )" ) # 255.255.255.240?
-	option limit		$( _ipsystem do "$NODE" | grep ^"WIFIDHCPNUM=" | cut -d'=' -f2 )			 # fixme! better: 21
-	option leasetime	1h
-	option force		1
-	option ignore		${DHCP_IGNORE_WLAN:-0}
-	list dhcp_option        '121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d"=" -f2 )'
+	uci -q set dhcp.lan.interface="lan"
+  uci -q set dhcp.lan.start=$( _ipsystem do "$NODE" | grep ^"LANDHCPSTART=" | cut -d'=' -f2 )
+	uci -q set dhcp.lan.limit=$( _ipsystem do "$NODE" | grep ^"LANDHCPNUM="   | cut -d'=' -f2 )
+	uci -q set dhcp.lan.leasetime="2h"
+	uci -q set dhcp.lan.force="1"
+	uci -q set dhcp.lan.ignore=${DHCP_IGNORE_LAN:-0}
+	uci -q add_list dhcp.lan.dhcp_option="121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d'=' -f2 )"
 
-config dhcp wan
-	option interface	wan
-	option ignore		1
-EOF
+  uci -q delete dhcp.wlan
+  uci -q set dhcp.wlan="dhcp"
+	uci -q set dhcp.wlan.interface="wlan"
+	uci -q set dhcp.wlan.start=$( _ipsystem do "$NODE" | grep ^"WIFIDHCPSTART=" | cut -d'=' -f2 | cut -d'.' -f4 )
+	uci -q set dhcp.wlan.netmask=$( _net cidr2mask "$( _ipsystem do "$NODE" | grep ^"WIFI_DHCP_PRE=" | cut -d'=' -f2 )" ) # 255.255.255.240?
+	uci -q set dhcp.wlan.limit=$( _ipsystem do "$NODE" | grep ^"WIFIDHCPNUM=" | cut -d'=' -f2 )			 # fixme! better: 21
+  uci -q set dhcp.wlan.leasetime="1h"
+	uci -q set dhcp.wlan.force="1"
+	uci -q set dhcp.wlan.ignore=${DHCP_IGNORE_WLAN:-0}
+	uci -q add_list dhcp.wlan.dhcp_option="121,10.63.0.0/16,$( _ipsystem ffweimar $NODE | grep LANADR= | cut -d'=' -f2 )"
+
+  uci -q delete dhcp.wan
+  uci -q set dhcp.wan="dhcp"
+	uci -q set dhcp.wan.interface="wan"
+	uci -q set dhcp.wan.ignore="1"
+
+  uci commit dhcp
 }
 
 _config_aliases ()
@@ -1578,6 +1551,7 @@ EOF
 # the file shouldn't exist in sysupgrade packages from our homepage
 [ -e /rom/etc/config/meshwizard ] && {
 	cp "/rom/etc/config/meshwizard" "/etc/config/meshwizard"
+  FRESHMESHKIT="YO"
 }
 
 # copy opkg.conf from build system
@@ -1588,7 +1562,7 @@ EOF
 # keep important settings
 local keepsettings="$( uci -q get system.@system[0].keepsettings )"           
 [ "$keepsettings" != "1" ] && { 
-	for SECTION in softwareinstall system mail wireless network dhcp aliases firewall sms polipo; do {
+	for SECTION in wireless network; do {
 		log "....working on section '$SECTION'"
 		_config_$SECTION "$NODENUMBER"
 		log "[ok] ready with section '$SECTION'"
@@ -1596,7 +1570,7 @@ local keepsettings="$( uci -q get system.@system[0].keepsettings )"
 }
 
 # rewrite new settings
-for SECTION in freifunk olsrd; do {
+for SECTION in softwareinstall system freifunk olsrd dhcp aliases; do {
 	log "....working on section '$SECTION'"
 	_config_$SECTION "$NODENUMBER"
 	log "[ok] ready with section '$SECTION'"
