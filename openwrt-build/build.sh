@@ -1692,7 +1692,7 @@ build_options_set()
 		esac
 
 		case "$1" in
-			'CONFIG_'*)
+			'CONFIG_'*)	# parser_ignore
 				apply_symbol "$1"
 
 				# FIXME! remove if parsing '$SPECIAL_OPTIONS' with spaces it fixed
@@ -1753,6 +1753,15 @@ build_options_set()
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 
+				case "$LIST_USER_OPTIONS" in
+					*'noDebug'*)
+					;;
+					*)
+						log "[OK] autoselecting usecase 'debug' in 'Standard'-mode"
+						$funcname subcall 'debug'
+					;;
+				esac
+
 				fgrep -q 'CONFIG_USB_SUPPORT=y' "$file" && {
 					log "[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
 					$funcname subcall 'USBstorage'
@@ -1797,6 +1806,7 @@ build_options_set()
 				$funcname subcall 'noPPPoE'
 			;;
 			'Micro')
+				# TODO!
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 				# remove 'mtd' if device can be flashed via bootloader?
 			;;
