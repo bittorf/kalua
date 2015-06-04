@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # TODO:
-# - simulate apply-run: show symbols
+# - simulate apply-run: show symbols/tree
 # - fix formatting of /etc/openwrt_patches (add2trunk)
 # - autoremove old branches?:
 #   - for BRANCH in $(git branch|grep @); do git branch -D $BRANCH; done
@@ -74,12 +74,11 @@ e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $
        or:
        $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase 'freifunk,$KALUA_DIRNAME' $more_options
        $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase 'freifunk-4mb,$KALUA_DIRNAME' $more_options
-       $0 --openwrt r${rev:-12345} --hardware '4mb_model' --usecase 'Small,noOPKG,noPPPoE,noDebug,OLSRd,$KALUA_DIRNAME'
+       $0 --openwrt r${rev:-12345} --hardware '4mb_model' --usecase 'Small,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,$KALUA_DIRNAME'
        $0 --openwrt r${rev:-12345} --hardware '8mb_model' --usecase 'Standard,$KALUA_DIRNAME'
 
-
-get help without args, e.g.: --hardware <empty> or --hardware 'substring'
-
+get help without args, e.g.: --hardware <empty> or
+			     --hardware 'substring'
 special arguments:
 	  # continuous integration / development
 	  --check 	# shell-scripts only
