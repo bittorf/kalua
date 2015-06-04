@@ -42,6 +42,43 @@ check_switch_health()
 			_log do $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, more or equal links)"
 			echo "$switch_new" >"$file"
 
+			# ugly, but some sort of 'failsafe'
+			# test if WAN-port (1st port or single-port) changed from down->up?
+			# if we have NO default route and WAN = static, try
+			# to get a lease via DHCP
+			case "$switch_old" in
+				'-'*)
+					case "$switch_new" in
+						'-'*)
+						;;
+						*)
+							# it is not always possible to get a hotplug-event for this:
+							# https://dev.openwrt.org/ticket/17953#comment:21
+							if [ -z "$( ip route list exact '0.0.0.0/0' )" ]; then
+								[ "$( uci -q get network.wan.proto )" = 'static' ] && {
+									_log do $funcname daemon alert \
+										"WAN up '$switch_new': no default route"
+
+									# only go further if WAN has no OLSR neigh
+									[ -e "/tmp/OLSR/goodping_$( uci get network.wan.ifname )" ] || {
+										# FIXME: add wan alias and leave static IP?
+										uci set network.wan.proto='dhcp'
+										ifup wan
+
+										# FIXME: loop_max 10 && default route?
+										sleep 30
+										_log do $funcname daemon sms \
+											"reconfigured WAN to DHCP: $( _net get_external_ip )"
+									}
+								}
+							else
+								_log do $funcname daemon info "WAN up '$switch_new'"
+							fi
+						;;
+					esac
+				;;
+			esac
+
 			return 0
 		else
 			if [ ${#good_ports_new} -gt 0 ]; then
