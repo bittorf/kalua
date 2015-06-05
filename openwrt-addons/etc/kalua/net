@@ -1,5 +1,33 @@
 #!/bin/sh
 
+_net_roaming_report_new()
+{
+	local mac="$1"
+	local ip="$2"
+	local expires="$3"		# e.g. DNSMASQ_LEASE_EXPIRES (unixtime)
+	# TODO: signal? channel?
+	local file='/tmp/roaming'
+	local authserver url query answer
+
+	if _weblogin authserver is_myself; then
+		echo "$mac $ip $expires" >>"$file"
+	else
+		authserver="$( _weblogin authserver )"
+		url="http://$authserver/cgi-bin-collect.sh"
+		query="action=roaming_add&mac=${mac//:/%3a}&ip=$ip&expires=$expires"
+		answer="$( _wget do "$url" )"
+
+		case "$answer" in
+			'OK'*)
+				# TODO: fetch recent list
+			;;
+			*)
+				echo >>$SCHEDULER "_net roaming_report_new $mac $ip $expires"
+			;;
+		esac
+	fi
+}
+
 _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 {
 	local wifidev="${1:-wlan0}"
@@ -14,7 +42,7 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 	get_apmac()
 	{
 		set -- $( iw dev "$wifidev" station dump | grep ^'Station' )
-		echo "$2"
+		echo "${2:-unconnected}"
 	}
 
 	get_signal()
