@@ -1834,6 +1834,9 @@ build_options_set()
 				$funcname subcall 'OLSRd'
 				$funcname subcall 'LuCI'
 			;;
+			'freifunk-2mb')
+				# TODO
+			;;
 			### here starts all functions/packages, above are 'meta'-descriptions ###
 			'debug')
 				apply_symbol 'CONFIG_USE_STRIP=y'			# Global build settings: Binary stripping method
@@ -2095,13 +2098,17 @@ EOF
 				apply_symbol kernel 'CONFIG_EARLY_PRINTK is not set'	# kernel hacking: early printk
 				apply_symbol kernel 'CONFIG_SYS_HAS_EARLY_PRINTK is not set'
 			;;
+			'noAP')
+				apply_symbol 'CONFIG_PACKAGE_wpad-mini is not set'
+				apply_symbol 'CONFIG_PACKAGE_hostapd-common is not set'
+			;;
 			'noWIFI')
+				$funcname subcall 'noAP'
+
 				apply_symbol 'CONFIG_PACKAGE_kmod-cfg80211 is not set'
 				apply_symbol 'CONFIG_PACKAGE_kmod-mac80211 is not set'
 				apply_symbol 'CONFIG_PACKAGE_kmod-mac80211-hwsim is not set'
-				apply_symbol 'CONFIG_PACKAGE_hostapd-common is not set'
 				apply_symbol 'CONFIG_PACKAGE_iw is not set'
-				apply_symbol 'CONFIG_PACKAGE_wpad-mini is not set'
 			;;
 			'noSwap')
 				apply_symbol kernel 'CONFIG_SWAP is not set'		# general setup: Support for anon mem
