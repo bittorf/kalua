@@ -22,14 +22,16 @@ mac2ipv4()	# TODO: better name
 	local dev='br-mastergate'
 	local file="/tmp/ROAMING_remove_host_route_$mac"
 	local i=15
-	local ip
+	local ip=
 
 	while let i-=1; do {
 		# ignore IPv6 and show IPv4
 		# fe80::221:6aff:fe32:7c1c dev wlan1-1 lladdr 00:21:6a:32:7c:1c STALE
 		# 192.168.158.61 dev br-mastergate lladdr 00:21:6a:32:7c:1c REACHABLE
-		set -- $( ip neigh show dev "$dev" | fgrep "$mac" | grep -v '::' )
-		ip="$1"
+		[ -z "$ip" ] && {
+			set -- $( ip neigh show dev "$dev" | fgrep "$mac" | grep -v '::' )
+			ip="$1"
+		}
 
 		case "$ip" in
 			*'.'*)
@@ -49,6 +51,8 @@ mac2ipv4()	# TODO: better name
 				return 0
 			;;
 			*)
+				# no match
+				ip="$( _net roaming_mac2ip "$mac" )"
 				sleep 1
 			;;
 		esac
