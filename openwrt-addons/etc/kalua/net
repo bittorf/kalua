@@ -1,5 +1,37 @@
 #!/bin/sh
 
+_net_roaming_mac2ip()
+{
+	local mac="$1"
+	local file='/tmp/roaming'
+	local line url authserver ip
+
+	[ -e "$file" ] || {
+		_weblogin authserver is_myself || {
+			authserver="$( _weblogin authserver )"
+			query='action=roaming_getlist'
+			_wget do "$url" >"$file"
+		}
+	}
+
+	# format: mac ip expires
+	if line="$( grep -s ^"$mac" "$file" )"; then
+		set -- $line
+		echo $2
+	else
+		_weblogin authserver is_myself || {
+			authserver="$( _weblogin authserver )"
+			query="action=roaming_querymac&mac=$mac"
+			ip="$( _wget do "$url" )"
+			test -n "$ip" && {
+				echo "$ip"
+			}
+		}
+
+		: # normal waiting for ARP
+	fi
+}
+
 _net_roaming_report_new()
 {
 	local mac="$1"
