@@ -1076,6 +1076,7 @@ openwrt_download()
 				hash="$( git log -1 --format=%h )"
 			}
 
+			# TODO: maybe write 'openwrt@hash=$revision for modelXY'?
 			git branch | grep -q ^"  openwrt@${hash}=${wish}"$ && {
 				log "removing old? branch 'openwrt@${hash}=${wish}'"
 				git branch -D "openwrt@${hash}=${wish}" || {
@@ -1819,7 +1820,7 @@ build_options_set()
 			'Micro')
 				# TODO!
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
-				# remove 'mtd' if device can be flashed via bootloader?
+				# remove 'mtd' (~15k) if device can be flashed via bootloader?
 			;;
 			'freifunk')
 				$funcname subcall 'Standard'
@@ -1890,7 +1891,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_B43_PHY_HT is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_kmod-b43legacy is not set'	# kernel-modules:
 				apply_symbol 'CONFIG_PACKAGE_kmod-bgmac is not set'
-				apply_symbol 'CONFIG_PACKAGE_kmod-tg3 is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-tg3 is not set'	# FIXME! dirty workaround/unneeded ethernet driver
 				# apply_symbol 'CONFIG_PACKAGE_B43_DEBUG=y'
 			;;
 			'WiFi'*)

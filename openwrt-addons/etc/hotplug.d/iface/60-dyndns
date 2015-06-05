@@ -123,6 +123,21 @@ case "$ACTION" in
 				# FIXME!
 				bool_true 'system.@weblogin[0].allow_wan' && $IPT -I INPUT -j ACCEPT
 				echo >>$SCHEDULER "_netfilter portforwarding_start $WANADR"
+
+				ip -o route get 8.8.8.8 | fgrep -q " dev $DEVICE " && {
+					_log do $ACTION.$INTERFACE daemon info "[OK] wow - local inet offer"
+
+					. /etc/init.d/override_uci_vars
+					uci_already_added olsrd Hna4 netaddr '0.0.0.0' || {
+						pidof olsrd >/dev/null && {
+							_log do $ACTION.$INTERFACE daemon alert 'local inet offer, add missing OLSRd HNA 0/0'
+							uci add olsrd Hna4 >/dev/null
+							uci set olsrd.@Hna4[-1].netaddr='0.0.0.0'
+							uci set olsrd.@Hna4[-1].netmask='0.0.0.0'
+							. /etc/rc.common /etc/init.d/olsrd restart
+						}
+					}
+				}
 			;;
 		esac
 	;;
