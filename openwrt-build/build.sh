@@ -239,18 +239,13 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 
 	case "$arch" in
 		'mpc85xx')
-			[ $( openwrt_revision_number_get ) -ge 45597 ] && {
-				# use default method
-				arch=
-			}
-		;;
-	esac
-
-	case "$arch" in
-		'mpc85xx')
-			# config-3.10 -> 3.10
-			kernelversion="$( ls -1 $dir/config-* | head -n1 | cut -d'-' -f2 )"
-			config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
+			if [ $( openwrt_revision_number_get ) -ge 45597 ]; then
+				config="target/linux/$arch/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
+			else
+				# config-3.10 -> 3.10
+				kernelversion="$( ls -1 $dir/config-* | head -n1 | cut -d'-' -f2 )"
+				config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
+			fi
 
 			fgrep -q "$pattern" "$config" || {
 				sed -i "s/console=ttyS0,115200/$pattern &/" "$config"
