@@ -54,20 +54,29 @@ _net_roaming_cleanup_cache()
 	mv "$file.tmp" "$file"
 }
 
+_net_roaming_fetch_cache()
+{
+	local file='/tmp/roaming'
+	local url authserver query
+
+	# only if roaming enabled
+	grep -q 'br-mastergate:' '/proc/net/dev' || return 0
+
+	_weblogin authserver is_myself || {
+		authserver="$( _weblogin authserver )"
+		query='action=roaming_getlist'
+		url="http://$authserver/cgi-bin-collect.sh?$query"
+		_wget do "$url" >"$file"
+	}
+}
+
 _net_roaming_mac2ip()
 {
 	local mac="$1"
 	local file='/tmp/roaming'
-	local line url authserver ip
+	local line url authserver ip query
 
-	[ -e "$file" ] || {
-		_weblogin authserver is_myself || {
-			authserver="$( _weblogin authserver )"
-			query='action=roaming_getlist'
-			url="http://$authserver/cgi-bin-collect.sh?$query"
-			_wget do "$url" >"$file"
-		}
-	}
+	[ -e "$file" ] || _net roaming_fetch_cache
 
 	# format: mac ip expires
 	if line="$( grep -s ^"$mac" "$file" )"; then

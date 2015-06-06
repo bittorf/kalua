@@ -19,15 +19,16 @@ case "$QUERY_STRING" in
 		echo 'OK'
 	;;
 	*'roaming_getlist'*)
-		cat '/tmp/roaming'
+		# simulate 'tac'
+		grep -n '' '/tmp/roaming' | sort -rn | cut -d: -f2-
 		echo 'OK'
 	;;
 	*'roaming_querymac'*)
 		. /tmp/loader
 		eval $( _http query_string_sanitize )
 
-		# format: mac ip expires - see: net_roaming_report_new()
-		if LINE="$( grep -s ^"$mac" '/tmp/roaming' )"; then
+		# format: mac ip expires - see: net_roaming_report_new() - searched newest entires first = 'tac'
+		if LINE="$( grep -sn '' "/tmp/roaming" | sort -rn | cut -d: -f2- | grep ^"$mac" )"; then
 			set -- $LINE
 			echo $2
 		else
