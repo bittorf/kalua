@@ -1,0 +1,162 @@
+#!/bin/sh
+
+_stopwatch_start()
+{
+	local context="${1:-unset}"
+	local keyword="$2"		# e.g. global (otherwise we can have concurred jobs in same context)
+	local up rest file
+
+	case "$context" in
+		'/tmp/'*)
+			# directly giving a whish-filename, which does not exist yet
+			# fixme! needs a generic approach
+			touch "$context"
+		;;
+	esac
+
+	if [ -e "$context" ]; then
+		file="$context"		# e.g. /tmp/CRON_LOCK
+	else
+		case "$context" in
+			# this needs bash, why? -> ${context////} -> https://bugs.busybox.net/show_bug.cgi?id=2695
+			# e.g. /tmp/bla -> tmpbla (no problem with paths)
+			*'/'*)
+				context="$( echo "$context" | sed 's|/||g' )"
+			;;
+		esac
+
+		if [ "$keyword" = 'global' ]; then
+			file="/tmp/STOPWATCH_${context}"
+		else
+			file="/tmp/STOPWATCH_${context}_$$"
+		fi
+	fi
+
+	read up rest <'/proc/uptime'
+	# 61332.59 -> 6133259
+	echo "${up%.*}${up#*.}" >"$file"
+}
+
+_stopwatch_seconds2humanreadable()
+{
+	local seconds="$1"
+	local option="$2"	# e.g. 'pedantic' (TODO)
+	local humanreadable min sec hours days
+
+	min=$(( $seconds / 60 ))
+	sec=$(( $seconds % 60 ))
+
+	# TODO: dont show e.g. 0sec or 0min
+	# 1d 0h 17min -> 1d 17min
+	# 1h 0min -> 1h
+
+	if   [ $min -gt 1440 ]; then
+		days=$(( $min / 1440 ))
+		min=$(( $min % 1440 ))
+		hours=$(( $min / 60 ))
+		min=$(( $min % 60 ))
+		humanreadable="${days}d ${hours}h ${min}min"
+	elif [ $min -gt 60 ]; then
+		hours=$(( $min / 60 ))
+		min=$(( $min % 60 ))
+		humanreadable="${hours}h ${min}min"
+	elif [ $min -gt 0 ]; then
+		if [ $min -gt 15 ]; then
+			humanreadable="${min}min"
+		else
+			humanreadable="${min}min ${sec}sec"
+		fi
+	else
+		humanreadable="${sec}sec"
+	fi
+
+	echo "$humanreadable"
+}
+
+_stopwatch_stop()		# OUT1: centyseconds = seconds/100
+{
+	local funcname='stopwatch_stop'
+	local context="${1:-unset}"
+	local option="$2"		# e.g. quiet|nolog|speed|interim|seconds|humanreadable
+	local object_count="$3"		# e.g. 32
+	local object_type="$4"		# e.g. tickets
+
+	local up rest DIFF humanreadable file logprio
+	local START END OUT INTEGER REST message speed
+	local logprio='info'
+
+	read up rest </proc/uptime
+
+	has()
+	{
+		local list="$1"
+		local keyword="$2"
+
+		case ",$list," in		# e.g. quiet,log,interim
+			*",$keyword,"*)
+				return 0
+			;;
+			*)
+				return 1
+			;;
+		esac
+	}
+
+	if [ -e "$context" ]; then
+		file="$context"
+	else
+		case "$context" in
+			# this needs bash, why? -> ${context////}
+			# e.g. /tmp/bla -> tmpbla (no problem with paths)
+			*'/'*)
+				context="$( echo "$context" | sed 's|/||g' )"
+			;;
+		esac
+
+		if   [ -e "/tmp/STOPWATCH_${context}" ]; then
+			file="/tmp/STOPWATCH_${context}"
+		elif [ -e "/tmp/STOPWATCH_${context}_$$" ]; then
+			file="/tmp/STOPWATCH_${context}_$$"
+		else
+			# fallback to possible max (full uptime)
+			if has "$option" 'seconds'; then
+				_system uptime sec
+			else
+				_system uptime centisec
+			fi
+
+			_log do $funcname daemon info "timefile '/tmp/STOPWATCH_${context}'* not found - abort"
+			return 1
+		fi
+	fi
+
+	read START <"$file"
+	has "$option" 'interim' || rm "$file"
+	END="${up%.*}${up#*.}"
+
+	OUT="$(( $END - $START ))"
+	REST="$(( $OUT % 100 ))"
+	[ $REST -lt 10 ] && REST="0$REST"
+	INTEGER="$(( $OUT / 100 ))"
+
+	[ $INTEGER -gt 60 ] && {
+		humanreadable="$( _stopwatch seconds2humanreadable $INTEGER )"
+		humanreadable=" (${humanreadable})"
+
+		[ $INTEGER -gt 300 ] && logprio='alert'
+	}
+
+	[ -n "$object_type" -a -n "$object_count" -a "$object_count" -eq "$object_count" 2>/dev/null ] && {
+		# 32 tickets / 12.12sec -> 3200 / 1212 = 2.64
+		speed="$(( ${object_count}00 / $OUT )).$(( ${object_count}00 % $OUT ))"
+		message=" ($speed $object_type/sec)"
+	}
+
+	has "$option" 'seconds' && OUT="$INTEGER"
+	has "$option" 'humanreadable' && OUT="$( _stopwatch seconds2humanreadable "$INTEGER" )"
+	has "$option" 'speed' && echo "$speed"
+	has "$option" 'nolog' || _log do $funcname daemon $logprio "task '$context' lasts $INTEGER.$REST seconds${humanreadable}${message}"
+	has "$option" 'quiet' || echo "$OUT"
+
+	return 0
+}

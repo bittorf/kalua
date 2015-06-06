@@ -1,3 +1,41 @@
+#!/bin/sh
+
+_olsr_build_overview_static()		# runs as cron.minutely on vpn-server into '/tmp/statuspage_neigh_pregenerated'
+{
+	local funcname='olsr_build_overview_static'
+	local output="${1:-/var/www/cgi-bin-status.html}"
+
+	local time1 time2 size
+	local tempfile="/tmp/$funcname"
+
+	_olsr uptime is_short && return 0
+
+	_stopwatch start "$funcname:build_tables"
+	# only on VPN-server: see uci() in /tmp/loader
+	uci unvalid_call 2>/dev/null && _olsr build_tables
+	time1="$( _stopwatch stop "$funcname:build_tables" )"
+
+	_stopwatch start "$funcname:cgi-bin-status.sh"
+	REMOTE_ADDR= /www/cgi-bin-status.sh >"$tempfile"
+	time2="$( _stopwatch stop "$funcname:cgi-bin-status.sh" )"
+	size=$( _file size "$tempfile" )
+
+	sed -i "s|</title>| - $time1/$time2 - ${size}bytes (cache) &|" "$tempfile"
+	cp "$tempfile" "$output"
+
+	# this is ugly, we really compress 2 times (for showing compressed size)
+	gzip "$tempfile"
+	size=$( _file size "$tempfile.gz" )
+	gzip -d "$tempfile.gz"
+	sed -i "s|bytes (cache) |&($size bytes gzip)|" "$tempfile"
+	gzip "$tempfile"
+	mv "$tempfile.gz" "$output.gz"
+
+	# remove all marker-files (because we have fresh values), see /www/cgi-bin-status.sh
+	touch '/tmp/statuspage_neigh_lastfetch_LOCAL'
+	rm /tmp/statuspage_neigh_lastfetch_*
+}
+
 
 _olsr_build_tables ()				# building of /tmp/OLSR_TMP/ALL 		// is called every minute
 {						#			   /LINKS
@@ -142,7 +180,24 @@ _olsr_daemon()
 
 			for ACTION in $LIST; do {
 				_log do $funcname daemon $LOGPRIO "$ACTION: $REASON"
-				/etc/init.d/*olsrd $ACTION | logger -s
+				
+				if [ -e /etc/init.d/*olsrd ]; then
+					/etc/init.d/*olsrd $ACTION | logger -s
+				else
+					# on vpn-server:
+					# ln -s /root/olsrd1/olsrd-0.6.7/olsrd /usr/sbin/olsrd
+					local olsrd_bin='/usr/sbin/olsrd'
+					local olsrd_config='/etc/olsrd.conf'
+
+					case "$ACTION" in
+						stop)
+							killall olsrd
+						;;
+						start)
+							$olsrd_bin -f "$olsrd_config" -nofork &
+						;;
+					esac
+				fi
 
 				case "$ACTION" in
 					stop)

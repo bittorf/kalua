@@ -1,5 +1,176 @@
 #!/bin/sh
 
+_vpn_innercity_master_vtund_write_config()
+{
+  local config="${1:-/tmp/vtund.conf}"
+  local password="${2:-ff}"
+  local node=2
+  local node_max=1024
+
+  # defaults to 'proto tcp'
+  cat >"$config" <<EOF
+default {
+  type ether ;
+  compress no ;
+  encrypt no ;
+  keepalive yes ;
+  multi killold ;
+  stat no ;
+}
+EOF
+
+  while [ $node -lt $node_max ]; do {
+
+    cat >>"$config" <<EOF
+
+Node$node {
+  device tap$node ;
+  passwd $password ;
+
+  up {   program ". /tmp/loader; _vpn; _vpn innercity_master_iface up   %%" wait; } ;
+  down { program ". /tmp/loader; _vpn; _vpn innercity_master_iface down %%" wait; } ;
+}
+EOF
+    node=$(( node + 1 ))
+  } done
+}
+
+_vpn_innercity_master_vtund()
+{
+  local funcname='vpn_innercity_master_vtund'
+  local action="$1" # check_on_server|get_port|fire|start|stop|restart
+  local config="${2:-/tmp/vtund.conf}"
+  local line port
+
+  case "$action" in
+    check_on_server)
+      if [ -e "$config" ]; then
+        if pidof vtund >/dev/null; then
+          lsof | fgrep '/dev/net/tun' | grep -q ^'olsrd' && {
+            line="$( ps ax | grep 'vpn_innercity_master_iface up' | grep -v 'grep' )"
+            [ -n "$line" ] && {
+              _log do $funcname daemon alert "hanging task: $line"
+              set -- line
+              kill $1
+            }
+
+            _olsr daemon restart 'blocked /dev/net/tun'
+          }
+        else
+          _log do $funcname daemon alert "$action: empty pid - will startup"
+          _vpn innercity_master_vtund fire
+        fi
+      else
+        _vpn innercity_master_vtund start
+      fi
+    ;;
+    get_port)
+      port="$( uci -q get system.vpn.port )"
+      echo "${port:-5001}"
+    ;;
+    fire)
+      port="$( _$funcname get_port )"
+      /usr/local/sbin/vtund -f "$config" -P "$port" -s
+    ;;
+    start)
+      _vpn innercity_master_vtund_write_config
+      _vpn innercity_master_vtund fire
+    ;;
+    stop)
+      _watch hanging_command vtund
+      _watch hanging_command vtund
+      rm "$config"
+    ;;
+    restart)
+      _vpn innercity_master_vtund stop
+      _vpn innercity_master_vtund fire
+    ;;
+  esac
+}
+
+_vpn_innercity_master_iface()
+{
+  local funcname='vpn_innercity_master_iface'
+  local action="$1" # up|down
+  local dev="$2"    # e.g. tap276
+  local i=0
+  local bytes packets uptime uptime_sec numbers
+
+  while ! mkdir "/tmp/lock-$funcname"; do {
+    i=$(( i + 1 ))
+    [ $i -gt 5 ] && _log do $funcname daemon info "locked: $action/$dev must wait for '$( cat "/tmp/lock-$funcname/info" )'"
+    sleep 1
+  } done
+  echo "action: $action dev: $dev" >"/tmp/lock-$funcname/info"
+  _log do $funcname daemon info "[START] action: $action dev: $dev"
+
+  local olsrd_config='/etc/olsrd.conf'
+  local remote_nodenumber="${dev//tap/}"    # tap276 -> 276
+  local tunnel_ip_here="$( _ipsystem getvar 'WIFIVPNSERVERADR' $remote_nodenumber )"
+  local limit=8   # throttling - FIXME! use olsr_throttle?
+  local limit_burst=5
+  local mask=30   # ip here + ip other side + net + broadcast = 4 = /30
+  local mtu=1450    # why? example-conf does it too
+        # see: http://sourceforge.net/p/vtun/mailman/message/27935441/
+
+  if [ "$action" = 'up' ]; then
+    ip address add $tunnel_ip_here/$mask dev $dev
+    ip link set dev $dev mtu $mtu up
+    touch "/tmp/$funcname-devup-$dev"
+
+    $IPT -I INPUT  -p udp --dport 698 -i $dev -j DROP
+    $IPT -I INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+    $IPT -I INPUT  -p udp --dport 698 -i $dev -s $tunnel_ip_here -j ACCEPT
+    $IPT -I OUTPUT -p udp --dport 698 -o $dev -j DROP
+    $IPT -I OUTPUT -p udp --dport 698 -o $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+    $IPT -I FORWARD -i $dev -j ACCEPT
+    $IPT -I FORWARD -o $dev -j ACCEPT
+
+    mkdir '/tmp/FREIFUNK_TUNNEL' && {
+      $IPT -t nat -I POSTROUTING -s 10.0.0.0/8 ! -d 10.0.0.0/8 -j MASQUERADE
+      # TODO: activate forwarding in kernel
+    }
+
+    # if we cannot find the interface name, insert it
+    # only do it for 1st occurence - and dont touch 'private' sections
+    grep -q "\"$dev\"" "$olsrd_config" || {
+      linenumber="$( grep -n ^'Interface ' | head -n1 | cut -d':' -f1 )"
+      sed -i "${linenumber}s/Interface /Interface \"$dev\" /" "$olsrd_config"
+      _olsr daemon restart "new interface '$dev' added"
+    }
+    pidof olsrd >/dev/null || _olsr daemon start "$funcname() not active yet"
+
+    _log do $funcname daemon info "[READY] action: $action dev: $dev"
+  else
+    ip link set dev $dev down
+
+    uptime_sec=$( _file age "/tmp/$funcname-devup-$dev" )
+    uptime=$( _stopwatch seconds2humanreadable "$uptime_sec" )
+    rm "/tmp/$funcname-devup-$dev"
+
+    set -- $( $IPT -nxvL | fgrep " $dev " | head -n1 )
+    packets=$1
+    bytes=$2
+    $IPT -D FORWARD -o $dev -j ACCEPT
+
+    set -- $( $IPT -nxvL | fgrep " $dev " | head -n1 )
+    packets=$(( packets + $1 ))
+    bytes=$(( bytes + $2 ))
+    $IPT -D FORWARD -i $dev -j ACCEPT
+
+    $IPT -D OUTPUT -p udp --dport 698 -o $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+    $IPT -D OUTPUT -p udp --dport 698 -o $dev -j DROP
+    $IPT -D INPUT  -p udp --dport 698 -i $dev -s $tunnel_ip_here -j ACCEPT
+    $IPT -D INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
+    $IPT -D INPUT  -p udp --dport 698 -i $dev -j DROP
+
+    numbers="bytes/packets: $( _sanitizer do "$bytes/$packets" number_humanreadable ) = $(( bytes / uptime_sec / 1000 )) KB/s"
+    _log do $funcname daemon alert "[READY] action: $action dev: $dev $numbers uptime: $uptime"
+  fi
+
+  rm -fR "/tmp/lock-$funcname"
+}
+
 _vpn_needed()
 {
 	[ -z "$INETOFFER" ] && INETOFFER="$( _net local_inet_offer )"
