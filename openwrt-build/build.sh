@@ -1,12 +1,13 @@
 #!/bin/sh
 
 # TODO:
+# - cache .config for usecaseX and revY -> use it when rebuilding -> faster
 # - simulate apply-run: show symbols/tree
 # - fix formatting of /etc/openwrt_patches (add2trunk)
 # - autoremove old branches?:
 #   - for BRANCH in $(git branch|grep @); do git branch -D $BRANCH; done
 # - support for reverting specific openwrt-commits (for building older kernels)
-# - options: noWiFi, noIPTables, noIPv6, Failsafe (like sven-ola)
+# - options: noIPTables, noIPv6, Failsafe (like sven-ola)
 # - packages/feeds/openwrt: checkout specific version
 #   - http://stackoverflow.com/questions/6990484/git-checkout-by-date
 #   - hash="$( git rev-list -n 1 --before="2009-07-27 13:37" master )"
@@ -2027,6 +2028,9 @@ build_options_set()
 			'noSSH')
 				apply_symbol 'CONFIG_PACKAGE_dropbear is not set'
 			;;
+			'noHTTPd')
+				apply_symbol 'CONFIG_PACKAGE_uhttpd is not set'
+			;;
 			'noDebug')
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG is not set'
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_DEBUGFS is not set'
@@ -2093,6 +2097,7 @@ EOF
 				apply_symbol 'CONFIG_PACKAGE_kmod-pppox is not set'	# needed?
 			;;
 			'noPrintK')
+				# autoselected from 'noDebug'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_DMESG is not set'
 
 				apply_symbol kernel 'CONFIG_PRINTK is not set'		# general setup: standard kernel features
@@ -2100,6 +2105,7 @@ EOF
 				apply_symbol kernel 'CONFIG_SYS_HAS_EARLY_PRINTK is not set'
 			;;
 			'noAP')
+				# autoselected from 'noWIFI'
 				apply_symbol 'CONFIG_PACKAGE_wpad-mini is not set'
 				apply_symbol 'CONFIG_PACKAGE_hostapd-common is not set'
 			;;
