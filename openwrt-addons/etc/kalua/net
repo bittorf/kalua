@@ -55,17 +55,28 @@ _net_roaming_cleanup_cache()
 _net_roaming_fetch_cache()
 {
 	local file='/tmp/roaming'
-	local url authserver query
+	local url authserver query ip
 
 	# only if roaming enabled
 	grep -q 'br-mastergate:' '/proc/net/dev' || return 0
 
-	_weblogin authserver is_myself || {
+	if _weblogin authserver is_myself; then
+		[ -e "$file" ] || {
+			ip="$( _olsr neigh_random_get )" && {
+				query='action=roaming_getlist'
+				url="http://$ip/cgi-bin-collect.sh?$query"
+				_wget do "$url" >"$file.tmp"
+
+				grep -n '' "$file.tmp" | sort -rn | cut -d: -f2- >"$file"
+				rm "$file.tmp"
+			}
+		}
+	else
 		authserver="$( _weblogin authserver )"
 		query='action=roaming_getlist'
 		url="http://$authserver/cgi-bin-collect.sh?$query"
 		_wget do "$url" >"$file"
-	}
+	fi
 }
 
 _net_roaming_mac2ip()
