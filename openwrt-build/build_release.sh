@@ -112,7 +112,7 @@ print_revisions()
 {
 	OPENWRT_REV="$( ./scripts/getver.sh )"
 	KALUA_REV="$(  cat package/base-files/files/etc/variables_fff+ |grep FFF_PLUS|tr -d '[:space:]'|cut -d '=' -f 2|cut -d '#' -f 1)"	
-	echo "{'OPENWRT_REV':'$OPENWRT_REV','KALUA_REV':'$KALUA_REV'}" > "bin/revisions.json"
+	echo "{\"OPENWRT_REV\":\"$OPENWRT_REV\",\"KALUA_REV\":\"$KALUA_REV\"}" > "bin/revisions.json"
 }
 
 mymake()	# fixme! how to ahve a quiet 'make defconfig'?
