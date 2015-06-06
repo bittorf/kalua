@@ -2062,13 +2062,18 @@ build_options_set()
 				# CONFIG_DEFAULT_odhcp6c=y
 
 				apply_symbol 'CONFIG_IPV6 is not set'			# global build settings: IPv6 support in packages
+
 				apply_symbol 'CONFIG_PACKAGE_6relayd is not set'	# network: 6relayd - removed in r40893
 				apply_symbol 'CONFIG_PACKAGE_odhcp6c is not set'	# network: odhcp6c
 				apply_symbol 'CONFIG_PACKAGE_odhcpd is not set'		# network: odhcpd
+
 				apply_symbol 'CONFIG_PACKAGE_kmod-ip6tables is not set'	# kernel-modules: netfilter-extensions: ip6tables
 				apply_symbol 'CONFIG_PACKAGE_kmod-ipv6 is not set'	# kernel-modules: network-support: kmod-ipv6
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IPV6 is not set'	# base/busybox/networking/ipv6-support
 				apply_symbol 'CONFIG_PACKAGE_libip6tc is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-nf-conntrack6 is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-nf-ipt6 is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-ipv6 is not set'	# again?
 			;;
 			'noOPKG')
 				apply_symbol 'CONFIG_PACKAGE_opkg is not set'		# base-system: opkg
@@ -2112,8 +2117,6 @@ EOF
 				apply_symbol 'CONFIG_PACKAGE_hostapd-common is not set'
 			;;
 			'noWIFI')
-				$funcname subcall 'noAP'
-
 				apply_symbol 'CONFIG_PACKAGE_kmod-b43 is not set'
 				apply_symbol 'CONFIG_PACKAGE_kmod-ath5k is not set'
 				apply_symbol 'CONFIG_PACKAGE_kmod-ath9k-common is not set'
@@ -2123,7 +2126,9 @@ EOF
 				apply_symbol 'CONFIG_PACKAGE_kmod-cfg80211 is not set'
 				apply_symbol 'CONFIG_PACKAGE_kmod-mac80211 is not set'
 				apply_symbol 'CONFIG_PACKAGE_kmod-mac80211-hwsim is not set'
+
 				apply_symbol 'CONFIG_PACKAGE_iw is not set'
+				$funcname subcall 'noAP'
 			;;
 			'noSwap')
 				apply_symbol kernel 'CONFIG_SWAP is not set'		# general setup: Support for anon mem

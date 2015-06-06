@@ -1,5 +1,29 @@
 #!/bin/sh
 
+_net_roaming_cleanup_cache()
+{
+	local file='/tmp/roaming'
+	local unixtime="$( _system date unixtime )"
+	local line
+
+	[ -e "$file" ] || return 0
+
+	# TODO: keep newest entry of same mac
+	# 00:21:00:ce:c5:8f 192.168.2.3 1433623803
+	# 00:21:00:ce:c5:8f 192.168.2.4 1433623818
+	# 00:21:6a:32:7c:1c 192.168.2.61 1433621675
+	# 00:21:6a:32:7c:1c 192.168.23.61 1433616647
+
+	# format: mac ip expires
+	while read line; do {
+		set -- $line
+		test $3 -gt $unixtime && echo "$line"
+	} done <"$file" >"$file.tmp"
+
+	# FIXME! double write access, e.g. from collect.sh?
+	mv "$file.tmp" "$file"
+}
+
 _net_roaming_mac2ip()
 {
 	local mac="$1"
