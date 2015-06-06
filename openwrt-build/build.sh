@@ -1806,17 +1806,19 @@ build_options_set()
 				$funcname subcall 'noFW'
 			;;
 			'Mini')
-				# be careful: getting firmware and reflash must be possible (or bootloader with TFTP needed)
-				# like small and: noMESH, noSSH, noOPKG, noSwap, noUHTTPD, noIPTables
-				# -coredump,-debug,-symbol-table
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
 
-				# CONFIG_PACKAGE_dropbear is not set
-				# CONFIG_PACKAGE_opkg is not set
-
 				$funcname subcall 'noFW'
-				$funcname subcall 'noIPv6'
 				$funcname subcall 'noPPPoE'
+				$funcname subcall 'noHTTPd'
+				$funcname subcall 'noWIFI'
+				$funcname subcall 'noSSH'
+				$funcname subcall 'noOPKG'
+				$funcname subcall 'noPPPoE'
+				$funcname subcall 'noDebug'
+				$funcname subcall 'noSWAP'
+				$funcname subcall 'noIPv6'
+				# TODO: noIPtables
 			;;
 			'Micro')
 				# TODO!
@@ -1895,7 +1897,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-tg3 is not set'	# FIXME! dirty workaround/unneeded ethernet driver
 				# apply_symbol 'CONFIG_PACKAGE_B43_DEBUG=y'
 			;;
-			'WiFi'*)
+			'WiFi-rtl8192cu'|'WiFi'*)
 				# generic approach:
 				# e.g usb-wifi-stick: rtl8192cu -> WiFi-rtl8192cu
 				# ID 7392:7811 Edimax Technology Co., Ltd EW-7811Un 802.11n Wireless Adapter [Realtek RTL8188CUS]
@@ -2111,6 +2113,12 @@ EOF
 			;;
 			'noWIFI')
 				$funcname subcall 'noAP'
+
+				apply_symbol 'CONFIG_PACKAGE_kmod-b43 is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-ath5k is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-ath9k-common is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-ath9k is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-ath is not set'
 
 				apply_symbol 'CONFIG_PACKAGE_kmod-cfg80211 is not set'
 				apply_symbol 'CONFIG_PACKAGE_kmod-mac80211 is not set'
@@ -2682,6 +2690,6 @@ read T2 REST </proc/uptime
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
 target_hardware_set "$HARDWARE_MODEL" info quiet >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
-log "[OK] - check size of files with: find bin/$ARCH -type f -exec stat -c '%s %N' {} \; | sort -n"
+log "[OK] - check size of files with: find bin/$ARCH -type f -exec stat -c '%s %N' {} \; | grep -v '/attic/' | sort -n"
 
 exit 0
