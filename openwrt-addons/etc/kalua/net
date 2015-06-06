@@ -1,5 +1,35 @@
 #!/bin/sh
 
+_net_roaming_eventlistener()
+{
+	local funcname='net_roaming_eventlistener_restart'
+	local option="$1"
+	local i=15
+
+	case "$option" in
+		'start')
+			/usr/sbin/cron.wireless_events &
+		;;
+		'stop')
+			pidof iw >/dev/null && {
+				# FIXME! special 'command' for listener
+				iw reg set 00
+				iw reg set US
+
+				while pidof iw >/dev/null; do {
+					let i-=1 || break
+				} done
+
+				/usr/sbin/cron.wireless_events &
+			}
+		;;
+		'restart')
+			_$funcname stop
+			_$funcname start
+		;;
+	esac
+}
+
 _net_roaming_cleanup_cache()
 {
 	local file='/tmp/roaming'
