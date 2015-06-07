@@ -28,7 +28,7 @@ case "$QUERY_STRING" in
 		eval $( _http query_string_sanitize )
 
 		# format: mac ip expires - see: net_roaming_report_new() - searched newest entires first = 'tac'
-		if LINE="$( grep -sn '' "/tmp/roaming" | sort -rn | cut -d: -f2- | grep ^"$mac" )"; then
+		if LINE="$( grep -sn '' '/tmp/roaming' | sort -rn | cut -d: -f2- | grep ^"$mac" )"; then
 			set -- $LINE
 			echo $2
 		else

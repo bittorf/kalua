@@ -94,14 +94,27 @@ _net_roaming_mac2ip()
 {
 	local mac="${1:-no_mac_given}"
 	local file='/tmp/roaming'
+	local file_dhcp='/tmp/roaming_dhcp'
 	local line url authserver ip query
 
 	[ -e "$file" ] || _net roaming_fetch_cache
 
+	get_local
+	{
+		if line="$( grep -s ^"$mac" "$file_dhcp" )"; then
+			:
+		elif _weblogin authserver is_myself; then
+			# use 'tac'
+			line="$( grep -sn '' '/tmp/roaming' | sort -rn | cut -d: -f2- | grep ^"$mac" )"
+		else
+			line="$( grep -s ^"$mac" "$file" )"
+		fi
+	}
+
 	# format: mac ip expires
-	if line="$( grep -s ^"$mac" "$file" )"; then
+	if get_local; then
 		set -- $line
-		echo $2		# TODO: output last match not 1st?
+		echo $2
 	else
 		_weblogin authserver is_myself || {
 			authserver="$( _weblogin authserver )"
