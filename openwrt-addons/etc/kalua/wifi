@@ -682,10 +682,29 @@ _wifi_speed()
 			pattern='SPEED_MAX='
 		fi
 
-		speed="$( _speedtest stats here "$nexthop" poormens_tcpdownload |
+		really_test_speed()
+		{
+			case "$nexthop_interface" in
+				'LAN'|'WAN')
+					# normally it does not make sense to test ethernet.
+					# only switch this on if this is e.g. a bridged p2p-link
+					bool_true 'system.@monitoring[0].speedcheck_wired' || return 1
+				;;
+				*)
+					return 0
+				;;
+			esac
+		}
+
+		if really_test_speed; then
+			speed="$( _speedtest stats here "$nexthop" poormens_tcpdownload |
 				fgrep "$pattern" |
 				 fgrep -v '=0' |
 				  cut -d'=' -f2 )"
+		else
+			speed=8888
+			_log do $funcname daemon info "[OK] fake-value: $speed - seems to be ethernet"
+		fi
 
 		[ -n "$speed" ] && {
 			[ $speed -gt 20 ] && {
