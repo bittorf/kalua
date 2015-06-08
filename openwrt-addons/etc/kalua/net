@@ -26,10 +26,18 @@ _net_roaming_eventlistener()
 					# FIXME! (really 2 calls needed...)
 					iw reg set 00
 					iw reg set US
-					let i-=1 || break && sleep 1
+					let i-=1 || break
+
+					_log do $funcname daemon info "still running 'iw' (pid: $pids2)"
+					sleep 1
 				} done
 
-				[ $i -eq 0 -a "$pids1" = "$pids2" ] && killall iw
+				if   [ $i -eq 0 -a "$pids1" = "$pids2" ]; then
+					_watch hanging_command iw
+					_watch hanging_command iw
+				elif [ -n "$pids2" ]; then
+					_log do $funcname daemon alert "still running 'iw'-instance $pids2"
+				fi
 			}
 		;;
 		'restart')
