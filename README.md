@@ -202,7 +202,7 @@ piggyback kalua on a new router model without building from scratch
 	# some seconds, connect via LAN with 'telnet 192.168.1.1' and
 
 	# look with which IP was given on WAN, then do:
-	ifconfig $(uci get network.wan.ifname) | fgrep "inet addr:"
+	ifconfig $(uci -q get network.wan.ifname) | fgrep "inet addr:"
 	/etc/init.d/firewall stop
 	/etc/init.d/firewall disable
 	exit
