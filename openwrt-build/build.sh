@@ -71,7 +71,7 @@ EOF
 
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
 
-e.g. : $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
+ e.g.: $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
        or:
        $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase 'freifunk,$KALUA_DIRNAME' $more_options
        $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase 'freifunk-4mb,$KALUA_DIRNAME' $more_options
@@ -1488,46 +1488,58 @@ apply_symbol()
 				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
 			fi
 
-			for basedir in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
-				find $basedir | while read file; do {
-					if [ -d "$file" ]; then
-						log "dir: $file"
-						register_patch "DIR: $file"
+			list_files_and_dirs()
+			{
+				local basedir object
+
+				# /dir/file1
+				# /dir/file2
+				# /dir/dirX/file1 ...
+				for basedir in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
+					find $basedir | while read object; do {
+						echo "$object"
+					} done
+				} done
+			}
+
+			list_files_and_dirs | while read file; do {
+				if [ -d "$file" ]; then
+					log "dir: $file"
+					register_patch "DIR: $file"
+				else
+					if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
+						register_patch "$file"
+						cp -v "$file" 'package/kernel/mac80211/patches'
+						MAC80211_CLEAN='true'
+					elif head -n1 "$file" | fgrep -q '/drivers/net/wireless/ath/'; then
+						register_patch "$file"
+						cp -v "$file" 'package/kernel/mac80211/patches'
+						MAC80211_CLEAN='true'
 					else
-						if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
-							register_patch "$file"
-							cp -v "$file" 'package/kernel/mac80211/patches'
-							MAC80211_CLEAN='true'
-						elif head -n1 "$file" | fgrep -q '/drivers/net/wireless/ath/'; then
-							register_patch "$file"
-							cp -v "$file" 'package/kernel/mac80211/patches'
-							MAC80211_CLEAN='true'
-						else
-							if git apply --check <"$file"; then
-								# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
-								# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
-								[ -d '.git/rebase-merge' -o -d '.git/rebase-apply' ] && {
-									git rebase --abort
-									git am --abort
-								}
+						if git apply --check <"$file"; then
+							# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
+							# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
+							[ -d '.git/rebase-merge' -o -d '.git/rebase-apply' ] && {
+								git rebase --abort
+								git am --abort
+							}
 
-# FIXME!
-# automatically add 'From:' if missing
-# sed '1{s/^/From: name@domain.com (Proper Name)\n/}'
+							# FIXME!
+							# automatically add 'From:' if missing
+							# sed '1{s/^/From: name@domain.com (Proper Name)\n/}'
 
-								if git am --signoff <"$file"; then
-									register_patch "$file"
-								else
-									git am --abort
-									log "[ERROR] during 'git am <$file'"
-								fi
+							if git am --signoff <"$file"; then
+								register_patch "$file"
 							else
-								register_patch "FAILED: $file"
-								log "$KALUA_DIRNAME: [ERROR] cannot apply: git apply --check <'$file'"
+								git am --abort
+								log "[ERROR] during 'git am <$file'"
 							fi
+						else
+							register_patch "FAILED: $file"
+							log "$KALUA_DIRNAME: [ERROR] cannot apply: git apply --check <'$file'"
 						fi
 					fi
-				} done
+				fi
 			} done
 
 			[ -n "$CONFIG_PROFILE" ] && {
