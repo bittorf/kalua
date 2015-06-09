@@ -22,19 +22,19 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 how to get started
 ------------------
 
-git clone https://github.com/bittorf/kalua.git
-# or
-# git clone git@github.com:bittorf/kalua.git
-
-cd kalua
-mkdir build-env
-echo ".gitignore" >> .gitignore
-echo "build-env" >> .gitignore
-cd build-env
-mkdir openwrt_download
-../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --ucecase 'PlainOpenWRT'
-cd openwrt
-../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --ucecase 'PlainOpenWRT'
+	git clone https://github.com/bittorf/kalua.git
+	# or
+	# git clone git@github.com:bittorf/kalua.git
+	
+	cd kalua
+	mkdir build-env
+	echo ".gitignore" >> .gitignore
+	echo "build-env" >> .gitignore
+	cd build-env
+	mkdir openwrt_download
+	../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --ucecase 'PlainOpenWRT'
+	cd openwrt
+	../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --ucecase 'PlainOpenWRT'
 
 how to get a release for a specific hardware
 --------------------------------------------
