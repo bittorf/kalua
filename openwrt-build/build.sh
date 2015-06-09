@@ -1736,6 +1736,9 @@ build_options_set()
 			"$KALUA_DIRNAME@"*)	# parser_ignore
 				apply_symbol "$1"
 			;;
+			'OpenWrt')
+				:
+			;;
 			'noReghack')
 				# we work on this during above $KALUA_DIRNAME
 			;;
