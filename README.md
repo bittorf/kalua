@@ -39,18 +39,30 @@ how to get started
 	cd openwrt
 	../../openwrt-build/build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --usecase 'OpenWrt'
 
+
 how to get a release for a specific hardware
 --------------------------------------------
-	# UPDATE ME
+
 	# download and initial fetching of all sources
 	# (start in an empty directory)
-	wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh
-	sh build.sh --openwrt
-
-	mkdir openwrt_download    # all downloads are going into this dir
+	git clone https://github.com/bittorf/kalua.git
+	
+	cd kalua
+	echo ".gitignore" >> .gitignore
+	echo "build-env" >> .gitignore
+	
+	mkdir build-env
+	cd build-env
+	
+	mkdir openwrt_download
+	../openwrt-build/build.sh --openwrt
+	../openwrt-build/build.sh --openwrt trunk
+	
 	cd openwrt
+	# just build plain OpenWrt without any additions
+	../../openwrt-build/build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --usecase 'OpenWrt'
 
-	# full build for specific target
+	# full build for specific target with kalua
 	build.sh --openwrt r45806 --hardware 'TP-LINK TL-WR1043ND' --usecase 'Standard,kalua'
 
 	# get detailed help with
