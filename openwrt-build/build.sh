@@ -569,6 +569,11 @@ EOF
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr847n-v8-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr847n-v8-squashfs-factory.bin"
 		;;
+		'TP-LINK TL-WDR3600')
+			# http://wiki.openwrt.org/toh/tp-link/tl-wdr3600
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR3600=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wdr3600-v1-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wdr3600-v1-squashfs-factory.bin'
 		'TP-LINK TL-WDR4300')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wdr4300
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR4300=y'
