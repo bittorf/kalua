@@ -50,27 +50,34 @@ _wifi_change_essid_ap()
 		[ -e "$file" ] || return 0
 	else
 		# dont set it twice
-		[ -e "$file" ] && return 0
+		[ -e "$file" ] && {
+			for i in $( _wifi get any mode ap ); do {
+				# double check if really set
+				case "$( uci -q get wireless.@wifi-iface[$i].ssid_old )" in
+					*"$NODENUMBER/$i")
+						echo ja
+					;;
+				esac
+			} done
+		}
 	fi
 
 	# FIXME! search a way to store old value and use '_wifi set ap any ssid XYZ'
-	for i in 0 1 2 3 4 5 6 7; do {
-		[ "$( uci get wireless.@wifi-iface[$i].mode )" = "ap" ] && {
-			if [ "$option" = 'original' ]; then
-				essid="$( uci get wireless.@wifi-iface[$i].ssid_old )"
-				uci delete wireless.@wifi-iface[$i].ssid_old
-				uci set wireless.@wifi-iface[$i].ssid="${essid:-$CONFIG_PROFILE-$NODENUMBER}"
+	for i in $( _wifi get any mode ap ); do {
+		if [ "$option" = 'original' ]; then
+			essid="$( uci get wireless.@wifi-iface[$i].ssid_old )"
+			uci delete wireless.@wifi-iface[$i].ssid_old
+			uci set wireless.@wifi-iface[$i].ssid="${essid:-$CONFIG_PROFILE-$NODENUMBER}"
 
-				age="$( _file age "$file" humanreadable)"
-				echo >>$SCHEDULER "_weblogin authserver_message '$funcname() ${option:-inet_broken} after $age idx $i'"
-				rm "$file"
-			else
-				essid="$( uci get wireless.@wifi-iface[$i].ssid )"
-				uci set wireless.@wifi-iface[$i].ssid_old="$essid"
-				uci set wireless.@wifi-iface[$i].ssid="$( _translate do "$LANG" maintenance_mode "$NODENUMBER/$i" )"
-				touch "$file"
-			fi
-		}
+			age="$( _file age "$file" humanreadable)"
+			echo >>$SCHEDULER "_weblogin authserver_message '$funcname() ${option:-inet_broken} after $age idx $i'"
+			rm "$file"
+		else
+			essid="$( uci get wireless.@wifi-iface[$i].ssid )"
+			uci set wireless.@wifi-iface[$i].ssid_old="$essid"
+			uci set wireless.@wifi-iface[$i].ssid="$( _translate do "$LANG" maintenance_mode "$NODENUMBER/$i" )"
+			touch "$file"
+		fi
 	} done
 
 	[ -n "$essid" ] && {
