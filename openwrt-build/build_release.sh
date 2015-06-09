@@ -209,7 +209,7 @@ for SPECIAL in unoptimized kcmdlinetweak; do {
 } done
 
 #$REPONAME/openwrt-build/mybuild.sh applymystuff
-#"$REPONAME/openwrt-build/mybuild.sh" make
+"$REPONAME/openwrt-build/mybuild.sh" make
 print_revisions
 
 log "please removing everything via 'rm -fR release' if you are ready"

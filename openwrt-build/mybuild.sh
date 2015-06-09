@@ -304,7 +304,6 @@ set_build()
 				# ignore comments
 			;;
 			*"="[0-9]*)
-        log "yeah $line"
 				symbol="$( echo "$line" | sed -n 's/\(^.*\)=.*$/\1/p' )"
 				value="$( echo "$line" | sed -n 's/^.*=\(.*$\)/\1/p' )"
 				wish="${symbol}=${value}"
