@@ -19,9 +19,24 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 * [![sending bitcoins][bitcoinGFX]][bitcoin]
 * [![build status now][travisGFX]][travis]
 
+how to get started
+------------------
+
+git clone https://github.com/bittorf/kalua.git
+# or
+# git clone git@github.com:bittorf/kalua.git
+
+cd kalua
+mkdir build-env
+echo ".gitignore" >> .gitignore
+echo "build-env" >> .gitignore
+cd build-env
+mkdir openwrt_download
+../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --ucecase 'PlainOpenWRT'
+
 how to get a release for a specific hardware
 --------------------------------------------
-
+	# UPDATE ME
 	# download and initial fetching of all sources
 	# (start in an empty directory)
 	wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh
