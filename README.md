@@ -33,6 +33,8 @@ echo "build-env" >> .gitignore
 cd build-env
 mkdir openwrt_download
 ../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --ucecase 'PlainOpenWRT'
+cd openwrt
+../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --ucecase 'PlainOpenWRT'
 
 how to get a release for a specific hardware
 --------------------------------------------
