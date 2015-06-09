@@ -1490,14 +1490,14 @@ apply_symbol()
 
 			list_files_and_dirs()
 			{
-				local basedir object
+				local folder dir file
 
 				# /dir/file1
 				# /dir/file2
 				# /dir/dirX/file1 ...
-				for basedir in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
-					find $basedir | while read object; do {
-						echo "$object"
+				for folder in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
+					find $folder -type d | while read dir; do {
+						find $dir -maxdepth 1 -type f
 					} done
 				} done
 			}
