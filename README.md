@@ -22,22 +22,69 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 how to get started
 ------------------
 
-	git clone https://github.com/bittorf/kalua.git
-	# or
-	# git clone git@github.com:bittorf/kalua.git
-	
-	cd kalua
-	echo ".gitignore" >> .gitignore
-	echo "build-env" >> .gitignore
-	
-	mkdir build-env
-	cd build-env
-	
-	mkdir openwrt_download
-	../openwrt-build/build.sh --openwrt trunk
-	
-	cd openwrt
-	../../openwrt-build/build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --usecase 'OpenWrt'
+"""
+git clone https://github.com/bittorf/kalua.git
+# or
+# git clone git@github.com:bittorf/kalua.git
+
+cd kalua
+echo ".gitignore" >> .gitignore
+echo "build-env" >> .gitignore
+
+mkdir build-env
+cd build-env
+
+mkdir openwrt_download
+ln -s -T ../openwrt-build/build.sh build.sh	# symlink our build tool
+./build.sh --openwrt trunk			# fetch openwrt git repository
+# valid version names are:  
+# <empty>
+# 'r12345'
+# 'stable'
+# 'beta'
+# 'testing'
+# 'trunk'
+# 'switch_to_master'
+#  'reset_autocommits'
+
+
+# Example output:
+# ~/tmp/kalua/build-env$ ./build.sh --openwrt trunk
+# <14>Jun 10 00:45:06 ed: ./build.sh: check_working_directory() first start - fetching OpenWrt: git clone 'git://git.openwrt.org/openwrt.git'
+# Cloning into 'openwrt'...
+# remote: Counting objects: 312210, done.
+# remote: Compressing objects: 100% (90882/90882), done.
+# remote: Total 312210 (delta 214136), reused 303717 (delta 207431)
+# Receiving objects: 100% (312210/312210), 110.89 MiB | 549.00 KiB/s, done.
+# Resolving deltas: 100% (214136/214136), done.
+# Checking connectivity... done.
+# Checking out files: 100% (6204/6204), done.
+# <14>Jun 10 00:49:00 ed: ./build.sh: check_working_directory() symlinking our central download pool
+# <14>Jun 10 00:49:00 ed: ./build.sh: check_working_directory() first start - fetching OpenWrt-packages: git clone 'git://nbd.name/packages.git'
+# Cloning into 'packages'...
+# remote: Counting objects: 75921, done.
+# remote: Compressing objects: 100% (28415/28415), done.
+# remote: Total 75921 (delta 41370), reused 75038 (delta 40635)
+# Receiving objects: 100% (75921/75921), 16.93 MiB | 405.00 KiB/s, done.
+# Resolving deltas: 100% (41370/41370), done.
+# Checking connectivity... done.
+# <14>Jun 10 00:49:36 ed: ./build.sh: check_working_directory() first start - fetching own-repo: git clone 'git://github.com/bittorf/kalua.git'
+# Cloning into 'kalua'...
+# remote: Counting objects: 51055, done.
+# remote: Compressing objects: 100% (175/175), done.
+# remote: Total 51055 (delta 99), reused 0 (delta 0), pack-reused 50879
+# Receiving objects: 100% (51055/51055), 14.71 MiB | 373.00 KiB/s, done.
+# Resolving deltas: 100% (30245/30245), done.
+# Checking connectivity... done.
+# <14>Jun 10 00:50:08 ed: ./build.sh: check_working_directory() [OK] after doing 'cd openwrt' you should do:
+# <14>Jun 10 00:50:08 ed: ./build.sh: check_working_directory() ../build.sh --help
+
+# so after chaning to to openwrt directery, we can call our favorite config
+cd openwrt
+../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --usecase 'OpenWrt'
+
+# so know package feeds will be updated, and installed
+
 
 
 how to get a release for a specific hardware

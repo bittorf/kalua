@@ -904,8 +904,8 @@ check_working_directory()
 			log "symlinking our central download pool"
 			ln -s ../openwrt_download 'openwrt/dl'
 		else
-			log "[OK] no central download pool - if you want this,"
-			log "do: mkdir openwrt_download (before starting this script)"
+			log "[OK] no central download pool - but if you want this,"
+			log "please run: `mkdir openwrt_download` before starting this script"
 		fi
 
 		[ -d 'packages' ] && {
