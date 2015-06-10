@@ -5,7 +5,7 @@ _net_roaming_eventlistener()
 	local funcname='net_roaming_eventlistener'
 	local option="$1"
 	local dev='br-mastergate'
-	local pids1 pids2
+	local pid pids1 pids2 cmdline
 	local i=15
 
 	case "$option" in
@@ -15,15 +15,15 @@ _net_roaming_eventlistener()
 				return 1
 			}
 
-			case "$( pidof iw )" in
-				*' '*)
+			for pid in $( pidof iw ); do {
+				read cmdline <"/proc/$pid/cmdline"
+				[ "$cmdline" = 'iwevent' ] && {
 					_log do $funcname daemon info "[ERR] too much 'iw' instances, will not start"
 					return 1
-				;;
-				*)
-					/usr/sbin/cron.wireless_events &
-				;;
-			esac
+				}
+			} done
+
+			/usr/sbin/cron.wireless_events &
 		;;
 		'stop')
 			pids1="$( pidof iw )" && {
