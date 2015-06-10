@@ -974,13 +974,14 @@ check_working_directory()
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
-			log "the last commit MUST include '$pattern', seems you have private"
-			log "commits - please rollback several times via: git reset --soft HEAD^"
-
+			# search most recent 'good' commit
 			while ! git log -$i | grep -q "$pattern"; do {
 				i=$(( $i + 1 ))
 			} done
 
+			log "the last commit MUST include pattern '$pattern', seems you have private"
+			log "commits (when this is OK for you, just add --force to your call)."
+			log "please rollback several times via: git reset --soft HEAD^"
 			log "or just do: git reset --soft HEAD~$i"
 			log "you can switch back via: git reflog; git reset \$hash"
 		else
@@ -1750,7 +1751,7 @@ build_options_set()
 				apply_symbol "$1"
 			;;
 			'OpenWrt')
-				:
+				# we do nothing an rely on defconfig
 			;;
 			'noReghack')
 				# we work on this during above $KALUA_DIRNAME
