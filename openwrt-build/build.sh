@@ -435,6 +435,7 @@ copy_additional_packages()
 				do_copy
 			fi
 		else
+			echo
 			log "no Makefile found in '$dir' - please check"
 			return 0
 		fi
