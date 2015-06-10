@@ -22,7 +22,7 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 how to get started
 ------------------
 
-"""
+```
 git clone https://github.com/bittorf/kalua.git
 # or
 # git clone git@github.com:bittorf/kalua.git
@@ -84,108 +84,114 @@ cd openwrt
 ../build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --usecase 'OpenWrt'
 
 # so know package feeds will be updated, and installed
-
+```
 
 
 how to get a release for a specific hardware
 --------------------------------------------
 
-	# download and initial fetching of all sources
-	# (start in an empty directory)
-	git clone https://github.com/bittorf/kalua.git
-	
-	cd kalua
-	echo ".gitignore" >> .gitignore
-	echo "build-env" >> .gitignore
-	
-	mkdir build-env
-	cd build-env
-	
-	mkdir openwrt_download
-	../openwrt-build/build.sh --openwrt
-	../openwrt-build/build.sh --openwrt trunk
-	
-	cd openwrt
-	# just build plain OpenWrt without any additions
-	../../openwrt-build/build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --usecase 'OpenWrt'
+```
+# download and initial fetching of all sources
+# (start in an empty directory)
+git clone https://github.com/bittorf/kalua.git
 
-	# full build for specific target with kalua
-	build.sh --openwrt r45806 --hardware 'TP-LINK TL-WR1043ND' --usecase 'Standard,kalua'
+cd kalua
+echo ".gitignore" >> .gitignore
+echo "build-env" >> .gitignore
 
-	# get detailed help with
-	build.sh --help
+mkdir build-env
+cd build-env
+
+mkdir openwrt_download
+../openwrt-build/build.sh --openwrt
+../openwrt-build/build.sh --openwrt trunk
+
+cd openwrt
+# just build plain OpenWrt without any additions
+../../openwrt-build/build.sh --openwrt trunk --hardware 'TP-LINK TL-WDR3600' --usecase 'OpenWrt'
+
+# full build for specific target with kalua
+build.sh --openwrt r45806 --hardware 'TP-LINK TL-WR1043ND' --usecase 'Standard,kalua'
+
+# get detailed help with
+build.sh --help
+```
 
 
 how to build this from scratch on a debian server
 -------------------------------------------------
 
-	# work as root:
-	apt-get update
-	LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen"
-	for PACKAGE in $LIST; do apt-get -y install $PACKAGE; done
+```
+# work as root:
+apt-get update
+LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen"
+for PACKAGE in $LIST; do apt-get -y install $PACKAGE; done
 
-	# now login as non-root user
-	git clone git://nbd.name/openwrt.git
-	git clone git://nbd.name/packages.git
-	cd openwrt
-	git clone git://github.com/bittorf/kalua.git
+# now login as non-root user
+git clone git://nbd.name/openwrt.git
+git clone git://nbd.name/packages.git
+cd openwrt
+git clone git://github.com/bittorf/kalua.git
 
-	# for working with a specific openwrt-revision, do this:
-	# REV=40860
-	# git checkout $(git log -1 --format=%h --grep=@$REV)
+# for working with a specific openwrt-revision, do this:
+# REV=40860
+# git checkout $(git log -1 --format=%h --grep=@$REV)
 
-	make menuconfig				# select your "Target System" / "Target Profile" and exit
-	make package/symlinks
+make menuconfig				# select your "Target System" / "Target Profile" and exit
+make package/symlinks
 
-	# now configure your image and build:
-	make menuconfig
-	make
+# now configure your image and build:
+make menuconfig
+make
 
-	# flash your image via TFTP
-	FW="/path/to/your/baked/firmware_file"
-	IP="your.own.router.ip"
-	while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
+# flash your image via TFTP
+FW="/path/to/your/baked/firmware_file"
+IP="your.own.router.ip"
+while :; do atftp --trace --option "timeout 1" --option "mode octet" --put --local-file $FW $IP && break; sleep 1; done
 
-	# upload images to release-server:
-	for CMD in applymystuff make "upload sysupgrade factory release remove"; do kalua/openwrt-build/mybuild.sh $CMD || break; done
+# upload images to release-server:
+for CMD in applymystuff make "upload sysupgrade factory release remove"; do kalua/openwrt-build/mybuild.sh $CMD || break; done
+```
 
 
 manually configure the builtin-packages
 ---------------------------------------
 
-	make kernel_menuconfig		# will safe in 'build_dir/linux-${platform}/linux-${kernelversion}/.config'
+```
+make kernel_menuconfig		# will safe in 'build_dir/linux-${platform}/linux-${kernelversion}/.config'
 
-		General setup ---> [*] Support for paging of anonymous memory (swap)
-		Device Drivers ---> Staging drivers ---> [*] Compressed RAM block device support
+General setup ---> [*] Support for paging of anonymous memory (swap)
+Device Drivers ---> Staging drivers ---> [*] Compressed RAM block device support
 
-	make menuconfig 		# will safe in '.config'
+make menuconfig 		# will safe in '.config'
 
-		Global build settings ---> [*] Compile the kernel with symbol table information
+Global build settings ---> [*] Compile the kernel with symbol table information
 
-		Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap
-									  [*] swaponoff
-		Base system ---> [ ] firewall
+Base system ---> busybox ---> Linux System Utilities ---> [*] mkswap
+  [*] swaponoff
+Base system ---> [ ] firewall
 
-		Network ---> Firewall ---> [*] iptables ---> [*] iptables-mod-ipopt
-							     [*] iptables-mod-nat-extra
+Network ---> Firewall ---> [*] iptables ---> [*] iptables-mod-ipopt
+     [*] iptables-mod-nat-extra
 
-		Network ---> Routing and Redirection ---> [*] ip
-		Network ---> Routing and Redirection ---> [*] olsrd ---> [*] olsrd-mod-arprefresh
-									 [*] olsrd-mod-jsoninfo
-									 [*] olsrd-mod-nameservice
-									 [*] olsrd-mod-txtinfo
-									 [*] olsrd-mod-watchdog
-		Network ---> Web Servers/Proxies ---> [*] uhttpd
-						      [*] uhttpd-mod-tls
-						      [*] Build with debug messages
+Network ---> Routing and Redirection ---> [*] ip
+Network ---> Routing and Redirection ---> [*] olsrd ---> [*] olsrd-mod-arprefresh
+ [*] olsrd-mod-jsoninfo
+ [*] olsrd-mod-nameservice
+ [*] olsrd-mod-txtinfo
+ [*] olsrd-mod-watchdog
+Network ---> Web Servers/Proxies ---> [*] uhttpd
+      [*] uhttpd-mod-tls
+      [*] Build with debug messages
 
-		Network ---> [*] ethtool	# if needed, e.g. 'Dell Truemobile 2300'
-		Network ---> [*] mii-tool	# if needed, e.g. 'Ubiquiti Bullet M5'
-		Network ---> [*] netperf
-		Network ---> [*] ulogd ---> [*] ulogd-mod-extra		# if data retention needed
+Network ---> [*] ethtool	# if needed, e.g. 'Dell Truemobile 2300'
+Network ---> [*] mii-tool	# if needed, e.g. 'Ubiquiti Bullet M5'
+Network ---> [*] netperf
+Network ---> [*] ulogd ---> [*] ulogd-mod-extra		# if data retention needed
 
-		Utilities ---> [*] px5g
-			       [*] rbcfg	# if needed, e.g. 'Linksys WRT54G/GS/GL'
+Utilities ---> [*] px5g
+       [*] rbcfg	# if needed, e.g. 'Linksys WRT54G/GS/GL'
+```
 
 
 how to development directly on a router
