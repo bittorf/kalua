@@ -1497,7 +1497,8 @@ apply_symbol()
 				# /dir/dirX/file1 ...
 				for folder in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
 					find $folder -type d | while read dir; do {
-						find $dir -maxdepth 1 -type f
+						echo "$dir"
+						find "$dir" -maxdepth 1 -type f
 					} done
 				} done
 			}
