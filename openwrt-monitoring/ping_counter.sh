@@ -1,5 +1,7 @@
 #!/bin/sh
 
+### look every x seconds if failed or up again!
+
 # folgender aufruf ist moeglich
 # /var/www/scripts/ping_counter.sh list_pubips_from_network marinabh
 #
@@ -126,6 +128,7 @@ list_networks()
 		return 0
 	elif [ "$1" = 'maintenance' ]; then
 		cat <<EOF
+giancarlo
 malchow
 malchowit
 malchowpferde
@@ -146,15 +149,17 @@ aschbach
 boltenhagendh
 dhfleesensee
 berlinle
-cupandcoffee
 spbansin
 limona
 xoai
 amalienhof
 rehungen
+paltstadt
+palais
 EOF
 	else
 		cat <<EOF
+giancarlo
 malchow
 malchowit
 malchowpferde
@@ -181,8 +186,6 @@ boltenhagendh
 dhfleesensee
 berlinle
 itzehoe
-cupandcoffee
-satama
 fparkssee
 marinapark
 spbansin
@@ -193,6 +196,8 @@ monami
 xoai
 amalienhof
 rehungen
+paltstadt
+palais
 EOF
 	fi
 
@@ -388,8 +393,11 @@ send_sms()
 		dhfleesensee)
 			list_numbers="$list_numbers 0170/5661165 0160/4797497"
 		;;
+		'palais'|'paltstadt')
+			list_numbers="$list_numbers 0173/3583353"	# e-steinmetz
+		;;
 		'malchow'*)
-			list_numbers="$list_numbers 0173/6234581"
+			list_numbers="$list_numbers 0173/6234581"	# badowski
 		;;
 	esac
 

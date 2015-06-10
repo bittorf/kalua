@@ -212,6 +212,9 @@ TARBALL_TIME='397507'	# 1292f62f3f2059a38be850b42f25f2fb2bbb733a
 TARBALL_TIME='397531'	# d01d8e66a72e6caf4e6fd07bf936181626de8a9b
 TARBALL_TIME='397769'	# 57f048701c09aafe7aeecbcc86a09fe9a14f223d
 TARBALL_TIME='397859'	# 2c4fe46540382e24313a08f3c48e99257e362abc
+TARBALL_TIME='398156'	# 0bbab41f4714180c16b4308d5f7a1d13b6fad3e1
+TARBALL_TIME='398251'	# 27aeead42c8db465cbdb7ca501004b88c2b019cf
+
 
 
 
@@ -2820,7 +2823,7 @@ cell_essid()
 		eval "rssi=\"\$rssi${i}\"; i=$(( $i + 1 ))"	# i++
 
 		case "$rssi" in
-			"")
+			'')
 				[ "$NETWORK" = "gnm" ] || {
 					bgcolor=
 					title=
@@ -2849,6 +2852,12 @@ cell_essid()
 		[ $i -gt 1 ] && {
 			echo -n "<td>&nbsp;|&nbsp;</td>"
 		}
+
+		case "$essid" in
+			*'Wartungsmodus'*|*'maintenance'*)
+				bgcolor='crimson'
+			;;
+		esac
 
 		echo -n "<td bgcolor='$bgcolor' title='$title'>${essid}</td>"
 	} done
