@@ -106,22 +106,27 @@ _net_roaming_fetch_cache()
 
 _net_roaming_mac2ip()
 {
+	local funcname='net_roaming_mac2ip'
 	local mac="${1:-no_mac_given}"
 	local file='/tmp/roaming'
 	local file_dhcp='/tmp/roaming_dhcp'
-	local line url authserver ip query
+	local line url authserver ip query method
 
 	[ -e "$file" ] || _net roaming_fetch_cache
 
 	get_local()
 	{
 		if line="$( grep -s ^"$mac" "$file_dhcp" )"; then
-			:
+			method="'$file_dhcp'"
 		elif _weblogin authserver is_myself; then
 			# use 'tac'
-			line="$( grep -sn '' '/tmp/roaming' | sort -rn | cut -d: -f2- | grep ^"$mac" )"
+			line="$( grep -sn '' "$file" | sort -rn | cut -d: -f2- | grep ^"$mac" )" && {
+				method="'/tmp/roaming' (i'am the authserver)"
+			}
 		else
-			line="$( grep -s ^"$mac" "$file" )"
+			line="$( grep -s ^"$mac" "$file" )" && {
+				method="'$file'"
+			}
 		fi
 	}
 
@@ -129,6 +134,7 @@ _net_roaming_mac2ip()
 	if get_local; then
 		set -- $line
 		echo $2
+		_log do $funcname daemon info "[OK] IP: $ip from $method"
 	else
 		_weblogin authserver is_myself || {
 			authserver="$( _weblogin authserver )"
@@ -137,6 +143,7 @@ _net_roaming_mac2ip()
 
 			ip="$( _wget do "$url" )"
 			test -n "$ip" && {
+				_log do $funcname daemon info "[OK] IP: $ip from '$url'"
 				echo "$ip"
 			}
 		}
