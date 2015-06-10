@@ -840,7 +840,7 @@ check_working_directory()
 	local file_feeds='feeds.conf.default'
 	local i=0
 	local do_symlinking='no'
-	local package list error repo git_url
+	local package list error repo git_url answer
 
 	if [ -n "$FORCE" ]; then
 		error=0
@@ -883,8 +883,14 @@ check_working_directory()
 		} done
 
 		[ -d 'openwrt' ] && {
-			log "first start - removing (old?) dir openwrt"
-			rm -fR 'openwrt'
+			log "first start - removing (old?) dir openwrt: please answer Y/N"
+			read answer
+
+			if [ "$answer" = 'Y' ]; then
+				rm -fR 'openwrt'
+			else
+				log "[OK] leaving openwrt-dir"
+			fi
 		}
 
 		case "$VERSION_OPENWRT" in
@@ -1973,7 +1979,11 @@ build_options_set()
 				$funcname subcall 'USBcam'
 				apply_symbol 'CONFIG_PACKAGE_fswebcam=y'		# multimedia:
 			;;
-			'DSLR')	# http://en.wikipedia.org/wiki/Digital_single-lens_reflex_camera
+			'DSLR')
+				# http://en.wikipedia.org/wiki/Digital_single-lens_reflex_camera
+				# https://forum.openwrt.org/viewtopic.php?id=41957
+				# http://www.inetcom.ch/dslr-trifft-openwrt-dslrdashboard-tl-mr3040
+				# http://www.foto-webcam.eu/wiki/
 				apply_symbol 'CONFIG_PACKAGE_gphoto2=y'			# multimedia
 				apply_symbol 'CONFIG_PACKAGE_libgphoto2-drivers'	# libraries
 			;;
@@ -2511,7 +2521,7 @@ check_git_settings()
 {
 	local funcname='check_git_settings'
 
-	# TODO: only relevant, if we want to commit something?
+	# TODO: only relevant, if we want to commit something? -> autocommits!
 	git config --global user.email >/dev/null || {
 		log "please set: git config --global user.email 'your@email.tld'"
 		return 1
@@ -2657,6 +2667,7 @@ while [ -n "$1" ]; do {
 			# http://tjworld.net/wiki/Linux/Kernel/Build/CustomiseVersionString
 			log "[OK] $1: set $2 via fake hostname/whoami in ~"
 
+			# we will NOT remove the files!
 			echo    >~/whoami '#!/bin/sh'
 			echo   >>~/whoami "echo $( echo "$2" | cut -d'@' -f1 )"
 			chmod +x ~/whoami
