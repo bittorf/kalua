@@ -197,80 +197,85 @@ Utilities ---> [*] px5g
 how to development directly on a router
 ---------------------------------------
 
-	opkg update
-	opkg install git
+```
+opkg update
+opkg install git
 
-	echo  >/tmp/gitssh.sh '#!/bin/sh'
-	echo >>/tmp/gitssh.sh 'logger -s "$0: $*"'
-	echo >>/tmp/gitssh.sh 'ssh -i /etc/dropbear/dropbear_dss_host_key $*'
+echo  >/tmp/gitssh.sh '#!/bin/sh'
+echo >>/tmp/gitssh.sh 'logger -s "$0: $*"'
+echo >>/tmp/gitssh.sh 'ssh -i /etc/dropbear/dropbear_dss_host_key $*'
 
-	chmod +x /tmp/gitssh.sh
-	export GIT_SSH="/tmp/gitssh.sh"		# dropbear needs this for public key authentication
+chmod +x /tmp/gitssh.sh
+export GIT_SSH="/tmp/gitssh.sh"		# dropbear needs this for public key authentication
 
-	git config --global user.name >/dev/null || {
-		git config --global user.name "Firstname Lastname"
-		git config --global user.email "your_email@youremail.com"
-		git config --edit --global
-	}
+git config --global user.name >/dev/null || {
+git config --global user.name "Firstname Lastname"
+git config --global user.email "your_email@youremail.com"
+git config --edit --global
+}
 
-	mkdir -p /tmp/dev; cd /tmp/dev
-	git clone <this_repo>
-	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball
-	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
+mkdir -p /tmp/dev; cd /tmp/dev
+git clone <this_repo>
+kalua/openwrt-build/mybuild.sh build_kalua_update_tarball
+cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 
-	cd /tmp/dev/kalua
-	git add <changed_files>
-	git commit -m "decribe changes"
-	git push ...
+cd /tmp/dev/kalua
+git add <changed_files>
+git commit -m "decribe changes"
+git push ...
+```
 
 
 piggyback kalua on a new router model without building from scratch
 -------------------------------------------------------------------
 
-	# for new devices, which are flashed with a plain openwrt
-	# from http://downloads.openwrt.org/snapshots/trunk/ do this:
+```
+# for new devices, which are flashed with a plain openwrt
+# from http://downloads.openwrt.org/snapshots/trunk/ do this:
 
-	# plugin ethernet on WAN, to get IP via DHCP, wait
-	# some seconds, connect via LAN with 'telnet 192.168.1.1' and
-	# look with which IP was given on WAN, then do:
-	ifconfig $(uci get network.wan.ifname) | fgrep "inet addr:"
-	/etc/init.d/firewall stop
-	/etc/init.d/firewall disable
-	exit
+# plugin ethernet on WAN, to get IP via DHCP, wait
+# some seconds, connect via LAN with 'telnet 192.168.1.1' and
+# look with which IP was given on WAN, then do:
+ifconfig $(uci get network.wan.ifname) | fgrep "inet addr:"
+/etc/init.d/firewall stop
+/etc/init.d/firewall disable
+exit
 
-	# plugin ethernet on WAN and connect to the router
-	# via 'telnet <routers_wan_ip>', then do:
-	opkg update
-	opkg install ip bmon netperf
-	opkg install olsrd olsrd-mod-arprefresh olsrd-mod-watchdog olsrd-mod-txtinfo olsrd-mod-nameservice
-	opkg install uhttpd uhttpd-mod-tls px5g
-	opkg install kmod-ipt-compat-xtables iptables-mod-conntrack iptables-mod-conntrack-extra iptables-mod-extra
-	opkg install iptables-mod-filter iptables-mod-ipp2p iptables-mod-ipopt iptables-mod-nat iptables-mod-nat-extra
-	opkg install iptables-mod-ulog ulogd ulogd-mod-extra
+# plugin ethernet on WAN and connect to the router
+# via 'telnet <routers_wan_ip>', then do:
+opkg update
+opkg install ip bmon netperf
+opkg install olsrd olsrd-mod-arprefresh olsrd-mod-watchdog olsrd-mod-txtinfo olsrd-mod-nameservice
+opkg install uhttpd uhttpd-mod-tls px5g
+opkg install kmod-ipt-compat-xtables iptables-mod-conntrack iptables-mod-conntrack-extra iptables-mod-extra
+opkg install iptables-mod-filter iptables-mod-ipp2p iptables-mod-ipopt iptables-mod-nat iptables-mod-nat-extra
+opkg install iptables-mod-ulog ulogd ulogd-mod-extra
 
-	# build full kalua-tarball on server
-	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full
+# build full kalua-tarball on server
+kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full
 
-	# copy from server to your router
-	scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz
-	# OR take this prebuilt one:
-	wget -O /tmp/tarball.tgz http://46.252.25.48/tarball_full.tgz
-	# decompress:
-	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
+# copy from server to your router
+scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz
+# OR take this prebuilt one:
+wget -O /tmp/tarball.tgz http://46.252.25.48/tarball_full.tgz
+# decompress:
+cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 
-	# execute config-writer
-	/etc/init.d/apply_profile.code
+# execute config-writer
+/etc/init.d/apply_profile.code
+```
 
 
 Cherry Picking Git commits from forked repositories
 ---------------------------------------------------
 
-	* git fetch <repository url>
-	* git cherry-pick -x <hash>
-	* resolve conflicts, if any
-	** git commit -ac <hash>
-	* git push
-
+```
+# git fetch <repository url>
+# git cherry-pick -x <hash>
+# resolve conflicts, if any
+# git commit -ac <hash>
+# git push
+```
 
 Special UCI-variables
 ---------------------
