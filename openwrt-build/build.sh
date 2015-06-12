@@ -1,5 +1,9 @@
 #!/bin/sh
 
+
+# --feed ..xy
+# feed im usecase!
+
 # TODO:
 # - cache .config for usecaseX and revY -> use it when rebuilding -> faster
 # - simulate apply-run: show symbols/tree
