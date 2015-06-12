@@ -198,6 +198,14 @@ wireless_reghack_available()
 	grep -q ^'=== REGHACK:' '/etc/openwrt_patches'
 }
 
+warn_when_jffs2_faulty()
+{
+	# jffs2: jffs2_scan_eraseblock(): Magic bitmask 0x1985 not found at 0x00160010: 0x71c7 instead
+	find_all_strings_in_dmesg 'jffs2_scan_eraseblock(): Magic bitmask ' 'not found at ' && {
+		log "JFFS2 faulty, please check '$DMESG' - maybe 'firstboot' can fix it"
+	}
+}
+
 [ -e '/tmp/LOCKFILE_APPLY' ] && {
 	log 'abort early: /tmp/LOCKFILE_APPLY exists'
 	exit 1
@@ -232,11 +240,13 @@ DMESG='/tmp/dmesg.boot'
 
 while ! jffs2_is_ready ; do {
 	log "waiting for JFFS2 to be ready"
+	warn_when_jffs2_faulty
 	read FRESHFLASH </etc/openwrt_version
 	sleep 5
 } done
 log "uptime now: $( uptime_in_seconds ) seconds, waiting 5sec"
 [ -n "$FRESHFLASH" ] && echo "fresh flashed with $FRESHFLASH" >>/www/everlasting_syslog.txt
+warn_when_jffs2_faulty
 
 sleep 5
 df | logger
