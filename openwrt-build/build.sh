@@ -1,11 +1,10 @@
 #!/bin/sh
 
-
-# --feed ..xy
-# feed im usecase!
-
 # TODO:
+# - force feed via --feed XY --feed AB
+# - only add feedXY if usecase needs it -> feed-dependency in usecase
 # - cache .config for usecaseX and revY -> use it when rebuilding -> faster
+#   --config $myfile
 # - simulate apply-run: show symbols/tree
 # - fix formatting of /etc/openwrt_patches (add2trunk)
 # - autoremove old branches?:
@@ -2701,9 +2700,11 @@ read T1 REST </proc/uptime
 
 die_and_exit()
 {
+	local branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
+
+	[ -n "$branch" ] && log "[ATTENTION] your are on branch '$branch' now. better do: 'git checkout master'"
 	[ -n "$FORCE" ] && return 0
 
-	log
 	log '[ERROR] the brave can try --force, all others should do: git checkout master'
 	exit 1
 }
