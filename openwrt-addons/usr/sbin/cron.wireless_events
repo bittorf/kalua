@@ -50,9 +50,14 @@ mac2ipv4()	# TODO: better name
 					;;
 					*)
 						log "$funcname($i) setting host route for alien $ip - server_asked: $server_asked"
-						ip route add "$ip/32" dev $dev && {
-							echo "ip route del $ip/32 dev $dev && rm $file" >"$file"
-						}
+						if ip route add "$ip/32" dev $dev; then
+							$IPT -t nat -I NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE
+							# this file is executed after 'station del'
+							echo  >"$file" "$IPT -t nat -D NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
+							echo >>"$file" "ip route del $ip/32 dev $dev && rm $file"
+						else
+							_log do $funcname daemon alert "failed to add route for $ip / $dev"
+						fi
 					;;
 				esac
 
