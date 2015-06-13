@@ -214,7 +214,7 @@ TARBALL_TIME='397769'	# 57f048701c09aafe7aeecbcc86a09fe9a14f223d
 TARBALL_TIME='397859'	# 2c4fe46540382e24313a08f3c48e99257e362abc
 TARBALL_TIME='398156'	# 0bbab41f4714180c16b4308d5f7a1d13b6fad3e1
 TARBALL_TIME='398251'	# 27aeead42c8db465cbdb7ca501004b88c2b019cf
-
+TARBALL_TIME='398364'	# 2197dc6b08a549d00b27ded146d497af3e61a276
 
 
 
@@ -2441,7 +2441,21 @@ _cell_switch()
 				spacer="&nbsp;"
 			;;
 			".")
+				duplex=
 				spacer="&thinsp;"
+
+				case "$NETWORK" in
+					leonardo)
+						case "$NODE" in
+							# konferenz|eg-flur|e3-flur|e1-flur
+							6|26|2|27|7|36|9|35)
+								# Powered via PoE-Splitter: unicode / electrical arrow
+								spacer='&#x26a1;'
+								char='PoE'
+							;;
+						esac
+					;;
+				esac
 			;;
 			"Z")
 				spacer="?"
@@ -2449,6 +2463,10 @@ _cell_switch()
 		esac
 
 		case "$char" in
+			'PoE')
+				color='yellow'
+				speed='Power-over-Ethernet'
+			;;
 			a|A)
 				color="#99FF99"
 				speed="10mbit"
@@ -2469,10 +2487,9 @@ _cell_switch()
 				color="#00CC00"
 				speed="1gbit"
 			;;
-			".")
+			'.')
 				color="white"
 				speed=
-				duplex=
 				name="Luecke"
 				real_port=$(( $real_port - 1 ))
 			;;
@@ -2525,7 +2542,7 @@ local newline='
 			}
 		}
 
-		[ -n "$speed" -a "$speed" != "unplugged" ] && {
+		[ -n "$speed" -a "$speed" != "unplugged" -a "$speed" != 'Power-over-Ethernet' ] && {
 			speed="${speed}${duplex}duplex"
 
 			must_be_printed && {
