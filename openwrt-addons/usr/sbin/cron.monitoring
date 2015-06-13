@@ -242,6 +242,21 @@ if [ -n "$NODENUMBER" -a "$ARG1" != "fast" ]; then
 
 	_net inet_seems_stable && {
 		PUBIP="$( _net get_external_ip )"
+
+		# FIXME! hotfix
+		for AP_INDEX in $( _wifi get any mode ap ); do {
+			case "$( uci -q get wireless.@wifi-iface[$AP_INDEX].ssid )" in
+				*'Wartungsmodus'*|*'maintenance'*)
+					SSID_HOTFIX='true'
+				;;
+			esac
+		} done
+
+		[ "$SSID_HOTFIX" = 'true' ] && {
+			_log do hotfix daemon alert "change SSID"
+			/etc/init.d/override_uci_vars boot
+			_wifi phy_restart "$WIFIDEV" "force: mode: 'hanging_ssid' moni"
+		}
 	}
 
 	case "${CONFIG_PROFILE}-${HOSTNAME}" in
@@ -612,6 +627,7 @@ grep -q ^"ip_tables " /proc/modules && {
 		QUERY="${QUERY}&i2=${WANADR}${URL_SLASH}${WANPRE}"
 		QUERY="${QUERY}&i3=${WAN_SPEED_DOWNLOAD}"
 		QUERY="${QUERY}&i4=${WAN_SPEED_UPLOAD}"
+		# nexthop IP:
 		QUERY="${QUERY}&i5=$( ip route list exact '0.0.0.0/0' table main | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )"
 	}
 
