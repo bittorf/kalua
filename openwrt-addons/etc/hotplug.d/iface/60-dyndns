@@ -52,31 +52,30 @@ case "$ACTION" in
 				_vpn hideandseek_user_add 'setup_default_route'
 				# FIXME
 				_vpn hideandseek_user_add "192.168.$NODENUMBER_ROAMING.0/24"
+
+				# TODO: allow private wannet
+#				_vpn hideandseek_user_add "192.168.0.0/16"
+#				_vpn hideandseek_user_add "10.63.0.0/16"
 			;;
 			'wan'*)
 				# TODO: special call of 'dev2ip'
-				ip --oneline address show dev "$DEVICE" | while read LINE; do {
-					# 19: eth0.2 inet 10.63.99.61/30 brd 10.63.99.63  scope global eth0.2\ ...
-					# 19: eth0.2 inet6 fe80::da5d:4cff:fe9c:2f1a/64   scope link \ ...
-					case "$LINE" in
-						*'inet '*)
-							# fetch alias-adresses
-							set -- $LINE
-							PWANADR="${4%/*}"
-							PWANMSK="${4#*/}"
+				ip --family inet --oneline address show dev "$DEVICE" | while read LINE; do {
+					# fetch alias-adresses
+					set -- $LINE
+					PWANADR="${4%/*}"
+					PWANMSK="${4#*/}"
 
-							_net ip4_is_private "$PWANADR" && {
-								LIST_PRIV_WAN="$LIST_PRIV_WAN $PWANADR/$PWANMSK"
+					_net ip4_is_private "$PWANADR" && {
+						# FIXME! (building in a subshell can work?)
+						LIST_PRIV_WAN="$LIST_PRIV_WAN $PWANADR/$PWANMSK"
 
-								bool_true 'system.@weblogin[0].enabled' && {
-									mkdir "/tmp/netfilter_allow_privnet_$PWANADR-$PWANMSK" && {
-										# dont splash these hosts
-										$IPT -t mangle -I PREROUTING -s $PWANADR/$PWANMSK -j ACCEPT
-									}
-								}
+						bool_true 'system.@weblogin[0].enabled' && {
+							mkdir "/tmp/netfilter_allow_privnet_$PWANADR-$PWANMSK" && {
+								# dont splash these hosts
+								$IPT -t mangle -I PREROUTING -s $PWANADR/$PWANMSK -j ACCEPT
 							}
-						;;
-					esac
+						}
+					}
 				} done
 
 				# here we get the main-IP and no aliases

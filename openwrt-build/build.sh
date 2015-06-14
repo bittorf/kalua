@@ -78,7 +78,7 @@ Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debu
        or:
        $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase 'freifunk,$KALUA_DIRNAME' $more_options
        $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase 'freifunk-4mb,$KALUA_DIRNAME' $more_options
-       $0 --openwrt r${rev:-12345} --hardware '4mb_model' --usecase 'Small,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,$KALUA_DIRNAME'
+       $0 --openwrt r${rev:-12345} --hardware '4mb_model' --usecase 'Small,noHTTPd,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,$KALUA_DIRNAME'
        $0 --openwrt r${rev:-12345} --hardware '8mb_model' --usecase 'Standard,$KALUA_DIRNAME'
 
 get help without args, e.g.: --hardware <empty> or
