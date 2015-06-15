@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # TODO:
+# - own file for 'usecase' and 'hardware'?
 # - force feed via --feed XY --feed AB
 # - only add feedXY if usecase needs it -> feed-dependency in usecase
 # - cache .config for usecaseX and revY -> use it when rebuilding -> faster
