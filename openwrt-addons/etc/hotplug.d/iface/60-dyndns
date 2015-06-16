@@ -24,7 +24,6 @@ case "$ACTION" in
 
 		# TODO: move to olsr-hotplug
 		echo >>$SCHEDULER_IMPORTANT "_olsr throttle_traffic '$DEVICE' myself"
-
 		echo >>$SCHEDULER_IMPORTANT '_net local_inet_offer update_cache'
 
 		# e.g. 'wan' or 'wan2'
@@ -50,23 +49,30 @@ case "$ACTION" in
 			;;
 			'innercityVPN')
 				_vpn hideandseek_user_add 'setup_default_route'
-				# FIXME
 				_vpn hideandseek_user_add "192.168.$NODENUMBER_ROAMING.0/24"
 
-				# TODO: allow private wannet
-#				_vpn hideandseek_user_add "192.168.0.0/16"
-#				_vpn hideandseek_user_add "10.63.0.0/16"
+				# in theory, wan must be up before this interface can be brought up
+				# so we can rely on hotplug wan-net file
+				read PRIVATE_WANNETS <'/tmp/HOTPLUG_PRIVATE_WANNETS' && {
+					for OBJ in $PRIVATE_WANNETS; do {
+						_vpn hideandseek_user_add "$OBJ" exclude
+					} done
+				}
+
+				_vpn hideandseek_user_add "192.168.0.0/16"
+				_vpn hideandseek_user_add "10.63.0.0/16"
 			;;
 			'wan'*)
 				# TODO: special call of 'dev2ip'
-				ip --family inet --oneline address show dev "$DEVICE" | while read LINE; do {
+				ip --family inet --oneline address show dev "$DEVICE" >"/tmp/hotplug_temp_$INTERFACE"
+
+				while read LINE; do {
 					# fetch alias-adresses
 					set -- $LINE
 					PWANADR="${4%/*}"
 					PWANMSK="${4#*/}"
 
 					_net ip4_is_private "$PWANADR" && {
-						# FIXME! (building in a subshell can work?)
 						LIST_PRIV_WAN="$LIST_PRIV_WAN $PWANADR/$PWANMSK"
 
 						bool_true 'system.@weblogin[0].enabled' && {
@@ -76,7 +82,7 @@ case "$ACTION" in
 							}
 						}
 					}
-				} done
+				} done <"/tmp/hotplug_temp_$INTERFACE" && rm "/tmp/hotplug_temp_$INTERFACE"
 
 				# here we get the main-IP and no aliases
 				WANADR="$( ubus call network.interface.wan status | grep '"address": ' | head -n1 | cut -d'"' -f4 )"
@@ -124,13 +130,22 @@ case "$ACTION" in
 
 				# FIXME! - autounroll if interface goes down?
 
-				# not local, but over wan:
+				# not local, but over wan: -> should NOT match
 				# default via 172.17.0.2 dev eth0.2  metric 2 onlink 
 				# 8.8.8.8 via 172.17.0.2 dev eth0.2  src 10.10.13.61 \    cache
 
-				# really local:
+				# really local (wan-dhcp with pub IP)
 				# default via 92.206.84.1 dev eth0.2  proto static  src 92.206.85.103
 				# 8.8.8.8 via 92.206.84.1 dev eth0.2  src 92.206.85.103 \    cache
+
+				# really local (wan-pppoe)
+				# default via 217.0.116.253 dev pppoe-wan  proto static
+				# 8.8.8.8 via 217.0.116.253 dev pppoe-wan  src 87.171.16.58 \    cache
+
+				# really local (wan-dhcp)
+				# default via 192.168.2.1 dev eth1  proto static  src 192.168.2.147
+				# default via 10.63.71.249 dev tap0  metric 2 onlink
+				# 8.8.8.8 via 192.168.2.1 dev eth1  src 192.168.2.147 \    cache
 
 				ip -o route get '8.8.8.8' | fgrep -q " dev XXX " && {
 #				ip -o route get '8.8.8.8' | fgrep -q " dev $DEVICE " && {
