@@ -312,18 +312,38 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							*)
 								# TODO: special case for 'tapX'
 
-								case "$CONFIG_PROFILE" in
-									'olympia'*)
-										case "$6" in
-											'1.'*)
-												# ETX/cost
-											;;
-											*)
-												_log do $func daemon alert "bad: remote: $2 cost: $6"
-											;;
-										esac
-									;;
-								esac
+								needs_watching()	# TODO: define via uci
+								{
+									local remote_ip="$1"
+
+									case "$CONFIG_PROFILE" in
+										'olympia'*)
+											return 0
+										;;
+										'berlinle'*)
+											[ "$NODENUMBER" = '2' ] && {
+												case "$remote_ip" in
+													*'.6.'*|*'.4.'*|*'.12.'*)
+														return 0
+													;;
+												esac
+											}
+										;;
+									esac
+
+									return 1
+								}
+
+								needs_watching "$2" && {
+									case "$6" in
+										'1.'*)
+											# ETX/cost
+										;;
+										*)
+											_log do $func daemon alert "bad: remote: $2 cost: $6"
+										;;
+									esac
+								}
 
 								# special marker for 'is a WiFi neigh'
 								[ -e "/tmp/OLSR/isneigh_$2" ] || {
