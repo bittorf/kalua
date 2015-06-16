@@ -617,7 +617,7 @@ _http include_js_sorttable
 cat <<EOF
  </head>
  <body>
-  <h1>$HOSTNAME &ndash; No. $NODENUMBER (mit OpenWrt r$( _system version short ) auf $HARDWARE)</h1>
+  <h1>$HOSTNAME &ndash; No. $NODENUMBER (mit OpenWrt r$OPENWRT_REV auf $HARDWARE)</h1>
   <big><a href='#'> OLSRv1-Verbindungen </a> ${AGE_HUMANREADABLE}&emsp;</big>
    <small>Version: $( _olsr version ) | system <b>uptime</b>: $( _system uptime humanreadable ) ($BOOTTIME)</small><br><br>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, Gatewaywechsel: $GATEWAY_JITTER)</big><br>
