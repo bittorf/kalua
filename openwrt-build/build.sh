@@ -1783,7 +1783,6 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
-				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool:
 				apply_symbol 'CONFIG_PACKAGE_rrdtool1=y'		# utilities: rrdtool:
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
@@ -1792,6 +1791,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 
+				$funcname subcall 'queryMII'
 				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
@@ -1822,7 +1822,6 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 #				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g +9k
-				apply_symbol 'CONFIG_PACKAGE_mii-tool=y'		# network: mii-tool: (very small)
 #				apply_symbol 'CONFIG_PACKAGE_rrdtool1=y'		# utilities: rrdtool:
 #				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless: (but debugFS-export still active)
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
@@ -1831,6 +1830,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 
+				$funcname subcall 'queryMII'
 #				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
@@ -1880,6 +1880,34 @@ build_options_set()
 				apply_symbol 'CONFIG_USE_STRIP=y'			# Global build settings: Binary stripping method
 				apply_symbol 'CONFIG_USE_SSTRIP is not set'
 				apply_symbol 'CONFIG_STRIP_ARGS="--strip-all"'
+			;;
+			'queryMII')
+				if [ -e "$KALUA_DIRNAME/openwrt-addons/etc/kalua/switch" ]; then
+					log "[OK] checking if ethtool is needed for '$HARDWARE_MODEL'"
+
+					# really ugly, but it avoids code duplication
+					. $KALUA_DIRNAME/openwrt-addons/etc/kalua/switch
+					HARDWARE="$HARDWARE_MODEL"
+
+					_switch()
+					{
+						[ "$1" = 'query_miitool' ] && NEEDS_MII='true'
+					}
+
+					# if our hardware needs mii, we have a call '_swtch query_miitool'
+					_switch_show
+
+					if [ -n "$NEEDS_MII" ]; then
+						# before r45995 it was: CONFIG_PACKAGE_mii-tool=y but 'musl' breaks it
+						apply_symbol 'CONFIG_PACKAGE_ethtool=y'
+					else
+						log '[OK] no MII needed'
+						return 1
+					fi
+				else
+					log '[ERR] cannot autodetect if "queryMIIinterface" is needed - please apply this usecase manually if needed'
+					return 1
+				fi
 			;;
 			'OWM')
 				# http://openwifimap.net
