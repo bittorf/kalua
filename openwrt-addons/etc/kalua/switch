@@ -135,7 +135,12 @@ _switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-cont
 		line=
 		max_try=10
 		while [ -z "$line" ]; do {
-			line="$( mii-tool "$port" )"
+			if [ -e '/usr/sbin/ethtool' ]; then
+				line="$( /usr/sbin/ethtool "$port" )"
+			else
+				line="$( mii-tool "$port" )"
+			fi
+
 			max_try=$(( $max_try - 1 ))
 			[ $max_try -eq 0 ] && break
 		} done
@@ -144,19 +149,24 @@ _switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-cont
 			_log do $funcname daemon debug "port: $port line '$line'"
 
 		case "$line" in
-			"$port: no link")
+			"$port: no link"|*'Link detected: no'*)
 				_switch symbol down
 			;;
-			*"link ok"*)
+			*"link ok"*|*'Link detected: yes'*)
 				# "ethX: no autonegotiation, 100baseTx-HD, link ok"
 				# "ethX: 100 Mbit, full duplex, link ok"	// after: mii-tool --force=100baseTx-FD eth0
 				# "ethX: 100 Mbit, full duplex, no link"	// other side will not work
 				# "ethX: negotiated 1000baseT-FD flow-control, link ok"
 				# "ethX: negotiated 100baseTx-FD, link ok"
 				# "ethX: negotiated 100baseTx-FD flow-control, link ok"
+				#
+				# ethtool:
+				# Speed: 1000Mb/s (or) 100Mb/s (or) 10Mb/s
+				# Duplex: Full (or) Half
+				# Link detected: no (or) yes
 
 				case "$line" in
-					*'-FD,'*|*'-FD '*|*'full duplex'*)
+					*'-FD,'*|*'-FD '*|*'full duplex'*|*'Duplex: Full'*)
 						duplex='full'
 					;;
 					*)
@@ -165,13 +175,13 @@ _switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-cont
 				esac
 
 				case "$line" in
-					*' 1000baseT'*|*'1000 Mbit'*)
+					*' 1000baseT'*|*'1000 Mbit'*|*'Speed: 1000Mb/s'*)
 						_switch symbol $duplex 1000
 					;;
-					*' 100baseT'*|*'100 Mbit'*)
+					*' 100baseT'*|*'100 Mbit'*|*'Speed: 100Mb/s'*)
 						_switch symbol $duplex 100
 					;;
-					*' 10baseT'*|*'10 Mbit'*)
+					*' 10baseT'*|*'10 Mbit'*|*'Speed: 10Mb/s'*)
 						_switch symbol $duplex 10
 					;;
 					*)
