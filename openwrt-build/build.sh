@@ -1889,10 +1889,10 @@ build_options_set()
 					. $KALUA_DIRNAME/openwrt-addons/etc/kalua/switch
 					HARDWARE="$HARDWARE_MODEL"
 
-					_switch()
+					_switch()	# parser_ignore
 					{
 						[ "$1" = 'query_miitool' ] && NEEDS_MII='true'
-					}
+					}		# parser_ignore
 
 					# if our hardware needs mii, we have a call '_swtch query_miitool'
 					_switch_show
