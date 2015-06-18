@@ -1902,7 +1902,7 @@ build_options_set()
 			;;
 			'revert'*|'revert12345')
 				local rev="$( echo "$1" | cut -d't' -f2 )"		# revert12345 -> 12345
-				local hash="$( git log --format=%h --grep="@$hash " )"
+				local hash="$( git log --format=%h --grep="@$rev " )"
 				autocommit "git revert $hash --no-commit"
 			;;
 			'queryMII')
