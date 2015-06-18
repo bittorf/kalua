@@ -10,7 +10,6 @@
 # - fix formatting of /etc/openwrt_patches (add2trunk)
 # - autoremove old branches?:
 #   - for BRANCH in $(git branch|grep @); do git branch -D $BRANCH; done
-# - support for reverting specific openwrt-commits (for building older kernels)
 # - options: noIPTables, noIPv6, Failsafe (like sven-ola)
 # - packages/feeds/openwrt: checkout specific version
 #   - http://stackoverflow.com/questions/6990484/git-checkout-by-date
@@ -170,6 +169,34 @@ EOF
 	ls -l "$destdir/$file_tarball"
 }
 
+autocommit()
+{
+	local gitfile="$1"	# file or 'git revert xy'
+	local message="$2"
+	local count_files count_dirs count filetype
+
+	if [ -e "$gitfile" ]; then
+		# we need 'force' here, because e.g. files/ is in .gitignore
+		git add --force "$gitfile"
+
+		count_files="$( find "$gitfile" -type f | wc -l )"
+		count_dirs="$(  find "$gitfile" -type d | wc -l )"
+		count="($count_files files$( test $count_dirs -gt 0 && echo " and $count_dirs dirs" ))"
+		filetype="$( test -d "$gitfile" && echo 'directory' || echo 'file' )"
+	else
+		eval $gitfile
+		[ -z "$message" ] && message="$gitfile"
+	fi
+
+	git commit --signoff -m "
+autocommit: $message
+| $filetype: $gitfile $count
+
+# mimic OpenWrt-style: (is unrolled after clean build)
+git-svn-id: based_on_OpenWrt@$( echo "$VERSION_OPENWRT" | sed 's/r//' )" |
+	grep -v ^' create mode'
+}
+
 log()
 {
 	local message="$1"
@@ -193,19 +220,7 @@ log()
 	}
 
 	has "$option" 'gitadd' && {
-		local count_files="$( find "$gitfile" -type f | wc -l )"
-		local count_dirs="$(  find "$gitfile" -type d | wc -l )"
-		local count="($count_files files$( test $count_dirs -gt 0 && echo " and $count_dirs dirs" ))"
-		local filetype="$( test -d "$gitfile" && echo 'directory' || echo 'file' )"
-
-		# we need 'force' here, because e.g. files/ is in .gitignore
-		git add --force "$gitfile"
-		git commit --signoff -m "
-autocommit: $message
-| $filetype: $gitfile $count
-
-# mimic OpenWrt-style: (is unrolled after clean build)
-git-svn-id: based_on_OpenWrt@$( echo "$VERSION_OPENWRT" | sed 's/r//' )" | grep -v ^' create mode'
+		autocommit "$gitfile" "$message"
 	}
 
 	case "$funcname" in
@@ -1776,6 +1791,8 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_e2fsprogs=y'		# dito | utilities: filesystem:
 			;;
 			'Standard')	# >4mb flash
+				$funcname subcall 'revert45995'		# toolchain: switch to musl by default
+
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
@@ -1815,6 +1832,8 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
+				$funcname subcall 'revert45995'		# toolchain: switch to musl by default
+
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
@@ -1881,6 +1900,11 @@ build_options_set()
 				apply_symbol 'CONFIG_USE_SSTRIP is not set'
 				apply_symbol 'CONFIG_STRIP_ARGS="--strip-all"'
 			;;
+			'revert'*|'revert12345')
+				local rev="$( echo "$1" | cut -d't' -f2 )"		# revert12345 -> 12345
+				local hash="$( git log --format=%h --grep="@$hash " )"
+				autocommit "git revert $hash --no-commit"
+			;;
 			'queryMII')
 				if [ -e "$KALUA_DIRNAME/openwrt-addons/etc/kalua/switch" ]; then
 					log "[OK] checking if ethtool is needed for '$HARDWARE_MODEL'"
@@ -1889,12 +1913,13 @@ build_options_set()
 					. $KALUA_DIRNAME/openwrt-addons/etc/kalua/switch
 					HARDWARE="$HARDWARE_MODEL"
 
+					# overwrite the main function - we just want
+					# to know, if somebody calls '_switch query_miitool'
 					_switch()	# parser_ignore
 					{
 						[ "$1" = 'query_miitool' ] && NEEDS_MII='true'
 					}		# parser_ignore
 
-					# if our hardware needs mii, we have a call '_swtch query_miitool'
 					_switch_show
 
 					if [ -n "$NEEDS_MII" ]; then
