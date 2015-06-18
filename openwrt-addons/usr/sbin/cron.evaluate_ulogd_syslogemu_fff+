@@ -309,9 +309,10 @@ func_ulog_logsaving ()
 
 func_backup_userdata ()		# and restore, if missing
 {
+	local funcname='backup_userdata'
 	local FUNC="backup_userdata"
 	local DESTINATION="$( uci get system.@vds[0].server )"	# root@intercity-vpn.de:/var/www/networks/liszt28/vds/
-	local FILE HASH HASH_LASTSEND HASH_SSH_PRIV size timefile
+	local FILE HASH HASH_LASTSEND HASH_SSH_PRIV size timefile restore_counter
 	local I=0
 	local FILELIST="/www/cgi-bin/db_backup.tgz"		# was: "/www/users_logged_in /www/cgi-bin/userdata.txt"
 	local SSH_IDENTITY="/etc/dropbear/dropbear_dss_host_key"
@@ -337,14 +338,7 @@ func_backup_userdata ()		# and restore, if missing
 		else
 			_log do $FUNC daemon info "restoring userdata '$FILE' from monitoring server"
 
-			local restore_counter=0
-			[ -e /tmp/${FUNC}_restore_counter ] && {
-				read restore_counter </tmp/${FUNC}_restore_counter
-			}
-			restore_counter=$(( $restore_counter + 1 ))
-			echo $restore_counter >/tmp/${FUNC}_restore_counter
-
-			if [ $restore_counter -le 6 ]; then
+			if _watch counter "/tmp/${funcname}_restore_counter" increment 1 max 7 ; then
 				HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
 				URL_BACKUP="$( uci get system.@monitoring[0].url )/vds/$( basename "$FILE" )_${HASH_SSH_PRIV}"
 
@@ -364,15 +358,13 @@ func_backup_userdata ()		# and restore, if missing
 						HASH="$( _file hash "$FILE" )"
 						echo -n "$HASH" >"$FILE.hashlastsend"
 
-						_db restore && rm "/tmp/${FUNC}_restore_counter"
+						_db restore && rm "/tmp/${funcname}_restore_counter"
 					fi
 				else
-					_log do $FUNC daemon info "[ERR] restoring/download failed, try $restore_counter in /tmp/${FUNC}_restore_counter"
+					_log do $FUNC daemon info "[ERR] restoring/download failed"
 				fi
 			else
-				[ $restore_counter -eq 7 ] && {
-					_log do $FUNC daemon alert "[ERR] restoring/download failed, try $restore_counter in /tmp/${FUNC}_restore_counter"
-				}
+				_log do $FUNC daemon info "[ERR] restoring/download failed"
 			fi
 
 			continue
