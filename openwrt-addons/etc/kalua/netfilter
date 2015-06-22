@@ -1483,6 +1483,9 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
 	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no direct logins from WAN
 
+	# sometimes needed of we have dumb-AP's connected to a central master
+	bool_true 'system.@weblogin[0].always_reachable' && return 0
+
 	# TODO: ip can change when called via dnsmasq: e.g. 02:50:43:34:25:bc - if arping fails? refetch ip via 'ip neigh'
 
 	if [ -n "$DNSMASQ_INTERFACE" ]; then
@@ -1508,12 +1511,11 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	devlist="$( for dev in $devlist; do test "$dev" = "$dev_guess" || echo -n " $dev "; done )"
 	devlist="$dev_guess $devlist"
 
-	repair_mac()
+	repair_mac()	# screenscraping 'arping', e.g. '0:80:77:0:22:4c' (missing first 0)
 	{
 		local oldIFS="$IFS"; IFS=":"; set -- $1; IFS="$oldIFS"
 		local tupel insert=
 
-		# e.g. '0:80:77:0:22:4c' (missing first 0)
 		for tupel in $1 $2 $3 $4 $5 $6; do {
 			[ ${#tupel} -eq 1 ] && tupel="0${tupel}"
 			echo -n "${insert}${tupel}"
