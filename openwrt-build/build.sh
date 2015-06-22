@@ -1870,8 +1870,8 @@ build_options_set()
 				$funcname subcall 'noPPPoE'
 				$funcname subcall 'noDebug'
 				$funcname subcall 'noSWAP'
-				$funcname subcall 'noIPv6'
-				# TODO: noIPtables
+				$funcname subcall 'noIPv6'	# (only works together without iptables)
+				# TODO: noIPtables (works only together
 			;;
 			'Micro')
 				# TODO!
@@ -1889,6 +1889,7 @@ build_options_set()
 				$funcname subcall 'noPPPoE'
 				$funcname subcall 'noDebug'
 				$funcname subcall 'OLSRd'
+				$funcname subcall 'OWM'
 				$funcname subcall 'LuCI'
 			;;
 			'freifunk-2mb')
@@ -2382,7 +2383,8 @@ check_scripts()
 {
 	local dir="$1"
 	local tempfile="/tmp/check_scripts"
-	local file i mimetype
+	local tempfile_functions="$tempfile.functions"
+	local file mimetype i j k
 
 	find "$dir" -type f -not -iwholename '*.git*' >"$tempfile"
 
@@ -2456,6 +2458,8 @@ check_scripts()
 					return 1
 				}
 				i=$(( $i + 1 ))
+
+				grep '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 >>"$tempfile_functions"
 			;;
 			*)
 				log "unknown mimetype: '$mimetype' file: '$file'"
@@ -2465,8 +2469,8 @@ check_scripts()
 		esac
 	} done <"$tempfile"
 
-	log "[OK] checked ${i:=0} files"
-	rm "$tempfile"
+	log "[OK] checked ${i:=0} files with $( wc -l <"$tempfile_functions" ) shell-functions"
+	rm "$tempfile" "$tempfile_functions"
 
 	test $i -gt 0
 }
