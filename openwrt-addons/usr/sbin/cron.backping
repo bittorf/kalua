@@ -1,0 +1,28 @@
+#!/bin/sh
+
+backping()
+{
+	local funcname='backping'
+	local uptime="${1:-${UP%.*}}"		# seconds
+	local ifname="$2"			# e.g. 'wan'
+
+	local ip1="$MONITORING_SERVERIP"	# intercity-vpn.de
+	local ip2='8.8.8.8'			# google anycast dns
+	local ip3='77.87.48.19'			# weimarnetz.de
+	local iplist="$ip1 $ip2 $ip3"
+	local size=64
+	local prio='info'
+	local ip
+
+	for ip in $iplist; do {
+		ping -s "$size" -c1 "$ip" >/dev/null && return 0
+	} done
+
+	test $uptime -gt 180 && prio='alert'
+	_log do $funcname daemon $prio "ping failed to $iplist"
+
+	[ "$prio" = 'alert' -a -n "$ifname" ] && {
+		_log do $funcname daemon $prio "forcing: ifup $ifname"
+		ifup $ifname
+	}
+}

@@ -397,24 +397,18 @@ func_cron_config_write ()
 		}
 
 		backping_needed && {
-			local ip1="$MONITORING_SERVERIP"	# intercity-vpn.de
-			local ip2="8.8.8.8"			# google anycast dns
-			local ip3="46.252.25.48"		# jiffybox
-			local iplist="$ip1 $ip2 $ip3"
-			local size=64
-			local ip action testcmd
+			local ifname="$( _net local_inet_offer )"
+			local call_function="backping \$UP $ifname"
 
-			for ip in $iplist; do {
-				testcmd="$testcmd ping -s $size -c1 $ip >/dev/null ||"
-			} done
+			sed -i "s/^### PING_MONITORING_SERVER ###/&\n${call_function}/" '/tmp/CRON_IS_CAREFUL'
 
-			local action="$testcmd { test \${UP%.*} -lt 180 \&\& PRIO=info; . /tmp/loader; _log do cron daemon \${PRIO:-alert} \"ping failed to $iplist\"; }"
-
-			sed -i "s,### PING_MONITORING_SERVER ###,$action," "/tmp/CRON_IS_CAREFUL"
+			_file insert_at	"^### PING_MONITORING_SERVER ###" \
+					'/usr/sbin/cron.backping' \
+					'/tmp/CRON_IS_CAREFUL'
 		}
 
 		case "$CONFIG_PROFILE" in
-			*ap)
+			*'ap')
 				[ -n "$LOWMEM" ] && {
 					sed -i "s/### NOCRON_DURING_CLIENT_ACTION ###/iw dev $WIFIDEV station dump | grep -q ^Station \&\& LOAD=0.90/" "/tmp/CRON_IS_CAREFUL"
 				}
