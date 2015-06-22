@@ -45,40 +45,17 @@ _wifi_change_essid_ap()
 	local file="/tmp/$funcname"
 	local i essid age	# find $i -> WIFIDEV and restart these via phy_restart()
 
-	# FIXME! how can that happen:
-	# root@R3-Technikraum-AP:~ uci show wireless | grep ssid
-	# wireless.@wifi-iface[0].ssid=EJB Weimar Wartungsmodus 25/0
-	# -> phy_up with mode 'inet_broken' is called 2 times in a row!?
-	#
-	# root@J4-technikraum-T12-AP:~ grep "force: mode:" /www/everlasting_syslog.txt
-	# wifi_phy_restart() doing newstyle wifi-up, because 'force: mode: 'inet_broken' wifi_change_essid_ap'
-	# wifi_phy_restart() doing newstyle wifi-up, because 'force: mode: 'original' wifi_change_essid_ap'
-	# wifi_phy_restart() doing newstyle wifi-up, because 'force: mode: 'inet_broken' wifi_change_essid_ap'
-	# wifi_phy_restart() doing newstyle wifi-up, because 'force: mode: 'inet_broken' wifi_change_essid_ap'
-	# wifi_phy_restart() doing newstyle wifi-up, because 'force: mode: 'original' wifi_change_essid_ap'
-
 	if [ "$option" = 'original' ]; then
 		# dont work, when it was never changed
 		[ -e "$file" ] || return 0
 	else
 		# go into 'maintenance_mode', but dont set it twice
-		[ -e "$file" ] && {
-			for i in $( _wifi get any mode ap ); do {
-				# double check if really set
-				case "$( uci -q get wireless.@wifi-iface[$i].ssid_old )" in
-					*"$NODENUMBER/$i")
-						# already set
-						return 0
-					;;
-				esac
-			} done
-		}
+		[ -e "$file" ] && return 0
 	fi
 
-	# FIXME! search a way to store old value and use '_wifi set ap any ssid XYZ'
 	for i in $( _wifi get any mode ap ); do {
 		if [ "$option" = 'original' ]; then
-			essid="$( uci get wireless.@wifi-iface[$i].ssid_old )"
+			essid="$( uci -q get wireless.@wifi-iface[$i].ssid_old )" || continue
 			uci delete wireless.@wifi-iface[$i].ssid_old
 			uci set wireless.@wifi-iface[$i].ssid="${essid:-$CONFIG_PROFILE-$NODENUMBER}"
 
@@ -86,10 +63,10 @@ _wifi_change_essid_ap()
 			echo >>$SCHEDULER "_weblogin authserver_message '$funcname() ${option:-inet_broken} after $age idx $i'"
 			rm "$file"
 		else
+			touch "$file"
 			essid="$( uci get wireless.@wifi-iface[$i].ssid )"
 			uci set wireless.@wifi-iface[$i].ssid_old="$essid"
 			uci set wireless.@wifi-iface[$i].ssid="$( _translate do "$LANG" maintenance_mode "$NODENUMBER/$i" )"
-			touch "$file"
 		fi
 	} done
 
