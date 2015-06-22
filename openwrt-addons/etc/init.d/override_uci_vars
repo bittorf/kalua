@@ -237,6 +237,26 @@ boot()
 		sed -i 's/^STOP=/# &/' '/etc/init.d/network'
 	}
 
+	# if for some reason 'loopback' is missing (this adds an unnamed section)
+	uci get network.loopback.ifname >/dev/null || {
+		uci add network 'loopback' >/dev/null
+		uci set network.@loopback[-1].interface='loopback'
+		uci set network.@loopback[-1].ifname='lo'
+		uci set network.@loopback[-1].proto='static'
+		uci set network.@loopback[-1].ipaddr='127.0.0.1'
+		uci set network.@loopback[-1].netmask='255.0.0.0'
+	}
+
+	# if for some reason 'lan'
+	uci get network.lan.ifname >/dev/null || {
+		uci add network 'lan' >/dev/null
+		uci set network.@lan[-1].interface='lan'
+		uci set network.@lan[-1].ifname='eth0'
+		uci set network.@lan[-1].proto='static'
+		uci set network.@lan[-1].ipaddr="$(  _ipsystem getvar 'LANADR' )"
+		uci set network.@lan[-1].netmask="$( _ipsystem getvar 'LANMSK' )"
+	}
+
 	if [ -e '/etc/init.d/apply_profile' ]; then
 		[ -s '/www/cgi-bin-welcome.sh'	] || ln -s '/www/cgi-bin-welcome'   '/www/cgi-bin-welcome.sh'
 		[ -s '/www/cgi-bin-sql.sh'	] || ln -s '/www/cgi-bin-sql'	    '/www/cgi-bin-sql.sh'
@@ -339,6 +359,7 @@ boot()
 			_wifi set ap 5ghz disabled '1'
 		;;
 		'La Fonera 2.0N')
+			# TODO: query possible interface combinations
 			# disable adhoc for now
 			# https://lists.openwrt.org/pipermail/openwrt-devel/2013-June/020559.html
 			_wifi set adhoc any disabled '1'
