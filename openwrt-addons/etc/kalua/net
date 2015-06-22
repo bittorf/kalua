@@ -5,8 +5,8 @@ _net_roaming_eventlistener()
 	local funcname='net_roaming_eventlistener'
 	local option="$1"
 	local dev='br-mastergate'
-	local pid pids1 pids2 cmdline
-	local i=15
+	local pidfile="/tmp/$funcname"
+	local pid pids1 pids2 cmdline error i
 
 	case "$option" in
 		'start')
@@ -24,8 +24,11 @@ _net_roaming_eventlistener()
 			} done
 
 			/usr/sbin/cron.wireless_events &
+			echo "$!" >"$pidfile"
 		;;
 		'stop')
+			i=10
+			error=
 			pids1="$( pidof iw )" && {
 				while pids2="$( pidof iw )"; do {
 					# FIXME! special 'command' for listener
@@ -39,11 +42,17 @@ _net_roaming_eventlistener()
 				} done
 
 				if   [ $i -eq 0 -a "$pids1" = "$pids2" ]; then
+					error='true'
 					_watch hanging_command iw
 					_watch hanging_command iw
 				elif [ -n "$pids2" ]; then
+					error='true'
 					_log do $funcname daemon alert "still running 'iw'-instance $pids2"
+					read pid <"$pidfile"
+					kill $pid
 				fi
+
+				[ -n "$error" ] && _wifi phy_restart "$WIFIDEV" "$funcname stop"
 			}
 		;;
 		'restart')
