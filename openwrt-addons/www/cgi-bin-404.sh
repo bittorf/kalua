@@ -15,7 +15,7 @@ if uci -q get 'system.@httpsproxy[0].enabled'; then
 
 		[ -z "$IPADDR" ] && IPADDR="$( uci -q get system.@httpsproxy[0].ipaddr )"
 		[ "$IPADDR" = 'auto' ] && IPADDR="$( head -n1 '/tmp/dhcp.leases' | cut -d' ' -f3 )"
-		[ "$REQUEST_METHOD" = "POST" -a ${CONTENT_LENGTH:-0} -gt 0 ] && read -n $CONTENT_LENGTH POST
+		[ "$REQUEST_METHOD" = "POST" -a ${CONTENT_LENGTH:-0} -gt 0 ] && POST="$( dd count=$CONTENT_LENGTH bs=1 2>/dev/null )"
 
 		if [ -n "$USERNAME" ]; then
 			curl --silent --data "$POST" "http://${IPADDR:-127.0.0.1}${REQUEST_URI}" --user "$USERNAME:$PASSWORD" || echo "ERR 0-$?"
