@@ -1,3 +1,54 @@
+#!/bin/sh
+
+_file_time()
+{
+	local file="$1"
+	local option="$2"	# unixstamp|humanreadable
+
+	if [ -e "$file" ]; then
+		case "$option" in
+			'unix'*)
+				date +%s -r "$file"
+			;;
+			'human'*)
+				_system date unixtime2date "$( date +%s -r "$file" )"
+			;;
+		esac
+	else
+		echo '0'
+	fi
+}
+
+_file_age()		# FIXME! 1970 -> better use uptime?
+{
+	local file="$1"
+	local option="$2"		# e.g. 'sec' or '-gt' (greater than)
+	local option_args="$3"		# e.g. 3600
+
+	local unixtime_file=$( _file 'time' "$file" unixstamp )
+	local age=$(( $( _system date unixtime ) - unixtime_file ))	# [seconds]
+
+	case "$option" in
+		humanreadable)
+			_stopwatch seconds2humanreadable "$age"
+		;;
+		humanreadable_verbose)
+			if [ $age -gt 1800 ]; then
+				echo "$( _stopwatch seconds2humanreadable "$age" ) @ $( _system date unixtime2date "$unixtime_file" )"
+			else
+				_stopwatch seconds2humanreadable "$age"
+			fi
+		;;
+		'-'*)
+			# -gt 3600
+			test "$age" $option $option_args
+		;;
+		sec|*)
+			echo "$age"
+		;;
+	esac
+}
+
 _file_convert_bin2hex ()	# using hexdump, to output eachs byte hex-representation
 {				# and throw away thrash + linebreaks
 	local file="$1"
