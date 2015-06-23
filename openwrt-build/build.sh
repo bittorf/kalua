@@ -2528,7 +2528,7 @@ unittest_do()
 		_system load || return 1
 
 		[ -n "$TRAVIS" ] && {
-			wget -O 'shellsheck.deb' 'http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.5-2_amd64.deb'
+			wget -O 'shellsheck.deb' "http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-1_$( _system architecture ).deb"
 			sudo dpkg -i 'shellsheck.deb'
 		}
 
