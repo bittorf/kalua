@@ -2531,7 +2531,9 @@ unittest_do()
 			myarch()
 			{
 				set -- $( dpkg -l | fgrep 'zlib1g-dev' )
-				echo ${4:-i386}
+				log "myarch: '$@' TRAVIS: '$TRAVIS'"
+
+				dpkg --print-architecture
 			}
 
 			wget -O 'shellsheck.deb' "http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-1_$( myarch ).deb"
