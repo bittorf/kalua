@@ -10,7 +10,7 @@
 		_net ip4_is_private "$REMOTE_ADDR" || return 0
 
 		if [ -e "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR" ]; then
-			if [ $( _file age "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR" ) -gt 600 ]; then
+			if _file age "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR" -gt 600 ; then
 				return 0
 			else
 				return 1

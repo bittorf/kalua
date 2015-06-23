@@ -265,6 +265,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 											prio='alert'
 											bool_true 'system.@monitoring[0].ignore_lossyethernet' && prio='info'	# e.g. powerline or airOS
 
+											# TODO: only log valid IPs: _ipsystem getvar '....ADR' $REMOTE_NODENUMBER
 											_log do $func daemon $prio "unstable LAN: $*"
 											_watch counter "/tmp/$funcname-unstableLAN" increment 1 max 5 || {
 												bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
@@ -299,6 +300,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 											prio='alert'
 											bool_true 'system.@monitoring[0].ignore_lossyethernet' && prio='info'	# powerline or airOS
 
+											# TODO: only log valid IPs: _ipsystem getvar '....ADR' $REMOTE_NODENUMBER
 											_log do $func daemon $prio "unstable WAN: $*"
 											_watch counter "/tmp/$funcname-unstableWAN" increment 1 max 5 || {
 												bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
@@ -691,7 +693,7 @@ _olsr_daemon()
 					start)
 						pidof olsrd >/dev/null  || {
 							# config is fresh generated?
-							[ $( _file age "$olsrd_config" sec ) -lt 10 ] && {
+							_file age "$olsrd_config" -lt 10 && {
 								_watch coredump "after: $funcname start" || {
 									# we had NO crash, but e.g. a missing ubus -> no ifnames
 									_system crashreboot 'olsrd_missing'
