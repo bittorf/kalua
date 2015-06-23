@@ -491,6 +491,7 @@ add_new_ipaddresses_from_network()
 		iptables -nL myping_$network | fgrep -q " $ip " || {
 			[ "$( is_in_another_network "$ip" )" = 'NO' ] && {
 				for network in $list_network; do {
+					# FIXME! - when in 'failure', check if good again!
 					log "adding new pub-ip $ip for network $network"
 					iptables -I myping_$network -s $ip -j ACCEPT
 					date +%s >"/dev/shm/pingcheck/$NETWORK.lastnewip"
