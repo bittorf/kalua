@@ -82,7 +82,8 @@ case "$ACTION" in
 							}
 						}
 					}
-				} done <"/tmp/hotplug_temp_$INTERFACE" && rm "/tmp/hotplug_temp_$INTERFACE"
+				} done <"/tmp/hotplug_temp_$INTERFACE"
+				rm "/tmp/hotplug_temp_$INTERFACE"
 
 				# needed for e.g. interface 'innercityVPN'
 				[ -n "$LIST_PRIV_WAN" ] && echo "$LIST_PRIV_WAN" >'/tmp/HOTPLUG_PRIVATE_WANNETS'
@@ -90,7 +91,7 @@ case "$ACTION" in
 				# here we get the main-IP and no aliases
 				WANADR="$( ubus call network.interface.wan status | grep '"address": ' | head -n1 | cut -d'"' -f4 )"
 
-				# FIXME! when there is an portforwarding, even a private-IP must be "protected"
+				# FIXME! with portforwarding, also a private-IP must be "protected"
 				if _net ip4_is_private "$WANADR"; then
 					bool_true 'network.wan.public_ip' && {
 						# we know it should be a public ip, but by accident... (e.g. 2nd internal DCHP)
@@ -101,7 +102,7 @@ case "$ACTION" in
 						_log do $ACTION.$INTERFACE daemon alert "unscheduled event: WANADR: $WANADR"
 					}
 
-					mkdir '/tmp/fail2ban' && {
+					mkdir "/tmp/fail2ban_$INTERFACE" && {
 						_log do dyndns.$ACTION daemon info "prevent DNS-AmpAttac on dev '$DEVICE' for IP '$WANADR'"
 
 						$IPT -I INPUT -i $DEVICE -p tcp --dport 53 -j DROP
