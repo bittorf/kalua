@@ -2567,10 +2567,11 @@ unittest_do()
 						# SC2012 => use 'find' instead of 'ls -1 bla_*'
 						# SC2039 => not allowed: echo -en
 						# SC2004 => $(( $var + 1 )) -> $(( var + 1 ))
+						# SC2155 => local var="$( bla )" -> loosing returncode
 						# SC2034 =>
 						# SC2046 =>
 						# SC2086 =>
-						ignore='SC1010,SC2154,SC2012,SC2039,SC2004,SC2034,SC2046,SC2086'
+						ignore='SC1010,SC2154,SC2012,SC2039,SC2004,SC2155,SC2034,SC2046,SC2086'
 
 						$shellcheck_bin -e $ignore "$file" || return 1
 						log "[OK] shellcheck: $file"
