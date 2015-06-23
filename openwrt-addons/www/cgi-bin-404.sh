@@ -9,7 +9,7 @@ if uci -q get 'system.@httpsproxy[0].enabled'; then
 		case "$REQUEST_URI" in
 			*'USERNAME='*|*'IPADDR='*)
 				QUERY_STRING="$( echo "$REQUEST_URI" | cut -d'?' -f2 )"
-				eval $( _http query_string_sanitize | grep -E '^USERNAME=|^PASSWORD=|^IPADDR=' )
+				eval $( _http query_string_sanitize "$0" | grep -E '^USERNAME=|^PASSWORD=|^IPADDR=' )
 			;;
 		esac
 

@@ -12,7 +12,7 @@ case "$QUERY_STRING" in
 	;;
 	*'roaming_add'*)
 		. /tmp/loader
-		eval $( _http query_string_sanitize )
+		eval $( _http query_string_sanitize "$0:roaming_add" )
 
 		# see: net_roaming_report_new()
 		echo "$mac $ip $expires" >>'/tmp/roaming'
@@ -25,7 +25,7 @@ case "$QUERY_STRING" in
 	;;
 	*'roaming_querymac'*)
 		. /tmp/loader
-		eval $( _http query_string_sanitize )
+		eval $( _http query_string_sanitize "$0:roaming_querymac" )
 
 		# format: mac ip expires - see: net_roaming_report_new() - searched newest entires first = 'tac'
 		if LINE="$( grep -sn '' '/tmp/roaming' | sort -rn | cut -d: -f2- | grep ^"$mac" )"; then

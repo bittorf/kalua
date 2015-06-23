@@ -2,7 +2,8 @@
 . /tmp/loader
 
 if [ -z "$1" -a -n "$REMOTE_ADDR" ]; then
-	eval $( _http query_string_sanitize )		# ACTION=... MAC=... IP_USER=... HASH=... // ( TUNNEL_ID=... | IP_ROUTER=$REMOTE_ADDR )
+	# ACTION=... MAC=... IP_USER=... HASH=... // ( TUNNEL_ID=... | IP_ROUTER=$REMOTE_ADDR )
+	eval $( _http query_string_sanitize "$0" )
 	_http header_mimetype_output "text/plain"
 else
 	ACTION="$1"
