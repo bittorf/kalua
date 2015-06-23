@@ -2379,6 +2379,30 @@ parse_case_patterns()
 	} done <"$0"
 }
 
+mimetype_get()
+{
+	local file="$1"
+	local mimetype
+
+	set -- $( file '--mime-type' "$file" )
+	mimetype="$@"
+	mimetype=${mimetype##* }	# last word
+
+	case "$mimetype" in
+		'text/html')
+			case "$( basename "$file" )" in
+				*'.js'*)
+					# support missing:
+					# https://github.com/file/file/blob/master/magic/Magdir/javascript
+					mimetype='application/javascript'
+				;;
+			esac
+		;;
+	esac
+
+	echo "$mimetype"
+}
+
 check_scripts()
 {
 	local dir="$1"
@@ -2389,21 +2413,7 @@ check_scripts()
 	find "$dir" -type f -not -iwholename '*.git*' >"$tempfile"
 
 	while read file; do {
-		set -- $( file '--mime-type' "$file" )
-		mimetype="$@"
-		mimetype=${mimetype##* }	# last word
-
-		case "$mimetype" in
-			'text/html')
-				case "$( basename "$file" )" in
-					*'.js'*)
-						# support missing:
-						# https://github.com/file/file/blob/master/magic/Magdir/javascript
-						mimetype='application/javascript'
-					;;
-				esac
-			;;
-		esac
+		mimetype="$( mimetype_get "$file" )"
 
 		case "$mimetype" in
 			'text/plain')
@@ -2478,7 +2488,7 @@ check_scripts()
 unittest_do()
 {
 	local funcname='unittest_do'
-	local shellcheck_bin build_loader file
+	local shellcheck_bin build_loader file ignore
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
 		build_loader='openwrt-addons/etc/kalua_init'
@@ -2549,10 +2559,23 @@ unittest_do()
 			log "testing with '$shellcheck_bin'"
 
 			# strip non-ascii: tr -cd '\11\12\15\40-\176' <"$file" >"$newfile"
-			for file in openwrt-addons/www/cgi-bin-404.sh; do {
-				$shellcheck_bin -e SC2034,SC2046,SC2086 "$file" || return 1
-#				$shellcheck_bin -e SC1010,SC2086,SC2154 openwrt-addons/etc/kalua/wget || return 1
-				log "[OK] shellcheck: $file"
+			for file in openwrt-addons/www/*; do {
+				case "$( mimetype_get "$file" )" in
+					'text/x-shellscript')
+						# SC1010 => "_log do ...' -> 'do' is a special keyword
+						# SC2154 => using unassigned vars, e.g from QUERY_STRING
+						# SC2012 => use 'find' instead of 'ls -1 bla_*'
+						# SC2039 => not allowed: echo -en
+						# SC2004 => $(( $var + 1 )) -> $(( var + 1 ))
+						# SC2034 =>
+						# SC2046 =>
+						# SC2086 =>
+						ignore='SC1010,SC2154,SC2012,SC2039,SC2004,SC2034,SC2046,SC2086'
+
+						$shellcheck_bin -e $ignore "$file" || return 1
+						log "[OK] shellcheck: $file"
+					;;
+				esac
 			} done
 		fi
 

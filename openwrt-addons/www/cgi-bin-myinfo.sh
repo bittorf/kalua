@@ -33,7 +33,7 @@ MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 						;;
 					esac
 
-					echo "Hersteller: $@"
+					echo "Hersteller: $*"
 					echo "WLAN-Empfang:"
 
 					# TODO: get real interface
