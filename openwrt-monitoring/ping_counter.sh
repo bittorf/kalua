@@ -546,9 +546,6 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 	# echo 99999 >"/dev/shm/pingcheck/$NETWORK"
 	# touch /tmp/SIMULATE_FAIL				// see fetch_testfile()
 
-	# grep "Totalausfall" 
-	# wget -qO "/var/www/networks/$NETWORK/index.html" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=age2"
-
 	if [ ${COUNTER_OLD:=0} -lt $I ]; then
 		[ -e "/dev/shm/pingcheck/$NETWORK.faulty" ] && {
 			UNIXTIME_START="$( stat -c "%Y" "/dev/shm/pingcheck/$NETWORK.faulty" )"
@@ -558,6 +555,13 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 			rm "/dev/shm/pingcheck/$NETWORK.faulty"
 			echo " - $(date) = $MINUTES_GONE mins [was: total service breakdown]" >>"/var/www/networks/$NETWORK/media/error_history.txt"
 			send_sms "$NETWORK" "WLAN-System: OK, Problem behoben, Ausfallzeit: $MINUTES_GONE Minuten - Vielen Dank fuer Ihr Mitwirken (ping old/new: $COUNTER_OLD/$I)"
+
+			FILE="/var/www/networks/$NETWORK/index.html"
+			URL="http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=hostname"
+
+			grep -sq 'Totalausfall' "$FILE" && {
+				wget -O "$FILE" "$URL"
+			}
 		}
 	else
 		log "$NETWORK: potential prob: old/new = $COUNTER_OLD/$I (last IP: $( cat "/dev/shm/pingcheck/$NETWORK.recent_ip" 2>/dev/null ))"
