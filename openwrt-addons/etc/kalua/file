@@ -19,14 +19,23 @@ _file_time()
 	fi
 }
 
-_file_age()		# FIXME! 1970 -> better use uptime?
+_file_age()
 {
 	local file="$1"
 	local option="$2"		# e.g. 'sec' or '-gt' (greater than)
 	local option_args="$3"		# e.g. 3600
+	local unixtime unixtime_file age uptime
 
-	local unixtime_file=$( _file 'time' "$file" unixstamp )
-	local age=$(( $( _system date unixtime ) - unixtime_file ))	# [seconds]
+	unixtime_file=$( _file time "$file" unixstamp )
+
+	# year 1970? -> better use bootup-uptime
+	[ $unixtime_file -lt 86400 ] && {
+		uptime="$( _system uptime sec )"
+		unixtime="$( _system date unixtime )"
+		unixtime_file=$(( unixtime - uptime ))
+	}
+
+	age=$(( $( _system date unixtime ) - unixtime_file ))	# [seconds]
 
 	case "$option" in
 		humanreadable)
@@ -88,12 +97,14 @@ _file_convert_hex2bin()
 	} done
 }
 
-_file_size()			# fixme! use 'stat -c%s $file' if possible or portable 'du -k $file'
-{				# hint: scraping 'ls -la' is dirty, but much faster than 'wc -c <$file'
+_file_size()			# FIXME! use 'stat -c%s $file' if possible (not included in default OpenWrt)
+{				# or portable 'du -k $file'
 	local file="$1"
-	local unit="$2"
+	local unit="$2"		# 'bytes'(default) or 'kb'
 	local size
 
+	# scraping 'ls -la' is dirty, but much faster than 'wc -c <$file'
+	#
 	# root@box:~ ls -l /etc/init.d/myfile
 	# -rwxr-xr-x    1 1000     1000            0 Jan  3 16:50 /etc/init.d/myfile
 
@@ -131,10 +142,9 @@ _file_hash()
 
 _file_discusage()		# [bytes]
 {
-	local dir="$1"		# if empty -> pwd
-	local i=0		# byte-counter
-	local line
+	local dir="${1:-$( pwd )}"
+	local line i=0		# byte-counter
 
-	eval "$( ls -lR "${dir:-$( pwd )}" | while read line; do set -- $line; case "$line" in 'd'*) ;; *) echo "i=\$(( \$i + ${5:-0} ));";; esac; done )"
+	eval "$( ls -lR "$dir" | while read line; do set -- $line; case "$line" in 'd'*) ;; *) echo "i=\$(( i + ${5:-0} ));";; esac; done )"
 	echo $i
 }
