@@ -255,7 +255,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 	local dir="target/linux/$ARCH"
 	local pattern=' oops=panic panic=10 '
 	local arch="$ARCH"
-	local config kernelversion
+	local config kernelversion myarch
 
 	case "$arch" in
 		'mpc85xx')
@@ -280,8 +280,15 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 				log "looking into '$config', adding '$pattern'" gitadd "$config"
 			}
 		;;
-		*)	# tested for brcm47xx
-			config="$( ls -1 $dir/config-* 2>/dev/null | head -n1 )"
+		*)
+			if [ "$arch" = 'uml' ]; then
+				myarch="$( myarch )"
+				[ "$myarch" = 'amd64' ] && myarch='x86_64'	# OpenWrt-style
+				config="$( ls -1 $dir/config/$myarch )"
+			else
+				# tested for brcm47xx
+				config="$( ls -1 $dir/config-* 2>/dev/null | head -n1 )"
+			fi
 
 			if [ -e "$config" ]; then
 				log "looking into '$config', adding '$pattern'"
@@ -2485,6 +2492,12 @@ check_scripts()
 	test $i -gt 0
 }
 
+myarch()
+{
+	# e.g. i386 or amd64
+	dpkg --print-architecture
+}
+
 unittest_do()
 {
 	local funcname='unittest_do'
@@ -2538,14 +2551,6 @@ unittest_do()
 		_system load || return 1
 
 		[ -n "$TRAVIS" ] && {
-			myarch()
-			{
-				set -- $( dpkg -l | fgrep 'zlib1g-dev' )
-				log "myarch: '$@' TRAVIS: '$TRAVIS'"
-
-				dpkg --print-architecture
-			}
-
 			wget -O 'shellsheck.deb' "http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-1_$( myarch ).deb"
 			sudo dpkg -i 'shellsheck.deb'
 		}
