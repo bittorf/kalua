@@ -258,6 +258,9 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 	local config kernelversion myarch
 
 	case "$arch" in
+		'uml')
+			return 0
+		;;
 		'mpc85xx')
 			if [ $( openwrt_revision_number_get ) -ge 45597 ]; then
 				config="target/linux/$arch/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
@@ -281,14 +284,8 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			}
 		;;
 		*)
-			if [ "$arch" = 'uml' ]; then
-				myarch="$( myarch )"
-				[ "$myarch" = 'amd64' ] && myarch='x86_64'	# OpenWrt-style
-				config="$( ls -1 $dir/config/$myarch )"
-			else
-				# tested for brcm47xx
-				config="$( ls -1 $dir/config-* 2>/dev/null | head -n1 )"
-			fi
+			# tested for brcm47xx
+			config="$( ls -1 $dir/config-* 2>/dev/null | head -n1 )"
 
 			if [ -e "$config" ]; then
 				log "looking into '$config', adding '$pattern'"
@@ -497,7 +494,7 @@ target_hardware_set()
 			[ "$option" = 'info' ] && {
 				cat <<EOF
 # simple boot via:
-bin/uml/$FILENAME_SYSUPGRADE ubd0=bin/uml/$FILENAME_FACTORY eth8=tuntap,,,192.168.0.254
+bin/uml/$FILENAME_SYSUPGRADE ubd0=bin/uml/$FILENAME_FACTORY eth8=tuntap,,,192.168.0.254 oops=panic panic=10
 
 # when starts fails, circumvent PROT_EXEC mmap/noexec-shm-problem with:
 # http://www.ime.usp.br/~baroni/docs/uml-en.html
