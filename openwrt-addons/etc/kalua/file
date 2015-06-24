@@ -19,14 +19,23 @@ _file_time()
 	fi
 }
 
-_file_age()		# FIXME! 1970 -> better use uptime?
+_file_age()
 {
 	local file="$1"
 	local option="$2"		# e.g. 'sec' or '-gt' (greater than)
 	local option_args="$3"		# e.g. 3600
+	local unixtime unixtime_file age uptime
 
-	local unixtime_file=$( _file 'time' "$file" unixstamp )
-	local age=$(( $( _system date unixtime ) - unixtime_file ))	# [seconds]
+	unixtime_file=$( _file time "$file" unixstamp )
+
+	# year 1970? -> better use bootup-uptime
+	[ $unixtime_file -lt 86400 ] && {
+		uptime="$( _system uptime sec )"
+		unixtime="$( _system date unixtime )"
+		unixtime_file=$(( unixtime - uptime ))
+	}
+
+	age=$(( $( _system date unixtime ) - unixtime_file ))	# [seconds]
 
 	case "$option" in
 		humanreadable)
@@ -49,7 +58,17 @@ _file_age()		# FIXME! 1970 -> better use uptime?
 	esac
 }
 
-_file_convert_bin2hex ()	# using hexdump, to output eachs byte hex-representation
+_file_insert_at()
+{
+	local regex="$1"	# e.g. ^mystring
+	local file_include="$2"
+	local file_work="$3"
+
+	# http://stackoverflow.com/questions/3784672/inserting-text-from-a-file-to-the-beginning-of-another-file-bash
+	sed -i -e "2{x;G};/${regex}/{r${file_include}" -e 'd}' "$file_work"
+}
+
+_file_convert_bin2hex()		# using hexdump, to output eachs byte hex-representation
 {				# and throw away thrash + linebreaks
 	local file="$1"
 	local line
@@ -62,81 +81,74 @@ _file_convert_bin2hex ()	# using hexdump, to output eachs byte hex-representatio
 	   } done
 }
 
-_file_convert_hex2bin ()
+_file_convert_hex2bin()
 {
 	local file="$1"
 
-	if [ -e /www/cgi-bin/freifunk-upload ]; then
+	# we mostly use it for stored SSH keys
+	_file size "$file" -gt 65535 && return 1
 
-		/www/cgi-bin/freifunk-upload -a2b <"$file"
+	local j=0
+	local content="$( dd if=$file 2>&- )"
+	local size="${#content}"
+	local hexbyte
+
+	while [ $j -lt $size ]; do {
+		hexbyte="${content:$j:2}"
+		j=$(( j + 2 ))
+
+		printf "\\$( printf "%o" 0x$hexbyte )"
+	} done
+}
+
+_file_size()			# FIXME! use 'stat -c%s $file' if possible (not included in default OpenWrt)
+{				# or portable 'du -k $file'
+	local file="$1"
+	local unit="$2"		# 'bytes'(default) or 'kb'
+	local size
+
+	# scraping 'ls -la' is dirty, but much faster than 'wc -c <$file'
+	#
+	# root@box:~ ls -l /etc/init.d/myfile
+	# -rwxr-xr-x    1 1000     1000            0 Jan  3 16:50 /etc/init.d/myfile
+
+	set -- $( ls -la "$file" 2>/dev/null || echo O O O O x O )
+	size="$5"
+
+	[ "$size" = 'x' ] && return 1	# file does not exist
+
+	case "$unit" in
+		kb)
+			size=$(( size / 1024 ))
+		;;
+	esac
+
+	echo "$size"
+}
+
+_file_lines()
+{
+	local file="$1"
+
+	if [ -e "$file" ]; then
+		wc -l <"$file"
 	else
-		local hexbyte
-
-		while read -n 2 hexbyte; do {
-			printf "\\$( printf "%o" 0x$hexbyte )"
-		} done <$file
+		echo '0'
 	fi
 }
 
-_file_size ()	# if we have a busybox without 'stat'-command compiled
-{		# ls is much faster, than a 'wc -c /path/to/10mb-file'
+_file_hash()
+{
+	local file="$1"
 
-	local FILE="$1"
-	local UNIT="$2"
-
-	_fsize ()
-	{
-		ls -la "$1" 2>/dev/null | sed -n 's/^[^0-9]*[0-9]*[a-zA-Z ]*\([0-9]*\).*/\1/p' || {
-			_log do file_size daemon crit "file '$FILE' does't exist"	# fixme! is never reached
-			return 1
-		}
-	}
-
-	# bug, when user/group is numeric:
-	# root@oss47dach:~ _file size "/etc/init.d/S54batman_fff+"
-	# 1000
-	# root@oss47dach:~ ls -l /etc/init.d/S54batman_fff+
-	# -rwxr-xr-x    1 1000     1000            0 Jan  3 16:50 /etc/init.d/S54batman_fff+
-
-	[ -n "$UNIT" ] && {	# needs forking
-	
-		OUT="$( _fsize "$FILE" )"
-		
-		case $UNIT in
-			kb)
-				echo -n "$(( ${OUT:-0} / 1024 ))"
-			;;
-			*)
-				echo -n "$OUT"
-			;;
-		esac
-		
-		return
-	}
-
-	_fsize "$FILE" || return 1
+	md5sum "$file" 2>/dev/null | cut -d' ' -f1
 }
 
-_file_lines ()		# fixme! output of 0 only works, if file does not exist, but not when really 0 bytes
+_file_discusage()		# [bytes]
 {
-	sed -n '$=' "$1" 2>/dev/null || echo "0"	# same like 'cat nonexistingFILE | wc -l' but nonforking
-}
+	local dir="${1:-$( pwd )}"
+	local line i=0		# byte-counter
 
-_file_hash ()
-{
-	local FILE="$1"
-	
-	md5sum "$FILE" 2>/dev/null | cut -d' ' -f1
-}
-
-_file_discusage ()		# [bytes]
-{
-	local DIR="$1"
-	local I=0		# byte-counter
-
-	[ -z "$DIR" ] && DIR="$( pwd )"		# we are lazy on cmdline
-
-	eval "$( ls -lR "$DIR" | sed -n '/^-/s/^[^0-9]*[0-9]*[a-zA-Z ]*\([0-9]*\).*/I=$(( $I + \1 ));/p' )"
-	
-	echo $I
+	eval "$( ls -lR "$dir" | while read line; do set -- $line; case "$line" in 'd'*) ;; *) echo "i=\$(( i + ${5:-0} ));";; esac; done )"
+	echo $i
 }
