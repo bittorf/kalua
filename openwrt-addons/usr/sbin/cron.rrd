@@ -5,9 +5,9 @@
 rrd_setup()
 {
 	local option="$1"			# 'keep_database'
-	local file="/tmp/datafile.rrd"
+	local file='/tmp/datafile.rrd'
 	local interval=60			# [sec]
-	local maxwait=$(( $interval * 2 ))	# [sec] writes 'unknown' into database after this time
+	local maxwait=$(( interval * 2 ))	# [sec] writes 'unknown' into database after this time
 	local minmax_unlimited='U:U'		# allow all values, do not limit min or max
 	local minmax_100mbit='0:12500000'
 	local minmax_100mbit_packets='0:12500'
@@ -29,8 +29,8 @@ rrd_setup()
 	# FIXME! instead of using DERIVE, use CDEF:NegWrites=Writes,-1,*
 
 	rrdtool create "$file" \
-		DS:upload_packets:DERIVE:${maxwait}:$minmax_100mbit_packets \
-		DS:upload_bytes:DERIVE:${maxwait}:$minmax_100mbit \
+		DS:upload_packets:COUNTER:${maxwait}:$minmax_100mbit_packets \
+		DS:upload_bytes:COUNTER:${maxwait}:$minmax_100mbit \
 		DS:download_packets:COUNTER:${maxwait}:$minmax_100mbit_packets \
 		DS:download_bytes:COUNTER:${maxwait}:$minmax_100mbit \
 		DS:wifi_stations:GAUGE:${maxwait}:$minmax_unlimited \
@@ -56,6 +56,7 @@ rrd_update()
 	local users=0 iw_rc=0
 	local line udp=0 tcp=0 signal=0
 	local typical_average_packetsize=350	# for upscaling in graph
+	local time_now
 
 	[ -e "$file" ] || return 0
 
@@ -69,13 +70,13 @@ rrd_update()
 #		echo "${up_packets}:${down_packets}" >"/tmp/STATS_FORWARD"
 #	}
 
-	for mac in /sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations/*; do stations=$(( $stations + 1 )); done
+	for mac in /sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations/*; do stations=$(( stations + 1 )); done
 	case "$mac" in
 		*'*') stations=0
 		;;
 	esac
 
-	for mac in /tmp/vds_user_*; do users=$(( $users + 1 )); done
+	for mac in /tmp/vds_user_*; do users=$(( users + 1 )); done
 	case "$mac" in
 		*'*') users=0
 		;;
@@ -99,31 +100,31 @@ rrd_update()
 			shift
 			case "$1 $2" in
 				'rx bytes:')
-					up_bytes=$(( $up_bytes - $3 ))
+					up_bytes=$(( up_bytes - $3 ))
 					shift 2
 				;;
 				'rx packets:')
-					up_packets=$(( $up_packets - $3 ))
+					up_packets=$(( up_packets - $3 ))
 					shift 2
 				;;
 				'tx bytes:')
-					down_bytes=$(( $down_bytes + $3 ))
+					down_bytes=$(( down_bytes + $3 ))
 					shift 2
 				;;
 				'tx packets:')
-					down_packets=$(( $down_packets + $3 ))
+					down_packets=$(( down_packets + $3 ))
 					shift 2
 				;;
 				'signal avg:')
-					signal=$(( $signal + ${3:-0} ))
+					signal=$(( signal + ${3:-0} ))
 					[ "$force_station_mac" = 'all' ] || break
 				;;
 			esac
 		} done
 
-		signal=$(( $signal / $stations ))
-		up_packets=$((   $up_packets   * $typical_average_packetsize ))		# later: use CDEF
-		down_packets=$(( $down_packets * $typical_average_packetsize ))
+		signal=$(( signal / stations ))
+		up_packets=$((   up_packets   * typical_average_packetsize ))		# later: use CDEF
+		down_packets=$(( down_packets * typical_average_packetsize ))
 
 		[ ${iw_rc:-0} -eq 0 ] || {
 			. /tmp/loader
@@ -132,7 +133,7 @@ rrd_update()
 
 		case "${up_bytes}" in
 			*'-'*|'0')
-				up_bytes=$(( $up_bytes * -1 ))
+				up_bytes=$(( up_bytes * -1 ))
 			;;
 			*)
 				. /tmp/loader
@@ -143,7 +144,7 @@ rrd_update()
 
 		case "${up_packets}" in
 			*'-'*|'0')
-				up_packets=$(( $up_packets * -1 ))
+				up_packets=$(( up_packets * -1 ))
 			;;
 			*)
 				. /tmp/loader
@@ -175,40 +176,41 @@ rrd_update()
 				up_bytes=0
 			;;
 			*)
-				up_packets="-$(( $1 * $typical_average_packetsize ))"
+				up_packets="-$(( $1 * typical_average_packetsize ))"
 				up_bytes=-$2
 			;;
 		esac
 
 		set -- $( $IPT -nxvL FORWARD 1 ) 0
-		down_packets=$(( $1 * $typical_average_packetsize ))
+		down_packets=$(( $1 * typical_average_packetsize ))
 		down_bytes=$2
 	fi
 
 	while read line; do {
 		case "$line" in
-			*" tcp"*)
-				tcp=$(( $tcp + 1 ))
+			*' tcp'*)
+				tcp=$(( tcp + 1 ))
 			;;
 			*)
 				# this is not correct
-				udp=$(( $udp + 1 ))
+				udp=$(( udp + 1 ))
 			;;
 		esac
-	} done <"/proc/net/nf_conntrack"
+	} done <'/proc/net/nf_conntrack'
 
 #	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes stations: $stations users: $users conn-tcp/udp: $tcp/$udp signal: $signal"
 
-	# upscale, so we can see it in graph (fixme! use CDEF-expression)
+	# upscale, so we can see it in graph (FIXME! use CDEF-expression)
 	stations=$(( stations * 100000 ))	# 5 station = at 500k/s traffic-level
-	users=$(( $users * 10000 ))		# 200 user = at 2 MB/s traffic-level
-	tcp=$(( $tcp * 1000 ))
-	udp=$(( $udp * 1000 ))
-	signal=$(( $signal * -10000 ))		# e.g. -70 dBm at 700k/s traffic-level
+	users=$(( users * 10000 ))		# 200 user = at 2 MB/s traffic-level
+	tcp=$(( tcp * 1000 ))
+	udp=$(( udp * 1000 ))
+	signal=$(( signal * -10000 ))		# e.g. -70 dBm at 700k/s traffic-level
+	time_now='N'				# RRD special
 
-	line="N:${up_packets}:${up_bytes}:${down_packets}:${down_bytes}:${stations}:${users}:${tcp}:${udp}:${signal}"
+	line="${time_now}:${up_packets}:${up_bytes}:${down_packets}:${down_bytes}:${stations}:${users}:${tcp}:${udp}:${signal}"
 
-	rrdtool update "$file" $line || {
+	rrdtool update "$file" "$line" || {
 		_log do $funcname daemon info "error $?: rrdtool update $file $line"
 	}
 }
@@ -339,6 +341,6 @@ rrd_upload()
 		_log do $funcname daemon info "uploading '$file' to '$dest'"
 		scp -i /etc/dropbear/dropbear_dss_host_key "$file" "$dest" && break
 		sleep $try
-		try=$(( $try - 1 ))
+		try=$(( try - 1 ))
 	} done
 }
