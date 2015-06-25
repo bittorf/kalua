@@ -26,8 +26,6 @@ rrd_setup()
 	# RRA = Round Robin Archive
 	# datasource_type = DERIVE|COUNTER|ABSOLUTE|GAUGE - see https://collectd.org/wiki/index.php/Data_source
 
-	# FIXME! instead of using DERIVE, use CDEF:NegWrites=Writes,-1,*
-
 	rrdtool create "$file" \
 		DS:upload_packets:COUNTER:${maxwait}:$minmax_100mbit_packets \
 		DS:upload_bytes:COUNTER:${maxwait}:$minmax_100mbit \
@@ -46,17 +44,13 @@ rrd_setup()
 
 rrd_update()
 {
-	local force_station_mac="$1"
+	local force_station_mac="$1"	# <empty> or <mac> or 'all'
 
 	local funcname='rrd_update'
-	local file="/tmp/datafile.rrd"
-	local up_packets=0 up_bytes=0
-	local down_packets=0 down_bytes=0
-	local mac stations=0
-	local users=0 iw_rc=0
-	local line udp=0 tcp=0 signal=0
-	local typical_average_packetsize=350	# for upscaling in graph
-	local time_now
+	local file='/tmp/datafile.rrd'
+	local up_packets=0 up_bytes=0 down_packets=0 down_bytes=0
+	local stations=0 users=0 iw_rc=0 udp=0 tcp=0 signal=0
+	local time_now line mac
 
 	[ -e "$file" ] || return 0
 
@@ -72,13 +66,15 @@ rrd_update()
 
 	for mac in /sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations/*; do stations=$(( stations + 1 )); done
 	case "$mac" in
-		*'*') stations=0
+		*'*')
+			stations=0
 		;;
 	esac
 
 	for mac in /tmp/vds_user_*; do users=$(( users + 1 )); done
 	case "$mac" in
-		*'*') users=0
+		*'*')
+			users=0
 		;;
 	esac
 
@@ -95,7 +91,7 @@ rrd_update()
 		line="$@"
 		shift 7
 
-		# fixme! maybe we should add e.g. 'tx retries:' to get the REAL air-pollution or at least graph it
+		# FIXME! maybe we should add e.g. 'tx retries:' to get the REAL air-pollution or at least graph it
 		while [ -n "$2" ]; do {
 			shift
 			case "$1 $2" in
@@ -122,92 +118,32 @@ rrd_update()
 			esac
 		} done
 
+		# why?
 		signal=$(( signal / stations ))
-		up_packets=$((   up_packets   * typical_average_packetsize ))		# later: use CDEF
-		down_packets=$(( down_packets * typical_average_packetsize ))
-
-		[ ${iw_rc:-0} -eq 0 ] || {
-			. /tmp/loader
-			_log do $funcname daemon alert "strange values: rc: $iw_rc line: '$line'"
-		}
-
-		case "${up_bytes}" in
-			*'-'*|'0')
-				up_bytes=$(( up_bytes * -1 ))
-			;;
-			*)
-				. /tmp/loader
-				_log do $funcname daemon alert "strange values: rc: $iw_rc up_bytes: $up_bytes line: '$line'"
-				up_bytes=0
-			;;
-		esac
-
-		case "${up_packets}" in
-			*'-'*|'0')
-				up_packets=$(( up_packets * -1 ))
-			;;
-			*)
-				. /tmp/loader
-				_log do $funcname daemon alert "strange values: rc: $iw_rc up_packets: $up_packets line: '$line'"
-				up_packets=0
-			;;
-		esac
-
-		case "${down_bytes}" in
-			*'-'*|'')
-				. /tmp/loader
-				_log do $funcname daemon alert "strange values: rc: $iw_rc down_bytes: $down_bytes line: '$line'"
-				down_bytes=0
-			;;
-		esac
-
-		case "${down_packets}" in
-			*'-'*|'')
-				. /tmp/loader
-				_log do $funcname daemon alert "strange values: rc: $iw_rc down_packets: $down_packets line: '$line'"
-				down_packets=0
-			;;
-		esac
 	else
 		set -- $( $IPT -nxvL FORWARD 2 ) 0
-		case "$1" in
-			'0')
-				up_packets=0
-				up_bytes=0
-			;;
-			*)
-				up_packets="-$(( $1 * typical_average_packetsize ))"
-				up_bytes=-$2
-			;;
-		esac
+		up_packets=$1
+		up_bytes=$2
 
 		set -- $( $IPT -nxvL FORWARD 1 ) 0
-		down_packets=$(( $1 * typical_average_packetsize ))
+		down_packets=$1
 		down_bytes=$2
 	fi
 
+	# TODO: testcase - a large conntrack file
 	while read line; do {
 		case "$line" in
 			*' tcp'*)
 				tcp=$(( tcp + 1 ))
 			;;
 			*)
-				# this is not correct
+				# this is not correct - there is more than 'udp'
 				udp=$(( udp + 1 ))
 			;;
 		esac
 	} done <'/proc/net/nf_conntrack'
 
-#	logger "up: $up_packets/$up_bytes down: $down_packets/$down_bytes stations: $stations users: $users conn-tcp/udp: $tcp/$udp signal: $signal"
-
-	# upscale, so we can see it in graph (FIXME! use CDEF-expression)
-	stations=$(( stations * 100000 ))	# 5 station = at 500k/s traffic-level
-	users=$(( users * 10000 ))		# 200 user = at 2 MB/s traffic-level
-	tcp=$(( tcp * 1000 ))
-	udp=$(( udp * 1000 ))
-	signal=$(( signal * -10000 ))		# e.g. -70 dBm at 700k/s traffic-level
-	time_now='N'				# RRD special
-
+	time_now='N'	# RRD special
 	line="${time_now}:${up_packets}:${up_bytes}:${down_packets}:${down_bytes}:${stations}:${users}:${tcp}:${udp}:${signal}"
 
 	rrdtool update "$file" "$line" || {
@@ -219,23 +155,22 @@ rrd_show()
 {
 	local duration="${1:-$( _system uptime min )min}"	# e.g. 15min, 4h
 
-	local webfile="/www/traffic.png"
-	local output="/tmp/graph.png"
+	local webfile='/www/traffic.png'
+	local output='/tmp/graph.png'
 	local file="${2:-/tmp/datafile.rrd}"
-	local rrd_version="$( rrdtool --version | head -n1 )"
 	local date="$( _system date humanreadable pretty )"
 	local location="$( _weblogin metadata_locationname )"
 	local title="$location: forwarded WAN-traffic $WANDEV host-$NODENUMBER: $HOSTNAME - time: $date (-$duration)"
 	local watermark
-
-	local context="traffic"
+	local typical_average_packetsize=350
+	local context='traffic'
 	local label="bytes/sec & users/stations (1 = 100k) & TCP/UDP-conntrack (1000 = 1M)"	# Y-axis
-	local alpha="44"
+	local alpha=44
 	local end='\j'
 
-	case "$rrd_version" in
+	case "$( rrdtool --version | head -n1 )" in
 		*'1.0.50'*|*'1.0.'*)
-			# element not supported
+			# elements not supported
 			unset watermark
 			unset alpha
 		;;
@@ -270,50 +205,58 @@ rrd_show()
 		DEF:udp=${file}:udp:AVERAGE				\
 		DEF:signal=${file}:signal:AVERAGE			\
 		LINE1:upload_packets${color1}:"upload [packets]  "	\
-			GPRINT:upload_packets:LAST:"current\:%8.2lf %s"	\
-			GPRINT:upload_packets:AVERAGE:"avg\:%8.2lf %s"	\
-			GPRINT:upload_packets:MIN:"min\:%8.2lf %s"	\
-			GPRINT:upload_packets:MAX:"max\:%8.2lf %s$end"	\
+			CDEF:value1=upload_packets,$typical_average_packetsize,* \
+			GPRINT:value1:LAST:"current\:%8.2lf %s"		\
+			GPRINT:value1:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:value1:MIN:"min\:%8.2lf %s"		\
+			GPRINT:value1:MAX:"max\:%8.2lf %s$end"		\
 		AREA:upload_bytes${color2}:"upload [bytes]    "		\
-			GPRINT:upload_bytes:LAST:"current\:%8.2lf %s"	\
-			GPRINT:upload_bytes:AVERAGE:"avg\:%8.2lf %s"	\
-			GPRINT:upload_bytes:MIN:"min\:%8.2lf %s"	\
-			GPRINT:upload_bytes:MAX:"max\:%8.2lf %s$end"	\
+			CDEF:value2=upload_bytes,-1,*			\
+			GPRINT:value2:LAST:"current\:%8.2lf %s"		\
+			GPRINT:value2:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:value2:MIN:"min\:%8.2lf %s"		\
+			GPRINT:value2:MAX:"max\:%8.2lf %s$end"		\
 		LINE1:download_packets${color3}:"download [packets]"	\
-			GPRINT:download_packets:LAST:"current\:%8.2lf %s"	\
-			GPRINT:download_packets:AVERAGE:"avg\:%8.2lf %s"\
-			GPRINT:download_packets:MIN:"min\:%8.2lf %s"	\
-			GPRINT:download_packets:MAX:"max\:%8.2lf %s$end"	\
-		AREA:download_bytes${color4}:"download [bytes]  "		\
+			CDEF:value3=download_packets,$typical_average_packetsize,* \
+			GPRINT:value3:LAST:"current\:%8.2lf %s"		\
+			GPRINT:value3:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:value3:MIN:"min\:%8.2lf %s"		\
+			GPRINT:value3:MAX:"max\:%8.2lf %s$end"		\
+		AREA:download_bytes${color4}:"download [bytes]  "	\
 			GPRINT:download_bytes:LAST:"current\:%8.2lf %s"	\
 			GPRINT:download_bytes:AVERAGE:"avg\:%8.2lf %s"	\
 			GPRINT:download_bytes:MIN:"min\:%8.2lf %s"	\
 			GPRINT:download_bytes:MAX:"max\:%8.2lf %s$end"	\
 		LINE2:wifi_stations${color5}:"wifi_stations     "	\
-			GPRINT:wifi_stations:LAST:"current\:%8.2lf %s"	\
-			GPRINT:wifi_stations:AVERAGE:"avg\:%8.2lf %s"	\
-			GPRINT:wifi_stations:MIN:"min\:%8.2lf %s"	\
-			GPRINT:wifi_stations:MAX:"max\:%8.2lf %s$end"	\
+			CDEF:value5=wifi_stations,100000,*		\
+			GPRINT:value5:LAST:"current\:%8.2lf %s"		\
+			GPRINT:value5:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:value5:MIN:"min\:%8.2lf %s"		\
+			GPRINT:value5:MAX:"max\:%8.2lf %s$end"		\
 		LINE2:different_users${color6}:"users_logged_in   "	\
-			GPRINT:different_users:LAST:"current\:%8.2lf %s"\
-			GPRINT:different_users:AVERAGE:"avg\:%8.2lf %s"	\
-			GPRINT:different_users:MIN:"min\:%8.2lf %s"	\
-			GPRINT:different_users:MAX:"max\:%8.2lf %s$end"	\
+			CDEF:value6=different_users,10000,*		\
+			GPRINT:value6:LAST:"current\:%8.2lf %s"		\
+			GPRINT:value6:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:value6:MIN:"min\:%8.2lf %s"		\
+			GPRINT:value6:MAX:"max\:%8.2lf %s$end"		\
 		LINE1:tcp${color7}:"TCP-connections   "			\
-			GPRINT:tcp:LAST:"current\:%8.2lf %s"		\
-			GPRINT:tcp:AVERAGE:"avg\:%8.2lf %s"		\
-			GPRINT:tcp:MIN:"min\:%8.2lf %s"			\
-			GPRINT:tcp:MAX:"max\:%8.2lf %s$end"		\
+			CDEF:value7=tcp,1000,*				\
+			GPRINT:value7:LAST:"current\:%8.2lf %s"		\
+			GPRINT:value7:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:value7:MIN:"min\:%8.2lf %s"		\
+			GPRINT:value7:MAX:"max\:%8.2lf %s$end"		\
 		LINE1:udp${color8}:"UDP-connections   "			\
-			GPRINT:udp:LAST:"current\:%8.2lf %s"		\
-			GPRINT:udp:AVERAGE:"avg\:%8.2lf %s"		\
-			GPRINT:udp:MIN:"min\:%8.2lf %s"			\
-			GPRINT:udp:MAX:"max\:%8.2lf %s$end"		\
+			CDEF:value8=udp,1000,*				\
+			GPRINT:value8:LAST:"current\:%8.2lf %s"		\
+			GPRINT:value8:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:value8:MIN:"min\:%8.2lf %s"		\
+			GPRINT:value8:MAX:"max\:%8.2lf %s$end"		\
 		LINE2:signal${color9}:"signal [dBm]      "		\
-			GPRINT:signal:LAST:"current\:%8.2lf %s"		\
-			GPRINT:signal:AVERAGE:"avg\:%8.2lf %s"		\
-			GPRINT:signal:MIN:"min\:%8.2lf %s"		\
-			GPRINT:signal:MAX:"max\:%8.2lf %s$end" || {
+			CDEF:value9=signal,-10000,*			\
+			GPRINT:value9:LAST:"current\:%8.2lf %s"		\
+			GPRINT:value9:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:value9:MIN:"min\:%8.2lf %s"		\
+			GPRINT:value9:MAX:"max\:%8.2lf %s$end" || {
 				logger -s "error $? during rrdtool graph ..."
 				return 1
 			}
