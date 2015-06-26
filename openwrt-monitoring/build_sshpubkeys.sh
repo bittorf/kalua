@@ -39,10 +39,10 @@ BASE="/var/www/networks/$NETWORK"
 	NUM2="$( echo $VERSION_NOW | cut -d'.' -f2 )"
 
 	if [ "$NUM2" = "9" ]; then
-		NUM2="0"
-		NUM1="$(( $NUM1 + 1 ))"
+		NUM2=0
+		NUM1=$(( $NUM1 + 1 ))
 	else
-		NUM2="$(( $NUM2 + 1 ))"
+		NUM2=$(( $NUM2 + 1 ))
 	fi
 
 	VERSION_NEW="$NUM1.$NUM2"
