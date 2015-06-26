@@ -20,15 +20,15 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	read frames_now <"$file_source" || return 0	# maybe no debugfs
 	echo "$frames_now $uptime_now" >"$file_old"
 
-	interval=$(( $uptime_now - $uptime_old ))
-	frames_diff=$(( $frames_now - $frames_old ))
-	frames_average=$(( $frames_diff / $interval ))
+	interval=$(( uptime_now - uptime_old ))
+	frames_diff=$(( frames_now - frames_old ))
+	frames_average=$(( frames_diff / interval ))
 
 	while read line; do {
 		if [ -n "$value" ]; then
 			test $line -eq 0 || {
-				value=$(( $value + $line ))
-				valid=$(( $valid + 1 ))
+				value=$(( value + line ))
+				valid=$(( valid + 1 ))
 			}
 			echo "$line"
 		else
@@ -39,7 +39,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	mv "$file_window.tmp" "$file_window"
 
 	[ $valid -gt 0 ] && {
-		frames_average_overall=$(( $value / $valid ))
+		frames_average_overall=$(( value / valid ))
 		val1=$frames_average
 		val2=$frames_average_overall
 
@@ -47,7 +47,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 			percentual_change=0
 		else
 			[ $val1 -eq 0 ] && val1=1
-			percentual_change=$(( (($val2 - $val1) * 100) / $val1 ))
+			percentual_change=$(( ((val2 - val1) * 100) / val1 ))
 		fi
 	}
 

@@ -76,7 +76,7 @@ output_table()
 	for gw_file in /tmp/OLSR/DEFGW_[0-9]*; do {
 		[ -e "$gw_file" ] && {
 			read i <"$gw_file"
-			all=$(( $all + $i ))
+			all=$(( all + i ))
 		}
 	} done
 
@@ -100,7 +100,7 @@ output_table()
 			'Gateway')
 				if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
 					read i <'/tmp/OLSR/DEFGW_empty'
-					[ $all -gt 0 ] && word="$word ($(( ($i * 100) / $all ))% Inselbetrieb)"
+					[ $all -gt 0 ] && word="$word ($(( (i * 100) / all ))% Inselbetrieb)"
 				elif inet_offer="$( _net local_inet_offer cached )"; then
 					word="$word (Einspeiser: $inet_offer)"
 				fi
@@ -204,10 +204,10 @@ output_table()
 	_olsr include
 	count=0
 	while read line; do {
-		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=1.875;COUNT=$(( $COUNT + 1 ))
+		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=1.875;COUNT=$(( COUNT + 1 ))
 		eval $line
 
-		count=$(( $count + 1 ))
+		count=$(( count + 1 ))
 		case "$LOCAL" in
 			"$WIFIADR")
 				iface_out="$WIFIDEV"
@@ -239,7 +239,7 @@ output_table()
 
 		if [ -e "/tmp/OLSR/DEFGW_$REMOTE" ]; then
 			read i <"/tmp/OLSR/DEFGW_$REMOTE"
-			[ $all -gt 0 ] && gateway_percent=$(( ($i * 100) / $all ))
+			[ $all -gt 0 ] && gateway_percent=$(( (i * 100) / all ))
 			gateway_percent="${gateway_percent}%"		# TODO: sometimes >100%
 
 			GATEWAY=;METRIC=;ETX=;INTERFACE=
@@ -350,7 +350,7 @@ output_table()
 #						noisefloor=95
 #					fi
 
-					snr="$(( 95 + $snr ))"
+					snr=$(( 95 + snr ))
 
 					# TODO: auto-adjust noise_base for this dev/channel
 					[ $snr -lt 0 ] && snr=0
@@ -489,7 +489,7 @@ EOF
 		age="$( _file age "/tmp/OLSR/isneigh_$neigh" humanreadable_verbose )"
 		build_remote_hostname "$neigh"
 		build_cost_best "$neigh"
-		count=$(( $count + 1 ))
+		count=$(( count + 1 ))
 		metric="$( _olsr remoteip2metric "$neigh" )"
 
 		echo "<tr>"
@@ -542,7 +542,7 @@ while read LINE; do {
 				;;
 				*)
 					NODE_LIST="$NODE_LIST $1 "
-					NODE_COUNT=$(( $NODE_COUNT + 1 ))
+					NODE_COUNT=$(( NODE_COUNT + 1 ))
 				;;
 			esac
 		;;
@@ -597,7 +597,7 @@ if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
 	if [ $GATEWAY_JITTER -eq 1 ]; then
 		GATEWAY_JITTER='nie'
 	else
-		GATEWAY_JITTER="$GATEWAY_JITTER &Oslash; alle $(( $UP_MIN / $GATEWAY_JITTER )) min"
+		GATEWAY_JITTER="$GATEWAY_JITTER &Oslash; alle $(( UP_MIN / GATEWAY_JITTER )) min"
 	fi
 else
 	GATEWAY_JITTER='nie'

@@ -72,7 +72,7 @@ return 0
 	# TODO: we cannot calc with 08:00!
 #	start_minutes_of_day=$(( $( echo "$cron_start" | cut -d':' -f1 ) * 60 ) + $( echo "$cron_start" | cut -d':' -f2 ) ))
 #	end_minutes_of_day=$((   $( echo "$cron_end"   | cut -d':' -f1 ) * 60 ) + $( echo "$cron_end"   | cut -d':' -f2 ) ))
-#	now_minutes_of_day=$((   ( $hour * 60 )                                +   $minute                              ))
+#	now_minutes_of_day=$((   ( $hour * 60 )                                +   minute                              ))
 
 	# e.g. 18:03 = after 18:00
 
@@ -185,7 +185,7 @@ _watch_coredump()
 
 	while file_list="$( ls -1t /tmp/*.core 2>/dev/null )"; do {
 		# reverse order / work on oldest (=last) first
-		for dump in $file_list; do count=$(( $count + 1 )); done
+		for dump in $file_list; do count=$(( count + 1 )); done
 
 		[ $exitcode -eq 0 ] || {
 			exitcode=0		# only during first iteration
@@ -336,15 +336,15 @@ _watch_dhcp_space()
 
 		set -- $line
 		if fgrep -q "$3" "/tmp/CLIENTS_LAN"; then
-			clients_lan=$(( $clients_lan + 1 ))
+			clients_lan=$(( clients_lan + 1 ))
 		else
-			clients_wifi=$(( $clients_wifi + 1 ))
+			clients_wifi=$(( clients_wifi + 1 ))
 		fi
 	} done <"$file"
 
 	[ ${max_lan:=0} -eq 0 ] || {
 		[ "$( uci get dhcp.lan.ignore )" = "1" ] || {
-			[ $clients_lan -gt $(( ($max_lan * $percent_border) / 100 )) ] && {
+			[ $clients_lan -gt $(( (max_lan * percent_border) / 100 )) ] && {
 				logprio="alert"
 			}
 		}
@@ -352,7 +352,7 @@ _watch_dhcp_space()
 
 	[ ${max_wifi:=0} -eq 0 ] || {
 		[ "$( uci get dhcp.wifi.ignore )" = "1" ] || {
-			[ $clients_wifi -gt $(( ($max_wifi * $percent_border) / 100 )) ] && {
+			[ $clients_wifi -gt $(( (max_wifi * percent_border) / 100 )) ] && {
 				logprio="alert"
 			}
 		}
@@ -577,18 +577,18 @@ _watch_system_time()
 
 	# clock older than buildtime OR
 	# buildtime is newer than clock?
-	[ $((  $FFF_PLUS_VERSION * 3600 ))		-gt $unixtime ] && ntp_ok='false'
+	[ $((  FFF_PLUS_VERSION * 3600 ))		-gt $unixtime ] && ntp_ok='false'
 
 	# buildtime much older (4 years) than clock
 	# (yes, i have seen _many_ routers with date 2020/2037!)
-	[ $(( ($FFF_PLUS_VERSION * 3600) + 135000000 ))	-lt $unixtime ] && ntp_ok='false'
+	[ $(( (FFF_PLUS_VERSION * 3600) + 135000000 ))	-lt $unixtime ] && ntp_ok='false'
 
 	_ntp set is_unset && ntp_ok='false'
 
 	[ "$ntp_ok" = 'false' ] && {
 		_ntp set force
 
-		[ $(( $FFF_PLUS_VERSION * 3600 )) -gt $( _system date unixtime ) ] && {
+		[ $(( FFF_PLUS_VERSION * 3600 )) -gt $( _system date unixtime ) ] && {
 			_log do $funcname daemon alert "could'nt set time - trying poor mens timeserver - fixme!"
 		}
 	}
@@ -754,7 +754,7 @@ _watch_flash_free_space()
 				:
 			else
 				# if this fails, exclude this file from next try
-				>"$file" || topposition=$(( $topposition + 1 ))
+				>"$file" || topposition=$(( topposition + 1 ))
 			fi
 
 			_log do $funcname daemon info "only $flash_free kb free - removed '$file' with $size bytes"
@@ -1136,7 +1136,7 @@ _watch_webserver()
 
 	if [ -e "/www/$checkfile" ]; then
 		while [ ${size_gethttp:-0} -eq 0 ]; do {
-			i=$(( $i + 1 ))
+			i=$(( i + 1 ))
 			[ $i -gt 1 ] && {
 				_log do $funcname daemon info "size_gethttp = 0, try $i"
 				[ $i -gt 5 ] && break
@@ -1186,7 +1186,7 @@ _watch_webserver()
 		local duration="$( _stopwatch stop "$funcname" nolog )"
 
 		[ $duration -gt 175 ] && {		# = 1.75 sec
-			_log do $funcname daemon alert "last too long: $(( $duration / 100 )).$(( $duration % 100 )) sec"
+			_log do $funcname daemon alert "last too long: $(( duration / 100 )).$(( duration % 100 )) sec"
 		}
 
 		[ "$( _weblogin authserver )" = "$LANADR" ] && {
@@ -1394,10 +1394,10 @@ _watch_counter()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || 
 
 	case "$mode" in
 		'increment')
-			value="$(( ${value:-0} + $mode_value ))"
+			value=$(( ${value:-0} + mode_value ))
 		;;
 		'decrement')
-			value="$(( ${value:-0} - $mode_value ))"
+			value=$(( ${value:-0} - mode_value ))
 		;;
 		'set')
 			value="$mode_value"
@@ -1771,7 +1771,7 @@ _watch_wifistuff()
 		uptime_new="$( _system uptime sec )"
 		read uptime_old 2>/dev/null <"$file_uptime"
 		echo "$uptime_new" >"$file_uptime"
-		uptime_diff="$(( $uptime_new - ${uptime_old:-0} ))"
+		uptime_diff=$(( uptime_new - ${uptime_old:-0} ))
 
 		[ $uptime_diff -gt 65 ] && \
 			_log do $funcname daemon info "[ERR] timediff > 60 sec = $uptime_diff"
@@ -1833,7 +1833,7 @@ _watch_wifistuff()
 				}
 			}
 
-			_log do $funcname daemon debug "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer do "$framecount_old + $(( $framecount_new - $framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
+			_log do $funcname daemon debug "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer do "$framecount_old + $(( framecount_new - framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
 			return $good
 		fi
 

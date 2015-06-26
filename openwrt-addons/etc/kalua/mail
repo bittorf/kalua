@@ -51,7 +51,7 @@ _mail_pop3_check_stats()
 	[ "$option" = "force" ] && rm "$file"
 	[ -e "$file" ] && read uptime_lastcheck <"$file"
 
-	[ $(( $uptime - ${uptime_lastcheck:-0} )) -le 180 ] && {
+	[ $(( uptime - ${uptime_lastcheck:-0} )) -le 180 ] && {
 		_log do $funcname daemon debug "no need to auth"
 		return 0	# http://faq.gmx.de/messages/email/mailprogramme/smtp_sicherheit/3.html
 	}
@@ -486,42 +486,34 @@ _mail_encode_quoted_printable()		# http://en.wikipedia.org/wiki/Quoted-printable
 			esac
 
 			if   [ ${#LINE} -lt $BUFFER ]; then
-
 				LINE="$( echo "$LINE" | sed 's/=00$//' )"
 				echo -en "$LINE\r\n"
 				break
-
-#				echo -n "$LINE"
-#				BUFFER=$(( $BUFFER - ${#LINE} ))
-#				break		# fetch next LINE
-
 			elif [ ${#LINE} -eq $BUFFER ]; then
-
 				echo "${LINE}="
 				BUFFER=$WRAP
 				break		# fetch next LINE
 			else
 				# means: ${#LINE} -gt $BUFFER
-
 				OUTPUT="$( echo "$LINE" | cut -b $WINDOWSTART-$BUFFER )"	# fixme! newer busybox can 'echo ${A:5:7}'
 
 				case "$OUTPUT" in
 					*=|*" ")				# =A0 at the end (encoded) must not be wrapped
-						BUFFER=$(( $BUFFER - 1 ))
+						BUFFER=$(( BUFFER - 1 ))
 						OUTPUT="$( echo "$OUTPUT" | cut -b $WINDOWSTART-$BUFFER )"
 					;;
 					*=?|*" 0")				# means: '=' and <anychar> at the end
-						BUFFER=$(( $BUFFER - 2 ))
+						BUFFER=$(( BUFFER - 2 ))
 						OUTPUT="$( echo "$OUTPUT" | cut -b $WINDOWSTART-$BUFFER )"
 					;;
 					*=??)
-						BUFFER=$(( $BUFFER - 3 ))
+						BUFFER=$(( BUFFER - 3 ))
 						OUTPUT="$( echo "$OUTPUT" | cut -b $WINDOWSTART-$BUFFER )"
 					;;
 				esac
 
 				echo -en "${OUTPUT}=\r\n"
-				LINE="$( echo "$LINE" | cut -b $(( $BUFFER + 1 ))- )"	# idea: simply raise startcounter
+				LINE="$( echo "$LINE" | cut -b $(( BUFFER + 1 ))- )"	# idea: simply raise startcounter
 				BUFFER=$WRAP
 			fi
 

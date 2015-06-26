@@ -69,7 +69,7 @@ stopwatch()
 		T1="$2"
 		read T2 REST </proc/uptime
 		DURATION=$(( ${T2%.*}${T2#*.} - ${T1%.*}${T1#*.} ))
-		DURATION=$(( $DURATION / 100 )).$(( $DURATION % 100 ))
+		DURATION=$(( DURATION / 100 )).$(( DURATION % 100 ))
 
 		echo "$DURATION"
 	fi
@@ -88,11 +88,11 @@ show_progress()
 	[ -z "$TIME_START" ] && TIME_START="$( date )"
 	[ -z "$UNIXTIME_START" ] && UNIXTIME_START="$( date +%s )"
 
-	TIME_SPENDED=$(( $(date +%s) - $UNIXTIME_START ))
-	BUILD_DONE=$(( $BUILD_GOOD + $BUILD_BAD + 1 ))
-	TIME_PER_IMAGE=$(( $TIME_SPENDED / $BUILD_DONE ))
-	BUILD_PENDING=$(( $BUILD_ALL - $BUILD_DONE ))
-	TIME_LEFT=$(( ($TIME_SPENDED * $BUILD_PENDING) / 60 ))		# mins
+	TIME_SPENDED=$(( $(date +%s) - UNIXTIME_START ))
+	BUILD_DONE=$(( BUILD_GOOD + BUILD_BAD + 1 ))
+	TIME_PER_IMAGE=$(( TIME_SPENDED / BUILD_DONE ))
+	BUILD_PENDING=$(( BUILD_ALL - BUILD_DONE ))
+	TIME_LEFT=$(( (TIME_SPENDED * BUILD_PENDING) / 60 ))		# mins
 	BUILD_PROGRESS="[images build: $BUILD_DONE/$BUILD_ALL -> $BUILD_PENDING left - $TIME_PER_IMAGE sec/image - $TIME_LEFT mins left]"
 
 	log "# $BUILD_PROGRESS"
@@ -122,7 +122,7 @@ BUILD_ALL=0
 
 for HW in $HW_LIST; do {
 	for OPT in $( list_options ); do {
-		BUILD_ALL=$(( $BUILD_ALL + 1 ))
+		BUILD_ALL=$(( BUILD_ALL + 1 ))
 	} done
 } done
 
@@ -135,10 +135,10 @@ for HW in $HW_LIST; do {
 		log "# $BUILD --quiet --hardware '$HW' --usecase '$OPT' --openwrt $REV --release '$MODE' '$DEST'"
 
 		if     $BUILD --quiet --hardware "$HW" --usecase "$OPT" --openwrt $REV --release "$MODE" "$DEST" ; then
-			BUILD_GOOD=$(( $BUILD_GOOD + 1 ))
+			BUILD_GOOD=$(( BUILD_GOOD + 1 ))
 			log "[OK] in $( stopwatch stop "$T1" ) sec"
 		else
-			BUILD_BAD=$(( $BUILD_BAD + 1 ))
+			BUILD_BAD=$(( BUILD_BAD + 1 ))
 			log "[FAILED] after $( stopwatch stop "$T1" ) sec"
 			# e.g. image too large - ignore and do next
 			git checkout master

@@ -17,7 +17,7 @@ case "${BUTTON}-${ACTION}" in
 		read START 2>/dev/null <'/tmp/BUTTON' || START="${UP%.*}"
 
 		END="${UP%.*}${UP#*.}"
-		DIFF=$(( $END - $START ))
+		DIFF=$(( END - START ))
 
 		# FIXME! DIFF = 1000 -> 10 seconds
 		logger -s -- "$0: button '$BUTTON' released after $DIFF millisec"
@@ -41,7 +41,7 @@ case "${BUTTON}-${ACTION}" in
 
 			if [ -e "$file" ]; then
 				read dummy i <"$file"
-				i=$(( $i + 1 ))
+				i=$(( i + 1 ))
 
 				killall madplay
 				# play a jingle? -> http://ctrlq.org/listen/

@@ -79,7 +79,7 @@ EOF
 				local OBJ
 
 				for OBJ in $LIST; do {
-					I=$(( $I + 1 ))
+					I=$(( I + 1 ))
 					[ $I -eq $N ] && {
 						echo $OBJ
 						break
@@ -89,9 +89,9 @@ EOF
 
 			I=0
 			for IP in $LIST; do {
-				I=$(( $I + 1 ))
+				I=$(( I + 1 ))
 				IP_LOCAL="$(  list_get_element "$LIST" $I )"
-				IP_REMOTE="$( list_get_element "$LIST" $(( $I + 1 )) )"
+				IP_REMOTE="$( list_get_element "$LIST" $(( I + 1 )) )"
 
 				[ -n "$IP_REMOTE" ] && _speedtest do $IP_LOCAL $IP_REMOTE $METHOD $DURATION
 			} done
@@ -209,7 +209,7 @@ EOF
 						wget -qO /dev/null "http://$IP_TARGET/cgi-bin-tool.sh?OPT=download" &
 						PID_OF_TOOL="$!"
 						SHELL_UNDOCKED="true"
-						DURATION=$(( $DURATION + 5 ))
+						DURATION=$(( DURATION + 5 ))
 					;;
 					poormens_tcpdownload2)
 						case "$IP_TARGET" in
@@ -238,11 +238,11 @@ EOF
 					;;
 					tcpdownload)
 						$IPT -I INPUT -p tcp -s $IP_TARGET
-						netperf_fire $IP_TARGET TCP_MAERTS $(( $DURATION * 2 ))
+						netperf_fire $IP_TARGET TCP_MAERTS $(( DURATION * 2 ))
 					;;
 					udpdownload)
 						$IPT -I INPUT -p udp -s $IP_TARGET
-						netperf_fire $IP_TARGET UDP_MAERTS $(( $DURATION * 2 ))		# fixme! older netperf's do not know this method
+						netperf_fire $IP_TARGET UDP_MAERTS $(( DURATION * 2 ))		# fixme! older netperf's do not know this method
 					;;
 				esac
 			;;
@@ -252,11 +252,11 @@ EOF
 				case "$METHOD" in		# seems that dport (12865?) changes randomly, so it's a bit inexact
 					udpupload)
 						$IPT -I OUTPUT -p udp -d $IP_TARGET
-						netperf_fire $IP_TARGET UDP_STREAM $(( $DURATION * 2 ))
+						netperf_fire $IP_TARGET UDP_STREAM $(( DURATION * 2 ))
 					;;
 					tcpupload)
 						$IPT -I OUTPUT -p tcp -d $IP_TARGET
-						netperf_fire $IP_TARGET TCP_STREAM $(( $DURATION * 2 ))
+						netperf_fire $IP_TARGET TCP_STREAM $(( DURATION * 2 ))
 					;;
 					poormens_tcpupload)
 						$IPT -I OUTPUT -p tcp -d $IP_TARGET
@@ -275,7 +275,7 @@ EOF
 							echo "Content-Length: $size"
 							echo
 
-							dd if=/dev/zero bs=64k count=$(( $size / 65536 )) 2>&-
+							dd if=/dev/zero bs=64k count=$(( size / 65536 )) 2>&-
 						}
 
 						generate_fake_http_data $IP_TARGET 1 megabyte | nc $IP_TARGET 80 >/dev/null
@@ -299,7 +299,7 @@ EOF
 					_log do $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
 				}
 
-				while [ ${DURATION_COUNTER:=0} -lt $(( $DURATION / 2 )) ]; do {
+				while [ ${DURATION_COUNTER:=0} -lt $(( DURATION / 2 )) ]; do {
 
 					[ "$DIRECTION" = "upload" -a "$DEVTYPE" = "wifi" -a "${METRIC_BEGIN:=0}" = "1" ] && {
 
@@ -312,20 +312,20 @@ EOF
 
 						[ $RATE -gt ${RATE_MAX:-0}	] && RATE_MAX="$RATE"
 						[ $RATE -lt ${RATE_MIN:-600000}	] && RATE_MIN="$RATE"
-						RATE_AVG="$(( ${RATE_AVG:-0} + $RATE ))"
-						RATE_SAMPLES="$(( ${RATE_SAMPLES:-0} + 1 ))"
+						RATE_AVG=$(( ${RATE_AVG:-0} + RATE ))
+						RATE_SAMPLES=$(( ${RATE_SAMPLES:-0} + 1 ))
 
 						_log do $FUNC daemon debug "rate: $RATE"
 					}
 
 					sleep 1
-					DURATION_COUNTER="$(( $DURATION_COUNTER + 1 ))"
+					DURATION_COUNTER=$(( DURATION_COUNTER + 1 ))
 				} done
 			}
 		}
 
 		DURATION_COUNTER=0
-		RATE_AVG="$(( ${RATE_AVG:-0} / ${RATE_SAMPLES:-1} ))"
+		RATE_AVG=$(( ${RATE_AVG:-0} / ${RATE_SAMPLES:-1} ))
 
 		LOAD_END="$( _system load 1min )"
 		METRIC_END="$( _olsr remoteip2metric $IP_TARGET )"
@@ -348,7 +348,7 @@ EOF
 		esac
 
 		trap - SIGINT						# unset
-		SPEED="$(( ${BYTES:=0} / $DURATION_REAL / 10 ))"	# kilobytes / second ; 1 Kilobyte = 1000 Bytes
+		SPEED=$(( ${BYTES:=0} / DURATION_REAL / 10 ))		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
 
 		case "$METHOD" in
 			poormens_tcpdownload)
@@ -367,18 +367,18 @@ EOF
 		kilobyte2megabit()
 		{
 			local kilobyte="$1"
-			local mbit="$(( $kilobyte * 8 ))"
+			local mbit=$(( kilobyte * 8 ))
 			local out rest
 
 			if [ $mbit -lt 1000 ]; then
 				if [ $mbit -lt 100 ]; then
-					out="0.0$(( $mbit % 1000 ))"				#   10 Kilobyte -> x8 =    80 Kilobit -> 0.08 mbit
+					out="0.0$(( mbit % 1000 ))"				#   10 Kilobyte -> x8 =    80 Kilobit -> 0.08 mbit
 				else
-					out="0.$( echo $(( $mbit % 1000 )) | cut -b1,2 )"	#  100 Kilobyte -> x8 =   800 Kilobit -> 0.80 mbit
+					out="0.$( echo $(( mbit % 1000 )) | cut -b1,2 )"	#  100 Kilobyte -> x8 =   800 Kilobit -> 0.80 mbit
 				fi
 			else
-				out="$(( $mbit / 1000 ))"
-				rest="$( echo $(( $mbit % 1000 )) | cut -b1 )"
+				out="$(( mbit / 1000 ))"
+				rest="$( echo $(( mbit % 1000 )) | cut -b1 )"
 
 				if   [ $rest -lt 10 ]; then
 					rest="00$rest"
@@ -438,9 +438,9 @@ _speedtest_store()				# fixme! metric_begin/end differs? don't use it for speed_
 	[ "${SPEED_MAX:=0}"     -lt "$SPEED"	] && SPEED_MAX="$SPEED"
 	[ "${SPEED_MIN:=15000}" -gt "$SPEED"	] && SPEED_MIN="$SPEED"
 
-	SAMPLES="$(( ${SAMPLES:-0} + 1 ))"
-	SPEED_SUM="$(( ${SPEED_SUM:-0} + $SPEED ))"
-	SPEED_AVG="$(( $SPEED_SUM / $SAMPLES ))"
+	SAMPLES=$(( ${SAMPLES:-0} + 1 ))
+	SPEED_SUM=$(( ${SPEED_SUM:-0} + SPEED ))
+	SPEED_AVG=$(( SPEED_SUM / SAMPLES ))
 
 	_log do $FUNC daemon info "SPEED_AVG=$SPEED_AVG - $VALUES in '$DIR/$TIME' and '$DIR/stats'"
 	echo "$VALUES" >"$DIR/$TIME"

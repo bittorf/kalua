@@ -127,7 +127,7 @@ build_tarball_package()
 	local architecture='all'
 	local package_name="$KALUA_DIRNAME-framework"
 	local kalua_unixtime="$( cd $KALUA_DIRNAME; git log -1 --pretty='format:%ct'; cd .. )"
-	local package_version="$(( $kalua_unixtime / 3600 ))"
+	local package_version=$(( kalua_unixtime / 3600 ))
 	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
 
 	local builddir="$KALUA_DIRNAME/builddir"
@@ -1000,7 +1000,7 @@ check_working_directory()
 		if git log | grep -q "$pattern"; then
 			# search most recent 'good' commit
 			while ! git log -$i | grep -q "$pattern"; do {
-				i=$(( $i + 1 ))
+				i=$(( i + 1 ))
 			} done
 
 			log "the last commit MUST include pattern '$pattern', seems you have private"
@@ -1349,7 +1349,7 @@ build()
 	local funcname='build'
 	local option="$1"
 	local cpu_count="$( grep -c ^'processor' '/proc/cpuinfo' )"
-	local jobs=$(( $cpu_count + 1 ))
+	local jobs=$(( cpu_count + 1 ))
 	local commandline="--jobs $jobs BUILD_LOG=1"
 	local verbose t1 t2 rest
 	[ -n "$DEBUG" ] && verbose='V=s'
@@ -1415,7 +1415,7 @@ apply_symbol()
 			cd $KALUA_DIRNAME
 			VERSION_KALUA="$( git log -1 --format=%h )"
 			last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
-			last_commit_unixtime_in_hours=$(( $last_commit_unixtime / 3600 ))
+			last_commit_unixtime_in_hours=$(( last_commit_unixtime / 3600 ))
 			last_commit_date="$( date -d @$last_commit_unixtime )"
 
 			case "$symbol" in
@@ -1607,7 +1607,7 @@ apply_symbol()
 			tar czf "$custom_dir.tgz" "$custom_dir"
 			set -- $( du -s "$custom_dir.tgz" && rm "$custom_dir.tgz" )
 			size2="$1"
-			gain=$(( $size2 * 100 / $size1 ))
+			gain=$(( size2 * 100 / size1 ))
 			log "[OK] custom dir '$custom_dir' adds $size1 kilobytes (~${size2}k = ${gain}% compressed) to your image"
 
 			return 0
@@ -2471,7 +2471,7 @@ check_scripts()
 					rm "$tempfile"
 					return 1
 				}
-				i=$(( $i + 1 ))
+				i=$(( i + 1 ))
 
 				grep '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 >>"$tempfile_functions"
 			;;

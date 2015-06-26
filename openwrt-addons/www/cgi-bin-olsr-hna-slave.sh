@@ -21,7 +21,7 @@ knowing_hna_already()
 			;;
 		esac
 
-		i=$(( $i + 1 ))
+		i=$(( i + 1 ))
 	done
 }
 

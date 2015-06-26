@@ -82,13 +82,13 @@ _netfilter_traffic_control_show()
 		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
 		if [ -e "$file" ]; then
 			read dummy dummy dummy dummy dummy down up dummy <"$file"
-			speed="$(( $down / 1024 )):$(( $up / 1024 ))"
+			speed="$(( down / 1024 )):$(( up / 1024 ))"
 
 			file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
 			[ -e "$file" ] && {
 				read down up method <"$file"
 				[ "$method" = "initial" ] || {
-					speed="$speed -> $method -> $(( $down / 1024 )):$(( $up / 1024 ))"
+					speed="$speed -> $method -> $(( down / 1024 )):$(( up / 1024 ))"
 				}
 			}
 		else
@@ -239,7 +239,7 @@ _netfilter_traffic_control_user_add()
 	# fixme! use a sieve, always fillup from bottom?
 	_watch counter "/tmp/TRAFFIC_CONTROL_users_$interface" increment 2
 	read i <"/tmp/TRAFFIC_CONTROL_users_$interface"
-	j=$(( $i - 1 ))
+	j=$(( i - 1 ))
 
 	# this is a helper for next function
 	echo "$mac $ip $interface $j $i $speed_down $speed_up" >/tmp/NETFILTER/USER/$mac/traffic_control_params
@@ -361,13 +361,13 @@ _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower 
 
 	local traffic_border=2000	# [megabyte] fixme! should depend from initial_speed
 	local percent2=100
-	local percent=$(( 100 - ( ($traffic * 100) / $traffic_border ) ))	# e.g. 50%
+	local percent=$(( 100 - ( (traffic * 100) / traffic_border ) ))		# e.g. 50%
 
 	[ "$option" = "respect_time" ] && {
 		percent2="$( _netfilter traffic_control_suggest_timepercent )"
 	}
 
-	percent=$(( ($percent2 * $percent) / 100 ))	# 40% x 75% -> 30%
+	percent=$(( (percent2 * percent) / 100 ))	# 40% x 75% -> 30%
 
 	[ $percent -lt 1 ] && percent=1
 	echo "$percent"
@@ -462,16 +462,16 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 
 		case "$method" in
 			"+"*)
-				new_speed_down=$(( $speed_down * ( 100 + ${speed_change} ) / 100 ))
-				new_speed_up=$((   $speed_up   * ( 100 + ${speed_change} ) / 100 ))
+				new_speed_down=$(( speed_down * ( 100 + ${speed_change} ) / 100 ))
+				new_speed_up=$((   speed_up   * ( 100 + ${speed_change} ) / 100 ))
 			;;
 			"-"*)
-				new_speed_down=$(( $speed_down * ( 100 - ${speed_change} ) / 100 ))
-				new_speed_up=$((   $speed_up   * ( 100 - ${speed_change} ) / 100 ))
+				new_speed_down=$(( speed_down * ( 100 - ${speed_change} ) / 100 ))
+				new_speed_up=$((   speed_up   * ( 100 - ${speed_change} ) / 100 ))
 			;;
 			*"%")
-				new_speed_down=$(( ( $speed_down * ${speed_change} ) / 100 ))
-				new_speed_up=$((   ( $speed_up   * ${speed_change} ) / 100 ))
+				new_speed_down=$(( ( speed_down * ${speed_change} ) / 100 ))
+				new_speed_up=$((   ( speed_up   * ${speed_change} ) / 100 ))
 			;;
 			initial)
 				params="$mac $ip $interface $classid_download $classid_upload $speed_down $speed_up"
@@ -602,10 +602,10 @@ _netfilter_stats()
 			echo "$bytes"
 		;;
 		kilobytes)
-			echo $(( $bytes / 1000 ))
+			echo $(( bytes / 1000 ))
 		;;
 		megabytes)
-			echo $(( $bytes / 1000000 ))
+			echo $(( bytes / 1000000 ))
 		;;
 	esac
 }
@@ -635,7 +635,7 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 		if [ $max -lt 16384 ]; then
 			max=1024
 		else
-			max=$(( ($max * 3) / 2 ))	# x1.5
+			max=$(( (max * 3) / 2 ))	# x1.5
 		fi
 	}
 
@@ -644,10 +644,10 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 	}
 
 	read old_buckets <"/proc/sys/net/netfilter/nf_conntrack_buckets"
-	buckets=$(( $max / 8 ))
+	buckets=$(( max / 8 ))
 	[ $buckets -gt 1816 ] && buckets=1816		# klog/moduleinfo says this is max
 
-	_log do $funcname daemon info "set $old_max -> $max conntrack-entries / $old_buckets -> $buckets buckets, needs $(( ($max * 350) / 1024 )) kilobytes (each 350 bytes)"
+	_log do $funcname daemon info "set $old_max -> $max conntrack-entries / $old_buckets -> $buckets buckets, needs $(( (max * 350) / 1024 )) kilobytes (each 350 bytes)"
 #	echo "$max" >"$file"		# check usage via: wc -l /proc/net/nf_conntrack
 #	echo "$buckets" >"$file_buckets"
 }
@@ -1460,7 +1460,7 @@ _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
 		case "$line" in
 			*'incoming_'*)
 				set -- $line
-				bytes_incoming=$(( $bytes_incoming + $2 ))
+				bytes_incoming=$(( bytes_incoming + $2 ))
 				mac="${3#*_}"
 			;;
 			*"outgoing_"*)
@@ -1580,7 +1580,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 				}
 			}
 
-			try=$(( $try - 1 ))
+			try=$(( try - 1 ))
 		} done
 	} done
 
@@ -1985,19 +1985,19 @@ _netfilter_user_stats_process()
 			bytes_incoming="$2"
 			bytes_outgoing="$3"
 
-			uptime_diff=$(( $uptime - ${uptime_old:-$uptime} ))
+			uptime_diff=$(( uptime - ${uptime_old:-$uptime} ))
 			uptime_old="$uptime"
 
-			bytes_incoming_diff=$(( $bytes_incoming - ${bytes_incoming_old:-$bytes_incoming} ))
+			bytes_incoming_diff=$(( bytes_incoming - ${bytes_incoming_old:-$bytes_incoming} ))
 			bytes_incoming_old="$bytes_incoming"
-			bytes_incoming_sum=$(( $bytes_incoming_sum + $bytes_incoming_diff ))
+			bytes_incoming_sum=$(( bytes_incoming_sum + bytes_incoming_diff ))
 
-			bytes_outgoing_diff=$(( $bytes_outgoing - ${bytes_outgoing_old:-$bytes_outgoing} ))
+			bytes_outgoing_diff=$(( bytes_outgoing - ${bytes_outgoing_old:-$bytes_outgoing} ))
 			bytes_outgoing_old="$bytes_outgoing"
-			bytes_outgoing_sum=$(( $bytes_outgoing_sum + $bytes_outgoing_diff ))
+			bytes_outgoing_sum=$(( bytes_outgoing_sum + bytes_outgoing_diff ))
 
 			[ $bytes_incoming_diff -gt 0 -o $bytes_outgoing_diff -gt 0 ] && {
-				time_used=$(( $time_used + $uptime_diff ))
+				time_used=$(( time_used + uptime_diff ))
 			}
 
 		} done <"/tmp/NETFILTER/USER/$mac/stats"
@@ -2010,7 +2010,7 @@ _netfilter_user_stats_process()
 		# CAH = client authentication hash
 
 		read ip </tmp/NETFILTER/MAC2IP/$mac
-		[ $(( $bytes_incoming_sum + $bytes_outgoing_sum )) -eq 0 ] && {
+		[ $(( bytes_incoming_sum + bytes_outgoing_sum )) -eq 0 ] && {
 #			_netfilter user_reachable "$mac" "$ip" >/dev/null || _netfilter user_del "$mac" 'no_traffic'
 
 			continue	# dont generate any message for this user
@@ -2022,7 +2022,7 @@ _netfilter_user_stats_process()
 			hash=
 		fi
 
-		count=$(( $count + 1 ))
+		count=$(( count + 1 ))
 		mac="${mac//:/%3a}"		# urlencode
 		message="${message}${message:+&}CMA_${count}=${mac}&CIA=${ip}&CTU_${count}=${time_used}&CBI_${count}=${bytes_incoming_sum}&CBO_${count}=${bytes_outgoing_sum}&CAH_${count}=${hash}"
 	} done
@@ -2056,8 +2056,8 @@ _netfilter_user_stats_process()
 						unixtime_server="$( echo "$mac" | cut -d'=' -f2 )"
 						unixtime_now="$( date +%s )"
 
-						[ $(( $unixtime_now - $unixtime_server )) -gt 600 -o \
-						  $(( $unixtime_server - $unixtime_now )) -gt 600 ] && {
+						[ $(( unixtime_now - unixtime_server )) -gt 600 -o \
+						  $(( unixtime_server - unixtime_now )) -gt 600 ] && {
 							_log do $funcname daemon info "timeset to $unixtime_server - was: $unixtime_now"
 							datestring="$( date -d @$unixtime_server "+%Y-%m-%d %H:%M:%S" )"
 							date --set "$datestring"
