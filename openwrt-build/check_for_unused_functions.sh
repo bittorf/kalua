@@ -3,18 +3,26 @@
 count_occurence_of_string()
 {
 	local string="$1"
+	local tempfile='/tmp/count_occurence_of_string'
 	local file
 
-	for file in $( find . -type f ); do {
+	find . -type f >"$tempfile"
+
+	while read file; do {
 		fgrep "$string" "$file"
-	} done | wc -l
+	} done <"$tempfile" | wc -l
+
+	rm "$tempfile"
 }
 
 list_all_function_names()
 {
 	local file line name name_sanitized
+	local tempfile='/tmp/list_all_function_names'
 
-	for file in $( find . -type f ); do {
+	find . -type f >"$tempfile"
+
+	while read file; do {
 		while read line; do {
 			case "$line" in
 				*"()"*)
@@ -29,7 +37,9 @@ list_all_function_names()
 				;;
 			esac
 		} done <"$file"
-	} done
+	} done <"$tempfile"
+
+	rm "$tempfile"
 }
 
 for NAME in $( list_all_function_names ); do {

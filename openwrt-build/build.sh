@@ -37,7 +37,7 @@ print_usage_and_exit()
 		# last used one
 		set -- $( tail -n1 'KALUA_HISTORY' )
 		shift
-		hardware="$@"
+		hardware="$*"
 	else
 		hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
 	fi
@@ -935,7 +935,7 @@ check_working_directory()
 			ln -s ../openwrt_download 'openwrt/dl'
 		else
 			log "[OK] no central download pool - but if you want this,"
-			log "please run: `mkdir openwrt_download` before starting this script"
+			log "please run: 'mkdir openwrt_download' before starting this script"
 		fi
 
 		[ -d 'packages' ] && {
@@ -1176,7 +1176,7 @@ openwrt_download()
 			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
 			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 
-			[ -n "$( git stash list | grep -v '() going to checkout ' )" ] && {
+			git stash list | grep -qv '() going to checkout ' && {
 				log "found openwrt-stash, ignore via press 'q'"
 				log "or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git stash clear'"
 
@@ -1679,7 +1679,7 @@ apply_symbol()
 			if grep -sq ^"$symbol=y" "$file"; then
 				sed -i "s/^${symbol}=y/# $symbol is not set/" "$file"
 			else
-				grep -sq "$symbol" "$file" || echo >>"$file" "# $@"
+				grep -sq "$symbol" "$file" || echo >>"$file" "# $*"
 			fi
 		;;
 		'CONFIG_'*)
@@ -2389,7 +2389,7 @@ mimetype_get()
 	local mimetype
 
 	set -- $( file '--mime-type' "$file" )
-	mimetype="$@"
+	mimetype="$*"
 	mimetype=${mimetype##* }	# last word
 
 	case "$mimetype" in
@@ -2498,7 +2498,7 @@ myarch()
 unittest_do()
 {
 	local funcname='unittest_do'
-	local shellcheck_bin build_loader file ignore
+	local shellcheck_bin build_loader ignore file tempfile filelist
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
 		build_loader='openwrt-addons/etc/kalua_init'
@@ -2558,28 +2558,71 @@ unittest_do()
 		if [ -z "$shellcheck_bin" ]; then
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
-			log "testing with '$shellcheck_bin'"
+			# SC1010: "_log do ...' -> 'do' is a special keyword
+			# SC2154: using unassigned vars, e.g from QUERY_STRING
+			# SC2012: use 'find' instead of 'ls -1 bla_*'
+			# SC2039: not allowed: echo -en
+			# SC2155: local var="$( bla )" -> loosing returncode
+			# SC2034: QUERY_STRING appears unused. Verify it or export it
+			# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
+			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
+			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
+			# SC2090: test ${#HASH} -eq 32 => Quotes/backslashes in this variable will not be respected.
+			# SC2089: OPTION="A='$OPTION';" => Quotes/backslashes will be treated literally. Use an array.
+			# SC2059: printf "\\$( printf "%o" 0x$hexbyte )" => Don't use variables in the printf format string.
+			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
+			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
+			# SC2120: function references arguments (e.g. $1), but none are ever passed.
+			# SC2119: Use cleanup "$@" if function's $1 should mean script's $1. => FIXME! in kalua/mail ???
+			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
+			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
+			# SC2088: echo '~' => Note that ~ does not expand in quotes.
+			# SC2030: FIXME! eval-hack...
+			# SC2031: FIXME! ...in net_local_inet_offer()
+			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
+			# SC2094: FIXME! (olsr) Make sure not to read and write the same file in the same pipeline.
+			# SC2102: case "A" in [$var][$var]) ... => Ranges can only match single chars (mentioned due to duplicates).
+			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
+			# SC1003: a='\' => Are you trying to escape that single quote?
+			# SC2153: Possible misspelling: WIFIDEV may not be assigned, but WIFI_DEV is.
+			# SC2009: FIXME! (find zombies) Consider using pgrep instead of grepping ps output.
+			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
+			ignore='SC1010,SC2154,SC2012,SC2039,SC2155,SC2034,SC2046,SC2086,SC1007,SC2090,SC2089'
+			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2119,SC2018,SC2019,SC2088,SC2030,SC2031"
+			ignore="${ignore},SC2016,SC2094,SC2102,SC2064,SC1003,SC2153,SC2009,SC2029"
 
-			# strip non-ascii: tr -cd '\11\12\15\40-\176' <"$file" >"$newfile"
-			for file in openwrt-addons/www/*; do {
-				case "$( mimetype_get "$file" )" in
-					'text/x-shellscript')
-						# SC1010 => "_log do ...' -> 'do' is a special keyword
-						# SC2154 => using unassigned vars, e.g from QUERY_STRING
-						# SC2012 => use 'find' instead of 'ls -1 bla_*'
-						# SC2039 => not allowed: echo -en
-						# SC2004 => $(( $var + 1 )) -> $(( var + 1 ))
-						# SC2155 => local var="$( bla )" -> loosing returncode
-						# SC2034 =>
-						# SC2046 =>
-						# SC2086 =>
-						ignore='SC1010,SC2154,SC2012,SC2039,SC2004,SC2155,SC2034,SC2046,SC2086'
+			log "testing with '$shellcheck_bin', ignoring: $ignore"
+			tempfile='/dev/shm/shellcheck'
+			filelist='/dev/shm/filelist'
+			find "openwrt-addons" "openwrt-build" -type f -not -iwholename '*.git*' >"$filelist"
 
-						$shellcheck_bin -e $ignore "$file" || return 1
-						log "[OK] shellcheck: $file"
+#			for file in openwrt-addons/www/* openwrt-addons/etc/kalua/*; do {
+			while read file; do {
+				case "$file" in
+					'openwrt-build/mybuild.sh')
+						# these files are deprecated/unused
+						continue
 					;;
 				esac
-			} done
+
+				case "$( mimetype_get "$file" )" in
+					'text/x-shellscript')
+						# strip non-ascii chars, otherwise the parser can fail with
+						# openwrt-addons/etc/kalua/mail: hGetContents: invalid argument (invalid byte sequence)
+						tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
+
+						if $shellcheck_bin -e $ignore "$tempfile"; then
+							rm "$tempfile"
+							log "[OK] shellcheck: '$file'"
+						else
+							log "[ERR] in file '$file'"
+							rm "$tempfile" "$filelist"
+							return 1
+						fi
+					;;
+				esac
+			} done <"$filelist"
+			rm "$filelist"
 		fi
 
 		sloc()

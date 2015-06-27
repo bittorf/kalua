@@ -32,8 +32,7 @@ apply_olsr_roaming()
 
 	# e.g. dnsmasq 2.66 or openwrt script are broken for DHCP-range
 	[ $OPENWRT_REV -ge 41037 ] || return 1
-
-	[ -e /lib/modules/*/macvlan.ko ] || return 1
+	[ -e "/lib/modules/$( uname -r )/macvlan.ko" ] || return 1
 	kmodule_force_activation 'macvlan'
 
 	local router_ip='192.168.0.1'
@@ -1036,9 +1035,11 @@ boot()
 						else
 							URL='http://wireless.subsignal.org/images/f/f4/Ww_logo_543.png'
 							DEST='/www/images/logo-freifunk.gif'
-							echo >>$SCHEDULER "_wget do '$URL' >'$DEST'"
-							echo >>$SCHEDULER '/etc/init.d/override_uci_vars boot'
-							echo >>$SCHEDULER '_weblogin generate_prebuilt_splash_htmlfile persistent'
+							{
+								echo "_wget do '$URL' >'$DEST'"
+								echo '/etc/init.d/override_uci_vars boot'
+								echo '_weblogin generate_prebuilt_splash_htmlfile persistent'
+							} >>$SCHEDULER
 						fi
 					}
 				;;
@@ -1964,8 +1965,10 @@ boot()
 				;;
 			esac
 
-			echo >>"$startup" "DEVNAME=\$( ifstatus \"$ifname_ask\" | grep '\"device\":' | cut -d'\"' -f4 )"
-			echo >>"$startup" "batctl interface | grep -q ^\"\$DEVNAME: active\" || batctl if add \$DEVNAME"
+			{
+				echo "DEVNAME=\$( ifstatus \"$ifname_ask\" | grep '\"device\":' | cut -d'\"' -f4 )"
+				echo "batctl interface | grep -q ^\"\$DEVNAME: active\" || batctl if add \$DEVNAME"
+			} >>"$startup"
 		}
 
 		# the first added interface is our originator-address (mac)
@@ -2029,17 +2032,19 @@ boot()
 			*hybrid)
 				for i in $(seq 0 15); do {
 					[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "ap" ] && {
-						echo >>"$startup" "NAME=\"\$( uci get wireless.@wifi-iface[$i].network )\""
-						echo >>"$startup" "DEV=\$( ifstatus \"\$NAME\" | grep '\"device\":' | cut -d'\"' -f4 )"
-						echo >>"$startup" "_log do batman daemon info \"$startup: adding DEV \$DEV to br-mybridge\""
-						echo >>"$startup" "brctl addif br-mybridge \$DEV"
-					}
+						echo "NAME=\"\$( uci get wireless.@wifi-iface[$i].network )\""
+						echo "DEV=\$( ifstatus \"\$NAME\" | grep '\"device\":' | cut -d'\"' -f4 )"
+						echo "_log do batman daemon info \"$startup: adding DEV \$DEV to br-mybridge\""
+						echo "brctl addif br-mybridge \$DEV"
+					} >>"$startup"
 				} done
 			;;
 			*ap)
-				echo >>"$startup" "_log do batman daemon info \"$startup: adding DEV wlan0 to br-mybridge\""
-				echo >>"$startup" "brctl addif br-mybridge wlan0"
-				echo >>"$startup" "brctl addif br-mybridge wlan1	# dirty: simply fails if n/a"
+				{
+					echo "_log do batman daemon info \"$startup: adding DEV wlan0 to br-mybridge\""
+					echo "brctl addif br-mybridge wlan0"
+					echo "brctl addif br-mybridge wlan1	# dirty: simply fails if n/a"
+				} >>"$startup"
 			;;
 		esac
 
@@ -2057,20 +2062,22 @@ boot()
 		# https://lists.open-mesh.org/pipermail/b.a.t.m.a.n/2013-November/010913.html
 		local mac_gateway="02:00:c0:ca:c0:1a"
 		which ebtables >/dev/null && {
-			echo >>"$startup" "ebtables -A FORWARD -j DROP -d '$mac_gateway'"
-			echo >>"$startup" "ebtables -t nat -A POSTROUTING -o bat0 -j DROP -s '$mac_gateway'"
-			echo >>"$startup" "#  query via: ebtables -L FORWARD --Lc; ebtables -t nat -L POSTROUTING --Lc"
-		}
+			echo "ebtables -A FORWARD -j DROP -d '$mac_gateway'"
+			echo "ebtables -t nat -A POSTROUTING -o bat0 -j DROP -s '$mac_gateway'"
+			echo "#  query via: ebtables -L FORWARD --Lc; ebtables -t nat -L POSTROUTING --Lc"
+		} >>"$startup"
 
 		case "$CONFIG_PROFILE" in
 			*_adhoc)
 			;;
 			liszt28*|schoeneck*|boltenhagendh*|apphalle*)
 				# depends on kmod-macvlan
-				echo >>"$startup" "_log do batman daemon info \"$startup: forcing gateways ip/mac: $router_ip/$mac_gateway\""
-				echo >>"$startup" "ip link add link 'br-mybridge' 'gateway0' address '$mac_gateway' type macvlan"
-				echo >>"$startup" "ip address add $router_ip/32 dev gateway0"
-				echo >>"$startup" "ip link set dev gateway0 up"
+				{
+					echo "_log do batman daemon info \"$startup: forcing gateways ip/mac: $router_ip/$mac_gateway\""
+					echo "ip link add link 'br-mybridge' 'gateway0' address '$mac_gateway' type macvlan"
+					echo "ip address add $router_ip/32 dev gateway0"
+					echo "ip link set dev gateway0 up"
+				} >>"$startup"
 			;;
 		esac
 

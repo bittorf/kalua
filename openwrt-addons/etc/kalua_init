@@ -22,15 +22,14 @@ POOLDIR='/tmp/kalua'
 LOADER="/tmp/loader_$$"
 LOADER_FINAL='/tmp/loader'	# scripts can source this file and automatically use all 'classes'
 
-if [ -e /tmp/loader_* ]; then
-	logger -s "$0: ignoring call - please remove /tmp/loader_*"
+for CLASS in /tmp/loader_* ; do {
+	logger -s "$0: ignoring call - please remove '$CLASS'"
 	exit 0
-else
-	mkdir -p "$POOLDIR"
-fi
+} done
+mkdir -p "$POOLDIR"
 
 # LOWMEM: directly call copy on disc
-cd "${BASEDIR}.w" 2>/dev/null && rm -fR *
+cd "${BASEDIR}.w" 2>/dev/null && rm -fR "${BASEDIR}.w/"*
 
 cat >"$LOADER" <<EOF
 #!/bin/sh
@@ -39,10 +38,18 @@ case "\$LODEV" in lo) return 0 ;; esac	# already loaded
 _(){ ls -1 $POOLDIR|grep ^[a-z]|sort|sed 's/^/_/';}
 EOF
 
-# echo >>"$LOADER" "x(){ . $POOLDIR/\$1;}"			# safes 350 bytes in combination with [3], but i like the speedcode
+# echo >>"$LOADER" "x(){ . $POOLDIR/\$1;}"	# safes 350 bytes in combination with [3], but i like the speedcode
 
-for CLASS in $( find $BASEDIR -type f -name "[a-z]"* ); do {	# only include lowercase names
-	CLASS="$( basename $CLASS )"				# generate loader and add methods 'show'+'include'
+for CLASS in $BASEDIR/*; do {
+	CLASS="$( basename $CLASS )"		# generate loader and add methods 'show'+'include'
+	case "$CLASS" in
+		[a-z]*)
+		;;
+		*)
+			# only include lowercase names
+			continue
+		;;
+	esac
 
 	# the first element is later cut off via "${MAX_ARGS#* }"
 	MAX_ARGS='"$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" "${10}" "${11}" "${12}" "${13}" "${14}" "${15}"'

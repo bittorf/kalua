@@ -32,10 +32,10 @@ pidof dnsmasq >/dev/null || echo >>$SCHEDULER_IMPORTANT '_watch dns_resolution'
 
 # uptime.sec->minutes divideable (without rest) by 360? -> each 360 mins
 [ $(( $(( ${UP%.*} / 60 )) % 360 )) -eq 0 ] && {
-	echo >>$SCHEDULER 'cron.upgrade_packages'	# e.g. daily restart is at 4:05
-	echo >>$SCHEDULER '_firmware update_pmu'	# so: 10:05, 16:05, 22:05
-	echo >>$SCHEDULER '_watch configchange'
-}
+	echo 'cron.upgrade_packages'	# e.g. daily restart is at 4:05
+	echo '_firmware update_pmu'	# so: 10:05, 16:05, 22:05
+	echo '_watch configchange'
+} >>$SCHEDULER
 
 case "$CONFIG_PROFILE" in
 	ffweimar*)
@@ -50,21 +50,23 @@ case "$HOUR:$MINUTE" in
 #		echo >>$SCHEDULER_IMPORTANT '_wifi longshot_test 17:10:00 36...40 "719 670" >/www/BLUBB'
 #	;;
 	01:00|02:00|03:00)
-		echo >>$SCHEDULER '_db ticketcheck auto'
-		echo >>$SCHEDULER '_firmware update_pmu'
+		{
+			echo '_db ticketcheck auto'
+			echo '_firmware update_pmu'
+		} >>$SCHEDULER
 	;;
 	04:00)
 		echo >>$SCHEDULER '_wifi longshot_report'
 
 		[ -e '/tmp/cron.webcam' ] && {
-			echo >>$SCHEDULER 'touch /tmp/webcam_force_safe'
-			echo >>$SCHEDULER '. /tmp/cron.webcam'
-		}
+			echo 'touch /tmp/webcam_force_safe'
+			echo '. /tmp/cron.webcam'
+		} >>$SCHEDULER
 
 		[ -e '/tmp/cron.rrd' ] && {
-			echo >>$SCHEDULER '. /tmp/cron.rrd'
-			echo >>$SCHEDULER 'rrd_upload'
-		}
+			echo '. /tmp/cron.rrd'
+			echo 'rrd_upload'
+		} >>$SCHEDULER
 
 		if bool_true 'system.@system[0].avoid_autoreboot'; then
 			# TODO: more housekeeping stuff
@@ -72,19 +74,19 @@ case "$HOUR:$MINUTE" in
 		else
 			# dont make serious action, when we are not sure if time is correct
 			_ntp set is_unset || {
-				echo >>$SCHEDULER '_netfilter stop remember_over_reboot'
-				echo >>$SCHEDULER '_netfilter ipforwarding_start'
-				echo >>$SCHEDULER '_netfilter masquerade_start'
-				echo >>$SCHEDULER '_log sleep collecting_userdata_from_all_nodes 300 step 30'
-				echo >>$SCHEDULER '_watch reanimate_dead_neighbour'
-				echo >>$SCHEDULER '_system reboot_safe nightly_reboot'
-			}
+				echo '_netfilter stop remember_over_reboot'
+				echo '_netfilter ipforwarding_start'
+				echo '_netfilter masquerade_start'
+				echo '_log sleep collecting_userdata_from_all_nodes 300 step 30'
+				echo '_watch reanimate_dead_neighbour'
+				echo '_system reboot_safe nightly_reboot'
+			} >>$SCHEDULER
 		fi
 	;;
 	05:00)
 		[ -e "$DIR_DATABASE/USER/login/rows" ] && {
-			echo >>$SCHEDULER '_db user login index_gen'
-		}
+			echo '_db user login index_gen'
+		} >>$SCHEDULER
 	;;
 	06:00)
 		[ -e "$DIR_DATABASE/USER/device/stats" ] && {
@@ -92,10 +94,9 @@ case "$HOUR:$MINUTE" in
 				malchow*|ilm1*|tkolleg*|fparkssee*|marinapark*|dhfleesensee*|aschbach*|olympia*|liszt28*|rehungen*|boltenhagen*|castelfalfi*|berlinle*)
 					[ -e '/tmp/statistics_send_mail-daily' ] || {
 						touch '/tmp/statistics_send_mail-daily'		# only once
-
-						echo >>$SCHEDULER "sleep $( _math random_integer 0 100 )"
-						echo >>$SCHEDULER '_db statistics_send_mail daily yesterday'
-					}
+						echo "sleep $( _math random_integer 0 100 )"
+						echo '_db statistics_send_mail daily yesterday'
+					} >>$SCHEDULER
 				;;
 			esac
 
@@ -103,17 +104,16 @@ case "$HOUR:$MINUTE" in
 				'Monday')
 					[ -e '/tmp/statistics_send_mail-weekly' ] || {
 						touch '/tmp/statistics_send_mail-weekly'	# only once
-
-						echo >>$SCHEDULER "sleep $( _math random_integer 0 100 )"
-						echo >>$SCHEDULER '_db statistics_send_mail weekly report'
+						echo "sleep $( _math random_integer 0 100 )"
+						echo '_db statistics_send_mail weekly report'
 
 						# each first monday in month
 						case "$DAYOFMONTH" in
 							01|02|03|04|05|06|07)
-								echo >>$SCHEDULER '_db statistics_send_mail monthly_report'
+								echo '_db statistics_send_mail monthly_report'
 							;;
 						esac
-					}
+					} >>$SCHEDULER
 				;;
 			esac
 		}
@@ -124,10 +124,12 @@ case "$MINUTE" in
 	00|15|30|45)
 		case "$MINUTE" in
 			00)
-				echo >>$SCHEDULER '_net roaming_fetch_cache'
-				echo >>$SCHEDULER 'cron.monitoring send_alive_message'
-				echo >>$SCHEDULER "_watch wifi_cronactive $HOUR $MINUTE"
-				echo >>$SCHEDULER '_mail stash_resend'
+				{
+					echo '_net roaming_fetch_cache'
+					echo 'cron.monitoring send_alive_message'
+					echo "_watch wifi_cronactive $HOUR $MINUTE"
+					echo '_mail stash_resend'
+				} >>$SCHEDULER
 			;;
 		esac
 
@@ -146,20 +148,20 @@ case "$MINUTE" in
 		}
 
 		bool_true 'system.@vds[0].enabled' && {
-			echo >>$SCHEDULER '/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+'
+			echo '/usr/sbin/cron.evaluate_ulogd_syslogemu_fff+'
 
 			# only call if needed
-			[ -e '/tmp/COLLECT_DATA' ] && echo >>$SCHEDULER 'cron.add_collected_userdata_into_db'
+			[ -e '/tmp/COLLECT_DATA' ] && echo 'cron.add_collected_userdata_into_db'
 
 			# wait for process (=http to master) if we are not the master/authserver
 			# this should help against too much load on master
 			# TODO: _weblogin_authserver "isme?"
 			[ -e "$DIR_DATABASE/USER/device/stats" ] || {
-				echo >>$SCHEDULER '_log sleep jitter_user_stats_process networksize step 5'
+				echo '_log sleep jitter_user_stats_process networksize step 5'
 			}
 
-			echo >>$SCHEDULER '_netfilter user_stats_process'
-		}
+			echo '_netfilter user_stats_process'
+		} >>$SCHEDULER
 
 		bool_true 'system.@monitoring[0].statusprecache' && {
 			echo >>$SCHEDULER '_olsr build_overview_static /tmp/statuspage_neigh_pregenerated'

@@ -161,8 +161,7 @@ _tunnel_config_rebuild()			# on server: we have to join many user/connections
 {
 	local storage="/tmp/tunnel"
 	local option="$1"								# e.g. 'ignore_intranet_traffic'
-	local list_tunnel="$( ls -1 "$storage" | grep ^..:..:..:..:..:..$ )"		# these are files named like macadresses without extension
-	local tunnel tunnel_id mac ipuser speed name message rt_num compress
+	local list_tunnel tunnel tunnel_id mac ipuser speed name message rt_num compress
 	local prio1 prio2 intranet intranet_table
 
 	local mask=30
@@ -175,7 +174,15 @@ _tunnel_config_rebuild()			# on server: we have to join many user/connections
 	local bin_sed="$( which sed )"
 	mkdir -p /var/log/vtund				# for stats
 
-	for tunnel in $list_tunnel; do {				# todo: log memory, avoid compression for loopback-conns
+	for tunnel in $storage/*; do {				# todo: log memory, avoid compression for loopback-conns
+		case "$tunnel" in
+			[0-9a-f][0-9a-f][:][0-9a-f][0-9a-f][:][0-9a-f][0-9a-f][:][0-9a-f][0-9a-f][:][0-9a-f][0-9a-f][:][0-9a-f][0-9a-f])
+				# files named like macadresses without extension - see config_insert_new_client()
+			;;
+			*)
+				continue
+			;;
+		esac
 
 		tunnel_id=; mac=; ipuser=; speed=
 		read tunnel_id mac ipuser speed <"$storage/$tunnel"
@@ -339,9 +346,9 @@ _tunnel_clientside_control()
 		;;
 	esac
 
-	local storage="/tmp/tunnel"
+	local storage='/tmp/tunnel'
 	local configfile="$storage/${mac}.conf"
-	local tunnel_id tunnel_name dummy answer url pid tunnel_server process_output file list_files
+	local tunnel_id tunnel_name dummy answer url pid tunnel_server process_output file
 	local TRUE FALSE TUNNEL_IP_CLIENT TUNNEL_IP_SERVER SPEED_UPLOAD SPEED_DOWNLOAD
 
 	read tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
@@ -357,17 +364,28 @@ _tunnel_clientside_control()
 
 	case "$action" in
 		check_connection)
-
 			case "$mac" in
 				all)
-					list_files="$( ls -1 "$storage/"*.conf | grep ..:..:..:..:..:.. )"
+					list_files()
+					{
+						for file in $storage/*.conf ; do {
+							case "$file" in
+								[0-9a-f][0-9a-f][:][0-9a-f][0-9a-f][:][0-9a-f][0-9a-f][:][0-9a-f][0-9a-f][:][0-9a-f][0-9a-f][:][0-9a-f][0-9a-f]'.conf')
+									echo "$file"
+								;;
+							esac
+						} done
+					}
 				;;
 				*)
-					list_files="$mac"
+					list_files()
+					{
+						echo "$mac"
+					}
 				;;
 			esac
 
-			for file in $list_files; do {
+			for file in $( list_files ); do {
 				read tunnel_name dummy <"$file"
 				_log do $funcname daemon info "$action: checking conn $tunnel_name in file $file"
 

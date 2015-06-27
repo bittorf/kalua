@@ -73,7 +73,7 @@ case "${BUTTON}-${ACTION}" in
 			logger -s -- "$0: audiplayer: i: $i - url: $url"
 			echo  >"$file" "# $i"
 			# rmmod because of https://dev.openwrt.org/ticket/13392
-			echo >>"$file" "( wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url' | madplay --output="$DSPDEV" --quiet - || { rmmod snd_usb_audio; modprobe snd_usb_audio; } ) &"
+			echo >>"$file" "( wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url' | madplay --output=$DSPDEV --quiet - || { rmmod snd_usb_audio; modprobe snd_usb_audio; } ) &"
 
 			chmod +x "$file"
 			exec "$file"
@@ -109,6 +109,6 @@ case "${BUTTON}-${ACTION}" in
 		}
 	;;
 	*)
-		logger -s -- "$0: button '$BUTTON' action: '$ACTION' ignoring args: $@"
+		logger -s -- "$0: button '$BUTTON' action: '$ACTION' ignoring args: $*"
 	;;
 esac

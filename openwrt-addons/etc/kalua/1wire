@@ -38,11 +38,11 @@ _1wire_backup ()
 	local BACKUP_DATA="/etc/init.d/S88chip_workflow /www/cgi-bin-chip $JOBFILE $JOBDATA*"
 	local USBSTICK="$( df | grep ^/dev/scsi | sed -n 's/^.*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*[ ]*[0-9]*% \(.*\)/1/p' )"
 
-	[ -n "$USBSTICK" ] && {
+	if [ -n "$USBSTICK" ]; then
 		BACKUP_DEST="$USBSTICK/$BACKUP_DEST"
-	} || {
+	else
 		BACKUP_DEST="/tmp/$BACKUP_DEST"
-	}
+	fi
 
 	echo "writing backup to '$BACKUP_DEST'"
 
@@ -141,7 +141,7 @@ _1wire_file_remove_line ()
 	_1wire file_lock   "$FILE"
 
 	logger "$0 : removing line containing '$PATT'"
-	cat "$FILE" | grep -v "$PATT" >"$FILE"
+	sed -i "/$PATT/d" "$FILE"
 
 	_1wire file_unlock "$FILE"
 }
@@ -176,12 +176,12 @@ _1wire_sensor_data_fetch ()
 		ADDON=uncached
 
 		VALUE="$( _1wire sensorfield_show )"
-		[ -n "$VALUE" ] && {
-			#			logger "_1wire file_print "$JOBDATA.$1.$2" "$(_system date unixtime) $VALUE""
+		if [ -n "$VALUE" ]; then
+# 			logger "_1wire file_print "$JOBDATA.$1.$2" "$(_system date unixtime) $VALUE"
 			_1wire file_print "$JOBDATA.$1.$2" "$(_system date unixtime) $VALUE"
-		} || {
+		else
 			logger "zero value - leaving database untouched"
-		}
+		fi
 
 	} done <"$JOBFILE"
 }

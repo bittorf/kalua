@@ -128,9 +128,9 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 			json_get_var 'JSON_VAR_result_number' 'number'
 
 			# if the status is >400, there was some kind of error
-			if [ 2>/dev/null "${JSON_VAR_status:-0}" -lt 400 ]; then
+			if test "${JSON_VAR_status:-0}" -lt 400 2>/dev/null; then
 				# check if the answer contains a NODENUMBER
-				if [ 2>/dev/null "$JSON_VAR_result_number" -gt 1 -a "$JSON_VAR_result_number" != "$NODENUMBER" ]; then
+				if test "$JSON_VAR_result_number" -gt 1 -a "$JSON_VAR_result_number" != "$NODENUMBER" 2>/dev/null; then
 					_log do registrator daemon alert "[OK] new nodenumber: '$JSON_VAR_result_number'"
 					# check with `_ipsystem` if it is a *valid* NODENUMBER
 					if _ipsystem do "$JSON_VAR_result_number" >/dev/null ; then

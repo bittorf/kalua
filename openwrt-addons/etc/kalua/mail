@@ -112,7 +112,7 @@ _mail_send_newsletter()
 				email="$1"
 				firstname="$2"
 				shift 2
-				lastname="$@"
+				lastname="$*"
 
 				_mail send "$sendername" "$senderemail" \
 					   "$firstname $lastname" "$email" \
@@ -351,15 +351,18 @@ _mail_send_mailfile()
 	# 354 mail.gmx.net Go ahead {mp027}			// attachement?
 	# 451 4.3.0 Temporary problem {mp027}
 
-	cleanup ()
+	cleanup()
 	{
+		local error="$1"
+
+		[ -n "$error" ] && _log do $FUNC daemon info 'function_cancelled'
 		[ -e "$MAILFILE"  ] && rm "$MAILFILE"
 		[ -e "$ERRORFILE" ] && rm "$ERRORFILE"
 
 		trap - HUP INT QUIT TERM
 	}
 
-	trap "_log do $FUNC daemon info function_cancelled; cleanup" HUP INT QUIT TERM
+	trap 'cleanup error' HUP INT QUIT TERM
 
 	sanitize_server_answer ()		# add '+' and remove LF/CR
 	{

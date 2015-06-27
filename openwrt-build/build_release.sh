@@ -65,12 +65,12 @@ prepare_build()		# check possible values via:
 
 	case "$@" in
 		*" "*)
-			log "list: '$@'"
+			log "list: '$*'"
 		;;
 	esac
 
 	for action in "$@"; do {
-		log "[START] invoking: '$action' from '$@'"
+		log "[START] invoking: '$action' from '$*'"
 
 		case "$action" in
 			r[0-9]|r[0-9][0-9]|r[0-9][0-9][0-9]|r[0-9][0-9][0-9][0-9]|r[0-9][0-9][0-9][0-9][0-9])
@@ -83,7 +83,7 @@ prepare_build()		# check possible values via:
 		esac
 
 		kalua/openwrt-build/mybuild.sh set_build "$action"
-		log "[READY] invoking: '$action' from '$@'"
+		log "[READY] invoking: '$action' from '$*'"
 	} done
 }
 

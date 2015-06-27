@@ -296,7 +296,7 @@ _net_count_wired()
 	local i=0
 
 	# see cisco_collect() IMPROVE!
-	list_noclients="$( grep -s ' MAC ' /tmp/cisco-AP* | cut -d' ' -f5 | tr '[A-Z]' '[a-z]' | while read line; do echo -n " $line"; done )"
+	list_noclients="$( grep -s ' MAC ' /tmp/cisco-AP* | cut -d' ' -f5 | tr 'A-Z' 'a-z' | while read line; do echo -n " $line"; done )"
 
 	# /proc/net/arp is not always correct
 	ip neigh show >"/tmp/$funcname"
@@ -504,7 +504,7 @@ _net_ping_getlatency()
 	test -n "$4" &&	{
 		# round-trip min/avg/max = 15.887/24.931/42.406 ms
 		# -> 15.887/24.931/42.406 -> 15 887 24 931 42 406
-		local oldIFS="$IFS"; IFS=[/.]; set -- $4; IFS="$oldIFS"
+		local oldIFS="$IFS"; IFS='[/.]'; set -- $4; IFS="$oldIFS"
 
 		# output 'average' round trip time: 24.931 -> 24
 		echo "$3"
@@ -1301,7 +1301,7 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 				set +f		# globbing ON (default)
 
 				[ "$4" = '00:00:00:00:00:00' ] || {
-					_log do $funcname daemon debug "try1: $6 <- $@"
+					_log do $funcname daemon debug "try1: $6 <- $*"
 					echo "$6"
 					return 0
 				}
@@ -1453,7 +1453,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 	# default via 192.168.1.1 dev eth1  proto static ->841nd
 	# default via 192.168.2.1 dev br-mybridge	-> batman/no_local_inet_offer
 
-	eval $( ip route list exact 0.0.0.0/0 | head -n1 |
+	eval $( ip route list exact '0.0.0.0/0' | head -n1 |
 		while read N N D N PHYDEV METRIC N trash; do {	# we must eval it, otherwise		// fixme! look for 'table all'?
 			echo PHYDEV=$PHYDEV			# the vars from subprocess are
 			echo METRIC=$METRIC			# not known
@@ -1616,7 +1616,7 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 	[ -e "$FILE" -a "$proto_uptime_ok" = 'true' ] && {
 		read COST_INT <$FILE
 
-		[ "$COST_INT" 2>/dev/null -gt $max_cost ] && {
+		test "$COST_INT" -gt $max_cost 2>/dev/null && {
 			_log do $funcname daemon alert "unstable inet1, cost_int: '$COST_INT' > $max_cost"
 			return 1
 		}

@@ -412,7 +412,7 @@ _watch_mount_storage()
 							size="$2"
 
 							umount "$dir/$dev" && {
-								rm -fR "$dir/$dev"
+								rm -fR "$dir/${dev:-does_not_exist}"
 								mkdir -p "$dir/${dev}_$size"
 								_log do $funcname daemon info "[OK] /dev/$dev -> $dir/${dev}_$size"
 								mount "/dev/$dev" "$dir/${dev}_$size"
@@ -782,9 +782,9 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	# oldstyle: ln -s /var/etc/dnsmasq.conf /etc/dnsmasq.conf
 	# dnsmasq -p 5353 -A /#/192.168.1.251 -C /dev/null
 
-	[ -x /etc/init.d/*dnsmasq ] || return 0
+	[ -x '/etc/init.d/dnsmasq' ] || return 0
 
-	[ -x /etc/rc.d/S*dnsmasq ] || {
+	[ -x '/etc/rc.d/dnsmasq' ] || {
 		ip="$( uci -q get dhcp.@dnsmasq[0].server )"
 		line="nameserver ${ip:-8.8.8.8}"
 		fgrep -q "$line" '/etc/resolv.conf' || echo "$line" >'/etc/resolv.conf'
@@ -828,7 +828,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 			[ $1 -lt $( _system date unixtime ) ] && {
 				_log do $funcname daemon alert "loopback-alias/dhcp-lease too old: $1"
-				/etc/init.d/*dnsmasq restart
+				/etc/init.d/dnsmasq restart
 				ifup loopback
 			}
 		else
@@ -836,7 +836,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 			# no address range available for DHCP request via lo
 			[ -e '/www/netifd_dhcp_watchdog' ] && {
 				_log do $funcname daemon alert "loopback-alias/cron-watchdog seems down"
-				/etc/init.d/*dnsmasq restart
+				/etc/init.d/dnsmasq restart
 				ifup loopback
 			}
 		fi
@@ -856,7 +856,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 				killall udhcpd
 			}
 
-			/etc/init.d/*dnsmasq restart
+			/etc/init.d/dnsmasq restart
 			/etc/init.d/*fake_dns_server_fff+ remove_fake_dnsserver
 			sleep 3
 
@@ -926,7 +926,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 				sleep 5
 			}
 
-			/etc/init.d/*dnsmasq restart
+			/etc/init.d/dnsmasq restart
 		}
 	}
 }
@@ -1267,7 +1267,7 @@ _watch_sshd_or_telnet()
 		if [ "$option" = "force" ]; then
 			restart_sshd && return 0
 		else
-			[ -x /etc/rc.d/*dropbear ] && {
+			[ -x '/etc/rc.d/dropbear' ] && {
 				restart_sshd && return 0
 			}
 		fi
@@ -2130,7 +2130,7 @@ _watch_lowmem_freemem()
 	[ "$( pidof procd )" = "1" ] || {
 		killall netifd
 
-		if [ -e /etc/rc.d/*watchdog ]; then
+		if [ -e '/etc/rc.d/watchdog' ]; then
 			/etc/init.d/watchdog stop
 			/etc/init.d/watchdog disable
 			_system crashreboot 'watchdog_disable'
