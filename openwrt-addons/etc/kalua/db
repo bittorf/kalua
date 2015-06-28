@@ -362,9 +362,17 @@ _db_restore()
 		else
 			_db lock now "$funcname() $*" || return 1
 
-			_system del_ramdisc "$DIR_DATABASE"
-			_system add_ramdisc "$DIR_DATABASE" compressable
-			_log do $funcname daemon info "unarc of '$file' to $DIR_DATABASE"
+			if _system del_ramdisc "$DIR_DATABASE"; then
+				if _system add_ramdisc "$DIR_DATABASE" compressable; then
+					_log do $funcname daemon info "unarc of '$file' to $DIR_DATABASE"
+				else
+					_db lock free
+					return 1
+				fi
+			else
+				_db lock free
+				return 1
+			fi
 
 			# dirname /database -> /
 			# tar -xvzC / -f /www/cgi-bin/db_backup.tgz/database

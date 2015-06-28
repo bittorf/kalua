@@ -130,6 +130,7 @@ EOF
 
 _system_del_ramdisc()
 {
+	local funcname='system_del_ramdisc'
 	local name="$1"		# e.g. 'database' or '/database/DB'
 
 	case "$name" in
@@ -140,10 +141,20 @@ _system_del_ramdisc()
 	esac
 
 	grep -q ^"tmpfs /$name " '/proc/mounts' && {
-		umount "/$name"
+		umount "/$name" || {
+			_log do $funcname daemon alert "[ERR] failed to umount /$name"
+			return 1
+		}
 	}
 
-	[ -d "/${name:-does_not_exist}" ] && rm -fR "/${name:-does_not_exist}"
+	[ -d "/${name:-does_not_exist}" ] && {
+		rm -fR "/${name:-does_not_exist}" || {
+			_log do $funcname daemon alert "[ERR] failed to remove /$name"
+			return 1
+		}
+	}
+
+	return 0
 }
 
 _system_add_ramdisc()
@@ -170,9 +181,11 @@ _system_add_ramdisc()
 		size_tmpfs=$( _system ram_size )
 		size_tmpfs=$(( size_tmpfs * 1024 / divide ))
 
+		_log do $funcname daemon info "adding ramdisk /$name of size $size_tmpfs"
 		mkdir -p "/$name"
 		mount -t tmpfs -o size=${size_tmpfs},nosuid,nodev,mode=1777 tmpfs "/$name" || {
 			_log do $funcname daemon info "[ERR] mounting $name"
+			return 1
 		}
 	}
 }
