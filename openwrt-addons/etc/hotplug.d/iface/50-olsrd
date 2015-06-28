@@ -50,6 +50,8 @@ olsrd_interface_needs_adding()
 
 olsrd_traffic_control_add()
 {
+	local dev="${1:-$DEVICE}"
+
 	if which tc >/dev/null; then
 		logger -t olsrd_hotplug -p daemon.info "[OK] prioritize OLSR packets on interface '$INTERFACE' => '$DEVICE'"
 	else
@@ -62,16 +64,23 @@ olsrd_traffic_control_add()
 	# tc filter show dev wlan1
 	# tc -s qdisc ls dev wlan1
 
-	tc qdisc add dev $DEVICE root handle 1: prio
-	tc qdisc add dev $DEVICE parent 1:1 handle 10: sfq perturb 10
-	tc qdisc add dev $DEVICE parent 1:2 handle 20: sfq perturb 10
-	tc qdisc add dev $DEVICE parent 1:3 handle 30: sfq perturb 10
+	# https://lists.olsr.org/pipermail/olsr-users/2010-January/003825.html
+	# we have 3 qdisc (for outgoing traffic)
+	tc qdisc add dev $dev root handle 1: prio
+	tc qdisc add dev $dev parent 1:1 handle 10: sfq perturb 10
+	tc qdisc add dev $dev parent 1:2 handle 20: sfq perturb 10
+	tc qdisc add dev $dev parent 1:3 handle 30: sfq perturb 10
 
-	tc filter add dev $DEVICE protocol ip parent 1: prio 1 u32 match ip protocol 17 0xff match ip dport 698 0xffff flowid 1:1
-	tc filter add dev $DEVICE protocol ip parent 1: prio 2 u32 match ip protocol 6 0xff match u8 0x10 0xff at nexthdr+13 flowid 1:1
-	tc filter add dev $DEVICE protocol ip parent 1: prio 3 u32 match ip protocol 17 0xff match ip dport 53 0xffff flowid 1:2
-	tc filter add dev $DEVICE protocol ip parent 1: prio 4 u32 match u16 0x00ff 0xff00 at 2 flowid 1:2
-	tc filter add dev $DEVICE protocol ip parent 1: prio 5 u32 match ip protocol 0 0x00 flowid 1:3
+	# prio1: UDP dport 698 (OLSR)
+	tc filter add dev $dev protocol ip parent 1: prio 1 u32 match ip protocol 17 0xff match ip dport 698 0xffff flowid 1:1
+	# prio1: TCP which has ACK-bit set
+	tc filter add dev $dev protocol ip parent 1: prio 2 u32 match ip protocol 6 0xff match u8 0x10 0xff at nexthdr+13 flowid 1:1
+	# prio2: UDP dport 53 (DNS)
+	tc filter add dev $dev protocol ip parent 1: prio 3 u32 match ip protocol 17 0xff match ip dport 53 0xffff flowid 1:2
+	# prio2: packets <256 bytes (prefer interactive traffic)
+	tc filter add dev $dev protocol ip parent 1: prio 4 u32 match u16 0x00ff 0xff00 at 2 flowid 1:2
+	# rest: any IP traffic
+	tc filter add dev $dev protocol ip parent 1: prio 5 u32 match ip protocol 0 0x00 flowid 1:3
 }
 
 case "$ACTION" in
