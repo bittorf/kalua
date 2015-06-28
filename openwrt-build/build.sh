@@ -1794,8 +1794,18 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_kmod-fs-ext4=y'		# needed for compressed ramdisc
 #				apply_symbol 'CONFIG_PACKAGE_e2fsprogs=y'		# dito | utilities: filesystem:
 			;;
+			'musl')
+				apply_symbol 'CONFIG_DEVEL=y'
+				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
+				apply_symbol 'CONFIG_LIBC_USE_MUSL=y'
+			;;
+			'uclibc')
+				apply_symbol 'CONFIG_DEVEL=y'
+				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
+				apply_symbol 'CONFIG_LIBC_USE_UCLIBC=y'
+			;;
 			'Standard')	# >4mb flash
-				$funcname subcall 'revert45995'		# toolchain: switch to musl by default
+				$funcname subcall 'uclibc'
 
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
@@ -1836,7 +1846,7 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
-				$funcname subcall 'revert45995'		# toolchain: switch to musl by default
+				$funcname subcall 'uclibc'
 
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
