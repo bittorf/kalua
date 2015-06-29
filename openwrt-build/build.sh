@@ -1818,9 +1818,10 @@ build_options_set()
 					apply_symbol 'CONFIG_LIBC_USE_UCLIBC=y'
 
 					apply_symbol 'CONFIG_PKG_CHECK_FORMAT_SECURITY is not set'
-					apply_symbol 'CONFIG_KERNEL_CC_STACKPROTECTOR_NONE=y'
-					apply_symbol 'CONFIG_PKG_FORTIFY_SOURCE_NONE=y'
-					apply_symbol 'CONFIG_PKG_RELRO_NONE=y'
+					apply_symbol 'CONFIG_KERNEL_CC_STACKPROTECTOR_NONE=y'		# unneeded?
+					apply_symbol 'CONFIG_PKG_FORTIFY_SOURCE_NONE=y'			# unneeded?
+					apply_symbol 'CONFIG_PKG_RELRO_NONE=y'				# unneeded?
+					apply_symbol 'CONFIG_SSP_SUPPORT is not set'
 				}	# parser_ignore
 			;;
 			'Standard')	# >4mb flash
