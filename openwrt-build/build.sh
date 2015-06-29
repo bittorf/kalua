@@ -443,17 +443,15 @@ copy_additional_packages()
 			}
 
 			if [ "$package" = 'cgminer' ]; then
-				case "$LIST_USER_OPTIONS" in
-					*'BTCminerCPU'*)
-						do_copy
+				usecase_has 'BTCminerCPU' && {
+					do_copy
 
-						file="package/$install_section/$package/Makefile"
-						sed -i 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
-						sed -i 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
-						sed -i 's/--enable-bflsc/--enable-cpumining/' "$file"
-						log "cgminer" gitadd "$file"
-					;;
-				esac
+					file="package/$install_section/$package/Makefile"
+					sed -i 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
+					sed -i 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
+					sed -i 's/--enable-bflsc/--enable-cpumining/' "$file"
+					log "cgminer" gitadd "$file"
+				}
 			else
 				do_copy
 			fi
@@ -1193,6 +1191,21 @@ openwrt_download()
 	return 0
 }
 
+usecase_has()
+{
+	local usecase_keyword="$1"
+	local oldIFS="$IFS"; IFS=','; set -- $LIST_USER_OPTIONS; IFS="$oldIFS"
+
+	case " $* " in
+		" $usecase_keyword ")
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 usecase_hash()		# see: _firmware_get_usecase()
 {
 	local usecase="$1"
@@ -1475,16 +1488,13 @@ apply_symbol()
 			log "$KALUA_DIRNAME: tweaking kernel commandline"
 			kernel_commandline_tweak
 
-			case "$LIST_USER_OPTIONS" in
-				*'noReghack'*)
-					log "$KALUA_DIRNAME: disable Reghack"
-					apply_wifi_reghack 'disable'
-				;;
-				*)
-					log "$KALUA_DIRNAME: apply_wifi_reghack"
-					apply_wifi_reghack
-				;;
-			esac
+			if usecase_has 'noReghack' ; then
+				log "$KALUA_DIRNAME: disable Reghack"
+				apply_wifi_reghack 'disable'
+			else
+				log "$KALUA_DIRNAME: apply_wifi_reghack"
+				apply_wifi_reghack
+			fi
 
 			# http://stackoverflow.com/questions/1018853/why-is-alloca-not-considered-good-practice
 			#
@@ -1795,14 +1805,18 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_e2fsprogs=y'		# dito | utilities: filesystem:
 			;;
 			'musl')
-				apply_symbol 'CONFIG_DEVEL=y'
-				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
-				apply_symbol 'CONFIG_LIBC_USE_MUSL=y'
+				usecase_has 'uclibc' || {
+					apply_symbol 'CONFIG_DEVEL=y'
+					apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
+					apply_symbol 'CONFIG_LIBC_USE_MUSL=y'
+				}
 			;;
 			'uclibc')
-				apply_symbol 'CONFIG_DEVEL=y'
-				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
-				apply_symbol 'CONFIG_LIBC_USE_UCLIBC=y'
+				usecase_has 'musl' || {
+					apply_symbol 'CONFIG_DEVEL=y'
+					apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
+					apply_symbol 'CONFIG_LIBC_USE_UCLIBC=y'
+				}
 			;;
 			'Standard')	# >4mb flash
 				$funcname subcall 'uclibc'
@@ -1831,14 +1845,10 @@ build_options_set()
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 
-				case "$LIST_USER_OPTIONS" in
-					*'noDebug'*)
-					;;
-					*)
-						log "[OK] autoselecting usecase 'debug' in 'Standard'-mode"
-						$funcname subcall 'debug'
-					;;
-				esac
+				usecase_has 'noDebug' || {
+					log "[OK] autoselecting usecase 'debug' in 'Standard'-mode"
+					$funcname subcall 'debug'
+				}
 
 				fgrep -q 'CONFIG_USB_SUPPORT=y' "$file" && {
 					log "[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
@@ -2483,6 +2493,7 @@ check_scripts()
 				}
 				i=$(( i + 1 ))
 
+				# all function names without '()'
 				grep '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 >>"$tempfile_functions"
 			;;
 			*)
