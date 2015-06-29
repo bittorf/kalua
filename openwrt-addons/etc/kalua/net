@@ -664,12 +664,14 @@ _net_ip_reachable()
 		dev="${dev:-$( _net ip2dev "$ip" )}"
 	fi
 
-	dev_list="$dev"
+	dev_list="${dev:-does_not_exist}"
 
 	case "$dev" in
 		'')
-			_log do $funcname daemon info "[ERR] empty devname"
-			return 0
+			[ "$pingtest" = "$ip" ] || {
+				_log do $funcname daemon info "[ERR] empty devname"
+				return 1
+			}
 		;;
 		'wlan'*)
 			# TODO: ip2dev() net reliable for multiradio - introduce $WIFI_DEVS_ADHOC?
@@ -681,7 +683,7 @@ _net_ip_reachable()
 		;;
 	esac
 
-	echo "$funcname" >"/tmp/CRON_OVERLOAD"
+	echo "$funcname" >'/tmp/CRON_OVERLOAD'
 
 	while let max_attempts-=1 ; do {
 		for dev in $dev_list; do {
@@ -693,23 +695,30 @@ _net_ip_reachable()
 			# Received 0 reply (0 request(s), 0 broadcast(s))
 			# root@feld-sollstedt:~ echo $?
 			# 0
-
+# BLA
 			if   arping -D -c 1 -I "$dev" -f "$ip" | grep -q ^'Received 1 replies'; then
-				rm "/tmp/CRON_OVERLOAD"
+				rm '/tmp/CRON_OVERLOAD'
 				ping -c1 "$pingtest" >/dev/null
 				return
 			elif arping    -c 1 -I "$dev" -f "$ip" | grep -q ^'Received 1 replies'; then
-				rm "/tmp/CRON_OVERLOAD"
+				rm '/tmp/CRON_OVERLOAD'
 				ping -c1 "$pingtest" >/dev/null
 				return
 			else
+				[ "$pingtest" = '127.0.0.1' ] || {
+					ping -c1 "$pingtest" >/dev/null && {
+						rm '/tmp/CRON_OVERLOAD'
+						return 0
+					}
+				}
+
 				line="$( ip neigh show to "$ip" )"
 				_log do $funcname daemon info "arping: $ip dev: $dev list: '$dev_list' line: '$line' try: $max_attempts"
 			fi
 		} done
 	} done
 
-	rm "/tmp/CRON_OVERLOAD"
+	rm '/tmp/CRON_OVERLOAD'
 	return 1
 }
 
