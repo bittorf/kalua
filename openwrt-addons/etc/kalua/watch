@@ -2018,7 +2018,9 @@ _watch_olsrstuff()
 			}
 		}
 
-		_olsr restarts_are_suspicious_often && _system crashreboot 'olsr_restart2much'
+		_olsr restarts_are_suspicious_often && {
+			_system crashreboot 'olsr_restart2much'
+		}
 
 		bool_true 'olsrd.@meta[0].hnaslave' && {
 			/usr/sbin/cron.olsr-hna-slave
@@ -2058,13 +2060,17 @@ _watch_olsrstuff()
 			fi
 		}
 	else
-		if [ -e "/tmp/service_olsrd_nowatching" ]; then
-			[ -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" ] && {
-				read IP <"/tmp/OLSR_HNA_SLAVE_PINGTEST"
-				ping -qc 1 $IP >/dev/null || {
+		if [ -e '/tmp/service_olsrd_nowatching' ]; then
+			[ -e '/tmp/OLSR_HNA_SLAVE_PINGTEST' ] && {
+				read IP <'/tmp/OLSR_HNA_SLAVE_PINGTEST'
+
+				_net ip_reachable "$IP" ping || {
+					_log do $funcname daemon info "[ERR] ping to $IP failed"
 					ip route del default
 					rm "/tmp/service_olsrd_nowatching"	# fire olsr
 					rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
+
+					_olsr daemon start "$funcname() ping to $IP failed"
 				}
 			}
 		else
