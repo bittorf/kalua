@@ -4,7 +4,7 @@
 # - own file for 'usecase' and 'hardware'?
 # - force feed via --feed XY --feed AB
 # - only add feedXY if usecase needs it -> feed-dependency in usecase
-# - cache .config for usecaseX and revY -> use it when rebuilding -> faster
+# - cache .config for usecaseX and revY (if build ok) -> use it when rebuilding -> faster
 #   --config $myfile
 # - simulate apply-run: show symbols/tree
 # - fix formatting of /etc/openwrt_patches (add2trunk)
@@ -1816,6 +1816,10 @@ build_options_set()
 					apply_symbol 'CONFIG_DEVEL=y'
 					apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
 					apply_symbol 'CONFIG_LIBC_USE_UCLIBC=y'
+
+					apply_symbol 'CONFIG_KERNEL_CC_STACKPROTECTOR_NONE=y'
+					apply_symbol 'CONFIG_PKG_FORTIFY_SOURCE_NONE=y'
+					apply_symbol 'CONFIG_PKG_RELRO_NONE=y'
 				}	# parser_ignore
 			;;
 			'Standard')	# >4mb flash
