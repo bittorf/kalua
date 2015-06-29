@@ -1817,6 +1817,7 @@ build_options_set()
 					apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
 					apply_symbol 'CONFIG_LIBC_USE_UCLIBC=y'
 
+					apply_symbol 'CONFIG_PKG_CHECK_FORMAT_SECURITY is not set'
 					apply_symbol 'CONFIG_KERNEL_CC_STACKPROTECTOR_NONE=y'
 					apply_symbol 'CONFIG_PKG_FORTIFY_SOURCE_NONE=y'
 					apply_symbol 'CONFIG_PKG_RELRO_NONE=y'
