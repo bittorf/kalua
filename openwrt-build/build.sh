@@ -1809,14 +1809,14 @@ build_options_set()
 					apply_symbol 'CONFIG_DEVEL=y'
 					apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
 					apply_symbol 'CONFIG_LIBC_USE_MUSL=y'
-				}
+				}	# parser_ignore
 			;;
 			'uclibc')
 				usecase_has 'musl' || {
 					apply_symbol 'CONFIG_DEVEL=y'
 					apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
 					apply_symbol 'CONFIG_LIBC_USE_UCLIBC=y'
-				}
+				}	# parser_ignore
 			;;
 			'Standard')	# >4mb flash
 				$funcname subcall 'uclibc'
