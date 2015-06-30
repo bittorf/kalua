@@ -355,6 +355,15 @@ _db_restore()
 	local funcname='db_restore'
 	local file='/www/cgi-bin/db_backup.tgz'
 
+	reschedule()
+	{
+		local reason="$1"
+
+		_log do $funcname daemon alert "[ERR] rescheduling: $1"
+		echo >>$SCHEDULER 'rm /tmp/FREE'
+		echo >>$SCHEDULER '_db restore'
+	}
+
 	if [ -e "$file" ]; then
 		if [ $( _file size "$file" ) -lt 300 ]; then
 			_log do $funcname daemon info "refusing to unarc '$file', seems too small"
@@ -366,10 +375,12 @@ _db_restore()
 				if _system add_ramdisc "$DIR_DATABASE" compressable; then
 					_log do $funcname daemon info "unarc of '$file' to $DIR_DATABASE"
 				else
+					reschedule 'failed add_ramdisc'
 					_db lock free
 					return 1
 				fi
 			else
+				reschedule 'failed_del_ramdisc'
 				_db lock free
 				return 1
 			fi
@@ -412,8 +423,7 @@ _db_restore()
 					;;
 					*)
 						[ -s "$DIR_DATABASE/USER/login/rows" -a -s "$DIR_DATABASE/USER/profile/rows" ] || {
-							_log do $funcname daemon alert '[ERR] files too small or missing'
-							echo >>$SCHEDULER '_db restore'
+							reschedule 'files too small or missing'
 						}
 					;;
 				esac
@@ -421,9 +431,7 @@ _db_restore()
 				bool_true 'system.@weblogin[0].respect_missing_db' || touch '/tmp/FREE'
 
 				if _watch counter "/tmp/$funcname" increment 1 max 10 ; then
-					_log do $funcname daemon alert "[ERR] untar of '$file' went wrong - rescheduling"
-					echo >>$SCHEDULER 'rm /tmp/FREE'
-					echo >>$SCHEDULER '_db restore'
+					reschedule "untar of '$file' went wrong"
 				else
 					# TODO: sms_once
 					mkdir "/tmp/${funcname}_smssend" && {
