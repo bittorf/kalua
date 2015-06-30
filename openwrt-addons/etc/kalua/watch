@@ -826,11 +826,22 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 			[ -e '/www/netifd_dhcp_watchdog' ] || touch '/www/netifd_dhcp_watchdog'
 			set -- $line
 
-			[ $1 -lt $( _system date unixtime ) ] && {
+			if [ $1 -lt $( _system date unixtime ) ]; then
 				_log do $funcname daemon alert "loopback-alias/dhcp-lease too old: $1"
 				/etc/init.d/dnsmasq restart
 				ifup loopback
-			}
+			else
+				case "$( pidof udhcpc )" in
+					*' '*' '*' '*' '*' '*' '*)
+						# 7 instances are too much 8-)
+						_log do $funcname daemon alert "too much udhcpc: $( pidof udhcpc )"
+						ifdown loopback
+						killall udhcpc
+						ifup loopback
+						_log do $funcname daemon alert "too much udhcpc: now: $( pidof udhcpc )"
+					;;
+				esac
+			fi
 		else
 			# a lot of:
 			# no address range available for DHCP request via lo
