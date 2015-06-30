@@ -2073,15 +2073,19 @@ _netfilter_traffic_control_add()
 {
 	local funcname='netfilter_traffic_control_add'
 	local dev="$1"
+	local chain
 
 	# FIXME! find a better place:
-	$IPT -t mangle -nxvL OUTPUT 1 | grep -q 'udp dpt:698 DSCP set 0x38' || {
-		_log do $funcname daemon info "[OK] setting 'Differentiated Services Field' for OLSR-traffic"
+	local chain="DSCP_olsr1_$dev"
+	$IPT -t mangle -nL "$chain" 2>/dev/null || {
+		_log do $funcname daemon info "[OK] setting 'Differentiated Services Field' for OLSR-traffic on dev $dev"
 		# http://www.tucny.com/Home/dscp-tos
 		# https://wiki.ubnt.com/AirMax_-_QoS_DSCP/TOS_Mappings
 		# https://wireless.wiki.kernel.org/en/developers/Documentation/mac80211/queues
 		# UP = 7, AC = VO, prio = highest -> ACI = 11 -> set 111000 -> 56 = CS7
-		$IPT -t mangle -I OUTPUT -p udp --dport 698 -j DSCP --set-dscp-class CS7
+		$IPT -t mangle -N "$chain"
+		$IPT -t mangle -I "$chain" -j DSCP --set-dscp-class CS7
+		$IPT -t mangle -I OUTPUT -o $dev -p udp --dport 698 -j "$chain"
 	}
 
 	if which tc >/dev/null; then
