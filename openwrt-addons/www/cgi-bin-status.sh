@@ -617,7 +617,7 @@ _http include_js_sorttable
 cat <<EOF
  </head>
  <body>
-  <h1>$HOSTNAME &ndash; No. $NODENUMBER (mit OpenWrt r$OPENWRT_REV auf $HARDWARE)</h1>
+  <h1>host '$HOSTNAME' &ndash; No. ${NODENUMBER:-unset} (mit OpenWrt r$OPENWRT_REV auf '$HARDWARE')</h1>
   <big><a href='#'> OLSRv1-Verbindungen </a> ${AGE_HUMANREADABLE}&emsp;</big>
    <small>Version: $( _olsr version ) | system <b>uptime</b>: $( _system uptime humanreadable ) ($BOOTTIME) | kalua age: $( _file age '/etc/variables_fff+' humanreadable )</small><br><br>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, Gatewaywechsel: $GATEWAY_JITTER)</big><br>
