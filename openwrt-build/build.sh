@@ -1852,7 +1852,7 @@ build_options_set()
 				usecase_has 'noDebug' || {
 					log "[OK] autoselecting usecase 'debug' in 'Standard'-mode"
 					$funcname subcall 'debug'
-				}
+				}	# parser_ignore
 
 				fgrep -q 'CONFIG_USB_SUPPORT=y' "$file" && {
 					log "[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
