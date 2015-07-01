@@ -93,14 +93,28 @@ _vpn_innercity_master_iface()
 	local action="$1"	# up|down
 	local dev="$2"		# e.g. tap276
 	local i=0
-	local bytes packets uptime uptime_sec numbers linenumber
+	local bytes packets uptime uptime_sec numbers linenumber reason
 
+	# we make sure, that this function (up or down) is
+	# only used once from 1 caller - otherwise we wait
 	while ! mkdir "/tmp/lock-$funcname"; do {
-		i=$(( i + 1 ))
-		[ $i -gt 5 ] && _log do $funcname daemon info "locked: $action/$dev must wait for '$( cat "/tmp/lock-$funcname/info" )'"
-		sleep 1
+		read reason <"/tmp/lock-$funcname/info"
+
+		# FIXME! why does this happen?
+		if _file age "/tmp/lock-$funcname/info" -gt 600 ; then
+			_log do $funcname daemon info "overaged: force unlocking: '$reason'"
+			rm -fR "/tmp/lock-$funcname"
+		else
+			[ $i -gt 5 ] && {
+				_log do $funcname daemon info "locked: $action/$dev must wait for '$reason'"
+			}
+			i=$(( i + 1 ))
+			sleep $i
+		fi
 	} done
-	echo "action: $action dev: $dev" >"/tmp/lock-$funcname/info"
+
+	reason="action: $action dev: $dev"
+	echo "$reason" >"/tmp/lock-$funcname/info"
 	_log do $funcname daemon info "[START] action: $action dev: $dev"
 
 	local olsrd_config='/etc/olsrd.conf'
