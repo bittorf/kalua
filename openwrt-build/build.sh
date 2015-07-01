@@ -1825,8 +1825,6 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'Standard')	# >4mb flash
-				$funcname subcall 'uclibc'
-
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
@@ -1862,8 +1860,6 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
-				$funcname subcall 'uclibc'
-
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
