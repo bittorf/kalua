@@ -1522,13 +1522,14 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	repair_mac()	# screenscraping 'arping', e.g. '0:80:77:0:22:4c' (missing first 0)
 	{
 		local oldIFS="$IFS"; IFS=":"; set -- $1; IFS="$oldIFS"
-		local tupel insert=
+		local tupel new_mac=
 
 		for tupel in $1 $2 $3 $4 $5 $6; do {
 			[ ${#tupel} -eq 1 ] && tupel="0${tupel}"
-			echo -n "${insert}${tupel}"
-			insert=':'
+			new_mac="${new_mac}${new_mac:+:}${tupel}"
 		} done
+
+		_sanitizer do "$new_mac" lowercase
 	}
 
 	for dev in $devlist; do {
@@ -1574,10 +1575,12 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 				line="$( echo "$line" | cut -d'[' -f2 | cut -d']' -f1 )"
 				line="$( repair_mac "$line" )"
 
-				[ "$mac" = "$line" ] && {
+				if [ "$mac" = "$line" ]; then
 					echo "$dev"
 					return 0
-				}
+				else
+					_log do $funcname daemon debug "mismatch: $mac != $line"
+				fi
 			}
 
 			try=$(( try - 1 ))
