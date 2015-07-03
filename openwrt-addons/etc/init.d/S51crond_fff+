@@ -5,6 +5,19 @@
 #
 # * * * * * test -e /tmp/loader || /etc/kalua_init; . /tmp/loader; _cron vpnserver
 
+patch_udhcpc_script()
+{
+	local script='/etc/udhcpc.user'		# will be sourced every ~30mins (dhcp-loopback-watchdog)
+
+	grep -sq 'interim,nolog,seconds' "$script" || {
+		cat >>"$script" <<EOF
+. /tmp/loader
+test \$( _stopwatch stop /tmp/CRON_LASTCALL interim,nolog,seconds ) -gt 3600 && _system crashreboot cron_died
+EOF
+
+		test -x "$script" || chmod +x "$script"
+	}
+}
 
 adjust_coredump()
 {
@@ -504,6 +517,7 @@ func_cron_config_write ()
 case "$1" in
 	start)
 		adjust_coredump
+		patch_udhcpc_script
 
 		network_still_upstarting()
 		{

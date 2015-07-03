@@ -179,8 +179,8 @@ autocommit()
 		# we need 'force' here, because e.g. files/ is in .gitignore
 		git add --force "$gitfile"
 
-		count_files="$( find "$gitfile" -type f | wc -l )"
-		count_dirs="$(  find "$gitfile" -type d | wc -l )"
+		count_files=$( find "$gitfile" -type f | wc -l )
+		count_dirs=$(  find "$gitfile" -type d | wc -l )
 		count="($count_files files$( test $count_dirs -gt 0 && echo " and $count_dirs dirs" ))"
 		filetype="$( test -d "$gitfile" && echo 'directory' || echo 'file' )"
 	else
@@ -393,7 +393,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')" \
 				gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
 
-			if [ "$( echo "$VERSION_OPENWRT" | cut -b2- )" -lt 40293 ]; then
+			if [ $( echo "$VERSION_OPENWRT" | cut -b2- ) -lt 40293 ]; then
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt"
 			else
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt-r40293++"
