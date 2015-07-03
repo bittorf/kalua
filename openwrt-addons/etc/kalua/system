@@ -199,9 +199,9 @@ _system_del_ramdisc()
 _system_add_ramdisc()
 {
 	local name="$1"		# e.g. 'webcam'
-	local option="$2"	# e.g. 'compressable'
+	local option="$2"	# e.g. 'compressable' or e.g. '16k'
 	local divide=2
-	local size_tmpfs
+	local size_tmpfs=
 
 	case "$name" in
 		'/'*)
@@ -212,13 +212,17 @@ _system_add_ramdisc()
 
 	# tmpfs /database tmpfs rw,nosuid,nodev,relatime,size=14500k 0 0
 	grep -q ^"tmpfs /$name " '/proc/mounts' || {
-		[ "$option" = 'compressable' ] && {
+		if   [ "$option" = 'compressable' ]; then
 			# larger size, if content can be compressed
 			grep -q ^'/dev/zram' '/proc/swaps' && divide=1
-		}
+		elif [ -n "$option" ]; then
+			size_tmpfs="$option"
+		fi
 
-		size_tmpfs=$( _system ram_size )
-		size_tmpfs=$(( size_tmpfs * 1024 / divide ))
+		[ -z "$size_tmpfs" ] && {
+			size_tmpfs=$( _system ram_size )
+			size_tmpfs=$(( size_tmpfs * 1024 / divide ))
+		}
 
 		_log do $funcname daemon info "adding ramdisk /$name of size $size_tmpfs"
 		mkdir -p "/$name"

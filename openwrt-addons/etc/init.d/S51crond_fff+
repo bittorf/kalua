@@ -6,6 +6,36 @@
 # * * * * * test -e /tmp/loader || /etc/kalua_init; . /tmp/loader; _cron vpnserver
 
 
+adjust_coredump()
+{
+	local funcname='adjust_coredump'
+	local file='/proc/sys/kernel/core_pattern'
+	local pattern='/dev/null'
+	local rlimit_core
+
+	# TODO: limit single corefile size, otherwise we only see the 1st if there is a crash-cascade
+	case "$CONFIG_PROFLE" in
+		'liszt28'*)
+			rlimit_core='2048k'
+		;;
+		*)
+			if [ -n "$LOWMEM" ]; then
+				rlimit_core=
+			else
+				rlimit_core='16k'
+			fi
+		;;
+	esac
+
+	[ -n "$rlimit_core" ] && {
+		_system add_ramdisc 'coredumps' "$rlimit_core" && {
+			pattern='/coredump/%e.%p.%s.%t.core'
+		}
+	}
+
+	_log do $funcname daemon info "writing '$pattern' to '$file'"
+}
+
 func_cron_daemon_start ()
 {
 	local funcname="cron_daemon_start"
@@ -473,6 +503,8 @@ func_cron_config_write ()
 
 case "$1" in
 	start)
+		adjust_coredump
+
 		network_still_upstarting()
 		{
 			pidof network >/dev/null && return 0
