@@ -322,6 +322,7 @@ Special UCI-variables
 	system.@monitoring[0].maxcost		- integer
 	system.@monitoring[0].max_wificlients	- bool
 	system.@monitoring[0].speedcheck_wired	- bool
+	system.@monitoring[0].roaming_stats	- bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
