@@ -238,6 +238,7 @@ boot()
 	}
 
 	# if for some reason 'loopback' is missing (this adds an unnamed section)
+	# TODO: we also need to check for 'network.@loopback[0].ifname'
 	uci get network.loopback.ifname >/dev/null || {
 		uci add network 'loopback' >/dev/null
 		uci set network.@loopback[-1].interface='loopback'
@@ -247,7 +248,8 @@ boot()
 		uci set network.@loopback[-1].netmask='255.0.0.0'
 	}
 
-	# if for some reason 'lan'
+	# if for some reason 'lan' is missing
+	# TODO: we also need to check for 'network.@lan[0].ifname'
 	uci get network.lan.ifname >/dev/null || {
 		uci add network 'lan' >/dev/null
 		uci set network.@lan[-1].interface='lan'
@@ -285,7 +287,9 @@ boot()
 		# https://lists.openwrt.org/pipermail/openwrt-devel/2015-January/030887.html
 		rm /etc/uci-defaults/* 2>/dev/null
 
-		[ -n "$LOWMEM" ] && {
+		[ -n "$LOWMEM" -a ! -e '/www/kmods_fixed' ] && {
+			touch '/www/kmods_fixed'
+
 			kmodules_group_deactivate '*'		# unneeded, but doesnt hurt (for old nodes)
 			kmodules_group_activate   'zram'
 			kmodules_group_activate   'lib-lzo'
