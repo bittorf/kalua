@@ -148,7 +148,17 @@ else
 fi
 
 [ -z "$INCLUDE" ] && {
+	PIDS_IW_BEFORE="$( pidof iw )"
+
 	iw event | while read LINE; do {
+		case "$PID_IW" in
+			'')
+				for PID_IW in $( pidof iw ); do {
+					_list contains_element "$PIDS_IW_BEFORE" "$PID_IW" || break
+				} done
+			;;
+		esac
+
 		case "$LINE" in
 			*': del station '*|*': new station '*)
 				# wlan0-1: del station 00:21:6a:32:7c:1c
@@ -168,8 +178,9 @@ fi
 			'regulatory domain change: set to '*)
 				# e.g. iw reg set 00; iw reg set US
 				# TODO: find better method
-				log "stopped by user via regset"
-				exit 0
+				log "stopped by user via regset, stopping iw: $PID_IW"
+				kill $PID_IW
+				break
 			;;
 		esac
 	} done
