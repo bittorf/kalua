@@ -670,7 +670,7 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-legacy-squashfs.trx'
 			FILENAME_FACTORY='openwrt-wrt54g-squashfs.bin'
 
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y"
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
 		;;
 		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2')
 			# hint: the 'ASUS WL-500g Premium v2' needs the 'low power phy' compiled into b43
@@ -679,6 +679,8 @@ EOF
 			if [ $( openwrt_revision_number_get ) -gt 41530 ]; then
 				FILENAME_SYSUPGRADE='openwrt-brcm47xx-generic-squashfs.trx'
 				FILENAME_FACTORY='openwrt-brcm47xx-generic-squashfs.trx'
+
+				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
 			else
 				FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
 				FILENAME_FACTORY='openwrt-brcm47xx-squashfs.trx'
