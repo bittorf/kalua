@@ -40,10 +40,8 @@ case "\$LODEV" in lo) return 0 ;; esac	# already loaded
 _(){ ls -1 $POOLDIR|grep ^[a-z]|sort|sed 's/^/_/';}
 EOF
 
-# echo >>"$LOADER" "x(){ . $POOLDIR/\$1;}"	# safes 350 bytes in combination with [3], but i like the speedcode
-
 for CLASS in $BASEDIR/*; do {
-	CLASS="$( basename $CLASS )"		# generate loader and add methods 'show'+'include'
+	CLASS="$( basename $CLASS )"		# generate loader and add methods 'show' + 'include'
 	case "$CLASS" in
 		[a-z]*)
 		;;
@@ -53,18 +51,14 @@ for CLASS in $BASEDIR/*; do {
 		;;
 	esac
 
-	# the first element is later cut off via "${MAX_ARGS#* }"
-	MAX_ARGS='"$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" "${10}" "${11}" "${12}" "${13}" "${14}" "${15}"'
-#	MAX_ARGS='"$@"'
-
-	[ "$DEBUG" = "debug" ] && {
-		DEBUG1="logger -- working in _$CLASS, calling \$1 with args ${MAX_ARGS#* };"	# omit first ARG
-		DEBUG2="logger -- including _$CLASS subfunc \$1;"
-		DEBUG3="|| logger -t $CLASS -s \"invalid call: \$1\""
-	}
-
 	HASH="$( md5sum "$BASEDIR/$CLASS" )"
 	HASH="${HASH%% *}"
+
+	[ "$DEBUG" = 'debug' ] && {
+		DEBUG1="logger -- working in _$CLASS, calling \$1 with args \$@;"
+		DEBUG2="logger -- including _$CLASS subfunc \$1;"
+		DEBUG3=" || logger -t $CLASS -s \"invalid call: \$1\""
+	}
 
 	class_needs_new_build()
 	{
@@ -77,7 +71,7 @@ for CLASS in $BASEDIR/*; do {
 
 	class_needs_new_build && {
 		cat >"$POOLDIR/${CLASS}" <<EOF
-_${CLASS}(){ ${DEBUG1}_${CLASS}_\${1:-s} ${MAX_ARGS#* }${DEBUG3};}
+_$CLASS(){ ${DEBUG1}local a=\${1-s};shift;_${CLASS}_\$a "$@"${DEBUG3};}
 _${CLASS}_show(){ sed -n "/;}$/! s/^\(_${CLASS}_.*\)()/\1/p" $POOLDIR/${CLASS}|sort;}
 _${CLASS}_s(){ _${CLASS}_show;}
 _${CLASS}_include(){ :;}
@@ -96,7 +90,7 @@ EOF
 		if sh -n "$POOLDIR/${CLASS}"; then
 			echo "$CLASS $HASH" >>"$POOLDIR/CHECKSUMS"
 		else
-			DEBUG="compile_error"
+			DEBUG='compile_error'
 		fi
 	}
 
@@ -110,8 +104,7 @@ EOF
 			echo >>"$LOADER" "_${CLASS}(){ . $POOLDIR/$CLASS;${DEBUG2}_${CLASS} ${MAX_ARGS}${DEBUG3};}"
 		;;
 		*)
-# [3]			echo >>"$LOADER" "_${CLASS}(){ _=${CLASS};x \$_;${DEBUG2}_\${_}_\${1:-s} ${MAX_ARGS#* };}"
-			echo >>"$LOADER" "_${CLASS}(){ . $POOLDIR/$CLASS;${DEBUG2}_${CLASS}_\${1:-s} ${MAX_ARGS#* };}"
+			echo >>"$LOADER" "_$CLASS(){ . $POOLDIR/$CLASS;local a=\${1-s};shift;_${CLASS}_\$a \"$@\";}"
 		;;
 	esac
 
