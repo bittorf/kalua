@@ -2534,6 +2534,8 @@ unittest_do()
 		build_loader="$KALUA_DIRNAME/openwrt-addons/etc/kalua_init"
 	fi
 
+	[ -n "$TRAVIS" ] && mount	# debug
+
 	log '[START]'
 	log "building loader: $build_loader"
 	$build_loader || return 1
