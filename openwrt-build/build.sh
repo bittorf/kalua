@@ -677,6 +677,9 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
 
 			if [ $( openwrt_revision_number_get ) -gt 41530 ]; then
+				# openwrt-brcm47xx-legacy-squashfs.trx
+				# openwrt-brcm47xx-legacy-asus-wl-500gp-v1-squashfs.trx
+				# openwrt-brcm47xx-legacy-asus-wl-500gp-v2-squashfs.trx
 				FILENAME_SYSUPGRADE='openwrt-brcm47xx-generic-squashfs.trx'
 				FILENAME_FACTORY='openwrt-brcm47xx-generic-squashfs.trx'
 

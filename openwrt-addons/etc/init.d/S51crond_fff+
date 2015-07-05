@@ -9,21 +9,23 @@ patch_udhcpc_script()
 {
 	local script='/etc/udhcpc.user'		# will be sourced every ~30mins (dhcp-loopback-watchdog)
 
-	# TODO: link to ramdisc and rewrite file on every call
-	# with a very simple uptime-compare-calculation?
+	# TODO: work with a very simple uptime-compare-calculation?
 
-	grep -sq '3600' "$script" || {
-		cat >>"$script" <<EOF
-read UP REST </proc/uptime
-[ \${UP%.*} -gt 3600 ] && {
-. /tmp/loader
-pidof crond || _system crashreboot cron_died
-test \$( _stopwatch stop /tmp/CRON_LASTCALL interim,nolog,seconds ) -gt 3600 && _system crashreboot cron_died
-}
-EOF
-
-		test -x "$script" || chmod +x "$script"
+	[ -h "$script" ] || {
+		rm "$script"	# TODO: patch maybe existent user-script
+		ln -s "$TMPDIR/$( basename "$script" )" "$script"
 	}
+
+	{
+		echo "# will be sourced from '/lib/netifd/dhcp.script' via udhcpc during loopback-alias-interface"
+		echo 'read UP REST </proc/uptime'
+		echo '[ ${UP%.*} -gt 3600 ] && {'
+		echo '	. /tmp/loader'
+		echo '	pidof crond || _system crashreboot cron_died'
+		echo '	UP=$( _stopwatch stop /tmp/CRON_LASTCALL interim,nolog,seconds )'
+		echo '	[ $UP -gt 3600 ] && _system crashreboot cron_died'
+		echo '}'
+	} >"$script"
 }
 
 adjust_coredump()
