@@ -113,8 +113,11 @@ esac
 [ -e "/var/www/networks/$ARG2" ] || {
 	TARFILE="/tmp/backup-server-$( uname -n )-$( date +%Y%b%d_%H:%M ).tar"		# 2008oct12_20:25
 
+	# trash:
+	rm /tmp/all_pubips.txt_*
+
 	cd /
-	tar -cvf "$TARFILE" /var/www/scripts /var/spool/cron/crontabs/root /tmp/crashlogs
+	tar -cvf "$TARFILE" /var/www/scripts /var/spool/cron/crontabs/root /tmp/crashlogs /tmp/monilog.txt
 	ls -l $TARFILE
 	log "[OK] lzma '$TARFILE' running"
 	lzma "$TARFILE"

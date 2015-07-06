@@ -216,6 +216,10 @@ TARBALL_TIME='398156'	# 0bbab41f4714180c16b4308d5f7a1d13b6fad3e1
 TARBALL_TIME='398251'	# 27aeead42c8db465cbdb7ca501004b88c2b019cf
 TARBALL_TIME='398364'	# 2197dc6b08a549d00b27ded146d497af3e61a276
 TARBALL_TIME='398610'	# 4156286a7beb3c030c21cb312ca21604fec5a61d
+TARBALL_TIME='398774'	# 29c8e80a6f7b01f876da4f20020be083281cb080
+TARBALL_TIME='398780'	# 5b174a539918f5d5c09ad0a4a7a539e00f3df38e
+TARBALL_TIME='398893'	# 63c2872387cbaa0c04fecce62425e37482d98c3c
+TARBALL_TIME='398941'	# 4d842c71d3e63e7f635a3472f88c1f62aeb4a648
 
 
 
@@ -689,6 +693,11 @@ for FILE in $LIST_FILES LASTFILE; do {
 	grep -sq ^"$WIFIMAC" ../ignore/macs.txt && {				# format: "0014bfbfb374	   # linksys115"
 #		rm $FILE
 		log "omitting $WIFIMAC/$HOSTNAME"
+
+#		# autohide / autounhide
+#		[ $(( UNIXTIME_SCRIPTSTART - LAST_UPDATE_UNIXTIME )) -lt 864000 ] && {
+#			echo "# younger than 10 days: $WIFIMAC" >>../ignore/macs.txt
+#		}
 
 		case "$HOSTNAME" in
 			*'--'*)
@@ -3386,8 +3395,8 @@ esac
 
 } done | sort -rn >>$OUT
 
-ROUTER_ALL=$( ls -1 recent/ | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | wc -l )
-ROUTER_OMITTED=$( grep -cs 'omitted:' "$OUT" )
+ROUTER_ALL="$( ls -1 recent/ | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | wc -l )"
+ROUTER_OMITTED="$( grep -s 'omitted:' "$OUT" | wc -l )"
 ROUTER_COUNT=$(( $ROUTER_ALL - $ROUTER_OMITTED ))
 
 FILESIZE_DATA="$( stat -c %s meshrdf.txt )"

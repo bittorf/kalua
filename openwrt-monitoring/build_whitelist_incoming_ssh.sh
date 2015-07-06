@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# runs ~25 sec?!
-
 IPT="/sbin/iptables"
 
 if [ -e "/var/run/server_has_started" ]; then
@@ -34,6 +32,7 @@ lock()
 log()
 {
 	local history="/tmp/$( basename $0 ).txt"
+
 	logger -s "$0: $1"
 	echo "$( date ) $1" >>"$history"
 }

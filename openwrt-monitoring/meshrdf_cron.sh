@@ -111,19 +111,34 @@ gen_meshrdf_for_network()
 	local temp="$html.temp"
 	local url="http://127.0.0.1/networks/$network/meshrdf/?ORDER=hostname"
 	local datadir="/var/www/networks/$network/meshrdf/recent"
-	local hash_file="/dev/shm/meshrdf_hash_$network"
 	local newest_file="$datadir/$( ls -1t "$datadir" | head -n1 )"
+	local hash_file="/dev/shm/meshrdf_hash_$network"
 	local hash_now="$( date +%s -r "$newest_file" )"
 	local hash_last
 
-	read hash_last <"$hash_file"
-	if [ "$hash_last" = "$hash_now" ]; then
-		log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
-		return 0
-	else
-		log "$funcname() NEEDED? found changes network $network - was: $hash_last != $hash_now (now)"
-		echo "$hash_now" >"$hash_file"
-	fi
+	respect_fileage()
+	{
+		case "$( date '+%H:%M' )" in	# e.g. 09:01
+			'02:'*|'03:'*|'04:'*)
+				return 1
+			;;
+			*)
+				return 0
+			;;
+		esac
+	}
+
+	respect_fileage || {
+		read hash_last <"$hash_file"
+
+		if [ "$hash_last" = "$hash_now" ]; then
+			log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
+			return 0
+		else
+			log "$funcname() NEEDED? found changes network $network - was: $hash_last != $hash_now (now)"
+			echo "$hash_now" >"$hash_file"
+		fi
+	}
 
 	# file age:
 	local unixtime_file="$( date +%s -r "$html" )"
@@ -408,7 +423,7 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 
 #		log "[OK] including '$NETWORK'-contacts: $CONTACT_DATA"
 
-		fgrep -q " title='MISS " $NET/../../index.html && {
+		fgrep -sq " title='MISS " $NET/../../index.html && {
 			echo "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small><br></small><big><a href='$LINK' title='$CONTACT_DATA'>$NETWORK</a></big></small><br></small></td></tr>" >>$FILE_SUMMARY_TEMP
 
 			OMIT="d85d4c9c2fb0"		# leonardo/beach
