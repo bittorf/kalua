@@ -122,12 +122,11 @@ worker()
 	esac
 }
 
-active_ap_devices()
+active_ap_devices()	# e.g. ' wlan0 wlan1-1 wlan1-2 '
 {
-	local dev
-	# FIXME! dynamisch aus file holen, was via hotplug gebaut wird
-	# e.g. ' wlan0 wlan1-1 wlan1-2 '
-	grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read dev; do echo -n " $dev "; done
+	cat "$TMPDIR/WIFI_DEVS_AP" 2>/dev/null || {
+		grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read dev; do echo -n " $dev "; done
+	}
 }
 
 stop()
@@ -153,6 +152,7 @@ fi
 	iw event | while read LINE; do {
 		case "$PID_IW" in
 			'')
+				# during first run, get real PID of 'iw' for killing it later
 				for PID_IW in $( pidof iw ); do {
 					_list contains_element "$PIDS_IW_BEFORE" "$PID_IW" || break
 				} done
