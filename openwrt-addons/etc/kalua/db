@@ -49,9 +49,18 @@ _db_lock()
 	local funcname="db_lock"
 	local mode="$1"			# now|free|reason
 	local context="${2:-unset_context}"
-	local dir="/tmp/$funcname"
-	local file="$dir/reason"
-	local i=1
+	local i=1 dir file
+
+	case "$context" in
+		'searching'*)
+			dir="/tmp/$funcname-searching"
+		;;
+		*)
+			dir="/tmp/$funcname"
+		;;
+	esac
+
+	file="$dir/reason"
 
 	case "$mode" in
 		'reason')
@@ -539,12 +548,14 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 						mkdir -p '/tmp/dbcache'
 						touch "$cachefile"	# better would be to wait if the same hash is queried during sed-call
 
+						_db lock now "searching: hash2id: $HASH"
 						if [ "$OPTION2" = "last" ]; then
 							# this path seems unused
 							fgrep -n -m1 "$HASH" "$DIR/meta_index" | cut -d':' -f1 >"$cachefile"
 						else
 							fgrep -n -m1 "$HASH" "$DIR/meta_index" | cut -d':' -f1 >"$cachefile"
 						fi
+						_db lock free 'searching'
 
 						cat "$cachefile"
 
@@ -561,7 +572,9 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 					elif [ "$OPTION2" = "all" ]; then
 						sed -n "/$STRING/=" "$DIR/rows"
 					else
+						_db lock now "searching: string2id: $STRING"
 						fgrep -n -m1 "$STRING" "$DIR/rows" | cut -d':' -f1
+						_db lock free 'searching'
 					fi
 				;;
 				string2id_list)
