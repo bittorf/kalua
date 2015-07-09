@@ -4,7 +4,7 @@ START=11
 
 boot()
 {
-	local file="/www/REBOOT_COUNTER"
+	local file='/www/REBOOT_COUNTER'
 	local i
 
         if [ -e "$file" ]; then
@@ -14,4 +14,21 @@ boot()
         else
                 echo 1 >"$file"
         fi
+
+	# migrate whole olsr1-network from 'etx_ff' -> 'etx_ffeth'
+	# see: https://lists.olsr.org/pipermail/olsr-dev/2012-June/005734.html
+	#
+	# at this stage we have a valid date from S10boot
+	# (filedate of the newest file on disk)
+	local year="$( date +%Y )"
+	local olsrd_metric="$( uci -q get 'olsrd.@olsrd[0].LinkQualityAlgorithm' )"
+	local olsrd_metric_wish='etx_ffeth'
+
+	[ "$year" = '2016' -a "$olsrd_metric" = 'etx_ff' ] && {
+		. /tmp/loader
+
+		_log do switch_olsr_metric daemon alert "hard switch to $olsrd_metric_wish"
+		uci set olsrd.@olsrd[0].LinkQualityAlgorithm="$olsrd_metric_wish"
+		uci commit olsrd
+	}
 }
