@@ -767,9 +767,9 @@ grep -q ^"ip_tables " /proc/modules && {
 					fi
 
 					i=0; OUT=
-					while [ "$OUT" != "OK" -a $i -lt 30 ]; do {
+					while [ "$OUT" != "OK" -a $i -lt 10 ]; do {
 						OUT="$( _wget do "${KEEP_ALIVE_URL}?${QUERY}&e0=$i&e1=$errors_overall" 10 )" || {
-							sleep 10
+							sleep $i
 						}
 
 						_watch coredump 'during: monitoring'
@@ -780,20 +780,21 @@ grep -q ^"ip_tables " /proc/modules && {
 					errors_overall=$(( errors_overall + i - 1 ))
 					echo "$errors_overall" >"/tmp/ARCHIV_MONITORING.errors"
 
- 					_log do $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT"
-
- 					[ "$OUT" != "OK" ] && {
+ 					if [ "$OUT" = 'OK' ]; then
+ 						_log do $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT - i: $i"
+					else
  						_log do $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
 
- 						# fixme! this is a workaround for only sending lines, which we have not send yet
+ 						# FIXME! this is a workaround for only sending lines, which we have not send yet
 						sed -n "$LINENUMBER_LAST_SUCCESS,999p" "/tmp/ARCHIV_MONITORING" >"/tmp/ARCHIV_MONITORING.tmp"
 						mv "/tmp/ARCHIV_MONITORING.tmp" "/tmp/ARCHIV_MONITORING"
 
  						touch '/tmp/SEND_ALIVE_FAILED'
  						echo >>$SCHEDULER "$0"
 
- 						break				# fixme! set comment ("marker") after last sent line
- 					}
+						# FIXME! set comment ("marker") after last sent line
+ 						break
+ 					fi
  				;;
  				*)
 	 				_log do $FUNC daemon debug "send alive normally ended"
