@@ -944,27 +944,29 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 _watch_pppoe()
 {
-	local funcname="watch_pppoe"
+	local funcname='watch_pppoe'
 	local failure_file="/tmp/${funcname}:conn_is_faulty"
 	local good_file="/tmp/${funcname}:conn_good"
 	local daemon
 
-	[ "$( uci -q get network.wan.proto )" = "pppoe" ] || return 0
-	[ $( _system uptime min ) -le 5 ] && return 0
+	[ "$( uci -q get network.wan.proto )" = 'pppoe' ] || return 0
 
 	if ip route list exact '0.0.0.0/0' | fgrep -q "dev $WANDEV" ; then	# WANDEV= "pppoe-wan" OR "ppp0"
 		if [ -e "$failure_file" ]; then
 			rm "$failure_file"
-			_stopwatch stop "$funcname" quiet 1 pppoe-connection
+			_stopwatch stop "$funcname" quiet 1 'pppoe-connection'
 
-			/etc/init.d/S43ethers_fff+ call
-			cron.check_inet_gw_fff+
-			cron.monitoring send_alive_message
+			{
+				echo '/etc/init.d/S43ethers_fff+ call'
+				echo 'cron.check_inet_gw_fff+'
+				echo 'cron.monitoring send_alive_message'
+			} >>$SCHEDULER_IMPORTANT
 		else
 			touch "$good_file"
-			return 0
 		fi
 	else
+		[ $( _system uptime min ) -le 5 ] && return 0
+
 		# ip monitor:
 		# [OK]
 		# eth0.2@eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
