@@ -324,6 +324,7 @@ Special UCI-variables
 	system.@monitoring[0].speedcheck_wired	- bool
 	system.@monitoring[0].roaming_stats	- bool
 	system.@monitoring[0].report_traffic_nightly	- bool
+	system.@monitoring[0].report_daily_stats - bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
