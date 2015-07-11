@@ -985,36 +985,43 @@ _netfilter_portforwarding_add()
 
 _netfilter_portforwarding_start()
 {
-	local dev="$1"		# override incoming_dev with IP
+	local dev="${1:-$WANDEV}"		# override incoming_dev with IP
 
 	# TODO: make it possible to start|stop ruleset
-
+	# TODO: short syntax, e.g: 10022->22->lan9->bunsen
 	# TODO: convert to userscript: /etc/firewall.user -> /tmp/firewall.user
 	case "$CONFIG_PROFILE" in
+		monami*)
+			[ "$NODENUMBER" = '7' ] && {
+				_netfilter portforwarding_add "$dev"  '22'  '22' '10.63.9.33' 'bla' 'bunsen:SSH'
+				_netfilter portforwarding_add "$dev"  '80'  '80' '10.63.9.33' 'bla' 'bunsen:HTTP'
+				_netfilter portforwarding_add "$dev" '443' '443' '10.63.9.33' 'bla' 'bunsen:HTTPS'
+			}
+		;;
 		leonardo*)
 			[ "$NODENUMBER" = '6' ] && {
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080'  '80' '10.10.3.33'   'bla' 'master:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10443' '443' '10.10.3.33'   'bla' 'master:HTTPS'
+				_netfilter portforwarding_add "$dev" '10080'  '80' '10.10.3.33'   'bla' 'master:HTTP'
+				_netfilter portforwarding_add "$dev" '10443' '443' '10.10.3.33'   'bla' 'master:HTTPS'
 			}
 		;;
 		boltenhagendh*)
 			[ "$NODENUMBER" = '2' ] && {
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10022'  '22' '10.10.2.129'   'bla' 'master:SSH'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080'  '80' '10.10.2.129'   'bla' 'master:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10443' '443' '10.10.2.129'   'bla' 'master:HTTPS'
-				_netfilter portforwarding_add "${dev:-$WANDEV}"   '443' '443' '10.10.111.129' 'bla' 'authserver:HTTPS'
-				_netfilter portforwarding_add "${dev:-$WANDEV}"    '80'  '80' '10.10.111.129' 'bla' 'authserver:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}"    '22'  '22' '10.10.111.129' 'bla' 'authserver:SSH'
+				_netfilter portforwarding_add "$dev" '10022'  '22' '10.10.2.129'   'bla' 'master:SSH'
+				_netfilter portforwarding_add "$dev" '10080'  '80' '10.10.2.129'   'bla' 'master:HTTP'
+				_netfilter portforwarding_add "$dev" '10443' '443' '10.10.2.129'   'bla' 'master:HTTPS'
+				_netfilter portforwarding_add "$dev"   '443' '443' '10.10.111.129' 'bla' 'authserver:HTTPS'
+				_netfilter portforwarding_add "$dev"    '80'  '80' '10.10.111.129' 'bla' 'authserver:HTTP'
+				_netfilter portforwarding_add "$dev"    '22'  '22' '10.10.111.129' 'bla' 'authserver:SSH'
 			}
 		;;
 		liszt28*)
 			[ "$NODENUMBER" = '276' ] && {
 				# kg-f36
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '20080' '80' '10.63.6.125'   'superbuffi'        'buffi:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10022' '22' '10.63.195.161' '02:50:43:ab:1c:91' 'KellerNAS:SSH'
-				_netfilter portforwarding_add "${dev:-$WANDEV}"   '222' '22' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:SSH'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '10080' '80' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:HTTP'
-				_netfilter portforwarding_add "${dev:-$WANDEV}" '55555' '80' '10.63.97.225'  'f8:d1:11:a9:ce:ba' 'Zwickau:HTTP'
+				_netfilter portforwarding_add "$dev" '20080' '80' '10.63.6.125'   'superbuffi'        'buffi:HTTP'
+				_netfilter portforwarding_add "$dev" '10022' '22' '10.63.195.161' '02:50:43:ab:1c:91' 'KellerNAS:SSH'
+				_netfilter portforwarding_add "$dev"   '222' '22' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:SSH'
+				_netfilter portforwarding_add "$dev" '10080' '80' '10.63.2.34'    '00:1d:92:52:11:20' 'Medion:HTTP'
+				_netfilter portforwarding_add "$dev" '55555' '80' '10.63.97.225'  'f8:d1:11:a9:ce:ba' 'Zwickau:HTTP'
 
 				# when link is not symetric (other outgoing gateway than incoming)
 				_netfilter portforwarding_add "$IPT -t nat -I POSTROUTING -d 10.63.2.34 -j MASQUERADE" 'Medion:MASQ'
@@ -1046,7 +1053,7 @@ _netfilter_portforwarding_start()
 			}
 
 			[ "$LANADR" = "10.10.254.33" ] && {
-				$IPT -t nat -I PREROUTING -i $WANDEV -p tcp --dport 10080 -j DNAT --to-destination 10.10.8.33:80
+				$IPT -t nat -I PREROUTING -i $dev -p tcp --dport 10080 -j DNAT --to-destination 10.10.8.33:80
 			}
 		;;
 	esac

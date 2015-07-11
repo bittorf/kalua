@@ -1,24 +1,37 @@
 #!/bin/sh
 . /tmp/loader
 
-FILE="/tmp/COLLECT_DATA"	# filled via _netfilter_user_stats_process() and /www/cgi-bin-collect.sh
+FILE='/tmp/COLLECT_DATA'	# filled via _netfilter_user_stats_process() and /www/cgi-bin-collect.sh
 FILE_TEMP="$FILE.working"
 
 [ -e "$FILE" ] || exit 0
+
 mv "$FILE" "$FILE_TEMP"
 FILE="$FILE_TEMP"
 
+HOUR="$( date +%H )"		# e.g. 05 or 23
 UNIXTIME="$( date +%s )"
 UPTIME_NOW="$( _system uptime sec )"
 OVERALL_BYTES=0
 LIST_OVERALL_USERS=
 
+case "$HOUR" in
+	03|04)
+	;;
+	*)
+		# TODO: compress to /tmp/COLLECT_DATA.working.$UPTIMESEC.gz and suck in later
+		bool_true 'system.@monitoring[0].report_traffic_nightly' && exit 0
+	;;
+esac
+
 #DAY="$(date +%A)"
-#[ "$( date +%H )" = 17 ] && {
+#[ "$HOUR" = '17' ] && {
 #        touch /tmp/BLA
 #        ip r d default via 10.63.21.121 dev tap0 table hideandseek
 #}
 
+# for FILE in ...
+# UNIXTIME="$( _file time "$FILE" unixstamp )"
 while read QUERY_STRING; do {
 	eval $( _http query_string_sanitize "$0" )	# UPTIME|REMOTE_ADDR|CMA|CTU|CBI|CBO
 	LIST="$( _http query_string_group2list CMA_ )"

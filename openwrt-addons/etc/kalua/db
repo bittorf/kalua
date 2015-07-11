@@ -566,23 +566,34 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 						_db lock free 'searching'
 
 						cat "$cachefile"
-
-						# exists and >0 bytes? only cache valid entries
-						[ -s "$cachefile" ] || rm "$cachefile"
+# FIXME
+#						# exists and >0 bytes? only cache valid entries
+#						[ -s "$cachefile" ] || rm "$cachefile"
 					}
 				;;
 				string2id)
 					[ -e "$DIR/rows" ] || return 1
 					local STRING="$OPTION"
+					local cachefile="/tmp/dbcache/string2id_$STRING"
 
 					if   [ "$OPTION2" = "last" ]; then
 						sed -n "/$STRING/=" "$DIR/rows" | tail -n1
 					elif [ "$OPTION2" = "all" ]; then
 						sed -n "/$STRING/=" "$DIR/rows"
 					else
-						_db lock now "searching: string2id: $STRING"
-						fgrep -n -m1 "$STRING" "$DIR/rows" | cut -d':' -f1
-						_db lock free 'searching'
+						cat "$cachefile" 2>/dev/null || {
+							mkdir -p '/tmp/dbcache'
+							touch "$cachefile"	# FIXME
+
+							_db lock now "searching: string2id: $STRING"
+							fgrep -n -m1 "$STRING" "$DIR/rows" | cut -d':' -f1 >"$cachefile"
+							_db lock free 'searching'
+
+							cat "$cachefile"
+# FIXME
+#							# exists and >0 bytes? only cache valid entries
+#							[ -s "$cachefile" ] || rm "$cachefile"
+						}
 					fi
 				;;
 				string2id_list)
