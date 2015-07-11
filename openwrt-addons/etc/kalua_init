@@ -12,15 +12,6 @@
 # todo: option zum entfernen aller logmeldungen? (bzw. nur log-debug)
 # todo: lade-log an/aus (loader/realclass)
 
-# TODO:
-# _ s    http		-> show http methods  [ $1 = s ]
-# _ http arg1 argX	-> include + start -> [ $2 ]
-# _ http		-> include only       [ $1 ]
-# _			-> list classes
-
-# _(){ if [ $1 = s ]; then ... elif [ $2 ]; then ... elif [ $1 ]; then ... else ... fi;}
-
-
 read UP REST <'/proc/uptime'
 echo "${UP%.*}${UP#*.}" >'/tmp/kalua_time'	# mimic stopwatch_start()
 
@@ -43,6 +34,21 @@ mkdir -p "$POOLDIR"
 
 # LOWMEM: directly call copy on disc
 cd "${BASEDIR}.w" 2>/dev/null && rm -fR "${BASEDIR}.w/"*
+
+# _ s    http		-> show http methods
+# _ http arg1 argX	-> include + start
+# _ http		-> include only
+# _			-> list classes
+
+#cat >"$LOADER" <<EOF
+#_(){case \$1 in
+#s)sed -n "/;}$/! s/^\(_\${2}_.*\)()/\1/p" $POOLDIR/\$2|sort;;
+#'')ls -1 $POOLDIR|grep ^[a-z]|sort|sed s/^/_/;;
+#*)case \$2 in
+#''). $POOLDIR/\$1;;
+#*)local a=\${2-s} b=\$1;shift 3;_ \$b;_\${b}_\$a "\$@";;esac;;esac
+#}
+#EOF
 
 cat >"$LOADER" <<EOF
 #!/bin/sh
@@ -120,6 +126,7 @@ EOF
 		;;
 		*)
 			echo >>"$LOADER" "_$CLASS(){ _ i $CLASS \"\$@\";}"
+#			echo >>"$LOADER" "_$CLASS(){ _ $CLASS \"\$@\";}"
 		;;
 	esac
 
