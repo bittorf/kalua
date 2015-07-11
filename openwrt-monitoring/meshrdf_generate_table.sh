@@ -460,18 +460,65 @@ if [ "$( cat 2>/dev/null "/dev/shm/pingcheck/$NETWORK.faulty" )" = "sms" ]; then
 else
 	BODY_BGCOLOR=
 	HEADLINE=
-
-	case "$NETWORK" in
-		spbansin)
-			HEADLINE="<h3>Monitoringdaten zum Zeitpunkt $LOCALTIME - aktualisieren mit 'F5'</h3><br>"
-		;;
-		*)
-#			HEADLINE="<h3>Die Monitoring-Server hatten heute Nacht (Sonntag auf Montag) ein Problem, dies ist jedoch wieder behoben</h3>"
-		;;
-	esac
+#	HEADLINE="<h3>Die Monitoring-Server hatten heute Nacht (Sonntag auf Montag) ein Problem, dies ist jedoch wieder behoben</h3>"
 fi
 
-echo >>$OUT "</head><body bgcolor='$BODY_BGCOLOR'>$HEADLINE<table cellspacing='1' cellpadding='1' border='1' class='sortable' id='haupt'><tr>"
+echo >>$OUT "</head><body bgcolor='$BODY_BGCOLOR'>"
+
+cat >>$OUT <<EOF
+<p id='zeitstempel' data-timestamp-page='$( date +%s )'> Datenbestand vom $( date "+%d.%b'%y-%H:%M" )</p>
+<script>
+// tiny-relative-time.js
+// Author: Max Albrecht <1@178.is>
+// Public Domain
+
+(function doTheRelativeTimestamp(update) {
+  var timeStamp, unixDate, repeat, updater
+  // config
+  repeat = true
+
+  // main
+  if (updater = RelativeTimestamper('zeitstempel')) {
+    updater()
+    if (repeat) setInterval(updater, 1000)
+  }
+
+  // lib
+  function RelativeTimestamper(id) {
+    if (timeStamp = document.getElementById(id)) {
+      if (unixDate = timeStamp.getAttribute('data-timestamp-page')) {
+        return updateTimestamp.bind(null,timeStamp, unixDate)
+      }
+    }
+  }
+
+  function updateTimestamp(node, seconds) {
+    node.innerHTML = "Alter des Datenbestands: " + formatTimeDuration(timeAgo(seconds))
+  }
+
+  function timeAgo(seconds) {
+    return ((new Date().getTime())/1000) - parseInt(seconds, 10)
+  }
+
+  function formatTimeDuration(seconds) {
+    var d, h, m, s
+
+    d = Math.floor(seconds / 86400)
+    h = Math.floor((seconds % 86400) / 3600)
+    m = Math.floor(((seconds % 86400) % 3600) / 60)
+    s = Math.floor(((seconds % 86400) % 3600) % 60)
+
+    return '' +
+      ((d > 0) ? (d + ' Tage ') : ('')) +
+      h + ' Stunde(n) ' +
+      m + ' Minuten ' +
+      s + ' Sekunden'
+  }
+}()) // <- self-executing module
+</script>
+EOF
+
+echo >>$OUT "$HEADLINE<table cellspacing='1' cellpadding='1' border='1' class='sortable' id='haupt'><tr>"
 
 NAME_ESSID="essid"
 case "$NETWORK" in
@@ -694,10 +741,24 @@ for FILE in $LIST_FILES LASTFILE; do {
 #		rm $FILE
 		log "omitting $WIFIMAC/$HOSTNAME"
 
-#		# autohide / autounhide
-#		[ $(( UNIXTIME_SCRIPTSTART - LAST_UPDATE_UNIXTIME )) -lt 864000 ] && {
-#			echo "# younger than 10 days: $WIFIMAC" >>../ignore/macs.txt
-#		}
+		allow_autounhide()
+		{
+			case "$NETWORK" in
+				'boltenhagendh')
+					return 0
+				;;
+				*)
+					return 1
+				;;
+			esac
+		}
+
+		allow_autounhide && {
+			# autohide / autounhide
+			[ $(( UNIXTIME_SCRIPTSTART - LAST_UPDATE_UNIXTIME )) -lt 864000 ] && {
+				echo "$WIFIMAC	# younger than 10 days: $( date )" >>../ignore/macs.txt
+			}
+		}
 
 		case "$HOSTNAME" in
 			*'--'*)
@@ -1065,8 +1126,11 @@ func_cell_hostname ()
 		[ -n "$hostname_enforced" ] && hostname="$hostname_enforced"
 
 		case "$hostname" in
-			wifimac*|$NETWORK-*)
-
+			'wifimac'*)
+				return 0
+			;;
+			"$NETWORK-"*"--"*)
+				# e.g. liszt28-hybrid--798
 				return 0
 			;;
 			*)
@@ -1477,7 +1541,8 @@ cell_olsr_wifi_out()
 		;;
 		*)
 			case "$NETWORK" in
-				ffweimar*|ilm1*|paltstadt*|liszt28*|zwickau*|malchow*)	# etx_ff
+				ffweimar*|ilm1*|paltstadt*|liszt28*|zwickau*|malchow*|wagenplatz)
+					# etx_ff
 				;;
 				*)
 					tip="bgcolor='crimson'"
@@ -2459,6 +2524,16 @@ _cell_switch()
 						case "$NODE" in
 							# konferenz|eg-flur|e3-flur|e1-flur
 							6|26|2|27|7|36|9|35)
+								# Powered via PoE-Splitter: unicode / electrical arrow
+								spacer='&#x26a1;'
+								char='PoE'
+							;;
+						esac
+					;;
+					giancarlo)
+						case "$NODE" in
+							# E1-rezeption,E2-service,E3-service,E4-kamin
+							5|6|10|14)
 								# Powered via PoE-Splitter: unicode / electrical arrow
 								spacer='&#x26a1;'
 								char='PoE'

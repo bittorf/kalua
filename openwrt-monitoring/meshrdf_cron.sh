@@ -120,9 +120,11 @@ gen_meshrdf_for_network()
 	{
 		case "$( date '+%H:%M' )" in	# e.g. 09:01
 			'02:'*|'03:'*|'04:'*)
+				log "$funcname: respect_fileage: no"
 				return 1
 			;;
 			*)
+				log "$funcname: respect_fileage: yes"
 				return 0
 			;;
 		esac
@@ -188,6 +190,7 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network abtpark
 	gen_meshrdf_for_network ffweimar-vhs
 	gen_meshrdf_for_network ffweimar-dnt
+	gen_meshrdf_for_network wagenplatz
 
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
 

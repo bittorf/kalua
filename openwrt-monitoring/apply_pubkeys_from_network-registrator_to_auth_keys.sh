@@ -1,6 +1,6 @@
 #!/bin/bash
 
-network="$1"
+network="$1"	# e.g. <network> or 'join_all'
 action="$2"	# e.g. join|join_all
 
 [ -z "$network" ] && {
@@ -40,7 +40,11 @@ for file in /var/www/networks/$network/registrator/recent/* ; do {
 	. $file
 	echo "$SSHPUBKEY" >$file.temp
 
-	case "$file" in *"0200cab10002") logger -s "DRIN: file: $file - sshpubkey: $SSHPUBKEY" ;; esac
+	case "$file" in
+		*"0200cab10002"|*'106f3f0e31aa')
+			logger -s "special MAC: file: $file - sshpubkey: $SSHPUBKEY"
+		;;
+	esac
 
 	while read -n 2 hexbyte; do {
 		[ ${#hexbyte} -eq 2 ] && {
