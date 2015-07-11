@@ -6,20 +6,20 @@ FILE_TEMP="$FILE.working"
 
 [ -e "$FILE" ] || exit 0
 
-mv "$FILE" "$FILE_TEMP"
-FILE="$FILE_TEMP"
-
 HOUR="$( date +%H )"		# e.g. 05 or 23
 UNIXTIME="$( date +%s )"
 UPTIME_NOW="$( _system uptime sec )"
 OVERALL_BYTES=0
 LIST_OVERALL_USERS=
 
+# always compress but maybe suck in later
+gzip "$FILE"
+mv "$FILE.gz" "$FILE_TEMP.$UPTIME_NOW.gz"
+
 case "$HOUR" in
 	03|04)
 	;;
 	*)
-		# TODO: compress to /tmp/COLLECT_DATA.working.$UPTIMESEC.gz and suck in later
 		bool_true 'system.@monitoring[0].report_traffic_nightly' && exit 0
 	;;
 esac
@@ -30,8 +30,16 @@ esac
 #        ip r d default via 10.63.21.121 dev tap0 table hideandseek
 #}
 
-# for FILE in ...
-# UNIXTIME="$( _file time "$FILE" unixstamp )"
+for FILE in $FILE_TEMP.*; do {
+	_log do gunzip daemon info "working on '$FILE'"
+
+	if gunzip "$FILE"; then
+		FILE="${FILE%.gz}"
+	else
+		rm "$FILE"
+		continue
+	fi
+
 while read QUERY_STRING; do {
 	eval $( _http query_string_sanitize "$0" )	# UPTIME|REMOTE_ADDR|CMA|CTU|CBI|CBO
 	LIST="$( _http query_string_group2list CMA_ )"
@@ -156,6 +164,7 @@ while read QUERY_STRING; do {
 	} done
 } done <"$FILE"
 rm "$FILE"
+} done
 
 COUNT_OVERALL_USERS=$( _list uniq "$LIST_OVERALL_USERS" | wc -l )
 BYTES_OVERALL_READABLE="$( _sanitizer do "$OVERALL_BYTES" number_humanreadable )"
