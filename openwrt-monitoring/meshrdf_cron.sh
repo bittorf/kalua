@@ -44,6 +44,23 @@ df -h /dev/xvda1 | fgrep -q "100%" && {
 
 # /var/www/networks/fuerstengruft/gruft.html_for_all_dates.sh
 
+(
+	ls -l /var/www/networks/ | grep ^'d' | while read LINE; do {
+		set -- $LINE
+		case "$9" in
+			*':'*)
+			;;
+			*)
+				cp -v /var/www/networks/$9/index.html /var/www/files/cache-$9.html
+			;;
+		esac
+	} done
+
+	cd /var/www/files/
+	tar cvjf /var/www/files/all.tar.bz2 cache-*
+)
+
+
 [ "$OPTION" = "cache" ] && {
 	if ls -1 /tmp/lockfile_meshrdf_cache_* >/dev/null 2>/dev/null; then
 		log "lockfile found: /tmp/lockfile_meshrdf_cache_*, ABORT"
@@ -130,7 +147,7 @@ gen_meshrdf_for_network()
 		esac
 	}
 
-	respect_fileage || {
+	respect_fileage && {
 		read hash_last <"$hash_file"
 
 		if [ "$hash_last" = "$hash_now" ]; then
@@ -191,6 +208,7 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network ffweimar-vhs
 	gen_meshrdf_for_network ffweimar-dnt
 	gen_meshrdf_for_network wagenplatz
+	gen_meshrdf_for_network monami
 
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
 
