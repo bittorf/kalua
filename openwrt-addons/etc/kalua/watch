@@ -947,9 +947,10 @@ _watch_pppoe()
 	local funcname='watch_pppoe'
 	local failure_file="/tmp/${funcname}:conn_is_faulty"
 	local good_file="/tmp/${funcname}:conn_good"
+	local ifname='wan'
 	local daemon
 
-	[ "$( uci -q get network.wan.proto )" = 'pppoe' ] || return 0
+	[ "$( uci -q get network.$ifname.proto )" = 'pppoe' ] || return 0
 
 	if ip route list exact '0.0.0.0/0' | fgrep -q "dev $WANDEV" ; then	# WANDEV= "pppoe-wan" OR "ppp0"
 		if [ -e "$failure_file" ]; then
@@ -963,6 +964,17 @@ _watch_pppoe()
 			} >>$SCHEDULER_IMPORTANT
 		else
 			touch "$good_file"
+		fi
+
+		[ -e "/tmp/${funcname}:maxfail" ] && rm "/tmp/${funcname}:maxfail"
+	elif ifstatus $ifname | fgrep -q 'AUTH_TOPEER_FAILED'; then
+		# https://dev.openwrt.org/ticket/18026
+		if _watch counter "/tmp/${funcname}:maxfail" increment 1 max 4; then
+			_log do $funcname daemon info "authfail - trying to reconnect"
+			ifup $ifname
+			echo >>$SCHEDULER '_watch pppoe'
+		else
+			_log do $funcname daemon info "no action, too much auth fails - please do manually 'ifup $ifname'"
 		fi
 	else
 		[ $( _system uptime min ) -le 5 ] && return 0
@@ -1042,7 +1054,7 @@ _watch_pppoe()
 		_watch hanging_command $daemon
 		_watch hanging_command $daemon
 
-		ifup wan
+		ifup $ifname
 		_log sleep $funcname 180 step 30
 		_log do $funcname daemon info "restarted: '$( ip route list exact 0.0.0.0/0 dev $WANDEV )'"
 
