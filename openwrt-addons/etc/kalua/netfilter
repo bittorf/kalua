@@ -1506,9 +1506,6 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
 	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no direct logins from WAN
 
-	# sometimes needed of we have dumb-AP's connected to a central master
-	bool_true 'system.@weblogin[0].always_reachable' && return 0
-
 	# TODO: ip can change when called via dnsmasq: e.g. 02:50:43:34:25:bc - if arping fails? refetch ip via 'ip neigh'
 
 	if [ -n "$DNSMASQ_INTERFACE" ]; then
@@ -1518,17 +1515,24 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	fi
 
 	if   [ "$dev_guess" = "$LANDEV" ]; then
-		[ "$( uci -q get system.@weblogin[0].force_lan_reachable )" = '1' ] && {
+		bool_true 'system.@weblogin[0].force_lan_reachable' && {
 			echo "$LANDEV"
 			return 0
 		}
-
 	elif _net dev_is_wifi "$dev_guess"; then
 		iw dev "$dev_guess" station get "$mac" >/dev/null 2>/dev/null && {
 			echo "$dev_guess"
 			return 0
 		}
 	fi
+
+	# sometimes needed of we have dumb-AP's connected to a central master
+	bool_true 'system.@weblogin[0].always_reachable' && {
+		[ -n "$dev_guess" ] && {
+			echo "$dev_guess"
+			return 0
+		}
+	}
 
 	devlist="$( _list uniq "${LANDEV:-$( uci -q get network.lan.ifname )} $WIFI_DEVS" )"
 	devlist="$( for dev in $devlist; do test "$dev" = "$dev_guess" || echo -n " $dev "; done )"
