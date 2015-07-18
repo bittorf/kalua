@@ -3,22 +3,13 @@
 
 ARG1="$1"	# e.g. 'no_check_ssh'
 
-case "$CONFIG_PROFILE" in
-	malchow*)
-		uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
-		uci set system.@monitoring[0].maintenance_ports='22 80'
-	;;
-esac
-
 [ "$( uci get system.@monitoring[0].maintenance )" = 'reverse_sshtunnel' ] && {
 	PORTS="$( uci get system.@monitoring[0].maintenance_ports )"
 	PORTS="${PORTS:-22}"
 }
 
 _net local_inet_offer || {
-	[ "$( uci get system.@monitoring[0].maintenance_force )" = '1' ] || {
-		exit 1
-	}
+	bool_true 'system.@monitoring[0].maintenance_force' || exit 1
 }
 
 tunnel_is_running()
@@ -44,13 +35,13 @@ tunnel_is_running()
 
 fire_tunnel()
 {
-	local funcname="fire_tunnel"
+	local funcname='fire_tunnel'
 	local port_here="$1"
 	local port_server="$2"
 	local type="$3"		# message = ssh | http
 	local maxtry="${4:-25}"
 
-	local user="root"
+	local user='root'
 	local server="$( _http url_get_serverstring "$( uci get system.@monitoring[0].url )" )"
 	local try=0
 
@@ -60,7 +51,7 @@ fire_tunnel()
 		dbclient -y -I 600 -K 300 -f -N \
 			 -R $port_server:localhost:$port_here \
 			 -p 22 ${user}@${server} \
-			 -i "/etc/dropbear/dropbear_dss_host_key" && break
+			 -i '/etc/dropbear/dropbear_dss_host_key' && break
 
 		_log sleep "$funcname() [ERR] try/max: $try/$maxtry to $server" 10 step 1
 		try=$(( try + 1 ))
@@ -72,27 +63,32 @@ fire_tunnel()
 		_log do reverse_sshtunnel daemon info "[OK] pid: '$( pidof dbclient )' on local port $port_server"
 	else
 		_log do reverse_sshtunnel daemon alert "[ERR] could not startup on local port $port_server"
+		return 1
 	fi
 }
 
 for LOCAL_PORT in $PORTS; do {
 	case "$LOCAL_PORT" in
 		22)
-			[ "$ARG1" = "no_check_ssh" ] || _watch sshd_or_telnet
+			[ "$ARG1" = 'no_check_ssh' ] || _watch sshd_or_telnet
 
 			tunnel_is_running "$LOCAL_PORT" || {
-				[ -e "/tmp/service_ssh_nowatching" ] && {
-					rm "/tmp/service_ssh_nowatching"
+				[ -e '/tmp/service_ssh_nowatching' ] && {
+					rm '/tmp/service_ssh_nowatching'
 				}
 
-				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )" "ssh"
+				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )" 'ssh' || {
+					echo >>$SCHEDULER "$0 $*"
+				}
 			}
 		;;
 		80)
 			_watch webserver
 
 			tunnel_is_running "$LOCAL_PORT" || {
-				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}HTTP" )" "http"
+				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}HTTP" )" 'http' || {
+					echo >>$SCHEDULER "$0 $*"
+				}
 			}
 		;;
 	esac

@@ -326,6 +326,9 @@ Special UCI-variables
 	system.@monitoring[0].roaming_stats	- bool
 	system.@monitoring[0].report_traffic_nightly	- bool
 	system.@monitoring[0].report_daily_stats - bool
+	system.@monitoring[0].maintenance	- string, e.g. 'reverse_sshtunnel'
+	system.@monitoring[0].maintenance_force - bool
+	system.@monitoring[0].maintenance_ports - list of ints
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
