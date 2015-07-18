@@ -392,6 +392,9 @@ Special UCI-variables
 	wireless.radio0.cronactive		- string: '18:00 - 08:00'
 
 	network.$INTERFACE.dyndns		- url
+	network.$INTERFACE.shaping		- bool
+	network.$INTERFACE.shaping_uplink	- integer [kbit]
+	network.$INTERFACE.shaping_downlink	- integer [kbit]
 	network.wan.public_ip			- bool
 	network.@switch[0].disable_autoneg	- bool
 
