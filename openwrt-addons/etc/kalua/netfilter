@@ -76,8 +76,8 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 {
 	local action="$1"
 	local dev="${2:-$WANDEV}"
-	local downlink="${3:-10000}"	# e.g. 1000 = 1mbit
-	local uplink="${4:-1000}"
+	local downlink="${3:-10000}"	# set values to somewhat less than your actual download/upload speed
+	local uplink="${4:-1000}"	# e.g. 1000 = 1mbit
 
 	case "$action" in
 		'status')
@@ -685,9 +685,9 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 {
 	local funcname="netfilter_conntrack_adjust_max"
 	local max="$1"
-	local file="/proc/sys/net/nf_conntrack_max"
+	local file_conntrack="/proc/sys/net/nf_conntrack_max"
 	local file_buckets="/sys/module/nf_conntrack/parameters/hashsize"
-	local buckets old_buckets old_max
+	local buckets old_buckets old_max message
 
 	# dont conntrack DNS/olsrd - formally: '-j NOTRACK' - see: https://dev.openwrt.org/ticket/19929
 #	$IPT -t raw -I PREROUTING -p udp --dport 53 -j CT --notrack	# with this rule contacting external DNS over >1 hop does not work
@@ -696,10 +696,16 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 	$IPT -t raw -I OUTPUT     -p udp --dport 698 -d 255.255.255.255 -j CT --notrack
 
 	# below still needs fixing
-	return 0
+	case "$CONFIG_PROFILE" in
+		liszt28*|boltenhagendh*|ibfleesensee*)
+		;;
+		*)
+			return 0
+		;;
+	esac
 
-	[ -e "$file" ] || return 0
-	read old_max <"$file"
+	[ -e "$file_conntrack" ] || return 0
+	read old_max <"$file_conntrack"
 
 	[ -z "$max" ] && {
 		max="$( _system ram_size )"		# kilobytes
@@ -714,13 +720,13 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 		echo "net.netfilter.nf_conntrack_max=${max}" >>"/etc/sysctl.conf"
 	}
 
-	read old_buckets <"/proc/sys/net/netfilter/nf_conntrack_buckets"
+	read old_buckets <'/proc/sys/net/netfilter/nf_conntrack_buckets'
 	buckets=$(( max / 8 ))
 	[ $buckets -gt 1816 ] && buckets=1816		# klog/moduleinfo says this is max
 
 	_log do $funcname daemon info "set $old_max -> $max conntrack-entries / $old_buckets -> $buckets buckets, needs $(( (max * 350) / 1024 )) kilobytes (each 350 bytes)"
-#	echo "$max" >"$file"		# check usage via: wc -l /proc/net/nf_conntrack
-#	echo "$buckets" >"$file_buckets"
+	echo "$max" >"$file_conntrack"		# check usage via: wc -l /proc/net/nf_conntrack
+	echo "$buckets" >"$file_buckets"
 }
 
 _netfilter_ipforwarding_needed()
