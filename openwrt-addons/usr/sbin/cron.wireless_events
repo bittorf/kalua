@@ -32,7 +32,8 @@ mac2ipv4()	# TODO: better name
 	while let i-=1; do {
 		# ignore IPv6 and show IPv4
 		# fe80::221:6aff:fe32:7c1c dev wlan1-1 lladdr 00:21:6a:32:7c:1c STALE
-		# 192.168.158.61 dev br-mastergate lladdr 00:21:6a:32:7c:1c REACHABLE
+		# 192.168.158.61 dev br-mastergate lladdr 00:21:6a:32:7c:1c STALE
+		# 192.168.233.62 dev br-mastergate lladdr 00:21:6a:32:7c:1c REACHABLE
 		case "$server_asked" in
 			'false')
 				set -- $( ip -f inet neigh show dev "$dev" | fgrep "$mac" | grep -v ^'169\.254\.' )
@@ -45,6 +46,7 @@ mac2ipv4()	# TODO: better name
 				# arping with max 3 tries
 				_net ip_reachable "$ip" 3 "$dev" || {
 					server_asked='false'
+					ip neigh del $ip dev $dev	# if we have 2 entries and picked the wrong
 					continue
 				}
 
@@ -60,6 +62,7 @@ mac2ipv4()	# TODO: better name
 							echo  >"$file" "$IPT -t nat -D NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
 							echo >>"$file" "ip route del $ip/32 dev $dev && rm $file"
 						else
+							# TODO: remove old route and try again? e.g. 'RTNETLINK answers: File exists'
 							_log do $funcname daemon alert "failed to add route for $ip / $dev"
 							continue
 						fi
