@@ -10,10 +10,10 @@ if _ipsystem do "$( _ipsystem do "$REMOTE_ADDR" )" | grep "[N|I]ADR=" | grep -q 
 else
 	case "$REMOTE_ADDR" in
 		192.168.*.1)
-			# fixme! should match batman-originators
+			# FIXME! should match batman-originators
 		;;
 		192.168.112.2|172.17.0.1)
-			# fixme! (ejbw)
+			# FIXME! (ejbw)
 		;;
 		$LOADR)
 			# localhost
@@ -38,6 +38,7 @@ else
 
 	case "$QUERY_STRING" in
 		*'bonehead'*)
+			# old clients with r35300 or lower (dont understund http_redirect)
 			_http header_mimetype_output 'text/plain'
 			cat '/tmp/USERDB_COPY.cgi.gz'
 		;;
@@ -49,9 +50,15 @@ else
 				if [ -s '/tmp/USERDB_COPY.cgi.gz' ]; then
 					_http redirect 302 '/USERDB_COPY.txt'
 				else
-					_http header_mimetype_output 'text/plain'
-					echo '# ERR - db missing'
-					echo >>$SCHEDULER_IMPORTANT '_db restore'
+					if [ -s '/tmp/USERDB_COPY' -a -e '/tmp/USERDB_COPY.speed' ]; then
+						# deliver my local copy
+						_http header_mimetype_output 'text/plain'
+						cat '/tmp/USERDB_COPY'
+					else
+						_http header_mimetype_output 'text/plain'
+						echo '# ERR - db missing'
+						echo >>$SCHEDULER_IMPORTANT '_db restore'
+					fi
 				fi
 			fi
 		;;
