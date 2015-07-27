@@ -2191,7 +2191,8 @@ _netfilter_traffic_control_add()
 		# UP = 7, AC = VO, prio = highest -> ACI = 11 -> set 111000 -> 56 = CS7
 		$IPT -t mangle -N "$chain"
 		$IPT -t mangle -I "$chain" -j DSCP --set-dscp-class CS7		# -j DSCP will not abort traversal
-		$IPT -t mangle -I OUTPUT -o $dev -p udp --dport 698 -j "$chain"
+		$IPT -t mangle -I OUTPUT -o $dev -p udp --dport 698 -j "$chain"	# olsr1
+		$IPT -t mangle -I OUTPUT -o $dev -p udp --dport 269 -j "$chain"	# olsr2
 	}
 
 	its_possible()
@@ -2255,7 +2256,8 @@ _netfilter_traffic_control_add()
 	local tcp='ip protocol 6 0xff'
 	local all='ip protocol 0 0x00'
 
-	local match_olsr="u32 match $udp match ip dport 698 0xffff"		# UDP dport 698
+	local match_olsr1="u32 match $udp match ip dport 698 0xffff"		# UDP dport 698
+	local match_olsr2="u32 match $udp match ip dport 269 0xffff"		# UDP dport 269
 	local match_tcp_with_ack="u32 match $tcp match u8 0x10 0xff at nexthdr+13"
 	local match_voip1="$( codec '00' )"	# PCMU
 	local match_voip2="$( codec '04' )"	# G723
@@ -2264,10 +2266,11 @@ _netfilter_traffic_control_add()
 	local match_voip5="$( codec '0f' )"	# G728
 	local match_voip6="$( codec '12' )"	# G729
 	local match_dns="u32 match $udp match ip dport 53 0xffff"			# UDP dport 53
-	local match_interactive="u32 match u16 0x00ff 0xff00 at 2"			# smaller <256 bytes
+	local match_interactive='u32 match u16 0x00ff 0xff00 at 2'			# smaller <256 bytes
 	local match_all="u32 match $all"
 
-	$TC filter add dev $dev protocol ip parent 1: prio 1 $match_olsr		flowid 1:1 || err 1-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 1 $match_olsr1		flowid 1:1 || err 1-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 1 $match_olsr2		flowid 1:1 || err 1-$dev
 	$TC filter add dev $dev protocol ip parent 1: prio 2 $match_tcp_with_ack	flowid 1:1 || err 2-$dev
 	#
 	$TC filter add dev $dev protocol ip parent 1: prio 3 $match_voip1	flowid 1:2 || err 3-$dev
