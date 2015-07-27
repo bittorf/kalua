@@ -115,30 +115,23 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 			$TC qdisc add dev $dev parent 1:30 handle 30: sfq perturb 10	# non-interactive/bulk
 
 
-
-			# TOS Minimum Delay (ssh, NOT scp) in 1:10:
-			$TC filter add dev $dev parent 1:0 protocol ip prio 10 u32 \
-				match ip tos 0x10 0xff flowid 1:10
-			# ICMP (ip protocol 1) in the interactive class 1:10 so we
-			# can do measurements & impress our friends:
-			$TC filter add dev $dev parent 1:0 protocol ip prio 10 u32 \
-				match ip protocol 1 0xff flowid 1:10
-			# To speed up downloads while an upload is going on,
-			# put ACK packets in the interactive class:
-			$TC filter add dev $dev parent 1: protocol ip prio 10 u32 \
-				match ip protocol 6 0xff \
-				match u8 0x05 0x0f at 0 \
-				match u16 0x0000 0xffc0 at 2 \
-				match u8 0x10 0xff at 33 \
-				flowid 1:10
+			### uplink/outgoing ###
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match olsr1)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match olsr2)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match tcp_with_ack)	flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip1)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip2)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip3)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip4)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip5)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip6)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match dns)		flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match interactive)	flowid 1:10
 			# rest is 'non-interactive' ie 'bulk' and ends up in 1:20
 			# TODO: prio for special hosts here
-			$TC filter add dev $dev parent 1: protocol ip prio 18 u32 \
-				match ip dst 0.0.0.0/0 flowid 1:20
+			$TC filter add dev $dev parent 1:  protocol ip prio 18 $(match all_upload)	flowid 1:20
 
-
-
-			########## downlink #############
+			### downlink/incoming ###
 			# slow downloads down to somewhat less than the real speed  to prevent
 			# queuing at our ISP. Tune to see how high you can set it.
 			# ISPs tend to have *huge* queues to make sure big downloads are fast
@@ -147,8 +140,8 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 			$TC qdisc add dev $dev handle ffff: ingress
 			# filter *everything* to it (0.0.0.0/0), drop
 			# everything that's coming in too fast:
-			$TC filter add dev $dev parent ffff: protocol ip prio 50 u32 \
-				match ip src 0.0.0.0/0 police rate ${downlink}kbit burst 10k drop flowid :1
+			$TC filter add dev $dev parent ffff: protocol ip prio 50 \
+				u32 match ip src 0.0.0.0/0 police rate ${downlink}kbit burst 10k drop flowid :1
 		;;
 	esac
 }
@@ -2291,6 +2284,7 @@ _netfilter_tc_match()
 		olsr1) 		echo "u32 match $udp match ip dport 698 0xffff" ;;	# UDP dport 698
 		olsr2) 		echo "u32 match $udp match ip dport 269 0xffff" ;;	# UDP dport 269
 		tcp_with_ack) 	echo "u32 match $tcp match u8 0x10 0xff at nexthdr+13" ;;
+		# wondershaper:       u32 match $tcp match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33
 		voip1)		echo "$( codec '00' )" ;;	# PCMU
 		voip2)		echo "$( codec '04' )" ;;	# G723
 		voip3)		echo "$( codec '08' )" ;;	# PCMA
@@ -2298,7 +2292,8 @@ _netfilter_tc_match()
 		voip5)		echo "$( codec '0f' )" ;;	# G728
 		voip6)		echo "$( codec '12' )" ;;	# G729
 		dns)		echo "u32 match $udp match ip dport 53 0xffff" ;;	# UDP dport 53
-		match_interactive) echo 'u32 match u16 0x00ff 0xff00 at 2' ;;		# smaller <256 bytes
+		interactive)	echo 'u32 match u16 0x00ff 0xff00 at 2' ;;		# smaller <256 bytes
 		all)		echo "u32 match $all" ;;
+		all_upload)	echo 'u32 match ip dst 0.0.0.0/0' ;;	# for wondershaper egress/uplink/outgoing
 	esac
 }
