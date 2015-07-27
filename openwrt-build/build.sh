@@ -1397,7 +1397,7 @@ cpu_count()
 	if   [ -e '/proc/cpuinfo' ]; then
 		grep -c ^'processor' '/proc/cpuinfo'
 	elif which lsconf 2>/dev/null >/dev/null; then
-		# e.g. AIX
+		# e.g. AIX - see http://antmeetspenguin.blogspot.de/2013/05/aix-cpu-info.html
 		lsconf | grep -c 'proc[0-9]'
 	else
 		echo '1'
