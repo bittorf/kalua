@@ -898,15 +898,8 @@ check_working_directory()
 		{
 			local package="$1"
 
-			# e.g. on fedora
-			# yum list installed 'package_name'
-			which yum >/dev/null && {
-				log "$funcname -> is_installed() simulating OK (found 'yum')"
-				return 0
-			}
-
 			which dpkg 2>/dev/null >/dev/null || {
-				log "$funcname -> is_installed() simulating OK (no 'dpkg' found)"
+				log "$funcname -> is_installed() package '$package' -> simulating OK (no 'dpkg' found)"
 				return 0
 			}
 
