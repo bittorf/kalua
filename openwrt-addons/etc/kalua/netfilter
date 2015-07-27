@@ -113,6 +113,9 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 			$TC qdisc add dev $dev parent 1:10 handle 10: sfq perturb 10	# high prio
 			$TC qdisc add dev $dev parent 1:20 handle 20: sfq perturb 10	# lower prio
 			$TC qdisc add dev $dev parent 1:30 handle 30: sfq perturb 10	# non-interactive/bulk
+
+
+
 			# TOS Minimum Delay (ssh, NOT scp) in 1:10:
 			$TC filter add dev $dev parent 1:0 protocol ip prio 10 u32 \
 				match ip tos 0x10 0xff flowid 1:10
@@ -132,6 +135,8 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 			# TODO: prio for special hosts here
 			$TC filter add dev $dev parent 1: protocol ip prio 18 u32 \
 				match ip dst 0.0.0.0/0 flowid 1:20
+
+
 
 			########## downlink #############
 			# slow downloads down to somewhat less than the real speed  to prevent
@@ -2242,6 +2247,32 @@ _netfilter_traffic_control_add()
 	# SFQ = preventing any single flow from drowning out the rest
 	# SFQ is work-conserving and therefore always delivers a packet if it has one available
 
+	match()
+	{
+		_netfilter tc_match "$1"
+	}
+
+	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr1)		flowid 1:1 || err 1-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr2)		flowid 1:1 || err 1-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 2 $(match tcp_with_ack)	flowid 1:1 || err 2-$dev
+
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip1)		flowid 1:2 || err 3-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip2)		flowid 1:2 || err 4-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip3)		flowid 1:2 || err 5-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip4)		flowid 1:2 || err 6-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip5)		flowid 1:2 || err 7-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip6)		flowid 1:2 || err 8-$dev
+
+	$TC filter add dev $dev protocol ip parent 1: prio 4 $(match dns)		flowid 1:2 || err 9-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 5 $(match interactive)	flowid 1:2 || err 10-$dev
+
+	$TC filter add dev $dev protocol ip parent 1: prio 6 $(match all)		flowid 1:3 || err 11-$dev
+}
+
+_netfilter_tc_match()
+{
+	local match="$1"
+
 	codec()
 	{
 		local payloadtype="$1"	# http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml
@@ -2256,32 +2287,18 @@ _netfilter_traffic_control_add()
 	local tcp='ip protocol 6 0xff'
 	local all='ip protocol 0 0x00'
 
-	local match_olsr1="u32 match $udp match ip dport 698 0xffff"		# UDP dport 698
-	local match_olsr2="u32 match $udp match ip dport 269 0xffff"		# UDP dport 269
-	local match_tcp_with_ack="u32 match $tcp match u8 0x10 0xff at nexthdr+13"
-	local match_voip1="$( codec '00' )"	# PCMU
-	local match_voip2="$( codec '04' )"	# G723
-	local match_voip3="$( codec '08' )"	# PCMA
-	local match_voip4="$( codec '09' )"	# G722
-	local match_voip5="$( codec '0f' )"	# G728
-	local match_voip6="$( codec '12' )"	# G729
-	local match_dns="u32 match $udp match ip dport 53 0xffff"			# UDP dport 53
-	local match_interactive='u32 match u16 0x00ff 0xff00 at 2'			# smaller <256 bytes
-	local match_all="u32 match $all"
-
-	$TC filter add dev $dev protocol ip parent 1: prio 1 $match_olsr1		flowid 1:1 || err 1-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 1 $match_olsr2		flowid 1:1 || err 1-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 2 $match_tcp_with_ack	flowid 1:1 || err 2-$dev
-	#
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $match_voip1	flowid 1:2 || err 3-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $match_voip2	flowid 1:2 || err 4-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $match_voip3	flowid 1:2 || err 5-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $match_voip4	flowid 1:2 || err 6-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $match_voip5	flowid 1:2 || err 7-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $match_voip6	flowid 1:2 || err 8-$dev
-	#
-	$TC filter add dev $dev protocol ip parent 1: prio 4 $match_dns		flowid 1:2 || err 9-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 5 $match_interactive	flowid 1:2 || err 10-$dev
-	#
-	$TC filter add dev $dev protocol ip parent 1: prio 6 $match_all		flowid 1:3 || err 11-$dev
+	case "$match" in
+		olsr1) 		echo "u32 match $udp match ip dport 698 0xffff" ;;	# UDP dport 698
+		olsr2) 		echo "u32 match $udp match ip dport 269 0xffff" ;;	# UDP dport 269
+		tcp_with_ack) 	echo "u32 match $tcp match u8 0x10 0xff at nexthdr+13" ;;
+		voip1)		echo "$( codec '00' )" ;;	# PCMU
+		voip2)		echo "$( codec '04' )" ;;	# G723
+		voip3)		echo "$( codec '08' )" ;;	# PCMA
+		voip4)		echo "$( codec '09' )" ;;	# G722
+		voip5)		echo "$( codec '0f' )" ;;	# G728
+		voip6)		echo "$( codec '12' )" ;;	# G729
+		dns)		echo "u32 match $udp match ip dport 53 0xffff" ;;	# UDP dport 53
+		match_interactive) echo 'u32 match u16 0x00ff 0xff00 at 2' ;;		# smaller <256 bytes
+		all)		echo "u32 match $all" ;;
+	esac
 }
