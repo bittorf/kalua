@@ -899,8 +899,16 @@ check_working_directory()
 			local package="$1"
 
 			# e.g. on fedora
-			which yum >/dev/null && return 0
 			# yum list installed 'package_name'
+			which yum >/dev/null && {
+				log "$funcname -> is_installed() simulating OK (found 'yum')"
+				return 0
+			}
+
+			which dpkg 2>/dev/null >/dev/null || {
+				log "$funcname -> is_installed() simulating OK (no 'dpkg' found)"
+				return 0
+			}
 
 			dpkg --list | grep -q "$package " && return 0
 			dpkg --list | grep -q "$package:"	# e.g. zlib1g-dev:amd64
