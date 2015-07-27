@@ -2762,8 +2762,13 @@ while [ -n "$1" ]; do {
 			STOP_PARSE='true'
 		;;
 		'--update')
-			wget -O $0 'https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 			STOP_PARSE='true'
+			URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
+
+			wget -O $0 "$URL" || {
+				log "please run manually:"
+				log "wget --no-check-certificate -O $0 '$URL'"
+			}
 		;;
 		'--unittest')
 			unittest_do
