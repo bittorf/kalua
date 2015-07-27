@@ -237,14 +237,24 @@ log()
 	[ -n "$QUIET" ] && return 0
 	has "$option" 'debug' && test -z "$DEBUG" && return 0
 
+	# set global var on 1st run
+	[ -z "$MYLOGGER" ] && {
+		if logger -s "$0:firstrun testing_feature_s" 2>/dev/null; then
+			MYLOGGER='logger -p user.info -s'
+		else
+			# e.g. AIX power-aix 1 7 00F84C0C4C00
+			MYLOGGER='echo'
+		fi
+	}
+
 	case "$message" in
 		*'[ERROR]'*)
-			logger -p user.info -s '! \'
-			logger -p user.info -s "!  )- $0: $message"
-			logger -p user.info -s '! /'
+			$MYLOGGER '! \'
+			$MYLOGGER "!  )- $0: $message"
+			$MYLOGGER '! /'
 		;;
 		*)
-			logger -p user.info -s "$0:$name $message"
+			$MYLOGGER "$0:$name $message"
 		;;
 	esac
 }
