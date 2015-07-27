@@ -1392,11 +1392,23 @@ get_uptime_in_sec()
 	eval $varname=$field1
 }
 
+cpu_count()
+{
+	if   [ -e '/proc/cpuinfo' ]; then
+		grep -c ^'processor' '/proc/cpuinfo'
+	elif which lsconf 2>/dev/null >/dev/null; then
+		# e.g. AIX
+		lsconf | grep -c 'proc[0-9]'
+	else
+		echo '1'
+	fi
+}
+
 build()
 {
 	local funcname='build'
 	local option="$1"
-	local cpu_count="$( grep -sc ^'processor' '/proc/cpuinfo' || echo '0' )"	# FIXME! for e.g. power7
+	local cpu_count=$( cpu_count )
 	local jobs=$(( cpu_count + 1 ))
 	local commandline="--jobs $jobs BUILD_LOG=1"
 	local verbose t1 t2
@@ -2576,7 +2588,7 @@ unittest_do()
 
 		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace'
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
-		grep -sc ^'processor' '/proc/cpuinfo' || log "[ERR] no '/proc/cpuinfo'"
+		log "CPU count: $( cpu_count )"
 		df -h
 
 		log '_ | wc -l'
