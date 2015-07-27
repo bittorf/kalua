@@ -80,6 +80,8 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 	local downlink="${3:-10000}"	# set values to somewhat less than your actual download/upload speed
 	local uplink="${4:-1000}"	# e.g. 1000 = 1mbit
 
+	$TC -V >/dev/null || return 1
+
 	case "$action" in
 		'status')
 			tc -s qdisc ls dev $dev
@@ -108,9 +110,9 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 			tc class add dev $dev parent 1:1 classid 1:20 htb rate $(( (9 * uplink) / 10 ))kbit burst 6k prio 2
 			tc class add dev $dev parent 1:1 classid 1:30 htb rate $(( (8 * uplink) / 10 ))kbit burst 6k prio 2
 			# all get Stochastic Fairness:
-			tc qdisc add dev $dev parent 1:10 handle 10: sfq perturb 10
-			tc qdisc add dev $dev parent 1:20 handle 20: sfq perturb 10
-			tc qdisc add dev $dev parent 1:30 handle 30: sfq perturb 10
+			tc qdisc add dev $dev parent 1:10 handle 10: sfq perturb 10	# high prio
+			tc qdisc add dev $dev parent 1:20 handle 20: sfq perturb 10	# lower prio
+			tc qdisc add dev $dev parent 1:30 handle 30: sfq perturb 10	# non-interactive/bulk
 			# TOS Minimum Delay (ssh, NOT scp) in 1:10:
 			tc filter add dev $dev parent 1:0 protocol ip prio 10 u32 \
 				match ip tos 0x10 0xff flowid 1:10
@@ -138,8 +140,8 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 			#
 			# attach ingress policer:
 			tc qdisc add dev $dev handle ffff: ingress
-			# filter *everything* to it (0.0.0.0/0), drop everything that's
-			# coming in too fast:
+			# filter *everything* to it (0.0.0.0/0), drop
+			# everything that's coming in too fast:
 			tc filter add dev $dev parent ffff: protocol ip prio 50 u32 \
 				match ip src 0.0.0.0/0 police rate ${downlink}kbit burst 10k drop flowid :1
 		;;

@@ -1370,14 +1370,25 @@ calc_time_diff()
 	echo "$duration"
 }
 
+get_uptime_in_sec()
+{
+	local varname="$1"
+	local field1 rest
+
+	# e.g. 38409.14
+	read field1 rest 2>/dev/null </proc/uptime || field1='1.00'
+
+	eval $varname=$field1
+}
+
 build()
 {
 	local funcname='build'
 	local option="$1"
-	local cpu_count="$( grep -c ^'processor' '/proc/cpuinfo' )"
+	local cpu_count="$( grep -sc ^'processor' '/proc/cpuinfo' || echo '0' )"	# FIXME! for e.g. power7
 	local jobs=$(( cpu_count + 1 ))
 	local commandline="--jobs $jobs BUILD_LOG=1"
-	local verbose t1 t2 rest
+	local verbose t1 t2
 	[ -n "$DEBUG" ] && verbose='V=s'
 
 	case "$option" in
@@ -1398,10 +1409,10 @@ build()
 			}
 
 			log "running 'make $commandline'"
-			read t1 rest </proc/uptime
+			get_uptime_in_sec 't1'
 
 			if make $verbose $commandline ; then
-				read t2 rest </proc/uptime
+				get_uptime_in_sec 't2'
 				BUILD_DURATION="$( calc_time_diff "$t1" "$t2" )"
 				log "running 'make $commandline' lasts $BUILD_DURATION sec"
 
@@ -2554,7 +2565,7 @@ unittest_do()
 
 		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace'
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
-		grep -c ^'processor' '/proc/cpuinfo'
+		grep -sc ^'processor' '/proc/cpuinfo' || log "[ERR] no '/proc/cpuinfo'"
 		df -h
 
 		log '_ | wc -l'
@@ -2869,7 +2880,7 @@ while [ -n "$1" ]; do {
 } done
 
 [ -n "$STOP_PARSE" ] && exit 0
-read T1 REST </proc/uptime
+get_uptime_in_sec 'T1'
 
 die_and_exit()
 {
@@ -2904,7 +2915,7 @@ openwrt_download 'switch_to_master'
 openwrt_download 'reset_autocommits'
 echo "$USECASE $HARDWARE_MODEL" >>'KALUA_HISTORY'
 
-read T2 REST </proc/uptime
+get_uptime_in_sec 'T2'
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
 target_hardware_set "$HARDWARE_MODEL" info quiet >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
