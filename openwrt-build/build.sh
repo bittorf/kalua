@@ -690,7 +690,7 @@ EOF
 
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
 		;;
-		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2')
+		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2'|'ASUS WL-HDD 2.5')
 			# hint: the 'ASUS WL-500g Premium v2' needs the 'low power phy' compiled into b43
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
 

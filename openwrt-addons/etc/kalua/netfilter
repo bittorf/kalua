@@ -123,6 +123,7 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match olsr1)		flowid 1:10
 			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match olsr2)		flowid 1:10
 			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match tcp_with_ack)	flowid 1:10
+			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match tcp_with_ack2)	flowid 1:10
 			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip1)		flowid 1:10
 			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip2)		flowid 1:10
 			$TC filter add dev $dev parent 1:0 protocol ip prio 10 $(match voip3)		flowid 1:10
@@ -2251,8 +2252,9 @@ _netfilter_traffic_control_add()
 	}
 
 	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr1)		flowid 1:1 || err 1-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr2)		flowid 1:1 || err 1-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr2)		flowid 1:1 || err 1a-$dev
 	$TC filter add dev $dev protocol ip parent 1: prio 2 $(match tcp_with_ack)	flowid 1:1 || err 2-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 2 $(match tcp_with_ack2)	flowid 1:1 || err 2a-$dev
 
 	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip1)		flowid 1:2 || err 3-$dev
 	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip2)		flowid 1:2 || err 4-$dev
@@ -2285,11 +2287,17 @@ _netfilter_tc_match()
 	local tcp='ip protocol 6 0xff'
 	local all='ip protocol 0 0x00'
 
+	# TODO:
+	# ssh VS scp - here transfering 1 keypress in a SSH-session (for now catched with 'interactive'+'tcp_with_ack'?)
+	# ipA.54256 > ipB.22: Flags [P.], seq 3353:3401, ack 2848, win 278, options [nop,nop,TS val 402148599 ecr 1416822143], length 48
+	# ipB.22 > ipA.54256: Flags [P.], seq 2848:2896, ack 3401, win 647, options [nop,nop,TS val 1416822827 ecr 402148599], length 48
+	# ipA.54256 > ipB.22: Flags [.], ack 2896, win 278, options [nop,nop,TS val 402148612 ecr 1416822827], length 0
+
 	case "$match" in
 		olsr1) 		echo "u32 match $udp match ip dport 698 0xffff" ;;	# UDP dport 698
 		olsr2) 		echo "u32 match $udp match ip dport 269 0xffff" ;;	# UDP dport 269
 		tcp_with_ack) 	echo "u32 match $tcp match u8 0x10 0xff at nexthdr+13" ;;
-		# wondershaper:       u32 match $tcp match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33
+		tcp_with_ack2)	echo "u32 match $tcp match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33" ;; # wondershaper
 		voip1)		codec '00' ;;	# PCMU
 		voip2)		codec '04' ;;	# G723
 		voip3)		codec '08' ;;	# PCMA
