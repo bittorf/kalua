@@ -281,7 +281,10 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			fi
 
 			fgrep -q "$pattern" "$config" || {
-				sed -i "s/console=ttyS0,115200/$pattern &/" "$config"
+				# sed -i is a GNU extension:
+				# http://stackoverflow.com/questions/7232797/sed-on-aix-does-not-recognize-i-flag
+				sed >"$config.tmp" "s/console=ttyS0,115200/$pattern &/" "$config"
+				mv   "$config.tmp" "$config"
 				log "looking into '$config', adding '$pattern'" gitadd "$config"
 			}
 		;;
@@ -289,7 +292,8 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			config="$dir/image/Makefile"
 
 			fgrep -q "$pattern" "$config" || {
-				sed -i "s/console=/$pattern &/" "$config"
+				sed >"$config.tmp" "s/console=/$pattern &/" "$config"
+				mv   "$config.tmp" "$config"
 				log "looking into '$config', adding '$pattern'" gitadd "$config"
 			}
 		;;
@@ -301,7 +305,8 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 				log "looking into '$config', adding '$pattern'"
 
 				fgrep -q "$pattern" "$config" || {
-					sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
+					sed >"$config.tmp" "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
+					mv   "$config.tmp" "$config"
 					log "looking into '$config', adding '$pattern'" gitadd "$config"
 				}
 			else
@@ -391,7 +396,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
 	local file="$KALUA_DIRNAME/openwrt-patches/reghack/900-regulatory-compliance_test.patch"
-	local file_regdb_hacked countries code
+	local file_regdb_hacked countries code file2
 	local COMPAT_WIRELESS="2013-06-27"
 
 	[ -e "$file" ] && {
@@ -399,7 +404,9 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 
 		if grep -q "${option}CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
 			cp -v "$file" "package/kernel/mac80211/patches"
-			sed -i "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "package/kernel/mac80211/patches/$( basename "$file" )"
+			file2="package/kernel/mac80211/patches/$( basename "$file" )"
+			sed >"$file2.tmp" "s/YYYY-MM-DD/${COMPAT_WIRELESS}/g" "$file2"
+			mv   "$file2.tmp" "$file2"
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')" \
 				gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
 
@@ -457,9 +464,12 @@ copy_additional_packages()
 					do_copy
 
 					file="package/$install_section/$package/Makefile"
-					sed -i 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
-					sed -i 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
-					sed -i 's/--enable-bflsc/--enable-cpumining/' "$file"
+					sed >"$file.tmp" 's/PKG_REV:=.*/PKG_REV:=1a8bfad0a0be6ccbb2cc88917d233ac5db08a02b/' "$file"
+					mv   "$file.tmp" "$file"
+					sed >"$file.tmp" 's/PKG_VERSION:=.*/PKG_VERSION:=2.11.3/' "$file"
+					mv   "$file.tmp" "$file"
+					sed >"$file.tmp" 's/--enable-bflsc/--enable-cpumining/' "$file"
+					mv   "$file.tmp" "$file"
 					log "cgminer" gitadd "$file"
 				}
 			else
@@ -481,7 +491,7 @@ target_hardware_set()
 	local model="$1"	# 'list' or <modelname>
 	local option="$2"	# 'plain', 'js', 'info' or <empty>
 	local quiet="$3"	# e.g. 'quiet' (not logging)
-	local line
+	local line file
 
 	[ -n "$quiet" ] && funcname="quiet_$funcname"
 
@@ -842,7 +852,9 @@ EOF
 	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
 		log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL'"
 		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
-		sed -i "s/^LINUX_VERSION:=.*/LINUX_VERSION:=${VERSION_KERNEL_FORCE}/" "target/linux/$ARCH/Makefile"
+		file="target/linux/$ARCH/Makefile"
+		sed >"$file.tmp" "s/^LINUX_VERSION:=.*/LINUX_VERSION:=${VERSION_KERNEL_FORCE}/" "$file"
+		mv   "$file.tmp" "$file"
 	}
 
 	[ -z "$VERSION_KERNEL" ] && {
@@ -865,7 +877,9 @@ EOF
 			# target/linux/$ARCH/Makefile
 			#   -> KERNEL_PATCHVER:=3.14
 			#   -> KERNEL_PATCHVER:=3.18
-			sed -i "s/^KERNEL_PATCHVER:=.*/KERNEL_PATCHVER:=${VERSION_KERNEL_FORCE}/" "target/linux/$ARCH/Makefile"
+			file="target/linux/$ARCH/Makefile"
+			sed >"$file.tmp" "s/^KERNEL_PATCHVER:=.*/KERNEL_PATCHVER:=${VERSION_KERNEL_FORCE}/" "$file"
+			mv   "$file.tmp" "$file"
 		}
 	}
 
@@ -999,7 +1013,8 @@ check_working_directory()
 	}
 
 	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
-		sed -i '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
+		sed >"$file_feeds.tmp" '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
+		mv   "$file_feeds.tmp" "$file_feeds"
 		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
 
 		# https://forum.openwrt.org/viewtopic.php?id=52219
@@ -1643,10 +1658,14 @@ apply_symbol()
 				sub_profile="$(  echo "$CONFIG_PROFILE" | cut -d'.' -f2 )"
 				node="$(         echo "$CONFIG_PROFILE" | cut -d'.' -f3 )"
 
-				sed -i "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$file"
-				sed -i "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$file"
-				sed -i "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$file"
-				sed -i 's|^#\[ "$SIM_ARG3|\[ "$SIM_ARG3|' "$file"	# wan-dhcp for node 2
+				sed >"$file.tmp" "s/^#SIM_ARG1=/SIM_ARG1=$installation    #/" "$file"
+				mv   "$file.tmp" "$file"
+				sed >"$file.tmp" "s/^#SIM_ARG2=/SIM_ARG2=$sub_profile    #/" "$file"
+				mv   "$file.tmp" "$file"
+				sed >"$file.tmp" "s/^#SIM_ARG3=/SIM_ARG3=$node    #/" "$file"
+				mv   "$file.tmp" "$file"
+				sed >"$file.tmp" 's|^#\[ "$SIM_ARG3|\[ "$SIM_ARG3|' "$file"	# wan-dhcp for node 2
+				mv   "$file.tmp" "$file"
 				log "$KALUA_DIRNAME: enforced profile: $installation - $sub_profile - $node" gitadd "$file"
 			}
 
@@ -1724,7 +1743,8 @@ apply_symbol()
 			symbol="$( echo "$symbol" | cut -d'=' -f1 )"
 
 			if grep -sq ^"# $symbol is not set" "$file"; then
-				sed -i "s/^# $symbol is not set/${symbol}=y/" "$file"
+				sed >"$file.tmp" "s/^# $symbol is not set/${symbol}=y/" "$file"
+				mv   "$file.tmp" "$file"
 			else
 				grep -sq "$symbol" "$file" || echo >>"$file" "$symbol=y"
 			fi
@@ -1734,7 +1754,8 @@ apply_symbol()
 			symbol="$1"
 
 			if grep -sq ^"$symbol=y" "$file"; then
-				sed -i "s/^${symbol}=y/# $symbol is not set/" "$file"
+				sed >"$file.tmp" "s/^${symbol}=y/# $symbol is not set/" "$file"
+				mv   "$file.tmp" "$file"
 			else
 				grep -sq "$symbol" "$file" || echo >>"$file" "# $*"
 			fi
@@ -1746,7 +1767,8 @@ apply_symbol()
 
 				grep -q "$pre" "$file" && {
 					# remove symbol
-					sed -i "/${pre}=.*/d" "$file"
+					sed >"$file.tmp" "/${pre}=.*/d" "$file"
+					mv   "$file.tmp" "$file"
 				}
 
 				echo "$symbol" >>"$file"
