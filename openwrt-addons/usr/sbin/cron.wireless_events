@@ -25,7 +25,7 @@ mac2ipv4()	# TODO: better name
 	local wifidev="$2"
 	local dev='br-mastergate'
 	local file="/tmp/ROAMING_remove_host_route_$mac"
-	local i=20
+	local i=20 signal
 	local server_asked='false'
 	local ip=
 
@@ -52,7 +52,16 @@ mac2ipv4()	# TODO: better name
 
 				case "$ip" in
 					"192.168.${NODENUMBER_ROAMING}."*)
-						log "$funcname($i) OK: no action for $mac/$ip needed: our own HNA4-range - server_asked: $server_asked"
+						log "$funcname($i) OK: no route-set for $mac/$ip needed: our own HNA4-range - server_asked: $server_asked"
+						_netfilter user_probe "$mac" || {
+							signal="$( _wifi signal "$wifidev" "$mac" )"
+
+							if   _weblogin login_check  "$mac" ''          "$mac" "$signal"; then
+								_netfilter user_add "$mac" "$ip"
+							elif _weblogin login_check  "$mac" "$HOSTNAME" "$mac" "$signal"; then
+								_netfilter user_add "$mac" "$ip"
+							fi
+						}
 					;;
 					'192.168.'*)
 						log "$funcname($i) setting host route for alien $ip - server_asked: $server_asked"
@@ -109,7 +118,8 @@ worker()
 	case "$mode" in
 		'new')
 			log "$txt"
-			txt="$txt - ip: '$( mac2ipv4 "$mac" "$wifidev" )' signal: $( _wifi signal "$wifidev" "$mac" )"
+			ip="$( mac2ipv4 "$mac" "$wifidev" )"
+			txt="$txt - ip: '$ip' signal: $( _wifi signal "$wifidev" "$mac" )"
 			log "$txt"
 		;;
 		'del')
