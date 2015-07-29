@@ -326,6 +326,11 @@ sms_allowed()
 	local network="$1"
 	local effective_name="$( echo "$network" | cut -d':' -f1 )"	# e.g. ffweimar:vhs
 
+	iptables -nL INPUT 1 | grep -q ^'myping' || {
+		log "$network: [ERR] sending sms supressed, iptables-whitelister inactiv"
+		return 1
+	}
+
 	list_networks 'maintenance' | grep -q ^"$effective_name"$ && return 0
 
 	log "$network: no sms allowed"
@@ -403,12 +408,7 @@ send_sms()
 
 	for number in $list_numbers; do {
 		log "sending sms, call: /var/www/scripts/send_sms.sh '$network' '$number' '$text'"
-
-		if iptables -nL INPUT 1 | grep -q ^'myping'; then
-			/var/www/scripts/send_sms.sh "$network" "$number" "$text"
-		else
-			log "[ERR] sending sms supressed, iptables-whitelister inactiv"
-		fi
+		/var/www/scripts/send_sms.sh "$network" "$number" "$text"
 	} done
 }
 

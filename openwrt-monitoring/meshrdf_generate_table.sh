@@ -220,7 +220,8 @@ TARBALL_TIME='398774'	# 29c8e80a6f7b01f876da4f20020be083281cb080
 TARBALL_TIME='398780'	# 5b174a539918f5d5c09ad0a4a7a539e00f3df38e
 TARBALL_TIME='398893'	# 63c2872387cbaa0c04fecce62425e37482d98c3c
 TARBALL_TIME='398941'	# 4d842c71d3e63e7f635a3472f88c1f62aeb4a648
-TARBALL_TIME='399063'	# efcc08bddc97ddb8b891cc77bf8e80f8dc389032 //vor dem Urlaub 8-)
+TARBALL_TIME='399063'	# efcc08bddc97ddb8b891cc77bf8e80f8dc389032 // vor dem Urlaub 8-)
+TARBALL_TIME='399401'	# 0c4bff63b1d54ef9ab46c156a212515b34e14066 // nach dem Urlaub
 
 
 
@@ -1470,7 +1471,7 @@ cell_klog()
 	if [ -z "$rt_throttling" ]; then
 		[ $diff -eq 0 ] || bgcolor='orange'
 
-		if [ $coredumps -eq 0 ]; then
+		if [ $coredumps -eq 0 -o $coredumps -eq -1 ]; then	# FIXME! bug in monitoring script: '-1'
 			[ "$diff" = '0' ] && diff='&mdash;'
 		else
 			bgcolor='orange'

@@ -44,7 +44,9 @@ df -h /dev/xvda1 | fgrep -q "100%" && {
 
 # /var/www/networks/fuerstengruft/gruft.html_for_all_dates.sh
 
-(
+build_html_tarball()
+{
+	(
 	ls -l /var/www/networks/ | grep ^'d' | while read LINE; do {
 		set -- $LINE
 		case "$9" in
@@ -58,7 +60,8 @@ df -h /dev/xvda1 | fgrep -q "100%" && {
 
 	cd /var/www/files/
 	tar cvjf /var/www/files/all.tar.bz2 cache-*
-)
+	)
+}
 
 
 [ "$OPTION" = "cache" ] && {
@@ -168,6 +171,9 @@ gen_meshrdf_for_network()
 	touch "$temp" && chmod 777 "$temp"
 	wget -qO "$temp" "$url"
 	mv "$temp" "$html"
+
+	build_html_tarball
+
 	log "[READY] fetched $network"
 }
 
@@ -209,6 +215,8 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network ffweimar-dnt
 	gen_meshrdf_for_network wagenplatz
 	gen_meshrdf_for_network monami
+	gen_meshrdf_for_network ffweimar-roehr
+
 
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
 
