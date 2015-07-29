@@ -1917,6 +1917,7 @@ build_options_set()
 				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
+				$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
 
 				usecase_has 'noDebug' || {
 					log "[OK] autoselecting usecase 'debug' in 'Standard'-mode"
@@ -1952,6 +1953,7 @@ build_options_set()
 #				$funcname subcall 'vtun'
 #				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
+				$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
 			;;
 			'Mini')
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
@@ -1999,7 +2001,12 @@ build_options_set()
 			'revert'*|'revert12345')
 				local rev="$( echo "$1" | cut -d't' -f2 )"		# revert12345 -> 12345
 				local hash="$( git log --format=%h --grep="@$rev " )"
-				autocommit "git revert $hash --no-commit"
+
+				if [ -n "$hash" ]; then
+					autocommit "git revert $hash --no-commit"
+				else
+					log "[ERR] commit $rev not found, ignoring"
+				fi
 			;;
 			'queryMII')
 				if [ -e "$KALUA_DIRNAME/openwrt-addons/etc/kalua/switch" ]; then
