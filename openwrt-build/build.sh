@@ -1130,7 +1130,7 @@ openwrt_download()
 		;;
 		'testing')
 			# maybe this is too simply, because it applies to all platforms?
-			wish='r46158'	# musl!
+			wish='r46425'
 		;;
 	esac
 
@@ -2207,7 +2207,8 @@ build_options_set()
 				$funcname subcall 'macVLAN'
 			;;
 			'OLSRd2')
-				apply_symbol 'CONFIG_PACKAGE_olsrd2-git=y'		# network:
+				apply_symbol 'CONFIG_PACKAGE_olsrd2-git=y'		# network: olsrd2-framework
+				apply_symbol 'CONFIG_PACKAGE_oonf-olsrd2-git=y'		# the same, but newer revisions
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH=y'
 			;;
 			'DCF77')
@@ -2252,6 +2253,9 @@ build_options_set()
 				$funcname subcall 'noPrintK'
 			;;
 			'noIPv6')
+				# TODO:
+				# https://dev.openwrt.org/ticket/5586#comment:9
+
 				# seems not to work with brcm47xx, but with ar71xx?! -> see 'DEFAULT's
 				$funcname subcall 'noFW'
 
