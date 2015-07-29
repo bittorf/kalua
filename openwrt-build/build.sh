@@ -894,7 +894,7 @@ EOF
 		}
 	}
 
-	log "architecture: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL'"
+	log "architecture: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL' kernel_enforced: '$VERSION_KERNEL_FORCE'"
 
 	apply_symbol 'nuke_config'
 	apply_symbol "CONFIG_TARGET_${ARCH}=y"
