@@ -2940,6 +2940,10 @@ while [ -n "$1" ]; do {
 				;;
 			esac
 		;;
+		'--'*|'-'*)
+			log "[ERR] invalid option '$1'"
+			STOP_PARSE='true'
+		;;
 	esac
 
 	shift
