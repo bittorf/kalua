@@ -2003,7 +2003,7 @@ build_options_set()
 				local hash="$( git log --format=%h --grep="@$rev " )"
 
 				if [ -n "$hash" ]; then
-					autocommit "git revert $hash --no-commit"
+					autocommit "git revert $hash --no-commit" "reverting r$rev"
 				else
 					log "[ERR] commit $rev not found, ignoring"
 				fi
