@@ -128,6 +128,7 @@ _net_roaming_mac2ip()
 {
 	local funcname='net_roaming_mac2ip'
 	local mac="${1:-no_mac_given}"
+	local action="$2"			# delete_from_local_cache
 	local file='/tmp/roaming'
 	local file_dhcp='/tmp/roaming_dhcp'
 	local line url authserver ip query method
@@ -151,10 +152,12 @@ _net_roaming_mac2ip()
 	}
 
 	# format: mac ip expires
-	if get_local; then
+	if [ "$action" = 'delete_from_local_cache' ]; then
+		sed -i "s/$mac/# $mac/g" "$file"
+	elif get_local; then
 		set -- $line
 		ip="$2"
-		_log do $funcname daemon info "[OK] IP: $ip from $method"
+		_log do $funcname daemon info "[OK] mac->IP: $mac -> $ip from $method"
 		echo "$ip"
 	else
 		_weblogin authserver is_myself || {
@@ -164,7 +167,7 @@ _net_roaming_mac2ip()
 
 			ip="$( _wget do "$url" )"
 			test -n "$ip" && {
-				_log do $funcname daemon info "[OK] IP: $ip from '$url'"
+				_log do $funcname daemon info "[OK] mac->IP: $mac -> $ip from '$url'"
 				echo "$ip"
 			}
 		}
