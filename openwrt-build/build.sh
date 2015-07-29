@@ -264,6 +264,7 @@ search_and_replace()
 	local file="$1"
 	local search="$2"	# ^LINUX_VERSION:=.*
 	local replace="$3"	# LINUX_VERSION:=3.18.19
+	local pattern
 
 	# workaround 'sed -i' which is a GNU extension and not POSIX
 	# http://stackoverflow.com/questions/7232797/sed-on-aix-does-not-recognize-i-flag
@@ -272,7 +273,8 @@ search_and_replace()
 		log "[ERROR] while replacing '$search' with '$replace' in '$file'"
 	}
 
-	grep -q "$replace" "$file.tmp" || {
+	pattern="$( echo "$replace" | sed 's/&//g' )"	# remove special sed tokens
+	grep -q "$pattern" "$file.tmp" || {
 		log "[ERROR] replacing did not work, cannot found '$replace' in '$file.tmp'"
 	}
 
