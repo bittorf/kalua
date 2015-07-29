@@ -865,10 +865,10 @@ EOF
 
 	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
 	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
-		log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL'"
 		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
 		file="target/linux/$ARCH/Makefile"
 		search_and_replace "$file" '^LINUX_VERSION:=.*' "LINUX_VERSION:=$VERSION_KERNEL_FORCE"
+		log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL'" gitadd "$file"
 	}
 
 	[ -z "$VERSION_KERNEL" ] && {
@@ -881,7 +881,6 @@ EOF
 		VERSION_KERNEL="$( echo "$VERSION_KERNEL" | sed 's/ = //' | sed 's/LINUX_VERSION-//' )"
 
 		[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
-			log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL' for r43047+"
 			VERSION_KERNEL="$VERSION_KERNEL_FORCE"
 			# replace in 'include/kernel-version.mk'
 			# LINUX_VERSION-3.10 = .49
@@ -893,6 +892,7 @@ EOF
 			#   -> KERNEL_PATCHVER:=3.18
 			file="target/linux/$ARCH/Makefile"
 			search_and_replace "$file" '^KERNEL_PATCHVER:=.*' "KERNEL_PATCHVER:=$VERSION_KERNEL_FORCE"
+			log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL' for r43047+" gitadd "$file"
 		}
 	}
 
