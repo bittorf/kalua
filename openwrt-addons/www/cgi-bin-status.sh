@@ -274,8 +274,16 @@ output_table()
 
 		is_wifi()
 		{
-			_net dev_is_wifi "$1" && return 0
+			local dev="$1"
+
+			_net dev_is_wifi "$dev" && return 0
 			[ "$LOCAL" = "$WIFIADR" ] && return 0	# TODO: will not work for 2nd wifi
+
+			case "$dev" in
+				$LANDEV|$WANDEV)
+					return 1
+				;;
+			esac
 
 			case "$COST" in
 				'1.000'|'0.100')
@@ -283,7 +291,7 @@ output_table()
 				;;
 				*)
 					# likely no ethernet/VPN
-					_net dev_is_tuntap "$1" || return 0
+					_net dev_is_tuntap "$dev" || return 0
 				;;
 			esac
 
