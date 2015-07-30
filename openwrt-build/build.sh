@@ -2010,9 +2010,10 @@ build_options_set()
 			'revert'*|'revert12345')
 				local rev="$( echo "$1" | cut -d't' -f2 )"		# revert12345 -> 12345
 				local hash="$( git log --format=%h --grep="@$rev " )"
-				local message="$( git show -s --pretty=oneline --format=%B "$hash" | head -n1 )"
+				local message
 
 				if [ -n "$hash" ]; then
+					message="$( git show -s --pretty=oneline --format=%B "$hash" | head -n1 )"
 					autocommit "git revert $hash --no-commit" "reverting r$rev ($message)"
 				else
 					log "[ERR] commit $rev not found, ignoring"

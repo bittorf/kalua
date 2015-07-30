@@ -1475,25 +1475,36 @@ _watch_topusage_task()
 	local file="/tmp/$funcname_$$"
 	local line pid cpu cpu_int toptask toptask2 khubd_state logprio logmessage
 	local crit_percent_border=70
+	local parse=
 
 	[ $( _system uptime min ) -lt 30 ] && return 0		# same like in cron.minutely
 
-	top -b -n 1 >"$file"
+	# we need at least 2 iterations, otherwise the values are wrong
+	top -b -n 2 >"$file"
 
 	while read line; do {
-		set -- $line
-		case "$line" in
-			[0-9]*)
-				pid="$1"
-				cpu="$7"
-				cpu_int="${7//%/}"
-				toptask="$8"
-				toptask2="$9"	# e.g. {exe} gzip -f
-						#      {cron.db_generat} /bin/sh /usr/sbin/cron.db_generate_statistics monthly
+		if [ "$parse" = 'Mem:Mem:' ]; then
+			set -- $line
+			case "$line" in
+				[0-9]*)
+					pid="$1"
+					cpu="$7"
+					cpu_int="${7//%/}"
+					toptask="$8"
+					toptask2="$9"	# e.g. {exe} gzip -f
+							#      {cron.db_generat} /bin/sh /usr/sbin/cron.db_generate_statistics monthly
 
-				[ "$toptask" = 'top' ] || break
-			;;
-		esac
+					[ "$toptask" = 'top' ] || break
+				;;
+			esac
+		else
+			case "$line" in
+				'Mem:')
+					# each iteration starts with 'Mem: ...'
+					parse="${parse}Mem:"
+				;;
+			esac
+		fi
 	} done <"$file"
 
 	# seems to be USB-related, last detected on r40826
