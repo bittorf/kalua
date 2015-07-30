@@ -15,7 +15,7 @@ _wget_do()
 	local option="$3"	# e.g. "noproxy" or "continue $filename" or combined: "noproxy,continue $filename"
 	local mask1="$3"
 	local mask2="$4"	# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
-
+	local mypid=$$
 	local http_proxy remaining_wgets pid_wget pid_line pid_line_now rc i c=-1
 	local proxy_command file_option filename pid_background pid_num mycmdline myerror
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
@@ -46,7 +46,7 @@ _wget_do()
 
 	# get pids and fire the real 'wget':
 	list_wget_pids_initial="$( pidof wget )"
-	( wget $proxy_command -qO $filename $file_option "$url" 2>"/tmp/${funcname}_$$.error" || echo "$?" >"/tmp/${funcname}_$$" ) &
+	( wget $proxy_command -qO $filename $file_option "$url" 2>"/tmp/${funcname}_$mypid.error" || echo "$?" >"/tmp/${funcname}_$mypid" ) &
 	pid_background=$!
 	list_wget_pids_after_launch="$( pidof wget )"
 
@@ -101,8 +101,16 @@ _wget_do()
 		if [ ${#myerror} -eq 0 ]; then
 			_log do $funcname daemon debug '[OK] no error message'
 		else
-			# test with unresolveable: _wget do http://a.b.c.d/foo
-			_log do $funcname daemon info "error: '$myerror'"
+			case "$myerror" in
+				*'HTTP/1.1 404'*)
+					_log do $funcname daemon info "[OK] $myerror"
+					return 0
+				;;
+				*)
+					# test with unresolveable: _wget do http://a.b.c.d/foo
+					_log do $funcname daemon info "error: '$myerror'"
+				;;
+			esac
 		fi
 	}
 
