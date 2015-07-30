@@ -48,30 +48,11 @@ _wget_do()
 	list_wget_pids_initial="$( pidof wget )"
 	( wget $proxy_command -qO $filename $file_option "$url" 2>"/tmp/${funcname}_$mypid.error" || echo "$?" >"/tmp/${funcname}_$mypid" ) &
 	pid_background=$!
-	list_wget_pids_after_launch="$( pidof wget )"
+	list_wget_pids_after_launch="$( pidof wget )" || list_wget_pids_after_launch=$(( pid_background + 2 ))
+	# FIXME! sometimes pidof fails, but in fact _thereis_ a wget - fix the >65536 case!
 
 	# remove, when the 'too early exit' bug is found
-	_log do $funcname daemon debug "pids: initial: '$list_wget_pids_initial' background: '$pid_background' after: '$list_wget_pids_after_launch'"
-
-	# get PID of wget
-	[ -z "$list_wget_pids_after_launch" ] && {
-		[ -n "$pid_background" ] && {
-			# normally the 'real' wget-pid is 'pid_background'+2
-			# FIXME! pid > 65536?
-			for i in 1 2 3 4 5; do {
-				pid_num=$(( pid_background + i ))
-				read mycmdline 2>/dev/null <"/proc/$pid_num/cmdline" && {
-					case "$mycmdline" in
-						'wget'*)
-							_log do $funcname daemon debug "pids: background: '$pid_background' real: '$pid_num'"
-							list_wget_pids_after_launch="$pid_num"
-							break
-						;;
-					esac
-				}
-			} done
-		}
-	}
+#	_log do $funcname daemon debug "pids: initial: '$list_wget_pids_initial' background: '$pid_background' after: '$list_wget_pids_after_launch'"
 
 	element_in_list()
 	{
