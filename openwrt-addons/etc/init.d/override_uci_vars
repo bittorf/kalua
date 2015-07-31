@@ -225,7 +225,7 @@ kmodules_group_activate()
 
 boot()
 {
-	local list pattern proc
+	local list pattern proc i j
 
 	for daemon in ulogd firewall sysntpd; do {
 		[ -e "/etc/init.d/$daemon" ] || continue
@@ -969,6 +969,41 @@ boot()
 				grep 'askconsole' '/etc/inittab' | grep -q ^'#' || {
 					sed -i 's/.*askconsole/# &/' /etc/inittab
 				}
+			}
+
+			[ -x '/usr/sbin/olsrd2' ] && {
+				# disable IPv6
+				# http://www.olsr.org/mediawiki/index.php/OLSR_network_deployments#IPv4_or_IPv6_only_mesh_network_with_olsrd2
+				for i in '-0.0.0.0/0' '-::1/128' 'default_accept'; do {
+					case "$( uci -q get olsrd2.@olsrv2[0].originator )" in
+						*"$i"*)
+						;;
+						*)
+							uci add_list olsrd2.@olsrv2[0].originator="$i"
+						;;
+					esac
+				} done
+
+				for i in '-0.0.0.0/0' '-::1/128' 'default_accept'; do {
+					for j in 0 1 2 3; do {
+						case "$( uci -q get olsrd2.@interface[$j].bindto )" in
+							*"$i"*)
+							;;
+							*)
+								uci add_list olsrd2.@interface[$j].bindto="$i"
+							;;
+						esac
+					} done
+				} done
+
+				# allow/tweak wan
+				uci set olsrd2.@interface[2].ignore='0'
+				uci set olsrd2.@interface[2].rx_bitrate='1G'
+				uci set olsrd2.@interface[2].tx_bitrate='1G'
+				# allow/tweak lan
+				uci set olsrd2.@interface[3].ignore='0'
+				uci set olsrd2.@interface[3].rx_bitrate='1G'
+				uci set olsrd2.@interface[3].tx_bitrate='1G'
 			}
 
 			# so we can call 'http://www.internet'
