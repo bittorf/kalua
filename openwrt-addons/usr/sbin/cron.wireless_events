@@ -25,7 +25,7 @@ mac2ipv4()	# TODO: better name
 	local wifidev="$2"
 	local dev='br-mastergate'
 	local file="/tmp/ROAMING_remove_host_route_$mac"
-	local i=20 signal
+	local i=20 signal command
 	local server_asked='false'
 	local ip=
 
@@ -67,10 +67,14 @@ mac2ipv4()	# TODO: better name
 					'192.168.'*)
 						log "$funcname($i) setting host route for alien $ip - server_asked: $server_asked"
 						if ip route add "$ip/32" dev $dev; then
-							$IPT -t nat -I NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE
-							# this file is executed after 'station del'
-							echo  >"$file" "$IPT -t nat -D NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
-							echo >>"$file" "ip route del $ip/32 dev $dev && rm $file"
+							command="NAT_ALIEN_ROAMERS -s $ip -j SNAT --to-source $OLSR_MAIN_IP"
+							$IPT -t nat -I $command
+							# this file is sourced/executed after 'station del'
+							{
+								echo "$IPT -t nat -D $command"
+								echo "ip route del $ip/32 dev $dev"
+								echo "rm $file"
+							} >"$file"
 						else
 							# TODO: remove old route and try again? e.g. 'RTNETLINK answers: File exists'
 							_log do $funcname daemon alert "failed to add route for $ip / $dev"
@@ -157,7 +161,10 @@ elif [ -z "$( _wifi get any mode ap )" ]; then
 	_log do check_ap daemon info '[OK] exit, no wifi AP configured'
 	INCLUDE='exit'
 else
-	log "start listening on '$( active_ap_devices )' PID: $$"
+	OLSR_MAIN_IP="$( uci get olsrd.@olsrd[0].MainIp )"
+	[ -z "$OLSR_MAIN_IP" ] && OLSR_MAIN_IP="${LANADR:-$WANADR}"
+
+	log "start listening on '$( active_ap_devices )' PID: $$ OLSR_MAIN_IP: $OLSR_MAIN_IP"
 fi
 
 [ -z "$INCLUDE" ] && {
