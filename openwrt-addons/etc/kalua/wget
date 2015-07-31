@@ -15,17 +15,17 @@ _wget_do()
 	local option="$3"	# e.g. "noproxy" or "continue $filename" or combined: "noproxy,continue $filename"
 	local mask1="$3"
 	local mask2="$4"	# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
-
-	local remaining_wgets pid_wget pid_line pid_line_now rc i c=-1
+	local mypid=$$
+	local http_proxy remaining_wgets pid_wget pid_line pid_line_now i c=-1 rc=0
 	local proxy_command file_option filename pid_background pid_num mycmdline myerror
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
 
 	case "$url" in
-		*'127.0.0.1'*|*:[0-9]*)			# no PROXY for local URLs or URLs with special ports
-		;;					# FIXME! be more correct: 127.0.0.0/8 + ipv6
+		*'localhost'*|*'127.0.0.1'*|*:[0-9]*)	# no PROXY for local URLs or URLs with special ports
+		;;					# FIXME! be more correct: 127.0.0.0/8 + ipv6 or set env $no_proxy
 		*)
 			[ -n "$http_proxy" -a -z "$option" ] && {
-				_log do $funcname daemon debug "using proxy $http_proxy"
+				_log do $funcname daemon debug "using proxy from env $http_proxy"
 				proxy_command='-Y on'
 			}
 		;;
@@ -46,26 +46,13 @@ _wget_do()
 
 	# get pids and fire the real 'wget':
 	list_wget_pids_initial="$( pidof wget )"
-	( wget $proxy_command -qO $filename $file_option "$url" 2>"/tmp/${funcname}_$$.error" || echo "$?" >"/tmp/${funcname}_$$" ) &
+	( wget $proxy_command -qO $filename $file_option "$url" 2>"/tmp/${funcname}_$mypid.error" || echo "$?" >"/tmp/${funcname}_$mypid" ) &
 	pid_background=$!
-	list_wget_pids_after_launch="$( pidof wget )"
+	list_wget_pids_after_launch="$( pidof wget )" || list_wget_pids_after_launch=$(( pid_background + 2 ))
+	# FIXME! sometimes pidof fails, but in fact _thereis_ a wget - fix the >65536 case!
 
-	# get PID of wget
-	[ -z "$list_wget_pids_after_launch" ] && {
-		[ -n "$pid_background" ] && {
-			for i in 1 2 3 4 5; do {
-				pid_num=$(( pid_background + i ))
-				read mycmdline 2>/dev/null <"/proc/$pid_num/cmdline" && {
-					case "$mycmdline" in
-						'wget'*)
-							list_wget_pids_after_launch="$pid_num"
-							break
-						;;
-					esac
-				}
-			} done
-		}
-	}
+	# remove, when the 'too early exit' bug is found
+#	_log do $funcname daemon debug "pids: initial: '$list_wget_pids_initial' background: '$pid_background' after: '$list_wget_pids_after_launch'"
 
 	element_in_list()
 	{
@@ -88,15 +75,22 @@ _wget_do()
 		break
 	} done
 
-	[ -e "/tmp/${funcname}_$$.error" ] && {
-		read myerror 2>/dev/null <"/tmp/${funcname}_$$.error"
+	read myerror 2>/dev/null <"/tmp/${funcname}_$$.error" && {
 		rm "/tmp/${funcname}_$$.error"
 
 		if [ ${#myerror} -eq 0 ]; then
 			_log do $funcname daemon debug '[OK] no error message'
 		else
-			# test with unresolveable: _wget do http://a.b.c.d/foo
-			_log do $funcname daemon info "error: '$myerror'"
+			case "$myerror" in
+				*'HTTP/1.1 404'*)
+					_log do $funcname daemon info "[OK] $myerror"
+					return 0
+				;;
+				*)
+					# test with unresolveable: _wget do http://a.b.c.d/foo
+					_log do $funcname daemon info "error: '$myerror'"
+				;;
+			esac
 		fi
 	}
 
@@ -158,16 +152,30 @@ _wget_do()
 		}
 	} done
 
-	if [ -e "/tmp/${funcname}_$$" ]; then
-		read rc <"/tmp/${funcname}_$$"
+	# FIXME! code duplication, see above
+	read myerror 2>/dev/null <"/tmp/${funcname}_$$.error" && {
+		rm "/tmp/${funcname}_$$.error"
+
+		if [ ${#myerror} -eq 0 ]; then
+			_log do $funcname daemon debug '[OK] no error message'
+		else
+			case "$myerror" in
+				*'HTTP/1.1 404'*)
+					_log do $funcname daemon info "[OK] $myerror"
+					return 0
+				;;
+				*)
+					# test with unresolveable: _wget do http://a.b.c.d/foo
+					_log do $funcname daemon info "error: '$myerror'"
+				;;
+			esac
+		fi
+	}
+
+	read rc 2>/dev/null <"/tmp/${funcname}_$$" && {
 		rm "/tmp/${funcname}_$$"
-
 		_log do $funcname daemon info "[ERR] returning $rc after fetching '$url'"
-		return $rc
-	else
-		# cleanup from earlier runs
-		rm 2>/dev/null "/tmp/${funcname}_"*
+	}
 
-		return 0
-	fi
+	return $rc
 }
