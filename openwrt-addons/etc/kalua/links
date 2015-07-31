@@ -11,7 +11,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 	[ -z "$KEYWORD" ] && {
 		case "$COMMAND" in
 			stable|beta|testing)
-				KEYWORD="$COMMAND"	# fixme! is a workaround for bad API 8-)
+				KEYWORD="$COMMAND"	# workaround for bad API 8-)
 			;;
 		esac
 	}
@@ -19,6 +19,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 	local UPDATEMODE="$( _firmware updatemode "$KEYWORD" override )"
 	local BASE="$( uci get system.@fwupdate[0].url )"	# http://intercity-vpn.de/firmware
 	local ARCHITECTURE="$( _system architecture )"
+	local url
 	BASE="${BASE:-http://intercity-vpn.de/firmware}"
 
 	case "$COMMAND" in
@@ -26,7 +27,8 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			echo -n "$( uci get system.@monitoring[0].url )/whitelist/"
 		;;
 		tarball)
-			echo -n "$BASE/$ARCHITECTURE/images/$UPDATEMODE/tarball.tgz?host=$HOSTNAME"
+			# http://intercity-vpn.de/networks/liszt28/tarball/testing/tarball.tgz
+			echo -n "$( uci -q get system.@monitoring[0].url )/tarball/$UPDATEMODE/tarball.tgz?host=$HOSTNAME"
 		;;
 		tarball_hash)
 			local i=0
@@ -35,7 +37,9 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			[ "$UPDATEMODE" = "0" ] && i=100
 
 			while [ -z "$CRC" -a $i -lt 100 ]; do {
-				CRC="$( _wget do "$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt" | fgrep "FILE: 'tarball.tgz'" | cut -d' ' -f2 )"
+				# http://intercity-vpn.de/networks/liszt28/tarball/testing/info.txt
+				url="$( uci -q get system.@monitoring[0].url )/tarball/$UPDATEMODE/info.txt"
+				CRC="$( _wget do "$url" | fgrep "FILE: 'tarball.tgz'" | cut -d' ' -f2 )"
 				sleep 5
 				i=$(( i + 1 ))
 			} done

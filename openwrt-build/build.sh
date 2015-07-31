@@ -1288,8 +1288,8 @@ copy_firmware_files()
 	log "usecase-hash: $( usecase_hash "$USECASE" )"
 
 	# http://intercity-vpn.de/firmware/mpc85xx/images/testing/1c78c7a701714cddd092279587e719a3/TP-LINK%20TL-WDR4900%20v1.bin
-	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/usecase/$( usecase_hash "$USECASE" )/$HARDWARE_MODEL.bin"
-	log "http://intercity-vpn.de/firmware/$HARDWARE_MODEL/testing/usecase/..."
+#	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/usecase/$( usecase_hash "$USECASE" )/$HARDWARE_MODEL.bin"
+#	log "http://intercity-vpn.de/firmware/$HARDWARE_MODEL/testing/usecase/..."
 	log "http://intercity-vpn.de/networks/xyz/firmware/$HARDWARE_MODEL/testing/usecase/..."
 
 	# Ubiquiti Bullet M
