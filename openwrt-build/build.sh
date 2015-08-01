@@ -1916,6 +1916,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 
 				$funcname subcall 'queryMII'
 				$funcname subcall 'squash64'
@@ -1952,6 +1953,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 
 				$funcname subcall 'queryMII'
 #				$funcname subcall 'squash64'
