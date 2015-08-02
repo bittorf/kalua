@@ -701,6 +701,13 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-nano-m-xw-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-ubnt-nano-m-xw-squashfs-factory.bin'
 		;;
+		'Ubiquiti Nanostation Loco M2 XW'|'Ubiquiti Nanostation Loco M5 XW')
+			# XW (since 2014)
+			# http://wiki.openwrt.org/toh/ubiquiti/nanostationm5
+			TARGET_SYMBOL="CONFIG_TARGET_ar71xx_generic_UBNT=y"
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-loco-m-xw-squashfs-syspgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-ubnt-loco-m-xw-squashfs-factory.bin'
+		;;
 		'Targa WR-500-VoIP'|'Speedport W500V')
 			TARGET_SYMBOL='CONFIG_TARGET_brcm63xx_generic=y'
 			FILENAME_SYSUPGRADE='openwrt-SPW500V-squashfs-cfe.bin'
