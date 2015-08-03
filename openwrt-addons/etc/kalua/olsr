@@ -91,6 +91,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 	# fixme! update also when fetching neighbour table fails?
 	ip route show table main >'/tmp/OLSR_TMP/ROUTING_TABLE_MAIN'
+	gateway="$( grep ^'default' '/tmp/OLSR_TMP/ROUTING_TABLE_MAIN' | head -n1 )"
 
 	while read line; do {
 		[ $route_count -eq 0 ] && {	# firstline of file
@@ -110,8 +111,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 					# default via 10.63.21.121 dev tap276  metric 2 onlink
 				;;
 				*)
-					gateway="$( grep ^'default' '/tmp/OLSR_TMP/ROUTING_TABLE_MAIN' | head -n1 )"
-
+					# var '$gateway' was set just before the loop
 					if [ -n "$gateway" ]; then
 						set -- $gateway
 
@@ -1202,7 +1202,7 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 
 
 	local COUNT_NEIGHBORS_NON_INFINITE_COSTS=0
-	local mac
+	local mac good='true'
 
 	while read LINE; do {
 		eval -- $LINE
@@ -1222,15 +1222,19 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 
 				ip_is_in_routing_table $REMOTE || {
 					_log do $FUNC daemon crit "[ERR] is each non-infinite neighbour in routing-table? '$REMOTE' (COST:'$COST') is not!"
-					rm "$FILE"
-					return 1
+					good='false'
+					break
 				}
 			}
 		}
 	} done <"$FILE"
 
-	_log do $FUNC daemon debug "[OK] (is each non-infinite neighbour in routing-table?)"
-
+	if [ "$good" = 'false' ]; then
+		rm "$FILE"
+		return 1
+	else
+		_log do $FUNC daemon debug "[OK] (is each non-infinite neighbour in routing-table?)"
+	fi
 
 	did_we_ever_had_a_neighbour()
 	{

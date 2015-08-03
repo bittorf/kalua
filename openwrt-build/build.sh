@@ -2533,6 +2533,7 @@ check_scripts()
 	local dir="$1"
 	local tempfile="/tmp/check_scripts"
 	local tempfile_functions="$tempfile.functions"
+	local good='true'
 	local file mimetype i j k
 
 	find "$dir" -type f -not -iwholename '*.git*' >"$tempfile"
@@ -2589,8 +2590,8 @@ check_scripts()
 			'text/x-shellscript'|'text/plain')
 				sh -n "$file" || {
 					log "error in file '$file' - abort"
-					rm "$tempfile"
-					return 1
+					good='false'
+					break
 				}
 				i=$(( i + 1 ))
 
@@ -2599,14 +2600,18 @@ check_scripts()
 			;;
 			*)
 				log "unknown mimetype: '$mimetype' file: '$file'"
-				rm "$tempfile"
-				return 1
+				good='false'
+				break
 			;;
 		esac
 	} done <"$tempfile"
-
-	log "[OK] checked ${i:=0} files with $( wc -l <"$tempfile_functions" ) shell-functions"
 	rm "$tempfile" "$tempfile_functions"
+
+	if [ "$good" = 'true' ]; then
+		log "[OK] checked ${i:=0} files with $( wc -l <"$tempfile_functions" ) shell-functions"
+	else
+		i=-1
+	fi
 
 	test $i -gt 0
 }
@@ -2621,6 +2626,7 @@ unittest_do()
 {
 	local funcname='unittest_do'
 	local shellcheck_bin build_loader ignore file tempfile filelist
+	local good='true'
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
 		build_loader='openwrt-addons/etc/kalua_init'
@@ -2703,7 +2709,6 @@ unittest_do()
 			# SC2030: FIXME! eval-hack...
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
-			# SC2094: FIXME! (olsr) Make sure not to read and write the same file in the same pipeline.
 			# SC2102: case "A" in [$var][$var]) ... => Ranges can only match single chars (mentioned due to duplicates).
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
 			# SC1003: a='\' => Are you trying to escape that single quote?
@@ -2711,7 +2716,7 @@ unittest_do()
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			ignore='SC1010,SC2154,SC2012,SC2039,SC2155,SC2034,SC2046,SC2086,SC1007,SC2090,SC2089'
 			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031"
-			ignore="${ignore},SC2016,SC2094,SC2102,SC2064,SC1003,SC2153,SC2029"
+			ignore="${ignore},SC2016,SC2102,SC2064,SC1003,SC2153,SC2029"
 
 			log "testing with '$shellcheck_bin', ignoring: $ignore"
 			tempfile='/dev/shm/shellcheck'
@@ -2738,13 +2743,15 @@ unittest_do()
 							log "[OK] shellcheck: '$file'"
 						else
 							log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
-							rm "$tempfile" "$filelist"
-							return 1
+							good='false'
+							break
 						fi
 					;;
 				esac
 			} done <"$filelist"
-			rm "$filelist"
+			rm "$filelist" "$tempfile"
+
+			[ "$good" = 'false' ] && return 1
 		fi
 
 		sloc()
