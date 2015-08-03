@@ -249,7 +249,7 @@ log()
 
 	case "$message" in
 		*'[ERROR]'*)
-			$MYLOGGER '! \'
+			$MYLOGGER '! L'
 			$MYLOGGER "!  )- $0: $message"
 			$MYLOGGER '! /'
 		;;
@@ -2711,19 +2711,17 @@ unittest_do()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2102: case "A" in [$var][$var]) ... => Ranges can only match single chars (mentioned due to duplicates).
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
-			# SC1003: a='\' => Are you trying to escape that single quote?
 			# SC2153: Possible misspelling: WIFIDEV may not be assigned, but WIFI_DEV is.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			ignore='SC1010,SC2154,SC2012,SC2039,SC2155,SC2034,SC2046,SC2086,SC1007,SC2090,SC2089'
 			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031"
-			ignore="${ignore},SC2016,SC2102,SC2064,SC1003,SC2153,SC2029"
+			ignore="${ignore},SC2016,SC2102,SC2064,SC2153,SC2029"
 
 			log "testing with '$shellcheck_bin', ignoring: $ignore"
 			tempfile='/dev/shm/shellcheck'
 			filelist='/dev/shm/filelist'
 			find "openwrt-addons" "openwrt-build" -type f -not -iwholename '*.git*' >"$filelist"
 
-#			for file in openwrt-addons/www/* openwrt-addons/etc/kalua/*; do {
 			while read file; do {
 				case "$file" in
 					'openwrt-build/mybuild.sh')
@@ -2742,14 +2740,15 @@ unittest_do()
 							rm "$tempfile"
 							log "[OK] shellcheck: '$file'"
 						else
+							rm "$tempfile"
 							log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
 							good='false'
-							break
+			#				break
 						fi
 					;;
 				esac
 			} done <"$filelist"
-			rm "$filelist" "$tempfile"
+			rm "$filelist"
 
 			[ "$good" = 'false' ] && return 1
 		fi
