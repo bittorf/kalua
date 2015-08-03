@@ -2697,7 +2697,6 @@ unittest_do()
 			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
 			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
 			# SC2120: function references arguments (e.g. $1), but none are ever passed.
-			# SC2119: Use cleanup "$@" if function's $1 should mean script's $1. => FIXME! in kalua/mail ???
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
 			# SC2088: echo '~' => Note that ~ does not expand in quotes.
@@ -2712,7 +2711,7 @@ unittest_do()
 			# SC2009: FIXME! (find zombies) Consider using pgrep instead of grepping ps output.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			ignore='SC1010,SC2154,SC2012,SC2039,SC2155,SC2034,SC2046,SC2086,SC1007,SC2090,SC2089'
-			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2119,SC2018,SC2019,SC2088,SC2030,SC2031"
+			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031"
 			ignore="${ignore},SC2016,SC2094,SC2102,SC2064,SC1003,SC2153,SC2009,SC2029"
 
 			log "testing with '$shellcheck_bin', ignoring: $ignore"
@@ -2739,7 +2738,7 @@ unittest_do()
 							rm "$tempfile"
 							log "[OK] shellcheck: '$file'"
 						else
-							log "[ERR] in file '$file'"
+							log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
 							rm "$tempfile" "$filelist"
 							return 1
 						fi
@@ -2980,7 +2979,7 @@ die_and_exit()
 [ "$UID" = '0' ] && log "REMINDER: dont build as root, you have UID: $UID"
 
 check_git_settings			|| die_and_exit
-check_working_directory			|| die_and_exit
+check_working_directory yes		|| die_and_exit
 openwrt_download 'reset_autocommits'
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 

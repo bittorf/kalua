@@ -353,9 +353,10 @@ _mail_send_mailfile()
 
 	cleanup()
 	{
-		local error="$1"
+		local option="$1"
 
-		[ -n "$error" ] && _log do $FUNC daemon info 'function_cancelled'
+		[ "$option" = 'error' ] && _log do $FUNC daemon info 'function_cancelled'
+
 		[ -e "$MAILFILE"  ] && rm "$MAILFILE"
 		[ -e "$ERRORFILE" ] && rm "$ERRORFILE"
 
@@ -412,7 +413,7 @@ _mail_send_mailfile()
 			# 530 = Authentication required
 			_mail pop3_check_stats force
 
-			cleanup
+			cleanup ok
 			return 1
 		;;
 		"+220")
@@ -421,7 +422,7 @@ _mail_send_mailfile()
 			_log do $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mail stashed"
 			_mail stash_for_later_resend
 
-			cleanup
+			cleanup ok
 			return 0
 		;;
 		"+220+250+501"*|"+220+250+250+250+354+501"*)
@@ -429,13 +430,13 @@ _mail_send_mailfile()
 			# 220 only = hanging connection with buggy telnet/nc client: e.g. busybox 1.19.4 = b0rken to mail.gmx.net, 1.21.1 = OK
 			_log do $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mailfile deleted"
 
-			cleanup
+			cleanup ok
 			return 0
 		;;
 		"+220+250+250+250+354+250+221"*)	# fixme! maybe too strict...
 			case "$OUT" in			# fixme! for each RCPT we must add an additional "250 2.1.5"
 				*"+354+250+221")
-					cleanup
+					cleanup ok
 					return 0
 				;;
 			esac
