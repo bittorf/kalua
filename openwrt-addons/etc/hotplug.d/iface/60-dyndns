@@ -183,9 +183,15 @@ case "$ACTION" in
 			[ $( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds ) -gt 300 ] && {
 				# locking maybe unneeded
 				mkdir '/tmp/LOCK_dhcpscript_cron_restart' && {
-					[ $( ps | grep -c '0 Z' ) -gt 1 ] && {
-						_system crashreboot 'zombies'
-					}
+					for FILE in /proc/*; do {
+						case "$FILE" in */[0-9]*)
+							# FIXME! the dot must be a TAB
+							# TODO: compile zombie.o and test
+							grep -sq 'State:.Z' "$FILE/status" && {
+								_system crashreboot 'zombies'
+							}
+						esac
+					} done
 
 					if pidof crond >/dev/null; then
 						_stopwatch start '/tmp/CRON_LASTCALL' global
