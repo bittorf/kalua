@@ -2235,6 +2235,12 @@ build_options_set()
 				$funcname subcall 'ebTables'
 				$funcname subcall 'macVLAN'
 			;;
+			'GNUnet')
+				apply_symbol 'CONFIG_PACKAGE_gnunet=y'
+				apply_symbol 'CONFIG_PACKAGE_gnunet-fs=y'
+				apply_symbol 'CONFIG_PACKAGE_gnunet-transport-http_server=y'
+				apply_symbol 'CONFIG_PACKAGE_gnunet-utils=y'
+			;;
 			'macVLAN')
 				apply_symbol 'CONFIG_PACKAGE_kmod-macvlan=y'		# kernel-modules: network-devices:
 			;;
