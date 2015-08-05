@@ -1386,14 +1386,46 @@ _net_local_inet_speed()
 	cat "/tmp/speed_inet_$interface"
 }
 
+_net_local_inet_offer_TEST()
+{
+	local f='_net_local_inet_offer'
+	local in out wish
+
+	die()
+	{
+		_log do TEST-$f daemon info "'$wish' != '$out' <= '$in'"
+	}
+
+	in='default via 192.168.1.1     dev   vlan1'
+	wish='wan';	out="$( WANDEV='vlan1'  $f "$input" )"; test "$wish" = "$output" || die
+	in='default via 191.255.255.1   dev   venet0'
+	wish='venet0';	out="$( WANDEV='vlan1'  $f "$input" )"; test "$wish" = "$output" || die
+	in='default via 217.0.116.253   dev   ppp0'
+	wish='pppoe';	out="$( WANDEV='vlan1'  $f "$input" )"; test "$wish" = "$output" || die
+	in='default dev tun0            scope link'
+	wish='vpnc';	out="$( WANDEV='vlan1'  $f "$input" )"; test "$wish" = "$output" || die
+	in='default dev venet0          scope link'
+	wish='venet0';	out="$( WANDEV='vlan1'  $f "$input" )"; test "$wish" = "$output" || die
+	in='default via 10.63.52.36     dev   br0'
+	wish='lan';	out="$( LANDEV='br0'    $f "$input" )"; test "$wish" = "$output" || die
+	in='default via 10.63.99.33     dev   eth0.1  metric 2    onlink'
+	wish='lan';	out="$( LANDEV='eth0.1' $f "$input" )"; test "$wish" = "$output" || die
+	in='default via 192.168.1.11    dev   eth0.1  src    192.168.1.2'
+	wish='lan';	out="$( LANDEV='eth0.1' $f "$input" )"; test "$wish" = "$output" || die
+	in='default via 192.168.1.1     dev   eth1    proto  static'
+	wish='wan';	out="$( WANDEV='eth1'   $f "$input" )"; test "$wish" = "$output" || die
+	in='default via 192.168.2.1     dev   br-mybridge'
+	wish='false';	out="$( WANDEV=         $f "$input" )"; test "$wish" = "$output" || die
+}
+
 _net_local_inet_offer()			# SENSE: check if default-route is local
 {					# OUT1: string, false|wan|lan|pppoe
 	local funcname='net_local_inet_offer'
-	local option="$1"		# update_cache|cached
+	local option="$1"		# update_cache|cached|<testline> e.g. 'default via 192.168.1.1 dev vlan1'
 
 	local cachefile="/tmp/$funcname-cache"
 	local MODE="false"		# RC: true = inetoffer, false = no inetoffer
-	local PHYDEV=0 METRIC=0 D=0 N=0 trash wan_proto cache
+	local PHYDEV=0 METRIC=0 D=0 N=0 trash wan_proto cache default_route
 
 	case "$option" in
 		'update_cache')
@@ -1412,6 +1444,9 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 					return 0
 				fi
 			}
+		;;
+		'default '*)
+			default_route="$option"
 		;;
 	esac
 
@@ -1457,7 +1492,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 
 		_log do $funcname daemon info "early_boot_estimation: false"
 		echo "false"
-		return 1
+		[ -z "$option" ] && return 1	# needed for debugging
 	}
 
 	local LAN_GATEWAY="$( uci -q get network.lan.gateway )"
@@ -1471,19 +1506,18 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 		}
 	}
 
-	# only look for the first default-route
-	# some examples:
-	#
-	# default via 192.168.1.1 dev vlan1		-> wan-offer|wan_gateway
-	# default via 191.255.255.1 dev venet0		-> root-server
-	# default via 217.0.116.253 dev ppp0		-> pppoe
-	# default dev tun0  scope link			-> vpnc
-	# default dev venet0  scope link		-> on vpn-server
-	# default via 10.63.52.36 dev br0 		-> lan-offer|lan-gateway
-	# default via 10.63.99.33 dev eth0.1  metric 2 onlink		-> since ~git29366 "onlink"
-	# default via 192.168.101.112 dev eth0.1  src 192.168.101.222	-> lan-offer via alias-interface
-	# default via 192.168.1.1 dev eth1  proto static ->841nd
-	# default via 192.168.2.1 dev br-mybridge	-> batman/no_local_inet_offer
+
+#	[ -z "$default_route" ] && {
+#		# FIXME! look for 'table all'?
+#		default_route="$( ip route list exact '0.0.0.0/0' | head -n1 )"
+#	}
+#
+#	set -- $default_route
+#	PHYDEV="$5"
+#	METRIC="$7"
+#	D="$3"
+#	N="${7:-${4:-$2}}"
+#	logger -s "7: $7 4: $4 2: $2 = $N option: $option"
 
 	eval $( ip route list exact '0.0.0.0/0' | head -n1 |
 		while read N N D N PHYDEV METRIC N trash; do {	# we must eval it, otherwise		// fixme! look for 'table all'?
@@ -1501,7 +1535,6 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 		_log do $funcname daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
 
 		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0.0.0.0/0 -> "default via eth0" or similar
-
 			[ "$LAN_GATEWAY" = "0.0.0.0" ] && {	# fixme! move to early-boot-estimation
 				_nvram set lan_gateway
 				_nvram set commit "config-mistake, unsetting lan-gateway which was '$LAN_GATEWAY'"
@@ -1522,10 +1555,10 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 			fi
 
 			[ "$PHYDEV" = "link" ] && {
-				if   echo $D | grep -q "^tun[0-9]*" ; then
-					MODE=tun
-				elif echo $D | grep -q "^tap[0-9]*" ; then
-					MODE=tap
+				if   echo "$D" | grep -q "^tun[0-9]*" ; then
+					MODE='tun'
+				elif echo "$D" | grep -q "^tap[0-9]*" ; then
+					MODE='tap'
 				else
 					MODE="$D"				# e.g. tun0 / vpnc
 				fi
@@ -1541,7 +1574,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 		fi
 	fi
 
-	echo $MODE
+	echo "$MODE"
 
 	[ "$MODE" = "false" ] && return 1	
 	return 0

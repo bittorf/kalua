@@ -1924,6 +1924,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
+				apply_symbol 'CONFIG_PACKAGE_pv=y'			# +22k
 
 				$funcname subcall 'queryMII'
 				$funcname subcall 'squash64'
@@ -1961,6 +1962,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
+#				apply_symbol 'CONFIG_PACKAGE_pv=y'			# +22k
 
 				$funcname subcall 'queryMII'
 #				$funcname subcall 'squash64'
@@ -2219,6 +2221,9 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_olsrd2-git=y'		# network: olsrd2-framework
 				apply_symbol 'CONFIG_PACKAGE_oonf-olsrd2-git=y'		# the same, but newer revisions
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH=y'
+			;;
+			'babel')
+				apply_symbol 'CONFIG_PACKAGE_babeld=y'			# +50k
 			;;
 			'DCF77')
 				$funcname subcall 'USBserial'
@@ -2713,7 +2718,8 @@ unittest_do()
 			# SC2153: Possible misspelling: WIFIDEV may not be assigned, but WIFI_DEV is.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			ignore='SC1010,SC2154,SC2012,SC2039,SC2155,SC2034,SC2046,SC2086,SC1007,SC2090,SC2089'
-			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2031"
+			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031"
+#			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088"
 			ignore="${ignore},SC2016,SC2102,SC2064,SC2153,SC2029"
 
 			log "testing with '$shellcheck_bin', ignoring: $ignore"
@@ -2742,7 +2748,7 @@ unittest_do()
 							rm "$tempfile"
 							log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
 							good='false'
-			#				break
+							break
 						fi
 					;;
 				esac
