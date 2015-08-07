@@ -27,6 +27,7 @@ _mail_stash_resend()
 		[ -e "$file" ] && {
 			_log do $funcname daemon info "[OK] move mail '$file' to '/tmp'"
 			mv "$file" '/tmp'
+			# if 'send_mailfile' fails, it will reschedule it automatically to 'storage_dir'
 			_mail send_mailfile "/tmp/$( basename "$file" )"
 		}
 	} done
@@ -323,7 +324,7 @@ _mail_send_mailfile()
 	local SERVER="$( uci get mail.@smtp[0].server )"
 	local PORT="$(   uci get mail.@smtp[0].port   )"
 	local ERRORFILE="/tmp/$FUNC.error.$$"
-	local auth="$( uci get mail.@smtp[0].auth )"
+	local auth="$( uci get mail.@smtp[0].auth )"		# e.g. '-P 222 user@server:dir'
 
 	case "$auth" in
 		*'smtp'*)
@@ -390,13 +391,13 @@ _mail_send_mailfile()
 			# we use a unixtimestamp, otherwise the next file overwrites the old file on server
 			unixtime=$( _system date unixtime )
 
-			_log do $FUNC daemon info "scp '$MAILFILE.$unixtime.readable' $auth"
+			_log do $FUNC daemon info "scp $auth '$MAILFILE.$unixtime.readable'"
 			echo -e "$( cat "$MAILFILE" )" >"$MAILFILE.$unixtime.readable"
 
 			if   pidof scp >/dev/null; then
 				_log do $FUNC daemon info "scp already running"
 				echo "scp-already active" >"$ERRORFILE"
-			elif scp -i '/etc/dropbear/dropbear_dss_host_key' "$MAILFILE.$unixtime.readable" $auth; then
+			elif scp -i '/etc/dropbear/dropbear_dss_host_key' $auth "$MAILFILE.$unixtime.readable" ; then
 				OUT='+220+250+250+250+354+250+221'
 			else
 				RC=$?
