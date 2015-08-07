@@ -1496,10 +1496,10 @@ apply_symbol()
 	local symbol="$1"
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
-	local choice hash tarball_hash rev
+	local choice hash tarball_hash rev commit_info
 	local last_commit_unixtime last_commit_date url
-	local file installation sub_profile node
-	local dir basedir pre size1 size2 gain
+	local file file_original installation sub_profile node
+	local dir basedir pre size1 size2 gain firstline
 
 	case "$symbol" in
 		"$KALUA_DIRNAME"*)
@@ -1548,6 +1548,24 @@ apply_symbol()
 
 			log "$KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cp -R $KALUA_DIRNAME/openwrt-addons/* "$custom_dir"
+			find "$custom_dir" -type f | while read file; do {
+				firstline="$( head -n1 "$file" )"
+
+				case "$firstline" in
+					'#!/bin/sh'*)
+						file_original="$( find "$custom_dir" -type f -name "*$( basename "$file" )" )"
+						# Fri, 31 Jul 2015 19:50:33 +0200 | commit: 0e01c2c
+						commit_info="$( git log -1 --pretty='format:%aD | commit: %h' -- "$file_original" )"
+
+						{
+							echo "$firstline"
+							echo "# this file belongs to $KALUA_DIRNAME: $KALUA_REPO_URL"
+							echo "# commit_info | $file_original"
+							tail -n +2 "$file_original"
+						} >"$file"
+					;;
+				esac
+			} done
 
 			log "$KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
