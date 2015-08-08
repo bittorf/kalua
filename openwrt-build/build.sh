@@ -927,6 +927,8 @@ check_working_directory()
 	fi
 
 	[ -e 'build.sh' ] && {
+		log "[OK] first run - checking dependencies"
+
 		is_installed()
 		{
 			local package="$1"
@@ -1008,8 +1010,8 @@ check_working_directory()
 		repo="$KALUA_REPO_URL"
 		log "first start - fetching own-repo: git clone '$repo'"
 		git clone "$repo" || return $error
-		KALUA_DIRNAME="$( basename $repo | cut -d'.' -f1 )"
-		echo "$KALUA_DIRNAME" >'KALUA_REPO_URL'
+		KALUA_DIRNAME="$( basename "$repo" | cut -d'.' -f1 )"
+		echo "$repo" >'KALUA_REPO_URL'
 
 		log "[OK] after doing 'cd openwrt' you should do:"
 		log '../build.sh --help'
@@ -1230,8 +1232,7 @@ openwrt_download()
 				log "already at branch 'master" debug
 			fi
 
-			# e.g.: r12345 - command 'scripts/getver.sh' is not available in all revisions
-			VERSION_OPENWRT="r$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
+			VERSION_OPENWRT="r$( openwrt_revision_number_get )"
 
 			git stash list | grep -qv '() going to checkout ' && {
 				log "found openwrt-stash, ignore via press 'q'"
@@ -1547,25 +1548,22 @@ apply_symbol()
 #			} done
 
 			log "$KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
-			cp -R $KALUA_DIRNAME/openwrt-addons/* "$custom_dir"
-			find "$custom_dir" -type f | while read file; do {
-				firstline="$( head -n1 "$file" )"
-
-				case "$firstline" in
-					'#!/bin/sh'*)
-						file_original="$( find "$custom_dir" -type f -name "*$( basename "$file" )" )"
-						# Fri, 31 Jul 2015 19:50:33 +0200 | commit: 0e01c2c
-						commit_info="$( git log -1 --pretty='format:%aD | commit: %h' -- "$file_original" )"
-
-						{
-							echo "$firstline"
-							echo "# this file belongs to $KALUA_DIRNAME: $KALUA_REPO_URL"
-							echo "# commit_info | $file_original"
-							tail -n +2 "$file_original"
-						} >"$file"
-					;;
-				esac
+			cd $KALUA_DIRNAME
+			find openwrt-addons/* -type f | while read file_original; do {
+				file="$( basename $file_original )"
+				dir="../$custom_dir/$( dirname $file_original | sed "s|openwrt-addons/||" )"
+				mkdir -p $dir
+				firstline="$( head -n1 "$file_original" )"
+				commit_info="$( git log -1 --pretty='format:%aD | commit: %h' -- "$file_original" )"
+				{
+					echo "$firstline"
+					echo "# this file belongs to $KALUA_DIRNAME: $KALUA_REPO_URL"
+					echo "# last change: $commit_info | $file_original"
+					echo
+					tail -n +2 "$file_original"
+				} >"$dir/$file"
 			} done
+			cd -
 
 			log "$KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
@@ -1953,6 +1951,7 @@ build_options_set()
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 				$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
+				$funcname subcall 'revert46553'		# dito
 
 				usecase_has 'noDebug' || {
 					log "[OK] autoselecting usecase 'debug' in 'Standard'-mode"
@@ -1991,6 +1990,7 @@ build_options_set()
 #				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 				$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
+				$funcname subcall 'revert46553'		# dito
 			;;
 			'Mini')
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
