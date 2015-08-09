@@ -1556,12 +1556,14 @@ apply_symbol()
 				firstline="$( head -n1 "$file_original" )"
 				commit_info="$( git log -1 --pretty='format:%aD | commit: %h' -- "$file_original" )"
 				{
+					# TODO: http://www.stack.nl/~dimitri/doxygen/manual/docblocks.html#specialblock
 					echo "$firstline"
 					echo "# this file belongs to $KALUA_DIRNAME: $KALUA_REPO_URL"
 					echo "# last change: $commit_info | $file_original"
 					echo
 					tail -n +2 "$file_original"
 				} >"$dir/$file"
+				chmod +x "$dir/$file"
 			} done
 			cd -
 
