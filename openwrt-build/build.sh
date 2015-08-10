@@ -1,19 +1,13 @@
 #!/bin/sh
 
 # TODO:
-# - own file for 'usecase' and 'hardware'?
+# - own codefile for 'usecase' and 'hardware'?
 # - force feed via --feed XY --feed AB
 # - only add feedXY if usecase needs it -> feed-dependency in usecase
 # - simulate apply-run: show symbols/tree
-# - fix formatting of /etc/openwrt_patches (add2trunk)
-# - autoremove old branches?:
-#   - for BRANCH in $(git branch|grep @); do git branch -D $BRANCH; done
-# - options: noIPTables, noIPv6, Failsafe (like sven-ola)
+# - usecases: noIPTables, noIPv6, Failsafe (like sven-ola -> via kernel-commandline), noJFFS2, noSQFS
 # - build release-dir
-# - build jffs2-only-images too?
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
-# - build for each router in monitoring? "build for network olympia"
-# - option: failsafe-image: add 'failsafe=' to kernel-commandline
 # - include/renew patches for awk-removal
 
 print_usage_and_exit()
@@ -84,7 +78,7 @@ special arguments:
 	  --unittest	# complete testsuite
 	  --fail	# simulate error: keep patched branch after building
 	  --update	# refresh this buildscript
-	  --dotconfig \$FILE
+	  --dotconfig \$myfile
 	  --feedstime '2015-08-31 19:33'
 
 	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
@@ -1117,11 +1111,11 @@ feeds_adjust_version()
 					git branch -D "$oldbranch"
 				} done
 			}
-			../../feeds update -i "$dir"
+			../../scripts/feeds update -i "$dir"
 
 		elif [ -n "$githash"]; then
 			git checkout -b "feed@${githash}_before_$FEEDSTIME" "$hash"
-			../../feeds update -i "$dir"
+			../../scripts/feeds update -i "$dir"
 		else
 			log "[OK] no commit which fits, removing feeds index of '$dir'"
 			rm "$dir.index"
@@ -1488,8 +1482,8 @@ get_uptime_in_sec()
 
 cpu_count()
 {
-	if   [ -e '/proc/cpuinfo' ]; then
-		grep -c ^'processor' '/proc/cpuinfo'
+	if   grep -sc ^'processor' '/proc/cpuinfo'; then
+		:
 	elif which lsconf 2>/dev/null >/dev/null; then
 		# e.g. AIX - see http://antmeetspenguin.blogspot.de/2013/05/aix-cpu-info.html
 		lsconf | grep -c 'proc[0-9]'
@@ -1502,8 +1496,7 @@ build()
 {
 	local funcname='build'
 	local option="$1"
-	local cpu_count=$( cpu_count )
-	local jobs=$(( cpu_count + 1 ))
+	local jobs=$(( $( cpu_count ) + 1 ))
 	local commandline="--jobs $jobs BUILD_LOG=1"
 	local verbose t1 t2
 	[ -n "$DEBUG" ] && verbose='V=s'
@@ -1889,11 +1882,7 @@ build_options_set()
 	case "$options" in
 		'ready')	# parser_ignore
 			file="$custom_dir/etc/openwrt_build"
-
-			(
-				cat "${file}.details"
-				rm  "${file}.details"
-			) >>"$file"
+			mv "${file}.details" "$file"
 
 			log "[OK] writing details" gitadd "$file"
 			return 0
@@ -2002,7 +1991,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
-				apply_symbol 'CONFIG_PACKAGE_pv=y'			# +22k
+#				apply_symbol 'CONFIG_PACKAGE_pv=y'			# +22k
 
 				$funcname subcall 'queryMII'
 				$funcname subcall 'squash64'
@@ -3077,7 +3066,7 @@ die_and_exit()
 {
 	local branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
 
-	[ -n "$branch" ] && log "[ATTENTION] your are on branch '$branch' now. better do: 'git checkout master'"
+	[ -n "$branch" ] && log "[ATTENTION] you are on branch '$branch' now. better do: 'git checkout master'"
 	[ -n "$FORCE" ] && return 0
 
 	log '[ERROR] the brave can try --force, all others should do: git checkout master'
@@ -3100,8 +3089,9 @@ SPECIAL_OPTIONS=
 	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_r${VERSION_OPENWRT}_${USECASE}_${HARDWARE}"
 
 if [ -e "$BACKUP_DOTCONFIG" ]; then
-	log "[OK] will use already existing '.config' file: $BACKUP_DOTCONFIG"
+	log "[OK] will use already existing '.config' file: '$BACKUP_DOTCONFIG'"
 else
+	log "[OK] building .config"
 	target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 	copy_additional_packages		|| die_and_exit
 	build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
