@@ -4,7 +4,6 @@
 # - own file for 'usecase' and 'hardware'?
 # - force feed via --feed XY --feed AB
 # - only add feedXY if usecase needs it -> feed-dependency in usecase
-#   --config $myfile
 # - simulate apply-run: show symbols/tree
 # - fix formatting of /etc/openwrt_patches (add2trunk)
 # - autoremove old branches?:
@@ -88,6 +87,7 @@ special arguments:
 	  --unittest	# complete testsuite
 	  --fail	# simulate error: keep patched branch after building
 	  --update	# refresh this buildscript
+	  --dotconfig \$FILE
 
 	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
           --patchdir \$dir1 --patchdir \$dir2
@@ -2874,6 +2874,15 @@ while [ -n "$1" ]; do {
 			target_hardware_set "${2:-$( cat files/etc/HARDWARE )}" info
 			exit 0
 		;;
+		'--dotconfig')
+			if [ -e "$2" ]; then
+				BACKUP_DOTCONFIG="$2"
+				log "[OK] using .config from '$BACKUP_DOTCONFIG'"
+			else
+				log "[ERROR] cannot find '$2'"
+				exit 1
+			fi
+		;;
 		'--check'|'-c')
 			log "KALUA_DIRNAME: '$KALUA_DIRNAME' \$0: $0" debug
 
@@ -3039,7 +3048,8 @@ openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 [ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
 
 SPECIAL_OPTIONS=
-BACKUP_DOTCONFIG="KALUA_DOTCONFIG_r${VERSION_OPENWRT}_${USECASE}_${HARDWARE}"
+[ -z "$BACKUP_DOTCONFIG" ] && \
+	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_r${VERSION_OPENWRT}_${USECASE}_${HARDWARE}"
 
 if [ -e "$BACKUP_DOTCONFIG" ]; then
 	log "[OK] will use already existing '.config' file: $BACKUP_DOTCONFIG"
