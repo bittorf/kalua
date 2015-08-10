@@ -4,7 +4,6 @@
 # - own file for 'usecase' and 'hardware'?
 # - force feed via --feed XY --feed AB
 # - only add feedXY if usecase needs it -> feed-dependency in usecase
-# - cache .config for usecaseX and revY (if build ok) -> use it when rebuilding -> faster
 #   --config $myfile
 # - simulate apply-run: show symbols/tree
 # - fix formatting of /etc/openwrt_patches (add2trunk)
@@ -147,7 +146,7 @@ Priority: optional
 Version: $package_version
 Maintainer: Bastian Bittorf <kontakt@weimarnetz.de>
 Section: utils
-Description: some helper scripts for making debugging easier on meshed openwrt nodes
+Description: some helper scripts for making life easier on meshed OpenWrt nodes
 Architecture: $architecture
 Source: $KALUA_REPO_URL
 EOF
@@ -907,7 +906,6 @@ EOF
 	apply_symbol 'nuke_config'
 	apply_symbol "CONFIG_TARGET_${ARCH}=y"
 	apply_symbol "$TARGET_SYMBOL"
-
 	build defconfig
 }
 
@@ -3041,18 +3039,27 @@ openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 [ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
 
 SPECIAL_OPTIONS=
-target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
-copy_additional_packages		|| die_and_exit
-build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
-build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
-build_options_set 'ready'
+BACKUP_DOTCONFIG="KALUA_DOTCONFIG_r${VERSION_OPENWRT}_${USECASE}_${HARDWARE}"
+
+if [ -e "$BACKUP_DOTCONFIG" ]; then
+	log "[OK] will use already existing '.config' file: $BACKUP_DOTCONFIG"
+else
+	target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
+	copy_additional_packages		|| die_and_exit
+	build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
+	build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
+	build_options_set 'ready'
+fi
+
 build					|| exit 1
 copy_firmware_files			|| die_and_exit
 openwrt_download 'switch_to_master'
 openwrt_download 'reset_autocommits'
-echo "$USECASE $HARDWARE_MODEL" >>'KALUA_HISTORY'
 
 get_uptime_in_sec 'T2'
+
+echo "$USECASE $HARDWARE_MODEL" >>'KALUA_HISTORY'
+cp '.config' "$BACKUP_DOTCONFIG"
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
 target_hardware_set "$HARDWARE_MODEL" info quiet >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
