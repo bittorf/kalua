@@ -1107,12 +1107,13 @@ feeds_adjust_version()
 		if   [ "$githash" = 'master' ]; then
 			git branch | grep -q ^'* master' || {
 				git checkout master
+
 				for oldbranch in $( git branch | grep feeds@ | cut -b3- ); do {
 					git branch -D "$oldbranch"
 				} done
-			}
-			../../scripts/feeds update -i "$dir"
 
+				../../scripts/feeds update -i "$dir"
+			}
 		elif [ -n "$githash"]; then
 			git checkout -b "feed@${githash}_before_$FEEDSTIME" "$hash"
 			../../scripts/feeds update -i "$dir"
