@@ -911,6 +911,11 @@ EOF
 	build defconfig
 }
 
+has_internet()
+{
+	route -n | grep -q ^'0\.0\.0\.0'
+}
+
 check_working_directory()
 {
 	local funcname='check_working_directory'
@@ -1035,12 +1040,20 @@ check_working_directory()
 
 	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
 		# FIXME! use search_and_replace()
+		# hide oldpackages
 		sed >"$file_feeds.tmp" '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
 		mv   "$file_feeds.tmp" "$file_feeds"
 		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
 
-		# https://forum.openwrt.org/viewtopic.php?id=52219
-		./scripts/feeds update oldpackages  && ./scripts/feeds install -a -p oldpackages
+		if has_internet; then
+			# https://forum.openwrt.org/viewtopic.php?id=52219
+			./scripts/feeds update oldpackages
+			# install all packages from specified feed
+			./scripts/feeds install -a -p oldpackages
+		else
+			log '[OK] no internet - only refreshing index of "oldpackages"'
+			./scripts/feeds update -i oldpackages
+		fi
 	}
 
 	[ -d 'package/feeds' ] || {
@@ -1152,8 +1165,13 @@ openwrt_download()
 		'trunk')
 			$funcname 'switch_to_master'
 
-			git pull
-			scripts/feeds update
+			if has_internet; then
+				git pull
+				scripts/feeds update -a
+			else
+				log '[OK] no internet - only rebuilding index of all feeds'
+				scripts/feeds update -i
+			fi
 
 			log "checkout local copy of trunk/$VERSION_OPENWRT"
 			$funcname "$VERSION_OPENWRT"
