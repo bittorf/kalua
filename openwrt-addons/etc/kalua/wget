@@ -75,8 +75,8 @@ _wget_do()
 		break
 	} done
 
-	read myerror 2>/dev/null <"/tmp/${funcname}_$$.error" && {
-		rm "/tmp/${funcname}_$$.error"
+	read myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
+		rm "/tmp/${funcname}_$mypid.error"
 
 		if [ ${#myerror} -eq 0 ]; then
 			_log do $funcname daemon debug '[OK] no error message'
@@ -84,6 +84,7 @@ _wget_do()
 			case "$myerror" in
 				*'HTTP/1.1 404'*)
 					_log do $funcname daemon info "[OK] $myerror"
+					rm 2>/dev/null "/tmp/${funcname}_$mypid"
 					return 0
 				;;
 				*)
@@ -144,17 +145,19 @@ _wget_do()
 				}
 
 				# FIXME! check if still there? zombie? reboot?
+				rm 2>/dev/null "/tmp/${funcname}_$mypid.error" "/tmp/${funcname}_$mypid"
 				return 1
 			}
 
 			# OK, is another/new process with same PID
+			rm 2>/dev/null "/tmp/${funcname}_$mypid.error" "/tmp/${funcname}_$mypid"
 			return 0
 		}
 	} done
 
 	# FIXME! code duplication, see above
-	read myerror 2>/dev/null <"/tmp/${funcname}_$$.error" && {
-		rm "/tmp/${funcname}_$$.error"
+	read myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
+		rm "/tmp/${funcname}_$mypid.error"
 
 		if [ ${#myerror} -eq 0 ]; then
 			_log do $funcname daemon debug '[OK] no error message'
@@ -162,6 +165,7 @@ _wget_do()
 			case "$myerror" in
 				*'HTTP/1.1 404'*)
 					_log do $funcname daemon info "[OK] $myerror"
+					rm 2>/dev/null "/tmp/${funcname}_$mypid"
 					return 0
 				;;
 				*)
@@ -172,8 +176,8 @@ _wget_do()
 		fi
 	}
 
-	read rc 2>/dev/null <"/tmp/${funcname}_$$" && {
-		rm "/tmp/${funcname}_$$"
+	read rc 2>/dev/null <"/tmp/${funcname}_$mypid" && {
+		rm "/tmp/${funcname}_$mypid"
 		_log do $funcname daemon info "[ERR] returning $rc after fetching '$url'"
 	}
 
