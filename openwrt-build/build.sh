@@ -2294,6 +2294,22 @@ build_options_set()
 			'babel')
 				apply_symbol 'CONFIG_PACKAGE_babeld=y'			# +50k
 			;;
+			'bmx7')
+				apply_symbol 'CONFIG_PACKAGE_bmx7=y'		# network: routing/redirection:
+				apply_symbol 'CONFIG_PACKAGE_bmx7-json=y'
+				apply_symbol 'CONFIG_PACKAGE_bmx7-uci-config=y'
+			;;
+			'cjdns')
+				apply_symbol 'CONFIG_PACKAGE_cjdns=y'
+			;;
+			'wibed')
+				$funcname subcall 'OLSRd'
+				$funcname subcall 'OLSRd2'
+				$funcname subcall 'babel'
+				$funcname subcall 'bmx7'
+				$funcname subcall 'BatmanAdv'
+				$funcname subcall 'cjdns'
+			;;
 			'DCF77')
 				$funcname subcall 'USBserial'
 				$funcname subcall 'NTPfull'
