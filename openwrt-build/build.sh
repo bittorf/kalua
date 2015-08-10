@@ -9,9 +9,6 @@
 # - autoremove old branches?:
 #   - for BRANCH in $(git branch|grep @); do git branch -D $BRANCH; done
 # - options: noIPTables, noIPv6, Failsafe (like sven-ola)
-# - packages/feeds/openwrt: checkout specific version
-#   - http://stackoverflow.com/questions/6990484/git-checkout-by-date
-#   - hash="$( git rev-list -n 1 --before="2009-07-27 13:37" master )"
 # - build release-dir
 # - build jffs2-only-images too?
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
@@ -88,6 +85,7 @@ special arguments:
 	  --fail	# simulate error: keep patched branch after building
 	  --update	# refresh this buildscript
 	  --dotconfig \$FILE
+	  --feedstime '2015-08-31 19:33'
 
 	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
           --patchdir \$dir1 --patchdir \$dir2
@@ -1091,6 +1089,50 @@ check_working_directory()
 	}
 }
 
+feeds_adjust_version()
+{
+	local timestamp="$1"		# e.g. '2009-07-27 13:37'
+	local dir githash oldbranch
+	cd feeds
+
+	for dir in *; do {
+		test -d "$dir.tmp"  || continue
+		test -d "$dir/.git" || continue
+
+		cd "$dir"
+		if [ -n "$FEEDSTIME" ]; then
+			# http://stackoverflow.com/questions/6990484/git-checkout-by-date
+			# git rev-list -n 1 --before="2009-07-27 13:37" master
+			githash="$( git rev-list -n 1 --before="$timestamp" master )"
+		else
+			githash='master'
+		fi
+
+		log "[OK] adjusting version of feed '$dir' to '$githash'"
+
+		if   [ "$githash" = 'master' ]; then
+			git branch | grep -q ^'* master' || {
+				git checkout master
+				for oldbranch in $( git branch | grep feeds@ | cut -b3- ); do {
+					git branch -D "$oldbranch"
+				} done
+			}
+			../../feeds update -i "$dir"
+
+		elif [ -n "$githash"]; then
+			git checkout -b "feed@${githash}_before_$FEEDSTIME" "$hash"
+			../../feeds update -i "$dir"
+		else
+			log "[OK] no commit which fits, removing feeds index of '$dir'"
+			rm "$dir.index"
+			rm "$dir.targetindex"
+		fi
+		cd ..
+	} done
+
+	cd ..
+}
+
 openwrt_revision_number_get()		# e.g. 43234
 {
 	local rev
@@ -1593,8 +1635,10 @@ apply_symbol()
 			log "own rc.local" gitadd "package/base-files/files/etc/rc.local"
 
 			log "$KALUA_DIRNAME: adding version-information = '$last_commit_date'"
-			echo  >"$custom_dir/etc/variables_fff+" "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
-			echo >>"$custom_dir/etc/variables_fff+" "FFF_VERSION=2.0.0			# OpenWrt based / unused"
+			{
+				echo "FFF_PLUS_VERSION=$last_commit_unixtime_in_hours	# $last_commit_date"
+				echo "FFF_VERSION=2.0.0			# OpenWrt based / unused"
+			} >"$custom_dir/etc/variables_fff+"
 
 			log "$KALUA_DIRNAME: adding hardware-model to 'files/etc/HARDWARE'"
 			echo >"$custom_dir/etc/HARDWARE" "$HARDWARE_MODEL"
@@ -2883,6 +2927,9 @@ while [ -n "$1" ]; do {
 				exit 1
 			fi
 		;;
+		'--feedstime')
+			FEEDSTIME="$2"	# e.g. '2015-08-31 19:33'
+		;;
 		'--check'|'-c')
 			log "KALUA_DIRNAME: '$KALUA_DIRNAME' \$0: $0" debug
 
@@ -3043,6 +3090,7 @@ check_git_settings			|| die_and_exit
 check_working_directory yes		|| die_and_exit
 openwrt_download 'reset_autocommits'
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
+feeds_adjust_version "$FEEDSTIME"
 
 [ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
 [ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
