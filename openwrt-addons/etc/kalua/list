@@ -1,3 +1,20 @@
+#!/bin/sh
+
+_list_contains_element()
+{
+	local list="$1"
+	local element="$2"
+
+	case " $list " in		# e.g. ' A B C '
+		*" $element "*)		#        ' B '
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 _list_uniq()
 {
 	local list="$1"
@@ -5,7 +22,7 @@ _list_uniq()
 
 	for obj in $list; do {
 		echo "$obj"
-	} done | sort | uniq
+	} done | sort -u
 }
 
 _list_count_elements()
@@ -13,27 +30,28 @@ _list_count_elements()
 	local list="$1"
 	local i=0 obj
 
-	for obj in $list; do i=$(( $i + 1 )); done
+	for obj in $list; do i=$(( i + 1 )); done
 
 	echo $i
 }
 
-_list_remove_specific_element()
+_list_remove_element()
 {
 	local list="$1"
-	local id_remove="$2"
+	local id_remove="$2"	# number or string
 	local obj
 	local i=0
 
 	for obj in $list; do {
-		i=$(( $i + 1 ))
-		[ $i -eq $id_remove ] || echo "$obj"
+		i=$(( i + 1 ))
+		[ "$i" = "$id_remove" -o "$obj" = "$id_remove" ] || echo "$obj"
 	} done
 }
 
 _list_shuffle()
 {
 	local list="$1"
+	local option="$2"	# <empty> or 'get_first_random'
 	local list_size="$( _list count_elements "$list" )"
 	local sorted=0
 	local obj i
@@ -50,16 +68,26 @@ _list_shuffle()
 
 		i=0
 		for obj in $list; do {
-			i=$(( $i + 1 ))
+			i=$(( i + 1 ))
 
 			[ "$( _math random_integer 1 $( _list count_elements "$list" ) )" = "1" ] && {
 				echo "$obj"
-				sorted=$(( $sorted + 1 ))
-				list="$( _list remove_specific_element "$list" "$i" )"
+
+				[ "$option" = 'get_first_random' ] && return 0
+				sorted=$(( sorted + 1 ))
+				list="$( _list remove_element "$list" "$i" )"
 				break
 			}
 		} done
 	} done
 
 	_stopwatch stop "list_shuffle_$list_size" quiet
+}
+
+_list_random_element()
+{
+	local list="$1"
+	local obj
+
+	_list shuffle "$list" get_first_random
 }
