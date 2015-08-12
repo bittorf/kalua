@@ -1114,7 +1114,7 @@ feeds_adjust_version()			# FIXME! src git-full
 
 				../../scripts/feeds update -i "$dir"
 			}
-		elif [ -n "$githash"]; then
+		elif [ -n "$githash" ]; then
 			git checkout -b "feed@${githash}_before_$FEEDSTIME" "$hash"
 			../../scripts/feeds update -i "$dir"
 		else
