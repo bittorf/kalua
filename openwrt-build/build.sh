@@ -1083,7 +1083,7 @@ check_working_directory()
 	}
 }
 
-feeds_adjust_version()
+feeds_adjust_version()			# FIXME! src git-full
 {
 	local timestamp="$1"		# e.g. '2009-07-27 13:37'
 	local dir githash oldbranch
@@ -2310,6 +2310,9 @@ build_options_set()
 				$funcname subcall 'bmx7'
 				$funcname subcall 'BatmanAdv'
 				$funcname subcall 'cjdns'
+				$funcname subcall 'GNUnet'
+
+				$funcname subcall 'USBstorage'
 			;;
 			'DCF77')
 				$funcname subcall 'USBserial'
@@ -2323,8 +2326,12 @@ build_options_set()
 			;;
 			'GNUnet')
 				apply_symbol 'CONFIG_PACKAGE_gnunet=y'
-				apply_symbol 'CONFIG_PACKAGE_gnunet-fs=y'
 				apply_symbol 'CONFIG_PACKAGE_gnunet-transport-http_server=y'
+			;;
+			'GNUnet-full')
+				$funcname subcall 'GNUnet'
+
+				apply_symbol 'CONFIG_PACKAGE_gnunet-fs=y'
 				apply_symbol 'CONFIG_PACKAGE_gnunet-utils=y'
 			;;
 			'macVLAN')
