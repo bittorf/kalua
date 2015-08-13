@@ -3109,8 +3109,8 @@ feeds_adjust_version "$FEEDSTIME"
 [ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
 
 SPECIAL_OPTIONS=
-[ -z "$BACKUP_DOTCONFIG" ] && \
-	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_r${VERSION_OPENWRT}_${USECASE}_${HARDWARE}"
+[ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$USECASE" -a "$HARDWARE" ] && \
+	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${USECASE}_${HARDWARE}"
 
 if [ -e "$BACKUP_DOTCONFIG" ]; then
 	log "[OK] will use already existing '.config' file: '$BACKUP_DOTCONFIG'"
