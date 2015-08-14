@@ -393,7 +393,7 @@ _db_restore()
 
 			if _system del_ramdisc "$DIR_DATABASE"; then
 				if _system add_ramdisc "$DIR_DATABASE" compressable; then
-					_log do $funcname daemon info "unarc of '$file' to $DIR_DATABASE"
+					_log do $funcname daemon info "unarc of '$file' to $( dirname "$DIR_DATABASE" )"
 				else
 					reschedule 'failed add_ramdisc'
 					_db lock free
@@ -417,12 +417,11 @@ _db_restore()
 					rm -fR $( dirname "$DIR_DATABASE" )/tmp
 				}
 
-				# FIXME in backup()
 				# /database/database/...
 				# dirname "$DIR_DATABASE" = e.g. /database (leading slash)
-				[ -d "/database/database" ] && {
+				[ -d '/database/database' ] && {
 					_log do $funcname daemon info "[OK] restructure path"
-					mv $( dirname "$DIR_DATABASE" )$( dirname "$DIR_DATABASE" )/* $( dirname "$DIR_DATABASE" )
+					mv $( dirname "$DIR_DATABASE" )$( dirname "$DIR_DATABASE" )/DB $( dirname "$DIR_DATABASE" )
 					rm -fR $( dirname "$DIR_DATABASE" )$( dirname "$DIR_DATABASE" )
 				}
 
@@ -443,7 +442,11 @@ _db_restore()
 					;;
 					*)
 						[ -s "$DIR_DATABASE/USER/login/rows" -a -s "$DIR_DATABASE/USER/profile/rows" ] || {
-							reschedule "files too small or missing: $( ls -l "$DIR_DATABASE/USER/login/rows" "$DIR_DATABASE/USER/profile/rows" )"
+							set -- $( df -h "$DIR_DATABASE" | tail -n1 )
+							_log do $funcname daemon alert "disc: $*"
+							_log do $funcname daemon alert "/USER/login/rows: $(   ls -l "$DIR_DATABASE/USER/login/rows" )"
+							_log do $funcname daemon alert "/USER/profile/rows: $( ls -l "$DIR_DATABASE/USER/profile/rows" )"
+							reschedule "files too small or missing"
 						}
 					;;
 				esac
