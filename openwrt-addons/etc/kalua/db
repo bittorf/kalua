@@ -378,9 +378,10 @@ _db_restore()
 	{
 		local reason="$1"
 
-		_log do $funcname daemon alert "[ERR] rescheduling: $1"
-		echo >>$SCHEDULER 'rm /tmp/FREE'
-		echo >>$SCHEDULER '_db restore'
+		_scheduler queue_list | grep -q "$funcname()" || {
+			_log do $funcname daemon alert "[ERR] $funcname() rescheduling: $1"
+			echo >>$SCHEDULER '_db restore && rm /tmp/FREE'
+		}
 	}
 
 	if [ -e "$file" ]; then
@@ -442,7 +443,7 @@ _db_restore()
 					;;
 					*)
 						[ -s "$DIR_DATABASE/USER/login/rows" -a -s "$DIR_DATABASE/USER/profile/rows" ] || {
-							reschedule 'files too small or missing'
+							reschedule "files too small or missing: $( ls -l "$DIR_DATABASE/USER/login/rows" "$DIR_DATABASE/USER/profile/rows" )"
 						}
 					;;
 				esac
