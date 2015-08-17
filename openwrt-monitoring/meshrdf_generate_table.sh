@@ -222,6 +222,7 @@ TARBALL_TIME='398893'	# 63c2872387cbaa0c04fecce62425e37482d98c3c
 TARBALL_TIME='398941'	# 4d842c71d3e63e7f635a3472f88c1f62aeb4a648
 TARBALL_TIME='399063'	# efcc08bddc97ddb8b891cc77bf8e80f8dc389032 // vor dem Urlaub 8-)
 TARBALL_TIME='399401'	# 0c4bff63b1d54ef9ab46c156a212515b34e14066 // nach dem Urlaub
+TARBALL_TIME='399549'	# bad70fcc693b30f40457edc6ed3f68b7c427f969 // vor slovenien + tarball path geaendert
 
 
 
@@ -3214,6 +3215,9 @@ esac
 #					# fixed in /tmp/loader and used from r45579+
 #					# https://dev.openwrt.org/ticket/19539 - visible on dualradio-routers
 #					func_update2color 'bad_version:uci_lists_broken'
+				elif [ $1 -gt 46425 ]; then
+					# needs more testing, something with linklocal IPv4/macvlan does not work
+					func_update2color 'bad_version:macvlanIPv4_broken'
 				elif [ $1 -gt 44150 ]; then
 					func_update2color 'testing'
 				else

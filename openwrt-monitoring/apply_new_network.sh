@@ -1,19 +1,37 @@
 #!/bin/sh
 
+# for F in $( ls -1 /var/www/networks/ );do test -d /var/www/networks/$F/firmware && ... ; done
+
 [ -z "$1" ] && {
-	echo "Usage: $0 network"
+	echo "Usage: $0 <network>"
 	exit 1
 }
 
-BASE="/var/www/networks"
+BASE='/var/www/networks'
 NETWORK="$1"
 
-for DIR in firmware log ignore meshrdf meshrdf/recent packages registrator registrator2 registrator/sshfp registrator/recent rrd speedtest vds vpn whitelist media; do {
+log()
+{
+	logger -s "$0: $1"
+}
+
+for DIR in tarball/stable tarball/beta tarball/testing \
+	   firmware log ignore meshrdf meshrdf/recent packages \
+	   registrator registrator2 registrator/sshfp \
+	   registrator/recent rrd speedtest vds vpn whitelist media; do {
 	mkdir -p "${BASE}/${NETWORK}/${DIR}" && echo "creating '${BASE}/${NETWORK}/${DIR}/'"
 } done
 
 for FILE in log/log.txt meshrdf/meshrdf.txt ignore/macs.txt; do {
 	touch "${BASE}/${NETWORK}/${FILE}" && echo "touching '${BASE}/${NETWORK}/${FILE}'"
+} done
+
+for DIR in tarball/stable tarball/beta tarball/testing ; do {
+	FILE="${BASE}/${NETWORK}/${DIR}/info.txt"
+
+	[ -e "$FILE" ] || {
+		echo >"$FILE" "CRC[md5]: 0  SIZE[byte]: 0  FILE: 'tarball.tgz'" && log "wrote '$FILE'"
+	}
 } done
 
 F="/var/www/scripts/meshrdf_generate_table.sh";	ln -s "$F" "${BASE}/${NETWORK}/meshrdf/generate_table.sh"		&& echo "symlink to '$F'"

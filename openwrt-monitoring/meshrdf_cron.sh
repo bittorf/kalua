@@ -33,11 +33,12 @@ list_networks()
 # this detroys the ping-counter! we really should send out an SMS
 log "checking: disk full?"
 df -h /dev/xvda1 | fgrep -q "100%" && {
-	if iptables -nL INPUT | head -n3 | grep -q ^ACCEPT ; then
-		log "allowing ssh-login: already allowed"
+	if iptables -nL INPUT | head -n3 | grep -q ^'ACCEPT' ; then
+		log "diskspace OK - allowing ssh-login: already allowed"
 	else
-		log "allowing ssh-login from everywhere"
-		iptables -I INPUT -j ACCEPT
+		/var/www/scripts/send_sms.sh "liszt28" "0176/24223419" "intercity-vpn.de: disk full - needs housekeeping"
+		log "disk full - allowing ssh-login from everywhere"
+		iptables -I INPUT -p tcp -j ACCEPT
 	fi
 }
 
@@ -59,7 +60,8 @@ build_html_tarball()
 	} done
 
 	cd /var/www/files/
-	tar cvjf /var/www/files/all.tar.bz2 cache-*
+	tar cjf /var/www/files/all.tar.bz2 cache-*
+	tar cJf /var/www/files/all.tar.xz cache-*
 	)
 }
 
@@ -216,6 +218,7 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network wagenplatz
 	gen_meshrdf_for_network monami
 	gen_meshrdf_for_network ffweimar-roehr
+	gen_meshrdf_for_network wagenplatz
 
 
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
