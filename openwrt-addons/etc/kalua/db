@@ -377,10 +377,11 @@ _db_restore()
 	reschedule()
 	{
 		local reason="$1"
+		touch "$TMPDIR/$funcname-error"
 
 		_scheduler queue_list | grep -q "$funcname()" || {
 			_log do $funcname daemon alert "[ERR] $funcname() rescheduling: $1"
-			echo >>$SCHEDULER '_db restore && rm /tmp/FREE'
+			echo >>$SCHEDULER "_db restore && rm /tmp/FREE $TMPDIR/$funcname-error"
 		}
 	}
 
@@ -421,6 +422,7 @@ _db_restore()
 				# dirname "$DIR_DATABASE" = e.g. /database (leading slash)
 				[ -d '/database/database' ] && {
 					_log do $funcname daemon info "[OK] restructure path"
+					# FIXME! this does often not work
 					mv $( dirname "$DIR_DATABASE" )$( dirname "$DIR_DATABASE" )/DB $( dirname "$DIR_DATABASE" ) && {
 						rm -fR $( dirname "$DIR_DATABASE" )$( dirname "$DIR_DATABASE" )
 					}
@@ -540,7 +542,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 	esac
 
 	local DIR="$DIR_DATABASE/USER/$TABLE"
-	mkdir -p "$DIR"
+	[ -e "$TMPDIR/db_restore-error" ] || mkdir -p "$DIR"
 
 	case "$ACTION" in
 		query)
