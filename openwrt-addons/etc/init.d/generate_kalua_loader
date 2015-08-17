@@ -15,74 +15,9 @@ boot()
 		}
 	} done
 
-	/etc/init.d/zram start
+    touch /tmp/BOOT
+    touch /tmp/DEBUG
+    /etc/kalua_init
 
-        touch /tmp/BOOT
-        touch /tmp/DEBUG
-        /etc/kalua_init
-	. /tmp/loader
-
-	[ -e "/etc/config/wireless" ] || return 0
-
-	# patch olsrd for using likely an adhoc-interfaces if we are in hybrid mode + fallback to wlan0
-	grep -q "Cell:" /etc/init.d/olsrd || {
-		sed -i 's#if network_get_device IFNAME "$interface"; then#if network_get_device IFNAME "$interface"; then case $IFNAME in wlan*) for IFNAME in $IFNAME $IFNAME-1 $IFNAME-2 $IFNAME-3 $IFNAME; do iwconfig $IFNAME | grep -q "Cell: " \&\& break; done;; esac#' /etc/init.d/olsrd
-	}
-
-	case "$( uci -q get system.@profile[0].name )" in
-		ffweimar*)
-		;;
-		schoeneck_adhoc)
-			uci set wireless.radio0.htmode="40-"
-		;;
-		*)
-			[ -e "/lib/modules/$( uname -r )/b43.ko" ] && {
-				local file="/lib/wifi/mac80211.sh"
-				local keyword="keyspec}"	# must be at the end of a line
-				local command1='config_get bitrates "$device" bitrates'
-				local command2='test -n "$bitrates" \&\& iw dev "$ifname" set bitrates legacy-2.4 $bitrates'
-
-				[ "$( uci -q get wireless.@wifi-iface[0].mode )" = "adhoc" ] && {
-					[ -n "$( uci -q get wireless.radio0.bitrates )" ] || {
-						uci set wireless.radio0.bitrates="6 9 12 18 24 36 48 54"
-
-						case "$( uci -q get wireless.@wifi-iface[0].mcast_rate )" in
-							1000|2000|5500|11000)
-								uci delete wireless.@wifi-iface[0].mcast_rate
-							;;
-						esac
-					}
-
-					grep -q "$keyword"$ "$file" && {
-						sed -i "s/$keyword$/$keyword ; $command1 ; $command2 /" "$file"
-					}
-				}
-			}
-		;;
-	esac
-
-	case "$( cat /etc/HARDWARE )" in
-		"Buffalo WHR-HP-G54")
-			case "$( uci -q get wireless.radio0.rxantenna )-$( uci -q get wireless.radio0.txantenna )" in
-				"1-1")
-				;;
-				*)
-					uci set wireless.radio0.rxantenna=1
-					uci set wireless.radio0.txantenna=1
-					uci commit wireless
-				;;
-			esac
-		;;
-		"Linksys WRT54G"*)
-			case "$( uci -q get wireless.radio0.rxantenna )-$( uci -q get wireless.radio0.txantenna )" in
-				"0-0")
-				;;
-				*)
-					uci set wireless.radio0.rxantenna=0
-					uci set wireless.radio0.txantenna=0
-					uci commit wireless
-				;;
-			esac
-		;;
-	esac
 }
+
