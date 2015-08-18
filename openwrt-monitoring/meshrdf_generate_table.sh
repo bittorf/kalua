@@ -1,6 +1,6 @@
 #!/bin/sh
 # tail -n1 "/tmp/schoeneck.dot" | grep -q '}' || echo "}" >>/tmp/schoeneck.dot; dot -Tpng /tmp/schoeneck.dot > /var/www/1.png
-# set -x
+
 # take screenshot into account:
 # /var/www/networks/gnm/settings/2a40d30a6b01.screenshot.jpg
 
@@ -20,7 +20,7 @@
 # /var/www/scripts/meshrdf_generate_table.sh
 
 
-# todo:
+# TODO:
 # for FILE in $( find /var/www/networks/ffweimar/meshrdf/recent -type f ); do . $FILE; echo $NODE; done | sort -n | uniq | while read LINE; do test $LINE -lt 970 && echo "$LINE"; done >/var/www/networks/ffweimar/all_nodes.txt
 
 log()		# tail -f /var/log/messages
@@ -36,6 +36,9 @@ log()		# tail -f /var/log/messages
 #	echo "${NETWORK:-network_unset}: $1" >>/tmp/log_monitoring.txt
 	logger -t $0 -p user.info "$message"
 }
+
+TMPDIR='/var/run/kalua'
+mkdir -p "$TMPDIR"
 
 UNIXTIME_SCRIPTSTART="$( date +%s )"
 
@@ -290,6 +293,20 @@ case "$NETWORK" in
 	;;
 esac
 
+FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
+[ -e "$FILE" ] && {
+	mkdir "$TMPDIR/untar"
+
+	cd "$TMPDIR/untar"
+	tar xzf "$FILE" './etc/variables_fff+' && . 'etc/variables_fff+'
+	cd - >/dev/null
+	rm -fR "$TMPDIR/untar"
+
+	# TODO: respect 'stable' + 'beta'
+	KALUA_VERSION_TESTING="${FFF_PLUS_VERSION:-0}"
+	TARBALL_TIME="$KALUA_VERSION_TESTING"
+	echo "<!-- KALUA_VERSION_TESTING=$TARBALL_TIME -->"
+}
 
 touch "/tmp/DETECTED_FAULTY_$NETWORK"
 
@@ -613,7 +630,7 @@ func_update2color()
 	esac
 }
 
-rm /var/www/networks/$NETWORK/meshrdf/recent/autonode* 2>/dev/null
+[ -n "$( ls -1 /var/www/networks/$NETWORK/meshrdf/recent/autonode* )" ] && rm /var/www/networks/$NETWORK/meshrdf/recent/autonode*
 LIST_FILES="$( find /var/www/networks/$NETWORK/meshrdf/recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
 
 for FILE in $LIST_FILES ; do {
