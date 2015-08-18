@@ -868,21 +868,20 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 		show)						# fixme! idea: always write userwish/$OPTION in output, e.g. USERNAME=;PASSWORD=;
 			[ -e "$DIR/rows" ] || return 1
 
-			[ "$ID" = "last" ] && {
-				ID="$( sed -n '$=' "$DIR/rows" )"
+			[ "$ID" = 'last' ] && {
+				ID="$( wc -l <"$DIR/rows" )"
 			}
 
 			table_element_is_part_of_user_wish_or_wanted ()
 			{
 				case "$OPTION" in
-					      "") return 0 ;;
+					      '') return 0 ;;
 					*"$OBJ"*) return 0 ;;
 					       *) return 1 ;;
 				esac
 			}
 
 			for OBJ in $ELEMENTS; do {
-
 				case "$SHORT_VAR" in
 					A) SHORT_VAR="B" ;;
 					B) SHORT_VAR="C" ;;
@@ -912,10 +911,12 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 					REWRITE_VARS="${REWRITE_VARS}s/${FILL}${SHORT_VAR}=/${FILL}${OBJ}=/;"
 				}
 
-				FILL=";"				
+				FILL=';'
 			} done
 
-			sed -n "${ID}{${REWRITE_VARS}p;q}" "$DIR/rows"		# fixme! return ERROR on nonexisting line
+			# FIXME! ID is e.g. ID=12920;A='94';B='60
+			isnumber "$ID" || ID="$( echo "$ID" | cut -d'=' -f2 | cut -d';' -f1 )"	# -> 12920
+			sed -n "$ID{${REWRITE_VARS}p;q}" "$DIR/rows"		# fixme! return ERROR on nonexisting line
 		;;
 		del)
 			_db lock now "$funcname() $*" || return 1

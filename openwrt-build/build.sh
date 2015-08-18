@@ -1609,6 +1609,7 @@ apply_symbol()
 				commit_info="$( git log -1 --pretty='format:%aD | commit: %h' -- "$file_original" )"
 				{
 					# TODO: http://www.stack.nl/~dimitri/doxygen/manual/docblocks.html#specialblock
+					# TODO: add function-table mit args + help ontop
 					echo "$firstline"
 					echo "# this file belongs to $KALUA_DIRNAME: $KALUA_REPO_URL"
 					echo "# last change: $commit_info | $file_original"
@@ -1617,7 +1618,7 @@ apply_symbol()
 				} >"$dir/$file"
 				chmod +x "$dir/$file"
 			} done
-			cd -
+			cd - >/dev/null
 
 			log "$KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
@@ -2709,7 +2710,6 @@ check_scripts()
 			;;
 		esac
 	} done <"$tempfile"
-	rm "$tempfile" "$tempfile_functions"
 
 	if [ "$good" = 'true' ]; then
 		log "[OK] checked ${i:=0} files with $( wc -l <"$tempfile_functions" ) shell-functions"
@@ -2717,6 +2717,7 @@ check_scripts()
 		i=-1
 	fi
 
+	rm "$tempfile" "$tempfile_functions"
 	test $i -gt 0
 }
 
