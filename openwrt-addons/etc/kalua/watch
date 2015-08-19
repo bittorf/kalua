@@ -365,7 +365,7 @@ _watch_mount_storage()
 {
 	local funcname='watch_mount_storage'
 	local dir='/tmp/storage'
-	local line dev size=
+	local line dev size blockinfo
 
 	# TODO:
 	# when using this for a samba-share we must make sure, that
@@ -396,6 +396,7 @@ _watch_mount_storage()
 	{
 		local dev="$1"
 		# unneeded for USB-stick
+		# http://stackoverflow.com/questions/908188/is-there-any-way-of-detecting-if-a-drive-is-a-ssd
 		[ "$( cat /sys/block/$dev/removable )" = '0' ] && return 0
 
 		# e.g. 7200 or 'Solid State Device'
@@ -413,16 +414,20 @@ _watch_mount_storage()
 			*' sda'|*' sda'[0-9]|*' sdb'|*' sdb'[0-9])
 				set -- $line
 				dev="$4"
+				blockinfo="$( block info "/dev/$dev" )"
 
-				case "$( block info "/dev/$dev" )" in
+				case "$blockinfo" in
 					*' LABEL="rootfs" '*)
 					;;
 					"/dev/$dev: UUID="*)
 						# happens on x86 with ext4 on cf-card
-						[ "$( readlink /dev/root )" = "/dev/$dev" ] && continue
+						[ "$( readlink '/dev/root' )" = "/dev/$dev" ] && continue
+
+						# unmount
+						grep -q ^"/dev/$dev " '/proc/mounts' && umount "/dev/$dev"
 
 						mkdir -p "$dir/$dev"
-						_log do $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev'"
+						_log do $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev' ($blockinfo)"
 						mount "/dev/$dev" "$dir/$dev" && {
 							set -- $( df -h | grep "$dir/$dev"$ )
 							size="$2"
