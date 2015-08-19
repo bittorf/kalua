@@ -903,7 +903,14 @@ EOF
 
 has_internet()
 {
-	route -n | grep -q ^'0\.0\.0\.0'
+	if   which route >/dev/null; then
+		route -n | grep -q ^'0\.0\.0\.0'
+	elif which ip >/dev/null; then
+		ip route list exact '0.0.0.0/0' | grep -q ^'default'
+	else
+		log "[ERR] unsure if we have internet, allowing"
+		return 0
+	fi
 }
 
 check_working_directory()
