@@ -392,6 +392,22 @@ _watch_mount_storage()
 	# /dev/sda1                18.3G     11.7G      5.7G  67% /tmp/hdd/sda1
 	# /dev/sda2                 2.0T      1.9T     10.6G  99% /tmp/hdd/sda2
 
+	set_spindown()
+	{
+		local dev="$1"
+		# unneeded for USB-stick
+		[ "$( cat /sys/block/$dev/removable )" = '0' ] && return 0
+
+		# e.g. 7200 or 'Solid State Device'
+		set -- $( hdparm -I "/dev/$dev" | fgrep 'Nominal Media Rotation Rate: ' )
+		shift 4
+
+		[ ${1:-0} -gt 0 ] && {
+			_log do $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($1 rpm)"
+			hdparm -y -S 60 "/dev/$dev"
+		}
+	}
+
 	while read line; do {
 		case "$line" in
 			*' sda'|*' sda'[0-9]|*' sdb'|*' sdb'[0-9])
@@ -406,7 +422,7 @@ _watch_mount_storage()
 						[ "$( readlink /dev/root )" = "/dev/$dev" ] && continue
 
 						mkdir -p "$dir/$dev"
-						_log do $funcname daemon info "trying /dev/$dev"
+						_log do $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev'"
 						mount "/dev/$dev" "$dir/$dev" && {
 							set -- $( df -h | grep "$dir/$dev"$ )
 							size="$2"
@@ -417,23 +433,14 @@ _watch_mount_storage()
 								_log do $funcname daemon info "[OK] /dev/$dev -> $dir/${dev}_$size"
 								mount "/dev/$dev" "$dir/${dev}_$size"
 							}
+
+							[ -n "$size" ] && set_spindown "$dev"
 						}
 					;;
 				esac
 			;;
 		esac
 	} done <'/proc/partitions'
-
-	[ -n "$size" ] && {
-		# e.g. 7200 or 'Solid State Device'
-		set -- $( hdparm -I "/dev/sda" | fgrep 'Nominal Media Rotation Rate: ' )
-		shift 4
-
-		[ ${1:-0} -gt 0 ] && {
-			_log do $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now"
-			hdparm -y -S 60 "/dev/sda"
-		}
-	}
 }
 
 _watch_usbstick_proxystorage()
