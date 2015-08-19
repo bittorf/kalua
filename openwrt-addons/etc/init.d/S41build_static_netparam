@@ -12,7 +12,7 @@ ifname2mtu()
 
 netparam_for_uci_devices()
 {
-	local NAME IFNAME ADDRESS NETMASK MTU BROADCAST NETWORK PREFIX HOSTNAME CONFIG_PROFILE
+	local NAME IFNAME ADDRESS NETMASK MTU BROADCAST NETWORK PREFIX CONFIG_PROFILE
 
 	for DEVICE in loopback wlan lan wan ; do {
 
@@ -23,20 +23,25 @@ netparam_for_uci_devices()
 			wan)	  NAME="WAN" ;;
 		esac
 
-		IFNAME="$(  uci -q get network.$DEVICE.ifname  )"
+		IFNAME="$( uci -q get network.$DEVICE.ifname )"
 
 		# make sure, that hybrid interfaces use the adhoc-interface
 		# for 'testing' in scheduler: incoming_wifi_activity()
 		# otherwise use the first interface
-		[ "$DEVICE" = "wlan" -a -e '/etc/config/wireless' ] && {
-			[ -e "/sbin/ifstatus" ] && {
-				if   fgrep -q "wlanadhoc" "/etc/config/wireless"; then
+		[ "$DEVICE" = 'wlan' -a -e '/etc/config/wireless' ] && {
+			[ -e '/sbin/ifstatus' ] && {
+				if DEVICE="$( uci -q get system.@monitoring[0].wifi_netparam_name )"; then
+					:
+				else
+					DEVICE='wlanadhoc'
+				fi
+
+				if   fgrep -q "$DEVICE" '/etc/config/wireless'; then
 					# typical: wlan0-1
-					IFNAME="$( ifstatus "wlanadhoc" | fgrep '"device":' | cut -d'"' -f4 )"
-					DEVICE="wlanadhoc"
-				elif fgrep -q "wlan" "/etc/config/wireless"; then
+					IFNAME="$( ifstatus "$DEVICE" | fgrep '"device":' | cut -d'"' -f4 )"
+				elif fgrep -q "wlan" '/etc/config/wireless'; then
 					# typical: wlan0
-					IFNAME="$( ifstatus "wlan" | fgrep '"device":' | cut -d'"' -f4 )"
+					IFNAME="$( ifstatus 'wlan' | fgrep '"device":' | cut -d'"' -f4 )"
 				fi
 			}
 
