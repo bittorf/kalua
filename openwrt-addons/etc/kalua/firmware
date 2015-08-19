@@ -79,7 +79,7 @@ _firmware_configure_keep_files()
 }
 
 _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files with tarball from repo
-{				# fixme! safe hash of last successful installed tarball /www/TARBALL_STABLE_$HASH and only upgrade, if it differs
+{
 	local FUNC="firmware_update_pmu"
 	local MODE="$1"		# can be a tar-file *OR* e.g. stable|beta|testing
 	local option="$2"	# e.g. force
@@ -121,7 +121,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	local WORKINGDIR='/tmp/pmu'
 	local FILE='tarball.tgz'
 	local TGZ="/tmp/$FILE"
-	local SIZE TEMPFILE CRON_RESTART REPATCH_ALL
+	local SIZE TEMPFILE CRON_RESTART apply_uci_override
 	local COUNT=0
 	local COUNT_ERROR=0
 	local banner='/etc/banner'
@@ -144,13 +144,13 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 			rm -fR "$WORKINGDIR"
 			rm -f  "$TGZ"
 
-			[ "$option" = "reschedule" ] && {
+			[ "$option" = 'reschedule' ] && {
 				echo >>$SCHEDULER "_firmware update_pmu '$MODE'"
 			}
 		}
 
 		URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing if needed
-		hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"	# fixme! abort when fetching hash fails
+		hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"	# FIXME! abort when fetching hash fails
 
 		read hash_last_applied <"$FILE_HASH_APPLIED"
 
@@ -198,9 +198,12 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" kb ) ))"
 
 			case "$( basename "$TEMPFILE" )" in
-				cron|S51crond*)
+				'cron'|'S51crond'*)
 					_log do "$FUNC" daemon info "detected changed cron settings"
 					CRON_RESTART=1
+				;;
+				'override_uci_vars')
+					apply_uci_override=1
 				;;
 			esac
 
@@ -226,12 +229,10 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 
 	if [ $COUNT -gt 0 ]; then
 		/etc/kalua_init
-
-		[ "$CRON_RESTART" = "1" ] && {
+		[ -n "$apply_uci_override" ] && /etc/init.d/override_uci_vars boot
+		[ -n "$CRON_RESTART" ] && {
 			_log do "$FUNC" daemon info "restart cron manually"
 		}
-
-		[ "$REPATCH_ALL"  = "1" ] && /etc/init.d/*patch-o-matic* repatch all
 
 		if [ -e "/rom${banner}" ]; then
 			head -n14 "/rom${banner}" >"$banner"
