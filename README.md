@@ -26,7 +26,7 @@ TLDR!
 ```
 wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh
 sh build.sh --openwrt trunk && cd openwrt
-../build.sh --openwrt r46693 --hardware 'TP-LINK TL-WDR4900 v1' --usecase 'Standard,kalua'
+../build.sh --openwrt r46693 --hardware 'La Fonera 2.0N' --usecase 'Standard,kalua'
 ```
 
 how to get started
