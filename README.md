@@ -19,6 +19,16 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 * [![sending bitcoins][bitcoinGFX]][bitcoin]
 * [![build status now][travisGFX]][travis]
 
+
+TLDR!
+-----
+
+```
+wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh
+sh build.sh --openwrt trunk && cd openwrt
+../build.sh --openwrt r46693 --hardware 'TP-LINK TL-WDR4900 v1' --usecase 'Standard,kalua'
+```
+
 how to get started
 ------------------
 
