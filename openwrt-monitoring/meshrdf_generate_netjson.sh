@@ -1,5 +1,5 @@
 #!/bin/sh
-rm map.temp.ip2id
+
 UNIX_NOW="$( date +%s )"
 
 log()
@@ -388,5 +388,5 @@ echo
 echo "	]"
 echo "}"
 
-rm 2>/dev/null ./map.temp.node2hostname ./map.temp.conns # map.temp.ip2id
+rm 2>/dev/null ./map.temp.node2hostname ./map.temp.conns map.temp.ip2id
 

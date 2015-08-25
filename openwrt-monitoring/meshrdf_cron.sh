@@ -364,6 +364,10 @@ for NET in $LIST; do {
 					rm "/var/www/networks/$NETWORK/meshrdf/map_"*				# fixme!
 				;;
 				*)
+					/var/www/scripts/meshrdf_generate_netjson.sh >"/var/www/networks/$NETWORK/meshrdf/map.json.$$" && {
+						mv "/var/www/networks/$NETWORK/meshrdf/map.json.$$" \
+						   "/var/www/networks/$NETWORK/meshrdf/map.json"
+					}
 #					log "[OK] not building format svg or png"
 				;;
 			esac

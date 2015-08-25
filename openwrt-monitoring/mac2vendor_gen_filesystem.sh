@@ -7,7 +7,8 @@ OUT="/tmp/doit.sh"
 	echo "	this generates a bash file into '$OUT'"
 	echo "	and starts this with 'sh $OUT && rm $OUT'"
 	echo "	this will create the file /var/www/macs/[a-f0-9]x6"
-	exit
+
+	exit 1
 }
 
 URL_SOURCE="http://standards.ieee.org/regauth/oui/oui.txt"
@@ -15,7 +16,7 @@ DIR_DEST="/var/www/macs/"
 TEMP="/tmp/oui.txt"
 
 logger -s "downloading '$URL_SOURCE' to '$TEMP'"
-wget -O "$TEMP" "$URL_SOURCE"
+wget -O "$TEMP" "$URL_SOURCE" || exit 1
 
 mkdir -p /var/www/macs
 chmod -R 777 /var/www/macs
