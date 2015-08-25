@@ -453,26 +453,37 @@ _speedtest_stats()
 {
 	local IP_LOCAL="$1"
 	local IP_TARGET="$2"
-	local METHOD="$3"
+	local METHOD="$3"			# e.g. poormens_tcpdownload
 	local DIR="/tmp/STATS/SPEEDTEST"
+	local testdir
 
 	case "$IP_LOCAL" in				# these values can change, especially WAN
-		$WIFIADR|here) IP_LOCAL="WIFIADR" ;;	# so, for better stats, we clamp them together
+		$WIFIADR) IP_LOCAL="WIFIADR" ;;		# so, for better stats, we clamp them together
 		$LANADR)  IP_LOCAL="LANADR" ;;		# to have the same keyword
 		$WANADR)  IP_LOCAL="WANADR" ;;
+		here)
+			for testdir in "$DIR/$WIFIADR/$IP_TARGET/$METHOD" "$DIR/$LANADR/$IP_TARGET/$METHOD" "$DIR/$WANADR/$IP_TARGET/$METHOD"; do {
+				test -d "$testdir" && break
+				testdir=
+			} done
+		;;
 	esac
 
 	case "$IP_TARGET" in
-		$WIFIADR|here) IP_TARGET="WIFIADR" ;;
+		$WIFIADR) IP_TARGET="WIFIADR" ;;
 		$LANADR)  IP_TARGET="LANADR" ;;
 		$WANADR)  IP_TARGET="WANADR" ;;
+		here)
+			for testdir in "$DIR/$IP_LOCAL/$WIFIADR/$METHOD" "$DIR/$IP_LOCAL/$LANADR/$METHOD" "$DIR/$IP_LOCAL/$WANADR/$METHOD"; do {
+				test -d "$testdir" && break
+				testdir=
+			} done
+		;;
 	esac
 
-	# SAMPLES SPEED SPEED_AVG SPEED_MIN SPEED_MAX SPEED_SUM
-
-	DIR="$DIR/$IP_LOCAL/$IP_TARGET/$METHOD"
-
+	[ -z "$testdir" ] && DIR="$DIR/$IP_LOCAL/$IP_TARGET/$METHOD"
 	[ -e "$DIR/stats" ] || return 0
+
 	local SAMPLES SPEED_RECENT SPEED_AVG SPEED_MIN SPEED_MAX SPEED_SUM
 	read  SAMPLES SPEED_RECENT SPEED_AVG SPEED_MIN SPEED_MAX SPEED_SUM 2>/dev/null <"$DIR/stats"
 

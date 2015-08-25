@@ -299,8 +299,15 @@ FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
 
 	cd "$TMPDIR/untar"
 	tar xzf "$FILE" './etc/variables_fff+' && . 'etc/variables_fff+'
+	rm -fR 'etc'
 	cd - >/dev/null
 	rm -fR "$TMPDIR/untar"
+
+	case "$NETWORK" in
+		fparkssee)
+			FFF_PLUS_VERSION=398383
+		;;
+	esac
 
 	# TODO: respect 'stable' + 'beta'
 	KALUA_VERSION_TESTING="${FFF_PLUS_VERSION:-0}"
@@ -486,6 +493,7 @@ fi
 
 echo >>$OUT "</head><body bgcolor='$BODY_BGCOLOR'>"
 
+# checkout: http://stackoverflow.com/questions/7641791/javascript-library-for-human-friendly-relative-date-formatting
 cat >>$OUT <<EOF
 <p id='zeitstempel' data-timestamp-page='$( date +%s )'> Datenbestand vom $( date "+%d.%b'%y-%H:%M" )</p>
 <script>
@@ -759,25 +767,16 @@ for FILE in $LIST_FILES LASTFILE; do {
 	esac
 
 	grep -sq ^"$WIFIMAC" ../ignore/macs.txt && {				# format: "0014bfbfb374	   # linksys115"
-#		rm $FILE
 		log "omitting $WIFIMAC/$HOSTNAME"
 
-		allow_autounhide()
-		{
-			case "$NETWORK" in
-				'boltenhagendh')
-					return 0
-				;;
-				*)
-					return 1
-				;;
-			esac
-		}
-
-		allow_autounhide && {
+		grep -q ^"$WIFIMAC	# autohide" '../ignore/macs.txt' && {
 			# autohide / autounhide
 			[ $(( UNIXTIME_SCRIPTSTART - LAST_UPDATE_UNIXTIME )) -lt 864000 ] && {
-				echo "$WIFIMAC	# younger than 10 days: $( date )" >>../ignore/macs.txt
+				grep -q ^"# $WIFIMAC	# younger than 10 days" '../ignore/macs.txt' || {
+					# delete old and show comment: TODO: sms?
+					sed -i "/^$WIFIMAC/d" '../ignore/macs.txt'
+					echo "# $WIFIMAC	# younger than 10 days - auto_unhided @$( date )" >>'../ignore/macs.txt'
+				}
 			}
 		}
 
@@ -1324,6 +1323,7 @@ func_cell_uptime ()
 {
 	local UPTIME="$1"
 	local REBOOT_COUNT="$2"
+	local reboot_reason="$3"
 
 	local fwversion="${VERSION:-0}"
 #	local STARTDATE="$( perl -e "print \"\".localtime $(( $(date +%s) - (${UPTIME:=0} * 3600) ))" )"
@@ -1358,7 +1358,7 @@ func_cell_uptime ()
 		echo -n ">"
 	fi
 
-	echo -n "<a href='#' title='@ $STARTDATE - $REBOOT_COUNT reboots!/border=$border_allowed_reboots'> $UPTIME </a></td>"
+	echo -n "<a href='#' title='$reboot_reason@$STARTDATE|${REBOOT_COUNT}_reboots!/border=$border_allowed_reboots'> $UPTIME </a></td>"
 }
 
 cell_wifi_uptime()
@@ -1533,6 +1533,11 @@ cell_speed()
 	esac
 
 	[ -z "$bytes" ] && bgcolor="$COLOR_DARK_GREEN"
+	case "$kbytes" in
+		*'8888')
+			bgcolor="$COLOR_GOODGREEN"
+		;;
+	esac
 
 	echo -n "<td align='right' bgcolor='$bgcolor' sorttable_customkey='$bytes'>$kbytes</td>"
 }

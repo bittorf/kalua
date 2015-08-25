@@ -6,7 +6,7 @@ read t1 trash </proc/uptime
 	chmod -R 777 '/tmp/crashlogs'
 }
 
-LIST_OMIT_REV="r33160 r32793 r33502 r33616 r33726 r35300 r37767 r33867 r34599"
+LIST_OMIT_REV="r33160 r32793 r33502 r33616 r33726 r35300 r37767 r33867 r34599 <46425"
 
 # todo:
 # unaligned access? show 'process' in table
@@ -202,6 +202,9 @@ html_tablecontent()
 						continue
 					;;
 				esac
+
+				# FIXME! hardcoded
+				[ "$( echo "$revision" | cut -b2- )" -lt 46425 ] && continue
 			;;
 			*)
 				revision="?"
@@ -212,7 +215,13 @@ html_tablecontent()
 
 		unixtime_file="$( stat --printf %Y "$file" )"
 		size="$( sed -n '6,999p' "$file" | strings | wc -c )"
-		[ $size -lt 256 ] && size="trash:$size"
+		[ $size -lt 256 ] && {
+			if [ $size -eq 0 ]; then
+				continue
+			else
+				size="trash:$size"
+			fi
+		}
 
 		if   fgrep -q "SysRq : Trigger a crash" "$file"; then
 			# fixme!

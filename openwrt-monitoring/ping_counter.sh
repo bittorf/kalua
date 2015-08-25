@@ -144,7 +144,6 @@ castelfalfi
 leonardo
 schoeneck
 extrawatt
-olympia
 aschbach
 boltenhagendh
 dhfleesensee
@@ -180,13 +179,11 @@ castelfalfi
 leonardo
 schoeneck
 extrawatt
-olympia
 aschbach
 boltenhagendh
 dhfleesensee
 berlinle
 itzehoe
-fparkssee
 marinapark
 spbansin
 spbansin:Haus8
@@ -475,7 +472,7 @@ add_new_ipaddresses_from_network()
 			case "$3" in
 				'myping_'*)
 					iptables -nxvL $3 | fgrep -q " $ip " && {
-#						log "will not add $ip - found it already in $3"
+						log "will not add $ip - found it already in $3"
 						echo "YES"
 						return 0
 					}
@@ -493,11 +490,17 @@ add_new_ipaddresses_from_network()
 		# IP 84.184.176.218 is not the same like new
 		# IP 84.184.176.21
 
+		# FIXME!
+		[ "$ip" = '198.23.155.210' -a "$network" = 'ilm1' ] && {
+			log "deny adding $ip to to network $network"
+			continue
+		}
+
 		iptables -nL myping_$network | fgrep -q " $ip " || {
 			[ "$( is_in_another_network "$ip" )" = 'NO' ] && {
 				for network in $list_network; do {
 					# FIXME! - when in 'failure', check if good again!
-					log "adding new pub-ip $ip for network $network"
+					log "[OK] adding new pub-ip $ip for network $network"
 					iptables -I myping_$network -s $ip -j ACCEPT
 					date +%s >"/dev/shm/pingcheck/$NETWORK.lastnewip"
 					rc=0
