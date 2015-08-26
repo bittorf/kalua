@@ -47,6 +47,8 @@ df -h /dev/xvda1 | fgrep -q "100%" && {
 
 build_html_tarball()
 {
+	log "[OK] build_html_tarball"
+
 	(
 	ls -l /var/www/networks/ | grep ^'d' | while read LINE; do {
 		set -- $LINE
@@ -54,7 +56,7 @@ build_html_tarball()
 			*':'*)
 			;;
 			*)
-				cp -v /var/www/networks/$9/index.html /var/www/files/cache-$9.html
+				cp /var/www/networks/$9/index.html /var/www/files/cache-$9.html
 			;;
 		esac
 	} done
@@ -63,6 +65,8 @@ build_html_tarball()
 	tar cjf /var/www/files/all.tar.bz2 cache-*
 	tar cJf /var/www/files/all.tar.xz cache-*
 	)
+
+	log "[OK] build_html_tarball - READY"
 }
 
 
@@ -142,11 +146,11 @@ gen_meshrdf_for_network()
 	{
 		case "$( date '+%H:%M' )" in	# e.g. 09:01
 			'02:'*|'03:'*|'04:'*)
-				log "$funcname: respect_fileage: no"
+#				log "$funcname: respect_fileage: no"
 				return 1
 			;;
 			*)
-				log "$funcname: respect_fileage: yes"
+#				log "$funcname: respect_fileage: yes"
 				return 0
 			;;
 		esac
@@ -156,10 +160,10 @@ gen_meshrdf_for_network()
 		read hash_last <"$hash_file"
 
 		if [ "$hash_last" = "$hash_now" ]; then
-			log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
+#			log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
 			return 0
 		else
-			log "$funcname() NEEDED? found changes network $network - was: $hash_last != $hash_now (now)"
+#			log "$funcname() NEEDED? found changes network $network - was: $hash_last != $hash_now (now)"
 			echo "$hash_now" >"$hash_file"
 		fi
 	}
@@ -174,10 +178,17 @@ gen_meshrdf_for_network()
 	wget -qO "$temp" "$url"
 	mv "$temp" "$html"
 
-	build_html_tarball
+	unixtime_file="$( date +%s -r "/var/www/files/all.tar.xz" )"
+	unixtime_here="$( date +%s )"
+	unixtime_diff=$(( unixtime_here - unixtime_file ))
+	[ $unixtime_diff -gt 1800 ] && build_html_tarball
+
+	/var/www/scripts/apply_new_network.sh "$network"
 
 	log "[READY] fetched $network"
 }
+
+
 
 [ -n "$( list_meshrdf_files_with_zero_size )" ] && {
 	log "[ERR] found $( list_meshrdf_files_with_zero_size | wc -l ) meshrdf-files, which have 0 byte size, deleting them"
@@ -364,10 +375,11 @@ for NET in $LIST; do {
 					rm "/var/www/networks/$NETWORK/meshrdf/map_"*				# fixme!
 				;;
 				*)
-					/var/www/scripts/meshrdf_generate_netjson.sh >"/var/www/networks/$NETWORK/meshrdf/map.json.$$" && {
-						mv "/var/www/networks/$NETWORK/meshrdf/map.json.$$" \
-						   "/var/www/networks/$NETWORK/meshrdf/map.json"
+					cd "/var/www/networks/$NETWORK/meshrdf"
+					/var/www/scripts/meshrdf_generate_netjson.sh >"map.json.$$" && {
+						mv "map.json.$$" "map.json"
 					}
+					cd -
 #					log "[OK] not building format svg or png"
 				;;
 			esac

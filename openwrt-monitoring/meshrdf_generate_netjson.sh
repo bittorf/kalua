@@ -172,6 +172,8 @@ for FILE in $FILELIST; do {		# preselect interesting nodes
 				FIRST_ID='true'
 			fi
 
+			# TODO: 'id' = 'sshpubkey'?
+			# TODO: local_addresses: dynamic
 			cat <<EOF
 		{
 			"id": "$NODE",
@@ -326,8 +328,18 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 		[ "$COST" = '0100' ] && COST=100
 #		[ $COST -gt 5000 ] && continue		# only good neighs for smaller topology
 
-COST="${COST:-1}"
-NCOST="${NCOST:-1}"
+
+		[ -z "$COST" ] && {
+#			log "$(pwd)/$FILE - '$IP_LOCAL' - zero COST - '$LINE'"
+			# e.g. infinite
+			continue
+		}
+
+		[ -z "$NCOST" ] && {
+			log "$(pwd)/$FILE - '$IP_LOCAL' - zero NCOST - '$LINE'"
+			NCOST=1
+		}
+
 		  if [ "$NDEV" = "-" ]; then
 			STYLE="bold"
 		elif [ $COST -lt 1500 ]; then

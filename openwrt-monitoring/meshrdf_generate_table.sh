@@ -312,7 +312,7 @@ FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
 	# TODO: respect 'stable' + 'beta'
 	KALUA_VERSION_TESTING="${FFF_PLUS_VERSION:-0}"
 	TARBALL_TIME="$KALUA_VERSION_TESTING"
-	echo "<!-- KALUA_VERSION_TESTING=$TARBALL_TIME -->"
+#	echo "<!-- KALUA_VERSION_TESTING=$TARBALL_TIME -->"
 }
 
 touch "/tmp/DETECTED_FAULTY_$NETWORK"
@@ -638,7 +638,7 @@ func_update2color()
 	esac
 }
 
-[ -n "$( ls -1 /var/www/networks/$NETWORK/meshrdf/recent/autonode* )" ] && rm /var/www/networks/$NETWORK/meshrdf/recent/autonode*
+[ -n "$( ls -1 /var/www/networks/$NETWORK/meshrdf/recent/autonode* 2>/dev/null )" ] && rm /var/www/networks/$NETWORK/meshrdf/recent/autonode*
 LIST_FILES="$( find /var/www/networks/$NETWORK/meshrdf/recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
 
 for FILE in $LIST_FILES ; do {
@@ -715,7 +715,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 		continue
 	}
 
-	D0=;k0=;k1=;k2=;k3=;u0=;w0=;w1=;w2=;w3=;t0=;t1=;n0=;d0=;d1=;i0=;i1=;i2=;i3=;i4=;i5=;i6=;r0=;r1=;r2=;r3=;r4=;r5=;h0=;h1=;h2=;h3=;h4=;h5=;h6=;h7=;s1=;s2=;v1=;v2=;NODE=;UP=;VERSION=;HOSTNAME=;WIFIMAC=;REBOOT=;CITY=;UPDATE=;NEIGH=;LATLON=;GWNODE=;TXPWR=;WIFIMODE=;CHANNEL=;COST2GW=;HOP2GW=;USERS=;MRATE=;LOAD=;HW=;UNIXTIME=;HUMANTIME=;FORWARDED=;SERVICES=;PUBIP_REAL=;PUBIP_SIMU=;MAIL=;PHONE=;SSHPUBKEYFP=;FRAG=;RTS=;GMODEPROT=;GW=;PROFILE=;NOISE=;RSSI=;GMODE=;ESSID=;BSSID=;WIFIDRV=;LOG=;OLSRVER=;OPTIMIZENLQ=;OPTIMIZENEIGH=;PORTFW=;WIFISCAN=;SENS=;PFILTER=
+	D0=;k0=;k1=;k2=;k3=;u0=;w0=;w1=;w2=;w3=;t0=;t1=;n0=;d0=;d1=;i0=;i1=;i2=;i3=;i4=;i5=;i6=;r0=;r1=;r2=;r3=;r4=;r5=;r9=;h0=;h1=;h2=;h3=;h4=;h5=;h6=;h7=;s1=;s2=;v1=;v2=;NODE=;UP=;VERSION=;HOSTNAME=;WIFIMAC=;REBOOT=;CITY=;UPDATE=;NEIGH=;LATLON=;GWNODE=;TXPWR=;WIFIMODE=;CHANNEL=;COST2GW=;HOP2GW=;USERS=;MRATE=;LOAD=;HW=;UNIXTIME=;HUMANTIME=;FORWARDED=;SERVICES=;PUBIP_REAL=;PUBIP_SIMU=;MAIL=;PHONE=;SSHPUBKEYFP=;FRAG=;RTS=;GMODEPROT=;GW=;PROFILE=;NOISE=;RSSI=;GMODE=;ESSID=;BSSID=;WIFIDRV=;LOG=;OLSRVER=;OPTIMIZENLQ=;OPTIMIZENEIGH=;PORTFW=;WIFISCAN=;SENS=;PFILTER=
 
 	# use real file, otherwise the stat-command is not useful
 	[ -h "$FILE" ] && FILE="$( readlink -f "$FILE" )"
@@ -769,7 +769,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	grep -sq ^"$WIFIMAC" ../ignore/macs.txt && {				# format: "0014bfbfb374	   # linksys115"
 		log "omitting $WIFIMAC/$HOSTNAME"
 
-		grep -q ^"$WIFIMAC	# autohide" '../ignore/macs.txt' && {
+		if grep -q ^"$WIFIMAC	# autohide" '../ignore/macs.txt'; then
 			# autohide / autounhide
 			[ $(( UNIXTIME_SCRIPTSTART - LAST_UPDATE_UNIXTIME )) -lt 864000 ] && {
 				grep -q ^"# $WIFIMAC	# younger than 10 days" '../ignore/macs.txt' || {
@@ -778,7 +778,12 @@ for FILE in $LIST_FILES LASTFILE; do {
 					echo "# $WIFIMAC	# younger than 10 days - auto_unhided @$( date )" >>'../ignore/macs.txt'
 				}
 			}
-		}
+		else
+			[ $(( UNIXTIME_SCRIPTSTART - LAST_UPDATE_UNIXTIME )) -lt 864000 ] && {
+				set -x
+				set +x "$WIFIMAC active but hidden"
+			}
+		fi
 
 		case "$HOSTNAME" in
 			*'--'*)
@@ -3355,7 +3360,7 @@ cell_ram()				# fixme! this must be a graph, which is red/green
 	_cell_switch "$s1" "$COST2GW" "$HARDWARE" "$i0:$i1:$i2:$i5:${linebreak}down=${i3}KB/s:up=${i4}KB/s" "$i3" "$i4" "$s2"
 
 	cell_dhcp "$D0"
-	func_cell_uptime "$UP" "$REBOOT"
+	func_cell_uptime "$UP" "$REBOOT" "$r9"
 
 	cell_wifi_uptime "$w0" "$w1" "$w2" "$w3"
 

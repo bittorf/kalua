@@ -33,22 +33,29 @@ rm /var/log/apache2/error.log
 rm -fR /tmp/meshrdf_temp_*
 
 /var/www/scripts/build_whitelist_incoming_ssh.sh stop
-
-/var/www/scripts/mac2vendor_gen_filesystem.sh start && {
-	sh /tmp/doit.sh
-	rm /tmp/doit.sh
-}
-
 /var/www/scripts/build_whitelist_incoming_ssh.sh start
 
 rm /tmp/lockfile_meshrdf_cache_*
 
 [ "$1" = "just_free_space" ] && exit 0
 
-/var/www/scripts/mac2vendor_genfs.sh
-
 while true; do
-	/var/www/scripts/crashlog_build_html.sh >/var/www/crashlog/report.html
+	case "$( date '+%H:%M' )" in    # e.g. 09:01
+		'02:'*|'03:'*)
+			/var/www/scripts/mac2vendor_gen_filesystem.sh start && {
+				sh /tmp/doit.sh
+				rm /tmp/doit.sh
+			}
+
+			/var/www/scripts/mac2vendor_genfs.sh 
+
+			/var/www/scripts/crashlog_build_html.sh >/var/www/crashlog/report.html
+		;;
+		*)
+			logger -s "will not start: /var/www/scripts/mac2vendor_genfs.sh + /var/www/scripts/crashlog_build_html.sh"
+		;;
+	esac
+
 	/var/www/scripts/meshrdf_cron.sh cache
 	sleep 1
 done

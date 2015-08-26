@@ -25,8 +25,18 @@ else
 #
 	echo "$PUBIP_REAL" >../pubip.txt
 
+	[ -z "$NEIGH" ] && {
+		OLD_NEIGH="$( sed -n 's/^.*\(NEIGH=.*\);LAT.*/\1/p' "./recent/$WIFIMAC" )"
+		[ "$OLD_NEIGH" = 'NEIGH=""' ] && OLD_NEIGH=
+	}
+
 	echo "$1" >>"./meshrdf.txt"
-	echo "$1"  >"./recent/$WIFIMAC"
+	echo -n "$1"  >"./recent/$WIFIMAC"
+	[ -n "$OLD_NEIGH" ] && {
+		echo "$PROFILE - $WIFIMAC" >>/tmp/BLA
+		echo -n ";$OLD_NEIGH;LATFAKE" >>"./recent/$WIFIMAC"
+	}
+
 	[ -n "$WIFISCAN" ] && {
 		echo "# $(date)" >>"./recent/$WIFIMAC.wifiscan"
 		echo "$WIFISCAN" >>"./recent/$WIFIMAC.wifiscan"

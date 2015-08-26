@@ -34,6 +34,8 @@ for DIR in tarball/stable tarball/beta tarball/testing ; do {
 	}
 } done
 
+F='/var/www/scripts/netjsongraph.js';		ln -s "$F" "${BASE}/${NETWORK}/meshrdf/netjsongraph.js"			&& echo "symlink to '$F'"
+F='/var/www/scripts/netjson.html';		ln -s "$F" "${BASE}/${NETWORK}/meshrdf/netjson.html"			&& echo "symlink to '$F'"
 F="/var/www/scripts/meshrdf_generate_table.sh";	ln -s "$F" "${BASE}/${NETWORK}/meshrdf/generate_table.sh"		&& echo "symlink to '$F'"
 F="/var/www/scripts/meshrdf_generate_map.sh";	ln -s "$F" "${BASE}/${NETWORK}/meshrdf/generate_map.sh"			&& echo "symlink to '$F'"
 F="/var/www/scripts/meshrdf_accept.php";	ln -s "$F" "${BASE}/${NETWORK}/meshrdf/index.php"			&& echo "symlink to '$F'"
