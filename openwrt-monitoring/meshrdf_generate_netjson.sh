@@ -1,5 +1,6 @@
 #!/bin/sh
 
+NETWORK="${1:-$( pwd )}"
 UNIX_NOW="$( date +%s )"
 
 log()
@@ -130,7 +131,8 @@ cat <<EOF
 	"type": "NetworkGraph",
 	"label": "bittorf wireless ))",
 	"protocol": "OLSR",
-	"version": "olsr.org-0.9.0.2-release",
+	"topology_id": "$NETWORK@$(date)",
+	"version": "1",
 	"metric": "etx_ffeth",
 	"nodes": [
 EOF
@@ -142,6 +144,7 @@ SERVER_UNIXTIME="$( date +%s )"
 for FILE in $FILELIST; do {		# preselect interesting nodes
 	file_ok "$FILE" || continue
         . $FILE
+	[ "$NODE" = '0' ] && continue	# camserver giancarlo
 
 #	log "wifimode: $WIFIMODE"
 
@@ -151,13 +154,16 @@ for FILE in $FILELIST; do {		# preselect interesting nodes
 		echo "$NODE $HOSTNAME"
 
 		{
+			# TODO: build dynamically
 			echo "10.63.$NODE.1 $NODE"
 			echo "10.63.$NODE.3 $NODE"
+			echo "10.63.$NODE.25 $NODE"
 			echo "10.63.$NODE.33 $NODE"
 			echo "10.63.$NODE.61 $NODE"
 
 			echo "10.10.$NODE.1 $NODE"
 			echo "10.10.$NODE.3 $NODE"
+			echo "10.10.$NODE.25 $NODE"
 			echo "10.10.$NODE.33 $NODE"
 			echo "10.10.$NODE.61 $NODE"
 			echo "10.10.$NODE.129 $NODE"
@@ -304,6 +310,7 @@ ip2id()
 for FILE in $FILELIST; do {		# describe all connections, which are not used for inet, and are not described before
 	file_ok "$FILE" || continue
 	. $FILE
+	[ "$NODE" = '0' ] && continue	# camserver giancarlo
 
 	echo $NEIGH | sed 's/[=~-]/\n&/g' >"/tmp/links_$$"
 	while read LINE; do {

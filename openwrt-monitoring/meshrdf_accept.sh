@@ -34,7 +34,7 @@ else
 	echo -n "$1"  >"./recent/$WIFIMAC"
 	[ -n "$OLD_NEIGH" ] && {
 		echo "$PROFILE - $WIFIMAC" >>/tmp/BLA
-		echo -n ";$OLD_NEIGH;LATFAKE" >>"./recent/$WIFIMAC"
+		echo -n ";$OLD_NEIGH;LATFAKE=" >>"./recent/$WIFIMAC"
 	}
 
 	[ -n "$WIFISCAN" ] && {

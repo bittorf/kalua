@@ -122,7 +122,11 @@ optimize_space
 
 log "check: 0 byte files?"
 
-/var/www/scripts/read_kernel_release_dates.sh
+case "$( date '+%H:%M' )" in    # e.g. 09:01
+	'02:'*|'03:'*)
+		/var/www/scripts/read_kernel_release_dates.sh
+	;;
+esac
 
 list_meshrdf_files_with_zero_size()
 {
@@ -142,10 +146,17 @@ gen_meshrdf_for_network()
 	local hash_now="$( date +%s -r "$newest_file" )"
 	local hash_last
 
+	case "$network" in
+		zumnorde|artotel|fparkssee|satama|marinapark|ffsundi|sachsenhausen)
+			log "[OK] $funcname() ignoring call for '$network'"
+			return 0
+		;;
+	esac
+
 	respect_fileage()
 	{
 		case "$( date '+%H:%M' )" in	# e.g. 09:01
-			'02:'*|'03:'*|'04:'*)
+			'02:'*|'03:'*)
 #				log "$funcname: respect_fileage: no"
 				return 1
 			;;
@@ -157,7 +168,7 @@ gen_meshrdf_for_network()
 	}
 
 	respect_fileage && {
-		read hash_last <"$hash_file"
+		read hash_last <"$hash_file"	# = timestamp
 
 		if [ "$hash_last" = "$hash_now" ]; then
 #			log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
@@ -201,7 +212,6 @@ gen_meshrdf_for_network()
 }
 
 
-# LIST="$( find /var/www/networks/ -type d | grep meshrdf/recent )"
 LIST="$( list_networks )"
 TEMP="/tmp/meshrdf_check_$$"
 MESSAGE=
@@ -262,9 +272,7 @@ for NET in $LIST; do {
 	touch $NET/../failure_overview.txt.tmp
 	chmod 777 $NET/../failure_overview.txt.tmp
 
-	[ -n "$( ls -1 $NET/autonode* )" ] && {
-		rm $NET/autonode* 2>/dev/null
-	}
+	[ -n "$( ls -1 $NET/autonode* 2>/dev/null )" ] && rm $NET/autonode*
 
 	I=$(( $I + 1 ))
 	log "net: $( echo $NET | cut -d'/' -f5 ) = $I/$IALL"
@@ -352,7 +360,6 @@ for NET in $LIST; do {
 # BLA			wget -qO "/var/www/networks/$NETWORK/index.html.temp" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=$MYORDER"
 #			mv "/var/www/networks/$NETWORK/index.html.temp" "/var/www/networks/$NETWORK/index.html"
 			gen_meshrdf_for_network "$NETWORK"
-			log "[READY] fetching $NETWORK"
 
 #			log "[START] building map for $NETWORK"
 #			/var/www/scripts/meshrdf_generate_map.sh "/var/www/networks/$NETWORK/meshrdf" >/tmp/map_$$.txt
@@ -375,12 +382,13 @@ for NET in $LIST; do {
 					rm "/var/www/networks/$NETWORK/meshrdf/map_"*				# fixme!
 				;;
 				*)
+					log "[OK] writing netjson for '$NETWORK'"
 					cd "/var/www/networks/$NETWORK/meshrdf"
-					/var/www/scripts/meshrdf_generate_netjson.sh >"map.json.$$" && {
+					/var/www/scripts/meshrdf_generate_netjson.sh "$NETWORK" >"map.json.$$" && {
 						mv "map.json.$$" "map.json"
 					}
-					cd -
-#					log "[OK] not building format svg or png"
+					cd - 2>/dev/null
+					log "[OK] ready netjson for '$NETWORK'"
 				;;
 			esac
 		else
