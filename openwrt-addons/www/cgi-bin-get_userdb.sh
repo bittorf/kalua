@@ -29,7 +29,15 @@ else
 	esac
 fi
 
-if [ -e '/tmp/FREE' ]; then
+db_needed()
+{
+	test -e "$TMPDIR/FREE_LOCALLY" && return 0
+	test -e '/tmp/FREE' && return 1
+
+	return 0
+}
+
+if db_needed; then
 	_http header_mimetype_output 'text/plain'
 	echo '# OK - FREE'
 else
