@@ -1,3 +1,4 @@
+// version 0.1
 (function () {
     /**
      * vanilla JS implementation
@@ -110,12 +111,14 @@
                 if (n.linkCount) { html += "<p><b>links</b>: " + n.linkCount + "</p>"; }
                 overlayInner.html(html);
                 overlay.style("display", "block");
+                // set "open" class to current node
+                removeOpenClass();
+                d3.select(this).attr("class", "njg-node njg-open");
             },
             /**
              * called when a node is clicked
              */
             onClickLink: function (l) {
-                console.log(l);
                 var html = "<p><b>source</b>: " + (l.source.label || l.source.id) + "</p>";
                 html += "<p><b>target</b>: " + (l.target.label || l.target.id) + "</p>";
                 html += "<p><b>cost</b>: " + l.cost + "</p>";
@@ -128,6 +131,9 @@
                 }
                 overlayInner.html(html);
                 overlay.style("display", "block");
+                // set "open" class to current link
+                removeOpenClass();
+                d3.select(this).attr("class", "njg-link njg-open");
             }
         }, opts);
 
@@ -164,52 +170,22 @@
             // create tooltip div
             tooltip = d3.select(opts.el)
                         .append("div")
-                        .attr("class", "tooltip")
-                        .style({
-                            "position": "absolute",
-                            "left": 0,
-                            "top": 0,
-                            "z-index": "10",
-                            "display": "none",
-                            "visibility": "hidden"
-                        }),
+                        .attr("class", "njg-tooltip"),
             overlay = d3.select(opts.el)
                         .append("div")
-                        .attr("class", "overlay")
-                        .style({
-                            "position": "absolute",
-                            "z-index": "11",
-                            "display": "none",
-                        }),
+                        .attr("class", "njg-overlay"),
             closeOverlay = overlay.append("a")
-                                  .attr("class", "close")
-                                  .style({
-                                      "position": "absolute",
-                                      "top": "10px",
-                                      "right": "10px",
-                                      "cursor": "pointer"
-                                  })
+                                  .attr("class", "njg-close")
                                   .text("\u2716"),
             overlayInner = overlay.append("div")
-                                  .attr("class", "inner"),
+                                  .attr("class", "njg-inner"),
             metadata = d3.select(opts.el)
                          .append("div")
-                         .attr("class", "metadata")
-                         .style({
-                             "position": "absolute",
-                             "z-index": "12",
-                             "display": "none",
-                         }),
+                         .attr("class", "njg-metadata"),
             metadataInner = metadata.append("div")
-                                    .attr("class", "inner"),
+                                    .attr("class", "njg-inner"),
             closeMetadata = metadata.append("a")
-                                    .attr("class", "close")
-                                    .style({
-                                        "position": "absolute",
-                                        "top": "10px",
-                                        "right": "10px",
-                                        "cursor": "pointer"
-                                    })
+                                    .attr("class", "njg-close")
                                     .text("\u2716"),
             onMouseOverNode = function(n) {
                 var self = this;
@@ -255,6 +231,11 @@
                     height: nPos.height,
                     right: nPos.right - cPos.left
                 };
+            },
+            removeOpenClass = function () {
+                // remove open class to nodes and links
+                d3.selectAll(".njg-node.njg-open").attr("class", "njg-node");
+                d3.selectAll(".njg-link.njg-open").attr("class", "njg-link");
             };
 
         d3.json(url, function(error, graph) {
@@ -287,12 +268,12 @@
             var link = panner.selectAll(".link")
                              .data(links)
                              .enter().append("line")
-                             .attr("class", "link")
+                             .attr("class", "njg-link")
                              .on("click", opts.onClickLink),
                 node = panner.selectAll(".node")
                              .data(nodes)
                              .enter().append("circle")
-                             .attr("class", "node")
+                             .attr("class", "njg-node")
                              .attr("r", 7)
                              .on("mouseover", onMouseOverNode)
                              .on("mouseout", onMouseOutNode)
@@ -300,6 +281,7 @@
                              .call(drag);
 
             closeOverlay.on("click", function () {
+                removeOpenClass();
                 overlay.style("display", "none");
             });
             closeMetadata.on("click", function () {
@@ -310,52 +292,7 @@
             if (opts.defaultStyle) {
                 var colors = d3.scale.category20c();
                 node.style({
-                    "fill": function(d){ return colors(d.linkCount); },
-                    "cursor": "pointer"
-                });
-                link.style({
-                    "stroke": "#999",
-                    "stroke-width": 2,
-                    "stroke-opacity": 0.4,
-                    "cursor": "pointer"
-                });
-                tooltip.style({
-                    "background": "rgba(0, 0, 0, 0.5)",
-                    "color": "#fff",
-                    "padding": "5px 10px",
-                    "border-radius": "3px",
-                    "font-family": "Arial, sans-serif",
-                    "font-size": "13px"
-                });
-                overlay.style({
-                    "width": "auto",
-                    "height": "auto",
-                    "min-width": "200px",
-                    "max-width": "400px",
-                    "border": "1px solid #ccc",
-                    "border-radius": "2px",
-                    "background": "#fbfbfb",
-                    "top": "10px",
-                    "right": "10px",
-                    "padding": "0 15px",
-                    "font-family": "Arial, sans-serif",
-                    "font-size": "14px",
-                    "color": "#6d6357"
-                });
-                metadata.style({
-                    "width": "auto",
-                    "height": "auto",
-                    "min-width": "200px",
-                    "max-width": "500px",
-                    "border": "1px solid #ccc",
-                    "border-radius": "2px",
-                    "background": "#fbfbfb",
-                    "top": "10px",
-                    "left": "10px",
-                    "padding": "0 15px",
-                    "font-family": "Arial, sans-serif",
-                    "font-size": "14px",
-                    "color": "#6d6357"
+                    "fill": function(d){ return colors(d.linkCount); }
                 });
             }
 

@@ -133,6 +133,21 @@ list_meshrdf_files_with_zero_size()
 	find /var/www/networks -type f -size 0 | fgrep "/recent/"
 }
 
+ignore_network()
+{
+	local network="$1"
+
+	case "$network" in
+		zumnorde|artotel|fparkssee|satama|marinapark|ffsundi|sachsenhausen)
+			log "[OK] ignoring call for '$network'"
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 gen_meshrdf_for_network()
 {
 	local funcname='gen_meshrdf_for_network'
@@ -145,6 +160,8 @@ gen_meshrdf_for_network()
 	local hash_file="/dev/shm/meshrdf_hash_$network"
 	local hash_now="$( date +%s -r "$newest_file" )"
 	local hash_last
+
+	ignore_network "$network" && return 0
 
 	case "$network" in
 		zumnorde|artotel|fparkssee|satama|marinapark|ffsundi|sachsenhausen)
@@ -382,13 +399,21 @@ for NET in $LIST; do {
 					rm "/var/www/networks/$NETWORK/meshrdf/map_"*				# fixme!
 				;;
 				*)
+					ignore_network "$NETWORK" || {
 					log "[OK] writing netjson for '$NETWORK'"
 					cd "/var/www/networks/$NETWORK/meshrdf"
-					/var/www/scripts/meshrdf_generate_netjson.sh "$NETWORK" >"map.json.$$" && {
+
+					rm map.json.* 2>/dev/null	# FIXME! remove later...
+					if /var/www/scripts/meshrdf_generate_netjson.sh "$NETWORK" >"map.json.$$"; then
 						mv "map.json.$$" "map.json"
-					}
+						log "[OK] ready netjson for '$NETWORK'"
+					else
+						log "[ERR] during netjson"
+						rm "map.json.$$"
+					fi
+
 					cd - 2>/dev/null
-					log "[OK] ready netjson for '$NETWORK'"
+					}
 				;;
 			esac
 		else

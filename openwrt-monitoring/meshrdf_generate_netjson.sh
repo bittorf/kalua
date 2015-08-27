@@ -26,18 +26,20 @@ file_ok()
 	test -r "$1" || return 1
 	file_too_old "$1" && return 1
 	mac_filtered "$1" && return 1
-
-	return 0
+	. $FILE && {
+		test -n "$v2"	# only if git-version available, otherwise it's a cam or something alike
+	}
 }
 
 interpret_neigh()
 {
+	# see: olsr_neighs_meshrdf_evalable()
 	# ~5:10.63.4.1:10.63.5.1:COST:1.000:1.000:1.000:1:12:7.2:g-40:10.63.4.33:10.63.40.33:COST:1.000:1.000:0.100:1:0:7.2:g
+
 	local varname="$1"
 	local line="$2"
-	local old_ifs
 
-	old_ifs="$IFS"; IFS=":"; set -- $line; IFS="$old_ifs"
+	local old_ifs="$IFS"; IFS=':'; set -- $line; IFS="$old_ifs"
 
 	case "$varname" in
 		ip_local)
@@ -54,6 +56,22 @@ interpret_neigh()
 		;;
 		ndev)
 			echo "$1" | cut -b1	# ~6 -> ~
+		;;
+		'link_type')
+			case "$( echo "$1" | cut -b1 )" in
+				'~')
+					echo 'wireless'		# TODO: b/g/a/n/ac + bluetooth + zigbee...
+				;;
+				'-')
+					echo 'ethernet'
+				;;
+				'=')
+					echo 'tunnel'
+				;;
+				*)
+					echo 'unknown'
+				;;
+			esac
 		;;
 		tx_rate)
 			echo "$9"
@@ -139,14 +157,8 @@ EOF
 
 FILELIST="$( find recent/ -type f | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
 
-SERVER_UNIXTIME="$( date +%s )"
-
 for FILE in $FILELIST; do {		# preselect interesting nodes
 	file_ok "$FILE" || continue
-        . $FILE
-	[ "$NODE" = '0' ] && continue	# camserver giancarlo
-
-#	log "wifimode: $WIFIMODE"
 
 	print()
 	{
@@ -159,13 +171,18 @@ for FILE in $FILELIST; do {		# preselect interesting nodes
 			echo "10.63.$NODE.3 $NODE"
 			echo "10.63.$NODE.25 $NODE"
 			echo "10.63.$NODE.33 $NODE"
+			echo "10.63.$NODE.57 $NODE"
+			echo "10.63.$NODE.58 $NODE"
 			echo "10.63.$NODE.61 $NODE"
 
 			echo "10.10.$NODE.1 $NODE"
 			echo "10.10.$NODE.3 $NODE"
 			echo "10.10.$NODE.25 $NODE"
 			echo "10.10.$NODE.33 $NODE"
+			echo "10.10.$NODE.57 $NODE"
+			echo "10.10.$NODE.58 $NODE"
 			echo "10.10.$NODE.61 $NODE"
+			echo "10.10.$NODE.125 $NODE"
 			echo "10.10.$NODE.129 $NODE"
 		} >>'map.temp.ip2id'
 
@@ -183,14 +200,15 @@ for FILE in $FILELIST; do {		# preselect interesting nodes
 			cat <<EOF
 		{
 			"id": "$NODE",
-			"label": "node-$NODE",
+			"label": "$SSHPUBKEYFP",
 			"local_addresses": [
 				"10.63.$NODE.1",
 				"10.63.$NODE.33"
 			],
 			"properties": {
 				"hostname": "$HOSTNAME",
-				"wifimac": "$WIFIMAC"
+				"wifimac": "$WIFIMAC",
+				"hardware": "$HW"
 			}
 EOF
 			echo -n '		}'
@@ -309,10 +327,8 @@ ip2id()
 # all links
 for FILE in $FILELIST; do {		# describe all connections, which are not used for inet, and are not described before
 	file_ok "$FILE" || continue
-	. $FILE
-	[ "$NODE" = '0' ] && continue	# camserver giancarlo
 
-	echo $NEIGH | sed 's/[=~-]/\n&/g' >"/tmp/links_$$"
+	echo "$NEIGH" | sed 's/[=~-]/\n&/g' >"/tmp/links_$$"
 	while read LINE; do {
 		[ -z "$LINE" ] && continue
 
@@ -378,7 +394,7 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 
 		# avoiding double conns
 		grep -sq ^"$ID_LOCAL $ID_REMOTE" ./map.temp.conns && {
-#			log "[ERR] already known: '$ID_LOCAL $ID_REMOTE'"
+#			log "[OK] already plotted: '$ID_LOCAL $ID_REMOTE'"
 			continue
 		}
 
@@ -392,7 +408,8 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 		{
 			"source": "$ID_LOCAL",
 			"target": "$ID_REMOTE",
-			"cost": $NCOST
+			"cost": $NCOST,
+			"type": "$( interpret_neigh 'link_type' "$LINE" )"
 EOF
 		echo -n '		}'
 
@@ -407,5 +424,4 @@ echo
 echo "	]"
 echo "}"
 
-rm 2>/dev/null ./map.temp.node2hostname ./map.temp.conns map.temp.ip2id
-
+rm 2>/dev/null ./map.temp.node2hostname ./map.temp.conns map.temp.ip2id "/tmp/links_$$"

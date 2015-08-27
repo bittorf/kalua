@@ -1360,7 +1360,11 @@ func_cell_uptime ()
 			echo -n " bgcolor='$COLOR_ORANGE'>"
 		fi
 	else
-		echo -n ">"
+		if [ "$reboot_reason" = 'nightly_reboot' ]; then
+			echo -n " bgcolor='$COLOR_BRIGHT_GREEN'>"
+		else
+			echo -n ">"
+		fi
 	fi
 
 	echo -n "<a href='#' title='$reboot_reason@$STARTDATE|${REBOOT_COUNT}_reboots!/border=$border_allowed_reboots'> $UPTIME </a></td>"
