@@ -307,6 +307,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			}
 		;;
 		*)
+			# see also: https://dev.openwrt.org/changeset/46754/trunk ...46760
 			# tested for brcm47xx
 			config="$( ls -1 $dir/config-* 2>/dev/null | head -n1 )"
 
@@ -1015,7 +1016,7 @@ check_working_directory()
 		KALUA_DIRNAME="$( basename "$repo" | cut -d'.' -f1 )"
 		echo "$repo" >'KALUA_REPO_URL'
 
-		log "[OK] after doing 'cd openwrt' you should do:"
+		log "[OK] after doing 'cd openwrt' you should do:"	# TODO: ln -s /home/bastian/openwrt_download dl + chmod +x ...
 		log '../build.sh --help'
 
 		exit $error
@@ -2279,6 +2280,11 @@ build_options_set()
 			'vtun')
 				apply_symbol 'CONFIG_PACKAGE_vtun=y'			# network: vpn: vtun:
 				apply_symbol 'CONFIG_VTUN_SSL is not set'		# ...
+#				apply_symbol 'CONFIG_VTUN_LZO is not set'		# ...
+			;;
+			'vtunFull')
+				apply_symbol 'CONFIG_PACKAGE_vtun=y'			# network: vpn: vtun:
+#				apply_symbol 'CONFIG_VTUN_SSL is not set'		# ...
 #				apply_symbol 'CONFIG_VTUN_LZO is not set'		# ...
 			;;
 			'mesh')
