@@ -1586,9 +1586,9 @@ _olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COS
 	while read LINE; do {
 		eval $LINE
 
-		DEVTYPE="$(   _net devtype2symbol $( _net dev_type $( _net iplocal2dev $LOCAL ) ) )"
-		METRIC="$( _olsr remoteip2metric $REMOTE )"
-		REMOTE_ID="$( _ipsystem do $REMOTE )"
+		DEVTYPE="$(   _net devtype2symbol $( _net dev_type $( _net iplocal2dev "$LOCAL" ) ) )"
+		METRIC="$( _olsr remoteip2metric "$REMOTE" )"
+		REMOTE_ID="$( _ipsystem do "$REMOTE" )"
 
 		[ "$minstrel" = "true" ] && {
 			mac="$( _net ip2mac "$REMOTE" lazy )"
@@ -1598,8 +1598,21 @@ _olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COS
 		}
 
 		echo -n "${DEVTYPE}${REMOTE_ID}:${LOCAL}:${REMOTE}:${METHOD}:${LQ}:${NLQ}:${COST}:${METRIC}:${txrate:-0}:${txthroughput:-0}:${system:-0}"
-
 	} done <"$FILE"
+
+	local hna4 route local_ip remote_ip remote_id
+	local olsr_wired_perfect="$METHOD:1.000:1.000:1.000:1:0:0:0"	# lq/nlq/cost/metric/tx/tx/system
+	local devtype="$( _net devtype2symbol 'wired' )"
+
+	for hna4 in $( _olsr show_hna4_slaves ); do {
+		route="$( ip -o route get "$hna4" )"
+		# 10.63.27.0 via 10.63.27.33 dev eth0.0  src 10.63.24.33 \    cache
+		local_ip="$( echo "$route" | cut -d' ' -f8 )"
+		remote_ip="$( echo "$route" | cut -d' ' -f3 )"
+		remote_id="$( _ipsystem do "$remote_ip" )"
+
+		echo -n "${devtype}${remote_id}:$local_ip:$remote_ip:$olsr_wired_perfect"
+	} done
 }
 
 _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
@@ -1696,7 +1709,8 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 	[ -n "$olsr_ignore" ] && echo "ignored stations: $olsr_ignore"
 
 	for hna4 in $( _olsr show_hna4_slaves ); do {
-		route="$( ip -o route get $hna4 )"
+		route="$( ip -o route get "$hna4" )"
+		# 10.63.27.0 via 10.63.27.33 dev eth0.0  src 10.63.24.33 \    cache
 		local_ip="$( echo "$route" | cut -d' ' -f8 )"
 		remote_ip="$( echo "$route" | cut -d' ' -f3 )"
 
