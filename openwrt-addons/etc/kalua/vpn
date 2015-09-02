@@ -51,13 +51,16 @@ _vpn_innercity_master_vtund()
 					file="$TMPDIR/$funcname"
 					( nc 127.0.0.1 $port >"$file" ) &
 					pid=$!
+
 					i=5
 					while let i-=1; do {
 						grep -sq ^'VTUN server' "$file" && break
 						sleep 1
 					} done
+
 					kill ${pid:-nopid}
 					rm "$file"
+
 					if [ $i -gt 0 ]; then
 						_log do $funcname daemon debug "$action: testconnection OK"
 					else
@@ -65,7 +68,7 @@ _vpn_innercity_master_vtund()
 						_vpn innercity_master_vtund 'restart'
 					fi
 
-					lsof | fgrep '/dev/net/tun' | grep -q ^'olsrd' && {
+					if lsof | fgrep '/dev/net/tun' | grep -q ^'olsrd'; then
 						pid_list="$( pgrep 'vpn_innercity_master_iface up' )"
 						for pid in $pid_list; do {
 							_log do $funcname daemon alert "hanging task: $pid '$( cat /proc/$pid/cmdline )'"
@@ -73,7 +76,9 @@ _vpn_innercity_master_vtund()
 						} done
 
 						_olsr daemon restart 'blocked /dev/net/tun'
-					}
+					else
+						true
+					fi
 				else
 					_log do $funcname daemon alert "$action: empty pid - will startup"
 					_vpn innercity_master_vtund fire
