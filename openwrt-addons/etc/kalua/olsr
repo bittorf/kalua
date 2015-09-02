@@ -1549,7 +1549,7 @@ _olsr_neighs_extended_evalable()
 	} done <"$FILE"
 }
 
-_olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COST : 2.123 : 1.234 : 1.678 : 1 : 12 : 5.5 : n
+_olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COST : 2.123 : 1.234 : 1.678 : 1 : 12 : 5.5 : 5180
 {						# FIXME! add _speedtest_stats()
 	local FILE='/tmp/OLSR/LINKS.sh'		# 1+3+4+4+1+4+4+4+1+2+2 = 30 bytes / neigh
 	local VERBOSE="$2"
@@ -1569,7 +1569,7 @@ _olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COS
 	local METHOD='COST'	# linkcost / etx / batadv / ...
 	local COUNT=0
 	local LOCAL REMOTE LQ NLQ COST DEVTYPE METRIC
-	local txrate txthroughput mac minstrel efficiency system
+	local txrate txthroughput mac minstrel efficiency system freq dev
 	local hna4 route local_ip remote_ip remote_id olsr_wired_perfect devtype
 
 	[ -d "/sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations" ] && {
@@ -1581,8 +1581,9 @@ _olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COS
 
 		METRIC="$( _olsr remoteip2metric "$REMOTE" )"
 		REMOTE_ID="$( _ipsystem do "$REMOTE" )"
-		DEVTYPE="$( _net iplocal2dev "$LOCAL" )"
-		DEVTYPE="$( _net dev_type "$DEVTYPE" )"
+		dev="$( _net iplocal2dev "$LOCAL" )"
+		freq="$( _wifi dev2freq "$DEVTYPE" )"
+		DEVTYPE="$( _net dev_type "$dev" )"
 		DEVTYPE="$( _net devtype2symbol "$DEVTYPE" )"
 
 		[ "$minstrel" = 'true' ] && {
@@ -1591,10 +1592,10 @@ _olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.42.1 : 10.63.167.65 : COS
 			eval $( _wifi minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate "$mac" )
 		}
 
-		echo -n "${DEVTYPE}${REMOTE_ID}:${LOCAL}:${REMOTE}:${METHOD}:${LQ}:${NLQ}:${COST}:${METRIC}:${txrate:-0}:${txthroughput:-0}:${system:-0}"
+		echo -n "${DEVTYPE}${REMOTE_ID}:${LOCAL}:${REMOTE}:${METHOD}:${LQ}:${NLQ}:${COST}:${METRIC}:${txrate:-0}:${txthroughput:-0}:$freq"
 	} done <"$FILE"
 
-	olsr_wired_perfect="$METHOD:1.000:1.000:1.000:1:0:0:0"	# lq/nlq/cost/metric/tx/tx/system
+	olsr_wired_perfect="$METHOD:1.000:1.000:1.000:1:0:0:0"	# lq/nlq/cost/metric/tx/tx/freq
 	devtype="$( _net devtype2symbol 'wired' )"
 
 	for hna4 in $( _olsr show_hna4_slaves ); do {
