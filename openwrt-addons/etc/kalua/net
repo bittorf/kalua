@@ -2,11 +2,43 @@
 
 _net_tcp_port_reachable()
 {
-	local server="$1"
-	local port="$2"
+	local funcname='net_tcp_port_reachable'
+	local server="$1"		# e.g. 127.0.0.1
+	local port="$2"			# e.g. 80
+	local check_output="$3"		# pattern or <empty>
+
+	local file="$TMPDIR/$funcname"
+	local rc=0
+	local pid i
+
+	which nc >/dev/null || {
+		_log do $funcname daemon info '[ERR] no netcat'
+		return 0
+	}
 
 	# we can't rely on '-w3' or '-z' because of lobotomized busybox netcat
-	echo 1 | nc "$server" "$port" 2>/dev/null
+	( echo | nc "$server" "$port" 2>/dev/null >"$file" || touch "$file.error" ) &
+	pid=$!
+
+	if [ -n "$check_output" ]; then
+		i=5
+		while let i-=1; do {
+			grep -sq -- "$check_output" "$file" && break
+			sleep 1
+		} done
+
+		[ $i -gt 0 ] || {
+			_log do $funcname daemon info "[ERR] '$( cat "$file" )'"
+			rc=1
+		}
+	else
+		[ -e "$file.error" ] && rc=1
+	fi
+
+	kill ${pid:-empty_pid}
+	rm "$file" "$file.error" 2>/dev/null
+
+	return $rc
 }
 
 _net_roaming_eventlistener()

@@ -1284,32 +1284,22 @@ _watch_sshd_or_telnet()
 			kill $pid_telnetd
 		}
 
-		[ "$option" = "force" -a -z "$LOWMEM" ] && {
+		[ "$option" = 'force' -a -z "$LOWMEM" ] && {
 			/usr/sbin/cron.reverse_ssh_tunnel no_check_ssh
 		}
 
-		if which nc >/dev/null; then
-			( nc 127.0.0.1 22 >"/tmp/$funcname" ) &
-			pid="$!"
-			sleep 3
-			kill $pid
-
-			# content e.g.: 'SSH-2.0-dropbear_2012.55'
-			if fgrep -i dropbear "/tmp/$funcname" ; then
-				_log do $funcname daemon info "[OK] dropbear seems to run: '$( head -n1 "/tmp/$funcname" )'"
-				rm "/tmp/$funcname"
+		# content e.g.:
+		# 'SSH-2.0-dropbear_2012.55'
+		# 'SSH-2.0-OpenSSH_6.1p1 Debian-4'
+		if _net tcp_port_reachable '127.0.0.1' '22' 'SSH-2.0'; then
+			_log do $funcname daemon info '[OK] dropbear seems to run'
 				return 0
-			else
-				_log do $funcname daemon alert "[ERR] dropbear seems to hang: '$( head -n1 "/tmp/$funcname" )' - restarting"
-				rm "/tmp/$funcname"
-				restart_sshd && return 0
-			fi
 		else
-			_log do $funcname daemon info "no netcat - no deepcheck possible"
-			return 0
+			_log do $funcname daemon alert '[ERR] dropbear seems to hang - restarting'
+			restart_sshd && return 0
 		fi
 	else
-		if [ "$option" = "force" ]; then
+		if [ "$option" = 'force' ]; then
 			restart_sshd && return 0
 		else
 			[ -x '/etc/rc.d/dropbear' ] && {

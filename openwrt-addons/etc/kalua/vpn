@@ -40,7 +40,7 @@ _vpn_innercity_master_vtund()
 	local funcname='vpn_innercity_master_vtund'
 	local action="$1"	# check_on_server|get_port|fire|start|stop|restart
 	local config="${2:-/tmp/vtund.conf}"
-	local line port pid pid_list file i
+	local line port pid pid_list
 
 	port="$( uci -q get system.vpn.port || echo '5001' )"
 
@@ -48,20 +48,7 @@ _vpn_innercity_master_vtund()
 		'check_on_server')
 			if [ -e "$config" ]; then
 				if pidof vtund >/dev/null; then
-					file="$TMPDIR/$funcname"
-					( nc 127.0.0.1 $port >"$file" ) &
-					pid=$!
-
-					i=5
-					while let i-=1; do {
-						grep -sq ^'VTUN server' "$file" && break
-						sleep 1
-					} done
-
-					kill ${pid:-nopid}
-					rm "$file"
-
-					if [ $i -gt 0 ]; then
+					if _net tcp_port_reachable '127.0.0.1' "$port" 'VTUN server'; then
 						_log do $funcname daemon debug "$action: testconnection OK"
 					else
 						_log do $funcname daemon alert "$action: testconnection failed"
