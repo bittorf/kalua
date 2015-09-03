@@ -77,12 +77,16 @@ EOF
 
 	# uptime.sec->minutes divideable (without rest) by 360? -> each 360 mins
 	read UP REST </proc/uptime
-	if [ $(( $(( ${UP%.*} / 60 )) % 360 )) -eq 0 ]; then
+	[ $(( $(( ${UP%.*} / 60 )) % 360 )) -eq 0 ] && {
 		_firmware update_pmu
 		_watch archivsize '/www/everlasting_syslog.txt' 200 300
-	else
-		true
-	fi
+	}
+
+	case "$( date +%M )" in
+		00|15|30|45)
+			cron.monitoring send_alive_message
+		;;
+	esac
 
 	# TODO: build an interactive 'vpn_setup'
 	# TODO: compile 'uci'
@@ -146,13 +150,18 @@ EOF
 	# echo >>/etc/kalua_uci 'system.@system[0].hostname=ChicagoVPS'
 	# echo >>/etc/kalua_uci 'system.@fwupdate[0].mode=testing'
 	# echo >>/etc/kalua_uci 'system.vpn.port=5001'
-	# - sms_password
+	# echo >>/etc/kalua_uci 'system.@profile[0].name=ffweimar_ap'
+	# echo >>/etc/kalua_uci 'system.@profile[0].nodenumber=1'
+	# echo >>/etc/kalua_uci 'system.@profile[0].ipsystem=ffweimar'
+	# special1: touch /www/SOFTWARE_FULLY_INSTALLED
+	# special2: echo 02caffee0001 >/www/monitoring.wifimac
+	# - set sms_password?
 	#
 	### KALUA:
 	# wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/tarball.tgz
 	# cd /; tar xzf /tmp/tarball.tgz && rm -f /tmp/tarball.tgz; cd ~
 	# /etc/kalua_init
-	# (respect possible error-messages)
+	# (respect possible error-messages, e.g. bash-linking)
 	#
 	### WEBSERVER:
 	# apt-get -y install $YOUR_CHOICE (e.g. apache2 or http://zeniv.linux.org.uk/~alan/%C2%B5Web/ )
