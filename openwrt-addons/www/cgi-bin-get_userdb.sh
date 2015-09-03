@@ -38,9 +38,6 @@ db_needed()
 }
 
 if db_needed; then
-	_http header_mimetype_output 'text/plain'
-	echo '# OK - FREE'
-else
 	# generated via '_db_restore()'
 	touch '/tmp/USERDB_COPY.cgi.gz'
 
@@ -71,4 +68,7 @@ else
 			fi
 		;;
 	esac
+else
+	_http header_mimetype_output 'text/plain'
+	echo '# OK - FREE'
 fi
