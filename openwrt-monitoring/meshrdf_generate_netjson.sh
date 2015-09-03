@@ -27,14 +27,34 @@ file_ok()
 	file_too_old "$1" && return 1
 	mac_filtered "$1" && return 1
 	. $FILE && {
-		test -n "$v2"	# only if git-version available, otherwise it's a cam or something alike
+		test -n "$v2" || return 1	# only if git-version available, otherwise it's a cam or something alike
+		test $v2 -gt 30000 || {
+			log "v2: $v2 - $FILE"	# ignore svn on PBX (which is ~2800)
+
+			case "$NETWORK" in
+				*'monami'*)
+					log "simulating good for 'monami'"
+					return 0
+				;;
+				*)
+					return 1
+				;;
+			esac
+		}
 	}
+}
+
+mac2linklocal()
+{
+	local mac="$( echo "$1" | sed 's/\(\w\w\)\(\w\w\)\(\w\w\)\(\w\w\)\(\w\w\)\(\w\w\)/\1:\2:\3:\4:\5:\6/g' )"
+	local oldIFS="$IFS"; IFS=':'; set -- $mac; IFS="$oldIFS"
+	printf "fe80::%x:%x:%x:%x\n" $(( 0x${1}${2} ^ 0x200 )) 0x${3}ff 0xfe${4} 0x${5}${6}
 }
 
 interpret_neigh()
 {
 	# see: olsr_neighs_meshrdf_evalable()
-	# ~5:10.63.4.1:10.63.5.1:COST:1.000:1.000:1.000:1:12:7.2:g-40:10.63.4.33:10.63.40.33:COST:1.000:1.000:0.100:1:0:7.2:g
+	# ~5:10.63.4.1:10.63.5.1:COST:1.000:1.000:1.000:1:12:7.2:5180:5-40:10.63.4.33:10.63.40.33:COST:1.000:1.000:0.100:1:0:7.2:2146:20
 
 	local varname="$1"
 	local line="$2"
@@ -57,7 +77,13 @@ interpret_neigh()
 		ndev)
 			echo "$1" | cut -b1	# ~6 -> ~
 		;;
-		'link_type')
+		'link_frequency')
+			echo "$11"
+		;;
+		'link_chanbw')
+			echo "$12"
+		;;
+		'link_carrier')
 			case "$( echo "$1" | cut -b1 )" in
 				'~')
 					echo 'wireless'		# TODO: b/g/a/n/ac + bluetooth + zigbee...
@@ -157,7 +183,7 @@ EOF
 
 FILELIST="$( find recent/ -type f | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
 
-for FILE in $FILELIST; do {		# preselect interesting nodes
+for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 	file_ok "$FILE" || continue
 
 	print()
@@ -167,6 +193,14 @@ for FILE in $FILELIST; do {		# preselect interesting nodes
 
 		{
 			# TODO: build dynamically
+			# FIXME - ejbw
+			echo "172.17.0.2 50"
+			echo "192.168.0.1 43"
+
+			# monami
+			echo '192.168.2.10 6'
+			echo '192.168.2.102 7'
+
 			echo "10.63.$NODE.1 $NODE"
 			echo "10.63.$NODE.3 $NODE"
 			echo "10.63.$NODE.25 $NODE"
@@ -177,6 +211,8 @@ for FILE in $FILELIST; do {		# preselect interesting nodes
 
 			echo "10.10.$NODE.1 $NODE"
 			echo "10.10.$NODE.3 $NODE"
+			echo "10.10.$NODE.5 $NODE"
+			echo "10.10.$NODE.7 $NODE"
 			echo "10.10.$NODE.25 $NODE"
 			echo "10.10.$NODE.33 $NODE"
 			echo "10.10.$NODE.57 $NODE"
@@ -200,15 +236,18 @@ for FILE in $FILELIST; do {		# preselect interesting nodes
 			cat <<EOF
 		{
 			"id": "$NODE",
-			"label": "$SSHPUBKEYFP",
+			"label": "$HOSTNAME ($NODE)",
 			"local_addresses": [
 				"10.63.$NODE.1",
-				"10.63.$NODE.33"
+				"10.63.$NODE.33",
+				"$( mac2linklocal "$WIFIMAC" )"
 			],
 			"properties": {
 				"hostname": "$HOSTNAME",
 				"wifimac": "$WIFIMAC",
-				"hardware": "$HW"
+				"hardware": "$HW",
+				"ssh_pub_key": "$SSHPUBKEYFP",
+				"dataset": "<a href='recent/$WIFIMAC'>clickme<\/a>"
 			}
 EOF
 			echo -n '		}'
@@ -335,8 +374,10 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 		NDEV="$(   func_interpret_neigh 'ndev'   "$LINE" )"
 		NNEIGH="$( func_interpret_neigh 'nneigh' "$LINE" )"
 		NCOST="$(  func_interpret_neigh 'ncost'  "$LINE" )"
+
 		LOCAL="$(  func_nodenumber2hostname "$NODE" )"
 		REMOTE="$( func_nodenumber2hostname "$NNEIGH" )"
+
 		COST="$( echo "$NCOST" | sed 's/[^0-9]//g' )"
 		#
 		IP_LOCAL="$(  interpret_neigh 'ip_local'  "$LINE" )"
@@ -404,12 +445,33 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 			FIRST_LINK='true'
 		fi
 
+		link_carrier="$(   interpret_neigh 'link_carrier'   "$LINE" )"
+		link_frequency="$( interpret_neigh 'link_frequency' "$LINE" )"
+		link_chanbw="$(    interpret_neigh 'link_chanbw'    "$LINE" )"
+
+		if [ "$link_frequency" = '0' -o -z "$link_frequency" ]; then
+			comma=
+		else
+			comma=','
+		fi
+
 		cat <<EOF
 		{
 			"source": "$ID_LOCAL",
 			"target": "$ID_REMOTE",
 			"cost": $NCOST,
-			"type": "$( interpret_neigh 'link_type' "$LINE" )"
+			"properties": {
+				"carrier": "$link_carrier"${comma}
+EOF
+		[ -n "$comma" ] && {
+			cat <<EOF
+				"frequency": "$link_frequency",
+				"chanbw": "$link_chanbw"
+EOF
+		}
+
+		cat <<EOF
+			}
 EOF
 		echo -n '		}'
 

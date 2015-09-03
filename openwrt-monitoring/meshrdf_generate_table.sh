@@ -3238,7 +3238,8 @@ esac
 					func_update2color 'bad_version:broken_wifi_regdb'
 				elif [ $1 -ge 45040 -a $1 -lt 45189 ]; then
 					func_update2color 'bad_version:uci_broken'
-				elif [ $1 -ge 44942 -a $1 -lt 45790 ]; then
+				elif [ $1 -ge 44918 -a $1 -lt 45790 ]; then
+					# reset to defaults / firstboot by accident
 					# https://dev.openwrt.org/ticket/19564
 					# internally fixed since ~45790
 					func_update2color 'bad_version:fstools_broken'

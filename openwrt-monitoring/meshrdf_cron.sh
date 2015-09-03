@@ -138,11 +138,14 @@ ignore_network()
 	local network="$1"
 
 	case "$network" in
-		zumnorde|artotel|fparkssee|satama|marinapark|ffsundi|sachsenhausen)
+		zumnorde|artotel|fparkssee|satama|marinapark|ffsundi|ffleipzig|\
+		sachsenhausen|hotello-*|olympia|dhsylt|cupandcoffee|elephant|\
+		galerie|preskil|tuberlin|vivaldi)
 			log "[OK] ignoring call for '$network'"
 			return 0
 		;;
 		*)
+#			echo "$(date): $network" >>'/var/run/BLA'
 			return 1
 		;;
 	esac
@@ -162,13 +165,6 @@ gen_meshrdf_for_network()
 	local hash_last
 
 	ignore_network "$network" && return 0
-
-	case "$network" in
-		zumnorde|artotel|fparkssee|satama|marinapark|ffsundi|sachsenhausen)
-			log "[OK] $funcname() ignoring call for '$network'"
-			return 0
-		;;
-	esac
 
 	respect_fileage()
 	{
@@ -556,6 +552,11 @@ urlencode ()					# SENS: converting chars using a fixed table, where we know the
 			-e 's/\$/%24/g' \
 			-e 's/\^/%5e/g' \
 			-e 's/ /+/g'
+}
+
+[ "${#MESSAGE}" -gt 160 ] && {
+	log "message too long: $MESSAGE"
+	MESSAGE=
 }
 
 [ -n "$MESSAGE" ] && {
