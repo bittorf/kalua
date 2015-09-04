@@ -247,7 +247,17 @@ for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 				"wifimac": "$WIFIMAC",
 				"hardware": "$HW",
 				"ssh_pub_key": "$SSHPUBKEYFP",
-				"dataset": "<a href='recent/$WIFIMAC'>clickme<\/a>"
+				"dataset": "<a href='recent/$WIFIMAC'>clickme<\/a>",
+				"nexthop": "${GWNODE:-0}",
+				"speed_download": "${SENS:-0}",
+				"clients": {
+					"wifi_2ghz": ${r4:-0},
+					"wifi_5ghz": 0,
+					"wifi_total": ${r4:-0},
+					"ethernet": ${r5:-0},
+					"bluetooth": 0,
+					"total": $(( ${r4:-0} + ${r5:-0} ))
+				}
 			}
 EOF
 			echo -n '		}'

@@ -237,6 +237,7 @@ IALL=$I
 
 I=0
 for NET in $LIST; do {
+	ignore_network "$NET" && continue
 	NET="/var/www/networks/$NET/meshrdf/recent"
 
 	# build often!
@@ -466,7 +467,10 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 	FILE_SUMMARY_TEMP="/tmp/summary.html.tmp"
 	FILE_SUMMARY="/var/www/networks/error/index.html"
 
-	for NET in $LIST; do :; done			# get last
+	# get first good network
+	for NET in $LIST; do {
+		[ -e "$NET/../../index.html" ] && break
+	} done
 
 	NETWORK="$( echo $NET | cut -d'/' -f5 )"	# e.g. elephant
 
