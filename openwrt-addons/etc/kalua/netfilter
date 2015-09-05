@@ -1390,45 +1390,33 @@ EOF
 		;;
 	esac
 
-	if _netfilter user_dataretention_needed; then
-		_netfilter user_dataretention_add "$mac" "$ip"
-	else
-		# at least install some counters
-		$IPT -t mangle -N outgoing_$mac
-		$IPT -t mangle -N incoming_$mac
+	# at least install some counters
+	$IPT -t mangle -N outgoing_$mac
+	$IPT -t mangle -N incoming_$mac
 
-		$IPT -t mangle -A FORWARD -d $ip                            -j incoming_$mac
-		$IPT -t mangle -A FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
-		$IPT -t mangle -A FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
+	$IPT -t mangle -A FORWARD -d $ip                            -j incoming_$mac
+	$IPT -t mangle -A FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
+	$IPT -t mangle -A FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
 
-		cat >>"/tmp/NETFILTER/USER/$mac/user_del" <<EOF
+	cat >>"/tmp/NETFILTER/USER/$mac/user_del" <<EOF
 $IPT -t mangle -D FORWARD        -m mac   --mac-source $mac -j outgoing_$mac
 $IPT -t mangle -D FORWARD -s $ip -m mac ! --mac-source $mac -j incoming_$mac
 $IPT -t mangle -D FORWARD -d $ip                            -j incoming_$mac
 $IPT -t mangle -X incoming_$mac
 $IPT -t mangle -X outgoing_$mac
 EOF
-		[ -e '/tmp/ENDBOOT' ] || {
-			pidof ulogd >/dev/null && /etc/init.d/ulogd stop
-			rmmod 2>/dev/null ipt_ULOG
-			rmmod 2>/dev/null ipt_REDIRECT
-			rmmod 2>/dev/null xt_state
-		}
-	fi
+	[ -e '/tmp/ENDBOOT' ] || {
+		pidof ulogd >/dev/null && /etc/init.d/ulogd stop
+		rmmod 2>/dev/null ipt_ULOG
+		rmmod 2>/dev/null ipt_REDIRECT
+		rmmod 2>/dev/null xt_state
+	}
 
 	bool_true 'system.@weblogin[0].hideandseek' && {
 		_vpn hideandseek_user_add "$ip"
 	}
 
 	return 0
-}
-
-_netfilter_user_dataretention_needed()
-{
-	# disabled till memory-probs are solved
-	return 1
-
-	bool_true 'system.@vds[0].enabled'
 }
 
 _netfilter_set_arp()
@@ -1503,7 +1491,6 @@ _netfilter_user_del()
 		}
 
 		_netfilter traffic_control_user_del "$mac"
-		_netfilter user_dataretention_del "$mac" "$ip"
 
 		bool_true 'system.@weblogin[0].hideandseek' && {
 			_vpn hideandseek_user_del "$ip"
