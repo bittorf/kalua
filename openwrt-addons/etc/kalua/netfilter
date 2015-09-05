@@ -7,7 +7,6 @@
 # 0x14 = port53tcp, redirect to local port 53
 # 0x15 = port53udp, redirect to local port 5353
 # 0x16 = port53tcp, redirect to local port 5353
-# 0x22 = adblocking, gets rejected
 # 0x33 = connection_start
 # 0x44 = connection_close
 # 0x88 = unauthenticated, gets rejected
@@ -27,10 +26,6 @@ _netfilter_start()
 	[ -e "/etc/init.d/apply_profile" ] && return 0
 	[ -e "/www/GOOD_MODULE_UNLOAD" ] || {
 		[ -n "$LOWMEM" ] && return 0
-	}
-
-	[ -e "/etc/hosts.drop" ] && {
-		_netfilter adblocking_start
 	}
 
 	bool_true 'system.@weblogin[0].enabled' && {
@@ -893,16 +888,6 @@ _netfilter_splash_start()
 #$debug	$IPT -t mangle -A PREROUTING -p tcp --dport 80	       -j LOG --log-prefix "MANGLE.splash.HTTP: "
 	$IPT -t mangle -A PREROUTING -p tcp --dport 80 	       -j MARK --set-mark 0x11	# redirect HTTP
 
-	case "$( uci -q get uhttpd.main.listen_https )" in
-		*":443")
-#$debug			$IPT -t mangle -A PREROUTING -p tcp --dport 443 -j LOG --log-prefix "MANGLE.splash.HTTPS: "
-			$IPT -t mangle -A PREROUTING -p tcp --dport 443 -j MARK --set-mark 0x12	# redirect HTTPS
-		;;
-	esac
-
-#$debug	$IPT -t mangle -A PREROUTING -m mark --mark 0 -j LOG --log-prefix "MANGLE.unknown.REJECT"
-	$IPT -t mangle -A PREROUTING -m mark --mark 0 -j MARK --set-mark 0x88	# not marked? -> reject
-
 	_netfilter is_meshnode && {
 		$IPT -A FORWARD ! -i $WIFIDEV ! -o $WIFIDEV		# wire -> wire
 		$IPT -A FORWARD ! -i $WIFIDEV   -o $WIFIDEV		# wire -> wifi
@@ -931,7 +916,6 @@ _netfilter_splash_start()
 		$IPT -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
 		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x14/0xff -j DNAT --to-destination $ip:53
 		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
-		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
 	}
 
 	# TODO: hotplug
@@ -951,7 +935,6 @@ _netfilter_splash_start()
 		$IPT -t nat -A PREROUTING -p udp $dev -m mark --mark 0x13/0xff -j REDIRECT --to-port 53
 		$IPT -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x14/0xff -j REDIRECT --to-port 53
 		$IPT -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x11/0xff -j REDIRECT --to-port 80
-		$IPT -t nat -A PREROUTING -p tcp $dev -m mark --mark 0x12/0xff -j REDIRECT --to-port 443
 	} done
 }
 
@@ -1515,13 +1498,6 @@ _netfilter_user_shaping_add()
 _netfilter_user_shaping_del()
 {
 	local mac="$1"
-}
-
-_netfilter_adblocking_start()
-{
-	$IPT -t mangle -A FORWARD -d 1.1.0.0/20 -j MARK --set-mark 0x22	# see /etc/hosts.drop
-	$IPT -t mangle -A FORWARD -m mark --mark 0x22/0xff -j ACCEPT	# don't overwrite mark on later rules
-	$IPT -A FORWARD -m mark --mark 0x22/0xff -j REJECT
 }
 
 _netfilter_user_stats_process()
