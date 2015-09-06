@@ -497,9 +497,9 @@ _vpn_build_vars()
        elif vars_are_sane; then
              _log do ${FUNC} daemon notice "got ${SERVER} - ping: ${PING}ms"
 	     # here we build a long string:
-	     # each valid table, which is just a space separated string
-	     # is appended to the next one. later we choose only 1 entry.
-             TABLE="${TABLE};${PING} ${i} ${CLIENTS} ${MTU} ${PORT} ${SERVER}"
+	     # each valid varset is a small mini-shell-script (eval-able)
+	     # and (with a space) appended to the next one. later we choose only 1 entry.
+	     TABLE="${TABLE}PING=$PING;NUMBER=$i;CLIENTS=$CLIENTS;MTU=$MTU;PORT=$PORT;SERVER=$SERVER "
        else
             _log do ${FUNC} daemon err "error: invalid data on ${URL}"
        fi
@@ -509,11 +509,8 @@ _vpn_build_vars()
 # no vpn, then exit early
 [ -z "$TABLE" ] && return 1
 
-# get VPN with lowest latency
-# warning: leading spaces somehow break this
-read PING NUMBER CLIENTS MTU PORT SERVER <<EOF 
-  $( echo ${TABLE} | tr ';' '\n' | sed '/^$/d' | shuf | head -n1 ) # TODO?
-EOF
+# get a random VPN entry
+eval $( _list random_element "$TABLE" )
 
  VPN_SERVER="${SERVER}"
 
