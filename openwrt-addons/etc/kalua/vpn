@@ -458,34 +458,26 @@ _vpn_probe_vtund_type ()
 	esac
 }
 
-_vpn_build_vars ()
+_vpn_build_vars()
 {
-
   local FUNC="vpn_build_vars"
 
-  # load json lib
-  . /usr/share/libubox/jshn.sh
+  . /usr/share/libubox/jshn.sh		# OpenWrt JSON-helpers
 
-  # ex: weimarnetz.de
-  DOMAIN="$( uci -q get system.@vpn[0].domain )"
-  # ex: vpn
-  PREFIX="$( uci -q get system.@vpn[0].prefix )"
-  # ex: /freifunk/vpn/
-  JSONPATH="$( uci -q get system.@vpn[0].jsonpath )"
-  # ex: nossl_nolzo
-  VTUNDTYPE="$( _vpn probe_vtund_type )"
-
-  # ugly hack
+  DOMAIN="$( uci -q get system.@vpn[0].domain )"	# e.g. 'weimarnetz.de'
+  PREFIX="$( uci -q get system.@vpn[0].prefix )"	# e.g. 'vpn'
+  JSONPATH="$( uci -q get system.@vpn[0].jsonpath )"	# e.g. '/freifunk/vpn/'
+  VTUNDTYPE="$( _vpn probe_vtund_type )"		# e.g. 'nossl_nolzo'
   local TABLE=
 
-  for i in $(seq 1 10) 
-  do
+  for i in 1 2 3 4 5 6 7 8 9 10; do
     HOST="${i}.${PREFIX}.${DOMAIN}"
     URL="http://${HOST}${JSONPATH}"
+
     if ! JSON=$( _wget do "${URL}" 2>/dev/null ); then
       _log do ${FUNC} daemon err "error fetching ${URL}"
     else
-       json_cleanup # json_get_var variables are not cleaned otherwise.
+       json_cleanup	# json_get_var variables are not cleaned otherwise.
        json_load "${JSON}" 2>/dev/null
        SERVER=     json_get_var SERVER server
        CLIENTS=-1  json_get_var CLIENTS clients
@@ -494,10 +486,19 @@ _vpn_build_vars ()
 
        PING="$( _net ping_getlatency "${SERVER}" )";
        _net tcp_port_reachable "$SERVER" "$PORT" || PORT=-1
-       if [ -z "${PING}" ]; then
+
+	vars_are_sane()
+	{
+		test -n "$SERVER" -a "$CLIENTS" -ge 0 -a "$MTU" -ge 0 -a "$PORT" -ge 0 -a -n "$PING" 2>/dev/null
+	}
+
+       if [ -z "$PING" ]; then
 	    _log do $FUNC daemon info "ping not possible"
-       elif [ -n "$SERVER" -a "$CLIENTS" -ge 0 -a "$MTU" -ge 0 -a "$PORT" -ge 0 -a -n "$PING" 2>/dev/null ]; then
+       elif vars_are_sane; then
              _log do ${FUNC} daemon notice "got ${SERVER} - ping: ${PING}ms"
+	     # here we build a long string:
+	     # each valid table, which is just a space separated string
+	     # is appended to the next one. later we choose only 1 entry.
              TABLE="${TABLE};${PING} ${i} ${CLIENTS} ${MTU} ${PORT} ${SERVER}"
        else
             _log do ${FUNC} daemon err "error: invalid data on ${URL}"
@@ -506,7 +507,7 @@ _vpn_build_vars ()
   done
 
 # no vpn, then exit early
-[ -n "${TABLE}" ] || return 1
+[ -z "$TABLE" ] && return 1
 
 # get VPN with lowest latency
 # warning: leading spaces somehow break this
