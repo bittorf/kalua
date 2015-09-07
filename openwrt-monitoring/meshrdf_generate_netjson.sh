@@ -467,10 +467,14 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 #		[ $COST -gt 5000 ] && continue		# only good neighs for smaller topology
 
 
-		[ -z "$COST" -a "$NDEV" = '~' ] && {
-			log "$(pwd)/$FILE - '$IP_LOCAL' - zero COST - '$LINE'"
-			# e.g. infinite
-			continue
+		# e.g. infinite
+		[ -z "$COST" ] && {
+			if [ "$NDEV" = '~' ]; then
+				continue
+			else
+				log "$(pwd)/$FILE - '$IP_LOCAL' - zero COST/wired - '$LINE'"
+#				continue
+			fi
 		}
 
 		[ -z "$NCOST" ] && {
@@ -522,6 +526,13 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 		link_carrier="$(   interpret_neigh 'link_carrier'   "$LINE" )"
 		link_frequency="$( interpret_neigh 'link_frequency' "$LINE" )"
 		link_chanbw="$(    interpret_neigh 'link_chanbw'    "$LINE" )"
+
+		[ "$link_carrier" = 'wireless' ] && {
+			[ $COST -gt 3000 ] && {
+#				log "$(pwd)/$FILE - weak - '$LINE'"
+				link_carrier='wireless_weak'
+			}
+		}
 
 		if [ "$link_frequency" = '0' -o -z "$link_frequency" ]; then
 			comma=
