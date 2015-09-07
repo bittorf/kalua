@@ -254,7 +254,7 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network monami
 	gen_meshrdf_for_network ffweimar-roehr
 	gen_meshrdf_for_network wagenplatz
-
+	gen_meshrdf_for_network xoai
 
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
 

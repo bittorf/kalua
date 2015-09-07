@@ -10,6 +10,50 @@ log()
 	set +x $1
 }
 
+update_local_netjson_files()
+{
+	local file url
+	local base='/var/www/scripts'
+#	local repo='https://raw.githubusercontent.com/interop-dev/netjsongraph.js'
+	local repo='https://raw.githubusercontent.com/bittorf/netjsongraph.js'
+	local insecure='--no-check-certificate'
+
+	fetch()
+	{
+		wget $insecure -O "$file" "$url"
+	}
+
+	url="$repo/master/src/netjsongraph.js"
+	file="$base/$( basename "$url" )"
+	fetch
+
+	url="$repo/master/src/netjsongraph.css"
+	file="$base/$( basename "$url" )"
+	fetch
+
+	url="$repo/master/src/netjsongraph-theme.css"
+	file="$base/$( basename "$url" )"
+	fetch
+
+	url="$repo/master/examples/custom-attributes.html"
+	file="$base/netjson.html"
+	fetch
+
+	local myjson='map.json'
+	sed -i "s/\(d3.netJsonGraph(\"\).*.json\(.*\)/\1${myjson}\2/" "$file"
+
+	# remove relative links, everything is 'here'
+	sed -i 's|../src/||g' "$file"
+
+	local mirror='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js'
+	sed -i "s|../lib/d3.min.js|$mirror|" "$file"
+}
+
+[ "$1" = 'update' ] && {
+	update_local_netjson_files
+	exit
+}
+
 file_too_old()
 {
 	test $(( UNIX_NOW - $( date +%s -r "$1" ) )) -gt 86400
@@ -78,10 +122,10 @@ interpret_neigh()
 			echo "$1" | cut -b1	# ~6 -> ~
 		;;
 		'link_frequency')
-			echo "$11"
+			echo "${11}"
 		;;
 		'link_chanbw')
-			echo "$12"
+			echo "${12}"
 		;;
 		'link_carrier')
 			case "$( echo "$1" | cut -b1 )" in
@@ -189,6 +233,16 @@ for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 	print()
 	{
 		# see func_nodenumber2hostname()
+		case "$NETWORK" in
+			*'schoeneck'*)
+				# a lot of lines like:
+				# node  79 is HausA-1804-MESH
+
+				set -- $( grep " $NODE is" /var/www/networks/schoeneck/schoeneck-hostnames.sh )
+				HOSTNAME="${4:-no_hostname}"
+			;;
+		esac
+
 		echo "$NODE $HOSTNAME"
 
 		{
@@ -224,6 +278,15 @@ for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 
 #		log "map.temp.node2hostname: NODE '$NODE' HOSTNAME '$HOSTNAME' WIFIMAC: '$WIFIMAC'"
 
+		output_bool_isgateway()
+		{
+			if [ "$GWNODE" = "$NODE" ]; then
+				echo 'true'
+			else
+				echo 'false'
+			fi
+		}
+
 		{
 			if [ "$FIRST_ID" ]; then
 				echo ','
@@ -243,6 +306,7 @@ for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 				"$( mac2linklocal "$WIFIMAC" )"
 			],
 			"properties": {
+				"gateway": $( output_bool_isgateway ),
 				"hostname": "$HOSTNAME",
 				"wifimac": "$WIFIMAC",
 				"hardware": "$HW",
@@ -381,7 +445,7 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 	while read LINE; do {
 		[ -z "$LINE" ] && continue
 
-		NDEV="$(   func_interpret_neigh 'ndev'   "$LINE" )"
+		NDEV="$(   func_interpret_neigh 'ndev'   "$LINE" )"	# e.g. '-' or '~'
 		NNEIGH="$( func_interpret_neigh 'nneigh' "$LINE" )"
 		NCOST="$(  func_interpret_neigh 'ncost'  "$LINE" )"
 
@@ -403,8 +467,8 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 #		[ $COST -gt 5000 ] && continue		# only good neighs for smaller topology
 
 
-		[ -z "$COST" ] && {
-#			log "$(pwd)/$FILE - '$IP_LOCAL' - zero COST - '$LINE'"
+		[ -z "$COST" -a "$NDEV" = '~' ] && {
+			log "$(pwd)/$FILE - '$IP_LOCAL' - zero COST - '$LINE'"
 			# e.g. infinite
 			continue
 		}
@@ -471,6 +535,7 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 			"target": "$ID_REMOTE",
 			"cost": $NCOST,
 			"properties": {
+				"type": "$link_carrier",
 				"carrier": "$link_carrier"${comma}
 EOF
 		[ -n "$comma" ] && {

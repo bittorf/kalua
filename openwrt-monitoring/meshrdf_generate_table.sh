@@ -240,7 +240,7 @@ OUT="/dev/shm/meshrdf_temp_$$"
 ls -1t /dev/shm/meshrdf_temp_* 2>/dev/null | grep -v "$( date "+ %b %d " )" | sed 's/^/rm /' >/tmp/RM
 command . /tmp/RM && rm /tmp/RM
 
-# portforwarding / xoai:
+# portforwarding / xoai during fetching 'cgi-bin-tool.sh?OPT=portforwarding_table'
 [ -e '/tmp/PORTFW' ] && rm '/tmp/PORTFW'
 
 # logger -s "0: pwd: $(pwd)"
@@ -605,22 +605,24 @@ echo >>$OUT "</tr>"
 hostname_sanitizer()
 {
 	local nodenumber_translate="$1"
+	local file="$TMPDIR/function_hostnames_$NETWORK"
 
-	echo  >"/tmp/myfunc.$$" "node()"
-	echo >>"/tmp/myfunc.$$" "{"
-	echo >>"/tmp/myfunc.$$" '	local nodenumber=$1'
-	echo >>"/tmp/myfunc.$$" '	local new_hostname=$3'
-	echo >>"/tmp/myfunc.$$" "	test \"$nodenumber_translate\" = \"\$nodenumber\" || return 0"
-	echo >>"/tmp/myfunc.$$" '	echo "xxx$new_hostname"'		# set 'xxx' in front for better sort
-	echo >>"/tmp/myfunc.$$" "}"
-	echo >>"/tmp/myfunc.$$"
-	echo >>"/tmp/myfunc.$$" "hostnames_override()"	# each line like: 'node 178 is HausB-1132-AP'
-	echo >>"/tmp/myfunc.$$" "{"
-	cat  >>"/tmp/myfunc.$$" 	"/var/www/networks/schoeneck/schoeneck-hostnames.sh"
-	echo >>"/tmp/myfunc.$$" "}"
+	{
+	echo "node()"
+	echo "{"
+	echo "	local nodenumber=\$1"
+	echo "	local new_hostname=\$3"
+	echo "	test \"$nodenumber_translate\" = \"\$nodenumber\" || return 0"
+	echo "	echo \"xxx\$new_hostname\""		# set xxx in front for better sorting
+	ech  "}"
+	echo
+	echo "hostnames_override()"	# each line is a function call like: node 178 is HausB-1132-AP
+	echo "{"
+	cat  "/var/www/networks/schoeneck/schoeneck-hostnames.sh"
+	echo "}"
+	} >"$file"
 
-	.  "/tmp/myfunc.$$"	# expensive:
-	rm "/tmp/myfunc.$$"
+	.  "$file"	# expensive!
 
 	hostnames_override	# always sets all $NODENUMBER -> $HOSTNAME
 }
@@ -3627,6 +3629,8 @@ if [ -e "/tmp/lastready/$NETWORK.lastready" ]; then
 else
 	UNIXTIME_SCRIPTLASTREADY="$UNIXTIME_SCRIPTREADY"
 fi
+# disk full?
+test -z "$UNIXTIME_SCRIPTLASTREADY" && UNIXTIME_SCRIPTLASTREADY="$UNIXTIME_SCRIPTREADY"
 # UNIXTIME_SCRIPTLASTREADY="${UNIXTIME_SCRIPTLASTREADY:-$UNIXTIME_SCRIPTREADY}"
 
 mkdir -p "/tmp/lastready"	# chmod -R 777

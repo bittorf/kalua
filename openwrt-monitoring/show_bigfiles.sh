@@ -36,11 +36,22 @@ list_networks()
         find /var/www/networks/ -type d -name registrator | cut -d'/' -f5 | sort
 }
 
+show_megabytes_only()
+{
+	while read LINE; do {
+		set -- $LINE
+		case "$1" in
+			*'M'|*'G')
+				echo $LINE
+			;;
+		esac
+	} done
+}
 
 echo "[START] vds"
 for NETWORK in $( list_networks ); do {
         DIR="/var/www/networks/$NETWORK/vds"
-	du -sh "$DIR"
+	du -sh "$DIR" | show_megabytes_only
 } done
 echo "[READY] vds"
 
@@ -48,7 +59,7 @@ echo
 echo "[START] size network"
 for NETWORK in $( list_networks ); do {
 	DIR="/var/www/networks/$NETWORK"
-	du -sh "$DIR"
+	du -sh "$DIR" | show_megabytes_only
 } done
 echo "[READY] size network"
 
@@ -57,6 +68,13 @@ echo
 echo "[START] size media"
 for NETWORK in $( list_networks ); do {
 	DIR="/var/www/networks/$NETWORK/media"
-	du -sh "$DIR"
+	du -sh "$DIR" | show_megabytes_only
+} done
+echo "[READY] size media"
+
+echo
+echo "[START] size special"			# ls -1 | grep -v '01_' | while read LINE; do rm $LINE; done
+for DIR in /root/backup/ejbw/pbx; do {
+	du -sh "$DIR" | show_megabytes_only
 } done
 echo "[READY] size media"
