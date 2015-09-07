@@ -1251,13 +1251,23 @@ _watch_webserver()
 
 _watch_sshd_or_telnet()
 {
-	local funcname="watch_sshd_or_telnet"
+	local funcname='watch_sshd_or_telnet'
 	local option="$1"	# force
-	local pid pid_ssh pid_telnetd
+	local pid pid_ssh pid_telnetd ssh_binary ssh_name ssh_pidname
 
 	[ "$option" = "force" ] || {
 		[ -e '/tmp/service_ssh_nowatching' ] && return
 	}
+
+	if   [ -e '/usr/sbin/dropbear' ]; then
+		ssh_binary='/usr/sbin/dropbear'
+		ssh_name='dropbear'
+		ssh_pidname='dropbear'
+	elif [ -e '/usr/sbin/sshd' ]; then
+		ssh_binary='/usr/sbin/sshd'
+		ssh_name='ssh'
+		ssh_pidname='sshd'
+	fi
 
 	restart_sshd()
 	{
@@ -1267,18 +1277,18 @@ _watch_sshd_or_telnet()
 		}
 
 		[ -n "$pid_ssh" ] && {
-			_watch hanging_command dropbear
-			_watch hanging_command dropbear
+			_watch hanging_command $( basename "$ssh_binary" )
+			_watch hanging_command $( basename "$ssh_binary" )
 		}
 
-		/etc/init.d/dropbear start >/dev/null
-		pidof dropbear >/dev/null && return 0
+		/etc/init.d/$ssh_name start >/dev/null
+		pidof $ssh_pidname >/dev/null && return 0
 
-		dropbear
-		pidof dropbear >/dev/null
+		$ssh_binary
+		pidof $ssh_pidname >/dev/null
 	}
 
-	if pid_ssh="$( pidof dropbear )"; then
+	if pid_ssh="$( pidof $ssh_pidname )"; then
 		pid_telnetd="$( pidof telnetd )" && {
 			_log do $funcname daemon alert "[OK] ssh running $pid_ssh, killing telnet $pid_telnetd"
 			kill $pid_telnetd
@@ -1302,7 +1312,7 @@ _watch_sshd_or_telnet()
 		if [ "$option" = 'force' ]; then
 			restart_sshd && return 0
 		else
-			[ -x '/etc/rc.d/dropbear' ] && {
+			[ -x "/etc/rc.d/$ssh_name" ] && {
 				restart_sshd && return 0
 			}
 		fi
