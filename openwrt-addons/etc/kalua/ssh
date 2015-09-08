@@ -1,14 +1,21 @@
 #!/bin/sh
 
-_ssh_key_public_fingerprint_get ()	# output differs, wether its a SHA1 or MD5 hash
+_ssh_key_public_fingerprint_get()	# output differs, wether its a SHA1 or MD5 hash
 {
-	local file="/etc/dropbear/dropbear_dss_host_key"
+	local me='ssh_key_public_fingerprint_get'
+	local file_openwrt='/etc/dropbear/dropbear_dss_host_key'
+	local file_debian='/etc/ssh/ssh_host_rsa_key.pub'
 
-	[ -e "$file" ] || _ssh sanitize_and_cleanup_keys
-
-	dropbearkey -y -f "$file" |
-	 fgrep "Fingerprint:" |
-	  cut -d' ' -f3
+	if   [ -e "$file_openwrt" ]; then
+		dropbearkey -y -f "$file_openwrt" |
+		 fgrep 'Fingerprint:' |
+		  cut -d' ' -f3
+	elif [ -e "$file_debian" ]; then
+		ssh-keygen -l -f "$file_debian" |
+		 cut -d' ' -f2
+	else
+		_ssh sanitize_and_cleanup_keys && _$me
+	fi
 }
 
 _ssh_start ()
@@ -87,8 +94,7 @@ _ssh_sanitize_and_cleanup_keys()
 	# TODO: fixme!
 	return
 
-	if [ ! -e $DSSFILE ] || [ "${#DSSKEY}" -le 256 ] || [ "$DSSKEY" != "$( _file convert_bin2hex $DSSFILE )" ]; then
-
+	if [ ! -e "$DSSFILE" -o "${#DSSKEY}" -le 256 -o "$DSSKEY" != "$( _file convert_bin2hex $DSSFILE )" ]; then
 		mkdir -p etc/dropbear		# key in nvram is more important, than (maybe new generated) keyfile
 
 		if [ "${#DSSKEY}" -ge 256 ]; then
