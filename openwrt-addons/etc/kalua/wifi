@@ -1425,9 +1425,12 @@ _wifi_mcastrate()
 _wifi_noise ()			# OUT1: signed Integer, -93 [dBm]
 {
 	local WIFI_DEV="$1"
-	local WIFI_MODE="$( _wifi mode $WIFI_DEV )"
 
-	iw dev $WIFI_DEV survey dump |
+	[ -z "$WIFI_DEV" ] && return 0
+
+	local WIFI_MODE="$( _wifi mode "$WIFI_DEV" )"
+
+	iw dev "$WIFI_DEV" survey dump |
 	 sed -n '/noise:/{s/^.*noise:.*\(-[0-9]*\).*/\1/p;q}'
 }
 
@@ -1437,6 +1440,8 @@ _wifi_signal()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all s
 	local mac_or_ip="$2"
 	local option='dump'
 	local line mac
+
+	[ -z "$dev" ] && return 0
 
 	case "$mac_or_ip" in
 		'')
@@ -1486,9 +1491,11 @@ _wifi_channel()
 	local channel line
 
 	# e.g. 'Interface wlan0 ifindex 6 wdev 0x2 addr 10:6f:3f:0e:31:8e type IBSS wiphy 0 channel 11 (2462 MHz) NO HT'
-	set -- $( iw dev "$dev" info )
-	line="$*"
-	channel="${line#*channel }"
+	which iw >/dev/null && {
+		set -- $( iw dev "$dev" info )
+		line="$*"
+		channel="${line#*channel }"
+	}
 
 	# http://stackoverflow.com/questions/13761802/catch-word-after-specific-word-in-a-string-with-ash
 	case "$channel" in
