@@ -201,7 +201,7 @@ echo '  ],'
 echo '  "links": ['
 
 # output links:
-cat "$TMP_JSON" && rm "$TMP_JSON" "$TMP_OLSR" 2>/dev/null
+cat "$TMP_JSON" && rm "$TMP_JSON"
 
 echo '  ]'
 echo '}'
