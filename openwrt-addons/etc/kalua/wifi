@@ -570,8 +570,8 @@ _wifi_params_iwconfig_status()
 	# WIFI_NOISE='-95'
 	# WIFI_TXPOWER=20	// only seen with atk9k/mac80211
 
-				# fixme! sometimes iwconfig-output is empty
-
+	[ -e '/usr/sbin/iwconfig' ] || return 1
+							# FIXME! sometimes iwconfig-output is empty
 	/usr/sbin/iwconfig "$dev" 2>/dev/null |
 	 sed -ne "s/^.*ESSID:\"\(.*\)\"/WIFI_DEV=$1\nWIFI_UPTIME=0\nWIFI_ESSID='\1'/p" \
 	     -ne 's/^.*Mode:\([- a-zA-Z]*[a-zA-Z]\).*Access Point: \(.*\)Tx-Power=\([0-9]*\) dBm.*/WIFI_MODE=\1;WIFI_TXPOWER=\3;/p' \
@@ -1093,25 +1093,26 @@ _wifi_phy_txpower_limit ()		# driverlimit/output in [mW]
 	echo "1000"
 }
 
-_wifi_phy_txpower()		# output in [mW]
+_wifi_phy_txpower()		# output in [mW] - FIXME! use package iwinfo for this
 {
 	local WIFI_DEV="$1"
 	local UNIT="$2"		# keyword, can be 'mw', 'dbm', 'qdbm' // fixme! at the moment this IS in [mW]
-	local POWER
+	local WIFI_POWER
 
-	POWER="$( /usr/sbin/iwconfig "$WIFI_DEV" | sed -n 's/^.*Tx-Power=\([0-9]*\).*/\1/p' )"	# [dBm]
+	# WIFI_TXPOWER
+	eval $( _wifi params_iwconfig_status "$WIFI_DEV" )	# WIFI_TXPOWER
 
 	[ -z "$POWER" ] && {
-		POWER="$( uci get wireless.radio0.txpower )"
+		POWER="$( uci -q get wireless.radio0.txpower )"
 	}
 
 	case "$HARDWARE" in
 		"Ubiquiti Bullet M")
-			POWER=$(( POWER + 12 ))		# fixme! use package iwinfo for this
+			POWER=$(( POWER + 12 ))
 		;;
 	esac
 
-	POWER="$( _wifi math_dbm2mw $POWER )"
+	POWER="$( _wifi math_dbm2mw "$POWER" )"
 
 	echo "${POWER:-0}"	# no wifi-dev
 }
@@ -2157,7 +2158,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 	e 'uci/iwconfig'
 	show_uci_wireless
-	iwconfig
+	which iwconfig && iwconfig
 	e 'now'
 
 	### get real data! ###
