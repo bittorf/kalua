@@ -25,7 +25,7 @@ case "$NETWORK_NAME" in
 	'setup_html')
 		update_local_netjson_files()
 		{
-			local file url
+			local file url dir
 			local base="${1:-/www}"
 			local repo='https://raw.githubusercontent.com/interop-dev/netjsongraph.js/master'
 		#	local repo='https://raw.githubusercontent.com/bittorf/netjsongraph.js/master'
@@ -63,6 +63,8 @@ case "$NETWORK_NAME" in
 			sed -i "s|../lib/d3.min.js|$mirror|" "$file"
 		}
 
+		dir="$FILE"
+		mkdir -p "$dir"
 		update_local_netjson_files "$FILE"
 
 		exit 0
