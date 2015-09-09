@@ -1,4 +1,21 @@
 #!/bin/sh
+
+_net_get_rxtx()
+{
+	local dev="$1"
+	local line
+
+	while read line; do {
+		set -- $line
+
+		case "$1" in
+			"$dev:")
+				echo "bytes_rx=$2;bytes_tx=${10};"
+				return
+			;;
+		esac
+	} done <'/proc/net/dev'
+}
 					# http://stackoverflow.com/questions/81520/how-to-suppress-terminated-message-after-killing-in-bash
 _net_tcp_port_reachable()		# please call with 2>/dev/null otherwise you
 {					# always see the 'killed' message from background job
@@ -482,7 +499,6 @@ _net_show_traffic()
 	local interval="${2:-1}"
 	local bytes_rx bytes_tx old_rx old_tx diff_rx diff_tx mbit_rx mbit_tx percent_tx percent_rx txt change
 	local max_tx=1 max_rx=1
-	local oldIFS="$IFS"
 
 	[ -z "$iface" ] && {
 		# default via 10.63.99.61 dev eth0.2  metric 2 onlink
@@ -494,13 +510,8 @@ _net_show_traffic()
 	local pre="$( _net dev2name "$iface" )/$iface"
 
 	while true; do {
-		# RX bytes:4863348071 (4.5 GiB)  TX bytes:2369902904 (2.2 GiB)
-		IFS=': '
-		set -- $( ifconfig "$iface" | fgrep 'RX bytes:' )
-		IFS="$oldIFS"
+		eval $( _net get_rxtx "$iface" )	# bytes_rx | bytes_tx
 
-		bytes_rx="$3"
-		bytes_tx="$8"
 		diff_rx=$(( ( bytes_rx - ${old_rx:-0} ) / interval ))
 		diff_tx=$(( ( bytes_tx - ${old_tx:-0} ) / interval ))
 		mbit_rx=$(( diff_rx / 80000 ))

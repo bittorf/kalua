@@ -246,7 +246,7 @@ piggyback kalua on a new router model without building from scratch
 # plugin ethernet on WAN, to get IP via DHCP, wait
 # some seconds, connect via LAN with 'telnet 192.168.1.1' and
 # look with which IP was given on WAN, then do:
-ifconfig $(uci get network.wan.ifname) | fgrep "inet addr:"
+ip -family inet address show dev $(uci get network.wan.ifname)
 /etc/init.d/firewall stop
 /etc/init.d/firewall disable
 exit

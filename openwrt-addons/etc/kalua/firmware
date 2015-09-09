@@ -755,7 +755,7 @@ _firmware_burn()
 		} done
 	}
 
-	local getmem msg1 msg2 msg3 delifs cmds removeable_interfaces
+	local getmem msg1 msg2 msg3 delifs cmds removeable_interfaces IFNAME
 
 	# reverse order, all in one line:
 	removeable_interfaces="$( interfaces | sed '1!G;h;$!d' | while read LINE; do echo -n "$LINE "; done )"
@@ -763,22 +763,24 @@ _firmware_burn()
 
 	# fixme! remove all ipv6 routes (e.g. gateway)
 	for IFNAME in $( interfaces ); do {
-		ifconfig "$IFNAME" | fgrep "inet6 addr: " | while read IPV6ADDR; do {
+		ip -oneline -6 address show dev "$IFNAME" | while read IPV6ADDR; do {
+			# 4: eth0.1    inet6 fe80::f6ec:38ff:fe9d:8182/64 scope link ...
 			set -- $IPV6ADDR
-			_log do firmware_ifconfig_del_ipv6 daemon info "ifconfig $IFNAME del $3"
-			ifconfig "$IFNAME" del "$3"
+			IPV6ADDR="$4"
+			_log do $funcname daemon info "ip address del $IPV6ADDR dev $IFNAME"
+			ip address del "$IPV6ADDR" dev "$IFNAME"
 		} done
 	} done
 
 	_firmware remove_kmodules all
-	ifconfig | _log do firmware_ifconfig_show daemon info
+	ip -oneline address show | _log do $funcname daemon info
 
 	getmem="echo 3 >/proc/sys/vm/drop_caches; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
 	msg0="/bin/netmsg $LANBRC \"ramdisc-size: $( du -sh /tmp) files: $( find /tmp -type f | wc -l )\""
 	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
-	delifs="for I in $removeable_interfaces; do /bin/echo \"ifconfig \$I down\"; ifconfig \$I down; /bin/echo \"\$I is down\"; done"
-	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; /bin/echo ifconfig_START >/dev/console; ifconfig >/dev/console; /bin/echo ifconfig_END >/dev/console"
-	msg3="ifconfig | grep . && { ifconfig >>/www/everlasting_syslog.txt; /sbin/reboot -f; }; /bin/cat /proc/net/dev >/dev/console"
+	delifs="for I in $removeable_interfaces; do /bin/echo \"ip link set dev \$I down\"; ip link set dev \$I down; /bin/echo \"\$I is down\"; done"
+	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; /bin/echo ip_START >/dev/console; ip a >/dev/console; /bin/echo ip_END >/dev/console"
+	msg3="ip a | grep . && { ip a >>/www/everlasting_syslog.txt; sync; /sbin/reboot -f; }; /bin/cat /proc/net/dev >/dev/console"
 
 	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3"
 
