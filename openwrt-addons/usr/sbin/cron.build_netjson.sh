@@ -69,7 +69,8 @@ case "$NETWORK_NAME" in
 esac
 
 [ -e "$FILE" ] || {
-	wget -qO "$TMP_OLSR" 'http://127.0.0.1:2006/all' || exit 1
+	FILE="$TMP_OLSR"
+	wget -qO "$FILE" 'http://127.0.0.1:2006/all' || exit 1
 }
 
 add_node_if_unknown()
