@@ -27,28 +27,29 @@ case "$NETWORK_NAME" in
 		{
 			local file url
 			local base="${1:-/www}"
-			local repo='https://raw.githubusercontent.com/interop-dev/netjsongraph.js'
-		#	local repo='https://raw.githubusercontent.com/bittorf/netjsongraph.js'
+			local repo='https://raw.githubusercontent.com/interop-dev/netjsongraph.js/master'
+		#	local repo='https://raw.githubusercontent.com/bittorf/netjsongraph.js/master'
 			local myjson='map.json'
 
 			fetch()
 			{
-				wget --no-check-certificate  -O "$file" "$url"
+				# github https is often broken
+				curl --silent --insecure "$url" -o "$file" || echo "[ERR] curl '$url'"
 			}
 
-			url="$repo/master/src/netjsongraph.js"
+			url="$repo/src/netjsongraph.js"
 			file="$base/$( basename "$url" )"
 			fetch
 
-			url="$repo/master/src/netjsongraph.css"
+			url="$repo/src/netjsongraph.css"
 			file="$base/$( basename "$url" )"
 			fetch
 
-			url="$repo/master/src/netjsongraph-theme.css"
+			url="$repo/src/netjsongraph-theme.css"
 			file="$base/$( basename "$url" )"
 			fetch
 
-			url="$repo/master/examples/custom-attributes.html"
+			url="$repo/examples/custom-attributes.html"
 			file="$base/netjson.html"
 			fetch
 
