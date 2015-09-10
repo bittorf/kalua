@@ -197,7 +197,7 @@ TYPE="quality"
 case "$TYPE" in
 	quality)	# absender frei waehlbar	// 7.9 cent
 		if [ -n "$FROM" ]; then
-			FROM="$( url_encode "$( echo "$FROM" | cut -b 1-11 )" )"
+			FROM="$( url_encode "$( echo "$FROM" | 's/[^a-zA-Z0-9]//g' | cut -b 1-11 )" )"
 		else
 			FROM="$NETWORK"
 		fi

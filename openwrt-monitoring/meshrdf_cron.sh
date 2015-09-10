@@ -564,7 +564,7 @@ urlencode ()					# SENS: converting chars using a fixed table, where we know the
 }
 
 [ -n "$MESSAGE" ] && {
-
+	# FIXME! use '/var/www/scripts/send_sms.sh'
 	RECIPIENTS="0179/7465017 0176/61623698"
 
 	SERVICE="http://www.sms77.de/gateway"
