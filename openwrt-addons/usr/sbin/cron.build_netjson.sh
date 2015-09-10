@@ -12,6 +12,13 @@ TMP_JSON="${3:-/tmp/netjson_links.json}"
 TMP_OLSR='/tmp/netjson_olsr.txt'
 FILE_HOSTNAMES='/var/run/hosts_olsr'	# nameservice plugin
 
+# for live generating via webserver:
+# ln -s /usr/sbin/cron.build_netjson.sh /www/cgi-bin-netjson.sh
+[ -z "$NETWORK_NAME" -a -n "$REMOTE_ADDR" ] && {
+	echo -en "Content-type: application/json\n\n"
+	NETWORK_NAME='live'
+}
+
 case "$NETWORK_NAME" in
 	'')
 		echo "Usage: $0 <networkname|setup_html> [<txtinfo-output>] [<tmpfile>]"
