@@ -537,6 +537,10 @@ cat >>$OUT <<EOF
     m = Math.floor(((seconds % 86400) % 3600) / 60)
     s = Math.floor(((seconds % 86400) % 3600) % 60)
 
+    if (s == 59) {
+	location.reload();	// sorry for hijacking this function. (basti)
+    }
+
     return '' +
       ((d > 0) ? (d + ' Tage ') : ('')) +
       h + ' Stunde(n) ' +
