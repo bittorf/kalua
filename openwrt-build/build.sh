@@ -497,13 +497,13 @@ target_hardware_set()
 	local model="$1"	# 'list' or <modelname>
 	local option="$2"	# 'plain', 'js', 'info' or <empty>
 	local quiet="$3"	# e.g. 'quiet' (not logging)
-	local line file
+	local line file version
 
 	[ -n "$quiet" ] && funcname="quiet_$funcname"
 
 	# must match ' v[0-9]' and will be e.g.
 	# ' v7' -> '7' or ' v1.5' -> '1.5' and defaults to '1'
-	local version="$( echo "$model" | sed -n 's/^.* v\([0-9\.]*\)$/\1/p' )"
+	version="$( echo "$model" | sed -n 's/^.* v\([0-9\.]*\)$/\1/p' )"
 	[ -z "$version" ] && version='1'
 
 	case "$model" in
@@ -758,6 +758,15 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ramips_rt305x_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-ramips-rt305x-dir-300-b1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ramips-rt305x-dir-300-b1-squashfs-factory.bin'
+		;;
+		'Nexx WT3020A'|'Nexx WT3020H'|'Nexx WT3020F'|'Nexx WT3020AD')
+			version='8M'
+			[ "$model" = 'Nexx WT3020A' ] && version='4M'
+
+			# http://wiki.openwrt.org/toh/nexx/wt3020
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7620=y'
+			FILENAME_SYSUPGRADE="openwrt-ramips-mt7620-wt3020-${version}-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ramips-mt7620-wt3020-${version}-squashfs-factory.bin"
 		;;
 		'Mikrotik Routerboard 532')
 			# http://wiki.openwrt.org/toh/mikrotik/rb532
