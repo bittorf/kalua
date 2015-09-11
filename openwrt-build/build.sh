@@ -2018,8 +2018,11 @@ build_options_set()
 				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
-				$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
-				$funcname subcall 'revert46553'		# dito
+
+				[ "$ARCH" = 'ar71xx' ] && {
+					$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19 for ar71xx
+					$funcname subcall 'revert46553'		# dito
+				}
 
 				usecase_has 'noDebug' || {
 					log "[OK] autoselecting usecase 'debug' in 'Standard'-mode"
@@ -2055,8 +2058,11 @@ build_options_set()
 #				$funcname subcall 'vtun'
 #				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
-				$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
-				$funcname subcall 'revert46553'		# dito
+
+				[ "$ARCH" = 'ar71xx' ] && {
+					$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
+					$funcname subcall 'revert46553'		# dito
+				}
 			;;
 			'Mini')
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
