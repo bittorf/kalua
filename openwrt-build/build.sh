@@ -1883,8 +1883,8 @@ serialize_comma_list()
 build_options_set()
 {
 	local funcname='build_options_set'
-	local options="$1"	# FIXME! support 'xy is not set' (spaces!)
-	local subcall="$2"
+	local options="$1"	# <usecase> FIXME! support 'xy is not set' (spaces!)
+	local subcall="$2"	# <usecase> or 'hide'
 	local file='.config'
 	local custom_dir='files'
 	local kmod
@@ -1921,7 +1921,7 @@ build_options_set()
 			;;
 			'-'*)	# parser_ignore
 				# direct call (no subcall)
-				USECASE="${USECASE}${USECASE+,}${1}"
+				[ "$subcall" = 'hide' ] || USECASE="${USECASE}${USECASE+,}${1}"
 			;;
 		esac
 
@@ -1946,7 +1946,7 @@ build_options_set()
 				apply_symbol "$1"
 			;;
 			'OpenWrt')
-				# we do nothing an rely on defconfig
+				# we do nothing and rely on defconfig
 			;;
 			'noReghack')
 				# we work on this during above $KALUA_DIRNAME
@@ -1997,10 +1997,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools (=iwconfig)
 				apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
-#				apply_symbol 'CONFIG_PACKAGE_memtester=y'		# utilities:
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
-#				apply_symbol 'CONFIG_PACKAGE_pv=y'			# +22k
 
 				$funcname subcall 'iproute2'
 				$funcname subcall 'queryMII'
@@ -2036,10 +2034,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
-#				apply_symbol 'CONFIG_PACKAGE_memtester=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
-#				apply_symbol 'CONFIG_PACKAGE_pv=y'			# +22k
 
 				$funcname subcall 'iproute2'
 				$funcname subcall 'queryMII'
@@ -2111,9 +2107,9 @@ build_options_set()
 			'iproute2')
 				# https://dev.openwrt.org/changeset/46829/trunk
 				if [ $( openwrt_revision_number_get ) -ge 46829 ]; then
-					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
 				else
-					apply_symbol 'CONFIG_PACKAGE_ip=y'		# network: routing/redirection: ip
+					apply_symbol 'CONFIG_PACKAGE_ip=y' hide		# network: routing/redirection: ip
 				fi
 			;;
 			'queryMII')
