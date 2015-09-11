@@ -2145,7 +2145,7 @@ build_options_set()
 					_switch_show
 
 					if [ -n "$NEEDS_MII" ]; then
-						# before r45995 it was: CONFIG_PACKAGE_mii-tool=y but 'musl' breaks it
+						# before r45995 it was: CONFIG_PACKAGE_mii-tool=y but 'musl' broke it - fixed with xy!
 						$funcname subcall 'CONFIG_PACKAGE_ethtool=y'
 					else
 						log '[OK] no MII needed'
