@@ -1988,7 +1988,6 @@ build_options_set()
 			'Standard')	# >4mb flash
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
-				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
@@ -2003,6 +2002,7 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 #				apply_symbol 'CONFIG_PACKAGE_pv=y'			# +22k
 
+				$funcname subcall 'iproute2'
 				$funcname subcall 'queryMII'
 				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
@@ -2027,7 +2027,6 @@ build_options_set()
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
-				apply_symbol 'CONFIG_PACKAGE_ip=y'			# network: routing/redirection: ip
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
@@ -2042,6 +2041,7 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 #				apply_symbol 'CONFIG_PACKAGE_pv=y'			# +22k
 
+				$funcname subcall 'iproute2'
 				$funcname subcall 'queryMII'
 #				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
@@ -2106,6 +2106,14 @@ build_options_set()
 					autocommit "git revert $hash --no-commit" "reverting r$rev ($message)"
 				else
 					log "[ERR] commit $rev not found, ignoring"
+				fi
+			;;
+			'iproute2')
+				# https://dev.openwrt.org/changeset/46829/trunk
+				if [ $( openwrt_revision_number_get ) -ge 46829 ]; then
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
+				else
+					apply_symbol 'CONFIG_PACKAGE_ip=y'		# network: routing/redirection: ip
 				fi
 			;;
 			'queryMII')
