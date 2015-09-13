@@ -189,7 +189,7 @@ _vpn_needed()
 _vpn_start ()
 {
         lock -n /tmp/VPN_LOCK || {
-            _log "do" "_vpn start: Already locked! Aborting!"
+            logger -s -t vpn -p err "_vpn start already running. Aborting!"
             return 1
         }
 	local FUNC="vpn_start"
@@ -311,6 +311,7 @@ _vpn_write_vtun_conf()
 	local LINE=""
 	local STATIC_ROUTE="$( _vpn_get_static_route )"
 	local particpant_net="10.63.0.0/16"			# fixme! hardcoded
+        local kalua_roaming_net="192.168.0.0/16"
 	local mytable="weimarnetz_anonym"
 	local anonym
         local VPN_SERVER_IP="$(_net dns2ip $VPN_SERVER)"
@@ -337,6 +338,8 @@ Node$KNOT {
 
 		program "grep -q $mytable /etc/iproute2/rt_tables || echo 50 $mytable >>/etc/iproute2/rt_tables" wait;
 		program "$anonym ip rule add from $particpant_net prio 30010 table $mytable" wait;
+		program "$anonym ip rule add from $kalua_roaming_net iif "$WIFIDEV" prio 30020 table $mytable" wait;
+
 
 		# dont send packets to private networks over vpn
 		program "$anonym ip rule add to 169.254.0.0/24 prio 30005 lookup main" wait;
@@ -359,10 +362,13 @@ Node$KNOT {
 		program "$anonym ip rule del from $LANNET/$LANPRE prio 30000 table main" wait;
 		program "$anonym ip rule del to $particpant_net prio 30001 lookup main" wait;
 		#
-		program "$anonym ip rule del from 172.16.0.0/12 prio 30002 table $mytable" wait;
+		program "$anonym ip rule del to 172.16.0.0/12  prio 30002 lookup main" wait;
 		program "$anonym ip rule add to 192.168.0.0/16 prio 30003 lookup main" wait;
 		program "$anonym ip rule add to 10.0.0.0/8     prio 30004 lookup main" wait;
 		program "$anonym ip rule add to 169.254.0.0/24 prio 30005 lookup main" wait;
+
+		program "$anonym ip rule del from $kalua_roaming_net iif "$WIFIDEV" prio 30020 table $mytable" wait;    
+		program "$anonym ip rule del from $particpant_net prio 30010 table $mytable" wait;                   
 
 		program "ip route del $VPN_SERVER_IP via $STATIC_ROUTE" wait;
 		program "ip link set dev %% down" wait;
@@ -496,9 +502,7 @@ _vpn_build_vars()
 		test -n "$SERVER" -a "$CLIENTS" -ge 0 -a "$MTU" -ge 0 -a "$PORT" -ge 0 -a -n "$PING" 2>/dev/null
 	}
 
-       if [ -z "$PING" ]; then
-	    _log do $FUNC daemon info "ping not possible"
-       elif vars_are_sane; then
+       if vars_are_sane; then
              _log do ${FUNC} daemon notice "got ${SERVER} - ping: ${PING}ms"
 	     # here we build a long string:
 	     # each valid varset is a small mini-shell-script (eval-able)
@@ -515,6 +519,7 @@ _vpn_build_vars()
 
 # get a random VPN entry
 eval $( _list random_element "$TABLE" )
+
 
  VPN_SERVER="${SERVER}"
 
