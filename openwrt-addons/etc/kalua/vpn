@@ -188,6 +188,10 @@ _vpn_needed()
 
 _vpn_start ()
 {
+        lock -n /tmp/VPN_LOCK || {
+            _log "do" "_vpn start: Already locked! Aborting!"
+            exit 1
+        }
 	local FUNC="vpn_start"
 	_vpn_defer_start
 	_vpn needed || return 1
@@ -215,6 +219,7 @@ _vpn_start ()
 
 _vpn_stop ()
 {
+        rm /tmp/VPN_LOCK
 	_vpn_remove_vtun_conf
 	_vpn_tunnel_stop
 	
@@ -272,19 +277,15 @@ _vpn_tunnel_stop ()
 _vpn_tunnel_start ()
 {
 	local FUNC="vpn_tunnel_start"
-	[ -n "$PORT" ] && {
-		PORT="-P $PORT"
-	}
-	
 	[ ! -e "$VTUN" ] && {
 		_log do $FUNC daemon debug "no configfile - abort"
 		return
 	}
 	
 	
-	_log do $FUNC daemon debug "starting vtun with config '$VTUN'"
+	_log do $FUNC daemon debug "starting vtun with config '$VTUN $SERV $PORT'"
 
-	vtund -f "$VTUN" "Node$KNOT" "$SERV" "$PORT" 2>/dev/null || {
+	vtund -f "$VTUN" -P "$PORT" "Node$KNOT" "$SERV" 2>/dev/null || {
 
 		_log do $FUNC daemon debug "error"	
 		
@@ -312,6 +313,7 @@ _vpn_write_vtun_conf()
 	local particpant_net="10.63.0.0/16"			# fixme! hardcoded
 	local mytable="weimarnetz_anonym"
 	local anonym
+        local VPN_SERVER_IP="$(_net dns2ip $VPN_SERVER)"
 
 	[ -n "$( uci -q get system.@vpn[0].anonym )" ] && {
 		anonym="# (inactiv):"
@@ -331,7 +333,7 @@ Node$KNOT {
 		program "ip address add $WIFIVPNCLIENTADR/32 dev %%" wait;
 		program "ip -6 address add $VPN6ADR/$VPN6MSK dev %%" wait;
 		program "ip link set dev %% mtu $MTU up" wait;
-		program "ip route add $VPN_SERVER via $STATIC_ROUTE" wait;		# + table local?
+		program "ip route add $VPN_SERVER_IP via $STATIC_ROUTE" wait;		# + table local?
 
 		program "grep -q $mytable /etc/iproute2/rt_tables || echo 50 $mytable >>/etc/iproute2/rt_tables" wait;
 		program "$anonym ip rule add from $particpant_net prio 30010 table $mytable" wait;
@@ -347,7 +349,6 @@ Node$KNOT {
 		program "$anonym ip route add default via $WIFIVPNSERVERADR dev %% table $mytable" wait;
 
 		program "$anonym ip route flush cache" wait;
-		program ". /tmp/loader; _vpn include; _vpn blocking remove" wait;
 	} ;
 		# fixme! static_route must only be valid for programs on this machine
 	down {
@@ -363,9 +364,8 @@ Node$KNOT {
 		program "$anonym ip rule add to 10.0.0.0/8     prio 30004 lookup main" wait;
 		program "$anonym ip rule add to 169.254.0.0/24 prio 30005 lookup main" wait;
 
-		program "ip route del $VPN_SERVER via $STATIC_ROUTE" wait;
+		program "ip route del $VPN_SERVER_IP via $STATIC_ROUTE" wait;
 		program "ip link set dev %% down" wait;
-		program ". /tmp/loader; _vpn include; _vpn blocking start_after_all_connections_are_broken" wait;
 	} ;
 }
 EOF
@@ -394,23 +394,27 @@ _vpn_block()
 		'start')
 			bool_true 'system.vpn.force_block_wifi' && {
 				_log do $funcname daemon info 'start: wifi'
-				$IPT -I FORWARD ! -i $LANDEV -j REJECT
+                                for dev in $WIFI_DEVS; do
+					$IPT -I FORWARD -i "$dev" -o "$WANDEV" -j REJECT
+                                done
 			}
 
 			bool_true 'system.vpn.force_block_lan' && {
 				_log do $funcname daemon info 'start: lan'
-				$IPT -I FORWARD   -i $LANDEV -j REJECT
+				$IPT -I FORWARD -i "$LANDEV" -o "$WANDEV" -j REJECT
 			}
 		;;
 		'remove')
 			bool_true 'system.vpn.force_block_wifi' && {
 				_log do $funcname daemon info 'remove: wifi'
-				$IPT -D FORWARD ! -i $LANDEV -j REJECT
+				for dev in $WIFI_DEVS; do                                                           
+                                        $IPT -D FORWARD -i "$dev" -o "$WANDEV" -j REJECT                         
+                                done 
 			}
 
 			bool_true 'system.vpn.force_block_lan' && {
 				_log do $funcname daemon info 'remove: lan'
-				$IPT -D FORWARD   -i $LANDEV -j REJECT
+				$IPT -D FORWARD  -i "$LANDEV" -o "$WANDEV" -j REJECT
 			}
 		;;
 	esac
