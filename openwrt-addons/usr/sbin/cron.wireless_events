@@ -117,15 +117,26 @@ worker()
 	local wifidev="$1"	# e.g. 'wlan0-1'
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
-	local ip
+	local ip signal
+	local kickmarker="$TMPDIR/kicked_low_signal_$mac-$wifidev"
 	local txt="worker($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
 
 	case "$mode" in
 		'new')
-			log "$txt"
-			ip="$( mac2ipv4 "$mac" "$wifidev" )"
-			txt="$txt - ip: '$ip' signal: $( _wifi signal "$wifidev" "$mac" )"
-			log "$txt"
+			signal="$( _wifi signal "$wifidev" "$mac" )"	# e.g. '-87'
+			log "$txt - signal: '$signal'"
+
+			[ -e "$kickmarker" ] && signal=1
+
+			if [ ${signal:-0} -ge -73 ]; then
+				touch "$kickmarker"
+				_wifi kick "$mac" "$wifidev"
+				log "$txt - KICKED early"
+			else
+				ip="$( mac2ipv4 "$mac" "$wifidev" )"
+				txt="$txt - ip: '$ip' signal: $signal"
+				log "$txt"
+			fi
 		;;
 		'del')
 			if [ -e "/tmp/ROAMING_remove_host_route_$mac" ]; then
@@ -205,6 +216,7 @@ fi
 				# e.g. iw reg set 00; iw reg set US
 				# TODO: find better method
 				log "stopped by user via regset, stopping iw: $PID_IW"
+				rm "$TMPDIR/kicked_low_signal_"*
 				kill $PID_IW
 				break
 			;;
