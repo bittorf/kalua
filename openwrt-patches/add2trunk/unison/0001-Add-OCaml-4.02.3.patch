@@ -1,0 +1,214 @@
+From 20d926aa9a07b44615c0c2810ebe4db6ac66189b Mon Sep 17 00:00:00 2001
+From: Stefan Hellermann <stefan@the2masters.de>
+Date: Sat, 12 Sep 2015 12:36:09 +0200
+Subject: [PATCH 1/2] Add OCaml-4.02.3
+
+Add OCaml to tools and toolchain of openwrt.
+Both are needed, as the OCaml cross-compiler can only be build with
+proper host-tools. OCaml cross-compile is not really supported
+upstream, so I a added a small patch for MIPS (ar71xx). This should
+probably be unified for all supported architectures.
+
+Signed-off-by: Stefan Hellermann <stefan@the2masters.de>
+---
+ rules.mk                                           |  3 ++
+ toolchain/Makefile                                 |  2 +-
+ toolchain/ocaml/Makefile                           | 43 ++++++++++++++++++++++
+ .../ocaml/patches/100-crosscompile-mips.patch      | 43 ++++++++++++++++++++++
+ tools/Makefile                                     |  2 +-
+ tools/ocaml/Makefile                               | 29 +++++++++++++++
+ 6 files changed, 120 insertions(+), 2 deletions(-)
+ create mode 100644 toolchain/ocaml/Makefile
+ create mode 100644 toolchain/ocaml/patches/100-crosscompile-mips.patch
+ create mode 100644 tools/ocaml/Makefile
+
+diff --git a/rules.mk b/rules.mk
+index 819bea5..c46b6ec 100644
+--- a/rules.mk
++++ b/rules.mk
+@@ -215,6 +215,7 @@ BUILD_KEY=$(TOPDIR)/key-build
+ 
+ TARGET_CC:=$(TARGET_CROSS)gcc
+ TARGET_CXX:=$(TARGET_CROSS)g++
++TARGET_OCAML:=$(TARGET_CROSS)ocaml
+ KPATCH:=$(SCRIPT_DIR)/patch-kernel.sh
+ SED:=$(STAGING_DIR_HOST)/bin/sed -i -e
+ CP:=cp -fpR
+@@ -226,6 +227,7 @@ TAR:=tar
+ FIND:=find
+ PATCH:=patch
+ PYTHON:=python
++OCAML:=ocaml
+ 
+ INSTALL_BIN:=install -m0755
+ INSTALL_DIR:=install -d -m0755
+@@ -256,6 +258,7 @@ TARGET_CONFIGURE_OPTS = \
+   GCC="$(TARGET_CC)" \
+   CXX="$(TARGET_CXX)" \
+   RANLIB="$(TARGET_RANLIB)" \
++  OCAML="$(TARGET_OCAML)" \
+   STRIP=$(TARGET_CROSS)strip \
+   OBJCOPY=$(TARGET_CROSS)objcopy \
+   OBJDUMP=$(TARGET_CROSS)objdump \
+diff --git a/toolchain/Makefile b/toolchain/Makefile
+index cd5399e..57f0db6 100644
+--- a/toolchain/Makefile
++++ b/toolchain/Makefile
+@@ -28,7 +28,7 @@
+ curdir:=toolchain
+ 
+ # subdirectories to descend into
+-$(curdir)/builddirs := $(if $(CONFIG_GDB),gdb) $(if $(CONFIG_INSIGHT),insight) $(if $(CONFIG_EXTERNAL_TOOLCHAIN),wrapper,kernel-headers binutils gcc/minimal gcc/initial gcc/final $(LIBC)/headers $(LIBC) fortify-headers)
++$(curdir)/builddirs := $(if $(CONFIG_GDB),gdb) $(if $(CONFIG_INSIGHT),insight) $(if $(CONFIG_EXTERNAL_TOOLCHAIN),wrapper,kernel-headers binutils gcc/minimal gcc/initial gcc/final $(LIBC)/headers $(LIBC) fortify-headers ocaml)
+ ifdef CONFIG_USE_UCLIBC
+   $(curdir)/builddirs += $(LIBC)/utils
+ endif
+diff --git a/toolchain/ocaml/Makefile b/toolchain/ocaml/Makefile
+new file mode 100644
+index 0000000..2eca56c
+--- /dev/null
++++ b/toolchain/ocaml/Makefile
+@@ -0,0 +1,43 @@
++#
++# Copyright (C) 2012-2015 OpenWrt.org
++#
++# This is free software, licensed under the GNU General Public License v2.
++# See /LICENSE for more information.
++#
++include $(TOPDIR)/rules.mk
++
++PKG_NAME:=ocaml
++PKG_VERSION:=4.02.3
++
++PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
++PKG_SOURCE_URL:=http://caml.inria.fr/pub/distrib/ocaml-4.02/
++PKG_MD5SUM:=ef1a324608c97031cbd92a442d685ab7
++
++include $(INCLUDE_DIR)/toolchain-build.mk
++
++HOST_CONFIGURE_VARS =
++HOST_CONFIGURE_ARGS = \
++	-prefix $(TOOLCHAIN_DIR) \
++	-target-bindir $(TOOLCHAIN_DIR)/bin \
++	-host $(GNU_HOST_NAME) \
++	-target $(REAL_GNU_TARGET_NAME) \
++	-cc "$(TARGET_CC) $(TARGET_CFLAGS)" \
++	-as "$(TARGET_AS) $(TARGET_ASFLAGS)" \
++	-no-pthread -no-shared-libs \
++	-no-debugger -no-ocamldoc -no-graph -no-cfi
++
++define Host/Compile
++        $(MAKE) -C $(HOST_BUILD_DIR) world
++endef
++
++define Host/Install
++$(call Host/Install/Default)
++	mv $(TOOLCHAIN_DIR)/bin/ocaml $(TOOLCHAIN_DIR)/bin/$(TARGET_CROSS)ocaml
++	mv $(TOOLCHAIN_DIR)/bin/ocamlc $(TOOLCHAIN_DIR)/bin/$(TARGET_CROSS)ocamlc
++endef
++
++#define Host/Clean
++#	rm -f $(STAGING_DIR_HOST)/bin/mk{dosfs,fs.fat}
++#endef
++
++$(eval $(call HostBuild))
+diff --git a/toolchain/ocaml/patches/100-crosscompile-mips.patch b/toolchain/ocaml/patches/100-crosscompile-mips.patch
+new file mode 100644
+index 0000000..512bdcd
+--- /dev/null
++++ b/toolchain/ocaml/patches/100-crosscompile-mips.patch
+@@ -0,0 +1,43 @@
++Only in ocaml-4.02.3_alt/: .prepared46aaf970a97485ac3396c1e8b68f0782
++Only in ocaml-4.02.3_alt/: .prepared46aaf970a97485ac3396c1e8b68f0782_check
++Only in ocaml-4.02.3: .preparedbef14f9641d32e838d6e363e38915904
++Only in ocaml-4.02.3: .preparedbef14f9641d32e838d6e363e38915904_check
++diff -r -u ocaml-4.02.3_alt/config/auto-aux/m.h ocaml-4.02.3/config/auto-aux/m.h
++--- ocaml-4.02.3_alt/config/auto-aux/m.h	2015-09-11 22:01:43.952000000 +0200
+++++ ocaml-4.02.3/config/auto-aux/m.h	2015-09-11 22:07:37.548000000 +0200
++@@ -0,0 +1,6 @@
+++#undef ARCH_SIXTYFOUR
+++#define SIZEOF_INT 4
+++#define SIZEOF_LONG 4
+++#define SIZEOF_PTR 4
+++#define SIZEOF_SHORT 2
+++#define SIZEOF_LONGLONG 8
++Binary files ocaml-4.02.3_alt/config/auto-aux/tst and ocaml-4.02.3/config/auto-aux/tst differ
++diff -r -u ocaml-4.02.3_alt/configure ocaml-4.02.3/configure
++--- ocaml-4.02.3_alt/configure	2015-05-12 16:46:37.000000000 +0200
+++++ ocaml-4.02.3/configure	2015-09-11 22:13:11.896000000 +0200
++@@ -536,6 +536,10 @@
++                    echo "#undef ARCH_SIXTYFOUR" >> m.h
++                    set 4 4 4 2 8
++                    arch64=false;;
+++    mips-*-linux-*) inf "OK, this is a regular 32 bit architecture."
+++                   echo "#undef ARCH_SIXTYFOUR" >> m.h
+++                   set 4 4 4 2 8
+++                   arch64=false;;
++     x86_64-*-mingw*) inf "Wow! A 64 bit architecture!"
++                      echo "#define ARCH_SIXTYFOUR" >> m.h
++                      set 4 4 8 2 8
++@@ -573,11 +577,11 @@
++      echo "#define ARCH_BIG_ENDIAN" >> m.h;;
++   1) inf "This is a little-endian architecture."
++      echo "#undef ARCH_BIG_ENDIAN" >> m.h;;
++-  2) err "This architecture seems to be neither big endian nor little endian.\n" \
++-         "OCaml won't run on this architecture.";;
++   *) case $target in
++        *-*-mingw*) inf "This is a little-endian architecture."
++                    echo "#undef ARCH_BIG_ENDIAN" >> m.h;;
+++       mips-*-linux-*) inf "This is a big-endian architecture."
+++                   echo "#define ARCH_BIG_ENDIAN" >> m.h;;
++        *) wrn "Something went wrong during endianness determination.\n" \
++               "You will have to figure out endianness yourself (option ARCH_BIG_ENDIAN in m.h).";;
++      esac;;
+diff --git a/tools/Makefile b/tools/Makefile
+index dda429f..dae9f3b 100644
+--- a/tools/Makefile
++++ b/tools/Makefile
+@@ -25,7 +25,7 @@ endif
+ 
+ tools-$(BUILD_TOOLCHAIN) += gmp mpfr mpc libelf expat
+ tools-y += m4 libtool autoconf automake flex bison pkg-config sed mklibs
+-tools-y += sstrip make-ext4fs e2fsprogs mtd-utils mkimage
++tools-y += sstrip make-ext4fs e2fsprogs mtd-utils mkimage ocaml
+ tools-y += firmware-utils patch-image patch quilt yaffs2 flock padjffs2
+ tools-y += mm-macros missing-macros xz cmake scons bc findutils gengetopt patchelf
+ tools-$(CONFIG_TARGET_orion_generic) += wrt350nv2-builder upslug2
+diff --git a/tools/ocaml/Makefile b/tools/ocaml/Makefile
+new file mode 100644
+index 0000000..a17008e
+--- /dev/null
++++ b/tools/ocaml/Makefile
+@@ -0,0 +1,29 @@
++#
++# Copyright (C) 2012-2015 OpenWrt.org
++#
++# This is free software, licensed under the GNU General Public License v2.
++# See /LICENSE for more information.
++#
++include $(TOPDIR)/rules.mk
++
++PKG_NAME:=ocaml
++PKG_VERSION:=4.02.3
++
++PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
++PKG_SOURCE_URL:=http://caml.inria.fr/pub/distrib/ocaml-4.02/
++PKG_MD5SUM:=ef1a324608c97031cbd92a442d685ab7
++
++include $(INCLUDE_DIR)/host-build.mk
++
++HOST_CONFIGURE_VARS =
++HOST_CONFIGURE_ARGS = \
++	-prefix $(STAGING_DIR_HOST) \
++	-cc "gcc -m32" -as "as --32" -aspp "gcc -m32 -c" \
++	-host i386-linux -partialld "ld -r -melf_i386" \
++	-no-pthread -no-debugger -no-ocamldoc -no-graph -no-cfi
++
++define Host/Compile
++	$(MAKE) -C $(HOST_BUILD_DIR) world
++endef
++
++$(eval $(call HostBuild))
+-- 
+2.1.4
+
