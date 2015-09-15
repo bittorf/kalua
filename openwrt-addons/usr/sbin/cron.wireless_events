@@ -117,17 +117,30 @@ worker()
 	local wifidev="$1"	# e.g. 'wlan0-1'
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
-	local ip signal
+	local ip signal signal_try=5
 	local kickmarker="$TMPDIR/kicked_low_signal_$mac-$wifidev"
 	local txt="worker($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
 
 	case "$mode" in
 		'new')
-			signal="$( _wifi signal "$wifidev" "$mac" )"	# e.g. '-87' or '0'
+			if [ -e "$kickmarker" ]; then
+				signal=-2				# simulate 'very good'
+			else
+				while [ $signal_try -gt 0 ]; do {
+					# e.g. '-87' or '0'
+					signal="$( _wifi signal "$wifidev" "$mac" )"
+					if [ ${signal:-0} -eq 0 ]; then
+						signal_try=$(( signal_try - 1 ))
+					else
+						break
+					fi
+				} done
+			fi
+
 			log "$txt - signal: '$signal'"
 
-			[ -e "$kickmarker" ] && signal=-2		# simulate very good
-
+			# TODO: different border for 2/5ghz
+			# TODO: we must check signal regulary
 			bad_signal()
 			{
 				test $1 -lt -73				# good = 0 or -1 ... -73
@@ -139,6 +152,8 @@ worker()
 				log "$txt - KICKED early signal: '$signal'"
 			else
 				ip="$( mac2ipv4 "$mac" "$wifidev" )"
+				[ "$signal" = '0' ] && signal="$( _wifi signal "$wifidev" "$mac" )"
+
 				txt="$txt - ip: '$ip' signal: '$signal'"
 				log "$txt"
 			fi
