@@ -28,9 +28,11 @@ _netfilter_start()
 		[ -n "$LOWMEM" ] && return 0
 	}
 
+    _vpn needed && _vpn block start
+
+
 	bool_true 'system.@weblogin[0].enabled' && {
 		[ -e "/www/SIMPLE_MESHNODE" ] || {
-			_vpn needed && _vpn blocking start
 			_netfilter splash_start
 			echo >>$SCHEDULER '_netfilter splash_autoadd'
 		}
@@ -797,8 +799,14 @@ _netfilter_masquerade_start()
 
 	_log do $funcname daemon info "active for device $device ($devname)"
 
-	echo "$IPT -t nat -D POSTROUTING -o $device -j MASQUERADE" >"$statfile"
-	$IPT -t nat -A POSTROUTING -o $device -j MASQUERADE
+    bool_true 'system.@system[0].restrict_local' && {
+            echo "$IPT -t nat -A POSTROUTING -o $device ! -d $WANNET/$WANPRE -j MASQUERADE" >"$statfile"
+	        $IPT -t nat -A POSTROUTING -o $device ! -d $WANNET/$WANPRE -j MASQUERADE
+    } || {
+            echo "$IPT -t nat -A POSTROUTING -o $device -j MASQUERADE" >"$statfile"
+            $IPT -t nat -A POSTROUTING -o $device -j MASQUERADE
+    }
+
 	$IPT -A FORWARD -i $device
 	$IPT -A FORWARD -o $device
 
