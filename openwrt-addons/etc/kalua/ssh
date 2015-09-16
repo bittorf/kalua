@@ -2,19 +2,27 @@
 
 _ssh_key_public_fingerprint_get()	# output differs, wether its a SHA1 or MD5 hash
 {
+	local option="$1"
 	local me='ssh_key_public_fingerprint_get'
-	local file_openwrt='/etc/dropbear/dropbear_dss_host_key'
+	local file_openwrt1='/etc/dropbear/dropbear_dss_host_key'
+	local file_openwrt2='/etc/dropbear/dropbear_rsa_host_key'	# since r46814
 	local file_debian='/etc/ssh/ssh_host_rsa_key.pub'
 
-	if   [ -e "$file_openwrt" ]; then
-		dropbearkey -y -f "$file_openwrt" |
+	if   [ -e "$file_openwrt1" ]; then
+		dropbearkey -y -f "$file_openwrt1" |
+		 fgrep 'Fingerprint:' |
+		  cut -d' ' -f3
+	elif [ -e "$file_openwrt2" ]; then
+		dropbearkey -y -f "$file_openwrt2" |
 		 fgrep 'Fingerprint:' |
 		  cut -d' ' -f3
 	elif [ -e "$file_debian" ]; then
 		ssh-keygen -l -f "$file_debian" |
 		 cut -d' ' -f2
 	else
-		_ssh sanitize_and_cleanup_keys && _$me
+		[ -z "$option" ] && {
+			_ssh sanitize_and_cleanup_keys && _$me 'retry'
+		}
 	fi
 }
 
