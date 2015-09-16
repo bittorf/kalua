@@ -34,38 +34,6 @@ patch_udhcpc_script()
 	} >"$script"
 }
 
-adjust_coredump()
-{
-	local funcname='adjust_coredump'
-	local file='/proc/sys/kernel/core_pattern'
-	local pattern='/dev/null'
-	local rlimit_core
-
-	# TODO: limit single corefile size, otherwise we only see the 1st if there is a crash-cascade
-	case "$CONFIG_PROFILE" in
-		'liszt28'*)
-			rlimit_core='2048k'
-		;;
-		*)
-			if [ -n "$LOWMEM" ]; then
-				rlimit_core=
-			else
-				rlimit_core='128k'
-			fi
-		;;
-	esac
-
-	[ -n "$rlimit_core" ] && {
-		pattern='/coredump/%e.%p.%s.%t.core'
-		_system add_ramdisc 'coredumps' "$rlimit_core" || pattern='/dev/null'
-
-		grep -q "$pattern" "$file" || {
-			_log do $funcname daemon info "writing '$pattern' to '$file'"
-			echo "$pattern" >"$file"
-		}
-	}
-}
-
 func_cron_daemon_start ()
 {
 	local funcname="cron_daemon_start"
@@ -526,7 +494,7 @@ func_cron_config_write ()
 
 case "$1" in
 	start)
-		adjust_coredump
+		_system adjust_coredump
 		patch_udhcpc_script
 
 		network_still_upstarting()
@@ -546,14 +514,14 @@ case "$1" in
 		func_cron_start $2
 	;;
 	minimal)
-		adjust_coredump
+		_system adjust_coredump
 		func_cron_start minimal
 	;;
 	stop)
 		func_cron_stop	
 	;;
 	restart)
-		adjust_coredump
+		_system adjust_coredump
 
 		func_cron_stop leave_watchdog
 		func_cron_start $2
