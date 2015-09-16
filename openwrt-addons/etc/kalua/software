@@ -463,12 +463,12 @@ _software_package_install()
 
 _software_opkg_raminstaller()
 {
-	# TODO: this will fail, if the binary uses another clib than the router (musl VS uclibc)
-	# if the real 'opkg' is not included, autodownload and call it with all args
+	# if the real 'opkg' is not installed/included, autodownload and call it with all args
 	local funcname='software_opkg_raminstaller'
+	local fake='/tmp/bin/opkg'
 	local arch url file
 
-	[ -e '/tmp/bin/opkg' ] || {
+	[ -e "$fake" ] || {
 		local arch="$( _system architecture )"
 		local url="http://downloads.openwrt.org/barrier_breaker/14.07/$arch/generic/packages/base"
 
@@ -497,18 +497,19 @@ _software_opkg_raminstaller()
 		)
 	}
 
+	# TODO: this will fail, e.g. if the binary uses another clib than the router (musl VS uclibc)
 	# if something is wrong with the binary, install a stub which simulates OK
-	opkg -v | grep -q ^'opkg version' || {
+	$fake -v | grep -q ^'opkg version' || {
 		{
 			echo '#!/bin/sh'
 			echo '. /tmp/loader'
-			echo '_log do fake-opkg daemon info "please check binary from $url"'
+			echo "_log do fake-opkg daemon info 'please check binary from $url'"
 			echo 'true'
-		} >'/tmp/bin/opkg'
+		} >"$fake"
 
-		chmod +x '/tmp/bin/opkg'
+		chmod +x "$fake"
 	}
 
 	# if on debian, it report via 'file opkg' -> 'corrupted section header size'
-	/tmp/bin/opkg "$@"
+	$fake "$@"
 }
