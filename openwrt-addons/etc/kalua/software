@@ -463,6 +463,7 @@ _software_package_install()
 
 _software_opkg_raminstaller()
 {
+	# TODO: this will fail, if the binary uses another clib than the router (musl VS uclibc)
 	# if the real 'opkg' is not included, autodownload and call it with all args
 	local funcname='software_opkg_raminstaller'
 	local arch url file
@@ -494,6 +495,18 @@ _software_opkg_raminstaller()
 			tar xvzf 'data.tar.gz' ./bin/opkg
 			rm 'data.tar.gz'
 		)
+	}
+
+	# if something is wrong with the binary, install a stub which simulates OK
+	opkg -v | grep -q ^'opkg version' || {
+		{
+			echo '#!/bin/sh'
+			echo '. /tmp/loader'
+			echo '_log do fake-opkg daemon info "please check binary from $url"'
+			echo 'true'
+		} >'/tmp/bin/opkg'
+
+		chmod +x '/tmp/bin/opkg'
 	}
 
 	# if on debian, it report via 'file opkg' -> 'corrupted section header size'
