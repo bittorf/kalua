@@ -530,16 +530,19 @@ cat >>$OUT <<EOF
   }
 
   function formatTimeDuration(seconds) {
-    var d, h, m, s
+    var d, h, m, s, viewing_secs
 
     d = Math.floor(seconds / 86400)
     h = Math.floor((seconds % 86400) / 3600)
     m = Math.floor(((seconds % 86400) % 3600) / 60)
     s = Math.floor(((seconds % 86400) % 3600) % 60)
 
-    if (s == 59) {
-	location.reload();	// sorry for hijacking this function. (basti)
+    // at 5:59, 10:59 ... sorry for hijacking this function. (basti)
+    if (viewing_secs > 100 && s == 59 && ( m % 5 === 0 )) {
+	location.reload();
     }
+
+    viewing_secs++;
 
     return '' +
       ((d > 0) ? (d + ' Tage ') : ('')) +
@@ -933,7 +936,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	}
 
 	case "$NETWORK" in
-		liszt28|gnm|apphalle)
+		liszt28|gnm|apphalle|abtpark)
 			# in minutes - please also adjust in _cell_lastseen()
 			LASTSEEN="$(( $LASTSEEN /   60 ))"
 			AGE_BORDER=9999
@@ -2072,8 +2075,8 @@ _cell_lastseen()
 	local unixtime_file
 
 	case "$NETWORK" in
-		liszt28|apphalle)
-			border=120	# min
+		liszt28|apphalle|abtpark|apphalle)
+			border=61	# min - normally every 15 mins a mini-update and every 60 mins a full
 		;;
 		gnm)
 			smsfile="$smsfile.$HOSTNAME"	# individual

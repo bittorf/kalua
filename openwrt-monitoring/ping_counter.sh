@@ -472,7 +472,7 @@ add_new_ipaddresses_from_network()
 			case "$3" in
 				'myping_'*)
 					iptables -nxvL $3 | fgrep -q " $ip " && {
-						log "will not add $ip - found it already in $3"
+						log "will not add $ip to network '$network' - found it already in $3"
 						echo "YES"
 						return 0
 					}

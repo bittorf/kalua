@@ -337,13 +337,6 @@ for NET in $LIST; do {
 			touch "/var/www/networks/$NETWORK/meshrdf/meshrdf.txt"
 		}
 
-#		log "remove me, only a workaround for an accident // 2012Apr17"
-#		for VDS_FILE in $( ls -1 /var/www/networks/$NETWORK/vds | grep "\.2012.....\.2012" ); do {
-#			log "removing accident '/var/www/networks/$NETWORK/vds/$VDS_FILE' in 5 sec"
-#			sleep 5
-#			rm "/var/www/networks/$NETWORK/vds/$VDS_FILE"
-#		} done
-
 		DATE_TODAY="$( date +%Y%b%d )"
 		for VDS_FILE in $( ls -1 /var/www/networks/$NETWORK/vds/db_backup.tgz_* | grep -v "$DATE_TODAY" ); do {
 			ls -al --time-style=+%D "$VDS_FILE" | grep -q "$(date +%D)" && {		# is from today
