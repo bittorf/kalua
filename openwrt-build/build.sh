@@ -1722,7 +1722,8 @@ apply_symbol()
 				} done
 			}
 
-			list_files_and_dirs | while read file; do {
+			# FIXME!
+			list_files_and_dirs | grep -v unison | while read file; do {
 				if [ -d "$file" ]; then
 					log "dir: $file"
 					register_patch "DIR: $file"
