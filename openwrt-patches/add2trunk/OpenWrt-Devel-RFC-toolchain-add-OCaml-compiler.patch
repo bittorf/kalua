@@ -1,0 +1,215 @@
+diff --git a/toolchain/Config.in b/toolchain/Config.in
+index 474a14f..88bbe98 100644
+--- a/toolchain/Config.in
++++ b/toolchain/Config.in
+@@ -206,6 +206,12 @@ comment "Compiler"
+ 
+ source "toolchain/gcc/Config.in"
+ 
++config OCAML
++	bool
++	prompt "Build OCaml Compiler" if TOOLCHAINOPTS
++	help
++	  Enable if you want to build the OCaml Compiler.
++
+ comment "C Library"
+ 	depends on TOOLCHAINOPTS
+ 
+diff --git a/toolchain/Makefile b/toolchain/Makefile
+index cd5399e..92c6f82 100644
+--- a/toolchain/Makefile
++++ b/toolchain/Makefile
+@@ -28,7 +28,7 @@
+ curdir:=toolchain
+ 
+ # subdirectories to descend into
+-$(curdir)/builddirs := $(if $(CONFIG_GDB),gdb) $(if $(CONFIG_INSIGHT),insight) $(if $(CONFIG_EXTERNAL_TOOLCHAIN),wrapper,kernel-headers binutils gcc/minimal gcc/initial gcc/final $(LIBC)/headers $(LIBC) fortify-headers)
++$(curdir)/builddirs := $(if $(CONFIG_GDB),gdb) $(if $(CONFIG_INSIGHT),insight) $(if $(CONFIG_OCAML),ocaml) $(if $(CONFIG_EXTERNAL_TOOLCHAIN),wrapper,kernel-headers binutils gcc/minimal gcc/initial gcc/final $(LIBC)/headers $(LIBC) fortify-headers)
+ ifdef CONFIG_USE_UCLIBC
+   $(curdir)/builddirs += $(LIBC)/utils
+ endif
+@@ -49,6 +49,7 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
+   $(curdir)/$(LIBC)/utils/compile:=$(curdir)/gcc/final/install
+   $(curdir)/$(LIBC)/prepare:=$(curdir)/$(LIBC)/headers/prepare
+   $(curdir)/$(LIBC)/utils/prepare:=$(curdir)/$(LIBC)/headers/prepare
++  $(curdir)/ocaml/prepare:=$(curdir)/gcc/final/install
+ endif
+ 
+ ifndef DUMP_TARGET_DB
+diff --git a/toolchain/ocaml/Makefile b/toolchain/ocaml/Makefile
+new file mode 100644
+index 0000000..dfb4135
+--- /dev/null
++++ b/toolchain/ocaml/Makefile
+@@ -0,0 +1,55 @@
++#
++# Copyright (C) 2015 OpenWrt.org
++#
++# This is free software, licensed under the GNU General Public License v2.
++# See /LICENSE for more information.
++#
++include $(TOPDIR)/rules.mk
++
++PKG_NAME:=ocaml
++PKG_VERSION:=4.02.3
++
++PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
++PKG_SOURCE_URL:=http://caml.inria.fr/pub/distrib/$(PKG_NAME)-$(word 1,$(subst ., ,$(PKG_VERSION))).$(word 2,$(subst ., ,$(PKG_VERSION)))/
++PKG_MD5SUM:=ef1a324608c97031cbd92a442d685ab7
++
++include $(INCLUDE_DIR)/toolchain-build.mk
++
++# custom configure script
++HOST_CONFIGURE_VARS =
++HOST_CONFIGURE_ARGS = \
++	-prefix $(TOOLCHAIN_DIR) \
++	-target-bindir $(TOOLCHAIN_DIR)/bin \
++	-target $(REAL_GNU_TARGET_NAME) \
++	-cc "$(TARGET_CC) $(TARGET_CFLAGS)" \
++	-as "$(TARGET_AS) $(TARGET_ASFLAGS)" \
++	-no-pthread -no-shared-libs \
++	-no-debugger -no-ocamldoc -no-graph -no-cfi
++
++ifneq ($(CONFIG_BIG_ENDIAN),)
++HOST_CONFIGURE_ARGS += -big-endian
++endif
++
++# OCaml applications for 32 bit targets need to be cross-compiled on a 32 bit host OCaml.
++# The following catches x86_64 hosts only. Tested on x86_64 for ar71xx and x86_64 targets.
++ifeq ($(HOST_ARCH)$(CONFIG_ARCH_64BIT),x86_64)
++HOST_CONFIGURE_ARGS += -host i386-linux
++else
++HOST_CONFIGURE_ARGS += -host $(GNU_HOST_NAME)
++endif
++
++define Host/Compile
++        $(MAKE) -C $(HOST_BUILD_DIR) world
++endef
++
++define Host/Install
++	$(call Host/Install/Default)
++	mv $(TOOLCHAIN_DIR)/bin/ocamlc $(TOOLCHAIN_DIR)/bin/$(TARGET_CROSS)ocamlc
++endef
++
++define Host/Clean
++	$(call Host/Clean/Default)
++	rm -f $(STAGING_DIR_HOST)/bin/$(TARGET_CROSS)ocamlc
++endef
++
++$(eval $(call HostBuild))
+diff --git a/toolchain/ocaml/patches/001-crosscompile.patch b/toolchain/ocaml/patches/001-crosscompile.patch
+new file mode 100644
+index 0000000..a5eedca
+--- /dev/null
++++ b/toolchain/ocaml/patches/001-crosscompile.patch
+@@ -0,0 +1,57 @@
++--- ocaml-4.02.3/configure	2015-05-12 16:46:37.000000000 +0200
+++++ ocaml-4.02.3_new/configure	2015-09-17 16:20:07.104000000 +0200
++@@ -47,6 +47,7 @@
++ no_naked_pointers=false
++ TOOLPREF=""
++ with_cfi=true
+++big_endian=1
++ 
++ # Try to turn internationalization off, can cause config.guess to malfunction!
++ unset LANG
++@@ -154,6 +155,8 @@
++         no_naked_pointers=true;;
++     -no-cfi|--no-cfi)
++         with_cfi=false;;
+++    -big-endian|--big-endian)
+++        big_endian=0;;
++     *) if echo "$1" | grep -q -e '^--\?[a-zA-Z0-9-]\+='; then
++          err "configure expects arguments of the form '-prefix /foo/bar'," \
++              "not '-prefix=/foo/bar' (note the '=')."
++@@ -532,18 +535,14 @@
++ else
++   # For cross-compilation, runtest always fails: add special handling.
++   case "$target" in
++-    i686-*-mingw*) inf "OK, this is a regular 32 bit architecture."
++-                   echo "#undef ARCH_SIXTYFOUR" >> m.h
++-                   set 4 4 4 2 8
++-                   arch64=false;;
++-    x86_64-*-mingw*) inf "Wow! A 64 bit architecture!"
+++    *64-*) inf "Wow! A 64 bit architecture!"
++                      echo "#define ARCH_SIXTYFOUR" >> m.h
++                      set 4 4 8 2 8
++                      arch64=true;;
++-    *) err "Since datatype sizes cannot be guessed when cross-compiling,\n" \
++-           "a hardcoded list is used but your architecture isn't known yet.\n" \
++-           "You need to determine the sizes yourself.\n" \
++-           "Please submit a bug report in order to expand the list." ;;
+++    *) inf "OK, this is a regular 32 bit architecture."
+++                   echo "#undef ARCH_SIXTYFOUR" >> m.h
+++                   set 4 4 4 2 8
+++                   arch64=false;;
++   esac
++ fi
++ 
++@@ -567,8 +566,11 @@
++ 
++ # Determine endianness
++ 
++-sh ./runtest endian.c
++-case $? in
+++if ! $cross_compiler; then
+++  sh ./runtest endian.c
+++  big_endian=$?
+++fi
+++case $big_endian in
++   0) inf "This is a big-endian architecture."
++      echo "#define ARCH_BIG_ENDIAN" >> m.h;;
++   1) inf "This is a little-endian architecture."
+diff --git a/tools/Makefile b/tools/Makefile
+index 60041dd..ac2acd4 100644
+--- a/tools/Makefile
++++ b/tools/Makefile
+@@ -24,6 +24,7 @@ ifneq ($(CONFIG_PACKAGE_kmod-b43)$(CONFIG_PACKAGE_kmod-b43legacy)$(CONFIG_BRCMSM
+ endif
+ 
+ tools-$(BUILD_TOOLCHAIN) += gmp mpfr mpc libelf expat
++tools-$(CONFIG_OCAML) += ocaml
+ tools-y += m4 libtool autoconf automake flex bison pkg-config sed mklibs
+ tools-y += sstrip make-ext4fs e2fsprogs mtd-utils mkimage
+ tools-y += firmware-utils patch-image patch quilt yaffs2 flock padjffs2
+diff --git a/tools/ocaml/Makefile b/tools/ocaml/Makefile
+new file mode 100644
+index 0000000..4e0a595
+--- /dev/null
++++ b/tools/ocaml/Makefile
+@@ -0,0 +1,35 @@
++#
++# Copyright (C) 2015 OpenWrt.org
++#
++# This is free software, licensed under the GNU General Public License v2.
++# See /LICENSE for more information.
++#
++include $(TOPDIR)/rules.mk
++
++PKG_NAME:=ocaml
++PKG_VERSION:=4.02.3
++
++PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
++PKG_SOURCE_URL:=http://caml.inria.fr/pub/distrib/$(PKG_NAME)-$(word 1,$(subst ., ,$(PKG_VERSION))).$(word 2,$(subst ., ,$(PKG_VERSION)))/
++PKG_MD5SUM:=ef1a324608c97031cbd92a442d685ab7
++
++include $(INCLUDE_DIR)/host-build.mk
++
++# custom configure script
++HOST_CONFIGURE_VARS =
++HOST_CONFIGURE_ARGS = -prefix $(STAGING_DIR_HOST) \
++	-no-pthread -no-debugger -no-ocamldoc -no-graph -no-cfi
++
++# OCaml applications for 32 bit targets need to be cross-compiled on a 32 bit host OCaml.
++# The following catches x86_64 hosts only. Tested on x86_64 for ar71xx and x86_64 targets.
++ifeq ($(HOST_ARCH)$(CONFIG_ARCH_64BIT),x86_64)
++HOST_CONFIGURE_ARGS += \
++	-cc "gcc -m32" -as "as --32" -aspp "gcc -m32 -c" \
++	-host i386-linux -partialld "ld -r -melf_i386"
++endif
++
++define Host/Compile
++	$(MAKE) -C $(HOST_BUILD_DIR) world
++endef
++
++$(eval $(call HostBuild))
