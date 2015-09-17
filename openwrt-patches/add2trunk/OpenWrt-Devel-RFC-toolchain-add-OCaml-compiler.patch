@@ -1,3 +1,50 @@
+From patchwork Thu Sep 17 17:31:56 2015
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Subject: [OpenWrt-Devel,RFC] toolchain: add OCaml compiler
+From: Stefan Hellermann <stefan@the2masters.de>
+X-Patchwork-Id: 518982
+Message-Id: <1442511116-24869-1-git-send-email-stefan@the2masters.de>
+To: openwrt-devel@lists.openwrt.org
+Date: Thu, 17 Sep 2015 19:31:56 +0200
+
+While porting the Unison File Synchronizer to openwrt I added the
+OCaml compiler to openwrt toolchain.
+Cross-compiling OCaml seems to be only tested for windows mingw
+targets. I had to add a patch to the OCaml configure scripts, to feed
+it with a few bits of the target. I hope i did it right for all
+targets.
+Cross-compiling OCaml needs a bootstrap OCaml installed on the host,
+so I actually added OCaml twice, one time in tools and one time in
+toolchain.
+I discovered a bug when trying to cross-compile on a 64 bit host for
+a 32 bit target, the resulting binaries won't work on the target.
+For this case I added a workaround in tools/ocaml to compile a
+32 bit bootstrap OCaml on x86_64 hosts when building for 32 bit
+targets. This workaround is tested for a x86_64 host when
+compiling for ar71xx and x86_64 targets.
+This workaround is probably buggy when switching from x86_64 to
+ar71xx targets without make dirclean, as tools/ocaml is not
+rebuild in this case.
+
+Tested with Unison File Synchronizer on ar71xx and x86_64. Beware:
+Stripping unison won't work!
+Better solutions and comments are appreciated!
+
+Signed-off-by: Stefan Hellermann <stefan@the2masters.de>
+---
+ toolchain/Config.in                            |  6 +++
+ toolchain/Makefile                             |  3 +-
+ toolchain/ocaml/Makefile                       | 55 +++++++++++++++++++++++++
+ toolchain/ocaml/patches/001-crosscompile.patch | 57 ++++++++++++++++++++++++++
+ tools/Makefile                                 |  1 +
+ tools/ocaml/Makefile                           | 35 ++++++++++++++++
+ 6 files changed, 156 insertions(+), 1 deletion(-)
+ create mode 100644 toolchain/ocaml/Makefile
+ create mode 100644 toolchain/ocaml/patches/001-crosscompile.patch
+ create mode 100644 tools/ocaml/Makefile
+
 diff --git a/toolchain/Config.in b/toolchain/Config.in
 index 474a14f..88bbe98 100644
 --- a/toolchain/Config.in
