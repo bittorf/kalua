@@ -1552,8 +1552,8 @@ build()
 				fi
 			else
 				log "[ERROR] during make: check directory logs/ with"
-				log "find logs -type f -exec stat -c '%y %N' {} \; | sort -n"
-				log "first build unparallel with 'make -j1 BUILD_LOG=1'"
+				log "do: 'find logs -type f -exec stat -c '%y %N' {} \; | sort -n'"
+				log "first build unparallel with: 'make -j1 BUILD_LOG=1'"
 				return 1
 			fi
 		;;
@@ -2022,7 +2022,7 @@ build_options_set()
 				[ "$ARCH" = 'ar71xx' ] && {
 					$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19 for ar71xx
 					$funcname subcall 'revert46553'		# dito
-				}
+				}	# parser_ignore
 
 				usecase_has 'noDebug' || {
 					log "[OK] autoselecting usecase 'debug' in 'Standard'-mode"
@@ -2062,7 +2062,7 @@ build_options_set()
 				[ "$ARCH" = 'ar71xx' ] && {
 					$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
 					$funcname subcall 'revert46553'		# dito
-				}
+				}	# parser_ignore
 			;;
 			'Mini')
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# kernel-modules: wireless:
