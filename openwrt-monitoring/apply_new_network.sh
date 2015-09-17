@@ -19,11 +19,14 @@ for DIR in tarball/stable tarball/beta tarball/testing \
 	   firmware log ignore meshrdf meshrdf/recent packages \
 	   registrator registrator2 registrator/sshfp \
 	   registrator/recent rrd speedtest vds vpn whitelist media; do {
-	mkdir -p "${BASE}/${NETWORK}/${DIR}" && echo "creating '${BASE}/${NETWORK}/${DIR}/'"
+	mkdir "${BASE}/${NETWORK}/${DIR}" 2>/dev/null && log "creating '${BASE}/${NETWORK}/${DIR}/'"
 } done
 
 for FILE in log/log.txt meshrdf/meshrdf.txt ignore/macs.txt; do {
-	touch "${BASE}/${NETWORK}/${FILE}" && echo "touching '${BASE}/${NETWORK}/${FILE}'"
+	FILE="$BASE/$NETWORK/$FILE"
+	[ -e "$FILE" ] || {
+		touch "$FILE" && log "touched '$FILE'"
+	}
 } done
 
 for DIR in tarball/stable tarball/beta tarball/testing ; do {
@@ -34,31 +37,47 @@ for DIR in tarball/stable tarball/beta tarball/testing ; do {
 	}
 } done
 
-F='/var/www/scripts/netjsongraph.css';		ln -s "$F" "${BASE}/${NETWORK}/meshrdf/netjsongraph.css"		&& echo "symlink to '$F'"
-F='/var/www/scripts/netjsongraph-theme.css';	ln -s "$F" "${BASE}/${NETWORK}/meshrdf/netjsongraph-theme.css"		&& echo "symlink to '$F'"
-F='/var/www/scripts/netjsongraph.js';		ln -s "$F" "${BASE}/${NETWORK}/meshrdf/netjsongraph.js"			&& echo "symlink to '$F'"
-F='/var/www/scripts/netjson.html';		ln -s "$F" "${BASE}/${NETWORK}/meshrdf/netjson.html"			&& echo "symlink to '$F'"
-F="/var/www/scripts/meshrdf_generate_table.sh";	ln -s "$F" "${BASE}/${NETWORK}/meshrdf/generate_table.sh"		&& echo "symlink to '$F'"
-F="/var/www/scripts/meshrdf_generate_map.sh";	ln -s "$F" "${BASE}/${NETWORK}/meshrdf/generate_map.sh"			&& echo "symlink to '$F'"
-F="/var/www/scripts/meshrdf_accept.php";	ln -s "$F" "${BASE}/${NETWORK}/meshrdf/index.php"			&& echo "symlink to '$F'"
-F="/var/www/scripts/meshrdf_accept.sh";		ln -s "$F" "${BASE}/${NETWORK}/meshrdf/meshrdf_accept.sh"		&& echo "symlink to '$F'"
-F="/var/www/scripts/registrator_accept.php";	ln -s "$F" "${BASE}/${NETWORK}/registrator/index.php"			&& echo "symlink to '$F'"
-F="/var/www/scripts/registrator_accept.sh";	ln -s "$F" "${BASE}/${NETWORK}/registrator/registrator_accept.sh"	&& echo "symlink to '$F'"
-F="/var/www/scripts/registrator2_accept.php";	ln -s "$F" "${BASE}/${NETWORK}/registrator2/index.php"			&& echo "symlink to '$F'"
-F="/var/www/scripts/registrator2_accept.sh";	ln -s "$F" "${BASE}/${NETWORK}/registrator2/registrator2_accept.sh"	&& echo "symlink to '$F'"
+symlink()
+{
+	local destinaton="$1"
+	local file="$BASE/$NETWORK/$2"
+
+	if [ -h "$file" ]; then
+		return 0
+	else
+		if ln -s "$destinaton" "$file"; then
+			log "symlink to '$destinaton'"
+		else
+			log "[ERR] symlink '$destinaton'"
+		fi
+	fi
+}
+
+symlink '/var/www/scripts/netjsongraph.css'		'meshrdf/netjsongraph.css'
+symlink '/var/www/scripts/netjsongraph.css'		'meshrdf/netjsongraph.css'
+symlink '/var/www/scripts/netjsongraph-theme.css'	'meshrdf/netjsongraph-theme.css'
+symlink '/var/www/scripts/netjsongraph.js'		'/meshrdf/netjsongraph.js'
+symlink '/var/www/scripts/netjson.html'			'meshrdf/netjson.html'
+symlink '/var/www/scripts/meshrdf_generate_table.sh'	'meshrdf/generate_table.sh'
+symlink '/var/www/scripts/meshrdf_generate_map.sh'	'meshrdf/generate_map.sh'
+symlink '/var/www/scripts/meshrdf_accept.php'		'meshrdf/index.php'
+symlink '/var/www/scripts/meshrdf_accept.sh'		'meshrdf/meshrdf_accept.sh'
+symlink '/var/www/scripts/registrator_accept.php'	'registrator/index.php'
+symlink '/var/www/scripts/registrator_accept.sh'	'registrator/registrator_accept.sh'
+symlink '/var/www/scripts/registrator2_accept.php'	'registrator2/index.php'
+symlink '/var/www/scripts/registrator2_accept.sh'	'registrator2/registrator2_accept.sh'
 
 F="${BASE}/${NETWORK}/packages"
-[ -z "$( ls -1 2>/dev/null "$F/mydesign"* )"    ] && cp /var/www/scripts/mydesign_0.1.ipk		    "$F" && echo "+mydesign"
+[ -z "$( ls -1 2>/dev/null "$F/mydesign"* )"    ] && cp /var/www/scripts/mydesign_0.1.ipk		    "$F" && log "+mydesign"
 # [ -z "$( ls -1 2>/dev/null "$F/fff-adblock"* )" ] && cp /var/www/scripts/fff-adblock-list_0.1.0_mipsel.ipk  "$F" && echo "+fff-adblock-list"
 
-chmod -R 777 "${BASE}/${NETWORK}/" && echo "chmod 777 all"
+chmod -R 777 "${BASE}/${NETWORK}/" && log "[OK] chmod 777 all"
 
-cd "${BASE}/${NETWORK}/packages"
-/var/www/scripts/gen_package_list.sh && echo "generated package-list from private repo"
+/var/www/scripts/gen_package_list.sh "$NETWORK" && \
+	log "[OK] generated package-list from private repo '$NETWORK'"
 
 cd "${BASE}/${NETWORK}/vds"
-echo "<html><body>hi</body></html>" >index.html && echo "put empty startpagepage into vds"
+echo "<html><body>protected</body></html>" >index.html && log "[OK] putting empty startpage into vds-dir"
 
 cd "${BASE}/${NETWORK}/speedtest"
-echo -e '<?php\necho $_SERVER["REMOTE_ADDR"];\n?>' >index.html && echo "put remote_addr startpagepage into speedtest"
-
+echo -e '<?php\necho $_SERVER["REMOTE_ADDR"];\n?>' >index.html && log "[OK] put remote_addr startpagepage into speedtest"

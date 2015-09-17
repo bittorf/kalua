@@ -18,7 +18,7 @@ DIR=
 [ -d "/var/www/networks/$ARG1" ] && {
 	MYPWD="$( pwd )"
 	DIR="/var/www/networks/$ARG1/packages"
-	logger -s "working in: '$DIR'"
+	logger -s "$0: working in: '$DIR'"
 	cd "$DIR"
 }
 

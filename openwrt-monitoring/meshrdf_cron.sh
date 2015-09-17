@@ -207,7 +207,7 @@ gen_meshrdf_for_network()
 	unixtime_diff=$(( unixtime_here - unixtime_file ))
 	[ $unixtime_diff -gt 1800 ] && build_html_tarball
 
-	/var/www/scripts/apply_new_network.sh "$network"
+#	/var/www/scripts/apply_new_network.sh "$network"
 
 	log "[READY] fetched $network"
 }
