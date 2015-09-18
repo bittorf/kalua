@@ -33,34 +33,28 @@ _math_percentual_change()
 
 _math_random_integer()		# OUT1: integer, higher or equal => $START and lower or equal <= $END
 {
-	local start="$1"
-	local end="$2"
+	local start="${1:-0}"
+	local end="${2:-256}"
 	local zero_fillup="$3"		# some string
-	local diff seed random out line
+	local seed diff random out
 
-	[ -z "$start" ] && {
-		echo "0"
-		return
-	}
-
-	diff=$(( end + 1 - start ))
-
-	# TODO: hexdump -n 2 -e '/2 "%u"' /dev/urandom
-	# e.g. 0x6f2d -> maximum = 0xffff/65536 (largest random number)
-	seed="$( dd if=/dev/urandom bs=2 count=1 2>&- | hexdump | if read line; then echo 0x${line#* }; fi )"
+	seed="$( hexdump -n 2 -e '/2 "%u"' /dev/urandom )"	# e.g. 0...65536
 	[ $end -gt 65536 ] && seed=$(( seed * seed ))
 
-	# result: integer somewhere between 0...$diff
-	random=$(( seed % diff ))
+	diff=$(( end + 1 - start ))
+	random=$(( seed % diff ))	# result: integer somewhere between 0...$diff
 	out=$(( start + random ))
 	out=${out:=$start}
 
-	if [ -z "$zero_fillup" ]; then
-		echo "$out"
-	else
-		out="000000000000000000000000000${out}"		# prefillup
-		echo "$out" | cut -b $(( ${#out} - ${#end} + 1 ))-
-	fi
+	case "$zero_fillup" in
+		'')
+			echo "$out"
+		;;
+		*)
+			out="000000000000000000000000000${out}"		# prefillup
+			echo "$out" | cut -b $(( ${#out} - ${#end} + 1 ))-
+		;;
+	esac
 }
 
 _math_divide100()	# SENSE: cuts off the last 2 digits: 976 -> 9
