@@ -1,275 +1,464 @@
-_switch_show()		# e.g.: "X.xxX-" = "1GB gap 100mbit 100mbit 1GB nothing"
+#!/bin/sh
+
+# swconfig dev switch0 set reset 1; /etc/init.d/network restart
+
+_switch_query_robocfg()
 {
-	local funcname="switch_show"
-	local type="${1:-$( uci -q get network.@switch[0].name )}"
+	local funcname='switch_query_robocfg'
+	local port_list="$1"
 	local debug="$2"
-	local line duplex n list
+	local line port duplex
 
-	case "$type" in
-		""|eth0)
-			type="$( _switch type )"
-		;;
-	esac
+	for port in $port_list; do {
+		[ "$port" = 'gap' ] && {
+			_switch symbol gap
+			continue
+		}
 
-	case "$type" in
-		ag71xx|ar231x|mii|mii.*)
-			which mii-tool >/dev/null || {
-				_software package_install mii-tool >/dev/null
+		line="$( robocfg show 2>/dev/null | fgrep "Port ${port}(" )"
+		[ -n "$debug" ] && \
+			_log do $funcname daemon debug "type: $type port: $port line '$line'"
 
-				which mii-tool >/dev/null || \
-					return 1
-			}
-
-			case "$type" in
-				*"."*)
-					line="$( mii-tool ${type#*.} )"		# mii.eth1 -> eth1
-				;;
-				*)
-					line="$( mii-tool ${LANDEV:-${WANDEV:-empty_dev}} )"
-				;;
-			esac
-
-			[ -n "$debug" ] && \
-				_log do $funcname daemon debug "type: $type - line '$line'"
-
-			case "$line" in
-				*"link ok"*)			# "negotiated 100baseTx-FD, link ok"
-					case "$line" in
-						*"-FD,"*)
-							duplex="full"
-						;;
-						*)
-							duplex="half"
-						;;
-					esac
-
-					case "$line" in
-						*" 100baseTx"*)
-							_switch symbol $duplex 100
-						;;
-						*" 10baseT"*)
-							_switch symbol $duplex 10
-						;;
-						*)
-							_switch symbol unknown
-						;;
-					esac
-				;;
-				*)
-					echo -n "-"
-				;;
-			esac
-		;;
-		bcm53xx)
-			which robocfg >/dev/null || {
-				_software package_install robocfg >/dev/null
-
-				which robocfg >/dev/null || \
-					return 1
-			}
-
-			for port in 0 gap 1 2 3 4; do {		# [ WAN | LAN LAN LAN LAN ]
-
-				if [ "$port" = "gap" ]; then
-					echo -n "."
-				else
-					line="$( robocfg show 2>/dev/null | fgrep "Port ${port}(" )"
-					[ -n "$debug" ] && \
-						_log do $funcname daemon debug "type: $type port: $port line '$line'"
-
-					case "$line" in
-						*"DOWN"*)
-							echo -n "-"
-						;;
-						*)
-							case "$line" in
-								*"0FD enabled"*)
-									duplex="full"
-								;;
-								*)
-									duplex="half"
-								;;
-							esac
-
-							case "$line" in
-								*":  10"*)
-									_switch symbol $duplex 10
-								;;
-								*": 100"*)
-									_switch symbol $duplex 100
-								;;
-								*)
-									_switch symbol unknown
-								;;
-							esac
-						;;
-					esac
-				fi
-			} done
-		;;
-		rtl8366rb|ar8316|ar7240|switch0)
-			which swconfig >/dev/null || \
-				return 1
-
-			case "$type" in
-				ar7240)			# e.g. TP-LINK WR841ND
-					type="eth0"
-					list="$( _switch show mii.eth1 "$debug" ) gap 4 3 2 1"	# special-wan | lan-ports
-				;;
-				ar8316)			# e.g. Buffalo WZR-HP-AG300H
-					type="eth0"
-					list="$( _switch show mii.eth1 "$debug" ) gap 1 2 3 4"	# special-wan | lan-ports
-				;;
-				*)
-					list="0 gap 1 2 3 4"	# [ WAN | LAN LAN LAN LAN ]
-				;;
-			esac
-
-			for port in $list; do {
-
-				case "$port" in
-					a|b|c|A|B|C|Z|-)
-						echo -n "$port"
-						continue
+		case "$line" in
+			*'DOWN'*)
+				_switch symbol down
+			;;
+			*)
+				case "$line" in
+					*'0FD enabled'*)
+						duplex="full"
+					;;
+					*)
+						duplex="half"
 					;;
 				esac
 
-				if [ "$port" = "gap" ]; then
-					echo -n "."
-				else
-					line="$( swconfig dev $type port $port show | fgrep "link: port:" )"
-					[ -n "$debug" ] && \
-						_log do $funcname daemon debug "type: $type port: $port line '$line'"
-
-					case "$line" in
-						*"link: port:$port link: down"*)
-							echo -n "-"
-						;;
-						*"link: port:$port link:down"*)
-							echo -n "-"
-						;;
-						*"link:up"*)
-							case "$line" in
-								*"full-duplex"*)
-									duplex="full"
-								;;
-								*)
-									duplex="half"
-								;;
-							esac
-
-							case "$line" in
-								*"speed:10baseT"*)
-									_switch symbol $duplex 10
-								;;
-								*"speed:100baseT"*)
-									_switch symbol $duplex 100
-								;;
-								*"speed:1000baseT"*)
-									_switch symbol $duplex 1000
-								;;
-								*)
-									_switch symbol unknown
-								;;
-							esac
-						;;
-					esac
-				fi
-			} done
-		;;
-	esac
-}
-
-_switch_symbol()
-{
-	local duplex="$1"
-	local speed="$2"
-
-	case "${duplex}${speed}" in
-		"half10")
-			echo -n "a"
-		;;
-		"half100")
-			echo -n "b"
-		;;
-		"half1000")
-			echo -n "c"
-		;;
-		"full10")
-			echo -n "A"
-		;;
-		"full100")
-			echo -n "B"
-		;;
-		"full1000")
-			echo -n "C"
-		;;
-		*)
-			echo -n "Z"		# means: 'unknown'
-		;;
-	esac
-}
-
-_switch_type()
-{
-	if [ -e "/tmp/SWITCH_TYPE" ]; then
-		read type <"/tmp/SWITCH_TYPE"
-	elif [ ! -e "/tmp/dmesg.boot" ]; then
-		case "$HARDWARE" in
-			"ASUS WL-500g Premium"|"Linksys WRT54G:GS:GL"|"Linksys WRT54G/GS/GL"|"Buffalo WHR-HP-G54"|"Dell TrueMobile 2300")
-				type="bcm53xx"
+				case "$line" in
+					*':  10'*)
+						_switch symbol "$duplex" 10
+					;;
+					*': 100'*)
+						_switch symbol "$duplex" 100
+					;;
+					*)
+						_switch symbol unknown
+					;;
+				esac
 			;;
 		esac
-	else
-		probe_type0()
-		{
-			fgrep -q "AR7240/AR9330" "/tmp/dmesg.boot" && \
-				echo "ar7240"
+	} done
+}
+
+_switch_query_swconfig()	# SENSE: show a single switch-port of a 'swconfig'-controlled switch
+{
+	local funcname='switch_query_swconfig'
+	local port_list="$1"
+	local debug="$2"
+
+	local type="$( uci -q get network.@switch[0].name || echo "switch0" )"	# switch0 or rtl8366rb
+	local line port max_try duplex
+
+	[ -e '/sbin/swconfig' ] || return 1
+
+	for port in $port_list; do {
+		[ "$port" = "gap" ] && {
+			_switch symbol gap
+			continue
 		}
 
-		probe_type1()
-		{
-			fgrep "roboswitch:" "/tmp/dmesg.boot" | fgrep -q "found a 53" && \
-				echo "bcm53xx"
-		}
-
-		probe_type2()
-		{
-			fgrep -q "ar8316: " "/tmp/dmesg.boot" && \
-				echo "ar8316"
-		}
-
-		probe_type3()
-		{
-			fgrep -q "ar231x_eth_mii:" "/tmp/dmesg.boot" && \
-				echo "ar231x"
-		}
-
-		probe_type4()
-		{
-			fgrep -q "mii_bus:phy_addr" "/tmp/dmesg.boot" && \
-				echo "mii"
-		}
-
-		probe_type5()
-		{
-			fgrep -q "AG71xx" "/tmp/dmesg.boot" && \
-				echo "ag71xx"
-		}
-
-		probe_type6()
-		{
-			fgrep -q "mv643xx_eth" "/tmp/dmesg.boot" && \
-				echo "mii"
-		}
-
-		for n in 0 1 2 3 4 5 6; do {
-			type="$( probe_type${n} )" && {
-				echo "$type" >/tmp/SWITCH_TYPE
-				break
-			}
+		line=
+		max_try=10
+		while [ -z "$line" ]; do {
+			line="$( swconfig dev "$type" port "$port" show | fgrep "link: port:" )"
+			max_try=$(( max_try - 1 ))
+			[ $max_try -eq 0 ] && break
 		} done
-	fi
 
-	echo "$type"
+		[ -n "$debug" ] && \
+			_log do $funcname daemon debug "type: $type port: $port line '$line'"
+
+		# why this lead to unkown? line: '     link: port:0 link:down'
+
+		case "$line" in
+			*"link: port:$port link: down"*)
+				_switch symbol down
+			;;
+			*"link: port:$port link:down"*)
+				_switch symbol down
+			;;
+			*"link:up"*)
+				case "$line" in
+					*"full-duplex"*)
+						duplex="full"
+					;;
+					*)
+						duplex="half"
+					;;
+				esac
+
+				case "$line" in
+					*"speed:10baseT"*)
+						_switch symbol "$duplex" 10
+					;;
+					*"speed:100baseT"*)
+						_switch symbol "$duplex" 100
+					;;
+					*"speed:1000baseT"*)
+						_switch symbol "$duplex" 1000
+					;;
+					*)
+						_switch symbol "unknown" "link:up '$line'"
+					;;
+				esac
+			;;
+			*)
+				_switch symbol "unknown" "port $port line: '$line'"
+			;;
+		esac
+	} done
+}
+
+_switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-controlled switch
+{
+	local funcname='switch_query_miitool'
+	local port_list="$1"
+	local debug="$2"
+
+	local line port max_try duplex
+
+	for port in $port_list; do {
+		[ "$port" = "gap" ] && {
+			_switch symbol gap
+			continue
+		}
+
+		line=
+		max_try=10
+		while [ -z "$line" ]; do {
+			if [ -e '/usr/sbin/ethtool' ]; then
+				line="$( /usr/sbin/ethtool "$port" )"
+			else
+				line="$( mii-tool "$port" )"
+			fi
+
+			max_try=$(( max_try - 1 ))
+			[ $max_try -eq 0 ] && break
+		} done
+
+		[ -n "$debug" ] && \
+			_log do $funcname daemon debug "port: $port line '$line'"
+
+		case "$line" in
+			"$port: no link"|*'Link detected: no'*)
+				_switch symbol down
+			;;
+			*"link ok"*|*'Link detected: yes'*)
+				# "ethX: no autonegotiation, 100baseTx-HD, link ok"
+				# "ethX: 100 Mbit, full duplex, link ok"	// after: mii-tool --force=100baseTx-FD eth0
+				# "ethX: 100 Mbit, full duplex, no link"	// other side will not work
+				# "ethX: negotiated 1000baseT-FD flow-control, link ok"
+				# "ethX: negotiated 100baseTx-FD, link ok"
+				# "ethX: negotiated 100baseTx-FD flow-control, link ok"
+				#
+				# ethtool:
+				# Speed: 1000Mb/s (or) 100Mb/s (or) 10Mb/s
+				# Duplex: Full (or) Half
+				# Link detected: no (or) yes
+
+				case "$line" in
+					*'-FD,'*|*'-FD '*|*'full duplex'*|*'Duplex: Full'*)
+						duplex='full'
+					;;
+					*)
+						duplex='half'
+					;;
+				esac
+
+				case "$line" in
+					*' 1000baseT'*|*'1000 Mbit'*|*'Speed: 1000Mb/s'*)
+						_switch symbol $duplex 1000
+					;;
+					*' 100baseT'*|*'100 Mbit'*|*'Speed: 100Mb/s'*)
+						_switch symbol $duplex 100
+					;;
+					*' 10baseT'*|*'10 Mbit'*|*'Speed: 10Mb/s'*)
+						_switch symbol $duplex 10
+					;;
+					*)
+						_switch symbol unknown
+					;;
+				esac
+			;;
+			*)
+				_switch symbol unknown
+			;;
+		esac
+	} done
+}
+
+_switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit/halfduplex 100mbit nothing 1GB"
+{
+	local funcname='switch_show'
+	local debug="$1"		# string: <empty>, 'debug', 'html' or 'wan' (TODO:annotate wanports)
+	local html_preambel="$2"	# string: sets intro-text in html-mode, e.g. 'switch-usage: '
+
+	I=0	# global port counter
+	local line duplex n list preambel
+
+	[ "$debug" = 'html' ] && {
+		[ -n "$html_preambel" ] && {
+			html_preambel="<td>$html_preambel</td>"
+		}
+
+		echo -n "<table cellspacing='1' cellpadding='0'><tr>$html_preambel"
+
+		SWITCH_SYMBOL_HTML='true'
+		debug=
+	}
+
+	# we expect, that the 1st port is the wan-port (if any)
+	case "$HARDWARE" in
+		'Nexx WT3020'*)
+			# WAN | LAN | power
+			_switch query_swconfig '0 gap 4' "$debug"
+		;;
+		'Linksys WRT54G/GS/GL'|'Buffalo WHR-HP-G54'|'La Fonera 2.0N'|'ASUS WL-500g Premium v2')
+			# older revisions cannot work with 'swconfig' and use 'robocfg'
+			# WAN | 4 x LAN  - tested with r38650
+			if [ -e '/sbin/robocfg' ]; then
+				_switch query_robocfg "0 gap 1 2 3 4" "$debug"
+			else
+				_switch query_swconfig "4 gap 3 2 1 0" "$debug"
+			fi
+		;;
+		'TP-LINK TL-WR841N/ND v8')
+			# WAN | 4 x LAN
+			_switch query_miitool "eth0" "$debug"
+			_switch query_swconfig "gap 2 3 4 1" "$debug"
+		;;
+		'TP-LINK TL-WR940N'|'Mercury MAC1200R')
+			# WAN | 4 x LAN
+			_switch query_miitool "eth1" "$debug"
+			_switch query_swconfig "gap 4 3 2 1" "$debug"
+		;;
+		"Buffalo WZR-HP-AG300H")
+			# WAN | 4 x LAN
+			_switch query_miitool "eth1" "$debug"
+			_switch query_swconfig "gap 1 2 3 4" "$debug"
+		;;
+		'TP-LINK TL-WR1043ND v2')
+			# WAN | 4 x LAN
+			_switch query_swconfig '5 gap 4 3 2 1' "$debug"
+		;;
+		'TP-LINK TL-WR1043ND'|'TP-LINK TL-WR841N/ND v7'|'TP-LINK TL-WR741ND v2'|'ASUS WL-500g Premium')
+			# WAN | 4 x LAN
+			_switch query_swconfig "0 gap 1 2 3 4" "$debug"
+		;;
+		'TP-LINK TL-WDR3600'|'TP-LINK TL-WDR4300'|'TP-LINK TL-WDR4310'|'TP-LINK TL-WDR3600/4300/4310'|'TP-LINK TL-WDR4900 v1'|'TP-LINK Archer C7 v2')
+			# WAN | 4 x LAN | CPU = port0
+			_switch query_swconfig "1 gap 2 3 4 5" "$debug"
+		;;
+		'Ubiquiti Nanostation M'*)
+			# LAN ("main") | WAN ("secondary")
+			_switch query_swconfig '1' "$debug"
+			_switch query_miitool 'eth0' "$debug"
+		;;
+		'Ubiquiti Nanostation'*|'TP-LINK TL-WR703N v1'|'Speedport W500V'|'T-Mobile InternetBox'|'Ubiquiti Picostation'*|'Ubiquiti Bullet M'*|'Ubiquiti Picostation M'*|'Seagate GoFlex Home')
+			_switch query_miitool "eth0" "$debug"
+		;;
+		'PC Engines ALIX.2'|'Mikrotik Routerboard 532')		# TODO: rb532
+			# power | WAN | LAN | LAN2 | serial
+			_switch query_miitool "eth0 gap eth1 gap eth2" "$debug"
+		;;
+		'PC Engines WRAP')
+			# power | WAN | LAN | serial			# BOOTP via WAN
+			_switch query_miitool "eth0 gap eth1" "$debug"
+		;;
+		'Soekris net5501')
+			# power | serial | WAN | LAN | LAN | LAN
+			_switch query_miitool "eth0 eth1 eth2 eth3" "$debug"
+		;;
+		'UML'|'Intel'*|'AMD Opteron'*|*'QEMU Virtual CPU'*)
+			# fallback for e.g. VPN-Server
+			_switch symbol full 1000
+			_switch symbol gap
+			_switch symbol full 1000
+		;;
+		*)
+			_switch symbol unimplemented
+			_switch symbol gap
+			_switch symbol unimplemented
+			_switch symbol unimplemented
+			_switch symbol unimplemented
+			_switch symbol unimplemented
+		;;
+	esac
+
+	[ -n "$SWITCH_SYMBOL_HTML" ] && {
+		unset SWITCH_SYMBOL_HTML
+		echo -n '</tr></table>'
+	}
+
+	unset I		# port counter, see symbol()
+	return 0
+}
+
+_switch_test()
+{
+	_switch symbol html_init
+
+	_switch symbol html      'Cisco Catalyst WS-C2960G-24TC-L'
+	_switch symbol newline
+
+	_switch symbol full      100  1    'X'
+	_switch symbol full      100  3
+	_switch symbol down      -    5
+	_switch symbol full      100  7    '&clubs;'
+	_switch symbol gap
+	_switch symbol downFIBER -   LWL-1
+	_switch symbol downFIBER -   LWL-2
+
+	_switch symbol newline
+
+	_switch symbol error
+	_switch symbol down      -    4
+	_switch symbol full      10   6
+	_switch symbol down      -    8
+	_switch symbol gap
+	_switch symbol FIBER     1G  LWL-3 'X'
+	_switch symbol FIBER     1G  LWL-4 'Y'
+
+	_switch symbol html_end
+}
+
+_switch_symbol()	# SENSE: represent each port with a short letter: [a-cA-C] = 10/100/100 half-duplex / full-duplex (capitalized)
+{
+	local funcname="switch_symbol"
+	local duplex="$1"		# gap|full|half|FIBER|unknown
+	local speed="$2"		# 10, 100, 1000, 1G
+	local port_no="${3:-${I:-0}}"	# fallback $I = global var for iterating over the ports
+	local fillchar="$4"		# e.g. 'X'
+
+	# isnumber() - max 99 ports
+	case "$I" in
+		[0-9])
+			test "$duplex" = 'gap' || {
+				I=$(( I + 1 ))		# global port counter, see show()
+				port_no=$I
+			}
+			
+		;;
+		[0-9][0-9])
+			test "$duplex" = 'gap' || {
+				I=$(( I + 1 ))		# global port counter, see show()
+				port_no=$I
+			}
+		;;
+	esac
+
+	local port="Port${port_no}"
+	local symbol_html symbol_text
+	local color_green_colorless='#99FF99'
+	local color_green_normal='#00FF00'
+	local color_green_strong='#00CC00'
+	local halfduplex='<big>&frac12;</big>'	# 1/2
+	local port_width='&emsp;'		# has nearly the same width like 'halfduplex'
+	local unimplemented='<big>?</big>'
+	local align="align='center' valign='middle'"
+
+	[ -n "$fillchar" ] && {
+		halfduplex="$fillchar"
+		port_width="$fillchar"
+	}
+
+	[ "$speed" = '1G' ] && speed=1000
+
+	case "${duplex}${speed}" in
+		'html_init'*)
+			SWITCH_SYMBOL_HTML='true'
+			symbol_html="<table cellspacing='1' cellpadding='0'><tr>$speed"
+		;;
+		'html_end')
+			unset SWITCH_SYMBOL_HTML
+			echo -n '</tr></table>'
+			return 0
+		;;
+		'html'*)
+			symbol_html="$speed"
+		;;
+		'newline')
+			symbol_text=';'
+			symbol_html='</tr><tr>'
+		;;
+		'downFIBER'*)
+			symbol_text='_'
+			symbol_html="<td bgcolor='darkred' title='$port,opticalfiber/$speed/unconnected'>$port_width</td>"
+		;;
+		'down'*)
+			symbol_text='-'
+			symbol_html="<td bgcolor='black' title='$port,$speed/unconnected'>$port_width</td>"
+		;;
+		'gap')
+			symbol_text='.'
+			symbol_html='<td bgcolor="white" title="gap">&thinsp;</td>'	# thin_width
+		;;
+		'half10')
+			symbol_text='a'
+			symbol_html="<td bgcolor='$color_green_colorless' title='$port,10mbit/halfduplex' $align>$halfduplex</td>"
+		;;
+		'half100')
+			symbol_text='b'
+			symbol_html="<td bgcolor='$color_green_normal' title='$port,100mbit/halfduplex' $align>$halfduplex</td>"
+		;;
+		'half1000')
+			symbol_text='c'
+			symbol_html="<td bgcolor='$color_green_strong' title='$port,1000mbit/halfduplex' $align>$halfduplex</td>"
+		;;
+		'full10')
+			symbol_text='A'
+			symbol_html="<td bgcolor='$color_green_colorless' title='$port,10mbit/fullduplex' $align>$port_width</td>"
+		;;
+		'full100')
+			symbol_text='B'
+			symbol_html="<td bgcolor='$color_green_normal' title='$port,100mbit/fullduplex' $align>$port_width</td>"
+		;;
+		'full1000')
+			symbol_text='C'
+			symbol_html="<td bgcolor='$color_green_strong' title='$port,1000mbit/fullduplex' $align>$port_width</td>"
+		;;
+		'FIBER1000')
+			symbol_text='D'
+			symbol_html="<td bgcolor='gold' title='$port,opticalfiber/1000mbit/fullduplex' $align>$port_width</td>"
+		;;
+		'unimplemented')
+			symbol_text='u'
+			symbol_html="<td bgcolor='crimson' title='$port,unimplemented' $align>$unimplemented</td>"
+		;;
+		*)
+			[ -e "/tmp/switch_unknown_$port" ] || {
+				touch "/tmp/switch_unknown_$port"
+				_log do $funcname daemon alert "$duplex: ${speed:-nospeed} $port"
+			}
+
+			symbol_text='Z'		# means: 'unknown/error'
+			symbol_html="<td bgcolor='grey' title='$port,unknown' $align>:?:</td>"
+		;;
+	esac
+
+	case "$symbol_text" in
+		'.'|'Z')
+		;;
+		*)
+			[ -e "/tmp/switch_unknown_$port" ] && {
+				rm "/tmp/switch_unknown_$port"
+				_log do $funcname daemon alert "recover from error: $symbol_text $duplex: ${speed:-nospeed} $port"
+			}
+		;;
+	esac
+
+	if [ -n "$SWITCH_SYMBOL_HTML" ]; then
+		echo -n "$symbol_html"
+	else
+		echo -n "$symbol_text"
+	fi
 }
