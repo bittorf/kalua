@@ -2136,7 +2136,10 @@ build_options_set()
 			'iproute2')
 				# https://dev.openwrt.org/changeset/46829/trunk
 				if [ $( openwrt_revision_number_get ) -ge 46829 ]; then
+					# TODO: ip neigh
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y' hide
 				else
 					apply_symbol 'CONFIG_PACKAGE_ip=y' hide		# network: routing/redirection: ip
 				fi
