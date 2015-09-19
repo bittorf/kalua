@@ -164,7 +164,7 @@ autocommit()
 {
 	local gitfile="$1"	# file or 'git revert xy'
 	local message="$2"
-	local count_files count_dirs count filetype
+	local count_files count_dirs count filetype line file
 
 	if [ -e "$gitfile" ]; then
 		# we need 'force' here, because e.g. files/ is in .gitignore
@@ -175,7 +175,20 @@ autocommit()
 		count="($count_files files$( test $count_dirs -gt 0 && echo " and $count_dirs dirs" ))"
 		filetype="$( test -d "$gitfile" && echo 'directory' || echo 'file' )"
 	else
-		eval $gitfile
+		eval $gitfile || {
+			# workaround for a conflicting merge/revert
+			git status | grep 'both modified:' | while read line; do {
+				# e.g.: #  both modified:  package/network/services/dropbear/Makefile
+				set -- $line
+				shift 2
+				file="$*"
+
+				log "git-tricky: fetching newest version of '$file'"
+				git checkout HEAD~1 -- "$file"
+				git add --force "$file"
+			} done
+		}
+
 		[ -z "$message" ] && message="$gitfile"
 	fi
 
@@ -1164,7 +1177,7 @@ openwrt_revision_number_get()		# e.g. 43234
 			rev="$( scripts/getver.sh )"
 			case "$rev" in
 				'r'[0-9]*)
-					# r12345
+					# e.g. r12345
 					echo "$rev" | cut -d'r' -f2
 				;;
 				*)
@@ -1211,7 +1224,7 @@ openwrt_download()
 
 	case "$wish" in
 		'leave_untouched')
-			# e.g.: r12345
+			# e.g. r12345
 			VERSION_OPENWRT="r$( openwrt_revision_number_get )"
 		;;
 		'trunk')
@@ -1265,7 +1278,7 @@ openwrt_download()
 				}
 			}
 
-			# r12345
+			# e.g. r12345
 			VERSION_OPENWRT="$wish"
 		;;
 		'reset_autocommits')
