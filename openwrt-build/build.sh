@@ -180,7 +180,7 @@ autocommit()
 			git status | grep 'both modified:' | while read line; do {
 				# e.g.: #  both modified:  package/network/services/dropbear/Makefile
 				set -- $line
-				shift 2
+				shift 3
 				file="$*"
 
 				log "git-tricky: fetching newest version of '$file'"
