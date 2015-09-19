@@ -977,7 +977,7 @@ _netfilter_portforwarding_request()
 
 _netfilter_portforwarding_add()
 {
-	local incoming_dev="$1"		# e.g. $WANDEV = eth0.2 or 'get_table' or '$IPT -I bla ...'
+	local incoming_dev="$1"		# e.g. $WANDEV = eth0.2 or '+' = any or 'get_table' or '$IPT -I bla ...'
 	local port_ext="$2"		# e.g. 10080 or webcam-11:22:33:44:55:66
 	local port="$3"			# e.g. 80
 	local ip="$4"			# client/destination
@@ -1031,11 +1031,11 @@ _netfilter_portforwarding_add()
 			*)
 				echo >>"$file" "$IPT -p tcp $command	# $date"
 				echo >>"$file" "$IPT -p udp $command	# $date"
-				echo >>"$file" "$IPT -t nat -I POSTROUTING -d $ip -j MASQUERADE"
+				echo >>"$file" "$IPT -t nat -I POSTROUTING -p tcp --dport $port -d $ip -j MASQUERADE"
 				$IPT -p tcp $command
 				$IPT -p udp $command
 				# otherwise it does not work from extern?
-				$IPT -t nat -I POSTROUTING -d $ip -j MASQUERADE
+				$IPT -t nat -I POSTROUTING -p tcp --dport $port -d $ip -j MASQUERADE
 
 				# TODO: build a readable public description (e.g. for minitoring server)
 				# mac: xxx hostname: xxx port_ext: xxx port_int: xxx
@@ -1116,6 +1116,24 @@ _netfilter_portforwarding_start()		# called via hotplug
 
 				# when link is not symetric (other outgoing gateway than incoming)
 				_netfilter portforwarding_add "$IPT -t nat -I POSTROUTING -d 10.63.2.34 -j MASQUERADE" 'Medion:MASQ'
+			}
+
+			# needs alias: 192.168.3.x/24
+			[ "$NODENUMBER" = '799' ] && {
+				# elsternest[LAN] -> schlachtBAMAG (AP WDS) = https://10.63.34.193:10443
+				_netfilter portforwarding_add "+" '10443' '443' '192.168.3.20'   'schlachtBAMAG'  'schlachtBAMAG:HTTPS'
+				# elsternest[LAN] -> schlachtEWERK (AP)     = https://10.63.34.193:20443
+				_netfilter portforwarding_add "+" '20443' '443' '192.168.1.222'  'schlachtEWERK'  'schlachtEWERK:HTTPS'
+			}
+
+			[ "$NODENUMBER" = '825' ] && {
+				# BAMAG-to-wagenplatz[WAN] -> BAMAG-to-Schlacht (Station WDS) = https://10.63.60.253:10443
+				_netfilter portforwarding_add "+" '10443' '443' '192.168.3.30'   'BAMAGwagenplatz'  'BAMAGwagenplatz:HTTPS'
+			}
+
+			[ "$NODENUMBER" = '603' ] && {
+				# KesselsaalNEU[LAN] -> EWERK-to-Schlacht (Station) = https://10.63.93.161:10443
+				_netfilter portforwarding_add "+" '10443' '443' '192.168.1.20'   'EWERKschlacht'  'EWERKschlacht:HTTPS'
 			}
 
 #			[ "$NODENUMBER" = '99' ] && {
