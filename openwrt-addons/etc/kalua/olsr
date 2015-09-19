@@ -1621,6 +1621,20 @@ _olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.2.1 : 10.63.3.65 : COST :
 	} done
 }
 
+_olsr_lqmultiplier()
+{
+	local remote="${1:-default}"
+	local dev="$2"			# FIXME! we must be interface specific
+
+	if [ -e '/var/etc/olsrd.conf' ]; then
+		local file='/var/etc/olsrd.conf'
+	else
+		local file='/etc/olsrd.conf'
+	fi
+
+	sed -n "/LinkQualityMult[^0-9]*$remote/{s/^.*LinkQualityMult[^0-9]*$remote[^0-9]*\([0-9\.]*\).*/[LQ x\1]/p;q}" "$file"
+}
+
 _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 {
 	local FILE="/tmp/OLSR/LINKS.sh"
@@ -1640,13 +1654,14 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 		CONFIG_FILE="/etc/olsrd.conf"
 	fi
 
-	local DNS METRIC LIST LINE DEVTYPE SPACER1 SPACER2 SPACER4 MAX1 MAX2 LQMULTI		# only for mesh-gateways
+	local DNS METRIC LIST LINE DEVTYPE SPACER1 SPACER2 SPACER4 MAX1 MAX2 LQMULTI LQMULTI_ALL	# only for mesh-gateways
 	local COUNT=0 LOCAL REMOTE LQ NLQ COST
 
 	LIST="$( sed -n 's/^LOCAL=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all local IP's
 	MAX1="$( _sanitizer do "$LIST" list_get_longest_string )"
 	LIST="$( sed -n 's/^.*;REMOTE=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all remote IP's
 	MAX2="$( _sanitizer do "$LIST" list_get_longest_string )"
+	LQMULTI_ALL="$( _olsr lqmultiplier )"
 
 	[ $( echo $LIST | wc -w ) -gt 9 ] && SPACER3=" "  	# numbering layout
 
@@ -1666,7 +1681,11 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 		METRIC="$( _olsr remoteip2metric $REMOTE )"
 		[ $COUNT -gt 9 ] && unset SPACER3					# 9 -> ' 9'; 10 = 10
 
-		LQMULTI="$( sed -n "/LinkQualityMult[^0-9]*${REMOTE}/{s/^.*LinkQualityMult[^0-9]*${REMOTE}[^0-9]*\([0-9\.]*\).*/[LQ x\1]/p;q}" $CONFIG_FILE )"
+		if [ -n "$LQMULTI_ALL" ]; then
+			LQMULTI="$LQMULTI_ALL"
+		else
+			LQMULTI="$( _olsr lqmultiplier "$REMOTE" )"
+		fi
 
 		SPACER4="  "
 		[ "$REMOTE" = "$GATEWAY_IP" ] && SPACER4=">>"
