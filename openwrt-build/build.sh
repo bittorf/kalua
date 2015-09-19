@@ -1749,6 +1749,8 @@ apply_symbol()
 						register_patch "$file"
 						cp -v "$file" 'package/kernel/mac80211/patches'
 						MAC80211_CLEAN='true'
+					elif grep -q 'bb_error_msg_and_die' "$file"; then
+						cp -v "$file" 'package/utils/busybox/patches'
 					else
 						if git apply --check <"$file"; then
 							# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
@@ -2139,6 +2141,7 @@ build_options_set()
 					# TODO: ip neigh
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_NEIGH=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y' hide
 				else
 					apply_symbol 'CONFIG_PACKAGE_ip=y' hide		# network: routing/redirection: ip
