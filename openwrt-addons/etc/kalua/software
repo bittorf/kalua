@@ -1,3 +1,31 @@
+#!/bin/sh
+
+_software_show_packages_recent()
+{
+	local line package time diff humanreadable lookaround
+	local time_now="$( _system date unixtime )"
+	local time_built="$( $OPKG status kernel | grep ^"Installed-Time:" | cut -d' ' -f2 )"
+
+	$OPKG status | while read line; do {
+		case "$line" in
+			"Package:"*)
+				package="${line#*: }"
+			;;
+			"Installed-Time:"*)
+				time="${line#*: }"
+				diff=$(( $time_now - $time ))
+				humanreadable="$( _stopwatch seconds2humanreadable "$diff" )"
+				lookaround=$(( $time - $time_built ))
+				[ $lookaround -gt -60 -a $lookaround -lt 60 ] && {
+					humanreadable="$humanreadable = builtin"
+				}
+
+				echo "$time - $diff sec ($humanreadable) - $package"
+			;;
+		esac
+	} done | sort
+}
+
 _software_make_free_space ()
 {
 	local FUNC="software_make_free_space"
@@ -96,12 +124,22 @@ _software_is_essential ()	# fixme! how to determine, if package is part of a met
 	return 1
 }
 
+_software_show_installed ()
+{
+	local LINE
+
+	$OPKG status |
+	 sed -ne 's/^Package: \(.*\)/\1/p' |
+	  while read LINE; do {
+	  	echo -n "$LINE "
+	  } done
+}
 
 _software_show_installed_backwards ()	# OUT1: list
 {
 	local LINE
-	
-	/bin/*pkg status |
+
+	$OPKG status |
 	 sed -n 's/^Package: \(.*\)/\1/p' |
 	  sed '1!G;h;$!d' |
 	   while read LINE; do {
@@ -135,41 +173,55 @@ _software_repos_update ()	# fixme! no update during low flash?
 	fi
 	
 	[ $(( ${UNIXTIME_NOW:-0} - ${UNIXTIME_UPDATE:-0} )) -gt 1800 ] && {
-		/bin/*pkg update
+		$OPKG update
 		echo $UNIXTIME_NOW >$FILE_LAST_FETCH
 	}
 }
 
-_software_package_status ()
+_software_repos_purge ()
 {
-	local PACKAGE="$1"
-
-	/bin/*pkg status "$PACKAGE"
+	_log do purge_repos daemon debug "flash free: $( _system flash_free ) kb"
+	rm -f /usr/lib/*pkg/lists/*
+	_log do purge_repos daemon debug "flash free: $( _system flash_free ) kb (after purging)"
 }
 
-_software_package_files ()
+_software_package_status()
 {
-	local PACKAGE="$1"
+	local name="$1"
 
-	/bin/*pkg files "$PACKAGE"
+	$OPKG status "$name"
 }
 
-_software_package_remove ()
+_software_package_info()
 {
-	local FUNC="software_package_remove"
-	local PACKAGE="$1"
-	
-	_log do $FUNC daemon debug "'$PACKAGE'"
-	/bin/*pkg remove $PACKAGE
+	local name="$1"
+
+	$OPKG info "$name"
+}
+
+_software_package_files()
+{
+	local name="$1"
+
+	$OPKG files "$name"
+}
+
+_software_package_remove()
+{
+	local funcname='software_package_remove'
+	local name="$1"
+
+	_log do $funcname daemon debug "'$name'"
+	$OPKG remove "$name"
 	sync				# sometimes it needs some time to really free the jffs2-space
 
-	_software install_or_deinstall_hook $PACKAGE
+	_software install_or_deinstall_hook "$name"
 }
 
 _software_package_is_installed ()
 {
 	local PACKAGE="$1"
-	local OUT="$( /bin/*pkg status "$PACKAGE" | fgrep "Status:" )"
+	local OUT="$( $OPKG status "$PACKAGE" | fgrep "Status:" )"
 
 	case "$OUT" in
 		"Status: install ok installed") : ;;
@@ -194,8 +246,8 @@ _software_install_or_deinstall_hook ()
 {
 	local PACKAGE="$1"
 
-	# reboot-command is lost/deleted/bad ("/bin/*pkg install login-utils")                                                    
-	[ ! -e /sbin/reboot ] && {                                                                                                                                      
+	# reboot-command is lost/deleted/bad ("$OPKG install login-utils")
+	[ ! -e /sbin/reboot ] && {
 		_log do command_reboot_faulty daemon crit "symlinking to /rom/sbin/reboot"
 		ln -s /rom/sbin/reboot /sbin/reboot                                           
 	}
@@ -219,6 +271,42 @@ _software_packages_install ()
 	return 0
 }
 
+_software_package_upgrade ()	# fixme! /usr/sbin/cron.upgrade_packages
+{
+	local PACKAGE_NAME="$1"
+	local PACKAGE_VERSION_HERE=0
+	local PACKAGE_VERSION_REPO=0
+
+	echo
+}
+
+_software_package_version ()
+{
+	local PACKAGE_NAME="$1"
+	local VERSION="$( $OPKG status "$PACKAGE_NAME" | sed -n 's/^Version: \(.*\)/\1/p' | tail -n1 )"
+
+	[ -n "$VERSION" ] && {
+		echo $VERSION
+		return
+	}
+
+	return 1
+}
+
+_software_package_newer_version ()	# compare the values and return the newer one
+{
+	local VERSION_A="$1"
+	local VERSION_B="$2"
+
+	  if [ "$( _software version_normalize $VERSION_A )" -gt "$( _software version_normalize $VERSION_B )" ]; then
+
+		echo -n "$VERSION_A"
+
+	elif [ "$( _software version_normalize $VERSION_B )" -gt "$( _software version_normalize $VERSION_A )" ]; then
+
+		echo -n "$VERSION_B"
+	fi
+}
 
 _software_version_normalize ()
 {
@@ -282,8 +370,8 @@ _software_package_is_installed_lowlevel ()	# OUT1: 0 = not_installed , 1 = insta
 		_log do $FUNC daemon info "'$PACKAGE' installed ok"
 		return 0
 	}
-	
-	/bin/*pkg list | grep -q ^"$PACKAGE " && {
+
+	$OPKG list | grep -q ^"$PACKAGE " && {
 		echo -n 0
 		_log do $FUNC daemon info "'$PACKAGE' not installed, but listed in repo"
 		return 0
@@ -315,16 +403,16 @@ _software_package_install()
 	_log do $FUNC daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
 	[ -z "$KEYWORD" ] && _software repos_update
 
-	if [ -e /bin/opkg ]; then
+	if [ -e '/bin/opkg' ]; then
 		do_install ()
 		{
-			/bin/opkg remove $PACKAGE
-			/bin/opkg install $PACKAGE
+			$OPKG remove $PACKAGE
+			$OPKG install $PACKAGE
 		}
 	else
 		do_install ()
 		{
-			/bin/ipkg -force-defaults install $PACKAGE
+			$OPKG -force-defaults install $PACKAGE
 		}
 	fi
 

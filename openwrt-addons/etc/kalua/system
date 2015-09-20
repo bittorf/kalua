@@ -11,14 +11,40 @@ _system_maintenance_window_active()
 
 _system_architecture()
 {
-	if [ -e "/etc/opkg.conf" ]; then
-		grep ^"src/gz.*/packages"$ "/etc/opkg.conf" |
-		 sed 's|^.*/\([a-z0-9]*\)/packages|\1|'		# .../brcm47xx/packages
-	else
-		_software package_status kernel |
-		 grep ^Architecture: |
-		  cut -d' ' -f2
-	fi
+  local file='/tmp/system_architecture'
+	local arch DISTRIB_TARGET
+
+	[ -e "$file" ] || {
+		# prevents chicken/egg problem with software_opkg_raminstaller()
+		which $OPKG >/dev/null && {
+			# e.g. Architecture: ramips_24kec
+			arch="$( _software package_status kernel | grep ^'Architecture:' )"
+			arch="${arch#*: }"
+			arch="${arch%%_*}"
+		}
+
+		if [ -n "$arch" ]; then
+			echo "$arch" >"$file"
+		else
+			# DISTRIB_TARGET='ar71xx/generic'
+			# DISTRIB_TARGET='brcm47xx/generic'
+			# DISTRIB_TARGET="rb532/generic"
+			# DISTRIB_TARGET="ramips/generic"
+
+			if [ -e '/etc/openwrt_release' ]; then
+				eval $( grep ^'DISTRIB_TARGET=' '/etc/openwrt_release' )
+				arch="$DISTRIB_TARGET"
+				arch="${arch%%/*}"
+			else
+				arch="$( uname -m )"			# e.g. 'x86_64' or 'mips'
+				[ "$arch" = 'i686' ] && arch='x86'	# debian
+			fi
+
+			echo "$arch" >"$file"
+		fi
+	}
+
+	cat "$file"
 }
 
 _system_get_first_pid ()	# pidof returns an arbitrary sorted list, so we have to sort to get the lowest
