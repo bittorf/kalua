@@ -503,6 +503,7 @@ cat >>$OUT <<EOF
 
 (function doTheRelativeTimestamp(update) {
   var timeStamp, unixDate, repeat, updater
+  var viewing_secs = 0;
   // config
   repeat = true
 
@@ -530,7 +531,7 @@ cat >>$OUT <<EOF
   }
 
   function formatTimeDuration(seconds) {
-    var d, h, m, s, viewing_secs
+    var d, h, m, s
 
     d = Math.floor(seconds / 86400)
     h = Math.floor((seconds % 86400) / 3600)
@@ -538,11 +539,11 @@ cat >>$OUT <<EOF
     s = Math.floor(((seconds % 86400) % 3600) % 60)
 
     // at 5:59, 10:59 ... sorry for hijacking this function. (basti)
+    viewing_secs++;
     if (viewing_secs > 100 && s == 59 && ( m % 5 === 0 )) {
 	location.reload();
     }
-
-    viewing_secs++;
+    console.log("viewing_secs:"+viewing_secs);
 
     return '' +
       ((d > 0) ? (d + ' Tage ') : ('')) +
