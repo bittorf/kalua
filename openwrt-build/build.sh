@@ -21,7 +21,7 @@ print_usage_and_exit()
 		chmod +x $0
 	}
 
-	# format: $USECASE $HARDWARE
+	# format: $USECASE $HARDWARE_MODEL
 	if [ -e 'KALUA_HISTORY' ]; then
 		# last used one
 		set -- $( tail -n1 'KALUA_HISTORY' )
@@ -31,7 +31,7 @@ print_usage_and_exit()
 		hardware="$( target_hardware_set 'list' 'plain' | head -n1 )"
 	fi
 
-	# format: $USECASE $HARDWARE
+	# format: $USECASE $HARDWARE_MODEL
 	if [ -e 'KALUA_HISTORY' ]; then
 		# last used one, e.g.: Standard,noPPPoE,BigBrother,kalua@e678dd6
 		usecase="$( tail -n1 'KALUA_HISTORY' | cut -d' ' -f1 )"
@@ -3155,18 +3155,18 @@ die_and_exit()
 
 [ "$UID" = '0' ] && log "REMINDER: dont build as root, you have UID: $UID"
 
+[ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
+[ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
+
 check_git_settings			|| die_and_exit
 check_working_directory yes		|| die_and_exit
 openwrt_download 'reset_autocommits'
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 feeds_adjust_version "$FEEDSTIME"
 
-[ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
-[ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
-
 SPECIAL_OPTIONS=
-[ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$USECASE" -a "$HARDWARE" ] && \
-	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${USECASE}_${HARDWARE}"
+[ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$USECASE" -a "$HARDWARE_MODEL" ] && \
+	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${USECASE}_${HARDWARE_MODEL}"
 
 if [ -e "$BACKUP_DOTCONFIG" ]; then
 	log "[OK] will use already existing '.config' file: '$BACKUP_DOTCONFIG'"
