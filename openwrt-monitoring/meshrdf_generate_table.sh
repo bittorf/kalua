@@ -541,9 +541,8 @@ cat >>$OUT <<EOF
     // at 5:59, 10:59 ... sorry for hijacking this function. (basti)
     viewing_secs++;
     if (viewing_secs > 100 && s == 59 && ( m % 5 === 0 )) {
-	location.reload();
+      location.reload();
     }
-    console.log("viewing_secs:"+viewing_secs);
 
     return '' +
       ((d > 0) ? (d + ' Tage ') : ('')) +
