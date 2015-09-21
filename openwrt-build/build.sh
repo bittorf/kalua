@@ -1735,8 +1735,8 @@ apply_symbol()
 				} done
 			}
 
-			# FIXME!
-			list_files_and_dirs | grep -v unison | while read file; do {
+			# FIXME! unison/iproute-neigh
+			list_files_and_dirs | grep -v 'unison' | grep -v 'iproute-neigh' | while read file; do {
 				if [ -d "$file" ]; then
 					log "dir: $file"
 					register_patch "DIR: $file"
