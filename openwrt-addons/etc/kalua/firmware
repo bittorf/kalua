@@ -302,6 +302,8 @@ _firmware_wget_prepare_for_lowmem_devices()
 	local url="$( _links firmware_url_get )"
 	local server_dnsname="$( _http url_get_serverstring "$url" )"
 	local ip="$( _net dns2ip "$server_dnsname" )"
+	local dev
+
 	_log do $funcname daemon info "[OK] serverstring2ip: $server_dnsname -> $ip"
 
 	_firmware remove_cron_stuff
@@ -320,7 +322,16 @@ _firmware_wget_prepare_for_lowmem_devices()
 		ffweimar*)
 		;;
 		*)
-			ip route list exact 0.0.0.0/0 | fgrep -q "dev $WIFIDEV" || {
+			wifi_needed()
+			{
+				for dev in $WIFI_DEVS; do {
+					ip route list exact '0.0.0.0/0' | fgrep -q "dev $dev" && return 0
+				} done
+
+				return 1
+			}
+
+			wifi_needed || {
 				_log do $funcname daemon info "[OK] wifi not needed, shutting down"
 				_firmware kill_tasks wifi_down
 				_wifi set any any disabled kmod_unload
