@@ -2334,27 +2334,30 @@ func_cell_pfilter ()
 	local PFILTER="$1"
 
 	case "$PFILTER" in
-		*FREE*|*OOPS0*|*olsrign*)
-			echo -n "<td nowrap bgcolor=crimson> ${PFILTER:--}</td>"
+		*'FREE'*|*'OOPS0'*|*'olsrign'*)
+			echo -n "<td nowrap bgcolor=crimson> $PFILTER </td>"
 		;;
-		HNA*)
-			echo -n "<td nowrap bgcolor=lime> ${PFILTER:--}</td>"
+		*'noNAT'*)
+			echo -n "<td nowrap bgcolor=lime> $PFILTER </td>"
 		;;
-		loss*)
+		'HNA'*)
+			echo -n "<td nowrap bgcolor=lime> $PFILTER </td>"
+		;;
+		'loss'*)
 			case "$PFILTER" in
-				loss0.0.0*)
-					echo -n "<td nowrap bgcolor=green> ${PFILTER:--}</td>"
+				'loss0.0.0'*)
+					echo -n "<td nowrap bgcolor=green> $PFILTER </td>"
 				;;
 				*)
 					  if echo "$PFILTER" | fgrep -q  ".0 olsrign" ; then
 
-						echo -n "<td nowrap bgcolor=green> ${PFILTER:--}</td>"
+						echo -n "<td nowrap bgcolor=green> $PFILTER </td>"
 
 					elif echo "$PFILTER" | fgrep -q ".10 olsrign" ; then
 
-						echo -n "<td nowrap bgcolor=green> ${PFILTER:--}</td>"
+						echo -n "<td nowrap bgcolor=green> $PFILTER </td>"
 					else
-						echo -n "<td nowrap bgcolor=orange> ${PFILTER:--}</td>"
+						echo -n "<td nowrap bgcolor=orange> $PFILTER </td>"
 					fi
 				;;
 			esac

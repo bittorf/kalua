@@ -24,7 +24,7 @@
 		touch "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR"
 
 		case "$HTTP_ACCEPT_ENCODING" in
-			# e.g. 'gzip, deflate, sdch'
+			# e.g. 'gzip, deflate, sdch, Brotli'
 			*'gzip'*)
 				_http header_mimetype_output 'text/html' 'gzip'
 
