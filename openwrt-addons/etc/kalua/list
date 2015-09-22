@@ -56,29 +56,33 @@ _list_remove_element()
 	fi
 }
 
-_list_shuffle()
+_list_shuffle()		# needs ~4 sec for 100 elements
 {
+	local funcname='list_shuffle'
 	local list="$1"
 	local option="$2"	# <empty> or 'get_first_random'
-    local list_size=$(_list count_elements "$list")
+	local obj i roll
+	local list_size="$( _list count_elements "$list" )"
 
-	[ "$list_size" = 1 ] && {
-		echo "$list"
-		return 0
-	}
+	while [ -n "$list" ]; do {
+		i=0
+		roll="$( _math random_integer 1 $list_size )"
 
-	_log do list_shuffle daemon debug "sorting list with $list_size elements"
-	_stopwatch start "list_shuffle_$list_size"
+		for obj in $list; do {
+			i=$(( i + 1 ))
+			[ $i -eq $roll ] && {
+				echo "$obj"
+				list="$( _list remove_element "$list" $i )"
+				list_size=$(( list_size - 1 ))
 
-        
-	[ "$option" = 'get_first_random' ] && {
-	        list=$(echo "$list" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -s ' ' '\n' | shuf | head -n1)
-        } || {
-            list=$(echo "$list" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -s ' ' '\n' | shuf | tr '\n' ' ')
-	}
-        echo "$list" 
-
-	_stopwatch stop "list_shuffle_$list_size" quiet
+				if [ "$option" = 'get_first_random' ]; then
+					return 0
+				else
+					break
+				fi
+			}
+		} done
+	} done
 }
 
 _list_random_element()
