@@ -263,14 +263,20 @@ get_network_name()
 	} done
 }
 
+
 NETWORK="$( get_network_name )"
 mkdir -p "$TMPDIR/networks/$NETWORK"
 
 TOOLS="./tools.txt"
 IPKG="./ipkg.txt" ; >$IPKG
 DOTFILE="$TMPDIR/networks/$NETWORK/$NETWORK.dot"
+
+HARDWARE_FILE="$TMPDIR/networks/$NETWORK/hardware.txt"
+[ -e "$HARDWARE_FILE" ] && rm "$HARDWARE_FILE"
+
 USECASE_FILE="$TMPDIR/networks/$NETWORK/usecase.txt"
 [ -e "$USECASE_FILE" ] && rm "$USECASE_FILE"
+
 
 log "start network '$NETWORK' for IP: '$REMOTE_ADDR'"
 
@@ -2034,6 +2040,10 @@ _cell_firmwareversion_humanreadable()
 			UPDATE="$update"
 		;;
 	esac
+
+	[ -n "$HW" ] && {
+		grep -sq ^"$HW"$ "$HARDWARE_FILE" || echo "$HW" >>"$HARDWARE_FILE"
+	}
 
 	unixtime2date()
 	{
