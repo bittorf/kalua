@@ -15,29 +15,28 @@ _math_percentual_change()
 	fi
 }
 
-_math_random_integer ()		# OUT1: integer, higher or equal => $START and lower or equal <= $END
+_math_random_integer()		# OUT1: integer, higher or equal => $START and lower or equal <= $END
 {
-	local START="$1"
-	local END="$2"
-	local ZEROFILLUP="$3"		# some string
+	local start="${1:-0}"
+	local end="${2:-256}"
+	local zero_fillup="$3"		# some string
+	local seed diff random out
 
-	[ -z "$START" ] && {
-		echo -n "0"
-		return
-	}
+	seed="$( hexdump -n 2 -e '/2 "%u"' /dev/urandom )"	# e.g. 0...65536
+	[ $end -gt 65536 ] && seed=$(( seed * seed ))
 
-	local DIFF=$(( $END + 1 - $START ))
-	local SEED="$( dd if=/dev/urandom bs=2 count=1 2>&- | hexdump | if read line;then echo 0x${line#* };fi )" # 0x6f2d
-	local RANDOM="$(( $SEED % $DIFF ))"	# min=0 ... max=$DIFF
-	local OUT="$(( $START + $RANDOM ))"
+	diff=$(( end + 1 - start ))
+	random=$(( seed % diff ))	# result: integer somewhere between 0...$diff
+	out=$(( start + random ))
+	out=${out:=$start}
 
-	case "$ZEROFILLUP" in
-		"")	
-			echo -n "${OUT:-$START}"
+	case "$zero_fillup" in
+		'')
+			echo "$out"
 		;;
 		*)
-			OUT="000000000000000000000000000${OUT:-$START}"				# prefillup
-			echo -n "$OUT" | cut -b $(( ${#OUT} - ${#END} + 1 ))-
+			out="000000000000000000000000000${out}"		# prefillup
+			echo "$out" | cut -b $(( ${#out} - ${#end} + 1 ))-
 		;;
 	esac
 }
