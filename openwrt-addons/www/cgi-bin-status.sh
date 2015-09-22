@@ -222,7 +222,7 @@ output_table()
 				iface_out="$( _net ip2dev "$REMOTE" )"
 			;;
 		esac
-		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" )"
+		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" 'string' )"
 
 		build_remote_hostname "$REMOTE"
 

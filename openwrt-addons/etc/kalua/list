@@ -39,49 +39,52 @@ _list_remove_element()
 {
 	local list="$1"
 	local id_remove="$2"	# number or string
+	local is_is_string="$3"	# keyword 'string'
 	local obj
 	local i=0
 
-	for obj in $list; do {
-		i=$(( i + 1 ))
-		[ "$i" = "$id_remove" -o "$obj" = "$id_remove" ] || echo "$obj"
-	} done
-}
-
-_list_shuffle()
-{
-	local list="$1"
-	local option="$2"	# <empty> or 'get_first_random'
-	local list_size="$( _list count_elements "$list" )"
-	local sorted=0
-	local obj i
-
-	[ "$list_size" = 1 ] && {
-		echo "$list"
-		return 0
-	}
-
-	_log do list_shuffle daemon debug "sorting list with $list_size elements"
-	_stopwatch start "list_shuffle_$list_size"
-
-	while [ $sorted -ne $list_size ]; do {
-
-		i=0
+	if [ -z "$is_is_string" ]; then
 		for obj in $list; do {
 			i=$(( i + 1 ))
+			[ $i -eq $id_remove ] || echo "$obj"
+		} done
+	else
+		for obj in $list; do {
+			i=$(( i + 1 ))
+			[ "$obj" = "$id_remove" ] || echo "$obj"
+		} done
+	fi
+}
 
-			[ "$( _math random_integer 1 $( _list count_elements "$list" ) )" = "1" ] && {
+_list_shuffle()		# needs ~4 sec for 100 elements
+{
+	local funcname='list_shuffle'
+	local list="$1"
+	local option="$2"	# <empty> or 'get_first_random'
+	local obj i roll
+	local list_size="$( _list count_elements "$list" )"
+
+	_log do $funcname daemon debug "sorting list with $list_size elements"
+
+	while [ -n "$list" ]; do {
+		i=0
+		roll="$( _math random_integer 1 $list_size )"
+
+		for obj in $list; do {
+			i=$(( i + 1 ))
+			[ $i -eq $roll ] && {
 				echo "$obj"
+				list="$( _list remove_element "$list" $i )"
+				list_size=$(( list_size - 1 ))
 
-				[ "$option" = 'get_first_random' ] && return 0
-				sorted=$(( sorted + 1 ))
-				list="$( _list remove_element "$list" "$i" )"
-				break
+				if [ "$option" = 'get_first_random' ]; then
+					return 0
+				else
+					break
+				fi
 			}
 		} done
 	} done
-
-	_stopwatch stop "list_shuffle_$list_size" quiet
 }
 
 _list_random_element()
