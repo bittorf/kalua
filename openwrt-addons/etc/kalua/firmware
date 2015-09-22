@@ -40,9 +40,10 @@ _firmware_get_usecase()		# TODO: think about reordering
 
 _firmware_configure_keep_files()
 {
+	local funcname='firmware_configure_keep_files'
 	local wish="$1"
 	local config='/lib/upgrade/keep.d/base-files'	# here we add our stuff
-	local file
+	local file pattern
 
 	local list="
 		/etc/shadow
@@ -58,24 +59,28 @@ _firmware_configure_keep_files()
 	[ -e '/www/monitoring.wifimac' ]		&& list="$list /www/monitoring.wifimac"
 	_weblogin authserver is_myself			&& list="$list /www/cgi-bin/db_backup.tgz"
 
-	# TODO: remove entries, e.g.:
-	# /etc/crontabs/
-	# /etc/config/ucitrack
-	# /etc/config/6relayd
-	# /etc/config/compcache
-
-	# FIXME! otherwise after sysupgrade the initial cronjob/apply_profile will not work
-	fgrep -q '/tmp/loader' '/etc/rc.local' || {
-		sed -i "s#exit 0#[ -e '/tmp/loader' ] || /etc/init.d/cron.user boot; &#" '/etc/rc.local'
-	}
-
 	for file in $list $wish; do {
 		[ -e "$file" ] && {
 			grep -qs ^"$file" "$config" || {
+				_log do $funcname daemon info "adding '$file' to '$config'"
 				echo "$file" >>"$config"
 			}
 		}
 	} done
+
+	list='/etc/crontabs/ /etc/config/ucitrack /etc/config/6relayd /etc/config/compcache /etc/profile'
+	for file in $config/*; do {
+		for pattern in $list; do {
+			# escape slashes: / -> \/
+			grep ^"$pattern"$ "$file" && {
+				_log do $funcname daemon info "removing '$pattern' from '$file'"
+				sed -i "/${pattern////\/}/d" "$file"
+			}
+		} done
+	} done
+
+	# remove if all installations are >r47000?
+	grep -q 'cron.user boot' '/etc/rc.local' && sed -i '/cron.user boot/d' '/etc/rc.local'
 }
 
 _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files with tarball from repo
