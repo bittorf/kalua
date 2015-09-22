@@ -264,11 +264,13 @@ get_network_name()
 }
 
 NETWORK="$( get_network_name )"
-# NETWORK="$( pwd | sed -n 's#^/var/www/networks/\(.*\)/.*#\1#p' )"
+mkdir -p "$TMPDIR/networks/$NETWORK"
 
 TOOLS="./tools.txt"
 IPKG="./ipkg.txt" ; >$IPKG
-DOTFILE="/tmp/$NETWORK.dot"
+DOTFILE="$TMPDIR/networks/$NETWORK/$NETWORK.dot"
+USECASE_FILE="$TMPDIR/networks/$NETWORK/usecase.txt"
+[ -e "$USECASE_FILE" ] && rm "$USECASE_FILE"
 
 log "start network '$NETWORK' for IP: '$REMOTE_ADDR'"
 
@@ -2025,6 +2027,8 @@ _cell_firmwareversion_humanreadable()
 		*'.'*)
 			UPDATE="$(  echo "$update" | cut -d'.' -f1 )"
 			usecase="$( echo "$update" | cut -d'.' -f2 )"
+
+			echo "USECASE='$usecase'; HARDWARE='$HW';" >>"$USECASE_FILE"
 		;;
 		*)
 			UPDATE="$update"
@@ -3371,7 +3375,7 @@ cell_ram()				# fixme! this must be a graph, which is red/green
 
 	cell_ram "$h1" "$h2" "$h3" "$h4" "$h5" "$h6" "$h7" "$h0"
 
-	_cell_switch "$s1" "$COST2GW" "$HARDWARE" "$i0:$i1:$i2:$i5:${linebreak}down=${i3}KB/s:up=${i4}KB/s" "$i3" "$i4" "$s2"
+	_cell_switch "$s1" "$COST2GW" "$HW" "$i0:$i1:$i2:$i5:${linebreak}down=${i3}KB/s:up=${i4}KB/s" "$i3" "$i4" "$s2"
 
 	cell_dhcp "$D0"
 	func_cell_uptime "$UP" "$REBOOT" "$r9"
