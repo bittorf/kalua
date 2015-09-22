@@ -1,21 +1,11 @@
 #!/bin/sh
 . /tmp/loader
 
-# todo:
-# with/without OLSR on all interfaces? or specific interfaces?
-
-ifname2mtu()
-{
-	ip link show dev "${1:-nonexistent_$2}" |
-	 sed -n 's/^.* mtu \([0-9]*\).*/\1/p;q'
-}
-
 netparam_for_uci_devices()
 {
-	local NAME IFNAME ADDRESS NETMASK MTU BROADCAST NETWORK PREFIX CONFIG_PROFILE
+	local NAME IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX CONFIG_PROFILE
 
 	for DEVICE in loopback wlan lan wan ; do {
-
 		case "$DEVICE" in
 			loopback) NAME="LO" ;;
 			wlan)	  NAME="WIFI" ;;
@@ -56,7 +46,6 @@ netparam_for_uci_devices()
 
 		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
 		NETMASK="$( uci -q get network.$DEVICE.netmask )"
-		MTU="$( ifname2mtu "$IFNAME" "$DEVICE" )"
 
 		case "$( uci get network.$DEVICE.proto )" in
 			dhcp)
@@ -67,7 +56,6 @@ netparam_for_uci_devices()
 				IFNAME="pppoe-wan"
 				ADDRESS="$( _net dev2ip $IFNAME )"
 				NETMASK="$( _net dev2ip $IFNAME mask )"
-				MTU="$( ifname2mtu "$IFNAME" "$DEVICE" )"
 			;;
 		esac
 
@@ -80,17 +68,15 @@ netparam_for_uci_devices()
 		esac
 
 		echo "${NAME}DEV=$( _sanitizer do "$IFNAME" firstword )"
-		echo "${NAME}MTU=$MTU"
 		echo "${NAME}ADR=$ADDRESS"
 		echo "${NAME}MSK=$NETMASK"
 
 		BROADCAST=;NETWORK=;PREFIX=
-		[ -n "$MTU" ] && eval $( ipcalc.sh $ADDRESS $NETMASK )
+		[ -n "$ADDRESS" -a -n "$NETMASK" ] && eval $( ipcalc.sh "$ADDRESS" "$NETMASK" )
 
 		echo "${NAME}BRC=$BROADCAST"
 		echo "${NAME}NET=$NETWORK"
 		echo "${NAME}PRE=$PREFIX"
-		echo "${NAME}OLSR="
 	} done
 
 	list_wifi_devs()
