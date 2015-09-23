@@ -16,14 +16,28 @@ _wifi_dev2freq()
 {
 	local dev="$1"
 	local freq=0
+	local channel
 
 	_net dev_is_wifi "$dev" && {
+		# old, e.g. r30823 / iw v3.3
+		# Interface wlan0 ifindex 6 type IBSS wiphy 1
+		#
+		# newstyle:
 		# Interface wlan1 ifindex 51 wdev 0x10000000e addr f8:1a:67:33:1b:be \
 		# ssid ffintern.5GHz type IBSS wiphy 1 channel 40 (5200 MHz), width: 20 MHz, center1: 5200 MHz
 		#						  ^^^^^^^^^^
 		set -- $( iw dev "$dev" info )
-		freq="${*%% MHz*}"
-		freq="${freq#*(}"
+		case "$*" in
+			*' MHz'*)
+				freq="${*%% MHz*}"
+				freq="${freq#*(}"
+			;;
+			*)
+				# fallback for 2.4ghz channel 1-13
+				channel="$( uci get wireless.radio0.channel )" || channel=0
+				freq=$(( 2407 + (5 * channel) ))
+			;;
+		esac
 	}
 
 	echo "${freq:-0}"
