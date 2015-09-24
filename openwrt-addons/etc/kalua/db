@@ -1542,17 +1542,27 @@ _db_list_mail_recipients()
 
 _db_report()
 {
+	local funcname='db_report'
 	local object="$1"	# string: device|login
 	local username="$2"	# or 'mac' of object = device / or 'hash' of username+password -> _db_hash()
 	local password="$3"
+	local device_id auth_type login_validity ratio hash user_id
 
 	case "$object" in
+		'')
+			echo "Usage: $funcname <device|login> <mac_or_ID|hash(username+password)"
+			echo " e.g.: $funcname device 11:22:33:44:55:66"
+			echo " e.g.: $funcname device 1234"
+			echo " e.g.: $funcname login 128ecf542a35ac5270a87dc740918404"
+			return 1
+		;;
 		device)
-			local device_id="$username"
-
 			case "$device_id" in
 				*":"*)
-					local device_id="$( _db user device query string2id $mac last )"
+					device_id="$( _db user device query string2id "$mac" 'last' )"
+				;;
+				*)
+					device_id="$username"
 				;;
 			esac
 
@@ -1564,29 +1574,29 @@ _db_report()
 				return
 			}
 
-			if [ "$DEVTYPE" = "0" ]; then
-				DEVTYPE="wireless"
+			if [ "$DEVTYPE" = '0' ]; then
+				DEVTYPE='wireless'
 			else
-				DEVTYPE="lan"
+				DEVTYPE='lan'
 			fi
 
-			eval $( _db user login show "$USER_ID" "COMMENT USERNAME PASSWORD PROFILE_ID DEVICE_QUANTITY" )
+			eval $( _db user login show "$USER_ID" 'COMMENT USERNAME PASSWORD PROFILE_ID DEVICE_QUANTITY' )
 
 			if [ "$USERNAME" = "$mac" ]; then
-				local authtype="mac-address"
+				authtype="mac-address"
 				[ -n "$PASSWORD" ] && {
 					authtype="$authtype, restricted to $PASSWORD"
 				}
 			else
-				local authtype="username/password = $USERNAME/$PASSWORD"
+				authtype="username/password = $USERNAME/$PASSWORD"
 			fi
 
 			case "$DEVICE_QUANTITY" in
 				"-"*)
-					local login_validity="locked/invalid (code: $DEVICE_QUANTITY)"
+					login_validity="locked/invalid (code: $DEVICE_QUANTITY)"
 				;;
 				*)
-					local login_validity="OK, ${DEVICE_QUANTITY:-undefined} amount"
+					login_validity="OK, ${DEVICE_QUANTITY:-undefined} amount"
 				;;
 			esac
 
@@ -1620,17 +1630,17 @@ _db_report()
 			echo "traffic upload: $( _sanitizer do "$USED_TRAFFIC_TODAY" number_humanreadable ) bytes"
 
 			[ "$USED_TRAFFIC_TODAY" = "0" ] && USED_TRAFFIC_TODAY=1
-			local ratio="$(( USED_TRAFFIC / USED_TRAFFIC_TODAY )).$( echo $(( USED_TRAFFIC % USED_TRAFFIC_TODAY )) | cut -b1 )"
+			ratio="$(( USED_TRAFFIC / USED_TRAFFIC_TODAY )).$( echo $(( USED_TRAFFIC % USED_TRAFFIC_TODAY )) | cut -b1 )"
 			echo "traffic ratio down/up: $ratio:1"
 		;;
 		login)
 			if [ ${#username} -eq 32 ]; then
-				local hash="$username"
+				hash="$username"
 			else
-				local hash="$( _db hash "${username}${password}" )"
+				hash="$( _db hash "${username}${password}" )"
 			fi
 
-			local user_id="$( _db user login query hash2id "$hash" )"
+			user_id="$( _db user login query hash2id "$hash" )"
 
 			[ -z "$user_id" ] && {
 				echo "invalid hash/login - checking for username/password"
@@ -1642,9 +1652,8 @@ _db_report()
 				}
 			}
 
-			# fixme!
-			# build abstraction -> also this must return a list of id's
-			local device_id="$( _db user device query string2id "A='$user_id';B='" )"
+			# FIXME! build abstraction -> also this must return a list of id's
+			device_id="$( _db user device query string2id "A='$user_id';B='" )"
 
 			if [ -z "$device_id" ]; then
 				echo "login was never used"
