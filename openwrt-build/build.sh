@@ -551,8 +551,10 @@ EOF
 
 			[ "$option" = 'info' ] && {
 				cat <<EOF
-# FIXME! needs virtio-kmodules
-qemu-system-x86_64 -kernel $FILENAME_SYSUPGRADE -hda $FILENAME_FACTORY -nographic -append console=ttyS0
+# simulated SCSI-drive (see https://dev.openwrt.org/ticket/17947)
+qemu-system-x86_64 -nographic -drive file=bin/$ARCH/$FILENAME_FACTORY,if=none,id=mydisk -device ich9-ahci,id=ahci -device ide-drive,drive=mydisk,bus=ahci.0
+# and with networking
+# TODO: http://www.linux-kvm.org/page/Networking#iptables.2Frouting
 EOF
 				return 0
 			}	# parser_ignore
