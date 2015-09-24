@@ -1752,7 +1752,11 @@ apply_symbol()
 						cp -v "$file" 'package/kernel/mac80211/patches'
 						MAC80211_CLEAN='true'
 					elif grep -q 'bb_error_msg_and_die' "$file"; then
+						register_patch "$file"
 						cp -v "$file" 'package/utils/busybox/patches'
+					elif grep -q ' a/net/sched/' "$file"; then
+						log "[FIXME] ignoring '$file'"
+#						cp -v "$file" ''
 					else
 						if git apply --check <"$file"; then
 							# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git

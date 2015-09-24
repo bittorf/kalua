@@ -22,6 +22,9 @@ case "${BUTTON}-${ACTION}" in
 		# FIXME! DIFF = 1000 -> 10 seconds
 		logger -s -- "$0: button '$BUTTON' released after $DIFF millisec"
 
+		# works with e.g.
+		# Alesis M1 Active 320 USB = 08bb:29b0 = Texas Instruments PCM2900B Audio CODEC:
+		# PE-5819-919 auvisio ext. USB-Soundkarte "Virtual 7.1" = 0d8c:000c = C-Media Electronics, Inc. Audio Adapter
 		next_radio()
 		{
 			route -n | grep -q ^"0\.0\.0\.0" || return 0
@@ -97,13 +100,15 @@ case "${BUTTON}-${ACTION}" in
 			_log do firmware_button daemon info "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
 
 			[ $DIFF -gt 1000 ] && {
-				touch '/tmp/testdump.core'
+				touch '/coredump/testdump.core'		# FIXME! see system_adjust_coredump()
 				_watch coredump
 			}
 
 			PID="$( uci -q get system.@monitoring[0].button_smstext )" && {
 				for END in $( uci -q get system.@monitoring[0].button_phone ); do {
-					_sms send "$END" "$PID" '' "$( uci -q get sms.@sms[0].username )" "$( uci -q get sms.@sms[0].password )"
+					USERNAME="$( uci -q get sms.@sms[0].username )"
+					PASSWORD="$( uci -q get sms.@sms[0].password )"
+					_sms send "$END" "$PID" '' "$USERNAME" "$PASSWORD"
 				} done
 			}
 		}
