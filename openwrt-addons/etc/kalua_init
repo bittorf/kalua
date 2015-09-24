@@ -7,7 +7,7 @@
 # idee: methode 'unload' ?
 # idee: methode help?
 # idee: $FUNCNAME fuellen ODER alle Vorkommen von FUNCNAME durch realen zur "compile-zeit" ersetzen
-# idee: statistik anzeigen lassen per befehl: sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/${CLASS} | wc -l | sed 's/ //g'
+# idee: statistik anzeigen lassen per befehl: sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/$CLASS | wc -l | sed 's/ //g'
 # idee: netparam ohne *MTU|BRC|OLSR|MSK|LO*
 # todo: option zum entfernen aller logmeldungen? (bzw. nur log-debug)
 # todo: lade-log an/aus (loader/realclass)
@@ -33,7 +33,7 @@ for CLASS in /tmp/loader_* ; do {
 mkdir -p "$POOLDIR"
 
 # LOWMEM: directly call copy on disc
-cd "${BASEDIR}.w" 2>/dev/null && rm -fR "${BASEDIR}.w/"*
+cd "${BASEDIR}.w" 2>/dev/null && rm -fR "$BASEDIR.w/"*
 
 # _ s    http		-> show http methods
 # _ http arg1 argX	-> include + start
@@ -68,39 +68,39 @@ for CLASS in $BASEDIR/*; do {
 	HASH="${HASH%% *}"
 
 	[ "$DEBUG" = 'debug' ] && {
-		DEBUG1="logger -- working in _$CLASS, calling \$1 with args \$@;"
-		DEBUG2="logger -- including _$CLASS subfunc \$1;"
+		DEBUG1=" logger -- working in _$CLASS, calling \$1 with args \$@;"
+		DEBUG2=" logger -- including _$CLASS subfunc \$1;"
 		DEBUG3=" || logger -t $CLASS -s \"invalid call: \$1\""
 	}
 
 	class_needs_new_build()
 	{
-		test -e "$POOLDIR/${CLASS}" || return 0
-		sh -n "$POOLDIR/${CLASS}" || return 0
+		test -e "$POOLDIR/$CLASS" || return 0
+		sh -n "$POOLDIR/$CLASS" || return 0
 		grep -qs "$CLASS $HASH" "$POOLDIR/CHECKSUMS" || return 0
 
 		return 1
 	}
 
 	class_needs_new_build && {
-		cat >"$POOLDIR/${CLASS}" <<EOF
-_$CLASS(){ ${DEBUG1}local a=\${1-s};shift;_${CLASS}_\$a "\$@"${DEBUG3};}
+		cat >"$POOLDIR/$CLASS" <<EOF
+_$CLASS(){$DEBUG1 local a=\${1-s};shift;_${CLASS}_\$a "\$@"$DEBUG3;}
 _${CLASS}_s(){ _ s $CLASS;}
 _${CLASS}_include(){ :;}
 EOF
-		if [ -d "${BASEDIR}.w" ]; then
+		if [ -d "$BASEDIR.w" ]; then
 			# LOWMEM: directly call copy on disc
-			echo >>"$POOLDIR/${CLASS}" ". $BASEDIR/$CLASS"
+			echo >>"$POOLDIR/$CLASS" ". $BASEDIR/$CLASS"
 		else
 			cat "$BASEDIR/$CLASS" >>"$POOLDIR/$CLASS"
 #			# fixme! do it *fast* when booting, and then do it *good-but-slow* after booting
-#			_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" "$DEBUG" >>"$POOLDIR/${CLASS}"
+#			_kalua_strip_script "$BASEDIR/$CLASS" "$CLASS" "$DEBUG" >>"$POOLDIR/$CLASS"
 		fi
 
 		# remove maybe old checksum
 		[ -e "$POOLDIR/CHECKSUMS" ] && sed -i "/^$CLASS /d" "$POOLDIR/CHECKSUMS"
 
-		if sh -n "$POOLDIR/${CLASS}"; then
+		if sh -n "$POOLDIR/$CLASS"; then
 			echo "$CLASS $HASH" >>"$POOLDIR/CHECKSUMS"
 		else
 			DEBUG='compile_error'
@@ -110,11 +110,11 @@ EOF
 	case "$DEBUG" in
 		compile_error)
 			DEBUG=
-			echo >>"$LOADER" "_${CLASS}(){ logger -s -- CLASSERROR: _$CLASS \$@ ;}"
+			echo >>"$LOADER" "_$CLASS(){ logger -s -- CLASSERROR: _$CLASS \$@ ;}"
 		;;
 		debug)
-			. "$POOLDIR/${CLASS}"
-			echo >>"$LOADER" "_${CLASS}(){ i $CLASS;shift;${DEBUG2}_${CLASS} \"\$@\"${DEBUG3};}"
+			. "$POOLDIR/$CLASS"
+			echo >>"$LOADER" "_$CLASS(){ i $CLASS;shift;${DEBUG2}_$CLASS \"\$@\"$DEBUG3;}"
 		;;
 		*)
 			echo >>"$LOADER" "_$CLASS(){ _ i $CLASS \"\$@\";}"
