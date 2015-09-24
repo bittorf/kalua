@@ -356,6 +356,7 @@ Special UCI-variables
 	system.@system[0].noswinstall		- bool
 	system.@system[0].avoid_autoreboot	- bool
 	system.@system[0].db_backup_force	- bool
+	system.@system[0].restrict_local	- bool (deny WANNET from MESH)
 	
 	system.@profile[0].name			- string
 	system.@profile[0].nodenumber		- integer
