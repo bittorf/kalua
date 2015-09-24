@@ -1220,6 +1220,9 @@ func_cell_hostname ()
 					"$( echo "$PROFILE" | cut -d'_' -f1 )"*)	# hotello-K80_adhoc -> hotello-K80-adhoc/ap
 						HOSTNAME="$HOSTNAME_ENFORCED"
 					;;
+					*'-vhs')
+						HOSTNAME="$HOSTNAME_ENFORCED"		# ffweimar-vhs
+					;;
 					*)
 						HOSTNAME="enforced/settings: $HOSTNAME_ENFORCED&nbsp;(&larr;$HOSTNAME = real)"
 					;;
@@ -3270,7 +3273,8 @@ esac
 #					# fixed in /tmp/loader and used from r45579+
 #					# https://dev.openwrt.org/ticket/19539 - visible on dualradio-routers
 #					func_update2color 'bad_version:uci_lists_broken'
-				elif [ $1 -gt 46425 ]; then
+				elif [ $1 -gt 46435 ]; then
+					# https://dev.openwrt.org/ticket/20556
 					# needs more testing, something with linklocal IPv4/macvlan does not work
 					func_update2color 'bad_version:macvlanIPv4_broken'
 				elif [ $1 -gt 44150 ]; then

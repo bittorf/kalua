@@ -73,14 +73,13 @@ file_ok()
 	. $FILE && {
 		test -n "$v2" || return 1	# only if git-version available, otherwise it's a cam or something alike
 		test $v2 -gt 30000 || {
-			log "v2: $v2 - $FILE"	# ignore svn on PBX (which is ~2800)
-
 			case "$NETWORK" in
 				*'monami'*)
-					log "simulating good for 'monami'"
+#					log "[OK] simulating good version $v2 for '$NETWORK/$FILE'"
 					return 0
 				;;
 				*)
+					log "[ERR] bad version $v2 for '$NETWORK/$FILE'"	# ignore svn on PBX (which is ~2800)
 					return 1
 				;;
 			esac
@@ -214,6 +213,12 @@ func_node_is_wired_with_node_in_ap_mode ()
 	return 1
 }
 
+FILELIST="$( find recent/ -type f 2>/dev/null | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
+[ -z "$FILELIST" ] && {
+	log "[ERR] no valid files under $(pwd)/recent/"
+	exit 1
+}
+
 cat <<EOF
 {
 	"type": "NetworkGraph",
@@ -224,8 +229,6 @@ cat <<EOF
 	"metric": "etx_ffeth",
 	"nodes": [
 EOF
-
-FILELIST="$( find recent/ -type f | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
 
 for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 	file_ok "$FILE" || continue
@@ -434,7 +437,20 @@ for FILE in NULL; do {
 
 ip2id()
 {
-	fgrep -s "$1 " 'map.temp.ip2id' | head -n1 | cut -d' ' -f2
+	local ip="$1"
+	local file='map.temp.ip2id'
+
+	while read line; do {
+		case "$line" in
+			"$ip "*)
+				set -- $line
+				echo $2
+				return 0
+			;;
+		esac
+	} done <"$file"
+
+	log "[ERR] cannot find ip '$ip' in '$file'"
 }
 
 # all links
@@ -479,7 +495,8 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 
 		[ -z "$NCOST" ] && {
 			log "$(pwd)/$FILE - '$IP_LOCAL' - zero NCOST - '$LINE'"
-			NCOST=1
+			NCOST=0
+			COST=0
 		}
 
 		  if [ "$NDEV" = "-" ]; then
@@ -503,11 +520,11 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 		ID_LOCAL="$(  ip2id "$IP_LOCAL"  )"
 		ID_REMOTE="$( ip2id "$IP_REMOTE" )"
 		[ -z "$ID_LOCAL" ] && {
-			log "$(pwd)/$FILE - '$IP_LOCAL' - zero id_local - '$LINE'"
+			log "$(pwd)/$FILE - ip2id '$IP_LOCAL' => zero id_local - '$LINE'"
 			continue
 		}
 		[ -z "$ID_REMOTE" ] && {
-			log "$(pwd)/$FILE - '$IP_REMOTE' - zero id_remote - '$LINE'"
+			log "$(pwd)/$FILE - ip2id '$IP_REMOTE' => zero id_remote - '$LINE'"
 			continue
 		}
 
@@ -572,4 +589,5 @@ echo
 echo "	]"
 echo "}"
 
+# rm "/tmp/links_$$"
 rm 2>/dev/null ./map.temp.node2hostname ./map.temp.conns map.temp.ip2id "/tmp/links_$$"

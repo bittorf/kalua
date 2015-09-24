@@ -1,15 +1,7 @@
 #!/bin/sh
 
 if [ -n "$1" ]; then
-#	echo "$1" >"/dev/shm/accept_$$"
-#	if command . "/dev/shm/accept_$$"; then
-		# we need WIFIMAC and WIFISCAN
-		eval $1
-#	else
-#		logger -t $0 -p user.info "[ERR] eval $1"
-#	fi
-#
-#	rm "/dev/shm/accept_$$"
+	eval $1
 else
 	exit 0
 fi
@@ -19,10 +11,6 @@ if [ -n "$LOG" ]; then
 	echo "$1" >>./meshrdf.txt
 	echo "$UNIXTIME|$HOSTNAME|$WIFIMAC|$LOG" >>../log/log.txt
 else
-#	TEMPFILE="/tmp/write_meshrdf.${SSHPUBKEYFP:-$( date +%s )}.$$.tmp"
-#	echo "$PUBIP_REAL"  >"$TEMPFILE"
-#	mv "$TEMPFILE" ../pubip.txt || rm "$TEMPFILE"
-#
 	echo "$PUBIP_REAL" >../pubip.txt
 
 	[ -z "$NEIGH" ] && {
@@ -33,7 +21,7 @@ else
 	echo "$1" >>"./meshrdf.txt"
 	echo -n "$1"  >"./recent/$WIFIMAC"
 	[ -n "$OLD_NEIGH" ] && {
-		echo "$PROFILE - $WIFIMAC" >>/tmp/BLA
+#		echo "$PROFILE - $WIFIMAC" >>/tmp/BLA
 		echo -n ";$OLD_NEIGH;LATFAKE=" >>"./recent/$WIFIMAC"
 	}
 
