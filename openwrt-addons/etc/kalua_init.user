@@ -229,27 +229,35 @@ bool_true(){ case \$(uci -q get \$1) in 1|on|true|yes|en*);;*)false;;esac;}
 EOF
 # isnumber: http://stackoverflow.com/questions/806906/how-do-i-test-if-a-variable-is-a-number-in-bash
 
-read NOP MEMTOTAL NOP <"/proc/meminfo"
+read NOP MEMTOTAL NOP <'/proc/meminfo'
 [ $MEMTOTAL -gt 16384 ] || {
-	echo "LOWMEM=true"
-#	echo 'while read LOAD </proc/loadavg; do case $PRELOAD$LOAD in 0.*) break ;; *) echo "kalua-loader: $0: $$: LOAD: $LOAD - wait 60 sec" >/dev/console; /bin/sleep 60 ;; esac; done'
-	# PRELOAD is a (normally unset) var, which can be filled to fool this check, e.g. PRELOAD=0.
+	echo 'LOWMEM=true'
 }
 
-# FIXME! this can fail if PATH not set yet
-# usually at /usr/sbin/iptables or /sbin/iptables
-if iptables --help | fgrep -q -- '--wait'; then	# TODO: wrapper function
+test_iptables()
+{
+	# direct call can fail if PATH not set yet
+	if [ -e '/usr/sbin/iptables' ]; then
+		/usr/sbin/iptables --help | fgrep -q -- '--wait'
+	elif [ -e '/sbin/iptables' ]; then
+		/sbin/iptables --help | fgrep -q -- '--wait'
+	else
+		false
+	fi
+}
+
+if test_iptables; then
 	echo "IPT='iptables --wait'"
 else
-	echo "IPT='iptables'"
+	echo 'IPT=iptables'
 fi
 
 echo "TC=$( which tc || echo 'false' )"		# TODO: wrapper function
 
 if [ -e "$LOADER_FINAL" ]; then
-	FILE_NETPARAM="/tmp/NETPARAM"
+	FILE_NETPARAM='/tmp/NETPARAM'
 else
-	FILE_NETPARAM="/www/NETPARAM"
+	FILE_NETPARAM='/www/NETPARAM'
 fi
 
 if [ -e "$FILE_NETPARAM" ]; then		# FIXME! better concept needed
@@ -260,12 +268,12 @@ if [ -e "$FILE_NETPARAM" ]; then		# FIXME! better concept needed
 			;;
 		esac
 	} done <"$FILE_NETPARAM"
-	echo "BATADR='$( uci -q get network.mybridge.ipaddr )'"
+	echo "BATADR=$( uci -q get network.mybridge.ipaddr )"
 
 	. "$FILE_NETPARAM"
 
-	echo -n "$WIFIDEV" >"/tmp/WIFIDEV"	# is a hack for fast seeking our dev/ip
-	echo -n "$WIFIADR" >"/tmp/WIFIADR"
+	echo -n "$WIFIDEV" >'/tmp/WIFIDEV'	# is a hack for fast seeking our dev/ip
+	echo -n "$WIFIADR" >'/tmp/WIFIADR'
 else
         logger -s "$0 [OK] could not use '$FILE_NETPARAM' - maybe later"
 fi
