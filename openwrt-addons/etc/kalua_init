@@ -13,7 +13,7 @@
 read UP REST <'/proc/uptime'
 echo "${UP%.*}${UP#*.}" >'/tmp/kalua_time'	# mimic stopwatch_start()
 
-DEBUG="$1"			# keyword "debug" or empty
+DEBUG="$1"			# keyword "debug" or <empty>
 BASEDIR="$( dirname $0 )/kalua"	# scriptbase, simply throw your 'class'-files here e.g. wifi
 POOLDIR='/tmp/kalua'
 LOADER="/tmp/loader_$$"
@@ -66,40 +66,19 @@ for CLASS in $BASEDIR/*; do {
 		DEBUG3=" || logger -t $CLASS -s \"invalid call: \$1\""
 	}
 
-	class_needs_new_build()
-	{
-		test -e "$POOLDIR/$CLASS" || return 0
-		sh -n "$POOLDIR/$CLASS" || return 0
-
-		HASH="$( md5sum "$BASEDIR/$CLASS" )"
-		HASH="${HASH%% *}"
-		grep -qs "$CLASS $HASH" "$POOLDIR/CHECKSUMS" || return 0
-
-		return 1
-	}
-
-	class_needs_new_build && {
-		cat >"$POOLDIR/$CLASS" <<EOF
+	cat >"$POOLDIR/$CLASS" <<EOF
 _$CLASS(){$DEBUG1 local a=\${1-s};shift;_${CLASS}_\$a "\$@"$DEBUG3;}
 _${CLASS}_s(){ _ s $CLASS;}
 _${CLASS}_include(){ :;}
 EOF
-		if [ -d "$BASEDIR.w" ]; then
-			# LOWMEM: directly call copy on disc
-			echo >>"$POOLDIR/$CLASS" ". $BASEDIR/$CLASS"
-		else
-			cat "$BASEDIR/$CLASS" >>"$POOLDIR/$CLASS"
-		fi
+	if [ -d "$BASEDIR.w" ]; then
+		# LOWMEM: directly call copy on disc
+		echo >>"$POOLDIR/$CLASS" ". $BASEDIR/$CLASS"
+	else
+		cat "$BASEDIR/$CLASS" >>"$POOLDIR/$CLASS"
+	fi
 
-		# remove maybe old checksum
-		[ -e "$POOLDIR/CHECKSUMS" ] && sed -i "/^$CLASS /d" "$POOLDIR/CHECKSUMS"
-
-		if sh -n "$POOLDIR/$CLASS"; then
-			echo "$CLASS $HASH" >>"$POOLDIR/CHECKSUMS"
-		else
-			DEBUG='compile_error'
-		fi
-	}
+	sh -n "$POOLDIR/$CLASS" || DEBUG='compile_error'
 
 	case "$DEBUG" in
 		compile_error)
