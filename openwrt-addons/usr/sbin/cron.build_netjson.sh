@@ -56,6 +56,7 @@ case "$NETWORK_NAME" in
 			file="$base/$( basename "$url" )"
 			fetch
 
+			# our index.html
 			url="$repo/examples/custom-attributes.html"
 			file="$base/netjson.html"
 			fetch
@@ -157,8 +158,8 @@ while read LINE; do {			# and extract all nodes and all links
 						;;
 					esac
 
-					add_node_if_unknown "$1"
-					add_node_if_unknown "$2"
+					add_node_if_unknown "$1"	# local IP
+					add_node_if_unknown "$2"	# remote IP
 
 					test -n "$BUFFER" && echo "$BUFFER,"
 					BUFFER="    { \"source\": \"$1\", \"target\": \"$2\", \"cost\": $COST }"
@@ -191,7 +192,7 @@ while read LINE; do {			# and extract all nodes and all links
 cat <<EOF
 {
   "type": "NetworkGraph",
-  "label": "$NETWORK_NAME",
+  "label": "$NETWORK_NAME with <a href='http://netjson.org'>netJSON.org</a>",
   "protocol": "OLSR",
   "topology_id": "$NETWORK_NAME@$( date "+%d.%b'%y-%H:%M" )",
   "version": "1",
