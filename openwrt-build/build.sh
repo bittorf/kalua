@@ -600,7 +600,7 @@ EOF
 
 #			MAX_SIZE='3.735.556'	# 57 erase-blocks * 64k + 4 bytes padding = 3.735.552 -> klog: jffs2: Too few erase blocks (4)
 #			confirmed: 3.604.484 = ok
-			MAX_SIZE=$(( 56 * 65536 ))
+#			MAX_SIZE=$(( 56 * 65536 ))
 		;;
 		'TP-LINK TL-MR3020')
 			# http://wiki.openwrt.org/toh/tp-link/tl-mr3020
@@ -2859,7 +2859,6 @@ unittest_do()
 			# SC2012: use 'find' instead of 'ls -1 bla_*'
 			# SC2039: not allowed: echo -en
 			# SC2155: local var="$( bla )" -> loosing returncode
-			# SC2034: QUERY_STRING appears unused. Verify it or export it
 			# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
@@ -2878,12 +2877,15 @@ unittest_do()
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
 			# SC2153: Possible misspelling: WIFIDEV may not be assigned, but WIFI_DEV is.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
-			ignore='SC1010,SC2154,SC2012,SC2039,SC2155,SC2034,SC2046,SC2086,SC1007,SC2090,SC2089'
-			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031"
-#			ignore="${ignore},SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088"
-			ignore="${ignore},SC2016,SC2102,SC2064,SC2153,SC2029"
 
-			log "testing with '$shellcheck_bin', ignoring: $ignore"
+			shellsheck_ignore()
+			{
+				echo -n 'SC1010,SC2154,SC2012,SC2039,SC2155,SC2046,SC2086,SC1007,SC2090,SC2089'
+				echo -n ',SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031'
+				echo -n ',SC2016,SC2102,SC2064,SC2153,SC2029'
+			}
+
+			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
 			tempfile='/dev/shm/shellcheck'
 			filelist='/dev/shm/filelist'
 			find "openwrt-addons" "openwrt-build" -type f -not -iwholename '*.git*' >"$filelist"
@@ -2894,6 +2896,13 @@ unittest_do()
 						# these files are deprecated/unused
 						continue
 					;;
+					'openwrt-build/apply_profile.code.definitions')
+						# VAR appears unused. Verify it or export it
+						ignore="$( shellsheck_ignore ),SC2034"
+					;;
+					*)
+						ignore="$( shellsheck_ignore )"
+					;;
 				esac
 
 				case "$( mimetype_get "$file" )" in
@@ -2901,6 +2910,13 @@ unittest_do()
 						# strip non-ascii chars, otherwise the parser can fail with
 						# openwrt-addons/etc/kalua/mail: hGetContents: invalid argument (invalid byte sequence)
 						tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
+						# strip START=, otherwise we get SC2034 = 'VAR appears unused. Verify it or export it'
+						# https://github.com/koalaman/shellcheck/wiki/SC2034
+						# we should FIXME! these files
+						sed -i '/^PID=/d' "$tempfile"
+						sed -i '/^START=/d' "$tempfile"
+						sed -i '/^SCHEDULER/d' "$tempfile"
+						sed -i '/^EXTRA_COMMANDS=/d' "$tempfile"
 
 						if $shellcheck_bin -e $ignore "$tempfile"; then
 							rm "$tempfile"

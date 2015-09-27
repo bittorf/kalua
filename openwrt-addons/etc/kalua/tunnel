@@ -65,7 +65,7 @@ _tunnel_config_build()				# on client
 	local mask=30
 	local mtu=1450
 	local password='ff'
-	local name message rt_num logerror prio1 prio2 table_intranet intranet
+	local name message rt_num prio1 prio2 table_intranet intranet
 
 	local bin_logger="$( which logger )"
 	local bin_ip="$( which ip )"
@@ -76,7 +76,6 @@ _tunnel_config_build()				# on client
 	rt_num=$(( 150 + tunnel_id ))
 	name="$( _sanitizer do "$mac" hostname )"
 	message="id $tunnel_id conn $name dev %% for user $ipuser"	# speed unknown, send from server?
-	logerror="logger -t tunnel_HELPER -p daemon.err $message "
 
 	prio1="3${tunnel_id}0"		# e.g. 3 + 152 + 0 = 31520
 	prio2="3${tunnel_id}1"		# e.g. 3 + 152 + 1 = 31521
@@ -213,8 +212,6 @@ _tunnel_config_rebuild()			# on server: we have to join many user/connections
 			;;
 		esac
 
-		logerror="logger -t tunnel_HELPER -p daemon.err $message "
-
 		cat <<EOF
 $name {
 	compress $compress;
@@ -348,7 +345,7 @@ _tunnel_clientside_control()
 
 	local storage='/tmp/tunnel'
 	local configfile="$storage/${mac}.conf"
-	local tunnel_id tunnel_name dummy answer url pid tunnel_server process_output file
+	local tunnel_id tunnel_name answer url pid tunnel_server process_output file
 	local TRUE FALSE TUNNEL_IP_CLIENT TUNNEL_IP_SERVER SPEED_UPLOAD SPEED_DOWNLOAD
 
 	read tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
@@ -386,7 +383,7 @@ _tunnel_clientside_control()
 			esac
 
 			for file in $( list_files ); do {
-				read tunnel_name dummy <"$file"
+				read tunnel_name _ <"$file"
 				_log do $funcname daemon info "$action: checking conn $tunnel_name in file $file"
 
 				if _tunnel check_connection "$tunnel_name" is_up ; then
@@ -444,7 +441,7 @@ _tunnel_clientside_control()
 		stop)
 			_log do $funcname daemon info "[OK] stopping tunnel for $mac / $ip"
 
-			read tunnel_name dummy <"$configfile"
+			read tunnel_name _ <"$configfile"
 			rm "$configfile"
 
 			pid="$( _tunnel check_connection "$tunnel_name" get_pid )"
@@ -463,11 +460,11 @@ _tunnel_client_start()
 
 	local configfile="$storage/${mac}.conf"
 	local storage="/tmp/tunnel"
-	local tunnel_name dummy
+	local tunnel_name
 
 	mkdir -p "$storage"
 	_tunnel config_build "$tunnel_id" "$mac" "$ip" "$option" >"$configfile"
-	read tunnel_name dummy <"$configfile"
+	read tunnel_name _ <"$configfile"
 
 	vtund -f "$configfile" "$tunnel_name" "$tunnel_server"
 

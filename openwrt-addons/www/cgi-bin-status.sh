@@ -203,6 +203,7 @@ output_table()
 	_net include
 	_olsr include
 	count=0
+	export COUNT		# shellcheck SC2034
 	while read line; do {
 		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=1.875;COUNT=$(( COUNT + 1 ))
 		eval $line

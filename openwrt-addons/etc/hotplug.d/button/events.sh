@@ -27,23 +27,14 @@ case "${BUTTON}-${ACTION}" in
 		# PE-5819-919 auvisio ext. USB-Soundkarte "Virtual 7.1" = 0d8c:000c = C-Media Electronics, Inc. Audio Adapter
 		next_radio()
 		{
-			route -n | grep -q ^"0\.0\.0\.0" || return 0
+			route -n | grep -q ^'0\.0\.0\.0' || return 0
 
 			local file="/tmp/audioplayer.sh"
-			local dummy url
+			local url
 			local i=1
-			local url1='soma.fm secret-agent http://mp3.somafm.com:443'
-			local url2='soma.fm space-station http://sfstream1.somafm.com:2020'
-			local url3='soma.fm xmasinfrisko http://sfstream1.somafm.com:2100'
-			local url4='soma.fm indiepop http://sfstream1.somafm.com:8090'
-			local url5='mdr figaro http://avw.mdr.de/livestreams/mdr_figaro_live_128.m3u'
-			local url6='radio-blau main http://www.radioblau.de/stream/radioblau.m3u'
-			local url7='apollo-radio main http://stream.apolloradio.de/APOLLO/mp3.m3u'
-			local url8='radio-lotte main http://www.radio-lotte.de/stream/radiolotte.m3u'
-			local url9='FM4 main http://mp3stream1.apasf.apa.at:8000'
 
 			if [ -e "$file" ]; then
-				read dummy i <"$file"
+				read _ i <"$file"
 				i=$(( i + 1 ))
 
 				killall madplay
@@ -56,13 +47,15 @@ case "${BUTTON}-${ACTION}" in
 			read DSPDEV <'/tmp/audioplayer.dev'
 
 			case "$i" in
-				2|3|4|5|6|7|8|9)
-					eval url="\$url$i"
-				;;
-				*)
-					url="$url1"
-					i=1
-				;;
+				2) url='soma.fm space-station http://sfstream1.somafm.com:2020' ;;
+				3) url='soma.fm xmasinfrisko http://sfstream1.somafm.com:2100' ;;
+				4) url='soma.fm indiepop http://sfstream1.somafm.com:8090' ;;
+				5) url='mdr figaro http://avw.mdr.de/livestreams/mdr_figaro_live_128.m3u' ;;
+				6) url='radio-blau main http://www.radioblau.de/stream/radioblau.m3u' ;;
+				7) url='apollo-radio main http://stream.apolloradio.de/APOLLO/mp3.m3u' ;;
+				8) url='radio-lotte main http://www.radio-lotte.de/stream/radiolotte.m3u' ;;
+				9) url='FM4 main http://mp3stream1.apasf.apa.at:8000' ;;
+				*) url='soma.fm secret-agent http://mp3.somafm.com:443'; i=1 ;;
 			esac
 
 			logger -s -- "$0: audioplayer: station: $url"

@@ -8,7 +8,7 @@ if uci -q get 'system.@httpsproxy[0].enabled'; then
 	if [ "$SERVER_PORT" = '443' ]; then
 		case "$REQUEST_URI" in
 			*'USERNAME='*|*'IPADDR='*)
-				QUERY_STRING="$( echo "$REQUEST_URI" | cut -d'?' -f2 )"
+				export QUERY_STRING="$( echo "$REQUEST_URI" | cut -d'?' -f2 )"
 				eval $( _http query_string_sanitize "$0" | grep -E '^USERNAME=|^PASSWORD=|^IPADDR=' )
 			;;
 		esac
