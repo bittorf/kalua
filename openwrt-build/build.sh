@@ -291,7 +291,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 	local dir="target/linux/$ARCH"
 	local pattern=' oops=panic panic=10 '
 	local arch="$ARCH"
-	local config kernelversion myarch
+	local config kernelversion
 
 	case "$arch" in
 		'uml')
@@ -396,7 +396,7 @@ apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.
 	local funcname='apply_minstrel_rhapsody'
 	local dir="$KALUA_DIRNAME/openwrt-patches/interesting/minstrel-rhapsody"
 	local kernel_dir='package/kernel/mac80211'
-	local file base
+	local file
 
 	MAC80211_CLEAN='true'
 	register_patch "DIR: $dir"
@@ -1369,7 +1369,7 @@ copy_firmware_files()
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH/attic"
 	local file checksum rootfs server_dir
-	local destination destination_scpsafe destination_info destination_info_scpsafa
+	local destination destination_scpsafe destination_info destination_info_scpsafe
 	local error=0
 
 	mkdir -p "$attic"
@@ -1581,10 +1581,10 @@ apply_symbol()
 	local symbol="$1"
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
-	local choice hash tarball_hash rev commit_info
+	local hash tarball_hash rev commit_info
 	local last_commit_unixtime last_commit_date url
 	local file file_original installation sub_profile node
-	local dir basedir pre size1 size2 gain firstline
+	local dir pre size1 size2 gain firstline
 
 	case "$symbol" in
 		"$KALUA_DIRNAME"*)
@@ -2700,7 +2700,7 @@ check_scripts()
 	local tempfile="/tmp/check_scripts"
 	local tempfile_functions="$tempfile.functions"
 	local good='true'
-	local file mimetype i j k
+	local file mimetype i
 
 	find "$dir" -type f -not -iwholename '*.git*' >"$tempfile"
 
