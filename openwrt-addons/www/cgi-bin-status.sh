@@ -243,7 +243,10 @@ output_table()
 			[ $all -gt 0 ] && gateway_percent=$(( (i * 100) / all ))
 			gateway_percent="${gateway_percent}%"		# TODO: sometimes >100%
 
-			GATEWAY=;METRIC=;ETX=;	# INTERFACE=
+			METRIC=
+			ETX=
+#			GATEWAY=
+#			INTERFACE=
 			[ -e "/tmp/OLSR/DEFGW_VALUES_$REMOTE" ] && . "/tmp/OLSR/DEFGW_VALUES_$REMOTE"
 		else
 			gateway_percent=
