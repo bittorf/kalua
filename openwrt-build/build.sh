@@ -2887,7 +2887,7 @@ unittest_do()
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
 			tempfile='/dev/shm/shellcheck'
 			filelist='/dev/shm/filelist'
-			find "openwrt-addons" "openwrt-build" -type f -not -iwholename '*.git*' >"$filelist"
+			find 'openwrt-addons' 'openwrt-build' -type f -not -iwholename '*.git*' >"$filelist"
 
 			while read file; do {
 				case "$file" in

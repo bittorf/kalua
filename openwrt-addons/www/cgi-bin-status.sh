@@ -59,9 +59,10 @@ remote_hops()
 output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
-	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file noisefloor
+	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
 	local head_list neigh_list neigh_file neigh age inet_offer cost_best cost_best_time th_insert mult_ip count cost_align
+#	local noisefloor
 	local symbol_infinite='<big>&infin;</big>'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
@@ -143,7 +144,6 @@ output_table()
 	{
 		local remote_ip="$1"
 		local cachefile="/tmp/build_remote_hostname_${remote_ip}"
-		local temp_hostname
 
 		[ -e "$cachefile" ] && {
 			read remote_hostname <"$cachefile"
@@ -243,7 +243,7 @@ output_table()
 			[ $all -gt 0 ] && gateway_percent=$(( (i * 100) / all ))
 			gateway_percent="${gateway_percent}%"		# TODO: sometimes >100%
 
-			GATEWAY=;METRIC=;ETX=;INTERFACE=
+			GATEWAY=;METRIC=;ETX=;	# INTERFACE=
 			[ -e "/tmp/OLSR/DEFGW_VALUES_$REMOTE" ] && . "/tmp/OLSR/DEFGW_VALUES_$REMOTE"
 		else
 			gateway_percent=
