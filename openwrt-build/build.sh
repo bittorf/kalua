@@ -2924,7 +2924,7 @@ unittest_do()
 							rm "$tempfile"
 							log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
 							good='false'
-							break
+#							break
 						fi
 					;;
 				esac
