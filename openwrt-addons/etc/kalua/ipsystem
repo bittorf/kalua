@@ -89,17 +89,19 @@ _ipsystem_ffsundi ()			# ARG1: - empty       -> has_nodenumber? -> output for my
 	local RANGE_START=2
 	local RANGE_END=254
 	local RANGE_FIRST_RANDOM=220
+	local oct1 oct2 oct3 oct4 oldIFS
 
 	  if [ -z "$NODE_NUMBER" ]; then
 		NODE_NUMBER="${NODENUMBER:-$( _math random_integer $RANGE_FIRST_RANDOM $RANGE_END )}"
 	elif [ "$NODE_NUMBER" = "random" ]; then
 		NODE_NUMBER=$( _math random_integer $RANGE_FIRST_RANDOM $RANGE_END )
 	elif [ "$( echo $NODE_NUMBER | sed 's/[^\.]//g' )" = '...' ]; then	# is IPv4
-		eval $(echo $NODE_NUMBER|sed -n 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/local OCT1=\1\nlocal OCT2=\2\nlocal OCT3=\3\nlocal OCT4=\4/p')
+		oldIFS="$IFS"; IFS='.'; set -- $NODE_NUMBER; IFS="$oldIFS"
+		oct1="$1"; oct2="$2"; oct3="$3"; oct4="$4"
 
-		[ $OCT1 -eq $NW ] && [ $OCT2 -eq $CITY ] && {
-			  if [ $OCT3 -eq 10 ]; then                echo $OCT4		# input = wifi-ip4
-			elif [ $OCT4 -ge 0 -a $OCT4 -le 63 ]; then echo $OCT3		# input = lan-ip4
+		[ $oct1 -eq $NW ] && [ $oct2 -eq $CITY ] && {
+			  if [ $oct3 -eq 10 ]; then                echo $oct4		# input = wifi-ip4
+			elif [ $oct4 -ge 0 -a $oct4 -le 63 ]; then echo $oct3		# input = lan-ip4
 			fi
 			return 0
 		}
@@ -108,8 +110,6 @@ _ipsystem_ffsundi ()			# ARG1: - empty       -> has_nodenumber? -> output for my
 	fi
 
 	if test "$NODE_NUMBER" -ge $RANGE_START -a "$NODE_NUMBER" -le $RANGE_END 2>/dev/null; then
-#	if [ "$NODE_NUMBER" -ge $RANGE_START -a "$NODE_NUMBER" -le $RANGE_END ]; then
-
 		local S=0			# subnetstart 	e.g. network.city.100.${S}
 		local N=$NODE_NUMBER		# nodenumber_id	e.g. network.city.${N}.0
 		local RANDOM=false
