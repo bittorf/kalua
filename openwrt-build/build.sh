@@ -2881,7 +2881,8 @@ unittest_do()
 			{
 				echo -n 'SC1010,SC2154,SC2012,SC2039,SC2155,SC2046,SC2086,SC1007,SC2090,SC2089'
 				echo -n ',SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031'
-				echo -n ',SC2016,SC2064,SC2153,SC2029'
+#				echo -n ',SC2016,SC2064,SC2153,SC2029'
+				echo -n ',SC2016,SC2064,SC2029'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
@@ -2909,13 +2910,18 @@ unittest_do()
 						# strip non-ascii chars, otherwise the parser can fail with
 						# openwrt-addons/etc/kalua/mail: hGetContents: invalid argument (invalid byte sequence)
 						tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
-						# strip START=, otherwise we get SC2034 = 'VAR appears unused. Verify it or export it'
-						# https://github.com/koalaman/shellcheck/wiki/SC2034
-						# we should FIXME! these files
-						sed -i '/^PID=/d' "$tempfile"
-						sed -i '/^START=/d' "$tempfile"
-						sed -i '/^SCHEDULER/d' "$tempfile"
-						sed -i '/^EXTRA_COMMANDS=/d' "$tempfile"
+
+						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
+						case "$file" in
+							'openwrt-addons/etc/init.d/'*|'openwrt-build/apply_profile'*)
+								sed -i '/^START=/d' "$tempfile"
+								sed -i '/^EXTRA_COMMANDS=/d' "$tempfile"
+							;;
+							'openwrt-addons/etc/kalua/scheduler')
+								sed -i '/^PID=/d' "$tempfile"
+								sed -i '/^SCHEDULER/d' "$tempfile"
+							;;
+						esac
 
 						if $shellcheck_bin -e $ignore "$tempfile"; then
 							rm "$tempfile"
