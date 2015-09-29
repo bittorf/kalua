@@ -327,61 +327,23 @@ _system_globbing ()
 	esac
 }
 
-_system_version()	# fixme! use /etc/openwrt_version | /etc/openwrt_release
+_system_version()
 {
-	local option="$1"				# e.g. 'short' or '41391...42330'
-	local file="/etc/freifunk-release"
-	local begin end short
+	local option="$1"	# e.g. <empty> or '41391...42330'
+	local begin end
 
-	if [ -e "$file" ]; then
-		case "$option" in
-			short)
-				head -n1 "$file"			# e.g. '1.6.37'
-			;;
-			*)
-				grep ^'Kit:' "$file"			# e.g. 'fff_plus-26c3-000-12Feb2010-08uhr48'
-			;;
-		esac
-	else
-		if   [ -e '/etc/openwrt_version' ]; then
-			short="$( cut -b2- '/etc/openwrt_version' )"	# e.g. '12345'
+	case "$option" in
+		*'...'*)
+			# e.g. 12345...23456
+			begin="${option%...*}"
+			end="${option#*...}"
 
-			case "$option" in
-				short)
-					echo "$short"
-				;;
-				*'...'*)
-					# e.g. 12345...23456
-					begin="$( echo "$option"	  | cut -d'.' -f1 )"
-					end="$(   echo "${option//.../ }" | cut -d' ' -f2 )"
-
-					test $short -ge $begin -a $short -le $end || return 1
-				;;
-				*)
-					echo "git$short"
-				;;
-			esac
-
-			return 0
-		elif [ -e "/rom/etc/banner" ]; then
-			file="/rom/etc/banner"
-		else
-			file="/etc/banner"
-			grep -sq ", r[0-9]" "$file" || {
-				echo '0'
-				return 0
-			}
-		fi
-
-		case "$option" in
-			short)
-				sed -n 's/^.*, r\([0-9]*\)[^0-9]*/\1/p' "$file"		# e.g. '24300'
-			;;
-			*)
-				sed -n 's/^.*, r\([0-9]*\)[^0-9]*/git\1/p' "$file"	# e.g. 'git24300'	// fixme!
-			;;
-		esac
-	fi
+			test $OPENWRT_REV -ge $begin -a $OPENWRT_REV -le $end
+		;;
+		*)
+			echo "$OPENWRT_REV"	# e.g. 12345
+		;;
+	esac
 }
 
 _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
