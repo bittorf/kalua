@@ -1109,18 +1109,18 @@ _wifi_phy_txpower_limit ()		# driverlimit/output in [mW]
 
 _wifi_phy_txpower()		# output in [mW] - FIXME! use package iwinfo for this
 {
-	local WIFI_DEV="$1"
+	local dev="$1"
 #	local UNIT="$2"		# keyword, can be 'mw', 'dbm', 'qdbm' // fixme! at the moment this IS in [mW]
 
 	local WIFI_TXPOWER
-	eval $( _wifi params_iwconfig_status "$WIFI_DEV" )
+	eval $( _wifi params_iwconfig_status "$dev" )
 
 	[ -z "$WIFI_TXPOWER" ] && {
 		WIFI_TXPOWER="$( uci -q get wireless.radio0.txpower )"
 	}
 
 	case "$HARDWARE" in
-		"Ubiquiti Bullet M")
+		'Ubiquiti Bullet M')
 			WIFI_TXPOWER=$(( WIFI_TXPOWER + 12 ))
 		;;
 	esac
@@ -1266,87 +1266,36 @@ _wifi_math_mw2dbm ()			# fixme! _sanitizer_convert VALUE unit_is unit_wish
 	echo -n "$o"
 }
 
-_wifi_antenna_rx_set ()
+_wifi_antenna_rx()
 {
-	local FUNC="wifi_set_antenna_rx"
-	local WIFI_DEV="$1"
-	local ANTENNA="$2"
-	local VALUE
+	local dev="$1"		# FIXME! unused
+	local rx="$( uci get wireless.radio0.diversity )"
 
-	case "$ANTENNA" in
-		0) VALUE=0 ;;
-		1) VALUE=1 ;;
-		*) VALUE=-1 ;;
+	case "$rx" in
+		0) echo '0' ;;
+		1) echo '1' ;;
+		*) echo 'auto' ;;
 	esac
+}
 
-	case "$VALUE" in
-	       -1)
-	       		_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
-			sysctl -w dev.wifi0.diversity=1
+_wifi_antenna_tx()
+{
+	local dev="$1"		# FIXME! unused
+	local tx="$( uci get wireless.radio0.txantenna )"
+
+	case "$tx" in
+		0|1)
+			echo "$tx"
 		;;
 		*)
-			_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 0"
-			_log do $FUNC daemon debug "sysctl +dev.wifi0.rxantenna = $(( VALUE + 1 ))"
-			sysctl -w dev.wifi0.diversity=0
-			sysctl -w dev.wifi0.rxantenna=$(( VALUE + 1 ))
+			echo 'auto'
 		;;
 	esac
-}
-
-_wifi_antenna_tx_set ()
-{
-	local FUNC="wifi_set_antenna_tx"
-	local WIFI_DEV="$1"
-	local ANTENNA="$2"
-
-	case "$ANTENNA" in
-		0) VALUE=0 ;;
-		1) VALUE=1 ;;
-		*) VALUE=-1 ;;
-	esac
-
-	case "$VALUE" in
-	       -1)
-			_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 1"
-			sysctl -w dev.wifi0.diversity=1
-		;;
-		*)
-			_log do $FUNC daemon debug "sysctl +dev.wifi0.diversity = 0"
-			_log do $FUNC daemon debug "sysctl +dev.wifi0.txantenna = $(( VALUE + 1 ))"
-			sysctl -w dev.wifi0.diversity=0
-			sysctl -w dev.wifi0.txantenna=$(( VALUE + 1 ))
-		;;
-	esac
-}
-
-_wifi_antenna_rx ()
-{
-	local WIFI_DEV="$1"
-	local RX="$( uci get wireless.radio0.diversity )"
-
-	case "$RX" in
-		0) echo "0" ;;
-		1) echo "1" ;;
-		*) echo "auto" ;;
-	esac
-}
-
-_wifi_antenna_tx ()
-{
-	local WIFI_DEV="$1"
-	local TX="$( uci get wireless.radio0.txantenna )"
-
-	if [ "$TX" = "0" ] || [ "$TX" = "1" ]; then
-		echo "$TX"
-		return
-	fi
-
-	echo "auto"
 }
 
 _wifi_timing_distance()
 {
-	local dev="$1"
+	local dev="$1"		# FIXME! unused
 
 	uci -q get wireless.radio0.distance
 }
@@ -1403,47 +1352,45 @@ _wifi_bssid()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associate
 	fi
 }
 
-_wifi_frag ()
+_wifi_frag()
 {
-	local WIFI_DEV="$1"
+	local dev="$1"
 
-	eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_FRAG )"
-	echo $WIFI_FRAG
+	eval $( _wifi params_iwconfig_status "$dev" | grep ^'WIFI_FRAG' )
+	echo "$WIFI_FRAG"
 }
 
-_wifi_rts ()
+_wifi_rts()
 {
-	local WIFI_DEV="$1"
+	local dev="$1"
 
-	eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_RTS )"
-	echo $WIFI_RTS
+	eval $( _wifi params_iwconfig_status "$dev" | grep ^'WIFI_RTS' )
+	echo "$WIFI_RTS"
 }
 
 _wifi_mcastrate()
 {
-	local WIFI_DEV="$1"
-	local LINE
+	local dev="$1"		# FIXME! unused
+	local line
 
-	LINE="$( uci get wireless.@wifi-iface[0].mcast_rate )"
-	if [ -n "$LINE" ]; then
-		case "$LINE" in
-			5500000) echo 5.5 ;;
-			      *) echo $(( LINE / 1000 )) ;;
+	line="$( uci get wireless.@wifi-iface[0].mcast_rate )"
+	if [ -n "$line" ]; then
+		case "$line" in
+			5500000) echo '5.5' ;;
+			      *) echo $(( line / 1000 )) ;;
 		esac
 	else
-		echo "auto"
+		echo 'auto'
 	fi
 }
 
-_wifi_noise ()			# OUT1: signed Integer, -93 [dBm]
+_wifi_noise()			# OUT1: e.g. '-93' = signed Integer in [dBm]
 {
-	local WIFI_DEV="$1"
+	local dev="$1"
 
-	[ -z "$WIFI_DEV" ] && return 0
-
-	local WIFI_MODE="$( _wifi mode "$WIFI_DEV" )"
-
-	iw dev "$WIFI_DEV" survey dump |
+	# FIXME! dont read the first 'noise', only after
+	#        line 'frequency:   2432 MHz [in use]'
+	iw dev "$dev" survey dump |
 	 sed -n '/noise:/{s/^.*noise:.*\(-[0-9]*\).*/\1/p;q}'
 }
 
@@ -1542,27 +1489,26 @@ _wifi_devs_list ()		# one device per line
 	#  sed -n 's/^ *\([^:]\+\):.*/\1/p' /proc/net/wireless	(sven-ola)
 }
 
-_wifi_probe_mode_infrastructure ()		# fixme! respect WIFI_DEV
+_wifi_probe_mode_infrastructure()
 {
-	local WIFI_DEV="$1"
-	local SWITCH="$2"	# 'config' or <empty>
-	local WIFI_MODE
+	local dev="$1"
+	local switch="$2"	# 'config' or <empty>
 
-	if [ "$SWITCH" = "config" ]; then
-
+	if [ "$switch" = 'config' ]; then
 		case "$( uci get wireless.@wifi-iface[0].mode )" in
 			adhoc)
 				return 1
 			;;
 			sta)
-				return 1	# fixme! workaround for uci-wrapper
+				return 1	# FIXME! workaround for uci-wrapper
 			;;
 			*)
 				return 0
 			;;
 		esac
 	else
-		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_MODE= )"
+		local WIFI_MODE
+		eval $( _wifi params_iwconfig_status "$dev" | grep ^'WIFI_MODE=' )
 
 		case "$WIFI_MODE" in
 			Managed|managed|Master|master) return 0 ;;
@@ -1571,22 +1517,21 @@ _wifi_probe_mode_infrastructure ()		# fixme! respect WIFI_DEV
 	fi
 }
 
-_wifi_probe_mode_ap ()				# fixme! respect WIFI_DEV
+_wifi_probe_mode_ap()
 {
-	local funcname="wifi_probe_mode_ap"
-	local WIFI_DEV="$1"
-	local SWITCH="$2"	# 'config' or <empty>
-	local WIFI_MODE
+	local funcname='wifi_probe_mode_ap'
+	local dev="$1"
+	local switch="$2"	# 'config' or <empty>
 
-	if [ "$SWITCH" = "config" ]; then
-
-		if [ "$( uci get wireless.@wifi-iface[0].mode )" = "ap" ]; then
+	if [ "$switch" = 'config' ]; then
+		if [ "$( uci get wireless.@wifi-iface[0].mode )" = 'ap' ]; then
 			return 0
 		else
 			return 1
 		fi
 	else
-		eval "$( _wifi params_iwconfig_status $WIFI_DEV | grep ^WIFI_MODE= )"
+		local WIFI_MODE
+		eval $( _wifi params_iwconfig_status "$dev" | grep ^'WIFI_MODE=' )
 
 		case "$WIFI_MODE" in
 			Master|master)
@@ -1606,22 +1551,14 @@ _wifi_probe_mode_ap ()				# fixme! respect WIFI_DEV
 	fi
 }
 
-_wifi_phy_mode ()		# fixme! howto describe:
-{				# channel-width, compression, frame-aggregation/bursting, plcp-header(=preamble)long/short ...?
-
-	local WIFI_DEV="$1"	# OUT1: string, b | g | bg | gT | a | aT | abg?
-
-	echo "bg"		# fixme!
-}
-
 _wifi_mode()			# OUT1: string, ap | client | adhoc | adhocap             // rename: wifi_get_mode_conn?
 {
-	local funcname="wifi_mode"
-	local WIFI_DEV="$1"	# fixme! some calls can't provide wifidev - till now we only check nvram, so it does'nt matter
-	local SWITCH="$2"	# can be 'config' or <empty>
+	local funcname='wifi_mode'
+	local dev="$1"		# FIXME! some calls can't provide wifidev - till now we only check nvram, so it does'nt matter
+	local switch="$2"	# can be 'config' or <empty>
 
-	_net dev_is_valid "$WIFI_DEV" || {
-		_log do $funcname daemon debug "wifidev ${WIFI_DEV:-no_wifi} not found"
+	_net dev_is_valid "$dev" || {
+		_log do $funcname daemon debug "wifidev '${dev:-no_wifi}' not found"
 		return 1
 	}
 
@@ -1632,7 +1569,7 @@ _wifi_mode()			# OUT1: string, ap | client | adhoc | adhocap             // rena
 		ap|adhoc)
 			case "$mode2" in
 				ap|adhoc)
-					echo "${mode1}${mode2}"		# fixme! we dont diff between config/real
+					echo "${mode1}${mode2}"		# FIXME! we dont diff between config/real
 					return				# fixes e.g. compare_config_and_real_wifi_mode() in watch()
 				;;
 			esac
@@ -1640,20 +1577,19 @@ _wifi_mode()			# OUT1: string, ap | client | adhoc | adhocap             // rena
 	esac
 
 	which iwconfig >/dev/null || {
-		# fixme! check if disabled and do DEVNAME <-> uci-entry
+		# FIXME! check if disabled and do DEVNAME <-> uci-entry
 		uci get wireless.@wifi-iface[0].mode
 		return 0
 	}
 
-	if _wifi probe_mode_infrastructure $WIFI_DEV "$SWITCH" ; then
-
-		if _wifi probe_mode_ap $WIFI_DEV "$SWITCH" ; then
+	if _wifi probe_mode_infrastructure "$dev" "$switch"; then
+		if _wifi probe_mode_ap "$dev" "$switch"; then
 			echo 'ap'
 		else
-			echo 'client'	# fixme! output 'sta' or 'station' ?
+			echo 'client'	# FIXME! output 'sta' or 'station' ?
 		fi
 	else
-		if _wifi probe_mode_ap $WIFI_DEV "$SWITCH" ; then
+		if _wifi probe_mode_ap "$dev" "$switch"; then
 			echo 'unknown'
 		else
 			echo 'adhoc'
@@ -1702,31 +1638,7 @@ _wifi_scan_summary()
 	:
 }
 
-_wifi_rrdhelper ()		# fixme! is a hack for rrd-tool
-{
-	local WIFI_DEV="$1"
-	local SENSOR
-
-	for SENSOR in rate noise rssi phy_txpower nlq; do {
-		[ "$SENSOR" = "rssi" ] && SENSOR=signal
-		_wifi $SENSOR $WIFI_DEV >/tmp/WIFI_VALUE_DEV_${WIFI_DEV}_${SENSOR}
-	} done
-}
-
-_wifi_nlq ()			# fixme! is a hack for rrd-tool
-{
-	local FILE="/tmp/WIFI_OPTIMIZE_NEIGH"
-	local OUT
-
-	if [ -e "$FILE" ]; then
-		OUT="$( neigh get_nlq "$( cat $FILE 2>/dev/null )" )"
-		echo $(( ${OUT:-0} / 10 ))
-	else
-		echo "0"
-	fi
-}
-
-_wifi_math_dbm2mw ()			# mW  = 10 ^ (dBm/10)
+_wifi_math_dbm2mw()			# mW  = 10 ^ (dBm/10)
 {
 	local o
 
