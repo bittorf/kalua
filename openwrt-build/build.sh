@@ -2859,10 +2859,11 @@ unittest_do()
 			# SC2154: using unassigned vars, e.g from QUERY_STRING
 			# SC2012: use 'find' instead of 'ls -1 bla_*'
 			# SC2039: In POSIX sh, echo flags are not supported.
-			#  SC2039: In POSIX sh, HOSTNAME is not supported. - https://github.com/koalaman/shellcheck/issues/354
+			#  SC2039: In POSIX sh, HOSTNAME is not supported.
 			#  SC2039: In POSIX sh, string replacement is not supported.
 			#  SC2039: In POSIX sh, 'let' is not supported.
-#			# SC2155: local var="$( bla )" -> loosing returncode
+			# SC2155: local var="$( bla )" -> loosing returncode
+			#  - https://github.com/koalaman/shellcheck/issues/262
 			# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
@@ -2883,7 +2884,7 @@ unittest_do()
 			{
 				echo -n 'SC1010,SC2154,SC2012,SC2046,SC2086,SC1007,SC2090,SC2089'
 				echo -n ',SC2059,SC2065,SC2028,SC2018,SC2019,SC2088,SC2030,SC2031'
-				echo -n ',SC2016,SC2064,SC2029,SC2039'
+				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
