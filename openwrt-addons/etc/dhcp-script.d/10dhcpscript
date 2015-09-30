@@ -1,10 +1,16 @@
 #!/bin/sh
-command . /tmp/loader || exit 0		# TODO: rebuild loader + enable cron?
 
 MODE="${1:-unset}"
 MAC="${2:-ff:00:00:00:00:00}"		# fixme! this enforces an invalid mac, see sanitizer_mac()
 IP="${3:-127.0.0.1}"
 HOST="${4:-unset}"
+
+if [ "$MODE" = 'old' -a -e '/tmp/CRON_OVERLOAD' ]; then
+	exit 0
+else
+	# FIXME! rebuild loader + enable cron?
+	command . /tmp/loader || exit 0
+fi
 
 case "$MAC" in
 	*"-"*)
@@ -17,6 +23,7 @@ if [ -n "$DNSMASQ_INTERFACE" ]; then
 	DEV="$DNSMASQ_INTERFACE"
 else
 	DEV="$( _net ip2dev $IP )"
+	_log do dhcp_script daemon info "guessed dev: '$DEV'"
 fi
 
 case "$DEV" in
@@ -62,7 +69,7 @@ case "$HOST" in
 esac
 
 if [ "$MODE" = 'old' ]; then
-	[ -e '/tmp/CRON_OVERLOAD' ] && exit 0
+	_log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV HOST: $HOST"
 else
 	_log do dhcp_$MODE daemon info "'$MAC' is from '$DEV' = ${TYPE}-DEV HOST: $HOST"
 
