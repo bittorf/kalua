@@ -2858,7 +2858,7 @@ unittest_do()
 			# SC1010: "_log do ...' -> 'do' is a special keyword
 			# SC2154: using unassigned vars, e.g from QUERY_STRING
 			# SC2012: use 'find' instead of 'ls -1 bla_*'
-			# SC2039: not allowed: echo -en
+#			# SC2039: not allowed: echo -en
 			# SC2155: local var="$( bla )" -> loosing returncode
 			# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
@@ -2868,7 +2868,6 @@ unittest_do()
 			# SC2059: printf "\\$( printf "%o" 0x$hexbyte )" => Don't use variables in the printf format string.
 			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
 			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
-#			# SC2120: function references arguments (e.g. $1), but none are ever passed.
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
 			# SC2088: echo '~' => Note that ~ does not expand in quotes.
@@ -2879,7 +2878,7 @@ unittest_do()
 
 			shellsheck_ignore()
 			{
-				echo -n 'SC1010,SC2154,SC2012,SC2039,SC2155,SC2046,SC2086,SC1007,SC2090,SC2089'
+				echo -n 'SC1010,SC2154,SC2012,SC2155,SC2046,SC2086,SC1007,SC2090,SC2089'
 				echo -n ',SC2059,SC2065,SC2028,SC2018,SC2019,SC2088,SC2030,SC2031'
 				echo -n ',SC2016,SC2064,SC2029'
 			}
