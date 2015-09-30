@@ -1,0 +1,108 @@
+From 77a26bfa071811d7a03409c4ab4e44c2b305ff9d Mon Sep 17 00:00:00 2001
+From: Sven Eckelmann <sven@narfation.org>
+Date: Fri, 13 Jun 2014 14:45:17 +0200
+Subject: [PATCH 1/3] 910-minstrel-retry-limit.patch
+
+---
+ net/mac80211/ieee80211_i.h      |  2 ++
+ net/mac80211/rate.c             | 43 +++++++++++++++++++++++++++++++++++++++++
+ net/mac80211/rc80211_minstrel.h |  2 ++
+ 3 files changed, 47 insertions(+)
+
+diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
+index 1f4d1a3..46cb27f 100644
+--- a/net/mac80211/ieee80211_i.h
++++ b/net/mac80211/ieee80211_i.h
+@@ -1271,6 +1271,8 @@ struct ieee80211_local {
+ 
+ 	struct napi_struct *napi;
+ 
++	u32 limit_retry;
++
+ 	/* virtual monitor interface */
+ 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
+ 	struct cfg80211_chan_def monitor_chandef;
+diff --git a/net/mac80211/rate.c b/net/mac80211/rate.c
+index 2c70248..81211c2 100644
+--- a/net/mac80211/rate.c
++++ b/net/mac80211/rate.c
+@@ -158,6 +158,10 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
+ 	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
+ 	local->debugfs.rcdir = debugfsdir;
+ 	debugfs_create_file("name", 0400, debugfsdir, ref, &rcname_ops);
++
++	local->limit_retry = 0;
++	debugfs_create_bool("limit_retry", S_IRUGO | S_IWUGO, debugfsdir,
++			    &local->limit_retry);
+ #endif
+ 
+ 	ref->priv = ref->ops->alloc(&local->hw, debugfsdir);
+@@ -627,6 +631,43 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
+ 	}
+ }
+ 
++
++static void
++ieee80211_apply_retry_limits(struct ieee80211_vif *vif,
++			     struct ieee80211_tx_rate *rate,
++			     int max_rates)
++{
++	int i;
++	int retries_left;
++	struct ieee80211_sub_if_data *sdata;
++
++	sdata = vif_to_sdata(vif);
++	if (!sdata->local->limit_retry)
++		return;
++
++	if (rate[0].flags & (IEEE80211_TX_RC_USE_RTS_CTS |
++			     IEEE80211_TX_RC_USE_CTS_PROTECT))
++		retries_left = sdata->local->hw.conf.long_frame_max_tx_count;
++	else
++		retries_left = sdata->local->hw.conf.short_frame_max_tx_count;
++
++	retries_left = max_t(int, retries_left, 1);
++
++	for (i = 0; i < max_rates; i++) {
++		if (rate[i].count < 0)
++			continue;
++
++		if (retries_left <= 0) {
++			rate[i].idx = -1;
++			rate[i].flags = 0;
++			rate[i].count = 0;
++		}
++
++		rate[i].count = min_t(int, retries_left, rate[i].count);
++		retries_left -= rate[i].count;
++	}
++}
++
+ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
+ 			    struct ieee80211_sta *sta,
+ 			    struct sk_buff *skb,
+@@ -655,6 +696,8 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
+ 
+ 	if (sta)
+ 		rate_fixup_ratelist(vif, sband, info, dest, max_rates);
++
++	ieee80211_apply_retry_limits(vif, dest, max_rates);
+ }
+ EXPORT_SYMBOL(ieee80211_get_tx_rates);
+ 
+diff --git a/net/mac80211/rc80211_minstrel.h b/net/mac80211/rc80211_minstrel.h
+index eba85e5..be21f48 100644
+--- a/net/mac80211/rc80211_minstrel.h
++++ b/net/mac80211/rc80211_minstrel.h
+@@ -114,6 +114,8 @@ struct minstrel_priv {
+ 	 */
+ 	u32 fixed_rate_idx;
+ 	struct dentry *dbg_fixed_rate;
++	u32 limit_retry;
++	struct dentry *dbg_limit_retry;
+ #endif
+ 
+ };
+-- 
+2.0.0
+
