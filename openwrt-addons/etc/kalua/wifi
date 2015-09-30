@@ -152,7 +152,7 @@ _wifi_get_station_param()
 _wifi_show_station_traffic()
 {
 	local mac="$1"
-	local wifidev="$2"
+	local dev="$2"
 	local rx_old="$3"
 	local tx_old="$4"
 	local uptime_old="$5"
@@ -161,7 +161,7 @@ _wifi_show_station_traffic()
 
 	# while :; do eval $( _wifi show_station_traffic "$mac" $WIFIDEV $rx $tx $up ); sleep 60; done
 
-	iw dev "$wifidev" station get "$mac" |
+	iw dev "$dev" station get "$mac" |
 	 while read line; do {
 		case "$line" in
 			*"rx bytes:"*)
@@ -1303,19 +1303,19 @@ _wifi_timing_distance()
 _wifi_bssid()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associated ap in client-mode
 {
 	local funcname='wifi_bssid'
-	local wifidev="$1"
+	local dev="$1"
 	local option="$2"		# can be 'config'
 	local bssid mode
 
 	if [ "$option" = 'config' ]; then
-		mode="$( _wifi mode $wifidev )"
+		mode="$( _wifi mode $dev )"
 
 		case "$mode" in
 			*'adhoc'*)
 				_sanitizer do "$( uci -q get wireless.@wifi-iface[0].bssid )" lowercase
 			;;
 			'ap')
-				_net dev2mac $wifidev
+				_net dev2mac "$dev"
 			;;
 			'client'|*)
 				_log do $funcname daemon info "fixme - mode: $mode"
@@ -1775,7 +1775,7 @@ _wifi_check_each_client()
 
 _wifi_bugreport_create()
 {
-	local wifidev="${1:-no_wifidev_given}"
+	local dev="${1:-no_wifidev_given}"
 	local reason="${2:-no_reason_given}"
 	local file="${3:-/tmp/bugreport}"
 	local line
@@ -1800,8 +1800,8 @@ _wifi_bugreport_create()
 			cat "/sys/kernel/debug/ieee80211/phy0/ath9k/reset"
 			echo
 
-			echo "iw dev $wifidev info"
-			iw dev $wifidev info
+			echo "iw dev $dev info"
+			iw dev "$dev" info
 
 			echo "### uci show wireless"
 			uci show wireless
@@ -2336,16 +2336,16 @@ _wifi_longshot()	# this works only for single-radio units in adhoc-mode
 _wifi_longshot_report()
 {
 	local funcname='wifi_longshot_report'
-	local wifidev="${1:-$WIFIDEV}"
+	local dev="${1:-$WIFIDEV}"
 	local ip phy_up message name
 	local report=
 
 	if name="$( _wifi longshot_name )"; then
 		report='true'
 	else
-		iw dev $wifidev info | grep -q 'type IBSS'$ && {
+		iw dev "$dev" info | grep -q 'type IBSS'$ && {
 			# exactly 1 neigh
-			[ "$( iw dev "$wifidev" station dump | grep -c ^'Station ' )" = '1' ] && report='true'
+			[ "$( iw dev "$dev" station dump | grep -c ^'Station ' )" = '1' ] && report='true'
 		}
 	fi
 
@@ -2353,13 +2353,13 @@ _wifi_longshot_report()
 		# we only need IPv4
 		# fe80::f6ec:38ff:fefd:74b4 dev wlan0 lladdr f4:ec:38:fd:74:b4 STALE
 		# 10.63.23.69 dev wlan0 lladdr f8:1a:67:5a:a1:6b PERMANENT
-		ip="$( ip neigh | fgrep "dev $wifidev lladdr" | grep -v ':....:' | head -n1 | cut -d' ' -f1 )"
+		ip="$( ip neigh | fgrep "dev $dev lladdr" | grep -v ':....:' | head -n1 | cut -d' ' -f1 )"
 
 		[ -n "$ip" ] && {
 			DONT_WORK='true' . /usr/sbin/cron.pingchecker
 
 			name="${name:-no_longshot ($HOSTNAME)}"
-			phy_up="$( _wifi phy_uptime "$wifidev" )"
+			phy_up="$( _wifi phy_uptime "$dev" )"
 			phy_up="$( _stopwatch seconds2humanreadable "$phy_up" )"
 			case "$phy_up" in
 				'23h 3'*|'23h 4'*|'23h 5'*)
