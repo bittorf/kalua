@@ -2806,6 +2806,7 @@ unittest_do()
 	log "building loader: $build_loader"
 	$build_loader || return 1
 
+	log "testing '/tmp/loader'"
 	sh -n '/tmp/loader' && {
 		log '. /tmp/loader'
 		. /tmp/loader
