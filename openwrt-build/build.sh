@@ -2909,6 +2909,9 @@ unittest_do()
 						# openwrt-addons/etc/kalua/mail: hGetContents: invalid argument (invalid byte sequence)
 						tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
 
+						# test
+						sed -i 's/echo -n /printf /g' "$tempfile"
+
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in
 							'openwrt-addons/etc/init.d/'*|'openwrt-build/apply_profile'*)
