@@ -2875,14 +2875,12 @@ unittest_do()
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
-			# SC2153: Possible misspelling: WIFIDEV may not be assigned, but WIFI_DEV is.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 
 			shellsheck_ignore()
 			{
 				echo -n 'SC1010,SC2154,SC2012,SC2039,SC2155,SC2046,SC2086,SC1007,SC2090,SC2089'
 				echo -n ',SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031'
-#				echo -n ',SC2016,SC2064,SC2153,SC2029'
 				echo -n ',SC2016,SC2064,SC2029'
 			}
 
