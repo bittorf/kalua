@@ -2868,7 +2868,7 @@ unittest_do()
 			# SC2059: printf "\\$( printf "%o" 0x$hexbyte )" => Don't use variables in the printf format string.
 			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
 			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
-			# SC2120: function references arguments (e.g. $1), but none are ever passed.
+#			# SC2120: function references arguments (e.g. $1), but none are ever passed.
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
 			# SC2088: echo '~' => Note that ~ does not expand in quotes.
@@ -2880,7 +2880,7 @@ unittest_do()
 			shellsheck_ignore()
 			{
 				echo -n 'SC1010,SC2154,SC2012,SC2039,SC2155,SC2046,SC2086,SC1007,SC2090,SC2089'
-				echo -n ',SC2059,SC2065,SC2028,SC2120,SC2018,SC2019,SC2088,SC2030,SC2031'
+				echo -n ',SC2059,SC2065,SC2028,SC2018,SC2019,SC2088,SC2030,SC2031'
 				echo -n ',SC2016,SC2064,SC2029'
 			}
 
