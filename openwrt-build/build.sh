@@ -2857,7 +2857,7 @@ unittest_do()
 		else
 			# SC1010: "_log do ...' -> 'do' is a special keyword
 			# SC2154: using unassigned vars, e.g from QUERY_STRING
-			# SC2012: use 'find' instead of 'ls -1 bla_*'
+#			# SC2012: use 'find' instead of 'ls -1 bla_*'
 			# SC2039: In POSIX sh, echo flags are not supported.
 			#  SC2039: In POSIX sh, HOSTNAME is not supported.
 			#  SC2039: In POSIX sh, string replacement is not supported.
@@ -2880,7 +2880,7 @@ unittest_do()
 
 			shellsheck_ignore()
 			{
-				echo -n 'SC1010,SC2154,SC2012,SC2046,SC2086,SC1007'
+				echo -n 'SC1010,SC2154,SC2046,SC2086,SC1007'
 				echo -n ',SC2065,SC2028,SC2018,SC2019,SC2088,SC2030,SC2031'
 				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155'
 			}
