@@ -41,8 +41,19 @@ case "$QUERY_STRING" in
 		echo "UPTIME=${UPTIME%.*}&REMOTE_ADDR=${REMOTE_ADDR}&$QUERY_STRING" >>'/tmp/COLLECT_DATA'
 
 		# while we have a conversation anyway,
-		# report which mac's are ok to allow (e.g. DHCP)
-		ls -1 /tmp/vds_user_* 2>/dev/null | cut -d'_' -f3
+		# report which mac's are OK to allow (e.g. DHCP)
+		for FILE in /tmp/vds_user_*; do {
+			FILE="${FILE#*user_}"
+
+			case "$FILE" in
+				'*')
+				;;
+				*)
+					echo "$FILE"
+				;;
+			esac
+		} done
+
 		echo "OK-UNIXTIME=$( date +%s )"
 	;;
 esac
