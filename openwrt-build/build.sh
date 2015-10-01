@@ -2868,7 +2868,6 @@ unittest_do()
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
-#			# SC2059: printf "\\$( printf "%o" 0x$hexbyte )" => Don't use variables in the printf format string.
 			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
 			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
