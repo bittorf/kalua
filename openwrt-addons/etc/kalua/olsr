@@ -524,9 +524,9 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and neighbour count
 {
 	local funcname='olsr_throttle_traffic'
-	local ip_or_dev="$1"	# when called with 'myself' likely a device
+	local ip_or_dev="$1"
 	local option="$2"	# e.g. 'myself' or 'restart'
-	local ip dev list
+	local ip dev list=
 	local dir='/tmp/OLSR_throttle'
 
 	[ -e "$dir/${ip_or_dev:-no_value}" ] && return 0
@@ -542,11 +542,14 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 		$IPT --flush        OLSR
 		$IPT --delete-chain OLSR
 
-		list="$( ls -1 "$dir/myself_dev-*" | cut -d'-' -f2 )"
+		for ip in "$dir/myself_dev-"*; do {
+			ip=${ip#*-}
+			_net ip4_is_private "$ip" && list="$list $ip"
+		} done
 		rm -fR "$dir"
 
-		for dev in $list; do {
-			_olsr throttle_traffic "$dev" 'myself'
+		for ip in $list; do {
+			_olsr throttle_traffic "$ip" 'myself'
 		} done
 
 		return 0
