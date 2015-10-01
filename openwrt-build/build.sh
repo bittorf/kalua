@@ -2866,8 +2866,9 @@ unittest_do()
 			#  - https://github.com/koalaman/shellcheck/issues/262
 			# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
+			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
-			# SC2090: test ${#HASH} -eq 32 => Quotes/backslashes in this variable will not be respected.
+#			# SC2090: test ${#HASH} -eq 32 => Quotes/backslashes in this variable will not be respected.
 			# SC2089: OPTION="A='$OPTION';" => Quotes/backslashes will be treated literally. Use an array.
 			# SC2059: printf "\\$( printf "%o" 0x$hexbyte )" => Don't use variables in the printf format string.
 			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
@@ -2882,7 +2883,7 @@ unittest_do()
 
 			shellsheck_ignore()
 			{
-				echo -n 'SC1010,SC2154,SC2012,SC2046,SC2086,SC1007,SC2090,SC2089'
+				echo -n 'SC1010,SC2154,SC2012,SC2046,SC2086,SC1007,SC2089'
 				echo -n ',SC2059,SC2065,SC2028,SC2018,SC2019,SC2088,SC2030,SC2031'
 				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155'
 			}
