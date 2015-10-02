@@ -77,6 +77,7 @@ elif _olsr uptime is_short; then
 elif [ ! -e '/tmp/OLSR/daemon_version' ]; then
 	ERROR="SHORT_OLSR_UPTIME"
 else
+	netaddr=;netmask=;version=
 	eval $( _http query_string_sanitize "$0" )		# ?netaddr=...&netmask=...&version=...
 
 	if _sanitizer do "$version" numeric check; then
