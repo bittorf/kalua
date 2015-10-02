@@ -535,15 +535,23 @@ _net_show_traffic()
 	} done
 }
 
-_net_get_external_ip()
+_net_get_external_ip()		# FIXME! add IPv6
 {
-	local url="$( uci get system.@monitoring[0].url )"
-	test -z "$url" && url='http://intercity-vpn.de/networks/liszt28'
-	url="$url/getip"
+	local url_user="$1"
+	local ip url
+	local url_default="$( uci get system.@monitoring[0].url )/getip"
+	local url_fallback1='http://intercity-vpn.de/networks/liszt28/getip'
+	local url_fallback2='http://api.ipify.org'
+	local list_url="$url_user $url_default $url_fallback1 $url_fallback2"
 
-	local ip="$( _wget do "$url" )"
+	for url in $list_url; do {
+		ip="$( _wget do "$url" '3' )"
 
-	echo "$ip"
+		_net ip4_is_private "$ip" && {
+			echo "$ip"
+			return 0
+		}
+	} done
 }
 
 _net_ping_getlatency()
