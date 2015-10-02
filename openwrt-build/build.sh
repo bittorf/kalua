@@ -302,7 +302,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 				config="target/linux/$arch/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
 			else
 				# config-3.10 -> 3.10
-				kernelversion="$( ls -1 $dir/config-* | head -n1 | cut -d'-' -f2 )"
+				kernelversion="$( find "$dir" -name 'config-[0-9]*' | head -n1 | cut -d'-' -f2 )"
 				config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
 			fi
 
@@ -322,7 +322,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		*)
 			# see also: https://dev.openwrt.org/changeset/46754/trunk ...46760
 			# tested for brcm47xx
-			config="$( ls -1 $dir/config-* 2>/dev/null | head -n1 )"
+			config="$( find "$dir" -name 'config-[0-9]*' | head -n1 )"
 
 			if [ -e "$config" ]; then
 				log "looking into '$config', adding '$pattern'"
@@ -2869,6 +2869,7 @@ unittest_do()
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
 			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
+			#  - fixed 2015oct2: https://github.com/koalaman/shellcheck/issues/472
 			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
