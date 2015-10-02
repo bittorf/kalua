@@ -66,9 +66,11 @@ which logread >/dev/null || {
 	echo 'logread() { echo "no native logread"; tail -n300 "/var/log/syslog" $1; }'
 }
 
-# workaround for missing 'ip neigh' feature of busybox (but no IPv6)
-ip neigh 2>/dev/null >/dev/null || {
-	cat <<EOF
+# workaround for missing 'ip'
+if [ -e '/sbin/ip' ]; then
+	# workaround for missing 'ip neigh' feature of busybox (no IPv6)
+	ip neigh 2>/dev/null >/dev/null || {
+		cat <<EOF
 ip() {
 	case "\$3" in
 		n|neigh)
@@ -113,7 +115,14 @@ ip() {
 	esac
 }
 EOF
+	}
+else
+	cat <<EOF
+ip() {
+	logger -s "[ERR] iproute2 not installed: ip \$*"
 }
+EOF
+fi
 
 # TODO: we should make sure it is on 'tmpfs' (e.g. server)
 if   mkdir 2>/dev/null -p '/var/run/kalua'; then
