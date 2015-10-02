@@ -2142,8 +2142,16 @@ build_options_set()
 				fi
 			;;
 			'iproute2')
-				# https://dev.openwrt.org/changeset/46829/trunk
-				if [ $( openwrt_revision_number_get ) -ge 46829 ]; then
+				is_busybox_ip_prefered()
+				{
+					# https://dev.openwrt.org/changeset/46829/trunk
+					test $( openwrt_revision_number_get ) -lt 46829 && return 0
+
+					# is busybox's 'ip' included?
+					grep -q 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP' '.config'
+				}	# parser_ignore
+
+				if is_busybox_ip_prefered; then
 					# TODO: ip neigh
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
