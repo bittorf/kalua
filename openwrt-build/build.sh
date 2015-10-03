@@ -2877,10 +2877,9 @@ unittest_do()
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
 			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
 			#  - fixed 2015oct2: https://github.com/koalaman/shellcheck/issues/472
-#			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
-			# SC2088: echo '~' => Note that ~ does not expand in quotes.
+#			# SC2088: echo '~' => Note that ~ does not expand in quotes.
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
