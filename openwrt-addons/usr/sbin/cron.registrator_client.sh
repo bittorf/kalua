@@ -65,6 +65,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 	#  }
 	# }
 
+	JSON_VAR_status=;JSON_VAR_message=
 	json_load "$HTTP_ANSWER"
 	json_get_var 'JSON_VAR_status' 'status'
 	json_get_var 'JSON_VAR_message' 'message'
@@ -122,6 +123,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 			#   }
 			# }
 
+			JSON_VAR_status=;JSON_VAR_message=;JSON_VAR_result_number=
 			json_load "$HTTP_ANSWER"
 			json_get_var 'JSON_VAR_status' 'status'
 			json_get_var 'JSON_VAR_message' 'message'

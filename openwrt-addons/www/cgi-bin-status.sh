@@ -409,6 +409,7 @@ output_table()
 				;;
 			esac
 
+			bytes_rx=;bytes_tx=
 			eval $( _net get_rxtx "$iface_out" )	# bytes_rx | bytes_tx
 
 			rx_mbytes=$(( bytes_rx / 1024 / 1024 ))

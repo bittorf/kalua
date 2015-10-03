@@ -12,6 +12,7 @@ case "$QUERY_STRING" in
 	;;
 	*'roaming_add'*)
 		. /tmp/loader
+		mac=;ip=;expires=
 		eval $( _http query_string_sanitize "$0:roaming_add" )
 
 		# see: net_roaming_report_new()
