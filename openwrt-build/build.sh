@@ -2819,6 +2819,10 @@ unittest_do()
 		log '. /tmp/loader'
 		. /tmp/loader
 
+		log 'build initial NETPARAM'
+		openwrt-addons/etc/init.d/S41build_static_netparam call
+		cat '/tmp/NETPARAM'
+
 		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace'
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
 		log "CPU count: $( cpu_count )"

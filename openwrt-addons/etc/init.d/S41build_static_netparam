@@ -114,7 +114,7 @@ netparam_for_uci_devices()
 	# force to 1 line
 	echo "WIFI_DEVS='$( for IFNAME in $( list_wifi_devs ); do echo -n "$IFNAME "; done )'"
 
-	[ -e "/tmp/dmesg.boot" ] || . /usr/sbin/cron.check_klog
+	[ ! -e '/tmp/dmesg.boot' -a -e '/usr/sbin/cron.check_klog' ] && . /usr/sbin/cron.check_klog
 	fgrep -sq "phy0: failed to initialize PHY" "/tmp/dmesg.boot" && {
 		echo "WIFIDEV=	# failed to initialize PHY"
 	}
@@ -148,12 +148,20 @@ else
 		}
 
 		needs_newer_copy && {
-			_log do earlyboot_netparam daemon alert "changed values - updating /www/NETPARAM"
-			cp '/tmp/NETPARAM' '/www/NETPARAM'
+			if [ -d '/www' ]; then
+				_log do earlyboot_netparam daemon alert 'changed values - updating /www/NETPARAM'
+				cp '/tmp/NETPARAM' '/www/NETPARAM'
+			else
+				_log do earlyboot_netparam daemon info 'changed values: cannot write to /www'
+			fi
 		}
 	else
-		_log do earlyboot_netparam daemon alert "stored initial version, WIFIDEV='$WIFIDEV'"
-		cp '/tmp/NETPARAM' '/www/NETPARAM'
+		if [ -d '/www' ]; then
+			_log do earlyboot_netparam daemon alert "store initial version: WIFIDEV='$WIFIDEV'"
+			cp '/tmp/NETPARAM' '/www/NETPARAM'
+		else
+			_log do earlyboot_netparam daemon info 'write initial version: cannot write to /www'
+		fi
 	fi
 fi
 
