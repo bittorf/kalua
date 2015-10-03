@@ -2856,15 +2856,20 @@ unittest_do()
 #			wget -O 'shellsheck.deb' "http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-4_$( myarch ).deb"
 #			sudo dpkg -i 'shellsheck.deb'
 
+			# TODO: install our own .deb
+			# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
 			sudo apt-get install cabal-install
 			cabal update
 			cabal install cabal-install
+
+			# needs about 15 mins
 			git clone https://github.com/koalaman/shellcheck.git
 			cd shellcheck
 			cabal install
 			cd -
+
 			export PATH="$HOME/.cabal/bin:$PATH"
-			which shellcheck
+			which shellcheck || return 1
 		}
 
 		shellcheck_bin="$( which shellcheck )"
@@ -2873,8 +2878,11 @@ unittest_do()
 		if [ -z "$shellcheck_bin" ]; then
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
+			$shellcheck_bin --help
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
 			# SC1010: "_log do ...' -> 'do' is a special keyword
+			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
+			# SC1090: Can't follow non-constant source. Use a directive to specify location.
 			#
 			# SC2039: In POSIX sh, echo flags are not supported.
 			#  SC2039: In POSIX sh, HOSTNAME is not supported.
@@ -2889,17 +2897,20 @@ unittest_do()
 			#  - fixed 2015oct2: https://github.com/koalaman/shellcheck/issues/472
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
-#			# SC2088: echo '~' => Note that ~ does not expand in quotes.
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 
+			# SC2162: read without -r will mangle backslashes.
+			# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
+#			# SC2164: Use cd ... || exit in case cd fails.
+
 			shellsheck_ignore()
 			{
 				echo -n 'SC1010,SC2046,SC2086,SC1007'
 				echo -n ',SC2065,SC2018,SC2019,SC2088,SC2030,SC2031'
-				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155'
+				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC1091,SC2166,SC1090'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
