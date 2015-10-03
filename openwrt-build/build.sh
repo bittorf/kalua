@@ -2882,7 +2882,7 @@ unittest_do()
 			$shellcheck_bin --help
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
 			# SC1010: "_log do ...' -> 'do' is a special keyword
-			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
+#			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
 			# SC1090: Can't follow non-constant source. Use a directive to specify location.
 			#
 			# SC2039: In POSIX sh, echo flags are not supported.
@@ -2912,7 +2912,7 @@ unittest_do()
 			{
 				echo -n 'SC1010,SC2046,SC2086,SC1007'
 				echo -n ',SC2065,SC2018,SC2019,SC2088,SC2030,SC2031'
-				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC1091,SC2166,SC1090,SC2165'
+				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC2166,SC1090,SC2165'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
@@ -2958,7 +2958,7 @@ unittest_do()
 							;;
 						esac
 
-						if $shellcheck_bin -e $ignore "$tempfile"; then
+						if $shellcheck_bin --external-sources --exclude="$ignore" "$tempfile"; then
 							rm "$tempfile"
 							log "[OK] shellcheck: '$file'"
 						else
