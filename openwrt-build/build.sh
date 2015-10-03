@@ -117,7 +117,7 @@ build_tarball_package()
 
 	local architecture='all'
 	local package_name="$KALUA_DIRNAME-framework"
-	local kalua_unixtime="$( cd $KALUA_DIRNAME; git log -1 --pretty='format:%ct'; cd .. )"
+	local kalua_unixtime="$( cd $KALUA_DIRNAME || return; git log -1 --pretty='format:%ct'; cd .. )"
 	local package_version=$(( kalua_unixtime / 3600 ))
 	local file_tarball="${package_name}_${package_version}_${architecture}.ipk"
 
@@ -128,7 +128,7 @@ build_tarball_package()
 	local tar_options='--owner=root --group=root'
 
 	mkdir "$builddir" || return 1
-	cd "$builddir"
+	cd "$builddir" || return
 
 	echo '2.0' >'debian-binary'
 
@@ -1030,7 +1030,7 @@ check_working_directory()
 		repo='git://nbd.name/packages.git'
 		log "first start - fetching OpenWrt-packages: git clone '$repo'"
 		git clone "$repo" || return $error
-		cd openwrt
+		cd openwrt || return
 
 		# git://github.com/weimarnetz/weimarnetz.git
 		# git://github.com/bittorf/kalua.git
@@ -1119,13 +1119,13 @@ feeds_adjust_version()			# FIXME! src git-full
 {
 	local timestamp="$1"		# e.g. '2009-07-27 13:37'
 	local dir githash oldbranch
-	cd feeds
+	cd feeds || return
 
 	for dir in *; do {
 		test -d "$dir.tmp"  || continue
 		test -d "$dir/.git" || continue
 
-		cd "$dir"
+		cd "$dir" || return
 		if [ -n "$FEEDSTIME" ]; then
 			# http://stackoverflow.com/questions/6990484/git-checkout-by-date
 			# git rev-list -n 1 --before="2009-07-27 13:37" master
@@ -1592,7 +1592,7 @@ apply_symbol()
 
 			# is a short hash, e.g. 'ed0e11ci', this is enough:
 			# http://lkml.indiana.edu/hypermail/linux/kernel/1309.3/04147.html
-			cd $KALUA_DIRNAME
+			cd $KALUA_DIRNAME || return
 			VERSION_KALUA="$( git log -1 --format=%h )"
 			last_commit_unixtime="$( git log -1 --pretty=format:%ct )"
 			last_commit_unixtime_in_hours=$(( last_commit_unixtime / 3600 ))
@@ -1632,7 +1632,7 @@ apply_symbol()
 #			} done
 
 			log "$KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
-			cd $KALUA_DIRNAME
+			cd $KALUA_DIRNAME || return
 			find openwrt-addons/* -type f | while read file_original; do {
 				file="$( basename $file_original )"
 				dir="../$custom_dir/$( dirname $file_original | sed "s|openwrt-addons/||" )"
@@ -1650,7 +1650,7 @@ apply_symbol()
 				} >"$dir/$file"
 				chmod +x "$dir/$file"
 			} done
-			cd - >/dev/null
+			cd - >/dev/null || return
 
 			log "$KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
@@ -1800,7 +1800,7 @@ apply_symbol()
 			log "adding patchlist" gitadd "$custom_dir/etc/openwrt_patches"
 
 			[ -n "$hash" ] && {
-				cd $KALUA_DIRNAME
+				cd $KALUA_DIRNAME || return
 				git checkout master
 				git branch -D "$KALUA_DIRNAME@$hash"
 				cd ..
@@ -2864,9 +2864,9 @@ unittest_do()
 
 			# needs about 15 mins
 			git clone https://github.com/koalaman/shellcheck.git
-			cd shellcheck
+			cd shellcheck || return
 			cabal install
-			cd -
+			cd - || return
 
 			export PATH="$HOME/.cabal/bin:$PATH"
 			which shellcheck || return 1
@@ -2878,6 +2878,7 @@ unittest_do()
 		if [ -z "$shellcheck_bin" ]; then
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
+			$shellcheck_bin --version
 			$shellcheck_bin --help
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
 			# SC1010: "_log do ...' -> 'do' is a special keyword
@@ -2904,13 +2905,14 @@ unittest_do()
 
 			# SC2162: read without -r will mangle backslashes.
 			# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
-#			# SC2164: Use cd ... || exit in case cd fails.
+			# SC2165: This parent loop has its index variable overridden.
+			#         This nested loop overrides the index variable of its parent.
 
 			shellsheck_ignore()
 			{
 				echo -n 'SC1010,SC2046,SC2086,SC1007'
 				echo -n ',SC2065,SC2018,SC2019,SC2088,SC2030,SC2031'
-				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC1091,SC2166,SC1090'
+				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC1091,SC2166,SC1090,SC2165'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"

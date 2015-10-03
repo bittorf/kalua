@@ -31,7 +31,7 @@ changedir()
 	}
 
 	log "going into $1"
-	cd "$1"
+	cd "$1" || return
 }
 
 clone()

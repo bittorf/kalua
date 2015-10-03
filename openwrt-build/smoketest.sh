@@ -133,7 +133,7 @@ defconfig()
 			log "TYPE: $TYPE OPTION: $OPTION - all downloads are going into '$( pwd )/$cachedir'"
 			mkdir -p "$cachedir"
 
-			cd 'openwrt'
+			cd 'openwrt' || return
 			LIST_ARCH="$( list_architectures "$OPTION" )"
 			OPENWRT_REV="$( openwrt_revision_get )"
 
@@ -143,7 +143,7 @@ defconfig()
 
 	log "(make a clean copy of 'openwrt-$ARCH')" debug
 	cp -R 'openwrt' "openwrt-$ARCH"
-	cd "openwrt-$ARCH"
+	cd "openwrt-$ARCH" || return
 
 	[ -d 'dl' ] && {
 		# only remove if no symbolic link:
