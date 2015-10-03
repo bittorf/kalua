@@ -2866,7 +2866,6 @@ unittest_do()
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
 			# SC1010: "_log do ...' -> 'do' is a special keyword
 			#
-#			# SC2154: using unassigned vars, e.g from QUERY_STRING
 			# SC2039: In POSIX sh, echo flags are not supported.
 			#  SC2039: In POSIX sh, HOSTNAME is not supported.
 			#  SC2039: In POSIX sh, string replacement is not supported.
@@ -2878,7 +2877,7 @@ unittest_do()
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
 			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
 			#  - fixed 2015oct2: https://github.com/koalaman/shellcheck/issues/472
-			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
+#			# SC2028: echo -n "\n" => echo won't expand escape sequences. Consider printf.
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
 			# SC2088: echo '~' => Note that ~ does not expand in quotes.
@@ -2890,7 +2889,7 @@ unittest_do()
 			shellsheck_ignore()
 			{
 				echo -n 'SC1010,SC2046,SC2086,SC1007'
-				echo -n ',SC2065,SC2028,SC2018,SC2019,SC2088,SC2030,SC2031'
+				echo -n ',SC2065,SC2018,SC2019,SC2088,SC2030,SC2031'
 				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155'
 			}
 
