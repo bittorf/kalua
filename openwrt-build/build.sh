@@ -2883,10 +2883,9 @@ unittest_do()
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
 			$shellcheck_bin --version
-			$shellcheck_bin --help
 			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
 			# SC1010: "_log do ...' -> 'do' is a special keyword
-#			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
+			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
 			# SC1090: Can't follow non-constant source. Use a directive to specify location.
 			#
 			# SC2039: In POSIX sh, echo flags are not supported.
@@ -2906,17 +2905,17 @@ unittest_do()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
-
 			# SC2162: read without -r will mangle backslashes.
 			# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
 			# SC2165: This parent loop has its index variable overridden.
 			#         This nested loop overrides the index variable of its parent.
+			# SC2119: Use logread "$@" if function's $1 should mean script's $1.
 
 			shellsheck_ignore()
 			{
-				echo -n 'SC1010,SC2046,SC2086,SC1007'
-				echo -n ',SC2065,SC2018,SC2019,SC2088,SC2030,SC2031'
-				echo -n ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC2166,SC1090,SC2165'
+				printf 'SC1010,SC2046,SC2086,SC1007,SC1091,SC2165,SC1090'
+				printf ',SC2065,SC2018,SC2019,SC2088,SC2030,SC2031,SC2119'
+				printf ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC2166'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
