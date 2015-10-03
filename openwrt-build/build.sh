@@ -2853,8 +2853,18 @@ unittest_do()
 		_system load || return 1
 
 		[ -n "$TRAVIS" ] && {
-			wget -O 'shellsheck.deb' "http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-4_$( myarch ).deb"
-			sudo dpkg -i 'shellsheck.deb'
+#			wget -O 'shellsheck.deb' "http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-4_$( myarch ).deb"
+#			sudo dpkg -i 'shellsheck.deb'
+
+			sudo apt-get install cabal-install
+			cabal update
+			cabal install cabal-install
+			git clone https://github.com/koalaman/shellcheck.git
+			cd shellcheck
+			cabal install
+			cd -
+			export PATH="$HOME/.cabal/bin:$PATH"
+			which shellcheck
 		}
 
 		shellcheck_bin="$( which shellcheck )"
