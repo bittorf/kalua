@@ -1,5 +1,8 @@
 #!/bin/sh
-[ -e '/tmp/loader' ] && . /tmp/loader
+[ -e '/tmp/loader' ] && {
+	. /tmp/loader
+	_stopwatch start 'netjson'
+}
 
 # TODO: list of VPN-servers
 # TODO: pattern for IP's of wired links
@@ -216,3 +219,5 @@ cat "$TMP_JSON" 2>/dev/null && rm "$TMP_JSON"
 
 echo '  ]'
 echo '}'
+
+[ -e '/tmp/loader' ] && _stopwatch stop 'netjson' quiet
