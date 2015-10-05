@@ -2897,8 +2897,8 @@ unittest_do()
 			# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
-			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
-			#  - fixed 2015oct2: https://github.com/koalaman/shellcheck/issues/472
+#			# SC2065: test $a -gt $b 2>/dev/null => This is interpretted as a shell file redirection, not a comparison.
+#			#  - fixed 2015oct2: https://github.com/koalaman/shellcheck/issues/472
 			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
 			# SC2031: FIXME! ...in net_local_inet_offer()
@@ -2913,7 +2913,7 @@ unittest_do()
 			shellsheck_ignore()
 			{
 				printf 'SC1010,SC2046,SC2086,SC1007,SC1091,SC2165,SC1090'
-				printf ',SC2065,SC2018,SC2019,SC2088,SC2030,SC2031,SC2119'
+				printf ',SC2018,SC2019,SC2088,SC2030,SC2031,SC2119'
 				printf ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC2166'
 			}
 
