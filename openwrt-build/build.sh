@@ -2923,6 +2923,10 @@ unittest_do()
 			filelist='/dev/shm/filelist'
 			find 'openwrt-addons' 'openwrt-build' -type f -not -iwholename '*.git*' >"$filelist"
 
+			$shellcheck_bin --help 2>"$tempfile"
+			grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"
+			log "[OK] shellcheck call: $shellcheck_bin ..."
+
 			while read file; do {
 				case "$file" in
 					'openwrt-build/mybuild.sh')
@@ -2949,6 +2953,9 @@ unittest_do()
 #						sed -i 's/echo -en /printf /g' "$tempfile"
 #						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
 
+						# SC2163
+						sed -i 's/read /read -r /g' "$tempfile"
+
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in
 							'openwrt-addons/etc/init.d/'*|'openwrt-build/apply_profile'*)
@@ -2961,7 +2968,7 @@ unittest_do()
 							;;
 						esac
 
-						if $shellcheck_bin --external-sources --exclude="$ignore" "$tempfile"; then
+						if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 							rm "$tempfile"
 							log "[OK] shellcheck: '$file'"
 						else
