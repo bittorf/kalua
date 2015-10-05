@@ -113,12 +113,12 @@ loop_networks()
 	local pubip network file
 
 	for network in $( list_names_of_monitored_networks ); do {
-#		read UP1 REST <'/proc/uptime'
+#		read -r UP1 REST <'/proc/uptime'
 		for file in $( find 2>/dev/null "/var/www/networks/$network/meshrdf/recent" -type f -name '[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]' -mtime -2 ); do {
 			command . "$file" && pubip="$PUBIP_REAL"
 
 #			pubip=
-#			read pubip </var/www/networks/$network/pubip.txt
+#			read -r pubip </var/www/networks/$network/pubip.txt
 
 			[ -n "$pubip" ] && {
 				if whitelist_ip_already_known "$pubip" "$network"; then
@@ -129,12 +129,12 @@ loop_networks()
 				fi
 			}
 		} done
-#		read UP2 REST <'/proc/uptime'
+#		read -r UP2 REST <'/proc/uptime'
 #		logger -s "$0: network: $network execution-time: $(( ${UP2%.*} - ${UP1%.*} )) sec"
 	} done
 }
 
-read UP1 REST <'/proc/uptime'
+read -r UP1 REST <'/proc/uptime'
 
 case "$1" in
 	start)
@@ -162,5 +162,5 @@ case "$1" in
 	;;
 esac
 
-read UP2 REST <'/proc/uptime'
+read -r UP2 REST <'/proc/uptime'
 logger -s "$0: execution-time: $(( ${UP2%.*} - ${UP1%.*} )) sec"

@@ -138,7 +138,7 @@ update_local_netjson_files()
 }
 
 PARSE='false'				# here we read in the 'Topology' table once
-while read LINE; do {			# and extract all nodes and all links
+while read -r LINE; do {			# and extract all nodes and all links
 	case "$LINE" in
 		'Table: Topology'*)
 			unset PARSE
@@ -177,7 +177,7 @@ while read LINE; do {			# and extract all nodes and all links
 } done <"$FILE" >"$TMP_JSON"
 
 [ -e "$FILE_HOSTNAMES" ] && {
-	while read LINE; do {
+	while read -r LINE; do {
 		case "$LINE" in
 			[0-9]*)
 				# 10.63.160.161  AlexLaterne    # 10.63.160.161

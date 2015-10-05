@@ -26,7 +26,7 @@ _watch_configchange()
 
 	# we dont take temporary changes into account ("uci show"/"uci changes")
 	new_hash="$( cat /etc/config/* $HOME/.ssh/dropbear_*_key | md5sum )"
-	[ -e "$hashfile" ] && read old_hash <"$hashfile"
+	[ -e "$hashfile" ] && read -r old_hash <"$hashfile"
 
 	[ "$new_hash" = "$old_hash" ] || {
 		server='intercity-vpn.de'	# user 'root'
@@ -328,7 +328,7 @@ _watch_dhcp_space()
 	local logprio='debug'
 	local percent_border=80
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			*' 00:00:00:00:00:00 127.0.0.2 lo-alias '*)
 				continue
@@ -410,7 +410,7 @@ _watch_mount_storage()
 		}
 	}
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			*' sda'|*' sda'[0-9]|*' sdb'|*' sdb'[0-9])
 				set -- $line
@@ -648,7 +648,7 @@ _watch_hanging_command()
 
 	if [ -z "$COMMAND_PID" ]; then
 		for COMMAND_PID in $( pidof "$COMMAND" ); do {
-			read COMMAND_CMD <"/proc/${COMMAND_PID:-empty_pid}/cmdline"
+			read -r COMMAND_CMD <"/proc/${COMMAND_PID:-empty_pid}/cmdline"
 			case "$COMMAND_CMD" in
 				*'user-agentAUDIOPLAYER-'*)
 					# see /etc/hotplug.d/button/events.sh
@@ -674,14 +674,14 @@ _watch_hanging_command()
 		COMMAND="$( pid2taskname "$COMMAND_PID" )"
 	fi
 
-	read COMMAND_CMD <"/proc/${COMMAND_PID:-empty_pid}/cmdline"		# remember exact commandline
+	read -r COMMAND_CMD <"/proc/${COMMAND_PID:-empty_pid}/cmdline"		# remember exact commandline
 
 	local OLD_PID OLD_CMD FILE1 FILE2
 	FILE1="/tmp/maybe_hanging_${COMMAND}_process_id"
 	FILE2="/tmp/maybe_hanging_${COMMAND}_process_cmd"
 
-	[ -e "$FILE1" ] && read OLD_PID <$FILE1
-	[ -e "$FILE2" ] && read OLD_CMD <$FILE2
+	[ -e "$FILE1" ] && read -r OLD_PID <$FILE1
+	[ -e "$FILE2" ] && read -r OLD_CMD <$FILE2
 
 	_log do $FUNC daemon debug "found '$COMMAND'-process pid: '$COMMAND_PID' / cmdline: '$COMMAND_CMD'"
 
@@ -747,7 +747,7 @@ _watch_flash_free_space()
 		}
 	}
 
-	list_files_removeable | while read file; do {
+	list_files_removeable | while read -r file; do {
 		if [ $( _system flash_free ) -ge $border ]; then
 			_watch counter "/tmp/$funcname" remove
 			break
@@ -779,9 +779,9 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	local ip line pid pid_fakedns pid_parent pid_main script leases cmdline testdomain dump_core
 
 	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] && {
-		read pid_fakedns <'/tmp/SERVICE/FAKEDNS.pid'
-		read line        <'/tmp/SERVICE/FAKEDNS.cmdline'
-		read cmdline     <"/proc/$pid_fakedns/cmdline"
+		read -r pid_fakedns <'/tmp/SERVICE/FAKEDNS.pid'
+		read -r line        <'/tmp/SERVICE/FAKEDNS.cmdline'
+		read -r cmdline     <"/proc/$pid_fakedns/cmdline"
 
 		[ "$line" = "$cmdline" ] || {
 			_log do $funcname daemon alert "fakedns missing"
@@ -1340,7 +1340,7 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 
 	build_vars()
 	{
-		local wifimac; read wifimac <"$macfile"
+		local wifimac; read -r wifimac <"$macfile"
 		local SSH_PUBKEY_FP_HEXONLY="$( _sanitizer do "$( _ssh key_public_fingerprint_get )" hex )"
 		local SSH_PUBKEY="$( _file convert_bin2hex /etc/dropbear/dropbear_dss_host_key.pub )"
 		local SERVER_URL="$( uci get system.@monitoring[0].url )"
@@ -1435,7 +1435,7 @@ _watch_counter()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || 
 	local special="$6"	# autoremove
 	local value
 
-	read value 2>/dev/null <"$file"
+	read -r value 2>/dev/null <"$file"
 
 	case "$mode" in
 		'increment')
@@ -1494,7 +1494,7 @@ _watch_topusage_task()
 	# we need at least 2 iterations, otherwise the values are wrong
 	top -b -n 2 >"$file"
 
-	while read line; do {
+	while read -r line; do {
 		if [ "$parse" = 'Mem:Mem:' ]; then
 			set -- $line
 			case "$line" in
@@ -1717,7 +1717,7 @@ _watch_switch_linkstatus()	# only used for ffweimar
 	_watch nanostation_max_ethernet
 
 	if [ -e "$statfile" ]; then
-		read stat_old <"$statfile"
+		read -r stat_old <"$statfile"
 	else
 		_switch show >"$statfile"
 		_log do $funcname daemon debug "[OK] first status check, no action"
@@ -1823,7 +1823,7 @@ _watch_wifistuff()
 		eval "$( sed -n "s/.*${check_dev}: *[0-9]* *\([0-9]*\).*/framecount_new=\1/p" '/proc/net/dev' )"
 
 		uptime_new="$( _system uptime sec )"
-		read uptime_old 2>/dev/null <"$file_uptime"
+		read -r uptime_old 2>/dev/null <"$file_uptime"
 		echo "$uptime_new" >"$file_uptime"
 		uptime_diff=$(( uptime_new - ${uptime_old:-0} ))
 
@@ -1831,7 +1831,7 @@ _watch_wifistuff()
 			_log do $funcname daemon info "[ERR] timediff > 60 sec = $uptime_diff"
 
 		if [ -e "$file_framecount" ]; then
-			read framecount_old <"$file_framecount"
+			read -r framecount_old <"$file_framecount"
 		else
 			framecount_old="-1"			# ensures, that first start is without errors
 		fi
@@ -1932,15 +1932,15 @@ _watch_wifistuff()
 
 	local interface line file clients clients_max file2 dev reason
 	for file in /var/run/hostapd-phy[0-3].conf; do {
-		while read line; do {
+		while read -r line; do {
 			case "$line" in
 				'interface='*)
 					eval $line
 
 					if iw dev "$interface" station dump | grep -c ^'Station' >"/tmp/wifi_hasclients_TEMP_$interface"; then
 						mv "/tmp/wifi_hasclients_TEMP_$interface" "/tmp/wifi_hasclients_$interface"
-						read clients     <"/tmp/wifi_hasclients_${interface}"
-						read clients_max <"/tmp/wifi_hasclients_${interface}_max"
+						read -r clients     <"/tmp/wifi_hasclients_${interface}"
+						read -r clients_max <"/tmp/wifi_hasclients_${interface}_max"
 						[ $clients -gt ${clients_max:-1} ] && {
 							echo "$clients" >"/tmp/wifi_hasclients_${interface}_max"
 							bool_true 'system.@monitoring[0].max_wificlients' && {
@@ -1974,7 +1974,7 @@ _watch_wifistuff()
 								[ -e "$file2" ] && {
 									rm "$file2"
 									dev="$( echo "$file2" | cut -d'-' -f2 )"
-									read reason <"$file2"
+									read -r reason <"$file2"
 									_wifi phy_restart "$dev" "$reason"
 								}
 							} done
@@ -2116,7 +2116,7 @@ _watch_olsrstuff()
 	else
 		if [ -e '/tmp/service_olsrd_nowatching' ]; then
 			[ -e '/tmp/OLSR_HNA_SLAVE_PINGTEST' ] && {
-				read IP <'/tmp/OLSR_HNA_SLAVE_PINGTEST'
+				read -r IP <'/tmp/OLSR_HNA_SLAVE_PINGTEST'
 
 				_net ip_reachable "$IP" ping 30 || {
 					_log do $funcname daemon info "[ERR] ping to $IP failed"

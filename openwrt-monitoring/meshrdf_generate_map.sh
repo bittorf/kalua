@@ -169,7 +169,7 @@ for FILE in $FILELIST; do {		# describe all connections, which are used for inet
 
 #	log "neigh: $NEIGH"
 
-	echo "$NEIGH" | while read LINE; do {
+	echo "$NEIGH" | while read -r LINE; do {
 
 		case "$LINE" in
 			[=~-]*)
@@ -227,7 +227,7 @@ echo
 for FILE in $FILELIST; do {		# describe all connections, which are not used for inet, and are not described before
 	. $FILE
 
-	echo $NEIGH | sed 's/[=~-]/\n&/g' | while read LINE; do {
+	echo $NEIGH | sed 's/[=~-]/\n&/g' | while read -r LINE; do {
 		[ -z "$LINE" ] && continue
 
 		NDEV="$(   func_interpret_neigh ndev   $LINE )"

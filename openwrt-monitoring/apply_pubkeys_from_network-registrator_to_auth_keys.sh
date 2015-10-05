@@ -46,7 +46,7 @@ for file in /var/www/networks/$network/registrator/recent/* ; do {
 		;;
 	esac
 
-	while read -n 2 hexbyte; do {
+	while read -r -n 2 hexbyte; do {
 		[ ${#hexbyte} -eq 2 ] && {
 			printf "\\$( printf "%o" 0x$hexbyte )"
 		}

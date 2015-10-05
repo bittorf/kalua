@@ -177,7 +177,7 @@ autocommit()
 	else
 		eval $gitfile || {
 			# workaround for a conflicting merge/revert
-			git status | grep 'both modified:' | while read line; do {
+			git status | grep 'both modified:' | while read -r line; do {
 				# e.g.: #  both modified:  package/network/services/dropbear/Makefile
 				set -- $line
 				shift 3
@@ -444,7 +444,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 
 			# e.g. '00 US FM'
 			countries="$( grep ^'country ' "$file_regdb_hacked" | cut -d' ' -f2 | cut -d':' -f1 )"
-			countries="$( echo "$countries" | while read code; do echo -n "$code "; done )"		# remove CR/LF
+			countries="$( echo "$countries" | while read -r code; do echo -n "$code "; done )"		# remove CR/LF
 			log "using another regdb: '$file_regdb_hacked' for $countries" gitadd "$file2"
 
 			register_patch "REGHACK: valid countries: $countries"
@@ -838,7 +838,7 @@ EOF
 				;;
 			esac
 
-			parse_case_patterns "$funcname" | while read line; do {
+			parse_case_patterns "$funcname" | while read -r line; do {
 				case "$option" in
 					'plain')
 						echo "$line"
@@ -992,7 +992,7 @@ check_working_directory()
 
 		[ -d 'openwrt' ] && {
 			log "first start - removing (old?) dir openwrt: please answer Y/N"
-			read answer
+			read -r answer
 
 			if [ "$answer" = 'Y' ]; then
 				rm -fR 'openwrt'
@@ -1492,7 +1492,7 @@ EOF
 
 calc_time_diff()
 {
-	local t1="$1"		# e.g. read t1 rest </proc/uptime
+	local t1="$1"		# e.g. read -r t1 rest </proc/uptime
 	local t2="$2"
 	local duration
 
@@ -1508,7 +1508,7 @@ get_uptime_in_sec()
 	local field1 rest
 
 	# e.g. 38409.14
-	read field1 rest 2>/dev/null </proc/uptime || field1='1.00'
+	read -r field1 rest 2>/dev/null </proc/uptime || field1='1.00'
 
 	eval $varname=$field1
 }
@@ -1633,7 +1633,7 @@ apply_symbol()
 
 			log "$KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cd $KALUA_DIRNAME || return
-			find openwrt-addons/* -type f | while read file_original; do {
+			find openwrt-addons/* -type f | while read -r file_original; do {
 				file="$( basename $file_original )"
 				dir="../$custom_dir/$( dirname $file_original | sed "s|openwrt-addons/||" )"
 				mkdir -p $dir
@@ -1730,7 +1730,7 @@ apply_symbol()
 				# /dir/file2
 				# /dir/dirX/file1 ...
 				for folder in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
-					find $folder -type d | while read dir; do {
+					find $folder -type d | while read -r dir; do {
 						echo "$dir"
 						find "$dir" -maxdepth 1 -type f | sort
 					} done
@@ -1738,7 +1738,7 @@ apply_symbol()
 			}
 
 			# FIXME! unison/iproute-neigh
-			list_files_and_dirs | grep -v 'unison' | grep -v 'iproute-neigh' | while read file; do {
+			list_files_and_dirs | grep -v 'unison' | grep -v 'iproute-neigh' | while read -r file; do {
 				if [ -d "$file" ]; then
 					log "dir: $file"
 					register_patch "DIR: $file"
@@ -2540,7 +2540,7 @@ EOF
 			'list')
 				[ "$subcall" = 'plain' ] || log "supported options:"
 
-				parse_case_patterns "$funcname" | while read line; do {
+				parse_case_patterns "$funcname" | while read -r line; do {
 					if [ "$subcall" = 'plain' ]; then
 						echo "$line"
 					else
@@ -2553,7 +2553,7 @@ EOF
 					echo '# or short:'
 
 					echo -n '--usecase '
-					parse_case_patterns "$funcname" | while read line; do {
+					parse_case_patterns "$funcname" | while read -r line; do {
 						echo -n "$line,"
 					} done
 					echo
@@ -2625,7 +2625,7 @@ parse_case_patterns()
 	#
 	# running our parser on this function will output 'option1 option2 optionN'
 
-	while read line; do {
+	while read -r line; do {
 		if [ "$start_parse" = 'true' ]; then
 			case "$line" in
 				*'# parser_ignore'*)
@@ -2712,7 +2712,7 @@ check_scripts()
 
 	find "$dir" -type f -not -iwholename '*.git*' >"$tempfile"
 
-	while read file; do {
+	while read -r file; do {
 		mimetype="$( mimetype_get "$file" )"
 
 		case "$mimetype" in
@@ -2905,7 +2905,6 @@ unittest_do()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
-# NEXT			# SC2163: read without -r will mangle backslashes.
 			# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
 			# SC2165: This parent loop has its index variable overridden.
 			#         This nested loop overrides the index variable of its parent.
@@ -2927,7 +2926,7 @@ unittest_do()
 			grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"
 			log "[OK] shellcheck call: $shellcheck_bin ..."
 
-			while read file; do {
+			while read -r file; do {
 				case "$file" in
 					'openwrt-build/mybuild.sh')
 						# these files are deprecated/unused
@@ -2952,9 +2951,6 @@ unittest_do()
 #						sed -i 's/echo -n /printf /g' "$tempfile"
 #						sed -i 's/echo -en /printf /g' "$tempfile"
 #						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
-
-						# SC2163
-						sed -i 's/read /read -r /g' "$tempfile"
 
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in
@@ -2989,7 +2985,7 @@ unittest_do()
 		{
 			log "counting lines of code:"
 
-			sloccount . | while read line; do {
+			sloccount . | while read -r line; do {
 				case "$line" in
 					[0-9]*|*'%)'|*'):'|*' = '*|'SLOC '*)
 						# only show interesting lines
@@ -3036,7 +3032,7 @@ check_git_settings()
 # or: --myrepo 'git://github.com/weimarnetz/weimarnetz.git'
 
 if [ -e 'KALUA_REPO_URL' ]; then
-	read KALUA_REPO_URL <'KALUA_REPO_URL'
+	read -r KALUA_REPO_URL <'KALUA_REPO_URL'
 else
 	KALUA_REPO_URL='git://github.com/bittorf/kalua.git'
 fi

@@ -9,7 +9,7 @@ power_and_freq_to_regdomain()
 	local url_regdb='http://git.kernel.org/cgit/linux/kernel/git/sforshee/wireless-regdb.git/plain/db.txt'
 
 	wget -O - "$url_regdb" |
-	 while read line; do {
+	 while read -r line; do {
 		case "$line" in							# country AU:
 			'country '[A-Z]*)					# 	(2402 - 2482 @ 40), (N/A, 20)
 				country="${line#* }"	# all after space	#	(5170 - 5250 @ 40), (3, 23)

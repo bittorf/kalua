@@ -131,7 +131,7 @@ config_diff()
 	}
 
 	diff "$file_new" "$file_old" |
-	 while read line; do {
+	 while read -r line; do {
 		case "$line" in
 			"< # CONFIG"*)
 				echo "$line" | cut -b 5-
@@ -203,7 +203,7 @@ set_build()
 			file="kalua/openwrt-patches/$( echo "$mode" | cut -d':' -f2 )"
 			local line dest old_pwd file2patch
 
-			read line <"$file"	# diff --git a/package/uhttpd/src/uhttpd-tls.c b/package/uhttpd/src/uhttpd-tls.c
+			read -r line <"$file"	# diff --git a/package/uhttpd/src/uhttpd-tls.c b/package/uhttpd/src/uhttpd-tls.c
 			case "$line" in
 				*"include/net/mac80211.h"|*"net/mac80211/rc80211_minstrel_ht.c"|*"net/wireless/"*)
 					dest="package/kernel/mac80211/patches"
@@ -241,7 +241,7 @@ set_build()
 		;;
 		meta*)
 			local thismode mode_list
-			read mode_list <"$file"
+			read -r mode_list <"$file"
 
 			for thismode in $mode_list; do {
 				log "applying meta-content: $thismode"
@@ -294,7 +294,7 @@ set_build()
 	# fixme! respect this syntax too: (not ending on '=y' or ' is not set')
 	# CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			'CONFIG_PACKAGE_ATH_DEBUG=y')
 				grep -q 'CONFIG_PACKAGE_kmod-ath=y' "$config" || {
@@ -358,7 +358,7 @@ filesize()
 	case "$option" in
 		flashblocks)
 			local blocks bytes overlap percent blocksize hardware
-			read hardware <KALUA_HARDWARE
+			read -r hardware <KALUA_HARDWARE
 
 			case "$hardware" in
 				*)
@@ -526,7 +526,7 @@ config2git()
 {
 	local hardware destfile arch dir
 	local strip="kalua/openwrt-config/hardware/strip_config.sh"
-	read hardware <KALUA_HARDWARE
+	read -r hardware <KALUA_HARDWARE
 
 	destfile="kalua/openwrt-config/hardware/$hardware/openwrt.config"
 	cp -v .config "$destfile"
@@ -541,7 +541,7 @@ get_hardware()
 	local option="$1"
 	local hardware
 
-	read hardware <KALUA_HARDWARE
+	read -r hardware <KALUA_HARDWARE
 
 	if [ "$option" = "nickname" ]; then
 		case "$hardware" in
@@ -571,7 +571,7 @@ mymake()
 	local filelist file
 
 	[ -e KALUA_HARDWARE ] || echo "unknown_model" >KALUA_HARDWARE
-	read hardware <KALUA_HARDWARE
+	read -r hardware <KALUA_HARDWARE
 	t1="$( uptime_in_seconds )"
 	date1="$( date )"
 
@@ -639,7 +639,7 @@ calc_free_flash_space()
 {
 	local flashsize flash_essential file_kernel kernel_blocks file_rootfs rootfs_blocks hardware
 
-	read hardware <KALUA_HARDWARE
+	read -r hardware <KALUA_HARDWARE
 	case "$hardware" in
 		"Linksys WRT54G:GS:GL"|"Buffalo WHR-HP-G54")
 			blocksize="65536"
@@ -859,7 +859,7 @@ set_build_openwrtconfig()
 {
 	local config_dir file hardware
 
-	read hardware <KALUA_HARDWARE
+	read -r hardware <KALUA_HARDWARE
 	config_dir="kalua/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
 	file="$config_dir/openwrt.config"
 	log "applying openwrt/packages-configuration to .config ($( filesize "$file" ) bytes)"
@@ -873,7 +873,7 @@ set_build_kernelconfig()
 {
 	local architecture kernel_config_dir kernel_config_file file config_dir hardware
 
-	read hardware <KALUA_HARDWARE
+	read -r hardware <KALUA_HARDWARE
 	config_dir="kalua/openwrt-config/hardware/$( select_hardware_model "$hardware" )"
 	architecture="$( get_arch )"
 
@@ -893,7 +893,7 @@ select_hardware_model()		# add: "Ubiquiti PicoStation2"
 	local dir="$( dirname $0 )/../openwrt-config/hardware"
 	local filename hardware i
 
-	find "$dir/"* -type d | while read filename; do {
+	find "$dir/"* -type d | while read -r filename; do {
 		hardware="$( basename "$filename" )"
 		i=$(( ${i:-0} + 1 ))
 
@@ -909,16 +909,16 @@ select_hardware_model()		# add: "Ubiquiti PicoStation2"
 	} done
 
 	[ -z "$specific_model" ] && {
-		read hardware 2>/dev/null <KALUA_HARDWARE
+		read -r hardware 2>/dev/null <KALUA_HARDWARE
 		echo
 		echo "please select your device or hit <enter> to leave '${hardware:-empty_model}'"
-		read hardware
+		read -r hardware
 
 		[ -n "$hardware" ] && {
 			select_hardware_model "$hardware" >KALUA_HARDWARE
 		}
 
-		read hardware <KALUA_HARDWARE
+		read -r hardware <KALUA_HARDWARE
 		log "wrote model $hardware to file KALUA_HARDWARE"
 	}
 }

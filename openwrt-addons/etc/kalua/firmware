@@ -7,7 +7,7 @@ _firmware_get_usecase()		# TODO: think about reordering
 	local line oldIFS usecase
 
 	# e.g. Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY
-	read line 2>/dev/null <"$file" || return 1
+	read -r line 2>/dev/null <"$file" || return 1
 
 	# split words after ','
 	oldIFS="$IFS"; IFS=','; set -- $line; IFS="$oldIFS"
@@ -138,7 +138,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 
 	if [ -e "$MODE" ]; then
 		TGZ="$MODE"
-		read hash_tarball <"$FILE_HASH_APPLIED"
+		read -r hash_tarball <"$FILE_HASH_APPLIED"
 
 		cleanup()
 		{
@@ -162,7 +162,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 		URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing if needed
 		hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"	# FIXME! abort when fetching hash fails
 
-		read hash_last_applied <"$FILE_HASH_APPLIED"
+		read -r hash_last_applied <"$FILE_HASH_APPLIED"
 
 		[ "$hash_tarball" = "${hash_last_applied:-empty}" ] && {
 			_log do "$FUNC" daemon info "[OK] applied nothing - all seems up to date (tarball-hash known: $FILE_HASH_APPLIED)"
@@ -200,7 +200,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	_log do "$FUNC" daemon debug "tarball extracted - applying only files which differ"
 
 	find -type f >'/tmp/filelist'
-	while read TEMPFILE; do {
+	while read -r TEMPFILE; do {
 		if [ "$( _file hash "$TEMPFILE" )" = "$( _file hash "/$TEMPFILE" )" ]; then
 			rm "$TEMPFILE"
 		else
@@ -380,7 +380,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 			_log do $funcname daemon info "ifdown wan"
 			ifdown wan	# for unloading ppp-stuff
 
-			while read line; do {
+			while read -r line; do {
 				set $line	# $device $mountpoint $type $options $rest
 				case "$1" in
 					"/dev/sd"*)
@@ -411,7 +411,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 	while :; do {
 		_watch counter "/tmp/$funcname" increment 1 max 25 || break
-		read i <"/tmp/$funcname"
+		read -r i <"/tmp/$funcname"
 		_log do $funcname daemon info "mode: '$filter_option', iteration: $i/25"
 
 		if [ $i -lt 4 ]; then
@@ -740,7 +740,7 @@ _firmware_burn()
 	_wifi watch_phy_problems sysupgrade || _system crashreboot 'wifiphy_probs'
 
 	# all dirs, except our special fwdir
-	find /tmp -type d | while read LINE; do {
+	find /tmp -type d | while read -r LINE; do {
 		case "$LINE" in
 			"/tmp"|"/tmp/fwimage"|"/tmp/sysinfo")
 			;;
@@ -765,7 +765,7 @@ _firmware_burn()
 	{
 		local line
 
-		ip link show | while read line; do {
+		ip link show | while read -r line; do {
 			case "$line" in
 				[0-9]*": "*)
 					set $line
@@ -778,7 +778,7 @@ _firmware_burn()
 	local getmem msg1 msg2 msg3 delifs cmds removeable_interfaces IFNAME
 
 	# reverse order, all in one line:
-	removeable_interfaces="$( interfaces | sed '1!G;h;$!d' | while read LINE; do echo -n "$LINE "; done )"
+	removeable_interfaces="$( interfaces | sed '1!G;h;$!d' | while read -r LINE; do echo -n "$LINE "; done )"
 	LANBRC="${LANBRC:-192.168.1.255}"
 
 	# fixme! remove all ipv6 routes (e.g. gateway)
@@ -789,7 +789,7 @@ _firmware_burn()
 	_firmware remove_kmodules all
 	ip -oneline address show | _log do $funcname daemon info
 
-	getmem="echo 3 >/proc/sys/vm/drop_caches; while read L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
+	getmem="echo 3 >/proc/sys/vm/drop_caches; while read -r L; do case \$L in MemFree:*) break;; esac; done </proc/meminfo"
 #	msg0="/bin/netmsg $LANBRC \"ramdisc-size: $( du -sh /tmp) files: $( find /tmp -type f | wc -l )\""
 	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
 	delifs="for I in $removeable_interfaces; do /bin/echo \"ip link set dev \$I down\"; ip link set dev \$I down; /bin/echo \"\$I is down\"; done"

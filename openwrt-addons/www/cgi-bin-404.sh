@@ -95,10 +95,10 @@ EOF
 	302)
 		case "$REMOTE_ADDR" in
 			"::"|127.*|10.*|192.168.*|172.16.*)
-				read SERVER_IP <"/tmp/WIFIADR"
+				read -r SERVER_IP <"/tmp/WIFIADR"
 			;;
 			*)
-				read SERVER_IP 2>/dev/null </tmp/MY_PUBLIC_IP || {
+				read -r SERVER_IP 2>/dev/null </tmp/MY_PUBLIC_IP || {
 					SERVER_IP="$( _net get_external_ip )"
 					echo "$SERVER_IP" >/tmp/MY_PUBLIC_IP
 				}

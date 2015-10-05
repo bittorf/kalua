@@ -42,7 +42,7 @@ list_hw()
 
 	case "$1" in
 		'hash')
-			$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | while read line; do {
+			$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | while read -r line; do {
 				[ "$( echo -n "$line" | md5sum | cut -d' ' -f1 )" = "$2" ] && {
 					echo "$line"
 					return
@@ -64,10 +64,10 @@ list_hw()
 stopwatch()
 {
 	if [ -z "$2" ]; then
-		read T1 REST </proc/uptime
+		read -r T1 REST </proc/uptime
 	else
 		T1="$2"
-		read T2 REST </proc/uptime
+		read -r T2 REST </proc/uptime
 		DURATION=$(( ${T2%.*}${T2#*.} - ${T1%.*}${T1#*.} ))
 		DURATION=$(( DURATION / 100 )).$(( DURATION % 100 ))
 
@@ -114,7 +114,7 @@ fi
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
-HW_LIST="$( list_hw "$HARDWARE" | while read LINE; do echo -n "$LINE" | md5sum | cut -d' ' -f1; done )"
+HW_LIST="$( list_hw "$HARDWARE" | while read -r LINE; do echo -n "$LINE" | md5sum | cut -d' ' -f1; done )"
 
 BUILD_GOOD=0
 BUILD_BAD=0

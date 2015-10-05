@@ -5,7 +5,7 @@ _net_get_rxtx()
 	local dev="$1"
 	local line
 
-	while read line; do {
+	while read -r line; do {
 		set -- $line
 
 		case "$1" in
@@ -75,7 +75,7 @@ _net_roaming_eventlistener()
 			}
 
 			for pid in $( pidof iw ); do {
-				read cmdline <"/proc/$pid/cmdline"
+				read -r cmdline <"/proc/$pid/cmdline"
 				[ "$cmdline" = 'iwevent' ] && {
 					_log do $funcname daemon info "[ERR] too much 'iw' instances, will not start"
 					return 1
@@ -107,7 +107,7 @@ _net_roaming_eventlistener()
 				elif [ -n "$pids2" ]; then
 					error='err2'
 					_log do $funcname daemon alert "still running 'iw'-instance $pids2"
-					read pid <"$pidfile"
+					read -r pid <"$pidfile"
 					kill $pid
 				else
 					return 0
@@ -138,7 +138,7 @@ _net_roaming_cleanup_cache()
 	# 00:21:6a:32:7c:1c 192.168.23.61 1433616647
 
 	# format: mac ip expires
-	while read line; do {
+	while read -r line; do {
 		set -- $line
 		test $3 -gt $unixtime && echo "$line"
 	} done <"$file" >"$file.tmp"
@@ -288,7 +288,7 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 		local hostname
 
 		[ -z "$mac" ] && return 1
-		read hostname 2>/dev/null <"$TMPDIR/MAC2HOSTNAME_$mac"
+		read -r hostname 2>/dev/null <"$TMPDIR/MAC2HOSTNAME_$mac"
 
 		while [ -z "$hostname" ]; do {
 			hostname="$( wget -qO - "$url" || sleep 3 )"
@@ -341,7 +341,7 @@ _net_count_wireless()
 			*'_max'|*'_*')
 			;;
 			*)
-				read clients <"$file"
+				read -r clients <"$file"
 				wifi_clients_sum=$(( wifi_clients_sum + clients ))
 			;;
 		esac
@@ -357,12 +357,12 @@ _net_count_wired()
 	local i=0
 
 	# see cisco_collect() IMPROVE!
-	list_noclients="$( grep -s ' MAC ' /tmp/cisco-AP* | cut -d' ' -f5 | tr 'A-Z' 'a-z' | while read line; do echo -n " $line"; done )"
+	list_noclients="$( grep -s ' MAC ' /tmp/cisco-AP* | cut -d' ' -f5 | tr 'A-Z' 'a-z' | while read -r line; do echo -n " $line"; done )"
 
 	# /proc/net/arp is not always correct
 	ip neigh show >"/tmp/$funcname"
 
-	while read line; do {
+	while read -r line; do {
 		set -- $line
 		ip="$1"
 		dev="$3"
@@ -409,7 +409,7 @@ _net_my_isp()
 		_wget do 'http://www.whoismyisp.org/' | sed -n "/ (ISP) is /s/^.*'\(.*\)'.*/\1/p" >"$cachefile"
 	}
 
-	read isp <"$cachefile"
+	read -r isp <"$cachefile"
 	[ -z "$isp" ] && rm "$cachefile"
 
 	echo "$isp"
@@ -425,7 +425,7 @@ _net_fulltrace()
 	nexthop="$1"
 	interface="$2"
 	speed="${3:-0}"
-	[ "$nexthop" = '?' ] && read nexthop <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
+	[ "$nexthop" = '?' ] && read -r nexthop <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
 
 	case "$interface" in
 		WAN|LAN)
@@ -488,7 +488,7 @@ _net_arp_reset()
 {
 	local line
 
-	while read line; do {
+	while read -r line; do {
 		# 10.63.196.161  0x1  0x6  00:10:75:2d:80:e1  *  eth0.1
 		set -- $line
 		_net arp_permanent "$1" "$4" "$6" 'reachable'
@@ -614,7 +614,7 @@ _net_ping6()
 	# -> look at 'ip neigh'
 
 	# e.g. 64 bytes from fe80::6670:2ff:fed3:240a: seq=0 ttl=64 time=2.187 ms
-	ping -6 -c1 "ff02::1%$dev" | grep ^'64 bytes' | cut -d' ' -f4 | while read line; do {
+	ping -6 -c1 "ff02::1%$dev" | grep ^'64 bytes' | cut -d' ' -f4 | while read -r line; do {
 		# remove last ":"
 		line="$( echo "$line" | sed 's/:$//' )"
 		# suppress my own
@@ -640,7 +640,7 @@ _net_dns_resolvconf_change_first_nameserver()
 		}
 	}
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			'nameserver '*)
 				if [ "$replaced" = 'false' ]; then
@@ -806,13 +806,13 @@ _net_refresh_dnshosts()		# this is mostly for getting recent values from nameser
 	# TODO: has_changed '/var/run/hosts_olsr' || return 0
 
 	for pid in $list_pids; do {
-		read cmdline <"/proc/$pid/cmdline"
+		read -r cmdline <"/proc/$pid/cmdline"
 
 		case "$cmdline" in
 			*'fakedns'*)
 			;;
 			*)
-				while read line; do {
+				while read -r line; do {
 					case "$line" in
 						'PPid:'*)
 							set -- $line
@@ -873,7 +873,7 @@ _net_dhcp_lease_remove()
 	# typical leasfile:
 	# 1397204975 f8:e0:79:de:e9:fc 10.10.12.6 anonymous-lan6-n12 *
 	# 1397204779 e4:ce:8f:0e:4f:9e 10.10.12.5 anonymous-lan5-n12 01:e4:ce:8f:0e:4f:9e
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			*" $mac "*)
 			;;
@@ -998,7 +998,7 @@ _net_ip2dns()
 
 	[ -n "$do_olsr" ] && {
 		[ -e '/var/run/hosts_olsr' ] && {
-			while read line; do {
+			while read -r line; do {
 				# 10.63.194.131   mid1.Sommerbar-Kamera   # 10.63.194.161 (mid #1)
 				set -- $line
 
@@ -1062,19 +1062,19 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 	# get mac from interface
 	case "$get_ip" in
 		$WIFIADR)
-			read mac 2>/dev/null <"/tmp/IP2MAC_${get_ip}" || mac="$( _net dev2mac "$WIFIDEV" )"
+			read -r mac 2>/dev/null <"/tmp/IP2MAC_${get_ip}" || mac="$( _net dev2mac "$WIFIDEV" )"
 		;;
 		$LANADR)
-			read mac 2>/dev/null <"/tmp/IP2MAC_${get_ip}" || mac="$( _net dev2mac "$LANDEV" )"
+			read -r mac 2>/dev/null <"/tmp/IP2MAC_${get_ip}" || mac="$( _net dev2mac "$LANDEV" )"
 		;;
 		$WANADR)
-			read mac 2>/dev/null <"/tmp/IP2MAC_${get_ip}" || mac="$( _net dev2mac "$WANDEV" )"
+			read -r mac 2>/dev/null <"/tmp/IP2MAC_${get_ip}" || mac="$( _net dev2mac "$WANDEV" )"
 		;;
 	esac
 
 	# get mac from arp-cache
 	[ -z "$mac" ] && {
-		while read line; do {
+		while read -r line; do {
 			set -- ${line:-unset}
 			ip="$1"
 			mac="$4"
@@ -1296,7 +1296,7 @@ _net_dev_is_valid()
 	local dev="$1"		# e.g. 'eth0.2'
 	local line
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			"$dev:"*|" $dev:"*|"  $dev:"*|"   $dev:"*|"    $dev:"*)
 				return 0
@@ -1394,7 +1394,7 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 		return 0
 	}
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			"$ip "*)
 				# 10.63.61.1  0x1  0x2  66:70:02:f3:90:6c  *  wlan1
@@ -1506,7 +1506,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 		'cached')
 			[ -e "$cachefile" ] || _net local_inet_offer >"$cachefile"
 
-			read cache <"$cachefile" && {
+			read -r cache <"$cachefile" && {
 				echo "$cache"
 
 				if [ "$cache" = 'false' ]; then
@@ -1591,7 +1591,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 #	logger -s "7: $7 4: $4 2: $2 = $N option: $option"
 
 	eval $( ip route list exact '0.0.0.0/0' | head -n1 |
-		while read N N D N PHYDEV METRIC N _; do {	# we must eval it, otherwise		// fixme! look for 'table all'?
+		while read -r N N D N PHYDEV METRIC N _; do {	# we must eval it, otherwise		// fixme! look for 'table all'?
 			echo PHYDEV=$PHYDEV			# the vars from subprocess are
 			echo METRIC=$METRIC			# not known
 			echo N=$N
@@ -1760,7 +1760,7 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 	}
 
 	[ -e "$FILE" -a "$proto_uptime_ok" = 'true' ] && {
-		read COST_INT <$FILE
+		read -r COST_INT <$FILE
 
 		test "$COST_INT" -gt $max_cost 2>/dev/null && {
 			_log do $funcname daemon alert "unstable inet1, cost_int: '$COST_INT' > $max_cost"
@@ -1814,10 +1814,10 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 	try_1()		# is filled during _netfiler_user_add() (macs are lowercase)
 	{
 		if [ -e "/tmp/MAC2IP_$MAC" ]; then
-			read IP <"/tmp/MAC2IP_$MAC"
+			read -r IP <"/tmp/MAC2IP_$MAC"
 		else
 			[ -e "/tmp/NETFILTER/MAC2IP/$MAC" ] && {
-				read IP <"/tmp/NETFILTER/MAC2IP/$MAC"
+				read -r IP <"/tmp/NETFILTER/MAC2IP/$MAC"
 			}
 		fi
 	}
@@ -1826,7 +1826,7 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 	{
 		local mac ip line
 
-		while read line; do {
+		while read -r line; do {
 			set $line
 			ip="$1"
 			mac="$( _sanitizer do "$4" lowercase )"
@@ -1884,7 +1884,7 @@ _net_mac2dev()
 
 	_sanitizer include
 
-	while read _ _ _ mac _ dev; do {
+	while read -r _ _ _ mac _ dev; do {
 		mac="$( _sanitizer do "$mac" lowercase )"
 
 		[ "$get_mac" = "$mac" ] && {
@@ -2069,5 +2069,5 @@ _net_active_ap_devices()
 {
 	local dev
 
-	grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read dev; do echo -n " $dev "; done
+	grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read -r dev; do echo -n " $dev "; done
 }

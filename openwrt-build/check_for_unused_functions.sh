@@ -8,7 +8,7 @@ count_occurence_of_string()
 
 	find . -type f >"$tempfile"
 
-	while read file; do {
+	while read -r file; do {
 		fgrep "$string" "$file"
 	} done <"$tempfile" | wc -l
 
@@ -22,8 +22,8 @@ list_all_function_names()
 
 	find . -type f >"$tempfile"
 
-	while read file; do {
-		while read line; do {
+	while read -r file; do {
+		while read -r line; do {
 			case "$line" in
 				*"()"*)
 					case "$line" in

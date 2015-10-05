@@ -161,12 +161,12 @@ _netfilter_traffic_control_show()
 	[ -n "$mac" ] && {
 		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
 		if [ -e "$file" ]; then
-			read _ _ _ _ _ down up _ <"$file"
+			read -r _ _ _ _ _ down up _ <"$file"
 			speed="$(( down / 1024 )):$(( up / 1024 ))"
 
 			file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
 			[ -e "$file" ] && {
-				read down up method <"$file"
+				read -r down up method <"$file"
 				[ "$method" = "initial" ] || {
 					speed="$speed -> $method -> $(( down / 1024 )):$(( up / 1024 ))"
 				}
@@ -193,7 +193,7 @@ _netfilter_traffic_control_show()
 		echo "${tab}}"
 
 		echo "${tab}filter {"
-		$TC filter show dev "$interface" | while read line; do {
+		$TC filter show dev "$interface" | while read -r line; do {
 			case "$line" in
 				*"match "*)
 					ip="$( echo "$line" | sed -n 's|^\(.*match \)\(..\)\(..\)\(..\)\(..\)/ffffffff\(.*\)|echo $((0x\2)).$((0x\3)).$((0x\4)).$((0x\5))|p' )"
@@ -209,7 +209,7 @@ _netfilter_traffic_control_show()
 						;;
 					esac
 
-					read mac <"/tmp/NETFILTER/IP2MAC/$ip"
+					read -r mac <"/tmp/NETFILTER/IP2MAC/$ip"
 					echo -n "${tab}${tab}${tab}# remove via: _"
 					echo    "netfilter traffic_control_user_del $mac"
 				;;
@@ -284,8 +284,8 @@ _netfilter_traffic_control_user_add()
 		}
 	}
 
-	read mac <"/tmp/NETFILTER/IP2MAC/$ip"
-	read users <"$file"
+	read -r mac <"/tmp/NETFILTER/IP2MAC/$ip"
+	read -r users <"$file"
 	case "$users" in
 		*"$mac"*)
 			_log do $funcname daemon info "$ip/$mac already shaped on this interface"
@@ -324,7 +324,7 @@ _netfilter_traffic_control_user_add()
 
 	# fixme! use a sieve, always fillup from bottom?
 	_watch counter "/tmp/TRAFFIC_CONTROL_users_$interface" increment 2
-	read i <"/tmp/TRAFFIC_CONTROL_users_$interface"
+	read -r i <"/tmp/TRAFFIC_CONTROL_users_$interface"
 	j=$(( i - 1 ))
 
 	# this is a helper for next function
@@ -475,7 +475,7 @@ _netfilter_traffic_control_autoapply_speedsuggest()
 		file="/tmp/NETFILTER/USER/$mac/traffic_control_params"
 		if [ -e "$file" ]; then
 			[ $traffic -lt $traffic_border_for_reaction ] && continue
-			read mac ip interface j i speed_down speed_up <"$file"
+			read -r mac ip interface j i speed_down speed_up <"$file"
 
 			percent="$( _netfilter traffic_control_suggest_speedpercent "$traffic" respect_time )"
 			params="$mac $ip $interface $j $i $speed_down $speed_up ${percent}% $speed_min"
@@ -527,13 +527,13 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 
 	case "$speed_down" in
 		"now"*)
-			read speed_down _ _ <"$file"
+			read -r speed_down _ _ <"$file"
 		;;
 	esac
 
 	case "$speed_up" in
 		"now"*)
-			read _ speed_up _ <"$file"
+			read -r _ speed_up _ <"$file"
 		;;
 	esac
 
@@ -604,7 +604,7 @@ _netfilter_traffic_control_user_del()
 	users_new=
 
 	[ -e "$file" ] && {
-		read users_old <"$file"
+		read -r users_old <"$file"
 		for some_mac in $users_old; do {
 			case "$some_mac" in
 				$mac)
@@ -719,7 +719,7 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 	esac
 
 	[ -e "$file_conntrack" ] || return 0
-	read old_max <"$file_conntrack"
+	read -r old_max <"$file_conntrack"
 
 	[ -z "$max" ] && {
 		max="$( _system ram_size )"		# kilobytes
@@ -734,7 +734,7 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 		echo "net.netfilter.nf_conntrack_max=${max}" >>"/etc/sysctl.conf"
 	}
 
-	read old_buckets <'/proc/sys/net/netfilter/nf_conntrack_buckets'
+	read -r old_buckets <'/proc/sys/net/netfilter/nf_conntrack_buckets'
 	buckets=$(( max / 8 ))
 	[ $buckets -gt 1816 ] && buckets=1816		# klog/moduleinfo says this is max
 
@@ -757,7 +757,7 @@ _netfilter_ipforwarding_start()
 	local kernel="/proc/sys/net/ipv4/ip_forward"
 	local state
 
-	read state <"$kernel"
+	read -r state <"$kernel"
 	echo "$state" >"/tmp/NETFILTER/FORWARDING_STATE_OLD"
 
 	_log do $funcname daemon info "writing 1 to $kernel"
@@ -772,7 +772,7 @@ _netfilter_ipforwarding_revert()
 	local state
 
 	[ -e "$file" ] && {
-		read state <"$file"
+		read -r state <"$file"
 
 		pidof olsrd >/dev/null && {
 			[ "$state" = "1" ] || {
@@ -969,7 +969,7 @@ _netfilter_portforwarding_request()
 			# ssh | http | https | rstp
 			for port in 22 80 443 554; do {
 				nc 2>/dev/null "$ip" "$port" </dev/null && {
-					read gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
+					read -r gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
 					option="portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host"
 					answer="$( _tool remote "$gateway" "$option" )"
 
@@ -1247,7 +1247,7 @@ _netfilter_fakedns_stop()
 	$IPT -t mangle -D INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
 	$IPT -t mangle -D INPUT -p udp --dport 53 -j MARK --set-mark 0x15
 
-	read pid <'/tmp/SERVICE/FAKEDNS.pid'
+	read -r pid <'/tmp/SERVICE/FAKEDNS.pid'
 	kill $pid
 	rm /tmp/SERVICE/FAKEDNS.*
 }
@@ -1398,7 +1398,7 @@ _netfilter_splash_autoadd()
 		}
 	fi
 
-	while read line; do {
+	while read -r line; do {
 		set -- ${line:-empty}
 		ip="$1"
 		mac="$4"
@@ -1434,7 +1434,7 @@ _netfilter_splash_batman_alien_unauth()
 			} done
 
 			for dev in $list_devs; do {
-				iw dev "$dev" station dump | while read line; do {
+				iw dev "$dev" station dump | while read -r line; do {
 					# Station ca:00:11:00:00:15 (on wlan0)
 					case "$line" in
 						'Station '*)
@@ -1548,7 +1548,7 @@ _netfilter_user_list()
 				comment="$( _db user_macenabled_comment_get "$mac" )"
 				vendor="$( _net mac2vendor "$mac" short )"
 
-				read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+				read -r ip <"/tmp/NETFILTER/MAC2IP/$mac"
 
 				# same length/space for all IP's
 				oct4="${ip##*.}"
@@ -1590,10 +1590,10 @@ _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
 {
 	local bytes_incoming=0
 	local mac line bytes_outgoing uptime rest
-	read uptime rest <"/proc/uptime"; uptime="${uptime%.*}"
+	read -r uptime rest <"/proc/uptime"; uptime="${uptime%.*}"
 
 	$IPT -t mangle -nxvL FORWARD |
-	 while read line; do {
+	 while read -r line; do {
 		case "$line" in
 			*'incoming_'*)
 				set -- $line
@@ -1942,7 +1942,7 @@ _netfilter_user_del()
 	}
 
 	[ -d "/tmp/NETFILTER/USER/$mac" ] && {
-		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+		read -r ip <"/tmp/NETFILTER/MAC2IP/$mac"
 
 		bool_true 'system.@weblogin[0].logtraffic' && {
 			comment="$reason $( _db user_macenabled_comment_get "$mac" )"
@@ -2128,7 +2128,7 @@ _netfilter_user_stats_process()
 			bytes_outgoing_old=0
 		}
 
-		while read line; do {
+		while read -r line; do {
 			set $line
 			uptime="$1"
 			bytes_incoming="$2"
@@ -2158,7 +2158,7 @@ _netfilter_user_stats_process()
 		# CBO = client bytes outgoing ("uploaded")
 		# CAH = client authentication hash
 
-		read ip </tmp/NETFILTER/MAC2IP/$mac
+		read -r ip </tmp/NETFILTER/MAC2IP/$mac
 		[ $(( bytes_incoming_sum + bytes_outgoing_sum )) -eq 0 ] && {
 #			_netfilter user_reachable "$mac" "$ip" >/dev/null || _netfilter user_del "$mac" 'no_traffic'
 
@@ -2166,7 +2166,7 @@ _netfilter_user_stats_process()
 		}
 
 		if [ -e "/tmp/vds_user_$mac" ]; then
-			read hash <"/tmp/vds_user_$mac"
+			read -r hash <"/tmp/vds_user_$mac"
 		else
 			hash=
 		fi

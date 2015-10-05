@@ -22,7 +22,7 @@ list_networks()
 {
 	local network
 
-	ls -1 /var/www/networks | while read network; do {
+	ls -1 /var/www/networks | while read -r network; do {
 		# allow symlinks, dont filter ' -> '
 		[ -n "$( ls -l /var/www/networks/$network/meshrdf/recent 2>/dev/null | grep -v ^'total' )" ] && {
 			echo "$network"
@@ -50,7 +50,7 @@ build_html_tarball()
 	log "[OK] build_html_tarball"
 
 	(
-	ls -l /var/www/networks/ | grep ^'d' | while read LINE; do {
+	ls -l /var/www/networks/ | grep ^'d' | while read -r LINE; do {
 		set -- $LINE
 		case "$9" in
 			*':'*)
@@ -181,7 +181,7 @@ gen_meshrdf_for_network()
 	}
 
 	respect_fileage && {
-		read hash_last <"$hash_file"	# = timestamp
+		read -r hash_last <"$hash_file"	# = timestamp
 
 		if [ "$hash_last" = "$hash_now" ]; then
 #			log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
@@ -307,7 +307,7 @@ for NET in $LIST; do {
 			reboot
 		}
 
-		read LOAD NOP </proc/loadavg
+		read -r LOAD NOP </proc/loadavg
 		case "$LOAD" in
 			0*)
 				break
@@ -491,7 +491,7 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 
 		FILE_CONTACT_DATA="/var/www/networks/$NETWORK/contact.txt"
 		if [ -e "$FILE_CONTACT_DATA" ]; then
-			read CONTACT_DATA <"$FILE_CONTACT_DATA"
+			read -r CONTACT_DATA <"$FILE_CONTACT_DATA"
 		else
 			CONTACT_DATA="bitte eintragen in $FILE_CONTACT_DATA"
 		fi

@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # manuell:
-#                 for D in $(ls -l /var/www/$SUB | grep ^d | while read LINE; do set -- $LINE; echo $9; done); do du -sh "/var/www/$D"     ; done
-# SUB='networks'; for D in $(ls -l /var/www/$SUB | grep ^d | while read LINE; do set -- $LINE; echo $9; done); do du -sh "/var/www/$SUB/$D"; done
+#                 for D in $(ls -l /var/www/$SUB | grep ^d | while read -r LINE; do set -- $LINE; echo $9; done); do du -sh "/var/www/$D"     ; done
+# SUB='networks'; for D in $(ls -l /var/www/$SUB | grep ^d | while read -r LINE; do set -- $LINE; echo $9; done); do du -sh "/var/www/$SUB/$D"; done
 
 
 BASEDIR="${1:-/var/www/networks}"
@@ -19,7 +19,7 @@ MAX_SIZE="5M"		# find-syntax
 for DIR in $( ls -1 "$BASEDIR" ); do {
 
 	find 2>/dev/null "$BASEDIR/$DIR" -type f -size +$MAX_SIZE |
-	 while read LINE; do {
+	 while read -r LINE; do {
 		case "$LINE" in
 			*"-vds"*|*".ulog"*)
 				[ "$OPTION" = "all" ] && ls -lh "$LINE"
@@ -38,7 +38,7 @@ list_networks()
 
 show_megabytes_only()
 {
-	while read LINE; do {
+	while read -r LINE; do {
 		set -- $LINE
 		case "$1" in
 			*'M'|*'G')
@@ -73,7 +73,7 @@ for NETWORK in $( list_networks ); do {
 echo "[READY] size media"
 
 echo
-echo "[START] size special"			# ls -1 | grep -v '01_' | while read LINE; do rm $LINE; done
+echo "[START] size special"			# ls -1 | grep -v '01_' | while read -r LINE; do rm $LINE; done
 for DIR in /root/backup/ejbw/pbx; do {
 	du -sh "$DIR" | show_megabytes_only
 } done

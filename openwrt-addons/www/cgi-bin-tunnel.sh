@@ -28,7 +28,7 @@ case "$ACTION" in
 			_watch counter "/tmp/tunnel_id" increment 1 max 65 || {		# fixme! set to 0 during nightly/kick_user_all()
 				throw_error_and_exit
 			}
-			read TUNNEL_ID <"/tmp/tunnel_id"
+			read -r TUNNEL_ID <"/tmp/tunnel_id"
 
 	#		eval $( _tunnel get_speed_for_hash "$HASH" "$MAC" )
 

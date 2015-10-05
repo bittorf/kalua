@@ -49,7 +49,7 @@ _wifi_dev2chanbw()
 	local chanbw=0
 	local phy
 
-	read phy 2>/dev/null <"/var/run/interfaces/dev2radio_$dev" && {
+	read -r phy 2>/dev/null <"/var/run/interfaces/dev2radio_$dev" && {
 		phy="${phy#*y}"		# phy1 -> 1
 		chanbw="$( uci -q get wireless.radio${phy}.chanbw )"
 		chanbw="${chanbw:-20}"
@@ -128,7 +128,7 @@ _wifi_get_station_param()
 	local dev="$( _net mac2dev "$mac" )"
 	local line
 
-	iw dev "$dev" station get "$mac" 2>/dev/null | while read line; do {
+	iw dev "$dev" station get "$mac" 2>/dev/null | while read -r line; do {
 		case "$line" in
 			*"$param:"*)
 				set -- $line
@@ -162,7 +162,7 @@ _wifi_show_station_traffic()
 	# while :; do eval $( _wifi show_station_traffic "$mac" $WIFIDEV $rx $tx $up ); sleep 60; done
 
 	iw dev "$dev" station get "$mac" |
-	 while read line; do {
+	 while read -r line; do {
 		case "$line" in
 			*"rx bytes:"*)
 				set -- $line
@@ -272,7 +272,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 		fi
 	}
 
-	while read line; do {
+	while read -r line; do {
 
 		case "$line" in
 			Type*|type*)
@@ -668,7 +668,7 @@ _wifi_speed()
 		if [ -e '/tmp/GATEWAY_CHECK_RECENT.batman' ]; then
 			nexthop="$( cut -d'=' -f3 /tmp/GATEWAY_CHECK_RECENT.batman 2>/dev/null | cut -d';' -f1 )"
 		else
-			read nexthop <'/tmp/OLSR/DEFGW_NOW'
+			read -r nexthop <'/tmp/OLSR/DEFGW_NOW'
 		fi
 	}
 
@@ -791,7 +791,7 @@ _wifi_phy_uptime()
 	local file="/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
 
 	[ -e "$file" ] && {
-		read last_restart <"$file"
+		read -r last_restart <"$file"
 	}
 
 	echo $(( uptime_now - last_restart ))
@@ -1022,7 +1022,7 @@ _wifi_phy_restart()
 
 	local line mac adduser
 	local userlist="$( _netfilter user_list )"
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			*"$wifi_dev")
 				set -- $line
@@ -1058,18 +1058,18 @@ _wifi_phy_restart()
 
 	local ip
 	for mac in $adduser; do {
-		read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+		read -r ip <"/tmp/NETFILTER/MAC2IP/$mac"
 		_netfilter set_arp permanent "$mac" "$ip" "$wifi_dev"
 	} done
 
 	local users
 	local file="/tmp/TRAFFIC_CONTROL_UP_${wifi_dev}"
 	[ -e "$file" ] && {
-		read users <"$file"
+		read -r users <"$file"
 		_netfilter traffic_control_stop
 
 		for mac in $users; do {
-			read ip <"/tmp/NETFILTER/MAC2IP/$mac"
+			read -r ip <"/tmp/NETFILTER/MAC2IP/$mac"
 			_netfilter traffic_control_user_add "$ip"
 		} done
 	}
@@ -1420,7 +1420,7 @@ _wifi_signal()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all s
 	[ -n "$mac" ] && option="get $mac"
 
 	iw dev $dev station $option |
-	 while read line; do {
+	 while read -r line; do {
 		case "$line" in
 			*"signal avg:"*)
 				set -- $line
@@ -1604,7 +1604,7 @@ _wifi_scan()
 	local dev="$1"		# e.g. wlan0
 	local line value remote
 
-	iw dev "$dev" scan | while read line; do {
+	iw dev "$dev" scan | while read -r line; do {
 		case "$line" in
 			# BSS 02:00:ca:fe:02:22(on wlan0)
 			'BSS '*)
@@ -1764,7 +1764,7 @@ _wifi_check_each_client()
 	for mac in $list_already_known_macs; do {		# fixme! writeout traffic_counter
 		station_is_valid "$mac" || {
 			up2="$( _system uptime sec )"
-			read up1 <"$statsdir/$mac"
+			read -r up1 <"$statsdir/$mac"
 			rm "$statsdir/$mac"
 			up_diff=$(( up2 - up1 ))
 
@@ -1810,7 +1810,7 @@ _wifi_bugreport_create()
 			echo
 
 			echo "### dmesg"
-			while read line; do {
+			while read -r line; do {
 				case "$line" in
 					*ath*|*wireless*|*wlan*)
 						echo "$line"

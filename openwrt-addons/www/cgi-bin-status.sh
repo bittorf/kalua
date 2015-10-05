@@ -67,7 +67,7 @@ output_table()
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
 	if [ -e '/tmp/OLSR/DEFGW_NOW' ]; then
-		read gateway <'/tmp/OLSR/DEFGW_NOW'
+		read -r gateway <'/tmp/OLSR/DEFGW_NOW'
 		[ "$gateway" = 'empty' ] && gateway=
 	else
 		gateway=
@@ -76,7 +76,7 @@ output_table()
 	all=0
 	for gw_file in /tmp/OLSR/DEFGW_[0-9]*; do {
 		[ -e "$gw_file" ] && {
-			read i <"$gw_file"
+			read -r i <"$gw_file"
 			all=$(( all + i ))
 		}
 	} done
@@ -100,7 +100,7 @@ output_table()
 		case "$word" in
 			'Gateway')
 				if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
-					read i <'/tmp/OLSR/DEFGW_empty'
+					read -r i <'/tmp/OLSR/DEFGW_empty'
 					[ $all -gt 0 ] && word="$word ($(( (i * 100) / all ))% Inselbetrieb)"
 				elif inet_offer="$( _net local_inet_offer cached )"; then
 					word="$word (Einspeiser: $inet_offer)"
@@ -134,7 +134,7 @@ output_table()
 
 		if [ -e "$cost_file" ]; then
 			cost_best_time="$( _file time "$cost_file" humanreadable )"
-			read cost_best <"$cost_file"
+			read -r cost_best <"$cost_file"
 		else
 			cost_best='&mdash;'
 		fi
@@ -146,7 +146,7 @@ output_table()
 		local cachefile="/tmp/build_remote_hostname_${remote_ip}"
 
 		[ -e "$cachefile" ] && {
-			read remote_hostname <"$cachefile"
+			read -r remote_hostname <"$cachefile"
 			return 0
 		}
 
@@ -204,7 +204,7 @@ output_table()
 	_olsr include
 	count=0
 	export COUNT		# shellcheck SC2034
-	while read line; do {
+	while read -r line; do {
 		# LOCAL=10.63.2.3;REMOTE=10.63.48.65;LQ=0.796;NLQ=0.000;COST=1.875;COUNT=$(( COUNT + 1 ))
 		eval $line
 
@@ -239,7 +239,7 @@ output_table()
 		esac
 
 		if [ -e "/tmp/OLSR/DEFGW_$REMOTE" ]; then
-			read i <"/tmp/OLSR/DEFGW_$REMOTE"
+			read -r i <"/tmp/OLSR/DEFGW_$REMOTE"
 			[ $all -gt 0 ] && gateway_percent=$(( (i * 100) / all ))
 			gateway_percent="${gateway_percent}%"		# TODO: sometimes >100%
 
@@ -533,7 +533,7 @@ EOF
 NODE_COUNT=0
 NODE_LIST=
 PARSE=
-while read LINE; do {
+while read -r LINE; do {
 	case "${PARSE}${LINE}" in
 		'Table: Topology')
 			PARSE='true-'
@@ -560,7 +560,7 @@ while read LINE; do {
 	esac
 } done <'/tmp/OLSR/ALL'
 
-read ROUTE_COUNT <'/tmp/OLSR/ROUTE_COUNT'
+read -r ROUTE_COUNT <'/tmp/OLSR/ROUTE_COUNT'
 
 if [ -e '/tmp/OLSR/ALL' ]; then
 	AGE_DATABASE="$( _file age '/tmp/OLSR/ALL' sec )"

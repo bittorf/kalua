@@ -21,7 +21,7 @@ PASS="$( _ssh key_public_fingerprint_get )"
 PASS="$( _sanitizer do "$PASS" urlvalue )"
 
 if [ -e '/www/monitoring.wifimac' ]; then
-	read MAC <'/www/monitoring.wifimac'
+	read -r MAC <'/www/monitoring.wifimac'
 else
 	MAC="$( _net dev2mac "$WIFIDEV" )"
 	MAC="$( _sanitizer do "$MAC" urlvalue )"

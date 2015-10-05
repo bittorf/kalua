@@ -85,13 +85,13 @@ list_architectures()
 	}
 
 	# target/linux/gemini/Makefile:LINUX_VERSION:=3.10.49 -> gemini
-	grep ^"LINUX_VERSION:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3 | while read line; do {
+	grep ^"LINUX_VERSION:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3 | while read -r line; do {
 		echo -n "$line "
 	} done
 
 	# since r43047
 	# KERNEL_PATCHVER:=3.10
-	grep ^"KERNEL_PATCHVER:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3 | while read line; do {
+	grep ^"KERNEL_PATCHVER:=${with_kernel}" target/linux/*/Makefile | cut -d'/' -f3 | while read -r line; do {
 		echo -n "$line "
 	} done
 }

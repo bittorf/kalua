@@ -38,7 +38,7 @@ case "$QUERY_STRING" in
 	;;
 	*)
 		# processed later via '/usr/sbin/cron.add_collected_userdata_into_db'
-		read UPTIME REST <'/proc/uptime'
+		read -r UPTIME REST <'/proc/uptime'
 		echo "UPTIME=${UPTIME%.*}&REMOTE_ADDR=${REMOTE_ADDR}&$QUERY_STRING" >>'/tmp/COLLECT_DATA'
 
 		# while we have a conversation anyway,

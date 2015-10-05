@@ -9,12 +9,12 @@
 case "${BUTTON}-${ACTION}" in
 	# wps = WiFi Protected Setup: http://wiki.openwrt.org/doc/uci/wireless#wps.options
 	'wps-pressed')
-		read UP REST </proc/uptime
+		read -r UP REST </proc/uptime
 		echo "${UP%.*}${UP#*.}" >'/tmp/BUTTON'
 	;;
 	'wps-released')
-		read UP REST </proc/uptime
-		read START 2>/dev/null <'/tmp/BUTTON' || START="${UP%.*}"
+		read -r UP REST </proc/uptime
+		read -r START 2>/dev/null <'/tmp/BUTTON' || START="${UP%.*}"
 
 		END="${UP%.*}${UP#*.}"
 		DIFF=$(( END - START ))
@@ -34,7 +34,7 @@ case "${BUTTON}-${ACTION}" in
 			local i=1
 
 			if [ -e "$file" ]; then
-				read _ i <"$file"
+				read -r _ i <"$file"
 				i=$(( i + 1 ))
 
 				killall madplay
@@ -44,7 +44,7 @@ case "${BUTTON}-${ACTION}" in
 			fi
 
 			# file generated during cron-startup
-			read DSPDEV <'/tmp/audioplayer.dev'
+			read -r DSPDEV <'/tmp/audioplayer.dev'
 
 			case "$i" in
 				2) url='soma.fm space-station http://sfstream1.somafm.com:2020' ;;

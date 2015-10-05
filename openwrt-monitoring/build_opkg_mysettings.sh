@@ -73,7 +73,7 @@ EOF
 
 		[ -e "$DIR_DATA_SOURCE/$MAC.hostname" ] && {
 			HOSTNAME=
-			read HOSTNAME <"$DIR_DATA_SOURCE/$MAC.hostname"
+			read -r HOSTNAME <"$DIR_DATA_SOURCE/$MAC.hostname"
 			[ -n "$HOSTNAME" ] && {
 				logger -s "$MAC.hostname -> $HOSTNAME"
 				echo "${TAB}${TAB}${TAB}hostname '$HOSTNAME'"
@@ -91,7 +91,7 @@ EOF
 
 #		[ -e "$DIR_DATA_SOURCE/$MAC.essid" ] && {
 #			ESSID=
-#			read ESSID <"$DIR_DATA_SOURCE/$MAC.essid"
+#			read -r ESSID <"$DIR_DATA_SOURCE/$MAC.essid"
 #			[ -n "$ESSID" ] && {
 #				logger -s "$MAC.essid -> $ESSID"
 #				echo "${TAB}${TAB}${TAB}essid '$ESSID'"

@@ -8,7 +8,7 @@ OPTION="$2"
 	exit
 }
 
-cat "$FILE" | sed 's/;/\n/g' | while read LINE; do {
+cat "$FILE" | sed 's/;/\n/g' | while read -r LINE; do {
 	case "$OPTION" in
 		"neighs")
 			case "$LINE" in

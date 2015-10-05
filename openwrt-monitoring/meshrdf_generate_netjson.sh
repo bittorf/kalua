@@ -382,7 +382,7 @@ for FILE in NULL; do {
 
 	log "neigh: $NEIGH"
 
-	echo "$NEIGH" | while read LINE; do {
+	echo "$NEIGH" | while read -r LINE; do {
 
 		case "$LINE" in
 			[=~-]*)
@@ -440,7 +440,7 @@ ip2id()
 	local ip="$1"
 	local file='map.temp.ip2id'
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			"$ip "*)
 				set -- $line
@@ -458,7 +458,7 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 	file_ok "$FILE" || continue
 
 	echo "$NEIGH" | sed 's/[=~-]/\n&/g' >"/tmp/links_$$"
-	while read LINE; do {
+	while read -r LINE; do {
 		[ -z "$LINE" ] && continue
 
 		NDEV="$(   func_interpret_neigh 'ndev'   "$LINE" )"	# e.g. '-' or '~'

@@ -18,7 +18,7 @@
 # b0rken:
 # 1bcf:0b01 = 'Sunplus Innovation Technology Inc.'
 
-# eval $( ls -laR /tmp/motion | while read LINE; do set -- ${LINE:-0}; echo "SIZE=\$(( SIZE + ${5:-0} ));"; done ); echo $SIZE; du -s /tmp/motion
+# eval $( ls -laR /tmp/motion | while read -r LINE; do set -- ${LINE:-0}; echo "SIZE=\$(( SIZE + ${5:-0} ));"; done ); echo $SIZE; du -s /tmp/motion
 # http://stackoverflow.com/questions/12293853/how-to-use-ffmpeg-timestamp-syntax
 # http://ffmpeg.org/trac/ffmpeg/wiki/x264EncodingGuide
 # mplayer -tv driver=v4l2:device=/dev/video0 tv://
@@ -94,7 +94,7 @@ EOF
 force_apply_config()
 {
 	local pid memtotal x y
-	read _ memtotal _ <'/proc/meminfo'
+	read -r _ memtotal _ <'/proc/meminfo'
 
 	if [ $memtotal -gt 32768 ]; then
 		x=1280
@@ -165,7 +165,7 @@ storage_is()			# measure low/high-jump
 	set -- $( df | grep "/webcam"$ )
 	STORAGE_FREE="${5%%%*}"			# global var
 
-	while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;ram_free=$(((M+$2)*1024));break;esac;done</proc/meminfo
+	while read -r L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;ram_free=$(((M+$2)*1024));break;esac;done</proc/meminfo
 
 	_log do $funcname daemon info "webcam: percent_used: $STORAGE_FREE% mode: '$mode' - ram: $ram_free bytes"
 	[ $ram_free -lt $lowram ] && return 0		# simulates "storage full"
@@ -212,8 +212,8 @@ RUN_ENCODER=
 if [ -n "$RUN_ENCODER" ]; then
 	. /tmp/loader
 
-	read STARTDATE <"/tmp/webcam.start"
-	read STARTUNIX <"/tmp/webcam.startunix"
+	read -r STARTDATE <"/tmp/webcam.start"
+	read -r STARTUNIX <"/tmp/webcam.startunix"
 	FILENAME="/tmp/cam_${NODENUMBER}-stream-id_${STARTUNIX}-$( date +%Y_%b_%d )-from_${STARTDATE}_to_$( date +%Hh%Mm ).mp4"
 	store_startdate
 
@@ -226,7 +226,7 @@ if [ -n "$RUN_ENCODER" ]; then
 	COUNT=$( wc -l </tmp/webcam_rename )
 
 	I=0
-	while read LINE; do {
+	while read -r LINE; do {
 		FILE="/webcam/img_$(( COUNT - I )).ffmpeg.jpg"
 		echo "mv '$LINE' '$FILE'; LIST_DELETEABLE=\"\$LIST_DELETEABLE $FILE\"; "
 		I=$(( I + 1 ))
@@ -340,7 +340,7 @@ else
 	# /webcam/06-20140203112306-01.jpg -> /webcam/06
 	for FILE in "/webcam/"[0-9]*;do :; done			# get last file / highest number
 	EVENT_RECENT="$( echo "$FILE" | cut -d'-' -f1 )"
-	[ -e "/tmp/webcam_last_event" ] && read EVENT_LAST <'/tmp/webcam_last_event'
+	[ -e "/tmp/webcam_last_event" ] && read -r EVENT_LAST <'/tmp/webcam_last_event'
 
 	[ "${EVENT_RECENT:=/webcam/snap}" != "$EVENT_LAST" -o -n "$FORCE" ] && {
 		[ -z "$FORCE" ] && {

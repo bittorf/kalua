@@ -21,7 +21,7 @@
 
 
 # TODO:
-# for FILE in $( find /var/www/networks/ffweimar/meshrdf/recent -type f ); do . $FILE; echo $NODE; done | sort -n | uniq | while read LINE; do test $LINE -lt 970 && echo "$LINE"; done >/var/www/networks/ffweimar/all_nodes.txt
+# for FILE in $( find /var/www/networks/ffweimar/meshrdf/recent -type f ); do . $FILE; echo $NODE; done | sort -n | uniq | while read -r LINE; do test $LINE -lt 970 && echo "$LINE"; done >/var/www/networks/ffweimar/all_nodes.txt
 
 log()		# tail -f /var/log/messages
 {
@@ -365,7 +365,7 @@ last_remote_addr()
 }
 
 LAST_REMOTE_ADDR="$( last_remote_addr )"
-read SUM_WIRELESS_CLIENTS <'/tmp/SUM_WIRELESS_CLIENTS'
+read -r SUM_WIRELESS_CLIENTS <'/tmp/SUM_WIRELESS_CLIENTS'
 echo "$(date) | $SUM_WIRELESS_CLIENTS" >>"/var/www/networks/$NETWORK/media/SUM_WIRELESS_CLIENTS.txt"
 
 cd "/var/www/networks/$NETWORK/meshrdf"				# fixme! or better use absolute paths everywhere?
@@ -414,7 +414,7 @@ echo	>>$TOOLS '# NN="\$( nvram get fff_node_number )";nvram get wan_hostname >/t
 echo    >>$TOOLS 'EOF'
 echo    >>$TOOLS ''
 echo    >>$TOOLS "chmod +x script.sh && grep -v ^# script.sh | sed -e 's/^[ ]*//g' -e 's/^[	]*//g' -e '/^$/d'"
-echo    >>$TOOLS 'echo "really upload this file? press ENTER to go or CTRL+C to cancel";read KEY'
+echo    >>$TOOLS 'echo "really upload this file? press ENTER to go or CTRL+C to cancel";read -r KEY'
 echo	>>$TOOLS ''
 echo	>>$TOOLS 'ping_failed_10times() {'
 echo	>>$TOOLS '	local i n=0'
@@ -1184,7 +1184,7 @@ func_cell_hostname ()
 	}
 
 	if [ -e "../settings/$WIFIMAC.hostname" ]; then
-		read HOSTNAME_ENFORCED <"../settings/$WIFIMAC.hostname"
+		read -r HOSTNAME_ENFORCED <"../settings/$WIFIMAC.hostname"
 	else
 		HOSTNAME_ENFORCED=
 	fi
@@ -2109,11 +2109,11 @@ _cell_lastseen()
 #		logger -s "ueberfaellig: $HOSTNAME border: $border lastseen: $LASTSEEN"
 
 		if [ -e "${smsfile}.lastsend" ]; then
-			read sms_timestamp <"${smsfile}.lastsend"
+			read -r sms_timestamp <"${smsfile}.lastsend"
 			sms_time=$(( ($UNIXTIME_SCRIPTSTART - $sms_timestamp) / 60 ))	# how much minutes ago?
 			bgcolor="yellow"
 		elif [ -e "${smsfile}.sms" ]; then
-			read sms_number <"${smsfile}.sms"
+			read -r sms_number <"${smsfile}.sms"
 			bgcolor="yellow"
 		else
 			bgcolor="crimson"
@@ -2285,7 +2285,7 @@ _cell_sensitivity()
 		*)         key=50000 ;;
 	esac
 
-	sens="$( echo "$sens" | while read line; do echo -n "$line"; done )"
+	sens="$( echo "$sens" | while read -r line; do echo -n "$line"; done )"
 
 	case "$sens" in
 		*'/'*)
@@ -2420,7 +2420,7 @@ global_wired_neigh_color()
 #	mkdir -p "$dir"
 
 	if [ -e "$file" ]; then
-		read color <"$file"
+		read -r color <"$file"
 	else
 		color="yellow"
 	fi
@@ -3614,7 +3614,7 @@ ADDLINK="$ADDLINK/<a href='https://${LAST_REMOTE_ADDR}${PORT443}/$TRAFFIC'>Traff
 
 case $NETWORK in
 	ejbw-pbx)
-		read LAST_REMOTE_ADDR </var/www/networks/ejbw/meshrdf/recent/002590382edc.pubip
+		read -r LAST_REMOTE_ADDR </var/www/networks/ejbw/meshrdf/recent/002590382edc.pubip
 	;;
 esac
 
@@ -3650,7 +3650,7 @@ monitoring_data_per_day()
 
 UNIXTIME_SCRIPTREADY="$( date +%s )"
 if [ -e "/tmp/lastready/$NETWORK.lastready" ]; then
-	read UNIXTIME_SCRIPTLASTREADY <"/tmp/lastready/$NETWORK.lastready"
+	read -r UNIXTIME_SCRIPTLASTREADY <"/tmp/lastready/$NETWORK.lastready"
 else
 	UNIXTIME_SCRIPTLASTREADY="$UNIXTIME_SCRIPTREADY"
 fi
@@ -3742,8 +3742,8 @@ show_screenshots()
 				width='240px'	# 601 / 2.5
 				height='180px'	# 451 / 2.5
 				linkdest="/var/www/networks/$NETWORK/settings/$mac.screenshot.jpg.link"
-				[ -e "$linkdest" ] && read linkdest <"$linkdest"
-#				[ -e "$linkdest.link" ] && read linkdest <"$linkdest.link"
+				[ -e "$linkdest" ] && read -r linkdest <"$linkdest"
+#				[ -e "$linkdest.link" ] && read -r linkdest <"$linkdest.link"
 			;;
 		esac
 
@@ -3780,7 +3780,7 @@ show_rrdimages()
 	local source="/dev/shm/rrd/$NETWORK/rrd_images"
 
 	if [ -e "$source" ]; then
-		while read file; do {
+		while read -r file; do {
 			echo "<img border='0' alt='$file' src='$LB/media/$file'>"
 		} done <"$source"
 	else
@@ -3824,7 +3824,7 @@ bla()
 {
 	local line p1 p2 p p_old
 
-	sort "${FILE_FAILURE_OVERVIEW}.tmp" | while read line; do {
+	sort "${FILE_FAILURE_OVERVIEW}.tmp" | while read -r line; do {
 		p1="$( echo "$line" | cut -d'-' -f1 )"
 		p2="$( echo "$line" | cut -d'-' -f1 )"
 		p="${p1}-${p2}"		# HausA-1234

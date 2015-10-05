@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# while read LINE; do set -- $LINE; echo "_mail send 'newsletter XY' wlan-assistance@gmx.de '$3 $4' $( for M in $LINE; do :; done; echo $M | sed 's/[<>]//g' ) /tmp/newsletter.txt"; echo "sleep 60"; done </tmp/.muttrc_alias >/tmp/doit.sh
+# while read -r LINE; do set -- $LINE; echo "_mail send 'newsletter XY' wlan-assistance@gmx.de '$3 $4' $( for M in $LINE; do :; done; echo $M | sed 's/[<>]//g' ) /tmp/newsletter.txt"; echo "sleep 60"; done </tmp/.muttrc_alias >/tmp/doit.sh
 
 _mail_stash_for_later_resend()
 {
@@ -50,7 +50,7 @@ _mail_pop3_check_stats()
 	local uptime="$( _system uptime sec )"
 	local uptime_lastcheck
 	[ "$option" = "force" ] && rm "$file"
-	[ -e "$file" ] && read uptime_lastcheck <"$file"
+	[ -e "$file" ] && read -r uptime_lastcheck <"$file"
 
 	[ $(( uptime - ${uptime_lastcheck:-0} )) -le 180 ] && {
 		_log do $funcname daemon debug "no need to auth"
@@ -61,7 +61,7 @@ _mail_pop3_check_stats()
 
 	answer="$( echo -e "USER $user\nPASS $pass\nSTAT\nQUIT\n" | $netcat_bin $server $port )"
 	rc_netcat=$?
-	answer_short="$( echo "$answer" | cut -d' ' -f1 | while read line; do echo -n "$line"; done )"	# removes LF/CR
+	answer_short="$( echo "$answer" | cut -d' ' -f1 | while read -r line; do echo -n "$line"; done )"	# removes LF/CR
 
 	case "$answer_short" in			# normal answer:
 		"+OK+OK+OK+OK+OK"*)		# +OK POP server ready H migmx104
@@ -90,7 +90,7 @@ _mail_send_newsletter()
 	local emailbody="/tmp/$funcname.$$"
 	local line email firstname lastname subject
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			*'@'*|'#'*)
 				# list of emails or comments
@@ -106,7 +106,7 @@ _mail_send_newsletter()
 		esac
 	} done <"$file"
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			*'@'*)
 				set -- $line	# e.g.: <email@domain.tld> Full Name
@@ -262,7 +262,7 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	 sed	-e "s#\$VAR1#$VAR1#g" \
 		-e "s#\$VAR2#$VAR2#g" \
 	 	-e "s#\$VAR3#$VAR3#g" |
-	  while read LINE; do {
+	  while read -r LINE; do {
 	  	_do "$LINE"
 	  } done
 
@@ -375,13 +375,13 @@ _mail_send_mailfile()
 	sanitize_server_answer ()		# add '+' and remove LF/CR
 	{
 		echo "$1" |
-		 while read LINE; do {
+		 while read -r LINE; do {
 		 	_log do $FUNC daemon info "SERVER: $LINE"
 		 } done
 
 		echo "$1" |
 		 cut -d' ' -f1 |
-		  while read LINE; do {
+		  while read -r LINE; do {
 		  	[ -n "$LINE" ] && {
 		  		echo -n "+$LINE"
 		  	}
@@ -449,7 +449,7 @@ _mail_send_mailfile()
 			esac
 		;;
 		*)
-			read ERROR <"$ERRORFILE"
+			read -r ERROR <"$ERRORFILE"
 			rm "$ERRORFILE"
 
 			_log do $FUNC user info "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - debug file '$MAILFILE'"
@@ -489,8 +489,8 @@ _mail_encode_quoted_printable()		# http://en.wikipedia.org/wiki/Quoted-printable
 	local oldifs="$IFS"
 	IFS="
 "
-#	sed -e 's/	$/=09/' -e 's/ $/=20/' -e 's/$/=0A/' "$FILE" | while read LINE; do {
-	sed -e 's/=/=3D/g' -e 's/$/=00/' "$FILE" | while read LINE; do {
+#	sed -e 's/	$/=09/' -e 's/ $/=20/' -e 's/$/=0A/' "$FILE" | while read -r LINE; do {
+	sed -e 's/=/=3D/g' -e 's/$/=00/' "$FILE" | while read -r LINE; do {
 		while true; do {
 			case "$LINE" in
 				"."*) LINE="=2E$( echo "$LINE" | cut -b 2- )"

@@ -7,7 +7,7 @@ echo "<html><head><title>myinfo :: $HOSTNAME :: $CONFIG_PROFILE</title></head><b
 
 MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 	_netfilter user_probe "$MAC" && {
-		_netfilter user_list verbose "$MAC" | while read LINE; do {
+		_netfilter user_list verbose "$MAC" | while read -r LINE; do {
 			case "$LINE" in
 				"#"*)
 				;;
@@ -61,7 +61,7 @@ if [ -e '/tmp/BATCTL_TRACEROUTE' ]; then
 	batctl traceroute "$GATEWAY"
 	echo '</pre>'
 else
-	read GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
+	read -r GATEWAY </tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY
 
 	echo "<h3>Routenverfolgung zum Gateway '$GATEWAY' zum Zeitpunkt $( _system date humanreadable pretty )</h3>"
 	echo "<pre>$( traceroute $GATEWAY )</pre>"

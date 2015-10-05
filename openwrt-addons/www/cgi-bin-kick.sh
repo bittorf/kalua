@@ -11,7 +11,7 @@ else
 
 	[ -e "/tmp/vds_user_$CMA" ] || exit 1
 
-	read HASH <"/tmp/vds_user_$CMA"
+	read -r HASH <"/tmp/vds_user_$CMA"
 	[ "$HASH" = "$CAH" ] || exit
 
 	echo >>$SCHEDULER "_netfilter user_del $CMA kick_user"

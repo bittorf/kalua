@@ -12,19 +12,19 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	local frames_now frames_diff frames_average frames_average_overall uptime_now interval line value valid val1 val2
 
 	[ -z "$uptime_now" ] && {
-		read uptime_now interval </proc/uptime
+		read -r uptime_now interval </proc/uptime
 		uptime_now="${uptime_now%.*}"
 	}
 
-	read frames_old uptime_old <"$file_old" || echo -e "0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0" >"$file_window"	# prefill
-	read frames_now <"$file_source" || return 0	# maybe no debugfs
+	read -r frames_old uptime_old <"$file_old" || echo -e "0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0" >"$file_window"	# prefill
+	read -r frames_now <"$file_source" || return 0	# maybe no debugfs
 	echo "$frames_now $uptime_now" >"$file_old"
 
 	interval=$(( uptime_now - uptime_old ))
 	frames_diff=$(( frames_now - frames_old ))
 	frames_average=$(( frames_diff / interval ))
 
-	while read line; do {
+	while read -r line; do {
 		if [ -n "$value" ]; then
 			test $line -eq 0 || {
 				value=$(( value + line ))

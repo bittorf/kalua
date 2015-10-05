@@ -1,8 +1,8 @@
 #!/bin/sh
 #if /sbin/uci get system.@system[0].hostname >/dev/console; then	# test something essential
 if true; then								# will be activated during cron-startup
-	read UP REST </proc/uptime
-	read LOAD REST </proc/loadavg
+	read -r UP REST </proc/uptime
+	read -r LOAD REST </proc/loadavg
 else
 	UP=999999999
 fi
@@ -21,7 +21,7 @@ fi
 echo "${UP%.*}${UP#*.}" >'/tmp/CRON_LASTCALL'
 
 [ -e '/tmp/LOAD_SIMULATE' ] && {
-	read LOAD <'/tmp/LOAD_SIMULATE'		# e.g. '0.50' or '0.50 keep'
+	read -r LOAD <'/tmp/LOAD_SIMULATE'		# e.g. '0.50' or '0.50 keep'
 	case "$LOAD" in
 		*' keep')
 			LOAD="${LOAD% *}"
@@ -93,8 +93,8 @@ pidof()
 # uncomment to collect 1) date 2) lockstatus 3) network-traffic and 4) freemem/uptime/load 5) taskcount and 6) dump into '/tmp/CRONSTATUS'
 #1# REST="$( date ) "
 #2# [ -e /tmp/CRON_LOCK ] && REST="$REST [LOCKED] "
-#3# while read L;do case $L in *wlan*)set $L;REST="$REST $1 rx:$2/$3 tx:${10}/${11} ";;esac;done</proc/net/dev
-#4# while read L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;REST="$REST mem:$(((M+$2)*1024)) up:$UP load:$LOAD";break;esac;done</proc/meminfo
+#3# while read -r L;do case $L in *wlan*)set $L;REST="$REST $1 rx:$2/$3 tx:${10}/${11} ";;esac;done</proc/net/dev
+#4# while read -r L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;REST="$REST mem:$(((M+$2)*1024)) up:$UP load:$LOAD";break;esac;done</proc/meminfo
 #5# REST="$REST tasks: $( wc -l </tmp/CRON_PSWORK )"
 #6# echo "$REST" >>/tmp/CRONSTATUS
 #7# see /etc/kalua/scheduler: scheduler_add() and uncomment the last line in function
@@ -142,7 +142,7 @@ case "$LOAD" in
 		. /usr/sbin/cron.check_klog
 
 		if [ -e "/tmp/CRON_OVERLOAD" ]; then
-			read I <"/tmp/CRON_OVERLOAD"
+			read -r I <"/tmp/CRON_OVERLOAD"
 		else
 			I=
 		fi
@@ -165,7 +165,7 @@ case "$LOAD" in
 		_watch monitoring
 
 		[ -e '/tmp/CRON_OVERLOAD' ] && {
-			read I <'/tmp/CRON_OVERLOAD'
+			read -r I <'/tmp/CRON_OVERLOAD'
 			case "$I" in
 				"#"*)
 					rm '/tmp/CRON_OVERLOAD'
@@ -182,7 +182,7 @@ case "$LOAD" in
 		. /usr/sbin/cron.check_klog
 
 		[ -e "/tmp/CRON_OVERLOAD" ] && {
-			read I <"/tmp/CRON_OVERLOAD"
+			read -r I <"/tmp/CRON_OVERLOAD"
 			case "$I" in
 				"#"*)
 					rm "/tmp/CRON_OVERLOAD"
@@ -210,7 +210,7 @@ case "$LOAD" in
 			case "$LOAD" in
 				0.00|0.01|0.02)
 					echo -n '#' >>'/tmp/CRON_UNDERLOAD'
-					read I <'/tmp/CRON_UNDERLOAD'
+					read -r I <'/tmp/CRON_UNDERLOAD'
 					[ ${#I} -gt 90 ] && {
 						bool_true 'system.@system[0].avoid_autoreboot' || _system crashreboot 'underload'
 
@@ -273,7 +273,7 @@ case "$LOAD" in
 	;;
 	*)
 		if [ -e "/tmp/CRON_OVERLOAD" ]; then
-			read I <"/tmp/CRON_OVERLOAD"
+			read -r I <"/tmp/CRON_OVERLOAD"
 		else
 			echo -n '#' >>"/tmp/CRON_OVERLOAD"
 			I="#"
@@ -335,4 +335,4 @@ case "$LOAD" in
 	;;
 esac
 
-# read UP2 REST </proc/uptime; REST=$(( ${UP2%.*} - ${UP%.*} )); test $REST -gt 58 && echo "ALERT: $( date ) longexec: $REST sec, up: $UP load: $LOAD" >>/www/everlasting_syslog.txt
+# read -r UP2 REST </proc/uptime; REST=$(( ${UP2%.*} - ${UP%.*} )); test $REST -gt 58 && echo "ALERT: $( date ) longexec: $REST sec, up: $UP load: $LOAD" >>/www/everlasting_syslog.txt

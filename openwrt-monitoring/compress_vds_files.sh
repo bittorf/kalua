@@ -3,7 +3,7 @@
 # - log/log schrumpfen
 #
 # /etc/init.d/apache2 stop
-# find /var/www/networks -type f -name meshrdf.txt | while read FILE; do rm $FILE; touch $FILE; chmod 777 $FILE; done
+# find /var/www/networks -type f -name meshrdf.txt | while read -r FILE; do rm $FILE; touch $FILE; chmod 777 $FILE; done
 # /etc/init.d/apache2 start
 #
 #
@@ -79,12 +79,12 @@ for NETWORK in $LIST_NETWORKS; do {
 	log "[START] working on $NETWORK: $( free_diskspace ) in dir: '$( pwd )'"
 
 	find . -size -500c | fgrep "db_backup.tgz_" |
-	 while read FILE; do {
+	 while read -r FILE; do {
 		log "deleting too small db-backup: $FILE <500 bytes"
 		rm -f "$FILE"
 	 } done
 
-	ls -1 *.tar | while read TAR; do {
+	ls -1 *.tar | while read -r TAR; do {
 		ls -l ./$TAR
 		lzma ./$TAR
 	} done
