@@ -2905,7 +2905,7 @@ unittest_do()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
-			# SC2162: read without -r will mangle backslashes.
+# NEXT			# SC2163: read without -r will mangle backslashes.
 			# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
 			# SC2165: This parent loop has its index variable overridden.
 			#         This nested loop overrides the index variable of its parent.
