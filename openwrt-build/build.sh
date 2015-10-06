@@ -2717,27 +2717,27 @@ check_scripts()
 
 		case "$mimetype" in
 			'text/plain')
-				log "[OK] will not check '$mimetype' file '$file'" debug
+				log "[OK] will NOT check '$mimetype' file '$file'" debug
 			;;
 			'inode/x-empty'|'application/x-empty')
-				log "[OK] will not check empty file '$file'" debug
+				log "[OK] will NOT check empty file '$file'" debug
 			;;
 			'text/html')
 				# w3c-markup-validator + https://github.com/ysangkok/w3c-validator-runner -> always fails?
 				# tidy works: http://www.html-tidy.org/
 				if which tidy >/dev/null; then
-					log "checking $mimetype / $file"
+					log "checking '$mimetype' / $file"
 					tidy -errors "$file" 2>/dev/null || return 1
 				else
-					log "[OK] will not check '$mimetype' file '$file'" debug
+					log "[OK] will NOT check '$mimetype' file '$file'" debug
 				fi
 			;;
 			'text/x-php')
 				if which php >/dev/null; then
-					log "checking $mimetype / $file"
+					log "checking '$mimetype' / $file"
 					php -l "$file" || return 1
 				else
-					log "[OK] will not check '$mimetype' file '$file'" debug
+					log "[OK] will NOT check '$mimetype' file '$file'" debug
 				fi
 			;;
 			'text/x-c'|'text/x-c++')
@@ -2745,18 +2745,18 @@ check_scripts()
 				if which cppcheck >/dev/null; then
 					cppcheck "$file" || return 1
 				else
-					log "[OK] will not check '$mimetype' file '$file'" debug
+					log "[OK] will NOT check '$mimetype' file '$file'" debug
 				fi
 			;;
 			'application/javascript')
 				# TODO:
 				# http://stackoverflow.com/questions/1802478/running-v8-javascript-engine-standalone
 				# http://www.quora.com/What-can-be-used-to-unit-test-JavaScript-from-the-command-line
-				log "[OK] will not check '$mimetype' file '$file'" debug
+				log "[OK] will NOT check '$mimetype' file '$file'" debug
 			;;
 			'image/gif')
 				# imagemagick?
-				log "[OK] will not check gfx file '$file'" debug
+				log "[OK] will NOT check gfx file '$file'" debug
 			;;
 			'application/octet-stream'|'application/x-gzip'|'text/x-diff'|'application/x-executable')
 				log "[OK] will not check binary file '$file'" debug
@@ -2796,6 +2796,30 @@ myarch()
 	dpkg --print-architecture
 }
 
+travis_prepare()
+{
+	mount	# debug
+	ip address show
+
+	sudo apt-get -y install sloccount
+	sudo apt-get -y install tidy
+
+	# TODO: install our own .deb
+	# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
+	sudo apt-get -y install cabal-install
+	cabal update
+	cabal install cabal-install
+
+	# needs about 15 mins
+	git clone https://github.com/koalaman/shellcheck.git
+	cd shellcheck || return
+	cabal install
+	cd - || return
+
+	export PATH="$HOME/.cabal/bin:$PATH"
+	which shellcheck || return 1
+}
+
 unittest_do()
 {
 	local funcname='unittest_do'
@@ -2807,8 +2831,6 @@ unittest_do()
 	else
 		build_loader="$KALUA_DIRNAME/openwrt-addons/etc/kalua_init"
 	fi
-
-	[ -n "$TRAVIS" ] && mount	# debug
 
 	log '[START]'
 	log "building loader: $build_loader"
@@ -2822,7 +2844,6 @@ unittest_do()
 		log 'build initial NETPARAM'
 		openwrt-addons/etc/init.d/S41build_static_netparam call
 		cat '/tmp/NETPARAM' || touch '/tmp/NETPARAM'
-		[ -n "$TRAVIS" ] && ip address show
 
 		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace'
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
@@ -2857,26 +2878,6 @@ unittest_do()
 		_system load 1min full || return 1
 		_system load || return 1
 
-		[ -n "$TRAVIS" ] && {
-#			wget -O 'shellsheck.deb' "http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-4_$( myarch ).deb"
-#			sudo dpkg -i 'shellsheck.deb'
-
-			# TODO: install our own .deb
-			# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
-			sudo apt-get install cabal-install
-			cabal update
-			cabal install cabal-install
-
-			# needs about 15 mins
-			git clone https://github.com/koalaman/shellcheck.git
-			cd shellcheck || return
-			cabal install
-			cd - || return
-
-			export PATH="$HOME/.cabal/bin:$PATH"
-			which shellcheck || return 1
-		}
-
 		shellcheck_bin="$( which shellcheck )"
 		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
 
@@ -2898,8 +2899,6 @@ unittest_do()
 			# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
-#			# SC2018: Use '[:lower:]' to support accents and foreign alphabets.
-#			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
@@ -2908,8 +2907,7 @@ unittest_do()
 			shellsheck_ignore()
 			{
 				printf 'SC1007,SC1010,SC1090,SC1091'
-				printf ',SC2046,SC2086,SC2088,SC2030,SC2031'
-				printf ',SC2016,SC2029,SC2039,SC2155,SC2162,SC2166'
+				printf ',SC2046,SC2086,SC2088,SC2030,SC2031,SC2016,SC2029,SC2039,SC2155,SC2162,SC2166'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
@@ -2993,12 +2991,7 @@ unittest_do()
 		if which sloccount; then
 			sloc
 		else
-			if [ -n "$TRAVIS" ]; then
-				sudo apt-get -y install sloccount
-				sloc
-			else
-				log '[OK] sloccount not installed'
-			fi
+			log '[OK] sloccount not installed'
 		fi
 
 		log 'cleanup'
@@ -3084,10 +3077,12 @@ while [ -n "$1" ]; do {
 				log "wget --no-check-certificate -O $0 '$URL'"
 			}
 		;;
+		'--travis_prepare')
+			travis_prepare || exit 1
+			STOP_PARSE='true'
+		;;
 		'--unittest')
-			unittest_do
-
-			test $? -eq 0 || exit 1
+			unittest_do || exit 1
 			STOP_PARSE='true'
 		;;
 		'--help'|'-h')
