@@ -1612,13 +1612,21 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 #	N="${7:-${4:-$2}}"
 #	logger -s "7: $7 4: $4 2: $2 = $N option: $option"
 
-	eval $( ip route list exact '0.0.0.0/0' | head -n1 |
-		while read -r N N D N PHYDEV METRIC N _; do {	# we must eval it, otherwise		// fixme! look for 'table all'?
-			echo PHYDEV=$PHYDEV			# the vars from subprocess are
-			echo METRIC=$METRIC			# not known
+	# we must eval it, otherwise
+	# // fixme! look for 'table all'?
+	# the vars from subprocess are
+	# not known
+	# fixme! better use 'eval $( ip route list exact 0.0.0.0/0 | sed 'xyz' )'
+
+	ip route list exact '0.0.0.0/0' | head -n1 >"$TMPDIR/$funcname"
+
+	eval $(
+		while read -r N N D N PHYDEV METRIC N _; do {
+			echo PHYDEV=$PHYDEV
+			echo METRIC=$METRIC
 			echo N=$N
-			echo D=$D				# fixme! better use 'eval $( ip route list exact 0.0.0.0/0 | sed 'xyz' )'
-		} done
+			echo D=$D
+		} done <"$TMPDIR/$funcname"
 	)
 
 	[ "$METRIC" = "src" ] && METRIC=			# lan-offer via alias-interface
