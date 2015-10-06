@@ -11,7 +11,7 @@ IPKG_NAME="sshpubkeys"
 BASE="/var/www/networks/$NETWORK"
 
 [ "$2" = "?" ] && {
-	while read -r LINE; do {
+	while read LINE; do {
 
 		case "$LINE" in
 			*": $IPKG_NAME")

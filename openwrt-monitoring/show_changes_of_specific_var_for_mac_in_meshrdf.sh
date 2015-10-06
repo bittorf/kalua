@@ -24,7 +24,7 @@ unixtime2date()		# needs 'gawk' NOT the 'mawk'
 	awk -v UNIXTIME="$1" 'BEGIN { print strftime("%c", UNIXTIME) }'
 }
 
-while read -r LINE; do {
+while read LINE; do {
 	LINECOUNT=$(( $LINECOUNT + 1 ))
 
 	case "$LINE" in

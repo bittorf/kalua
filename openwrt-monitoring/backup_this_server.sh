@@ -39,11 +39,11 @@ list_networks()
 		echo "$ARG2"
 	else
 		# sort: network with smallest size first
-		ls -1 /var/www/networks | while read -r network; do {
+		ls -1 /var/www/networks | while read network; do {
 			[ -n "$( ls -l /var/www/networks/$network/meshrdf/recent 2>/dev/null | fgrep -v ' -> ' | grep -v ^'total' )" ] && {
 				du -s "/var/www/networks/$network"
 			}
-		} done | sort -n | while read -r line; do set -- $line; basename "$2"; done
+		} done | sort -n | while read line; do set -- $line; basename "$2"; done
 	fi
 }
 
@@ -63,7 +63,7 @@ esac
 
 case "$ARG" in
 	'checksize')
-		list_networks | while read -r LINE; do {
+		list_networks | while read LINE; do {
 			du -s "/var/www/networks/$LINE"
 		} done
 
@@ -93,7 +93,7 @@ case "$ARG" in
 		log "using ARG2 = $ARG"
 	;;
 	'')
-		# read -r IP </var/www/networks/liszt28/meshrdf/recent/76ea3ae44a96.pubip
+		# read IP </var/www/networks/liszt28/meshrdf/recent/76ea3ae44a96.pubip
 		# NAS: port10022:bastian@${IP}:daten/bla/incoming-backup/intercity-vpn
 		# results in:
 		# scp -P 10022 BACKUP/* bastian@${IP}:daten/bla/incoming-backup/intercity-vpn

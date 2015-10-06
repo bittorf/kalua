@@ -222,7 +222,7 @@ FILELIST="$( find recent/ -type f 2>/dev/null | grep "[0-9a-f][0-9a-f][0-9a-f][0
 cat <<EOF
 {
 	"type": "NetworkGraph",
-	"label": "bittorf wireless ))",
+	"label": "bittorf wireless )) with <a href='http://netjson.org'>netJSON.org</a>",
 	"protocol": "OLSR",
 	"topology_id": "$NETWORK@$(date)",
 	"version": "1",
@@ -382,7 +382,7 @@ for FILE in NULL; do {
 
 	log "neigh: $NEIGH"
 
-	echo "$NEIGH" | while read -r LINE; do {
+	echo "$NEIGH" | while read LINE; do {
 
 		case "$LINE" in
 			[=~-]*)
@@ -440,7 +440,7 @@ ip2id()
 	local ip="$1"
 	local file='map.temp.ip2id'
 
-	while read -r line; do {
+	while read line; do {
 		case "$line" in
 			"$ip "*)
 				set -- $line
@@ -458,7 +458,7 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 	file_ok "$FILE" || continue
 
 	echo "$NEIGH" | sed 's/[=~-]/\n&/g' >"/tmp/links_$$"
-	while read -r LINE; do {
+	while read LINE; do {
 		[ -z "$LINE" ] && continue
 
 		NDEV="$(   func_interpret_neigh 'ndev'   "$LINE" )"	# e.g. '-' or '~'

@@ -38,7 +38,7 @@ for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 
 	# FIXME! '2.6' has not much changelogs - it does not work...
 
-	wget -qO - "$URL" | while read -r LINE; do {
+	wget -qO - "$URL" | while read LINE; do {
 		# e.g.
 		# <a href="ChangeLog-3.0.12">ChangeLog-3.0.12</a>
 		# <a href="ChangeLog-3.0.12.sign">ChangeLog-3.0.12.sign</a>
@@ -72,7 +72,7 @@ for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 						fi
 
 						DATE_WELLFORMED=
-						wget -qO - "$URL/$LINK" | while read -r LINE; do {
+						wget -qO - "$URL/$LINK" | while read LINE; do {
 							case "$LINE" in
 								'Date:'*)
 									set -- $LINE; shift

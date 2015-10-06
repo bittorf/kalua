@@ -39,7 +39,7 @@ for FILE in $( ls -1 *.ipk ); do {
 	case "$OPTION" in
 		strip)
 			LINE=
-			grep -v ^" " control | grep -v "^$" | while read -r LINE; do {
+			grep -v ^" " control | grep -v "^$" | while read LINE; do {
 				case "${LINE%: *}" in
 					Package|Version)
 						echo "$LINE" >>"$OUT"

@@ -21,7 +21,7 @@ OUI="$HEX$HEX-$HEX$HEX-$HEX$HEX"
 ALL=0
 NEW=0
 
-while read -r LINE; do {
+while read LINE; do {
 	case "$LINE" in
 		"")
 			if [ -n "$LINE1" ]; then

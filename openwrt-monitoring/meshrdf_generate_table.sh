@@ -21,7 +21,7 @@
 
 
 # TODO:
-# for FILE in $( find /var/www/networks/ffweimar/meshrdf/recent -type f ); do . $FILE; echo $NODE; done | sort -n | uniq | while read -r LINE; do test $LINE -lt 970 && echo "$LINE"; done >/var/www/networks/ffweimar/all_nodes.txt
+# for FILE in $( find /var/www/networks/ffweimar/meshrdf/recent -type f ); do . $FILE; echo $NODE; done | sort -n | uniq | while read LINE; do test $LINE -lt 970 && echo "$LINE"; done >/var/www/networks/ffweimar/all_nodes.txt
 
 log()		# tail -f /var/log/messages
 {
@@ -34,11 +34,11 @@ log()		# tail -f /var/log/messages
 	
 
 #	echo "${NETWORK:-network_unset}: $1" >>/tmp/log_monitoring.txt
-	logger -t $0 -p user.info "$message"
+	logger -t $0 -p user.info -s "$message"
 }
 
 TMPDIR='/var/run/kalua'		# is 'tmpfs'
-mkdir -p "$TMPDIR"
+mkdir -p "$TMPDIR"		# TODO: root must do initially this + chmod -R 777 /var/run/kalua
 
 UNIXTIME_SCRIPTSTART="$( date +%s )"
 
@@ -235,7 +235,7 @@ LOCALUNIXTIME="$UNIXTIME_SCRIPTSTART"
 
 OUT="$TMPDIR/meshrdf_temp_$$"
 
-# fixme! why do they exist?
+# FIXME! why do they exist?
 ls -1t "$TMPDIR/meshrdf_temp_"* 2>/dev/null | grep -v "$( date "+ %b %d " )" | sed 's/^/rm /' >"$TMPDIR/RM"
 command . "$TMPDIR/RM" && rm "$TMPDIR/RM"
 
@@ -281,7 +281,7 @@ USECASE_FILE="$TMPDIR/networks/$NETWORK/usecase.txt"
 log "start network '$NETWORK' for IP: '$REMOTE_ADDR'"
 
 case "$NETWORK" in
-	zumnorde)
+	'zumnorde')
 		echo  >$OUT '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 		echo >>$OUT '	"http://www.w3.org/TR/html4/loose.dtd">'
 		echo >>$OUT '<html><head><meta http-equiv="content-type" content="text/html; charset=UTF-8">'
@@ -298,6 +298,7 @@ case "$NETWORK" in
 	;;
 esac
 
+log "TARBALL_TIME=$TARBALL_TIME (before tarball)"
 FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
 [ -e "$FILE" ] && {
 	mkdir "$TMPDIR/untar"
@@ -319,6 +320,8 @@ FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
 	TARBALL_TIME="$KALUA_VERSION_TESTING"
 #	echo "<!-- KALUA_VERSION_TESTING=$TARBALL_TIME -->"
 }
+
+log "TARBALL_TIME=$TARBALL_TIME (after tarball)"
 
 touch "/tmp/DETECTED_FAULTY_$NETWORK"
 
@@ -365,7 +368,7 @@ last_remote_addr()
 }
 
 LAST_REMOTE_ADDR="$( last_remote_addr )"
-read -r SUM_WIRELESS_CLIENTS <'/tmp/SUM_WIRELESS_CLIENTS'
+read SUM_WIRELESS_CLIENTS <'/tmp/SUM_WIRELESS_CLIENTS'
 echo "$(date) | $SUM_WIRELESS_CLIENTS" >>"/var/www/networks/$NETWORK/media/SUM_WIRELESS_CLIENTS.txt"
 
 cd "/var/www/networks/$NETWORK/meshrdf"				# fixme! or better use absolute paths everywhere?
@@ -414,7 +417,7 @@ echo	>>$TOOLS '# NN="\$( nvram get fff_node_number )";nvram get wan_hostname >/t
 echo    >>$TOOLS 'EOF'
 echo    >>$TOOLS ''
 echo    >>$TOOLS "chmod +x script.sh && grep -v ^# script.sh | sed -e 's/^[ ]*//g' -e 's/^[	]*//g' -e '/^$/d'"
-echo    >>$TOOLS 'echo "really upload this file? press ENTER to go or CTRL+C to cancel";read -r KEY'
+echo    >>$TOOLS 'echo "really upload this file? press ENTER to go or CTRL+C to cancel";read KEY'
 echo	>>$TOOLS ''
 echo	>>$TOOLS 'ping_failed_10times() {'
 echo	>>$TOOLS '	local i n=0'
@@ -1184,7 +1187,7 @@ func_cell_hostname ()
 	}
 
 	if [ -e "../settings/$WIFIMAC.hostname" ]; then
-		read -r HOSTNAME_ENFORCED <"../settings/$WIFIMAC.hostname"
+		read HOSTNAME_ENFORCED <"../settings/$WIFIMAC.hostname"
 	else
 		HOSTNAME_ENFORCED=
 	fi
@@ -2109,11 +2112,11 @@ _cell_lastseen()
 #		logger -s "ueberfaellig: $HOSTNAME border: $border lastseen: $LASTSEEN"
 
 		if [ -e "${smsfile}.lastsend" ]; then
-			read -r sms_timestamp <"${smsfile}.lastsend"
+			read sms_timestamp <"${smsfile}.lastsend"
 			sms_time=$(( ($UNIXTIME_SCRIPTSTART - $sms_timestamp) / 60 ))	# how much minutes ago?
 			bgcolor="yellow"
 		elif [ -e "${smsfile}.sms" ]; then
-			read -r sms_number <"${smsfile}.sms"
+			read sms_number <"${smsfile}.sms"
 			bgcolor="yellow"
 		else
 			bgcolor="crimson"
@@ -2285,7 +2288,7 @@ _cell_sensitivity()
 		*)         key=50000 ;;
 	esac
 
-	sens="$( echo "$sens" | while read -r line; do echo -n "$line"; done )"
+	sens="$( echo "$sens" | while read line; do echo -n "$line"; done )"
 
 	case "$sens" in
 		*'/'*)
@@ -2420,7 +2423,7 @@ global_wired_neigh_color()
 #	mkdir -p "$dir"
 
 	if [ -e "$file" ]; then
-		read -r color <"$file"
+		read color <"$file"
 	else
 		color="yellow"
 	fi
@@ -3240,7 +3243,9 @@ esac
 
 	good_git_color()
 	{
-		case "$1" in
+		local rev="${1:-0}"
+
+		case "$rev" in
 			28879|29366)			# brcm47xx + ar71xx
 				echo "$COLOR_BRIGHT_ORANGE"
 			;;
@@ -3258,26 +3263,26 @@ esac
 				echo "$COLOR_DARK_GREEN"
 			;;
 			*)
-				if   [ $1 -ge 34794 -a $1 -lt 34815 ]; then
+				if   [ $rev -ge 34794 -a $rev -lt 34815 ]; then
 					func_update2color 'bad_version:broken_sysupgrade'
-				elif [ $1 -ge 40293 -a $1 -lt 40503 ]; then
+				elif [ $rev -ge 40293 -a $rev -lt 40503 ]; then
 					func_update2color 'bad_version:broken_wifi_regdb'
-				elif [ $1 -ge 45040 -a $1 -lt 45189 ]; then
+				elif [ $rev -ge 45040 -a $rev -lt 45189 ]; then
 					func_update2color 'bad_version:uci_broken'
-				elif [ $1 -ge 44918 -a $1 -lt 45790 ]; then
+				elif [ $rev -ge 44918 -a $rev -lt 45790 ]; then
 					# reset to defaults / firstboot by accident
 					# https://dev.openwrt.org/ticket/19564
 					# internally fixed since ~45790
 					func_update2color 'bad_version:fstools_broken'
-#				elif [ $1 -ge 44946 -a $1 -lt 45579 ]; then
+#				elif [ $rev -ge 44946 -a $rev -lt 45579 ]; then
 #					# fixed in /tmp/loader and used from r45579+
 #					# https://dev.openwrt.org/ticket/19539 - visible on dualradio-routers
 #					func_update2color 'bad_version:uci_lists_broken'
-				elif [ $1 -gt 46435 ]; then
+				elif [ $rev -gt 46435 ]; then
 					# https://dev.openwrt.org/ticket/20556
 					# needs more testing, something with linklocal IPv4/macvlan does not work
 					func_update2color 'bad_version:macvlanIPv4_broken'
-				elif [ $1 -gt 44150 ]; then
+				elif [ $rev -gt 44150 ]; then
 					func_update2color 'testing'
 				else
 					return 1
@@ -3328,7 +3333,7 @@ esac
 	# kernel
 	echo -n "<td bgcolor='$( kernel_color "$v1" )' $sortkey title='$title'><small>$kmajor</small></td>"
 	# git
-	echo -n "<td bgcolor='$( good_git_color $v2 )'><small>$v2</small></td>"	
+	echo -n "<td bgcolor='$( good_git_color "$v2" )'><small>$v2</small></td>"	
 
 cell_ram()				# fixme! this must be a graph, which is red/green
 {					# fixme! convert all to kilobytes
@@ -3614,7 +3619,7 @@ ADDLINK="$ADDLINK/<a href='https://${LAST_REMOTE_ADDR}${PORT443}/$TRAFFIC'>Traff
 
 case $NETWORK in
 	ejbw-pbx)
-		read -r LAST_REMOTE_ADDR </var/www/networks/ejbw/meshrdf/recent/002590382edc.pubip
+		read LAST_REMOTE_ADDR </var/www/networks/ejbw/meshrdf/recent/002590382edc.pubip
 	;;
 esac
 
@@ -3650,7 +3655,7 @@ monitoring_data_per_day()
 
 UNIXTIME_SCRIPTREADY="$( date +%s )"
 if [ -e "/tmp/lastready/$NETWORK.lastready" ]; then
-	read -r UNIXTIME_SCRIPTLASTREADY <"/tmp/lastready/$NETWORK.lastready"
+	read UNIXTIME_SCRIPTLASTREADY <"/tmp/lastready/$NETWORK.lastready"
 else
 	UNIXTIME_SCRIPTLASTREADY="$UNIXTIME_SCRIPTREADY"
 fi
@@ -3742,8 +3747,8 @@ show_screenshots()
 				width='240px'	# 601 / 2.5
 				height='180px'	# 451 / 2.5
 				linkdest="/var/www/networks/$NETWORK/settings/$mac.screenshot.jpg.link"
-				[ -e "$linkdest" ] && read -r linkdest <"$linkdest"
-#				[ -e "$linkdest.link" ] && read -r linkdest <"$linkdest.link"
+				[ -e "$linkdest" ] && read linkdest <"$linkdest"
+#				[ -e "$linkdest.link" ] && read linkdest <"$linkdest.link"
 			;;
 		esac
 
@@ -3780,7 +3785,7 @@ show_rrdimages()
 	local source="/dev/shm/rrd/$NETWORK/rrd_images"
 
 	if [ -e "$source" ]; then
-		while read -r file; do {
+		while read file; do {
 			echo "<img border='0' alt='$file' src='$LB/media/$file'>"
 		} done <"$source"
 	else
@@ -3811,11 +3816,11 @@ EOF
 
 echo >>$OUT "</body></html>"
 
-log "copying '$OUT' ('$( ls -l "$OUT" )') to '$REAL_OUT.temp' pwd: '$(pwd)'"
+log "copying '$OUT' = ('$( ls -l "$OUT" )') to '$REAL_OUT.temp' pwd: '$(pwd)'"
 cp "$OUT" "$REAL_OUT.temp" 2>/tmp/uuu2 1>/tmp/uuu1 >/tmp/uuu || log "error copy: $? $( cat /tmp/uuu /tmp/uuu1 /tmp/uuu2 )"
 rm /tmp/uuu /tmp/uuu1 /tmp/uuu2
 rm "$OUT" || log "error remove"
-log "copying '$REAL_OUT.temp' ('$(  ls -l "$REAL_OUT.temp" )') to '$REAL_OUT'"
+log "copying '$REAL_OUT.temp' = ('$(  ls -l "$REAL_OUT.temp" )') to '$REAL_OUT'"
 cp "$REAL_OUT.temp" "$REAL_OUT" 2>/tmp/uuu2 1>/tmp/uuu1 >/tmp/uuu || log "error copy: $? $( cat /tmp/uuu /tmp/uuu1 /tmp/uuu2 )"
 rm /tmp/uuu /tmp/uuu1 /tmp/uuu2
 log "see here: '$( ls -l "$REAL_OUT" )'"
@@ -3824,7 +3829,7 @@ bla()
 {
 	local line p1 p2 p p_old
 
-	sort "${FILE_FAILURE_OVERVIEW}.tmp" | while read -r line; do {
+	sort "${FILE_FAILURE_OVERVIEW}.tmp" | while read line; do {
 		p1="$( echo "$line" | cut -d'-' -f1 )"
 		p2="$( echo "$line" | cut -d'-' -f1 )"
 		p="${p1}-${p2}"		# HausA-1234

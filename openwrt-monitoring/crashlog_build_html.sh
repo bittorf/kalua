@@ -1,6 +1,6 @@
 #!/bin/sh
 
-read -r t1 trash </proc/uptime
+read t1 trash </proc/uptime
 [ -d '/tmp/crashlogs' ] || {
 	mkdir -p '/tmp/crashlogs'
 	chmod -R 777 '/tmp/crashlogs'
@@ -88,7 +88,7 @@ EOF
 
 html_foot()
 {
-	read -r t2 trash </proc/uptime
+	read t2 trash </proc/uptime
 	# dash cannot do this
 	# duration=$(( ${t2//./} - ${t1//./} ))
 	duration=$(( $( echo $t2 | sed 's/\.//' ) - $( echo $t1 | sed 's/\.//' ) ))
@@ -133,7 +133,7 @@ call_trace()
 	local file="$1"
 	local start line
 
-	while read -r line; do {
+	while read line; do {
 		case "${line}${start}" in
 			*[0-9]"]1")
 				break
@@ -194,7 +194,7 @@ html_tablecontent()
 	for id in $( list_ids ); do {
 		file="/tmp/crashlogs/crash-${id}.txt"
 #test "$id" = "1356093945" && logger -s "working $id"
-		read -r revision <"$file"
+		read revision <"$file"
 		case "$revision" in
 			r*)
 				case "$LIST_OMIT_REV" in
@@ -211,7 +211,7 @@ html_tablecontent()
 			;;
 		esac
 
-#		while read -r kernel kernel; do 
+#		while read kernel kernel; do 
 
 		unixtime_file="$( stat --printf %Y "$file" )"
 		size="$( sed -n '6,999p' "$file" | strings | wc -c )"

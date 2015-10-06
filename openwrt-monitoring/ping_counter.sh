@@ -12,7 +12,7 @@
 
 # helper:
 # pruefen wo ist welche IP: IP='1.2.3.4'
-# iptables -nxvL myping | while read -r LINE; do set -- $LINE; case "$3" in 'myping_'*) iptables -nxvL $3 | fgrep "$IP" && echo "$3" ;; esac; done
+# iptables -nxvL myping | while read LINE; do set -- $LINE; case "$3" in 'myping_'*) iptables -nxvL $3 | fgrep "$IP" && echo "$3" ;; esac; done
 #
 # entfernen mit:
 # iptables -D myping_ejbw-pbx -s "$IP" -j ACCEPT
@@ -282,7 +282,7 @@ fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if t
 	esac
 
 	[ -e "/dev/shm/pingcheck/$NETWORK.lastnewip" ] && {
-		read -r lastnewip <"/dev/shm/pingcheck/$NETWORK.lastnewip"
+		read lastnewip <"/dev/shm/pingcheck/$NETWORK.lastnewip"
 		lastnewip_diff=$(( $(date +%s) - $lastnewip ))
 		# 86400 -/+ 2400 = 84000 / 88800
 		[ $lastnewip_diff -gt 84000 -a $lastnewip_diff -lt 88800 ] && ignore="last_ip_renew: $lastnewip_diff sec"
@@ -466,7 +466,7 @@ add_new_ipaddresses_from_network()
 		local rc=1
 		local line
 
-		iptables -nxvL myping | while read -r line; do {
+		iptables -nxvL myping | while read line; do {
 			set -- $line
 
 			case "$3" in
@@ -549,7 +549,7 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 
 	I=$( count_pings "$NETWORK" )
 	mkdir -p /dev/shm/pingcheck
-	read -r COUNTER_OLD <"/dev/shm/pingcheck/$NETWORK"
+	read COUNTER_OLD <"/dev/shm/pingcheck/$NETWORK"
 	# for testing ping, do:
 	# echo 99999 >"/dev/shm/pingcheck/$NETWORK"
 	# touch /tmp/SIMULATE_FAIL				// see fetch_testfile()
@@ -623,8 +623,8 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 		log "$NETWORK: received pings: old/new = $COUNTER_OLD/$I"
 	else
 		if [ -e "/dev/shm/pingcheck/$NETWORK.lastnewip" ]; then
-			read -r ip        2>/dev/null <"/dev/shm/pingcheck/$NETWORK.recent_ip"
-			read -r lastnewip             <"/dev/shm/pingcheck/$NETWORK.lastnewip"
+			read ip        2>/dev/null <"/dev/shm/pingcheck/$NETWORK.recent_ip"
+			read lastnewip             <"/dev/shm/pingcheck/$NETWORK.lastnewip"
 			UNIXTIME_NOW="$( date +%s )"
 			DIFF=$(( ($UNIXTIME_NOW - $lastnewip) / 3600 ))
 			DIFF="$DIFF hours"

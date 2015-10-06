@@ -97,7 +97,7 @@ chmod 777 $FILE
 FILE="${FILE}.workingcopy"
 
 
-while read -r LINE; do {
+while read LINE; do {
 
 	log "attempting to eval \"$LINE\""
 	eval "$LINE"
