@@ -229,6 +229,22 @@ _net_roaming_mac2ip()
 	fi
 }
 
+_net_roaming_cache_cleanup()		# TODO: locking, remove double entries, if a mac has new entries - take only this
+{
+	local file='/tmp/roaming'
+	local tempfile="$file.$$"
+	local unixtime="$( date +%s )"
+	local line
+
+	while read -r line; do {
+		# mac ip expires
+		set -- $line
+		[ $3 -gt $unixtime ] && echo "$line"
+	} done <"$file" >"$tempfile"
+
+	mv "$tempfile" "$file"
+}
+
 _net_roaming_report_new()
 {
 	local mac="$1"
@@ -240,6 +256,7 @@ _net_roaming_report_new()
 
 	if _weblogin authserver is_myself; then
 		echo "$mac $ip $expires" >>"$file"
+		echo >>$SCHEDULER '_net roaming_cache_cleanup'
 	else
 		authserver="$( _weblogin authserver )"
 		query="action=roaming_add&mac=${mac//:/%3a}&ip=$ip&expires=$expires"
