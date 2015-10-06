@@ -2902,7 +2902,7 @@ unittest_do()
 			# SC2019: Use '[:upper:]' to support accents and foreign alphabets. => our 'tr' does not support it?
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
-			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
+#			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
 
@@ -2910,7 +2910,7 @@ unittest_do()
 			{
 				printf 'SC1007,SC1010,SC1090,SC1091'
 				printf ',SC2046,SC2086,SC2018,SC2019,SC2088,SC2030,SC2031'
-				printf ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC2166'
+				printf ',SC2016,SC2029,SC2039,SC2155,SC2162,SC2166'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
