@@ -2798,8 +2798,11 @@ myarch()
 
 travis_prepare()
 {
+	echo
 	mount	# debug
+	echo
 	ip address show
+	echo
 
 	sudo apt-get -y install sloccount
 	sudo apt-get -y install tidy
@@ -2995,7 +2998,7 @@ unittest_do()
 		fi
 
 		log 'cleanup'
-		rm -fR /tmp/loader /tmp/kalua
+		rm -fR /tmp/loader /tmp/kalua /tmp/NETPARAM
 
 		log '[READY]'
 	}
@@ -3223,16 +3226,13 @@ openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 feeds_adjust_version "$FEEDSTIME"
 
 SPECIAL_OPTIONS=
-if [ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$USECASE" -a "$HARDWARE_MODEL" ]; then
+[ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$USECASE" -a "$HARDWARE_MODEL" ] && \
 	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${USECASE}_${HARDWARE_MODEL}"
-else
-	log "[OK] will not write .config backup: VERSION_OPENWRT='$VERSION_OPENWRT' USECASE='$USECASE' HARDWARE_MODEL='$HARDWARE_MODEL'"
-fi
 
 if [ -e "$BACKUP_DOTCONFIG" ]; then
 	log "[OK] will use already existing '.config' file: '$BACKUP_DOTCONFIG'"
 else
-	log "[OK] building .config"
+	log "[OK] building .config - VERSION_OPENWRT='$VERSION_OPENWRT' USECASE='$USECASE' HARDWARE_MODEL='$HARDWARE_MODEL'"
 	target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 	copy_additional_packages		|| die_and_exit
 	build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
