@@ -2812,10 +2812,12 @@ travis_prepare()
 	cabal install cabal-install
 
 	# needs about 15 mins
-	git clone https://github.com/koalaman/shellcheck.git
-	cd shellcheck || return
-	cabal install
-	cd - || return
+	(
+		cd "$TMPDIR" || return 1
+		git clone https://github.com/koalaman/shellcheck.git
+		cd shellcheck || return
+		cabal install
+	)
 
 	export PATH="$HOME/.cabal/bin:$PATH"
 	which shellcheck || return 1
