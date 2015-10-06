@@ -2058,7 +2058,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	local channels="$2"	# 36...165 or minimal: 36...40
 	local node_list="$3"	# 100 101  or minimal: 100
 
-	local channel_start channel_ready channel chanbw mac ip node file bssid quality
+	local channel_start channel_ready channel chanbw mac ip node node2 file bssid quality
 	local channel_initial chanbw_initial bssid_initial
 
 	e()
@@ -2151,10 +2151,10 @@ _wifi_longshot_test()		# only works with single-radio devices
 				e "[TIME] LINKed? - ip: $ip mac: $mac"
 				if [ $node -eq $NODENUMBER ]; then
 					# we download now from the X others
-					for node in $node_list; do {
-						[ $node -eq $NODENUMBER ] && continue
+					for node2 in $node_list; do {
+						[ $node2 -eq $NODENUMBER ] && continue
 
-						ip="$( _ipsystem getvar 'WIFIADR' $node )"
+						ip="$( _ipsystem getvar 'WIFIADR' "$node2" )"
 
 						if ping -q -c1 $ip; then
 							e "ping to $ip ok"
@@ -2162,12 +2162,12 @@ _wifi_longshot_test()		# only works with single-radio devices
 							e "error ping to $ip"
 						fi
 
-						e "we/$NODENUMBER downloading from $node/$ip : $( _wifi speed force $ip )"
+						e "we/$NODENUMBER downloading from $node2/$ip : $( _wifi speed force $ip )"
 					} done
 				else
 					# the others download from me:
-					for node in $node_list; do {
-						e "waiting, node $node should downloads now"
+					for node2 in $node_list; do {
+						e "waiting, node $node2 should downloads now"
 
 						if ping -q -c1 $ip; then
 							e "ping to $ip ok"
@@ -2179,17 +2179,17 @@ _wifi_longshot_test()		# only works with single-radio devices
 					wait_till_time ':50'
 					e "[TIME] looking for downloads/minstrel"
 
-					for node in $node_list; do {
-						ip="$( _ipsystem getvar 'WIFIADR' $node )"
+					for node2 in $node_list; do {
+						ip="$( _ipsystem getvar 'WIFIADR' "$node2" )"
 						mac="$( _net ip2mac "$ip" )"
 
 						# is generated during www/cgi-bin-tool.sh
 						file="$( ls -1 /tmp/STATS/minstrel_*_$mac )"
-						e "node: $node ip: $ip mac: $mac file: '$( ls -l "$file" )'"
+						e "node: $node2 ip: $ip mac: $mac file: '$( ls -l "$file" )'"
 
 						if [ -e "$file" ]; then
 							e "station dump: $mac fage: $( _file age "$file" ) fage2: $( _file age "$file" )"
-							iw dev $WIFIDEV station get $mac
+							iw dev "$WIFIDEV" station get $mac
 							e "minstrel-table: $file"
 							cat "$file" && rm "$file"
 						else
