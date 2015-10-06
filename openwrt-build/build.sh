@@ -3229,8 +3229,11 @@ openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 feeds_adjust_version "$FEEDSTIME"
 
 SPECIAL_OPTIONS=
-[ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$USECASE" -a "$HARDWARE_MODEL" ] && \
+if [ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$USECASE" -a "$HARDWARE_MODEL" ]; then
 	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${USECASE}_${HARDWARE_MODEL}"
+else
+	log "[OK] will not write .config backup: VERSION_OPENWRT='$VERSION_OPENWRT' USECASE='$USECASE' HARDWARE_MODEL='$HARDWARE_MODEL'"
+fi
 
 if [ -e "$BACKUP_DOTCONFIG" ]; then
 	log "[OK] will use already existing '.config' file: '$BACKUP_DOTCONFIG'"
@@ -3251,7 +3254,7 @@ openwrt_download 'reset_autocommits'
 get_uptime_in_sec 'T2'
 
 echo "$USECASE $HARDWARE_MODEL" >>'KALUA_HISTORY'
-cp '.config' "$BACKUP_DOTCONFIG"
+[ -n "$BACKUP_DOTCONFIG" ] && cp -v '.config' "$BACKUP_DOTCONFIG"
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
 target_hardware_set "$HARDWARE_MODEL" info quiet >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
