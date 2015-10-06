@@ -2900,17 +2900,17 @@ unittest_do()
 			#  SC2039: In POSIX sh, HOSTNAME is not supported.
 			#  SC2039: In POSIX sh, string replacement is not supported.
 			#  SC2039: In POSIX sh, 'let' is not supported.
-#			# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
+# TODO #		# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
 			# SC2155: local var="$( bla )" -> loosing returncode
 			#  - https://github.com/koalaman/shellcheck/issues/262
-			# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
+# TODO #		# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
 
 			shellsheck_ignore()
 			{
 				printf 'SC1007,SC1010,SC1090,SC1091,'
-				printf 'SC2016,SC2029,SC2031,SC2039,SC2086,SC2155,SC2166'
+				printf 'SC2016,SC2029,SC2031,SC2039,SC2046,SC2086,SC2155,SC2166'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
