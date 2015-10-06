@@ -2821,7 +2821,8 @@ travis_prepare()
 	# for javascript testing
 	sudo apt-get -y install nodejs
 	sudo apt-get -y install npm
-	sudo npm install acorn
+	sudo npm config set registry http://registry.npmjs.org/		# force http NOT https
+	sudo npm install --verbose --global 'acorn'
 
 	# TODO: install our own .deb
 	# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
