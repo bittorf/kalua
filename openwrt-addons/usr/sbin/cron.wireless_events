@@ -25,9 +25,8 @@ mac2ipv4()	# TODO: better name
 	local wifidev="$2"
 	local dev='br-mastergate'
 	local file="/tmp/ROAMING_remove_host_route_$mac"
-	local i=20 signal command
+	local i=20 signal command ip_list ip=
 	local server_asked='false'
-	local ip=
 
 	while let i-=1; do {
 		# ignore IPv6 and show IPv4
@@ -36,18 +35,31 @@ mac2ipv4()	# TODO: better name
 		# 192.168.233.62 dev br-mastergate lladdr 00:21:6a:32:7c:1c REACHABLE
 		case "$server_asked" in
 			'false')
-				set -- $( ip -f inet neigh show dev "$dev" | fgrep "$mac" | grep -v ^'169\.254\.' )
-				ip="$1"
+				ip_list="$( ip -f inet neigh show dev "$dev" | fgrep "$mac" | cut -d' ' -f1 | grep -v ^'169\.254\.' )"
+				for ip in $ip_list; do break; done	# get first
 			;;
 		esac
 
 		case "$ip" in
 			*'.'*)
-				# arping with max 3 tries
-				_net ip_reachable "$ip" 3 "$dev" || {
+				any_good_ip()
+				{
+					for ip in $ip_list; do {
+						# arping with max 3 tries
+						if _net ip_reachable "$ip" 3 "$dev"; then
+							return 0
+						else
+							# if we have 2 entries and picked the wrong
+							ip neigh del "$ip" dev "$dev"
+							_net roaming_mac2ip "$mac" delete_from_local_cache "$ip"
+						fi
+					} done
+
+					return 1
+				}
+
+				any_good_ip || {
 					server_asked='false'
-					ip neigh del $ip dev $dev	# if we have 2 entries and picked the wrong
-					_net roaming_mac2ip "$mac" delete_from_local_cache "$ip"
 					continue
 				}
 
