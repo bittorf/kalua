@@ -2729,7 +2729,7 @@ check_scripts()
 					log "checking '$mimetype' / $file"
 					tidy -errors "$file" 2>/dev/null || return 1
 				else
-					log "[OK] will NOT check '$mimetype' file '$file'" debug
+					log "[OK] will NOT check '$mimetype' file '$file' - missing 'tidy'"
 				fi
 			;;
 			'text/x-php')
@@ -2737,7 +2737,7 @@ check_scripts()
 					log "checking '$mimetype' / $file"
 					php -l "$file" || return 1
 				else
-					log "[OK] will NOT check '$mimetype' file '$file'" debug
+					log "[OK] will NOT check '$mimetype' file '$file' - missing 'php'"
 				fi
 			;;
 			'text/x-c'|'text/x-c++')
@@ -2745,23 +2745,23 @@ check_scripts()
 				if which cppcheck >/dev/null; then
 					cppcheck "$file" || return 1
 				else
-					log "[OK] will NOT check '$mimetype' file '$file'" debug
+					log "[OK] will NOT check '$mimetype' file '$file' - missing 'cppcheck'"
 				fi
 			;;
 			'application/javascript')
 				# TODO:
 				# http://stackoverflow.com/questions/1802478/running-v8-javascript-engine-standalone
 				# http://www.quora.com/What-can-be-used-to-unit-test-JavaScript-from-the-command-line
-				log "[OK] will NOT check '$mimetype' file '$file'" debug
+				log "[OK] will NOT check '$mimetype' file '$file' - missing V8 runtime"
 			;;
 			'image/gif')
 				# imagemagick?
-				log "[OK] will NOT check gfx file '$file'" debug
+				log "[OK] will NOT check gfx file '$file' - TODO/imagemagick"
 			;;
 			'application/octet-stream'|'application/x-gzip'|'text/x-diff'|'application/x-executable')
-				log "[OK] will not check binary file '$file'" debug
+				log "[OK] will NOT check binary file '$file'" debug
 			;;
-			'text/x-shellscript'|'text/plain')
+			'text/x-shellscript')
 				sh -n "$file" || {
 					log "error in file '$file' - abort"
 					good='false'
@@ -2773,7 +2773,7 @@ check_scripts()
 				grep '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 >>"$tempfile_functions"
 			;;
 			*)
-				log "unknown mimetype: '$mimetype' file: '$file'"
+				log "[OK] will NOT check - unknown mimetype: '$mimetype' file: '$file'"
 				good='false'
 				break
 			;;
