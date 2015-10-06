@@ -2905,13 +2905,13 @@ unittest_do()
 			# SC2064: trap "command $var" => Use single quotes, otherwise this expands now rather than when signalled.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
-			# SC2119: Use logread "$@" if function's $1 should mean script's $1.
+#			# SC2119: Use logread "$@" if function's $1 should mean script's $1.
 
 			shellsheck_ignore()
 			{
 				printf 'SC1007,SC1010,SC1090,SC1091'
 				printf ',SC2046,SC2086,SC2018,SC2019,SC2088,SC2030,SC2031'
-				printf ',SC2119,SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC2166'
+				printf ',SC2016,SC2064,SC2029,SC2039,SC2155,SC2162,SC2166'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
