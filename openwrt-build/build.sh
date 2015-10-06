@@ -2726,8 +2726,17 @@ check_scripts()
 				# w3c-markup-validator + https://github.com/ysangkok/w3c-validator-runner -> always fails?
 				# tidy works: http://www.html-tidy.org/
 				if which tidy >/dev/null; then
-					log "checking '$mimetype' / $file"
-					tidy -errors "$file" 2>/dev/null || return 1
+					case "$( head -n1 "$file" )" in
+						'<!DOCTYPE html>')
+							# http://foswiki.org/Tasks/Item13134
+							log "[OK] cannot check HTML5, ignoring '$file'"
+						;;
+						*)
+							log "checking '$mimetype' / $file"
+							tidy -errors "$file" || good='false'
+							break
+						;;
+					esac
 				else
 					log "[OK] will NOT check '$mimetype' file '$file' - missing 'tidy'"
 				fi
