@@ -2758,7 +2758,13 @@ check_scripts()
 				# TODO:
 				# http://stackoverflow.com/questions/1802478/running-v8-javascript-engine-standalone
 				# http://www.quora.com/What-can-be-used-to-unit-test-JavaScript-from-the-command-line
-				log "[OK] will NOT check '$mimetype' file '$file' - missing V8 runtime"
+				# https://github.com/marijnh/acorn -> install node.js + npm?
+				#  - https://marijnhaverbeke.nl/fund/
+				if [ -e 'bin/acorn' ]; then
+					bin/acorn --silent "$file" || return 1
+				else
+					log "[OK] will NOT check '$mimetype' file '$file' - missing 'acorn'"
+				fi
 			;;
 			'image/gif')
 				# imagemagick?
@@ -2811,6 +2817,11 @@ travis_prepare()
 	sudo apt-get -y install sloccount	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
 	sudo apt-get -y install tidy		# http://www.html-tidy.org/
 	sudo apt-get -y install php5		# http://de1.php.net/distributions/php-5.6.14.tar.bz2
+
+	# for javascript testing
+	sudo apt-get -y install nodejs
+	sudo apt-get -y install npm
+	sudo npm install acorn
 
 	# TODO: install our own .deb
 	# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
