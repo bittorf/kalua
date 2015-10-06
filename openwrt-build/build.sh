@@ -2909,7 +2909,7 @@ unittest_do()
 
 			shellsheck_ignore()
 			{
-				printf 'SC1007,SC1010,SC1090,SC1091'
+				printf 'SC1007,SC1010,SC1090,SC1091,'
 				printf 'SC2016,SC2029,SC2031,SC2039,SC2046,SC2086,SC2155,SC2166'
 			}
 
