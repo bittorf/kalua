@@ -2031,8 +2031,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 
-				$funcname subcall 'iproute2'
 				$funcname subcall 'queryMII'
+				$funcname subcall 'iproute2'
 				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
@@ -2071,8 +2071,8 @@ build_options_set()
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 
-				$funcname subcall 'iproute2'
 				$funcname subcall 'queryMII'
+				$funcname subcall 'iproute2'
 #				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
