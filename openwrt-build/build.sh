@@ -2766,7 +2766,14 @@ check_scripts()
 				#  - https://marijnhaverbeke.nl/fund/
 				if which acorn >/dev/null; then
 					log "checking '$mimetype' / $file"
-					acorn --silent "$file" || return 1
+					case "$file" in
+						*'googleclosure'*)
+						;;
+							log "[OK] ignoring '$file'"
+						*)
+							acorn --silent "$file" || return 1
+						;;
+					esac
 				else
 					log "[OK] will NOT check '$mimetype' file '$file' - missing 'acorn'"
 				fi

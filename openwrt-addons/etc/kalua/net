@@ -281,7 +281,7 @@ _net_roaming_report_new()
 _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 {
 	local dev="${1:-wlan0}"
-	local gateway_ip url apmac last unixtime_connstart elapsed diff
+	local gateway_ip url apmac last unixtime_connstart elapsed diff connection_duration
 	rm /tmp/MAC_* 2>/dev/null
 
 	get_gateway_ip()
@@ -308,11 +308,20 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 		local i=10
 		local hostname
 
-		[ -z "$mac" ] && return 1
-		read -r hostname 2>/dev/null <"$TMPDIR/MAC2HOSTNAME_$mac"
+		if [ -z "$mac" ]; then
+			return 1
+		else
+			read -r hostname 2>/dev/null <"$TMPDIR/MAC2HOSTNAME_$mac" && {
+				echo "$hostname"
+				return 0
+			}
+		fi
+
+		# wait for good
+		[ $connection_duration -lt 15 ] && return 0
 
 		while [ -z "$hostname" ]; do {
-			hostname="$( wget -qO - "$url" || sleep 3 )"
+			hostname="$( wget -qO - "$url" || sleep 1 )"
 			let i-=1 || {
 				echo 'unknown_hostname'
 				return 1
@@ -337,8 +346,8 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 			echo
 			echo "$( date ) new: $apmac"
 
-			sleep 2
 			rm "$TMPDIR/MAC2HOSTNAME_$last" 2>/dev/null	# see get_hostname()
+			connection_duration=0
 		}
 		last="$apmac"
 
@@ -347,6 +356,8 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 		diff=$(( $( _system date unixtime ) - unixtime_connstart ))
 		elapsed="$( _stopwatch seconds2humanreadable "$diff" pedantic )"
 		echo -en "$( date )      $apmac $( get_signal ) : $hostname ($elapsed)        \r"
+
+		connection_duration=$(( connection_duration + 1 ))
 		sleep 1
 	} done
 }
@@ -382,7 +393,7 @@ _net_count_wired()
 	list_noclients="$(
 		grep -s ' MAC ' '/tmp/cisco-AP'* | cut -d' ' -f5 | while read -r line; do {
 			line="$( _sanitizer do "$line" lowercase )"
-			printf "%s" " $line"
+			printf '%s' " $line"
 		} done
 	)"
 
