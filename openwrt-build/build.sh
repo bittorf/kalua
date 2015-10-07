@@ -2147,18 +2147,22 @@ build_options_set()
 					# https://dev.openwrt.org/changeset/46829/trunk
 					test $( openwrt_revision_number_get ) -lt 46829 && return 1
 
-					# is busybox's 'ip' included?
+					# is busybox 'ip' included/default?
 					grep -q ^'CONFIG_BUSYBOX_CONFIG_IP' '.config'
 				}	# parser_ignore
 
 				if busybox_ip_command_is_prefered; then
+					log '[OK] using busybox ip'
 					# TODO: ip neigh
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_NEIGH=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y' hide
 				else
+					log '[OK] using full iproute2'
 					apply_symbol 'CONFIG_PACKAGE_ip=y' hide		# network: routing/redirection: ip
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y' hide	# FIXME
 				fi
 			;;
 			'queryMII')
