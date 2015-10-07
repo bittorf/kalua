@@ -37,6 +37,7 @@ mac2ipv4()	# TODO: better name
 			'false')
 				ip_list="$( ip -f inet neigh show dev "$dev" | fgrep "$mac" | cut -d' ' -f1 | grep -v ^'169\.254\.' )"
 				for ip in $ip_list; do break; done	# get first
+				log "$funcname($i) grabbed ip from arp: $mac -> $ip_list"
 			;;
 		esac
 
@@ -55,6 +56,7 @@ mac2ipv4()	# TODO: better name
 						fi
 					} done
 
+					log "$funcname($i) [ERROR] no good ip found"
 					return 1
 				}
 
@@ -65,7 +67,7 @@ mac2ipv4()	# TODO: better name
 
 				case "$ip" in
 					"192.168.${NODENUMBER_ROAMING}."*)
-						log "$funcname($i) OK: no route-set for $mac/$ip needed: our own HNA4-range - server_asked: $server_asked"
+						log "$funcname($i) [SUCCESS] no route-set for $mac/$ip needed: our own HNA4-range"
 						_netfilter user_probe "$mac" || {
 							signal="$( _wifi signal "$wifidev" "$mac" )"
 
@@ -77,7 +79,7 @@ mac2ipv4()	# TODO: better name
 						}
 					;;
 					'192.168.'*)
-						log "$funcname($i) setting host route for alien $ip - server_asked: $server_asked"
+						log "$funcname($i) [SUCCESS] setting host route for alien $ip"
 						if ip route add "$ip/32" dev $dev; then
 							command="NAT_ALIEN_ROAMERS -s $ip -j SNAT --to-source $OLSR_MAIN_IP"
 							$IPT -t nat -I $command
@@ -105,14 +107,22 @@ mac2ipv4()	# TODO: better name
 			;;
 			*)
 				# not found in arp-cache, try to ask server (only once)
-				if [ "$server_asked" = 'false' ]; then
+				if [ "$server_asked" = 'false' -a $i -le 15 ]; then
 					server_asked='true'
 					ip="$( _net roaming_mac2ip "$mac" )"
-					[ -n "$ip" ] && server_asked='true:OK'
+					[ -n "$ip" ] && {
+						log "$funcname($i) OK: mac2ip/full worked: $ip"
+						server_asked='true:OK'
+					}
 				else
 					# DHCP is ready ~3...4 secs after connecting
 					ip="$( _net roaming_mac2ip "$mac" 'local_only' )"
-					sleep 1
+					if [ -n "$ip" ]; then
+						log "$funcname($i) OK: mac2ip/local_only worked: $ip"
+						server_asked='true:OK'
+					else
+						sleep 1
+					fi
 				fi
 			;;
 		esac
