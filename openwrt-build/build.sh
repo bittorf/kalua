@@ -2768,8 +2768,8 @@ check_scripts()
 					log "checking '$mimetype' / $file"
 					case "$file" in
 						*'googleclosure'*)
-						;;
 							log "[OK] ignoring '$file'"
+						;;
 						*)
 							acorn --silent "$file" || return 1
 						;;
