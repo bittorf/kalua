@@ -2760,8 +2760,8 @@ check_scripts()
 				# http://www.quora.com/What-can-be-used-to-unit-test-JavaScript-from-the-command-line
 				# https://github.com/marijnh/acorn -> install node.js + npm?
 				#  - https://marijnhaverbeke.nl/fund/
-				if [ -e 'bin/acorn' ]; then
-					bin/acorn --silent "$file" || return 1
+				if [ -e '/bin/acorn' ]; then
+					/bin/acorn --silent "$file" || return 1
 				else
 					log "[OK] will NOT check '$mimetype' file '$file' - missing 'acorn'"
 				fi
