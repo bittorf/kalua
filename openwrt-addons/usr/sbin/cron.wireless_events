@@ -40,7 +40,7 @@ mac2ipv4()	# TODO: better name
 				ip_list="$( ip -f inet neigh show dev "$dev" | fgrep "$mac" | cut -d' ' -f1 | grep ^'192\.168\.' )"
 
 				if [ -n "$ip_list" ]; then
-					for ip in $ip_list; do break; done	# get first
+					for ip in $ip_list; do break; done	# fill var with 1st list_element
 					log "$funcname($i) grabbed ip from arp: $mac -> $ip_list"
 				else
 					ip=
@@ -53,18 +53,23 @@ mac2ipv4()	# TODO: better name
 			*'.'*)
 				any_good_ip()
 				{
-					for ip in ${ip_list:-$ip}; do {
+					local testip
+					local test_list="${ip_list:-$ip}"
+
+					for testip in $test_list; do {
 						# arping with max 3 tries
-						if _net ip_reachable "$ip" 4 "$dev"; then
+						if _net ip_reachable "$testip" 4 "$dev"; then
+							ip="$testip"
 							return 0
 						else
 							# if we have 2 entries and picked the wrong
-							ip neigh del "$ip" dev "$dev"
-							_net roaming_mac2ip "$mac" delete_from_local_cache "$ip"
+							ip neigh del "$testip" dev "$dev"
+							_net roaming_mac2ip "$mac" delete_from_local_cache "$testip"
 						fi
 					} done
 
-					log "$funcname($i) [ERROR] no good ip found"
+					log "$funcname($i) [ERROR] no good ip found, last: '$testip'/'$test_list'"
+					ip=
 					return 1
 				}
 
@@ -272,12 +277,16 @@ fi
 				}
 			;;
 			'regulatory domain change: set to '*)
-				# e.g. iw reg set 00; iw reg set US
-				# TODO: find better method
-				log "stopped by user via regset, stopping iw: $PID_IW"
-				rm "$TMPDIR/kicked_low_signal_"*
-				kill $PID_IW
-				break
+				if [ -e "$TMPDIR/IWLOOP_RESPECT_REGSET" ]; then
+					# e.g. iw reg set 00; iw reg set US
+					# TODO: find better method
+					log "stopped by user via regset, stopping iw: $PID_IW"
+					rm "$TMPDIR/kicked_low_signal_"*
+					kill $PID_IW
+					break
+				else
+					log "ignoring regset - touch '$TMPDIR/IWLOOP_RESPECT_REGSET' for this"
+				fi
 			;;
 		esac
 	} done
