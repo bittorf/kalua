@@ -728,7 +728,7 @@ _net_ip_reachable()
 	local ip="$1"
 	local max_attempts="${2:-30}"		# must be >1 or 'ping'
 	local dev="$3"				# or maxtry in 'ping'-mode
-	local pingtest line dev_list
+	local pingtest line dev_list dev_guessed
 
 	if [ "$max_attempts" = 'ping' ]; then
 		max_attempts="${dev:-3}"
@@ -736,13 +736,19 @@ _net_ip_reachable()
 			dev="$max_attempts"
 			max_attempts=3
 		else
-			dev="$( _net ip2dev "$ip" )"
+			[ -z "$dev" ] && {
+				dev="$( _net ip2dev "$ip" )"
+				dev_guessed='true'
+			}
 		fi
 
 		pingtest="$ip"
 	else
 		pingtest='127.0.0.1'		# always is good
-		dev="${dev:-$( _net ip2dev "$ip" )}"
+		[ -z "$dev" ] && {
+			dev="${dev:-$( _net ip2dev "$ip" )}"
+			dev_guessed='true'
+		}
 	fi
 
 	dev_list="${dev:-does_not_exist}"
@@ -750,17 +756,19 @@ _net_ip_reachable()
 	case "$dev" in
 		'')
 			[ "$pingtest" = "$ip" ] || {
-				_log do $funcname daemon info "[ERR] empty devname"
+				_log do $funcname daemon info '[ERR] empty devname'
 				return 1
 			}
 		;;
 		'wlan'*)
 			# TODO: ip2dev() net reliable for multiradio - introduce $WIFI_DEVS_ADHOC?
 			# without known arp-entry, we must check all adhoc-channels
-			for dev in $dev $WIFI_DEVS; do {
-				iw dev "$dev" info | grep -q 'type IBSS'$ && dev_list="$dev_list $dev"
-			} done
-			dev_list="$( _list uniq "$dev_list" )"
+			[ "$dev_guessed" = 'true' ] && {
+				for dev in $dev $WIFI_DEVS; do {
+					iw dev "$dev" info | grep -q 'type IBSS'$ && dev_list="$dev_list $dev"
+				} done
+				dev_list="$( _list uniq "$dev_list" )"
+			}
 		;;
 	esac
 
