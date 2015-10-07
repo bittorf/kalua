@@ -3247,17 +3247,17 @@ openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 feeds_adjust_version "$FEEDSTIME"
 
 SPECIAL_OPTIONS=
-[ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$USECASE" -a "$HARDWARE_MODEL" ] && \
-	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${USECASE}_${HARDWARE_MODEL}"
+[ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$LIST_USER_OPTIONS" -a "$HARDWARE_MODEL" ] && \
+	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${LIST_USER_OPTIONS}_${HARDWARE_MODEL}"
 
 if [ -e "$BACKUP_DOTCONFIG" ]; then
 	log "[OK] will use already existing '.config' file: '$BACKUP_DOTCONFIG'"
 else
-	log "[OK] building .config - VERSION_OPENWRT='$VERSION_OPENWRT' USECASE='$USECASE' HARDWARE_MODEL='$HARDWARE_MODEL'"
+	log "[OK] building .config - REV='$VERSION_OPENWRT' LUO='$LIST_USER_OPTIONS' HW='$HARDWARE_MODEL'"
 	target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 	copy_additional_packages		|| die_and_exit
 	build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
-	build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit
+	build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit		# here we build '$USECASE'
 	build_options_set 'ready'
 fi
 
