@@ -1860,7 +1860,7 @@ apply_symbol()
 		'CONFIG_BUSYBOX'*)
 			# maybe unneeded
 			grep -q 'CONFIG_BUSYBOX_CUSTOM=y' "$file" || {
-				log "enabling BUSYBOX_CUSTOM"
+				log "enabling BUSYBOX_CUSTOM in preparation of '$symbol'"
 				echo 'CONFIG_BUSYBOX_CUSTOM=y' >>"$file"
 			}
 		;;
@@ -2148,7 +2148,7 @@ build_options_set()
 					test $( openwrt_revision_number_get ) -lt 46829 && return 1
 
 					# is busybox 'ip' included/default?
-					grep -q ^'CONFIG_BUSYBOX_CONFIG_IP' '.config'
+					grep -q ^'CONFIG_BUSYBOX_DEFAULT_IP=y' '.config'
 				}	# parser_ignore
 
 				if busybox_ip_command_is_prefered; then
