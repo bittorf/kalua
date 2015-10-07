@@ -2820,11 +2820,11 @@ travis_prepare()
 	sudo apt-get -y install tidy		# http://www.html-tidy.org/
 	sudo apt-get -y install php5		# http://de1.php.net/distributions/php-5.6.14.tar.bz2
 
-	# for javascript testing
+	# for javascript testing: https://github.com/marijnh/acorn
 	sudo apt-get -y install nodejs
 	sudo apt-get -y install npm
 	sudo npm config set registry http://registry.npmjs.org/		# force http NOT https
-	sudo npm install --verbose --global 'acorn'
+	sudo npm install --global 'acorn'
 
 	# TODO: install our own .deb
 	# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
