@@ -351,6 +351,8 @@ register_patch()
 	local dir='files/etc'
 	local file="$dir/openwrt_patches"	# we can read the file later on the router
 
+	log "$funcname() [OK] registering '$name'"
+
 	if [ -f "$name" ]; then
 		name="$( basename "$name" )"
 	else
