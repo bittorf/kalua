@@ -1708,12 +1708,14 @@ apply_symbol()
 #			apply_symbol 'CONFIG_DEVEL=y'		# 'Advanced configuration options'
 #			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-protector -fstack-protector-all -fno-delete-null-pointer-checks"'
 
-			url="http://intercity-vpn.de/firmware/$ARCH/images/testing/info.txt"
+			# FIXME! dont hardcode testnet
+			url='http://intercity-vpn.de/networks/liszt28/tarball/testing/info.txt'
+
 			log "$KALUA_DIRNAME: adding recent tarball hash from '$url'"
 			tarball_hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
 			if [ -z "$tarball_hash" ]; then
 				log "[ERR] cannot fetch tarball hash from '$url'"
-				log "[ERR] be prepared that node will automatically update upon first boot"
+				log "[ERR] be prepared that your node will automatically perform an update upon first boot"
 			else
 				echo >'files/etc/tarball_last_applied_hash' "$tarball_hash"
 				log "added tarball hash" gitadd 'files/etc/tarball_last_applied_hash'
