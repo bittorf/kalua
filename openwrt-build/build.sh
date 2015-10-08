@@ -3265,7 +3265,8 @@ SPECIAL_OPTIONS=
 [ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$LIST_USER_OPTIONS" -a "$HARDWARE_MODEL" ] && \
 	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${LIST_USER_OPTIONS}_${HARDWARE_MODEL}"
 
-if [ -e "$BACKUP_DOTCONFIG" ]; then
+# FIXME! disabled for now, we must at least apply kalua-patchset
+if [ -e "x$BACKUP_DOTCONFIG" ]; then
 	log "[OK] will use already existing '.config' file: '$BACKUP_DOTCONFIG'"
 else
 	log "[OK] building .config = '$BACKUP_DOTCONFIG'"
