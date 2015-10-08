@@ -675,6 +675,12 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-mc-mac1200r-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-mc-mac1200r-squashfs-factory.bin'
 		;;
+		'D-Link DIR-615-E4')
+			# https://dev.openwrt.org/ticket/20522
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_DIR615E4=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-dir-615-e4-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-dir-615-e4-squashfs-factory.bin'
+		;;
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2'|'Ubiquiti Bullet2')
 			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
 			# the other one is: Picostation M2 (HP) = MIPS 24KC / 400 MHz
@@ -2759,16 +2765,14 @@ check_scripts()
 				fi
 			;;
 			'application/javascript')
-				# TODO:
-				# http://stackoverflow.com/questions/1802478/running-v8-javascript-engine-standalone
-				# http://www.quora.com/What-can-be-used-to-unit-test-JavaScript-from-the-command-line
 				# https://github.com/marijnh/acorn -> install node.js + npm?
 				#  - https://marijnhaverbeke.nl/fund/
+				# TODO: autoextract <script>...</script> snippets from HTML?
 				if which acorn >/dev/null; then
 					log "checking '$mimetype' / $file"
 					case "$file" in
 						*'googleclosure'*)
-							log "[OK] ignoring '$file'"
+							log "[OK] ignoring '$file' FIXME"	# FIXME!
 						;;
 						*)
 							acorn --silent "$file" || return 1
@@ -2839,9 +2843,9 @@ travis_prepare()
 
 	# TODO: install our own .deb
 	# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
-	sudo apt-get -y install cabal-install
-	cabal update
-	cabal install cabal-install
+#	sudo apt-get -y install cabal-install
+#	cabal update
+#	cabal install cabal-install
 
 	# needs about 15 mins
 	(
@@ -3264,7 +3268,7 @@ SPECIAL_OPTIONS=
 if [ -e "$BACKUP_DOTCONFIG" ]; then
 	log "[OK] will use already existing '.config' file: '$BACKUP_DOTCONFIG'"
 else
-	log "[OK] building .config - REV='$VERSION_OPENWRT' LUO='$LIST_USER_OPTIONS' HW='$HARDWARE_MODEL'"
+	log "[OK] building .config = '$BACKUP_DOTCONFIG'"
 	target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
 	copy_additional_packages		|| die_and_exit
 	build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
@@ -3280,7 +3284,13 @@ openwrt_download 'reset_autocommits'
 get_uptime_in_sec 'T2'
 
 echo "$USECASE $HARDWARE_MODEL" >>'KALUA_HISTORY'
-[ -n "$BACKUP_DOTCONFIG" ] && cp -v '.config' "$BACKUP_DOTCONFIG"
+[ -n "$BACKUP_DOTCONFIG" ] && {
+	{
+		echo '# please strip with: sed -e "/^#/d" -e "/^$/d" "THIS_FILE"'
+		echo
+		cat '.config'
+	} >"$BACKUP_DOTCONFIG"
+}
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
 target_hardware_set "$HARDWARE_MODEL" info quiet >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
