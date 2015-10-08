@@ -1743,7 +1743,7 @@ apply_symbol()
 				} done
 			}
 
-			# FIXME! unison/iproute-neigh
+			# FIXME! unison
 			list_files_and_dirs | grep -v 'unison' | while read -r file; do {
 				if [ -d "$file" ]; then
 					log "dir: $file"
