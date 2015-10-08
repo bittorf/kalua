@@ -351,8 +351,6 @@ register_patch()
 	local dir='files/etc'
 	local file="$dir/openwrt_patches"	# we can read the file later on the router
 
-	log "$funcname() [OK] registering '$name'"
-
 	if [ -f "$name" ]; then
 		name="$( basename "$name" )"
 	else
@@ -1756,14 +1754,17 @@ apply_symbol()
 					if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
 						register_patch "$file"
 						cp -v "$file" 'package/kernel/mac80211/patches'
+						log "mac80211.generic: adding '$file'" gitadd "package/kernel/mac80211/patches/$file"
 						MAC80211_CLEAN='true'
 					elif head -n1 "$file" | fgrep -q '/drivers/net/wireless/ath/'; then
 						register_patch "$file"
 						cp -v "$file" 'package/kernel/mac80211/patches'
+						log "mac80211.atheros: adding '$file'" gitadd "package/kernel/mac80211/patches/$file"
 						MAC80211_CLEAN='true'
 					elif grep -q 'bb_error_msg_and_die' "$file"; then
 						register_patch "$file"
 						cp -v "$file" 'package/utils/busybox/patches'
+						log "busybox: adding '$file'" gitadd "package/utils/busybox/patches/$file"
 					elif grep -q ' a/net/sched/' "$file"; then
 						log "[FIXME] ignoring '$file'"
 #						cp -v "$file" ''
