@@ -1582,6 +1582,88 @@ build()
 	esac
 }
 
+apply_patches()
+{
+	local file
+
+	log "$KALUA_DIRNAME: tweaking kernel commandline"
+	kernel_commandline_tweak
+
+	if usecase_has 'noReghack' ; then
+		log "$KALUA_DIRNAME: disable Reghack"
+		apply_wifi_reghack 'disable'
+	else
+		log "$KALUA_DIRNAME: apply_wifi_reghack"
+		apply_wifi_reghack
+	fi
+
+	list_files_and_dirs()
+	{
+		local folder dir file
+
+		# /dir/file1
+		# /dir/file2
+		# /dir/dirX/file1 ...
+		for folder in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
+			find $folder -type d | while read -r dir; do {
+				echo "$dir"
+				find "$dir" -maxdepth 1 -type f | sort
+			} done
+		} done
+	}
+
+	# FIXME! unison
+	list_files_and_dirs | grep -v 'unison' | while read -r file; do {
+		if [ -d "$file" ]; then
+			log "dir: $file"
+			register_patch "DIR: $file"
+		else
+			if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
+				register_patch "$file"
+				cp -v "$file" 'package/kernel/mac80211/patches'
+				log "mac80211.generic: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
+				MAC80211_CLEAN='true'
+			elif head -n1 "$file" | fgrep -q '/drivers/net/wireless/ath/'; then
+				register_patch "$file"
+				cp -v "$file" 'package/kernel/mac80211/patches'
+				log "mac80211.atheros: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
+				MAC80211_CLEAN='true'
+			elif grep -q 'bb_error_msg_and_die' "$file"; then
+				register_patch "$file"
+				cp -v "$file" 'package/utils/busybox/patches'
+				log "busybox: adding '$file'" gitadd "package/utils/busybox/patches/$( basename "$file" )"
+			elif grep -q ' a/net/sched/' "$file"; then
+				log "[FIXME] ignoring '$file'"
+#						cp -v "$file" ''
+			else
+				if git apply --check <"$file"; then
+					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
+					# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
+					[ -d '.git/rebase-merge' -o -d '.git/rebase-apply' ] && {
+						git rebase --abort
+						git am --abort
+					}
+
+					# FIXME!
+					# automatically add 'From:' if missing
+					# sed '1{s/^/From: name@domain.com (Proper Name)\n/}'
+
+					if git am --signoff <"$file"; then
+						log "[OK] patched ontop OpenWrt: '$file'"
+						register_patch "$file"
+					else
+						git am --abort
+						log "[ERROR] during 'git am <$file'"
+					fi
+				else
+					register_patch "FAILED: $file"
+					log "$KALUA_DIRNAME: [ERROR] cannot apply: git apply --check <'$file'"
+				fi
+			fi
+		fi
+	} done
+}
+
 apply_symbol()
 {
 	local funcname='apply_symbol'
@@ -1679,17 +1761,6 @@ apply_symbol()
 
 			log "[OK] added custom dir" gitadd "$custom_dir"
 
-			log "$KALUA_DIRNAME: tweaking kernel commandline"
-			kernel_commandline_tweak
-
-			if usecase_has 'noReghack' ; then
-				log "$KALUA_DIRNAME: disable Reghack"
-				apply_wifi_reghack 'disable'
-			else
-				log "$KALUA_DIRNAME: apply_wifi_reghack"
-				apply_wifi_reghack
-			fi
-
 			# http://stackoverflow.com/questions/1018853/why-is-alloca-not-considered-good-practice
 			#
 			# no-caller-saves:
@@ -1730,71 +1801,6 @@ apply_symbol()
 				[ -e "$custom_dir/etc/init.d/apply_profile.code.definitions.private" ] && rm "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
 			fi
-
-			list_files_and_dirs()
-			{
-				local folder dir file
-
-				# /dir/file1
-				# /dir/file2
-				# /dir/dirX/file1 ...
-				for folder in "$KALUA_DIRNAME/openwrt-patches/add2trunk" $PATCHDIR; do {
-					find $folder -type d | while read -r dir; do {
-						echo "$dir"
-						find "$dir" -maxdepth 1 -type f | sort
-					} done
-				} done
-			}
-
-			# FIXME! unison
-			list_files_and_dirs | grep -v 'unison' | while read -r file; do {
-				if [ -d "$file" ]; then
-					log "dir: $file"
-					register_patch "DIR: $file"
-				else
-					if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
-						register_patch "$file"
-						cp -v "$file" 'package/kernel/mac80211/patches'
-						log "mac80211.generic: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
-						MAC80211_CLEAN='true'
-					elif head -n1 "$file" | fgrep -q '/drivers/net/wireless/ath/'; then
-						register_patch "$file"
-						cp -v "$file" 'package/kernel/mac80211/patches'
-						log "mac80211.atheros: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
-						MAC80211_CLEAN='true'
-					elif grep -q 'bb_error_msg_and_die' "$file"; then
-						register_patch "$file"
-						cp -v "$file" 'package/utils/busybox/patches'
-						log "busybox: adding '$file'" gitadd "package/utils/busybox/patches/$( basename "$file" )"
-					elif grep -q ' a/net/sched/' "$file"; then
-						log "[FIXME] ignoring '$file'"
-#						cp -v "$file" ''
-					else
-						if git apply --check <"$file"; then
-							# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
-							# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
-							[ -d '.git/rebase-merge' -o -d '.git/rebase-apply' ] && {
-								git rebase --abort
-								git am --abort
-							}
-
-							# FIXME!
-							# automatically add 'From:' if missing
-							# sed '1{s/^/From: name@domain.com (Proper Name)\n/}'
-
-							if git am --signoff <"$file"; then
-								register_patch "$file"
-							else
-								git am --abort
-								log "[ERROR] during 'git am <$file'"
-							fi
-						else
-							register_patch "FAILED: $file"
-							log "$KALUA_DIRNAME: [ERROR] cannot apply: git apply --check <'$file'"
-						fi
-					fi
-				fi
-			} done
 
 			[ -n "$CONFIG_PROFILE" ] && {
 				file="$custom_dir/etc/init.d/apply_profile.code"
@@ -1851,6 +1857,7 @@ apply_symbol()
 			$funcname 'nuke_customdir'
 			build 'nuke_bindir'
 
+			apply_patches
 			return 0
 		;;
 		'CONFIG_PACKAGE_ATH_DEBUG=y')
