@@ -2960,7 +2960,7 @@ unittest_do()
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
-			tempfile='/dev/shm/shellcheck'
+			tempfile='/dev/shm/shellcheck_testfile'
 			filelist='/dev/shm/filelist'
 			find 'openwrt-addons' 'openwrt-build' -type f -not -iwholename '*.git*' >"$filelist"
 
