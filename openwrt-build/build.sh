@@ -2859,10 +2859,9 @@ travis_prepare()
 
 	# needs about 15 mins
 	(
-		cd "$TMPDIR" || return 1
+		cd '/run/shm' || return 1
 		git clone https://github.com/koalaman/shellcheck.git
 		cd shellcheck || return
-		logger -s "will 'cabal install' in '$( pwd )' TMPDIR='$TMPDIR'"
 		cabal install
 	)
 
