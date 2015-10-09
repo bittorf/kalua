@@ -130,10 +130,18 @@ case "$MINUTE" in
 			00)	# hourly
 				{
 					echo '_net roaming_fetch_cache'
-					echo 'cron.monitoring send_alive_message'
 					echo "_watch wifi_cronactive $HOUR $MINUTE"
 					echo '_mail stash_resend'
 				} >>$SCHEDULER
+
+				case "$HOUR" in
+					04)
+						# not during pppoe-reconnect
+					;;
+					*)
+						echo >>$SCHEDULER 'cron.monitoring send_alive_message'
+					;;
+				esac
 			;;
 			*)
 				# collect only, dont send
@@ -148,7 +156,7 @@ case "$MINUTE" in
 #		}
 
 		bool_true 'system.@monitoring[0].cdp_send' && {
-			echo >>$SCHEDULER '_cisco_cdpsend'
+			echo >>$SCHEDULER '_cisco cdpsend'
 		}
 
 		bool_true 'system.@monitoring[0].cisco_collect' && {
@@ -175,11 +183,19 @@ case "$MINUTE" in
 			echo >>$SCHEDULER '_olsr build_overview_static /tmp/statuspage_neigh_pregenerated'
 		}
 
+		case "$HOUR" in
+			04)
+				# not during pppoe-reconnect
+			;;
+			*)
+				echo >>$SCHEDULER '_watch dns_resolution'
+			;;
+		esac
+
 		cat >>$SCHEDULER <<EOF
 /usr/sbin/cron.check_inet_gw_fff+
 /etc/init.d/S69watch_olsrd_fff+
 _watch webserver
-_watch dns_resolution
 _watch cgminer
 _watch hanging_command usual_suspects
 _watch flash_free_space
