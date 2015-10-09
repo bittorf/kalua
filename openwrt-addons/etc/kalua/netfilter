@@ -836,13 +836,6 @@ _netfilter_stop()
 
 	case "$option" in
 		'remember_over_reboot'|'ror')
-#			case "$CONFIG_PROFILE" in
-#				liszt28*)
-#					# TODO: remove/debug - maybe we call this function twice?
-#					cp "/tmp/NETFILTER_AUTOADD" "/www/NETFILTER_AUTOADD.$( date ).$( cat /proc/uptime )"
-#				;;
-#			esac
-
 			# avoid writing an empty file
 			if grep -sq '# non_wifi' '/tmp/NETFILTER_AUTOADD' ; then
 				bool_true 'system.@weblogin[0].always_reachable' || {
@@ -1790,23 +1783,21 @@ _netfilter_user_add()
 
 	# in case we have an unscheduled reboot, autoadd at least for servers/wired
 	_net dev_is_wifi "$dev" || {
-		fgrep -sq " add '$mac' '$ip' " '/www/NETFILTER_AUTOADD' || {
-			fgrep -sq " add '$mac' " '/www/NETFILTER_AUTOADD' && {
-				case "$CONFIG_PROFILE" in
-					liszt28*)	# removeme/debug
-						cp "/www/NETFILTER_AUTOADD" "/www/NETFILTER_AUTOADD.$(date)"
-					;;
-				esac
+		bool_true 'system.@weblogin[0].always_reachable' || {
+			# no action if already in:
+			fgrep -sq " add '$mac' '$ip' " '/www/NETFILTER_AUTOADD' || {
+				# hide/comment entry with other ip but same mac:
+				fgrep -sq " add '$mac' " '/www/NETFILTER_AUTOADD' && {
+					sed -i "s/^.*$mac/# IP changed # &/" '/www/NETFILTER_AUTOADD'
+				}
 
-				# hide/comment entry with other ip but same mac
-				sed -i "s/^.*$mac/# IP changed # &/" '/www/NETFILTER_AUTOADD'
+				# TODO: make function for that
+				echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable	# $funcname() $(date)" >>'/www/NETFILTER_AUTOADD'
 			}
-
-			echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable	# $funcname() $(date)" >>'/www/NETFILTER_AUTOADD'
 		}
 	}
 
-	# against spoofing, add "-s $ip"?
+	# TODO: against spoofing, add "-s $ip"?
 	$IPT -t mangle -I PREROUTING -d $ip -j ACCEPT
 	# needed for batman, because mac can be changed from kernel-view:
 	# https://lists.open-mesh.org/pipermail/b.a.t.m.a.n/2013-October/010722.html
