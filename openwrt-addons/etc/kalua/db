@@ -7,7 +7,7 @@ _db_check()
 	local funcname='db_check'
 	local option="$1"
 	local statfile="/tmp/$funcname"
-	local file line i
+	local file line i list id valid
 
 	[ "$option" = 'force' ] || _db lock now "$funcname() $*" || return 1
 	_stopwatch start "$funcname"
@@ -35,6 +35,20 @@ _db_check()
 
 		[ $i -eq 0 ] && i=$( _file lines "$file" )
 		_log do $funcname daemon info "[OK] file '$file' / $i lines"
+	} done
+
+	# FIXME! why did it happen?
+	list="$( _db user profile list )"
+	for file in '/database/DB/USER/profile/id'*'_counterA'; do {
+		valid=
+		for id in $list; do {
+			[ "$file" = "/database/DB/USER/profile/id${id}_counterA" ] && valid='true'
+		} done
+
+		[ -z "$valid" ] && {
+			_log do $funcname daemon info "removing superfluous: '$file'"
+			rm "$file"
+		}
 	} done
 
 	[ "$option" = 'force' ] || _db lock free
