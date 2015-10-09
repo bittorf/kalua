@@ -134,14 +134,8 @@ case "$MINUTE" in
 					echo '_mail stash_resend'
 				} >>$SCHEDULER
 
-				case "$HOUR" in
-					04)
-						# not during pppoe-reconnect
-					;;
-					*)
-						echo >>$SCHEDULER 'cron.monitoring send_alive_message'
-					;;
-				esac
+				# not during pppoe-reconnect
+				_system maintenance_window_active "$HOUR" || echo >>$SCHEDULER 'cron.monitoring send_alive_message'
 			;;
 			*)
 				# collect only, dont send
@@ -183,14 +177,12 @@ case "$MINUTE" in
 			echo >>$SCHEDULER '_olsr build_overview_static /tmp/statuspage_neigh_pregenerated'
 		}
 
-		case "$HOUR" in
-			04)
-				# not during pppoe-reconnect
-			;;
-			*)
-				echo >>$SCHEDULER '_watch dns_resolution'
-			;;
-		esac
+		# every 15 mins:
+		# not during pppoe-reconnect
+		_system maintenance_window_active "$HOUR" || {
+			echo '_watch dns_resolution'
+			echo '_vpn x'
+		} >>$SCHEDULER
 
 		cat >>$SCHEDULER <<EOF
 /usr/sbin/cron.check_inet_gw_fff+
