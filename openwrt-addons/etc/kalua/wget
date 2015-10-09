@@ -16,8 +16,8 @@ _wget_do()
 	local mask1="$3"
 	local mask2="$4"	# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
 	local mypid=$$
-	local http_proxy remaining_wgets pid_wget pid_line pid_line_now i c=-1 rc=0
-	local proxy_command file_option filename pid_background pid_num mycmdline myerror
+	local http_proxy remaining_wgets pid_wget pid_line pid_line_now c=-1 rc=0
+	local proxy_command file_option filename pid_background myerror
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
 
 	case "$url" in
@@ -48,7 +48,7 @@ _wget_do()
 	list_wget_pids_initial="$( pidof wget )"
 
 	# autocleanup tempfiles. trapping 'RETURN' is not possible in POSIX
-	trap "rm /tmp/${funcname}_$mypid /tmp/${funcname}_$mypid.error 2>/dev/null" EXIT
+	trap 'rm /tmp/${funcname}_$mypid /tmp/${funcname}_$mypid.error 2>/dev/null' EXIT
 
 	( wget $proxy_command -qO $filename $file_option "$url" 2>"/tmp/${funcname}_$mypid.error" || echo "$?" >"/tmp/${funcname}_$mypid" ) &
 	pid_background=$!
@@ -71,7 +71,7 @@ _wget_do()
 		break
 	} done
 
-	read myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
+	read -r myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
 		if [ ${#myerror} -eq 0 ]; then
 			_log do $funcname daemon debug '[OK] no error message'
 		else
@@ -100,7 +100,7 @@ _wget_do()
 		;;
 		*)
 			# exact line like shown with 'ps'
-			read pid_line 2>/dev/null <"/proc/$pid_wget/cmdline"
+			read -r pid_line 2>/dev/null <"/proc/$pid_wget/cmdline"
 		;;
 	esac
 
@@ -115,7 +115,7 @@ _wget_do()
 		[ $c -ge $max ] && {
 			pid_line_now=
 			# keeps empty, when task has ended
-			read pid_line_now 2>/dev/null <"/proc/$pid_wget/cmdline"
+			read -r pid_line_now 2>/dev/null <"/proc/$pid_wget/cmdline"
 
 			# really the started process?
 			[ "$pid_line" = "$pid_line_now" ] && {
@@ -130,7 +130,7 @@ _wget_do()
 				} done
 
 				# FIXME! this is unneeded? and racy: we can kill other wgets which have just started
-				[ -z "$initial_wgets" ] && {
+				[ -z "$list_wget_pids_initial" ] && {
 					remaining_wgets="$( pidof wget )" && {
 						_log do $funcname daemon info "leaving wgets: $remaining_wgets , do killall"
 						killall wget
@@ -147,7 +147,7 @@ _wget_do()
 	} done
 
 	# FIXME! code duplication, see above
-	read myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
+	read -r myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
 		if [ ${#myerror} -eq 0 ]; then
 			_log do $funcname daemon debug '[OK] no error message'
 		else
@@ -164,7 +164,7 @@ _wget_do()
 		fi
 	}
 
-	read rc 2>/dev/null <"/tmp/${funcname}_$mypid" && {
+	read -r rc 2>/dev/null <"/tmp/${funcname}_$mypid" && {
 		_log do $funcname daemon info "[ERR] returning $rc after fetching '$url'"
 	}
 
