@@ -15,7 +15,8 @@ _cron_vpnserver()
 	local funcname='cron_vpnserver'
 	local ip="${1:-84.38.67.43}"
 	local firstrun="$TMPDIR/firstrun_$funcname"
-	local public_ip port loopback_interface='lo'
+	local public_ip port
+	local loopback_interface='lo'
 
 	[ -e "$firstrun" ] || {
 		touch "$firstrun"
@@ -46,6 +47,16 @@ DebugLevel 0
 
 LoadPlugin "$( get_plugin 'txtinfo' )"
 {
+	PlParam "accept" "127.0.0.1"
+	PlParam "listen" "0.0.0.0"
+	PlParam "port" "2006"
+}
+
+LoadPlugin "$( get_plugin 'jsoninfo' )"
+{
+	PlParam "accept" "127.0.0.1"
+	PlParam "listen" "0.0.0.0"
+	PlParam "port" "9090"
 }
 
 LoadPlugin "$( get_plugin 'nameservice' )"
@@ -98,12 +109,10 @@ EOF
 		_watch archivsize '/www/everlasting_syslog.txt' 200 300
 	}
 
+	_scheduler run
 	case "$( date +%M )" in
 		00|15|30|45)
 			cron.monitoring send_alive_message
-		;;
-		*)
-			_scheduler run
 		;;
 	esac
 
