@@ -1253,6 +1253,7 @@ _netfilter_splash_start()
 	local ip source destination dev temp_dev dnsport
 	local dnsport dnsfake_ip
 	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8"
+	local logprio='alert'
 
 	if [ -n "$LOWMEM" ]; then
 		dnsport=53
@@ -1279,7 +1280,7 @@ _netfilter_splash_start()
 	$IPT -t mangle -N alien
 
 	# fixme! $ROAMING_IP
-	[ $NODENUMBER -lt 256 ] && $IPT -t mangle -A alien -s 192.168.$NODENUMBER.0/24 -j RETURN
+	[ $NODENUMBER -lt 256 ] && $IPT -t mangle -A alien -s "192.168.$NODENUMBER.0/24" -j RETURN
 
 	$IPT -t mangle -A alien -s $myhna -j RETURN
 	$IPT -t mangle -A alien -j ACCEPT
@@ -1295,7 +1296,7 @@ _netfilter_splash_start()
 	$IPT -t mangle -A PREROUTING -j picopeer
 
 	# olsr
-	$IPT -t mangle -A PREROUTING -p udp --dport 698 -s $WIFINET/$WIFIPRE -d 255.255.255.255 -j ACCEPT
+	$IPT -t mangle -A PREROUTING -p udp --dport 698 -s "$WIFINET/$WIFIPRE" -d 255.255.255.255 -j ACCEPT
 
 	_netfilter walledgarden_start
 
@@ -1327,7 +1328,7 @@ _netfilter_splash_start()
 
 	grep -q ^'ipt_REJECT ' /proc/modules || insmod ipt_REJECT	# fixme! remove later when new cron.patch_patch_kmodules.sh is active
 	$IPT -A FORWARD -m mark --mark 0x88/0xff -j REJECT
-	$IPT -A FORWARD -s $WIFINET/$WIFIPRE -d $WIFINET/$WIFIPRE -j ACCEPT		# picopeer 2nd time
+	$IPT -A FORWARD -s "$WIFINET/$WIFIPRE" -d "$WIFINET/$WIFIPRE" -j ACCEPT		# picopeer 2nd time
 	_netfilter mssfix
 
 	if pidof bat_events >/dev/null; then
@@ -1364,7 +1365,8 @@ _netfilter_splash_start()
 		add_dev "$dev" && dev_list="$( _list remove_element "$dev_list" "$dev" 'string' )"
 	} done
 
-	[ -n "$dev_list" ] && _log do $funcname daemon alert "unable to add dev '$dev'"
+	[ $( _system uptime sec ) -lt 120 ] && logprio='info'
+	[ -n "$dev_list" ] && _log do $funcname daemon $logprio "unable to add dev '$dev'"
 
 	# FIXME! this has issues, e.g. when a OLSR-coupled neigh via WAN tries do DNS requests. needs further investigation
 	# control-group: any packets left?
