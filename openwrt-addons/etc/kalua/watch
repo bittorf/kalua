@@ -72,37 +72,40 @@ _watch_dhcp_space()
 	_log do $funcname daemon $logprio "clients: lan: $clients_lan/$max_lan wifi: $clients_wifi/$max_wifi"
 }
 
-
-_watch_vpn ()
+_watch_vpn()
 {
-	_olsr build_tables
 	local func="watch_vpn"
 
-	pidof vtund >/dev/null && {
+	if pidof vtund >/dev/null; then
 	        _log do $func daemon debug "daemon running"
 	        grep -sq ^"Interface .*tap0" /etc/olsrd.conf /var/etc/olsrd.conf || {   # fixme! more abstraction: tun/tapXY + conf-filename
-	        	_log do $FUNC daemon debug "daemon running but tunnel-device not used by olsr"
+			_log do $FUNC daemon info "daemon running but tunnel-device not used by olsr"
 	        	return 1
 		}
 	        _log do $func daemon debug "tunnel-device is in olsr.conf"
 
 	        ps | grep vtund | grep -q connecting && {
-	        	_log do $func daemon debug "daemon running but connection seems broken"
+			_log do $func daemon info "daemon running but connection seems broken"
 	                return 1
 	        }
 	        _log do $func daemon debug "connection seems active"
 
-	        if sed -n '/Neighbors/,/Topology/'p   /tmp/OLSR/ALL | grep -q 10.63.1 ; then
-	        	_log do $func daemon debug "tunnel-olsr neigh available"
+		vpn_server_is_neigh()
+		{
+			sed -n '/Table: Links/,/Table: Neighbors/p' /tmp/OLSR/ALL | grep -q '10\.63\.1\.[1-63]'
+		}
+
+		if vpn_server_is_neigh; then
+			_log do $func daemon debug "tunnel-olsr neigh available"
 	        	return 0
 	        else
-	        	_log do $func daemon debug "no tunnel-olsr neigh available?!"
+			_log do $func daemon info "no tunnel-olsr neigh available?!"
 	        	return 1
 	        fi
-	}
-	                                                                                                                                                                                                                                                                                                                                                
-	_log do $func daemon debug "daemon NOT running"
-	return 1
+	else
+		_log do $func daemon info "daemon NOT running"
+		return 1
+	fi
 }
 
 _watch_archivsize ()
