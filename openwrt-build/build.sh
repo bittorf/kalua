@@ -1811,7 +1811,7 @@ apply_symbol()
 				search_and_replace "$file" '^#SIM_ARG1=' "SIM_ARG1=$installation    #"
 				search_and_replace "$file" '^#SIM_ARG2=' "SIM_ARG2=$sub_profile    #"
 				search_and_replace "$file" '^#SIM_ARG3=' "SIM_ARG3=$node    #"
-				search_and_replace "$file" '^#\[ "$SIM_ARG3' '\[ "$SIM_ARG3'	# wan-dhcp for node 2
+				search_and_replace "$file" "^#\[ \"\$SIM_ARG3' '\[ \"\$SIM_ARG3"	# wan-dhcp for node 2
 				log "$KALUA_DIRNAME: enforced profile: $installation - $sub_profile - $node" gitadd "$file"
 			}
 
@@ -2894,7 +2894,7 @@ unittest_do()
 		openwrt-addons/etc/init.d/S41build_static_netparam call
 		cat '/tmp/NETPARAM' || touch '/tmp/NETPARAM'
 
-		log 'echo "$HARDWARE" + "$SHELL" + "$USER" + cpu + diskspace'
+		log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + cpu + diskspace"
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
 		log "CPU count: $( cpu_count )"
 		df -h
@@ -2905,13 +2905,13 @@ unittest_do()
 		log '_net get_external_ip'
 		_net get_external_ip
 
-		log 'list="$( ls -1R . )"'
+		log "list=\"\$( ls -1R . )\""
 		local list="$( ls -1R . )"
 
-		log '_list count_elements "$list"'
+		log "_list count_elements \"\$list\""
 		_list count_elements "$list" || return 1
 
-		log '_list random_element "$list"'
+		log "_list random_element \"\$list\""
 		_list random_element "$list" || return 1
 
 		log "_system architecture"
