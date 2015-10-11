@@ -2934,12 +2934,12 @@ unittest_do()
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
 			$shellcheck_bin --version
-			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
+# inwork		# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
 			# SC1010: "_log do ...' -> 'do' is a special keyword
 			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
 			# SC1090: Can't follow non-constant source. Use a directive to specify location.
 			#
-#			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
+# inwork		# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2039: In POSIX sh, echo flags are not supported.
@@ -2955,7 +2955,7 @@ unittest_do()
 
 			shellsheck_ignore()
 			{
-				printf 'SC1007,SC1010,SC1090,SC1091,'
+				printf 'SC1010,SC1090,SC1091,'
 				printf 'SC2029,SC2031,SC2039,SC2046,SC2086,SC2155,SC2166'
 			}
 
