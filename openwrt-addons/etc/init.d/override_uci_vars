@@ -59,7 +59,10 @@ apply_olsr_roaming()
 			# e.g. 'wlanRADIO1'
 			uci set wireless.@wifi-iface[$index].disabled='0'		# force active
 			uci set wireless.@wifi-iface[$index].disassoc_low_ack='1'
-			uci add_list dhcp.@dnsmasq[0].notinterface="$network"		# omit dnsmasq-logerrors
+
+			# omit dnsmasq-logerrors:
+			# in roaming mode we should answer on 'mastergate' not e.g. 'wlan'
+			uci add_list dhcp.@dnsmasq[0].notinterface="$network"
 		else
 			# e.g. 'lan'
 			network="$index"
@@ -448,7 +451,7 @@ boot()
 	}
 
 	# no DNS-responses on WAN from outside
-	[ "$( uci -q get dhcp.@dnsmasq[0].notinterface )" = "wan" ] || {
+	[ "$( uci -q get dhcp.@dnsmasq[0].notinterface )" = 'wan' ] || {
 		_net local_inet_offer >/dev/null && {
 			uci set dhcp.@dnsmasq[0].notinterface='wan'	# add pppoe-wan?
 		}
@@ -2037,7 +2040,7 @@ boot()
 			sed -i 's/eval \(.*\)/&\n	test "$PREFIX" = "${netmask_dhcpcalc:-$netmask}" \&\& netmask="$NETMASK"/' "$file"
 		}
 
-		fgrep ' "$dynamicdhcp" = "0" ' "$file" | fgrep -q 'test' || {
+		fgrep " \"\$dynamicdhcp\" = \"0\" " "$file" | fgrep -q 'test' || {
 			sed -i "s/.* \"\$dynamicdhcp\" = \"0\" .*/& ; test \"\$START\" = '192.168.0.2' \&\& START='192.168.$NODENUMBER.2'; test \"\$END\" = '192.168.0.254' \&\& END='192.168.$NODENUMBER.254'/" "$file"
 		}
 

@@ -2843,7 +2843,8 @@ travis_prepare()
 	echo
 	ip address show
 	echo
-						# TODO: build from source: (a static binary, so just wget without sudo?)
+
+	sudo apt-get update			# TODO: build from source: (a static binary, so just wget without sudo?)
 	sudo apt-get -y install sloccount	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
 	sudo apt-get -y install tidy		# http://www.html-tidy.org/
 	sudo apt-get -y install php5		# http://de1.php.net/distributions/php-5.6.14.tar.bz2
@@ -2934,18 +2935,19 @@ unittest_do()
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
 			$shellcheck_bin --version
-# inwork		# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
+# WIP			# SC1007: Remove space after = if trying to assign a value (for empty string, use var='' ... ).
 			# SC1010: "_log do ...' -> 'do' is a special keyword
 			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
 			# SC1090: Can't follow non-constant source. Use a directive to specify location.
 			#
-# inwork		# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
+# WIP			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2039: In POSIX sh, echo flags are not supported.
 			#  SC2039: In POSIX sh, HOSTNAME is not supported.
 			#  SC2039: In POSIX sh, string replacement is not supported.
 			#  SC2039: In POSIX sh, 'let' is not supported.
+			#  SC2039: In POSIX sh, 'local' is not supported.
 # TODO #		# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
