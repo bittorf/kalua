@@ -2727,7 +2727,7 @@ mimetype_get()
 
 check_scripts()
 {
-	local dir="$1"
+	local dir="$1"		# or file
 	local tempfile="/tmp/check_scripts"
 	local tempfile_functions="$tempfile.functions"
 	local good='true'
@@ -2932,7 +2932,8 @@ unittest_do()
 		shellcheck_bin="$( which shellcheck )"
 		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
 
-		_weblogin htmlout_loginpage '' '' '' '' "http://198.23.155.210" '(cache)' >"$tempfile"
+		log '_weblogin htmlout_loginpage'
+		_weblogin htmlout_loginpage '' '' '' '' "http://198.23.155.210" '(cache)' | tail -n+3 >"$tempfile"
 		check_scripts "$tempfile" || return 1
 
 		if [ -z "$shellcheck_bin" ]; then
