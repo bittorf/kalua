@@ -2847,11 +2847,11 @@ travis_prepare()
 	sudo apt-get update					# TODO: build from source: (a static binary, so just wget without sudo?)
 	sudo apt-get -y install sloccount	|| return 1	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
 	sudo apt-get -y install tidy		|| return 1	# http://www.html-tidy.org/
-#	sudo apt-get -y install php5		|| return 1	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
+	sudo apt-get -y install php5		|| return 1	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
 
 	# for javascript testing: https://github.com/marijnh/acorn
-#	sudo apt-get -y install nodejs		|| return 1
-#	sudo apt-get -y install npm		|| return 1
+	sudo apt-get -y install nodejs		|| return 1
+	sudo apt-get -y install npm		|| return 1
 	sudo npm config set registry http://registry.npmjs.org/		# force http NOT https
 	sudo npm install --global 'acorn'	|| return 1
 
