@@ -24,7 +24,8 @@
 		touch "/tmp/statuspage_neigh_lastfetch_$REMOTE_ADDR"
 
 		case "$HTTP_ACCEPT_ENCODING" in
-			# e.g. 'gzip, deflate, sdch, Brotli'
+			# https://en.wikipedia.org/wiki/HTTP_compression#Content-coding_tokens
+			# try uhttpd patch: https://lists.openwrt.org/pipermail/openwrt-devel/2015-October/036280.html
 			*'gzip'*)
 				_http header_mimetype_output 'text/html' 'gzip'
 

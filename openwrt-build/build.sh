@@ -2943,7 +2943,7 @@ unittest_do()
 			# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			# SC2031: FIXME! ...in net_local_inet_offer()
-# WIP			# SC2039: In POSIX sh, echo flags are not supported.
+			# SC2039: In POSIX sh, echo flags are not supported.
 			#  SC2039: In POSIX sh, HOSTNAME is not supported.
 			#  SC2039: In POSIX sh, string replacement is not supported.
 			#  SC2039: In POSIX sh, 'let' is not supported.
@@ -2958,7 +2958,7 @@ unittest_do()
 			shellsheck_ignore()
 			{
 				printf 'SC1007,SC1010,SC1090,SC1091,'
-				printf 'SC2016,SC2029,SC2031,SC2046,SC2086,SC2155,SC2166'
+				printf 'SC2016,SC2029,SC2031,SC2039,SC2046,SC2086,SC2155,SC2166'
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
