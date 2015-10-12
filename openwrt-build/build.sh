@@ -2827,7 +2827,7 @@ check_scripts()
 	fi
 
 	rm "$tempfile" "$tempfile_functions"
-	test $i -gt 0
+	test $i -ge 0
 }
 
 myarch()
