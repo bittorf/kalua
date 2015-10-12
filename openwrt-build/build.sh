@@ -2928,8 +2928,12 @@ unittest_do()
 		_system load 1min full || return 1
 		_system load || return 1
 
+		tempfile='/dev/shm/shellcheck_testfile'
 		shellcheck_bin="$( which shellcheck )"
 		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
+
+		_weblogin htmlout_loginpage '' '' '' '' "http://198.23.155.210" '(cache)' >"$tempfile"
+		check_scripts "$tempfile" || return 1
 
 		if [ -z "$shellcheck_bin" ]; then
 			log "[OK] shellcheck not installed - no deeper tests"
@@ -2962,7 +2966,6 @@ unittest_do()
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
-			tempfile='/dev/shm/shellcheck_testfile'
 			filelist='/dev/shm/filelist'
 			find 'openwrt-addons' 'openwrt-build' -type f -not -iwholename '*.git*' >"$filelist"
 
