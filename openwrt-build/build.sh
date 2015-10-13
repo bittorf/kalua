@@ -2928,11 +2928,11 @@ unittest_do()
 		_system load 1min full || return 1
 		_system load || return 1
 
-		tempfile='/dev/shm/shellcheck_testfile'
+		tempfile='/dev/shm/testfile'
 		shellcheck_bin="$( which shellcheck )"
 		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
 
-		log '_weblogin htmlout_loginpage'
+		log '_weblogin htmlout_loginpage'	# omit 2 lines header:
 		_weblogin htmlout_loginpage '' '' '' '' "http://198.23.155.210" '(cache)' | tail -n+3 >"$tempfile"
 		check_scripts "$tempfile" || return 1
 
@@ -2952,7 +2952,7 @@ unittest_do()
 			#  SC2039: In POSIX sh, HOSTNAME is not supported.
 			#  SC2039: In POSIX sh, string replacement is not supported.
 			#  SC2039: In POSIX sh, 'let' is not supported.
-			#  SC2039: In POSIX sh, 'local' is not supported.
+			#  SC2039: In POSIX sh, 'local' is not supported. -> we need another SCxy for that
 # TODO #		# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 			# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 			#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
