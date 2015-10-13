@@ -1034,7 +1034,7 @@ check_working_directory()
 			rm -fR 'packages'
 		}
 
-		repo='git://nbd.name/packages.git'
+		repo="$git_url"
 		log "first start - fetching OpenWrt-packages: git clone '$repo'"
 		git clone "$repo" || return $error
 		cd openwrt || return
@@ -3268,14 +3268,14 @@ die_and_exit()
 
 [ "$UID" = '0' ] && log "REMINDER: dont build as root, you have UID: $UID"
 
-[ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
-[ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
-
 check_git_settings			|| die_and_exit
-check_working_directory yes		|| die_and_exit
+check_working_directory			|| die_and_exit
 openwrt_download 'reset_autocommits'
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 feeds_adjust_version "$FEEDSTIME"
+
+[ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
+[ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
 
 SPECIAL_OPTIONS=
 [ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$LIST_USER_OPTIONS" -a "$HARDWARE_MODEL" ] && \
