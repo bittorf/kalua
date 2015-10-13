@@ -1021,12 +1021,12 @@ check_working_directory()
 		log "first start - fetching OpenWrt: git clone '$git_url'"
 		git clone "$git_url" || return $error
 
-		if [ -d 'openwrt_download' ]; then
-			log "symlinking our central download pool"
-			ln -s ../openwrt_download 'openwrt/dl'
+		if [ -d "$DOWNLOAD_POOL" ]; then
+			log "symlinking our central download pool '$DOWNLOAD_POOL'"
+			ln -s "$DOWNLOAD_POOL" 'openwrt/dl'
 		else
 			log "[OK] no central download pool - but if you want this,"
-			log "please run: 'mkdir openwrt_download' before starting this script"
+			log "please use --download_pool '\$YOUR_DIRECTORY'"
 		fi
 
 		[ -d 'packages' ] && {
@@ -1034,7 +1034,7 @@ check_working_directory()
 			rm -fR 'packages'
 		}
 
-		repo="$git_url"
+		repo='git://git.openwrt.org/packages.git'
 		log "first start - fetching OpenWrt-packages: git clone '$repo'"
 		git clone "$repo" || return $error
 		cd openwrt || return
@@ -3152,9 +3152,12 @@ while [ -n "$1" ]; do {
 		'--fail')
 			FAIL='true'
 		;;
+		'--download_pool')
+			DOWNLOAD_POOL="$2"
+		;;
 		'--openwrt')
 			case "$2" in
-				'trunk'|'12.09'|'14.07'|'15.05'|'r'[0-9]*)
+				'trunk'|'10.03'|'12.09'|'14.07'|'15.05'|'r'[0-9]*)
 					VERSION_OPENWRT="$2"
 				;;
 				*)
