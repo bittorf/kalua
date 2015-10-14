@@ -2728,7 +2728,7 @@ mimetype_get()
 check_scripts()
 {
 	local dir="$1"		# or file
-	local tempfile="/tmp/check_scripts"
+	local tempfile='/tmp/check_scripts'
 	local tempfile_functions="$tempfile.functions"
 	local good='true'
 	local file mimetype i
@@ -2821,12 +2821,12 @@ check_scripts()
 	} done <"$tempfile"
 
 	if [ "$good" = 'true' ]; then
-		log "[OK] checked ${i:=0} files with $( wc -l <"$tempfile_functions" ) shell-functions"
+		log "[OK] checked ${i:=0} files with $( wc -l 2>/dev/null <"$tempfile_functions" || echo '0' ) shell-functions"
 	else
 		i=-1
 	fi
 
-	rm "$tempfile" "$tempfile_functions"
+	rm "$tempfile" "$tempfile_functions" 2>/dev/null
 	test $i -ge 0
 }
 
@@ -2863,6 +2863,11 @@ travis_prepare()
 		cd '/run/shm' || return 1
 		git clone https://github.com/koalaman/shellcheck.git
 		cd shellcheck || return 1
+
+		echo
+		git log -1
+		echo
+
 		cabal install
 	)
 
@@ -2996,7 +3001,6 @@ unittest_do()
 						# SC2039: https://github.com/koalaman/shellcheck/issues/354
 #						sed -i 's/echo -n /printf /g' "$tempfile"
 #						sed -i 's/echo -en /printf /g' "$tempfile"
-#						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
 
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in
@@ -3304,7 +3308,8 @@ get_uptime_in_sec 'T2'
 echo "$USECASE $HARDWARE_MODEL" >>'KALUA_HISTORY'
 [ -n "$BACKUP_DOTCONFIG" ] && {
 	{
-		echo '# please strip with: sed -e "/^#/d" -e "/^$/d" "THIS_FILE"'
+		echo '# please strip with:'
+		echo '# sed -e "/^#/d" -e "/^$/d" -e "/^CONFIG_DEFAULT_/d" -e "/^CONFIG_BUSYBOX_DEFAULT_/d" "THIS_FILE"'
 		echo
 		cat '.config'
 	} >"$BACKUP_DOTCONFIG"
