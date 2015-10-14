@@ -125,30 +125,17 @@ ip() {
 EOF
 fi
 
-# root@OpenWrt:~ grep ' tmpfs ' /proc/mounts
-# tmpfs /tmp tmpfs rw,nosuid,nodev,noatime 0 0
-# tmpfs /dev tmpfs rw,relatime,size=512k,mode=755 0 0
-# tmpfs /coredumps tmpfs rw,nosuid,nodev,relatime,size=2048k 0 0
-# tmpfs /database tmpfs rw,nosuid,nodev,relatime,size=61676k 0 0
 
-# root@server1:~ grep ' tmpfs ' /proc/mounts
-# none /run tmpfs rw,nosuid,noexec,relatime,size=209716k,mode=755 0 0
-# none /run/lock tmpfs rw,nosuid,nodev,noexec,relatime,size=5120k 0 0
-# none /run/shm tmpfs rw,nosuid,nodev,noexec,relatime,size=419420k 0 0
-# none /run/user tmpfs rw,nosuid,nodev,noexec,relatime,size=102400k,mode=755 0 0
-
-# TODO: we should make sure it is on 'tmpfs' (e.g. server)
-if   mkdir 2>/dev/null -p '/var/run/kalua'; then
-	TMPDIR='/var/run/kalua'
-elif mkdir 2>/dev/null -p '/run/kalua' ; then
-	TMPDIR='/run/kalua'
-else
-	TMPDIR='/tmp'
-fi
-
+set -- $( grep ' tmpfs ' '/proc/mounts' | grep -v 'mode=' | grep -v 'noexec' | head -n1 )
+TMPDIR="$2/kalua"
+mkdir "$TMPDIR" || {
+	# needs root
+	TMPDIR='/kalua'
+	mount -t tmpfs -o size=5000k,nosuid,nodev tmpfs "$TMPDIR" || TMPDIR='/tmp'
+}
 logger -s "$0: [OK] please use \$TMPDIR which now points to '$TMPDIR'"
-mkdir -p "$TMPDIR"
 chmod -R 777 "$TMPDIR" 2>/dev/null
+
 
 [ -e '/etc/profile' ] && {
 	# avoid sourcing old loader via /etc/profile
