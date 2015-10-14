@@ -2949,7 +2949,6 @@ unittest_do()
 			# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 			# SC2031: FIXME! ...in net_local_inet_offer()
 			# SC2039: In POSIX sh, echo flags are not supported.
-			#  SC2039: In POSIX sh, HOSTNAME is not supported.
 			#  SC2039: In POSIX sh, string replacement is not supported.
 			#  SC2039: In POSIX sh, 'let' is not supported.
 			#  SC2039: In POSIX sh, 'local' is not supported. -> we need another SCxy for that
@@ -3001,12 +3000,11 @@ unittest_do()
 #						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
 
 						# SC1010
-						for pattern in log sanitizer ipsystem; do {
+						for pattern in log ipsystem; do {
 							sed -i "s/_$pattern do /_$pattern it /g" "$tempfile"
 							sed -i "s/_${pattern}_do/_${pattern}_it/g" "$tempfile"
 						} done
 						# _log it
-						# _sanitizer run
 						# _ipsystem query
 
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034

@@ -18,13 +18,13 @@ esac
 
 URL_BASE='http://reg.weimarnetz.de'
 PASS="$( _ssh key_public_fingerprint_get )"
-PASS="$( _sanitizer do "$PASS" urlvalue )"
+PASS="$( _sanitizer run "$PASS" urlvalue )"
 
 if [ -e '/www/monitoring.wifimac' ]; then
 	read -r MAC <'/www/monitoring.wifimac'
 else
 	MAC="$( _net dev2mac "$WIFIDEV" )"
-	MAC="$( _sanitizer do "$MAC" urlvalue )"
+	MAC="$( _sanitizer run "$MAC" urlvalue )"
 fi
 
 if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; then

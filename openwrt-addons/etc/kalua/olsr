@@ -98,7 +98,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 			case "$line" in
 				'default '*)
 					# TODO: dont take a public IP into account
-					gateway="$( _sanitizer do "$line" ip4 )"
+					gateway="$( _sanitizer run "$line" ip4 )"
 
 					# TODO: ipv6?
 					# TODO: default routes can be in at the end:
@@ -117,7 +117,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 						case "$gateway" in
 							'default via '*)
-								gateway="$( _sanitizer do "$3" ip4 )"
+								gateway="$( _sanitizer run "$3" ip4 )"
 							;;
 							*)
 								gateway="$3"
@@ -594,7 +594,7 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 	fi
 
 	. /usr/sbin/cron.check_klog
-	sed -i "/.* OLSR: unknown: .* SRC=$( _sanitizer do "$ip" escape_dots ) DST=255.255.255.255.*/d" '/tmp/dmesg.log'
+	sed -i "/.* OLSR: unknown: .* SRC=$( _sanitizer run "$ip" escape_dots ) DST=255.255.255.255.*/d" '/tmp/dmesg.log'
 
 	touch "$dir/$ip_or_dev" "$dir/myself_dev-$ip"
 }
@@ -988,9 +988,9 @@ _olsr_neigh_nlq ()
 	else
 		_sanitizer include
 
-		NLQ="$(  _sanitizer do "$NLQ"  numeric )"
-		LQ="$(   _sanitizer do "$LQ"   numeric )"
-		COST="$( _sanitizer do "$COST" numeric )"
+		NLQ="$(  _sanitizer run "$NLQ"  numeric )"
+		LQ="$(   _sanitizer run "$LQ"   numeric )"
+		COST="$( _sanitizer run "$COST" numeric )"
 
 		if [ -z "$KEYWORD" ]; then
 			echo "${NLQ:-0}"
@@ -1195,7 +1195,7 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 
 	ip_default_route()
 	{
-		_sanitizer do "$( grep ^default /tmp/OLSR/ROUTING_TABLE_MAIN | head -n1 )" ip4
+		_sanitizer run "$( grep ^default /tmp/OLSR/ROUTING_TABLE_MAIN | head -n1 )" ip4
 	}
 
 	local COUNT=0
@@ -1654,9 +1654,9 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 	local COUNT=0 LOCAL REMOTE LQ NLQ COST
 
 	LIST="$( sed -n 's/^LOCAL=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all local IP's
-	MAX1="$( _sanitizer do "$LIST" list_get_longest_string )"
+	MAX1="$( _sanitizer run "$LIST" list_get_longest_string )"
 	LIST="$( sed -n 's/^.*;REMOTE=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all remote IP's
-	MAX2="$( _sanitizer do "$LIST" list_get_longest_string )"
+	MAX2="$( _sanitizer run "$LIST" list_get_longest_string )"
 	LQMULTI_ALL="$( _olsr lqmultiplier )"
 
 	[ $( echo $LIST | wc -w ) -gt 9 ] && SPACER3=" "  	# numbering layout
@@ -1671,8 +1671,8 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 		DEVTYPE="${DEVTYPE}${DEVTYPE}"		# looks better
 
 		MAC="$( _net ip2mac "$REMOTE" lazy )"
-		SPACER1="$( _sanitizer do "$MAX1 $LOCAL"  add_length_diff_with_spaces )"			# ip's should always have
-		SPACER2="$( _sanitizer do "$MAX2 $REMOTE" add_length_diff_with_spaces )"			# the same length
+		SPACER1="$( _sanitizer run "$MAX1 $LOCAL"  add_length_diff_with_spaces )"			# ip's should always have
+		SPACER2="$( _sanitizer run "$MAX2 $REMOTE" add_length_diff_with_spaces )"			# the same length
 		DNS="$( _net ip2dns $REMOTE )"
 		METRIC="$( _olsr remoteip2metric $REMOTE )"
 		[ $COUNT -gt 9 ] && unset SPACER3					# 9 -> ' 9'; 10 = 10

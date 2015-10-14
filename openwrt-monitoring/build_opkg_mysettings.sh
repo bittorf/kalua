@@ -32,7 +32,7 @@ apply_settings()
 {
 	[ -e "/sbin/uci" ] || return 1
 
-	local mac="\$( _sanitizer do "\$( _net dev2mac \$WIFIDEV )" hex lowercase )"
+	local mac="\$( _sanitizer run "\$( _net dev2mac \$WIFIDEV )" hex lowercase )"
 
 	hostname()
 	{

@@ -67,7 +67,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 	# generated via olsr_build_tables()
 	# -335:10.63.167.97:10.63.80.97:LC:1.000:1.000:1.000:1...
 	read -r NEIGH 2>/dev/null <'/tmp/OLSR/meshrdf_neighs' && {
-		NEIGH="$( _sanitizer do "$NEIGH" urlvalue )"
+		NEIGH="$( _sanitizer run "$NEIGH" urlvalue )"
 	}
 
 	USERS=		# -001122334455:500~112233445566:9888
@@ -78,7 +78,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 	VERSION=$FFF_PLUS_VERSION					# 345678
 	REBOOT="$( _system reboots )"					# 15
 
-	OLSRVER="$( _sanitizer do "$( _olsr version )" urlvalue )"	# pre-0.5.6-r4 2009-01-02 12:00:45 on pcnet
+	OLSRVER="$( _sanitizer run "$( _olsr version )" urlvalue )"	# pre-0.5.6-r4 2009-01-02 12:00:45 on pcnet
 	# WIFIDEV="$WIFI_DEVS"		# FIXME!			# eth1
 									# 001122334455
 	if [ -e '/www/monitoring.wifimac' ]; then
@@ -90,9 +90,9 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 			. /tmp/NETPARAM
 		}
 
-		WIFIMAC="$( _sanitizer do "$( _net dev2mac ${WIFIDEV:-${LANDEV:-$WANDEV}} )" hex )"
+		WIFIMAC="$( _sanitizer run "$( _net dev2mac ${WIFIDEV:-${LANDEV:-$WANDEV}} )" hex )"
 		[ -z "$WIFIMAC" ] && {
-			WIFIMAC="$( _sanitizer do "$( uci -q get wireless.radio0.macaddr )" hex )"
+			WIFIMAC="$( _sanitizer run "$( uci -q get wireless.radio0.macaddr )" hex )"
 			[ -z "$WIFIMAC" ] && {
 				bool_true 'wireless.radio0.disabled' || {
 					_log do $FUNC daemon alert 'empty wifimac, rebuilding netparam'
@@ -120,7 +120,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 		# OK and not 'locally_administered'
 		for DEV in $WIFI_DEVS $LANDEV $WANDEV; do {
 			MYMAC="$( _net dev2mac "$DEV" )"
-			MYMAC="$( _sanitizer do "$MYMAC" hex )"
+			MYMAC="$( _sanitizer run "$MYMAC" hex )"
 			_net mac2vendor "$MYMAC" >/dev/null | grep -q 'locally_administered' || {
 				[ ${#MYMAC} = '12' ] && {
 					echo "$MYMAC" >'/www/monitoring.wifimac'
@@ -132,17 +132,17 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 	}
 
 	UPDATE="$( _firmware updatemode ).$( _firmware get_usecase )"					# testing.Standard,kalua
-	UPDATE="$( _sanitizer do "$UPDATE" urlvalue )"
+	UPDATE="$( _sanitizer run "$UPDATE" urlvalue )"
 
 	LATLON="$( uci -q get system.@admin[0].latlon | sed -e 's/[^0-9\;,\.]//g' -e 's/\;/,/g' )"	# 50.1234,11.3345
 		if [ "," = "$LATLON" ] || [ -z "$LATLON" ]; then
 			LATLON="0,0"
 		fi
-		LATLON="$( _sanitizer do "$LATLON" urlvalue )"
+		LATLON="$( _sanitizer run "$LATLON" urlvalue )"
 
-	ADMINEMAIL="$( _sanitizer do "$( uci -q get system.@admin[0].mail )" email urlvalue )"		# bla@blubb.de
+	ADMINEMAIL="$( _sanitizer run "$( uci -q get system.@admin[0].mail )" email urlvalue )"		# bla@blubb.de
 
-	ADMINPHONE="$( _sanitizer do "$( uci -q get system.@admin[0].phone )" alphanum )"		# 036435101112zuhause
+	ADMINPHONE="$( _sanitizer run "$( uci -q get system.@admin[0].phone )" alphanum )"		# 036435101112zuhause
 
 [ -n "$WIFIDEV" ] && {
 	TXPWR="$(	_wifi phy_txpower	"$WIFIDEV" mw )"	# 40
@@ -160,7 +160,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 
 
 	MRATE_CONFIG="$( uci -q get wireless.@wifi-iface[0].mcast_rate )"	# 5500000 or <empty> or "auto"
-	if _sanitizer do "$MRATE_CONFIG" numeric check ; then
+	if _sanitizer run "$MRATE_CONFIG" numeric check ; then
 		MRATE_CONFIG=$(( MRATE_CONFIG * 1000 ))
 	else
 		MRATE_CONFIG='auto'
@@ -184,17 +184,17 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 
 	# FIXME! rename var to speed? it was SENSITIVITY...
 	SENS="$( _wifi speed $WIFIDEV )"
-	SENS="$( _sanitizer do "$SENS" urlvalue )"
+	SENS="$( _sanitizer run "$SENS" urlvalue )"
 
 	DRIVER="$( _wifi driver_version "$WIFIDEV" )"		# wl-adv_3.90-RC37.0_v1.1
-	DRIVER="$( _sanitizer do "$DRIVER" urlvalue )" 		# wl-simple_v1.0
+	DRIVER="$( _sanitizer run "$DRIVER" urlvalue )" 		# wl-simple_v1.0
 								# mod-madwifi_2.4.30brcm+r3314-8
 
 	# 11na10mhzHT20 or 11naHT20 or 11ngHT20 or 11g
 	GMODE="$( uci -q get wireless.radio0.chanbw )"
 	[ -n "$GMODE" ] && GMODE="${GMODE}mhz"
 	GMODE="$( uci -q get wireless.radio0.hwmode )${GMODE}$( uci -q get wireless.radio0.htmode )"
-	GMODE="$( _sanitizer do "$GMODE" urlvalue )"
+	GMODE="$( _sanitizer run "$GMODE" urlvalue )"
 
 	# show all active ESSID's
 	for INDEX in 0 1 2 3; do {
@@ -205,18 +205,18 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 			}
 		}
 	} done
-	ESSID="$( _sanitizer do "$ESSID" urlvalue )"
+	ESSID="$( _sanitizer run "$ESSID" urlvalue )"
 
-	BSSID="$( _sanitizer do "$( _wifi bssid $WIFIDEV )" hex )"
+	BSSID="$( _sanitizer run "$( _wifi bssid $WIFIDEV )" hex )"
 
 	if [ -e "/etc/HARDWARE" ]; then
 		read -r HW <"/etc/HARDWARE"
-		HW="$( _sanitizer do "$HW" urlvalue )"
+		HW="$( _sanitizer run "$HW" urlvalue )"
 	else
 		HW=
 	fi
 
-	SSH_PUBKEY_FP="$( _sanitizer do "$( _ssh key_public_fingerprint_get )" hex )"	# 1660559e90efefafd04298c516365bbd12b0ffda
+	SSH_PUBKEY_FP="$( _sanitizer run "$( _ssh key_public_fingerprint_get )" hex )"	# 1660559e90efefafd04298c516365bbd12b0ffda
 											# (40 bytes HEX [SHA-1])
 	FREE_SPACE_FLASH="$( _system flash_free )"
 	SERVICES="flash.free.kb:${FREE_SPACE_FLASH}"					# [kByte]
@@ -235,7 +235,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 #		SERVICES="${SERVICES}|idestorage.free.kb:$(( FREE_SPACE_IDE / 1024 ))" # [kByte]
 #	}
 
-	SERVICES="$( _sanitizer do "$SERVICES" urlvalue )"
+	SERVICES="$( _sanitizer run "$SERVICES" urlvalue )"
 
 											# fixme! add: soundcard, webcam, sambashare, sensorstuff, inetoffer, ...
 	FFF_CITY="$( _ipsystem getvar 'FFF_CITY' )"
@@ -273,7 +273,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 		;;
 	esac
 
-	if _sanitizer do "$PUBIP" ip4 check ; then
+	if _sanitizer run "$PUBIP" ip4 check ; then
 		read -r PUBIP_OLD 2>/dev/null </tmp/MY_PUBLIC_IP
 		echo >/tmp/MY_PUBLIC_IP "$PUBIP"
 
@@ -342,7 +342,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 		SIGNAL=
 	elif ip -o route get "$NEXTHOP" | fgrep -q 'dev wlan'; then
 		SIGNAL="$( _wifi signal	"$WIFIDEV" "$NEXTHOP" )"	# example-value
-		SIGNAL="$( _sanitizer do "$SIGNAL" urlvalue )"
+		SIGNAL="$( _sanitizer run "$SIGNAL" urlvalue )"
 	else
 		SIGNAL=
 	fi
@@ -394,11 +394,11 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 	GW=${GW:=NULL}
 
 	HOSTNAME="$( uci -q get system.@system[0].hostname )"
-	HOSTNAME="$( _sanitizer do "$HOSTNAME" hostname urlvalue )"
+	HOSTNAME="$( _sanitizer run "$HOSTNAME" hostname urlvalue )"
 
 	if [ -e '/tmp/WIFISCAN' -o -z "$WIFIDEV" ]; then
 		WIFISCAN="$( cat '/tmp/WIFISCAN' 2>/dev/null )"
-		WIFISCAN="$( _sanitizer do "$WIFISCAN" urlvalue )"
+		WIFISCAN="$( _sanitizer run "$WIFISCAN" urlvalue )"
 	else
 		case "$( date +%H )" in			# only at night
 			03)
@@ -498,7 +498,7 @@ grep -q ^"ip_tables " /proc/modules && {
 	IFS="$OLDIFS"
 
 	PFILTER="${PFILTER_NAT:-noNAT}:${PFILTER_FILTER:-0}:${PFILTER_MANGLE}:${PFILTER_MANGLE_REAL}:${PFILTER_MANGLE_USER_REAL:-0}:${PFILTER_MANGLE_USER_RESERVE:-0}:${PFILTER}"
-	PFILTER="$( _sanitizer do "$PFILTER" urlvalue )"
+	PFILTER="$( _sanitizer run "$PFILTER" urlvalue )"
 
 	[ -e '/tmp/FREE' ] && {
 		PFILTER="FREE+$PFILTER"
@@ -562,7 +562,7 @@ grep -q ^"ip_tables " /proc/modules && {
 	QUERY="${QUERY}local=$DATE_LOCAL_HUMAN&mail=$ADMINEMAIL&phone=$ADMINPHONE&time=$TIME&services=$SERVICES&pubkey=$SSH_PUBKEY_FP"
 	QUERY="${QUERY}&node=$NODENUMBER&city=$FFF_CITY&mac=$WIFIMAC&latlon=$LATLON&hostname=$HOSTNAME&update=$UPDATE&wifidrv=$DRIVER&olsrver=$OLSRVER"
 	QUERY="${QUERY}&olsrrestartcount=${olsrrestartcount}&olsrrestarttime=$( _olsr uptime restart_time )"
-	QUERY="${QUERY}&portfw=$( _sanitizer do "$( uci -q get firewall.@portfw[0].portfw )" urlvalue )&optimizenlq=$( uci -q get wireless.@auto_optimize[0].nlq )&optimizeneigh=$( uci -q get wireless.@auto_optimize[0].neigh )"
+	QUERY="${QUERY}&portfw=$( _sanitizer run "$( uci -q get firewall.@portfw[0].portfw )" urlvalue )&optimizenlq=$( uci -q get wireless.@auto_optimize[0].nlq )&optimizeneigh=$( uci -q get wireless.@auto_optimize[0].neigh )"
 	QUERY="${QUERY}&txpwr=$TXPWR&wifimode=$WIFIMODE&channel=$CHANNEL&mrate=$MRATE&hw=$HW&frag=$FRAG&rts=$RTS&pfilter=$PFILTER"
 	QUERY="${QUERY}&gmodeprot=${GMODEPROT:=0}&gmode=${GMODE:=0}&profile=$CONFIG_PROFILE&noise=$NOISE&rssi=$SIGNAL&distance=$DISTANCE"
 	QUERY="${QUERY}&version=$VERSION&reboot=$REBOOT&up=$UPTIME&load=$CPU_LOAD&forwarded=$FORWARDED&essid=$ESSID&bssid=$BSSID"
@@ -667,7 +667,7 @@ grep -q ^"ip_tables " /proc/modules && {
 	[ -n "$WAN_SPEED_DOWNLOAD" ] && {
 		URL_SLASH="%2f"
 		QUERY="${QUERY}&i0=$( uci -q get network.wan.proto )"
-		QUERY="${QUERY}&i1=${INET_INTERFACE},$( _sanitizer do "$( _net my_isp cached )" urlvalue )"
+		QUERY="${QUERY}&i1=${INET_INTERFACE},$( _sanitizer run "$( _net my_isp cached )" urlvalue )"
 		QUERY="${QUERY}&i2=${WANADR}${URL_SLASH}${WANPRE}"
 		QUERY="${QUERY}&i3=${WAN_SPEED_DOWNLOAD}"
 		QUERY="${QUERY}&i4=${WAN_SPEED_UPLOAD}"
@@ -698,7 +698,7 @@ grep -q ^"ip_tables " /proc/modules && {
 	QUERY="${QUERY}&w2=$( _wifi phy_uptime "$WIFIDEV" )"
 
 	read -r reason 2>/dev/null <"/tmp/STATS_WIFI_RESTARTS.$WIFIDEV.reason"
-	QUERY="${QUERY}&w3=$( _sanitizer do "$reason" urlvalue )"
+	QUERY="${QUERY}&w3=$( _sanitizer run "$reason" urlvalue )"
 
 	usbport_something_is_plugged_in()
 	{

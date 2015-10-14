@@ -544,7 +544,7 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 
 	if [ -n "$speed_change" ]; then		# e.g. -21% or +4% or 50%
 		method="$speed_change"
-		speed_change="$( _sanitizer do "$method" numeric )"
+		speed_change="$( _sanitizer run "$method" numeric )"
 
 		case "$method" in
 			"+"*)
@@ -662,7 +662,7 @@ _netfilter_stats()
 			line="$( $IPT -nxvL FORWARD | fgrep "$WIFIDEV  $WIFIDEV" )"
 		;;
 		*)
-			if _sanitizer do "$context" mac check; then
+			if _sanitizer run "$context" mac check; then
 				line="$( $IPT -t mangle -nxvL FORWARD | fgrep "incoming_$context" )"
 
 				set -- $line
@@ -1007,7 +1007,7 @@ _netfilter_portforwarding_add()
 		*)
 			# in $command '-p $proto' is added later
 
-			if _sanitizer do "$incoming_dev" ip4 check; then
+			if _sanitizer run "$incoming_dev" ip4 check; then
 				# requests to external IP from internal network must also work
 				command="-t nat -I PREROUTING -d $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
 			else
@@ -1050,7 +1050,7 @@ _netfilter_portforwarding_add()
 
 				# e.g. msg: Buffi:HTTP
 				# e.g. msg: msg: camF4back ip: 10.10.18.125
-				remote_nodeip="$( _sanitizer do "$message" ip4 )"
+				remote_nodeip="$( _sanitizer run "$message" ip4 )"
 				if [ -z "$remote_nodeip" ]; then
 					remote_nodenumber=
 				else
@@ -1618,8 +1618,8 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	# 00:00:00 = vendor 'xerox', but ofcourse this is invalid and comes from loopback/dhcp
 	[ "$mac" = '00:00:00:00:00:00' ] && return 1
 
-	_sanitizer do "$mac" mac check || return 1
-	_sanitizer do "$ip"  ip4 check || return 1
+	_sanitizer run "$mac" mac check || return 1
+	_sanitizer run "$ip"  ip4 check || return 1
 
 	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
 	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no direct logins from WAN
@@ -1669,7 +1669,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 			new_mac="${new_mac}${new_mac:+:}${tupel}"
 		} done
 
-		_sanitizer do "$new_mac" lowercase
+		_sanitizer run "$new_mac" lowercase
 	}
 
 	for dev in $devlist; do {

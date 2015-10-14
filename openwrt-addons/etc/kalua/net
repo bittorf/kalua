@@ -328,7 +328,7 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 			}
 		} done
 
-		hostname="$( _sanitizer do "$hostname" firstline hostname )"
+		hostname="$( _sanitizer run "$hostname" firstline hostname )"
 
 		# FIXME! make sure we have not changed the ap
 		echo "$hostname" >"$TMPDIR/MAC2HOSTNAME_$mac"
@@ -392,7 +392,7 @@ _net_count_wired()
 	# collect lowercase mac's of cisco routers
 	list_noclients="$(
 		grep -s ' MAC ' '/tmp/cisco-AP'* | cut -d' ' -f5 | while read -r line; do {
-			line="$( _sanitizer do "$line" lowercase )"
+			line="$( _sanitizer run "$line" lowercase )"
 			printf '%s' " $line"
 		} done
 	)"
@@ -565,7 +565,7 @@ _net_show_traffic()
 		percent_rx="$( _math percentof $diff_rx $max_rx )"
 
 		txt="$pre: rx/tx = down/upload: $diff_rx | $diff_tx [bytes/s] = $mbit_rx/$mbit_tx [mbit/s] = ${percent_rx%.*}/${percent_tx%.*}% $change"
-		_sanitizer do "$txt" number_humanreadable
+		_sanitizer run "$txt" number_humanreadable
 		echo
 
 		sleep $interval
@@ -584,7 +584,7 @@ _net_get_external_ip()		# FIXME! add IPv6
 	for url in $list_url; do {
 		ip="$( _curl it "$url" '3' )"
 
-		_sanitizer do "$ip" ip4 check && {
+		_sanitizer run "$ip" ip4 check && {
 			echo "$ip"
 			return 0
 		}
@@ -953,7 +953,7 @@ _net_mac2vendor()
 		[ ${#oui} -eq 12 ] || return 1
 	else
 		[ ${#oui} -eq 0 ] && return 1
-		oui="$( _sanitizer do "$oui" mac hex lowercase length:6 )"
+		oui="$( _sanitizer run "$oui" mac hex lowercase length:6 )"
 		[ ${#oui} -eq 6 ] || return 1
 	fi
 
@@ -972,7 +972,7 @@ _net_mac2vendor()
 			[ -e "$cache" ] || {
 				mkdir -p "/tmp/oui"
 				url="$url/${oui:0:2}/${oui:2:2}/${oui:4:2}"
-				_sanitizer do "$( _curl it "$url" 5 2>/dev/null )" shellsafe >"$cache"
+				_sanitizer run "$( _curl it "$url" 5 2>/dev/null )" shellsafe >"$cache"
 
 				[ $( _file size "$cache" ) -eq 0 ] && {
 					_log do $funcname daemon info "download '$url' failed or empty data"
@@ -1133,12 +1133,12 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 				;;
 				'24:a4:2c'*)
 					# KOUKAAM / NetIO-230b
-					[ -e '/tmp/WATCHDOG_TYPE1' ] || _sanitizer do "$ip-$mac" alphanum >'/tmp/WATCHDOG_TYPE1'
+					[ -e '/tmp/WATCHDOG_TYPE1' ] || _sanitizer run "$ip-$mac" alphanum >'/tmp/WATCHDOG_TYPE1'
 				;;
 			esac
 
 			if [ "$ip" = "$get_ip" ]; then
-				_sanitizer do "$mac" lowercase >"/tmp/IP2MAC_$get_ip"
+				_sanitizer run "$mac" lowercase >"/tmp/IP2MAC_$get_ip"
 				break
 			else
 				mac=
@@ -1150,17 +1150,17 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 	if [ -z "$mac" ]; then
 		[ -e "/tmp/OLSR/isneigh_$get_ip" ] && {
 			mac="$( _tool remote "$get_ip" ip2mac )"
-			mac="$( _sanitizer do "$mac" mac )"
+			mac="$( _sanitizer run "$mac" mac )"
 
 			[ -z "$mac" ] && {
 				# LuCI-based:
 				mac="$( _curl it "http://$get_ip/cgi-bin/luci/freifunk/status" | grep -- '-bssid">' | grep -v '>02:' )"
-				mac="$( _sanitizer do "$mac" mac lowercase )"
+				mac="$( _sanitizer run "$mac" mac lowercase )"
 
 				[ -z "$mac" ] && {
 					# Sven-Ola based:
 					mac="$( _curl it "http://$get_ip/cgi-bin-status.html" | grep ^'MAC:' )"
-					mac="$( _sanitizer do "$mac" mac lowercase )"
+					mac="$( _sanitizer run "$mac" mac lowercase )"
 				}
 			}
 		}
@@ -1315,7 +1315,7 @@ _net_dev2mac()
 	while [ -n "$1" ]; do {
 		case "$1" in
 			*':'*)
-				_sanitizer do "$1" mac check && {
+				_sanitizer run "$1" mac check && {
 					echo "$1"
 					return 0
 				}
@@ -1772,7 +1772,7 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 			;;
 			olsr)
 				[ -n "$gateway_check" ] && {
-					_olsr gateways_get | grep -q ^"$( _sanitizer do "$gateway_check" 'escape_dots' )"$ || {
+					_olsr gateways_get | grep -q ^"$( _sanitizer run "$gateway_check" 'escape_dots' )"$ || {
 						# gateway dont see the other GW's
 						_net local_inet_offer >/dev/null || {
 							_log do $funcname daemon info "[ERR] gateway '$gateway_check' not found"
@@ -1839,7 +1839,7 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 
 	_sanitizer include
 
-	local MAC="$( _sanitizer do "${mac:-unset_mac}" lowercase )"
+	local MAC="$( _sanitizer run "${mac:-unset_mac}" lowercase )"
 	local IP=
 	local HOSTNAME=
 	local COUNT=
@@ -1882,7 +1882,7 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 		while read -r line; do {
 			set $line
 			ip="$1"
-			mac="$( _sanitizer do "$4" lowercase )"
+			mac="$( _sanitizer run "$4" lowercase )"
 
 			[ "$MAC" = "$mac" ] && {
 				IP="$ip"
@@ -1938,7 +1938,7 @@ _net_mac2dev()
 	_sanitizer include
 
 	while read -r _ _ _ mac _ dev; do {
-		mac="$( _sanitizer do "$mac" lowercase )"
+		mac="$( _sanitizer run "$mac" lowercase )"
 
 		[ "$get_mac" = "$mac" ] && {
 			[ -n "$exact" ] || {
@@ -1973,7 +1973,7 @@ _net_mac2media()
 	  	OUT=wifi
 	elif uci get system.@ethers[0].wifi | grep -qi $MAC ; then
 		OUT=wifi
-	elif grep -sq ^"$( _sanitizer do "$( _net mac2ip $MAC )" escape_dots );" /tmp/CLIENTS_WIFI ; then
+	elif grep -sq ^"$( _sanitizer run "$( _net mac2ip $MAC )" escape_dots );" /tmp/CLIENTS_WIFI ; then
 		OUT=wifi
 	else
 		OUT=wire		# fixme! this can also be guessed!
@@ -1988,7 +1988,7 @@ _net_arp_permanent()
 {
 	local FUNC="net_arp_permanent"
         local IP="$1"
-        local MAC="$( _sanitizer do "$2" lowercase )"
+        local MAC="$( _sanitizer run "$2" lowercase )"
         local FORCE="$3"				# or <dev>
 	local nudmode="${4:-permanent}"			# or 'reachable'
 	local MODE LINE DEV dev_keyword=''
