@@ -164,7 +164,7 @@ _net_roaming_fetch_cache()
 			ip="$( _olsr neigh_random_get )" && {
 				query='action=roaming_getlist'
 				url="http://$ip/cgi-bin-collect.sh?$query"
-				_wget do "$url" >"$file.tmp"
+				_curl it "$url" >"$file.tmp"
 
 				grep -n '' "$file.tmp" | sort -rn | cut -d: -f2- >"$file"
 				rm "$file.tmp"
@@ -174,7 +174,7 @@ _net_roaming_fetch_cache()
 		authserver="$( _weblogin authserver )"
 		query='action=roaming_getlist'
 		url="http://$authserver/cgi-bin-collect.sh?$query"
-		_wget do "$url" >"$file"
+		_curl it "$url" >"$file"
 	fi
 }
 
@@ -222,7 +222,7 @@ _net_roaming_mac2ip()
 			query="action=roaming_querymac&mac=$mac"
 			url="http://$authserver/cgi-bin-collect.sh?$query"
 
-			ip="$( _wget do "$url" )"
+			ip="$( _curl it "$url" )"
 			test -n "$ip" && {
 				_log do $funcname daemon info "[OK] mac->IP: $mac -> $ip from '$url'"
 				echo "$ip"
@@ -265,7 +265,7 @@ _net_roaming_report_new()
 		authserver="$( _weblogin authserver )"
 		query="action=roaming_add&mac=${mac//:/%3a}&ip=$ip&expires=$expires"
 		url="http://$authserver/cgi-bin-collect.sh?$query"
-		answer="$( _wget do "$url?$query" )"
+		answer="$( _curl it "$url?$query" )"
 
 		case "$answer" in
 			'OK'*)
@@ -443,7 +443,7 @@ _net_my_isp()
 	[ -e "$cachefile" ] || fresh='true'
 
 	[ "$fresh" = 'true' ] && {
-		_wget do 'http://www.whoismyisp.org/' | sed -n "/ (ISP) is /s/^.*'\(.*\)'.*/\1/p" >"$cachefile"
+		_curl it 'http://www.whoismyisp.org/' | sed -n "/ (ISP) is /s/^.*'\(.*\)'.*/\1/p" >"$cachefile"
 	}
 
 	read -r isp <"$cachefile"
@@ -582,7 +582,7 @@ _net_get_external_ip()		# FIXME! add IPv6
 	local list_url="$url_user $url_default $url_fallback1 $url_fallback2"
 
 	for url in $list_url; do {
-		ip="$( _wget do "$url" '3' )"
+		ip="$( _curl it "$url" '3' )"
 
 		_sanitizer do "$ip" ip4 check && {
 			echo "$ip"
@@ -972,7 +972,7 @@ _net_mac2vendor()
 			[ -e "$cache" ] || {
 				mkdir -p "/tmp/oui"
 				url="$url/${oui:0:2}/${oui:2:2}/${oui:4:2}"
-				_sanitizer do "$( _wget do "$url" 5 2>/dev/null )" shellsafe >"$cache"
+				_sanitizer do "$( _curl it "$url" 5 2>/dev/null )" shellsafe >"$cache"
 
 				[ $( _file size "$cache" ) -eq 0 ] && {
 					_log do $funcname daemon info "download '$url' failed or empty data"
@@ -1154,12 +1154,12 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 
 			[ -z "$mac" ] && {
 				# LuCI-based:
-				mac="$( _wget do "http://$get_ip/cgi-bin/luci/freifunk/status" | grep -- '-bssid">' | grep -v '>02:' )"
+				mac="$( _curl it "http://$get_ip/cgi-bin/luci/freifunk/status" | grep -- '-bssid">' | grep -v '>02:' )"
 				mac="$( _sanitizer do "$mac" mac lowercase )"
 
 				[ -z "$mac" ] && {
 					# Sven-Ola based:
-					mac="$( _wget do "http://$get_ip/cgi-bin-status.html" | grep ^'MAC:' )"
+					mac="$( _curl it "http://$get_ip/cgi-bin-status.html" | grep ^'MAC:' )"
 					mac="$( _sanitizer do "$mac" mac lowercase )"
 				}
 			}

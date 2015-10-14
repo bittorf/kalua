@@ -35,7 +35,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 	#     - and the PASS did not match: Error
 	#     - and PASS did match: Success (and extension of lease in registrator)
 	URL="$URL_BASE/PUT/$NETWORK/knoten/$NODENUMBER?mac=${MAC}&pass=${PASS}"
-	HTTP_ANSWER="$( _wget do "$URL" 30 )"
+	HTTP_ANSWER="$( _curl it "$URL" 30 )"
 
 	# call API and convert JSON answer to shell variables
 	# answer e.g.:
@@ -89,7 +89,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 			# - if a new NODENUMBER was registered for us, status is 201 Created
 			# - if a NODENUMBER with same MAC already existed, status is 303 Redirect
 			URL="$URL_BASE/POST/$NETWORK/knoten?mac=${MAC}&pass=${PASS}"
-			HTTP_ANSWER="$( _wget do "$URL" 30 )"
+			HTTP_ANSWER="$( _curl it "$URL" 30 )"
 
 			# call API and convert JSON answer to shell variables
 			#
@@ -172,7 +172,7 @@ else
 	# FIXME! ask with wrong ssh-key
 	URL="http://reg.weimarnetz.de/$NETWORK/list"
 	FILE="/tmp/LIST_NODES_REGISTRATED"
-	_wget do "$URL" >"$FILE"
+	_curl it "$URL" >"$FILE"
 
 	# fully loaded? JSON must be closed correctly:
 	if [ "$( tail -n1 "$FILE" )" = '}' ]; then
