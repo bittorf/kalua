@@ -2873,7 +2873,7 @@ travis_prepare()
 unittest_do()
 {
 	local funcname='unittest_do'
-	local shellcheck_bin build_loader ignore file tempfile filelist pattern
+	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip
 	local good='true'
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
@@ -2932,8 +2932,9 @@ unittest_do()
 		shellcheck_bin="$( which shellcheck )"
 		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
 
-		log '_weblogin htmlout_loginpage'	# omit 2 lines header:
-		_weblogin htmlout_loginpage '' '' '' '' "http://$( _net get_external_ip )" '(cache)' | tail -n+3 >"$tempfile"
+		ip="$( _net get_external_ip )"
+		log "_weblogin htmlout_loginpage | ip=$ip"	# omit 2 lines header:
+		_weblogin htmlout_loginpage '' '' '' '' "http://$ip" '(cache)' | tail -n+3 >"$tempfile"
 		check_scripts "$tempfile" || return 1
 
 		if [ -z "$shellcheck_bin" ]; then
@@ -3000,10 +3001,16 @@ unittest_do()
 #						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
 
 						# SC1010
-						for pattern in log wget translate sanitizer ipsystem speedtest random_username; do {
+						for pattern in log wget translate sanitizer ipsystem speedtest; do {
 							sed -i "s/_$pattern do /_$pattern it /g" "$tempfile"
 							sed -i "s/_${pattern}_do/_${pattern}_it/g" "$tempfile"
 						} done
+						# _log it
+						# _wget run
+						# _translate it
+						# _sanitizer run
+						# _ipsystem query
+						# _speedtest run
 
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in
