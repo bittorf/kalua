@@ -90,7 +90,7 @@ case "${BUTTON}-${ACTION}" in
 		_weblogin authserver_message "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
 
 		[ $DIFF -gt 300 ] && {
-			_log do firmware_button daemon info "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
+			_log it firmware_button daemon info "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
 
 			[ $DIFF -gt 1000 ] && {
 				touch '/coredump/testdump.core'		# FIXME! see system_adjust_coredump()

@@ -11,7 +11,7 @@ _mail_stash_for_later_resend()
 	for file in "/tmp/outgoing_mail_"*; do {
 		[ -e "$file" ] && {
 			mkdir -p "$storage_dir"
-			_log do $funcname daemon info "mail '$file' to '$storage_dir'"
+			_log it $funcname daemon info "mail '$file' to '$storage_dir'"
 			mv "$file" "$storage_dir"
 		}
 	} done
@@ -25,7 +25,7 @@ _mail_stash_resend()
 
 	for file in "$storage_dir/outgoing_mail_"* ; do {
 		[ -e "$file" ] && {
-			_log do $funcname daemon info "[OK] move mail '$file' to '/tmp'"
+			_log it $funcname daemon info "[OK] move mail '$file' to '/tmp'"
 			mv "$file" '/tmp'
 			# if 'send_mailfile' fails, it will reschedule it automatically to 'storage_dir'
 			_mail send_mailfile "/tmp/$( basename "$file" )"
@@ -53,11 +53,11 @@ _mail_pop3_check_stats()
 	[ -e "$file" ] && read -r uptime_lastcheck <"$file"
 
 	[ $(( uptime - ${uptime_lastcheck:-0} )) -le 180 ] && {
-		_log do $funcname daemon debug "no need to auth"
+		_log it $funcname daemon debug "no need to auth"
 		return 0	# http://faq.gmx.de/messages/email/mailprogramme/smtp_sicherheit/3.html
 	}
 
-	_log do $funcname user info "contacting server '$server'"
+	_log it $funcname user info "contacting server '$server'"
 
 	answer="$( echo -e "USER $user\nPASS $pass\nSTAT\nQUIT\n" | $netcat_bin $server $port )"
 	rc_netcat=$?
@@ -70,8 +70,8 @@ _mail_pop3_check_stats()
 		;;				# +OK 0 0
 	esac					# +OK POP server signing off
 
-	_log do $funcname user info "[ERR] returncode netcat: '$rc_netcat' - '$server'-serveranswer: '$answer_short'"
-	echo "$answer" | _log do $funcname user info
+	_log it $funcname user info "[ERR] returncode netcat: '$rc_netcat' - '$server'-serveranswer: '$answer_short'"
+	echo "$answer" | _log it $funcname user info
 
 	return 1
 }
@@ -144,7 +144,7 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	local NETCAT_BIN="nc"
 
 	[ -e "$MAILFILE" ] || {
-		_log do $FUNC user crit "can't read '$MAILFILE' - aborting (usage: _$FUNC myname me@world.org yourname you@world.org mailfile"
+		_log it $FUNC user crit "can't read '$MAILFILE' - aborting (usage: _$FUNC myname me@world.org yourname you@world.org mailfile"
 		return
 	}
 
@@ -156,7 +156,7 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	local BOUNDARY="dc+cDN39EJAMEtIO"					# maybe random?
 	local tar_archiv
 
-	_log do $FUNC daemon debug "[BEGIN]"
+	_log it $FUNC daemon debug "[BEGIN]"
 
 	_do ()
 	{
@@ -180,7 +180,7 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 
 		local text="$1"
 
-		_log do $FUNC daemon debug "do() '$text'"
+		_log it $FUNC daemon debug "do() '$text'"
 
 		case "$text" in
 			init)
@@ -303,11 +303,11 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	_do raw_smtp "."
 	_do raw_smtp "QUIT"
 
-	_log do $FUNC daemon info "sending mail to '${RECIPIENT_MAIL}'"
+	_log it $FUNC daemon info "sending mail to '${RECIPIENT_MAIL}'"
 	if _mail send_mailfile "$MAIL" ; then
-		_log do $FUNC user notice "[OK] sent mail to '$RECIPIENT_MAIL' went fine"
+		_log it $FUNC user notice "[OK] sent mail to '$RECIPIENT_MAIL' went fine"
 	else
-		_log do $FUNC user notice "[ERR] sending mail to '$RECIPIENT_MAIL' failed, but is re-scheduled"
+		_log it $FUNC user notice "[ERR] sending mail to '$RECIPIENT_MAIL' failed, but is re-scheduled"
 		return 1
 	fi
 }
@@ -362,7 +362,7 @@ _mail_send_mailfile()
 	{
 		local option="$1"
 
-		[ "$option" = 'error' ] && _log do $FUNC daemon info 'function_cancelled'
+		[ "$option" = 'error' ] && _log it $FUNC daemon info 'function_cancelled'
 
 		[ -e "$MAILFILE"  ] && rm "$MAILFILE"
 		[ -e "$ERRORFILE" ] && rm "$ERRORFILE"
@@ -376,7 +376,7 @@ _mail_send_mailfile()
 	{
 		echo "$1" |
 		 while read -r LINE; do {
-		 	_log do $FUNC daemon info "SERVER: $LINE"
+		 	_log it $FUNC daemon info "SERVER: $LINE"
 		 } done
 
 		echo "$1" |
@@ -397,17 +397,17 @@ _mail_send_mailfile()
 			# we use a unixtimestamp, otherwise the next file overwrites the old file on server
 			unixtime=$( _system date unixtime )
 
-			_log do $FUNC daemon info "scp $auth_port '$MAILFILE.$unixtime.readable' $auth"
+			_log it $FUNC daemon info "scp $auth_port '$MAILFILE.$unixtime.readable' $auth"
 			echo -e "$( cat "$MAILFILE" )" >"$MAILFILE.$unixtime.readable"
 
 			if   pidof scp >/dev/null; then
-				_log do $FUNC daemon info "scp already running"
+				_log it $FUNC daemon info "scp already running"
 				echo "scp-already active" >"$ERRORFILE"
 			elif scp -i '/etc/dropbear/dropbear_dss_host_key' $auth_port "$MAILFILE.$unixtime.readable" $auth ; then
 				OUT='+220+250+250+250+354+250+221'
 			else
 				RC=$?
-				_log do $FUNC daemon info "scp '$MAILFILE.$unixtime.readable' $auth - failed: rc: $RC"
+				_log it $FUNC daemon info "scp '$MAILFILE.$unixtime.readable' $auth - failed: rc: $RC"
 				echo "scp-error" >"$ERRORFILE"
 			fi
 
@@ -426,7 +426,7 @@ _mail_send_mailfile()
 		"+220")
 			# 220 only = hanging connection with buggy telnet/nc client: e.g. busybox 1.19.4 = b0rken to mail.gmx.net, 1.21.1 = OK
 			# maybe also, when password is invalid temporarily
-			_log do $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mail stashed"
+			_log it $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mail stashed"
 			_mail stash_for_later_resend
 
 			cleanup ok
@@ -435,7 +435,7 @@ _mail_send_mailfile()
 		"+220+250+501"*|"+220+250+250+250+354+501"*)
 			# 501 = Syntax error in parameters or arguments
 			# 220 only = hanging connection with buggy telnet/nc client: e.g. busybox 1.19.4 = b0rken to mail.gmx.net, 1.21.1 = OK
-			_log do $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mailfile deleted"
+			_log it $FUNC user alert "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - mailfile deleted"
 
 			cleanup ok
 			return 0
@@ -452,7 +452,7 @@ _mail_send_mailfile()
 			read -r ERROR <"$ERRORFILE"
 			rm "$ERRORFILE"
 
-			_log do $FUNC user info "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - debug file '$MAILFILE'"
+			_log it $FUNC user info "[ERR] returncode: '$RC' - '$SERVER'-answer: '$OUT' message: '$ERROR' - debug file '$MAILFILE'"
 
 			case "$ERROR" in
 				*'scp-error'*)
@@ -460,7 +460,7 @@ _mail_send_mailfile()
 					return 0
 				;;
 				*"No route to host"*)
-					_log do $FUNC user alert "[ERR] during smtp to $SERVER $PORT, message: $ERROR, file: $MAILFILE, port blocked? try 587"
+					_log it $FUNC user alert "[ERR] during smtp to $SERVER $PORT, message: $ERROR, file: $MAILFILE, port blocked? try 587"
 					_mail stash_for_later_resend
 					return 0
 				;;

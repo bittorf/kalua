@@ -37,7 +37,7 @@ if [ "$REQUEST_METHOD" = 'POST' ]; then
 			;;
 		esac
 
-		_log do weblogin_try daemon info \
+		_log it weblogin_try daemon info \
 			"ip: '$REMOTE_ADDR' mac: '$MAC' dev: '$DEV' user: '$FORM_USER' pass: '$FORM_PASS' signal: '$SIGNAL' lang: '$FORM_LANG'"
 
 		login_ok()	# first try normal operation, than auth by mac/hostname
@@ -55,7 +55,7 @@ if [ "$REQUEST_METHOD" = 'POST' ]; then
 		if   login_ok ; then
 			if _netfilter user_add "$MAC" "$REMOTE_ADDR"; then
 				_watch counter "/tmp/WEBLOGIN_SUCCESS" increment
-				_log do weblogin_success daemon info "mac: '$MAC' ip: '$REMOTE_ADDR'"
+				_log it weblogin_success daemon info "mac: '$MAC' ip: '$REMOTE_ADDR'"
 
 				# FIXME! needs server/client interaction or localmirrored db
 				PROFILE_ID="$( _db user profile list first )"
@@ -66,7 +66,7 @@ if [ "$REQUEST_METHOD" = 'POST' ]; then
 				if [ -z "$MAC" ]; then
 					_http redirect 302 ip_clients_real_gateway "$REMOTE_ADDR"
 				else
-					_log do weblogin_failed daemon alert "auth ok, but not netfilter add: ip: '$REMOTE_ADDR'"
+					_log it weblogin_failed daemon alert "auth ok, but not netfilter add: ip: '$REMOTE_ADDR'"
 					_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" "true"
 				fi
 			fi
@@ -79,7 +79,7 @@ if [ "$REQUEST_METHOD" = 'POST' ]; then
 				# for plain logging on gateway
 				_weblogin login_check "$FORM_USER" "$FORM_PASS" "$MAC" "$SIGNAL" "$FORM_LANG" 'plaintext'
 
-				_log do weblogin_failed daemon info "auth failed: ip: '$REMOTE_ADDR'"
+				_log it weblogin_failed daemon info "auth failed: ip: '$REMOTE_ADDR'"
 				_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" 'true'
 			fi
 		fi
@@ -87,22 +87,22 @@ if [ "$REQUEST_METHOD" = 'POST' ]; then
 		# FIXME! send error(s!) to show (user,pass,rules,inetconnection...)
 		_watch counter "/tmp/WEBLOGIN_FAIL" increment
 
-		_log do weblogin_norules daemon info "ip: '$REMOTE_ADDR' lang: '$LANG' formlang: '$FORM_LANG'"
+		_log it weblogin_norules daemon info "ip: '$REMOTE_ADDR' lang: '$LANG' formlang: '$FORM_LANG'"
 		_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES" "false" "true"
 	fi
 else
 	if [ "$REDIRECTED" = '1' ]; then
 		if _net inet_seems_stable; then
-			_log do weblogin_splash daemon info "ip: '$REMOTE_ADDR' lang: '${FORM_LANG}' HTTP_USER_AGENT: '$HTTP_USER_AGENT'"
+			_log it weblogin_splash daemon info "ip: '$REMOTE_ADDR' lang: '${FORM_LANG}' HTTP_USER_AGENT: '$HTTP_USER_AGENT'"
 			_weblogin htmlout_loginpage "$FORM_LANG" "$SHOW_RULES"
 		else
 			# FIXME! send sms?
-			_log do weblogin_inet_unstable daemon alert \
+			_log it weblogin_inet_unstable daemon alert \
 				"inet_broken - lang: '$FORM_LANG' cost_int: '$COST_INT' defgw: '$( ip route list exact 0.0.0.0/0 table main )'"
 			_weblogin htmlout_loginpage "$FORM_LANG" 'inet_broken'
 		fi
 	else
-		_log do weblogin_redirect daemon info "ip: '$REMOTE_ADDR' query: '$QUERY_STRING'"
+		_log it weblogin_redirect daemon info "ip: '$REMOTE_ADDR' query: '$QUERY_STRING'"
 		_http redirect 302 ip_incoming_interface
 	fi
 fi

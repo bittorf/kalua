@@ -40,7 +40,7 @@ apply_settings()
 		local now="\$( uci get system.@system[0].hostname )"
 
 		[ "\$now" = "\$wish" ] || {
-			_log do set_hostname daemon info "setting new hostname '\$wish' (was: '\$now')"
+			_log it set_hostname daemon info "setting new hostname '\$wish' (was: '\$now')"
 			uci set system.@system[0].hostname="\$wish"
 			uci commit system
 			echo "\$wish" >"/proc/sys/kernel/hostname"
@@ -53,7 +53,7 @@ apply_settings()
 		local now="\$( uci get wireless.@wifi-iface[0].ssid )"
 
 		[ "\$now" = "\$wish" ] || {
-			_log do set_ssid daemon info "setting new SSID '\$wish' (was: '\$now')"
+			_log it set_ssid daemon info "setting new SSID '\$wish' (was: '\$now')"
 			uci set wireless.@wifi-iface[0].ssid="\$wish"
 			uci commit wireless
 			wifi

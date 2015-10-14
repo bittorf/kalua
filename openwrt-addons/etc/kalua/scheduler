@@ -11,7 +11,7 @@ SCHEDULER_IMPORTANT_QUEUE='/tmp/SCHEDULER/important_*'
 
 _scheduler_queue_purge()
 {
-	_log do purge_queues daemon info "removing"
+	_log it purge_queues daemon info "removing"
 	rm $SCHEDULER_QUEUE
 
 	return 0
@@ -23,7 +23,7 @@ _scheduler_queue_list()
 	local option="$1"
 	local empty1 empty2
 
-	_log do $funcname daemon debug "working with option: '$option'"
+	_log it $funcname daemon debug "working with option: '$option'"
 
 	echo "# actual,running queue: /tmp/scheduler.log"
 	cat '/tmp/scheduler.log' 2>/dev/null || {
@@ -50,7 +50,7 @@ _scheduler_print_usage ()
 {
 	local FUNC="scheduler_print_usage"
 
-	_log do $FUNC daemon info "working"
+	_log it $FUNC daemon info "working"
 
 	cat <<EOF
 
@@ -99,7 +99,7 @@ _scheduler_check_if_every_Nth_minute()
 	local CARRYOVER=$(( UPTIME % $1 ))	# e.g. every = 55 min : 60 % 55 = 5
 
 	[ "$CARRYOVER" -eq 0 ] && {
-		_log do scheduler_check_if_every_Nth_minute daemon debug "call '$2' for ${1}th minute, uptime: $UPTIME"
+		_log it scheduler_check_if_every_Nth_minute daemon debug "call '$2' for ${1}th minute, uptime: $UPTIME"
 		return 0
 	}
 
@@ -117,7 +117,7 @@ _scheduler_wait_till_cpuload_is_low()
 	[ -e '/tmp/cron.webcam' ] && return 0
 
 	while _system load 1min quiet; test $LOAD -gt 80 ; do {
-		_log do $funcname daemon info "PID: $$ - load: $LOAD - waiting $pause sec for '$task'"
+		_log it $funcname daemon info "PID: $$ - load: $LOAD - waiting $pause sec for '$task'"
 		sleep $pause
 		[ $( _system uptime sec ) -lt 3600 ] && return 0
 	} done
@@ -132,11 +132,11 @@ _scheduler_allow_run()
 	[ -e "$TMPDIR/$funcname" ] && return 0		# override: FIXME!
 
 	if [ $( _stopwatch stop "$lockfile.start" interim,nolog,seconds ) -gt 3600 ]; then
-		_log do $funcname daemon alert 'removing lockfile, which seems to be left by accident'
+		_log it $funcname daemon alert 'removing lockfile, which seems to be left by accident'
 		rm "$lockfile" "$lockfile.start"
 		return 0
 	else
-		_log do $funcname daemon debug "will not allow, see: $lockfile"
+		_log it $funcname daemon debug "will not allow, see: $lockfile"
 		return 1
 	fi
 }
@@ -166,7 +166,7 @@ _scheduler_run()
 			if grep -sq ^"$line"$ "$logfile"; then
 				# we only execute the LAST occurence of a job,
 				# so we get more recent values/data
-				_log do $funcname daemon debug "ignoring twin '$line'"
+				_log it $funcname daemon debug "ignoring twin '$line'"
 			else
 				case "$line" in
 					'_'*)   # seems like a kalua-function, e.g. _vpn_adduser argX
@@ -177,12 +177,12 @@ _scheduler_run()
 								first_word="${without_first_underliner%_*}"	# sms
 
 								if [ -e "/etc/kalua/$first_word" ]; then
-									_log do $funcname daemon info "2 spaces, needs rewrite: line: '$line'"
+									_log it $funcname daemon info "2 spaces, needs rewrite: line: '$line'"
 									lastpart="${without_first_underliner#*_}"	# send bla blubb
 									line="_$first_word $lastpart"
-									_log do $funcname daemon info "2 spaces, rewrote: '$line'"
+									_log it $funcname daemon info "2 spaces, rewrote: '$line'"
 								else
-									_log do $funcname daemon debug "rewrite unneeded: '$line'"
+									_log it $funcname daemon debug "rewrite unneeded: '$line'"
 								fi
 							;;
 							*' '*)
@@ -203,7 +203,7 @@ _scheduler_run()
 				echo "$line" >>"$logfile"
 				_scheduler wait_till_cpuload_is_low "$line"
 				_stopwatch start "$logfile.start" global
-				_log do $funcname daemon debug "[START] '$line'"
+				_log it $funcname daemon debug "[START] '$line'"
 #				_stopwatch start '/tmp/PROFILER'
 				case "$line" in
 					# first 2 are: arguments in quotation marks
@@ -225,12 +225,12 @@ _scheduler_run()
 #				local time=$( _stopwatch stop '/tmp/PROFILER' nolog )
 #				echo "$line - $time" >>'/tmp/PROFILER.data'
 
-				_log do $funcname daemon debug "[READY] '$line'"
+				_log it $funcname daemon debug "[READY] '$line'"
 				_watch coredump "after: $line"
 
 				case "$line" in
 					'_firmware check_forced_upgrade'|'_firmware burn')
-						_log do $funcname daemon info "[OK] premature exit after '$line'"
+						_log it $funcname daemon info "[OK] premature exit after '$line'"
 						break
 					;;
 				esac
@@ -244,7 +244,7 @@ _scheduler_run()
 			age="$( _file age '/tmp/scheduler.mark_starttime' sec )"
 			length=0
 			for _ in $SCHEDULER_QUEUE; do test -e "$_" && length=$(( length + 1 )); done
-			_log do $funcname daemon info "[OK] aborting run, age: $age sec - $length jobs in queue"
+			_log it $funcname daemon info "[OK] aborting run, age: $age sec - $length jobs in queue"
 			break
 		}
 	} done

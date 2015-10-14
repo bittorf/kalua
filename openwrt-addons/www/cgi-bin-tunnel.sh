@@ -9,11 +9,11 @@ else
 	ACTION="$1"
 fi
 
-_log do tunnel_helper daemon info "REMOTE_ADDR: $REMOTE_ADDR - ACTION: $ACTION - QUERY: $QUERY_STRING"
+_log it tunnel_helper daemon info "REMOTE_ADDR: $REMOTE_ADDR - ACTION: $ACTION - QUERY: $QUERY_STRING"
 
 throw_error_and_exit()
 {
-	_log do tunnel_helper daemon info "[ERR] tunnel not possible for $QUERY_STRING"
+	_log it tunnel_helper daemon info "[ERR] tunnel not possible for $QUERY_STRING"
 	echo "FALSE=;"
 	exit
 }

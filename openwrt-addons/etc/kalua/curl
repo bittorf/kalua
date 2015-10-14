@@ -25,7 +25,7 @@ _curl_it()
 		;;					# FIXME! be more correct: 127.0.0.0/8 + ipv6 or set env $no_proxy
 		*)
 			[ -n "$http_proxy" -a -z "$option" ] && {
-				_log do $funcname daemon debug "using proxy from env $http_proxy"
+				_log it $funcname daemon debug "using proxy from env $http_proxy"
 				proxy_command='-Y on'
 			}
 		;;
@@ -42,7 +42,7 @@ _curl_it()
 		;;
 	esac
 
-	_log do $funcname daemon debug "max ${max}s, ${#url} bytes, wget $proxy_command -qO $filename $file_option '$url'"
+	_log it $funcname daemon debug "max ${max}s, ${#url} bytes, wget $proxy_command -qO $filename $file_option '$url'"
 
 	# get pids and fire the real 'wget':
 	list_wget_pids_initial="$( pidof wget )"
@@ -56,7 +56,7 @@ _curl_it()
 	# FIXME! sometimes pidof fails, but in fact _thereis_ a wget - fix the >65536 case!
 
 	# remove, when the 'too early exit' bug is found
-#	_log do $funcname daemon debug "pids: initial: '$list_wget_pids_initial' background: '$pid_background' after: '$list_wget_pids_after_launch'"
+#	_log it $funcname daemon debug "pids: initial: '$list_wget_pids_initial' background: '$pid_background' after: '$list_wget_pids_after_launch'"
 
 	# join PIDs initial + after_launch
 	for element in $list_wget_pids_after_launch; do {
@@ -73,16 +73,16 @@ _curl_it()
 
 	read -r myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
 		if [ ${#myerror} -eq 0 ]; then
-			_log do $funcname daemon debug '[OK] no error message'
+			_log it $funcname daemon debug '[OK] no error message'
 		else
 			case "$myerror" in
 				*'HTTP/1.1 404'*)
-					_log do $funcname daemon info "[OK] $myerror"
+					_log it $funcname daemon info "[OK] $myerror"
 					return 0
 				;;
 				*)
 					# test with unresolveable: _curl it http://a.b.c.d/foo
-					_log do $funcname daemon info "error: '$myerror'"
+					_log it $funcname daemon info "error: '$myerror'"
 				;;
 			esac
 		fi
@@ -91,9 +91,9 @@ _curl_it()
 	case "${pid_wget:-unset}" in
 		'unset')
 			if [ ${#myerror} -eq 0 ]; then
-				_log do $funcname daemon debug '[OK] empty PID - this was lightning fast...'
+				_log it $funcname daemon debug '[OK] empty PID - this was lightning fast...'
 			else
-				_log do $funcname daemon debug '[ERR] empty PID - failed'
+				_log it $funcname daemon debug '[ERR] empty PID - failed'
 			fi
 
 			return ${#myerror}
@@ -124,7 +124,7 @@ _curl_it()
 				}
 
 				for element in $list_wget_pids_myself; do {
-					_log do $funcname daemon info "error during fetching '$url' - killing PID '$element' after $c seconds"
+					_log it $funcname daemon info "error during fetching '$url' - killing PID '$element' after $c seconds"
 					_watch hanging_command wget_selfkill $element
 					_watch hanging_command wget_selfkill $element
 				} done
@@ -132,7 +132,7 @@ _curl_it()
 				# FIXME! this is unneeded? and racy: we can kill other wgets which have just started
 				[ -z "$list_wget_pids_initial" ] && {
 					remaining_wgets="$( pidof wget )" && {
-						_log do $funcname daemon info "leaving wgets: $remaining_wgets , do killall"
+						_log it $funcname daemon info "leaving wgets: $remaining_wgets , do killall"
 						killall wget
 					}
 				}
@@ -149,23 +149,23 @@ _curl_it()
 	# FIXME! code duplication, see above
 	read -r myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
 		if [ ${#myerror} -eq 0 ]; then
-			_log do $funcname daemon debug '[OK] no error message'
+			_log it $funcname daemon debug '[OK] no error message'
 		else
 			case "$myerror" in
 				*'HTTP/1.1 404'*)
-					_log do $funcname daemon info "[OK] $myerror"
+					_log it $funcname daemon info "[OK] $myerror"
 					return 0
 				;;
 				*)
 					# test with unresolveable: _curl it http://a.b.c.d/foo
-					_log do $funcname daemon info "error: '$myerror'"
+					_log it $funcname daemon info "error: '$myerror'"
 				;;
 			esac
 		fi
 	}
 
 	read -r rc 2>/dev/null <"/tmp/${funcname}_$mypid" && {
-		_log do $funcname daemon info "[ERR] returning $rc after fetching '$url'"
+		_log it $funcname daemon info "[ERR] returning $rc after fetching '$url'"
 	}
 
 	return $rc

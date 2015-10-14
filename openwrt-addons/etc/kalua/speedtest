@@ -55,7 +55,7 @@ EOF
 	local INITIATOR="${REMOTE_ADDR:-local}"
 	local LIST IP I IP_REMOTE
 
-	_log do $FUNC daemon debug "$IP_LOCAL <-> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+	_log it $FUNC daemon debug "$IP_LOCAL <-> $KEYWORD method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 
 	case "$IP_LOCAL" in
 		$WIFIADR|$LANADR|$WANADR)
@@ -64,7 +64,7 @@ EOF
 		here)
 			IP_LOCAL="${WIFIADR:-${LANADR:-${WANADR}}}"
 			[ "$KEYWORD" = "$IP_LOCAL" ] && {
-				_log do $FUNC daemon info "will not test loopback"
+				_log it $FUNC daemon info "will not test loopback"
 				return 1
 			}
 		;;
@@ -102,7 +102,7 @@ EOF
 			_sanitizer run "$IP_LOCAL" ip4 check || return 0
 
 			local URL="http://$IP_LOCAL/cgi-bin-tool_fff+?OPT=speedtest&ARGS=$IP_LOCAL+$KEYWORD+$METHOD+$DURATION"
-			_log do $FUNC daemon debug "fetching '$URL'"
+			_log it $FUNC daemon debug "fetching '$URL'"
 			wget -qO - "$URL"
 			return 0			# fixme! translate IP_LOCAL/KEYWORD (can be e.g. here or gateway)?
 		;;
@@ -133,7 +133,7 @@ EOF
 		;;
 		gateway)
 			_net local_inet_offer && {
-				_log do $FUNC daemon info "no gatewaytest, because we _are_ the gateway 8-)"
+				_log it $FUNC daemon info "no gatewaytest, because we _are_ the gateway 8-)"
 				return
 			}				
 
@@ -144,7 +144,7 @@ EOF
 		;;
 		*)
 			_sanitizer run "$KEYWORD" ip4 check || {
-				_log do $FUNC daemon info "this is not an IP-address or known keyword: '$KEYWORD'"
+				_log it $FUNC daemon info "this is not an IP-address or known keyword: '$KEYWORD'"
 				return
 			}
 			IP_LIST="$KEYWORD"
@@ -152,9 +152,9 @@ EOF
 	esac
 
 	if [ -z "$IP_LIST" ]; then
-		_log do $FUNC daemon info "empty target list?"
+		_log it $FUNC daemon info "empty target list?"
 	else
-		_log do $FUNC daemon info "looping with method $METHOD from $IP_LOCAL over list $IP_LIST"
+		_log it $FUNC daemon info "looping with method $METHOD from $IP_LOCAL over list $IP_LIST"
 	fi
 
 	# FIXME! onehop, but metric >1 && continue
@@ -163,7 +163,7 @@ EOF
 
 	for IP_TARGET in $IP_LIST; do {
 		[ "$IP_LIST" != "$KEYWORD" ] && {
-			_log do $FUNC daemon debug "$IP_LOCAL <-> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
+			_log it $FUNC daemon debug "$IP_LOCAL <-> $IP_TARGET method '$METHOD', duration $DURATION sec, initiated from $INITIATOR"
 		}
 
 		netperf_fire ()
@@ -172,7 +172,7 @@ EOF
 				_software package_install netperfbin >/dev/null		# hack for oldstyle_devices
 			}
 
-			_log do $FUNC daemon debug "netperf -H $1 -t $2 -l $3"
+			_log it $FUNC daemon debug "netperf -H $1 -t $2 -l $3"
 			netperf -H $1 -t $2 -l $3 >/dev/null
 		}
 
@@ -283,7 +283,7 @@ EOF
 
 		[ "$SHELL_UNDOCKED" = "true" ] && {			# measurement-tool runs in background
 			if [ -z "$PID_OF_TOOL" ]; then
-				_log do $FUNC daemon info "[ERR] empty pid of measurement-tool"
+				_log it $FUNC daemon info "[ERR] empty pid of measurement-tool"
 			else
 				trap 'kill $PID_OF_TOOL' SIGINT
 			fi
@@ -293,7 +293,7 @@ EOF
 			[ "$DIRECTION" = "upload" ] || {
 
 				[ "$DEVTYPE" = "wifi" ] || {
-					_log do $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
+					_log it $FUNC daemon debug "outgoing device is not of type wifi, but '$DEVTYPE' - no output of rate_control_algo"
 				}
 
 				while [ ${DURATION_COUNTER:=0} -lt $(( DURATION / 2 )) ]; do {
@@ -312,7 +312,7 @@ EOF
 						RATE_AVG=$(( ${RATE_AVG:-0} + RATE ))
 						RATE_SAMPLES=$(( ${RATE_SAMPLES:-0} + 1 ))
 
-						_log do $FUNC daemon debug "rate: $RATE"
+						_log it $FUNC daemon debug "rate: $RATE"
 					}
 
 					sleep 1
@@ -396,7 +396,7 @@ EOF
 		VALUES="IP_LOCAL=$IP_LOCAL IP_TARGET=$IP_TARGET SPEED=$SPEED RATE_AVG=$RATE_AVG RATE_MIN=${RATE_MIN:-0} RATE_MAX=${RATE_MAX:-0} BYTES=$BYTES METHOD=$METHOD LOAD_BEGIN=$LOAD_BEGIN LOAD_END=$LOAD_END UNIXTIME=$UNIXTIME HUMANTIME=$HUMANTIME INITIATOR=$INITIATOR METRIC_BEGIN=$METRIC_BEGIN METRIC_END=$METRIC_END OLSR_COST_BEGIN=$OLSR_COST_BEGIN OLSR_COST_END=$OLSR_COST_END DURATION=${DURATION}000 DURATION_REAL=${DURATION_REAL}0 DEVTYPE=$DEVTYPE"
 		_speedtest store "$IP_LOCAL" "$IP_TARGET" "$METHOD" "$UNIXTIME" "$SPEED" "$VALUES"
 
-		_log do $FUNC daemon info "$IP_LOCAL <-> $IP_TARGET @ $SPEED Kilobytes/sec ($SPEED_MEGABIT Megabit/s), method '$METHOD'"
+		_log it $FUNC daemon info "$IP_LOCAL <-> $IP_TARGET @ $SPEED Kilobytes/sec ($SPEED_MEGABIT Megabit/s), method '$METHOD'"
 
 		[ -n "$REMOTE_ADDR" ] && {
 			echo "$IP_LOCAL <-> $IP_TARGET @ $SPEED Kilobytes/sec($SPEED_MEGABIT Megabit/s), method '$METHOD'"
@@ -441,7 +441,7 @@ _speedtest_store()				# fixme! metric_begin/end differs? don't use it for speed_
 	SPEED_SUM=$(( ${SPEED_SUM:-0} + SPEED ))
 	SPEED_AVG=$(( SPEED_SUM / SAMPLES ))
 
-	_log do $FUNC daemon info "SPEED_AVG=$SPEED_AVG - $VALUES in '$DIR/$TIME' and '$DIR/stats'"
+	_log it $FUNC daemon info "SPEED_AVG=$SPEED_AVG - $VALUES in '$DIR/$TIME' and '$DIR/stats'"
 	echo "$VALUES" >"$DIR/$TIME"
 	echo "$SAMPLES $SPEED $SPEED_AVG $SPEED_MIN $SPEED_MAX $SPEED_SUM" >"$DIR/stats"
 }

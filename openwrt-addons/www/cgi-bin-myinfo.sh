@@ -1,7 +1,7 @@
 #!/bin/sh
 . /tmp/loader
 
-_log do myinfo daemon info "[OK] fetched from $REMOTE_ADDR"
+_log it myinfo daemon info "[OK] fetched from $REMOTE_ADDR"
 _http header_mimetype_output text/html
 echo "<html><head><title>myinfo :: $HOSTNAME :: $CONFIG_PROFILE</title></head><body>"
 

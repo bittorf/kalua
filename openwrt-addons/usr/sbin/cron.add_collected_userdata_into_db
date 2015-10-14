@@ -31,7 +31,7 @@ esac
 #}
 
 for FILE in $FILE_TEMP.*; do {
-	_log do gunzip daemon info "working on '$FILE'"
+	_log it gunzip daemon info "working on '$FILE'"
 
 	if gunzip "$FILE"; then
 		# FIXME! use initial filedate to store informations in database
@@ -65,13 +65,13 @@ while read -r QUERY_STRING; do {				# TODO: why can REMOTE_ADDR be a client? -> 
 
 		LOGIN_ID="$( _db user login query hash2id "$CAH" )"
 		[ -z "$LOGIN_ID" ] && {
-			_log do map2login daemon info "ignoring: no db-entry/hash for $CMA/${CIA:-noCIA} @ $REMOTE_ADDR with in/out $CBI/$CBO bytes"
+			_log it map2login daemon info "ignoring: no db-entry/hash for $CMA/${CIA:-noCIA} @ $REMOTE_ADDR with in/out $CBI/$CBO bytes"
 			continue
 		}
 
 		DEVICE_ID="$( _db user device query string2id "A='$LOGIN_ID';B='${CMA:-unsetmacaddress}'" )"	# fixme! build database-abstraction
 		[ -n "$DEVICE_ID" ] || {
-			_log do plot_remote_user_into_local_db daemon info "from $REMOTE_ADDR with mac/ip $CMA/$CIA and hash $CAH"
+			_log it plot_remote_user_into_local_db daemon info "from $REMOTE_ADDR with mac/ip $CMA/$CIA and hash $CAH"
 			/www/cgi-bin-sql.sh "$CAH" "$CMA" "" deepcheck
 		}
 
@@ -81,7 +81,7 @@ while read -r QUERY_STRING; do {				# TODO: why can REMOTE_ADDR be a client? -> 
 			eval $( _db user device show "$DEVICE_ID" )	# all, e.g. FIRSTSEEN
 
 			[ $FIRSTSEEN -lt $INSTALLED ] && {
-				_log do firstseen_plausicheck daemon alert "timeset to $UNIXTIME: FIRSTSEEN<INSTALLED: $FIRSTSEEN<$INSTALLED"
+				_log it firstseen_plausicheck daemon alert "timeset to $UNIXTIME: FIRSTSEEN<INSTALLED: $FIRSTSEEN<$INSTALLED"
 				FIRSTSEEN="$UNIXTIME"
 			}
 
@@ -90,7 +90,7 @@ while read -r QUERY_STRING; do {				# TODO: why can REMOTE_ADDR be a client? -> 
 			USED_TRAFFIC_TODAY=$(( USED_TRAFFIC_TODAY + CBO ))	# USED_TRAFFIC_TODAY -> USED_TRAFFIC_UPLOAD
 			USED_TIME=$(( USED_TIME + CTU ))
 
-			_log do loop daemon info "updating $CMA/$CIA from node $REMOTE_ADDR: +$CBI/$CBO bytes, +$CTU sec"
+			_log it loop daemon info "updating $CMA/$CIA from node $REMOTE_ADDR: +$CBI/$CBO bytes, +$CTU sec"
 			_db user device update \
 				"$DEVICE_ID" \
 				"$USER_ID" \
@@ -114,12 +114,12 @@ while read -r QUERY_STRING; do {				# TODO: why can REMOTE_ADDR be a client? -> 
 
 				if [ "$TIME_MODEL" = "0" ]; then	# used time
 					[ $USED_TIME -gt $MAX_TIME ] && {
-						_log do lock_login daemon alert "TIME_MODEL: $TIME_MODEL USED_TIME: $USED_TIME MAX_TIME: $MAX_TIME LOGIN_ID: $LOGIN_ID PROFILE_ID: $PROFILE_ID DEVICE_ID: $DEVICE_ID"
+						_log it lock_login daemon alert "TIME_MODEL: $TIME_MODEL USED_TIME: $USED_TIME MAX_TIME: $MAX_TIME LOGIN_ID: $LOGIN_ID PROFILE_ID: $PROFILE_ID DEVICE_ID: $DEVICE_ID"
 						LOCK_LOGIN="-2"
 					}
 				else					# passed time
 					[ $(( LASTSEEN - FIRSTSEEN )) -gt $MAX_TIME ] && {
-						_log do lock_login daemon alert "TIME_MODEL: $TIME_MODEL FIRSTSEEN: $FIRSTSEEN LASTSEEN: $LASTSEEN MAX_TIME: $MAX_TIME LOGIN_ID: $LOGIN_ID PROFILE_ID: $PROFILE_ID DEVICE_ID: $DEVICE_ID"
+						_log it lock_login daemon alert "TIME_MODEL: $TIME_MODEL FIRSTSEEN: $FIRSTSEEN LASTSEEN: $LASTSEEN MAX_TIME: $MAX_TIME LOGIN_ID: $LOGIN_ID PROFILE_ID: $PROFILE_ID DEVICE_ID: $DEVICE_ID"
 						LOCK_LOGIN="-2"
 					}
 				fi
@@ -130,7 +130,7 @@ while read -r QUERY_STRING; do {				# TODO: why can REMOTE_ADDR be a client? -> 
 		'liszt28'*|*'malchow'*)
 			[ -n "$MAX_TRAFFIC" ] && {			# kilobytes
 				[ $(( (USED_TRAFFIC + USED_TRAFFIC_TODAY) / 1024 )) -gt $MAX_TRAFFIC ] && {
-					_log do lock_login daemon alert "USED_TRAFFIC: $USED_TRAFFIC USED_TRAFFIC_TODAY: $USED_TRAFFIC_TODAY MAX_TRAFFIC: $MAX_TRAFFIC LOGIN_ID: $LOGIN_ID PROFILE_ID: $PROFILE_ID DEVICE_ID: $DEVICE_ID"
+					_log it lock_login daemon alert "USED_TRAFFIC: $USED_TRAFFIC USED_TRAFFIC_TODAY: $USED_TRAFFIC_TODAY MAX_TRAFFIC: $MAX_TRAFFIC LOGIN_ID: $LOGIN_ID PROFILE_ID: $PROFILE_ID DEVICE_ID: $DEVICE_ID"
 					LOCK_LOGIN="-3"
 				}
 			}
@@ -141,7 +141,7 @@ while read -r QUERY_STRING; do {				# TODO: why can REMOTE_ADDR be a client? -> 
 				eval $( _db user login show "$LOGIN_ID" )
 				DEVICE_QUANTITY="$LOCK_LOGIN"
 
-				_log do lock_login daemon alert "ID: $LOGIN_ID, reason: $LOCK_LOGIN, comment/user/pass: $COMMENT/$USERNAME/$PASSWORD"
+				_log it lock_login daemon alert "ID: $LOGIN_ID, reason: $LOCK_LOGIN, comment/user/pass: $COMMENT/$USERNAME/$PASSWORD"
 
 				_db user login update \
 					"$LOGIN_ID" \
@@ -162,7 +162,7 @@ while read -r QUERY_STRING; do {				# TODO: why can REMOTE_ADDR be a client? -> 
 					*)
 						CMA_URLENCODED="${CMA//:/%3a}"
 						ANSWER="$( _curl it "http://$REMOTE_ADDR/cgi-bin-kick.sh?CAH=${CAH}&CMA=${CMA_URLENCODED}" )"
-						_log do remote_kick daemon info "answer: '$ANSWER'"
+						_log it remote_kick daemon info "answer: '$ANSWER'"
 					;;
 				esac
 			}
@@ -175,4 +175,4 @@ rm "$FILE"
 COUNT_OVERALL_USERS=$( _list uniq "$LIST_OVERALL_USERS" | wc -l )
 BYTES_OVERALL_READABLE="$( _sanitizer run "$OVERALL_BYTES" number_humanreadable )"
 echo "A='$UNIXTIME';B='$OVERALL_BYTES';C='$COUNT_OVERALL_USERS';D='$LIST_OVERALL_USERS'" >>"$DIR_DATABASE/USER/device/stats"
-_log do summary daemon info "$COUNT_OVERALL_USERS devices, $BYTES_OVERALL_READABLE bytes"
+_log it summary daemon info "$COUNT_OVERALL_USERS devices, $BYTES_OVERALL_READABLE bytes"

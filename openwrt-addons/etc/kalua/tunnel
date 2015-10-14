@@ -5,12 +5,12 @@ _tunnel_check_local_capable()
 	local funcname="tunnel_check_local_capable"
 	local tunnel_partner="$1"
 
-	_log do $funcname daemon info "[ERR] fully disabled ATM"
+	_log it $funcname daemon info "[ERR] fully disabled ATM"
 	return 1
 
 	case "$tunnel_partner" in
 		$WIFIADR|$LANADR|$WANADR|${LOADR:-$tunnel_partner})	# if var LOADR is not built, better deny (low uptime)
-			_log do $funcname daemon info "[ERR] tunnel-partner $tunnel_partner is own WIFI/LAN/WAN or LO-address - abort"
+			_log it $funcname daemon info "[ERR] tunnel-partner $tunnel_partner is own WIFI/LAN/WAN or LO-address - abort"
 			return 1
 		;;
 	esac
@@ -18,7 +18,7 @@ _tunnel_check_local_capable()
 	if [ -e "/usr/sbin/vtund" ]; then		# later: memory, etc.
 		return 0
 	else
-		_log do $funcname daemon info "[ERR] vtund not found - abort"
+		_log it $funcname daemon info "[ERR] vtund not found - abort"
 		return 1
 	fi
 }
@@ -349,12 +349,12 @@ _tunnel_clientside_control()
 
 	read -r tunnel_server <"/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY"
 	[ -z "$tunnel_server" ] && {
-		_log do $funcname daemon info "action: $action - tunnel for $mac / $ip fails, no gateway/server found"
+		_log it $funcname daemon info "action: $action - tunnel for $mac / $ip fails, no gateway/server found"
 		return 1
 	}
 
 	_tunnel check_local_capable "$tunnel_server" || {
-		_log do $funcname daemon info "tunnel for $mac / $ip locally not capable"
+		_log it $funcname daemon info "tunnel for $mac / $ip locally not capable"
 		return 1
 	}
 
@@ -383,13 +383,13 @@ _tunnel_clientside_control()
 
 			for file in $( list_files ); do {
 				read -r tunnel_name _ <"$file"
-				_log do $funcname daemon info "$action: checking conn $tunnel_name in file $file"
+				_log it $funcname daemon info "$action: checking conn $tunnel_name in file $file"
 
 				if _tunnel check_connection "$tunnel_name" is_up ; then
-						_log do $funcname daemon info "[OK] conn $tunnel_name seems fine - nothing to do"
+						_log it $funcname daemon info "[OK] conn $tunnel_name seems fine - nothing to do"
 				else
 						_tunnel check_connection "$tunnel_name" is_reconnecting && {
-							_log do $funcname daemon info "forcing shutdown, tunnel is in reconnecting-state"
+							_log it $funcname daemon info "forcing shutdown, tunnel is in reconnecting-state"
 							pid="$( _tunnel check_connection "$tunnel_name" get_pid )"
 							kill ${pid:-unset}
 						}
@@ -408,11 +408,11 @@ _tunnel_clientside_control()
 
 						case "$answer" in
 							TRUE*)
-								_log do $funcname daemon info "awakening tunnel $tunnel_name for mac $mac and ip $ip"
+								_log it $funcname daemon info "awakening tunnel $tunnel_name for mac $mac and ip $ip"
 								_tunnel client_start "$tunnel_id" "$mac" "$ip" "ignore_intranet_traffic"
 							;;
 							*)
-								_log do $funcname daemon info "awake not possible: answer: '$answer'"
+								_log it $funcname daemon info "awake not possible: answer: '$answer'"
 							;;
 						esac
 				fi
@@ -425,7 +425,7 @@ _tunnel_clientside_control()
 			case "$answer" in
 				TRUE*)
 					_watch counter "/tmp/tunnel_id" increment 1 max 65 || {
-						_log do $funcname daemon info "[ERR] maximum tunnel instances reached, aborting"
+						_log it $funcname daemon info "[ERR] maximum tunnel instances reached, aborting"
 						return 1
 					}
 					read -r tunnel_id </tmp/tunnel_id
@@ -433,12 +433,12 @@ _tunnel_clientside_control()
 					_tunnel client_start "$tunnel_id" "$mac" "$ip" "ignore_intranet_traffic"
 				;;
 				*)
-					_log do $funcname daemon info "[ERR] tunnel for $mac / $ip not possible, answer from $tunnel_server: '$answer' question: '$url'"
+					_log it $funcname daemon info "[ERR] tunnel for $mac / $ip not possible, answer from $tunnel_server: '$answer' question: '$url'"
 				;;
 			esac
 		;;
 		stop)
-			_log do $funcname daemon info "[OK] stopping tunnel for $mac / $ip"
+			_log it $funcname daemon info "[OK] stopping tunnel for $mac / $ip"
 
 			read -r tunnel_name _ <"$configfile"
 			rm "$configfile"
@@ -467,5 +467,5 @@ _tunnel_client_start()
 
 	vtund -f "$configfile" "$tunnel_name" "$tunnel_server"
 
-	_log do $funcname daemon info "[OK] fired up tunnel $tunnel_name with pid $( _tunnel check_connection $tunnel_name get_pid )"
+	_log it $funcname daemon info "[OK] fired up tunnel $tunnel_name with pid $( _tunnel check_connection $tunnel_name get_pid )"
 }

@@ -38,7 +38,7 @@ func_ulog_prepare()
 
 	case "$PID_ULOG" in
 		*" "*)
-			_log do $FUNC daemon info "ulogd started 2 times"
+			_log it $FUNC daemon info "ulogd started 2 times"
 			/etc/init.d/ulogd stop
 			killall ulogd
 			PID_ULOG=
@@ -46,7 +46,7 @@ func_ulog_prepare()
 	esac
 
 	[ -z "$PID_ULOG" -a -e /usr/sbin/ulogd ] && {
-		_log do $FUNC daemon debug "ulogd inactive - starting up"
+		_log it $FUNC daemon debug "ulogd inactive - starting up"
 
 		/etc/init.d/ulogd start
 
@@ -58,11 +58,11 @@ func_ulog_prepare()
 			fi
 
 			touch "$errorfile"
-			_log do $FUNC daemon $logprio "ulogd-startup failed"
+			_log it $FUNC daemon $logprio "ulogd-startup failed"
 			return 1						# needs correct /etc/ulogd.conf
 		}
 
-		_log do $FUNC daemon debug "ulogd-startup successful"
+		_log it $FUNC daemon debug "ulogd-startup successful"
 	}
 
 	if ulogd --version | grep -q " 1.23"$ ; then
@@ -74,9 +74,9 @@ func_ulog_prepare()
 	[ -e "$ULOG_LOGFILE_ORIG" ]			|| return 1
 	[ $( _file size "$ULOG_LOGFILE_ORIG" ) -eq 0 ]	&& return 1
 
-	_log do $FUNC daemon debug "creating logfile working copy"
+	_log it $FUNC daemon debug "creating logfile working copy"
 	mv "$ULOG_LOGFILE_ORIG" "$ULOG_LOGFILE"
-	_log do $FUNC daemon debug "created"
+	_log it $FUNC daemon debug "created"
 
 	return 0
 }
@@ -95,7 +95,7 @@ func_ulog_squeeze_log ()
 					# fixme! fetch conn_length from conntrack when connection was closed
 	local lines_per_sec
 	read -r lines_per_sec <"/tmp/$FUNC.speed"
-	_log do $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in $(( LINES / ${lines_per_sec:-10} )) sec"
+	_log it $FUNC daemon debug "parsing now $BYTES bytes / $LINES lines in $(( LINES / ${lines_per_sec:-10} )) sec"
 
 	_stopwatch start $FUNC
 	echo "data_retention" >"/tmp/CRON_OVERLOAD"
@@ -132,7 +132,7 @@ func_ulog_squeeze_log ()
 
 	rm "/tmp/CRON_OVERLOAD" "$ULOG_LOGFILE"
 
-	_log do $FUNC daemon info "squeezed to $(( COUNTER * 100 / ${BYTES:=1} ))% ($COUNTER bytes/$LINES lines @ $LINES_PER_SECOND lines/sec, load: $( _system load 1min full ))"
+	_log it $FUNC daemon info "squeezed to $(( COUNTER * 100 / ${BYTES:=1} ))% ($COUNTER bytes/$LINES lines @ $LINES_PER_SECOND lines/sec, load: $( _system load 1min full ))"
 }
 
 func_ulog_make_evalable ()
@@ -182,7 +182,7 @@ func_ulog_logsaving ()
 	local SSH_IDENTITY="/etc/dropbear/dropbear_dss_host_key"
 
 	[ -z "$FILELIST" ] && {
-		_log do $FUNC daemon debug "no logs - abort"
+		_log it $FUNC daemon debug "no logs - abort"
 		rm "/tmp/ERROR_VDS"
 		return
 	}
@@ -193,29 +193,29 @@ func_ulog_logsaving ()
 
 	if   [ -n "$( uci get system.@vds[0].server )" ]; then
 
-		_log do $FUNC daemon debug "direct copy to server '$( uci get system.@vds[0].server )'"
+		_log it $FUNC daemon debug "direct copy to server '$( uci get system.@vds[0].server )'"
 
 		COPYCOMMAND="scp -p -i $SSH_IDENTITY"			# '-p' preserve time,accesstime and modes
 		DESTINATION="$( uci get system.@vds[0].server )"
 
 	elif [ "$GATEWAY" = "$WIFIADR" ]; then				# fixme! make this check at 1st, and abort if low flash, safes cpu-power
-		_log do $FUNC daemon debug "gateway = myself"
+		_log it $FUNC daemon debug "gateway = myself"
 
 		COPYCOMMAND='cp -p'
 		DESTINATION="$( _storage path )"		# e.g. /www/cgi-bin
 
 		[ "$DESTINATION" = '/www/cgi-bin' -a $( _system flash_free ) -lt 200 ] && {
-			_log do $FUNC daemon $LOGPRIO "low_flash: $( _system flash_free )kb - aborting"
+			_log it $FUNC daemon $LOGPRIO "low_flash: $( _system flash_free )kb - aborting"
 
 			mv /www/cgi-bin/user-* /tmp && {
-				_log do $FUNC daemon alert "moved vds-data from flash to ram"		# maybe scp'ing works next time
+				_log it $FUNC daemon alert "moved vds-data from flash to ram"		# maybe scp'ing works next time
 			}
 
 			touch "/tmp/ERROR_VDS"
 			exit 1
 		}			# fixme! remove VDS-data from RAM? or copy to /dev/null?
 	else
-		_log do $FUNC daemon debug "gateway = '$GATEWAY'"
+		_log it $FUNC daemon debug "gateway = '$GATEWAY'"
 		COPYCOMMAND="scp -p -i $SSH_IDENTITY"			# '-p' preserve time,accesstime and modes, fixme! -B (batchmode) -C (compression) -q (quiet)
 		DESTINATION="${GATEWAY}:${VDS_PATH}"			# fixme! empty GATEWAY?
 	fi
@@ -225,7 +225,7 @@ func_ulog_logsaving ()
 			SERVER="$( echo $DESTINATION | cut -d':' -f1 | cut -d'@' -f2 )"
 
 			fgrep -q $SERVER /etc/dropbear/known_hosts || {
-				_log do $FUNC daemon alert "[ERR] not found '$SERVER' in /etc/dropbear/known_hosts, saving on lokal storage"
+				_log it $FUNC daemon alert "[ERR] not found '$SERVER' in /etc/dropbear/known_hosts, saving on lokal storage"
 				COPYCOMMAND="cp -p"
 				DESTINATION="$( _storage path )"	# e.g. /www/cgi-bin
 			}
@@ -238,7 +238,7 @@ func_ulog_logsaving ()
 		[ "$FILESIZE" -gt 80000 ] && {			# shrinks to 25% -> 20kb-snippets
 			_filetype compressed "$FILE" || {
 
-				_log do $FUNC daemon debug "compressing '$FILE' ($FILESIZE bytes)"
+				_log it $FUNC daemon debug "compressing '$FILE' ($FILESIZE bytes)"
 
 				APPEND=".up$( _system uptime sec ).gz.ulog"
 
@@ -250,7 +250,7 @@ func_ulog_logsaving ()
 				FILESIZE_OLD="$FILESIZE"
 				FILESIZE="$( _file size "$FILE" )"
 
-				_log do $FUNC daemon info "compressed ($FILESIZE_OLD -> $FILESIZE bytes -> $(( FILESIZE * 100 / FILESIZE_OLD ))% on file '$FILE')"
+				_log it $FUNC daemon info "compressed ($FILESIZE_OLD -> $FILESIZE bytes -> $(( FILESIZE * 100 / FILESIZE_OLD ))% on file '$FILE')"
 			}
 		}
 
@@ -258,8 +258,8 @@ func_ulog_logsaving ()
 		local HASH_NOW="$( _file hash "$FILE" )"
 		local HASH_OLD="$( cat "${FILE}.copyhash" 2>/dev/null )"
 
-		_log do $FUNC daemon debug "NOW:'$HASH_NOW'"
-		_log do $FUNC daemon debug "OLD:'$HASH_OLD'"
+		_log it $FUNC daemon debug "NOW:'$HASH_NOW'"
+		_log it $FUNC daemon debug "OLD:'$HASH_OLD'"
 
 		if [ "${HASH_OLD:=never_hashed}" != "$HASH_NOW" -a $FILESIZE -gt 0 ]; then	# file has changed
 			case "$COPYCOMMAND" in
@@ -270,10 +270,10 @@ func_ulog_logsaving ()
 
 			if $COPYCOMMAND "$FILE" "$DESTINATION" ; then
 				if echo "$FILE" | grep -q "$TODAY" && ! _filetype compressed "$FILE" ; then
-					_log do $FUNC daemon debug "copying '$FILE' ($FILESIZE bytes) was successful (is from today and uncompressed)"
+					_log it $FUNC daemon debug "copying '$FILE' ($FILESIZE bytes) was successful (is from today and uncompressed)"
 					echo -n "$HASH_NOW" >"${FILE}.copyhash"
 				else
-					_log do $FUNC daemon info "copying '$FILE' ($FILESIZE bytes) was successful - removing"
+					_log it $FUNC daemon info "copying '$FILE' ($FILESIZE bytes) was successful - removing"
 					rm "$FILE" "${FILE}.copyhash" 2>/dev/null
 				fi
 
@@ -285,13 +285,13 @@ func_ulog_logsaving ()
 					;;
 				esac
 
-				_log do $FUNC daemon $LOGPRIO "copying '$FILE' ($FILESIZE bytes) failed"
+				_log it $FUNC daemon $LOGPRIO "copying '$FILE' ($FILESIZE bytes) failed"
 				touch /tmp/ERROR_VDS
 			fi
 		else								# file unchanged
 			[ -e /tmp/ERROR_VDS ] || {				# no former error
 				echo "$FILE" | grep -q "$TODAY" || {		# not from today
-					_log do $FUNC daemon info "removing old '$FILE' ($FILESIZE bytes)"
+					_log it $FUNC daemon info "removing old '$FILE' ($FILESIZE bytes)"
 					rm "$FILE" "${FILE}.copyhash" 2>/dev/null
 				}
 			}
@@ -312,7 +312,7 @@ func_backup_userdata ()		# and restore, if missing
 	local SSH_IDENTITY="/etc/dropbear/dropbear_dss_host_key"
 
 	[ -z "$DESTINATION" ] && {
-		_log do $FUNC daemon debug "no destination - abort"
+		_log it $FUNC daemon debug "no destination - abort"
 		return 1
 	}
 
@@ -330,7 +330,7 @@ func_backup_userdata ()		# and restore, if missing
 
 			read -r HASH_LASTSEND 2>/dev/null <"$FILE.hashlastsend"
 		else
-			_log do $FUNC daemon info "restoring userdata '$FILE' from monitoring server"
+			_log it $FUNC daemon info "restoring userdata '$FILE' from monitoring server"
 
 			if _watch counter "/tmp/${funcname}_restore_counter" increment 1 max 7 ; then
 				HASH_SSH_PRIV="$( _file hash $SSH_IDENTITY )"
@@ -340,10 +340,10 @@ func_backup_userdata ()		# and restore, if missing
 				size=$( _file size "$tempfile" )
 
 				if [ $size -gt 0 ]; then
-					_log do $FUNC daemon info "[OK] restored '$FILE'/'$tempfile' with $size bytes"
+					_log it $FUNC daemon info "[OK] restored '$FILE'/'$tempfile' with $size bytes"
 				else
 					# e.g. ERROR 404
-					_log do $FUNC daemon info "[ERR] download '$FILE' from '$URL_BACKUP' failed ($size bytes)"
+					_log it $FUNC daemon info "[ERR] download '$FILE' from '$URL_BACKUP' failed ($size bytes)"
 					rm "$tempfile"
 				fi
 
@@ -358,10 +358,10 @@ func_backup_userdata ()		# and restore, if missing
 						_db restore && rm "/tmp/${funcname}_restore_counter"
 					fi
 				else
-					_log do $FUNC daemon info "[ERR] restoring/download failed"
+					_log it $FUNC daemon info "[ERR] restoring/download failed"
 				fi
 			else
-				_log do $FUNC daemon info "[ERR] restoring/download failed"
+				_log it $FUNC daemon info "[ERR] restoring/download failed"
 			fi
 
 			continue
@@ -374,16 +374,16 @@ func_backup_userdata ()		# and restore, if missing
 			_db backup "prepare_copy_to_server"
 
 			if   scp -i $SSH_IDENTITY "$FILE" "${DESTINATION}$( basename "$FILE" )_${HASH_SSH_PRIV}" ; then		# to make it secret
-				_log do $FUNC daemon info "copying '$FILE' ($( _file size "$FILE" ) bytes) was successful"
+				_log it $FUNC daemon info "copying '$FILE' ($( _file size "$FILE" ) bytes) was successful"
 				echo -n "$HASH" >"$FILE.hashlastsend"
 			else
-				_log do $FUNC daemon debug "copying '$FILE' ($( _file size "$FILE" ) bytes) was NOT successful"
+				_log it $FUNC daemon debug "copying '$FILE' ($( _file size "$FILE" ) bytes) was NOT successful"
 			fi
 		}
 
 	} done
 
-	[ $I -eq 0 ] && _log do $FUNC daemon debug "no file has changed, no action"
+	[ $I -eq 0 ] && _log it $FUNC daemon debug "no file has changed, no action"
 }
 
 [ -e /tmp/service_ulog_nowatching ] || {

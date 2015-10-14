@@ -81,7 +81,7 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 	local uplink="${4:-1000}"	# e.g. 1000 = 1mbit
 
 	$TC -V >/dev/null || return 1
-	_log do $funcname daemon info "$action: dev: '$dev'"
+	_log it $funcname daemon info "$action: dev: '$dev'"
 
 	case "$action" in
 		'status')
@@ -94,7 +94,7 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 		;;
 		'start'|*)
 			_netfilter wondershaper stop "$dev"
-			_log do $funcname daemon info "downlink: $downlink uplink: $uplink"
+			_log it $funcname daemon info "downlink: $downlink uplink: $uplink"
 
 			###### uplink
 			#
@@ -289,7 +289,7 @@ _netfilter_traffic_control_user_add()
 	read -r users <"$file"
 	case "$users" in
 		*"$mac"*)
-			_log do $funcname daemon info "$ip/$mac already shaped on this interface"
+			_log it $funcname daemon info "$ip/$mac already shaped on this interface"
 			return 0
 		;;
 		*)
@@ -309,7 +309,7 @@ _netfilter_traffic_control_user_add()
 		esac
 	}
 
-	_log do $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
+	_log it $funcname daemon info "shaping ip $ip to up/down: $speed_up/$speed_down on dev $interface"
 
 	case "$speed_up" in
 		*kbit|*mbit)
@@ -580,7 +580,7 @@ _netfilter_traffic_control_user_change_speed()		# <mac> <ip>
 	file="/tmp/NETFILTER/USER/$mac/traffic_control_speed"
 	echo "$new_speed_down $new_speed_up $method" >"$file"
 
-	_log do $funcname daemon debug "shaping ip $ip to up/down: $new_speed_up/$new_speed_down on dev $interface (method: $method)"
+	_log it $funcname daemon debug "shaping ip $ip to up/down: $new_speed_up/$new_speed_down on dev $interface (method: $method)"
 	$TC class change dev "$interface" parent 1: classid 1:$classid_download "htb" rate "$new_speed_down"
 	$TC class change dev "$interface" parent 1: classid 1:$classid_upload   "htb" rate "$new_speed_up"
 }
@@ -739,7 +739,7 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 	buckets=$(( max / 8 ))
 	[ $buckets -gt 1816 ] && buckets=1816		# klog/moduleinfo says this is max
 
-	_log do $funcname daemon info "set $old_max -> $max conntrack-entries / $old_buckets -> $buckets buckets, needs $(( (max * 350) / 1024 )) kilobytes (each 350 bytes)"
+	_log it $funcname daemon info "set $old_max -> $max conntrack-entries / $old_buckets -> $buckets buckets, needs $(( (max * 350) / 1024 )) kilobytes (each 350 bytes)"
 	echo "$max" >"$file_conntrack"		# check usage via: wc -l /proc/net/nf_conntrack
 	echo "$buckets" >"$file_buckets"
 }
@@ -761,7 +761,7 @@ _netfilter_ipforwarding_start()
 	read -r state <"$kernel"
 	echo "$state" >"/tmp/NETFILTER/FORWARDING_STATE_OLD"
 
-	_log do $funcname daemon info "writing 1 to $kernel"
+	_log it $funcname daemon info "writing 1 to $kernel"
 	echo 1 >"/proc/sys/net/ipv4/ip_forward"
 }
 
@@ -777,12 +777,12 @@ _netfilter_ipforwarding_revert()
 
 		pidof olsrd >/dev/null && {
 			[ "$state" = "1" ] || {
-				_log do $funcname daemon alert "olsrd running, forcing ON"
+				_log it $funcname daemon alert "olsrd running, forcing ON"
 				state=1
 			}
 		}
 
-		_log do $funcname daemon info "writing $state to $kernel"
+		_log it $funcname daemon info "writing $state to $kernel"
 		echo "$state" >"$kernel"
 		rm "$file"
 	}
@@ -807,7 +807,7 @@ _netfilter_stop()
 			if _net dev_is_wifi "$dev"; then
 				case "$ip" in
 					'192.168.'*)
-						_log do $funcname daemon debug "ignore roaming $ip"
+						_log it $funcname daemon debug "ignore roaming $ip"
 						continue
 					;;
 				esac
@@ -822,7 +822,7 @@ _netfilter_stop()
 				mediatype='non_wifi'	# keyword for keeping over reboot
 			fi
 
-			echo "_log do $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype option: $option"
+			echo "_log it $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype option: $option"
 			echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable		# $mediatype option: $option"
 
 			_netfilter user_del "$mac" "$funcname"
@@ -859,7 +859,7 @@ _netfilter_stop_all_tables()
 	local funcname='netfilter_stop_all_tables'
 
 	for table in mangle filter nat raw; do {
-		_log do $funcname daemon info "unloading table $table"
+		_log it $funcname daemon info "unloading table $table"
 		$IPT -t $table -F
 		$IPT -t $table -X
 	} done
@@ -917,7 +917,7 @@ _netfilter_masquerade_start()
 		;;
 	esac
 
-	_log do $funcname daemon info "active for device $device ($devname)"
+	_log it $funcname daemon info "active for device $device ($devname)"
 
 	if bool_true 'system.@system[0].restrict_local'; then
 		echo "$IPT -t nat -A POSTROUTING -o $device ! -d $WANNET/$WANPRE -j MASQUERADE" >"$statfile"
@@ -1362,12 +1362,12 @@ _netfilter_splash_start()
 	} done
 
 	for dev in $dev_list; do {
-		_log do $funcname daemon info "2nd try needed for dev '$dev'"
+		_log it $funcname daemon info "2nd try needed for dev '$dev'"
 		add_dev "$dev" && dev_list="$( _list remove_element "$dev_list" "$dev" 'string' )"
 	} done
 
 	[ $( _system uptime sec ) -lt 120 ] && logprio='info'
-	[ -n "$dev_list" ] && _log do $funcname daemon $logprio "unable to add dev '$dev'"
+	[ -n "$dev_list" ] && _log it $funcname daemon $logprio "unable to add dev '$dev'"
 
 	# FIXME! this has issues, e.g. when a OLSR-coupled neigh via WAN tries do DNS requests. needs further investigation
 	# control-group: any packets left?
@@ -1438,7 +1438,7 @@ _netfilter_splash_batman_alien_unauth()
 							mac="$2"
 							[ -e "/tmp/vds_user_$mac" ] || {
 								ip="$( _net mac2ip "$mac" )"
-								_log do $funcname daemon info "mac/ip $mac/$ip needs splash on node $NODENUMBER"
+								_log it $funcname daemon info "mac/ip $mac/$ip needs splash on node $NODENUMBER"
 							}
 						;;
 					esac
@@ -1630,7 +1630,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 		dev_guess="$DNSMASQ_INTERFACE"
 	else
 		dev_guess="$( _net ip2dev "$ip" )"
-		_log do $funcname daemon info "no DNSMASQ_INTERFACE given, guessed: '$dev_guess'"
+		_log it $funcname daemon info "no DNSMASQ_INTERFACE given, guessed: '$dev_guess'"
 	fi
 
 	if   [ "$dev_guess" = "$LANDEV" ]; then
@@ -1651,7 +1651,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 			echo "$dev_guess"
 			return 0
 		else
-			_log do $funcname daemon alert "emtpy dev_guess for mac/ip: $mac/$ip"
+			_log it $funcname daemon alert "emtpy dev_guess for mac/ip: $mac/$ip"
 		fi
 	}
 
@@ -1673,7 +1673,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	}
 
 	for dev in $devlist; do {
-		_log do $funcname daemon debug "probing: mac: $mac ip: $ip dev: '$dev'"
+		_log it $funcname daemon debug "probing: mac: $mac ip: $ip dev: '$dev'"
 		try="$maxtry"
 		while [ $try -gt 0 ]; do {
 			# root@box:~ arping -c1 -f -I $LANDEV 10.63.2.40
@@ -1706,10 +1706,10 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 			# Received 1 replies (0 request(s), 0 broadcast(s))
 
 			# with '-D' = 'Duplicated address detection mode'
-			_log do $funcname daemon info "arping -D -c1 -f -I '$dev' '$ip'"
+			_log it $funcname daemon info "arping -D -c1 -f -I '$dev' '$ip'"
 			line="$( arping -D -c1 -f -I "$dev" "$ip" | fgrep ':' )" || {
 				# not all systems do this e.g. LANCOM
-				_log do $funcname daemon info "arping -c1 -f -I '$dev' '$ip'"
+				_log it $funcname daemon info "arping -c1 -f -I '$dev' '$ip'"
 				line="$( arping -c1 -f -I "$dev" "$ip" | fgrep ':' )"
 			}
 
@@ -1721,7 +1721,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 					echo "$dev"
 					return 0
 				else
-					_log do $funcname daemon debug "mismatch: $mac != $line"
+					_log it $funcname daemon debug "mismatch: $mac != $line"
 				fi
 			else
 				which arping >/dev/null || {
@@ -1737,7 +1737,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	local prio='info'
 	[ -z "$devlist" -o "$dev_guess" = "$LANDEV" ] && prio='alert'
 
-	_log do $funcname daemon $prio "no_success: mac: $mac ip: $ip devlist: '$devlist' dev_guess: '$dev_guess'"
+	_log it $funcname daemon $prio "no_success: mac: $mac ip: $ip devlist: '$devlist' dev_guess: '$dev_guess'"
 	return 1
 }
 
@@ -1761,9 +1761,9 @@ _netfilter_user_add()
 		for unexpected_ip in $( ip neigh | fgrep " $mac " | cut -d' ' -f1 ); do {
 			if dev="$( _netfilter user_reachable "$mac" "$unexpected_ip" )"; then
 				if [ "$unexpected_ip" = "$ip" ]; then
-					_log do $funcname daemon info "same IP $ip 2nd call to user_reachable() works - mac: $mac"
+					_log it $funcname daemon info "same IP $ip 2nd call to user_reachable() works - mac: $mac"
 				else
-					_log do $funcname daemon info "taking another IP: $unexpected_ip (was: '$ip') mac: $mac"
+					_log it $funcname daemon info "taking another IP: $unexpected_ip (was: '$ip') mac: $mac"
 					ip="$unexpected_ip"
 				fi
 
@@ -1777,7 +1777,7 @@ _netfilter_user_add()
 			# maybe it helps during bootup, reschedule once
 			[ -n "$ip" ] && echo >>$SCHEDULER "_netfilter user_add $mac"
 
-			_log do $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
+			_log it $funcname daemon info "[ERR] unreachable - mac: '$mac' ip: '$ip'"
 			return 1
 		else
 			mkdir "/tmp/NETFILTER/USER/$mac" || return 0
@@ -1822,7 +1822,7 @@ $IPT -t mangle -D PREROUTING -s $ip -j ACCEPT
 $IPT -t mangle -D PREROUTING -d $ip -j ACCEPT
 EOF
 
-	_log do $funcname daemon info "mac: $mac ip: $ip"
+	_log it $funcname daemon info "mac: $mac ip: $ip"
 	echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
 	echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
 	touch "/tmp/vds_user_$mac"
@@ -1928,7 +1928,7 @@ _netfilter_user_del()
 		*'dhcp_del'*)
 			# ignore calls for users, which have a lease (again)
 			grep -sq " $mac " "$( _net dhcp_lease_filename )" && {
-				_log do $funcname daemon info "ignoring call for $mac - reason: $reason"
+				_log it $funcname daemon info "ignoring call for $mac - reason: $reason"
 				return 1
 			}
 		;;
@@ -1947,7 +1947,7 @@ _netfilter_user_del()
 			comment="$reason $( _db user_macenabled_comment_get "$mac" )"
 			traffic="$( _netfilter stats "$mac" megabytes )"
 			message="mac: $mac ip: $ip traffic: $traffic mb comment: $comment"
-			_log do $funcname daemon alert "$message"
+			_log it $funcname daemon alert "$message"
 
 			[ $traffic -gt 1000 ] && {
 				_weblogin authserver_message "$funcname() $message"
@@ -1988,7 +1988,7 @@ _netfilter_user_dataretention_add()
 		grep -q ^"ipt_ULOG " /proc/modules || insmod ipt_ULOG
 		grep -q ^"xt_state " /proc/modules || insmod xt_state
 	else
-		_log do $funcname daemon info "kmodule 'ipt_ULOG' missing - no connection-detection for $mac"
+		_log it $funcname daemon info "kmodule 'ipt_ULOG' missing - no connection-detection for $mac"
 		ulogd='false'
 	fi
 
@@ -2206,7 +2206,7 @@ _netfilter_user_stats_process()
 
 						[ $(( unixtime_now - unixtime_server )) -gt 600 -o \
 						  $(( unixtime_server - unixtime_now )) -gt 600 ] && {
-							_log do $funcname daemon info "timeset to $unixtime_server - was: $unixtime_now"
+							_log it $funcname daemon info "timeset to $unixtime_server - was: $unixtime_now"
 							datestring="$( date -d @$unixtime_server "+%Y-%m-%d %H:%M:%S" )"
 							date --set "$datestring"
 						}
@@ -2225,7 +2225,7 @@ _netfilter_traffic_control_add()
 	# FIXME! find a better place:
 	local chain="DSCP_olsr_$dev"
 	$IPT -t mangle -nL "$chain" 2>/dev/null || {
-		_log do $funcname daemon info "[OK] setting 'Differentiated Services Field' for OLSR-traffic on dev $dev"
+		_log it $funcname daemon info "[OK] setting 'Differentiated Services Field' for OLSR-traffic on dev $dev"
 		# http://www.tucny.com/Home/dscp-tos
 		# http://mccltd.net/blog/?p=1199
 		# https://wiki.ubnt.com/AirMax_-_QoS_DSCP/TOS_Mappings
@@ -2254,13 +2254,13 @@ _netfilter_traffic_control_add()
 
 	if its_possible; then
 		if $TC qdisc show dev $dev | grep -q ^'qdisc sfq 30: parent 1:3' ; then
-			_log do $funcname daemon info "[OK] dev $dev already active"
+			_log it $funcname daemon info "[OK] dev $dev already active"
 			return 0
 		else
-			_log do $funcname daemon info "[OK] prioritize packets on interface $dev"
+			_log it $funcname daemon info "[OK] prioritize packets on interface $dev"
 		fi
 	else
-		_log do $funcname daemon info "[OK] cannot prioritize packets on dev $dev"
+		_log it $funcname daemon info "[OK] cannot prioritize packets on dev $dev"
 		return 1
 	fi
 
@@ -2273,7 +2273,7 @@ _netfilter_traffic_control_add()
 		[ -e "$file" ] || prio='alert'
 		touch "$file"
 
-		_log do $funcname daemon $prio "[ERR] on rule $1: '$last_command'"
+		_log it $funcname daemon $prio "[ERR] on rule $1: '$last_command'"
 	}
 
 	# debug with:

@@ -17,17 +17,17 @@ check_switch_health()
 			return 0
 		else
 			bool_true 'system.@monitoring[0].report_switch_change' && {
-				_log do $funcname daemon sms "[OK] now: $switch_new old: $switch_old"
+				_log it $funcname daemon sms "[OK] now: $switch_new old: $switch_old"
 			}
 		fi
 
-#		_log do $funcname daemon sms "changed: new: $switch_new old: $switch_old"
+#		_log it $funcname daemon sms "changed: new: $switch_new old: $switch_old"
 
 		[ "$( uci -q get system.@monitoring[0].switch_error )" = 'ignore' ] || {
 			[ -e '/tmp/switch_strange' ] || {
 				_file age "$file" -lt 600 && {
 					_watch counter '/tmp/switch_flapping' increment 1 max 25 || {
-#						_log do $funcname daemon sms "[ERR] flapping: $switch_new / $switch_old"
+#						_log it $funcname daemon sms "[ERR] flapping: $switch_new / $switch_old"
 						touch '/tmp/switch_strange'
 						return 0
 					}
@@ -39,7 +39,7 @@ check_switch_health()
 		good_ports_old="$( echo "$switch_old" | sed 's/[^a-cA-C]//g' )"
 
 		if [ ${#good_ports_new} -ge ${#good_ports_old} ]; then
-			_log do $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, more or equal links)"
+			_log it $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, more or equal links)"
 			echo "$switch_new" >"$file"
 
 			# ugly, but some sort of 'failsafe'
@@ -56,7 +56,7 @@ check_switch_health()
 							# https://dev.openwrt.org/ticket/17953#comment:21
 							if [ -z "$( ip route list exact '0.0.0.0/0' )" ]; then
 								[ "$( uci -q get network.wan.proto )" = 'static' ] && {
-									_log do $funcname daemon alert \
+									_log it $funcname daemon alert \
 										"WAN up '$switch_new': no default route"
 
 									# only go further if WAN has no OLSR neigh
@@ -67,12 +67,12 @@ check_switch_health()
 
 										# FIXME: loop_max 10 && default route?
 										sleep 30
-										_log do $funcname daemon sms \
+										_log it $funcname daemon sms \
 											"reconfigured WAN to DHCP: $( _net get_external_ip )"
 									}
 								}
 							else
-								_log do $funcname daemon info "WAN up '$switch_new'"
+								_log it $funcname daemon info "WAN up '$switch_new'"
 							fi
 						;;
 					esac
@@ -82,7 +82,7 @@ check_switch_health()
 			return 0
 		else
 			if [ ${#good_ports_new} -gt 0 ]; then
-				_log do $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, fewer links)"
+				_log it $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, fewer links)"
 				echo "$switch_new" >"$file"
 
 				if [ -e "/tmp/check_switch_health" ]; then
@@ -91,21 +91,21 @@ check_switch_health()
 					return 1
 				fi
 			else
-				_log do $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, no links)"
+				_log it $funcname daemon alert "portmap: '$switch_new' was: '$switch_old' (ports changed, no links)"
 				rm "$file"
 
 				return 1
 			fi
 		fi
 	else
-		_log do $funcname daemon alert "portmap: '$switch_new' (initial)"
+		_log it $funcname daemon alert "portmap: '$switch_new' (initial)"
 		echo "$switch_new" >"$file"
 
 		[ -z "$( ip route list exact '0.0.0.0/0' )" ] && {
 			good_ports_new="$( echo "$switch_new" | sed 's/[^a-cA-C]//g' )"		# e.g. C.Ba-C -> CBaC (only used ports)
 
 			[ ${UP%.*} -lt 600 -a ${#good_ports_new} -eq 0 ] && {
-				_log do $funcname daemon alert "switch was never active, wo dont have internet and we are low on uptime ($UP): reboot"
+				_log it $funcname daemon alert "switch was never active, wo dont have internet and we are low on uptime ($UP): reboot"
 				# maybe even the first boot was wrong
 				return 1
 			}
@@ -120,7 +120,7 @@ if check_switch_health; then
 else
 	bool_true 'system.@monitoring[0].ignore_switch_error' || {
 		if _system reboots -gt 50; then
-			_log do $funcname daemon info "reboots >50, ignoring call"
+			_log it $funcname daemon info "reboots >50, ignoring call"
 		else
 			sleep $( _math random_integer 0 100 )
 			_system crashreboot 'switch_error'

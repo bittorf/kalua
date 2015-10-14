@@ -6,7 +6,7 @@ _watch_roaming()
 
 	grep -q 'br-mastergate:' '/proc/net/dev' && {
 		pidof iw >/dev/null || {
-			_log do $funcname daemon alert 'iw missing, restarting eventlistener'
+			_log it $funcname daemon alert 'iw missing, restarting eventlistener'
 			_net roaming_eventlistener 'restart'
 		}
 	}
@@ -49,17 +49,17 @@ _watch_configchange()
 		# otherwise 'scp' will prompt for accepting fingerprint
 		grep -q ^"$server " "$HOME/.ssh/known_hosts" || return 1
 
-		_log do $funcname daemon alert "[OK] detected change"
+		_log it $funcname daemon alert "[OK] detected change"
 
 		# ~5 kilobytes
 		tar -czf '/tmp/config.tar.gz' '/etc/config' $HOME/.ssh/dropbear_*_key
 
 		pidof scp && return 1
 		if scp -i "$identity" '/tmp/config.tar.gz' "$server:$server_path/$server_file"; then
-			_log do $funcname daemon alert "[OK] upload to $server$server_path/$server_file"
+			_log it $funcname daemon alert "[OK] upload to $server$server_path/$server_file"
 			echo "$new_hash" >"$hashfile"
 		else
-			_log do $funcname daemon info '[ERR] upload failed'
+			_log it $funcname daemon info '[ERR] upload failed'
 		fi
 
 		rm '/tmp/config.tar.gz'
@@ -132,9 +132,9 @@ _watch_autorun()	# can be helpful to make changes on many nodes
 	grep -q ^'#!/bin/sh' "$file" || sed -i '1i #!/bin/sh' "$file"
 	chmod +x "$file"
 
-	_log do $funcname daemon info "[START] $file"
+	_log it $funcname daemon info "[START] $file"
 	$file
-	_log do $funcname daemon info "[READY] $file - rc: $?"
+	_log it $funcname daemon info "[READY] $file - rc: $?"
 }
 
 _watch_monitoring()
@@ -168,7 +168,7 @@ _watch_cgminer()
 	which cgminer >/dev/null && {
 		/etc/init.d/cgminer enabled && {
 			pidof cgminer >/dev/null || {
-				_log do $funcname daemon alert "no pid found, restart daemon"
+				_log it $funcname daemon alert "no pid found, restart daemon"
 				/etc/init.d/cgminer start
 			}
 		}
@@ -204,7 +204,7 @@ _watch_coredump()
 			overall=$count
 
 			[ $( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds ) -gt 300 ] && {
-				_log do $funcname daemon alert "cron hangs, restarting"
+				_log it $funcname daemon alert "cron hangs, restarting"
 				/etc/init.d/S51crond_fff+ start
 			}
 
@@ -220,19 +220,19 @@ _watch_coredump()
 		case "$dump" in
 			*'/crond.'*)
 				pidof crond || {
-					_log do $funcname daemon alert 'cron died, restarting'
+					_log it $funcname daemon alert 'cron died, restarting'
 					_stopwatch start '/tmp/CRON_LASTCALL' global
 					/etc/init.d/S51crond_fff+ start
 				}
 			;;
 			*'/iptables.'*)
-				_log do $funcname daemon alert "stopping netfilter"
+				_log it $funcname daemon alert "stopping netfilter"
 				_netfilter stop
 				_net local_inet_offer >/dev/null && _netfilter masquerade_start
 			;;
 			*'/sh.'*)
 				# TODO: can also be e.g. 'mac80211.sh'
-				_log do $funcname daemon alert "segfault in script, removing lockfiles"
+				_log it $funcname daemon alert "segfault in script, removing lockfiles"
 				rm '/tmp/CRON_LOCK'
 				rm '/tmp/scheduler.log'
 			;;
@@ -244,7 +244,7 @@ _watch_coredump()
 
 		case "$dump" in
 			*"${ignore_pattern}"*|'testdump')
-				_log do $funcname daemon info "$count/$overall: found '$dump', but ignoring it"
+				_log it $funcname daemon info "$count/$overall: found '$dump', but ignoring it"
 			;;
 			*)
 				# coredump = 2mb and free = 1mb -> OK (is good compressable)
@@ -270,7 +270,7 @@ _watch_coredump()
 					fi
 				fi
 
-				_log do $funcname daemon alert "$count/$overall: wrote: $storage/$file"
+				_log it $funcname daemon alert "$count/$overall: wrote: $storage/$file"
 			;;
 		esac
 
@@ -312,14 +312,14 @@ _watch_space_tmpfs()
 			[ -e "$file" ] && {
 				success='true'
 				rm "$file"
-				_log do $funcname daemon info "removed: '$file'"
+				_log it $funcname daemon info "removed: '$file'"
 			}
 		} done
 
 		if [ "$success" = 'true' ]; then
 			[ "$nothing_deleted" = 'true' ] && {
 				nothing_deleted=
-				_log do $funcname daemon alert 'success'
+				_log it $funcname daemon alert 'success'
 			}
 		else
 			# if there are no files to remove, give up
@@ -371,7 +371,7 @@ _watch_dhcp_space()
 		}
 	}
 
-	_log do $funcname daemon $logprio "clients: lan: $clients_lan/$max_lan wifi: $clients_wifi/$max_wifi"
+	_log it $funcname daemon $logprio "clients: lan: $clients_lan/$max_lan wifi: $clients_wifi/$max_wifi"
 }
 
 _watch_mount_storage()
@@ -417,7 +417,7 @@ _watch_mount_storage()
 		shift 4
 
 		[ ${1:-0} -gt 0 ] && {
-			_log do $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($1 rpm)"
+			_log it $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($1 rpm)"
 			hdparm -y -S 60 "/dev/$dev"
 		}
 	}
@@ -440,7 +440,7 @@ _watch_mount_storage()
 						grep -q ^"/dev/$dev " '/proc/mounts' && umount "/dev/$dev"
 
 						mkdir -p "$dir/$dev"
-						_log do $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev' ($blockinfo)"
+						_log it $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev' ($blockinfo)"
 						mount "/dev/$dev" "$dir/$dev" && {
 							set -- $( df -h | grep "$dir/$dev"$ )
 							size="$2"
@@ -448,7 +448,7 @@ _watch_mount_storage()
 							umount "$dir/$dev" && {
 								rm -fR "$dir/${dev:-does_not_exist}"
 								mkdir -p "$dir/${dev}_$size"
-								_log do $funcname daemon info "[OK] /dev/$dev -> $dir/${dev}_$size"
+								_log it $funcname daemon info "[OK] /dev/$dev -> $dir/${dev}_$size"
 								mount "/dev/$dev" "$dir/${dev}_$size"
 							}
 
@@ -477,21 +477,21 @@ _watch_usbstick_proxystorage()
 			mount_usb()
 			{
 				mount -t btrfs -o compress,ssd "$partition" "$mountpoint" && {
-					_log do $funcname daemon info "[OK] mounted"
+					_log it $funcname daemon info "[OK] mounted"
 				}
 			}
 
 			mount_usb || {
-				_log do $funcname daemon info "mount failed"
+				_log it $funcname daemon info "mount failed"
 
 				mkfs.btrfs "$partition" || {
-					_log do $funcname daemon info "[ERR] failed to format $partition"
+					_log it $funcname daemon info "[ERR] failed to format $partition"
 					rm -fR "$mountpoint"
 					return 1
 				}
 
 				mount_usb || {
-					_log do $funcname daemon info "[ERR] failed to mount $partition"
+					_log it $funcname daemon info "[ERR] failed to mount $partition"
 					rm -fR "$mountpoint"
 					return 1
 				}
@@ -537,7 +537,7 @@ _watch_local_proxy()
 			rm "$pidfile"
 		}
 
-		_log do $func daemon alert "$reason, restarting"
+		_log it $func daemon alert "$reason, restarting"
 
 		pidof polipo >/dev/null && {
 			_watch hanging_command polipo
@@ -581,11 +581,11 @@ _watch_archivsize()	# e.g. if a file exceeds 300 lines it will be truncated to t
 	if [ $lines -gt $lines_tolerate ]; then
 		if tail -n $lines_max "$file" >"/tmp/$funcname.$$"; then
 			mv "/tmp/$funcname.$$" "$file" || {
-				_log do $funcname daemon alert "moving tempfile '/tmp/$funcname.$$' to '$file' failed"
+				_log it $funcname daemon alert "moving tempfile '/tmp/$funcname.$$' to '$file' failed"
 			}
 		else
 			rm "/tmp/$funcname.$$"
-			_log do $funcname daemon alert "tail into tempfile failed with '$file' = $lines lines"
+			_log it $funcname daemon alert "tail into tempfile failed with '$file' = $lines lines"
 		fi
 	else
 		return 0
@@ -612,7 +612,7 @@ _watch_system_time()
 		_ntp set force
 
 		[ $(( FFF_PLUS_VERSION * 3600 )) -gt $( _system date unixtime ) ] && {
-			_log do $funcname daemon alert "could'nt set time - trying poor mens timeserver - fixme!"
+			_log it $funcname daemon alert "could'nt set time - trying poor mens timeserver - fixme!"
 		}
 	}
 }
@@ -636,7 +636,7 @@ _watch_netserver ()
 {
 	[ -x /usr/bin/netserver ] && {
 		pidof netserver >/dev/null || {
-			_log do watch_netserver daemon info "netserver offline, restarting"
+			_log it watch_netserver daemon info "netserver offline, restarting"
 			/etc/init.d/*netserver start
 		}
 	}
@@ -695,21 +695,21 @@ _watch_hanging_command()
 	[ -e "$FILE1" ] && read -r OLD_PID <$FILE1
 	[ -e "$FILE2" ] && read -r OLD_CMD <$FILE2
 
-	_log do $FUNC daemon debug "found '$COMMAND'-process pid: '$COMMAND_PID' / cmdline: '$COMMAND_CMD'"
+	_log it $FUNC daemon debug "found '$COMMAND'-process pid: '$COMMAND_PID' / cmdline: '$COMMAND_CMD'"
 
 	if [ "$OLD_PID" = "$COMMAND_PID" ] && [ "$OLD_CMD" = "${COMMAND_CMD:-empty_cmd_line}" ]; then
 		if [ -e "/etc/init.d/$COMMAND" ]; then
-			_log do $FUNC daemon info "executing /etc/init.d/$COMMAND stop"
+			_log it $FUNC daemon info "executing /etc/init.d/$COMMAND stop"
 			/etc/init.d/$COMMAND stop
 		else
-			_log do $FUNC daemon info "killing '$COMMAND_CMD'"
+			_log it $FUNC daemon info "killing '$COMMAND_CMD'"
 			kill $COMMAND_PID
 		fi
 
 		sleep 3
 
 		if [ -e "/proc/$COMMAND_PID" ]; then
-			_log do $FUNC daemon alert "still hanging, killing hard ('$COMMAND'/'$COMMAND_CMD')"
+			_log it $FUNC daemon alert "still hanging, killing hard ('$COMMAND'/'$COMMAND_CMD')"
 			kill -9 $COMMAND_PID
 			sleep 3
 
@@ -723,11 +723,11 @@ _watch_hanging_command()
 			_$FUNC $COMMAND		# recheck
 		fi
 
-		_log do $FUNC daemon info "successfully killed '$COMMAND'-process"
+		_log it $FUNC daemon info "successfully killed '$COMMAND'-process"
 		return 0
 	fi
 
-	_log do $FUNC daemon debug "remember for next check pid '$COMMAND_PID' / '$COMMAND_CMD'"
+	_log it $FUNC daemon debug "remember for next check pid '$COMMAND_PID' / '$COMMAND_CMD'"
 	[ -n "$COMMAND_PID" ] && echo >$FILE1 "$COMMAND_PID"
 	[ -n "$COMMAND_CMD" ] && echo >$FILE2 "$COMMAND_CMD"
 }
@@ -779,7 +779,7 @@ _watch_flash_free_space()
 				>"$file" || topposition=$(( topposition + 1 ))
 			fi
 
-			_log do $funcname daemon info "only $flash_free kb free - removed '$file' with $size bytes"
+			_log it $funcname daemon info "only $flash_free kb free - removed '$file' with $size bytes"
 		}
 	} done
 }
@@ -796,7 +796,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		read -r cmdline     <"/proc/$pid_fakedns/cmdline"
 
 		[ "$line" = "$cmdline" ] || {
-			_log do $funcname daemon alert "fakedns missing"
+			_log it $funcname daemon alert "fakedns missing"
 			_netfilter fakedns_start
 		}
 	}
@@ -849,18 +849,18 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 			set -- $line
 
 			if [ $1 -lt $( _system date unixtime ) ]; then
-				_log do $funcname daemon alert "loopback-alias/dhcp-lease too old: $1"
+				_log it $funcname daemon alert "loopback-alias/dhcp-lease too old: $1"
 				/etc/init.d/dnsmasq restart
 				ifup loopback
 			else
 				case "$( pidof udhcpc )" in
 					*' '*' '*' '*' '*' '*' '*)
 						# 7 instances are too much 8-)
-						_log do $funcname daemon alert "too much udhcpc: $( pidof udhcpc )"
+						_log it $funcname daemon alert "too much udhcpc: $( pidof udhcpc )"
 						ifdown loopback
 						killall udhcpc
 						ifup loopback
-						_log do $funcname daemon alert "too much udhcpc: now: $( pidof udhcpc )"
+						_log it $funcname daemon alert "too much udhcpc: now: $( pidof udhcpc )"
 					;;
 				esac
 			fi
@@ -868,7 +868,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 			# a lot of:
 			# no address range available for DHCP request via lo
 			[ -e '/www/netifd_dhcp_watchdog' ] && {
-				_log do $funcname daemon alert "loopback-alias/cron-watchdog seems down"
+				_log it $funcname daemon alert "loopback-alias/cron-watchdog seems down"
 				/etc/init.d/dnsmasq restart
 				ifup loopback
 			}
@@ -882,10 +882,10 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 	pid_good "$pid" "$script" || {
 		if fgrep -q 'nameserver 127.0.0.1' '/etc/resolv.conf'; then
-			_log do $funcname daemon info "restarting dnsmasq"
+			_log it $funcname daemon info "restarting dnsmasq"
 
 			pidof udhcpd >/dev/null && {			# otherwise the server-port cannot bound to new daemon
-				_log do $funcname daemon info "killing old DNS-server 'udhcpd'"
+				_log it $funcname daemon info "killing old DNS-server 'udhcpd'"
 				killall udhcpd
 			}
 
@@ -893,7 +893,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 			/etc/init.d/*fake_dns_server_fff+ remove_fake_dnsserver
 			sleep 3
 
-			_log do $funcname daemon alert "dnsmasq died, old PIDs: '$pid', restarted, PID now '$( pidof dnsmasq )'"
+			_log it $funcname daemon alert "dnsmasq died, old PIDs: '$pid', restarted, PID now '$( pidof dnsmasq )'"
 			return 0
 		else
 			ip="$( grep 'nameserver' '/etc/resolv.conf' | head -n1 )"
@@ -927,10 +927,10 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		} done
 
 		if [ -z "$pid" ]; then
-			_log do $funcname daemon alert 'no pid, will restart soon'
+			_log it $funcname daemon alert 'no pid, will restart soon'
 		else
 			if _watch counter "/tmp/$funcname" increment 1 max 20 ; then
-				_log do $funcname daemon alert "after DNS fail: sending SIGHUP to dnsmasq: $pid_parent (reread config)"
+				_log it $funcname daemon alert "after DNS fail: sending SIGHUP to dnsmasq: $pid_parent (reread config)"
 				kill -SIGHUP "$pid_parent"
 				sleep 5
 			else
@@ -940,10 +940,10 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 		# again: can we resolv first a local and then random address?
 		testdomain="$( grep ^"[0-9]" '/etc/local.hosts' | head -n1 | cut -d' ' -f2 )"
-		_log do $funcname daemon info "trying to resolv '$testdomain' from /etc/local.hosts"
+		_log it $funcname daemon info "trying to resolv '$testdomain' from /etc/local.hosts"
 
 		if nslookup "$testdomain" 2>/dev/null >/dev/null; then
-			_log do $funcname daemon info "[OK] resolv '$testdomain' good"
+			_log it $funcname daemon info "[OK] resolv '$testdomain' good"
 			dump_core=
 			[ -e "/tmp/$funcname" ] && rm "/tmp/$funcname"
 		else
@@ -953,7 +953,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 		nslookup "$$.$testserver" 2>/dev/null >/dev/null || {
 			[ -n "$dump_core" -a -n "$pid" ] && {
-				_log do $funcname daemon alert "[ERR] dns hangs - we will crash dnsmasq: $pid_parent"
+				_log it $funcname daemon alert "[ERR] dns hangs - we will crash dnsmasq: $pid_parent"
 				kill -SIGUSR1 "$pid_parent"	# stats to syslog
 				kill -SIGSEGV "$pid_main"	# produce coredump
 				sleep 5
@@ -992,11 +992,11 @@ _watch_pppoe()
 	elif ifstatus $ifname | fgrep -q 'AUTH_TOPEER_FAILED'; then
 		# https://dev.openwrt.org/ticket/18026
 		if _watch counter "/tmp/${funcname}:maxfail" increment 1 max 4; then
-			_log do $funcname daemon info "authfail - trying to reconnect"
+			_log it $funcname daemon info "authfail - trying to reconnect"
 			ifup $ifname
 			echo >>$SCHEDULER '_watch pppoe'
 		else
-			_log do $funcname daemon info "no action, too much auth fails - please do manually 'ifup $ifname'"
+			_log it $funcname daemon info "no action, too much auth fails - please do manually 'ifup $ifname'"
 		fi
 	else
 		[ $( _system uptime min ) -le 5 ] && return 0
@@ -1066,19 +1066,19 @@ _watch_pppoe()
 		}
 
 		[ -e "$good_file" ] || {
-			_log do $funcname daemon info "no default route over $WANDEV - but do nothing, $good_file not found"
+			_log it $funcname daemon info "no default route over $WANDEV - but do nothing, $good_file not found"
 			return 0
 		}
 
 		daemon='pppd'
 
-		_log do $funcname daemon alert "no default route over $WANDEV - restarting PPPoE / $daemon"
+		_log it $funcname daemon alert "no default route over $WANDEV - restarting PPPoE / $daemon"
 		_watch hanging_command $daemon
 		_watch hanging_command $daemon
 
 		ifup $ifname
 		_log sleep $funcname 180 step 30
-		_log do $funcname daemon info "restarted: '$( ip route list exact 0.0.0.0/0 dev $WANDEV )'"
+		_log it $funcname daemon info "restarted: '$( ip route list exact 0.0.0.0/0 dev $WANDEV )'"
 
 		echo >>$SCHEDULER '_watch pppoe'
 	fi
@@ -1089,7 +1089,7 @@ _watch_webcam ()
 	[ ! -e /tmp/WEBCAM ] && return
 
 	pidof motion >/dev/null || {
-		_log do webcam_watchdog daemon alert "restarting webcam"
+		_log it webcam_watchdog daemon alert "restarting webcam"
 		/etc/init.d/S90webcam_fff+ restart
 	}
 }
@@ -1126,7 +1126,7 @@ _watch_webserver()
 	[ "$option" = "force" ] && action=
 
 	[ -n "$action" ] && {
-		_log do $funcname daemon info "[OK] no check during webserver forking action"
+		_log it $funcname daemon info "[OK] no check during webserver forking action"
 		return 0
 	}
 
@@ -1148,27 +1148,27 @@ _watch_webserver()
 			uci set uhttpd.main.max_requests=50
 		}
 
-		_log do $funcname daemon info "[OK] trying to stop '$server' with PID '$( pidof $server )'"
+		_log it $funcname daemon info "[OK] trying to stop '$server' with PID '$( pidof $server )'"
 
 		_watch hanging_command "$server"
 		_watch hanging_command "$server"
 
 		if pidof $server >/dev/null; then
-			_log do $funcname daemon alert "[ERR] during kill of $server, rebooting"
+			_log it $funcname daemon alert "[ERR] during kill of $server, rebooting"
 			_stopwatch stop "$funcname" quiet
 			_system crashreboot 'uhttpd_zombie'
 		else
 			/etc/init.d/$server start
-			_log do $funcname daemon alert "[OK] server PID after restart: '$( pidof $server )'"
+			_log it $funcname daemon alert "[OK] server PID after restart: '$( pidof $server )'"
 		fi
 	}
 
 	pidof $server >/dev/null || {
 		if pidof crond >/dev/null ; then
-			_log do $funcname daemon alert "[ERR] webserver is not running - restarting $server"
+			_log it $funcname daemon alert "[ERR] webserver is not running - restarting $server"
 			restart_server
 		else
-			_log do $funcname daemon debug "[OK] no crond - no restart"	# maybe intended
+			_log it $funcname daemon debug "[OK] no crond - no restart"	# maybe intended
 		fi
 	}
 
@@ -1187,7 +1187,7 @@ _watch_webserver()
 		while [ ${size_gethttp:-0} -eq 0 ]; do {
 			i=$(( i + 1 ))
 			[ $i -gt 1 ] && {
-				_log do $funcname daemon info "size_gethttp = 0, try $i"
+				_log it $funcname daemon info "size_gethttp = 0, try $i"
 				[ $i -gt 5 ] && break
 				sleep 10
 			}
@@ -1214,18 +1214,18 @@ _watch_webserver()
 			}
 
 			if [ $size_file -eq $size_gethttp ]; then
-				_log do $funcname daemon debug "[OK] same size for file/httpget: $size_file bytes for $checkfile"
+				_log it $funcname daemon debug "[OK] same size for file/httpget: $size_file bytes for $checkfile"
 				touch "$file_seen_good"
 			else
-				_log do $funcname daemon alert "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
+				_log it $funcname daemon alert "[ERR] size_file: $size_file size_gethttp: $size_gethttp - restarting"
 				restart_server
 			fi
 		else
 			if [ -e "$file_seen_good" ]; then
-				_log do $funcname daemon alert "[ERR] gethttp not possible - restarting"
+				_log it $funcname daemon alert "[ERR] gethttp not possible - restarting"
 				restart_server
 			else
-				_log do $funcname daemon info "[ERR] gethttp not possible - needs investigation"
+				_log it $funcname daemon info "[ERR] gethttp not possible - needs investigation"
 			fi
 		fi
 
@@ -1235,7 +1235,7 @@ _watch_webserver()
 		duration="$( _stopwatch stop "$funcname" nolog )"
 
 		[ $duration -gt 225 ] && {		# = 2.25 sec
-			_log do $funcname daemon alert "last too long: $(( duration / 100 )).$(( duration % 100 )) sec"
+			_log it $funcname daemon alert "last too long: $(( duration / 100 )).$(( duration % 100 )) sec"
 		}
 
 		[ "$( _weblogin authserver )" = "$LANADR" ] && {
@@ -1246,7 +1246,7 @@ _watch_webserver()
 					# CGI is working, outputs a MAC
 				;;
 				*)
-					_log do $funcname daemon alert "[ERR] CGI didnt work, answer: '$out'"
+					_log it $funcname daemon alert "[ERR] CGI didnt work, answer: '$out'"
 					restart_server
 				;;
 			esac
@@ -1299,7 +1299,7 @@ _watch_sshd_or_telnet()
 
 	if pid_ssh="$( pidof $ssh_pidname )"; then
 		pid_telnetd="$( pidof telnetd )" && {
-			_log do $funcname daemon alert "[OK] ssh running $pid_ssh, killing telnet $pid_telnetd"
+			_log it $funcname daemon alert "[OK] ssh running $pid_ssh, killing telnet $pid_telnetd"
 			kill $pid_telnetd
 		}
 
@@ -1311,10 +1311,10 @@ _watch_sshd_or_telnet()
 		# 'SSH-2.0-dropbear_2012.55'
 		# 'SSH-2.0-OpenSSH_6.1p1 Debian-4'
 		if _net tcp_port_reachable '127.0.0.1' '22' 'SSH-2.0' 2>/dev/null; then
-			_log do $funcname daemon info "[OK] $ssh_name seems to run"
+			_log it $funcname daemon info "[OK] $ssh_name seems to run"
 			return 0
 		else
-			_log do $funcname daemon alert "[ERR] $ssh_name seems to hang - restarting"
+			_log it $funcname daemon alert "[ERR] $ssh_name seems to hang - restarting"
 			restart_sshd && return 0
 		fi
 	else
@@ -1333,13 +1333,13 @@ _watch_sshd_or_telnet()
 	fi
 
 	pidof telnetd >/dev/null || {
-		_log do $funcname daemon info "telnetd not running - restarting"
+		_log it $funcname daemon info "telnetd not running - restarting"
 
 		# without pass: telnetd -l /bin/ash
 		if telnetd -l /bin/login.sh <> /dev/null 2>&1 ; then
-			_log do $funcname daemon alert "telnetd PID now: '$( pidof telnetd )'"
+			_log it $funcname daemon alert "telnetd PID now: '$( pidof telnetd )'"
 		else
-			_log do $funcname daemon alert 'dropbear nor telnetd not startable'
+			_log it $funcname daemon alert 'dropbear nor telnetd not startable'
 		fi
 	}
 }
@@ -1370,20 +1370,20 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 
 	if [ "$DIRTY" = "1" ]; then
 		eval "$( build_vars )"
-		_log do $FUNC daemon info "detected ID from random pool or a changed nodenumber - registering official ID from '$URL'"
+		_log it $FUNC daemon info "detected ID from random pool or a changed nodenumber - registering official ID from '$URL'"
 
  		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _curl it "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
  										# fixme! no wifi -> no wifimac -> no registration?
 	 	if _ipsystem get "${ID:-99999}" >/dev/null ; then		# ipsystem() has a sanitizer built in, so don't worry 8-)
 			if [ -e "/tmp/LOCKFILE_APPLY" ]; then
-				_log do $FUNC daemon info "will not apply anything, /tmp/LOCKFILE_APPLY exists"
+				_log it $FUNC daemon info "will not apply anything, /tmp/LOCKFILE_APPLY exists"
 			else
 				uci set system.@profile[0].nodenumber="$ID"
 				/etc/init.d/apply_profile.code boot
 				_system crashreboot 'applied_nodeid'
 			fi
 		else
-			_log do $FUNC daemon info "ID not clean: '$ID' - aborting"
+			_log it $FUNC daemon info "ID not clean: '$ID' - aborting"
 		fi
 	else
 		local wait
@@ -1414,7 +1414,7 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 			[ -e "/tmp/DEBUG" ] && rm "/tmp/DEBUG"	# fixme! wrong place
 
 			if [ -n "$ID" ]; then		# fixme! OK = went fine ; REGENERATE_KEY = ...
-				_log do registrator_petting daemon info "answer was '$ID' (question was: '$URL')"	
+				_log it registrator_petting daemon info "answer was '$ID' (question was: '$URL')"	
 
 				case "$ID" in
 					OK)
@@ -1431,10 +1431,10 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 					;;
 				esac
 			else
-				_log do registrator_petting daemon info "no answer (service '$URL' not running or no pubkey_fp?)"
+				_log it registrator_petting daemon info "no answer (service '$URL' not running or no pubkey_fp?)"
 			fi
 		else
-			[ -e /tmp/REGISTRATED ] && _log do registrator_petting daemon debug "is already lucky"
+			[ -e /tmp/REGISTRATED ] && _log it registrator_petting daemon debug "is already lucky"
 		fi
 	fi
 }
@@ -1477,7 +1477,7 @@ _watch_counter()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || 
 		'max')
 			[ $value -ge $option_value ] && {
 				[ "$special" = 'autoremove' ] && rm "$file"
-				_log do $funcname daemon info "[$file] max: $value >= $option_value"
+				_log it $funcname daemon info "[$file] max: $value >= $option_value"
 
 				return 1
 			}
@@ -1485,7 +1485,7 @@ _watch_counter()		# call: _watch counter "/tmp/mycounter" increment 1 max 10 || 
 		'min')
 			[ $value -le $option_value ] && {
 				[ "$special" = 'autoremove' ] && rm "$file"
-				_log do $funcname daemon info "[$file] min: $value =< $option_value"
+				_log it $funcname daemon info "[$file] min: $value =< $option_value"
 
 				return 1
 			}
@@ -1569,7 +1569,7 @@ _watch_topusage_task()
 	logmessage="pid: $pid cpu: $cpu toptask: $toptask task: $task crit%border: $crit_percent_border khubd_state: $khubd_state reason: $call_reason file: $file"
 
 	if [ $cpu_int -gt $crit_percent_border ]; then
-		_log do $funcname daemon alert "$logmessage"
+		_log it $funcname daemon alert "$logmessage"
 
 		case "$task" in
 			*'procd'*)
@@ -1581,14 +1581,14 @@ _watch_topusage_task()
 				_system crashreboot 'netifd_overload'
 			;;
 			*'hostapd'*)
-				_log do $funcname daemon alert "task: $task stations: $( iw dev $WIFIDEV station dump | grep -c ^'Station' )"
+				_log it $funcname daemon alert "task: $task stations: $( iw dev $WIFIDEV station dump | grep -c ^'Station' )"
 			;;
 		esac
 
 		case "$toptask" in
 			'['*)
 				# e.g. 'cpu: 83% toptask: [ksoftirqd/0] task: 0] crit_percent_border: 70'
-				_log do $funcname daemon info "no further action for kernel-task '$toptask'"
+				_log it $funcname daemon info "no further action for kernel-task '$toptask'"
 			;;
 			'{'*'}')
 				# e.g. 'cpu: 83% toptask: {cron.monitoring} task: {cron.monitoring}'
@@ -1633,7 +1633,7 @@ _watch_topusage_task()
 			;;
 		esac
 
-		_log do $funcname daemon $logprio "$logmessage"
+		_log it $funcname daemon $logprio "$logmessage"
 		return 0
 	fi
 }
@@ -1659,7 +1659,7 @@ _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 						*)
 							# in case something is wrong we must toggle,
 							# other mii-tool will not apply
-							_log do $funcname daemon info 'enforcing 100baseTx-FD'
+							_log it $funcname daemon info 'enforcing 100baseTx-FD'
 							mii-tool --force=10baseT-FD   'eth0'
 							sleep 3
 							mii-tool --force=100baseTx-FD 'eth0'
@@ -1673,13 +1673,13 @@ _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 									# but
 									# mii-tool --force=100baseTx-FD eth0
 									#   -> 'eth0: 100 Mbit, full duplex, no link'
-									_log do $funcname daemon alert "must fallback: '$out'"
+									_log it $funcname daemon alert "must fallback: '$out'"
 									mii-tool --force=10baseT-FD 'eth0'
 									out="$( mii-tool eth0 )"
-									_log do $funcname daemon alert "fallback now: '$out'"
+									_log it $funcname daemon alert "fallback now: '$out'"
 								;;
 								*)
-									_log do $funcname daemon info "[OK] now: '$out'"
+									_log it $funcname daemon info "[OK] now: '$out'"
 								;;
 							esac
 						;;
@@ -1716,7 +1716,7 @@ _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 	else
 		for OPT in R "A 10baseT-HD" "F 10baseT-HD" r v ; do {
 			sleep 3
-			mii-tool -$OPT | _log do mii-tool daemon info
+			mii-tool -$OPT | _log it mii-tool daemon info
 		} done
 
 		lan_olsr_wished && refire
@@ -1735,25 +1735,25 @@ _watch_switch_linkstatus()	# only used for ffweimar
 		read -r stat_old <"$statfile"
 	else
 		_switch show >"$statfile"
-		_log do $funcname daemon debug "[OK] first status check, no action"
+		_log it $funcname daemon debug "[OK] first status check, no action"
 		return 0
 	fi
 
 	stat_new="$( _switch show )"
 
 	[ "${#stat_new}" -gt 0 ] || {
-		_log do $funcname daemon info "[ERR] could not read switch-status"
+		_log it $funcname daemon info "[ERR] could not read switch-status"
 		return 1
 	}
 
 	if [ "$stat_new" = "$stat_old" ]; then
-		_log do $funcname daemon debug "[OK] nothing changed"
+		_log it $funcname daemon debug "[OK] nothing changed"
 		return 0
 	else
 		echo "$stat_new" >"$statfile"
 
-		_log do $funcname daemon info "[OK] switch-status old: $stat_old"
-		_log do $funcname daemon info "[OK] switch-status new: $stat_new"
+		_log it $funcname daemon info "[OK] switch-status old: $stat_old"
+		_log it $funcname daemon info "[OK] switch-status new: $stat_new"
 
 		# FIXME! to be correct we have to check the vlan-settings
 		# fallback for routers with one jack only, which is configured as lan
@@ -1767,15 +1767,15 @@ _watch_switch_linkstatus()	# only used for ffweimar
 		}
 
 		if [ "$( firstbyte "$stat_old" )" = "$( firstbyte "$stat_new" )" ]; then
-			_log do $funcname daemon info "[OK] lan-connectors changed"
+			_log it $funcname daemon info "[OK] lan-connectors changed"
 		else
 			case "$( firstbyte "$stat_old" )" in
 				"-")
-					_log do $funcname daemon info "[OK] $interface_name/$devname - link up"
+					_log it $funcname daemon info "[OK] $interface_name/$devname - link up"
 					ifup $interface_name
 				;;
 				*)
-					_log do $funcname daemon info "[OK] $interface_name/$devname - link down"
+					_log it $funcname daemon info "[OK] $interface_name/$devname - link down"
 					ifdown $interface_name
 				;;
 			esac
@@ -1803,7 +1803,7 @@ _watch_wifistuff()
 				*'wlan'*)
 				;;
 				*)
-					_log do $funcname daemon alert "lost batman-bridge, calling '$file'"
+					_log it $funcname daemon alert "lost batman-bridge, calling '$file'"
 					. "$file"
 				;;
 			esac
@@ -1843,7 +1843,7 @@ _watch_wifistuff()
 		uptime_diff=$(( uptime_new - ${uptime_old:-0} ))
 
 		[ $uptime_diff -gt 65 ] && \
-			_log do $funcname daemon info "[ERR] timediff > 60 sec = $uptime_diff"
+			_log it $funcname daemon info "[ERR] timediff > 60 sec = $uptime_diff"
 
 		if [ -e "$file_framecount" ]; then
 			read -r framecount_old <"$file_framecount"
@@ -1865,7 +1865,7 @@ _watch_wifistuff()
 				;;
 			esac
 
-			_log do $funcname daemon $logprio "[ERR] framecounter for $check_dev old/new: $framecount_old = $framecount_new timediff: $uptime_diff sec"
+			_log it $funcname daemon $logprio "[ERR] framecounter for $check_dev old/new: $framecount_old = $framecount_new timediff: $uptime_diff sec"
 			echo "0" >"$file_framecount"
 
 			if [ $uptime_diff -ge 60 ]; then
@@ -1897,12 +1897,12 @@ _watch_wifistuff()
 		else
 			[ -e "$file_activity_seen" ] || {
 				[ "$framecount_old" = "-1" ] || {
-					_log do $funcname daemon info "[OK] first activity seen on dev $check_dev ($framecount_old packets) - marking"
+					_log it $funcname daemon info "[OK] first activity seen on dev $check_dev ($framecount_old packets) - marking"
 					touch "$file_activity_seen"
 				}
 			}
 
-			_log do $funcname daemon debug "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer run "$framecount_old + $(( framecount_new - framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
+			_log it $funcname daemon debug "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer run "$framecount_old + $(( framecount_new - framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
 			return $good
 		fi
 
@@ -1939,7 +1939,7 @@ _watch_wifistuff()
 					}
 
 					# _wifi phy_restart "$WIFIDEV" "no clients, no incoming_wifi_activity, mode $WIFIMODE" info
-					_log do incoming_wifi_activity daemon info "no clients, no incoming_wifi_activity, mode $WIFIMODE"
+					_log it incoming_wifi_activity daemon info "no clients, no incoming_wifi_activity, mode $WIFIMODE"
 				fi
 			;;
 		esac
@@ -1963,9 +1963,9 @@ _watch_wifistuff()
 							}
 						}
 
-						_log do $funcname daemon info "$clients clients on APDEV '$interface'"
+						_log it $funcname daemon info "$clients clients on APDEV '$interface'"
 					else
-						_log do $funcname daemon debug "no clients on APDEV '$interface'"
+						_log it $funcname daemon debug "no clients on APDEV '$interface'"
 
 						# https://dev.openwrt.org/changeset/44696/trunk -> enforce phyrestart every hour:
 						[ $OPENWRT_REV -lt 44696 ] && {
@@ -2005,7 +2005,7 @@ _watch_wifistuff()
 		;;
 		*)
 			_wifi check_each_client || {
-				_log do check_each_client daemon info "tx/arping to all clients failed"
+				_log it check_each_client daemon info "tx/arping to all clients failed"
 			}
 
 			case "$WIFIMODE" in
@@ -2023,7 +2023,7 @@ _watch_wifistuff()
 							else
 								if pidof wpa_supplicant >/dev/null; then
 									# maybe manually configured for maintenance
-									_log do $funcname daemon info '[OK] found wpa_supplicant'
+									_log it $funcname daemon info '[OK] found wpa_supplicant'
 								else
 									[ -e "/tmp/DAEMON_hostapd_seen" ] && {
 										_wifi phy_restart "$WIFIDEV" "missing_hostapd"
@@ -2059,7 +2059,7 @@ _watch_olsrstuff()
 		}
 
 		olsr_unneeded && {
-			_log do $funcname daemon info 'OK - olsr_unneeded'
+			_log it $funcname daemon info 'OK - olsr_unneeded'
 			rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
 			touch "/tmp/service_olsrd_nowatching"
 			_olsr daemon stop "batman_active_now"
@@ -2073,7 +2073,7 @@ _watch_olsrstuff()
 		_olsr build_tables && {
 			[ "$firstrun" = 'true' ] && {
 				[ -e '/tmp/OLSR/ALL' ] && {
-					_log do $funcname daemon info "first successful OLSR-query"
+					_log it $funcname daemon info "first successful OLSR-query"
 				}
 			}
 
@@ -2116,12 +2116,12 @@ _watch_olsrstuff()
 
 			if [ -n "$bad" -a -e "/tmp/check_$watch_olsr_ip" ]; then
 				if    _watch counter "/tmp/check_$watch_olsr_ip" increment 1 max 10 ; then
-					_log do "check_$watch_olsr_ip" daemon info  "bad value for $watch_olsr_ip: '$value' max: $watch_value"
+					_log it "check_$watch_olsr_ip" daemon info  "bad value for $watch_olsr_ip: '$value' max: $watch_value"
 				elif  _watch counter "/tmp/check_$watch_olsr_ip" increment 1 max 20 ; then
-					_log do "check_$watch_olsr_ip" daemon info  "bad value for $watch_olsr_ip: '$value' max: $watch_value"
+					_log it "check_$watch_olsr_ip" daemon info  "bad value for $watch_olsr_ip: '$value' max: $watch_value"
 					_wifi phy_restart "$WIFIDEV" 'bad_link'
 				else
-					_log do "check_$watch_olsr_ip" daemon alert "bad value for $watch_olsr_ip: '$value' - rebooting"
+					_log it "check_$watch_olsr_ip" daemon alert "bad value for $watch_olsr_ip: '$value' - rebooting"
 					_system crashreboot 'bad_link'
 				fi
 			else
@@ -2134,7 +2134,7 @@ _watch_olsrstuff()
 				read -r IP <'/tmp/OLSR_HNA_SLAVE_PINGTEST'
 
 				_net ip_reachable "$IP" ping 30 || {
-					_log do $funcname daemon info "[ERR] ping to $IP failed"
+					_log it $funcname daemon info "[ERR] ping to $IP failed"
 					ip route del default
 					rm "/tmp/service_olsrd_nowatching"	# fire olsr
 					rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"

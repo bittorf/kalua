@@ -82,7 +82,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 			# TODO: resetting the number here would auto-recover lost passwords
 			#       and assign new NODENUMBER on next try. like this:
 			#	uci delete system.@profile[0].nodenumber
-			_log do registrator daemon alert "[ERR] somebody has your number '$NODENUMBER' or your pass/sshkey-fingerprint has changed"
+			_log it registrator daemon alert "[ERR] somebody has your number '$NODENUMBER' or your pass/sshkey-fingerprint has changed"
 
 			# API call is: Send a 'Create', with MAC and PASS.
 			# - successful answer *always* contains our NODENUMBER
@@ -133,7 +133,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 			if test "${JSON_VAR_status:-0}" -lt 400 2>/dev/null; then
 				# check if the answer contains a NODENUMBER
 				if test "$JSON_VAR_result_number" -gt 1 -a "$JSON_VAR_result_number" != "$NODENUMBER" 2>/dev/null; then
-					_log do registrator daemon alert "[OK] new nodenumber: '$JSON_VAR_result_number'"
+					_log it registrator daemon alert "[OK] new nodenumber: '$JSON_VAR_result_number'"
 					# check with `_ipsystem` if it is a *valid* NODENUMBER
 					if _ipsystem get "$JSON_VAR_result_number" >/dev/null ; then
 						# TODO: does one of these already save the number to uci ???
@@ -141,25 +141,25 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 						MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
 						/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$JSON_VAR_result_number"
 					else
-						_log do error daemon info "nodenumber invalid: '$JSON_VAR_result_number'"
+						_log it error daemon info "nodenumber invalid: '$JSON_VAR_result_number'"
 					fi
 				else
-					_log do error daemon info "new number invalid: '$JSON_VAR_result_number'"
+					_log it error daemon info "new number invalid: '$JSON_VAR_result_number'"
 				fi
 			else
-				_log do error daemon info "message: '$JSON_VAR_message'"
+				_log it error daemon info "message: '$JSON_VAR_message'"
 			fi
 		;;
 		'201')
-			_log do heartbeat daemon alert "OK: HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_message'"
-			_log do heartbeat daemon alert "OK: HTTP-Answer: '$HTTP_ANSWER'"
+			_log it heartbeat daemon alert "OK: HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_message'"
+			_log it heartbeat daemon alert "OK: HTTP-Answer: '$HTTP_ANSWER'"
 		;;
 		'200')
-			_log do heartbeat daemon info 'OK'
+			_log it heartbeat daemon info 'OK'
 		;;
 		*)
-			_log do heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_message'"
-			_log do heartbeat daemon alert "[ERR] HTTP-Answer: '$HTTP_ANSWER'"
+			_log it heartbeat daemon alert "[ERR] HTTP-Status: '$JSON_VAR_status' -> '$JSON_VAR_message'"
+			_log it heartbeat daemon alert "[ERR] HTTP-Answer: '$HTTP_ANSWER'"
 		;;
 	esac
 
@@ -199,19 +199,19 @@ else
 		rm "$FILE"
 
 		if [ "$OPTION" = 'show_next_free' ]; then
-			_log do request_nodenumber daemon info "next free nodenumber is '$NODENUMBER_NEW'"
+			_log it request_nodenumber daemon info "next free nodenumber is '$NODENUMBER_NEW'"
 		else
 			if [ -n "$NODENUMBER_NEW" ]; then
-				_log do request_nodenumber daemon alert "apply new nodenumber '$NODENUMBER_NEW'"
+				_log it request_nodenumber daemon alert "apply new nodenumber '$NODENUMBER_NEW'"
 
 				NETWORK="${CONFIG_PROFILE%_*}"
 				MODE="${CONFIG_PROFILE#*_}"
 				/etc/init.d/apply_profile.code "$NETWORK" "$MODE" "$NODENUMBER_NEW"
 			else
-				_log do request_nodenumber daemon info "could not get new nodenumber"
+				_log it request_nodenumber daemon info "could not get new nodenumber"
 			fi
 		fi
 	else
-		_log do load_reglist daemon info "[ERR] invalid download from '$URL' to '$FILE'"
+		_log it load_reglist daemon info "[ERR] invalid download from '$URL' to '$FILE'"
 	fi
 fi

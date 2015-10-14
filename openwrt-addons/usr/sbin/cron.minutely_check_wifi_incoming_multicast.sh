@@ -64,6 +64,6 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 for REST in $LIST_OF_PHYS ; do {
 	check_wifi_phy "$REST" "${UP%.*}" || {
 		. /tmp/loader
-		_log do "wificheck" daemon info "$DEBUG"
+		_log it "wificheck" daemon info "$DEBUG"
 	}
 } done

@@ -29,7 +29,7 @@ _net_tcp_port_reachable()		# please call with 2>/dev/null otherwise you
 	local pid i
 
 	which nc >/dev/null || {
-		_log do $funcname daemon info '[ERR] no netcat'
+		_log it $funcname daemon info '[ERR] no netcat'
 		return 0
 	}
 
@@ -45,7 +45,7 @@ _net_tcp_port_reachable()		# please call with 2>/dev/null otherwise you
 		} done
 
 		[ $i -gt 0 ] || {
-			_log do $funcname daemon info "[ERR] '$( cat "$file" )'"
+			_log it $funcname daemon info "[ERR] '$( cat "$file" )'"
 			rc=1
 		}
 	else
@@ -70,14 +70,14 @@ _net_roaming_eventlistener()
 	case "$option" in
 		'start')
 			_net dev_is_valid "$dev" || {
-				_log do $funcname daemon debug "refusing to start, missing dev $dev"
+				_log it $funcname daemon debug "refusing to start, missing dev $dev"
 				return 1
 			}
 
 			for pid in $( pidof iw ); do {
 				read -r cmdline <"/proc/$pid/cmdline"
 				[ "$cmdline" = 'iwevent' ] && {
-					_log do $funcname daemon info "[ERR] too much 'iw' instances, will not start"
+					_log it $funcname daemon info "[ERR] too much 'iw' instances, will not start"
 					return 1
 				}
 			} done
@@ -98,7 +98,7 @@ _net_roaming_eventlistener()
 					iw reg set US
 					let i-=1 || break
 
-					_log do $funcname daemon info "still running 'iw' (pid: $pids2)"
+					_log it $funcname daemon info "still running 'iw' (pid: $pids2)"
 					sleep 1
 				} done
 
@@ -110,7 +110,7 @@ _net_roaming_eventlistener()
 					_watch hanging_command iw
 				elif [ -n "$pids2" ]; then
 					error='err2'
-					_log do $funcname daemon alert "still running 'iw'-instance $pids2"
+					_log it $funcname daemon alert "still running 'iw'-instance $pids2"
 					read -r pid <"$pidfile"
 					kill $pid
 				else
@@ -212,7 +212,7 @@ _net_roaming_mac2ip()
 	elif get_local; then
 		set -- $line
 		ip="$2"
-		_log do $funcname daemon info "[OK] mac->IP: $mac -> $ip from $method"
+		_log it $funcname daemon info "[OK] mac->IP: $mac -> $ip from $method"
 		echo "$ip"
 	elif [ "$action" = 'local_only' ]; then
 		return 1
@@ -224,7 +224,7 @@ _net_roaming_mac2ip()
 
 			ip="$( _curl it "$url" )"
 			test -n "$ip" && {
-				_log do $funcname daemon info "[OK] mac->IP: $mac -> $ip from '$url'"
+				_log it $funcname daemon info "[OK] mac->IP: $mac -> $ip from '$url'"
 				echo "$ip"
 			}
 		}
@@ -672,7 +672,7 @@ _net_dns_resolvconf_change_first_nameserver()
 
 	[ "$ip_wish" = 'remove' ] || {
 		nslookup "$$.$testserver" "$ip_wish" 2>/dev/null >/dev/null || {
-			_log do $funcname daemon alert "DNS fails via $ip_wish - abort"
+			_log it $funcname daemon alert "DNS fails via $ip_wish - abort"
 			return 1
 		}
 	}
@@ -686,16 +686,16 @@ _net_dns_resolvconf_change_first_nameserver()
 						return 0
 					else
 						[ "$ip_wish" = 'remove' ] || {
-							_log do $funcname daemon alert "$file: nameserver $ip_wish"
+							_log it $funcname daemon alert "$file: nameserver $ip_wish"
 							echo "nameserver $ip_wish"
 						}
 
 						if [ "$option" = 'simple' ]; then
-							_log do $funcname daemon alert "$file: nameserver 127.0.0.1"
+							_log it $funcname daemon alert "$file: nameserver 127.0.0.1"
 							echo 'nameserver 127.0.0.1'
 							break
 						else
-							_log do $funcname daemon alert "$file: $line"
+							_log it $funcname daemon alert "$file: $line"
 							echo "$line"
 							replaced='true'
 						fi
@@ -705,13 +705,13 @@ _net_dns_resolvconf_change_first_nameserver()
 						# no action, ignore the old entry
 						:
 					else
-						_log do $funcname daemon alert "$file: $line"
+						_log it $funcname daemon alert "$file: $line"
 						echo "$line"
 					fi
 				fi
 			;;
 			*)
-				_log do $funcname daemon alert "$file: $line"
+				_log it $funcname daemon alert "$file: $line"
 				echo "$line"
 			;;
 		esac
@@ -771,7 +771,7 @@ _net_ip_reachable()
 	case "$dev" in
 		'')
 			[ "$pingtest" = "$ip" ] || {
-				_log do $funcname daemon info '[ERR] empty devname'
+				_log it $funcname daemon info '[ERR] empty devname'
 				return 1
 			}
 		;;
@@ -819,7 +819,7 @@ _net_ip_reachable()
 				fi
 
 				line="$( ip neigh show to "$ip" )"
-				_log do $funcname daemon info "arping: $ip dev: $dev list: '$dev_list' line: '$line' try: $max_attempts"
+				_log it $funcname daemon info "arping: $ip dev: $dev list: '$dev_list' line: '$line' try: $max_attempts"
 			fi
 		} done
 	} done
@@ -975,7 +975,7 @@ _net_mac2vendor()
 				_sanitizer run "$( _curl it "$url" 5 2>/dev/null )" shellsafe >"$cache"
 
 				[ $( _file size "$cache" ) -eq 0 ] && {
-					_log do $funcname daemon info "download '$url' failed or empty data"
+					_log it $funcname daemon info "download '$url' failed or empty data"
 					rm "$cache"
 					return 1
 				}
@@ -1275,12 +1275,12 @@ _net_dev2ip()		# only first ip
 		;;
 		*)
 			if [ "$option" = 'debug' ];then
-				_log do $funcname daemon info "[ERR] dev: $dev line: '$line'"
+				_log it $funcname daemon info "[ERR] dev: $dev line: '$line'"
 			else
 				if [ $( _system uptime sec ) -lt 120 ]; then
-					_log do $funcname daemon info "[ERR] dev: $dev line: '$line'"
+					_log it $funcname daemon info "[ERR] dev: $dev line: '$line'"
 				else
-					_log do $funcname daemon alert "[ERR] dev: $dev line: '$line'"
+					_log it $funcname daemon alert "[ERR] dev: $dev line: '$line'"
 					ip address show dev $dev >>$EVERLOG
 				fi
 			fi
@@ -1450,7 +1450,7 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 				set +f		# globbing ON (default)
 
 				[ "$4" = '00:00:00:00:00:00' ] || {
-					_log do $funcname daemon debug "try1: $6 <- $*"
+					_log it $funcname daemon debug "try1: $6 <- $*"
 					echo "$6"
 					return 0
 				}
@@ -1511,7 +1511,7 @@ _net_local_inet_offer_TEST()
 
 	die()
 	{
-		_log do TEST-$f daemon info "'$wish' != '$out' <= '$in'"
+		_log it TEST-$f daemon info "'$wish' != '$out' <= '$in'"
 	}
 
 	in='default via 192.168.1.1     dev   vlan1'
@@ -1570,7 +1570,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 
 	wan_proto="$( uci -q get network.wan.proto )"
 	[ "$wan_proto" = "pppoe" ] && {
-		_log do $funcname daemon info "early_boot_estimation: pppoe"
+		_log it $funcname daemon info "early_boot_estimation: pppoe"
 		echo "pppoe"
 		return 0
 	}
@@ -1583,32 +1583,32 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 				_nvram set commit "config-mistake, unsetting wan-gateway which was '$WAN_GATEWAY'"
 			else
 				[ "$wan_proto" = "pppoe" ] && {
-					_log do $funcname daemon info "early_boot_estimation: pppoe"
+					_log it $funcname daemon info "early_boot_estimation: pppoe"
 					echo "pppoe"
 					return 0			# fixme!
 				}
 
-				_log do $funcname daemon info "early_boot_estimation: wan"
+				_log it $funcname daemon info "early_boot_estimation: wan"
 				echo "wan"
 				return 0
 			fi
 		}
 
 		[ -n "$( uci get network.lan.gateway )" ] && {
-			_log do $funcname daemon info "early_boot_estimation: lan"
+			_log it $funcname daemon info "early_boot_estimation: lan"
 			echo "lan"
 			return 0
 		}
 
 #		/etc/init.d/S52vpnc_fff+ check && {
-#			_log do $funcname daemon info "early_boot_estimation: tun"
+#			_log it $funcname daemon info "early_boot_estimation: tun"
 #			echo "tun"
 #			return 0
 #		}
 
 		# fixme! wan-dhcp?
 
-		_log do $funcname daemon info "early_boot_estimation: false"
+		_log it $funcname daemon info "early_boot_estimation: false"
 		echo "false"
 		[ -z "$option" ] && return 1	# needed for debugging
 	}
@@ -1617,7 +1617,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 	[ -n "$LAN_GATEWAY" ] && {
 		[ -z "$( ip route list exact '0.0.0.0/0' via $LAN_GATEWAY )" ] && {
 			[ "$LAN_GATEWAY" = '0.0.0.0' ] || {
-				_log do $funcname daemon info "alien_gateway '$LAN_GATEWAY': lan"
+				_log it $funcname daemon info "alien_gateway '$LAN_GATEWAY': lan"
 				echo 'lan'
 				return 0
 			}
@@ -1656,7 +1656,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 	[ "$N" = static ] && METRIC=
 
 	if [ -z "$METRIC" ]; then				# found no metric = local inet-offer
-		_log do $funcname daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
+		_log it $funcname daemon debug "PHYDEV: '$PHYDEV' METRIC: '$METRIC' N: '$N' D: '$D'"
 
 		if [ -z "${PHYDEV}${METRIC}${N}" ]; then	# ip route list exact 0.0.0.0/0 -> "default via eth0" or similar
 			[ "$LAN_GATEWAY" = "0.0.0.0" ] && {	# fixme! move to early-boot-estimation
@@ -1688,13 +1688,13 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 				fi
 			}
 
-			_log do $funcname daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
+			_log it $funcname daemon info "found local default-gateway over device '$PHYDEV' = '$MODE'"
 		fi
 	else
 		if [ $N -eq 0 ]; then
-			_log do $funcname daemon info "no local default-gateway, no default-gateway, no internet 8-("
+			_log it $funcname daemon info "no local default-gateway, no default-gateway, no internet 8-("
 		else
-			_log do $funcname daemon info "no local default-gateway found, only $N hops away 8-)"
+			_log it $funcname daemon info "no local default-gateway found, only $N hops away 8-)"
 		fi
 	fi
 
@@ -1775,7 +1775,7 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 					_olsr gateways_get | grep -q ^"$( _sanitizer run "$gateway_check" 'escape_dots' )"$ || {
 						# gateway dont see the other GW's
 						_net local_inet_offer >/dev/null || {
-							_log do $funcname daemon info "[ERR] gateway '$gateway_check' not found"
+							_log it $funcname daemon info "[ERR] gateway '$gateway_check' not found"
 							return 1
 						}
 					}
@@ -1790,7 +1790,7 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 		if gateway_found "$routing_proto"; then
 			[ -e "$file_broken" ] && {
 				rm "$file_broken"
-				_log do $funcname daemon alert "unstable inet fixed after: $( _stopwatch stop "$funcname.broken" nolog,humanreadable )"
+				_log it $funcname daemon alert "unstable inet fixed after: $( _stopwatch stop "$funcname.broken" nolog,humanreadable )"
 
 				if pidof bat_events >/dev/null; then
 					# FIXME!
@@ -1807,7 +1807,7 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 				_wifi change_essid_ap
 			fi
 
-			_log do $funcname daemon info "unstable inet, no default route in main-table"
+			_log it $funcname daemon info "unstable inet, no default route in main-table"
 			return 1
 		fi
 	}
@@ -1816,12 +1816,12 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 		read -r COST_INT <$FILE
 
 		test "$COST_INT" -gt $max_cost 2>/dev/null && {
-			_log do $funcname daemon alert "unstable inet1, cost_int: '$COST_INT' > $max_cost"
+			_log it $funcname daemon alert "unstable inet1, cost_int: '$COST_INT' > $max_cost"
 			return 1
 		}
 
 		[ "$COST_INT" = "0" ] && {
-			_log do $funcname daemon alert "unstable inet2, cost_int: '$COST_INT'"
+			_log it $funcname daemon alert "unstable inet2, cost_int: '$COST_INT'"
 			return 1
 		}
 	}
@@ -1917,7 +1917,7 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 		}
 	} done
 
-	_log do $funcname daemon info "could not get ip for mac $MAC"
+	_log it $funcname daemon info "could not get ip for mac $MAC"
 	return 1
 }
 
@@ -1993,7 +1993,7 @@ _net_arp_permanent()
 	local nudmode="${4:-permanent}"			# or 'reachable'
 	local MODE LINE DEV dev_keyword=''
 
-        _log do $FUNC daemon info "IP: '$IP' MAC: '$MAC' FORCE: '$FORCE' nudmode: '$nudmode'"
+        _log it $FUNC daemon info "IP: '$IP' MAC: '$MAC' FORCE: '$FORCE' nudmode: '$nudmode'"
 
 	[ "$MAC" = "00:00:00:00:00:00" ] && {		# fixme! see dhcp-script
 		return 1
@@ -2001,7 +2001,7 @@ _net_arp_permanent()
 
 	LINE="$( ip neigh show to $IP 2>/dev/null )"
 	echo "$LINE" | fgrep -i -q " $nudmode" && {
-		_log do $FUNC daemon info "already nud '$nudmode' - do nothing"
+		_log it $FUNC daemon info "already nud '$nudmode' - do nothing"
 		return
 	}
 
@@ -2019,7 +2019,7 @@ _net_arp_permanent()
 	fi
 
  	if [ -z "$DEV" ]; then
-		_log do $FUNC daemon info "not in neigh-list, probing"
+		_log it $FUNC daemon info "not in neigh-list, probing"
 
  		  if [ "$FORCE" = 'wifi' ]; then
 			dev_keyword="wifi (forced)"
@@ -2035,7 +2035,7 @@ _net_arp_permanent()
 		[ -z "$dev_keyword" ] && dev_keyword="$DEV (autodetected)"
  	fi
 
-	_log do $FUNC daemon info "detected physical-device ${dev_keyword:-unknown}: ip neigh $MODE $IP dev $DEV lladdr $MAC nud $nudmode"
+	_log it $FUNC daemon info "detected physical-device ${dev_keyword:-unknown}: ip neigh $MODE $IP dev $DEV lladdr $MAC nud $nudmode"
 	ip neigh $MODE $IP dev $DEV lladdr $MAC nud "$nudmode" 2>/dev/null
 }
 

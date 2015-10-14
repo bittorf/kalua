@@ -11,12 +11,12 @@ knowing_hna_already()
 	while true; do
 		case "$( uci get olsrd.@Hna4[$i].netaddr)/$( uci get olsrd.@Hna4[$i].netmask )" in
 			"$netaddr/$netmask")
-				_log do $funcname daemon info "already know: $netaddr/$netmask"
+				_log it $funcname daemon info "already know: $netaddr/$netmask"
 				return 0
 			;;
 			'/')
 				# empty output/end of list
-				_log do $funcname daemon info "new hna: $netaddr/$netmask"
+				_log it $funcname daemon info "new hna: $netaddr/$netmask"
 				return 1
 			;;
 		esac
@@ -59,7 +59,7 @@ _http header_mimetype_output "text/plain"
 # /usr/sbin/cron.olsr-hna-slave and olsrd.@meta[0].hnaslave_dirty
 if [ -e "/tmp/LOCK_OLSRSLAVE" -a "$mode" != 'dirty' ]; then
 	[ $( _stopwatch stop '/tmp/LOCK_OLSRSLAVE' interim,nolog,seconds ) -gt 3600 ] || {
-		_log do htmlout daemon info "sending LOCKED to $REMOTE_ADDR"
+		_log it htmlout daemon info "sending LOCKED to $REMOTE_ADDR"
 		echo "LOCKED"
 		exit 0
 	}
@@ -113,7 +113,7 @@ else
 			} done
 		;;
 		*)
-			_log do cannot_find_your_hna daemon info "netaddr: $netaddr netmask: $netmask remote_addr: $REMOTE_ADDR = '$( ip route list exact $netaddr/$netmask )'"
+			_log it cannot_find_your_hna daemon info "netaddr: $netaddr netmask: $netmask remote_addr: $REMOTE_ADDR = '$( ip route list exact $netaddr/$netmask )'"
 			ERROR="CANNOT_FIND_YOUR_HNA"
 		;;
 	esac
@@ -138,7 +138,7 @@ else
 fi
 
 echo "${ERROR:=ERROR}"
-_log do htmlout daemon info "errorcode: $ERROR for IP: $REMOTE_ADDR"
+_log it htmlout daemon info "errorcode: $ERROR for IP: $REMOTE_ADDR"
 
 rm "/tmp/LOCK_OLSRSLAVE"
 trap - HUP INT QUIT TERM EXIT

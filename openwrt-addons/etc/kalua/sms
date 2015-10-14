@@ -18,24 +18,24 @@ _sms_send ()			# SENSE: wrapper for SMS-sending independent from service
 	local NUMBER
 
 	[ -z "$USER" ] && {
-		_log do $FUNC user crit "username not given - aborting: $TEXT"
+		_log it $FUNC user crit "username not given - aborting: $TEXT"
 		return 1
 	}
 
 	[ -z "$PASS" ] && {
-		_log do $FUNC user crit "password not given - aborting: $TEXT"
+		_log it $FUNC user crit "password not given - aborting: $TEXT"
 		return 1
 	}
 
 	[ -z "$TEXT" ] && {
-		_log do $FUNC user crit "text not given - aborting: $TEXT"
+		_log it $FUNC user crit "text not given - aborting: $TEXT"
 		return 1
 	}
 
 	[ -n "$NOPOST" ] && POST=
 
 	NUMBER="$( _phone book_name2number "$DEST" )" || {			# can return a comma-separated list of numbers
-		_log do $FUNC user notice "wrong name/number - aborting: $TEXT"
+		_log it $FUNC user notice "wrong name/number - aborting: $TEXT"
 		return 1
 	}
 
@@ -43,10 +43,10 @@ _sms_send ()			# SENSE: wrapper for SMS-sending independent from service
 		TEXT="$TEXT $POST @$( date +%H:%M)uhr"		# append own brand + time
 	}
 
-	_log do $FUNC user debug "to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
+	_log it $FUNC user debug "to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
 
 	_sms send_sms77 "$USER" "$PASS" "$( _sanitizer run "$NUMBER" urlvalue )" "$( _sanitizer run "$TEXT" urlvalue )" || {
-		_log do $FUNC user info "send failed - respawning sms to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
+		_log it $FUNC user info "send failed - respawning sms to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
 
 		# fixme! this does not work, if args are given directly (e.g. pass)
 		echo >>$SCHEDULER_IMPORTANT "_sms send \"$NUMBER\" \"$TEXT\" no_post"
@@ -54,7 +54,7 @@ _sms_send ()			# SENSE: wrapper for SMS-sending independent from service
 		return 1
 	}
 
-	_log do $FUNC user info "[OK] to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
+	_log it $FUNC user info "[OK] to '$DEST' = $NUMBER, ${#TEXT} chars: '$TEXT'"
 }
 
 _sms_send_sms77()
@@ -83,7 +83,7 @@ _sms_send_sms77()
 			[ ${#text} -gt 160 ] && {
 				trash="$( echo "$text" | cut -b 161-999 )"
 				text="$(  echo "$text" | cut -b 1-160 )"		# FIXME! respect encoding borders, e.g. %20 -> %2 does not work
-				_log do $funcname daemon debug "shortened text, trash was: '$trash'"
+				_log it $funcname daemon debug "shortened text, trash was: '$trash'"
 			}
 
 			from="$( _weblogin metadata_locationname )"
@@ -93,7 +93,7 @@ _sms_send_sms77()
 		;;
 	esac
 
-	_log do $funcname daemon debug "[${#text} chars] ${url}&u=${user}&p=${pass}&to=${number}&text=${text}"
+	_log it $funcname daemon debug "[${#text} chars] ${url}&u=${user}&p=${pass}&to=${number}&text=${text}"
 
 	out="$( _curl it "${url}&u=${user}&p=${pass}&to=${number}&text=${text}" 10 "$user" "$pass" )"
 	rc=$?
@@ -126,11 +126,11 @@ _sms_send_sms77()
 			903) o="server IP wrong" ;;
 
 			402|*)	# reload mistake, try again
-				_log do $funcname user crit "wget-returncode: '$rc' - sms77-answer: '$out' - something went wrong"
+				_log it $funcname user crit "wget-returncode: '$rc' - sms77-answer: '$out' - something went wrong"
 				return 1	# send again
 			;;
 		esac
 
-		_log do $funcname user info "wget-returncode: '$rc' - sms77-answer: '$out' ($o)"
+		_log it $funcname user info "wget-returncode: '$rc' - sms77-answer: '$out' ($o)"
 	}
 }

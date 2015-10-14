@@ -69,7 +69,7 @@ _wifi_kick()
 	for dev in $dev_list; do {
 		iw dev $dev station get "$mac" 1>&- 2>&- && {
 			command="ubus call hostapd.$dev del_client"
-			_log do $funcname daemon info "station: $mac executing: $command"
+			_log it $funcname daemon info "station: $mac executing: $command"
 
 			# ban_time can be omitted
 			# http://resin.csoft.net/cgi-bin/man.cgi?section=5&topic=hostapd.conf
@@ -81,7 +81,7 @@ EOF
 		}
 	} done
 
-	_log do $funcname daemon info "did not found $mac on $dev"
+	_log it $funcname daemon info "did not found $mac on $dev"
 }
 
 _wifi_change_essid_ap()
@@ -256,7 +256,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 	}
 
 	[ "$option" = "debug" ] && {
-		_log do minstrel_out daemon debug "output of $file"
+		_log it minstrel_out daemon debug "output of $file"
 		cat "$file"
 		echo
 	}
@@ -437,7 +437,7 @@ _wifi_math_mcs2rate()			# fixme! output spatial streams, coding rate, modulation
 			5|6|7|13|14|15|21|22|23|29|30|31) modulation_type="64QAM" ;;
 		esac
 
-		_log do $funcname daemon debug "channel_width: $channel_width guard_interval_type: $guard_interval_type mcs_index: $mcs_index spatial_streams: $spatial_streams coding_rate: $coding_rate modulation_type: $modulation_type"
+		_log it $funcname daemon debug "channel_width: $channel_width guard_interval_type: $guard_interval_type mcs_index: $mcs_index spatial_streams: $spatial_streams coding_rate: $coding_rate modulation_type: $modulation_type"
 	}
 
 	case "$channel_width" in
@@ -752,7 +752,7 @@ _wifi_speed()
 				  cut -d'=' -f2 )"
 		else
 			speed=8888
-			_log do $funcname daemon debug "[OK] fake-value: $speed - seems to be ethernet. option: $option nexthop: $nexthop"
+			_log it $funcname daemon debug "[OK] fake-value: $speed - seems to be ethernet. option: $option nexthop: $nexthop"
 		fi
 
 		[ -n "$speed" ] && {
@@ -767,7 +767,7 @@ _wifi_speed()
 	}
 
 	if [ -n "$nexthop" ]; then
-		_log do $funcname daemon debug "IP: $nexthop"
+		_log it $funcname daemon debug "IP: $nexthop"
 		speed="$( get_speed )"
 
 		[ -z "$speed" -a "$option" = 'cached' ] && speed='?'
@@ -848,7 +848,7 @@ _wifi_forwarding_still_active()
 		set -- $( $IPT -nxvL FORWARD 2 )
 		bytes=$(( bytes + $2 ))
 
-		_log do $funcname daemon debug "forwarded bytes: $bytes"
+		_log it $funcname daemon debug "forwarded bytes: $bytes"
 		[ $bytes -gt 0 ] && {
 			unroll
 			return 0
@@ -869,21 +869,21 @@ _wifi_phy_restart()
 	local pids="$( pidof wifi )"
 	local file pid
 
-	[ -z "$1" ] && _log do $funcname daemon alert "empty arg1, call-reason: $reason pids: '$pids'"
+	[ -z "$1" ] && _log it $funcname daemon alert "empty arg1, call-reason: $reason pids: '$pids'"
 
 	[ -z "$wifi_dev" ] && {
-		_log do $funcname daemon alert "empty dev, call-reason: $reason pids: '$pids'"
+		_log it $funcname daemon alert "empty dev, call-reason: $reason pids: '$pids'"
 		return 1
 	}
 
 	[ -n "$pids" ] && {
-		_log do $funcname daemon alert "no action during another wifi-action, pids: '$pids', reason: '$reason', dev: $wifi_dev"
+		_log it $funcname daemon alert "no action during another wifi-action, pids: '$pids', reason: '$reason', dev: $wifi_dev"
 		return 1
 	}
 
 	case "$( _wifi driver_version "$wifi_dev" )" in
 		*'ath5k'*)
-			_log do $funcname daemon alert "no action for ath5k"
+			_log it $funcname daemon alert "no action for ath5k"
 			return 0
 		;;
 	esac
@@ -891,7 +891,7 @@ _wifi_phy_restart()
 	case "$reason" in
 		'cleanup after last client'|'no_reason_given')
 			_wifi forwarding_still_active '30' && {
-				_log do $funcname daemon info "active forwarding over wireless - rescheduling"
+				_log it $funcname daemon info "active forwarding over wireless - rescheduling"
 				echo "$reason" >"/tmp/REQUESTED_PHY_RESTART-$wifi_dev"
 				return 1
 			}
@@ -905,7 +905,7 @@ _wifi_phy_restart()
 
 	[ $OPENWRT_REV -ge 38988 ] && {
 		touch '/tmp/PHYRESTART'
-		_log do $funcname daemon $prio "doing newstyle wifi-up, because '$reason'"
+		_log it $funcname daemon $prio "doing newstyle wifi-up, because '$reason'"
 		wifi up		# PHYRESTART
 
 		wifi_is_not_ready_yet()
@@ -921,11 +921,11 @@ _wifi_phy_restart()
 
 		local i=40	# ~3 mins
 		while wifi_is_not_ready_yet; do {
-			_log do $funcname daemon info "waiting for IP on $wifi_dev - round $(( 41 - i ))/40"
+			_log it $funcname daemon info "waiting for IP on $wifi_dev - round $(( 41 - i ))/40"
 			sleep 5
 
 			let i-=1 || {
-				_log do $funcname daemon alert "no IPv4 on $wifi_dev"
+				_log it $funcname daemon alert "no IPv4 on $wifi_dev"
 				ps >>$EVERLOG
 				_system crashreboot 'hanging_wifi'
 			}
@@ -940,19 +940,19 @@ _wifi_phy_restart()
 		}
 
 		# autoadd netfilter?
-		_log do $funcname daemon info 'READY'
+		_log it $funcname daemon info 'READY'
 		return 0
 	}
 
 	case "$reason" in
 		force*)
-			_log do $funcname daemon $prio "working on '$wifi_dev' ($reason)"
+			_log it $funcname daemon $prio "working on '$wifi_dev' ($reason)"
 		;;
 		*)
 			local uptime="$( _wifi phy_uptime "$wifi_dev" )"
 
 			if [ $uptime -lt 240 ]; then
-				_log do $funcname daemon info "no action during low uptime: $uptime sec"
+				_log it $funcname daemon info "no action during low uptime: $uptime sec"
 				return 1
 			else
 				uptime="up $uptime sec"
@@ -960,7 +960,7 @@ _wifi_phy_restart()
 
 			_wifi watch_phy_problems notify
 			_wifi watch_phy_problems || {
-				_log do $funcname daemon info "no action, watch_phy_problems() does not allow"
+				_log it $funcname daemon info "no action, watch_phy_problems() does not allow"
 				return 1
 			}
 
@@ -972,7 +972,7 @@ _wifi_phy_restart()
 			local vals_tx="tx_bytes/packets/errors: $WIFI_TX_BYTES/$WIFI_TX_PACKETS/$WIFI_TX_ERRORS"
 
 			echo "$reason: $uptime $vals_rx $vals_tx" >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.reason"
-			_log do $funcname daemon $prio "working on '$wifi_dev' ($reason) $uptime $vals_rx $vals_tx"
+			_log it $funcname daemon $prio "working on '$wifi_dev' ($reason) $uptime $vals_rx $vals_tx"
 
 			file="/sys/kernel/debug/ieee80211/phy0/ath9k/diag"
 			[ -e "$file" ] && {
@@ -987,7 +987,7 @@ _wifi_phy_restart()
 					rm "/tmp/ATH9K_hwreseted"
 				else
 					touch "/tmp/ATH9K_hwreseted"
-					_log do $funcname daemon alert "resetting HW via: echo 4 >$file"
+					_log it $funcname daemon alert "resetting HW via: echo 4 >$file"
 					echo 4 >"$file"
 					return 0
 				fi
@@ -997,16 +997,16 @@ _wifi_phy_restart()
 				*ap)
 					if pidof hostapd >/dev/null; then
 						if [ $OPENWRT_REV -ge 36083 ]; then
-							_log do $funcname daemon info "no restart for this openwrt-revision"
+							_log it $funcname daemon info "no restart for this openwrt-revision"
 							return 0
 						else
 							_net local_inet_offer >/dev/null && {
-								_log do $funcname daemon info "no restart for AP with inet_offer"
+								_log it $funcname daemon info "no restart for AP with inet_offer"
 								return 0
 							}
 						fi
 					else
-						_log do $funcname daemon info "hostapd missing"
+						_log it $funcname daemon info "hostapd missing"
 					fi
 				;;
 			esac
@@ -1052,7 +1052,7 @@ _wifi_phy_restart()
 	_system uptime sec >"/tmp/STATS_WIFI_RESTARTS.$wifi_dev.time"
 	# PHYRESTART
 	/sbin/wifi up | grep -q "PHY for wifi device radio. not found" && {
-		_log do $funcname daemon alert "message: PHY for wifi device radioX not found"
+		_log it $funcname daemon alert "message: PHY for wifi device radioX not found"
 		return 1
 	}
 
@@ -1084,7 +1084,7 @@ _wifi_phy_restart()
 
 		while [ $i -gt 0 ]; do {
 			if ip address show dev $wifi_dev | fgrep -q "inet "; then
-				_log do $funcname daemon info "good ip after $(( 30 - i )) sec"
+				_log it $funcname daemon info "good ip after $(( 30 - i )) sec"
 				return 0
 			else
 				i=$(( i - 1 ))
@@ -1096,7 +1096,7 @@ _wifi_phy_restart()
 	}
 
 	good_ip || {
-		_log do $funcname daemon alert "no ip on dev $wifi_dev, rebooting"
+		_log it $funcname daemon alert "no ip on dev $wifi_dev, rebooting"
 		_system crashreboot 'hanging_wifi'
 		sleep 10
 	}
@@ -1320,7 +1320,7 @@ _wifi_bssid()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associate
 				_net dev2mac "$dev"
 			;;
 			'client'|*)
-				_log do $funcname daemon info "fixme - mode: $mode"
+				_log it $funcname daemon info "fixme - mode: $mode"
 				# return real bssid, because we dont enforce specific AP to connect to
 				echo 'unknown'
 			;;
@@ -1467,7 +1467,7 @@ _wifi_channel()
 			echo "${channel%% *}"
 		;;
 		*)
-			_log do $funcname daemon info "fallback to uci-var"
+			_log it $funcname daemon info "fallback to uci-var"
 			uci get wireless.radio0.channel
 		;;
 	esac
@@ -1546,7 +1546,7 @@ _wifi_probe_mode_ap()
 				return 1
 			;;
 			*)
-				_log do $funcname daemon info "unknown mode '$WIFI_MODE'"
+				_log it $funcname daemon info "unknown mode '$WIFI_MODE'"
 				return 1
 			;;
 		esac
@@ -1560,7 +1560,7 @@ _wifi_mode()			# OUT1: string, ap | client | adhoc | adhocap             // rena
 	local switch="$2"	# can be 'config' or <empty>
 
 	_net dev_is_valid "$dev" || {
-		_log do $funcname daemon debug "wifidev '${dev:-no_wifi}' not found"
+		_log it $funcname daemon debug "wifidev '${dev:-no_wifi}' not found"
 		return 1
 	}
 
@@ -1729,7 +1729,7 @@ _wifi_check_each_client()
 		inactive_time="$3"
 
 		[ -z "$inactive_time" -o $inactive_time -ge 120000 ] && {
-			_log do $funcname daemon debug "ignoring station '$mac' with inactive_time '${inactive_time:-empty}' ms"
+			_log it $funcname daemon debug "ignoring station '$mac' with inactive_time '${inactive_time:-empty}' ms"
 			# FIXME! continue?
 			exitcode=0
 		}
@@ -1738,10 +1738,10 @@ _wifi_check_each_client()
 		[ "$exitcode" = "0" ] || {
 			ip="$( _net mac2ip $mac )" && {
 				if _net ip_reachable "$ip" "$max_arping"; then
-					_log do $funcname daemon debug "[OK] arping - mac: $mac ip: $ip inactive_time: $inactive_time ms"
+					_log it $funcname daemon debug "[OK] arping - mac: $mac ip: $ip inactive_time: $inactive_time ms"
 					exitcode=0
 				else
-					_log do $funcname daemon info "[ERR] arping - mac: $mac ip: $ip inactive_time: $inactive_time ms (no success for $max_arping probes)"
+					_log it $funcname daemon info "[ERR] arping - mac: $mac ip: $ip inactive_time: $inactive_time ms (no success for $max_arping probes)"
 					# iw dev "$WIFIDEV" station del "$mac"
 					exitcode=1
 				fi
@@ -1749,7 +1749,7 @@ _wifi_check_each_client()
 		}
 
 		[ -e "$statsdir/$mac" ] || {
-			_log do $funcname daemon info "[OK] detected new station $mac"
+			_log it $funcname daemon info "[OK] detected new station $mac"
 			_system uptime sec >"$statsdir/$mac"
 		}
 	} done
@@ -1768,7 +1768,7 @@ _wifi_check_each_client()
 			rm "$statsdir/$mac"
 			up_diff=$(( up2 - up1 ))
 
-			_log do $funcname daemon info "[OK] station $mac left network $WIFIDEV, ($( _stopwatch seconds2humanreadable $up_diff ))"
+			_log it $funcname daemon info "[OK] station $mac left network $WIFIDEV, ($( _stopwatch seconds2humanreadable $up_diff ))"
 		}
 	} done
 
@@ -2038,7 +2038,7 @@ _wifi_set()
 								bssid="${bssid}:0$( echo "$value" | cut -b 1 ):$( echo "$value" | cut -b 2-3 )"
 							fi
 
-							_log do $funcname daemon info "bssid_wellformed: $bssid"
+							_log it $funcname daemon info "bssid_wellformed: $bssid"
 							uci set wireless.@wifi-iface[$i].bssid="$bssid"
 						}
 					}
@@ -2374,7 +2374,7 @@ _wifi_longshot_report()
 
 			message="name: $name PHYup: $phy_up NEIGH: $ip RX-Speed: ${speed#*-} TX-$( pingstat "$ip" )"
 
-			_log do $funcname daemon alert "$message"
+			_log it $funcname daemon alert "$message"
 			_weblogin authserver_message "$message"
 		}
 	}

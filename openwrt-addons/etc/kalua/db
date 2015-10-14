@@ -18,7 +18,7 @@ _db_check()
 	touch "$DIR_DATABASE/DB/USER/device/rows"
 
 	for file in $DIR_DATABASE/USER/device/rows $DIR_DATABASE/USER/device/stats $DIR_DATABASE/USER/login/rows $DIR_DATABASE/USER/profile/rows; do {
-		_log do $funcname daemon info "eval-ing each line in '$file', in case of an error: check '$statfile'"
+		_log it $funcname daemon info "eval-ing each line in '$file', in case of an error: check '$statfile'"
 		[ -e "$file" ] || continue
 
 		i=0
@@ -34,7 +34,7 @@ _db_check()
 		}
 
 		[ $i -eq 0 ] && i=$( _file lines "$file" )
-		_log do $funcname daemon info "[OK] file '$file' / $i lines"
+		_log it $funcname daemon info "[OK] file '$file' / $i lines"
 	} done
 
 	# FIXME! why did it happen?
@@ -46,7 +46,7 @@ _db_check()
 		} done
 
 		[ -z "$valid" ] && {
-			_log do $funcname daemon info "removing superfluous: '$file'"
+			_log it $funcname daemon info "removing superfluous: '$file'"
 			rm "$file"
 		}
 	} done
@@ -54,7 +54,7 @@ _db_check()
 	[ "$option" = 'force' ] || _db lock free
 	rm "$statfile" 2>/dev/null
 
-	_log do $funcname daemon info "[OK] lasts $( _stopwatch stop "$funcname" humanreadable )"
+	_log it $funcname daemon info "[OK] lasts $( _stopwatch stop "$funcname" humanreadable )"
 	return 0
 }
 
@@ -90,7 +90,7 @@ _db_lock()
 				else
 					# fixme! why can this happen?
 					# we dont unlock here - needs admin interaction
-					_log do $funcname daemon sms "missing userDB"
+					_log it $funcname daemon sms "missing userDB"
 				fi
 			else
 				rm -fR "$dir"
@@ -106,7 +106,7 @@ _db_lock()
 
 			while ! mkdir "$dir"; do {
 				read -r reason <"$file"
-				_log do $funcname daemon info "task '$context' must wait $i sec for '${reason:-unknown_reason}'"
+				_log it $funcname daemon info "task '$context' must wait $i sec for '${reason:-unknown_reason}'"
 
 				case "$reason" in
 					'locked_forever'*)
@@ -116,7 +116,7 @@ _db_lock()
 
 				if _file age "$file" -gt $border_autounlock ; then
 					[ -e "$file" ] && {
-						_log do $funcname daemon alert "autorecover: next: $context old_reason: $reason"
+						_log it $funcname daemon alert "autorecover: next: $context old_reason: $reason"
 					}
 					break
 				else
@@ -137,7 +137,7 @@ _db_lock()
 			# FIXME! because of $* it looks like:
 			# 'db_user() login index_gen            _Fri Mar 20 09:09:38 CET 2015'
 			echo "${context}|$( date )" >"$file"
-			[ $i -gt 30 ] && _log do $funcname daemon alert "longlock: task '$context' looped $i times for '${reason:-unknown_reason}'"
+			[ $i -gt 30 ] && _log it $funcname daemon alert "longlock: task '$context' looped $i times for '${reason:-unknown_reason}'"
 		;;
 	esac
 
@@ -160,7 +160,7 @@ _db_purge()
 			'/www/cgi-bin/db_backup.tgz' \
 			'/www/cgi-bin/db_backup.tgz.hashlastsend' \
 			'/tmp/USERDB_COPY.cgi.gz'; do {
-		_log do $funcname daemon info "[OK] removing '$obj'"
+		_log it $funcname daemon info "[OK] removing '$obj'"
 		rm -fR "$obj"
 	} done
 
@@ -170,7 +170,7 @@ _db_purge()
 	identity='/etc/dropbear/dropbear_dss_host_key'
 	identity="$( _file hash "$identity" )"
 	serverfile="/var/www/networks/${CONFIG_PROFILE%_*}/vds/db_backup.tgz_${identity}*"
-	_log do $funcname daemon info "please manually remove '$serverfile'"
+	_log it $funcname daemon info "please manually remove '$serverfile'"
 }
 
 _db_backup()		# fixme! automatically call this after <prio> changes
@@ -204,7 +204,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		border=-999
 	}
 
-	_log do $funcname daemon info "reason: '$reason'"
+	_log it $funcname daemon info "reason: '$reason'"
 
 	case "$reason" in
 		'force'|'remove_old_stuff')
@@ -221,7 +221,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 			elif bool_true 'system.@system[0].db_backup_force'; then
 				border=-999
 			else
-				_log do $funcname daemon info "ignoring call for '$reason' - use 'force' if needed"
+				_log it $funcname daemon info "ignoring call for '$reason' - use 'force' if needed"
 				return 0
 			fi
 		;;
@@ -234,7 +234,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	( _db check ) || {
 		# forever!
 		_db lock forever "locked_forever: DB broken - needs manual fixing"
-		_log do $funcname daemon sms "abort, db_check() fails"
+		_log it $funcname daemon sms "abort, db_check() fails"
 		return 1
 	}
 
@@ -245,7 +245,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 	# ramdisc too small?
 	if tar -czf "$file_temp" "$DIR_DATABASE" 2>/dev/null ; then
 		_db lock free
-		_log do $funcname daemon info "[OK] wrote $( _file size "$file_temp" ) bytes to $file_temp"
+		_log it $funcname daemon info "[OK] wrote $( _file size "$file_temp" ) bytes to $file_temp"
 
 		local filesize_new="$( _file size "$file_temp" )"
 		local filesize_old="$( _file size "$file" )"
@@ -255,11 +255,11 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		local shrinktext="[ERR] archiv-size shrinks $filesize_old -> $filesize_new = ${percentual_change}% border: $border"
 
 		[ $percentual_change -lt 0 ] && {
-			_log do $funcname daemon alert "$shrinktext"
+			_log it $funcname daemon alert "$shrinktext"
 		}
 
 		if [ $percentual_change -lt $border ]; then
-			_log do $funcname daemon sms "$shrinktext - abort"
+			_log it $funcname daemon sms "$shrinktext - abort"
 			errorcode=1
 		else
 			s1=$( _file size "$file_temp" )		# bytes
@@ -268,7 +268,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 
 			[ $flash_free -lt $s1 ] && {
 				file_safewrite="/tmp/db_backup_safewrite"
-				_log do $funcname daemon info "low flashspace, bend-over safewrite to '$file_safewrite'"
+				_log it $funcname daemon info "low flashspace, bend-over safewrite to '$file_safewrite'"
 			}
 
 			if mv "$file_temp" "$file_safewrite"; then
@@ -276,13 +276,13 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 				s2=$( _file size "$file_safewrite" )
 
 				if [ $s1 -eq $s2 ]; then
-					_log do $funcname daemon info "[OK] moved $file_temp -> $file_safewrite (sizechange: ${percentual_change}%)"
+					_log it $funcname daemon info "[OK] moved $file_temp -> $file_safewrite (sizechange: ${percentual_change}%)"
 
 					[ -e "$file" ] || touch "$file"
 					if mv "${file}" "${file}.old"; then
 						# do we have enough space?
 						[ $(( $( _system flash_free ) * 700 )) -gt $( _file size "$file_safewrite" ) ] || {
-							_log do $funcname daemon info "[OK] removing '${file}.old'"
+							_log it $funcname daemon info "[OK] removing '${file}.old'"
 							mv "${file}.old" "${file}" || rm "${file}.old" "${file}"
 						}
 
@@ -292,27 +292,27 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 
 							if [ $s1 -eq $s2 ]; then
 								rm "${file}.old"
-								_log do $funcname daemon alert "[OK] moved $file_safewrite -> ${file}"
+								_log it $funcname daemon alert "[OK] moved $file_safewrite -> ${file}"
 							else
-								_log do $funcname daemon sms "[ERR] moved $file_safewrite -> ${file}"
+								_log it $funcname daemon sms "[ERR] moved $file_safewrite -> ${file}"
 								errorcode=1
 							fi
 						else
-							_log do $funcname daemon sms "[ERR] moving $file_safewrite -> ${file}"
+							_log it $funcname daemon sms "[ERR] moving $file_safewrite -> ${file}"
 							errorcode=1
 						fi
 					else
 						rm "${file}.old"
-						_log do $funcname daemon sms "[ERR] moving ${file} -> ${file}.old"
+						_log it $funcname daemon sms "[ERR] moving ${file} -> ${file}.old"
 						errorcode=1
 					fi
 				else
-					_log do $funcname daemon sms "[ERR] moving $file_temp -> $file_safewrite free: $( _system flash_free kilobytes ) kb"
+					_log it $funcname daemon sms "[ERR] moving $file_temp -> $file_safewrite free: $( _system flash_free kilobytes ) kb"
 					errorcode=1
 				fi
 			else
 				rm "$file_safewrite"
-				_log do $funcname daemon sms "[ERR] moving $file_temp -> $file free: $( _system flash_free kilobytes ) kb"
+				_log it $funcname daemon sms "[ERR] moving $file_temp -> $file free: $( _system flash_free kilobytes ) kb"
 				errorcode=1
 			fi
 		fi
@@ -323,7 +323,7 @@ _db_backup()		# fixme! automatically call this after <prio> changes
 		errorcode=1
 
 		# dont reboot in this state - wait for help
-		_log do $funcname daemon sms "[ERR] rc $rc while 'tar -czf \"$file_temp\" \"$DIR_DATABASE\"' - disc_free: $disc_free"
+		_log it $funcname daemon sms "[ERR] rc $rc while 'tar -czf \"$file_temp\" \"$DIR_DATABASE\"' - disc_free: $disc_free"
 		uci set system.@system[0].avoid_autoreboot='true'
 
 		_db lock free
@@ -388,7 +388,7 @@ _db_generate_grepable_index()
 	do_index | gzip	>"$file"
 
 	test -s $file || logprio='alert'
-	_log do $funcname daemon $logprio "[OK] generated $file with $( _file size "$file" ) bytes"
+	_log it $funcname daemon $logprio "[OK] generated $file with $( _file size "$file" ) bytes"
 }
 
 _db_restore()
@@ -402,7 +402,7 @@ _db_restore()
 		touch "$TMPDIR/$funcname-error"
 
 		_scheduler queue_list | grep -q "$funcname()" || {
-			_log do $funcname daemon alert "[ERR] $funcname() rescheduling: $1"
+			_log it $funcname daemon alert "[ERR] $funcname() rescheduling: $1"
 			echo >>$SCHEDULER "_db restore && rm /tmp/FREE $TMPDIR/$funcname-error"
 		}
 	}
@@ -411,17 +411,17 @@ _db_restore()
 		# TODO: first step is test via 'tar czf $archive'?
 
 		if   ! _filetype gzip "$file" ; then
-			_log do $funcname daemon info "wrong filetype"
+			_log it $funcname daemon info "wrong filetype"
 			return 1
 		elif [ $( _file size "$file" ) -lt 300 ]; then
-			_log do $funcname daemon info "refusing to unarc '$file', seems too small"
+			_log it $funcname daemon info "refusing to unarc '$file', seems too small"
 			return 1
 		else
 			_db lock now "$funcname() $*" || return 1
 
 			if _system del_ramdisc "$DIR_DATABASE"; then
 				if _system add_ramdisc "$DIR_DATABASE" compressable; then
-					_log do $funcname daemon info "unarc of '$file' to $( dirname "$DIR_DATABASE" )"
+					_log it $funcname daemon info "unarc of '$file' to $( dirname "$DIR_DATABASE" )"
 				else
 					reschedule 'failed add_ramdisc'
 					_db lock free
@@ -436,11 +436,11 @@ _db_restore()
 			# dirname /database -> /
 			# tar -xvzC / -f /www/cgi-bin/db_backup.tgz/database
 			if tar -C "$( dirname "$DIR_DATABASE" )" -xzf "$file" ; then
-				_log do $funcname daemon info "[OK] untar"
+				_log it $funcname daemon info "[OK] untar"
 
 				# /database/tmp/...
 				[ -d "/database/tmp" ] && {
-					_log do $funcname daemon info "[OK] migrating oldstyle dirstructure"
+					_log it $funcname daemon info "[OK] migrating oldstyle dirstructure"
 					mv $( dirname "$DIR_DATABASE" )/tmp/* $( dirname "$DIR_DATABASE" )
 					rm -fR $( dirname "$DIR_DATABASE" )/tmp
 				}
@@ -448,7 +448,7 @@ _db_restore()
 				# /database/database/...
 				# dirname "$DIR_DATABASE" = e.g. /database (leading slash)
 				[ -d '/database/database' ] && {
-					_log do $funcname daemon info "[OK] restructure path"
+					_log it $funcname daemon info "[OK] restructure path"
 					# FIXME! this does often not work
 					mv $( dirname "$DIR_DATABASE" )$( dirname "$DIR_DATABASE" )/DB $( dirname "$DIR_DATABASE" ) && {
 						rm -fR $( dirname "$DIR_DATABASE" )$( dirname "$DIR_DATABASE" )
@@ -458,7 +458,7 @@ _db_restore()
 				# match for a single char inclosed in marks, e.g. A=''1''
 				grep -qE "''[^']''" "$DIR_DATABASE/USER/device/rows" && {
 					# fixed in 157d75a777bd1dcd573aac91cd281260abdb89c8 / 2014jun12
-					_log do $funcname daemon alert "repairing DB with doubled quotation marks"
+					_log it $funcname daemon alert "repairing DB with doubled quotation marks"
 					# no action: A='value'
 					# repairing: A=''value'' -> A='value'
 					sed -i "/''[^']''/s/''/'/g" "$DIR_DATABASE/USER/device/rows"
@@ -473,9 +473,9 @@ _db_restore()
 					*)
 						[ -s "$DIR_DATABASE/USER/login/rows" -a -s "$DIR_DATABASE/USER/profile/rows" ] || {
 							set -- $( df -h "$DIR_DATABASE" | tail -n1 )
-							_log do $funcname daemon alert "disc: $*"
-							_log do $funcname daemon alert "/USER/login/rows: $(   ls -l "$DIR_DATABASE/USER/login/rows" )"
-							_log do $funcname daemon alert "/USER/profile/rows: $( ls -l "$DIR_DATABASE/USER/profile/rows" )"
+							_log it $funcname daemon alert "disc: $*"
+							_log it $funcname daemon alert "/USER/login/rows: $(   ls -l "$DIR_DATABASE/USER/login/rows" )"
+							_log it $funcname daemon alert "/USER/profile/rows: $( ls -l "$DIR_DATABASE/USER/profile/rows" )"
 							reschedule "files too small or missing"
 						}
 					;;
@@ -488,13 +488,13 @@ _db_restore()
 				else
 					# TODO: sms_once
 					mkdir "/tmp/${funcname}_smssend" && {
-						_log do $funcname daemon sms "[ERR] untar of '$file' went wrong - giving up"
+						_log it $funcname daemon sms "[ERR] untar of '$file' went wrong - giving up"
 					}
 				fi
 			fi
 		fi
 	else
-		_log do $funcname daemon info "[ERR] '$file' not found"
+		_log it $funcname daemon info "[ERR] '$file' not found"
 		return 1
 	fi
 
@@ -503,7 +503,7 @@ _db_restore()
 	# stats are generated via cron.add_collected_userdata_into_db
 	# 60 days = 60d * 24h * 4/hour = 5760
 	[ $( _file lines "$DIR_DATABASE/USER/device/stats" ) -gt 5760 ] && {
-		_log do $funcname daemon alert "removing old stuff, leaving last 45 days"
+		_log it $funcname daemon alert "removing old stuff, leaving last 45 days"
 
 		_db lock now 'remove_old_stuff_watch_archivsize'
 		_watch archivsize "$DIR_DATABASE/USER/device/stats" 4320	# 45 days = 45d * 24h * 4/hour -> 2 megabytes
@@ -643,7 +643,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 				# FIXME! why is 'index_gen' fired that often?
 				case "$( _db lock reason )" in
 					*' index_gen  '*)
-						_log do $funcname daemon alert "[OK] simulate success for '$*', full 'index_gen' already in progress"
+						_log it $funcname daemon alert "[OK] simulate success for '$*', full 'index_gen' already in progress"
 						return 0
 					;;
 				esac
@@ -682,7 +682,7 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 				LIST_LOGINS="$( _db user login list ${ID:-all} $OPTION )"
 				j=$( _list count_elements "$LIST_LOGINS" )
 				[ $j -gt 32 ] && {
-					_log do db_create_index daemon alert "start: $j elements"
+					_log it db_create_index daemon alert "start: $j elements"
 				}
 
 				for LOGIN_ID in $LIST_LOGINS; do {
@@ -828,17 +828,17 @@ _db_user()			# poormens_db: each line has: ID=<integer>;A="";B="";C="";D="";...;
 				else
 					if mv "$INDEX" "$INDEX_PRODUCTION"; then
 						_db lock free
-						_log do $funcname daemon info "$ACTION: wrote '$INDEX' -> '$INDEX_PRODUCTION'"
+						_log it $funcname daemon info "$ACTION: wrote '$INDEX' -> '$INDEX_PRODUCTION'"
 						_db backup "index_generated_full"
 					else
 						_db lock free
-						_log do $funcname daemon sms "$ACTION: [ERR] during mv '$INDEX' -> '$INDEX_PRODUCTION'"
+						_log it $funcname daemon sms "$ACTION: [ERR] during mv '$INDEX' -> '$INDEX_PRODUCTION'"
 						touch '/tmp/FREE'
 					fi
 				fi
 			else
 				# FIXME! - go into FREE mode?
-				_log do $funcname daemon sms "$ACTION: 0byte: $INDEX' - removing"
+				_log it $funcname daemon sms "$ACTION: 0byte: $INDEX' - removing"
 				rm "$INDEX"
 
 				_db lock free
@@ -1095,16 +1095,16 @@ _db_ticketcheck()
 				counter=0
 			fi
 
-			_log do $funcname daemon debug "only $counter tickets for profile $profile_id ($NAME) in $file"
+			_log it $funcname daemon debug "only $counter tickets for profile $profile_id ($NAME) in $file"
 
 			while [ $counter -lt $border ]; do {
-				_log do $funcname daemon info "found only $counter tickets but $border are needed"
+				_log it $funcname daemon info "found only $counter tickets but $border are needed"
 				_db autocreate_tickets_and_send_mail "$profile_id"
 				counter=$(( counter + 32 ))
 				_watch counter "$file" increment 32
 			} done
 		else
-			_log do $funcname daemon debug "ignoring profile $profile_id ($NAME) - autogenerate is off"
+			_log it $funcname daemon debug "ignoring profile $profile_id ($NAME) - autogenerate is off"
 		fi
 	} done
 
@@ -1175,7 +1175,7 @@ _db_autocreate_tickets_and_send_mail()
 	local RECIPIENT_REAL="$( _i18n get "$LANG" administration ) $LOCATION_NAME"
 	local RECIPIENT_MAIL="$( uci get system.@admin[0].mail )"
 
-	_log do $funcname daemon $logprio \
+	_log it $funcname daemon $logprio \
 		"tickettype: $TICKET_QUANTITY x $NAME" \
 		"[OK] Neue Tickets wurden automatisch generiert: $TICKET_QUANTITY x $NAME ($( _log append_info ))"
 
@@ -1295,7 +1295,7 @@ _db_import()
 		username="$( echo $firstname | cut -b 1 ).$lastname"		# Manfred von Ardenne -> "m.von ardenne"
 		username="$( _sanitizer run "$username" lowercase )"
 
-		_log do $funcname daemon info "adding '$firstname $lastname' -> $username"
+		_log it $funcname daemon info "adding '$firstname $lastname' -> $username"
 		_db user login add "$profile_id" "$entry_comment" "$username" "" "$devices_per_login" "" "$fuzzy"
 
 	} done <"$file"
@@ -1714,7 +1714,7 @@ _db_count_unused_logins()
 
 	list="$( _db user login list reverse )"
 
-	_log do $funcname daemon info "checking profile $wish_id"
+	_log it $funcname daemon info "checking profile $wish_id"
 
 	is_used()
 	{
@@ -1740,7 +1740,7 @@ _db_count_unused_logins()
 		}
 	} done
 
-	_log do $funcname daemon info "unused logins for profile $wish_id: $i"
+	_log it $funcname daemon info "unused logins for profile $wish_id: $i"
 	echo "$i" >"$file"
 
 	echo "$i"

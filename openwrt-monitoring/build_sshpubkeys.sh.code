@@ -1,7 +1,7 @@
 #!/bin/sh
 . /tmp/loader
 
-_log do serving_ssh_keys daemon debug "trying to install $( grep "^NODE=" $0 | wc -l ) objects"
+_log it serving_ssh_keys daemon debug "trying to install $( grep "^NODE=" $0 | wc -l ) objects"
 
 SSH_HOME="/etc/dropbear"
 # [ "$VERSION" = "0.1" -o "$VERSION" = "0.2" ] && {
@@ -42,7 +42,7 @@ grep ^"NODE=" "$0" | while read LINE; do {
 	WIFI_ADR="$( _ipsystem getvar WIFIADR "$NODE" )"
 
 	[ -z "$SSHPUBKEY" ] && {
-		_log do fetch_sshpubkey daemon debug "node '$NODE' ($WIFI_ADR) has no sshpubkey?! '$LINE'"
+		_log it fetch_sshpubkey daemon debug "node '$NODE' ($WIFI_ADR) has no sshpubkey?! '$LINE'"
 		continue
 	}
 
@@ -71,7 +71,7 @@ grep ^"NODE=" "$0" | while read LINE; do {
 	}
 
 	[ -z "$USER_AT_HOST" ] && {
-		_log do fetch_user@host daemon alert "'user@host' unset! '$LINE' / '$SSHPUBKEY_DECODED'"
+		_log it fetch_user@host daemon alert "'user@host' unset! '$LINE' / '$SSHPUBKEY_DECODED'"
 	}
 
 	# root@E1-112-AP -> E1-112-AP
@@ -84,7 +84,7 @@ grep ^"NODE=" "$0" | while read LINE; do {
 	}
 
 	[ -z "$FOUND_KEY" ] && {
-		_log do ssh_adding_auth_host daemon debug "+${USER_AT_HOST}${DNS_GUESSED}"
+		_log it ssh_adding_auth_host daemon debug "+${USER_AT_HOST}${DNS_GUESSED}"
 		# same format like own pubkey
 		echo "$SSHPUBKEY_DECODED" >>"$AUTHORIZED_KEYS"
 	}
@@ -96,7 +96,7 @@ grep ^"NODE=" "$0" | while read LINE; do {
 	}		
 
 	[ -z "$FOUND_KEY" ] && {
-		_log do ssh_adding_known_host daemon debug "+${HOST}${DNS_GUESSED} +${WIFI_ADR}"
+		_log it ssh_adding_known_host daemon debug "+${HOST}${DNS_GUESSED} +${WIFI_ADR}"
 		echo     "$HOST $ALGO $KEY" >>"$KNOWN_HOSTS"	# host + algo + key
 		echo "$WIFI_ADR $ALGO $KEY" >>"$KNOWN_HOSTS"	# ip   + algo + key
 	}
@@ -109,24 +109,24 @@ SERVER4='bwireless.mooo.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCy/B5uLPM/b/Vz
 
 for SERVER in "$SERVER1" "$SERVER2" "$SERVER3" "$SERVER4"; do {
 	fgrep -sq ^"$SERVER" "$KNOWN_HOSTS" || {
-		_log do ssh_known_host daemon debug "adding: ${SERVER% *}"
+		_log it ssh_known_host daemon debug "adding: ${SERVER% *}"
 		echo "$SERVER" >>"$KNOWN_HOSTS"
 	}
 } done
 
 COUNT_AUTH_KEYS_ADDED=$((   $( _file lines "$AUTHORIZED_KEYS" ) - ${COUNT_AUTH_KEYS_BEGIN:-0}   ))
 COUNT_KNOWN_HOSTS_ADDED=$(( $( _file lines "$KNOWN_HOSTS"     ) - ${COUNT_KNOWN_HOSTS_BEGIN:-0} ))
-_log do adding_ssh_stuff daemon alert "added $COUNT_AUTH_KEYS_ADDED keys to '$AUTHORIZED_KEYS' and $COUNT_KNOWN_HOSTS_ADDED hosts to '$KNOWN_HOSTS'"
+_log it adding_ssh_stuff daemon alert "added $COUNT_AUTH_KEYS_ADDED keys to '$AUTHORIZED_KEYS' and $COUNT_KNOWN_HOSTS_ADDED hosts to '$KNOWN_HOSTS'"
 
-_log do tempfile2realfile daemon info "copy from /tmp to ssh-dir '$SSH_HOME'"
+_log it tempfile2realfile daemon info "copy from /tmp to ssh-dir '$SSH_HOME'"
 mv "$AUTHORIZED_KEYS" "$AUTHORIZED_KEYS_ORIG" || {
 	rm "$AUTHORIZED_KEYS_ORIG"
-	_log do tempfile2realfile daemon alert "[ERR] writing $AUTHORIZED_KEYS_ORIG"
+	_log it tempfile2realfile daemon alert "[ERR] writing $AUTHORIZED_KEYS_ORIG"
 }
 
 mv "$KNOWN_HOSTS" "$KNOWN_HOSTS_ORIG" || {
 	rm "$KNOWN_HOSTS_ORIG"
-	_log do tempfile2realfile daemon alert "[ERR] writing $KNOWN_HOSTS_ORIG"
+	_log it tempfile2realfile daemon alert "[ERR] writing $KNOWN_HOSTS_ORIG"
 }
 
 exit 0

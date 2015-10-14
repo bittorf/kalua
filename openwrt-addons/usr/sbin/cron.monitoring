@@ -23,7 +23,7 @@ RAM_SIZE="$( _system ram_size )"
 
 [ -n "$LOWMEM" ] && {
 	[ $( _file lines /proc/modules ) -gt 30 ] && {		# 3.3.8, apmode = 23, adhoc-mode = 5 (SIMPLEMESH)
-		_log do start daemon info "no execution - waiting for unload of unneeded kmodules"
+		_log it start daemon info "no execution - waiting for unload of unneeded kmodules"
 		exit
 	}
 }
@@ -41,10 +41,10 @@ esac
 
 _system fully_installed || ARG1='fast'
 
-[ "$ARG1" = 'fast' ] && _log do $FUNC daemon debug "fastmode - no data_collection"
+[ "$ARG1" = 'fast' ] && _log it $FUNC daemon debug "fastmode - no data_collection"
 
 if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
-	_log do $FUNC daemon debug "start"
+	_log it $FUNC daemon debug "start"
 
 	_sanitizer include
 	_math include
@@ -95,7 +95,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 			WIFIMAC="$( _sanitizer run "$( uci -q get wireless.radio0.macaddr )" hex )"
 			[ -z "$WIFIMAC" ] && {
 				bool_true 'wireless.radio0.disabled' || {
-					_log do $FUNC daemon alert 'empty wifimac, rebuilding netparam'
+					_log it $FUNC daemon alert 'empty wifimac, rebuilding netparam'
 					/etc/init.d/S41build_static_netparam
 
 					random_mac()
@@ -255,7 +255,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 
 		[ "$SSID_HOTFIX" = 'true' ] && {
 			touch '/tmp/wifi_change_essid_ap'
-			_log do hotfix daemon alert 'change SSID'
+			_log it hotfix daemon alert 'change SSID'
 			_wifi change_essid_ap original
 		}
 	}
@@ -284,7 +284,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 		esac
 
 		[ "$PUBIP" != "$PUBIP_OLD" ] && {
-			_log do $FUNC daemon info "public IP changed: '$PUBIP_OLD' -> '$PUBIP'"
+			_log it $FUNC daemon info "public IP changed: '$PUBIP_OLD' -> '$PUBIP'"
 			ARG1="send_alive_message"
 
 			# renew dyndns: fixme! must be called via hotplug
@@ -302,7 +302,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 			}
 		}
 	else
-		_log do $FUNC daemon info "public IP cannot be sanitized to ip4: '$PUBIP'"
+		_log it $FUNC daemon info "public IP cannot be sanitized to ip4: '$PUBIP'"
 		PUBIP=
 	fi
 
@@ -624,7 +624,7 @@ grep -q ^"ip_tables " /proc/modules && {
 		$IPT -I $ruleset_in
 		$IPT -I $ruleset_out
 
-		_log do $funcname daemon info "counting olsr-traff for $interval sec"
+		_log it $funcname daemon info "counting olsr-traff for $interval sec"
 		sleep $interval
 
 		bytes_in="$(  get_bytes INPUT  )"
@@ -636,7 +636,7 @@ grep -q ^"ip_tables " /proc/modules && {
 		$IPT -D $ruleset_in
 		$IPT -D $ruleset_out
 
-		_log do $funcname daemon info "in: $bytes_in = $bytes_in_sec bytes/s out: $bytes_out = $bytes_out_sec bytes/s"
+		_log it $funcname daemon info "in: $bytes_in = $bytes_in_sec bytes/s out: $bytes_out = $bytes_out_sec bytes/s"
 		echo "&t0=${bytes_in_sec}&t1=${bytes_out_sec}"
 	}
 
@@ -732,7 +732,7 @@ grep -q ^"ip_tables " /proc/modules && {
 		ARG2="no_antenna_test"
 	}
 
-	_log do $FUNC daemon debug "ready"
+	_log it $FUNC daemon debug "ready"
 
 	KEEP_ALIVE_URL="$( uci -q get system.@monitoring[0].url )/meshrdf/"
 
@@ -745,13 +745,13 @@ grep -q ^"ip_tables " /proc/modules && {
 
 		[ -z "$ARG2" ] && sleep "$( _math random_integer 0 60 )"
 
-		_log do $FUNC daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
+		_log it $FUNC daemon info "sending message: '${KEEP_ALIVE_URL} [...]'"
 
 		_ntp set
 
 		[ -e '/www/backup_archiv_node_data' ] && {			# see _system reboot_safe()
 
-			_log do $FUNC daemon info "found node-data backup, including"
+			_log it $FUNC daemon info "found node-data backup, including"
 
 			mv "/tmp/ARCHIV_MONITORING" "/tmp/ARCHIV_MONITORING.temp"	# copy backup-file
 			mv '/www/backup_archiv_node_data' "/tmp/ARCHIV_MONITORING"	# on top of
@@ -776,13 +776,13 @@ grep -q ^"ip_tables " /proc/modules && {
 					# wget -O - "${KEEP_ALIVE_URL}?log=$REQUEST"
 					# check length of QUERY_STRING on server
 					[ ${#QUERY} -gt 8000 ] && {
-						_log do $FUNC daemon info "ignoring long line: '${#QUERY}' bytes"
+						_log it $FUNC daemon info "ignoring long line: '${#QUERY}' bytes"
 						continue
 					}
 
 					case "$QUERY" in
 						'log='*)
- 							_log do $FUNC daemon debug "send log-message"
+ 							_log it $FUNC daemon debug "send log-message"
 							# time=... is appended in log()
  							QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC&rev=$OPENWRT_REV&config=$CONFIG_PROFILE"
  						;;
@@ -811,9 +811,9 @@ grep -q ^"ip_tables " /proc/modules && {
 					echo "$errors_overall" >"/tmp/ARCHIV_MONITORING.errors"
 
  					if [ "$OUT" = 'OK' ]; then
- 						_log do $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT - i: $i"
+ 						_log it $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT - i: $i"
 					else
- 						_log do $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
+ 						_log it $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
 
  						# FIXME! this is a workaround for only sending lines, which we have not send yet
 						sed -n "$LINENUMBER_LAST_SUCCESS,999p" "/tmp/ARCHIV_MONITORING" >"/tmp/ARCHIV_MONITORING.tmp"
@@ -827,7 +827,7 @@ grep -q ^"ip_tables " /proc/modules && {
  					fi
  				;;
  				*)
-	 				_log do $FUNC daemon debug "send alive normally ended"
+	 				_log it $FUNC daemon debug "send alive normally ended"
  					echo >>"/tmp/ARCHIV_MONITORING" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
  					break
  				;;

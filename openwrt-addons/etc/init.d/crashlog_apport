@@ -56,7 +56,7 @@ build_http_postdata()
 
 	size=$(( ${#version} + ${#kernel} + ${#id} + ${#usecase} + ${#hardware} + 5 + size ))
 
-	_log do $funcname daemon info "build_http_postdata: preparing send to 'http://$target_ip/$path' ($size bytes)"
+	_log it $funcname daemon info "build_http_postdata: preparing send to 'http://$target_ip/$path' ($size bytes)"
 
 	# http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
 	# http://stackoverflow.com/questions/3135307/send-post-request-with-netcat
@@ -124,16 +124,16 @@ start()
 	# upload later - not during bootup, each script is terminated after 15 sec
 	[ -z "$option" ] && {
 		if reason="$( guess_crash_reason "$crashlog" )" ; then
-			_log do $funcname daemon alert "crash detected: reason: $reason"
+			_log it $funcname daemon alert "crash detected: reason: $reason"
 			echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"
 		else
 			if grep -sq "$manually_crashed" "$crashlog"; then
-				_log do $funcname daemon info "[OK] no real crash in $crashlog"
+				_log it $funcname daemon info "[OK] no real crash in $crashlog"
 			else
 				if [ -e "$crashlog" ]; then
-					_log do $funcname daemon alert "[ERR] unknown crash in $crashlog"
+					_log it $funcname daemon alert "[ERR] unknown crash in $crashlog"
 				else
-					_log do $funcname daemon debug "[OK] empty $crashlog"
+					_log it $funcname daemon debug "[OK] empty $crashlog"
 				fi
 			fi
 		fi
@@ -147,19 +147,19 @@ start()
 
 		while [ $maxtry -gt 0 ]; do {
 			# default SERVERIP is 84.38.67.43
-			_log do $funcname daemon info "found log in $file, reporting to server $MONITORING_SERVERIP"
+			_log it $funcname daemon info "found log in $file, reporting to server $MONITORING_SERVERIP"
 			answer="$( build_http_postdata "$file" "$MONITORING_SERVERIP" | nc "$MONITORING_SERVERIP" 80 )"
 
 			case "$answer" in
 				*'OK')
-					_log do $funcname daemon info "send of '$file' OK"
+					_log it $funcname daemon info "send of '$file' OK"
 					[ "$file" = "$crashlog" ] || rm "$file"		# only delete on-disc
 					maxtry=10
 					break
 				;;
 				*)
 					maxtry=$(( maxtry - 1 ))
-					_log do $funcname daemon info "error during send (answer: '$answer'), trying again in $pause sec"
+					_log it $funcname daemon info "error during send (answer: '$answer'), trying again in $pause sec"
 					sleep $pause
 				;;
 			esac
@@ -169,7 +169,7 @@ start()
 			destination="/www/crashlog.$( _file hash "$file" )"
 			[ -e "$destination" ] || {
 				cat "$file" >"$destination"
-				_log do $funcname daemon alert "upload crash failed, wrote to: '$destination'"
+				_log it $funcname daemon alert "upload crash failed, wrote to: '$destination'"
 			}
 
 			echo >>$SCHEDULER "/etc/init.d/$funcname start upload_crash"

@@ -2941,7 +2941,6 @@ unittest_do()
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
 			$shellcheck_bin --version
-# WIP			# SC1010: "_log do ...' -> 'do' is a special keyword
 			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
 			# SC1090: Can't follow non-constant source. Use a directive to specify location.
 			#
@@ -2998,13 +2997,6 @@ unittest_do()
 #						sed -i 's/echo -n /printf /g' "$tempfile"
 #						sed -i 's/echo -en /printf /g' "$tempfile"
 #						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
-
-						# SC1010
-						for pattern in log; do {
-							sed -i "s/_$pattern do /_$pattern it /g" "$tempfile"
-							sed -i "s/_${pattern}_do/_${pattern}_it/g" "$tempfile"
-						} done
-						# _log it
 
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in

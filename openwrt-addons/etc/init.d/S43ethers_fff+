@@ -20,7 +20,7 @@ build_network_clients()		# build a fgrep-able list, for fast seeking 'is ipX a c
 	mydev="$( ifname_from_dev "$networkname" )"
 	myip="$( _net dev2ip "$mydev" )" || return 1	# e.g. WIFI on a device without wireless
 
-	_log do $funcname daemon info "writing client list for $ip_any/$pre network: '$networkname'"
+	_log it $funcname daemon info "writing client list for $ip_any/$pre network: '$networkname'"
 	[ -z "$ip_any" ] && return 0
 
 	oldifs="$IFS"; IFS='.'
@@ -105,7 +105,7 @@ _build_hosts()				# SENSE: modulary builds /etc/local.hosts
 
 	case "$1" in
 		'join')
-			_log do $FUNC daemon debug "joining '$SUB_LAN', '$SUB_WIFI', '$SUB_VIRT', '$SUB_DROP' to '$FILE'"
+			_log it $FUNC daemon debug "joining '$SUB_LAN', '$SUB_WIFI', '$SUB_VIRT', '$SUB_DROP' to '$FILE'"
 
 			for file in HEADER "$SUB_VIRT" "$SUB_LAN" "$SUB_WIFI" "$SUB_DROP"; do {
 				[ "$file" = 'HEADER' ] && echo "# generated from $0"
@@ -218,11 +218,11 @@ _build_hosts()				# SENSE: modulary builds /etc/local.hosts
 			local LIST='/etc/hosts.drop'		# see fff-adblock-list.ipk, list of bad domains
 
 			[ -e "$LIST" ] || {
-				_log do $FUNC daemon debug "no drop-list '$LIST' - do nothing"
+				_log it $FUNC daemon debug "no drop-list '$LIST' - do nothing"
 				return
 			}
 
-			_log do $FUNC daemon debug "building drop-list"
+			_log it $FUNC daemon debug "building drop-list"
 
 			local X=0
 			local Y=0
@@ -242,7 +242,7 @@ _build_hosts()				# SENSE: modulary builds /etc/local.hosts
 
 			} done <$LIST >>$SUB_DROP
 
-			_log do $FUNC daemon debug "building drop-list ready ($(( COUNT + Y )) hosts)"
+			_log it $FUNC daemon debug "building drop-list ready ($(( COUNT + Y )) hosts)"
 		;;
 	esac
 }
@@ -265,7 +265,7 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 	local DEBUG_VAR="fff_ethers_$MODE"		# format e.g.: fff_ethers_wifi="00:11:22:33:44:55=admin-computername;11:22:33:44:55:66=free-computername;..."
 	local DEBUG_VAL HOSTNAME
 
-	_log do $FUNC daemon debug "mode '$MODE'"
+	_log it $FUNC daemon debug "mode '$MODE'"
 
 	[ -z "$LIST" ] && touch "$FILE"			# fixme! why this?
 
@@ -279,7 +279,7 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 		HWADRESS="$( _sanitizer run "$HWADRESS" lowercase )"
 		HOSTNAME="$( echo $MAC_AND_HOST | cut -d'=' -f2 )"
 
-		_log do $FUNC daemon debug "working on mac '$HWADRESS' with hostname '$HOSTNAME'"
+		_log it $FUNC daemon debug "working on mac '$HWADRESS' with hostname '$HOSTNAME'"
 
 		if [ -n "$HWADRESS" -a -n "$HOSTNAME" ] && ! grep -s ^"$HWADRESS" "$FILE" ; then
 
@@ -306,16 +306,16 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 
 			HOSTNAME="${HOSTNAME}-${MODE}${CLIENT}-n$NODENUMBER.$DOMAIN"		# fixme! remove leading/trailing "-"
 
-			_log do $FUNC daemon debug "writing '$HWADRESS' with hostname '$HOSTNAME' to '$FILE'"
+			_log it $FUNC daemon debug "writing '$HWADRESS' with hostname '$HOSTNAME' to '$FILE'"
 
 			echo "$HWADRESS $HOSTNAME" >>"$FILE"
 		else
-			[ -z "$HWADRESS" ] && _log do $FUNC daemon debug "no mac-address given"
-			[ -z "$HOSTNAME" ] && _log do $FUNC daemon debug "no hostname-address given"
+			[ -z "$HWADRESS" ] && _log it $FUNC daemon debug "no mac-address given"
+			[ -z "$HOSTNAME" ] && _log it $FUNC daemon debug "no hostname-address given"
 
 			[ -n "$HWADRESS" ] && {
 				grep -sq ^"$HWADRESS" "$FILE" && {
-					_log do $FUNC daemon debug "suppressing doubled mac '$HWADRESS'"
+					_log it $FUNC daemon debug "suppressing doubled mac '$HWADRESS'"
 				}
 			}
 
@@ -330,12 +330,12 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 		if [ "$LIST" != "$DEBUG_VAL" ]; then
 			# fixme! we need a sanitizer for non allowed characters, e.g. ":"
 
-			_log do $FUNC daemon alert "error in config: is '$LIST' must be '$DEBUG_VAL' - correcting"
+			_log it $FUNC daemon alert "error in config: is '$LIST' must be '$DEBUG_VAL' - correcting"
 
 			_nvram set "${DEBUG_VAR}" "$DEBUG_VAL"
 			_nvram set commit "repaired error in fff_ethers_$MODE"
 		else
-			_log do $FUNC daemon debug "no config error"
+			_log it $FUNC daemon debug "no config error"
 		fi
 
 		rm $DEBUG_FILE
@@ -348,7 +348,7 @@ fkt_restart_running_dnsserver ()
 	local PID="$( _system get_first_pid dnsmasq )"
 
 	[ -n "$PID" ] && {
-		_log do $FUNC daemon debug "working"
+		_log it $FUNC daemon debug "working"
 
 		kill -SIGHUP $PID		# fixme! we should only reread /etc/hosts, when we are sure, that adblock-filters are working?!
 	}
@@ -400,7 +400,7 @@ case "$1" in
 		DROPFILE="/etc/hosts.drop"
 		if [ "$DROP" = "0" ]; then
 			[ -e "$DROPFILE" ] && {
-				_log do "del_adblock" daemon debug "must be deactivated, removing '$DROPFILE'"
+				_log it "del_adblock" daemon debug "must be deactivated, removing '$DROPFILE'"
 				rm "$DROPFILE"
 			}
 		else
@@ -409,9 +409,9 @@ case "$1" in
 			_stopwatch stop 'adblock' quiet
 
 			if [ -e "$DROPFILE" ]; then
-				_log do "add_adblock" daemon debug "$( _file size "$DROPFILE" ) bytes in $( _file lines "$DROPFILE" ) entries"
+				_log it "add_adblock" daemon debug "$( _file size "$DROPFILE" ) bytes in $( _file lines "$DROPFILE" ) entries"
 			else
-				_log do "add_adblock" daemon debug "was not possible, missing '$DROPFILE'"
+				_log it "add_adblock" daemon debug "was not possible, missing '$DROPFILE'"
 			fi
 		fi
 

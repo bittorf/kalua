@@ -33,7 +33,7 @@ case "$QUERY_STRING" in
 			set -- $LINE
 			echo $2
 		else
-			_log do roaming_querymac daemon info "no entry for $mac ($REMOTE_ADDR asked)"
+			_log it roaming_querymac daemon info "no entry for $mac ($REMOTE_ADDR asked)"
 		fi
 	;;
 	*)

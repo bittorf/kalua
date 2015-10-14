@@ -47,7 +47,7 @@ _ssh_regen_keys()
 	local FUNC="ssh_regen_keys"
 	local KEYFILE="/etc/dropbear/dropbear_dss_host_key"
 
-	_log do $FUNC daemon info "[START] regenerating ssh-keys"
+	_log it $FUNC daemon info "[START] regenerating ssh-keys"
 
 	rm $KEYFILE.pub
 	rm $KEYFILE
@@ -60,7 +60,7 @@ _ssh_regen_keys()
 
 	_ssh sanitize_and_cleanup_keys
 
-	_log do $FUNC daemon info "[READY] regenerating ssh-keys"
+	_log it $FUNC daemon info "[READY] regenerating ssh-keys"
 }
 
 _ssh_generate_and_store_private_dss_key ()
@@ -91,7 +91,7 @@ _ssh_sanitize_and_cleanup_keys()
 	}
 
 	pubfile_ok || {
-		_log do $funcname daemon info "writing ${DSSFILE}.pub"
+		_log it $funcname daemon info "writing ${DSSFILE}.pub"
 
 		if [ -e '/etc/dropbear/dropbear_rsa_host_key' ]; then
 			file='/etc/dropbear/dropbear_rsa_host_key'	# since r46814 - TODO!
@@ -117,36 +117,36 @@ _ssh_sanitize_and_cleanup_keys()
 		mkdir -p etc/dropbear		# key in nvram is more important, than (maybe new generated) keyfile
 
 		if [ "${#DSSKEY}" -ge 256 ]; then
-			_log do setup_dropbear_keys daemon info "keyfile differs from keys in nvram - restoring keys from nvram"
+			_log it setup_dropbear_keys daemon info "keyfile differs from keys in nvram - restoring keys from nvram"
 			echo -n "$DSSKEY" >$TEMP
 			_file convert_hex2bin "$TEMP" >$DSSFILE
 			rm $TEMP
 			chmod 0600 $DSSFILE
 		else
-			_log do setup_dropbear_keys daemon info "keyfile differs from keys in nvram - generating new keys"
+			_log it setup_dropbear_keys daemon info "keyfile differs from keys in nvram - generating new keys"
 
 			if [ -e /usr/bin/dropbearkey ]; then
 				[ -e $DSSFILE ] && {
-					_log do setup_dropbear_keys daemon info "$DSSFILE already exists - why? deleting it!"
+					_log it setup_dropbear_keys daemon info "$DSSFILE already exists - why? deleting it!"
 					rm $DSSFILE
 				}
 
 				_ssh generate_and_store_private_dss_key
 			else
-				_log do setup_dropbear_keys daemon info "SSH-DSS-key does not exist (yet) - abort"
+				_log it setup_dropbear_keys daemon info "SSH-DSS-key does not exist (yet) - abort"
 			fi
 		fi
 
 		[ $( _system uptime min ) -gt 5 ] && {
-			dropbear || _log do setup_dropbear_keys daemon info "starting daemon failed"
+			dropbear || _log it setup_dropbear_keys daemon info "starting daemon failed"
 		}
 	else
-		_log do setup_dropbear_keys daemon debug "SSH-DSS-key seems to be correct"
+		_log it setup_dropbear_keys daemon debug "SSH-DSS-key seems to be correct"
 
 		[ "$( _file size "${DSSFILE}.pub" )" = "0" ] && rm "${DSSFILE}.pub"
 
 		[ -e /usr/bin/dropbearkey ] && [ ! -e "${DSSFILE}.pub" ] && {
-			_log do setup_dropbear_keys daemon info "writing ${DSSFILE}.pub"
+			_log it setup_dropbear_keys daemon info "writing ${DSSFILE}.pub"
 			dropbearkey -y -f "$DSSFILE" | grep ^ssh- >"${DSSFILE}.pub"
 			chmod 0600 "${DSSFILE}.pub"
 		}

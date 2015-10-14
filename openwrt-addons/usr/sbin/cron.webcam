@@ -167,7 +167,7 @@ storage_is()			# measure low/high-jump
 
 	while read -r L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;ram_free=$(((M+$2)*1024));break;esac;done</proc/meminfo
 
-	_log do $funcname daemon info "webcam: percent_used: $STORAGE_FREE% mode: '$mode' - ram: $ram_free bytes"
+	_log it $funcname daemon info "webcam: percent_used: $STORAGE_FREE% mode: '$mode' - ram: $ram_free bytes"
 	[ $ram_free -lt $lowram ] && return 0		# simulates "storage full"
 
 	case "$mode" in
@@ -248,7 +248,7 @@ if [ -n "$RUN_ENCODER" ]; then
 			FILE="$( ls -1t ./*[0-9].jpg | sed -e '/.jpg/G' -e '2,999!d' | sed '/^$/d' | head -n1 )"
 
 			if [ -n "$FILE" ]; then
-				_log do remove_ffmpeg daemon info "T1: rm '$FILE' free: $STORAGE_FREE%"
+				_log it remove_ffmpeg daemon info "T1: rm '$FILE' free: $STORAGE_FREE%"
 			else
 				# remove oldesti/first element, hopefully ffmpeg has eaten it already
 				for FILE in $LIST_DELETEABLE; do {
@@ -258,13 +258,13 @@ if [ -n "$RUN_ENCODER" ]; then
 					break
 				} done
 
-				_log do remove_ffmpeg daemon info "T2: rm '$FILE' free: $STORAGE_FREE%"
+				_log it remove_ffmpeg daemon info "T2: rm '$FILE' free: $STORAGE_FREE%"
 			fi
 
 			if [ -n "$FILE" ]; then
 				rm "$FILE"
 			else
-				_log do remove_ffmpeg daemon alert "T3: no file to delete - killing motion"
+				_log it remove_ffmpeg daemon alert "T3: no file to delete - killing motion"
 				killall motion
 				break
 			fi
@@ -277,7 +277,7 @@ if [ -n "$RUN_ENCODER" ]; then
 		if storage_is full; then
 			return 1
 		else
-			_log do webcam_ffmpeg daemon alert "generating '$FILENAME' with $COUNT frames"
+			_log it webcam_ffmpeg daemon alert "generating '$FILENAME' with $COUNT frames"
 			_stopwatch start video_encoding
 
 			# default bitrate = 200k is crap
@@ -290,17 +290,17 @@ if [ -n "$RUN_ENCODER" ]; then
 
 		rm -f /webcam/img_*
 		SIZE="$( _file size "$FILENAME" )"
-		_log do webcam_ffmpeg daemon alert "generated '$FILENAME' with $SIZE bytes/$COUNT frames = $(( SIZE / COUNT )) bytes/frame"
+		_log it webcam_ffmpeg daemon alert "generated '$FILENAME' with $SIZE bytes/$COUNT frames = $(( SIZE / COUNT )) bytes/frame"
 
 		DESTINATION="$( uci -q get system.@webcam[0].storage_path )"
 		DESTINATION="${DESTINATION:-$( uci -q get system.@vds[0].server )../media}"
 		[ -n "$DESTINATION" ] && {
 			scp -i /etc/dropbear/dropbear_dss_host_key "$FILENAME" $DESTINATION || {
-				_log do scp_movie daemon alert "failed to scp '$FILENAME' -> '$DESTINATION'"
+				_log it scp_movie daemon alert "failed to scp '$FILENAME' -> '$DESTINATION'"
 			}
 		}
 	else
-		_log do webcam_ffmpeg daemon alert "[ERROR] encoding rc: $?"
+		_log it webcam_ffmpeg daemon alert "[ERROR] encoding rc: $?"
 		_stopwatch stop 'video_encoding' quiet
 	fi
 
@@ -314,7 +314,7 @@ else
 		SIZE=$( _file size '/webcam/webcam.jpg' )
 		[ $SIZE -gt 0 -a $SIZE -lt 15000 ] && {		# FIXME! depends on quality and day/night
 			. /tmp/loader
-			_log do webcam_filesize daemon alert "low pic: $SIZE bytes, reboot"
+			_log it webcam_filesize daemon alert "low pic: $SIZE bytes, reboot"
 			_system crashreboot 'webcam_pic2small'
 		}
 	}
@@ -354,7 +354,7 @@ else
 		}
 
 		. /tmp/loader
-		_log do webcam_upload daemon info "file '$FILE'"
+		_log it webcam_upload daemon info "file '$FILE'"
 
 		echo "$EVENT_RECENT" >"/tmp/webcam_last_event"
 
@@ -372,9 +372,9 @@ else
 			if pidof scp >/dev/null ; then
 				_watch hanging_command scp
 			else
-				_log do scp_snapshot daemon info "scp-ing '$FILE' to '${DESTINATION}$NODENUMBER.jpg'"
+				_log it scp_snapshot daemon info "scp-ing '$FILE' to '${DESTINATION}$NODENUMBER.jpg'"
 				scp -i /etc/dropbear/dropbear_dss_host_key "$FILE" ${DESTINATION}$NODENUMBER.jpg || {
-					_log do scp_snapshot daemon alert "failed to scp '$FILE' -> '${DESTINATION}$NODENUMBER.jpg'"
+					_log it scp_snapshot daemon alert "failed to scp '$FILE' -> '${DESTINATION}$NODENUMBER.jpg'"
 				}
 			fi
 		}

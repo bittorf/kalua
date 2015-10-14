@@ -7,7 +7,7 @@
 _system fully_installed	|| exit
 
 _olsr uptime is_short && {
-	_log do olsr_uptime_is_short daemon info "[OK] scheduling job"
+	_log it olsr_uptime_is_short daemon info "[OK] scheduling job"
 	echo >>$SCHEDULER "$0"
 	exit 0
 }
@@ -16,9 +16,9 @@ _olsr uptime is_short && {
 
 if [ -e "/tmp/CHECK_INET_OFFER" ]; then
 	if _file age "/tmp/CHECK_INET_OFFER" -gt 3600 ; then
-		_log do lockfile daemon alert "ignoring old lockfile"
+		_log it lockfile daemon alert "ignoring old lockfile"
 	else
-		_log do lockfile daemon info "ignoring call, found lockfile '/tmp/CHECK_INET_OFFER'"
+		_log it lockfile daemon info "ignoring call, found lockfile '/tmp/CHECK_INET_OFFER'"
 		exit 1
 	fi
 else
@@ -86,7 +86,7 @@ rm "$FILE_OLSR_ROUTES"
 
 		OUT="COST_INT=99999; GATEWAY=${LAST_GATEWAY}; NEXTHOP=127.0.0.0; METRIC=-1"
 
-		_log do guess_gateway daemon info "empty default route, last inet-gateway was: $LAST_GATEWAY"
+		_log it guess_gateway daemon info "empty default route, last inet-gateway was: $LAST_GATEWAY"
 		echo >>$SCHEDULER "$0"
 	else
 		if [ $( _system uptime min ) -le 10 ]; then
@@ -97,10 +97,10 @@ rm "$FILE_OLSR_ROUTES"
 
 		# provider-lan with subnet >/21 is not implemented yet (see /etc/init.d/S43...)
 		if   [ "$WIFIADR" = "$GW" ]; then
-			_log do guess_gateway daemon $LOGPRIO "strange situation1: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
+			_log it guess_gateway daemon $LOGPRIO "strange situation1: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
 			OUT="COST_INT=10; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
 		elif [ -e "/tmp/OLSR/DEFGW_$GW" ]; then
-			_log do guess_gateway daemon info "strange situation3: nexthop is defaultgw"
+			_log it guess_gateway daemon info "strange situation3: nexthop is defaultgw"
 			OUT="COST_INT=10; GATEWAY=$WIFIADR; NEXTHOP=$WIFIADR; METRIC=0"
 		else
 			if [ -e "/tmp/$( basename $0 )_first_error" ]; then
@@ -112,7 +112,7 @@ rm "$FILE_OLSR_ROUTES"
 				else
 					[ -e "/tmp/service_olsrd_nowatching" ] || {
 						[ "$( uci -q get network.mybridge.gateway )" = "${GW:-nogw}" ] || {
-							_log do guess_gateway daemon $LOGPRIO "strange situation2: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
+							_log it guess_gateway daemon $LOGPRIO "strange situation2: olsr-nexthop != routing-table nexthop: $WIFIADR/$GW"
 							[ "$LOGPRIO" = "alert" ] && _olsr daemon restart "gateway: $GW nexthop: $WIFIADR"
 
 							/etc/init.d/S41build_static_netparam
@@ -155,7 +155,7 @@ else
 	_watch archivsize "/tmp/ARCHIV_TRACEINET" 250 lines_max
 fi
 
-_log do guess_gateway daemon debug "$OUT"
+_log it guess_gateway daemon debug "$OUT"
 
 [ "$FIRST_RUN" = "true" ] && {
 	REASON='unknown'
@@ -283,7 +283,7 @@ _log do guess_gateway daemon debug "$OUT"
 #
 #				case "${NODENUMBER}-${CONFIG_PROFILE}" in
 #					'113-rehungen'*)
-#						_log do catch_node daemon sms "nexthop: $( ip route list exact '0.0.0.0/0' | head -n1 | cut -d' ' -f3 )"
+#						_log it catch_node daemon sms "nexthop: $( ip route list exact '0.0.0.0/0' | head -n1 | cut -d' ' -f3 )"
 #					;;
 #				esac
 #			}
@@ -304,7 +304,7 @@ _log do guess_gateway daemon debug "$OUT"
 					touch '/tmp/USERDB_COPY'	# set time NOW - otherwise time from server
 					rm '/tmp/FREE'
 
-					_log do fetch_userdb_copy daemon info "[OK] in /tmp/USERDB_COPY from '$( remote_server )'"
+					_log it fetch_userdb_copy daemon info "[OK] in /tmp/USERDB_COPY from '$( remote_server )'"
 # fixme! wtf?
 #					[ "$( uci get system.@weblogin[0].authserver )" = "$REMOTE" ] || {
 #						uci set system.@weblogin[0].authserver="$REMOTE"
@@ -313,7 +313,7 @@ _log do guess_gateway daemon debug "$OUT"
 
 					case "$LASTLINE" in
 						*'FREE')
-							_log do fetch_userdb_copy daemon info '[OK] server says: free for all'
+							_log it fetch_userdb_copy daemon info '[OK] server says: free for all'
 							touch '/tmp/FREE'
 						;;
 					esac
@@ -321,7 +321,7 @@ _log do guess_gateway daemon debug "$OUT"
 					# maybe always calc this during wget()?
 					PATH_SPEED=$(( $( _file size '/tmp/USERDB_COPY' ) * 100 / ( WGET_READY - WGET_START ) ))
 					echo "$PATH_SPEED" >/tmp/USERDB_COPY.speed
-					_log do fetch_userdb_copy daemon info "speed was $PATH_SPEED bytes/sec"
+					_log it fetch_userdb_copy daemon info "speed was $PATH_SPEED bytes/sec"
 
 					pidof bat_events >/dev/null && {
 						batman_measure_nexthop

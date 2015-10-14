@@ -7,7 +7,7 @@ _weblogin_generate_prebuilt_splash_htmlfile()
 	local file="weblogin_cached_for_overload"
 	local hash1 hash2
 
-	_log do $funcname daemon info "[START]"
+	_log it $funcname daemon info "[START]"
 	export QUERY_STRING="REDIRECTED=1" SCRIPT_NAME=
 	/www/cgi-bin-welcome.sh >"/tmp/$file"
 
@@ -19,7 +19,7 @@ _weblogin_generate_prebuilt_splash_htmlfile()
 		}
 	}
 
-	_log do $funcname daemon info "[READY]"
+	_log it $funcname daemon info "[READY]"
 }
 
 _weblogin_html_logoutpage()
@@ -230,14 +230,14 @@ EOF
 					simple)
 						case "$CONFIG_PROFILE" in
 							shankar*)
-								_log do $funcname daemon sms \
+								_log it $funcname daemon sms \
 									"login from $FORM_MOBILE_NUMBER" \
 									"Wi-Cloud Credentials: $PASSWORD - Have a nice day!" \
 									"$FORM_MOBILE_NUMBER" \
 									"force"
 							;;
 							*)
-								_log do $funcname daemon sms \
+								_log it $funcname daemon sms \
 									"login from $FORM_MOBILE_NUMBER" \
 									"$( _i18n get "$LANG" your_credentials ): $PASSWORD - $( _i18n get "$LANG" wishing_a_nice_stay )" \
 									"$FORM_MOBILE_NUMBER" \
@@ -246,7 +246,7 @@ EOF
 						esac
 					;;
 					*)
-						_log do $funcname daemon sms \
+						_log it $funcname daemon sms \
 							"login from $FORM_MOBILE_NUMBER" \
 							"$( _i18n get "$LANG" your_username_and_password ): $USERNAME/$PASSWORD - $( _i18n get "$LANG" wishing_a_nice_stay )" \
 							"$FORM_MOBILE_NUMBER" \
@@ -306,7 +306,7 @@ EOF
 					'none')
 						# no credentials are needed, just "click away"
 						local mac="$( _net ip2mac $REMOTE_ADDR )"
-						_log do $funcname daemon info "allowing access for $REMOTE_ADDR / $mac"
+						_log it $funcname daemon info "allowing access for $REMOTE_ADDR / $mac"
 						touch "/tmp/vds_user_$mac"
 					;;
 					'roomnumberOLD')
@@ -519,7 +519,7 @@ _weblogin_htmlout_inet_broken()
 	local funcname='weblogin_htmlout_inet_broken'
 	local lang="$1"
 
-	_log do $funcname daemon alert 'during user action'
+	_log it $funcname daemon alert 'during user action'
 	echo -n "<TR BGCOLOR='#E0ACAC'><TD ALIGN='CENTER'><BR><B>&nbsp;$( _i18n get "$lang" inet_broken )&nbsp;</B><BR><BR></TD></TR>"
 }
 
@@ -581,12 +581,12 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	}
 
 	has_leading_or_trailing_tabs_or_spaces "$USER" && {
-		_log do $FUNC daemon info "string tabs/spaces: username '$USER'"
+		_log it $FUNC daemon info "string tabs/spaces: username '$USER'"
 		USER="$( strip_leading_and_trailing_tabs_and_spaces "$USER" )"
 	}
 
 	has_leading_or_trailing_tabs_or_spaces "$PASS" && {
-		_log do $FUNC daemon info "string tabs/spaces: password '$PASS'"
+		_log it $FUNC daemon info "string tabs/spaces: password '$PASS'"
 		PASS="$( strip_leading_and_trailing_tabs_and_spaces "$PASS" )"
 	}
 
@@ -608,7 +608,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 
 		case "${dev:-empty_dev}" in
 			"$LANDEV")
-				_log do $funcname daemon info "mac $mac is from LAN"
+				_log it $funcname daemon info "mac $mac is from LAN"
 				return 0
 			;;
 			*)
@@ -618,7 +618,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	}
 
 	if   bool_true 'system.@weblogin[0].freelan' && mac_is_from_lan "$MAC"; then
-		_log do $funcname daemon info '[OK] is from LAN'
+		_log it $funcname daemon info '[OK] is from LAN'
 		FREE=1
 	elif grep -sq "$HASH" "/tmp/USERDB_COPY"; then
 		FREE=1
@@ -695,7 +695,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 
 				if is_valid "$USER" "$PASS" ; then
 					echo >>$SCHEDULER_IMPORTANT "_weblogin authserver_message is_valid:${USER}_${PASS}"
-					_log do $FUNC daemon info "is_valid: user: '$USER' pass: '$PASS'"
+					_log it $FUNC daemon info "is_valid: user: '$USER' pass: '$PASS'"
 					FREE=1
 				else
 					if [ -z "${USER}${PASS}" ]; then
@@ -705,7 +705,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 						echo >>$SCHEDULER_IMPORTANT "_weblogin authserver_message NOT_valid:${USER}_${PASS}"
 					fi
 
-					_log do $FUNC daemon $logprio "not valid: user: '$USER' pass: '$PASS'"
+					_log it $FUNC daemon $logprio "not valid: user: '$USER' pass: '$PASS'"
 				fi
 			;;
 		esac
@@ -714,26 +714,26 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	if   _weblogin device_or_customer_needs_admin_interaction; then
 		[ -n "${USER}${PASS}${MAC}" ] && {
 			if [ -e '/tmp/catch_sms' ]; then
-				_log do catch daemon info "USER: $USER PASS: $PASS MAC: $MAC IP: $REMOTE_ADDR"
+				_log it catch daemon info "USER: $USER PASS: $PASS MAC: $MAC IP: $REMOTE_ADDR"
 			else
 				nexthop="$( ip route list exact '0.0.0.0/0' | head -n1 | cut -d' ' -f3 )"
-				_log do catch daemon sms "USER: $USER PASS: $PASS MAC: $MAC IP: $REMOTE_ADDR nexthop: $nexthop"
+				_log it catch daemon sms "USER: $USER PASS: $PASS MAC: $MAC IP: $REMOTE_ADDR nexthop: $nexthop"
 				touch '/tmp/catch_sms'
 			fi
 		}
 	elif [ "$FREE" = "1" ] ; then
 		:
 	elif [ -e '/tmp/FREE' ]; then
-		_log do $FUNC daemon info "[OK] auth: existing /tmp/FREE"
+		_log it $FUNC daemon info "[OK] auth: existing /tmp/FREE"
 		FREE=1
 	elif [ -e "/tmp/vds_user_${MAC:-mac_is_empty}" ]; then
-		_log do $FUNC daemon info "[OK] auth: existing /tmp/vds_user_$MAC"
+		_log it $FUNC daemon info "[OK] auth: existing /tmp/vds_user_$MAC"
 		FREE=1
 	else
-		_log do $FUNC daemon info "query local db for '$HASH'"
+		_log it $FUNC daemon info "query local db for '$HASH'"
 
 		[ -n "$( _db user login query hash2id "$HASH" )" ] && {
-			_log do $FUNC daemon info "[OK] auth: local db knows hash '$HASH'"
+			_log it $FUNC daemon info "[OK] auth: local db knows hash '$HASH'"
 			FREE=1
 		}
 	fi
@@ -782,7 +782,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 						fi
 					fi
 
-					_log do $FUNC daemon alert "wrong credentials: mac: $MAC user: '$USER' pass: '$PASS' hash: '$HASH' DB: $dbsize"
+					_log it $FUNC daemon alert "wrong credentials: mac: $MAC user: '$USER' pass: '$PASS' hash: '$HASH' DB: $dbsize"
 				;;
 			esac
 		;;
@@ -892,7 +892,7 @@ _weblogin_authserver_ask()
 				*'dhcpscript')
 					if [ -e '/tmp/USERDB_COPY' ]; then
 						if [ $( _system uptime min ) -lt 10 ]; then
-							_log do $funcname daemon info "dont ask authserver '$authserver' during low uptime"
+							_log it $funcname daemon info "dont ask authserver '$authserver' during low uptime"
 							answer=
 						else
 							answer="$( _curl it "${url}?${params}" 10 )"
@@ -910,7 +910,7 @@ _weblogin_authserver_ask()
 
 	[ ${#answer} -gt 10 ] && answer="shortened: $( _sanitizer run "$answer" firstline length:30 )"
 
-	_log do $funcname daemon info "ANSWER: '$answer' (1=ok) FREE: '$FREE' URL: '${url:-locally_asked:}?${params}'"
+	_log it $funcname daemon info "ANSWER: '$answer' (1=ok) FREE: '$FREE' URL: '${url:-locally_asked:}?${params}'"
 
 	test "$answer" = '1'
 }

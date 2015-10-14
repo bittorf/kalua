@@ -41,23 +41,23 @@ func_cron_daemon_start ()
 	local funcname="cron_daemon_start"
 
 	[ -e /etc/init.d/cron ] && {					# fixme!
-		_log do $funcname daemon info "removing unneeded initfile"
+		_log it $funcname daemon info "removing unneeded initfile"
 		rm /etc/init.d/cron
 		killall crond
 	}
 
 	pidof crond >/dev/null && {
-		_log do $funcname daemon debug "already started"
+		_log it $funcname daemon debug "already started"
 		return 1
 	}
 
 	ulimit -c unlimited
 	/usr/sbin/crond -L /dev/null || {
-		_log do $funcname daemon debug "error"
+		_log it $funcname daemon debug "error"
 		return 1
 	}
 
-	_log do $funcname daemon info "[OK] started"
+	_log it $funcname daemon info "[OK] started"
 }
 
 func_cron_daemon_stop ()
@@ -65,12 +65,12 @@ func_cron_daemon_stop ()
 	local FUNC="cron_daemon_stop"
 
 	pidof crond >/dev/null && {
-		_log do $FUNC daemon info "killing"
+		_log it $FUNC daemon info "killing"
 		killall crond
 		return
 	}
 
-	_log do $FUNC daemon debug "no daemon running"
+	_log it $FUNC daemon debug "no daemon running"
 }
 
 func_cron_start ()
@@ -89,11 +89,11 @@ func_cron_status ()
 	local FUNC="cron_status"
 
 	pidof crond >/dev/null || {
-		_log do $FUNC daemon debug "daemon is NOT running"
+		_log it $FUNC daemon debug "daemon is NOT running"
 		return
 	}
 
-	_log do $FUNC daemon debug "daemon is running"
+	_log it $FUNC daemon debug "daemon is running"
 	func_cron_config_write status
 }
 
@@ -106,7 +106,7 @@ func_cron_config_write ()
 	local PROFILE="$1"
 
 	[ "$PROFILE" = "status" ] && {
-		_log do $FUNC daemon debug "status: '$CRONFILE'"
+		_log it $FUNC daemon debug "status: '$CRONFILE'"
 		cat $CRONFILE
 		return
 	}
@@ -127,7 +127,7 @@ func_cron_config_write ()
 
 	[ ! -d $CRONDIR ] && mkdir -p $CRONDIR
 
-	_log do $FUNC daemon debug "profile = $PROFILE"
+	_log it $FUNC daemon debug "profile = $PROFILE"
 
 
 	if [ "$PROFILE" = "minimal" ]; then
@@ -235,7 +235,7 @@ func_cron_config_write ()
 		}
 
 		zram_usage_detector_needed && {
-			sed -i 's|### CALL_ZRAMCHECK ###|test -e /tmp/ZRAMUSED \|\| { test $( cat /sys/block/zram0/num_writes ) -gt 1 \&\& { . /tmp/loader; _log do zram_usage_detector daemon alert "1st zram-usage: load: $LOAD up: $UP"; touch /tmp/ZRAMUSED; }; }|' "/tmp/CRON_IS_CAREFUL"
+			sed -i 's|### CALL_ZRAMCHECK ###|test -e /tmp/ZRAMUSED \|\| { test $( cat /sys/block/zram0/num_writes ) -gt 1 \&\& { . /tmp/loader; _log it zram_usage_detector daemon alert "1st zram-usage: load: $LOAD up: $UP"; touch /tmp/ZRAMUSED; }; }|' "/tmp/CRON_IS_CAREFUL"
 		}
 
 		zram_reboot_if_used_needed()
@@ -265,14 +265,14 @@ func_cron_config_write ()
 			if [ -e "$file" ]; then
 				# can hang during bootup, seen with r38993, r39139
 				# http://intercity-vpn.de/files/openwrt/ps_tasklist_r38993_hanging_cron.txt
-				_log do $funcname daemon alert "file $file still exist"
+				_log it $funcname daemon alert "file $file still exist"
 				return 1
 			else
 				if ubus call network.interface.lan status | grep -q '"address":'; then
 					touch "$file_wasok"
 					return 0
 				else
-					_log do $funcname daemon info "2nd call does not work"
+					_log it $funcname daemon info "2nd call does not work"
 					return 1
 				fi
 			fi
@@ -464,7 +464,7 @@ func_cron_config_write ()
 		fi
 
 		[ -n "$LOWMEM" ] && {
-			_log do $FUNC daemon info "lowram: be even more careful, dont work if load > 0.5"
+			_log it $FUNC daemon info "lowram: be even more careful, dont work if load > 0.5"
 
 			case "$CONFIG_PROFILE" in
 				elephant*)
@@ -489,7 +489,7 @@ func_cron_config_write ()
 	fi
 
 	while read -r LINE; do {
-		_log do $FUNC daemon debug "+ '$LINE'"
+		_log it $FUNC daemon debug "+ '$LINE'"
 	} done <$CRONFILE
 }
 

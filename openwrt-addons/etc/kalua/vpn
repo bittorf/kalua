@@ -50,16 +50,16 @@ _vpn_innercity_master_vtund()
 				if pidof vtund >/dev/null; then
 					if _net tcp_port_reachable '127.0.0.1' "$port" 'VTUN server' 2>/dev/null; then
 						# e.g. 'VTUN server ver 3.X 01/11/2015'
-						_log do $funcname daemon debug "$action: testconnection OK"
+						_log it $funcname daemon debug "$action: testconnection OK"
 					else
-						_log do $funcname daemon alert "$action: testconnection failed"
+						_log it $funcname daemon alert "$action: testconnection failed"
 						_vpn innercity_master_vtund 'restart'
 					fi
 
 					if lsof | fgrep '/dev/net/tun' | grep -q ^'olsrd'; then
 						pid_list="$( pgrep 'vpn_innercity_master_iface up' )"
 						for pid in $pid_list; do {
-							_log do $funcname daemon alert "hanging task: $pid '$( cat /proc/$pid/cmdline )'"
+							_log it $funcname daemon alert "hanging task: $pid '$( cat /proc/$pid/cmdline )'"
 							kill $pid
 						} done
 
@@ -68,7 +68,7 @@ _vpn_innercity_master_vtund()
 						true
 					fi
 				else
-					_log do $funcname daemon alert "$action: empty pid - will startup"
+					_log it $funcname daemon alert "$action: empty pid - will startup"
 					_vpn innercity_master_vtund fire
 				fi
 			else
@@ -112,11 +112,11 @@ _vpn_innercity_master_iface()
 
 		# FIXME! why does this happen?
 		if _file age "/tmp/lock-$funcname/info" -gt 600 ; then
-			_log do $funcname daemon info "overaged: force unlocking: '$reason'"
+			_log it $funcname daemon info "overaged: force unlocking: '$reason'"
 			rm -fR "/tmp/lock-$funcname"
 		else
 			[ $i -gt 5 ] && {
-				_log do $funcname daemon info "locked: $action/$dev must wait for '$reason'"
+				_log it $funcname daemon info "locked: $action/$dev must wait for '$reason'"
 			}
 			i=$(( i + 1 ))
 			sleep $i
@@ -125,7 +125,7 @@ _vpn_innercity_master_iface()
 
 	reason="action: $action dev: $dev"
 	echo "$reason" >"/tmp/lock-$funcname/info"
-	_log do $funcname daemon info "[START] action: $action dev: $dev"
+	_log it $funcname daemon info "[START] action: $action dev: $dev"
 
 	local olsrd_config='/etc/olsrd.conf'
 	local remote_nodenumber="${dev//tap/}"		# tap276 -> 276
@@ -164,7 +164,7 @@ _vpn_innercity_master_iface()
 
 		pidof olsrd >/dev/null || _olsr daemon start "$funcname() not active yet"
 
-		_log do $funcname daemon info "[READY] action: $action dev: $dev"
+		_log it $funcname daemon info "[READY] action: $action dev: $dev"
 	else
 		ip link set dev $dev down
 
@@ -189,7 +189,7 @@ _vpn_innercity_master_iface()
 		$IPT -D INPUT  -p udp --dport 698 -i $dev -j DROP
 
 		numbers="bytes/packets: $( _sanitizer run "$bytes/$packets" number_humanreadable ) = $(( bytes / uptime_sec / 1000 )) KB/s"
-		_log do $funcname daemon alert "[READY] action: $action dev: $dev $numbers uptime: $uptime"
+		_log it $funcname daemon alert "[READY] action: $action dev: $dev $numbers uptime: $uptime"
 	fi
 
 	rm -fR "/tmp/lock-$funcname"
@@ -309,7 +309,7 @@ _vpn_hideandseek_user_add()
 		ip rule add to   "$ip/$mask"                   prio "$(( user_id + 3 ))" lookup main		# internet to client
 		ip route flush cache
 
-		_log do $funcname daemon info "activated for $ip"
+		_log it $funcname daemon info "activated for $ip"
 	else
 		:
 		# delegate to master
@@ -357,7 +357,7 @@ _vpn_hideandseek_user_del()
 	ip route flush cache
 
 	rm "$markerfile"
-	_log do $funcname daemon info "deleted $ip"
+	_log it $funcname daemon info "deleted $ip"
 }
 
 _vpn_hideandseek_master_vtund_write_config()
@@ -450,10 +450,10 @@ _vpn_check_daemon()
 		restart_vtund()
 		{
 			local pids
-			_log do check_vtund daemon alert "restarting: $1"
+			_log it check_vtund daemon alert "restarting: $1"
 
 			while pids="$( pidof vtund )"; do {
-				_log do check_vtund daemon info "killing old pids: $pids"
+				_log it check_vtund daemon info "killing old pids: $pids"
 				_watch hanging_command vtund
 			} done
 
@@ -488,7 +488,7 @@ _vpn_check_daemon()
 
 		rm '/tmp/logread.out'
 	else
-		_log do check_vtund daemon alert "starting up after crash"
+		_log it check_vtund daemon alert "starting up after crash"
 
 		if [ -e '/tmp/vtund.sh' ]; then
 			. '/tmp/vtund.sh'
@@ -509,7 +509,7 @@ _vpn_x()	# FIXME! find a better name
 	esac
 
 	which vtund >/dev/null || {
-		_log do x daemon info "vtund not installed"
+		_log it x daemon info "vtund not installed"
 		return 0
 	}
 
@@ -538,7 +538,7 @@ _vpn_x()	# FIXME! find a better name
 			grep -q ^'# vtund ' "/etc/vtund.conf" && {
 				head -n1 "/etc/vtund.conf" | cut -b 2- >"/tmp/vtund.sh"
 
-				_log do check_vtund daemon info "starting up"
+				_log it check_vtund daemon info "starting up"
 				. '/tmp/vtund.sh'
 			}
 		}

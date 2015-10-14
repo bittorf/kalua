@@ -42,10 +42,10 @@ _software_make_free_space ()
 		FREE="$( _system flash_free )"
 		[ $FREE -gt $SPACE_WISH ] && break
 
-		_log do $FUNC daemon info "now $FREE kb (wish: $SPACE_WISH kb)"
+		_log it $FUNC daemon info "now $FREE kb (wish: $SPACE_WISH kb)"
 
 		_software is_essential $IPK $KEYWORD || {		# prevents chicken egg-problem
-			_log do $FUNC daemon alert "removing '$IPK'"
+			_log it $FUNC daemon alert "removing '$IPK'"
 			_software package_remove $IPK
 		}
 	} done
@@ -173,9 +173,9 @@ _software_repos_update ()	# fixme! no update during low flash?
 
 _software_repos_purge ()
 {
-	_log do purge_repos daemon debug "flash free: $( _system flash_free ) kb"
+	_log it purge_repos daemon debug "flash free: $( _system flash_free ) kb"
 	rm -f /usr/lib/*pkg/lists/*
-	_log do purge_repos daemon debug "flash free: $( _system flash_free ) kb (after purging)"
+	_log it purge_repos daemon debug "flash free: $( _system flash_free ) kb (after purging)"
 }
 
 _software_package_status()
@@ -204,7 +204,7 @@ _software_package_remove()
 	local funcname='software_package_remove'
 	local name="$1"
 
-	_log do $funcname daemon debug "'$name'"
+	_log it $funcname daemon debug "'$name'"
 	$OPKG remove "$name"
 	sync				# sometimes it needs some time to really free the jffs2-space
 
@@ -241,15 +241,15 @@ _software_install_or_deinstall_hook ()
 
 	# reboot-command is lost/deleted/bad ("$OPKG install login-utils")
 	[ ! -e /sbin/reboot ] && {
-		_log do command_reboot_faulty daemon crit "symlinking to /rom/sbin/reboot"
+		_log it command_reboot_faulty daemon crit "symlinking to /rom/sbin/reboot"
 		ln -s /rom/sbin/reboot /sbin/reboot
 	}
 
 	[ -z "$( date 2>/dev/null )" ] && {
-		_log do command_date_faulty daemon crit "symlinking to busybox"
+		_log it command_date_faulty daemon crit "symlinking to busybox"
 		rm /bin/date
 		ln -s busybox /bin/date
-		_log do command_date_faulty daemon crit "date output now: '$(date)'"
+		_log it command_date_faulty daemon crit "date output now: '$(date)'"
 	}
 }
 
@@ -350,18 +350,18 @@ _software_package_is_installed_lowlevel ()	# OUT1: 0 = not_installed , 1 = insta
 
 	_software package_is_installed "$PACKAGE" && {
 		echo -n 1
-		_log do $FUNC daemon info "'$PACKAGE' installed ok"
+		_log it $FUNC daemon info "'$PACKAGE' installed ok"
 		return 0
 	}
 
 	$OPKG list | grep -q ^"$PACKAGE " && {
 		echo -n 0
-		_log do $FUNC daemon info "'$PACKAGE' not installed, but listed in repo"
+		_log it $FUNC daemon info "'$PACKAGE' not installed, but listed in repo"
 		return 0
 	}
 
 	echo -n 2
-	_log do $FUNC daemon info "'$PACKAGE' not in repository this time"
+	_log it $FUNC daemon info "'$PACKAGE' not in repository this time"
 }
 
 _software_package_install()
@@ -372,17 +372,17 @@ _software_package_install()
 	local KEYWORD="$2"	# noautorepoupdate
 
 	bool_true 'system.@system[0].noswinstall' && {
-		_log do $FUNC daemon info "[OK] forbidden by user - see 'system.@system[0].noswinstall'"
+		_log it $FUNC daemon info "[OK] forbidden by user - see 'system.@system[0].noswinstall'"
 		return 0
 	}
 
         while true; do {
 		_net inet_seems_stable && break
-		_log do $FUNC daemon debug "no default-route found, waiting $SLEEP seconds"
+		_log it $FUNC daemon debug "no default-route found, waiting $SLEEP seconds"
 		sleep $SLEEP
 	} done
 
-	_log do $FUNC daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
+	_log it $FUNC daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
 	[ -z "$KEYWORD" ] && _software repos_update
 
 	if [ -e '/bin/opkg' ]; then
@@ -404,7 +404,7 @@ _software_package_install()
 	fi
 
 	if do_install ; then
-		_log do "$FUNC" daemon info "'$PACKAGE' install seems fine (free space: $( _system flash_free ) Kilobyte)"
+		_log it "$FUNC" daemon info "'$PACKAGE' install seems fine (free space: $( _system flash_free ) Kilobyte)"
 
 		case "$PACKAGE" in			# fixme! move these into hook()
 			loginutils)
@@ -443,7 +443,7 @@ _software_package_install()
 		_software install_or_deinstall_hook $PACKAGE
 		return 0
 	else
-		_log do $FUNC daemon info "'$PACKAGE' install failed (free space: $( _system flash_free ) Kilobyte)"
+		_log it $FUNC daemon info "'$PACKAGE' install failed (free space: $( _system flash_free ) Kilobyte)"
 		return 1
 
 		# fixme! do cleanup, e.g. remove '/tmp/mydesign_0.2_29132.ipk'
@@ -470,11 +470,11 @@ _software_opkg_raminstaller()
 			;;
 		esac
 
-		_log do $funcname daemon info "fetching filename from $url"
+		_log it $funcname daemon info "fetching filename from $url"
 		local file="$( wget -O - "$url" | fgrep 'opkg_' | cut -d'"' -f2 )"
 
 		url="$url/$file"
-		_log do $funcname daemon info "fetching package from '$url'"
+		_log it $funcname daemon info "fetching package from '$url'"
 
 		(
 			cd /tmp || return
@@ -492,7 +492,7 @@ _software_opkg_raminstaller()
 		{
 			echo '#!/bin/sh'
 			echo '. /tmp/loader'
-			echo "_log do $funcname daemon info 'please check binary from $url'"
+			echo "_log it $funcname daemon info 'please check binary from $url'"
 			echo 'true'
 		} >"$fake"
 
