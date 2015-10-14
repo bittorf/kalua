@@ -51,7 +51,7 @@ remote_hops()
 {
 	local remote_nodenumber remote_lanadr
 
-	remote_nodenumber="$( _ipsystem do "$REMOTE_ADDR" )"
+	remote_nodenumber="$( _ipsystem get "$REMOTE_ADDR" )"
 	remote_lanadr="$( _ipsystem getvar 'LANADR' $remote_nodenumber )"
 
 	_olsr remoteip2metric "$remote_lanadr" || echo '?'

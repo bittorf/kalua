@@ -3000,12 +3000,11 @@ unittest_do()
 #						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
 
 						# SC1010
-						for pattern in log ipsystem; do {
+						for pattern in log; do {
 							sed -i "s/_$pattern do /_$pattern it /g" "$tempfile"
 							sed -i "s/_${pattern}_do/_${pattern}_it/g" "$tempfile"
 						} done
 						# _log it
-						# _ipsystem query
 
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in

@@ -4,7 +4,7 @@
 # e.g. REMOTE_ADDR=10.10.147.1 -> node=147 (or empty)
 # Q: is $REMOTE_ADDR any of node-147 LAN/WAN/WIFI-address?
 
-if _ipsystem do "$( _ipsystem do "$REMOTE_ADDR" )" | grep "[N|I]ADR=" | grep -q "=$REMOTE_ADDR"$ ; then
+if _ipsystem get "$( _ipsystem get "$REMOTE_ADDR" )" | grep "[N|I]ADR=" | grep -q "=$REMOTE_ADDR"$ ; then
 	:
 	# ok, remote is a real OLSR/Mid
 else

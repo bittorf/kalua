@@ -135,7 +135,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 				if test "$JSON_VAR_result_number" -gt 1 -a "$JSON_VAR_result_number" != "$NODENUMBER" 2>/dev/null; then
 					_log do registrator daemon alert "[OK] new nodenumber: '$JSON_VAR_result_number'"
 					# check with `_ipsystem` if it is a *valid* NODENUMBER
-					if _ipsystem do "$JSON_VAR_result_number" >/dev/null ; then
+					if _ipsystem get "$JSON_VAR_result_number" >/dev/null ; then
 						# TODO: does one of these already save the number to uci ???
 						NETWORK="$( echo "$CONFIG_PROFILE" | cut -d'_' -f1 )"
 						MODE="$( echo "$CONFIG_PROFILE" | cut -d'_' -f2 )"
