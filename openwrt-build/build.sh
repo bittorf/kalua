@@ -2873,7 +2873,7 @@ travis_prepare()
 unittest_do()
 {
 	local funcname='unittest_do'
-	local shellcheck_bin build_loader ignore file tempfile filelist
+	local shellcheck_bin build_loader ignore file tempfile filelist pattern
 	local good='true'
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
@@ -2933,14 +2933,14 @@ unittest_do()
 		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
 
 		log '_weblogin htmlout_loginpage'	# omit 2 lines header:
-		_weblogin htmlout_loginpage '' '' '' '' "http://198.23.155.210" '(cache)' | tail -n+3 >"$tempfile"
+		_weblogin htmlout_loginpage '' '' '' '' "http://$( _net get_external_ip )" '(cache)' | tail -n+3 >"$tempfile"
 		check_scripts "$tempfile" || return 1
 
 		if [ -z "$shellcheck_bin" ]; then
 			log "[OK] shellcheck not installed - no deeper tests"
 		else
 			$shellcheck_bin --version
-			# SC1010: "_log do ...' -> 'do' is a special keyword
+# WIP			# SC1010: "_log do ...' -> 'do' is a special keyword
 			# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
 			# SC1090: Can't follow non-constant source. Use a directive to specify location.
 			#
@@ -2961,7 +2961,7 @@ unittest_do()
 
 			shellsheck_ignore()
 			{
-				printf 'SC1010,SC1090,SC1091,'
+				printf 'SC1090,SC1091,'
 				printf 'SC2016,SC2029,SC2031,SC2039,SC2046,SC2086,SC2155,SC2166'
 			}
 
@@ -2998,6 +2998,12 @@ unittest_do()
 #						sed -i 's/echo -n /printf /g' "$tempfile"
 #						sed -i 's/echo -en /printf /g' "$tempfile"
 #						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
+
+						# SC1010
+						for pattern in log wget translate sanitizer ipsystem speedtest random_username; do {
+							sed -i "s/_$pattern do /_$pattern it /g" "$tempfile"
+							sed -i "s/_${pattern}_do/_${pattern}_it/g" "$tempfile"
+						} done
 
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in
