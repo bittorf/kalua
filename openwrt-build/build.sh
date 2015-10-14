@@ -1615,7 +1615,7 @@ apply_patches()
 	# FIXME! unison
 	list_files_and_dirs | grep -v 'unison' | while read -r file; do {
 		if [ -d "$file" ]; then
-			log "dir: $file"
+			log "dir: $file" debug
 			register_patch "DIR: $file"
 		else
 			if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
@@ -1649,7 +1649,7 @@ apply_patches()
 					# sed '1{s/^/From: name@domain.com (Proper Name)\n/}'
 
 					if git am --signoff <"$file"; then
-						log "[OK] patched ontop OpenWrt: '$file'"
+						log "[OK] patched ontop OpenWrt: '$file'" debug
 						register_patch "$file"
 					else
 						git am --abort
@@ -3006,7 +3006,7 @@ unittest_do()
 							sed -i "s/_${pattern}_do/_${pattern}_it/g" "$tempfile"
 						} done
 						# _log it
-						# _wget run
+						# _wget do -> _curl it
 						# _sanitizer run
 						# _ipsystem query
 
