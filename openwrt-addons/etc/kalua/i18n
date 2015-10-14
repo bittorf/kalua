@@ -1,6 +1,6 @@
 #!/bin/sh
 
-_translate_sanitize_userwish()
+_i18n_sanitize_userwish()
 {
 	local accept="$1"	# e.g. 'za;de-CH;q=0.843,de-DE,de;q=0.8,en-US;q=0.6,en;q=0.4,ru;q=0.39'
 	local obj lang val
@@ -54,28 +54,28 @@ _translate_sanitize_userwish()
 	} done
 }
 
-_translate_default_lang()
+_i18n_default_lang()
 {
 	local default_fallback="$( uci -q get system.@weblogin[0].defaultlang )"
 
 	echo "${default_fallback:-de}"
 }
 
-_translate_effective_lang()
+_i18n_effective_lang()
 {
 	local accept="${1:-$HTTP_ACCEPT_LANGUAGE}"	# e.g. en-ca,en;q=0.8,en-us;q=0.6,de-de;q=0.4,de;q=0.2
 	local cachefile='/tmp/accept_lang_cache'	#      za;de-CH;q=0.843,de-DE,de;q=0.8,en-US;q=0.6,en;q=0.4,ru;q=0.39
 	local line default_fallback
 
 	[ -z "$accept" ] && {
-		_translate default_lang
+		_i18n default_lang
 		return 0
 	}
 
 	if line="$( grep -s " $accept"$ "$cachefile" )"; then
 		echo ${line% *}
 	else
-		_translate sanitize_userwish "$accept" | sort -nr | while read -r lang; do {
+		_i18n sanitize_userwish "$accept" | sort -nr | while read -r lang; do {
 			set -- $lang
 
 			case "$2" in
@@ -90,7 +90,7 @@ _translate_effective_lang()
 		if line="$( grep -s " $accept"$ "$cachefile" )"; then
 			echo ${line% *}
 		else
-			default_fallback="$( _translate default_lang )"
+			default_fallback="$( _i18n default_lang )"
 
 			echo "$default_fallback $accept" >>"$cachefile"
 			echo "$default_fallback"
@@ -98,7 +98,7 @@ _translate_effective_lang()
 	fi
 }
 
-_translate_lang()
+_i18n_lang()
 {
 	local lang="$1"		# ISO 639-1
 				# FIXME! we need a way to transport/know, if lang = left2right or right2left
@@ -107,15 +107,15 @@ _translate_lang()
 			echo "$lang"
 		;;
 		*)
-			_translate effective_lang
+			_i18n effective_lang
 		;;
 	esac
 }
 
-_translate_do()				# TODO: chinese-simplified/arabic/hebrew (right2left)
+_i18n_get()				# TODO: chinese-simplified/arabic/hebrew (right2left)
 {					#       espaniol/vietnam/hindu
 					#       tuerkisch/italienisch/esperanto/klingon
-	local LANG="$( _translate lang "$1" )"		# fixme! do it without fork? (use returncode as lang)
+	local LANG="$( _i18n lang "$1" )"		# fixme! do it without fork? (use returncode as lang)
 	local KEYWORD="${2:-empty}"
 	local context="$3"				# html|filename (weblogin?|admin-panel?)
 	local o="element_${KEYWORD}_is_unset"
@@ -898,7 +898,7 @@ _translate_do()				# TODO: chinese-simplified/arabic/hebrew (right2left)
 
 	case "$context" in
 		filename|html)
-			_sanitizer do "$( _translate html2plain "$o" )" alphanum
+			_sanitizer do "$( _i18n html2plain "$o" )" alphanum
 		;;
 		*)
 			echo -n "$o"
@@ -906,7 +906,7 @@ _translate_do()				# TODO: chinese-simplified/arabic/hebrew (right2left)
 	esac
 }
 
-_translate_html2plain()
+_i18n_html2plain()
 {
 	local in="$1"
 

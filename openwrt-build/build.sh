@@ -3001,13 +3001,12 @@ unittest_do()
 #						sed -i '2 i\export HOSTNAME=dummy' "$tempfile"
 
 						# SC1010
-						for pattern in log wget translate sanitizer ipsystem; do {
+						for pattern in log wget sanitizer ipsystem; do {
 							sed -i "s/_$pattern do /_$pattern it /g" "$tempfile"
 							sed -i "s/_${pattern}_do/_${pattern}_it/g" "$tempfile"
 						} done
 						# _log it
 						# _wget run
-						# _translate it
 						# _sanitizer run
 						# _ipsystem query
 
