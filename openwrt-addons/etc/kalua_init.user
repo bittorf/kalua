@@ -126,15 +126,22 @@ EOF
 fi
 
 
-set -- $( grep ' tmpfs ' '/proc/mounts' | grep -v 'mode=' | grep -v 'noexec' | head -n1 )
-TMPDIR="$2/kalua"
-mkdir "$TMPDIR" || {
-	# needs root
-	TMPDIR='/kalua'
-	mount -t tmpfs -o size=5000k,nosuid,nodev tmpfs "$TMPDIR" || TMPDIR='/tmp'
-}
-logger -s "$0: [OK] please use \$TMPDIR which now points to '$TMPDIR'"
-chmod -R 777 "$TMPDIR" 2>/dev/null
+while read -r LINE; do {
+	# none /run/user tmpfs rw,nosuid,nodev,noexec,relatime,size=102400k,mode=755 0 0
+	case "$LINE" in
+		*' tmpfs rw,'*)
+			set -- $LINE
+			mkdir -p "$2/kalua" 2>/dev/null && {
+				# noexec does not matter, we only 'source' shellscripts
+				TMPDIR="$2/kalua"
+				break
+			}
+		;;
+	esac
+} done <'/proc/mounts'
+
+logger -s "$0: [OK] please use \$TMPDIR which now points to '${TMPDIR:=/tmp}'"
+chmod -R 777 "$TMPDIR"
 
 
 [ -e '/etc/profile' ] && {
