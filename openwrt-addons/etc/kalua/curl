@@ -1,27 +1,29 @@
 #!/bin/sh
 
-# this is a wrapper for 'wget', which works around a bug/behaviour
+# this is a wrapper for 'wget/curl', which works around a bug/behaviour
 # which can lead to a hanging-daemon which will 'never' exit.
 # ask the net for all sorts of strange corner cases.
 #
-# here we simply start 'wget' in background, wait some
-# seconds (default: 15) and kill it (hard) if it's still there.
+# here we simply start 'wget' in background, wait some seconds (default: 15)
+# and kill it (hard) if it's still there with the same PID
 
 _curl_it()
 {
 	local funcname='curl_it'
 	local url="$1"
-	local max="${2:-15}"	# maximal running time in seconds, defaults to 15sec
-	local option="$3"	# e.g. "noproxy" or "continue $filename" or combined: "noproxy,continue $filename"
+	local max="${2:-15}"	# maximal running time [sec]
+	local option="$3"	# e.g. 'noproxy' or "continue $filename" or combined: "noproxy,continue $filename"
 	local mask1="$3"
 	local mask2="$4"	# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
 	local mypid=$$
 	local http_proxy remaining_wgets pid_wget pid_line pid_line_now c=-1 rc=0
-	local proxy_command file_option filename pid_background myerror
+	local proxy_command file_option filename pid_background myerror destination
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
 
 	case "$url" in
 		'http://'*|'https://'*|'ftp://'*)
+			# http://user:pass@bla.com:1234/my/file -> bla.com:1234
+			destination="$( echo "$url" | cut -d'/' -f3 | cut -d'@' -f2 )"
 		;;
 		*)
 			_log it $funcname daemon info "invalid url: '$url'"
@@ -29,12 +31,14 @@ _curl_it()
 		;;
 	esac
 
-	case "$url" in
-		*'localhost'*|*'127.0.0.1'*|*:[0-9]*)	# no PROXY for local URLs or URLs with special ports
-		;;					# FIXME! be more correct: 127.0.0.0/8 + ipv6 or set env $no_proxy
+	case "$destination" in
+		'localhost'|'127.'*|*:[0-9]*|'fe80::'*|$LANADR|$WANADR|$WIFIADR)
+			# no PROXY for local URLs or URLs with special ports
+			# FIXME! set env $no_proxy?
+		;;
 		*)
 			[ -n "$http_proxy" -a -z "$option" ] && {
-				_log it $funcname daemon debug "using proxy from env $http_proxy"
+				_log it $funcname daemon debug "using proxy from env '$http_proxy'"
 				proxy_command='-Y on'
 			}
 		;;
