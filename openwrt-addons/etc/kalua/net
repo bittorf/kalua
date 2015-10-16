@@ -1241,22 +1241,30 @@ _net_dev2name()
 	fi
 }
 
-_net_dev2ip()		# only first ip
+_net_dev2ip()			# only first ip
 {
 	local funcname='net_dev2ip'
 	local dev="$1"
-	local option="$2"	# "ip"|"mask"|"debug"
-	local type="$3"		# "cidr"
+	local option="$2"	# 'ip'|'mask'|'debug'|'ip_but_noloopback'
+	local mode="$3"		# 'CIDR'
 
 	local line ip_with_mask key
 
 	[ -z "$dev" ] && return 1
-	line="$( ip -oneline -f inet address show dev "$dev" )"
+
+	case "$option" in
+		'ip_but_noloopback')
+			line="$( ip -oneline -f inet address show dev "$dev" | grep -v 'inet 127\.' )"
+		;;
+		*)
+			line="$( ip -oneline -f inet address show dev "$dev" )"
+		;;
+	esac
 
 	set -- ${line:-is_empty}
 
 	case "$3" in
-		inet)
+		'inet')
 			key="$5"
 
 			case "$key" in
@@ -1290,9 +1298,9 @@ _net_dev2ip()		# only first ip
 	esac
 
 	case "$option" in
-		mask)
-			case "$type" in
-				cidr)
+		'mask')
+			case "$mode" in
+				'CIDR')
 					echo "${ip_with_mask%/*}"
 				;;
 				*)
@@ -1301,7 +1309,14 @@ _net_dev2ip()		# only first ip
 			esac
 		;;
 		*)
-			echo "${ip_with_mask%/*}"
+			case "$mode" in
+				'CIDR')
+					_net cidr2mask "${ip_with_mask#*/}"
+				;;
+				*)
+					echo "${ip_with_mask%/*}"
+				;;
+			esac
 		;;
 	esac
 }

@@ -3,7 +3,7 @@
 
 netparam_for_uci_devices()
 {
-	local NAME IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX
+	local NAME IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX line
 
 	for DEVICE in loopback wlan lan wan ; do {
 		case "$DEVICE" in
@@ -65,6 +65,25 @@ netparam_for_uci_devices()
 					IFNAME=; ADDRESS=; NETMASK=
 				}
 			;;
+			lan)
+				test -n "$ADDRESS" || {
+					# e.g. vpn-server
+					get_first_non_loopback_ifname()
+					{
+						ip --oneline link show | while read line; do {
+							set -- $line
+							[ "$2" = 'lo:' ] || {
+								echo $2
+								return
+							}
+						} done
+					}
+
+					IFNAME="$( get_first_non_loopback_ifname )"
+					ADDRESS="$( _net dev2ip "$IFNAME" 'ip_but_noloopback' )"
+					NETMASK="$( _net dev2ip "$IFNAME" 'ip_but_noloopback' 'CIDR' )"
+				}
+			;;
 		esac
 
 		echo "${NAME}DEV=$( _sanitizer run "$IFNAME" firstword )"
@@ -72,7 +91,7 @@ netparam_for_uci_devices()
 		echo "${NAME}MSK=$NETMASK"
 
 		BROADCAST=;NETWORK=;PREFIX=
-		[ -n "$ADDRESS" -a -n "$NETMASK" ] && eval $( ipcalc.sh "$ADDRESS" "$NETMASK" )
+		[ -n "$ADDRESS" -a -n "$NETMASK" -a -e '/bin/ipcalc.sh' ] && eval $( ipcalc.sh "$ADDRESS" "$NETMASK" )
 
 		echo "${NAME}BRC=$BROADCAST"
 		echo "${NAME}NET=$NETWORK"
