@@ -16,6 +16,8 @@ _curl_it()
 	local mask1="$3"
 	local mask2="$4"	# strings (e.g. passwords) from URL, which should be masked during logging, when prio is > debug
 	local mypid=$$
+	local errorfile="$TMPDIR/${funcname}_$mypid.error"
+	local rc_file="$TMPDIR/${funcname}_$mypid.rc"
 	local http_proxy remaining_wgets pid_wget pid_line pid_line_now c=-1 rc=0
 	local proxy_command file_option filename pid_background myerror destination
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
@@ -61,9 +63,9 @@ _curl_it()
 	list_wget_pids_initial="$( pidof wget )"
 
 	# autocleanup tempfiles. trapping 'RETURN' is not possible in POSIX
-	trap 'rm /tmp/${funcname}_$mypid /tmp/${funcname}_$mypid.error 2>/dev/null' EXIT
+	trap 'rm $rc_file $errorfile 2>/dev/null' EXIT
 
-	( wget $proxy_command -qO $filename $file_option "$url" 2>"/tmp/${funcname}_$mypid.error" || echo "$?" >"/tmp/${funcname}_$mypid" ) &
+	( wget $proxy_command -qO $filename $file_option "$url" 2>"$errorfile" || echo "$?" >"$rc_file" ) &
 	pid_background=$!
 	list_wget_pids_after_launch="$( pidof wget )" || list_wget_pids_after_launch=$(( pid_background + 2 ))
 	# FIXME! sometimes pidof fails, but in fact _thereis_ a wget - fix the >65536 case!
@@ -84,8 +86,8 @@ _curl_it()
 		break
 	} done
 
-	read -r myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
-		rm "/tmp/${funcname}_$mypid.error"
+	if read -r myerror 2>/dev/null <"$errorfile"; then
+		rm "$errorfile"
 
 		if [ ${#myerror} -eq 0 ]; then
 			_log it $funcname daemon debug '[OK] no error message'
@@ -101,7 +103,9 @@ _curl_it()
 				;;
 			esac
 		fi
-	}
+	else
+		rm "$errorfile" 2>/dev/null
+	fi
 
 	case "${pid_wget:-unset}" in
 		'unset')
@@ -162,8 +166,8 @@ _curl_it()
 	} done
 
 	# FIXME! code duplication, see above
-	read -r myerror 2>/dev/null <"/tmp/${funcname}_$mypid.error" && {
-		rm "/tmp/${funcname}_$mypid.error"
+	if read -r myerror 2>/dev/null <"$errorfile"; then
+		rm "$errorfile"
 
 		if [ ${#myerror} -eq 0 ]; then
 			_log it $funcname daemon debug '[OK] no error message'
@@ -179,12 +183,14 @@ _curl_it()
 				;;
 			esac
 		fi
-	}
+	else
+		rm "$errorfile" 2>/dev/null
+	fi
 
-	read -r rc 2>/dev/null <"/tmp/${funcname}_$mypid" && {
-		rm "/tmp/${funcname}_$mypid"
+	read -r rc 2>/dev/null <"$rc_file" && {
 		_log it $funcname daemon info "[ERR] returning $rc after fetching '$url'"
 	}
+	rm "$rc_file" 2>/dev/null
 
 	return $rc
 }
