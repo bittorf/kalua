@@ -2213,6 +2213,11 @@ build_options_set()
 					return 1
 				fi
 			;;
+			'uQMI')
+				# http://wiki.openwrt.org/doc/recipes/ltedongle
+				apply_symbol 'CONFIG_PACKAGE_uqmi=y'
+				$funcname subcall 'USBserial'
+			;;
 			'OWM')
 				# http://openwifimap.net
 				apply_symbol 'CONFIG_PACKAGE_luci-app-owm=y'
@@ -2731,7 +2736,8 @@ check_scripts()
 	local tempfile='/tmp/check_scripts'
 	local tempfile_functions="$tempfile.functions"
 	local good='true'
-	local file mimetype i
+	local i=0
+	local file mimetype
 
 	find "$dir" -type f -not -iwholename '*.git*' >"$tempfile"
 
@@ -2821,7 +2827,7 @@ check_scripts()
 	} done <"$tempfile"
 
 	if [ "$good" = 'true' ]; then
-		log "[OK] checked ${i:=0} files with $( wc -l 2>/dev/null <"$tempfile_functions" || echo '0' ) shell-functions"
+		log "[OK] checked ${i:=0} shellfiles with $( wc -l 2>/dev/null <"$tempfile_functions" || echo '0' ) shell-functions"
 	else
 		i=-1
 	fi
