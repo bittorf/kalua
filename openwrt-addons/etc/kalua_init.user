@@ -125,25 +125,6 @@ ip() {
 EOF
 fi
 
-
-while read -r LINE; do {
-	# none /run/user tmpfs rw,nosuid,nodev,noexec,relatime,size=102400k,mode=755 0 0
-	case "$LINE" in
-		*' tmpfs rw,'*)
-			set -- $LINE
-			mkdir -p "$2/kalua" 2>/dev/null && {
-				# noexec does not matter, we only 'source' shellscripts
-				TMPDIR="$2/kalua"
-				break
-			}
-		;;
-	esac
-} done <'/proc/mounts'
-
-logger -s "$0: [OK] please use \$TMPDIR which now points to '${TMPDIR:=/tmp}'"
-chmod -R 777 "$TMPDIR"
-
-
 [ -e '/etc/profile' ] && {
 	# avoid sourcing old loader via /etc/profile
 	LODEV=lo . '/etc/profile' 2>/dev/null >/dev/null
@@ -289,7 +270,7 @@ fi
 echo "TC=$( which tc || echo 'false' )"		# TODO: wrapper function
 
 if [ -e "$LOADER_FINAL" ]; then
-	FILE_NETPARAM='/tmp/NETPARAM'
+	FILE_NETPARAM="$TMPDIR/NETPARAM"
 else
 	FILE_NETPARAM='/www/NETPARAM'
 fi
@@ -306,8 +287,8 @@ if [ -e "$FILE_NETPARAM" ]; then		# FIXME! better concept needed
 
 	. "$FILE_NETPARAM"
 
-	printf '%s' "$WIFIDEV" >'/tmp/WIFIDEV'	# is a hack for fast seeking our dev/ip
-	printf '%s' "$WIFIADR" >'/tmp/WIFIADR'
+	printf '%s' "$WIFIDEV" >"$TMPDIR/WIFIDEV"	# is a hack for fast seeking our dev/ip
+	printf '%s' "$WIFIADR" >"$TMPDIR/WIFIADR"
 else
         logger -s "$0: [OK] could not use '$FILE_NETPARAM' - maybe later"
 fi
