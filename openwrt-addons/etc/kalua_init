@@ -14,11 +14,11 @@ DEBUG="$1"			# keyword 'debug' or <empty>
 
 while read -r LINE; do {
 	# none /run/user tmpfs rw,nosuid,nodev,noexec,relatime,size=102400k,mode=755 0 0
+	#                                      ^^^^^^ does not matter, we only 'source' shellscripts
 	case "$LINE" in
 		*' tmpfs rw,'*)
 			set -- $LINE
 			mkdir -p "$2/kalua" 2>/dev/null && {
-				# noexec does not matter, we only 'source' shellscripts
 				TMPDIR="$2/kalua"
 				break
 			}
@@ -31,8 +31,7 @@ chmod -R 777 "$TMPDIR"
 BASEDIR="$( dirname $0 )/kalua"	# e.g. /etc/kalua_init -> /etc | scriptbase, simply throw your 'class'-files here e.g. wifi
 POOLDIR="$TMPDIR/kalua_pool"
 LOADER="$TMPDIR/loader_$$"
-LOADER_FINAL="$TMPDIR/loader"
-ln -s "$LOADER_FINAL" '/tmp/loader'	# scripts can source this file and automatically use all 'classes'
+LOADER_FINAL="$TMPDIR/loader"		# later '/tmp/loader' is symlinked to it
 mkdir -p "$POOLDIR"
 
 # LOWMEM: directly call copy on disc
@@ -112,6 +111,8 @@ EOF
 
 [ -e "$0.user" ] && . "$0.user" >>"$LOADER"
 mv "$LOADER" "$LOADER_FINAL" && . "$LOADER_FINAL"
+[ -e '/tmp/loader' ] && rm '/tmp/loader'
+ln -s "$LOADER_FINAL" '/tmp/loader'
 
 logger -s "$0: [OK] done '$LOADER_FINAL' with files in $POOLDIR"
 logger -s "$0: [OK] you MUST reload with 'LODEV= . $LOADER_FINAL' if this is an interactive shell"
