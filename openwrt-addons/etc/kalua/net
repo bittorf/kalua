@@ -436,20 +436,33 @@ _net_count_wired()
 _net_my_isp()
 {
 	local option="$1"
-	local cachefile='/tmp/myisp'
-	local isp fresh
+	local cachefile="$TMPDIR/myisp"
+	local isp fresh method
 
 	[ "$option" = 'cached' ] || fresh='true'
 	[ -e "$cachefile" ] || fresh='true'
 
 	[ "$fresh" = 'true' ] && {
-		_curl it 'http://www.whoismyisp.org/' | sed -n "/ (ISP) is /s/^.*'\(.*\)'.*/\1/p" >"$cachefile"
+		m1()
+		{
+			_curl it 'http://www.spyber.com' | fgrep 'My Host :' | cut -d'<' -f1
+		}
+
+		m2()
+		{
+			_curl it 'http://www.whoismyisp.org' | sed -n "/ (ISP) is /s/^.*'\(.*\)'.*/\1/p"
+		}
+
+		for method in m1 m2; do {
+			isp="$( $method )"
+			[ -n "$isp" ] && {
+				echo "$isp" >"$cachefile"
+				break
+			}
+		} done
 	}
 
-	read -r isp <"$cachefile"
-	[ -z "$isp" ] && rm "$cachefile"
-
-	echo "$isp"
+	read -r isp 2>/dev/null <"$cachefile" && echo "$isp"
 }
 
 _net_fulltrace()

@@ -2917,6 +2917,9 @@ unittest_do()
 		log '_net get_external_ip'
 		_net get_external_ip
 
+		log '_net my_isp'
+		_net my_isp
+
 		log "list=\"\$( ls -1R . )\""
 		local list="$( ls -1R . )"
 
