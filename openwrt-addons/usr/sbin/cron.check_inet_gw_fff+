@@ -72,8 +72,16 @@ while read -r LINE; do {
 rm "$FILE_OLSR_ROUTES"
 
 [ -z "$OUT" ] && {
-	# gatewayip from routing table  // fixme! 'default dev tun0  scope link' -> no ip!
-	GW="$( _sanitizer run "$( grep ^default /tmp/OLSR/ROUTING_TABLE_MAIN | head -n1 )" ip4 )"
+	# default dev venet0  scope link
+	# default via 217.0.116.253 dev pppoe-wan  proto static
+	GW="$( grep ^'default' '/tmp/OLSR/ROUTING_TABLE_MAIN' | head -n1 )"
+	set -- $GW
+
+	if _net dev_is_valid "$3"; then
+		GW="$( _net dev2ip "$3" 'ip_but_noloopback' )"
+	else
+		GW="$( _sanitizer run "$GW" 'ip4' )"
+	fi
 
 	if   fgrep -sq "$GW;" /tmp/CLIENTS_LAN /tmp/CLIENTS_WAN ; then
 		# metric = 0 ! (is in own subnet, without a router intermediate - so we take wifiadress
