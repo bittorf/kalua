@@ -2904,7 +2904,7 @@ unittest_do()
 
 		log 'build initial NETPARAM'
 		openwrt-addons/etc/init.d/S41build_static_netparam call
-		cat '/tmp/NETPARAM' || touch '/tmp/NETPARAM'
+		cat "$TMPDIR/NETPARAM" || touch "$TMPDIR/NETPARAM"
 
 		log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + cpu + diskspace"
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
@@ -3061,7 +3061,7 @@ unittest_do()
 		fi
 
 		log 'cleanup'
-		rm -fR /tmp/loader /tmp/kalua /tmp/NETPARAM
+		rm -fR /tmp/loader /tmp/kalua "$TMPDIR/NETPARAM"
 
 		log '[READY]'
 	}

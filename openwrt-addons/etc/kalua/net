@@ -1573,7 +1573,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 	local option="$1"		# update_cache|cached|<testline> e.g. 'default via 192.168.1.1 dev vlan1'
 
 	local cachefile="/tmp/$funcname-cache"
-	local MODE="false"		# RC: true = inetoffer, false = no inetoffer
+	local MODE='false'		# RC: true = inetoffer, false = no inetoffer
 	local PHYDEV=0 METRIC=0 D=0 N=0 wan_proto cache
 
 	case "$option" in
@@ -1606,7 +1606,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 		return 0
 	}
 
-	[ -e '/tmp/NETPARAM' ] || {
+	[ -e "$TMPDIR/NETPARAM" ] || {
 		local WAN_GATEWAY="$( uci get network.wan.gateway )"
 		[ -n "$WAN_GATEWAY" ] && {
 			if [ "$WAN_GATEWAY" = "0.0.0.0" ]; then
@@ -1742,7 +1742,7 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 	local funcname='net_inet_seems_stable'			# FIXME! use dnsfaker if unstable/unfake if stable
 	local max_cost="$( uci -q get system.@monitoring[0].maxcost )"
 	local file_broken="/tmp/$funcname"
-	local routing_proto
+	local routing_proto cost_integer
 	local proto_uptime_ok="true"
 
 	max_cost="${max_cost:-50000}"		# FIXME! correct would be to only take the weakest hop into account
@@ -1844,15 +1844,15 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 	}
 
 	[ -e "$FILE" -a "$proto_uptime_ok" = 'true' ] && {
-		read -r COST_INT <$FILE
+		read -r cost_integer <"$FILE"
 
-		test "$COST_INT" -gt $max_cost 2>/dev/null && {
-			_log it $funcname daemon alert "unstable inet1, cost_int: '$COST_INT' > $max_cost"
+		test "$cost_integer" -gt $max_cost 2>/dev/null && {
+			_log it $funcname daemon alert "unstable inet1, cost_int: '$cost_integer' > $max_cost"
 			return 1
 		}
 
-		[ "$COST_INT" = "0" ] && {
-			_log it $funcname daemon alert "unstable inet2, cost_int: '$COST_INT'"
+		[ "$cost_integer" = "0" ] && {
+			_log it $funcname daemon alert "unstable inet2, cost_int: '$cost_integer'"
 			return 1
 		}
 	}
