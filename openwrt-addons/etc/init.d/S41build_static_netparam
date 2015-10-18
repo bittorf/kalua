@@ -143,7 +143,7 @@ netparam_for_uci_devices()
 _build()
 {
 	local FUNC="build"
-	local FILE="/tmp/NETPARAM"
+	local FILE="$TMPDIR/NETPARAM"
 
 	_log it $FUNC daemon debug "building '$FILE' for an uci-device"
 	netparam_for_uci_devices >$FILE
@@ -151,26 +151,26 @@ _build()
 
 if [ $( _system uptime sec ) -lt 60 -a $OPENWRT_REV -gt 0 ]; then
 	if [ -e "/www/NETPARAM" ]; then
-		cp "/www/NETPARAM" "/tmp/NETPARAM"
+		cp "/www/NETPARAM" "$TMPDIR/NETPARAM"
 	else
 		sleep 30		# FIXME! 'ifstatus wlanadhoc' empty, needs about 18 sec till OK on 1043ND
 	fi
 else
-	HASH_OLD="$( _file hash '/tmp/NETPARAM' )"
+	HASH_OLD="$( _file hash "$TMPDIR/NETPARAM" )"
 	_build
 
 	if [ -e '/www/NETPARAM' ]; then
-		. '/tmp/NETPARAM'
+		. "$TMPDIR/NETPARAM"
 
 		needs_newer_copy()
 		{
-			test "$( grep -s 'DEV=' /www/NETPARAM )" != "$( grep -s 'DEV=' /tmp/NETPARAM )"
+			test "$( grep -s 'DEV=' /www/NETPARAM )" != "$( grep -s 'DEV=' "$TMPDIR/NETPARAM" )"
 		}
 
 		needs_newer_copy && {
 			if [ -d '/www' ]; then
 				_log it earlyboot_netparam daemon alert 'changed values - updating /www/NETPARAM'
-				cp '/tmp/NETPARAM' '/www/NETPARAM'
+				cp "$TMPDIR/NETPARAM" '/www/NETPARAM'
 			else
 				_log it earlyboot_netparam daemon info 'changed values: cannot write to /www'
 			fi
@@ -178,14 +178,14 @@ else
 	else
 		if [ -d '/www' ]; then
 			_log it earlyboot_netparam daemon alert "store initial version: WIFIDEV='$WIFIDEV'"
-			cp '/tmp/NETPARAM' '/www/NETPARAM'
+			cp "$TMPDIR/NETPARAM" '/www/NETPARAM'
 		else
 			_log it earlyboot_netparam daemon info 'write initial version: cannot write to /www'
 		fi
 	fi
 fi
 
-HASH_NEW="$( _file hash /tmp/NETPARAM )"
+HASH_NEW="$( _file hash "$TMPDIR/NETPARAM" )"
 [ "$HASH_OLD" = "$HASH_NEW" ] || {
 	/etc/kalua_init			# this includes a static version of NETPARAM
 }
