@@ -202,6 +202,15 @@ _scheduler_run()
 
 				# FIXME! how can it happen that we have invalid lines, e.g:
 				# _db user device add '83
+				case "$strong_debug" in
+					'true')
+						echo "$line" >"$logfile.debug"
+						sh -n "$logfile.debug" || {
+							_log it $funcname daemon alert "bad line: $line"
+							line='true'
+						}
+					;;
+				esac
 
 				echo "$line" >>"$logfile"
 				_scheduler wait_till_cpuload_is_low "$line"
@@ -216,13 +225,16 @@ _scheduler_run()
 					;;
 					*)
 						# TODO: if '$line' leads to a 'Segmentation fault' this breaks here
-						if [ -n "$strong_debug" ]; then
-							set -x
-							$line 2>"$logfile.debug"
-							set +x
-						else
-							$line
-						fi
+						case "$strong_debug" in
+							'true')
+								set -x
+								$line 2>>"$logfile.debug"
+								set +x
+							;;
+							*)
+								$line
+							;;
+						esac
 					;;
 				esac
 #				local time=$( _stopwatch stop '/tmp/PROFILER' nolog )
