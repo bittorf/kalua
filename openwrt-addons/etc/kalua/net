@@ -214,7 +214,7 @@ _net_roaming_cleanup_cache()
 	local funcname='net_roaming_cleanup_cache'
 	local file='/tmp/roaming'
 	local unixtime="$( _system date unixtime )"
-	local line
+	local line dirty
 
 	[ -e "$file" ] || return 0
 
@@ -232,12 +232,16 @@ _net_roaming_cleanup_cache()
 			# TODO:
 			# root@fonera2n:~ _net roaming_cache_cleanup
 			# ash: 192.168.23.56: bad number
-			_log do $funcname daemon alert "bad entry, check '$file.tmp.checkme': '$line'"
-			cp "$file.tmp" "$file.tmp.checkme"
+			dirty='true'
 		}
 
 		test $3 -gt $unixtime && echo "$line"
 	} done <"$file" >"$file.tmp"
+
+	[ "$dirty" = 'true' ] && {
+		cp "$file.tmp" "$file.tmp.checkme"
+		_log it $funcname daemon alert "bad entry, check '$file.tmp.checkme': '$line'"
+	}
 
 	# FIXME! double write access, e.g. from collect.sh?
 	mv "$file.tmp" "$file"
