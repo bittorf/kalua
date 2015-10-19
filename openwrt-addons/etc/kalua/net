@@ -211,6 +211,7 @@ _net_roaming_mac2ip()
 
 _net_roaming_cleanup_cache()
 {
+	local funcname='net_roaming_cleanup_cache'
 	local file='/tmp/roaming'
 	local unixtime="$( _system date unixtime )"
 	local line
@@ -226,6 +227,15 @@ _net_roaming_cleanup_cache()
 	# format: mac ip expires
 	while read -r line; do {
 		set -- $line
+
+		isnumber "$3" || {
+			# TODO:
+			# root@fonera2n:~ _net roaming_cache_cleanup
+			# ash: 192.168.23.56: bad number
+			_log do $funcname daemon alert "bad entry, check '$file.tmp.checkme': '$line'"
+			cp "$file.tmp" "$file.tmp.checkme"
+		}
+
 		test $3 -gt $unixtime && echo "$line"
 	} done <"$file" >"$file.tmp"
 
