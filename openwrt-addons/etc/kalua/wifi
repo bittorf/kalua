@@ -12,6 +12,13 @@
 #	[ -n "$WIFI_NEXT" ] && . $WIFI_NEXT	# inluding VAR-set for next WIFI_DEV
 # } done					# (last entry must point to first-device)
 
+_wifi_mac_assoclist()
+{
+	local dev="$1"
+
+	iw dev "$dev" station dump | grep ^'Station ' | cut -d' ' -f2
+}
+
 _wifi_dev2freq()
 {
 	local dev="$1"
@@ -81,7 +88,7 @@ EOF
 		}
 	} done
 
-	_log it $funcname daemon info "did not found $mac on $dev"
+	_log it $funcname daemon info "did not found mac '$mac' on dev '$dev'"
 }
 
 _wifi_change_essid_ap()
@@ -1711,9 +1718,9 @@ _wifi_typeof()				# returns e.g. "mac80211"
 
 _wifi_check_each_client()
 {
-	local mac ip list_macs exitcode list_already_known_macs
+	local mac ip exitcode list_already_known_macs
 	local up1 up2 up_diff
-	local funcname="wifi_check_each_client"
+	local funcname='wifi_check_each_client'
 	local statsdir="/tmp/$funcname"
 	local max_arping=3	# FIXME! we should start fast and if it fails loop again more and more slow
 	local inactive_time
@@ -1721,9 +1728,7 @@ _wifi_check_each_client()
 	mkdir -p "$statsdir"
 	_net include
 
-	list_macs="$( iw dev $WIFIDEV station dump | grep ^'Station' | cut -d' ' -f2 )"
-
-	for mac in $list_macs; do {
+	for mac in $( _wifi mac_assoclist "$WIFIDEV" ); do {
 		# TODO: more values?
 		set -- $( iw dev "$WIFIDEV" station get "$mac" | fgrep 'inactive time:' )
 		inactive_time="$3"

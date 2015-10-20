@@ -249,6 +249,13 @@ fi
 	_stopwatch start 'iw_event' global
 	PIDS_IW_BEFORE="$( pidof iw )"
 
+	# otherwise we lose maybe important events
+	for DEV in $( active_ap_devices ); do {
+		for MAC in $( _wifi mac_assoclist "$DEV" ); do {
+			_wifi kick "$MAC" "$DEV"
+		} done
+	} done
+
 	iw event | while read -r LINE; do {
 		let COUNTER+=1
 
@@ -296,7 +303,7 @@ fi
 
 	RC=$?
 	DURATION="$( _stopwatch stop 'iw_event' seconds,nolog )"
-	[ $DURATION -lt 10 ] && RC=-1
+	[ $DURATION -lt 10 -a $RC -eq 0 ] && RC=$(( RC - 1000 ))	# still a number but not 0 (so it is logged)
 
 	test $RC -eq 0 || {
 		[ "$( tail -n1 '/tmp/IWLOG' )" = 'stopped by user via regset' ] || {
