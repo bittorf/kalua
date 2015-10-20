@@ -42,7 +42,7 @@ _vpn_innercity_master_vtund()
 	local funcname='vpn_innercity_master_vtund'
 	local action="$1"	# check_on_server|get_port|fire|start|stop|restart
 	local config="${2:-$TMPDIR/vtund.conf}"
-	local port pid pid_list
+	local port pid pid_list i
 
 	port="$( uci -q get system.vpn.port || echo '5001' )"
 
@@ -91,6 +91,18 @@ _vpn_innercity_master_vtund()
 			killall vtund
 			_watch hanging_command vtund
 			_watch hanging_command vtund
+
+			i=30
+			while [ -n "$( ls -1 /tmp/vpn_innercity_master_iface-devup-tap* )" ]; do {
+				if [ $i -gt 0 ]; then
+					i=$(( i - 1 ))
+					_log do $funcname daemon info "waiting for interface shotdown: $i sec"
+					sleep 1
+				else
+					_log do $funcname daemon alert 'please check /tmp/vpn_innercity_master_iface-devup-tap*'
+					break
+				fi
+			} done
 		;;
 		'restart')
 			# keeping config, just restart daemon
@@ -114,6 +126,12 @@ _vpn_innercity_master_iface()
 		read -r reason <"/tmp/lock-$funcname/info"
 
 		# FIXME! why does this happen?
+		# Oct 20 05:38:07 server1 kalua: sh: vpn_innercity_master_iface() locked: up/tap855 must wait for 'action: down dev: tap800'
+		# Oct 20 05:38:09 server1 vtund[17326]: Session Node800[178.25.42.10:47605] opened
+		# Oct 20 05:38:09 server1 vtund[17326]: Can't allocate tap device tap800. Device or resource busy(16)
+		# Oct 20 05:38:09 server1 vtund[17326]: Session Node800 closed
+		# --> lockfile still exists
+
 		if _file age "/tmp/lock-$funcname/info" -gt 600 ; then
 			_log it $funcname daemon info "overaged: force unlocking: '$reason'"
 			rm -fR "/tmp/lock-$funcname"
@@ -176,6 +194,7 @@ _vpn_innercity_master_iface()
 
 		_log it $funcname daemon info "[READY] action: $action dev: $dev"
 	else
+		# action = down
 		ip link set dev $dev down
 
 		uptime_sec=$( _file age "/tmp/$funcname-devup-$dev" )
