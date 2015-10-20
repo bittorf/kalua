@@ -56,13 +56,20 @@ apply_olsr_roaming()
 	# FIXME! 2nd AP on same band does not work
 	for index in $list_ap; do {
 		if network="$( uci -q get wireless.@wifi-iface[$index].network )"; then
-			# e.g. 'wlanRADIO1'
+			# e.g. 'wlanRADIO1' 'wlan'
 			uci set wireless.@wifi-iface[$index].disabled='0'		# force active
 			uci set wireless.@wifi-iface[$index].disassoc_low_ack='1'
 
 			# omit dnsmasq-logerrors:
-			# in roaming mode we should answer on 'mastergate' not e.g. 'wlan'
-			uci add_list dhcp.@dnsmasq[0].notinterface="$network"
+			# in roaming mode we should only answer on 'mastergate' not e.g. 'wlan'
+			case " $( uci -q get dhcp.@dnsmasq[0].notinterface ) " in
+				*" $network "*)
+					# only add once
+				;;
+				*)
+					uci add_list dhcp.@dnsmasq[0].notinterface="$network"
+				;;
+			esac
 		else
 			# e.g. 'lan'
 			network="$index"
