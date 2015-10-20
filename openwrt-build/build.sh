@@ -2213,9 +2213,11 @@ build_options_set()
 					return 1
 				fi
 			;;
-			'uQMI')
+			'QMI')
 				# http://wiki.openwrt.org/doc/recipes/ltedongle
+				# http://trac.gateworks.com/wiki/wireless/modem
 				apply_symbol 'CONFIG_PACKAGE_uqmi=y'
+				apply_symbol 'CONFIG_PACKAGE_usb-modeswitch=y'
 				$funcname subcall 'USBserial'
 			;;
 			'OWM')
