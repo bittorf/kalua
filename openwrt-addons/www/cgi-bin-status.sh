@@ -61,7 +61,7 @@ output_table()
 {
 	local file='/tmp/OLSR/LINKS.sh'
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes i all gw_file
-	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent
+	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent vpn_proto
 	local head_list neigh_list neigh_file neigh age inet_offer cost_best cost_best_time th_insert mult_ip count cost_align
 #	local noisefloor
 	local symbol_infinite='<big>&infin;</big>'
@@ -401,7 +401,9 @@ output_table()
 				;;
 				*)
 					_net dev_is_tuntap "$iface_out" && {
-						channel='/VPN'
+						# FIXME! this means we have to set it on client too (works and is ignored by the parser)
+						[ -z "$vpn_proto" ] && vpn_proto="$( fgrep -q -m1 'proto udp' "$TMPDIR/vtund.conf" && echo 'udp' )"
+						channel="/${vpn_proto:=tcp}VPN"
 
 						snr='vpn'
 						snr_color='SpringGreen'
