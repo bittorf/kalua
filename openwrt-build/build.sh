@@ -2982,7 +2982,7 @@ unittest_do()
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
 			filelist='/dev/shm/filelist'
-			find 'openwrt-addons' 'openwrt-build' -type f -not -iwholename '*.git*' >"$filelist"
+			find 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*' >"$filelist"
 
 			$shellcheck_bin --help 2>"$tempfile"
 			grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"
