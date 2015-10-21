@@ -17,14 +17,14 @@ ARG1="$1"
 STACKPWD="$( pwd )"
 
 HUMANDATE="$( export LC_ALL=C;date +%Y%b%d )"
-BASE="/var/www/networks/fuerstengruft"
+# BASE="/var/www/networks/fuerstengruft"
 
 LIST_UNKNOWN_MACS="$( sed -n 's|^.* File does not exist: /var/www/macs/\(.*\)|\1|p' /var/log/apache2/error.log | sort | uniq )"
 
 mem_bytes_free ()
 {                                                                                                                                  
         local MEM LINE
-        while read LINE; do {
+        while read -r LINE; do {
                 case $LINE in
                         Mem:*)     set $LINE; MEM="$4" ; break ;;
                         MemFree:*) set $LINE; MEM="$(( $2 * 1024 ))" ; break ;;
@@ -97,7 +97,7 @@ case "$ARG1" in
 		logger -s "$0: [OK] mac-builder ready"
 
 		logger -s "$0: [OK] building new rrd-archiv"
-		cd /var/www/networks/fuerstengruft/
+		cd /var/www/networks/fuerstengruft/ || exit
 		tar cjf rrd.tar.bz2 rrd.gfx/ rrd.raw/
 		SIZE="$( stat -c %s rrd.tar.bz2 2>/dev/null )"
 		logger -s "$0: [OK] build ready: $SIZE bytes"
@@ -105,18 +105,18 @@ case "$ARG1" in
 esac
 
 LIST="$( find /var/www/networks/ -type d | grep "/vds$" | cut -d'/' -f5 )"
-LIST="$( echo "$LIST" | while read LINE; do echo -n "$LINE "; done )"
+LIST="$( echo "$LIST" | while read -r LINE; do echo -n "$LINE "; done )"
 
 I=0
 for NETWORK in $LIST;do {
-	I=$(( $I + 1 ))
+	I=$(( I + 1 ))
 } done
 IALL=$I
 
 I=0
 for NETWORK in $LIST;do {
 
-	I=$(( $I + 1 ))
+	I=$(( I + 1 ))
 	logger -s "$0: $NETWORK $I/$IALL"
 
 	/var/www/scripts/apply_pubkeys_from_network-registrator_to_auth_keys.sh $NETWORK
@@ -129,7 +129,7 @@ for NETWORK in $LIST;do {
 
 	mkdir -p /var/www/networks/$NETWORK/vds/backup_$$
 logger -s "$0: $NETWORK $I/$IALL - step0.2 - next: 'cd /var/www/networks/$NETWORK/vds/backup_$$' pwd: '$( pwd )'"
-	cd /var/www/networks/$NETWORK/vds/backup_$$
+	cd /var/www/networks/$NETWORK/vds/backup_$$ || exit
 logger -s "$0: $NETWORK $I/$IALL - step0.3"
 	mv ../user-* . 2>/dev/null
 
@@ -160,7 +160,7 @@ logger -s "$0: $NETWORK $I/$IALL - step0.3"
 	logger -s "$0: step2b"
 
 	logger -s "$0: $NETWORK $I/$IALL - step3 error: '$ERROR' pwd: $( pwd )"
-	cd ~
+	cd ~ || exit
 	logger -s "$0: $NETWORK $I/$IALL - step3.1 pwd: $( pwd )"
 
 	if [ "$ERROR" = "0" ]; then
@@ -175,7 +175,7 @@ logger -s "$0: $NETWORK $I/$IALL - step0.3"
 /var/www/scripts/apply_pubkeys_from_network-registrator_to_auth_keys.sh join_all
 
 logger -s "$0: ready with arcing VDS-data, changing to dir '$STACKPWD'"
-cd $STACKPWD
+cd $STACKPWD || exit
 
 logger -s "$0: [START] /var/www/scripts/meshrdf_cron.sh debug"
 /var/www/scripts/meshrdf_cron.sh debug

@@ -21,12 +21,12 @@ OUI="$HEX$HEX-$HEX$HEX-$HEX$HEX"
 ALL=0
 NEW=0
 
-while read LINE; do {
+while read -r LINE; do {
 	case "$LINE" in
 		"")
 			if [ -n "$LINE1" ]; then
 				[ -e "$DIR/$BYTE1/$BYTE2/$BYTE3" ] || {
-					NEW=$(( $NEW + 1 ))
+					NEW=$(( NEW + 1 ))
 					mkdir -p            "$DIR/$BYTE1/$BYTE2"
 					cp "$TEMP"          "$DIR/$BYTE1/$BYTE2/$BYTE3"
 					mkdir -p "$(   echo "$DIR/$BYTE1/$BYTE2"        | sed 'y/ABCDEF/abcdef/' )"
@@ -42,7 +42,7 @@ while read LINE; do {
 #			echo >>"$TEMP" "$@"		# first 2 lines are always equal, last 2 sometimes
 		;;
 		$OUI*)
-			ALL=$(( $ALL + 1 ))
+			ALL=$(( ALL + 1 ))
 			set -- $LINE			# '01-23-45   (hex)                blabla'
 			BYTE1="${LINE%%-*}"		# '01'
 			BYTE2="${LINE#*-}"		# '23-45 ...'

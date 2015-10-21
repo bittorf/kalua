@@ -19,7 +19,7 @@ DIR=
 	MYPWD="$( pwd )"
 	DIR="/var/www/networks/$ARG1/packages"
 	logger -s "$0: working in: '$DIR'"
-	cd "$DIR"
+	cd "$DIR" || exit
 }
 
 # fixme! when in 'strip'-mode, make an directory mini/
@@ -39,7 +39,7 @@ for FILE in $( ls -1 *.ipk ); do {
 	case "$OPTION" in
 		strip)
 			LINE=
-			grep -v ^" " control | grep -v "^$" | while read LINE; do {
+			grep -v ^" " control | grep -v "^$" | while read -r LINE; do {
 				case "${LINE%: *}" in
 					Package|Version)
 						echo "$LINE" >>"$OUT"

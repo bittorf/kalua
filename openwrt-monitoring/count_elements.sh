@@ -14,3 +14,5 @@ for NETWORK in $( list_networks ); do {
 		ls -1 "$DIR"
 	}
 } done
+
+echo "$ARG1"

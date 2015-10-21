@@ -11,7 +11,7 @@ IPKG_NAME="sshpubkeys"
 BASE="/var/www/networks/$NETWORK"
 
 [ "$2" = '?' ] && {
-	while read LINE; do {
+	while read -r LINE; do {
 
 		case "$LINE" in
 			*": $IPKG_NAME")
@@ -63,7 +63,7 @@ for FILE in $( find $BASE/registrator/recent/ -type f -mtime -30 ); do {
 		if grep ^'NODE=""' $FILE ; then
 			continue
 		else
-			I=$(( $I + 1 ))
+			I=$(( I + 1 ))
 			cat $FILE >>postinst
 		fi
 	}

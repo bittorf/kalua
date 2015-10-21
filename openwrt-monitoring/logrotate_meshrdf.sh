@@ -74,7 +74,7 @@ compress ()
 
 		shift
 		[ -z "$1" -a -n "$LIST_FILES" ] && {
-			[ $(( $WEEK_NOW - $ARG1 )) -gt 1 ] && {		# only compress, if older than 1 week
+			[ $(( WEEK_NOW - ARG1 )) -gt 1 ] && {		# only compress, if older than 1 week
 			
 				log "trying to .tar.bz2 $LIST_FILES"
 
@@ -97,7 +97,7 @@ chmod 777 $FILE
 FILE="${FILE}.workingcopy"
 
 
-while read LINE; do {
+while read -r LINE; do {
 
 	log "attempting to eval \"$LINE\""
 	eval "$LINE"
@@ -135,7 +135,7 @@ for WEEK_QUADRUPLE in 1 2 3 4 5 6 7 8 9 10 11 12 13; do {
 	[ -e "$WORKINGDIR/meshrdf-monthquadruple-13.tar.bz2" ] && {
 
 		THISYEAR="$( date +%Y )"
-		LASTYEAR="$(( $THISYEAR - 1 ))"
+		LASTYEAR="$(( THISYEAR - 1 ))"
 		TARFILE="$WORKINGDIR/meshrdf-year-${LASTYEAR}.tar"
 
 		log "finishing the hole year $LASTYEAR, tar'ing to $TARFILE"

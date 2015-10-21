@@ -10,4 +10,5 @@ FILE="$DIR/$FILE"
 UNIXTIME_RECENT="$( find "$FILE" -printf "%T@" | cut -d'.' -f1 )"
 UNIXTIME_NOW="$( date +%s )"
 
-
+echo "$UNIXTIME_RECENT"
+echo "$UNIXTIME_NOW"

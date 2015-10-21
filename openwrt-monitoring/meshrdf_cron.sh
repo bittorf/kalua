@@ -22,7 +22,7 @@ list_networks()
 {
 	local network
 
-	ls -1 /var/www/networks | while read network; do {
+	ls -1 /var/www/networks | while read -r network; do {
 		# allow symlinks, dont filter ' -> '
 		[ -n "$( ls -l /var/www/networks/$network/meshrdf/recent 2>/dev/null | grep -v ^'total' )" ] && {
 			echo "$network"
@@ -50,7 +50,7 @@ build_html_tarball()
 	log "[OK] build_html_tarball"
 
 	(
-	ls -l /var/www/networks/ | grep ^'d' | while read LINE; do {
+	ls -l /var/www/networks/ | grep ^'d' | while read -r LINE; do {
 		set -- $LINE
 		case "$9" in
 			*':'*)
@@ -61,7 +61,7 @@ build_html_tarball()
 		esac
 	} done
 
-	cd /var/www/files/
+	cd /var/www/files/ || exit
 	tar cjf /var/www/files/all.tar.bz2 cache-*
 	tar cJf /var/www/files/all.tar.xz cache-*
 	)
@@ -182,7 +182,7 @@ gen_meshrdf_for_network()
 	}
 
 	respect_fileage && {
-		read hash_last <"$hash_file"	# = timestamp
+		read -r hash_last <"$hash_file"	# = timestamp
 
 		if [ "$hash_last" = "$hash_now" ]; then
 #			log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
@@ -232,7 +232,7 @@ MESSAGE=
 
 I=0
 for NET in $LIST; do {
-	I=$(( $I + 1 ))
+	I=$(( I + 1 ))
 } done
 IALL=$I
 
@@ -290,7 +290,7 @@ for NET in $LIST; do {
 
 	[ -n "$( ls -1 $NET/autonode* 2>/dev/null )" ] && rm $NET/autonode*
 
-	I=$(( $I + 1 ))
+	I=$(( I + 1 ))
 	log "net: $( echo $NET | cut -d'/' -f5 ) = $I/$IALL"
 
 	[ -n "$WISH_NETWORK" ] && {
@@ -301,14 +301,14 @@ for NET in $LIST; do {
 	while true; do {
 		[ "$OPTION" = "debug" ] && break
 
-		MAX_FAILS=$(( $MAX_FAILS - 1 ))
+		MAX_FAILS=$(( MAX_FAILS - 1 ))
 		[ $MAX_FAILS -eq 0 ] && {
 			log "too much load, too often: $MAX_FAILS, rebooting in 30 sec"
 			sleep 30
 			reboot
 		}
 
-		read LOAD NOP </proc/loadavg
+		read -r LOAD NOP </proc/loadavg
 		case "$LOAD" in
 			0*)
 				break
@@ -361,6 +361,7 @@ for NET in $LIST; do {
 				*)
 					# show failures
 					MYORDER="age2"
+					log "MYORDER=$MYORDER"
 				;;
 			esac
 
@@ -376,7 +377,7 @@ for NET in $LIST; do {
 
 			case "$( date +%M )" in
 				INACTIVE)
-					for FORMAT in svg ; do {			# fixme! png / pdf
+					for FORMAT in svg fake; do {			# fixme! png / pdf
 						log "[START] building format $FORMAT for $NETWORK"
 						dot 1>/dev/null 2>/dev/null -Goverlap=scale -Gsplines=true -Gstart=3 -v -T$FORMAT -o /tmp/map_$$.$FORMAT /tmp/map_$$.txt
 						log "[READY] building format $FORMAT for $NETWORK"
@@ -393,7 +394,7 @@ for NET in $LIST; do {
 				*)
 					ignore_network "$NETWORK" || {
 					log "[OK] writing netjson for '$NETWORK'"
-					cd "/var/www/networks/$NETWORK/meshrdf"
+					cd "/var/www/networks/$NETWORK/meshrdf" || exit
 
 					rm map.json.* 2>/dev/null	# FIXME! remove later...
 					if /var/www/scripts/meshrdf_generate_netjson.sh "$NETWORK" >"map.json.$$"; then
@@ -404,7 +405,7 @@ for NET in $LIST; do {
 						rm "map.json.$$"
 					fi
 
-					cd - 2>/dev/null
+					cd - 2>/dev/null || exit
 					}
 				;;
 			esac
@@ -492,7 +493,7 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 
 		FILE_CONTACT_DATA="/var/www/networks/$NETWORK/contact.txt"
 		if [ -e "$FILE_CONTACT_DATA" ]; then
-			read CONTACT_DATA <"$FILE_CONTACT_DATA"
+			read -r CONTACT_DATA <"$FILE_CONTACT_DATA"
 		else
 			CONTACT_DATA="bitte eintragen in $FILE_CONTACT_DATA"
 		fi
@@ -517,7 +518,7 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 		rm "/tmp/lockfile_meshrdf_cache_$$"
 	}
 
-	log "[READY] needed $(( $( uptime_in_seconds ) - $TIME_START )) seconds"
+	log "[READY] needed $(( $( uptime_in_seconds ) - TIME_START )) seconds"
 	exit
 }
 
@@ -581,5 +582,5 @@ urlencode ()					# SENS: converting chars using a fixed table, where we know the
 	} done
 }
 
-log "[READY] needed $(( $( uptime_in_seconds ) - $TIME_START )) seconds"
+log "[READY] needed $(( $( uptime_in_seconds ) - TIME_START )) seconds"
 

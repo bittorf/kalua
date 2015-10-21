@@ -21,8 +21,8 @@ if [ -z "$SHORT_MAC" ]; then
 else
 	echo "Linking $SHORT_MAC"
 
-	cd /var/www/networks/$NETWORK_FAKE/meshrdf/recent
+	cd /var/www/networks/$NETWORK_FAKE/meshrdf/recent || exit
 	ln -s /var/www/networks/$NETWORK_ORIG/meshrdf/recent/$SHORT_MAC "$SHORT_MAC"
-	cd /var/www/networks/$NETWORK_FAKE/registrator/recent
+	cd /var/www/networks/$NETWORK_FAKE/registrator/recent || exit
 	ln -s /var/www/networks/$NETWORK_ORIG/registrator/recent/$SHORT_MAC "$SHORT_MAC"
 fi
