@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# TODO:
+# cd /root/backup/ejbw/pbx/; ls -1 | while read FILE; do case "$FILE" in *'01_'*|*'31_'|*'15_'*);;*) rm "$FILE";;esac; done
+#
 # - log/log schrumpfen
 #
 # /etc/init.d/apache2 stop

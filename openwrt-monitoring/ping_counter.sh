@@ -128,6 +128,7 @@ list_networks()
 		return 0
 	elif [ "$1" = 'maintenance' ]; then
 		cat <<EOF
+chicago
 giancarlo
 malchow
 malchowit
@@ -333,10 +334,12 @@ sms_allowed()
 		return 1
 	}
 
-	list_networks 'maintenance' | grep -q ^"$effective_name"$ && return 0
-
-	log "$network: no sms allowed"
-	return 1
+	if list_networks 'maintenance' | grep -q ^"$effective_name"$; then
+		return 0
+	else
+		log "$network: no sms allowed (not in 'maintenance')"
+		return 1
+	fi
 }
 
 send_sms()
@@ -567,8 +570,9 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 			FILE="/var/www/networks/$NETWORK/index.html"
 			URL="http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=hostname"
 
-			grep -sq 'Totalausfall' "$FILE" && {
-				wget -O "$FILE" "$URL"
+			grep -sq 'Totalausfall' "$FILE" || {
+				wget -O "$FILE.pingtmp" "$URL"
+				mv "$FILE.pingtmp" "$FILE"
 			}
 		}
 	else

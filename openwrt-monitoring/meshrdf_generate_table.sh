@@ -298,7 +298,6 @@ case "$NETWORK" in
 	;;
 esac
 
-log "TARBALL_TIME=$TARBALL_TIME (before tarball)"
 FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
 [ -e "$FILE" ] && {
 	mkdir "$TMPDIR/untar"
@@ -320,8 +319,6 @@ FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
 	TARBALL_TIME="$KALUA_VERSION_TESTING"
 #	echo "<!-- KALUA_VERSION_TESTING=$TARBALL_TIME -->"
 }
-
-log "TARBALL_TIME=$TARBALL_TIME (after tarball)"
 
 touch "/tmp/DETECTED_FAULTY_$NETWORK"
 
@@ -503,7 +500,7 @@ echo >>$OUT "</head><body bgcolor='$BODY_BGCOLOR'>"
 
 # checkout: http://stackoverflow.com/questions/7641791/javascript-library-for-human-friendly-relative-date-formatting
 cat >>$OUT <<EOF
-<p id='zeitstempel' data-timestamp-page='$( date +%s )'> Datenbestand vom $( date "+%d.%b'%y-%H:%M" )</p>
+<p id='zeitstempel' data-timestamp-page='$UNIXTIME_SCRIPTSTART'> Datenbestand vom $( date "+%d.%b'%y-%H:%M" )</p>
 <script>
 // tiny-relative-time.js
 // Author: Max Albrecht <1@178.is>
@@ -1351,8 +1348,7 @@ func_cell_uptime ()
 	local reboot_reason="$3"
 
 	local fwversion="${VERSION:-0}"
-#	local STARTDATE="$( perl -e "print \"\".localtime $(( $(date +%s) - (${UPTIME:=0} * 3600) ))" )"
-	local STARTDATE="$( date -d @$(( $(date +%s) - (${UPTIME:=0} * 3600) )) )"
+	local STARTDATE="$( date -d @$(( $UNIXTIME_SCRIPTSTART - (${UPTIME:=0} * 3600) )) )"
 	local border_allowed_reboots=
 	local seconds_per_day=86400
 
@@ -1442,7 +1438,7 @@ func_cell_uptime_olsr ()
 
 	local BGCOLOR="crimson"
 	local UNIT="min"
-	local UNIXTIME_NOW="$( date +%s )"
+	local UNIXTIME_NOW="$UNIXTIME_SCRIPTSTART"
 
 	local BOX_UPTIME_SEC="$(( ${BOX_UPTIME:=0} * 3600 ))"
 	local UPTIME_OLSR="$(( $UNIXTIME_NOW - ${LAST_RESTART_TIME:=0} ))"
@@ -2032,7 +2028,7 @@ _cell_firmwareversion_humanreadable()
 {
 	local update="$1"	# e.g. 'testing.Standard,kalua' or 'testing' or '0'
 	local FWVERSION="$2"
-	local TIME="$(( $( date +%s ) / 86400 ))"		# days
+	local TIME="$(( $UNIXTIME_SCRIPTSTART / 86400 ))"		# days
 	local UPDATE= usecase= OUT=
 
 	case "$update" in
@@ -2135,7 +2131,7 @@ _cell_lastseen()
 					[ -e "${smsfile_kasse1}.feedback" ] && hour='kausalkette'
 					[ -e "/var/www/networks/gnm/settings/${WIFIMAC}.screenshot.jpg" ] && {
 						unixtime_file="$( date +%s -r "/var/www/networks/gnm/settings/${WIFIMAC}.screenshot.jpg" )"
-						unixtime_now="$( date +%s )"
+						unixtime_now="$UNIXTIME_SCRIPTSTART"
 						[ $(( ($unixtime_now - $unixtime_file) / 60 )) -gt $border ] || {
 							hour="screenshot_new: $unixtime_file (now: $unixtime_now)"
 						}

@@ -159,7 +159,8 @@ gen_meshrdf_for_network()
 	local temp="$html.temp"
 	local url="http://127.0.0.1/networks/$network/meshrdf/?ORDER=hostname"
 	local datadir="/var/www/networks/$network/meshrdf/recent"
-	local newest_file="$datadir/$( ls -1t "$datadir" | head -n1 )"
+	# FIXME! better pattern
+	local newest_file="$datadir/$( ls -1t "$datadir" | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | head -n1 )"
 	local hash_file="/dev/shm/meshrdf_hash_$network"
 	local hash_now="$( date +%s -r "$newest_file" )"
 	local hash_last
