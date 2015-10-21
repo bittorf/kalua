@@ -278,13 +278,13 @@ fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if t
 		marinabh)
 			port=18796
 			ip="127.0.0.1"
-			timeout=$(( $timeout * 10 ))
+			timeout=$(( timeout * 10 ))
 		;;
 	esac
 
 	[ -e "/dev/shm/pingcheck/$NETWORK.lastnewip" ] && {
-		read lastnewip <"/dev/shm/pingcheck/$NETWORK.lastnewip"
-		lastnewip_diff=$(( $(date +%s) - $lastnewip ))
+		read -r lastnewip <"/dev/shm/pingcheck/$NETWORK.lastnewip"
+		lastnewip_diff=$(( $(date +%s) - lastnewip ))
 		# 86400 -/+ 2400 = 84000 / 88800
 		[ $lastnewip_diff -gt 84000 -a $lastnewip_diff -lt 88800 ] && ignore="last_ip_renew: $lastnewip_diff sec"
 	}
@@ -310,10 +310,10 @@ fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if t
 			curl $append --silent --connect-timeout $timeout "$proto://$ip:$port/robots.txt" | grep -q ^'User-agent:' && return 0
 		} done
 
-		try=$(( $try - 1 ))
-		timeout=$(( $timeout - 5 ))
-		log "$network: $funcname() next round, try now: $try sleep: $(( $timeout / 2 ))"
-		sleep $(( $timeout / 2 ))
+		try=$(( try - 1 ))
+		timeout=$(( timeout - 5 ))
+		log "$network: $funcname() next round, try now: $try sleep: $(( timeout / 2 ))"
+		sleep $(( timeout / 2 ))
 	} done
 
 	return 1
@@ -348,6 +348,7 @@ send_sms()
 	local text="$network: $2 ($(date))"
 	local number="0176/24223419"		# bastian
 #	local number_technik1='0177/8083369'	# joerg
+	local number_technik1=
 	local list_numbers="$number $number_technik1"
 
 	sms_allowed "$network" || return 0
@@ -438,8 +439,8 @@ count_pings()
 				echo "$ip" >"/dev/shm/pingcheck/$NETWORK.recent_ip"
 			}
 
-			rulenumber=$(( $rulenumber + 1 ))
-			pings=$(( $pings + $1 ))
+			rulenumber=$(( rulenumber + 1 ))
+			pings=$(( pings + $1 ))
 		fi
 	} done
 
@@ -451,7 +452,7 @@ add_new_ipaddresses_from_network()
 	local network="$1"
 	local list_pubips="$( list_pubips_from_network "$network" )"
 	local rc=1
-	local ip list_network list
+	local ip list_network
 
 	# e.g. liszt28:Buero -> updates liszt28 + liszt28:Buero
 	case "$network" in
@@ -469,7 +470,7 @@ add_new_ipaddresses_from_network()
 		local rc=1
 		local line
 
-		iptables -nxvL myping | while read line; do {
+		iptables -nxvL myping | while read -r line; do {
 			set -- $line
 
 			case "$3" in
@@ -552,7 +553,7 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 
 	I=$( count_pings "$NETWORK" )
 	mkdir -p /dev/shm/pingcheck
-	read COUNTER_OLD <"/dev/shm/pingcheck/$NETWORK"
+	read -r COUNTER_OLD <"/dev/shm/pingcheck/$NETWORK"
 	# for testing ping, do:
 	# echo 99999 >"/dev/shm/pingcheck/$NETWORK"
 	# touch /tmp/SIMULATE_FAIL				// see fetch_testfile()
@@ -561,7 +562,7 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 		[ -e "/dev/shm/pingcheck/$NETWORK.faulty" ] && {
 			UNIXTIME_START="$( stat -c "%Y" "/dev/shm/pingcheck/$NETWORK.faulty" )"
 			UNIXTIME_READY="$( date +%s )"
-			MINUTES_GONE=$(( ($UNIXTIME_READY - $UNIXTIME_START) / 60 ))
+			MINUTES_GONE=$(( (UNIXTIME_READY - UNIXTIME_START) / 60 ))
 
 			rm "/dev/shm/pingcheck/$NETWORK.faulty"
 			echo " - $(date) = $MINUTES_GONE mins [was: total service breakdown]" >>"/var/www/networks/$NETWORK/media/error_history.txt"
@@ -627,10 +628,10 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 		log "$NETWORK: received pings: old/new = $COUNTER_OLD/$I"
 	else
 		if [ -e "/dev/shm/pingcheck/$NETWORK.lastnewip" ]; then
-			read ip        2>/dev/null <"/dev/shm/pingcheck/$NETWORK.recent_ip"
-			read lastnewip             <"/dev/shm/pingcheck/$NETWORK.lastnewip"
+			read -r ip        2>/dev/null <"/dev/shm/pingcheck/$NETWORK.recent_ip"
+			read -r lastnewip             <"/dev/shm/pingcheck/$NETWORK.lastnewip"
 			UNIXTIME_NOW="$( date +%s )"
-			DIFF=$(( ($UNIXTIME_NOW - $lastnewip) / 3600 ))
+			DIFF=$(( (UNIXTIME_NOW - lastnewip) / 3600 ))
 			DIFF="$DIFF hours"
 		else
 			DIFF="fixed IP"		# fixme! never goes into this path, file always exists?

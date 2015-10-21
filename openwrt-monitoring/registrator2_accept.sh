@@ -7,7 +7,8 @@
 # OK - we send nothing, which outputs a humanreadable table/stats
 # ...move nodenumber to another router with other passphrase
 
-QUERY="$1"	# mac=...;hash=...;node=...;remote=...
+mac=;hash=;node=;remote=
+QUERY="$1"
 # /usr/bin/logger -t registrator2 -p daemon.info "$QUERY"
 
 mac_is_wellformed()	# mac-address without colon's or minus
@@ -54,7 +55,7 @@ heartbeat_acceptable()
 	local mac="$1"
 	local hash="$2"
 	local node="$3"
-	local file="heartbeats/${$node}_${mac}_${hash}"
+	local file="heartbeats/${node}_${mac}_${hash}"
 
 	if [ -e "$file" ]; then
 		touch "$file"
@@ -74,7 +75,7 @@ if [ -n "$QUERY" ]; then
 		if mac_is_wellformed "$mac"; then
 			if secret_is_known "$hash"; then
 				if node_is_known "$node"; then
-					if heartbeat_acceptable; then
+					if heartbeat_acceptable "$@"; then
 						OUTPUT="OK - heartbeat accepted"
 					else
 						OUTPUT="ERROR - combination invalid"

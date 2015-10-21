@@ -87,7 +87,7 @@ for NETWORK in $LIST_NETWORKS; do {
 		rm -f "$FILE"
 	 } done
 
-	ls -1 *.tar | while read -r TAR; do {
+	ls -1 ./*.tar | while read -r TAR; do {
 		ls -l ./$TAR
 		lzma ./$TAR
 	} done
@@ -100,20 +100,22 @@ for NETWORK in $LIST_NETWORKS; do {
 	rm "/tmp/compress_vds_*"
 #	rm ../meshrdf/meshrdf.txt
 
-	ls -1 | grep ^"user-"			 >"/tmp/compress_vds_$$"
-	ls -1 *.$( date +%Y )*			>>"/tmp/compress_vds_$$"
-	ls -1 db_backup.tgz_*.2012*		>>"/tmp/compress_vds_$$"
-	ls -1 db_backup.tgz_*.2013*		>>"/tmp/compress_vds_$$"
-	ls -1 ../log/log.txt			>>"/tmp/compress_vds_$$"
-	ls -1 ../media/traffic_*		>>"/tmp/compress_vds_$$"
-	ls -1 ../media/map_topology_*		>>"/tmp/compress_vds_$$"
-	ls -1 ../registrator/registrator.txt			>>"/tmp/compress_vds_$$"
-	ls -1 ../meshrdf/meshrdf-monthquadruple-* 	 	>>"/tmp/compress_vds_$$"
-	ls -1 ../meshrdf/meshrdf-year-*				>>"/tmp/compress_vds_$$"
-	ls -1 ../meshrdf/recent/*.wifiscan			>>"/tmp/compress_vds_$$"
-	ls -1 ../meshrdf/meshrdf.txt				>>"/tmp/compress_vds_$$"
-	find /var/www/networks/spbansin/media/pix_old -type f	>>"/tmp/compress_vds_$$"
-	find /var/www/networks/spbansin/media/webcam_movies/ -type f >>"/tmp/compress_vds_$$"
+	{
+		ls -1 | grep ^"user-"
+		ls -1 ./*.$( date +%Y )*
+		ls -1 db_backup.tgz_*.2012*
+		ls -1 db_backup.tgz_*.2013*
+		ls -1 ../log/log.txt
+		ls -1 ../media/traffic_*
+		ls -1 ../media/map_topology_*
+		ls -1 ../registrator/registrator.txt
+		ls -1 ../meshrdf/meshrdf-monthquadruple-*
+		ls -1 ../meshrdf/meshrdf-year-*
+		ls -1 ../meshrdf/recent/*.wifiscan
+		ls -1 ../meshrdf/meshrdf.txt
+		find /var/www/networks/spbansin/media/pix_old -type f
+		find /var/www/networks/spbansin/media/webcam_movies/ -type f
+	} >"/tmp/compress_vds_$$"
 
 	ls -1 backup_vds_$( date +%Y%b%d )* || {
 		tar -T /tmp/compress_vds_$$ --lzma -cf ./$BACKUP

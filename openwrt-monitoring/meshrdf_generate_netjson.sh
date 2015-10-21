@@ -70,6 +70,8 @@ file_ok()
 	test -r "$1" || return 1
 	file_too_old "$1" && return 1
 	mac_filtered "$1" && return 1
+
+	local v2=
 	. $FILE && {
 		test -n "$v2" || return 1	# only if git-version available, otherwise it's a cam or something alike
 		test $v2 -gt 30000 || {
@@ -345,7 +347,7 @@ echo "	],"
 echo '	"links": ['
 
 #for FILE in $FILELIST; do {						# describe each node (shape, label, color ...)
-for FILE in NULL; do {
+for FILE in NULL FOO; do {
 	continue	# ignore block
 	. $FILE
 
@@ -375,14 +377,14 @@ EOF
 
 [ -e ./map.temp.conns ] && rm ./map.temp.conns
 
-for FILE in NULL; do {
+for FILE in NULL FOO; do {
 	continue	# ignore this block
 #for FILE in $FILELIST; do {		# describe all connections, which are used for inet ("path to gateway")
 	. $FILE
 
 	log "neigh: $NEIGH"
 
-	echo "$NEIGH" | while read LINE; do {
+	echo "$NEIGH" | while read -r LINE; do {
 
 		case "$LINE" in
 			[=~-]*)
@@ -440,7 +442,7 @@ ip2id()
 	local ip="$1"
 	local file='map.temp.ip2id'
 
-	while read line; do {
+	while read -r line; do {
 		case "$line" in
 			"$ip "*)
 				set -- $line
@@ -458,7 +460,7 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 	file_ok "$FILE" || continue
 
 	echo "$NEIGH" | sed 's/[=~-]/\n&/g' >"/tmp/links_$$"
-	while read LINE; do {
+	while read -r LINE; do {
 		[ -z "$LINE" ] && continue
 
 		NDEV="$(   func_interpret_neigh 'ndev'   "$LINE" )"	# e.g. '-' or '~'

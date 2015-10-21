@@ -59,4 +59,6 @@ for FILE in $( ls -1 *.ipk ); do {
 } done
 
 ls -l "$OUT"
-[ -n "$MYPWD" ] && cd $MYPWD
+[ -n "$MYPWD" ] && {
+	cd $MYPWD || exit
+}

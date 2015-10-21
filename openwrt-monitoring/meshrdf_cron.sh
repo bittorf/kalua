@@ -171,7 +171,7 @@ gen_meshrdf_for_network()
 	{
 		case "$( date '+%H:%M' )" in	# e.g. 09:01
 			'02:'*|'03:'*)
-#				log "$funcname: respect_fileage: no"
+				log "$funcname: respect_fileage: no"
 				return 1
 			;;
 			*)
@@ -308,7 +308,7 @@ for NET in $LIST; do {
 			reboot
 		}
 
-		read -r LOAD NOP </proc/loadavg
+		read -r LOAD _ </proc/loadavg
 		case "$LOAD" in
 			0*)
 				break
@@ -325,7 +325,7 @@ for NET in $LIST; do {
 	LOST=
 	GOOD=
 
-#	log "[OK] load-detector passed, load: $LOAD.$NOP"
+#	log "[OK] load-detector passed, load: $LOAD"
 
 	echo >>"/tmp/networks_list.txt.tmp" "$NETWORK "
 	echo >/tmp/all_pubips.txt_$$ "$NETWORK: $( cat /var/www/networks/$NETWORK/pubip.txt 2>/dev/null )"

@@ -12,7 +12,7 @@ UP=${UP%.*}
 read -r UP_OLD		</tmp/OLD_SENDSMS || UP_OLD=0
 echo $(( UP + 60 ))	>/tmp/OLD_SENDSMS
 
-DIFF=$(( $UP - $UP_OLD ))
+DIFF=$(( UP - UP_OLD ))
 [ $DIFF -lt 60 ] && {
 	logger -s "[OK] must sleep for 60sec, last action ~$DIFF sec"
 	sleep 60
@@ -141,7 +141,7 @@ url_encode()
 	local pos char
 
 	while [ ${pos:-0} -lt ${#text} ]; do {
-		pos=$(( $pos + 1 ))
+		pos=$(( pos + 1 ))
 		char="$( echo "$text" | cut -b $pos )"
 
 		case "$char" in

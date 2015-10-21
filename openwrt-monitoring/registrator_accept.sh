@@ -97,7 +97,7 @@ log "pwd: $( pwd ) - working on query $1"
 		esac
 
 		while [ -e "sshfp/$I" ]; do {
-			I=$(( $I + 1 ))	
+			I=$(( I + 1 ))	
 		} done
 
 		log "new node '$SSHPUBKEYFP' - new id is '$I' - wifimac is '$WIFIMAC'"

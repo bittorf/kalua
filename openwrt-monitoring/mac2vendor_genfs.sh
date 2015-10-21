@@ -51,7 +51,7 @@ while read -r LINE; do {
 			set -- $BYTE3
 			BYTE3="$1"			# '45'
 			shift 2
-			LINE1="$@"
+			LINE1="$*"
 			echo  >"$TEMP" "$LINE1"
 		;;
 		*)
