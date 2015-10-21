@@ -49,7 +49,7 @@ for NETWORK in $LIST_NETWORKS; do {
 	PACKAGE_BASE="/var/www/networks/$NETWORK/packages"
 
 	if [ -d "$PACKAGE_BASE" ]; then
-		cd "$PACKAGE_BASE"
+		cd "$PACKAGE_BASE" || exit
 	else
 #		log "dir '$PACKAGE_BASE' not found, omiting network"
 		continue
@@ -88,11 +88,11 @@ for NETWORK in $LIST_NETWORKS; do {
 
 	if [ "$HASH1" = "$HASH2" -a "$ARG2" != 'force' ]; then
 #		log "[OK] same hash for network $NETWORK - nothing to do, staying at version $VERSION_NOW"
-		I=$(( $I + 1 ))
+		I=$(( I + 1 ))
 		rm $F2 2>/dev/null
 	else
 		log "[OK] hash differs, leaving new package v$VERSION_NEW, deleting old, regen index"
-		J=$(( $J + 1 ))
+		J=$(( J + 1 ))
 		rm $F1 2>/dev/null
 		/var/www/scripts/gen_package_list.sh start
 	fi
@@ -100,4 +100,4 @@ for NETWORK in $LIST_NETWORKS; do {
 #	log "[READY] $NETWORK"
 } done
 
-log "[OK] $(( $I + $J )) overall, $I unchanged, $J updated"
+log "[OK] $(( I + J )) overall, $I unchanged, $J updated"

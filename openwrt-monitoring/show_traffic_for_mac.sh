@@ -15,7 +15,7 @@ for FILE in $LIST_FILES; do {
 
 	echo "working on file '$FILE'"
 
-	while read LINE; do {
+	while read -r LINE; do {
 
 		eval $LINE
 

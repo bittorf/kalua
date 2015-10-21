@@ -14,7 +14,7 @@ list_networks()
 
 for NETWORK in $( list_networks ); do {
 	FILE="/var/www/networks/$NETWORK/pubip.txt"
-	read PUBIP <"$FILE"
+	read -r PUBIP <"$FILE"
 	[ "$PUBIP" = "$IP" ] && {
 		echo "found in file '$FILE'"
 		break

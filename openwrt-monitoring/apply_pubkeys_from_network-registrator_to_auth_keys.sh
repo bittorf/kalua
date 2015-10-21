@@ -36,7 +36,7 @@ logger -s "[START] safing to $outfile"
 
 I=0
 for file in /var/www/networks/$network/registrator/recent/* ; do {
-	I=$(( $I + 1 ))
+	I=$(( I + 1 ))
 	. $file
 	echo "$SSHPUBKEY" >$file.temp
 
@@ -46,9 +46,10 @@ for file in /var/www/networks/$network/registrator/recent/* ; do {
 		;;
 	esac
 
-	while read -n 2 hexbyte; do {
+	while read -r -n 2 hexbyte; do {
 		[ ${#hexbyte} -eq 2 ] && {
-			printf "\\$( printf "%o" 0x$hexbyte )"
+			octal="$( printf "%o" "0x$hexbyte" )"
+			eval printf "\\\\$octal"
 		}
 	} done <$file.temp
 
@@ -56,6 +57,6 @@ for file in /var/www/networks/$network/registrator/recent/* ; do {
 } done >"$outfile"
 
 up2="$( uptime_in_seconds )"
-logger -s "[READY] safed to $outfile in $(( $up2 - $up1 )) seconds ($I keys)"
+logger -s "[READY] safed to $outfile in $(( up2 - up1 )) seconds ($I keys)"
 
 [ -n "$action" ] && $0 "$action"

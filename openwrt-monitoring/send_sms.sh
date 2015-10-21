@@ -6,10 +6,10 @@ TEMPLATE="$3"		# or free_text
 FEEDBACK="$4"
 
 
-read UP REST </proc/uptime
+read -r UP REST </proc/uptime
 UP=${UP%.*}
 
-read UP_OLD		</tmp/OLD_SENDSMS || UP_OLD=0
+read -r UP_OLD		</tmp/OLD_SENDSMS || UP_OLD=0
 echo $(( UP + 60 ))	>/tmp/OLD_SENDSMS
 
 DIFF=$(( $UP - $UP_OLD ))
@@ -62,16 +62,16 @@ if [ -e "$FILE" ]; then
 				log "empty MAC"
 				exit 1
 			else
-				read HOSTNAME <"/var/www/networks/$NETWORK/settings/${MAC}.hostname"
+				read -r HOSTNAME <"/var/www/networks/$NETWORK/settings/${MAC}.hostname"
 			fi
 		;;
 		*)
-			read HOSTNAME_HERE <"/var/www/networks/$NETWORK/settings/${MAC}.hostname"
+			read -r HOSTNAME_HERE <"/var/www/networks/$NETWORK/settings/${MAC}.hostname"
 			[ "$HOSTNAME" = "$HOSTNAME_HERE" ] || {
 				echo "which hostname to take?"
 				echo "[1] $HOSTNAME"
 				echo "[2] $HOSTNAME_HERE"
-				read CHOICE
+				read -r CHOICE
 				[ "$CHOICE" = "2" ] && HOSTNAME="$HOSTNAME_HERE"
 			}
 		;;
@@ -84,7 +84,7 @@ else
 			[ ${#MAC} -gt 5 ] && {
 				MAC="$( echo "$MAC" | cut -d'-' -f2 )"
 				. "/var/www/networks/$NETWORK/meshrdf/recent/$MAC"	# NODE
-				read HOSTNAME <"/var/www/networks/$NETWORK/settings/${MAC}.hostname"
+				read -r HOSTNAME <"/var/www/networks/$NETWORK/settings/${MAC}.hostname"
 			}
 
 			MOBILE="0176/24223419"	# bastian
@@ -116,7 +116,7 @@ fi
 
 FILE="/var/www/networks/$NETWORK/settings/${MAC}.sms"
 if [ -e "$FILE" ]; then
-	read NUMBER <"$FILE"
+	read -r NUMBER <"$FILE"
 else
 	FILE="/var/www/networks/$NETWORK/contact.txt"
 	[ -z "$MOBILE" ] && {
@@ -209,8 +209,8 @@ case "$TYPE" in
 	;;
 esac
 
-read USER <'/root/sms77_username.txt'
-read PASS <'/root/sms77_password.txt'
+read -r USER <'/root/sms77_username.txt'
+read -r PASS <'/root/sms77_password.txt'
 
 log "Nummer: '$NUMBER' Zeichen: ${#TEXT}: '$TEXT' url: '$URL'"
 

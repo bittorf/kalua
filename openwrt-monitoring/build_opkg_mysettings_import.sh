@@ -15,7 +15,7 @@ FILE="$2"
 DIR_MESHRDF="/var/www/networks/$NETWORK/meshrdf/recent"
 DIR_SETTINGS="/var/www/networks/$NETWORK/settings"
 
-while read LINE; do {
+while read -r LINE; do {
 
 	set ${LINE:-unset}
 	NODE="$1"

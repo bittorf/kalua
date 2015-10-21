@@ -10,7 +10,7 @@ IPKG_VERSION="$2"
 IPKG_NAME="sshpubkeys"
 BASE="/var/www/networks/$NETWORK"
 
-[ "$2" = "?" ] && {
+[ "$2" = '?' ] && {
 	while read LINE; do {
 
 		case "$LINE" in
@@ -32,17 +32,17 @@ BASE="/var/www/networks/$NETWORK"
 }
 
 # raise version by 0.1
-[ "$2" = "+0.1" ] && {
-	VERSION_NOW="$( $0 $NETWORK ? )"
+[ "$2" = '+0.1' ] && {
+	VERSION_NOW="$( $0 "$NETWORK" '?' )"
 
 	NUM1="$( echo $VERSION_NOW | cut -d'.' -f1 )"
 	NUM2="$( echo $VERSION_NOW | cut -d'.' -f2 )"
 
 	if [ "$NUM2" = "9" ]; then
 		NUM2="0"
-		NUM1="$(( $NUM1 + 1 ))"
+		NUM1="$(( NUM1 + 1 ))"
 	else
-		NUM2="$(( $NUM2 + 1 ))"
+		NUM2="$(( NUM2 + 1 ))"
 	fi
 
 	VERSION_NEW="$NUM1.$NUM2"

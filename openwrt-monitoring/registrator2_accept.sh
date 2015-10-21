@@ -56,7 +56,7 @@ heartbeat_acceptable()
 	local node="$3"
 	local file="heartbeats/${$node}_${mac}_${hash}"
 
-	if [ -e "$file"; then
+	if [ -e "$file" ]; then
 		touch "$file"
 		return 0
 	else

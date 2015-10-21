@@ -12,7 +12,7 @@ list_pubips_from_network()
 {
 	local network="$1"
 	local dir="/var/www/networks/$network/meshrdf/recent"
-	local file data
+	local file
 
 	# TODO: e.g. if 'satama', also block 'marinapark'
 
@@ -39,11 +39,11 @@ list_networks()
 		echo "$ARG2"
 	else
 		# sort: network with smallest size first
-		ls -1 /var/www/networks | while read network; do {
+		ls -1 /var/www/networks | while read -r network; do {
 			[ -n "$( ls -l /var/www/networks/$network/meshrdf/recent 2>/dev/null | fgrep -v ' -> ' | grep -v ^'total' )" ] && {
 				du -s "/var/www/networks/$network"
 			}
-		} done | sort -n | while read line; do set -- $line; basename "$2"; done
+		} done | sort -n | while read -r line; do set -- $line; basename "$2"; done
 	fi
 }
 
@@ -63,7 +63,7 @@ esac
 
 case "$ARG" in
 	'checksize')
-		list_networks | while read LINE; do {
+		list_networks | while read -r LINE; do {
 			du -s "/var/www/networks/$LINE"
 		} done
 
@@ -93,7 +93,7 @@ case "$ARG" in
 		log "using ARG2 = $ARG"
 	;;
 	'')
-		# read IP </var/www/networks/liszt28/meshrdf/recent/76ea3ae44a96.pubip
+		# read -r IP </var/www/networks/liszt28/meshrdf/recent/76ea3ae44a96.pubip
 		# NAS: port10022:bastian@${IP}:daten/bla/incoming-backup/intercity-vpn
 		# results in:
 		# scp -P 10022 BACKUP/* bastian@${IP}:daten/bla/incoming-backup/intercity-vpn
@@ -116,7 +116,7 @@ esac
 	# trash:
 	rm /tmp/all_pubips.txt_*
 
-	cd /
+	cd / || exit
 	tar -cvf "$TARFILE" /var/www/scripts /var/spool/cron/crontabs/root /tmp/crashlogs /tmp/monilog.txt
 	ls -l $TARFILE
 	log "[OK] lzma '$TARFILE' running"
@@ -149,7 +149,7 @@ case "$ARG" in
 	;;
 esac
 
-cd /
+cd / || exit
 
 [ -e "$TARFILE" ] && {
 	echo "scp-ing tarfile $TARFILE to $ARG - pwd: '$( pwd )'"
@@ -209,7 +209,7 @@ cd /
 	fi
 
 	TARFILE="/tmp/backup-server-roothome-$( uname -n )-$( date +%Y%b%d_%H:%M ).tar"
-	FILELIST="$(  ls -1 /root/ | fgrep -v "torrent" | sed 's|^|/root/|' )"
+	FILELIST="$( find /root -type f | grep -v 'torrent' )"
 	echo "content: roothome creating $TARFILE"
 	tar -cf "$TARFILE" $FILELIST || {
 		log "error during tar - disc full?"
@@ -264,14 +264,19 @@ for NETWORK in $( list_networks ); do {
 	if scp $SCP_SPECIAL_OPTIONS -P $PORT $TARFILE $ARG; then
 		rm "$TARFILE"
 
-		for FILE in $( ls -1 /var/www/networks/$NETWORK/vds | grep ^backup_[0-9]*$ ); do {
-			FILE="/var/www/networks/$NETWORK/vds/$FILE"
-			[ -e "$FILE" ] || continue
-			echo "removing directory $FILE"
-			rm -fR "$FILE"
+		ls -1 /var/www/networks/$NETWORK/vds | while read -r FILE; do {
+			case "$FILE" in
+				'backup_'*)
+					# better: ^"backup_[0-9]*"$
+					FILE="/var/www/networks/$NETWORK/vds/$FILE"
+					[ -e "$FILE" ] || continue
+					echo "removing directory $FILE"
+					rm -fR "$FILE"
+				;;
+			esac
 		} done
 
-#		todo:
+#		TODO:
 #		db_backup.tgz_a8d6a6e4d20aeede356f2dea217d51d2.2013Dec18
 #		db_backup.tgz_*.2012*	+ *2013* 	-> nun in compress/rm drinne
 

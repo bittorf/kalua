@@ -24,8 +24,8 @@ unixtime2date()		# needs 'gawk' NOT the 'mawk'
 	awk -v UNIXTIME="$1" 'BEGIN { print strftime("%c", UNIXTIME) }'
 }
 
-while read LINE; do {
-	LINECOUNT=$(( $LINECOUNT + 1 ))
+while read -r LINE; do {
+	LINECOUNT=$(( LINECOUNT + 1 ))
 
 	case "$LINE" in
 		*"$MAC"*)		# WIFIMAC="00156d1aaebc"

@@ -76,8 +76,8 @@ chmod -R 777 "${BASE}/${NETWORK}/" && log "[OK] chmod 777 all"
 /var/www/scripts/gen_package_list.sh "$NETWORK" && \
 	log "[OK] generated package-list from private repo '$NETWORK'"
 
-cd "${BASE}/${NETWORK}/vds"
+cd "${BASE}/${NETWORK}/vds" || exit
 echo "<html><body>protected</body></html>" >index.html && log "[OK] putting empty startpage into vds-dir"
 
-cd "${BASE}/${NETWORK}/speedtest"
+cd "${BASE}/${NETWORK}/speedtest" || exit
 echo -e '<?php\necho $_SERVER["REMOTE_ADDR"];\n?>' >index.html && log "[OK] put remote_addr startpagepage into speedtest"

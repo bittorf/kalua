@@ -1,6 +1,6 @@
 #!/bin/sh
 
-read t1 trash </proc/uptime
+read -r t1 _ </proc/uptime
 [ -d '/tmp/crashlogs' ] || {
 	mkdir -p '/tmp/crashlogs'
 	chmod -R 777 '/tmp/crashlogs'
@@ -27,9 +27,9 @@ count_crashs_unreal()
 
 	for file in /tmp/crashlogs/crash-*; do {
 		if   fgrep -sq "SysRq : Trigger a crash" "$file"; then
-			i=$(( $i + 1 ))
+			i=$(( i + 1 ))
 		elif fgrep -sq "invoked oom-killer:" "$file"; then
-			j=$(( $j + 1 ))
+			j=$(( j + 1 ))
 		fi
 	} done
 
@@ -49,7 +49,7 @@ html_head()
 	local crash_sysrq=$1
 	local crash_oom=$2
 
-	local crash_real=$(( $crash_all - $crash_sysrq - $crash_oom ))
+	local crash_real=$(( crash_all - crash_sysrq - crash_oom ))
 
 	cat <<EOF
 <html><head><title>crashlogs @ $( date "+%d.%b'%y-%H:%M" )</title></head><body>
@@ -88,7 +88,7 @@ EOF
 
 html_foot()
 {
-	read t2 trash </proc/uptime
+	read -r t2 _ </proc/uptime
 	# dash cannot do this
 	# duration=$(( ${t2//./} - ${t1//./} ))
 	duration=$(( $( echo $t2 | sed 's/\.//' ) - $( echo $t1 | sed 's/\.//' ) ))
@@ -98,7 +98,7 @@ html_foot()
 <br><b>note:</b><br>
 getting a <a href='https://dev.openwrt.org/browser/trunk/target/linux/generic/patches-3.3/930-crashlog.patch'>crashlog</a> after reboot is possible since july 2012 with <a href='https://dev.openwrt.org/changeset/32787/trunk'>r32787</a><br>
 all the magic is done by: <a href='https://github.com/bittorf/kalua/blob/master/openwrt-addons/etc/init.d/crashlog_apport'>crashlog_apport</a>
-<br>overview generated in in $(( $duration / 100 )).$(( $duration % 100 )) sec.
+<br>overview generated in in $(( duration / 100 )).$(( duration % 100 )) sec.
 </body></html>
 EOF
 }
@@ -108,18 +108,18 @@ seconds2humanreadable()
 	local integer="$1"
 	local humanreadable min sec hours days
 
-	min=$(( $integer / 60 ))
-	sec=$(( $integer % 60 ))
+	min=$(( integer / 60 ))
+	sec=$(( integer % 60 ))
 
 	if   [ $min -gt 1440 ]; then
-		days=$(( $min / 1440 ))
-		min=$(( $min % 1440 ))
-		hours=$(( $min / 60 ))
-		min=$(( $min % 60 ))
+		days=$(( min / 1440 ))
+		min=$(( min % 1440 ))
+		hours=$(( min / 60 ))
+		min=$(( min % 60 ))
 		humanreadable="${days}d ${hours}h ${min}min ${sec}sec"
 	elif [ $min -gt 60 ]; then
-		hours=$(( $min / 60 ))
-		min=$(( $min % 60 ))
+		hours=$(( min / 60 ))
+		min=$(( min % 60 ))
 		humanreadable="${hours}h ${min}min ${sec}sec"
 	else
 		humanreadable="${min}min ${sec}sec"
@@ -133,7 +133,7 @@ call_trace()
 	local file="$1"
 	local start line
 
-	while read line; do {
+	while read -r line; do {
 		case "${line}${start}" in
 			*[0-9]"]1")
 				break
@@ -194,7 +194,7 @@ html_tablecontent()
 	for id in $( list_ids ); do {
 		file="/tmp/crashlogs/crash-${id}.txt"
 #test "$id" = "1356093945" && logger -s "working $id"
-		read revision <"$file"
+		read -r revision <"$file"
 		case "$revision" in
 			r*)
 				case "$LIST_OMIT_REV" in
@@ -211,7 +211,7 @@ html_tablecontent()
 			;;
 		esac
 
-#		while read kernel kernel; do 
+#		while read -r kernel kernel; do 
 
 		unixtime_file="$( stat --printf %Y "$file" )"
 		size="$( sed -n '6,999p' "$file" | strings | wc -c )"
@@ -234,9 +234,9 @@ html_tablecontent()
 			test $uptime -lt 80 && continue
 
 			if [ $uptime -gt 129000 ]; then
-				uptime="$(( $uptime / 60 / 60 ))h"
+				uptime="$(( uptime / 60 / 60 ))h"
 			else
-				uptime="$(( $uptime / 60 ))min"
+				uptime="$(( uptime / 60 ))min"
 			fi
 
 			reason="manual SysRq/$reason/$uptime"
@@ -288,7 +288,7 @@ html_tablecontent()
 			platform="?"
 		fi
 
-		timediff=$(( $unixtime_now - $unixtime_file ))
+		timediff=$(( unixtime_now - unixtime_file ))
 		timediff="$( seconds2humanreadable "$timediff" )"
 
 		if [ -e "/var/www/crashlog/vmlinux.${platform}.${revision}.lzma" ]; then
@@ -339,7 +339,7 @@ html_tablecontent()
 		echo -n "<td align='center'>$vmlinux</td>"
 		echo -n "<td align='right'>$kernel</tr>"
 
-		i=$(( $i + 1 ))
+		i=$(( i + 1 ))
 	} done
 }
 

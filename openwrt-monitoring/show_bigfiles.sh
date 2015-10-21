@@ -19,7 +19,7 @@ MAX_SIZE="5M"		# find-syntax
 for DIR in $( ls -1 "$BASEDIR" ); do {
 
 	find 2>/dev/null "$BASEDIR/$DIR" -type f -size +$MAX_SIZE |
-	 while read LINE; do {
+	 while read -r LINE; do {
 		case "$LINE" in
 			*"-vds"*|*".ulog"*)
 				[ "$OPTION" = "all" ] && ls -lh "$LINE"
@@ -38,7 +38,7 @@ list_networks()
 
 show_megabytes_only()
 {
-	while read LINE; do {
+	while read -r LINE; do {
 		set -- $LINE
 		case "$1" in
 			*'M'|*'G')
@@ -74,7 +74,7 @@ echo "[READY] size media"
 
 echo
 echo "[START] size special"			# ls -1 | grep -v '01_' | while read LINE; do rm $LINE; done
-for DIR in /root/backup/ejbw/pbx; do {
-	du -sh "$DIR" | show_megabytes_only
+for DIR in /root/backup/ejbw/pbx foo; do {
+	[ -d "$DIR" ] && du -sh "$DIR" | show_megabytes_only
 } done
 echo "[READY] size media"
