@@ -244,7 +244,7 @@ log()
 
 	# set global var on 1st run
 	[ -z "$MYLOGGER" ] && {
-		if logger -s "$0:firstrun testing_feature_s" 2>/dev/null; then
+		if logger -s -- "$0:firstrun testing_feature_s" 2>/dev/null; then
 			MYLOGGER='logger -p user.info -s'
 		else
 			# e.g. AIX power-aix 1 7 00F84C0C4C00

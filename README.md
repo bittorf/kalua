@@ -212,7 +212,7 @@ opkg update
 opkg install git
 
 echo  >/tmp/gitssh.sh '#!/bin/sh'
-echo >>/tmp/gitssh.sh 'logger -s "$0: $*"'
+echo >>/tmp/gitssh.sh 'logger -s -- "$0: $*"'
 echo >>/tmp/gitssh.sh 'ssh -i /etc/dropbear/dropbear_dss_host_key $*'
 
 chmod +x /tmp/gitssh.sh

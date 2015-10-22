@@ -82,7 +82,7 @@ case "$HTTP_HOST" in
 	;;
 esac
 
-/bin/busybox logger "$0: ERROR${ERROR} for IP '$REMOTE_ADDR' with HTTP_HOST/USER_AGENT: '$HTTP_HOST'/'$HTTP_USER_AGENT'"
+/bin/busybox logger -- "$0: ERROR${ERROR} for IP '$REMOTE_ADDR' with HTTP_HOST/USER_AGENT: '$HTTP_HOST'/'$HTTP_USER_AGENT'"
 
 case "$ERROR" in
 	403)
