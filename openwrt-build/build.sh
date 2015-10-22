@@ -2161,6 +2161,10 @@ build_options_set()
 				fi
 			;;
 			'iproute2')
+				# TODO: dont include the 'ip neigh' patch with new busybox (e.g. v1.24.1),
+				#	it is included upstream with 69934701fd1b18327b3a779cb292a728834b2d0d
+				#	= Wed Oct 14 12:53:47 2015 +0200
+
 				busybox_ip_command_is_prefered()
 				{
 					# https://dev.openwrt.org/changeset/46829/trunk
@@ -2172,7 +2176,6 @@ build_options_set()
 
 				if busybox_ip_command_is_prefered; then
 					log '[OK] using busybox ip'
-					# TODO: ip neigh
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_NEIGH=y' hide
@@ -2993,6 +2996,9 @@ unittest_do()
 					'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh')
 						log "[OK] ignoring '$file' - deprecated/unused/too_buggy"
 						continue
+					;;
+					'openwrt-monitoring/'*)
+						ignore="$( shellsheck_ignore ),SC2010,SC2012,SC2034,SC2044,SC2045,SC2062"
 					;;
 					'openwrt-build/apply_profile.code.definitions')
 						# VAR appears unused. Verify it or export it
