@@ -380,6 +380,7 @@ EOF
 for FILE in NULL FOO; do {
 	continue	# ignore this block
 #for FILE in $FILELIST; do {		# describe all connections, which are used for inet ("path to gateway")
+	NEIGH=
 	. $FILE
 
 	log "neigh: $NEIGH"

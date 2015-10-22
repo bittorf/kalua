@@ -167,6 +167,7 @@ echo
 [ -e ./map.temp.conns ] && rm ./map.temp.conns
 
 for FILE in $FILELIST; do {		# describe all connections, which are used for inet ("path to gateway")
+	NEIGH=
 	. $FILE
 
 #	log "neigh: $NEIGH"
