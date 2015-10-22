@@ -275,7 +275,6 @@ cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 /etc/init.d/apply_profile.code
 ```
 
-
 Cherry Picking Git commits from forked repositories
 ---------------------------------------------------
 
