@@ -32,7 +32,7 @@ DIR=
 OUT="Packages"
 [ -e "$OUT" ] && rm "$OUT"
 
-for FILE in $( ls -1 *.ipk ); do {
+for FILE in $( ls -1 ./*.ipk ); do {
 	tar xzf "$FILE" ./control.tar.gz
 	tar xzf control.tar.gz ./control
 

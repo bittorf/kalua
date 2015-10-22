@@ -221,7 +221,7 @@ fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if t
 	local lastnewip lastnewip_diff
 
 	local hour="$(   date +%H )"
-	local minute="$( date +%M )"
+#	local minute="$( date +%M )"
 
 	[ -e '/tmp/SIMULATE_FAIL' ] && {
 		rm '/tmp/SIMULATE_FAIL'

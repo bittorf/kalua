@@ -67,8 +67,8 @@ for NETWORK in $LIST_NETWORKS; do {
 	$SCRIPT "$NETWORK" "$VERSION_NEW" >/dev/null
 #	log "[READY] new version"
 
-	F1="$PACKAGE_BASE/${PACKAGE}_${VERSION_NOW}"*
-	F2="$PACKAGE_BASE/${PACKAGE}_${VERSION_NEW}"*
+	F1="$PACKAGE_BASE/${PACKAGE}_${VERSION_NOW}"	# expanded later
+	F2="$PACKAGE_BASE/${PACKAGE}_${VERSION_NEW}"
 
 #	log "[START] checking hash tar1 = ${PACKAGE}_${VERSION_NOW}*"
 	tar xzf "${PACKAGE}_${VERSION_NOW}"* "./control.tar.gz"
@@ -89,11 +89,11 @@ for NETWORK in $LIST_NETWORKS; do {
 	if [ "$HASH1" = "$HASH2" -a "$ARG2" != 'force' ]; then
 #		log "[OK] same hash for network $NETWORK - nothing to do, staying at version $VERSION_NOW"
 		I=$(( I + 1 ))
-		rm $F2 2>/dev/null
+		rm "$F2"* 2>/dev/null
 	else
 		log "[OK] hash differs, leaving new package v$VERSION_NEW, deleting old, regen index"
 		J=$(( J + 1 ))
-		rm $F1 2>/dev/null
+		rm "$F1"* 2>/dev/null
 		/var/www/scripts/gen_package_list.sh start
 	fi
 
