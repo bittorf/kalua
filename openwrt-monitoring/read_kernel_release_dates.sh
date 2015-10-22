@@ -72,7 +72,8 @@ for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 						fi
 
 						DATE_WELLFORMED=
-						wget -qO - "$URL/$LINK" | while read -r LINE; do {
+						wget -qO - "$URL/$LINK" >"$DIR/tempfile"
+						while read -r LINE; do {
 							case "$LINE" in
 								'Date:'*)
 									set -- $LINE; shift
@@ -92,7 +93,8 @@ for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 									break
 								;;
 							esac
-						} done
+						} done <"$DIR/tempfile"
+						rm "$DIR/tempfile"
 
 						# FIXME! can this work (set in a subshell!)
 						[ -z "$DATE_WELLFORMED" ] && {

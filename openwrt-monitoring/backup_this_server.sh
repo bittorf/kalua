@@ -33,16 +33,20 @@ list_pubips_from_network()
 
 list_networks()
 {
-	local network line
+	local network line file
 
 	if [ -e "/var/www/networks/${ARG2:-not_existent}" ]; then
 		echo "$ARG2"
 	else
 		# sort: network with smallest size first
 		ls -1 /var/www/networks | while read -r network; do {
-			[ -n "$( ls -l /var/www/networks/$network/meshrdf/recent 2>/dev/null | fgrep -v ' -> ' | grep -v ^'total' )" ] && {
-				du -s "/var/www/networks/$network"
-			}
+			for file in /var/www/networks/$network/meshrdf/recent/*; do {
+				[ -e "$file" ] && {
+					[ -h "$file" ] || {
+						du -s "/var/www/networks/$network"
+					}
+				}
+			} done
 		} done | sort -n | while read -r line; do set -- $line; basename "$2"; done
 	fi
 }

@@ -20,13 +20,16 @@ uptime_in_seconds()
 
 list_networks()
 {
-	local network
+	local network file
 
 	ls -1 /var/www/networks | while read -r network; do {
 		# allow symlinks, dont filter ' -> '
-		[ -n "$( ls -l /var/www/networks/$network/meshrdf/recent 2>/dev/null | grep -v ^'total' )" ] && {
-			echo "$network"
-		}
+		for file in /var/www/networks/$network/meshrdf/recent/*; do {
+			[ -e "$file" ] && {
+				echo "$network"		# OK on first hit
+				return 0
+			}
+		} done
 	} done
 }
 
