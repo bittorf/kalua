@@ -6,9 +6,9 @@ nexthop()
 	_sanitizer run "$( ip route list exact '0.0.0.0/0' table main | head -n1 )" ip4
 }
 
-nexthop_dev()
+nexthop_dev_iswired()
 {
-	case "$( ip route list exact 0.0.0.0/0 table main | head -n1 )" in
+	case "$( ip route list exact '0.0.0.0/0' table main | head -n1 )" in
 		*" dev $LANDEV "*)
 			echo "$LANDEV"
 		;;
@@ -53,7 +53,7 @@ ask_for_slave()
 	return 1
 }
 
-olsr_on_wifi()
+olsr_on_wifi_configured()
 {
 	local i j name
 
@@ -118,7 +118,7 @@ stop_olsr_and_set_static_routes()
 	[ -z "$check_ip" ] && return 1
 
 	local nexthop="$( nexthop )"
-	local nexthop_dev="$( nexthop_dev )"
+	local nexthop_dev="$( nexthop_dev_iswired )"
 
 	check_ip="$( echo "$check_ip" | cut -d' ' -f2 )"	# 'OK 10.63.14.25' -> 10.63.14.25
 	_sanitizer run "$check_ip" ip4 check || return 1
@@ -146,16 +146,38 @@ stop_olsr_and_set_static_routes()
 	_olsr daemon stop "i'am now a hna4-slave from $( nexthop )"
 }
 
-[ "$HARDWARE" = "Buffalo WZR-HP-AG300H" ] || {
-	olsr_on_wifi || {
-		nexthop_dev >/dev/null && {
-			pidof olsrd >/dev/null && {
-				_net local_inet_offer >/dev/null || {
-					LOGPRIO="$( check_special_condition )" && {
-						stop_olsr_and_set_static_routes "$( ask_for_slave )" "$LOGPRIO"
-					}
-				}
-			}
-		}
-	}
+neigh_info_written()
+{
+	test -e '/tmp/OLSR/meshrdf_neighs'
+}
+
+local_hna4inet_announce()
+{
+	local i
+
+	for i in 0 1 2 3; do {
+		case "$( uci -q get olsrd.@Hna4[$i].netaddr )" in
+			'0.0.0.0')
+				return 0
+			;;
+		esac
+	} done
+
+	return 1
+}
+
+looks_good()
+{
+	olsr_on_wifi_configured			&& return 1
+	local_hna4inet_announce			&& return 1
+	nexthop_dev_iswired >/dev/null		|| return 1
+	pidof olsrd >/dev/null			|| return 1
+	[ $( _olsr uptime sec ) -gt 600 ]	|| return 1
+	_net local_inet_offer >/dev/null	&& return 1
+	neigh_info_written			|| return 1
+	LOGPRIO="$( check_special_condition )"	|| return 1
+}
+
+looks_good && {
+	stop_olsr_and_set_static_routes "$( ask_for_slave )" "$LOGPRIO"
 }
