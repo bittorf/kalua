@@ -548,7 +548,10 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_x86_64=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-64-vmlinuz'
 			FILENAME_FACTORY='openwrt-x86-64-rootfs-ext4.img'
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+			[ ${#LIST_USER_OPTIONS} -le 14 ] && {
+				# e.g. 'Standard,kalua' or 'Small,kalua' ...
+				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+			}	# parser_ignore
 
 			[ "$option" = 'info' ] && {
 				cat <<EOF
@@ -736,15 +739,24 @@ EOF
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
 		;;
 		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2'|'ASUS WL-HDD 2.5')
-			# hint: the 'ASUS WL-500g Premium v2' needs the 'low power phy' compiled into b43
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
 
 			if [ $( openwrt_revision_number_get ) -gt 41530 ]; then
-				# openwrt-brcm47xx-legacy-squashfs.trx
-				# openwrt-brcm47xx-legacy-asus-wl-500gp-v1-squashfs.trx
-				# openwrt-brcm47xx-legacy-asus-wl-500gp-v2-squashfs.trx
-				FILENAME_SYSUPGRADE='openwrt-brcm47xx-generic-squashfs.trx'
-				FILENAME_FACTORY='openwrt-brcm47xx-generic-squashfs.trx'
+				case "$model" in
+					'ASUS WL-500g Premium')
+						FILENAME_SYSUPGRADE='openwrt-brcm47xx-legacy-asus-wl-500gp-v1-squashfs.trx'
+						FILENAME_FACTORY=''
+					;;
+					'ASUS WL-500g Premium v2')
+						# TODO: needs the 'low power phy' compiled into b43
+						FILENAME_SYSUPGRADE='openwrt-brcm47xx-legacy-asus-wl-500gp-v2-squashfs.trx'
+						FILENAME_FACTORY=''
+					;;
+					*)
+						FILENAME_SYSUPGRADE='openwrt-brcm47xx-generic-squashfs.trx'
+						FILENAME_FACTORY='openwrt-brcm47xx-generic-squashfs.trx'
+					;;
+				esac
 
 				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
 			else
