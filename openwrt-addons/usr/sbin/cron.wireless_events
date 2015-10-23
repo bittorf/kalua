@@ -97,7 +97,13 @@ mac2ipv4()	# TODO: better name
 					'192.168.'*)
 						log "$funcname($i) [SUCCESS] setting host route for alien $ip"
 						if ip route add "$ip/32" dev $dev; then
-							command="NAT_ALIEN_ROAMERS -s $ip -j SNAT --to-source $OLSR_MAIN_IP"
+							if _net local_inet_offer >/dev/null; then
+								# FIXME! e.g. giancarlo
+								command="NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
+							else
+								command="NAT_ALIEN_ROAMERS -s $ip -j SNAT --to-source $OLSR_MAIN_IP"
+							fi
+
 							$IPT -t nat -I $command
 							# this file is sourced/executed after 'station del'
 							{
@@ -127,14 +133,14 @@ mac2ipv4()	# TODO: better name
 					server_asked='true'
 					ip="$( _net roaming_mac2ip "$mac" )"
 					[ -n "$ip" ] && {
-						log "$funcname($i) OK: mac2ip/full worked: $ip"
+						log "$funcname($i) OK: mac2ip/full worked: $mac -> $ip"
 						server_asked='true:OK'
 					}
 				else
 					# DHCP is ready ~3...4 secs after connecting
 					ip="$( _net roaming_mac2ip "$mac" 'local_only' )"
 					if [ -n "$ip" ]; then
-						log "$funcname($i) OK: mac2ip/local_only worked: $ip"
+						log "$funcname($i) OK: mac2ip/local_only worked: $mac -> $ip"
 						server_asked='true:OK'
 					else
 						sleep 1
