@@ -20,16 +20,12 @@ uptime_in_seconds()
 
 list_networks()
 {
-	local network file
+	local dir file
 
-	ls -1 /var/www/networks | while read -r network; do {
-		# allow symlinks, dont filter ' -> '
-		for file in /var/www/networks/$network/meshrdf/recent/*; do {
-			[ -e "$file" ] && {
-				echo "$network"		# OK on first hit
-				return 0
-			}
-		} done
+	for dir in /var/www/networks/*; do {
+		# allow symlinks
+		for file in $dir/meshrdf/recent/*; do break; done
+		[ -e "$file" ] && basename "$dir"
 	} done
 }
 
