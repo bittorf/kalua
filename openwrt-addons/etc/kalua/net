@@ -396,7 +396,9 @@ _net_count_wired()
 	ip neigh show >"/tmp/$funcname"
 
 	while read -r line; do {
+		set -f		# disable globbing
 		set -- $line
+		set +f
 		ip="$1"
 		dev="$3"
 		mac="$5"
@@ -535,7 +537,9 @@ _net_arp_reset()
 
 	while read -r line; do {
 		# 10.63.196.161  0x1  0x6  00:10:75:2d:80:e1  *  eth0.1
+		set -f		# disable globbing
 		set -- $line
+		set +f
 		_net arp_permanent "$1" "$4" "$6" 'reachable'
 	} done <'/proc/net/arp'
 }
@@ -1130,7 +1134,9 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 	# get mac from arp-cache
 	[ -z "$mac" ] && {
 		while read -r line; do {
+			set -f		# disable globbing
 			set -- ${line:-unset}
+			set +f
 			ip="$1"
 			mac="$4"
 
@@ -1471,9 +1477,9 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 		case "$line" in
 			"$ip "*)
 				# 10.63.61.1  0x1  0x2  66:70:02:f3:90:6c  *  wlan1
-				set -f
+				set -f		# disable globbing
 				set -- $line
-				set +f		# globbing ON (default)
+				set +f
 
 				[ "$4" = '00:00:00:00:00:00' ] || {
 					_log it $funcname daemon debug "try1: $6 <- $*"
@@ -1906,7 +1912,9 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 		local mac ip line
 
 		while read -r line; do {
-			set $line
+			set -f		# disable globbing
+			set -- $line
+			set +f
 			ip="$1"
 			mac="$( _sanitizer run "$4" lowercase )"
 
@@ -1915,7 +1923,7 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 				return
 			}
 
-		} done </proc/net/arp
+		} done <'/proc/net/arp'
 	}
 
 	try_3()		# DHCP-leases (macs are lowercase)
@@ -1983,7 +1991,7 @@ _net_mac2dev()
 			return 0
 		}
 
-	} done </proc/net/arp
+	} done <'/proc/net/arp'
 
 	return 1
 }
