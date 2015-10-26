@@ -19,7 +19,11 @@ boot()
 	fi
 	date -s @$(( unixtime + 30 ))
 
-	grep -q 'debugfs'$ '/proc/filesystems' && mount -o noatime -t debugfs debugfs '/sys/kernel/debug'
+	grep -q ^'debugfs /sys/kernel/debug' '/proc/mounts' || {
+		grep -q 'debugfs'$ '/proc/filesystems' && {
+			mount -o noatime -t debugfs debugfs '/sys/kernel/debug'
+		}
+	}
 
 	reason_long()
 	{
@@ -29,20 +33,12 @@ boot()
 		reason_long="$( grep "reason=$reason " '/etc/kalua/system' | cut -d')' -f1 | cut -d'|' -f2 )"
 		set -- $reason_long
 
-		case "$reason_long" in
-			'apply_profile')
-				[ -e '/www/CRASHLOG_WORKS' ] || {
-					touch '/www/CRASHLOG_WORKS'
-				}
-			;;
-		esac
-
 		echo "${1:-unknown_reason}"
 	}
 
-	if [ -e '/www/CRASHLOG_WORKS' ]; then
-		export TZ="$( uci -q get system.@system[0].timezone )"
+	grep -sq 'Modules:' "$crashlog" && touch '/www/CRASHLOG_WORKS'
 
+	if [ -e '/www/CRASHLOG_WORKS' ]; then
 		if line="$( grep -s ' ux.,' "$crashlog" )"; then			# see system_crashreboot()
 			# <4>[29071.240000] CPU: 0 PID: 7201 Comm: ux0,1388632927, Not tainted 3.10.24 #18
 			# <4>[ 9071.240000] CPU: 0 PID: 7201 Comm: ux0,1388632927, Not tainted 3.10.24 #18
