@@ -10,5 +10,7 @@ alias flush='_system ram_free flush'
 alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
 alias regen='/etc/kalua_init; LODEV= . /tmp/loader'
 
-[ -e '/tmp/loader' -a -z "$LODEV" ] && . '/tmp/loader'
-echo 'for some hints type: _help overview'
+[ -e '/tmp/loader' -a -z "$LODEV" ] && {
+	. '/tmp/loader'
+	echo 'for some hints type: _help overview'
+}
