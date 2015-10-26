@@ -8,9 +8,11 @@ alias ll='ls -la'
 alias lr='logread'
 alias flush='_system ram_free flush'
 alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
-alias regen='/etc/kalua_init; LODEV= . /tmp/loader'
+alias regen='/etc/kalua_init; _(){ false;}; . /tmp/loader'
 
-[ -e '/tmp/loader' -a -z "$LODEV" ] && {
-	. '/tmp/loader'
-	echo 'for some hints type: _help overview'
+_ t 2>/dev/null || {
+	[ -e '/tmp/loader' ] && {
+		. '/tmp/loader'
+		echo 'for some hints type: _help overview'
+	}
 }
