@@ -4,7 +4,7 @@ START=00
 
 boot()
 {
-	local line unixtime reason
+	local line unixtime reason entry
 	local crashlog='/sys/kernel/debug/crashlog'
 	EVERLOG='/www/everlasting_syslog.txt'		# later known via loader
 
@@ -117,11 +117,13 @@ boot()
 	#
 	# since r42046: http://wiki.openwrt.org/doc/uci/firewall#nf_conntrack_skip_filter
 	# net.netfilter.nf_conntrack_skip_filter=0
-
-	for ENTRY in "vm.panic_on_oom=2" "kernel.panic_on_oops=1" "kernel.panic=10" "net.netfilter.nf_conntrack_skip_filter=0"; do {
-		/sbin/sysctl -w "$ENTRY" >/dev/null
-		grep -q ^"$ENTRY" '/etc/sysctl.conf' || {
-			echo "$ENTRY" >>'/etc/sysctl.conf'
+	for entry in	'vm.panic_on_oom=2' \
+			'kernel.panic_on_oops=1' \
+			'kernel.panic=10' \
+			'net.netfilter.nf_conntrack_skip_filter=0'; do {
+		/sbin/sysctl -w "$entry" >/dev/null
+		grep -q ^"$entry"$ '/etc/sysctl.conf' || {
+			echo "$entry" >>'/etc/sysctl.conf'
 		}
 	} done
 
@@ -134,29 +136,39 @@ boot()
 #	fi
 
 	# zram is included since r35033
-	grep -q ^"zram " "/proc/modules" || /etc/init.d/zram start
+	grep -q ^"zram " '/proc/modules' || /etc/init.d/zram start
 
-	# fixme! why does it hang? with plain OpenWrt this does not happen
+	# FIXME! why does it hang? with plain OpenWrt this does not happen
 	[ -e '/etc/init.d/rcS' ] && {
-		fgrep -q "killall logger" "/etc/init.d/rcS" || echo "killall logger" >>"/etc/init.d/rcS"
+		fgrep -q 'killall logger' '/etc/init.d/rcS' || {
+			echo 'killall logger' >>'/etc/init.d/rcS'
+		}
 	}
 
 	touch '/tmp/BOOT'
 	touch '/tmp/DEBUG'
-	mkdir '/tmp/SERVICE'
+	mkdir '/tmp/SERVICE'		# FIXME! why?
 
-	local maxtry=10
-	while ! sh -n /tmp/loader; do {
-	        /etc/kalua_init
-		maxtry=$(( maxtry - 1 ))
-		[ $maxtry -gt 0 ] || {
-			[ -e "/www/loader.backup" ] && cp "/www/loader.backup" "/tmp/loader"
+	for _ in 9 8 7 6 5 4 3 2 1; do {
+		/etc/kalua_init
+
+		# enforce error if 'no file' or 0 bytes
+		[ -s '/tmp/loader' ] || echo ';' >'/tmp/loader'
+
+		if sh -n 2>/dev/null '/tmp/loader'; then
+			. /tmp/loader
+			[ -e '/www/loader.backup' ] || {
+				cp '/tmp/loader' '/www/loader.backup'
+			}
+
 			break
-		}
+		else
+			[ -e '/www/loader.backup' ] && {
+				cp '/www/loader.backup' '/tmp/loader'
+				. /tmp/loader
+			}
+		fi
 	} done
-
-	. /tmp/loader
-	[ -e "/www/loader.backup" ] || cp "/tmp/loader" "/www/loader.backup"
 
 	# really needed?
 	/etc/init.d/override_uci_vars enabled || {
