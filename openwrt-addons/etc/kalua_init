@@ -34,20 +34,22 @@ LOADER="$TMPDIR/loader_$$"
 LOADER_FINAL="$TMPDIR/loader"		# later '/tmp/loader' is symlinked to it
 mkdir -p "$POOLDIR"
 
-# _ s    http		-> show http methods
+# _ s    http		-> show methods for class 'http'
 # _ http arg1 argX	-> include + start
 # _ http		-> list methods and include
 # _ http include	-> include only
+# _ t			-> test if loader already included
 # _			-> list classes
 
 cat >"$LOADER" <<EOF
 #!/bin/sh
-case \$LODEV in lo)return;;esac
+_ t 2>/dev/null || return
 
 _(){ case \$1 in
-s)sed -n "/;}$/! s/^\(_\${2}_.*\)()/\1/p" $POOLDIR/\$2|sort;;
+s)sed -n "/;}$/! s/^\(_\${2}_.*\)()/\1/p" $BASEDIR/\$2|sort;;
 i)local a=\${3-s} b=\$2;shift 3;_ \$b;case \$a in include);;*)_\${b}_\$a "\$@";;esac;;
-*)[ \$1 ]&&. $POOLDIR/\$1||ls -1 $POOLDIR|grep ^[a-z]|sort|sed s/^/_/;;esac;}
+*)[ \$1 ]&&. $POOLDIR/\$1||ls -1 $POOLDIR|grep ^[a-z]|sort|sed s/^/_/;;
+t);;esac;}
 
 EOF
 
@@ -106,4 +108,4 @@ mv "$LOADER" "$LOADER_FINAL" && . "$LOADER_FINAL"
 ln -s "$LOADER_FINAL" '/tmp/loader'
 
 logger -s -- "$0: [OK] done '/tmp/loader' with files in $POOLDIR"
-logger -s -- "$0: [OK] you MUST reload with 'LODEV= . /tmp/loader' if this is an interactive shell"
+logger -s -- "$0: [OK] reload new loader with '_(){};. /tmp/loader' if this is an interactive shell"
