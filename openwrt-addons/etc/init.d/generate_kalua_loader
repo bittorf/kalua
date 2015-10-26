@@ -21,10 +21,6 @@ boot()
 
 	grep -q 'debugfs'$ '/proc/filesystems' && mount -o noatime -t debugfs debugfs '/sys/kernel/debug'
 
-	[ -e "$crashlog" ] && {
-		[ -e '/www/CRASHLOG_WORKS' ] || touch '/www/CRASHLOG_WORKS'
-	}
-
 	reason_long()
 	{
 		local reason="$1"
@@ -32,6 +28,14 @@ boot()
 
 		reason_long="$( grep "reason=$reason " '/etc/kalua/system' | cut -d')' -f1 | cut -d'|' -f2 )"
 		set -- $reason_long
+
+		case "$reason_long" in
+			'apply_profile')
+				[ -e '/www/CRASHLOG_WORKS' ] || {
+					touch '/www/CRASHLOG_WORKS'
+				}
+			;;
+		esac
 
 		echo "${1:-unknown_reason}"
 	}
@@ -76,14 +80,14 @@ boot()
 				fi
 			else
 				echo "$( date ) [ERROR] reboot without reason/crash" >>"$EVERLOG"
-				echo "nocrash" >'/tmp/REBOOT_REASON'
+				echo 'nocrash' >'/tmp/REBOOT_REASON'
 			fi
 		fi
 	else
 		reason="$( tail -n1 "$EVERLOG" | grep 'system_crashreboot' | cut -d'=' -f2 )"
 		reason="$( reason_long "$reason" )"
 		echo "${reason:-nocrash}" >'/tmp/REBOOT_REASON'
-		echo "$( date ) BOOTUP: reason: ${reason:-nocrash}" >>"$EVERLOG"
+		echo "$( date ) (crashlog not working) BOOTUP: reason: ${reason:-nocrash}" >>"$EVERLOG"
 	fi
 
 	{

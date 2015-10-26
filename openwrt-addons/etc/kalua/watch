@@ -846,7 +846,9 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		# 1417698583 00:00:00:00:00:00 127.0.0.2 lo-alias *
 		if line="$( grep ' 00:00:00:00:00:00 127.0.0.2 lo-alias ' "$leases" )"; then
 			[ -e '/www/netifd_dhcp_watchdog' ] || touch '/www/netifd_dhcp_watchdog'
+			set -f		# no globbing
 			set -- $line
+			set +f
 
 			if [ $1 -lt $( _system date unixtime ) ]; then
 				_log it $funcname daemon alert "loopback-alias/dhcp-lease too old: $1"
@@ -865,10 +867,10 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 				esac
 			fi
 		else
-			# a lot of:
-			# no address range available for DHCP request via lo
+			# a lot of: 'no address range available for DHCP request via lo'
+			# when this file exists, we already have seen a working 'lo-alias'-lease
 			[ -e '/www/netifd_dhcp_watchdog' ] && {
-				_log it $funcname daemon alert "loopback-alias/cron-watchdog seems down"
+				_log it $funcname daemon alert 'loopback-alias/cron-watchdog seems down'
 				/etc/init.d/dnsmasq restart
 				ifup loopback
 			}
