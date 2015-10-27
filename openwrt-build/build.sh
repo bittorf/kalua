@@ -2924,7 +2924,6 @@ unittest_do()
 	ln -s "$build_loader" '/etc/kalua_init' || {
 		sudo ln -s "$build_loader" '/etc/kalua_init'
 	}
-	ls -l /etc/kalua_init
 
 	log "testing '/tmp/loader'"
 	sh -n '/tmp/loader' && {
