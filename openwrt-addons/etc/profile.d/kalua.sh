@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# e.g. user@hostname:~
 export PS1='\[\033[36m\]\u\[\033[m\]@\[\033[32m\]\h:\[\033[33;1m\]\w\[\033[m\] '
 
 alias n='wget -qO - http://127.0.0.1:2006/neighbours'
@@ -21,6 +22,18 @@ case "$USER" in
 		}
 	;;
 esac
+
+[ -e '/tmp/REBOOT_REASON' ] && {
+	read -r CRASH <'/tmp/REBOOT_REASON'
+	case "$CRASH" in
+		'nocrash'|'nightly_reboot')
+		;;
+		*)
+			echo "last reboot caused by crash, see 'cat /sys/kernel/debug/crashlog'"
+		;;
+	esac
+	unset CRASH
+}
 
 _ t 2>/dev/null || {
 	[ -e '/tmp/loader' ] && {
