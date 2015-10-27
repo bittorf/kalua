@@ -12,11 +12,11 @@ alias regen='/etc/kalua_init; _(){ false;}; . /tmp/loader'
 
 case "$USER" in
 	'root')
-		grep -s ^"root:\$1\$b6usD77Q\$XPs6VECsQzFy9TUuQUAHW1:" '/etc/shadow' && {
+		grep -qs ^"root:\$1\$b6usD77Q\$XPs6VECsQzFy9TUuQUAHW1:" '/etc/shadow' && {
 			echo "[ERROR] change weak root-password ('admin') with 'passwd'"
 		}
 
-		grep -s ^'root:$' '/etc/shadow' || {
+		grep -qs ^'root:\$' '/etc/shadow' || {
 			echo "[ERROR] set root-password with 'passwd'"
 		}
 	;;
