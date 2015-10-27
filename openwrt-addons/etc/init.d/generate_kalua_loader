@@ -6,12 +6,12 @@ boot()
 {
 	local line unixtime reason entry
 	local crashlog='/sys/kernel/debug/crashlog'
-	EVERLOG='/www/everlasting_syslog.txt'		# later known via loader
+	PERMLOG='/www/everlasting_syslog.txt'		# later known via loader
 
 	export TZ="$( uci -q get system.@system[0].timezone )"
 	# https://lists.openwrt.org/pipermail/openwrt-devel/2014-January/023196.html
-	if   [ -e "$EVERLOG" ]; then
-		unixtime="$( date +%s -r "$EVERLOG" )"
+	if   [ -e "$PERMLOG" ]; then
+		unixtime="$( date +%s -r "$PERMLOG" )"
 	elif [ -e '/www/switch.txt' ]; then
 		unixtime="$( date +%s -r '/www/switch.txt' )"
 	else
@@ -60,38 +60,38 @@ boot()
 
 			date --set @$unixtime
 			reason="$( reason_long "$reason" )"
-			echo "$( date ) [OK] reboot reason: '$reason'" >>"$EVERLOG"
+			echo "$( date ) [OK] reboot reason: '$reason'" >>"$PERMLOG"
 			echo "$reason" >'/tmp/REBOOT_REASON'
 		else
 			if [ -e "$crashlog" ]; then
 				if   grep 'SysRq : Trigger a crash' "$crashlog"; then
 					# e.g. in cron.minutely PSWORK()
 					# CPU: 0 PID: 28069 Comm: sh Not tainted 3.18.14 #1
-					echo "$( date ) [ERROR] emergency_triggered crash detected in '$crashlog'" >>"$EVERLOG"
+					echo "$( date ) [ERROR] emergency_triggered crash detected in '$crashlog'" >>"$PERMLOG"
 					echo 'emergency_trigger' >'/tmp/REBOOT_REASON'
 				elif grep 'ath79_wdt: device closed unexpectedly, watchdog timer will not stop!'; then
-					echo "$( date ) [ERROR] watchdog action detected in '$crashlog'" >>"$EVERLOG"
+					echo "$( date ) [ERROR] watchdog action detected in '$crashlog'" >>"$PERMLOG"
 					echo 'kernel_watchdog' >'/tmp/REBOOT_REASON'
 				else
-					echo "$( date ) [ERROR] crash detected in '$crashlog'" >>"$EVERLOG"
+					echo "$( date ) [ERROR] crash detected in '$crashlog'" >>"$PERMLOG"
 					echo "realcrash" >'/tmp/REBOOT_REASON'
 				fi
 			else
-				echo "$( date ) [ERROR] reboot without reason/crash" >>"$EVERLOG"
+				echo "$( date ) [ERROR] reboot without reason/crash" >>"$PERMLOG"
 				echo 'nocrash' >'/tmp/REBOOT_REASON'
 			fi
 		fi
 	else
-		reason="$( tail -n1 "$EVERLOG" | grep 'system_crashreboot' | cut -d'=' -f2 )"
+		reason="$( tail -n1 "$PERMLOG" | grep 'system_crashreboot' | cut -d'=' -f2 )"
 		reason="$( reason_long "$reason" )"
 		echo "${reason:-nocrash}" >'/tmp/REBOOT_REASON'
-		echo "$( date ) (crashlog not working) BOOTUP: reason: ${reason:-nocrash}" >>"$EVERLOG"
+		echo "$( date ) (crashlog not working) BOOTUP: reason: ${reason:-nocrash}" >>"$PERMLOG"
 	fi
 
 	{
-		echo "# [START] $EVERLOG"
-		tail -n5 "$EVERLOG"
-		echo "# [READY] $EVERLOG"
+		echo "# [START] $PERMLOG"
+		tail -n5 "$PERMLOG"
+		echo "# [READY] $PERMLOG"
 	} >/dev/console
 
 	# remove trash:
@@ -130,7 +130,7 @@ boot()
 #	else
 #		local file="/www/MEMTESTER.$( cat /www/REBOOT_COUNTER ).$?"	# _system reboots
 #		mv "/tmp/MEMTESTER" "$file"
-#		echo "Error during memtester: $file" >>"$EVERLOG"
+#		echo "Error during memtester: $file" >>"$PERMLOG"
 #	fi
 
 	# zram is included since r35033
@@ -174,7 +174,7 @@ boot()
 		/etc/init.d/override_uci_vars enable
 	}
 
-	_watch archivsize "$EVERLOG" 400 500
+	_watch archivsize "$PERMLOG" 400 500
 	_watch archivsize '/www/PINGCHECK' 1000 2000
 
 	[ -n "$LOWMEM" ] && {
