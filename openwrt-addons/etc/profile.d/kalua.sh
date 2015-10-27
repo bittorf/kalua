@@ -17,6 +17,7 @@ case "$USER" in
 			echo "[ERROR] change weak root-password ('admin') with 'passwd'"
 		}
 
+		# check root::
 		grep -qs ^'root:\$' '/etc/shadow' || {
 			echo "[ERROR] set root-password with 'passwd'"
 		}

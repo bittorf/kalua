@@ -3030,6 +3030,9 @@ unittest_do()
 						# VAR appears unused. Verify it or export it
 						ignore="$( shellsheck_ignore ),SC2034"
 					;;
+					'/tmp/loader')
+						ignore="$( shellsheck_ignore ),SC2034"
+					;;
 					*)
 						ignore="$( shellsheck_ignore )"
 					;;
