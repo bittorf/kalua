@@ -6,9 +6,9 @@ read -r t1 _ </proc/uptime
 	chmod -R 777 '/tmp/crashlogs'
 }
 
-LIST_OMIT_REV="r33160 r32793 r33502 r33616 r33726 r35300 r37767 r33867 r34599 <46425"
+LIST_OMIT_REV='r33160 r32793 r33502 r33616 r33726 r35300 r37767 r33867 r34599 <46425'
 
-# todo:
+# TODO:
 # unaligned access? show 'process' in table
 
 # build www with:
@@ -88,17 +88,24 @@ EOF
 
 html_foot()
 {
+	local t1="$1"
+	local t2 duration age_sec file unixtime_now unixtime_file
+
 	read -r t2 _ </proc/uptime
 	# dash cannot do this
 	# duration=$(( ${t2//./} - ${t1//./} ))
 	duration=$(( $( echo $t2 | sed 's/\.//' ) - $( echo $t1 | sed 's/\.//' ) ))
+	for file in /tmp/crashlogs/crash-*; do :; done
+	unixtime_file="$( date '+%s' -r "$file" )"
+	unixtime_now="$(  date '+%s' )"
+	age_sec=$(( unixtime_now - unixtime_file ))
 
 	cat <<EOF
 </table>
 <br><b>note:</b><br>
 getting a <a href='https://dev.openwrt.org/browser/trunk/target/linux/generic/patches-3.3/930-crashlog.patch'>crashlog</a> after reboot is possible since july 2012 with <a href='https://dev.openwrt.org/changeset/32787/trunk'>r32787</a><br>
 all the magic is done by: <a href='https://github.com/bittorf/kalua/blob/master/openwrt-addons/etc/init.d/crashlog_apport'>crashlog_apport</a>
-<br>overview generated in in $(( duration / 100 )).$(( duration % 100 )) sec.
+<br>overview generated in in $(( duration / 100 )).$(( duration % 100 )) sec, most recent crash is $age_sec seconds old.
 </body></html>
 EOF
 }
@@ -346,6 +353,6 @@ html_tablecontent()
 logger -s "[START] $0"
 html_head
 html_tablecontent
-html_foot
+html_foot "$t1"
 logger -s "[READY] $0"
 
