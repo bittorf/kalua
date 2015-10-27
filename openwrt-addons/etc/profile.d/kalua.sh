@@ -26,10 +26,11 @@ esac
 [ -e '/tmp/REBOOT_REASON' ] && {
 	read -r CRASH <'/tmp/REBOOT_REASON'
 	case "$CRASH" in
-		'nocrash'|'nightly_reboot')
+		'nocrash'|'nightly_reboot'|'apply_settings'|'wifimac_safed')
 		;;
 		*)
-			echo "last reboot caused by crash, see 'cat /sys/kernel/debug/crashlog'"
+			# see system_crashreboot()
+			echo "last reboot unusual = '$CRASH', see with: cat /sys/kernel/debug/crashlog"
 		;;
 	esac
 	unset CRASH
