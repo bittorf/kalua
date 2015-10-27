@@ -1,0 +1,60 @@
+#!/bin/sh
+
+# workaround for missing 'ip'
+if [ -e '/sbin/ip' -o -e '/usr/sbin/ip' ]; then
+	ip neigh 2>/dev/null >/dev/null || {
+		logger -s -- "$0: ip() workaround for missing 'ip neigh' feature of busybox (not IPv6 capable)"
+
+		cat <<EOF
+ip() {
+	case "\$3" in
+		n|neigh)
+			# ip -f inet neigh
+			[ "\$2" = inet6 ] && return 0
+			shift 2
+		;;
+	esac
+
+	case "\$1" in
+		n|neigh)
+			local line
+			local ip_wish="\$4"	# ip neigh show to <IP>
+			local dev_wish="\$4"	# ip neigh show dev <dev>
+
+			case "\$2" in
+				del|add|change)
+					return 0
+				;;
+			esac
+
+			while read -r line; do {
+				case "\$line" in
+					IP*|*'00:00:00:00:00:00'*)
+					;;
+					*)
+						set -- \$line
+						if [ -z "\$ip_wish" ]; then
+							echo "\$1 dev \$6 lladdr \$4 STALE"
+						elif [ "\$ip_wish" = "\$1" ]; then
+							echo "\$1 dev \$6 lladdr \$4 STALE"
+						elif [ "\$dev_wish" = "\$6" ]; then
+							echo "\$1 dev \$6 lladdr \$4 STALE"
+						fi
+					;;
+				esac
+			} done </proc/net/arp
+		;;
+		*)
+			command ip "\$@"
+		;;
+	esac
+}
+EOF
+	}
+else
+	cat <<EOF
+ip() {
+	logger -s -- "$0: [ERR] iproute2 not installed: ip \$*"
+}
+EOF
+fi
