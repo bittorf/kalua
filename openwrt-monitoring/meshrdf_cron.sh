@@ -467,15 +467,18 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 		[ -e "$NET/../../index.html" ] && break
 	} done
 
+	# /var/www/networks/zwickau/meshrdf/recent
+	NET="/var/www/networks/$NET/meshrdf/recent"
 	NETWORK="$( echo $NET | cut -d'/' -f5 )"	# e.g. elephant
 
-	log "[OK] starting to build summary.html, taking network '$NETWORK' for template"
+	log "[OK] starting to build summary.html, taking network '$NETWORK' for template NET: '$NET'"
 	# writeout table/html-headers MINUS javascript (till first </tr>-tag)
+	log "DEBUG1: $( ls -l $NET/../../index.html )"
 	LINENO_FIRST_ENDING_TR_TAG="$( sed -n '/<\/tr>/{=;q}' $NET/../../index.html )"
 	LINENO_JS_START="$(  sed -n '/<script/{=;q}'   $NET/../../index.html )"
 	LINENO_JS_ENDING="$( sed -n '/<\/script/{=;q}' $NET/../../index.html )"
 	sed -n "1,${LINENO_FIRST_ENDING_TR_TAG}p" $NET/../../index.html | sed "${LINENO_JS_START},${LINENO_JS_ENDING}d" >$FILE_SUMMARY_TEMP
-	log "[OK] check '$FILE_SUMMARY_TEMP'"
+	log "[OK] check '$FILE_SUMMARY_TEMP' $( ls -l $FILE_SUMMARY_TEMP )"
 	# | head -n7 ?
 
 	for NET in $LIST; do {					# /var/www/networks/ffweimar/meshrdf/recent
@@ -500,18 +503,20 @@ mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 #		log "[OK] including '$NETWORK'-contacts: $CONTACT_DATA"
 
 		fgrep -sq " title='MISS " $NET/../../index.html && {
-			echo "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small><br></small><big><a href='$LINK' title='$CONTACT_DATA'>$NETWORK</a></big></small><br></small></td></tr>" >>$FILE_SUMMARY_TEMP
+			echo "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small><br></small><big><a href='$LINK' title='$CONTACT_DATA'>$NETWORK</a></big></small><br></small></td></tr>" >>"$FILE_SUMMARY_TEMP"
 
 			OMIT="d85d4c9c2fb0"		# leonardo/beach
 
-			fgrep " title='MISS " $NET/../../index.html | fgrep -v $OMIT >>$FILE_SUMMARY_TEMP
+			fgrep " title='MISS " "$NET/../../index.html" | fgrep -v "$OMIT" >>"$FILE_SUMMARY_TEMP"
+
+			log "summary: DBG: $( ls -l $FILE_SUMMARY_TEMP )"
 		}
 
 	} done
 
-	echo "</table></body></html>" >>$FILE_SUMMARY_TEMP
-	mv $FILE_SUMMARY_TEMP $FILE_SUMMARY
-
+	echo "</table></body></html>" >>"$FILE_SUMMARY_TEMP"
+	mv "$FILE_SUMMARY_TEMP" "$FILE_SUMMARY"
+	log "summary: wrote DGB2: $( ls -l "$FILE_SUMMARY" )"
 
 	[ -e "/tmp/lockfile_meshrdf_cache_$$" ] && {
 		rm "/tmp/lockfile_meshrdf_cache_$$"

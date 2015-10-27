@@ -1490,6 +1490,9 @@ func_cell_uptime_olsr ()
 
 		echo -n "<td bgcolor='crimson' title='olsrd-restarts:$RESTART_COUNT' align='right'>$( content )</td>"
 	else
+		# keep calm when >12h
+		[ $UPTIME_OLSR -ge 12 ] && RESTART_COUNT=0
+
 		case "$RESTART_COUNT" in
 			0|1)
 				BGCOLOR="lime"
