@@ -2732,7 +2732,9 @@ parse_case_patterns()
 mimetype_get()
 {
 	local file="$1"
-	local mimetype
+	local mimetype link
+
+	link="$( readlink "$file" )" && file="$link"	# e.g. /tmp/loader
 
 	set -- $( file '--mime-type' "$file" )
 	mimetype="$*"
@@ -3071,7 +3073,7 @@ unittest_do()
 						fi
 					;;
 					*)
-						log "[OK] no shellfile '$file'"
+						log "[OK] ignore - no shellfile '$file'"
 					;;
 				esac
 			} done <"$filelist"
