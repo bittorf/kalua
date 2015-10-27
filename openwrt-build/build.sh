@@ -2909,7 +2909,7 @@ travis_prepare()
 unittest_do()
 {
 	local funcname='unittest_do'
-	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip
+	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip hash1 hash2
 	local good='true'
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
@@ -3040,7 +3040,13 @@ unittest_do()
 
 				case "$( mimetype_get "$file" )" in
 					'text/x-shellscript')
+						tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
+						hash1="$( md5sum <"$tempfile" | cut -d' ' -f1 )"
 						cp "$file" "$tempfile"
+						hash2="$( md5sum <"$tempfile" | cut -d' ' -f1 )"
+						[ "$hash1" = "$hash2" ] || {
+							log "[ERROR] found non-ascii in '$file'"
+						}
 
 						# SC2039: https://github.com/koalaman/shellcheck/issues/354
 #						sed -i 's/echo -n /printf /g' "$tempfile"
