@@ -31,7 +31,8 @@ chmod -R 777 "$TMPDIR"
 BASEDIR="$( dirname $0 )/kalua"		# e.g. /etc/kalua_init -> /etc | scriptbase, simply put your 'class'-files in
 POOLDIR="$TMPDIR/kalua_pool"
 LOADER="$TMPDIR/loader_$$"
-LOADER_FINAL="$TMPDIR/loader"		# later '/tmp/loader' is symlinked to it
+LOADER_FINAL="$TMPDIR/loader"		# later '$LOADER_ENTRY' is symlinked to it
+LOADER_ENTRY='/tmp/loader'
 mkdir -p "$POOLDIR"
 
 # _ s    http		-> show methods for class 'http'
@@ -54,15 +55,7 @@ EOF
 
 # generate loader and add methods 'show' + 'include'
 for CLASS in $BASEDIR/*; do {
-	CLASS="${CLASS##*/}"	# basename
-	case "$CLASS" in
-		[a-z]*)
-		;;
-		*)
-			# only include lowercase names
-			continue
-		;;
-	esac
+	CLASS="${CLASS##*/}"	# quick basename
 
 	[ "$DEBUG" = 'debug' ] && {
 		DEBUG1=" logger -- working in _$CLASS, calling \$1 with args \$@;"
@@ -76,14 +69,14 @@ _${CLASS}_s(){ _ s $CLASS;}
 _${CLASS}_include(){ :;}
 . $BASEDIR/$CLASS
 EOF
-	sh -n "$POOLDIR/$CLASS" || DEBUG='compile_error'
+	sh -n "$BASEDIR/$CLASS" || DEBUG='class_error'
 
 	case "$DEBUG" in
-		compile_error)
+		'class_error')
 			DEBUG=
-			echo >>"$LOADER" "_$CLASS(){ logger -s -- CLASSERROR: _$CLASS \$@ ;}"
+			echo >>"$LOADER" "_$CLASS(){ logger -s -- $DEBUG: _$CLASS \$@ ;}"
 		;;
-		debug)
+		'debug')
 			. "$POOLDIR/$CLASS"
 			echo >>"$LOADER" "_$CLASS(){ i $CLASS;shift;${DEBUG2}_$CLASS \"\$@\"$DEBUG3;}"
 		;;
@@ -92,8 +85,8 @@ EOF
 		;;
 	esac
 
-	# TODO: rewrite with 1 sed-call
 	# include GLOBAL_VARS which must be in head-section of CLASS, e.g. MYVAR=123
+	# TODO: rewrite with 1 sed-call
 	case "$( head -n1 "$BASEDIR/$CLASS" )" in
 		'#!/bin/sh'*)
 			sed -n "2,/^_$CLASS/{/^[A-Z]/p}" "$BASEDIR/$CLASS" >>"$LOADER"
@@ -102,9 +95,11 @@ EOF
 } done
 
 [ -e "$0.user" ] && . "$0.user" >>"$LOADER"
-mv "$LOADER" "$LOADER_FINAL" && . "$LOADER_FINAL"
-[ -e '/tmp/loader' ] && rm '/tmp/loader'
-ln -s "$LOADER_FINAL" '/tmp/loader'
+mv "$LOADER" "$LOADER_FINAL"
+[ -h "$LOADER_ENTRY" ] && {
+	rm "$LOADER_ENTRY"
+	ln -s "$LOADER_FINAL" "$LOADER_ENTRY"
+}
 
-logger -s -- "$0: [OK] done '/tmp/loader' with files in $POOLDIR"
-logger -s -- "$0: [OK] reload new loader with '_(){ false;}; . /tmp/loader' if this is an interactive shell"
+logger -s -- "$0: [OK] done '$LOADER_ENTRY' with files in $POOLDIR"
+logger -s -- "$0: [OK] reload new loader with '_(){ false;}; . $LOADER_ENTRY' if this is an interactive shell"
