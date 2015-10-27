@@ -743,11 +743,11 @@ EOF
 
 			if [ $( openwrt_revision_number_get ) -gt 41530 ]; then
 				case "$model" in
-					'ASUS WL-500g Premium')
+					'ASUS WL-500g Premium')		# parser_ignore
 						FILENAME_SYSUPGRADE='openwrt-brcm47xx-legacy-asus-wl-500gp-v1-squashfs.trx'
 						FILENAME_FACTORY=''
 					;;
-					'ASUS WL-500g Premium v2')
+					'ASUS WL-500g Premium v2')	# parser_ignore
 						# TODO: needs the 'low power phy' compiled into b43
 						FILENAME_SYSUPGRADE='openwrt-brcm47xx-legacy-asus-wl-500gp-v2-squashfs.trx'
 						FILENAME_FACTORY=''
@@ -2288,12 +2288,18 @@ build_options_set()
 			'WiFi-rtl8192cu'|'WiFi'*)
 				# generic approach:
 				# e.g usb-wifi-stick: rtl8192cu -> WiFi-rtl8192cu
+				#                     ath9k-htc -> WiFi-ath9k-htc
 				# ID 7392:7811 Edimax Technology Co., Ltd EW-7811Un 802.11n Wireless Adapter [Realtek RTL8188CUS]
 				# or
 				# CONFIG_PACKAGE_kmod-ath5k=y -> WiFi-ath5k
 
-				kmod="$( echo "$1" | cut -d'-' -f2 )"			# WiFi-rtl8192cu -> rtl8192cu
+				kmod="$( echo "$1" | cut -d'-' -f2- )"			# WiFi-rtl8192cu -> rtl8192cu
 				apply_symbol "CONFIG_PACKAGE_kmod-${kmod}=y"		# kernel-modules: wireless:
+				case "$kmod" in
+					*'ath'*)
+						apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'
+					;;	# parser_ignore
+				esac
 			;;
 			'Arduino')
 				$funcname subcall 'USBserial'
