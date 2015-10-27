@@ -2873,13 +2873,6 @@ travis_prepare()
 	ip address show
 	echo
 
-	# FIXME
-	for FILE in /etc/profile.d/*; do {
-		echo '### START'
-		cat "$FILE"
-		echo '### END'
-	} done
-
 	sudo apt-get update					# TODO: build from source: (a static binary, so just wget without sudo?)
 	sudo apt-get -y install sloccount	|| return 1	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
 	sudo apt-get -y install tidy		|| return 1	# http://www.html-tidy.org/
