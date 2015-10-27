@@ -1,0 +1,28 @@
+#!/bin/sh
+
+case "$( uci -q get olsrd.@Interface[0].interface )" in
+	"'"*"'")
+		logger -s -- "$0: uci() repairing https://dev.openwrt.org/ticket/19539"
+
+		cat <<EOF
+uci()
+{
+	local var value rc
+
+	if [ "\$1" = 'get' -o "\$2" = 'get' ]; then
+		value="\$( /sbin/uci \$* )"
+		rc=\$?
+		echo "\$value" | sed -e "s/^'//" -e "s/'$//"
+		return \$rc
+	elif [ "\$1" = 'set' ]; then
+		var="\$( echo "\$2" | cut -d'=' -f1 )"
+		value="\$( echo "\$2" | cut -d'=' -f2,3 )"
+		/sbin/uci set \$var="\$value"
+		return \$rc
+	else
+		/sbin/uci \$*
+	fi
+}
+EOF
+	;;
+esac
