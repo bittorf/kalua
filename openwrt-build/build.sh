@@ -3035,23 +3035,28 @@ unittest_do()
 
 				case "$( mimetype_get "$file" )" in
 					'text/x-shellscript')
-						# strip non-ascii chars, otherwise the parser can fail with
-						# openwrt-addons/etc/kalua/mail: hGetContents: invalid argument (invalid byte sequence)
-						tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
+						cp "$file" "$tempfile"
 
 						# SC2039: https://github.com/koalaman/shellcheck/issues/354
 #						sed -i 's/echo -n /printf /g' "$tempfile"
 #						sed -i 's/echo -en /printf /g' "$tempfile"
 
-						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						case "$file" in
+							# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 							'openwrt-addons/etc/init.d/'*|'openwrt-build/apply_profile'*)
+								# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 								sed -i '/^START=/d' "$tempfile"
 								sed -i '/^EXTRA_COMMANDS=/d' "$tempfile"
 							;;
 							'openwrt-addons/etc/kalua/scheduler')
+								# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 								sed -i '/^PID=/d' "$tempfile"
 								sed -i '/^SCHEDULER/d' "$tempfile"
+							;;
+							'openwrt-addons/etc/kalua/mail')
+								# strip non-ascii chars, otherwise the parser can fail with
+								# openwrt-addons/etc/kalua/mail: hGetContents: invalid argument (invalid byte sequence)
+								tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
 							;;
 						esac
 
@@ -3064,6 +3069,9 @@ unittest_do()
 							good='false'
 #							break
 						fi
+					;;
+					*)
+						log "[OK] no shellfile '$file'"
 					;;
 				esac
 			} done <"$filelist"
