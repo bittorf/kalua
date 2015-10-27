@@ -4,13 +4,11 @@
 
 # this outputs an inital small '/tmp/loader' which can be sourced
 # and automatically solve the dependencies for all 'classes' and it methods(),
-# e.g. for class '_system' and architecture()
+# e.g. for class '_system' and method architecture()
 #
 # TODO: method 'unload'
 # TODO: method 'help'
 # TODO: show stats for each call: sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/$CLASS | wc -l | sed 's/ //g'
-
-DEBUG="$1"			# keyword 'debug' or <empty>
 
 while read -r LINE; do {
 	# none /run/user tmpfs rw,nosuid,nodev,noexec,relatime,size=102400k,mode=755 0 0
@@ -25,7 +23,7 @@ while read -r LINE; do {
 		;;
 	esac
 } done <'/proc/mounts'
-logger -s -- "$0: [OK] please use \$TMPDIR which now points to '${TMPDIR:=/tmp}'"
+logger -s -- "$0: [OK] use \$TMPDIR which points to '${TMPDIR:=/tmp}'"
 chmod -R 777 "$TMPDIR"
 
 BASEDIR="$( dirname $0 )/kalua"		# e.g. /etc/kalua_init -> /etc | scriptbase, simply put your 'class'-files in
@@ -57,33 +55,17 @@ EOF
 for CLASS in $BASEDIR/*; do {
 	CLASS="${CLASS##*/}"	# quick basename
 
-	[ "$DEBUG" = 'debug' ] && {
-		DEBUG1=" logger -- working in _$CLASS, calling \$1 with args \$@;"
-		DEBUG2=" logger -- including _$CLASS subfunc \$1;"
-		DEBUG3=" || logger -t $CLASS -s \"invalid call: \$1\""
-	}
-
 	cat >"$POOLDIR/$CLASS" <<EOF
-_$CLASS(){$DEBUG1 local a=\${1-s};shift;_${CLASS}_\$a "\$@"$DEBUG3;}
+_$CLASS(){ local a=\${1-s};shift;_${CLASS}_\$a "\$@";}
 _${CLASS}_s(){ _ s $CLASS;}
 _${CLASS}_include(){ :;}
 . $BASEDIR/$CLASS
 EOF
-	sh -n "$BASEDIR/$CLASS" || DEBUG='class_error'
-
-	case "$DEBUG" in
-		'class_error')
-			DEBUG=
-			echo >>"$LOADER" "_$CLASS(){ logger -s -- $DEBUG: _$CLASS \$@ ;}"
-		;;
-		'debug')
-			. "$POOLDIR/$CLASS"
-			echo >>"$LOADER" "_$CLASS(){ i $CLASS;shift;${DEBUG2}_$CLASS \"\$@\"$DEBUG3;}"
-		;;
-		*)
-			echo >>"$LOADER" "_$CLASS(){ _ i $CLASS \"\$@\";}"
-		;;
-	esac
+	if sh -n "$BASEDIR/$CLASS"; then
+		echo >>"$LOADER" "_$CLASS(){ _ i $CLASS \"\$@\";}"
+	else
+		echo >>"$LOADER" "_$CLASS(){ logger -s -- class_error: _$CLASS \$@ ;}"
+	fi
 
 	# include GLOBAL_VARS which must be in head-section of CLASS, e.g. MYVAR=123
 	# TODO: rewrite with 1 sed-call
@@ -94,12 +76,14 @@ EOF
 	esac
 } done
 
+# include own extensions
 [ -e "$0.user" ] && . "$0.user" >>"$LOADER"
+
 mv "$LOADER" "$LOADER_FINAL"
 [ -h "$LOADER_ENTRY" ] && {
 	rm "$LOADER_ENTRY"
 	ln -s "$LOADER_FINAL" "$LOADER_ENTRY"
 }
 
-logger -s -- "$0: [OK] done '$LOADER_ENTRY' with files in $POOLDIR"
-logger -s -- "$0: [OK] reload new loader with '_(){ false;}; . $LOADER_ENTRY' if this is an interactive shell"
+logger -s -- "$0: [OK] done '$LOADER_ENTRY' using files in $POOLDIR"
+logger -s -- "$0: [OK] reload new loader with '_(){ false;}; . $LOADER_ENTRY' if in interactive shell"
