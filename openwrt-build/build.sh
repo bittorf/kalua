@@ -2917,8 +2917,9 @@ unittest_do()
 	fi
 
 	log '[START]'
-	log "building loader: $build_loader"
+	log "building and symlink loader: $build_loader"
 	$build_loader || return 1
+	ln -s "$build_loader" '/etc/kalua_init'		# e.g. S41build_static_netparam calls it
 
 	log "testing '/tmp/loader'"
 	sh -n '/tmp/loader' && {
