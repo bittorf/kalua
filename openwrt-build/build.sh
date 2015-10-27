@@ -3027,11 +3027,13 @@ unittest_do()
 						ignore="$( shellsheck_ignore ),SC2010,SC2012,SC2034,SC2044,SC2045,SC2062"
 					;;
 					'openwrt-build/apply_profile.code.definitions')
-						# VAR appears unused. Verify it or export it
+						# SC2034: VAR appears unused. Verify it or export it
 						ignore="$( shellsheck_ignore ),SC2034"
 					;;
 					'/tmp/loader')
-						ignore="$( shellsheck_ignore ),SC2034"
+						# SC2015: Note that A && B || C is not if-then-else....
+						# SC2034: VAR appears unused. Verify it or export it
+						ignore="$( shellsheck_ignore ),SC2015,SC2034"
 					;;
 					*)
 						ignore="$( shellsheck_ignore )"
