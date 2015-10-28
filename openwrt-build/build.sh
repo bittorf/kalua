@@ -3059,8 +3059,8 @@ unittest_do()
 								line_stripped="$( echo "$line" | tr -cd '\11\12\15\40-\176' )"
 								size2=${#line_stripped}
 								[ $size1 -eq $size2 ] || {
-									echo "line $i: original: $line"
-									echo "line $i: stripped: $line_stripped"
+									echo "line $i: $size1 bytes: original: $line"
+									echo "line $i: $size2 bytes: stripped: $line_stripped"
 									echo "$line" | hexdump -C
 								}
 							} done <"$tempfile"
