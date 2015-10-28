@@ -2910,7 +2910,7 @@ unittest_do()
 {
 	local funcname='unittest_do'
 	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip
-	local hash1 hash2 size1 size2 line line_stripped
+	local hash1 hash2 size1 size2 line line_stripped i
 	local good='true'
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
@@ -3052,13 +3052,15 @@ unittest_do()
 						[ "$hash1" = "$hash2" ] || {
 							log "[ERR] non-ascii chars in '$file', sizes: $size1/$size2"
 
-							while read line; do {
+							i=0
+							while read -r line; do {
+								i=$(( i + 1 ))
 								size1=${#line}
 								line_stripped="$( echo "$line" | tr -cd '\11\12\15\40-\176' )"
 								size2=${#line_stripped}
 								[ $size1 -eq $size2 ] || {
-									echo "original: $line"
-									echo "stripped: $line_stripped"
+									echo "line $i: original: $line"
+									echo "line $i: stripped: $line_stripped"
 									echo "$line" | hexdump -C
 								}
 							} done <"$tempfile"
