@@ -23,10 +23,20 @@ while read -r LINE; do {
 		;;
 	esac
 } done <'/proc/mounts'
-logger -s -- "$0: [OK] use \$TMPDIR which points to '${TMPDIR:=/tmp}'"
+logger -s -- "$0: [OK] use \$TMPDIR which points to '${TMPDIR:=/tmp}' pwd: '$(pwd)'"
 chmod -R 777 "$TMPDIR"
 
-BASEDIR="$( dirname $0 )/kalua"		# e.g. /etc/kalua_init -> /etc | scriptbase, simply put your 'class'-files in
+# /etc/kalua_init -> /etc
+BASEDIR="$( dirname $0 )/kalua"		# place for the 'class'-files
+case "$BASEDIR" in
+	'/'*)
+		# /etc/kalua
+	;;
+	*)
+		# openwrt-addons/etc/kalua -> /home/user/mysource/openwrt-addons/etc/kalua
+		BASEDIR="$( pwd )/$BASEDIR"
+	;;
+esac
 POOLDIR="$TMPDIR/kalua_pool"
 LOADER="$TMPDIR/loader_$$"
 LOADER_FINAL="$TMPDIR/loader"		# later '$LOADER_ENTRY' is symlinked to it
@@ -47,7 +57,7 @@ _ t 2>/dev/null&&return
 _(){ case \$1 in
 s)sed -n "/;}$/! s/^\(_\${2}_.*\)()/\1/p" $BASEDIR/\$2|sort;;
 i)local a=\${3-s} b=\$2;shift 3;_ \$b;case \$a in include);;*)_\${b}_\$a "\$@";;esac;;
-t);;*)[ \$1 ]&&. $POOLDIR/\$1||for _ in $POOLDIR/*;do echo _${_##*/};done;;esac;}
+t);;*)[ \$1 ]&&. $POOLDIR/\$1||for _ in $POOLDIR/*;do echo _\${_##*/};done;;esac;}
 
 EOF
 

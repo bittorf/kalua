@@ -3100,7 +3100,7 @@ unittest_do()
 						fi
 					;;
 					*)
-						log "[OK] ignore - no shellfile '$file'"
+						log "[OK] ignoring non-shellfile '$file'"
 					;;
 				esac
 			} done <"$filelist"
