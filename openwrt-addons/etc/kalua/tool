@@ -382,11 +382,8 @@ EOF
 
 }
 
-func_tool_print_html_soundplayer ()		# fixme!
+func_tool_print_html_soundplayer()	# FIXME
 {
-	# URL="$( wget -qO - "http://somafm.com/secretagent24.pls" | sed -n 's/^File1=\(.*\)/\1/p' )"
-	# wget -qO - "$URL" | madplay -
-
 	cat <<EOF
 <li>
 Soundplayer start/stop:
@@ -419,7 +416,12 @@ func_print_qrcode ()
 
 func_print_gps_data_form ()
 {
-	eval $( uci get system.@admin[0].latlon | sed -n 's/^\([0-9\.]*\)[^0-9]*\([0-9\.]*\)/LATITUDE="\1"\nLONGITUDE="\2"/p' )
+	local latlon latitude longitude
+
+	# e.g. 50.97389;11.31875
+	latlon="$( uci -q get system.@admin[0].latlon )"
+	latitude="$(  echo "$latlon" | cut -d';' -f1 )"
+	longitude="$( echo "$latlon" | cut -d';' -f2 )"
 
 	cat <<EOF
 <form action="" method="post" CLASS="form">
@@ -427,15 +429,14 @@ GPS-Position dieses Netzknotens (<a href="http://www.weimarnetz.de/jens/gps.html
 <br>
 Geo-Koordinaten:
 <!--
-	<INPUT NAME="ff_adm_latlon" SIZE="42" TYPE="TEXT" VALUE="$( uci get system.@admin[0].latlon )">
+	<INPUT NAME="ff_adm_latlon" SIZE="42" TYPE="TEXT" VALUE="$latlon">
 	<BUTTON ONCLICK="if(null!=window.showmap)showmap(this);return false">Map</BUTTON>
 -->
-<input type=text name="FORM_LATITUDE"  value="$LATITUDE"  size=18>
-<input type=text name="FORM_LONGITUDE" value="$LONGITUDE" size=18>
+<input type=text name="FORM_LATITUDE"  value="$latitude"  size=18>
+<input type=text name="FORM_LONGITUDE" value="$longitude" size=18>
 <input type=submit value="Speichern">
 </form>
 EOF
-
 }
 
 fkt_print_tftp_help () {
@@ -680,10 +681,10 @@ fkt_print_html_syslog () {
 	# - highlight pattern X in all lines				"HIGHLIGHT="
 	# - ...
 
-	test -z "$GREP"		&& GREP=":"
-	test -z "$SUPRESS1"	&& SUPRESS1="ßßß"
-	test -z "$SUPRESS2"	&& SUPRESS2="ßßß"
-	test -z "$HIGHLIGHT"	&& HIGHLIGHT="ßßß"
+	test -z "$GREP"		&& GREP=':'
+	test -z "$SUPRESS1"	&& SUPRESS1=',,,'
+	test -z "$SUPRESS2"	&& SUPRESS2=',,,'
+	test -z "$HIGHLIGHT"	&& HIGHLIGHT=',,,'
 
 	echo "<form action=\"\" method=get>"
 	echo "Schreibe nur Zeilen, die folgendes enthalten:		<input type=text name=GREP 	value=\"$GREP\">	<br>"
@@ -829,7 +830,7 @@ fkt_print_html_notebook_conf ()
 		eval "$( _ipsystem get $IPWIZARD )"
 	}
 
-	local DNSSERVER="$( [ -e /etc/dnsmasq.conf ] && sed -n 's/^server=\(.*\)/\1/p' /etc/dnsmasq.conf | head -n1 )"
+	local DNSSERVER="$( grep -s ^'server=[0-9]' /var/etc/dnsmasq.conf | head -n1 )"
 
 	if [ -e '/etc/olsrd.conf' ]; then
 		local OLSRCONF="/etc/olsrd.conf"
