@@ -9,7 +9,7 @@ alias ll='ls -la'
 alias lr='logread'
 alias flush='_system ram_free flush'
 alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
-alias regen='/etc/kalua_init; _(){ false;}; . /tmp/loader'
+alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
 
 case "$USER" in
 	'root')

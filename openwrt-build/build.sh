@@ -2852,7 +2852,9 @@ check_scripts()
 	} done <"$tempfile"
 
 	if [ "$good" = 'true' ]; then
-		log "[OK] checked ${i:=0} shellfiles with $( wc -l 2>/dev/null <"$tempfile_functions" || echo '0' ) shell-functions"
+		[ ${i:=0} -eq 0 ] || {
+			log "[OK] checked $i shellfiles with $( wc -l 2>/dev/null <"$tempfile_functions" ) shell-functions"
+		}
 	else
 		i=-1
 	fi
