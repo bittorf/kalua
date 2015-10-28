@@ -2910,7 +2910,7 @@ unittest_do()
 {
 	local funcname='unittest_do'
 	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip
-	local hash1 hash2 size1 size2
+	local hash1 hash2 size1 size2 line line_stripped
 	local good='true'
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
@@ -3051,6 +3051,17 @@ unittest_do()
 						size2="$( wc -c <"$tempfile" )"
 						[ "$hash1" = "$hash2" ] || {
 							log "[ERR] non-ascii chars in '$file', sizes: $size1/$size2"
+
+							while read line; do {
+								size1=${#line}
+								line_stripped="$( echo "$line" | tr -cd '\11\12\15\40-\176' )"
+								size2=${#line_stripped}
+								[ $size1 -eq $size2 ] || {
+									echo "original: $line"
+									echo "stripped: $line_stripped"
+									echo "$line" | hexdump -C
+								}
+							} done <"$tempfile"
 						}
 
 						# SC2039: https://github.com/koalaman/shellcheck/issues/354
