@@ -3,7 +3,7 @@
 
 netparam_for_uci_devices()
 {
-	local NAME IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX line
+	local NAME IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX line list
 
 	for DEVICE in loopback wlan lan wan ; do {
 		case "$DEVICE" in
@@ -131,11 +131,19 @@ netparam_for_uci_devices()
 		} done
 	}
 
-	# force to 1 line
-	echo "WIFI_DEVS='$( for IFNAME in $( list_wifi_devs ); do echo -n "$IFNAME "; done )'"
+	list="$( list_wifi_devs )"
+	if [ -n "$list" ]; then
+		# force to 1 line
+		echo "WIFI_DEVS='$( for IFNAME in $list; do printf '%s ' "$IFNAME"; done )'"
+	else
+		echo 'WIFI_DEVS='
+	fi
 
-	[ ! -e '/tmp/dmesg.boot' -a -e '/usr/sbin/cron.check_klog' ] && . /usr/sbin/cron.check_klog
-	fgrep -sq "phy0: failed to initialize PHY" "/tmp/dmesg.boot" && {
+	[ ! -e '/tmp/dmesg.boot' -a -e '/usr/sbin/cron.check_klog' ] && {
+		. /usr/sbin/cron.check_klog
+	}
+
+	fgrep -sq 'phy0: failed to initialize PHY' '/tmp/dmesg.boot' && {
 		echo "WIFIDEV=	# failed to initialize PHY"
 	}
 }
