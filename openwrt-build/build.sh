@@ -3158,6 +3158,7 @@ unittest_do()
 
 		sloc()
 		{
+			echo
 			log "counting lines of code:"
 
 			sloccount . | while read -r line; do {
