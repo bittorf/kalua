@@ -1640,7 +1640,7 @@ apply_patches()
 				grep -q ^'diff --git a/net/mac80211/' "$1"
 			}
 
-			patch_for_atheros-driver()
+			patch_for_atheros_driver()
 			{
 				grep -q '/net/wireless/ath/' "$1"
 			}
@@ -1662,7 +1662,7 @@ apply_patches()
 				cp -v "$file" 'package/kernel/mac80211/patches'
 				log "mac80211.generic: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
 				MAC80211_CLEAN='true'
-			elif patch_for_atheros-driver "$file"; then
+			elif patch_for_atheros_driver "$file"; then
 				register_patch "$file"
 				cp -v "$file" 'package/kernel/mac80211/patches'
 				log "mac80211.atheros: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
