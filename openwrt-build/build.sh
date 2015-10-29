@@ -1630,24 +1630,51 @@ apply_patches()
 			log "dir: $file" debug
 			register_patch "DIR: $file"
 		else
-			if   head -n1 "$file" | fgrep -q '/net/mac80211/'; then
+			patch_for_openwrt()
+			{
+				grep -q ^'diff --git a/package/' "$1"
+			}
+
+			patch_for_mac80211()
+			{
+				grep -q ^'diff --git a/net/mac80211/' "$1"
+			}
+
+			patch_for_atheros-driver()
+			{
+				grep -q '/net/wireless/ath/' "$1"
+			}
+
+			patch_for_busybox()
+			{
+				patch_for_openwrt "$1" && return 1
+				grep -q 'bb_error_msg_and_die' "$1"
+			}
+
+			patch_for_kernel()
+			{
+				# FIXME!
+				grep -q ' a/net/sched/' "$1"
+			}
+
+			if   patch_for_mac80211 "$file"; then
 				register_patch "$file"
 				cp -v "$file" 'package/kernel/mac80211/patches'
 				log "mac80211.generic: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
 				MAC80211_CLEAN='true'
-			elif head -n1 "$file" | fgrep -q '/drivers/net/wireless/ath/'; then
+			elif patch_for_atheros-driver "$file"; then
 				register_patch "$file"
 				cp -v "$file" 'package/kernel/mac80211/patches'
 				log "mac80211.atheros: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
 				MAC80211_CLEAN='true'
-			elif grep -q 'bb_error_msg_and_die' "$file"; then
+			elif patch_for_busybox "$file"; then
 				register_patch "$file"
 				cp -v "$file" 'package/utils/busybox/patches'
 				log "busybox: adding '$file'" gitadd "package/utils/busybox/patches/$( basename "$file" )"
-			elif grep -q ' a/net/sched/' "$file"; then
+			elif patch_for_kernel "$file"; then
 				log "[FIXME] ignoring '$file'"
 #						cp -v "$file" ''
-			else
+			elif patch_for_openwrt "$file"; then
 				if git apply --check <"$file"; then
 					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
 					# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
@@ -1671,6 +1698,8 @@ apply_patches()
 					register_patch "FAILED: $file"
 					log "$KALUA_DIRNAME: [ERROR] cannot apply: git apply --check <'$file'"
 				fi
+			else
+				log "[ERROR] do not know, where to apply: '$file'"
 			fi
 		fi
 	} done
