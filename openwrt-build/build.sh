@@ -3055,7 +3055,9 @@ unittest_do()
 			}
 
 			log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
+
 			filelist='/dev/shm/filelist'
+			# collect all shellscripts:
 			find  >"$filelist" 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
 			echo >>"$filelist" '/tmp/loader'
 
@@ -3145,7 +3147,7 @@ unittest_do()
 						fi
 					;;
 					*)
-						log "[OK] ignoring non-shellfile '$file'"
+						log "[IGNORE] non-shellfile '$file'"
 					;;
 				esac
 			} done <"$filelist"
