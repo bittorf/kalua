@@ -2973,7 +2973,7 @@ unittest_do()
 		openwrt-addons/etc/init.d/S41build_static_netparam call
 		if [ -e "$TMPDIR/NETPARAM" ]; then
 			# should at least have _some_ filled vars
-			if [ -n "$( grep -v '='$ "$TMPDIR/NETPARAM" )" ]; then
+			if grep -qv '='$ "$TMPDIR/NETPARAM"; then
 				grep -v '='$ "$TMPDIR/NETPARAM"
 			else
 				return 1
