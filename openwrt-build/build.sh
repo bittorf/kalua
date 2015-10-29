@@ -3067,7 +3067,7 @@ unittest_do()
 
 			while read -r file; do {
 				case "$file" in
-					'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh')
+					'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh'|'openwrt-build/build_mydesign.sh')
 						log "[OK] ignoring '$file' - deprecated/unused/too_buggy"
 						continue
 					;;
