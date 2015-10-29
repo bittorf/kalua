@@ -2810,7 +2810,7 @@ check_scripts()
 					case "$( head -n1 "$file" )" in
 						'<!DOCTYPE html>')
 							# http://foswiki.org/Tasks/Item13134
-							log "[OK] cannot check HTML5, ignoring '$file'"
+							log "[IGNORE] cannot check HTML5 '$file' with tidy"
 						;;
 						*)
 							log "checking '$mimetype' / $file"
@@ -2818,7 +2818,7 @@ check_scripts()
 						;;
 					esac
 				else
-					log "[OK] will NOT check '$mimetype' file '$file' - missing 'tidy'"
+					log "[IGNORE] will NOT check '$mimetype' file '$file' - missing 'tidy'"
 				fi
 			;;
 			'text/x-php')
@@ -2826,7 +2826,7 @@ check_scripts()
 					log "checking '$mimetype' / $file"
 					php --syntax-check "$file" || return 1
 				else
-					log "[OK] will NOT check '$mimetype' file '$file' - missing 'php'"
+					log "[IGNORE] will NOT check '$mimetype' file '$file' - missing 'php'"
 				fi
 			;;
 			'text/x-c'|'text/x-c++')
@@ -2834,7 +2834,7 @@ check_scripts()
 				if which cppcheck >/dev/null; then
 					cppcheck "$file" || return 1
 				else
-					log "[OK] will NOT check '$mimetype' file '$file' - missing 'cppcheck'"
+					log "[IGNORE] will NOT check '$mimetype' file '$file' - missing 'cppcheck'"
 				fi
 			;;
 			'application/javascript')
@@ -2852,15 +2852,15 @@ check_scripts()
 						;;
 					esac
 				else
-					log "[OK] will NOT check '$mimetype' file '$file' - missing 'acorn'"
+					log "[IGNORE] will NOT check '$mimetype' file '$file' - missing 'acorn'"
 				fi
 			;;
 			'image/gif')
 				# imagemagick?
-				log "[OK] will NOT check gfx file '$file' - TODO/imagemagick"
+				log "[IGNORE] will NOT check gfx file '$file' - TODO/imagemagick"
 			;;
 			'application/octet-stream'|'application/x-gzip'|'text/x-diff'|'application/x-executable')
-				log "[OK] will NOT check binary file '$file'" debug
+				log "[IGNORE] will NOT check binary file '$file'" debug
 			;;
 			'text/x-shellscript')
 				log "checking '$mimetype' / $file"
@@ -2875,7 +2875,7 @@ check_scripts()
 				grep '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 >>"$tempfile_functions"
 			;;
 			*)
-				log "[OK] will NOT check - unknown mimetype: '$mimetype' file: '$file' pwd: '$( pwd )'"
+				log "[FIXME] will NOT check - unknown mimetype: '$mimetype' file: '$file' pwd: '$( pwd )'"
 			;;
 		esac
 	} done <"$tempfile"
@@ -2964,9 +2964,23 @@ unittest_do()
 		log '. /tmp/loader'
 		. /tmp/loader
 
-		log 'build initial NETPARAM'
+		log 'testing isnumber()'
+		isnumber '-1' || return 1
+		isnumber $(( 65536 * 65536 )) || return 1
+		isnumber 'A' && return 1
+
+		log 'building/testing initial NETPARAM'
 		openwrt-addons/etc/init.d/S41build_static_netparam call
-		cat "$TMPDIR/NETPARAM" || touch "$TMPDIR/NETPARAM"
+		if [ -e "$TMPDIR/NETPARAM" ]; then
+			# should at least have _some_ filled vars
+			if [ -n "$( grep -v '='$ "$TMPDIR/NETPARAM" )" ]; then
+				grep -v '='$ "$TMPDIR/NETPARAM"
+			else
+				return 1
+			fi
+		else
+			return 1
+		fi
 
 		log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + cpu + diskspace"
 		echo "'$HARDWARE' + '$SHELL' + '$USER'"
