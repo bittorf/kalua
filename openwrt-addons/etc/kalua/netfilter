@@ -1218,7 +1218,7 @@ _netfilter_fakedns_start()
 	local dnsfake_ip="${LANADR:-$WIFIADR}"
 	local pid
 
-	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] && {
+	[ -e "$TMPDIR/FAKEDNS.pid" ] && {
 		pidof fakedns >/dev/null && return 0
 	}
 
@@ -1227,8 +1227,8 @@ _netfilter_fakedns_start()
 	# check with GNU: nslookup gmx.de $SERVER -port=5353
 	/sbin/fakedns --address=/#/$dnsfake_ip -p $dnsport && {
 		pid=$( pidof fakedns ) && {
-			echo >'/tmp/SERVICE/FAKEDNS.pid'     "$pid"
-			cat  >'/tmp/SERVICE/FAKEDNS.cmdline' "/proc/$pid/cmdline"
+			echo >"$TMPDIR/FAKEDNS.pid"	"$pid"
+			cat  >"$TMPDIR/FAKEDNS.cmdline"	"/proc/$pid/cmdline"
 
 			$IPT -t mangle -A INPUT -p udp --dport 53 -j MARK --set-mark 0x15
 			$IPT -t mangle -A INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
@@ -1240,14 +1240,14 @@ _netfilter_fakedns_stop()
 {
 	local pid
 
-	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] || return 0
+	[ -e "$TMPDIR/FAKEDNS.pid" ] || return 0
 
 	$IPT -t mangle -D INPUT -p tcp --dport 53 -j MARK --set-mark 0x16
 	$IPT -t mangle -D INPUT -p udp --dport 53 -j MARK --set-mark 0x15
 
-	read -r pid <'/tmp/SERVICE/FAKEDNS.pid'
+	read -r pid <"$TMPDIR/FAKEDNS.pid"
 	kill $pid
-	rm /tmp/SERVICE/FAKEDNS.*
+	rm "$TMPDIR/FAKEDNS."*
 }
 
 _netfilter_splash_start()

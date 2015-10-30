@@ -70,7 +70,7 @@ fi
 trap "rm /tmp/LOCK_OLSRSLAVE; exit" HUP INT QUIT TERM EXIT
 _stopwatch start '/tmp/LOCK_OLSRSLAVE' global
 
-  if device_forbidden "$REMOTE_ADDR"; then
+if   device_forbidden "$REMOTE_ADDR"; then
 	ERROR="NEVER"
 elif _olsr uptime is_short; then
 	ERROR="SHORT_OLSR_UPTIME"

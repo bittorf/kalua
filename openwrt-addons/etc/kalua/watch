@@ -52,17 +52,17 @@ _watch_configchange()
 		_log it $funcname daemon alert "[OK] detected change"
 
 		# ~5 kilobytes
-		tar -czf '/tmp/config.tar.gz' '/etc/config' $HOME/.ssh/dropbear_*_key
+		tar -czf "$TMPDIR/config.tar.gz" '/etc/config' $HOME/.ssh/dropbear_*_key
 
 		pidof scp && return 1
-		if scp -i "$identity" '/tmp/config.tar.gz' "$server:$server_path/$server_file"; then
+		if scp -i "$identity" "$TMPDIR/config.tar.gz" "$server:$server_path/$server_file"; then
 			_log it $funcname daemon alert "[OK] upload to $server$server_path/$server_file"
 			echo "$new_hash" >"$hashfile"
 		else
 			_log it $funcname daemon info '[ERR] upload failed'
 		fi
 
-		rm '/tmp/config.tar.gz'
+		rm "$TMPDIR/config.tar.gz"
 	}
 }
 
@@ -123,7 +123,7 @@ _watch_reanimate_dead_neighbour()
 _watch_autorun()	# can be helpful to make changes on many nodes
 {
 	local funcname='watch_autorun'
-	local file='/tmp/.autorun'
+	local file="$TMPDIR/.autorun"
 
 	[ -e "$file" ] || return 0
 
@@ -145,8 +145,8 @@ _watch_monitoring()
 		'force')
 		;;
 		*)
-			_file age '/tmp/ARCHIV_MONITORING' -gt 900 || {
-				grep -q ^'# alive-message was send' '/tmp/ARCHIV_MONITORING' || {
+			_file age "$TMPDIR/ARCHIV_MONITORING" -gt 900 || {
+				grep -q ^'# alive-message was send' "$TMPDIR/ARCHIV_MONITORING" || {
 					echo >>$SCHEDULER_IMPORTANT '/usr/sbin/cron.monitoring send_alive_message'
 				}
 
@@ -342,9 +342,9 @@ _watch_space_tmpfs()
 
 _watch_dhcp_space()
 {
-	local funcname="watch_dhcp_space"
+	local funcname='watch_dhcp_space'
 	local line
-	local file="/tmp/dhcp.leases"
+	local file='/tmp/dhcp.leases'
 	local max_lan="$( uci get dhcp.lan.limit )"
 	local max_wifi="$( uci get dhcp.wlan.limit )"
 	local clients_lan=0
@@ -389,7 +389,7 @@ _watch_dhcp_space()
 _watch_mount_storage()
 {
 	local funcname='watch_mount_storage'
-	local dir='/tmp/storage'
+	local dir="$TMPDIR/storage"
 	local line dev size blockinfo
 
 	# TODO:
@@ -476,7 +476,7 @@ _watch_mount_storage()
 _watch_usbstick_proxystorage()
 {
 	local func='watch_usbstick_proxystorage'
-	local mountpoint="/tmp/usb0"
+	local mountpoint="$TMPDIR/usb0"
 	local partition="/dev/sda1"
 
 	fgrep -q "Vendor=18a5 ProdID=0302" /proc/bus/usb/devices && {
@@ -566,11 +566,11 @@ _watch_local_proxy()
 		return 0
 	}
 
-	_curl it "http://127.0.0.1:8123/polipo/status?" 5 >"/tmp/${func}_$$"
-	fgrep -q "Polipo status report" "/tmp/${func}_$$" || {
+	_curl it "http://127.0.0.1:8123/polipo/status?" 5 >"$TMPDIR/${func}_$$"
+	fgrep -q "Polipo status report" "$TMPDIR/${func}_$$" || {
 		daemon_restart "cannot fetch local status-page"
 	}
-	rm "/tmp/${func}_$$"
+	rm "$TMPDIR/${func}_$$"
 
 	# testdownload:
 	# export http_proxy=http://127.0.0.1:8123
@@ -591,12 +591,12 @@ _watch_archivsize()	# e.g. if a file exceeds 300 lines it will be truncated to t
 	isnumber "$lines_tolerate" || lines_tolerate="$lines_max"
 
 	if [ $lines -gt $lines_tolerate ]; then
-		if tail -n $lines_max "$file" >"/tmp/$funcname.$$"; then
-			mv "/tmp/$funcname.$$" "$file" || {
-				_log it $funcname daemon alert "moving tempfile '/tmp/$funcname.$$' to '$file' failed"
+		if tail -n $lines_max "$file" >"$TMPDIR/$funcname.$$"; then
+			mv "$TMPDIR/$funcname.$$" "$file" || {
+				_log it $funcname daemon alert "moving tempfile '$TMPDIR/$funcname.$$' to '$file' failed"
 			}
 		else
-			rm "/tmp/$funcname.$$"
+			rm "$TMPDIR/$funcname.$$"
 			_log it $funcname daemon alert "tail into tempfile failed with '$file' = $lines lines"
 		fi
 	else
@@ -677,7 +677,7 @@ _watch_hanging_command()
 				*'user-agentAUDIOPLAYER-'*)
 					# see /etc/hotplug.d/button/events.sh
 				;;
-				'scp-t/tmp/storage/sd'*|'scp/tmp/storage/sdb'*)
+				'scp-t/tmp/storage/sd'*|'scp/tmp/storage/sdb'*|"scp-t/$TMPDIR/storage/sd"*|"scp/$TMPDIR/storage/sdb"*)
 					# if somebody copies via scp on/from this node,
 					# this is not an error - see mount_storage()
 				;;
@@ -701,8 +701,8 @@ _watch_hanging_command()
 	read -r COMMAND_CMD <"/proc/${COMMAND_PID:-empty_pid}/cmdline"		# remember exact commandline
 
 	local OLD_PID OLD_CMD FILE1 FILE2
-	FILE1="/tmp/maybe_hanging_${COMMAND}_process_id"
-	FILE2="/tmp/maybe_hanging_${COMMAND}_process_cmd"
+	FILE1="$TMPDIR/maybe_hanging_${COMMAND}_process_id"
+	FILE2="$TMPDIR/maybe_hanging_${COMMAND}_process_cmd"
 
 	[ -e "$FILE1" ] && read -r OLD_PID <$FILE1
 	[ -e "$FILE2" ] && read -r OLD_CMD <$FILE2
@@ -751,7 +751,8 @@ _watch_flash_free_space()
 	local topposition=1
 	local file size flash_free
 
-	_watch counter "/tmp/$funcname" increment 1 max 100 || return 0
+	# this works also with full tempdir
+	_watch counter "$TMPDIR/$funcname" increment 1 max 100 || return 0
 
 	list_files_removeable()
 	{
@@ -766,17 +767,17 @@ _watch_flash_free_space()
 			/etc/variables_software_fff+ \
 			/www/coredumps/*.core 2>/dev/null
 
-		[ -e /tmp/SEND_ALIVE_FAILED ] || {		# means, that content is likely already send by monitoring to server
+		[ -e "$TMPDIR/SEND_ALIVE_FAILED" ] || {		# means, that content is likely already send by monitoring to server
 			ls -1 $PERMLOG 2>/dev/null
 		}
 	}
 
 	list_files_removeable | while read -r file; do {
 		if [ $( _system flash_free ) -ge $border ]; then
-			_watch counter "/tmp/$funcname" remove
+			_watch counter "$TMPDIR/$funcname" remove
 			break
 		else
-			_watch counter "/tmp/$funcname" increment 1 max 100 || break
+			_watch counter "$TMPDIR/$funcname" increment 1 max 100 || break
 		fi
 
 		[ -e "$file" ] && {
@@ -804,9 +805,9 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 	_system maintenance_window_active 'pppoe_reconnect' && return 0
 
-	[ -e '/tmp/SERVICE/FAKEDNS.pid' ] && {
-		read -r pid_fakedns <'/tmp/SERVICE/FAKEDNS.pid'
-		read -r line        <'/tmp/SERVICE/FAKEDNS.cmdline'
+	[ -e "$TMPDIR/FAKEDNS.pid" ] && {
+		read -r pid_fakedns <"$TMPDIR/FAKEDNS.pid"
+		read -r line        <"$TMPDIR/FAKEDNS.cmdline"
 		read -r cmdline     <"/proc/$pid_fakedns/cmdline"
 
 		[ "$line" = "$cmdline" ] || {
@@ -833,7 +834,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		if [ -n "$script" -a -e "$script" ]; then
 			case "$pid" in
 				*' '*)
-					touch '/tmp/DNSMASQ_DOUBLEPID'
+					touch "$TMPDIR/DNSMASQ_DOUBLEPID"
 					# 2 tasks must run
 					return 0
 				;;
@@ -841,7 +842,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 					return 1
 				;;
 				*)
-					if [ -e '/tmp/DNSMASQ_DOUBLEPID' ]; then
+					if [ -e "$TMPDIR/DNSMASQ_DOUBLEPID" ]; then
 						return 1
 					else
 						return 0
@@ -945,7 +946,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		if [ -z "$pid" ]; then
 			_log it $funcname daemon alert 'no pid, will restart soon'
 		else
-			if _watch counter "/tmp/$funcname" increment 1 max 20 ; then
+			if _watch counter "$TMPDIR/$funcname" increment 1 max 20 ; then
 				_log it $funcname daemon alert "after DNS fail: sending SIGHUP to dnsmasq: $pid_parent (reread config)"
 				kill -SIGHUP "$pid_parent"
 				sleep 5
@@ -961,7 +962,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		if nslookup "$testdomain" 2>/dev/null >/dev/null; then
 			_log it $funcname daemon info "[OK] resolv '$testdomain' good"
 			dump_core=
-			[ -e "/tmp/$funcname" ] && rm "/tmp/$funcname"
+			[ -e "$TMPDIR/$funcname" ] && rm "$TMPDIR/$funcname"
 		else
 			# only dump core, if local lookup fails too
 			dump_core='true'
@@ -983,8 +984,8 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 _watch_pppoe()
 {
 	local funcname='watch_pppoe'
-	local failure_file="/tmp/${funcname}:conn_is_faulty"
-	local good_file="/tmp/${funcname}:conn_good"
+	local failure_file="$TMPDIR/${funcname}:conn_is_faulty"
+	local good_file="$TMPDIR/${funcname}:conn_good"
 	local ifname='wan'
 	local daemon
 
@@ -1004,10 +1005,10 @@ _watch_pppoe()
 			touch "$good_file"
 		fi
 
-		[ -e "/tmp/${funcname}:maxfail" ] && rm "/tmp/${funcname}:maxfail"
+		[ -e "$TMPDIR/${funcname}:maxfail" ] && rm "$TMPDIR/${funcname}:maxfail"
 	elif ifstatus $ifname | fgrep -q 'AUTH_TOPEER_FAILED'; then
 		# https://dev.openwrt.org/ticket/18026
-		if _watch counter "/tmp/${funcname}:maxfail" increment 1 max 4; then
+		if _watch counter "$TMPDIR/${funcname}:maxfail" increment 1 max 4; then
 			_log it $funcname daemon info "authfail - trying to reconnect"
 			ifup $ifname
 			echo >>$SCHEDULER '_watch pppoe'
@@ -1100,68 +1101,58 @@ _watch_pppoe()
 	fi
 }
 
-_watch_webcam ()
-{
-	[ ! -e /tmp/WEBCAM ] && return
-
-	pidof motion >/dev/null || {
-		_log it webcam_watchdog daemon alert "restarting webcam"
-		/etc/init.d/S90webcam_fff+ restart
-	}
-}
-
 _watch_webserver()
 {
-	local funcname="watch_webserver"
+	local funcname='watch_webserver'
 	local option="$1"	# e.g. force
 	local server='uhttpd'
 	local action=
 
 	[ -e '/usr/sbin/uhttpd' ] || return 0
 
-	[ -e "/www/index.html" ] && {
+	[ -e '/www/index.html' ] && {
 		[ $OPENWRT_REV -lt 36645 ] && {
-			mv "/www/index.html" "/www/index2.html"		# from LuCI
+			mv '/www/index.html' '/www/index2.html'		# from LuCI
 		}
 	}
 
-	[ "$( uci get uhttpd.main.max_requests )" = "1" ] && {
+	bool_true 'uhttpd.main.max_requests' && {
 		case "$( pidof ash )" in
-			*" "*)
-				action="no_check"
+			*' '*)
+				action='no_check'
 			;;
 		esac
 	}
 
 	case "$( pidof userdb )" in
 		*" "*)
-			action="no_check"
+			action='no_check'
 		;;
 	esac
 
-	[ "$option" = "force" ] && action=
+	[ "$option" = 'force' ] && action=
 
 	[ -n "$action" ] && {
-		_log it $funcname daemon info "[OK] no check during webserver forking action"
+		_log it $funcname daemon info '[OK] no check during webserver forking action'
 		return 0
 	}
 
 	restart_server()
 	{
-		type uci | grep -q 'shell' && uci set uhttpd.main.interpreter=".sh=/bin/ash"
-
+		# FIXME! move to init
 		# https://dev.openwrt.org/changeset/39057
 		[ $OPENWRT_REV -lt 39057 ] && {
-			[ -n "$( uci -q get uhttpd.main.ubus_prefix )" ] && uci delete uhttpd.main.ubus_prefix
+				[ -n "$( uci -q get uhttpd.main.ubus_prefix )" ] && uci delete uhttpd.main.ubus_prefix
 		}
 
+		# FIXME! move to init
 		# maybe https wrong configured
 		[ -n "$( uci get uhttpd.main.listen_https )" ] && uci delete uhttpd.main.listen_https
 
 		[ -z "$LOWMEM" ] && {
-			uci set uhttpd.main.script_timeout=15
-			uci set uhttpd.main.network_timeout=20
-			uci set uhttpd.main.max_requests=50
+			uci set uhttpd.main.script_timeout='15'
+			uci set uhttpd.main.network_timeout='20'
+			uci set uhttpd.main.max_requests='50'
 		}
 
 		_log it $funcname daemon info "[OK] trying to stop '$server' with PID '$( pidof $server )'"
@@ -1189,14 +1180,14 @@ _watch_webserver()
 	}
 
 	local size_gethttp size_file checkfile out duration
-	local checkfile_sample="/tmp/$funcname.sample"
-	local file_seen_good="/tmp/$funcname.was_good"
+	local checkfile_sample="$TMPDIR/$funcname.sample"
+	local file_seen_good="$TMPDIR/$funcname.was_good"
 	local i=0
 
-	if [ -e "/www/robots.txt" ]; then
-		checkfile="robots.txt"
+	if [ -e '/www/robots.txt' ]; then
+		checkfile='robots.txt'
 	else
-		checkfile="favicon.ico"
+		checkfile='favicon.ico'
 	fi
 
 	if [ -e "/www/$checkfile" ]; then
@@ -1221,10 +1212,10 @@ _watch_webserver()
 
 			[ ${size_file:-0} -eq 1000 ] && {
 				cp /www/$checkfile /tmp			# fixme! this is a workaround for
-				chmod 777 /tmp/$checkfile		# bad file_size() when
+				chmod 777 "$TMPDIR/$checkfile"		# bad file_size() when
 				rm /www/$checkfile			# user/group is '1000'
-				cp /tmp/$checkfile /www
-				rm /tmp/$checkfile
+				cp "$TMPDIR/$checkfile" /www
+				rm "$TMPDIR/$checkfile"
 
 				size_file="$( _file size "/www/$checkfile" )"
 			}
@@ -1258,7 +1249,7 @@ _watch_webserver()
 			out="$( _curl it "http://$LANADR/cgi-bin-tool.sh?OPT=wifimac" )"
 
 			case "$out" in
-				*:*)
+				*':'*)
 					# CGI is working, outputs a MAC
 				;;
 				*)
@@ -1388,8 +1379,8 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 		eval "$( build_vars )"
 		_log it $FUNC daemon info "detected ID from random pool or a changed nodenumber - registering official ID from '$URL'"
 
- 		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _curl it "$URL" 10 )"		# fixme! no ssh  -> no ssh_pubkey_fingerprint!
- 										# fixme! no wifi -> no wifimac -> no registration?
+		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _curl it "$URL" 10 )"		# FIXME! no ssh  -> no ssh_pubkey_fingerprint!
+										# FIXME! no wifi -> no wifimac -> no registration?
 	 	if _ipsystem get "${ID:-99999}" >/dev/null ; then		# ipsystem() has a sanitizer built in, so don't worry 8-)
 			if [ -e "/tmp/LOCKFILE_APPLY" ]; then
 				_log it $FUNC daemon info "will not apply anything, /tmp/LOCKFILE_APPLY exists"
@@ -1407,8 +1398,8 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 		if [ "$option" = "force" ]; then
 			wait=0
 
-			[ -e /tmp/REGISTRATED ] && {
-				rm /tmp/REGISTRATED
+			[ -e "$TMPDIR/REGISTRATED" ] && {
+				rm "$TMPDIR/REGISTRATED"
 			}
 		else
 			if [ $( _system uptime min ) -lt 30 ]; then
@@ -1418,7 +1409,7 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 			fi
 		fi
 
-		if [ ! -e /tmp/REGISTRATED ] && [ "$wait" = "0" ]; then
+		if [ ! -e "$TMPDIR/REGISTRATED" ] && [ "$wait" = '0' ]; then
 
 			eval "$( build_vars )"
 
@@ -1434,7 +1425,7 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 
 				case "$ID" in
 					OK)
-						touch /tmp/REGISTRATED
+						touch "$TMPDIR/REGISTRATED"
 
 						. /usr/sbin/cron.registrator_client.sh
 					;;
@@ -1450,7 +1441,7 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 				_log it registrator_petting daemon info "no answer (service '$URL' not running or no pubkey_fp?)"
 			fi
 		else
-			[ -e /tmp/REGISTRATED ] && _log it registrator_petting daemon debug "is already lucky"
+			[ -e "$TMPDIR/REGISTRATED" ] && _log it registrator_petting daemon debug 'is already lucky'
 		fi
 	fi
 }
@@ -1515,7 +1506,7 @@ _watch_topusage_task()
 {
 	local funcname='watch_topusage_task'
 	local call_reason="$1"
-	local file="/tmp/${funcname}_$$"
+	local file="$TMPDIR/${funcname}_$$"
 	local line pid cpu toptask toptask2 khubd_state logprio logmessage
 	local crit_percent_border=70 cpu_int=-1
 	local parse=
@@ -1555,7 +1546,7 @@ _watch_topusage_task()
 	if fgrep '[khubd]' "$file" | grep -q ' DW'; then
 		khubd_state='blocked'
 	else
-		[ -e '/tmp/khubd_blocked' ] && rm '/tmp/khubd_blocked'
+		[ -e "$TMPDIR/khubd_blocked" ] && rm "$TMPDIR/khubd_blocked"
 	fi
 
 	# delete if no error
@@ -1634,7 +1625,7 @@ _watch_topusage_task()
 		esac
 	else
 		[ "$khubd_state" = 'blocked' ] && {
-			_watch counter '/tmp/khubd_blocked' increment 1 max 15 || {
+			_watch counter "$TMPDIR/khubd_blocked" increment 1 max 15 || {
 				_system crashreboot 'khubd_blocked'
 			}
 		}
@@ -1742,7 +1733,7 @@ _watch_nanostation_max_ethernet()	# eth-phy has hardware error/problem
 _watch_switch_linkstatus()	# only used for ffweimar
 {
 	local funcname="watch_switch_linkstatus"
-	local statfile="/tmp/$funcname.stat"
+	local statfile="$TMPDIR/$funcname.stat"
 	local stat_old stat_new devname interface_name
 
 	_watch nanostation_max_ethernet
@@ -1893,10 +1884,10 @@ _watch_wifistuff()
 					}
 
 					if bool_true 'system.@monitoring[0].lazy_wifi_framecounter'; then
-						if _watch counter "/tmp/$funcname.lazy" increment 1 max 10; then
+						if _watch counter "$TMPDIR/$funcname.lazy" increment 1 max 10; then
 							return $good
 						else
-							rm "/tmp/$funcname.lazy"
+							rm "$TMPDIR/$funcname.lazy"
 							rm "$file_activity_seen"
 							return $bad
 						fi
@@ -2069,7 +2060,7 @@ _watch_olsrstuff()
 			batctl gateways | grep -q "MBit" || return 1
 
 			test -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" && return 0
-			test -e "/tmp/service_olsrd_nowatching" || return 0
+			test -e "$TMPDIR/service_olsrd_nowatching" || return 0
 
 			return 1
 		}
@@ -2077,7 +2068,7 @@ _watch_olsrstuff()
 		olsr_unneeded && {
 			_log it $funcname daemon info 'OK - olsr_unneeded'
 			rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
-			touch "/tmp/service_olsrd_nowatching"
+			touch "$TMPDIR/service_olsrd_nowatching"
 			_olsr daemon stop "batman_active_now"
 			_net local_inet_offer >/dev/null || ip route add default via "$( uci get network.mybridge.gateway )"
 		}
@@ -2145,14 +2136,14 @@ _watch_olsrstuff()
 			fi
 		}
 	else
-		if [ -e '/tmp/service_olsrd_nowatching' ]; then
+		if [ -e "$TMPDIR/service_olsrd_nowatching" ]; then
 			[ -e '/tmp/OLSR_HNA_SLAVE_PINGTEST' ] && {
 				read -r IP <'/tmp/OLSR_HNA_SLAVE_PINGTEST'
 
 				_net ip_reachable "$IP" ping 30 || {
 					_log it $funcname daemon info "[ERR] ping to $IP failed"
 					ip route del default
-					rm "/tmp/service_olsrd_nowatching"	# fire olsr
+					rm "$TMPDIR/service_olsrd_nowatching"	# fire olsr
 					rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
 
 					_olsr daemon start "$funcname() ping to $IP failed"
@@ -2166,7 +2157,7 @@ _watch_olsrstuff()
 
 _watch_lowmem_freemem()
 {
-	local markerfile='/tmp/watch_lowmem_freemem'
+	local markerfile="$TMPDIR/watch_lowmem_freemem"
 
 	[ -e "$markerfile" ] && return 0
 

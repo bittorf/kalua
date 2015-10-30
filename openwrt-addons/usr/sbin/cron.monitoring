@@ -7,8 +7,8 @@ FUNC="heartbeat"
 # idee: mehrere snapshots in einem query senden (base64 encoding?)
 # idee: url kurz halten: ip statt hostname? -> "http://$IP/ffweimar/?bla=1"
 # idee: variable=wert paare zeilenweise in datei schreiben und dann in einem rutsch (extra task) durch sanitizer jagen
-#       /tmp/ARCHIV_MONITORING
-#       /tmp/ARCHIV_MONITORING_urlencoded	// hat den vorteil, das der loader besser arbeitet
+#       $TMPDIR/ARCHIV_MONITORING
+#       $TMPDIR/ARCHIV_MONITORING_urlencoded	// hat den vorteil, das der loader besser arbeitet
 #
 # idee: immer alles erzeugen, aber nur DIFF zum letzten abspeichern
 # idee: a1...A3...b9....c7=  (benennen der variablen nach kategorien -> ist kuerzer, es muss nur eine zuordnungstabelle existieren)
@@ -35,7 +35,7 @@ case "$CONFIG_PROFILE" in
 	monami*)
 	;;
 	*)
-		test   -e "/tmp/LOWMEM"			&& ARG1=fast
+		[ -n "$LOWMEM" ] && ARG1='fast'
 	;;
 esac
 
@@ -718,18 +718,18 @@ grep -q ^"ip_tables " /proc/modules && {
 	}
 
 	if [ -n "$LOWMEM" ]; then
-		echo >/tmp/ARCHIV_MONITORING "$QUERY"
+		echo >"$TMPDIR/ARCHIV_MONITORING" "$QUERY"
 	else
-		_watch archivsize "/tmp/ARCHIV_MONITORING" 150 lines_max
-		echo >>/tmp/ARCHIV_MONITORING "$QUERY"
+		_watch archivsize "$TMPDIR/ARCHIV_MONITORING" 150 lines_max
+		echo >>"$TMPDIR/ARCHIV_MONITORING" "$QUERY"
 	fi
 
 	[ "$( _math random_integer 1 96 )" -eq 50 ] && ARG1="send_alive_message"	# roundabout each day (15min = 4/h * 24 = 96)
 	[ -e /www/backup_archiv_node_data ] && ARG1="send_alive_message"
-	[ -e /tmp/SEND_ALIVE_FAILED ] && {
-		rm /tmp/SEND_ALIVE_FAILED
-		ARG1="send_alive_message"
-		ARG2="no_antenna_test"
+	[ -e "$TMPDIR/SEND_ALIVE_FAILED" ] && {
+		rm "$TMPDIR/SEND_ALIVE_FAILED"
+		ARG1='send_alive_message'
+		ARG2='no_antenna_test'
 	}
 
 	_log it $FUNC daemon debug "ready"
@@ -753,21 +753,25 @@ grep -q ^"ip_tables " /proc/modules && {
 
 			_log it $FUNC daemon info "found node-data backup, including"
 
-			mv "/tmp/ARCHIV_MONITORING" "/tmp/ARCHIV_MONITORING.temp"	# copy backup-file
-			mv '/www/backup_archiv_node_data' "/tmp/ARCHIV_MONITORING"	# on top of
-			cat "/tmp/ARCHIV_MONITORING.temp" >>"/tmp/ARCHIV_MONITORING"	# normal node_data_file
-			rm  "/tmp/ARCHIV_MONITORING.temp"				# and remove backup
+			mv "$TMPDIR/ARCHIV_MONITORING" "$TMPDIR/ARCHIV_MONITORING.temp"		# copy backup-file
+			mv "$TMPDIR/backup_archiv_node_data" "$TMPDIR/ARCHIV_MONITORING"	# on top of
+			cat "$TMPDIR/ARCHIV_MONITORING.temp" >>"$TMPDIR/ARCHIV_MONITORING"	# normal node_data_file
+			rm  "$TMPDIR/ARCHIV_MONITORING.temp"					# and remove backup
 		}
 
 		# look for last comment "# alive was send..." in our archive
 		# and try to send all lines from this point to end of file
 		# to the logging server. After this we set the comment at file-end
 
-		LINENUMBER_LAST_SUCCESS="$( grep -n "^#" "/tmp/ARCHIV_MONITORING" | tail -n1 | cut -d':' -f1 )"	# last comment
+		# # last comment
+		LINENUMBER_LAST_SUCCESS="$( grep -n "^#" "$TMPDIR/ARCHIV_MONITORING" | tail -n1 | cut -d':' -f1 )"
 
-		while true; do {							# start one line after last comment
-			LINENUMBER_LAST_SUCCESS=$(( LINENUMBER_LAST_SUCCESS + 1 ))	# worst case is line one
-		 	QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "/tmp/ARCHIV_MONITORING" )"		# must be url-encoded
+		while true; do {
+			# start one line after last comment
+			# # worst case is line one
+			LINENUMBER_LAST_SUCCESS=$(( LINENUMBER_LAST_SUCCESS + 1 ))
+			# # must be url-encoded:
+			QUERY="$( sed "${LINENUMBER_LAST_SUCCESS}q;d" "$TMPDIR/ARCHIV_MONITORING" )"
 
 			case "$QUERY" in
 				'local='*|'log='*)
@@ -788,10 +792,10 @@ grep -q ^"ip_tables " /proc/modules && {
  						;;
 					esac
 
-					echo "$QUERY" >"/tmp/ARCHIV_MONITORING.recent"
+					echo "$QUERY" >"$TMPDIR/ARCHIV_MONITORING.recent"
 
-					if [ -e "/tmp/ARCHIV_MONITORING.errors" ]; then
-						read -r errors_overall <"/tmp/ARCHIV_MONITORING.errors"
+					if [ -e "$TMPDIR/ARCHIV_MONITORING.errors" ]; then
+						read -r errors_overall <"$TMPDIR/ARCHIV_MONITORING.errors"
 					else
 						errors_overall=0
 					fi
@@ -808,7 +812,7 @@ grep -q ^"ip_tables " /proc/modules && {
 					} done
 
 					errors_overall=$(( errors_overall + i - 1 ))
-					echo "$errors_overall" >"/tmp/ARCHIV_MONITORING.errors"
+					echo "$errors_overall" >"$TMPDIR/ARCHIV_MONITORING.errors"
 
  					if [ "$OUT" = 'OK' ]; then
  						_log it $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT - i: $i"
@@ -816,10 +820,10 @@ grep -q ^"ip_tables " /proc/modules && {
  						_log it $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
 
  						# FIXME! this is a workaround for only sending lines, which we have not send yet
-						sed -n "$LINENUMBER_LAST_SUCCESS,999p" "/tmp/ARCHIV_MONITORING" >"/tmp/ARCHIV_MONITORING.tmp"
-						mv "/tmp/ARCHIV_MONITORING.tmp" "/tmp/ARCHIV_MONITORING"
+						sed -n "$LINENUMBER_LAST_SUCCESS,999p" "$TMPDIR/ARCHIV_MONITORING" >"$TMPDIR/ARCHIV_MONITORING.tmp"
+						mv "$TMPDIR/ARCHIV_MONITORING.tmp" "$TMPDIR/ARCHIV_MONITORING"
 
- 						touch '/tmp/SEND_ALIVE_FAILED'
+ 						touch "$TMPDIR/SEND_ALIVE_FAILED"
  						echo >>$SCHEDULER "$0"
 
 						# FIXME! set comment ("marker") after last sent line
@@ -828,7 +832,7 @@ grep -q ^"ip_tables " /proc/modules && {
  				;;
  				*)
 	 				_log it $FUNC daemon debug "send alive normally ended"
- 					echo >>"/tmp/ARCHIV_MONITORING" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
+ 					echo >>"$TMPDIR/ARCHIV_MONITORING" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
  					break
  				;;
 			esac
