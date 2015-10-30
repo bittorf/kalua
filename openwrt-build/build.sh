@@ -3154,6 +3154,7 @@ unittest_do()
 				list_functions() { :; }
 				show_function() { :; }
 
+				# TODO: check if each function call '_class method' is allowed/possible
 				# TODO: deepcheck each function for good encapsulation and not leeking env-vars
 				for name in $( list_functions "$file" ); do {
 					{
