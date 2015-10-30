@@ -3161,7 +3161,7 @@ unittest_do()
 							log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
 							good='false'
 						fi
-i
+
 						count_files=$(( count_files + 1 ))
 					;;
 					*)

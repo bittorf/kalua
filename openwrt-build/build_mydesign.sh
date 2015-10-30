@@ -1,148 +1,96 @@
 #!/bin/sh
 
-func_build_adblock ()
+maintainer_get()
 {
-	local NETWORK="$1"
-	local ADBLOCK_VERSION="$2"
-	local WDIR="buildadblock"
-	local ADBLOCKURL="http://pgl.yoyo.org/as/serverlist.php?showintro=0;hostformat=hosts"
+	local name email
 
-	[ -z "$NETWORK" ] && {
-		echo "func_build_adblock <network> <version>"
-		return 1
-	}
+	name="$( git config --global user.name )"
+	email="$( git config --global user.email )"
 
-	mkdir $WDIR
-	cd $WDIR
-
-	echo >"debian-binary" "2.0"
-
-	cat >control <<EOF
-Package: fff-adblock-list
-Priority: optional
-Version: $ADBLOCK_VERSION
-Architecture: all
-Maintainer: Bastian Bittorf <bittorf@bluebottle.com>
-Section: networking
-Description: adblock-domain-list, fetched @ $(date)
-Source: $ADBLOCKURL
-EOF
-
-	mkdir etc
-	wget -O /dev/null "$ADBLOCKURL" || WGETERR="$WGETERR $ADBLOCKURL"
-	wget -O -	  "$ADBLOCKURL" | sed -n 's/127.0.0.1 \(.*\)/\1/p' >"etc/hosts.drop"
-	ls -l etc/hosts.drop
-
-	tar --owner=root --group=root -cvzf data.tar.gz etc/hosts.drop
-
-	tar --owner=root --group=root -cvzf control.tar.gz ./control
-
-	tar --owner=root --group=root -cvzf ../fff-adblock-list_${ADBLOCK_VERSION}_mipsel.ipk ./debian-binary ./control.tar.gz ./data.tar.gz
-
-	cd ..
-	rm -fR "$WDIR"
-	ls -l fff-adblock-list_${ADBLOCK_VERSION}_mipsel.ipk
-
-	echo "scp fff-adblock-list_${ADBLOCK_VERSION}_mipsel.ipk root@intercity-vpn.de:/var/www/networks/$NETWORK/packages/"
-	while ! scp fff-adblock-list_${ADBLOCK_VERSION}_mipsel.ipk root@intercity-vpn.de:/var/www/networks/$NETWORK/packages/ ;do sleep 3;done
-
-	rm fff-adblock-list_${ADBLOCK_VERSION}_mipsel.ipk
+	echo "$name <$email>"
 }
 
-func_build_settings ()
+build_package_adblock()
 {
-	local NETWORK="$1"	# elephant | galerie | ...
-	local VERSION="$2"	# 0.1 | 0.2 | ...
+	local network="$1"
+	local version="$2"
+	local package_name='adblock-list'
+	local working_dir='/tmp/buildadblock'
+	local url='http://pgl.yoyo.org/as/serverlist.php?showintro=0;hostformat=hosts'
+	local file="${package_name}_${version}.ipk"
 
-	local IPKG_NAME="mysettings"
-	local IPKG_VERSION="${VERSION:-0.1}"
-	local WDIR="build_settings_$NETWORK"
-	local URL="http://www.datenkiste.org/cgi-bin/gitweb.cgi"
-	local FILE="${IPKG_NAME}_${IPKG_VERSION}.ipk"
+	mkdir "$working_dir"
+	cd "$working_dir" || return 1
 
-	mkdir $WDIR
-	cd $WDIR
+	echo >'debian-binary' '2.0'
+
+	cat >'control' <<EOF
+Package: $package_name
+Priority: optional
+Version: $version
+Architecture: all
+Maintainer: $( maintainer_get )
+Section: networking
+Description: adblock-domain-list, fetched @ $(date)
+Source: $url
+EOF
+
+	mkdir 'etc'
+	wget -O - "$url" | sed -n 's/127.0.0.1 \(.*\)/\1/p' >'etc/hosts.drop'
+	ls -l 'etc/hosts.drop'
+
+	tar --owner=root --group=root -cvzf 'data.tar.gz' 'etc/hosts.drop'
+	tar --owner=root --group=root -cvzf 'control.tar.gz' './control'
+	tar --owner=root --group=root -cvzf "../$file" ./debian-binary ./control.tar.gz ./data.tar.gz
+
+	cd ..
+	rm -fR "$working_dir"
+	ls -l "$file"
+}
+
+build_package_mysettings()
+{
+	local network="$1"
+	local version="$2"
+
+	local package_name='mysettings'
+	local working_dir="/tmp/build_settings_$NETWORK"
+	local url='http://www.datenkiste.org/cgi-bin/gitweb.cgi'
+	local file="${package_name}_${version}.ipk"
+
+	mkdir "$working_dir"
+	cd "$working_dir" || return 1
 
 	local DIR="/home/$USER/Desktop/bittorf_wireless/kunden/galeriehotel,leipzigerhof/dokumentation"
 	local CSV="345032-2009mai12-WLAN-Installation-Tabelle-Router_und_Standort.csv"
 
-	cat >postinst <<EOF
+	cat >'postinst' <<EOF
 #!/bin/sh
-
-. /bin/needs vars_old base
-
-[ "\$FFF_PLUS_VERSION" -lt 346172 ] && {
-	ipkg remove horst libpcap libncurses freifunk-tcpdump
-	wget -O /tmp/fw.tgz "http://intercity-vpn.de/firmware/broadcom/images/testing/tarball.tgz"
-	cd /
-	tar xzf /tmp/fw.tgz
-	rm /tmp/fw.tgz
-	/etc/init.d/S51crond_fff+ restart
-}
-
-. /tmp/NETPARAM
-WIFIMAC="\$( ip -o link show dev \$WIFIDEV | sed -n 's/^.*ether \(..\):\(..\):\(..\):\(..\):\(..\):\(..\) .*/\1\2\3\4\5\6/p;q' )"
-LANMAC="\$(  ip -o link show dev \$LANDEV  | sed -n 's/^.*ether \(..\):\(..\):\(..\):\(..\):\(..\):\(..\) .*/\1\2\3\4\5\6/p;q' )"
-
-LINE="\$( grep ^"MAC=\"\$WIFIMAC\"" \$0 )"
-[ -z "\$LINE" ] && LINE="\$( grep ^"MAC=\"\$LANMAC\"" \$0 )"
-[ -n "\$LINE" ] && {
-	echo
-	echo "trying to apply '\$LINE'"
-	eval \$LINE				# MAC|PROFILE|ESSID|HOST
-
-	if [ "\$( nvram get wl0_ssid )" != "\$ESSID" -o "\$( nvram get fff_profile )" != "\$PROFILE" ]; then
-		. /etc/functions_base_fff+ && func_need nvram log wifi
-		. /etc/functions_profile_fff+
-		. /etc/functions_profile_user_fff+
-		. /etc/functions_profile_mac2profile_fff+
-
-		MYLINE="\$LINE"
-		func_nvset fff_profile  "\$PROFILE"
-		func_profile_set_config "\$PROFILE"
-		eval \$MYLINE
-
-		func_nvset wan_hostname "\$HOST"
-		func_nvset wl0_ssid "\$ESSID"
-		func_nvset ff_nameservice
-		func_nvset commit
-
-		func_safe_reboot "new profile '\$PROFILE' enforced"
-	else
-		echo "already applied - ready"
-	fi
-}
-
-exit
-
+. /tmp/loader
+_log it postinst daemon info "\$0: running"
 EOF
-	sed -n 's/^[0-9]*,\("[0-9a-z]*"\),.*,.*,.*,.*,\(.*\),\(.*\),\(.*\),.*/MAC=\1;PROFILE=\2;ESSID=\3;HOST=\4;/p' "$DIR/$CSV" >>postinst
+#	sed -n 's/^[0-9]*,\("[0-9a-z]*"\),.*,.*,.*,.*,\(.*\),\(.*\),\(.*\),.*/MAC=\1;PROFILE=\2;ESSID=\3;HOST=\4;/p' "$DIR/$CSV" >>postinst
 
-	cat postinst	# debug
+	echo '2.0' >'debian-binary'
 
-	echo "2.0" >"debian-binary"
-
-	cat >control <<EOF
-Package: $IPKG_NAME
-Version: $IPKG_VERSION
+	cat >'control' <<EOF
+Package: $package_name
+Version: $version
 Priority: optional
-Maintainer: Bastian Bittorf <technik@bittorf-wireless.de>
+Maintainer: $( maintainer_get )
 Section: net
-Description: installs additional setting for '$NETWORK'
-Source: $URL
+Description: installs additional setting for '$network'
+Source: $url
 EOF
-	chmod 777 postinst
+	chmod 777 'postinst'
 
-	tar --ignore-failed-read -czf ./data.tar.gz "" 2>/dev/null
-	tar czf control.tar.gz ./control ./postinst
-	tar czf "${IPKG_NAME}_${IPKG_VERSION}.ipk" ./debian-binary ./control.tar.gz ./data.tar.gz
+	tar --ignore-failed-read -czf ./data.tar.gz ''
+	tar -cvzf 'control.tar.gz' './control' './postinst'
+	tar -cvzf "../$file" './debian-binary' './control.tar.gz' './data.tar.gz'
 
-	echo "scp "${IPKG_NAME}_${IPKG_VERSION}.ipk" root@intercity-vpn.de:/var/www/networks/$NETWORK/packages/"
-	while ! scp "${IPKG_NAME}_${IPKG_VERSION}.ipk" root@intercity-vpn.de:/var/www/networks/$NETWORK/packages/ ;do sleep 3;done
-
-	rm ./data.tar.gz ./debian-binary ./control.tar.gz control postinst
 	cd ..
-	rm -fR $WDIR
+	rm -fR "$working_dir"
+	ls -l "$file"
 }
 
 func_build_design ()
@@ -152,7 +100,7 @@ func_build_design ()
 
 	local IPKG_NAME="mydesign"
 	local IPKG_VERSION="${VERSION:-0.1}"
-	local WDIR="build_design_$NETWORK"
+	local working_dir="/tmp/build_design_$NETWORK"
 	local URL="http://www.datenkiste.org/cgi-bin/gitweb.cgi"
 	local FILE="${IPKG_NAME}_${IPKG_VERSION}.ipk"
 	local MYFILE
@@ -160,8 +108,8 @@ func_build_design ()
 	local BASE
 	local BUILD_DATE="$( date "+%d-%b-%Y" )"
 
-	mkdir -p "$WDIR"
-	cd "$WDIR"
+	mkdir -p "$working_dir"
+	cd "$working_dir" || return 1
 	mkdir -p "www/images"
 	mkdir -p "www/cgi-bin"
 
@@ -856,7 +804,7 @@ func_build_design ()
 Package: $IPKG_NAME
 Priority: optional
 Version: $IPKG_VERSION
-Maintainer: Bastian Bittorf <technik@bittorf-wireless.de>
+Maintainer: $( maintainer_get )
 Section: www
 Description: installs all specific design elements for network '$NETWORK'
 Architecture: all
@@ -878,15 +826,22 @@ EOF
 	while ! scp $FILE root@intercity-vpn.de:/var/www/networks/$NETWORK/packages/ ;do sleep 3;done
 	
 	cd ..
-	rm -fR $WDIR
+	rm -fR "$working_dir"
 }
 
-case "$1" in
-	adblock)
-		func_build_adblock $2 $3		# ffsundi
+ACTION="$1"
+NETWORK="$2"
+VERSION="$3"
+
+case "$ACTION" in
+	'adblock')
+		build_package_adblock "$NETWORK" "$VERSION"
 	;;
-	design)
-		[ -z "$2" ] && {
+	'mysettings')
+		build_package_mysettings "$NETWORK" "$VERSION"
+	;;
+	'design')
+		[ -z "$NETWORK" ] && {
 			echo "Usage: $0 design lisztwe (0.2|?)"
 			exit 1
 		}
@@ -915,8 +870,5 @@ case "$1" in
 		}
 
 		func_build_design $2 $3		# elephant 0.2
-	;;
-	settings)
-		func_build_settings $2 $3	# galerie 0.1
 	;;
 esac
