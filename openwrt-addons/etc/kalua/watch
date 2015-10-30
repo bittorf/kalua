@@ -299,11 +299,21 @@ _watch_user_list()
 _watch_space_tmpfs()
 {
 	local funcname='watch_space_tmpfs'
-	local border_percent=20
 	local file success list_logs list_vdsfiles list_orphaned list_debug list_klog list_coredump list_scheduler
 	local nothing_deleted='true'
 
-	while [ $( _system disc_free '/tmp' percent ) -lt $border_percent ]; do {
+	cleanup_needed()
+	{
+		# write a write - even if there is enough space free
+		# this can fail if too many files in dir
+		cp /tmp/loader >"$TMPDIR/$funcname.$$" || return 0
+		rm "$TMPDIR/$funcname.$$"
+
+		# check if comfortable
+		test $( _system disc_free "$TMPDIR" percent ) -lt 20
+	}
+
+	while cleanup_needed; do {
 		pidof ulogd >/dev/null && {
 			/etc/init.d/ulogd stop
 			_watch hanging_command ulogd
