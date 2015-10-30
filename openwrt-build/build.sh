@@ -2957,6 +2957,8 @@ unittest_do()
 	local funcname='unittest_do'
 	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip
 	local hash1 hash2 size1 size2 line line_stripped i list name
+	local count_files=0
+	local count_functions=0
 	local good='true'
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
@@ -3159,6 +3161,8 @@ unittest_do()
 							log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
 							good='false'
 						fi
+i
+						count_files=$(( count_files + 1 ))
 					;;
 					*)
 						log "[IGNORE] non-shellfile '$file'"
@@ -3187,18 +3191,22 @@ unittest_do()
 					} >"$tempfile"
 
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-						log "[OK] shellfunction '$name'"
+						:
+#						log "[OK] shellfunction '$name'"
 					else
 						log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
 						cat "$tempfile"
 						good='false'
 					fi
+
+					count_functions=$(( count_functions + 1 ))
 				} done
 
 				rm "$tempfile"
 			} done <"$filelist"
 			rm "$filelist"
 
+			log "[OK] checked $count_files shellfiles with $count_functions functions"
 			[ "$good" = 'false' ] && return 1
 		fi
 
