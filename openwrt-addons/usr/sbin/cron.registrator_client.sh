@@ -171,13 +171,13 @@ else
 
 	# FIXME! ask with wrong ssh-key
 	URL="http://reg.weimarnetz.de/$NETWORK/list"
-	FILE="/tmp/LIST_NODES_REGISTRATED"
+	FILE='/tmp/LIST_NODES_REGISTRATED'
 	_curl it "$URL" >"$FILE"
 
 	# fully loaded? JSON must be closed correctly:
 	if [ "$( tail -n1 "$FILE" )" = '}' ]; then
-		NODENUMBER_TRY=290	# fixme! hardcoded, till we have this function in the API
-		NODENUMBER_MAX=969	# fixme! see ipsystem_ffweimar() every ipsystem() should implement this var
+		NODENUMBER_TRY=290	# FIXME! hardcoded, till we have this function in the API
+		NODENUMBER_MAX=969	# FIXME! see ipsystem_ffweimar() every ipsystem() should implement this var
 		NODENUMBER_NEW=
 
 		# ...
