@@ -65,7 +65,7 @@ while read -r LINE; do {
 		;;
 	esac
 } done <"$FILE"
-rm "$FILE"
+rm "$FILE" "$TEMP"
 
 sed -i "s/update on server @ .*/update on server @ $(date)/" /var/www/scripts/mac2vendor_genfs.api.txt
 logger -s "$0: $ALL oui parsed, $NEW new detected"
