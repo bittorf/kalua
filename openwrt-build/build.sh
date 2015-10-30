@@ -2784,6 +2784,22 @@ mimetype_get()
 	echo "$mimetype"
 }
 
+list_shellfunctions()
+{
+	local file="$1"
+
+	# see https://github.com/koalaman/shellcheck/issues/529
+	grep -s '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1
+}
+
+show_shellfunction()
+{
+	local name="$1"
+	local file="$2"
+
+	sed -n "/^_$name/,/^}$/p" "$file"
+}
+
 check_scripts()
 {
 	local dir="$1"		# or file
@@ -2871,8 +2887,7 @@ check_scripts()
 				}
 				i=$(( i + 1 ))
 
-				# all function names without '()'
-				grep '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 >>"$tempfile_functions"
+				list_shellfunctions >>"$tempfile_functions"
 			;;
 			*)
 				log "[FIXME] will NOT check - unknown mimetype: '$mimetype' file: '$file' pwd: '$( pwd )'"
@@ -3151,20 +3166,19 @@ unittest_do()
 					;;
 				esac
 
-				list_functions() { :; }
-				show_function() { :; }
-
 				# TODO: check if each function call '_class method' is allowed/possible
-				# TODO: deepcheck each function for good encapsulation and not leeking env-vars
-				for name in $( list_functions "$file" ); do {
+				for name in $( list_shellfunctions "$file" ); do {
 					{
 						echo '#!/bin/sh'
 						echo '. /tmp/loader'
-						show_function "$name" "$file"
+						echo
+						show_shellfunction "$name" "$file"
+						echo
+						echo "$name"
 					} >"$tempfile"
 
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-						:
+						log "[OK] shellfunction '$name'"
 					else
 						log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
 						good='false'
