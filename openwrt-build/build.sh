@@ -2941,7 +2941,7 @@ unittest_do()
 {
 	local funcname='unittest_do'
 	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip
-	local hash1 hash2 size1 size2 line line_stripped i
+	local hash1 hash2 size1 size2 line line_stripped i list name
 	local good='true'
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
@@ -2997,10 +2997,11 @@ unittest_do()
 		_net my_isp
 
 		log "list=\"\$( ls -1R . )\""
-		local list="$( ls -1R . )"
+		list="$( ls -1R . )"
 
 		log "_list count_elements \"\$list\""
 		_list count_elements "$list" || return 1
+		isnumber "$( _list count_elements "$list" )" || return 1
 
 		log "_list random_element \"\$list\""
 		_list random_element "$list" || return 1
@@ -3010,6 +3011,7 @@ unittest_do()
 
 		log "_system ram_free"
 		_system ram_free || return 1
+		isnumber "$( _system ram_free )" || return 1
 
 		log '_filetype detect_mimetype /tmp/loader'
 		_filetype detect_mimetype /tmp/loader || return 1
@@ -3137,19 +3139,38 @@ unittest_do()
 						esac
 
 						if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-							rm "$tempfile"
 							log "[OK] shellcheck: '$file'"
 						else
-							rm "$tempfile"
 							log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
 							good='false'
-#							break
 						fi
 					;;
 					*)
 						log "[IGNORE] non-shellfile '$file'"
+						continue
 					;;
 				esac
+
+				list_functions() { :; }
+				show_function() { :; }
+
+				# TODO: deepcheck each function for good encapsulation and not leeking env-vars
+				for name in $( list_functions "$file" ); do {
+					{
+						echo '#!/bin/sh'
+						echo '. /tmp/loader'
+						show_function "$name" "$file"
+					} >"$tempfile"
+
+					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
+						:
+					else
+						log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
+						good='false'
+					fi
+				} done
+
+				rm "$tempfile"
 			} done <"$filelist"
 			rm "$filelist"
 
