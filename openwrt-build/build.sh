@@ -3166,6 +3166,7 @@ unittest_do()
 					;;
 				esac
 
+				# TODO: run each function and check if we leak env vars
 				# TODO: check if each function call '_class method' is allowed/possible
 				for name in $( list_shellfunctions "$file" ); do {
 					{
@@ -3174,13 +3175,22 @@ unittest_do()
 						echo
 						show_shellfunction "$name" "$file"
 						echo
-						echo "$name"
+
+						case "$file" in
+							'/tmp/loader'|'openwrt-addons/etc/kalua_init.user')
+								echo "$name \"\$@\""
+							;;
+							*)
+								echo "$name"
+							;;
+						esac
 					} >"$tempfile"
 
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 						log "[OK] shellfunction '$name'"
 					else
 						log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
+						cat "$tempfile"
 						good='false'
 					fi
 				} done
