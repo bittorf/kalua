@@ -67,8 +67,8 @@ build_package_mysettings()
 	local version="$2"
 	local name='mysettings'
 	local working_dir="/tmp/build_$name"
-	local url='http://www.datenkiste.org/cgi-bin/gitweb.cgi'
 	local file="${package_name}_${version}.ipk"
+	local url='http://www.datenkiste.org/cgi-bin/gitweb.cgi'
 
 	mkdir "$working_dir"
 	cd "$working_dir" || return 1
@@ -93,23 +93,24 @@ EOF
 
 build_package_mydesign()
 {
-	local NETWORK="$1"		# elephant | galerie | ...
-	local VERSION="${2:-0.1}"	# 0.1 | 0.2 | ...
+	local network="$1"
+	local version="$2"
+	local name='mydesign'
+	local working_dir="/tmp/build_$name"
+	local file="${package_name}_${version}.ipk"
+	local url='http://www.datenkiste.org/cgi-bin/gitweb.cgi'
 
-	local IPKG_NAME="mydesign"
-	local IPKG_VERSION="${VERSION:-0.1}"
-	local working_dir="/tmp/build_design_$NETWORK"
-	local URL="http://www.datenkiste.org/cgi-bin/gitweb.cgi"
-	local FILE="${IPKG_NAME}_${IPKG_VERSION}.ipk"
-	local MYFILE
 	local BW="$HOME/Desktop/bittorf_wireless"
 	local BASE
-	local BUILD_DATE="$( date "+%d-%b-%Y" )"
 
 	mkdir -p "$working_dir"
 	cd "$working_dir" || return 1
-	mkdir -p "www/images"
-	mkdir -p "www/cgi-bin"
+
+	write_package_description "$name" "$version" 'www' "design elements for network '$network'" "$url"
+
+	mkdir 'www'
+	mkdir 'www/images'
+	mkdir 'www/cgi-bin'
 
 	cp $HOME/Desktop/bittorf_wireless/kunden/Hotel_Elephant/grafiken/weblogin/button_login_de.gif  www/images/
 
@@ -796,18 +797,6 @@ build_package_mydesign()
 		echo
 	}
 
-        echo "2.0" >"debian-binary"
-
-        cat >control <<EOF
-Package: $IPKG_NAME
-Priority: optional
-Version: $IPKG_VERSION
-Maintainer: $( maintainer_get )
-Section: www
-Description: installs all specific design elements for network '$NETWORK'
-Architecture: all
-Source: $URL
-EOF
 
         tar --owner=root --group=root -cvzf control.tar.gz ./control
 	tar --owner=root --group=root -cvzf data.tar.gz $( test -d www && echo www ) $( test -d etc && echo etc )
@@ -838,7 +827,7 @@ case "$ACTION" in
 	'mysettings')
 		build_package_mysettings "$NETWORK" "$VERSION"
 	;;
-	'design')
+	'mydesign')
 		[ -z "$NETWORK" ] && {
 			echo "Usage: $0 design lisztwe (0.2|?)"
 			exit 1
