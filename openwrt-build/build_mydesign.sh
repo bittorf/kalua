@@ -10,34 +10,47 @@ maintainer_get()
 	echo "$name <$email>"
 }
 
-build_package_adblock()
+write_package_description()
 {
-	local network="$1"
+	local name="$1"
 	local version="$2"
-	local package_name='adblock-list'
-	local working_dir='/tmp/buildadblock'
-	local url='http://pgl.yoyo.org/as/serverlist.php?showintro=0;hostformat=hosts'
-	local file="${package_name}_${version}.ipk"
-
-	mkdir "$working_dir"
-	cd "$working_dir" || return 1
+	local section="$3"
+	local desc="$4"
+	local source_url="$5"
 
 	echo >'debian-binary' '2.0'
 
 	cat >'control' <<EOF
-Package: $package_name
+Package: $name
 Priority: optional
 Version: $version
 Architecture: all
 Maintainer: $( maintainer_get )
-Section: networking
-Description: adblock-domain-list, fetched @ $(date)
-Source: $url
+Section: $section
+Description: $desc
+Source: $source_url
 EOF
+}
+
+build_package_adblock()
+{
+	local network="$1"
+	local version="$2"
+	local name='adblock-list'
+	local working_dir="/tmp/build_$name"
+	local file="${package_name}_${version}.ipk"
+	local url='http://pgl.yoyo.org/as/serverlist.php?showintro=0;hostformat=hosts'
+
+	# TODO: add more sources
+	# https://github.com/openwrt/packages/tree/d760c35224b21bc79bbb8039afdfa66a4665e356/net/adblock/files/etc/adblock
+
+	mkdir "$working_dir"
+	cd "$working_dir" || return 1
+
+	write_package_description "$name" "$version" 'networking' "adblock-domain-list, fetched @ $(date)" "$url"
 
 	mkdir 'etc'
 	wget -O - "$url" | sed -n 's/127.0.0.1 \(.*\)/\1/p' >'etc/hosts.drop'
-	ls -l 'etc/hosts.drop'
 
 	tar --owner=root --group=root -cvzf 'data.tar.gz' 'etc/hosts.drop'
 	tar --owner=root --group=root -cvzf 'control.tar.gz' './control'
@@ -52,37 +65,22 @@ build_package_mysettings()
 {
 	local network="$1"
 	local version="$2"
-
-	local package_name='mysettings'
-	local working_dir="/tmp/build_settings_$NETWORK"
+	local name='mysettings'
+	local working_dir="/tmp/build_$name"
 	local url='http://www.datenkiste.org/cgi-bin/gitweb.cgi'
 	local file="${package_name}_${version}.ipk"
 
 	mkdir "$working_dir"
 	cd "$working_dir" || return 1
 
-	local DIR="/home/$USER/Desktop/bittorf_wireless/kunden/galeriehotel,leipzigerhof/dokumentation"
-	local CSV="345032-2009mai12-WLAN-Installation-Tabelle-Router_und_Standort.csv"
+	write_package_description "$name" "$version" 'net' "installs additional setting for '$network'" "$url"
 
+	touch 'postinst' && chmod 777 'postinst'
 	cat >'postinst' <<EOF
 #!/bin/sh
 . /tmp/loader
-_log it postinst daemon info "\$0: running"
+_log it postinst daemon info "READY"
 EOF
-#	sed -n 's/^[0-9]*,\("[0-9a-z]*"\),.*,.*,.*,.*,\(.*\),\(.*\),\(.*\),.*/MAC=\1;PROFILE=\2;ESSID=\3;HOST=\4;/p' "$DIR/$CSV" >>postinst
-
-	echo '2.0' >'debian-binary'
-
-	cat >'control' <<EOF
-Package: $package_name
-Version: $version
-Priority: optional
-Maintainer: $( maintainer_get )
-Section: net
-Description: installs additional setting for '$network'
-Source: $url
-EOF
-	chmod 777 'postinst'
 
 	tar --ignore-failed-read -czf ./data.tar.gz ''
 	tar -cvzf 'control.tar.gz' './control' './postinst'
@@ -93,7 +91,7 @@ EOF
 	ls -l "$file"
 }
 
-func_build_design ()
+build_package_mydesign()
 {
 	local NETWORK="$1"		# elephant | galerie | ...
 	local VERSION="${2:-0.1}"	# 0.1 | 0.2 | ...
