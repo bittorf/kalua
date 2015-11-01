@@ -797,21 +797,10 @@ build_package_mydesign()
 		echo
 	}
 
-
         tar --owner=root --group=root -cvzf control.tar.gz ./control
 	tar --owner=root --group=root -cvzf data.tar.gz $( test -d www && echo www ) $( test -d etc && echo etc )
 	tar --owner=root --group=root -cvzf $FILE ./debian-binary ./control.tar.gz ./data.tar.gz
 
-	echo
-	echo "scp $FILE root@intercity-vpn.de:/var/www/networks/$NETWORK/packages/"
-	echo
-	echo "# install with 'ipkg install http://intercity-vpn.de/networks/$NETWORK/packages/$FILE"
-	echo "# press enter/return to continue, CTRL+C to abort"
-	echo "# working directory: $( pwd )"
-
-	read NOP
-	while ! scp $FILE root@intercity-vpn.de:/var/www/networks/$NETWORK/packages/ ;do sleep 3;done
-	
 	cd ..
 	rm -fR "$working_dir"
 }
