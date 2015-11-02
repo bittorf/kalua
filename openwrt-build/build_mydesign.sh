@@ -302,8 +302,8 @@ build_package_mydesign()
 			cp "$BASE/font_color.txt"			www/images/font_color.txt
 		;;
 		schoeneck)
-			cd $BW || return
-			BASE="kunden/IFA Sch"*"neck/grafiken/weblogin"
+			# glob does not work otherwise
+			for BASE in "$BW/kunden/IFA Sch"*"neck/grafiken/weblogin";do :;done
 
 			_copy_flags
 			_copy_favicon_bittorf
@@ -314,8 +314,6 @@ build_package_mydesign()
 			cp "$BASE/bgcolor.txt"				www/images/bgcolor.txt
 			cp "$BASE/font_face.txt"			www/images/font_face.txt
 			cp "$BASE/font_color.txt"			www/images/font_color.txt
-
-			cd -
 		;;
 		dhsylt)
 			BASE="$BW/kunden/dorfhotel_sylt/grafiken/weblogin"
