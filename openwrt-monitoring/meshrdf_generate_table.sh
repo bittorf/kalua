@@ -624,29 +624,30 @@ hostname_sanitizer()
 
 	[ -e "$file" ] || {
 		{
-			echo "node()	# call e.g: node 178 is HausB-1132-AP"
-			echo "{"
-			echo "	local nodenumber=\$1"
-			echo "	local new_hostname=\$3"
-			echo "	local line"
-			echo
-			echo "	test \"\$nodenumber_translate\" = \"\$nodenumber\" || return 0"
-			echo "	echo \"\$new_hostname\""
-			echo "}"
+			echo '#!/bin/sh'
+			echo "# generated @ $(date) from $0 for network $NETWORK"
 			echo
 			echo "hostnames_override()"	# each line is a function call to node()"
 			echo "{"
+			echo "	case \"\$1\" in"
 
 			while read -r line; do {
 				case "$line" in
 					''|'#'*)
 					;;
 					*)
-						echo "	$line"
+						# node 178 is HausB-1132-AP
+						set -- $line
+						echo "		$2) echo \":::$4\";;"
+						
 					;;
 				esac
 			} done <"$database"
 
+			echo "		*)"
+			echo "			echo \"unknown_host\$1\""
+			echo "		;;"
+			echo "	esac"
 			echo "}"
 		} >"$file"
 
@@ -655,6 +656,8 @@ hostname_sanitizer()
 
 	hostnames_override "$nodenumber_translate"
 }
+
+hostname_sanitizer 'dummy' >/dev/null	# inlude files, so we can call hostname_sanitizer()
 
 func_update2color()
 {
@@ -779,7 +782,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 			if [ -n "$HOSTNAME_TEMP" ]; then
 				HOSTNAME="$HOSTNAME_TEMP"
 			else
-				HOSTNAME="miss${HOSTNAME:-empty$NODE}"
+				HOSTNAME="miss${NODE}_${WIFIMAC}"
 			fi
 		;;
 		apphalle)
@@ -1194,35 +1197,43 @@ func_cell_hostname ()
 				return 0
 			;;
 			*)
-				[ -e "../settings/$WIFIMAC.hostname" ] || {	# autosafe for building mysettings.ipk
-					mkdir -p ../settings
-					echo "$HOSTNAME" >"../settings/$WIFIMAC.hostname"
-				}								# fixme! how to rewrite?
+				case "$NETWORK" in
+					'schoeneck')
+						return 1
+					;;
+					*)
+						[ -e "../settings/$WIFIMAC.hostname" ] || {	# autosafe for building mysettings.ipk
+							mkdir -p ../settings
+							echo "$HOSTNAME" >"../settings/$WIFIMAC.hostname"
+						}						# FIXME! how to rewrite?
+					;;
+				esac
 
 				return 1
 			;;
 		esac
 	}
 
-	if [ -e "../settings/$WIFIMAC.hostname" ]; then
-		read HOSTNAME_ENFORCED <"../settings/$WIFIMAC.hostname"
-	else
-		HOSTNAME_ENFORCED=
-	fi
-
 	case "$NETWORK" in
 		schoeneck)
 			case "$HOSTNAME" in
-				xxx*)
-					HOSTNAME_ENFORCED=
+				'xxx'*)
+#					HOSTNAME_ENFORCED=
 				;;
 				*)
-					[ -n "$HOSTNAME_ENFORCED" ] && {
-						HOSTNAME="$HOSTNAME_ENFORCED"
-						HOSTNAME_ENFORCED=
-					}
+#					[ -n "$HOSTNAME_ENFORCED" ] && {
+#						HOSTNAME="$HOSTNAME_ENFORCED"
+#						HOSTNAME_ENFORCED=
+#					}
 				;;
 			esac
+		;;
+		*)
+			if [ -e "../settings/$WIFIMAC.hostname" ]; then
+				read HOSTNAME_ENFORCED <"../settings/$WIFIMAC.hostname"
+			else
+				HOSTNAME_ENFORCED=
+			fi
 		;;
 	esac
 
