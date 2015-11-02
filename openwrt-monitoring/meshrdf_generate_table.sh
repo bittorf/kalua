@@ -277,6 +277,8 @@ HARDWARE_FILE="$TMPDIR/networks/$NETWORK/hardware.txt"
 USECASE_FILE="$TMPDIR/networks/$NETWORK/usecase.txt"
 [ -e "$USECASE_FILE" ] && rm "$USECASE_FILE"
 
+# special overrride, e.g. schoeneck
+[ -e "$TMPDIR/function_hostnames_$NETWORK" ] && rm "$TMPDIR/function_hostnames_$NETWORK"
 
 log "start network '$NETWORK' for IP: '$REMOTE_ADDR'"
 
@@ -618,25 +620,40 @@ hostname_sanitizer()
 {
 	local nodenumber_translate="$1"
 	local file="$TMPDIR/function_hostnames_$NETWORK"
+	local database="/var/www/networks/$NETWORK/$NETWORK-hostnames.sh"
 
-	{
-	echo "node()"
-	echo "{"
-	echo "	local nodenumber=\$1"
-	echo "	local new_hostname=\$3"
-	echo "	test \"$nodenumber_translate\" = \"\$nodenumber\" || return 0"
-	echo "	echo \"xxx\$new_hostname\""		# set xxx in front for better sorting
-	ech  "}"
-	echo
-	echo "hostnames_override()"	# each line is a function call like: node 178 is HausB-1132-AP
-	echo "{"
-	cat  "/var/www/networks/schoeneck/schoeneck-hostnames.sh"
-	echo "}"
-	} >"$file"
+	[ -e "$file" ] || {
+		{
+			echo "node()	# call e.g: node 178 is HausB-1132-AP"
+			echo "{"
+			echo "	local nodenumber=\$1"
+			echo "	local new_hostname=\$3"
+			echo "	local line"
+			echo
+			echo "	test \"\$nodenumber_translate\" = \"\$nodenumber\" || return 0"
+			echo "	echo \"\$new_hostname\""
+			echo "}"
+			echo
+			echo "hostnames_override()"	# each line is a function call to node()"
+			echo "{"
 
-	.  "$file"	# expensive!
+			while read -r line; do {
+				case "$line" in
+					''|'#'*)
+					;;
+					*)
+						echo "	$line"
+					;;
+				esac
+			} done <"$database"
 
-	hostnames_override	# always sets all $NODENUMBER -> $HOSTNAME
+			echo "}"
+		} >"$file"
+
+		.  "$file"
+	}
+
+	hostnames_override "$nodenumber_translate"
 }
 
 func_update2color()
@@ -758,8 +775,12 @@ for FILE in $LIST_FILES LASTFILE; do {
 	case "$NETWORK" in
 		schoeneck)
 			HOSTNAME_TEMP="$( hostname_sanitizer "$NODE" )"
-			[ -n "$HOSTNAME_TEMP" ] && HOSTNAME="$HOSTNAME_TEMP"
-			HOSTNAME="${HOSTNAME:-empty$NODE}"
+
+			if [ -n "$HOSTNAME_TEMP" ]; then
+				HOSTNAME="$HOSTNAME_TEMP"
+			else
+				HOSTNAME="miss${HOSTNAME:-empty$NODE}"
+			fi
 		;;
 		apphalle)
 			case "$NODE" in
@@ -1737,12 +1758,15 @@ func_cell_nexthop()
 		hostname_nexthop="unset"
 		for FILE in $LIST_FILES LASTFILE; do {
        		 	[ -e "$FILE" ] && {
-				nodenumber_nexthop="$( sed 's/;/\n/g' "$FILE" | grep ^'NODE='     | cut -d'"' -f2 )"
+				nodenumber_nexthop="$( sed 's/;/\n/g' "$FILE" | grep ^'NODE=' | cut -d'"' -f2 )"
 
-				[ "$NETWORK" = 'schoeneck' ] && hostname_nexthop="$( hostname_sanitizer "$nodenumber_nexthop" )"
-
-				[ -z "$hostname_nexthop" ] && {
-					hostname_nexthop="$(   sed 's/;/\n/g' "$FILE" | grep ^'HOSTNAME=' | cut -d'"' -f2 )"
+				[ "$NETWORK" = 'schoeneck' ] && {
+					hostname_nexthop="$( hostname_sanitizer "$nodenumber_nexthop" )"
+					if [ -n "$hostname_nexthop" ]; then
+						:
+					else
+						hostname_nexthop="err$( sed 's/;/\n/g' "$FILE" | grep ^'HOSTNAME=' | cut -d'"' -f2 )"
+					fi
 				}
 
 				[ "$nodenumber_nexthop" = "$nexthop" ] && break
