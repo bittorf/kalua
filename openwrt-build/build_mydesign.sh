@@ -38,7 +38,7 @@ build_package_adblock()
 	local version="$2"
 	local name='adblock-list'
 	local working_dir="/tmp/build_$name"
-	local file="${package_name}_${version}.ipk"
+	local file="${name}_${version}.ipk"
 	local url='http://pgl.yoyo.org/as/serverlist.php?showintro=0;hostformat=hosts'
 
 	# TODO: add more sources
@@ -97,7 +97,7 @@ build_package_mydesign()
 	local version="$2"
 	local name='mydesign'
 	local working_dir="/tmp/build_$name"
-	local file="${package_name}_${version}.ipk"
+	local file="${name}_${version}.ipk"
 	local url='http://www.datenkiste.org/cgi-bin/gitweb.cgi'
 
 	local BW="$HOME/Desktop/bittorf_wireless"
@@ -141,7 +141,7 @@ build_package_mydesign()
 	_copy_terms_of_use ()
 	{
 		local USERDIR="$1"
-		local DATE="$( date "+%Y %b %d" | sed -e 's/ä/a/g' )"	# Maerz
+		local DATE="$( date '+%Y %b %d' )"	# TODO: Maerz
 		local SHORT_LANG FILE
 
 		cp "$USERDIR/rules_meta_de.txt"	"www/images/weblogin_rules_de_meta"
@@ -174,7 +174,6 @@ build_package_mydesign()
 
 	case $NETWORK in
 		example)
-			continue
 			# idea:
 			# uses flags=standard favicon=standard usageterms=standard ...
 
@@ -186,7 +185,7 @@ build_package_mydesign()
 			# userdb_login_template.pdf
 
 			# /www/images/button_login_de.gif		# Absendeknopf, farblich abgestimmt
-			# /www/images/logo2.gif 			# Slogan-Grafik "Galerie Hotel Leipziger Hof \n Hier schlafen (surfen) sie mit einem Original"
+			# /www/images/logo2.gif				# Slogan-Grafik "Galerie Hotel Leipziger Hof\nHier schlafen (surfen) sie mit einem Original"
 			# /www/images/logo.gif				# Hauptlogo
 			# /www/images/landing_page.txt			# http://url
 			# /www/images/bgcolor.txt			# HTML z.b. '#FFD700' oder 'yellow'
@@ -303,7 +302,7 @@ build_package_mydesign()
 			cp "$BASE/font_color.txt"			www/images/font_color.txt
 		;;
 		schoeneck)
-			BASE="$BW/kunden/IFA Schöneck/grafiken/weblogin"
+			BASE="$BW/kunden/IFA Sch"*"neck/grafiken/weblogin"	# FIXME
 
 			_copy_flags
 			_copy_favicon_bittorf
@@ -784,8 +783,8 @@ build_package_mydesign()
 	}
 
 	echo
-	for MYFILE in $( find www/ -type f ); do {
-		file -i "$MYFILE" | grep -q ": image/" && {
+	find www/ -type f | while read -r MYFILE; do {
+		file -i "$MYFILE" | grep -q ': image/' && {
 			echo "$( file -b "$MYFILE" )	$MYFILE"
 		}
 	} done
@@ -817,34 +816,27 @@ case "$ACTION" in
 		build_package_mysettings "$NETWORK" "$VERSION"
 	;;
 	'mydesign')
-		[ -z "$NETWORK" ] && {
-			echo "Usage: $0 design lisztwe (0.2|?)"
-			exit 1
-		}
-
-		[ "$3" = "?" ] && {
-			wget -qO - "http://intercity-vpn.de/networks/$2/packages/Packages" | while read LINE; do {
-
+		[ "$VERSION" = '?' ] && {
+			wget -qO - "http://intercity-vpn.de/networks/$2/packages/Packages" | while read -r LINE; do {
 				case "$LINE" in
-					*mydesign*) DIRTY=1 ;;
+					*'mydesign'*) DIRTY=1 ;;
 				esac
 
 				case "$DIRTY" in
 					1)
 						case "$LINE" in
-							Version*)
-								echo $LINE
+							'Version'*)
+								echo "$LINE"
 								exit 1
 							;;
 						esac
 					;;
 				esac
-
 			} done
 
 			exit 1
 		}
 
-		func_build_design $2 $3		# elephant 0.2
+		build_package_mydesign "$NETWORK" "$VERSION"
 	;;
 esac
