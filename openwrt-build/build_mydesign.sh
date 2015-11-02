@@ -67,7 +67,7 @@ build_package_mysettings()
 	local version="$2"
 	local name='mysettings'
 	local working_dir="/tmp/build_$name"
-	local file="${package_name}_${version}.ipk"
+	local file="${name}_${version}.ipk"
 	local url='http://www.datenkiste.org/cgi-bin/gitweb.cgi'
 
 	mkdir "$working_dir"
@@ -302,7 +302,8 @@ build_package_mydesign()
 			cp "$BASE/font_color.txt"			www/images/font_color.txt
 		;;
 		schoeneck)
-			BASE="$BW/kunden/IFA Sch"*"neck/grafiken/weblogin"	# FIXME
+			cd $BW || return
+			BASE="kunden/IFA Sch"*"neck/grafiken/weblogin"
 
 			_copy_flags
 			_copy_favicon_bittorf
@@ -313,6 +314,8 @@ build_package_mydesign()
 			cp "$BASE/bgcolor.txt"				www/images/bgcolor.txt
 			cp "$BASE/font_face.txt"			www/images/font_face.txt
 			cp "$BASE/font_color.txt"			www/images/font_color.txt
+
+			cd -
 		;;
 		dhsylt)
 			BASE="$BW/kunden/dorfhotel_sylt/grafiken/weblogin"
