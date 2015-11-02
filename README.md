@@ -340,6 +340,7 @@ Special UCI-variables
 	system.@monitoring[0].maintenance_force - bool
 	system.@monitoring[0].maintenance_ports - list of ints
 	system.@monitoring[0].wifi_netparam_name - string, e.g. 'wlanadhocRADIO1'
+	system.@monitoring[0].nightly_longrange - bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
