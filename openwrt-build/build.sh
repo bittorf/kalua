@@ -1237,7 +1237,7 @@ openwrt_download()
 		;;
 		'testing')
 			# maybe this is too simply, because it applies to all platforms?
-			wish='r46425'
+			wish='r47364'
 		;;
 	esac
 
@@ -2064,6 +2064,7 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'uclibc')
+				# removed with r47357
 				usecase_has 'musl' || {
 					apply_symbol 'CONFIG_DEVEL=y'
 					apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
