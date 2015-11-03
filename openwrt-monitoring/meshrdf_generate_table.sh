@@ -502,8 +502,8 @@ echo >>$OUT "</head><body bgcolor='$BODY_BGCOLOR'>"
 
 # checkout: http://stackoverflow.com/questions/7641791/javascript-library-for-human-friendly-relative-date-formatting
 cat >>$OUT <<EOF
-<p id='zeitstempel' data-timestamp-page='$UNIXTIME_SCRIPTSTART'> Datenbestand vom $( date "+%d.%b'%y-%H:%M" )</p>
-<script>
+<p id='zeitstempel' data-timestamp_page='$UNIXTIME_SCRIPTSTART'> Datenbestand vom $( date "+%d.%b'%y-%H:%M" )</p>
+<script type="text/javascript">
 // tiny-relative-time.js
 // Author: Max Albrecht <1@178.is>
 // Public Domain
@@ -523,7 +523,7 @@ cat >>$OUT <<EOF
   // lib
   function RelativeTimestamper(id) {
     if (timeStamp = document.getElementById(id)) {
-      if (unixDate = timeStamp.getAttribute('data-timestamp-page')) {
+      if (unixDate = timeStamp.getAttribute('data-timestamp_page')) {
         return updateTimestamp.bind(null,timeStamp, unixDate)
       }
     }
