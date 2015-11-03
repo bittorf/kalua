@@ -93,13 +93,13 @@ _vpn_innercity_master_vtund()
 			_watch hanging_command vtund
 
 			i=30
-			while [ -n "$( ls -1 /tmp/vpn_innercity_master_iface-devup-tap* )" ]; do {
+			while _vpn innercity_master_iface lock_active; do {
 				if [ $i -gt 0 ]; then
 					i=$(( i - 1 ))
 					_log it $funcname daemon info "waiting for interface shotdown: $i sec"
 					sleep 1
 				else
-					_log it $funcname daemon alert 'please check /tmp/vpn_innercity_master_iface-devup-tap*'
+					_vpn innercity_master_iface remove_all_locks
 					break
 				fi
 			} done
@@ -115,26 +115,41 @@ _vpn_innercity_master_vtund()
 _vpn_innercity_master_iface()
 {
 	local funcname='vpn_innercity_master_iface'
-	local action="$1"	# up|down
+	local action="$1"	# up|down|lock_active|remove_all_locks
 	local dev="$2"		# e.g. tap276
 	local i=0
 	local bytes packets uptime uptime_sec numbers linenumber reason mtu
 
+	case "$action" in
+		'lock_active')
+			ls -1 "$TMPDIR/$funcname-devup"* >/dev/null && return 0
+			ls -d "$TMPDIR/lock-$funcname" && return 0
+			return 1
+		;;
+		'remove_all_locks')
+			_log do $funcname daemon alert 'working'
+			rm -fR "$TMPDIR/lock-$funcname"
+			rm -fR "$TMPDIR/$funcname-devup"*
+			return 0
+		;;
+	esac
+
 	# we make sure, that this function (up or down) is
 	# only used once from 1 caller - otherwise we wait
-	while ! mkdir "/tmp/lock-$funcname"; do {
-		read -r reason <"/tmp/lock-$funcname/info"
+	while ! mkdir "$TMPDIR/lock-$funcname"; do {
+		read -r reason <"$TMPDIR/lock-$funcname/info"
 
-		# FIXME! why does this happen?
+		# FIXME! why does this happen? e.g. on EJBW when a peer changes it's public IP (pppoe-reconnect)
 		# Oct 20 05:38:07 server1 kalua: sh: vpn_innercity_master_iface() locked: up/tap855 must wait for 'action: down dev: tap800'
 		# Oct 20 05:38:09 server1 vtund[17326]: Session Node800[178.25.42.10:47605] opened
 		# Oct 20 05:38:09 server1 vtund[17326]: Can't allocate tap device tap800. Device or resource busy(16)
 		# Oct 20 05:38:09 server1 vtund[17326]: Session Node800 closed
 		# --> lockfile still exists
+		# even without logfile it will not recover
 
-		if _file age "/tmp/lock-$funcname/info" -gt 600 ; then
+		if _file age "$TMPDIR/lock-$funcname/info" -gt 600 ; then
 			_log it $funcname daemon info "overaged: force unlocking: '$reason'"
-			rm -fR "/tmp/lock-$funcname"
+			rm -fR "$TMPDIR/lock-$funcname"
 		else
 			[ $i -gt 5 ] && {
 				_log it $funcname daemon info "locked: $action/$dev must wait for '$reason'"
@@ -145,7 +160,7 @@ _vpn_innercity_master_iface()
 	} done
 
 	reason="action: $action dev: $dev"
-	echo "$reason" >"/tmp/lock-$funcname/info"
+	echo "$reason" >"$TMPDIR/lock-$funcname/info"
 	_log it $funcname daemon info "[START] action: $action dev: $dev"
 
 	local olsrd_config='/etc/olsrd.conf'
@@ -167,7 +182,7 @@ _vpn_innercity_master_iface()
 	if [ "$action" = 'up' ]; then
 		ip address add $tunnel_ip_here/$mask dev $dev
 		ip link set dev $dev mtu $mtu up
-		touch "/tmp/$funcname-devup-$dev"
+		touch "$TMPDIR/$funcname-devup-$dev"
 
 		$IPT -I INPUT  -p udp --dport 698 -i $dev -j DROP
 		$IPT -I INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
@@ -197,9 +212,9 @@ _vpn_innercity_master_iface()
 		# action = down
 		ip link set dev $dev down
 
-		uptime_sec=$( _file age "/tmp/$funcname-devup-$dev" )
+		uptime_sec=$( _file age "$TMPDIR/$funcname-devup-$dev" )
 		uptime=$( _stopwatch seconds2humanreadable "$uptime_sec" )
-		rm "/tmp/$funcname-devup-$dev"
+		rm "$TMPDIR/$funcname-devup-$dev"
 
 		set -- $( $IPT -nxvL | fgrep " $dev " | head -n1 )
 		packets=$1
@@ -221,7 +236,7 @@ _vpn_innercity_master_iface()
 		_log it $funcname daemon alert "[READY] action: $action dev: $dev $numbers uptime: $uptime"
 	fi
 
-	rm -fR "/tmp/lock-$funcname"
+	rm -fR "$TMPDIR/lock-$funcname"
 }
 
 _vpn_hideandseek_master_get()
