@@ -1,4 +1,5 @@
 #!/bin/sh
+. /tmp/loader
 
 # todo: choose framerame according to ram_size
 # cam_id: $NODENUMBER
@@ -57,7 +58,6 @@ motion_generate_conf()			# resolution: (motion needs modulo 16)
 	# default is 1500 pixel, which is 0.5% for 640 x 480
 	local threshold=$(( ((width * height) / 100) * pixel_change_in_percent_for_motion ))
 
-	. /tmp/loader
 	_system add_ramdisc "$dir"
 
 	if which motion >/dev/null; then
@@ -111,7 +111,6 @@ force_apply_config()
 
 	pid="$( pidof motion )" && kill -SIGHUP $pid
 
-	. /tmp/loader
 	case "$NODENUMBER-$CONFIG_PROFILE" in
 		262-liszt28*)
 			v4l2-ctl --set-ctrl focus_absolute=1
@@ -147,7 +146,6 @@ store_startdate()
 }
 
 [ -e "/tmp/motion.conf" ] || {
-	. /tmp/loader
 	_ntp set
 	store_startdate
 	force_apply_config
@@ -162,10 +160,11 @@ storage_is()			# measure low/high-jump
 	local lowram=8000000	# bytes = 8mb
 	local ram_free
 
+	eval "$( _system ram_free ram_free= )"
+	[ $ram_free -lt $lowram ] && return 0
+
 	explode $( df | grep "/webcam"$ )
 	STORAGE_FREE="${5%%%*}"			# global var
-
-	while read -r L;do case $L in MemFree:*)set $L;M=$2;;Buffers:*)set $L;ram_free=$(((M+$2)*1024));break;esac;done</proc/meminfo
 
 	_log it $funcname daemon info "webcam: percent_used: $STORAGE_FREE% mode: '$mode' - ram: $ram_free bytes"
 	[ $ram_free -lt $lowram ] && return 0		# simulates "storage full"
@@ -210,8 +209,6 @@ RUN_ENCODER=
 # logger -s "RUN_ENCODER=$RUN_ENCODER"
 
 if [ -n "$RUN_ENCODER" ]; then
-	. /tmp/loader
-
 	read -r STARTDATE <"/tmp/webcam.start"
 	read -r STARTUNIX <"/tmp/webcam.startunix"
 	FILENAME="/tmp/cam_${NODENUMBER}-stream-id_${STARTUNIX}-$( date +%Y_%b_%d )-from_${STARTDATE}_to_$( date +%Hh%Mm ).mp4"
@@ -313,7 +310,6 @@ else
 	[ -e "/webcam/webcam.jpg" ] && {
 		SIZE=$( _file size '/webcam/webcam.jpg' )
 		[ $SIZE -gt 0 -a $SIZE -lt 15000 ] && {		# FIXME! depends on quality and day/night
-			. /tmp/loader
 			_log it webcam_filesize daemon alert "low pic: $SIZE bytes, reboot"
 			_system crashreboot 'webcam_pic2small'
 		}
@@ -353,7 +349,6 @@ else
 			FILE="$(  ls -1 "$EVENT_RECENT-"* | sed "$(( COUNT / 2 ))q;d" )"
 		}
 
-		. /tmp/loader
 		_log it webcam_upload daemon info "file '$FILE'"
 
 		echo "$EVENT_RECENT" >"/tmp/webcam_last_event"
