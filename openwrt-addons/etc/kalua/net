@@ -214,7 +214,7 @@ _net_roaming_cleanup_cache()
 	local funcname='net_roaming_cleanup_cache'
 	local file='/tmp/roaming'
 	local unixtime="$( _system date unixtime )"
-	local line dirty
+	local line
 
 	[ -e "$file" ] || return 0
 
@@ -224,26 +224,14 @@ _net_roaming_cleanup_cache()
 	# 00:21:6a:32:7c:1c 192.168.2.61 1433621675
 	# 00:21:6a:32:7c:1c 192.168.23.61 1433616647
 
-	# format: mac ip expires
 	while read -r line; do {
-		set -- $line
-
-		if isnumber "$3"; then
-			test $3 -gt $unixtime && echo "$line"
-		else
-			dirty="true:$3:'$line'"
-		fi
-	} done <"$file" >"$file.tmp"
-
-	case "$dirty" in
-		'true'*)
-			cp "$file.tmp" "$file.tmp.checkme.$$"
-			_log it $funcname daemon alert "bad entry, check '$file.tmp.checkme.$$': '$line'"
-		;;
-	esac
+		# format: mac ip expires
+		set -- ${line:-0 0 0}
+		test $3 -gt $unixtime && echo "$line"
+	} done <"$file" >"$file.tmp.$$"
 
 	# FIXME! double write access, e.g. from collect.sh?
-	mv "$file.tmp" "$file"
+	mv "$file.tmp.$$" "$file"
 }
 
 _net_roaming_report_new()
