@@ -231,14 +231,16 @@ _net_roaming_cleanup_cache()
 		if isnumber "$3"; then
 			test $3 -gt $unixtime && echo "$line"
 		else
-			dirty='true'
+			dirty="true:$3:'$line'"
 		fi
 	} done <"$file" >"$file.tmp"
 
-	[ "$dirty" = 'true' ] && {
-		cp "$file.tmp" "$file.tmp.checkme"
-		_log it $funcname daemon alert "bad entry, check '$file.tmp.checkme': '$line'"
-	}
+	case "$dirty" in
+		'true'*)
+			cp "$file.tmp" "$file.tmp.checkme.$$"
+			_log it $funcname daemon alert "bad entry, check '$file.tmp.checkme.$$': '$line'"
+		;;
+	esac
 
 	# FIXME! double write access, e.g. from collect.sh?
 	mv "$file.tmp" "$file"
