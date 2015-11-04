@@ -77,7 +77,7 @@ return 0
 
 	# e.g. 18:00 - 08:00
 #	cron_timeslot="$( uci -q get wireless.radio0.cronactive )" || return 0
-#	set -- $timeslot
+#	explode $timeslot
 #	cron_start="$1"
 #	cron_end="$2"
 
@@ -369,7 +369,7 @@ _watch_dhcp_space()
 			;;
 		esac
 
-		set -- $line
+		explode $line
 		if fgrep -q "$3" "/tmp/CLIENTS_LAN"; then
 			clients_lan=$(( clients_lan + 1 ))
 		else
@@ -435,7 +435,7 @@ _watch_mount_storage()
 		[ "$( cat /sys/block/$dev/removable )" = '0' ] && return 0
 
 		# e.g. 7200 or 'Solid State Device'
-		set -- $( hdparm -I "/dev/$dev" | fgrep 'Nominal Media Rotation Rate: ' )
+		explode $( hdparm -I "/dev/$dev" | fgrep 'Nominal Media Rotation Rate: ' )
 		shift 4
 
 		[ ${1:-0} -gt 0 ] && {
@@ -447,7 +447,7 @@ _watch_mount_storage()
 	while read -r line; do {
 		case "$line" in
 			*' sda'|*' sda'[0-9]|*' sdb'|*' sdb'[0-9])
-				set -- $line
+				explode $line
 				dev="$4"
 				blockinfo="$( block info "/dev/$dev" )"
 
@@ -464,7 +464,7 @@ _watch_mount_storage()
 						mkdir -p "$dir/$dev"
 						_log it $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev' ($blockinfo)"
 						mount "/dev/$dev" "$dir/$dev" && {
-							set -- $( df -h | grep "$dir/$dev"$ )
+							explode $( df -h | grep "$dir/$dev"$ )
 							size="$2"
 
 							umount "$dir/$dev" && {
@@ -874,9 +874,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		# 1417698583 00:00:00:00:00:00 127.0.0.2 lo-alias *
 		if line="$( grep ' 00:00:00:00:00:00 127.0.0.2 lo-alias ' "$leases" )"; then
 			[ -e '/www/netifd_dhcp_watchdog' ] || touch '/www/netifd_dhcp_watchdog'
-			set -f		# no globbing
-			set -- $line
-			set +f
+			explode $line
 
 			if [ $1 -lt $( _system date unixtime ) ]; then
 				_log it $funcname daemon alert "loopback-alias/dhcp-lease too old: $1"
@@ -1531,7 +1529,7 @@ _watch_topusage_task()
 
 	while read -r line; do {
 		if [ "$parse" = 'Mem:Mem:' ]; then
-			set -- $line
+			explode $line
 			case "$line" in
 				[0-9]*)
 					pid="$1"
@@ -2121,7 +2119,7 @@ _watch_olsrstuff()
 		watch_olsr_ip="$( uci -q get olsrd.@meta[0].watch_ip )" && {		# e.g. 10.63.2.25
 			watch_value="$( uci -q get olsrd.@meta[0].watch_value )"	# e.g. "2500" = max 2.500
 
-			set -- $( fgrep "$watch_olsr_ip" "/tmp/OLSR/ALL" | head -n1 )
+			explode $( fgrep "$watch_olsr_ip" "/tmp/OLSR/ALL" | head -n1 )
 			value="${6//./}"	# ETX-value, e.g 1.234 -> 1234
 
 			if   [ "$value" = '0100' ]; then

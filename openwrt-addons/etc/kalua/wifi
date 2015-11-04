@@ -63,7 +63,7 @@ _wifi_dev2freq()
 		# Interface wlan1 ifindex 51 wdev 0x10000000e addr f8:1a:67:33:1b:be \
 		# ssid ffintern.5GHz type IBSS wiphy 1 channel 40 (5200 MHz), width: 20 MHz, center1: 5200 MHz
 		#						  ^^^^^^^^^^
-		set -- $( iw dev "$dev" info )
+		explode $( iw dev "$dev" info )
 		case "$*" in
 			*' MHz'*)
 				freq="${*%% MHz*}"
@@ -168,7 +168,7 @@ _wifi_get_station_param()
 	iw dev "$dev" station get "$mac" 2>/dev/null | while read -r line; do {
 		case "$line" in
 			*"$param:"*)
-				set -- $line
+				explode $line
 				while [ -n "$1" ]; do {
 					case "$1" in
 						*":")
@@ -202,11 +202,11 @@ _wifi_show_station_traffic()
 	 while read -r line; do {
 		case "$line" in
 			*"rx bytes:"*)
-				set -- $line
+				explode $line
 				rx="$3"
 			;;
 			*"tx bytes:"*)
-				set -- $line
+				explode $line
 				tx="$3"
 
 				rx_human="$( _sanitizer run "$rx" number_humanreadable )"
@@ -316,16 +316,16 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 				continue
 			;;
 			T*|t*)			# only use lines with highest/2nd-highest rate
-				set -- $line
+				explode $line
 			;;
 			"HT20/LGI T"*|"HT20/SGI T"*|"HT40/LGI T"*|"HT40/SGI T"*)
 				system="n"
-				set -- $line
+				explode $line
 				shift
 			;;
 			"HT20/LGI  t"*|"HT20/SGI  t"*|"HT40/LGI  t"*|"HT40/SGI  t"*)
 				system="n"
-				set -- $line
+				explode $line
 				shift
 			;;
 			*)
@@ -373,7 +373,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 	} done <$file
 
 	[ -n "$targetline" ] && {
-		set -- $targetline
+		explode $targetline
 # 		logger -s "TL 1: $1 2: $2 3: $3 4:$3 5: $5 6: $6 7: $7 8: $8 9: $9"
 
 		case "$2" in
@@ -732,7 +732,7 @@ _wifi_speed()
 
 			[ -n "$nexthop" ] && {
 				# 10.63.222.3 via 10.63.222.3 dev wlan1-1  src 10.63.15.3 \    cache
-				set -- $( ip --oneline route get "$nexthop" )
+				explode $( ip --oneline route get "$nexthop" )
 				while [ -n "$2" ]; do {
 					shift
 
@@ -880,9 +880,9 @@ _wifi_forwarding_still_active()
 		let duration-=1 || break
 		sleep 1
 
-		set -- $( $IPT -nxvL FORWARD 1 )
+		explode $( $IPT -nxvL FORWARD 1 )
 		bytes=$2
-		set -- $( $IPT -nxvL FORWARD 2 )
+		explode $( $IPT -nxvL FORWARD 2 )
 		bytes=$(( bytes + $2 ))
 
 		_log it $funcname daemon debug "forwarded bytes: $bytes"
@@ -1062,9 +1062,7 @@ _wifi_phy_restart()
 	while read -r line; do {
 		case "$line" in
 			*"$wifi_dev")
-				set -f		# disable globbing
-				set -- $line
-				set +f
+				explode $line
 				mac="$4"
 
 				case "$userlist" in
@@ -1369,13 +1367,13 @@ _wifi_bssid()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associate
 
 		which iwinfo >/dev/null && {
 			# Access Point: 02:CA:FF:EE:BA:BE
-			set -- $( iwinfo $WIFIDEV info | fgrep 'Access Point:' )
+			explode $( iwinfo $WIFIDEV info | fgrep 'Access Point:' )
 			bssid="$3"
 		}
 
 		which iwconfig >/dev/null && test -z "$bssid" && {
 			# Mode:Ad-Hoc  Frequency:2.432 GHz  Cell: 02:CA:FF:EE:BA:BE
-			set -- $( iwconfig $WIFIDEV | fgrep 'Cell:' )
+			explode $( iwconfig $WIFIDEV | fgrep 'Cell:' )
 
 			while [ -n "$1" ]; do {
 				shift
@@ -1462,7 +1460,7 @@ _wifi_signal()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all s
 	 while read -r line; do {
 		case "$line" in
 			*"signal avg:"*)
-				set -- $line
+				explode $line
 				echo "$3"
 				[ "$option" = 'dump' ] || break
 			;;
@@ -1477,7 +1475,7 @@ _wifi_signal_get()
 	local signal=0
 	local line signal
 
-	set -- $( iw dev "$dev" station get "$mac" 2>/dev/null || echo 'signal avg: 0' )
+	explode $( iw dev "$dev" station get "$mac" 2>/dev/null || echo 'signal avg: 0' )
 	line="$*"
 
 	# signal avg:	-50 [-60, -54, -53] dBm
@@ -1495,7 +1493,7 @@ _wifi_channel()
 
 	# e.g. 'Interface wlan0 ifindex 6 wdev 0x2 addr 10:6f:3f:0e:31:8e type IBSS wiphy 0 channel 11 (2462 MHz) NO HT'
 	which iw >/dev/null && {
-		set -- $( iw dev "$dev" info )
+		explode $( iw dev "$dev" info )
 		line="$*"
 		channel="${line#*channel }"
 	}
@@ -1647,25 +1645,25 @@ _wifi_scan()
 		case "$line" in
 			# BSS 02:00:ca:fe:02:22(on wlan0)
 			'BSS '*)
-				set -- $line
+				explode $line
 				value="${2%(*}"
 				remote="$value"
 			;;
 			# freq: 2462
 			*'freq: '*)
-				set -- $line
+				explode $line
 				value="$2"
 				remote="${remote}-$value"
 			;;
 			# signal: -52.00 dBm
 			*'signal: -'*)
-				set -- $line
+				explode $line
 				value="${2%.*}"
 				remote="${remote}${value}"
 			;;
 			# SSID: Schlachtfest 123
 			*'SSID: '*)
-				set -- $line; shift
+				explode $line; shift
 				value="$*"
 
 				echo "${remote}-${value}"
@@ -1762,7 +1760,7 @@ _wifi_check_each_client()
 
 	for mac in $( _wifi mac_assoclist "$WIFIDEV" ); do {
 		# TODO: more values?
-		set -- $( iw dev "$WIFIDEV" station get "$mac" | fgrep 'inactive time:' )
+		explode $( iw dev "$WIFIDEV" station get "$mac" | fgrep 'inactive time:' )
 		inactive_time="$3"
 
 		[ -z "$inactive_time" -o $inactive_time -ge 120000 ] && {
@@ -2155,7 +2153,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	# TODO: generate mail/pdf
 
 	channels="${channels//./ }"	# e.g. 36...44
-	set -- $channels
+	explode $channels
 	channel_start="$1"
 	channel_ready="$2"
 
@@ -2178,7 +2176,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 			wait_till_time ':20'	# till wifi has settled and link is useable
 ###
 			bssid="$( _wifi bssid $WIFIDEV )"
-			set -- $( iwinfo $WIFIDEV info | fgrep 'Link Quality:' )
+			explode $( iwinfo $WIFIDEV info | fgrep 'Link Quality:' )
 			quality="$6"
 
 			for node in $node_list; do {

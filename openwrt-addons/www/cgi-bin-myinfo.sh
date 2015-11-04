@@ -12,7 +12,7 @@ MAC="$( _net ip2mac "$REMOTE_ADDR" )" && {
 				"#"*)
 				;;
 				*":"*)
-					set -- $LINE
+					explode $LINE
 
 					echo "<h3>Nutzerdaten</h3><pre>"
 					echo "IP-Adresse: $REMOTE_ADDR"

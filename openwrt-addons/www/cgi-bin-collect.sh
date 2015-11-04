@@ -30,7 +30,7 @@ case "$QUERY_STRING" in
 
 		# format: mac ip expires - see: net_roaming_report_new() - searched newest entires first = 'tac'
 		if LINE="$( grep -sn '' '/tmp/roaming' | sort -rn | cut -d: -f2- | grep ^"$mac" )"; then
-			set -- $LINE
+			explode $LINE
 			echo $2
 		else
 			_log it roaming_querymac daemon info "no entry for $mac ($REMOTE_ADDR asked)"

@@ -266,7 +266,7 @@ _netfilter_traffic_control_user_add()
 	local users file comment interface
 
 	interface="$( ip -oneline route get "$ip" )"
-	set -- $interface
+	explode $interface
 	interface="$3"
 	file="/tmp/TRAFFIC_CONTROL_UP_$interface"
 
@@ -658,7 +658,7 @@ _netfilter_stats()
 			if _sanitizer run "$context" mac check; then
 				line="$( $IPT -t mangle -nxvL FORWARD | fgrep "incoming_$context" )"
 
-				set -- $line
+				explode $line
 				packets="${1:-0}"
 				bytes="${2:-0}"
 
@@ -669,7 +669,7 @@ _netfilter_stats()
 		;;
 	esac
 
-	set -- $line
+	explode $line
 	packets=$(( ${packets:-0} + ${1:-0} ))
 	bytes=$(( ${bytes:-0} + ${2:-0} ))
 
@@ -1392,9 +1392,7 @@ _netfilter_splash_autoadd()
 	fi
 
 	while read -r line; do {
-		set -f		# disable globbing
-		set -- ${line:-empty}
-		set +f
+		explode ${line:-empty}
 		ip="$1"
 		mac="$4"
 
@@ -1416,7 +1414,7 @@ _netfilter_splash_batman_alien_unauth()
 	# or:
 	# bridge name bridge id STP enabled interfaces
 	local list_devs="$( brctl show )"
-	set -- $list_devs
+	explode $list_devs
 
 	case "$@" in
 		*' bat0 '*)
@@ -1433,7 +1431,7 @@ _netfilter_splash_batman_alien_unauth()
 					# Station ca:00:11:00:00:15 (on wlan0)
 					case "$line" in
 						'Station '*)
-							set -- $line
+							explode $line
 							mac="$2"
 							[ -e "/tmp/vds_user_$mac" ] || {
 								ip="$( _net mac2ip "$mac" )"
@@ -1591,12 +1589,12 @@ _netfilter_user_stats_collect()		# this runs every minute, so speedcode!
 	 while read -r line; do {
 		case "$line" in
 			*'incoming_'*)
-				set -- $line
+				explode $line
 				bytes_incoming=$(( bytes_incoming + $2 ))
 				mac="${3#*_}"
 			;;
 			*"outgoing_"*)
-				set -- $line
+				explode $line
 				bytes_outgoing="$2"
 
 				echo "$uptime $bytes_incoming $bytes_outgoing" >>"/tmp/NETFILTER/USER/${mac:-empty_mac}/stats"
@@ -1660,7 +1658,7 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 
 	repair_mac()	# screenscraping 'arping', e.g. '4:70:2:5c:2a:4' (missing leading 0's)
 	{
-		local oldIFS="$IFS"; IFS=":"; set -- $1; IFS="$oldIFS"
+		local oldIFS="$IFS"; IFS=":"; explode $1; IFS="$oldIFS"
 		local tupel new_mac=
 
 		for tupel in $1 $2 $3 $4 $5 $6; do {

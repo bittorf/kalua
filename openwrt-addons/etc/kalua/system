@@ -331,20 +331,6 @@ _system_get_first_pid ()	# pidof returns an arbitrary sorted list, so we have to
 	[ "$max_pid" = "$min_pid" ] || echo $min_pid
 }
 
-_system_globbing ()
-{
-	local state="$1"	# list conditions: 'set +o'
-
-	case "$state" in
-		off)
-			set -f
-		;;
-		*)
-			set +f
-		;;
-	esac
-}
-
 _system_version()
 {
 	local option="$1"	# e.g. <empty> or '41391...42330'
@@ -413,7 +399,7 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 		( ifup wan ) &
 	}
 
-	set -- $reason
+	explode $reason
 	_system crashreboot "$1"
 }
 
@@ -468,7 +454,7 @@ _system_disc_free()
 	# Filesystem           1K-blocks      Used Available Use% Mounted on
 	# tmpfs                    14152      1220     12932   9% /tmp
 	line="$( df "$disc" )"
-	set -- ${line:-0 0 0 0 0 0 0 0 0 0 0}
+	explode ${line:-0 0 0 0 0 0 0 0 0 0 0}
 	shift 7
 
 	case "$unit" in
@@ -501,7 +487,7 @@ _system_flash_size()	# [kByte]
 	local name hexsize line size=0
 
 	while read -r line; do {
-		set -- $line		# mtd3: 003c0000 00010000 "rootfs_data"
+		explode $line		# mtd3: 003c0000 00010000 "rootfs_data"
 		name="$4"		# e.g. "rootfs_data"
 		name="${name%\"}"
 		name="${name#\"*}"	# strip trailing/leading "
@@ -673,7 +659,7 @@ _system_ram_free()		# [bytes]
 	while read -r line; do {
 		case "$line" in
 			'MemFree:'*)
-				set -- $line
+				explode $line
 				mem=$2
 			;;
 			'Buffers:'*)
@@ -681,7 +667,7 @@ _system_ram_free()		# [bytes]
 				# 1: 'Buffers:            3428 kB' 2: '' 3:'' 4: '' 5:'' 6: '' 7:''
 				# IFS: '
 				# '
-				set -- $line
+				explode $line
 				mem=$(( (${mem:-0} + ${2:-0}) * 1024 ))
 				break
 			;;
@@ -700,7 +686,7 @@ _system_ram_size()		# [kBytes]
 	while read -r line; do {
 		case "$line" in
 			MemTotal:*)
-				set -- $line
+				explode $line
 
 				case "$option" in
 					is_lowram)
@@ -723,7 +709,7 @@ _system_flash_mounted_readonly()	# SENSE: check if data-partition is mounted rea
 	local line
 
 	mount | while read -r line; do {
-		set -- $line
+		explode $line
 
 		[ "${5}${6}" = 'mini_fo(ro)' ] && {
 			_log it $funcname daemon info 'data-partition mounted read-only'

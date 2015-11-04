@@ -6,7 +6,7 @@ _net_get_rxtx()
 	local line
 
 	while read -r line; do {
-		set -- $line
+		explode $line
 
 		case "$1" in
 			"$dev:")
@@ -186,7 +186,7 @@ _net_roaming_mac2ip()
 	if   [ "$action" = 'delete_from_local_cache' ]; then
 		sed -i "s/^$mac $ip/# $mac $ip/g" "$file"
 	elif get_local; then
-		set -- $line
+		explode $line
 		ip="$2"
 		_log it $funcname daemon info "[OK] mac->IP: $mac -> $ip from $method"
 		echo "$ip"
@@ -226,7 +226,7 @@ _net_roaming_cleanup_cache()
 
 	while read -r line; do {
 		# format: mac ip expires
-		set -- ${line:-0 0 0}
+		explode ${line:-0 0 0}
 		test $3 -gt $unixtime && echo "$line"
 	} done <"$file" >"$file.tmp.$$"
 
@@ -276,13 +276,13 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 
 	get_apmac()
 	{
-		set -- $( iw dev "$dev" station dump | grep ^'Station' )
+		explode $( iw dev "$dev" station dump | grep ^'Station' )
 		echo "${2:-unconnected}"
 	}
 
 	get_signal()
 	{
-		set -- $( iw dev "$dev" station dump | grep 'signal:' )
+		explode $( iw dev "$dev" station dump | grep 'signal:' )
 		echo "${2:-0}"
 	}
 
@@ -386,9 +386,7 @@ _net_count_wired()
 	ip neigh show >"/tmp/$funcname"
 
 	while read -r line; do {
-		set -f		# disable globbing
-		set -- $line
-		set +f
+		explode $line
 		ip="$1"
 		dev="$3"
 		mac="$5"
@@ -458,7 +456,7 @@ _net_fulltrace()
 	local ip_list=
 
 	# '?' or '10.63.160.161 LAN 4369'
-	set -- $( _wifi speed cached verbose )
+	explode $( _wifi speed cached verbose )
 	nexthop="$1"
 	interface="$2"
 	speed="${3:-0}"
@@ -502,7 +500,7 @@ _net_fulltrace()
 				esac
 
 				# 10.63.160.161 LAN 4369
-				set -- $output
+				explode $output
 				nexthop="$1"
 				interface="$2"
 				speed="$3"
@@ -527,9 +525,7 @@ _net_arp_reset()
 
 	while read -r line; do {
 		# 10.63.196.161  0x1  0x6  00:10:75:2d:80:e1  *  eth0.1
-		set -f		# disable globbing
-		set -- $line
-		set +f
+		explode $line
 		_net arp_permanent "$1" "$4" "$6" 'reachable'
 	} done <'/proc/net/arp'
 }
@@ -543,7 +539,7 @@ _net_show_traffic()
 
 	[ -z "$iface" ] && {
 		# default via 10.63.99.61 dev eth0.2  metric 2 onlink
-		set -- $( ip route list exact '0.0.0.0/0' | head -n1 )
+		explode $( ip route list exact '0.0.0.0/0' | head -n1 )
 		while test ! "$1" = 'dev' -a -n "$1"; do shift; done
 		iface="$2"
 	}
@@ -600,13 +596,13 @@ _net_ping_getlatency()
 
 	# round-trip min/avg/max = 24.638/24.638/24.638 ms	// busybox
 	# rtt min/avg/max/mdev = 33.415/33.415/33.415/0.000 ms	// debian
-	set -- $( ping -q -c${pings} -W1 "$server" 2>/dev/null | tail -n1 )
+	explode $( ping -q -c${pings} -W1 "$server" 2>/dev/null | tail -n1 )
 
 	# bad return on error
 	test -n "$4" &&	{
 		# round-trip min/avg/max = 15.887/24.931/42.406 ms
 		# -> 15.887/24.931/42.406 -> 15 887 24 931 42 406
-		local oldIFS="$IFS"; IFS='[/.]'; set -- $4; IFS="$oldIFS"
+		local oldIFS="$IFS"; IFS='[/.]'; explode $4; IFS="$oldIFS"
 
 		# output 'average' round trip time: 24.931 -> 24
 		echo "$3"
@@ -735,7 +731,7 @@ _net_mac2linklocal()	# SENSE: mac-address to IPv6 fe80::*
 		;;
 	esac
 
-	local oldIFS="$IFS"; IFS=':'; set -- $mac; IFS="$oldIFS"
+	local oldIFS="$IFS"; IFS=':'; explode $mac; IFS="$oldIFS"
 	printf "fe80::%x:%x:%x:%x\n" $(( 0x${1}${2} ^ 0x200 )) 0x${3}ff 0xfe${4} 0x${5}${6}
 }
 
@@ -864,7 +860,7 @@ _net_refresh_dnshosts()		# this is mostly for getting recent values from nameser
 				while read -r line; do {
 					case "$line" in
 						'PPid:'*)
-							set -- $line
+							explode $line
 
 							# it only works with the 'nobody' dnsmasq,
 							# which has PPid = 1
@@ -1029,7 +1025,7 @@ _net_ip2dns()
 	# Address 1: 10.63.222.1
 
 	output="$( nslookup "$ip" 2>/dev/null || echo 'ERROR ERROR' )"
-	set -- $output
+	explode $output
 
 	case "$6" in
 		*'mywifi'*|*'user-lan'*)
@@ -1049,7 +1045,7 @@ _net_ip2dns()
 		[ -e '/var/run/hosts_olsr' ] && {
 			while read -r line; do {
 				# 10.63.194.131   mid1.Sommerbar-Kamera   # 10.63.194.161 (mid #1)
-				set -- $line
+				explode $line
 
 				case "$1" in
 					"$ip")
@@ -1064,7 +1060,7 @@ _net_ip2dns()
 			return 1
 		else
 			# use nslookup-output
-			set -- $output
+			explode $output
 		fi
 	}
 
@@ -1124,9 +1120,7 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 	# get mac from arp-cache
 	[ -z "$mac" ] && {
 		while read -r line; do {
-			set -f		# disable globbing
-			set -- ${line:-unset}
-			set +f
+			explode ${line:-unset}
 			ip="$1"
 			mac="$4"
 
@@ -1191,9 +1185,9 @@ _net_dns2ip()
 	local dns="$1"
 	local go ip
 
-	# set -- $( nslookup host86-139-31-49.range86-139.btcentralplus.com )
+	# explode $( nslookup host86-139-31-49.range86-139.btcentralplus.com )
 	# Server: 127.0.0.1 Address 1: 127.0.0.1 localhost Name: host86-139-31-49.range86-139.btcentralplus.com Address 1: 86.139.31.49 host86-139-31-49.range86-139.btcentralplus.com
-	set -- $( nslookup "$dns" || echo 'ERROR ERROR' )
+	explode $( nslookup "$dns" || echo 'ERROR ERROR' )
 
 	while shift; do {
 		case "$1" in
@@ -1265,7 +1259,7 @@ _net_dev2ip()			# only first ip
 		;;
 	esac
 
-	set -- ${line:-is_empty}
+	explode ${line:-is_empty}
 
 	case "$3" in
 		'inet')
@@ -1332,7 +1326,7 @@ _net_dev2mac()
 {
 	local dev="${1:-empty_dev}"
 
-	set -- $( ip --oneline link show dev "$dev" )
+	explode $( ip --oneline link show dev "$dev" )
 
 	while [ -n "$1" ]; do {
 		case "$1" in
@@ -1467,9 +1461,7 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 		case "$line" in
 			"$ip "*)
 				# 10.63.61.1  0x1  0x2  66:70:02:f3:90:6c  *  wlan1
-				set -f		# disable globbing
-				set -- $line
-				set +f
+				explode $line
 
 				[ "$4" = '00:00:00:00:00:00' ] || {
 					_log it $funcname daemon debug "try1: $6 <- $*"
@@ -1484,14 +1476,14 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 	#
 	# root@E2-ayse:~ _net ip2dev 10.63.22.65
 	# ip -oneline route get 10.63.22.65
-	# set -- 10.63.22.65 via 10.63.22.89 dev eth0.2 src 10.63.20.89 \ cache
+	# explode 10.63.22.65 via 10.63.22.89 dev eth0.2 src 10.63.20.89 \ cache
 	#
 	# it shows the routing-table (over wire), not the expected way over wifi
 
 	# e.g.
 	# 192.168.99.243 dev br-mybridge  src 192.168.99.1 \ cache
 	# fe80::221:6aff:fe32:7c1c from :: dev eth0  src fe80::da5d:4cff:fe9c:2f1a  metric 0 \ cache
-	set -- $( ip -oneline route get "$ip" 2>/dev/null || echo 'ERROR ERROR' )
+	explode $( ip -oneline route get "$ip" 2>/dev/null || echo 'ERROR ERROR' )
 
 	while shift; do {
 		case "$1" in
@@ -1652,7 +1644,7 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 #		default_route="$( ip route list exact '0.0.0.0/0' | head -n1 )"
 #	}
 #
-#	set -- $default_route
+#	explode $default_route
 #	PHYDEV="$5"
 #	METRIC="$7"
 #	D="$3"
@@ -1903,9 +1895,7 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 		local mac ip line
 
 		while read -r line; do {
-			set -f		# disable globbing
-			set -- $line
-			set +f
+			explode $line
 			ip="$1"
 			mac="$( _sanitizer run "$4" lowercase )"
 

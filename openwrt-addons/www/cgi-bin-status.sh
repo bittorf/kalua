@@ -311,7 +311,7 @@ output_table()
 				for dev in $WIFI_DEVS; do {
 
 					# maybe use: wifi_get_station_param / wifi_show_station_traffic
-					set -- $( iw dev "$dev" station get "$mac" )
+					explode $( iw dev "$dev" station get "$mac" )
 					while [ -n "$1" ]; do {
 						shift
 						case "$1 $2" in
@@ -549,7 +549,7 @@ while read -r LINE; do {
 		;;
 		'true-'*)
 			# 10.63.1.97  10.63.183.33  0.121  0.784  10.487
-			set -- $LINE
+			explode $LINE
 			case "$NODE_LIST" in
 				*" $1 "*)
 					# already in list
@@ -593,7 +593,7 @@ BOOTTIME="$( _system date unixtime2date "$BOOTTIME" )"		# Thu Nov 27 04:10:39 CE
 case "$BOOTTIME" in
 	# Thu Nov 27
 	"$( date "+%a %b %e" ) "*)
-		set -- $BOOTTIME
+		explode $BOOTTIME
 		shift 3
 		BOOTTIME="seit heute $1 Uhr"
 	;;

@@ -152,7 +152,7 @@ while read -r LINE; do {			# and extract all nodes and all links
 				[0-9]*)
 					# 10.10.3.33  10.10.4.33  0.784  0.117  INFINITE
 					# 10.10.4.33  10.10.3.33  0.152  0.819  7.978
-					set -- $LINE
+					explode $LINE
 
 					COST="$5"
 					case "$COST" in
@@ -181,7 +181,7 @@ while read -r LINE; do {			# and extract all nodes and all links
 		case "$LINE" in
 			[0-9]*)
 				# 10.63.160.161  AlexLaterne    # 10.63.160.161
-				set -- $LINE
+				explode $LINE
 				IP="$1"
 				NAME="$2"
 
