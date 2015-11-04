@@ -40,7 +40,7 @@ esac
 	unset CRASH
 }
 
-[ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci'] && {
+[ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci' ] && {
 	echo "fresh/unconfigured device detected, run: '/etc/init.d/apply_profile.code' for help"
 }
 

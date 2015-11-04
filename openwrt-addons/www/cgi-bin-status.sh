@@ -639,7 +639,7 @@ cat <<EOF
   <table cellspacing='5' cellpadding='5' border='0' class='sortable'>
 EOF
 
-output_table
+output_table "$@"	# SC2119/SC2120
 echo '  </table>'
 _switch show 'html' 'Ansicht der Netzwerkanschl&uuml;sse:&nbsp;'
 
