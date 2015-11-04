@@ -2986,7 +2986,9 @@ unittest_do()
 
 	# e.g. S41build_static_netparam calls it
 	ln -s "$build_loader" '/etc/kalua_init' || {
-		sudo ln -s "$build_loader" '/etc/kalua_init'
+		sudo ln -s "$build_loader" '/etc/kalua_init' && {
+			log '[OK] setting symlink needed sudo'
+		}
 	}
 
 	log "testing '/tmp/loader'"
@@ -3001,7 +3003,7 @@ unittest_do()
 
 		log 'testing explode-alias / firmware get_usecase'
 		echo 'Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY' >"$TMPDIR/test"
-		[ "$( _firmware get_usecase '' "$TMPDIR/test" = 'Standard,debug,VDS,OLSRd2,kalua,FeatureXY' )" || return 1
+		[ "$( _firmware get_usecase '' "$TMPDIR/test" )" = 'Standard,debug,VDS,OLSRd2,kalua,FeatureXY' ] || return 1
 		rm "$TMPDIR/test"
 
 		log 'building/testing initial NETPARAM'
