@@ -2798,7 +2798,19 @@ show_shellfunction()
 	local name="$1"
 	local file="$2"
 
-	sed -n "/^_$name/,/^}$/p" "$file"
+	# myfunc()
+	sed -n "/^$name()/,/^}$/p" "$file" | grep . || {
+		# myfunc ()
+		sed -n "/^$name ()/,/^}$/p" "$file" | grep . || {
+			# myfunc() { :;}
+			grep ^"$name()" "$file" | grep . || {
+				# myfunc () { :;}
+				grep ^"$name ()" "$file" | grep . || {
+					log "[ERR] cannot find function '$name' in file '$file'"
+				}
+			}
+		}
+	}
 }
 
 check_scripts()
@@ -3187,7 +3199,7 @@ unittest_do()
 						echo
 
 						case "$file" in
-							'/tmp/loader'|'openwrt-addons/etc/kalua_init.user')
+							'/tmp/loader'|'openwrt-addons/etc/kalua_init.user'|'openwrt-addons/etc/kalua_init.user_essential_helpers')
 								echo "$name \"\$@\""
 							;;
 							*)
@@ -3201,8 +3213,11 @@ unittest_do()
 #						log "[OK] shellfunction '$name'"
 					else
 						log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
-						cat "$tempfile"
 						good='false'
+
+						echo '### start'
+						cat "$tempfile"
+						echo '### end'
 					fi
 
 					count_functions=$(( count_functions + 1 ))
