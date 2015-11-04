@@ -26,7 +26,7 @@ esac
 [ -e '/tmp/REBOOT_REASON' ] && {
 	read -r CRASH <'/tmp/REBOOT_REASON'
 	case "$CRASH" in
-		'nocrash'|'nightly_reboot'|'apply_settings'|'wifimac_safed')
+		'nocrash'|'nightly_reboot'|'apply_profile'|'wifimac_safed')
 		;;
 		*)
 			# see system_crashreboot()
