@@ -3203,7 +3203,9 @@ unittest_do()
 						echo "$name \"\$@\""
 					} >"$tempfile"
 
-					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
+					if   fgrep -q "\\$" "$tempfile"; then
+						log "[OK] shellfunction '$name' - will not check, seems to be generated"
+					elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 						:
 #						log "[OK] shellfunction '$name'"
 					else
