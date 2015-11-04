@@ -24,16 +24,24 @@ case "$USER" in
 esac
 
 [ -e '/tmp/REBOOT_REASON' ] && {
+	# see system_crashreboot()
 	read -r CRASH <'/tmp/REBOOT_REASON'
 	case "$CRASH" in
 		'nocrash'|'nightly_reboot'|'apply_profile'|'wifimac_safed')
 		;;
 		*)
-			# see system_crashreboot()
-			echo "last reboot unusual = '$CRASH', see with: cat /sys/kernel/debug/crashlog"
+			if [ -e '/sys/kernel/debug/crashlog' ]; then
+				echo "last reboot unusual = '$CRASH', see with: cat /sys/kernel/debug/crashlog"
+			else
+				echo "last reboot unusual = '$CRASH'"
+			fi
 		;;
 	esac
 	unset CRASH
+}
+
+[ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci'] && {
+	echo "fresh/unconfigured device detected, run: '/etc/init.d/apply_profile.code' for help"
 }
 
 _ t 2>/dev/null || {
