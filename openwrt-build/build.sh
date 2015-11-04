@@ -3197,17 +3197,10 @@ unittest_do()
 						echo '#!/bin/sh'
 						echo '. /tmp/loader'
 						echo
+						echo "# from file '$file'"
 						show_shellfunction "$name" "$file"
 						echo
-
-						case "$file" in
-							'/tmp/loader'|'openwrt-addons/etc/kalua_init.user'|'openwrt-addons/etc/kalua_init.user_essential_helpers')
-								echo "$name \"\$@\""
-							;;
-							*)
-								echo "$name"
-							;;
-						esac
+						echo "$name \"\$@\""
 					} >"$tempfile"
 
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
