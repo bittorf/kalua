@@ -2987,6 +2987,11 @@ unittest_do()
 		isnumber $(( 65536 * 65536 )) || return 1
 		isnumber 'A' && return 1
 
+		log 'testing explode-alias / firmware get_usecase'
+		echo 'Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY' >"$TMPDIR/test"
+		[ "$( _firmware get_usecase '' "$TMPDIR/test" = 'Standard,debug,VDS,OLSRd2,kalua,FeatureXY' )" || return 1
+		rm "$TMPDIR/test"
+
 		log 'building/testing initial NETPARAM'
 		openwrt-addons/etc/init.d/S41build_static_netparam call
 		if [ -e "$TMPDIR/NETPARAM" ]; then
