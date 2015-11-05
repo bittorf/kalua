@@ -3240,13 +3240,15 @@ unittest_do()
 					} >"$tempfile"
 
 					if   fgrep -q "\\$" "$tempfile"; then
-						log "[OK] shellfunction '$name' - will not check, seems to be generated"
+						log "[OK] --> function '$name()' - will not check, seems to be generated"
 					elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-						:
-#						log "[OK] shellfunction '$name'"
+						log "[OK] --> function '$name()'"
 					else
 						log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
 						good='false'
+
+						# debug
+						grep -q 'EOF' "$tempfile" && hexdump -C "$tempfile" | grep 'EOF'
 
 						echo '### start'
 						grep -n ^ "$tempfile"
