@@ -1,0 +1,343 @@
+#!/bin/sh
+. /tmp/loader
+
+log()
+{
+	logger -s -- "$1"
+}
+
+list_shellfunctions()
+{
+	local file="$1"
+
+	# see https://github.com/koalaman/shellcheck/issues/529
+	grep -s '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1
+}
+
+show_shellfunction()
+{
+	local name="$1"
+	local file="$2"
+	local method
+
+	m1()
+	{
+		# myfunc()
+		sed -n "/^$name()/,/^}$/p" "$file"
+	}
+
+	m2()
+	{
+		# myfunc ()
+		sed -n "/^$name ()/,/^}$/p" "$file"
+	}
+
+	m3()
+	{
+		# myfunc() { :;}
+		grep ^"$name()" "$file"
+	}
+
+	m4()
+	{
+		# myfunc () { :;}
+		grep ^"$name ()" "$file"
+	}
+
+	for method in m1 m2 m3 m4; do {
+		$method | grep -q ^ && {	# any output?
+			$method			# show it!
+			return 0
+		}
+	} done
+
+	log "[ERR] cannot find function '$name' in file '$file'"
+}
+
+test()
+{
+	local shellcheck_bin start_test build_loader ignore file tempfile filelist pattern ip
+	local hash1 hash2 size1 size2 line line_stripped i list name
+	local count_files=0
+	local count_functions=0
+	local good='true'
+
+	log 'testing isnumber()'
+	isnumber '-1' || return 1
+	isnumber $(( 65536 * 65536 )) || return 1
+	isnumber 'A' && return 1
+
+	log 'testing explode-alias / firmware get_usecase'
+	echo 'Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY' >"$TMPDIR/test"
+	[ "$( _firmware get_usecase '' "$TMPDIR/test" )" = 'Standard,debug,VDS,OLSRd2,kalua,FeatureXY' ] || return 1
+	rm "$TMPDIR/test"
+
+	log 'testing explode-alias / asterisk'
+	mkdir "$TMPDIR/explode_test"
+	cd "$TMPDIR/explode_test" || return
+	touch 'foo1'
+	touch 'foo2'
+	# this must not glob
+	grep explode /tmp/loader
+	alias explode	# show it
+	set -x
+	explode A B ./* C
+	set +x
+	[ "$1" = 'A' -a "$4" = 'C' -a "$3" = '*' ] || {
+		log "explode faild: '$1', '$4', '$3'"
+#			return 1
+	}
+	cd - >/dev/null || return
+	rm -fR "$TMPDIR/explode_test"
+
+	log 'building/testing initial NETPARAM'
+	openwrt-addons/etc/init.d/S41build_static_netparam call
+	if [ -e "$TMPDIR/NETPARAM" ]; then
+		# should at least have _some_ filled vars
+		if grep -qv '='$ "$TMPDIR/NETPARAM"; then
+			grep -v '='$ "$TMPDIR/NETPARAM"
+		else
+			return 1
+		fi
+	else
+		return 1
+	fi
+
+	log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + cpu + diskspace"
+	echo "'$HARDWARE' + '$SHELL' + '$USER'"
+	log "CPU count: $( cpu_count )"
+	df -h
+
+	log '_ | wc -l'
+	_ | wc -l
+
+	log '_net get_external_ip'
+	_net get_external_ip
+
+	log '_net my_isp'
+	_net my_isp
+
+	log "list=\"\$( ls -1R . )\""
+	list="$( ls -1R . )"
+
+	log "_list count_elements \"\$list\""
+	_list count_elements "$list" || return 1
+	isnumber "$( _list count_elements "$list" )" || return 1
+
+	log "_list random_element \"\$list\""
+	_list random_element "$list" || return 1
+
+	log "_system architecture"
+	_system architecture || return 1
+
+	log "_system ram_free"
+	_system ram_free || return 1
+	isnumber "$( _system ram_free )" || return 1
+
+	log '_filetype detect_mimetype /tmp/loader'
+	_filetype detect_mimetype /tmp/loader || return 1
+
+	log '_system load 1min full ; _system load'
+	_system load 1min full || return 1
+	_system load || return 1
+
+	tempfile='/dev/shm/testfile'
+	shellcheck_bin="$( command -v shellcheck )"
+	[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
+
+	ip="$( _net get_external_ip )"
+	log "_weblogin htmlout_loginpage | ip=$ip"	# omit 2 lines header:
+	_weblogin htmlout_loginpage '' '' '' '' "http://$ip" '(cache)' | tail -n+3 >"$tempfile"
+
+	if [ -z "$shellcheck_bin" ]; then
+		log "[OK] shellcheck not installed - no deeper tests"
+	else
+		$shellcheck_bin --version
+		# SC1091: Not following: /tmp/loader was not specified as input (see shellcheck -x).
+		# SC1090: Can't follow non-constant source. Use a directive to specify location.
+		#
+		# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
+		# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
+		# SC2031: FIXME! ...in net_local_inet_offer()
+		# SC2039: In POSIX sh, echo flags are not supported.
+		#  SC2039: In POSIX sh, string replacement is not supported.
+		#  SC2039: In POSIX sh, 'let' is not supported.
+		#  SC2039: In POSIX sh, 'local' is not supported. -> we need another SCxy for that
+# TODO #		# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
+		# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
+		#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
+		# SC2155: local var="$( bla )" -> loosing returncode
+		#  - https://github.com/koalaman/shellcheck/issues/262
+# TODO #		# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
+
+		shellsheck_ignore()
+		{
+			printf 'SC1090,SC1091,'
+			printf 'SC2016,SC2029,SC2031,SC2039,SC2046,SC2086,SC2155,SC2166'
+		}
+
+		log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
+
+		filelist='/dev/shm/filelist'
+		# collect all shellscripts:
+		find  >"$filelist" 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
+		echo >>"$filelist" '/tmp/loader'
+
+		$shellcheck_bin --help 2>"$tempfile"
+		grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"
+		log "[OK] shellcheck call: $shellcheck_bin ..."
+
+		while read -r file; do {
+			case "$file" in
+				'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh')
+					log "[OK] ignoring '$file' - deprecated/unused/too_buggy"
+					continue
+				;;
+				'openwrt-monitoring/'*)
+					ignore="$( shellsheck_ignore ),SC2010,SC2012,SC2034,SC2044,SC2045,SC2062"
+				;;
+				'openwrt-build/apply_profile.code.definitions'|'openwrt-build/build.sh')
+					# SC2034: VAR appears unused. Verify it or export it
+					ignore="$( shellsheck_ignore ),SC2034"
+				;;
+				'/tmp/loader')
+					# SC2015: Note that A && B || C is not if-then-else....
+					# SC2034: VAR appears unused. Verify it or export it
+					ignore="$( shellsheck_ignore ),SC2015,SC2034"
+				;;
+				*)
+					ignore="$( shellsheck_ignore )"
+				;;
+			esac
+
+			case "$( mimetype_get "$file" )" in
+				'text/x-shellscript')
+					tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
+					hash1="$( md5sum <"$tempfile" | cut -d' ' -f1 )"
+					size1="$( wc -c <"$tempfile" )"
+					cp "$file" "$tempfile"
+					hash2="$( md5sum <"$tempfile" | cut -d' ' -f1 )"
+					size2="$( wc -c <"$tempfile" )"
+					[ "$hash1" = "$hash2" ] || {
+						log "[ERR] non-ascii chars in '$file', sizes: $size1/$size2"
+
+						i=0
+						while read -r line; do {
+							i=$(( i + 1 ))
+							size1=${#line}
+							line_stripped="$( echo "$line" | tr -cd '\11\12\15\40-\176' )"
+							size2=${#line_stripped}
+							[ $size1 -eq $size2 ] || {
+								echo "line $i: $size1 bytes: original: $line"
+								echo "line $i: $size2 bytes: stripped: $line_stripped"
+								echo "$line" | hexdump -C
+							}
+						} done <"$tempfile"
+					}
+
+					# SC2039: https://github.com/koalaman/shellcheck/issues/354
+#						sed -i 's/echo -n /printf /g' "$tempfile"
+#						sed -i 's/echo -en /printf /g' "$tempfile"
+
+					case "$file" in
+						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
+						'openwrt-addons/etc/init.d/'*|'openwrt-build/apply_profile'*)
+							# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
+							sed -i '/^START=/d' "$tempfile"
+							sed -i '/^EXTRA_COMMANDS=/d' "$tempfile"
+						;;
+						'openwrt-addons/etc/kalua/scheduler')
+							# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
+							sed -i '/^PID=/d' "$tempfile"
+							sed -i '/^SCHEDULER/d' "$tempfile"
+						;;
+						'openwrt-addons/etc/kalua/mail')
+							# strip non-ascii chars, otherwise the parser can fail with
+							# openwrt-addons/etc/kalua/mail: hGetContents: invalid argument (invalid byte sequence)
+							tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
+						;;
+					esac
+
+					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
+						log "[OK] shellcheck: '$file'"
+					else
+						log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
+						good='false'
+					fi
+
+					count_files=$(( count_files + 1 ))
+				;;
+				*)
+					log "[IGNORE] non-shellfile '$file'"
+					continue
+				;;
+			esac
+
+			# TODO: run each function and check if we leak env vars
+			# TODO: check if each function call '_class method' is allowed/possible
+			for name in $( list_shellfunctions "$file" ); do {
+				{
+					echo '#!/bin/sh'
+					echo '. /tmp/loader'
+					echo
+					echo "# from file '$file'"
+					show_shellfunction "$name" "$file"
+					echo
+					echo "$name \"\$@\""
+				} >"$tempfile"
+
+				if   fgrep -q "\\$" "$tempfile"; then
+					log "[OK] --> function '$name()' - will not check, seems to be generated"
+				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
+					log "[OK] --> function '$name()'"
+				else
+					log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
+					good='false'
+
+					# debug
+					grep -q 'EOF' "$tempfile" && hexdump -C "$tempfile" | grep 'EOF'
+
+					echo '### start'
+					grep -n ^ "$tempfile"
+					echo '### end'
+				fi
+
+				count_functions=$(( count_functions + 1 ))
+			} done
+
+			rm "$tempfile"
+		} done <"$filelist"
+		rm "$filelist"
+
+		log "[OK] checked $count_files shellfiles with $count_functions functions"
+		[ "$good" = 'false' ] && return 1
+	fi
+
+	sloc()
+	{
+		echo
+		log "counting lines of code:"
+
+		sloccount . | while read -r line; do {
+			case "$line" in
+				[0-9]*|*'%)'|*'):'|*' = '*|'SLOC '*)
+					# only show interesting lines
+					echo "$line"
+				;;
+			esac
+		} done
+	}
+
+	if command -v sloccount; then
+		sloc
+	else
+		log '[OK] sloccount not installed'
+	fi
+
+	log 'cleanup'
+	rm -fR /tmp/loader /tmp/kalua "$TMPDIR/NETPARAM"
+
+	log '[READY]'
+}
+
+test
