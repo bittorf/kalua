@@ -2977,7 +2977,6 @@ unittest_do()
 	sh -n '/tmp/loader' || return 1
 
 	log "exeuting '$start_test'"
-	set -x
 	$start_test
 }
 

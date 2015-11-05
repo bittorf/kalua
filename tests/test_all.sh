@@ -1,5 +1,4 @@
 #!/bin/sh
-set -x
 . /tmp/loader
 
 log()
@@ -63,6 +62,11 @@ test()
 	local count_functions=0
 	local good='true'
 
+	log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + cpu + diskspace"
+	echo "'$HARDWARE' + '$SHELL' + '$USER'"
+	log "CPU count: $( cpu_count )"
+	df -h
+
 	cat /tmp/loader
 
 	log 'testing isnumber()'
@@ -105,11 +109,6 @@ test()
 	else
 		return 1
 	fi
-
-	log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + cpu + diskspace"
-	echo "'$HARDWARE' + '$SHELL' + '$USER'"
-	log "CPU count: $( cpu_count )"
-	df -h
 
 	log '_ | wc -l'
 	_ | wc -l
