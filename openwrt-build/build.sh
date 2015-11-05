@@ -3034,7 +3034,11 @@ unittest_do()
 		touch 'foo1'
 		touch 'foo2'
 		# this must not glob
+		grep explode /tmp/loader
+		alias explode	# show it
+		set -x
 		explode A B * C
+		set +x
 		[ "$1" = 'A' -a "$4" = 'C' -a "$3" = '*' ] || {
 			log "explode faild: '$1', '$4', '$3'"
 			return 1
