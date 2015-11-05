@@ -2798,14 +2798,15 @@ show_shellfunction()
 	local name="$1"
 	local file="$2"
 
+	# hint: this tests, if the output is not empty and output it in one run: grep ^
 	# myfunc()
-	sed -n "/^$name()/,/^}$/p" "$file" | grep . || {	# FIXME! dont supress empty lines
+	sed -n "/^$name()/,/^}$/p" "$file" | grep ^ || {
 		# myfunc ()
-		sed -n "/^$name ()/,/^}$/p" "$file" | grep . || {
+		sed -n "/^$name ()/,/^}$/p" "$file" | grep ^ || {
 			# myfunc() { :;}
-			grep ^"$name()" "$file" | grep . || {
+			grep ^"$name()" "$file" | grep ^ || {
 				# myfunc () { :;}
-				grep ^"$name ()" "$file" | grep . || {
+				grep ^"$name ()" "$file" | grep ^ || {
 					log "[ERR] cannot find function '$name' in file '$file'"
 				}
 			}
@@ -2969,7 +2970,7 @@ unittest_do()
 {
 	local funcname='unittest_do'
 	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip
-	local hash1 hash2 size1 size2 line line_stripped i list name
+	local hash1 hash2 size1 size2 line line_stripped i list name count_lines
 	local count_files=0
 	local count_functions=0
 	local good='true'
@@ -3213,7 +3214,11 @@ unittest_do()
 						good='false'
 
 						echo '### start'
-						cat "$tempfile"
+						count_lines=0
+						while read line; do {
+	                                                count_lines=$(( count_lines + 1 ))
+							printf "%4s| %s\n" "$count_lines" "$line"
+						} done <"$tempfile"
 						echo '### end'
 					fi
 
