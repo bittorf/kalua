@@ -2219,7 +2219,9 @@ build_options_set()
 				if busybox_ip_command_is_prefered; then
 					log '[OK] using busybox ip'
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
-					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
+					test $( openwrt_revision_number_get ) -lt 47387 && {
+						apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
+					}
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_NEIGH=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y' hide
 				else
@@ -2824,7 +2826,7 @@ show_shellfunction()
 	}
 
 	for method in m1 m2 m3 m4; do {
-		$method | grep ^ && {		# any output?
+		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0
 		}
@@ -3025,6 +3027,20 @@ unittest_do()
 		echo 'Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY' >"$TMPDIR/test"
 		[ "$( _firmware get_usecase '' "$TMPDIR/test" )" = 'Standard,debug,VDS,OLSRd2,kalua,FeatureXY' ] || return 1
 		rm "$TMPDIR/test"
+
+		log 'testing explode-alias / asterisk'
+		mkdir "$TMPDIR/explode_test"
+		cd "$TMPDIR/explode_test" || return
+		touch 'foo1'
+		touch 'foo2'
+		# this must not glob
+		explode A B * C
+		[ "$1" = 'A' -a "$4" = 'C' -a "$3" = '*' ] || {
+			log "explode faild: '$1', '$4', '$3'"
+			return 1
+		}
+		cd - >/dev/null || return
+		rm -fR "$TMPDIR/explode_test"
 
 		log 'building/testing initial NETPARAM'
 		openwrt-addons/etc/init.d/S41build_static_netparam call
