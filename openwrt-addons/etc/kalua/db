@@ -1118,7 +1118,7 @@ _db_autocreate_tickets_and_send_mail()
 	local USECASE="${2:-autogenerate_tickets}"			# <autogenerate_tickets|existing_tickets>
 	local logprio="alert"						# fixme! later: sms?
 
-	USERNAME=		# otherwise we get empty passwords -> see db()
+	export USERNAME=	# otherwise we get empty passwords -> see db()
 
 	local TICKET_QUANTITY=32
 	local COUNTER NAME LOGIN LIST_ID
@@ -1562,7 +1562,7 @@ _db_report()
 	local object="$1"	# string: device|login
 	local username="$2"	# or 'mac' of object = device / or 'hash' of username+password -> _db_hash()
 	local password="$3"
-	local device_id login_validity ratio hash id_user
+	local device_id login_validity ratio hash id_user mac
 
 	case "$object" in
 		'')
@@ -1575,6 +1575,7 @@ _db_report()
 		device)
 			case "$username" in
 				*":"*)
+					mac="$username"
 					device_id="$( _db user device query string2id "$mac" 'last' )"
 				;;
 				*)
@@ -1596,6 +1597,7 @@ _db_report()
 				DEVTYPE='lan'
 			fi
 
+			PASSWORD=;USERNAME=
 			eval $( _db user login show "$USER_ID" 'COMMENT USERNAME PASSWORD PROFILE_ID DEVICE_QUANTITY' )
 
 			if [ "$USERNAME" = "$mac" ]; then
@@ -1682,12 +1684,12 @@ _db_report()
 
 _db_count_unused_logins()
 {
-	local funcname="db_count_unused_logins"
+	local funcname='db_count_unused_logins'
 	local wish_id="$1"
 	local option="$2"	# e.g. 'fast' or 'add'
 	local count="$3"	# only with 'add'
 	local i=0
-	local list profile_id login_id state j
+	local list login_id state j
 	local file="$DIR_DATABASE/USER/profile/id${wish_id}_counterA"
 
 	case "$option" in
@@ -1723,7 +1725,9 @@ _db_count_unused_logins()
 	}
 
 	for login_id in $list; do {
-		eval $( _db user login show "$login_id" PROFILE_ID )
+		PROFILE_ID=
+		eval $( _db user login show "$login_id" 'PROFILE_ID' )
+
 		[ "$PROFILE_ID" = "$wish_id" ] && {
 			if [ "$state" = "1" ]; then
 				if is_used "$login_id"; then
