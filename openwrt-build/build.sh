@@ -947,9 +947,9 @@ EOF
 
 has_internet()
 {
-	if   which route >/dev/null; then
+	if   command -v route >/dev/null; then
 		route -n | grep -q ^'0\.0\.0\.0'
-	elif which ip >/dev/null; then
+	elif command -v ip >/dev/null; then
 		ip route list exact '0.0.0.0/0' | grep -q ^'default'
 	else
 		log "[ERR] unsure if we have internet, allowing"
@@ -979,7 +979,7 @@ check_working_directory()
 		{
 			local package="$1"
 
-			which dpkg 2>/dev/null >/dev/null || {
+			command -v dpkg 2>/dev/null >/dev/null || {
 				log "$funcname -> is_installed() package '$package' -> simulating OK (no 'dpkg' found)"
 				return 0
 			}
@@ -1536,7 +1536,7 @@ cpu_count()
 {
 	if   grep -sc ^'processor' '/proc/cpuinfo'; then
 		:
-	elif which lsconf 2>/dev/null >/dev/null; then
+	elif command -v lsconf 2>/dev/null >/dev/null; then
 		# e.g. AIX - see http://antmeetspenguin.blogspot.de/2013/05/aix-cpu-info.html
 		lsconf | grep -c 'proc[0-9]'
 	else
@@ -2857,7 +2857,7 @@ check_scripts()
 				log "[OK] will NOT check empty file '$file'" debug
 			;;
 			'text/html')
-				if which tidy >/dev/null; then
+				if command -v tidy >/dev/null; then
 					case "$( head -n1 "$file" )" in
 						'<!DOCTYPE html>')
 							# http://foswiki.org/Tasks/Item13134
@@ -2873,7 +2873,7 @@ check_scripts()
 				fi
 			;;
 			'text/x-php')
-				if which php >/dev/null; then
+				if command -v php >/dev/null; then
 					log "checking '$mimetype' / $file"
 					php --syntax-check "$file" || return 1
 				else
@@ -2882,7 +2882,7 @@ check_scripts()
 			;;
 			'text/x-c'|'text/x-c++')
 				# cppcheck?
-				if which cppcheck >/dev/null; then
+				if command -v cppcheck >/dev/null; then
 					cppcheck "$file" || return 1
 				else
 					log "[IGNORE] will NOT check '$mimetype' file '$file' - missing 'cppcheck'"
@@ -2892,7 +2892,7 @@ check_scripts()
 				# https://github.com/marijnh/acorn -> install node.js + npm?
 				#  - https://marijnhaverbeke.nl/fund/
 				# TODO: autoextract <script>...</script> snippets from HTML?
-				if which acorn >/dev/null; then
+				if command -v acorn >/dev/null; then
 					log "checking '$mimetype' / $file"
 					case "$file" in
 						*'googleclosure'*)
@@ -2984,7 +2984,7 @@ travis_prepare()
 	)
 
 	export PATH="$HOME/.cabal/bin:$PATH"
-	which shellcheck || return 1
+	command -v shellcheck || return 1
 }
 
 unittest_do()
@@ -3098,7 +3098,7 @@ unittest_do()
 		_system load || return 1
 
 		tempfile='/dev/shm/testfile'
-		shellcheck_bin="$( which shellcheck )"
+		shellcheck_bin="$( command -v shellcheck )"
 		[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
 
 		ip="$( _net get_external_ip )"
@@ -3285,7 +3285,7 @@ unittest_do()
 			} done
 		}
 
-		if which sloccount; then
+		if command -v sloccount; then
 			sloc
 		else
 			log '[OK] sloccount not installed'
