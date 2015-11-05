@@ -2989,7 +2989,7 @@ unittest_do()
 {
 	local funcname='unittest_do'
 	local shellcheck_bin build_loader ignore file tempfile filelist pattern ip
-	local hash1 hash2 size1 size2 line line_stripped i list name count_lines
+	local hash1 hash2 size1 size2 line line_stripped i list name
 	local count_files=0
 	local count_functions=0
 	local good='true'
@@ -3233,11 +3233,7 @@ unittest_do()
 						good='false'
 
 						echo '### start'
-						count_lines=0
-						while read line; do {
-	                                                count_lines=$(( count_lines + 1 ))
-							printf "%4s| %s\n" "$count_lines" "$line"
-						} done <"$tempfile"
+						grep -n ^ "$tempfile"
 						echo '### end'
 					fi
 
