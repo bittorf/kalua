@@ -93,8 +93,6 @@ run_test()
 	log "CPU count: $( cpu_count )"
 	df -h
 
-	cat /tmp/loader
-
 	log 'testing isnumber()'
 	isnumber '-1' || return 1
 	isnumber $(( 65536 * 65536 )) || return 1
@@ -116,9 +114,9 @@ run_test()
 	set -x
 	explode A B ./* C
 	set +x
-	[ "$1" = 'A' -a "$4" = 'C' -a "$3" = '*' ] || {
-		log "explode faild: '$1', '$4', '$3'"
-#			return 1
+	[ "$1" = 'A' -a "$4" = 'C' -a "$3" = './*' ] || {
+		log "explode failed: '$1', '$4', '$3'"
+		return 1
 	}
 	cd - >/dev/null || return
 	rm -fR "$TMPDIR/explode_test"
@@ -301,6 +299,31 @@ run_test()
 				;;
 			esac
 
+			seems_generated()
+			{
+				local file="$1"
+				local name="$2"
+
+				fgrep -q "\\$" "$file" && {
+					case "$name" in
+						'_weblogin_'*|'_system_'*|'_sanitizer_'*|'_olsr_'*|'_netfilter_'*|'_mail_'*)
+							return 1
+						;;
+						'_help_'*|'_firmware_'*|'_file_'*|'_db_'*)
+							return 1
+						;;
+						'boot'|'func_cron_config_write'|'build_network_clients'|'build_package_mydesign')
+							return 1
+						;;
+						'print_usage_and_exit'|'check_working_directory'|'apply_symbol'|'_config_dhcp'|'urlencode')
+							return 1
+						;;
+						'generate_script'|'apply_settings')
+						;;
+					esac
+				}
+			}
+
 			# TODO: run each function and check if we leak env vars
 			# TODO: check if each function call '_class method' is allowed/possible
 			for name in $( list_shellfunctions "$file" ); do {
@@ -314,7 +337,7 @@ run_test()
 					echo "$name \"\$@\""
 				} >"$tempfile"
 
-				if   fgrep -q "\\$" "$tempfile"; then
+				if   seems_generated "$tempfile"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
 				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 					log "[OK] --> function '$name()'"
