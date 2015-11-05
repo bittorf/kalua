@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 . /tmp/loader
 
 log()
