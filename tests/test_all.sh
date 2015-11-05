@@ -319,9 +319,17 @@ run_test()
 							return 1
 						;;
 						'generate_script'|'apply_settings')
+							return 1
+						;;
+						'_netfilter_user_list'|'_help_overview'|'_wifi_params_iwconfig_status'|'_olsr_build_tables')
+							return 1
 						;;
 					esac
+
+					return 0
 				}
+
+				return 1
 			}
 
 			# TODO: run each function and check if we leak env vars
