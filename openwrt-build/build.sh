@@ -2922,7 +2922,7 @@ check_scripts()
 				}
 				i=$(( i + 1 ))
 
-				list_shellfunctions >>"$tempfile_functions"
+				list_shellfunctions "$file" >>"$tempfile_functions"
 			;;
 			*)
 				log "[FIXME] will NOT check - unknown mimetype: '$mimetype' file: '$file' pwd: '$( pwd )'"
