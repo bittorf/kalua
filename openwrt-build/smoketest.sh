@@ -135,7 +135,7 @@ defconfig()
 
 			cd 'openwrt' || return
 			LIST_ARCH="$( list_architectures "$OPTION" )"
-			OPENWRT_REV="$( openwrt_revision_get )"
+#			OPENWRT_REV="$( openwrt_revision_get )"
 
 			return 0
 		;;

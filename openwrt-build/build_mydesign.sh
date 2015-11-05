@@ -47,7 +47,7 @@ build_package_adblock()
 	mkdir "$working_dir"
 	cd "$working_dir" || return 1
 
-	write_package_description "$name" "$version" 'networking' "adblock-domain-list, fetched @ $(date)" "$url"
+	write_package_description "$name" "$version" 'networking' "adblock-domain-list for $network - fetched @ $(date)" "$url"
 
 	mkdir 'etc'
 	wget -O - "$url" | sed -n 's/127.0.0.1 \(.*\)/\1/p' >'etc/hosts.drop'

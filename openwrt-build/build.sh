@@ -140,7 +140,7 @@ Maintainer: Bastian Bittorf <kontakt@weimarnetz.de>
 Section: utils
 Description: some helper scripts for making life easier on meshed OpenWrt nodes
 Architecture: $architecture
-Source: $KALUA_REPO_URL
+Source: $KALUA_REPO_URL / $funcname()
 EOF
 
 	tar $tar_options $tar_flags 'control.tar.gz' ./control
@@ -1166,7 +1166,7 @@ feeds_adjust_version()			# FIXME! src git-full
 				../../scripts/feeds update -i "$dir"
 			}
 		elif [ -n "$githash" ]; then
-			git checkout -b "feed@${githash}_before_$FEEDSTIME" "$hash"
+			git checkout -b "feed@${githash}_before_$FEEDSTIME" "$githash"
 			../../scripts/feeds update -i "$dir"
 		else
 			log "[OK] no commit which fits, removing feeds index of '$dir'"
@@ -2799,7 +2799,7 @@ show_shellfunction()
 	local file="$2"
 
 	# myfunc()
-	sed -n "/^$name()/,/^}$/p" "$file" | grep . || {
+	sed -n "/^$name()/,/^}$/p" "$file" | grep . || {	# FIXME! dont supress empty lines
 		# myfunc ()
 		sed -n "/^$name ()/,/^}$/p" "$file" | grep . || {
 			# myfunc() { :;}

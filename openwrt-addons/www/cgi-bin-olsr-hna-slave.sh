@@ -50,7 +50,7 @@ device_forbidden()
 {
 	local ip="$1"
 
-	return 1
+	test -z "$ip"
 }
 
 _http header_mimetype_output "text/plain"

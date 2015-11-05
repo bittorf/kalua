@@ -263,7 +263,7 @@ _netfilter_traffic_control_user_add()
 	local speed_up="$2"		# e.g. 1mbit, 32kbit or 128000
 	local speed_down="$3"		# TODO: use profile instead of fix values, e.g. youtube
 	local mac i j						# e.g. 32/1024 = wigo/tv works
-	local users file comment interface
+	local users file interface
 
 	interface="$( ip -oneline route get "$ip" )"
 	explode $interface
@@ -344,7 +344,7 @@ EOF
 
 _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic peaks
 {
-	local peak percent
+	local peak
 	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
 	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
 
@@ -376,31 +376,10 @@ _netfilter_traffic_control_suggest_timepercent()	# deflate typical daily traffic
 
 _netfilter_noshaping_time()
 {
-	local mac="$1"
-	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
-	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
-	local date="$HOUR:$MINUTE"
-
-	case "$CONFIG_PROFILE" in
-		liszt28*)
-			case "$NODENUMBER" in
-				20|48)		# wigo|danny
-					case "$date" in
-						0*|17:*|18:*|19:*|20:*|21:*|22:*|23:*)
-							return 0
-						;;
-					esac
-				;;
-				*)
-					case "$date" in
-						0*|22:*|23:*)
-							return 0
-						;;
-					esac
-				;;
-			esac
-		;;
-	esac
+#	local mac="$1"
+#	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
+#	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
+#	local date="$hour:$minute"
 
 	return 1
 }
@@ -410,7 +389,7 @@ _netfilter_happy_hour()		# no additional shaping during this time, so initial va
 	local mac="$1"
 	local minute="${MINUTE:-$( date +%H )}"		# built during taskplanner: 00...23
 	local hour="${HOUR:-$( date +%M )}"		# built during taskplanner: 00...59
-	local date="$HOUR:$MINUTE"
+	local date="$hour:$minute"
 
 	case "$CONFIG_PROFILE" in
 		rehungen*)
@@ -695,7 +674,7 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 	local max="$1"
 	local file_conntrack="/proc/sys/net/nf_conntrack_max"
 	local file_buckets="/sys/module/nf_conntrack/parameters/hashsize"
-	local buckets old_buckets old_max message
+	local buckets old_buckets old_max
 
 	# dont conntrack DNS/olsrd - formally: '-j NOTRACK' - see: https://dev.openwrt.org/ticket/19929
 #	$IPT -t raw -I PREROUTING -p udp --dport 53 -j CT --notrack	# with this rule contacting external DNS over >1 hop does not work
@@ -785,9 +764,8 @@ _netfilter_stop()
 {
 	local option="$1"	# string: remember_over_reboot = ror
 	local funcname='netfilter_stop'
-	local mac state table
 	local list_user="$( _netfilter user_list )"
-	local interface ip mediatype dev hash
+	local ip mediatype dev hash mac
 
 	[ -d '/tmp/NETFILTER' ] || return 0
 	mkdir "/tmp/NETFILTER/isrunning_$funcname" || return 0
@@ -1249,7 +1227,6 @@ _netfilter_splash_start()
 	local myhna="$( _netfilter myhna )"
 #	local debug="echo"			# must be empty for debug-mode
 	local ip source destination dev temp_dev dnsport
-	local dnsport dnsfake_ip
 	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8"
 	local logprio='alert'
 
@@ -1743,8 +1720,8 @@ _netfilter_user_add()
 	local funcname="netfilter_user_add"
 	local mac="$1"
 	local ip="$2"		# can be empty
-	local speed_up="$3"	# e.g. 1mbit, 32kbit
-	local speed_down="$4"
+#	local speed_up="$3"	# e.g. 1mbit, 32kbit
+#	local speed_down="$4"
 	local dev myhna unexpected_ip
 
 	[ -d "/tmp/NETFILTER/USER" ] || return 1	# no weblogin?
@@ -1969,10 +1946,10 @@ _netfilter_user_del()
 
 _netfilter_user_dataretention_add()
 {
+	local funcname='netfilter_user_dataretention_add'
 	local mac="$1"
 	local ip="$2"
 	local ulogd=
-	local myhna="$( _netfilter myhna )"
 
 	if [ -e "/tmp/NETFILTER/USER/$mac/dataretention" ]; then
 		return 1
@@ -2069,20 +2046,20 @@ _netfilter_user_dataretention_del()
 #	local download="$3"
 #}
 
-_netfilter_user_quota_del()
-{
-	local option="$mac"
-}
+#_netfilter_user_quota_del()
+#{
+#	local option="$mac"
+#}
 
-_netfilter_user_quota_query()
-{
-	local option="$mac"
-}
+#_netfilter_user_quota_query()
+#{
+#	local option="$mac"
+#}
 
-_netfilter_user_quota_diff()
-{
-	local option="$mac"
-}
+#_netfilter_user_quota_diff()
+#{
+#	local option="$mac"
+#}
 
 #_netfilter_user_shaping_add()
 #{
@@ -2091,10 +2068,10 @@ _netfilter_user_quota_diff()
 #	local download="$3"
 #}
 
-_netfilter_user_shaping_del()
-{
-	local mac="$1"
-}
+#_netfilter_user_shaping_del()
+#{
+#	local mac="$1"
+#}
 
 _netfilter_adblocking_start()
 {
