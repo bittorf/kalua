@@ -2221,7 +2221,7 @@ build_options_set()
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
 					test $( openwrt_revision_number_get ) -lt 47387 && {
 						apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
-					}
+					}	# parser_ignore
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_NEIGH=y' hide
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y' hide
 				else
