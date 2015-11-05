@@ -54,6 +54,32 @@ show_shellfunction()
 	log "[ERR] cannot find function '$name' in file '$file'"
 }
 
+mimetype_get()
+{
+	local file="$1"
+	local mimetype link
+
+	link="$( readlink "$file" )" && file="$link"	# e.g. /tmp/loader
+
+	set -- $( file '--mime-type' "$file" )
+	mimetype="$*"
+	mimetype=${mimetype##* }	# last word
+
+	case "$mimetype" in
+		'text/html')
+			case "$( basename "$file" )" in
+				*'.js'*)
+					# support missing:
+					# https://github.com/file/file/blob/master/magic/Magdir/javascript
+					mimetype='application/javascript'
+				;;
+			esac
+		;;
+	esac
+
+	echo "$mimetype"
+}
+
 run_test()
 {
 	local shellcheck_bin start_test build_loader ignore file tempfile filelist pattern ip
