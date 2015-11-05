@@ -3009,7 +3009,7 @@ unittest_do()
 	# e.g. S41build_static_netparam calls it
 	ln -s "$build_loader" '/etc/kalua_init' || {
 		sudo ln -s "$build_loader" '/etc/kalua_init' && {
-			log "[OK] setting $build_loader -> /tmp/loader symlink needed sudo'
+			log "[OK] setting $build_loader -> /tmp/loader symlink needed sudo"
 		}
 	}
 
