@@ -292,18 +292,17 @@ search_and_replace()
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 {
 	local funcname='kernel_commandline_tweak'
-	local arch="$ARCH"
-	local dir="target/linux/$arch"
+	local dir="target/linux/$ARCH"
 	local pattern=' oops=panic panic=10 '
 	local config kernelversion
 
-	case "$arch" in
+	case "$ARCH" in
 		'uml')
 			return 0
 		;;
 		'mpc85xx')
 			if [ $( openwrt_revision_number_get ) -ge 45597 ]; then
-				config="target/linux/$arch/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
+				config="target/linux/$ARCH/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
 			else
 				# config-3.10 -> 3.10
 				kernelversion="$( find "$dir" -name 'config-[0-9]*' | head -n1 | cut -d'-' -f2 )"
@@ -3156,7 +3155,7 @@ unittest_do()
 					'openwrt-monitoring/'*)
 						ignore="$( shellsheck_ignore ),SC2010,SC2012,SC2034,SC2044,SC2045,SC2062"
 					;;
-					'openwrt-build/apply_profile.code.definitions')
+					'openwrt-build/apply_profile.code.definitions'|'openwrt-build/build.sh')
 						# SC2034: VAR appears unused. Verify it or export it
 						ignore="$( shellsheck_ignore ),SC2034"
 					;;
