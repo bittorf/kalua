@@ -63,6 +63,8 @@ test()
 	local count_functions=0
 	local good='true'
 
+	cat /tmp/loader
+
 	log 'testing isnumber()'
 	isnumber '-1' || return 1
 	isnumber $(( 65536 * 65536 )) || return 1
