@@ -321,9 +321,6 @@ run_test()
 						'generate_script'|'apply_settings')
 							return 1
 						;;
-						'_netfilter_user_list'|'_help_overview'|'_wifi_params_iwconfig_status'|'_olsr_build_tables')
-							return 1
-						;;
 					esac
 
 					return 0
@@ -345,7 +342,7 @@ run_test()
 					echo "$name \"\$@\""
 				} >"$tempfile"
 
-				if   seems_generated "$tempfile"; then
+				if   seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
 				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 					log "[OK] --> function '$name()'"
