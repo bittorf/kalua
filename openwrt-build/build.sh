@@ -209,6 +209,9 @@ log()
 	local gitfile="$3"	# can also be a directory
 	local name
 
+	# each function should define it
+	[ -z "$funcname" ] && local funcname='unset_funcname'
+
 	has()
 	{
 		local list="$1"
@@ -289,9 +292,9 @@ search_and_replace()
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 {
 	local funcname='kernel_commandline_tweak'
-	local dir="target/linux/$ARCH"
-	local pattern=' oops=panic panic=10 '
 	local arch="$ARCH"
+	local dir="target/linux/$arch"
+	local pattern=' oops=panic panic=10 '
 	local config kernelversion
 
 	case "$arch" in
@@ -3037,7 +3040,7 @@ unittest_do()
 		grep explode /tmp/loader
 		alias explode	# show it
 		set -x
-		explode A B * C
+		explode A B ./* C
 		set +x
 		[ "$1" = 'A' -a "$4" = 'C' -a "$3" = '*' ] || {
 			log "explode faild: '$1', '$4', '$3'"
