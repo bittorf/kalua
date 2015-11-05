@@ -2797,21 +2797,40 @@ show_shellfunction()
 {
 	local name="$1"
 	local file="$2"
+	local method
 
-	# hint: this tests, if the output is not empty and output it in one run: grep ^
-	# myfunc()
-	sed -n "/^$name()/,/^}$/p" "$file" | grep ^ || {
-		# myfunc ()
-		sed -n "/^$name ()/,/^}$/p" "$file" | grep ^ || {
-			# myfunc() { :;}
-			grep ^"$name()" "$file" | grep ^ || {
-				# myfunc () { :;}
-				grep ^"$name ()" "$file" | grep ^ || {
-					log "[ERR] cannot find function '$name' in file '$file'"
-				}
-			}
-		}
+	m1()
+	{
+		# myfunc()
+		sed -n "/^$name()/,/^}$/p" "$file"
 	}
+
+	m2()
+	{
+		# myfunc ()
+		sed -n "/^$name ()/,/^}$/p" "$file"
+	}
+
+	m3()
+	{
+		# myfunc() { :;}
+		grep ^"$name()" "$file"
+	}
+
+	m4()
+	{
+		# myfunc () { :;}
+		grep ^"$name ()" "$file"
+	}
+
+	for method in m1 m2 m3 m4; do {
+		$method | grep ^ && {		# any output?
+			$method			# show it!
+			return 0
+		}
+	} done
+
+	log "[ERR] cannot find function '$name' in file '$file'"
 }
 
 check_scripts()
