@@ -78,6 +78,7 @@ list_pubips_from_network()	# parses status-files from monitoring of each node fo
 
 # fixme! show newest at first!
 
+			# e.g. spbansin:Haus8 -> spbansin
 			network="${network%:*}"
 			dir="/var/www/networks/$network/meshrdf/recent"
 			for file in $( ls -1t "$dir" | grep "$pattern"$ ); do {
@@ -282,8 +283,8 @@ fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if t
 		;;
 	esac
 
-	[ -e "/dev/shm/pingcheck/$NETWORK.lastnewip" ] && {
-		read -r lastnewip <"/dev/shm/pingcheck/$NETWORK.lastnewip"
+	[ -e "/dev/shm/pingcheck/$network.lastnewip" ] && {
+		read -r lastnewip <"/dev/shm/pingcheck/$network.lastnewip"
 		lastnewip_diff=$(( $(date +%s) - lastnewip ))
 		# 86400 -/+ 2400 = 84000 / 88800
 		[ $lastnewip_diff -gt 84000 -a $lastnewip_diff -lt 88800 ] && ignore="last_ip_renew: $lastnewip_diff sec"
@@ -436,7 +437,7 @@ count_pings()
 			break
 		else
 			[ $rulenumber -eq 1 ] && {
-				echo "$ip" >"/dev/shm/pingcheck/$NETWORK.recent_ip"
+				echo "$ip" >"/dev/shm/pingcheck/$network.recent_ip"
 			}
 
 			rulenumber=$(( rulenumber + 1 ))
@@ -506,7 +507,7 @@ add_new_ipaddresses_from_network()
 					# FIXME! - when in 'failure', check if good again!
 					log "[OK] adding new pub-ip $ip for network $network"
 					iptables -I myping_$network -s $ip -j ACCEPT
-					date +%s >"/dev/shm/pingcheck/$NETWORK.lastnewip"
+					date +%s >"/dev/shm/pingcheck/$network.lastnewip"
 					rc=0
 				} done
 			}
