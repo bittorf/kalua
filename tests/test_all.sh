@@ -54,7 +54,7 @@ show_shellfunction()
 	log "[ERR] cannot find function '$name' in file '$file'"
 }
 
-test()
+run_test()
 {
 	local shellcheck_bin start_test build_loader ignore file tempfile filelist pattern ip
 	local hash1 hash2 size1 size2 line line_stripped i list name
@@ -342,4 +342,4 @@ test()
 	log '[READY]'
 }
 
-test
+run_test
