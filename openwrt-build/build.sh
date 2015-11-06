@@ -2799,6 +2799,7 @@ list_shellfunctions()
 
 check_scripts()
 {
+	local funcname='check_scripts'
 	local dir="$1"		# or file
 	local tempfile='/tmp/check_scripts'
 	local tempfile_functions="$tempfile.functions"

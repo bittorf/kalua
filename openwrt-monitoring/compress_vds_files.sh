@@ -33,7 +33,7 @@ list_networks()
 
 free_diskspace()
 {
-	df -h | grep ^/dev/xvda1
+	df -h /dev/xvda1 | tail -n1
 }
 
 cleanup_disc()

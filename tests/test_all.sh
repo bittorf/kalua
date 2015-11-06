@@ -88,10 +88,9 @@ run_test()
 	local count_functions=0
 	local good='true'
 
-	log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + cpu + diskspace"
+	log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + diskspace"
 	echo "'$HARDWARE' + '$SHELL' + '$USER'"
-	log "CPU count: $( cpu_count )"
-	df -h
+	df
 
 	log 'testing isnumber()'
 	isnumber '-1' || return 1
