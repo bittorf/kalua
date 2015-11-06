@@ -51,6 +51,7 @@ run_test()
 	local count_files=0
 	local count_functions=0
 	local good='true'
+	local tab='	'
 
 	log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + diskspace"
 	echo "'$HARDWARE' + '$SHELL' + '$USER'"
@@ -300,7 +301,15 @@ run_test()
 					echo '. /tmp/loader'
 					echo
 					echo "# from file '$file'"
+
+					show_shellfunction "$name" "$file" | head -n1 | grep -q ^"[ $tab]" && {
+						echo '# nested function'
+						ignore="$ignore,SC2154"		# VAR is referenced but not assigned
+						ignore="$ignore,SC2034"		# VAR appears unused. Verify it or export it.
+					}
+
 					show_shellfunction "$name" "$file"
+
 					echo
 					echo "$name \"\$@\""
 				} >"$tempfile"
