@@ -1,9 +1,9 @@
 #!/bin/sh
 
-MAC="$1"	# 112233445566 or 11:22:33:44:55:66
+MAC="$1"
 
 if [ -z "$MAC" ]; then
-	echo "Usage: $0 <macaddress>"
+	echo "Usage: $0 <macaddress>	# 112233445566 or 11:22:33:44:55:66"
 	exit 1
 else
 	MAC="$( echo "$MAC" | sed 'y/ABCDEF/abcdef/' | sed 's/://g' | sed 's/-//g' )"

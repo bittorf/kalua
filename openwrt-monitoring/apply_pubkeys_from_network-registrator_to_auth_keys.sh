@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 network="$1"	# e.g. <network> or 'join_all'
 action="$2"	# e.g. join|join_all
@@ -11,7 +11,7 @@ action="$2"	# e.g. join|join_all
 }
 
 case "$network" in 
-	"join"*)
+	'join'*)
 		ls -l $HOME/.ssh/authorized_keys.*
 		cat $HOME/.ssh/authorized_keys.* >$HOME/.ssh/authorized_keys
 		echo "[OK] all networks joined"
@@ -39,12 +39,6 @@ for file in /var/www/networks/$network/registrator/recent/* ; do {
 	I=$(( I + 1 ))
 	. $file
 	echo "$SSHPUBKEY" >$file.temp
-
-	case "$file" in
-		*"0200cab10002"|*'106f3f0e31aa')
-			logger -s "special MAC: file: $file - sshpubkey: $SSHPUBKEY"
-		;;
-	esac
 
 	while read -r -n 2 hexbyte; do {
 		[ ${#hexbyte} -eq 2 ] && {
