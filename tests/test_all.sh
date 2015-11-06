@@ -9,42 +9,32 @@ log()
 list_shellfunctions()
 {
 	local file="$1"
+	local line
 
 	# see https://github.com/koalaman/shellcheck/issues/529
-	grep -s '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1
+	grep -s '^[ 	]*[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 | while read line; do {
+		echo "$line"
+	} done
 }
 
 show_shellfunction()
 {
 	local name="$1"
 	local file="$2"
+	local tab='	'
+	local tab2='		'
 	local method
 
-	m1()
-	{
-		# myfunc()
-		sed -n "/^$name()/,/^}$/p" "$file"
-	}
+	m1() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
+	m2() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
+	m3() { grep ^"$name()" "$file"; }				# myfunc() { :;}
+	m4() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
+	m5() { sed -n "/^${tab}$name()/,/^${tab}}$/p"  "$file"; }	# 	myfunc()
+	m6() { sed -n "/^${tab}$name ()/,/^${tab}}$/p" "$file"; }	#	myfunc ()
+	m7() { sed -n "/^${tab2}$name()/,/^${tab2}}$/p"  "$file"; }	# 		myfunc()
+	m8() { sed -n "/^${tab2}$name ()/,/^${tab2}}$/p" "$file"; }	#		myfunc ()
 
-	m2()
-	{
-		# myfunc ()
-		sed -n "/^$name ()/,/^}$/p" "$file"
-	}
-
-	m3()
-	{
-		# myfunc() { :;}
-		grep ^"$name()" "$file"
-	}
-
-	m4()
-	{
-		# myfunc () { :;}
-		grep ^"$name ()" "$file"
-	}
-
-	for method in m1 m2 m3 m4; do {
+	for method in m1 m2 m3 m4 m5 m6 m7 m8; do {
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0
@@ -369,4 +359,4 @@ run_test()
 	log '[READY]'
 }
 
-run_test
+[ -n "$1" ] && run_test

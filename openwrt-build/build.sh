@@ -2978,7 +2978,7 @@ unittest_do()
 	sh -n '/tmp/loader' || return 1
 
 	log "exeuting '$start_test'"
-	$start_test
+	$start_test 'now'
 }
 
 check_git_settings()
