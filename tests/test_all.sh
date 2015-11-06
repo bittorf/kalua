@@ -22,7 +22,9 @@ show_shellfunction()
 	local name="$1"
 	local file="$2"
 	local tab='	'
-	local tab2='		'
+	local tab2="$tab$tab"
+	local tab3="$tab$tab$tab"
+	local tab4="$tab2$tab2"
 	local method
 
 	m1() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
@@ -33,8 +35,12 @@ show_shellfunction()
 	m6() { sed -n "/^${tab}$name ()/,/^${tab}}$/p" "$file"; }	#	myfunc ()
 	m7() { sed -n "/^${tab2}$name()/,/^${tab2}}$/p"  "$file"; }	# 		myfunc()
 	m8() { sed -n "/^${tab2}$name ()/,/^${tab2}}$/p" "$file"; }	#		myfunc ()
+	m9() { sed -n "/^${tab3}$name()/,/^${tab3}}$/p"  "$file"; }	# 			myfunc()
+	m0() { sed -n "/^${tab3}$name ()/,/^${tab3}}$/p" "$file"; }	#			myfunc ()
+	ma() { sed -n "/^${tab4}$name()/,/^${tab4}}$/p"  "$file"; }	# 				myfunc()
+	mb() { sed -n "/^${tab4}$name ()/,/^${tab4}}$/p" "$file"; }	#				myfunc ()
 
-	for method in m1 m2 m3 m4 m5 m6 m7 m8; do {
+	for method in m1 m2 m3 m4 m5 m6 m7 m8 m9 m0 ma mb; do {
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0
