@@ -134,7 +134,9 @@ run_test()
 	isnumber "$( _system ram_free )" || return 1
 
 	log '_filetype detect_mimetype /tmp/loader'
+	_filetype shellscript /tmp/loader || return 1
 	_filetype detect_mimetype /tmp/loader || return 1
+	[ "$( _filetype detect_mimetype '/tmp/loader' )" = 'text/x-shellscript' ] || return 1
 
 	log '_system load 1min full ; _system load'
 	_system load 1min full || return 1
@@ -209,8 +211,8 @@ run_test()
 				;;
 			esac
 
-			case "$( head -n1 "$file" )" in
-				'#!/bin/sh'*)
+			case "$( _filetype detect_mimetype "$file" )" in
+				'text/x-shellscript')
 					tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
 					hash1="$( md5sum <"$tempfile" | cut -d' ' -f1 )"
 					size1="$( wc -c <"$tempfile" )"
