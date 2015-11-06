@@ -8,19 +8,13 @@ VERSION="$2"
 	exit 1
 }
 
+TAB='	'
 DIR_DATA_SOURCE="/var/www/networks/$NETWORK/settings"
-
-case "$VERSION" in
-	"")
-		VERSION="0.1"
-	;;
-esac
+VERSION="${VERSION:-0.1}"
 
 WDIR="/tmp/${NETWORK}-${VERSION}"
 mkdir -p "$WDIR"
 cd "$WDIR" || exit
-
-TAB="	"
 
 generate_script()
 {

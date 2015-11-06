@@ -291,6 +291,9 @@ run_test()
 						'print_usage_and_exit'|'check_working_directory'|'apply_symbol'|'_config_dhcp'|'urlencode')
 							return 1
 						;;
+						'login_ok'|'batalias_add_if_needed'|'ifname_from_dev'|'_copy_terms_of_use')
+							return 1
+						;;
 					esac
 
 					return 0
