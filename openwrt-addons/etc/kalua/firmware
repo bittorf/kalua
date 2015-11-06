@@ -90,7 +90,7 @@ _firmware_configure_keep_files()
 
 _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files with tarball from repo
 {
-	local FUNC="firmware_update_pmu"
+	local funcname='firmware_update_pmu'
 	local MODE="$1"		# can be a tar-file *OR* e.g. stable|beta|testing
 	local option="$2"	# e.g. force
 	local pwd="$( pwd )"
@@ -120,7 +120,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 			if [ -e "$MODE" ]; then
 				:
 			else
-				_log it "$FUNC" daemon debug "abort, updatemode: $MODE"
+				_log it $funcname daemon debug "abort, updatemode: $MODE"
 				return
 			fi
 		;;
@@ -149,7 +149,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 		{
 			local option="$1"
 
-			_log it "$FUNC" daemon debug "cleaning up - applied $COUNT files ($COUNT_ERROR errors)"
+			_log it $funcname daemon debug "cleaning up - applied $COUNT files ($COUNT_ERROR errors)"
 			cd /tmp || return
 			rm -fR "$WORKINGDIR"
 			rm -f  "$TGZ"
@@ -165,22 +165,22 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 		read -r hash_last_applied <"$FILE_HASH_APPLIED"
 
 		[ "$hash_tarball" = "${hash_last_applied:-empty}" ] && {
-			_log it "$FUNC" daemon info "[OK] applied nothing - all seems up to date (tarball-hash known: $FILE_HASH_APPLIED)"
+			_log it $funcname daemon info "[OK] applied nothing - all seems up to date (tarball-hash known: $FILE_HASH_APPLIED)"
 			return 0
 		}
 
-		_log it "$FUNC" daemon alert "fetching tarball in '$MODE'-mode: '$URL'"
+		_log it $funcname daemon alert "fetching tarball in '$MODE'-mode: '$URL'"
 		_firmware wget "$TGZ" "$URL" "$hash_tarball" 100 || {
-			_log it "$FUNC" daemon info "failed to download '$URL' - abort"
+			_log it $funcname daemon info "failed to download '$URL' - abort"
 
 			cleanup reschedule
 			return 1
 		}
 	fi
 
-	_log it "$FUNC" daemon alert "[OK] downloaded tarball in '$MODE'-mode: '${URL:=local_file}', installing now"
+	_log it $funcname daemon alert "[OK] downloaded tarball in '$MODE'-mode: '${URL:=local_file}', installing now"
 	tar tzf "$TGZ" >/dev/null || {
-		_log it "$FUNC" daemon info "fail during extract-test '$TGZ' - abort"
+		_log it $funcname daemon info "fail during extract-test '$TGZ' - abort"
 		cleanup reschedule
 		return 1
 	}
@@ -190,7 +190,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	cd "$WORKINGDIR" || return
 
 	tar xzf "$FILE" || {
-		 _log it "$FUNC" daemon alert "failed to extract '$TGZ' to '$WORKINGDIR' - abort"
+		 _log it $funcname daemon alert "failed to extract '$TGZ' to '$WORKINGDIR' - abort"
 		cleanup reschedule
 		return 1
 	}
@@ -201,19 +201,24 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 		[ -e "$TEMPFILE" ] && rm "$TEMPFILE"
 	} done
 
-	_log it "$FUNC" daemon debug "tarball extracted - applying only files which differ"
+	_log it $funcname daemon debug "tarball extracted - applying only files which differ"
+
+	# avoid reincluding during action (maybe there is an API change)
+	_file include
+	_log include
+	_software include
 
 	find -type f >'/tmp/filelist'
 	while read -r TEMPFILE; do {
 		if [ "$( _file hash "$TEMPFILE" )" = "$( _file hash "/$TEMPFILE" )" ]; then
 			rm "$TEMPFILE"
 		else
-			_log it "$FUNC" daemon info "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
+			_log it $funcname daemon info "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" kb ) ))"
 
 			case "$( basename "$TEMPFILE" )" in
 				'cron'|'S51crond'*)
-					_log it "$FUNC" daemon info "detected changed cron settings"
+					_log it $funcname daemon info "detected changed cron settings"
 					CRON_RESTART=1
 				;;
 				'override_uci_vars')
@@ -222,10 +227,10 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 			esac
 
 			mv "$TEMPFILE" "/$TEMPFILE" || {
-				_log it "$FUNC" daemon info "oops for '$TEMPFILE' - trying to add dir"
+				_log it $funcname daemon info "oops for '$TEMPFILE' - trying to add dir"
 				mkdir -p "$( dirname "/$TEMPFILE" )" && {
 					mv "$TEMPFILE" "/$TEMPFILE" || {
-						_log it "$FUNC" daemon alert "error during moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
+						_log it $funcname daemon alert "error during moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 						COUNT_ERROR=$(( COUNT_ERROR + 1 ))
 					}
 				}
@@ -247,7 +252,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 
 		[ -n "$apply_uci_override" ] && /etc/init.d/override_uci_vars boot
 		[ -n "$CRON_RESTART" ] && {
-			_log it "$FUNC" daemon info "restart cron manually"
+			_log it $funcname daemon info "restart cron manually"
 		}
 
 		if [ -e "/rom${banner}" ]; then
@@ -258,17 +263,17 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 
 		{
 			echo
-			echo "# manually updated with $FUNC() on $( date ) by '$0' to this version:"
+			echo "# manually updated with $funcname() on $( date ) by '$0' to this version:"
 			tail -n2 /etc/variables_fff+
 			echo '#'
 			echo
 		} >>"$banner"
 
-		_log it "$FUNC" daemon alert "[OK] applied tarball in '$MODE'-mode from '$URL' ($COUNT files), wrote new '$banner'"
+		_log it $funcname daemon alert "[OK] applied tarball in '$MODE'-mode from '$URL' ($COUNT files), wrote new '$banner'"
 
 		_system reboots set '0'		# FIXME!
 	else
-		_log it "$FUNC" daemon info "[OK] applied nothing - all seems up to date"
+		_log it $funcname daemon info "[OK] applied nothing - all seems up to date"
 	fi
 }
 
