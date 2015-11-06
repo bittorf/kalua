@@ -304,21 +304,19 @@ run_test()
 				local file="$1"
 				local name="$2"
 
+				# TODO: define only the NOT functions: uci(),mv(),uci(),ip(),isnumber(),bool_true(),_()
 				fgrep -q "\\$" "$file" && {
 					case "$name" in
 						'_weblogin_'*|'_system_'*|'_sanitizer_'*|'_olsr_'*|'_netfilter_'*|'_mail_'*)
 							return 1
 						;;
-						'_help_'*|'_firmware_'*|'_file_'*|'_db_'*)
+						'_help_'*|'_firmware_'*|'_file_'*|'_db_'*|'_wifi_'*)
 							return 1
 						;;
 						'boot'|'func_cron_config_write'|'build_network_clients'|'build_package_mydesign')
 							return 1
 						;;
 						'print_usage_and_exit'|'check_working_directory'|'apply_symbol'|'_config_dhcp'|'urlencode')
-							return 1
-						;;
-						'generate_script'|'apply_settings')
 							return 1
 						;;
 					esac

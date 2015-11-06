@@ -172,7 +172,7 @@ build_package_mydesign()
 		exit 1
 	}
 
-	case $NETWORK in
+	case "$network" in
 		example)
 			# idea:
 			# uses flags=standard favicon=standard usageterms=standard ...
@@ -430,7 +430,7 @@ build_package_mydesign()
 			cp $BASE/font_color.txt							www/images/font_color.txt
 		;;
 		hotello-*)
-			case "$NETWORK" in
+			case "$network" in
 				*K80)
 					BASE="$BW/kunden/cans-niko_jovicevic/Hotello_K80-WLAN-System/grafiken/weblogin"
 				;;
@@ -803,6 +803,7 @@ build_package_mydesign()
 
 	cd ..
 	rm -fR "$working_dir"
+	ls -l "$file"
 }
 
 ACTION="$1"
