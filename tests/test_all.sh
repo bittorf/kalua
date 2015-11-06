@@ -31,14 +31,14 @@ show_shellfunction()
 	m2() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
 	m3() { grep ^"$name()" "$file"; }				# myfunc() { :;}
 	m4() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
-	m5() { sed -n "/^${tab}$name()/,/^${tab}}$/p"  "$file"; }	# 	myfunc()
-	m6() { sed -n "/^${tab}$name ()/,/^${tab}}$/p" "$file"; }	#	myfunc ()
-	m7() { sed -n "/^${tab2}$name()/,/^${tab2}}$/p"  "$file"; }	# 		myfunc()
-	m8() { sed -n "/^${tab2}$name ()/,/^${tab2}}$/p" "$file"; }	#		myfunc ()
-	m9() { sed -n "/^${tab3}$name()/,/^${tab3}}$/p"  "$file"; }	# 			myfunc()
-	m0() { sed -n "/^${tab3}$name ()/,/^${tab3}}$/p" "$file"; }	#			myfunc ()
-	ma() { sed -n "/^${tab4}$name()/,/^${tab4}}$/p"  "$file"; }	# 				myfunc()
-	mb() { sed -n "/^${tab4}$name ()/,/^${tab4}}$/p" "$file"; }	#				myfunc ()
+	m5() { sed -n "/^${tab}$name()/,/^${tab}}/p"  "$file"; }	# 	myfunc()
+	m6() { sed -n "/^${tab}$name ()/,/^${tab}}/p" "$file"; }	#	myfunc ()
+	m7() { sed -n "/^${tab2}$name()/,/^${tab2}}/p"  "$file"; }	# 		myfunc()
+	m8() { sed -n "/^${tab2}$name ()/,/^${tab2}}/p" "$file"; }	#		myfunc ()
+	m9() { sed -n "/^${tab3}$name()/,/^${tab3}}/p"  "$file"; }	# 			myfunc()
+	m0() { sed -n "/^${tab3}$name ()/,/^${tab3}}/p" "$file"; }	#			myfunc ()
+	ma() { sed -n "/^${tab4}$name()/,/^${tab4}}/p"  "$file"; }	# 				myfunc()
+	mb() { sed -n "/^${tab4}$name ()/,/^${tab4}}/p" "$file"; }	#				myfunc ()
 
 	for method in m1 m2 m3 m4 m5 m6 m7 m8 m9 m0 ma mb; do {
 		$method | grep -q ^ && {	# any output?
