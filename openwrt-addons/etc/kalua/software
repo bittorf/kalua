@@ -344,34 +344,36 @@ _software_package_is_installed_lowlevel ()	# OUT1: 0 = not_installed , 1 = insta
 }
 
 _software_package_install()
-{								# fixme! sometimes libopenssl isn't correct installed,
-	local PACKAGE="$1"					# and vtund claims to make an "bus error". We have to
-	local FUNC="software_package_install"			# double-check this and e.g. reinstall - CRC-test?
-	local SLEEP=120					# look at S52vpn check_for_correct_install()
+{
+	local funcname='software_package_install'
+	local PACKAGE="$1"
 	local KEYWORD="$2"	# noautorepoupdate
+	local SLEEP=120
 
 	bool_true 'system.@system[0].noswinstall' && {
-		_log it $FUNC daemon info "[OK] forbidden by user - see 'system.@system[0].noswinstall'"
+		_log it $funcname daemon info "[OK] forbidden by user - see 'system.@system[0].noswinstall'"
 		return 0
 	}
 
+	[ -e "/tmp/$funcname" ] && rm "/tmp/$funcname"
 	while true; do {
+		_watch counter "/tmp/$funcname" increment 1 max 100 || return 0
 		_net inet_seems_stable && break
-		_log it $FUNC daemon debug "no default-route found, waiting $SLEEP seconds"
+		_log it $funcname daemon debug "no default-route found, waiting $SLEEP seconds"
 		sleep $SLEEP
 	} done
 
-	_log it $FUNC daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
+	_log it $funcname daemon info "installing '$PACKAGE' (free space: $( _system flash_free ) Kilobyte)"
 	[ -z "$KEYWORD" ] && _software repos_update
 
 	if [ -e '/bin/opkg' ]; then
-		do_install ()
+		do_install()
 		{
 			$OPKG remove $PACKAGE
 			$OPKG install $PACKAGE
 		}
 	else
-		do_install ()
+		do_install()
 		{
 			if $OPKG 2>/dev/null | grep -q 'force-defaults'; then
 				# no idea when this was removed
@@ -383,7 +385,7 @@ _software_package_install()
 	fi
 
 	if do_install ; then
-		_log it "$FUNC" daemon info "'$PACKAGE' install seems fine (free space: $( _system flash_free ) Kilobyte)"
+		_log it $funcname daemon info "'$PACKAGE' install seems fine (free space: $( _system flash_free ) Kilobyte)"
 
 		case "$PACKAGE" in			# fixme! move these into hook()
 			loginutils)
@@ -421,7 +423,7 @@ _software_package_install()
 
 		return 0
 	else
-		_log it $FUNC daemon info "'$PACKAGE' install failed (free space: $( _system flash_free ) Kilobyte)"
+		_log it $funcname daemon info "'$PACKAGE' install failed (free space: $( _system flash_free ) Kilobyte)"
 		return 1
 
 		# fixme! do cleanup, e.g. remove '/tmp/mydesign_0.2_29132.ipk'

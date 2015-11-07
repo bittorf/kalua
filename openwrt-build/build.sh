@@ -2066,7 +2066,7 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'uclibc')
-				# removed with r47357
+				# removed with r47357/r47401
 				usecase_has 'musl' || {
 					apply_symbol 'CONFIG_DEVEL=y'
 					apply_symbol 'CONFIG_TOOLCHAINOPTS=y'

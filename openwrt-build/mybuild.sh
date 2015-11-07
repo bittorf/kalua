@@ -701,6 +701,9 @@ mypubip()
 						ip="$1"
 						break
 					;;
+					'')
+						break
+					;;
 				esac
 			} done
 
@@ -711,6 +714,9 @@ mypubip()
 				case "$1" in
 					'src')
 						echo "$2"
+						break
+					;;
+					'')
 						break
 					;;
 				esac
