@@ -606,9 +606,18 @@ esac
 # changes/min
 if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
 	UP_MIN=$( _system uptime min )
-	GATEWAY_JITTER=$( _file lines '/tmp/OLSR/DEFGW_changed' )
 
-	if [ $GATEWAY_JITTER -eq 1 ]; then
+	GATEWAY_JITTER=0
+	while read LINE; do {
+		explode $LINE
+		# dont take empty gw into account, only real changes
+		[ -n "$3" -a "$3" != "$GW_OLD" ] && {
+			GW_OLD="$3"
+			GATEWAY_JITTER=$(( GATEWAY_JITTER + 1 ))
+		}
+	} done <'/tmp/OLSR/DEFGW_changed'
+
+	if [ $GATEWAY_JITTER -le 1 ]; then
 		GATEWAY_JITTER='nie'
 	else
 		GATEWAY_JITTER="$GATEWAY_JITTER &Oslash; alle $(( UP_MIN / GATEWAY_JITTER )) min"
