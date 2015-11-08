@@ -608,7 +608,7 @@ if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
 	UP_MIN=$( _system uptime min )
 
 	GATEWAY_JITTER=0
-	while read LINE; do {
+	while read -r LINE; do {
 		explode $LINE
 		# dont take empty gw into account, only real changes
 		[ -n "$3" -a "$3" != "$GW_OLD" ] && {
