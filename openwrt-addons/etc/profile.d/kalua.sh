@@ -12,7 +12,7 @@ alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
 alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
 
 case "$USER" in
-	'root')
+	'root'|'')
 		grep -qs ^"root:\$1\$b6usD77Q\$XPs6VECsQzFy9TUuQUAHW1:" '/etc/shadow' && {
 			echo "[ERROR] change weak root-password ('admin') with 'passwd'"
 		}
