@@ -357,7 +357,8 @@ run_test()
 		} done <"$filelist"
 		rm "$filelist"
 
-		log "[OK] checked $count_files shellfiles with $count_functions functions ($func_too_large of them are too large)"
+		log "[OK] checked $count_files shellfiles with $count_functions functions"
+		log "[OK] hint: $func_too_large of them ($(( (func_too_large * 100) / count_functions ))%) are too large"
 		[ "$good" = 'false' ] && return 1
 	fi
 
