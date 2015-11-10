@@ -27,6 +27,7 @@ show_shellfunction()
 	local tab4="$tab2$tab2"
 	local method
 
+	m0() { grep ^"$name(){.*}"$ "$file"; }				# myfunc() { :;}	// very strict
 	m1() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
 	m2() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
 	m3() { grep ^"$name()" "$file"; }				# myfunc() { :;}
@@ -40,7 +41,7 @@ show_shellfunction()
 	ma() { sed -n "/^${tab4}$name()/,/^${tab4}}/p"  "$file"; }	# 				myfunc()
 	mb() { sed -n "/^${tab4}$name ()/,/^${tab4}}/p" "$file"; }	#				myfunc ()
 
-	for method in m1 m2 m3 m4 m5 m6 m7 m8 m9 m0 ma mb; do {
+	for method in m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m0 ma mb; do {
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0
@@ -331,7 +332,6 @@ run_test()
 					# bigger than 1 readable screen (45 lines)
 					func_too_large=$(( func_too_large + 1 ))
 					log "[attention] too large ($codelines lines) check: $name() in file '$file'"
-					[ "$name" = '_olsr' ] && cat "$tempfile"	# DEBUG
 				}
 
 				if   seems_generated "$tempfile" "$name"; then
