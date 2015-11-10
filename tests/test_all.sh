@@ -53,7 +53,8 @@ show_shellfunction()
 run_test()
 {
 	local shellcheck_bin start_test build_loader ignore file tempfile filelist pattern ip
-	local hash1 hash2 size1 size2 line line_stripped i list name
+	local hash1 hash2 size1 size2 line line_stripped i list name codelines
+	local func_too_large=0
 	local count_files=0
 	local count_functions=0
 	local good='true'
@@ -323,6 +324,13 @@ run_test()
 					echo "$name \"\$@\""
 				} >"$tempfile"
 
+				codelines=$( wc -l <"$tempfile" )
+				[ $codelines -gt 45 ] && {
+					# bigger than 1 readable screen
+					func_too_large=$(( func_too_large + 1 ))
+					log "[attention] too large ($codelines lines) check: $name()"
+				}
+
 				if   seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
 				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
@@ -346,7 +354,7 @@ run_test()
 		} done <"$filelist"
 		rm "$filelist"
 
-		log "[OK] checked $count_files shellfiles with $count_functions functions"
+		log "[OK] checked $count_files shellfiles with $count_functions functions ($func_too_large too large)"
 		[ "$good" = 'false' ] && return 1
 	fi
 
