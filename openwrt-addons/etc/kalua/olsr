@@ -1758,3 +1758,58 @@ _olsr_show_hna4_slaves()
 		i=$(( i + 1 ))
 	} done
 }
+
+_olsr_incoming_and_outgoing_olsr_traffic()
+{
+	local funcname='olsr_incoming_and_outgoing_olsr_traffic'
+	local option="$1"	# <empty> or 'cached'
+	local device dev_address
+	local cachefile="$TMPDIR/$funcname"
+
+	[ "$option" = 'cached' -a -e "$cachefile" ] && {
+		cat "$cachefile"
+		return 0
+	}
+
+	if [ -n "$( _wifi get any mode adhoc )" ]; then
+		device="$WIFIDEV"
+		dev_address="$WIFIADR"
+	else
+		device="$LANDEV"
+		dev_address="$LANADR"
+	fi
+
+	[ -z "$device" -o -z "$dev_address" ] && return 0
+	pidof olsrd >/dev/null || return 0
+
+	local interval=30
+	local port=698
+	local ruleset_in="INPUT -p udp -i $device ! -s $dev_address --dport $port"
+	local ruleset_out="OUTPUT -p udp -o $device --dport $port"
+	local bytes bytes_in bytes_out bytes_in_sec bytes_out_sec out
+
+	get_bytes()
+	{
+		$IPT -nxvL "$1" 1 | while read -r _ bytes _; do echo ${bytes:-0}; done
+	}
+
+	$IPT -I $ruleset_in
+	$IPT -I $ruleset_out
+
+	_log it $funcname daemon info "counting olsr-traff for $interval sec"
+	sleep $interval
+
+	bytes_in="$(  get_bytes 'INPUT' )"
+	bytes_out="$( get_bytes 'OUTPUT' )"
+
+	bytes_in_sec=$((  bytes_in  / interval ))
+	bytes_out_sec=$(( bytes_out / interval ))
+
+	$IPT -D $ruleset_in
+	$IPT -D $ruleset_out
+
+	_log it $funcname daemon info "in: $bytes_in = $bytes_in_sec bytes/s out: $bytes_out = $bytes_out_sec bytes/s"
+	out="&t0=${bytes_in_sec}&t1=${bytes_out_sec}"
+	echo "$out" >"$cachefile"
+	echo "$out"
+}

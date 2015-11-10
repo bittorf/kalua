@@ -600,54 +600,7 @@ grep -q ^"ip_tables " /proc/modules && {
 
 	QUERY="${QUERY}&n0=$N0"
 
-	incoming_and_outgoing_olsr_traff()
-	{
-		pidof olsrd >/dev/null || return 0
-
-		local device="$1"
-		local dev_address="$2"
-
-		[ -z "$device" -o -z "$dev_address" ] && return 0
-
-		local funcname="incoming_and_outgoing_olsr_traff"
-		local interval=30
-		local port=698
-		local ruleset_in="INPUT -p udp -i $device ! -s $dev_address --dport $port"
-		local ruleset_out="OUTPUT -p udp -o $device --dport $port"
-		local bytes bytes_in bytes_out bytes_in_sec bytes_out_sec
-
-		get_bytes()
-		{
-			$IPT -nxvL "$1" 1 | while read -r _ bytes _; do echo ${bytes:-0}; done
-		}
-
-		$IPT -I $ruleset_in
-		$IPT -I $ruleset_out
-
-		_log it $funcname daemon info "counting olsr-traff for $interval sec"
-		sleep $interval
-
-		bytes_in="$(  get_bytes INPUT  )"
-		bytes_out="$( get_bytes OUTPUT )"
-
-		bytes_in_sec=$((  bytes_in  / interval ))
-		bytes_out_sec=$(( bytes_out / interval ))
-
-		$IPT -D $ruleset_in
-		$IPT -D $ruleset_out
-
-		_log it $funcname daemon info "in: $bytes_in = $bytes_in_sec bytes/s out: $bytes_out = $bytes_out_sec bytes/s"
-		echo "&t0=${bytes_in_sec}&t1=${bytes_out_sec}"
-	}
-
-	case "$WIFIMODE" in
-		*adhoc*)
-			QUERY="${QUERY}$( incoming_and_outgoing_olsr_traff "$WIFIDEV" "$WIFIADR" )"
-		;;
-		*)
-			QUERY="${QUERY}$( incoming_and_outgoing_olsr_traff "$LANDEV" "$LANADR" )"
-		;;
-	esac
+	QUERY="${QUERY}$( _olsr incoming_and_outgoing_olsr_traffic 'cached' )"
 
 	OLSR_SPEED="$( uci -q get olsrd.@Interface[0].speed )"
 	[ -z "$OLSR_SPEED" ] && {

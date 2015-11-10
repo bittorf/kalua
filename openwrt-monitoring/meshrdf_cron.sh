@@ -3,6 +3,12 @@
 OPTION="$1"		# e.g. cache
 WISH_NETWORK="$2"
 
+TMPDIR='/var/run/kalua'
+[ -d "$TMPDIR" ] || {
+	mkdir -p "$TMPDIR"
+	chmod -R 777 "$TMPDIR"
+}
+
 log()
 {
 	local MESSAGE="$1"
