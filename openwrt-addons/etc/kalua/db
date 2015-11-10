@@ -7,37 +7,48 @@ _db_check()
 	local funcname='db_check'
 	local option="$1"
 	local statfile="/tmp/$funcname"
-	local file line i list id valid
+	local file line i
 
 	[ "$option" = 'force' ] || _db lock now "$funcname() $*" || return 1
 	_stopwatch start "$funcname"
-
-	# TODO: check for "VAR=';" (not closed)
 
 	# otherwise missing when totally fresh router
 	touch "$DIR_DATABASE/DB/USER/device/rows"
 
 	for file in $DIR_DATABASE/USER/device/rows $DIR_DATABASE/USER/device/stats $DIR_DATABASE/USER/login/rows $DIR_DATABASE/USER/profile/rows; do {
-		_log it $funcname daemon info "eval-ing each line in '$file', in case of an error: check '$statfile'"
-		[ -e "$file" ] || continue
+		if   [ ! -e "$file" ]; then
+			continue
+		elif sh -n "$file"; then
+			i=$( _file lines "$file" )
+		else
+			# TODO: check for "VAR=';" (not closed)
+			_log it $funcname daemon info "eval-ing each line in '$file', in case of an error: check '$statfile'"
 
-		i=0
-		sh -n "$file" || {
-			# very slow loop:
-			while read -r line; do {
+			i=0
+			while read -r line; do {	# very slow loop:
 				i=$(( i + 1 ))
 				echo "file: $file lineno: $i line: $line" >"$statfile"
 				eval $line
 			} done <"$file"
 
 			return 1
-		}
+		fi
 
-		[ $i -eq 0 ] && i=$( _file lines "$file" )
 		_log it $funcname daemon info "[OK] file '$file' / $i lines"
 	} done
 
-	# FIXME! why did it happen?
+	_db_check_remove_superfluous_files
+
+	[ "$option" = 'force' ] || _db lock free
+	[ -e "$statfile" ] && rm "$statfile"
+
+	_log it $funcname daemon info "[OK] lasts $( _stopwatch stop "$funcname" humanreadable )"
+}
+
+_db_check_remove_superfluous_files()
+{
+	local list file valid id
+
 	list="$( _db user profile list )"
 	for file in '/database/DB/USER/profile/id'*'_counterA'; do {
 		valid=
@@ -46,16 +57,10 @@ _db_check()
 		} done
 
 		[ -z "$valid" ] && {
-			_log it $funcname daemon info "removing superfluous: '$file'"
+			_log it $funcname daemon alert "removing superfluous: '$file'"
 			rm "$file"
 		}
 	} done
-
-	[ "$option" = 'force' ] || _db lock free
-	rm "$statfile" 2>/dev/null
-
-	_log it $funcname daemon info "[OK] lasts $( _stopwatch stop "$funcname" humanreadable )"
-	return 0
 }
 
 _db_lock()

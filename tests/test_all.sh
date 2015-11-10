@@ -326,11 +326,12 @@ run_test()
 				} >"$tempfile"
 
 				codelines=$( wc -l <"$tempfile" )
-				codelines=$(( codelines - 6 ))		# dont count boilerplate
+				codelines=$(( codelines - 6 ))		# dont count above added boilerplate
 				[ $codelines -gt 45 ] && {
 					# bigger than 1 readable screen (45 lines)
 					func_too_large=$(( func_too_large + 1 ))
-					log "[attention] too large ($codelines lines) check: $name()"
+					log "[attention] too large ($codelines lines) check: $name() in file '$file'"
+					[ "$name" = '_olsr' ] && cat "$tempfile"	# DEBUG
 				}
 
 				if   seems_generated "$tempfile" "$name"; then
