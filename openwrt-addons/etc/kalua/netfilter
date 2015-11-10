@@ -2301,41 +2301,40 @@ _netfilter_traffic_control_add()
 	$TC filter add dev $dev protocol ip parent 1: prio 6 $(match all)		flowid 1:3 || err 11-$dev
 }
 
+_netfilter_tc_match_voip_codec()
+{
+	local payloadtype="$1"	# http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml
+
+	# http://sourceforge.net/p/l7-filter/mailman/message/6436981/
+	# all packets are RTPv2
+	# TODO: we have some false positives here...
+	echo "u32 match $udp match u16 0x80${payloadtype} 0xc07f at 28"
+}
+
 _netfilter_tc_match()
 {
 	local match="$1"
-
-	codec()
-	{
-		local payloadtype="$1"	# http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml
-
-		# http://sourceforge.net/p/l7-filter/mailman/message/6436981/
-		# all packets are RTPv2
-		# TODO: we have some false positives here...
-		echo "u32 match $udp match u16 0x80${payloadtype} 0xc07f at 28"
-	}
-
 	local udp='ip protocol 17 0xff'
 	local tcp='ip protocol 6 0xff'
 	local all='ip protocol 0 0x00'
 
 	# TODO:
 	# ssh VS scp - here transfering 1 keypress in a SSH-session (for now catched with 'interactive'+'tcp_with_ack'?)
-	# ipA.54256 > ipB.22: Flags [P.], seq 3353:3401, ack 2848, win 278, options [nop,nop,TS val 402148599 ecr 1416822143], length 48
-	# ipB.22 > ipA.54256: Flags [P.], seq 2848:2896, ack 3401, win 647, options [nop,nop,TS val 1416822827 ecr 402148599], length 48
-	# ipA.54256 > ipB.22: Flags [.], ack 2896, win 278, options [nop,nop,TS val 402148612 ecr 1416822827], length 0
+	# ipA.54256 > ipB.22:    Flags [P.], seq 3353:3401, ack 2848, win 278, options [nop,nop,TS val 402148599  ecr 1416822143], length 48
+	# ipB.22    > ipA.54256: Flags [P.], seq 2848:2896, ack 3401, win 647, options [nop,nop,TS val 1416822827 ecr 402148599],  length 48
+	# ipA.54256 > ipB.22:    Flags [.],  ack 2896,                win 278, options [nop,nop,TS val 402148612  ecr 1416822827], length 0
 
 	case "$match" in
 		olsr1) 		echo "u32 match $udp match ip dport 698 0xffff" ;;	# UDP dport 698
 		olsr2) 		echo "u32 match $udp match ip dport 269 0xffff" ;;	# UDP dport 269
 		tcp_with_ack) 	echo "u32 match $tcp match u8 0x10 0xff at nexthdr+13" ;;
 		tcp_with_ack2)	echo "u32 match $tcp match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33" ;; # wondershaper
-		voip1)		codec '00' ;;	# PCMU
-		voip2)		codec '04' ;;	# G723
-		voip3)		codec '08' ;;	# PCMA
-		voip4)		codec '09' ;;	# G722
-		voip5)		codec '0f' ;;	# G728
-		voip6)		codec '12' ;;	# G729
+		voip1)		_netfilter tc_match_voip_codec '00' ;;	# PCMU
+		voip2)		_netfilter tc_match_voip_codec '04' ;;	# G723
+		voip3)		_netfilter tc_match_voip_codec '08' ;;	# PCMA
+		voip4)		_netfilter tc_match_voip_codec '09' ;;	# G722
+		voip5)		_netfilter tc_match_voip_codec '0f' ;;	# G728
+		voip6)		_netfilter tc_match_voip_codec '12' ;;	# G729
 		# FIXME! restrict to <256 bytes (typical = 216 bytes)
 		voip_vpn1)	echo "u32 match $udp match ip dport $( _vpn innercity_master_vtund get_port ) 0xffff" ;;
 		voip_vpn2)	echo "u32 match $tcp match ip dport $( _vpn innercity_master_vtund get_port ) 0xffff" ;;

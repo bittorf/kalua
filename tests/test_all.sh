@@ -310,13 +310,14 @@ run_test()
 					echo '#!/bin/sh'
 					echo '. /tmp/loader'
 					echo
-					echo "# from file '$file'"
 
-					show_shellfunction "$name" "$file" | head -n1 | grep -q ^"[ $tab]" && {
-						echo '# nested function'
+					if show_shellfunction "$name" "$file" | head -n1 | grep -q ^"[ $tab]"; then
+						echo "# nested function from file '$file'"
 						ignore="$ignore,SC2154"		# VAR is referenced but not assigned
 						ignore="$ignore,SC2034"		# VAR appears unused. Verify it or export it.
-					}
+					else
+						echo "# from file '$file'"
+					fi
 
 					show_shellfunction "$name" "$file"
 
@@ -325,8 +326,9 @@ run_test()
 				} >"$tempfile"
 
 				codelines=$( wc -l <"$tempfile" )
+				codelines=$(( codelines - 6 ))		# dont count boilerplate
 				[ $codelines -gt 45 ] && {
-					# bigger than 1 readable screen
+					# bigger than 1 readable screen (45 lines)
 					func_too_large=$(( func_too_large + 1 ))
 					log "[attention] too large ($codelines lines) check: $name()"
 				}
@@ -354,7 +356,7 @@ run_test()
 		} done <"$filelist"
 		rm "$filelist"
 
-		log "[OK] checked $count_files shellfiles with $count_functions functions ($func_too_large too large)"
+		log "[OK] checked $count_files shellfiles with $count_functions functions ($func_too_large of them are too large)"
 		[ "$good" = 'false' ] && return 1
 	fi
 
