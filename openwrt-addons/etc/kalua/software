@@ -2,20 +2,21 @@
 
 _software_show_packages_recent()
 {
-	local line package time diff humanreadable lookaround
+	local option="$1"	# <empty> or package_name
+	local line package time_installed diff humanreadable lookaround
 	local time_now="$( _system date unixtime )"
 	local time_built="$( $OPKG status kernel | grep ^"Installed-Time:" | cut -d' ' -f2 )"
 
-	$OPKG status | while read -r line; do {
+	$OPKG status $option | while read -r line; do {
 		case "$line" in
-			"Package:"*)
+			'Package:'*)
 				package="${line#*: }"
 			;;
-			"Installed-Time:"*)
-				time="${line#*: }"
+			'Installed-Time:'*)
+				time_installed="${line#*: }"
 				diff=$(( time_now - time ))
 				humanreadable="$( _stopwatch seconds2humanreadable "$diff" )"
-				lookaround=$(( time - time_built ))
+				lookaround=$(( time_installed - time_built ))
 				[ $lookaround -gt -60 -a $lookaround -lt 60 ] && {
 					humanreadable="$humanreadable = builtin"
 				}
@@ -26,98 +27,42 @@ _software_show_packages_recent()
 	} done | sort
 }
 
-_software_make_free_space ()
+_software_make_free_space()
 {
-	local FUNC="software_make_free_space"
-	local SPACE_WISH="$1"			# [kilobyte]
-	local KEYWORD="$2"			# 'ruthless'
-	local FREE=0
-	local IPK
+	local funcname='software_make_free_space'
+	local space_wish="$1"		# [kilobyte]
+	local option="$2"		# <empty> or 'force'
+	local free package
 
-	return 0	# fixme!
+	[ $( _system flash_free ) -gt $space_wish ] && return
 
-	[ $( _system flash_free ) -gt $SPACE_WISH ] && return
+	for package in $( _software show_installed_backwards ); do {
+		free="$( _system flash_free )"
+		_log it $funcname daemon info "now $free kb (wish: $space_wish kb)"
+		[ $free -gt $space_wish ] && break
 
-	for IPK in $( _software show_installed_backwards ); do {
-		FREE="$( _system flash_free )"
-		[ $FREE -gt $SPACE_WISH ] && break
-
-		_log it $FUNC daemon info "now $FREE kb (wish: $SPACE_WISH kb)"
-
-		_software is_essential $IPK $KEYWORD || {		# prevents chicken egg-problem
-			_log it $FUNC daemon alert "removing '$IPK'"
-			_software package_remove $IPK
+		[ "$option" = 'force' ] || {
+			_software is_essential "$package" && continue
+			_software show_packages_recent "$package" | grep '= builtin'$ && continue
 		}
+
+		_log it $funcname daemon alert "removing '$package'"
+		_software package_remove "$package"
 	} done
 }
 
-_software_is_essential ()	# fixme! how to determine, if package is part of a meta-package? maybe this
-{				#	 doesn't matter, removing meta-packages doesn't effect child-packages
-	local PACKAGE="$1"
-	local KEYWORD="$2"
-	local VAR
+_software_is_essential()
+{
+	local package="$1"
 
-	[ "$KEYWORD" = "ruthless" ] && return 1
-
-	case "$PACKAGE" in
-		  freifunk-dnsmasq) return 0 ;;		# important for wifi-dhcp
-		  	   dnsmasq) return 0 ;;		# important for wifi-dhcp
-		freifunk-pppoecd-*) return 0 ;;		# PPPoE / pppox / generic
-	 		   pppoecd) return 0 ;;		# PPPoE only
-		      kmod-madwifi) return 0 ;;		# atheros
-		             iwlib) return 0 ;;		# atheros
-		    wireless-tools) return 0 ;;		# atheros
-		     madwifi-tools) return 0 ;;		# atheros
-				ip) return 0 ;;		# base
-			   robocfg) return 0 ;;		# better leave it, otherwise monitoring installs it every 15mins
-			  wificonf) return 0 ;;		# base
-			    kernel) return 0 ;;		# base
-			base-files) return 0 ;;		# base
-		 freifunk-webadmin) return 0 ;;		# base
-		   freifunk-upload) return 0 ;;		# base
-		  freifunk-mtdkill) return 0 ;;		# base
-		    freifunk-rdate) return 0 ;;		# base
-		    freifunk-olsrd) return 0 ;;		# base
-			  dropbear) return 0 ;;		# base
-		       busybox-awk) return 0 ;;		# base
-			 wl|wl-adv) return 0 ;;		# base/emergency_wifi_situations
-			sshpubkeys) return 0 ;;		# in autoupgrade list
-			mysettings) return 0 ;;		# in autoupgrade list
-			  mydesign) return 0 ;;		# in autoupgrade list
-		  fff-adblock-list) return 0 ;;		# in autoupgrade list
-	     fff-missing-conntrack) return 0 ;;		# if installed, better leave them
-	 freifunk-iptables-missing) return 0 ;;		# if installed, better leave them
-			iptables-*) return 0 ;;		# fixme! better dynamically (de-)install (un-)used modules -> _ipt()
-			    kmod-*) return 0 ;;		# fixme! better dynamically (de-)install (un-)used modules -> _insmod()
-							# fixme! allow removing of vtund, if fff_vpn_active=0 ?
-
-		 freifunk-dyndns-*) for VAR in username password domain service ; do {			# all vars filled?
-						[ -z "$( uci get ddns.myddns.$VAR )" ] && return 1
-		 		    } done
-		 		    return 0	# yes!
-				;;
-				*)
-					bool_true 'system.@weblogin[0].enabled' && {
-						case "$PACKAGE" in
-		                 			xyssl) return 0 ;;
-		                      fff-layer7-descriptions) return 0 ;;
-				      freifunk-secureadmin-de) return 0 ;;
-		                      		      xrelayd) return 0 ;;
-						   busybox-nc) return 0 ;;
-						esac
-
-						case "$CONFIG_PROFILE" in
-							monami*)
-								case "$PACKAGE" in
-									freifunk-olsr-viz-*) return 0 ;;
-								esac
-							;;
-						esac
-					}
+	case "$package" in
+		sshpubkeys|mysettings|mydesign|fff-adblock-list)
+			return 0
+		;;
+		*)
+			return 1
 		;;
 	esac
-
-	return 1
 }
 
 _software_show_installed ()
