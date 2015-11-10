@@ -37,11 +37,11 @@ show_shellfunction()
 	m7() { sed -n "/^${tab2}$name()/,/^${tab2}}/p"  "$file"; }	# 		myfunc()
 	m8() { sed -n "/^${tab2}$name ()/,/^${tab2}}/p" "$file"; }	#		myfunc ()
 	m9() { sed -n "/^${tab3}$name()/,/^${tab3}}/p"  "$file"; }	# 			myfunc()
-	m0() { sed -n "/^${tab3}$name ()/,/^${tab3}}/p" "$file"; }	#			myfunc ()
-	ma() { sed -n "/^${tab4}$name()/,/^${tab4}}/p"  "$file"; }	# 				myfunc()
-	mb() { sed -n "/^${tab4}$name ()/,/^${tab4}}/p" "$file"; }	#				myfunc ()
+	ma() { sed -n "/^${tab3}$name ()/,/^${tab3}}/p" "$file"; }	#			myfunc ()
+	mb() { sed -n "/^${tab4}$name()/,/^${tab4}}/p"  "$file"; }	# 				myfunc()
+	mc() { sed -n "/^${tab4}$name ()/,/^${tab4}}/p" "$file"; }	#				myfunc ()
 
-	for method in m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m0 ma mb; do {
+	for method in m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 ma mb mc; do {
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0

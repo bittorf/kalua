@@ -14,11 +14,11 @@ alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
 case "$USER" in
 	'root'|'')
 		grep -qs ^"root:\$1\$b6usD77Q\$XPs6VECsQzFy9TUuQUAHW1:" '/etc/shadow' && {
-			echo "[ERROR] change weak root-password ('admin') with 'passwd'"
+			echo "[ERROR] change weak password ('admin') with 'passwd'"
 		}
 
 		grep -qs ^'root:\$' '/etc/shadow' || {
-			echo "[ERROR] set root-password with 'passwd'"
+			echo "[ERROR] unset password, use 'passwd'"
 		}
 	;;
 esac
