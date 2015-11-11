@@ -21,19 +21,20 @@ show_shellfunction()
 {
 	local name="$1"
 	local file="$2"
+	local i=0
 	local method
 
-	tab() { for _ in $(seq $1); do printf '	'; done; }
+	tab() { i=$(( i + 1 )); for _ in $(seq $i); do printf '	'; done; }
 
-	m0() { grep ^"$name(){.*}"$ "$file"; }				# myfunc() { :;}	// very strict
-	m1() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
-	m2() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
-	m3() { grep ^"$name()" "$file"; }				# myfunc() { :;}
-	m4() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
-	t() { sed -n "/^$( tab "$1" )$name()/,/^${tab}}/p" "$file"; }	# 	myfunc()
-	T() { sed -n "/^$( tab "$1" )$name ()/,/^${tab}}/p" "$file"; }	# 	myfunc ()
+	a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc() { :;}	// very strict
+	b() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
+	c() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
+	d() { grep ^"$name()" "$file"; }				# myfunc() { :;}
+	e() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
+	t() { sed -n "/^$( tab $1 )$name()/,/^${tab}}/p" "$file"; }	# 	myfunc()
+#	T() { sed -n "/^$( tab $1 )$name ()/,/^${tab}}/p" "$file"; }	# 	myfunc ()
 
-	for method in m0 m1 m2 m3 m4 't 1' 'T 1' 't 2' 'T 2' 't 3' 'T 3' 't 4' 'T 4' 't 5' 'T 5' 't 6' 'T 6' 't 7' 'T 7'; do {
+	for method in a b c d e t t t t t t t t t; do
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0
@@ -41,6 +42,7 @@ show_shellfunction()
 	} done
 
 	log "[ERR] cannot find function '$name' in file '$file'"
+	exit 1
 }
 
 run_test()
