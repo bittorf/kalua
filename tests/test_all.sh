@@ -21,27 +21,19 @@ show_shellfunction()
 {
 	local name="$1"
 	local file="$2"
-	local tab='	'
-	local tab2="$tab$tab"
-	local tab3="$tab$tab$tab"
-	local tab4="$tab2$tab2"
 	local method
+
+	tab() { for _ in $(seq $1); do printf '	'; done; }
 
 	m0() { grep ^"$name(){.*}"$ "$file"; }				# myfunc() { :;}	// very strict
 	m1() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
 	m2() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
 	m3() { grep ^"$name()" "$file"; }				# myfunc() { :;}
 	m4() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
-	m5() { sed -n "/^${tab}$name()/,/^${tab}}/p"  "$file"; }	# 	myfunc()
-	m6() { sed -n "/^${tab}$name ()/,/^${tab}}/p" "$file"; }	#	myfunc ()
-	m7() { sed -n "/^${tab2}$name()/,/^${tab2}}/p"  "$file"; }	# 		myfunc()
-	m8() { sed -n "/^${tab2}$name ()/,/^${tab2}}/p" "$file"; }	#		myfunc ()
-	m9() { sed -n "/^${tab3}$name()/,/^${tab3}}/p"  "$file"; }	# 			myfunc()
-	ma() { sed -n "/^${tab3}$name ()/,/^${tab3}}/p" "$file"; }	#			myfunc ()
-	mb() { sed -n "/^${tab4}$name()/,/^${tab4}}/p"  "$file"; }	# 				myfunc()
-	mc() { sed -n "/^${tab4}$name ()/,/^${tab4}}/p" "$file"; }	#				myfunc ()
+	t() { sed -n "/^$( tab "$1" )$name()/,/^${tab}}/p" "$file"; }	# 	myfunc()
+	T() { sed -n "/^$( tab "$1" )$name ()/,/^${tab}}/p" "$file"; }	# 	myfunc ()
 
-	for method in m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 ma mb mc; do {
+	for method in m0 m1 m2 m3 m4 't 1' 'T 1' 't 2' 'T 2' 't 3' 'T 3' 't 4' 'T 4' 't 5' 'T 5' 't 6' 'T 6' 't 7' 'T 7'; do {
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0
