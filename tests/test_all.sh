@@ -66,9 +66,15 @@ run_test()
 	df
 
 	log 'testing isnumber()'
+	set -x
 	isnumber '-1' || return 1
-	isnumber $(( 65536 * 65536 )) || return 1
+	isnumber $((  65536 * 65536 )) || return 1
+	isnumber $(( -65536 * 65536 )) || return 1
 	isnumber 'A' && return 1
+	isnumber ''  && return 1
+	isnumber ' ' && return 1
+	isnumber '1.34' && return 1
+	set +x
 
 	log 'testing explode-alias / firmware get_usecase'
 	echo 'Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY' >"$TMPDIR/test"
@@ -358,7 +364,7 @@ run_test()
 		rm "$filelist"
 
 		log "[OK] checked $count_files shellfiles with $count_functions functions"
-		log "[OK] hint: $func_too_large of them ($(( (func_too_large * 100) / count_functions ))%) are too large"
+		log "[OK] hint: $func_too_large functions ($(( (func_too_large * 100) / count_functions ))%) are too large"
 		[ "$good" = 'false' ] && return 1
 	fi
 
