@@ -21,20 +21,20 @@ show_shellfunction()
 {
 	local name="$1"
 	local file="$2"
-	local i=0
+	local i=-5
 	local method
 
-	tab() { i=$(( i + 1 )); for _ in $(seq $i); do printf '	'; done; }
+	tabs() { for _ in $(seq $i); do printf '	'; done; }
 
 	a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc() { :;}	// very strict
 	b() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
 	c() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
 	d() { grep ^"$name()" "$file"; }				# myfunc() { :;}
 	e() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
-	t() { sed -n "/^$( tab $1 )$name()/,/^${tab}}/p" "$file"; }	# 	myfunc()
-#	T() { sed -n "/^$( tab $1 )$name ()/,/^${tab}}/p" "$file"; }	# 	myfunc ()
+	t() { sed -n "/^$( tabs )$name()/,/^$( tabs )}/p" "$file"; }	# 	myfunc()
 
 	for method in a b c d e t t t t t t t t t; do {
+		i=$(( i + 1 ))
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0
@@ -42,7 +42,7 @@ show_shellfunction()
 	} done
 
 	log "[ERR] cannot find function '$name' in file '$file'"
-	exit 1
+	return 1
 }
 
 run_test()
