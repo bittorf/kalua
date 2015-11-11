@@ -320,7 +320,7 @@ run_test()
 						echo "# from file '$file'"
 					fi
 
-					show_shellfunction "$name" "$file"
+					show_shellfunction "$name" "$file" || return 1
 
 					echo
 					echo "$name \"\$@\""

@@ -114,19 +114,19 @@ build_package_mydesign()
 
 	cp $HOME/Desktop/bittorf_wireless/kunden/Hotel_Elephant/grafiken/weblogin/button_login_de.gif  www/images/
 
-	_copy_favicon_bittorf ()
+	_copy_favicon_bittorf()
 	{
 		local FAVDEST="www/favicon.ico"
 
 		cp $HOME/Desktop/bittorf_wireless/vorlagen/grafiken/weblogin/favicon.ico $FAVDEST || echo "error favicon?!"
 	}
 
-	_copy_favicon_freifunk ()
+	_copy_favicon_freifunk()
 	{
 		wget -O www/favicon.ico "http://weimarnetz.de/favicon.ico" || echo "download favicon-fehler!"
 	}
 
-	_copy_flags ()		# fixme! jp=ja,dk=da
+	_copy_flags()		# fixme! jp=ja,dk=da
 	{
 		local DIR="$BW/vorlagen/grafiken/weblogin/flaggen"
 
@@ -138,7 +138,7 @@ build_package_mydesign()
 		cp $DIR/flag_jp_16x12_2colors_websafe.gif	www/images/flag_ja.gif
 	}
 
-	_copy_terms_of_use ()
+	_copy_terms_of_use()
 	{
 		local USERDIR="$1"
 		local DATE="$( date '+%Y %b %d' )"	# TODO: Maerz
