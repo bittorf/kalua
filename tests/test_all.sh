@@ -34,7 +34,7 @@ show_shellfunction()
 	t() { sed -n "/^$( tab $1 )$name()/,/^${tab}}/p" "$file"; }	# 	myfunc()
 #	T() { sed -n "/^$( tab $1 )$name ()/,/^${tab}}/p" "$file"; }	# 	myfunc ()
 
-	for method in a b c d e t t t t t t t t t; do
+	for method in a b c d e t t t t t t t t t; do {
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
 			return 0
