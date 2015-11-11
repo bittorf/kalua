@@ -4,21 +4,12 @@ PERMLOG='/www/everlasting_syslog.txt'
 
 _log_shell_is_interactive()
 {
-	case "$-" in
-		*i*)
-			return 0
+	case "$PS1" in
+		*'@'*)
+			# definition in interactive /etc/profile does not have it
 		;;
 		*)
-			case "$SSH_CONNECTION" in
-				'')
-					# defined in /etc/profile
-					command -V arp | grep ^'arp is a shell function'
-				;;
-				*)
-					# e.g. '10.63.2.1 37693 10.63.18.97 22'
-					return 0
-				;;
-			esac
+			return 1
 		;;
 	esac
 }
@@ -139,7 +130,7 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 {
 	case "$-" in
 		*'x'*)
-			# hide during debugging (too much text)
+			# too much text during debugging with 'set -x'
 			return 0
 		;;
 	esac
@@ -172,13 +163,15 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 #	echo "$0: $FUNCTION() $MESSAGE" >/dev/console
 
 	case "$FUNCTION" in
-		firmware*)
+		'firmware'*)
 			_log debug "${HOSTNAME:-box} $FATHER_PROCESS: $FUNCTION: $MESSAGE"
 		;;
 	esac
 
 	# FIXME! maybe everlasting and log to console should work?
-	[ -n "$LOWMEM" ] && return
+	[ -n "$LOWMEM" ] && {
+		_log shell_is_interactive || return 0
+	}
 
 	mem_uptime_and_date()
 	{
