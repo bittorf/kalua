@@ -37,7 +37,7 @@ _wifi_nightly_longrange()
 	local funcname='wifi_nightly_longrange'
 	local option="$1"			# set|unset
 	local markerfile="$TMPDIR/$funcname"
-	local hash_initial hash_after
+	local hash_initial hash_after line
 
 	case "$option" in
 		set)
@@ -47,14 +47,16 @@ _wifi_nightly_longrange()
 
 			# only get if we really active if we changed something:
 			[ "$hash_initial" = "$hash_after" ] || {
-				uci export wireless >"$markerfile"
+				# TODO: use 'uci export': https://dev.openwrt.org/ticket/20895
+				uci show wireless | while read line; do echo "uci set $line"; done >"$markerfile"
 				_wifi phy_restart "$WIFIDEV" "$funcname:set" 'info'
 			}
 		;;
 		*)
 			[ -e "$markerfile" ] && {
 				_wifi longrange_tweak_values ''		# delete vars
-				uci import wireless <"$markerfile"
+				sh -n "$markerfile" && . "$markerfile"
+
 				_wifi phy_restart "$WIFIDEV" "$funcname:unset" 'info'
 				rm "$markerfile"
 			}
@@ -918,10 +920,8 @@ _wifi_phy_restart()
 	local pids="$( pidof wifi )"
 	local file pid
 
-	[ -z "$1" ] && _log it $funcname daemon alert "empty arg1, call-reason: $reason pids: '$pids'"
-
 	[ -z "$wifi_dev" ] && {
-		_log it $funcname daemon alert "empty dev, call-reason: $reason pids: '$pids'"
+		_log it $funcname daemon info "empty dev, call-reason: $reason pids: '$pids'"
 		return 1
 	}
 
@@ -2052,7 +2052,7 @@ _wifi_set()
 					[ -n "$radio" -a "$var" = 'channel' ] && {
 						if   [ "$value" = 'auto' ]; then
 							uci set wireless.$radio.country='FM'
-						elif [ $value -ge 1 -a $value -le 11 ]; then
+						elif [ ${value:-0} -ge 1 -a ${value:-0} -le 11 ]; then
 							uci set wireless.$radio.country='US'
 						fi
 
