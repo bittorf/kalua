@@ -38,29 +38,32 @@ _wifi_nightly_longrange()
 	local funcname='wifi_nightly_longrange'
 	local option="$1"			# set|unset
 	local markerfile="$TMPDIR/$funcname"
+	local backup_changes="$TMPDIR/$funcname.changes"
 	local hash_initial hash_after line
 
 	case "$option" in
 		set)
 			hash_initial="$( uci show wireless | md5sum )"
+			cp '/tmp/.uci/wireless' "$backup_changes"
 			_wifi longrange_tweak_values
 			hash_after="$( uci show wireless | md5sum )"
 
 			# only work if we changed something:
-			[ "$hash_initial" = "$hash_after" ] || {
-				# we cannot use 'uci export' - see https://dev.openwrt.org/ticket/20895
-				uci show wireless | while read -r line; do echo "uci set $line"; done >"$markerfile"
+			if [ "$hash_initial" = "$hash_after" ]; then
+				rm "$backup_changes"
+			else
+				uci export wireless >"$markerfile"
 				_wifi phy_restart "$WIFIDEV" "$funcname:set" 'info'
-			}
+			fi
 		;;
 		*)
 			[ -e "$markerfile" ] && {
-				# reverse delete everything
-				uci show wireless | grep -n '' | sort -rn | cut -d':' -f2 | cut -d'=' -f1 | while read line; do uci delete $line; done
-				. "$markerfile"
+				uci revert wireless
+				uci import <"$markerfile"
+				mv "$backup_changes" '/tmp/.uci/wireless'
 
 				_wifi phy_restart "$WIFIDEV" "$funcname:unset" 'info'
-				rm "$markerfile"
+				rm "$markerfile" "$backup_changes"
 			}
 		;;
 	esac
