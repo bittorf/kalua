@@ -27,9 +27,14 @@ show_shellfunction_usage_count()
 	case "$name" in
 		'_'*)
 			without_first_underliner="${name#_}"		#  olsr_txtinfo
-			kalua_name="_${without_first_underliner/_/ }"	# _olsr txtinfo
-			occurence_nested="$( git grep "$kalua_name" | wc -l )"
 
+			if [ -e "openwrt-addons/etc/kalua/$without_first_underliner" ]; then
+				kalua_name="$without_first_underliner"		# _random_username
+			else
+				kalua_name="_${without_first_underliner/_/ }"	# _olsr txtinfo
+			fi
+
+			occurence_nested="$( git grep "$kalua_name" | wc -l )"
 			echo "$occurence_direct/$occurence_nested"
 		;;
 		*)

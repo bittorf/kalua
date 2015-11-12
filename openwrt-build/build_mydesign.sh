@@ -114,19 +114,19 @@ build_package_mydesign()
 
 	cp $HOME/Desktop/bittorf_wireless/kunden/Hotel_Elephant/grafiken/weblogin/button_login_de.gif  www/images/
 
-	_copy_favicon_bittorf()
+	copy_favicon_bittorf()
 	{
 		local FAVDEST="www/favicon.ico"
 
 		cp $HOME/Desktop/bittorf_wireless/vorlagen/grafiken/weblogin/favicon.ico $FAVDEST || echo "error favicon?!"
 	}
 
-	_copy_favicon_freifunk()
+	copy_favicon_freifunk()
 	{
 		wget -O www/favicon.ico "http://weimarnetz.de/favicon.ico" || echo "download favicon-fehler!"
 	}
 
-	_copy_flags()		# fixme! jp=ja,dk=da
+	copy_flags()		# fixme! jp=ja,dk=da
 	{
 		local DIR="$BW/vorlagen/grafiken/weblogin/flaggen"
 
@@ -138,7 +138,7 @@ build_package_mydesign()
 		cp $DIR/flag_jp_16x12_2colors_websafe.gif	www/images/flag_ja.gif
 	}
 
-	_copy_terms_of_use()
+	copy_terms_of_use()
 	{
 		local USERDIR="$1"
 		local DATE="$( date '+%Y %b %d' )"	# TODO: Maerz
@@ -168,8 +168,15 @@ build_package_mydesign()
 
 	die()
 	{
-		echo "fatal error"
+		echo "fatal error: $1"
 		exit 1
+	}
+
+	copy_essentials()
+	{
+		copy_flags			|| die 1
+		copy_favicon_bittorf		|| die 2
+		copy_terms_of_use "$BASE"	|| die 3
 	}
 
 	case "$network" in
@@ -177,11 +184,8 @@ build_package_mydesign()
 			# idea:
 			# uses flags=standard favicon=standard usageterms=standard ...
 
-			_copy_favicon_bittorf
-			# /www/favicon.ico				# _copy_favicon
-			
-			_copy_flags
-			# /www/images/weblogin/flag_[de|en|fr].gif	# _copy_flags	// Sprach-Symbole (deutsch koennte die Flagge ch|at|de sein?)
+			copy_essentials "$BASE"
+			# /www/images/weblogin/flag_[de|en|fr].gif	# copy_flags	// Sprach-Symbole (deutsch koennte die Flagge ch|at|de sein?)
 			# userdb_login_template.pdf
 
 			# /www/images/button_login_de.gif		# Absendeknopf, farblich abgestimmt
@@ -192,16 +196,12 @@ build_package_mydesign()
 
 			# /www/cgi-bin/userdata.txt			# default-passwoerter, format: "md5sum(${user}${pass}) kommentar"
 
-			_copy_terms_of_use "$BASE"
-			# /www/images/weblogin_rules_[de|en|fr_meta	# _copy_terms_of_use
-			# /www/images/weblogin_rules_[de|en|fr].txt	# _copy_terms_of_use
+			# /www/images/weblogin_rules_[de|en|fr_meta	# copy_terms_of_use
+			# /www/images/weblogin_rules_[de|en|fr].txt	# copy_terms_of_use
 		;;
 		elephant)
 			BASE="$BW/kunden/Hotel_Elephant/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/landing_page.txt"	  	www/images/
 			cp "$BASE/logo.gif"			www/images/
@@ -209,10 +209,7 @@ build_package_mydesign()
 		;;
 		galerie)
 			BASE="$BW/kunden/galeriehotel,leipzigerhof/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"	www/images/button_login_de.gif
 			cp "$BASE/landing_page.txt" 	www/images/
@@ -222,10 +219,7 @@ build_package_mydesign()
 		;;
 		zumnorde)
 			BASE="$BW/kunden/Hotel_Zumnorde/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"			www/images/button_login_de.gif
 			cp "$BASE/landing_page.txt" 			www/images/
@@ -234,20 +228,14 @@ build_package_mydesign()
 		;;
 		versilia|versiliawe|versiliaje)							# fixme! loginbutton?
 			BASE="$BW/kunden/versilia/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/logo.gif				www/images/
 			cp $BASE/landing_page.txt			www/images/landing_page.txt
 		;;
 		ejbw)
 			BASE="$BW/kunden/EJBW/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif		www/images/
 			cp $BASE/logo.gif			www/images/logo.gif
@@ -255,10 +243,7 @@ build_package_mydesign()
 		;;
 		rehungen)
 			BASE="$BW/kunden/Breitband-Rehungen/grafiken/weblogin/"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif				www/images/
 			cp $BASE/rehungen_logo_transparent_32cols_220px.gif	www/images/logo.gif
@@ -266,10 +251,7 @@ build_package_mydesign()
 		;;
 		aschbach)
 			BASE="$BW/kunden/cans-niko_jovicevic/Berghotel_Aschbach_WLAN-System/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/loginbutton.gif					www/images/button_login_de.gif
 			cp $BASE/logo-Aschbach_transparent_cropped_400px_16cols.gif	www/images/logo.gif
@@ -277,10 +259,7 @@ build_package_mydesign()
 		;;
 		abtpark)
 			BASE="$BW/kunden/Abtnaundorfer_Park/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"			www/images/button_login_de.gif
 			cp "$BASE/logo.gif"				www/images/logo.gif
@@ -290,10 +269,7 @@ build_package_mydesign()
 		;;
 		dummy)
 			BASE="$BW/vorlagen/weblogin_design/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"			www/images/button_login_de.gif
 			cp "$BASE/logo.gif"				www/images/logo.gif
@@ -304,10 +280,7 @@ build_package_mydesign()
 		schoeneck)
 			# glob does not work otherwise
 			for BASE in "$BW/kunden/IFA Sch"*"neck/grafiken/weblogin";do :;done
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"			www/images/button_login_de.gif
 			cp "$BASE/logo.gif"				www/images/logo.gif
@@ -317,10 +290,7 @@ build_package_mydesign()
 		;;
 		dhsylt)
 			BASE="$BW/kunden/dorfhotel_sylt/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"			www/images/button_login_de.gif
 			cp "$BASE/generic-dorfhotel.gif"		www/images/logo.gif
@@ -330,10 +300,7 @@ build_package_mydesign()
 		;;
 		xoai)
 			BASE="$BW/kunden/hotel_xoai_vietnam/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login.gif"			www/images/button_login_de.gif
 			cp "$BASE/logo.gif"				www/images/logo.gif
@@ -343,10 +310,7 @@ build_package_mydesign()
 		;;
 		ibfleesensee)
 			BASE="$BW/kunden/tui-iberotel_fleesensee/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"			www/images/button_login_de.gif
 			cp "$BASE/logo.gif"				www/images/logo.gif
@@ -356,10 +320,7 @@ build_package_mydesign()
 		;;
 		dhfleesensee)
 			BASE="$BW/kunden/Dorfhotel Fleesensee/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"			www/images/button_login_de.gif
 			cp "$BASE/logo_dorfhotel_fleesensee.gif"	www/images/logo.gif
@@ -369,10 +330,7 @@ build_package_mydesign()
 		;;
 		fparkssee)
 			BASE="$BW/kunden/ferienpark_scharmuetzelsee/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/loginbutton.gif"			www/images/button_login_de.gif
 			cp "$BASE/logo.gif"				www/images/logo.gif
@@ -380,10 +338,7 @@ build_package_mydesign()
 		;;
 		olympia)
 			BASE="$BW/kunden/cans-niko_jovicevic/Hotel-Olympia_Muenchen/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"		www/images/button_login_de.gif
 			cp "$BASE/olympia-crop.gif"		www/images/logo2.gif
@@ -394,10 +349,7 @@ build_package_mydesign()
 		;;
 		spbansin)
 			BASE="$BW/Akquise/Angebote_Ferienparks/Bansin/Seepark Bansin/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/button_login_de.gif"						www/images/button_login_de.gif
 			cp "$BASE/logo_seepark_bansin_crop_190px_alpha.gif"			www/images/logo.gif
@@ -406,10 +358,7 @@ build_package_mydesign()
 		;;
 		itzehoe)
 			BASE="$BW/kunden/stadtwerke_itzehoe/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/loginbutton_orangerot.gif					www/images/button_login_de.gif
 			cp $BASE/einzellogo_01_crop_16cols.gif					www/images/logo.gif
@@ -418,10 +367,7 @@ build_package_mydesign()
 		;;
 		tkolleg)
 			BASE="$BW/kunden/Thueringenkolleg/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/loginbutton.gif						www/images/button_login_de.gif
 			cp $BASE/tkolleg-merged-cropped.gif					www/images/logo.gif
@@ -448,9 +394,7 @@ build_package_mydesign()
 				;;
 			esac
 
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de2_grau.gif					www/images/button_login_de.gif
 			cp $BASE/Logo_Hotello_Gruppe_Blau_negativ_PANTONE_crop_251px.gif	www/images/logo.gif
@@ -460,10 +404,7 @@ build_package_mydesign()
 		;;
 		limona)
 			BASE="$BW/kunden/limona_weimar/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/loginbutton.gif						www/images/button_login_de.gif
 			cp $BASE/logo_16cols.gif						www/images/logo.gif
@@ -472,10 +413,7 @@ build_package_mydesign()
 		;;
 		shankar)
 			BASE="$BW/kunden/shankar_peerthy/africa/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/adtag.js							www/advertisement.js
 			cp $BASE/button_login_de.gif						www/images/button_login_de.gif
@@ -485,10 +423,7 @@ build_package_mydesign()
 		;;
 		cupandcoffee)
 			BASE="$BW/kunden/cup_und_coffee/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/loginbutton.gif						www/images/button_login_de.gif
 			cp $BASE/coffee_small.gif						www/images/logo.gif
@@ -497,10 +432,7 @@ build_package_mydesign()
 		;;
 		preskil)
 			BASE="$BW/kunden/shankar_peerthy/mauritius/preskil/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/loginbutton_orangerot.gif					www/images/button_login_de.gif
 			cp $BASE/logo.gif							www/images/logo.gif
@@ -510,10 +442,7 @@ build_package_mydesign()
 		;;
 		satama)
 			BASE="$BW/kunden/SATAMA/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/loginbutton.gif					www/images/button_login_de.gif
 			cp $BASE/satama-logo_crop_217px.gif				www/images/logo.gif
@@ -521,10 +450,7 @@ build_package_mydesign()
 		;;
 		castelfalfi)
 			BASE="$BW/kunden/castelfalfi/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif	www/images/
 			cp $BASE/logo.gif		www/images/logo.gif
@@ -534,10 +460,7 @@ build_package_mydesign()
 		;;
 		marinabh)
 			BASE="$BW/kunden/marina-boltenhagen/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif	www/images/
 			cp $BASE/logo.gif		www/images/logo.gif
@@ -547,10 +470,7 @@ build_package_mydesign()
 		;;
 		boltenhagendh)
 			BASE="$BW/kunden/tui-boltenhagen/dorfhotel/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif	www/images/
 			cp $BASE/logo.gif		www/images/logo.gif
@@ -560,10 +480,7 @@ build_package_mydesign()
 		;;
 		giancarlo)
 			BASE="$BW/kunden/Giancarlo/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif	www/images/
 			cp $BASE/logo.gif		www/images/logo.gif
@@ -573,10 +490,7 @@ build_package_mydesign()
 		;;
 		palais)
 			BASE="$BW/kunden/palais_altstadt/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif	www/images/
 			cp $BASE/logo.gif		www/images/logo.gif
@@ -586,10 +500,7 @@ build_package_mydesign()
 		;;
 		malchowit)
 			BASE="$BW/kunden/malchowit/wlan-installationen/zimmer_mellentin/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif	www/images/
 			cp $BASE/logo.gif		www/images/logo.gif
@@ -599,20 +510,14 @@ build_package_mydesign()
 		;;
 		leonardo)
 			BASE="$BW/kunden/Leonardo_Leipzig/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp $BASE/button_login_de.gif			www/images/
 			cp $BASE/logo_leonardo_Symbol_16cols.gif	www/images/logo.gif
 		;;
 		lisztwe)
 			BASE="$BW/kunden/Messepark Leipzig Markkleeberg/Hotel_Liszt/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/logo.gif"		www/images/logo.gif
 			cp "$BASE/loginbutton.gif"	www/images/button_login_de.gif
@@ -620,10 +525,7 @@ build_package_mydesign()
 		;;
 		adagio)
 			BASE="$BW/kunden/Messepark Leipzig Markkleeberg/Hotel_Adagio/grafiken/weblogin"
-		
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/logo.gif"		www/images/logo.gif
 			cp "$BASE/loginbutton.gif"	www/images/button_login_de.gif
@@ -632,10 +534,7 @@ build_package_mydesign()
 		;;
 		berlinle)
 			BASE="$BW/kunden/hotel_berlin_in_leipzig/grafiken/weblogin"
-		
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/logo.gif"		www/images/logo.gif
 			cp "$BASE/loginbutton.gif"	www/images/button_login_de.gif
@@ -644,10 +543,7 @@ build_package_mydesign()
 		;;
 		marinapark)
 			BASE="$BW/kunden/dancenter_marinapark/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/DanCenter-Logo_GIF_transparent_crop_220px_8cols.GIF"	www/images/logo.gif
 			cp "$BASE/loginbutton.gif"					www/images/button_login_de.gif
@@ -656,10 +552,7 @@ build_package_mydesign()
 		;;
 		vivaldi)
 			BASE="$BW/kunden/vivaldi hotel/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/logo_alt.gif"					www/images/logo.gif
 #			cp "$BASE/logo-vivaldi_hotel_leipzig_optimized.gif"	www/images/logo.gif
@@ -669,10 +562,7 @@ build_package_mydesign()
 		;;
 		apphalle)
 			BASE="$BW/kunden/Messepark Leipzig Markkleeberg/AppartementhausHalle/grafiken/weblogin"
-		
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/logo.gif"		www/images/logo.gif
 			cp "$BASE/loginbutton.gif"	www/images/button_login_de.gif
@@ -680,9 +570,7 @@ build_package_mydesign()
 		;;
 		sachsenhausen)
 			BASE="$BW/kunden/elektro-schaefer/breitband_sachsenhausen/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
+			copy_essentials "$BASE"
 
 			cp "$BASE/logo.gif"				www/images/logo.gif
 			cp "$BASE/loginbutton.gif"			www/images/button_login_de.gif
@@ -697,10 +585,7 @@ build_package_mydesign()
 		;;
 		paltstadt)
 			BASE="$BW/kunden/Elektro-Steinmetz/Pension_Altstadt/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/logo.gif"			www/images/logo.gif
 			cp "$BASE/loginbutton.gif"		www/images/button_login_de.gif
@@ -711,10 +596,7 @@ build_package_mydesign()
 #			BASE="$BW/kunden/liszt28/weblogin/lalaba"
 #			BASE="$BW/kunden/liszt28/weblogin/barcamp2012"
 			BASE="$BW/kunden/liszt28/weblogin/schlachthof"
-
-			_copy_flags			|| die
-			_copy_favicon_bittorf		|| die
-			_copy_terms_of_use "$BASE"	|| die
+			copy_essentials "$BASE"
 
 #			wget -O www/images/logo.gif http://heartbeat.piratenfreifunk.de/images/logos_merged.png
 #			cp "$BASE/foto-liszt28-vorderansicht.gif"	www/images/logo.gif
@@ -735,21 +617,15 @@ build_package_mydesign()
 		;;
 		monami)
 			BASE="$BW/kunden/monami/grafiken/weblogin"
-
-			_copy_flags
-			_copy_favicon_bittorf
-			_copy_terms_of_use "$BASE"
+			copy_essentials "$BASE"
 
 			cp "$BASE/monami-haus-64col.gif"	www/images/logo.gif
 			cp "$BASE/button_login_de.gif"		www/images/button_login_de.gif
 			cp "$BASE/landing_page.txt"		www/images/
 		;;
 		ffweimar)
-
 			BASE="$BW/kunden/weimarnetz/grafiken/weblogin"
-
-			_copy_flags											# really?
-			_copy_favicon_freifunk
+			copy_essentials "$BASE"
 
 #			cp "$BASE/weimarnetz-mittelalter.jpg"			www/images/intro.jpg
 			cp "$BASE/schaeuble/head.gif"				www/

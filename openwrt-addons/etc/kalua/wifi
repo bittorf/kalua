@@ -608,19 +608,6 @@ _wifi_tx_and_rx()
 	sed -n "s/^.*$dev: *\([0-9]*\) *\([0-9]*\) *\([0-9]*\) *[0-9]* *[0-9]* *\([0-9]*\) *[0-9]* *[0-9]* *\([0-9]*\) *\([0-9]*\) *\([0-9]*\) .*/WIFI_RX_BYTES=\1\nWIFI_RX_PACKETS=\2\nWIFI_RX_ERRORS=\3\nWIFI_RX_FRAMES=\4\nWIFI_TX_BYTES=\5\nWIFI_TX_PACKETS=\6\nWIFI_TX_ERRORS=\7/p" "$file"
 }
 
-_wifi_params_config ()
-{
-	local FRAG="$(    uci get wireless.radio0.frag )"
-	local CHANNEL="$( uci get wireless.radio0.channel )"
-	local BSSID="$(   uci get wireless.@wifi-iface[0].bssid )"	# fixme! must be uppercase?
-
-	cat <<EOF
-WIFI_CONFIG_FRAG=${FRAG:-2346}
-WIFI_CONFIG_CHANNEL=$CHANNEL
-WIFI_CONFIG_BSSID=$BSSID
-EOF
-}
-
 _wifi_params_iwconfig_status()
 {
 	local dev="${1:-does_not_exist}"
@@ -655,22 +642,6 @@ _wifi_params_iwconfig_status()
 	     -ne 's/^.*Bit Rate:.*Tx-Power:.*Sensitivity=\([0-9]*\)\/\([0-9]*\).*/WIFI_SENSITIVITY="\1\/\2"/p' \
 	     -ne 's/^.*Retry.\([a-z0-9]*\)[^a-zA-Z0-9]*RTS thr.\([a-z0-9]*\)[^0-9a-zA-Z]*Fragment thr.\([a-z0-9]*\).*/WIFI_RETRY="\1"\nWIFI_RTS="\2"\nWIFI_FRAG="\3"/p' \
 	     -ne "s/^.*Link Quality[:=]\([0-9]*\)\/\([0-9]*\).*Signal level[:=]\([-0-9]*\) dBm.*Noise level[:=]\([-0-9]*\) dBm/WIFI_QUALITY=\1\nWIFI_QUALITY_MAX=\2\nWIFI_SIGNAL='\3'\nWIFI_NOISE='\4'/p"
-}
-
-_wifi_phy_set()			# SENSE: switching wifi radio on or off
-{
-	local wdev="$1"		# ARG1: device-name
-	local mode="$2"		# ARG2: string: on|off
-
-	if [ "$mode" = "on" ]; then
-		_wifi phy_probe_online "$wdev" || {
-			_wifi phy_restart "$wdev" 'radio_from_on_to_off'	# only reinit if yet OFF
-		}
-	else
-		_wifi phy_probe_online "$wdev" && {
-			_wifi phy_restart "$wdev" 'radio_from_off_to_on'	# only reinit if yet ON
-		}
-	fi
 }
 
 _wifi_phy_probe_online()		# fixme! more abstraction
@@ -1159,11 +1130,6 @@ _wifi_phy_restart()
 	return 0
 }
 
-_wifi_phy_txpower_limit ()		# driverlimit/output in [mW]
-{
-	echo "1000"
-}
-
 _wifi_phy_txpower()		# output in [mW] - FIXME! use package iwinfo for this
 {
 	local dev="$1"
@@ -1277,47 +1243,6 @@ _wifi_math_mhz2channel ()		# http://en.wikipedia.org/wiki/Lost_of_WLAN_channels
 					# oswave.com -> 220/6100mhz, 234...250 (4920...5000mhz), 1...6 (5005....5030)
 
 		   *) o=0 ;;		# fixme! till we inserted all freqs
-	esac
-
-	echo -n "$o"
-}
-
-_wifi_math_mw2dbm ()			# fixme! _sanitizer_convert VALUE unit_is unit_wish
-{
-	local o				# dBm = 10 * log(mW)	(but -ash can't calc with log)
-					# mW  = 10 ^ (dBm/10)
-	case "$1" in			# (+10 dBm = mW x 10)
-	        0) o=0 ;;
-	        1) o=1 ;;		# iwlist ath0 txpower
-	        2) o=4 ;;		# - Wistron CM9         - Wistron DCM82  - ergo:
-	        3) o=5 ;;		#    0 dBm ->  1 mW        0 ->  1	 0 ->  1
-	        4) o=6 ;;		#    5 dBm ->  3 mW        4 ->  2	 4 ->  2
-	        5) o=7 ;;		#    7 dBm ->  5 mW        6 ->  3	 5 ->  3
-	        6) o=8 ;;		#    9 dBm ->  7 mW        8 ->  6	 6 ->  3
-	    7|8|9) o=9 ;;		#   11 dBm -> 12 mW       10 -> 10	 7 ->  5
-	    10|11) o=10 ;;		#   13 dBm -> 19 mW       12 -> 15	 8 ->  6
-	 12|13|14) o=11 ;;		#   15 dBm -> 31 mW       14 -> 25	 9 ->  7
-      15|16|17|18) o=12 ;;		#   17 dBm -> 50 mW       16 -> 39	10 -> 10
-	    19|20) o=13 ;;		#					11 -> 12
-   21|22|23|24|25) o=14 ;;		#					12 -> 15
-   					#					13 -> 19
-   26|27|28|29|30) o=15 ;;		#					14 -> 25
-      31|32|33|34) o=15 ;;		#					15 -> 31
-					#					16 -> 39
-   35|36|37|38|39) o=16 ;;		#					17 -> 50
-   40|41|42|43|44) o=16 ;;		#					18 -> 60
-   					#					19 -> 79
-   45|46|47|48|49) o=17 ;;		#					20 -> 100
-   50|51|52|53|54) o=17 ;;
-   55|56|57|58|59) o=17 ;;
-
-   60|61|62|63|64) o=18 ;;
-   65|66|67|68|69) o=18 ;;
-   70|71|72|73|74) o=18 ;;
-      75|76|77|78) o=18 ;;
-
-      79|80|81|82) o=19 ;;
-                *) o=20 ;;
 	esac
 
 	echo -n "$o"
@@ -1540,12 +1465,6 @@ _wifi_assoclist ()		# OUT1: list of associated mac_adresses
 	return 0
 }
 
-_wifi_devs_list ()		# one device per line
-{
-	sed -n 's/^ *\(.*\): [0-9]*.*/\1/p' /proc/net/wireless
-	#  sed -n 's/^ *\([^:]\+\):.*/\1/p' /proc/net/wireless	(sven-ola)
-}
-
 _wifi_probe_mode_infrastructure()
 {
 	local dev="$1"
@@ -1731,37 +1650,6 @@ _wifi_math_dbm2mw()			# mW  = 10 ^ (dBm/10)
 	esac
 
 	echo -n $o
-}
-
-_wifi_typeof()				# returns e.g. "mac80211"
-{
-	local check_ifname="$1"		# e.g. wlan0
-
-	. /lib/functions.sh
-
-	find_device_type()
-	{
-		local section="$1"
-
-		local ifname
-		config_get ifname "$section" ifname
-
-		[ "$ifname" = "$check_ifname" ] && {
-			local device
-			config_get device "$section" device
-
-			local type
-			config_get type "$device" type
-
-			[ -n "$type" ] && {
-				echo $type
-				return 1
-			}
-		}
-	}
-
-	config_load wireless
-	config_foreach find_device_type wifi-iface
 }
 
 _wifi_check_each_client()
