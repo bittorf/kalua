@@ -21,8 +21,7 @@ show_shellfunction()
 {
 	local name="$1"
 	local file="$2"
-	local i=-5
-	local method
+	local method i
 
 	tabs() { for _ in $(seq $i); do printf '	'; done; }
 
@@ -33,6 +32,7 @@ show_shellfunction()
 	e() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
 	t() { sed -n "/^$( tabs )$name()/,/^$( tabs )}/p" "$file"; }	# 	myfunc()
 
+	i=-5	# will be '1' at first 't' call
 	for method in a b c d e t t t t t t t t t; do {
 		i=$(( i + 1 ))
 		$method | grep -q ^ && {	# any output?

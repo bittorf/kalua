@@ -19,7 +19,20 @@ _wifi_mac_assoclist()
 	iw dev "$dev" station dump | grep ^'Station ' | cut -d' ' -f2
 }
 
-_wifi_nightly_longrange()		# TODO: each band on fix channel + bssid
+_wifi_longrange_tweak_values()		# TODO: generate an adhoc-interface if not active yet
+{
+	_wifi set adhoc 2ghz mcast_rate "${1-1000}"
+	_wifi set adhoc 2ghz chanbw "${1-5}"
+	_wifi set adhoc 2ghz channel "${1-1}"
+	_wifi set adhoc 2ghz bssid "${1-02:ca:ff:ee:05:05}"
+
+	_wifi set adhoc 5ghz mcast_rate "${1-6000}"
+	_wifi set adhoc 5ghz chanbw "${1-5}"
+	_wifi set adhoc 5ghz channel "${1-36}"
+	_wifi set adhoc 5ghz bssid "${1-0a:ca:ff:ee:05:36}"
+}
+
+_wifi_nightly_longrange()
 {
 	local funcname='wifi_nightly_longrange'
 	local option="$1"			# set|unset
@@ -29,19 +42,19 @@ _wifi_nightly_longrange()		# TODO: each band on fix channel + bssid
 	case "$option" in
 		set)
 			hash_initial="$( uci show wireless | md5sum )"
-			_wifi set adhoc 2ghz mcast_rate '1000'
+			_wifi longrange_tweak_values
 			hash_after="$( uci show wireless | md5sum )"
 
+			# only get if we really active if we changed something:
 			[ "$hash_initial" = "$hash_after" ] || {
-				echo 'active' >"$markerfile"
+				uci export wireless >"$markerfile"
 				_wifi phy_restart "$WIFIDEV" "$funcname:set" 'info'
 			}
 		;;
 		*)
 			[ -e "$markerfile" ] && {
-				_wifi set adhoc 2ghz mcast_rate '6000'
-				/etc/init.d/override_uci_vars
-
+				_wifi longrange_tweak_values ''		# delete vars
+				uci import wireless <"$markerfile"
 				_wifi phy_restart "$WIFIDEV" "$funcname:unset" 'info'
 				rm "$markerfile"
 			}
