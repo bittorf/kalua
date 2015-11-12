@@ -141,22 +141,22 @@ output_table()
 		fi
 	}
 
-	build_remote_hostname()
+	build_remote_hostname()		# sets var '$remote_hostname'
 	{
 		local remote_ip="$1"
-		local cachefile="/tmp/build_remote_hostname_${remote_ip}"
+		local cachefile="$TMPDIR/build_remote_hostname_${remote_ip}"
 
-		[ -e "$cachefile" ] && {
+		if [ -e "$cachefile" ]; then
 			read -r remote_hostname <"$cachefile"
 			return 0
-		}
-
-		remote_hostname="$( _net ip2dns "$remote_ip" )"
+		else
+			remote_hostname="$( _net ip2dns "$remote_ip" )"
+		fi
 
 		# did not work (e.g. via nameservice-plugin), so ask the remote directly
 		[ -z "$remote_hostname" -o "$remote_hostname" = "$remote_ip" ] && {
 			# nameservice-plugin needs some time
-			if [ $( _olsr uptime ) -gt 600 ]; then
+			if [ $( _olsr uptime ) -lt 400 ]; then
 				remote_hostname="$( _tool remote "$remote_ip" hostname )"
 			else
 				remote_hostname=
@@ -172,11 +172,9 @@ output_table()
 
 		case "$remote_hostname" in
 			mid[0-9].*|mid[0-9][0-9].*)
-				# mid3.F36-Dach4900er-MESH -> F36-Dach4900er-MESH
-				remote_hostname="${remote_hostname#*.}"
+				remote_hostname="${remote_hostname#*.}"	# mid3.F36-Dach4900er-MESH -> F36-Dach4900er-MESH
 			;;
-			'DOCTYPEhtml'*|'xmlversion'*|'htmlxml'*)
-				# fetched 404/error-page
+			'DOCTYPEhtml'*|'xmlversion'*|'htmlxml'*)	# fetched 404/error-page
 				case "$remote_hostname" in
 					*'title'*)
 						remote_hostname="$( echo "$remote_hostname" | sed 's/^.*title\(.*\)title.*/\1/' )"
@@ -190,15 +188,12 @@ output_table()
 
 		case "$remote_hostname" in
 			"$remote_ip"|'mywifi'*|'user-lan'*)	# see S43ethers
-				return 0
 			;;
 			*'.'*)
-				# myhost.lan -> myhost
-				remote_hostname="${remote_hostname%.*}"
+				remote_hostname="${remote_hostname%.*}"		# myhost.lan -> myhost
+				echo "$remote_hostname" >"$cachefile"
 			;;
 		esac
-
-		echo "$remote_hostname" >"$cachefile"
 	}
 
 	_net include

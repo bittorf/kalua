@@ -33,15 +33,14 @@
 # "-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 300 -pass 1/2"
 # try: "-bf 2" - "-flags qprd" - "-flags mv0" or "-flags skiprd"
 
-motion_generate_conf()			# resolution: (motion needs modulo 16)
-{					# 1920 x 1080 = 1920 x 1072
-	local width="${1:-640}"		# 1280 x  720 = 1280 x  720
-	local height="${2:-480}"	#  800 x  450 =  800 x  448
+motion_generate_conf()			# resolution: (motion needs modulo 16) - or:
+{					# 1920 x 1080 = 1920 x 1072		 800 x  600
+	local width="${1:-640}"		# 1280 x  720 = 1280 x  720		 640 x  480
+	local height="${2:-480}"	#  800 x  450 =  800 x  448		 1024 x 576 (16:9)
 	local mode="${3:-day}"		#  640 x  343 =  640 x  336
-	local dir='/webcam'		#     or
-	local snapshot quali threshold	#  800 x  600
-					#  640 x  480
-					# 1024 x 576 (16:9)
+	local dir='/webcam'
+	local snapshot quali threshold pixel_change_in_percent_for_motion
+
 	case "$mode" in
 		day)
 			snapshot=60
@@ -59,35 +58,24 @@ motion_generate_conf()			# resolution: (motion needs modulo 16)
 	threshold=$(( ((width * height) / 100) * pixel_change_in_percent_for_motion ))
 
 	_system add_ramdisc "$dir"
-
 	if command -v motion >/dev/null; then
 		cat <<EOF
 daemon			on
 quiet			on
-
 videodevice		/dev/video0
 width			$width
 height			$height
 quality			$quali		# jpeg compression
 threshold		$threshold		# for motion $pixel_change_in_percent_for_motion% of all pixels must change
-
 target_dir		"$dir"
 snapshot_filename	webcam
 snapshot_interval	$snapshot
-
-text_left		"host: $( uci get system.@system[0].hostname ) location: ($( uci get system.@admin[0].location )) ${mode}-mode"
-#locate			off		# draw box around moved object
-
-#pre_capture		5
-framerate		1		# maximum per second, fast cpu = 30
-
-#webcam_port		8081
-#webcam_localhost	off		# allow from everywhere
+text_left		"host: $HOSTNAME location: ($( uci -q get system.@admin[0].location )) ${mode}-mode"
+pre_capture		5
+framerate		3		# maximum per second, fast cpu = 30
 EOF
 	else
-		cat <<EOF
-fswebcam -d /dev/video0 --fps 1 -r ${width}x${height} '/webcam/webcam.jpg'
-EOF
+		echo "fswebcam -d /dev/video0 --fps 1 -r ${width}x${height} '$dir/webcam.jpg'"
 	fi
 }
 
