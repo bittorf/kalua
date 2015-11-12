@@ -3,7 +3,7 @@
 # e.g. user@hostname:~
 export PS1='\[\033[36m\]\u\[\033[m\]@\[\033[32m\]\h:\[\033[33;1m\]\w\[\033[m\] '
 
-alias n='wget -qO - http://127.0.0.1:2006/neighbours'
+alias n='_olsr txtinfo'
 alias n2='echo /nhdpinfo link | nc 127.0.0.1 2009'
 alias ll='ls -la'
 alias lr='logread'

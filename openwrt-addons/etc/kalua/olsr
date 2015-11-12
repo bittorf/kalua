@@ -63,7 +63,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	mkdir -p '/tmp/OLSR' '/tmp/OLSR_TMP'
 
 	while true; do {
-		if _curl it "http://127.0.0.1:2006/all" >'/tmp/OLSR_TMP/ALL' ; then
+		if _olsr txtinfo 'all' >'/tmp/OLSR_TMP/ALL' ; then
 			# filesize > 0
 			[ -s "/tmp/OLSR_TMP/ALL" ] && break
 
@@ -1051,49 +1051,26 @@ _olsr_neigh_check_for_good_non_tunnel ()
 	return 1
 }
 
-_olsr_neighs ()
+_olsr_txtinfo()
 {
-	local FUNC="olsr_neighs"
-	local KEYWORD="${1:-neighbours}"			# ARG1 can be 'all' and defaults to 'neighbours'
+	local option="${1:-neighbours}"		# <empty> or 'all'
+	local idx=0
+	local plugin port url
 
-	local TEMP="/tmp/olsr_output_$$.txt"
-	local PLUGIN="olsrd_txtinfo"
-	local FILE_CONFIG="/etc/olsrd.conf /var/etc/olsrd.conf"
-	local URL="http://127.0.0.1:2006/$KEYWORD"
+	while plugin="$( uci -q get olsrd.@LoadPlugin[$idx].library )"; do {
+		case "$plugin" in
+			'olsrd_txtinfo.'*)
+				port="$( uci -q get olsrd.@LoadPlugin[$idx].port )"
+				break
+			;;
+			*)
+				idx=$(( idx + 1 ))
+			;;
+		esac
+	} done
 
-	grep -sq ^"LoadPlugin.*$PLUGIN\.so\." $FILE_CONFIG && {
-
-		_curl it "$URL" 5 >"$TEMP" || {
-
-			rm "$TEMP"
-
-			_olsr uptime is_short && {
-				_log it $FUNC daemon info "waiting 60 sec for olsrd settle down"
-				sleep 60
-			}
-
-			_curl it "$URL" >"$TEMP" && {
-				echo -n "$TEMP"
-				return 0
-			}
-
-			rm "$TEMP"
-
-			if pidof olsrd >/dev/null ; then
-				_log it $FUNC daemon crit "failed to fetch neighbour-table, but OLSRd seems to run?!"
-			else
-				_log it $FUNC daemon crit "failed to fetch neighbour-table, because OLSRd is'nt running"
-			fi
-
-			return 1
-		}
-
-		echo -n "$TEMP"
-		return 0
-	}
-
-	_log it $FUNC daemon info "OLSRd is not configured to load plugin '$PLUGIN'"
-	return 1
+	url="http://127.0.0.1:${port:-2006}/$option"
+	_curl it "$url" 2>/dev/null
 }
 
 _olsr_restarts_are_suspicious_often()
