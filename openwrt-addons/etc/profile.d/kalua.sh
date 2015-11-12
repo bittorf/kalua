@@ -23,7 +23,9 @@ case "$USER" in
 	;;
 esac
 
-[ -e '/tmp/REBOOT_REASON' ] && {
+if   [ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci' ]; then
+	echo "fresh/unconfigured device detected, run: '/etc/init.d/apply_profile.code' for help"
+elif [ -e '/tmp/REBOOT_REASON' ]; then
 	# see system_crashreboot()
 	read -r CRASH <'/tmp/REBOOT_REASON'
 	case "$CRASH" in
@@ -38,11 +40,7 @@ esac
 		;;
 	esac
 	unset CRASH
-}
-
-[ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci' ] && {
-	echo "fresh/unconfigured device detected, run: '/etc/init.d/apply_profile.code' for help"
-}
+fi
 
 _ t 2>/dev/null || {
 	[ -e '/tmp/loader' ] && {
