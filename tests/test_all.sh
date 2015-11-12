@@ -17,6 +17,27 @@ list_shellfunctions()
 	} done
 }
 
+show_shellfunction_usage_count()
+{
+	local name="$1"		# e.g. '_olsr_txtinfo'
+	local kalua_name
+	local occurence_direct="$( git grep "$name" | wc -l )"
+	local occurence_nested=0
+
+	case "$name" in
+		'_'*)
+			without_first_underliner="${name#_}"		#  olsr_txtinfo
+			kalua_name="_${without_first_underliner/_/ }"	# _olsr txtinfo
+			occurence_nested="$( git grep "$kalua_name" | wc -l )"
+
+			echo "$occurence_direct/$occurence_nested"
+		;;
+		*)
+			echo "$occurence_direct"
+		;;
+	esac
+}
+
 show_shellfunction()
 {
 	local name="$1"
@@ -337,7 +358,7 @@ run_test()
 				if   seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
 				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-					log "[OK] --> function '$name()'"
+					log "[OK] --> function '$name()' used: $( show_shellfunction_usage_count "$name" )"
 				else
 					log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
 					good='false'
