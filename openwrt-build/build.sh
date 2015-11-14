@@ -729,7 +729,8 @@ EOF
 		;;
 		'Targa WR-500-VoIP'|'Speedport W500V')
 			TARGET_SYMBOL='CONFIG_TARGET_brcm63xx_generic=y'
-			FILENAME_SYSUPGRADE='openwrt-SPW500V-squashfs-cfe.bin'
+			FILENAME_SYSUPGRADE='openwrt-brcm63xx-generic-SPW500V-squashfs-cfe.bin'
+#			FILENAME_SYSUPGRADE='openwrt-SPW500V-squashfs-cfe.bin'
 			FILENAME_FACTORY=
 		;;
 		'Linksys WRT54G/GS/GL')

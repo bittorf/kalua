@@ -2,10 +2,14 @@
 
 _vpn_innercity_master_vtund_write_config()
 {
+	local funcname='vpn_innercity_master_vtund_write_config'
 	local config="${1:-$TMPDIR/vtund.conf}"
 	local password="${2:-ff}"
 	local node=2
 	local node_max=1024
+	local lockfile="$TMPDIR/$funcname"
+
+	mkdir "$lockfile" || return 1
 
 	# defaults to 'proto tcp' - we use 'udp' which needs NAT_HACK compiled in on server
 	cat >"$config" <<EOF
@@ -22,7 +26,6 @@ default {
 EOF
 
 	while [ $node -lt $node_max ]; do {
-
 		cat >>"$config" <<EOF
 
 Node$node {
@@ -35,6 +38,8 @@ Node$node {
 EOF
 		node=$(( node + 1 ))
 	} done
+
+	rm -fR "$lockfile"
 }
 
 _vpn_innercity_master_vtund()
@@ -444,7 +449,7 @@ _vpn_hideandseek_vtund()
 {
 	local action="$1"	# check_on_client|fire|start|stop|restart
 	local config="${2:-$TMPDIR/vtund.conf}"
-	local server='4.v.weimarnetz.de'	# TODO: get server list from /var/run/services_olsr
+	local server='4.v.weimarnetz.de'	# TODO: get server list from /var/run/services_olsr + add '212.47.248.108'
 	local server_port='5001'
 	local name="Node$NODENUMBER"
 
