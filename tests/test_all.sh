@@ -71,11 +71,77 @@ show_shellfunction()
 	return 1
 }
 
+function_seems_generated()
+{
+	local file="$1"
+	local name="$2"
+
+	# TODO: define only the NOT functions: uci(),mv(),uci(),ip(),isnumber(),bool_true(),_()
+	fgrep -q "\\$" "$file" && {
+		case "$name" in
+			'_weblogin_'*|'_system_'*|'_sanitizer_'*|'_olsr_'*|'_netfilter_'*|'_mail_'*)
+				return 1
+			;;
+			'_help_'*|'_firmware_'*|'_file_'*|'_db_'*|'_wifi_'*)
+				return 1
+			;;
+			'boot'|'func_cron_config_write'|'build_network_clients'|'build_package_mydesign')
+				return 1
+			;;
+			'print_usage_and_exit'|'check_working_directory'|'apply_symbol'|'_config_dhcp'|'urlencode')
+				return 1
+			;;
+			'login_ok'|'batalias_add_if_needed'|'ifname_from_dev'|'_copy_terms_of_use')
+				return 1
+			;;
+		esac
+
+		return 0
+	}
+
+	return 1
+}
+
+function_too_large()
+{
+	local name="$1"
+	local file="$2"
+	local file_origin="$3"
+	local codelines
+	local border=45		# bigger than 1 readable screen / lines
+	local bloatlines=6	# dont count boilerplate code (see )
+
+	codelines=$( wc -l <"$file" )
+	codelines=$(( codelines - bloatlines ))
+
+	[ $codelines -gt $border ] && {
+		log "[attention] too large ($codelines lines) check: $name() in file '$file'"
+	}
+}
+
+function_too_wide()
+{
+	local name="$1"
+	local file="$2"
+	local file_origin="$3"
+	local border=80
+	local i=0
+
+	while read -r line; do {
+		test ${#line} -gt $border && i=$(( i + 1 ))
+	} done <"$file"
+
+	[ $i -gt 0 ] && {
+		log "[attention] too wide (>$border chars in $i lines) check: $name() in file '$file'"
+	}
+}
+
 run_test()
 {
 	local shellcheck_bin start_test build_loader ignore file tempfile filelist pattern ip
-	local hash1 hash2 size1 size2 line line_stripped i list name codelines
+	local hash1 hash2 size1 size2 line line_stripped i list name
 	local func_too_large=0
+	local func_too_wide=0
 	local count_files=0
 	local count_functions=0
 	local good='true'
@@ -299,36 +365,6 @@ run_test()
 				;;
 			esac
 
-			seems_generated()
-			{
-				local file="$1"
-				local name="$2"
-
-				# TODO: define only the NOT functions: uci(),mv(),uci(),ip(),isnumber(),bool_true(),_()
-				fgrep -q "\\$" "$file" && {
-					case "$name" in
-						'_weblogin_'*|'_system_'*|'_sanitizer_'*|'_olsr_'*|'_netfilter_'*|'_mail_'*)
-							return 1
-						;;
-						'_help_'*|'_firmware_'*|'_file_'*|'_db_'*|'_wifi_'*)
-							return 1
-						;;
-						'boot'|'func_cron_config_write'|'build_network_clients'|'build_package_mydesign')
-							return 1
-						;;
-						'print_usage_and_exit'|'check_working_directory'|'apply_symbol'|'_config_dhcp'|'urlencode')
-							return 1
-						;;
-						'login_ok'|'batalias_add_if_needed'|'ifname_from_dev'|'_copy_terms_of_use')
-							return 1
-						;;
-					esac
-
-					return 0
-				}
-
-				return 1
-			}
 
 			# TODO: run each function and check if we leak env vars
 			# TODO: check if each function call '_class method' is allowed/possible
@@ -352,15 +388,10 @@ run_test()
 					echo "$name \"\$@\""
 				} >"$tempfile"
 
-				codelines=$( wc -l <"$tempfile" )
-				codelines=$(( codelines - 6 ))		# dont count above added boilerplate
-				[ $codelines -gt 45 ] && {
-					# bigger than 1 readable screen (45 lines)
-					func_too_large=$(( func_too_large + 1 ))
-					log "[attention] too large ($codelines lines) check: $name() in file '$file'"
-				}
+				function_too_large "$name" "$tempfile" "$file" && func_too_large=$(( func_too_large + 1 ))
+				function_too_wide  "$name" "$tempfile" "$file" && func_too_wide=$(( func_too_wide + 1 ))
 
-				if   seems_generated "$tempfile" "$name"; then
+				if   function_seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
 				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 					log "[OK] --> function '$name()' used: $( show_shellfunction_usage_count "$name" )"
@@ -384,7 +415,8 @@ run_test()
 		rm "$filelist"
 
 		log "[OK] checked $count_files shellfiles with $count_functions functions"
-		log "[OK] hint: $func_too_large functions ($(( (func_too_large * 100) / count_functions ))%) are too large"
+		log "[OK] hint: $func_too_large/$count_functions functions ($(( (func_too_large * 100) / count_functions ))%) are too large"
+		log "[OK] hint: $func_too_wide/$count_functions functions ($(( (func_too_wide * 100) / count_functions ))%) are too wide"
 		[ "$good" = 'false' ] && return 1
 	fi
 

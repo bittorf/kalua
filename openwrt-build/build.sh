@@ -549,7 +549,7 @@ EOF
 		'x86_64')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_64=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-64-vmlinuz'
-			FILENAME_FACTORY='openwrt-x86-64-rootfs-ext4.img'
+			FILENAME_FACTORY='openwrt-x86-64-rootfs-ext4.img.gz'
 			[ ${#LIST_USER_OPTIONS} -le 14 ] && {
 				# e.g. 'Standard,kalua' or 'Small,kalua' ...
 				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
@@ -3188,7 +3188,7 @@ die_and_exit()
 {
 	local branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
 
-	[ -n "$branch" ] && log "[ATTENTION] you are on branch '$branch' now. better do: 'git checkout master'"
+	[ -n "$branch" ] && log "[ATTENTION] you are on branch '$branch' now - better do: 'git checkout master'"
 	[ -n "$FORCE" ] && return 0
 
 	log '[ERROR] the brave can try --force, all others should do: git checkout master'
