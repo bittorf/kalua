@@ -222,16 +222,18 @@ _scheduler_run()
 				esac
 			fi
 		} done <"$file"
-
 		rm "$file" 2>/dev/null
 
 		_file age '/tmp/scheduler.mark_starttime' -gt 60 && {
-			# otherwise maybe 'IMPORTANT' jobs must wait too long
-			age="$( _file age '/tmp/scheduler.mark_starttime' sec )"
-			length=0
-			for _ in $SCHEDULER_QUEUE; do test -e "$_" && length=$(( length + 1 )); done
-			_log it $funcname daemon info "[OK] aborting run, age: $age sec - $length jobs in queue"
-			break
+			[ -e "$TMPDIR/scheduler_keep_running" ] || {
+				# otherwise maybe 'IMPORTANT' jobs must wait too long
+				age="$( _file age '/tmp/scheduler.mark_starttime' sec )"
+				length=0
+
+				for _ in $SCHEDULER_QUEUE; do test -e "$_" && length=$(( length + 1 )); done
+				_log it $funcname daemon info "[OK] aborting run, age: $age sec - $length jobs in queue"
+				break
+			}
 		}
 	} done
 
