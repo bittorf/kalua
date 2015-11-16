@@ -109,13 +109,13 @@ function_too_large()
 	local file_origin="$3"
 	local codelines
 	local border=45		# bigger than 1 readable screen / lines
-	local bloatlines=6	# dont count boilerplate code (see )
+	local bloatlines=6	# dont count boilerplate code (see creating tempfile)
 
 	codelines=$( wc -l <"$file" )
 	codelines=$(( codelines - bloatlines ))
 
 	[ $codelines -gt $border ] && {
-		log "[attention] too large ($codelines lines) check: $name() in file '$file'"
+		log "[attention] too large ($codelines lines) check: $name() from file '$file_origin'"
 	}
 }
 
@@ -124,15 +124,20 @@ function_too_wide()
 	local name="$1"
 	local file="$2"
 	local file_origin="$3"
-	local border=80
+	local border=80		# http://richarddingwall.name/2008/05/31/is-the-80-character-line-limit-still-relevant/
+	local max=0
 	local i=0
 
+	# automatically cuts off leading spaces/tabs:
 	while read -r line; do {
-		test ${#line} -gt $border && i=$(( i + 1 ))
+		test ${#line} -gt $border && {
+			i=$(( i + 1 ))
+			test ${#line} -gt $max && max=${#line}
+		}
 	} done <"$file"
 
 	[ $i -gt 0 ] && {
-		log "[attention] too wide (>$border chars in $i lines) check: $name() in file '$file'"
+		log "[attention] too wide (>$border chars in $i lines, max $max) check: $name() from file '$file_origin'"
 	}
 }
 
