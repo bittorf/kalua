@@ -124,7 +124,7 @@ function_too_wide()
 	local name="$1"
 	local file="$2"
 	local file_origin="$3"
-	local border=80		# http://richarddingwall.name/2008/05/31/is-the-80-character-line-limit-still-relevant/
+	local border=120	# http://richarddingwall.name/2008/05/31/is-the-80-character-line-limit-still-relevant/
 	local max=0
 	local i=0
 
@@ -137,8 +137,29 @@ function_too_wide()
 	} done <"$file"
 
 	[ $i -gt 0 ] && {
-		log "[attention] too wide (>$border chars in $i lines, max $max) check: $name() from file '$file_origin'"
+		log "[attention] too wide (>$border chars in $i lines, max $max) in $name() from file '$file_origin'"
 	}
+}
+
+do_sloccount()
+{
+	local line
+
+	if command -v sloccount >/dev/null; then
+		echo
+		log "sloccount: counting lines of code:"
+
+		sloccount . | while read -r line; do {
+			case "$line" in
+				[0-9]*|*'%)'|*'):'|*' = '*|'SLOC '*)
+					# only show interesting lines
+					echo "$line"
+				;;
+			esac
+		} done
+	else
+		log '[OK] sloccount not installed'
+	fi
 }
 
 run_test()
@@ -399,7 +420,7 @@ run_test()
 				if   function_seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
 				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-					log "[OK] --> function '$name()' used: $( show_shellfunction_usage_count "$name" )"
+					log "[OK] --> function '$name()' used: $( show_shellfunction_usage_count "$name" ) times"
 				else
 					log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
 					good='false'
@@ -425,26 +446,7 @@ run_test()
 		[ "$good" = 'false' ] && return 1
 	fi
 
-	sloc()
-	{
-		echo
-		log "counting lines of code:"
-
-		sloccount . | while read -r line; do {
-			case "$line" in
-				[0-9]*|*'%)'|*'):'|*' = '*|'SLOC '*)
-					# only show interesting lines
-					echo "$line"
-				;;
-			esac
-		} done
-	}
-
-	if command -v sloccount; then
-		sloc
-	else
-		log '[OK] sloccount not installed'
-	fi
+	do_sloccount
 
 	log 'cleanup'
 	rm -fR /tmp/loader /tmp/kalua "$TMPDIR/NETPARAM"
