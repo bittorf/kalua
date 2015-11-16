@@ -162,6 +162,86 @@ do_sloccount()
 	fi
 }
 
+test_isnumber()
+{
+	log 'testing isnumber()'
+	set -x
+
+	isnumber '-1' || return 1
+	isnumber $((  65536 * 65536 )) || return 1
+	isnumber $(( -65536 * 65536 )) || return 1
+	isnumber 'A' && return 1
+	isnumber ''  && return 1
+	isnumber ' ' && return 1
+	isnumber '1.34' && return 1
+
+	set +x
+	return 0
+}
+
+test_explode()
+{
+	log 'testing explode-alias / asterisk'
+
+	mkdir "$TMPDIR/explode_test"
+	cd "$TMPDIR/explode_test" || return
+	touch 'foo1'
+	touch 'foo2'
+
+	# this must not glob
+	alias explode	# show it
+
+	set -x
+	explode A B ./* C
+	set +x
+
+	[ "$1" = 'A' -a "$4" = 'C' -a "$3" = './*' ] || {
+		log "explode failed: '$1', '$4', '$3'"
+		return 1
+	}
+
+	cd - >/dev/null || return
+	rm -fR "$TMPDIR/explode_test"
+	return 0
+}
+
+test_loader_metafunction()
+{
+	# via _() we have some possible calls:
+
+	# show methods (both the same output)
+	# must show all lines with beginning function name
+	_http | grep -v ^'_http_' && return 1
+	_ s 'system' | grep -v ^'_system_' && return 1
+
+	# test if function with unloaded class is loaded and 2 arguments are passed
+	local out
+	out="$( _system load 15min full )"
+	isnumber "$out" && return 1
+	out="$( _system load 15min )"
+	isnumber "$out" || return 1
+
+	# test if 'include only' works
+	_system include
+	# busybox/dash: _system_crashreboot is a shell function
+	# bash: _system_crashreboot is a function
+	out="$( LC_ALL=C type '_system_crashreboot' )"
+	# avoid broken pipe: http://superuser.com/questions/554855/how-can-i-fix-a-broken-pipe-error
+	echo "$out" | grep -q ' function' || return 1
+
+	# test if 'rebuild' works (changed date-string in file)
+	local hash1="$( md5sum /tmp/loader )"
+	_ rebuild
+	local hash2="$( md5sum /tmp/loader )"
+	test "$hash1" = "$hash2" && return 1
+
+	# test if loader is loaded 8-)
+	_ t || return 1
+
+	# list classes
+	test $( _ | wc -l ) -gt 10
+}
+
 run_test()
 {
 	local shellcheck_bin start_test build_loader ignore file tempfile filelist pattern ip
@@ -177,39 +257,14 @@ run_test()
 	echo "'$HARDWARE' + '$SHELL' + '$USER'"
 	df
 
-	log 'testing isnumber()'
-	set -x
-	isnumber '-1' || return 1
-	isnumber $((  65536 * 65536 )) || return 1
-	isnumber $(( -65536 * 65536 )) || return 1
-	isnumber 'A' && return 1
-	isnumber ''  && return 1
-	isnumber ' ' && return 1
-	isnumber '1.34' && return 1
-	set +x
+	test_isnumber || return 1
+	test_explode || return 1
+	test_loader_metafunction || return 1
 
-	log 'testing explode-alias / firmware get_usecase'
+	log 'testing firmware get_usecase'
 	echo 'Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY' >"$TMPDIR/test"
 	[ "$( _firmware get_usecase '' "$TMPDIR/test" )" = 'Standard,debug,VDS,OLSRd2,kalua,FeatureXY' ] || return 1
 	rm "$TMPDIR/test"
-
-	log 'testing explode-alias / asterisk'
-	mkdir "$TMPDIR/explode_test"
-	cd "$TMPDIR/explode_test" || return
-	touch 'foo1'
-	touch 'foo2'
-	# this must not glob
-	grep explode /tmp/loader
-	alias explode	# show it
-	set -x
-	explode A B ./* C
-	set +x
-	[ "$1" = 'A' -a "$4" = 'C' -a "$3" = './*' ] || {
-		log "explode failed: '$1', '$4', '$3'"
-		return 1
-	}
-	cd - >/dev/null || return
-	rm -fR "$TMPDIR/explode_test"
 
 	log 'building/testing initial NETPARAM'
 	openwrt-addons/etc/init.d/S41build_static_netparam call
@@ -223,9 +278,6 @@ run_test()
 	else
 		return 1
 	fi
-
-	log '_ | wc -l'
-	_ | wc -l
 
 	log '_net get_external_ip'
 	_net get_external_ip

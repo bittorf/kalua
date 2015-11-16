@@ -558,7 +558,7 @@ EOF
 			[ "$option" = 'info' ] && {
 				cat <<EOF
 # simulated SCSI-drive (see https://dev.openwrt.org/ticket/17947)
-qemu-system-x86_64 -nographic -drive file=bin/$ARCH/$FILENAME_FACTORY,if=none,id=mydisk -device ich9-ahci,id=ahci -device ide-drive,drive=mydisk,bus=ahci.0
+qemu-system-x86_64 -nographic -drive file=bin/x86/$FILENAME_FACTORY,if=none,id=mydisk -device ich9-ahci,id=ahci -device ide-drive,drive=mydisk,bus=ahci.0
 # and with networking
 # TODO: http://www.linux-kvm.org/page/Networking#iptables.2Frouting
 EOF
