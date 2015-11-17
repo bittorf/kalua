@@ -451,47 +451,12 @@ grep -q ^"ip_tables " /proc/modules && {
 	PFILTER_FILTER="$(		$IPT -t filter -nxvL | grep "\--" | sed -n '$=' )"
 	PFILTER_MANGLE="$(		$IPT -t mangle -nxvL | grep "\--" | sed -n '$=' )"
 	PFILTER_MANGLE_REAL="${PFILTER_MANGLE:=0}"
-
-	# FIXME!
-	PFILTER_MANGLE_USER_REAL=0
+	PFILTER_MANGLE_USER_REAL=0	# FIXME!
 	PFILTER_MANGLE_USER_RESERVE=0
-
-	count_user_real()
-	{
-		local LIST="$( $IPT -t mangle -nxvL | sed -n 's/^Chain traff_\(..:..:..:..:..:..\) .*/\1/p' | grep -v 99:99:99:99:99:9 )"
-		local LOOP=
-		local COUNT
-		local MAC
-
-		for MAC in $LIST; do {
-			COUNT="$( $IPT -t mangle -nxvL traff_$MAC | sed -n '$=' )"
-			echo -n "${LOOP:+,}${COUNT:-0}"
-			LOOP=1
-		} done
-
-		[ -z "$LOOP" ] && echo -n "0"
-	}
-
-	count_user_reserve()
-	{
-		local LIST="$( $IPT -t mangle -nxvL | sed -n 's/^Chain traff_\(..:..:..:..:..:..\) .*/\1/p' | grep    99:99:99:99:99:9 )"
-		local LOOP=
-		local COUNT
-		local MAC
-
-		for MAC in $LIST; do {
-			COUNT="$( $IPT -t mangle -nxvL traff_$MAC | sed -n '$=' )"
-			echo -n "${LOOP:+,}${COUNT:-0}"
-			LOOP=1
-		} done
-
-		[ -z "$LOOP" ] && echo -n "0"
-	}
-
-	PFILTER="$( count_user_real ):$( count_user_reserve )"
+	PFILTER="$( _netfilter user_list | wc -l ):0"
 
 	OLDIFS="$IFS"
-	IFS=",:"
+	IFS=',:'
 	for COUNT in $PFILTER; do {
 		PFILTER_MANGLE_REAL=$(( PFILTER_MANGLE_REAL - ${COUNT:-0} ))
 	} done
