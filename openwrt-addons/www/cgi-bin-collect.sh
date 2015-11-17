@@ -1,17 +1,17 @@
 #!/bin/sh
+. /tmp/loader
 
 # this script is called when this is the 'weblogin_authserver'
 # from any node in the network via netfilter_user_stats_process()
 # or from net_roaming_report_new()
 
-echo -en "Content-type: text/plain\n\n"
+_http header_mimetype_output 'text/plain'
 
 case "$QUERY_STRING" in
 	'')
 		echo 'OK - empty QUERY'
 	;;
 	*'roaming_add'*)
-		. /tmp/loader
 		mac=;ip=;expires=
 		eval $( _http query_string_sanitize "$0:roaming_add" )
 
@@ -25,7 +25,6 @@ case "$QUERY_STRING" in
 		echo 'OK'
 	;;
 	*'roaming_querymac'*)
-		. /tmp/loader
 		eval $( _http query_string_sanitize "$0:roaming_querymac" )
 
 		# format: mac ip expires - see: net_roaming_report_new() - searched newest entires first = 'tac'
@@ -38,7 +37,7 @@ case "$QUERY_STRING" in
 	;;
 	*)
 		# processed later via '/usr/sbin/cron.add_collected_userdata_into_db'
-		read -r UPTIME REST <'/proc/uptime'
+		read -r UPTIME _ <'/proc/uptime'
 		echo "UPTIME=${UPTIME%.*}&REMOTE_ADDR=${REMOTE_ADDR}&$QUERY_STRING" >>'/tmp/COLLECT_DATA'
 
 		# while we have a conversation anyway,
