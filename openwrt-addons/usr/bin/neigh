@@ -1,9 +1,13 @@
 #!/bin/sh
 . /tmp/loader
 
-help()
+print_help()
 {
-	echo "Usage: $0 (meshrdf | evalable | get_nlq | best_wifi_nlq | check4nonwifi | check4wifi | check4good_non_tunnel_neigh | get_random | get_random_pair [max_cost] | get_cost2node node | plain | <empty>)"
+	cat <<EOF
+Usage: $0 gateways | evalable | best_wifi_nlq | get_nlq [neigh_ip]
+          check4nonwifi | check4wifi | check4good_non_tunnel_neigh
+          get_cost2node [node] | plain | <empty>
+EOF
 }
 
 ACTION="$1"
@@ -17,11 +21,12 @@ case "$ACTION" in
 		_olsr neighs_extended_evalable verbose
 	;;
 	best_wifi_nlq)
-		_olsr neigh_nlq_best_wifi				# output like '500' which is 0.500 - output can be <empty>!
+		# output like '500' which is 0.500 - output can be <empty>!
+		_olsr neigh_nlq_best_wifi
 	;;
 	get_nlq)
 		[ -n "$OPTION" ] && {
-			_olsr neigh_nlq "$2" "$3" "$4"	
+			_olsr neigh_nlq "$OPTION"
 		}
 	;;
 	check4nonwifi)
@@ -34,10 +39,12 @@ case "$ACTION" in
 		_olsr neigh_check_for_good_non_tunnel || exit 1
 	;;
 	get_random)
-		_olsr neigh_random_get					# returns IP or EMPTY (!)
+		# returns IP or EMPTY (!)
+		_olsr neigh_random_get
 	;;
 	get_random_pair)
-		_olsr neigh_random_pair_from_mesh_evalable "$OPTION"	# fixme! max_cost not yet implemented
+		# FIXME! max_cost not yet implemented
+		_olsr neigh_random_pair_from_mesh_evalable "$OPTION"
 	;;
 	get_cost2node)
 		_olsr node_evalable "$OPTION"
@@ -46,28 +53,26 @@ case "$ACTION" in
 		cat /tmp/OLSR/ALL
 	;;
 	help)
-		help
+		print_help
 	;;
 	*)
 		if [ -z "$ACTION" ]; then
-			_olsr neighs_humanreadable		# fixme! +gps +distance +olsrd/ff/fff-version?
+			# FIXME! +gps +distance +olsrd/ff/fff-version?
+			_olsr neighs_humanreadable
 		else
-			[ "$ACTION" = "." ] && ACTION="127.0.0.1"
+			[ "$ACTION" = '.' ] && ACTION='127.0.0.1'
 
-			_sanitizer run "$ACTION" numeric check && {			# e.g. 356
-				ACTION="$( _ipsystem get "$ACTION" | grep ^WIFIADR )"
+			# e.g. 356
+			if   _sanitizer run "$ACTION" numeric check; then
+				ACTION="$( _ipsystem getvar WIFIADR "$ACTION" )"
 				ACTION="$( _sanitizer run "$ACTION" ip4 )"
-			}
-
-			_sanitizer run "$ACTION" ip4 check && {				# e.g. 10.63.127.1
-				wget -qO - "http://$ACTION/cgi-bin-tool.sh?OPT=neigh"
-				exit
-			}
-
-			[ -n "$( _net dns2ip "$ACTION" )" ] && {			# e.g. badeofen-AP.olsr
-				wget -qO - "http://$ACTION/cgi-bin-tool.sh?OPT=neigh"
-				exit
-			}
+			# e.g. 10.63.127.1
+			elif _sanitizer run "$ACTION" ip4 check; then
+				_curl it "http://$ACTION/cgi-bin-tool.sh?OPT=neigh"
+			# e.g. badeofen-AP.olsr
+			elif [ -n "$( _net dns2ip "$ACTION" )"; then
+				_curl it "http://$ACTION/cgi-bin-tool.sh?OPT=neigh"
+			fi
 		fi
 	;;
 esac
