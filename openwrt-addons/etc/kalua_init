@@ -1,22 +1,18 @@
 #!/bin/sh
 
-# "Stick to portable constructs where possible, and you will make somebody's life easier in the future. Maybe your own."
-
-# this outputs an inital small '/tmp/loader' which can be sourced
-# and automatically solve the dependencies for all 'classes' and it methods(),
+# this outputs an inital small '/tmp/loader' which can be sourced and
+# automatically solves dependencies for all 'classes' and it methods(),
 # e.g. for class '_system' and method architecture()
-#
-# TODO: method 'unload' -> unset -f $funcname
-# TODO: method 'help'
-# TODO: show stats for each call: sed -n "s/^\(.*\) ().*/\1/p" $BASEDIR/$CLASS | wc -l | sed 's/ //g'
 
-while read -r LINE; do {
-	# none /run/user tmpfs rw,nosuid,nodev,noexec,relatime,size=102400k,mode=755 0 0
-	#                                      ^^^^^^ does not matter, we only 'source' shellscripts
-	case "$LINE" in
-		*' tmpfs rw,'*)
+# "Stick to portable constructs where possible, and
+#  you will make somebody's life easier in the future.
+#  Maybe your own."
+
+while read -r LINE; do {		# e.g. none /run/user tmpfs rw,nosuid,nodev,noexec...
+	case "$LINE" in			# attribute 'noexec' does not matter,
+		*' tmpfs rw,'*)		# we only 'source' shellscripts
 			set -- $LINE
-			mkdir -p "$2/kalua" 2>/dev/null && {
+			mkdir -p "$2/kalua" && {
 				TMPDIR="$2/kalua"
 				LINE='is RAM-drive (tmpfs) and '
 				break
@@ -28,27 +24,23 @@ while read -r LINE; do {
 logger -s -- "$0: [OK] use \$TMPDIR which ${LINE}points to '${TMPDIR:=/tmp}'"
 chmod -R 777 "$TMPDIR"
 
-# /etc/kalua_init -> /etc
+LOADER_ENTRY='/tmp/loader'
+LOADER="$TMPDIR/loader_$$"
+LOADER_FINAL="$TMPDIR/loader"		# later '$LOADER_ENTRY' is symlinked to it
+POOLDIR="$TMPDIR/kalua_pool"
+mkdir -p "$POOLDIR"
+
 BASEDIR="$( dirname $0 )/kalua"		# place for the 'class'-files
-case "$BASEDIR" in
-	'/'*)
-		# /etc/kalua
+case "$BASEDIR" in			# e.g. /etc/kalua_init -> /etc
+	'/'*)	# /etc/kalua
 	;;
-	*)
-		# openwrt-addons/etc/kalua -> /home/user/mysource/openwrt-addons/etc/kalua
+	*)	# openwrt-addons/etc/kalua -> /home/user/mysource/openwrt-addons/etc/kalua
 		BASEDIR="$( pwd )/$BASEDIR"
 	;;
 esac
-POOLDIR="$TMPDIR/kalua_pool"
-LOADER="$TMPDIR/loader_$$"
-LOADER_FINAL="$TMPDIR/loader"		# later '$LOADER_ENTRY' is symlinked to it
-LOADER_ENTRY='/tmp/loader'
-mkdir -p "$POOLDIR"
 
-# _http			-> show methods -> converted to next call
-# _ s    http		-> show methods for class 'http'
+# _ s    http		-> show methods for class 'http' (e.g. _http)
 # _ http arg1 argX	-> include + start with given arguments
-# _http include		-> include only
 # _ rebuild		-> rebuild loader
 # _ t			-> test if loader already included
 # _			-> list classes
@@ -105,5 +97,9 @@ mv "$LOADER" "$LOADER_FINAL"
 	ln -s "$LOADER_FINAL" "$LOADER_ENTRY"
 }
 
-logger -s -- "$0: [OK] done '$LOADER_ENTRY' using files in $POOLDIR"
-logger -s -- "$0: [OK] reload new loader with '_(){ false;}; . $LOADER_ENTRY' if in interactive shell"
+logger -s -- "$0: [OK] generated '$LOADER_ENTRY' using files in '$POOLDIR'"
+case "$PS1" in
+	*'@'*)	# interactive shell (set from /etc/profile)
+		logger -s -- "$0: [OK] reload it with '_(){ false;}; . $LOADER_ENTRY'"
+	;;
+esac
