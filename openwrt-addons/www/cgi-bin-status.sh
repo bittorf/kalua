@@ -95,8 +95,10 @@ output_table()
 	} done
 
 	# tablehead - change also 'colspan' in 'old neighs' when we add/del something here
-	echo -n "<tr>"
-	head_list='No. Nachbar-IP Hostname Schnittstelle lokale&nbsp;Interface-IP LQ NLQ ETX ETX<small><sub>min</sub></small> Speed<small><sub>best</sub></small> SNR Metrik raus rein Gateway'
+	printf '<tr>'
+	head_list='No. Nachbar-IP Hostname Schnittstelle lokale&nbsp;Interface-IP'
+	head_list="$head_list LQ NLQ ETX ETX<small><sub>min</sub></small>"
+	head_list="$head_list Speed<small><sub>best</sub></small> SNR Metrik raus rein Gateway"
 	for word in $head_list; do {
 		case "$word" in
 			'Gateway')
@@ -258,7 +260,8 @@ output_table()
 			fi
 		else
 			[ -n "$gateway_percent" ] && {
-				gateway_percent="$gateway_percent (vor $( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable ), ETX: $ETX)"
+				gateway_percent="$( _file age "/tmp/OLSR/DEFGW_$REMOTE" humanreadable )"
+				gateway_percent="$gateway_percent (vor $gateway_percent, ETX: $ETX)"
 			}
 		fi
 

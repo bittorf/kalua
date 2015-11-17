@@ -57,7 +57,8 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	}
 
 	# global export
-	DEBUG="phy: $phy interval: $interval avg: $frames_average avg_overall: $frames_average_overall change: ${percentual_change}%"
+	DEBUG="phy: $phy interval: $interval avg: $frames_average avg_overall:"
+	DEBUG="$DEBUG $frames_average_overall change: ${percentual_change}%"
 	logger -s "debug: $DEBUG"
 
 	[ $frames_average_overall -lt 20 ] || {

@@ -2979,7 +2979,10 @@ unittest_do()
 	sh -n '/tmp/loader' || return 1
 
 	log "exeuting '$start_test'"
-	$start_test 'now'
+	$start_test 'now' || {
+		log "search for pattern '^--' when this is a shellsheck error"
+		return 1
+	}
 }
 
 check_git_settings()
