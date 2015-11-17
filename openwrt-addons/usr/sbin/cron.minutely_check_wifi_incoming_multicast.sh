@@ -8,16 +8,21 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	local file_old="/tmp/incoming_frames.$phy"
 	local file_window="/tmp/incoming_frames.$phy.window"
 	local border=50		# max change in percent, before complaining
-	local frames_old=0 uptime_old=0 valid=1 percentual_change
-	local frames_now frames_diff frames_average frames_average_overall uptime_now interval line value valid val1 val2
+	local frames_old=0 uptime_old=0 valid=1 percentual_change value valid val1 val2 line
+	local frames_now frames_diff frames_average frames_average_overall uptime_now interval
 
 	[ -z "$uptime_now" ] && {
 		read -r uptime_now interval </proc/uptime
 		uptime_now="${uptime_now%.*}"
 	}
 
-	read -r frames_old uptime_old <"$file_old" || echo -e "0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0" >"$file_window"	# prefill
-	read -r frames_now <"$file_source" || return 0	# maybe no debugfs
+	# no debugfs -> leave
+	read -r frames_now <"$file_source" || return 0
+	read -r frames_old uptime_old <"$file_old" || {
+		# prefill during first run
+		printf >"$file_window" '%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
+			0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+	}
 	echo "$frames_now $uptime_now" >"$file_old"
 
 	interval=$(( uptime_now - uptime_old ))
@@ -64,6 +69,6 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 for REST in $LIST_OF_PHYS ; do {
 	check_wifi_phy "$REST" "${UP%.*}" || {
 		. /tmp/loader
-		_log it "wificheck" daemon info "$DEBUG"
+		_log it 'wificheck' daemon info "$DEBUG"
 	}
 } done

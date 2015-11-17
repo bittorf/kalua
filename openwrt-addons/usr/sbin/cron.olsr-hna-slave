@@ -111,28 +111,31 @@ check_special_condition()
 
 stop_olsr_and_set_static_routes()
 {
-	local funcname="stop_olsr_and_set_static_routes"
+	local funcname='stop_olsr_and_set_static_routes'
 	local check_ip="$1"
 	local logprio="${2:-alert}"
-
-	[ -z "$check_ip" ] && return 1
-
 	local nexthop="$( nexthop )"
 	local nexthop_dev="$( nexthop_dev_iswired )"
 
 	check_ip="$( echo "$check_ip" | cut -d' ' -f2 )"	# 'OK 10.63.14.25' -> 10.63.14.25
 	_sanitizer run "$check_ip" ip4 check || return 1
-
-	ip route add default via $nexthop dev $nexthop_dev metric 1 onlink
-
 	# better test an IP which is not linklocal
 	echo "$nexthop" >"/tmp/OLSR_HNA_SLAVE_PINGTEST"
 
 	WIFI_DHCP_PRE="$( _ipsystem getvar 'WIFI_DHCP_PRE' )"
 	WIFIMSK="$( _net cidr2mask "$WIFI_DHCP_PRE" )"
 
-	ip address add $WIFIADR/$WIFIMSK dev $WIFIDEV || _log it $funcname daemon $logprio "failed to add $WIFIADR/$WIFIMSK dev $WIFIDEV" # add e.g. /28
-	ip address del $WIFIADR/$WIFIPRE dev $WIFIDEV || _log it $funcname daemon $logprio "failed to del $WIFIADR/$WIFIPRE dev $WIFIDEV" # del e.g. /8
+	ip route add default via $nexthop dev $nexthop_dev metric 1 onlink
+	ip address add $WIFIADR/$WIFIMSK dev $WIFIDEV || {
+		# add e.g. /28
+		_log it $funcname daemon $logprio "failed to add $WIFIADR/$WIFIMSK dev $WIFIDEV"
+	}
+
+	ip address del $WIFIADR/$WIFIPRE dev $WIFIDEV || {
+		# del e.g. /8
+		_log it $funcname daemon $logprio "failed to del $WIFIADR/$WIFIPRE dev $WIFIDEV"
+	}
+
 	uci set network.wlan.netmask="$WIFIMSK"		# if something makes 'wifi up'
 
 	ip route flush cache

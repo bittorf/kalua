@@ -446,17 +446,6 @@ case "$FORM_ACTION" in
 		echo "<input name='FORM_ID' type='hidden' value='$ID'>"
 		echo "<input name='FORM_INSTALLED' type='hidden' value='$( _system date unixtime )'>"
 
-		is_macaddress()
-		{
-			case "$1" in
-				[a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9][:-][a-fA-F0-9][a-fA-F0-9])
-				;;
-				*)
-					return 1
-				;;
-			esac
-		}
-
 		case "$FORM_ACTION" in
 			login_add)
 				DEVICE_QUANTITY=1	# better this is default than empty=unlimited
@@ -476,10 +465,13 @@ case "$FORM_ACTION" in
 		echo "<tr bgcolor='$BG_B'><td>$( _i18n get "$LANG" comment )</td><td><input name='FORM_COMMENT' type='text' value='$COMMENT'></td><td>$( _i18n get "$LANG" desc_usercomment )</td></tr>"
 
 		[ "$FORM_ACTION" = "login_add" ] && {
-			echo "<tr bgcolor='$BG_0'><td colspan='3'><input type='radio' ID='usernamepassword' name='FORM_AUTHMODE' value='usernamepassword' $( is_macaddress $FORM_USERNAME || echo checked )><label for='usernamepassword'>&nbsp;$( _i18n get "$LANG" hint_auth_credentials )</label></tr>"
+			echo "<tr bgcolor='$BG_0'>"
+			echo "<td colspan='3'><input type='radio' ID='usernamepassword' name='FORM_AUTHMODE' value='usernamepassword'"
+			_net ismacaddress "$FORM_USERNAME" || echo ' checked'
+			echo "><label for='usernamepassword'>&nbsp;$( _i18n get "$LANG" hint_auth_credentials )</label></tr>"
 		}
 
-		if is_macaddress $USERNAME ; then
+		if _net ismacaddress "$USERNAME"; then
 			echo "<tr bgcolor='$BG_A'><td>$( _i18n get "$LANG" macaddress )</td><td><input name='FORM_USERNAME' type='text' value='$USERNAME'></td><td>$( _i18n get "$LANG" desc_macaddress )</td></tr>"
 			echo "<tr bgcolor='$BG_B'><td>$( _i18n get "$LANG" hostnames )</td><td><input name='FORM_PASSWORD' type='text' value='$PASSWORD'></td><td>$( _i18n get "$LANG" desc_hostnames )</td></tr>"
 			echo "<input name='FORM_DEVICE_QUANTITY' type='hidden' value='1'>"
@@ -491,10 +483,34 @@ case "$FORM_ACTION" in
 		fi
 
 		[ "$FORM_ACTION" = "login_add" ] && {
-			echo "<tr bgcolor='$BG_A'><td><label for='usernamepassword'>$( _i18n get "$LANG" ticket_carboncopy )</label></td><td><select name='FORM_DUPLICATE_NO' size='1'><option value='1'>$( _i18n get "$LANG" none )</option><option value='3'>3</option><option value='5'>5</option><option value='10'>10&thinsp;&bull;&thinsp;85&times;54mm</option><option value='15'>15</option><option value='32'>32&thinsp;&bull;&thinsp;35.6&times;16.9mm</option></select></td><td>$( _i18n get "$LANG" desc_ticket_carboncopy )</td></tr>"
-			echo "<tr bgcolor='$BG_0'><td colspan='3'><input type='radio' ID='macaddresshostnames' name='FORM_AUTHMODE' value='macaddresshostnames' $( is_macaddress $FORM_USERNAME && echo checked )><label for='macaddresshostnames'>&nbsp;$( _i18n get "$LANG" hint_auth_via_mac )</label></tr>"
-			echo "<tr bgcolor='$BG_B'><td><label for='macaddresshostnames'>$( _i18n get "$LANG" macaddress )</label></td><td><input name='FORM_USERNAME_MACADDRESS' type='text' value='$( is_macaddress $USERNAME && echo $USERNAME )'></td><td>$( _i18n get "$LANG" desc_macaddress )</td></tr>"
-			echo "<tr bgcolor='$BG_A'><td><label for='macaddresshostnames'>$( _i18n get "$LANG" hostnames )</label></td><td><input name='FORM_PASSWORD_HOSTNAMES' type='text' value='$( is_macaddress $USERNAME && echo $PASSWORD )'></td><td>$( _i18n get "$LANG" desc_hostnames )</td></tr>"
+			echo "<tr bgcolor='$BG_A'><td><label for='usernamepassword'>"
+			echo "$( _i18n get "$LANG" ticket_carboncopy )</label></td>"
+			echo "<td><select name='FORM_DUPLICATE_NO' size='1'>"
+			echo "<option value='1'>$( _i18n get "$LANG" none )</option>"
+			echo "<option value='3'>3</option>"
+			echo "<option value='5'>5</option>"
+			echo "<option value='10'>10&thinsp;&bull;&thinsp;85&times;54mm</option>"
+			echo "<option value='15'>15</option>"
+			echo "<option value='32'>32&thinsp;&bull;&thinsp;35.6&times;16.9mm</option>"
+			echo "</select></td><td>$( _i18n get "$LANG" desc_ticket_carboncopy )</td>"
+			echo "</tr><tr bgcolor='$BG_0'><td colspan='3'>"
+			echo "<input type='radio' ID='macaddresshostnames' name='FORM_AUTHMODE' value='macaddresshostnames'"
+			_net ismacaddress "$FORM_USERNAME" && echo ' checked'
+			echo "><label for='macaddresshostnames'>&nbsp;"
+			_i18n get "$LANG" hint_auth_via_mac
+			echo "</label></tr>"
+			echo "<tr bgcolor='$BG_B'><td><label for='macaddresshostnames'>"
+			_i18n get "$LANG" macaddress
+			echo "</label></td><td>"
+			echo "<input name='FORM_USERNAME_MACADDRESS' type='text' value='"
+			_net ismacaddress "$USERNAME" && echo "$USERNAME"
+			echo "'></td><td>$( _i18n get "$LANG" desc_macaddress )</td></tr>"
+			echo "<tr bgcolor='$BG_A'><td><label for='macaddresshostnames'>"
+			_i18n get "$LANG" hostnames
+			echo "</label></td><td>"
+			echo "<input name='FORM_PASSWORD_HOSTNAMES' type='text' value='"
+			_net ismacaddress "$USERNAME" && echo "$PASSWORD"
+			echo "></td><td>$( _i18n get "$LANG" desc_hostnames )</td></tr>"
 		}
 
 		echo "<tr bgcolor='$BG_0'><td colspan='2' align='center' valign='middle'><p><input type='submit' name='' value='$SUBMIT_BUTTON_TEXT'></p></td><td>&nbsp;</td></tr>"
