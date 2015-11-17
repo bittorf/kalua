@@ -130,6 +130,13 @@ function_too_wide()
 
 	# automatically cuts off leading spaces/tabs:
 	while read -r line; do {
+		case "$line" in
+			'#'*)
+				# ignore comments
+				continue
+			;;
+		esac
+
 		test ${#line} -gt $border && {
 			i=$(( i + 1 ))
 			test ${#line} -gt $max && max=${#line}
@@ -181,18 +188,17 @@ test_isnumber()
 
 test_explode()
 {
-	log 'testing explode-alias / asterisk'
+	log 'testing explode-alias (also with asterisk)'
 
 	mkdir "$TMPDIR/explode_test"
 	cd "$TMPDIR/explode_test" || return
-	touch 'foo1'
+	touch 'foo1'		# files which will expand during globbing
 	touch 'foo2'
 
-	# this must not glob
-	alias explode	# show it
+	alias explode		# just show it
 
 	set -x
-	explode A B ./* C
+	explode A B ./* C	# this must not glob
 	set +x
 
 	[ "$1" = 'A' -a "$4" = 'C' -a "$3" = './*' ] || {
