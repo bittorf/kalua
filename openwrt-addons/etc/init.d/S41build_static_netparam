@@ -1,107 +1,131 @@
 #!/bin/sh
 . /tmp/loader
 
-netparam_for_uci_devices()
+netparam_device2preambel()
 {
-	local funcname='netparam_for_uci_devices'
-	local NAME IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX line list
+	local device="$1"
+	local preambel
+
+	case "$device" in
+		loopback)
+			preambel='LO'
+		;;
+		wlan)
+			preambel='WIFI'
+		;;
+		lan)
+			preambel='LAN'
+		;;
+		wan)
+			preambel='WAN'
+		;;
+	esac
+
+	echo "preambel=$preambel"
+}
+
+netparam_generate()
+{
+	local funcname='netparam_generate'
+	local preambel IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX proto line
 
 	for DEVICE in loopback wlan lan wan; do {
-		case "$DEVICE" in
-			loopback) NAME='LO' ;;
-			wlan)	  NAME='WIFI' ;;
-			lan)	  NAME='LAN' ;;
-			wan)	  NAME='WAN' ;;
-		esac
+		eval $( netparam_device2preambel "$DEVICE" )
 
 		IFNAME="$( uci -q get network.$DEVICE.ifname )"
-		_log it $funcname daemon info "device: $DEVICE name: $NAME ifname: $IFNAME"
-
-		# make sure, that hybrid interfaces use the adhoc-interface
-		# for 'testing' in scheduler: incoming_wifi_activity()
-		# otherwise use the first interface
-		[ "$DEVICE" = 'wlan' -a -e '/etc/config/wireless' ] && {
-			[ -e '/sbin/ifstatus' ] && {
-				if DEVICE="$( uci -q get system.@monitoring[0].wifi_netparam_name )"; then
-					:
-				else
-					DEVICE='wlanadhoc'
-				fi
-
-				if   fgrep -q "$DEVICE" '/etc/config/wireless'; then
-					# typical: wlan0-1
-					IFNAME="$( ifstatus "$DEVICE" | fgrep '"device":' | cut -d'"' -f4 )"
-				elif fgrep -q "wlan" '/etc/config/wireless'; then
-					# typical: wlan0
-					DEVICE='wlan'
-					IFNAME="$( ifstatus "$DEVICE" | fgrep '"device":' | cut -d'"' -f4 )"
-				fi
-			}
-
-			[ -z "$IFNAME" ] && {
-				bool_true 'wireless.radio0.disabled' || {
-					# if we have only disabled all VIF's, there is also no wifi:
-					_net dev_is_valid 'wlan0' && IFNAME='wlan0'
-				}
-			}
-		}
-
+		[ "$DEVICE" = 'wlan' -a -e '/etc/config/wireless' ] && eval $( netparam_wifi )
 		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
 		NETMASK="$( uci -q get network.$DEVICE.netmask )"
+		proto="$(   uci -q get network.$DEVICE.proto )"
 
-		case "$( uci get network.$DEVICE.proto )" in
-			dhcp)
-				ADDRESS="$( _net dev2ip $IFNAME )"
-				NETMASK="$( _net dev2ip $IFNAME mask )"
-			;;
-			pppoe)							# fixme! should also work for pppoe-lan etc.
-				IFNAME="pppoe-wan"
-				ADDRESS="$( _net dev2ip $IFNAME )"
-				NETMASK="$( _net dev2ip $IFNAME mask )"
+		case "$proto" in
+			dhcp|pppoe)
+				[ "$proto" = 'pppoe' ] && IFNAME="pppoe-$DEVICE"
+				ADDRESS="$( _net dev2ip "$IFNAME" )"
+				NETMASK="$( _net dev2ip "$IFNAME" mask )"
 			;;
 		esac
 
 		case "$DEVICE" in
 			wlan)
-				bool_true 'wireless.radio0.disabled' && {
-					IFNAME=; ADDRESS=; NETMASK=
-				}
+				bool_true 'wireless.radio0.disabled' && eval IFNAME=;ADDRESS=;NETMASK=
 			;;
 			lan)
-				test -n "$ADDRESS" || {
-					# e.g. vpn-server
-					get_first_non_loopback_ifname()
-					{
-						ip --oneline link show | while read -r line; do {
-							explode $line
-							[ "$2" = 'lo:' ] || {
-								echo "$2" | cut -d':' -f1
-								return
-							}
-						} done
-					}
-
-					IFNAME="$( get_first_non_loopback_ifname "$@" )"	# SC2119/SC2120
-					ADDRESS="$( _net dev2ip "$IFNAME" 'ip_but_noloopback' )"
-					NETMASK="$( _net dev2ip "$IFNAME" 'ip_but_noloopback' 'mask' )"
-					PREFIX="$(  _net dev2ip "$IFNAME" 'ip_but_noloopback' 'CIDR' )"
-				}
+				test -z "$ADDRESS" && eval $( netparam_fallback )
 			;;
 		esac
 
-		echo "${NAME}DEV=$( _sanitizer run "$IFNAME" firstword )"
-		echo "${NAME}ADR=$ADDRESS"
-		echo "${NAME}MSK=$NETMASK"
-
+		_log it $funcname daemon info "device: $DEVICE preambel: $preambel ifname: $IFNAME"
 		BROADCAST=;NETWORK=;PREFIX=
 		[ -n "$ADDRESS" -a -n "$NETMASK" -a -e '/bin/ipcalc.sh' ] && eval $( ipcalc.sh "$ADDRESS" "$NETMASK" )
 
-		echo "${NAME}BRC=$BROADCAST"
-		echo "${NAME}NET=$NETWORK"
-		echo "${NAME}PRE=$PREFIX"
+		echo "${preambel}DEV=$( _sanitizer run "$IFNAME" firstword )"
+		echo "${preambel}ADR=$ADDRESS"
+		echo "${preambel}MSK=$NETMASK"
+		echo "${preambel}BRC=$BROADCAST"
+		echo "${preambel}NET=$NETWORK"
+		echo "${preambel}PRE=$PREFIX"
 	} done
 
 	show_wifi_devs
+}
+
+netparam_wifi()
+{
+	local DEVICE IFNAME
+
+	# make sure, that hybrid interfaces use the adhoc-interface
+	# for 'testing' in scheduler: incoming_wifi_activity()
+	# otherwise use the first interface
+	[ -e '/sbin/ifstatus' ] && {
+		if DEVICE="$( uci -q get system.@monitoring[0].wifi_netparam_name )"; then
+			:
+		else
+			DEVICE='wlanadhoc'
+		fi
+
+		if   fgrep -q "$DEVICE" '/etc/config/wireless'; then
+			# typical: wlan0-1
+			IFNAME="$( ifstatus "$DEVICE" | fgrep '"device":' | cut -d'"' -f4 )"
+		elif fgrep -q 'wlan' '/etc/config/wireless'; then
+			# typical: wlan0
+			DEVICE='wlan'
+			IFNAME="$( ifstatus "$DEVICE" | fgrep '"device":' | cut -d'"' -f4 )"
+		fi
+	}
+
+	[ -z "$IFNAME" ] && {
+		bool_true 'wireless.radio0.disabled' || {
+			# if we have only disabled all VIF's, there is also no wifi:
+			_net dev_is_valid 'wlan0' && IFNAME='wlan0'
+		}
+	}
+
+	echo "DEVICE=$DEVICE"
+	echo "IFNAME=$IFNAME"
+}
+
+netparam_fallback()
+{
+	# e.g. vpn-server / without uci
+
+	cat <<EOF
+IFNAME="$( get_first_non_loopback_ifname )"
+ADDRESS="$( _net dev2ip "$IFNAME" 'ip_but_noloopback' )"
+NETMASK="$( _net dev2ip "$IFNAME" 'ip_but_noloopback' 'mask' )"
+PREFIX="$(  _net dev2ip "$IFNAME" 'ip_but_noloopback' 'CIDR' )"
+EOF
+}
+
+get_first_non_loopback_ifname()
+{
+	ip --oneline link show | while read -r line; do {
+		explode $line
+		[ "$2" = 'lo:' ] || {
+			echo "$2" | cut -d':' -f1
+			return
+		}
+	} done
 }
 
 show_wifi_devs()
@@ -165,7 +189,7 @@ if [ $( _system uptime sec ) -lt 60 -a $OPENWRT_REV -gt 0 ]; then
 	fi
 else
 	HASH_OLD="$( _file hash "$TMPDIR/NETPARAM" )"
-	netparam_for_uci_devices "$@" >"$TMPDIR/NETPARAM"
+	netparam_generate "$@" >"$TMPDIR/NETPARAM"
 
 	if [ -e "$PERMDIR/NETPARAM" ]; then
 		. "$TMPDIR/NETPARAM"
