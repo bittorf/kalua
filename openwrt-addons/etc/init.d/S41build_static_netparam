@@ -27,7 +27,7 @@ netparam_device2preambel()
 netparam_generate()
 {
 	local funcname='netparam_generate'
-	local preambel IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX proto line
+	local preambel IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX proto
 
 	for DEVICE in loopback wlan lan wan; do {
 		eval $( netparam_device2preambel "$DEVICE" )
@@ -119,10 +119,18 @@ EOF
 
 get_first_non_loopback_ifname()
 {
+	local dev line
+
 	ip --oneline link show | while read -r line; do {
+		# 4: eth0.1@eth0: <BROADCAST,...
 		explode $line
-		[ "$2" = 'lo:' ] || {
-			echo "$2" | cut -d':' -f1
+		dev="$2"
+
+		[ "$dev" = 'lo:' ] || {
+			# eth0.1@eth0: -> eth0.1
+			dev="${dev%:*}"
+			dev="${dev%@*}"
+			echo "$dev"
 			return
 		}
 	} done
