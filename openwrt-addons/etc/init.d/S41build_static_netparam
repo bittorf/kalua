@@ -107,13 +107,14 @@ netparam_wifi()
 
 netparam_fallback()
 {
-	# e.g. vpn-server / without uci
+	local ifname="$( get_first_non_loopback_ifname "$@" )"
+	# e.g. vpn-server / without uci - the $@ is a workaround for SC2119/SC2120
 
 	cat <<EOF
-IFNAME="$( get_first_non_loopback_ifname )"
-ADDRESS="$( _net dev2ip "$IFNAME" 'ip_but_noloopback' )"
-NETMASK="$( _net dev2ip "$IFNAME" 'ip_but_noloopback' 'mask' )"
-PREFIX="$(  _net dev2ip "$IFNAME" 'ip_but_noloopback' 'CIDR' )"
+IFNAME="$ifname"
+ADDRESS="$( _net dev2ip "$ifname" 'ip_but_noloopback' )"
+NETMASK="$( _net dev2ip "$ifname" 'ip_but_noloopback' 'mask' )"
+PREFIX="$(  _net dev2ip "$ifname" 'ip_but_noloopback' 'CIDR' )"
 EOF
 }
 
@@ -127,10 +128,14 @@ get_first_non_loopback_ifname()
 		dev="$2"
 
 		[ "$dev" = 'lo:' ] || {
+			# ignore e.g. 'eth0' if there is 'eth0.x@eth0'
+			ip --oneline link show | grep -q "@$dev <" && continue
+
 			# eth0.1@eth0: -> eth0.1
 			dev="${dev%:*}"
 			dev="${dev%@*}"
 			echo "$dev"
+
 			return
 		}
 	} done
