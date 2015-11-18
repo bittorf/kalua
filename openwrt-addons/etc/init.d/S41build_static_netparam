@@ -3,9 +3,10 @@
 
 netparam_for_uci_devices()
 {
+	local funcname='netparam_for_uci_devices'
 	local NAME IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX line list
 
-	for DEVICE in loopback wlan lan wan ; do {
+	for DEVICE in loopback wlan lan wan; do {
 		case "$DEVICE" in
 			loopback) NAME='LO' ;;
 			wlan)	  NAME='WIFI' ;;
@@ -14,6 +15,7 @@ netparam_for_uci_devices()
 		esac
 
 		IFNAME="$( uci -q get network.$DEVICE.ifname )"
+		_log it $funcname daemon info "device: $DEVICE name: $NAME ifname: $IFNAME"
 
 		# make sure, that hybrid interfaces use the adhoc-interface
 		# for 'testing' in scheduler: incoming_wifi_activity()
@@ -99,42 +101,17 @@ netparam_for_uci_devices()
 		echo "${NAME}PRE=$PREFIX"
 	} done
 
-	list_wifi_devs()
-	{
-		local network_name list_wifi_names i
+	show_wifi_devs
+}
 
-		# shellcheck disable=SC2034
-		for i in 0 1 2 3 4 5 6 7; do {
-			list_wifi_names="$list_wifi_names $( uci -q get wireless.@wifi-iface[$i].network )"
-		} done
+show_wifi_devs()
+{
+	local list="$( list_wifi_devs )"
+	local ifname
 
-		# for old firmwares
-		[ -e "/sbin/ifstatus" ] || {
-			[ -n "$list_wifi_names" ] && {
-				[ -e '/etc/config/wireless' ] && {
-					bool_true 'wireless.radio0.disabled' || echo 'wlan0'
-				}
-			}
-
-			return 0
-		}
-
-		# uci get wireless.@wifi-iface[0].device -> radio0
-		# uci get wireless.radio0.disabled -> 1?
-
-		for network_name in $list_wifi_names; do {
-			# can be:
-			# JSON: "device": "wlan0",
-			# or:
-			# Interface wlan0 not found
-			ifstatus "$network_name" | fgrep '"device":' | cut -d':' -f2 | cut -d'"' -f2
-		} done
-	}
-
-	list="$( list_wifi_devs )"
 	if [ -n "$list" ]; then
 		# force to 1 line
-		echo "WIFI_DEVS='$( for IFNAME in $list; do printf '%s ' "$IFNAME"; done )'"
+		echo "WIFI_DEVS='$( for ifname in $list; do printf '%s ' "$ifname"; done )'"
 	else
 		echo 'WIFI_DEVS='
 	fi
@@ -144,17 +121,40 @@ netparam_for_uci_devices()
 	}
 
 	fgrep -sq 'phy0: failed to initialize PHY' '/tmp/dmesg.boot' && {
-		echo "WIFIDEV=	# failed to initialize PHY"
+		echo 'WIFIDEV=	# failed to initialize PHY'
 	}
 }
 
-_build()
+list_wifi_devs()
 {
-	local FUNC="build"
-	local FILE="$TMPDIR/NETPARAM"
+	local network_name list_wifi_names i
 
-	_log it $FUNC daemon debug "building '$FILE' for an uci-device"
-	netparam_for_uci_devices "$@" >"$FILE"		# SC2119/SC2120
+	# shellcheck disable=SC2034
+	for i in 0 1 2 3 4 5 6 7; do {
+		list_wifi_names="$list_wifi_names $( uci -q get wireless.@wifi-iface[$i].network )"
+	} done
+
+	# for old firmwares
+	[ -e "/sbin/ifstatus" ] || {
+		[ -n "$list_wifi_names" ] && {
+			[ -e '/etc/config/wireless' ] && {
+				bool_true 'wireless.radio0.disabled' || echo 'wlan0'
+			}
+		}
+
+		return 0
+	}
+
+	# uci get wireless.@wifi-iface[0].device -> radio0
+	# uci get wireless.radio0.disabled -> 1?
+
+	for network_name in $list_wifi_names; do {
+		# can be:
+		# JSON: "device": "wlan0",
+		# or:
+		# Interface wlan0 not found
+		ifstatus "$network_name" | fgrep '"device":' | cut -d':' -f2 | cut -d'"' -f2
+	} done
 }
 
 if [ $( _system uptime sec ) -lt 60 -a $OPENWRT_REV -gt 0 ]; then
@@ -165,7 +165,7 @@ if [ $( _system uptime sec ) -lt 60 -a $OPENWRT_REV -gt 0 ]; then
 	fi
 else
 	HASH_OLD="$( _file hash "$TMPDIR/NETPARAM" )"
-	_build "$@"	# SC2119/SC2120
+	netparam_for_uci_devices "$@" >"$TMPDIR/NETPARAM"
 
 	if [ -e "$PERMDIR/NETPARAM" ]; then
 		. "$TMPDIR/NETPARAM"
@@ -185,7 +185,7 @@ else
 		}
 	else
 		if [ -d "$PERMDIR" ]; then
-			_log it earlyboot_netparam daemon alert "store initial version: WIFIDEV='$WIFIDEV'"
+			_log it earlyboot_netparam daemon info "store initial version: WIFIDEV='$WIFIDEV'"
 			cp "$TMPDIR/NETPARAM" "$PERMDIR/NETPARAM"
 		else
 			_log it earlyboot_netparam daemon info "write initial version: cannot write to '$PERMDIR'"
