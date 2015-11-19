@@ -99,13 +99,13 @@ case "$ACTION" in
 				[ -n "$LIST_PRIV_WAN" ] && echo "$LIST_PRIV_WAN" >'/tmp/HOTPLUG_PRIVATE_WANNETS'
 
 				# here we get the main-IP and no aliases
-				WANADR="$( ubus call network.interface.wan status | grep '"address": ' | head -n1 | cut -d'"' -f4 )"
+				WANADR="$( ubus call network.interface.$INTERFACE status | grep '"address": ' | head -n1 | cut -d'"' -f4 )"
 
 				# FIXME! with portforwarding, also a private-IP must be "protected"
 				if _net ip4_is_private "$WANADR"; then
-					bool_true 'network.wan.public_ip' && {
+					bool_true "network.$INTERFACE.public_ip" && {
 						# we know it should be a public ip, but by accident... (e.g. 2nd internal DCHP)
-						echo >>$SCHEDULER_IMPORTANT 'ifup wan'
+						echo >>$SCHEDULER_IMPORTANT "ifup $INTERFACE"
 					}
 				else
 					_system maintenance_window_active || {
@@ -117,7 +117,6 @@ case "$ACTION" in
 						$IPT -A INPUT -i $DEVICE -p tcp --dport 53 -j DROP
 						$IPT -A INPUT -i $DEVICE -p udp --dport 53 -j DROP
 
-						# WIFI_IP=10.63.99.1/8
 						WIFI_ADR="$( _ipsystem getvar 'WIFI_ADR' )"
 						WIFI_PRE="$( _ipsystem getvar 'WIFI_PRE' )"
 						THRUSTED_NET="$WIFI_ADR/$WIFI_PRE"
