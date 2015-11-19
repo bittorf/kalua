@@ -419,7 +419,10 @@ _netfilter_traffic_control_suggest_speedpercent()	# the more traffic, the lower 
 
 	local traffic_border=2000	# [megabyte] fixme! should depend from initial_speed
 	local percent2=100
-	local percent=$(( 100 - ( (traffic * 100) / traffic_border ) ))		# e.g. 50%
+	local percent
+
+	divisor_valid "$traffic_border" || traffic_border=1
+	percent=$(( 100 - ( (traffic * 100) / traffic_border ) ))	# e.g. 50% - divisor_valid
 
 	[ "$option" = "respect_time" ] && {
 		percent2="$( _netfilter traffic_control_suggest_timepercent )"
@@ -711,7 +714,7 @@ _netfilter_conntrack_adjust_max()	# see: http://wiki.khnet.info/index.php/Conntr
 	buckets=$(( max / 8 ))
 	[ $buckets -gt 1816 ] && buckets=1816		# klog/moduleinfo says this is max
 
-	_log it $funcname daemon info "set $old_max -> $max conntrack-entries / $old_buckets -> $buckets buckets, needs $(( (max * 350) / 1024 )) kilobytes (each 350 bytes)"
+	_log it $funcname daemon info "set $old_max -> $max conntrack-entries / $old_buckets -> $buckets buckets, needs $(( (max * 350) / 1024 )) kilobytes (each 350 bytes)"	# divisor_valid
 	echo "$max" >"$file_conntrack"		# check usage via: wc -l /proc/net/nf_conntrack
 	echo "$buckets" >"$file_buckets"
 }

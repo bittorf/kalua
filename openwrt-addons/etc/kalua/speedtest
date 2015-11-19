@@ -322,7 +322,8 @@ EOF
 		}
 
 		DURATION_COUNTER=0
-		RATE_AVG=$(( ${RATE_AVG:-0} / ${RATE_SAMPLES:-1} ))
+		divisor_valid "$RATE_SAMPLES" || RATE_SAMPLES=1
+		RATE_AVG=$(( ${RATE_AVG:-0} / $RATE_SAMPLES ))		# divisor_valid
 
 		LOAD_END="$( _system load 1min )"
 		METRIC_END="$( _olsr remoteip2metric $IP_TARGET )"
@@ -347,7 +348,8 @@ EOF
 		esac
 
 		trap - SIGINT						# unset
-		SPEED=$(( ${BYTES:=0} / DURATION_REAL / 10 ))		# kilobytes / second ; 1 Kilobyte = 1000 Bytes
+		divisor_valid "$DURATION_REAL" || DURATION_REAL=1
+		SPEED=$(( ${BYTES:=0} / DURATION_REAL / 10 ))		# kilobytes / second ; 1 Kilobyte = 1000 Bytes - divisor_valid
 
 		case "$METHOD" in
 			poormens_tcpdownload)
@@ -439,8 +441,9 @@ _speedtest_store()				# fixme! metric_begin/end differs? don't use it for speed_
 	[ "${SPEED_MIN:=15000}" -gt "$SPEED"	] && SPEED_MIN="$SPEED"
 
 	SAMPLES=$(( ${SAMPLES:-0} + 1 ))
+	divisor_valid "$SAMPLES" || SAMPLES=1
 	SPEED_SUM=$(( ${SPEED_SUM:-0} + SPEED ))
-	SPEED_AVG=$(( SPEED_SUM / SAMPLES ))
+	SPEED_AVG=$(( SPEED_SUM / SAMPLES ))	# divisor_valid
 
 	_log it $FUNC daemon info "SPEED_AVG=$SPEED_AVG - $VALUES in '$DIR/$TIME' and '$DIR/stats'"
 	echo "$VALUES" >"$DIR/$TIME"

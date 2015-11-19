@@ -104,7 +104,10 @@ output_table()
 			'Gateway')
 				if [ -e '/tmp/OLSR/DEFGW_empty' ]; then
 					read -r i <'/tmp/OLSR/DEFGW_empty'
-					[ $all -gt 0 ] && word="$word ($(( (i * 100) / all ))% Inselbetrieb)"
+					[ $all -gt 0 ] && {
+						divisor_valid "$all" || all=1
+						word="$word ($(( (i * 100) / all ))% Inselbetrieb)"	# divisor_valid
+					}
 				elif inet_offer="$( _net local_inet_offer cached )"; then
 					word="$word (Einspeiser: $inet_offer)"
 				fi
@@ -238,7 +241,10 @@ output_table()
 
 		if [ -e "/tmp/OLSR/DEFGW_$REMOTE" ]; then
 			read -r i <"/tmp/OLSR/DEFGW_$REMOTE"
-			[ $all -gt 0 ] && gateway_percent=$(( (i * 100) / all ))
+			[ $all -gt 0 ] && {
+				divisor_valid "$all" || all=1
+				gateway_percent=$(( (i * 100) / all ))	# divisor_valid
+			}
 			gateway_percent="${gateway_percent}%"		# TODO: sometimes >100%
 
 			METRIC=
@@ -618,7 +624,8 @@ if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
 	if [ $GATEWAY_JITTER -le 1 ]; then
 		GATEWAY_JITTER='nie'
 	else
-		GATEWAY_JITTER="$GATEWAY_JITTER &Oslash; alle $(( UP_MIN / GATEWAY_JITTER )) min"
+		divisor_valid "$GATEWAY_JITTER" || GATEWAY_JITTER=1
+		GATEWAY_JITTER="$GATEWAY_JITTER &Oslash; alle $(( UP_MIN / GATEWAY_JITTER )) min"	# divisor_valid
 	fi
 else
 	GATEWAY_JITTER='nie'

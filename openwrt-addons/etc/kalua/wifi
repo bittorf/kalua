@@ -245,8 +245,9 @@ _wifi_show_station_traffic()
 					unit="bytes/s"
 					uptime_diff=$(( uptime - uptime_old ))
 
-					rx_diff=$(( (rx_diff * 100) / uptime_diff ))
-					tx_diff=$(( (tx_diff * 100) / uptime_diff ))
+					divisor_valid "$uptime_diff" || uptime_diff=1
+					rx_diff=$(( (rx_diff * 100) / uptime_diff ))	# divisor_valid
+					tx_diff=$(( (tx_diff * 100) / uptime_diff ))	# divisor_valid
 				else
 					unit="bytes"
 				fi
@@ -321,17 +322,18 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 
 	percent()
 	{
-		if   [ "$1" -lt 100 ]; then
-			echo "0"
-		elif [ "$2" = "0" ]; then
-			echo "0"
+		if [ $1 -lt 100 ]; then
+			echo '0'
 		else
-			echo "$(( ( $1 * 100 ) / $2 ))"
+			if divisor_valid "$2"; then
+				echo "$(( ( $1 * 100 ) / $2 ))"		# divisor_valid
+			else
+				echo '0'
+			fi
 		fi
 	}
 
 	while read -r line; do {
-
 		case "$line" in
 			Type*|type*)
 				continue
@@ -434,12 +436,18 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 				efficiency="${throughput%.*}${throughput#*.}"		# 42.6 -> 426
 			fi
 
+			# e.g. 5.5 or 11 -> efficiency in [percent]
 			case "$rate" in
-				*"."*)
-					efficiency=$(( ( efficiency * 100 ) / ${rate//./} ))		# [percent]
+				*'.'*)
+					if divisor_valid "${rate//./}"; then
+						efficiency=$(( ( efficiency * 100 ) / ${rate//./} ))	# divisor_valid
+					else
+						efficiency=0
+					fi
 				;;
 				*)
-					efficiency=$(( ( efficiency * 10 ) / rate ))		# [percent]
+					divisor_valid "$rate" || rate=1
+					efficiency=$(( ( efficiency * 10 ) / rate ))	# divisor_valid
 				;;
 			esac
 		}

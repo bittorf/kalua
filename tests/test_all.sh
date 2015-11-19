@@ -169,6 +169,15 @@ do_sloccount()
 	fi
 }
 
+test_division_by_zero_is_protected()
+{
+	git grep ' / [^0-9]' | fgrep '$(( ' | grep -v 'divisor_valid' | grep ^'openwrt-addons' && return 1
+	git grep ' % [^0-9]' | fgrep '$(( ' | grep -v 'divisor_valid' | grep ^'openwrt-addons' && return 1
+
+	git grep ' / [^0-9]' | fgrep '$(( ' | grep -v 'divisor_valid' | grep  'apply_profile' && return 1
+	git grep ' % [^0-9]' | fgrep '$(( ' | grep -v 'divisor_valid' | grep  'apply_profile' && return 1
+}
+
 test_divisor_valid()
 {
 	log 'testing divisor_valid()'
@@ -285,8 +294,10 @@ run_test()
 	df
 
 	test_isnumber || return 1
+	test_divisor_valid || return 1
 	test_explode || return 1
 	test_loader_metafunction || return 1
+	test_division_by_zero_is_protected || return 1
 
 	log 'testing firmware get_usecase'
 	echo 'Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY' >"$TMPDIR/test"

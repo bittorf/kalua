@@ -1,4 +1,5 @@
 #!/bin/sh
+. /tmp/loader
 
 check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of moving average of last 15 values
 {
@@ -27,7 +28,8 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 
 	interval=$(( uptime_now - uptime_old ))
 	frames_diff=$(( frames_now - frames_old ))
-	frames_average=$(( frames_diff / interval ))
+	divisor_valid "$interval" || interval=1
+	frames_average=$(( frames_diff / interval ))	# divisor_valid
 
 	while read -r line; do {
 		if [ -n "$value" ]; then
@@ -44,15 +46,16 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	mv "$file_window.tmp" "$file_window"
 
 	[ $valid -gt 0 ] && {
-		frames_average_overall=$(( value / valid ))
+		divisor_valid "$valid" || valid=1
+		frames_average_overall=$(( value / valid ))	# divisor_valid
 		val1=$frames_average
 		val2=$frames_average_overall
 
 		if [ $val1 -eq $val2 ]; then
 			percentual_change=0
 		else
-			[ $val1 -eq 0 ] && val1=1
-			percentual_change=$(( ((val2 - val1) * 100) / val1 ))
+			divisor_valid "$val1" || val1=1
+			percentual_change=$(( ((val2 - val1) * 100) / val1 ))	# divisor_valid
 		fi
 	}
 
@@ -69,7 +72,6 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 
 for REST in $LIST_OF_PHYS ; do {
 	check_wifi_phy "$REST" "${UP%.*}" || {
-		. /tmp/loader
 		_log it 'wificheck' daemon info "$DEBUG"
 	}
 } done
