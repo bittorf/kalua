@@ -1581,7 +1581,8 @@ _watch_topusage_task()
 	esac
 
 	task="$( basename "$toptask" )"
-	logmessage="pid: $pid cpu: $cpu toptask: $toptask task: $task crit%border: $crit_percent_border khubd_state: $khubd_state reason: $call_reason file: $file"
+	logmessage="pid: $pid cpu: $cpu toptask: $toptask task: $task crit%border: $crit_percent_border"
+	logmessage="$logmessage khubd_state: $khubd_state reason: $call_reason file: $file"
 
 	if [ $cpu_int -gt $crit_percent_border ]; then
 		_log it $funcname daemon alert "$logmessage"
@@ -1828,13 +1829,13 @@ _watch_wifistuff()
 
 	incoming_wifi_activity()
 	{
-		[ -z "$WIFIDEV" ] && return 0
+		local funcname='incoming_wifi_activity'
 
+		[ -z "$WIFIDEV" ] && return 0
 		bool_true 'system.@monitoring[0].ignore_wifi_framecounter' && return 0
 
-		local funcname='incoming_wifi_activity'
 		local bad=1 good=0
-		local framecount_old framecount_new check_dev uptime_old uptime_new uptime_diff
+		local framecount_old framecount_new check_dev uptime_old uptime_new uptime_diff txt
 		local file_framecount="/tmp/WIFI_INCOMING_FRAME_COUNTER_$WIFIDEV"
 		local file_activity_seen="$file_framecount.active"
 		local file_uptime="$file_framecount.uptime"
@@ -1864,32 +1865,36 @@ _watch_wifistuff()
 		if [ -e "$file_framecount" ]; then
 			read -r framecount_old <"$file_framecount"
 		else
-			framecount_old="-1"			# ensures, that first start is without errors
+			framecount_old='-1'			# ensures, that first start is without errors
 		fi
 
 		echo "$framecount_new" >"$file_framecount"
 
 		if [ "$framecount_old" = "$framecount_new" ]; then
 			case "$WIFIMODE" in
-				*ap*)
-					logprio="debug"
+				*'ap'*)
+					logprio='debug'
 				;;
 				*)
-					[ "$framecount_new" = "0" ] && {
+					[ "$framecount_new" = '0' ] && {
 						logprio="info"
 					}
 				;;
 			esac
 
-			_log it $funcname daemon $logprio "[ERR] framecounter for $check_dev old/new: $framecount_old = $framecount_new timediff: $uptime_diff sec"
-			echo "0" >"$file_framecount"
+			txt="[ERR] framecounter for $check_dev old/new: $framecount_old ="
+			txt="$txt $framecount_new timediff: $uptime_diff sec"
+			_log it $funcname daemon $logprio "$txt"
+			echo '0' >"$file_framecount"
 
 			if [ $uptime_diff -ge 60 ]; then
 				[ $( _wifi phy_uptime $WIFIDEV ) -ge 60 ] || return $good
 
 				if [ -e "$file_activity_seen" ]; then
 					[ "$logprio" = "debug" ] || {
-						_wifi bugreport_create "$check_dev" "[ERR] framecounter hanging for $check_dev old/new: $framecount_old = $framecount_new timediff: $uptime_diff sec" "${file_framecount}.error_debug.${uptime_new}"
+						txt="[ERR] framecounter hanging for $check_dev old/new:"
+						txt="$txt $framecount_old = $framecount_new timediff: $uptime_diff sec"
+						_wifi bugreport_create "$check_dev" "$txt" "${file_framecount}.error_debug.${uptime_new}"
 					}
 
 					if bool_true 'system.@monitoring[0].lazy_wifi_framecounter'; then
@@ -1913,12 +1918,18 @@ _watch_wifistuff()
 		else
 			[ -e "$file_activity_seen" ] || {
 				[ "$framecount_old" = "-1" ] || {
-					_log it $funcname daemon info "[OK] first activity seen on dev $check_dev ($framecount_old packets) - marking"
+					txt="[OK] first activity seen on dev $check_dev ($framecount_old packets) - marking"
+					_log it $funcname daemon info "$txt"
 					touch "$file_activity_seen"
 				}
 			}
 
-			_log it $funcname daemon debug "[OK] framecounter for dev $check_dev: old + diff = new : $( _sanitizer run "$framecount_old + $(( framecount_new - framecount_old )) = $framecount_new" number_humanreadable ) (during $uptime_diff sec)"
+			txt="$framecount_old + $(( framecount_new - framecount_old )) = $framecount_new"
+			txt="$( _sanitizer run "$txt" number_humanreadable )"
+			txt="[OK] framecounter for dev $check_dev: old + diff = new : $txt"
+			txt="$txt (during $uptime_diff sec)"
+			_log it $funcname daemon debug "$txt"
+
 			return $good
 		fi
 

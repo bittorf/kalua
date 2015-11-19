@@ -1,6 +1,9 @@
 #!/bin/sh
 . /tmp/loader
 
+# find too wide functions/files with:
+# i=0; while read -r L; do i=$(( i + 1 )); test ${#L} -gt 120 && echo "$i: $L"; done <$FILE
+
 log()
 {
 	logger -s -- "$1"
@@ -12,7 +15,7 @@ list_shellfunctions()
 	local line
 
 	# see https://github.com/koalaman/shellcheck/issues/529
-	grep -s '^[ 	]*[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 | while read line; do {
+	grep -s '^[ 	]*[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 | while read -r line; do {
 		echo "$line"
 	} done
 }
@@ -131,16 +134,15 @@ function_too_wide()
 	# automatically cuts off leading spaces/tabs:
 	while read -r line; do {
 		case "$line" in
-			'#'*)
-				# ignore comments
-				continue
+			'#'*)	# ignore comments
+			;;
+			*)
+				test ${#line} -gt $border && {
+					i=$(( i + 1 ))
+					test ${#line} -gt $max && max=${#line}
+				}
 			;;
 		esac
-
-		test ${#line} -gt $border && {
-			i=$(( i + 1 ))
-			test ${#line} -gt $max && max=${#line}
-		}
 	} done <"$file"
 
 	[ $i -gt 0 ] && {
@@ -539,6 +541,7 @@ run_test()
 		log "[OK] checked $count_files shellfiles with $count_functions functions"
 		log "[OK] hint: $func_too_large/$count_functions functions ($(( (func_too_large * 100) / count_functions ))%) are too large"
 		log "[OK] hint: $func_too_wide/$count_functions functions ($(( (func_too_wide * 100) / count_functions ))%) are too wide"
+
 		[ "$good" = 'false' ] && return 1
 	fi
 
