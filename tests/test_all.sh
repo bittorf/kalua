@@ -169,6 +169,25 @@ do_sloccount()
 	fi
 }
 
+test_divisor_valid()
+{
+	log 'testing divisor_valid()'
+	set -x
+
+	divisor_valid && return 1
+	divisor_valid '' && return 1
+	divisor_valid '0' && return 1
+	divisor_valid '-0' && return 1
+	divisor_valid 'a' && return 1
+	divisor_valid '0.1' && return 1
+
+	divisor_valid '-1' || return 1
+	divisor_valid '1' || return 1
+
+	set +x
+	return 0
+}
+
 test_isnumber()
 {
 	log 'testing isnumber()'
@@ -177,7 +196,9 @@ test_isnumber()
 	isnumber '-1' || return 1
 	isnumber $((  65536 * 65536 )) || return 1
 	isnumber $(( -65536 * 65536 )) || return 1
+
 	isnumber 'A' && return 1
+	isnumber && return 1
 	isnumber ''  && return 1
 	isnumber ' ' && return 1
 	isnumber '1.34' && return 1
