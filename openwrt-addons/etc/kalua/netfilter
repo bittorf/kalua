@@ -858,15 +858,10 @@ _netfilter_mssfix()
 _netfilter_masquerade_start()
 {
 	local funcname="netfilter_masquerade_start"
-#	local exception="$1"		# fixme! needs source/destination arg
-	local device devname
-	local statfile="/tmp/NETFILTER/MASQUERADING"
+	local devname="${1:-$( _net local_inet_offer )}"
+#	local exception="$2"		# fixme! needs source/destination arg
+	local device devname statfile
 
-	[ -e "$statfile" ] && return 0
-
-	mkdir -p "/tmp/NETFILTER"
-
-	devname="$( _net local_inet_offer )"
 	case "$devname" in
 		wifi)
 			device="$WIFIDEV"
@@ -882,13 +877,28 @@ _netfilter_masquerade_start()
 		pppoe)
 			device='ppp+'
 		;;
-		*)
+		'')
 			_netfilter masquerade_stop
 			return 0
 		;;
+		*)
+			if _net dev_is_valid "$devname"; then
+				device="$devname"
+			else
+				_log it $funcname daemon alert "invalid device: '$device'"
+				return 1
+			fi
+		;;
 	esac
 
-	_log it $funcname daemon info "active for device $device ($devname)"
+	mkdir -p '/tmp/NETFILTER'
+	statfile="/tmp/NETFILTER/MASQUERADING_$device"
+
+	if [ -e "$statfile" ]; then
+		return 0
+	else
+		_log it $funcname daemon info "active for device $device ($devname)"
+	fi
 
 	if bool_true 'system.@system[0].restrict_local'; then
 		echo "$IPT -t nat -A POSTROUTING -o $device ! -d $WANNET/$WANPRE -j MASQUERADE" >"$statfile"
@@ -915,10 +925,14 @@ _netfilter_masquerade_start()
 
 _netfilter_masquerade_stop()
 {
-	[ -e "/tmp/NETFILTER/MASQUERADING" ] && {
-		. "/tmp/NETFILTER/MASQUERADING"
-		rm "/tmp/NETFILTER/MASQUERADING"
-	}
+	local file
+
+	for file in "/tmp/NETFILTER/MASQUERADING"*; do {
+		[ -e "$file" ] && {
+			. "$file"
+			rm "$file"
+		}
+	} done
 }
 
 _netfilter_portforwarding_request()
