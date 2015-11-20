@@ -425,9 +425,21 @@ _db_restore()
 		else
 			_db lock now "$funcname() $*" || return 1
 
-			if _system del_ramdisc "$DIR_DATABASE"; then
-				if _system add_ramdisc "$DIR_DATABASE" compressable; then
-					_log it $funcname daemon info "unarc of '$file' to $( dirname "$DIR_DATABASE" )"
+			if _system del_ramdisc "$DIR_DATABASE"; then		# success also when not existing
+				try_storage()
+				{
+					local dir="$( ls -1 "$TMPDIR/storage" | head -n1 )"
+
+					[ -n "$dir" ] && {
+						mount "$dir" "$( dirname "$DIR_DATABASE" )"
+						_log it $funcname daemon info "[OK] using '$dir'"
+					}
+				}
+
+				if   try_storage; then
+					:
+				elif _system add_ramdisc "$DIR_DATABASE" compressable; then
+					:
 				else
 					reschedule 'failed add_ramdisc'
 					_db lock free
@@ -439,6 +451,7 @@ _db_restore()
 				return 1
 			fi
 
+			_log it $funcname daemon info "will unarc '$file' to $( dirname "$DIR_DATABASE" )"
 			# dirname /database -> /
 			# tar -xvzC / -f /www/cgi-bin/db_backup.tgz/database
 			if tar -C "$( dirname "$DIR_DATABASE" )" -xzf "$file" ; then
