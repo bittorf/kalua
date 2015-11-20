@@ -30,6 +30,10 @@ elif [ -e '/tmp/REBOOT_REASON' ]; then
 	read -r CRASH <'/tmp/REBOOT_REASON'
 	case "$CRASH" in
 		'nocrash'|'nightly_reboot'|'apply_profile'|'wifimac_safed')
+			CRASH="$( _system reboots )"
+			test ${CRASH:-0} -gt 50 && {
+				echo "detected $CRASH reboots since last update - please check"
+			}
 		;;
 		*)
 			if [ -e '/sys/kernel/debug/crashlog' ]; then
