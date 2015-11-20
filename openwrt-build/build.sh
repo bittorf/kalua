@@ -2351,6 +2351,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-fs-vfat=y'		# kernel-modules: filesystems
 				apply_symbol 'CONFIG_PACKAGE_kmod-nls-cp437=y'		# kernel-modules: nls-support (USA)
 				apply_symbol 'CONFIG_PACKAGE_kmod-nls-iso8859-1=y'	# kernel-modules: nls-support (EU)
+				apply_symbol 'CONFIG_PACKAGE_block-mount=y'		# base-system: +15k
 			;;
 			'BTRfs')
 				apply_symbol 'CONFIG_PACKAGE_kmod-fs-btrfs=y'		# kernel-modules: filesystems
