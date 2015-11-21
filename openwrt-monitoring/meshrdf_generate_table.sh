@@ -2585,18 +2585,25 @@ _cell_switch()
 			esac
 		;;
 	esac
+
+	case "$plugs" in
+		*'Z'*)	# unknown port state
+			global_bgcolor='crimson'
+			global_tooltip='maybe switch broken?'
+		;;
+	esac
+
 	echo -n "<td title='$global_tooltip' bgcolor='$global_bgcolor'>"
 
 	echo -n "<table cellspacing='$cellspacing' cellpadding='0'><tr>"
 
 	while [ $i -lt ${#plugs} ]; do {
-
 		i=$(( $i + 1 ))
 		real_port=$(( $real_port + 1 ))
 		char="$( echo "$plugs" | cut -b $i )"
 
 		if [ $cellspacing -eq 0 ]; then			# only 1 port (bullet)
-			name="oneLANonly"
+			name='oneLANonly'
 		else
 			case "$real_port" in
 				0) name="WAN" ;;
@@ -2640,8 +2647,8 @@ _cell_switch()
 					;;
 				esac
 			;;
-			"Z")
-				spacer="?"
+			'Z')
+				spacer='?'
 			;;
 		esac
 
@@ -2732,7 +2739,7 @@ local newline='
 				local symbol should_down should_up
 
 				case "$inet_offer" in
-					*pppoe*)
+					*'pppoe'*)
 						symbol="&diams;"	# filled diamond
 					;;
 					*)
