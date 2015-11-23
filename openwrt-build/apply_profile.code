@@ -365,7 +365,7 @@ else
 	touch /tmp/LOCKFILE_APPLY
 fi
 
-[ -e '/tmp/loader' ] && . /tmp/loader
+[ -e '/tmp/loader' ] && . /tmp/loader		# TODO: we should totally rely on this
 
 [ -n "$LOWMEM" ] && {
 	mv '/tmp/CRON_IS_CAREFUL' '/tmp/CRON_IS_CAREFUL.old'
@@ -1541,12 +1541,13 @@ EOF
 _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files/olsrd.conf.default.full
 {
 	local speed="${OLSR_SPEED:-6}"
-	local hide_nameservice slave interface
+	local slave interface interface_mode plugin_name plug
+	local conf='/etc/config/olsrd'
 	local showspeed=
 
-	# speed makro there since 2013-apr
-	grep -q "sven-ola" "/etc/init.d/olsrd" && {
-		hidev="#"
+	# speed makro useable since 2013-apr
+	grep -q 'sven-ola' "/etc/init.d/olsrd" && {
+		hidev='#'
 		showspeed="	option speed 		'$speed'"
 	}
 
@@ -1555,8 +1556,6 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 	else
 		slave=0
 	fi
-
-	[ $speed -gt 10 ] && hide_nameservice="#"
 
 	local INTERFACES1		# Mode: ether
 	local INTERFACES2		# Mode: adhoc
@@ -1638,7 +1637,7 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 		tc_interval=$(( speed * 2 ))
 	fi
 
-	cat >'/etc/config/olsrd' <<EOF
+	cat >"$conf" <<EOF
 config olsrd
 	option MainIp			'${main_ip:-0.0.0.0}'
 	option DebugLevel		'0'		# 0...9
@@ -1674,12 +1673,12 @@ $hidev	option HnaInterval		'$(( speed * 2 )).0'
 $hidev	option HnaValidityTime		'$(( speed * 25 )).0'
 EOF
 	[ "$OLSR_METRIC" = 'etx_ffeth' ] && {
-		cat >>/etc/config/olsrd <<EOF
+		cat >>"$conf" <<EOF
 	option Mode			'ether'		# enforces cost of 0.100
 EOF
 	}
 
-	[ -n "$INTERFACES2" ] && cat >>/etc/config/olsrd <<EOF
+	[ -n "$INTERFACES2" ] && cat >>"$conf" <<EOF
 
 config Interface
 $(	for interface in $INTERFACES2; do
@@ -1697,50 +1696,69 @@ $hidev	option HnaInterval		'$(( speed * 2 )).0'
 $hidev	option HnaValidityTime		'$(( speed * 25 )).0'
 EOF
 
-	local interface_mode="mesh"
-#	case "$PROFILE_MODE" in
-#		adhoc*)
-#			case "$( uci get wireless.radio0.hwmode )" in
-#				*"a"*)
-#					interface_mode="ether"		# fixme! not a good idea for multipoint-stations
-#				;;
-#			esac
-#		;;
-#	esac
+	interface_mode='mesh'
 
-	[ "$OLSR_METRIC" = "etx_ffeth" -a -n "$INTERFACES2" ] && {
-		cat >>/etc/config/olsrd <<EOF
+	[ "$OLSR_METRIC" = 'etx_ffeth' -a -n "$INTERFACES2" ] && {
+		cat >>"$conf" <<EOF
 	option Mode			'$interface_mode'		# uses normal cost-calculation / default
 EOF
 	}
 
-	cat >>/etc/config/olsrd <<EOF
+	plug='#'
+	plugin_name="$( _olsr plugin_filename_get 'jsoninfo' )" && plug=
+	cat >>"$conf" <<EOF
+${plug}config LoadPlugin
+$plug	option library  '$plugin_name'
+$plug	option accept	'0.0.0.0'
+$plug	option port	'9090'
 
-#config LoadPlugin
-#	option library  'olsrd_jsoninfo.so.0.0'
-#	option accept	'0.0.0.0'
-#	option port	'9090'
+EOF
 
+	plug='#'
+	plugin_name="$( _olsr plugin_filename_get 'arprefresh' )" && plug=
+	cat >>"$conf" <<EOF
+${plug}config LoadPlugin
+$plug	option library	'$plugin_name'
+
+EOF
+
+	plug='#'
+	plugin_name="$( _olsr plugin_filename_get 'nameservice' )" && plug=
+	cat >>"$conf" <<EOF
+${plug}config LoadPlugin
+$plug	option library	'$plugin_name'
+
+EOF
+
+	plug='#'
+	plugin_name="$( _olsr plugin_filename_get 'watchdog' )" && plug=
+	cat >>"$conf" <<EOF
+${plug}config LoadPlugin
+$plug	option library	'$plugin_name'
+
+EOF
+
+	plug='#'
+	plugin_name="$( _olsr plugin_filename_get 'txtinfo' )" && plug=
+	cat >>"$conf" <<EOF
 config LoadPlugin
-	option library	'olsrd_arprefresh.so.0.1'
-
-${hide_nameservice}config LoadPlugin
-${hide_nameservice}	option library	'olsrd_nameservice.so.0.3'
-
-config LoadPlugin
-	option library	'olsrd_watchdog.so.0.1'
-
-config LoadPlugin
-	option library	'olsrd_txtinfo.so.0.1'
+	option library	'$plugin_name'
 	option accept	'0.0.0.0'
 	option port	'2006'
 
-#config LoadPlugin
-#	option library	'olsrd_dyn_gw.so.0.5'
-#	option 'CheckInterval' '6000'		# milliseconds
-#	option 'PingInterval' '40'		# seconds
-#	option 'Ping' '8.8.8.8'
-#	option 'Ping' '141.1.1.1'
+EOF
+
+	plug='#'
+	plugin_name="$( _olsr plugin_filename_get 'txtinfo' )" && plug=
+	cat >>"$conf" <<EOF
+${plug}config LoadPlugin
+$plug	option library	'$plugin_name'
+$plug	option 'CheckInterval' '6000'		# milliseconds
+$plug	option 'PingInterval' '40'		# seconds
+$plug	option 'Ping' '8.8.8.8'
+$plug	option 'Ping' '141.1.1.1'
+
+EOF
 
 config 'Hna4'
         option 'netaddr' '$hna_net'
@@ -1748,7 +1766,7 @@ config 'Hna4'
 EOF
 
 	[ -n "$GATEWAY" ] && {
-		cat >>/etc/config/olsrd <<EOF
+		cat >>"$conf" <<EOF
 
 config 'Hna4'
         option 'netaddr' '0.0.0.0'

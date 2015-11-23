@@ -2937,6 +2937,9 @@ travis_prepare()
 
 	# needs about 15 mins
 	(
+		cabal update
+		cabal install 'cabal-install'
+
 		cd '/run/shm' || return 1
 		git clone https://github.com/koalaman/shellcheck.git
 		cd shellcheck || return 1
@@ -2945,7 +2948,8 @@ travis_prepare()
 		git log -1
 		echo
 
-		cabal install
+		# https://github.com/haskell/cabal/issues/2909
+		cabal install || ghc-pkg check
 	)
 
 	export PATH="$HOME/.cabal/bin:$PATH"
