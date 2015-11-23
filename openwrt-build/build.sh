@@ -690,7 +690,12 @@ EOF
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2'|'Ubiquiti Bullet2')
 			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
 			# the other one is: Picostation M2 (HP) = MIPS 24KC / 400 MHz
-			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+			if [ $( openwrt_revision_number_get ) -ge 44736 ]; then
+				TARGET_SYMBOL='CONFIG_TARGET_ath25=y'
+			else
+				TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+			fi
+
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
 			FILENAME_FACTORY='openwrt-atheros-ubnt2-pico2-squashfs.bin'
 		;;
