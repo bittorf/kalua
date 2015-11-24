@@ -1648,12 +1648,12 @@ apply_patches()
 		else
 			patch_for_openwrt()
 			{
-				grep -q ^'diff --git a/package/' "$1"
+				grep -q ' a/package/' "$1"
 			}
 
 			patch_for_mac80211()
 			{
-				grep -q ^'diff --git a/net/mac80211/' "$1"
+				grep -q ' a/net/mac80211/' "$1"
 			}
 
 			patch_for_atheros_driver()
