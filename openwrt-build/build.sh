@@ -1653,12 +1653,13 @@ apply_patches()
 
 			patch_for_mac80211()
 			{
+				grep -q ' a/include/net/mac80211.h' "$1" && return 0
 				grep -q ' a/net/mac80211/' "$1"
 			}
 
 			patch_for_atheros_driver()
 			{
-				grep -q '/net/wireless/ath/' "$1"
+				grep -q ' a/net/wireless/ath/' "$1"
 			}
 
 			patch_for_busybox()
