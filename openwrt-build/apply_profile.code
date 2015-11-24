@@ -1543,15 +1543,8 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 	local speed="${OLSR_SPEED:-6}"
 	local slave interface interface_mode plugin_name plug
 	local conf='/etc/config/olsrd'
-	local showspeed=
 
-	# speed makro useable since 2013-apr
-	grep -q 'sven-ola' "/etc/init.d/olsrd" && {
-		hidev='#'
-		showspeed="	option speed 		'$speed'"
-	}
-
-	if [ -z "$GATEWAY" -a "$PROFILE_MODE" = "ap" ]; then
+	if [ -z "$GATEWAY" -a "$PROFILE_MODE" = 'ap' ]; then
 		slave=1
 	else
 		slave=0
@@ -1590,10 +1583,7 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 
 	[ "$( uci get network.wan.proto )" = 'static' ] || {
 		case "$NETWORK" in
-			satama*)
-				# allow: node 119
-			;;
-			ejbw*)
+			'ejbw'*)
 				# allow: node 50
 			;;
 			*)
@@ -1637,6 +1627,25 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 		tc_interval=$(( speed * 2 ))
 	fi
 
+	show_speed()
+	{
+		# speed makro useable since 2013-apr
+		if grep -sq 'sven-ola' '/etc/init.d/olsrd' '/lib/functions/olsrd.sh'; then
+			echo "	option speed 		'$speed'"
+		else
+			cat <<EOF
+	option HelloInterval		'$hello_interval.0'		# vals for speed $speed
+	option HelloValidityTime	'$(( speed * 25 )).0'
+	option TcValidityTime		'$(( speed * 100 )).0'
+	option TcInterval		'$tc_interval.0'
+	option MidInterval		'$(( speed * 5 )).0'
+	option MidValidityTime		'$(( speed * 100 )).0'
+	option HnaInterval		'$(( speed * 2 )).0'
+	option HnaValidityTime		'$(( speed * 25 )).0'
+EOF
+	}
+
+
 	cat >"$conf" <<EOF
 config olsrd
 	option MainIp			'${main_ip:-0.0.0.0}'
@@ -1654,7 +1663,6 @@ config olsrd
 #	option RtTableDefault		'254'		# cat /etc/iproute2/rt_tables
 
 config meta
-	option speedvalue		'$speed'	# deprecated: now in section 'Interface': speed
 	option hnaslave			'$slave'
 
 config Interface
@@ -1662,15 +1670,7 @@ $(	for interface in $INTERFACES1 innercityVPN; do
 		echo "	list interface '$interface'"
 	done )
 	option Ip4Broadcast		'255.255.255.255'
-$showspeed
-$hidev	option HelloInterval		'$hello_interval.0'		# vals for speed $speed
-$hidev	option HelloValidityTime	'$(( speed * 25 )).0'
-$hidev	option TcValidityTime		'$(( speed * 100 )).0'
-$hidev	option TcInterval		'$tc_interval.0'
-$hidev	option MidInterval		'$(( speed * 5 )).0'
-$hidev	option MidValidityTime		'$(( speed * 100 )).0'
-$hidev	option HnaInterval		'$(( speed * 2 )).0'
-$hidev	option HnaValidityTime		'$(( speed * 25 )).0'
+$( showspeed )
 EOF
 	[ "$OLSR_METRIC" = 'etx_ffeth' ] && {
 		cat >>"$conf" <<EOF
@@ -1685,15 +1685,7 @@ $(	for interface in $INTERFACES2; do
 		echo "	list interface '$interface'"
 	done )
 	option Ip4Broadcast		'255.255.255.255'
-$showspeed
-$hidev	option HelloInterval		'$hello_interval.0'
-$hidev	option HelloValidityTime	'$(( speed * 25 )).0'
-$hidev	option TcValidityTime		'$(( speed * 100 )).0'
-$hidev	option TcInterval		'$tc_interval.0'
-$hidev	option MidInterval		'$(( speed * 5 )).0'
-$hidev	option MidValidityTime		'$(( speed * 100 )).0'
-$hidev	option HnaInterval		'$(( speed * 2 )).0'
-$hidev	option HnaValidityTime		'$(( speed * 25 )).0'
+$( showspeed )
 EOF
 
 	interface_mode='mesh'
