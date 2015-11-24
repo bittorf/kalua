@@ -79,30 +79,30 @@ function_seems_generated()
 	local file="$1"
 	local name="$2"
 
-	# TODO: define only the NOT functions: uci(),mv(),uci(),ip(),isnumber(),bool_true(),_()
 	fgrep -q "\\$" "$file" && {
 		case "$name" in
-			'_weblogin_'*|'_system_'*|'_sanitizer_'*|'_olsr_'*|'_netfilter_'*|'_mail_'*)
-				return 1
+			'copy_terms_of_use'|'generate_script'|'apply_settings'|'hostname'|'essid')
 			;;
-			'_help_'*|'_firmware_'*|'_file_'*|'_db_'*|'_wifi_'*)
-				return 1
+			'uci'|'mv'|'ip'|'isnumber'|'bool_true'|'_')
+				case "$file" in
+					'openwrt-addons/etc/kalua_init'*)
+					;;
+					*)
+						# but needs testing in '/tmp/loader'
+						return 1
+					;;
+				esac
 			;;
-			'boot'|'func_cron_config_write'|'build_network_clients'|'build_package_mydesign')
-				return 1
+			'output_udhcpc_script')
+				# we test the output later
 			;;
-			'print_usage_and_exit'|'check_working_directory'|'apply_symbol'|'_config_dhcp'|'urlencode')
-				return 1
-			;;
-			'login_ok'|'batalias_add_if_needed'|'ifname_from_dev'|'_copy_terms_of_use')
+			*)
 				return 1
 			;;
 		esac
 
 		return 0
 	}
-
-	return 1
 }
 
 function_too_large()
@@ -388,11 +388,7 @@ run_test()
 		}
 
 		log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
-
 		filelist='/dev/shm/filelist'
-		# collect all shellscripts:
-		find  >"$filelist" 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
-		echo >>"$filelist" '/tmp/loader'
 
 		mkdir -p '/dev/shm/generated_files'
 		. openwrt-addons/etc/init.d/S51crond_fff+
@@ -405,6 +401,10 @@ run_test()
 		file='/dev/shm/generated_files/weblogin_htmlout_loginpage'
 		_weblogin htmlout_loginpage '' '' '' '' "http://$ip" '(cache)' | tail -n+3 >"$file"
 		echo >>"$filelist" "$file"
+
+		# collect all shellscripts:
+		find  >"$filelist" 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
+		echo >>"$filelist" '/tmp/loader'
 
 		$shellcheck_bin --help 2>"$tempfile"
 		grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"
@@ -545,6 +545,7 @@ run_test()
 			rm "$tempfile"
 		} done <"$filelist"
 		rm "$filelist"
+		rm -fR '/dev/shm/generated_files'
 
 		log "[OK] checked $count_files shellfiles with $count_functions functions"
 		log "[OK] hint: $func_too_large/$count_functions functions ($(( (func_too_large * 100) / count_functions ))%) are too large"
