@@ -84,14 +84,11 @@ function_seems_generated()
 			'copy_terms_of_use'|'generate_script'|'apply_settings'|'hostname'|'essid')
 			;;
 			'uci'|'mv'|'ip'|'isnumber'|'bool_true'|'_')
-				case "$file" in
-					'openwrt-addons/etc/kalua_init'*)
-					;;
-					*)
-						# but needs testing in '/tmp/loader'
-						return 1
-					;;
-				esac
+				# generated testfile:
+				grep -q ^"# from file 'openwrt-addons/etc/kalua_init" "$file" || {
+					# but needs testing in '/tmp/loader'
+					return 1
+				}
 			;;
 			'output_udhcpc_script')
 				# we test the output later
