@@ -1,0 +1,301 @@
+--- a/net/mac80211/rc80211_minstrel_ht.c
++++ b/net/mac80211/rc80211_minstrel_ht.c
+@@ -20,6 +20,9 @@
+ #define AVG_AMPDU_SIZE	16
+ #define AVG_PKT_SIZE	1200
+ 
++/* Spatial stream error threshold in [%] */
++#define STREAM_ERROR_THRES 50
++
+ /* Number of bits for an average sized packet */
+ #define MCS_NBITS ((AVG_PKT_SIZE * AVG_AMPDU_SIZE) << 3)
+ 
+@@ -361,7 +364,7 @@ minstrel_ht_sort_best_tp_rates(struct mi
+ }
+ 
+ /*
+- * Find and set the topmost probability rate per sta and per group
++ * Find and set the topmost probability rate per sta
+  */
+ static void
+ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
+@@ -370,8 +373,6 @@ minstrel_ht_set_best_prob_rate(struct mi
+ 	struct minstrel_rate_stats *mrs;
+ 	int tmp_group, tmp_idx, tmp_tp_avg, tmp_prob;
+ 	int max_tp_group, cur_tp_avg, cur_group, cur_idx;
+-	int max_gpr_group, max_gpr_idx;
+-	int max_gpr_tp_avg, max_gpr_prob;
+ 
+ 	cur_group = index / MCS_GROUP_RATES;
+ 	cur_idx = index % MCS_GROUP_RATES;
+@@ -395,24 +396,12 @@ minstrel_ht_set_best_prob_rate(struct mi
+ 						    mrs->prob_ewma);
+ 		if (cur_tp_avg > tmp_tp_avg)
+ 			mi->max_prob_rate = index;
+-
+-		max_gpr_group = mg->max_group_prob_rate / MCS_GROUP_RATES;
+-		max_gpr_idx = mg->max_group_prob_rate %	MCS_GROUP_RATES;
+-		max_gpr_prob = mi->groups[max_gpr_group].rates[max_gpr_idx].prob_ewma;
+-		max_gpr_tp_avg = minstrel_ht_get_tp_avg(mi, max_gpr_group,
+-							max_gpr_idx,
+-							max_gpr_prob);
+-		if (cur_tp_avg > max_gpr_tp_avg)
+-			mg->max_group_prob_rate = index;
+ 	} else {
+ 		if (mrs->prob_ewma > tmp_prob)
+ 			mi->max_prob_rate = index;
+-		if (mrs->prob_ewma > mg->rates[mg->max_group_prob_rate].prob_ewma)
+-			mg->max_group_prob_rate = index;
+ 	}
+ }
+ 
+-
+ /*
+  * Assign new rate set per sta and use CCK rates only if the fastest
+  * rate (max_tp_rate[0]) is from CCK group. This prohibits such sorted
+@@ -447,37 +436,6 @@ minstrel_ht_assign_best_tp_rates(struct 
+ }
+ 
+ /*
+- * Try to increase robustness of max_prob rate by decrease number of
+- * streams if possible.
+- */
+-static inline void
+-minstrel_ht_prob_rate_reduce_streams(struct minstrel_ht_sta *mi)
+-{
+-	struct minstrel_mcs_group_data *mg;
+-	int tmp_max_streams, group, tmp_idx, tmp_prob;
+-	int tmp_tp = 0;
+-
+-	tmp_max_streams = minstrel_mcs_groups[mi->max_tp_rate[0] /
+-			  MCS_GROUP_RATES].streams;
+-	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
+-		mg = &mi->groups[group];
+-		if (!mi->supported[group] || group == MINSTREL_CCK_GROUP)
+-			continue;
+-
+-		tmp_idx = mg->max_group_prob_rate % MCS_GROUP_RATES;
+-		tmp_prob = mi->groups[group].rates[tmp_idx].prob_ewma;
+-
+-		if (tmp_tp < minstrel_ht_get_tp_avg(mi, group, tmp_idx, tmp_prob) &&
+-		   (minstrel_mcs_groups[group].streams < tmp_max_streams)) {
+-				mi->max_prob_rate = mg->max_group_prob_rate;
+-				tmp_tp = minstrel_ht_get_tp_avg(mi, group,
+-								tmp_idx,
+-								tmp_prob);
+-		}
+-	}
+-}
+-
+-/*
+  * Update rate statistics and select new primary rates
+  *
+  * Rules for rate selection:
+@@ -491,9 +449,8 @@ minstrel_ht_update_stats(struct minstrel
+ {
+ 	struct minstrel_mcs_group_data *mg;
+ 	struct minstrel_rate_stats *mrs;
+-	int group, i, j, cur_prob;
+-	u16 tmp_mcs_tp_rate[MAX_THR_RATES], tmp_group_tp_rate[MAX_THR_RATES];
+-	u16 tmp_cck_tp_rate[MAX_THR_RATES], index;
++	int index, group, i, j, cur_prob;
++	u16 tmp_mcs_tp_rate[MAX_THR_RATES], tmp_cck_tp_rate[MAX_THR_RATES];
+ 
+ 	if (mi->ampdu_packets > 0) {
+ 		mi->avg_ampdu_len = minstrel_ewma(mi->avg_ampdu_len,
+@@ -520,10 +477,6 @@ minstrel_ht_update_stats(struct minstrel
+ 
+ 		mi->sample_count++;
+ 
+-		/* (re)Initialize group rate indexes */
+-		for(j = 0; j < MAX_THR_RATES; j++)
+-			tmp_group_tp_rate[j] = group;
+-
+ 		for (i = 0; i < MCS_GROUP_RATES; i++) {
+ 			if (!(mi->supported[group] & BIT(i)))
+ 				continue;
+@@ -547,25 +500,15 @@ minstrel_ht_update_stats(struct minstrel
+ 							       tmp_cck_tp_rate);
+ 			}
+ 
+-			/* Find max throughput rate set within a group */
+-			minstrel_ht_sort_best_tp_rates(mi, index,
+-						       tmp_group_tp_rate);
+-
+ 			/* Find max probability rate per group and global */
+ 			minstrel_ht_set_best_prob_rate(mi, index);
+ 		}
+-
+-		memcpy(mg->max_group_tp_rate, tmp_group_tp_rate,
+-		       sizeof(mg->max_group_tp_rate));
+ 	}
+ 
+ 	/* Assign new rate set per sta */
+ 	minstrel_ht_assign_best_tp_rates(mi, tmp_mcs_tp_rate, tmp_cck_tp_rate);
+ 	memcpy(mi->max_tp_rate, tmp_mcs_tp_rate, sizeof(mi->max_tp_rate));
+ 
+-	/* Try to increase robustness of max_prob_rate*/
+-	minstrel_ht_prob_rate_reduce_streams(mi);
+-
+ 	/* try to sample all available rates during each interval */
+ 	mi->sample_count *= 8;
+ 
+@@ -623,27 +566,74 @@ minstrel_set_next_sample_idx(struct mins
+ 	}
+ }
+ 
++/*
++ * Downgrading is done for max_prob_rate. When possible it first switches
++ * from SGI to LGI, second lower HT40 to HT20 and then reduces the
++ * number of streams for max_prob_rate.
++ */
+ static void
+-minstrel_downgrade_rate(struct minstrel_ht_sta *mi, u16 *idx, bool primary)
++minstrel_ht_downgrade_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
+ {
+-	int group, orig_group;
++	int cur_group, cur_idx, cur_flags, cur_streams;
++	int tmp_group, tmp_flags, tmp_streams;
+ 
+-	orig_group = group = *idx / MCS_GROUP_RATES;
+-	while (group > 0) {
+-		group--;
++#ifdef CPTCFG_MAC80211_DEBUGFS
++	if (mp->fixed_rate_idx != -1)
++		return;
++#endif
+ 
+-		if (!mi->supported[group])
+-			continue;
++	tmp_group = cur_group = mi->max_prob_rate / MCS_GROUP_RATES;
++	cur_idx = mi->max_prob_rate % MCS_GROUP_RATES;
++	cur_flags = minstrel_mcs_groups[cur_group].flags;
++	cur_streams = minstrel_mcs_groups[cur_group].streams;
++
++	/* Ignore CCK group and lowest single stream rate */
++	if ((cur_group == MINSTREL_CCK_GROUP) ||
++	    (cur_idx == 0 && cur_streams == 1))
++		return;
+ 
+-		if (minstrel_mcs_groups[group].streams >
+-		    minstrel_mcs_groups[orig_group].streams)
++	while (tmp_group > 0) {
++		tmp_group--;
++		tmp_flags = minstrel_mcs_groups[tmp_group].flags;
++		tmp_streams = minstrel_mcs_groups[tmp_group].streams;
++
++		if (!mi->supported[tmp_group])
+ 			continue;
+ 
+-		if (primary)
+-			*idx = mi->groups[group].max_group_tp_rate[0];
+-		else
+-			*idx = mi->groups[group].max_group_tp_rate[1];
+-		break;
++		/* first try to switch from SGI to LGI */
++		if ((cur_flags & IEEE80211_TX_RC_SHORT_GI) &&
++		    !(tmp_flags & IEEE80211_TX_RC_SHORT_GI) &&
++		    ((cur_flags & IEEE80211_TX_RC_40_MHZ_WIDTH) ==
++		     (tmp_flags & IEEE80211_TX_RC_40_MHZ_WIDTH)) &&
++		    (cur_streams == tmp_streams)) {
++			printk(KERN_ERR "Downgrade max_prob_rate from SGI "
++			       "rate %i ->to LGI rate %i\n", mi->max_prob_rate,
++			       tmp_group * MCS_GROUP_RATES + cur_idx);
++			mi->max_prob_rate = tmp_group * MCS_GROUP_RATES + cur_idx;
++			break;
++		}
++
++		/* second try to switch from HT40 to HT20 */
++		if ((cur_flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
++		    !(tmp_flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
++		    (cur_streams == tmp_streams)) {
++			printk(KERN_ERR "Downgrade max_prob_rate from HT40 "
++			       "rate %i -> to HT20 rate %i\n", mi->max_prob_rate,
++			       tmp_group * MCS_GROUP_RATES + cur_idx);
++			mi->max_prob_rate = tmp_group * MCS_GROUP_RATES + cur_idx;
++			break;
++		}
++
++		/* third try to reduce number of used streams by 1 */
++		if ((cur_streams > 1) &&
++		    !(tmp_flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
++		    !(tmp_flags & IEEE80211_TX_RC_SHORT_GI)) {
++			printk(KERN_ERR "Downgrade max_prob_rate by 1 stream "
++			       "from rate %i to new rate %i\n",mi->max_prob_rate,
++			       tmp_group * MCS_GROUP_RATES + cur_idx);
++			mi->max_prob_rate = tmp_group * MCS_GROUP_RATES + cur_idx;
++			break;
++		}
+ 	}
+ }
+ 
+@@ -678,7 +668,7 @@ minstrel_ht_tx_status(void *priv, struct
+ 	struct minstrel_ht_sta_priv *msp = priv_sta;
+ 	struct minstrel_ht_sta *mi = &msp->ht;
+ 	struct ieee80211_tx_rate *ar = info->status.rates;
+-	struct minstrel_rate_stats *rate, *rate2;
++	struct minstrel_rate_stats *rate;
+ 	struct minstrel_priv *mp = priv;
+ 	bool last, update = false;
+ 	int i;
+@@ -724,23 +714,23 @@ minstrel_ht_tx_status(void *priv, struct
+ 	}
+ 
+ 	/*
+-	 * check for sudden death of spatial multiplexing,
+-	 * downgrade to a lower number of streams if necessary.
++	 * Check for sudden death of spatial multiplexing by counting
++	 * spatial stream errors. If the ratio of block ack length
++	 * to AMPDU length is smaller than STREAM_ERROR_THRES in % a stream
++	 * error occurred. If the number of consecutive stream errors is
++	 * greater than 3 downgrade max_prob_rate to increase robustness.
+ 	 */
+-	rate = minstrel_get_ratestats(mi, mi->max_tp_rate[0]);
+-	if (rate->attempts > 30 &&
+-	    MINSTREL_FRAC(rate->success, rate->attempts) <
+-	    MINSTREL_FRAC(20, 100)) {
+-		minstrel_downgrade_rate(mi, &mi->max_tp_rate[0], true);
+-		update = true;
+-	}
+-
+-	rate2 = minstrel_get_ratestats(mi, mi->max_tp_rate[1]);
+-	if (rate2->attempts > 30 &&
+-	    MINSTREL_FRAC(rate2->success, rate2->attempts) <
+-	    MINSTREL_FRAC(20, 100)) {
+-		minstrel_downgrade_rate(mi, &mi->max_tp_rate[1], false);
+-		update = true;
++	if ((info->status.ampdu_len > 1) &&
++	    (MINSTREL_FRAC(info->status.ampdu_ack_len, info->status.ampdu_len) <
++	    MINSTREL_FRAC(STREAM_ERROR_THRES, 100))) {
++		mi->stream_errors++;
++		if (mi->stream_errors > 3) {
++			minstrel_ht_downgrade_rate(mp, mi);
++			update = true;
++			mi->stream_errors = 0;
++		}
++	} else {
++		mi->stream_errors = 0;
+ 	}
+ 
+ 	if (time_after(jiffies, mi->last_stats_update +
+--- a/net/mac80211/rc80211_minstrel_ht.h
++++ b/net/mac80211/rc80211_minstrel_ht.h
+@@ -52,10 +52,6 @@ struct minstrel_mcs_group_data {
+ 	u8 index;
+ 	u8 column;
+ 
+-	/* sorted rate set within a MCS group*/
+-	u16 max_group_tp_rate[MAX_THR_RATES];
+-	u16 max_group_prob_rate;
+-
+ 	/* MCS rate statistics */
+ 	struct minstrel_rate_stats rates[MCS_GROUP_RATES];
+ };
+@@ -86,6 +82,7 @@ struct minstrel_ht_sta {
+ 
+ 	/* tx flags to add for frames for this sta */
+ 	u32 tx_flags;
++	u8 stream_errors;
+ 
+ 	u8 sample_wait;
+ 	u8 sample_tries;

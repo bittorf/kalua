@@ -1,0 +1,45 @@
+Makes the code a bit more efficient
+
+Signed-off-by: Felix Fietkau <nbd@openwrt.org>
+---
+ net/mac80211/rc80211_minstrel_ht.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+--- a/net/mac80211/rc80211_minstrel_ht.c
++++ b/net/mac80211/rc80211_minstrel_ht.c
+@@ -1023,20 +1023,13 @@ minstrel_ht_get_rate(void *priv, struct 
+ 		minstrel_aggr_check(sta, txrc->skb);
+ 
+ 	info->flags |= mi->tx_flags;
+-	minstrel_ht_check_cck_shortpreamble(mp, mi, txrc->short_preamble);
+ 
+ #ifdef CPTCFG_MAC80211_DEBUGFS
+ 	if (mp->fixed_rate_idx != -1)
+ 		return;
+ #endif
+ 
+-	/* Don't use EAPOL frames for sampling on non-mrr hw */
+-	if (mp->hw->max_rates == 1 &&
+-	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
+-		sample_idx = -1;
+-	else
+-		sample_idx = minstrel_get_sample_rate(mp, mi);
+-
++	sample_idx = minstrel_get_sample_rate(mp, mi);
+ 	mi->total_packets++;
+ 
+ 	/* wraparound */
+@@ -1048,6 +1041,13 @@ minstrel_ht_get_rate(void *priv, struct 
+ 	if (sample_idx < 0)
+ 		return;
+ 
++	minstrel_ht_check_cck_shortpreamble(mp, mi, txrc->short_preamble);
++
++	/* Don't use EAPOL frames for sampling on non-mrr hw */
++	if (mp->hw->max_rates == 1 &&
++	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
++		return;
++
+ 	sample_group = &minstrel_mcs_groups[sample_idx / MCS_GROUP_RATES];
+ 	info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
+ 	rate->count = 1;
