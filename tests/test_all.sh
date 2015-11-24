@@ -79,7 +79,7 @@ function_seems_generated()
 	local file="$1"
 	local name="$2"
 
-	fgrep -q "\\$" "$file" && {
+	show_shellfunction "$name" "$file" >/dev/null && {
 		case "$name" in
 			'copy_terms_of_use'|'generate_script'|'apply_settings'|'hostname'|'essid')
 			;;
