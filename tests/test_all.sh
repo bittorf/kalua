@@ -387,6 +387,9 @@ run_test()
 		log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
 		filelist='/dev/shm/filelist'
 
+		# first entry:
+		echo >"$filelist" '/tmp/loader'
+
 		mkdir -p '/dev/shm/generated_files'
 		. openwrt-addons/etc/init.d/S51crond_fff+
 		file='/dev/shm/generated_files/output_udhcpc_script'
@@ -400,8 +403,7 @@ run_test()
 		echo >>"$filelist" "$file"
 
 		# collect all shellscripts:
-		find  >"$filelist" 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
-		echo >>"$filelist" '/tmp/loader'
+		find >>"$filelist" 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
 
 		$shellcheck_bin --help 2>"$tempfile"
 		grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"
