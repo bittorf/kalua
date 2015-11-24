@@ -529,7 +529,15 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_uml_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+
+			case "$LIST_USER_OPTIONS" in
+				'Small'*)
+					SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=10"
+				;;
+				*)
+					SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+				;;
+			esac
 
 			[ "$option" = 'info' ] && {
 				cat <<EOF
