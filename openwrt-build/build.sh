@@ -1693,7 +1693,7 @@ apply_patches()
 				log "[FIXME] ignoring '$file'"
 #						cp -v "$file" ''
 			elif patch_for_openwrt "$file"; then
-				if git apply --check <"$file"; then
+				if git apply --ignore-whitespace --check <"$file"; then
 					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
 					# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
 					[ -d '.git/rebase-merge' -o -d '.git/rebase-apply' ] && {
@@ -1705,7 +1705,7 @@ apply_patches()
 					# automatically add 'From:' if missing
 					# sed '1{s/^/From: name@domain.com (Proper Name)\n/}'
 
-					if git am --signoff <"$file"; then
+					if git am --ignore-whitespace --signoff <"$file"; then
 						log "[OK] patched ontop OpenWrt: '$file'" debug
 						register_patch "$file"
 					else
