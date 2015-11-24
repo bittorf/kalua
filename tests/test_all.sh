@@ -360,10 +360,6 @@ run_test()
 	shellcheck_bin="$( command -v shellcheck )"
 	[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
 
-	ip="$( _net get_external_ip )"
-	log "_weblogin htmlout_loginpage | ip=$ip"	# omit 2 lines header:
-	_weblogin htmlout_loginpage '' '' '' '' "http://$ip" '(cache)' | tail -n+3 >"$tempfile"
-
 	if [ -z "$shellcheck_bin" ]; then
 		log "[OK] shellcheck not installed - no deeper tests"
 	else
@@ -397,6 +393,18 @@ run_test()
 		# collect all shellscripts:
 		find  >"$filelist" 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
 		echo >>"$filelist" '/tmp/loader'
+
+		mkdir -p '/dev/shm/generated_files'
+		. openwrt-addons/etc/init.d/S51crond_fff+
+		file='/dev/shm/generated_files/output_udhcpc_script'
+		output_udhcpc_script >"$file"
+		echo >>"$filelist" "$file"
+
+		ip="$( _net get_external_ip )"
+		log "_weblogin htmlout_loginpage | ip=$ip"	# omit 2 lines header:
+		file='/dev/shm/generated_files/weblogin_htmlout_loginpage'
+		_weblogin htmlout_loginpage '' '' '' '' "http://$ip" '(cache)' | tail -n+3 >"$file"
+		echo >>"$filelist" "$file"
 
 		$shellcheck_bin --help 2>"$tempfile"
 		grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"

@@ -26,16 +26,25 @@ patch_udhcpc_script()
 		ln -s "$TMPDIR/$( basename "$script" )" "$script"
 	}
 
-	{
-		echo "# will be sourced from '/lib/netifd/dhcp.script' via udhcpc during loopback-alias-interface"
-		echo 'read -r UP REST </proc/uptime'
-		echo '[ ${UP%.*} -gt 3600 ] && {'
-		echo '	. /tmp/loader'
-		echo '	pidof crond || _system crashreboot cron_died'
-		echo '	UP=$( _stopwatch stop /tmp/CRON_LASTCALL interim,nolog,seconds )'
-		echo '	[ $UP -gt 3600 ] && _system crashreboot cron_died'
-		echo '}'
-	} >"$script"
+	output_udhcpc_script >"$script"
+}
+
+output_udhcpc_script()
+{
+	cat <<EOF
+#!/bin/sh
+# will be sourced from '/lib/netifd/dhcp.script'
+# via udhcpc during loopback-alias-interface
+# and regulary via olsr:nameservice-plugin
+
+read -r UP REST </proc/uptime
+[ \${UP%.*} -gt 3600 ] && {
+	. /tmp/loader
+	pidof crond || _system crashreboot cron_died
+	UP=\$( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds )
+	[ \$UP -gt 3600 ] && _system crashreboot cron_died
+}
+EOF
 }
 
 func_cron_daemon_start ()
