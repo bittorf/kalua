@@ -1648,6 +1648,7 @@ apply_patches()
 		else
 			patch_for_openwrt()
 			{
+				grep -q ^'To: openwrt-devel@lists.openwrt.org' "$1" && return 0
 				grep -q ' a/package/' "$1"
 			}
 
