@@ -391,7 +391,7 @@ run_test()
 		echo >"$filelist" '/tmp/loader'
 
 		mkdir -p '/dev/shm/generated_files'
-		. openwrt-addons/etc/init.d/S51crond_fff+
+		. openwrt-addons/etc/init.d/S51crond_fff+ >/dev/null
 		file='/dev/shm/generated_files/output_udhcpc_script'
 		output_udhcpc_script >"$file"
 		echo >>"$filelist" "$file"
