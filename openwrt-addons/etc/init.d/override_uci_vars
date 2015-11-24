@@ -125,16 +125,27 @@ apply_olsr_roaming()
 apply_olsr_speed()
 {
 	local value="$1"
-	local i=0
+	local i
+
+	# setting interface-mode (ether/mesh) is only valid with 'etx_ffeth'
+	# otherwise the daemon fails to start
+	[ "$( uci -q get 'olsrd.@olsrd[0].LinkQualityAlgorithm' )" != 'etx_ffeth' ] && {
+		i=0
+		while uci -q get "olsrd.@Interface[$i]" >/dev/null; do {
+			uci delete "olsrd.@Interface[$i].Mode" 2>/dev/null
+			i=$(( i + 1 ))
+		} done
+	}
 
 	# search for the string, which was added with this value
 	# https://github.com/openwrt-routing/packages/commit/34e1ff5702372099599f764d272069ba914661c4
-	grep -sq 'sven-ola' '/etc/init.d/olsrd' '/lib/functions/olsrd.sh' || return 1
-
-	while uci -q get olsrd.@Interface[$i] >/dev/null; do {
-		uci set olsrd.@Interface[$i].speed="$value"
-		i=$(( i + 1 ))
-	} done
+	grep -sq 'sven-ola' '/etc/init.d/olsrd' '/lib/functions/olsrd.sh' && {
+		i=0
+		while uci -q get "olsrd.@Interface[$i]" >/dev/null; do {
+			uci set olsrd.@Interface[$i].speed="$value"
+			i=$(( i + 1 ))
+		} done
+	}
 }
 
 apply_olsr_watchdog()
@@ -1287,10 +1298,6 @@ boot()
 
 			uci set olsrd.@meta[0].hnaslave=0
 			uci set olsrd.@olsrd[0].LinkQualityAlgorithm='etx_ff'
-
-			# old from metric=etxff_eth
-			uci delete 'olsrd.@Interface[0].Mode' 2>/dev/null
-			uci delete 'olsrd.@Interface[1].Mode' 2>/dev/null
 
 			_wifi set adhoc 2ghz ssid 'weimarnetz'
 			_wifi set adhoc 2ghz channel '5'
