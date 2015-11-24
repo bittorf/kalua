@@ -1541,13 +1541,9 @@ EOF
 _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files/olsrd.conf.default.full
 {
 	local speed="${OLSR_SPEED:-6}"
+	local fisheye=1
 	local slave interface plugin_name plug interface_mode interface_comment
-	local fisheye hello_interval tc_interval
-	local hna_net hna_mask main_ip
-	local INTERFACES1		# Mode: ether / landev, wandev
-	local INTERFACES2		# Mode: adhoc / wifi-networks
-	local landev='lan'
-	local wandev='wan'
+	local hna_net hna_mask
 	local conf='/etc/config/olsrd'
 
 	if [ -z "$GATEWAY" -a "$PROFILE_MODE" = 'ap' ]; then
@@ -1577,62 +1573,66 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 		} done
 	}
 
-	[ -z "$( uci get network.wan.ifname )" ] && {
-		wandev=
-	}
+	useable_interfaces()
+	{
+		local landev='lan'
+		local wandev='wan'
 
-	[ "$( uci get network.wan.proto )" = 'static' ] || {
-		case "$NETWORK" in
-			'ejbw'*)
-				# allow: node 50
+		[ -z "$( uci get network.wan.ifname )" ] && wandev=
+
+		[ "$( uci get network.wan.proto )" = 'static' ] || {
+			case "$NETWORK" in
+				'ejbw'*)	# allow: node 50
+				;;
+				*)
+					# only olsr on wan, if no pppoe/dhcp
+					# hint: we must be sure, that network-section is already written
+					wandev=
+				;;
+			esac
+		}
+
+		case "$PROFILE_MODE" in
+			'ap'*)
+				echo "$landev $wandev"
 			;;
-			*)
-				# only olsr on wan, if no pppoe/dhcp
-				# hint: we must be sure, that network-section is already written
-				wandev=
+			'adhoc'*|'hybrid')
+				echo "$landev $wandev"
+				output_useable_wifi_networks
 			;;
 		esac
 
+		uci -q get 'network.innercityVPN' >/dev/null && echo 'innercityVPN'
 	}
 
-	[ -n "$wandev" ] && {
-		wandev=" $wandev"
+	output_main_ip()
+	{
+		uci get network.lan.ipaddr && return 0
+		uci get network.wan.ipaddr && return 0
+		echo '0.0.0.0'
 	}
 
-	case "$PROFILE_MODE" in
-		'ap'*)
-			INTERFACES1="${landev}${wandev}"
-			INTERFACES2=
-		;;
-		'adhoc'*|'hybrid')
-			INTERFACES1="${landev}${wandev}"
-			INTERFACES2="$( output_useable_wifi_networks )"
-		;;
-	esac
-
-	main_ip="$( uci get network.lan.ipaddr )"
-	[ -z "$main_ip" ] && {
-		main_ip="$( uci get network.wan.ipaddr )"
-	}
-
-	fisheye=1
-	hello_interval=$(( speed / 2 + 1 ))
-
-	if [ "$fisheye" = "1" ]; then
-		tc_interval=$(( speed / 2 ))
-		[ "$tc_interval" = "0" ] && tc_interval="1"
-	else
-		tc_interval=$(( speed * 2 ))
-	fi
 
 	show_speed()
 	{
 		# speed makro useable since 2013-apr
+		# https://github.com/openwrt-routing/packages/commit/34e1ff5702372099599f764d272069ba914661c4
 		if grep -sq 'sven-ola' '/etc/init.d/olsrd' '/lib/functions/olsrd.sh'; then
 			cat <<EOF
 	option speed 			'$speed'
 EOF
 		else
+			local hello_interval tc_interval
+
+			hello_interval=$(( speed / 2 + 1 ))
+
+			if [ "$fisheye" = '1' ]; then
+				tc_interval=$(( speed / 2 ))
+				[ "$tc_interval" = '0' ] && tc_interval=1
+			else
+				tc_interval=$(( speed * 2 ))
+			fi
+
 			cat <<EOF
 	option HelloInterval		'$hello_interval.0'		# vals for speed $speed
 	option HelloValidityTime	'$(( speed * 25 )).0'
@@ -1649,7 +1649,7 @@ EOF
 
 	cat >"$conf" <<EOF
 config olsrd
-	option MainIp			'${main_ip:-0.0.0.0}'
+	option MainIp			'$( output_main_ip )
 	option DebugLevel		'0'		# 0...9
 	option ClearScreen		'no'		# start with -dispout
 	option AllowNoInt		'yes'
@@ -1667,7 +1667,7 @@ config meta
 	option hnaslave			'$slave'
 EOF
 
-	for interface in $INTERFACES1 $INTERFACES2; do {
+	for interface in $( useable_interfaces ); do {
 		cat >>"$conf" <<EOF
 
 config Interface
