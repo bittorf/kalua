@@ -1554,22 +1554,18 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 
 	hna_net="$(  _ipsystem getvar 'OLSR_HNA' | cut -d'/' -f1 )"
 	hna_mask="$( _ipsystem getvar 'OLSR_HNA' | cut -d'/' -f2 )"
-	hna_mask="$( _net cidr2mask $hna_mask )"
+	hna_mask="$( _net cidr2mask "$hna_mask" )"
 
-	output_useable_wifi_networks()
+	useable_wifi_networks()
 	{
-		local radiocard network_append spacer
+		local i=0
 
-		for radiocard in 0 1 2 3; do {
-			if   grep 'option network' '/etc/config/wireless' | grep -q "wlanadhoc${network_append}"; then
-				echo -n "${spacer}wlanadhoc${network_append}"
-				spacer=' '
-			elif grep 'option network' '/etc/config/wireless' | grep -q "wlan${network_append}"; then
-				echo -n "${spacer}wlan${network_append}"
-				spacer=' '
-			fi
+		while name="$( uci -q get "wireless.@wifi-iface[$i].network" )"; do {
+			[ "$( uci -q get "wireless.@wifi-iface[$i].mode" )" = 'adhoc' ] && {
+				echo "$name"
+			}
 
-			network_append="RADIO${radiocard}"
+			i=$(( i + 1 ))
 		} done
 	}
 
@@ -1592,23 +1588,17 @@ _config_olsrd()		# example here: http://olsr.org/git/?p=olsrd.git;a=blob;f=files
 			esac
 		}
 
-		case "$PROFILE_MODE" in
-			'ap'*)
-				echo "$landev $wandev"
-			;;
-			'adhoc'*|'hybrid')
-				echo "$landev $wandev"
-				output_useable_wifi_networks
-			;;
-		esac
+		echo "$landev $wandev"
+		useable_wifi_networks
 
 		uci -q get 'network.innercityVPN' >/dev/null && echo 'innercityVPN'
 	}
 
 	output_main_ip()
 	{
-		uci get network.lan.ipaddr && return 0
-		uci get network.wan.ipaddr && return 0
+		uci -q get 'network.lan.ipaddr' && return 0
+		uci -q get 'network.wan.ipaddr' && return 0
+
 		echo '0.0.0.0'
 	}
 
