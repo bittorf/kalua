@@ -1,0 +1,32 @@
+#!/bin/sh
+
+for FILE_NETPARAM in "$TMPDIR/NETPARAM" '/tmp/NETPARAM' "$PERMDIR/NETPARAM"; do {
+	test -e "$FILE_NETPARAM" && break
+} done
+
+if [ -e "$FILE_NETPARAM" ]; then
+	while read -r LINE; do {
+		case "$LINE" in
+			*'OLSR='*)
+			;;
+			*"="*)
+				case "$LINE" in
+					*'='|*'='[0-9]|*'='[0-9][0-9])
+						# short lines if suiteable, e.g. after $DEVPRE
+						printf '%s\n' "$LINE"
+					;;
+					*)
+						printf '%s' "$LINE;"
+					;;
+				esac
+			;;
+		esac
+	} done <"$FILE_NETPARAM"
+	echo "BATADR=$( uci -q get network.mybridge.ipaddr )"
+
+	. "$FILE_NETPARAM"
+	printf '%s' "$WIFIDEV" >"$TMPDIR/WIFIDEV"	# is a hack for fast seeking our dev/ip
+	printf '%s' "$WIFIADR" >"$TMPDIR/WIFIADR"
+else
+	logger -s -- "$0: [OK] could not use '$FILE_NETPARAM' - maybe later"
+fi
