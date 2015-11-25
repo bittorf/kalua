@@ -198,71 +198,68 @@ _switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-cont
 
 _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit/halfduplex 100mbit nothing 1GB"
 {
-	local debug="$1"		# string: <empty>, 'debug', 'html' or 'wan' (TODO:annotate wanports)
+	local funcname='switch_show'	# TODO: annotate wanports
+	local debug="$1"		# string: <empty>, 'debug', 'html' or 'wan'
 	local html_preambel="$2"	# string: sets intro-text in html-mode, e.g. 'switch-usage: '
-	local line
-	export I=0		# global port counter
+	export I=0			# global port counter (is incremented in each port-function)
 
 	[ "$debug" = 'html' ] && {
-		[ -n "$html_preambel" ] && {
-			html_preambel="<td>$html_preambel</td>"
-		}
-
-		echo -n "<table cellspacing='1' cellpadding='0'><tr>$html_preambel"
-
+		[ -n "$html_preambel" ] && html_preambel="<td>$html_preambel</td>"
 		SWITCH_SYMBOL_HTML='true'
 		debug=
+		printf '%s' "<table cellspacing='1' cellpadding='0'><tr>$html_preambel"
 	}
 
-	# we expect, that the 1st port is the wan-port (if any)
-	case "$HARDWARE" in
-		'Nexx WT3020'*)
-			# WAN | LAN | power
-			_switch query_swconfig '0 gap 4' "$debug"
-		;;
+	case "$HARDWARE" in		# we expect, that the 1st port is the wan-port (if any)
 		'Linksys WRT54G/GS/GL'|'Buffalo WHR-HP-G54'|'La Fonera 2.0N'|'ASUS WL-500g Premium v2')
 			# older revisions cannot work with 'swconfig' and use 'robocfg'
 			# WAN | 4 x LAN  - tested with r38650
 			if [ -e '/sbin/robocfg' ]; then
-				_switch query_robocfg "0 gap 1 2 3 4" "$debug"
+				_switch query_robocfg '0 gap 1 2 3 4' "$debug"
 			else
-				_switch query_swconfig "4 gap 3 2 1 0" "$debug"
+				_switch query_swconfig '4 gap 3 2 1 0' "$debug"
 			fi
 		;;
-		'TP-LINK TL-WR841N/ND v8')
-			# WAN | 4 x LAN
-			_switch query_miitool "eth0" "$debug"
-			_switch query_swconfig "gap 2 3 4 1" "$debug"
+		'Nexx WT3020'*)
+			# WAN | LAN | power
+			_switch query_swconfig '0 gap 4' "$debug"
 		;;
-		'TP-LINK TL-WR940N'|'Mercury MAC1200R')
+		'TP-LINK TL-WR1043ND'|'TP-LINK TL-WR841N/ND v7'|'TP-LINK TL-WR741ND v2'|'ASUS WL-500g Premium')
 			# WAN | 4 x LAN
-			_switch query_miitool "eth1" "$debug"
-			_switch query_swconfig "gap 4 3 2 1" "$debug"
+			_switch query_swconfig '0 gap 1 2 3 4' "$debug"
 		;;
-		"Buffalo WZR-HP-AG300H")
-			# WAN | 4 x LAN
-			_switch query_miitool "eth1" "$debug"
-			_switch query_swconfig "gap 1 2 3 4" "$debug"
+		'TP-LINK TL-WDR3600'|'TP-LINK TL-WDR4300'|'TP-LINK TL-WDR4310'|'TP-LINK TL-WDR4900 v1'|\
+		'TP-LINK TL-WDR3600/4300/4310'|'TP-LINK Archer C7 v2')
+			# WAN | 4 x LAN | CPU = port0
+			_switch query_swconfig '1 gap 2 3 4 5' "$debug"
 		;;
 		'TP-LINK TL-WR1043ND v2')
 			# WAN | 4 x LAN
 			_switch query_swconfig '5 gap 4 3 2 1' "$debug"
 		;;
-		'TP-LINK TL-WR1043ND'|'TP-LINK TL-WR841N/ND v7'|'TP-LINK TL-WR741ND v2'|'ASUS WL-500g Premium')
+		'TP-LINK TL-WR841N/ND v8')
 			# WAN | 4 x LAN
-			_switch query_swconfig "0 gap 1 2 3 4" "$debug"
+			_switch query_miitool 'eth0' "$debug"
+			_switch query_swconfig 'gap 2 3 4 1' "$debug"
 		;;
-		'TP-LINK TL-WDR3600'|'TP-LINK TL-WDR4300'|'TP-LINK TL-WDR4310'|'TP-LINK TL-WDR3600/4300/4310'|'TP-LINK TL-WDR4900 v1'|'TP-LINK Archer C7 v2')
-			# WAN | 4 x LAN | CPU = port0
-			_switch query_swconfig "1 gap 2 3 4 5" "$debug"
+		'TP-LINK TL-WR940N'|'Mercury MAC1200R')
+			# WAN | 4 x LAN
+			_switch query_miitool 'eth1' "$debug"
+			_switch query_swconfig 'gap 4 3 2 1' "$debug"
+		;;
+		'Buffalo WZR-HP-AG300H')
+			# WAN | 4 x LAN
+			_switch query_miitool 'eth1' "$debug"
+			_switch query_swconfig 'gap 1 2 3 4' "$debug"
 		;;
 		'Ubiquiti Nanostation M'*)
 			# LAN ("main") | WAN ("secondary")
 			_switch query_swconfig '1' "$debug"
 			_switch query_miitool 'eth0' "$debug"
 		;;
-		'Ubiquiti Nanostation'*|'TP-LINK TL-WR703N v1'|'Speedport W500V'|'T-Mobile InternetBox'|'Ubiquiti Picostation'*|'Ubiquiti Bullet M'*|'Ubiquiti Picostation M'*|'Seagate GoFlex Home')
-			_switch query_miitool "eth0" "$debug"
+		'Ubiquiti Nanostation'*|'TP-LINK TL-WR703N v1'|'Speedport W500V'|'T-Mobile InternetBox'|\
+		'Ubiquiti Picostation'*|'Ubiquiti Bullet M'*|'Ubiquiti Picostation M'*|'Seagate GoFlex Home')
+			_switch query_miitool 'eth0' "$debug"
 		;;
 		'PC Engines ALIX.2'|'Mikrotik Routerboard 532')		# TODO: rb532
 			# power | WAN | LAN | LAN2 | serial
@@ -270,11 +267,11 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 		;;
 		'PC Engines WRAP')
 			# power | WAN | LAN | serial			# BOOTP via WAN
-			_switch query_miitool "eth0 gap eth1" "$debug"
+			_switch query_miitool 'eth0 gap eth1' "$debug"
 		;;
 		'Soekris net5501')
 			# power | serial | WAN | LAN | LAN | LAN
-			_switch query_miitool "eth0 eth1 eth2 eth3" "$debug"
+			_switch query_miitool 'eth0 eth1 eth2 eth3' "$debug"
 		;;
 		'UML'|'Intel'*|'AMD Opteron'*|*'QEMU Virtual CPU'*|'x86_64'|*'ARMv7'*)
 			# sane (but maybe wrong) fallback for e.g. VPN-Server
@@ -283,22 +280,13 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 			_switch symbol full 1000
 		;;
 		*)
-			_switch symbol unimplemented
-			_switch symbol gap
-			_switch symbol unimplemented
-			_switch symbol unimplemented
-			_switch symbol unimplemented
+			_log it $funcname daemon debug "unknown hardware: '$HARDWARE'"
 			_switch symbol unimplemented
 		;;
 	esac
 
-	[ -n "$SWITCH_SYMBOL_HTML" ] && {
-		unset SWITCH_SYMBOL_HTML
-		echo -n '</tr></table>'
-	}
-
-	unset I		# port counter, see symbol()
-	return 0
+	[ -n "$SWITCH_SYMBOL_HTML" ] && printf '</tr></table>'
+	unset I SWITCH_SYMBOL_HTML	# I = port counter, see symbol()
 }
 
 _switch_test()
