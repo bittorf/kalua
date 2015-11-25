@@ -7,6 +7,11 @@
 
 _http header_mimetype_output 'text/plain'
 
+tac_roaming()
+{
+	grep -sn '' '/tmp/roaming' | sort -rn | cut -d: -f2-
+}
+
 case "$QUERY_STRING" in
 	'')
 		echo 'OK - empty QUERY'
@@ -20,15 +25,14 @@ case "$QUERY_STRING" in
 		echo 'OK'
 	;;
 	*'roaming_getlist'*)
-		# simulate 'tac'
-		grep -n '' '/tmp/roaming' | sort -rn | cut -d: -f2-
+		tac_roaming
 		echo 'OK'
 	;;
 	*'roaming_querymac'*)
 		eval $( _http query_string_sanitize "$0:roaming_querymac" )
 
 		# format: mac ip expires - see: net_roaming_report_new() - searched newest entires first = 'tac'
-		if LINE="$( grep -sn '' '/tmp/roaming' | sort -rn | cut -d: -f2- | grep ^"$mac" )"; then
+		if LINE="$( tac_roaming | grep ^"$mac" )"; then
 			explode $LINE
 			echo $2
 		else
