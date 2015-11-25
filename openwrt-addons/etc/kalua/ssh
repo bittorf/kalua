@@ -83,32 +83,29 @@ _ssh_generate_and_store_private_dss_key ()
 _ssh_sanitize_and_cleanup_keys()
 {
 	local funcname='ssh_sanitize_and_cleanup_keys'
-	local DSSFILE="/etc/dropbear/dropbear_dss_host_key"		# if no dropbear is in firmware and we install it,
-	local DSSKEY="$( _nvram get 'ff_dsskey' )"			# the key in nvram is not respected
-	local TEMP="/tmp/DSSKEY"
-	local file
+	local file mode
 
-	pubfile_ok()
+	public_keyfile_ok()
 	{
+		local file="$1"
+
 		[ -e '/usr/bin/dropbearkey' ] || return 0		# simulate OK
-		[ -e "${DSSFILE}.pub" ] || return 1
-		[ $( _file size "${DSSFILE}.pub" ) -eq 0 ] && return 1
+		[ -e "$file.pub" ] || return 1
+		[ $( _file size "$file.pub" ) -eq 0 ] && return 1
 
 		return 0
 	}
 
-	pubfile_ok || {
-		_log it $funcname daemon info "writing ${DSSFILE}.pub"
+	for mode in rsa dss; do {
+		file="/etc/dropbear/dropbear_${mode}_host_key"
 
-		if [ -e '/etc/dropbear/dropbear_rsa_host_key' ]; then
-			file='/etc/dropbear/dropbear_rsa_host_key'	# since r46814 - TODO!
-		else
-			file='/etc/dropbear/dropbear_dss_host_key'
-		fi
+		public_keyfile_ok "$file" || {
+			_log it $funcname daemon info "writing $file.pub"
 
-		dropbearkey -y -f "$file" | grep ^'ssh-' >"${DSSFILE}.pub"
-		chmod 0600 "${DSSFILE}.pub"
-	}
+			dropbearkey -y -f "$file" | grep ^'ssh-' >"$file.pub"
+			chmod 0600 "$file.pub"
+		}
+	} done
 
 	if [ -L $HOME/.ssh ]; then
 		:
