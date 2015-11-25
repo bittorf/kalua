@@ -1,12 +1,11 @@
-From 06eacc0232ef65c1e08c1f48c0611b19b8e137bf Mon Sep 17 00:00:00 2001
+From c58ef944f7531b5b63664234d097edce4ff3978b Mon Sep 17 00:00:00 2001
 From: Bastian Bittorf <bittorf@bluebottle.com>
 Date: Wed, 25 Nov 2015 09:58:59 +0100
 Subject: [PATCH] basefiles: lock: use shell-implementation instead of patching
  busybox
 
-this make the file
-package/utils/busybox/patches/220-add_lock_util.patch
-obsolete. the users of funcionality are:
+This makes the file package/utils/busybox/patches/220-add_lock_util.patch
+obsolete (an implementation in C). The users of this functionality are:
 
 /lib/functions.sh
 /lib/preinit/30_failsafe_wait
@@ -20,44 +19,40 @@ lock -w $file
 
 Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
 ---
- package/base-files/files/lib/functions.sh          |  40 +++++
+ package/base-files/files/lib/functions.sh          |  36 ++++
  .../utils/busybox/patches/220-add_lock_util.patch  | 182 ---------------------
- 2 files changed, 40 insertions(+), 182 deletions(-)
+ 2 files changed, 36 insertions(+), 182 deletions(-)
  delete mode 100644 package/utils/busybox/patches/220-add_lock_util.patch
 
 diff --git a/package/base-files/files/lib/functions.sh b/package/base-files/files/lib/functions.sh
-index dde1ac4..4157a72 100755
+index dde1ac4..ce66e2c 100755
 --- a/package/base-files/files/lib/functions.sh
 +++ b/package/base-files/files/lib/functions.sh
-@@ -3,6 +3,46 @@
+@@ -3,6 +3,42 @@
  # Copyright (C) 2006 Fokus Fraunhofer <carsten.tittel@fokus.fraunhofer.de>
  # Copyright (C) 2010 Vertical Communications
  
-+lock()	# https://dev.openwrt.org/browser/trunk/package/utils/busybox/patches/220-add_lock_util.patch
++lock()
 +{
 +	local option="$1"
 +	local file="$2"
-+	local i
 +
 +	case "$option" in
-+		'')
++		''|'-h'|'--help')
 +			echo "Usage: lock [-suw] <filename>"
-+#			echo "             -s      Use shared locking"
++			echo "             -s      Use shared locking	# FIXME"
 +			echo "             -u      Unlock"
 +			echo "             -w      Wait for the lock to become free, don't acquire lock"
 +			echo "             -n      Don't wait for the lock to become free. Fail with exit code"
 +		;;
 +		'-u')
-+			rm "$file" 2>/dev/null
-+			true
++			rm "$file" 2>/dev/null || true
 +		;;
 +		'-w')
 +			while [ -e "$file" ]; do {
-+				i=$$	# waitloop
-+				while [ $i -gt 0 ]; do {
-+					sleep 1
-+					i=$(( i - 1 ))
-+				} done
++				sleep 1
++				local i=$$	# add jitter
++				while [ $i -gt 0 ]; do i=$(( i - 1 )); done
 +			} done
 +		;;
 +		'-n')
