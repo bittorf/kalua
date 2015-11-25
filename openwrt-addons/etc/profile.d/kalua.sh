@@ -23,6 +23,14 @@ case "$USER" in
 	;;
 esac
 
+_ t 2>/dev/null || {
+	[ -e '/tmp/loader' ] && {
+		. '/tmp/loader'
+		echo
+		echo 'for some hints type: _help overview'
+	}
+}
+
 if   [ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci' ]; then
 	echo "fresh/unconfigured device detected, run: '/etc/init.d/apply_profile.code' for help"
 elif [ -e '/tmp/REBOOT_REASON' ]; then
@@ -45,11 +53,3 @@ elif [ -e '/tmp/REBOOT_REASON' ]; then
 	esac
 	unset CRASH
 fi
-
-_ t 2>/dev/null || {
-	[ -e '/tmp/loader' ] && {
-		. '/tmp/loader'
-		echo
-		echo 'for some hints type: _help overview'
-	}
-}
