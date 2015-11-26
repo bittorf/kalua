@@ -737,7 +737,7 @@ EOF
 			# XW (since 2014)
 			# http://wiki.openwrt.org/toh/ubiquiti/nanostationm5
 			TARGET_SYMBOL="CONFIG_TARGET_ar71xx_generic_UBNT=y"
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-loco-m-xw-squashfs-syspgrade.bin'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-loco-m-xw-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-ubnt-loco-m-xw-squashfs-factory.bin'
 		;;
 		'Targa WR-500-VoIP'|'Speedport W500V')
