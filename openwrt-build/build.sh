@@ -531,7 +531,7 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
 
 			case "$LIST_USER_OPTIONS" in
-				'Small'*)
+				'Small'*)	# parser_ignore
 					SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=10"
 				;;
 				*)

@@ -1,5 +1,28 @@
 #!/bin/sh
 
+_net_both_ipv4_in_same_subnet()
+{
+	local addr1="${1%/*}"			# e.g. 10.63.12.1/27
+	local mask1="${1#*/}"
+	local addr2="${2%/*}"
+	local mask2="${2#*/}"
+	local s1 s2 mask
+
+	if [ $mask1 -gt $mask2 ]; then		# TODO: is this correct?
+		mask="$mask1"
+	else
+		mask="$mask2"
+	fi
+
+	mask="$( _net cidr2mask "$mask" )"
+	explode ${addr1//./ } ${mask//./ }	# e.g. 10 63 12 1 255 255 255 240
+	s1="$(( $1 & $5 )) $(( $2 & $6 )) $(( $3 & $7 )) $(( $4 & $8 ))"
+	explode ${addr2//./ } ${mask//./ }
+	s2="$(( $1 & $5 )) $(( $2 & $6 )) $(( $3 & $7 )) $(( $4 & $8 ))"
+
+	test "$s1" = "$s2"
+}
+
 _net_get_rxtx()
 {
 	local dev="$1"
@@ -2106,7 +2129,7 @@ _net_cidr2mask()	# OUT1: string
 		 *) o=255.255.255.255 ;;
 	esac
 
-	echo -n $o
+	printf "$o"
 }
 
 _net_active_ap_devices()

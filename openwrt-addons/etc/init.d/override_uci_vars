@@ -3,11 +3,27 @@
 
 START=01
 
-# nothing to see here, go away... 8-)
-#
 # this file is a workaround for changing (uci-)settings for already running nodes
 # later we will split it into separate mysettings.ipk for each installation
-# if in doubt, simply remove it from your own build
+# if in doubt, remove this file from your own build
+
+force_dnsserver()
+{
+	local ip_wish="$1"
+	local server
+
+	[ -n "$( _wifi get any mode ap )" ] && {
+		for server in $( uci get 'dhcp.@dnsmasq[0].server' ); do {
+			[ "$server" = "$ip_wish" ] || {
+				uci del_list "dhcp.@dnsmasq[0].server"="$server"
+			}
+		} done
+
+		[ "$( uci get 'dhcp.@dnsmasq[0].server' )" = "$ip_wish" ] || {
+			uci add_list "dhcp.@dnsmasq[0].server"="$ip_wish"
+		}
+	}
+}
 
 uci_already_added()
 {
@@ -1452,6 +1468,8 @@ boot()
 			_wifi set ap 5ghz disabled '1'
 		;;
 		ejbw*)
+			force_dnsserver '208.67.222.123'	# opendns/adult
+
 			uci set system.@weblogin[0].enabled='false'		# since 2015nov19
 
 			uci set system.@monitoring[0].ignore_lossyethernet='true'	# powerline
