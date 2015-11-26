@@ -1782,20 +1782,24 @@ apply_symbol()
 			log "$KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cd $KALUA_DIRNAME || return
 			find openwrt-addons/* -type f | while read -r file_original; do {
-				file="$( basename $file_original )"
+				[ "$( mimetype_get "$file_original" )" = 'text/x-shellscript' ] || continue
+
+				file="$( basename "$file_original" )"
 				dir="../$custom_dir/$( dirname $file_original | sed "s|openwrt-addons/||" )"
 				mkdir -p $dir
 				firstline="$( head -n1 "$file_original" )"
 				commit_info="$( git log -1 --pretty='format:%aD | commit: %h' -- "$file_original" )"
+
 				{
 					# TODO: http://www.stack.nl/~dimitri/doxygen/manual/docblocks.html#specialblock
-					# TODO: add function-table mit args + help ontop
+					# TODO: add function-table with args + help on top
 					echo "$firstline"
 					echo "# this file belongs to $KALUA_DIRNAME: $KALUA_REPO_URL"
 					echo "# last change: $commit_info | $file_original"
 					echo
 					tail -n +2 "$file_original"
 				} >"$dir/$file"
+
 				chmod +x "$dir/$file"
 			} done
 			cd - >/dev/null || return
