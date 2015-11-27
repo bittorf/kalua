@@ -40,6 +40,7 @@ print_usage_and_exit()
 		usecase="Standard,$KALUA_DIRNAME"
 	fi
 
+	# these are used by the OpenWrt build scripts
 	[ -e ~/whoami -a -e ~/hostname ] && {
 		more_options="--buildid '$( tail -n1 ~/whoami | cut -d' ' -f2 )@$( tail -n1 ~/hostname | cut -d' ' -f2 )'"
 	}
@@ -3222,7 +3223,8 @@ die_and_exit()
 	exit 1
 }
 
-[ "$UID" = '0' ] && log "REMINDER: dont build as root, you have UID: $UID"
+# http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-5.1/man1/whoami.1?query=whoami&sec=1&manpath=OpenBSD-5%2e1
+[ "$( id -u )" = '0' ] && log "REMINDER: dont build as root, you have UID: $UID"
 
 check_git_settings			|| die_and_exit
 check_working_directory			|| die_and_exit
