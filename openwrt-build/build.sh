@@ -641,6 +641,12 @@ EOF
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841n-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841n-v${version}-squashfs-factory.bin"
 		;;
+		'TP-LINK TL-WR842N/ND v1'|'TP-LINK TL-WR842N/ND v2')
+			# https://wiki.openwrt.org/toh/tp-link/tl-wr842nd
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR842=y'
+			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr842n-v${version}-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr842n-v${version}-squashfs-factory.bin"
+		;;
 		'TP-LINK TL-WR847N v8')
 			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'

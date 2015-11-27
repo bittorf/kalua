@@ -201,7 +201,8 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 	local funcname='switch_show'	# TODO: annotate wanports
 	local debug="$1"		# string: <empty>, 'debug', 'html' or 'wan'
 	local html_preambel="$2"	# string: sets intro-text in html-mode, e.g. 'switch-usage: '
-	export I=0			# global port counter (is incremented in each port-function)
+	local hw			# global port counter (is incremented in each port-function)
+	export I=0
 
 	[ "$debug" = 'html' ] && {
 		[ -n "$html_preambel" ] && html_preambel="<td>$html_preambel</td>"
@@ -210,7 +211,26 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 		printf '%s' "<table cellspacing='1' cellpadding='0'><tr>$html_preambel"
 	}
 
-	case "$HARDWARE" in		# we expect, that the 1st port is the wan-port (if any)
+	# the internal OpenWrt-name differs from our version
+	# for switch-related stuff this is enough, see:
+	# https://github.com/weimarnetz/weimarnetz/issues/16
+	read hw 2>/dev/null <'/tmp/sysinfo/model'
+	case "$hw" in
+		'TP-Link Archer C7 v1') hw='TP-LINK Archer C7' ;;
+		'TP-Link TL-MR3020 v1') hw='TP-LINK TL-MR3020' ;;
+		'TP-Link TL-WDR3600 v1') hw='TP-LINK TL-WDR3600' ;;
+		'TP-Link TL-WDR4300 v1') hw='TP-LINK TL-WDR4300' ;;
+		'TP-Link TL-WR1043N/ND v1') hw='TP-LINK TL-WR1043ND' ;;
+		'TP-Link TL-WR841N/ND v7') hw='TP-LINK TL-WR841N/ND v7' ;;
+		'TP-Link TL-WR841N/ND v8') hw='TP-LINK TL-WR841N/ND v8' ;;
+		'TP-Link TL-WR841N/ND v9') hw='TP-LINK TL-WR841N/ND v9' ;;
+		'TP-Link TL-WR842N/ND v1') hw='TP-LINK TL-WR842N/ND v1' ;;
+		'Ubiquiti Bullet M') hw='Ubiquiti Bullet M5' ;;
+		'Ubiquiti Nanostation M') hw='Ubiquiti Nanostation M5' ;;
+		*) hw="$HARDWARE" ;;
+	esac
+
+	case "$hw" in	# we expect, that the 1st port is the wan-port (if any)
 		'Linksys WRT54G/GS/GL'|'Buffalo WHR-HP-G54'|'La Fonera 2.0N'|'ASUS WL-500g Premium v2')
 			# older revisions cannot work with 'swconfig' and use 'robocfg'
 			# WAN | 4 x LAN  - tested with r38650
