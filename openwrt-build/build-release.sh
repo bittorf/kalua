@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# mount -t tmpfs -o size=16G,nosuid,nodev,mode=1777 tmpfs /media/cdrom
+
 list_options()		# disable e.g. USB-builds for router without USB or images that are too big?
 {
 #	echo 'Standard'					# sizecheck
