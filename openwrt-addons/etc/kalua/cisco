@@ -16,10 +16,18 @@ _cisco_cdpsend()
 _cisco_poeport_repower()
 {
 	local switch_ip="$1"
-	local port="$2"		# e.g. 5 -> Fa0/5
-	local word
+	local port="$2"		# e.g. 'all' or 'Fa0/5' (=port5)
+	local word i
 	local pass_switch="$( uci get system.@monitoring[0].cisco_pass2 )"
 	local pass_enable="$( uci get system.@monitoring[0].cisco_pass3 )"
+
+	[ "$port" = 'all' ] && {
+		for i in $( seq 0 48 ); do {
+			_cisco poeport_repower "$switch_ip" "Fa0/$i"
+		} done
+
+		return
+	}
 
 	(
 	sleep 1
@@ -47,6 +55,7 @@ _cisco_query()
 	local word
 
 	_log it query daemon info "ip: $ip auth: $auth"
+	echo "# IP: $ip"
 
 	# TODO:
 	# wifi-ap: get channel + get assocs
@@ -110,9 +119,13 @@ _cisco_parse()
 
 	hostname="$( grep '>terminal length' "$file" | cut -d'>' -f1 )"
 
-	explode $( grep ^'Vlan1' "$file" )		# on switch
+	explode $( grep ^'Vlan1' "$file" )			# on switch
 	[ -z "$2" ] && explode $( grep ^'BVI1' "$file" )	# on AP
 	ip="$2"
+	[ -z "$ip" ] && {
+		explode $( grep ^'# IP: ' "$file" )
+		ip="$3"						# from query()
+	}
 
 	# FIXME! convert to seconds, e.g.
 	# 20 minutes
@@ -129,7 +142,7 @@ _cisco_parse()
 	model_name="$*"
 
 	_switch symbol html_init
-	_switch symbol html "$hostname | $ip | $model_name | $uptime"
+	_switch symbol html "${hostname:-host?} | ${ip:-ip?} | ${model_name:-model?} | ${uptime:-up?}"
 	_switch symbol newline
 
 	case "$model_name" in
@@ -239,7 +252,7 @@ _cisco_collect()	# FIXME! this is a sample
 
 		_cisco query 192.168.202.232 "$pass_switch" >'/tmp/cisco-E3-232'
 		_cisco query 192.168.202.231 "$pass_switch" >'/tmp/cisco-E3-231'
-		_cisco query 192.168.202.230 "$pass_switch" >'/tmp/cisco-E3-230'
+		_cisco query 192.168.202.230 "$pass_switch" >'/tmp/cisco-E3-230'	# SWITCH-E3-POE24
 
 		_cisco query 192.168.202.247 "$pass_switch" >'/tmp/cisco-E5-247'
 		_cisco query 192.168.202.248 "$pass_switch" >'/tmp/cisco-E5-248'
