@@ -193,7 +193,7 @@ work()
 
 work mpc85xx 2>&1 | tee LOG
 # while :;do case "$(cat /proc/loadavg)" in 0.0*) work 2>&1 | tee LOG; break;;*) uptime;sleep 30;; esac; done
-grep ^real LOG | while read L; do set -- $L; test "$1" != 'real:' && echo "$L $O" || { shift; O="$*"; }; done
+# grep ^real LOG | while read -r L; do set -- $L; test "$1" != 'real:' && echo "$L $O" || { shift; O="$*"; }; done
 
 # Comp1 = rene   / KVM: Intel Xeon(R) CPU X5650       @ 2.67GHz / 24 threads
 # Comp2 = max    / AMD Phenom(tm) II X4 955 Processor @ 3.8GHz  /  4 threads
