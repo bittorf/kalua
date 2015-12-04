@@ -150,6 +150,7 @@ log "START: $TIME_START"
 log "READY: $( date )"
 log "good: $BUILD_GOOD bad: $BUILD_BAD"
 
+exit 0
 # build-test:
 #
 # - install all deps
@@ -190,7 +191,7 @@ work()
 	done
 }
 
-work 2>&1 | tee LOG
+work mpc85xx 2>&1 | tee LOG
 # while :;do case "$(cat /proc/loadavg)" in 0.0*) work 2>&1 | tee LOG; break;;*) uptime;sleep 30;; esac; done
 grep ^real LOG | while read L; do set -- $L; test "$1" != 'real:' && echo "$L $O" || { shift; O="$*"; }; done
 
