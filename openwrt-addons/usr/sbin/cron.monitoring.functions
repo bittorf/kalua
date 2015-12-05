@@ -36,3 +36,47 @@ heartbeat_minimal_send()
 		;;
 	esac
 }
+
+heartbeat_mapapi()
+{
+	local apiurl='http://mapapi.weimarnetz.de'
+	local url="$apiurl/update_node/$HOSTNAME.olsr"
+	local file="$TMPDIR/mapapi.cache"
+	local data nexthop gateway
+
+	[ -e "$file" ] || {
+		# TODO: distinguish between static and dynamic values
+		read -r gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
+		read -r nexthop <'/tmp/GATEWAY_CHECK_RECENT_NEXTHOP_IP_ONLY'
+
+		cat >"$file" <<EOF
+{
+"api_rev": "1.0",
+"hostname": "$HOSTNAME",
+"latitude": 50,
+"type": "node",
+"longitude": 12,
+"updateInterval": 3600,
+"location": "$HOSTNAME",
+"weimarnetz": {
+	"gateway": "$gateway",
+	"nodenumber": $NODENUMBER,
+	"nexthop": "$nexthop",
+	"gatewaycost": 1
+	}
+"firmware": {
+	"distname": "",
+	"luciname": "no LuCI",
+	"fffversion": "$FFF_PLUS_VERSION",
+	"luciversion": "0",
+	"revision": "OpenWrt (kalua) r$OPENWRT_REV",
+	"distversion": "OpenWrt (kalua) r$OPENWRT_REV",
+	"name": ""
+	}
+}
+EOF
+	}
+
+	read -r data <"$file"
+	curl -X PUT "$url" -d "$data"
+}
