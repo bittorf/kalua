@@ -37,17 +37,38 @@ heartbeat_minimal_send()
 	esac
 }
 
+heartbeat_mapapi_http_put()
+{
+	local file="$1"
+	local server="$2"
+	local url="$3"
+
+	echo "PUT /$url"
+	echo 'HTTP/1.1'
+	echo 'User-Agent: netcat'
+	echo "Host: $server"
+	echo "Content-Length: $( _file size "$file" )"
+	echo 'Content-Type: application/x-www-form-urlencoded'
+	echo
+
+	cat "$file"
+}
+
 heartbeat_mapapi()
 {
-	local apiurl='http://mapapi.weimarnetz.de'
-	local url="$apiurl/update_node/$HOSTNAME.olsr"
+	local server='mapapi.weimarnetz.de'
+	local url="update_node/$HOSTNAME.olsr"
 	local file="$TMPDIR/mapapi.cache"
-	local data nexthop gateway
+	local nexthop gateway system_type
 
 	[ -e "$file" ] || {
 		# TODO: distinguish between static and dynamic values
 		read -r gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
 		read -r nexthop <'/tmp/GATEWAY_CHECK_RECENT_NEXTHOP_IP_ONLY'
+
+		explode $( grep ^'system type' /proc/cpuinfo )
+		shift 3
+		system_type="$*"	# Atheros AR9132 rev 2
 
 		cat >"$file" <<EOF
  {
@@ -58,12 +79,21 @@ heartbeat_mapapi()
 "longitude": 12,
 "updateInterval": 3600,
 "location": "$HOSTNAME",
+"system": {
+	"sysinfo": [
+		"$system_type",
+		"$HARDWARE"
+	],
+	"uptime": [
+		$( _system uptime sec )
+	]
+	},
 "weimarnetz": {
 	"gateway": "$gateway",
 	"nodenumber": $NODENUMBER,
 	"nexthop": "$nexthop",
 	"gatewaycost": 1
-	}
+	},
 "firmware": {
 	"distname": "",
 	"luciname": "no LuCI",
@@ -77,6 +107,6 @@ heartbeat_mapapi()
 EOF
 	}
 
-	read -r data <"$file"
-	curl -X PUT "$url" -d "$data"
+	# curl -X PUT "http://$server/$url" -d "$( cat "$file" )"
+	heartbeat_mapapi_http_put "$file" "$server" "$url" | nc "$server" 80
 }
