@@ -136,14 +136,15 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 	esac
 
 	[ "$3" = 'debug' -a ! -e '/tmp/DEBUG' ] && {
+		# early exit when not interactive and no enforced debugmode
 		_log shell_is_interactive || return 0
 	}
 
 	local FATHER_PROCESS="$0"
-	local FUNCTION="$1"		# ARG1, string (name of function, from where call was invoked)
-	local FACILITY="$2"		# ARG2, string (source = kern,user,mail,daemon,syslog,lpr,news,uucp,cron,authpriv,local0-7)
-	local PRIO="$3"			# ARG3, string (emerg,alert,crit,err,warning,notice,info,debug,sms)	// nonstandard: sms
-	local MESSAGE="$4"		# ARG4, string (humanreadable verbose message, all is syslog-alike)
+	local FUNCTION="$1"		# name of function, from where call was invoked
+	local FACILITY="$2"		# source = kern,user,mail,daemon,syslog,lpr,news,uucp,cron,authpriv,local0-7
+	local PRIO="$3"			# emerg,alert,crit,err,warning,notice,info,debug,sms	// nonstandard: sms
+	local MESSAGE="$4"		# humanreadable verbose message, all is syslog-alike
 	local message_sms="$5"
 	local phonenumber="$6"
 #	local force="$7"
@@ -186,7 +187,7 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 		debug|emerg|alert|crit|sms)			# idea: [ $MEM -lt 999999 ] && PRIO="alert"
 			eval $( mem_uptime_and_date )
 
-			[ "$PRIO" = "sms" ] && {
+			[ "$PRIO" = 'sms' ] && {
 				if [ -n "$phonenumber" ]; then
 					list="$phonenumber"
 				else
@@ -214,13 +215,14 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 				} done
 
 				[ -n "$stack_funcname" ] && FUNCTION="$stack_funcname"
-				PRIO="alert"
+				PRIO='alert'
 			}
 
-			[ "$PRIO" != "debug" ] && {		# write to logfile in flash, which is not lost after reboot
+			[ "$PRIO" != 'debug' ] && {
 				text="$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
 
 				if [ $( _system flash_free ) -gt 150 ]; then
+					# write to logfile in flash, which is not lost after reboot
 					echo >>$PERMLOG "$text"
 				else
 					echo >>$PERMLOG_RAM "$text"
