@@ -176,11 +176,9 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 
 	mem_uptime_and_date()
 	{
-		[ -z "$MEM" -o -z "$UPTIME" -o -z "$DATE" ] && {
-			_system ram_free	MEM=
-			_system uptime sec	UPTIME=
-			_system date evalable	DATE=
-		}
+		echo "MEM=${MEM:-$( _system ram_free )}"
+		echo "UPTIME=${UPTIME:-$( _system uptime sec )}"
+		echo "DATE='${DATE:-$( _system date )}'"
 	}
 
 	case "$PRIO" in
@@ -219,7 +217,7 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 			}
 
 			[ "$PRIO" != 'debug' ] && {
-				text="$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE"
+				text="$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [$FACILITY.$PRIO] $FUNCTION() $MESSAGE"
 
 				if [ $( _system flash_free ) -gt 150 ]; then
 					# write to logfile in flash, which is not lost after reboot
@@ -229,50 +227,30 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 				fi
 
 				MESSAGE="$( _sanitizer run "$MESSAGE" strip_newlines )"
-				local UNIXTIME="$( _system date unixtime )"
-				local ARCHIV_NODE_MESSAGE="$text"
-				echo >>"$TMPDIR/ARCHIV_MONITORING" "log=$( _sanitizer run "$ARCHIV_NODE_MESSAGE" shellsafe urlvalue )&time=${UNIXTIME}"
+				text="$( _sanitizer run "$text" shellsafe urlvalue )"
+				echo >>"$TMPDIR/ARCHIV_MONITORING" "log=$text&time=$( _system date unixtime )"
 				touch "$TMPDIR/SEND_ALIVE_FAILED"
 			}
 		;;
 	esac
 
-	_log shell_is_interactive && {			# fixme! it does'nt work in nested functions, e.g. _net mac2vendor $MAC
+	_log shell_is_interactive && {
 		eval $( mem_uptime_and_date )
-		FATHER_PROCESS="TERM:${TERM} $0"
-		echo "$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [${FACILITY}.${PRIO}] ${FUNCTION}() $MESSAGE" 1>&2   # to stderr
+		FATHER_PROCESS="TERM:$TERM $0"
+		# output to STDERR
+		echo 1>&2 "$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [$FACILITY.$PRIO] $FUNCTION() $MESSAGE"
 	}
 
-	boot_and_debug_message()
-	{
-		[ $OPENWRT_REV -ge 41037 ] && return 0
-
-		if [ -e "/tmp/service_ssh_nowatching" ]; then
-			# why?
-			[ -e "/tmp/messages" ] && rm "/tmp/messages"
-		else
-			# of nobody is listening for 'logger', we store to file
-			pidof syslogd >/dev/null && return 0
-			pidof procd >/dev/null && return 0
-
+	[ $OPENWRT_REV -lt 41037 ] && {
+		# if nobody is listening for 'logger' yet, write to file (e.g. early bootup)
+		pidof procd syslogd >/dev/null || {
 			eval $( mem_uptime_and_date )
-			echo >>'/tmp/messages' "$DATE ' [up ${UPTIME}s $MEM bytes free] ${FACILITY}.${PRIO} fff+ $FATHER_PROCESS ${FUNCTION}() $MESSAGE"
-
-			# TODO:
-			# _log netmessage "$MESSAGE"
-		fi
+			text="$DATE ' [up ${UPTIME}s $MEM bytes free] $FACILITY.$PRIO"
+			text="$text fff+ $FATHER_PROCESS $FUNCTION() $MESSAGE"
+			echo >>'/tmp/messages' "$text"
+		}
 	}
 
-	if [ "$PRIO" = "debug" ]; then
-		[ -e '/tmp/DEBUG' ] || {
-			_log shell_is_interactive || return 0
-		}
-		boot_and_debug_message
-	else
-		boot_and_debug_message
-	fi
-
-	# TODO: howto print out logging when webserver executes a script?
 	logger -t "kalua: $FATHER_PROCESS" -p "${FACILITY}.${PRIO}" -- "$FUNCTION() $MESSAGE"
 }
 
