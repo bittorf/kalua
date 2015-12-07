@@ -78,6 +78,8 @@ _cisco_query()
 	echo 'show version | include Base\ ethernet\ MAC\ Address:'; sleep 1	# only on AP
 	echo 'exit'
 	) | telnet $ip | tr -d '\r'	# tr: autoremove windows line break ^M
+
+	return 0
 }
 
 _cisco_parse()
@@ -236,6 +238,7 @@ _cisco_collect()	# FIXME! this is a sample
 	local option="$1"	# <empty> or 'show'
 	local pass_wifiap="$( uci get system.@monitoring[0].cisco_pass1 )"
 	local pass_switch="$( uci get system.@monitoring[0].cisco_pass2 )"
+	local temp="$TMPDIR/collect_tempfile"
 	local i file
 
 	# FIXME! retry when file is 0 byte?
@@ -243,23 +246,25 @@ _cisco_collect()	# FIXME! this is a sample
 	if [ -z "$option" ]; then
 		for i in $(seq 3 38); do {
 			# FIXME! sort by hostname
-			_cisco query "192.168.202.$i" "$pass_wifiap" >/tmp/cisco-AP-$( printf "%03d" $i )
+			_cisco query "192.168.202.$i" "$pass_wifiap" >"$temp" && {
+				mv "$temp" "$TMPDIR/cisco-AP-$( printf "%03d" $i )"
+			}
 		} done
 
 		# TODO: keep files when unreachable, but mark br0ken
-		_cisco query 192.168.202.251 "$pass_switch" >'/tmp/cisco-E2-251'	# SWITCH-E2-48PORT
-		_cisco query 192.168.202.252 "$pass_switch" >'/tmp/cisco-E2-252'	# SWITCH-E2-24PORT
-		_cisco query 192.168.202.254 "$pass_switch" >'/tmp/cisco-E2-254'	# SWITCH-E2-POE24 ???
+		_cisco query 192.168.202.251 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E2-251"	# SWITCH-E2-48PORT
+		_cisco query 192.168.202.252 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E2-252"	# SWITCH-E2-24PORT
+		_cisco query 192.168.202.254 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E2-254"	# SWITCH-E2-POE24 ???
 
-		_cisco query 192.168.202.232 "$pass_switch" >'/tmp/cisco-E3-232'	# SWITCH-E3-48PORT
-		_cisco query 192.168.202.231 "$pass_switch" >'/tmp/cisco-E3-231'	# SWITCH-E3-24PORT
-		_cisco query 192.168.202.230 "$pass_switch" >'/tmp/cisco-E3-230'	# SWITCH-E3-POE24
+		_cisco query 192.168.202.232 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E3-232"	# SWITCH-E3-48PORT
+		_cisco query 192.168.202.231 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E3-231"	# SWITCH-E3-24PORT
+		_cisco query 192.168.202.230 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E3-230"	# SWITCH-E3-POE24
 
-		_cisco query 192.168.202.247 "$pass_switch" >'/tmp/cisco-E5-247'	# SWITCH-E5-48PORT
-		_cisco query 192.168.202.248 "$pass_switch" >'/tmp/cisco-E5-248'	# SWITCH-E5-24PORT
-		_cisco query 192.168.202.249 "$pass_switch" >'/tmp/cisco-E5-249'	# SWITCH-E5-POE24
+		_cisco query 192.168.202.247 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E5-247"	# SWITCH-E5-48PORT
+		_cisco query 192.168.202.248 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E5-248"	# SWITCH-E5-24PORT
+		_cisco query 192.168.202.249 "$pass_switch" >"$temp" && mv "$temp" "$TMPDIR/cisco-E5-249"	# SWITCH-E5-POE24
 	else
-		for file in /tmp/cisco-*; do {
+		for file in "$TMPDIR/cisco-"*; do {
 			_cisco parse "$file"
 		} done
 	fi
