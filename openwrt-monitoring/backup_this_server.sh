@@ -8,6 +8,22 @@ log()
 	logger -s "$0: $1"
 }
 
+tar()
+{
+	local rc
+
+	log "starting tar: $@"
+	/etc/init.d/apache2 stop
+
+	command tar "$@"
+	rc=$?
+
+	/etc/init.d/apache2 start
+	log "tar_ready: rc = $rc"
+
+	return $rc
+}
+
 list_pubips_from_network()
 {
 	local network="$1"
@@ -42,13 +58,21 @@ list_networks()
 		ls -1 /var/www/networks | while read -r network; do {
 			for file in /var/www/networks/$network/meshrdf/recent/*; do {
 				[ -e "$file" ] && {
+					# if there is at least 1 file,
+					# check *once* size of whole folder
 					[ -h "$file" ] || {
 						du -s "/var/www/networks/$network"
+						break
 					}
 				}
 			} done
-		} done | sort -n | while read -r line; do set -- $line; basename "$2"; done
+		} done | sort -n | while read -r line; do set -- $line; basename "$2"; done | uniq
 	fi
+}
+
+dns2ip()
+{
+	nslookup "$1" | grep ^'Address:' | tail -n1 | cut -d' ' -f2
 }
 
 ARG="$1"		# BACKUPSERVER|checksize = special keyword
@@ -56,8 +80,13 @@ ARG2="${2:-unknown}"	# e.g. satama
 
 case "$ARG2" in
 	'all_networks_smallest_first')
+		COUNT_NETWORK_ALL=0
+		for _ in $( list_networks ); do COUNT_NETWORK_ALL=$(( COUNT_NETWORK_ALL + 1 )); done
+
+		COUNT_NETWORK=0
 		for ARG2 in $( list_networks ); do {
-			log "artificial call: $0 '$ARG' '$ARG2'"
+			COUNT_NETWORK=$(( COUNT_NETWORK + 1 ))
+			log "artificial call: $0 '$ARG' '$ARG2' - network: $COUNT_NETWORK/$COUNT_NETWORK_ALL"
 			$0 "$ARG" "$ARG2" || exit 1
 		} done
 
@@ -93,6 +122,7 @@ case "$ARG" in
 #		ARG="port10022:root@${IP}:/tmp/hdd/bla/incoming-backup/intercity-vpn"
 #		ARG="port10022:root@${IP}:/tmp/storage/sda2_2.0T/bla/incoming-backup/intercity-vpn"
 		IP='bwireless.mooo.com'
+		LIST_IMPORTANT_IPS=" $( dns2ip "$IP" ) "
 		ARG="port10022:root@${IP}:/tmp/kalua/storage/sdb1_3.6T/backup_ICVPN"
 #		ARG="port22:bastian@bb.weimarnetz.de:backup-ic"
 
@@ -173,7 +203,7 @@ cd / || exit
 	case "$ARG2" in
 		ejbw-pbx)
 			TARFILE="/tmp/backup-server-ejbw_pbx-$( uname -n )-$( date +%Y%b%d_%H:%M ).tar.bz2"
-			if tar cvjf "$TARFILE" /root/backup/ejbw/pbx ; then
+			if tar -cvjf "$TARFILE" /root/backup/ejbw/pbx ; then
 				echo "scp-ing tarfile $( ls -l $TARFILE ) to $ARG"
 
 				if scp $SCP_SPECIAL_OPTIONS -P $PORT "$TARFILE" $ARG ; then
@@ -233,7 +263,12 @@ cd / || exit
 
 echo "iterating over '$( list_networks )' for vds-backup/remove"
 
+COUNT_NETWORK_ALL=0
+for _ in $( list_networks ); do COUNT_NETWORK_ALL=$(( COUNT_NETWORK_ALL + 1 )); done
+
+COUNT_NETWORK=0
 for NETWORK in $( list_networks ); do {
+	COUNT_NETWORK=$(( COUNT_NETWORK + 1 ))
 	LIST_PUBIPS="$( list_pubips_from_network "$NETWORK" )"
 	for IP in $LIST_PUBIPS; do {
 		case " $LIST_IMPORTANT_IPS " in
@@ -252,6 +287,7 @@ for NETWORK in $( list_networks ); do {
 
 	TARFILE="/tmp/backup-server-network-$NETWORK-$( uname -n )-$( date +%Y%b%d_%H:%M ).tar"
 	echo "network: $NETWORK creating $TARFILE"
+	echo "network: $COUNT_NETWORK/$COUNT_NETWORK_ALL"
 	tar -cvf "$TARFILE" /var/www/networks/$NETWORK || {
 		log "error during tar - disc full?"
 
@@ -267,6 +303,7 @@ for NETWORK in $( list_networks ); do {
 	}
 
 	echo "scp-ing tarfile $TARFILE to $ARG - using: scp $SCP_SPECIAL_OPTIONS -P $PORT $TARFILE $ARG"
+	echo "network: $COUNT_NETWORK/$COUNT_NETWORK_ALL"
 	if scp $SCP_SPECIAL_OPTIONS -P $PORT $TARFILE $ARG; then
 		rm "$TARFILE"
 
@@ -317,7 +354,7 @@ for NETWORK in $( list_networks ); do {
 	else
 		echo "error during scp - will not delete files but tarfile '$TARFILE'"
 		rm "$TARFILE"
-
+		# TODO: unroll ip-blocking
 		exit 1
 	fi
 
