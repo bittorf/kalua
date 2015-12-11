@@ -183,6 +183,8 @@ work()
 	S7='target/install'
 	S8='package/index'
 	S9='clean'
+	# make package/symlinks
+	# sed -i -e '/ is not set/d' .config; echo CONFIG_ALL=y >> .config; make defconfig
 
 	for STEP in "$S0" "$S1" "$S2" "$S3" "$S4" "$S5" "$S6" "$S7" "$S8" "$S9" '' dirclean; do
 		COMMAND="make -j$THREADS $STEP"

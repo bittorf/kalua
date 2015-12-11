@@ -5,7 +5,7 @@
 # - force feed via --feed XY --feed AB
 # - only add feedXY if usecase needs it -> feed-dependency in usecase
 # - simulate apply-run: show symbols/tree
-# - usecases: noIPTables, noIPv6, Failsafe (like sven-ola -> via kernel-commandline), noJFFS2, noSQFS
+# - usecases: noUSB, noIPTables, noIPv6, Failsafe (like sven-ola -> via kernel-commandline), noJFFS2, noSQFS
 # - build release-dir
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 # - include/renew patches for awk-removal
