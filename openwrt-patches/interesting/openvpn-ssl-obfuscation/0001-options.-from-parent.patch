@@ -1,0 +1,87 @@
+From 6d764b72d92594b478c73f2a843abafd8ce02f52 Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bittorf@bluebottle.com>
+Date: Sat, 12 Dec 2015 16:21:33 +0100
+Subject: [PATCH 1/2] options.* from parent
+
+Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
+---
+ src/openvpn/options.c | 25 +++++++++++++++++++++----
+ src/openvpn/options.h |  2 ++
+ 2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/openvpn/options.c b/src/openvpn/options.c
+index ff4b07b..5e3caf4 100644
+--- a/src/openvpn/options.c
++++ b/src/openvpn/options.c
+@@ -2774,8 +2774,8 @@ options_postprocess_filechecks (struct options *options)
+ 
+   /* ** Password files ** */
+ #ifdef ENABLE_SSL
+-  errs |= check_file_access (CHKACC_FILE, options->key_pass_file, R_OK,
+-                             "--askpass");
++  errs |= check_file_access (CHKACC_FILE|CHKACC_ACPTSTDIN,
++			     options->key_pass_file, R_OK, "--askpass");
+ #endif /* ENABLE_SSL */
+ #ifdef ENABLE_MANAGEMENT
+   errs |= check_file_access (CHKACC_FILE|CHKACC_ACPTSTDIN,
+@@ -3757,11 +3757,16 @@ read_inline_file (struct in_src *is, const char *close_tag, struct gc_arena *gc)
+   char line[OPTION_LINE_SIZE];
+   struct buffer buf = alloc_buf (8*OPTION_LINE_SIZE);
+   char *ret;
++  bool endtagfound = false;
++
+   while (in_src_get (is, line, sizeof (line)))
+     {
+       if (!strncmp (line, close_tag, strlen (close_tag)))
+-	break;
+-      if (!buf_safe (&buf, strlen(line)))
++	{
++	  endtagfound = true;
++	  break;
++	}
++      if (!buf_safe (&buf, strlen(line)+1))
+ 	{
+ 	  /* Increase buffer size */
+ 	  struct buffer buf2 = alloc_buf (buf.capacity * 2);
+@@ -3772,6 +3777,8 @@ read_inline_file (struct in_src *is, const char *close_tag, struct gc_arena *gc)
+ 	}
+       buf_printf (&buf, "%s", line);
+     }
++  if (!endtagfound)
++    msg (M_WARN, "WARNING: Endtag %s missing", close_tag);
+   ret = string_alloc (BSTR (&buf), gc);
+   buf_clear (&buf);
+   free_buf (&buf);
+@@ -6582,6 +6589,16 @@ add_option (struct options *options,
+ 	  options->cert_file_inline = p[2];
+ 	}
+     }
++  else if (streq (p[0], "xor-secret") && p[1])
++    {
++      VERIFY_PERMISSION (OPT_P_GENERAL);
++      options->xor_secret = p[1];
++    }
++  else if (streq (p[0], "padding") && p[1])
++    {
++      VERIFY_PERMISSION (OPT_P_GENERAL);
++      options->padding = p[1];
++    }
+   else if (streq (p[0], "extra-certs") && p[1])
+     {
+       VERIFY_PERMISSION (OPT_P_GENERAL);
+diff --git a/src/openvpn/options.h b/src/openvpn/options.h
+index af9a47f..d335ac9 100644
+--- a/src/openvpn/options.h
++++ b/src/openvpn/options.h
+@@ -521,6 +521,8 @@ struct options
+   char *priv_key_file_inline;
+   const char *dh_file_inline;
+   const char *pkcs12_file_inline; /* contains the base64 encoding of pkcs12 file */
++  const char *xor_secret;
++  const char *padding;
+ 
+   int ns_cert_type; /* set to 0, NS_CERT_CHECK_SERVER, or NS_CERT_CHECK_CLIENT */
+   unsigned remote_cert_ku[MAX_PARMS];
+-- 
+2.1.4
+
