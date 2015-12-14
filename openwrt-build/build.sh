@@ -2941,60 +2941,62 @@ myarch()
 
 travis_prepare()
 {
-	echo
-	mount	# debug
-	echo
-	ip address show
-	echo
+	log "[OK] debug 'mount'/'ip'"
+	mount && ip address show
 
 	local apt_updated=
 	do_install()
 	{
 		[ -z "$apt_updated" ] && {
 			log "[OK] running 'apt-get update'"
-			sudo apt-get update && apt_updated='true'
+			sudo apt-get update || return 1
+			apt_updated='true'
 		}
 
 		log "[OK] trying 'apt-get install $*'"
 		sudo apt-get -y install "$@"
 	}
 
-	command -v 'sloccount'	|| do_install 'sloccount'	|| return 1	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
-	command -v 'tidy'	|| do_install 'tidy'		|| return 1	# http://www.html-tidy.org/
-	command -v 'php5'	|| do_install 'php5'		|| return 1	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
-
+	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
+	command -v 'sloccount'	|| do_install 'sloccount'	|| return 1
+	# http://www.html-tidy.org/
+	command -v 'tidy'	|| do_install 'tidy'		|| return 1
+	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
+	command -v 'php5'	|| do_install 'php5'		|| return 1
 	# for javascript testing: https://github.com/marijnh/acorn
 	command -v 'nodejs'	|| do_install 'nodejs'		|| return 1
 	command -v 'npm'	|| do_install 'npm'		|| return 1
-	sudo npm config set registry http://registry.npmjs.org/		# force http NOT https
+	# forces http NOT https:
+	sudo npm config set registry http://registry.npmjs.org/
+	# https://www.npmjs.com/package/acorn - javascript-parser/checker
 	sudo npm install --global 'acorn'	|| return 1
-
-	# TODO: install our own .deb
-	# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
 
 	export PATH="$HOME/.cabal/bin:$PATH"
 	if command -v shellcheck; then
 		log "[OK] no need for building 'shellcheck'"
 	else
-		# needs ~15 mins
-		(
-			cabal update
-			cabal install 'cabal-install'
-
-			cd '/run/shm' || return 1
-			git clone https://github.com/koalaman/shellcheck.git
-			cd shellcheck || return 1
-
-			echo
-			git log -1
-			echo
-
-			# https://github.com/haskell/cabal/issues/2909
-			cabal install || ghc-pkg check
-		)
-
+		bootstrap_shellsheck || return 1
 		command -v shellcheck || return 1
 	fi
+}
+
+bootstrap_shellsheck()
+{
+	# needs ~15 mins
+	(
+		cabal update
+		cabal install 'cabal-install'
+
+		cd '/run/shm' || return 1
+		git clone https://github.com/koalaman/shellcheck.git
+		cd shellcheck || return 1
+
+		log '[OK] last commit:'
+		git log -1
+
+		# https://github.com/haskell/cabal/issues/2909
+		cabal install || ghc-pkg check
+	)
 }
 
 unittest_do()
