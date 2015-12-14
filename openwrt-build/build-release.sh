@@ -188,13 +188,12 @@ work()
 	# ./scripts/feeds install -a
 	# make package/symlinks
 	# sed -i -e '/ is not set/d' .config; echo CONFIG_ALL=y >> .config; make defconfig
-	# make -j24 IGNORE_ERRORS=m
 	#
 	# deps:
 	# intlttol: apt-get install libxml-parser-perl
 
 	for STEP in "$S0" "$S1" "$S2" "$S3" "$S4" "$S5" "$S6" "$S7" "$S8" "$S9" '' dirclean; do
-		COMMAND="make -j$THREADS $STEP"
+		COMMAND="make -j$THREADS $STEP IGNORE_ERRORS=m"
 		echo "real: $COMMAND | $( cat /proc/loadavg ) - space: $( du -sh )"
 		/usr/bin/time -f "real %e secs" $COMMAND || break
 	done
