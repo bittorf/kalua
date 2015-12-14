@@ -148,7 +148,7 @@ case "$LOAD" in
 		fi
 
 		case "$I" in
-			""|"#"*)
+			''|'#'*)
 				. /tmp/loader
 				_watch topusage_task "cron.minutely: load = $LOAD"
 				_watch monitoring
@@ -273,6 +273,8 @@ case "$LOAD" in
 		fi
 	;;
 	*)
+		. /tmp/loader
+
 		if [ -e "/tmp/CRON_OVERLOAD" ]; then
 			read -r I <"/tmp/CRON_OVERLOAD"
 		else
@@ -284,7 +286,6 @@ case "$LOAD" in
 		if [ ${UP%.*} -lt 1800 ]; then
 			I=
 		else
-			. /tmp/loader
 			bool_true 'system.@monitoring[0].ignore_load' && {
 				_net inet_seems_stable		# change SSID if needed
 				I=
@@ -292,8 +293,8 @@ case "$LOAD" in
 		fi
 
 		case "$I" in
-			"#"*)
-				echo -n '#' >>"/tmp/CRON_OVERLOAD"
+			'#'*)
+				printf '#' >>'/tmp/CRON_OVERLOAD'
 
 				case ${#I} in
 					0|1|2|3|4)
@@ -307,10 +308,9 @@ case "$LOAD" in
 						[ -e '/tmp/CRON.wifidown' ] && rm '/tmp/CRON.wifidown'
 					;;
 					6|7|8|9|10|1*|2*)
-						. /tmp/loader
 						_watch space_tmpfs
 						_watch topusage_task "cron.minutely: load = $LOAD I=$I"
-						[ -n "$LOWMEM" ] && echo "#" >"/tmp/CRON_OVERLOAD"
+						[ -n "$LOWMEM" ] && echo '#' >"/tmp/CRON_OVERLOAD"
 
 						echo "ALERT: overload_$I - $LOAD - up: $UP" >>$PERMLOG
 						[ ${#I} -eq 7 ] && top -b -n1 >>$PERMLOG
@@ -323,7 +323,6 @@ case "$LOAD" in
 					3*)
 					;;
 					*)
-						. /tmp/loader
 						bool_true 'system.@system[0].avoid_autoreboot' || _system crashreboot 'overload'
 
 						rm '/tmp/CRON_OVERLOAD'
@@ -331,11 +330,9 @@ case "$LOAD" in
 					;;
 				esac
 			;;
-			*)
-				. /tmp/loader
-				_watch monitoring
-			;;
 		esac
+
+		_watch monitoring
 	;;
 esac
 
