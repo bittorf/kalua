@@ -12,7 +12,7 @@ tar()
 {
 	local rc
 
-	log "starting tar: $@"
+	log "starting tar: $*"
 	/etc/init.d/apache2 stop
 
 	command tar "$@"
