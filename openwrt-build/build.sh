@@ -2950,8 +2950,12 @@ travis_prepare()
 	local apt_updated=
 	do_install()
 	{
-		[ -z "$apt_updated" ] && sudo apt-get update && apt_updated='true'
+		[ -z "$apt_updated" ] && {
+			log "[OK] running 'apt-get update'"
+			sudo apt-get update && apt_updated='true'
+		}
 
+		log "[OK] trying 'apt-get install $*'"
 		sudo apt-get -y install "$@"
 	}
 
