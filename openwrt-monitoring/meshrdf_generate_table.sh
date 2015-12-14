@@ -283,7 +283,7 @@ USECASE_FILE="$TMPDIR/networks/$NETWORK/usecase.txt"
 log "start network '$NETWORK' for IP: '$REMOTE_ADDR'"
 
 case "$NETWORK" in
-	'zumnorde')
+	'zumnorde'*)
 		echo  >$OUT '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 		echo >>$OUT '	"http://www.w3.org/TR/html4/loose.dtd">'
 		echo >>$OUT '<html><head><meta http-equiv="content-type" content="text/html; charset=UTF-8">'
@@ -714,6 +714,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	[ -e "$FILE" ] && . "$FILE"
 	grep -sq ^"$WIFIMAC" ../ignore/macs.txt && continue
 
+
 	case "$NODE" in
 		""|0)
 			continue
@@ -758,6 +759,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 		LAST_UPDATE_UNIXTIME="$( stat --printf %Y "$FILE" )"
 #		echo "<!-- worked on $FILE -->"
 		command . "$FILE"
+
 
 		# updates
 		REMEMBER_VERSION="$VERSION"
@@ -941,9 +943,10 @@ for FILE in $LIST_FILES LASTFILE; do {
 #	[ "$VERSION" -ge 385184 ] || LASTSEEN=0
 
 #	case "$NETWORK" in
-#		boltenhagendh)
+#		boltenhagendh*)
 #			case "$HOSTNAME" in
-#				IH*|Fest*)
+#				'DH'*)
+#					LASTSEEN=0	# dorfhotel pause
 #				;;
 #				*)
 #					LASTSEEN=0
@@ -2550,7 +2553,7 @@ _cell_switch()
 	local char spacer color speed duplex
 	local cellspacing speed_printed symetric
 
-	if [ ${#plugs} -eq 1 ]; then		# bullet
+	if [ ${#plugs} -eq 1 ]; then		# e.g. ubnt bullet
 		plugs=".--.${plugs}.--."
 		cellspacing="0"
 	else
@@ -2562,6 +2565,7 @@ _cell_switch()
 	inet_offer="${inet_offer}${linebreak}down=${inet_offer_down}Kbit/s"
 	inet_offer="${inet_offer}${linebreak}up=${inet_offer_up}Kbit/s"
 
+	local is_poe_powered=
 	local global_bgcolor='white'
 	local global_tooltip=
 	case "$lan_dhcp_ignore" in
@@ -2593,8 +2597,35 @@ _cell_switch()
 		;;
 	esac
 
-	echo -n "<td title='$global_tooltip' bgcolor='$global_bgcolor'>"
+	case "$NETWORK" in
+		leonardo)
+			case "$NODE" in
+				# konferenz|eg-flur|e3-flur|e1-flur
+				6|26|2|27|7|36|9|35)
+					is_poe_powered='true'
+				;;
+			esac
+		;;
+		giancarlo)
+			case "$NODE" in
+				# E1-rezeption,E2-service,E3-service,E4-kamin
+				5|6|10|14)
+					is_poe_powered='true'
+				;;
+			esac
+		;;
+	esac
 
+	case "$plugs" in
+		'-.----')
+			[ -n "$is_poe_powered" ] && {
+				global_bgcolor='crimson'
+				global_tooltip='maybe switch/cable broken?'
+			}
+		;;
+	esac
+
+	echo -n "<td title='$global_tooltip' bgcolor='$global_bgcolor'>"
 	echo -n "<table cellspacing='$cellspacing' cellpadding='0'><tr>"
 
 	while [ $i -lt ${#plugs} ]; do {
@@ -2624,28 +2655,11 @@ _cell_switch()
 				duplex=
 				spacer="&thinsp;"
 
-				case "$NETWORK" in
-					leonardo)
-						case "$NODE" in
-							# konferenz|eg-flur|e3-flur|e1-flur
-							6|26|2|27|7|36|9|35)
-								# Powered via PoE-Splitter: unicode / electrical arrow
-								spacer='&#x26a1;'
-								char='PoE'
-							;;
-						esac
-					;;
-					giancarlo)
-						case "$NODE" in
-							# E1-rezeption,E2-service,E3-service,E4-kamin
-							5|6|10|14)
-								# Powered via PoE-Splitter: unicode / electrical arrow
-								spacer='&#x26a1;'
-								char='PoE'
-							;;
-						esac
-					;;
-				esac
+				[ -n "$is_poe_powered" ] && {
+					# Powered via PoE-Splitter: unicode / electrical arrow
+					spacer='&#x26a1;'
+					char='PoE'
+				}
 			;;
 			'Z')
 				spacer='?'

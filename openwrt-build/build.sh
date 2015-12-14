@@ -2962,8 +2962,10 @@ travis_prepare()
 	# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
 
 	export PATH="$HOME/.cabal/bin:$PATH"
-	command -v shellcheck || {
-		# needs about 15 mins
+	if command -v shellcheck; then
+		log "[OK] no need for building 'shellcheck'"
+	else
+		# needs ~15 mins
 		(
 			cabal update
 			cabal install 'cabal-install'
@@ -2979,9 +2981,9 @@ travis_prepare()
 			# https://github.com/haskell/cabal/issues/2909
 			cabal install || ghc-pkg check
 		)
-	}
 
-	command -v shellcheck || return 1
+		command -v shellcheck || return 1
+	fi
 }
 
 unittest_do()

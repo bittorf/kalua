@@ -159,6 +159,7 @@ exit 0
 # wget -O openwrt_download_cache.tar http://4.v.weimarnetz.de/1.tar
 # tar xf openwrt_download_cache.tar
 # mount -t tmpfs -o size=14G,nosuid,nodev,mode=1777 tmpfs /media/cdrom
+# mount -o remount,size=18G tmpfs /media/cdrom
 # git clone git://git.openwrt.org/openwrt.git
 # cd openwrt
 # ln -s ~/dl dl		# download_cache
@@ -188,6 +189,9 @@ work()
 	# make package/symlinks
 	# sed -i -e '/ is not set/d' .config; echo CONFIG_ALL=y >> .config; make defconfig
 	# make -j24 IGNORE_ERRORS=m
+	#
+	# deps:
+	# intlttol: apt-get install libxml-parser-perl
 
 	for STEP in "$S0" "$S1" "$S2" "$S3" "$S4" "$S5" "$S6" "$S7" "$S8" "$S9" '' dirclean; do
 		COMMAND="make -j$THREADS $STEP"
