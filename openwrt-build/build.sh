@@ -2961,24 +2961,26 @@ travis_prepare()
 	# TODO: install our own .deb
 	# https://wiki.haskell.org/Creating_Debian_packages_from_Cabal_package
 
-	# needs about 15 mins
-	(
-		cabal update
-		cabal install 'cabal-install'
-
-		cd '/run/shm' || return 1
-		git clone https://github.com/koalaman/shellcheck.git
-		cd shellcheck || return 1
-
-		echo
-		git log -1
-		echo
-
-		# https://github.com/haskell/cabal/issues/2909
-		cabal install || ghc-pkg check
-	)
-
 	export PATH="$HOME/.cabal/bin:$PATH"
+	command -v shellcheck || {
+		# needs about 15 mins
+		(
+			cabal update
+			cabal install 'cabal-install'
+
+			cd '/run/shm' || return 1
+			git clone https://github.com/koalaman/shellcheck.git
+			cd shellcheck || return 1
+
+			echo
+			git log -1
+			echo
+
+			# https://github.com/haskell/cabal/issues/2909
+			cabal install || ghc-pkg check
+		)
+	}
+
 	command -v shellcheck || return 1
 }
 
