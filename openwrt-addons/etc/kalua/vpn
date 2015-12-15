@@ -145,26 +145,29 @@ _vpn_innercity_master_iface()
 	local action="$1"	# up|down|lock_active|remove_all_locks
 	local dev="$2"		# e.g. tap276
 	local i=0
+	local lockdir="$TMPDIR/lock-$dev-$funcname"
 	local bytes packets uptime uptime_sec numbers linenumber reason mtu
 
 	case "$action" in
 		'lock_active')
 			ls -1 "$TMPDIR/$funcname-devup"* >/dev/null && return 0
-			ls -d "$TMPDIR/lock-$funcname" && return 0
+			ls -d "$lockdir" && return 0
+
 			return 1
 		;;
 		'remove_all_locks')
 			_log it $funcname daemon alert 'working'
-			rm -fR "$TMPDIR/lock-$funcname"
+			rm -fR "$lockdir"
 			rm -fR "$TMPDIR/$funcname-devup"*
+
 			return 0
 		;;
 	esac
 
 	# we make sure, that this function (up or down) is
 	# only used once from 1 caller - otherwise we wait
-	while ! mkdir "$TMPDIR/lock-$funcname"; do {
-		read -r reason <"$TMPDIR/lock-$funcname/info"
+	while ! mkdir "$lockdir"; do {
+		read -r reason <"$lockdir/info"
 
 		# FIXME! why does this happen? e.g. on EJBW when a peer changes it's public IP (pppoe-reconnect)
 		# Oct 20 05:38:07 server1 kalua: sh: vpn_innercity_master_iface() locked: up/tap855 must wait for 'action: down dev: tap800'
@@ -174,10 +177,11 @@ _vpn_innercity_master_iface()
 		# --> lockfile still exists
 		# even without logfile it will not recover
 
-		if _file age "$TMPDIR/lock-$funcname/info" -gt 600 ; then
+		if _file age "$lockdir/info" -gt 600 ; then
 			_log it $funcname daemon alert "overaged: force unlocking: '$reason'"
 			_vpn innercity_master_vtund stop
 			_vpn innercity_master_vtund start
+
 			return 0
 		else
 			[ $i -gt 5 ] && {
@@ -189,7 +193,7 @@ _vpn_innercity_master_iface()
 	} done
 
 	reason="action: $action dev: $dev"
-	echo "$reason" >"$TMPDIR/lock-$funcname/info"
+	echo "$reason" >"$lockdir/info"
 	_log it $funcname daemon info "[START] action: $action dev: $dev"
 
 	local olsrd_config='/etc/olsrd.conf'
@@ -267,7 +271,7 @@ _vpn_innercity_master_iface()
 		_log it $funcname daemon alert "[READY] action: $action dev: $dev $numbers uptime: $uptime"
 	fi
 
-	rm -fR "$TMPDIR/lock-$funcname"
+	rm -fR "$lockdir"
 }
 
 _vpn_hideandseek_master_get()
