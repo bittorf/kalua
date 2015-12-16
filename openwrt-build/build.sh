@@ -2967,9 +2967,9 @@ travis_prepare()
 	command -v 'nodejs'	|| do_install 'nodejs'		|| return 1
 	command -v 'npm'	|| do_install 'npm'		|| return 1
 	# forces http NOT https:
-	sudo npm config set registry http://registry.npmjs.org/
+	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
 	# https://www.npmjs.com/package/acorn - javascript-parser/checker
-	sudo npm install --global 'acorn'	|| return 1
+	sudo $( command -v 'npm' ) install --global 'acorn'	|| return 1
 
 	export PATH="$HOME/.cabal/bin:$PATH"
 	if command -v shellcheck; then
