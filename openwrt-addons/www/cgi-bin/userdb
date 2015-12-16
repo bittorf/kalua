@@ -2,19 +2,18 @@
 . /tmp/loader
 
 # logger -- "$0: query: '$QUERY_STRING'"	# fast debug
-
 eval $( _http query_string_sanitize "$0" )
 
-AMP="&amp;"
-BG_0="lightblue"
-BG_A="#FAEBD7"
-BG_B="#DCDCDC"
-ARROW="<b>&rarr;</b>"
+AMP='&amp;'
+BG_0='lightblue'
+BG_A='#FAEBD7'
+BG_B='#DCDCDC'
+ARROW='<b>&rarr;</b>'
 
 _db include
 
 [ -n "$FORM_THEME_NAME" ] && {
-	[ "$FORM_THEME_NAME" = "uniform_name" ] && {
+	[ "$FORM_THEME_NAME" = 'uniform_name' ] && {
 		FORM_THEME_NAME="$FORM_USERNAME"
 	}
 
@@ -82,8 +81,7 @@ fi
   -o -n "$FORM_ACTION_LOGIN_SENDMAIL_CHECKED" ] && {
 
 	FORM_ACTION='login_show'
-
-	_log it gui_print_tickets daemon info "[init]"
+	_log it gui_print_tickets daemon info "[init] $FORM_ACTION"
 
 	[ -n "$FORM_CB" ] && {
 		LIST_FORM_CHECKBOX="$( _http query_string_group2list 'FORM_CB_' )"
@@ -95,41 +93,27 @@ fi
 
 	N=0; for _ in $LIST_FORM_CHECKBOX; do N=$(( N + 1 )); done 		# count tickets
 	for LOGIN_ID in $LIST_FORM_CHECKBOX; do break; done			# fetch first ticket
-	eval $( _db user login show $LOGIN_ID "PROFILE_ID" )			# used_profile_id
-	eval $( _db user profile show $PROFILE_ID "NAME" )
-
-	output_mimetype()
-	{
-		_log it gui_print_tickets daemon info "filename: '$FILENAME' list: '$LIST_FORM_CHECKBOX'"
-		_http header_mimetype_output "$1" "$FILENAME"
-	}
+	eval $( _db user login show $LOGIN_ID 'PROFILE_ID' )			# used_profile_id
+	eval $( _db user profile show $PROFILE_ID 'NAME' )
 
 	if   [ -n "$FORM_ACTION_LOGIN_PRINT_CHECKED" -o -n "$FORM_ACTION_LOGIN_PRINT_RANGE" ]; then
-
 		FILENAME="$( _pdf filename overview "$N" "$NAME" )"
-		output_mimetype "application/pdf"
-
+		_http header_mimetype_output 'application/pdf' "$FILENAME"
 		_pdf output a4digest "$LIST_FORM_CHECKBOX"		# uebersicht
-
 	elif [ -n "$FORM_ACTION_LOGIN_PRINT_RANGE_MARKER" -o -n "$FORM_ACTION_LOGIN_PRINT_CHECKED_MARKER" ]; then
 		FILENAME="$( _pdf filename labels "$N" "$NAME" )"
-		output_mimetype "application/pdf"
-
+		_http header_mimetype_output 'application/pdf' "$FILENAME"
 		_pdf output a4marker "$LIST_FORM_CHECKBOX"		# labels/etiketten
-
 	elif [ -n "$FORM_ACTION_LOGIN_SENDMAIL_RANGE" -o -n "$FORM_ACTION_LOGIN_SENDMAIL_CHECKED" ]; then
-
-		echo >>$SCHEDULER "_db autocreate_tickets_and_send_mail \"$( _sanitizer run "$LIST_FORM_CHECKBOX" newlines2spaces )\" existing_tickets"
-
+		FILENAME="$( _sanitizer run "$LIST_FORM_CHECKBOX" newlines2spaces )"
+		echo >>$SCHEDULER "_db autocreate_tickets_and_send_mail '$FILENAME' existing_tickets"
 	else								# labels/etiketten-uebersicht
 		FILENAME="$( _pdf filename labels_overview "$N" "$NAME" )"
-		output_mimetype "application/pdf"
-
+		_http header_mimetype_output 'application/pdf' "$FILENAME"
 		_pdf output a4marker_digest "$LIST_FORM_CHECKBOX"
 	fi
 
-	_log it gui_print_tickets daemon info "[done]"
-
+	_log it gui_print_tickets daemon info '[done]'
 	[ -n "$FORM_ACTION_LOGIN_SENDMAIL_RANGE" -o -n "$FORM_ACTION_LOGIN_SENDMAIL_CHECKED" ] || exit
 }
 
@@ -179,10 +163,11 @@ cat <<EOF
 EOF
 
 grep -qs ^"$HTTP_USER_AGENT"$ "/tmp/AUTH_USERDB_${REMOTE_ADDR}" || {
-	CONFIG="$( uci -q get uhttpd.main.config )"
+	CONFIG="$( uci -q get uhttpd.main.config || echo 'missing_uhttpd.main.config' )"
 
 	login_ok()
 	{
+		[ -z "$REMOTE_ADDR" ] && return 0	# e.g. during tests
 		grep -sq ^"/cgi-bin/:$FORM_AUTH_USER:$FORM_AUTH_PASS"$ "$CONFIG" && return 0
 
 		# this means: 'the same like root-password'
@@ -287,8 +272,8 @@ case "$FORM_ACTION" in
 						gb) FORM_MAX_TRAFFIC=$(( FORM_MAX_TRAFFIC * 1024 * 1024 )) ;;
 					esac
 
-					local METADATA_UPLINK_UPSTREAM=32768	# kbit/sec
-					local METADATA_UPLINK_DOWNSTREAM=2048
+					METADATA_UPLINK_UPSTREAM=32768	# kbit/sec
+					METADATA_UPLINK_DOWNSTREAM=2048
 
 					case "$FORM_MAX_SPEED_DOWN_UNIT" in	# default/internal: 'kilobytes'
 						kbit)
@@ -620,9 +605,8 @@ case "$FORM_ACTION" in
 		echo "<input type='hidden' name='SESSION_TIMESTAMP' value='$( _system date unixtime )'>"	# prevents cached PDF-download
 		echo "<tr bgcolor='$BG_0'><td><small>$( _i18n get "$LANG" choice )</small><input type='hidden' name='FORM_CB' value='0'></td><td>&nbsp;$( _i18n get "$LANG" profile )&nbsp;</td><td>&nbsp;$( _i18n get "$LANG" comment )&nbsp;</td><td>&nbsp;$( _i18n get "$LANG" username )&nbsp;</td><td>&nbsp;$( _i18n get "$LANG" password )&nbsp;</td><td><small>$( _i18n get "$LANG" fuzziness )</small></td><td>&nbsp;$( _i18n get "$LANG" device_count )&nbsp;</td><td>&nbsp;$( _i18n get "$LANG" creation_time )&nbsp;</td><td>&nbsp;$( _i18n get "$LANG" action )&nbsp;</td></tr>"
 
-		local MY_ID PASSWORD_FORMATTED
-		local translation_edit="$( _i18n get "$LANG" edit )"
-		local translation_delete="$( _i18n get "$LANG" delete )"
+		translation_edit="$(   _i18n get "$LANG" edit )"
+		translation_delete="$( _i18n get "$LANG" delete )"
 
 		for MY_ID in $LIST_ID; do {
 			PROFILE_ID=
