@@ -40,6 +40,7 @@ for file in /var/www/networks/$network/registrator/recent/* ; do {
 	. $file
 	echo "$SSHPUBKEY" >$file.temp
 
+	# TODO: this 'read' options are not POSIX
 	while read -r -n 2 hexbyte; do {
 		[ ${#hexbyte} -eq 2 ] && {
 			octal="$( printf "%o" "0x$hexbyte" )"
