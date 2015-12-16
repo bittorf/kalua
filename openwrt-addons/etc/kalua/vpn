@@ -25,6 +25,7 @@ _vpn_innercity_master_vtund_write_config()
 	local node=2
 	local node_max=1024
 	local lockfile="$TMPDIR/$funcname"
+	local connection_name
 
 	mkdir "$lockfile" || return 1
 
@@ -43,14 +44,16 @@ default {
 EOF
 
 	while [ $node -lt $node_max ]; do {
+		connection_name="n$node"
+
 		cat >>"$config" <<EOF
 
-Node$node {
+$connection_name {
 	device tap$node ;
 	passwd $password ;
 
-	up {   program ". /tmp/loader; _vpn innercity_master_iface up   %%" wait; } ;
-	down { program ". /tmp/loader; _vpn innercity_master_iface down %%" wait; } ;
+	up {   program ". /tmp/loader; _vpn innercity_master_iface up   %%" wait; };
+	down { program ". /tmp/loader; _vpn innercity_master_iface down %%" wait; };
 	}
 EOF
 		node=$(( node + 1 ))
@@ -444,7 +447,7 @@ _vpn_hideandseek_user_del()
 _vpn_hideandseek_master_vtund_write_config()
 {
 	local file="${1:-$TMPDIR/vtund.conf}"
-	local name="Node$NODENUMBER"
+	local connection_name="n$NODENUMBER"
 	local ifname
 
 	[ -e "$file" ] && return 1
@@ -458,7 +461,7 @@ _vpn_hideandseek_master_vtund_write_config()
 
 	# defaults to 'proto tcp' - we use 'udp' which needs NAT_HACK on server
 	cat >"$file" <<EOF
-$name {
+$connection_name {
 	passwd ff ;
 	type ether ;
 	proto udp ;
@@ -476,7 +479,7 @@ _vpn_hideandseek_vtund()
 	local config="${2:-$TMPDIR/vtund.conf}"
 	local server='4.v.weimarnetz.de'	# TODO: get server list from /var/run/services_olsr + add '212.47.248.108'
 	local server_port='5001'
-	local name="Node$NODENUMBER"
+	local connection_name="n$NODENUMBER"
 
 	case "$action" in
 		'check_on_client')
@@ -495,7 +498,7 @@ _vpn_hideandseek_vtund()
 			fi
 		;;
 		'fire')
-			vtund -f "$config" "$name" "$server" -P "$server_port"
+			vtund -f "$config" "$connection_name" "$server" -P "$server_port"
 		;;
 		'start')
 			_vpn hideandseek_master_vtund_write_config
@@ -618,10 +621,10 @@ _vpn_x()	# FIXME! find a better name
 		_vpn check_daemon
 	else
 		[ -e "/etc/vtund.conf" ] && {			# startup-code must be a comment at first line
-			grep -q ^'# vtund ' "/etc/vtund.conf" && {
-				head -n1 "/etc/vtund.conf" | cut -b 2- >"/tmp/vtund.sh"
+			grep -q ^'# vtund ' '/etc/vtund.conf' && {
+				head -n1 '/etc/vtund.conf' | cut -b 2- >'/tmp/vtund.sh'
 
-				_log it check_vtund daemon info "starting up"
+				_log it check_vtund daemon info 'starting up'
 				. '/tmp/vtund.sh'
 			}
 		}
