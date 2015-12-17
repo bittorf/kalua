@@ -44,8 +44,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	local configfile="/var/etc/olsrd.conf"
 	local max_errors=3
 	local route_count=0
-	local firstping_lan firstping_wan gateway gateway_old ip i cost cost_best prio
-	local has_wired_neigh
+	local firstping_lan firstping_wan gateway gateway_old ip i cost cost_best prio has_wired_neigh parse
 
 	[ -e "$configfile" ] || {
 		_log it $func daemon info "config file not found, daemon was never started"
@@ -217,25 +216,38 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		;;
 	esac
 
-	# output Links - we are naiv and believe that 'Table: Links' is on top
+	# here we try to catch this block:
 	#
 	# Table: Links
 	# Local IP        Remote IP       Hyst.   LQ      NLQ     Cost
 	# 10.63.39.65     10.63.8.67      0.00    1.000   0.851   1.175
 	# 10.63.39.65     10.63.34.65     0.00    1.000   1.000   1.000
 	# 10.63.39.65     10.63.10.65     0.00    0.819   0.819   1.488
-	#
+
+	parse=
 	while read -r line; do {
 		case "$line" in
-			'Table: Neighbors')
-				# fixme! safe all paragraphs? (All, Links, Neighbours, Topology, HNA, MID, Routes)
-				break
+			'Table: Links')
+				parse='true'
+			;;
+			'Table:'*)
+				test "$parse" = 'true' && break
 			;;
 			*)
-				explode $line
+				test "$parse" = 'true' || continue
+			;;
+		esac
 
-				case "$1" in
-					*'.'*)	# is IPv4 -> 1.2.3.4
+		case "$line" in
+			[0-9]*)
+				# seems to be IPv4 -> 1.2.3.4
+			;;
+			*)
+				continue
+			;;
+		esac
+
+		explode $line
 
 						if [ "$6" = 'INFINITE' ]; then
 							cost=
@@ -409,12 +421,8 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 						bool_true 'olsrd.@meta[0].fixedarp' && {
 							[ -e "/tmp/OLSR/fixed_arp_$2" ] || echo >>$SCHEDULER "_olsr force_static_arp $2"
 						}
-					;;
-				esac
 
-				echo "$line" >>'/tmp/OLSR_TMP/LINKS'
-			;;
-		esac
+		echo "$line" >>'/tmp/OLSR_TMP/LINKS'
 	} done <'/tmp/OLSR_TMP/ALL' >'/tmp/OLSR_TMP/LINKS.sh'
 
 	# FIXME! workaround for buggy 'mv'-function in loader
