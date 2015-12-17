@@ -240,187 +240,182 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 		case "$line" in
 			[0-9]*)
-				# seems to be IPv4 -> 1.2.3.4
+				explode $line
 			;;
 			*)
 				continue
 			;;
 		esac
 
-		explode $line
+		if [ "$6" = 'INFINITE' ]; then
+			cost=
+		else
+			cost="$6"
+		fi
 
-						if [ "$6" = 'INFINITE' ]; then
-							cost=
-						else
-							cost="$6"
-						fi
+		# $IPT -I INPUT -i $WANDEV -p udp --dport 698 ! -s $WANADR -j LOG --log-prefix "WANolsrIN: "
+		# - mark, if we have an WAN/LAN-neigh: e.g. /www/has_lanneigh
+		# - if no wired neigh: remove file + restart olsr -> if there is really one, entry will reappear
 
-						# logread | grep -c "OLSR: sendto IPv4 Resource temporarily unavailable"
-						# 178 -> daemon restart
+		[ -e "/tmp/OLSR/is_my_neigh-$2" ] || {
+			touch "/tmp/OLSR/is_my_neigh-$2"
+			_log it $funcname daemon info "new neigh $2"
+		}
 
-						# $IPT -I INPUT -i $WANDEV -p udp --dport 698 ! -s $WANADR -j LOG --log-prefix "WANolsrIN: "
-						# - mark, if we have an WAN/LAN-neigh: e.g. /www/has_lanneigh
-						# - if no wired neigh: remove file + restart olsr -> if there is really one, entry will reappear
+		# this is a test for a faulty switch, not for OLSR
+		case "$1" in
+			$LANADR)
+				has_wired_neigh='true'
+				[ -e '/www/OLSR_has_neigh_LAN' ] || echo "$2" >'/www/OLSR_has_neigh_LAN'
 
-						[ -e "/tmp/OLSR/is_my_neigh-$2" ] || {
-							touch "/tmp/OLSR/is_my_neigh-$2"
-							_log it $funcname daemon info "new neigh $2"
-						}
+				[ "$firstping_lan" = 'false' ] || {
+					if _net ip_reachable "$2" 'ping' "$LANDEV"; then
+						# ok, only 1 check per dev
+						firstping_lan='false'
+						echo "$2" >"/tmp/OLSR/goodping_$LANDEV"
+					else
+						# = we _have_ a wired neigh, but unreachable
+						firstping_lan='error'
+					fi
+				}
 
-						# this is a test for a faulty switch, not for OLSR
-						case "$1" in
-							$LANADR)
-								has_wired_neigh='true'
-								[ -e '/www/OLSR_has_neigh_LAN' ] || echo "$2" >'/www/OLSR_has_neigh_LAN'
+				case "$cost" in
+					'1.0'*|'1.1'*|'1.000'|'0.100')
+						[ -e "/tmp/$funcname-unstableLAN" ] && rm "/tmp/$funcname-unstableLAN"
+					;;
+					*)
+						[ $( _system uptime min ) -lt 15 ] || {
+							prio='alert'
+							bool_true 'system.@monitoring[0].ignore_lossyethernet' && prio='info'	# e.g. powerline or airOS
 
-								[ "$firstping_lan" = 'false' ] || {
-									if _net ip_reachable "$2" 'ping' "$LANDEV"; then
-										# ok, only 1 check per dev
-										firstping_lan='false'
-										echo "$2" >"/tmp/OLSR/goodping_$LANDEV"
-									else
-										# = we _have_ a wired neigh, but unreachable
-										firstping_lan='error'
-									fi
+							# TODO: only log valid IPs: _ipsystem getvar '....ADR' $REMOTE_NODENUMBER
+							_log it $func daemon $prio "unstable LAN: $*"
+							_watch counter "/tmp/$funcname-unstableLAN" increment 1 max 5 || {
+								bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
+									_system crashreboot 'flappy_olsr'
 								}
+							}
+						}
+					;;
+				esac
+			;;
+			$WANADR)
+				has_wired_neigh='true'
+				[ -e '/www/OLSR_has_neigh_WAN' ] || echo "$2" >'/www/OLSR_has_neigh_WAN'
 
-								case "$cost" in
-									'1.0'*|'1.1'*|'1.000'|'0.100')
-										[ -e "/tmp/$funcname-unstableLAN" ] && rm "/tmp/$funcname-unstableLAN"
-									;;
-									*)
-										[ $( _system uptime min ) -lt 15 ] || {
-											prio='alert'
-											bool_true 'system.@monitoring[0].ignore_lossyethernet' && prio='info'	# e.g. powerline or airOS
+				[ "$firstping_wan" = 'false' ] || {
+					if _net ip_reachable "$2" 'ping' "$WANDEV"; then
+						# ok, only 1 check per dev
+						firstping_wan='false'
+						echo "$2" >"/tmp/OLSR/goodping_$WANDEV"
+					else
+						# = we _have_ a wired neigh, but unreachable
+						firstping_wan='error'
+					fi
+				}
 
-											# TODO: only log valid IPs: _ipsystem getvar '....ADR' $REMOTE_NODENUMBER
-											_log it $func daemon $prio "unstable LAN: $*"
-											_watch counter "/tmp/$funcname-unstableLAN" increment 1 max 5 || {
-												bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
-													_system crashreboot 'flappy_olsr'
-												}
-											}
-										}
+				case "$cost" in
+					'1.0'*|'1.1'*|'1.000'|'0.100')
+						[ -e "/tmp/$funcname-unstableWAN" ] && rm "/tmp/$funcname-unstableWAN"
+					;;
+					*)
+						[ $( _system uptime min ) -lt 15 ] || {
+							prio='alert'
+							bool_true 'system.@monitoring[0].ignore_lossyethernet' && prio='info'	# powerline or airOS
+
+							# TODO: only log valid IPs: _ipsystem getvar '....ADR' $REMOTE_NODENUMBER
+							_log it $func daemon $prio "unstable WAN: $*"
+							_watch counter "/tmp/$funcname-unstableWAN" increment 1 max 5 || {
+								bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
+									_system crashreboot 'flappy_olsr'
+								}
+							}
+						}
+					;;
+				esac
+			;;
+			*)
+				# TODO: special case for 'tapX'
+
+				needs_watching()	# TODO: define via uci
+				{
+					local remote_ip="$1"
+
+					case "$CONFIG_PROFILE" in
+						'olympia'*)
+							return 0
+						;;
+						'berlinle'*)
+							[ "$NODENUMBER" = '2' ] && {
+								case "$remote_ip" in
+									*'.6.'*|*'.4.'*|*'.12.'*)
+										return 0
 									;;
 								esac
-							;;
-							$WANADR)
-								has_wired_neigh='true'
-								[ -e '/www/OLSR_has_neigh_WAN' ] || echo "$2" >'/www/OLSR_has_neigh_WAN'
+							}
+						;;
+					esac
 
-								[ "$firstping_wan" = 'false' ] || {
-									if _net ip_reachable "$2" 'ping' "$WANDEV"; then
-										# ok, only 1 check per dev
-										firstping_wan='false'
-										echo "$2" >"/tmp/OLSR/goodping_$WANDEV"
-									else
-										# = we _have_ a wired neigh, but unreachable
-										firstping_wan='error'
-									fi
-								}
+					return 1
+				}
 
-								case "$cost" in
-									'1.0'*|'1.1'*|'1.000'|'0.100')
-										[ -e "/tmp/$funcname-unstableWAN" ] && rm "/tmp/$funcname-unstableWAN"
-									;;
-									*)
-										[ $( _system uptime min ) -lt 15 ] || {
-											prio='alert'
-											bool_true 'system.@monitoring[0].ignore_lossyethernet' && prio='info'	# powerline or airOS
+				needs_watching "$2" && {
+					case "$6" in
+						'1.'*)
+							# ETX/cost
+						;;
+						*)
+							_log it $func daemon alert "bad: remote: $2 cost: $6"
+						;;
+					esac
+				}
 
-											# TODO: only log valid IPs: _ipsystem getvar '....ADR' $REMOTE_NODENUMBER
-											_log it $func daemon $prio "unstable WAN: $*"
-											_watch counter "/tmp/$funcname-unstableWAN" increment 1 max 5 || {
-												bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
-													_system crashreboot 'flappy_olsr'
-												}
-											}
-										}
-									;;
-								esac
-							;;
-							*)
-								# TODO: special case for 'tapX'
+				# special marker for 'is a WiFi neigh'
+				[ -e "/tmp/OLSR/isneigh_$2" ] || {
+					touch "/tmp/OLSR/isneigh_$2"
+					_log it $func daemon info "1st contact to WiFi-neigh: $2"
+					_net ip2mac "$2" >/dev/null
+				}
+				touch "/tmp/OLSR/isneigh_$2"
 
-								needs_watching()	# TODO: define via uci
-								{
-									local remote_ip="$1"
+				if [ -e "/tmp/OLSR/isneigh_${2}_bestcost" ]; then
+					read -r cost_best <"/tmp/OLSR/isneigh_${2}_bestcost"
 
-									case "$CONFIG_PROFILE" in
-										'olympia'*)
-											return 0
-										;;
-										'berlinle'*)
-											[ "$NODENUMBER" = '2' ] && {
-												case "$remote_ip" in
-													*'.6.'*|*'.4.'*|*'.12.'*)
-														return 0
-													;;
-												esac
-											}
-										;;
-									esac
-
-									return 1
-								}
-
-								needs_watching "$2" && {
-									case "$6" in
-										'1.'*)
-											# ETX/cost
-										;;
-										*)
-											_log it $func daemon alert "bad: remote: $2 cost: $6"
-										;;
-									esac
-								}
-
-								# special marker for 'is a WiFi neigh'
-								[ -e "/tmp/OLSR/isneigh_$2" ] || {
-									touch "/tmp/OLSR/isneigh_$2"
-									_log it $func daemon info "1st contact to WiFi-neigh: $2"
-									_net ip2mac "$2" >/dev/null
-								}
-								touch "/tmp/OLSR/isneigh_$2"
-
-								if [ -e "/tmp/OLSR/isneigh_${2}_bestcost" ]; then
-									read -r cost_best <"/tmp/OLSR/isneigh_${2}_bestcost"
-
-									[ -n "$cost" ] && {
-										# 3.421 -> 3421
-										[ ${cost%.*}${cost#*.} -lt ${cost_best%.*}${cost_best#*.} ] && {
-											echo "$cost" >"/tmp/OLSR_TMP/isneigh_${2}_bestcost"
-										}
-									}
-								else
-									[ -n "$cost" ] && {
-										echo "$cost" >"/tmp/OLSR_TMP/isneigh_${2}_bestcost"
-									}
-								fi
-							;;
-						esac
-
-						# TODO: dump into RRD
-
-						# we build an includeable file:
-						# var $COUNT is then automatically counted up
-						if [ "$firstrun" = 'false' ]; then
-							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=\$(( COUNT + 1 ))"
-						else
-							firstrun='false'
-							echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=1"
-						fi
-
-						# accidentally added to netfilter?
-						[ -e "/tmp/NETFILTER/IP2MAC/$2" ] && {
-							_netfilter user_del "$( _net ip2mac "$2" )"
+					[ -n "$cost" ] && {
+						# 3.421 -> 3421
+						[ ${cost%.*}${cost#*.} -lt ${cost_best%.*}${cost_best#*.} ] && {
+							echo "$cost" >"/tmp/OLSR_TMP/isneigh_${2}_bestcost"
 						}
+					}
+				else
+					[ -n "$cost" ] && {
+						echo "$cost" >"/tmp/OLSR_TMP/isneigh_${2}_bestcost"
+					}
+				fi
+			;;
+		esac
 
-						_olsr throttle_traffic "$2"
+		# TODO: dump into RRD
 
-						bool_true 'olsrd.@meta[0].fixedarp' && {
-							[ -e "/tmp/OLSR/fixed_arp_$2" ] || echo >>$SCHEDULER "_olsr force_static_arp $2"
-						}
+		# we build an includeable file:
+		# var $COUNT is then automatically counted up
+		if [ "$firstrun" = 'false' ]; then
+			echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=\$(( COUNT + 1 ))"
+		else
+			firstrun='false'
+			echo "LOCAL=$1;REMOTE=$2;LQ=$4;NLQ=$5;COST=${cost};COUNT=1"
+		fi
+
+		# accidentally added to netfilter?
+		[ -e "/tmp/NETFILTER/IP2MAC/$2" ] && {
+			_netfilter user_del "$( _net ip2mac "$2" )"
+		}
+
+		_olsr throttle_traffic "$2"
+
+		bool_true 'olsrd.@meta[0].fixedarp' && {
+			[ -e "/tmp/OLSR/fixed_arp_$2" ] || echo >>$SCHEDULER "_olsr force_static_arp $2"
+		}
 
 		echo "$line" >>'/tmp/OLSR_TMP/LINKS'
 	} done <'/tmp/OLSR_TMP/ALL' >'/tmp/OLSR_TMP/LINKS.sh'
