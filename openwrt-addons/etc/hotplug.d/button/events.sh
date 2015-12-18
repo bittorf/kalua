@@ -13,11 +13,13 @@ case "${BUTTON}-${ACTION}" in
 		echo "${UP%.*}${UP#*.}" >'/tmp/BUTTON'
 	;;
 	'wps-released')
-		read -r UP REST </proc/uptime
-		read -r START 2>/dev/null <'/tmp/BUTTON' || START="${UP%.*}"
-
-		END="${UP%.*}${UP#*.}"
-		DIFF=$(( END - START ))
+		if read -r START 2>/dev/null <'/tmp/BUTTON'; then
+			read -r UP REST </proc/uptime
+			END="${UP%.*}${UP#*.}"
+			DIFF=$(( END - START ))
+		else
+			DIFF=1000
+		fi
 
 		# FIXME! DIFF = 1000 -> 10 seconds
 		logger -s -- "$0: button '$BUTTON' released after $DIFF millisec"
@@ -44,7 +46,7 @@ case "${BUTTON}-${ACTION}" in
 			fi
 
 			# file generated during cron-startup
-			read -r DSPDEV <'/tmp/audioplayer.dev'
+			read -r DSPDEV <'/tmp/audioplayer.dev' || logger -s -- "$0: audioplayer: DSP-dev"
 
 			case "$i" in
 				2) url='soma.fm space-station http://sfstream1.somafm.com:2020' ;;

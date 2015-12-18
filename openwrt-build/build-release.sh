@@ -199,6 +199,7 @@ work()
 	done
 }
 
+# TODO: add numbers here: https://wiki.openwrt.org/doc/faq/development
 work mpc85xx 2>&1 | tee LOG
 # while :;do case "$(cat /proc/loadavg)" in 0.0*) work 2>&1 | tee LOG; break;;*) uptime;sleep 30;; esac; done
 # grep ^real LOG | while read -r L; do set -- $L; test "$1" != 'real:' && echo "$L $O" || { shift; O="$*"; }; done
