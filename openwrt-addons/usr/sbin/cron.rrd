@@ -148,21 +148,22 @@ rrd_update()
 		down_bytes=$2
 	fi
 
-	# TODO: testcase - a large conntrack file
+	# TODO: testcase - a large conntrack file, e.g:
+	# ipv4 2 tcp  6 3521 ESTABLISHED src=10.63.23.105 dst=199.16.156.40 sport=52797 dport=443 packets=7 bytes=1452 \
+	#                src=199.16.156.40 dst=87.171.3.251 sport=443 dport=52797 packets=8 bytes=1129 [ASSURED] use=2
 	while read -r line; do {
 		case "$line" in
 			*' tcp'*)
 				tcp=$(( tcp + 1 ))
 			;;
-			*)
-				# this is not correct - there is more than 'udp'
+			*' udp'*)
 				udp=$(( udp + 1 ))
 			;;
 		esac
 	} done <'/proc/net/nf_conntrack'
 
 	time_now='N'	# RRD special
-	line="${time_now}:${up_packets}:${up_bytes}:${down_packets}:${down_bytes}:${stations}:${users}:${tcp}:${udp}:${signal}"
+	line="$time_now:$up_packets:$up_bytes:$down_packets:$down_bytes:$stations:$users:$tcp:$udp:$signal"
 
 	rrdtool update "$file" "$line" || {
 		_log it $funcname daemon info "error $?: rrdtool update $file $line"
