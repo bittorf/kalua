@@ -1882,6 +1882,8 @@ apply_symbol()
 				search_and_replace "$file" '^#SIM_ARG2=' "SIM_ARG2=$sub_profile    #"
 				search_and_replace "$file" '^#SIM_ARG3=' "SIM_ARG3=$node    #"
 				search_and_replace "$file" "^#\[ \"\$SIM_ARG3' '\[ \"\$SIM_ARG3"	# wan-dhcp for node 2
+
+				chmod +x "$file"
 				log "$KALUA_DIRNAME: enforced profile: $installation - $sub_profile - $node" gitadd "$file"
 			}
 
