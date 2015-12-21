@@ -2603,6 +2603,10 @@ _cell_switch()
 				# konferenz|eg-flur|e3-flur|e1-flur
 				6|26|2|27|7|36|9|35)
 					is_poe_powered='true'
+					# port1=6|26 ???
+					# port2=
+					# port3=
+					# port4=
 				;;
 			esac
 		;;
@@ -3388,7 +3392,7 @@ esac
 	# kernel
 	echo -n "<td bgcolor='$( kernel_color "$v1" )' $sortkey title='$title'><small>$kmajor</small></td>"
 	# git
-	echo -n "<td bgcolor='$( good_git_color "$v2" )'><small>$v2</small></td>"	
+	echo -n "<td bgcolor='$( good_git_color "$v2" )' align='right'><small>$v2</small></td>"	
 
 cell_ram()				# fixme! this must be a graph, which is red/green
 {					# fixme! convert all to kilobytes

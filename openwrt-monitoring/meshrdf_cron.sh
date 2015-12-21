@@ -35,17 +35,81 @@ list_networks()
 	} done
 }
 
-# this detroys the ping-counter! we really should send out an SMS
-log "checking: disk full?"
-df -h /dev/xvda1 | fgrep -q "100%" && {
-	if iptables -nL INPUT | head -n3 | grep -q ^'ACCEPT' ; then
-		log "diskspace OK - allowing ssh-login: already allowed"
-	else
-		/var/www/scripts/send_sms.sh "liszt28" "0176/24223419" "intercity-vpn.de: disk full - needs housekeeping"
-		log "disk full - allowing ssh-login from everywhere"
-		iptables -I INPUT -p tcp -j ACCEPT
-	fi
+htmlout_error_summary()
+{
+	log "option cache: working"
+
+	FILE_SUMMARY_TEMP="/tmp/summary.html.tmp"
+	FILE_SUMMARY="/var/www/networks/error/index.html"
+
+	# get first good network
+	for NET in $LIST; do {
+		[ -e "$NET/../../index.html" ] && break
+	} done
+
+	NET="/var/www/networks/$NET/meshrdf/recent"
+	NETWORK="$( echo "$NET" | cut -d'/' -f5 )"	# e.g. elephant
+
+	log "[OK] starting to build summary.html, taking network '$NETWORK' for template NET: '$NET'"
+	# writeout table/html-headers MINUS javascript (till first </tr>-tag)
+	log "DEBUG1: $( ls -l "$NET/../../index.html" )"
+	LINENO_FIRST_ENDING_TR_TAG="$( sed -n '/<\/tr>/{=;q}' $NET/../../index.html )"
+	LINENO_JS_START="$(  sed -n '/<script/{=;q}'   "$NET/../../index.html" )"
+	LINENO_JS_ENDING="$( sed -n '/<\/script/{=;q}' "$NET/../../index.html" )"
+	sed -n "1,${LINENO_FIRST_ENDING_TR_TAG}p" "$NET/../../index.html" | sed "${LINENO_JS_START},${LINENO_JS_ENDING}d" >$FILE_SUMMARY_TEMP
+	log "[OK] check '$FILE_SUMMARY_TEMP' $( ls -l $FILE_SUMMARY_TEMP )"
+
+	for NET in $LIST; do {					# /var/www/networks/ffweimar/meshrdf/recent
+		NETWORK="$( echo "$NET" | cut -d'/' -f5 )"	# e.g. elephant
+		HTML_INDEX="/var/www/networks/$NETWORK/index.html"
+
+		case "$NETWORK" in
+			dhsylt|elephant|ffweimar*|galerie|ibfleesensee|tkolleg|ffsundi|\
+			sachsenhausen|artotel|versiliawe|paltstadt|liszt28|zumnorde|\
+			versiliaje|preskil|gnm|hotello-K80|hotello-H09|hotello-B01|\
+			tuberlin|marinapark|vivaldi|satama|fparkssee|marinapark)
+				log "summary: [OK] omitting network '$NETWORK' for summary"
+				continue
+			;;
+		esac
+
+		LINK="http://intercity-vpn.de/networks/$NETWORK"
+
+		FILE_CONTACT_DATA="/var/www/networks/$NETWORK/contact.txt"
+		if [ -e "$FILE_CONTACT_DATA" ]; then
+			read -r CONTACT_DATA <"$FILE_CONTACT_DATA"
+		else
+			CONTACT_DATA="bitte eintragen in $FILE_CONTACT_DATA"
+		fi
+#		log "[OK] including '$NETWORK'-contacts: $CONTACT_DATA"
+
+		fgrep -sq " title='MISS " "$HTML_INDEX" && {
+			# header:
+			{
+				printf "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small>"
+				printf "<br></small><big><a href='$LINK' title='$CONTACT_DATA'>$NETWORK</a>"
+				echo   "</big></small><br></small></td></tr>"
+			} >>"$FILE_SUMMARY_TEMP"
+
+			OMIT="d85d4c9c2fb0"		# leonardo/beach
+			fgrep " title='MISS " "$HTML_INDEX" | fgrep -v "$OMIT" >>"$FILE_SUMMARY_TEMP"
+
+			log "summary: DEBUG: $( ls -l $FILE_SUMMARY_TEMP )"
+		}
+
+	} done
+
+	echo "</table></body></html>" >>"$FILE_SUMMARY_TEMP"
+	mv "$FILE_SUMMARY_TEMP" "$FILE_SUMMARY"
+	log "summary: wrote DGB2: $( ls -l "$FILE_SUMMARY" )"
+
+	[ -e "/tmp/lockfile_meshrdf_cache_$$" ] && {
+		rm "/tmp/lockfile_meshrdf_cache_$$"
+	}
+
+	log "[READY] needed $(( $( uptime_in_seconds ) - TIME_START )) seconds"
 }
+
 
 
 # /var/www/networks/fuerstengruft/gruft.html_for_all_dates.sh
@@ -74,38 +138,6 @@ build_html_tarball()
 	log "[OK] build_html_tarball - READY"
 }
 
-
-[ "$OPTION" = "cache" ] && {
-	if ls -1 /tmp/lockfile_meshrdf_cache_* >/dev/null 2>/dev/null; then
-		log "lockfile found: /tmp/lockfile_meshrdf_cache_*, ABORT"
-		exit
-	else
-		log "[START] starting new round with pid $$ option: '$OPTION' network_wish: '$WISH_NETWORK'"
-		touch "/tmp/lockfile_meshrdf_cache_$$"
-		TIME_START="$( uptime_in_seconds )"
-	fi
-}
-
-log "deleting '/var/log/apache2/access.log.*'"
-rm /var/log/apache2/access.log.*
-log "deleting '/var/log/apache2/error.log.*'"
-rm /var/log/apache2/error.log.*
-log "deleting some log in /var/log/..."
-rm /var/log/user.log.*
-rm /var/log/messages.*
-rm /var/log/kern.log.*
-rm /var/log/syslog.*
-rm /var/log/auth.*
-rm /var/log/tinyproxy.log.*
-rm /var/log/daemon.log.*
-rm /var/log/dmesg.*
-rm /var/log/debug.*
-
-log "trash: rm /tmp/write_meshrdf.* $( ls -1 /tmp/write_meshrdf.* | wc -l )"
-rm /tmp/write_meshrdf.*
-log "trash: now $( ls -1 /tmp/write_meshrdf.* | wc -l )"
-
-
 optimize_space()
 {
 	local partition="/dev/xvda1"
@@ -122,16 +154,6 @@ optimize_space()
 		/etc/init.d/apache2 start
 	}
 }
-
-optimize_space
-
-log "check: 0 byte files?"
-
-case "$( date '+%H:%M' )" in    # e.g. 09:01
-	'02:'*|'03:'*)
-		/var/www/scripts/read_kernel_release_dates.sh
-	;;
-esac
 
 list_meshrdf_files_with_zero_size()
 {
@@ -154,6 +176,36 @@ ignore_network()
 			return 1
 		;;
 	esac
+}
+
+urlencode()					# SENS: converting chars using a fixed table, where we know the URL-encodings
+{						#   is: , ; : ? # [ ] / @ + = " ' | ( ) TAB < > ! * { } $ ^ space
+	echo "$1" | sed -e 's/,/%2c/g'	\
+			-e 's/;/%3b/g'	\
+			-e 's/:/%3a/g'	\
+			-e 's/?/%3f/g'	\
+			-e 's/#/%23/g'	\
+			-e 's/\[/%5b/g'	\
+			-e 's/\]/%5d/g'	\
+			-e 's/\//%2f/g'	\
+			-e 's/@/%40/g'	\
+			-e 's/+/%2b/g'  \
+			-e 's/=/%3d/g'	\
+			-e 's/"/%22/g'	\
+			-e "s/'/%27/g"	\
+			-e "s/|/%7c/g"	\
+			-e "s/[(]/%28/g" \
+			-e "s/[)]/%29/g" \
+			-e "s/	/%09/g"	\
+			-e 's/</%3c/g'  \
+			-e 's/>/%3e/g'  \
+			-e 's/!/%21/g' \
+			-e 's/*/%2a/g' \
+			-e 's/{/%7b/g' \
+			-e 's/}/%7d/g' \
+			-e 's/\$/%24/g' \
+			-e 's/\^/%5e/g' \
+			-e 's/ /+/g'
 }
 
 gen_meshrdf_for_network()
@@ -218,6 +270,64 @@ gen_meshrdf_for_network()
 	log "[READY] fetched $network"
 }
 
+# this detroys the ping-counter! we really should send out an SMS
+log "checking: disk full?"
+df -h /dev/xvda1 | fgrep -q "100%" && {
+	if iptables -nL INPUT | head -n3 | grep -q ^'ACCEPT' ; then
+		log "diskspace OK - allowing ssh-login: already allowed"
+	else
+		/var/www/scripts/send_sms.sh "liszt28" "0176/24223419" "intercity-vpn.de: disk full - needs housekeeping"
+		log "disk full - allowing ssh-login from everywhere"
+		iptables -I INPUT -p tcp -j ACCEPT
+	fi
+}
+
+
+[ "$OPTION" = "cache" ] && {
+	if ls -1 /tmp/lockfile_meshrdf_cache_* >/dev/null 2>/dev/null; then
+		log "lockfile found: /tmp/lockfile_meshrdf_cache_*, ABORT"
+		exit
+	else
+		log "[START] starting new round with pid $$ option: '$OPTION' network_wish: '$WISH_NETWORK'"
+		touch "/tmp/lockfile_meshrdf_cache_$$"
+		TIME_START="$( uptime_in_seconds )"
+	fi
+}
+
+remove_logs()
+{
+	log "deleting '/var/log/apache2/access.log.*'"
+	rm /var/log/apache2/access.log.*
+	log "deleting '/var/log/apache2/error.log.*'"
+	rm /var/log/apache2/error.log.*
+	log "deleting some log in /var/log/..."
+	rm /var/log/user.log.*
+	rm /var/log/messages.*
+	rm /var/log/kern.log.*
+	rm /var/log/syslog.*
+	rm /var/log/auth.*
+	rm /var/log/tinyproxy.log.*
+	rm /var/log/daemon.log.*
+	rm /var/log/dmesg.*
+	rm /var/log/debug.*
+
+	log "trash: rm /tmp/write_meshrdf.* $( ls -1 /tmp/write_meshrdf.* | wc -l )"
+	rm /tmp/write_meshrdf.*
+	log "trash: now $( ls -1 /tmp/write_meshrdf.* | wc -l )"
+}
+
+remove_logs
+optimize_space
+
+log "check: 0 byte files?"
+
+case "$( date '+%H:%M' )" in    # e.g. 09:01
+	'02:'*|'03:'*)
+		/var/www/scripts/read_kernel_release_dates.sh
+	;;
+esac
+
+
 
 
 [ -n "$( list_meshrdf_files_with_zero_size )" ] && {
@@ -240,6 +350,9 @@ for NET in $LIST; do {
 	I=$(( I + 1 ))
 } done
 IALL=$I
+
+htmlout_error_summary
+exit
 
 I=0
 for NET in $LIST; do {
@@ -371,8 +484,7 @@ for NET in $LIST; do {
 			esac
 
 #			touch "/var/www/networks/$NETWORK/meshrdf/meshrdf.html.temp"
-#			chmod 777 "/var/www/networks/$NETWORK/meshrdf/meshrdf.html.temp"
-# BLA			wget -qO "/var/www/networks/$NETWORK/index.html.temp" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=$MYORDER"
+#			chmod 777 "/var/www/networks/$NETWORK/meshrdf/meshrdf.html.temp"# BLA			wget -qO "/var/www/networks/$NETWORK/index.html.temp" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=$MYORDER"
 #			mv "/var/www/networks/$NETWORK/index.html.temp" "/var/www/networks/$NETWORK/index.html"
 			gen_meshrdf_for_network "$NETWORK"
 
@@ -426,9 +538,6 @@ for NET in $LIST; do {
 		fi
 
 		[ "$OPTION" = "cache" ] || {
-
-	#		wget -qO "$TEMP" "http://127.0.0.1/networks/${NETWORK}/meshrdf/"
-	
 			TEMP="/var/www/networks/$NETWORK/index.html"
 			WEAK="$( grep " node_weak " "$TEMP" | sed -n 's/^.* node_weak \([0-9]*\).*/\1/p' )"
 			LOST="$( grep " node_lost " "$TEMP" | sed -n 's/^.* node_lost \([0-9]*\).*/\1/p' )"
@@ -462,107 +571,12 @@ log "[READY] first loop"
 mv /tmp/all_pubips.txt_$$ /tmp/all_pubips.txt
 mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 
-[ "$OPTION" = "cache" ] && {
-	log "option cache: working"
-
-	FILE_SUMMARY_TEMP="/tmp/summary.html.tmp"
-	FILE_SUMMARY="/var/www/networks/error/index.html"
-
-	# get first good network
-	for NET in $LIST; do {
-		[ -e "$NET/../../index.html" ] && break
-	} done
-
-	# /var/www/networks/zwickau/meshrdf/recent
-	NET="/var/www/networks/$NET/meshrdf/recent"
-	NETWORK="$( echo $NET | cut -d'/' -f5 )"	# e.g. elephant
-
-	log "[OK] starting to build summary.html, taking network '$NETWORK' for template NET: '$NET'"
-	# writeout table/html-headers MINUS javascript (till first </tr>-tag)
-	log "DEBUG1: $( ls -l $NET/../../index.html )"
-	LINENO_FIRST_ENDING_TR_TAG="$( sed -n '/<\/tr>/{=;q}' $NET/../../index.html )"
-	LINENO_JS_START="$(  sed -n '/<script/{=;q}'   $NET/../../index.html )"
-	LINENO_JS_ENDING="$( sed -n '/<\/script/{=;q}' $NET/../../index.html )"
-	sed -n "1,${LINENO_FIRST_ENDING_TR_TAG}p" $NET/../../index.html | sed "${LINENO_JS_START},${LINENO_JS_ENDING}d" >$FILE_SUMMARY_TEMP
-	log "[OK] check '$FILE_SUMMARY_TEMP' $( ls -l $FILE_SUMMARY_TEMP )"
-	# | head -n7 ?
-
-	for NET in $LIST; do {					# /var/www/networks/ffweimar/meshrdf/recent
-		NETWORK="$( echo $NET | cut -d'/' -f5 )"        # e.g. elephant
-
-		case "$NETWORK" in
-			dhsylt|elephant|ffweimar*|galerie|ibfleesensee|tkolleg|ffsundi|sachsenhausen|artotel|versiliawe|paltstadt|liszt28|zumnorde|versiliaje|preskil|gnm|hotello-K80|hotello-H09|hotello-B01|tuberlin|marinapark|vivaldi|satama|fparkssee|marinapark)
-				log "summary: [OK] omitting network '$NETWORK' for summary"
-				continue
-			;;
-		esac
-
-		LINK="http://intercity-vpn.de/networks/$NETWORK"
-
-		FILE_CONTACT_DATA="/var/www/networks/$NETWORK/contact.txt"
-		if [ -e "$FILE_CONTACT_DATA" ]; then
-			read -r CONTACT_DATA <"$FILE_CONTACT_DATA"
-		else
-			CONTACT_DATA="bitte eintragen in $FILE_CONTACT_DATA"
-		fi
-
-#		log "[OK] including '$NETWORK'-contacts: $CONTACT_DATA"
-
-		fgrep -sq " title='MISS " $NET/../../index.html && {
-			echo "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small><br></small><big><a href='$LINK' title='$CONTACT_DATA'>$NETWORK</a></big></small><br></small></td></tr>" >>"$FILE_SUMMARY_TEMP"
-
-			OMIT="d85d4c9c2fb0"		# leonardo/beach
-
-			fgrep " title='MISS " "$NET/../../index.html" | fgrep -v "$OMIT" >>"$FILE_SUMMARY_TEMP"
-
-			log "summary: DBG: $( ls -l $FILE_SUMMARY_TEMP )"
-		}
-
-	} done
-
-	echo "</table></body></html>" >>"$FILE_SUMMARY_TEMP"
-	mv "$FILE_SUMMARY_TEMP" "$FILE_SUMMARY"
-	log "summary: wrote DGB2: $( ls -l "$FILE_SUMMARY" )"
-
-	[ -e "/tmp/lockfile_meshrdf_cache_$$" ] && {
-		rm "/tmp/lockfile_meshrdf_cache_$$"
-	}
-
-	log "[READY] needed $(( $( uptime_in_seconds ) - TIME_START )) seconds"
+[ "$OPTION" = 'cache' ] && {
+	htmlout_error_summary
 	exit
 }
 
 
-
-urlencode ()					# SENS: converting chars using a fixed table, where we know the URL-encodings
-{						#   is: , ; : ? # [ ] / @ + = " ' | ( ) TAB < > ! * { } $ ^ space
-	echo "$1" | sed -e 's/,/%2c/g'	\
-			-e 's/;/%3b/g'	\
-			-e 's/:/%3a/g'	\
-			-e 's/?/%3f/g'	\
-			-e 's/#/%23/g'	\
-			-e 's/\[/%5b/g'	\
-			-e 's/\]/%5d/g'	\
-			-e 's/\//%2f/g'	\
-			-e 's/@/%40/g'	\
-			-e 's/+/%2b/g'  \
-			-e 's/=/%3d/g'	\
-			-e 's/"/%22/g'	\
-			-e "s/'/%27/g"	\
-			-e "s/|/%7c/g"	\
-			-e "s/[(]/%28/g" \
-			-e "s/[)]/%29/g" \
-			-e "s/	/%09/g"	\
-			-e 's/</%3c/g'  \
-			-e 's/>/%3e/g'  \
-			-e 's/!/%21/g' \
-			-e 's/*/%2a/g' \
-			-e 's/{/%7b/g' \
-			-e 's/}/%7d/g' \
-			-e 's/\$/%24/g' \
-			-e 's/\^/%5e/g' \
-			-e 's/ /+/g'
-}
 
 [ "${#MESSAGE}" -gt 160 ] && {
 	log "message too long: $MESSAGE"
