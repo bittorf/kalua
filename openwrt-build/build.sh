@@ -79,7 +79,7 @@ special arguments:
 	  --unittest	# complete testsuite
 	  --fail	# simulate error: keep patched branch after building
 	  --update	# refresh this buildscript
-	  --dotconfig \$myfile
+	  --dotconfig "\$myfile"
 	  --feedstime '2015-08-31 19:33'
 
 	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
@@ -3241,7 +3241,11 @@ die_and_exit()
 {
 	local branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
 
-	[ -n "$branch" ] && log "[ATTENTION] you are on branch '$branch' now - better do: 'git checkout master'"
+	[ -n "$branch" ] && {
+		log "[ATTENTION] you are on branch '$branch' now - better do: 'git checkout master' and"
+		log "git branch | grep -v '* master' | while read LINE; do git branch -D \$LINE; done; git stash clear"
+	}
+
 	[ -n "$FORCE" ] && return 0
 
 	log '[ERROR] the brave can try --force, all others should do: git checkout master'
