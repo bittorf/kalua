@@ -42,12 +42,7 @@ htmlout_error_summary()
 	FILE_SUMMARY_TEMP="/tmp/summary.html.tmp"
 	FILE_SUMMARY="/var/www/networks/error/index.html"
 
-	# get first good network
-	for NET in $LIST; do {
-		[ -e "$NET/../../index.html" ] && break
-	} done
-
-	NET="/var/www/networks/$NET/meshrdf/recent"
+	NET='/var/www/networks/ilm1/meshrdf/recent'	# last build valid network
 	NETWORK="$( echo "$NET" | cut -d'/' -f5 )"	# e.g. elephant
 
 	log "[OK] starting to build summary.html, taking network '$NETWORK' for template NET: '$NET'"
@@ -65,7 +60,7 @@ htmlout_error_summary()
 		case "$NETWORK" in
 			dhsylt|elephant|ffweimar*|galerie|tkolleg|ffsundi|artotel|\
 			sachsenhausen|versiliawe|liszt28|zumnorde|tuberlin|preskil|\
-			versiliaje|gnm|hotello*marinapark|vivaldi|satama|fparkssee)
+			versiliaje|gnm|hotello*|marinapark|vivaldi|satama|fparkssee|marinabh)
 				log "summary: [OK] omitting network '$NETWORK' for error-summary"
 				continue
 			;;
@@ -90,7 +85,8 @@ htmlout_error_summary()
 			} >>"$FILE_SUMMARY_TEMP"
 
 			OMIT='d85d4c9c2fb0'		# leonardo/beach
-			fgrep " title='MISS " "$HTML_INDEX" | fgrep -v "$OMIT" >>"$FILE_SUMMARY_TEMP"
+			VERY_OLD='#8A0829'		# darkviolett = very old nodes - we suppress them (see meshrdf_generate)
+			fgrep " title='MISS " "$HTML_INDEX" | fgrep -v "$OMIT" | fgrep -v "$VERY_OLD" >>"$FILE_SUMMARY_TEMP"
 		}
 
 	} done
@@ -353,7 +349,6 @@ for NET in $LIST; do {
 	NET="/var/www/networks/$NET/meshrdf/recent"
 
 	# build often!
-	gen_meshrdf_for_network ilm1
 	gen_meshrdf_for_network gnm
 	gen_meshrdf_for_network limona
 	gen_meshrdf_for_network malchow		# demo
@@ -366,8 +361,8 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network monami
 	gen_meshrdf_for_network ffweimar-roehr
 	gen_meshrdf_for_network ffweimar-vhs
-	gen_meshrdf_for_network wagenplatz
-	gen_meshrdf_for_network xoai
+	gen_meshrdf_for_network ilm1
+#	gen_meshrdf_for_network xoai
 
 	htmlout_error_summary			# very fast
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
