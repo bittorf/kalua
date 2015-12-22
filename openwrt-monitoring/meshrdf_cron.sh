@@ -52,23 +52,21 @@ htmlout_error_summary()
 
 	log "[OK] starting to build summary.html, taking network '$NETWORK' for template NET: '$NET'"
 	# writeout table/html-headers MINUS javascript (till first </tr>-tag)
-	log "DEBUG1: $( ls -l "$NET/../../index.html" )"
 	LINENO_FIRST_ENDING_TR_TAG="$( sed -n '/<\/tr>/{=;q}' $NET/../../index.html )"
 	LINENO_JS_START="$(  sed -n '/<script/{=;q}'   "$NET/../../index.html" )"
 	LINENO_JS_ENDING="$( sed -n '/<\/script/{=;q}' "$NET/../../index.html" )"
 	sed -n "1,${LINENO_FIRST_ENDING_TR_TAG}p" "$NET/../../index.html" | sed "${LINENO_JS_START},${LINENO_JS_ENDING}d" >$FILE_SUMMARY_TEMP
-	log "[OK] check '$FILE_SUMMARY_TEMP' $( ls -l $FILE_SUMMARY_TEMP )"
+	sed -i 's|^<title>.*|<title>error-overview</title>|' "$FILE_SUMMARY_TEMP"
 
 	for NET in $LIST; do {					# /var/www/networks/ffweimar/meshrdf/recent
 		NETWORK="$( echo "$NET" | cut -d'/' -f5 )"	# e.g. elephant
 		HTML_INDEX="/var/www/networks/$NETWORK/index.html"
 
 		case "$NETWORK" in
-			dhsylt|elephant|ffweimar*|galerie|ibfleesensee|tkolleg|ffsundi|\
-			sachsenhausen|artotel|versiliawe|paltstadt|liszt28|zumnorde|\
-			versiliaje|preskil|gnm|hotello-K80|hotello-H09|hotello-B01|\
-			tuberlin|marinapark|vivaldi|satama|fparkssee|marinapark)
-				log "summary: [OK] omitting network '$NETWORK' for summary"
+			dhsylt|elephant|ffweimar*|galerie|tkolleg|ffsundi|artotel|\
+			sachsenhausen|versiliawe|liszt28|zumnorde|tuberlin|preskil|\
+			versiliaje|gnm|hotello*marinapark|vivaldi|satama|fparkssee)
+				log "summary: [OK] omitting network '$NETWORK' for error-summary"
 				continue
 			;;
 		esac
@@ -86,12 +84,12 @@ htmlout_error_summary()
 		fgrep -sq " title='MISS " "$HTML_INDEX" && {
 			# header:
 			{
-				printf "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small>"
-				printf "<br></small><big><a href='$LINK' title='$CONTACT_DATA'>$NETWORK</a>"
+				printf '%s' "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small>"
+				printf '%s' "<br></small><big><a href='$LINK' title='$CONTACT_DATA'>$NETWORK</a>"
 				echo   "</big></small><br></small></td></tr>"
 			} >>"$FILE_SUMMARY_TEMP"
 
-			OMIT="d85d4c9c2fb0"		# leonardo/beach
+			OMIT='d85d4c9c2fb0'		# leonardo/beach
 			fgrep " title='MISS " "$HTML_INDEX" | fgrep -v "$OMIT" >>"$FILE_SUMMARY_TEMP"
 
 			log "summary: DEBUG: $( ls -l $FILE_SUMMARY_TEMP )"
@@ -99,9 +97,9 @@ htmlout_error_summary()
 
 	} done
 
-	echo "</table></body></html>" >>"$FILE_SUMMARY_TEMP"
+	echo '</table></body></html>' >>"$FILE_SUMMARY_TEMP"
 	mv "$FILE_SUMMARY_TEMP" "$FILE_SUMMARY"
-	log "summary: wrote DGB2: $( ls -l "$FILE_SUMMARY" )"
+#	log "summary: wrote DGB2: $( ls -l "$FILE_SUMMARY" )"
 
 	[ -e "/tmp/lockfile_meshrdf_cache_$$" ] && {
 		rm "/tmp/lockfile_meshrdf_cache_$$"
