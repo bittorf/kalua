@@ -37,7 +37,7 @@ list_networks()
 
 htmlout_error_summary()
 {
-	log "option cache: working"
+	log "htmlout_error_summary: working"
 
 	FILE_SUMMARY_TEMP="/tmp/summary.html.tmp"
 	FILE_SUMMARY="/var/www/networks/error/index.html"
@@ -56,7 +56,7 @@ htmlout_error_summary()
 	LINENO_JS_START="$(  sed -n '/<script/{=;q}'   "$NET/../../index.html" )"
 	LINENO_JS_ENDING="$( sed -n '/<\/script/{=;q}' "$NET/../../index.html" )"
 	sed -n "1,${LINENO_FIRST_ENDING_TR_TAG}p" "$NET/../../index.html" | sed "${LINENO_JS_START},${LINENO_JS_ENDING}d" >$FILE_SUMMARY_TEMP
-	sed -i 's|^<title>.*|<title>error-overview</title>|' "$FILE_SUMMARY_TEMP"
+	sed -i "s|^<title>.*|<title>error-overview@$( date "+%d.%b'%y-%H:%M" )</title>|" "$FILE_SUMMARY_TEMP"
 
 	for NET in $LIST; do {					# /var/www/networks/ffweimar/meshrdf/recent
 		NETWORK="$( echo "$NET" | cut -d'/' -f5 )"	# e.g. elephant
@@ -91,8 +91,6 @@ htmlout_error_summary()
 
 			OMIT='d85d4c9c2fb0'		# leonardo/beach
 			fgrep " title='MISS " "$HTML_INDEX" | fgrep -v "$OMIT" >>"$FILE_SUMMARY_TEMP"
-
-			log "summary: DEBUG: $( ls -l $FILE_SUMMARY_TEMP )"
 		}
 
 	} done
@@ -105,7 +103,7 @@ htmlout_error_summary()
 		rm "/tmp/lockfile_meshrdf_cache_$$"
 	}
 
-	log "[READY] needed $(( $( uptime_in_seconds ) - TIME_START )) seconds"
+	log '[READY]'
 }
 
 
@@ -349,9 +347,6 @@ for NET in $LIST; do {
 } done
 IALL=$I
 
-htmlout_error_summary
-exit
-
 I=0
 for NET in $LIST; do {
 	ignore_network "$NET" && continue
@@ -374,6 +369,7 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network wagenplatz
 	gen_meshrdf_for_network xoai
 
+	htmlout_error_summary			# very fast
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
 
 #	FILE="$( ls -1t $NET/* | head -n1 )"
