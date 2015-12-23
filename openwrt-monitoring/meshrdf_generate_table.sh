@@ -1168,7 +1168,7 @@ func_cell_hostname ()
 	}
 
 	if [ -e "$FILE" ]; then
-		if [ $( filesize_in_bytes "$FILE" ) -lt 1000 ]; then
+		if [ $( filesize_in_bytes "$FILE" ) -lt 910 ]; then
 			bgcolor='yellow'
 			title="filesize: $( filesize_in_bytes "$FILE" )"
 		else

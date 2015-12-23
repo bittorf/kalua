@@ -102,21 +102,26 @@ _file_convert_hex2bin()
 	} done
 }
 
-_file_size()			# FIXME! use 'stat -c%s $file' if possible (not included in default OpenWrt)
-{				# or portable 'du -k $file'
+_file_size()
+{
 	local file="$1"
 	local unit="$2"		# 'bytes'(default) or 'kb'
 	local size
 
-	# scraping 'ls -la' is dirty, but much faster than 'wc -c <$file'
-	#
-	# root@box:~ ls -l /etc/init.d/myfile
-	# -rwxr-xr-x    1 1000     1000            0 Jan  3 16:50 /etc/init.d/myfile
+	# TODO: portable, but in blocks: du -k $file
 
-	explode $( ls -la "$file" 2>/dev/null || echo O O O O x O )
-	size="$5"
+	if command -v 'stat' >/dev/null; then
+		size="$( stat --printf="%s" "$file" )"
+	else
+		# scraping 'ls -la' is dirty, but much faster than 'wc -c <$file'
+		#
+		# user@box:~ ls -l /etc/init.d/myfile
+		# -rwxr-xr-x  1  1000  1000  0 Jan  3 16:50 /dir1/dir2/file
+		explode $( ls -la "$file" 2>/dev/null || echo 'O O O O x O' )
+		size="$5"
+	fi
 
-	[ "$size" = 'x' ] && return 1	# file does not exist
+	[ "${size:-x}" = 'x' ] && return 1	# file does not exist
 
 	case "$unit" in
 		kb)
