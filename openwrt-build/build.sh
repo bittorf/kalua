@@ -607,6 +607,18 @@ EOF
 			FILENAME_FACTORY='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-factory.bin'
 			# openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-tftp.bin
 		;;
+		'TP-LINK CPE210'|'TP-LINK CPE220')
+			# https://wiki.openwrt.org/toh/tp-link/tl-cpe210
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_CPE510=y'	# really 510
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-factory.bin'
+		;;
+		'TP-LINK CPE510'|'TP-LINK CPE520')
+			# https://wiki.openwrt.org/toh/tp-link/tl-cpe510
+			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_CPE510=y'
+			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-factory.bin'
+		;;
 		'TP-LINK TL-WR703N v1')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr703n
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR703=y'
