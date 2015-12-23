@@ -36,19 +36,21 @@ logger -s "[START] safing to $outfile"
 
 I=0
 for file in /var/www/networks/$network/registrator/recent/* ; do {
+	[ -e "$file" ] || continue
+
 	I=$(( I + 1 ))
 	. $file
-	echo "$SSHPUBKEY" >$file.temp
 
-	# TODO: this 'read' options are not POSIX
-	while read -r -n 2 hexbyte; do {
-		[ ${#hexbyte} -eq 2 ] && {
-			octal="$( printf "%o" "0x$hexbyte" )"
+	J=1
+	while [ $J -lt ${#SSHPUBKEY} ]; do {
+		HEXBYTE="$( echo "$SSHPUBKEY" | cut -b $J,$(( J + 1 )) )"
+		J=$(( J + 2 ))
+
+		[ ${#HEXBYTE} -eq 2 ] && {
+			octal="$( printf "%o" "0x$HEXBYTE" )"
 			eval printf "\\\\$octal"
 		}
-	} done <$file.temp
-
-	rm $file.temp
+	} done
 } done >"$outfile"
 
 up2="$( uptime_in_seconds )"
