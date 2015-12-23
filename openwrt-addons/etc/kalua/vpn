@@ -145,13 +145,21 @@ _vpn_innercity_master_vtund()
 _vpn_innercity_master_iface()
 {
 	local funcname='vpn_innercity_master_iface'
-	local action="$1"	# up|down|lock_active|remove_all_locks
+	local action="$1"	# up|down|lock_active|remove_all_locks|count_clients
 	local dev="$2"		# e.g. tap276
 	local i=0
 	local lockdir="$TMPDIR/lock-$dev-$funcname"
 	local bytes packets uptime uptime_sec numbers linenumber reason mtu
 
 	case "$action" in
+		'count_clients')
+			for file in "$TMPDIR/$funcname-devup-"*; do {
+				[ -e "$file" ] && i=$(( i + 1 ))
+			} done
+
+			echo "$i"
+			return
+		;;
 		'lock_active')
 			ls -1 "$TMPDIR/$funcname-devup"* >/dev/null && return 0
 			ls -d "$lockdir" && return 0
@@ -245,6 +253,7 @@ _vpn_innercity_master_iface()
 		}
 
 		pidof olsrd >/dev/null || _olsr daemon start "$funcname() not active yet"
+		_vpn innercity_master_write_infojson
 
 		_log it $funcname daemon info "[READY] action: $action dev: $dev"
 	else
@@ -274,6 +283,8 @@ _vpn_innercity_master_iface()
 		divisor_valid "$uptime_sec" || uptime_sec=1
 		numbers="$( _sanitizer run "$bytes/$packets" number_humanreadable )"
 		numbers="bytes/packets: $numbers = $(( bytes / uptime_sec / 1000 )) KB/s"	# divisor_valid
+
+		_vpn innercity_master_write_infojson
 		_log it $funcname daemon alert "[READY] action: $action dev: $dev $numbers uptime: $uptime"
 	fi
 
@@ -480,9 +491,13 @@ _vpn_hideandseek_vtund()
 {
 	local action="$1"	# check_on_client|fire|start|stop|restart
 	local config="${2:-$TMPDIR/vtund.conf}"
-	local server='4.v.weimarnetz.de'	# TODO: get server list from /var/run/services_olsr + add '212.47.248.108'
-	local server_port='5001'
+
+	# TODO: get server list from /var/run/services_olsr + add '212.47.248.108'
+	# TODO: use system.@vpn[0].hostname -> weimarnetz.de
+	local server='4.v.weimarnetz.de'
+	local server_port='5001'	# TODO: ask server, see infojson()
 	local connection_name="n$NODENUMBER"
+
 
 	case "$action" in
 		'check_on_client')
@@ -598,7 +613,7 @@ _vpn_x()	# FIXME! find a better name
 	esac
 
 	command -v vtund >/dev/null || {
-		_log it x daemon info "vtund not installed"
+		_log it x daemon info 'vtund not installed'
 		return 0
 	}
 
@@ -623,7 +638,8 @@ _vpn_x()	# FIXME! find a better name
 	if [ -e '/tmp/vtund.sh' ]; then
 		_vpn check_daemon
 	else
-		[ -e "/etc/vtund.conf" ] && {			# startup-code must be a comment at first line
+		[ -e "/etc/vtund.conf" ] && {
+			# startup-code must be in a comment
 			grep -q ^'# vtund ' '/etc/vtund.conf' && {
 				head -n1 '/etc/vtund.conf' | cut -b 2- >'/tmp/vtund.sh'
 
@@ -632,4 +648,30 @@ _vpn_x()	# FIXME! find a better name
 			}
 		}
 	fi
+}
+
+_vpn_innercity_master_write_infojson()
+{
+	local funcname='vpn_innercity_master_write_infojson'
+	local mtu="$( uci -q get network.innercityVPN.mtu || echo '1280' )"
+	local port="$( uci -q get system.vpn.port || echo '5001' )"
+	local file='/var/www/freifunk/vpn/index.html'
+	local vtund_type="$( _vpn probe_vtund_type )"
+	local clients="$( _vpn innercity_master_iface count_clients )"
+	local mydomain
+
+	mydomain="$( uci -q get system.vpn.dnsname )" || {
+		_log it $funcname daemon info 'please set system.vpn.dnsname'
+		return 1
+	}
+
+	mkdir -p "$( dirname "$file" )"
+	{
+		echo '{'
+		echo "  \"server\": \"$mydomain\","
+		echo "  \"maxmtu\": \"$mtu\","
+		echo "  \"port_vtun_$vtund_type\": \"$port\","
+		echo "  \"clients\": \"$clients\""
+		echo '}'
+	} >"$file"
 }
