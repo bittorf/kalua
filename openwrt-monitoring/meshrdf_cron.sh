@@ -61,7 +61,7 @@ htmlout_error_summary()
 			dhsylt|elephant|ffweimar*|galerie|tkolleg|ffsundi|artotel|\
 			sachsenhausen|versiliawe|liszt28|zumnorde|tuberlin|preskil|\
 			versiliaje|gnm|hotello*|marinapark|vivaldi|satama|fparkssee|marinabh)
-				log "summary: [OK] omitting network '$NETWORK' for error-summary"
+#				log "summary: [OK] omitting network '$NETWORK' for error-summary"
 				continue
 			;;
 		esac

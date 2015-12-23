@@ -312,6 +312,7 @@ Special UCI-variables
 	system.@weblogin[0].db_localcopy	- bool
 	system.@weblogin[0].force_lan_reachable - bool
 	system.@weblogin[0].always_reachable	- bool
+	system.@weblogin[0].redirect_dns	- bool
 	
 	system.@monitoring[0].serverip		- IP
 	system.@monitoring[0].backping		- nodenumber
