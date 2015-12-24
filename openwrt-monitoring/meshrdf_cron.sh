@@ -37,6 +37,11 @@ list_networks()
 
 htmlout_error_summary()
 {
+	local LIST="$1"
+	local FILE_SUMMARY_TEMP FILE_SUMMARY NET NETWORK
+	local LINENO_FIRST_ENDING_TR_TAG LINENO_JS_START LINENO_JS_ENDING
+	local HTML_INDEX LINK FILE_CONTACT_DATA CONTACT_DATA OMIT VERY_OLD
+
 	log "htmlout_error_summary: working"
 
 	FILE_SUMMARY_TEMP="/tmp/summary.html.tmp"
@@ -45,9 +50,9 @@ htmlout_error_summary()
 	NET='/var/www/networks/ilm1/meshrdf/recent'	# last build valid network
 	NETWORK="$( echo "$NET" | cut -d'/' -f5 )"	# e.g. elephant
 
-	log "[OK] starting to build summary.html, taking network '$NETWORK' for template NET: '$NET'"
+#	log "[OK] starting to build summary.html, taking network '$NETWORK' for template NET: '$NET'"
 	# writeout table/html-headers MINUS javascript (till first </tr>-tag)
-	LINENO_FIRST_ENDING_TR_TAG="$( sed -n '/<\/tr>/{=;q}' $NET/../../index.html )"
+	LINENO_FIRST_ENDING_TR_TAG="$( sed -n '/<\/tr>/{=;q}' "$NET/../../index.html" )"
 	LINENO_JS_START="$(  sed -n '/<script/{=;q}'   "$NET/../../index.html" )"
 	LINENO_JS_ENDING="$( sed -n '/<\/script/{=;q}' "$NET/../../index.html" )"
 	sed -n "1,${LINENO_FIRST_ENDING_TR_TAG}p" "$NET/../../index.html" | sed "${LINENO_JS_START},${LINENO_JS_ENDING}d" >$FILE_SUMMARY_TEMP
@@ -364,7 +369,7 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network ilm1
 #	gen_meshrdf_for_network xoai
 
-	htmlout_error_summary			# very fast
+	htmlout_error_summary "$LIST"		# very fast
 	/var/www/scripts/build_whitelist_incoming_ssh.sh start
 
 #	FILE="$( ls -1t $NET/* | head -n1 )"
@@ -561,7 +566,7 @@ mv /tmp/all_pubips.txt_$$ /tmp/all_pubips.txt
 mv /tmp/networks_list.txt.tmp /var/www/network_list.txt
 
 [ "$OPTION" = 'cache' ] && {
-	htmlout_error_summary
+	htmlout_error_summary "$LIST"
 	exit
 }
 
