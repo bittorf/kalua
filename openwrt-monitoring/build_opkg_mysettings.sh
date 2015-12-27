@@ -21,6 +21,8 @@ generate_script()
 	cat <<EOF
 #!/bin/sh
 . /tmp/loader
+wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/tarball.tgz
+cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz; /etc/kalua_init
 
 apply_settings()
 {
@@ -103,16 +105,16 @@ apply_settings
 EOF
 }
 
-generate_script >"postinst"
-chmod 777 "postinst"
-cp postinst /tmp/postinst
+generate_script >'postinst'
+chmod 777 'postinst'
+cp 'postinst' '/tmp/postinst'
 
-echo "2.0" >"debian-binary"
+echo '2.0' >'debian-binary'
 
-PKG_NAME="mysettings"
+PKG_NAME='mysettings'
 PKG_VERSION="${VERSION}"
 
-cat >control <<EOF
+cat >'control' <<EOF
 Package: $PKG_NAME
 Version: $PKG_VERSION
 Architecture: all
