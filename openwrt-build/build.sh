@@ -940,8 +940,15 @@ EOF
 	}
 
 	# e.g. 'CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y' -> 'brcm47xx'
-	# e.g. 'CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y' -> 'ramips'	// TODO: ramips_mt7620!?
-	ARCH="$( echo "$TARGET_SYMBOL" | cut -d'_' -f3 )"
+	# e.g. 'CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y' -> 'ramips_mt7620'
+	#
+	# CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y ->
+	# CONFIG_TARGET_ramips_mt7620 ->
+	#        TARGET_ramips_mt7620 ->
+	#               ramips_mt7620
+	ARCH="${TARGET_SYMBOL%_*}"
+	ARCH="${ARCH#*_}"
+	ARCH="${ARCH#*_}"
 
 	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
 	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"
