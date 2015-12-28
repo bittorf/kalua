@@ -940,6 +940,7 @@ EOF
 	}
 
 	# e.g. 'CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y' -> 'brcm47xx'
+	# e.g. 'CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y' -> 'ramips'	// TODO: ramips_mt7620!?
 	ARCH="$( echo "$TARGET_SYMBOL" | cut -d'_' -f3 )"
 
 	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
