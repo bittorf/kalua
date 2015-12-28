@@ -600,6 +600,12 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-x86-alix2-combined-squashfs.img'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
+		'Xiaomi Miwifi mini')
+			# https://wiki.openwrt.org/toh/xiaomi/mini
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-mt7620-miwifi-mini-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
 		'Buffalo WZR-HP-AG300H')
 			# http://wiki.openwrt.org/toh/buffalo/wzr-hp-ag300h
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_WZRHPAG300H=y'
