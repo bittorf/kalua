@@ -997,6 +997,9 @@ EOF
 			# ramips_mt7620 -> ramips
 			apply_symbol "CONFIG_TARGET_${ARCH%_*}=y"
 		;;
+		*)
+			log "[OK] ARCH '$ARCH' not with subarch" debug
+		;;
 	esac
 
 	apply_symbol "$TARGET_SYMBOL"
@@ -1608,8 +1611,8 @@ build()
 	local option="$1"
 	local jobs=$(( $( cpu_count ) + 1 ))
 	local commandline="--jobs $jobs BUILD_LOG=1"
-	local verbose t1 t2
-	[ -n "$DEBUG" ] && verbose='V=s'
+	local make_verbose t1 t2
+	[ -n "$DEBUG" ] && make_verbose='V=s'
 
 	case "$option" in
 		'nuke_bindir')
@@ -1619,10 +1622,10 @@ build()
 		;;
 		'defconfig')
 			log "running 'make defconfig'" debug
-			cat '.config'
+			[ -n "$DEBUG" -a $( wc -l <'.config' ) -lt 10 ] && cat '.config'
 			log "end of .config" debug
 
-			make $verbose defconfig >/dev/null || make defconfig
+			make $make_verbose defconfig >/dev/null || make defconfig
 		;;
 		*)
 			[ -n "$MAC80211_CLEAN" ] && {
@@ -1633,7 +1636,7 @@ build()
 			log "running 'make $commandline'"
 			get_uptime_in_sec 't1'
 
-			if make $verbose $commandline ; then
+			if make $make_verbose $commandline ; then
 				get_uptime_in_sec 't2'
 				BUILD_DURATION="$( calc_time_diff "$t1" "$t2" )"
 				log "running 'make $commandline' lasts $BUILD_DURATION sec"
