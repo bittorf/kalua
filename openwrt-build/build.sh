@@ -990,8 +990,17 @@ EOF
 
 	apply_symbol 'nuke_config'
 	apply_symbol "CONFIG_TARGET_${ARCH}=y"
+
+	case "$ARCH" in
+		*'_'*)
+			# needs 2 symbols for successful 'defconfig'
+			# ramips_mt7620 -> ramips
+			apply_symbol "CONFIG_TARGET_${ARCH%_*}=y"
+		;;
+	esac
+
 	apply_symbol "$TARGET_SYMBOL"
-	build defconfig
+	build 'defconfig'
 }
 
 has_internet()
@@ -1149,7 +1158,7 @@ check_working_directory()
 	[ -d 'package/feeds' ] || {
 		# seems, everything is really untouched
 		log "missing 'package/symlinks', getting feeds"
-		make defconfig
+		build 'defconfig'
 		do_symlinking='true'
 	}
 
@@ -1610,6 +1619,8 @@ build()
 		;;
 		'defconfig')
 			log "running 'make defconfig'" debug
+			cat '.config'
+			log "end of .config" debug
 
 			make $verbose defconfig >/dev/null || make defconfig
 		;;
