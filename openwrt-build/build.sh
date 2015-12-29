@@ -2018,11 +2018,14 @@ apply_symbol()
 			fi
 		;;
 		'CONFIG_'*)
+			log "CONFIG_-mode => '$symbol'" debug
 			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
 			grep -sq ^"$symbol"$ "$file" || {
 				pre="$( echo "$symbol" | cut -d'=' -f1 )"
 
+				# TODO: more exact?
 				grep -q "$pre" "$file" && {
+					log "removing '$pre'"
 					# remove symbol
 					# FIXME! use search_and_replace()
 					sed >"$file.tmp" "/${pre}=.*/d" "$file"
