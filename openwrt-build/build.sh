@@ -2004,7 +2004,7 @@ apply_symbol()
 			if grep -sq ^"# $symbol is not set" "$file"; then
 				search_and_replace "$file" "^# $symbol is not set" "$symbol=y"
 			else
-				grep -sq "$symbol" "$file" || echo >>"$file" "$symbol=y"
+				grep -sq ^"$symbol=y"$ "$file" || echo >>"$file" "$symbol=y"
 			fi
 		;;
 		*' is not set')
