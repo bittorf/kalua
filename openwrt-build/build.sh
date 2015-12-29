@@ -293,17 +293,17 @@ search_and_replace()
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 {
 	local funcname='kernel_commandline_tweak'
-	local dir="target/linux/$ARCH"
+	local dir="target/linux/$ARCH_MAIN"
 	local pattern=' oops=panic panic=10 '
 	local config kernelversion
 
-	case "$ARCH" in
+	case "$ARCH_MAIN" in
 		'uml')
 			return 0
 		;;
 		'mpc85xx')
 			if [ $( openwrt_revision_number_get ) -ge 45597 ]; then
-				config="target/linux/$ARCH/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
+				config="target/linux/$ARCH_MAIN/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
 			else
 				# config-3.10 -> 3.10
 				kernelversion="$( find "$dir" -name 'config-[0-9]*' | head -n1 | cut -d'-' -f2 )"
@@ -949,14 +949,16 @@ EOF
 	ARCH="${TARGET_SYMBOL%_*}"
 	ARCH="${ARCH#*_}"
 	ARCH="${ARCH#*_}"
+	# ramips_mt7620 -> ramips
+	ARCH_MAIN="${ARCH%_*}"
 
 	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
 	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"
 
-	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
+	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
 	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
 		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
-		file="target/linux/$ARCH/Makefile"
+		file="target/linux/$ARCH_MAIN/Makefile"
 		search_and_replace "$file" '^LINUX_VERSION:=.*' "LINUX_VERSION:=$VERSION_KERNEL_FORCE"
 		log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL'" gitadd "$file"
 	}
@@ -964,7 +966,7 @@ EOF
 	[ -z "$VERSION_KERNEL" ] && {
 		# since r43047
 		# KERNEL_PATCHVER:=3.10
-		VERSION_KERNEL="$( grep ^'KERNEL_PATCHVER:=' "target/linux/$ARCH/Makefile" | cut -d'=' -f2 )"
+		VERSION_KERNEL="$( grep ^'KERNEL_PATCHVER:=' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
 		# and in 'include/kernel-version.mk'
 		# LINUX_VERSION-3.10 = .58
 		VERSION_KERNEL="$( grep ^"LINUX_VERSION-$VERSION_KERNEL = " 'include/kernel-version.mk' )"
@@ -977,28 +979,24 @@ EOF
 			# with e.g.
 			# LINUX_VERSION-3.10 = .58
 			# and
-			# target/linux/$ARCH/Makefile
+			# target/linux/$ARCH_MAIN/Makefile
 			#   -> KERNEL_PATCHVER:=3.14
 			#   -> KERNEL_PATCHVER:=3.18
-			file="target/linux/$ARCH/Makefile"
+			file="target/linux/$ARCH_MAIN/Makefile"
 			search_and_replace "$file" '^KERNEL_PATCHVER:=.*' "KERNEL_PATCHVER:=$VERSION_KERNEL_FORCE"
 			log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL' for r43047+" gitadd "$file"
 		}
 	}
 
-	log "architecture: '$ARCH' model: '$model' kernel: '$VERSION_KERNEL' kernel_enforced: '$VERSION_KERNEL_FORCE'"
+	log "architecture: '$ARCH'/'$ARCH_MAIN' model: '$model' kernel: '$VERSION_KERNEL' kernel_enforced: '$VERSION_KERNEL_FORCE'"
 
 	apply_symbol 'nuke_config'
-	apply_symbol "CONFIG_TARGET_${ARCH}=y"
+	apply_symbol "CONFIG_TARGET_$ARCH=y"
 
 	case "$ARCH" in
 		*'_'*)
 			# needs 2 symbols for successful 'defconfig'
-			# ramips_mt7620 -> ramips
-			apply_symbol "CONFIG_TARGET_${ARCH%_*}=y"
-		;;
-		*)
-			log "[OK] ARCH '$ARCH' not with subarch" debug
+			apply_symbol "CONFIG_TARGET_$ARCH_MAIN=y"
 		;;
 	esac
 
@@ -1447,7 +1445,7 @@ usecase_hash()		# see: _firmware_get_usecase()
 copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
-	local attic="bin/$ARCH/attic"
+	local attic="bin/$ARCH_MAIN/attic"
 	local file checksum rootfs server_dir
 	local destination destination_scpsafe destination_info destination_info_scpsafe
 	local error=0
@@ -1455,7 +1453,7 @@ copy_firmware_files()
 	mkdir -p "$attic"
 	rootfs='squash'
 
-	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch '$ARCH'"
+	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch '$ARCH'/'$ARCH_MAIN'"
 	log "hardware: '$HARDWARE_MODEL'"
 	log "usecase: --usecase $USECASE"
 	log "usecase-hash: $( usecase_hash "$USECASE" )"
@@ -1506,9 +1504,9 @@ copy_firmware_files()
 # option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
 	if [ -n "$CONFIG_PROFILE" ]; then
-		file="bin/$ARCH/$FILENAME_FACTORY"
+		file="bin/$ARCH_MAIN/$FILENAME_FACTORY"
 	else
-		file="bin/$ARCH/$FILENAME_SYSUPGRADE"
+		file="bin/$ARCH_MAIN/$FILENAME_SYSUPGRADE"
 	fi
 
 	if [ -e "$file" ]; then
@@ -1517,10 +1515,10 @@ copy_firmware_files()
 		error=1
 	fi
 
-	log "$( wc -c <"bin/$ARCH/$FILENAME_SYSUPGRADE" ) Bytes: '$FILENAME_SYSUPGRADE'"
-	log "$( wc -c <"bin/$ARCH/$FILENAME_FACTORY" ) Bytes: '$FILENAME_FACTORY'"
+	log "$( wc -c <"bin/$ARCH_MAIN/$FILENAME_SYSUPGRADE" ) Bytes: '$FILENAME_SYSUPGRADE'"
+	log "$( wc -c <"bin/$ARCH_MAIN/$FILENAME_FACTORY" ) Bytes: '$FILENAME_FACTORY'"
 
-	if [ -e "bin/$ARCH/$FILENAME_FACTORY" ]; then
+	if [ -e "bin/$ARCH_MAIN/$FILENAME_FACTORY" ]; then
 		:
 	else
 		error=1
@@ -1617,8 +1615,8 @@ build()
 	case "$option" in
 		'nuke_bindir')
 			log "$option: removing unneeded firmware/packages, but leaving 'attic'-dir"
-			rm     "bin/$ARCH/"*	    2>/dev/null
-			rm -fR "bin/$ARCH/packages" 2>/dev/null
+			rm     "bin/$ARCH_MAIN/"*	 2>/dev/null
+			rm -fR "bin/$ARCH_MAIN/packages" 2>/dev/null
 		;;
 		'defconfig')
 			log "running 'make defconfig'" debug
@@ -2630,6 +2628,9 @@ build_options_set()
 
 				log "noOPKG: write missing 'files/etc/opkg.conf'"
 				mkdir -p 'files/etc'
+
+				# TODO: generic -> subtarget
+				# .../trunk/ramips/mt7620/packages
 				cat >'files/etc/opkg.conf' <<EOF
 dest root /
 dest ram /tmp
@@ -3342,6 +3343,6 @@ echo "$USECASE $HARDWARE_MODEL" >>'KALUA_HISTORY'
 
 log "[OK] - Jauchzet und frohlocket, ob der Bytes die erschaffen wurden in $( calc_time_diff "$T1" "$T2" ) sek."
 target_hardware_set "$HARDWARE_MODEL" info quiet >/dev/null && log "[OK] - more info via: $0 --info '$HARDWARE_MODEL'"
-log "[OK] - check size of files with: find bin/$ARCH -type f -exec stat -c '%s %N' {} \; | grep -v '/attic/' | sort -n"
+log "[OK] - check size of files with: find bin/$ARCH_MAIN -type f -exec stat -c '%s %N' {} \; | grep -v '/attic/' | sort -n"
 
 exit 0
