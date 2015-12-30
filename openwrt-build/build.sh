@@ -1720,6 +1720,11 @@ apply_patches()
 				grep -q ' a/net/sched/' "$1"
 			}
 
+			patch_for_dropbear()
+			{
+				grep -q ' a/svr-auth.c' "$1"
+			}
+
 			if   patch_for_mac80211 "$file"; then
 				register_patch "$file"
 				cp -v "$file" 'package/kernel/mac80211/patches'
@@ -1737,6 +1742,8 @@ apply_patches()
 			elif patch_for_kernel "$file"; then
 				log "[FIXME] ignoring '$file'"
 #						cp -v "$file" ''
+			elif patch_for_dropbear "$file"; then
+				log "dropbear: adding '$file'" gitadd "package/network/services/dropbear/patches/$( basename "$file" )"
 			elif patch_for_openwrt "$file"; then
 				if git apply --ignore-whitespace --check <"$file"; then
 					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
