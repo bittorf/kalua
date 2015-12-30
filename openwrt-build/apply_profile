@@ -8,6 +8,7 @@
 
 START=98
 EXTRA_COMMANDS='call'
+ME='/etc/init.d/apply_profile'
 
 boot()
 {
@@ -16,13 +17,9 @@ boot()
 
 call()
 {
-	local thisfile='/etc/init.d/apply_profile'
 	local max_try=30
 	local stopfile='/tmp/STOP'
 	local interval=60
-	local i=0
-	local led_loops=10
-	local led_state i load rest daemon
 
 	[ -e  '/tmp/lockfile_apply_profile' ] && return 0
 	touch '/tmp/lockfile_apply_profile'
@@ -33,56 +30,22 @@ call()
 		. /tmp/loader
 
 		[ -n "$LOWMEM" ] && {
-			_log it $thisfile daemon alert "[OK] ending most daemons"
-
-			for daemon in crond ulogd uhttpd olsrd dnsmasq; do {
-				_log it $thisfile daemon info "ending daemon '$daemon'"
-				/etc/init.d/$daemon stop
-				/etc/init.d/*${daemon}* stop
-			} done
-
-			case "$( pidof dropbear )" in
-				*" "*)
-				;;
-				*)
-					killall dropbear
-					wifi down
-				;;
-			esac
-
-			while true; do {
-				read -r load rest </proc/loadavg
-				case "$load" in
-					0.0*|0.1*|0.2*|0.3*)		# wait till load goes down
-						break
-					;;
-					*)
-						_log it $thisfile daemon info "wait for load <0.4, now: '$load'"
-						sleep 30
-					;;
-				esac
-			} done
+			services_stopmost
+			wait_till_load_settles
 		}
 	}
 
-	telnet_is_used()
-	{
-		local pid cmdline
-
-		for pid in $( pidof ash ); do {
-			read -r cmdline <"/proc/$pid/cmdline"
-			[ "$cmdline" = '/bin/ash--login' ] && break
-		} done
-	}
-
 	while [ $max_try -gt 1 ]; do {
-		logger -s "$thisfile [BOOT] start - $thisfile"
-		"${thisfile}.code" boot && break
+		logger -s "$ME [BOOT] start"
+		"$ME.code" boot && {
+			services_refire
+			break
+		}
 
-		logger -s "$thisfile [BOOT] executed $thisfile.code - but with errors, $max_try try's yet, waiting $interval secs"
+		logger -s "$ME [BOOT] executed $ME.code - but with errors, $max_try try's yet, waiting $interval secs"
 		max_try=$(( max_try - 1 ))
 
-		[ -e "/tmp/LOCKFILE_APPLY" ] || {
+		[ -e '/tmp/LOCKFILE_APPLY' ] || {
 			pidof apply_profile.code >/dev/null || {	# interactive run/user invoked
 				telnet_is_used || /etc/init.d/telnet restart
 				/etc/init.d/dropbear restart
@@ -92,32 +55,90 @@ call()
 		sleep $interval
 	} done
 
-	logger -s "$thisfile [BOOT] ready - removing '$thisfile', autorebooting in $(( led_loops * 3 )) sec, avoid this by 'touch $stopfile'"
-	rm "$thisfile"
-
-	led_firework()
-	{
-		if [ -e '/etc/diag.sh' ]; then
-			. '/etc/diag.sh'
-
-			while [ $i -lt $led_loops ]; do {
-				logger -s "$thisfile [BOOT] led_firework, loop $i/$led_loops"
-				for led_state in preinit failsafe 'done'; do {
-					set_state $led_state
-					sleep 1
-				} done
-				i=$(( i + 1 ))
-			} done
-		else
-			sleep $(( led_loops * 3 ))
-		fi
-	}
+	logger -s "$ME [BOOT] ready - removing '$ME', showing success with led_firework"
+	rm "$ME"
 
 	led_firework
+}
 
-	[ -e "$stopfile" ] && return 0
-	_system crashreboot 'apply_profile'
+services_refire()
+{
+	/etc/kalua_init
+	unset -f _; . /tmp/loader
+	/etc/init.d/override_uci_vars boot
+	/etc/init.d/network restart
+	/etc/init.d/S41build_static_netparam call
+}
 
-	# can be removed later when we are sure that loader is always useable:
-	type '_system' | fgrep -q ' function' || reboot
+services_stopmost()
+{
+	local daemon
+
+	_log it $ME daemon alert "[OK] ending most daemons"
+
+	for daemon in crond ulogd uhttpd olsrd dnsmasq; do {
+		_log it $ME daemon info "ending daemon '$daemon'"
+		/etc/init.d/$daemon stop
+		/etc/init.d/*${daemon}* stop
+	} done
+
+	case "$( pidof dropbear )" in
+		*' '*)
+		;;
+		*)
+			killall dropbear
+			wifi down
+		;;
+	esac
+}
+
+wait_till_load_settles()
+{
+	local load rest
+
+	while true; do {
+		read -r load rest </proc/loadavg
+
+		case "$load" in
+			'0.0'*|'0.1'*|'0.2'*|'0.3'*)
+				break
+			;;
+			*)
+				_log it $ME daemon info "wait for load <0.4, now: '$load'"
+				sleep 30
+			;;
+		esac
+	} done
+}
+
+led_firework()
+{
+	local i=0
+	local led_loops=10
+	local led_state
+
+	if [ -e '/etc/diag.sh' ]; then
+		. '/etc/diag.sh'
+
+		while [ $i -lt $led_loops ]; do {
+			logger -s "$ME [BOOT] led_firework, loop $i/$led_loops"
+			for led_state in preinit failsafe 'done'; do {
+				set_state "$led_state"
+				sleep 1
+			} done
+			i=$(( i + 1 ))
+		} done
+	else
+		sleep $(( led_loops * 3 ))
+	fi
+}
+
+telnet_is_used()
+{
+	local pid cmdline
+
+	for pid in $( pidof ash ); do {
+		read -r cmdline <"/proc/$pid/cmdline"
+		[ "$cmdline" = '/bin/ash--login' ] && break
+	} done
 }
