@@ -1741,8 +1741,9 @@ apply_patches()
 				log "busybox: adding '$file'" gitadd "package/utils/busybox/patches/$( basename "$file" )"
 			elif patch_for_kernel "$file"; then
 				log "[FIXME] ignoring '$file'"
-#						cp -v "$file" ''
 			elif patch_for_dropbear "$file"; then
+				register_patch "$file"
+				cp -v "$file" 'package/network/services/dropbear/patches'
 				log "dropbear: adding '$file'" gitadd "package/network/services/dropbear/patches/$( basename "$file" )"
 			elif patch_for_openwrt "$file"; then
 				if git apply --ignore-whitespace --check <"$file"; then
