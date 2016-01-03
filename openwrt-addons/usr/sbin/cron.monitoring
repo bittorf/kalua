@@ -43,6 +43,26 @@ _system fully_installed || ARG1='fast'
 
 [ "$ARG1" = 'fast' ] && _log it $FUNC daemon debug "fastmode - no data_collection"
 
+serveranswer_ok()
+{
+	local answer="$1"
+
+	case "$answer" in
+		'OK'*)
+			case "$answer" in
+				*'pmu')
+					echo >>$SCHEDULER_IMPORTANT '_firmware update_pmu'
+				;;
+			esac
+
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 	_log it $FUNC daemon debug "start"
 
@@ -708,8 +728,10 @@ grep -q ^"ip_tables " /proc/modules && {
 						errors_overall=0
 					fi
 
-					i=0; OUT=
-					while [ "$OUT" != "OK" -a $i -lt 10 ]; do {
+
+					i=0
+					OUT=
+					while [ serveranswer_ok "$OUT" -a $i -lt 10 ]; do {
 						OUT="$( _curl it "${KEEP_ALIVE_URL}?${QUERY}&e0=$i&e1=$errors_overall" )" || {
 							sleep $i
 						}
@@ -722,7 +744,7 @@ grep -q ^"ip_tables " /proc/modules && {
 					errors_overall=$(( errors_overall + i - 1 ))
 					echo "$errors_overall" >"$TMPDIR/ARCHIV_MONITORING.errors"
 
- 					if [ "$OUT" = 'OK' ]; then
+ 					if serveranswer_ok "$OUT"; then
  						_log it $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT - i: $i"
 					else
  						_log it $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"

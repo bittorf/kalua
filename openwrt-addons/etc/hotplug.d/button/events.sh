@@ -58,7 +58,8 @@ case "${BUTTON}-${ACTION}" in
 				7) url='apollo-radio main http://stream.apolloradio.de/APOLLO/mp3.m3u' ;;
 				8) url='radio-lotte main http://www.radio-lotte.de/stream/radiolotte.m3u' ;;
 				9) url='FM4 main http://mp3stream1.apasf.apa.at:8000' ;;
-				*) url='soma.fm secret-agent http://mp3.somafm.com:443'; i=1 ;;
+				10)url='soma.fm secret-agent http://mp3.somafm.com:443' ;;
+				*) url='harmonyfm goodtimes http://mp3.harmonyfm.de/harmonyfm/hqlivestream.mp3'; i=1 ;;
 			esac
 
 			logger -s -- "$0: audioplayer: station: $url"

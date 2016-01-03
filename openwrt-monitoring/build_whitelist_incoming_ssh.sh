@@ -56,6 +56,8 @@ init_tables_if_virgin()
 
 		$IPT -I INPUT -p tcp --dport 22 -j incoming_ssh
 		$IPT -I INPUT -p tcp --dport 2006 -j ACCEPT		# local olsrd/txtinfo
+		$IPT -I INPUT -p tcp --dport 5001 -j ACCEPT		# vtun
+		$IPT -I INPUT -p udp --dport 5001 -j ACCEPT		# vtun
 		$IPT -I INPUT -p tcp --dport 110 -j ACCEPT		# tinyproxy
 		$IPT -I INPUT -p tcp --dport 80 -j ACCEPT
 		$IPT -I INPUT -p udp --dport 5353 -j ACCEPT		# DNS questions iodined
