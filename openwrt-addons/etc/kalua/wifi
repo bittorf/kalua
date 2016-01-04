@@ -273,12 +273,14 @@ _wifi_minstrel_debugsfs_file()
 {
 	local funcname='wifi_minstrel_debugsfs_file'
 	local mac="$1"
-	local dev rc_type file
+	local dev rc_type file phy
 	local dir='/sys/kernel/debug/ieee80211'
-	local phy=0
 
-	for dev in $WIFI_DEVS; do {
-		[ -d "$dir/phy$phy" ] || break
+	for dev in $WIFI_DEVS; do {		# e.g. wlan0 wlan0-1 wlan1-1
+		explode $( iw dev "$dev" info )
+		phy="$*"
+		phy="${phy#*wiphy }"
+		phy="${phy%% *}"
 
 		for rc_type in rc_stats rhapsody_stats; do {
 			file="$dir/phy$phy/netdev:$dev/stations/$mac/$rc_type"
@@ -287,8 +289,6 @@ _wifi_minstrel_debugsfs_file()
 				return 0
 			}
 		} done
-
-		phy=$(( phy + 1 ))
 	} done
 
 	_log it $funcname daemon debug 'no entry'
@@ -301,7 +301,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 {
 	local mac="$1"		# or IP
 	local option="$2"	# debug
-	local ip wifi_dev phy line result targetline rate throughput efficiency system file
+	local ip line result targetline rate throughput efficiency system file
 	local max=0
 
 	[ "$option" = 'debug' ] || {
@@ -1457,7 +1457,7 @@ _wifi_signal_get()
 
 _wifi_channel()
 {
-	local funcname="wifi_channel"
+	local funcname='wifi_channel'
 	local dev="$1"
 	local channel line
 
