@@ -269,6 +269,32 @@ _wifi_minstrel()
 	_wifi minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate "$mac" "$option"
 }
 
+_wifi_minstrel_debugsfs_file()
+{
+	local funcname='wifi_minstrel_debugsfs_file'
+	local mac="$1"
+	local dev rc_type file
+	local dir='/sys/kernel/debug/ieee80211'
+	local phy=0
+
+	for dev in $WIFI_DEVS; do {
+		[ -d "$dir/phy$phy" ] || break
+
+		for rc_type in rc_stats rhapsody_stats; do {
+			file="$dir/phy$phy/netdev:$dev/stations/$mac/$rc_type"
+			[ -e "$file" ] && {
+				echo "$file"
+				return 0
+			}
+		} done
+
+		phy=$(( phy + 1 ))
+	} done
+
+	_log it $funcname daemon debug 'no entry'
+	return 1
+}
+
 # FIXME! rename and rework for:
 # _wifi_minstrel_effective_throughput_rate_tupel_max
 _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate()
@@ -301,20 +327,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 		echo -n "lq=$LQ;nlq=$NLQ;cost=$COST;"
 	}
 
-	for wifi_dev in $WIFI_DEVS; do {
-		for phy in phy0 phy1; do {
-			file="/sys/kernel/debug/ieee80211/$phy/netdev:${wifi_dev}/stations/$mac/rc_stats"
-			[ -e "$file" ] && break
-			file="/sys/kernel/debug/ieee80211/$phy/netdev:${wifi_dev}/stations/$mac/rhapsody_stats"
-			[ -e "$file" ] && break
-		} done
-	} done
-
-	[ -e "$file" ] || {
-		_log it minstrel_out daemon debug "could not find debugfs entry"
-		echo "ip=$ip;"
-		return 1
-	}
+	file="$( _wifi_minstrel_debugsfs_file "$mac" )" || return 1
 
 	[ "$option" = "debug" ] && {
 		_log it minstrel_out daemon debug "output of $file"
