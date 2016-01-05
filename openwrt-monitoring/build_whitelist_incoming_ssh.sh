@@ -56,6 +56,8 @@ init_tables_if_virgin()
 
 		$IPT -I INPUT -p tcp --dport 22 -j incoming_ssh
 		$IPT -I INPUT -p tcp --dport 2006 -j ACCEPT		# local olsrd/txtinfo
+		$IPT -I INPUT -p tcp --dport 5000 -j ACCEPT		# vtun-alt
+		$IPT -I INPUT -p udp --dport 5000 -j ACCEPT		# vtun-alt
 		$IPT -I INPUT -p tcp --dport 5001 -j ACCEPT		# vtun
 		$IPT -I INPUT -p udp --dport 5001 -j ACCEPT		# vtun
 		$IPT -I INPUT -p tcp --dport 110 -j ACCEPT		# tinyproxy
@@ -64,7 +66,11 @@ init_tables_if_virgin()
 		$IPT -I INPUT -p udp --sport 5353 -j ACCEPT		# DNS answers:  iodined
 		$IPT -I INPUT -p udp --dport 53 -j ACCEPT		# DNS questions
 		$IPT -I INPUT -p udp --sport 53 -j ACCEPT		# DNS answers
-		$IPT -I INPUT -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT
+
+		$IPT -I INPUT -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT	# allow own traffic
+		$IPT -I INPUT -s 198.23.155.210 -d 127.0.0.1 -j ACCEPT	# IP needed when on 4.v.weimarnetz.de
+		$IPT -I INPUT -s 198.23.155.215 -d 127.0.0.1 -j ACCEPT
+
 		$IPT -I INPUT -p icmp -j ACCEPT	
 		$IPT -A INPUT -j LOG --log-prefix "notPort80or22or53: "
 		$IPT -A INPUT -j REJECT
