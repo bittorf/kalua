@@ -640,7 +640,36 @@ _vpn_x()	# FIXME! find a better name
 	else
 		[ -e "/etc/vtund.conf" ] && {
 			# startup-code must be in a comment
+			# the rest gets evaluated, so we can have vars
+
 			grep -q ^'# vtund ' '/etc/vtund.conf' && {
+				local resulting_config_file="$TMPDIR/vtund.conf"
+
+				explode $( head -n1 '/etc/vtund.conf' )
+				while shift; do {
+					case "$1" in
+						'')
+							break
+						;;
+						'-f')
+							shift
+							resulting_config_file="$1"
+							break
+						;;
+						*)
+					esac
+				} done
+
+				{
+					# output content, so vars are expanded
+					echo '#!/bin/sh'
+					echo "cat >$resulting_config_file <<EOF"
+					tail -n+2 /etc/vtund.conf
+					echo 'EOF'
+				} >"$TMPDIR/generate_conf.sh"
+				.  "$TMPDIR/generate_conf.sh"
+				rm "$TMPDIR/generate_conf.sh"
+
 				head -n1 '/etc/vtund.conf' | cut -b 2- >'/tmp/vtund.sh'
 
 				_log it check_vtund daemon info 'starting up'
