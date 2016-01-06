@@ -18,7 +18,7 @@ case "${BUTTON}-${ACTION}" in
 			END="${UP%.*}${UP#*.}"
 			DIFF=$(( END - START ))
 		else
-			DIFF=1000
+			DIFF=250
 		fi
 
 		# FIXME! DIFF = 1000 -> 10 seconds
@@ -98,7 +98,7 @@ case "${BUTTON}-${ACTION}" in
 
 			[ $DIFF -gt 1000 ] && {
 				touch '/coredump/testdump.core'		# FIXME! see system_adjust_coredump()
-				_watch coredump
+				_watch coredump 'during: button-hotplug'
 			}
 
 			PID="$( uci -q get system.@monitoring[0].button_smstext )" && {

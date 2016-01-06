@@ -198,7 +198,7 @@ _watch_coredump()
 	# or: http://stackoverflow.com/questions/5115613/core-dump-file-analysis
 
 	file_list="$( ls -1t /coredumps/*.core /tmp/*.core 2>/dev/null )"
-	while [ -n "$file_list" ]; do {
+	while [ -n "$file_list" -a $count -le ${overall:-$count} ]; do {
 		# reverse order / work on oldest (=last) first
 		for dump in $file_list; do count=$(( count + 1 )); done
 
@@ -214,7 +214,7 @@ _watch_coredump()
 			# include infotext into log-messages
 			case "$ignore_pattern" in
 				*' '*)
-					# spaces to _ - e.g. ???
+					# spaces to _ - e.g. watch_coredump.after:__watch_wifistuff()
 					funcname="$funcname.${ignore_pattern// /_}"
 				;;
 			esac
@@ -283,12 +283,14 @@ _watch_coredump()
 					fi
 				fi
 
-				mv "$dump" "$storage/${file% (*}"	# cut out 'null'
+				mv "$dump" "$storage/${file% (*}"	# cut comment after 'null' (if there)
 				_log it $funcname daemon alert "$count/$overall: wrote: $storage/$file"
 			;;
 		esac
 
 		[ -e "$dump" ] && rm "$dump"
+
+		# TODO: only remove last entry?
 		file_list="$( ls -1t /coredumps/*.core /tmp/*.core 2>/dev/null )"
 	} done
 
