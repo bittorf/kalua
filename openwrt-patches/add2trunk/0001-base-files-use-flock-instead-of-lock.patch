@@ -1,0 +1,137 @@
+From 059cdf292cc3dd59c0eba8abe6970dd0a5d13d95 Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bittorf@bluebottle.com>
+Date: Wed, 6 Jan 2016 21:44:09 +0100
+Subject: [PATCH] base-files: use 'flock' instead of 'lock'
+
+Since a long time OpenWrt ships an own implementation
+of 'lock' which is similar to 'flock' (e.g. provided
+with busybox). The reason is, that this utility was
+not implemented in busybox till ~2010. Lets use the
+more common utility now.
+
+Boot-tested on ar71xx (failsafe works) and UML.
+
+Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
+---
+ package/base-files/files/lib/functions.sh                 | 12 ++++++------
+ package/base-files/files/lib/preinit/30_failsafe_wait     | 12 ++++++------
+ package/base-files/files/lib/preinit/40_run_failsafe_hook |  2 +-
+ package/base-files/files/lib/preinit/99_10_failsafe_login |  2 +-
+ 4 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/package/base-files/files/lib/functions.sh b/package/base-files/files/lib/functions.sh
+index dde1ac4..85de9cc 100755
+--- a/package/base-files/files/lib/functions.sh
++++ b/package/base-files/files/lib/functions.sh
+@@ -259,10 +259,10 @@ group_add() {
+ 	local gid="$2"
+ 	local rc
+ 	[ -f "${IPKG_INSTROOT}/etc/group" ] || return 1
+-	[ -n "$IPKG_INSTROOT" ] || lock /var/lock/group
++	[ -n "$IPKG_INSTROOT" ] || flock /var/lock/group
+ 	echo "${name}:x:${gid}:" >> ${IPKG_INSTROOT}/etc/group
+ 	rc=$?
+-	[ -n "$IPKG_INSTROOT" ] || lock -u /var/lock/group
++	[ -n "$IPKG_INSTROOT" ] || flock -u /var/lock/group
+ 	return $rc
+ }
+ 
+@@ -288,9 +288,9 @@ group_add_user() {
+ 	grp=$(grep -s "^${1}:" ${IPKG_INSTROOT}/etc/group)
+ 	[ -z "$(echo $grp | cut -d: -f4 | grep $2)" ] || return
+ 	[ -n "$(echo $grp | grep ":$")" ] && delim=""
+-	[ -n "$IPKG_INSTROOT" ] || lock /var/lock/passwd
++	[ -n "$IPKG_INSTROOT" ] || flock /var/lock/passwd
+ 	sed -i "s/$grp/$grp$delim$2/g" ${IPKG_INSTROOT}/etc/group
+-	[ -n "$IPKG_INSTROOT" ] || lock -u /var/lock/passwd
++	[ -n "$IPKG_INSTROOT" ] || flock -u /var/lock/passwd
+ }
+ 
+ user_add() {
+@@ -310,11 +310,11 @@ user_add() {
+ 	}
+ 	[ -z "$gid" ] && gid=$uid
+ 	[ -f "${IPKG_INSTROOT}/etc/passwd" ] || return 1
+-	[ -n "$IPKG_INSTROOT" ] || lock /var/lock/passwd
++	[ -n "$IPKG_INSTROOT" ] || flock /var/lock/passwd
+ 	echo "${name}:x:${uid}:${gid}:${desc}:${home}:${shell}" >> ${IPKG_INSTROOT}/etc/passwd
+ 	echo "${name}:x:0:0:99999:7:::" >> ${IPKG_INSTROOT}/etc/shadow
+ 	rc=$?
+-	[ -n "$IPKG_INSTROOT" ] || lock -u /var/lock/passwd
++	[ -n "$IPKG_INSTROOT" ] || flock -u /var/lock/passwd
+ 	return $rc
+ }
+ 
+diff --git a/package/base-files/files/lib/preinit/30_failsafe_wait b/package/base-files/files/lib/preinit/30_failsafe_wait
+index 3d69baf..cf3df26 100644
+--- a/package/base-files/files/lib/preinit/30_failsafe_wait
++++ b/package/base-files/files/lib/preinit/30_failsafe_wait
+@@ -22,20 +22,20 @@ fs_wait_for_key () {
+ 		touch $keypress_sec
+ 	fi
+ 
+-	trap "echo 'true' >$keypress_true; lock -u $keypress_wait ; rm -f $keypress_wait" INT
+-	trap "echo 'true' >$keypress_true; lock -u $keypress_wait ; rm -f $keypress_wait" USR1
++	trap "echo 'true' >$keypress_true; flock -u $keypress_wait ; rm -f $keypress_wait" INT
++	trap "echo 'true' >$keypress_true; flock -u $keypress_wait ; rm -f $keypress_wait" USR1
+ 
+ 	[ -n "$timeout" ] || timeout=1
+ 	[ $timeout -ge 1 ] || timeout=1
+ 	timer=$timeout
+-	lock $keypress_wait
++	flock $keypress_wait
+ 	{
+ 		while [ $timer -gt 0 ]; do
+ 			echo "$timer" >$keypress_sec
+ 			timer=$(($timer - 1))
+ 			sleep 1
+ 		done
+-		lock -u $keypress_wait
++		flock -u $keypress_wait
+ 		rm -f $keypress_wait
+ 	} &
+ 
+@@ -63,12 +63,12 @@ fs_wait_for_key () {
+ 					continue;
+ 					;;
+ 				esac
+-				lock -u $keypress_wait
++				flock -u $keypress_wait
+ 				rm -f $keypress_wait
+ 			}
+ 		done
+ 	}
+-	lock -w $keypress_wait
++	flock -w $keypress_wait
+ 
+ 	keypressed=1
+ 	[ "$(cat $keypress_true)" = "true" ] && keypressed=0
+diff --git a/package/base-files/files/lib/preinit/40_run_failsafe_hook b/package/base-files/files/lib/preinit/40_run_failsafe_hook
+index cb43ad3..74744f6 100644
+--- a/package/base-files/files/lib/preinit/40_run_failsafe_hook
++++ b/package/base-files/files/lib/preinit/40_run_failsafe_hook
+@@ -5,7 +5,7 @@
+ run_failsafe_hook() {
+     if [ "$FAILSAFE" = "true" ]; then
+ 	boot_run_hook failsafe
+-	lock -w /tmp/.failsafe
++	flock -w /tmp/.failsafe
+     fi
+ }
+ 
+diff --git a/package/base-files/files/lib/preinit/99_10_failsafe_login b/package/base-files/files/lib/preinit/99_10_failsafe_login
+index b12e317..3cd3696 100644
+--- a/package/base-files/files/lib/preinit/99_10_failsafe_login
++++ b/package/base-files/files/lib/preinit/99_10_failsafe_login
+@@ -8,7 +8,7 @@ failsafe_netlogin () {
+ }
+ 
+ failsafe_shell() {
+-	lock /tmp/.failsafe
++	flock /tmp/.failsafe
+ 	ash --login
+ 	echo "Please reboot system when done with failsafe network logins"
+ }
+-- 
+2.1.4
+
