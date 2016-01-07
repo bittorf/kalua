@@ -28,15 +28,15 @@ diff --git a/package/base-files/files/lib/functions.sh b/package/base-files/file
 index dde1ac4..ce66e2c 100755
 --- a/package/base-files/files/lib/functions.sh
 +++ b/package/base-files/files/lib/functions.sh
-@@ -3,6 +3,47 @@
+@@ -3,6 +3,49 @@
  # Copyright (C) 2006 Fokus Fraunhofer <carsten.tittel@fokus.fraunhofer.de>
  # Copyright (C) 2010 Vertical Communications
  
-+lock()		# FIXME! this is racy
-+{
++lock()				# FIXME! this is racy
++{				# filelock means: a PID is written into a file
 +	local option="$1"
 +	local file="$2"
-+	local jitter=$(( $$ * 2 ))
++	local jitter
 +
 +	case "$option" in
 +		''|'-h'|'--help')
@@ -50,13 +50,14 @@ index dde1ac4..ce66e2c 100755
 +			rm "$file" 2>/dev/null || true
 +		;;
 +		'-w')
-+			while [ -e "$file" ]; do {
++			while [ -s "$file" ]; do {
 +				sleep 1
++				jitter=$(( $$ * 2 ))
 +				while [ $jitter -gt 0 ]; do jitter=$(( jitter - 1 )); done
 +			} done
 +		;;
 +		'-n')
-+			if [ -e "$file" ]; then
++			if [ -s "$file" ]; then
 +				false
 +			else
 +				touch "$file"
@@ -64,8 +65,9 @@ index dde1ac4..ce66e2c 100755
 +		;;
 +		*)
 +			file="$option"
-+			while [ -e "$file" ]; do {
++			while [ -s "$file" ]; do {
 +				sleep 1
++				jitter=$(( $$ * 2 ))
 +				while [ $jitter -gt 0 ]; do jitter=$(( jitter - 1 )); done
 +			} done
 +
