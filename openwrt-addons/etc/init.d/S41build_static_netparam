@@ -53,7 +53,12 @@ netparam_generate()
 				}
 			;;
 			lan)
-				test -z "$ADDRESS" && eval $( netparam_fallback )
+				[ -z "$ADDRESS" ] && {
+					# otherwise it clashes on WAN-only devices
+					uci -q get network.lan >/dev/null && {
+						eval $( netparam_fallback_running_interface_values )
+					}
+				}
 			;;
 		esac
 
@@ -107,7 +112,7 @@ netparam_wifi()
 	echo "IFNAME=$ifname"
 }
 
-netparam_fallback()
+netparam_fallback_running_interface_values()
 {
 	# shellcheck disable=SC2119
 	local ifname="$( get_first_non_loopback_ifname )"
