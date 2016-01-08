@@ -53,12 +53,7 @@ netparam_generate()
 				}
 			;;
 			lan)
-				[ -z "$ADDRESS" ] && {
-					# otherwise it clashes on WAN-only devices
-					uci -q get network.lan >/dev/null && {
-						eval $( netparam_fallback_running_interface_values )
-					}
-				}
+				[ -z "$ADDRESS" ] && eval $( netparam_fallback_running_interface_values )
 			;;
 		esac
 
@@ -116,7 +111,12 @@ netparam_fallback_running_interface_values()
 {
 	# shellcheck disable=SC2119
 	local ifname="$( get_first_non_loopback_ifname )"
+
 	# e.g. vpn-server / without uci
+	[ $OPENWRT_REV -eq 0 ] && {
+		# otherwise it clashes on WAN-only devices
+		uci -q get network.lan >/dev/null || return 0
+	}
 
 	cat <<EOF
 IFNAME="$ifname"

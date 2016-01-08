@@ -311,13 +311,16 @@ run_test()
 	log 'building/testing initial NETPARAM'
 	openwrt-addons/etc/init.d/S41build_static_netparam call
 	if [ -e "$TMPDIR/NETPARAM" ]; then
-		# should at least have _some_ filled vars
 		if grep -qv '='$ "$TMPDIR/NETPARAM"; then
+			# show good vars
 			grep -v '='$ "$TMPDIR/NETPARAM"
 		else
+			log "missing at least 1 filled vars in '$TMPDIR/NETPARAM'"
+			cat "$TMPDIR/NETPARAM"
 			return 1
 		fi
 	else
+		log "missing '$TMPDIR/NETPARAM'"
 		return 1
 	fi
 
