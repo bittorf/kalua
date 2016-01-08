@@ -2401,7 +2401,7 @@ build_options_set()
 				# generic approach:
 				# e.g usb-wifi-stick: rtl8192cu -> WiFi-rtl8192cu
 				#                     ath9k-htc -> WiFi-ath9k-htc
-				#                     rt2870    -> WiFi-rt2x00-usb
+				#                     rt2870    -> WiFi-rt2x00-usb	# dual-band/1 radio
 				# ID 7392:7811 Edimax Technology Co., Ltd EW-7811Un 802.11n Wireless Adapter [Realtek RTL8188CUS]
 				# or
 				# CONFIG_PACKAGE_kmod-ath5k=y -> WiFi-ath5k
