@@ -2405,6 +2405,12 @@ build_options_set()
 				# ID 7392:7811 Edimax Technology Co., Ltd EW-7811Un 802.11n Wireless Adapter [Realtek RTL8188CUS]
 				# or
 				# CONFIG_PACKAGE_kmod-ath5k=y -> WiFi-ath5k
+				#
+				# ath9k_htc: check:
+				# Netgear WNDA3200
+				# D-Link DWA-126
+				# Sony UWA-BR100
+				# TP-LINK TL-WN821N v3
 
 				kmod="$( echo "$1" | cut -d'-' -f2- )"			# WiFi-rtl8192cu -> rtl8192cu
 				apply_symbol "CONFIG_PACKAGE_kmod-${kmod}=y"		# kernel-modules: wireless:
