@@ -15,8 +15,6 @@ _cron_vpnserver()
 	local funcname='cron_vpnserver'
 	local ip="${1:-84.38.67.43}"
 	local firstrun="$TMPDIR/firstrun_$funcname"
-	local public_ip port
-	local loopback_interface='lo'
 
 	read -r UP REST </proc/uptime
 	[ ${UP%.*} -lt 180 ] && return 0
@@ -24,66 +22,13 @@ _cron_vpnserver()
 	[ -e "$firstrun" ] || {
 		touch "$firstrun"
 		_log it $funcname daemon sms 'firstrun/bootup'
-
-		# left from default init-script with dummy-config
-		pidof vtund && killall vtund
-
-		[ -e '/etc/olsrd.conf' ] || {
-			public_ip="$( _net get_external_ip )"
-			port="$( _vpn innercity_master_vtund get_port )"
-
-			# new vtun-interfaces are automatically added in vpn_innercity_master_iface()
-			# TODO: own func + configure MainIP on loopback/VPN? and use for service
-			cat >'/etc/olsrd.conf' <<EOF
-DebugLevel 0
-
-LoadPlugin "$( _olsr plugin_filename_get 'txtinfo' )"
- {
-	PlParam "accept" "0.0.0.0"
-	PlParam "listen" "0.0.0.0"
-	PlParam "port" "2006"
- }
-
-LoadPlugin "$( _olsr plugin_filename_get 'jsoninfo' )"
- {
-	PlParam "accept" "0.0.0.0"
-	PlParam "listen" "0.0.0.0"
-	PlParam "port" "9090"
- }
-
-LoadPlugin "$( _olsr plugin_filename_get 'nameservice' )"
- {
-	PlParam "name" "$HOSTNAME"
-	PlParam "service" "http://$HOSTNAME:80|tcp|VPN-hideandseek:$public_ip:$port"
- }
-
-Hna4
- {
-	0.0.0.0 0.0.0.0		# we have internet
- }
-
-Interface "$loopback_interface"
- {
-	# values for speed 7
-	Ip4Broadcast  255.255.255.255
-	HelloInterval		  4.0
-	HelloValidityTime	175.0
-	TcValidityTime		700.0
-	TcInterval		  3.0
-	MidInterval		 35.0
-	MidValidityTime		700.0
-	HnaInterval		 14.0
-	HnaValidityTime		175.0
- }
-EOF
-			ln -s '/etc/olsrd.conf' '/var/etc/olsrd.conf'
-		}
+		_cron vpnserver_firstrun
 	}
 
 	read -r LOAD REST </proc/loadavg
 
 	case "$LOAD" in
-		0.0*|0.1*|0.2*|0.3*)
+		'0.0'*|'0.1'*|'0.2'*|'0.3'*)
 			[ -e '/tmp/DEBUG' ] && rm '/tmp/DEBUG'
 		;;
 		*)
@@ -117,7 +62,70 @@ EOF
 			_vpn innercity_master_vtund start
 		;;
 	esac
+}
 
+_cron_vpnserver_firstrun()
+{
+	# left from default init-script with dummy-config
+	pidof vtund && killall vtund
+
+	_netfilter ipforwarding_start
+
+	[ -e '/etc/olsrd.conf' ] || {
+		local public_ip="$( _net get_external_ip )"
+		local port="$( _vpn innercity_master_vtund get_port )"
+
+		# new vtun-interfaces are automatically added in vpn_innercity_master_iface()
+		# TODO: own func + configure MainIP on loopback/VPN? and use for service
+		cat >'/etc/olsrd.conf' <<EOF
+DebugLevel 0
+
+LoadPlugin "$( _olsr plugin_filename_get 'txtinfo' )"
+ {
+	PlParam "accept" "0.0.0.0"
+	PlParam "listen" "0.0.0.0"
+	PlParam "port" "2006"
+ }
+
+LoadPlugin "$( _olsr plugin_filename_get 'jsoninfo' )"
+ {
+	PlParam "accept" "0.0.0.0"
+	PlParam "listen" "0.0.0.0"
+	PlParam "port" "9090"
+ }
+
+LoadPlugin "$( _olsr plugin_filename_get 'nameservice' )"
+ {
+	PlParam "name" "$HOSTNAME"
+	PlParam "service" "http://$HOSTNAME:80|tcp|VPN-hideandseek:$public_ip:$port"
+ }
+
+Hna4
+ {
+	0.0.0.0 0.0.0.0		# we have internet
+ }
+
+Interface "lo"
+ {
+	# values for speed 7
+	Ip4Broadcast  255.255.255.255
+	HelloInterval		  4.0
+	HelloValidityTime	175.0
+	TcValidityTime		700.0
+	TcInterval		  3.0
+	MidInterval		 35.0
+	MidValidityTime		700.0
+	HnaInterval		 14.0
+	HnaValidityTime		175.0
+ }
+EOF
+		ln -s '/etc/olsrd.conf' '/var/etc/olsrd.conf'
+	}
+}
+
+_cron_dummy()
+{
+	:
 	# TODO: build an interactive 'vpn_setup'
 	# TODO: compile 'uci'
 	#

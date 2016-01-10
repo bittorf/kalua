@@ -2488,6 +2488,9 @@ build_options_set()
 				# + 1.5mb -> 1043er = too slow
 				apply_symbol 'CONFIG_PACKAGE_mpd-mini=y'		# sound: mpd-mini
 			;;
+			'icecast')
+				apply_symbol 'CONFIG_PACKAGE_icecast=y'			# multimedia:
+			;;
 #			'SPEECHsynth-espeak')
 #				# + 1.5mb
 #			;;
