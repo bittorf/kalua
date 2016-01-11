@@ -2158,6 +2158,7 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'Standard')	# >4mb flash
+				apply_symbol 'CONFIG_DROPBEAR_CURVE25519=y'		# default since r48196 -> adds 40k
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
@@ -2198,6 +2199,7 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
+				apply_symbol 'CONFIG_DROPBEAR_CURVE25519 is not set'	# default since r48196 -> saves 40k
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
@@ -2221,7 +2223,6 @@ build_options_set()
 #				$funcname subcall 'vtun'
 #				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
-				$funcname subcall 'revert48196'			# disabled dropbear-curve25519 (+40k!)
 
 #				[ "$ARCH" = 'ar71xx' ] && {
 #					$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
