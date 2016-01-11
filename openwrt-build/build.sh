@@ -2221,6 +2221,7 @@ build_options_set()
 #				$funcname subcall 'vtun'
 #				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
+				$funcname subcall 'revert48196'			# disabled dropbear-curve25519 (+40k!)
 
 #				[ "$ARCH" = 'ar71xx' ] && {
 #					$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
