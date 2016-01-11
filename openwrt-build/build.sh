@@ -2399,7 +2399,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-tg3 is not set'	# FIXME! dirty workaround/unneeded ethernet driver
 				# apply_symbol 'CONFIG_PACKAGE_B43_DEBUG=y'
 			;;
-			'WiFi-rtl8192cu'|'WiFi'*)
+			'WiFi-rtl8192cu'|'WiFi-'*)
 				# generic approach:
 				# e.g usb-wifi-stick: rtl8192cu -> WiFi-rtl8192cu
 				#                     ath9k-htc -> WiFi-ath9k-htc
@@ -2438,6 +2438,9 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-nls-cp437=y'		# kernel-modules: nls-support (USA)
 				apply_symbol 'CONFIG_PACKAGE_kmod-nls-iso8859-1=y'	# kernel-modules: nls-support (EU)
 				apply_symbol 'CONFIG_PACKAGE_block-mount=y'		# base-system: +15k
+			;;
+			'USBethernet')
+				apply_symbol 'PACKAGE_kmod-usb-net-dm9601-ether=y'	# kernel-modules: usb-support:
 			;;
 			'BTRfs')
 				apply_symbol 'CONFIG_PACKAGE_kmod-fs-btrfs=y'		# kernel-modules: filesystems
