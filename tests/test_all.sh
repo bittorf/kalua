@@ -309,7 +309,7 @@ run_test()
 	rm "$TMPDIR/test"
 
 	log 'building/testing initial NETPARAM'
-	openwrt-addons/etc/init.d/S41build_static_netparam call
+	_netparam check
 	if [ -e "$TMPDIR/NETPARAM" ]; then
 		if grep -qv '='$ "$TMPDIR/NETPARAM"; then
 			# show good vars

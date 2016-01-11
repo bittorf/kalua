@@ -1,7 +1,6 @@
 #!/bin/sh
-. /tmp/loader
 
-netparam_device2preambel()
+_netparam_device2preambel()
 {
 	local device="$1"
 	local preambel
@@ -24,16 +23,16 @@ netparam_device2preambel()
 	echo "preambel=$preambel"
 }
 
-netparam_generate()
+_netparam_generate()
 {
 	local funcname='netparam_generate'
 	local preambel IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX proto
 
 	for DEVICE in loopback wlan lan wan; do {
-		eval $( netparam_device2preambel "$DEVICE" )
+		eval $( _netparam device2preambel "$DEVICE" )
 
 		IFNAME="$( uci -q get network.$DEVICE.ifname )"
-		[ "$DEVICE" = 'wlan' -a -e '/etc/config/wireless' ] && eval $( netparam_wifi )
+		[ "$DEVICE" = 'wlan' -a -e '/etc/config/wireless' ] && eval $( _netparam wifi )
 		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
 		NETMASK="$( uci -q get network.$DEVICE.netmask )"
 		proto="$(   uci -q get network.$DEVICE.proto )"
@@ -53,7 +52,7 @@ netparam_generate()
 				}
 			;;
 			lan)
-				[ -z "$ADDRESS" ] && eval $( netparam_fallback_running_interface_values )
+				[ -z "$ADDRESS" ] && eval $( _netparam fallback_running_interface_values )
 			;;
 		esac
 
@@ -69,10 +68,10 @@ netparam_generate()
 		echo "${preambel}PRE=$PREFIX"
 	} done
 
-	show_wifi_devs
+	_netparam show_wifi_devs
 }
 
-netparam_wifi()
+_netparam_wifi()
 {
 	local device ifname
 
@@ -107,10 +106,10 @@ netparam_wifi()
 	echo "IFNAME=$ifname"
 }
 
-netparam_fallback_running_interface_values()
+_netparam_fallback_running_interface_values()
 {
 	# shellcheck disable=SC2119
-	local ifname="$( get_first_non_loopback_ifname )"
+	local ifname="$( _netparam get_first_non_loopback_ifname )"
 
 	# e.g. vpn-server / without uci
 	[ $OPENWRT_REV -ne 0 ] && {
@@ -127,7 +126,7 @@ EOF
 }
 
 # shellcheck disable=SC2120
-get_first_non_loopback_ifname()
+_netparam_get_first_non_loopback_ifname()
 {
 	local dev line
 
@@ -151,9 +150,9 @@ get_first_non_loopback_ifname()
 	} done
 }
 
-show_wifi_devs()
+_netparam_show_wifi_devs()
 {
-	local list="$( list_wifi_devs )"
+	local list="$( _netparam list_wifi_devs )"
 	local ifname
 
 	if [ -n "$list" ]; then
@@ -172,7 +171,7 @@ show_wifi_devs()
 	}
 }
 
-list_wifi_devs()
+_netparam_list_wifi_devs()
 {
 	local network_name list_wifi_names i
 
@@ -204,44 +203,49 @@ list_wifi_devs()
 	} done
 }
 
-if [ $( _system uptime sec ) -lt 60 -a $OPENWRT_REV -gt 0 ]; then
-	if [ -e "$PERMDIR/NETPARAM" ]; then
-		cp "$PERMDIR/NETPARAM" "$TMPDIR/NETPARAM"
+_netparam_check()
+{
+	local HASH_OLD HASH_NEW
+
+	if [ $( _system uptime sec ) -lt 60 -a $OPENWRT_REV -gt 0 ]; then
+		if [ -e "$PERMDIR/NETPARAM" ]; then
+			cp "$PERMDIR/NETPARAM" "$TMPDIR/NETPARAM"
+		else
+			sleep 30		# FIXME! 'ifstatus wlanadhoc' empty, needs about 18 sec till OK on 1043ND
+		fi
 	else
-		sleep 30		# FIXME! 'ifstatus wlanadhoc' empty, needs about 18 sec till OK on 1043ND
-	fi
-else
-	HASH_OLD="$( _file hash "$TMPDIR/NETPARAM" )"
-	netparam_generate "$@" >"$TMPDIR/NETPARAM"
+		HASH_OLD="$( _file hash "$TMPDIR/NETPARAM" )"
+		_netparam generate >"$TMPDIR/NETPARAM"
 
-	if [ -e "$PERMDIR/NETPARAM" ]; then
-		. "$TMPDIR/NETPARAM"
+		if [ -e "$PERMDIR/NETPARAM" ]; then
+			. "$TMPDIR/NETPARAM"
 
-		needs_newer_copy()
-		{
-			test "$( grep -s 'DEV=' "$PERMDIR/NETPARAM" )" != "$( grep -s 'DEV=' "$TMPDIR/NETPARAM" )"
-		}
+			needs_newer_copy()
+			{
+				test "$( grep -s 'DEV=' "$PERMDIR/NETPARAM" )" != "$( grep -s 'DEV=' "$TMPDIR/NETPARAM" )"
+			}
 
-		needs_newer_copy && {
+			needs_newer_copy && {
+				if [ -d "$PERMDIR" ]; then
+					_log it earlyboot_netparam daemon alert "changed values - updating '$PERMDIR/NETPARAM'"
+					cp "$TMPDIR/NETPARAM" "$PERMDIR/NETPARAM"
+				else
+					_log it earlyboot_netparam daemon info "changed values: cannot write to '$PERMDIR'"
+				fi
+			}
+		else
 			if [ -d "$PERMDIR" ]; then
-				_log it earlyboot_netparam daemon alert "changed values - updating '$PERMDIR/NETPARAM'"
+				_log it earlyboot_netparam daemon info "store initial version: WIFIDEV='$WIFIDEV'"
 				cp "$TMPDIR/NETPARAM" "$PERMDIR/NETPARAM"
 			else
-				_log it earlyboot_netparam daemon info "changed values: cannot write to '$PERMDIR'"
+				_log it earlyboot_netparam daemon info "write initial version: cannot write to '$PERMDIR'"
 			fi
-		}
-	else
-		if [ -d "$PERMDIR" ]; then
-			_log it earlyboot_netparam daemon info "store initial version: WIFIDEV='$WIFIDEV'"
-			cp "$TMPDIR/NETPARAM" "$PERMDIR/NETPARAM"
-		else
-			_log it earlyboot_netparam daemon info "write initial version: cannot write to '$PERMDIR'"
 		fi
 	fi
-fi
 
-HASH_NEW="$( _file hash "$TMPDIR/NETPARAM" )"
-[ "$HASH_OLD" = "$HASH_NEW" ] || {
-	# rebuild loader / include new version of NETPARAM
-	_ rebuild
+	HASH_NEW="$( _file hash "$TMPDIR/NETPARAM" )"
+	[ "$HASH_OLD" = "$HASH_NEW" ] || {
+		# rebuild loader / include new version of NETPARAM
+		_ rebuild
+	}
 }
