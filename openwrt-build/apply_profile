@@ -20,6 +20,7 @@ call()
 	local max_try=30
 	local interval=60
 	local lockfile='/tmp/lockfile_apply_profile'
+	local random_nodenumber="$( command . /tmp/loader; _ipsystem getvar 'NODE_NUMBER' )"
 
 	[ -e  "$lockfile" ] && return 0
 	touch "$lockfile"
@@ -36,20 +37,19 @@ call()
 		}
 	}
 
-	while [ $max_try -gt 1 ]; do {
+	while [ $max_try -gt 0 ]; do {
 		logger -s "$ME [BOOT] start"
-		"$ME.code" boot && {
-			services_refire
-			break
-		}
+		"$ME.code" boot && break
 
 		logger -s "$ME [BOOT] executed $ME.code - but with errors, $max_try try's yet, waiting $interval secs"
 		max_try=$(( max_try - 1 ))
 
 		[ -e '/tmp/LOCKFILE_APPLY' ] || {
 			pidof apply_profile.code >/dev/null || {	# interactive run/user invoked
-				telnet_is_used || /etc/init.d/telnet restart
-				/etc/init.d/dropbear restart
+				[ $max_try -lt 20 ] && {
+					telnet_is_used || /etc/init.d/telnet restart
+					/etc/init.d/dropbear restart
+				}
 			}
 		}
 
@@ -59,6 +59,10 @@ call()
 	logger -s "$ME [BOOT] ready - removing '$ME', showing success with led_firework"
 	rm "$ME" "$lockfile" '/tmp/scheduler_allow_run'
 
+	# fallback if anything fails
+	[ $max_try -eq 0 ] && "$ME.code" liszt28 ap "${random_nodenumber:-99}" dhcp
+
+	services_refire
 	led_firework
 }
 
