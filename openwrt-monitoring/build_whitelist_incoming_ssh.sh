@@ -75,6 +75,7 @@ init_tables_if_virgin()
 		$IPT -A INPUT -j LOG --log-prefix "notPort80or22or53: "
 		$IPT -A INPUT -j REJECT
 
+		$IPT -A incoming_ssh -s intercity-vpn.de -j ACCEPT
 		$IPT -A incoming_ssh -s 212.47.248.108 -j ACCEPT	# vpn-scaleway-evernet
 		$IPT -A incoming_ssh -s 130.255.188.37 -j ACCEPT	# evo2/nanoVZ
 		$IPT -A incoming_ssh -s 198.23.155.215 -j ACCEPT	# chicagoVPS2

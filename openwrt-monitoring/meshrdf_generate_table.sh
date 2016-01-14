@@ -3251,19 +3251,19 @@ esac
 			html_comment "$WIFIMAC"
 		;;
 		age)
-			BLA=$(( 99999 - $LASTSEEN_ORIGINAL ))
-			VALUE="$( printf "%05d" ${BLA:-0} )"
+			BLA=$(( 99999999 - $LASTSEEN_ORIGINAL ))
+			VALUE="$( printf "%10d" ${BLA:-0} )"
 			html_comment "$VALUE"		# newest on top
 		;;
 		age2)
-			VALUE="$( printf "%05d" ${LASTSEEN_ORIGINAL:-0} )"
+			VALUE="$( printf "%10d" ${LASTSEEN_ORIGINAL:-0} )"
 			html_comment "$VALUE"		# oldest on top
 		;;
 		cost)
 			html_comment "$COST2GW_X"
 		;;
 		uptime)
-			html_comment "$( printf "%05d" $UP )"
+			html_comment "$( printf "%10d" $UP )"
 		;;
 		version)
 			html_comment "$VERSION"
