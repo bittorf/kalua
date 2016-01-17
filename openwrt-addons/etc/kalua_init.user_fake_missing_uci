@@ -13,6 +13,8 @@ command -v uci >/dev/null || {
 	cat >>"$LOADER" <<EOF
 uci()	# e.g. uci -q get system.@profile[0].nodenumber
 {
+	local file='/etc/kalua_uci'
+
 	case "\$1" in
 		'-q')
 			shift
@@ -21,13 +23,19 @@ uci()	# e.g. uci -q get system.@profile[0].nodenumber
 
 	case "\$1" in
 		show)
-			grep -s \${2:+^}\${2:-.}\${2:+\.} /etc/kalua_uci
+			grep -s \${2:+^}\${2:-.}\${2:+\.} "\$file"
+		;;
+		del)
+			grep -q ^"\$2=" "\$file" && {
+				grep -v ^"\$2=" "\$file" "\$file" >"\$file.tmp"
+				mv "\$file.tmp" "\$file"
+			}
 		;;
 		set)
-			grep -q ^"\$2" /etc/kalua_uci || echo "\$2" >>/etc/kalua_uci
+			grep -q ^"\$2" "\$file" || echo "\$2" >>"\$file"
 		;;
 		get)
-			[ -e /etc/kalua_uci ] && {
+			[ -e "\$file" ] && {
 				local line
 				while read -r line; do
 					case "\$line" in
@@ -44,7 +52,7 @@ uci()	# e.g. uci -q get system.@profile[0].nodenumber
 							return 0
 						;;
 					esac
-				done </etc/kalua_uci
+				done <"\$file"
 			}
 
 			return 1
