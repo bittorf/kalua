@@ -1625,18 +1625,10 @@ cell_olsr_wifi_out()
 	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	case "$metric" in
-		etx_ffeth)
-			:
+		'etx_ffeth')
 		;;
 		*)
-			case "$NETWORK" in
-				ffweimar*|ilm1*|paltstadt*|liszt28*|zwickau*|malchow*|wagenplatz)
-					# etx_ff
-				;;
-				*)
-					tip="bgcolor='crimson'"
-				;;
-			esac
+			tip="bgcolor='crimson'"
 		;;
 	esac
 
