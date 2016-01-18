@@ -1140,9 +1140,11 @@ _net_ismacaddress()
 
 _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess" using /etc/ethers...?
 {			# TODO: send ping for onehop-neighs?
+	local funcname='net_ip2mac'
 	local get_ip="$1"
 	local option="$2"	# string: 'lazy' (mostly for OLSR-neighs, where total exact match is not important)
 	local mac=
+	local tempfile="$TMPDIR/$funcname.$$"
 	local line ip dev
 
 	# this can be outdated, see http://www.intercity-vpn.de/files/openwrt/login_error.ejbw.wrong.mac.txt
@@ -1165,10 +1167,14 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 
 	# get mac from arp-cache
 	[ -z "$mac" ] && {
+		ip -oneline neigh show to "$get_ip" >"$tempfile"	# FIXME! cannot be more than 1 line
+
 		while read -r line; do {
+			# /proc/net/arp sometimes shows '00:00:00:00:00:00' but 'ip' has this:
+			# 10.63.42.125 dev wlan0 lladdr 64:09:80:7f:48:85 used 0/0/0 probes 6 FAILED
 			explode ${line:-unset}
 			ip="$1"
-			mac="$4"
+			mac="$5"
 
 			case "$mac" in
 				'00:00:00:00:00:00')
@@ -1187,7 +1193,8 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 			else
 				mac=
 			fi
-		} done <'/proc/net/arp'
+		} done <"$tempfile"
+		rm "$tempfile"
 	}
 
 	# get mac from OLSR-neigh
@@ -1215,8 +1222,10 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 			# translate IPs from local interfaces (which are not in arp-cache), e.g. WIFI-2
 			dev="$( ip -oneline address show to "$get_ip" | cut -d' ' -f2 )"
 			# dev is empty, when IP is not local
-			mac="$( _net dev2mac "$dev" )" && {
-				echo "$mac" >"/tmp/IP2MAC_${get_ip}"
+			[ -n "$dev" ] && {
+				mac="$( _net dev2mac "$dev" )" && {
+					echo "$mac" >"/tmp/IP2MAC_${get_ip}"
+				}
 			}
 		fi
 	else
