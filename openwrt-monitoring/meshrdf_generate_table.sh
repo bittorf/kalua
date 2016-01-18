@@ -1625,7 +1625,7 @@ cell_olsr_wifi_out()
 	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	case "$metric" in
-		'etx_ffeth')
+		'etx_ffeth'|'')
 		;;
 		*)
 			tip="bgcolor='crimson'"
