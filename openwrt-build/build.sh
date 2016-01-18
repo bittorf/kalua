@@ -424,17 +424,17 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
 	local file="$KALUA_DIRNAME/openwrt-patches/reghack/900-regulatory-compliance_test.patch"
-	local file_regdb_hacked countries code file2
-	local COMPAT_WIRELESS="2013-06-27"
+	local file_regdb_hacked countries code file2 COMPAT_WIRELESS_DATE
 
 	[ -e "$file" ] && {
 		MAC80211_CLEAN='true'
+		COMPAT_WIRELESS_DATE="$( fgrep 'PKG_VERSION:=' 'package/kernel/mac80211/Makefile' | cut -d'=' -f2 )"	# e.g. 2016-01-10
 
 		if grep -q "${option}CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
 			cp -v "$file" "package/kernel/mac80211/patches"
 			file2="package/kernel/mac80211/patches/$( basename "$file" )"
-			search_and_replace "$file2" 'YYYY-MM-DD' "$COMPAT_WIRELESS"
-			log "patching ath9k/compat-wireless $COMPAT_WIRELESS for using all channels ('birdkiller-mode')" gitadd "$file2"
+			search_and_replace "$file2" 'YYYY-MM-DD' "$COMPAT_WIRELESS_DATE"
+			log "patching ath9k/compat-wireless $COMPAT_WIRELESS_DATE for using all channels ('birdkiller-mode')" gitadd "$file2"
 
 			if [ $( echo "$VERSION_OPENWRT" | cut -b2- ) -lt 40293 ]; then
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt"
@@ -1685,8 +1685,7 @@ apply_patches()
 		} done
 	}
 
-	# FIXME! unison
-	list_files_and_dirs | grep -v 'unison' | while read -r file; do {
+	list_files_and_dirs | while read -r file; do {
 		if [ -d "$file" ]; then
 			log "dir: $file" debug
 			register_patch "DIR: $file"
@@ -1975,7 +1974,7 @@ apply_symbol()
 			$funcname 'nuke_customdir'
 			build 'nuke_bindir'
 
-			apply_patches
+			apply_patches || exit 1
 			return 0
 		;;
 		'CONFIG_PACKAGE_ATH_DEBUG=y')
