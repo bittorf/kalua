@@ -457,7 +457,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 			register_patch "$file"
 			register_patch "$file_regdb_hacked"
 		else
-			log "cannot find 'ath9k' in '.config', removing patches (if any) file: '$file'"
+			log "cannot find '$pattern' in '.config', removing patches (if any) file: '$file'"
 			file="$( basename "$file" )"
 
 			[ -e 'package/kernel/mac80211/files/regdb.txt_old' ] && {
@@ -1979,7 +1979,6 @@ apply_symbol()
 			$funcname 'nuke_customdir'
 			build 'nuke_bindir'
 
-			apply_patches || exit 1
 			return 0
 		;;
 		'CONFIG_PACKAGE_ATH_DEBUG=y')
@@ -3344,6 +3343,7 @@ if [ -e "x$BACKUP_DOTCONFIG" ]; then
 else
 	log "[OK] building .config = '$BACKUP_DOTCONFIG'"
 	target_hardware_set "$HARDWARE_MODEL"	|| die_and_exit
+	apply_patches				|| die_and_exit
 	copy_additional_packages		|| die_and_exit
 	build_options_set "$SPECIAL_OPTIONS"	|| die_and_exit
 	build_options_set "$LIST_USER_OPTIONS"	|| die_and_exit		# here we build '$USECASE'
