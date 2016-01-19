@@ -67,12 +67,14 @@ mac_filtered()
 
 file_ok()
 {
-	test -r "$1" || return 1
-	file_too_old "$1" && return 1
-	mac_filtered "$1" && return 1
-
+	local file="$1"
 	local v2=
-	. $FILE && {
+
+	test -r "$file" || return 1
+	file_too_old "$file" && return 1
+	mac_filtered "$file" && return 1
+
+	command . "$file" && {
 		test -n "$v2" || return 1	# only if git-version available, otherwise it's a cam or something alike
 		test $v2 -gt 30000 || {
 			case "$NETWORK" in
@@ -81,7 +83,7 @@ file_ok()
 					return 0
 				;;
 				*)
-					log "[ERR] bad version $v2 for '$NETWORK/$FILE'"	# ignore svn on PBX (which is ~2800)
+					log "[ERR] bad version $v2 for '$NETWORK/$file'"	# ignore svn on PBX (which is ~2800)
 					return 1
 				;;
 			esac
