@@ -2349,6 +2349,10 @@ build_options_set()
 					return 1
 				fi
 			;;
+			'1043NDv1-4mb-hack')
+				log "fooling profile to 4mb size" gitadd 'target/linux/ar71xx/image/Makefile'
+				sed -i 's|(Device\/tplink-8m)|(Device\/tplink-4m)|g' 'target/linux/ar71xx/image/Makefile'
+			;;
 			'QMI')
 				# http://wiki.openwrt.org/doc/recipes/ltedongle
 				# http://trac.gateworks.com/wiki/wireless/modem
