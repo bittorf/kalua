@@ -229,7 +229,11 @@ log()
 	}
 
 	has "$option" 'gitadd' && {
-		autocommit "$gitfile" "$message"
+		if [ -e "$gitfile" ]; then
+			autocommit "$gitfile" "$message"
+		else
+			log "gitadd: file/dir '$gitfile' does not exist"
+		fi
 	}
 
 	case "$funcname" in
