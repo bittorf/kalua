@@ -426,7 +426,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 	local file="$KALUA_DIRNAME/openwrt-patches/reghack/900-regulatory-compliance_test.patch"
 	local file_regdb_hacked countries code file2 COMPAT_WIRELESS_DATE
 
-	[ -e "$file" ] && {
+	if [ -e "$file" ]; then
 		MAC80211_CLEAN='true'
 		COMPAT_WIRELESS_DATE="$( fgrep 'PKG_VERSION:=' 'package/kernel/mac80211/Makefile' | cut -d'=' -f2 )"	# e.g. 2016-01-10
 
@@ -465,7 +465,9 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 				rm -v "package/kernel/mac80211/patches/$file"
 			}
 		fi
-	}
+	else
+		log "[ERR] cannot find '$file'"
+	fi
 }
 
 copy_additional_packages()
