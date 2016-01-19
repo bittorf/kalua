@@ -424,13 +424,15 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
 	local file="$KALUA_DIRNAME/openwrt-patches/reghack/900-regulatory-compliance_test.patch"
-	local file_regdb_hacked countries code file2 COMPAT_WIRELESS_DATE
+	local file_regdb_hacked countries code file2 pattern COMPAT_WIRELESS_DATE
 
 	if [ -e "$file" ]; then
 		MAC80211_CLEAN='true'
 		COMPAT_WIRELESS_DATE="$( fgrep 'PKG_VERSION:=' 'package/kernel/mac80211/Makefile' | cut -d'=' -f2 )"	# e.g. 2016-01-10
+		pattern="${option}CONFIG_PACKAGE_kmod-ath9k=y"
 
-		if grep -q "${option}CONFIG_PACKAGE_kmod-ath9k=y" ".config"; then
+		log "searching for '$pattern' in '.config'"
+		if grep -q "$pattern" '.config'; then
 			cp -v "$file" "package/kernel/mac80211/patches"
 			file2="package/kernel/mac80211/patches/$( basename "$file" )"
 			search_and_replace "$file2" 'YYYY-MM-DD' "$COMPAT_WIRELESS_DATE"
@@ -455,10 +457,11 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 			register_patch "$file"
 			register_patch "$file_regdb_hacked"
 		else
+			log "cannot find 'ath9k' in '.config', removing patches (if any) file: '$file'"
 			file="$( basename "$file" )"
 
-			[ -e "package/kernel/mac80211/files/regdb.txt_old" ] && {
-				cp -v "package/kernel/mac80211/files/regdb.txt_original" "package/kernel/mac80211/files/regdb.txt"
+			[ -e 'package/kernel/mac80211/files/regdb.txt_old' ] && {
+				cp -v 'package/kernel/mac80211/files/regdb.txt_original' 'package/kernel/mac80211/files/regdb.txt'
 			}
 
 			[ -e "package/kernel/mac80211/patches/$file" ] && {
