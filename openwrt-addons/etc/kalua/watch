@@ -193,6 +193,8 @@ _watch_coredump()
 	# means: filename + pid + signal + unixtime
 	# e.g. /tmp/olsrd.5403.11.1389960024.core
 	#
+	# test func via: dd if=/dev/zero of=/coredumps/olsrd.5403.11.1389960024.core bs=100k count=15
+	#
 	# how to analyze stacktrace:
 	# https://dev.openwrt.org/ticket/17584#comment:1
 	# or: http://stackoverflow.com/questions/5115613/core-dump-file-analysis
@@ -264,7 +266,7 @@ _watch_coredump()
 					local border=200
 
 					test $free -gt $border || return 1
-					test $(( coredump_size / 2 )) -gt $free		# dumps are good compressable, hence /2
+					test $(( coredump_size / 2 )) -lt $free		# dumps are good compressable, hence /2
 				}
 
 				if ! flash_enough_free "$dump"; then
@@ -283,7 +285,11 @@ _watch_coredump()
 					fi
 				fi
 
-				mv "$dump" "$storage/${file% (*}"	# cut comment after 'null' (if there)
+				mv -f "$dump" "$storage/${file% (*}" || {	# cut comment after 'null' (if there)
+					rm -f "$dump"
+					touch "$storage/$file"
+				}
+
 				_log it $funcname daemon alert "$count/$overall: wrote: $storage/$file"
 			;;
 		esac
