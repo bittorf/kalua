@@ -2298,6 +2298,8 @@ build_options_set()
 
 				busybox_ip_command_is_prefered()
 				{
+					return 1	# till segfaults are gone and 'ip neigh add/change/replace' is there
+
 					# https://dev.openwrt.org/changeset/46829/trunk
 					test $( openwrt_revision_number_get ) -lt 46829 && return 1
 
@@ -2307,17 +2309,21 @@ build_options_set()
 
 				if busybox_ip_command_is_prefered; then
 					log '[OK] using busybox ip'
-					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
+
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
 					test $( openwrt_revision_number_get ) -lt 47387 && {
-						apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y' hide
+						apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE=y'
 					}	# parser_ignore
-					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_NEIGH=y' hide
-					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y' hide
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_NEIGH=y'
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y'
 				else
 					log '[OK] using full iproute2'
-					apply_symbol 'CONFIG_PACKAGE_ip=y' hide		# network: routing/redirection: ip
-					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y' hide
-					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y' hide	# FIXME
+					apply_symbol 'CONFIG_PACKAGE_ip=y'		# network: routing/redirection: ip
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
+#					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y'		# FIXME
+					apply_symbol 'CONFIG_BUSYBOX_DEFAULT_IP is not set'
+					apply_symbol 'CONFIG_BUSYBOX_CONIG_IP is not set'
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE is not set'
 				fi
 			;;
 			'queryMII')
@@ -2349,7 +2355,8 @@ build_options_set()
 					return 1
 				fi
 			;;
-			'1043NDv1-4mb-hack')
+			'1043NDv1_4mb_hack')
+				# FIXME! this is not enough, on firstboot it still tries to format whole flash
 				log "fooling profile to 4mb size" gitadd 'target/linux/ar71xx/image/Makefile'
 				sed -i 's|(Device\/tplink-8m)|(Device\/tplink-4m)|g' 'target/linux/ar71xx/image/Makefile'
 			;;
