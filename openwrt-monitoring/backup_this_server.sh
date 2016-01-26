@@ -123,7 +123,7 @@ case "$ARG" in
 #		ARG="port10022:root@${IP}:/tmp/storage/sda2_2.0T/bla/incoming-backup/intercity-vpn"
 		IP='bwireless.mooo.com'
 		LIST_IMPORTANT_IPS=" $( dns2ip "$IP" ) "
-		ARG="port10022:root@${IP}:/tmp/kalua/storage/sdb1_3.6T/backup_ICVPN"
+		ARG="port10022:root@${IP}:/tmp/kalua/storage/sda1_3.6T/backup_ICVPN"
 #		ARG="port22:bastian@bb.weimarnetz.de:backup-ic"
 
 		log "using ARG2 = $ARG"
