@@ -3351,7 +3351,7 @@ esac
 			"3.2.13")				# brcm47xx
 				echo "$COLOR_BRIGHT_GREEN"
 			;;
-			'3.14.29'|'3.18.8')			# ar71xx
+			'3.14.29'|'3.18.8'|'4.1.16')		# ar71xx
 				echo "$COLOR_BRIGHT_GREEN"
 			;;
 			"3.4.0"*)				# pandaboards
