@@ -389,7 +389,7 @@ run_test()
 		shellsheck_ignore()
 		{
 			printf 'SC1090,SC1091,'
-			printf 'SC2016,SC2029,SC2031,SC2046,SC2086,SC2155,SC2166'	# SC2039
+			printf 'SC2016,SC2029,SC2031,SC2046,SC2086,SC2155,SC2166,SC2039'
 		}
 
 		log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
@@ -466,9 +466,10 @@ run_test()
 					}
 
 					# SC2039: https://github.com/koalaman/shellcheck/issues/354
-					sed -i 's/echo -n /printf /g' "$tempfile"		# dont use echo flags
-					sed -i 's/echo -en /printf /g' "$tempfile"		# dito
-					sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# dont use 'local $var'
+#					sed -i 's/echo -n /printf /g' "$tempfile"		# dont use echo flags
+#					sed -i 's/echo -en /printf /g' "$tempfile"		# dito
+#					sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# dont use 'local $var'
+#					sed -i 's/.*shopt.*/# &/g' "$tempfile"
 
 					case "$file" in
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
@@ -514,6 +515,7 @@ run_test()
 					echo
 
 					if show_shellfunction "$name" "$file" | head -n1 | grep -q ^"[ $tab]"; then
+						# TODO: dont double set
 						echo "# nested function from file '$file'"
 						ignore="$ignore,SC2154"		# VAR is referenced but not assigned
 						ignore="$ignore,SC2034"		# VAR appears unused. Verify it or export it.
@@ -532,9 +534,10 @@ run_test()
 				# TODO: test if file to wide
 
 				# SC2039: https://github.com/koalaman/shellcheck/issues/354
-				sed -i 's/echo -n /printf /g' "$tempfile"		# dont use echo flags
-				sed -i 's/echo -en /printf /g' "$tempfile"		# dito
-				sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# dont use 'local $var'
+#				sed -i 's/echo -n /printf /g' "$tempfile"		# dont use echo flags
+#				sed -i 's/echo -en /printf /g' "$tempfile"		# dito
+#				sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# dont use 'local $var'
+#				sed -i 's/.*shopt.*/# &/g' "$tempfile"
 
 				if   function_seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
