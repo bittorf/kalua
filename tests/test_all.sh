@@ -375,6 +375,10 @@ run_test()
 		#  SC2039: In POSIX sh, 'let' is not supported.
 		#  SC2039: In POSIX sh, 'local' is not supported. -> we need another SCxy for that
 		#  SC2039: In POSIX sh, 'shopt' is undefined.
+		#  SC2039: In POSIX sh, string indexing is undefined	  -> ${wmac:0:2}
+		#  SC2039: In POSIX sh, string replacement is undefined.  -> ${1//,/.}"		// ',' -> '.'
+		#  SC2039: In POSIX sh, ulimit -c is undefined.
+		#  SC2039: In POSIX sh, HOSTNAME is undefined.
 # TODO #		# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 		# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 		#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
