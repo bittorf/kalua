@@ -148,7 +148,6 @@ schoeneck
 extrawatt
 aschbach
 boltenhagendh
-dhfleesensee
 berlinle
 spbansin
 limona
@@ -183,7 +182,6 @@ schoeneck
 extrawatt
 aschbach
 boltenhagendh
-dhfleesensee
 berlinle
 itzehoe
 marinapark
@@ -268,10 +266,6 @@ fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if t
 		aschbach)
 			port=5480
 		;;
-#		dhfleesensee)
-#			proto="https"
-#			port=50000
-#		;;
 		liszt28:Buero)
 			proto='https'
 			port='443'
@@ -401,9 +395,6 @@ send_sms()
 		;;
 		apphalle)
 			list_numbers="$list_numbers 0174/3564025"
-		;;
-		dhfleesensee)
-			list_numbers="$list_numbers 0170/5661165 0160/4797497"
 		;;
 		'palais'|'paltstadt')
 			list_numbers="$list_numbers 0173/3583353"	# e-steinmetz

@@ -32,7 +32,7 @@
 				if [ -e '/tmp/statuspage_neigh_pregenerated.gz' ]; then
 					cat '/tmp/statuspage_neigh_pregenerated.gz'
 				else
-					gzip -c '/tmp/statuspage_neigh_pregenerated'
+					gzip -f -c '/tmp/statuspage_neigh_pregenerated'
 				fi
 			;;
 			*)

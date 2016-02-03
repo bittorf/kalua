@@ -2,7 +2,7 @@ kalua - build mesh-networks _without_ pain
 ==========================================
 
 * community: http://wireless.subsignal.org
-* monitoring: http://intercity-vpn.de/networks/dhfleesensee/
+* monitoring: http://intercity-vpn.de/networks/giancarlo/
 * documentation: [API](http://wireless.subsignal.org/index.php?title=Firmware-Dokumentation_API)
 
 needing support?

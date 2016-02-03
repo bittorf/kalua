@@ -2254,7 +2254,7 @@ _cell_lastseen()
 			[ -e "${smsfile}.$HOSTNAME.feedback" ] && rm "${smsfile}.$HOSTNAME.feedback"
 
 			case "$NETWORK" in
-				apphalle|castelfalfi|leonardo|schoeneck|extrawatt|hotello-K80|hotello-B01|hotello-H09|olympia|aschbach|dhsylt|boltenhagendh|dhfleesensee|rehungen|vivaldi|marinabh)
+				apphalle|castelfalfi|leonardo|schoeneck|extrawatt|olympia|aschbach|dhsylt|boltenhagendh|rehungen|marinabh)
 				;;
 				gnm)
 					/var/www/scripts/send_sms.sh \
@@ -2870,7 +2870,7 @@ echo -n "<!-- spacer: $spacer :spacer -->"
 							;;
 						esac
 					;;
-					apphalle*|lisztwe*|dhfleesensee*|adagio*)
+					apphalle*|lisztwe*|adagio*)
 						should_down=6144
 						should_up=576
 
@@ -3615,9 +3615,6 @@ DSL_PROTO="http"
 PORT80=
 PORT443=
 case $NETWORK in
-	dhfleesensee)
-		PORT443=50000
-	;;
 	tkolleg|schoeneck)
 		PORT80=10080
 		PORT443=10443
@@ -3894,7 +3891,7 @@ bla()
 sort "${FILE_FAILURE_OVERVIEW}.tmp" >>"$FILE_FAILURE_OVERVIEW"
 
 case "$NETWORK" in
-	apphalle|castelfalfi|leonardo|schoeneck|extrawatt|hotello-K80|hotello-B01|hotello-H09|olympia|aschbach|dhsylt|boltenhagendh|dhfleesensee|rehungen|vivaldi|marinabh)
+	apphalle|castelfalfi|leonardo|schoeneck|extrawatt|olympia|aschbach|boltenhagendh|rehungen|vivaldi|marinabh)
 		SMS_ALLOWED=
 	;;
 	preskil|gnm)

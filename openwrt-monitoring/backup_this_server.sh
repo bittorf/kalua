@@ -1,5 +1,8 @@
 #!/bin/sh
 
+ARG="$1"		# BACKUPSERVER|checksize = special keyword
+ARG2="${2:-unknown}"	# e.g. 'satama' or 'ejbw-pbx...'
+
 SCP_SPECIAL_OPTIONS="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
 STARTDATE="$( date )"
 
@@ -74,9 +77,6 @@ dns2ip()
 {
 	nslookup "$1" | grep ^'Address:' | tail -n1 | cut -d' ' -f2
 }
-
-ARG="$1"		# BACKUPSERVER|checksize = special keyword
-ARG2="${2:-unknown}"	# e.g. satama
 
 case "$ARG2" in
 	'all_networks_smallest_first')
@@ -201,7 +201,8 @@ cd / || exit
 # full-backup only, if all (not a specific network) is done
 [ -e "/var/www/networks/$ARG2" ] || {
 	case "$ARG2" in
-		ejbw-pbx)
+		ejbw-pbx*)
+			ARG2='ejbw-pbx'
 			TARFILE="/tmp/backup-server-ejbw_pbx-$( uname -n )-$( date +%Y%b%d_%H:%M ).tar.bz2"
 			if tar -cvjf "$TARFILE" /root/backup/ejbw/pbx ; then
 				echo "scp-ing tarfile $( ls -l $TARFILE ) to $ARG"
