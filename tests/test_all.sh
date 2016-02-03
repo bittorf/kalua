@@ -374,6 +374,7 @@ run_test()
 		#  SC2039: In POSIX sh, string replacement is not supported.
 		#  SC2039: In POSIX sh, 'let' is not supported.
 		#  SC2039: In POSIX sh, 'local' is not supported. -> we need another SCxy for that
+		#  SC2039: In POSIX sh, 'shopt' is undefined.
 # TODO #		# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 		# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 		#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
@@ -525,6 +526,11 @@ run_test()
 				function_too_large "$name" "$tempfile" "$file" && func_too_large=$(( func_too_large + 1 ))
 				function_too_wide  "$name" "$tempfile" "$file" && func_too_wide=$(( func_too_wide + 1 ))
 				# TODO: test if file to wide
+
+				# SC2039: https://github.com/koalaman/shellcheck/issues/354
+				sed -i 's/echo -n /printf /g' "$tempfile"		# dont use echo flags
+				sed -i 's/echo -en /printf /g' "$tempfile"		# dito
+				sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# dont use 'local $var'
 
 				if   function_seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"

@@ -43,6 +43,7 @@ case "$NETWORK_NAME" in
 
 			fetch()
 			{
+				# TODO: use _curl ...
 				# github https is often broken
 				curl --silent --insecure "$url" -o "$file" || echo "[ERR] curl '$url'"
 			}
