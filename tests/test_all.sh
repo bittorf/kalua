@@ -370,7 +370,7 @@ run_test()
 		# SC2016: echp '$a' => Expressions don't expand in single quotes, use double quotes for that.
 		# SC2029: ssh "$serv" "command '$server_dir'" => Note that, unescaped, this expands on the client side.
 		# SC2031: FIXME! ...in net_local_inet_offer()
-		# SC2039: In POSIX sh, echo flags are not supported.
+# TODO #	# SC2039: In POSIX sh, echo flags are not supported.
 		#  SC2039: In POSIX sh, string replacement is not supported.
 		#  SC2039: In POSIX sh, 'let' is not supported.
 		#  SC2039: In POSIX sh, 'local' is not supported. -> we need another SCxy for that
@@ -384,7 +384,7 @@ run_test()
 		shellsheck_ignore()
 		{
 			printf 'SC1090,SC1091,'
-			printf 'SC2016,SC2029,SC2031,SC2039,SC2046,SC2086,SC2155,SC2166'
+			printf 'SC2016,SC2029,SC2031,SC2046,SC2086,SC2155,SC2166'	# SC2039
 		}
 
 		log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
@@ -461,8 +461,9 @@ run_test()
 					}
 
 					# SC2039: https://github.com/koalaman/shellcheck/issues/354
-#						sed -i 's/echo -n /printf /g' "$tempfile"
-#						sed -i 's/echo -en /printf /g' "$tempfile"
+					sed -i 's/echo -n /printf /g' "$tempfile"		# dont use echo flags
+					sed -i 's/echo -en /printf /g' "$tempfile"		# dito
+					sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# dont use 'local $var'
 
 					case "$file" in
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
