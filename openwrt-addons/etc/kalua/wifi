@@ -674,40 +674,15 @@ _wifi_phy_probe_online()		# fixme! more abstraction
 	bool_true 'wireless.radio0.disabled'
 }
 
-_wifi_driver_version()
+_wifi_driver_version()		# TODO: get version via opkg/modinfo?
 {
 	local dev="$1"
-	local version driver
+	local file="/sys/class/net/$dev/device/driver"
 
-	# dev -> phy e.g.:
-	# iw dev wlan0 info -> 'wiphy 0'
-	#
-	# phy -> driver e.g.:
-	# test -d /sys/kernel/debug/ieee80211/phy0/mt76
-	# test -d /sys/kernel/debug/ieee80211/phy0/ath9k
-	# but missing with e.g. kmod-rt2x00-usb
-	#
-	# basename "$( readlink /sys/class/net/wlan0/device/driver )"
-	# -> rt2800usb|rt2800_wmac|ath5k|ath9k|b43|iwlwifi|mt76x2e
-
-	if [ -z "$dev" ]; then
-		echo 'nowifi'
+	if [ -e "$file" ]; then
+		basename "$( readlink "$file" )"
 	else
-		# TODO: intel?
-		for driver in ath9k ath5k rt2x00-mmio b43 mt76; do {
-			version="$( _software package_version "kmod-$driver" )" && break
-		} done
-
-		if [ -n "$version" ]; then
-			# e.g.
-			# kmod-ath9k_3.10.28+2014-01-23.1-1
-			# kmod-ath5k_3.14.34+2014-11-04-1
-			# kmod_rt2x00-mmio_3.14.18+2014-10-08-1
-			# kmod-b43_3.2.9+2012-02-27-1
-			echo "kmod-${driver}_$version"		# TODO: cachefile
-		else
-			echo 'nowifi'
-		fi
+		echo 'nowifi'
 	fi
 }
 

@@ -206,9 +206,19 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 	SENS="$( _wifi speed $WIFIDEV )"
 	SENS="$( _sanitizer run "$SENS" urlvalue )"
 
-	DRIVER="$( _wifi driver_version "$WIFIDEV" )"		# wl-adv_3.90-RC37.0_v1.1
-	DRIVER="$( _sanitizer run "$DRIVER" urlvalue )" 		# wl-simple_v1.0
-								# mod-madwifi_2.4.30brcm+r3314-8
+	DRIVER=
+	for DEV in $WIFI_DEVS; do {
+		case "$DEV" in
+			*'-'*)
+				# ignore VIFs e.g. wlan1-1
+			;;
+			*)
+				# e.g. wlan0:mt76-wlan1:rt2800_wmac
+				DRIVER="${DRIVER}${DRIVER+-}${DEV}:$( _wifi driver_version "$DEV" )"
+			;;
+		esac
+	} done
+	DRIVER="$( _sanitizer run "$DRIVER" urlvalue )"
 
 	# 11na10mhzHT20 or 11naHT20 or 11ngHT20 or 11g
 	GMODE="$( uci -q get wireless.radio0.chanbw )"
