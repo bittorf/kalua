@@ -1,6 +1,6 @@
 #!/bin/sh
 
-OPTION="$1"		# e.g. cache
+OPTION="$1"		# e.g. 'cache' or 'func:$name arg1 arg2'
 WISH_NETWORK="$2"
 
 TMPDIR='/var/run/kalua'
@@ -240,7 +240,9 @@ gen_meshrdf_for_network()
 
 		if [ "$hash_last" = "$hash_now" ]; then
 #			log "$funcname() NEEDED? no changes for network $network - ignoring call - is: $hash_now"
-			return 0
+
+			# FIXME! get newest file will not work for "symlinks only"
+			[ "$network" = 'server' ] || return 0
 		else
 #			log "$funcname() NEEDED? found changes network $network - was: $hash_last != $hash_now (now)"
 			echo "$hash_now" >"$hash_file"
@@ -266,6 +268,15 @@ gen_meshrdf_for_network()
 
 	log "[READY] fetched $network"
 }
+
+case "$OPTION" in
+	'func:'*)
+		OPTION="$( echo "$OPTION" | cut -d':' -f2 )"
+		log "executing function: $OPTION"
+		$OPTION
+		exit $?
+	;;
+esac
 
 # this detroys the ping-counter! we really should send out an SMS
 log "checking: disk full?"
@@ -367,6 +378,7 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network ffweimar-roehr
 	gen_meshrdf_for_network ffweimar-vhs
 	gen_meshrdf_for_network ilm1
+	gen_meshrdf_for_network server
 #	gen_meshrdf_for_network xoai
 
 	htmlout_error_summary "$LIST"		# very fast

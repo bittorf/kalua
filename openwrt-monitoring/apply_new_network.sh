@@ -15,7 +15,7 @@ log()
 	logger -s "$0: $1"
 }
 
-for DIR in tarball/stable tarball/beta tarball/testing \
+for DIR in '' tarball/stable tarball/beta tarball/testing \
 	   firmware log ignore meshrdf meshrdf/recent packages \
 	   registrator registrator2 registrator/sshfp \
 	   registrator/recent rrd speedtest vds vpn whitelist media; do {
