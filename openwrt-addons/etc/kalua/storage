@@ -29,3 +29,134 @@ _storage_path()
 
 	echo ${OUT:-/www/cgi-bin}	# fallback is password-protected space
 }
+
+_storage_automount()
+{
+	local funcname='storage_automount'
+	local dir="$TMPDIR/storage"
+	local line dev size blockinfo
+
+	# TODO:
+	# when using this for a samba-share we must make sure, that
+	# the hardlink-count: http://www.giannistsakiris.com/2011/04/15/counting-and-listing-hard-links-on-linux/
+	# is always '2' - see: https://bugzilla.samba.org/show_bug.cgi?id=9346
+
+	# root@goflexhome:~ cat /proc/partitions
+	# major minor  #blocks  name
+	#
+	#  31        0       1024 mtdblock0
+	#  31        1       1024 mtdblock1
+	#  31        2       3072 mtdblock2
+	#  31        3     257024 mtdblock3
+	#   8        0 2930266584 sda
+	#   8        1   19543041 sda1
+	#   8        2 2127937770 sda2
+	# 254        0      62464 zram0
+
+	# root@goflexhome:~ block info /dev/sda1
+	# /dev/sda1: UUID="b2d046bb-199a-4c38-9d2c-730eba52b36b" LABEL="rootfs" VERSION="1.0" TYPE="ext2"
+
+	# root@goflexhome:~ df -h
+	# Filesystem                Size      Used Available Use% Mounted on
+	# /dev/sda1                18.3G     11.7G      5.7G  67% /tmp/hdd/sda1
+	# /dev/sda2                 2.0T      1.9T     10.6G  99% /tmp/hdd/sda2
+
+	set_spindown()
+	{
+		local dev="$1"
+		# unneeded for USB-stick
+		# http://stackoverflow.com/questions/908188/is-there-any-way-of-detecting-if-a-drive-is-a-ssd
+		[ "$( cat /sys/block/$dev/removable )" = '0' ] && return 0
+		command -V hdparm >/dev/null || return 0
+
+		# e.g. 7200 or 'Solid State Device'
+		explode $( hdparm -I "/dev/$dev" | fgrep 'Nominal Media Rotation Rate: ' )
+		shift 4
+
+		[ ${1:-0} -gt 0 ] && {
+			_log it $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($1 rpm)"
+			hdparm -y -S 60 "/dev/$dev"
+		}
+	}
+
+	while read -r line; do {
+		case "$line" in
+			*' sda'|*' sda'[0-9]|*' sdb'|*' sdb'[0-9])
+				explode $line
+				dev="$4"
+
+				# ignore already mounted drives
+				grep -q ^"/dev/$dev " '/proc/mounts' && continue
+				blockinfo="$( block info "/dev/$dev" )"
+
+				case "$blockinfo" in
+					*' LABEL="rootfs" '*)
+					;;
+					"/dev/$dev: UUID="*)
+						# happens on x86 with ext4 on cf-card
+						[ "$( readlink '/dev/root' )" = "/dev/$dev" ] && continue
+
+						mkdir -p "$dir/$dev"
+						_log it $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev' ($blockinfo)"
+						mount "/dev/$dev" "$dir/$dev" && {
+							explode $( df -h | grep "$dir/$dev"$ )
+							size="$2"
+
+							umount "$dir/$dev" && {
+								rm -fR "$dir/${dev:-does_not_exist}"
+								mkdir -p "$dir/${dev}_$size"
+								_log it $funcname daemon info "[OK] /dev/$dev -> $dir/${dev}_$size"
+								mount "/dev/$dev" "$dir/${dev}_$size"
+							}
+
+							[ -n "$size" ] && set_spindown "$dev"
+						}
+					;;
+				esac
+			;;
+		esac
+	} done <'/proc/partitions'
+}
+
+_storage_usbstick_proxy()	# FIXME! is unused
+{
+	local funcname='storage_usbstick_proxy'
+	local mountpoint="$TMPDIR/usb0"
+	local partition="/dev/sda1"
+
+	fgrep -q "Vendor=18a5 ProdID=0302" /proc/bus/usb/devices && {
+		mount | fgrep -q "$mountpoint" || {
+			mkdir -p "$mountpoint"
+
+			# btrfs-show -> extract device
+			# fdisk -batch blabla
+
+			mount_usb()
+			{
+				mount -t btrfs -o compress,ssd "$partition" "$mountpoint" && {
+					_log it $funcname daemon info "[OK] mounted"
+				}
+			}
+
+			mount_usb || {
+				_log it $funcname daemon info "mount failed"
+
+				mkfs.btrfs "$partition" || {
+					_log it $funcname daemon info "[ERR] failed to format $partition"
+					rm -fR "$mountpoint"
+					return 1
+				}
+
+				mount_usb || {
+					_log it $funcname daemon info "[ERR] failed to mount $partition"
+					rm -fR "$mountpoint"
+					return 1
+				}
+
+				touch "$mountpoint/polipo.log"		# _watch_local_proxy() needs this
+			}
+
+			/etc/init.d/polipo restart
+		}
+	}
+}
