@@ -28,20 +28,24 @@ fi
 _weblogin authserver is_myself || {
 	# FIXME! how to avoid pingpong? (e.g. REMOTE = authserver? can that happen?)
 	AUTHSERVER="$( _weblogin authserver )"
-	_log it cgi-bin-sql daemon info "authserver not local - forwarding request for '$REMOTE_ADDR' to $AUTHSERVER"
-
-	# FIXME! simply reuse QUERY_STRING?
-	USER_LANG="$( _sanitizer run "$USER_LANG" urlvalue )"
-	URL="LOGIN=${LOGIN}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=$USER_LANG"
-
-	if [ -e '/usr/sbin/uhttpd' ]; then
-		URL="http://$AUTHSERVER/cgi-bin-sql.sh?$URL"
+	if [ "$REMOTE_ADDR" = "$AUTHSERVER" ]; then
+		_log it cgi-bin-sql daemon info "authserver = remote = $REMOTE_ADDR"
 	else
-		URL="http://$AUTHSERVER/cgi-bin-sql?$URL"
-	fi
+		_log it cgi-bin-sql daemon info "authserver not local - forwarding request for '$REMOTE_ADDR' to $AUTHSERVER"
 
-	_curl it "$URL"
-	exit
+		# FIXME! simply reuse QUERY_STRING?
+		USER_LANG="$( _sanitizer run "$USER_LANG" urlvalue )"
+		URL="LOGIN=${LOGIN}&MAC=${MAC}&SIGNAL=${SIGNAL}&KEYWORD=${KEYWORD}&USER_LANG=$USER_LANG"
+
+		if [ -e '/usr/sbin/uhttpd' ]; then
+			URL="http://$AUTHSERVER/cgi-bin-sql.sh?$URL"
+		else
+			URL="http://$AUTHSERVER/cgi-bin-sql?$URL"
+		fi
+
+		_curl it "$URL"
+		exit
+	fi
 }
 
 _system include				# fixme! move all from this line down to weblogin()
