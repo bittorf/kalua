@@ -19,7 +19,7 @@ while true; do {
 	else
 		UNIXTIME_OLD="$( stat --printf %Y "$OUTFILE" )"
 		UNIXTIME_NOW="$( date +%s )"
-		[ $(( $UNIXTIME_NOW - $UNIXTIME_OLD )) -gt $MAXAGE ] && {
+		[ $(( UNIXTIME_NOW - UNIXTIME_OLD )) -gt $MAXAGE ] && {
 			logger -s "very old camfile, using 'normalized2.jpg'"
 			cp "normalized2.jpg" "$OUTFILE"
 			touch "$OUTFILE"
@@ -48,7 +48,7 @@ while true; do {
 
 		DATE="$( date +20%y-%b-%d )"
 		mkdir -p webcam_movies/$DATE
-		[ -e cam_1-stream* ] && mv cam_1-stream* webcam_movies/$DATE/
+		[ -n "$( ls -1 'cam_1-stream'* )" ] && mv 'cam_1-stream'* webcam_movies/$DATE/
 
 		mkdir -p pix_old/$DATE
 		[ -n "$( ls -1 cam* )" ] && {		# too many arguments
