@@ -207,16 +207,19 @@ _netparam_list_wifi_devs()
 
 _netparam_check()
 {
+	local funcname='netparam_check'
 	local HASH_OLD HASH_NEW
 
 	if [ $( _system uptime sec ) -lt 60 -a $OPENWRT_REV -gt 0 ]; then
 		if [ -e "$PERMDIR/NETPARAM" ]; then
+			_log it $funcname daemon info "using cache in '$PERMDIR/NETPARAM' as workingcopy in '$TMPDIR/NETPARAM'"
 			cp "$PERMDIR/NETPARAM" "$TMPDIR/NETPARAM"
 		else
 			sleep 30		# FIXME! 'ifstatus wlanadhoc' empty, needs about 18 sec till OK on 1043ND
 		fi
 	else
 		HASH_OLD="$( _file hash "$TMPDIR/NETPARAM" )"
+		_log it $funcname daemon info "writing to '$TMPDIR/NETPARAM'"
 		_netparam generate >"$TMPDIR/NETPARAM"
 
 		if [ -e "$PERMDIR/NETPARAM" ]; then
@@ -229,18 +232,18 @@ _netparam_check()
 
 			needs_newer_copy && {
 				if [ -d "$PERMDIR" ]; then
-					_log it earlyboot_netparam daemon alert "changed values - updating '$PERMDIR/NETPARAM'"
+					_log it $funcname daemon alert "changed values - updating '$PERMDIR/NETPARAM'"
 					cp "$TMPDIR/NETPARAM" "$PERMDIR/NETPARAM"
 				else
-					_log it earlyboot_netparam daemon info "changed values: cannot write to '$PERMDIR'"
+					_log it $funcname daemon info "changed values: cannot write to '$PERMDIR'"
 				fi
 			}
 		else
 			if [ -d "$PERMDIR" ]; then
-				_log it earlyboot_netparam daemon info "store initial version: WIFIDEV='$WIFIDEV'"
+				_log it $funcname daemon info "store initial version: WIFIDEV='$WIFIDEV'"
 				cp "$TMPDIR/NETPARAM" "$PERMDIR/NETPARAM"
 			else
-				_log it earlyboot_netparam daemon info "write initial version: cannot write to '$PERMDIR'"
+				_log it $funcname daemon info "write initial version: cannot write to '$PERMDIR'"
 			fi
 		fi
 	fi
