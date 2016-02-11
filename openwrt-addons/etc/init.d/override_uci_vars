@@ -44,6 +44,7 @@ apply_olsr_roaming()
 {
 	local wired_networks="$1"
 	local list_ap="$( _wifi get any mode ap ) $wired_networks"
+	local index network list
 
 	if [ -z "$list_ap" ]; then
 		return 1
@@ -61,10 +62,6 @@ apply_olsr_roaming()
 	[ -e "/lib/modules/$( uname -r )/macvlan.ko" ] || return 1
 	kmodule_force_activation 'macvlan'
 
-	local router_ip="$ROAMING_GATEWAY"
-	local dns_ip="$ROAMING_DNS"
-	local index network list
-
 	uci set network.mastergate='interface'			# here we collect all interfaces, see below
 	uci set network.mastergate.type='bridge'		# bridge needed for multiple interfaces
 	uci set network.mastergate.proto='static'		# list of ifnames is added below
@@ -76,8 +73,8 @@ apply_olsr_roaming()
 
 	# maybe also fill: 1, 3, 6, 12, 28 = ???
 	uci del      dhcp.wlan.dhcp_option
-	uci add_list dhcp.wlan.dhcp_option="3,$router_ip"	# same like 'option:router' is "option name => RFC 2132"
-	uci add_list dhcp.wlan.dhcp_option="6,$dns_ip"
+	uci add_list dhcp.wlan.dhcp_option="3,$ROAMING_GATEWAY"	# same like 'option:router' is "option name => RFC 2132"
+	uci add_list dhcp.wlan.dhcp_option="6,$ROAMING_DNS"
 
 	uci set dhcp.wlan.leasetime='12h'	# very long: otherwise a ssh-session is lost when the IP changes...
 	uci set dhcp.wlan.start="192.168.${NODENUMBER_ROAMING}.2"
