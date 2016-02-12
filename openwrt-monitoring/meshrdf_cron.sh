@@ -65,7 +65,8 @@ htmlout_error_summary()
 		case "$NETWORK" in
 			dhsylt|elephant|ffweimar*|galerie|tkolleg|ffsundi|artotel|\
 			sachsenhausen|versiliawe|liszt28|zumnorde|tuberlin|preskil|\
-			versiliaje|gnm|hotello*|marinapark|vivaldi|satama|fparkssee|marinabh)
+			versiliaje|gnm|hotello*|marinapark|vivaldi|satama|fparkssee|\
+			dhfleesensee|marinabh)
 #				log "summary: [OK] omitting network '$NETWORK' for error-summary"
 				continue
 			;;

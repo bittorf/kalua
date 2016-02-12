@@ -1612,14 +1612,45 @@ cpu_count()
 	fi
 }
 
+cpu_load_integer()
+{
+	# AIX-7 / gcc111
+	#  12:16AM   up 121 days,  12:34,  3 users,  load average: 3.75, 4.00, 4.42
+	# LINUX:
+	# 09:18:12 up 12 min,  load average: 0.54, 0.85, 0.58
+	set -- $( uptime )
+
+	while [ -n "$1" ]; do {
+		case "$1" in
+			'average:')
+				local loadavg="$2"
+
+				loadavg="${loadavg%.*}${loadavg#*.}"	# 3.75, -> 375
+				loadavg="${loadavg%,*}"			# 375, -> 375
+				loadavg="${loadavg#0}"
+				loadavg="${loadavg#0}"			# 005 -> 5
+
+				echo "$loadavg"
+				break
+			;;
+		esac
+
+		shift
+	} done
+}
+
 build()
 {
 	local funcname='build'
 	local option="$1"
-	local jobs=$(( $( cpu_count ) + 1 ))
-	local commandline="--jobs $jobs BUILD_LOG=1"
-	local make_verbose t1 t2
+	local make_verbose t1 t2 buildjobs commandline
+
 	[ -n "$DEBUG" ] && make_verbose='V=s'
+
+	buildjobs=$(( $( cpu_count ) + 1 ))
+	# dont stress if we already have load / e.g. gcc-farm
+	[ $( cpu_load_integer ) -gt 100 ] && buildjobs=$(( (buildjobs - 1) / 2 ))
+	commandline="--jobs $buildjobs BUILD_LOG=1"
 
 	case "$option" in
 		'nuke_bindir')
