@@ -24,13 +24,21 @@ OPKG="$( command -v /bin/[o,i]pkg )" || {
 	OPKG="'_software opkg_raminstaller'"
 }
 
-# each node has it's own "nearly uniq" DHCP-range
-# which must be valid across the whole network,
-# e.g. 192.168.8.0/16 on node 8
-NODENUMBER_ROAMING="$( uci -q get system.@profile[0].nodenumber )"
-while [ ${NODENUMBER_ROAMING:=2} -gt 254 ]; do {
-	NODENUMBER_ROAMING=$(( NODENUMBER_ROAMING - 254 ))	# e.g. node 255 -> 1
-} done
+roaming_calc_octet2_and_octet3
+{
+	local nodenumber="$( uci -q get system.@profile[0].nodenumber )"
+	local i=2
+	O2=64
+
+	while [ $I -lt 1024 ]; do	# each node has it's own uniq /24 DHCP-range
+		O2=$(( O2 + 1 ))	# which must be valid across the whole network
+
+		for O3 in $(seq 0 255);do
+			test "$nodenumber" = "$I" && return
+			i=$(( i + 1 ))
+		done
+	done
+}
 
 read -r HARDWARE 2>/dev/null <'/etc/HARDWARE' || {
 	# model name  : Intel(R) Xeon(R) CPU E5-2620 0 @ 2.00GHz
@@ -51,15 +59,16 @@ command -v nc >/dev/null || logger -s -- "$0: [ERR] missing netcat - please inst
 # e.g. FFF_PLUS_VERSION
 [ -e '/etc/variables_fff+' ] && . '/etc/variables_fff+'
 
-	cat <<EOF
+roaming_calc_octet2_and_octet3
+cat <<EOF
 
 # from $0.user @ $(date)
 export TZ='$TIMEZONE'
 
 ROAMING_PRE_LOCAL=24
-ROAMING_NET_LOCAL="192.168.$NODENUMBER_ROAMING.0"	# FIXME!
-ROAMING_ADR_LOCAL="192.168.$NODENUMBER_ROAMING.1"
-ROAMING_DHCPSTART_LOCAL="192.168.$NODENUMBER_ROAMING.2"
+ROAMING_NET_LOCAL="100.$O1.$O2.0"	# FIXME!
+ROAMING_ADR_LOCAL="100.$O1.$O2.1"	# mastergate
+ROAMING_DHCPSTART_LOCAL="100.$O1.$O2.2"
 
 NODENUMBER_ROAMING=$NODENUMBER_ROAMING
 NODENUMBER=\${NODENUMBER:-$( uci -q get system.@profile[0].nodenumber )}
