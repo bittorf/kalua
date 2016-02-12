@@ -1630,6 +1630,7 @@ cpu_load_integer()
 				loadavg="${loadavg#0}"
 				loadavg="${loadavg#0}"			# 005 -> 5
 
+				log "high load: $2 -> $loadavg (affects build performance/make-threads)"
 				echo "$loadavg"
 				break
 			;;
@@ -1649,7 +1650,7 @@ build()
 
 	buildjobs=$(( $( cpu_count ) + 1 ))
 	# dont stress if we already have load / e.g. gcc-farm
-	[ $( cpu_load_integer ) -gt 100 ] && buildjobs=$(( (buildjobs - 1) / 2 ))
+	[ $CPU_LOAD_INTEGER -gt 100 ] && buildjobs=$(( (buildjobs - 1) / 2 ))
 	commandline="--jobs $buildjobs BUILD_LOG=1"
 
 	case "$option" in
@@ -3174,6 +3175,7 @@ else
 	KALUA_REPO_URL='git://github.com/bittorf/kalua.git'
 fi
 
+CPU_LOAD_INTEGER="$( cpu_load_integer )"
 KALUA_DIRNAME="$( basename "$KALUA_REPO_URL" | cut -d'.' -f1 )"		# e.g. kalua|weimarnetz
 PATCHDIR=
 
