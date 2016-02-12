@@ -83,8 +83,7 @@ mac2ipv4()	# TODO: better name
 					continue
 				}
 
-				case "$ip" in
-					"192.168.${NODENUMBER_ROAMING}."*)
+				if  _net both_ipv4_in_same_subnet "$ip/32" "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL"; then
 						log "$funcname($i) [SUCCESS] no route-set for $mac/$ip needed: our own HNA4-range"
 						_netfilter user_probe "$mac" || {
 							signal="$( _wifi signal "$wifidev" "$mac" )"
@@ -95,8 +94,7 @@ mac2ipv4()	# TODO: better name
 								_netfilter user_add "$mac" "$ip"
 							fi
 						}
-					;;
-					'192.168.'*)
+				elif _net both_ipv4_in_same_subnet "$ip/32" "$ROAMING_NET/$ROAMING_PRE"; then
 						log "$funcname($i) [SUCCESS] setting host route for alien $ip"
 						if ip route add "$ip/32" dev $dev; then
 							if _net local_inet_offer >/dev/null; then
@@ -118,12 +116,10 @@ mac2ipv4()	# TODO: better name
 							_log it $funcname daemon alert "failed to add route for $ip / $dev"
 							continue
 						fi
-					;;
-					*)
+				else
 						_log it $funcname daemon info "wrong IP: $mac/$ip"
 						continue
-					;;
-				esac
+				fi
 
 				# FIXME! report ip, if 'server_asked' failed - but how to set 'expires'?
 				echo "$ip"

@@ -104,27 +104,23 @@ func_ulog_squeeze_log ()
 	while read -r LINE; do {		# func_ulog_make_evalable "$LINE" >>/tmp/vds_debug
 		eval $( func_ulog_make_evalable "$LINE" )
 
-		case "$DST" in
-			192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[0-1].*|169.254.*|10.*|127.*)
-				IP=$SRC
-				PORT=$SPT
-				USERIP=$DST
-			;;
-			*)
-				PORT=$DPT
-				IP=$DST
-				USERIP=$SRC
-			;;
-		esac
+		if _net ip4_is_private "$DST"; then
+			IP="$SRC"
+			PORT="$SPT"
+			USERIP="$DST"
+		else
+			PORT="$DPT"
+			IP="$DST"
+			USERIP="$SRC"
+		fi
 
 		USERNAME=						# written during weblogin_login_check()
-		read -r USERNAME 2>/dev/null </tmp/vds_user_$MAC		# nonforking/fast	fixme! use e.g. $DIR_DATABASE/devices/mac2loginhash_$MAC
+		read -r USERNAME 2>/dev/null </tmp/vds_user_$MAC	# nonforking/fast	fixme! use e.g. $DIR_DATABASE/devices/mac2loginhash_$MAC
 
 		OUTPUT="$DIR $TIME $IP $PORT $PROTO $ID $SEQ $ACK"
 		COUNTER=$(( COUNTER + ${#OUTPUT} ))			# debug: count bytes for logfile
 
 		echo >>"${VDS_PATH}/user-${USERNAME:-unknown}-${MAC}-${USERIP:-noip}-${DATE}-node${NODENUMBER}-reboots${REBOOTS}.ulog" "$OUTPUT"
-
 	} done <"$ULOG_LOGFILE"
 
 	TIMECOUNT="$( _stopwatch stop "$FUNC" nolog )"
