@@ -53,6 +53,7 @@ print_usage_and_exit()
 
 Usage: ./$0 --openwrt
        ./$0 --openwrt trunk
+       ./$0 --openwrt trunk --download_pool /path/to/your/dir
        ./$0 --openwrt 15.05 --myrepo git://github.com/weimarnetz/weimarnetz.git
 
        This will download/checkout OpenWrt-buildscripts,
@@ -1654,7 +1655,7 @@ build()
 
 	buildjobs=$(( $( cpu_count ) + 1 ))
 	# dont stress if we already have load / e.g. gcc-farm
-	[ $CPU_LOAD_INTEGER -gt 100 ] && buildjobs=$(( (buildjobs - 1) / 2 ))
+	[ $CPU_LOAD_INTEGER -ge 100 ] && buildjobs=$(( (buildjobs - 1) / 2 ))
 	commandline="--jobs $buildjobs BUILD_LOG=1"
 
 	case "$option" in
