@@ -153,18 +153,18 @@ log "good: $BUILD_GOOD bad: $BUILD_BAD"
 exit 0
 # build-test:
 #
+# root:
 # - install all deps
-# - change to user-account
+# mount -t tmpfs -o size=10G,nosuid,nodev,mode=1777 tmpfs /media/cdrom
+# (mount -o remount,size=18G tmpfs /media/cdrom)
 #
+# user:
 # wget -O openwrt_download_cache.tar http://4.v.weimarnetz.de/1.tar
 # tar xf openwrt_download_cache.tar
-# mount -t tmpfs -o size=14G,nosuid,nodev,mode=1777 tmpfs /media/cdrom
-# mount -o remount,size=18G tmpfs /media/cdrom
 # git clone git://git.openwrt.org/openwrt.git
 # cd openwrt
 # ln -s ~/dl dl		# download_cache
 #
-# rene:
 # (make dirclean)
 
 work()

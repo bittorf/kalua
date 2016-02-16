@@ -1614,6 +1614,8 @@ cpu_count()
 
 cpu_load_integer()
 {
+	local funcname='cpu_load_integer'
+
 	# AIX-7 / gcc111
 	#  12:16AM   up 121 days,  12:34,  3 users,  load average: 3.75, 4.00, 4.42
 	# LINUX:
@@ -1630,7 +1632,9 @@ cpu_load_integer()
 				loadavg="${loadavg#0}"
 				loadavg="${loadavg#0}"			# 005 -> 5
 
-				log "high load: $2 -> $loadavg (affects build performance/make-threads)"
+				[ $loadavg -ge 100 ] && \
+					log "high load: $2 -> $loadavg (affects build performance/make-threads)"
+
 				echo "$loadavg"
 				break
 			;;
