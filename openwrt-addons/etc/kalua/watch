@@ -270,7 +270,7 @@ _watch_coredump()
 				}
 
 				if ! flash_enough_free "$dump"; then
-					touch "$storage/$file"
+					touch "$storage/$file"		# TODO: dont write if <100k free flash?
 
 					storage='/dev'
 					file="null (low storage: was: $dump)"
@@ -322,7 +322,8 @@ _watch_user_list()
 _watch_space_tmpfs()
 {
 	local funcname='watch_space_tmpfs'
-	local file success list_logs list_vdsfiles list_orphaned list_debug list_klog list_coredump list_scheduler
+	local file success list_logs list_vdsfiles list_orphaned list_debug
+	local list_curl list_klog list_coredump list_scheduler list
 	local nothing_deleted='true'
 
 	cleanup_needed()
@@ -336,6 +337,8 @@ _watch_space_tmpfs()
 		test $( _system disc_free "$TMPDIR" percent ) -lt 20
 	}
 
+	# TODO: ls -1 $SCHEDULER_QUEUE
+	# TODO: break if >1M free?
 	while cleanup_needed; do {
 		pidof ulogd >/dev/null && {
 			/etc/init.d/ulogd stop
@@ -352,8 +355,10 @@ _watch_space_tmpfs()
 		list_klog="$(      ls 2>/dev/null -S1 /tmp/dmesg.* )"
 		list_coredump="$(  ls 2>/dev/null -S1 /tmp/*.core )"
 		list_scheduler="$( ls 2>/dev/null -S1 /tmp/scheduler.log.debug.* )"
+		list_curl="$( ls 2>/dev/null -S1 $TMPDIR/curl_it_* )"
+		list="$list_logs $list_vdsfiles $list_orphaned $list_debug $list_klog $list_coredump $list_scheduler $list_curl"
 
-		for file in $list_logs $list_vdsfiles $list_orphaned $list_debug $list_klog $list_coredump $list_scheduler; do {
+		for file in $list; do {
 			[ -e "$file" ] && {
 				success='true'
 				rm "$file"
