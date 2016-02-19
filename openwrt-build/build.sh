@@ -729,6 +729,7 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_DIR505A1=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-dir-505-a1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-dir-505-a1-squashfs-factory.bin'
+		;;
 		'D-Link DIR-615-E4')
 			# https://dev.openwrt.org/ticket/20522
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_DIR615E4=y'
