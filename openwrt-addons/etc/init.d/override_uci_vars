@@ -79,7 +79,7 @@ apply_olsr_roaming()
 	uci set dhcp.wlan.leasetime='12h'	# very long: otherwise a ssh-session is lost when the IP changes...
 	uci set dhcp.wlan.start="$ROAMING_DHCPSTART_LOCAL"
 	uci set dhcp.wlan.limit='253'
-	uci delete dhcp.wlan.netmask		# otherwise 'wlan.start' has no effect
+	uci -q delete dhcp.wlan.netmask		# otherwise 'wlan.start' has no effect
 
 	# FIXME! 2nd AP on same band does not work
 	for index in $list_ap; do {
@@ -304,7 +304,7 @@ boot()
 	}
 
 	# work around safed conffile during sysupgrade
-	fgrep -q '/etc/profile.d' '/rom/etc/profile' && {
+	fgrep -sq '/etc/profile.d' '/rom/etc/profile' && {
 		fgrep -q '/etc/profile.d' '/etc/profile' || {
 			cp '/rom/etc/profile' '/etc/profile'
 		}
@@ -478,11 +478,11 @@ boot()
 	esac
 
 	# workaround:
-	grep -q 'Wartungsmodus' '/etc/config/wireless' && {
+	grep -sq 'Wartungsmodus' '/etc/config/wireless' && {
 		sed -i "s/option ssid.*/option ssid '$( _weblogin metadata_locationname )'/g" '/etc/config/wireless'
 	}
 
-	uci set network.innercityVPN.mtu='1280'		# see vpn()
+	uci -q set network.innercityVPN.mtu='1280'		# see vpn()
 
 	uci set sms.@sms[0].username='gforce'
 	uci set sms.@sms[0].password='mvemjsunpsms77'
@@ -2118,8 +2118,8 @@ boot()
 
 	# fix for forgotten network
 	case "$CONFIG_PROFILE" in
-		*hybrid)
-			grep -q "wlanadhoc" "/etc/config/wireless" && {
+		*'hybrid')
+			grep -sq "wlanadhoc" "/etc/config/wireless" && {
 				uci show network | grep -q ^"network.wlanadhoc=" || {
 					uci set network.wlanadhoc=interface
 					uci set network.wlanadhoc.proto=static
