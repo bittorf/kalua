@@ -185,7 +185,9 @@ RUN_ENCODER=
 		[ -e "/tmp/webcam_last_event" ] && rm "/tmp/webcam_last_event"
 
 		if grep -sq ^'fswebcam' '/tmp/motion.conf'; then
-			. '/tmp/motion.conf'
+			# FIXME! (called twice?)
+			:
+#			. '/tmp/motion.conf'
 		else
 			motion -c "/tmp/motion.conf"
 		fi
@@ -316,7 +318,16 @@ else
 		touch /webcam/MARK
 	else
 		cp /webcam/lastsnap.jpg /webcam/snap-${UP:-$$}.jpg
-		grep -sq ^'fswebcam' '/tmp/motion.conf' && . '/tmp/motion.conf'
+
+		# hack: this takes a snap to '$dir/webcam.jpg' if fswebcam - see motion_generate_conf()
+		grep -sq ^'fswebcam' '/tmp/motion.conf' && {
+			. '/tmp/motion.conf'
+			case "$( date '+%M' )" in
+				00|15|30|45)
+					FORCE=1
+				;;
+			esac
+		}
 	fi
 
 	recent_files()
@@ -353,7 +364,7 @@ else
 		DESTINATION="$( uci -q get system.@webcam[0].storage_path )"			# e.g. bastian@10.63.2.34:
 		DESTINATION="${DESTINATION:-$( uci -q get system.@vds[0].server )../media}"	# e.g. root@intercity-vpn.de:/var/www/networks/liszt28/vds/
 		case "$DESTINATION" in
-			*"/"|*":")
+			*'/'|*':')
 			;;
 			*)
 				DESTINATION="$DESTINATION/"
