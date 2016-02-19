@@ -220,7 +220,7 @@ func_ulog_logsaving ()
 	fi
 
 	case "$COPYCOMMAND" in
-		scp*)
+		'scp'*)
 			SERVER="$( echo $DESTINATION | cut -d':' -f1 | cut -d'@' -f2 )"
 
 			fgrep -q $SERVER /etc/dropbear/known_hosts || {
@@ -283,7 +283,7 @@ func_ulog_logsaving ()
 				[ -e /tmp/ERROR_VDS ] && rm /tmp/ERROR_VDS
 			else
 				case "$COPYCOMMAND" in
-					scp*)
+					'scp'*)
 						LOGPRIO="info"
 					;;
 				esac
@@ -326,6 +326,11 @@ func_backup_userdata ()		# and restore, if missing
 
 		if [ -e "$FILE" ]; then
 			if [ "$FILE" = "/www/cgi-bin/db_backup.tgz" ]; then
+				tar -tzf "$FILE" || {
+					_log it $FUNC daemon alert "tar broken: $FILE"
+					return 1
+				}
+
 				HASH="$( find "$DIR_DATABASE" -type f | while read -r HASH; do cat "$HASH"; done | md5sum | cut -d' ' -f1 )"
 			else
 				HASH="$( _file hash "$FILE" )"

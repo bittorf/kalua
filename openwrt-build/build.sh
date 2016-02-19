@@ -2107,7 +2107,8 @@ build_options_set()
 	case "$options" in
 		'ready')	# parser_ignore
 			file="$custom_dir/etc/openwrt_build"
-			mv "${file}.details" "$file"
+			cat   "${file}.details" >>"$file"
+			rm -f "${file}.details"
 
 			log "[OK] writing details" gitadd "$file"
 			return 0

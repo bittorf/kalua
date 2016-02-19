@@ -14,7 +14,7 @@
 
 _netfilter_start()
 {
-	mkdir -p "/tmp/NETFILTER"
+	mkdir -p '/tmp/NETFILTER'
 
 	_netfilter ipforwarding_needed && {
 		_netfilter ipforwarding_start
@@ -65,6 +65,70 @@ _netfilter_start()
 		grep -q ^"cls_u32 " /proc/modules || insmod cls_u32
 	}
 }
+
+_netfilter_stop()
+{
+	local option="$1"	# string: remember_over_reboot = ror
+	local funcname='netfilter_stop'
+	local list_user="$( _netfilter user_list )"
+	local ip mediatype dev hash mac
+
+	[ -d '/tmp/NETFILTER' ] || return 0
+	mkdir "/tmp/NETFILTER/isrunning_$funcname" || return 0
+
+	[ -n "$list_user" ] && {
+		for mac in $list_user; do {
+			ip="$( _net mac2ip "$mac" )"
+			dev="$( _net mac2dev "$mac" )"
+
+			if _net dev_is_wifi "$dev"; then
+				_net both_ipv4_in_same_subnet "$ip/32" "$ROAMING_NET/$ROAMING_PRE" && {
+					_log it $funcname daemon debug "ignore roaming ip '$ip'"
+					continue
+				}
+
+				hash="$( _db hash "$mac" )"
+				if [ -n "$( _db user login query hash2id "$hash" )" ]; then
+					mediatype="DB: mac allowed # non_wifi"
+				else
+					mediatype='wifi'
+				fi
+			else
+				mediatype='non_wifi'	# keyword for keeping over reboot
+			fi
+
+			echo "_log it $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype option: $option"
+			echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable		# $mediatype option: $option"
+
+			_netfilter user_del "$mac" "$funcname"
+		} done >"/tmp/NETFILTER_AUTOADD"
+	}
+
+	_netfilter traffic_control_needed && {
+		_netfilter traffic_control_stop
+	}
+
+	_db backup "$funcname"
+
+	case "$option" in
+		'remember_over_reboot'|'ror')
+			# avoid writing an empty file
+			if grep -sq '# non_wifi' '/tmp/NETFILTER_AUTOADD' ; then
+				bool_true 'system.@weblogin[0].always_reachable' || {
+					grep '# non_wifi' '/tmp/NETFILTER_AUTOADD' >'/www/NETFILTER_AUTOADD'
+				}
+			else
+
+				rm '/www/NETFILTER_AUTOADD'
+			fi
+		;;
+	esac
+
+	_netfilter stop_all_tables
+	rm -fR "/tmp/NETFILTER" "/tmp/NETFILTER/isrunning_$funcname"
+	_netfilter ipforwarding_revert
+}
+
 
 _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 {
@@ -756,69 +820,6 @@ _netfilter_ipforwarding_revert()
 		echo "$state" >"$kernel"
 		rm "$file"
 	}
-}
-
-_netfilter_stop()
-{
-	local option="$1"	# string: remember_over_reboot = ror
-	local funcname='netfilter_stop'
-	local list_user="$( _netfilter user_list )"
-	local ip mediatype dev hash mac
-
-	[ -d '/tmp/NETFILTER' ] || return 0
-	mkdir "/tmp/NETFILTER/isrunning_$funcname" || return 0
-
-	[ -n "$list_user" ] && {
-		for mac in $list_user; do {
-			ip="$( _net mac2ip "$mac" )"
-			dev="$( _net mac2dev "$mac" )"
-
-			if _net dev_is_wifi "$dev"; then
-				_net both_ipv4_in_same_subnet "$ip/32" "$ROAMING_NET/$ROAMING_PRE" && {
-					_log it $funcname daemon debug "ignore roaming ip '$ip'"
-					continue
-				}
-
-				hash="$( _db hash "$mac" )"
-				if [ -n "$( _db user login query hash2id "$hash" )" ]; then
-					mediatype="DB: mac allowed # non_wifi"
-				else
-					mediatype='wifi'
-				fi
-			else
-				mediatype='non_wifi'	# keyword for keeping over reboot
-			fi
-
-			echo "_log it $funcname daemon info 'trying to check previously stopped user $mac'	# $mediatype option: $option"
-			echo "/etc/dhcp-script.d/10dhcpscript add '$mac' '$ip' check_if_reachable		# $mediatype option: $option"
-
-			_netfilter user_del "$mac" "$funcname"
-		} done >"/tmp/NETFILTER_AUTOADD"
-	}
-
-	_netfilter traffic_control_needed && {
-		_netfilter traffic_control_stop
-	}
-
-	_db backup "$funcname"
-
-	case "$option" in
-		'remember_over_reboot'|'ror')
-			# avoid writing an empty file
-			if grep -sq '# non_wifi' '/tmp/NETFILTER_AUTOADD' ; then
-				bool_true 'system.@weblogin[0].always_reachable' || {
-					grep '# non_wifi' '/tmp/NETFILTER_AUTOADD' >'/www/NETFILTER_AUTOADD'
-				}
-			else
-
-				rm '/www/NETFILTER_AUTOADD'
-			fi
-		;;
-	esac
-
-	_netfilter stop_all_tables
-	rm -fR "/tmp/NETFILTER" "/tmp/NETFILTER/isrunning_$funcname"
-	_netfilter ipforwarding_revert
 }
 
 _netfilter_stop_all_tables()
