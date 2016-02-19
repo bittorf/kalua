@@ -3226,13 +3226,22 @@ while [ -n "$1" ]; do {
 			STOP_PARSE='true'
 		;;
 		'--update')
+			ME="$0"
 			STOP_PARSE='true'
 			URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 
-			wget -O $0 "$URL" || {
+			CRC_OLD="$( md5sum "$ME" )"
+			if wget -O "$ME" "$URL"; then
+				CRC_NEW="$( md5sum "$ME" )"
+				if [ "$CRC_OLD" = "$CRC_NEW" ]; then
+					log '[OK] nothing changed'
+				else
+					log '[OK] new version installed'
+				fi
+			else
 				log "please run manually:"
 				log "wget --no-check-certificate -O $0 '$URL'"
-			}
+			fi
 		;;
 		'--travis_prepare')
 			travis_prepare || exit 1
