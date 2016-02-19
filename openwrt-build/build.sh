@@ -610,6 +610,12 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-x86-alix2-combined-squashfs.img'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
+		'MQmaker WiTi')
+			# https://wiki.openwrt.org/toh/mqmaker/witi
+			TARGET_SYMBOL='CONFIG_TARGET_mediatek_Default=y'
+			FILENAME_SYSUPGRADE='openwrt-mediatek-uImage'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
 		'Xiaomi Miwifi mini')
 			# https://wiki.openwrt.org/toh/xiaomi/mini
 			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y'
