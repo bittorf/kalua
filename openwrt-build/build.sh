@@ -612,8 +612,8 @@ EOF
 		;;
 		'MQmaker WiTi')
 			# https://wiki.openwrt.org/toh/mqmaker/witi
-			TARGET_SYMBOL='CONFIG_TARGET_mediatek_Default=y'
-			FILENAME_SYSUPGRADE='openwrt-mediatek-uImage'
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-witi-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
 		'Xiaomi Miwifi mini')
