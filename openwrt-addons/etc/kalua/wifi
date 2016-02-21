@@ -76,7 +76,7 @@ _wifi_dev2freq()	# TODO: code duplication with wifi_channel()
 {
 	local dev="$1"
 	local freq=0
-	local channel
+	local channel basefreq
 
 	_net dev_is_wifi "$dev" && {
 		# old, e.g. r30823 / iw v3.3
@@ -93,10 +93,16 @@ _wifi_dev2freq()	# TODO: code duplication with wifi_channel()
 				freq="${freq#*(}"
 			;;
 			*)
-				# FIXME! calc freq for 5ghz
-				# fallback for 2.4ghz channel 1-13
-				channel="$( uci get wireless.radio0.channel )" || channel=0
-				freq=$(( 2407 + (5 * channel) ))
+				channel="$( uci -q get wireless.radio0.channel )" || channel=0
+
+				# https://en.wikipedia.org/wiki/List_of_WLAN_channels
+				if [ $channel -lt 3000 ]; then
+					basefreq=2407	# 2.4ghz works for channel 1-13
+				else
+					basefreq=5000	# 5ghz - works for channel 7...165
+				fi			# TODO: fix channel 183...196
+
+				freq=$(( basefreq + (5 * channel) ))
 			;;
 		esac
 	}
