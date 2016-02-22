@@ -890,6 +890,7 @@ _net_text2port()
 
 _net_refresh_dnshosts()		# this is mostly for getting recent values from nameservice-plugin of olsr
 {
+	local funcname='net_refresh_dnshosts'
 	local pid cmdline line
 	local list_pids="$( pidof dnsmasq )"
 
@@ -911,6 +912,7 @@ _net_refresh_dnshosts()		# this is mostly for getting recent values from nameser
 							# which has PPid = 1
 							if [ "$2" = '1' ]; then
 								# logging stats
+								_log it $funcname daemon info "sending SIGUSR1 and HUP to $pid/nobody"
 								kill -SIGUSR1 $pid
 								# rereads /etc/hosts + /etc/ethers + /var/run/hosts_olsr
 								# and calls dhcp_old via dhcp-script
@@ -955,8 +957,9 @@ _net_dhcp_lease_show()
 
 _net_dhcp_lease_remove()
 {
+	local funcname='net_dhcp_lease_remove'
 	local mac="$1"
-	local line
+	local line pid
 	local dhcp_lease_file="$( _net dhcp_lease_filename )"
 	local tempfile="/tmp/dhcp_leases_$$"
 
@@ -975,7 +978,10 @@ _net_dhcp_lease_remove()
 
 	mv "$tempfile" "$dhcp_lease_file"
 
-	kill -SIGUSR1 $( _system get_first_pid dnsmasq )	# logging stats
+	pid="$( _system get_first_pid dnsmasq )"
+	_log it $funcname daemon info "sending SIGUSR1 to pid $pid"
+	kill -SIGUSR1 $pid	# stats to syslog
+
 	echo >>$SCHEDULER '/etc/init.d/dnsmasq restart'
 }
 
