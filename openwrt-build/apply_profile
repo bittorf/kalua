@@ -31,10 +31,12 @@ call()
 	[ -e '/tmp/loader' ] && {			# router is not virgin (so: re-apply config)
 		. /tmp/loader
 
-		[ -n "$LOWMEM" ] && {
+		if [ -n "$LOWMEM" ]; then
 			services_stopmost
 			wait_till_load_settles
-		}
+		else
+			logread >>/tmp/syslog.debug.txt
+		fi
 	}
 
 	while [ $max_try -gt 0 ]; do {
@@ -62,12 +64,14 @@ call()
 	# fallback if anything fails
 	[ $max_try -eq 0 ] && "$ME.code" liszt28 ap "${random_nodenumber:-99}" dhcp
 
-	services_refire
+	[ -z "$LOWMEM" ] && services_refire
 	led_firework
 }
 
 services_refire()
 {
+	logread >>/tmp/syslog.debug.txt
+
 	. /tmp/loader		# in case not loaded yet
 	_ rebuild; unset -f _
 	. /tmp/loader
