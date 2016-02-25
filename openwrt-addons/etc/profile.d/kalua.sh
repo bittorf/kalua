@@ -11,8 +11,17 @@ alias flush='_system ram_free flush'
 alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
 alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
 
+case "$( cat /proc/loadavg )" in
+	'0'*)
+	;;
+	*)
+		echo "[ATT] high load: $( uptime )"
+	;;
+esac
+
 case "$USER" in
 	'root'|'')
+		# FIXME! needs 'mkpasswd'
 		grep -qs ^"root:\$1\$b6usD77Q\$XPs6VECsQzFy9TUuQUAHW1:" '/etc/shadow' && {
 			echo "[ERROR] change weak password ('admin') with 'passwd'"
 		}
