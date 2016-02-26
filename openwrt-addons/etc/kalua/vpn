@@ -542,17 +542,17 @@ _vpn_tapdev_has_probs()
 	local dev="$1"
 	local ip_server="$( _ipsystem getvar 'WIFIVPNSERVERADR' )"
 
-	if ip -family inet6 address show dev "$dev" | grep -qv 'inet6 fe80::'; then
+	ip -family inet6 address show dev "$dev" | grep -q 'inet6 ' || {
 		_log it $funcname daemon info "[ERR] IPv6 linklocal on dev '$dev' is not up"
 		return 0
+	}
+
+	if _net ping_getlatency "$ip_server"; then
+		_vpn hideandseek_user_add 'setup_default_route'
+		return 1
 	else
-		if _net ping_getlatency "$ip_server"; then
-			_vpn hideandseek_user_add 'setup_default_route'
-			return 1
-		else
-			_log it $funcname daemon info "[ERR] no/bad ping to '$ip_server'"
-			return 0
-		fi
+		_log it $funcname daemon info "[ERR] no/bad ping to '$ip_server'"
+		return 0
 	fi
 }
 
