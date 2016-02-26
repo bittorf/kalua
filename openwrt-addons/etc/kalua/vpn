@@ -536,6 +536,26 @@ _vpn_hideandseek_vtund()
 	esac
 }
 
+_vpn_tapdev_has_probs()
+{
+	local funcname='vpn_tapdev_has_probs'
+	local dev="$1"
+	local ip_server="$( _ipsystem getvar 'WIFIVPNSERVERADR' )"
+
+	if ip -family inet6 address show dev "$dev" | grep -qv 'inet6 fe80::'; then
+		_log it $funcname daemon info "[ERR] IPv6 linklocal on dev '$dev' is not up"
+		return 0
+	else
+		if _net ping_getlatency "$ip_server"; then
+			_vpn hideandseek_user_add 'setup_default_route'
+			return 1
+		else
+			_log it $funcname daemon info "[ERR] no/bad ping to '$ip_server'"
+			return 0
+		fi
+	fi
+}
+
 _vpn_check_daemon()		# TODO: needs better name: it's for 'hideandseek'
 {
 	# TODO: use a function and more varnames
@@ -544,23 +564,6 @@ _vpn_check_daemon()		# TODO: needs better name: it's for 'hideandseek'
 	if pidof vtund >/dev/null; then
 		logread >'/tmp/logread.out'
 
-		dev_has_probs()
-		{
-			local dev="$1"
-			local ip_server="$( _ipsystem getvar 'WIFIVPNSERVERADR' )"
-
-			if ip -family inet6 address show dev "$dev" | grep -qv 'inet6 fe80::'; then
-				# IPv6 linklocal is not up!
-				return 0
-			else
-				if _net ping_getlatency "$ip_server"; then
-					_vpn hideandseek_user_add 'setup_default_route'
-					return 1
-				else
-					return 0
-				fi
-			fi
-		}
 
 		restart_vtund()
 		{
@@ -587,7 +590,7 @@ _vpn_check_daemon()		# TODO: needs better name: it's for 'hideandseek'
 		# vtund[22585]: Session voip-n2[84.184.146.131] closed
 		# vtund[22989]: Session voip-n2[84.184.146.131] opened
 
-		if   dev_has_probs 'tap0'; then
+		if   _vpn tapdev_has_probs 'tap0'; then
 			restart_vtund 'dev is not fully up'
 		elif grep -q 'Connection timed out' '/tmp/logread.out'; then
 			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | fgrep -c 'Connection timed out' '/tmp/logread.out' ) -gt 5 ] && {
