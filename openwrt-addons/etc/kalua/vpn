@@ -537,19 +537,27 @@ _vpn_hideandseek_vtund()
 	esac
 }
 
-_vpn_check_daemon()		# TODO: needs better name:
+_vpn_check_daemon()		# TODO: needs better name: it's for 'hideandseek'
 {
-	# todo: use a function and more varnames
+	# TODO: use a function and more varnames
 	# maybe better?: grep "tap[0-9]:" /proc/net/dev -> _net dev_is_valid 'tapX'
+
 	if pidof vtund >/dev/null; then
 		logread >'/tmp/logread.out'
 
 		dev_has_probs()
 		{
-			if ip address show dev "$1" | grep -q 'inet6 '; then
+			local dev="$1"
+			local ip_server="$( _ipsystem getvar 'WIFIVPNSERVERADR' )"
+
+			if ip -family inet6 address show dev "$dev" | grep -q 'inet6 '; then
 				return 1
 			else
-				return 0
+				if _net ping_getlatency "$ip_server" 2>/dev/null >/dev/null; then
+					return 0
+				else
+					return 1
+				fi
 			fi
 		}
 
