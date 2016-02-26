@@ -339,22 +339,20 @@ _vpn_hideandseek_user_add()
 	local tunnel_dev='tap0'
 	local user_id markerfile special_table
 
-	case "$ip" in
-		'setup_default_route')
-			# is called from hotplug, when interface comes up:
+	grep -q ^"$table_id $table_name" '/etc/iproute2/rt_tables' || echo "$table_id $table_name" >>'/etc/iproute2/rt_tables'
 
+	case "$ip" in
+		'setup_default_route')	# called after first successful ping
 			bool_true 'system.@vpn[0].hideandseek_disabled' && return 0
 
-			grep -q ^"$table_id $table_name" '/etc/iproute2/rt_tables' || {
-				echo "$table_id $table_name" >>'/etc/iproute2/rt_tables'
-			}
-
-			ip rule show | grep -q ^'9999:' || {
+			if ip rule show | grep -q ^'9999:'; then
+				return 0
+			else
 				# for testing ICMP + faster DNS lookups
 				ip rule add from all to '8.8.8.8/32' lookup main prio 9999
 				# own generated traffic (e.g. monitoring dont through tunnel)
 				ip rule add from $WANADR lookup main prio 9999
-			}
+			fi
 
 			ip route add default via "$( _ipsystem getvar WIFIVPNSERVERADR )" dev "$tunnel_dev" table "$table_name"
 			ip route flush cache
@@ -554,6 +552,7 @@ _vpn_check_daemon()		# TODO: needs better name: it's for 'hideandseek'
 				return 1
 			else
 				if _net ping_getlatency "$ip_server" 2>/dev/null >/dev/null; then
+					_vpn hideandseek_user_add 'setup_default_route'
 					return 0
 				else
 					return 1
