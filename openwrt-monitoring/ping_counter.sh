@@ -14,6 +14,11 @@
 # pruefen wo ist welche IP: IP='1.2.3.4'
 # iptables -nxvL myping | while read LINE; do set -- $LINE; case "$3" in 'myping_'*) iptables -nxvL $3 | fgrep "$IP" && echo "$3" ;; esac; done
 #
+# pruefen von welchem router die IP kommt:
+# NETWORK=liszt28
+# for FILE in /var/www/networks/$NETWORK/meshrdf/recent/*; do F=$( basename $FILE); test ${#F} -eq 12 || continue; . $FILE; test "$IP" = "$PUBIP_REAL" && echo $FILE; done
+# davon wan-inet-offer zeigen: | while read L; do grep -q 'i0="[a-z]' "$L" && . $L && echo "$HOSTNAME = $L"; done
+#
 # entfernen mit:
 # iptables -D myping_ejbw-pbx -s "$IP" -j ACCEPT
 # besser:
