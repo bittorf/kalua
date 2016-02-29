@@ -720,7 +720,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 {
 	local funcname='watch_dns_resolution'
 	local testserver='intercity-vpn.de'	# FIXME! use a fallback list
-	local ip line pid pid_fakedns pid_parent pid_main script leases cmdline testdomain dump_core
+	local ip line pid pid_fakedns pid_parent pid_main script leases cmdline testdomain dump_core ip_nexthop
 
 	_system maintenance_window_active 'pppoe_reconnect' && return 0
 
@@ -823,9 +823,23 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 				killall udhcpd
 			}
 
+			_net local_inet_offer && {
+				ip_nexthop="$( ip route list exact '0.0.0.0/0' table main | head -n1 | cut -d' ' -f3 )"
+
+				_net ip4_is_private "$ip_nexthop" && {
+					# dont use local dnsmasq, but nexthop for resolving
+					# TODO: why is this needed? e.g. sven/frenze
+					{
+						echo "search $( uci get dhcp.@dnsmasq[0].domain || echo 'local' )"
+						echo "nameserver $ip_nexthop"
+					} >'/etc/resolv.conf'
+
+					_log it $funcname daemon info "hard switch to ip '$ip_nexthop' in /etc/resolv.conf"
+				}
+			}
+
 			/etc/init.d/dnsmasq restart
-			/etc/init.d/*fake_dns_server_fff+ remove_fake_dnsserver
-			sleep 3
+			# TODO: also restart fake-dnsserver?
 
 			_log it $funcname daemon alert "dnsmasq died, old PIDs: '$pid', restarted, PID now '$( pidof dnsmasq )'"
 			return 0

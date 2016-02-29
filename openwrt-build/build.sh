@@ -1782,6 +1782,11 @@ apply_patches()
 				grep -q ' a/svr-auth.c' "$1"
 			}
 
+			patch_for_fstools()
+			{
+				grep -q 'a/libfstools/' "$1"
+			}
+
 			if   patch_for_mac80211 "$file"; then
 				register_patch "$file"
 				cp -v "$file" 'package/kernel/mac80211/patches'
@@ -1802,6 +1807,11 @@ apply_patches()
 				register_patch "$file"
 				cp -v "$file" 'package/network/services/dropbear/patches'
 				log "dropbear: adding '$file'" gitadd "package/network/services/dropbear/patches/$( basename "$file" )"
+			elif patch_for_fstools "$file"; then
+				register_patch "$file"
+				mkdir -p 'package/system/fstools/patches'
+				cp -v "$file" 'package/system/fstools/patches'
+				log "fstools: adding '$file'" gitadd "package/system/fstools/patches/$( basename "$file" )"
 			elif patch_for_openwrt "$file"; then
 				if git apply --ignore-whitespace --check <"$file"; then
 					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
