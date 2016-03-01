@@ -1787,6 +1787,17 @@ apply_patches()
 				grep -q 'a/libfstools/' "$1"
 			}
 
+			patch_for_musl()
+			{
+				case "$1" in
+					*'-musl-'*)
+					;;
+					*)
+						return 1
+					;;
+				esac
+			}
+
 			if   patch_for_mac80211 "$file"; then
 				register_patch "$file"
 				cp -v "$file" 'package/kernel/mac80211/patches'
@@ -1812,6 +1823,11 @@ apply_patches()
 				mkdir -p 'package/system/fstools/patches'
 				cp -v "$file" 'package/system/fstools/patches'
 				log "fstools: adding '$file'" gitadd "package/system/fstools/patches/$( basename "$file" )"
+			elif patch_for_musl "$file"; then
+				register_patch "$file"
+				mkdir -p 'toolchain/musl/patches'
+				cp -v "$file" 'toolchain/musl/patches'
+				log "musl: adding '$file'" gitadd "toolchain/musl/patches/$( basename "$file" )"
 			elif patch_for_openwrt "$file"; then
 				if git apply --ignore-whitespace --check <"$file"; then
 					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
