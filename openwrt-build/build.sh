@@ -2354,6 +2354,8 @@ build_options_set()
 				apply_symbol 'CONFIG_USE_STRIP=y'			# Global build settings: Binary stripping method
 				apply_symbol 'CONFIG_USE_SSTRIP is not set'
 				apply_symbol 'CONFIG_STRIP_ARGS="--strip-all"'
+				# tcpdump
+				# screen?
 			;;
 			'revert'*|'revert12345')
 				local rev="$( echo "$1" | cut -d't' -f2 )"		# revert12345 -> 12345
