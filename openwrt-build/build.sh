@@ -723,6 +723,8 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_ARCHERC7=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-factory.bin"
+			# FIXME! OpenWrt-patch...
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_PACKAGE_kmod-ath10k=y"
 		;;
 		'Mercury MAC1200R')
 			# http://wiki.openwrt.org/toh/mercury/mac1200r
@@ -2255,6 +2257,7 @@ build_options_set()
 # since r48386 is 'uclient'	apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
 
 				$funcname subcall 'queryMII'
 				$funcname subcall 'iproute2'
@@ -2296,6 +2299,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
+				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
 
 				$funcname subcall 'queryMII'
 				$funcname subcall 'iproute2'
