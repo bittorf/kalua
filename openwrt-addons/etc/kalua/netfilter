@@ -940,14 +940,16 @@ _netfilter_portforwarding_request()
 	local ip="$1"
 	local mac="$2"
 	local host="$3"
+	local port_list="${4:-22 80 443 554}"	# ssh | http | https | rstp
 	local gateway port dynamic answer option
+
+	# e.g. '*' for <all>
 	dynamic="$( uci -q get system.@weblogin[0].dynamic_portfw )" || return 0
 
 	case "$mac" in
-		"${dynamic:-empty}"*)
-			# ssh | http | https | rstp
-			for port in 22 80 443 554; do {
-				nc 2>/dev/null "$ip" "$port" </dev/null && {
+		${dynamic:-empty}*)
+			for port in $port_list; do {
+				_net tcp_port_reachable "$ip" "$port" 2>/dev/null && {
 					read -r gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
 					option="portforwarding&CLIENT=$ip&PORT=$port&MAC=$mac&NAME=$host"
 					answer="$( _tool remote "$gateway" "$option" )"
