@@ -70,6 +70,27 @@ _cron_vpnserver()
 	esac
 }
 
+_cron_vpnserver_portfw()
+{
+	local node="$1"		# e.g. 612
+	local ip_client="$( _ipsystem getvar 'WIFIVPNCLIENTADR' "$node" )"
+	local line port_ext port_int
+
+	wget -qO - "http://$ip_client/cgi-bin-tool.sh?OPT=portforwarding_table" | while read -r line; do {
+		# e.g.: ### 612|'c8d3a357f76a') PORT=8293 ;; # client: 192.168.171.222 indev: eth1 mac/id: 00:40:ad:1e:24:ce port: 80 port_ext: 8293
+		case "$line" in
+			'### '*)
+				explode $line
+				port_int="${13}"
+				port_ext="${15}"
+				echo $IPT -t nat -I PREROUTING -p tcp --dport $port_ext -j DNAT --to-destination $ip_client:$port_int
+			;;
+		esac
+	} done
+
+	$IPT -t nat -I POSTROUTING -d $ip_client -j MASQUERADE
+}
+
 _cron_vpnserver_firstrun()
 {
 	# left from default init-script with dummy-config

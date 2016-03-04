@@ -976,7 +976,7 @@ _netfilter_portforwarding_add()
 	local uniq_id="$5"		# e.g. mac
 	local message="$6"		# e.g. node: 276 router: 10.63.21.65 hostname: ICS230
 	local file='/tmp/NETFILTER/portfw'
-	local marker infoline command date remote_nodeip remote_nodenumber remote_mac
+	local marker infoline command1 command2 date remote_nodeip remote_nodenumber remote_mac
 
 	[ -z "$incoming_dev" ] && return 1
 	# TODO: add autoreload without setting rules twice: -> stop/start
@@ -988,18 +988,21 @@ _netfilter_portforwarding_add()
 			return 0
 		;;
 		"$IPT "*)
-			command="$1"
+			command1="$1"
 			marker="# $2"	# ARG2 = description
 			infoline='# custom userdefined rule'
 		;;
 		*)
-			# in $command '-p $proto' is added later
+			# in $command1 '-p $proto' is added later
 
 			if _sanitizer run "$incoming_dev" ip4 check; then
 				# requests to external IP from internal network must also work
-				command="-t nat -I PREROUTING -d $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+				# command2 needed for portfw VPNSERVER -> internal devices
+				command1="-t nat -I PREROUTING -d $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+				command2="-t nat -I PREROUTING -d tap+          --dport $port_ext -j DNAT --to-destination $ip:$port"
 			else
-				command="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+				command1="-t nat -I PREROUTING -i $incoming_dev --dport $port_ext -j DNAT --to-destination $ip:$port"
+				command2="-t nat -I PREROUTING -i tap+          --dport $port_ext -j DNAT --to-destination $ip:$port"
 			fi
 
 			marker="# client: $ip indev: $incoming_dev mac/id: $uniq_id port: $port port_ext: $port_ext"
@@ -1015,18 +1018,22 @@ _netfilter_portforwarding_add()
 		echo >>"$file" "$marker"
 		echo >>"$file" "$infoline"
 
-		case "$command" in
+		case "$command1" in
 			"$IPT "*)
 				# custom userdefined rule
-				echo >>"$file" "$command"
-				$command
+				echo >>"$file" "$command1"
+				$command1
 			;;
 			*)
-				echo >>"$file" "$IPT -p tcp $command	# $date"
-				echo >>"$file" "$IPT -p udp $command	# $date"
+				echo >>"$file" "$IPT -p tcp $command1	# $date"
+				echo >>"$file" "$IPT -p udp $command1	# $date"
+				echo >>"$file" "$IPT -p tcp $command2	# $date"
+				echo >>"$file" "$IPT -p udp $command2	# $date"
 				echo >>"$file" "$IPT -t nat -I POSTROUTING -p tcp --dport $port -d $ip -j MASQUERADE"
-				$IPT -p tcp $command
-				$IPT -p udp $command
+				$IPT -p tcp $command1
+				$IPT -p udp $command1
+				$IPT -p tcp $command2
+				$IPT -p udp $command2
 				# otherwise it does not work from extern?
 				$IPT -t nat -I POSTROUTING -p tcp --dport $port -d $ip -j MASQUERADE
 
