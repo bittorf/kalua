@@ -49,6 +49,25 @@ _net_get_rxtx()
 		esac
 	} done <'/proc/net/dev'
 }
+
+_net_list_webservers()		# helper for extrawatt
+{
+	local funcname='net_list_webservers'
+	local pre="${1:-24}"		# FIXME! unused - http://stackoverflow.com/questions/16986879/bash-script-to-list-all-ips-in-prefix
+	local octet123="${WANNET%.*}"	# e.g. 192.168.178.0 -> 192.168.178
+	local range="$pre"
+	local ip port
+
+	range="$( seq 1 254 )"
+	for i in $range; do {
+		ip="$octet123.$i"
+
+		for port in 80 443; do {
+			_log it $funcname daemon info "scan '$ip' for port '$port'"
+			_net tcp_port_reachable "$ip" "$port" && echo "OK $ip"
+		} done
+	} done
+}
 					# http://stackoverflow.com/questions/81520/how-to-suppress-terminated-message-after-killing-in-bash
 _net_tcp_port_reachable()		# please call with 2>/dev/null otherwise you
 {					# always see the 'killed' message from background job
