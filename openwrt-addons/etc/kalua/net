@@ -50,21 +50,27 @@ _net_get_rxtx()
 	} done <'/proc/net/dev'
 }
 
-_net_list_webservers()		# helper for extrawatt
+_net_list_webservers()		# helper for extrawatt, needs ~26 mins for a /24
 {
 	local funcname='net_list_webservers'
-	local pre="${1:-24}"		# FIXME! unused - http://stackoverflow.com/questions/16986879/bash-script-to-list-all-ips-in-prefix
+	local pre="${1:-$WANPRE}"	# FIXME! unused - http://stackoverflow.com/questions/16986879/bash-script-to-list-all-ips-in-prefix
 	local octet123="${WANNET%.*}"	# e.g. 192.168.178.0 -> 192.168.178
 	local range="$pre"
-	local ip port
+	local ip port mac
 
-	range="$( seq 1 254 )"
+	name='extrawatt'
+	range="$( seq 1 254 )"	# FIXME!
+
 	for i in $range; do {
 		ip="$octet123.$i"
 
 		for port in 80 443; do {
 			_log it $funcname daemon info "scan '$ip' for port '$port'"
-			_net tcp_port_reachable "$ip" "$port" && echo "OK $ip"
+			_net tcp_port_reachable "$ip" "$port" && {
+				mac="$( _net ip2mac "$ip" )"
+				echo "OK $ip:$port"
+				_netfilter portforwarding_add "$WANDEV" "$mac-$port" "$port" "$ip_client" "$mac" "$name ip: $LANADR"
+			}
 		} done
 	} done
 }
