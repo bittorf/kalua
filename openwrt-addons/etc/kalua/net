@@ -50,16 +50,42 @@ _net_get_rxtx()
 	} done <'/proc/net/dev'
 }
 
+_net_sensor_type()
+{
+	local ip="$1"
+	local port="$2"
+	local proto='http'
+	local line url
+
+	case "$port" in
+		443)
+			proto='https'
+		;;
+	esac
+
+	url="$proto://$ip:$port"
+	line="$( wget -qO - "$url" | grep '<title>' )"
+	case "$line" in
+		*'>Sunny WebBox<'*)
+			echo 'Sunny WebBox'
+		;;
+		*)
+			echo "url: $url unknown: $line"
+		;;
+	esac
+}
+
 _net_list_webservers()		# helper for extrawatt, needs ~26 mins for a /24
 {
 	local funcname='net_list_webservers'
 	local pre="${1:-$WANPRE}"	# FIXME! unused - http://stackoverflow.com/questions/16986879/bash-script-to-list-all-ips-in-prefix
 	local octet123="${WANNET%.*}"	# e.g. 192.168.178.0 -> 192.168.178
 	local range="$pre"
-	local ip port mac
+	local ip port mac message sensor_type
 
 	name='extrawatt'
 	range="$( seq 1 254 )"	# FIXME!
+	echo "$( date ) - $octet123/$pre"
 
 	for i in $range; do {
 		ip="$octet123.$i"
@@ -68,11 +94,15 @@ _net_list_webservers()		# helper for extrawatt, needs ~26 mins for a /24
 			_log it $funcname daemon info "scan '$ip' for port '$port'"
 			_net tcp_port_reachable "$ip" "$port" && {
 				mac="$( _net ip2mac "$ip" )"
-				echo "OK $ip:$port"
-				_netfilter portforwarding_add "$WANDEV" "$mac-$port" "$port" "$ip_client" "$mac" "$name ip: $LANADR"
+				sensor_type="$( _net sensor_type "$ip" "$port" )"
+				message="$name ip: $LANADR type: $sensor_type"
+				echo "OK $ip:$port $message"
+				_netfilter portforwarding_add "$WANDEV" "$mac-$port" "$port" "$ip_client" "$mac" "$message"
 			}
 		} done
 	} done
+
+	echo "$( date ) - ready"
 }
 					# http://stackoverflow.com/questions/81520/how-to-suppress-terminated-message-after-killing-in-bash
 _net_tcp_port_reachable()		# please call with 2>/dev/null otherwise you
