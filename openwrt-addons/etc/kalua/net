@@ -69,9 +69,11 @@ _net_sensor_type()
 	case "$line" in
 		*'>Sunny WebBox<'*|*'>SMA Energy Meter<'*|*'>FRITZ!Box<'*|*'>Web Image Monitor<'*|\
 		*'>SMA .::. Power Reducer Box<'*|*'>Web Server<'*)
-			echo "$line" | cut -d'>' -f2 | cut -d'<' -f1
+			echo "$line" | sed -n 's|^.*<title>\(.*\)</title>.*|\1|p'
 		;;
 		*)
+			_log it $funcname daemon info "url1: $url unknown: '$line'"
+
 			url="$proto://$ip:$port/html/en/selectKind.html"
 			line="$( wget -qO - "$url" | grep '<title>' )"
 			case "$line" in
@@ -79,7 +81,7 @@ _net_sensor_type()
 					echo 'WebLog Pro Unlimited'
 				;;
 				*)
-					_log it $funcname daemon info "url: $url unknown: $line"
+					_log it $funcname daemon info "url2: $url unknown: '$line'"
 					return 1
 				;;
 			esac
@@ -112,10 +114,10 @@ _net_list_webservers()		# helper for extrawatt, needs ~26 mins for a /24
 			_net tcp_port_reachable "$ip" "$port" && {
 				sensor_type="$( _net sensor_type "$ip" "$port" )" || continue
 				mac="$( _net ip2mac "$ip" )"
-				message="$name ip: $LANADR type: $sensor_type"
+				message="$name ip: ${LANADR:-$WANADR} type: $sensor_type"
 				echo "OK $ip:$port $message"
 
-				_netfilter portforwarding_add "$WANDEV" "$mac-$port" "$port" "$ip_client" "$mac" "$message"
+				_netfilter portforwarding_add "$WANDEV" "$mac-$port" "$port" "$ip" "$mac" "$message"
 			}
 		} done
 	} done
