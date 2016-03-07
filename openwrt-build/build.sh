@@ -3205,14 +3205,16 @@ check_git_settings()
 {
 	local funcname='check_git_settings'
 
-	# TODO: only relevant, if we want to commit something? -> autocommits!
-	git config --global user.email >/dev/null || {
-		log "please set: git config --global user.email 'your@email.tld'"
+	[ -d ~/.git ] || mkdir ~/.git
+
+	# is relevant, if we commit something -> autocommits during build!
+	git config 'user.email' >/dev/null || {
+		log "please set: git config user.email 'your@email.tld'"
 		return 1
 	}
 
-	git config --global user.name  >/dev/null || {
-		log "please set: git config --global user.name 'Your Name'"
+	git config 'user.name'  >/dev/null || {
+		log "please set: git config user.name 'Your Name'"
 		return 1
 	}
 }
