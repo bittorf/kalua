@@ -65,8 +65,7 @@ htmlout_error_summary()
 		case "$NETWORK" in
 			dhsylt|elephant|ffweimar*|galerie|tkolleg|ffsundi|artotel|\
 			sachsenhausen|versiliawe|liszt28|zumnorde|tuberlin|preskil|\
-			versiliaje|gnm|hotello*|marinapark|vivaldi|satama|fparkssee|\
-			dhfleesensee|marinabh)
+			versiliaje|gnm|hotello*|marinapark|vivaldi|satama|fparkssee)
 #				log "summary: [OK] omitting network '$NETWORK' for error-summary"
 				continue
 			;;
@@ -165,7 +164,7 @@ ignore_network()
 	case "$network" in
 		zumnorde|artotel|fparkssee|satama|marinapark|ffsundi|ffleipzig|\
 		sachsenhausen|hotello-*|olympia|dhsylt|cupandcoffee|elephant|\
-		galerie|preskil|tuberlin|vivaldi)
+		galerie|preskil|tuberlin|vivaldi|boltenhagendh|ibfleesensee|dhfleesensee)
 			log "[OK] ignoring call for '$network'"
 			return 0
 		;;

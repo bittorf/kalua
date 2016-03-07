@@ -18,7 +18,6 @@ tunnel_is_running()
 	local pid line
 
 	for pid in $( pidof dbclient ); do {
-
 		# dbclient-y-I600-K300-f-N-R8080:localhost:80-p22root@intercity-vpn.de-i/etc/dropbear/dropbear_dss_host_key
 		read -r line <"/proc/$pid/cmdline"
 
@@ -38,31 +37,31 @@ fire_tunnel()
 	local funcname='fire_tunnel'
 	local port_here="$1"
 	local port_server="$2"
-	local type="$3"		# message = ssh | http
+	local service="$3"	# message = ssh | http
 	local maxtry="${4:-25}"
-
+	local pids
 	local user='root'
 	local server="$( _http url_get_serverstring "$( uci get system.@monitoring[0].url )" )"
 	local try=0
 	local keyfile="$( _ssh key_public_fingerprint_get keyfilename )"
 
-	_log it reverse_sshtunnel daemon debug "[START] on local port $port_here and server port $port_server type '$type'"
+	_log it $funcname daemon debug "[START] local port $port_here server port $port_server service '$service'"
 
 	while [ $try -lt $maxtry ]; do {
 		dbclient -y -I 600 -K 300 -f -N \
 			 -R $port_server:localhost:$port_here \
 			 -p 22 ${user}@${server} -i "$keyfile" && break
 
-		_log sleep "$funcname() [ERR] try/max: $try/$maxtry to $server" 10 step 1
+		_log sleep "$funcname() [ERR] try/max: $try/$maxtry to $server" 10 step 5
 		try=$(( try + 1 ))
 	} done
 
-	[ $try -eq $maxtry ] && _log it $funcname daemon alert "[ERR] abort after $try retries for type $type"
+	[ $try -eq $maxtry ] && _log it $funcname daemon alert "[ERR] abort after $try retries for service '$service'"
 
-	if pidof dbclient >/dev/null; then
-		_log it reverse_sshtunnel daemon info "[OK] pid: '$( pidof dbclient )' on local port $port_server"
+	if pids="$( pidof dbclient )"; then
+		_log it $funcname daemon info "[OK] pid: '$pids' on local port $port_server"
 	else
-		_log it reverse_sshtunnel daemon alert "[ERR] could not startup on local port $port_server"
+		_log it $funcname daemon alert "[ERR] could not startup on local port $port_server"
 		return 1
 	fi
 }
@@ -70,23 +69,22 @@ fire_tunnel()
 for LOCAL_PORT in $PORTS; do {
 	case "$LOCAL_PORT" in
 		22)
-			[ "$ARG1" = 'no_check_ssh' ] || _watch sshd_or_telnet
-
 			tunnel_is_running "$LOCAL_PORT" || {
-				[ -e '/tmp/service_ssh_nowatching' ] && {
-					rm '/tmp/service_ssh_nowatching'
-				}
+				[ -e '/tmp/service_ssh_nowatching' ] && rm '/tmp/service_ssh_nowatching'
+				[ "$ARG1" = 'no_check_ssh' ] || _watch sshd_or_telnet
 
-				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )" 'ssh' || {
+				REMOTE_PORT="$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}" )"
+				fire_tunnel "$LOCAL_PORT" "$REMOTE_PORT" 'ssh' || {
 					echo >>$SCHEDULER "$0 $*"
 				}
 			}
 		;;
 		80)
-			_watch webserver
-
 			tunnel_is_running "$LOCAL_PORT" || {
-				fire_tunnel "$LOCAL_PORT" "$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}HTTP" )" 'http' || {
+				_watch webserver
+
+				REMOTE_PORT="$( _net text2port "${CONFIG_PROFILE}${HOSTNAME}HTTP" )"
+				fire_tunnel "$LOCAL_PORT" "$REMOTE_PORT" 'http' || {
 					echo >>$SCHEDULER "$0 $*"
 				}
 			}
