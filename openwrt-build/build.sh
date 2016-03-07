@@ -2423,7 +2423,7 @@ build_options_set()
 						[ "$1" = 'query_miitool' ] && NEEDS_MII='true'
 					}		# parser_ignore
 
-					_switch_show
+					_switch_show	# TODO: fake _log()?
 
 					if [ -n "$NEEDS_MII" ]; then
 						# before r45995 it was: CONFIG_PACKAGE_mii-tool=y but 'musl' broke it - fixed with xy!
@@ -3433,10 +3433,10 @@ die_and_exit()
 # http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-5.1/man1/whoami.1?query=whoami&sec=1&manpath=OpenBSD-5%2e1
 [ "$( id -u )" = '0' ] && log "REMINDER: dont build as root, you have UID: $UID"
 
-check_git_settings			|| die_and_exit
 check_working_directory			|| die_and_exit
 openwrt_download 'reset_autocommits'
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
+check_git_settings			|| die_and_exit
 feeds_adjust_version "$FEEDSTIME"
 
 [ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
