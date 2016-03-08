@@ -1535,7 +1535,7 @@ copy_firmware_files()
 # profile=	liszt28.hybrid.4			// optional
 # option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
-	[ $OPENWRT_VERSION -ge 48767 ] && {	# https://dev.openwrt.org/changeset/48767
+	[ $VERSION_OPENWRT -ge 48767 ] && {	# https://dev.openwrt.org/changeset/48767
 		case "$FILENAME_FACTORY" in
 			*[0-9]'nd'|*[0-9]'n')
 				log "[OK] fixup filename '$FILENAME_FACTORY'"
@@ -3309,7 +3309,7 @@ while [ -n "$1" ]; do {
 					rm "$ME.tmp"
 					log '[OK] nothing changed'
 				else
-					mv "$ME.tmp" "$ME"
+					mv "$ME.tmp" "$ME" && chmod +x "$ME"
 					log '[OK] new version installed'
 				fi
 			else
