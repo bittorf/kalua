@@ -178,8 +178,16 @@ autocommit()
 		filetype="$( test -d "$gitfile" && echo 'directory' || echo 'file' )"
 	else
 		eval $gitfile || {
+			case "$gitfile" in
+				*'git revert '*)
+					log "[ERR] command failed: eval $gitfile - ignoring it"
+					return 0
+				;;
+			esac
+
 			log "[ERR] command failed: eval $gitfile"
 			# workaround for a conflicting merge/revert
+
 			git status | grep 'both modified:' | while read -r line; do {
 				# e.g.: #  both modified:  package/network/services/dropbear/Makefile
 				set -- $line
@@ -612,7 +620,7 @@ EOF
 		;;
 		'MQmaker WiTi')
 			# https://wiki.openwrt.org/toh/mqmaker/witi
-			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621=y'
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_witi=y'
 			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-witi-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
@@ -2288,6 +2296,7 @@ build_options_set()
 				apply_symbol 'CONFIG_DROPBEAR_CURVE25519 is not set'	# default since r48196 -> saves 40k
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
+# CONFIG_PACKAGE_iptables-mod-conntrack-extra=y
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...

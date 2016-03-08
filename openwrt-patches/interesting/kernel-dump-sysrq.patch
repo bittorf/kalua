@@ -1,0 +1,41 @@
+Index: linux-4.4.4/init/main.c
+===================================================================
+--- linux-4.4.4.orig/init/main.c	2016-03-07 10:00:48.000000000 +0100
++++ linux-4.4.4/init/main.c	2016-03-07 11:41:36.000000000 +0100
+@@ -81,6 +81,7 @@
+ #include <linux/integrity.h>
+ #include <linux/proc_ns.h>
+ #include <linux/io.h>
++#include <linux/sysrq.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -953,6 +954,19 @@ static int try_to_run_init_process(const
+ 
+ static noinline void __init kernel_init_freeable(void);
+ 
++static void delayed_sysrq_work(struct work_struct *work)
++{
++	handle_sysrq('t');
++}
++
++static void init_delayed_sysrq(void)
++{
++	static struct delayed_work work;
++
++	INIT_DELAYED_WORK(&work, delayed_sysrq_work);
++	schedule_delayed_work(&work, 20 * HZ);
++}
++
+ static int __ref kernel_init(void *unused)
+ {
+ 	int ret;
+@@ -967,6 +981,8 @@ static int __ref kernel_init(void *unuse
+ 
+ 	flush_delayed_fput();
+ 
++	init_delayed_sysrq();
++
+ 	if (ramdisk_execute_command) {
+ 		ret = run_init_process(ramdisk_execute_command);
+ 		if (!ret)
