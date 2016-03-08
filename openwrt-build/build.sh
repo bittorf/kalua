@@ -180,7 +180,7 @@ autocommit()
 		eval $gitfile || {
 			case "$gitfile" in
 				*'git revert '*)
-					log "[ERR] command failed: eval $gitfile - ignoring it"
+					log "[ERR] command failed (but ignoring it): eval $gitfile"
 					return 0
 				;;
 			esac
@@ -1535,6 +1535,22 @@ copy_firmware_files()
 # profile=	liszt28.hybrid.4			// optional
 # option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
+	[ $OPENWRT_VERSION -ge 48767 ] && {	# https://dev.openwrt.org/changeset/48767
+		case "$FILENAME_FACTORY" in
+			*[0-9]'nd'|*[0-9]'n')
+				log "[OK] fixup filename '$FILENAME_FACTORY'"
+				FILENAME_FACTORY="$( echo "$FILENAME_FACTORY" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
+			;;
+		esac
+
+		case "$FILENAME_SYSUPGRADE" in
+			*[0-9]'nd'|*[0-9]'n')
+				log "[OK] fixup filename '$FILENAME_SYSUPGRADE'"
+				FILENAME_FACTORY="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
+			;;
+		esac
+	}
+
 	if [ -n "$CONFIG_PROFILE" ]; then
 		file="bin/$ARCH_MAIN/$FILENAME_FACTORY"
 	else
@@ -2254,6 +2270,7 @@ build_options_set()
 				apply_symbol 'CONFIG_DROPBEAR_CURVE25519=y'		# default since r48196 -> adds 40k
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
+				apply_symbol 'CONFIG_PACKAGE_iptables-mod-conntrack-extra=y'	# +100k?
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
@@ -2296,7 +2313,7 @@ build_options_set()
 				apply_symbol 'CONFIG_DROPBEAR_CURVE25519 is not set'	# default since r48196 -> saves 40k
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
-# CONFIG_PACKAGE_iptables-mod-conntrack-extra=y
+#				apply_symbol 'CONFIG_PACKAGE_iptables-mod-conntrack-extra=y'	# +100k?
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
 #				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
@@ -3286,16 +3303,18 @@ while [ -n "$1" ]; do {
 			URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 
 			CRC_OLD="$( md5sum "$ME" )"
-			if wget -O "$ME" "$URL"; then
-				CRC_NEW="$( md5sum "$ME" )"
+			if wget -O "$ME.tmp" "$URL"; then
+				CRC_NEW="$( md5sum "$ME.tmp" )"
 				if [ "$CRC_OLD" = "$CRC_NEW" ]; then
+					rm "$ME.tmp"
 					log '[OK] nothing changed'
 				else
+					mv "$ME.tmp" "$ME"
 					log '[OK] new version installed'
 				fi
 			else
 				log "please run manually:"
-				log "wget --no-check-certificate -O $0 '$URL'"
+				log "wget --no-check-certificate -O '$ME' '$URL'"
 			fi
 		;;
 		'--travis_prepare')
