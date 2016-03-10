@@ -62,10 +62,11 @@ htmlout_error_summary()
 		NETWORK="$( echo "$NET" | cut -d'/' -f5 )"	# e.g. elephant
 		HTML_INDEX="/var/www/networks/$NETWORK/index.html"
 
+		# TODO: use ignore_network() ?
 		case "$NETWORK" in
 			dhsylt|elephant|ffweimar*|galerie|tkolleg|ffsundi|artotel|\
 			sachsenhausen|versiliawe|liszt28|zumnorde|tuberlin|preskil|\
-			versiliaje|gnm|hotello*|marinapark|vivaldi|satama|fparkssee)
+			versiliaje|gnm|hotello*|marinapark|vivaldi|satama|fparkssee|dhfleesensee|boltenhagendh)
 #				log "summary: [OK] omitting network '$NETWORK' for error-summary"
 				continue
 			;;
