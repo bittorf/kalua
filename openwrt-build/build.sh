@@ -2468,9 +2468,23 @@ build_options_set()
 				log "fooling profile to 4mb size" gitadd 'target/linux/ar71xx/image/Makefile'
 				sed -i 's|(Device\/tplink-8m)|(Device\/tplink-4m)|g' 'target/linux/ar71xx/image/Makefile'
 			;;
+			'3G')
+				# comgt + QMI
+			;;
+			'comgt')
+				# https://wiki.openwrt.org/doc/recipes/3gdongle
+				# comgt
+				# kmod-usb-serial
+				# kmod-usb-serial-option
+				# kmod-usb-serial-wwan
+				# kmod-usb-acm
+				# usb-modeswitch
+				# usb-modeswitch-data
+			;;
 			'QMI')
 				# http://wiki.openwrt.org/doc/recipes/ltedongle
 				# http://trac.gateworks.com/wiki/wireless/modem
+				# https://www.dd-wrt.com/wiki/index.php/3G_/_3.5G
 				apply_symbol 'CONFIG_PACKAGE_uqmi=y'
 				apply_symbol 'CONFIG_PACKAGE_usb-modeswitch=y'
 				$funcname subcall 'USBserial'

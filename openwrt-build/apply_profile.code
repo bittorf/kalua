@@ -78,6 +78,8 @@ jffs2_is_ready()
 		is_ok 'rootfs = ext-FS / UML'
 	elif grep -q "$pattern" "$DMESG"; then
 		is_ok 'found ready marker in klog'
+	elif grep -q ^'overlayfs:/overlay ' /proc/mounts; then
+		is_ok 'overlayfs mounted'
 	elif [ ! -e '/etc/init.d/apply_profile' ]; then
 		is_ok 'already applied profile, filesystem should be ok'
 	else
@@ -89,7 +91,7 @@ jffs2_is_ready()
 	if [ -e "$markerfile" ]; then
 		return 0
 	else
-		log "[ERR] $funcname() does not seems ready yet"
+		log "[ERR] $funcname() does not seems ready yet: $( uptime )"
 		return 1
 	fi
 }
@@ -1797,7 +1799,9 @@ EOF
 	}
 }
 
-[ -e "/etc/init.d/apply_profile" -a -n "$( uci changes )" ] && mv -f /tmp/.uci /tmp/.uci_inactiv
+[ -e "/etc/init.d/apply_profile" -a -n "$( uci changes )" ] && {
+	mv -f /tmp/.uci /tmp/.uci_inactiv
+}
 
 for SECTION in softwareinstall system mail wireless network dhcp olsrd sms polipo; do {
 	log "....working on section '$SECTION'"
@@ -1851,9 +1855,15 @@ jffs2_is_ready check && {
 	}
 }
 
-[ -d "/tmp/.uci_inactiv" ] && mv -f /tmp/.uci_inactiv /tmp/.uci
+[ -d "/tmp/.uci_inactiv" ] && {
+	# old uci changes
+	mv -f /tmp/.uci_inactiv /tmp/.uci
+}
 
-[ -e "/etc/init.d/apply_profile" ] && rm -f '/etc/init.d/apply_profile'
+# TODO: keep somehow, otherwise it's lost e.g. on jffs2-only or ext4
+[ -e "/etc/init.d/apply_profile" ] && {
+	rm -f '/etc/init.d/apply_profile'
+}
 
 sync
 echo
