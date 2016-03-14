@@ -2384,6 +2384,7 @@ build_options_set()
 				apply_symbol 'CONFIG_USE_STRIP=y'			# Global build settings: Binary stripping method
 				apply_symbol 'CONFIG_USE_SSTRIP is not set'
 				apply_symbol 'CONFIG_STRIP_ARGS="--strip-all"'
+				# CONFIG_PACKAGE_netdiscover=y
 				# tcpdump
 				# screen?
 			;;
