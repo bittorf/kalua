@@ -2469,23 +2469,30 @@ build_options_set()
 				log "fooling profile to 4mb size" gitadd 'target/linux/ar71xx/image/Makefile'
 				sed -i 's|(Device\/tplink-8m)|(Device\/tplink-4m)|g' 'target/linux/ar71xx/image/Makefile'
 			;;
-			'3G')
-				# comgt + QMI
+			'wwan')
+				# https://wiki.openwrt.org/doc/uci/network#protocol_wwan_usb_modems_autodetecting_above_protocols
+				$funcname subcall 'QMI'
+				$funcname subcall 'comgt'
 			;;
 			'comgt')
 				# https://wiki.openwrt.org/doc/recipes/3gdongle
-				# comgt
-				# kmod-usb-serial
-				# kmod-usb-serial-option
-				# kmod-usb-serial-wwan
-				# kmod-usb-acm
-				# usb-modeswitch
-				# usb-modeswitch-data
+				apply_symbol 'CONFIG_PACKAGE_comgt=y'
+				apply_symbol 'CONFIG_PACKAGE_comgt-directip=y'
+				apply_symbol 'CONFIG_PACKAGE_comgt-ncm=y'
+
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial-option=y'
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial-wwan=y'
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-acm=y'
 			;;
 			'QMI')
 				# http://wiki.openwrt.org/doc/recipes/ltedongle
 				# http://trac.gateworks.com/wiki/wireless/modem
 				# https://www.dd-wrt.com/wiki/index.php/3G_/_3.5G
+				#
+				# uqmi -d /dev/cdc-wdm0 --verify-pin1 $PIN
+				# uqmi -d /dev/cdc-wdm0 --get-data-status
+				# uqmi -d /dev/cdc-wdm0 --get-signal-info
+				# uqmi -d /dev/cdc-wdm0 --start-network $APN
 				apply_symbol 'CONFIG_PACKAGE_uqmi=y'
 				apply_symbol 'CONFIG_PACKAGE_usb-modeswitch=y'
 				$funcname subcall 'USBserial'
