@@ -2483,6 +2483,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial-option=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-serial-wwan=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-acm=y'
+
+				apply_symbol 'CONFIG_PACKAGE_sdparm=y'
 			;;
 			'QMI')
 				# http://wiki.openwrt.org/doc/recipes/ltedongle
