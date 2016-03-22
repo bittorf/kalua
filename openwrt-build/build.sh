@@ -3327,16 +3327,14 @@ while [ -n "$1" ]; do {
 			STOP_PARSE='true'
 			URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 
-			CRC_OLD="$( md5sum "$ME" )"
+			CRC_OLD="$( md5sum <"$ME" )"
 			if wget -O "$ME.tmp" "$URL"; then
-				CRC_NEW="$( md5sum "$ME.tmp" )"
+				CRC_NEW="$( md5sum <"$ME.tmp" )"
 				if [ "$CRC_OLD" = "$CRC_NEW" ]; then
 					rm "$ME.tmp"
 					log '[OK] nothing changed'
 				else
 					mv "$ME.tmp" "$ME" && chmod +x "$ME"
-					log "md5-old: '$CRC_OLD'"
-					log "md5-new: '$CRC_NEW'"
 					log '[OK] new version installed'
 				fi
 			else
