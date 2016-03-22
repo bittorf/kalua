@@ -208,7 +208,7 @@ autocommit: $message
 | $filetype: $gitfile $count
 
 # mimic OpenWrt-style: (is unrolled after clean build)
-git-svn-id: based_on_OpenWrt@$( echo "$VERSION_OPENWRT" | sed 's/r//' )" |
+git-svn-id: based_on_OpenWrt@$VERSION_OPENWRT_INTEGER" |
 	grep -v ^' create mode'
 }
 
@@ -451,7 +451,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 			search_and_replace "$file2" 'YYYY-MM-DD' "$COMPAT_WIRELESS_DATE"
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS_DATE for using all channels ('birdkiller-mode')" gitadd "$file2"
 
-			if [ $( echo "$VERSION_OPENWRT" | cut -b2- ) -lt 40293 ]; then
+			if [ $VERSION_OPENWRT_INTEGER -lt 40293 ]; then
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt"
 			else
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt-r40293++"
@@ -1336,8 +1336,8 @@ openwrt_download()
 
 	case "$wish" in
 		'leave_untouched')
-			# e.g. r12345
-			VERSION_OPENWRT="r$( openwrt_revision_number_get )"
+			VERSION_OPENWRT_INTEGER="$( openwrt_revision_number_get )"
+			VERSION_OPENWRT="r$VERSION_OPENWRT_INTEGER"
 		;;
 		'trunk')
 			$funcname 'switch_to_master'
@@ -1390,8 +1390,8 @@ openwrt_download()
 				}
 			}
 
-			# e.g. r12345
-			VERSION_OPENWRT="$wish"
+			VERSION_OPENWRT="$wish"			# e.g. r12345
+			VERSION_OPENWRT_INTEGER="${wish#*r}"	# e.g.  12345
 		;;
 		'reset_autocommits')
 			found_autocommit()
@@ -1427,7 +1427,8 @@ openwrt_download()
 				log "already at branch 'master" debug
 			fi
 
-			VERSION_OPENWRT="r$( openwrt_revision_number_get )"
+			VERSION_OPENWRT_INTEGER="$( openwrt_revision_number_get )"
+			VERSION_OPENWRT="r$VERSION_OPENWRT_INTEGER"
 
 			git stash list | grep -qv '() going to checkout ' && {
 				log "found openwrt-stash, ignore via press 'q'"
@@ -1535,7 +1536,7 @@ copy_firmware_files()
 # profile=	liszt28.hybrid.4			// optional
 # option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
-	[ $VERSION_OPENWRT -ge 48767 ] && {	# https://dev.openwrt.org/changeset/48767
+	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {	# https://dev.openwrt.org/changeset/48767
 		case "$FILENAME_FACTORY" in
 			*[0-9]'nd'|*[0-9]'n')
 				log "[OK] fixup filename '$FILENAME_FACTORY'"
@@ -3366,8 +3367,13 @@ while [ -n "$1" ]; do {
 		;;
 		'--openwrt')
 			case "$2" in
-				'trunk'|'10.03'|'12.09'|'14.07'|'15.05'|'r'[0-9]*)
+				'trunk'|'10.03'|'12.09'|'14.07'|'15.05')
 					VERSION_OPENWRT="$2"
+					VERSION_OPENWRT_INTEGER="1"	# so not error when used in calcs
+				;;
+				'r'[0-9]*)
+					VERSION_OPENWRT="$2"
+					VERSION_OPENWRT_INTEGER="${2#*r}"
 				;;
 				*)
 					log '[ERR] please specify: --openwrt trunk|12.09|14.07|15.05 or e.g. r12345'
