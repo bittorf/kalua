@@ -3335,6 +3335,8 @@ while [ -n "$1" ]; do {
 					log '[OK] nothing changed'
 				else
 					mv "$ME.tmp" "$ME" && chmod +x "$ME"
+					log "md5-old: '$CRC_OLD'"
+					log "md5-new: '$CRC_NEW'"
 					log '[OK] new version installed'
 				fi
 			else
