@@ -803,6 +803,12 @@ EOF
 #			FILENAME_SYSUPGRADE='openwrt-SPW500V-squashfs-cfe.bin'
 			FILENAME_FACTORY=
 		;;
+		'Linksys WRT1900AC v1')
+			# https://wiki.openwrt.org/toh/linksys/wrt1900ac
+			TARGET_SYMBOL="CONFIG_TARGET_mvebu_Caiman=y"
+			FILENAME_SYSUPGRADE='openwrt-mvebu-armada-385-linksys-caiman-squashfs-sysupgrade.tar'
+			FILENAME_FACTORY='openwrt-mvebu-armada-385-linksys-caiman-squashfs-factory.img'
+		;;
 		'Linksys WRT54G/GS/GL')
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_legacy_Broadcom-b43=y'
 			# image was 'openwrt-brcm47xx-squashfs.trx' in revision before r41530
