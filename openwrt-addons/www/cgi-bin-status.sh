@@ -689,6 +689,7 @@ cat <<EOF
    </li>
   </ul>
 
+  <pre>$( ps ax )</pre>
  </body>
 </html>
 EOF
