@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# see: /root/backup/ejbw/pbx/
+# cd /root/backup/ejbw/pbx/; for F in *.bin; do echo $F; lzma "$F"; done  # appends .lzma
+
 ARG="$1"		# BACKUPSERVER|checksize = special keyword
 ARG2="${2:-unknown}"	# e.g. 'satama' or 'ejbw-pbx...'
 
@@ -201,14 +204,14 @@ cd / || exit
 # full-backup only, if all (not a specific network) is done
 [ -e "/var/www/networks/$ARG2" ] || {
 	case "$ARG2" in
-		ejbw-pbx*)
+		'ejbw-pbx'*)
 			ARG2='ejbw-pbx'
 			TARFILE="/tmp/backup-server-ejbw_pbx-$( uname -n )-$( date +%Y%b%d_%H:%M ).tar.bz2"
-			if tar -cvjf "$TARFILE" /root/backup/ejbw/pbx ; then
+			if tar -cvjf "$TARFILE" '/root/backup/ejbw/pbx' ; then
 				echo "scp-ing tarfile $( ls -l $TARFILE ) to $ARG"
 
 				if scp $SCP_SPECIAL_OPTIONS -P $PORT "$TARFILE" $ARG ; then
-					rm /root/backup/ejbw/pbx/*
+					rm '/root/backup/ejbw/pbx/'*
 					rm "$TARFILE"
 				else
 					exit 1
