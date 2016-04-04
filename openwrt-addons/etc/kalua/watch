@@ -1225,6 +1225,8 @@ _watch_sshd_or_telnet()
 
 	restart_sshd()
 	{
+		_log it restart_sshd daemon alert "reason: $1"
+
 		# FIXME: how can this happen? (e.g. wagenplatz)
 		logread | fgrep 'authpriv.warn dropbear' | fgrep "User 'root' has blank password, rejected" && {
 			sh -c "echo admin; sleep 1; echo admin" | passwd
@@ -1260,19 +1262,19 @@ _watch_sshd_or_telnet()
 			return 0
 		else
 			_log it $funcname daemon alert "[ERR] $ssh_name seems to hang - restarting"
-			restart_sshd && return 0
+			restart_sshd 'hangs' && return 0
 		fi
 	else
 		if [ "$option" = 'force' ]; then
-			restart_sshd && return 0
+			restart_sshd 'force:nopid1' && return 0
 		else
 			if [ -x "/etc/rc.d/$ssh_name" ]; then	# oldstyle
-				restart_sshd && return 0
+				restart_sshd 'nopid2' && return 0
 			elif [ ! -e '/etc/rc.common' ]; then
 				# vpn-server?
 				return 0
 			elif . /etc/rc.common /etc/init.d/dropbear enabled; then
-				restart_sshd && return 0
+				restart_sshd 'nopid3'&& return 0
 			fi
 		fi
 	fi
