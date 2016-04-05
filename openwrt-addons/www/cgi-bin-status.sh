@@ -689,7 +689,7 @@ cat <<EOF
    </li>
   </ul>
 
-  <pre>$( ps ax )</pre>
+  <pre>$( test $OPENWRT_REV -eq 0 && ps ax )</pre>
  </body>
 </html>
 EOF

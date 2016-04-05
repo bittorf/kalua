@@ -2752,6 +2752,7 @@ build_options_set()
 			;;
 			### here starts all 'no'-thingys: remove stuff which is on by OpenWrt-default
 			'noSSH')
+				# be careful: failsafe-mode does not work without telnet (and no uhttpd)
 				apply_symbol 'CONFIG_PACKAGE_dropbear is not set'
 
 				# https://dev.openwrt.org/changeset/46809/trunk - (telnet removal)
