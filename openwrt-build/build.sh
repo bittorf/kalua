@@ -2579,6 +2579,9 @@ build_options_set()
 					;;	# parser_ignore
 				esac
 			;;
+			'screen')
+				apply_symbol 'PACKAGE_screen=y'
+			;;
 			'Arduino')
 				$funcname subcall 'USBserial'
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-acm=y'		# kernel-modules: USB-support
