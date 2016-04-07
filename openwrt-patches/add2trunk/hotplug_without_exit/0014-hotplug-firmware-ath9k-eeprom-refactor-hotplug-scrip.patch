@@ -1,0 +1,104 @@
+From 3646bf58be7fdd1e4b9ade8fe73e4d16f5c7b14a Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bittorf@bluebottle.com>
+Date: Sat, 16 May 2015 16:25:09 +0200
+Subject: [PATCH] hotplug: rework ar71xx-firmware hotplug-without-exit-patch
+
+
+Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
+---
+ .../etc/hotplug.d/firmware/10-ath9k-eeprom         |   50 ++++++++++----------
+ 1 file changed, 26 insertions(+), 24 deletions(-)
+
+diff --git a/target/linux/ar71xx/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom b/target/linux/ar71xx/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
+index b5f0588..c919db3 100644
+--- a/target/linux/ar71xx/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
++++ b/target/linux/ar71xx/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
+@@ -2,7 +2,7 @@
+ 
+ ath9k_eeprom_die() {
+ 	echo "ath9k eeprom: " "$*"
+-	exit 1
++	return 1
+ }
+ 
+ ath9k_eeprom_extract() {
+@@ -12,11 +12,15 @@ ath9k_eeprom_extract() {
+ 	local mtd
+ 
+ 	mtd=$(find_mtd_chardev $part)
+-	[ -n "$mtd" ] || \
++	[ -n "$mtd" ] || {
+ 		ath9k_eeprom_die "no mtd device found for partition $part"
++		return 1
++	}
+ 
+-	dd if=$mtd of=/lib/firmware/$FIRMWARE bs=1 skip=$offset count=$count 2>/dev/null || \
++	dd if=$mtd of=/lib/firmware/$FIRMWARE bs=1 skip=$offset count=$count 2>/dev/null || {
+ 		ath9k_eeprom_die "failed to extract from $mtd"
++		return 1
++	}
+ }
+ 
+ ath9k_patch_firmware_mac() {
+@@ -27,39 +31,37 @@ ath9k_patch_firmware_mac() {
+ 	macaddr_2bin $mac | dd of=/lib/firmware/$FIRMWARE conv=notrunc bs=1 seek=2 count=6
+ }
+ 
+-[ -e /lib/firmware/$FIRMWARE ] && exit 0
++[ -e /lib/firmware/$FIRMWARE ] && {
++	. /lib/ar71xx.sh
++	. /lib/functions.sh
++	. /lib/functions/system.sh
+ 
+-. /lib/ar71xx.sh
+-. /lib/functions.sh
+-. /lib/functions/system.sh
+-
+-board=$(ar71xx_board_name)
++	board=$(ar71xx_board_name)
++}
+ 
+ case "$FIRMWARE" in
+ "soc_wmac.eeprom")
+-	case $board in
+-	r6100 | \
+-	wndr3700v4 | \
+-	wndr4300)
+-		ath9k_eeprom_extract "caldata" 4096 2048
+-		ath9k_patch_firmware_mac $(mtd_get_mac_binary caldata 0)
+-		;;
++	case "$board" in
++	r6100|wndr3700v4|wndr4300)
++		ath9k_eeprom_extract "caldata" 4096 2048 && {
++			ath9k_patch_firmware_mac $(mtd_get_mac_binary caldata 0)
++		}
++	;;
+ 	*)
+ 		ath9k_eeprom_die "board $board is not supported yet"
+-		;;
++	;;
+ 	esac
+ 	;;
+-
+ "pci_wmac0.eeprom")
+ 	case $board in
+-	wndr3700v4 | \
+-	wndr4300)
+-		ath9k_eeprom_extract "caldata" 20480 2048
+-		ath9k_patch_firmware_mac $(mtd_get_mac_binary caldata 12)
+-		;;
++	wndr3700v4|wndr4300)
++		ath9k_eeprom_extract "caldata" 20480 2048 && {
++			ath9k_patch_firmware_mac $(mtd_get_mac_binary caldata 12)
++		}
++	;;
+ 	*)
+ 		ath9k_eeprom_die "board $board is not supported yet"
+-		;;
++	;;
+ 	esac
+ 	;;
+ esac
+-- 
+1.7.10.4
+

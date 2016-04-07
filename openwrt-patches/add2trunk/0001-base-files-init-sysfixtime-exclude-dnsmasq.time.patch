@@ -1,0 +1,64 @@
+From bbb6c6ad468eda61affd2135e534951059a6e736 Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bittorf@bluebottle.com>
+Date: Tue, 22 Sep 2015 19:43:11 +0200
+Subject: [PATCH v2] base-files: init/sysfixtime - exclude dnsmasq.time
+
+dnsmasq maintains dnsmasq.time across reboots and uses it as a means of
+determining if current time is good enough to validate dnssec time
+stamps.  By including /etc/dnsmasq.time as a time source for sysfixtime,
+the mechanism was effectively defeated because time was set to the last
+time that dnsmasq considered current even though that time is in
+the past.  Since that time is out of date, dns(sec) resolution would
+fail thus defeating any ntp based mechanisms for setting the clock
+correctly.
+
+In theory the process is defeated by any files in /etc that are newer
+than /etc/dnsmasq.time however dnsmasq now updates the file's timestamp
+on process TERM so hopefully /etc/dnsmasq.time is the latest file
+timestamp in /etc as part of openWrt shutdown/reboot.
+
+Either way, including /etc/dnsmasq.time as a time source for sysfixtime
+is not helpful.
+
+for safing time we dont read the filedate of every file,
+but only the newest in each subdirectory of /etc and sort them.
+this speeds up from 1.72 sec to 0.51 sec on my router.
+
+v1 - original concept from Kevin Darbyshire-Bryant <kevin@darbyshire-bryant.me.uk>
+v2 - speedup + update copyright date
+
+Signed-off-by: Bastian Bittorf <bittorf@bluebottle.com>
+---
+ package/base-files/files/etc/init.d/sysfixtime |   13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/package/base-files/files/etc/init.d/sysfixtime b/package/base-files/files/etc/init.d/sysfixtime
+index 4010e06..b3e3862 100755
+--- a/package/base-files/files/etc/init.d/sysfixtime
++++ b/package/base-files/files/etc/init.d/sysfixtime
+@@ -1,11 +1,20 @@
+ #!/bin/sh /etc/rc.common
+-# Copyright (C) 2013-2014 OpenWrt.org
++# Copyright (C) 2013-2015 OpenWrt.org
+ 
+ START=00
+ 
+ boot() {
+ 	local curtime="$(date +%s)"
+-	local maxtime="$(find /etc -type f -exec date -r {} +%s \; | sort -nr | head -n1)"
++	local maxtime="$(maxtime)"
++
+ 	[ $curtime -lt $maxtime ] && date -s @$maxtime
+ }
+ 
++maxtime() {
++	local dir file
++
++	find /etc -type d | while read -r dir; do
++		file="$dir/$( ls -1t "$dir" | head -n1 )"
++		[ -e "$file" -a "$file" != '/etc/dnsmasq.time' ] && date -r "$file" +%s
++	done | sort -nr | head -n1
++}
+-- 
+1.7.10.4
+

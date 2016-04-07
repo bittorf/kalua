@@ -99,8 +99,11 @@ mac2ipv4()	# TODO: better name
 							fi
 						}
 				elif _net both_ipv4_in_same_subnet "$ip/32" "$ROAMING_NET/$ROAMING_PRE"; then
-						log "$funcname($i) [SUCCESS] setting host route for alien $ip"
+						log "$funcname($i) is alien/global roamer: $ip"
+
 						if ip route add "$ip/32" dev $dev; then
+							log "$funcname($i) [SUCCESS] setting host route for alien $ip"
+
 							if _net local_inet_offer >/dev/null; then
 								# FIXME! e.g. giancarlo
 								command="NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
@@ -116,12 +119,16 @@ mac2ipv4()	# TODO: better name
 								echo "rm $file"
 							} >"$file"
 						else
-							# TODO: remove old route and try again? e.g. 'RTNETLINK answers: File exists'
-							_log it $funcname daemon alert "failed to add route for $ip / $dev"
-							continue
+							if ip route get "$ip/32" | fgrep -q " dev $dev "; then
+								log "$funcname($i) seems already added $ip"
+							else
+								# TODO: remove old route and try again? e.g. 'RTNETLINK answers: File exists'
+								log "$funcname($i) failed to add route for $ip / $dev" alert
+								continue
+							fi
 						fi
 				else
-						_log it $funcname daemon info "wrong IP: $mac/$ip"
+						log "$funcname($i) wrong IP: $mac/$ip"
 						continue
 				fi
 
@@ -260,7 +267,7 @@ stop()
 if   [ -n "$INCLUDE" ]; then
 	:
 elif [ -z "$( _wifi get any mode ap )" ]; then
-	_log it check_ap daemon info '[OK] exit, no wifi AP configured'
+	log '[OK] exit, no wifi AP configured'
 	INCLUDE='exit'
 else
 	# needed for SNAT later
@@ -333,7 +340,7 @@ fi
 
 	test $RC -eq 0 || {
 		[ "$( tail -n1 '/tmp/IWLOG' )" = 'stopped by user via regset' ] || {
-			_log it iwevent daemon alert "unexpected event loop exit, rc: $RC, duration: $DURATION sec"
+			log "unexpected event loop exit, rc: $RC, duration: $DURATION sec" alert
 		}
 	}
 

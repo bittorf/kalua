@@ -3377,7 +3377,7 @@ while [ -n "$1" ]; do {
 		;;
 		'--openwrt')
 			case "$2" in
-				'trunk'|'10.03'|'12.09'|'14.07'|'15.05')
+				'trunk'|'10.03'|'12.09'|'14.07'|'15.05')	# TODO: 15.05.1 ???
 					VERSION_OPENWRT="$2"
 					VERSION_OPENWRT_INTEGER="1"	# so not error when used in calcs
 				;;

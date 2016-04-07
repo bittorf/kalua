@@ -1,0 +1,240 @@
+#!/bin/sh
+. /tmp/loader
+
+netparam_device2preambel()
+{
+	local device="$1"
+	local preambel
+
+	case "$device" in
+		loopback)
+			preambel='LO'
+		;;
+		wlan)
+			preambel='WIFI'
+		;;
+		lan)
+			preambel='LAN'
+		;;
+		wan)
+			preambel='WAN'
+		;;
+	esac
+
+	echo "preambel=$preambel"
+}
+
+netparam_generate()
+{
+	local funcname='netparam_generate'
+	local preambel IFNAME ADDRESS NETMASK BROADCAST NETWORK PREFIX proto
+
+	for DEVICE in loopback wlan lan wan; do {
+		eval $( netparam_device2preambel "$DEVICE" )
+
+		IFNAME="$( uci -q get network.$DEVICE.ifname )"
+		[ "$DEVICE" = 'wlan' -a -e '/etc/config/wireless' ] && eval $( netparam_wifi )
+		ADDRESS="$( uci -q get network.$DEVICE.ipaddr  )"
+		NETMASK="$( uci -q get network.$DEVICE.netmask )"
+		proto="$(   uci -q get network.$DEVICE.proto )"
+
+		case "$proto" in
+			dhcp|pppoe)
+				[ "$proto" = 'pppoe' ] && IFNAME="pppoe-$DEVICE"
+				ADDRESS="$( _net dev2ip "$IFNAME" )"
+				NETMASK="$( _net dev2ip "$IFNAME" mask )"
+			;;
+		esac
+
+		case "$DEVICE" in
+			wlan)
+				bool_true 'wireless.radio0.disabled' && eval IFNAME=;ADDRESS=;NETMASK=
+			;;
+			lan)
+				test -z "$ADDRESS" && eval $( netparam_fallback )
+			;;
+		esac
+
+		_log it $funcname daemon info "device: $DEVICE preambel: $preambel ifname: $IFNAME"
+		BROADCAST=;NETWORK=;PREFIX=
+		[ -n "$ADDRESS" -a -n "$NETMASK" -a -e '/bin/ipcalc.sh' ] && eval $( ipcalc.sh "$ADDRESS" "$NETMASK" )
+
+		echo "${preambel}DEV=$( _sanitizer run "$IFNAME" firstword )"
+		echo "${preambel}ADR=$ADDRESS"
+		echo "${preambel}MSK=$NETMASK"
+		echo "${preambel}BRC=$BROADCAST"
+		echo "${preambel}NET=$NETWORK"
+		echo "${preambel}PRE=$PREFIX"
+	} done
+
+	show_wifi_devs
+}
+
+netparam_wifi()
+{
+	local DEVICE IFNAME
+
+	# make sure, that hybrid interfaces use the adhoc-interface
+	# for 'testing' in scheduler: incoming_wifi_activity()
+	# otherwise use the first interface
+	[ -e '/sbin/ifstatus' ] && {
+		if DEVICE="$( uci -q get system.@monitoring[0].wifi_netparam_name )"; then
+			:
+		else
+			DEVICE='wlanadhoc'
+		fi
+
+		if   fgrep -q "$DEVICE" '/etc/config/wireless'; then
+			# typical: wlan0-1
+			IFNAME="$( ifstatus "$DEVICE" | fgrep '"device":' | cut -d'"' -f4 )"
+		elif fgrep -q 'wlan' '/etc/config/wireless'; then
+			# typical: wlan0
+			DEVICE='wlan'
+			IFNAME="$( ifstatus "$DEVICE" | fgrep '"device":' | cut -d'"' -f4 )"
+		fi
+	}
+
+	[ -z "$IFNAME" ] && {
+		bool_true 'wireless.radio0.disabled' || {
+			# if we have only disabled all VIF's, there is also no wifi:
+			_net dev_is_valid 'wlan0' && IFNAME='wlan0'
+		}
+	}
+
+	echo "DEVICE=$DEVICE"
+	echo "IFNAME=$IFNAME"
+}
+
+netparam_fallback()
+{
+	# shellcheck disable=SC2119
+	local ifname="$( get_first_non_loopback_ifname )"
+	# e.g. vpn-server / without uci
+
+	cat <<EOF
+IFNAME="$ifname"
+ADDRESS="$( _net dev2ip "$ifname" 'ip_but_noloopback' )"
+NETMASK="$( _net dev2ip "$ifname" 'ip_but_noloopback' 'mask' )"
+PREFIX="$(  _net dev2ip "$ifname" 'ip_but_noloopback' 'CIDR' )"
+EOF
+}
+
+# shellcheck disable=SC2120
+get_first_non_loopback_ifname()
+{
+	local dev line
+
+	# shellcheck disable=SC2119
+	ip --oneline link show | while read -r line; do {
+		# 4: eth0.1@eth0: <BROADCAST,...
+		explode $line
+		dev="$2"
+
+		[ "$dev" = 'lo:' ] || {
+			# ignore e.g. 'eth0' if there is 'eth0.x@eth0'
+			ip --oneline link show | grep -q "@$dev <" && continue
+
+			# eth0.1@eth0: -> eth0.1
+			dev="${dev%:*}"
+			dev="${dev%@*}"
+			echo "$dev"
+
+			return
+		}
+	} done
+}
+
+show_wifi_devs()
+{
+	local list="$( list_wifi_devs )"
+	local ifname
+
+	if [ -n "$list" ]; then
+		# force to 1 line
+		echo "WIFI_DEVS='$( for ifname in $list; do printf '%s ' "$ifname"; done )'"
+	else
+		echo 'WIFI_DEVS='
+	fi
+
+	[ ! -e '/tmp/dmesg.boot' -a -e '/usr/sbin/cron.check_klog' ] && {
+		. /usr/sbin/cron.check_klog
+	}
+
+	fgrep -sq 'phy0: failed to initialize PHY' '/tmp/dmesg.boot' && {
+		echo 'WIFIDEV=	# failed to initialize PHY'
+	}
+}
+
+list_wifi_devs()
+{
+	local network_name list_wifi_names i
+
+	# shellcheck disable=SC2034
+	for i in 0 1 2 3 4 5 6 7; do {
+		list_wifi_names="$list_wifi_names $( uci -q get wireless.@wifi-iface[$i].network )"
+	} done
+
+	# for old firmwares
+	[ -e "/sbin/ifstatus" ] || {
+		[ -n "$list_wifi_names" ] && {
+			[ -e '/etc/config/wireless' ] && {
+				bool_true 'wireless.radio0.disabled' || echo 'wlan0'
+			}
+		}
+
+		return 0
+	}
+
+	# uci get wireless.@wifi-iface[0].device -> radio0
+	# uci get wireless.radio0.disabled -> 1?
+
+	for network_name in $list_wifi_names; do {
+		# can be:
+		# JSON: "device": "wlan0",
+		# or:
+		# Interface wlan0 not found
+		ifstatus "$network_name" | fgrep '"device":' | cut -d':' -f2 | cut -d'"' -f2
+	} done
+}
+
+if [ $( _system uptime sec ) -lt 60 -a $OPENWRT_REV -gt 0 ]; then
+	if [ -e "$PERMDIR/NETPARAM" ]; then
+		cp "$PERMDIR/NETPARAM" "$TMPDIR/NETPARAM"
+	else
+		sleep 30		# FIXME! 'ifstatus wlanadhoc' empty, needs about 18 sec till OK on 1043ND
+	fi
+else
+	HASH_OLD="$( _file hash "$TMPDIR/NETPARAM" )"
+	netparam_generate "$@" >"$TMPDIR/NETPARAM"
+
+	if [ -e "$PERMDIR/NETPARAM" ]; then
+		. "$TMPDIR/NETPARAM"
+
+		needs_newer_copy()
+		{
+			test "$( grep -s 'DEV=' "$PERMDIR/NETPARAM" )" != "$( grep -s 'DEV=' "$TMPDIR/NETPARAM" )"
+		}
+
+		needs_newer_copy && {
+			if [ -d "$PERMDIR" ]; then
+				_log it earlyboot_netparam daemon alert "changed values - updating '$PERMDIR/NETPARAM'"
+				cp "$TMPDIR/NETPARAM" "$PERMDIR/NETPARAM"
+			else
+				_log it earlyboot_netparam daemon info "changed values: cannot write to '$PERMDIR'"
+			fi
+		}
+	else
+		if [ -d "$PERMDIR" ]; then
+			_log it earlyboot_netparam daemon info "store initial version: WIFIDEV='$WIFIDEV'"
+			cp "$TMPDIR/NETPARAM" "$PERMDIR/NETPARAM"
+		else
+			_log it earlyboot_netparam daemon info "write initial version: cannot write to '$PERMDIR'"
+		fi
+	fi
+fi
+
+HASH_NEW="$( _file hash "$TMPDIR/NETPARAM" )"
+[ "$HASH_OLD" = "$HASH_NEW" ] || {
+	# rebuild loader / include new version of NETPARAM
+	_ rebuild
+}
