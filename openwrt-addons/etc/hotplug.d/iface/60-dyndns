@@ -2,20 +2,25 @@
 
 case "$ACTION" in
 	ifup)
+		[ -s '/tmp/loader' ] || . /etc/rc.common /etc/init.d/cron.user boot
+		[ -s '/tmp/loader' ] || /etc/kalua_init
+		. /tmp/loader
+		_system adjust_coredump
+
 		# see dnsmasq-magic below
-		[ -e '/etc/init.d/apply_profile' -a "$INTERFACE" = 'lan' ] && {
+		if [ -e '/etc/init.d/apply_profile' -a "$INTERFACE" = 'lan' ]; then
 			uci set dhcp.lan.ignore='1'
 			grep -sq ^'dhcp-range=lan,' '/var/etc/dnsmasq.conf' && {
 				/etc/init.d/dnsmasq restart
 				logger -s '[OK] no LAN-dhcp on virgin boots'
 			}
-		}
-
-		[ -s '/tmp/loader' ] || . /etc/rc.common /etc/init.d/cron.user boot
-		[ -s '/tmp/loader' ] || /etc/kalua_init
-		. /tmp/loader
-
-		_system adjust_coredump
+		else
+			# sometimes we see only 1 line:   # Interface cfg124d8f
+			grep -sqv ^'#' '/etc/resolv.conf' || {
+				_log it $ACTION.$INTERFACE daemon alert 'empty resolv.conf'
+				/etc/init.d/dnsmasq restart
+			}
+		fi
 
 		uci -q get network.$INTERFACE.dyndns >/dev/null && {
 			_curl it "$( uci -q get network.$INTERFACE.dyndns )"
