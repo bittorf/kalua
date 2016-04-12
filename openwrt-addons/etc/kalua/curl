@@ -19,7 +19,7 @@ _curl_it()
 	local errorfile="$TMPDIR/${funcname}_$mypid.error"
 	local rc_file="$TMPDIR/${funcname}_$mypid.rc"
 	local http_proxy remaining_wgets pid_wget pid_line pid_line_now c=-1 rc=0
-	local proxy_command file_option filename pid_background myerror destination
+	local proxy_command file_option filename pid_background myerror destination prio
 	local list_wget_pids_initial list_wget_pids_after_launch list_wget_pids_myself element
 
 	case "$url" in
@@ -192,12 +192,15 @@ _curl_it()
 	read -r rc 2>/dev/null <"$rc_file" && {
 		case "$url" in
 			*'cgi-bin-'*)
-				_log it $funcname daemon info  "[ERR] returning $rc after fetching '$url'"
+				prio='info'
 			;;
 			*)
-				_log it $funcname daemon alert "[ERR] returning $rc after fetching '$url'"
+				prio='alert'
+				[ $rc -eq 8 ] && prio='info'	# e.g. 404
 			;;
 		esac
+
+		_log it $funcname daemon $prio "[ERR] returning $rc after fetching '$url'"
 	}
 	rm "$rc_file" 2>/dev/null
 
