@@ -680,6 +680,7 @@ EOF
 		'TP-LINK TL-WR841N/ND v8'|'TP-LINK TL-WR841N/ND v9')
 			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
+			# TODO: name changed: openwrt-ar71xx-generic-tl-wr841-v8-squashfs-sysupgrade.bin
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841n-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841n-v${version}-squashfs-factory.bin"
 		;;
