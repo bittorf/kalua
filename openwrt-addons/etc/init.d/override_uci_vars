@@ -25,6 +25,21 @@ force_dnsserver()
 	}
 }
 
+uci_remove_section()
+{
+	local check_var="$1"	# e.g. network.@alias[].interface
+	local check_value="$2"	# e.g. loopback
+	local p1="$( echo "$check_var" | cut -d'[' -f1 )"
+	local p2="$( echo "$check_var" | cut -d']' -f2 )"
+
+	local i
+	for i in $( seq 15 -1 0 ); do {
+		while [ "$( uci -q get "${p1}[$i]${p2}" )" = "$check_value" ]; do {
+			uci delete "${p1}[$i]"
+		} done
+	} done
+}
+
 uci_already_added()
 {
 	local config="$1"	# e.g. network
@@ -53,6 +68,7 @@ apply_olsr_roaming()
 	[ -e "/lib/modules/$( uname -r )/macvlan.ko" ] || return 1
 	kmodule_force_activation 'macvlan'
 
+	uci_remove_section 'network.@alias[].interface' 'mastergate'
 	uci set network.mastergate='interface'			# here we collect all interfaces, see below
 	uci set network.mastergate.type='bridge'		# bridge needed for multiple interfaces
 	uci set network.mastergate.proto='static'		# list of ifnames is added below
@@ -123,14 +139,6 @@ apply_olsr_roaming()
 	}
 
 	config_add_alias 'mastergate' "$ROAMING_ADR_LOCAL/$ROAMING_PRE_LOCAL"
-
-	case "$HARDWARE" in
-		'Mercury MAC1200R')
-			# TODO: read valid interface combinations during ifup: (iw phy phy1 info)
-			# dirty hack: ath10k cannot do hybrid (ibss/ap mixed) mode:
-			_wifi set ap 5ghz disabled '1'
-		;;
-	esac
 
 	_wifi longshot_name >/dev/null || {		# TODO: hostapd: band-steering
 		_wifi set any 2ghz beacon_int '250'	# better powersafe and not too slow
@@ -694,37 +702,22 @@ boot()
 		fi
 	fi
 
-	remove_section()
-	{
-		local check_var="$1"	# e.g. network.@alias[].interface
-		local check_value="$2"	# e.g. loopback
-		local p1="$( echo "$check_var" | cut -d'[' -f1 )"
-		local p2="$( echo "$check_var" | cut -d']' -f2 )"
-
-		local i
-		for i in $( seq 15 -1 0 ); do {
-			while [ "$( uci -q get "${p1}[$i]${p2}" )" = "$check_value" ]; do {
-				uci delete "${p1}[$i]"
-			} done
-		} done
-	}
-
 	apply_cronwatchdog()	# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
 	{
-		remove_section "network.@alias[].interface" 'loopback'
+		uci_remove_section "network.@alias[].interface" 'loopback'
 		uci add network 'alias' >/dev/null
 		uci set network.@alias[-1].interface='loopback'
 		uci set network.@alias[-1].proto='dhcp'
 		uci set network.@alias[-1].defaultroute='0'	# dont apply default route
 		uci set network.@alias[-1].peerdns='0'		# and DNS
 
-		remove_section "dhcp.@host[].name" 'lo-alias'
+		uci_remove_section "dhcp.@host[].name" 'lo-alias'
 		uci add dhcp 'host' >/dev/null
 		uci set dhcp.@host[-1].ip='127.0.0.2'
 		uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
 		uci set dhcp.@host[-1].name='lo-alias'
 
-		remove_section "dhcp.@dhcp[].interface" 'loopback'
+		uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
 		uci add dhcp 'dhcp' >/dev/null
 		uci set dhcp.@dhcp[-1].interface='loopback'
 		uci set dhcp.@dhcp[-1].start='2'
