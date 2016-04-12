@@ -95,6 +95,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	local MODE="$1"		# can be a tar-file *OR* e.g. stable|beta|testing
 	local option="$2"	# e.g. force
 	local pwd="$( pwd )"
+	local storage_border=128	# TODO: we should distinguish between 1st and later updates
 
 	# TODO: bool_true 'system.@system[0].noswinstall'
 
@@ -112,7 +113,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 		esac
 	}
 
-	[ $( _system flash_free ) -lt 128 -a "$option" != 'force' ] && MODE='low_flash'
+	[ $( _system flash_free ) -lt $storage_border -a "$option" != 'force' ] && MODE='low_flash'
 
 	case "$MODE" in
 		'stable'|'beta'|'testing')
@@ -215,7 +216,10 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 			rm "$TEMPFILE"
 		else
 			_log it $funcname daemon info "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
-			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" kb ) ))"
+			_software make_free_space "$(( 120 + $( _file size "$TEMPFILE" kb ) ))" || {
+				_log it $funcname daemon info "abort - could not organize enough free space"
+				break
+			}
 
 			case "$( basename "$TEMPFILE" )" in
 				'cron'|'S51crond'*)
