@@ -3289,7 +3289,6 @@ else
 	KALUA_REPO_URL='git://github.com/bittorf/kalua.git'
 fi
 
-CPU_LOAD_INTEGER="$( cpu_load_integer )"
 KALUA_DIRNAME="$( basename "$KALUA_REPO_URL" | cut -d'.' -f1 )"		# e.g. kalua|weimarnetz
 PATCHDIR=
 
@@ -3482,6 +3481,7 @@ while [ -n "$1" ]; do {
 } done
 
 [ -n "$STOP_PARSE" ] && exit 0
+CPU_LOAD_INTEGER="$( cpu_load_integer )"	# see build() - how many parallel make jobs
 get_uptime_in_sec 'T1'
 
 die_and_exit()
