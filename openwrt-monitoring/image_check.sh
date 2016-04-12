@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# http://intercity-vpn.de/networks/spbansin/media/1.jpg (generated from 47.jpg)
+
 OUTFILE='1.jpg'
 MAXAGE=14400		# 4 hours (use samplepic if we have no new pictures)
 CRC=
@@ -31,6 +33,9 @@ while true; do {
 	if [ "$CRC" = "$CRC_OLD" ]; then
 		logger -s "using '$CHECKFILE' - $( ls -l "$CHECKFILE" )"
 		cp "$CHECKFILE" 'normalized.jpg'
+
+		mv "normalized.jpg" "$OUTFILE"		# FIXME?!
+		logger -s "used 'normalized.jpg' for '$OUTFILE'"
 	else
 		logger -s "$(date) crc changed - file: '$INFILE'"
 
