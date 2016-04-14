@@ -730,7 +730,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 } done
 
 case "$NETWORK" in
-	*gnm*)
+	*'gnm'*|*'server'*)
 		DOUBLE_NODENUMBERS=
 	;;
 esac
@@ -1146,7 +1146,7 @@ func_cell_hostname ()
 	local WIFIMAC="$2"
 	local MAIL="$3"
 	local FILE="../registrator/recent/$WIFIMAC"
-	local title bgcolor
+	local title bgcolor c1 c2
 	local SIMULATE_OK='true'
 
 	[ -n "$MAIL" ] && {
@@ -1255,8 +1255,10 @@ func_cell_hostname ()
 					"$( echo "$PROFILE" | cut -d'_' -f1 )"*)	# hotello-K80_adhoc -> hotello-K80-adhoc/ap
 						HOSTNAME="$HOSTNAME_ENFORCED"
 					;;
-					*'-vhs')
-						HOSTNAME="$HOSTNAME_ENFORCED"		# ffweimar-vhs
+					*'-vhs'|'No'[0-9]*)
+						# use the enforced name and not the
+						# real hostname (e.g. ffweimar-vhs or No1975)
+						HOSTNAME="$HOSTNAME_ENFORCED"
 					;;
 					*)
 						HOSTNAME="enforced/settings: $HOSTNAME_ENFORCED&nbsp;(&larr;$HOSTNAME = real)"
@@ -1268,9 +1270,47 @@ func_cell_hostname ()
 			}
 		}
 
-		[ -n "SIMULATE_OK" ] && bgcolor=
-		echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME </td>"
 		HOSTNAME_FOR_SORTING="$HOSTNAME"
+
+		case "$NETWORK" in
+			spbansin)
+				case "$HOSTNAME" in
+					*'-HYBRID'|*'-MESH'|*'-AP')
+						HOSTNAME="${HOSTNAME%-*}"
+					;;
+				esac
+
+				case "$HOSTNAME" in
+					*'ueberHWR'*)
+						HOSTNAME="$( echo "$HOSTNAME" | sed 's/^\(.*\)ueberHWR.*/\1HeizhausOben/' )"
+					;;
+					*'HWR'*)
+						HOSTNAME="$( echo "$HOSTNAME" | sed 's/^\(.*\)HWR.*/\1Heizhaus-Zentrale/' )"
+					;;
+				esac
+
+				c1="$COLOR_GOOD_GREEN"
+				c2="$COLOR_DARK_GREEN"
+				case "$HOSTNAME" in
+					'Haus12'*) bgcolor="$c1"; HOSTNAME_FOR_SORTING="12-$HOSTNAME";;
+					'Haus11'*) bgcolor="$c2"; HOSTNAME_FOR_SORTING="11-$HOSTNAME";;
+					'Haus10'*) bgcolor="$c1"; HOSTNAME_FOR_SORTING="10-$HOSTNAME";;
+					'Haus9'*) bgcolor="$c2"; HOSTNAME_FOR_SORTING="09-$HOSTNAME";;
+					'Haus8'*) bgcolor="$c1"; HOSTNAME_FOR_SORTING="08-$HOSTNAME";;
+					'Haus7'*) bgcolor="$c2"; HOSTNAME_FOR_SORTING="07-$HOSTNAME";;
+					'Haus6'*) bgcolor="$c1"; HOSTNAME_FOR_SORTING="06-$HOSTNAME";;
+					'Haus4'*) bgcolor="$c2"; HOSTNAME_FOR_SORTING="04-$HOSTNAME";;
+					'Haus3'*) bgcolor="$c1"; HOSTNAME_FOR_SORTING="03-$HOSTNAME";;
+					'Haus2'*) bgcolor="$c2"; HOSTNAME_FOR_SORTING="02-$HOSTNAME";;
+					'Haus1'*) bgcolor="$c1"; HOSTNAME_FOR_SORTING="01-$HOSTNAME";;
+				esac
+
+	                        SIMULATE_OK=
+			;;
+		esac
+
+		[ -n "$SIMULATE_OK" ] && bgcolor=
+		echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME </td>"
 	fi
 }
 
