@@ -46,7 +46,7 @@ SPECIAL_ORDER_BY="$1"
 FORM_MAC="$2"
 
 COLOR_LOWRED="#E0ACAC"			# fixme! use words like 'very bad', 'good', etc.
-COLOR_GOODGREEN="#11FF55"
+COLOR_GOOD_GREEN="#11FF55"
 COLOR_ORANGE="orange"
 COLOR_LIGHT_GREY="#A4A4A4"
 COLOR_LIGHT_CYAN="#81F7BE"
@@ -1290,7 +1290,7 @@ func_cell_hostname ()
 				esac
 
 				c1="$COLOR_GOOD_GREEN"
-				c2="$COLOR_DARK_GREEN"
+				c2="$COLOR_BRIGHT_GREEN"
 				case "$HOSTNAME" in
 					'Haus12'*) bgcolor="$c1"; HOSTNAME_FOR_SORTING="12-$HOSTNAME";;
 					'Haus11'*) bgcolor="$c2"; HOSTNAME_FOR_SORTING="11-$HOSTNAME";;
@@ -1638,7 +1638,7 @@ cell_speed()
 	[ -z "$bytes" ] && bgcolor="$COLOR_DARK_GREEN"
 	case "$kbytes" in
 		*'8888')
-			bgcolor="$COLOR_GOODGREEN"
+			bgcolor="$COLOR_GOOD_GREEN"
 		;;
 	esac
 
@@ -2403,7 +2403,7 @@ _cell_signal ()
 			[ ${RSSI:--50} -lt -81 ] && BGCOLOR="$COLOR_LOWRED"
 		;;
 		*)
-			[ ${RSSI:-0} -lt 0 ] && BGCOLOR="$COLOR_GOODGREEN"
+			[ ${RSSI:-0} -lt 0 ] && BGCOLOR="$COLOR_GOOD_GREEN"
 		;;
 	esac
 
