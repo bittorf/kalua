@@ -3037,9 +3037,13 @@ mimetype_get()
 		'text/html')
 			case "$( basename "$file" )" in
 				*'.js'*)
+					# e.g. 'sorttable.js_googleclosure.includeable2'
 					# support missing:
 					# https://github.com/file/file/blob/master/magic/Magdir/javascript
 					mimetype='application/javascript'
+				;;
+				*'.txt')
+					mimetype='text/plain'
 				;;
 			esac
 		;;
