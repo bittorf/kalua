@@ -213,9 +213,26 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	_log include
 	_software include
 
+	sourcefiles_are_the_same()
+	{
+		local file1="$1"	# from tarball
+		local file2="$2"	# on disk
+		local tempfile="$TMPDIR/pmu_$$"
+		local hash1 hash2
+
+		grep -v ^'#' "$file1" >"$tempfile"	# without comments
+		hash1="$( _file hash "$tempfile" )"
+
+		grep -v ^'#' "$file2" >"$tempfile"
+		hash2="$( _file hash "$tempfile" )"
+
+		rm -f "$tempfile"
+		test "$hash1" = "$hash2"
+	}
+
 	find -type f >'/tmp/filelist'
 	while read -r TEMPFILE; do {
-		if [ "$( _file hash "$TEMPFILE" )" = "$( _file hash "/$TEMPFILE" )" ]; then
+		if sourcefiles_are_the_same "$TEMPFILE" "/$TEMPFILE"
 			rm "$TEMPFILE"
 		else
 			_log it $funcname daemon info "moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
