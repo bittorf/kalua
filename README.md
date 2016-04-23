@@ -344,6 +344,7 @@ Special UCI-variables
 	system.@monitoring[0].wifi_netparam_name - string, e.g. 'wlanadhocRADIO1'
 	system.@monitoring[0].nightly_longrange - bool
 	system.@monitoring[0].send_mapapi	- bool
+	system.@monitoring[0].report_wantraffic - bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
