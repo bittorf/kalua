@@ -145,6 +145,41 @@ _vpn_innercity_master_vtund()
 	esac
 }
 
+_vpn_innercity_master_apply_portfw()
+{
+	local funcname='vpn_innercity_master_apply_portfw'
+	local ip_remote="$1"
+	local tempfile="$TMPDIR/$funcname.$$"
+	local markerfile="$TMPDIR/$funcname.$ip_remote"
+	local url="http://$ip_remote/cgi-bin-tool.sh?OPT=portforwarding_table"
+	local line dport rule
+
+	[ -e "$markerfile" ] && {
+		_log it $funcname daemon info "ip $ip_remote already applied"
+		return 0
+	}
+
+	_curl it "$url" >"$tempfile"
+
+	### 598|'b0487abb519c') PORT=7789 ;; # client: 10.63.6.9 indev: eth0 mac/id: 00:40:ad:29:0a:87 port: 80 port_ext: 7789
+	while read -r line; do {
+		case "$line" in
+			'###'*)
+				explode $line
+				dport="${3#*=}"
+
+				rule="PREROUTING -p tcp --dport $dport -j DNAT --to-destination $ip_remote"
+				$IPT -t nat -I $rule
+				echo "$IPT -t nat -D $rule" >>"$markerfile"
+				_log it $funcname daemon info "apply: $rule"
+			;;
+		esac
+	} done <"$tempfile"
+
+	[ -e "$markerfile" ] && $IPT -t nat -I POSTROUTING -d $ip_remote -j MASQUERADE
+	rm -f "$tempfile"
+}
+
 _vpn_innercity_master_iface()
 {
 	local funcname='vpn_innercity_master_iface'
@@ -212,7 +247,8 @@ _vpn_innercity_master_iface()
 
 	local olsrd_config='/etc/olsrd.conf'
 	local remote_nodenumber="${dev//tap/}"		# tap276 -> 276
-	local tunnel_ip_here="$( _ipsystem getvar 'WIFIVPNSERVERADR' $remote_nodenumber )"
+	local tunnel_ip_here="$(   _ipsystem getvar 'WIFIVPNSERVERADR' $remote_nodenumber )"
+	local tunnel_ip_remote="$( _ipsystem getvar 'WIFIVPNCLIENTADR' $remote_nodenumber )"
 	local limit=8		# throttling - FIXME! use olsr_throttle?
 	local limit_burst=5
 	local mask=30		# ip here + ip other side + net + broadcast = 4 = /30
@@ -259,6 +295,7 @@ _vpn_innercity_master_iface()
 
 		pidof olsrd >/dev/null || _olsr daemon start "$funcname() not active yet"
 		_vpn innercity_master_write_infojson
+		_vpn innercity_master_apply_portfw "$tunnel_ip_remote"
 
 		_log it $funcname daemon info "[READY] action: $action dev: $dev"
 	else
