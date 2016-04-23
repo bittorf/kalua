@@ -307,6 +307,7 @@ fi
 			*': del station '*|*': new station '*)
 				# wlan0-1: del station 00:21:6a:32:7c:1c
 				# wlan0: new station dc:9f:db:02:b8:ee
+				# only start the 'worker' for interesting events ("active_ap"):
 				case "$( active_ap_devices )" in
 					*" ${LINE%: *} "*)
 						explode $LINE
@@ -321,10 +322,14 @@ fi
 			;;
 			'regulatory domain change: set to '*)
 				if [ -e "$TMPDIR/IWLOOP_RESPECT_REGSET" ]; then
+					for FILE in "/tmp/ROAMING_remove_host_route_"*; do {
+						[ -e "$FILE" ] && . "$FILE"	# see worker
+					} done
+
 					# e.g. iw reg set 00; iw reg set US
 					# TODO: find better method
 					log "stopped by user via regset, stopping iw: $PID_IW"
-					rm "$TMPDIR/kicked_low_signal_"*
+					rm -r "$TMPDIR/kicked_low_signal_"* 2>/dev/null
 					kill $PID_IW
 					break
 				else
