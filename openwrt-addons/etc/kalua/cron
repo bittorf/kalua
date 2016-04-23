@@ -103,6 +103,11 @@ _cron_vpnserver_firstrun()
 	local public_ip="$( _net get_external_ip )"
 	local port="$( _vpn innercity_master_vtund get_port )"
 
+	# see _vpn_innercity_master_iface() at 'Interface'
+	local ignored_interfaces="$( uci -q get olsrd.@meta[0].ignored_interfaces )"
+	local dev
+	local ignored_interfaces_list="$( for dev in $ignored_interfaces; do printf '%s' "\"$dev\" "; done )"
+
 	# new vtun-interfaces are automatically added in vpn_innercity_master_iface()
 	# TODO: own func + configure MainIP on loopback/VPN? and use for service
 	cat >'/etc/olsrd.conf' <<EOF
@@ -148,6 +153,13 @@ Interface "lo"
 	HnaValidityTime		175.0
  }
 EOF
+
+	[ -n "$ignored_interfaces" ] && {
+		cat >>'/etc/olsrd.conf' <<EOF
+
+# Interface $ignored_interfaces_list ignore
+EOF
+	}
 
 	ln -s '/etc/olsrd.conf' '/var/etc/olsrd.conf'
 	ln -s "$PERMLOG" '/var/www/log.txt'
@@ -226,6 +238,7 @@ _cron_dummy()
 	# echo 'system.@profile[0].ipsystem=ffweimar'
 	# echo 'network.lan.ifname=venet0'
 	# echo 'network.lan.gateway=true'
+	# echo 'olsrd.@meta[0].ignored_interfaces='
 	# } >/etc/kalua_uci
 	#
 	# - set sms_password?
