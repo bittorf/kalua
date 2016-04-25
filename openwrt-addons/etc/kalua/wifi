@@ -183,6 +183,10 @@ _wifi_change_essid_ap()
 			essid="$( uci get wireless.@wifi-iface[$i].ssid )"
 			uci set wireless.@wifi-iface[$i].ssid_old="$essid"
 			uci set wireless.@wifi-iface[$i].ssid="$( _i18n get "$LANG" maintenance_mode "$NODENUMBER/$i" )"
+
+			_wifi longshot_name >/dev/null && {
+				_wifi set ap any 'on'
+			}
 		fi
 	} done
 
@@ -1820,7 +1824,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 _wifi_is2ghz()
 {
 	local wifi_iface="$1"		# e.g. 6
-	local varname="wireless.@wifi-iface[$wifi_iface].device"
+	local varname="wireless.@wifi-iface[$wifi_iface].device"	# radio0
 	local radio="$( uci -q get "$varname" )"
 	local hwmode="$( uci -q get wireless.$radio.hwmode )"
 
@@ -1839,8 +1843,8 @@ _wifi_set()
 	local funcname='wifi_set'
 	local wifimode="$1"	# e.g. 'ap' (all ap-interface) or any/anymode or 'adhoc' or 'ap2' (only the 2nd one)
 	local band="$2"		# e.g. '5ghz' or 'any' or 'anyfreq'
-	local var="$3"		# e.g. 'ssid' or 'disabled' or 'off' -> disabled 1
-	local value="$4"	# e.g. 'myssid' or '1'	# FIXME! allow 'disabled true'
+	local var="$3"		# e.g. 'ssid' or 'disabled' or 'off'/'on' -> disabled 1/0
+	local value="$4"	# e.g. 'myssid' or '1'
 	local option="$5"
 	local radio='' bssid='' chanbw='' carry='' i='' j=10
 
@@ -1863,7 +1867,7 @@ _wifi_set()
 	esac
 
 	# _wifi set ap      5ghz     ssid 'Appartementhaus'
-	# _wifi set ap      5ghz     disabled '1'
+	# _wifi set ap      5ghz     off
 	# _wifi set anymode anyfreq  disabled kmod_unload
 
 	for i in $( seq 0 15 ); do {
@@ -1899,7 +1903,7 @@ _wifi_set()
 										# radio already on
 										carry=
 									else
-										_wifi set anymode anyfreq disabled '0'
+										_wifi set anymode anyfreq 'on'
 									fi
 
 									# this works globally (every radio)
@@ -1908,7 +1912,7 @@ _wifi_set()
 
 										# switch off (old state, see above)
 										[ -n "$carry" ] && {
-											_wifi set anymode anyfreq disabled '1'
+											_wifi set anymode anyfreq 'off'
 										}
 
 										while let j-=1; do {
@@ -1931,7 +1935,7 @@ _wifi_set()
 									else
 										# set vIF
 										[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" ] && {
-											uci set wireless.@wifi-iface[$i].$var='1'
+											uci set wireless.@wifi-iface[$i].$var="$value"
 										}
 									fi
 								;;
@@ -2165,7 +2169,7 @@ _wifi_longshot_name()
 
 _wifi_longshot()	# this works only for single-radio units in adhoc-mode
 {
-	# TODO: txpower
+	# TODO: txpower + 2/5GHz?
 
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101'
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101' testtime '04:32' testchannel '36...165'
@@ -2231,6 +2235,13 @@ _wifi_longshot()	# this works only for single-radio units in adhoc-mode
 								_wifi set adhoc any bssid "$bssid"
 							else
 								_wifi set adhoc any channel "$channel" bssid_wellformed
+							fi
+
+							# FIXME! think about triple radios and use proper band
+							if [ $channel -le 36 ]; then
+								_wifi set ap 5ghz 'off'
+							else
+								_wifi set ap 2ghz 'off'
 							fi
 						}
 
