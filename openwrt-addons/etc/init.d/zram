@@ -1,4 +1,6 @@
 #!/bin/sh /etc/rc.common
+# this script does not rely on '/tmp/loader',
+# so it can be used directly on plain OpenWrt
 
 START=15
 
@@ -25,6 +27,13 @@ zram_size()	# in megabytes
 zram_applicable()
 {
 	local zram_dev="$1"	# e.g. /dev/zram1
+
+	case "$( uci -q get system.@system[0].zram_disabled )" in
+		1|on|true|yes)
+			logger -s -t zram_applicable -p daemon.notice "[OK] disabled in settings"
+			return 1
+		;;
+	esac
 
 	grep -sq ^"$zram_dev " /proc/swaps && {
 		logger -s -t zram_applicable -p daemon.notice "[OK] '$zram_dev' already active swap"
@@ -121,13 +130,12 @@ kmodules_do()
 
 start()
 {
-	# http://shmilyxbq-compcache.googlecode.com/hg/README
-	# if >1 cpu_core or zram0 already used, reinit kmodule with e.g. num_devices=4
-
 	local zram_size="$( zram_size )"
 	local list_cores="$( list_cpu_idx )"
 	local zram_dev core num_devices offset
 
+	# http://shmilyxbq-compcache.googlecode.com/hg/README
+	# if >1 cpu_core or zram0 already used, reinit kmodule with e.g. num_devices=4
 	case "$list_cores" in
 		0)
 			num_devices=1
