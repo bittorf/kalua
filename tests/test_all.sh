@@ -570,9 +570,11 @@ run_test()
 
 					# otherwise we get SC2119
 					if   show_shellfunction "$name" "$file" | fgrep -q "\$1"; then
-						echo "$name \"\$@\""	# call function with args, e.g. $1
+						echo "$name \"\$@\""	# ...with args
 					elif show_shellfunction "$name" "$file" | fgrep -q "\${1"; then
-						echo "$name \"\$@\""	# call function with args, e.g. ${1}
+						echo "$name \"\$@\""	# ...with args
+					elif show_shellfunction "$name" "$file" | fgrep -q "\$@"; then
+						echo "$name \"\$@\""	# ...with args
 					else
 						echo "$name"		# call function without args
 					fi
