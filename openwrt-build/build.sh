@@ -2395,6 +2395,8 @@ build_options_set()
 				# CONFIG_PACKAGE_netdiscover=y
 				# tcpdump
 				# screen?
+				# CONFIG_PACKAGE_gdb=y
+				# CONFIG_PACKAGE_valgrind=y
 			;;
 			'revert'*|'revert12345')
 				local rev="$( echo "$1" | cut -d't' -f2 )"		# revert12345 -> 12345
