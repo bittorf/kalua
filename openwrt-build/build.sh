@@ -3227,8 +3227,9 @@ bootstrap_codespell()
 		git log -1
 
 		ln -s '/run/shm/codespell/codespell.py' "$HOME/codespell.py"
-		export PATH="$HOME:$PATH"
 	)
+
+	export PATH="$HOME:$PATH"
 }
 
 bootstrap_shellsheck()

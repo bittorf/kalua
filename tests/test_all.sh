@@ -453,12 +453,16 @@ run_test()
 
 			case "$( _filetype detect_mimetype "$file" )" in
 				'text/x-shellscript')
+					# strip non-printable (ascii-subset)
 					tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
+
 					hash1="$( md5sum <"$tempfile" | cut -d' ' -f1 )"
 					size1="$( wc -c <"$tempfile" )"
 					cp "$file" "$tempfile"
 					hash2="$( md5sum <"$tempfile" | cut -d' ' -f1 )"
 					size2="$( wc -c <"$tempfile" )"
+
+					# compare normal/stripped
 					[ "$hash1" = "$hash2" ] || {
 						log "[ERR] non-ascii chars in '$file', sizes: $size1/$size2"
 
@@ -563,7 +567,13 @@ run_test()
 					show_shellfunction "$name" "$file" || return 1
 
 					echo
-					echo "$name \"\$@\""
+
+					# otherwise we get SC2119
+					if show_shellfunction "$name" "$file" | fgrep -q "\$1"; then
+						echo "$name \"\$@\""	# call function with args
+					else
+						echo "$name"		# call function
+					fi
 				} >"$tempfile"
 
 				function_too_large "$name" "$tempfile" "$file" && func_too_large=$(( func_too_large + 1 ))
