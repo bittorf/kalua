@@ -43,7 +43,7 @@ if db_needed; then
 
 	case "$QUERY_STRING" in
 		*'bonehead'|*'broken302redirect')
-			# old clients with r35300 or lower (dont understund http_redirect)
+			# old clients with r35300 or lower (do not understund http_redirect)
 			# and uclient-fetch r48386+ seems also broken
 			_http header_mimetype_output 'text/plain'
 			cat '/tmp/USERDB_COPY.cgi.gz'

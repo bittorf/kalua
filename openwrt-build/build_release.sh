@@ -52,7 +52,7 @@ clone()
 	fi
 }
 
-mymake()	# fixme! how to ahve a quiet 'make defconfig'?
+mymake()	# fixme! how to have a quiet 'make defconfig'?
 {
 	log "[START] executing 'make $1 $2 $3'"
 	make $1 $2 $3

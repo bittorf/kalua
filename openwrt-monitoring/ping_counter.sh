@@ -325,12 +325,12 @@ sms_allowed()
 	local effective_name="$( echo "$network" | cut -d':' -f1 )"	# e.g. ffweimar:vhs
 
 	[ -e '/tmp/NOSMS' ] && {
-		log "$network: [ERR] sending sms supressed, found '/tmp/NOSMS'"
+		log "$network: [ERR] sending sms suppressed, found '/tmp/NOSMS'"
 		return 1
 	}
 
 	iptables -nL INPUT 1 | grep -q ^'myping' || {
-		log "$network: [ERR] sending sms supressed, iptables-whitelister inactiv"
+		log "$network: [ERR] sending sms suppressed, iptables-whitelister inactiv"
 		return 1
 	}
 

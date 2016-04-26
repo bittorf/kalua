@@ -56,7 +56,7 @@ echo "#!/bin/sh"		 >postinst
 echo "VERSION=$IPKG_VERSION"	>>postinst
 cat ${0}.code			>>postinst	# inludes pubkey of monitoring server
 
-# dont include files older than 30 days
+# do not include files older than 30 days
 I=0
 for FILE in $( find $BASE/registrator/recent/ -type f -mtime -30 ); do {
 	grep -q ^"$( basename $FILE )" $BASE/ignore/macs.txt || {

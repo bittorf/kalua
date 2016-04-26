@@ -24,8 +24,8 @@ show_shellfunction_usage_count()
 {
 	local name="$1"		# e.g. '_olsr_txtinfo'
 	local kalua_name
-	local occurence_direct="$( git grep "$name" | wc -l )"
-	local occurence_nested=0
+	local occurrence_direct="$( git grep "$name" | wc -l )"
+	local occurrence_nested=0
 
 	case "$name" in
 		'_'*)
@@ -37,11 +37,11 @@ show_shellfunction_usage_count()
 				kalua_name="_${without_first_underliner/_/ }"	# _olsr txtinfo
 			fi
 
-			occurence_nested="$( git grep "$kalua_name" | wc -l )"
-			echo "$occurence_direct/$occurence_nested"
+			occurrence_nested="$( git grep "$kalua_name" | wc -l )"
+			echo "$occurrence_direct/$occurrence_nested"
 		;;
 		*)
-			echo "$occurence_direct"
+			echo "$occurrence_direct"
 		;;
 	esac
 }
@@ -109,7 +109,7 @@ function_too_large()
 	local file_origin="$3"
 	local codelines
 	local border=45		# bigger than 1 readable screen / lines
-	local bloatlines=6	# dont count boilerplate code (see creating tempfile)
+	local bloatlines=6	# do not count boilerplate code (see creating tempfile)
 
 	codelines=$( wc -l <"$file" )
 	codelines=$(( codelines - bloatlines ))
@@ -269,23 +269,34 @@ test_loader_metafunction()
 	# avoid broken pipe: http://superuser.com/questions/554855/how-can-i-fix-a-broken-pipe-error
 	echo "$out" | grep -q ' function' || return 1
 
-	# test if 'rebuild' works (changed date-string in file)
+	# test if 'rebuild' works (changed date-string in file - only 1 second accurate)
+	sleep 1
 	local hash1="$( md5sum '/tmp/loader' )"
 	_ rebuild
 	local hash2="$( md5sum '/tmp/loader' )"
-	test "$hash1" = "$hash2" && return 1
+	test "$hash1" = "$hash2" && {
+		log "[ERROR] loader-hash did not changed during rebuild: $hash1"
+		return 1
+	}
 
 	# test if loader is loaded 8-)
 	_ t || return 1
 
 	# list classes
-	test $( _ | wc -l ) -gt 10
+	if [ $( _ | wc -l ) -gt 10 ]; then
+		:
+	else
+		log "[ERROR] too few classes:"
+		_
+
+		return 1
+	fi
 }
 
 run_test()
 {
-	local shellcheck_bin start_test build_loader ignore file tempfile filelist pattern ip
-	local hash1 hash2 size1 size2 line line_stripped i list name
+	local shellcheck_bin ignore file tempfile filelist ip hash1 hash2
+	local codespell_bin size1 size2 line line_stripped i list name
 	local func_too_large=0
 	local func_too_wide=0
 	local count_files=0
@@ -382,7 +393,7 @@ run_test()
 # TODO #		# SC2046: eval $( _http query_string_sanitize ) Quote this to prevent word splitting.
 		# SC2086: ${CONTENT_LENGTH:-0} Double quote to prevent globbing and word splitting.
 		#  - https://github.com/koalaman/shellcheck/issues/480#issuecomment-144514791
-		# SC2155: local var="$( bla )" -> loosing returncode
+		# SC2155: local var="$( bla )" -> losing returncode
 		#  - https://github.com/koalaman/shellcheck/issues/262
 # TODO #		# SC2166: Prefer [ p ] && [ q ] as [ p -a q ] is not well defined.
 
@@ -411,7 +422,7 @@ run_test()
 		echo >>"$filelist" "$file"
 
 		# collect all shellscripts:
-		find >>"$filelist" 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
+		find >>"$filelist" 'tests' 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
 
 		$shellcheck_bin --help 2>"$tempfile"
 		grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"
@@ -466,9 +477,9 @@ run_test()
 					}
 
 					# SC2039: https://github.com/koalaman/shellcheck/issues/354
-#					sed -i 's/echo -n /printf /g' "$tempfile"		# dont use echo flags
+#					sed -i 's/echo -n /printf /g' "$tempfile"		# do not use echo flags
 #					sed -i 's/echo -en /printf /g' "$tempfile"		# dito
-#					sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# dont use 'local $var'
+#					sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# do not use 'local $var'
 #					sed -i 's/.*shopt.*/# &/g' "$tempfile"
 
 					case "$file" in
@@ -498,6 +509,32 @@ run_test()
 					fi
 
 					count_files=$(( count_files + 1 ))
+
+					if command -v codespell.py; then
+						case "$file" in
+							*'random_username')
+#								codespell_bin="codespell.py --dictionary='$tempfile.dict'"
+								codespell_bin='codespell.py'
+#								echo 'churchs->churches, disabled: is a shoebrand' >"$tempfile.dict"
+								sed -i 's/churchs/churches/g' "$tempfile"
+							;;
+							*)
+								codespell_bin='codespell.py'
+#								[ -e "$tempfile.dict" ] && rm -f "$tempfile.dict"
+							;;
+						esac
+
+						# https://github.com/lucasdemarchi/codespell/issues/63
+						if $codespell_bin "$tempfile" | wc -l | xargs test 0 -eq; then
+							log "[OK] codespell.py '$file'"
+						else
+							log "[ERROR] try: codespell.py '$file'"
+							codespell.py "$file"
+							good='false'
+						fi
+					else
+						log "[OK] no spellcheck - please install 'https://github.com/lucasdemarchi/codespell'"
+					fi
 				;;
 				*)
 					log "[IGNORE] non-shellfile '$file'"
@@ -515,7 +552,7 @@ run_test()
 					echo
 
 					if show_shellfunction "$name" "$file" | head -n1 | grep -q ^"[ $tab]"; then
-						# TODO: dont double set
+						# TODO: do not double set
 						echo "# nested function from file '$file'"
 						ignore="$ignore,SC2154"		# VAR is referenced but not assigned
 						ignore="$ignore,SC2034"		# VAR appears unused. Verify it or export it.
@@ -534,9 +571,9 @@ run_test()
 				# TODO: test if file to wide
 
 				# SC2039: https://github.com/koalaman/shellcheck/issues/354
-#				sed -i 's/echo -n /printf /g' "$tempfile"		# dont use echo flags
+#				sed -i 's/echo -n /printf /g' "$tempfile"		# do not use echo flags
 #				sed -i 's/echo -en /printf /g' "$tempfile"		# dito
-#				sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# dont use 'local $var'
+#				sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# do not use 'local $var'
 #				sed -i 's/.*shopt.*/# &/g' "$tempfile"
 
 				if   function_seems_generated "$tempfile" "$name"; then

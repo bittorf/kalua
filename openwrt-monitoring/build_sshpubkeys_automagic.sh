@@ -51,7 +51,7 @@ for NETWORK in $LIST_NETWORKS; do {
 	if [ -d "$PACKAGE_BASE" ]; then
 		cd "$PACKAGE_BASE" || exit
 	else
-#		log "dir '$PACKAGE_BASE' not found, omiting network"
+#		log "dir '$PACKAGE_BASE' not found, omitting network"
 		continue
 	fi
 
@@ -59,7 +59,7 @@ for NETWORK in $LIST_NETWORKS; do {
 	VERSION_NEW="$( $SCRIPT "$NETWORK" "+0.1" )"
 
 	[ -n "$VERSION_NOW" ] || {
-#		log "not found any $PACKAGE file, omiting network"
+#		log "not found any $PACKAGE file, omitting network"
 		continue
 	}
 

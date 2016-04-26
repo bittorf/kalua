@@ -277,7 +277,7 @@ for NETWORK in $( list_networks ); do {
 	for IP in $LIST_PUBIPS; do {
 		case " $LIST_IMPORTANT_IPS " in
 			*" $IP "*)
-				log "dont block/ignoring important IP $IP"
+				log "do not block/ignoring important IP $IP"
 			;;
 			*)
 				log "blocking access from network $NETWORK ips: $IP"

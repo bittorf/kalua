@@ -622,7 +622,7 @@ if [ -e '/tmp/OLSR/DEFGW_changed' ]; then
 	GATEWAY_JITTER=0
 	while read -r LINE; do {
 		explode $LINE
-		# dont take empty gw into account, only real changes
+		# do not take empty gw into account, only real changes
 		[ -n "$3" -a "$3" != "$GW_OLD" ] && {
 			GW_OLD="$3"
 			GATEWAY_JITTER=$(( GATEWAY_JITTER + 1 ))

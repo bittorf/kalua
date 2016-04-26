@@ -231,7 +231,7 @@ cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 
 cd /tmp/dev/kalua
 git add <changed_files>
-git commit -m "decribe changes"
+git commit -m "describe changes"
 git push ...
 ```
 
@@ -327,7 +327,7 @@ Special UCI-variables
 	system.@monitoring[0].report_switch_change - bool
 	system.@monitoring[0].autoupload_config - bool
 	system.@monitoring[0].ignore_wifi_framecounter - bool		# true = never restart wifi, even if no incoming wififrames for a long time
-	system.@monitoring[0].lazy_wifi_framecounter - bool		# true = dont take missing incoming wififrames too serious (restart wifi after 10mins)
+	system.@monitoring[0].lazy_wifi_framecounter - bool		# true = do not take missing incoming wififrames too serious (restart wifi after 10mins)
 	system.@monitoring[0].ignore_lossyethernet - bool
 	system.@monitoring[0].ignore_load	- bool
 	system.@monitoring[0].cdp_send		- bool

@@ -1,9 +1,9 @@
 #!/bin/sh
 
-count_occurence_of_string()
+count_occurrence_of_string()
 {
 	local string="$1"
-	local tempfile='/tmp/count_occurence_of_string'
+	local tempfile='/tmp/count_occurrence_of_string'
 	local file
 
 	find . -type f >"$tempfile"
@@ -43,6 +43,6 @@ list_all_function_names()
 }
 
 for NAME in $( list_all_function_names ); do {
-	echo "$( count_occurence_of_string "$NAME" ) x $NAME()"
+	echo "$( count_occurrence_of_string "$NAME" ) x $NAME()"
 } done
 

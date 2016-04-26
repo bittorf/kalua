@@ -3160,7 +3160,7 @@ cell_node()
 		*" $node "*)
 #			case "$NETWORK" in
 #				*)
-#					[ "$LASTSEEN" = "0" ] || rm "recent/$WIFIMAC"	# mac adress has slightly changed
+#					[ "$LASTSEEN" = "0" ] || rm "recent/$WIFIMAC"	# mac address has slightly changed
 #				;;
 #			esac
 			local file node2 wifimac unixtime remove replace

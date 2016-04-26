@@ -113,7 +113,7 @@ build_tarball_package()
 	local funcname='build_tarball_package'
 
 	[ "$KALUA_DIRNAME" = 'openwrt-build' ] && {
-		log "wrong path, i dont want to see 'openwrt-build'"
+		log "wrong path, i do not want to see 'openwrt-build'"
 		return 1
 	}
 
@@ -1700,7 +1700,7 @@ build()
 	[ -n "$DEBUG" ] && make_verbose='V=s'
 
 	buildjobs=$(( $( cpu_count ) + 1 ))
-	# dont stress if we already have load / e.g. gcc-farm
+	# do not stress if we already have load / e.g. gcc-farm
 	[ $CPU_LOAD_INTEGER -ge 100 ] && buildjobs=$(( (buildjobs - 1) / 2 ))
 	commandline="--jobs $buildjobs BUILD_LOG=1"
 
@@ -2013,7 +2013,7 @@ apply_symbol()
 #			apply_symbol 'CONFIG_DEVEL=y'		# 'Advanced configuration options'
 #			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-protector -fstack-protector-all -fno-delete-null-pointer-checks"'
 
-			# FIXME! dont hardcode testnet
+			# FIXME! do not hardcode testnet
 			url='http://intercity-vpn.de/networks/liszt28/tarball/testing/info.txt'
 
 			log "$KALUA_DIRNAME: adding recent tarball hash from '$url'"
@@ -2409,7 +2409,7 @@ build_options_set()
 				fi
 			;;
 			'iproute2')
-				# TODO: dont include the 'ip neigh' patch with new busybox (e.g. v1.24.1),
+				# TODO: do not include the 'ip neigh' patch with new busybox (e.g. v1.24.1),
 				#	it is included upstream with 69934701fd1b18327b3a779cb292a728834b2d0d
 				#	= Wed Oct 14 12:53:47 2015 +0200
 
@@ -2925,7 +2925,7 @@ EOF
 				return 1
 			;;
 			'')
-				echo	# last command doesnt set the cursor at line begin ("Collecting package info: done")
+				echo	# last command does not set the cursor at line begin ("Collecting package info: done")
 				return 1
 			;;
 			*)
@@ -2954,7 +2954,7 @@ parse_case_patterns()
 
 	# the idea is to get all possible arguments for a function
 	# by parsing it line for line and grep all 'case' statements.
-	# this is ugly, but has the advantage that we dont need to
+	# this is ugly, but has the advantage that we do not need to
 	# maintain a special list, e.g.
 	#
 	# function_xy()
@@ -3192,6 +3192,7 @@ travis_prepare()
 		sudo apt-get -y install "$@"
 	}
 
+	command -v 'codespell.py' || bootstrap_codespell	|| return 1
 	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
 	command -v 'sloccount'	|| do_install 'sloccount'	|| return 1
 	# http://www.html-tidy.org/
@@ -3213,6 +3214,21 @@ travis_prepare()
 		bootstrap_shellsheck || return 1
 		command -v shellcheck || return 1
 	fi
+}
+
+bootstrap_codespell()
+{
+	(
+		cd '/run/shm' || return 1
+		git clone https://github.com/lucasdemarchi/codespell.git
+		cd codespell || return 1
+
+		log '[OK] last commit:'
+		git log -1
+set -x
+		ln -s '/run/shm/codespell/codespell.py' "$HOME/codespell.py"
+set +x
+	)
 }
 
 bootstrap_shellsheck()
@@ -3504,7 +3520,7 @@ die_and_exit()
 }
 
 # http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-5.1/man1/whoami.1?query=whoami&sec=1&manpath=OpenBSD-5%2e1
-[ "$( id -u )" = '0' ] && log "REMINDER: dont build as root, you have UID: $UID"
+[ "$( id -u )" = '0' ] && log "REMINDER: do not build as root, you have UID: $UID"
 
 check_working_directory			|| die_and_exit
 openwrt_download 'reset_autocommits'

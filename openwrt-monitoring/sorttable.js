@@ -11,7 +11,7 @@
   Click on the headers to sort
   
   Thanks to many, many people for contributions and suggestions.
-  Licenced as X11: http://www.kryogenix.org/code/browser/licence.html
+  Licensed as X11: http://www.kryogenix.org/code/browser/licence.html
   This basically means: do what you want with it.
 */
 
