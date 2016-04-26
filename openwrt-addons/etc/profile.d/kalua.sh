@@ -36,7 +36,7 @@ _ t 2>/dev/null || {
 	[ -e '/tmp/loader' ] && {
 		. '/tmp/loader'
 		echo
-		echo 'for some hints type: _help overview'
+		echo "this is a '$HARDWARE' - for some hints type: _help overview"
 	}
 }
 
