@@ -3225,9 +3225,9 @@ bootstrap_codespell()
 
 		log '[OK] last commit:'
 		git log -1
-set -x
+
 		ln -s '/run/shm/codespell/codespell.py' "$HOME/codespell.py"
-set +x
+		export PATH="$HOME:$PATH"
 	)
 }
 
