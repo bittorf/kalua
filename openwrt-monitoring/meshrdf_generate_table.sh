@@ -2148,6 +2148,44 @@ _cell_firmwareversion_humanreadable()
 	echo -n "<td bgcolor='$color' align='center' title='$VERSION.$UPDATE:$usecase' sorttable_customkey='$FWVERSION' nowrap>$OUT</td>"
 }
 
+send_mail_telegram()
+{
+	local url='http://bwireless.mooo.com/cgi-bin-tool.sh'
+	local list recipient
+	local subject="$2"
+	local message="$3"
+	local admin='bb|lochstreifen.com'
+
+	# TODO: resend if markerfile older than X hours (and during housekeeping time)
+	# TODO: detect faulty DSL-line/spbansin: red switch
+	# TODO: choose reason and translate according to recipient
+
+	case "$NETWORK" in
+		liszt28) list="$admin" ;;
+		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de" ;;
+		spbansin) list="$admin office|seeparkbansin.de" ;;
+		xoai) list="$admin office|ffii.org mb|mariobehling.de hp|fossasia.org" ;;
+		*) list= ;;
+	esac
+
+	# dont complain if there is a fundamental problem
+	[ -e "/dev/shm/pingcheck/$NETWORK.faulty" ] && return 0
+
+	# TODO: write into queue and make foolproof cronjob
+	for recipient in $list; do {
+		recipient="$( echo "$recipient" | sed 's/|/@/g' )"
+		echo "$( date ): $recipient | $subject" >>"/var/www/networks/$NETWORK/log/mail.txt"
+
+		curl -G -v "$url" \
+			--data-urlencode 'OPT=minimail' \
+			--data-urlencode "RECIPIENT=$recipient" \
+			--data-urlencode "SUBJECT=$subject" \
+			--data-urlencode "MESSAGE=$message" >/dev/null || {
+				echo "$( date ): ERROR $?" >>"/var/www/networks/$NETWORK/log/mail.txt"
+			}
+	} done
+}
+
 _cell_lastseen()
 {
 	local LASTSEEN="$1"
@@ -2159,6 +2197,7 @@ _cell_lastseen()
 	local smsfile_kasse1="../settings/0a40cf496b01"
 	local unixtime_now
 	local unixtime_file
+	local mailmarker="recent/${WIFIMAC}.mail"
 
 	case "$NETWORK" in
 		liszt28|apphalle|abtpark|apphalle)
@@ -2179,6 +2218,13 @@ _cell_lastseen()
 #		echo >>/tmp/lastseen_red.txt "network: $NETWORK wifimac: $WIFIMAC localunix/unix: $LOCALUNIXTIME/$UNIXTIME lastseen: $LASTSEEN hostname: $HOSTNAME"
 
 #		logger -s "ueberfaellig: $HOSTNAME border: $border lastseen: $LASTSEEN"
+
+		[ -e "$mailmarker" ] || {
+			touch "$mailmarker"
+			MONI="Siehe auch die Gesamtuebersicht:\nhttp://intercity-vpn.de/networks/$NETWORK/\n\n"
+			send_mail_telegram "Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $HOSTNAME" \
+					   "Bitte pruefen Sie das Geraet $HOSTNAME (MAC-Adresse: $WIFIMAC)\nIm Zweifel kurz stromlos machen.\n\n${MONI}Danke."
+		}
 
 		if [ -e "${smsfile}.lastsend" ]; then
 			read sms_timestamp <"${smsfile}.lastsend"
@@ -2245,6 +2291,12 @@ _cell_lastseen()
 		echo -n " bgcolor='$bgcolor' title='MISS ${sms_number:-no_number}:$sms_time min ago, seit: ${LASTSEEN_ORIGINAL}h/$HUMANTIME'"
 		echo >>"${FILE_FAILURE_OVERVIEW}.tmp" "$WIFIMAC $HOSTNAME (node: $NODE)"
 	else
+		[ -e "$mailmarker" ] && {
+			rm -f "$mailmarker"
+			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: Geraet: $HOSTNAME" \
+					   "Das Geraet: ${HOSTNAME}\nist wieder einsatzbereit.\n\nDanke."
+		}
+
 		case "$NETWORK" in
 			# only one router which does monitoring or ALL have inet-offer
 			vivaldi|preskil|hotello-H09|cupandcoffee|paltstadt)
