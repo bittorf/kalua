@@ -2152,8 +2152,8 @@ send_mail_telegram()
 {
 	local url='http://bwireless.mooo.com/cgi-bin-tool.sh'
 	local list recipient
-	local subject="$2"
-	local message="$3"
+	local subject="$1"
+	local message="$2"
 	local admin='bb|lochstreifen.com'
 
 	# TODO: resend if markerfile older than X hours (and during housekeeping time)
@@ -2169,7 +2169,13 @@ send_mail_telegram()
 	esac
 
 	# dont complain if there is a fundamental problem
-	[ -e "/dev/shm/pingcheck/$NETWORK.faulty" ] && return 0
+	[ -e "/dev/shm/pingcheck/$NETWORK.faulty" ] && return 1
+
+	case "$( date '+%H:%M' )" in
+		'23'*|'00'*|'01'*|'02'*|'03'*|'04'*|'05'*|'06'*)
+			return 1
+		;;
+	esac
 
 	# TODO: write into queue and make foolproof cronjob
 	for recipient in $list; do {
@@ -2191,13 +2197,12 @@ _cell_lastseen()
 	local LASTSEEN="$1"
 	local HUMANTIME="$2"
 	local inet_offer="$3"
-	local OPTION=" title="
+	local OPTION=' title='
 	local smsfile sms_timestamp sms_time sms_number bgcolor border hour
 	local smsfile="../settings/${WIFIMAC}"
 	local smsfile_kasse1="../settings/0a40cf496b01"
-	local unixtime_now
-	local unixtime_file
-	local mailmarker="recent/${WIFIMAC}.mail"
+	local unixtime_now unixtime_file
+	local mailmarker="/dev/shm/${WIFIMAC}.mail"
 
 	case "$NETWORK" in
 		liszt28|apphalle|abtpark|apphalle)
@@ -2219,13 +2224,37 @@ _cell_lastseen()
 
 #		logger -s "ueberfaellig: $HOSTNAME border: $border lastseen: $LASTSEEN"
 
-		[ -e "$mailmarker" ] || {
-			touch "$mailmarker"
-			MONI="Siehe auch die Gesamtuebersicht:\nhttp://intercity-vpn.de/networks/$NETWORK/\n\n"
-			send_mail_telegram "Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $HOSTNAME" \
-					   "Bitte pruefen Sie das Geraet $HOSTNAME (MAC-Adresse: $WIFIMAC)\nIm Zweifel kurz stromlos machen.\n\n${MONI}Danke."
+
+		[ -e "$mailmarker" ] && {
+			MAIL_AGE=$(( UNIXTIME_SCRIPTSTART - $( date +%s -r "$mailmarker" ) ))	# [sec]
+
+			[ $MAIL_AGE -gt $(( 3600 * 6 )) ] && {
+				case "$NETWORK" in
+					liszt28)
+					;;
+					*)
+						# TODO: change subject or body to e.g. "erinnerung"
+						# this forces a resend
+						rm -f "$mailmarker"
+					;;
+				esac
+			}
 		}
 
+		[ -e "$mailmarker" ] || {
+			touch "$mailmarker"
+
+			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $HOSTNAME"
+			#
+			LINE1="Bitte pruefen Sie das Geraet: $HOSTNAME (MAC-Adresse: $WIFIMAC)"
+			LINE2="Im Zweifel kurz stromlos machen."
+			#
+			LINE3="Beachten Sie auch die Gesamtuebersicht:"
+			LINE4="http://intercity-vpn.de/networks/$NETWORK/"
+			#
+			LINE5="Danke fuer Ihr mitwirken."
+			send_mail_telegram "$SUBJECT" "${LINE1}\n${LINE2}\n\n${LINE3}\n${LINE4}\n\n${LINE5}"
+		}
 		if [ -e "${smsfile}.lastsend" ]; then
 			read sms_timestamp <"${smsfile}.lastsend"
 			sms_time=$(( ($UNIXTIME_SCRIPTSTART - $sms_timestamp) / 60 ))	# how much minutes ago?
@@ -2294,7 +2323,7 @@ _cell_lastseen()
 		[ -e "$mailmarker" ] && {
 			rm -f "$mailmarker"
 			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: Geraet: $HOSTNAME" \
-					   "Das Geraet: ${HOSTNAME}\nist wieder einsatzbereit.\n\nDanke."
+					   "Das Geraet: ${HOSTNAME}\nist wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
 		}
 
 		case "$NETWORK" in
@@ -2666,6 +2695,40 @@ _cell_switch()
 							[ $inet_offer_down -eq 0 ] && {
 								global_bgcolor='crimson'
 								global_tooltip='ADSL broken'
+
+								local mailmarker="/dev/shm/${WIFIMAC}.mail_pppoe"
+
+		# TODO: fix hostname overrrider: must be run already at this stage
+		[ -e "$mailmarker" ] && {
+			MAIL_AGE=$(( UNIXTIME_SCRIPTSTART - $( date +%s -r "$mailmarker" ) ))	# [sec]
+
+			[ $MAIL_AGE -gt $(( 3600 * 6 )) ] && {
+				case "$NETWORK" in
+					liszt28)
+					;;
+					*)
+						# TODO: change subject or body to e.g. "erinnerung"
+						# this forces a resend
+						rm -f "$mailmarker"
+					;;
+				esac
+			}
+		}
+
+		[ -e "$mailmarker" ] || {
+			touch "$mailmarker"
+
+			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung DSL-Modem an $HOSTNAME"
+			#
+			LINE1="Bitte pruefen Sie das DSL-Modem an: $HOSTNAME (MAC-Adresse: $WIFIMAC)"
+			LINE2="Im Zweifel kurz stromlos machen."
+			#
+			LINE3="Beachten Sie auch die Gesamtuebersicht:"
+			LINE4="http://intercity-vpn.de/networks/$NETWORK/"
+			#
+			LINE5="Danke fuer Ihr mitwirken."
+			send_mail_telegram "$SUBJECT" "${LINE1}\n${LINE2}\n\n${LINE3}\n${LINE4}\n\n${LINE5}"
+		}
 							}
 						;;
 					esac
