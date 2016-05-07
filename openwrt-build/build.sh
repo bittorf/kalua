@@ -2700,6 +2700,11 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_olsrd2-git=y'		# network: olsrd2-framework
 				apply_symbol 'CONFIG_PACKAGE_oonf-olsrd2-git=y'		# the same, but newer revisions
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH=y'
+				apply_symbol 'CONFIG_PACKAGE_hnetd-nossl=y'
+				apply_symbol 'CONFIG_OONF_NHDP_AUTOLL4=y'
+				apply_symbol 'CONFIG_OONF_OLSRV2_LAN_IMPORT=y'
+				apply_symbol 'CONFIG_OONF_OLSRV2_ROUTE_MODIFIER=y'
+				apply_symbol 'CONFIG_OONF_GENERIC_REMOTECONTROL=y'
 			;;
 			'babel')
 				apply_symbol 'CONFIG_PACKAGE_babeld=y'			# +50k

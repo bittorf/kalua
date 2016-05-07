@@ -91,10 +91,10 @@ case "${BUTTON}-${ACTION}" in
 		fi
 
 		. /tmp/loader
-		_weblogin authserver_message "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
+		_weblogin authserver_message "button_pressed.$NODENUMBER.${LANADR:-$WANADR}.$HOSTNAME.$DIFF.msec"
 
 		[ $DIFF -gt 300 ] && {
-			_log it firmware_button daemon info "button_pressed.$LANADR.$HOSTNAME.$DIFF.msec"
+			_log it firmware_button daemon info "button_pressed.$NODENUMBER.${LANADR:-$WANADR}.$HOSTNAME.$DIFF.msec"
 
 			[ $DIFF -gt 1000 ] && {
 				touch '/coredump/testdump.core'		# FIXME! see system_adjust_coredump()
