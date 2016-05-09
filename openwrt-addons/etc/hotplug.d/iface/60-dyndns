@@ -160,28 +160,30 @@ case "$ACTION" in
 
 				# FIXME! - autounroll if interface goes down?
 
-				# not local, but over wan: -> should NOT match - FIXME!
-				# default via 172.17.0.2 dev eth0.2  metric 2 onlink
-				# 8.8.8.8 via 172.17.0.2 dev eth0.2  src 10.10.13.61 \    cache
+				is_valid_gateway()
+				{
+					local device="$1"
+					local gw_route gw_ipaddr
 
-				# really local (wan-dhcp with pub IP)
-				# default via 92.206.84.1 dev eth0.2  proto static  src 92.206.85.103
-				# 8.8.8.8 via 92.206.84.1 dev eth0.2  src 92.206.85.103 \    cache
+					gw_route="$( ip -oneline route get '8.8.8.8' )"
+					echo "$gw_route" | fgrep -q " dev $device " || return 1
 
-				# really local (wan-pppoe)
-				# default via 217.0.116.253 dev pppoe-wan  proto static
-				# 8.8.8.8 via 217.0.116.253 dev pppoe-wan  src 87.171.16.58 \    cache
+					# 8.8.8.8 via 10.1.3.1 dev eth0.2 src 10.1.3.166 \ cache
+					explode $gw_route
+					shift
+					gw_ipaddr="$( _sanitizer run "$*" ip4 )"
 
-				# really local (wan-dhcp)
-				# default via 192.168.2.1 dev eth1  proto static  src 192.168.2.147
-				# default via 10.63.71.249 dev tap0  metric 2 onlink
-				# 8.8.8.8 via 192.168.2.1 dev eth1  src 192.168.2.147 \    cache
+					if _ipsystem get "$gw_ipaddr" >/dev/null; then
+						return 1
+					else
+						return 0
+					fi
+				}
 
-				# FIXME!
-				ip -oneline route get '8.8.8.8' | fgrep -q " dev XXX " && {
-#				ip -oneline route get '8.8.8.8' | fgrep -q " dev $DEVICE " && {
+				is_valid_gateway "$DEVICE" && {
 					_log it $ACTION.$INTERFACE.$DEVICE daemon info '[OK] wow - local inet offer'
 
+					# TODO: use own class _config or _uci?
 					. /etc/init.d/override_uci_vars
 					uci_already_added olsrd Hna4 netaddr '0.0.0.0' || {
 						pidof olsrd >/dev/null && {
