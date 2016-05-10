@@ -10,6 +10,16 @@ log()
 	set +x $1
 }
 
+case "$NETWORK" in
+	*'/'*)
+	;;
+	*)
+		# e.g. ewerk
+		log "changing: '/var/www/networks/$NETWORK/meshrdf'"
+		cd "/var/www/networks/$NETWORK/meshrdf"
+	;;
+esac
+
 update_local_netjson_files()
 {
 	local file url
@@ -217,7 +227,42 @@ func_node_is_wired_with_node_in_ap_mode ()
 	return 1
 }
 
-FILELIST="$( find recent/ -type f 2>/dev/null | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
+ipsystem_ip2node_line()
+{
+	local node_number="$1"	# e.g. 759
+	local ip		# e.g. 10.63.249.130
+	local city=63
+	local network=10
+	local s n
+
+	if   [ "$node_number" -gt 765 ]; then
+		n=$(( node_number - 765 ))
+		s=192
+	elif [ "$node_number" -gt 510 ]; then
+		n=$(( node_number - 510 ))
+		s=128
+	elif [ "$node_number" -gt 255 ]; then
+		n=$(( node_number - 255 ))
+		s=64
+	else
+		n="$node_number"
+		s=0
+	fi
+
+	out()
+	{
+		echo "$1 $node_number"
+	}
+
+	out "$network.$city.$n.$(( s + 33 ))"		# LAN
+	out "$network.$city.$n.$(( s + 61 ))"		# WAN
+	out "$network.$city.$n.$(( s + 1 ))"		# WIFI
+	out "$network.$city.$n.$(( s + 2 ))"		# WIFI
+	out "$network.$city.$n.$(( s + 3 ))"		# WIFI
+	out "$network.$city.$n.$(( s + 4 ))"		# WIFI
+}
+
+FILELIST="$( find -L recent/ -type f 2>/dev/null | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
 [ -z "$FILELIST" ] && {
 	log "[ERR] no valid files under $(pwd)/recent/"
 	exit 1
@@ -261,6 +306,13 @@ for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 			# monami
 			echo '192.168.2.10 6'
 			echo '192.168.2.102 7'
+
+			# ewerk
+			case "$NETWORK" in
+				'ewerk'|'liszt28')
+					ipsystem_ip2node_line "$NODE"
+				;;
+			esac
 
 			echo "10.63.$NODE.1 $NODE"
 			echo "10.63.$NODE.3 $NODE"
