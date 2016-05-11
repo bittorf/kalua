@@ -2165,6 +2165,7 @@ send_mail_telegram()
 		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de" ;;
 		spbansin) list="$admin office|seeparkbansin.de" ;;
 		xoai) list="$admin office|ffii.org mb|mariobehling.de hp|fossasia.org" ;;
+		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
 		*) list= ;;
 	esac
 
