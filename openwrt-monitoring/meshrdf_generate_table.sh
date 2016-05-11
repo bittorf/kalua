@@ -2203,7 +2203,7 @@ _cell_lastseen()
 	local smsfile="../settings/${WIFIMAC}"
 	local smsfile_kasse1="../settings/0a40cf496b01"
 	local unixtime_now unixtime_file
-	local mailmarker="/dev/shm/${WIFIMAC}.mail"
+	local mailmarker="/dev/shm/${NETWORK}-${WIFIMAC}.mail"
 
 	case "$NETWORK" in
 		liszt28|apphalle|abtpark|apphalle)
@@ -2254,8 +2254,10 @@ _cell_lastseen()
 			LINE4="http://intercity-vpn.de/networks/$NETWORK/"
 			#
 			LINE5="Danke fuer Ihr mitwirken."
+
 			send_mail_telegram "$SUBJECT" "${LINE1}\n${LINE2}\n\n${LINE3}\n${LINE4}\n\n${LINE5}"
 		}
+
 		if [ -e "${smsfile}.lastsend" ]; then
 			read sms_timestamp <"${smsfile}.lastsend"
 			sms_time=$(( ($UNIXTIME_SCRIPTSTART - $sms_timestamp) / 60 ))	# how much minutes ago?
@@ -2697,7 +2699,7 @@ _cell_switch()
 								global_bgcolor='crimson'
 								global_tooltip='ADSL broken'
 
-								local mailmarker="/dev/shm/${WIFIMAC}.mail_pppoe"
+								local mailmarker="/dev/shm/${NETWORK}-${WIFIMAC}.mail_pppoe"
 
 		# TODO: fix hostname overrrider: must be run already at this stage
 		[ -e "$mailmarker" ] && {
