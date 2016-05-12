@@ -1309,6 +1309,9 @@ func_cell_hostname ()
 			;;
 		esac
 
+		read STORED_HOSTNAME 2>/dev/null <"$TMPDIR/goodhostname_$WIFIMAC"
+		[ "$STORED_HOSTNAME" = "$HOSTNAME" ] || echo "$HOSTNAME" >"$TMPDIR/goodhostname_$WIFIMAC"
+
 		[ -n "$SIMULATE_OK" ] && bgcolor=
 		echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME </td>"
 	fi
@@ -2150,16 +2153,16 @@ _cell_firmwareversion_humanreadable()
 
 send_mail_telegram()
 {
-	local url='http://bwireless.mooo.com/cgi-bin-tool.sh'
-	local list recipient
 	local subject="$1"
 	local message="$2"
+	local list recipient hostname
+	local url='http://bwireless.mooo.com/cgi-bin-tool.sh'
 	local admin='bb|lochstreifen.com'
 
 	# TODO: resend if markerfile older than X hours (and during housekeeping time)
-	# TODO: detect faulty DSL-line/spbansin: red switch
 	# TODO: choose reason and translate according to recipient
 
+	# TODO: use stored email from node
 	case "$NETWORK" in
 		liszt28) list="$admin" ;;
 		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de" ;;
@@ -2168,7 +2171,19 @@ send_mail_telegram()
 		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
-		*) list= ;;
+		schoeneck) list="$admin wolfgang|schuster@vr-web.de" ;;
+		*) list="$admin" ;;
+	esac
+
+	read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+	case "$NETWORK" in
+		spbansin)
+			case "$hostname" in
+				Haus12-HeizhausOben|Haus11-hintenCHECK|Haus10-HeizhausObenCHECK|Haus9-hinten|Haus4-hinten)
+					list=
+				;;
+			esac
+		;;
 	esac
 
 	# dont complain if there is a fundamental problem
@@ -2205,7 +2220,7 @@ _cell_lastseen()
 	local smsfile sms_timestamp sms_time sms_number bgcolor border hour
 	local smsfile="../settings/${WIFIMAC}"
 	local smsfile_kasse1="../settings/0a40cf496b01"
-	local unixtime_now unixtime_file
+	local unixtime_now unixtime_file hostname
 	local mailmarker="/dev/shm/${NETWORK}-${WIFIMAC}.mail"
 
 	case "$NETWORK" in
@@ -2247,10 +2262,11 @@ _cell_lastseen()
 
 		[ -e "$mailmarker" ] || {
 			touch "$mailmarker"
+			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
 
-			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $HOSTNAME"
+			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $hostname"
 			#
-			LINE1="Bitte pruefen Sie das Geraet: $HOSTNAME (MAC-Adresse: $WIFIMAC)"
+			LINE1="Bitte pruefen Sie das Geraet: $hostname (MAC-Adresse: $WIFIMAC)"
 			LINE2="Im Zweifel kurz stromlos machen."
 			#
 			LINE3="Beachten Sie auch die Gesamtuebersicht:"
@@ -2328,8 +2344,10 @@ _cell_lastseen()
 	else
 		[ -e "$mailmarker" ] && {
 			rm -f "$mailmarker"
-			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: Geraet: $HOSTNAME" \
-					   "Das Geraet: ${HOSTNAME}\nist wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
+			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+
+			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: Geraet: $hostname" \
+					   "Das Geraet: ${hostname}\nist wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
 		}
 
 		case "$NETWORK" in
@@ -2670,7 +2688,7 @@ _cell_switch()
 	local i=0
 	local real_port=-1
 	local char spacer color speed duplex
-	local cellspacing speed_printed symetric
+	local cellspacing speed_printed symetric hostname
 
 	if [ ${#plugs} -eq 1 ]; then		# e.g. ubnt bullet
 		plugs=".--.${plugs}.--."
@@ -2702,7 +2720,7 @@ _cell_switch()
 								global_bgcolor='crimson'
 								global_tooltip='ADSL broken'
 
-								local mailmarker="/dev/shm/${NETWORK}-${WIFIMAC}.mail_pppoe"
+								local mailmarker="/dev/shm/${WIFIMAC}.mail_pppoe"
 
 		# TODO: fix hostname overrrider: must be run already at this stage
 		[ -e "$mailmarker" ] && {
@@ -2723,16 +2741,19 @@ _cell_switch()
 
 		[ -e "$mailmarker" ] || {
 			touch "$mailmarker"
+			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
 
-			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung DSL-Modem an $HOSTNAME"
+			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung DSL-Modem an $hostname"
 			#
-			LINE1="Bitte pruefen Sie das DSL-Modem an: $HOSTNAME (MAC-Adresse: $WIFIMAC)"
+			LINE1="Bitte pruefen Sie das DSL-Modem an: $hostname (MAC-Adresse: $WIFIMAC)"
 			LINE2="Im Zweifel kurz stromlos machen."
 			#
 			LINE3="Beachten Sie auch die Gesamtuebersicht:"
 			LINE4="http://intercity-vpn.de/networks/$NETWORK/"
 			#
 			LINE5="Danke fuer Ihr mitwirken."
+
+			# TODO: mail if OK again...
 			send_mail_telegram "$SUBJECT" "${LINE1}\n${LINE2}\n\n${LINE3}\n${LINE4}\n\n${LINE5}"
 		}
 							}
