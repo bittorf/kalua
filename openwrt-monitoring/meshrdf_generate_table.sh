@@ -2166,6 +2166,8 @@ send_mail_telegram()
 		spbansin) list="$admin office|seeparkbansin.de" ;;
 		xoai) list="$admin office|ffii.org mb|mariobehling.de hp|fossasia.org" ;;
 		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
+		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
+		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
 		*) list= ;;
 	esac
 
@@ -2178,6 +2180,7 @@ send_mail_telegram()
 		;;
 	esac
 
+	# TODO: autoappend 'verteiler-liste'
 	# TODO: write into queue and make foolproof cronjob
 	for recipient in $list; do {
 		recipient="$( echo "$recipient" | sed 's/|/@/g' )"
