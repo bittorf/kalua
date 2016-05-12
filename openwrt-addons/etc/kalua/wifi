@@ -159,7 +159,7 @@ _wifi_change_essid_ap()
 	local funcname='wifi_change_essid_ap'
 	local option="$1"	# e.g. <empty> OR 'original'
 	local file="/tmp/$funcname"
-	local i essid age	# find $i -> WIFIDEV and restart these via phy_restart()
+	local i essid age hash1 hash2	# find $i -> WIFIDEV and restart these via phy_restart()
 
 	if [ "$option" = 'original' ]; then
 		# do not work, when it was never changed
@@ -169,6 +169,7 @@ _wifi_change_essid_ap()
 		[ -e "$file" ] && return 0
 	fi
 
+	hash1="$( uci show wireless | md5sum )"
 	for i in $( _wifi get any mode ap ); do {
 		if [ "$option" = 'original' ]; then
 			essid="$( uci -q get wireless.@wifi-iface[$i].ssid_old )" || continue
@@ -184,13 +185,19 @@ _wifi_change_essid_ap()
 			uci set wireless.@wifi-iface[$i].ssid_old="$essid"
 			uci set wireless.@wifi-iface[$i].ssid="$( _i18n get "$LANG" maintenance_mode "$NODENUMBER/$i" )"
 
+			# FIXME! this should go to another function and switched back, if net is OK again
+			_wifi set any 2ghz txpower '20'
+			_wifi set any 5ghz txpower '20'
+
 			_wifi longshot_name >/dev/null && {
+				# TODO: switch off if OK again?
 				_wifi set ap any 'on'
 			}
 		fi
 	} done
 
-	[ -n "$essid" ] && {
+	hash2="$( uci show wireless | md5sum )"
+	[ "$hash1" = "$hash2" ] || {
 		_wifi phy_restart "$WIFIDEV" "force: mode: '${option:-inet_broken}' $funcname"
 	}
 }
