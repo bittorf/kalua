@@ -58,7 +58,7 @@ uci_already_added()
 apply_olsr_roaming()
 {
 	local wired_networks="$1"		# e.g. 'lan' or 'lan wan'
-	local index network list list_ap has_5ghz has_2ghz
+	local index network list list_ap has_5ghz has_2ghz is_hybrid
 
 #	local ssid2	# TODO: dhcp complains about missing IP on dev
 #	ssid2="freifunk ($HOSTNAME"
@@ -157,25 +157,33 @@ apply_olsr_roaming()
 
 	_wifi longshot_name >/dev/null || {		# TODO: hostapd: band-steering
 		# TODO: test if this speeds up roaming? CoverageClass1 = 450m
-		_wifi set any 2ghz distance '100'
-		_wifi set any 2ghz beacon_int '250'	# better powersafe and not too slow
-		_wifi set any 2ghz txpower '6'
+		_wifi set ap 2ghz distance '100'
+		_wifi set ap 2ghz beacon_int '250'	# better powersafe and not too slow
+		_wifi set ap 2ghz txpower '10'
+		_wifi set ap 2ghz mcast_rate '5500'
+
+		# TODO: be band-specific
+		[ -n "$( _wifi get any mode adhoc )" ] && is_hybrid='true'
 
 		# single band 5ghz
 		[ -n "$has_5ghz" -a -z "$has_2ghz" ] && {
-			_wifi set any 5ghz beacon_int '125'
-			_wifi set any 5ghz txpower '20'
+			[ -n "$is_hybrid" ] && {
+				_wifi set ap 5ghz beacon_int '125'
+				_wifi set ap 5ghz txpower '20'
+			}
 		}
 
 		# single band 2ghz
 		[ -z "$has_5ghz" -a -n "$has_2ghz" ] && {
-			_wifi set any 2ghz beacon_int '125'
-			_wifi set any 2ghz txpower '20'
+			[ -n "$is_hybrid" ] && {
+				_wifi set ap 2ghz beacon_int '125'
+				_wifi set ap 2ghz txpower '20'
+			}
 		}
 
-		_wifi set any 5ghz distance '100'
-		_wifi set any 5ghz beacon_int  '60'	# maybe this helps better sticking to 5ghz
-		_wifi set any 5ghz txpower '19'
+		_wifi set ap 5ghz distance '100'
+		_wifi set ap 5ghz beacon_int  '50'	# maybe this helps better sticking to 5ghz
+		_wifi set ap 5ghz txpower '20'
 	}
 
 	return 0
