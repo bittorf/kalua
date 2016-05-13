@@ -2166,12 +2166,15 @@ send_mail_telegram()
 	case "$NETWORK" in
 		liszt28) list="$admin" ;;
 		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de" ;;
-		spbansin) list="$admin office|seeparkbansin.de" ;;
+		spbansin) list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de" ;;
 		xoai) list="$admin office|ffii.org mb|mariobehling.de hp|fossasia.org" ;;
 		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
 		schoeneck) list="$admin wolfgang|schuster@vr-web.de" ;;
+		monami) list="$admin peter.frenzel|uni-weimar.de" ;;
+		extrawatt) list="$admin matthias.golle|extrawatt-weimar.de" ;;
+		tkolleg) list="$admin mail|detlefwagner.de" ;;
 		*) list="$admin" ;;
 	esac
 
@@ -2195,7 +2198,18 @@ send_mail_telegram()
 		;;
 	esac
 
-	# TODO: autoappend 'verteiler-liste'
+	# autoappend "verteiler"
+	case "$list" in
+		*' '*)
+			message="$message\n\nVerteiler:\n"
+
+			for recipient in $list; do {
+				recipient="$( echo "$recipient" | sed 's/|/@/g' )"
+				message="$message- $recipient\n"
+			} done
+		;;
+	esac
+
 	# TODO: write into queue and make foolproof cronjob
 	for recipient in $list; do {
 		recipient="$( echo "$recipient" | sed 's/|/@/g' )"
@@ -2250,6 +2264,7 @@ _cell_lastseen()
 			[ $MAIL_AGE -gt $(( 3600 * 6 )) ] && {
 				case "$NETWORK" in
 					liszt28)
+						# no resend
 					;;
 					*)
 						# TODO: change subject or body to e.g. "erinnerung"
@@ -2260,21 +2275,28 @@ _cell_lastseen()
 			}
 		}
 
+		# TODO: code duplication, some lines later
+		[ $LASTSEEN_ORIGINAL -gt 2160 ] && touch "$mailmarker"	# > 3 months unseen
+
 		[ -e "$mailmarker" ] || {
 			touch "$mailmarker"
 			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
 
 			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $hostname"
 			#
-			LINE1="Bitte pruefen Sie das Geraet: $hostname (MAC-Adresse: $WIFIMAC)"
-			LINE2="Im Zweifel kurz stromlos machen."
+			L1="Bitte pruefen Sie das Geraet: $hostname"
+			L2="MAC-Adresse: $WIFIMAC"
+			L3="Geraetetyp: $HW"
 			#
-			LINE3="Beachten Sie auch die Gesamtuebersicht:"
-			LINE4="http://intercity-vpn.de/networks/$NETWORK/"
+			L4="Im Zweifel kurz stromlos machen."
 			#
-			LINE5="Danke fuer Ihr mitwirken."
+			L5="Beachten Sie auch die Gesamtuebersicht:"
+			L6="http://intercity-vpn.de/networks/$NETWORK/"
+			#
+			L7="Danke fuer Ihr mitwirken."
+			L8="Das automatische Monitoring-System."
 
-			send_mail_telegram "$SUBJECT" "${LINE1}\n${LINE2}\n\n${LINE3}\n${LINE4}\n\n${LINE5}"
+			send_mail_telegram "$SUBJECT" "${L1}\n${L2}\n${L3}\n\n${L4}\n\n${L5}\n${L6}\n\n${L7}\n${L8}"
 		}
 
 		if [ -e "${smsfile}.lastsend" ]; then
@@ -2716,11 +2738,11 @@ _cell_switch()
 				spbansin*)
 					case "$HOSTNAME" in
 						*'-HWR-'*)
-							[ $inet_offer_down -eq 0 ] && {
+							local mailmarker="/dev/shm/${WIFIMAC}.mail_pppoe"
+
+							if [ $inet_offer_down -eq 0 ]; then
 								global_bgcolor='crimson'
 								global_tooltip='ADSL broken'
-
-								local mailmarker="/dev/shm/${WIFIMAC}.mail_pppoe"
 
 		# TODO: fix hostname overrrider: must be run already at this stage
 		[ -e "$mailmarker" ] && {
@@ -2745,18 +2767,30 @@ _cell_switch()
 
 			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung DSL-Modem an $hostname"
 			#
-			LINE1="Bitte pruefen Sie das DSL-Modem an: $hostname (MAC-Adresse: $WIFIMAC)"
-			LINE2="Im Zweifel kurz stromlos machen."
+			L1="Bitte pruefen Sie das DSL-Modem an: $hostname"
+			L2="Modellbezeichnung: Allnet ALL-0333CJ"
 			#
-			LINE3="Beachten Sie auch die Gesamtuebersicht:"
-			LINE4="http://intercity-vpn.de/networks/$NETWORK/"
+			L3="Im Zweifel kurz stromlos machen bzw."
+			L4="die Deutsche Telekom zur Entstoerung anrufen."
 			#
-			LINE5="Danke fuer Ihr mitwirken."
+			L5="Beachten Sie auch die Gesamtuebersicht:"
+			L6="http://intercity-vpn.de/networks/$NETWORK/"
+			#
+			L7="Danke fuer Ihr mitwirken."
+			L8="Das automatische Monitoring-System."
 
 			# TODO: mail if OK again...
-			send_mail_telegram "$SUBJECT" "${LINE1}\n${LINE2}\n\n${LINE3}\n${LINE4}\n\n${LINE5}"
+			send_mail_telegram "$SUBJECT" "${L1}\n${L2}\n\n${L3}\n${L4}\n\n${L5}\n${L6}\n\n${L7}\n${L8}"
 		}
-							}
+							else
+		[ -e "$mailmarker" ] && {
+			rm "$mailmarker"
+			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+
+			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: DSL-Modem an $hostname" \
+					   "Das DSL-Modem an ${hostname}\nist wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
+		}
+							fi
 						;;
 					esac
 				;;
