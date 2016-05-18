@@ -1906,7 +1906,7 @@ _watch_wifistuff()
 		esac
 	}
 
-	local interface line file clients clients_max file2 dev reason
+	local interface line file clients clients_max file2 dev reason marker
 	for file in /var/run/hostapd-phy[0-3].conf; do {
 		while read -r line; do {
 			case "$line" in
@@ -1939,10 +1939,15 @@ _watch_wifistuff()
 						if [ -e "/tmp/wifi_hasclients_$interface" ]; then
 							rm "/tmp/wifi_hasclients_$interface" "/tmp/$funcname-apmode"
 
-							_net roaming_eventlistener restart "$funcname: no clients on APDEV '$interface'"
+							marker=
+							for marker in '/tmp/wifi_hasclients_'*; do :; done
+							[ -z "$marker" ] && {
+								# only if all AP-devs have no clients
+								_net roaming_eventlistener restart "$funcname: no clients on APDEV '$interface'"
 
-							_net local_inet_offer >/dev/null || {
-								_wifi phy_restart "$interface" 'cleanup after last client'
+								_net local_inet_offer >/dev/null || {
+									_wifi phy_restart "$interface" 'cleanup after last client'
+								}
 							}
 
 							break
