@@ -1611,7 +1611,8 @@ _wifi_mode()			# OUT1: string, ap | client | adhoc | adhocap             // rena
 _wifi_scan()
 {
 	local dev="${1:-$WIFIDEV}"		# e.g. wlan0
-	local line value remote
+	local option="$2"			# e.g. my-special-ssid
+	local line value remote signal
 
 	iw dev "$dev" scan | while read -r line; do {
 		case "$line" in
@@ -1628,8 +1629,10 @@ _wifi_scan()
 			*'signal: '*)			# signal: -52.00 dBm
 				explode $line		# signal: 1.00 dBm
 				value="${2%.*}"		# signal: 0.00 dBm
+
 				case "$value" in
 					'-'*)
+						# OK
 					;;
 					'0')
 						value='-256'		# mimic 'iwinfo'
@@ -1638,13 +1641,23 @@ _wifi_scan()
 						value="-$value"
 					;;
 				esac
+
+				signal="$value"
 				remote="${remote}${value}"
 			;;
 			*'SSID: '*)			# SSID: Schlachtfest 123
 				explode $line; shift
 				value="$*"
 
-				echo "${remote}-${value}"
+				case "$option" in
+					'')
+						echo "${remote}-${value}"
+					;;
+					*)
+						# scan | sort -n | tail -n1 | cut -d',' -f1 -> strongest signal (e.g. -46)
+						[ "$value" = "$option" ] && echo "${signal},${remote}-${value}"
+					;;
+				esac
 			;;
 		esac
 	} done
