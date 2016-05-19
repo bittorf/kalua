@@ -102,7 +102,7 @@ mac2ipv4()	# TODO: better name
 						log "$funcname($i) is alien/global roamer: $ip"
 
 						if ip route add "$ip/32" dev $dev; then
-							log "$funcname($i) [SUCCESS] setting host route for alien $ip"
+							log "$funcname($i) [SUCCESS] setting host route for alien $ip (wifidev: $wifidev)"
 
 							if _net local_inet_offer >/dev/null; then
 								# FIXME! e.g. giancarlo
@@ -170,12 +170,29 @@ mac2ipv4()	# TODO: better name
 	fi
 }
 
+mac_is_active_on_another_dev()
+{
+	local mac="$1"
+	local wifidev_old="$2"
+	local dev
+
+	for dev in $( active_ap_devices ); do {
+		[ "$dev" = "$wifidev_old" ] || {
+			iw dev "$dev" station get "$mac" >/dev/null 2>/dev/null && {
+				return 0
+			}
+		}
+	} done
+
+	return 1
+}
+
 worker()
 {
 	local wifidev="$1"	# e.g. 'wlan0-1'
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
-	local ip signal signal_try=4
+	local ip signal wifidev_now signal_try=4
 	local kickmarker="$TMPDIR/kicked_low_signal_$mac-$wifidev"
 	local txt="worker($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
 
@@ -234,8 +251,12 @@ worker()
 		;;
 		'del')
 			if [ -e "/tmp/ROAMING_remove_host_route_$mac" ]; then
-				log "$txt - alien: deleting route"
-				. "/tmp/ROAMING_remove_host_route_$mac"
+				if wifidev_now="$( mac_is_active_on_another_dev "$mac" "$wifidev" )"; then
+					log "$txt - alien: deleting route - NO: moved from $wifidev to $wifidev_now"
+				else
+					log "$txt - alien: deleting route"
+					. "/tmp/ROAMING_remove_host_route_$mac"
+				fi
 			else
 				log "$txt - native (no route del)"
 			fi

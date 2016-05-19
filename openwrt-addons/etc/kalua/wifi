@@ -1459,7 +1459,7 @@ _wifi_channel()
 {
 	local funcname='wifi_channel'
 	local dev="$1"
-	local channel line
+	local channel line freq
 
 	# e.g. 'Interface wlan0 ifindex 6 wdev 0x2 addr 10:6f:3f:0e:31:8e type IBSS wiphy 0 channel 11 (2462 MHz) NO HT'
 	command -v iw >/dev/null && {
@@ -1474,6 +1474,14 @@ _wifi_channel()
 			echo "${channel%% *}"
 		;;
 		*)
+			pidof wpa_supplicant >/dev/null && {
+				freq="$( wpa_cli 'signal_poll' | grep ^'FREQUENCY=' | cut -d'=' -f2 )"
+				[ -n "$freq" ] && {
+					_wifi math_mhz2channel "$freq"
+					return 0
+				}
+			}
+
 			_log it $funcname daemon info "fallback to uci-var for dev: '$dev'"
 			uci get wireless.radio0.channel		# FIXME! do not hardcode radio0
 		;;
