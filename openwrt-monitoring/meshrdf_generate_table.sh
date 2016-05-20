@@ -2167,7 +2167,7 @@ send_mail_telegram()
 		liszt28) list="$admin" ;;
 		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de" ;;
 		spbansin) list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de" ;;
-		xoai) list="$admin office|ffii.org mb|mariobehling.de hp|fossasia.org" ;;
+		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
 		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
@@ -2175,6 +2175,10 @@ send_mail_telegram()
 		monami) list="$admin peter.frenzel|uni-weimar.de" ;;
 		extrawatt) list="$admin matthias.golle|extrawatt-weimar.de" ;;
 		tkolleg) list="$admin mail|detlefwagner.de" ;;
+		marinabh) list="$admin schreyack|yachtwelt.de" ;;
+		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
+		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
+		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de" ;;
 		*) list="$admin" ;;
 	esac
 
@@ -2183,6 +2187,13 @@ send_mail_telegram()
 		spbansin)
 			case "$hostname" in
 				Haus12-HeizhausOben|Haus11-hintenCHECK|Haus10-HeizhausObenCHECK|Haus9-hinten|Haus4-hinten)
+					list=
+				;;
+			esac
+		;;
+		marinabh)
+			case "$hostname" in
+				Steg2uferseite)
 					list=
 				;;
 			esac
@@ -2204,6 +2215,8 @@ send_mail_telegram()
 			message="$message\n\nVerteiler:\n"
 
 			for recipient in $list; do {
+				[ "$recipient" = 'bb|lochstreifen.com' ] && recipient='technik|bittorf-wireless.de'
+
 				recipient="$( echo "$recipient" | sed 's/|/@/g' )"
 				message="$message- $recipient\n"
 			} done

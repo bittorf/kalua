@@ -430,7 +430,7 @@ run_test()
 
 		while read -r file; do {
 			case "$file" in
-				'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh')
+				'openwrt-build/mybuild.sh')
 					log "[OK] ignoring '$file' - deprecated/unused/too_buggy"
 					continue
 				;;
@@ -509,7 +509,14 @@ run_test()
 						log "[OK] shellcheck: '$file'"
 					else
 						log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
-						good='false'
+
+						case "$file" in
+							'openwrt-monitoring/meshrdf_generate_table.sh')
+							;;
+							*)
+								good='false'
+							;;
+						esac
 					fi
 
 					count_files=$(( count_files + 1 ))
