@@ -1608,6 +1608,30 @@ _wifi_mode()			# OUT1: string, ap | client | adhoc | adhocap             // rena
 	fi
 }
 
+_wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
+{
+	local ifindex="$1"	# e.g. 3 or '5ghz'
+	local txpower_new="$2"
+	local ssid="$3"		# e.g. <empty> or SSID
+	local border=-60
+	local signal dev
+
+	return 0
+
+	isnumber "$ifindex" || {
+		ifindex="$( _wifi get 5ghz mode ap )"
+		# TODO: ifindex -> dev ?
+	}
+
+	[ -z "$ssid" ] && ssid='auto'	# TODO
+
+	signal="$( _wifi scan_best_signal_myssid "$dev" "$ssid" )"
+	[ ${signal:--100} -lt $border ] && {
+		_wifi set ap "$ifindex" txpower "$txpower_new"
+		# TODO: apply without calling "phy_restart"
+	}
+}
+
 _wifi_scan_best_signal_myssid()		# e.g. for next_node/roaming
 {
 	local dev="${1:-$WIFIDEV}"
@@ -1637,10 +1661,9 @@ _wifi_scan()
 			*'signal: '*)			# signal: -52.00 dBm
 				explode $line		# signal: 1.00 dBm
 				value="${2%.*}"		# signal: 0.00 dBm
-
 				case "$value" in
 					'-'*)
-						# OK
+						# OK - no change needed
 					;;
 					'0')
 						value='-256'		# mimic 'iwinfo'
@@ -1810,7 +1833,8 @@ _wifi_bugreport_create()
 }
 
 _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
-{				# e.g. '_wifi get any mode ap'
+{				# e.g. '_wifi get any mode ap' or '_wifi get 5ghz mode ap'
+
 	local network="$1"	# e.g. 'wlanadhoc' or 'any'
 	local value="$2"	# e.g. 'channel'/'ssid'/'mode' or 'check' or 'index'
 	local option="$3"	# e.g. 'ap'
@@ -1818,12 +1842,26 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 
 	interesting()
 	{
-		[ "$1" = 'any' ] && return 0
-		[ "$( uci -q get wireless.@wifi-iface[$i].network )" = "$1" ]
+		local condition="$1"
+		local index="$2"
+
+		case "$condition" in
+			'any')
+				return 0
+			;;
+			'2ghz')
+				_wifi is2ghz "$index" && return 0
+			;;
+			'5ghz')
+				_wifi is2ghz "$index" || return 0
+			;;
+		esac
+
+		[ "$( uci -q get wireless.@wifi-iface[$index].network )" = "$condition" ]
 	}
 
 	for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do {
-		interesting "$network" && {
+		interesting "$network" "$i" && {
 			case "$value" in
 				'index')
 					echo "$i"
