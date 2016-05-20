@@ -2159,12 +2159,24 @@ send_mail_telegram()
 	local url='http://bwireless.mooo.com/cgi-bin-tool.sh'
 	local admin='bb|lochstreifen.com'
 
+	read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+
+	# TODO: set reply-to = admin
 	# TODO: resend if markerfile older than X hours (and during housekeeping time)
 	# TODO: choose reason and translate according to recipient
 
 	# TODO: use stored email from node
 	case "$NETWORK" in
-		liszt28) list="$admin" ;;
+		liszt28)
+			case "$hostname" in
+				'liszt28-hybrid--798')
+					list="$admin rene|r-hoffmann.de"
+				;;
+				*)
+					list="$admin"
+				;;
+			esac
+		;;
 		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de" ;;
 		spbansin) list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de" ;;
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
@@ -2179,10 +2191,10 @@ send_mail_telegram()
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
 		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
 		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de" ;;
+		apphalle) list="$admin info|appartementhausamdom.de" ;;
 		*) list="$admin" ;;
 	esac
 
-	read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
 	case "$NETWORK" in
 		spbansin)
 			case "$hostname" in
@@ -2249,6 +2261,7 @@ _cell_lastseen()
 	local smsfile_kasse1="../settings/0a40cf496b01"
 	local unixtime_now unixtime_file hostname
 	local mailmarker="/dev/shm/${NETWORK}-${WIFIMAC}.mail"
+	local subject_add=
 
 	case "$NETWORK" in
 		liszt28|apphalle|abtpark|apphalle)
@@ -2280,24 +2293,24 @@ _cell_lastseen()
 						# no resend
 					;;
 					*)
-						# TODO: change subject or body to e.g. "erinnerung"
 						# this forces a resend
 						rm -f "$mailmarker"
+						subject_add="(Erinnerung)"
 					;;
 				esac
 			}
 		}
 
 		# TODO: code duplication, some lines later
-		[ $LASTSEEN_ORIGINAL -gt 2160 ] && touch "$mailmarker"	# > 3 months unseen
+		[ $LASTSEEN_ORIGINAL -gt 2160 ] && echo "LASTSEEN_ORIGINAL:$LASTSEEN_ORIGINAL" >"$mailmarker"	# > 3 months unseen
 
 		[ -e "$mailmarker" ] || {
-			touch "$mailmarker"
+			echo "sendOK" >"$mailmarker"
 			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
 
-			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $hostname"
+			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $hostname $subject_add"
 			#
-			L1="Bitte pruefen Sie das Geraet: $hostname"
+			L1="Bitte pruefen Sie das Geraet: $hostname $subject_add"
 			L2="MAC-Adresse: $WIFIMAC"
 			L3="Geraetetyp: $HW"
 			#
@@ -2724,6 +2737,7 @@ _cell_switch()
 	local real_port=-1
 	local char spacer color speed duplex
 	local cellspacing speed_printed symetric hostname
+	local subject_add=
 
 	if [ ${#plugs} -eq 1 ]; then		# e.g. ubnt bullet
 		plugs=".--.${plugs}.--."
@@ -2766,9 +2780,9 @@ _cell_switch()
 					liszt28)
 					;;
 					*)
-						# TODO: change subject or body to e.g. "erinnerung"
 						# this forces a resend
 						rm -f "$mailmarker"
+						subject_add="(Erinnerung)"
 					;;
 				esac
 			}
@@ -2778,9 +2792,9 @@ _cell_switch()
 			touch "$mailmarker"
 			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
 
-			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung DSL-Modem an $hostname"
+			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung DSL-Modem an $hostname $subject_add"
 			#
-			L1="Bitte pruefen Sie das DSL-Modem an: $hostname"
+			L1="Bitte pruefen Sie das DSL-Modem an: $hostname $subject_add"
 			L2="Modellbezeichnung: Allnet ALL-0333CJ"
 			#
 			L3="Im Zweifel kurz stromlos machen bzw."
@@ -2792,7 +2806,6 @@ _cell_switch()
 			L7="Danke fuer Ihr mitwirken."
 			L8="Das automatische Monitoring-System."
 
-			# TODO: mail if OK again...
 			send_mail_telegram "$SUBJECT" "${L1}\n${L2}\n\n${L3}\n${L4}\n\n${L5}\n${L6}\n\n${L7}\n${L8}"
 		}
 							else
