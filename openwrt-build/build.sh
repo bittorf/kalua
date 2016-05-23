@@ -3244,7 +3244,10 @@ bootstrap_shellsheck()
 	# needs ~15 mins
 	(
 		cabal update
-		cabal install 'cabal-install'
+		cabal install 'cabal-install' || {
+			log "[ERR] cabal-install"
+			cat "$HOME/.cabal/logs/cabal-install-"*.log
+		}
 
 		cd '/run/shm' || return 1
 		git clone https://github.com/koalaman/shellcheck.git
