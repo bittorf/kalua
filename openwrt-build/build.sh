@@ -3244,7 +3244,7 @@ bootstrap_shellsheck()
 	# needs ~15 mins
 	(
 		cabal update
-		cabal install 'cabal-install' || {
+		cabal install --verbose=3 'cabal-install' || {
 			log "[ERR] cabal-install"
 			cat "$HOME/.cabal/logs/cabal-install-"*.log
 		}
