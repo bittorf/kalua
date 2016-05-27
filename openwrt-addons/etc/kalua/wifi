@@ -1608,27 +1608,64 @@ _wifi_mode()			# OUT1: string, ap | client | adhoc | adhocap             // rena
 	fi
 }
 
+_wifi_math_mw2mbm()
+{
+	local milliwatt="$1"	# dBm = 10 x log10(mW)
+	local dbm mbm		# dBm * 100 = mBm -> e.g. 100mW -> 20 dBm = 2000 mBm
+
+	case "$milliwatt" in
+		0) dbm=0 ;;	# not correct
+		1) dbm=1 ;;	# not correct
+		2) dbm=3 ;;
+		3) dbm=5 ;;
+		4) dbm=6 ;;
+		5) dbm=7 ;;
+		6) dbm=8 ;;
+		7) dbm=8 ;;
+		8) dbm=9 ;;
+		9) dbm=10 ;;
+		10) dbm=10 ;;
+		11) dbm=10 ;;
+		12) dbm=11 ;;
+		13) dbm=11 ;;
+		14) dbm=11 ;;
+		15) dbm=12 ;;
+		16) dbm=12 ;;
+		17) dbm=12 ;;
+		18) dbm=13 ;;
+		19) dbm=13 ;;
+		20) dbm=13 ;;
+		*) dbm=14 ;;
+	esac
+
+	echo $(( dbm * 100 ))
+}
+
 _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 {
-	local ifindex="$1"	# e.g. 3 or '5ghz'
-	local txpower_new="$2"
-	local ssid="$3"		# e.g. <empty> or SSID
+	local funcname='wifi_reduce_txpower_if_compatible_roaming_nodes_are_near'
+	local ifindex="$1"			# e.g. 3 or '5ghz'
+	local txpower_milliwatt="${2:-4}"	# e.g. 10
+	local ssid="$3"				# e.g. <empty> or SSID
 	local border=-60
-	local signal dev
+	local signal dev name txpower_mBm
 
-	return 0
+	isnumber "$ifindex" || ifindex="$( _wifi get "$ifindex" mode ap )"
 
-	isnumber "$ifindex" || {
-		ifindex="$( _wifi get 5ghz mode ap )"
-		# TODO: ifindex -> dev ?
-	}
+	name="$( uci get wireless.@wifi-iface[$ifindex].network )"	# e.g. wlanRADIO1
+	read -r dev <"/var/run/interfaces/name2dev_$name"		# e.g. wlan1-1
 
-	[ -z "$ssid" ] && ssid='auto'	# TODO
+	[ -z "$ssid" ] && ssid="$( _wifi get "$name" ssid )"
 
 	signal="$( _wifi scan_best_signal_myssid "$dev" "$ssid" )"
+	_log it $funcname daemon info "signal: $signal for ssid '$ssid' border: $border"
+
 	[ ${signal:--100} -lt $border ] && {
-		_wifi set ap "$ifindex" txpower "$txpower_new"
-		# TODO: apply without calling "phy_restart"
+		txpower_mBm="$( _wifi_math_mw2mbm "$txpower_milliwatt" )"
+
+		_log it $funcname daemon info "apply $txpower_milliwatt/$txpower_mBm [mW/mBm] to dev $dev index $ifindex"
+		_wifi set ap "$ifindex" txpower "$txpower_milliwatt"	# beeing consistent (e.g. wifi up)
+		iw dev "$dev" set txpower fixed "$txpower_mBm"		# and hot-apply
 	}
 }
 
@@ -1699,7 +1736,7 @@ _wifi_scan_summary()
 	:
 }
 
-_wifi_math_dbm2mw()
+_wifi_math_dbm2mw()	# e.g. 20 dBm -> 100 mW
 {
 	local dbm="$1"	# [mW] = 10 ^ (dBm/10)
 
