@@ -1679,10 +1679,14 @@ _wifi_scan_best_signal_myssid()		# e.g. for next_node/roaming
 
 _wifi_scan()
 {
+	local funcname='wifi_scan'
 	local dev="${1:-$WIFIDEV}"		# e.g. wlan0
 	local option="$2"			# e.g. my-special-ssid
 	local line value remote signal
+	local freq="$( _wifi dev2freq "$dev" )"
+	local i=0
 
+	_log it $funcname daemon info "[START] on dev '$dev' / freq: $freq MHz option: $option"
 	iw dev "$dev" scan | while read -r line; do {
 		case "$line" in
 			'BSS '*)			# BSS 02:00:ca:fe:02:22(on wlan0)
@@ -1720,15 +1724,21 @@ _wifi_scan()
 				case "$option" in
 					'')
 						echo "${remote}-${value}"
+						i=$(( i + 1 ))
 					;;
 					*)
 						# scan | sort -n | tail -n1 | cut -d',' -f1 -> strongest signal (e.g. -46)
-						[ "$value" = "$option" ] && echo "${signal},${remote}-${value}"
+						[ "$value" = "$option" ] && {
+							echo "${signal},${remote}-${value}"
+							i=$(( i + 1 ))
+						}
 					;;
 				esac
 			;;
 		esac
 	} done
+
+	_log it $funcname daemon info "[READY] on dev '$dev' - found: $i (option: $option)"
 }
 
 _wifi_scan_summary()
