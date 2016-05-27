@@ -1660,10 +1660,10 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 	signal="$( _wifi scan_best_signal_myssid "$dev" "$ssid" )"
 	_log it $funcname daemon info "signal: $signal for ssid '$ssid' border: $border"
 
-	[ ${signal:--100} -lt $border ] && {
+	[ $border -le ${signal:--100} ] && {
 		txpower_mBm="$( _wifi_math_mw2mbm "$txpower_milliwatt" )"
 
-		_log it $funcname daemon info "apply $txpower_milliwatt/$txpower_mBm [mW/mBm] to dev $dev index $ifindex"
+		_log it $funcname daemon info "reducing to: $txpower_milliwatt/$txpower_mBm [mW/mBm] to dev $dev index $ifindex"
 		_wifi set ap "$ifindex" txpower "$txpower_milliwatt"	# beeing consistent (e.g. wifi up)
 		iw dev "$dev" set txpower fixed "$txpower_mBm"		# and hot-apply
 	}
@@ -1961,11 +1961,11 @@ _wifi_is2ghz()
 	esac
 }
 
-_wifi_set()
+_wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 {
 	local funcname='wifi_set'
 	local wifimode="$1"	# e.g. 'ap' (all ap-interface) or any/anymode or 'adhoc' or 'ap2' (only the 2nd one)
-	local band="$2"		# e.g. '5ghz' or 'any' or 'anyfreq'
+	local band="$2"		# e.g. '5ghz' or 'any' or 'anyfreq' or 'index'
 	local var="$3"		# e.g. 'ssid' or 'disabled' or 'off'/'on' -> disabled 1/0
 	local value="$4"	# e.g. 'myssid' or '1'
 	local option="$5"
@@ -1997,7 +1997,9 @@ _wifi_set()
 		[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' -o "$wifimode" = 'anymode' ] && {
 			radio=
 
-			if   [ "$band" = 'any' -o "$band" = 'anyfreq' ]; then
+			if   isnumber "$band"; then
+				[ "$i" = "$band" ] || continue
+			elif [ "$band" = 'any' -o "$band" = 'anyfreq' ]; then
 				:
 			elif [ "$band" = '2ghz' ]; then
 				_wifi is2ghz "$i" || continue
