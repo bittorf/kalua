@@ -631,6 +631,7 @@ hostname_sanitizer()
 			echo "{"
 			echo "	case \"\$1\" in"
 
+			[ -e "$database" ] && {
 			while read -r line; do {
 				case "$line" in
 					''|'#'*)
@@ -643,6 +644,7 @@ hostname_sanitizer()
 					;;
 				esac
 			} done <"$database"
+			}
 
 			echo "		*)"
 			echo "			echo \"unknown_host\$1\""
@@ -698,6 +700,10 @@ for FILE in $LIST_FILES ; do {
 } done
 # unset IFS
 
+#
+# here we collect or allowed messages, so filtering must go here:
+# TODO: use ARG1 for specific mac
+#
 LIST_FILES="$( find recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | sort )"
 [ -n "$FORM_MAC" ] && {
 	[ -e "recent/$FORM_MAC" ] && {
@@ -968,7 +974,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	}
 
 	case "$NETWORK" in
-		liszt28|gnm|apphalle|abtpark)
+		X-liszt28|X-gnm|X-apphalle|X-abtpark)
 			# in minutes - please also adjust in _cell_lastseen()
 			LASTSEEN="$(( $LASTSEEN /   60 ))"
 			AGE_BORDER=9999
@@ -1321,7 +1327,7 @@ func_cell_disk_free ()
 {
 	local ARG1="${1:--1kb}"
 	local usb_plugged_in="$2"
-	local crit_border="130"
+	local crit_border=130
 	local USB OUT bgcolor
 
 	case "$ARG1" in
@@ -1356,7 +1362,7 @@ func_cell_disk_free ()
 				;;
 			esac
 
-			if [ $OUT -le $crit_border ]; then
+			if [ ${OUT:-0} -le $crit_border ]; then
 				head_and_color "crimson"
 
 				[ -n "$USB" ] && {
@@ -2159,7 +2165,7 @@ send_mail_telegram()
 	local url='http://bwireless.mooo.com/cgi-bin-tool.sh'
 	local admin='bb|lochstreifen.com'
 
-	read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+	read -r hostname 2>/dev/null <"$TMPDIR/goodhostname_$WIFIMAC"
 
 	# TODO: set reply-to = admin
 	# TODO: resend if markerfile older than X hours (and during housekeeping time)
@@ -2167,13 +2173,29 @@ send_mail_telegram()
 
 	# TODO: use stored email from node
 	case "$NETWORK" in
+		ffweimar-*) list= ;;	# TODO: dont double send / already send on main-network (e.g. ffweimar)
 		liszt28)
 			case "$hostname" in
 				'liszt28-hybrid--798')
 					list="$admin rene|r-hoffmann.de"
 				;;
+				'Ralf-ExSchneiderei')
+					# TODO:
+					list="$admin"
+					hostname='Pension-Ralf'
+				;;
 				*)
 					list="$admin"
+				;;
+			esac
+		;;
+		giancarlo)
+			case "$hostname" in
+				'camserver-ThinkPad-X201'|'E3-servicekammer')
+					list=
+				;;
+				*)
+					list="$admin uve.giancarlo|t-online.de"
 				;;
 			esac
 		;;
@@ -2213,7 +2235,16 @@ send_mail_telegram()
 	esac
 
 	# dont complain if there is a fundamental problem
-	[ -e "/dev/shm/pingcheck/$NETWORK.faulty" ] && return 1
+	[ -e "/dev/shm/pingcheck/$NETWORK.faulty" ] && {
+		# TODO: only 1 router? also send mail...
+		case "$NETWORK" in
+			cvjm)
+			;;
+			*)
+				return 1
+			;;
+		esac
+	}
 
 	case "$( date '+%H:%M' )" in
 		'23'*|'00'*|'01'*|'02'*|'03'*|'04'*|'05'*|'06'*)
@@ -2240,7 +2271,7 @@ send_mail_telegram()
 		recipient="$( echo "$recipient" | sed 's/|/@/g' )"
 		echo "$( date ): $recipient | $subject" >>"/var/www/networks/$NETWORK/log/mail.txt"
 
-		curl -G -v "$url" \
+		curl -G --silent "$url" \
 			--data-urlencode 'OPT=minimail' \
 			--data-urlencode "RECIPIENT=$recipient" \
 			--data-urlencode "SUBJECT=$subject" \
@@ -2248,6 +2279,37 @@ send_mail_telegram()
 				echo "$( date ): ERROR $?" >>"/var/www/networks/$NETWORK/log/mail.txt"
 			}
 	} done
+}
+
+seconds2humanreadable()
+{
+        local seconds="$1"
+        local humanreadable min sec hours days
+
+        min=$(( seconds / 60 ))
+        sec=$(( seconds % 60 ))
+
+        if   [ $min -gt 1440 ]; then
+                days=$(( min / 1440 ))
+                min=$(( min % 1440 ))
+                hours=$(( min / 60 ))
+                min=$(( min % 60 ))
+                humanreadable="${days}d ${hours}h ${min}min"
+        elif [ $min -gt 60 ]; then
+                hours=$(( min / 60 ))
+                min=$(( min % 60 ))
+                humanreadable="${hours}h ${min}min"
+        elif [ $min -gt 0 ]; then
+                if [ $min -gt 15 ]; then
+                        humanreadable="${min}min"
+                else
+                        humanreadable="${min}min ${sec}sec"
+                fi
+        else
+                humanreadable="${sec}sec"
+        fi
+
+        echo "$humanreadable"
 }
 
 _cell_lastseen()
@@ -2279,30 +2341,23 @@ _cell_lastseen()
 	echo -n "<td align='left'"
 
 	if [ $LASTSEEN -gt $border ]; then
-#		echo >>/tmp/lastseen_red.txt "network: $NETWORK wifimac: $WIFIMAC localunix/unix: $LOCALUNIXTIME/$UNIXTIME lastseen: $LASTSEEN hostname: $HOSTNAME"
-
-#		logger -s "ueberfaellig: $HOSTNAME border: $border lastseen: $LASTSEEN"
-
-
 		[ -e "$mailmarker" ] && {
 			MAIL_AGE=$(( UNIXTIME_SCRIPTSTART - $( date +%s -r "$mailmarker" ) ))	# [sec]
 
 			[ $MAIL_AGE -gt $(( 3600 * 6 )) ] && {
-				case "$NETWORK" in
-					liszt28)
-						# no resend
-					;;
-					*)
-						# this forces a resend
-						rm -f "$mailmarker"
-						subject_add="(Erinnerung)"
-					;;
-				esac
+				rm -f "$mailmarker"	# enforce resend
+				ERROR_TIME="$( date +%s -r "recent/$WIFIMAC" )"		# last send
+				ERROR_TIME=$(( UNIXTIME_SCRIPTSTART - ERROR_TIME ))	# [sec]
+				ERROR_TIME="$( seconds2humanreadable "$ERROR_TIME" )"
+				subject_add="(Erinnerung: gestoert seit $ERROR_TIME)"
 			}
 		}
 
 		# TODO: code duplication, some lines later
-		[ $LASTSEEN_ORIGINAL -gt 2160 ] && echo "LASTSEEN_ORIGINAL:$LASTSEEN_ORIGINAL" >"$mailmarker"	# > 3 months unseen
+		[ $LASTSEEN_ORIGINAL -gt 2160 ] && {
+			# > 3 months unseen, so ignore
+			echo "LASTSEEN_ORIGINAL:$LASTSEEN_ORIGINAL" >"$mailmarker"
+		}
 
 		[ -e "$mailmarker" ] || {
 			echo "sendOK" >"$mailmarker"
