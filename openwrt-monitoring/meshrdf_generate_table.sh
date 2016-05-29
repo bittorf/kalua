@@ -2176,6 +2176,12 @@ send_mail_telegram()
 		ffweimar-*) list= ;;	# TODO: dont double send / already send on main-network (e.g. ffweimar)
 		liszt28)
 			case "$hostname" in
+				'MountMeyer')
+					list="$admin alrik.badstuebner|web.de"
+				;;
+				'Schl8hof9')
+					list="$admin joerg.miething|googlemail.com"
+				;;
 				'liszt28-hybrid--798')
 					list="$admin rene|r-hoffmann.de"
 				;;
@@ -2205,7 +2211,7 @@ send_mail_telegram()
 		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
-		schoeneck) list="$admin wolfgang|schuster@vr-web.de" ;;
+		schoeneck) list="$admin wolfgang.schuster|vr-web.de" ;;
 		monami) list="$admin peter.frenzel|uni-weimar.de" ;;
 		extrawatt) list="$admin matthias.golle|extrawatt-weimar.de" ;;
 		tkolleg) list="$admin mail|detlefwagner.de" ;;
@@ -2817,7 +2823,7 @@ _cell_switch()
 			global_bgcolor='white'
 
 			case "$NETWORK" in
-				spbansin*)
+				'spbansin'*)
 					case "$HOSTNAME" in
 						*'-HWR-'*)
 							local mailmarker="/dev/shm/${WIFIMAC}.mail_pppoe"
@@ -2826,20 +2832,13 @@ _cell_switch()
 								global_bgcolor='crimson'
 								global_tooltip='ADSL broken'
 
-		# TODO: fix hostname overrrider: must be run already at this stage
 		[ -e "$mailmarker" ] && {
 			MAIL_AGE=$(( UNIXTIME_SCRIPTSTART - $( date +%s -r "$mailmarker" ) ))	# [sec]
 
 			[ $MAIL_AGE -gt $(( 3600 * 6 )) ] && {
-				case "$NETWORK" in
-					liszt28)
-					;;
-					*)
-						# this forces a resend
-						rm -f "$mailmarker"
-						subject_add="(Erinnerung)"
-					;;
-				esac
+				# this forces a resend
+				rm -f "$mailmarker"
+				subject_add="(Erinnerung)"
 			}
 		}
 
@@ -2976,11 +2975,11 @@ _cell_switch()
 				color="#00CC00"
 				speed="1gbit"
 			;;
-			"x")
+			'x')
 				color="#00FF00"
 				speed="100mbit"
 			;;
-			"X")
+			'X')
 				color="#00CC00"
 				speed="1gbit"
 			;;
@@ -2990,7 +2989,7 @@ _cell_switch()
 				name="Luecke"
 				real_port=$(( $real_port - 1 ))
 			;;
-			"-")
+			'-')
 				color="black"
 				speed="unplugged"
 			;;
@@ -2998,8 +2997,10 @@ _cell_switch()
 
 		must_be_printed()
 		{
+			test $v2 -eq 0 && return 0	# VPN-server = OPENWRT_REV = 0
+
 			case "$inet_offer" in
-				*":wifi:"*)
+				*':wifi:'*)
 					return 1
 				;;
 			esac
