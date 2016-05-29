@@ -12,6 +12,32 @@
 #	[ -n "$WIFI_NEXT" ] && . $WIFI_NEXT	# inluding VAR-set for next WIFI_DEV
 # } done					# (last entry must point to first-device)
 
+_wifi_led()
+{
+	local action="$1"	# on|off
+	local device="$2"	# e.g. wlan1-1		# TODO: uci the led-triggers for that
+	local helper='/lib/functions/leds.sh'
+	local led
+
+	[ -e "$helper" ] && . $helper
+
+	case "$HARDWARE" in
+		'TP-LINK TL-WR1043ND') led='tp-link:green:wlan' ;;
+		*)
+			action=
+		;;
+	esac
+
+	case "$action" in
+		'on')
+			led_on "$led"
+		;;
+		'off')
+			led_off "$led"
+		;;
+	esac
+}
+
 _wifi_mac_assoclist()
 {
 	local dev="$1"
@@ -159,7 +185,7 @@ _wifi_change_essid_ap()
 	local funcname='wifi_change_essid_ap'
 	local option="$1"	# e.g. <empty> OR 'original'
 	local file="/tmp/$funcname"
-	local i essid age hash1 hash2	# find $i -> WIFIDEV and restart these via phy_restart()
+	local i essid age hash1 hash2	# TODO: find $i -> WIFIDEV and restart these via phy_restart()
 
 	if [ "$option" = 'original' ]; then
 		# do not work, when it was never changed
@@ -176,9 +202,11 @@ _wifi_change_essid_ap()
 			uci delete wireless.@wifi-iface[$i].ssid_old
 			uci set wireless.@wifi-iface[$i].ssid="${essid:-$CONFIG_PROFILE-$NODENUMBER}"
 
-			age="$( _file age "$file" humanreadable)"
-			echo >>$SCHEDULER "_weblogin authserver_message '$funcname() ${option:-inet_broken} after $age / idx $i'"
-			rm "$file"
+			[ -e "$file" ] && {
+				age="$( _file age "$file" humanreadable)"
+				echo >>$SCHEDULER "_weblogin authserver_message '$funcname() '${option:-inet_broken}' after $age"
+				rm -f "$file"
+			}
 		else
 			touch "$file"
 			essid="$( uci get wireless.@wifi-iface[$i].ssid )"
