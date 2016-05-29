@@ -650,6 +650,21 @@ EOF
 
 _http include_js_sorttable
 
+system_version_string()
+{
+	if   [ $OPENWRT_REV -gt 0 ]; then
+		echo "OpenWrt r$OPENWRT_REV"
+	elif grep -sq ^'PRETTY_NAME=' '/etc/os-release'; then
+		eval $( grep ^'PRETTY_NAME=' '/etc/os-release' )
+		echo "$PRETTY_NAME"
+	elif grep -sq ^'DISTRIB_DESCRIPTION=' '/etc/lsb-release'; then
+		eval $( grep ^'DISTRIB_DESCRIPTION=' '/etc/lsb-release' )
+		echo "$DISTRIB_DESCRIPTION"
+	else
+		echo 'Unknown System'
+	fi
+}
+
 cat <<EOF
  </head>
  <body>
