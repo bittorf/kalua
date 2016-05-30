@@ -1316,7 +1316,9 @@ func_cell_hostname ()
 		esac
 
 		read STORED_HOSTNAME 2>/dev/null <"$TMPDIR/goodhostname_$WIFIMAC"
-		[ "$STORED_HOSTNAME" = "$HOSTNAME" ] || echo "$HOSTNAME" >"$TMPDIR/goodhostname_$WIFIMAC"
+		[ "$STORED_HOSTNAME" = "$HOSTNAME" -o ! -e "$TMPDIR/goodhostname_$WIFIMAC" ] || {
+			echo "$HOSTNAME" >"$TMPDIR/goodhostname_$WIFIMAC"
+		}
 
 		[ -n "$SIMULATE_OK" ] && bgcolor=
 		echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME </td>"
@@ -2157,6 +2159,17 @@ _cell_firmwareversion_humanreadable()
 	echo -n "<td bgcolor='$color' align='center' title='$VERSION.$UPDATE:$usecase' sorttable_customkey='$FWVERSION' nowrap>$OUT</td>"
 }
 
+hostname_from_monitoring_sanitized()
+{
+	local mac="$1"
+	local hostname
+
+	# enforced/settings: E1-Dachboden&nbsp;(&larr;4300er-flashprob = real)
+	read -r hostname 2>/dev/null <"$TMPDIR/goodhostname_$mac"
+
+	echo "${hostname:-$HOSTNAME}" | sed -e 's/^-//' -e 's/[^-a-zA-Z0-9]//g'
+}
+
 send_mail_telegram()
 {
 	local subject="$1"
@@ -2165,7 +2178,8 @@ send_mail_telegram()
 	local url='http://bwireless.mooo.com/cgi-bin-tool.sh'
 	local admin='bb|lochstreifen.com'
 
-	read -r hostname 2>/dev/null <"$TMPDIR/goodhostname_$WIFIMAC"
+	# needed for specific actions
+	hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
 	# TODO: set reply-to = admin
 	# TODO: resend if markerfile older than X hours (and during housekeeping time)
@@ -2367,7 +2381,7 @@ _cell_lastseen()
 
 		[ -e "$mailmarker" ] || {
 			echo "sendOK" >"$mailmarker"
-			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
 			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $hostname $subject_add"
 			#
@@ -2453,7 +2467,7 @@ _cell_lastseen()
 	else
 		[ -e "$mailmarker" ] && {
 			rm -f "$mailmarker"
-			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
 			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: Geraet: $hostname" \
 					   "Das Geraet: ${hostname}\nist wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
@@ -2844,7 +2858,7 @@ _cell_switch()
 
 		[ -e "$mailmarker" ] || {
 			touch "$mailmarker"
-			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
 			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung DSL-Modem an $hostname $subject_add"
 			#
@@ -2865,7 +2879,7 @@ _cell_switch()
 							else
 		[ -e "$mailmarker" ] && {
 			rm "$mailmarker"
-			read -r hostname <"$TMPDIR/goodhostname_$WIFIMAC"
+			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
 			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: DSL-Modem an $hostname" \
 					   "Das DSL-Modem an ${hostname}\nist wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
@@ -2997,7 +3011,7 @@ _cell_switch()
 
 		must_be_printed()
 		{
-			test $v2 -eq 0 && return 0	# VPN-server = OPENWRT_REV = 0
+			test ${v2:-99} -eq 0 && return 0	# VPN-server = OPENWRT_REV = 0
 
 			case "$inet_offer" in
 				*':wifi:'*)
