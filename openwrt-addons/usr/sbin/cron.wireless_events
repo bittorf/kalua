@@ -192,9 +192,10 @@ worker()
 	local wifidev="$1"	# e.g. 'wlan0-1'
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
-	local ip signal wifidev_now signal_try=4
+	local ip signal wifidev_now timestamp freq signal_try=4
 	local kickmarker="$TMPDIR/kicked_low_signal_$mac-$wifidev"
 	local txt="worker($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
+	local permlog="$PERMDIR/station_stats.txt"
 
 	case "$mode" in
 		'new')
@@ -222,12 +223,12 @@ worker()
 			signal_is_bad()
 			{
 				local client_signal="$1"
-				local dev="$2"
+				local freq="$2"
 				local border_2ghz=-73	# good = 0 or -1 ... -73 or even '5'
 				local border_5ghz=-83
 				local border
 
-				if [ $( _wifi dev2freq "$dev" ) -lt 3000 ]; then
+				if [ $freq -lt 3000 ]; then
 					border="$border_2ghz"
 				else
 					border="$border_5ghz"
@@ -237,7 +238,9 @@ worker()
 				test $client_signal -lt $border
 			}
 
-			if signal_is_bad "${signal:=-1}" "$wifidev"; then
+			freq="$( _wifi dev2freq "$wifidev" )"
+
+			if signal_is_bad "${signal:=-1}" "$freq"; then
 				touch "$kickmarker"
 				log "$txt - KICKED early, bad signal: '$signal'"
 				_wifi kick "$mac" "$wifidev"
@@ -247,6 +250,11 @@ worker()
 
 				txt="$txt - ip: '$ip' signal: '$signal' (is_good)"
 				log "$txt"
+
+				bool_true 'system.@monitoring[0].station_stats' && {
+					timestamp="$( date '+%s %Y%b%d_%H:%M:%S' )"
+					echo >>"$permlog" "add station $mac freq $freq MHz dev $wifidev - $timestamp"
+				}
 			fi
 		;;
 		'del')
@@ -264,6 +272,16 @@ worker()
 			[ -e "$kickmarker" ] && {
 				# if the client really wants to connect with bad signal, let him
 				_file age "$kickmarker" -gt 120 && rm "$kickmarker"
+			}
+
+			bool_true 'system.@monitoring[0].station_stats' && {
+				timestamp="$( date '+%s %Y%b%d_%H:%M:%S' )"
+
+				{
+					echo "del station $mac $timestamp {"
+					sed -n "/ $mac /,/connected time:/p" "$TMPDIR/WIFI_DEVS_AP_STATS"
+					echo "del station $mac $timestamp }"
+				} >>"$permlog"
 			}
 
 			log rotate
