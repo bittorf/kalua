@@ -345,6 +345,7 @@ Special UCI-variables
 	system.@monitoring[0].nightly_longrange - bool
 	system.@monitoring[0].send_mapapi	- bool
 	system.@monitoring[0].report_wantraffic - bool
+	system.@monitoring[0].station_stats	- bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
