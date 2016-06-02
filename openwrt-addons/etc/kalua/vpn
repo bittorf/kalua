@@ -45,6 +45,7 @@ EOF
 
 	while [ $node -lt $node_max ]; do {
 		connection_name="n$node"
+		[ -e "$PERMDIR/block_vpn_$connection_name" ] && continue
 
 		cat >>"$config" <<EOF
 
@@ -191,7 +192,7 @@ _vpn_innercity_master_iface()
 	local dev="$2"		# e.g. tap276
 	local i=0
 	local lockdir="$TMPDIR/lock-$dev-$funcname"
-	local bytes packets uptime uptime_sec numbers linenumber reason mtu logprio kbytes_per_sec
+	local bytes packets uptime uptime_sec numbers linenumber reason mtu logprio kbytes_per_sec file
 
 	case "$action" in
 		'count_clients')
@@ -209,10 +210,14 @@ _vpn_innercity_master_iface()
 			return 1
 		;;
 		'remove_all_locks')
-			_log it $funcname daemon alert 'working'
-			rm -fR "$lockdir"
-			rm -fR "$TMPDIR/$funcname-devup"*
+			for file in "$TMPDIR/$funcname-devup-"*; do {
+				dev="$( echo "$file" | cut -d'-' -f3 )"
+				_log it $funcname daemon alert "working: dev $dev"
+				ip link del dev $dev
+				rm -f "$file"
+			} done
 
+			rm -fR "$lockdir"
 			return 0
 		;;
 	esac
