@@ -346,6 +346,7 @@ Special UCI-variables
 	system.@monitoring[0].send_mapapi	- bool
 	system.@monitoring[0].report_wantraffic - bool
 	system.@monitoring[0].station_stats	- bool
+	system.@monitoring[0].no_wiphy_restart	- bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
