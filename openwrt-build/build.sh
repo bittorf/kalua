@@ -1977,6 +1977,7 @@ apply_symbol()
 			log "$KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
 
+			# FIXME: dont touch rc.local
 			log "$KALUA_DIRNAME: adding initial rc.local"
 			echo  >'package/base-files/files/etc/rc.local' '#!/bin/sh'
 			echo >>'package/base-files/files/etc/rc.local' "[ -e '/tmp/loader' ] || /etc/init.d/cron.user boot"
@@ -2478,6 +2479,18 @@ build_options_set()
 				# FIXME! this is not enough, on firstboot it still tries to format whole flash
 				log "fooling profile to 4mb size" gitadd 'target/linux/ar71xx/image/Makefile'
 				sed -i 's|(Device\/tplink-8m)|(Device\/tplink-4m)|g' 'target/linux/ar71xx/image/Makefile'
+			;;
+			'fotobox')
+				$funcname subcall 'smbmount'
+				$funcname subcall 'jpeg-tools'
+			;;
+			'jpeg-tools')
+				apply_symbol 'CONFIG_PACKAGE_jpeg-tools=y'
+			;;
+			'smbmount')
+				apply_symbol 'CONFIG_PACKAGE_kmod-fs-cifs=y'
+				apply_symbol 'CONFIG_PACKAGE_cifsmount=y'
+				apply_symbol 'CONFIG_PACKAGE_samba36-client=y'
 			;;
 			'wwan')
 				# https://wiki.openwrt.org/doc/uci/network#protocol_wwan_usb_modems_autodetecting_above_protocols
