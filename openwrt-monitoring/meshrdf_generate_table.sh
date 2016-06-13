@@ -974,7 +974,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	}
 
 	case "$NETWORK" in
-		X-liszt28|X-gnm|X-apphalle|X-abtpark)
+		X-liszt28|X-gnm|X-apphalle|X-abtpark|X-ewerk)
 			# in minutes - please also adjust in _cell_lastseen()
 			LASTSEEN="$(( $LASTSEEN /   60 ))"
 			AGE_BORDER=9999
@@ -2188,6 +2188,8 @@ send_mail_telegram()
 	# TODO: use stored email from node
 	case "$NETWORK" in
 		ffweimar-*) list= ;;	# TODO: dont double send / already send on main-network (e.g. ffweimar)
+		neufert|bauhaus) list= ;;
+		amalienhof) list="$admin sven.rahaus|gmx.de info|amalienhof-weimar.de" ;;
 		liszt28)
 			case "$hostname" in
 				'MountMeyer')
@@ -2204,6 +2206,11 @@ send_mail_telegram()
 					list="$admin"
 					hostname='Pension-Ralf'
 				;;
+				'BaeckerRose')
+					# TODO
+					list="$admin info|et-steinmetz.de info|rose-weimar.de"
+					message="$( echo "$message" | sed 's/liszt28/brose/g' )"
+				;;
 				*)
 					list="$admin"
 				;;
@@ -2211,7 +2218,7 @@ send_mail_telegram()
 		;;
 		giancarlo)
 			case "$hostname" in
-				'camserver-ThinkPad-X201'|'E3-servicekammer')
+				'camserver-ThinkPad-X201')
 					list=
 				;;
 				*)
@@ -2219,7 +2226,9 @@ send_mail_telegram()
 				;;
 			esac
 		;;
-		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de" ;;
+		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de technikad|mx.onimail.de" ;;
+		adagio) list="$admin hedi.hedrich|t-online mail|hotel-adagio.de technikad|mx.onimail.de" ;;
+		apphalle) list="$admin info|appartementhausamdom.de" ;;
 		spbansin) list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de" ;;
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
 		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
@@ -2233,7 +2242,7 @@ send_mail_telegram()
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
 		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
 		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de" ;;
-		apphalle) list="$admin info|appartementhausamdom.de" ;;
+		wuensch) list="$admin p_s_wuensch|t-online.de" ;;
 		*) list="$admin" ;;
 	esac
 
@@ -2268,7 +2277,14 @@ send_mail_telegram()
 
 	case "$( date '+%H:%M' )" in
 		'23'*|'00'*|'01'*|'02'*|'03'*|'04'*|'05'*|'06'*)
-			return 1
+			case "$subject" in
+				*'OK'*)
+					# TODO - needs better concept
+				;;
+				*)
+					return 1
+				;;
+			esac
 		;;
 	esac
 
@@ -2284,6 +2300,10 @@ send_mail_telegram()
 				message="$message- $recipient\n"
 			} done
 		;;
+	esac
+
+	case "$NETWORK" in
+		schoeneck) list= ;;
 	esac
 
 	# TODO: write into queue and make foolproof cronjob
@@ -2346,7 +2366,7 @@ _cell_lastseen()
 	local subject_add=
 
 	case "$NETWORK" in
-		liszt28|apphalle|abtpark|apphalle)
+		X-liszt28|X-apphalle|X-abtpark|X-apphalle|X-ewerk)
 			border=61	# min - normally every 15 mins a mini-update and every 60 mins a full
 		;;
 		gnm)
@@ -2874,7 +2894,14 @@ _cell_switch()
 			L7="Danke fuer Ihr mitwirken."
 			L8="Das automatische Monitoring-System."
 
+			case "$hostname" in
+				'Haus3-Heizhaus-Zentrale')
+					# FIXME!
+				;;
+				*)
 			send_mail_telegram "$SUBJECT" "${L1}\n${L2}\n\n${L3}\n${L4}\n\n${L5}\n${L6}\n\n${L7}\n${L8}"
+				;;
+			esac
 		}
 							else
 		[ -e "$mailmarker" ] && {
@@ -3607,6 +3634,21 @@ esac
 	good_git_color()
 	{
 		local rev="${1:-0}"
+
+		case "$HOSTNAME" in
+			'ewerk-'*)
+				case "$rev" in
+					49276)
+						# kultursymposium
+						echo "$COLOR_BRIGHT_GREEN"
+					;;
+					*)
+					;;
+				esac
+
+				return 0
+			;;
+		esac
 
 		case "$rev" in
 			28879|29366)			# brcm47xx + ar71xx

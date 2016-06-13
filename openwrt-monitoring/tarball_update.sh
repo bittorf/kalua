@@ -10,6 +10,18 @@ TARBALL='/tmp/tarball.tgz'
 	exit 1
 }
 
+list_networks()
+{
+        local pattern1="/var/www/networks/"
+        local pattern2="/meshrdf/recent"
+
+        find /var/www/networks/ -name recent |
+         grep "meshrdf/recent"$ |
+          sed -e "s|$pattern1||" -e "s|$pattern2||"
+}
+
+[ "$NETWORK" = 'all' ] && NETWORK="$( list_networks )"
+
 [ -e "$TARBALL" ] || {
 	cat <<EOF
 [ERROR] cannot find tarball '$TARBALL', please do:
@@ -22,18 +34,6 @@ kalua/openwrt-build/mybuild.sh build_kalua_update_tarball
 EOF
 	exit 1
 }
-
-list_networks()
-{
-        local pattern1="/var/www/networks/"
-        local pattern2="/meshrdf/recent"
-
-        find /var/www/networks/ -name recent |
-         grep "meshrdf/recent"$ |
-          sed -e "s|$pattern1||" -e "s|$pattern2||"
-}
-
-[ "$NETWORK" = 'all' ] && NETWORK="$( list_networks )"
 
 for NW in $NETWORK; do {
 	DIR="/var/www/networks/$NW/tarball/$MODE"

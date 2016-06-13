@@ -225,7 +225,7 @@ gen_meshrdf_for_network()
 	respect_fileage()
 	{
 		case "$( date '+%H:%M' )" in	# e.g. 09:01
-			'02:'*|'03:'*)
+			'02:'*|'03:'*|'14:'*)
 				log "$funcname: respect_fileage: no"
 				return 1
 			;;
@@ -366,19 +366,19 @@ for NET in $LIST; do {
 	NET="/var/www/networks/$NET/meshrdf/recent"
 
 	# build often!
-	gen_meshrdf_for_network gnm
+#	gen_meshrdf_for_network gnm
 	gen_meshrdf_for_network limona
-	gen_meshrdf_for_network malchow		# demo
-	gen_meshrdf_for_network malchowpferde
-	gen_meshrdf_for_network malchowpension
+#	gen_meshrdf_for_network ewerk
+#	gen_meshrdf_for_network malchow		# demo
+#	gen_meshrdf_for_network malchowpferde
+#	gen_meshrdf_for_network malchowpension
 	gen_meshrdf_for_network abtpark
-	gen_meshrdf_for_network ffweimar-vhs
+#	gen_meshrdf_for_network ffweimar-vhs
 	gen_meshrdf_for_network ffweimar-dnt
 	gen_meshrdf_for_network wagenplatz
 	gen_meshrdf_for_network monami
-	gen_meshrdf_for_network ffweimar-roehr
-	gen_meshrdf_for_network ffweimar-vhs
-	gen_meshrdf_for_network ilm1
+#	gen_meshrdf_for_network ffweimar-roehr
+#	gen_meshrdf_for_network ilm1
 	gen_meshrdf_for_network server
 #	gen_meshrdf_for_network xoai
 

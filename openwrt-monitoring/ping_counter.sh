@@ -136,10 +136,6 @@ list_networks()
 		cat <<EOF
 chicago
 giancarlo
-malchow
-malchowit
-malchowpferde
-malchowpension
 abtpark
 ilm1
 adagio
@@ -204,7 +200,6 @@ EOF
 	fi
 
 	# removed K80/H09	- 2013juli24 + switched on again: 2013juli31
-	# removed ibfleesensee	- 2013jul25
 	# removed hotello-B01	- 2013oct30 + switched on again: 2013nov22
 	# removed vivaldi	- 2014jan17
 	# removed hotello-B01 + hotello-K80 + hotello-H09 = 2014jan20
@@ -351,7 +346,10 @@ send_sms()
 	local number_technik1=
 	local list_numbers="$number $number_technik1"
 
-	sms_allowed "$network" || return 0
+	sms_allowed "$network" || {
+		# malchow|malchowit|malchowpension|malchowpferde
+		return 0
+	}
 
 	case "$network" in
 		'tkolleg')

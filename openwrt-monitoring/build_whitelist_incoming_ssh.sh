@@ -11,18 +11,27 @@ else
 #	echo 20 >/proc/sys/vm/swappiness
 fi
 
+file_age_in_sec()
+{
+	echo $(( $( date +%s ) - $( date +%s -r "$1" ) ))
+}
+
 lock()
 {
 	local option="$1"
 	local file="/tmp/LOCKFILE_iptables_whitelister"
 
-	if [ "$option" = "remove" ]; then
+	if [ "$option" = 'remove' ]; then
 		rm "$file"
 	else
-		# FIXME! autodelete after 1 h
 		if [ -e "$file" ]; then
-			logger -s "$0: abort, existing '$file'"
-			return 1
+			if [ $( file_age_in_sec "$file" ) -gt 3600 ]; then
+				log "removing over age lockfile"
+				rm -f "$file"
+			else
+				logger -s "$0: abort, existing '$file'"
+				return 1
+			fi
 		else
 			echo "mypid: $$ date: $(date) uptime: $(uptime)" >"$file"
 		fi
