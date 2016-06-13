@@ -1197,21 +1197,29 @@ _wifi_phy_restart()
 	return 0
 }
 
-_wifi_phy_txpower()		# output in [mW] - FIXME! use package iwinfo for this
+_wifi_phy_txpower()		# output in [mW]
 {
 	local dev="$1"
 #	local UNIT="$2"		# keyword, can be 'mw', 'dbm', 'qdbm' // fixme! at the moment this IS in [mW]
-	local WIFI_TXPOWER="$( uci -q get wireless.radio0.txpower )"
+	local txpower
+
+	if command -v 'iwinfo' >/dev/null; then
+		# * 23 dBm ( 199 mW)
+		explode $( iwinfo "$dev" txpowerlist | grep ^'* ' )
+		txpower="$2"
+	else
+		txpower="$( uci -q get wireless.radio0.txpower )"	# dBm
+	fi
 
 	case "$HARDWARE" in
 		'Ubiquiti Bullet M')
-			WIFI_TXPOWER=$(( WIFI_TXPOWER + 12 ))
+			txpower=$(( txpower + 12 ))
 		;;
 	esac
 
-	WIFI_TXPOWER="$( _wifi math_dbm2mw "$WIFI_TXPOWER" )"
+	txpower="$( _wifi math_dbm2mw "$txpower" )"
 
-	echo "${WIFI_TXPOWER:-0}"	# no wifi-dev
+	echo "${txpower:-0}"	# no wifi-dev
 }
 
 _wifi_math_mhz2channel ()		# http://en.wikipedia.org/wiki/Lost_of_WLAN_channels
