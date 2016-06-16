@@ -2243,6 +2243,7 @@ send_mail_telegram()
 		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
 		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de" ;;
 		wuensch) list="$admin p_s_wuensch|t-online.de" ;;
+		leonardo) list="$admin info|hotel-leonardo.de" ;;
 		*) list="$admin" ;;
 	esac
 
