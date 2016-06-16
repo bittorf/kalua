@@ -44,12 +44,16 @@ uci_already_added()
 {
 	local config="$1"	# e.g. network
 	local section="$2"	# e.g. alias
-	local item="$3"		# e.g. ipaddr
-	local wish="$4"		# e.g. 10.10.43.33
+	local item="$3"		# e.g. ipaddr or 'interface'
+	local wish="$4"		# e.g. 10.10.43.33 or 'lan'
 	local value i=0
 
 	while value="$( uci -q get $config.@$section[$i].$item )"; do {
-		[ "$wish" = "$value" ] && return 0 || i=$(( i + 1 ))
+		if [ "$wish" = "$value" ]; then
+			return 0
+		else
+			i=$(( i + 1 ))
+		fi
 	} done
 
 	return 1
@@ -1658,8 +1662,11 @@ uci set network.wwan.modes='gsm'
 			esac
 
 			case "$HOSTNAME" in
-				'VHS'*|*'-vhs'*)
-					_wifi set ap  2ghz ssid "freifunk (vhs-$NODENUMBER)"
+				*'-vhs'*)
+					# e.g. 'E3-vhsRaum3.06-HYBRID' -> Raum3.06
+					ROOM="$( echo "$HOSTNAME" | cut -d'-' -f2 | cut -d's' -f2 )"
+
+					_wifi set ap  2ghz ssid "freifunk ($ROOM)"
 					_wifi set any 2ghz txpower '3'
 
 					touch /tmp/FREE
@@ -1884,7 +1891,7 @@ uci set network.wwan.modes='gsm'
 
 					config_add_alias 'lan' '192.168.112.2/24' '192.168.112.1'
 
-					[ "$( uci -q get system.@netfilter[0].lan_masquerading )" = '0' ] || {
+					bool_true 'system.@netfilter[0].lan_masquerading' && {
 						uci add system netfilter >/dev/null
 						uci set system.@netfilter[-1].lan_masquerading='0'
 					}
@@ -1927,14 +1934,10 @@ uci set network.wwan.modes='gsm'
 			uci set olsrd.@meta[0].hnaslave=0
 
 			_wifi set adhoc 2ghz bssid '02:be:ef:ca:00:11'
+			_wifi set adhoc 2ghz ssid '_'
 
-			# EG-flur
-			case "$NODENUMBER" in
-				6|26)
-					# FIXME!
-					_wifi set anymode anyfreq off
-				;;
-			esac
+			# inet-offer/buero
+			[ "$NODENUMBER" = '6' ] && _wifi set anymode anyfreq off
 
 			# all wired
 			case "$NODENUMBER" in
