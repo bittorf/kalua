@@ -1723,8 +1723,8 @@ _wifi_scan()
 {
 	local funcname='wifi_scan'
 	local dev="${1:-$WIFIDEV}"		# e.g. wlan0
-	local option="$2"			# e.g. my-special-ssid
-	local line value remote signal
+	local option="$2"			# e.g. <my-special-ssid> or 'mozilla' or <empty>
+	local line value remote signal bssid mhz ssid
 	local freq="$( _wifi dev2freq "$dev" )"
 	local temp="$TMPDIR/$funcname.$$"
 	local i=0
@@ -1736,13 +1736,13 @@ _wifi_scan()
 		case "$line" in
 			'BSS '*)			# BSS 02:00:ca:fe:02:22(on wlan0)
 				explode $line
-				value="${2%(*}"
-				remote="$value"
+				bssid="${2%(*}"
+				remote="$bssid"
 			;;
 			*'freq: '*)			# freq: 2462
 				explode $line
-				value="$2"
-				remote="${remote}-$value"
+				mhz="$2"
+				remote="${remote}-$mhz"
 			;;
 			*'signal: '*)			# signal: -52.00 dBm
 				explode $line		# signal: 1.00 dBm
@@ -1763,20 +1763,24 @@ _wifi_scan()
 				remote="${remote}${value}"
 			;;
 			*'SSID: '*)			# SSID: Schlachtfest 123
-				explode $line; shift
-				value="$*"
+				explode $line
+				shift
+				ssid="$*"
 
 				case "$option" in
 					'')
-						echo "${remote}-${value}"
+						echo "${remote}-${ssid}"
 						i=$(( i + 1 ))
 					;;
 					*)
 						# scan | sort -n | tail -n1 | cut -d',' -f1 -> strongest signal (e.g. -46)
-						[ "$value" = "$option" ] && {
-							echo "${signal},${remote}-${value}"
+						if [ "$value" = "$option" ]; then
+							echo "${signal},${remote}-${ssid}"
 							i=$(( i + 1 ))
-						}
+						elif [ "$option" = 'mozilla' ]; then
+							echo "$signal $mhz $bssid"
+							i=$(( i + 1 ))
+						fi
 					;;
 				esac
 			;;
