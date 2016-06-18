@@ -1712,7 +1712,7 @@ build()
 		;;
 		'defconfig')
 			log "running 'make defconfig'" debug
-			[ -n "$DEBUG" -a $( wc -l <'.config' ) -lt 10 ] && cat '.config'
+			[ -f '.config' ] && [ -n "$DEBUG" -a $( wc -l <'.config' ) -lt 10 ] && cat '.config'
 			log "end of .config" debug
 
 			make $make_verbose defconfig >/dev/null || make defconfig
