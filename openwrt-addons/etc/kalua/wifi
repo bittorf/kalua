@@ -1719,12 +1719,30 @@ _wifi_scan_best_signal_myssid()		# e.g. for next_node/roaming
 	_wifi scan "$dev" "$ssid" | sort -n | tail -n1 | cut -d',' -f1
 }
 
+_wifi_scan_geolocation()
+{
+	local funcname='wifi_scan_geolocation'
+	local file="$TMPDIR/scan.json"
+	local lat lon
+
+	_wifi scan_geolocation_api_build_json >"$file"
+
+	lat=;lon=
+	eval $( _wifi scan_geolocation_api_query "$file" )
+	rm -f "$file"
+
+	[ -n "$lat" -a -n "$lon" ] && {
+		_log it $funcname daemon info "lat: $lat lon: $lon"
+		uci set system.@admin[0].latlon="$lat;$lon"
+	}
+}
+
 _wifi_scan_geolocation_api_build_json()
 {
 	local funcname='wifi_scan_geolocation_api_build_json'
 	local signal freq bssid dev line
 	local i=0
-	local file="$TMPDIR/$funcname.$$"
+	local file="$TMPDIR/$funcname"
 
 	for dev in $WIFI_DEVS; do {
 		case "$dev" in
@@ -1736,6 +1754,8 @@ _wifi_scan_geolocation_api_build_json()
 			;;
 		esac
 	} done >"$file"
+
+	[ -s "$file" ] || return 1
 
 	echo '{'
 	echo '  "wifiAccessPoints": ['
@@ -1765,6 +1785,7 @@ _wifi_scan_geolocation_api_build_json()
 
 _wifi_scan_geolocation_api_query()
 {
+	local funcname='wifi_scan_geolocation_api_query'
 	local file="$1"
 	local answer api_key api_url lat lon
 
@@ -1776,15 +1797,21 @@ _wifi_scan_geolocation_api_query()
 	api_key='test'
 	api_url="https://location.services.mozilla.com/v1/geolocate?key=$api_key"
 #	answer="$( curl --insecure -H "Content-Type: application/json" -X POST --data @"$file" "$api_url" )"
-	answer="$( wget --no-check-certificate --post-data="$( cat "$file" )" "$api_url" )"
+	answer="$( wget --no-check-certificate --post-data="$( cat "$file" )" -qO - "$api_url" )"
 
 	# {"location": {"lat": 50.9881901, "lng": 11.334436}, "accuracy": 212.0650219}
 	# {"location": {"lat": 50.988505, "lng": 11.3352539}, "accuracy": 146.3677526}
 	explode $answer
 	lat="$( echo "$3" | cut -d',' -f1 )"
 	lon="$( echo "$5" | cut -d'}' -f1 )"
-	echo "# answer: $answer"
-	echo "http://www.openstreetmap.org/#map=18/$lat/$lon"
+
+	echo "lat=$lan;lon=$lon"	# use via 'eval'
+
+	if [ -z "$lan" -o -z "$lon" ]; then
+		_log it $funcname daemon info "[ERROR] answer: $answer"
+	else
+		_log it $funcname daemon info "http://www.openstreetmap.org/#map=18/$lat/$lon"
+	fi
 }
 
 _wifi_scan()
