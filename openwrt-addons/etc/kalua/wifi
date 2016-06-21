@@ -1723,11 +1723,8 @@ _wifi_scan_geolocation_api_build_json()
 {
 	local funcname='wifi_scan_geolocation_api_build_json'
 	local signal freq bssid dev line
+	local i=0
 	local file="$TMPDIR/$funcname.$$"
-	# https://location.services.mozilla.com/
-	# https://mozilla.github.io/ichnaea/api/geolocate.html#api-geolocate-latest
-	local api_key='test'
-	local api_url="https://location.services.mozilla.com/v1/geolocate?key=$key"
 
 	for dev in $WIFI_DEVS; do {
 		case "$dev" in
@@ -1750,11 +1747,12 @@ _wifi_scan_geolocation_api_build_json()
 		signal="$1"
 		freq="$2"
 		bssid="$3"
+		i=$(( i + 1 ))
 
 		echo "    \"macAddress\": \"$bssid\","
 		echo "    \"signalStrength\": $signal,"
 		echo "    \"frequency\": $freq,"
-		echo "    \"age\": 3"
+		echo "    \"age\": $i"
 		echo '  }, {'
 	} done <"$file"
 	rm -f "$file"
@@ -1773,14 +1771,16 @@ _wifi_scan_geolocation_api_query()
 	# https://location.services.mozilla.com/
 	# https://mozilla.github.io/ichnaea/api/geolocate.html#api-geolocate-latest
 	api_key='test'
-	api_url="https://location.services.mozilla.com/v1/geolocate?key=$key"
-	answer="$( curl -H "Content-Type: application/json" -X POST --data @"$file" "$api_url" )"
+	api_url="https://location.services.mozilla.com/v1/geolocate?key=$api_key"
+	answer="$( curl --insecure -H "Content-Type: application/json" -X POST --data @"$file" "$api_url" )"
 
+	# {"location": {"lat": 50.9881901, "lng": 11.334436}, "accuracy": 212.0650219}
 	# {"location": {"lat": 50.988505, "lng": 11.3352539}, "accuracy": 146.3677526}
 	explode $answer
 	lat="$( echo "$3" | cut -d',' -f1 )"
 	lon="$( echo "$5" | cut -d'}' -f1 )"
-	echo "http://www.openstreetmap.org/#map=18/$LAT/$LON"
+	echo "# answer: $answer"
+	echo "http://www.openstreetmap.org/#map=18/$lat/$lon"
 }
 
 _wifi_scan()
