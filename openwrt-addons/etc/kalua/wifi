@@ -1759,13 +1759,14 @@ _wifi_scan_geolocation_api_build_json()
 
 _wifi_scan_geolocation_api_query()
 {
+	local file="$1"
 	local answer api_key api_url lat lon
 
 	# https://location.services.mozilla.com/
 	# https://mozilla.github.io/ichnaea/api/geolocate.html#api-geolocate-latest
 	api_key='test'
 	api_url="https://location.services.mozilla.com/v1/geolocate?key=$key"
-	answer="$( curl -H "Content-Type: application/json" -X POST --data @"$FILE" "$API_URL" )"
+	answer="$( curl -H "Content-Type: application/json" -X POST --data @"$file" "$api_url" )"
 
 	# {"location": {"lat": 50.988505, "lng": 11.3352539}, "accuracy": 146.3677526}
 	explode $answer
@@ -1779,7 +1780,7 @@ _wifi_scan()
 	local funcname='wifi_scan'
 	local dev="${1:-$WIFIDEV}"		# e.g. wlan0
 	local option="$2"			# e.g. <my-special-ssid> or 'mozilla' or <empty>
-	local line value remote signal bssid mhz ssid
+	local line value remote signal bssid mhz ssid capability
 	local freq="$( _wifi dev2freq "$dev" )"
 	local temp="$TMPDIR/$funcname.$$"
 	local i=0
@@ -1796,6 +1797,10 @@ _wifi_scan()
 				explode $line
 				bssid="${2%(*}"
 				remote="$bssid"
+			;;
+			*'capability:'*)		# capability: IBSS
+				explode $line
+				capability="$2"		# e.g. ESS
 			;;
 			*'freq: '*)			# freq: 2462
 				explode $line
@@ -1836,8 +1841,11 @@ _wifi_scan()
 							echo "${signal},${remote}-${ssid}"
 							i=$(( i + 1 ))
 						elif [ "$option" = 'mozilla' ]; then
-							echo "$signal $mhz $bssid"
-							i=$(( i + 1 ))
+							# adhoc/ibss is covering the whole city and does not help
+							[ "$capability" = 'IBSS' ] || {
+								echo "$signal $mhz $bssid"
+								i=$(( i + 1 ))
+							}
 						fi
 					;;
 				esac
