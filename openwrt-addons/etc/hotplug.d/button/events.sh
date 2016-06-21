@@ -18,7 +18,7 @@ case "${BUTTON}-${ACTION}" in
 			END="${UP%.*}${UP#*.}"
 			DIFF=$(( END - START ))
 		else
-			DIFF=250
+			DIFF=99		# 100 = longpress
 		fi
 
 		# FIXME! DIFF = 1000 -> 10 seconds
@@ -56,10 +56,11 @@ case "${BUTTON}-${ACTION}" in
 				5) url='mdr figaro http://avw.mdr.de/livestreams/mdr_figaro_live_128.m3u' ;;
 				6) url='radio-blau main http://www.radioblau.de/stream/radioblau.m3u' ;;
 				7) url='apollo-radio main http://stream.apolloradio.de/APOLLO/mp3.m3u' ;;
+				8) url='harmonyfm goodtimes http://mp3.harmonyfm.de/harmonyfm/hqlivestream.mp3' ;;
 				8) url='radio-lotte main http://www.radio-lotte.de/stream/radiolotte.m3u' ;;
 				9) url='FM4 main http://mp3stream1.apasf.apa.at:8000' ;;
 				10)url='soma.fm secret-agent http://mp3.somafm.com:443' ;;
-				*) url='harmonyfm goodtimes http://mp3.harmonyfm.de/harmonyfm/hqlivestream.mp3'; i=1 ;;
+				*) url='radio-lotte main http://www.radio-lotte.de/stream/radiolotte.m3u';i=1;;
 			esac
 
 			logger -s -- "$0: audioplayer: station: $url"
