@@ -1719,6 +1719,61 @@ _wifi_scan_best_signal_myssid()		# e.g. for next_node/roaming
 	_wifi scan "$dev" "$ssid" | sort -n | tail -n1 | cut -d',' -f1
 }
 
+_wifi_scan_geolocation_api_build_json()
+{
+	local funcname='wifi_scan_geolocation_api_build_json'
+	local signal freq bssid dev line
+	local file="$TMPDIR/$funcname.$$"
+	# https://location.services.mozilla.com/
+	# https://mozilla.github.io/ichnaea/api/geolocate.html#api-geolocate-latest
+	local api_key='test'
+	local api_url="https://location.services.mozilla.com/v1/geolocate?key=$key"
+
+	for dev in $WIFI_DEVS; do {
+		_wifi scan "$dev" mozilla
+	} done >"$file"
+
+	echo '{'
+	echo '  "wifiAccessPoints": ['
+	echo '  {'
+
+	# e.g. -39 2432 ca:d3:a3:57:f7:6a
+	while read -r line; do {
+		explode $line
+		signal="$1"
+		freq="$2"
+		bssid="$3"
+
+		echo "    \"macAddress\": \"$bssid\","
+		echo "    \"signalStrength\": $signal,"
+		echo "    \"frequency\": $freq,"
+		echo "    \"age\": 3"
+		echo '  }, {'
+	} done <"$file"
+
+	# just for valid json:
+	echo "    \"macAddress\": \"$( _net dev2mac "$WIFIDEV" )\""
+	echo '  }]'
+	echo '}'
+}
+
+_wifi_scan_geolocation_api_query()
+{
+	local answer api_key api_url lat lon
+
+	# https://location.services.mozilla.com/
+	# https://mozilla.github.io/ichnaea/api/geolocate.html#api-geolocate-latest
+	api_key='test'
+	api_url="https://location.services.mozilla.com/v1/geolocate?key=$key"
+	answer="$( curl -H "Content-Type: application/json" -X POST --data @"$FILE" "$API_URL" )"
+
+	# {"location": {"lat": 50.988505, "lng": 11.3352539}, "accuracy": 146.3677526}
+	explode $answer
+	lat="$( echo "$3" | cut -d',' -f1 )"
+	lon="$( echo "$5" | cut -d'}' -f1 )"
+	echo "http://www.openstreetmap.org/#map=18/$LAT/$LON"
+}
+
 _wifi_scan()
 {
 	local funcname='wifi_scan'
