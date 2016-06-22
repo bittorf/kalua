@@ -75,7 +75,7 @@ case "${BUTTON}-${ACTION}" in
 			echo  >"$file" "# $i"
 			# rmmod because of https://dev.openwrt.org/ticket/13392
 			DOWNLOAD="wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url'"
-			BUFFER="$( command -v 'stdbuf' && echo 'stdbuf --input=1024KB --output=0 | ' )"
+			BUFFER="$( command -v 'stdbuf' && echo ' --input=1024KB --output=0 | ' )"
 			MADPLAY="madplay --output=$DSPDEV --quiet -"
 			CLEANUP="rmmod snd_usb_audio && modprobe snd_usb_audio"
 			echo >>"$file" "( $DOWNLOAD | $BUFFER $MADPLAY || { $CLEANUP; } ) &"
