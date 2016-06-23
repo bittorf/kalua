@@ -2660,6 +2660,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_v4l-utils=y'
 			;;
 			'USBaudio')
+				apply_symbol 'CONFIG_PACKAGE_coreutils=y'
+				apply_symbol 'CONFIG_PACKAGE_coreutils-stdbuf=y'
 				apply_symbol 'CONFIG_PACKAGE_madplay=y'			# sound: madplay
 				apply_symbol 'CONFIG_PACKAGE_kmod-sound-core=y'		# kernel-modules: sound:
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-audio=y'		# ...
