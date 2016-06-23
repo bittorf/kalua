@@ -71,12 +71,19 @@ case "${BUTTON}-${ACTION}" in
 				;;
 			esac
 
+			buffer_useable()
+			{
+				command -v 'stdbuf' >/dev/null || return
+				test -e '/usr/lib/coreutils/libstdbuf.so'
+			}
+
 			logger -s -- "$0: audiplayer: i: $i - url: $url"
 			echo  >"$file" "# $i"
-			# rmmod because of https://dev.openwrt.org/ticket/13392
-			DOWNLOAD="wget --user-agent 'AUDIOPLAYER' --quiet -O - '$url'"
-			BUFFER="$( command -v 'stdbuf' && test -e '/usr/lib/coreutils/libstdbuf.so' && echo ' --input=1024KB --output=0 ' )"
+			DOWNLOAD="wget --user-agent 'AUDIOPLAYER' -qO - '$url'"
+			BUFFER="$( buffer_useable && echo 'stdbuf --input=1024KB --output=0 ' )"
 			MADPLAY="madplay --output=$DSPDEV --quiet -"
+			# rmmod because of https://dev.openwrt.org/ticket/13392
+			# TODO: needed yet?
 			CLEANUP="rmmod snd_usb_audio && modprobe snd_usb_audio"
 			echo >>"$file" "( $DOWNLOAD | $BUFFER $MADPLAY || { $CLEANUP; } ) &"
 
