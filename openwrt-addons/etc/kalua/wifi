@@ -1827,15 +1827,40 @@ _wifi_scan()
 	local dev="${1:-$WIFIDEV}"		# e.g. wlan0
 	local option="$2"			# e.g. <my-special-ssid> or 'mozilla' or <empty>
 	local line value remote signal bssid mhz ssid capability
+	local devindex devname chanbw chanbw_changed
 	local freq="$( _wifi dev2freq "$dev" )"
 	local temp="$TMPDIR/$funcname.$$"
 	local i=0
 
+	devname="$( _net dev2name "$dev" )"
+	chanbw="$( _wifi get "$devname" chanbw )"
+	devindex="$( _wifi get "$devname" index )"
+	case "$chanbw" in
+		5|10)
+			chanbw_changed="$chanbw"
+			_wifi set any "$devindex" chanbw 20
+			_wifi phy_restart "$dev" "$funcname() changing chanbw from $chanbw to 20"
+
+			restore_chanbw()
+			{
+				_wifi set any "$devindex" chanbw "$chanbw"
+				_wifi phy_restart "$dev" "$funcname() changing chanbw from 20 to $chanbw"
+			}
+		;;
+		*)
+			chanbw_changed=
+			restore_chanbw() { :; }
+		;;
+	esac
+
 	_log it $funcname daemon info "[START] on dev '$dev' freq: $freq MHz option: $option"
-	iw dev "$dev" scan >"$temp" || {
+	if iw dev "$dev" scan >"$temp"; then
+		restore_chanbw
+	else
 		rm -f "$temp"
+		restore_chanbw
 		return 1
-	}
+	fi
 
 	while read -r line; do {
 		case "$line" in
@@ -2075,7 +2100,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 				'index')
 					echo "$i"
 				;;
-				'channel'|'hwmode'|'htmode')
+				'channel'|'hwmode'|'htmode'|'chanbw')
 					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
 						case "$network" in
 							'any'|'2ghz'|'5ghz')
