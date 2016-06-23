@@ -1805,18 +1805,25 @@ _wifi_scan_geolocation_api_query()
 	api_url="https://location.services.mozilla.com/v1/geolocate?key=$api_key"
 #	answer="$( curl --insecure -H "Content-Type: application/json" -X POST --data @"$file" "$api_url" )"
 	answer="$( wget --no-check-certificate --post-data="$( cat "$file" )" -qO - "$api_url" )"
+	_log it $funcname daemon debug "answer: $answer"
 
 	# {"location": {"lat": 50.9881901, "lng": 11.334436}, "accuracy": 212.0650219}
 	# {"location": {"lat": 50.988505, "lng": 11.3352539}, "accuracy": 146.3677526}
+	# {"fallback": "ipf", "location": {"lat": 50.9945, "lng": 11.0528}, "accuracy": 25000.0}
 	explode $answer
-	lat="$( echo "$3" | cut -d',' -f1 )"
-	lon="$( echo "$5" | cut -d'}' -f1 )"
-
-	echo "lat=$lat;lon=$lon"	# use via 'eval'
+	if [ "$1" = '{"fallback":' ]; then
+		lat="$( echo "$5" | cut -d',' -f1 )"
+		lon="$( echo "$7" | cut -d'}' -f1 )"
+	else
+		lat="$( echo "$3" | cut -d',' -f1 )"
+		lon="$( echo "$5" | cut -d'}' -f1 )"
+	fi
 
 	if [ -z "$lat" -o -z "$lon" ]; then
+		echo "lat=0;lon=0"
 		_log it $funcname daemon info "[ERROR] answer: $answer"
 	else
+		echo "lat=$lat;lon=$lon"	# use via 'eval'
 		_log it $funcname daemon info "http://www.openstreetmap.org/#map=18/$lat/$lon"
 	fi
 }
