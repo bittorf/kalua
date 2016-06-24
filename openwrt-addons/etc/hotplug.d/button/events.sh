@@ -86,10 +86,11 @@ case "${BUTTON}-${ACTION}" in
 			# TODO: needed yet?
 			CLEANUP="rmmod snd_usb_audio && modprobe snd_usb_audio"
 
+			# our $file is sourced from cron.minutely
 			if command -v 'mpg123' >/dev/null; then
-				echo >>"$file" "( mpg123 -b 1024 -m -c -y -k 100 -q '$url' ) &"
+				echo >>"$file" "pidof mpg123 >/dev/null || ( mpg123 -b 1024 -m -c -y -k 100 -q '$url' ) &"
 			else
-				echo >>"$file" "( $DOWNLOAD | $BUFFER $MADPLAY; $CLEANUP; ) &"
+				echo >>"$file" "pidof madplay >/dev/null || ( $DOWNLOAD | $BUFFER $MADPLAY; $CLEANUP; ) &"
 			fi
 
 			chmod +x "$file"
