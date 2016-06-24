@@ -85,7 +85,7 @@ case "${BUTTON}-${ACTION}" in
 			# rmmod because of https://dev.openwrt.org/ticket/13392
 			# TODO: needed yet?
 			CLEANUP="rmmod snd_usb_audio && modprobe snd_usb_audio"
-			echo >>"$file" "( $DOWNLOAD | $BUFFER $MADPLAY || { $CLEANUP; } ) &"
+			echo >>"$file" "( $DOWNLOAD | $BUFFER $MADPLAY; $CLEANUP; ) &"
 
 			chmod +x "$file"
 			exec "$file"
