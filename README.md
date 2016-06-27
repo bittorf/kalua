@@ -358,6 +358,7 @@ Special UCI-variables
 	system.@vpn[0].hostname			- hostname
 	system.@vpn[0].ipaddr			- IP
 	system.@vpn[0].hideandseek_disabled	- bool
+	system.@vpn[0].force			- bool
 	
 	system.@system[0].noswinstall		- bool
 	system.@system[0].avoid_autoreboot	- bool
