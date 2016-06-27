@@ -2,6 +2,7 @@
 [ -z "$UP" ] && read -r UP REST </proc/uptime
 
 DEV="${DEV:-eth0}"
+VALUE_DIFF=
 
 while read -r LINE; do {
 	case "$LINE" in
@@ -29,16 +30,18 @@ while read -r LINE; do {
 	esac
 } done <'/proc/interrupts'
 
-if   [ ${VALUE_OLD:-0} -gt 0 -a ${VALUE_DIFF:-0} -gt 10000 ]; then
-	if   [ $VALUE_DIFF -gt 100000 ]; then
-		echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffC: $VALUE_DIFF" >>$PERMLOG
-	elif [ $VALUE_DIFF -gt  25000 ]; then
-		echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffB: $VALUE_DIFF" >>$PERMLOG
-	else
-		echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffA: $VALUE_DIFF" >>$PERMLOG
+[ $TIMER_DIFF -ge 59 ] && {
+	if   [ ${VALUE_OLD:-0} -gt 0 -a ${VALUE_DIFF:-0} -gt 9999 ]; then
+		if   [ $VALUE_DIFF -gt 100000 ]; then
+			echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffC: $VALUE_DIFF"
+		elif [ $VALUE_DIFF -gt  25000 ]; then
+			echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffB: $VALUE_DIFF"
+		else
+			echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffA: $VALUE_DIFF"
+		fi
+	elif [ ${VALUE_DIFF:-1} -eq 0 ]; then
+		echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diff0: $VALUE_DIFF"
 	fi
-elif [ ${VALUE_DIFF:-1} -eq 0 ]; then
-	echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diff0: $VALUE_DIFF" >>$PERMLOG
-fi
+} >>$PERMLOG
 
 _log it irqcheck daemon debug "dev $DEV TIMER_DIFF: $TIMER_DIFF VALUE_DIFF: $VALUE_DIFF load: $LOAD up: $UP"
