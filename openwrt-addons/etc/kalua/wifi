@@ -12,23 +12,40 @@
 #	[ -n "$WIFI_NEXT" ] && . $WIFI_NEXT	# inluding VAR-set for next WIFI_DEV
 # } done					# (last entry must point to first-device)
 
-_wifi_led()
+_wifi_led()	# TODO: no dev = all
 {
 	local action="$1"	# on|off
 	local device="$2"	# e.g. wlan1-1		# TODO: uci the led-triggers for that
 	local helper='/lib/functions/leds.sh'
-	local led
+	local led file
 
-	[ -e '/etc/diag.sh' ] || return 0
-	. /etc/diag.sh
-	get_status_led		# e.g. status_led="ap132:green:status"
-	[ -z "$status_led" ] && return 0
-	led="$( echo "$status_led" | cut -d':' -f1 ):$( echo "$status_led" | cut -d':' -f2 ):wlan"
+	if [ -e '/sys/class/leds/ath9k-phy0/brightness' ]; then
+		case "$device" in
+			'wlan0'*|'')
+				led='phy0'
+			;;
+			'wlan1'*)
+				led='phy1'
+			;;
+		esac
+		file="/sys/class/leds/ath9k-$led/brightness"
 
-	if [ -e "$helper" ]; then
-		. $helper
+		led_on()  { echo '255' >"$file"; }
+		led_off() { echo '0'   >"$file"; }
 	else
-		return 0
+		[ -e '/etc/diag.sh' ] || return 0
+		. /etc/diag.sh
+
+		get_status_led		# e.g. status_led="ap132:green:status"
+		[ -z "$status_led" ] && return 0
+
+		led="$( echo "$status_led" | cut -d':' -f1 ):$( echo "$status_led" | cut -d':' -f2 ):wlan"
+
+		if [ -e "$helper" ]; then
+			. $helper
+		else
+			return 0
+		fi
 	fi
 
 	case "$action" in
