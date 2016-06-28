@@ -113,8 +113,12 @@ _vpn_innercity_master_vtund()
 				}
 			}
 
-			# server: vtund <-s> [-i] [-n] [-f file] [-P port]
-			/usr/local/sbin/vtund -s -f "$config" -P "$port"
+			if mkdir "$TMPDIR/$funcname.fired.$port"; then
+				# server: vtund <-s> [-i] [-n] [-f file] [-P port]
+				/usr/local/sbin/vtund -s -f "$config" -P "$port"
+			else
+				_log it $funcname daemon info "[ERR] action: $action - already active on port $port"
+			fi
 		;;
 		'start')
 			_vpn innercity_master_vtund_write_config
@@ -136,6 +140,8 @@ _vpn_innercity_master_vtund()
 					break
 				fi
 			} done
+
+			rm -fR "$TMPDIR/$funcname.fired.$port"
 		;;
 		'restart')
 			# keeping config, just restart daemon
@@ -210,10 +216,13 @@ _vpn_innercity_master_iface()
 		;;
 		'remove_all_locks')
 			for file in "$TMPDIR/$funcname-devup-"*; do {
-				dev="$( echo "$file" | cut -d'-' -f3 )"
-				_log it $funcname daemon alert "working: dev $dev"
-				ip link del dev $dev
-				rm -f "$file"
+				[ -e "$file" ] && {
+					dev="$( echo "$file" | cut -d'-' -f3 )"
+					_log it $funcname daemon alert "working: dev $dev"
+
+					ip link del dev $dev
+					rm -f "$file"
+				}
 			} done
 
 			rm -fR "$lockdir"
