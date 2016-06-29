@@ -203,10 +203,13 @@ output_table()
 		esac
 
 		case "$remote_hostname" in
-			"$remote_ip"|'mywifi'*|'user-lan'*)	# see S43ethers - also dont cache 'ERROR' from net_ip2dns()
+			"$remote_ip"|'mywifi'*|'user-lan'*|'ERROR')	# see S43ethers and net_ip2dns()
 			;;
 			*'.'*)
 				remote_hostname="${remote_hostname%.*}"		# myhost.lan -> myhost
+				echo "$remote_hostname" >"$cachefile"
+			;;
+			*)
 				echo "$remote_hostname" >"$cachefile"
 			;;
 		esac
