@@ -158,12 +158,15 @@ output_table()
 	{
 		local remote_ip="$1"
 		local cachefile="$TMPDIR/build_remote_hostname_${remote_ip}"
+		local url="http://$remote_ip/cgi-bin-tool.sh?OPT=hostname"
 
 		if [ -e "$cachefile" ]; then
 			read -r remote_hostname <"$cachefile"
 			return 0
 		else
-			remote_hostname="$( _net ip2dns "$remote_ip" )"
+			remote_hostname="$( _net ip2dns "$remote_ip" )" || {
+				remote_hostname="$( _curl it "$url" )"
+			}
 		fi
 
 		# did not work (e.g. via nameservice-plugin), so ask the remote directly
@@ -200,7 +203,7 @@ output_table()
 		esac
 
 		case "$remote_hostname" in
-			"$remote_ip"|'mywifi'*|'user-lan'*)	# see S43ethers
+			"$remote_ip"|'mywifi'*|'user-lan'*)	# see S43ethers - also dont cache 'ERROR' from net_ip2dns()
 			;;
 			*'.'*)
 				remote_hostname="${remote_hostname%.*}"		# myhost.lan -> myhost
