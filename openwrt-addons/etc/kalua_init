@@ -12,6 +12,8 @@ while read -r LINE; do {	# e.g.	none /run/user tmpfs rw,nosuid,nodev,noexec...
 	case "$LINE" in		#	attribute 'noexec' does not matter...
 		*'size='[0-9]'k'*)	# and avoid very small discs
 		;;
+		*'nosuid'*|*'noexec'*|*'nodev'*)
+		;;
 		*' tmpfs rw,'*)	#	...we only 'source' shellscripts (TODO: nosuid/noexec/nodev?)
 			set -- $LINE
 			mkdir -p "$2/kalua" 2>/dev/null && {
@@ -24,13 +26,13 @@ while read -r LINE; do {	# e.g.	none /run/user tmpfs rw,nosuid,nodev,noexec...
 	LINE=
 } done <'/proc/mounts'
 logger -s -- "$0: [OK] using \$TMPDIR which ${LINE}points to '${TMPDIR:=/tmp}'"
-chmod -R 777 "$TMPDIR"
 
 LOADER_ENTRY='/tmp/loader'		# entry point for all scripts, should be in RAM-drive
 LOADER="$TMPDIR/loader_$$"
 LOADER_FINAL="$TMPDIR/loader"		# later '$LOADER_ENTRY' is symlinked to it
 POOLDIR="$TMPDIR/kalua_pool"
 mkdir -p "$POOLDIR"
+chmod -R 777 "$POOLDIR"
 
 BASEDIR="$( dirname $0 )/kalua"		# place for the 'class'-files
 case "$BASEDIR" in			# e.g. /etc/kalua_init -> /etc
@@ -92,12 +94,16 @@ for FILE in "$0.user_"* "$0.user"; do {
 	[ -e "$FILE" ] && . "$FILE" >>"$LOADER"
 } done
 
-mv -f "$LOADER" "$LOADER_FINAL"
+filesize() { wc -c 2>/dev/null <"$1" || echo 0; }
 
-[ -h "$LOADER_ENTRY" -a "$( readlink "$LOADER_LOADER_ENTRY" )" = "$LOADER_FINAL" ] || {
-	[ -e "$LOADER_ENTRY" ] && rm "$LOADER_ENTRY"
-	# symlink /tmp/loader -> copy in ramdisc
-	ln -s "$LOADER_FINAL" "$LOADER_ENTRY"
+mv -f "$LOADER" "$LOADER_FINAL"
+[ $( filesize "$LOADER_FINAL" ) -eq $( filesize "$LOADER_ENTRY" ) ] || {
+	[ "$LOADER_ENTRY" = "$LOADER_FINAL" ] || {
+		[ "$( readlink "$LOADER_ENTRY" )" = "$LOADER_FINAL" ] || {
+			# symlink /tmp/loader -> copy in ramdisc
+			ln -sf "$LOADER_FINAL" "$LOADER_ENTRY"
+		}
+	}
 }
 
 logger -s -- "$0: [OK] generated '$LOADER_ENTRY' using files in '$POOLDIR'"

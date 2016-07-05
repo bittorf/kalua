@@ -4237,7 +4237,7 @@ bla()
 		p2="$( echo "$line" | cut -d'-' -f1 )"
 		p="${p1}-${p2}"		# HausA-1234
 
-		[ "$p" = "$p_old" ] || echo "$LINE"
+		[ "$p" = "$p_old" ] || echo "$line"
 		p_old="$p"
 
 	} done >>"$FILE_FAILURE_OVERVIEW"
