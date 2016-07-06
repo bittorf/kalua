@@ -3,12 +3,14 @@
 _watch_roaming()
 {
 	local funcname='watch_roaming'
-	local ap
+	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
+	local ap dev dev_list mac mac_list
 
 	grep -q 'br-mastergate:' '/proc/net/dev' && {
 		pidof iw >/dev/null || {
 			_log it $funcname daemon alert 'iw missing, restarting eventlistener'
 			_net roaming_eventlistener 'restart' "$funcname: iw missing"
+			return 1
 		}
 
 		# TODO: maybe 'wifi up' helps?
@@ -18,6 +20,18 @@ _watch_roaming()
 #				_system crashreboot 'dead_roaming'
 			}
 		} done
+
+		read dev_list <"$TMPDIR/WIFI_DEVS_AP"
+		for dev in $dev_list; do {
+			mac_list="$( iw dev "$dev" station dump | sed -n 's/^Station \(.*\) (on.*/\1/p' )"
+
+			for mac in $mac_list; do {
+				fgrep -q "$mac" "$station_list" || {
+					_net roaming_eventlistener 'restart' "$funcname: station mismatch"
+					return 1
+				}
+			} done
+		} done
 	}
 }
 
@@ -25,7 +39,7 @@ _watch_db_ticketrequest()
 {
 	local file file_counter profile_id
 
-	for file in /www/ticketcheck-requested_*; do {
+	for file in '/www/ticketcheck-requested_'*; do {
 		[ -e "$file" ] && {
 			profile_id="${file#*_}"
 			file_counter="$DIR_DATABASE/USER/profile/id${profile_id}_counterA"
