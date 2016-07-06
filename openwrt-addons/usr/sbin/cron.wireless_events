@@ -176,7 +176,7 @@ mac_is_active_on_another_dev()
 	local wifidev_old="$2"
 	local dev
 
-	for dev in $( active_ap_devices ); do {
+	for dev in $( _wifi active_ap_devices ); do {
 		[ "$dev" = "$wifidev_old" ] || {
 			iw dev "$dev" station get "$mac" >/dev/null 2>/dev/null && {
 				return 0
@@ -295,14 +295,6 @@ worker()
 	esac
 }
 
-active_ap_devices()	# e.g. ' wlan0 wlan1-1 wlan1-2 '
-{
-	# build during hotplug
-	cat "$TMPDIR/WIFI_DEVS_AP" 2>/dev/null || {
-		grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read -r dev; do echo -n " $dev "; done
-	}
-}
-
 stop()
 {
 	[ -e '/tmp/IWLOG' ] && {
@@ -321,7 +313,7 @@ else
 	OLSR_MAIN_IP="$( uci get olsrd.@olsrd[0].MainIp )"
 	[ -z "$OLSR_MAIN_IP" ] && OLSR_MAIN_IP="${LANADR:-$WANADR}"
 
-	log "start listening on '$( active_ap_devices )' PID: $$ OLSR_MAIN_IP: $OLSR_MAIN_IP"
+	log "start listening on '$( _wifi active_ap_devices )' PID: $$ OLSR_MAIN_IP: $OLSR_MAIN_IP"
 fi
 
 [ -z "$INCLUDE" ] && {
@@ -329,7 +321,7 @@ fi
 	PIDS_IW_BEFORE="$( pidof iw )"
 
 	# otherwise we lose maybe important events
-	for DEV in $( active_ap_devices ); do {
+	for DEV in $( _wifi active_ap_devices ); do {
 		for MAC in $( _wifi mac_assoclist "$DEV" ); do {
 			_wifi kick "$MAC" "$DEV"
 		} done
@@ -355,7 +347,7 @@ fi
 				# wlan0-1: del station 00:21:6a:32:7c:1c
 				# wlan0: new station dc:9f:db:02:b8:ee
 				# only start the 'worker' for interesting events:
-				case "$( active_ap_devices )" in
+				case "$( _wifi active_ap_devices )" in
 					*" ${LINE%: *} "*)
 						explode $LINE
 						log "EVENT $COUNTER: '$LINE'"

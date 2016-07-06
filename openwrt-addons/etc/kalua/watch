@@ -4,7 +4,7 @@ _watch_roaming()
 {
 	local funcname='watch_roaming'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
-	local ap dev dev_list mac mac_list
+	local ap dev mac mac_list
 
 	grep -q 'br-mastergate:' '/proc/net/dev' && {
 		pidof iw >/dev/null || {
@@ -21,13 +21,12 @@ _watch_roaming()
 			}
 		} done
 
-		read dev_list <"$TMPDIR/WIFI_DEVS_AP"
-		for dev in $dev_list; do {
+		for dev in $( _wifi active_ap_devices ); do {
 			mac_list="$( iw dev "$dev" station dump | sed -n 's/^Station \(.*\) (on.*/\1/p' )"
 
 			for mac in $mac_list; do {
 				fgrep -q "$mac" "$station_list" || {
-					_net roaming_eventlistener 'restart' "$funcname: station mismatch"
+					_net roaming_eventlistener 'restart' "$funcname: station mismatch: $mac/$dev"
 					return 1
 				}
 			} done
