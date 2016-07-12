@@ -975,6 +975,38 @@ _net_ip_reachable()
 
 	echo "$funcname" >'/tmp/CRON_OVERLOAD'
 
+	arping_method1()
+	{
+		local dev="$1"
+		local ip="$2"
+		local line="$( arping -D -c1 -I "$dev" "$ip" )"
+
+		case "$line" in
+			'Received 1 replies'*|*' 1 packets received'*)
+				return 0
+			;;
+			*)
+				return 1
+			;;
+		esac
+	}
+
+	arping_method2()
+	{
+		local dev="$1"
+		local ip="$2"
+		local line="$( arping -c1 -I "$dev" "$ip" )"
+
+		case "$line" in
+			'Received 1 replies'*|*' 1 packets received'*)
+				return 0
+			;;
+			*)
+				return 1
+			;;
+		esac
+	}
+
 	while let max_attempts-=1 ; do {
 		for dev in $dev_list; do {
 			# arping also returns with 0, without reply (so we grep the output)
@@ -990,20 +1022,32 @@ _net_ip_reachable()
 			# root@LEDE:~ arping -D -c 3 -I eno1 141.54.159.254
 			# !!!       0% packet loss (0 extra)
 
-			if   arping -D -c 1 -I "$dev" "$ip" | grep -q ^'Received 1 replies'; then
-				rm '/tmp/CRON_OVERLOAD'
+			# root@LEDE:~ arping -c 1 -I eno1 141.54.159.254
+			# ARPING 141.54.159.254
+			# 60 bytes from 14:10:54:15:92:54 (141.54.159.254): index=0 time=4.124 msec
+			#
+			# --- 141.54.159.254 statistics ---
+			# 1 packets transmitted, 1 packets received,   0% unanswered (0 extra)
+			# rtt min/avg/max/std-dev = 4.124/4.124/4.124/0.000 ms
+
+
+			if   arping_method1 "$dev" "$ip"; then
+				rm -f '/tmp/CRON_OVERLOAD'
 				ping -c1 "$pingtest" >/dev/null
 				return
-			elif arping    -c 1 -I "$dev" "$ip" | grep -q ^'Received 1 replies'; then
-				rm '/tmp/CRON_OVERLOAD'
+			elif arping_method2 "$dev" "$ip"; then
+				rm -f '/tmp/CRON_OVERLOAD'
 				ping -c1 "$pingtest" >/dev/null
 				return
 			else
 				if [ "$pingtest" = '127.0.0.1' ]; then
-					command -v arping >/dev/null || return 0	# fallback
+					command -v arping >/dev/null || {
+						rm -f '/tmp/CRON_OVERLOAD'
+						return 0	# FIXME! dirty fallback
+					}
 				else
 					ping -c1 "$pingtest" >/dev/null && {
-						rm '/tmp/CRON_OVERLOAD'
+						rm -f '/tmp/CRON_OVERLOAD'
 						return 0
 					}
 				fi
@@ -1014,7 +1058,7 @@ _net_ip_reachable()
 		} done
 	} done
 
-	rm '/tmp/CRON_OVERLOAD'
+	rm -f '/tmp/CRON_OVERLOAD'
 	return 1
 }
 
