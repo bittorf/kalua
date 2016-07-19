@@ -92,10 +92,8 @@ _vpn_innercity_master_vtund()
 
 						_olsr daemon restart 'blocked /dev/net/tun'
 					else
-						true
+						_vpn innercity_master_iface 'check_clients'
 					fi
-
-					# TODO: check locked but dead/noIPv6 tap's and remove them if old enough
 				else
 					_log it $funcname daemon alert "$action: empty pid - will startup"
 					_vpn innercity_master_vtund fire
@@ -204,6 +202,30 @@ _vpn_innercity_master_iface()
 	local dev_number genmac mtu logprio kbytes_per_sec file
 
 	case "$action" in
+		'check')
+			ip -family inet6 address show dev "$dev" | grep -q 'inet6' || {
+				if [ -e "$lockdir/info" ]; then
+					if _file age "$lockdir/info" -gt 600; then
+						_log it $funcname daemon info "action: $action dev: $dev removelock"
+						rm -fR "$lockdir"
+					else
+						_log it $funcname daemon info "action: $action dev: $dev - no IPv6"
+					fi
+				else
+					_log it $funcname daemon info "action: $action dev: $dev no_lockdir?"
+				fi
+			}
+
+			return $?
+		;;
+		'check_clients')
+			for lockdir in "$TMPDIR/lock-"*"-$funcname"; do {
+				[ -d "$lockdir" ] && {
+					dev="$( echo "$lockdir" | cut -d'-' -f2 )"
+					_vpn innercity_master_iface 'check' "$dev"
+				}
+			} done
+		;;
 		'count_clients')
 			for file in "$TMPDIR/$funcname-devup-"*; do {
 				[ -e "$file" ] && i=$(( i + 1 ))
