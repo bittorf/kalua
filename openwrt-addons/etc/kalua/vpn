@@ -94,6 +94,8 @@ _vpn_innercity_master_vtund()
 					else
 						true
 					fi
+
+					# TODO: check locked but dead/noIPv6 tap's and remove them if old enough
 				else
 					_log it $funcname daemon alert "$action: empty pid - will startup"
 					_vpn innercity_master_vtund fire
@@ -198,7 +200,8 @@ _vpn_innercity_master_iface()
 	local dev="$2"		# e.g. tap276
 	local i=0
 	local lockdir="$TMPDIR/lock-$dev-$funcname"
-	local bytes packets uptime uptime_sec numbers linenumber reason mtu logprio kbytes_per_sec file
+	local bytes packets uptime uptime_sec numbers linenumber reason
+	local dev_number genmac mtu logprio kbytes_per_sec file
 
 	case "$action" in
 		'count_clients')
@@ -246,9 +249,11 @@ _vpn_innercity_master_iface()
 
 		if _file age "$lockdir/info" -gt 600 ; then
 			_log it $funcname daemon alert "overaged: force unlocking: '$reason'"
+
 			_vpn innercity_master_vtund stop
 			_vpn innercity_master_vtund start
 
+			rm -fR "$lockdir"
 			return 0
 		else
 			[ $i -gt 5 ] && {
@@ -284,8 +289,18 @@ _vpn_innercity_master_iface()
 	# https://github.com/weimarnetz/weimarnetz/issues/218 -> 1280
 
 	if [ "$action" = 'up' ]; then
+		dev_number="${dev//[a-z]/}"	# tap276 -> 276
+		genmac='02:cc:cc:cc'
+
+		case "${#dev_number}" in
+			1) genmac="$genmac:00:0${dev_number}" ;;
+			2) genmac="$genmac:00:${dev_number}" ;;
+			3) genmac="$genmac:0$( echo "$dev_number" | cut -b1 ):$( echo "$dev_number" | cut -b2,3 )" ;;
+			4) genmac="$genmac:$( echo "$dev_number" | cut -b1,2 ):$( echo "$dev_number" | cut -b3,4 )" ;;
+		esac
+
 		ip address add $tunnel_ip_here/$mask dev $dev
-		ip link set dev $dev mtu $mtu up
+		ip link set dev $dev mtu $mtu address $genmac up
 		touch "$TMPDIR/$funcname-devup-$dev"
 
 		$IPT -I INPUT  -p udp --dport 698 -i $dev -j DROP
@@ -323,7 +338,7 @@ _vpn_innercity_master_iface()
 
 		uptime_sec=$( _file age "$TMPDIR/$funcname-devup-$dev" )
 		uptime=$( _stopwatch seconds2humanreadable "$uptime_sec" )
-		rm "$TMPDIR/$funcname-devup-$dev"
+		rm -f "$TMPDIR/$funcname-devup-$dev"
 
 		explode $( $IPT -nxvL | fgrep " $dev " | head -n1 )
 		packets=$1

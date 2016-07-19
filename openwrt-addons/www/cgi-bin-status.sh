@@ -240,6 +240,7 @@ output_table()
 		esac
 		neigh_list="$( _list remove_element "$neigh_list" "$REMOTE" 'string' )"
 
+		# TODO: dont try hard if bad/lost neigh
 		build_remote_hostname "$REMOTE"
 
 		case "$toggle" in
