@@ -166,7 +166,6 @@ case "$ACTION" in
 				{
 					local device="$1"
 					local gw_route gw_ipaddr
-					local debugfile="$TMPDIR/is_valid_gateway_$device"
 
 					gw_route="$( ip -oneline route get '8.8.8.8' )"
 					echo "$gw_route" | fgrep -q " dev $device " || return 1
@@ -176,17 +175,14 @@ case "$ACTION" in
 					shift
 					gw_ipaddr="$( _sanitizer run "$*" ip4 )"	# 1st IP: 10.1.3.1
 
-					if _ipsystem get "$gw_ipaddr" >/dev/null; then
-						return 1
-					else
-						echo  >"$debugfile" "$gw_route"
-						echo >>"$debugfile" "$gw_ipaddr"
+					echo "$gw_route"
+					echo "$gw_ipaddr"
 
-						return 0
-					fi
+					# reversed returncode
+					! _ipsystem get "$gw_ipaddr"
 				}
 
-				is_valid_gateway "$DEVICE" && {
+				is_valid_gateway "$DEVICE" >"$TMPDIR/is_valid_gateway_$DEVICE" && {
 					_log it $ACTION.$INTERFACE.$DEVICE daemon info '[OK] wow - local inet offer'
 					_olsr hna4_inetoffer start "hotplug: $ACTION.$INTERFACE.$DEVICE"
 				}
