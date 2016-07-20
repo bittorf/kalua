@@ -157,7 +157,7 @@ output_table()
 	build_remote_hostname()		# sets var '$remote_hostname'
 	{
 		local remote_ip="$1"
-		local cachefile="$TMPDIR/build_remote_hostname_${remote_ip}"
+		local cachefile="$TMPDIR/build_remote_hostname_$remote_ip"
 		local url="http://$remote_ip/cgi-bin-tool.sh?OPT=hostname"
 
 		if [ -e "$cachefile" ]; then
@@ -165,7 +165,9 @@ output_table()
 			return 0
 		else
 			remote_hostname="$( _net ip2dns "$remote_ip" )" || {
-				remote_hostname="$( _curl it "$url" )"
+				_watch counter "$cachefile.try" increment 1 max 5 && {
+					remote_hostname="$( _curl it "$url" )"
+				}
 			}
 		fi
 
