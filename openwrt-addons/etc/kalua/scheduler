@@ -212,12 +212,15 @@ _scheduler_run()
 		_file age '/tmp/scheduler.mark_starttime' -gt 60 && {
 			# keep it running without pause till last init-scripts's job was done
 			[ -e "$TMPDIR/scheduler_keep_running" ] || {
-				# otherwise maybe 'IMPORTANT' jobs must wait too long
-				age="$( _file age '/tmp/scheduler.mark_starttime' sec )"
 				length=0
-
 				for _ in $SCHEDULER_QUEUE; do test -e "$_" && length=$(( length + 1 )); done
-				_log it $funcname daemon info "[OK] aborting run, age: $age sec - $length jobs in queue"
+
+				# otherwise maybe 'IMPORTANT' jobs must wait too long
+				[ $length -gt 0 ] && {
+					age="$( _file age '/tmp/scheduler.mark_starttime' sec )"
+					_log it $funcname daemon info "[OK] aborting run, age: $age sec - $length jobs in queue"
+				}
+
 				break
 			}
 		}
