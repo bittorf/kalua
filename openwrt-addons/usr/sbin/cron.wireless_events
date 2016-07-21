@@ -26,13 +26,15 @@ mac2ipv4()	# TODO: better name
 	local funcname='mac2ipv4'
 	local mac="$1"
 	local wifidev="$2"
+	local freq="$3"
+
 	local dev='br-mastergate'
 	local file="/tmp/ROAMING_remove_host_route_$mac"
 	local i=20	# loop-retries
 	lcoal signal command ip_list ip=
 	local server_asked='false'
 
-	test $( _wifi dev2freq "$dev" ) -lt 3000 || i=30	# give more time on 5ghz
+	[ $freq -lt 3000 ] || i=30	# give more time on 5ghz
 
 	while let i-=1; do {
 		# ignore IPv6 and show IPv4
@@ -192,6 +194,7 @@ worker()
 	local wifidev="$1"	# e.g. 'wlan0-1'
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
+
 	local ip signal wifidev_now timestamp freq signal_try=4
 	local kickmarker="$TMPDIR/kicked_low_signal_$mac-$wifidev"
 	local txt="worker($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
@@ -248,7 +251,7 @@ worker()
 				log "$txt - KICKED early, bad signal: '$signal'"
 				_wifi kick "$mac" "$wifidev"
 			else
-				ip="$( mac2ipv4 "$mac" "$wifidev" )"
+				ip="$( mac2ipv4 "$mac" "$wifidev" "$freq" )"
 				[ "$signal" = '0' ] && signal="$( _wifi signal "$wifidev" "$mac" )"
 
 				txt="$txt - ip: '$ip' signal: '$signal' (is_good)"
