@@ -138,7 +138,7 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 	local downlink="${3:-10000}"	# set values to somewhat less than your actual download/upload speed
 	local uplink="${4:-1000}"	# e.g. 1000 = 1mbit
 
-	$TC -V >/dev/null || return 1
+	tc -V >/dev/null || return 1
 	_log it $funcname daemon info "$action: dev: '$dev'"
 
 	case "$action" in
@@ -2282,7 +2282,7 @@ _netfilter_traffic_control_add()
 	its_possible()
 	{
 		test -e "/tmp/error_$funcname-$dev" && return 1
-		$TC -V >/dev/null
+		tc -V >/dev/null
 	}
 
 	if its_possible; then
@@ -2297,18 +2297,6 @@ _netfilter_traffic_control_add()
 		return 1
 	fi
 
-	err()
-	{
-		local last_command="$_"
-		local prio='debug'
-		local file="/tmp/error_$funcname-$dev"
-
-		[ -e "$file" ] || prio='alert'
-		touch "$file"
-
-		_log it $funcname daemon $prio "[ERR] on rule $1: '$last_command'"
-	}
-
 	# debug with:
 	# $TC class show dev wlan1
 	# $TC filter show dev wlan1
@@ -2316,10 +2304,10 @@ _netfilter_traffic_control_add()
 
 	# https://lists.olsr.org/pipermail/olsr-users/2010-January/003825.html
 	# we have 3 qdisc (for outgoing traffic)
-	$TC qdisc add dev $dev root handle 1: prio			|| err A-$dev
-	$TC qdisc add dev $dev parent 1:1 handle 10: sfq perturb 10	|| err B-$dev
-	$TC qdisc add dev $dev parent 1:2 handle 20: sfq perturb 10	|| err C-$dev
-	$TC qdisc add dev $dev parent 1:3 handle 30: sfq perturb 10	|| err D-$dev
+	$TC qdisc add dev $dev root handle 1: prio
+	$TC qdisc add dev $dev parent 1:1 handle 10: sfq perturb 10
+	$TC qdisc add dev $dev parent 1:2 handle 20: sfq perturb 10
+	$TC qdisc add dev $dev parent 1:3 handle 30: sfq perturb 10
 
 	# prio 1-6: "Lower numbers get tested first"
 	# 1:2 cannot make traffic if 1:1 is full
@@ -2332,24 +2320,24 @@ _netfilter_traffic_control_add()
 		_netfilter tc_match "$1"
 	}
 
-	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr1)		flowid 1:1 || err 1-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr2)		flowid 1:1 || err 1a-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 2 $(match tcp_with_ack)	flowid 1:1 || err 2-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 2 $(match tcp_with_ack2)	flowid 1:1 || err 2a-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr1)		flowid 1:1
+	$TC filter add dev $dev protocol ip parent 1: prio 1 $(match olsr2)		flowid 1:1
+	$TC filter add dev $dev protocol ip parent 1: prio 2 $(match tcp_with_ack)	flowid 1:1
+	$TC filter add dev $dev protocol ip parent 1: prio 2 $(match tcp_with_ack2)	flowid 1:1
 
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip1)		flowid 1:2 || err 3-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip2)		flowid 1:2 || err 4-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip3)		flowid 1:2 || err 5-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip4)		flowid 1:2 || err 6-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip5)		flowid 1:2 || err 7-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip6)		flowid 1:2 || err 8-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip_vpn1)		flowid 1:2 || err 8-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip_vpn2)		flowid 1:2 || err 8-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip1)		flowid 1:2
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip2)		flowid 1:2
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip3)		flowid 1:2
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip4)		flowid 1:2
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip5)		flowid 1:2
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip6)		flowid 1:2
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip_vpn1)		flowid 1:2
+	$TC filter add dev $dev protocol ip parent 1: prio 3 $(match voip_vpn2)		flowid 1:2
 
-	$TC filter add dev $dev protocol ip parent 1: prio 4 $(match dns)		flowid 1:2 || err 9-$dev
-	$TC filter add dev $dev protocol ip parent 1: prio 5 $(match interactive)	flowid 1:2 || err 10-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 4 $(match dns)		flowid 1:2
+	$TC filter add dev $dev protocol ip parent 1: prio 5 $(match interactive)	flowid 1:2
 
-	$TC filter add dev $dev protocol ip parent 1: prio 6 $(match all)		flowid 1:3 || err 11-$dev
+	$TC filter add dev $dev protocol ip parent 1: prio 6 $(match all)		flowid 1:3
 }
 
 _netfilter_tc_match_voip_codec()
