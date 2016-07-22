@@ -12,6 +12,7 @@ _ssh_key_public_fingerprint_get()	# output differs, wether its a SHA1 or MD5 has
 	local me='ssh_key_public_fingerprint_get'
 	local file_openwrt1='/etc/dropbear/dropbear_dss_host_key'	# old
 	local file_openwrt2='/etc/dropbear/dropbear_rsa_host_key'	# newer/since r46814
+	local file_openwrt3='/etc/dropbear/dropbear_ecdsa_host_key'	# e.g. debian or future
 	local file_debian='/etc/ssh/ssh_host_rsa_key'
 	local nop file
 
@@ -22,6 +23,9 @@ _ssh_key_public_fingerprint_get()	# output differs, wether its a SHA1 or MD5 has
 		$nop dropbearkey -y -f "$file" | fgrep 'Fingerprint:' | cut -d' ' -f3
 	elif [ -e "$file_openwrt1" ]; then
 		file="$file_openwrt1"
+		$nop dropbearkey -y -f "$file" | fgrep 'Fingerprint:' | cut -d' ' -f3
+	elif [ -e "$file_openwrt3" ]; then
+		file="$file_openwrt3"
 		$nop dropbearkey -y -f "$file" | fgrep 'Fingerprint:' | cut -d' ' -f3
 	elif [ -e "$file_debian" ]; then
 		file="$file_debian"
@@ -53,11 +57,12 @@ _ssh_regen_keys()
 	local funcname='ssh_regen_keys'
 	local file1='/etc/dropbear/dropbear_dss_host_key'
 	local file2='/etc/dropbear/dropbear_rsa_host_key'
+	local file3='/etc/dropbear/dropbear_ecdsa_host_key'
 	local file
 
 	_log it $funcname daemon info '[START]'
 
-	for file in $file1 $file.pub $file2 $file2.pub; do {
+	for file in $file1 $file.pub $file2 $file2.pub $file3 $file3.pub; do {
 		[ -e "$file" ] && rm "$file"
 	} done
 
@@ -65,8 +70,8 @@ _ssh_regen_keys()
 
 	[ -e "/tmp/$funcname" ] && rm "/tmp/$funcname"
 	while true; do {
-		[ -e "$file1" ] && break
-		[ -e "$file2" ] && break
+		[ -e "$file1" -o -e "$file2" -o -e "$file3" ] && break
+
 		_watch counter "/tmp/$funcname" increment 1 max 100 || return 0
 		sleep 1
 	} done
@@ -92,7 +97,7 @@ _ssh_sanitize_and_cleanup_keys()
 		return 0
 	}
 
-	for mode in rsa dss; do {
+	for mode in rsa dss ecdsa; do {
 		file="/etc/dropbear/dropbear_${mode}_host_key"
 		[ -e "$file" ] || continue
 
