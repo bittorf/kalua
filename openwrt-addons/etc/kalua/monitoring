@@ -28,5 +28,25 @@ _monitoring_url()
 	url="$url/?local=${date}&node=0&city=168&mac=${mac}&latlon=&hostname=${hostname}&update=0&wifidrv=&olsrver=&olsrrestartcount=0&olsrrestarttime=&portfw=&optimizenlq=&optimizeneigh=off&txpwr=0&wifimode=ap&channel=${channel}&mrate=auto&hw=${hardware}&frag=&rts=&pfilter=&gmodeprot=0&gmode=11ng&profile=${network}_ap&noise=-1&rssi=&distance=&version=${version}&reboot=1&up=${uptime}&load=${load}&forwarded=0&essid=${ssid}&bssid=&gw=1&gwnode=1&etx2gw=1&hop2gw=0&neigh=&users=&pubip=${mypubip}&sens=&wifiscan=&v1=${uname}&v2=&s1=${switch}&h1=${ram}&h2=&h4=2&h5=33&h6=4096&h7=337&d0=&d1=&n0=&i0=static&i1=wan&i2=${myip}%2f29&i3=0&i4=0&i5=${mygw}&r0=&w0=wlan0&w1=0"
 }
 
+_monitoring_screenshot()
+{
+	local file="$TMPDIR/screenshot.jpg"
+	local hash_old hash_new mac key dest
 
+	command -v 'scrot' >/dev/null && {
+		read -r hash_old <"$file"
 
+		export DISPLAY=:0
+	        scrot --quality 10 "$file"
+
+		hash_new="$( _file hash "$file" )"
+		[ "$hash_old" = "$hash_new" ] || {
+			read -r mac <'/www/monitoring.wifimac' && {
+				# root@intercity-vpn.de:/var/www/networks/liszt28/vds/
+				dest="$( uci get system.@vds[0].server )../settings/$mac.screenshot.jpg"
+				key="$( _ssh key_public_fingerprint_get keyfilename )"
+				scp -i "$key" "$file" "$dest"
+			}
+		}
+	}
+}
