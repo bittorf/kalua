@@ -1870,9 +1870,9 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 			fi
 		}
 
-		[ -n "$( uci get network.lan.gateway )" ] && {
+		[ -n "$( uci get network.lan.gateway )" ] && {		# IP
 			_log it $funcname daemon info "early_boot_estimation: lan"
-			echo "lan"
+			echo 'lan'
 			return 0
 		}
 
@@ -1889,15 +1889,21 @@ _net_local_inet_offer()			# SENSE: check if default-route is local
 		[ -z "$option" ] && return 1	# needed for debugging
 	}
 
-	local LAN_GATEWAY="$( uci -q get network.lan.gateway )"
+	local LAN_GATEWAY="$( uci -q get network.lan.gateway )"		# IP or 'true'
 	[ -n "$LAN_GATEWAY" ] && {
-		[ -z "$( ip route list exact '0.0.0.0/0' via $LAN_GATEWAY )" ] && {
-			[ "$LAN_GATEWAY" = '0.0.0.0' ] || {
-				_log it $funcname daemon info "alien_gateway '$LAN_GATEWAY': lan"
-				echo 'lan'
-				return 0
+		if [ "$LAN_GATEWAY" = 'true' ]; then
+			_log it $funcname daemon info "lan-gateway enforced / true"
+			echo 'lan'
+			return 0
+		else
+			[ -z "$( ip route list exact '0.0.0.0/0' via $LAN_GATEWAY )" ] && {
+				[ "$LAN_GATEWAY" = '0.0.0.0' ] || {
+					_log it $funcname daemon info "alien_gateway '$LAN_GATEWAY': lan"
+					echo 'lan'
+					return 0
+				}
 			}
-		}
+		fi
 	}
 
 
