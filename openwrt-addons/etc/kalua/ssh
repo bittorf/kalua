@@ -12,9 +12,12 @@ _ssh_key_public_fingerprint_get()	# output differs, wether its a SHA1 or MD5 has
 	local me='ssh_key_public_fingerprint_get'
 	local file_openwrt1='/etc/dropbear/dropbear_dss_host_key'	# old
 	local file_openwrt2='/etc/dropbear/dropbear_rsa_host_key'	# newer/since r46814
-	local file_openwrt3='/etc/dropbear/dropbear_ecdsa_host_key'	# e.g. debian or future
+	local file_openwrt3='/etc/dropbear/dropbear_ecdsa_host_key'	# e.g. debian or future TODO: ed25519
 	local file_debian='/etc/ssh/ssh_host_rsa_key'
 	local nop file
+
+	# TODO: path can be /etc/ssh/... (debian)
+
 
 	[ "$option" = 'keyfilename' ] && nop=':'
 
@@ -28,7 +31,11 @@ _ssh_key_public_fingerprint_get()	# output differs, wether its a SHA1 or MD5 has
 		file="$file_openwrt3"
 		$nop dropbearkey -y -f "$file" | fgrep 'Fingerprint:' | cut -d' ' -f3
 	elif [ -e "$file_debian" ]; then
+		# https://bugs.launchpad.net/ubuntu/+source/dropbear/+bug/1009868
+		/usr/lib/dropbear/dropbearconvert openssh dropbear "$file_debian" "$file_openwrt2"
+
 		file="$file_debian"
+		# e.g. SHA256:LliBzdefJ+t2Kczv131e/ae2sIPnAk2giX7zZiZJ8O8
 		$nop ssh-keygen -l -f "$file" | cut -d' ' -f2
 	else
 		[ -z "$option" ] && {
