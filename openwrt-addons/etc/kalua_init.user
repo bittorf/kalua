@@ -92,21 +92,26 @@ read -r _ MEMTOTAL _ <'/proc/meminfo'
 
 test_iptables()
 {
-	# direct call can fail if PATH not set yet
+	IPT='iptables'
+
+	# direct call can fail if PATH not yet set
 	if [ -e '/usr/sbin/iptables' ]; then
-		/usr/sbin/iptables --help | fgrep -q -- '--wait'
+		/usr/sbin/iptables --help | fgrep -q -- '--wait' && {
+			IPT='iptables --wait'
+		}
 	elif [ -e '/sbin/iptables' ]; then
-		/sbin/iptables --help | fgrep -q -- '--wait'
+		/sbin/iptables --help | fgrep -q -- '--wait' && {
+			IPT='iptables --wait'
+		}
 	else
-		false
+		IPT='true'
 	fi
 }
 
-if test_iptables; then
-	echo "IPT='iptables --wait'"
-else
-	echo 'IPT=iptables'
-fi
+test_iptables
+cat <<EOF
+IPT() { $IPT "\$@" || case "\$*" in *' -nL '*);;*) _log it IPT daemon alert "rc: \$? $IPT \$*";;esac; }
+EOF
 
 echo "TC=$( command -v tc || echo 'false' )"		# TODO: wrapper function
 
