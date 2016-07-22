@@ -1273,9 +1273,12 @@ _netfilter_splash_start()
 	local funcname='netfilter_splash_start'
 	local myhna="$( _netfilter myhna )"
 #	local debug="echo"			# must be empty for debug-mode
-	local ip source destination dev temp_dev dnsport
+	local ip source destination dev temp_dev dnsport wifinet wifipre
 	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8 $ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL"
 	local logprio='alert'
+
+	wifinet="$( _ipsystem getvar 'WIFINET' )"
+	wifipre="$( _ipsystem getvar 'WIFI_PRE' )"
 
 	if [ -n "$LOWMEM" ]; then
 		dnsport=53
@@ -1313,7 +1316,7 @@ _netfilter_splash_start()
 	$IPT -t mangle -A PREROUTING -j picopeer
 
 	# olsr
-	$IPT -t mangle -A PREROUTING -p udp --dport 698 -s "$WIFINET/$WIFIPRE" -d 255.255.255.255 -j ACCEPT
+	$IPT -t mangle -A PREROUTING -p udp --dport 698 -s "$wifinet/$wifipre" -d 255.255.255.255 -j ACCEPT
 
 	_netfilter walledgarden_start
 
@@ -1343,9 +1346,9 @@ _netfilter_splash_start()
 		$IPT -A FORWARD   -i $WIFIDEV   -o $WIFIDEV		# wifi -> wifi
 	}
 
-	grep -q ^'ipt_REJECT ' /proc/modules || insmod ipt_REJECT	# fixme! remove later when new cron.patch_patch_kmodules.sh is active
+	grep -q ^'ipt_REJECT ' /proc/modules || insmod ipt_REJECT	# FIXME! remove later when new cron.patch_patch_kmodules.sh is active
 	$IPT -A FORWARD -m mark --mark 0x88/0xff -j REJECT
-	$IPT -A FORWARD -s "$WIFINET/$WIFIPRE" -d "$WIFINET/$WIFIPRE" -j ACCEPT		# picopeer 2nd time
+	$IPT -A FORWARD -s "$wifinet/$wifipre" -d "$wifinet/$wifipre" -j ACCEPT		# picopeer 2nd time
 	_netfilter mssfix
 
 	if pidof bat_events >/dev/null; then
