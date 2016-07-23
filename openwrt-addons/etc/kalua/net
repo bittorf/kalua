@@ -413,8 +413,8 @@ _net_roaming_report_new()
 _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 {
 	local dev="${1:-$WIFIDEV}"
-	local gateway_ip url apmac last unixtime_connstart elapsed diff connection_duration channel
-	rm "/tmp/MAC_"* "$TMPDIR/MAC2HOSTNAME_"* 2>/dev/null
+	local gateway_ip url apmac last unixtime_connstart elapsed diff connection_duration channel channel_last
+	rm -f "/tmp/MAC_"* "$TMPDIR/MAC2HOSTNAME_"* 2>/dev/null
 
 	say()
 	{
@@ -448,10 +448,25 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 		echo "${2:-0}"
 	}
 
+	bandroam_happend()
+	{
+		local mac1="$1"					# 66:66:b3:de:d9:eb
+		local mac2="$2"					# 66:66:b3:de:d9:ea
+		local s1 s2
+
+		explode ${mac1//:/ }
+		s1=$(( 0x$2 + 0x$3 + 0x$4 + 0x$5 + 0x$6 ))	#    66 b3 de d9 eb
+		explode ${mac2//:/ }
+		s2=$(( 0x$2 + 0x$3 + 0x$4 + 0x$5 + 0x$6 ))	#    66 b3 de d9 ec
+
+		[ $(( s1 - s2 )) -eq 1 -o $(( s2 - s1 )) -eq 1 ]
+	}
+
 	get_hostname()
 	{
 		local mac="$1"
 		local url="$2"
+		local bandroam="$3"
 		local i=10
 		local hostname mac_after
 
@@ -484,15 +499,19 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 		}
 
 		hostname="$( _sanitizer run "$hostname" firstline hostname )"
-		say "neuer Router ist: $hostname" "${channel:-keiner_ZWO}"
+		[ -z "$bandroam" ] && {
+			say "neuer Router ist: $hostname" "${channel:-keiner_ZWO}"
+		}
 
 		# FIXME! make sure we have not changed the ap
 		echo "$hostname" >"$TMPDIR/MAC2HOSTNAME_$mac"
 		echo "$hostname"
 	}
 
+
 	# show ping loss?
 	while true; do {
+		bandroam=
 		gateway_ip="$( get_gateway_ip )"
 		url="http://$gateway_ip/cgi-bin-tool.sh?OPT=hostname"
 		apmac="$( get_apmac "$@" )"	# SC2119/SC2120
@@ -501,16 +520,24 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 			unixtime_connstart="$( _system date unixtime )"
 			channel="$( _wifi channel "$WIFIDEV" )"
 			echo
-			echo "$( date ) new: $apmac"
-			say "Achtung, der Zugangspunkt hat gewechselt." "${channel:-Verbindung verloren}"
+
+			if bandroam_happend "$last" "$apmac"; then
+				bandroam_happend='true'
+				echo "$( date ) bandroam: $last -> $apmac"
+				say "kanalwechsel" "${channel_last:-0} zu $channel"
+			else
+				echo "$( date ) new: $apmac"
+				say "Achtung, der Zugangspunkt hat gewechselt." "${channel:-Verbindung verloren}"
+			fi
 
 			rm "$TMPDIR/MAC2HOSTNAME_$last" 2>/dev/null	# see get_hostname()
 			connection_duration=0
 		}
 		last="$apmac"
+		channel_last="$channel"
 
 		hostname='???'
-		[ -n "$gateway_ip" -a -n "$apmac" ] && hostname="$( get_hostname "$apmac" "$url" )"
+		[ -n "$gateway_ip" -a -n "$apmac" ] && hostname="$( get_hostname "$apmac" "$url" "$bandroam" )"
 		diff=$(( $( _system date unixtime ) - ${unixtime_connstart:-0} ))
 		elapsed="$( _stopwatch seconds2humanreadable "$diff" pedantic )"
 		# SC2119/SC2120
