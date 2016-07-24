@@ -94,7 +94,7 @@ _ssh_regen_keys()
 _ssh_sanitize_and_cleanup_keys()
 {
 	local funcname='ssh_sanitize_and_cleanup_keys'
-	local file mode
+	local file mode keyok
 
 	public_keyfile_ok()
 	{
@@ -107,9 +107,18 @@ _ssh_sanitize_and_cleanup_keys()
 		return 0
 	}
 
+	keyok=
 	for mode in rsa dss ecdsa; do {
 		file="/etc/dropbear/dropbear_${mode}_host_key"
-		[ -e "$file" ] || continue
+		if [ -e "$file" ]; then
+			keyok='true'
+		else
+			[ -z "$keyok" ] && {
+				dropbearkey -t "$mode" -f "/etc/dropbear/dropbear_${mode}_host_key" && {
+					keyok='true'
+				}
+			}
+		fi
 
 		public_keyfile_ok "$file" || {
 			_log it $funcname daemon info "writing $file.pub"
@@ -119,10 +128,5 @@ _ssh_sanitize_and_cleanup_keys()
 		}
 	} done
 
-	if [ -L $HOME/.ssh ]; then
-		:
-	else
-		rm -fR $HOME/.ssh
-		ln -s /etc/dropbear $HOME/.ssh
-	fi
+	[ -h "$HOME/.ssh" ] || ln -fs '/etc/dropbear' "$HOME/.ssh"
 }
