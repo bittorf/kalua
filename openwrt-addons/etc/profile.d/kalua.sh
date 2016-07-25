@@ -33,8 +33,9 @@ case "$USER" in
 esac
 
 _ t 2>/dev/null || {
-	[ -e '/tmp/loader' ] && {
-		. '/tmp/loader'
+	[ -e '/tmp/loader' -a -n "$SSH_CONNECTION" ] && {
+		. '/tmp/loader'		# TODO: avoid "no permission" on debian user-X-session
+
 		echo
 		echo "this is a '$HARDWARE' - for some hints type: _help overview"
 	}
