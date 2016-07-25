@@ -34,6 +34,7 @@ esac
 
 _ t 2>/dev/null || {
 	[ -e '/tmp/loader' -a -n "$SSH_CONNECTION" ] && {
+		# http://unix.stackexchange.com/questions/82347/how-to-check-if-a-user-can-access-a-given-file
 		. '/tmp/loader'		# TODO: avoid "no permission" on debian user-X-session
 
 		echo
