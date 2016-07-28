@@ -8,31 +8,17 @@
 #  you will make somebody's life easier in the future.
 #  Maybe your own."
 
-# grep -q ^'tmpfs /tmp' /proc/mounts || {
-#   mkdir -p /kalua
-#   grep -q ' /kalua tmpfs' /proc/mounts || {
-#     mount -t tmpfs -o size=50% none /kalua
-#   }
-# }
+if grep -q ^'tmpfs /tmp' /proc/mounts; then
+	TMPDIR='/tmp'
+else
+	TMPDIR='/kalua'
+	grep -q " $TMPDIR tmpfs" /proc/mounts || {
+		mkdir "$TMPDIR"
+		mount -t tmpfs -o 'size=50%' none "$TMPDIR"
+	}
+fi
 
-while read -r LINE; do {	# e.g.	none /run/user tmpfs rw,nosuid,nodev,noexec...
-	case "$LINE" in
-		*'cgmanager'*|'tmpfs /sys/'*|*'nosuid'*|*'noexec'*|*' /home/'*|*'size='[0-9]'k'*)
-				# avoid those (and very small disks)
-				# we only 'source' shellscripts and work with tempfiles
-		;;
-		*' tmpfs rw,'*)
-			set -- $LINE
-			mkdir -p "$2/kalua" 2>/dev/null && {
-				TMPDIR="$2/kalua"
-				LINE='is RAM-drive (tmpfs) and '
-				break
-			}
-		;;
-	esac
-	LINE=
-} done <'/proc/mounts'
-logger -s -- "$0: [OK] using \$TMPDIR which ${LINE}points to '${TMPDIR:=/tmp}'"
+logger -s -- "$0: [OK] var \$TMPDIR is '$TMPDIR'"
 
 LOADER_ENTRY='/tmp/loader'		# entry point for all scripts, should be in RAM-drive
 LOADER="$TMPDIR/loader_$$"
