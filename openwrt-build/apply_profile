@@ -20,7 +20,7 @@ call()
 	local max_try=20
 	local interval=60
 	local lockfile='/tmp/lockfile_apply_profile'
-	local random_nodenumber="$( command . /tmp/loader; _ipsystem getvar 'NODE_NUMBER' )"
+	local random_nodenumber default_net default_mode
 
 	[ -e  "$lockfile" ] && return 0
 	touch "$lockfile"
@@ -61,8 +61,14 @@ call()
 	logger -s "$ME [BOOT] ready - removing '$ME', showing success with led_firework"
 	rm -f "$ME" "$lockfile" '/tmp/scheduler_allow_run'
 
-	# fallback if anything fails
-	[ $max_try -eq 0 ] && "$ME.code" liszt28 hybrid "${random_nodenumber:-99}" dhcp
+	# fallback if everything fails
+	[ $max_try -eq 0 ] && {
+		random_nodenumber="$( _ipsystem getvar 'NODE_NUMBER' )"
+		default_net='liszt28'
+		default_mode='hybrid'
+		_log it apply_fallback daemon alert "max_try:$max_try - apply: $default_net $default_mode '$random_nodenumber' dhcp"
+		"$ME.code" $default_net $default_mode "${random_nodenumber:-99}" dhcp
+	}
 
 	[ -z "$LOWMEM" ] && services_refire
 	led_firework
@@ -85,6 +91,8 @@ services_refire()
 
 	/etc/init.d/olsrd restart		# maybe metric has changed
 	/etc/init.d/uhttpd restart
+
+	rm -f '/tmp/scheduler_allow_run'
 	_cron daemon_restart 'apply_profile'
 }
 
