@@ -848,15 +848,14 @@ _netfilter_stop_all_tables()
 
 _netfilter_mssfix()
 {
-	local file='/tmp/MSSFIX'
+	local rule='-p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu'
 
-	# do not double apply, remove old entry
-	[ -e "$file" ] && {
-		$IPT -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+	# dont double apply
+	$IPT -nxvL FORWARD | grep -q 'TCPMSS clamp to PMTU' && {
+		$IPT -D FORWARD $rule
 	}
 
-	$IPT -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-	touch "$file"
+	$IPT -A FORWARD $rule
 }
 
 _netfilter_masquerade_start()
@@ -1337,7 +1336,7 @@ _netfilter_splash_start()
 	case "$( uci -q get uhttpd.main.listen_https )" in
 		*'443')
 #$debug			$IPT -t mangle -A PREROUTING -p tcp --dport 443 -j LOG --log-prefix "MANGLE.splash.HTTPS: "
-			$IPT -t mangle -A PREROUTING -p tcp --dport 443 -j MARK --set-mark 0x12	# redirect HTTPS FIXME!
+#			$IPT -t mangle -A PREROUTING -p tcp --dport 443 -j MARK --set-mark 0x12	# redirect HTTPS FIXME!
 		;;
 	esac
 
@@ -1375,7 +1374,7 @@ _netfilter_splash_start()
 		[ "$temp_dev" = 'gateway0' ] && dev='gateway0'
 
 		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
-		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
+#		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x12/0xff -j DNAT --to-destination $ip:443
 
 		bool_true 'system.@weblogin[0].redirect_dns' || return
 		$IPT -t nat -A PREROUTING -p udp -i $dev -m mark --mark 0x13/0xff -j DNAT --to-destination $ip:53
