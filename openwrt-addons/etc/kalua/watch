@@ -1,10 +1,10 @@
 #!/bin/sh
 
-_watch_roaming()
+_watch_roaming()	# called every 15 min
 {
 	local funcname='watch_roaming'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
-	local ap dev mac mac_list
+	local ap dev mac mac_list error message i
 
 	grep -q 'br-mastergate:' '/proc/net/dev' && {
 		pidof iw >/dev/null || {
@@ -21,16 +21,26 @@ _watch_roaming()
 			}
 		} done
 
-		for dev in $( _wifi active_ap_devices ); do {
-			mac_list="$( iw dev "$dev" station dump | sed -n 's/^Station \(.*\) (on.*/\1/p' )"
+		# iterate up to 5 times for avoiding a race
+		error=0
+		for i in 1 2 3 4 5; do {
+			for dev in $( _wifi active_ap_devices ); do {
+				mac_list="$( iw dev "$dev" station dump | sed -n 's/^Station \(.*\) (on.*/\1/p' )"
 
-			for mac in $mac_list; do {
-				fgrep -q "$mac" "$station_list" || {
-					_net roaming_eventlistener 'restart' "$funcname: station mismatch: $mac/$dev"
-					return 1
-				}
+				for mac in $mac_list; do {
+					fgrep -q "$mac" "$station_list" || {
+						message="$message $i/$mac/$dev"
+						error=$(( error + 1 ))
+					}
+				} done
 			} done
+
+			# abort if errorcount has not raised
+			[ $error -lt $i ] && return 0
 		} done
+
+		_net roaming_eventlistener 'restart' "$funcname: station mismatch: $message"
+		return 1
 	}
 }
 
