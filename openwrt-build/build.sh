@@ -2658,6 +2658,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-video-core=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-video-uvc=y'
 				apply_symbol 'CONFIG_PACKAGE_v4l-utils=y'
+				# TODO: include usbreset?
 			;;
 			'USBaudio')
 				apply_symbol 'CONFIG_PACKAGE_coreutils=y'
