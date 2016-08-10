@@ -165,7 +165,7 @@ ignore_network()
 	case "$network" in
 		zumnorde|artotel|fparkssee|satama|marinapark|ffsundi|ffleipzig|\
 		sachsenhausen|hotello-*|olympia|dhsylt|cupandcoffee|elephant|\
-		galerie|preskil|tuberlin|vivaldi|boltenhagendh|ibfleesensee|dhfleesensee)
+		galerie|preskil|tuberlin|vivaldi|boltenhagendh|dhfleesensee)
 			log "[OK] ignoring call for '$network'"
 			return 0
 		;;

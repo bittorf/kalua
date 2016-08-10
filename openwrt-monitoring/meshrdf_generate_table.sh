@@ -720,9 +720,8 @@ for FILE in $LIST_FILES LASTFILE; do {
 	[ -e "$FILE" ] && . "$FILE"
 	grep -sq ^"$WIFIMAC" ../ignore/macs.txt && continue
 
-
 	case "$NODE" in
-		""|0)
+		''|0)
 			continue
 		;;
 	esac
@@ -771,7 +770,9 @@ for FILE in $LIST_FILES LASTFILE; do {
 		REMEMBER_VERSION="$VERSION"
 		[ -e "${FILE}.changes" ] && . "${FILE}.changes"
 		[ -z "$VERSION" ] && VERSION="$REMEMBER_VERSION"
-		LATLON=		# fixme!
+
+		LATLON=		# FIXME!
+				# default: 50.97389;11.31875
 
 		case "$WIFIMAC" in
 			827eb8dbbf0)		# RaspberryPi Max
@@ -811,6 +812,14 @@ for FILE in $LIST_FILES LASTFILE; do {
 			esac
 		;;
 	esac
+
+#	case "$HW" in
+#		'D-Link DIR-505'*)
+#		;;
+#		*)
+#			continue
+#		;;
+#	esac
 
 	grep -sq ^"$WIFIMAC" ../ignore/macs.txt && {				# format: "0014bfbfb374	   # linksys115"
 		log "omitting $WIFIMAC/$HOSTNAME"
@@ -974,7 +983,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	}
 
 	case "$NETWORK" in
-		X-liszt28|X-gnm|X-apphalle|X-abtpark|X-ewerk)
+		X-liszt28|X-gnm|X-apphalle|X-abtpark|X-ewerk|ilm1)
 			# in minutes - please also adjust in _cell_lastseen()
 			LASTSEEN="$(( $LASTSEEN /   60 ))"
 			AGE_BORDER=9999
@@ -2167,7 +2176,12 @@ hostname_from_monitoring_sanitized()
 	# enforced/settings: E1-Dachboden&nbsp;(&larr;4300er-flashprob = real)
 	read -r hostname 2>/dev/null <"$TMPDIR/goodhostname_$mac"
 
-	echo "${hostname:-$HOSTNAME}" | sed -e 's/^-//' -e 's/[^-a-zA-Z0-9]//g'
+	case "${hostname:=$HOSTNAME}" in
+		Ralf-ExSchneiderei) hostname='Pension-Ralf' ;;
+		dhfleesensee-adhoc--68) hostname='Haus12-r1202-Traumdomizil' ;;
+	esac
+
+	echo "$hostname" | sed -e 's/^-//' -e 's/[^-a-zA-Z0-9]//g'
 }
 
 send_mail_telegram()
@@ -2176,9 +2190,9 @@ send_mail_telegram()
 	local message="$2"
 	local list recipient hostname
 	local url='http://bwireless.mooo.com/cgi-bin-tool.sh'
-	local admin='bb|lochstreifen.com'
+	local admin='network-status|npl.de'
 
-	# needed for specific actions
+	# needed for specific hostname->email actions
 	hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
 	# TODO: set reply-to = admin
@@ -2187,11 +2201,36 @@ send_mail_telegram()
 
 	# TODO: use stored email from node
 	case "$NETWORK" in
+		malchow*) list="$admin info|malchow-it.de" ;;
+		monami) list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de" ;;
+		ffweimar-vhs)
+			list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de"
+			[ $v2 -lt 38000 ] && list=	# openwrt-revision
+		;;
 		ffweimar-*) list= ;;	# TODO: dont double send / already send on main-network (e.g. ffweimar)
 		neufert|bauhaus) list= ;;
 		amalienhof) list="$admin sven.rahaus|gmx.de info|amalienhof-weimar.de" ;;
+		zwickau) list="$admin alrik.badstuebner|web.de" ;;
+		ilm1) list="$admin stefanschlieter|gmail.com is.1|gmx.de andre-blue|gmx.de" ;;
 		liszt28)
 			case "$hostname" in
+				*'-vhs'*)
+					list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de"
+					# TODO:
+					message="$( echo "$message" | sed 's/liszt28/ffweimar-vhs/g' )"
+				;;
+				'X301wigo')
+					case "$subject" in
+						*'OK: Geraet:'*)
+						;;
+						*)
+							list=
+						;;
+					esac
+				;;
+				'Frenze-oben'|'Frenze-unten')
+					list="$admin sven.pasemann|gmx.de"
+				;;
 				'MountMeyer')
 					list="$admin alrik.badstuebner|web.de"
 				;;
@@ -2202,11 +2241,9 @@ send_mail_telegram()
 					list="$admin rene|r-hoffmann.de"
 				;;
 				'Ralf-ExSchneiderei')
-					# TODO:
-					list="$admin"
-					hostname='Pension-Ralf'
+					list="$admin rkleinert|ejbweimar.de"
 				;;
-				'BaeckerRose')
+				'BaeckerRose'|'BaeckereiRose')
 					# TODO
 					list="$admin info|et-steinmetz.de info|rose-weimar.de"
 					message="$( echo "$message" | sed 's/liszt28/brose/g' )"
@@ -2216,18 +2253,10 @@ send_mail_telegram()
 				;;
 			esac
 		;;
-		giancarlo)
-			case "$hostname" in
-				'camserver-ThinkPad-X201')
-					list=
-				;;
-				*)
-					list="$admin uve.giancarlo|t-online.de"
-				;;
-			esac
-		;;
-		lisztwe) list="$admin hedi.hedrich|t-online mail|hotel-liszt.de technikad|mx.onimail.de" ;;
-		adagio) list="$admin hedi.hedrich|t-online mail|hotel-adagio.de technikad|mx.onimail.de" ;;
+		aschbach) list="$admin as|cans.de rezeption|berghotel-aschbach.de" ;;
+		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
+		lisztwe) list="$admin mail|hotel-liszt.de technikad|mx.onimail.de" ;;
+		adagio) list="$admin mail|hotel-adagio.de technikad|mx.onimail.de" ;;
 		apphalle) list="$admin info|appartementhausamdom.de" ;;
 		spbansin) list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de" ;;
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
@@ -2235,10 +2264,23 @@ send_mail_telegram()
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
 		schoeneck) list="$admin wolfgang.schuster|vr-web.de" ;;
-		monami) list="$admin peter.frenzel|uni-weimar.de" ;;
-		extrawatt) list="$admin matthias.golle|extrawatt-weimar.de" ;;
+		extrawatt)
+			list="$admin matthias.golle|extrawatt-weimar.de"
+
+			case "$hostname" in
+				'240VoltPlugBuergel')
+					list=
+				;;
+			esac
+		;;
 		tkolleg) list="$admin mail|detlefwagner.de" ;;
-		marinabh) list="$admin schreyack|yachtwelt.de" ;;
+		marinabh)
+			list="$admin schreyack|yachtwelt.de"
+
+			case "$hostname" in
+				'Steg6uferseite-MESH') list= ;;
+			esac
+		;;
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
 		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
 		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de" ;;
@@ -2295,7 +2337,7 @@ send_mail_telegram()
 			message="$message\n\nVerteiler:\n"
 
 			for recipient in $list; do {
-				[ "$recipient" = 'bb|lochstreifen.com' ] && recipient='technik|bittorf-wireless.de'
+				[ "$recipient" = "$admin" ] && recipient='technik|bittorf-wireless.de'
 
 				recipient="$( echo "$recipient" | sed 's/|/@/g' )"
 				message="$message- $recipient\n"
@@ -2311,6 +2353,7 @@ send_mail_telegram()
 	for recipient in $list; do {
 		recipient="$( echo "$recipient" | sed 's/|/@/g' )"
 		echo "$( date ): $recipient | $subject" >>"/var/www/networks/$NETWORK/log/mail.txt"
+		log "telegram() to $recipient for node $WIFIMAC"
 
 		curl -G --silent "$url" \
 			--data-urlencode 'OPT=minimail' \
@@ -2367,7 +2410,7 @@ _cell_lastseen()
 	local subject_add=
 
 	case "$NETWORK" in
-		X-liszt28|X-apphalle|X-abtpark|X-apphalle|X-ewerk)
+		X-liszt28|X-apphalle|X-abtpark|X-apphalle|X-ewerk|ilm1)
 			border=61	# min - normally every 15 mins a mini-update and every 60 mins a full
 		;;
 		gnm)
@@ -4223,10 +4266,10 @@ log "copying '$OUT' = ('$( ls -l "$OUT" )') to '$REAL_OUT.temp' pwd: '$(pwd)'"
 cp "$OUT" "$REAL_OUT.temp" 2>/tmp/uuu2 1>/tmp/uuu1 >/tmp/uuu || log "error copy: $? $( cat /tmp/uuu /tmp/uuu1 /tmp/uuu2 )"
 rm /tmp/uuu /tmp/uuu1 /tmp/uuu2
 rm "$OUT" || log "error remove"
-log "copying '$REAL_OUT.temp' = ('$(  ls -l "$REAL_OUT.temp" )') to '$REAL_OUT'"
+# log "copying '$REAL_OUT.temp' = ('$(  ls -l "$REAL_OUT.temp" )') to '$REAL_OUT'"
 cp "$REAL_OUT.temp" "$REAL_OUT" 2>/tmp/uuu2 1>/tmp/uuu1 >/tmp/uuu || log "error copy: $? $( cat /tmp/uuu /tmp/uuu1 /tmp/uuu2 )"
 rm /tmp/uuu /tmp/uuu1 /tmp/uuu2
-log "see here: '$( ls -l "$REAL_OUT" )'"
+# log "see here: '$( ls -l "$REAL_OUT" )'"
 
 bla()
 {
@@ -4237,7 +4280,7 @@ bla()
 		p2="$( echo "$line" | cut -d'-' -f1 )"
 		p="${p1}-${p2}"		# HausA-1234
 
-		[ "$p" = "$p_old" ] || echo "$line"
+		[ "$p" = "$p_old" ] || echo "$LINE"
 		p_old="$p"
 
 	} done >>"$FILE_FAILURE_OVERVIEW"

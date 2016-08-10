@@ -60,4 +60,5 @@ EOF
 	esac
 fi
 
+# echo "1: $UNIXTIME|$HOSTNAME|$WIFIMAC|$LOG" >>../log/log.txt
 exit 0

@@ -60,15 +60,6 @@ list_pubips_from_network()	# parses status-files from monitoring of each node fo
 				'spbansin:Haus8')
 					pattern='f4ec38c9bea0'
 				;;
-				'satama')
-					pattern='74ea3adb1580'
-				;;
-				'fparkssee')
-					pattern='b0487ac5d9ba'
-				;;
-				'marinapark')
-					pattern='f4ec389d8614'
-				;;
 				'monami:saal')
 					pattern='00259cc45101'
 				;;
@@ -148,7 +139,6 @@ leonardo
 schoeneck
 extrawatt
 aschbach
-boltenhagendh
 berlinle
 spbansin
 limona
@@ -182,10 +172,8 @@ leonardo
 schoeneck
 extrawatt
 aschbach
-boltenhagendh
 berlinle
 itzehoe
-marinapark
 spbansin
 spbansin:Haus8
 tkolleg
