@@ -1952,7 +1952,16 @@ apply_symbol()
 			log "$KALUA_DIRNAME: adding ${KALUA_DIRNAME}-files @$VERSION_KALUA to custom-dir '$custom_dir/'"
 			cd $KALUA_DIRNAME || return
 			find openwrt-addons/* -type f | while read -r file_original; do {
-				[ "$( mimetype_get "$file_original" )" = 'text/x-shellscript' ] || continue
+				case "$file_original" in
+					*'admin.html'|*'robots.txt')
+					;;
+					*)
+						[ "$( mimetype_get "$file_original" )" = 'text/x-shellscript' ] || {
+							log "$KALUA_DIRNAME: ignoring file: '$file_original'"
+							continue
+						}
+					;;
+				esac
 
 				file="$( basename "$file_original" )"
 				dir="../$custom_dir/$( dirname $file_original | sed "s|openwrt-addons/||" )"
