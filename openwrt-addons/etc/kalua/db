@@ -16,7 +16,7 @@ _db_check()
 	local funcname='db_check'
 	local option="$1"
 	local statfile="/tmp/$funcname"
-	local file line i
+	local file trashfile line i
 
 	[ "$option" = 'force' ] || _db lock now "$funcname() $*" || return 1
 	_stopwatch start "$funcname"
@@ -28,6 +28,14 @@ _db_check()
 			$DIR_DATABASE/USER/device/stats \
 			$DIR_DATABASE/USER/login/rows \
 			$DIR_DATABASE/USER/profile/rows; do {
+
+		for trashfile in "$file"[a-zA-Z]*; do {
+			[ -e "$trashfile" ] && {
+				_log it $funcname daemon info "removing sed-crash-tempfiles: $trashfile"
+				rm -f "$trashfile"
+			}
+		} done
+
 		if   [ ! -e "$file" ]; then
 			continue
 		elif sh -n "$file"; then
