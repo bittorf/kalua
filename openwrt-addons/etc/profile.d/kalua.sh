@@ -56,9 +56,9 @@ elif [ -e '/tmp/REBOOT_REASON' ]; then
 		;;
 		*)
 			if [ -e '/sys/kernel/debug/crashlog' ]; then
-				echo "last reboot unusual = '$CRASH', see with: cat /sys/kernel/debug/crashlog"
+				echo "last reboot unusual: $CRASH, see with: cat /sys/kernel/debug/crashlog"
 			else
-				echo "last reboot unusual = '$CRASH'"
+				echo "last reboot unusual: $CRASH"
 			fi
 		;;
 	esac
