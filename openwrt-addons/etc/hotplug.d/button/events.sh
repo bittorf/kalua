@@ -109,7 +109,7 @@ case "${BUTTON}-${ACTION}" in
 		fi
 
 		. /tmp/loader
-		_weblogin authserver_message "button_pressed.$NODENUMBER.${LANADR:-$WANADR}.$HOSTNAME.$DIFF.msec"
+		_weblogin authserver_message "button_pressed.$NODENUMBER.${LANADR:-${WANADR:-$WIFIADR}}.$HOSTNAME.$DIFF.msec"
 
 		[ $DIFF -gt 300 ] && {
 			_log it firmware_button daemon info "button_pressed.$NODENUMBER.${LANADR:-$WANADR}.$HOSTNAME.$DIFF.msec"
