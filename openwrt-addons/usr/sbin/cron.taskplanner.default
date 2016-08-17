@@ -194,6 +194,25 @@ case "$MINUTE" in
 			echo >>$SCHEDULER '_olsr build_overview_static /tmp/statuspage_neigh_pregenerated'
 		}
 
+		bool_true 'system.@monitoring[0].toggle_wifi' && {
+			MINUTEOFDAY=$( expr $HOUR \* 60 + $MINUTE )		# works with leading zeros
+
+			uci2minuteofday()
+			{
+				local value="$( uci get "$1" )"		# e.g. 06:15
+
+				expr ${value%:*} \* 60 + ${value#*:}
+			}
+
+			if [ -n "$WIFIDEV" ]; then
+				WISH=$( uci2minuteofday 'system.@monitoring[0].toggle_wifi_off' )
+				[ $MINUTEOFDAY -ge $WISH ] && echo >>$SCHEDULER '_wifi toggle off'
+			else
+				WISH=$( uci2minuteofday 'system.@monitoring[0].toggle_wifi_on' )
+				[ $MINUTEOFDAY -le $WISH ] && echo >>$SCHEDULER '_wifi toggle on'
+			fi
+		}
+
 		# called every 15 mins
 		_system maintenance_window_active 'pppoe_reconnect' || {
 			echo '_watch dns_resolution'

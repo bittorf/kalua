@@ -347,6 +347,9 @@ Special UCI-variables
 	system.@monitoring[0].report_wantraffic - bool
 	system.@monitoring[0].station_stats	- bool
 	system.@monitoring[0].no_wiphy_restart	- bool
+	system.@monitoring[0].toggle_wifi	- bool
+	system.@monitoring[0].toggle_wifi_off	- clocktime
+	system.@monitoring[0].toggle_wifi_on	- clocktime
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
