@@ -1953,7 +1953,7 @@ apply_symbol()
 			cd $KALUA_DIRNAME || return
 			find openwrt-addons/* -type f | while read -r file_original; do {
 				case "$file_original" in
-					*'admin.html'|*'robots.txt')
+					*'admin.html')
 					;;
 					*)
 						[ "$( mimetype_get "$file_original" )" = 'text/x-shellscript' ] || {
