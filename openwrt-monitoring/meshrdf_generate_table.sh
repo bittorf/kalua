@@ -2196,11 +2196,11 @@ send_mail_telegram()
 	hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
 	# TODO: set reply-to = admin
-	# TODO: resend if markerfile older than X hours (and during housekeeping time)
 	# TODO: choose reason and translate according to recipient
-
 	# TODO: use stored email from node
+
 	case "$NETWORK" in
+		ibfleesensee) list="$admin info|iberotel-fleesensee.de" ;;
 		malchow*) list="$admin info|malchow-it.de" ;;
 		monami) list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de" ;;
 		ffweimar-vhs)
@@ -2209,9 +2209,17 @@ send_mail_telegram()
 		;;
 		ffweimar-*) list= ;;	# TODO: dont double send / already send on main-network (e.g. ffweimar)
 		neufert|bauhaus) list= ;;
+		limona) list="$admin sven.rahaus|gmx.de" ;;
 		amalienhof) list="$admin sven.rahaus|gmx.de info|amalienhof-weimar.de" ;;
 		zwickau) list="$admin alrik.badstuebner|web.de" ;;
 		ilm1) list="$admin stefanschlieter|gmail.com is.1|gmx.de andre-blue|gmx.de" ;;
+		server)
+			case "$hostname" in
+				'SCC')
+					list="$admin bittorf1|uni-weimar.de"
+				;;
+			esac
+		;;
 		liszt28)
 			case "$hostname" in
 				*'-vhs'*)
@@ -2258,12 +2266,29 @@ send_mail_telegram()
 		lisztwe) list="$admin mail|hotel-liszt.de technikad|mx.onimail.de" ;;
 		adagio) list="$admin mail|hotel-adagio.de technikad|mx.onimail.de" ;;
 		apphalle) list="$admin info|appartementhausamdom.de" ;;
-		spbansin) list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de" ;;
+		spbansin)
+			list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de"
+
+			case "$hostname" in
+				'Haus12-r1202-Traumdomizil')
+					list="$list info|traumdomizil-usedom.de"
+				;;
+			esac
+		;;
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
 		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
-		schoeneck) list="$admin wolfgang.schuster|vr-web.de" ;;
+		schoeneck)
+#			list="$admin wolfgang.schuster|vr-web.de"	# inactive since 2016aug17
+			list="$admin info.vogtland|ifahotels.com"
+
+			case "$hostname" in
+				'KassenhausPicostation-MESH')
+					list=
+				;;
+			esac
+		;;
 		extrawatt)
 			list="$admin matthias.golle|extrawatt-weimar.de"
 
@@ -2289,6 +2314,7 @@ send_mail_telegram()
 		*) list="$admin" ;;
 	esac
 
+	# ignore known devices
 	case "$NETWORK" in
 		spbansin)
 			case "$hostname" in
@@ -2343,10 +2369,6 @@ send_mail_telegram()
 				message="$message- $recipient\n"
 			} done
 		;;
-	esac
-
-	case "$NETWORK" in
-		schoeneck) list= ;;
 	esac
 
 	# TODO: write into queue and make foolproof cronjob
@@ -2405,7 +2427,7 @@ _cell_lastseen()
 	local smsfile sms_timestamp sms_time sms_number bgcolor border hour
 	local smsfile="../settings/${WIFIMAC}"
 	local smsfile_kasse1="../settings/0a40cf496b01"
-	local unixtime_now unixtime_file hostname
+	local unixtime_now unixtime_file hostname alert_age
 	local mailmarker="/dev/shm/${NETWORK}-${WIFIMAC}.mail"
 	local subject_add=
 
@@ -2429,7 +2451,9 @@ _cell_lastseen()
 			MAIL_AGE=$(( UNIXTIME_SCRIPTSTART - $( date +%s -r "$mailmarker" ) ))	# [sec]
 
 			[ $MAIL_AGE -gt $(( 3600 * 6 )) ] && {
+				# TODO: preserve first errortime?
 				rm -f "$mailmarker"	# enforce resend
+
 				ERROR_TIME="$( date +%s -r "recent/$WIFIMAC" )"		# last send
 				ERROR_TIME=$(( UNIXTIME_SCRIPTSTART - ERROR_TIME ))	# [sec]
 				ERROR_TIME="$( seconds2humanreadable "$ERROR_TIME" )"
@@ -2530,11 +2554,14 @@ _cell_lastseen()
 		echo >>"${FILE_FAILURE_OVERVIEW}.tmp" "$WIFIMAC $HOSTNAME (node: $NODE)"
 	else
 		[ -e "$mailmarker" ] && {
+			unixtime_file="$( date +%s -r "$mailmarker" )"
 			rm -f "$mailmarker"
+			alert_age=$(( UNIXTIME_SCRIPTSTART - unixtime_file ))
+			alert_age="$( seconds2humanreadable "$alert_age" )"
 			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
-			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: Geraet: $hostname" \
-					   "Das Geraet: ${hostname}\nist wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
+			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: Geraet: $hostname (entstoert nach $alert_age)" \
+					   "Das Geraet: ${hostname}\nist nach $alert_age wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
 		}
 
 		case "$NETWORK" in
