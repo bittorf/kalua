@@ -763,3 +763,26 @@ _system_adjust_coredump()
 		}
 	}
 }
+
+_system_sysctl_tweaks()
+{
+	local entry
+
+	# http://www.kernel.org/doc/Documentation/sysctl/kernel.txt
+	# http://www.kernel.org/doc/Documentation/sysctl/vm.txt
+	# /proc/sys/vm/panic_on_oom = 2
+	# /proc/sys/kernel/panic_on_oops = 1
+	# /proc/sys/kernel/panic = 10
+	#
+	# since r42046 till r44873 http://wiki.openwrt.org/doc/uci/firewall#nf_conntrack_skip_filter
+	# net.netfilter.nf_conntrack_skip_filter=0
+	for entry in	'vm.panic_on_oom=2' \
+			'kernel.panic_on_oops=1' \
+			'kernel.panic=10' \
+			'net.netfilter.nf_conntrack_skip_filter=0'; do {
+		/sbin/sysctl -w "$entry" >/dev/null
+		grep -q ^"$entry"$ '/etc/sysctl.conf' || {
+			echo "$entry" >>'/etc/sysctl.conf'
+		}
+	} done
+}

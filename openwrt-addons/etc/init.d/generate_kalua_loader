@@ -100,37 +100,6 @@ boot()
 		echo "# [READY] $PERMLOG"
 	} >/dev/console
 
-	# remove trash:
-	rm -fR /*0*
-	rm -fR /*1*
-	rm -fR /*2*
-	rm -fR /*3*
-	rm -fR /*4*
-	rm -fR /*5*
-	rm -fR /*6*
-	rm -fR /*7*
-	rm -fR /*8*
-	rm -fR /*9*
-	rm -f /root/core	# file seen in monami
-	rm -fR /tmp?*		# seen in festscheune-bh
-
-	# http://www.kernel.org/doc/Documentation/sysctl/kernel.txt
-	# http://www.kernel.org/doc/Documentation/sysctl/vm.txt
-	# /proc/sys/vm/panic_on_oom = 2
-	# /proc/sys/kernel/panic_on_oops = 1
-	# /proc/sys/kernel/panic = 10
-	#
-	# since r42046 till r44873 http://wiki.openwrt.org/doc/uci/firewall#nf_conntrack_skip_filter
-	# net.netfilter.nf_conntrack_skip_filter=0
-	for entry in	'vm.panic_on_oom=2' \
-			'kernel.panic_on_oops=1' \
-			'kernel.panic=10' \
-			'net.netfilter.nf_conntrack_skip_filter=0'; do {
-		/sbin/sysctl -w "$entry" >/dev/null
-		grep -q ^"$entry"$ '/etc/sysctl.conf' || {
-			echo "$entry" >>'/etc/sysctl.conf'
-		}
-	} done
 
 #	if /usr/sbin/memtester 22M 1 >'/tmp/MEMTESTER'; then
 #		rm -f '/tmp/MEMTESTER'
@@ -139,16 +108,6 @@ boot()
 #		mv -f '/tmp/MEMTESTER' "$file"
 #		echo "Error during memtester: $file" >>"$PERMLOG"
 #	fi
-
-	# zram is included since r35033
-	grep -q ^'zram ' '/proc/modules' || /etc/init.d/zram start
-
-	# FIXME! why does it hang? with plain OpenWrt this does not happen
-	[ -e '/etc/init.d/rcS' ] && {
-		fgrep -q 'killall logger' '/etc/init.d/rcS' || {
-			echo 'killall logger' >>'/etc/init.d/rcS'
-		}
-	}
 
 	touch '/tmp/BOOT'
 	touch '/tmp/DEBUG'
@@ -172,7 +131,29 @@ boot()
 		fi
 	} done
 	. /tmp/loader
-	touch "$TMPDIR/scheduler_keep_running"		# see scheduler_run()
+
+	# e.g. reboot-on-panic
+	_system sysctl_tweaks
+
+	# zram is included since r35033
+	grep -q ^'zram ' '/proc/modules' || /etc/init.d/zram start
+
+	# see scheduler_run()
+	touch "$TMPDIR/scheduler_keep_running"
+
+	# remove trash:
+	rm -fR /*0*
+	rm -fR /*1*
+	rm -fR /*2*
+	rm -fR /*3*
+	rm -fR /*4*
+	rm -fR /*5*
+	rm -fR /*6*
+	rm -fR /*7*
+	rm -fR /*8*
+	rm -fR /*9*
+	rm -f /root/core	# file seen in monami
+	rm -fR /tmp?*		# seen in festscheune-bh
 
 	# really needed?
 	/etc/init.d/override_uci_vars enabled || {
@@ -198,6 +179,13 @@ boot()
 					uci set wireless.radio0.disabled=1
 				;;
 			esac
+		}
+	}
+
+	# FIXME! why does it hang? with plain OpenWrt this does not happen
+	[ -e '/etc/init.d/rcS' ] && {
+		fgrep -q 'killall logger' '/etc/init.d/rcS' || {
+			echo 'killall logger' >>'/etc/init.d/rcS'
 		}
 	}
 
