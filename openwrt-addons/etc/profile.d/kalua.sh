@@ -11,13 +11,16 @@ alias flush='_system ram_free flush'
 alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
 alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
 
-case "$( cat /proc/loadavg )" in
+read -r LOAD <'/proc/loadavg'
+case "$LOAD" in
 	'0'*)
 	;;
 	*)
-		echo "[ATT] high load: $( uptime )"
+		echo '[ATT] high load:'
+		uptime
 	;;
 esac
+unset LOAD
 
 case "$USER" in
 	'root'|'')
@@ -39,6 +42,14 @@ _ t 2>/dev/null || {
 
 		echo
 		echo "this is a '$HARDWARE' - for some hints type: _help overview"
+
+		NAME="$( _wifi longshot_name )" && {
+			echo
+			echo "this device is part of a wifi-longshot named '$NAME'"
+			echo 'get stats with: _wifi longshot_report'
+		}
+
+		unset NAME
 	}
 }
 
@@ -47,6 +58,7 @@ if   [ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci' ]; then
 elif [ -e '/tmp/REBOOT_REASON' ]; then
 	# see system_crashreboot()
 	read -r CRASH <'/tmp/REBOOT_REASON'
+
 	case "$CRASH" in
 		'nocrash'|'nightly_reboot'|'apply_profile'|'wifimac_safed')
 			CRASH="$( _system reboots )"
@@ -62,5 +74,6 @@ elif [ -e '/tmp/REBOOT_REASON' ]; then
 			fi
 		;;
 	esac
+
 	unset CRASH
 fi
