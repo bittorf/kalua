@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # this outputs an initial small '/tmp/loader' which can be sourced and
-# automatically solves dependencies for all 'classes' and it methods(),
+# automatically solves dependencies for all 'classes' and its methods(),
 # e.g. for class '_system' and method architecture()
 
 # "Stick to portable constructs where possible, and
@@ -35,7 +35,8 @@ case "$BASEDIR" in			# e.g. /etc/kalua_init -> /etc
 	;;
 esac
 
-# _ s    http		-> show methods for class 'http' (e.g. _http)
+# _ s http		-> show functions for class 'http'
+# _ u http		-> unload all functions from class 'http'
 # _ http arg1 argX	-> include + start with given arguments
 # _ rebuild		-> rebuild loader
 # _ t			-> test if loader already included
@@ -47,6 +48,7 @@ _ t 2>/dev/null&&return
 
 _(){ case \$1 in
 s)sed -n "/;}$/! s/^\(_\${2}_.*\)()/\1/p" $BASEDIR/\$2|sort;;
+u)while read -r _;do case "\$_" in _\${2}_*)unset -f \${_%()*};;esac;done<$BASEDIR/\$2;eval "_\$2(){ _ i \$2 \"\\\$@\";}";;
 i)local a=\${3:-s} b=\$2;shift 3;_ \$b;case \$a in include);;*)_\${b}_\$a "\$@";;esac;;
 t);;rebuild)${BASEDIR}_init;;*)[ \$1 ]&&. $POOLDIR/\$1||
 for _ in $POOLDIR/*;do echo _\${_##*/};done;;esac
@@ -55,7 +57,7 @@ for _ in $POOLDIR/*;do echo _\${_##*/};done;;esac
 TMPDIR=$TMPDIR
 EOF
 
-# generate loader and add methods 'show' + 'include'
+# generate loader and add functions 'show' + 'include'
 for CLASS in $BASEDIR/*; do {
 	CLASS="${CLASS##*/}"	# quick basename
 
