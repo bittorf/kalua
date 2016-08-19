@@ -10,6 +10,7 @@ alias lr='logread'
 alias flush='_system ram_free flush'
 alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
 alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
+alias unload='_ u'
 
 read -r LOAD <'/proc/loadavg'
 case "$LOAD" in
@@ -49,6 +50,7 @@ _ t 2>/dev/null || {
 			echo 'get stats with: _wifi longshot_report'
 		}
 
+		unload wifi
 		unset NAME
 	}
 }
@@ -62,6 +64,8 @@ elif [ -e '/tmp/REBOOT_REASON' ]; then
 	case "$CRASH" in
 		'nocrash'|'nightly_reboot'|'apply_profile'|'wifimac_safed')
 			CRASH="$( _system reboots )"
+			unload system
+
 			test ${CRASH:-0} -gt 50 && {
 				echo "detected $CRASH reboots since last update - please check"
 			}
