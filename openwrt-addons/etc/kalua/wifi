@@ -1915,6 +1915,7 @@ _wifi_scan()
 	local freq="$( _wifi dev2freq "$dev" )"
 	local temp="$TMPDIR/$funcname.$$"
 	local i=0
+	local try=1
 
 	devname="$( _net dev2name "$dev" )"
 	chanbw="$( _wifi get "$devname" chanbw )"
@@ -1937,8 +1938,13 @@ _wifi_scan()
 		;;
 	esac
 
-	_log it $funcname daemon info "[START] on dev '$dev' freq: $freq MHz option: $option"
-	if iw dev "$dev" scan >"$temp"; then
+	while [ $try -le 3 ]; do {
+		_log it $funcname daemon info "[START] on dev '$dev' freq: $freq MHz option: $option try: $try"
+		try=$(( try + 1 ))
+		iw dev "$dev" scan >"$temp" && break
+	} done
+
+	if [ $? -eq 0 ]; then
 		restore_chanbw
 	else
 		_log it $funcname daemon info "[ERROR] scan failed: dev '$dev' freq: $freq MHz"
