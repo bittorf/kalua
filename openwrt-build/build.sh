@@ -2454,6 +2454,8 @@ build_options_set()
 					apply_symbol 'CONFIG_BUSYBOX_CONIG_IP is not set'
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE is not set'
 				fi
+
+				apply_symbol 'CONFIG_PACKAGE_kmod-ipip=y'
 			;;
 			'queryMII')
 				if [ -e "$KALUA_DIRNAME/openwrt-addons/etc/kalua/switch" ]; then
