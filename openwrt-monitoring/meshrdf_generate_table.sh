@@ -785,6 +785,13 @@ for FILE in $LIST_FILES LASTFILE; do {
 	fi
 
 	case "$NETWORK" in
+		spbansin)
+			case "$HOSTNAME" in
+				'dhfleesensee-adhoc--68')
+					HOSTNAME='Haus12-r1202-Traumdomizil'
+				;;
+			esac
+		;;
 		schoeneck)
 			HOSTNAME_TEMP="$( hostname_sanitizer "$NODE" )"
 
@@ -2200,6 +2207,7 @@ send_mail_telegram()
 	# TODO: use stored email from node
 
 	case "$NETWORK" in
+		ewerk) list= ;;		# TODO!
 		ibfleesensee) list="$admin info|iberotel-fleesensee.de" ;;
 		malchow*) list="$admin info|malchow-it.de" ;;
 		monami) list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de" ;;
@@ -2260,8 +2268,14 @@ send_mail_telegram()
 					list="$admin"
 				;;
 			esac
+
+			case "$subject" in
+				*'Erinnerung'*)
+					list=	# TODO
+				;;
+			esac
 		;;
-		aschbach) list="$admin as|cans.de rezeption|berghotel-aschbach.de" ;;
+		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
 		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
 		lisztwe) list="$admin mail|hotel-liszt.de technikad|mx.onimail.de" ;;
 		adagio) list="$admin mail|hotel-adagio.de technikad|mx.onimail.de" ;;
@@ -2280,8 +2294,7 @@ send_mail_telegram()
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
 		schoeneck)
-#			list="$admin wolfgang.schuster|vr-web.de"	# inactive since 2016aug17
-			list="$admin info.vogtland|ifahotels.com"
+			list="$admin wolle.schuster|web.de info.vogtland|ifahotels.com"
 
 			case "$hostname" in
 				'KassenhausPicostation-MESH')
@@ -2301,6 +2314,7 @@ send_mail_telegram()
 		tkolleg) list="$admin mail|detlefwagner.de" ;;
 		marinabh)
 			list="$admin schreyack|yachtwelt.de"
+			list="$admin"	# TODO
 
 			case "$hostname" in
 				'Steg6uferseite-MESH') list= ;;

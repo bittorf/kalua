@@ -281,7 +281,7 @@ esac
 
 # this detroys the ping-counter! we really should send out an SMS
 log "checking: disk full?"
-df -h /dev/xvda1 | fgrep -q "100%" && {
+if df -h /dev/xvda1 | fgrep -q "100%"; then
 	if iptables -nL INPUT | head -n3 | grep -q ^'ACCEPT' ; then
 		log "diskspace OK - allowing ssh-login: already allowed"
 	else
@@ -289,7 +289,12 @@ df -h /dev/xvda1 | fgrep -q "100%" && {
 		log "disk full - allowing ssh-login from everywhere"
 		iptables -I INPUT -p tcp -j ACCEPT
 	fi
-}
+else
+	iptables -nL INPUT | head -n3 | grep ^'ACCEPT' | grep -q 'tcp  --  0.0.0.0/0' && {
+		log "diskspace OK again - removing 'accept all'-input rule"
+		iptables -D INPUT 1
+	}
+fi
 
 
 [ "$OPTION" = "cache" ] && {
