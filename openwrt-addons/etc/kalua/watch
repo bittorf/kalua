@@ -4,7 +4,7 @@ _watch_roaming()	# called every 15 min
 {
 	local funcname='watch_roaming'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
-	local ap dev mac mac_list error message i
+	local ap dev mac mac_list error message i list=
 
 	grep -q 'br-mastergate:' '/proc/net/dev' && {
 		pidof iw >/dev/null || {
@@ -14,9 +14,21 @@ _watch_roaming()	# called every 15 min
 		}
 
 		# TODO: maybe 'wifi up' helps?
+		for dev in $( uci -q get 'network.mastergate.ifname' ); do {
+			case "$dev" in
+				*'lan'|*'wan')
+					list="$list $dev"	# e.g. roaminglan
+				;;
+			esac
+		} done
+
 		for ap in $( _wifi get any mode ap ); do {
-			grep -q ^"roaming${ap}:" '/proc/net/dev' || {
-				_log it $funcname daemon sms "missing bridge 'roaming$ap'"
+			_wifi check_disabled "$ap" || list="$list roaming${dev}"
+		} done
+
+		for dev in $list; do {
+			grep -q ^"$dev:" '/proc/net/dev' || {
+				_log it $funcname daemon sms "missing bridge '$dev'"
 #				_system crashreboot 'dead_roaming'
 			}
 		} done
