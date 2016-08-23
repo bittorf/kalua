@@ -64,20 +64,24 @@ elif [ -e '/tmp/REBOOT_REASON' ]; then
 	case "$CRASH" in
 		'nocrash'|'nightly_reboot'|'apply_profile'|'wifimac_safed')
 			CRASH="$( _system reboots )"
-			unload system
 
 			test ${CRASH:-0} -gt 50 && {
 				echo "detected $CRASH reboots since last update - please check"
 			}
 		;;
 		*)
+			UNIXTIME=$( date +%s )
+			UPTIME=$( _system uptime sec )
+			echo "last reboot unusual @ $( date -s @$(( UNIXTIME - UPTIME )) )"
+
 			if [ -e '/sys/kernel/debug/crashlog' ]; then
-				echo "last reboot unusual: $CRASH, see with: cat /sys/kernel/debug/crashlog"
+				echo "was: $CRASH, see with: cat /sys/kernel/debug/crashlog"
 			else
-				echo "last reboot unusual: $CRASH"
+				echo "was: $CRASH"
 			fi
 		;;
 	esac
 
-	unset CRASH
+	unset CRASH UNIXTIME UPTIME
+	unload system
 fi
