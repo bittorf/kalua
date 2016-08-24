@@ -1,11 +1,14 @@
 #!/bin/sh
 
+# here we will our work-queue by writing tasks
+# into $SCHEDULER and $SCHEDULER_IMPORTANT - and it should
+# run as fast as possible. this is sourced each minute from cron
+# and later executed from _scheduler run
+
 # MINUTE = 00...59
 # HOUR   = 00...23
 eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%d;' )
 
-# FIXME!
-# still needed for $SCHEDULER + $CONFIG_PROFILE + $LOWMEM + _ntp set is_unset + _math random_integer
 . /tmp/loader
 [ -z "$UP" ] && read -r UP REST </proc/uptime		# normally done during cron.minutely
 _watch space_tmpfs					# e.g. a lot of coredumps are causing 100% full
@@ -77,9 +80,9 @@ case "$HOUR:$MINUTE" in
 		} >>$SCHEDULER
 
 		if bool_true 'system.@system[0].avoid_autoreboot'; then
-			# TODO: more housekeeping stuff
-			/etc/init.d/override_uci_vars boot
-			_netparam check
+			# housekeeping stuff
+			echo >>$SCHEDULER '/etc/init.d/override_uci_vars boot'
+			echo >>$SCHEDULER '_netparam check'
 		else
 			# do not make serious action, when we are not sure if time is correct
 			_ntp set is_unset || {
@@ -135,6 +138,12 @@ case "$HOUR:$MINUTE" in
 	;;
 	06:25)
 		echo >>$SCHEDULER '_wifi nightly_longrange unset'
+	;;
+esac
+
+case "$MINUTE" in
+	00|05|10|15|20|25|30|35|40|45|50|55)
+		echo '_watch roaming' >>$SCHEDULER
 	;;
 esac
 
@@ -222,7 +231,6 @@ case "$MINUTE" in
 		cat >>$SCHEDULER <<EOF
 /usr/sbin/cron.check_inet_gw_fff+
 /etc/init.d/S69watch_olsrd_fff+
-_watch roaming
 _watch webserver
 _watch cgminer
 _watch hanging_command usual_suspects

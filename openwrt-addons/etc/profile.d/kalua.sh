@@ -72,13 +72,12 @@ elif [ -e '/tmp/REBOOT_REASON' ]; then
 		*)
 			UNIXTIME=$( date +%s )
 			UPTIME=$( _system uptime sec )
-			echo
-			echo "last reboot unusual @ $( date -s @$(( UNIXTIME - UPTIME )) )"
+			printf '\n%s' "last reboot unusual @ $( date -s @$(( UNIXTIME - UPTIME )) ) - "
 
 			if [ -e '/sys/kernel/debug/crashlog' ]; then
-				echo "was: $CRASH, see with: cat /sys/kernel/debug/crashlog"
+				printf '%s\n\n' "was: $CRASH, see with: cat /sys/kernel/debug/crashlog"
 			else
-				echo "was: $CRASH"
+				printf '%s\n\n' "was: $CRASH"
 			fi
 		;;
 	esac

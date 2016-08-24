@@ -1,59 +1,60 @@
 #!/bin/sh
 
-_watch_roaming()	# called every 15 min
+_watch_roaming()	# called every 5 min
 {
 	local funcname='watch_roaming'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
+	local bridgedev='mastergate'
 	local ap dev mac mac_list error message i list=
 
-	grep -q 'br-mastergate:' '/proc/net/dev' && {
-		pidof iw >/dev/null || {
-			_log it $funcname daemon alert 'iw missing, restarting eventlistener'
-			_net roaming_eventlistener 'restart' "$funcname: iw missing"
-			return 1
-		}
+	grep -q "br-$bridgedev:" '/proc/net/dev' || return 0
 
-		# TODO: maybe 'wifi up' helps?
-		for dev in $( uci -q get 'network.mastergate.ifname' ); do {
-			case "$dev" in
-				*'lan'|*'wan')
-					list="$list $dev"	# e.g. roaminglan
-				;;
-			esac
-		} done
-
-		for ap in $( _wifi get any mode ap ); do {
-			_wifi check_disabled "$ap" || list="$list roaming$ap"
-		} done
-
-		for dev in $list; do {
-			grep -q ^"$dev:" '/proc/net/dev' || {
-				_log it $funcname daemon sms "missing bridge '$dev'"
-#				_system crashreboot 'dead_roaming'
-			}
-		} done
-
-		# iterate up to 5 times for avoiding a race
-		error=0
-		for i in 1 2 3 4 5; do {
-			for dev in $( _wifi active_ap_devices ); do {
-				mac_list="$( iw dev "$dev" station dump | sed -n 's/^Station \(.*\) (on.*/\1/p' )"
-
-				for mac in $mac_list; do {
-					fgrep -q "$mac" "$station_list" || {
-						message="$message $i/$mac/$dev"
-						error=$(( error + 1 ))
-					}
-				} done
-			} done
-
-			# abort if errorcount has not raised
-			[ $error -lt $i ] && return 0
-		} done
-
-		_net roaming_eventlistener 'restart' "$funcname: station mismatch: $message"
+	pidof iw >/dev/null || {
+		_log it $funcname daemon alert 'iw missing, restarting eventlistener'
+		_net roaming_eventlistener 'restart' "$funcname: iw missing"
 		return 1
 	}
+
+	# TODO: maybe 'wifi up' helps?
+	for dev in $( uci -q get "network.${bridgedev}.ifname" ); do {
+		case "$dev" in
+			*'lan'|*'wan')
+				list="$list $dev"	# e.g. roaminglan
+			;;
+		esac
+	} done
+
+	for ap in $( _wifi get any mode ap ); do {
+		_wifi check_disabled "$ap" || list="$list roaming$ap"
+	} done
+
+	for dev in $list; do {
+		grep -q ^"$dev:" '/proc/net/dev' || {
+			_log it $funcname daemon alert "missing bridge '$dev', restarting '$bridgedev'"
+			ifup $bridgedev
+		}
+	} done
+
+	# iterate up to 5 times for avoiding a race
+	error=0
+	for i in 1 2 3 4 5; do {
+		for dev in $( _wifi active_ap_devices ); do {
+			mac_list="$( iw dev "$dev" station dump | sed -n 's/^Station \(.*\) (on.*/\1/p' )"
+
+			for mac in $mac_list; do {
+				fgrep -q "$mac" "$station_list" || {
+					message="$message $i/$mac/$dev"
+					error=$(( error + 1 ))
+				}
+			} done
+		} done
+
+		# abort if errorcount has not raised
+		[ $error -lt $i ] && return 0
+	} done
+
+	_net roaming_eventlistener 'restart' "$funcname: station mismatch: $message"
+	return 1
 }
 
 _watch_db_ticketrequest()
