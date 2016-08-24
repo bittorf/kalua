@@ -570,7 +570,7 @@ _watch_system_time()
 {
 	local funcname='watch_system_time'
 	local unixtime="$( _system date unixtime )"
-	local ntp_ok
+	local ntp_ok ip
 
 	# clock older than buildtime OR
 	# buildtime is newer than clock?
@@ -586,7 +586,10 @@ _watch_system_time()
 		_ntp set force
 
 		[ $(( FFF_PLUS_VERSION * 3600 )) -gt $( _system date unixtime ) ] && {
-			_log it $funcname daemon alert "could'nt set time - trying poor mens timeserver - fixme!"
+			ip="$( _olsr neigh_random_get )"
+			_log it $funcname daemon info "could'nt set time - trying poor mens timeserver: $ip"
+			unixtime="$( _tool remote "$ip" unixtime )"
+			_ntp set "$unixtime"	# TODO: plausicheck?
 		}
 	}
 }
