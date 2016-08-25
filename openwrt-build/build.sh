@@ -1062,7 +1062,7 @@ check_working_directory()
 	local file_feeds='feeds.conf.default'
 	local i=0
 	local do_symlinking='no'
-	local package list error repo git_url answer
+	local package list error repo git_url answer buildsystemdir
 
 	if [ -n "$FORCE" ]; then
 		error=0
@@ -1119,16 +1119,22 @@ check_working_directory()
 		}
 
 		case "$VERSION_OPENWRT" in
+			'lede')
+				git_url='git://git.lede-project.org/source.git'
+				buildsystemdir='source'
+			;;
 			'trunk')
 				git_url='git://git.openwrt.org/openwrt.git'
+				buildsystemdir='openwrt'
 			;;
 			*'.'*)
 				# e.g. 14.07
 				git_url="git://git.openwrt.org/$VERSION_OPENWRT/openwrt.git"
+				buildsystemdir='openwrt'
 			;;
 		esac
 
-		log "first start - fetching OpenWrt: git clone '$git_url'"
+		log "first start - fetching OpenWrt/$VERSION_OPENWRT: git clone '$git_url'"
 		git clone "$git_url" || return $error
 
 		if [ -d "$DOWNLOAD_POOL" ]; then
@@ -1147,7 +1153,7 @@ check_working_directory()
 		repo='git://git.openwrt.org/packages.git'
 		log "first start - fetching OpenWrt-packages: git clone '$repo'"
 		git clone "$repo" || return $error
-		cd openwrt || return
+		cd "$buildsystemdir" || return
 
 		# git://github.com/weimarnetz/weimarnetz.git
 		# git://github.com/bittorf/kalua.git
@@ -1157,7 +1163,8 @@ check_working_directory()
 		KALUA_DIRNAME="$( basename "$repo" | cut -d'.' -f1 )"
 		echo "$repo" >'KALUA_REPO_URL'
 
-		log "[OK] after doing 'cd openwrt' you should do:"	# TODO: ln -s /home/bastian/openwrt_download dl + chmod +x ...
+		# TODO: ln -s /home/bastian/openwrt_download dl + chmod +x ...
+		log "[OK] after doing 'cd $buildsystemdir' you should do:"
 		log '../build.sh --help'
 
 		exit $error
