@@ -17,6 +17,31 @@ fi
 	fi
 }
 
+# check for zombies (with builtins only)
+# TODO: only during high load?
+for FILE in /proc/*; do
+	case "$FILE" in
+		*/[0-9]*)
+			while read -r LINE; do
+				case "$LINE" in
+					'State:'*)
+						case "$LINE" in
+							*'Z')
+								. /tmp/loader
+								_log it zombie daemon alert "found: '$LINE' in $FILE/status LOAD: $LOAD"
+							;;
+							*)
+								break
+							;;
+						esac
+					;;
+				esac
+			done <"$FILE/status"
+		;;
+	esac
+done
+unset FILE LINE
+
 # mimics the stopwatch() API
 echo "${UP%.*}${UP#*.}" >'/tmp/CRON_LASTCALL'
 
