@@ -427,3 +427,5 @@ Special UCI-variables
 	network.@switch[0].disable_autoneg	- bool
 
 	system.@webcam[0].storage_path		- string: e.g. 'bastian@10.63.2.34:bigbrother'
+	system.@webcam[0].flip_x		- bool
+	system.@webcam[0].flip_y		- bool
