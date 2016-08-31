@@ -33,7 +33,17 @@ while read -r LINE; do {
 [ $TIMER_DIFF -ge 59 ] && {
 	if   [ ${VALUE_OLD:-0} -gt 0 -a ${VALUE_DIFF:-0} -gt 9999 ]; then
 		if   [ $VALUE_DIFF -gt 1000000 ]; then
-			echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffC: $VALUE_DIFF"
+			echo "ALERT: irq-$DEV: $( date ) t: $TIMER_DIFF load: $LOAD - up: $UP - diffC: $VALUE_DIFF"
+
+			for FILE in /sys/kernel/debug/ieee80211/phy[0-9]/$DEV/interrupt; do {
+				echo "# now $FILE:"
+				cat "$FILE"
+			} done
+			echo "# old values: $( ls -l /tmp/INTERRUPTS_debug )"
+			cat "/tmp/INTERRUPTS_debug"
+			echo "# ready"
+
+			_log it irqcheck daemon sms "storm detected"
 		elif [ $VALUE_DIFF -gt   25000 ]; then
 			:
 #			echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffB: $VALUE_DIFF"
@@ -48,5 +58,8 @@ while read -r LINE; do {
 		}
 	fi
 } >>$PERMLOG
+
+
+cat 2>/dev/null /sys/kernel/debug/ieee80211/phy[0-9]/$DEV/interrupt >"/tmp/INTERRUPTS_debug"
 
 _log it irqcheck daemon debug "dev $DEV TIMER_DIFF: $TIMER_DIFF VALUE_DIFF: $VALUE_DIFF load: $LOAD up: $UP"
