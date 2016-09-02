@@ -1,5 +1,8 @@
 #!/bin/sh
-[ -z "$UP" ] && read -r UP REST </proc/uptime
+[ -z "$UP" ] && {
+	read -r UP _ </proc/uptime
+	read -r LOAD _ </proc/loadavg
+}
 
 DEV="${DEV:-eth0}"
 VALUE_DIFF=
@@ -12,13 +15,14 @@ while read -r LINE; do {
 			# 2:   11383067      MIPS   2  ath9k
 			explode $LINE
 			VALUE_NEW="$2"
-			read -r VALUE_OLD <"/tmp/INTERRUPTS_$DEV" || VALUE_OLD=0
+			read -r VALUE_OLD <"/tmp/INTERRUPTS_$DEV" || VALUE_OLD=100
 			read -r TIMER_OLD <"/tmp/INTERRUPTS_$DEV.timer" || TIMER_OLD=0
+			echo "${UP%.*}"   >"/tmp/INTERRUPTS_$DEV.timer"
 			echo "$VALUE_NEW" >"/tmp/INTERRUPTS_$DEV"
-			echo "${UP%.*}" >"/tmp/INTERRUPTS_$DEV.timer"
 
 			VALUE_DIFF=$(( VALUE_NEW - VALUE_OLD ))
 			TIMER_DIFF=$(( ${UP%.*} - TIMER_OLD ))
+			RAW="irq-$DEV: $VALUE_DIFF@$TIMER_DIFF t: $TIMER_DIFF load: $LOAD - up: $UP"
 
 			# normalize to 60 sec without floats
 			# tdiff <60sec, e.g.  58 sec: (( ( 58 * 100) / 60 ) * valuediff ) / 100
@@ -33,7 +37,7 @@ while read -r LINE; do {
 [ $TIMER_DIFF -ge 59 ] && {
 	if   [ ${VALUE_OLD:-0} -gt 0 -a ${VALUE_DIFF:-0} -gt 9999 ]; then
 		if   [ $VALUE_DIFF -gt 1000000 ]; then
-			echo "ALERT: irq-$DEV: $( date ) t: $TIMER_DIFF load: $LOAD - up: $UP - diffC: $VALUE_DIFF"
+			echo "ALERT: $( date ) $RAW diffC: $VALUE_DIFF"
 
 			for FILE in /sys/kernel/debug/ieee80211/phy[0-9]/$DEV/interrupt; do {
 				echo "# now $FILE:"
@@ -43,18 +47,18 @@ while read -r LINE; do {
 			cat "/tmp/INTERRUPTS_debug"
 			echo "# ready"
 
-			_log it irqcheck daemon sms "storm detected"
+			echo >>$SCHEDULER "_weblogin authserver_message 'irqcheck() storm detected: $VALUE_DIFF'"
 		elif [ $VALUE_DIFF -gt   25000 ]; then
 			:
-#			echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffB: $VALUE_DIFF"
+#			echo "ALERT: $( date ) $RAW diffC: $VALUE_DIFF"
 		else
 			:
-#			echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diffA: $VALUE_DIFF"
+#			echo "ALERT: $( date ) $RAW diffC: $VALUE_DIFF"
 		fi
 	elif [ ${VALUE_DIFF:-1} -eq 0 ]; then
 		[ -n "$WIFIDEV" ] && {
 			_log it irqcheck daemon sms "dev $DEV TIMER_DIFF: $TIMER_DIFF VALUE_DIFF: $VALUE_DIFF load: $LOAD up: $UP"
-			echo "ALERT: interrupts_$DEV: $( date ) load: $LOAD - up: $UP - diff0: $VALUE_DIFF"
+			echo "ALERT: $( date ) $RAW diffC: $VALUE_DIFF"
 		}
 	fi
 } >>$PERMLOG
@@ -62,4 +66,4 @@ while read -r LINE; do {
 
 cat 2>/dev/null /sys/kernel/debug/ieee80211/phy[0-9]/$DEV/interrupt >"/tmp/INTERRUPTS_debug"
 
-_log it irqcheck daemon debug "dev $DEV TIMER_DIFF: $TIMER_DIFF VALUE_DIFF: $VALUE_DIFF load: $LOAD up: $UP"
+_log it irqcheck daemon debug "$RAW diffC: $VALUE_DIFF"

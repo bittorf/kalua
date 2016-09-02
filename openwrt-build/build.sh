@@ -726,6 +726,7 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-factory.bin"
+			# bin/targets/ar71xx/generic/lede-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
 		;;
 		'TP-LINK TL-WDR7500'|'TP-LINK Archer C7'|'TP-LINK Archer C7 v2')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wdr7500
@@ -1058,11 +1059,10 @@ has_internet()
 check_working_directory()
 {
 	local funcname='check_working_directory'
-	local pattern='git-svn-id'
 	local file_feeds='feeds.conf.default'
 	local i=0
 	local do_symlinking='no'
-	local package list error repo git_url answer buildsystemdir
+	local package list error repo git_url answer buildsystemdir pattern
 
 	if [ -n "$FORCE" ]; then
 		error=0
@@ -1119,7 +1119,13 @@ check_working_directory()
 		}
 
 		case "$VERSION_OPENWRT" in
+			'lede-staging')
+				# https://git.lede-project.org/?p=lede/nbd/staging.git;a=summary
+				git_url='git://git.lede-project.org/lede/nbd/staging.git'
+				buildsystemdir='staging'
+			;;
 			'lede')
+				# https://git.lede-project.org/?p=source.git;a=summary
 				git_url='git://git.lede-project.org/source.git'
 				buildsystemdir='source'
 			;;
@@ -1179,7 +1185,7 @@ check_working_directory()
 		# CMake version 2.8.12 or better
 		# libnl3-dev or libnl-tiny for the nl80211-listener plugin
 		# libtomcrypt-dev for the hash_tomcrypt plugin
-		echo >>"$file_feeds" 'src-git-full oonf http://olsr.org/git/oonf.git'
+		echo >>"$file_feeds" 'src-git-full oonf https://github.com/OLSR/OONF.git'
 		log "addfeed 'olsrd2/oonf'" debug,gitadd "$file_feeds"
 		do_symlinking='true'
 	}
@@ -1213,6 +1219,16 @@ check_working_directory()
 		log "enforce/updating symlinking of packages"
 		make package/symlinks
 	}
+
+	# for detecting: are we in "original" (aka master) tree or in private checkout
+	case "$( git remote get-url origin )" in
+		*'lede-project'*)
+			pattern='.'	# means: any
+		;;
+		''|*)
+			pattern='git-svn-id'
+		;;
+	esac
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
@@ -1376,10 +1392,35 @@ openwrt_download()
 			hash="$( echo "$wish" | cut -b2- )"			# r12345 -> 12345  (remove leading 'r')
 			hash="$( git log --format=%h --grep="@$hash " )"	# 12345 -> fe53cab (number -> hash)
 
+			get_lede_hash(){
+				local wish="$( echo "$1" | cut -b2- )"	# e.g. r1492 -> 1492
+				local line info
+
+				git log --format=%h | while read -r line; do
+					git show "$line" | grep -q '# mimic OpenWrt-style:' && return 1
+
+					if info="$( git describe $L )"; then
+						# e.g. 'reboot-1492-g637640c'
+						case "$info" in
+							*"-$wish-"*)
+								echo "$line"
+								return 0
+							;;
+						esac
+					else
+						return 1
+					fi
+				done
+
+				return 1
+			}
+
 			[ -z "$hash" ] && {
-				log "[ERROR] - unable to find $wish"
-				# can happen if 'rXXXXX' is in packages/feeds, just use newest:
-				hash="$( git log -1 --format=%h )"
+				hash="$( get_lede_hash "$wish" )" || {
+					log "[ERROR] - unable to find '$wish'"
+					# can happen if 'rXXXXX' is in packages/feeds, just use newest:
+					hash="$( git log -1 --format=%h )"
+				}
 			}
 
 			# TODO: maybe write 'openwrt@hash=$revision for modelXY'?
@@ -3449,7 +3490,8 @@ while [ -n "$1" ]; do {
 		;;
 		'--openwrt')
 			case "$2" in
-				'trunk'|'10.03'|'12.09'|'14.07'|'15.05')	# TODO: 15.05.1 ???
+				'lede'|'lede-staging'|'trunk'|'10.03'|'12.09'|'14.07'|'15.05')
+					# TODO: 15.05.1 ???
 					VERSION_OPENWRT="$2"
 					VERSION_OPENWRT_INTEGER="1"	# so not error when used in calcs
 				;;
