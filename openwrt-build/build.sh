@@ -1400,7 +1400,7 @@ openwrt_download()
 					git show "$line" | grep -q '# mimic OpenWrt-style:' && return 1
 
 					if info="$( git describe $L )"; then
-						# e.g. 'reboot-1492-g637640c'
+						# e.g. 'reboot-1492-g637640c' but empty with 'lede-staging'
 						case "$info" in
 							*"-$wish-"*)
 								echo "$line"
@@ -1417,7 +1417,7 @@ openwrt_download()
 
 			[ -z "$hash" ] && {
 				hash="$( get_lede_hash "$wish" )" || {
-					log "[ERROR] - unable to find '$wish'"
+					log "[ERROR] - unable to find '$wish' - using latest commit"
 					# can happen if 'rXXXXX' is in packages/feeds, just use newest:
 					hash="$( git log -1 --format=%h )"
 				}
