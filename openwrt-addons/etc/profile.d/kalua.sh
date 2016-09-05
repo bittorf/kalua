@@ -23,6 +23,11 @@ case "$LOAD" in
 esac
 unset LOAD
 
+read -r UP REST <'/proc/uptime'
+UP="${UP%.*}"
+case "${#UP}" in 1|2|3) echo "[ATT] low uptime: $UP sec";; esac
+unset UP REST
+
 case "$USER" in
 	'root'|'')
 		# FIXME! needs 'mkpasswd'
