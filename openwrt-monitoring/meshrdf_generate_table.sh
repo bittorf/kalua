@@ -2178,17 +2178,25 @@ _cell_firmwareversion_humanreadable()
 hostname_from_monitoring_sanitized()
 {
 	local mac="$1"
-	local hostname
+	local hostname file
 
 	# enforced/settings: E1-Dachboden&nbsp;(&larr;4300er-flashprob = real)
 	read -r hostname 2>/dev/null <"$TMPDIR/goodhostname_$mac"
 
 	case "${hostname:=$HOSTNAME}" in
-		Ralf-ExSchneiderei) hostname='Pension-Ralf' ;;
-		dhfleesensee-adhoc--68) hostname='Haus12-r1202-Traumdomizil' ;;
+		'Ralf-ExSchneiderei') hostname='Pension-Ralf' ;;
+		'dhfleesensee-adhoc--68') hostname='Haus12-r1202-Traumdomizil' ;;
 	esac
 
-	echo "$hostname" | sed -e 's/^-//' -e 's/[^-a-zA-Z0-9]//g'
+	case "$hostname" in
+		*'ap--'[0-9]*)
+			# e.g. berlinle-ap--11
+			file="/var/www/networks/$NETWORK/settings/$mac.hostname"
+			read -r hostname 2>/dev/null <"$file"
+		;;
+	esac
+
+	echo "${hostname:-$HOSTNAME}" | sed -e 's/^-//' -e 's/[^-a-zA-Z0-9]//g'
 }
 
 send_mail_telegram()
@@ -2277,8 +2285,8 @@ send_mail_telegram()
 		;;
 		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
 		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
-		lisztwe) list="$admin mail|hotel-liszt.de technikad|mx.onimail.de" ;;
-		adagio) list="$admin mail|hotel-adagio.de technikad|mx.onimail.de" ;;
+		lisztwe) list="$admin mail|hotel-liszt.de technikad|mx.onimail.de technik|hotel-adagio.de" ;;
+		adagio) list="$admin mail|hotel-adagio.de technikad|mx.onimail.de technik|hotel-adagio.de" ;;
 		apphalle) list="$admin info|appartementhausamdom.de" ;;
 		spbansin)
 			list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de"
@@ -2325,6 +2333,11 @@ send_mail_telegram()
 		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de" ;;
 		wuensch) list="$admin p_s_wuensch|t-online.de" ;;
 		leonardo) list="$admin info|hotel-leonardo.de" ;;
+		rehungen)
+			case "$hostname" in
+				'nussberg73a-kindergarten') list="$admin ina.noettgen@gmx.de" ;; # 01512-7569004
+			esac
+		;;
 		*) list="$admin" ;;
 	esac
 
