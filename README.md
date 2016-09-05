@@ -335,6 +335,7 @@ Special UCI-variables
 	system.@monitoring[0].maxcost		- integer
 	system.@monitoring[0].max_wificlients	- bool
 	system.@monitoring[0].speedcheck_wired	- bool
+	system.@monitoring[0].speedcheck_fakeip - IP
 	system.@monitoring[0].roaming_stats	- bool
 	system.@monitoring[0].report_traffic_nightly	- bool
 	system.@monitoring[0].report_daily_stats - bool
