@@ -1,7 +1,17 @@
 #!/bin/sh
 
-# e.g. user@hostname:~
-export PS1='\[\033[36m\]\u\[\033[m\]@\[\033[32m\]\h:\[\033[33;1m\]\w\[\033[m\] '
+smile()
+{
+	local rc=$?
+
+	case $rc in
+		0) printf '%s' '\e[32m:)\e[0m ' ;;
+		*) printf '%s' '\e[31m:(\e[0m '; return $rc ;;
+	esac
+}
+
+# e.g. user@hostname:~ :)
+export PS1='\[\e[36m\]\u\[\e[m\]@\[\e[32m\]\h:\[\e[33;1m\]\w\[\e[m\] $( smile )'
 
 alias n='_olsr txtinfo'
 alias n2='echo /nhdpinfo link | nc 127.0.0.1 2009'
