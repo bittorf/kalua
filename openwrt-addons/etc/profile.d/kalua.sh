@@ -75,6 +75,7 @@ if   [ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci' ]; then
 elif [ -e '/tmp/REBOOT_REASON' ]; then
 	# see system_crashreboot()
 	read -r CRASH <'/tmp/REBOOT_REASON'
+	_system include
 
 	case "$CRASH" in
 		'nocrash'|'nightly_reboot'|'apply_profile'|'wifimac_safed')
