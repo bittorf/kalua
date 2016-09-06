@@ -130,7 +130,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		sleep "$( _math random_integer 1 5 )"
 	} done
 
-	# fixme! update also when fetching neighbour table fails?
+	# FIXME! update also when fetching neighbour table fails?
 	ip route show table main >'/tmp/OLSR_TMP/ROUTING_TABLE_MAIN'
 	gateway="$( grep ^'default' '/tmp/OLSR_TMP/ROUTING_TABLE_MAIN' | head -n1 )"
 
@@ -142,7 +142,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 					gateway="$( _sanitizer run "$line" ip4 )"
 
 					# TODO: ipv6?
-					# TODO: default routes can be in at the end:
+					# TODO: default routes can be late (not ontop)
 
 					# root@server1:/# tail -n5 /tmp/OLSR/ROUTING_TABLE_MAIN
 					# 10.142.0.0/16 via 10.63.1.49 dev wnvpn  metric 2 onlink
@@ -219,6 +219,10 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 				date +"%s %X $gateway" >>'/tmp/OLSR/DEFGW_changed'
 
 				[ "$gateway" = 'empty' ] || {
+					_net ip_reachable "$gateway" || {
+						_olsr daemon restart "$func: unreachable gateway: $gateway"
+					}
+
 					echo "$gateway" >'/tmp/OLSR_TMP/DEFGW_LASTGOOD'
 
 					echo >>$SCHEDULER "_olsr neighs_meshrdf_evalable >/tmp/OLSR/meshrdf_neighs"	# for monitoring
