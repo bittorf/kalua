@@ -2,16 +2,16 @@
 
 smile()
 {
-	local rc=$?
+	local rc="$?"
 
-	case $rc in
-		0) printf '%s' '\e[32m:)\e[0m ' ;;
-		*) printf '%s' '\e[31m:(\e[0m '; return $rc ;;
+	case "$rc" in
+		0) printf '%s' '2m:)' ;;
+		*) printf '%s' '1m:('; return "$rc" ;;
 	esac
 }
 
 # e.g. user@hostname:~ :)
-export PS1='\[\e[36m\]\u\[\e[m\]@\[\e[32m\]\h:\[\e[33;1m\]\w\[\e[m\] $( smile )'
+export PS1='\[\e[36m\]\u\[\e[m\]@\[\e[32m\]\h:\[\e[33;1m\]\w\[\e[m\] \e[3$( smile )\e[0m '
 
 alias n='_olsr txtinfo'
 alias n2='echo /nhdpinfo link | nc 127.0.0.1 2009'
