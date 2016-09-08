@@ -623,7 +623,7 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 	}
 
 	if _net dev_is_valid "$ip_or_dev"; then
-		ip="$( _net dev2ip "$ip_or_dev" )"
+		ip="$( _net dev2ip "$ip_or_dev" )"	# e.g. eth0 -> 10.10.8.33
 	else
 		ip="$ip_or_dev"
 	fi
@@ -633,11 +633,11 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 	if [ "$option" = 'myself' ]; then
 		_log it $funcname daemon info "ip: $ip ($option)"
 		$IPT -I OLSR_MYSELF -s $ip -j DROP
-		$IPT -I OLSR_MYSELF -s $ip -m limit --limit '10/s' --limit-burst 6 -j ACCEPT
+		$IPT -I OLSR_MYSELF -s $ip -m limit --limit '20/s' --limit-burst 25 -j ACCEPT
 	else
 		_log it $funcname daemon info "ip: $ip"
 		$IPT -I OLSR -s $ip -j DROP
-		$IPT -I OLSR -s $ip -m limit --limit '5/s' --limit-burst 3 -j ACCEPT
+		$IPT -I OLSR -s $ip -m limit --limit '10/s' --limit-burst 15 -j ACCEPT
 
 		# destination is normally 255.255.255.255
 		dev="$( _net ip2dev "$ip" )"
@@ -645,10 +645,11 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 			touch "$dir/outgoing_dev-$dev"
 			$IPT -I OLSR -i $dev		# just measuring
 			$IPT -I OLSR -o $dev -j DROP
-			$IPT -I OLSR -o $dev -m limit --limit '5/s' --limit-burst 3 -j ACCEPT
+			$IPT -I OLSR -o $dev -m limit --limit '50/s' --limit-burst 50 -j ACCEPT
 		}
 	fi
 
+	# remote useless complains from dmesg:
 	. /usr/sbin/cron.check_klog
 	sed -i "/.* OLSR: unknown: .* SRC=$( _sanitizer run "$ip" escape_dots ) DST=255.255.255.255.*/d" '/tmp/dmesg.log'
 
