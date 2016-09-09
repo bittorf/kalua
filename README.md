@@ -364,6 +364,7 @@ Special UCI-variables
 	system.@vpn[0].ipaddr			- IP
 	system.@vpn[0].hideandseek_disabled	- bool
 	system.@vpn[0].force			- bool
+	system.@vpn[0].active			- bool
 	system.vpn.dnsname			- string
 	
 	system.@system[0].noswinstall		- bool
