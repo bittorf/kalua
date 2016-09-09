@@ -362,39 +362,12 @@ func_cron_config_write()
 			sed -i "s;### CHECK_AUDIOPLAYER ###;test -e /tmp/audioplayer.sh \&\& . /tmp/audioplayer.sh" "/tmp/CRON_IS_CAREFUL"
 		}
 
-		rrd_needed()
-		{
-			case "$CONFIG_PROFILE" in
-				marinabh*|amalienhof*|limona*|olympia*|aschbach*)
-					return 0
-				;;
-				liszt28*)
-					touch "/tmp/STATS_FORWARD"
-				;;
-			esac
-
-			[ -n "$LOWMEM" ] && return 1
-			command -v rrdtool >/dev/null || return 1
-
-			_wifi longshot_name >/dev/null && return 0
-
-			case "$HARDWARE" in
-				'Ubiquiti Bullet'*)
-					return 0
-				;;
-			esac
-
-			_net local_inet_offer >/dev/null
-		}
-
-		rrd_needed && {
-			cp '/usr/sbin/cron.rrd' '/tmp'
-			. /tmp/cron.rrd
-			rrd_setup 'keep_database'
+		_rrd needed && {
+			_rrd setup 'keep_database'
 
 			WATCH_STATION="$( uci -q get system.@monitoring[0].watch_station )"
 
-			sed -i "s|### CALL_RRD ###|IPT='$IPT'; WIFIDEV=$WIFIDEV; . /tmp/cron.rrd; rrd_update '$WATCH_STATION'|" "/tmp/CRON_IS_CAREFUL"
+			sed -i "s|### CALL_RRD ###|IPT='$IPT'; WIFIDEV=$WIFIDEV; _rrd update '$WATCH_STATION'|" "/tmp/CRON_IS_CAREFUL"
 		}
 
 		irqcheck_needed()

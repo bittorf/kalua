@@ -1,8 +1,6 @@
 #!/bin/sh
-. /tmp/loader
-# rrdtool fetch /tmp/datafile.rrd AVERAGE
 
-rrd_setup()
+_rrd_setup()
 {
 	local option="$1"			# 'keep_database'
 	local file='/tmp/datafile.rrd'
@@ -26,6 +24,8 @@ rrd_setup()
 	# RRA = Round Robin Archive
 	# datasource_type = DERIVE|COUNTER|ABSOLUTE|GAUGE - see https://collectd.org/wiki/index.php/Data_source
 
+	# TODO: rrdtool fetch /tmp/datafile.rrd AVERAGE
+
 	rrdtool create "$file" \
 		DS:upload_packets:COUNTER:${maxwait}:$minmax_100mbit_packets \
 		DS:upload_bytes:COUNTER:${maxwait}:$minmax_100mbit \
@@ -42,7 +42,7 @@ rrd_setup()
 #			RRA:AVERAGE:0.5:24:3600
 }
 
-rrd_update()
+_rrd_update()
 {
 	local force_station_mac="$1"	# <empty> or <mac> or 'all'
 
@@ -170,18 +170,21 @@ rrd_update()
 	}
 }
 
-rrd_show()
+_rrd_show()
 {
 	local funcname='rrd_show'
 	local duration="$1"		# e.g. 15min, 4h
+	local file="${2:-/tmp/datafile.rrd}"
+
+	[ -e "$file" ] || return 1
 
 	[ -z "$duration" ] && duration=$( _system uptime min )
-	[ $duration -gt 1440 ] && duration=1440		# our database is not bigger, see rrd_setup()
+	# our database is not bigger, see rrd_setup()
+	[ $duration -gt 1440 ] && duration=1440
 	isnumber $duration && duration="${duration}min"
 
 	local webfile='/www/traffic.png'
 	local output='/tmp/graph.png'
-	local file="${2:-/tmp/datafile.rrd}"
 	local date="$( _system date humanreadable pretty )"
 	local location="$( _weblogin metadata_locationname )"
 	local title="$location: forwarded WAN-traffic $WANDEV host-$NODENUMBER: $HOSTNAME - time: $date (-$duration)"
@@ -291,7 +294,7 @@ rrd_show()
 	_log it $funcname daemon debug "wrote: '$output', look at http://$LANADR/$( basename "$webfile" )"
 }
 
-rrd_upload()
+_rrd_upload()
 {
 	local funcname='rrd_upload'
 	local duration="$1"
@@ -300,7 +303,7 @@ rrd_upload()
 	local dest="$( uci get system.@vds[0].server )../media/traffic_${HOSTNAME}_${date}.png"
 	local try=30
 
-	rrd_show "$duration" || return 1
+	_rrd show "$duration" || return 1
 	pidof scp >/dev/null && return 1
 
 	while [ $try -gt 0 ]; do {
@@ -309,4 +312,28 @@ rrd_upload()
 		sleep $try
 		try=$(( try - 1 ))
 	} done
+}
+
+_rrd_needed()
+{
+	command -v rrdtool >/dev/null || return 1
+	[ -n "$LOWMEM" ] && return 1
+	_wifi longshot_name >/dev/null && return 0
+
+	case "$CONFIG_PROFILE" in
+		marinabh*|amalienhof*|limona*|olympia*|aschbach*)
+			return 0
+		;;
+		liszt28*)
+			touch '/tmp/STATS_FORWARD'
+		;;
+	esac
+
+	case "$HARDWARE" in
+		'Ubiquiti Bullet'*)
+			return 0
+		;;
+	esac
+
+	_net local_inet_offer >/dev/null
 }
