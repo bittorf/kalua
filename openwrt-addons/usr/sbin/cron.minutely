@@ -17,35 +17,6 @@ fi
 	fi
 }
 
-# fast check for zombies (with builtins only)
-# TODO: only during high load?
-for FILE in /proc/*; do
-	case "$FILE" in
-		'/proc/'[0-9]*)
-			while read -r LINE; do
-				case "$LINE" in
-					'State:'*)
-						case "$LINE" in
-							*'Z (zombie)')
-								. /tmp/loader
-								_log it zombie daemon alert "found: '$LINE' in $FILE/status LOAD: $LOAD"
-								# _system crashreboot 'zombies'
-							;;
-							*)
-								break
-							;;
-						esac
-					;;
-				esac
-			done <"$FILE/status"
-		;;
-		*)
-			break
-		;;
-	esac
-done
-unset FILE LINE
-
 # mimics the stopwatch() API
 echo "${UP%.*}${UP#*.}" >'/tmp/CRON_LASTCALL'
 
@@ -134,9 +105,38 @@ echo "up: $UP load: $LOAD rest: $REST" >/dev/console
 # we only generate this during low-load and this test is cheaper than file-i/o
 case "$LOAD" in
 	0.*)
-		rm "/tmp/CRON_PSWORK"
+		rm '/tmp/CRON_PSWORK'
 	;;
 esac
+
+# fast check for zombies (with builtins only)
+# TODO: only during high load?
+for FILE in /proc/*; do
+	case "$FILE" in
+		'/proc/'[0-9]*)
+			while read -r LINE; do
+				case "$LINE" in
+					'State:'*)
+						case "$LINE" in
+							*'Z (zombie)')
+								. /tmp/loader
+								_log it zombie daemon alert "found: '$LINE' in $FILE/status LOAD: $LOAD"
+								# _system crashreboot 'zombies'
+							;;
+							*)
+								break
+							;;
+						esac
+					;;
+				esac
+			done <"$FILE/status"
+		;;
+		*)
+			break
+		;;
+	esac
+done
+unset FILE LINE
 
 ### PINGCHECK ###
 . /usr/sbin/cron.taskplanner.default
