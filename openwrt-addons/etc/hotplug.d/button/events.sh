@@ -116,6 +116,7 @@ case "${BUTTON}-${ACTION}" in
 
 			[ $DIFF -gt 1000 ] && {
 				touch '/coredump/testdump.core'		# FIXME! see system_adjust_coredump()
+				touch '/www/serial_enabled'
 				_watch coredump 'during: button-hotplug'
 			}
 
