@@ -521,6 +521,7 @@ boot()
 		'Mercury MAC1200R')
 			# dirty hack: ath10k cannot do hybrid (ibss/ap mixed) mode:
 			_wifi set ap 5ghz 'off'
+			ROAMING='false'
 		;;
 		'La Fonera 2.0N')
 			# TODO: query possible interface combinations
@@ -624,7 +625,7 @@ boot()
 		# enforce 802.11n
 		# https://dev.openwrt.org/ticket/17748
 		# https://dev.openwrt.org/ticket/17541
-		_wifi set any any htmode HT20
+		_wifi set anymode anyfreq htmode HT20
 	}
 
 	# AP = autochannel
@@ -927,6 +928,7 @@ boot()
 		;;
 	esac
 
+	# will be changed, when roaming() is called
 	for INDEX in $( _wifi get any mode ap ); do {
 		uci set wireless.@wifi-iface[$INDEX].disassoc_low_ack='0'
 	} done
@@ -941,6 +943,7 @@ boot()
 		}
 	} done
 
+	# will be changed, when roaming() is called
 	_wifi set ap 5ghz 'off'
 	uci set system.@weblogin[0].redirect_dns='true'
 
@@ -995,12 +998,14 @@ boot()
 		;;
 		berlinle*)
 			[ "$NODENUMBER" = '2' ] && {
-				_wifi set any any 'off'	# we need RAM for DATABASE
+				_wifi set anymode anyfreq 'off'	# we need RAM for DATABASE
 			}
 
 			[ "$NODENUMBER" = '3' ] && {
 				uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
 				uci set system.@monitoring[0].maintenance_force='true'
+				_wifi set ap anyfreq 'off'
+				ROAMING='false'
 			}
 
 			uci set olsrd.@meta[0].hnaslave='0'
@@ -1043,21 +1048,21 @@ boot()
 		apphalle*)
 			uci set olsrd.@meta[0].hnaslave='0'
 
-			_wifi set ap    any  ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 ) $NODENUMBER"
+			_wifi set ap    anyfreq ssid "$( _weblogin metadata_locationname | cut -d' ' -f1 ) $NODENUMBER"
 
 			_wifi set adhoc 2ghz ssid 'intern.2GHz'
 			_wifi set adhoc 2ghz mcast_rate '6000'
 
-			_wifi set adhoc 5ghz ssid 'intern.5GHz'
-			_wifi set any   5ghz channel '104'
-			_wifi set any   5ghz txpower '21'
-			_wifi set any   5ghz chanbw '5'
-			_wifi set ap    5ghz 'off'
+			_wifi set adhoc   5ghz ssid 'intern.5GHz'
+			_wifi set anymode 5ghz channel '104'
+			_wifi set anymode 5ghz txpower '21'
+			_wifi set anymode 5ghz chanbw '5'
 
 			apply_olsr_roaming "$ROAMING" && {
 				_wifi set ap any ssid 'Appartementhaus am Dom'
 			}
 
+			_wifi set ap 5ghz 'off'
 			_wifi set ap 2ghz txpower '22'
 		;;
 		xoai*)
@@ -1133,9 +1138,9 @@ boot()
 			uci set olsrd.@olsrd[0].LinkQualityAlgorithm='etx_ffeth'
 
 			# weimarnetz
-			_wifi set adhoc 2ghz mcast_rate '1000'
-			_wifi set adhoc 2ghz bssid '02:ca:ff:ee:ba:be'
-			_wifi set any   2ghz channel 5
+			_wifi set adhoc   2ghz mcast_rate '1000'
+			_wifi set adhoc   2ghz bssid '02:ca:ff:ee:ba:be'
+			_wifi set anymode 2ghz channel 5
 		;;
 		paltstadt*)
 			case "$NODENUMBER" in
@@ -1154,9 +1159,9 @@ boot()
 			uci set system.@weblogin[0].authserver='10.10.3.1'
 
 			# weimarnetz
-			_wifi set adhoc 2ghz mcast_rate '1000'
-			_wifi set adhoc 2ghz bssid '02:ca:ff:ee:ba:be'
-			_wifi set any   2ghz channel 5
+			_wifi set adhoc   2ghz mcast_rate '1000'
+			_wifi set adhoc   2ghz bssid '02:ca:ff:ee:ba:be'
+			_wifi set anymode 2ghz channel 5
 		;;
 		'cvjm'*)
 			# only one router
@@ -1171,12 +1176,12 @@ boot()
 			_wifi set adhoc 2ghz ssid 'x'
 			_wifi set ap    2ghz ssid 'CVJM Cafe'
 
-			_wifi set adhoc 5ghz ssid 'X'
-			_wifi set ap    5ghz ssid 'CVJM Cafe'
-			_wifi set ap    5ghz 'on'
-			_wifi set any   5ghz chanbw '20'
-			_wifi set any   5ghz channel '36'
-			_wifi set any   5ghz txpower '21'
+			_wifi set adhoc   5ghz ssid 'X'
+			_wifi set ap      5ghz ssid 'CVJM Cafe'
+			_wifi set ap      5ghz 'on'
+			_wifi set anymode 5ghz chanbw '20'
+			_wifi set anymode 5ghz channel '36'
+			_wifi set anymode 5ghz txpower '21'
 
 			# zentrale:
 			config_add_alias 'wan' '192.168.5.34/24'
@@ -1192,12 +1197,12 @@ boot()
 			_wifi set adhoc 2ghz ssid 'x'
 			_wifi set ap    2ghz ssid 'a-park.de'
 
-			_wifi set adhoc 5ghz ssid 'X'
-			_wifi set ap    5ghz ssid 'a_park.de'
-			_wifi set ap    5ghz 'off'
-			_wifi set any   5ghz chanbw '5'
-			_wifi set any   5ghz channel '104'
-			_wifi set any   5ghz txpower '21'
+			_wifi set adhoc   5ghz ssid 'X'
+			_wifi set ap      5ghz ssid 'a_park.de'
+			_wifi set ap      5ghz 'off'
+			_wifi set anymode 5ghz chanbw '5'
+			_wifi set anymode 5ghz channel '104'
+			_wifi set anymode 5ghz txpower '21'
 		;;
 		liszt28*)
 			pos()
@@ -1216,7 +1221,7 @@ boot()
 				  4) pos '50,990426' '11,331749' ;;	# F36-linksys
 			esac
 
-			_wifi set any any chanbw '20'
+			_wifi set anymode anyfreq chanbw '20'
 
 			uci set system.@vpn[0].active='true'
 			uci set system.@monitoring[0].nightly_longrange='true'
@@ -1327,7 +1332,8 @@ boot()
 					uci set system.@system[0].zram_disabled='true'
 				;;
 				837)
-					_wifi set any 5ghz 'off'		# ath10k-crash
+					_wifi set anymode 5ghz 'off'		# ath10k-crash
+					ROAMING='false'
 				;;
 				28)
 					# wrap-board/rene
@@ -1386,7 +1392,9 @@ boot()
 					uci set system.@webcam[0].resolution='800x600'
 					uci set system.@system[0].leds_ignore='true'
 					uci set system.@system[0].avoid_autoreboot='true'
-					_wifi set ap any 'off'
+
+					_wifi set ap anyfreq 'off'
+					ROAMING='false'
 
 					[ -e '/www/door.sh' ] && {
 						. /www/door.sh
@@ -1475,8 +1483,8 @@ boot()
 					uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
 					uci set system.@monitoring[0].maintenance_force='true'
 
-					_wifi set adhoc any 'off'
-					_wifi set ap 2ghz ssid 'extrawatt'
+					_wifi set adhoc anyfreq 'off'
+					_wifi set ap    anyfreq ssid 'extrawatt'
 					ROAMING='false'
 
 					uci set system.@vpn[0].force='true'
@@ -1605,10 +1613,10 @@ uci set network.wwan.modes='gsm'
 			_wifi set adhoc 2ghz channel '5'
 			_wifi set adhoc 2ghz bssid '02:ca:ff:ee:ba:be'
 
-			_wifi set adhoc 5ghz ssid 'weimarnetz-5Ghz'
-			_wifi set adhoc 5ghz channel '40'
-			_wifi set adhoc 5ghz bssid '02:ca:ff:ee:00:40'
-#			_wifi set any   5ghz chanbw '5'
+			_wifi set adhoc   5ghz ssid 'weimarnetz-5Ghz'
+			_wifi set adhoc   5ghz channel '40'
+			_wifi set adhoc   5ghz bssid '02:ca:ff:ee:00:40'
+#			_wifi set anymode 5ghz chanbw '5'
 
 			_wifi longshot name 'DNT-werkstatt'    distance 400 channel   1 chanbw  5 mhz mcast  6000 nodes '807 808'
 			_wifi longshot name 'BAMAG-wagenplatz' distance 500 channel 100 chanbw 40 mhz mcast  6000 nodes '825 826'
@@ -1668,6 +1676,7 @@ uci set network.wwan.modes='gsm'
 					uci set wireless.radio0.htmode='HT40'
 
 					_wifi set ap 5ghz 'off'
+					ROAMING='false'
 
 #					uci set network.wlan.shaping='true'
 #					uci set network.wlan.shaping_uplink='800'
@@ -1737,7 +1746,7 @@ uci set network.wwan.modes='gsm'
 					uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
 				;;
 				865|275|277)	# danny/ayse/f36stube
-					_wifi set any 2ghz txpower '20'
+					_wifi set anymode 2ghz txpower '20'
 				;;
 				813|602)	# frenze/unten/oben
 					touch /tmp/FREE
@@ -1759,8 +1768,8 @@ uci set network.wwan.modes='gsm'
 					# e.g. 'E3-vhsRaum3.06-HYBRID' -> Raum3.06
 					ROOM="$( echo "$HOSTNAME" | cut -d'-' -f2 | cut -d's' -f2 )"
 
-					_wifi set ap  2ghz ssid "freifunk ($ROOM)"
-					_wifi set any 2ghz txpower '3'
+					_wifi set ap      2ghz ssid "freifunk ($ROOM)"
+					_wifi set anymode 2ghz txpower '3'
 
 					touch /tmp/FREE
 					uci set system.@weblogin[0].authserver="$( _ipsystem getvar 'LANADR' '938' )"
@@ -1771,21 +1780,21 @@ uci set network.wwan.modes='gsm'
 								# 2ghz/chan11+chanbw5+txpowerHigh+noAP
 
 							# sort of longshot
-							_wifi set any   2ghz chanbw '5'
-							_wifi set any   2ghz channel '11'	# !!!
-							_wifi set any   2ghz txpower '23'
-							_wifi set adhoc 2ghz ssid 'dach-buehne'
-							_wifi set ap    2ghz 'off'
-							_wifi set adhoc 2ghz mcast_rate '1000'
-							_wifi set adhoc 2ghz bssid '02:ca:ff:ee:ff:11'
+							_wifi set anymode 2ghz chanbw '5'
+							_wifi set anymode 2ghz channel '11'	# !!!
+							_wifi set anymode 2ghz txpower '23'
+							_wifi set adhoc   2ghz ssid 'dach-buehne'
+							_wifi set ap      2ghz 'off'
+							_wifi set adhoc   2ghz mcast_rate '1000'
+							_wifi set adhoc   2ghz bssid '02:ca:ff:ee:ff:11'
 						;;
 						935|932)	# hinterbuehne|saal
-							_wifi set adhoc 2ghz bssid '02:ca:ff:ee:ff:01'
-							_wifi set any   2ghz chanbw '5'
-							_wifi set any   2ghz channel '1'	# !!!
-							_wifi set any   2ghz txpower '23'
-							_wifi set adhoc 2ghz ssid 'buehne-saal'
-							_wifi set ap    2ghz 'off'
+							_wifi set adhoc   2ghz bssid '02:ca:ff:ee:ff:01'
+							_wifi set anymode 2ghz chanbw '5'
+							_wifi set anymode 2ghz channel '1'	# !!!
+							_wifi set anymode 2ghz txpower '23'
+							_wifi set adhoc   2ghz ssid 'buehne-saal'
+							_wifi set ap      2ghz 'off'
 						;;
 						903)
 							uci set network.wan.shaping='true'
@@ -1793,16 +1802,16 @@ uci set network.wwan.modes='gsm'
 							uci set network.wan.shaping_downlink='1250'
 
 							# empore4300er
-							_wifi set adhoc 2ghz 'off'
-							_wifi set any 2ghz txpower '3'
-							_wifi set any 5ghz txpower '20'
+							_wifi set adhoc   2ghz 'off'
+							_wifi set anymode 2ghz txpower '3'
+							_wifi set anymode 5ghz txpower '20'
 
 							uci set system.@monitoring[0].pingcheck="$( _ipsystem getvar LANADR 371 )"
 						;;
 						*)
-							_wifi set any 2ghz txpower '3'
-							_wifi set any 5ghz txpower '20'
-							_wifi set adhoc 2ghz 'off'
+							_wifi set anymode 2ghz txpower '3'
+							_wifi set anymode 5ghz txpower '20'
+							_wifi set adhoc   2ghz 'off'
 						;;
 					esac
 
@@ -1824,8 +1833,8 @@ uci set network.wwan.modes='gsm'
 					uci set system.@monitoring[0].station_stats='true'
 					touch /tmp/FREE
 
-					_wifi set any 2ghz txpower '3'
-					_wifi set any 5ghz txpower '20'
+					_wifi set anymode 2ghz txpower '3'
+					_wifi set anymode 5ghz txpower '20'
 
 					_wifi set ap 2ghz ssid 'digital.bauhaus'
 					_wifi set ap 5ghz ssid 'digital.bauhaus'
@@ -1835,7 +1844,8 @@ uci set network.wwan.modes='gsm'
 					case "$NODENUMBER" in
 						901|245)
 							uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
-							_wifi set ap 5ghz 'off'		# TODO: auto-switch-off when 'longshot'
+							_wifi set ap 5ghz 'off'
+							ROAMING='false'
 						;;
 						901)
 							uci set system.@monitoring[0].no_wiphy_restart='true'
@@ -1853,8 +1863,8 @@ uci set network.wwan.modes='gsm'
 					# ewerk-vorfuehrraum-1-zentrale
 					uci set system.@weblogin[0].authserver="$( _ipsystem getvar 'LANADR' '753' )"
 
-					_wifi set any 2ghz txpower '3'
-					_wifi set any 5ghz txpower '20'
+					_wifi set anymode 2ghz txpower '3'
+					_wifi set anymode 5ghz txpower '20'
 
 					_wifi set ap 2ghz ssid 'weimar.freifunk.net'
 					_wifi set ap 5ghz ssid 'weimar.freifunk.net'
@@ -1888,14 +1898,14 @@ uci set network.wwan.modes='gsm'
 						;;
 						920)
 							# switch
-							_wifi set any any 'off'
+							_wifi set anymode anyfreq 'off'
 							config_add_alias 'lan' '192.168.178.45/24' '192.168.178.1'
 							uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
 							uci set system.@system[0].avoid_autoreboot='true'
 						;;
 						921)
 							# switch
-							_wifi set any any 'off'
+							_wifi set anymode anyfreq 'off'
 							config_add_alias 'lan' '192.168.178.46/24' '192.168.178.1'
 							uci set system.@system[0].avoid_autoreboot='true'
 						;;
@@ -1942,7 +1952,7 @@ uci set network.wwan.modes='gsm'
 				100|101)
 					# real: 367m - FIXME! was 20 mhz with r44150/J2 + r41522/reithaus at -70 dBm
 					_wifi longshot name 'j2-reithaus' distance 380 channel 104 chanbw 20 mhz mcast 6000 nodes '100 101'
-					_wifi set any 5ghz txpower '21'
+					_wifi set anymode 5ghz txpower '21'
 
 					uci set network.wlan.shaping='true'
 					uci set network.wlan.shaping_uplink='9000'	# we have ~18mbit max @5mhz chanbw (minstrel)
@@ -2137,17 +2147,20 @@ uci set network.wwan.modes='gsm'
 
 			uci set system.@monitoring[0].wifi_netparam_name='wlanadhocRADIO1'
 
-			_wifi set any   5ghz chanbw '5'
-			_wifi set any   5ghz channel '104'
-			_wifi set any   5ghz txpower '21'
-			_wifi set adhoc 5ghz ssid 'intern.5GHz'
-			_wifi set ap    5ghz 'on'
+			_wifi set anymode 5ghz chanbw '5'
+			_wifi set anymode 5ghz channel '104'
+			_wifi set anymode 5ghz txpower '21'
+			_wifi set adhoc   5ghz ssid 'intern.5GHz'
+			_wifi set ap      5ghz 'on'
 		;;
 		marinabh*)
 			uci set system.@monitoring[0].backping='9'	# steg2laterne-AP
 			uci set system.@weblogin[0].authserver="$( _ipsystem getvar 'LANADR' '2' )"
-			[ "$NODENUMBER" = "2" ] && _wifi set any any 'off'
 			uci set olsrd.@meta[0].hnaslave=0
+
+			[ "$NODENUMBER" = "2" ] && {
+				_wifi set anymode anyfreq 'off'
+			}
 
 			apply_olsr_roaming && {
 				_wifi set ap any ssid 'Marina Boltenhagen'
@@ -2239,7 +2252,7 @@ uci set network.wwan.modes='gsm'
 					uci set system.@system[0].avoid_autoreboot='true'
 					uci set system.@weblogin[0].blocked='true'
 					uci set system.@monitoring[0].pingcheck='10.10.8.33'
-					_wifi set any any 'off'
+					_wifi set anymode anyfreq 'off'
 				;;
 				253)
 					uci set system.@monitoring[0].pingcheck='8.8.8.8'
@@ -2312,7 +2325,7 @@ uci set network.wwan.modes='gsm'
 					uci set system.@system[0].avoid_autoreboot='true'
 					uci set system.@monitoring[0].ignore_load='true'
 
-					_wifi set any any 'off'
+					_wifi set anymode anyfreq 'off'
 				;;
 			esac
 
@@ -2426,7 +2439,7 @@ uci set network.wwan.modes='gsm'
 				;;
 				2)
 					uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
-					_wifi set any any 'off'
+					_wifi set anymode anyfreq 'off'
 
 					# DHCP is 192.168.2.107 / gateway = 192.168.2.1
 					config_add_alias 'wan' '192.168.2.108/24'

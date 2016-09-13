@@ -243,12 +243,12 @@ _wifi_change_essid_ap()
 			uci set wireless.@wifi-iface[$i].ssid="$( _i18n get "$LANG" maintenance_mode "$NODENUMBER/$i" )"
 
 			# FIXME! this should go to another function and switched back, if net is OK again
-			_wifi set any 2ghz txpower '20'
-			_wifi set any 5ghz txpower '20'
+			_wifi set anymode 2ghz txpower '20'
+			_wifi set anymode 5ghz txpower '20'
 
 			_wifi longshot_name >/dev/null && {
 				# TODO: switch off if OK again?
-				_wifi set ap any 'on'
+				_wifi set ap anyfreq 'on'
 			}
 		fi
 	} done
@@ -1924,12 +1924,12 @@ _wifi_scan()
 	case "$chanbw" in
 		5|10)
 			chanbw_changed="$chanbw"
-			_wifi set any "$devindex" chanbw 20
+			_wifi set anymode "$devindex" chanbw 20
 			_wifi phy_restart "$dev" "$funcname() changing chanbw from $chanbw to 20"
 
 			restore_chanbw()
 			{
-				_wifi set any "$devindex" chanbw "$chanbw"
+				_wifi set anymode "$devindex" chanbw "$chanbw"
 				_wifi phy_restart "$dev" "$funcname() changing chanbw from 20 to $chanbw"
 			}
 		;;
@@ -2173,7 +2173,7 @@ _wifi_check_disabled()
 }
 
 _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
-{				# e.g. '_wifi get any mode ap' or '_wifi get 5ghz mode ap'
+{				# e.g. '_wifi get anyfreq mode ap' or '_wifi get 5ghz mode ap'
 
 	local network="$1"	# e.g. 'wlanadhoc' or 'any'
 	local value="$2"	# e.g. 'channel'/'ssid'/'mode' or 'check' or 'index'
@@ -2192,7 +2192,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 		}
 
 		case "$condition" in
-			'any')
+			'any'|'anyfreq')
 				return 0
 			;;
 			'2ghz')
@@ -2649,44 +2649,44 @@ _wifi_longshot()	# this works only for single-radio units in adhoc-mode
 				for node in $2; do {
 					[ "$NODENUMBER" = "$node" ] && {
 						[ -n "$mcast_rate" ] && {
-							_wifi set adhoc any mcast_rate "$mcast_rate"
+							_wifi set adhoc anyfreq mcast_rate "$mcast_rate"
 						}
 
 						[ -n "$name" ] && {
-							_wifi set adhoc any ssid "$name"
+							_wifi set adhoc anyfreq ssid "$name"
 						}
 
 						[ -n "$chanbw" ] && {
-							_wifi set adhoc any chanbw "$chanbw"
+							_wifi set adhoc anyfreq chanbw "$chanbw"
 						}
 
 						[ -n "$distance" ] && {
 							# use the longest range for point-2-multipoint in [meters] and do not forget the height-diff
 							# and better use 'auto' (dynack/dynamic ack) only for p2p with same slottiming
-							_wifi set adhoc any distance "$distance"
+							_wifi set adhoc anyfreq distance "$distance"
 						}
 
 						[ -n "$channel" ] && {
 							if [ -n "$bssid" ]; then
-								_wifi set adhoc any channel "$channel"
-								_wifi set adhoc any bssid "$bssid"
+								_wifi set adhoc anyfreq channel "$channel"
+								_wifi set adhoc anyfreq bssid "$bssid"
 							else
-								_wifi set adhoc any channel "$channel" bssid_wellformed
+								_wifi set adhoc anyfreq channel "$channel" bssid_wellformed
 							fi
 
 							# FIXME! think about triple radios and use proper band
 							if [ $channel -le 36 ]; then
-								_wifi set ap  5ghz 'off'
-								_wifi set any 5ghz txpower '19'
+								_wifi set ap      5ghz 'off'
+								_wifi set anymode 5ghz txpower '19'
 							else
-								_wifi set ap  2ghz 'off'
-								_wifi set any 2ghz txpower '25'
+								_wifi set ap      2ghz 'off'
+								_wifi set anymode 2ghz txpower '25'
 							fi
 						}
 
 						# TODO: enforce 802.11n only if possible - same like in override_uci_vars
-						_wifi set adhoc any htmode 'HT20'
-						_wifi set any any beacon_int $beacon_interval
+						_wifi set adhoc   anyfreq htmode 'HT20'
+						_wifi set anymode anyfreq beacon_int $beacon_interval
 
 						uci set wireless.radio0.longshot="${name:-true}"
 
