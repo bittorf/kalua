@@ -7,16 +7,15 @@ case "$ACTION" in
 		. /tmp/loader
 		_system adjust_coredump
 
-		# see dnsmasq-magic below
-		if [ -e '/etc/init.d/apply_profile' -a "$INTERFACE" = 'lan' ]; then
+		# if unconfigured: disable lan-DHCP
+		if   [ -e '/etc/init.d/apply_profile' -a "$INTERFACE" = 'lan' ]; then
 			uci set dhcp.lan.ignore='1'
 			grep -sq ^'dhcp-range=lan,' '/var/etc/dnsmasq.conf' && {
 				/etc/init.d/dnsmasq restart
 				logger -s '[OK] no LAN-dhcp on virgin boots'
 			}
-		else
-			# sometimes we see only 1 line:   # Interface cfg124d8f
-			grep -sqv ^'#' '/etc/resolv.conf' || {
+		elif [ "$INTERFACE" = 'loopback' ]; then
+			grep -q ^'[a-z]' '/etc/resolv.conf' || {
 				_log it $ACTION.$INTERFACE daemon alert 'empty resolv.conf'
 				/etc/init.d/dnsmasq restart
 			}
