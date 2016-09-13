@@ -1278,7 +1278,7 @@ _netfilter_splash_start()
 	local funcname='netfilter_splash_start'
 	local myhna="$( _netfilter myhna )"
 #	local debug="echo"			# must be empty for debug-mode
-	local ip source destination dev temp_dev dnsport wifinet wifipre
+	local ip source destination dev temp_dev dnsport wifinet wifipre index ap_active=
 	local private_networks="172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 169.254.0.0/16 127.0.0.0/8 $ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL"
 	local logprio='alert'
 
@@ -1288,9 +1288,17 @@ _netfilter_splash_start()
 	if [ -n "$LOWMEM" ]; then
 		dnsport=53
 	else
-		# tested with dnsmasq 2.75
-		dnsport=5353
-		_netfilter fakedns_start "$dnsport"
+		for index in $( _wifi get any mode ap ); do {
+			_wifi check_disabled "$index" || ap_active='true'
+		} done
+
+		if [ -n "$ap_active" ]; then
+			# tested with dnsmasq 2.75
+			dnsport=5353
+			_netfilter fakedns_start "$dnsport"
+		else
+			dnsport=53
+		fi
 	fi
 
 	mkdir -p "/tmp/NETFILTER/USER" \
