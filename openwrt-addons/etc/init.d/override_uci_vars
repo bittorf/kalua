@@ -787,7 +787,11 @@ boot()
 		uci set dhcp.@dhcp[-1].ignore='0'
 	}
 
-	[ -z "$LOWMEM" ] && apply_cronwatchdog
+	if [ -z "$LOWMEM" -o "$OPENWRT_REV" -gt 50000 ]; then
+		uci_remove_section "network.@alias[].interface" 'loopback'
+	else
+		apply_cronwatchdog
+	fi
 
 	case "$CONFIG_PROFILE" in
 		apphalle*)
@@ -1258,10 +1262,6 @@ boot()
 				/etc/init.d/dnsmasq disable
 				/etc/init.d/log disable
 				/etc/init.d/telnet enable
-
-				grep 'askconsole' '/etc/inittab' | grep -q ^'#' || {
-					sed -i 's/.*askconsole/# &/' /etc/inittab
-				}
 			}
 
 			[ -x '/usr/sbin/olsrd2' ] && {
