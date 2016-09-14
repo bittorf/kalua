@@ -1728,7 +1728,7 @@ cpu_load_integer()
 				loadavg="${loadavg#0}"			# 005 -> 5
 
 				[ $loadavg -ge 100 ] && \
-					log "high load: $2 -> $loadavg (affects build performance/make-threads)"
+					log "high load: $2 -> $loadavg (affects number of make-threads -> build-speed)"
 
 				echo "$loadavg"
 				break
