@@ -1,5 +1,5 @@
 #!/bin/sh
-# tail -n1 "/tmp/schoeneck.dot" | grep -q '}' || echo "}" >>/tmp/schoeneck.dot; dot -Tpng /tmp/schoeneck.dot > /var/www/1.png
+# tail -n1 "$TMPDIR/schoeneck.dot" | grep -q '}' || echo "}" >>$TMPDIR/schoeneck.dot; dot -Tpng $TMPDIR/schoeneck.dot > /var/www/1.png
 
 # take screenshot into account:
 # /var/www/networks/gnm/settings/2a40d30a6b01.screenshot.jpg
@@ -33,7 +33,7 @@ log()		# tail -f /var/log/messages
 
 	
 
-#	echo "${NETWORK:-network_unset}: $1" >>/tmp/log_monitoring.txt
+#	echo "${NETWORK:-network_unset}: $1" >>$TMPDIR/log_monitoring.txt
 	logger -t $0 -p user.info -s "$message"
 }
 
@@ -240,7 +240,7 @@ ls -1t "$TMPDIR/meshrdf_temp_"* 2>/dev/null | grep -v "$( date "+ %b %d " )" | s
 command . "$TMPDIR/RM" && rm "$TMPDIR/RM"
 
 # portforwarding / xoai during fetching 'cgi-bin-tool.sh?OPT=portforwarding_table'
-[ -e '/tmp/PORTFW' ] && rm '/tmp/PORTFW'
+[ -e "$TMPDIR/PORTFW" ] && rm "$TMPDIR/PORTFW"
 
 REAL_OUT="./meshrdf.html"
 
@@ -322,7 +322,7 @@ FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
 #	echo "<!-- KALUA_VERSION_TESTING=$TARBALL_TIME -->"
 }
 
-touch "/tmp/DETECTED_FAULTY_$NETWORK"
+touch "$TMPDIR/DETECTED_FAULTY_$NETWORK"
 
 for FILE in $( find /var/www/networks/$NETWORK/vds -type f -name 'db_backup.tgz_*' ); do {
 	BYTES=$( stat --printf="%s" "$FILE" )
@@ -362,37 +362,37 @@ last_remote_addr()
 		}
 	} done
 
-	echo "$SUM_WIRELESS_CLIENTS" >'/tmp/SUM_WIRELESS_CLIENTS'
+	echo "$SUM_WIRELESS_CLIENTS" >"$TMPDIR/SUM_WIRELESS_CLIENTS"
 	echo "$ip"
 }
 
 LAST_REMOTE_ADDR="$( last_remote_addr )"
-read SUM_WIRELESS_CLIENTS <'/tmp/SUM_WIRELESS_CLIENTS'
+read SUM_WIRELESS_CLIENTS <"$TMPDIR/SUM_WIRELESS_CLIENTS"
 echo "$(date) | $SUM_WIRELESS_CLIENTS" >>"/var/www/networks/$NETWORK/media/SUM_WIRELESS_CLIENTS.txt"
 
 cd "/var/www/networks/$NETWORK/meshrdf"				# fixme! or better use absolute paths everywhere?
 
 echo     >$TOOLS '#!/bin/sh'
-echo    >>$TOOLS '. /tmp/loader'
+echo    >>$TOOLS '. $TMPDIR/loader'
 echo    >>$TOOLS ''
 echo    >>$TOOLS '	cat >script.sh <<EOF'
-echo    >>$TOOLS '. /tmp/loader'
+echo    >>$TOOLS '. $TMPDIR/loader'
 echo	>>$TOOLS '# case "\$CONFIG_PROFILE" in *ap) touch /www/START_SYSUPGRADE.late ;; esac'
 echo    >>$TOOLS '# killall dropbear'
 echo	>>$TOOLS '# [ -e /www/SIMPLE_MESHNODE ] || { touch /www/SIMPLE_MESHNODE; rm /www/GOOD_MODULE_UNLOAD; reboot; }'
-echo	>>$TOOLS '# [ -e /tmp/fw ] && {'
-echo	>>$TOOLS '# if cp /tmp/fw /www; then'
+echo	>>$TOOLS '# [ -e $TMPDIR/fw ] && {'
+echo	>>$TOOLS '# if cp $TMPDIR/fw /www; then'
 echo    >>$TOOLS '# 	echo >>\$SCHEDULER_IMPORTANT "_firmware check_forced_upgrade"'
 echo    >>$TOOLS '# else'
-echo    >>$TOOLS '# 	rm /tmp/fw'
+echo    >>$TOOLS '# 	rm $TMPDIR/fw'
 echo    >>$TOOLS '# fi'
 echo    >>$TOOLS '# }'
 echo	>>$TOOLS '# _firmware update_pmu testing'
 echo	>>$TOOLS '# uci set wireless.@wifi-iface[0].ssid="Hotel Berlin \$( uci get system.@profile[0].nodenumber )"; uci commit wireless'
-echo	>>$TOOLS "# sed -i \"s/'etx_ff'/'etx_ffeth'/\" /etc/config/olsrd; echo 0 >/tmp/STATS_OLSR_RESTARTS"
-echo    >>$TOOLS "# echo 'autorun' >/tmp/CRON_OVERLOAD"
+echo	>>$TOOLS "# sed -i \"s/'etx_ff'/'etx_ffeth'/\" /etc/config/olsrd; echo 0 >$TMPDIR/STATS_OLSR_RESTARTS"
+echo    >>$TOOLS "# echo 'autorun' >$TMPDIR/CRON_OVERLOAD"
 echo	>>$TOOLS '# while :; do test \$(date +%M) = 44 && break; sleep 1; done; uci set wireless.radio0.channel=11; wifi; sleep 60'
-echo    >>$TOOLS "# rm /tmp/CRON_OVERLOAD"
+echo    >>$TOOLS "# rm $TMPDIR/CRON_OVERLOAD"
 echo	>>$TOOLS ''
 echo    >>$TOOLS '# uci set olsrd.@meta[0].hnaslave=1; uci commit olsrd'
 echo	>>$TOOLS '# uci set olsrd.@olsrd[0].LinkQualityAlgorithm=etx_ffeth'
@@ -404,15 +404,15 @@ echo	>>$TOOLS '#	_firmware update_pmu testing'
 echo	>>$TOOLS '#	_watch monitoring'
 echo	>>$TOOLS '# }'
 echo	>>$TOOLS ''
-echo	>>$TOOLS '# . /tmp/loader; [ "\$( _system uptime min )" -gt 120 ] && reboot'
-echo	>>$TOOLS '# touch "/tmp/START_SYSUPGRADE"'
+echo	>>$TOOLS '# . $TMPDIR/loader; [ "\$( _system uptime min )" -gt 120 ] && reboot'
+echo	>>$TOOLS '# touch "$TMPDIR/START_SYSUPGRADE"'
 echo    >>$TOOLS '# rm "/etc/tarball_last_applied_hash"'
-echo	>>$TOOLS '# scheduler -a ". /tmp/loader; _firmware update_pmu testing"'
+echo	>>$TOOLS '# scheduler -a ". $TMPDIR/loader; _firmware update_pmu testing"'
 echo	>>$TOOLS '# scheduler -a "cron.upgrade_packages"'
 echo	>>$TOOLS '# scheduler -a "cron.monitoring send_alive_message"'
 echo	>>$TOOLS ''
 echo	>>$TOOLS '# starts scp-ing a small file to originator/HNA, just for checking ssh-thrusting works'
-echo	>>$TOOLS '# NN="\$( nvram get fff_node_number )";nvram get wan_hostname >/tmp/NN;. /tmp/loader; sleep "\$( _math random_integer 3 30 )"; scp -i /etc/dropbear/dropbear_dss_host_key /tmp/NN $WIFIADR:/tmp/COPYTEST/\$NN;rm /tmp/NN'
+echo	>>$TOOLS '# NN="\$( nvram get fff_node_number )";nvram get wan_hostname >$TMPDIR/NN;. $TMPDIR/loader; sleep "\$( _math random_integer 3 30 )"; scp -i /etc/dropbear/dropbear_dss_host_key $TMPDIR/NN $WIFIADR:$TMPDIR/COPYTEST/\$NN;rm $TMPDIR/NN'
 echo    >>$TOOLS 'EOF'
 echo    >>$TOOLS ''
 echo    >>$TOOLS "chmod +x script.sh && grep -v ^# script.sh | sed -e 's/^[ ]*//g' -e 's/^[	]*//g' -e '/^$/d'"
@@ -686,7 +686,7 @@ for FILE in $LIST_FILES ; do {
 	}
 
 	# fixme! touch each found neighbour?
-#	echo "NEIGH: '$NEIGH'" >/tmp/debug_table_$$
+#	echo "NEIGH: '$NEIGH'" >$TMPDIR/debug_table_$$
 
 	C=0; for OBJ in $NEIGH; do {		# only when age is low
 		C=$(( $C + 1 ))
@@ -909,7 +909,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 		NODE_AUTO="$(( $NODE_AUTO + 1 ))"
 	else
 		[ -e "recent/autonode$NODE" ] && {
-#			echo -n "rm $NODE, " >>/tmp/debug_table_$$
+#			echo -n "rm $NODE, " >>$TMPDIR/debug_table_$$
 			rm "recent/autonode$NODE"		# now normal node
 		}
 
@@ -919,7 +919,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 				case "$HW" in
 					"disabled_TP-LINK TL-WR1043ND")
 						REM_SPECIALGIT="r31465+tplink"		# was r30563
-						echo -n "$NODE " >>"/tmp/list_specialgit.$$"
+						echo -n "$NODE " >>"$TMPDIR/list_specialgit.$$"
 					;;
 				esac
 			;;
@@ -932,7 +932,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 					;;
 					*)
 						REM_SPECIALGIT="$NETWORK-$HW"
-						echo -n "$NODE " >>"/tmp/list_specialgit.$$"
+						echo -n "$NODE " >>"$TMPDIR/list_specialgit.$$"
 					;;
 				esac
 			;;
@@ -940,19 +940,19 @@ for FILE in $LIST_FILES LASTFILE; do {
 
 		case "$HW" in
 			"disabled_TP-LINK TL-WR1043ND")
-				echo "$HW" >"/tmp/list_specialhw.txt"
-				echo -n "$NODE " >>"/tmp/list_specialhw.$$"
+				echo "$HW" >"$TMPDIR/list_specialhw.txt"
+				echo -n "$NODE " >>"$TMPDIR/list_specialhw.$$"
 			;;
 			'Ubiquiti Bullet M')
-				echo "$HW" >"/tmp/list_specialhw.txt"
-				echo -n "$NODE " >>"/tmp/list_specialhw.$$"
+				echo "$HW" >"$TMPDIR/list_specialhw.txt"
+				echo -n "$NODE " >>"$TMPDIR/list_specialhw.$$"
 			;;
 		esac
 
 		if [ "$WIFIMODE" = "adhoc" ]; then
-			echo -n "$NODE " >>"/tmp/list_adhoc_mode.$$"
+			echo -n "$NODE " >>"$TMPDIR/list_adhoc_mode.$$"
 		else
-			echo -n "$NODE " >>"/tmp/list_ap_mode.$$"
+			echo -n "$NODE " >>"$TMPDIR/list_ap_mode.$$"
 		fi
 
 		echo -n "$NODE " >>$TOOLS
@@ -2298,7 +2298,15 @@ send_mail_telegram()
 			esac
 		;;
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
-		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
+		berlinle)
+			list="$admin hotel-berlin-leipzig|t-online.de"
+
+			case "$hostname" in
+				'EG-rezeption-AP')
+					line=
+				;;
+			esac
+		;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
 		schoeneck)
@@ -2594,29 +2602,29 @@ _cell_lastseen()
 		case "$NETWORK" in
 			# only one router which does monitoring or ALL have inet-offer
 			vivaldi|preskil|hotello-H09|cupandcoffee|paltstadt)
-				[ -e "/tmp/DETECTED_FAULTY_$NETWORK" ] && {
-					rm "/tmp/DETECTED_FAULTY_$NETWORK"
+				[ -e "$TMPDIR/DETECTED_FAULTY_$NETWORK" ] && {
+					rm "$TMPDIR/DETECTED_FAULTY_$NETWORK"
 				}
 			;;
 			# one special node
 			rehungen|spbansin)
 				case "$HOSTNAME" in
 					kindergarten-eschrank-MESH|*-HWR-*)
-						[ -e "/tmp/DETECTED_FAULTY_$NETWORK" ] && {
-							rm "/tmp/DETECTED_FAULTY_$NETWORK"
+						[ -e "$TMPDIR/DETECTED_FAULTY_$NETWORK" ] && {
+							rm "$TMPDIR/DETECTED_FAULTY_$NETWORK"
 						}
 					;;
 				esac
 			;;
 			ffweimar*|galerie*|gnm)
-				[ -e "/tmp/DETECTED_FAULTY_$NETWORK" ] && {
-					rm "/tmp/DETECTED_FAULTY_$NETWORK"
+				[ -e "$TMPDIR/DETECTED_FAULTY_$NETWORK" ] && {
+					rm "$TMPDIR/DETECTED_FAULTY_$NETWORK"
 				}
 			;;
 			*)
 				[ -n "$inet_offer" ] || {
-					[ -e "/tmp/DETECTED_FAULTY_$NETWORK" ] && {
-						rm "/tmp/DETECTED_FAULTY_$NETWORK"
+					[ -e "$TMPDIR/DETECTED_FAULTY_$NETWORK" ] && {
+						rm "$TMPDIR/DETECTED_FAULTY_$NETWORK"
 					}
 				}
 			;;
@@ -2659,7 +2667,7 @@ _cell_lastseen()
 #	case "$NETWORK" in
 #		leonardo)
 #			[ -n "$HOSTNAME" ] && {
-#				echo "$HOSTNAME" >>/tmp/hostnames_leonardo.txt
+#				echo "$HOSTNAME" >>$TMPDIR/hostnames_leonardo.txt
 #			}
 #		;;
 #	esac
@@ -2831,7 +2839,7 @@ _cell_profile ()
 global_wired_neigh_color()
 {
 	local ipoctett="$1"
-	local dir="/tmp/global_wired_neigh_color_$$"
+	local dir="$TMPDIR/global_wired_neigh_color_$$"
 	local file="$dir/$ipoctett"
 	local color
 
@@ -2960,9 +2968,10 @@ _cell_switch()
 						*'-HWR-'*)
 							local mailmarker="/dev/shm/${WIFIMAC}.mail_pppoe"
 
-							if [ $inet_offer_down -eq 0 ]; then
+							# dont give false positives, when only 1 dataset is missing
+							if [ $inet_offer_down -eq 0 -a $inet_offer_up -eq 0 ]; then
 								global_bgcolor='crimson'
-								global_tooltip='ADSL broken'
+								global_tooltip="ADSL broken:$inet_offer"
 
 		[ -e "$mailmarker" ] && {
 			MAIL_AGE=$(( UNIXTIME_SCRIPTSTART - $( date +%s -r "$mailmarker" ) ))	# [sec]
@@ -3778,7 +3787,7 @@ esac
 					# internally fixed since ~45790
 					func_update2color 'bad_version:fstools_broken'
 #				elif [ $rev -ge 44946 -a $rev -lt 45579 ]; then
-#					# fixed in /tmp/loader and used from r45579+
+#					# fixed in $TMPDIR/loader and used from r45579+
 #					# https://dev.openwrt.org/ticket/19539 - visible on dualradio-routers
 #					func_update2color 'bad_version:uci_lists_broken'
 				elif [ $rev -gt 46435 -a $rev -lt 47455 ]; then
@@ -3979,21 +3988,21 @@ case "$NETWORK" in
 			;;
 		esac
 
-		[ -e '/tmp/PORTFW' ] || {
-			echo  >'/tmp/PORTFW' 'case "$WIFIMAC" in'
-			wget -qO - "http://$LAST_REMOTE_ADDR/cgi-bin-tool.sh?OPT=portforwarding_table" | fgrep 'port: 80 ' | sed -n 's/^### \(.*\)/\1/p' >>"/tmp/PORTFW"
-			echo >>'/tmp/PORTFW' '	*) PORT= ;; esac'
-			echo >>'/tmp/PORTFW' '#'
-			sed -i 's/://g' '/tmp/PORTFW'
+		[ -e "$TMPDIR/PORTFW" ] || {
+			echo  >"$TMPDIR/PORTFW" 'case "$WIFIMAC" in'
+			wget -qO - "http://$LAST_REMOTE_ADDR/cgi-bin-tool.sh?OPT=portforwarding_table" | fgrep 'port: 80 ' | sed -n 's/^### \(.*\)/\1/p' >>"$TMPDIR/PORTFW"
+			echo >>"$TMPDIR/PORTFW" '	*) PORT= ;; esac'
+			echo >>"$TMPDIR/PORTFW" '#'
+			sed -i 's/://g' "$TMPDIR/PORTFW"
 
-			cp '/tmp/PORTFW' "/tmp/PORTFW.$NETWORK"
+			cp "$TMPDIR/PORTFW" "$TMPDIR/PORTFW.$NETWORK"
 		}
-		. '/tmp/PORTFW'
+		. "$TMPDIR/PORTFW"
 
 
 		[ -n "$PORT" ] && {
 			# http://ffmpeg.gusari.org/static/32bit/ffmpeg.static.32bit.latest.tar.gz
-			FFMPEG='/var/www/ffmpeg'
+			FFMPEG='/usr/local/bin/ffmpeg'
 			FFMPEG_OPT1='-nostdin -an -f mjpeg -timeout 10M -probesize 32 -analyzeduration 32 -i'
 			FFMPEG_OPT2='-vframes 1 -y'
 			URL="$LAST_REMOTE_ADDR:$PORT/cgi/mjpg/mjpeg.cgi"
@@ -4002,10 +4011,10 @@ case "$NETWORK" in
 			DEST="/var/www/networks/$NETWORK/settings/$WIFIMAC.screenshot.jpg"
 			echo "$URL_PROTECTED" >"${DEST}.link"
 
-			echo "# $(date) $FFMPEG $FFMPEG_OPT1 '$URL' $FFMPEG_OPT2 '$DEST'" >>'/tmp/PORTFW'
+			echo "# $(date) $FFMPEG $FFMPEG_OPT1 '$URL' $FFMPEG_OPT2 '$DEST'" >>"$TMPDIR/PORTFW"
 			# fetching a single JPG from MJPEG
-			$FFMPEG $FFMPEG_OPT1 "$URL" $FFMPEG_OPT2 "$DEST" 	# || echo "err $?" >>/tmp/BLA
-			echo "# $(date): $?" >>'/tmp/PORTFW'
+			$FFMPEG $FFMPEG_OPT1 "$URL" $FFMPEG_OPT2 "$DEST" 	# || echo "err $?" >>$TMPDIR/BLA
+			echo "# $(date): $?" >>"$TMPDIR/PORTFW"
 		}
 
 		PORT=
@@ -4154,8 +4163,8 @@ monitoring_data_per_day()
 
 
 UNIXTIME_SCRIPTREADY="$( date +%s )"
-if [ -e "/tmp/lastready/$NETWORK.lastready" ]; then
-	read UNIXTIME_SCRIPTLASTREADY <"/tmp/lastready/$NETWORK.lastready"
+if [ -e "$TMPDIR/lastready/$NETWORK.lastready" ]; then
+	read UNIXTIME_SCRIPTLASTREADY <"$TMPDIR/lastready/$NETWORK.lastready"
 else
 	UNIXTIME_SCRIPTLASTREADY="$UNIXTIME_SCRIPTREADY"
 fi
@@ -4163,8 +4172,8 @@ fi
 test -z "$UNIXTIME_SCRIPTLASTREADY" && UNIXTIME_SCRIPTLASTREADY="$UNIXTIME_SCRIPTREADY"
 # UNIXTIME_SCRIPTLASTREADY="${UNIXTIME_SCRIPTLASTREADY:-$UNIXTIME_SCRIPTREADY}"
 
-mkdir -p "/tmp/lastready"	# chmod -R 777
-echo "$UNIXTIME_SCRIPTREADY" >"/tmp/lastready/$NETWORK.lastready"
+mkdir -p "$TMPDIR/lastready"	# chmod -R 777
+echo "$UNIXTIME_SCRIPTREADY" >"$TMPDIR/lastready/$NETWORK.lastready"
 
 DURATION_BUILDTIME=$(( $UNIXTIME_SCRIPTREADY - $UNIXTIME_SCRIPTSTART ))
 DURATION_BUILDCYCLE=$(( $UNIXTIME_SCRIPTREADY - $UNIXTIME_SCRIPTLASTREADY ))
@@ -4296,7 +4305,7 @@ show_rrdimages()
 [ $ROUTER_COUNT -gt 0 ] && PERCENT_GOOD=$(( (${NODE_GOOD:-0} * 100) / $ROUTER_COUNT ))
 [ $PERCENT_GOOD -gt 80 ] && touch "/dev/shm/${NETWORK}_good_over_80percent"
 [ $PERCENT_GOOD -lt 50 -a -e "/dev/shm/${NETWORK}_good_over_80percent" ] && {
-	touch "/tmp/DETECTED_FAULTY_$NETWORK"
+	touch "$TMPDIR/DETECTED_FAULTY_$NETWORK"
 }
 
 LINK_GIT_COMMITS="http://www.datenkiste.org/cgi-bin/gitweb.cgi?p=fff;a=summary"
@@ -4317,12 +4326,12 @@ EOF
 echo >>$OUT "</body></html>"
 
 log "copying '$OUT' = ('$( ls -l "$OUT" )') to '$REAL_OUT.temp' pwd: '$(pwd)'"
-cp "$OUT" "$REAL_OUT.temp" 2>/tmp/uuu2 1>/tmp/uuu1 >/tmp/uuu || log "error copy: $? $( cat /tmp/uuu /tmp/uuu1 /tmp/uuu2 )"
-rm /tmp/uuu /tmp/uuu1 /tmp/uuu2
+cp "$OUT" "$REAL_OUT.temp" 2>$TMPDIR/uuu2 1>$TMPDIR/uuu1 >$TMPDIR/uuu || log "error copy: $? $( cat $TMPDIR/uuu $TMPDIR/uuu1 $TMPDIR/uuu2 )"
+rm $TMPDIR/uuu $TMPDIR/uuu1 $TMPDIR/uuu2
 rm "$OUT" || log "error remove"
 # log "copying '$REAL_OUT.temp' = ('$(  ls -l "$REAL_OUT.temp" )') to '$REAL_OUT'"
-cp "$REAL_OUT.temp" "$REAL_OUT" 2>/tmp/uuu2 1>/tmp/uuu1 >/tmp/uuu || log "error copy: $? $( cat /tmp/uuu /tmp/uuu1 /tmp/uuu2 )"
-rm /tmp/uuu /tmp/uuu1 /tmp/uuu2
+cp "$REAL_OUT.temp" "$REAL_OUT" 2>$TMPDIR/uuu2 1>$TMPDIR/uuu1 >$TMPDIR/uuu || log "error copy: $? $( cat $TMPDIR/uuu $TMPDIR/uuu1 $TMPDIR/uuu2 )"
+rm $TMPDIR/uuu $TMPDIR/uuu1 $TMPDIR/uuu2
 # log "see here: '$( ls -l "$REAL_OUT" )'"
 
 bla()
@@ -4366,25 +4375,25 @@ esac
 
 case "$NETWORK" in
 	schoeneck)
-		echo "}" >>'/tmp/schoeneck.dot'
-		dot -Tpng '/tmp/schoeneck.dot' >'/tmp/schoeneck.png'
+		echo "}" >>"$TMPDIR/schoeneck.dot"
+		dot -Tpng "$TMPDIR/schoeneck.dot" >"$TMPDIR/schoeneck.png"
 		# needs: chmod -R 777 /var/www/networks/schoeneck/media
-		cp '/tmp/schoeneck.png' "/var/www/networks/schoeneck/media/map_topology_$LOCALTIME.png"
+		cp "$TMPDIR/schoeneck.png" "/var/www/networks/schoeneck/media/map_topology_$LOCALTIME.png"
 	;;
 esac
 
-if [ -e "/tmp/DETECTED_FAULTY_$NETWORK" ]; then
-	[ -e "/tmp/IS_FAULTY_$NETWORK" ] || {
+if [ -e "$TMPDIR/DETECTED_FAULTY_$NETWORK" ]; then
+	[ -e "$TMPDIR/IS_FAULTY_$NETWORK" ] || {
 		[ ${NODE_GOOD:-0} -gt 0 ] && {
-			touch "/tmp/IS_FAULTY_$NETWORK"
-			echo >>/tmp/faulty_history.txt "$(date): $NETWORK is faulty now"
+			touch "$TMPDIR/IS_FAULTY_$NETWORK"
+			echo >>$TMPDIR/faulty_history.txt "$(date): $NETWORK is faulty now"
 			[ -n "$SMS_ALLOWED" ] && /var/www/scripts/send_sms.sh "$NETWORK" "admin-$MAC" "error_gateway"
 		}
 	}
 else
-	[ -e "/tmp/IS_FAULTY_$NETWORK" ] && {
-		echo >>/tmp/faulty_history.txt "$(date): $NETWORK is GOOD again"
-		rm "/tmp/IS_FAULTY_$NETWORK"
+	[ -e "$TMPDIR/IS_FAULTY_$NETWORK" ] && {
+		echo >>$TMPDIR/faulty_history.txt "$(date): $NETWORK is GOOD again"
+		rm "$TMPDIR/IS_FAULTY_$NETWORK"
 		[ -n "$SMS_ALLOWED" ] && /var/www/scripts/send_sms.sh "$NETWORK" "admin-$MAC" "error_fixed"
 	}
 fi
@@ -4392,19 +4401,19 @@ fi
 echo >>$TOOLS '"'
 echo >>$TOOLS
 echo >>$TOOLS '# adhoc:'
-echo >>$TOOLS "# LIST='$( cat 2>/dev/null /tmp/list_adhoc_mode.$$ && rm /tmp/list_adhoc_mode.$$ )'"
+echo >>$TOOLS "# LIST='$( cat 2>/dev/null $TMPDIR/list_adhoc_mode.$$ && rm $TMPDIR/list_adhoc_mode.$$ )'"
 echo >>$TOOLS '# ap:'
-echo >>$TOOLS "# LIST='$( cat 2>/dev/null /tmp/list_ap_mode.$$ && rm /tmp/list_ap_mode.$$ )'"
+echo >>$TOOLS "# LIST='$( cat 2>/dev/null $TMPDIR/list_ap_mode.$$ && rm $TMPDIR/list_ap_mode.$$ )'"
 echo >>$TOOLS "# special_git: '$REM_SPECIALGIT'"
-echo >>$TOOLS "# LIST='$( cat 2>/dev/null /tmp/list_specialgit.$$ && rm /tmp/list_specialgit.$$ )'"
-echo >>$TOOLS "# special_hardware: '$( cat /tmp/list_specialhw.txt )'"
-echo >>$TOOLS "# LIST='$( cat 2>/dev/null /tmp/list_specialhw.$$ && rm /tmp/list_specialhw.$$ )'"
+echo >>$TOOLS "# LIST='$( cat 2>/dev/null $TMPDIR/list_specialgit.$$ && rm $TMPDIR/list_specialgit.$$ )'"
+echo >>$TOOLS "# special_hardware: '$( cat $TMPDIR/list_specialhw.txt )'"
+echo >>$TOOLS "# LIST='$( cat 2>/dev/null $TMPDIR/list_specialhw.$$ && rm $TMPDIR/list_specialhw.$$ )'"
 echo >>$TOOLS
 echo >>$TOOLS 'ERROR='
 echo >>$TOOLS '[ -n "$1" ] && LIST="$1"'
 echo >>$TOOLS ''
-echo >>$TOOLS '# we can see with "ls -l /tmp/COPYTEST", if scp-ing a small file works'
-echo >>$TOOLS '#mkdir -p /tmp/COPYTEST && echo "created dir /tmp/COPYTEST"; for NODE in $LIST; do touch /tmp/COPYTEST/$NODE; done'
+echo >>$TOOLS '# we can see with "ls -l $TMPDIR/COPYTEST", if scp-ing a small file works'
+echo >>$TOOLS '#mkdir -p $TMPDIR/COPYTEST && echo "created dir $TMPDIR/COPYTEST"; for NODE in $LIST; do touch $TMPDIR/COPYTEST/$NODE; done'
 echo >>$TOOLS ''
 echo >>$TOOLS 'I=0; for NODE in $LIST;do I=$(( $I + 1 )); done; ALL=$I; I=0'
 echo >>$TOOLS 'for NODE in $LIST ;do {'
@@ -4419,9 +4428,9 @@ echo >>$TOOLS '#	ssh -i /etc/dropbear/dropbear_dss_host_key "${WIFIADR}" "pidof 
 echo >>$TOOLS '#		ERROR="$ERROR $NODE"'
 echo >>$TOOLS '#	}'
 echo >>$TOOLS ""
-echo >>$TOOLS '#	if scp -p -i /etc/dropbear/dropbear_dss_host_key /tmp/fw ${WIFIADR}:/tmp ; then'
+echo >>$TOOLS '#	if scp -p -i /etc/dropbear/dropbear_dss_host_key $TMPDIR/fw ${WIFIADR}:/tmp ; then'
 echo >>$TOOLS '#	ping -c 5 $WIFIADR; _tool remote $WIFIADR startshell'
-echo >>$TOOLS '	if scp -p -i /etc/dropbear/dropbear_dss_host_key "script.sh" "${WIFIADR}:/tmp/.autorun"; then'
+echo >>$TOOLS '	if scp -p -i /etc/dropbear/dropbear_dss_host_key "script.sh" "${WIFIADR}:$TMPDIR/.autorun"; then'
 echo >>$TOOLS '		: # watch_sysupgrade'
 echo >>$TOOLS '	else'
 echo >>$TOOLS '		ERROR="$ERROR $NODE"'

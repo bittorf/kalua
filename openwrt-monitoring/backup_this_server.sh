@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# TODO:
+# tar cvf /var/www/files/monilog-2015jan25-2016sep12.tar /var/www/files/openwrt/monilog_*.bz2
+# /tmp/storage/sda1_3.6T/backup_ICVPN/ejbw-pbx scp root@intercity-vpn.de:/root/backup/ejbw/pbx/backup_scripts_* .
+
+
 # see: /root/backup/ejbw/pbx/
 # cd /root/backup/ejbw/pbx/; for F in *.bin; do echo $F; lzma "$F"; done  # appends .lzma
 
@@ -178,7 +183,7 @@ esac
 }
 
 case "$ARG" in
-	port*)
+	'port'*)
 		PORT="$( echo "$ARG" | cut -d':' -f1 | cut -d't' -f2 )"
 		log "using port $PORT"
 		ARG="$( echo "$ARG" | cut -d':' -f2,3 )"
@@ -193,7 +198,7 @@ cd / || exit
 
 [ -e "$TARFILE" ] && {
 	echo "scp-ing tarfile $TARFILE to $ARG - pwd: '$( pwd )'"
-	echo "scp -P $PORT '$TARFILE' $ARG"
+	echo "scp $SCP_SPECIAL_OPTIONS -P $PORT '$TARFILE' $ARG"
 
 	if scp $SCP_SPECIAL_OPTIONS -P $PORT "$TARFILE" $ARG ; then
 		rm "$TARFILE"

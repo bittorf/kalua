@@ -1,14 +1,25 @@
 #!/bin/sh
 
-IPT="/sbin/iptables"
+TMPDIR='/var/run/kalua'		# is a 'tmpfs'
+IPT='/sbin/iptables'
 
-if [ -e "/var/run/server_has_started" ]; then
+if [ -e "$TMPDIR/server_has_started" ]; then
 	:
 else
-	touch "/var/run/server_has_started"
+	touch "$TMPDIR/server_has_started"
+
 	sleep 180
 	/var/www/scripts/send_sms.sh "liszt28" "0176/24223419" "Server intercity-vpn.de/84.38.67.43 has started"
 #	echo 20 >/proc/sys/vm/swappiness
+
+	# generated regulary in 'crontab_example'
+	[ -e '/var/www/backup_tmpdir.tar.gz' ] && {
+		tar tf '/var/www/backup_tmpdir.tar.gz' && {
+			cd / || exit 1
+			tar xzf '/var/www/backup_tmpdir.tar.gz'
+			cd -
+		}
+	}
 fi
 
 file_age_in_sec()
@@ -19,7 +30,7 @@ file_age_in_sec()
 lock()
 {
 	local option="$1"
-	local file="/tmp/LOCKFILE_iptables_whitelister"
+	local file="$TMPDIR/LOCKFILE_iptables_whitelister"
 
 	if [ "$option" = 'remove' ]; then
 		rm "$file"
@@ -40,7 +51,7 @@ lock()
 
 log()
 {
-	local history="/tmp/$( basename $0 ).txt"
+	local history="$TMPDIR/$( basename $0 ).txt"
 
 	logger -s "$0: $1"
 	echo "$( date ) $1" >>"$history"

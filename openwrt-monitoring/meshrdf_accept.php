@@ -39,7 +39,8 @@ if(isset($_GET["log"]) ){
 	$config   = strval($_GET["config"]);	// e.g. 'apphalle_ap'
 	$time	  = strval($_GET["time"]);	// e.g. '1421667011'
 
-	$file = '/tmp/monilog.txt' ;
+	# TMPDIR=/var/run/kalua
+	$file = '/var/run/kalua/monilog.txt' ;
 	file_put_contents($file, $time.' '.$config.' '.$rev.' '.$hostname.' '.$mac.' '.$message . PHP_EOL, FILE_APPEND | LOCK_EX);
 
 	print "OK";
