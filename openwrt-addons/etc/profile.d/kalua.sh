@@ -21,7 +21,7 @@ alias flush='_system ram_free flush'
 alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
 alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
 alias unload='_ u'
-alias dropshell='echo >>$SCHEDULER_IMPORTANT "/etc/init.d/dropbear stop"'
+alias dropshell='echo >>$SCHEDULER_IMPORTANT "/etc/init.d/dropbear stop"; killall dropbear'
 
 read -r LOAD <'/proc/loadavg'
 case "$LOAD" in
