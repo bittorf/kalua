@@ -58,14 +58,28 @@ _http_query_string_sanitize()	# we await the global var 'QUERY_STRING' which is 
 _http_robotstxt_generate()
 {
 	local file="$TMPDIR/robots.txt"
+	local line
 
 	{
 		echo 'User-agent: *'
 		echo 'Disallow: /cgi-bin/'
 		echo
+		echo "# hardware: $HARDWARE hostname: $HOSTNAME"
 
-		# appending as comment: ~15k / 500 lines
-		[ -z "$LOWMEM" ] && _tool sysinfo 'cron' | sed 's/^/# /g'
+		if [ -n "$LOWMEM" ]; then
+			echo "# lowmem-device"
+		else
+			# appending robots.txt-comment: ~15k / 500 lines
+			_tool sysinfo 'cron' >"$file.temp"
+
+			while read -r line; do {
+				echo "# $line"
+			} done <"$file.temp"
+
+			rm "$file.temp"
+		fi
+
+		echo "# end"
 	} >"$file"
 
 	[ -h '/www/robots.txt' ] || ln -sf "$file" '/www/robots.txt'

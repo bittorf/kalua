@@ -6,7 +6,7 @@ smile()
 
 	case "$rc" in
 		0) printf '%s' '2m:)' ;;
-		*) printf '%s' '1m:('; return "$rc" ;;
+		*) printf '%s' '1m8('; return "$rc" ;;
 	esac
 }
 
