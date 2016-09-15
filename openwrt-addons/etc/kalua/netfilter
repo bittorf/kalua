@@ -135,10 +135,23 @@ _netfilter_wondershaper()	# wshaper.htb from http://lartc.org/wondershaper/
 	local funcname='netfilter_wondershaper'
 	local action="${1:-start}"
 	local dev="${2:-$WANDEV}"
-	local downlink="${3:-10000}"	# set values to somewhat less than your actual download/upload speed
-	local uplink="${4:-1000}"	# e.g. 1000 = 1mbit
+	local downlink="$3"	# set values to somewhat less than your actual download/upload speed
+	local uplink="$4"	# e.g. 1000 = 1mbit
 
 	tc -V >/dev/null || return 1
+
+	# LEDE: mac80211: remove the fq-disable hack
+	[ $OPENWRT_REV -ge 10001530 ] && {
+		if [ "$dev" = "$WANDEV" ]; then
+			[ "$( _net local_inet_offer )" = 'wan' ] || return 1
+		else
+			[ -n "$downlink" -o -n "$uplink" ] || return 1
+		fi
+	}
+
+	downlink="${downlink:-10000}"
+	uplink="${uplink:-1000}"
+
 	_log it $funcname daemon info "$action: dev: '$dev'"
 
 	case "$action" in
