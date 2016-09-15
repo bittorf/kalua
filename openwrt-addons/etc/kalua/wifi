@@ -2218,7 +2218,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 				'channel'|'hwmode'|'htmode'|'chanbw')
 					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
 						case "$network" in
-							'any'|'2ghz'|'5ghz')
+							'any'|'anyfreq'|'2ghz'|'5ghz')
 								echo "$i"
 							;;
 							*)
@@ -2230,7 +2230,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 				'ssid'|'mode'|'bssid')
 					out="$( uci -q get "wireless.@wifi-iface[$i].$value" )" && {
 						case "$network" in
-							'any'|'2ghz'|'5ghz')
+							'any'|'anyfreq'|'2ghz'|'5ghz')
 								[ "$out" = "$option" ] && echo "$i"
 							;;
 							*)
@@ -2244,7 +2244,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 			esac
 
 			case "$network" in
-				'any'|'2ghz'|'5ghz')
+				'any'|'anyfreq'|'2ghz'|'5ghz')
 				;;
 				*)
 					return 0
@@ -2600,19 +2600,27 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 _wifi_longshot_name()
 {
+	local band="${1:-anyfreq}"
+	local index radio
+
+	# get 1st index
+	for index in $( _wifi get $band mode adhoc ); do break; done
+	radio="$( uci -q get wireless.@wifi-iface[$index].device )"
+
 	# returns the 'name' and empty + error if 'no_longshot'
-	uci -q get wireless.radio0.longshot
+	uci -q get wireless.${radio}.longshot
 }
 
-_wifi_longshot()	# this works only for single-radio units in adhoc-mode
+_wifi_longshot()	# this works only for all radios on some band in adhoc-mode
 {
-	# TODO: txpower + 2/5GHz?
+	# TODO: txpower
 
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101'
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101' testtime '04:32' testchannel '36...165'
 
 	# option: chantest? chanbwtest? -> testtime 3:50
-	local channel='' chanbw='' node='' mcast_rate='' name='' bssid='' distance=''
+	local channel= chanbw= node= mcast_rate= name= bssid= distance= index= radio=
+	local band='anyfreq'
 
 	# in 802.11n-mode we need the beacons from our neighs for HT-capabilities
 	# https://dev.openwrt.org/ticket/18297
@@ -2620,6 +2628,16 @@ _wifi_longshot()	# this works only for single-radio units in adhoc-mode
 
 	while [ -n "$1" ]; do {
 		case "$1" in
+			'channel')
+				channel="$2"	# must be 1st arg!
+				shift
+
+				if [ $channel -ge 36 ]; then
+					band='5ghz'
+				else
+					band='2ghz'
+				fi
+			;;
 			'distance')
 				# http://jumk.de/pythagoras/
 				distance="$2"
@@ -2637,10 +2655,6 @@ _wifi_longshot()	# this works only for single-radio units in adhoc-mode
 				mcast_rate="$2"
 				shift
 			;;
-			'channel')
-				channel="$2"
-				shift
-			;;
 			'chanbw')
 				chanbw="$2"
 				shift
@@ -2649,33 +2663,32 @@ _wifi_longshot()	# this works only for single-radio units in adhoc-mode
 				for node in $2; do {
 					[ "$NODENUMBER" = "$node" ] && {
 						[ -n "$mcast_rate" ] && {
-							_wifi set adhoc anyfreq mcast_rate "$mcast_rate"
+							_wifi set adhoc $band mcast_rate "$mcast_rate"
 						}
 
 						[ -n "$name" ] && {
-							_wifi set adhoc anyfreq ssid "$name"
+							_wifi set adhoc $band ssid "$name"
 						}
 
 						[ -n "$chanbw" ] && {
-							_wifi set adhoc anyfreq chanbw "$chanbw"
+							_wifi set adhoc $band chanbw "$chanbw"
 						}
 
 						[ -n "$distance" ] && {
 							# use the longest range for point-2-multipoint in [meters] and do not forget the height-diff
 							# and better use 'auto' (dynack/dynamic ack) only for p2p with same slottiming
-							_wifi set adhoc anyfreq distance "$distance"
+							_wifi set adhoc $band distance "$distance"
 						}
 
 						[ -n "$channel" ] && {
 							if [ -n "$bssid" ]; then
-								_wifi set adhoc anyfreq channel "$channel"
-								_wifi set adhoc anyfreq bssid "$bssid"
+								_wifi set adhoc $band channel "$channel"
+								_wifi set adhoc $band bssid "$bssid"
 							else
-								_wifi set adhoc anyfreq channel "$channel" bssid_wellformed
+								_wifi set adhoc $band channel "$channel" bssid_wellformed
 							fi
 
-							# FIXME! think about triple radios and use proper band
-							if [ $channel -le 36 ]; then
+							if [ $channel -ge 36 ]; then
 								_wifi set ap      5ghz 'off'
 								_wifi set anymode 5ghz txpower '19'
 							else
@@ -2685,13 +2698,16 @@ _wifi_longshot()	# this works only for single-radio units in adhoc-mode
 						}
 
 						# TODO: enforce 802.11n only if possible - same like in override_uci_vars
-						_wifi set adhoc   anyfreq htmode 'HT20'
-						_wifi set anymode anyfreq beacon_int $beacon_interval
+						_wifi set adhoc   $band htmode 'HT20'
+						_wifi set anymode $band beacon_int $beacon_interval
 
-						uci set wireless.radio0.longshot="${name:-true}"
+						# band -> radio (1st)
+						for index in $( _wifi get $band mode adhoc ); do break; done
+						radio="$( uci -q get wireless.@wifi-iface[$index].device )"
+						uci set wireless.${radio}.longshot="${name:-true}"
 
 						case "$CONFIG_PROFILE" in
-							rehungen*)
+							'rehungen'*)
 								uci set system.@weblogin[0].blocked='true'
 								uci set dhcp.lan.ignore=1
 								uci set dhcp.wlan.ignore=1
