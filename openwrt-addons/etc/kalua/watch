@@ -5,7 +5,7 @@ _watch_roaming()	# called every 5 min
 	local funcname='watch_roaming'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
 	local bridgedev='mastergate'
-	local ap dev mac mac_list error message i list=
+	local radio ap dev mac mac_list error message i list=
 
 	grep -q "br-$bridgedev:" '/proc/net/dev' || return 0
 
@@ -24,8 +24,19 @@ _watch_roaming()	# called every 5 min
 		esac
 	} done
 
+	# dont check disabled or USB-devices
 	for ap in $( _wifi get any mode ap ); do {
-		_wifi check_disabled "$ap" || list="$list roaming$ap"
+		_wifi check_disabled "$ap" || {
+			radio="$( uci -q get wireless.@wifi-iface[$ap].device )"
+			case "$( uci -q get wireless.${radio}.path )" in
+				''|*'platform/usb'*)
+					_log it $funcname daemon info "[OK] is USB/empty: will not check ap $ap / radio $radio"
+				;;
+				*)
+					list="$list roaming$ap"
+				;;
+			esac
+		}
 	} done
 
 	for dev in $list; do {
