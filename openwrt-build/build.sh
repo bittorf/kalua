@@ -623,6 +623,9 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_witi=y'
 			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-witi-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+
+			# LEDE:
+			# bin/targets/ramips/mt7621/lede-ramips-mt7621-witi-squashfs-sysupgrade.bin
 		;;
 		'Xiaomi Miwifi mini')
 			# https://wiki.openwrt.org/toh/xiaomi/mini
