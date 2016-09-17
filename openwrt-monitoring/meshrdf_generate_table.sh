@@ -280,7 +280,7 @@ USECASE_FILE="$TMPDIR/networks/$NETWORK/usecase.txt"
 # special overrride, e.g. schoeneck
 [ -e "$TMPDIR/function_hostnames_$NETWORK" ] && rm "$TMPDIR/function_hostnames_$NETWORK"
 
-log "start network '$NETWORK' for IP: '$REMOTE_ADDR'"
+log "[START] network '$NETWORK' for IP: '${REMOTE_ADDR:-empty}'"
 
 case "$NETWORK" in
 	'zumnorde'*)
@@ -621,6 +621,8 @@ hostname_sanitizer()
 	local nodenumber_translate="$1"
 	local file="$TMPDIR/function_hostnames_$NETWORK"
 	local database="/var/www/networks/$NETWORK/$NETWORK-hostnames.sh"
+
+	hostnames_override() { :; }
 
 	[ -e "$file" ] || {
 		{
@@ -2300,12 +2302,6 @@ send_mail_telegram()
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
 		berlinle)
 			list="$admin hotel-berlin-leipzig|t-online.de"
-
-			case "$hostname" in
-				'EG-rezeption-AP')
-					line=
-				;;
-			esac
 		;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
@@ -4325,7 +4321,7 @@ EOF
 
 echo >>$OUT "</body></html>"
 
-log "copying '$OUT' = ('$( ls -l "$OUT" )') to '$REAL_OUT.temp' pwd: '$(pwd)'"
+# log "copying '$OUT' = ('$( ls -l "$OUT" )') to '$REAL_OUT.temp' pwd: '$(pwd)'"
 cp "$OUT" "$REAL_OUT.temp" 2>$TMPDIR/uuu2 1>$TMPDIR/uuu1 >$TMPDIR/uuu || log "error copy: $? $( cat $TMPDIR/uuu $TMPDIR/uuu1 $TMPDIR/uuu2 )"
 rm $TMPDIR/uuu $TMPDIR/uuu1 $TMPDIR/uuu2
 rm "$OUT" || log "error remove"
@@ -4442,4 +4438,4 @@ echo >>$TOOLS ''
 echo >>$TOOLS '} done && rm script.sh'
 echo >>$TOOLS "test -n \"\$ERROR\" && echo \"please enter sh $TOOLS '\$ERROR'\""
 
-log "ready in $DURATION_BUILDTIME sec"
+log "[READY] network '$NETWORK' in $DURATION_BUILDTIME sec"

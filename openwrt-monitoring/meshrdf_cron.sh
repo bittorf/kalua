@@ -170,7 +170,6 @@ ignore_network()
 			return 0
 		;;
 		*)
-#			echo "$(date): $network" >>'/var/run/BLA'
 			return 1
 		;;
 	esac
@@ -204,6 +203,29 @@ urlencode()					# SENS: converting chars using a fixed table, where we know the 
 			-e 's/\$/%24/g' \
 			-e 's/\^/%5e/g' \
 			-e 's/ /+/g'
+}
+
+logrotate_monilog()
+{
+	local file="$TMPDIR/monilog.txt"
+	local size datestring final
+	local border=$(( 10 * 1024 * 1024 ))
+	local destdir='/var/www'
+	local destfile="$destdir/$( basename "$file" )"
+
+	[ -e "$file" ] || return 0
+	size="$( stat -c'%s' "$file" )"
+	[ $size -gt $border ] || return 0
+
+	log "logrotate '$file' into '$destdir/'"
+	cp "$file" "$destdir"
+	>"$file"
+	bzip2 --small --best "$destfile"
+
+	datestring=$( date +%s )
+	final="$destfile.$datestring.bz2"
+	mv "$destfile.bz2" "$final"
+	log "logrotate ready: $final"
 }
 
 gen_meshrdf_for_network()
@@ -330,6 +352,7 @@ remove_logs()
 	log "trash: now $( ls -1 /tmp/write_meshrdf.* | wc -l )"
 }
 
+logrotate_monilog
 remove_logs
 optimize_space
 
@@ -367,6 +390,7 @@ IALL=$I
 
 I=0
 for NET in $LIST; do {
+	logrotate_monilog
 	ignore_network "$NET" && continue
 	NET="/var/www/networks/$NET/meshrdf/recent"
 

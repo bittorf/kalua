@@ -120,18 +120,8 @@ case "$ARG" in
 	;;
 	'BACKUPSERVER')
 		# KG-Fries36-AP
-		# test with: ssh -p 10022 $user@87.171.8.197
-
-#		. '/var/www/networks/liszt28/meshrdf/recent/74ea3ae44a96'
-#		IP="$PUBIP_REAL"
-#		LIST_IMPORTANT_IPS=" $IP "
-#
-#		ARG="port10022:bastian@${IP}:daten/bla/incoming-backup/intercity-vpn"
-#		ARG="port10022:root@${IP}:/tmp/hdd/bla/incoming-backup/intercity-vpn"
-#		ARG="port10022:root@${IP}:/tmp/storage/sda2_2.0T/bla/incoming-backup/intercity-vpn"
 		IP='bwireless.mooo.com'
 		LIST_IMPORTANT_IPS=" $( dns2ip "$IP" ) "
-		ARG="port10022:root@${IP}:/tmp/kalua/storage/sda1_3.6T/backup_ICVPN"
 		ARG="port10022:root@${IP}:/tmp/storage/sda1_3.6T/backup_ICVPN"
 #		ARG="port22:bastian@bb.weimarnetz.de:backup-ic"
 

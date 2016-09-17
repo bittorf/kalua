@@ -661,7 +661,9 @@ _http include_js_sorttable
 
 system_version_string()
 {
-	if   [ $OPENWRT_REV -gt 0 ]; then
+	if   [ $OPENWRT_REV -gt 1000000 ]; then
+		echo "LEDE r$(( OPENWRT_REV - 1000000 ))"
+	elif [ $OPENWRT_REV -gt 0 ]; then
 		echo "OpenWrt r$OPENWRT_REV"
 	elif grep -sq ^'PRETTY_NAME=' '/etc/os-release'; then
 		eval $( grep ^'PRETTY_NAME=' '/etc/os-release' )

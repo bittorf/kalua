@@ -5,6 +5,8 @@ MAC="$2"		# max|michi|admin or NUMBER[0-9] (see pingkiller)
 TEMPLATE="$3"		# or free_text
 FEEDBACK="$4"
 
+read -r USER <'/root/sms77_username.txt'
+read -r PASS <'/root/sms77_password.txt'
 
 read -r UP REST </proc/uptime
 UP=${UP%.*}
@@ -209,8 +211,7 @@ case "$TYPE" in
 	;;
 esac
 
-read -r USER <'/root/sms77_username.txt'
-read -r PASS <'/root/sms77_password.txt'
+[ -z "$USER" -o -z "$PASS" ] && exit 1
 
 log "Nummer: '$NUMBER' Zeichen: ${#TEXT}: '$TEXT' url: '$URL'"
 
