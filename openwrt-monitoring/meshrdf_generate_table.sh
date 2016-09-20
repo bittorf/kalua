@@ -2231,6 +2231,7 @@ send_mail_telegram()
 		amalienhof) list="$admin sven.rahaus|gmx.de info|amalienhof-weimar.de" ;;
 		zwickau) list="$admin alrik.badstuebner|web.de" ;;
 		ilm1) list="$admin stefanschlieter|gmail.com is.1|gmx.de andre-blue|gmx.de" ;;
+		wagenplatz) list="$admin platz_fabi|hotmail.com ferdinandhacke|web.de" ;;
 		server)
 			case "$hostname" in
 				'SCC')

@@ -7,30 +7,57 @@
 #                                 WEBSTER NY 14580
 #                                 UNITED STATES
 
-URL="http://standards.ieee.org/regauth/oui/oui.txt"
+URL="$1"
+KEEP=
+
+[ -z "$URL" ] && {
+	URL='http://standards.ieee.org/regauth/oui/oui.txt'
+	URL='http://standards.ieee.org/develop/regauth/oui/oui.txt'
+#	URL='https://code.wireshark.org/review/gitweb?p=wireshark.git;a=blob_plain;f=manuf'
+}
+
 TEMP="/tmp/oui_$$"
 DIR="/var/www/oui"
 FILE="/tmp/oui.txt"
+API='/var/www/scripts/mac2vendor_genfs.api.txt'
+API_LINK='/var/www/oui/api.txt'
 
 mkdir -p "$DIR"
-[ -s "/var/www/oui/api.txt" ] || ln -s "/var/www/scripts/mac2vendor_genfs.api.txt" "/var/www/oui/api.txt"
-wget -qO "$FILE" "$URL"
+[ -s "$API_LINK" ] || ln -s "$API" "$API_LINK"
 
+if [ -e "$URL" ]; then
+	KEEP='true'
+	FILE="$URL"
+else
+	wget -O "$FILE" "$URL"
+fi
+
+CARRIAGE_RETURN="$( printf '\r' )"
 HEX="[0-9a-fA-F]"
 OUI="$HEX$HEX-$HEX$HEX-$HEX$HEX"
 ALL=0
 NEW=0
+I=0
+J=0
 
 while read -r LINE; do {
+	I=$(( I + 1 ))
 	case "$LINE" in
-		"")
+		*$CARRIAGE_RETURN*)
+			J=$(( J + 1 ))
+			LINE="$( echo "$LINE" | tr -d '\r' )"
+		;;
+	esac
+
+	case "$LINE" in
+		'')
 			if [ -n "$LINE1" ]; then
 				[ -e "$DIR/$BYTE1/$BYTE2/$BYTE3" ] || {
 					NEW=$(( NEW + 1 ))
-					mkdir -p            "$DIR/$BYTE1/$BYTE2"
-					cp "$TEMP"          "$DIR/$BYTE1/$BYTE2/$BYTE3"
-					mkdir -p "$(   echo "$DIR/$BYTE1/$BYTE2"        | sed 'y/ABCDEF/abcdef/' )"
-					mv "$TEMP" "$( echo "$DIR/$BYTE1/$BYTE2/$BYTE3" | sed 'y/ABCDEF/abcdef/' )"
+					mkdir -p            "$DIR/$BYTE1/$BYTE2"					# dir/AA/BB
+					cp "$TEMP"          "$DIR/$BYTE1/$BYTE2/$BYTE3"					# dir/AA/BB/CC (txtfile)
+					mkdir -p "$(   echo "$DIR/$BYTE1/$BYTE2"        | sed 'y/ABCDEF/abcdef/' )"	# dir/aa/bb
+					mv "$TEMP" "$( echo "$DIR/$BYTE1/$BYTE2/$BYTE3" | sed 'y/ABCDEF/abcdef/' )"	# dir/aa/bb/cc (txtfile)
 				}
 			else
 				LINE1=
@@ -44,12 +71,11 @@ while read -r LINE; do {
 		$OUI*)
 			ALL=$(( ALL + 1 ))
 			set -- $LINE			# '01-23-45   (hex)                blabla'
-			BYTE1="${LINE%%-*}"		# '01'
-			BYTE2="${LINE#*-}"		# '23-45 ...'
-			BYTE3="${BYTE2#*-}"		# '45 ...'
-			BYTE2="${BYTE2%%-*}"		# '23'
-			set -- $BYTE3
-			BYTE3="$1"			# '45'
+			BYTE1="${1%%-*}"		# '01'
+			BYTE2="${1#*-}"			#    '23-45 ...'
+			BYTE3="${BYTE2#*-}"		#       '45 ...'
+			BYTE2="${BYTE2%%-*}"		#    '23'
+
 			shift 2
 			LINE1="$*"
 			echo  >"$TEMP" "$LINE1"
@@ -65,7 +91,10 @@ while read -r LINE; do {
 		;;
 	esac
 } done <"$FILE"
-rm "$FILE" "$TEMP"
 
-sed -i "s/update on server @ .*/update on server @ $(date)/" /var/www/scripts/mac2vendor_genfs.api.txt
-logger -s "$0: $ALL oui parsed, $NEW new detected"
+[ -z "$KEEP" -a -e "$FILE" ] && rm "$FILE"
+[ -e "$TEMP" ] && rm "$TEMP"
+
+sed -i "s/update on server @ .*/update on server @ $(date)/" "$API"
+logger -s "$0: $I/$J lines from '$FILE' and $ALL oui parsed, $NEW new detected"
+logger -s "$0: wrote: $API into dir $DIR/"
