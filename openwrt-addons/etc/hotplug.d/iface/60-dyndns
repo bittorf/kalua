@@ -15,10 +15,18 @@ case "$ACTION" in
 				logger -s '[OK] no LAN-dhcp on virgin boots'
 			}
 		elif [ "$INTERFACE" = 'loopback' ]; then
-			grep -q ^'[a-z]' '/etc/resolv.conf' || {
-				_log it $ACTION.$INTERFACE daemon alert 'empty resolv.conf'
-				/etc/init.d/dnsmasq restart
-			}
+			I=10
+			while [ $I -gt 0 ]; do {
+				if grep -q ^'[a-z]' '/etc/resolv.conf'; then
+					break
+				elif [ $I -eq 0 ]; then
+					_log it $ACTION.$INTERFACE daemon alert 'empty resolv.conf'
+					/etc/init.d/dnsmasq restart
+				fi
+
+				I=$(( I - 1 ))
+				sleep 1
+			} done
 		fi
 
 		uci -q get network.$INTERFACE.dyndns >/dev/null && {
