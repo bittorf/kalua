@@ -124,8 +124,10 @@ _olsr_hna4_inetoffer()
 	[ "$change" = 'true' ] && {
 		_log it $funcname daemon info "changed config: action: $action reason: $reason"
 
-		grep -q 'PlParam "accept" "0\.0\.0\.0"' '/var/etc/olsrd.conf' || {
-			_olsr daemon restart "$funcname() $reason"
+		[ -e '/var/etc/olsrd.conf' ] && {
+			grep -q 'PlParam "accept" "0\.0\.0\.0"' '/var/etc/olsrd.conf' || {
+				_olsr daemon restart "$funcname() $reason"
+			}
 		}
 	}
 }
@@ -789,25 +791,25 @@ _olsr_daemon()
 					} done
 				;;
 				start|restart)
-					[ -e "/sbin/netifd" ] && {
-						pidof netifd >/dev/null || {
-							_system crashreboot 'olsr_no_netifd'
-						}
-					}
-
 					mkdir -p '/tmp/OLSR'
 					echo >>'/tmp/OLSR/restart_reasons' "$( date ): $REASON"
 
 					[ "$ACTION" = "start" ] && {
 						pidof olsrd >/dev/null && {
-							ACTION="restart"
+							ACTION='restart'
+						}
+					}
+
+					[ -e '/sbin/netifd' ] && {
+						pidof netifd >/dev/null || {
+							_system crashreboot 'olsr_no_netifd'
 						}
 					}
 				;;
 			esac
 
-			if [ "$ACTION" = "restart" ]; then
-				LIST="stop start"
+			if [ "$ACTION" = 'restart' ]; then
+				LIST='stop start'
 			else
 				LIST="$ACTION"
 			fi
