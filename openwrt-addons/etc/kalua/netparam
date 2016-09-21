@@ -69,6 +69,7 @@ _netparam_generate()
 	} done
 
 	_netparam show_wifi_devs
+	_netparam show_roaming
 }
 
 _netparam_wifi()
@@ -116,6 +117,19 @@ _netparam_wifi()
 
 	echo "DEVICE=$device"
 	echo "IFNAME=$ifname"
+}
+
+_netparam_show_roaming()
+{
+	# sets var O2 and O3
+	_netparam roaming_calc_octet2_and_octet3 || return 1
+
+	cat <<EOF
+ROAMING_PRE_LOCAL=24
+ROAMING_NET_LOCAL="100.$O2.$O3.0"
+ROAMING_ADR_LOCAL="100.$O2.$O3.1"	# mastergate
+ROAMING_DHCPSTART_LOCAL="100.$O2.$O3.2"
+EOF
 }
 
 _netparam_fallback_running_interface_values()
@@ -265,4 +279,24 @@ _netparam_check()
 		# rebuild loader / include new version of NETPARAM
 		_ rebuild
 	}
+}
+
+_netparam_roaming_calc_octet2_and_octet3()
+{
+	local nodenumber="${1:-$NODENUMBER}"
+	local i=2
+
+	isnumber "$nodenumber" || return 1
+
+	export O2=64
+	export O3
+
+	while [ $i -lt 1024 ]; do	# each node has it's own uniq /24 DHCP-range
+		O2=$(( O2 + 1 ))	# which must be valid across the whole network
+
+		for O3 in $(seq 0 255);do
+			test "$nodenumber" = "$i" && return
+			i=$(( i + 1 ))
+		done
+	done
 }
