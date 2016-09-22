@@ -5,7 +5,7 @@ _watch_roaming()	# called every 5 min
 	local funcname='watch_roaming'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
 	local bridgedev='mastergate'
-	local radio ap dev mac mac_list error message i list=
+	local file ip ip_list word radio ap dev mac mac_list error message i parameter list=
 
 	grep -q "br-$bridgedev:" '/proc/net/dev' || return 0
 
@@ -56,11 +56,50 @@ _watch_roaming()	# called every 5 min
 			mac_list="$( iw dev "$dev" station dump | sed -n 's/^Station \(.*\) (on.*/\1/p' )"
 
 			for mac in $mac_list; do {
-				fgrep -q "$mac" "$station_list" || {
+				if fgrep -q "$mac" "$station_list"; then
+					# root@box:~ grep 00:1e:65:94:22:52 /proc/net/arp
+					# 100.66.3.186    0x1  0x6   00:1e:65:94:22:52  *  br-mastergate
+					# 100.67.190.252  0x1  0x2   00:1e:65:94:22:52  *  br-mastergate
+
+					ip_list=
+					explode $( grep "$mac" '/proc/net/arp' )
+					for word in $*; do {
+						case "$word" in
+							*'.'*)
+								ip_list="$ip_list $word"
+							;;
+						esac
+					} done
+
+					# TODO: code duplication, see wireless_events.sh
+					for ip in $ip_list; do {
+						ip route get "$ip/32" | fgrep -q " dev br-$bridgedev " || {
+							_log it $funcname daemon info "ip $ip (of $ip_list) not added yet - changed IP?"
+
+							if _net local_inet_offer >/dev/null; then
+								# FIXME! e.g. giancarlo
+								parameter="NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
+							else
+								parameter="NAT_ALIEN_ROAMERS -s $ip -j SNAT --to-source $ANYADR"
+							fi
+
+							$IPT -t nat -I $parameter
+							ip route add "$ip/32" dev br-$bridgedev
+
+							file="$TMPDIR/ROAMING_remove_host_route_$mac"
+							# this file is sourced/executed after 'station del'
+							{
+								echo "$IPT -t nat -D $parameter"
+								echo "ip route del $ip/32 dev br-$bridgedev"
+								echo "rm $file"
+							} >>"$file"
+						}
+					} done
+				else
 					message="$message $i/$mac/$dev"
 					error=$(( error + 1 ))
 					iw dev "$dev" station get $mac >>'/tmp/IWLOG'
-				}
+				fi
 			} done
 		} done
 

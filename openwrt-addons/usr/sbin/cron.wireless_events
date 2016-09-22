@@ -29,9 +29,9 @@ mac2ipv4()	# TODO: better name
 	local freq="$3"
 
 	local dev='br-mastergate'
-	local file="/tmp/ROAMING_remove_host_route_$mac"
+	local file="$TMPDIR/ROAMING_remove_host_route_$mac"
 	local i=20	# loop-retries
-	lcoal signal command ip_list ip=
+	lcoal signal parameter ip_list ip=
 	local server_asked='false'
 
 	[ $freq -lt 3000 ] || i=30	# give more time on 5ghz
@@ -99,6 +99,7 @@ mac2ipv4()	# TODO: better name
 					continue
 				}
 
+				# client local: own HNA4-range
 				if  _net both_ipv4_in_same_subnet "$ip/32" "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL"; then
 						log "$funcname($i) [SUCCESS] no route-set for $mac/$ip needed: our own HNA4-range"
 						_netfilter user_probe "$mac" || {
@@ -110,6 +111,7 @@ mac2ipv4()	# TODO: better name
 								_netfilter user_add "$mac" "$ip"
 							fi
 						}
+				# client alien: IP from another node
 				elif _net both_ipv4_in_same_subnet "$ip/32" "$ROAMING_NET/$ROAMING_PRE"; then
 						log "$funcname($i) is alien/global roamer: $ip"
 
@@ -118,15 +120,15 @@ mac2ipv4()	# TODO: better name
 
 							if _net local_inet_offer >/dev/null; then
 								# FIXME! e.g. giancarlo
-								command="NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
+								parameter="NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
 							else
-								command="NAT_ALIEN_ROAMERS -s $ip -j SNAT --to-source $OLSR_MAIN_IP"
+								parameter="NAT_ALIEN_ROAMERS -s $ip -j SNAT --to-source $OLSR_MAIN_IP"
 							fi
 
-							$IPT -t nat -I $command
+							$IPT -t nat -I $parameter
 							# this file is sourced/executed after 'station del'
 							{
-								echo "$IPT -t nat -D $command"
+								echo "$IPT -t nat -D $parameter"
 								echo "ip route del $ip/32 dev $dev"
 								echo "rm $file"
 							} >"$file"
