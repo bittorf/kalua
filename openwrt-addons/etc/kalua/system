@@ -136,6 +136,7 @@ _system_crashreboot()
 	case "$HARDWARE" in
 		'toomuchreboots'*)
 			_log it $funcname daemon alert "ignoring call: $HARDWARE - $message"
+			rm "$file"
 		;;
 		'UML')
 			_log it $funcname daemon info '[OK] will reboot, crashing will end/stop the UML, if you need this, better use "halt"'
@@ -236,7 +237,10 @@ _system_del_ramdisc()
 	esac
 
 	_log it $funcname daemon info "working on '$name'"
-	if grep -q ^"tmpfs /$name " '/proc/mounts'; then
+
+	# /dev/sda1 /database vfat rw,...	# USB
+	# tmpfs /database tmpfs rw,...		# ramdisk
+	if grep -q " /$name " '/proc/mounts'; then
 		umount "/$name" || {
 			_log it $funcname daemon alert "[ERR] failed to umount /$name"
 			return 1
@@ -248,6 +252,7 @@ _system_del_ramdisc()
 
 	[ -d "/${name:-does_not_exist}" ] && {
 		rm -fR "/${name:-does_not_exist}" || {
+			# e.g. busy
 			_log it $funcname daemon alert "[ERR] failed to remove /$name"
 			return 1
 		}
@@ -281,7 +286,9 @@ _system_add_ramdisc()
 	[ -z "$name" ] && return 1
 
 	# tmpfs /database tmpfs rw,nosuid,nodev,relatime,size=14500k 0 0
-	grep -q ^"tmpfs /$name " '/proc/mounts' || {
+	if grep -q ^"tmpfs /$name " '/proc/mounts'; then
+		_log it $funcname daemon debug "[OK] already mounted: /$name"
+	else
 		if   [ "$option" = 'compressable' ]; then
 			# larger size, if content can be compressed
 			grep -q ^'/dev/zram' '/proc/swaps' && divide=1
@@ -301,7 +308,7 @@ _system_add_ramdisc()
 			_log it $funcname daemon alert "[ERR] mounting $name"
 			return 1
 		}
-	}
+	fi
 }
 
 _system_maintenance_window_active()
