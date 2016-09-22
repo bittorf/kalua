@@ -123,13 +123,12 @@ _system_crashreboot()
 	[ -e '/www/CRASHLOG_WORKS' ] || echo "$funcname() reason: $reason_long =$reason" >>"$PERMLOG"
 
 	{
+		# use shell builtins only (except 'reboot')
 		echo '#!/bin/sh'
-		echo 'echo s >/proc/sysrq-trigger'		# [s]ync
-		echo 'i=128000; while let i-=1; do :; done'	# wait ~10 sec (shell builtins only)
-		echo 'echo c >/proc/sysrq-trigger'		# [c]rash
-		echo '/bin/sleep 15'
-		echo 'i=256000; while let i-=1; do :; done'
-		echo '/bin/sleep 15'
+		echo 'echo s >/proc/sysrq-trigger'	# [s]ync
+		echo 'i=128000; while case $i in 0) false;; *) i=$(( i - 1 ));; esac; do :; done'	# wait ~10 sec
+		echo 'echo c >/proc/sysrq-trigger'	# [c]rash
+		echo 'i=256000; while case $i in 0) false;; *) i=$(( i - 1 ));; esac; do :; done'	# wait ~20 sec
 		echo '/sbin/reboot -f'
 	} >"$file"
 
