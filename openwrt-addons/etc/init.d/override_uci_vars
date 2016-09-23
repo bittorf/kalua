@@ -193,8 +193,10 @@ apply_olsr_roaming()
 				_wifi set ap 2ghz beacon_int '125'
 				_wifi set ap 2ghz txpower '20'
 
-				milliwatt=1
-				echo >>$SCHEDULER "_wifi reduce_txpower_if_compatible_roaming_nodes_are_near 2ghz $milliwatt"
+				bool_true 'system.@monitoring[0].txpower_auto' && {
+					milliwatt=1
+					echo >>$SCHEDULER "_wifi reduce_txpower_if_compatible_roaming_nodes_are_near 2ghz $milliwatt"
+				}
 			}
 		}
 	fi
@@ -1252,6 +1254,7 @@ boot()
 			uci set system.@monitoring[0].nightly_longrange='true'
 			uci set system.@monitoring[0].send_mapapi='true'
 			uci set system.@monitoring[0].ignore_lossyethernet='true'	# FIXME! (10.63.42.125)
+			uci set system.@monitoring[0].txpower_auto='true'
 
 			uci set olsrd.@olsrd[0].LinkQualityAlgorithm='etx_ffeth'
 			pidof olsrd >/dev/null || _olsr hna4_inetoffer stop 'bootup'
@@ -1345,6 +1348,10 @@ boot()
 			esac
 
 			case "$NODENUMBER" in
+				337)
+					# emelio-derzar
+					uci set system.@monitoring[0].txpower_auto='false'
+				;;
 				350)
 					# autostart radio
 					echo >>$SCHEDULER "BUTTON=wps; ACTION=released; grep -q nightly_reboot /tmp/REBOOT_REASON && . /etc/hotplug.d/button/events.sh"
