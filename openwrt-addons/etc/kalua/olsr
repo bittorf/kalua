@@ -93,13 +93,22 @@ _olsr_build_overview_static()		# runs as cron.minutely on vpn-server into '/tmp/
 _olsr_hna4_inetoffer()
 {
 	local funcname='olsr_hna4_inetoffer'
-	local action="$1"		# start | stop
+	local action="$1"		# start | stop | check_active
 	local reason="${2:-no_reason}"
 	local i=0
+	local file='/tmp/OLSR/ALL'
 	local change=
 	local value
 
 	case "$action" in
+		'check_active')
+			if grep -s -A2 ^'Table: HNA' "$file" | grep -q ^'0\.0\.0\.0/0'; then
+				return 0
+			else
+				_olsr daemon restart "$funcname() $action"
+				echo >>$SCHEDULER_NEXTRUN '_olsr hna4_inetoffer check_active'
+			fi
+		;;
 		'start')
 			. /etc/init.d/override_uci_vars
 			uci_already_added olsrd Hna4 netaddr '0.0.0.0' || {
@@ -123,6 +132,7 @@ _olsr_hna4_inetoffer()
 
 	[ "$change" = 'true' ] && {
 		_log it $funcname daemon info "changed config: action: $action reason: $reason"
+		echo >>$SCHEDULER_NEXTRUN '_olsr hna4_inetoffer check_active'
 
 		# /var is a symlink to /tmp (ramdisk)
 		[ -e '/var/etc/olsrd.conf' ] && {
@@ -975,10 +985,12 @@ _olsr_uptime()			# in seconds
 
 _olsr_gateways_get()		# OUT: list with each HNA4-0.0.0.0/0-announcing IP line by line
 {
-	local file="/tmp/OLSR/ALL"	# fixme! make ROUTES
+	local file='/tmp/OLSR/ALL'	# TODO make ROUTES
 	local line
 
-	grep ^"0.0.0.0/0" "$file" | while read -r line; do explode $line; test -n "$3" || echo $2; done
+	# e.g.:
+	# 0.0.0.0/0       10.63.21.97
+	grep ^'0\.0\.0\.0/0' "$file" | while read -r line; do explode $line; test -n "$3" || echo $2; done
 }
 
 _olsr_neigh_random_get()
