@@ -29,7 +29,6 @@ mac2ipv4()	# TODO: better name
 	local freq="$3"
 
 	local dev='br-mastergate'
-	local file="$TMPDIR/ROAMING_remove_host_route_$mac"
 	local i=20	# loop-retries
 	lcoal signal parameter ip_list ip=
 	local server_asked='false'
@@ -130,8 +129,7 @@ mac2ipv4()	# TODO: better name
 							{
 								echo "$IPT -t nat -D $parameter"
 								echo "ip route del $ip/32 dev $dev"
-								echo "rm $file"
-							} >"$file"
+							} >"$TMPDIR/ROAMING_remove_host_route_$mac"
 						else
 							if ip route get "$ip/32" | fgrep -q " dev $dev "; then
 								log "$funcname($i) seems already added $ip"
@@ -223,7 +221,19 @@ worker()
 			# if the condition is old (e.g. 5mins) we should judge new
 			_file age "$kickmarker" -gt 300 && rm -f "$kickmarker"
 
-			if [ -e "$kickmarker" ]; then
+			if [ "$mac" = '50:f5:da:e6:1d:51' ]; then
+				$IPT -I FORWARD -m mac --mac-source $mac -j REJECT
+				log "$txt DASH-BUTTON: blocking it"
+				_log remote "DASH-BUTTON: $mac"
+
+				{
+					echo "log 'DASH-BUTTON gone: $mac'"
+					echo "$IPT -D FORWARD -m mac --mac-source $mac -j REJECT"
+					echo "_log remote 'DASH-BUTTON gone: $mac'"
+				} >>"$TMPDIR/ROAMING_remove_host_route_$mac"
+
+				signal=-3
+			elif [ -e "$kickmarker" ]; then
 				log "$txt found kickmarker, simulating good signal"
 				signal=-2
 			else
@@ -279,12 +289,13 @@ worker()
 			fi
 		;;
 		'del')
-			if [ -e "/tmp/ROAMING_remove_host_route_$mac" ]; then
+			if [ -e "$TMPDIR/ROAMING_remove_host_route_$mac" ]; then
 				if wifidev_now="$( mac_is_active_on_another_dev "$mac" "$wifidev" )"; then
 					log "$txt - alien: deleting route - NO: moved from $wifidev to $wifidev_now"
 				else
 					log "$txt - alien: deleting route"
-					. "/tmp/ROAMING_remove_host_route_$mac"
+					. "$TMPDIR/ROAMING_remove_host_route_$mac"
+					rm "$TMPDIR/ROAMING_remove_host_route_$mac"
 				fi
 			else
 				log "$txt - native (no route del)"
@@ -385,7 +396,7 @@ fi
 				log "EVENT $COUNTER: '$LINE'"
 
 				if [ -e "$TMPDIR/IWLOOP_RESPECT_REGSET" ]; then
-					for FILE in "/tmp/ROAMING_remove_host_route_"*; do {
+					for FILE in "$TMPDIR/ROAMING_remove_host_route_"*; do {
 						[ -e "$FILE" ] && . "$FILE"	# see worker
 					} done
 
