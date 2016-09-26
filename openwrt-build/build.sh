@@ -3361,7 +3361,7 @@ unittest_do()
 
 	log '[START]'
 	log "build and symlink loader: $build_loader"
-	$build_loader || return 1
+	$build_loader "$funcname" || return 1
 
 	ln -s "$build_loader" '/etc/kalua_init' || {
 		sudo ln -s "$build_loader" '/etc/kalua_init' && {

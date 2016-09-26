@@ -22,7 +22,7 @@ generate_script()
 #!/bin/sh
 . /tmp/loader
 wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/tarball.tgz
-cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz; /etc/kalua_init
+cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz; /etc/kalua_init apply_settings
 
 apply_settings()
 {

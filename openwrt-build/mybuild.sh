@@ -507,7 +507,7 @@ build_kalua_update_tarball()
 	rm "$file_timestamp"
 	cd $mydir
 
-	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init"
+	extract="cd /; tar xvzf $tarball; rm $tarball; /etc/kalua_init tarball"
 
 	echo "wrote: '$tarball' size: $( filesize "$tarball" ) bytes with MD5: $( md5sum "$tarball" | cut -d' ' -f1 )"
 	echo "to copy this tarball (timestamp: $last_commit_unixtime_in_hours) to your device, use _on_ the device:"
