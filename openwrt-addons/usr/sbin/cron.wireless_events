@@ -212,6 +212,7 @@ worker()
 	local txt="$funcname($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
 	local permlog="$PERMDIR/station_stats.txt"
 	local station_list="$TMPDIR/stations_ap.txt"
+	local parameter
 
 	case "$mode" in
 		'new')
@@ -223,13 +224,15 @@ worker()
 			_file age "$kickmarker" -gt 300 && rm -f "$kickmarker"
 
 			if [ "$mac" = '50:f5:da:e6:1d:51' ]; then
-				$IPT -I FORWARD -m mac --mac-source $mac -j REJECT
-				log "$txt DASH-BUTTON: blocking it"
+				parameter="PREROUTING -p udp --dport 53 -m mac --mac-source $mac -j MARK --set-mark 0x15"
+				$IPT -t mangle -I $parameter
+				log "$txt DASH-BUTTON: redirect DNS"
+
 				_log remote "DASH-BUTTON: $mac"
 
 				{
 					echo "log 'DASH-BUTTON gone: $mac'"
-					echo "$IPT -D FORWARD -m mac --mac-source $mac -j REJECT"
+					echo "$IPT -t mangle -D $parameter"
 					echo "_log remote 'DASH-BUTTON gone: $mac'"
 				} >>"$TMPDIR/ROAMING_remove_host_route_$mac"
 
