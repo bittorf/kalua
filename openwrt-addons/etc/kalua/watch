@@ -5,7 +5,7 @@ _watch_roaming()	# called every 5 min
 	local funcname='watch_roaming'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
 	local bridgedev='mastergate'
-	local ip ip_list word radio ap dev mac mac_list error message i parameter list=
+	local ip ip_list ip_escaped word radio ap dev mac mac_list error message i parameter list=
 
 	grep -q "br-$bridgedev:" '/proc/net/dev' || return 0
 
@@ -88,11 +88,14 @@ _watch_roaming()	# called every 5 min
 							ip route add "$ip/32" dev br-$bridgedev
 
 							# TODO: log_remote
-							# this file is sourced/executed after 'station del'
-							{
-								echo "$IPT -t nat -D $parameter"
-								echo "ip route del $ip/32 dev br-$bridgedev"
-							} >>"$TMPDIR/ROAMING_remove_host_route_$mac"
+							ip_escaped="$( _sanitizer run "$ip" escape_dots )"
+							grep -q "del $ip_escaped/32 dev" "$TMPDIR/ROAMING_remove_host_route_$mac" || {
+								# this file is sourced/executed after 'station del'
+								{
+									echo "$IPT -t nat -D $parameter"
+									echo "ip route del $ip/32 dev br-$bridgedev"
+								} >>"$TMPDIR/ROAMING_remove_host_route_$mac"
+							}
 						}
 					} done
 				else

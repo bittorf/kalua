@@ -131,6 +131,26 @@ ROAMING_ADR_LOCAL=100.$O2.$O3.1
 ROAMING_PRE_LOCAL=24
 EOF
 }
+						# TODO:
+_netparam_roaming_calc_octet2_and_octet3()	# gateway: 100.64.0.1
+{						# node254:   100.102.54.1
+	local nodenumber="${1:-$NODENUMBER}"	# node300:   100.103.00.1
+	local i=2				# node900:   100.109.00.1
+
+	isnumber "$nodenumber" || return 1
+
+	export O2=64
+	export O3
+
+	while [ $i -lt 1024 ]; do	# each node has it's own uniq /24 DHCP-range
+		O2=$(( O2 + 1 ))	# which must be valid across the whole network
+
+		for O3 in $(seq 0 255);do
+			test "$nodenumber" = "$i" && return
+			i=$(( i + 1 ))
+		done
+	done
+}
 
 _netparam_fallback_running_interface_values()
 {
@@ -285,24 +305,4 @@ _netparam_check()
 		# rebuild loader / include new version of NETPARAM
 		_ rebuild "$funcname"
 	}
-}
-
-_netparam_roaming_calc_octet2_and_octet3()
-{
-	local nodenumber="${1:-$NODENUMBER}"
-	local i=2
-
-	isnumber "$nodenumber" || return 1
-
-	export O2=64
-	export O3
-
-	while [ $i -lt 1024 ]; do	# each node has it's own uniq /24 DHCP-range
-		O2=$(( O2 + 1 ))	# which must be valid across the whole network
-
-		for O3 in $(seq 0 255);do
-			test "$nodenumber" = "$i" && return
-			i=$(( i + 1 ))
-		done
-	done
 }
