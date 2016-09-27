@@ -1967,10 +1967,12 @@ _netfilter_user_dataretention_needed()
 
 _netfilter_set_arp()
 {
+	local funcname='netfilter_set_arp'
 	local nudmode="$1"	# e.g permanent|reachable|del
 	local mac="$2"
 	local ip="$3"
 	local dev="${4:-$( _net mac2dev "$mac" exact )}"
+	local dev_real
 
 	[ -z "$dev" ] && return 1
 
@@ -1986,10 +1988,19 @@ _netfilter_set_arp()
 		;;
 	esac
 
+	# TODO: remove code duplicaton, see net_arp_permanent()
 	# TODO: del/add/change not implemented in busybox-ip-neigh
 	if [ "$nudmode" = 'del' ]; then
 		ip neigh del    $ip dev $dev
 	else
+		[ "$nudmode" = 'permanent' ] && {
+			dev_real="$( _netfilter user_reachable "$mac" "$ip" )"
+			[ "$dev_real" = "$dev" ] || {
+				_log it $funcname daemon info "mac/ip $mac/$ip on wrong dev: '$dev'"
+				return 1
+			}
+		}
+
 		ip neigh add    $ip dev $dev lladdr $mac nud $nudmode 2>/dev/null
 		ip neigh change $ip dev $dev lladdr $mac nud $nudmode 2>/dev/null
 	fi
