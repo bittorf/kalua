@@ -733,12 +733,13 @@ _net_fulltrace()
 
 _net_arp_reset()
 {
+	local mac="$1"
 	local line
 
 	while read -r line; do {
 		# 10.63.196.161  0x1  0x6  00:10:75:2d:80:e1  *  eth0.1
 		explode $line
-		_net arp_permanent "$1" "$4" "$6" 'reachable'
+		[ "${mac:-$4}" = "$4" ] && _net arp_permanent "$1" "$4" "$6" 'reachable'
 	} done <'/proc/net/arp'
 }
 
@@ -2328,27 +2329,26 @@ _net_arp_permanent()
 
         _log it $FUNC daemon info "IP: '$IP' MAC: '$MAC' FORCE: '$FORCE' nudmode: '$nudmode'"
 
-	[ "$MAC" = "00:00:00:00:00:00" ] && {		# fixme! see dhcp-script
-		return 1
-	}
-
-	LINE="$( ip neigh show to $IP 2>/dev/null )"
-	echo "$LINE" | fgrep -i -q " $nudmode" && {
-		_log it $FUNC daemon info "already nud '$nudmode' - do nothing"
-		return
-	}
-
-	if [ -n "$LINE" ]; then
-		MODE="change"
-	else
-		MODE="add"
-	fi
+	# see dhcp-script
+	[ "$MAC" = '00:00:00:00:00:00' ] && return 1
 
 	if _net dev_is_valid "$FORCE"; then
 		DEV="$FORCE"
 		dev_keyword="$DEV (user input)"
 	else
 		DEV="$( _net mac2dev "$MAC" )"		# fixme! probe up to 3 times?
+	fi
+
+	LINE="$( ip neigh show to "$IP" dev "$DEV" 2>/dev/null )"
+	echo "$LINE" | fgrep -i -q " $nudmode" && {
+		_log it $FUNC daemon info "already nud '$nudmode' on dev '$DEV' - do nothing"
+		return
+	}
+
+	if [ -n "$LINE" ]; then
+		MODE='change'
+	else
+		MODE='add'
 	fi
 
  	if [ -z "$DEV" ]; then
