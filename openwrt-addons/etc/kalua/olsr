@@ -546,7 +546,9 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 		_olsr throttle_traffic "$2"
 
 		[ -f "/tmp/OLSR/fixed_arp_$2" ] || {
-			bool_true 'olsrd.@meta[0].fixedarp' && echo >>$SCHEDULER "_olsr force_static_arp $2"
+			bool_true 'olsrd.@meta[0].fixedarp' && {
+				echo >>$SCHEDULER "_olsr force_static_arp $2"
+			}
 		}
 
 		echo "$line" >>'/tmp/OLSR_TMP/LINKS'
@@ -741,11 +743,18 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 _olsr_force_static_arp()	# ATTENTION: a fixed arp-entry leads to strange effects
 {				#	     when we replug wired routers from e.g. lan to wan
 	local ip="$1"
+	local dev="$2"
 	local mac
 
 	[ -e "/tmp/OLSR/fixed_arp_$ip" ] || {
 		mac="$( _net ip2mac "$ip" )" && {
-			_netfilter set_arp permanent "$mac" "$ip" && {
+			[ -z "$dev" ] && {
+				for dev in $WIFI_DEVS ''; do {
+					iw dev "$dev" station get "$mac" >/dev/null && break
+				} done
+			}
+
+			_netfilter set_arp permanent "$mac" "$ip" "$dev" && {
 				touch "/tmp/OLSR/fixed_arp_$ip"
 			}
 		}

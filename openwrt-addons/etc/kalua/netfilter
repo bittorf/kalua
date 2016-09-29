@@ -1677,8 +1677,9 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	local funcname='netfilter_user_reachable'
 	local mac="$1"
 	local ip="$2"
-	local maxtry="${3:-5}"
-	local dev line dev_guess devlist dev_try try
+	local dev="$3"
+	local maxtry="${4:-5}"
+	local line dev_guess devlist dev_try try
 
 	# 00:00:00 = vendor 'xerox', but ofcourse this is invalid and comes from loopback/dhcp
 	[ "$mac" = '00:00:00:00:00:00' ] && return 1
@@ -1691,8 +1692,10 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 
 	# TODO: ip can change when called via dnsmasq: e.g. 02:50:43:34:25:bc - if arping fails? refetch ip via 'ip neigh'
 
-	if [ -n "$DNSMASQ_INTERFACE" ]; then
+	if   [ -n "$DNSMASQ_INTERFACE" ]; then
 		dev_guess="$DNSMASQ_INTERFACE"
+	elif [ -n "$dev" ]; then
+		dev_guess="$dev"
 	else
 		dev_guess="$( _net ip2dev "$ip" )"
 		_log it $funcname daemon info "no DNSMASQ_INTERFACE given, guessed: '$dev_guess'"
@@ -1994,7 +1997,7 @@ _netfilter_set_arp()
 		ip neigh del    $ip dev $dev
 	else
 		[ "$nudmode" = 'permanent' ] && {
-			dev_real="$( _netfilter user_reachable "$mac" "$ip" )"
+			dev_real="$( _netfilter user_reachable "$mac" "$ip" "$dev" )"
 			[ "$dev_real" = "$dev" ] || {
 				_log it $funcname daemon info "mac/ip $mac/$ip on wrong dev: '$dev' or not reachable"
 				return 1
