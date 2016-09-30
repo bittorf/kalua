@@ -739,7 +739,10 @@ _net_arp_reset()
 	while read -r line; do {
 		# 10.63.196.161  0x1  0x6  00:10:75:2d:80:e1  *  eth0.1
 		explode $line
-		[ "${mac:-$4}" = "$4" ] && _net arp_permanent "$1" "$4" "$6" 'reachable'
+
+		[ "${mac:-$4}" = "$4" ] && {
+			_net arp_permanent "$1" "$4" "$6" 'reachable'
+		}
 	} done <'/proc/net/arp'
 }
 
@@ -2369,7 +2372,10 @@ _net_arp_permanent()
  	fi
 
 	_log it $FUNC daemon info "detected physical-device ${dev_keyword:-unknown}: ip neigh $MODE $IP dev $DEV lladdr $MAC nud $nudmode"
-	ip neigh $MODE $IP dev $DEV lladdr $MAC nud "$nudmode" 2>/dev/null
+	ip neigh $MODE $IP dev $DEV lladdr $MAC nud "$nudmode" 2>/dev/null || return $?
+
+	[ -e "$TMPDIR/OLSR/fixed_arp_$IP" ] && rm "$TMPDIR/OLSR/fixed_arp_$IP"
+	return 0
 }
 
 _net_mask2cidr()	# see https://lists.openwrt.org/pipermail/openwrt-devel/2015-June/033540.html
