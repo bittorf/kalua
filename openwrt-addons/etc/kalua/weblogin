@@ -546,8 +546,8 @@ _weblogin_device_or_customer_needs_admin_interaction()
 	bool_true 'system.@weblogin[0].blocked'
 }
 
-_weblogin_login_check()			# fixme! send HOSTNAME?
-{					# fixme! answer must be a challenge/response:	// prevent replay attacks!
+_weblogin_login_check()			# FIXME! send HOSTNAME?
+{					# FIXME! answer must be a challenge/response:	// prevent replay attacks!
 	local funcname='weblogin_login_check'
 	local USER="$1"			#        1. send hash of user/pass
 	local PASS="$2"			#        2. server answers with hash_of(1+my_secret_sshid) + auth=true/false
@@ -555,7 +555,7 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	local SIGNAL="$4"
 	local LANG="$( _i18n lang $5 )"
 	local KEYWORD="$6"		# can be 'plaintext'
-	local free HASH ANSWER dbsize nexthop logprio
+	local free HASH ANSWER dbsize nexthop logprio fixed_password
 
 	case "$( uci -q get system.@weblogin[0].auth_credentials )" in
 		'simple')
@@ -646,6 +646,16 @@ _weblogin_login_check()			# fixme! send HOSTNAME?
 	if   bool_true 'system.@weblogin[0].freelan' && mac_is_from_lan "$MAC"; then
 		_log it $funcname daemon info '[OK] is from LAN'
 		free=1
+	elif fixed_password="$( uci -q get system.@weblogin[0].fixed_password )"; then
+		case "${USER}${PASS}" in
+			"$fixed_password")
+				_log it $funcname daemon info '[OK] fixed_password matches'
+				free=1
+			;;
+			*)
+				_log it $funcname daemon alert "[OK] fixed_password differs: $USER/$PASS"
+			;;
+		esac
 	elif grep -sq "$HASH" "/tmp/USERDB_COPY"; then
 		free=1
 
