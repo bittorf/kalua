@@ -1,23 +1,27 @@
 #!/bin/sh
+. /tmp/loader
 
 pingstat()
 {
 	local ip="$1"
+	local file='/tmp/PING'
 	local line='' packets='' retries=''
 
-	while read -r line; do {
-		case "$line" in
-			*'packets transmitted'*|'round-trip'*)
-				echo -n "$line "
-			;;
-		esac
-	} done <'/tmp/PING'
+	if [ -e "$file" ]; then
+		while read -r line; do {
+			case "$line" in
+				*'packets transmitted'*|'round-trip'*)
+					printf '%s' "$line "
+				;;
+			esac
+		} done <"$file"
+	else
+		printf '%s' 'empty_pingstat()'
+	fi
 
 	# append some wifi TX-debug, e.g.:
 	# bytes: 10.729.533 packets: 35.965 retries: 4230 (=11.76%) failed: 2 avg: -75 bitrate: 39.0
 	ip route get "$ip" | fgrep -q " dev $WIFIDEV " && {
-		. /tmp/loader
-
 		iw dev $WIFIDEV station get "$( _net ip2mac "$ip" )" |
 		 while read -r line; do {
 			case "$line" in
@@ -43,19 +47,20 @@ pingstat()
 
 				*'tx '*|*'signal avg:'*)
 					explode $line
+
 					case "$line" in
 						*' bytes:'*|*' packets:'*|*' retries:'*)
-							echo -n "$2 $( _sanitizer run "$3" number_humanreadable ) "
+							printf '%s' "$2 $( _sanitizer run "$3" number_humanreadable ) "
 
 							if [ -n "$packets" ]; then
 								retries=$3
-								echo -n "($( _math percentof "$retries" "$packets" )%) "
+								printf '%s' "($( _math percentof "$retries" "$packets" )%) "
 							else
 								[ "$2" = 'packets:' ] && packets=$3
 							fi
 						;;
 						*)
-							echo -n "$2 $3 "
+							printf '%s' "$2 $3 "
 						;;
 					esac
 				;;
