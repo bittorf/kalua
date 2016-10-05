@@ -25,11 +25,12 @@ _weblogin_generate_prebuilt_splash_htmlfile()
 _weblogin_html_logoutpage()
 {
 	local funcname='weblogin_html_logoutpage'
+	local ip="$REMOTE_ADDR"
 
 	eval $( _http query_string_sanitize "$funcname" )
 	_http header_mimetype_output "text/html"
 
-	local mac="$( _net ip2mac "$REMOTE_ADDR" )"
+	local mac="$( _net ip2mac "$ip" )"
 	local validate_splashed message
 	local destination="http://$WIFIADR"
 	local wait=5
@@ -54,7 +55,7 @@ _weblogin_html_logoutpage()
 <small>
 <pre>
 technische Details:
-	IP-Adresse:	$REMOTE_ADDR
+	IP-Adresse:	$ip
 	MAC-Adresse:	$mac
 	splashed?:	$validate_splashed
 </pre>
@@ -199,7 +200,7 @@ EOF
 
 	[ -n "$FORM_MOBILE_NUMBER" ] && {
 
-		local mac="$( _net ip2mac $REMOTE_ADDR )"	# fixme! empty mac -> deny
+		local mac="$( _net ip2mac "$REMOTE_ADDR" )"	# FIXME! empty mac -> deny
 
 		[ -e /tmp/login_was_sent_to_mobilenumber_${mac:-unset} ] || {
 
@@ -555,6 +556,7 @@ _weblogin_login_check()			# FIXME! send HOSTNAME?
 	local SIGNAL="$4"
 	local LANG="$( _i18n lang $5 )"
 	local KEYWORD="$6"		# can be 'plaintext'
+	local ip="$REMOTE_ADDR"
 	local free HASH ANSWER dbsize nexthop logprio fixed_password
 
 	case "$( uci -q get system.@weblogin[0].auth_credentials )" in
@@ -748,10 +750,10 @@ _weblogin_login_check()			# FIXME! send HOSTNAME?
 	if   _weblogin device_or_customer_needs_admin_interaction; then
 		[ -n "${USER}${PASS}${MAC}" ] && {
 			if [ -e '/tmp/catch_sms' ]; then
-				_log it catch daemon info "USER: $USER PASS: $PASS MAC: $MAC IP: $REMOTE_ADDR"
+				_log it catch daemon info "USER: $USER PASS: $PASS MAC: $MAC IP: $ip"
 			else
 				nexthop="$( ip route list exact '0.0.0.0/0' | head -n1 | cut -d' ' -f3 )"
-				_log it catch daemon sms "USER: $USER PASS: $PASS MAC: $MAC IP: $REMOTE_ADDR nexthop: $nexthop"
+				_log it catch daemon sms "USER: $USER PASS: $PASS MAC: $MAC IP: $ip nexthop: $nexthop"
 				touch '/tmp/catch_sms'
 			fi
 		}
@@ -816,7 +818,7 @@ _weblogin_login_check()			# FIXME! send HOSTNAME?
 						fi
 					fi
 
-					_log it $funcname daemon alert "wrong credentials: mac: $MAC user: '$USER' pass: '$PASS' hash: '$HASH' DB: $dbsize"
+					_log it $funcname daemon alert "wrong credentials: ip: $ip mac: $MAC user: '$USER' pass: '$PASS' hash: '$HASH' DB: $dbsize"
 				;;
 			esac
 		;;
