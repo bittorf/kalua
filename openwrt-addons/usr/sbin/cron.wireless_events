@@ -207,16 +207,19 @@ worker()
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
 
-	local ip signal wifidev_now timestamp freq signal_try=4
+	local ip signal wifidev_now timestamp signal_try=4
 	local kickmarker="$TMPDIR/kicked_low_signal_$mac-$wifidev"
 	local txt="$funcname($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
 	local permlog="$PERMDIR/station_stats.txt"
 	local station_list="$TMPDIR/stations_ap.txt"
 	local parameter
+	local unixtime="$( date +%s )"
+	local freq="$( _wifi dev2freq "$wifidev" )"
 
 	case "$mode" in
 		'new')
 			echo "$mac $wifidev" >>"$station_list"
+			echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq"
 
 			# if the client is in bad conditions and we
 			# are the only AP near him, we should let him connect.
@@ -273,8 +276,6 @@ worker()
 				test $client_signal -lt $border
 			}
 
-			freq="$( _wifi dev2freq "$wifidev" )"
-
 			if signal_is_bad "${signal:=-1}" "$freq"; then
 				touch "$kickmarker"
 				log "$txt - KICKED early, bad signal: '$signal'"
@@ -293,6 +294,8 @@ worker()
 			fi
 		;;
 		'del')
+			echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq"
+
 			if [ -e "$TMPDIR/ROAMING_remove_host_route_$mac" ]; then
 				if wifidev_now="$( mac_is_active_on_another_dev "$mac" "$wifidev" )"; then
 					log "$txt - alien: deleting route - NO: moved from $wifidev to $wifidev_now"

@@ -17,10 +17,13 @@ case "$QUERY_STRING" in
 		echo 'OK - empty QUERY'
 	;;
 	*'roaming_mac_action'*)
-		mac=;ip=;freq=;node=;hostname=
+		mode=;unixtime=;mac=;ip=;freq=;node=;hostname=
 		eval $( _http query_string_sanitize "$0:roaming_mac_action" )
 
-		echo "$( date '+%X' ): $mac/${ip:-no_ip}/$freq Mhz @ $node/$hostname" >>"$TMPDIR/roaming_debug"
+		# sortable via timestamp
+		timestamp="$( date '+%X' -d @$unixtime )"
+		echo "$unixtime/$timestamp - $mode: $mac/${ip:-no_ip}/$freq Mhz @ $node/$hostname" >>"$TMPDIR/roaming_debug"
+
 		echo 'OK'
 	;;
 	*'roaming_add'*)
