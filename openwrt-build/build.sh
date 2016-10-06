@@ -2201,22 +2201,24 @@ apply_symbol()
 			fi
 		;;
 		'CONFIG_'*)
-			log "CONFIG_-mode => '$symbol'" debug
 			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
 			# e.g. CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=64
+			log "CONFIG_-mode => '$symbol'" debug
+
+			# not in config?
 			grep -sq ^"$symbol"$ "$file" || {
 				pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
 
-				# TODO: more exact?
-				grep -q "$pre" "$file" && {
+				# if already config, but with another value?
+				if grep -q ^"$pre=" "$file"; then
 					log "removing '$pre', was: '$symbol'"
 					# remove symbol
 					# FIXME! use search_and_replace()
 					sed >"$file.tmp" "/${pre}=.*/d" "$file"
 					mv   "$file.tmp" "$file"
-				}
-
-				echo "$symbol" >>"$file"
+				else
+					echo "$symbol" >>"$file"
+				fi
 			}
 		;;
 	esac
