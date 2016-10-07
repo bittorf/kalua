@@ -2205,17 +2205,17 @@ apply_symbol()
 			# e.g. CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=64
 			log "CONFIG_-mode => '$symbol'" debug
 
-			# not in config?
+			# not in config with needed value?
 			grep -sq ^"$symbol"$ "$file" || {
 				pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
 
 				# if already config, but with another value?
 				if grep -q ^"$pre=" "$file"; then
-					log "removing '$pre', was: '$symbol'"
-					# remove symbol
-					# FIXME! use search_and_replace()
-					sed >"$file.tmp" "/${pre}=.*/d" "$file"
-					mv   "$file.tmp" "$file"
+					log "replacing value of '$pre', was: '$symbol'"
+
+					grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
+					echo "$symbol" >>"$file.tmp"		# write symbol
+					mv   "$file.tmp" "$file"		# ready
 				else
 					echo "$symbol" >>"$file"
 				fi
