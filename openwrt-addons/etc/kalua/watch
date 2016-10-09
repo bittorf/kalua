@@ -5,7 +5,7 @@ _watch_roaming()	# called every 60 secs
 	local funcname='watch_roaming'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
 	local bridgedev='mastergate'
-	local ip ip_list ip_escaped word radio ap dev mac mac_list error message i parameter list=
+	local file ip ip_list ip_escaped word radio ap dev mac mac_list error message i parameter list=
 
 	grep -q "br-$bridgedev:" '/proc/net/dev' || return 0
 
@@ -54,7 +54,9 @@ _watch_roaming()	# called every 60 secs
 	error=0
 	for i in 1 2 3 4 5; do {
 		for dev in $( _wifi active_ap_devices ); do {
-			mac_list="$( iw dev "$dev" station dump | sed -n 's/^Station \(.*\) (on.*/\1/p' )"
+			file="$station_list-full-$dev"
+			iw dev "$dev" station dump >"$file"	# so we have a recent dataset (~450 bytes/station)
+			mac_list="$( sed -n 's/^Station \(.*\) (on.*/\1/p' "$file" )"
 
 			for mac in $mac_list; do {
 				if fgrep -q "$mac" "$station_list"; then
@@ -101,7 +103,12 @@ _watch_roaming()	# called every 60 secs
 				else
 					message="$message $i/$mac/$dev"
 					error=$(( error + 1 ))
-					iw dev "$dev" station get $mac >>'/tmp/IWLOG'
+
+					{
+						echo "[START] $funcname() message=$message error=$error"
+						iw dev "$dev" station get "$mac"
+						echo "[READY] $funcname()"
+					} >>'/tmp/IWLOG'
 				fi
 			} done
 		} done

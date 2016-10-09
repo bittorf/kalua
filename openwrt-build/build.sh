@@ -303,6 +303,17 @@ search_and_replace()
 	mv "$file.tmp" "$file"
 }
 
+kconfig_file()
+{
+	# TODO: code duplication see function below
+	local dir kernelversion kconfig
+
+	dir="target/linux/$ARCH_MAIN"
+
+	# config-3.10 -> 3.10
+	kernelversion="$( find "$dir" -name 'config-[0-9]*' | head -n1 | cut -d'-' -f2 )"
+}
+
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
 {
 	local funcname='kernel_commandline_tweak'
@@ -316,7 +327,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		;;
 		'mpc85xx')
 			if [ $( openwrt_revision_number_get ) -ge 45597 ]; then
-				config="target/linux/$ARCH_MAIN/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
+				config="$dir/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
 			else
 				# config-3.10 -> 3.10
 				kernelversion="$( find "$dir" -name 'config-[0-9]*' | head -n1 | cut -d'-' -f2 )"
@@ -1942,6 +1953,18 @@ apply_patches()
 			fi
 		fi
 	} done
+}
+
+apply_kernelsymbol()
+{
+	local funcname='apply_kernelsymbol'
+	local symbol="$1"
+	local file="$( )"	# /home/bastian/openwrt/target/linux/ar71xx/config-4.1
+
+	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
+	# CONFIG_SQUASHFS_EMBEDDED=y
+	# CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1
+
 }
 
 apply_symbol()

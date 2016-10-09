@@ -207,19 +207,17 @@ worker()
 	local mode="$2"		# e.g. 'new' or 'del'
 	local mac="$3"
 
-	local ip signal wifidev_now timestamp signal_try=4
+	local ip signal wifidev_now timestamp parameter signal_try=4
 	local kickmarker="$TMPDIR/kicked_low_signal_$mac-$wifidev"
 	local txt="$funcname($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
 	local permlog="$PERMDIR/station_stats.txt"
 	local station_list="$TMPDIR/stations_ap.txt"
-	local parameter
 	local unixtime="$( date +%s )"
 	local freq="$( _wifi dev2freq "$wifidev" )"
 
 	case "$mode" in
 		'new')
 			echo "$mac $wifidev" >>"$station_list"
-			echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq"
 
 			# if the client is in bad conditions and we
 			# are the only AP near him, we should let him connect.
@@ -239,9 +237,14 @@ worker()
 					echo "_log remote 'DASH-BUTTON gone: $mac'"
 				} >>"$TMPDIR/ROAMING_remove_host_route_$mac"
 
+				signal="$( _wifi signal "$wifidev" "$mac" )"
+				echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq $signal"
 				signal=-3
 			elif [ -e "$kickmarker" ]; then
-				log "$txt found kickmarker, simulating good signal, is: $( _wifi signal "$wifidev" "$mac" )"
+				signal="$( _wifi signal "$wifidev" "$mac" )"
+				log "$txt found kickmarker, simulating good signal, real is: $signal"
+
+				echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq $signal"
 				signal=-2
 			else
 				while [ $signal_try -gt 0 ]; do {
@@ -255,6 +258,8 @@ worker()
 						break
 					fi
 				} done
+
+				echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq $signal"
 			fi
 
 			signal_is_bad()
@@ -294,6 +299,7 @@ worker()
 			fi
 		;;
 		'del')
+			# TODO: signal
 			echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq"
 
 			if [ -e "$TMPDIR/ROAMING_remove_host_route_$mac" ]; then
