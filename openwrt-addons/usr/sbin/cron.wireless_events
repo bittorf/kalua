@@ -102,7 +102,7 @@ mac2ipv4()	# TODO: better name
 				if  _net both_ipv4_in_same_subnet "$ip/32" "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL"; then
 						log "$funcname($i) [SUCCESS] no route-set for $mac/$ip needed: our own HNA4-range"
 						_netfilter user_probe "$mac" || {
-							signal="$( _wifi signal "$wifidev" "$mac" )"
+							signal="$( _wifi signal_get "$wifidev" "$mac" )"
 
 							if   _weblogin login_check  "$mac" ''          "$mac" "$signal"; then
 								_netfilter user_add "$mac" "$ip"
@@ -237,28 +237,17 @@ worker()
 					echo "_log remote 'DASH-BUTTON gone: $mac'"
 				} >>"$TMPDIR/ROAMING_remove_host_route_$mac"
 
-				signal="$( _wifi signal "$wifidev" "$mac" )"
+				signal="$( _wifi signal_get "$wifidev" "$mac" )"
 				echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq $signal"
 				signal=-3
 			elif [ -e "$kickmarker" ]; then
-				signal="$( _wifi signal "$wifidev" "$mac" )"
+				signal="$( _wifi signal_get "$wifidev" "$mac" )"
 				log "$txt found kickmarker, simulating good signal, real is: $signal"
 
 				echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq $signal"
 				signal=-2
 			else
-				while [ $signal_try -gt 0 ]; do {
-					# e.g. '-87' or '0' or '5'
-					signal="$( _wifi signal "$wifidev" "$mac" )"
-
-					if [ ${signal:-0} -eq 0 ]; then
-						signal_try=$(( signal_try - 1 ))
-						sleep 1
-					else
-						break
-					fi
-				} done
-
+				signal="$( _wifi signal_get "$wifidev" "$mac" )"
 				echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq $signal"
 			fi
 
@@ -287,7 +276,7 @@ worker()
 				_wifi kick "$mac" "$wifidev"
 			else
 				ip="$( mac2ipv4 "$mac" "$wifidev" "$freq" )"
-				[ "$signal" = '0' ] && signal="$( _wifi signal "$wifidev" "$mac" )"
+				[ "$signal" = '0' ] && signal="$( _wifi signal_get "$wifidev" "$mac" )"
 
 				txt="$txt - ip: '$ip' signal: '$signal' (is_good)"
 				log "$txt"
@@ -299,8 +288,8 @@ worker()
 			fi
 		;;
 		'del')
-			# TODO: signal
-			echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq"
+			signal="$( _wifi signal_get "$wifidev" "$mac" )"
+			echo >>$SCHEDULER "_net roaming_debug $mode $unixtime $mac '' $freq $signal"
 
 			if [ -e "$TMPDIR/ROAMING_remove_host_route_$mac" ]; then
 				if wifidev_now="$( mac_is_active_on_another_dev "$mac" "$wifidev" )"; then
