@@ -96,14 +96,13 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	local funcname='firmware_update_pmu'
 	local MODE="$1"		# can be a tar-file *OR* e.g. stable|beta|testing
 	local option="$2"	# e.g. force
-	local pwd="$( pwd )"
+	local original_dir="$( pwd )"
 	local storage_border=128
 
 	# 1st update needs more
 	grep -q ^'# this file belongs to kalua' '/etc/kalua/firmware' && storage_border=256
 
-	# TODO: bool_true 'system.@system[0].noswinstall'
-
+	bool_true 'system.@system[0].noswinstall' && return 1
 	[ -e '/etc/init.d/apply_profile' ] && return 1
 
 	[ -e "$MODE" ] || {
@@ -138,7 +137,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	local WORKINGDIR='/tmp/pmu'
 	local FILE='tarball.tgz'
 	local TGZ="/tmp/$FILE"
-	local TEMPFILE CRON_RESTART apply_uci_override
+	local TEMPFILE CRON_RESTART apply_uci_override restart_wireless_events
 	local COUNT=0
 	local COUNT_ERROR=0
 	local banner='/etc/banner'
@@ -263,6 +262,9 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 			}
 
 			case "$( basename "$TEMPFILE" )" in
+				'cron.wireless_events')
+					restart_wireless_events='true'
+				;;
 				'cron'|'S51crond'*)
 					_log it $funcname daemon info "detected changed cron settings"
 					CRON_RESTART=1
@@ -289,20 +291,28 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 	rm '/tmp/filelist'
 
 	cleanup
-	cd $pwd || return
+	cd $original_dir || return
 	echo -n "$hash_tarball" >"$FILE_HASH_APPLIED"
 
 	if [ $COUNT -gt 0 ]; then
 		_ rebuild "$funcname"
-		_() { false;}; . /tmp/loader
+		_() { false;}
+		. /tmp/loader
 
-		[ -n "$apply_uci_override" ] && /etc/init.d/override_uci_vars boot
+		[ -n "$apply_uci_override" ] && {
+			/etc/init.d/override_uci_vars boot
+		}
+
 		[ -n "$CRON_RESTART" ] && {
-			_log it $funcname daemon info "restart cron manually"
+			_log it $funcname daemon info 'please restart cron manually'
+		}
+
+		[ -n "$restart_wireless_events" ] && {
+			_net roaming_eventlistener 'restart' "$funcname"
 		}
 
 		if [ -e "/rom${banner}" ]; then
-			head -n14 "/rom${banner}" >"$banner"
+			head -n14 "/rom${banner}" >"$banner"	# fits for OpenWrt+LEDE
 		else
 			echo >"$banner" '(missing banner)'
 		fi
