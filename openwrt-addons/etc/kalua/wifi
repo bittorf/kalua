@@ -1535,17 +1535,32 @@ _wifi_signal()			# OUT1: signed Integer, -70 [dBm] or list of $MAC+RSSI of all s
 
 _wifi_signal_get()
 {
-	local mac="$1"
-	local dev="$2"
-	local signal=0
-	local line signal
+	local funcname='wifi_signal_get'
+	local dev="$1"
+	local mac="$2"
+	local line age try=0 try_max=10 signal=0 file=
 
-	explode $( iw dev "$dev" station get "$mac" 2>/dev/null || echo 'signal avg: 0' )
-	line="$*"
+	while [ $signal -eq 0 -a -z "$file" -a $try -lt $try_max ]; do {
+		try=$(( try + 1 ))
 
-	# signal avg:	-50 [-60, -54, -53] dBm
-	signal="${line#*signal avg: }"
-	signal="${signal%% *}"		# -50
+		line="$( iw dev "$dev" station get "$mac" 2>/dev/null )" || {
+			file="$TMPDIR/stations_ap.txt-full-$dev"	# see watch_roaming()
+
+			if grep -qs ^"Station ${mac:-empty}" "$file"; then
+				age="$( _file age "$file" 'sec' )"
+				line="$( sed -n "/^Station $mac/,/^Station/p" "$file" )"
+				_log it $funcname daemon info "using $age sec old stats for '$mac' from '$file'"
+			else
+				_log it $funcname daemon info "no data for '$mac'"
+				line='signal: -1 dBm'
+			fi
+		}
+
+		explode $line
+		line="$*"			# signal:    0 dBm
+		signal="${line#*signal: }"	# signal:  -50 [-60, -54, -53] dBm
+		signal="${signal%% *}"		# -50
+	} done
 
 	echo "$signal"
 }

@@ -22,7 +22,9 @@ case "$QUERY_STRING" in
 
 		# sortable via timestamp
 		timestamp="$( date '+%X' -d @$unixtime )"
-		echo "$unixtime/$timestamp - $mode: $mac/${ip:-no_ip}/$freq Mhz/${signal:-?} dBm @ $node/$hostname" >>"$TMPDIR/roaming_debug"
+		ip="${ip:-no_ip}"
+		signal="${signal:-  ?}"
+		echo "$unixtime/$timestamp - $mode: $mac/$ip/$freq Mhz/$signal dBm @ $node/$hostname" >>"$TMPDIR/roaming_debug"
 
 		echo 'OK'
 	;;
