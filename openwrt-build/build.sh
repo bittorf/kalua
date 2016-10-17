@@ -3197,12 +3197,18 @@ check_scripts()
 				if command -v tidy >/dev/null; then
 					case "$( head -n1 "$file" )" in
 						'<!DOCTYPE html>')
-							# http://foswiki.org/Tasks/Item13134
-							log "[IGNORE] cannot check HTML5 '$file' with tidy"
+							log "[IGNORE] tidy/HTML5: '$file' see: http://foswiki.org/Tasks/Item13134"
 						;;
 						*)
-							log "checking '$mimetype' / $file"
-							tidy -errors "$file" || return 1
+							case "$file" in
+								*'map1.html'|*'map2.html')
+									log "[IGNORE] will NOT check '$mimetype' file '$file' (special)"
+								;;
+								*)
+									log "checking '$mimetype' / $file"
+									tidy -errors "$file" || return 1
+								;;
+							esac
 						;;
 					esac
 				else

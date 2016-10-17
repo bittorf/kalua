@@ -54,15 +54,17 @@ show_shellfunction()
 
 	tabs() { for _ in $(seq $i); do printf '	'; done; }
 
-	a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc() { :;}	// very strict
-	b() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
-	c() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
-	d() { grep ^"$name()" "$file"; }				# myfunc() { :;}
-	e() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
+	a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc(){ :;}		// very strict
+	b() { grep ^"$name() {.*}"$ "$file"; }				# myfunc() { :;}	// very strict
+	c() { grep ^"$name()  {.*}"$ "$file"; }				# myfunc()  { :;}	// very strict
+	d() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
+	e() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
+	f() { grep ^"$name()" "$file"; }				# myfunc() { :;}
+	g() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
 	t() { sed -n "/^$( tabs )$name()/,/^$( tabs )}/p" "$file"; }	# 	myfunc()
 
 	i=-5	# will be '1' at first 't' call
-	for method in a b c d e t t t t t t t t t; do {
+	for method in a b c d e f g t t t t t t t t t; do {
 		i=$(( i + 1 ))
 		$method | grep -q ^ && {	# any output?
 			$method			# show it!
