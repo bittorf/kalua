@@ -54,22 +54,26 @@ show_shellfunction()
 
 	tabs() { for _ in $(seq $i); do printf '	'; done; }
 
-	a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc(){ :;}		// very strict
-	b() { grep ^"$name() {.*}"$ "$file"; }				# myfunc() { :;}	// very strict
-	c() { grep ^"$name()  {.*}"$ "$file"; }				# myfunc()  { :;}	// very strict
-	d() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
-	e() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
-	f() { grep ^"$name()" "$file"; }				# myfunc() { :;}
-	g() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
-	t() { sed -n "/^$( tabs )$name()/,/^$( tabs )}/p" "$file"; }	# 	myfunc()
+	_a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc(){ :;}		// very strict
+	_b() { grep ^"$name() {.*}"$ "$file"; }				# myfunc() { :;}	// very strict
+	_c() { grep ^"$name()  {.*}"$ "$file"; }			# myfunc()  { :;}	// very strict
+	_d() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
+	_e() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
+	_f() { grep ^"$name()" "$file"; }				# myfunc() { :;}
+	_g() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
+	_t() { sed -n "/^$( tabs )$name()/,/^$( tabs )}/p" "$file"; }	# myfunc()
 
-	i=-5	# will be '1' at first 't' call
-	for method in a b c d e f g t t t t t t t t t; do {
-		i=$(( i + 1 ))
-		$method | grep -q ^ && {	# any output?
-			$method			# show it!
-			return 0
-		}
+	for method in a b c d e f g XXX t t t t t t t t t; do {
+		if [ "$method" = 'XXX' ]; then
+			i=0	# for tabs()
+		else
+			i=$(( i + 1 ))
+
+			_$method | grep -q ^ && {	# any output?
+				_$method		# show it!
+				return 0
+			}
+		fi
 	} done
 
 	log "[ERR] cannot find function '$name' in file '$file'"

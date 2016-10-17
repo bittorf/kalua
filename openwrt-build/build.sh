@@ -3336,14 +3336,15 @@ travis_prepare()
 bootstrap_codespell()
 {
 	(
-		cd '/run/shm' || return 1
+		cd '/tmp' || return 1
 		git clone https://github.com/lucasdemarchi/codespell.git
 		cd codespell || return 1
 
 		log '[OK] last commit:'
 		git log -1
 
-		ln -s '/run/shm/codespell/codespell.py' "$HOME/codespell.py"
+		log "[OK] symlinking '/tmp/codespell/codespell.py'"
+		ln -s '/tmp/codespell/codespell.py' "$HOME/codespell.py"
 	)
 
 	export PATH="$HOME:$PATH"
@@ -3383,6 +3384,7 @@ unittest_do()
 {
 	local funcname='unittest_do'
 	local start_test build_loader
+	local uid="$( id -u )"
 
 	if [ "$KALUA_DIRNAME" = 'openwrt-build' -o -e '../build.sh' -o -e 'openwrt-build/build.sh' ]; then
 		build_loader='openwrt-addons/etc/kalua_init'
@@ -3393,19 +3395,20 @@ unittest_do()
 	fi
 
 	log '[START]'
-	log "build and symlink loader: $build_loader"
-	$build_loader "$funcname" || return 1
-
-	ln -s "$build_loader" '/etc/kalua_init' || {
-		sudo ln -s "$build_loader" '/etc/kalua_init' && {
-			log "[OK] setting $build_loader -> /tmp/loader symlink needed sudo"
-		}
-	}
+	log "build and symlink loader: $build_loader uid: $uid"
+	if [ $uid -eq 0 ]; then
+		$build_loader "$funcname" || return 1
+		ln -s "$build_loader" '/etc/kalua_init' || return 1
+	else
+		sudo $build_loader "$funcname" || return 1
+		sudo ln -s "$build_loader" '/etc/kalua_init' || return 1
+	fi
+	log "[OK] setting $build_loader -> /tmp/loader symlink needed sudo"
 
 	log "testing '/tmp/loader'"
 	sh -n '/tmp/loader' || return 1
 
-	log "exeuting '$start_test'"
+	log "executing '$start_test'"
 	$start_test 'now' || {
 		log "search for pattern '^--' when this is a shellsheck error"
 		return 1
