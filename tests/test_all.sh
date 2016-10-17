@@ -284,6 +284,7 @@ test_loader_metafunction()
 		log "[ERROR] see file permisions: $( ls -l /kalua/loader )"
 		sudo chmod 0777 '/tmp/loader'
 	}
+	_ rebuild 'autotest'
 	local hash2="$( md5sum '/tmp/loader' )"
 	test "$hash1" = "$hash2" && {
 		log "[ERROR] loader-hash did not changed during rebuild: $hash1"
