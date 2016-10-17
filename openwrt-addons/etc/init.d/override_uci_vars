@@ -25,6 +25,38 @@ force_dnsserver()
 	}
 }
 
+uci_sanitize_wireless_macs()
+{
+	local funcname='uci_sanitize_wireless_macs'
+	local file radio mac mac_old mac_new
+	local summand=1
+	local maclist=
+
+	# see '/etc/hotplug.d/iface/00-netparam'
+	for file in "$PERMDIR/netparam-phy-"[0-9]"-mac"; do {
+		[ -e "$file" ] && {
+			read -r mac <"$file"
+			radio="$( basename "$file" | cut -d'-' -f2 )"
+			maclist="$maclist $mac,$radio"
+		}
+	} done
+
+	for mac in $maclist; do {
+		mac="$(   echo "$mac" | cut -d',' -f1 )"
+		radio="$( echo "$mac" | cut -d',' -f2 )"
+
+		[ "$mac" = "$mac_old" ] && {
+			_log it $funcname daemon info "same mac/phy '$mac/$radio' on different phy's: $maclist"
+			mac_new="$( _net macplus "$mac" "$summand" )"
+			summand=$(( summand + 1 ))
+
+			uci set wireless.radio${radio}.macaddr="$mac_new"
+		}
+
+		mac_old="$mac"
+	} done
+}
+
 uci_remove_section()
 {
 	local check_var="$1"	# e.g. network.@alias[].interface
