@@ -278,11 +278,7 @@ test_loader_metafunction()
 	# test if 'rebuild' works (changed date-string in file - only 1 second accurate)
 	sleep 1
 	local hash1="$( md5sum '/tmp/loader' )"
-	if [ "$( id -u )" -eq 0 ]; then
-		     _ rebuild 'autotest'
-	else
-		sudo _ rebuild 'autotest'
-	fi
+	[ "$( id -u )" -eq 0 ] || chmod 0777 '/tmp/loader'
 	local hash2="$( md5sum '/tmp/loader' )"
 	test "$hash1" = "$hash2" && {
 		log "[ERROR] loader-hash did not changed during rebuild: $hash1"
