@@ -16,7 +16,7 @@ _wifi_active_ap_devices()	# e.g. ' wlan0 wlan1-1 wlan1-2 '
 {
 	# build during hotplug
 	cat "$TMPDIR/WIFI_DEVS_AP" 2>/dev/null || {
-		grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read -r dev; do echo -n " $dev "; done
+		grep ^'interface=' /var/run/hostapd-phy[0-3].conf | cut -d'=' -f2 | while read -r dev; do printf '%s' " $dev "; done
 	}
 }
 
@@ -44,6 +44,7 @@ _wifi_led()	# TODO: no dev = all
 		[ -e '/etc/diag.sh' ] || return 0
 		. /etc/diag.sh
 
+		status_led=
 		get_status_led		# e.g. status_led="ap132:green:status"
 		[ -z "$status_led" ] && return 0
 
@@ -1933,7 +1934,7 @@ _wifi_scan()
 	local dev="${1:-$WIFIDEV}"		# e.g. wlan0
 	local option="$2"			# e.g. <my-special-ssid> or 'mozilla' or <empty>
 	local line value remote signal bssid mhz ssid capability
-	local devindex devname chanbw chanbw_changed
+	local devindex devname chanbw
 	local freq="$( _wifi dev2freq "$dev" )"
 	local temp="$TMPDIR/$funcname.$$"
 	local i=0
@@ -1944,7 +1945,6 @@ _wifi_scan()
 	devindex="$( _wifi get "$devname" index )"
 	case "$chanbw" in
 		5|10)
-			chanbw_changed="$chanbw"
 			_wifi set anymode "$devindex" chanbw 20
 			_wifi phy_restart "$dev" "$funcname() changing chanbw from $chanbw to 20"
 
@@ -1955,7 +1955,6 @@ _wifi_scan()
 			}
 		;;
 		*)
-			chanbw_changed=
 			restore_chanbw() { :; }
 		;;
 	esac

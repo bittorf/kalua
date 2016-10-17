@@ -51,9 +51,12 @@ show_shellfunction()
 	local name="$1"
 	local file="$2"
 	local method i
+	local tab='	'
 
-	tabs() { for _ in $(seq $i); do printf '	'; done; }
+	spaces() { for _ in $( seq ${1:-$i} ); do printf '%s ' ' '; done; }
+	tabs() { for _ in $( seq ${1:-$i} ); do printf '%s ' "$tab"; done; }
 
+	# led_on()  { echo '255' >"$file"; }
 	_a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc(){ :;}		// very strict
 	_b() { grep ^"$name() {.*}"$ "$file"; }				# myfunc() { :;}	// very strict
 	_c() { grep ^"$name()  {.*}"$ "$file"; }			# myfunc()  { :;}	// very strict
@@ -89,7 +92,7 @@ function_seems_generated()
 		case "$name" in
 			'copy_terms_of_use'|'generate_script'|'apply_settings'|'hostname'|'essid')
 			;;
-			'uci'|'mv'|'ip'|'isnumber'|'bool_true'|'_')
+			'mytc'|'ipt'|'uci'|'mv'|'ip'|'isnumber'|'bool_true'|'_')
 				# generated testfile:
 				grep -q ^"# from file 'openwrt-addons/etc/kalua_init" "$file" || {
 					# but needs testing in '/tmp/loader'
@@ -497,6 +500,9 @@ run_test()
 #					sed -i 's/echo -en /printf /g' "$tempfile"		# dito
 #					sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# do not use 'local $var'
 #					sed -i 's/.*shopt.*/# &/g' "$tempfile"
+
+					# SC2119/SC2120 - references arguments, but non are ever passed:
+					sed -i 's/explode $/set -f;set +f -- $/g' "$tempfile"
 
 					case "$file" in
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
