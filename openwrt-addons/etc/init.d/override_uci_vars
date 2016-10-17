@@ -28,29 +28,44 @@ force_dnsserver()
 uci_sanitize_wireless_macs()
 {
 	local funcname='uci_sanitize_wireless_macs'
-	local file radio mac mac_old mac_new
+	local file radio interface mac mac_old mac_new
 	local summand=1
-	local maclist=
+	local maclist_wireless=
+	local maclist_all=
 
 	# see '/etc/hotplug.d/iface/00-netparam'
-	for file in "$PERMDIR/netparam-phy-"[0-9]"-mac"; do {
+	for file in "$PERMDIR/netparam-phy_"[0-9]'-mac-'*; do {
 		[ -e "$file" ] && {
 			read -r mac <"$file"
-			radio="$( basename "$file" | cut -d'-' -f3 )"
-			maclist="$maclist $mac,$radio"
+			radio="$(     basename "$file" | cut -d'-' -f1 )"
+			interface="$( basename "$file" | cut -d'-' -f3 )"
+			maclist_wireless="$maclist_wireless $mac,$radio,$interface"
 		}
 	} done
 
-	for mac in $maclist; do {
-		radio="$( echo "$mac" | cut -d',' -f2 )"
-		mac="$(   echo "$mac" | cut -d',' -f1 )"
+	for file in "$PERMDIR/netparam_iface-"*'-mac'; do {
+		[ -e "$file" ] && {
+			read -r mac <"$file"
+			maclist_all="$maclist_all $mac"
+		}
+	} done
+
+	for mac in $maclist_wireless; do {
+		interface="$(	echo "$mac" | cut -d',' -f3 )"
+		radio="$(	echo "$mac" | cut -d',' -f2 )"
+		mac="$(		echo "$mac" | cut -d',' -f1 )"
 
 		[ "$mac" = "$mac_old" ] && {
-			_log it $funcname daemon info "same mac/phy '$mac/$radio' on different phy's: $maclist"
-			mac_new="$( _net macplus "$mac" "$summand" )"
-			summand=$(( summand + 1 ))
+			_log it $funcname daemon info "same mac/phy '$mac/$radio/$interface' on different phy's: $maclist_wireless"
 
-			uci set wireless.radio${radio}.macaddr="$mac_new"
+			while :; do {
+				mac_new="$( _net macplus "$mac" "$summand" )"
+				summand=$(( summand + 1 ))
+				_list contains_element "$maclist_all" "$mac_new" || break
+			} done
+
+			_log it $funcname daemon info "setting: wireless.${interface}.macaddr='$mac_new' (was: '$mac')"
+			uci set wireless.${interface}.macaddr="$mac_new"
 		}
 
 		mac_old="$mac"
