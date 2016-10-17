@@ -3346,7 +3346,8 @@ bootstrap_codespell()
 bootstrap_shellsheck()
 {
 	[ -n "$TRAVIS" ] && {
-		local url='http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-5_amd64.deb'
+#		local url='http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-5_amd64.deb'
+		local url='http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.4.4-2_amd64.deb'
 		wget -O 'shellsheck.deb' "$url"
 		sudo dpkg -i 'shellsheck.deb'
 		return 0
