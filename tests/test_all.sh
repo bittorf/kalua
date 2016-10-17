@@ -53,8 +53,9 @@ show_shellfunction()
 	local method i
 	local tab='	'
 
-	spaces() { for _ in $( seq ${1:-$i} ); do printf '%s ' ' '; done; }
-	tabs() { for _ in $( seq ${1:-$i} ); do printf '%s ' "$tab"; done; }
+#	spaces() { for _ in $( seq ${1:-$i} ); do printf '%s ' ' '; done; }
+#	tabs() { for _ in $( seq ${1:-$i} ); do printf '%s ' "$tab"; done; }
+	tabs() { for _ in $( seq $i ); do printf '%s ' "$tab"; done; }
 
 	# led_on()  { echo '255' >"$file"; }
 	_a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc(){ :;}		// very strict
