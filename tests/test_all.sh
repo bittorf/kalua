@@ -280,7 +280,8 @@ test_loader_metafunction()
 	local hash1="$( md5sum '/tmp/loader' )"
 	[ "$( id -u )" -eq 0 ] || {
 		log "[ERROR] USER: '$USER' workaround needed sudo: $( ls -l '/tmp/loader' )"
-		sudo chown $USER '/tmp/loader'
+		sudo chown $USER:$USER '/tmp/loader'
+		log "[ERROR] see file permisions: $( ls -l /kalua/loader )"
 		sudo chmod 0777 '/tmp/loader'
 	}
 	local hash2="$( md5sum '/tmp/loader' )"
