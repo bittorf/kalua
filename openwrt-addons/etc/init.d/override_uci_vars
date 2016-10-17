@@ -28,7 +28,7 @@ force_dnsserver()
 uci_sanitize_wireless_macs()
 {
 	local funcname='uci_sanitize_wireless_macs'
-	local file radio interface mac mac_old mac_new
+	local file radio interface mac mac_old mac_new network index
 	local summand=1
 	local maclist_wireless=
 	local maclist_all=
@@ -64,8 +64,16 @@ uci_sanitize_wireless_macs()
 				_list contains_element "$maclist_all" "$mac_new" || break
 			} done
 
-			_log it $funcname daemon info "setting: wireless.${interface}.macaddr='$mac_new' (was: '$mac')"
-			uci set wireless.${interface}.macaddr="$mac_new"
+			for index in 0 1 2 3 4 5 6 7 8; do {
+				network="$( uci -q get wireless.@wifi-iface[$index].network )"
+				[ "$network" = "$interface" ] && {
+					network="@wifi-iface[$index]"
+					break
+				}
+			} done
+
+			_log it $funcname daemon info "setting: wireless.${network}.macaddr='$mac_new' (was: '$mac')"
+			uci set wireless.${network}.macaddr="$mac_new"
 		}
 
 		mac_old="$mac"
