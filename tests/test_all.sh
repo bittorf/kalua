@@ -116,7 +116,7 @@ show_shellfunction()
 
 	while ! is_parseable "$temp_script"; do {
 		if [ $line_end -gt $lines_max ]; then
-			log "[ERR] cannot find end of function '$name' in line $line_end file: $file"
+			log "[ERR] cannot find end of function '$name' in line $line_end (start: $line_start) file: $file"
 			log "[ERR] script: '$( ls -l "$temp_script" )'"
 			rc=1
 			break
