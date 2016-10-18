@@ -3314,7 +3314,8 @@ travis_prepare()
 
 	# http://ctags.sourceforge.net -> buggy
 	# https://github.com/universal-ctags/ctags.git
-	command -v 'ctags'	|| bootstrap_ctags		|| return 1
+	bootstrap_ctags		|| return 1
+
 	command -v 'pip'	|| do_install 'pip'		|| return 1	# for codespell
 	# https://github.com/lucasdemarchi/codespell
 	command -v 'codespell.py' || sudo pip install codespell	|| return 1
