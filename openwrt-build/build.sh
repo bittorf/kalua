@@ -3294,7 +3294,10 @@ myarch()
 travis_prepare()
 {
 	log "[OK] debug 'mount'/'ip'"
-	mount && ip address show
+	echo '# ---'
+	mount
+	ip address show
+	echo '# ---'
 
 	local apt_updated=
 	do_install()
@@ -3309,6 +3312,9 @@ travis_prepare()
 		sudo apt-get -y install "$@"
 	}
 
+	# http://ctags.sourceforge.net
+	command -v 'ctags'	|| do_install 'ctags'		|| return 1
+	# https://github.com/lucasdemarchi/codespell
 	command -v 'codespell.py' || bootstrap_codespell	|| return 1
 	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
 	command -v 'sloccount'	|| do_install 'sloccount'	|| return 1

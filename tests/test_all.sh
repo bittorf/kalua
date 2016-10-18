@@ -14,10 +14,17 @@ list_shellfunctions()
 	local file="$1"
 	local line
 
-	# see https://github.com/koalaman/shellcheck/issues/529
-	grep -s '^[ 	]*[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1 | while read -r line; do {
-		echo "$line"
-	} done
+	if command -v 'ctags' >/dev/null; then
+		ctags -x "$file" |
+		 while read -r line; do {
+			# myfunc   function   60 /path/to/file    myfunc () { # bla foo
+			explode $line
+			echo "$1"
+		} done
+	else
+		log "[ERR] please install 'ctags'"
+		return 1
+	fi
 }
 
 show_shellfunction_usage_count()
@@ -48,40 +55,66 @@ show_shellfunction_usage_count()
 
 show_shellfunction()
 {
+	local funcname='show_shellfunction'
 	local name="$1"
 	local file="$2"
-	local method i
-	local tab='	'
+	local line line_start line_end lines_max rc=0
+	local temp_script="$TMPDIR/$funcname-$$"
 
-#	spaces() { for _ in $( seq ${1:-$i} ); do printf '%s ' ' '; done; }
-#	tabs() { for _ in $( seq ${1:-$i} ); do printf '%s ' "$tab"; done; }
-	tabs() { for _ in $( seq $i ); do printf '%s ' "$tab"; done; }
+	command -v 'ctags' >/dev/null || {
+		log "[ERR] please install 'ctags'"
+		return 1
+	}
 
-	# led_on()  { echo '255' >"$file"; }
-	_a() { grep ^"$name(){.*}"$ "$file"; }				# myfunc(){ :;}		// very strict
-	_b() { grep ^"$name() {.*}"$ "$file"; }				# myfunc() { :;}	// very strict
-	_c() { grep ^"$name()  {.*}"$ "$file"; }			# myfunc()  { :;}	// very strict
-	_d() { sed -n "/^$name()/,/^}$/p"  "$file"; }			# myfunc()
-	_e() { sed -n "/^$name ()/,/^}$/p" "$file"; }			# myfunc ()
-	_f() { grep ^"$name()" "$file"; }				# myfunc() { :;}
-	_g() { grep ^"$name ()" "$file"; }				# myfunc () { :;}
-	_t() { sed -n "/^$( tabs )$name()/,/^$( tabs )}/p" "$file"; }	# myfunc()
+	starting_line()
+	{
+		ctags -x "$file" |
+		 while read -r line; do {
+			# myfunc   function   60 /path/to/file    myfunc () { # bla foo
+			explode $line
 
-	for method in a b c d e f g XXX t t t t t t t t t; do {
-		if [ "$method" = 'XXX' ]; then
-			i=0	# for tabs()
+			case "$1" in
+				"$name"*)
+					echo "$3"
+					break
+				;;
+			esac
+		} done
+	}
+
+	line_start="$( starting_line )"
+	if [ -n "$line_start" ]; then
+		line_end="$line_start"
+		lines_max="$( wc -l <"$file" )"
+	else
+		log "[ERR] cannot find function '$name' in file '$file'"
+		return 1
+	fi
+
+	>"$temp_script"
+	chmod +x "$temp_script"
+
+	is_parseable()
+	{
+		test -s "$temp_script" || return 1
+		sh -c "$temp_script" 2>/dev/null
+	}
+
+	while ! is_parseable "$temp_script"; do {
+		if [ $line_end -gt $lines_max ]; then
+			log "[ERR] cannot find end of function '$name'"
+			rc=1
+			break
 		else
-			i=$(( i + 1 ))
-
-			_$method | grep -q ^ && {	# any output?
-				_$method		# show it!
-				return 0
-			}
+			sed -n "${line_start},${line_end}p" "$file" >"$temp_script"
+			line_end=$(( line_end + 1 ))
 		fi
 	} done
 
-	log "[ERR] cannot find function '$name' in file '$file'"
-	return 1
+	cat "$temp_script"
+	rm "$temp_script"
+
+	return $rc
 }
 
 function_seems_generated()

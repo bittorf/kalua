@@ -24,6 +24,7 @@ case "$QUERY_STRING" in
 		timestamp="$( date '+%X' -d @$unixtime )"
 		ip="${ip:-no_ip}"
 		signal="${signal:-  ?}"
+		signal="$( printf '%3s' "$signal" )"
 		echo "$unixtime/$timestamp - $mode: $mac/$ip/$freq Mhz/$signal dBm @ $node/$hostname" >>"$TMPDIR/roaming_debug"
 
 		echo 'OK'
