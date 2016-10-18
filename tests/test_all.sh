@@ -62,7 +62,7 @@ show_shellfunction()
 	local funcname='show_shellfunction'
 	local name="$1"
 	local file="$2"
-	local line line_start line_end lines_max rc=0
+	local diff line line_start line_end lines_max rc=0
 	local temp_script="$TMPDIR/$funcname-$$"
 
 	command -v 'ctags' >/dev/null || {
@@ -123,6 +123,8 @@ show_shellfunction()
 		else
 			sed -n "${line_start},${line_end}p" "$file" >"$temp_script"
 			line_end=$(( line_end + 1 ))
+			diff=$(( line_end - line_start ))
+			[ $(( diff % 100 )) -eq 0 ] && log "(function '$name' - seeking +$diff)"
 		fi
 	} done
 
@@ -368,7 +370,7 @@ run_test()
 	local count_functions=0
 	local good='true'
 	local tab='	'
-	local files_overall=0 files_checked=0 functions_overall=0 functions_checked=0
+	local functions_overall=0 functions_checked=0
 
 	log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + diskspace"
 	echo "'$HARDWARE' + '$SHELL' + '$USER'"
@@ -505,7 +507,8 @@ run_test()
 		# count shell-functions (same filter like next loop)
 		while read -r file; do {
 			case "$file" in
-				'openwrt-build/mybuild.sh')
+				'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh')
+					log "[OK] ignoring '$file'"
 				;;
 				*)
 					for name in $( list_shellfunctions "$file" ); do {
@@ -516,12 +519,9 @@ run_test()
 		} done <"$filelist"
 		log "[OK] will check $functions_overall shell-functions"
 
-		files_overall="$( wc -l <"$filelist" )"
 		while read -r file; do {
-			files_checked=$(( files_checked + 1 ))
-
 			case "$file" in
-				'openwrt-build/mybuild.sh')
+				'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh')
 					log "[OK] ignoring '$file' - deprecated/unused/too_buggy"
 					continue
 				;;

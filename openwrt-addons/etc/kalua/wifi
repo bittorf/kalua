@@ -228,9 +228,9 @@ _wifi_change_essid_ap()
 	hash1="$( uci show wireless | md5sum )"
 	for i in $( _wifi get any mode ap ); do {
 		if [ "$option" = 'original' ]; then
-			essid="$( uci -q get wireless.@wifi-iface[$i].ssid_old )" || continue
-			uci delete wireless.@wifi-iface[$i].ssid_old
-			uci set wireless.@wifi-iface[$i].ssid="${essid:-$CONFIG_PROFILE-$NODENUMBER}"
+			essid="$( uci -q get "wireless.@wifi-iface[$i].ssid_old" )" || continue
+			uci delete "wireless.@wifi-iface[$i].ssid_old"
+			uci set "wireless.@wifi-iface[$i].ssid"="${essid:-$CONFIG_PROFILE-$NODENUMBER}"
 
 			[ -e "$file" ] && {
 				age="$( _file age "$file" humanreadable)"
@@ -239,9 +239,9 @@ _wifi_change_essid_ap()
 			}
 		else
 			touch "$file"
-			essid="$( uci get wireless.@wifi-iface[$i].ssid )"
-			uci set wireless.@wifi-iface[$i].ssid_old="$essid"
-			uci set wireless.@wifi-iface[$i].ssid="$( _i18n get "$LANG" maintenance_mode "$NODENUMBER/$i" )"
+			essid="$( uci get "wireless.@wifi-iface[$i].ssid" )"
+			uci set "wireless.@wifi-iface[$i].ssid_old"="$essid"
+			uci set "wireless.@wifi-iface[$i].ssid"="$( _i18n get "$LANG" maintenance_mode "$NODENUMBER/$i" )"
 
 			# FIXME! this should go to another function and switched back, if net is OK again
 			_wifi set anymode 2ghz txpower '20'
@@ -1766,7 +1766,7 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 
 	isnumber "$ifindex" || ifindex="$( _wifi get "$ifindex" mode ap )"
 
-	name="$( uci get wireless.@wifi-iface[$ifindex].network )"	# e.g. wlanRADIO1
+	name="$( uci get "wireless.@wifi-iface[$ifindex].network" )"	# e.g. wlanRADIO1
 	read -r dev <"/var/run/interfaces/name2dev_$name"		# e.g. wlan1-1
 
 	[ -z "$ssid" ] && ssid="$( _wifi get "$name" ssid )"
@@ -1777,7 +1777,7 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 
 	[ $border -le ${signal:--100} ] && {
 		_log it $funcname daemon info "reducing to: $txpower_milliwatt/$txpower_mBm [mW/mBm] to dev $dev index $ifindex"
-		_wifi set ap "$ifindex" txpower "$txpower_milliwatt"	# beeing consistent (e.g. wifi up)
+		_wifi set ap "$ifindex" txpower "$txpower_milliwatt"	# being consistent (e.g. wifi up)
 		iw dev "$dev" set txpower fixed "$txpower_mBm"		# and hot-apply
 
 		_log remote "txpower: $txpower_milliwatt mW (signal: $signal ssid: $ssid)"
@@ -2189,7 +2189,7 @@ _wifi_check_disabled()
 	radio="$( uci -q get "wireless.@wifi-iface[$index].device" )"
 	bool_true "wireless.$radio.disabled"
 
-	# TODO: nonexistant indexes return 'false'
+	# TODO: nonexistent indexes return 'false'
 }
 
 _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
@@ -2206,7 +2206,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 		local index="$2"
 		local uci_value
 
-		uci_value="$( uci -q get wireless.@wifi-iface[$index].network )" || {
+		uci_value="$( uci -q get "wireless.@wifi-iface[$index].network" )" || {
 			value='no_more_interfaces'
 			return 0
 		}
@@ -2236,7 +2236,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 					echo "$i"
 				;;
 				'channel'|'hwmode'|'htmode'|'chanbw')
-					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
+					radio="$( uci -q get "wireless.@wifi-iface[$i].device" )" && {
 						case "$network" in
 							'any'|'anyfreq'|'2ghz'|'5ghz')
 								echo "$i"
@@ -2326,7 +2326,7 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 	# _wifi set anymode anyfreq  disabled kmod_unload
 
 	for i in $( seq 0 15 ); do {
-		[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" -o "$wifimode" = 'any' -o "$wifimode" = 'anymode' ] && {
+		[ "$( uci -q get "wireless.@wifi-iface[$i].mode" )" = "$wifimode" -o "$wifimode" = 'any' -o "$wifimode" = 'anymode' ] && {
 			radio=
 
 			if   isnumber "$band"; then
@@ -2343,14 +2343,14 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 				'txpower'|'htmode'|'distance'|'beacon_int')
 					# http://opus4.kobv.de/opus4-tuberlin/files/3939/huehn_thomas.pdf
 					# get the corresponding radio till minstrel-blues/power control is not active
-					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
+					radio="$( uci -q get "wireless.@wifi-iface[$i].device" )" && {
 						uci set wireless.$radio.$var="$value"
 					}
 				;;
 				'channel'|'chanbw'|'disabled')
 					[ "$var" = 'chanbw' ] && chanbw="$value"
 
-					radio="$( uci -q get wireless.@wifi-iface[$i].device )" && {
+					radio="$( uci -q get "wireless.@wifi-iface[$i].device" )" && {
 						if [ "$var" = 'disabled' ]; then
 							case "$value" in
 								'kmod_unload')
@@ -2391,8 +2391,8 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 										uci set wireless.$radio.$var="$value"
 									else
 										# set vIF
-										[ "$( uci -q get wireless.@wifi-iface[$i].mode )" = "$wifimode" ] && {
-											uci set wireless.@wifi-iface[$i].$var="$value"
+										[ "$( uci -q get "wireless.@wifi-iface[$i].mode" )" = "$wifimode" ] && {
+											uci set "wireless.@wifi-iface[$i].$var"="$value"
 										}
 									fi
 								;;
@@ -2445,14 +2445,14 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 							fi
 
 							_log it $funcname daemon info "bssid_wellformed: $bssid"
-							uci set wireless.@wifi-iface[$i].bssid="$bssid"
+							uci set "wireless.@wifi-iface[$i].bssid"="$bssid"
 						}
 					}
 				;;
 				*)
 					# e.g. mcast_rate | ssid | bssid
 					bool_true "wireless.@wifi-iface[$i].${var}_donttouch" || {
-						uci set wireless.@wifi-iface[$i].$var="$value"
+						uci set "wireless.@wifi-iface[$i].$var"="$value"
 					}
 				;;
 			esac
@@ -2624,7 +2624,7 @@ _wifi_longshot_name()
 	local index radio
 
 	for index in $( _wifi get $band mode adhoc ); do {
-		radio="$( uci -q get wireless.@wifi-iface[$index].device )"
+		radio="$( uci -q get "wireless.@wifi-iface[$index].device" )"
 
 		# returns the 'name' and empty + error if 'no_longshot'
 		uci -q get wireless.${radio}.longshot && return 0
@@ -2641,7 +2641,7 @@ _wifi_longshot()	# this works only for all radios on some band in adhoc-mode
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101' testtime '04:32' testchannel '36...165'
 
 	# option: chantest? chanbwtest? -> testtime 3:50
-	local channel= chanbw= node= mcast_rate= name= bssid= distance= index= radio=
+	local channel='' chanbw='' node='' mcast_rate='' name='' bssid='' distance='' index='' radio=''
 	local band='anyfreq'
 
 	# in 802.11n-mode we need the beacons from our neighs for HT-capabilities
@@ -2729,7 +2729,7 @@ _wifi_longshot()	# this works only for all radios on some band in adhoc-mode
 
 						# band -> radio (1st)
 						for index in $( _wifi get $band mode adhoc ); do break; done
-						radio="$( uci -q get wireless.@wifi-iface[$index].device )"
+						radio="$( uci -q get "wireless.@wifi-iface[$index].device" )"
 						uci set wireless.${radio}.longshot="${name:-true}"
 
 						case "$CONFIG_PROFILE" in
