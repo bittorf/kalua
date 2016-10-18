@@ -83,9 +83,10 @@ show_shellfunction()
 	}
 
 	line_start="$( starting_line )"
-	if [ -n "$line_start" ]; then
+	if isnumber "$line_start"; then
 		line_end="$line_start"
 		lines_max="$( wc -l <"$file" )"
+		log "debug: $file - 1: $line_end - max: $lines_max"
 	else
 		log "[ERR] cannot find function '$name' in file '$file'"
 		return 1
