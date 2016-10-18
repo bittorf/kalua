@@ -15,7 +15,7 @@ list_shellfunctions()
 	local line
 
 	if command -v 'ctags' >/dev/null; then
-		ctags -x "$file" |
+		ctags --sort=no --language-force=sh -x "$file" |
 		 while read -r line; do {
 			# myfunc   function   60 /path/to/file    myfunc () { # bla foo
 			explode $line
@@ -29,9 +29,12 @@ list_shellfunctions()
 
 show_shellfunction_usage_count()
 {
+	echo '?/?'	# FIXME!
+	return 0
+
 	local name="$1"		# e.g. '_olsr_txtinfo'
 	local kalua_name
-	local occurrence_direct="$( git grep "$name" | wc -l )"
+	local occurrence_direct="$( git grep "$name" | wc -l )"		# FIXME! use ctags instead of 'git grep'
 	local occurrence_nested=0
 
 	case "$name" in
@@ -68,7 +71,8 @@ show_shellfunction()
 
 	starting_line()
 	{
-		ctags -x "$file" |
+		# filename should end on '.sh', otherwise we must enforce detection
+		ctags --sort=no --language-force=sh -x "$file" |
 		 while read -r line; do {
 			# myfunc   function   60 /path/to/file    myfunc () { # bla foo
 			explode $line
@@ -86,9 +90,17 @@ show_shellfunction()
 	if isnumber "$line_start"; then
 		line_end="$line_start"
 		lines_max="$( wc -l <"$file" )"
-		log "debug: $file - 1: $line_end - max: $lines_max"
+#		log "[OK] debug: '$file' name: '$name' - start: $line_end - max: $lines_max"
 	else
-		log "[ERR] cannot find function '$name' in file '$file'"
+		log "[ERR] cannot find function '$name' in file '$file' line_start: '$line_start'"
+		log "[ERR] grep: '$( grep -n "$name" "$file" )'"
+		log "[ERR] max: $( wc -l <"$file" )"
+
+		echo >&2 "# ---"
+		cat >&2 "$file"
+		echo >&2 "# ---"
+
+		ctags --version
 		return 1
 	fi
 
@@ -103,7 +115,7 @@ show_shellfunction()
 
 	while ! is_parseable "$temp_script"; do {
 		if [ $line_end -gt $lines_max ]; then
-			log "[ERR] cannot find end of function '$name'"
+			log "[ERR] cannot find end of function '$name' in line $line_end"
 			rc=1
 			break
 		else
@@ -345,6 +357,7 @@ test_loader_metafunction()
 
 run_test()
 {
+	local force_file="$1"
 	local shellcheck_bin ignore file tempfile filelist ip hash1 hash2
 	local codespell_bin size1 size2 line line_stripped i list name
 	local func_too_large=0
@@ -353,6 +366,7 @@ run_test()
 	local count_functions=0
 	local good='true'
 	local tab='	'
+	local files_overall=0 files_checked=0 functions_overall=0 functions_checked=0
 
 	log "echo '\$HARDWARE' + '\$SHELL' + '\$USER' + diskspace"
 	echo "'$HARDWARE' + '$SHELL' + '$USER'"
@@ -417,6 +431,8 @@ run_test()
 	_system load 1min full || return 1
 	_system load || return 1
 
+	log "ctags-version: '$( ctags --version )'"
+
 	tempfile='/dev/shm/testfile'
 	shellcheck_bin="$( command -v shellcheck )"
 	[ -e ~/.cabal/bin/shellcheck ] && shellcheck_bin=~/.cabal/bin/shellcheck
@@ -478,7 +494,29 @@ run_test()
 		grep -q 'external-sources' "$tempfile" && shellcheck_bin="$shellcheck_bin --external-sources"
 		log "[OK] shellcheck call: $shellcheck_bin ..."
 
+		[ -n "$force_file" -a -e "$force_file" ] && {
+			log "[OK] enforcing check of only '$force_file'"
+			echo "$force_file" >"$filelist"
+		}
+
+		# count shell-functions (same filter like next loop)
 		while read -r file; do {
+			case "$file" in
+				'openwrt-build/mybuild.sh')
+				;;
+				*)
+					for name in $( list_shellfunctions "$file" ); do {
+						functions_overall=$(( functions_overall + 1 ))
+					} done
+				;;
+			esac
+		} done <"$filelist"
+		log "[OK] will check $functions_overall shell-functions"
+
+		files_overall="$( wc -l <"$filelist" )"
+		while read -r file; do {
+			files_checked=$(( files_checked + 1 ))
+
 			case "$file" in
 				'openwrt-build/mybuild.sh')
 					log "[OK] ignoring '$file' - deprecated/unused/too_buggy"
@@ -537,7 +575,7 @@ run_test()
 #					sed -i 's/.*shopt.*/# &/g' "$tempfile"
 
 					# SC2119/SC2120 - references arguments, but non are ever passed:
-					sed -i 's/explode $/set -f;set +f -- $/g' "$tempfile"
+					sed -i 's/explode \$/set -f;set +f -- \$/g' "$tempfile"
 
 					case "$file" in
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
@@ -574,9 +612,9 @@ run_test()
 
 					count_files=$(( count_files + 1 ))
 
-					if command -v codespell.py; then
+					if command -v codespell.py >/dev/null; then
 						case "$file" in
-							*'random_username')
+							*'random_username'|*'test_all.sh')
 #								codespell_bin="codespell.py --dictionary='$tempfile.dict'"
 								codespell_bin='codespell.py'
 #								echo 'churchs->churches, disabled: is a shoebrand' >"$tempfile.dict"
@@ -640,6 +678,10 @@ run_test()
 					fi
 				} >"$tempfile"
 
+				# SC2119/SC2120 - references arguments, but non are ever passed:
+				sed -i 's/explode \$/set -f;set +f -- \$/g' "$tempfile"
+
+				functions_checked=$(( functions_checked + 1 ))
 				function_too_large "$name" "$tempfile" "$file" && func_too_large=$(( func_too_large + 1 ))
 				function_too_wide  "$name" "$tempfile" "$file" && func_too_wide=$(( func_too_wide + 1 ))
 				# TODO: test if file to wide
@@ -653,7 +695,7 @@ run_test()
 				if   function_seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
 				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-					log "[OK] --> function '$name()' used: $( show_shellfunction_usage_count "$name" ) times"
+					log "[OK] --> function '$name()' used: $( show_shellfunction_usage_count "$name" ) times, count: $functions_checked/$functions_overall"
 				else
 					log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
 					good='false'
@@ -689,4 +731,5 @@ run_test()
 	log '[READY]'
 }
 
-[ -n "$1" ] && run_test
+# dont run if only included
+[ -n "$1" ] && run_test "$1"

@@ -2225,7 +2225,7 @@ send_mail_telegram()
 			list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de"
 			[ $v2 -lt 38000 ] && list=	# openwrt-revision
 		;;
-		ffweimar-*) list= ;;	# TODO: dont double send / already send on main-network (e.g. ffweimar)
+		ffweimar-*) list= ;;	# TODO: do not double send / already send on main-network (e.g. ffweimar)
 		neufert|bauhaus) list= ;;
 		limona) list="$admin sven.rahaus|gmx.de" ;;
 		amalienhof) list="$admin sven.rahaus|gmx.de info|amalienhof-weimar.de" ;;
@@ -2364,7 +2364,7 @@ send_mail_telegram()
 		;;
 	esac
 
-	# dont complain if there is a fundamental problem
+	# do not complain if there is a fundamental problem
 	[ -e "/dev/shm/pingcheck/$NETWORK.faulty" ] && {
 		# TODO: only 1 router? also send mail...
 		case "$NETWORK" in
@@ -2965,7 +2965,7 @@ _cell_switch()
 						*'-HWR-'*)
 							local mailmarker="/dev/shm/${WIFIMAC}.mail_pppoe"
 
-							# dont give false positives, when only 1 dataset is missing
+							# do not give false positives, when only 1 dataset is missing
 							if [ $inet_offer_down -eq 0 -a $inet_offer_up -eq 0 ]; then
 								global_bgcolor='crimson'
 								global_tooltip="ADSL broken:$inet_offer"

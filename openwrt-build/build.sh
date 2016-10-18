@@ -2060,7 +2060,7 @@ apply_symbol()
 			log "$KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
 
-			# FIXME: dont touch rc.local
+			# FIXME: do not touch rc.local
 			log "$KALUA_DIRNAME: adding initial rc.local"
 			echo  >'package/base-files/files/etc/rc.local' '#!/bin/sh'
 			echo >>'package/base-files/files/etc/rc.local' "[ -e '/tmp/loader' ] || /etc/init.d/cron.user boot"
@@ -3312,10 +3312,12 @@ travis_prepare()
 		sudo apt-get -y install "$@"
 	}
 
-	# http://ctags.sourceforge.net
-	command -v 'ctags'	|| do_install 'ctags'		|| return 1
+	# http://ctags.sourceforge.net -> buggy
+	# https://github.com/universal-ctags/ctags.git
+	command -v 'ctags'	|| bootstrap_ctags		|| return 1
+	command -v 'pip'	|| do_install 'pip'		|| return 1	# for codespell
 	# https://github.com/lucasdemarchi/codespell
-	command -v 'codespell.py' || bootstrap_codespell	|| return 1
+	command -v 'codespell.py' || sudo pip install codespell	|| return 1
 	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
 	command -v 'sloccount'	|| do_install 'sloccount'	|| return 1
 	# http://www.html-tidy.org/
@@ -3339,27 +3341,35 @@ travis_prepare()
 	fi
 }
 
-bootstrap_codespell()
+bootstrap_ctags()
 {
-	(
-		cd '/tmp' || return 1
-		git clone https://github.com/lucasdemarchi/codespell.git
-		cd codespell || return 1
+	local url='https://github.com/universal-ctags/ctags.git'
+	local dir='ctags'
+	local date="$( LC_ALL=C date "+%b %d %Y" )"	# e.g. 'Oct 18 2016'
 
-		log '[OK] last commit:'
-		git log -1
+	/tmp/$dir/ctags --version | grep -q "Compiled: $date" || {
+		(
+			cd '/tmp' || return 1
+			[ -d "$dir" ] && rm -fR "$dir"
+			git clone "$url"
+			cd "$dir" || return 1
 
-		log "[OK] symlinking '/tmp/codespell/codespell.py'"
-		ln -s '/tmp/codespell/codespell.py' "$HOME/codespell.py"
-	)
+			./autogen.sh || return 1
+			./configure || return 1
+			make || return 1
 
-	export PATH="$HOME:$PATH"
+			log '[OK] last commit:'
+			git log -1
+		)
+	}
+
+	export PATH="/tmp/$dir:$PATH"
+	ctags --version | grep "Compiled: $date"
 }
 
 bootstrap_shellsheck()
 {
 	[ -n "$TRAVIS" ] && {
-#		local url='http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.3.7-5_amd64.deb'
 		local url='http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.4.4-2_amd64.deb'
 		wget -O 'shellsheck.deb' "$url"
 		sudo dpkg -i 'shellsheck.deb'
