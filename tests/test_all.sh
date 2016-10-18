@@ -1,5 +1,6 @@
 #!/bin/sh
 . /tmp/loader
+export PATH="/tmp/ctags:$PATH"		# FIXME!
 
 # find too wide functions/files with:
 # i=0; while read -r L; do i=$(( i + 1 )); test ${#L} -gt 120 && echo "$i: $L"; done <$FILE
@@ -432,6 +433,7 @@ run_test()
 	_system load || return 1
 
 	log "ctags-version: '$( ctags --version )'"
+	log "path: $PATH"
 
 	tempfile='/dev/shm/testfile'
 	shellcheck_bin="$( command -v shellcheck )"
