@@ -1,6 +1,7 @@
 #!/bin/sh
 
 [ -n "$1" ] && {
+	# e.g. /var/www/networks/liszt28/meshrdf
 	cd "$1" || exit
 }
 
@@ -13,6 +14,7 @@ log()
 
 interpret_neigh()
 {
+	# see: _olsr_neighs_meshrdf_evalable()
 	# ~5:10.63.4.1:10.63.5.1:COST:1.000:1.000:1.000:1:12:7.2:g-40:10.63.4.33:10.63.40.33:COST:1.000:1.000:0.100:1:0:7.2:g
 	local varname="$1"
 	local line="$2"

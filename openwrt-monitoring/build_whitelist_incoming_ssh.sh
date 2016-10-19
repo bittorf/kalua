@@ -17,7 +17,7 @@ else
 		tar tf '/var/www/backup_tmpdir.tar.gz' && {
 			cd / || exit 1
 			tar xzf '/var/www/backup_tmpdir.tar.gz'
-			cd -
+			cd - || exit 1
 		}
 	}
 fi

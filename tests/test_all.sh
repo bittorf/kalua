@@ -311,7 +311,7 @@ test_loader_metafunction()
 
 	# show methods (both the same output)
 	# must show all lines with beginning function name
-	_http | grep -v ^'_http_' && return 1
+	_http '' | grep -v ^'_http_' && return 1
 	_ s 'system' | grep -v ^'_system_' && return 1
 
 	# test if function with unloaded class is loaded and 2 arguments are passed

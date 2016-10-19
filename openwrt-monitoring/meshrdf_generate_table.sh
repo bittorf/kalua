@@ -622,7 +622,7 @@ hostname_sanitizer()
 	local file="$TMPDIR/function_hostnames_$NETWORK"
 	local database="/var/www/networks/$NETWORK/$NETWORK-hostnames.sh"
 
-	hostnames_override() { :; }
+#	hostnames_override() { :; }
 
 	[ -e "$file" ] || {
 		{
@@ -2186,7 +2186,6 @@ hostname_from_monitoring_sanitized()
 	read -r hostname 2>/dev/null <"$TMPDIR/goodhostname_$mac"
 
 	case "${hostname:=$HOSTNAME}" in
-		'Ralf-ExSchneiderei') hostname='Pension-Ralf' ;;
 		'dhfleesensee-adhoc--68') hostname='Haus12-r1202-Traumdomizil' ;;
 	esac
 
@@ -2217,7 +2216,13 @@ send_mail_telegram()
 	# TODO: use stored email from node
 
 	case "$NETWORK" in
-		ewerk) list= ;;		# TODO!
+		ewerk)
+			case "$hostname" in
+				*'vorfuehrraum'*|*'kino'*|*'cafe'*)
+					list="$admin dh|lichthaus.info svenopel|gmx.de hansen|wastlhuber.de"
+				;;
+			esac
+		;;
 		ibfleesensee) list="$admin info|iberotel-fleesensee.de" ;;
 		malchow*) list="$admin info|malchow-it.de" ;;
 		monami) list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de" ;;
@@ -2267,11 +2272,8 @@ send_mail_telegram()
 				'liszt28-hybrid--798')
 					list="$admin rene|r-hoffmann.de"
 				;;
-				'Ralf-ExSchneiderei')
-					list="$admin rkleinert|ejbweimar.de"
-				;;
 				'BaeckerRose'|'BaeckereiRose')
-					# TODO
+					# TODO - own network
 					list="$admin info|et-steinmetz.de info|rose-weimar.de"
 					message="$( echo "$message" | sed 's/liszt28/brose/g' )"
 				;;
@@ -2286,6 +2288,7 @@ send_mail_telegram()
 				;;
 			esac
 		;;
+		pension-ralfz) list="$admin rkleinert|ejbweimar.de" ;;
 		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
 		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
 		lisztwe) list="$admin mail|hotel-liszt.de technikad|mx.onimail.de technik|hotel-adagio.de" ;;

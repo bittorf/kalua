@@ -63,16 +63,22 @@ list_hw()
 
 stopwatch()
 {
-	if [ -z "$2" ]; then
-		read -r T1 REST </proc/uptime
-	else
-		T1="$2"
-		read -r T2 REST </proc/uptime
-		DURATION=$(( ${T2%.*}${T2#*.} - ${T1%.*}${T1#*.} ))
-		DURATION=$(( DURATION / 100 )).$(( DURATION % 100 ))
+	local mode="$1"
+	local duration rest t2
 
-		echo "$DURATION"
-	fi
+	case "$mode" in
+		'start')
+			read -r T1 rest <'/proc/uptime'
+			export T1
+		;;
+		'stop'|*)
+			read -r t2 rest <'/proc/uptime'
+			duration=$(( ${t2%.*}${t2#*.} - ${T1%.*}${T1#*.} ))
+			duration=$(( duration / 100 )).$(( duration % 100 ))
+
+			echo "$duration"
+		;;
+	esac
 }
 
 log()
@@ -136,10 +142,10 @@ for HW in $HW_LIST; do {
 
 		if     $BUILD --quiet --hardware "$HW" --usecase "$OPT" --openwrt $REV --release "$MODE" "$DEST" ; then
 			BUILD_GOOD=$(( BUILD_GOOD + 1 ))
-			log "[OK] in $( stopwatch stop "$T1" ) sec"
+			log "[OK] in $( stopwatch stop ) sec"
 		else
 			BUILD_BAD=$(( BUILD_BAD + 1 ))
-			log "[FAILED] after $( stopwatch stop "$T1" ) sec"
+			log "[FAILED] after $( stopwatch stop ) sec"
 			# e.g. image too large - ignore and do next
 			git checkout master
 		fi

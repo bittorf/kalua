@@ -16,7 +16,7 @@ case "$NETWORK" in
 	*)
 		# e.g. ewerk
 		log "changing: '/var/www/networks/$NETWORK/meshrdf'"
-		cd "/var/www/networks/$NETWORK/meshrdf"
+		cd "/var/www/networks/$NETWORK/meshrdf" || exit 1
 	;;
 esac
 
