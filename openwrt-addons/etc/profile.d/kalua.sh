@@ -1,17 +1,43 @@
 #!/bin/sh
 
-smile()
+prompt_smile()
 {
-	local rc="$?"
+	local rc=$?
 
 	case "$rc" in
-		0) printf '%s' '2m:)' ;;
-		*) printf '%s' '1m8('; return "$rc" ;;
+		0) printf '%s' "\[\e[32m\]:)" ;;		# green
+		*) printf '%s' "\[\e[31m\]8("; return "$rc" ;;	# red
 	esac
 }
 
-# e.g. user@hostname:~ :)
-export PS1='\[\e[36m\]\u\[\e[m\]@\[\e[32m\]\h:\[\e[33;1m\]\w\[\e[m\] \e[3$( smile )\e[0m '
+prompt_set()
+{
+	# e.g. user@hostname:~ :)
+	#      ^^^^          ^yellow (path)
+	#      cyan
+
+	# https://wiki.archlinux.org/index.php/Bash/Prompt_customization#Customizing_root_prompts
+	# https://www.tunnelsup.com/bash-prompt-color/
+	# http://jafrog.com/2013/11/23/colors-in-terminal.html
+	# https://wiki.ubuntuusers.de/Bash/Prompt/
+
+	local e='\[\e'			# start escape-sequence
+	local c='\]'			# closes escape-sequence
+
+	local user='\u'
+	local workdir='\w'
+	local hostname='\h'		# short form
+
+	local cyan="${e}[36m${c}"
+	local green="${e}[32m${c}"
+	local white="${e}[37m${c}"
+	local yellow="${e}[33;1m${c}"	# bold
+	local reset="${e}[0m${c}"	# all attributes
+
+	export PS1="${cyan}${user}${white}@${green}${hostname}:${yellow}${workdir} \$( prompt_smile ) $reset"
+}
+
+prompt_set
 
 alias n='_olsr txtinfo'
 alias n2='echo /nhdpinfo link | nc 127.0.0.1 2009'

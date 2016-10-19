@@ -506,6 +506,8 @@ run_test()
 
 		# count shell-functions (same filter like next loop)
 		while read -r file; do {
+			[ "$( _filetype detect_mimetype "$file" )" = 'text/x-shellscript' ] || continue
+
 			case "$file" in
 				'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh')
 					log "[OK] ignoring '$file'"
@@ -682,7 +684,7 @@ run_test()
 				} >"$tempfile"
 
 				# SC2119/SC2120 - references arguments, but non are ever passed:
-				sed -i 's/explode \$/set -f;set +f -- \$/g' "$tempfile"
+				sed -i 's/explode \$/set -f; set +f -- \$/g' "$tempfile"
 
 				functions_checked=$(( functions_checked + 1 ))
 				function_too_large "$name" "$tempfile" "$file" && func_too_large=$(( func_too_large + 1 ))
