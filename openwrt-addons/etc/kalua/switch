@@ -118,9 +118,9 @@ _switch_query_swconfig()	# SENSE: show a single switch-port of a 'swconfig'-cont
 	} done
 }
 
-_switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-controlled switch
+_switch_query_mii()		# SENSE: show port of a 'MII'-interface
 {
-	local funcname='switch_query_miitool'
+	local funcname='switch_query_mii'
 	local port_list="$1"
 	local debug="$2"
 
@@ -135,7 +135,14 @@ _switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-cont
 		line=
 		max_try=10
 		while [ -z "$line" ]; do {
-			if   command -v 'ethtool' >/dev/null; then
+			if   command -v 'devstatus' >/dev/null; then
+				line="$( devstatus "$port" | grep '"speed": ' )" && {
+					# e.g. "speed": "100F", -> "100F", -> 100F
+					explode $line
+					line="$( echo "$2" | cut -d'"' -f2 )"
+					line="devstatus: link ok $line"
+				}
+			elif command -v 'ethtool' >/dev/null; then
 				line="$( ethtool "$port" )"
 			elif command -v 'mii-tool' >/dev/null; then
 				line="$( mii-tool "$port" )"
@@ -154,7 +161,7 @@ _switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-cont
 			"$port: no link"|*'Link detected: no'*)
 				_switch symbol down
 			;;
-			*"link ok"*|*'Link detected: yes'*)
+			*'link ok'*|*'Link detected: yes'*)
 				# "ethX: no autonegotiation, 100baseTx-HD, link ok"
 				# "ethX: 100 Mbit, full duplex, link ok"	// after: mii-tool --force=100baseTx-FD eth0
 				# "ethX: 100 Mbit, full duplex, no link"	// other side will not work
@@ -168,7 +175,7 @@ _switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-cont
 				# Link detected: no (or) yes
 
 				case "$line" in
-					*'-FD,'*|*'-FD '*|*'full duplex'*|*'Duplex: Full'*)
+					*'-FD,'*|*'-FD '*|*'full duplex'*|*'Duplex: Full'*|*'0F')
 						duplex='full'
 					;;
 					*)
@@ -177,13 +184,13 @@ _switch_query_miitool()		# SENSE: show a single switch-port of a 'mii-tool'-cont
 				esac
 
 				case "$line" in
-					*' 1000baseT'*|*'1000 Mbit'*|*'Speed: 1000Mb/s'*)
+					*' 1000baseT'*|*'1000 Mbit'*|*'Speed: 1000Mb/s'*|*'1000'*)
 						_switch symbol $duplex 1000
 					;;
-					*' 100baseT'*|*'100 Mbit'*|*'Speed: 100Mb/s'*)
+					*' 100baseT'*|*'100 Mbit'*|*'Speed: 100Mb/s'*|*'100'*)
 						_switch symbol $duplex 100
 					;;
-					*' 10baseT'*|*'10 Mbit'*|*'Speed: 10Mb/s'*)
+					*' 10baseT'*|*'10 Mbit'*|*'Speed: 10Mb/s'*|*'10'*)
 						_switch symbol $duplex 10
 					;;
 					*)
@@ -244,7 +251,7 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 		;;
 		'Xiaomi Miwifi mini')
 			# power | WAN | LAN2 | LAN1 | USB
-			_switch query_miitool 'eth0' "$debug"
+			_switch query_mii 'eth0' "$debug"
 			_switch query_swconfig 'gap 1 gap 0' "$debug"
 		;;
 		'Nexx WT3020'*)
@@ -270,45 +277,45 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 		;;
 		'TP-LINK TL-WR841N/ND v8')
 			# WAN | 4 x LAN
-			_switch query_miitool 'eth0' "$debug"
+			_switch query_mii 'eth0' "$debug"
 			_switch query_swconfig 'gap 2 3 4 1' "$debug"
 		;;
 		'TP-LINK TL-WR940N'|'Mercury MAC1200R')
 			# WAN | 4 x LAN
-			_switch query_miitool 'eth1' "$debug"
+			_switch query_mii 'eth1' "$debug"
 			_switch query_swconfig 'gap 4 3 2 1' "$debug"
 		;;
 		'MQmaker WiTi')
 			# WAN1 | WAN2 | 4 x LAN
-			_switch query_miitool "$WANDEV" "$debug"
+			_switch query_mii "$WANDEV" "$debug"
 			_switch query_swconfig 'gap 5 gap 4 3 2 1' "$debug"
 		;;
 		'Buffalo WZR-HP-AG300H')
 			# WAN | 4 x LAN
-			_switch query_miitool 'eth1' "$debug"
+			_switch query_mii 'eth1' "$debug"
 			_switch query_swconfig 'gap 1 2 3 4' "$debug"
 		;;
 		'Ubiquiti Nanostation M'*)
 			# LAN ("main") | WAN ("secondary")
 			_switch query_swconfig '1' "$debug"
-			_switch query_miitool 'eth0' "$debug"
+			_switch query_mii 'eth0' "$debug"
 		;;
 		'Ubiquiti Nanostation'*|'TP-LINK TL-WR703N v1'|'Speedport W500V'|'T-Mobile InternetBox'|\
 		'Ubiquiti Picostation'*|'Ubiquiti Bullet M'*|'Ubiquiti Picostation M'*|'Seagate GoFlex Home'|\
 		'D-Link DIR-505 A1'|'D-Link DIR-505L A1'|'D-Link DIR-505L A2')
-			_switch query_miitool "${LANDEV:-$WANDEV}" "$debug"
+			_switch query_mii "${LANDEV:-$WANDEV}" "$debug"
 		;;
 		'PC Engines ALIX.2'|'Mikrotik Routerboard 532')		# TODO: rb532
 			# power | WAN | LAN | LAN2 | serial
-			_switch query_miitool "eth0 gap eth1 gap eth2" "$debug"
+			_switch query_mii "eth0 gap eth1 gap eth2" "$debug"
 		;;
 		'PC Engines WRAP')
 			# power | LAN | WAN | serial			# BOOTP via WAN
-			_switch query_miitool 'eth1 gap eth0' "$debug"
+			_switch query_mii 'eth1 gap eth0' "$debug"
 		;;
 		'Soekris net5501')
 			# power | serial | WAN | LAN | LAN | LAN
-			_switch query_miitool 'eth0 eth1 eth2 eth3' "$debug"
+			_switch query_mii 'eth0 eth1 eth2 eth3' "$debug"
 		;;
 		'UML'|'Intel'*|'AMD Opteron'*|*'QEMU Virtual CPU'*|'x86_64'|*'ARMv7'*)
 			# sane (but maybe wrong) fallback for e.g. VPN-Server

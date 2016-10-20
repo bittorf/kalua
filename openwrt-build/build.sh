@@ -2379,7 +2379,6 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
 
-				$funcname subcall 'queryMII'
 				$funcname subcall 'iproute2'
 				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
@@ -2422,7 +2421,6 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
 
-				$funcname subcall 'queryMII'
 				$funcname subcall 'iproute2'
 #				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
@@ -2535,6 +2533,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-ipip=y'
 			;;
 			'queryMII')
+				# deprecated! (we now use 'devstatus' for query MII)
 				if [ -e "$KALUA_DIRNAME/openwrt-addons/etc/kalua/switch" ]; then
 					log "[OK] checking if ethtool is needed for '$HARDWARE_MODEL'"
 
@@ -2543,10 +2542,10 @@ build_options_set()
 					HARDWARE="$HARDWARE_MODEL"
 
 					# overwrite the main function - we just want
-					# to know, if somebody calls '_switch query_miitool'
+					# to know, if somebody calls '_switch query_mii'
 					_switch()	# parser_ignore
 					{
-						[ "$1" = 'query_miitool' ] && NEEDS_MII='true'
+						[ "$1" = 'query_mii' ] && NEEDS_MII='true'
 					}		# parser_ignore
 
 					_switch_show	# TODO: fake _log()?
