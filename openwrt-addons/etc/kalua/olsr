@@ -742,15 +742,22 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 
 _olsr_force_static_arp()	# ATTENTION: a fixed arp-entry leads to strange effects
 {				#	     when we replug wired routers from e.g. lan to wan
+	local funcname='olsr_force_static_arp'
 	local ip="$1"
 	local local_ip="$2"
 	local marker="$TMPDIR/OLSR/fixed_arp_$ip"
 	local mac dev
+	local max_try=1
 
 	[ -e "$marker" ] || {
 		mac="$( _net ip2mac "$ip" )" && {
 			dev="$( _net ip2dev "$local_ip" )"
-			arping -c1 -s "$local_ip" -I "$dev" "$ip" || return 1
+			_net dev_is_wifi "$dev" && max_try=10
+
+			arping -c $max_try -s "$local_ip" -I "$dev" "$ip" >/dev/null || {
+				_log it $funcname daemon info "arping failed $max_try times: $local_ip -> $dev -> $ip"
+				return 1
+			}
 
 			_netfilter set_arp permanent "$mac" "$ip" "$dev" && {
 				touch "$marker"
