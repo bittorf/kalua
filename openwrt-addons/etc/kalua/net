@@ -1454,7 +1454,7 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 	local option="$2"	# string: 'lazy' (mostly for OLSR-neighs, where total exact match is not important)
 	local mac=
 	local tempfile="$TMPDIR/$funcname.$$"
-	local line ip dev
+	local line ip dev local_ip
 
 	# this can be outdated, see http://www.intercity-vpn.de/files/openwrt/login_error.ejbw.wrong.mac.txt
 	[ "$option" = 'lazy' ] && {
@@ -1479,6 +1479,20 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 
 	# get mac from arp-cache
 	[ -z "$mac" ] && {
+		# correct is 'eth0.1'
+		#
+		# root@box: ip -oneline neigh show to 10.63.155.225
+		# 10.63.155.225 dev eth0.1 lladdr b0:48:7a:c5:dc:bc REACHABLE
+		# 10.63.155.225 dev wlan0 lladdr b0:48:7a:c5:dc:bc STALE
+		#
+		# root@box: grep b0:48:7a:c5:dc:bc /proc/net/arp 
+		# 10.63.155.193    0x1         0x2         b0:48:7a:c5:dc:bc     *        wlan0
+		# 10.63.155.225    0x1         0x2         b0:48:7a:c5:dc:bc     *        eth0.1
+		# 10.63.2.37       0x1         0x2         b0:48:7a:c5:dc:bc     *        wlan0
+		# 10.63.2.37       0x1         0x2         b0:48:7a:c5:dc:bc     *        eth0.1
+		# 10.63.155.225    0x1         0x2         b0:48:7a:c5:dc:bc     *        wlan0
+		# 10.63.2.35       0x1         0x2         b0:48:7a:c5:dc:bc     *        eth0.1
+
 		ip -oneline neigh show to "$get_ip" >"$tempfile"	# FIXME! cannot be more than 1 line
 
 		while read -r line; do {
@@ -1486,6 +1500,7 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 			# 10.63.42.125 dev wlan0 lladdr 64:09:80:7f:48:85 used 0/0/0 probes 6 FAILED
 			explode ${line:-unset}
 			ip="$1"
+			dev="$3"
 			mac="$5"
 
 			case "$mac" in
@@ -1500,8 +1515,11 @@ _net_ip2mac()		# works only for local/active IP's, but: maybe we want to "guess"
 			esac
 
 			if [ "$ip" = "$get_ip" ]; then
-				_sanitizer run "$mac" lowercase >"/tmp/IP2MAC_$get_ip"
-				break
+				local_ip="$( _net dev2ip "$dev" )"
+				arping -c1 -s "$local_ip" -I "$dev" "$ip" && {
+					_sanitizer run "$mac" lowercase >"/tmp/IP2MAC_$get_ip"
+					break
+				}
 			else
 				mac=
 			fi
