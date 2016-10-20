@@ -338,7 +338,7 @@ test_loader_metafunction()
 		log "[ERROR] see file permisions: $( ls -l /kalua/loader )"
 		sudo chmod 0777 '/tmp/loader'
 	}
-	_ rebuild 'autotest'
+	_ rebuild "autotest:USER:$USER:HOME:$HOME"
 	local hash2="$( md5sum '/tmp/loader' )"
 	test "$hash1" = "$hash2" && {
 		log "[ERROR] loader-hash did not changed during rebuild: $hash1"
@@ -347,6 +347,14 @@ test_loader_metafunction()
 
 	# test if loader is loaded 8-)
 	_ t || return 1
+
+	# reload:
+	log "[test] loader-reload"
+	unset -f _
+	_ t && return 1
+	. /tmp/loader
+	_ t || return 1
+	log "[test] loader-reload OK: USER: $USER HOME: $HOME"
 
 	# list classes
 	if [ $( _ | wc -l ) -gt 10 ]; then
