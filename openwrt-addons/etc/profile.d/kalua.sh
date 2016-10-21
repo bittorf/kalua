@@ -1,40 +1,35 @@
 #!/bin/sh
 
-prompt_smile()
-{
-	local rc=$?
-
-	case "$rc" in
-		0) printf '%s' "\[\e[32m\]:)" ;;		# green
-		*) printf '%s' "\[\e[31m\]8("; return "$rc" ;;	# red
-	esac
-}
-
 prompt_set()
 {
-	# e.g. user@hostname:~ :)
-	#      ^^^^          ^yellow (path)
-	#      cyan
+	smile()
+	{
+		local rc=$?
 
-	# https://wiki.archlinux.org/index.php/Bash/Prompt_customization#Customizing_root_prompts
-	# https://www.tunnelsup.com/bash-prompt-color/
-	# http://jafrog.com/2013/11/23/colors-in-terminal.html
-	# https://wiki.ubuntuusers.de/Bash/Prompt/
+		case "$rc" in
+			0) printf '%s' "${green}:)" ;;
+			*) printf '%s' "${red}8(" ; return $rc ;;
+		esac
+	}
 
 	local e='\[\e'			# start escape-sequence
-	local c='\]'			# closes escape-sequence
+	local c='\]'			# close escape-sequence
 
 	local user='\u'
 	local workdir='\w'
 	local hostname='\h'		# short form
 
+	local green="[32m${c}"
+	local red="[31m${c}"
 	local cyan="${e}[36m${c}"
-	local green="${e}[32m${c}"
 	local white="${e}[37m${c}"
 	local yellow="${e}[33;1m${c}"	# bold
 	local reset="${e}[0m${c}"	# all attributes
 
-	export PS1="${cyan}${user}${white}@${green}${hostname}:${yellow}${workdir} \$( prompt_smile ) $reset"
+	# e.g. user@hostname:~ :)
+	#      ^^^^          ^yellow (workdir)
+	#      cyan
+	export PS1="${cyan}${user}${white}@${e}${green}${hostname}:${yellow}${workdir} $e\$( smile ) $reset"
 }
 
 prompt_set
