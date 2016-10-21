@@ -855,7 +855,7 @@ _weblogin_authserver()
 
 		case "$server_ip" in
 			$LOADR|$WIFIADR|$LANADR|$WANADR|$BATADR)
-				server="$LANADR"
+				server="$ANYADR"
 				its_me='true'
 			;;
 			*)
@@ -880,11 +880,23 @@ _weblogin_authserver()
 
 	[ "$its_me" = 'true' ] || {
 		[ -n "$server" ] && {
-			_net inet_seems_stable && {
-				_net ping_getlatency "$server" >/dev/null && {
+			if _net inet_seems_stable; then
+				if _net ping_getlatency "$server" >/dev/null; then
 					echo "$server" >"$cachefile"
+				else
+					server="$ANYADR"
+					echo "$server" >"$cachefile"
+				fi
+			else
+				[ -e "$file" ] && {
+					# nexthop-inet-offer
+					read -r server <"$file"
+
+					_net ping_getlatency "$server" >/dev/null && {
+						echo "$server" >"$cachefile"
+					}
 				}
-			}
+			fi
 		}
 	}
 
