@@ -7,8 +7,8 @@ prompt_set()
 		local rc=$?
 
 		case "$rc" in
-			0) printf '%s' "${1}:)" ;;
-			*) printf '%s' "${2}8(" ; return $rc ;;
+			0) printf '%s' "$1" ;;
+			*) printf '%s' "$2" ; return $rc ;;
 		esac
 	}
 
@@ -25,11 +25,11 @@ prompt_set()
 	local white="${e}[37m${c}"
 	local yellow="${e}[33;1m${c}"	# bold
 	local reset="${e}[0m${c}"	# all attributes
+	local ok="$green:)"
+	local bad="${bad}8("
 
 	# e.g. user@hostname:~ :)
-	#      ^^^^          ^yellow (workdir)
-	#      cyan
-	export PS1="${cyan}${user}$white@${e}${green}$host:${yellow}$wdir $e\$( face "$green" "$red" ) $reset"
+	export PS1="${cyan}${user}$white@${e}${green}$host:${yellow}$wdir $e\$( face "$ok" "$bad" ) $reset"
 }
 
 prompt_set
