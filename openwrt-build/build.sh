@@ -2372,7 +2372,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
 				apply_symbol 'CONFIG_PACKAGE_rrdtool1=y'		# utilities: rrdtool:
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
-				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
+#				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools (=iwconfig)
 # since r48386 is 'uclient'	apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
@@ -2414,7 +2414,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g +9k
 #				apply_symbol 'CONFIG_PACKAGE_rrdtool1=y'		# utilities: rrdtool:
 #				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless: (but debugFS-export still active)
-				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
+#				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
