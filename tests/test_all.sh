@@ -639,7 +639,7 @@ run_test()
 							;;
 						esac
 
-						# https://github.com/lucasdemarchi/codespell/issues/63
+						# https://github.com/lucasdemarchi/codespell/issues/63 -> TODO: returncode fixed
 						if $codespell_bin "$tempfile" | wc -l | xargs test 0 -eq; then
 							log "[OK] codespell.py '$file'"
 						else

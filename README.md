@@ -316,6 +316,7 @@ Special UCI-variables
 	system.@weblogin[0].redirect_dns	- bool
 	system.@weblogin[0].allow_cgi_roles	- bool
 	system.@weblogin[0].fixed_password	- string
+	system.@weblogin[0].forget_clients	- bool
 	
 	system.@monitoring[0].serverip		- IP
 	system.@monitoring[0].backping		- nodenumber
