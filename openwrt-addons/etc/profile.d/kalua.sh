@@ -19,14 +19,15 @@ prompt_set()
 	local wdir='\w'		# workdir
 	local host='\h'		# short form
 
-	local green="[32m${c}"
-	local red="[31m${c}"
+	local reset="${e}[0m${c}"	# all attributes
 	local cyan="${e}[36m${c}"
 	local white="${e}[37m${c}"
 	local yellow="${e}[33;1m${c}"	# bold
-	local reset="${e}[0m${c}"	# all attributes
-	local ok="$green:)"
-	local bad="${bad}8("
+	local green="[32m${c}"
+	local red="[31m${c}"
+
+	local ok="${green}:)"
+	local bad="${red}8("
 
 	# e.g. user@hostname:~ :)
 	export PS1="${cyan}${user}$white@${e}${green}$host:${yellow}$wdir $e\$( face "$ok" "$bad" ) $reset"
