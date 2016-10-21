@@ -2,13 +2,13 @@
 
 prompt_set()
 {
-	smile()
+	face()
 	{
 		local rc=$?
 
 		case "$rc" in
-			0) printf '%s' "${green}:)" ;;
-			*) printf '%s' "${red}8(" ; return $rc ;;
+			0) printf '%s' "${1}:)" ;;
+			*) printf '%s' "${2}8(" ; return $rc ;;
 		esac
 	}
 
@@ -16,8 +16,8 @@ prompt_set()
 	local c='\]'			# close escape-sequence
 
 	local user='\u'
-	local workdir='\w'
-	local hostname='\h'		# short form
+	local wdir='\w'		# workdir
+	local host='\h'		# short form
 
 	local green="[32m${c}"
 	local red="[31m${c}"
@@ -29,7 +29,7 @@ prompt_set()
 	# e.g. user@hostname:~ :)
 	#      ^^^^          ^yellow (workdir)
 	#      cyan
-	export PS1="${cyan}${user}${white}@${e}${green}${hostname}:${yellow}${workdir} $e\$( smile ) $reset"
+	export PS1="${cyan}${user}$white@${e}${green}$host:${yellow}$wdir $e\$( face "$green" "$red" ) $reset"
 }
 
 prompt_set
