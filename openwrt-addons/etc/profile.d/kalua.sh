@@ -16,21 +16,21 @@ prompt_set()
 	local c='\]'			# close escape-sequence
 
 	local user='\u'
-	local wdir='\w'		# workdir
-	local host='\h'		# short form
+	local wdir='\w'			# workdir
+	local host='\h'			# short form
 
 	local reset="${e}[0m${c}"	# all attributes
-	local cyan="${e}[36m${c}"
 	local white="${e}[37m${c}"
+	local cyan="${e}[36m${c}"
 	local yellow="${e}[33;1m${c}"	# bold
-	local green="[32m${c}"
-	local red="[31m${c}"
+	local green="${e}[32m${c}"
+	local red="${e}[31m${c}"
 
-	local ok="$green:\)"
-	local bad="${red}8\("
+	local ok="${green}:)"
+	local bad="${red}8("
 
 	# e.g. user@hostname:~ :)
-	export PS1="${cyan}${user}$white@${e}${green}$host:${yellow}$wdir $e\$( face "$ok" "$bad" ) $reset"
+	export PS1="${cyan}${user}$white@${green}$host:${yellow}$wdir \$( face '$ok' '$bad' ) $reset"
 }
 
 prompt_set
