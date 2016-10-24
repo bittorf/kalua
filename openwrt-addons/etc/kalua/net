@@ -232,15 +232,20 @@ _net_roaming_eventlistener()
 	local pid pids1 pids2 cmdline error i
 
 	_log it $funcname daemon info "reason: '$reason'"
-	echo "$( date ) $funcname() option: $option reason: '$reason'" >>'/tmp/IWLOG'
+
+	if _net dev_is_valid "$dev"; then
+		echo "$( date ) $funcname() option: $option reason: '$reason'" >>'/tmp/IWLOG'
+	else
+		_log it $funcname daemon debug "refusing to $option, missing dev $dev"
+		return 1
+	fi
 
 	case "$option" in
+		'restart')
+			_$funcname stop  "$reason"
+			_$funcname start "$reason"
+		;;
 		'start')
-			_net dev_is_valid "$dev" || {
-				_log it $funcname daemon debug "refusing to start, missing dev $dev"
-				return 1
-			}
-
 			for pid in $( pidof iw ); do {
 				read -r cmdline <"/proc/$pid/cmdline"
 				[ "$cmdline" = 'iwevent' ] && {
@@ -286,10 +291,6 @@ _net_roaming_eventlistener()
 
 				[ -n "$error" ] && _wifi phy_restart "$WIFIDEV" "$error $funcname stop"
 			}
-		;;
-		'restart')
-			_$funcname stop  "$reason"
-			_$funcname start "$reason"
 		;;
 	esac
 }
