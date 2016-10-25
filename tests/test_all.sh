@@ -479,7 +479,7 @@ run_test()
 		shellsheck_ignore()
 		{
 			printf 'SC1090,SC1091,'
-			printf 'SC2016,SC2029,SC2031,SC2046,SC2086,SC2155,SC2166,SC2039'
+			printf 'SC2016,SC2029,SC2031,SC2046,SC2086,SC2155,SC2166'
 		}
 
 		log "testing with '$shellcheck_bin', ignoring: $( shellsheck_ignore )"
@@ -581,14 +581,10 @@ run_test()
 						} done <"$tempfile"
 					}
 
-					# SC2039: https://github.com/koalaman/shellcheck/issues/354
-#					sed -i 's/echo -n /printf /g' "$tempfile"		# do not use echo flags
-#					sed -i 's/echo -en /printf /g' "$tempfile"		# dito
-#					sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# do not use 'local $var'
-#					sed -i 's/.*shopt.*/# &/g' "$tempfile"
-
 					# SC2119/SC2120 - references arguments, but non are ever passed:
 					sed -i 's/explode \$/set -f;set +f -- \$/g' "$tempfile"
+					# SC2039 - dont complain about 'local'
+					sed -i '1{s|^#!/bin/sh|#!/bin/dash|}' "$tempfile"
 
 					case "$file" in
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
@@ -662,7 +658,7 @@ run_test()
 			# TODO: check if each function call '_class method' is allowed/possible
 			for name in $( list_shellfunctions "$file" ); do {
 				{
-					echo '#!/bin/sh'
+					echo '#!/bin/dash'	# shellcheck will not complain about 'local' in dash-mode
 					echo '. /tmp/loader'
 					echo
 
@@ -693,17 +689,13 @@ run_test()
 
 				# SC2119/SC2120 - references arguments, but non are ever passed:
 				sed -i 's/explode \$/set -f; set +f -- \$/g' "$tempfile"
+				# SC2039 - dont complain about 'local'
+				sed -i '1{s|^#!/bin/sh|#!/bin/dash|}' "$tempfile"
 
 				functions_checked=$(( functions_checked + 1 ))
 				function_too_large "$name" "$tempfile" "$file" && func_too_large=$(( func_too_large + 1 ))
 				function_too_wide  "$name" "$tempfile" "$file" && func_too_wide=$(( func_too_wide + 1 ))
 				# TODO: test if file to wide
-
-				# SC2039: https://github.com/koalaman/shellcheck/issues/354
-#				sed -i 's/echo -n /printf /g' "$tempfile"		# do not use echo flags
-#				sed -i 's/echo -en /printf /g' "$tempfile"		# dito
-#				sed -i 's/local \([a-zA-Z]\)/\1/g' "$tempfile"		# do not use 'local $var'
-#				sed -i 's/.*shopt.*/# &/g' "$tempfile"
 
 				if   function_seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
