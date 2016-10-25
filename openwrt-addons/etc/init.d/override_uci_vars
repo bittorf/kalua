@@ -342,14 +342,14 @@ hostapd_activate_coredump()
 	# not needed for >= r39139 (why?)
 	[ -e '/lib/wifi/hostapd.sh' ] && {
 		grep -q "unlimited" "/lib/wifi/hostapd.sh" || {
-			sed -i 's/hostapd -P/ulimit -c unlimited; &/' '/lib/wifi/hostapd.sh'
+			sed -i 's/hostapd -P/ulimit unlimited; &/' '/lib/wifi/hostapd.sh'
 		}
 	}
 
 	# since r38988
 	[ -e '/lib/netifd/wireless/mac80211.sh' ] && {
 		grep -q 'unlimited' '/lib/netifd/wireless/mac80211.sh' || {
-			sed -i 's|/usr/sbin/hostapd -P|ulimit -c unlimited; &|g' '/lib/netifd/wireless/mac80211.sh'
+			sed -i 's|/usr/sbin/hostapd -P|ulimit unlimited; &|g' '/lib/netifd/wireless/mac80211.sh'
 		}
 	}
 }
@@ -421,6 +421,19 @@ kmodules_group_activate()
 		file="$( basename "$file" )"
 		kmodule_is_deactivated "$file" && kmodule_force_activation "$file"
 	} done
+}
+
+integer2fourhex()	# e.g. 8 -> 00:08
+{			# fixme! max = 999 fixme! generalize it, join with bssid_wellformed()
+	if [ $1 -lt 100 ]; then
+		if [ $1 -lt 10 ]; then
+			echo "00:0$1"
+		else
+			echo "00:$1"
+		fi
+	else
+		echo "0$( echo "$1" | cut -b 1 ):$( echo "$1" | cut -b 2-3 )"
+	fi
 }
 
 boot()
@@ -556,19 +569,6 @@ boot()
 		}
 	fi
 
-	integer2fourhex()	# e.g. 8 -> 00:08
-	{			# fixme! max = 999 fixme! generalize it, join with bssid_wellformed()
-		if [ $1 -lt 100 ]; then
-			if [ $1 -lt 10 ]; then
-				echo "00:0$1"
-			else
-				echo "00:$1"
-			fi
-		else
-			echo "0$( echo "$1" | cut -b 1 ):$( echo "$1" | cut -b 2-3 )"
-		fi
-	}
-
 	apply_olsr_speed '6'
 	uci_sanitize_wireless_macs
 
@@ -602,10 +602,10 @@ boot()
 			# dirty-fix default mac: 00:04:9f:ef:01:01
 			# https://dev.openwrt.org/ticket/14714
 
-			[ -e '/www/monitoring.wifimac' -a $OPENWRT_REV -lt 48645 ] && {
-				# wifimac is correct
-				read -r wmac <'/www/monitoring.wifimac'
-				wmac="${wmac:0:2}:${wmac:2:2}:${wmac:4:2}:00:$( integer2fourhex "$NODENUMBER" )"
+			[ -e '/www/monitoring.wifimac' -a $OPENWRT_REV -lt 48645 ] && {		# wifimac is correct
+				bytes_get(){ cut -b $1,$2 '/www/monitoring.wifimac'; }
+				wmac="$( bytes_get 1 2 ):$( bytes_get 3 4 ):$( bytes_get 5 6 )"
+				wmac="$wmac:00:$( integer2fourhex "$NODENUMBER" )"
 
 				[ -z "$( uci -q get network.lan.macaddr )" ] && uci set network.lan.macaddr="$wmac"
 				[ -z "$( uci -q get network.wan.macaddr )" ] && uci set network.wan.macaddr="$wmac"
@@ -1288,20 +1288,10 @@ boot()
 		liszt28*)
 			touch '/tmp/FREE'
 
-			pos()
-			{
-				[ -e "$TMPDIR/wifi_scan_geolocation" ] || return 0
-
-				local lat="${1//,/.}"	# ',' -> '.'
-				local lon="${2//,/.}"
-
-				uci set system.@admin[0].latlon="$lat;$lon"
-			}
-
 			# http://www.bing.com/maps/?FORM=EXIPRV -> rightlick on location + copy&paste coords
 			case "$NODENUMBER" in
-				705) pos '50,990370' '11,331675' ;;	# F36-NAS
-				  4) pos '50,990426' '11,331749' ;;	# F36-linksys
+				705) uci set system.@admin[0].latlon='50,990370;11,331675' ;;	# F36-NAS
+				  4) uci set system.@admin[0].latlon='50,990426;11,331749' ;;	# F36-linksys
 			esac
 
 			_wifi set anymode anyfreq chanbw '20'

@@ -1,11 +1,13 @@
 #!/bin/sh
 . /tmp/loader
 
-echo -en "Content-type: text/plain\n\nOK"
+_http header_mimetype_output 'text/plain'
+echo 'OK'
+
 eval $( _http query_string_sanitize "$0" )	# CAH|CMA|LOG
 
 if [ -n "$LOG" ]; then
-	logger -s -- "$0: LOG: '$LOG'"
+	_log it kicker daemon info "LOG: '$LOG'"
 else
 	_netfilter user_probe "$CMA" || exit 1
 

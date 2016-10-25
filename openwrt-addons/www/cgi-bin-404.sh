@@ -55,9 +55,6 @@ case "$HTTP_USER_AGENT" in
 			;;
 		esac
 	;;
-	"Microsoft NCSI")	# microsoft captive portel checker -> _http spoof_captive_portal_checker_microsoft
-		ERROR=403
-	;;
 	"htcUPCTLoader"|"Microsoft BITS"*|"ZoneAlarm"*|*"youtube"*|*"YouTube"*|"WifiHotspot"|"Skype WISPr"|*"Apple-PubSub"*|*"XProtectUpdater"*|"MPlayer"*|"Microsoft-CryptoAPI"*|"WinHttp-Autoproxy-Service"*|"Windows-Update-Agent"*|"iTunes"*)
 		ERROR=403
 	;;

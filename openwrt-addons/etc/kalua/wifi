@@ -380,7 +380,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 {
 	local mac="$1"		# or IP
 	local option="$2"	# debug
-	local ip line result targetline rate throughput efficiency system file
+	local ip line result targetline rate rate_calc throughput efficiency system file
 	local max=0
 
 	[ "$option" = 'debug' ] || {
@@ -533,8 +533,9 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 			# e.g. 5.5 or 11 -> efficiency in [percent]
 			case "$rate" in
 				*'.'*)
-					if divisor_valid "${rate//./}"; then
-						efficiency=$(( ( efficiency * 100 ) / ${rate//./} ))	# divisor_valid
+					rate_calc="$( echo "$rate" | tr -d '.' )"
+					if divisor_valid "$rate_calc"
+						efficiency=$(( ( efficiency * 100 ) / rate_calc ))	# divisor_valid
 					else
 						efficiency=0
 					fi
@@ -951,7 +952,8 @@ _wifi_forwarding_still_active()
 	}
 
 	while [ $bytes -eq 0 ]; do {
-		let duration-=1 || break
+		duration=$(( duration - 1 ))
+		[ $duration -eq 0 ] || break
 		sleep 1
 
 		explode $( $IPT -nxvL FORWARD 1 )
@@ -1071,7 +1073,8 @@ _wifi_phy_restart()
 			_log it $funcname daemon info "waiting for IP on $wifi_dev - round $(( 41 - i ))/40"
 			sleep 5
 
-			let i-=1 || {
+			i=$(( i - 1 ))
+			[ $i -eq 0 ] && {
 				_log it $funcname daemon alert "no IPv4 on $wifi_dev"
 				ps >>$PERMLOG
 				_system crashreboot 'hanging_wifi'
@@ -2301,7 +2304,7 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 	local var="$3"		# e.g. 'ssid' or 'disabled' or 'off'/'on' -> disabled 1/0
 	local value="$4"	# e.g. 'myssid' or '1'
 	local option="$5"
-	local radio='' bssid='' chanbw='' carry='' i='' j=10
+	local radio='' bssid='' chanbw='' carry='' i='' j
 
 	case "$var" in
 		'off')
@@ -2372,7 +2375,7 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 											_wifi set anymode anyfreq 'off'
 										}
 
-										while let j-=1; do {
+										for j in $( seq 10 -1 1 ); do {
 											# grep for 'nl80211 not found'?
 											iw dev wlan0 info >/dev/null || break
 											sleep 1
@@ -2526,7 +2529,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	# TODO: initial sync via http? needed
 	# TODO: generate mail/pdf
 
-	channels="${channels//./ }"	# e.g. 36...44
+	channels="$( echo "$channels" | tr '.' ' ' )"	# e.g. 36...44
 	explode $channels
 	channel_start="$1"
 	channel_ready="$2"
@@ -2534,7 +2537,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	e "initial channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial"
 	_stopwatch start $funcname
 
-	for channel in $( seq $channel_start $channel_ready ); do {
+	for channel in $( seq "$channel_start" "$channel_ready" ); do {
 		iw phy phy0 info | fgrep -q " MHz [$channel]" || continue	# invalid/unusable channel
 
 		for chanbw in 5 10 20; do {

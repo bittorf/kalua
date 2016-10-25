@@ -18,7 +18,7 @@ FILE_HOSTNAMES='/var/run/hosts_olsr'	# nameservice plugin
 # for live generating via webserver:
 # ln -s /usr/sbin/cron.build_netjson.sh /www/cgi-bin-netjson.sh
 [ -z "$NETWORK_NAME" -a -n "$REMOTE_ADDR" ] && {
-	echo -en "Content-type: application/json\n\n"
+	printf '%s\n\n' 'Content-type: application/json'
 	NETWORK_NAME='live'
 }
 
@@ -177,6 +177,7 @@ while read -r LINE; do {			# and extract all nodes and all links
 	esac
 } done <"$FILE" >"$TMP_JSON"
 
+# needed for IP-to-HOSTNAME translation later
 [ -e "$FILE_HOSTNAMES" ] && {
 	while read -r LINE; do {
 		case "$LINE" in
@@ -186,7 +187,7 @@ while read -r LINE; do {			# and extract all nodes and all links
 				IP="$1"
 				NAME="$2"
 
-				eval IP_${IP//./_}="$NAME"	# e.g. IP_1_2_3_4='foo'
+				eval IP_$( echo "$IP" | tr '.' '_' )="$NAME"	# e.g. IP_1_2_3_4='foo'
 			;;
 		esac
 	} done <"$FILE_HOSTNAMES" 2>/dev/null
@@ -206,7 +207,7 @@ EOF
 
 
 for IP in $LIST_NODES; do {
-	eval NAME="\$IP_${IP//./_}"
+	eval NAME="\$IP_$( echo "$IP" | tr '.' '_' )"
 	test -n "$BUFFER" && echo "$BUFFER,"
 	BUFFER="    { \"id\": \"$IP\", \"label\": \"${NAME:-$IP}\" }"
 } done

@@ -44,9 +44,9 @@ _net_both_ipv4_in_same_subnet()
 		mask="$( _net cidr2mask "$mask2" )"
 	fi
 
-	explode ${addr1//./ } ${mask//./ }	# e.g. 10 63 12 1   255 255 255 240
+	explode $( echo "$addr1 $mask" | tr '.' ' ' )	# e.g. 10 63 12 1   255 255 255 240
 	s1="$(( $1 & $5 )) $(( $2 & $6 )) $(( $3 & $7 )) $(( $4 & $8 ))"
-	explode ${addr2//./ } ${mask//./ }
+	explode $( echo "$addr2 $mask" | tr '.' ' ' )
 	s2="$(( $1 & $5 )) $(( $2 & $6 )) $(( $3 & $7 )) $(( $4 & $8 ))"
 
 	test "$s1" = "$s2"
@@ -192,8 +192,7 @@ _net_tcp_port_reachable()		# please call with 2>/dev/null otherwise you
 	pid=$!
 
 	if [ -n "$check_output" ]; then
-		i=5
-		while let i-=1; do {
+		for i in $( seq 5 -1 1 ); do {
 			grep -sq -- "$check_output" "$file" && break
 			sleep 1
 		} done
@@ -268,7 +267,8 @@ _net_roaming_eventlistener()
 					# FIXME! (really 2 calls needed...)
 					iw reg set 00
 					iw reg set US
-					let i-=1 || break
+					i=$(( i - 1 ))
+					[ $i -eq 0 ] && break
 
 					_log it $funcname daemon info "still running 'iw' (pid: $pids2)"
 					sleep 1
@@ -440,7 +440,7 @@ _net_roaming_report_new()
 		echo >>$SCHEDULER '_net roaming_cleanup_cache'
 	else
 		authserver="$( _weblogin authserver )"
-		query="action=roaming_add&mac=${mac//:/%3a}&ip=$ip&expires=$expires"
+		query="action=roaming_add&mac=$( _sanitizer run "$mac" urlvalue )&ip=$ip&expires=$expires"
 		url="http://$authserver/cgi-bin-collect.sh?$query"
 		answer="$( _curl it "$url?$query" )"
 
@@ -499,9 +499,9 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 		local mac2="$2"					# 66:66:b3:de:d9:ea
 		local s1 s2
 
-		explode ${mac1//:/ }
+		explode $( echo "$mac1" | tr ':' ' ' )
 		s1=$(( 0x$2 + 0x$3 + 0x$4 + 0x$5 + 0x$6 ))	#    66 b3 de d9 eb
-		explode ${mac2//:/ }
+		explode $( echo "$mac2" | tr ':' ' ' )
 		s2=$(( 0x$2 + 0x$3 + 0x$4 + 0x$5 + 0x$6 ))	#    66 b3 de d9 ec
 
 		[ $(( s1 - s2 )) -eq 1 -o $(( s2 - s1 )) -eq 1 ]
@@ -531,7 +531,9 @@ _net_track_ap()		# helper/debug for a roaming laptop -> move to _wifi()?
 		while [ -z "$hostname" ]; do {
 			# FIXME! use wget-wrapper?
 			hostname="$( wget -T 5 -qO - "$url" || sleep 1 )"
-			let i-=1 || {
+
+			i=$(( i - 1 ))
+			[ $i -eq 0 ] && {
 				echo 'unknown_hostname'
 				return 1
 			}
@@ -1105,7 +1107,7 @@ _net_ip_reachable()
 		esac
 	}
 
-	while let max_attempts-=1 ; do {
+	for max_attempts in $( seq "$max_attempts" -1 1 ); do {
 		for dev in $dev_list; do {
 			# arping also returns with 0, without reply (so we grep the output)
 			#
@@ -1287,8 +1289,8 @@ _net_mac2vendor()
 	if   [ ${#oui} -eq 6 -o ${#oui} -eq 12 ]; then
 		:
 	elif [ ${#oui} -eq 17 ]; then
-		oui=${oui//:/}
-		oui=${oui//-/}
+		oui="$( echo "$oui" | tr -d ':' )"
+		oui="$( echo "$oui" | tr -d '-' )"
 		[ ${#oui} -eq 12 ] || return 1
 	else
 		[ ${#oui} -eq 0 ] && return 1
@@ -1309,8 +1311,8 @@ _net_mac2vendor()
 		*)
 			local cache="/tmp/oui/$oui"
 			[ -e "$cache" ] || {
-				mkdir -p "/tmp/oui"
-				url="$url/${oui:0:2}/${oui:2:2}/${oui:4:2}"
+				mkdir -p '/tmp/oui'
+				url="$url/$( echo "$oui" | cut -b 1,2 )$( echo "$oui" | cut -b 3,4 )$( echo "$oui" | cut -b 5,6 )"
 				_sanitizer run "$( _curl it "$url" 5 2>/dev/null )" shellsafe >"$cache"
 
 				[ $( _file size "$cache" ) -eq 0 ] && {
@@ -1337,8 +1339,8 @@ _net_ip4_is_private()
 		192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[0-1].*|169.254.*|10.*|127.*)
 			return 0		# RFC-1918
 		;;
-		100.[6-9]*|100.1[0-2]*)		# RFC-6598 / Carrier-Grade NAT
-			explode ${ip//./ }	# = 100.64.0.0/10 ... 100.127.255.254/10
+		100.[6-9]*|100.1[0-2]*)		# RFC-6598 / Carrier-Grade NAT = 100.64.0.0/10 ... 100.127.255.254/10
+			explode $( echo "$ip" | tr '.' ' ' )
 			test $2 -ge 64 -a $2 -le 127
 			return $?
 		;;
@@ -2146,7 +2148,7 @@ _net_inet_seems_stable()					# FIXME! also check path to gateway (add wireless c
 				if batctl gateways | grep -q 'MBit'; then
 					case "$CONFIG_PROFILE" in
 						'apphalle'*)
-							while let i=i-1; do {
+							for i in $( seq "$i" -1 1 ); do {
 								ping -q -c1 "$authserver" && return 0
 							} done
 

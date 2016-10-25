@@ -68,9 +68,9 @@ _mail_pop3_check_stats()
 
 	_log it $funcname user info "contacting server '$server'"
 
-	answer="$( echo -e "USER $user\nPASS $pass\nSTAT\nQUIT\n" | $netcat_bin $server $port )"
+	answer="$( printf '%s\n%s\n%s\n%s\n' "USER $user" "PASS $pass" "STAT" "QUIT" | $netcat_bin $server $port )"
 	rc_netcat=$?
-	answer_short="$( echo "$answer" | cut -d' ' -f1 | while read -r line; do echo -n "$line"; done )"	# removes LF/CR
+	answer_short="$( echo "$answer" | cut -d' ' -f1 | while read -r line; do printf '%s' "$line"; done )"	# removes LF/CR
 
 	case "$answer_short" in			# normal answer:
 		"+OK+OK+OK+OK+OK"*)		# +OK POP server ready H migmx104
@@ -516,12 +516,12 @@ _mail_encode_quoted_printable()		# http://en.wikipedia.org/wiki/Quoted-printable
 	sed -e 's/=/=3D/g' -e 's/$/=00/' "$FILE" | while read -r LINE; do {
 		while true; do {
 			case "$LINE" in
-				"."*) LINE="=2E$( echo "$LINE" | cut -b 2- )"
+				'.'*) LINE="=2E$( echo "$LINE" | cut -b 2- )"
 			esac
 
 			if   [ ${#LINE} -lt $BUFFER ]; then
 				LINE="$( echo "$LINE" | sed 's/=00$//' )"
-				echo -en "$LINE\r\n"
+				printf '%s\r\n' "$LINE"
 				break
 			elif [ ${#LINE} -eq $BUFFER ]; then
 				echo "${LINE}="
@@ -546,7 +546,7 @@ _mail_encode_quoted_printable()		# http://en.wikipedia.org/wiki/Quoted-printable
 					;;
 				esac
 
-				echo -en "${OUTPUT}=\r\n"
+				printf '%s\r\n' "$OUTPUT="
 				LINE="$( echo "$LINE" | cut -b $(( BUFFER + 1 ))- )"	# idea: simply raise startcounter
 				BUFFER=$WRAP
 			fi

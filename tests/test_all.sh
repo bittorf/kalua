@@ -43,9 +43,9 @@ show_shellfunction_usage_count()
 			without_first_underliner="${name#_}"		#  olsr_txtinfo
 
 			if [ -e "openwrt-addons/etc/kalua/$without_first_underliner" ]; then
-				kalua_name="$without_first_underliner"		# _random_username
+				kalua_name="$without_first_underliner"		# random_username
 			else
-				kalua_name="_${without_first_underliner/_/ }"	# _olsr txtinfo
+				kalua_name="$( echo "$without_first_underliner" | tr '_' ' ' )"	# olsr txtinfo
 			fi
 
 			occurrence_nested="$( git grep "$kalua_name" | wc -l )"
@@ -583,7 +583,7 @@ run_test()
 
 					# SC2119/SC2120 - references arguments, but non are ever passed:
 					sed -i 's/explode \$/set -f;set +f -- \$/g' "$tempfile"
-					# SC2039 - dont complain about 'local'
+					# SC2039 - do not complain about 'local'
 					sed -i '1{s|^#!/bin/sh|#!/bin/dash|}' "$tempfile"
 
 					case "$file" in
@@ -602,6 +602,13 @@ run_test()
 							# strip non-ascii chars, otherwise the parser can fail with
 							# openwrt-addons/etc/kalua/mail: hGetContents: invalid argument (invalid byte sequence)
 							tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
+						;;
+					esac
+
+					# otherwise it complains about $HOSTNAME not allowed in POSIX
+					case "$file" in
+						'openwrt-addons/etc/kalua/'*)
+							sed -i '2{s|^|. /tmp/loader\n|}' "$tempfile"
 						;;
 					esac
 
@@ -689,7 +696,7 @@ run_test()
 
 				# SC2119/SC2120 - references arguments, but non are ever passed:
 				sed -i 's/explode \$/set -f; set +f -- \$/g' "$tempfile"
-				# SC2039 - dont complain about 'local'
+				# SC2039 - do not complain about 'local'
 				sed -i '1{s|^#!/bin/sh|#!/bin/dash|}' "$tempfile"
 
 				functions_checked=$(( functions_checked + 1 ))
