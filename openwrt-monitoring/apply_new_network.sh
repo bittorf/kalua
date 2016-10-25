@@ -80,4 +80,6 @@ cd "${BASE}/${NETWORK}/vds" || exit
 echo "<html><body>protected</body></html>" >index.html && log "[OK] putting empty startpage into vds-dir"
 
 cd "${BASE}/${NETWORK}/speedtest" || exit
-echo -e '<?php\necho $_SERVER["REMOTE_ADDR"];\n?>' >index.html && log "[OK] put remote_addr startpagepage into speedtest"
+
+printf '%s\n%s\n%s' '<?php' 'echo $_SERVER["REMOTE_ADDR"];' '?>' >index.html
+log "[OK] put remote_addr startpagepage into speedtest"

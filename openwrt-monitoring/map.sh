@@ -9,6 +9,7 @@ log()
 
 cat /var/www/scripts/map1.html
 
+export HOSTNAME
 for FILE in /var/www/networks/$NETWORK/meshrdf/recent/????????????; do
 	LATLON=
 	. $FILE

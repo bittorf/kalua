@@ -6,6 +6,8 @@ else
 	exit 0
 fi
 
+export HOSTNAME
+
 if [ -n "$LOG" ]; then
 	# outdated: we write to '/tmp/monilog.txt' - see $0.php
 	echo "$1" >>./meshrdf.txt
