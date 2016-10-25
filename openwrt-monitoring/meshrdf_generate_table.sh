@@ -2190,8 +2190,10 @@ hostname_from_monitoring_sanitized()
 	esac
 
 	case "$hostname" in
-		*'ap--'[0-9]*)
+		*'ap--'[0-9]*|'enforcedsettings'*'real')
 			# e.g. berlinle-ap--11
+			# e.g. enforcedsettingsfernmeldemuseumLinksnbsplarrEG-WerkstattDannyreal
+			# e.g. enforcedsettingsbauhaus-neufert-zweinbsplarrEG-Sommerbar-Emporereal
 			file="/var/www/networks/$NETWORK/settings/$mac.hostname"
 			read -r hostname 2>/dev/null <"$file"
 		;;
@@ -2259,6 +2261,9 @@ send_mail_telegram()
 							list=
 						;;
 					esac
+				;;
+				'E2-ayse')
+					list="$admin aysekurultay|gmail.com"
 				;;
 				'Frenze-oben'|'Frenze-unten')
 					list="$admin sven.pasemann|gmx.de"

@@ -3,7 +3,9 @@
 # TODO:
 # tar cvf /var/www/files/monilog-2015jan25-2016sep12.tar /var/www/files/openwrt/monilog_*.bz2
 # /tmp/storage/sda1_3.6T/backup_ICVPN/ejbw-pbx scp root@intercity-vpn.de:/root/backup/ejbw/pbx/backup_scripts_* .
-
+#
+# DIR=/var/www; find "$DIR" -mindepth 1 -maxdepth 1 -type d | while read DIR; do du -sh "$DIR";done
+# DIR=/root; find "$DIR" -mindepth 1 -maxdepth 1 -type d | while read DIR; do du -sh "$DIR";don
 
 # see: /root/backup/ejbw/pbx/
 # cd /root/backup/ejbw/pbx/; for F in *.bin; do echo $F; lzma "$F"; done  # appends .lzma

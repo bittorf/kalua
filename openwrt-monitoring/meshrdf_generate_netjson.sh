@@ -272,7 +272,7 @@ cat <<EOF
 {
 	"type": "NetworkGraph",
 	"label": "bittorf wireless )) with <a href='http://netjson.org'>netJSON.org</a>",
-	"protocol": "OLSR",
+	"protocol": "OLSR with <a href='map.json'>rawdata.json</a>",
 	"topology_id": "$NETWORK@$(date)",
 	"version": "1",
 	"metric": "etx_ffeth",
@@ -309,7 +309,7 @@ for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 
 			# ewerk
 			case "$NETWORK" in
-				'ewerk'|'liszt28')
+				'ewerk'|'liszt28'|'ilm1')
 					ipsystem_ip2node_line "$NODE"
 				;;
 			esac
@@ -394,8 +394,10 @@ EOF
 #	esac
 } done >map.temp.node2hostname
 
-cat map.temp.node2hostnameIDS
-rm  map.temp.node2hostnameIDS
+[ -e 'map.temp.node2hostnameIDS' ] && {
+	cat map.temp.node2hostnameIDS
+	rm  map.temp.node2hostnameIDS
+}
 echo
 echo "	],"
 echo '	"links": ['
@@ -517,6 +519,7 @@ for FILE in $FILELIST; do {		# describe all connections, which are not used for 
 	echo "$NEIGH" | sed 's/[=~-]/\n&/g' >"/tmp/links_$$"
 	while read -r LINE; do {
 		[ -z "$LINE" ] && continue
+		log "working on link: '$LINE' - file: '/tmp/links_$$'"
 
 		NDEV="$(   func_interpret_neigh 'ndev'   "$LINE" )"	# e.g. '-' or '~'
 		NNEIGH="$( func_interpret_neigh 'nneigh' "$LINE" )"
