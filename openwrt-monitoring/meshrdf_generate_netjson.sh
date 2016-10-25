@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# TODO: ilm1: show conn between 2 nodes with different freqs (for now we only show one)
+
 NETWORK="${1:-$( pwd )}"
 UNIX_NOW="$( date +%s )"
 

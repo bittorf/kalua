@@ -3671,7 +3671,7 @@ die_and_exit()
 }
 
 # http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-5.1/man1/whoami.1?query=whoami&sec=1&manpath=OpenBSD-5%2e1
-[ "$( id -u )" = '0' ] && log "REMINDER: do not build as root, you have UID: $UID"
+[ "$( id -u )" = '0' ] && log "REMINDER: do not build as root, you have UID: $( id -u )"
 
 check_working_directory			|| die_and_exit
 openwrt_download 'reset_autocommits'

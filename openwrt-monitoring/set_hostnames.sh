@@ -12,6 +12,7 @@ PATTERN_MAC="[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\$"
 	exit 1
 }
 
+export HOSTNAME
 for INCLUDE in $FILES_TO_INCLUDE; do {
 	if [ -e "$INCLUDE" ]; then
 		. $INCLUDE
