@@ -191,7 +191,6 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 			}
 
 			for ADR in $LANADR; do {
-#			for ADR in $LANADR $WIFIADR; do {
 				# the first is taken from OLSR-nameservice_plugin
 				for BOXNAME in $HOSTNAME ping gateway kiste box router internet weimarnetz hotel login dorfhotel www; do {
 					echo >>$SUB_VIRT "$ADR ${BOXNAME}.$DOMAIN $BOXNAME"
@@ -266,7 +265,7 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 	local LIST="$( uci get system.@ethers[0].$MODE )"
 	local DEBUG_FILE="/tmp/ethers"
 	local DEBUG_VAR="fff_ethers_$MODE"		# format e.g.: fff_ethers_wifi="00:11:22:33:44:55=admin-computername;11:22:33:44:55:66=free-computername;..."
-	local DEBUG_VAL HOSTNAME
+	local DEBUG_VAL hostname
 
 	_log it $FUNC daemon debug "mode '$MODE'"
 
@@ -280,41 +279,41 @@ fkt_write_ethers ()			# writes /etc/ethers which is "mac-address hostname" per l
 		CLIENT=$(( CLIENT + 1 ))
 		HWADRESS="$( echo $MAC_AND_HOST | cut -d'=' -f1 )"
 		HWADRESS="$( _sanitizer run "$HWADRESS" lowercase )"
-		HOSTNAME="$( echo $MAC_AND_HOST | cut -d'=' -f2 )"
+		hostname="$( echo $MAC_AND_HOST | cut -d'=' -f2 )"
 
-		_log it $FUNC daemon debug "working on mac '$HWADRESS' with hostname '$HOSTNAME'"
+		_log it $FUNC daemon debug "working on mac '$HWADRESS' with hostname '$hostname'"
 
-		if [ -n "$HWADRESS" -a -n "$HOSTNAME" ] && ! grep -s ^"$HWADRESS" "$FILE" ; then
+		if [ -n "$HWADRESS" -a -n "$hostname" ] && ! grep -s ^"$HWADRESS" "$FILE" ; then
 
-			echo "$HOSTNAME" | grep -q ^"admin" && {				# "adminbob" -> "admin-bob"
-				echo "$HOSTNAME" | grep -q ^"admin-" || {
-					HOSTNAME="$( echo $HOSTNAME | sed 's/^admin/admin-/' )"
+			echo "$hostname" | grep -q ^"admin" && {				# "adminbob" -> "admin-bob"
+				echo "$hostname" | grep -q ^"admin-" || {
+					hostname="$( echo $hostname | sed 's/^admin/admin-/' )"
 				}
 			}
 
-			echo "$HOSTNAME" | grep -q ^"free" && {					# "freealice" -> "free-alice"
-				echo "$HOSTNAME" | grep -q ^"free-" || {
-					HOSTNAME="$( echo $HOSTNAME | sed 's/^free/free-/' )"
+			echo "$hostname" | grep -q ^"free" && {					# "freealice" -> "free-alice"
+				echo "$hostname" | grep -q ^"free-" || {
+					hostname="$( echo $hostname | sed 's/^free/free-/' )"
 				}
 			}
 
-			[ -z "$( echo "$HOSTNAME" | cut -d'-' -f2 )" ] && {			# "free|admin-" -> "free|admin-anonym"
-				HOSTNAME="${HOSTNAME}anonym"
+			[ -z "$( echo "$hostname" | cut -d'-' -f2 )" ] && {			# "free|admin-" -> "free|admin-anonym"
+				hostname="${hostname}anonym"
 			}
 
-			HOSTNAME="$( echo $HOSTNAME | sed 's/[^0-9a-zA-Z-]//g' )"	# sanitized / RFC-952
+			hostname="$( echo $hostname | sed 's/[^0-9a-zA-Z-]//g' )"	# sanitized / RFC-952
 
-			printf '%s' "$HWADRESS=$HOSTNAME;" >>$DEBUG_FILE		# must include the sanitized output
+			printf '%s' "$HWADRESS=$hostname;" >>$DEBUG_FILE		# must include the sanitized output
 											# and must be the same syntax like nvram
 
-			HOSTNAME="${HOSTNAME}-${MODE}${CLIENT}-n$NODENUMBER.$DOMAIN"		# fixme! remove leading/trailing "-"
+			hostname="$hostname-${MODE}${CLIENT}-n$NODENUMBER.$DOMAIN"		# fixme! remove leading/trailing "-"
 
-			_log it $FUNC daemon debug "writing '$HWADRESS' with hostname '$HOSTNAME' to '$FILE'"
+			_log it $FUNC daemon debug "writing '$HWADRESS' with hostname '$hostname' to '$FILE'"
 
-			echo "$HWADRESS $HOSTNAME" >>"$FILE"
+			echo "$HWADRESS $hostname" >>"$FILE"
 		else
 			[ -z "$HWADRESS" ] && _log it $FUNC daemon debug "no mac-address given"
-			[ -z "$HOSTNAME" ] && _log it $FUNC daemon debug "no hostname-address given"
+			[ -z "$hostname" ] && _log it $FUNC daemon debug "no hostname-address given"
 
 			[ -n "$HWADRESS" ] && {
 				grep -sq ^"$HWADRESS" "$FILE" && {

@@ -581,11 +581,6 @@ run_test()
 						} done <"$tempfile"
 					}
 
-					# SC2119/SC2120 - references arguments, but non are ever passed:
-					sed -i 's/explode \$/set -f;set +f -- \$/g' "$tempfile"
-					# SC2039 - do not complain about 'local'
-					sed -i '1{s|^#!/bin/sh|#!/bin/dash|}' "$tempfile"
-
 					case "$file" in
 						# otherwise we get https://github.com/koalaman/shellcheck/wiki/SC2034
 						'openwrt-addons/etc/init.d/'*|'openwrt-build/apply_profile'*)
@@ -604,6 +599,11 @@ run_test()
 							tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
 						;;
 					esac
+
+					# SC2119/SC2120 - references arguments, but non are ever passed:
+					sed -i 's/explode \$/set -f;set +f -- \$/g' "$tempfile"
+					# SC2039 - do not complain about 'local'
+					sed -i '1{s|^#!/bin/sh|#!/bin/dash|}' "$tempfile"
 
 					# always source '/tmp/loader' ontop of the scripts,
 					# otherwise it complains about $HOSTNAME not allowed in POSIX
