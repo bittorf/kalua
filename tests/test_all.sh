@@ -616,9 +616,13 @@ run_test()
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 						if grep -q '# shellcheck disable=SC' "$tempfile"; then
 							log "[OK] shellcheck: '$file' - START: check without internal ignores"
-							sed -i 's/# shellcheck disable=SC/# shellcheck disable=XX/g' "$tempfile"
-							$shellcheck_bin --exclude="$ignore" "$tempfile"
-							log "[OK] shellcheck: '$file' - READY: check without internal ignores"
+							sed -i 's/# shellcheck disable=SC/# shellXXXXX disable=SC/g' "$tempfile"
+
+							if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
+								log "[OK] shellcheck: '$file' - READY: without errors: remove SC-ignores"
+							else
+								log "[OK] shellcheck: '$file' - READY: check without internal ignores"
+							fi
 						else
 							log "[OK] shellcheck: '$file'"
 						fi
