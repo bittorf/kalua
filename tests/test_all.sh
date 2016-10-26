@@ -371,7 +371,7 @@ run_test()
 {
 	local force_file="$1"
 	local shellcheck_bin ignore file tempfile filelist ip hash1 hash2
-	local codespell_bin size1 size2 line line_stripped i list name
+	local codespell_bin size1 size2 line line_stripped i list name sc_list
 	local func_too_large=0
 	local func_too_wide=0
 	local count_files=0
@@ -615,7 +615,8 @@ run_test()
 
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 						if grep -q '# shellcheck disable=SC' "$tempfile"; then
-							log "[OK] shellcheck: '$file' - START: check without internal ignores"
+							sc_list="$( grep '# shellcheck disable=SC' "$tempfile" | cut -d'=' -f2 | tr ',' '\n' | sort -u | while read LINE; do printf '%s' "$LINE "; done )"
+							log "[OK] shellcheck: '$file' - START: check without internal ignores: $sc_list"
 							sed -i 's/# shellcheck disable=SC/# shellXXXXX disable=SC/g' "$tempfile"
 
 							if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
