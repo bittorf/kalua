@@ -605,6 +605,7 @@ run_test()
 						;;
 					esac
 
+					# always source '/tmp/loader' ontop of the scripts,
 					# otherwise it complains about $HOSTNAME not allowed in POSIX
 					case "$file" in
 						'openwrt-addons/etc/kalua/'*)
@@ -613,7 +614,14 @@ run_test()
 					esac
 
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-						log "[OK] shellcheck: '$file'"
+						if grep -q '# shellcheck disable=SC' "$tempfile"; then
+							log "[OK] shellcheck: '$file' - START: check without internal ignores"
+							sed -i 's/# shellcheck disable=SC/# shellcheck disable=XX/g' "$tempfile"
+							$shellcheck_bin --exclude="$ignore" "$tempfile"
+							log "[OK] shellcheck: '$file' - READY: check without internal ignores"
+						else
+							log "[OK] shellcheck: '$file'"
+						fi
 					else
 						log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
 
