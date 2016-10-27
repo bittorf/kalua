@@ -1819,16 +1819,18 @@ _wifi_scan_geolocation()
 	local marker="$TMPDIR/$funcname"
 	local lat lon
 
-	# we need SSL during api_query()
-	[ -e '/bin/uclient-fetch' ] || return 0
 	[ -e "$marker" ] && return 0
+	# we need SSL during api_query()
+	[ -e '/bin/uclient-fetch' ] || {
+		wget --version | grep -q ^'GNU' || return 0
+	}
 
 	_wifi scan_geolocation_api_build_json >"$file" && {
 		eval $( _wifi scan_geolocation_api_query "$file" )
 
 		[ -n "$lat" -a -n "$lon" ] && {
 			_log it $funcname daemon info "lat: $lat lon: $lon"
-			echo "lat: $lat lon: $lon" >"$marker"
+			touch "$marker"
 			uci set "system.@admin[0].latlon=$lat;$lon"
 		}
 	}
