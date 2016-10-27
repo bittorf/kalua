@@ -154,12 +154,12 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	local firstping_lan firstping_wan gateway gateway_old ip i cost cost_best prio has_wired_neigh parse
 
 	[ -e "$configfile" ] || {
-		_log it $func daemon info "config file not found, daemon was never started"
+		_log it $funcname daemon info "config file not found, daemon was never started"
 		return 0
 	}
 
 	while _olsr uptime is_short ; do {
-		_log it $func daemon info "waiting till olsr-uptime is long enough"
+		_log it $funcname daemon info "waiting till olsr-uptime is long enough"
 
 		sleep 10
 		uptime_was_short='true'
@@ -176,16 +176,16 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 			sleep 3		# needed on fast devices?
 			[ -s "/tmp/OLSR_TMP/ALL" ] && break
 
-			_log it $func daemon info "zero txtinfo.plugin-output, trying again"
+			_log it $funcname daemon info "zero txtinfo.plugin-output, trying again"
 		else
-			_log it $func daemon info "wget-error trying again"
+			_log it $funcname daemon info "wget-error trying again"
 		fi
 
 		[ $max_errors -gt 0 ] || {
 			if pidof olsrd >/dev/null ; then
-				_olsr daemon restart "$func did not work, but daemon is up"
+				_olsr daemon restart "$funcname did not work, but daemon is up"
 			else
-				_olsr daemon start   "$func did not work, daemon is not up"
+				_olsr daemon start   "$funcname did not work, daemon is not up"
 			fi
 
 			return 0
@@ -408,7 +408,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							fi
 
 							# TODO: only log valid IPs: _ipsystem getvar '....ADR' $REMOTE_NODENUMBER
-							_log it $func daemon $prio "unstable LAN: $*"
+							_log it $funcname daemon $prio "unstable LAN: $*"
 							_watch counter "/tmp/$funcname-unstableLAN" increment 1 max 5 || {
 								bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
 									_system crashreboot 'flappy_olsr'
@@ -451,7 +451,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							fi
 
 							# TODO: only log valid IPs: _ipsystem getvar '....ADR' $REMOTE_NODENUMBER
-							_log it $func daemon $prio "unstable WAN: $*"
+							_log it $funcname daemon $prio "unstable WAN: $*"
 							_watch counter "/tmp/$funcname-unstableWAN" increment 1 max 5 || {
 								bool_true 'olsrd.@meta[0].reboot_weak_ethernet' && {
 									_system crashreboot 'flappy_olsr'
@@ -496,7 +496,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 							# ETX/cost
 						;;
 						*)
-							_log it $func daemon alert "bad: remote: $2 cost: $6"
+							_log it $funcname daemon alert "bad: remote: $2 cost: $6"
 						;;
 					esac
 				}
@@ -504,7 +504,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 				# special marker for 'is a WiFi neigh'
 				[ -e "/tmp/OLSR/isneigh_$2" ] || {
 					touch "/tmp/OLSR/isneigh_$2"
-					_log it $func daemon info "1st contact to WiFi-neigh: $2"
+					_log it $funcname daemon info "1st contact to WiFi-neigh: $2"
 					_net ip2mac "$2" >/dev/null
 				}
 				touch "/tmp/OLSR/isneigh_$2"
@@ -563,7 +563,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 				local oldneighs="$( cat /www/OLSR_has_neigh_WAN /www/OLSR_has_neigh_LAN 2>/dev/null )"
 				[ -e '/www/OLSR_has_neigh_WAN' ] && rm '/www/OLSR_has_neigh_WAN'
 				[ -e '/www/OLSR_has_neigh_LAN' ] && rm '/www/OLSR_has_neigh_LAN'
-				_olsr daemon restart "$func - missing formally known wired neigh: '$oldneighs'"
+				_olsr daemon restart "$funcname - missing formally known wired neigh: '$oldneighs'"
 			}
 		}
 	}
@@ -575,7 +575,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 	if [ "$firstping_lan" = 'error' ]; then
 		bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
-			_log it $func daemon alert "lan-ping failed"
+			_log it $funcname daemon alert "lan-ping failed"
 			_watch counter "/tmp/error_lanping_$funcname" increment 1 max 5 || _system crashreboot 'lanping'
 		}
 	else
@@ -590,7 +590,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 				bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
 					# only for valid IP's
 					_ipsystem get "$ip" >/dev/null && {
-						_log it $func daemon alert "lan-ping to '$ip' failed"
+						_log it $funcname daemon alert "lan-ping to '$ip' failed"
 						_watch counter "/tmp/error_lanping_$funcname" increment 1 max 5 || _system crashreboot 'lanping'
 					}
 				}
@@ -600,7 +600,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 	if [ "$firstping_wan" = 'error' ]; then
 		bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
-			_log it $func daemon alert "wan-ping failed"
+			_log it $funcname daemon alert "wan-ping failed"
 			_watch counter "/tmp/error_wanping_$funcname" increment 1 max 5 || _system crashreboot 'wanping'
 		}
 	else
@@ -615,7 +615,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 				bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
 					# only for valid IP's
 					_ipsystem get "$ip" >/dev/null && {
-						_log it $func daemon alert "wan-ping to '$ip' failed"
+						_log it $funcname daemon alert "wan-ping to '$ip' failed"
 						_watch counter "/tmp/error_wanping_$funcname" increment 1 max 5 || _system crashreboot 'wanping'
 					}
 				}
@@ -633,7 +633,7 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	if did_we_ever_had_neighbours; then
 		[ $( _file size '/tmp/OLSR/LINKS.sh' ) -eq 0 -a $OPENWRT_REV -gt 0 ] && {
 			_system maintenance_window_active 'pppoe_reconnect' || \
-				_log it $func daemon alert 'detected 0 neighbours'
+				_log it $funcname daemon alert 'detected 0 neighbours'
 			return 1
 		}
 	else

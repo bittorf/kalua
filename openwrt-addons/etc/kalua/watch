@@ -560,7 +560,7 @@ _watch_dhcp_space()
 
 _watch_local_proxy()
 {
-	local func="watch_local_proxy"
+	local funcname='watch_local_proxy'
 	local pidfile="/var/run/polipo.pid"
 
 	[ -e /usr/sbin/polipo ] || {
@@ -591,7 +591,7 @@ _watch_local_proxy()
 			rm "$pidfile"
 		}
 
-		_log it $func daemon alert "$reason, restarting"
+		_log it $funcname daemon alert "$reason, restarting"
 
 		pidof polipo >/dev/null && {
 			_watch hanging_command polipo
@@ -608,11 +608,11 @@ _watch_local_proxy()
 		return 0
 	}
 
-	_curl it "http://127.0.0.1:8123/polipo/status?" 5 >"$TMPDIR/${func}_$$"
-	fgrep -q "Polipo status report" "$TMPDIR/${func}_$$" || {
+	_curl it "http://127.0.0.1:8123/polipo/status?" 5 >"$TMPDIR/${funcname}_$$"
+	fgrep -q "Polipo status report" "$TMPDIR/${funcname}_$$" || {
 		daemon_restart "cannot fetch local status-page"
 	}
-	rm "$TMPDIR/${func}_$$"
+	rm "$TMPDIR/${funcname}_$$"
 
 	# testdownload:
 	# export http_proxy=http://127.0.0.1:8123
@@ -691,17 +691,17 @@ _watch_wifi_mode()		# check e.g. adhoc in config but managed in real?
 
 _watch_hanging_command()
 {
-	local FUNC="watch_hanging_command"
+	local funcname='watch_hanging_command'
 	local COMMAND="$1"						# e.g. wget|scp|mv|nc|olsrd|own_keyword
 	local COMMAND_PID="$2"						# e.g. direct PID or autoget if empty
 	local COMMAND_CMD foundpid
 	local prio='alert'
 
 	[ "$COMMAND" = 'usual_suspects' ] && {
-		_$FUNC mv
-		_firmware get_usecase 'NAS' || _$FUNC scp	# FIXME! why is scp (on NAS to other server) killed?
-		_$FUNC wget
-		_$FUNC nc
+		_$funcname mv
+		_firmware get_usecase 'NAS' || _$funcname scp	# FIXME! why is scp (on NAS to other server) killed?
+		_$funcname wget
+		_$funcname nc
 
 		return 0
 	}
@@ -745,29 +745,29 @@ _watch_hanging_command()
 	[ -e "$FILE1" ] && read -r OLD_PID <$FILE1
 	[ -e "$FILE2" ] && read -r OLD_CMD <$FILE2
 
-	_log it $FUNC daemon debug "found '$COMMAND'-process pid: '$COMMAND_PID' / cmdline: '$COMMAND_CMD'"
+	_log it $funcname daemon debug "found '$COMMAND'-process pid: '$COMMAND_PID' / cmdline: '$COMMAND_CMD'"
 
 	case "$COMMAND" in
 		cron|crond)
 			# seen on vpn-server
-			_log it $FUNC daemon info "ignoring COMMAND '$COMMAND'-process pid: '$COMMAND_PID' / cmdline: '$COMMAND_CMD'"
+			_log it $funcname daemon info "ignoring COMMAND '$COMMAND'-process pid: '$COMMAND_PID' / cmdline: '$COMMAND_CMD'"
 			return
 		;;
 	esac
 
 	if [ "$OLD_PID" = "$COMMAND_PID" ] && [ "$OLD_CMD" = "${COMMAND_CMD:-empty_cmd_line}" ]; then
 		if [ -e "/etc/init.d/$COMMAND" ]; then
-			_log it $FUNC daemon info "executing /etc/init.d/$COMMAND stop"
+			_log it $funcname daemon info "executing /etc/init.d/$COMMAND stop"
 			/etc/init.d/$COMMAND stop
 		else
-			_log it $FUNC daemon info "killing '$COMMAND_CMD'"
+			_log it $funcname daemon info "killing '$COMMAND_CMD'"
 			kill $COMMAND_PID
 		fi
 
 		sleep 3
 
 		if [ -e "/proc/$COMMAND_PID" ]; then
-			_log it $FUNC daemon $prio "still hanging, killing hard ('$COMMAND'/'$COMMAND_CMD')"
+			_log it $funcname daemon $prio "still hanging, killing hard ('$COMMAND'/'$COMMAND_CMD')"
 			kill -9 $COMMAND_PID
 			sleep 3
 
@@ -775,17 +775,17 @@ _watch_hanging_command()
 				_system crashreboot 'task_hangs'
 				return 1
 			else
-				_$FUNC $COMMAND
+				_$funcname $COMMAND
 			fi
 		else
-			_$FUNC $COMMAND		# recheck
+			_$funcname $COMMAND		# recheck
 		fi
 
-		_log it $FUNC daemon info "successfully killed '$COMMAND'-process"
+		_log it $funcname daemon info "successfully killed '$COMMAND'-process"
 		return 0
 	fi
 
-	_log it $FUNC daemon debug "remember for next check pid '$COMMAND_PID' / '$COMMAND_CMD'"
+	_log it $funcname daemon debug "remember for next check pid '$COMMAND_PID' / '$COMMAND_CMD'"
 	[ -n "$COMMAND_PID" ] && echo >$FILE1 "$COMMAND_PID"
 	[ -n "$COMMAND_CMD" ] && echo >$FILE2 "$COMMAND_CMD"
 }
@@ -1425,7 +1425,7 @@ _watch_sshd_or_telnet()
 _watch_random_node_id()		# check if nodenumber/id is from random pool
 {
 	local option="$1"			# force
-	local FUNC="watch_random_node_id"
+	local funcname='watch_random_node_id'
 	local URL SSH_PUBKEY_FP DIRTY
 	local macfile='/www/monitoring.wifimac'
 
@@ -1448,20 +1448,20 @@ _watch_random_node_id()		# check if nodenumber/id is from random pool
 
 	if [ "$DIRTY" = "1" ]; then
 		eval "$( build_vars )"
-		_log it $FUNC daemon info "detected ID from random pool or a changed nodenumber - registering official ID from '$URL'"
+		_log it $funcname daemon info "detected ID from random pool or a changed nodenumber - registering official ID from '$URL'"
 
 		[ -n "$SSH_PUBKEY_FP" ] && ID="$( _curl it "$URL" )"		# FIXME! no ssh  -> no ssh_pubkey_fingerprint!
 										# FIXME! no wifi -> no wifimac -> no registration?
 	 	if _ipsystem get "${ID:-99999}" >/dev/null ; then		# ipsystem() has a sanitizer built in, so don't worry 8-)
 			if [ -e "/tmp/LOCKFILE_APPLY" ]; then
-				_log it $FUNC daemon info "will not apply anything, /tmp/LOCKFILE_APPLY exists"
+				_log it $funcname daemon info "will not apply anything, /tmp/LOCKFILE_APPLY exists"
 			else
 				uci set system.@profile[0].nodenumber="$ID"
 				/etc/init.d/apply_profile.code boot
 				_system crashreboot 'applied_nodeid'
 			fi
 		else
-			_log it $FUNC daemon info "ID not clean: '$ID' - aborting"
+			_log it $funcname daemon info "ID not clean: '$ID' - aborting"
 		fi
 	else
 		local wait
