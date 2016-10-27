@@ -1820,21 +1820,20 @@ _wifi_scan_geolocation()
 	local lat lon
 
 	# we need SSL during api_query()
-	[ $OPENWRT_REV -eq 0 ] || {
-		[ -e '/bin/uclient-fetch' ] || return 0
+	[ -e '/bin/uclient-fetch' ] || return 0
+	[ -e "$marker" ] && return 0
+
+	_wifi scan_geolocation_api_build_json >"$file" && {
+		eval $( _wifi scan_geolocation_api_query "$file" )
+
+		[ -n "$lat" -a -n "$lon" ] && {
+			_log it $funcname daemon info "lat: $lat lon: $lon"
+			echo "lat: $lat lon: $lon" >"$marker"
+			uci set "system.@admin[0].latlon=$lat;$lon"
+		}
 	}
 
-	_wifi scan_geolocation_api_build_json >"$file" || return
-
-	lat=;lon=
-	eval $( _wifi scan_geolocation_api_query "$file" )
 	rm -f "$file"
-
-	[ -n "$lat" -a -n "$lon" ] && {
-		_log it $funcname daemon info "lat: $lat lon: $lon"
-		touch "$marker"
-		uci set system.@admin[0].latlon="$lat;$lon"
-	}
 }
 
 _wifi_scan_geolocation_api_build_json()
@@ -1903,13 +1902,15 @@ _wifi_scan_geolocation_api_query()
 	# https://mozilla.github.io/ichnaea/api/geolocate.html#api-geolocate-latest
 	k1='3b4ee1fe'			# official freifunk-key
 	k2='b1a5-4293-bdc5'		# hide from badboys
-	k3='154b50f11b8a'
-	api_key="$k1-$k2-$k3"		# was: 'test'
+	k3='154b50f11b8a'		# (can also be 'test')
+
+	api_key="$k1-$k2-$k3"
 	api_url="https://location.services.mozilla.com/v1/geolocate?key=$api_key"
 #	answer="$( curl --insecure -H "Content-Type: application/json" -X POST --data @"$file" "$api_url" )"
 	answer="$( wget --no-check-certificate --post-data="$( cat "$file" )" -qO - "$api_url" )"
 	_log it $funcname daemon debug "answer: $answer"
 
+	# e.g.:
 	# {"location": {"lat": 50.9881901, "lng": 11.334436}, "accuracy": 212.0650219}
 	# {"location": {"lat": 50.988505, "lng": 11.3352539}, "accuracy": 146.3677526}
 	# {"fallback": "ipf", "location": {"lat": 50.9945, "lng": 11.0528}, "accuracy": 25000.0}
@@ -1923,7 +1924,7 @@ _wifi_scan_geolocation_api_query()
 	fi
 
 	if [ -z "$lat" -o -z "$lon" ]; then
-		echo "lat=0;lon=0"
+		echo "lat=;lon="
 		_log it $funcname daemon info "[ERROR] answer: $answer"
 	else
 		echo "lat=$lat;lon=$lon"	# use via 'eval'
