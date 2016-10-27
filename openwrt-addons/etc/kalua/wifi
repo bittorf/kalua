@@ -1762,35 +1762,45 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 {
 	local funcname='wifi_reduce_txpower_if_compatible_roaming_nodes_are_near'
 	local ifindex="$1"			# e.g. 3 or '5ghz'
-	local txpower_milliwatt="${2:-5}"	# e.g. 10
+	local txpower_milliwatt="${2:-5}"	# e.g. 10 or e.g. -1
 	local ssid="$3"				# e.g. <empty> or SSID
 	local border=-65
-	local signal dev name txpower_mBm
+	local txpower_milliwatt_result signal dev devname txpower_mBm recall=
 
 	isnumber "$ifindex" || ifindex="$( _wifi get "$ifindex" mode ap )"
 
-	name="$( uci get "wireless.@wifi-iface[$ifindex].network" )"	# e.g. wlanRADIO1
-	read -r dev <"/var/run/interfaces/name2dev_$name"		# e.g. wlan1-1
+	devname="$( uci get "wireless.@wifi-iface[$ifindex].network" )"	# e.g. wlanRADIO1
+	read -r dev <"/var/run/interfaces/name2dev_$devname"		# e.g. wlan1-1
 
-	[ -z "$ssid" ] && ssid="$( _wifi get "$name" ssid )"
+	[ -z "$ssid" ] && ssid="$( _wifi get "$devname" ssid )"
 
-	txpower_mBm="$( _wifi math_mw2mbm "$txpower_milliwatt" )"
+	if [ $txpower_milliwatt -lt 0 ]; then
+		txpower_milliwatt_result="$( _wifi get "$ifindex" txpower )"
+		txpower_milliwatt_result=$(( txpower_absolut + txpower_milliwatt_result ))	# e.g. 10 + -1 = 9
+	else
+		txpower_milliwatt_result="$txpower_milliwatt"
+	fi
+
+	txpower_mBm="$( _wifi math_mw2mbm "$txpower_milliwatt_result" )"
 	signal="$( _wifi scan_best_signal_myssid "$dev" "$ssid" )"
 	_log it $funcname daemon info "signal: ${signal:-empty} for ssid '$ssid' (border: $border)"
 
 	[ $border -le ${signal:--100} ] && {
-		_log it $funcname daemon info "reducing to: $txpower_milliwatt/$txpower_mBm [mW/mBm] to dev $dev index $ifindex"
-		_wifi set ap "$ifindex" txpower "$txpower_milliwatt"	# being consistent (e.g. wifi up)
-		iw dev "$dev" set txpower fixed "$txpower_mBm"		# and hot-apply
+		_log it $funcname daemon info "reducing to: $txpower_milliwatt_result/$txpower_mBm [mW/mBm] to dev $dev index $ifindex"
+		_wifi set ap "$ifindex" txpower "$txpower_milliwatt_result"	# being consistent (e.g. wifi up)
+		iw dev "$dev" set txpower fixed "$txpower_mBm"			# and hot-apply
 
-		_log remote "txpower: $txpower_milliwatt mW (signal: $signal ssid: $ssid)"
+		_log remote "txpower: $txpower_milliwatt_result mW (signal: $signal ssid: $ssid)"
+		[ $txpower_milliwatt -lt 0 ] && {
+			echo >>$SCHEDULER_NEXTRUN "_wifi reduce_txpower_if_compatible_roaming_nodes_are_near $ifindex $txpower_milliwatt $ssid"
+		}
 	}
 
 	{
 		echo "# debuginfo"
 		echo "border: $border signal: $signal"
-		echo "ifindex: '$ifindex'"
-		echo "txpower_milliwatt: '$txpower_milliwatt'"
+		echo "ifindex: '$ifindex' dev: '$dev' devname: '$devname'"
+		echo "txpower_milliwatt/result: '$txpower_milliwatt'/'$txpower_milliwatt_result'"
 		echo "txpower_mBm: '$txpower_mBm'"
 		echo "ssid: '$ssid'"
 	} >"$TMPDIR/$funcname"
@@ -1952,7 +1962,7 @@ _wifi_scan()
 	local i=0
 	local try=1
 
-	devname="$( _net dev2name "$dev" )"
+	devname="$( _net dev2name "$dev" )"		# wlan0 -> wlanadhoc
 	chanbw="$( _wifi get "$devname" chanbw )"
 	devindex="$( _wifi get "$devname" index )"
 	case "$chanbw" in
@@ -2247,7 +2257,7 @@ _wifi_get()			# e.g. '_wifi get wlanadhoc ssid'
 				'index')
 					echo "$i"
 				;;
-				'channel'|'hwmode'|'htmode'|'chanbw')
+				'channel'|'hwmode'|'htmode'|'chanbw'|'txpower')
 					radio="$( uci -q get "wireless.@wifi-iface[$i].device" )" && {
 						case "$network" in
 							'any'|'anyfreq'|'2ghz'|'5ghz')
