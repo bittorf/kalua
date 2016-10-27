@@ -7,6 +7,9 @@
 # DIR=/var/www; find "$DIR" -mindepth 1 -maxdepth 1 -type d | while read DIR; do du -sh "$DIR";done
 # DIR=/root; find "$DIR" -mindepth 1 -maxdepth 1 -type d | while read DIR; do du -sh "$DIR";don
 
+# /var/www/monilog.txt*
+# /var/log/apache2/other_vhosts_access.log*
+
 # see: /root/backup/ejbw/pbx/
 # cd /root/backup/ejbw/pbx/; for F in *.bin; do echo $F; lzma "$F"; done  # appends .lzma
 

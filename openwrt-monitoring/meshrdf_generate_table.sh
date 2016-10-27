@@ -2248,6 +2248,9 @@ send_mail_telegram()
 		;;
 		liszt28)
 			case "$hostname" in
+				'wettertest')
+					list="$admin bittorf1|uni-weimar.de"
+				;;
 				*'-vhs'*)
 					list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de"
 					# TODO:
