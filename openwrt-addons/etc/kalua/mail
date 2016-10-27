@@ -142,13 +142,14 @@ _mail_send_telegram()
 	local funcname='mail_send_telegram'
 	local recipient="$1"	# e.g. user@foo.tld
 	local subject="$2"
-	local message="$3"
+	local message="$3"	# e.g. "line1 \n line2 \n line3 \n"
 	local file="$TMPDIR/$funcname.$$"
 
 	{
 		echo "$subject"
 		echo
-		echo "$message"
+		printf '%b' "$message"
+		echo
 	} >"$file"
 
 	_mail send 'telegram' 'message@status.org' 'user' "$recipient" "$file"
@@ -157,7 +158,7 @@ _mail_send_telegram()
 
 _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,name...
 {
-	local           FUNC="mail_send"
+	local funcname='mail_send'
 	local      FROM_REAL="$1"	# ARG1, string (name,  format: title, surname name  )
 	local      FROM_MAIL="$2"	# ARG2, string (email, format: recipient@domain.foo )
 	local RECIPIENT_REAL="$3"	# ARG3, string (name)
@@ -171,7 +172,7 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	local NETCAT_BIN="nc"
 
 	[ -e "$MAILFILE" ] || {
-		_log it $FUNC user crit "can't read '$MAILFILE' - aborting (usage: _$FUNC myname me@world.org yourname you@world.org mailfile"
+		_log it $funcname user crit "can't read '$MAILFILE' - aborting (usage: _$funcname myname me@world.org yourname you@world.org mailfile"
 		return
 	}
 
@@ -185,7 +186,7 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	local BOUNDARY="dc+cDN39EJAMEtIO"					# maybe random?
 	local tar_archiv
 
-	_log it $FUNC daemon debug "[BEGIN]"
+	_log it $funcname daemon debug "[BEGIN]"
 
 	_do()
 	{
@@ -205,7 +206,7 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 
 		local text="$1"
 
-		_log it $FUNC daemon debug "do() '$text'"
+		_log it $funcname daemon debug "do() '$text'"
 
 		case "$text" in
 			init)
@@ -325,11 +326,11 @@ _mail_send()		# todo: we need a simple addressbook for phone,email,shortname,nam
 	_do raw_smtp "."
 	_do raw_smtp "QUIT"
 
-	_log it $FUNC daemon info "sending mail to '${RECIPIENT_MAIL}'"
+	_log it $funcname daemon info "sending mail to '${RECIPIENT_MAIL}' from file '$MAIL'"
 	if _mail send_mailfile "$MAIL" ; then
-		_log it $FUNC user notice "[OK] sent mail to '$RECIPIENT_MAIL' went fine"
+		_log it $funcname user notice "[OK] sent mail to '$RECIPIENT_MAIL' went fine"
 	else
-		_log it $FUNC user notice "[ERR] sending mail to '$RECIPIENT_MAIL' failed, but is re-scheduled"
+		_log it $funcname user notice "[ERR] sending mail to '$RECIPIENT_MAIL' failed, but is re-scheduled"
 		return 1
 	fi
 }
@@ -357,7 +358,7 @@ _mail_send_mailfile()
 			}
 		;;
 		'-P '*)
-			# separate port and destination
+			# separate 'port' and 'destination'
 			auth_port="-P $( echo "$auth" | cut -d' ' -f2 )"
 			auth="$(         echo "$auth" | cut -d' ' -f3 )"
 		;;
