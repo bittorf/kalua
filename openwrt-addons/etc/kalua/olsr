@@ -144,8 +144,7 @@ _olsr_hna4_inetoffer()
 }
 
 _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every minute
-{						#			   /LINKS
-	local func="olsr_build_tables"		#			   /LINKS.sh
+{						#			   /LINKS + /LINKS.sh
 	local funcname='olsr_build_tables'	# and moving /tmp/OLSR_TMP/* -> /tmp/OLSR (which is used by all functions)
 	local line uptime_was_short firstrun	# also collecting routing_table
 	local configfile="/var/etc/olsrd.conf"
@@ -577,22 +576,22 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	if [ "$firstping_lan" = 'error' ]; then
 		bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
 			_log it $func daemon alert "lan-ping failed"
-			_watch counter "/tmp/error_lanping_$func" increment 1 max 5 || _system crashreboot 'lanping'
+			_watch counter "/tmp/error_lanping_$funcname" increment 1 max 5 || _system crashreboot 'lanping'
 		}
 	else
 		if   [ "$firstping_lan" = 'false' ]; then
-			[ -e "/tmp/error_lanping_$func" ] && rm "/tmp/error_lanping_$func"
+			[ -e "/tmp/error_lanping_$funcname" ] && rm "/tmp/error_lanping_$funcname"
 		elif [ -e "/tmp/OLSR/goodping_$LANDEV" ]; then
 			read -r ip <"/tmp/OLSR/goodping_$LANDEV"
 
 			if _net ip_reachable "$ip" 'ping' "$LANDEV"; then
-				[ -e "/tmp/error_lanping_$func" ] && rm "/tmp/error_lanping_$func"
+				[ -e "/tmp/error_lanping_$funcname" ] && rm "/tmp/error_lanping_$funcname"
 			else
 				bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
 					# only for valid IP's
 					_ipsystem get "$ip" >/dev/null && {
 						_log it $func daemon alert "lan-ping to '$ip' failed"
-						_watch counter "/tmp/error_lanping_$func" increment 1 max 5 || _system crashreboot 'lanping'
+						_watch counter "/tmp/error_lanping_$funcname" increment 1 max 5 || _system crashreboot 'lanping'
 					}
 				}
 			fi
@@ -602,22 +601,22 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 	if [ "$firstping_wan" = 'error' ]; then
 		bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
 			_log it $func daemon alert "wan-ping failed"
-			_watch counter "/tmp/error_wanping_$func" increment 1 max 5 || _system crashreboot 'wanping'
+			_watch counter "/tmp/error_wanping_$funcname" increment 1 max 5 || _system crashreboot 'wanping'
 		}
 	else
 		if   [ "$firstping_wan" = 'false' ]; then
-			[ -e "/tmp/error_wanping_$func" ] && rm "/tmp/error_wanping_$func"
+			[ -e "/tmp/error_wanping_$funcname" ] && rm "/tmp/error_wanping_$funcname"
 		elif [ -e "/tmp/OLSR/goodping_$WANDEV" ]; then
 			read -r ip <"/tmp/OLSR/goodping_$WANDEV"
 
 			if _net ip_reachable "$ip" 'ping' "$WANDEV"; then
-				[ -e "/tmp/error_wanping_$func" ] && rm "/tmp/error_wanping_$func"
+				[ -e "/tmp/error_wanping_$funcname" ] && rm "/tmp/error_wanping_$funcname"
 			else
 				bool_true 'system.@monitoring[0].ignore_lossyethernet' || {
 					# only for valid IP's
 					_ipsystem get "$ip" >/dev/null && {
 						_log it $func daemon alert "wan-ping to '$ip' failed"
-						_watch counter "/tmp/error_wanping_$func" increment 1 max 5 || _system crashreboot 'wanping'
+						_watch counter "/tmp/error_wanping_$funcname" increment 1 max 5 || _system crashreboot 'wanping'
 					}
 				}
 			fi
@@ -1693,10 +1692,10 @@ _olsr_neighs_extended_evalable()
 	} done <"$file"
 }
 
-_olsr_neighs_meshrdf_evalable()			# e.g. ~ 422 : 10.63.2.1 : 10.63.3.65 : COST : 2.123 : 1.234 : 1.678 : 1 : 12 : 5.5 : 5180 : 5
-{						# FIXME! add _speedtest_stats()
-	local FILE='/tmp/OLSR/LINKS.sh'		# 1+3+4+4+1+4+4+4+1+2+2 = 30 bytes / neigh
-	local json="$TMPDIR/links.json"
+_olsr_neighs_meshrdf_evalable()		# e.g. ~ 422 : 10.63.2.1 : 10.63.3.65 : COST : 2.123 : 1.234 : 1.678 : 1 : 12 : 5.5 : 5180 : 5
+{							# 1+3+4+4+1+4+4+4+1+2+2 = 30 bytes / neigh
+	local FILE='/tmp/OLSR/LINKS.sh'	# see build_tables()
+	local json="$TMPDIR/links.json"	# FIXME! add _speedtest_stats()
 
 	case "$CONFIG_PROFILE" in
 		boltenhagendh*)
