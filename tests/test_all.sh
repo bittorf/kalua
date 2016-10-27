@@ -613,9 +613,14 @@ run_test()
 						;;
 					esac
 
+					sc_list="$( grep '# shellcheck disable=SC[0-9]' "$tempfile" |
+						     cut -d'=' -f2 |
+						      tr ',' '\n' |
+						       sort -u |
+						        while read -r LINE; do printf '%s' "$LINE "; done )"
+
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
-						if grep -q '# shellcheck disable=SC' "$tempfile"; then
-							sc_list="$( grep '# shellcheck disable=SC[0-9]' "$tempfile" | cut -d'=' -f2 | tr ',' '\n' | sort -u | while read -r LINE; do printf '%s' "$LINE "; done )"
+						if [ -n "$sc_list" ]; then
 							log "[OK] shellcheck: '$file' - START: check without internal ignores: $sc_list"
 							sed -i 's/# shellcheck disable=SC/# shellXXXXX disable=SC/g' "$tempfile"
 
