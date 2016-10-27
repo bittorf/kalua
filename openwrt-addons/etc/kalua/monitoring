@@ -70,3 +70,133 @@ _monitoring_webcamshot()
 		test "$hash_old" = "$hash_new"
 	}
 }
+
+_monitoring_heartbeat_minimal_send()
+{
+	local funcname='monitoring_heartbeat_minimal_send'
+	local up="$1"		# hours
+	local load="$2"		# 15mins
+
+	local file_url='/tmp/MONITORING_HEARTBEAT_URL'
+	local file_archiv="$TMPDIR/ARCHIV_MONITORING"
+	local mac url up free load lan_clients wifi_clients
+
+	if [ -e "$file_url" ]; then
+		read -r url <"$file_url"
+	else
+		# at least on normal sending/monitoring-run is needed
+		grep -q ^'# alive-message was send' "$file_archiv" || {
+			grep -q 'olsrrestarttime=' "$file_archiv" || return 1
+		}
+
+		read -r mac <'/www/monitoring.wifimac'
+		url="$( uci -q get system.@monitoring[0].url )/meshrdf/?refresh=true&mac=$mac"
+		echo "$url" >"$file_url"
+	fi
+
+	up="$( _system uptime hours )"
+	free="$( _system ram_free )"
+	load="$( _system load 15min )"
+	wifi_clients="$( _net count_wireless )"
+	lan_clients="$( _net count_wired )"
+
+	url="$url&up=$up&h2=$free&load=$load&version=$FFF_PLUS_VERSION&r4=$wifi_clients&r5=$lan_clients"
+
+	case "$( _curl it "$url" 30 )" in
+		'REFRESHED')
+			{
+				echo "$url"
+				echo "# alive-message was send @ $funcname (normal exit...)"
+			} >"$file_archiv"
+		;;
+	esac
+}
+
+_monitoring_heartbeat_mapapi_http_put()
+{
+	local file="$1"
+	local server="$2"
+	local url="$3"
+
+	printf '%s\r\n' "PUT /$url HTTP/1.1"
+	printf '%s\r\n' 'User-Agent: netcat'
+	printf '%s\r\n' "Host: $server"
+	printf '%s\r\n' 'Accept: */*'
+	printf '%s\r\n' "Content-Length: $( _file size "$file" )"
+	printf '%s\r\n' 'Content-Type: application/x-www-form-urlencoded'
+	printf '\r\n'
+
+	cat "$file"
+}
+
+_monitoring_heartbeat_mapapi()	# curl "http://mapapi.weimarnetz.de/db/_all_docs?include_docs=true" | jq '.' > data.json
+{				# curl "http://mapapi.weimarnetz.de/db/$HOSTNAME.olsr"
+				# http://map.weimarnetz.de/#detail?node=$HOSTNAME.olsr
+	local funcname='monitoring_heartbeat_mapapi'
+	local server='mapapi.weimarnetz.de'	# owm: https://github.com/freifunk/openwifimap-api/blob/master/API.md
+	local url="update_node/$HOSTNAME.olsr"
+	local file="$TMPDIR/mapapi.cache"
+	local meshrdf='/tmp/OLSR/meshrdf_neighs'
+	local json="$TMPDIR/links.json"
+	local nexthop gateway system_type latlon lat lon
+
+	# refresh when >1h
+	_file age "$json" -gt 3600 && _olsr neighs_meshrdf_evalable >"$meshrdf"		# will also build '$json'
+	[ -e "$json" ] || return 1
+
+	latlon="$( uci -q get system.@admin[0].latlon )"	# 50.97389;11.31875
+	latlon="$( echo "$latlon" | tr ',' '.' )"
+	lat="${latlon%;*}"
+	lon="${latlon#*;}"
+
+	read -r gateway <'/tmp/GATEWAY_CHECK_RECENT_GATEWAY_IP_ONLY'
+	read -r nexthop <'/tmp/GATEWAY_CHECK_RECENT_NEXTHOP_IP_ONLY'
+
+	# system type : ... and/or platform : ...
+	explode $( grep ^'system type' '/proc/cpuinfo' || grep ^'platform' '/proc/cpuinfo' )
+	shift 2; case "$*" in ':'*) shift ;; esac
+	system_type="$*"	# e.g. 'Atheros AR9132 rev 2' or 'Freescale P1014'
+	system_type="${system_type:-unknown_SoC}"
+
+	cat >"$file" <<EOF
+ {
+"api_rev": "1.0",
+"hostname": "$HOSTNAME",
+"hardware": "$system_type",
+"latitude": ${lat:-50.97},
+"longitude": ${lon:-11.31},
+"type": "node",
+"updateInterval": 3600,
+"location": "$HOSTNAME",
+"system": {
+	"sysinfo": [
+		"$system_type",
+		"$HARDWARE"
+	],
+	"uptime": [
+		$( _system uptime sec )
+	]
+	},
+"weimarnetz": {
+	"gateway": "$gateway",
+	"nodenumber": $NODENUMBER,
+	"nexthop": "$nexthop",
+	"gatewaycost": 1
+	},
+$( cat "$TMPDIR/links.json" 2>/dev/null && printf ',' )
+"firmware": {
+	"distname": "",
+	"luciname": "no LuCI",
+	"fffversion": "$FFF_PLUS_VERSION",
+	"luciversion": "0",
+	"revision": "OpenWrt (kalua) r$OPENWRT_REV",
+	"distversion": "OpenWrt (kalua) r$OPENWRT_REV",
+	"name": ""
+	}
+ }
+EOF
+
+	# FIXME! suppress server-answer?
+	_log it $funcname daemon info "netcat'ing file '$file' to '$server' port 80 / $url"
+	_monitoring heartbeat_mapapi_http_put "$file" "$server" "$url" | nc "$server" 80
+}
