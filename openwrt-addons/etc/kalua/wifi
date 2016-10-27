@@ -1775,14 +1775,16 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 	[ -z "$ssid" ] && ssid="$( _wifi get "$devname" ssid )"
 
 	if [ $txpower_milliwatt -lt 0 ]; then
-		txpower_milliwatt_result="$( _wifi get "$ifindex" txpower )"
+		# FIXME! it does not make sense to reduce power
+		# and scan the others - the values will keep the same...
+		txpower_milliwatt_result="$( _wifi get "$devname" txpower )"
 		txpower_milliwatt_result="${txpower_milliwatt_result:-20}"			# sane fallback
-		txpower_milliwatt_result=$(( txpower_absolut + txpower_milliwatt_result ))	# e.g. 10 + -1 = 9
+		txpower_milliwatt_result=$(( txpower_milliwatt_result + txpower_milliwatt ))	# e.g. 10 + -1 = 9
 	else
 		txpower_milliwatt_result="$txpower_milliwatt"
 	fi
 
-	[ $txpower_milliwatt_result -lt 1 ] && return 0
+	[ $txpower_milliwatt_result -le 3 ] && return 0
 	txpower_mBm="$( _wifi math_mw2mbm "$txpower_milliwatt_result" )"
 	signal="$( _wifi scan_best_signal_myssid "$dev" "$ssid" )"
 	_log it $funcname daemon info "signal: ${signal:-empty} for ssid '$ssid' (border: $border)"
@@ -1792,20 +1794,23 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 		_wifi set ap "$ifindex" txpower "$txpower_milliwatt_result"	# being consistent (e.g. wifi up)
 		iw dev "$dev" set txpower fixed "$txpower_mBm"			# and hot-apply
 
-		_log remote "txpower: $txpower_milliwatt_result mW (signal: $signal ssid: $ssid)"
-		[ $txpower_milliwatt -lt 0 ] && {
+		if [ $txpower_milliwatt -lt 0 ]; then
+			_log it $funcname daemon info "[RESCHEDULE] reduced to: $txpower_milliwatt_result mW"
 			echo >>$SCHEDULER_NEXTRUN "_wifi reduce_txpower_if_compatible_roaming_nodes_are_near $ifindex $txpower_milliwatt $ssid"
-		}
+		else
+			_log remote "[READY] txpower: $txpower_milliwatt_result mW (signal: $signal ssid: $ssid)"
+		fi
 	}
 
 	{
+		date
 		echo "# debuginfo"
 		echo "border: $border signal: $signal"
 		echo "ifindex: '$ifindex' dev: '$dev' devname: '$devname'"
 		echo "txpower_milliwatt/result: '$txpower_milliwatt'/'$txpower_milliwatt_result'"
 		echo "txpower_mBm: '$txpower_mBm'"
 		echo "ssid: '$ssid'"
-	} >"$TMPDIR/$funcname"
+	} >>"$TMPDIR/$funcname"
 }
 
 _wifi_scan_best_signal_myssid()		# e.g. for next_node/roaming
