@@ -14,6 +14,7 @@ command -v uci >/dev/null || {
 uci()	# e.g. uci -q get system.@profile[0].nodenumber
 {
 	local file='/etc/kalua_uci'
+	local line
 
 	case "\$1" in
 		'-q')
@@ -32,7 +33,12 @@ uci()	# e.g. uci -q get system.@profile[0].nodenumber
 			}
 		;;
 		set)
-			fgrep -q "\$2" "\$file" || echo "\$2" >>"\$file"
+			fgrep -q "\$2" "\$file" || {
+				# remove maybe existing old var
+				line="\$( fgrep -n "\$( echo "\$2" | cut -d'=' -f1 )" "\$file" | head -n1 | cut -d':' -f1 )"
+				[ -n "\$line" ] && sed -i "\${line}d" "\$file"
+				echo "\$2" >>"\$file"
+			}
 		;;
 		get)
 			[ -e "\$file" ] && {
