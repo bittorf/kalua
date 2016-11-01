@@ -6,6 +6,7 @@ _watch_roaming()	# called every 60 secs
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
 	local bridgedev='mastergate'
 	local file ip ip_list ip_escaped word radio ap dev mac mac_list error message i parameter list=
+	local inet_offer="$( _net local_inet_offer cached )"
 
 	grep -q "br-$bridgedev:" '/proc/net/dev' || return 0
 
@@ -64,6 +65,8 @@ _watch_roaming()	# called every 60 secs
 			mac_list="$( sed -n 's/^Station \(.*\) (on.*/\1/p' "$file" )"
 
 			for mac in $mac_list; do {
+				_log it $funcname daemon debug "loop: $i ap-dev: $dev mac: $mac"
+
 				if fgrep -q "$mac" "$station_list"; then
 					# root@box:~ grep 00:1e:65:94:22:52 /proc/net/arp
 					# 100.66.3.186    0x1  0x6   00:1e:65:94:22:52  *  br-mastergate
@@ -84,7 +87,7 @@ _watch_roaming()	# called every 60 secs
 						ip route get "$ip/32" | fgrep -q " dev br-$bridgedev " || {
 							_log it $funcname daemon info "ip $ip (of $ip_list) not added yet - changed IP?"
 
-							if _net local_inet_offer >/dev/null; then
+							if [ "$inet_offer" = 'true' ]; then
 								# FIXME! e.g. giancarlo
 								parameter="NAT_ALIEN_ROAMERS -s $ip -j MASQUERADE"
 							else
