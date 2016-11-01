@@ -3366,16 +3366,19 @@ bootstrap_ctags()
 			./configure || return 1
 
 			log '[OK] make:'
-			make || {
+			if make; then
+				log '[OK] make success'
+			else
 				log "[ERR] make: $? - rebuild with V=99"
 				make V=99
 
 				return 1
-			}
+			fi
 		)
 	}
 
 	export PATH="/tmp/$dir:$PATH"
+	ctags --version
 	ctags --version | grep "Compiled: $date"
 }
 
