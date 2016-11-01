@@ -3346,6 +3346,7 @@ bootstrap_ctags()
 	local url='https://github.com/universal-ctags/ctags.git'
 	local dir='ctags'
 	local date="$( LC_ALL=C date "+%b %d %Y" )"	# e.g. 'Oct 18 2016'
+	local good_version='48e382b94dac8ed8bf4b360c0ce4dd01c21bc5de'
 
 	/tmp/$dir/ctags --version | grep -q "Compiled: $date" || {
 		(
@@ -3353,8 +3354,9 @@ bootstrap_ctags()
 			[ -d "$dir" ] && rm -fR "$dir"
 			git clone "$url"
 			cd "$dir" || return 1
+			git checkout -b 'good_version' "$good_version"
 
-			log '[OK] last commit:'
+			log '[OK] used commit:'
 			git log -1
 
 			log '[OK] autogen:'
