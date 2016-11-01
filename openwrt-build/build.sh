@@ -3361,10 +3361,17 @@ bootstrap_ctags()
 
 			log '[OK] autogen:'
 			./autogen.sh || return 1
+
 			log '[OK] configure:'
 			./configure || return 1
+
 			log '[OK] make:'
-			make || return 1
+			make || {
+				log "[ERR] make: $? - rebuild with V=99"
+				make V=99
+
+				return 1
+			}
 		)
 	}
 
