@@ -1254,11 +1254,11 @@ _wifi_phy_restart()
 	return 0
 }
 
-_wifi_phy_txpower()		# output in [mW]
+_wifi_dev2txpower()		# output in [mW]
 {
 	local funcname='wifi_phy_txpower'
 	local dev="$1"		# e.g. wlan0-1
-	local devname txpower=
+	local devname phy txpower=
 
 	_net dev_is_wifi "$dev" || return 1
 
@@ -1271,7 +1271,13 @@ _wifi_phy_txpower()		# output in [mW]
 	}
 
 	isnumber "$txpower" || {
-		_log it $funcname daemon info "fallback to uci (dev: $dev)"
+		_log it $funcname daemon debug "fallback to debugfs (dev: $dev)"
+		read phy <"/var/run/interfaces/dev2radio_$dev"
+		read txpower <"/sys/kernel/debug/ieee80211/$phy/netdev:$dev/user_power_level"
+	}
+
+	isnumber "$txpower" || {
+		_log it $funcname daemon debug "fallback to uci (dev: $dev)"
 		devname="$( _net dev2name "$dev" )"
 		txpower="$( _wifi get "$devname" txpower )"
 	}
