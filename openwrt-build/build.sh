@@ -3354,12 +3354,15 @@ bootstrap_ctags()
 			git clone "$url"
 			cd "$dir" || return 1
 
-			./autogen.sh || return 1
-			./configure || return 1
-			make || return 1
-
 			log '[OK] last commit:'
 			git log -1
+
+			log '[OK] autogen:'
+			./autogen.sh || return 1
+			log '[OK] configure:'
+			./configure || return 1
+			log '[OK] make:'
+			make || return 1
 		)
 	}
 
