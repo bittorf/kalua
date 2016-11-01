@@ -3345,7 +3345,7 @@ bootstrap_ctags()
 {
 	local url='https://github.com/universal-ctags/ctags.git'
 	local dir='ctags'
-	local date="$( LC_ALL=C date "+%b %d %Y" )"	# e.g. 'Oct 18 2016'
+	local date="$( LC_ALL=C date "+%b %_d %Y" )"	# e.g. 'Oct  1 2016'
 	local good_version='48e382b94dac8ed8bf4b360c0ce4dd01c21bc5de'
 
 	/tmp/$dir/ctags --version | grep -q "Compiled: $date" || {
