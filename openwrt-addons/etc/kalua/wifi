@@ -1256,17 +1256,25 @@ _wifi_phy_restart()
 
 _wifi_phy_txpower()		# output in [mW]
 {
-	local dev="$1"
-#	local UNIT="$2"		# keyword, can be 'mw', 'dbm', 'qdbm' // fixme! at the moment this IS in [mW]
-	local txpower
+	local funcname='wifi_phy_txpower'
+	local dev="$1"		# e.g. wlan0-1
+	local devname txpower=
 
-	if command -v 'iwinfo' >/dev/null; then
+	_net dev_is_wifi "$dev" || return 1
+
+	command -v 'iwinfo' >/dev/null && {
 		# * 23 dBm ( 199 mW)
+		# or:
+		# No TX power information available
 		explode $( iwinfo "$dev" txpowerlist | grep ^'\* ' )
 		txpower="$2"
-	else
-		txpower="$( uci -q get wireless.radio0.txpower )"	# dBm
-	fi
+	}
+
+	isnumber "$txpower" || {
+		_log it $funcname daemon info "fallback to uci (dev: $dev)"
+		devname="$( _net dev2name "$dev" )"
+		txpower="$( _wifi get "$devname" txpower )"
+	}
 
 	case "$HARDWARE" in
 		'Ubiquiti Bullet M')
@@ -1274,9 +1282,7 @@ _wifi_phy_txpower()		# output in [mW]
 		;;
 	esac
 
-	txpower="$( _wifi math_dbm2mw "$txpower" )"
-
-	echo "${txpower:-0}"	# no wifi-dev
+	_wifi math_dbm2mw "$txpower"
 }
 
 _wifi_math_mhz2channel ()		# http://en.wikipedia.org/wiki/Lost_of_WLAN_channels
