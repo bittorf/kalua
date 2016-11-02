@@ -1273,7 +1273,12 @@ _wifi_dev2txpower()		# output in [mW]
 	isnumber "$txpower" || {
 		_log it $funcname daemon debug "fallback to debugfs (dev: $dev)"
 		read -r phy <"/var/run/interfaces/dev2radio_$dev"
-		read -r txpower <"/sys/kernel/debug/ieee80211/$phy/netdev:$dev/user_power_level"
+		read -r txpower <"/sys/kernel/debug/ieee80211/${phy:-0}/netdev:$dev/user_power_level"	# [dBm]
+
+		[ ${txpower:-99} -gt 0 -a ${txpower:-99} -lt 30 ] || {
+			_log it $funcname daemon debug "fallback to debugfs 'txpower' (max) - (dev: $dev)"
+			read -r txpower <"/sys/kernel/debug/ieee80211/${phy:-0}/netdev:$dev/txpower"
+		}
 	}
 
 	isnumber "$txpower" || {
