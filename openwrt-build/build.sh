@@ -3443,7 +3443,7 @@ unittest_do()
 
 	log "executing '$start_test'"
 	$start_test 'now' || {
-		log "search for pattern '^--' when this is a shellsheck error"
+		log "search for pattern '^--' when this is a shellsheck error or 'try: codespell.py' for spell mistakes"
 		return 1
 	}
 }
