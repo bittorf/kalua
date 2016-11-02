@@ -4,7 +4,6 @@
 # take screenshot into account:
 # /var/www/networks/gnm/settings/2a40d30a6b01.screenshot.jpg
 
-
 # dhsylt: haus34 -> zum KJC (=109)
 # touch /var/www/networks/dhsylt/meshrdf/recent/dc9fdb0cc8c5
 
@@ -26,12 +25,14 @@
 log()		# tail -f /var/log/messages
 {
 	local text="$1"
+	local prio="$2"		# <empty> or 'debug'
 	local ip message
 
 	[ -n "$REMOTE_ADDR" ] && ip="[$REMOTE_ADDR] "
 	message="${NETWORK:-network_unset}: ${ip}$text"
-
 	
+	# only log 'debug' when interactive:
+	[ "$prio" = 'debug' -a -z "$SSH_CONNECTION" ] && return 0
 
 #	echo "${NETWORK:-network_unset}: $1" >>$TMPDIR/log_monitoring.txt
 	logger -t $0 -p user.info -s "$message"
@@ -680,10 +681,11 @@ func_update2color()
 LIST_FILES="$( find /var/www/networks/$NETWORK/meshrdf/recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ )"
 
 for FILE in $LIST_FILES ; do {
-#	IFS="[~:-=]"
+	log "sourcing '$FILE'" debug
 	command . "$FILE"
 
 	grep -q ^"$WIFIMAC" ../ignore/macs.txt 2>/dev/null && {		# format: "0014bfbfb374    # linksys115"
+		log "ignoring mac '$WIFIMAC'" debug
 		continue
 	}
 
@@ -719,11 +721,19 @@ ALL_NODENUMBERS=
 DOUBLE_NODENUMBERS=
 for FILE in $LIST_FILES LASTFILE; do {
 	NODE=
-	[ -e "$FILE" ] && . "$FILE"
-	grep -sq ^"$WIFIMAC" ../ignore/macs.txt && continue
+	[ -e "$FILE" ] && {
+		log "[double nodenumber] sourcing '$FILE'" debug
+		. "$FILE"
+
+		grep -sq ^"$WIFIMAC" ../ignore/macs.txt && {
+			log "[double nodenumber] ignoring mac '$WIFIMAC'" debug
+			continue
+		}
+	}
 
 	case "$NODE" in
 		''|0)
+			log "[double nodenumber] ignoring mode '$MODE'" debug
 			continue
 		;;
 	esac
@@ -762,6 +772,8 @@ for FILE in $LIST_FILES LASTFILE; do {
 	# use real file, otherwise the stat-command is not useful
 	[ -h "$FILE" ] && FILE="$( readlink -f "$FILE" )"
 
+	log "[real] trying file '$FILE'" debug
+
 	if [ -e "$FILE" ]; then
 		LAST_UPDATE_UNIXTIME="$( stat --printf %Y "$FILE" )"
 #		echo "<!-- worked on $FILE -->"
@@ -782,6 +794,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 			;;
 		esac
 	else
+		log "[real] cannot work with '$FILE'" debug
 		echo "<!-- NOT worked on $FILE -->"
 		continue
 	fi
@@ -831,7 +844,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 #	esac
 
 	grep -sq ^"$WIFIMAC" ../ignore/macs.txt && {				# format: "0014bfbfb374	   # linksys115"
-		log "omitting $WIFIMAC/$HOSTNAME"
+		log "omitting $WIFIMAC/$HOSTNAME" debug
 
 		if grep -q ^"$WIFIMAC	# autohide" '../ignore/macs.txt'; then
 			# autohide / autounhide
@@ -898,6 +911,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	}
 #logger -s "cheching for rrd: $HOSTNAME"
 	if [ -z "$HOSTNAME" ]; then
+		log "bad hostname: '$HOSTNAME'" debug
 		continue
 	else
 		touch "/dev/shm/rrd/$NETWORK/rrd_images"
@@ -990,6 +1004,8 @@ for FILE in $LIST_FILES LASTFILE; do {
 	[ $LASTSEEN -gt 350000 ] && {		# 97 hours
 		LASTSEEN="$(( $LOCALUNIXTIME - $( stat -c "%Y" "$FILE" ) ))"		# Y = "last modification time"
 	}
+
+	log "LASTSEEN: $LASTSEEN" debug
 
 	case "$NETWORK" in
 		X-liszt28|X-gnm|X-apphalle|X-abtpark|X-ewerk|ilm1)
