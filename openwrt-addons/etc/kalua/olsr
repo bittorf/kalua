@@ -1080,7 +1080,7 @@ _olsr_neigh_check_for_nonwifi ()
 	while read -r LINE; do {
 		eval $LINE
 
-		DEVTYPE="$( _net dev_type $( _net iplocal2dev $LOCAL ) )"
+		DEVTYPE="$( _net dev_type $( _net ip2dev "$LOCAL" ) )"
 		[ -n "$DEVTYPE" ] && {
 			[ "$DEVTYPE" != "wifi" ] && {
 				_log it $FUNC daemon debug "found nonwifi neigh: '$REMOTE'"
@@ -1101,7 +1101,7 @@ _olsr_neigh_check_for_wifi ()
 	while read -r LINE; do {
 		eval $LINE
 
-		DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
+		DEVTYPE="$( _net dev_type $(_net ip2dev "$LOCAL" ) )"
 		[ "$DEVTYPE" = "wifi" ] && {
 			_log it $FUNC daemon debug "found wifi neigh: '$REMOTE'"
 			return 0
@@ -1158,7 +1158,7 @@ _olsr_neigh_nlq_best_wifi ()
 	while read -r LINE; do {
 		eval $LINE
 
-		DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
+		DEVTYPE="$( _net dev_type $(_net ip2dev "$LOCAL" ) )"
 		[ "$DEVTYPE" = "wifi" ] && {
 			NLQ="$( echo ${NLQ:=0.000} | sed -ne 's/\.//' -e 's/^[0]*\([0-9]*\)/\1/p' )"		# 0.056 -> 56
 
@@ -1183,7 +1183,7 @@ _olsr_neigh_check_for_good_non_tunnel ()
 
 	while read -r LINE; do {
 		eval $LINE
-		DEVTYPE="$( _net dev_type $(_net iplocal2dev $LOCAL) )"
+		DEVTYPE="$( _net dev_type $(_net ip2dev "$LOCAL" ) )"
 		[ -n "$DEVTYPE" ] && {
 			[ "$DEVTYPE" != "tunnel" ] && {
 				[ -n "$COST" ] && {
@@ -1414,7 +1414,7 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 	while read -r LINE; do {
 		eval $LINE
 
-		DEVTYPE="$( _net dev_type $( _net iplocal2dev $LOCAL ) )"
+		DEVTYPE="$( _net dev_type $( _net ip2dev "$LOCAL" ) )"
 
 		[ "$DEVTYPE" = "wire" ] && {
 
@@ -1512,7 +1512,7 @@ _olsr_check_plausi()				# test 1/7: is each non-infinite neighbour in routing-ta
 
 		case "$lq_algo" in
 			*ffeth)
-				local dev="$( _net iplocal2dev "$local_link_ip" )"
+				local dev="$( _net ip2dev "$local_link_ip" )"
 				local devtype="$( _net dev_type "$dev" )"
 
 				[ "$devtype" = "wifi" ] && {
@@ -1686,7 +1686,7 @@ _olsr_neighs_extended_evalable()
 
 		if [ -n "$verbose" ]; then
 			METRIC="$( _olsr remoteip2metric "$REMOTE" )"
-			dev="$( _net iplocal2dev "$LOCAL" )"
+			dev="$( _net ip2dev "$LOCAL" )"
 			DEVTYPE="$( _net dev_type "$dev" )"
 
 			echo "LOCAL=$LOCAL;REMOTE=$REMOTE;LQ=$LQ;NLQ=$NLQ;COST=$COST;DEVTYPE=$DEVTYPE;METRIC=$METRIC"
@@ -1703,7 +1703,7 @@ _olsr_neighs_meshrdf_evalable()		# e.g. ~ 422 : 10.63.2.1 : 10.63.3.65 : COST : 
 
 	case "$CONFIG_PROFILE" in
 		boltenhagendh*)
-			return 1	# FIXME! make it depens on 'too_much_neighs'
+			return 1	# FIXME! make it depend on 'too_much_neighs'
 		;;
 		monami*)
 			# allow even on lowmem
@@ -1719,22 +1719,25 @@ _olsr_neighs_meshrdf_evalable()		# e.g. ~ 422 : 10.63.2.1 : 10.63.3.65 : COST : 
 	local METHOD='COST'	# linkcost / etx / batadv / ...
 	local COUNT=0
 	local LOCAL REMOTE LQ NLQ COST DEVTYPE METRIC
-	local txrate txthroughput mac freq dev chanbw
+	local txrate txthroughput mac freq dev chanbw devname devmac
 	local hna4 route local_ip remote_ip remote_id olsr_wired_perfect devtype
 
 	echo >"$json" '"links": ['
 	while read -r LINE; do {
 		# LOCAL=...;REMOTE=...;LQ=...;NLQ=...;COST=...;COUNT=...
 		eval $LINE
-		isnumber "$COUNT" || continue	# shellsheck
+		isnumber "$COUNT" || continue
 
 		METRIC="$( _olsr remoteip2metric "$REMOTE" )"
 		REMOTE_ID="$( _ipsystem get "$REMOTE" )"
-		dev="$( _net iplocal2dev "$LOCAL" )"
+		dev="$( _net ip2dev "$LOCAL" )"
 		freq="$( _wifi dev2freq "$dev" )"
 		chanbw="$( _wifi dev2chanbw "$dev" )"
 		DEVTYPE="$( _net dev_type "$dev" )"
 		DEVTYPE="$( _net devtype2symbol "$DEVTYPE" )"
+		devname="$( _net dev2name "$dev" )"
+		devmac="$( _net dev2mac "$dev" )"	# TODO: xx for inner 2 bytes
+		# TODO: COST should be integer?
 
 		mac="$( _net ip2mac "$REMOTE" lazy )"
 		txrate=; # efficiency=; # txtroughput=
@@ -1743,14 +1746,21 @@ _olsr_neighs_meshrdf_evalable()		# e.g. ~ 422 : 10.63.2.1 : 10.63.3.65 : COST : 
 
 		cat >>"$json" <<EOF
 	{
-	"localIP": "$ANYADR",
-	"sourceAddr": "$LOCAL",
-	"linkQuality": $LQ,
-	"validityTime": 3600,
-	"remoteIP": "$REMOTE",
-	"destAddr": "$REMOTE",
-	"neighborLinkQuality": $NLQ,
-	"linkCost": ${COST:-0}
+	"olsr_ipv4": {
+		"localIP": "$LOCAL",
+		"linkQuality": $LQ,
+		"validityTime": 3600,
+		"remoteIP": "$REMOTE",
+		"neighborLinkQuality": $NLQ,
+		"linkCost": ${COST:-0}
+	},
+	"sourceAddr4": "$LOCAL",
+	"destAddr4": "$REMOTE",
+	"ifname": "$dev",
+	"id": "$HOSTNAME.olsr",
+	"mac": "$devmac",
+	"interface": "$devname",
+	"quality": ${COST:-0}
 	},
 EOF
 
@@ -1824,7 +1834,7 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 
 		[ "$COST" = "INFINITE" ] && COST=
 
-		DEVTYPE="$( _net devtype2symbol $( _net dev_type $(_net iplocal2dev $LOCAL ) ) )"
+		DEVTYPE="$( _net devtype2symbol $( _net dev_type $( _net ip2dev "$LOCAL" ) ) )"
 		DEVTYPE="${DEVTYPE}${DEVTYPE}"		# looks better
 
 		MAC="$( _net ip2mac "$REMOTE" lazy )"
