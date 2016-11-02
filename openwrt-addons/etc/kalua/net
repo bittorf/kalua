@@ -1815,7 +1815,7 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 {
 	local funcname='net_ip2dev'	# TODO: make use of /tmp/CLIENTS_*?
 	local ip="$1"
-	local line dev=
+	local ip_found line devlist dev=
 
 	case "$ip" in
 		"$WIFIADR") dev="$WIFIDEV" ;;
@@ -1827,6 +1827,17 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 		echo "$dev"
 		return 0
 	}
+
+	devlist="$( tail -n+3 /proc/net/dev | cut -d':' -f1 )"
+	for dev in $devlist; do {
+		ip_found="$( _net dev2ip "$dev" )"
+
+		[ "$ip" = "$ip_found" ] && {
+			echo "$dev"
+			return 0
+		}
+	} done
+	dev=
 
 	while read -r line; do {
 		case "$line" in
