@@ -1,10 +1,12 @@
 #!/bin/sh
 
 NETWORK="$1"	# liszt28 or 'start'
-MODE="$2"	# testing
+MODE="$2"	# testing or <githash>
 TARBALL='/tmp/tarball.tgz'
 
 [ "$NETWORK" = 'start' ] && {
+	HASH="$MODE"
+
 	mkdir -p /root/tarball
 	cd /root/tarball || exit
 	cd kalua || {
@@ -14,9 +16,24 @@ TARBALL='/tmp/tarball.tgz'
 
 	git log -1
 	git pull
+	[ -n "$HASH" ] && {
+		if git show "$HASH" >/dev/null; then
+			git checkout -b 'userwish' "$HASH"
+		else
+			HASH=
+		fi
+	}
 	git log -1
 	cd ..
+
 	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball
+
+	[ -n "$HASH" ] && {
+		cd kalua || exit
+		git checkout master
+		git branch -D 'userwish'
+		cd ..
+	}
 
 	exit $?
 }
