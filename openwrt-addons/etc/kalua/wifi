@@ -1853,7 +1853,7 @@ _wifi_scan_geolocation()
 		_file age "$marker" -lt 43200 && return 0
 	}
 
-	# we need SSL during api_query()
+	# we need SSL and --postdata during api_query() - TODO: add curl
 	[ -e '/bin/uclient-fetch' ] || {
 		wget --version | grep -q ^'GNU' || return 0
 	}
@@ -1892,9 +1892,11 @@ _wifi_scan_geolocation_api_build_json()
 	} done >"$file"
 
 	[ -s "$file" ] || {
-		rm -f "$file"
-		_log it $funcname daemon debug "[ERROR] empty scan for devs: '$dev_list'"
-		return 1
+		[ -e "$file" ] && rm -f "$file"
+		_log it $funcname daemon debug "[ERROR] empty or no scan for devs: '$dev_list'"
+
+		test -z "$WIFI_DEVS"	# dont complain on servers (use public-IP for location)
+		return $?
 	}
 
 	echo '{'
@@ -1930,11 +1932,6 @@ _wifi_scan_geolocation_api_query()
 	local funcname='wifi_scan_geolocation_api_query'
 	local file="$1"
 	local answer api_key k1 k2 k3 api_url lat lon
-
-	# we need SSL
-	[ $OPENWRT_REV -eq 0 ] || {
-		[ -e '/bin/uclient-fetch' ] || return 0
-	}
 
 	# https://location.services.mozilla.com/
 	# https://mozilla.github.io/ichnaea/api/geolocate.html#api-geolocate-latest
