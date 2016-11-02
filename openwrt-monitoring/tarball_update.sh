@@ -1,12 +1,32 @@
 #!/bin/sh
 
-NETWORK="$1"	# liszt28
+NETWORK="$1"	# liszt28 or 'start'
 MODE="$2"	# testing
 TARBALL='/tmp/tarball.tgz'
 
-[ -z "$2" ] && {
+[ "$NETWORK" = 'start' ] && {
+	mkdir -p /root/tarball
+	cd /root/tarball || exit
+	cd kalua || {
+		git clone 'https://github.com/bittorf/kalua.git'
+		cd kalua || exit
+	}
+
+	git log -1
+	git pull
+	git log -1
+	cd ..
+	kalua/openwrt-build/mybuild.sh build_kalua_update_tarball
+
+	exit $?
+}
+
+[ -z "$MODE" ] && {
 	echo "usage: $0 <network|all> <mode>"
+	echo "       $0 start"
+	echo
 	echo "e.g. : $0 liszt28 testing"
+
 	exit 1
 }
 

@@ -2177,7 +2177,7 @@ _cell_firmwareversion_humanreadable()
 	echo -n "<td bgcolor='$color' align='center' title='$VERSION.$UPDATE:$usecase' sorttable_customkey='$FWVERSION' nowrap>$OUT</td>"
 }
 
-hostname_from_monitoring_sanitized()
+hostname_from_monitoring_sanitized()	# used for send_mail_telegram() and related
 {
 	local mac="$1"
 	local hostname file
@@ -2190,10 +2190,11 @@ hostname_from_monitoring_sanitized()
 	esac
 
 	case "$hostname" in
-		*'ap--'[0-9]*|'enforcedsettings'*'real')
+		*'ap--'[0-9]*|'enforcedsettings'*'real'|'enforced/settings: '*)
 			# e.g. berlinle-ap--11
 			# e.g. enforcedsettingsfernmeldemuseumLinksnbsplarrEG-WerkstattDannyreal
 			# e.g. enforcedsettingsbauhaus-neufert-zweinbsplarrEG-Sommerbar-Emporereal
+			# e.g. enforced/settings: EG-is1&nbsp;(&larr;mywifilan = real)
 			file="/var/www/networks/$NETWORK/settings/$mac.hostname"
 			read -r hostname 2>/dev/null <"$file"
 		;;
