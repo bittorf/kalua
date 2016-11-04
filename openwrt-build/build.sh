@@ -999,8 +999,9 @@ EOF
 	ARCH="${TARGET_SYMBOL%_*}"
 	ARCH="${ARCH#*_}"
 	ARCH="${ARCH#*_}"
-	# ramips_mt7620 -> ramips
-	ARCH_MAIN="${ARCH%_*}"
+	ARCH_MAIN="${ARCH%_*}"	# ramips_mt7620 -> ramips
+	ARCH_SUB="${ARCH#*_}"	# ramips_mt7620 -> mt7620
+	ARCH_SUB="S{ARCH_SUB:-generic}"
 
 	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
 	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"
@@ -1628,7 +1629,7 @@ copy_firmware_files()
 
 	case "$( git remote get-url origin )" in
 		*'lede'*)
-			pre='bin/targets'
+			pre="bin/targets/$ARCH_SUB"
 		;;
 		*)
 			pre='bin'
