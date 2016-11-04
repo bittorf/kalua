@@ -1545,7 +1545,7 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH_MAIN/attic"
-	local file checksum rootfs server_dir
+	local file checksum rootfs server_dir pre
 	local destination destination_scpsafe destination_info destination_info_scpsafe
 	local error=0
 
@@ -1626,20 +1626,23 @@ copy_firmware_files()
 		esac
 	}
 
+	case "$( git remote get-url origin )" in
+		*'lede'*)
+			pre='bin/targets'
+		;;
+		*)
+			pre='bin'
+		;;
+	esac
+
 	if [ -n "$CONFIG_PROFILE" ]; then
-		file="bin/$ARCH_MAIN/$FILENAME_FACTORY"
+		file="$pre/$ARCH_MAIN/$FILENAME_FACTORY"
 		log "$( wc -c <"$file" ) Bytes: '$FILENAME_FACTORY'"
 	else
-		file="bin/$ARCH_MAIN/$FILENAME_SYSUPGRADE"
+		file="$pre/$ARCH_MAIN/$FILENAME_SYSUPGRADE"
 		log "$( wc -c <"$file" ) Bytes: '$FILENAME_SYSUPGRADE'"
 	fi
 
-	case "$( git remote get-url origin )" in
-		*'lede'*)
-			# bin/ar71xx/... -> bin/targets/ar71xx/...
-			file="$( echo "$file" | sed 's|^bin|bin/targets|g' )"
-		;;
-	esac
 
 	if [ -e "$file" ]; then
 		cp -v "$file" "$attic/$destination"
