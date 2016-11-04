@@ -1628,27 +1628,21 @@ copy_firmware_files()
 
 	if [ -n "$CONFIG_PROFILE" ]; then
 		file="bin/$ARCH_MAIN/$FILENAME_FACTORY"
+		log "$( wc -c <"$file" ) Bytes: '$FILENAME_FACTORY'"
 	else
 		file="bin/$ARCH_MAIN/$FILENAME_SYSUPGRADE"
+		log "$( wc -c <"$file" ) Bytes: '$FILENAME_SYSUPGRADE'"
 	fi
 
 	case "$( git remote get-url origin )" in
 		*'lede'*)
+			# bin/ar71xx/... -> bin/targets/ar71xx/...
 			file="$( echo "$file" | sed 's|^bin|bin/targets|g' )"
 		;;
 	esac
 
 	if [ -e "$file" ]; then
 		cp -v "$file" "$attic/$destination"
-	else
-		error=1
-	fi
-
-	log "$( wc -c <"bin/$ARCH_MAIN/$FILENAME_SYSUPGRADE" ) Bytes: '$FILENAME_SYSUPGRADE'"
-	log "$( wc -c <"bin/$ARCH_MAIN/$FILENAME_FACTORY" ) Bytes: '$FILENAME_FACTORY'"
-
-	if [ -e "bin/$ARCH_MAIN/$FILENAME_FACTORY" ]; then
-		:
 	else
 		error=1
 	fi
