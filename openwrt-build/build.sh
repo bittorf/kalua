@@ -573,6 +573,8 @@ target_hardware_set()
 				cat <<EOF
 # simple boot via:
 bin/uml/$FILENAME_SYSUPGRADE ubd0=bin/uml/$FILENAME_FACTORY eth8=tuntap,,,192.168.0.254 oops=panic panic=10
+or
+bin/targets/uml/generic/$FILENAME_SYSUPGRADE ubd0=bin/targets/uml/generic/$FILENAME_FACTORY eth8=tuntap,,,192.168.0.254 oops=panic panic=10
 
 # when starts fails, circumvent PROT_EXEC mmap/noexec-shm-problem with:
 # http://www.ime.usp.br/~baroni/docs/uml-en.html
