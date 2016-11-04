@@ -1001,7 +1001,7 @@ EOF
 	ARCH="${ARCH#*_}"
 	ARCH_MAIN="${ARCH%_*}"	# ramips_mt7620 -> ramips
 	ARCH_SUB="${ARCH#*_}"	# ramips_mt7620 -> mt7620
-	ARCH_SUB="S{ARCH_SUB:-generic}"
+	[ "$ARCH_SUB" = "$ARCH" ] && ARCH_SUB='generic'
 
 	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
 	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"
