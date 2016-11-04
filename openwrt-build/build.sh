@@ -1159,7 +1159,7 @@ check_working_directory()
 
 		if [ -d "$DOWNLOAD_POOL" ]; then
 			log "symlinking our central download pool '$DOWNLOAD_POOL'"
-			mkdir -p "$buildsystemdir/dl"
+			mkdir -p "$DOWNLOAD_POOL"
 			ln -s "$DOWNLOAD_POOL" "$buildsystemdir/dl"
 		else
 			log "[OK] no central download pool - but if you want this,"
