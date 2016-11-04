@@ -634,9 +634,6 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_witi=y'
 			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-witi-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
-
-			# LEDE:
-			# bin/targets/ramips/mt7621/lede-ramips-mt7621-witi-squashfs-sysupgrade.bin
 		;;
 		'Xiaomi Miwifi mini')
 			# https://wiki.openwrt.org/toh/xiaomi/mini
@@ -740,7 +737,6 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-factory.bin"
-			# bin/targets/ar71xx/generic/lede-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
 		;;
 		'TP-LINK TL-WDR7500'|'TP-LINK Archer C7'|'TP-LINK Archer C7 v2')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wdr7500
@@ -1556,6 +1552,14 @@ copy_firmware_files()
 	mkdir -p "$attic"
 	rootfs='squash'
 
+	case "$( git remote get-url origin )" in
+		*'lede'*)
+			# bin/targets/ramips/mt7621/lede-ramips-mt7621-witi-squashfs-sysupgrade.bin
+			FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/openwrt/lede/g' )"
+			FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/openwrt/lede/g' )"
+		;;
+	esac
+
 	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch '$ARCH'/'$ARCH_MAIN'"
 	log "hardware: '$HARDWARE_MODEL'"
 	log "usecase: --usecase $USECASE"
@@ -1627,6 +1631,12 @@ copy_firmware_files()
 	else
 		file="bin/$ARCH_MAIN/$FILENAME_SYSUPGRADE"
 	fi
+
+	case "$( git remote get-url origin )" in
+		*'lede'*)
+			file="$( echo "$file" | sed 's|^bin|bin/targets|g' )"
+		;;
+	esac
 
 	if [ -e "$file" ]; then
 		cp -v "$file" "$attic/$destination"
