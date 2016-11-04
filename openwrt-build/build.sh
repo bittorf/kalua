@@ -1629,18 +1629,18 @@ copy_firmware_files()
 
 	case "$( git remote get-url origin )" in
 		*'lede'*)
-			pre="bin/targets/$ARCH_SUB"
+			pre="bin/targets/$ARCH_MAIN/$ARCH_SUB"
 		;;
 		*)
-			pre='bin'
+			pre="bin/$ARCH_MAIN"
 		;;
 	esac
 
 	if [ -n "$CONFIG_PROFILE" ]; then
-		file="$pre/$ARCH_MAIN/$FILENAME_FACTORY"
+		file="$pre/$FILENAME_FACTORY"
 		log "$( wc -c <"$file" ) Bytes: '$FILENAME_FACTORY'"
 	else
-		file="$pre/$ARCH_MAIN/$FILENAME_SYSUPGRADE"
+		file="$pre/$FILENAME_SYSUPGRADE"
 		log "$( wc -c <"$file" ) Bytes: '$FILENAME_SYSUPGRADE'"
 	fi
 
