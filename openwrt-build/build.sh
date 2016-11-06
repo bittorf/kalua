@@ -605,6 +605,21 @@ EOF
 				return 0
 			}	# parser_ignore
 		;;
+		'Cubietruck')
+			# aka: 'Cubieboard 3'
+			# https://wiki.openwrt.org/doc/hardware/soc/soc.allwinner.sunxi
+			# http://linux-sunxi.org/Cubieboard/FAQ
+			# http://docs.armbian.com/Hardware_Allwinner-A20/
+			# http://www.armbian.com/cubietruck/
+			# http://linux-sunxi.org/Sunxi_devices_as_NAS
+			#
+			# NAND-install:
+			# http://linux-sunxi.org/Cubieboard/Installing_on_NAND
+			# http://www.cubieforums.com/index.php?topic=555.0
+			TARGET_SYMBOL='CONFIG_TARGET_sunxi_Cubietruck=y'
+			# http://wiki.openwrt.org/doc/hardware/soc/soc.allwinner.sunxi#sd_layout
+			# lede-sunxi-Cubietruck-sdcard-vfat-ext4.img.gz
+		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-net5501-combined-ext4.img.gz'

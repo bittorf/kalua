@@ -71,7 +71,13 @@ _cron_vpnserver()
 				apt-get -y autoremove
 
 				[ -e '/var/run/reboot-required' ] && {
-					_system crashreboot 'apt-get_reboot'
+					if bool_true 'system.@system[0].avoid_autoreboot'; then
+						_mail send_telegram "$( uci get mail.@smtp[0].mail )" \
+									'reboot_needed' \
+									"after apt-get on $HOSTNAME/$LANADR"
+					else
+						_system crashreboot 'apt-get_reboot'
+					fi
 				}
 			}
 		;;
@@ -261,6 +267,7 @@ _cron_dummy()
 	echo 'network.lan.gateway=true'			# workaround: should be an IP
 	echo 'olsrd.@meta[0].ignored_interfaces='
 	echo 'system.@vds[0].server=root@intercity-vpn.de:/var/www/networks/liszt28/vds/'
+	echo 'mail.@smtp[0].mail=bb|npl.de'
 	} >/etc/kalua_uci
 	#
 	# - set sms_password?
