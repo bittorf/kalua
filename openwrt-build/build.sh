@@ -9,6 +9,7 @@
 # - build release-dir
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 # - include/renew patches for awk-removal
+# - qemu: network: https://gist.github.com/yousong/8d94c6823a2a6f0f79fd
 
 print_usage_and_exit()
 {
@@ -607,6 +608,7 @@ EOF
 		;;
 		'Cubietruck')
 			# aka: 'Cubieboard 3'
+			#
 			# https://wiki.openwrt.org/doc/hardware/soc/soc.allwinner.sunxi
 			# http://linux-sunxi.org/Cubieboard/FAQ
 			# http://docs.armbian.com/Hardware_Allwinner-A20/
@@ -616,9 +618,12 @@ EOF
 			# NAND-install:
 			# http://linux-sunxi.org/Cubieboard/Installing_on_NAND
 			# http://www.cubieforums.com/index.php?topic=555.0
-			TARGET_SYMBOL='CONFIG_TARGET_sunxi_Cubietruck=y'
+			#
+			# sd-card install:
 			# http://wiki.openwrt.org/doc/hardware/soc/soc.allwinner.sunxi#sd_layout
-			# lede-sunxi-Cubietruck-sdcard-vfat-ext4.img.gz
+			TARGET_SYMBOL='CONFIG_TARGET_sunxi_Cubietruck=y'
+			FILENAME_SYSUPGRADE='openwrt-sunxi-Cubietruck-sdcard-vfat-ext4.img.gz'
+			# CONFIG_BRCMFMAC_SDIO=y
 		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
