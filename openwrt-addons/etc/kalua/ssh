@@ -92,42 +92,39 @@ _ssh_regen_keys()
 	_log it $funcname daemon info '[READY]'
 }
 
+_ssh_usable_ciphers()
+{
+	local line
+
+	dropbearkey 2>&1 | while read line; do {
+		test ${#line} -lt 5 && echo "$line"	# e.g. rsa dss ecdsa
+	} done
+}
+
 _ssh_sanitize_and_cleanup_keys()
 {
 	local funcname='ssh_sanitize_and_cleanup_keys'
-	local file mode keyok
+	local file mode
 
-	public_keyfile_ok()
-	{
-		local file="$1"
+	command -v 'dropbearkey' >/dev/null || return 0
+	[ -h "$HOME/.ssh" ] || ln -fs '/etc/dropbear' "$HOME/.ssh"
 
-		[ -e '/usr/bin/dropbearkey' ] || return 0		# simulate OK
-		[ -e "$file.pub" ] || return 1
-		[ $( _file size "$file.pub" ) -eq 0 ] && return 1
-
-		return 0
-	}
-
-	keyok=
-	for mode in rsa dss ecdsa; do {
+	for mode in $( _ssh usable_ciphers ); do {
 		file="/etc/dropbear/dropbear_${mode}_host_key"
-		if [ -e "$file" ]; then
-			keyok='true'
-		else
-			[ -z "$keyok" ] && {
-				dropbearkey -t "$mode" -f "/etc/dropbear/dropbear_${mode}_host_key" && {
-					keyok='true'
+
+		[ -s "$file" ] || {
+			if dropbearkey -t "$mode" -f "$file"; then
+				_log it $funcname daemon alert "[OK] generated $mode-key"
+
+				[ -s "$file.pub" ] || {
+					_log it $funcname daemon alert "invalid pubkey: writing '$file.pub'"
+
+					dropbearkey -y -f "$file" | grep ^'ssh-' >"$file.pub"
+					chmod 0600 "$file.pub"
 				}
-			}
-		fi
-
-		public_keyfile_ok "$file" || {
-			_log it $funcname daemon info "writing $file.pub"
-
-			dropbearkey -y -f "$file" | grep ^'ssh-' >"$file.pub"
-			chmod 0600 "$file.pub"
+			else
+				_log it $funcname daemon alert "generating $mode-key failed"
+			fi
 		}
 	} done
-
-	[ -h "$HOME/.ssh" ] || ln -fs '/etc/dropbear' "$HOME/.ssh"
 }
