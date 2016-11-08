@@ -3416,10 +3416,13 @@ bootstrap_ctags()
 bootstrap_shellsheck()
 {
 	[ -n "$TRAVIS" ] && {
-		local url='http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.4.4-2_amd64.deb'
+		local myarch="$( myarch )"
+		local url="http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.4.4-4_${myarch}.deb"
+
 		wget -O 'shellsheck.deb' "$url"
 		sudo dpkg -i 'shellsheck.deb'
-		return 0
+
+		return $?
 	}
 
 	# needs ~15 mins
