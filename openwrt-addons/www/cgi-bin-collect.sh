@@ -13,9 +13,6 @@ tac_roaming()
 }
 
 case "$QUERY_STRING" in
-	'')
-		echo 'OK - empty QUERY'
-	;;
 	*'roaming_mac_action'*)
 		mode=;unixtime=;mac=;ip=;freq=;signal=;node=;hostname=
 		eval $( _http query_string_sanitize "$0:roaming_mac_action" )
