@@ -19,8 +19,7 @@ else
 			# localhost
 		;;
 		*)
-			# simple way for ensure, that only real nodes (OLSR/Mid) can do this
-			ip route | fgrep -q "$REMOTE_ADDR via " || {
+			_net is_router "$REMOTE_ADDR" || {
 				_http header_mimetype_output text/plain
 				echo "# ERROR: Download from '$REMOTE_ADDR' not allowed"
 				exit 0
