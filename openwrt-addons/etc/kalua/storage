@@ -80,18 +80,24 @@ _storage_automount()
 	set_spindown()
 	{
 		local dev="$1"
+		local dev_plain="$( echo "$dev" | tr -d '[0-9]' )"	# sda7 -> sda
+		local rotation
+
 		# unneeded for USB-stick
-		# http://stackoverflow.com/questions/908188/is-there-any-way-of-detecting-if-a-drive-is-a-ssd
-		[ "$( cat /sys/block/$dev/removable 2>/dev/null )" = '0' ] && return 0
+		[ "$( cat /sys/block/$dev_plain/removable 2>/dev/null )" = '0' ] && return 0
+
 		command -v hdparm >/dev/null || return 0
 
+		# http://stackoverflow.com/questions/908188/is-there-any-way-of-detecting-if-a-drive-is-a-ssd
+		# /sys/block/$dev_plain/queue/rotational -> 1
+		#
 		# e.g. 7200 or 'Solid State Device'
-		explode $( hdparm -I "/dev/$dev" | fgrep 'Nominal Media Rotation Rate: ' )
-		shift 4
+		explode $( hdparm -I "/dev/$dev_plain" | fgrep 'Nominal Media Rotation Rate: ' )
+		rotation="$5"
 
-		[ ${1:-0} -gt 0 ] && {
-			_log it $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($1 rpm)"
-			hdparm -y -S 60 "/dev/$dev"
+		isnumber "$rotation" && {
+			_log it $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($rotation rpm)"
+			hdparm -y -S 60 "/dev/$dev_plain"
 		}
 	}
 
@@ -124,6 +130,8 @@ _storage_automount()
 								rm -fR "$dir/${dev:-does_not_exist}"
 								mkdir -p "$dir/${dev}_$size"
 								_log it $funcname daemon info "[OK] /dev/$dev -> $dir/${dev}_$size"
+
+								# TODO: noatime on rotational?
 								mount "/dev/$dev" "$dir/${dev}_$size" && success='true'
 							}
 
