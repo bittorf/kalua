@@ -32,7 +32,7 @@ case "$QUERY_STRING" in
 
 				case "$ANSWER" in
 					'OK'*)
-						signal="$signal:kicked"
+						signal="$signal:kicked:$REMOTE_NODENUMBER"
 					;;
 					*)
 						signal="$signal:not_kicked:$ANSWER"
@@ -43,8 +43,9 @@ case "$QUERY_STRING" in
 				# do not when bandroam (old on same node)
 			;;
 			*)
+				# see parsing above: 'MHz/$signal' must be 1 word
 				signal="${signal:-__?}"
-				signal="$( printf '%3s' "$signal" )"
+				signal="$( printf '%3s' "$signal" | tr ' ' '_' )"
 			;;
 		esac
 
