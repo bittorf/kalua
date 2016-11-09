@@ -20,10 +20,18 @@ case "$QUERY_STRING" in
 		# sortable via timestamp
 		timestamp="$( date '+%X' -d @$unixtime )"
 		ip="${ip:-no_ip}"
-		signal="${signal:-  ?}"
-		signal="$( printf '%3s' "$signal" )"
-		echo "$unixtime/$timestamp - $mode: $mac/$ip/$freq Mhz/$signal dBm @ $node/$hostname" >>"$TMPDIR/roaming_debug"
 
+		case "$signal" in
+			'early')
+				# TODO: remove route/HNA on last node
+			;;
+			*)
+				signal="${signal:-  ?}"
+				signal="$( printf '%3s' "$signal" )"
+			;;
+		esac
+
+		echo "$unixtime/$timestamp - $mode: $mac/$ip/$freq Mhz/$signal dBm @ $node/$hostname" >>"$TMPDIR/roaming_debug"
 		echo 'OK'
 	;;
 	*'roaming_add'*)
