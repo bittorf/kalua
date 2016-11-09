@@ -619,6 +619,8 @@ run_test()
 						       sort -u |
 						        while read -r LINE; do printf '%s' "$LINE "; done )"
 
+					[ -n "$TRAVIS"] && log "TRAVIS: sc_list: '$sc_list' exec: $shellcheck_bin --exclude='$ignore' '$file'"
+
 					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
 						if [ -n "$sc_list" ]; then
 							log "[OK] shellcheck: '$file' - START: check without internal ignores: $sc_list"
