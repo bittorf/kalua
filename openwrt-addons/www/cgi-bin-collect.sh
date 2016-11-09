@@ -43,7 +43,7 @@ case "$QUERY_STRING" in
 				# do not when bandroam (old on same node)
 			;;
 			*)
-				signal="${signal:-  ?}"
+				signal="${signal:-__?}"
 				signal="$( printf '%3s' "$signal" )"
 			;;
 		esac
