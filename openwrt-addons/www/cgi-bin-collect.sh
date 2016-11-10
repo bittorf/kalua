@@ -23,25 +23,26 @@ case "$QUERY_STRING" in
 
 		case "$signal" in
 			'early')
-				# 1478764071/08:47:51 - new: e8:f2:e2:b0:69:f5/no_ip/2432 Mhz/__0 dBm @ 667/wlan1-1/Schl8hof9
-				REMOTE_NODENUMBER="$( grep " new: $mac/" "$TMPDIR/roaming_debug" | tail -n1 | cut -d'@' -f2 | cut -d'/' -f1 )"
+				# TODO: maintain a list, e.g. for a fast moving station (has many 'new' entries)
+				read -r LAST_NODENUMBER <"$TMPDIR/roaming_newstation_$mac"
+				echo "$node" >"$TMPDIR/roaming_newstation_$mac"
 
-				if   [ -z "$REMOTE_NODENUMBER" ]; then
+				if   [ -z "$LAST_NODENUMBER" ]; then
 					ANSWER="emptyNodenumber: $*"
-				elif [ "$REMOTE_NODENUMBER" = "$node" ]; then
+				elif [ "$LAST_NODENUMBER" = "$node" ]; then
 					ANSWER="bandroam"
 				else
-					IP="$( _ipsystem getvar 'LANADR' "$REMOTE_NODENUMBER" )"
+					IP="$( _ipsystem getvar 'LANADR' "$LAST_NODENUMBER" )"
 					URL="http://$IP/cgi-bin-tool.sh?OPT=wifi_kick&MAC=$mac"
 					ANSWER="$( _curl it "$URL" )"
 				fi
 
 				case "$ANSWER" in
 					'OK'*)
-						signal="$signal:kicked:$REMOTE_NODENUMBER"
+						signal="$signal:kicked:$LAST_NODENUMBER"
 					;;
 					*)
-						signal="$signal:not_kicked:$REMOTE_NODENUMBER:$ANSWER"
+						signal="$signal:not_kicked:$LAST_NODENUMBER:$ANSWER"
 					;;
 				esac
 			;;
