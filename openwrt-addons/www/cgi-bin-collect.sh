@@ -28,7 +28,7 @@ case "$QUERY_STRING" in
 
 				if   [ -z "$REMOTE_NODENUMBER" ]; then
 					ANSWER="emptyNodenumber: $*"
-				elif [ "$REMOTE_NODENUMBER" = "$mode" ]; then
+				elif [ "$REMOTE_NODENUMBER" = "$node" ]; then
 					ANSWER="bandroam"
 				else
 					IP="$( _ipsystem getvar 'LANADR' "$REMOTE_NODENUMBER" )"
