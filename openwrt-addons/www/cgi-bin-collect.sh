@@ -14,7 +14,7 @@ tac_roaming()
 
 case "$QUERY_STRING" in
 	*'roaming_mac_action'*)
-		mode=;unixtime=;mac=;ip=;freq=;signal=;node=;hostname=
+		mode=;unixtime=;mac=;ip=;freq=;signal=;wifidev=;node=;hostname=
 		eval $( _http query_string_sanitize "$0:roaming_mac_action" )
 
 		# sortable via timestamp
@@ -49,7 +49,7 @@ case "$QUERY_STRING" in
 			;;
 		esac
 
-		echo "$unixtime/$timestamp - $mode: $mac/$ip/$freq Mhz/$signal dBm @ $node/$hostname" >>"$TMPDIR/roaming_debug"
+		echo "$unixtime/$timestamp - $mode: $mac/$ip/$freq Mhz/$signal dBm @ $node/$wifidev/$hostname" >>"$TMPDIR/roaming_debug"
 		echo 'OK'
 	;;
 	*'roaming_add'*)
