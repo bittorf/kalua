@@ -26,7 +26,9 @@ case "$QUERY_STRING" in
 				explode "$( grep " new: $mac/" "$TMPDIR/roaming_debug" | tail -n1 )"
 				REMOTE_NODENUMBER="$( echo "$8" | cut -d'/' -f1 )"
 
-				if [ "$REMOTE_NODENUMBER" = "$mode" ]; then
+				if   [ -z "$REMOTE_NODENUMBER" ]; then
+					ANSWER="emptyNodenumber: $*"
+				elif [ "$REMOTE_NODENUMBER" = "$mode" ]; then
 					ANSWER="bandroam"
 				else
 					IP="$( _ipsystem getvar 'LANADR' "$REMOTE_NODENUMBER" )"
