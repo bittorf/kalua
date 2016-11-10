@@ -24,11 +24,15 @@ case "$QUERY_STRING" in
 		case "$signal" in
 			'early')
 				explode "$( grep " new: $mac/" "$TMPDIR/roaming_debug" | tail -n1 )"
-
 				REMOTE_NODENUMBER="$( echo "$8" | cut -d'/' -f1 )"
-				IP="$( _ipsystem getvar 'LANADR' "$REMOTE_NODENUMBER" )"
-				URL="http://$IP/cgi-bin-tool.sh?OPT=wifi_kick&MAC=$mac"
-				ANSWER="$( _curl it "$URL" )"
+
+				if [ "$REMOTE_NODENUMBER" = "$mode" ]; then
+					ANSWER="bandroam"
+				else
+					IP="$( _ipsystem getvar 'LANADR' "$REMOTE_NODENUMBER" )"
+					URL="http://$IP/cgi-bin-tool.sh?OPT=wifi_kick&MAC=$mac"
+					ANSWER="$( _curl it "$URL" )"
+				fi
 
 				case "$ANSWER" in
 					'OK'*)
@@ -38,9 +42,6 @@ case "$QUERY_STRING" in
 						signal="$signal:not_kicked:$ANSWER"
 					;;
 				esac
-
-				# TODO: remove route/HNA on last node
-				# do not when bandroam (old on same node)
 			;;
 			*)
 				# see parsing above: 'MHz/$signal' must be 1 word
