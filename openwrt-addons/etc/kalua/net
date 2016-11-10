@@ -253,6 +253,11 @@ _net_roaming_eventlistener()
 			_$funcname start "$reason"
 		;;
 		'start')
+			[ -e "$TMPDIR/iwloop_stopping" ] && {
+				_log it $funcname daemon info "[ERR] existing '$TMPDIR/iwloop_stopping', will not start"
+				return 1
+			}
+
 			for pid in $( pidof iw ); do {
 				read -r cmdline <"/proc/$pid/cmdline"
 				[ "$cmdline" = 'iwevent' ] && {
@@ -265,6 +270,8 @@ _net_roaming_eventlistener()
 			echo "$!" >"$pidfile"
 		;;
 		'stop')
+			touch "$TMPDIR/iwloop_stopping"
+
 			i=10
 			error=
 			pids1="$( pidof iw )" && {
@@ -299,6 +306,8 @@ _net_roaming_eventlistener()
 
 				[ -n "$error" ] && _wifi phy_restart "$WIFIDEV" "$error $funcname stop"
 			}
+
+			rm "$TMPDIR/iwloop_stopping"
 		;;
 	esac
 }
