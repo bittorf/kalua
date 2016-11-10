@@ -147,9 +147,8 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 	local MESSAGE="$4"		# humanreadable verbose message, all is syslog-alike
 	local message_sms="$5"
 	local phonenumber="$6"
-#	local force="$7"
 	local PERMLOG_RAM="$TMPDIR/everlasting_syslog.txt"
-	local MEM UPTIME DATE i list message_to_send username password sms_header dest text
+	local log_ramfree log_uptime log_date i list message_to_send username password sms_header dest text
 
 	[ -z "$MESSAGE" ] && {		# from stdin (pipe into function)
 		while read -r MESSAGE; do {
@@ -176,13 +175,13 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 
 	mem_uptime_and_date()
 	{
-		echo "MEM=${MEM:-$( _system ram_free )}"
-		echo "UPTIME=${UPTIME:-$( _system uptime sec )}"
-		echo "DATE='${DATE:-$( _system date )}'"
+		echo "log_ramfree=${log_mem:-$( _system ram_free )}"
+		echo "log_uptime=${log_uptime:-$( _system uptime sec )}"
+		echo "log_date='${log_date:-$( _system date )}'"
 	}
 
 	case "$PRIO" in
-		debug|emerg|alert|crit|sms)			# idea: [ $MEM -lt 999999 ] && PRIO="alert"
+		debug|emerg|alert|crit|sms)			# idea: [ $log_ramfree -lt 999999 ] && PRIO="alert"
 			eval $( mem_uptime_and_date )
 
 			[ "$PRIO" = 'sms' ] && {
@@ -204,7 +203,7 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 					FUNCTION=
 				else
 					message_to_send="$MESSAGE"
-					sms_header="$( _system date humanreadable )${CONFIG_PROFILE%_*} $HOSTNAME ip:$ANYADR up:${UPTIME}s "
+					sms_header="$( _system date humanreadable )${CONFIG_PROFILE%_*} $HOSTNAME ip:$ANYADR up:${log_uptime}s "
 					FUNCTION="$FUNCTION "
 				fi
 
@@ -217,7 +216,8 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 			}
 
 			[ "$PRIO" != 'debug' ] && {
-				text="$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [$FACILITY.$PRIO] $FUNCTION() $MESSAGE"
+####
+				text="$log_date ' [up ${log_uptime}s $log_ramfree bytes free] $FATHER_PROCESS [$FACILITY.$PRIO] $FUNCTION() $MESSAGE"
 
 				if [ $( _system flash_free ) -gt 150 ]; then
 					# write to logfile in flash, which is not lost after reboot
@@ -238,14 +238,16 @@ _log_it()				# CALL: _log it my_function_name daemon info "mytext"
 		eval $( mem_uptime_and_date )
 		FATHER_PROCESS="TERM:$TERM $0"
 		# output to STDERR
-		echo 1>&2 "$DATE ' [up ${UPTIME}s $MEM bytes free] $FATHER_PROCESS [$FACILITY.$PRIO] $FUNCTION() $MESSAGE"
+###
+		echo 1>&2 "$log_date ' [up ${log_uptime}s $log_ramfree bytes free] $FATHER_PROCESS [$FACILITY.$PRIO] $FUNCTION() $MESSAGE"
 	}
 
 	[ $OPENWRT_REV -lt 41037 ] && {
 		# if nobody is listening for 'logger' yet, write to file (e.g. early bootup)
 		pidof procd syslogd >/dev/null || {
 			eval $( mem_uptime_and_date )
-			text="$DATE ' [up ${UPTIME}s $MEM bytes free] $FACILITY.$PRIO"
+###
+			text="$log_date ' [up ${log_uptime}s $log_ramfree bytes free] $FACILITY.$PRIO"
 			text="$text fff+ $FATHER_PROCESS $FUNCTION() $MESSAGE"
 			echo >>'/tmp/messages' "$text"
 		}
