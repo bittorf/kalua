@@ -1784,7 +1784,8 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 	local ifindex="$1"			# e.g. 3 or '5ghz'
 	local txpower_milliwatt="${2:-5}"	# e.g. 10 or e.g. -1
 	local ssid="$3"				# e.g. <empty> or SSID
-	local txpower_border=-65
+	#
+	local txpower_border=-65		# scan-signal must be better or egal for any action
 	local txpower_min=5
 	local txpower_milliwatt_result signal dev devname txpower_mBm
 
@@ -1805,7 +1806,11 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 		txpower_milliwatt_result="$txpower_milliwatt"
 	fi
 
-	[ $txpower_milliwatt_result -le $txpower_min ] && return 0
+	[ $txpower_milliwatt_result -le $txpower_min ] && {
+		echo "# ready: tx_result: $txpower_milliwatt_result txpower_min: $txpower_min" >>"$TMPDIR/$funcname"
+		return 0
+	}
+
 	txpower_mBm="$( _wifi math_mw2mbm "$txpower_milliwatt_result" )"
 	signal="$( _wifi scan_best_signal_myssid "$dev" "$ssid" )"
 	_log it $funcname daemon info "signal: ${signal:-empty} for ssid '$ssid' (border: $txpower_border)"
@@ -1831,6 +1836,7 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 		echo "txpower_milliwatt/result: '$txpower_milliwatt'/'$txpower_milliwatt_result'"
 		echo "txpower_mBm: '$txpower_mBm'"
 		echo "ssid: '$ssid'"
+		echo '#'
 	} >>"$TMPDIR/$funcname"
 }
 
