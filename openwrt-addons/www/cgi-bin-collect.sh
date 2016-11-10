@@ -23,8 +23,8 @@ case "$QUERY_STRING" in
 
 		case "$signal" in
 			'early')
-				explode "$( grep " new: $mac/" "$TMPDIR/roaming_debug" | tail -n1 )"
-				REMOTE_NODENUMBER="$( echo "$8" | cut -d'/' -f1 )"
+				# 1478764071/08:47:51 - new: e8:f2:e2:b0:69:f5/no_ip/2432 Mhz/__0 dBm @ 667/wlan1-1/Schl8hof9
+				REMOTE_NODENUMBER="$( grep " new: $mac/" "$TMPDIR/roaming_debug" | tail -n1 | cut -d'@' -f2 | cut -d'/' -f1 )"
 
 				if   [ -z "$REMOTE_NODENUMBER" ]; then
 					ANSWER="emptyNodenumber: $*"
