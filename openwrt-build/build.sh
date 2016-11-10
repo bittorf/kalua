@@ -1203,9 +1203,9 @@ check_working_directory()
 		KALUA_DIRNAME="$( basename "$repo" | cut -d'.' -f1 )"
 		echo "$repo" >'KALUA_REPO_URL'
 
-		# TODO: ln -s /home/bastian/openwrt_download dl + chmod +x ...
 		log "[OK] after doing 'cd $buildsystemdir' you should do:"
 		log '../build.sh --help'
+		chmod +x 'build.sh'
 
 		exit $error
 	}
@@ -3419,6 +3419,7 @@ bootstrap_shellsheck()
 		local myarch="$( myarch )"
 		local url="http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.4.4-4_${myarch}.deb"
 
+		# TODO: build-static: https://github.com/koalaman/shellcheck/issues/758
 		wget -O 'shellsheck.deb' "$url"
 		sudo dpkg -i 'shellsheck.deb'
 
