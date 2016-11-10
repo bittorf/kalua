@@ -39,7 +39,7 @@ case "$QUERY_STRING" in
 						signal="$signal:kicked:$REMOTE_NODENUMBER"
 					;;
 					*)
-						signal="$signal:not_kicked:$ANSWER"
+						signal="$signal:not_kicked:$REMOTE_NODENUMBER:$ANSWER"
 					;;
 				esac
 			;;
