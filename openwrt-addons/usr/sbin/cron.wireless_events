@@ -223,6 +223,7 @@ worker()
 
 	case "$mode" in
 		'new')
+			touch "$TMPDIR/dont_kick_$mac"
 			echo "$mac $wifidev" >>"$station_list"
 
 			# blocking, but needed for fast removal of local_route (or HNA) on old node
@@ -282,6 +283,8 @@ worker()
 			if signal_is_bad "${signal:=-1}" "$freq"; then
 				touch "$kickmarker"
 				log "$txt - KICKED early, bad signal: '$signal'"
+
+				rm "$TMPDIR/dont_kick_$mac"
 				_wifi kick "$mac" "$wifidev" "$funcname:bad-signal:$signal"
 			else
 				ip="$( mac2ipv4 "$mac" "$wifidev" "$freq" )"
@@ -295,6 +298,8 @@ worker()
 					echo >>"$permlog" "add station $mac freq $freq MHz dev $wifidev - $timestamp"
 				}
 			fi
+
+			rm "$TMPDIR/dont_kick_$mac"
 		;;
 		'del')
 			signal="$( _wifi signal_get "$wifidev" "$mac" 'debug' )"
@@ -327,6 +332,7 @@ worker()
 				} >>"$permlog"
 			}
 
+			[ -e "$TMPDIR/dont_kick_$mac" ] && rm "$TMPDIR/dont_kick_$mac"
 			log rotate
 
 			# remove from station list
