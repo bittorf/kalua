@@ -1870,7 +1870,8 @@ apply_patches()
 			patch_for_openwrt()
 			{
 				grep -q ^'To: openwrt-devel@lists.openwrt.org' "$1" && return 0
-				grep -q ' a/package/' "$1"
+				grep -q ' package/' "$1" && return 0
+				grep -q ' include/' "$1"
 			}
 
 			patch_for_mac80211()
