@@ -33,6 +33,12 @@ prompt_set()
 	export PS1="${cyan}${user}$white@${green}$host:${yellow}$wdir \$( face '$ok' '$bad' ) $reset"
 }
 
+case "$PS1" in
+	*' face '*)
+		return 0
+	;;
+esac
+
 prompt_set
 
 alias n='_olsr txtinfo'
@@ -75,21 +81,23 @@ case "$USER" in
 esac
 
 _ t 2>/dev/null || {
-	[ -e '/tmp/loader' -a -n "$SSH_CONNECTION" ] && {
+	[ -e '/tmp/loader' ] && {
 		# http://unix.stackexchange.com/questions/82347/how-to-check-if-a-user-can-access-a-given-file
 		. '/tmp/loader'		# TODO: avoid "no permission" on debian user-X-session
 
 		echo
 		echo "this is a '$HARDWARE' - for some hints type: _help overview"
 
-		NAME="$( _wifi longshot_name )" && {
-			echo
-			echo "this device is part of a wifi-longshot named '$NAME'"
-			echo 'get stats with: _wifi longshot_report'
-		}
+		[ -n "$SSH_CONNECTION" -a -n "$WIFIDEV" ] && {
+			NAME="$( _wifi longshot_name )" && {
+				echo
+				echo "this device is part of a wifi-longshot named '$NAME'"
+				echo 'get stats with: _wifi longshot_report'
+			}
 
-		unload wifi
-		unset NAME
+			unload wifi
+			unset NAME
+		}
 	}
 }
 
@@ -98,6 +106,7 @@ if   [ -e '/etc/init.d/apply_profile' -a -e '/sbin/uci' ]; then
 elif [ -e '/tmp/REBOOT_REASON' ]; then
 	# see system_crashreboot()
 	read -r CRASH <'/tmp/REBOOT_REASON'
+	[ -e '/tmp/loader' ] && . /tmp/loader
 	_system include
 
 	case "$CRASH" in
