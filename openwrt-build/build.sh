@@ -3334,7 +3334,7 @@ travis_prepare()
 		log "[OK] trying 'apt-get install $*'"
 		sudo apt-get -y install "$@" || {
 			# sometimes it bails out without good reason
-			log "[ERR] during 'install', but trying to continue..."
+			log "[ERR] during 'apt-get install $*', but trying to continue..."
 		}
 	}
 
@@ -3342,6 +3342,7 @@ travis_prepare()
 	# https://github.com/universal-ctags/ctags.git
 	bootstrap_ctags		|| return 1
 
+	# TODO: check again after 'do_install'
 	command -v 'pip'	|| do_install 'pip'		|| return 1	# for codespell
 	# https://github.com/lucasdemarchi/codespell
 	command -v 'codespell.py' || sudo pip install codespell	|| return 1
@@ -3350,7 +3351,7 @@ travis_prepare()
 	# http://www.html-tidy.org/
 	command -v 'tidy'	|| do_install 'tidy'		|| return 1
 	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
-	command -v 'php5'	|| do_install 'php5'		|| return 1
+	php --version | grep -q ^'PHP 5\.' || do_install 'php5'	|| return 1
 	# for javascript testing: https://github.com/marijnh/acorn
 	command -v 'nodejs'	|| do_install 'nodejs'		|| return 1
 	command -v 'npm'	|| do_install 'npm'		|| return 1
