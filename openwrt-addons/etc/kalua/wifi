@@ -1787,7 +1787,7 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 	#
 	local txpower_border=-65		# scan-signal must be better or egal for any action
 	local txpower_min=5
-	local txpower_milliwatt_result signal dev devname txpower_mBm
+	local txpower_milliwatt_result signal dev devname txpower_mBm debug
 
 	isnumber "$ifindex" || ifindex="$( _wifi get "$ifindex" mode ap )"
 
@@ -1815,7 +1815,7 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 	signal="$( _wifi scan_best_signal_myssid "$dev" "$ssid" )"
 	_log it $funcname daemon info "signal: ${signal:-empty} for ssid '$ssid' (border: $txpower_border)"
 
-	[ $txpower_border -le ${signal:--100} ] && {
+	if [ $txpower_border -le ${signal:--100} ]; then
 		_log it $funcname daemon info "reducing to: $txpower_milliwatt_result/$txpower_mBm [mW/mBm] to dev $dev index $ifindex"
 		_wifi set ap "$ifindex" txpower "$txpower_milliwatt_result"	# being consistent (e.g. wifi up)
 		iw dev "$dev" set txpower fixed "$txpower_mBm"			# and hot-apply
@@ -1825,12 +1825,16 @@ _wifi_reduce_txpower_if_compatible_roaming_nodes_are_near()
 			echo >>$SCHEDULER_NEXTRUN "_wifi reduce_txpower_if_compatible_roaming_nodes_are_near $ifindex $txpower_milliwatt $ssid"
 		else
 			_log remote "[READY] txpower: $txpower_milliwatt_result mW (signal: $signal ssid: $ssid)"
+			debug="ready: txpower_fixed: $txpower_milliwatt"
 		fi
-	}
+	else
+		debug="ready: border <= signal: $txpower_border <= $signal"
+	fi
 
 	{
 		date
-		echo "# debuginfo"
+		uptime
+		echo "# debuginfo: $debug"
 		echo "border: $txpower_border signal: $signal"
 		echo "ifindex: '$ifindex' dev: '$dev' devname: '$devname'"
 		echo "txpower_milliwatt/result: '$txpower_milliwatt'/'$txpower_milliwatt_result'"
