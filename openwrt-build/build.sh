@@ -3332,7 +3332,10 @@ travis_prepare()
 		}
 
 		log "[OK] trying 'apt-get install $*'"
-		sudo apt-get -y install "$@"
+		sudo apt-get -y install "$@" || {
+			# sometimes it bails out without good reason
+			log "[ERR] during 'install', but trying to continue..."
+		}
 	}
 
 	# http://ctags.sourceforge.net -> buggy
