@@ -1529,7 +1529,7 @@ openwrt_download()
 	case "$( git remote get-url origin )" in
 		*'lede'*)
 			[ -n "$OPENWRT_VERSION_INTEGER" ] && {
-				[ $OPENWRT_VERSION_INTEGER -ge 1000000 ] && {
+				[ $OPENWRT_VERSION_INTEGER -ge 1000000 ] || {
 					log "rewriting \$OPENWRT_VERSION: $OPENWRT_VERSION/$OPENWRT_VERSION_INTEGER"
 					OPENWRT_VERSION_INTEGER=$(( OPENWRT_VERSION_INTEGER + 1000000 ))
 					OPENWRT_VERSION="r$OPENWRT_VERSION_INTEGER"
