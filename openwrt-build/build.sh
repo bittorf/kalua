@@ -1391,10 +1391,25 @@ openwrt_download()
 
 	[ "$old_wish" = "$wish" ] || log "apply '$wish' (sanitized)"
 
+	lede_fixup()
+	{
+		case "$( git remote get-url origin )" in
+			*'lede'*)
+				[ $OPENWRT_VERSION_INTEGER -gt 0 ] && {
+					log "rewriting \$OPENWRT_VERSION: $OPENWRT_VERSION/$OPENWRT_VERSION_INTEGER"
+					OPENWRT_VERSION_INTEGER=$(( OPENWRT_VERSION_INTEGER + 1000000 ))
+					OPENWRT_VERSION="r$OPENWRT_VERSION_INTEGER"
+					log "rewriting \$OPENWRT_VERSION: now: $OPENWRT_VERSION/$OPENWRT_VERSION_INTEGER"
+				}
+			;;
+		esac
+	}
+
 	case "$wish" in
 		'leave_untouched')
 			VERSION_OPENWRT_INTEGER="$( openwrt_revision_number_get )"
 			VERSION_OPENWRT="r$VERSION_OPENWRT_INTEGER"
+			lede_fixup
 		;;
 		'trunk')
 			$funcname 'switch_to_master'
@@ -1424,9 +1439,11 @@ openwrt_download()
 				local line info
 
 				git log --format=%h | while read -r line; do
-					git show "$line" | grep -q '# mimic OpenWrt-style:' && return 1
+					git show "$line" | grep -q '# mimic OpenWrt-style:' && {
+						return 1
+					}
 
-					if info="$( git describe $L )"; then
+					if info="$( git describe "$line" )"; then
 						# e.g. 'reboot-1492-g637640c' but empty with 'lede-staging'
 						case "$info" in
 							*"-$wish-"*)
@@ -1474,6 +1491,7 @@ openwrt_download()
 
 			VERSION_OPENWRT="$wish"			# e.g. r12345
 			VERSION_OPENWRT_INTEGER="${wish#*r}"	# e.g.  12345
+			lede_fixup
 		;;
 		'reset_autocommits')
 			found_autocommit()
@@ -1511,6 +1529,7 @@ openwrt_download()
 
 			VERSION_OPENWRT_INTEGER="$( openwrt_revision_number_get )"
 			VERSION_OPENWRT="r$VERSION_OPENWRT_INTEGER"
+			lede_fixup
 
 			git stash list | grep -qv '() going to checkout ' && {
 				log "found openwrt-stash, ignore via press 'q'"
@@ -1523,19 +1542,6 @@ openwrt_download()
 			log "unknown option '$wish'"
 
 			return 1
-		;;
-	esac
-
-	case "$( git remote get-url origin )" in
-		*'lede'*)
-			[ -n "$OPENWRT_VERSION_INTEGER" ] && {
-				[ $OPENWRT_VERSION_INTEGER -ge 1000000 ] || {
-					log "rewriting \$OPENWRT_VERSION: $OPENWRT_VERSION/$OPENWRT_VERSION_INTEGER"
-					OPENWRT_VERSION_INTEGER=$(( OPENWRT_VERSION_INTEGER + 1000000 ))
-					OPENWRT_VERSION="r$OPENWRT_VERSION_INTEGER"
-					log "rewriting \$OPENWRT_VERSION: now: $OPENWRT_VERSION/$OPENWRT_VERSION_INTEGER"
-				}
-			}
 		;;
 	esac
 
