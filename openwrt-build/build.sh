@@ -1526,6 +1526,15 @@ openwrt_download()
 		;;
 	esac
 
+	case "$( git remote get-url origin )" in
+		*'lede'*)
+			log "rewriting \$OPENWRT_VERSION: $OPENWRT_VERSION/$OPENWRT_VERSION_INTEGER"
+			OPENWRT_VERSION_INTEGER=$(( OPENWRT_VERSION_INTEGER + 1000000 ))
+			OPENWRT_VERSION="r$OPENWRT_VERSION_INTEGER"
+			log "rewriting \$OPENWRT_VERSION: now: $OPENWRT_VERSION/$OPENWRT_VERSION_INTEGER"
+		;;
+	esac
+
 	return 0
 }
 
@@ -1626,7 +1635,8 @@ copy_firmware_files()
 # profile=	liszt28.hybrid.4			// optional
 # option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
-	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {	# https://dev.openwrt.org/changeset/48767
+	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
+	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {
 		case "$FILENAME_FACTORY" in
 			*[0-9]'nd'|*[0-9]'n')
 				log "[OK] fixup filename '$FILENAME_FACTORY'"
@@ -3626,7 +3636,7 @@ while [ -n "$1" ]; do {
 				'lede'|'lede-staging'|'trunk'|'10.03'|'12.09'|'14.07'|'15.05')
 					# TODO: 15.05.1 ???
 					VERSION_OPENWRT="$2"
-					VERSION_OPENWRT_INTEGER="1"	# so not error when used in calcs
+					VERSION_OPENWRT_INTEGER=1	# no error in calculations
 				;;
 				'r'[0-9]*)
 					VERSION_OPENWRT="$2"
