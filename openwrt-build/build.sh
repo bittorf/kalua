@@ -2187,7 +2187,6 @@ apply_symbol()
 			# apply_symbol kernel 'CONFIG_PRINTK is not set' -> 'CONFIG_KERNEL_PRINTK is not set'
 			log "working on kernel-symbol '$2' -> '$( echo "$2" | sed 's/CONFIG_/CONFIG_KERNEL_/' )'"
 			apply_symbol "$( echo "$2" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
-			return 0
 		;;
 		'nuke_config')
 			register_patch 'init'
@@ -2245,6 +2244,27 @@ apply_symbol()
 			else
 				grep -sq "$symbol" "$file" || echo >>"$file" "# $*"
 			fi
+		;;
+		'CONFIG_KERNEL_'*)
+			file="$( kconfig_file )"
+			log "kernel-symbol: '$symbol' to '$file'"
+
+			# TODO: code duplication, see below: CONFIG_*
+			# not in config with needed value?
+			grep -sq ^"$symbol"$ "$file" || {
+				pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
+
+				# if already config, but with another value?
+				if grep -q ^"$pre=" "$file"; then
+					log "replacing value of '$pre', was: '$symbol'"
+
+					grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
+					echo "$symbol" >>"$file.tmp"		# write symbol
+					mv   "$file.tmp" "$file"		# ready
+				else
+					echo "$symbol" >>"$file"
+				fi
+			}
 		;;
 		'CONFIG_'*)
 			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
