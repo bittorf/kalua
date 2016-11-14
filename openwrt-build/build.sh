@@ -1993,6 +1993,7 @@ apply_symbol()
 {
 	local funcname='apply_symbol'
 	local symbol="$1"
+	local symbol_kernel="$2"
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
 	local hash tarball_hash rev commit_info
@@ -2185,8 +2186,8 @@ apply_symbol()
 		'kernel')
 			# TODO: is 'kconfig_file() and apply_kernelsymbol()' needed?
 			# apply_symbol kernel 'CONFIG_PRINTK is not set' -> 'CONFIG_KERNEL_PRINTK is not set'
-			log "working on kernel-symbol '$2' -> '$( echo "$2" | sed 's/CONFIG_/CONFIG_KERNEL_/' )'"
-			apply_symbol "$( echo "$2" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
+			log "working on kernel-symbol '$symbol_kernel' -> '$( echo "$symbol_kernel" | sed 's/CONFIG_/CONFIG_KERNEL_/' )'"
+			apply_symbol "$( echo "$symbol_kernel" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
 		;;
 		'nuke_config')
 			register_patch 'init'
@@ -2207,6 +2208,9 @@ apply_symbol()
 	esac
 
 	case "$symbol" in
+		'kernel')
+			symbol="$symbol_kernel"
+		;;
 		*'=y'|*' is not set')
 			log "symbol: $symbol" debug
 		;;
