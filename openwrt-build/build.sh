@@ -1466,7 +1466,8 @@ openwrt_download()
 			}
 
 			[ -z "$hash" ] && {
-				hash="$( get_lede_hash "$wish" )" || {
+				hash="$( get_lede_hash "$wish" )"
+				[ -z "$hash" ] && {
 					log "[ERROR] - unable to find '$wish' - using latest commit"
 					# can happen if 'rXXXXX' is in packages/feeds, just use newest:
 					hash="$( git log -1 --format=%h )"
