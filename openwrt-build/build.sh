@@ -1395,7 +1395,7 @@ openwrt_download()
 	{
 		case "$( git remote get-url origin )" in
 			*'lede'*)
-				[ $OPENWRT_VERSION_INTEGER -gt 0 ] && {
+				[ ${OPENWRT_VERSION_INTEGER:-0} -gt 0 ] && {
 					log "rewriting \$OPENWRT_VERSION: $OPENWRT_VERSION/$OPENWRT_VERSION_INTEGER"
 					OPENWRT_VERSION_INTEGER=$(( OPENWRT_VERSION_INTEGER + 1000000 ))
 					OPENWRT_VERSION="r$OPENWRT_VERSION_INTEGER"
@@ -1435,11 +1435,15 @@ openwrt_download()
 			hash="$( git log --format=%h --grep="@$hash " )"	# 12345 -> fe53cab (number -> hash)
 
 			get_lede_hash(){
-				local wish="$( echo "$1" | cut -b2- )"	# e.g. r1492 -> 1492
+				local wish="$1"
 				local line info
+
+				log "get_lede_hash() input: $wish"
+				wish="$( echo "$wish" | cut -b2- )"	# e.g. r1492 -> 1492
 
 				git log --format=%h | while read -r line; do
 					git show "$line" | grep -q '# mimic OpenWrt-style:' && {
+						log "get_lede_hash() abort: found 'mimic OpenWrt-style'"
 						return 1
 					}
 
@@ -1452,6 +1456,7 @@ openwrt_download()
 							;;
 						esac
 					else
+						log "get_lede_hash() git describe failed"
 						return 1
 					fi
 				done
