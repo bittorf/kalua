@@ -1461,6 +1461,7 @@ openwrt_download()
 					fi
 				done
 
+				log "get_lede_hash() no success in dir: '$( pwd )'"
 				return 1
 			}
 
