@@ -307,12 +307,13 @@ search_and_replace()
 kconfig_file()
 {
 	# TODO: code duplication see function below
-	local dir kernelversion kconfig
+	local dir
 
 	dir="target/linux/$ARCH_MAIN"
+	[ -d "$dir" ] || return 1
 
-	# config-3.10 -> 3.10
-	kernelversion="$( find "$dir" -name 'config-[0-9]*' | head -n1 | cut -d'-' -f2 )"
+	# config-3.10
+	find "$dir" -name 'config-[0-9]*' | head -n1
 }
 
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
@@ -555,7 +556,7 @@ target_hardware_set()
 
 	case "$model" in
 		'UML')
-			# TODO: rename 'vmlinux' to e.g. 'openwrt-uml-r12345' (more readable tasklist)
+			# TODO: rename 'vmlinux' to e.g. 'openwrt-uml-r12345' (better readable tasklist)
 			# TODO: rename 'ext4-img' to rootfs?
 			TARGET_SYMBOL='CONFIG_TARGET_uml_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
@@ -1983,12 +1984,9 @@ apply_kernelsymbol()
 {
 	local funcname='apply_kernelsymbol'
 	local symbol="$1"
-	local file="$( )"	# /home/bastian/openwrt/target/linux/ar71xx/config-4.1
+	local file="$( kconfig_file )"
 
-	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
-	# CONFIG_SQUASHFS_EMBEDDED=y
-	# CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1
-
+	log "$funcname -> $symbol -> $file"
 }
 
 apply_symbol()
@@ -2185,8 +2183,9 @@ apply_symbol()
 			return 0
 		;;
 		'kernel')
+			# TODO: is 'kconfig_file() and apply_kernelsymbol()' needed?
 			# apply_symbol kernel 'CONFIG_PRINTK is not set' -> 'CONFIG_KERNEL_PRINTK is not set'
-			log "working on kernel-symbol $2"
+			log "working on kernel-symbol '$2' -> '$( echo "$2" | sed 's/CONFIG_/CONFIG_KERNEL_/' )'"
 			apply_symbol "$( echo "$2" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
 			return 0
 		;;
@@ -2403,6 +2402,9 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
 
+				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
+				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
+
 				$funcname subcall 'iproute2'
 				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
@@ -2444,6 +2446,9 @@ build_options_set()
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
+
+				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
+				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
 
 				$funcname subcall 'iproute2'
 #				$funcname subcall 'squash64'
