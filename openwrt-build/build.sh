@@ -1451,6 +1451,7 @@ openwrt_download()
 						# e.g. 'reboot-1492-g637640c' but empty with 'lede-staging'
 						case "$info" in
 							*"-$wish-"*)
+								log "get_lede_hash() found $line / $info"
 								echo "$line"
 								return 0
 							;;
@@ -1467,11 +1468,13 @@ openwrt_download()
 
 			[ -z "$hash" ] && {
 				hash="$( get_lede_hash "$wish" )"
-				[ -z "$hash" ] && {
+				if [ -z "$hash" ]; then
 					log "[ERROR] - unable to find '$wish' - using latest commit"
 					# can happen if 'rXXXXX' is in packages/feeds, just use newest:
 					hash="$( git log -1 --format=%h )"
-				}
+				else
+					log "using hash: '$hash'"
+				fi
 			}
 
 			# TODO: maybe write 'openwrt@hash=$revision for modelXY'?
