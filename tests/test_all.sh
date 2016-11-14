@@ -469,7 +469,7 @@ run_test()
 
 		shellsheck_ignore()
 		{
-#			printf 'SC1090,SC1091,'
+			printf 'SC1090,SC1091,'
 			printf 'SC2016,SC2029,SC2031,SC2046,SC2086,SC2155,SC2166'
 		}
 

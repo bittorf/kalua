@@ -127,9 +127,9 @@ output_table()
 			;;
 		esac
 
-		echo -n "<th valign='top' nowrap ${th_insert}>$word</th>"
+		printf '%s' "<th valign='top' nowrap ${th_insert}>$word</th>"
 	} done
-	echo -n "</tr>"
+	printf '%s' '</tr>'
 
 	local octet3
 	get_octet3()
