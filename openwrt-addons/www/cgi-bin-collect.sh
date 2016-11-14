@@ -24,7 +24,7 @@ case "$QUERY_STRING" in
 		case "$signal" in
 			'early')
 				# TODO: maintain a list, e.g. for a fast moving station (has many 'new' entries)
-				read -r LAST_NODENUMBER <"$TMPDIR/roaming_newstation_$mac"
+				read -r LAST_NODENUMBER 2>/dev/null <"$TMPDIR/roaming_newstation_$mac"
 				echo "$node" >"$TMPDIR/roaming_newstation_$mac"
 
 				if   [ -z "$LAST_NODENUMBER" ]; then

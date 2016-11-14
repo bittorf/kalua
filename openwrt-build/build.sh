@@ -289,9 +289,13 @@ search_and_replace()
 	local replace="$3"	# LINUX_VERSION:=3.18.19
 	local pattern
 
+	[ -e "$file" ] || {
+		log "[ERROR] search_and_replace() file not found: '$file'"
+		return 1
+	}
+
 	# workaround 'sed -i' which is a GNU extension and not POSIX
 	# http://stackoverflow.com/questions/7232797/sed-on-aix-does-not-recognize-i-flag
-
 	sed >"$file.tmp" "s|$search|$replace|" "$file" || {
 		log "[ERROR] while replacing '$search' with '$replace' in '$file'"
 	}
@@ -328,8 +332,10 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			return 0
 		;;
 		'mpc85xx')
-			if [ $( openwrt_revision_number_get ) -ge 45597 ]; then
-				config="$dir/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"
+			config="$dir/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"	# since r45597
+
+			if [ -e "$config" ];then
+				:
 			else
 				# config-3.10 -> 3.10
 				kernelversion="$( find "$dir" -name 'config-[0-9]*' | head -n1 | cut -d'-' -f2 )"
