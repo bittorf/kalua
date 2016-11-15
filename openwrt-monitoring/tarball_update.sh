@@ -84,7 +84,7 @@ for NW in $NETWORK; do {
 #	[ -n "$HASH" ] && COMMIT_NOW="$HASH"
 	logger -s "from...to: $LAST_COMMIT...$COMMIT_NOW"
 	logger -s "https://github.com/bittorf/kalua/compare/$LAST_COMMIT...$COMMIT_NOW"
-	git rev-list --format=%h 7db7251...23700a2 master | grep ^'commit ' | wc -l
+	git rev-list --format=%h 7db7251...23700a2 master | grep -c ^'commit '
 	git shortlog -s 7db7251...23700a2
 
 	cd - || exit
