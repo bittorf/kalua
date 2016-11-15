@@ -19,7 +19,7 @@ print_usage_and_exit()
 
 	[ -x "$0" ] || {
 		log "[OK] executing for you: 'chmod +x $0'"
-		chmod +x $0
+		chmod +x "$0"
 	}
 
 	# format: $USECASE $HARDWARE_MODEL
@@ -314,7 +314,10 @@ kconfig_file()
 	local dir
 
 	dir="target/linux/$ARCH_MAIN"
-	[ -d "$dir" ] || return 1
+	[ -d "$dir" ] || {
+		log "[ERR] kconfig_file() dir not found: '$dir'"
+		return 1
+	}
 
 	# config-3.10
 	find "$dir" -name 'config-[0-9]*' | head -n1
@@ -1137,8 +1140,10 @@ feeds_prepare()
 	}
 
 	file='feeds/routing/olsrd/Makefile'
+	log "importing OLSRd1 Makefile" debug,gitadd "$file"
 	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
 	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' 'PKG_SOURCE_VERSION:=2d03856092df89eaef5a2948c845863a8a8c3702'
+	search_and_replace "$file" ' pud ' ''	# dont compile pud
 	log "patching OLSRd1 for using recent HEAD" debug,gitadd "$file"
 }
 
@@ -1254,8 +1259,8 @@ check_working_directory()
 		KALUA_DIRNAME="$( basename "$repo" | cut -d'.' -f1 )"
 		echo "$repo" >'KALUA_REPO_URL'
 
-		log "[OK] after doing 'cd $buildsystemdir' you should do:"
-		log '../build.sh --help'
+		log "[OK] now you should do:"
+		log "cd '$buildsystemdir' && ../build.sh --help"
 		chmod +x 'build.sh'
 
 		exit $error
@@ -2302,19 +2307,21 @@ apply_symbol()
 
 			# TODO: code duplication, see below: CONFIG_*
 			# not in config with needed value?
-			grep -sq ^"$symbol"$ "$file" || {
-				pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
+			[ -e "$file" ] && {
+				grep -sq ^"$symbol"$ "$file" || {
+					pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
 
-				# if already config, but with another value?
-				if grep -q ^"$pre=" "$file"; then
-					log "replacing value of '$pre', was: '$symbol'"
+					# if already config, but with another value?
+					if grep -q ^"$pre=" "$file"; then
+						log "replacing value of '$pre', was: '$symbol'"
 
-					grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
-					echo "$symbol" >>"$file.tmp"		# write symbol
-					mv   "$file.tmp" "$file"		# ready
-				else
-					echo "$symbol" >>"$file"
-				fi
+						grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
+						echo "$symbol" >>"$file.tmp"		# write symbol
+						mv   "$file.tmp" "$file"		# ready
+					else
+						echo "$symbol" >>"$file"
+					fi
+				}
 			}
 		;;
 		'CONFIG_'*)
