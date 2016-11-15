@@ -16,7 +16,9 @@ DIR_DEST="/var/www/macs/"
 TEMP="/tmp/oui.txt"
 
 logger -s "downloading '$URL_SOURCE' to '$TEMP'"
-wget -O "$TEMP" "$URL_SOURCE" || exit 1
+[ -e "$TEMP" ] || {
+	wget -O "$TEMP" "$URL_SOURCE" || exit 1
+}
 
 mkdir -p /var/www/macs
 chmod -R 777 /var/www/macs
@@ -71,6 +73,6 @@ awk -v DIR_DEST="$DIR_DEST" '{
 		}
 	}
 }' "$TEMP" >"$OUT"
-rm "$TEMP"
+# rm "$TEMP"
 
 logger -s "[OK] generated '$OUT'"

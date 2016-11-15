@@ -595,7 +595,7 @@ for NETWORK in $( list_networks "$ARG1" ); do {
 			J=$( count_pings "$NETWORK" )
 			if [ $J -eq $I ]; then
 				mkdir -p "/var/www/networks/$NETWORK/media"
-				printf '%s' "$( date )" >>"/var/www/networks/$NETWORK/media/error_history.txt"
+				echo -n "$(date)" >>"/var/www/networks/$NETWORK/media/error_history.txt"
 				send_sms "$NETWORK" "WLAN-System, Stoerung festgestellt: bitte Internet/Zentralrouter pruefen (ping old/new: $COUNTER_OLD/$I)"
 				echo "sms" >"/dev/shm/pingcheck/$NETWORK.faulty"
 			else

@@ -77,6 +77,22 @@ for NW in $NETWORK; do {
 	MD5="$( md5sum "$TARBALL" | cut -d' ' -f1 )"
 	SIZE="$( stat -c%s "$TARBALL" )"
 
+	cd /root/tarball/kalua || exit
+	LAST_UNIXTIME="$( date +%s -r "$DIR/info.txt" )"
+	LAST_COMMIT="$( git rev-list -n1 --format=%h --before="@$LAST_UNIXTIME" master | tail -n1 )"
+	COMMIT_NOW="$( git log -1 --format=%h )"
+#	[ -n "$HASH" ] && COMMIT_NOW="$HASH"
+	logger -s "from...to: $LAST_COMMIT...$COMMIT_NOW"
+	logger -s "https://github.com/bittorf/kalua/compare/$LAST_COMMIT...$COMMIT_NOW"
+	git rev-list --format=%h 7db7251...23700a2 master | grep ^'commit ' | wc -l
+	git shortlog -s 7db7251...23700a2
+
+	cd - || exit
+
+	logger -s "cp -v '$TARBALL' '$DIR'"
+	ls -l "$DIR/info.txt"
+	cat "$DIR/info.txt"
+
 	cp -v "$TARBALL" "$DIR"
 	echo "CRC[md5]: $MD5  SIZE[byte]: $SIZE  FILE: 'tarball.tgz'" >"$DIR/info.txt"
 } done

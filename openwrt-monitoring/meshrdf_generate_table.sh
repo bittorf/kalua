@@ -1355,7 +1355,14 @@ func_cell_hostname ()
 		}
 
 		[ -n "$SIMULATE_OK" ] && bgcolor=
-		echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME </td>"
+		case "$HOSTNAME" in
+			*'vhsRaum'*)
+				echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME - IP: $PUBIP_REAL</td>"
+			;;
+			*)
+				echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME </td>"
+			;;
+		esac
 	fi
 }
 
@@ -2240,9 +2247,12 @@ send_mail_telegram()
 				*'vorfuehrraum'*|*'kino'*|*'cafe'*)
 					list="$admin dh|lichthaus.info svenopel|gmx.de hansen|wastlhuber.de"
 				;;
+				*)
+					list="$admin who-be|who-be.de"
+				;;
 			esac
 		;;
-		ibfleesensee) list="$admin info|iberotel-fleesensee.de" ;;
+		Xibfleesensee) list="$admin info|iberotel-fleesensee.de" ;;
 		malchow*) list="$admin info|malchow-it.de" ;;
 		monami) list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de" ;;
 		ffweimar-vhs)
@@ -2265,6 +2275,9 @@ send_mail_telegram()
 		;;
 		liszt28)
 			case "$hostname" in
+				'Musikschule'*)
+					list="$admin info|musikschule-weimar.de"
+				;;
 				'wettertest')
 					list="$admin bittorf1|uni-weimar.de"
 				;;
@@ -2363,7 +2376,7 @@ send_mail_telegram()
 		;;
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
 		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
-		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de" ;;
+		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de huettendorf|stadtwerke-itzehoe.de" ;;
 		wuensch) list="$admin p_s_wuensch|t-online.de" ;;
 		leonardo) list="$admin info|hotel-leonardo.de" ;;
 		rehungen)
@@ -2531,7 +2544,7 @@ _cell_lastseen()
 			echo "sendOK" >"$mailmarker"
 			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
-			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung Geraet: $hostname $subject_add"
+			SUBJECT="Technik/Netzwerk-Monitoring: $NETWORK / Stoerung Geraet: $hostname $subject_add"
 			#
 			L1="Bitte pruefen Sie das Geraet: $hostname $subject_add"
 			L2="MAC-Adresse: $WIFIMAC"
@@ -2620,7 +2633,7 @@ _cell_lastseen()
 			alert_age="$( seconds2humanreadable "$alert_age" )"
 			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
-			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: Geraet: $hostname (entstoert nach $alert_age)" \
+			send_mail_telegram "Technik/Netzwerk-Monitoring: $NETWORK / OK: Geraet: $hostname (entstoert nach $alert_age)" \
 					   "Das Geraet: ${hostname}\nist nach $alert_age wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
 		}
 
@@ -3012,7 +3025,7 @@ _cell_switch()
 			touch "$mailmarker"
 			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
-			SUBJECT="Netzwerk-monitoring: $NETWORK / Stoerung DSL-Modem an $hostname $subject_add"
+			SUBJECT="Technik/Netzwerk-Monitoring: $NETWORK / Stoerung DSL-Modem an $hostname $subject_add"
 			#
 			L1="Bitte pruefen Sie das DSL-Modem an: $hostname $subject_add"
 			L2="Modellbezeichnung: Allnet ALL-0333CJ"
@@ -3040,7 +3053,7 @@ _cell_switch()
 			rm "$mailmarker"
 			hostname="$( hostname_from_monitoring_sanitized "$WIFIMAC" )"
 
-			send_mail_telegram "Netzwerk-monitoring: $NETWORK / OK: DSL-Modem an $hostname" \
+			send_mail_telegram "Technik/Netzwerk-Monitoring: $NETWORK / OK: DSL-Modem an $hostname" \
 					   "Das DSL-Modem an ${hostname}\nist wieder einsatzbereit.\n\nDanke fuer ihren Einsatz."
 		}
 							fi
