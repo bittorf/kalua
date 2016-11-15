@@ -1253,6 +1253,11 @@ check_working_directory()
 		make package/symlinks
 	}
 
+	file_olsrd='feeds/routing/olsrd/Makefile'
+	search_and_replace "$file_olsrd" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
+	search_and_replace "$file_olsrd" '^PKG_SOURCE_VERSION:=.*' 'PKG_SOURCE_VERSION:=2d03856092df89eaef5a2948c845863a8a8c3702'
+	log "patching OLSRd1 for using recent HEAD" debug,gitadd "$file_olsrd"
+
 	# for detecting: are we in "original" (aka master) tree or in private checkout
 	case "$( git remote get-url origin )" in
 		*'lede-project'*)
