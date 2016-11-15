@@ -482,7 +482,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 
 			# e.g. '00 US FM'
 			countries="$( grep ^'country ' "$file_regdb_hacked" | cut -d' ' -f2 | cut -d':' -f1 )"
-			countries="$( echo "$countries" | while read -r code; do echo -n "$code "; done )"		# remove CR/LF
+			countries="$( echo "$countries" | while read -r code; do printf '%s' "$code "; done )"		# remove CR/LF
 			log "using another regdb: '$file_regdb_hacked' for $countries" gitadd "$file2"
 
 			register_patch "REGHACK: valid countries: $countries"
@@ -979,9 +979,9 @@ EOF
 						# see: http://intercity-vpn.de/files/typeahead-test/html/
 						if [ -z "$FIRSTRUN" ]; then
 							FIRSTRUN='false'
-							echo -n "var models = ['$line'"
+							printf '%s' "var models = ['$line'"
 						else
-							echo -n ", '$line'"
+							printf '%s' ", '$line'"
 						fi
 					;;
 					*)
@@ -3097,7 +3097,7 @@ EOF
 
 					echo -n '--usecase '
 					parse_case_patterns "$funcname" | while read -r line; do {
-						echo -n "$line,"
+						printf '%s' "$line,"
 					} done
 					echo
 				}

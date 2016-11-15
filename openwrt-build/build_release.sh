@@ -94,10 +94,10 @@ show_args()
 	for word in "$@"; do {
 		case "$word" in
 			*" "*)
-				echo -n " '$word'"
+				printf '%s' " '$word'"
 			;;
 			*)
-				echo -n " $word"
+				printf '%s' " $word"
 			;;
 		esac
 	} done

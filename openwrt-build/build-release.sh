@@ -43,7 +43,7 @@ list_hw()
 	case "$1" in
 		'hash')
 			$KALUA_DIRNAME/openwrt-build/build.sh --hardware list plain | while read -r line; do {
-				[ "$( echo -n "$line" | md5sum | cut -d' ' -f1 )" = "$2" ] && {
+				[ "$( printf '%s' "$line" | md5sum | cut -d' ' -f1 )" = "$2" ] && {
 					echo "$line"
 					return
 				}
@@ -120,7 +120,7 @@ fi
 # weimarnetz/openwrt-build/build.sh -> weimarnetz
 KALUA_DIRNAME="$( echo "$0" | cut -d'/' -f1 )"
 BUILD="$KALUA_DIRNAME/openwrt-build/build.sh"
-HW_LIST="$( list_hw "$HARDWARE" | while read -r LINE; do echo -n "$LINE" | md5sum | cut -d' ' -f1; done )"
+HW_LIST="$( list_hw "$HARDWARE" | while read -r LINE; do printf '%s' "$LINE" | md5sum | cut -d' ' -f1; done )"
 
 BUILD_GOOD=0
 BUILD_BAD=0

@@ -21,10 +21,10 @@ else
 	}
 
 	echo "$1" >>"./meshrdf.txt"
-	echo -n "$1"  >"./recent/$WIFIMAC"
+	printf '%s' "$1"  >"./recent/$WIFIMAC"
 	[ -n "$OLD_NEIGH" ] && {
 #		echo "$PROFILE - $WIFIMAC" >>/tmp/BLA
-		echo -n ";$OLD_NEIGH;LATFAKE=" >>"./recent/$WIFIMAC"
+		printf '%s' ";$OLD_NEIGH;LATFAKE=" >>"./recent/$WIFIMAC"
 	}
 
 	[ -n "$WIFISCAN" ] && {

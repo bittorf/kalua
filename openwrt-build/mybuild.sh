@@ -858,7 +858,7 @@ applymystuff()
 	} done
 
 	log "writing tarball-hash '$hash' into image (fooling the builtin-update-checker)"
-	echo -n "$hash" >"$file"
+	printf '%s' "$hash" >"$file"
 }
 
 set_build_openwrtconfig()

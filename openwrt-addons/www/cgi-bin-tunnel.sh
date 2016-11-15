@@ -47,11 +47,11 @@ case "$ACTION" in
 				;;					# make a function!
 			esac
 
-			echo -n "TRUE=;"
-			echo -n "SPEED_UPLOAD=$SPEED_UPLOAD;"
-			echo -n "SPEED_DOWNLOAD=$SPEED_DOWNLOAD;"
-			echo -n "TUNNEL_IP_CLIENT=$( _tunnel id2ip $TUNNEL_ID client );"
-			echo -n "TUNNEL_IP_SERVER=$( _tunnel id2ip $TUNNEL_ID server );"
+			printf '%s' "TRUE=;"
+			printf '%s' "SPEED_UPLOAD=$SPEED_UPLOAD;"
+			printf '%s' "SPEED_DOWNLOAD=$SPEED_DOWNLOAD;"
+			printf '%s' "TUNNEL_IP_CLIENT=$( _tunnel id2ip $TUNNEL_ID client );"
+			printf '%s' "TUNNEL_IP_SERVER=$( _tunnel id2ip $TUNNEL_ID server );"
 			echo    "TUNNEL_MASK=30;"
 
 			_tunnel config_insert_new_client "$TUNNEL_ID" "$MAC" "$IP_USER" "$SPEED_UPLOAD" "$SPEED_DOWNLOAD"

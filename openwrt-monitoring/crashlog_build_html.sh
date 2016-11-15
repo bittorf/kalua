@@ -60,30 +60,30 @@ html_head()
 <table cellspacing='1' cellpadding='1' border='1'>
 EOF
 
-	echo -n "<th>crash, time of apport</th>"
+	printf '%s' "<th>crash, time of apport</th>"
 
-	echo -n "<th>size[bytes]</th>"
+	printf '%s' "<th>size[bytes]</th>"
 
-	echo -n "<th>time ago ~</th>"
+	printf '%s' "<th>time ago ~</th>"
 
-	echo -n "<th> reason </td>"
+	printf '%s' "<th> reason </td>"
 
-	echo -n "<th> call_trace </th>"
+	printf '%s' "<th> call_trace </th>"
 
-	echo -n "<th> process </th>"
+	printf '%s' "<th> process </th>"
 
-	echo -n "<th> hardware </th>"
+	printf '%s' "<th> hardware </th>"
 
-	echo -n "<th>"
-	echo -n "<a href='https://dev.openwrt.org/timeline?from=$( date +%m%%2f%d%%2f%y )&daysback=30&author=&changeset=on&update=Update'>"
-	echo -n "revision</a>"
-	echo -n "</th>"
+	printf '%s' "<th>"
+	printf '%s' "<a href='https://dev.openwrt.org/timeline?from=$( date +%m%%2f%d%%2f%y )&daysback=30&author=&changeset=on&update=Update'>"
+	printf '%s' "revision</a>"
+	printf '%s' "</th>"
 
-	echo -n "<th><a href='https://dev.openwrt.org/wiki/platforms'>platform</a></th>"
+	printf '%s' "<th><a href='https://dev.openwrt.org/wiki/platforms'>platform</a></th>"
 
-	echo -n "<th>debug</th>"
+	printf '%s' "<th>debug</th>"
 
-	echo -n "<th>kernel</th>"
+	printf '%s' "<th>kernel</th>"
 }
 
 html_foot()
@@ -338,13 +338,13 @@ html_tablecontent()
 		kernel="$4"
 
 		echo    "<tr><td><a href='?id=$id'>$( date -d @$id )</a></td>"
-		echo -n "<td align='right'>$size</td><td align='right'>$timediff</td>"
-		echo -n "<td align='center'>$reason</td><td title='$hint' bgcolor='$bgcolor'>$tracehash</td>"
-		echo -n "<td>$( process_name "$file" )</td>"
-		echo -n "<td>$( hardware_type "$file" )</td>"
-		echo -n "<td>$revision</td><td>$platform</td>"
-		echo -n "<td align='center'>$vmlinux</td>"
-		echo -n "<td align='right'>$kernel</tr>"
+		printf '%s' "<td align='right'>$size</td><td align='right'>$timediff</td>"
+		printf '%s' "<td align='center'>$reason</td><td title='$hint' bgcolor='$bgcolor'>$tracehash</td>"
+		printf '%s' "<td>$( process_name "$file" )</td>"
+		printf '%s' "<td>$( hardware_type "$file" )</td>"
+		printf '%s' "<td>$revision</td><td>$platform</td>"
+		printf '%s' "<td align='center'>$vmlinux</td>"
+		printf '%s' "<td align='right'>$kernel</tr>"
 
 		i=$(( i + 1 ))
 	} done
