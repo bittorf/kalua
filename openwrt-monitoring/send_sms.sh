@@ -148,16 +148,16 @@ url_encode()
 
 		case "$char" in
 			"_"|"."|"~"|"-")
-				echo -n "$char"
+				printf '%s' "$char"
 			;;
 			[A-Za-z0-9])
-				echo -n "$char"
+				printf '%s' "$char"
 			;;
 			" ")
-				echo -n "+"
+				printf '%s' "+"
 			;;
 			*)
-				echo -n "%$( echo "$char" | hexdump -C | cut -d' ' -f3 | head -n1 )"
+				printf '%s' "%$( echo "$char" | hexdump -C | cut -d' ' -f3 | head -n1 )"
 			;;
 		esac
 	} done

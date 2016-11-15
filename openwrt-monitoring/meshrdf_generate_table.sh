@@ -577,7 +577,7 @@ LIST="$LIST gmode noise signal wifineighs wiredneighs speedTCP pfilter"
 
 for COL in $LIST; do {
 
-	echo -n "<th align='center'"
+	printf '%s' "<th align='center'"
 
 	LINK=
 	LINK_START=
@@ -590,7 +590,7 @@ for COL in $LIST; do {
 			LINK_TITLE="Alter in Tagen der Version des Kalua-Aufsatzes (Paketfilter/Loginseite)"
 		;;
 		"age")
-			echo -n " title='vor wieviel Stunden, gab es die letzte aktive R&uuml;ckmeldung dieses Ger&auml;tes'"
+			printf '%s' " title='vor wieviel Stunden, gab es die letzte aktive R&uuml;ckmeldung dieses Ger&auml;tes'"
 		;;
 		"kernel")
 			LINK="http://kernel.org"
@@ -601,17 +601,17 @@ for COL in $LIST; do {
 			LINK_TITLE="Development of the OpenWRT Linux-Distribution"
 		;;
 		"pubssh/hostname")
-			echo -n " bgcolor='lime'"
+			printf '%s' " bgcolor='lime'"
 		;;
 		"m(nh)")
-			echo -n " title='verwendete Modulationsart zum nexthop-Nachbarn (b|g|unbekannt)'"
+			printf '%s' " title='verwendete Modulationsart zum nexthop-Nachbarn (b|g|unbekannt)'"
 		;;
 	esac
 
 	LINK_START="${LINK:+<a href='$LINK'${LINK_TITLE:+ title='}${LINK_TITLE}${LINK_TITLE:+'}>}"
 	LINK_END="${LINK_START:+</a>}"
 
-	echo -n "><small> ${LINK_START}${COL}${LINK_END} </small></th>"
+	printf '%s' "><small> ${LINK_START}${COL}${LINK_END} </small></th>"
 
 } done >>$OUT
 echo >>$OUT "</tr>"
@@ -925,7 +925,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 		NODE_AUTO="$(( $NODE_AUTO + 1 ))"
 	else
 		[ -e "recent/autonode$NODE" ] && {
-#			echo -n "rm $NODE, " >>$TMPDIR/debug_table_$$
+#			printf '%s' "rm $NODE, " >>$TMPDIR/debug_table_$$
 			rm "recent/autonode$NODE"		# now normal node
 		}
 
@@ -935,7 +935,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 				case "$HW" in
 					"disabled_TP-LINK TL-WR1043ND")
 						REM_SPECIALGIT="r31465+tplink"		# was r30563
-						echo -n "$NODE " >>"$TMPDIR/list_specialgit.$$"
+						printf '%s' "$NODE " >>"$TMPDIR/list_specialgit.$$"
 					;;
 				esac
 			;;
@@ -948,7 +948,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 					;;
 					*)
 						REM_SPECIALGIT="$NETWORK-$HW"
-						echo -n "$NODE " >>"$TMPDIR/list_specialgit.$$"
+						printf '%s' "$NODE " >>"$TMPDIR/list_specialgit.$$"
 					;;
 				esac
 			;;
@@ -957,21 +957,21 @@ for FILE in $LIST_FILES LASTFILE; do {
 		case "$HW" in
 			"disabled_TP-LINK TL-WR1043ND")
 				echo "$HW" >"$TMPDIR/list_specialhw.txt"
-				echo -n "$NODE " >>"$TMPDIR/list_specialhw.$$"
+				printf '%s' "$NODE " >>"$TMPDIR/list_specialhw.$$"
 			;;
 			'Ubiquiti Bullet M')
 				echo "$HW" >"$TMPDIR/list_specialhw.txt"
-				echo -n "$NODE " >>"$TMPDIR/list_specialhw.$$"
+				printf '%s' "$NODE " >>"$TMPDIR/list_specialhw.$$"
 			;;
 		esac
 
 		if [ "$WIFIMODE" = "adhoc" ]; then
-			echo -n "$NODE " >>"$TMPDIR/list_adhoc_mode.$$"
+			printf '%s' "$NODE " >>"$TMPDIR/list_adhoc_mode.$$"
 		else
-			echo -n "$NODE " >>"$TMPDIR/list_ap_mode.$$"
+			printf '%s' "$NODE " >>"$TMPDIR/list_ap_mode.$$"
 		fi
 
-		echo -n "$NODE " >>$TOOLS
+		printf '%s' "$NODE " >>$TOOLS
 	fi
 
 	# fixme! if unixtime on node is unset, but monitoring works we should take delivery time
@@ -1088,30 +1088,30 @@ func_cell_cost2gw ()
 			IP="$PUBIP_SIMU/$PUBIP_REAL"
 		fi
 
-		echo -n "<td bgcolor='lightblue' align='center'><a href='http://${IP:-IPv4}/' title='${IP:-109.73.30.34}'> ${VALUE:-IPv4} </a></td>"	# fixme!
+		printf '%s' "<td bgcolor='lightblue' align='center'><a href='http://${IP:-IPv4}/' title='${IP:-109.73.30.34}'> ${VALUE:-IPv4} </a></td>"	# fixme!
 	else
 		case "$NETWORK-$VALUE" in
 			"rehungen-1.000")
-				echo -n "<td bgcolor='lime'> $VALUE </td>"
+				printf '%s' "<td bgcolor='lime'> $VALUE </td>"
 			;;
 			"rehungen-0.100")
-				echo -n "<td bgcolor='green'> $VALUE </td>"
+				printf '%s' "<td bgcolor='green'> $VALUE </td>"
 			;;
 			"rehungen-"|rehungen-1.*|rehungen-2.*)
-				echo -n "<td > $VALUE </td>"		# fixme! mcast_rate/cost!
+				printf '%s' "<td > $VALUE </td>"		# fixme! mcast_rate/cost!
 			;;
 			"rehungen-"*)
-				echo -n "<td bgcolor=orange> $VALUE </td>"
+				printf '%s' "<td bgcolor=orange> $VALUE </td>"
 			;;
 			*)
 				if test 2>/dev/null $VALUE -eq $VALUE; then
 					if [ $VALUE -gt 2000 ]; then
-						echo -n "<td bgcolor='crimson'> $VALUE </td>"
+						printf '%s' "<td bgcolor='crimson'> $VALUE </td>"
 					else
-						echo -n "<td> $VALUE </td>"
+						printf '%s' "<td> $VALUE </td>"
 					fi
 				else
-					echo -n "<td> $VALUE </td>"
+					printf '%s' "<td> $VALUE </td>"
 				fi
 			;;
 		esac
@@ -1124,13 +1124,13 @@ func_cell_wifimode ()
 	local WIFIDRV="$2"
 	local COLOR=
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 #	if [ -n "$WIFIDRV" ]; then
 #
 #		case "$WIFIDRV" in
 #			*2.6.36*)
-#				echo -n "<td bgcolor=lime nowrap><a href='#' title='wifi:$WIFIDRV olsr:${OLSRVER:version_unknown}'> $VALUE </a></td>"
+#				printf '%s' "<td bgcolor=lime nowrap><a href='#' title='wifi:$WIFIDRV olsr:${OLSRVER:version_unknown}'> $VALUE </a></td>"
 #			;;
 #			*2.6.32.25*)
 #				case "$OLSRVER" in
@@ -1142,10 +1142,10 @@ func_cell_wifimode ()
 #					;;
 #				esac
 #
-#				echo -n "<td bgcolor='$COLOR' nowrap><a href='#' title='wifi:$WIFIDRV olsr:${OLSRVER:version_unknown}'> $VALUE </a></td>"
+#				printf '%s' "<td bgcolor='$COLOR' nowrap><a href='#' title='wifi:$WIFIDRV olsr:${OLSRVER:version_unknown}'> $VALUE </a></td>"
 #			;;
 #			*)
-#				echo -n "<td nowrap><a href='#' title='wifi:$WIFIDRV olsr:${OLSRVER:version_unknown}'> $VALUE </a></td>"
+#				printf '%s' "<td nowrap><a href='#' title='wifi:$WIFIDRV olsr:${OLSRVER:version_unknown}'> $VALUE </a></td>"
 #			;;
 #		esac
 #	else
@@ -1175,8 +1175,8 @@ func_cell_wifimode ()
 		*adhocap*) COLOR="yellow" ;;
 	esac
 
-#		echo -n "<td title='$WIFIDRV $OLSRVER' nowrap bgcolor='$COLOR'>&nbsp;${OLSRVER}&nbsp;${VALUE}&nbsp;</td>"
-		echo -n "<td title='$WIFIDRV $OLSRVER' nowrap bgcolor='$COLOR'>${VALUE}</td>"
+#		printf '%s' "<td title='$WIFIDRV $OLSRVER' nowrap bgcolor='$COLOR'>&nbsp;${OLSRVER}&nbsp;${VALUE}&nbsp;</td>"
+		printf '%s' "<td title='$WIFIDRV $OLSRVER' nowrap bgcolor='$COLOR'>${VALUE}</td>"
 #	fi
 }
 
@@ -1281,13 +1281,13 @@ func_cell_hostname ()
 	esac
 
 	if needs_better_name "$HOSTNAME" "$HOSTNAME_ENFORCED" ; then
-			echo -n "<td nowrap bgcolor='$bgcolor' title='$title'>"
-			echo -n "<form action='' method='get'>"
-			echo -n "<input type='text' value='$HOSTNAME' name='FORM_HOSTNAME'>"
-			echo -n "<input type='hidden' name='FORM_HOSTNAME_SET' value='$WIFIMAC'>"
-			echo -n "<input type='submit' value='OK'>"
-			echo -n "</form>"
-			echo -n "</td>"
+			printf '%s' "<td nowrap bgcolor='$bgcolor' title='$title'>"
+			printf '%s' "<form action='' method='get'>"
+			printf '%s' "<input type='text' value='$HOSTNAME' name='FORM_HOSTNAME'>"
+			printf '%s' "<input type='hidden' name='FORM_HOSTNAME_SET' value='$WIFIMAC'>"
+			printf '%s' "<input type='submit' value='OK'>"
+			printf '%s' "</form>"
+			printf '%s' "</td>"
 	else
 		[ -n "$HOSTNAME_ENFORCED" ] && {
 			[ "$HOSTNAME_ENFORCED" = "$HOSTNAME" ] || {
@@ -1357,10 +1357,10 @@ func_cell_hostname ()
 		[ -n "$SIMULATE_OK" ] && bgcolor=
 		case "$HOSTNAME" in
 			*'vhsRaum'*)
-				echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME - IP: $PUBIP_REAL</td>"
+				printf '%s' "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME - IP: $PUBIP_REAL</td>"
 			;;
 			*)
-				echo -n "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME </td>"
+				printf '%s' "<td nowrap bgcolor='$bgcolor' title='$title'> $HOSTNAME </td>"
 			;;
 		esac
 	fi
@@ -1386,9 +1386,9 @@ func_cell_disk_free ()
 		CELL_HAS_CONTENT="true"
 
 		if [ -n "$bgcolor" ]; then
-			echo -n "<td nowrap sorttable_customkey='$OUT' align='right'>"
+			printf '%s' "<td nowrap sorttable_customkey='$OUT' align='right'>"
 		else
-			echo -n "<td nowrap sorttable_customkey='$OUT' align='right' bgcolor='$bgcolor'>"
+			printf '%s' "<td nowrap sorttable_customkey='$OUT' align='right' bgcolor='$bgcolor'>"
 		fi
 	}
 
@@ -1409,28 +1409,28 @@ func_cell_disk_free ()
 				head_and_color "crimson"
 
 				[ -n "$USB" ] && {
-					echo -n "$USB|"
+					printf '%s' "$USB|"
 				}
 
-				echo -n "<font color='red'><b>"
-				echo -n "$OUT"
-				echo -n "</b></font>"
+				printf '%s' "<font color='red'><b>"
+				printf '%s' "$OUT"
+				printf '%s' "</b></font>"
 
 			else
 				head_and_color "$bgcolor"
 
 				[ -n "$USB" ] && {
-					echo -n "$USB|"
+					printf '%s' "$USB|"
 				}
 
 				[ $OUT -lt $crit_border ] && {
-					echo -n "<font color='red'><b>"
+					printf '%s' "<font color='red'><b>"
 				}
 
-				echo -n "$OUT"
+				printf '%s' "$OUT"
 
 				[ $OUT -lt $crit_border ] && {
-					echo -n "</b></font>"
+					printf '%s' "</b></font>"
 				}
 			fi
 		;;
@@ -1453,19 +1453,19 @@ func_cell_disk_free ()
 				head_and_color "blue"
 			fi
 
-			echo -n "$OUT"
+			printf '%s' "$OUT"
 		;;
 	esac
 
 	[ -n "$CELL_HAS_CONTENT" ] || {
-		echo -n "<td>&nbsp;"
+		printf '%s' "<td>&nbsp;"
 	}
 
 	[ "$usb_plugged_in" = "1" ] && {
-		echo -n "&sup;"
+		printf '%s' "&sup;"
 	}
 
-	echo -n "</td>"
+	printf '%s' "</td>"
 }
 
 func_cell_uptime ()
@@ -1479,7 +1479,7 @@ func_cell_uptime ()
 	local border_allowed_reboots=
 	local seconds_per_day=86400
 
-#	echo -n "<!-- uptime: $UPTIME REBOOT_COUNT: $REBOOT_COUNT fwversion: $fwversion STARTDATE: $STARTDATE -->"
+#	printf '%s' "<!-- uptime: $UPTIME REBOOT_COUNT: $REBOOT_COUNT fwversion: $fwversion STARTDATE: $STARTDATE -->"
 
 	case "$fwversion" in
 		*[!0-9]*)
@@ -1494,23 +1494,23 @@ func_cell_uptime ()
 		;;
 	esac
 
-	echo -n "<td align='right' sorttable_customkey='${REBOOT_COUNT:=0}'"
+	printf '%s' "<td align='right' sorttable_customkey='${REBOOT_COUNT:=0}'"
 
 	if [ "${REBOOT_COUNT:=0}" -gt $border_allowed_reboots ]; then
 		if [ $REBOOT_COUNT -gt $(( $border_allowed_reboots * 10 )) ]; then
-			echo -n " bgcolor='black'>"
+			printf '%s' " bgcolor='black'>"
 		else
-			echo -n " bgcolor='$COLOR_ORANGE'>"
+			printf '%s' " bgcolor='$COLOR_ORANGE'>"
 		fi
 	else
 		if [ "$reboot_reason" = 'nightly_reboot' ]; then
-			echo -n " bgcolor='$COLOR_BRIGHT_GREEN'>"
+			printf '%s' " bgcolor='$COLOR_BRIGHT_GREEN'>"
 		else
-			echo -n ">"
+			printf '%s' ">"
 		fi
 	fi
 
-	echo -n "<a href='#' title='$reboot_reason@$STARTDATE|${REBOOT_COUNT}_reboots!/border=$border_allowed_reboots'> $UPTIME </a></td>"
+	printf '%s' "<a href='#' title='$reboot_reason@$STARTDATE|${REBOOT_COUNT}_reboots!/border=$border_allowed_reboots'> $UPTIME </a></td>"
 }
 
 cell_wifi_uptime()
@@ -1520,7 +1520,7 @@ cell_wifi_uptime()
 	local wifi_uptime="$3"
 	local restart_reason="$4"
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	if   [ ${wifi_uptime:-0} -gt 3600 ]; then
 		wifi_uptime="$(( $wifi_uptime / 3600 ))h"
@@ -1529,15 +1529,15 @@ cell_wifi_uptime()
 	fi
 
 	if   [ -z "$wifi_dev" ]; then
-		echo -n "<td>&nbsp;</td>"
+		printf '%s' "<td>&nbsp;</td>"
 	elif [ "$wifi_dev" = "wlan0" -o "$wifi_dev" = "wlan0-1" -o "$wifi_dev" = "ath0" ]; then
 		if [ "$wifi_restart" = "0" ]; then
-			echo -n "<td bgcolor='lime' align='center'><small>ok</small></td>"
+			printf '%s' "<td bgcolor='lime' align='center'><small>ok</small></td>"
 		else
-			echo -n "<td title='$restart_reason' nowrap>$wifi_restart:$wifi_uptime</td>"
+			printf '%s' "<td title='$restart_reason' nowrap>$wifi_restart:$wifi_uptime</td>"
 		fi
 	else
-		echo -n "<td title='$restart_reason' nowrap>$wifi_dev:$wifi_restart:$wifi_uptime</td>"
+		printf '%s' "<td title='$restart_reason' nowrap>$wifi_dev:$wifi_restart:$wifi_uptime</td>"
 	fi
 }
 
@@ -1547,11 +1547,11 @@ func_cell_uptime_olsr ()
 	local RESTART_COUNT="$2"	# off|5|batman off|batman 5
 	local BOX_UPTIME="$3"		# [hours]
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	case "$RESTART_COUNT" in
 		*off|batman*)
-			echo -n "<td align='center' bgcolor='lime' nowrap><small>$RESTART_COUNT</small></td>"
+			printf '%s' "<td align='center' bgcolor='lime' nowrap><small>$RESTART_COUNT</small></td>"
 			case "$RESTART_COUNT" in
 				*off)
 					return 0
@@ -1615,7 +1615,7 @@ func_cell_uptime_olsr ()
 
 	if restart_too_often ; then
 
-		echo -n "<td bgcolor='crimson' title='olsrd-restarts:$RESTART_COUNT' align='right'>$( content )</td>"
+		printf '%s' "<td bgcolor='crimson' title='olsrd-restarts:$RESTART_COUNT' align='right'>$( content )</td>"
 	else
 		# keep calm when >12h
 		[ $UPTIME_OLSR -ge 12 ] && RESTART_COUNT=0
@@ -1623,10 +1623,10 @@ func_cell_uptime_olsr ()
 		case "$RESTART_COUNT" in
 			0|1)
 				BGCOLOR="lime"
-				echo -n "<td bgcolor='$BGCOLOR' title='olsrd-restarts:$RESTART_COUNT' align='center'><small>ok</small></td>"
+				printf '%s' "<td bgcolor='$BGCOLOR' title='olsrd-restarts:$RESTART_COUNT' align='center'><small>ok</small></td>"
 			;;
 			*)
-				echo -n "<td bgcolor='$BGCOLOR' title='olsrd-restarts:$RESTART_COUNT' align='right'>$( content )</td>"
+				printf '%s' "<td bgcolor='$BGCOLOR' title='olsrd-restarts:$RESTART_COUNT' align='right'>$( content )</td>"
 			;;
 		esac
 	fi
@@ -1652,9 +1652,9 @@ cell_klog()
 			diff="$diff+$coredumps"
 		fi
 
-		echo -n "<td align='center' sorttable_customkey='$diff' bgcolor='$bgcolor' title='$lines_boot/$lines_log'>$diff</td>"
+		printf '%s' "<td align='center' sorttable_customkey='$diff' bgcolor='$bgcolor' title='$lines_boot/$lines_log'>$diff</td>"
 	else
-		echo -n "<td align='right' sorttable_customkey='${rt_throttling}' title='$lines_boot/$lines_log'>RT:${rt_throttling}s</td>"
+		printf '%s' "<td align='right' sorttable_customkey='${rt_throttling}' title='$lines_boot/$lines_log'>RT:${rt_throttling}s</td>"
 	fi
 }
 
@@ -1694,16 +1694,16 @@ cell_speed()
 		;;
 	esac
 
-	echo -n "<td align='right' bgcolor='$bgcolor' sorttable_customkey='$bytes'>$kbytes</td>"
+	printf '%s' "<td align='right' bgcolor='$bgcolor' sorttable_customkey='$bytes'>$kbytes</td>"
 }
 
 cell_olsr_wifi_in()
 {
 	local bytes="${1:-0}"
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
-	echo -n "<td align='right'>$bytes</td>"
+	printf '%s' "<td align='right'>$bytes</td>"
 }
 
 cell_olsr_wifi_out()
@@ -1714,7 +1714,7 @@ cell_olsr_wifi_out()
 	local tip=
 	local title="speed:$speed,metric:$metric"
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	case "$metric" in
 		'etx_ffeth'|'')
@@ -1728,7 +1728,7 @@ cell_olsr_wifi_out()
 
 	tip="$tip title='$title'"
 
-	echo -n "<td align='right' $tip nowrap>$bytes</td>"
+	printf '%s' "<td align='right' $tip nowrap>$bytes</td>"
 }
 
 func_cell_noise ()
@@ -1737,7 +1737,7 @@ func_cell_noise ()
 	local SENS="$2"
 	local BGCOLOR
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	if [ ${NOISE:--100} -gt -85 -a "$NOISE" != "0" ] ; then			# means lower than -85 (bad!)
 
@@ -1748,9 +1748,9 @@ func_cell_noise ()
 			BGCOLOR="crimson"
 		fi
 
-		echo -n "<td bgcolor='$BGCOLOR' nowrap>${NOISE:--100}</td>"
+		printf '%s' "<td bgcolor='$BGCOLOR' nowrap>${NOISE:--100}</td>"
 	else
-		echo -n "<td nowrap>${NOISE:--}</td>"
+		printf '%s' "<td nowrap>${NOISE:--}</td>"
 	fi
 }
 
@@ -1922,10 +1922,10 @@ func_cell_nexthop()
 				;;
 			esac
 
-			echo -n "["
-			echo -n "arrowhead=\"normal\", arrowtail=\"inv\", style=\"$linestyle\", label=\"$speed\""
-			[ -n "$color" ] && echo -n ", color=\"$color\""
-			echo -n "];"
+			printf '%s' "["
+			printf '%s' "arrowhead=\"normal\", arrowtail=\"inv\", style=\"$linestyle\", label=\"$speed\""
+			[ -n "$color" ] && printf '%s' ", color=\"$color\""
+			printf '%s' "];"
 		}
 
 		echo "	$( hostname_minimize "$hostname" "$NODE" ) -> $( hostname_minimize "$hostname_nexthop" "$nodenumber_nexthop" ) $(style)" >>"$DOTFILE"
@@ -1943,7 +1943,7 @@ func_cell_nexthop()
 		;;
 	esac
 
-	echo -n "<td align='right' bgcolor='$bgcolor'>${nexthop}</td>"
+	printf '%s' "<td align='right' bgcolor='$bgcolor'>${nexthop}</td>"
 }
 
 cell_cost2nexthop()
@@ -1951,24 +1951,24 @@ cell_cost2nexthop()
 	local qboth="$1"	# means: etx
 	local mrate="${2:-6}"	# mbit
 
-	echo -n "<td align='right'"
+	printf '%s' "<td align='right'"
 	case "$qboth" in
 		"0.100"|"1.000")
-			echo -n " bgcolor='$COLOR_BRIGHT_GREEN'"
+			printf '%s' " bgcolor='$COLOR_BRIGHT_GREEN'"
 		;;
 		*)
 			case "$mrate" in
 				6)
 					case "$qboth" in
 						"1.0"*|"1.1"*|"1.2"*|"1.30"*)
-							echo -n " bgcolor='$COLOR_DARK_GREEN'"
+							printf '%s' " bgcolor='$COLOR_DARK_GREEN'"
 						;;
 					esac
 				;;
 			esac
 		;;
 	esac
-	echo -n ">$qboth</td>"
+	printf '%s' ">$qboth</td>"
 }
 
 func_cell_nexthop_effective()		# and tx(nexthop)
@@ -1998,7 +1998,7 @@ func_cell_nexthop_effective()		# and tx(nexthop)
 			;;
 			*)
 				local percent
-				echo -n "<!-- txthroughput: $txthroughput txrate: $txrate -->"
+				printf '%s' "<!-- txthroughput: $txthroughput txrate: $txrate -->"
 
 				case "$txrate" in
 					*'.'*)
@@ -2068,11 +2068,11 @@ func_cell_nexthop_effective()		# and tx(nexthop)
 	esac
 
 	if [ "xx" = "x${OPTIMIZE_NEIGH}${OPTIMIZE_NLQ}x" ]; then
-		echo -n "<td align='right' bgcolor='$BGCOLOR'> $NEXTHOP </td>"
+		printf '%s' "<td align='right' bgcolor='$BGCOLOR'> $NEXTHOP </td>"
 	else
-		echo -n "<!-- OPTIMIZE_NEIGH: $OPTIMIZE_NEIGH -->"
-		echo -n "<td align='right' bgcolor='$BGCOLOR'><a href='#' "
-		echo -n "title='optimize&nbsp;2neigh:${OPTIMIZE_NEIGH:=best_wifi}&nbsp;2nlq:${OPTIMIZE_NLQ:=default}'>$NEXTHOP</a></td>"
+		printf '%s' "<!-- OPTIMIZE_NEIGH: $OPTIMIZE_NEIGH -->"
+		printf '%s' "<td align='right' bgcolor='$BGCOLOR'><a href='#' "
+		printf '%s' "title='optimize&nbsp;2neigh:${OPTIMIZE_NEIGH:=best_wifi}&nbsp;2nlq:${OPTIMIZE_NLQ:=default}'>$NEXTHOP</a></td>"
 	fi
 
 
@@ -2087,9 +2087,9 @@ func_cell_nexthop_effective()		# and tx(nexthop)
 		;;
 	esac
 
-	echo -n "<td align='right'>$txrate</td>"
+	printf '%s' "<td align='right'>$txrate</td>"
 
-	echo -n "<td align='right'>${percent}</td>"
+	printf '%s' "<td align='right'>${percent}</td>"
 
 	case "$system" in
 		n|g)
@@ -2100,7 +2100,7 @@ func_cell_nexthop_effective()		# and tx(nexthop)
 		;;
 	esac
 
-	echo -n "<td align='center'> $system </td>"
+	printf '%s' "<td align='center'> $system </td>"
 }
 
 func_cell_load ()
@@ -2127,7 +2127,7 @@ func_cell_load ()
 
 	LOAD="<small>${LOAD%.*}.</small>${LOAD#*.}"
 
-	echo -n "<td bgcolor='$BGCOLOR' align='right'> $LOAD </td>"
+	printf '%s' "<td bgcolor='$BGCOLOR' align='right'> $LOAD </td>"
 }
 
 cell_database()
@@ -2146,7 +2146,7 @@ cell_database()
 		out="${lastline}${authserver}"
 	fi
 
-	echo -n "<td align='center'${bgcolor}><small>${out:--}</small></td>"
+	printf '%s' "<td align='center'${bgcolor}><small>${out:--}</small></td>"
 }
 
 _cell_firmwareversion_humanreadable()
@@ -2197,7 +2197,7 @@ _cell_firmwareversion_humanreadable()
 	[ "$TARBALL_TIME" = "$FWVERSION" ] && color='lime'
 	[ "$FWVERSION" = '392973' ] && color='crimson'
 
-	echo -n "<td bgcolor='$color' align='center' title='$VERSION.$UPDATE:$usecase' sorttable_customkey='$FWVERSION' nowrap>$OUT</td>"
+	printf '%s' "<td bgcolor='$color' align='center' title='$VERSION.$UPDATE:$usecase' sorttable_customkey='$FWVERSION' nowrap>$OUT</td>"
 }
 
 hostname_from_monitoring_sanitized()	# used for send_mail_telegram() and related
@@ -2517,7 +2517,7 @@ _cell_lastseen()
 		;;
 	esac
 
-	echo -n "<td align='left'"
+	printf '%s' "<td align='left'"
 
 	if [ $LASTSEEN -gt $border ]; then
 		[ -e "$mailmarker" ] && {
@@ -2623,7 +2623,7 @@ _cell_lastseen()
 			;;
 		esac
 
-		echo -n " bgcolor='$bgcolor' title='MISS ${sms_number:-no_number}:$sms_time min ago, seit: ${LASTSEEN_ORIGINAL}h/$HUMANTIME'"
+		printf '%s' " bgcolor='$bgcolor' title='MISS ${sms_number:-no_number}:$sms_time min ago, seit: ${LASTSEEN_ORIGINAL}h/$HUMANTIME'"
 		echo >>"${FILE_FAILURE_OVERVIEW}.tmp" "$WIFIMAC $HOSTNAME (node: $NODE)"
 	else
 		[ -e "$mailmarker" ] && {
@@ -2678,7 +2678,7 @@ _cell_lastseen()
 				"autohide-back again: $NETWORK wifimac: $WIFIMAC hostname: $HOSTNAME" >/dev/null
 		}
 
-		echo -n " title='letzte OK-Meldung: $( date -d @$LAST_UPDATE_UNIXTIME )'"
+		printf '%s' " title='letzte OK-Meldung: $( date -d @$LAST_UPDATE_UNIXTIME )'"
 
 		[ -e "${smsfile}.feedback" ] && {
 			rm "${smsfile}.feedback"
@@ -2710,7 +2710,7 @@ _cell_lastseen()
 #		;;
 #	esac
 
-	echo -n " sorttable_customkey='$LAST_UPDATE_UNIXTIME'>$LASTSEEN</td>"
+	printf '%s' " sorttable_customkey='$LAST_UPDATE_UNIXTIME'>$LASTSEEN</td>"
 
 	if   [ $LASTSEEN -gt 98 ]; then
 		NODE_LOST=$(( $NODE_LOST + 1 ))
@@ -2726,17 +2726,17 @@ _cell_sensitivity()
 	local sens="$1"		# e.g. WIFI2-2345
 	local key line
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	case "${sens:--}" in
 		"0,wifi,auto")
-			echo -n "<td nowrap"
+			printf '%s' "<td nowrap"
 		;;
 		"?,wifi,auto")
-			echo -n "<td nowrap bgcolor='crimson'"
+			printf '%s' "<td nowrap bgcolor='crimson'"
 		;;
 		*)
-			echo -n "<td nowrap bgcolor='$COLOR_LOWRED'"
+			printf '%s' "<td nowrap bgcolor='$COLOR_LOWRED'"
 		;;
 	esac
 
@@ -2749,7 +2749,7 @@ _cell_sensitivity()
 		*)         key=50000 ;;
 	esac
 
-	sens="$( echo "$sens" | while read line; do echo -n "$line"; done )"
+	sens="$( echo "$sens" | while read line; do printf '%s' "$line"; done )"
 
 	case "$sens" in
 		*'/'*)
@@ -2770,18 +2770,18 @@ _cell_sensitivity()
 #	logger -s "key: '$key'"
 #	logger -s "sens: '$sens'"
 #	logger -s "title='$key-$sens'>$sens</td>"
-	echo -n " sorttable_customkey='$key' title='$key-$sens'>$sens</td>"
+	printf '%s' " sorttable_customkey='$key' title='$key-$sens'>$sens</td>"
 }
 
 _cell_txpower ()
 {
 	local TXPOWER="${1:-0}"
 	
-	echo -n "<td align='right' "
+	printf '%s' "<td align='right' "
 
-	[ "$TXPOWER" -gt 50 ] && echo -n "bgcolor='$COLOR_LOWRED'"
+	[ "$TXPOWER" -gt 50 ] && printf '%s' "bgcolor='$COLOR_LOWRED'"
 
-	echo -n "> $TXPOWER </td>"
+	printf '%s' "> $TXPOWER </td>"
 }
 
 _cell_signal ()
@@ -2799,12 +2799,12 @@ _cell_signal ()
 		;;
 	esac
 
-#	echo -n "<!-- JAAA '$RSSI' '$WIFIMODE' '$BGCOLOR' -->"
-	echo -n "<td"
+#	printf '%s' "<!-- JAAA '$RSSI' '$WIFIMODE' '$BGCOLOR' -->"
+	printf '%s' "<td"
 
-	[ -n "$BGCOLOR" ] && echo -n " bgcolor='$BGCOLOR'"
+	[ -n "$BGCOLOR" ] && printf '%s' " bgcolor='$BGCOLOR'"
 
-	echo -n " nowrap>${RSSI:--}</td>"
+	printf '%s' " nowrap>${RSSI:--}</td>"
 }
 
 func_cell_pfilter ()
@@ -2813,35 +2813,35 @@ func_cell_pfilter ()
 
 	case "$PFILTER" in
 		*'FREE'*|*'OOPS0'*|*'olsrign'*)
-			echo -n "<td nowrap bgcolor=crimson> $PFILTER </td>"
+			printf '%s' "<td nowrap bgcolor=crimson> $PFILTER </td>"
 		;;
 		*'noNAT'*)
-			echo -n "<td nowrap bgcolor=lime> $PFILTER </td>"
+			printf '%s' "<td nowrap bgcolor=lime> $PFILTER </td>"
 		;;
 		'HNA'*)
-			echo -n "<td nowrap bgcolor=lime> $PFILTER </td>"
+			printf '%s' "<td nowrap bgcolor=lime> $PFILTER </td>"
 		;;
 		'loss'*)
 			case "$PFILTER" in
 				'loss0.0.0'*)
-					echo -n "<td nowrap bgcolor=green> $PFILTER </td>"
+					printf '%s' "<td nowrap bgcolor=green> $PFILTER </td>"
 				;;
 				*)
 					  if echo "$PFILTER" | fgrep -q  ".0 olsrign" ; then
 
-						echo -n "<td nowrap bgcolor=green> $PFILTER </td>"
+						printf '%s' "<td nowrap bgcolor=green> $PFILTER </td>"
 
 					elif echo "$PFILTER" | fgrep -q ".10 olsrign" ; then
 
-						echo -n "<td nowrap bgcolor=green> $PFILTER </td>"
+						printf '%s' "<td nowrap bgcolor=green> $PFILTER </td>"
 					else
-						echo -n "<td nowrap bgcolor=orange> $PFILTER </td>"
+						printf '%s' "<td nowrap bgcolor=orange> $PFILTER </td>"
 					fi
 				;;
 			esac
 		;;
 		*)
-			echo -n "<td nowrap> ${PFILTER:--}</td>"
+			printf '%s' "<td nowrap> ${PFILTER:--}</td>"
 		;;
 	esac
 }	
@@ -2852,7 +2852,7 @@ _cell_profile ()
 	local WIFIMODE="$2"
 	local BSSID="$3"
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	case "$PROFILE" in
 		"$NETWORK"*)
@@ -2860,18 +2860,18 @@ _cell_profile ()
 		;;
 	esac
 
-	echo -n "<td nowrap>"
+	printf '%s' "<td nowrap>"
 
 #	case "$WIFIMODE" in
 #		adhoc|hybrid)
-			echo -n "<a href='#' title='BSSID=\"$BSSID\"'>$PROFILE</a>"
+			printf '%s' "<a href='#' title='BSSID=\"$BSSID\"'>$PROFILE</a>"
 #		;;
 #		*)
-#			echo -n "$PROFILE"
+#			printf '%s' "$PROFILE"
 #		;;
 #	esac
 
-	echo -n "</td>"
+	printf '%s' "</td>"
 }
 
 global_wired_neigh_color()
@@ -2925,7 +2925,7 @@ _cell_wired_neighs ()
 		esac
 	}
 
-	echo -n "<td bgcolor='$BGCOLOR' align='center'>${append}${NEIGHS}</td>"
+	printf '%s' "<td bgcolor='$BGCOLOR' align='center'>${append}${NEIGHS}</td>"
 }
 
 _cell_mrate ()
@@ -2935,7 +2935,7 @@ _cell_mrate ()
 	local NETWORK="$3"
 	local BGCOLOR=
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	case "$WIFIMODE" in
 		ap|client)
@@ -2957,7 +2957,7 @@ _cell_mrate ()
 		;;
 	esac
 
-	echo -n "<td BGCOLOR='$BGCOLOR' align='center'> $MRATE </td>"
+	printf '%s' "<td BGCOLOR='$BGCOLOR' align='center'> $MRATE </td>"
 }
 
 
@@ -3103,8 +3103,8 @@ _cell_switch()
 		;;
 	esac
 
-	echo -n "<td title='$global_tooltip' bgcolor='$global_bgcolor'>"
-	echo -n "<table cellspacing='$cellspacing' cellpadding='0'><tr>"
+	printf '%s' "<td title='$global_tooltip' bgcolor='$global_bgcolor'>"
+	printf '%s' "<table cellspacing='$cellspacing' cellpadding='0'><tr>"
 
 	while [ $i -lt ${#plugs} ]; do {
 		i=$(( $i + 1 ))
@@ -3244,8 +3244,8 @@ local newline='
 				speed="$speed,internet${linebreak}IP:${PUBIP_REAL},${linebreak}$inet_offer"
 				spacer="<a href='http://${PUBIP_REAL}'>${symbol}</a>"
 
-echo -n "<!-- speed: $speed :speed -->"
-echo -n "<!-- spacer: $spacer :spacer -->"
+printf '%s' "<!-- speed: $speed :speed -->"
+printf '%s' "<!-- spacer: $spacer :spacer -->"
 
 				#  typical:
 				#    64/  64(1*64)	[ISDN]
@@ -3433,13 +3433,13 @@ echo -n "<!-- spacer: $spacer :spacer -->"
 		local ssh_port="$( text2port "${config_profile}${hostname}" )"
 		local hint="use_sshport:${ssh_port}"
 
-		echo -n "<td bgcolor='$color' title='${hint}${linebreak}${name}${linebreak}${speed:+:}${speed}'><tt>$spacer</tt></td>"
+		printf '%s' "<td bgcolor='$color' title='${hint}${linebreak}${name}${linebreak}${speed:+:}${speed}'><tt>$spacer</tt></td>"
 	} done
 
 	[ $i -eq 0 ] && echo -n '<td>&nbsp;</td>'	# valid html
 
-	echo -n "</tr></table>"
-	echo -n "</td>"
+	printf '%s' "</tr></table>"
+	printf '%s' "</td>"
 }
 
 cell_dhcp()
@@ -3453,7 +3453,7 @@ cell_dhcp()
 		out="&nbsp;"
 	}
 
-	echo -n "<td align='center' bgcolor='$color'>${out}</td>"
+	printf '%s' "<td align='center' bgcolor='$color'>${out}</td>"
 }
 
 cell_essid()
@@ -3468,7 +3468,7 @@ cell_essid()
 	local essid bgcolor rssi spacer title wired_clients_formatted
 	local i=0
 
-	echo -n "<td nowrap><table cellspacing='1' cellpadding='0' border='0'><tr>"
+	printf '%s' "<td nowrap><table cellspacing='1' cellpadding='0' border='0'><tr>"
 
 	[ "$NETWORK" = "gnm" ] && {
 		case "$list_essid" in
@@ -3492,10 +3492,10 @@ cell_essid()
 	if [ -n "$wifi_clients" ]; then
 		if [ $wifi_clients -gt 0 ]; then
 			local symbol_antenna='&#x16c9;'
-			echo -n "<td>${wired_clients_formatted}${symbol_antenna}${symbol_Nary_times}${wifi_clients}&nbsp;|&nbsp;</td>"
+			printf '%s' "<td>${wired_clients_formatted}${symbol_antenna}${symbol_Nary_times}${wifi_clients}&nbsp;|&nbsp;</td>"
 		else
 			if [ -n "$wired_clients_formatted" ]; then
-				echo -n "<td>${wired_clients_formatted}</td>"
+				printf '%s' "<td>${wired_clients_formatted}</td>"
 			else
 				echo -n '<td>&nbsp;</td>'
 			fi
@@ -3505,7 +3505,7 @@ cell_essid()
 	fi
 
 	[ -z "$list_essid" ] && {
-		echo -n "<td>&nbsp;</td>"
+		printf '%s' "<td>&nbsp;</td>"
 	}
 
 	list()
@@ -3514,7 +3514,7 @@ cell_essid()
 	}
 
 	[ -z "$( list "$list_essid" )" ] && {
-		echo -n "<td>&nbsp;</td>"
+		printf '%s' "<td>&nbsp;</td>"
 	}
 
 	for essid in $( list "$list_essid" ) ; do {
@@ -3551,7 +3551,7 @@ cell_essid()
 		esac
 
 		[ $i -gt 1 ] && {
-			echo -n "<td>&nbsp;|&nbsp;</td>"
+			printf '%s' "<td>&nbsp;|&nbsp;</td>"
 		}
 
 		case "$essid" in
@@ -3560,17 +3560,17 @@ cell_essid()
 			;;
 		esac
 
-		echo -n "<td bgcolor='$bgcolor' title='$title'>${essid}</td>"
+		printf '%s' "<td bgcolor='$bgcolor' title='$title'>${essid}</td>"
 	} done
 
-	echo -n "</tr></table></td>"
+	printf '%s' "</tr></table></td>"
 }
 
 cell_channel()
 {
 	local channel="$1"
 
-	[ "$HW" = "Pandaboard" ] && { echo -n "<td>&nbsp;</td>"; return 0; }    # fixme!
+	[ "$HW" = "Pandaboard" ] && { printf '%s' "<td>&nbsp;</td>"; return 0; }    # fixme!
 
 	local color
 	local color_a="#819FF7"		# blue
@@ -3592,7 +3592,7 @@ cell_channel()
 		;;
 	esac
 
-	echo -n "<td align='right' bgcolor='$color'> $channel </td>"
+	printf '%s' "<td align='right' bgcolor='$color'> $channel </td>"
 }
 
 cell_node()
@@ -3656,10 +3656,10 @@ cell_node()
 #				}
 			} done
 
-			echo -n "<td align='right' bgcolor='$COLOR_LIGHT_RED'><big>$node${append}</big></td>"
+			printf '%s' "<td align='right' bgcolor='$COLOR_LIGHT_RED'><big>$node${append}</big></td>"
 		;;
 		*)
-			echo -n "<td align='right'> $node </td>"
+			printf '%s' "<td align='right'> $node </td>"
 		;;
 	esac
 }
@@ -3682,12 +3682,12 @@ _cell_wifi_neighs ()
 	}
 
 	# fixme! WIFI+WIRED=0? crimson!
-	echo -n "<td align='center' bgcolor='$COLOR'><a href='#' title='$HINT DEBUG=$NEIGH'> $WIFINEIGHS </a></td>"
+	printf '%s' "<td align='center' bgcolor='$COLOR'><a href='#' title='$HINT DEBUG=$NEIGH'> $WIFINEIGHS </a></td>"
 }
 
 html_comment()		# for sorting
 {
-	echo -n "<!-- $( echo $1 | sed 's/-//g' ) -->"
+	printf '%s' "<!-- $( echo $1 | sed 's/-//g' ) -->"
 	return 0
 
 	local comment="$1"
@@ -3698,7 +3698,7 @@ html_comment()		# for sorting
 		;;
 	esac
 
-	echo -n "<!-- $comment -->"
+	printf '%s' "<!-- $comment -->"
 }
 
 # idee: keine stoerung = hostname
@@ -3745,7 +3745,7 @@ esac
 			html_comment "$VERSION"
 		;;
 		essid)
-			html_comment "$( printf "%03d" $( echo -n "$ESSID" | sed 's/[^0-9]//g' ) )"
+			html_comment "$( printf "%03d" $( printf '%s' "$ESSID" | sed 's/[^0-9]//g' ) )"
 		;;
 		txpower)
 			html_comment "$TXPWR"
@@ -3768,7 +3768,7 @@ esac
 		;;
 	esac
 
-	echo -n "<tr bgcolor='$BGCOLOR'>"
+	printf '%s' "<tr bgcolor='$BGCOLOR'>"
 
 	HUMANTIME="$( date -d @$LAST_UPDATE_UNIXTIME )"
 
@@ -3881,9 +3881,9 @@ esac
 	local title="$kminor/$(( ($UNIXTIME_SCRIPTSTART - $kerneltime) / 86400 ))days_old:$v1=$kerneldate"
 
 	# kernel
-	echo -n "<td bgcolor='$( kernel_color "$v1" )' $sortkey title='$title'><small>$kmajor</small></td>"
+	printf '%s' "<td bgcolor='$( kernel_color "$v1" )' $sortkey title='$title'><small>$kmajor</small></td>"
 	# git
-	echo -n "<td bgcolor='$( good_git_color "$v2" )' align='right'><small>$v2</small></td>"	
+	printf '%s' "<td bgcolor='$( good_git_color "$v2" )' align='right'><small>$v2</small></td>"	
 
 cell_ram()				# fixme! this must be a graph, which is red/green
 {					# fixme! convert all to kilobytes
@@ -3925,21 +3925,21 @@ cell_ram()				# fixme! this must be a graph, which is red/green
 #		bgcolor="blue"
 #	}
 
-	echo -n "<td sorttable_customkey='$ram_size' align='right' bgcolor='$bgcolor' title='"
+	printf '%s' "<td sorttable_customkey='$ram_size' align='right' bgcolor='$bgcolor' title='"
 
-	[ "$ram_option" = "1" ] && echo -n "SIMPLE_MESHNODE:"
+	[ "$ram_option" = "1" ] && printf '%s' "SIMPLE_MESHNODE:"
 
 	echo -n  "size:${ram_size}${linebreak}"
-	echo -n "-free:${ram_free}${linebreak}"
-	echo -n "-free_flushed:${ram_free_after_flush}${linebreak}"
-	echo -n "-zram_r/w:${zram_reads}/${zram_writes}${linebreak}"
-	echo -n "-zram_memusage/compressed:${zram_memusage}/${zram_compressed_size}"
+	printf '%s' "-free:${ram_free}${linebreak}"
+	printf '%s' "-free_flushed:${ram_free_after_flush}${linebreak}"
+	printf '%s' "-zram_r/w:${zram_reads}/${zram_writes}${linebreak}"
+	printf '%s' "-zram_memusage/compressed:${zram_memusage}/${zram_compressed_size}"
 
-	echo -n "'><small>"
+	printf '%s' "'><small>"
 
-	[ "$ram_option" = "1" ] && echo -n "s"		# 1 = existing '/www/SIMPLE_MESHNODE'
+	[ "$ram_option" = "1" ] && printf '%s' "s"		# 1 = existing '/www/SIMPLE_MESHNODE'
 
-	echo -n "$(( ${ram_size:-0} / 1000 ))M</small></td>"
+	printf '%s' "$(( ${ram_size:-0} / 1000 ))M</small></td>"
 }
 
 	cell_ram "$h1" "$h2" "$h3" "$h4" "$h5" "$h6" "$h7" "$h0"
@@ -3997,7 +3997,7 @@ cell_ram()				# fixme! this must be a graph, which is red/green
 		;;
 	esac
 
-	echo -n "<td bgcolor='$hwcolor' sorttable_customkey='$HW-$WIFIMAC'><small><a href='meshrdf/recent/$WIFIMAC' title='$HW'>${locally_administered}$WIFIMAC</a></small></td>"
+	printf '%s' "<td bgcolor='$hwcolor' sorttable_customkey='$HW-$WIFIMAC'><small><a href='meshrdf/recent/$WIFIMAC' title='$HW'>${locally_administered}$WIFIMAC</a></small></td>"
 
 	case "$WIFIMAC" in
 		b827eb8dbbf0)
@@ -4071,14 +4071,14 @@ esac
 	
 	func_cell_wifimode "$WIFIMODE" "$WIFIDRV"
 
-	echo -n "<td align='center'> $HOP2GW </td>"
+	printf '%s' "<td align='center'> $HOP2GW </td>"
 	
 	func_cell_cost2gw "$COST2GW" "$NETWORK"
 	_cell_txpower "$TXPWR"	
 	_cell_mrate "$MRATE" "$WIFIMODE" "$NETWORK"
 
 	[ "$HW" = "Pandaboard" ] && GMODE=    # fixme!
-	echo -n "<td> $GMODE </td>"
+	printf '%s' "<td> $GMODE </td>"
 	
 	func_cell_noise "$NOISE" "$SENS"
 	_cell_signal "$RSSI" "$WIFIMODE"
@@ -4239,7 +4239,7 @@ show_screenshots()
 
 	for file in $( list ); do {
 		[ "$table_start" = 1 ] && {
-			echo -n "<table cellspacing='0' cellpadding='0' border='0'><tr>"
+			printf '%s' "<table cellspacing='0' cellpadding='0' border='0'><tr>"
 			table_start=0
 		}
 
@@ -4299,13 +4299,13 @@ show_screenshots()
 			;;
 		esac
 
-		echo -n "<td>$title_short<br><a href='$linkdest' type='image/jpeg' title='$title'>"
-		echo -n "<img src='$LB/settings/$mac.screenshot.jpg' width='$width' height='$height' alt='screenshot of $mac' border='1'>"
-		echo -n "</a></td>"
+		printf '%s' "<td>$title_short<br><a href='$linkdest' type='image/jpeg' title='$title'>"
+		printf '%s' "<img src='$LB/settings/$mac.screenshot.jpg' width='$width' height='$height' alt='screenshot of $mac' border='1'>"
+		printf '%s' "</a></td>"
 
 		case "$title_short" in
 			*beamer*|event5of5*|kasse2*)
-				echo -n "</tr><tr>"
+				printf '%s' "</tr><tr>"
 			;;
 		esac
 
@@ -4315,14 +4315,14 @@ show_screenshots()
 
 				[ $i -eq 4 ] && {
 					i=0
-					echo -n "</tr><tr>"
+					printf '%s' "</tr><tr>"
 				}
 			;;
 		esac
 	} done
 
 	[ "$table_start" = 0 ] && {
-		echo -n "</tr></table>"
+		printf '%s' "</tr></table>"
 	}
 }
 
