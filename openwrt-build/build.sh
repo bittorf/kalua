@@ -667,7 +667,7 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_WZRHPAG300H=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-factory.bin'
-			# openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-tftp.bin
+			# TODO: openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-tftp.bin
 		;;
 		'TP-LINK CPE210'|'TP-LINK CPE220')
 			# https://wiki.openwrt.org/toh/tp-link/tl-cpe210
@@ -755,6 +755,7 @@ EOF
 		;;
 		'TP-LINK TL-WR1043ND'|'TP-LINK TL-WR1043ND v2')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr1043nd
+			# TODO: LEDE:  CONFIG_TARGET_ar71xx_generic_DEVICE_tl-wr1043nd-v1=y
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-factory.bin"

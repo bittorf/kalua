@@ -1,0 +1,45 @@
+From f75eae14ee3fba7ee6e2c79e4ba4ed041677aeb9 Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bb@npl.de>
+Date: Fri, 11 Nov 2016 18:04:16 +0100
+Subject: [PATCH] include: image.mk: ext4: double the default inode counter
+
+our rootfs typically has lots of small files, so the default
+counter with 1024 inodes for 16 megabytes partition size can
+be too restrictive and leads to e.g.
+
+root@box:/ touch /etc/config/test
+touch: /etc/config/test: No space left on device
+
+the solution is to just double the amount of inodes
+during image creation, so a 16mb part has 2048 inodes.
+
+see also:
+http://lists.infradead.org/pipermail/lede-dev/2016-November/003977.html
+
+Signed-off-by: Bastian Bittorf <bb@npl.de>
+---
+ include/image.mk | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/include/image.mk b/include/image.mk
+index 8b183ab..e74a71d 100644
+--- a/include/image.mk
++++ b/include/image.mk
+@@ -239,11 +239,13 @@ define Image/mkfs/ubifs
+ 		-o $@ -d $(call mkfs_target_dir,$(1))
+ endef
+ 
++# doubles the default inode counter
++INODES=$(shell echo $$(($(CONFIG_TARGET_ROOTFS_PARTSIZE)*64*2)))
+ E2SIZE=$(shell echo $$(($(CONFIG_TARGET_ROOTFS_PARTSIZE)*1024*1024)))
+ 
+ define Image/mkfs/ext4
+ 	$(STAGING_DIR_HOST)/bin/make_ext4fs \
+-		-l $(E2SIZE) -b $(CONFIG_TARGET_EXT4_BLOCKSIZE) \
++		-l $(E2SIZE) -i $(INODES) -b $(CONFIG_TARGET_EXT4_BLOCKSIZE) \
+ 		$(if $(CONFIG_TARGET_EXT4_RESERVED_PCT),-m $(CONFIG_TARGET_EXT4_RESERVED_PCT)) \
+ 		$(if $(CONFIG_TARGET_EXT4_JOURNAL),,-J) \
+ 		$(if $(SOURCE_DATE_EPOCH),-T $(SOURCE_DATE_EPOCH)) \
+-- 
+1.9.1
+
