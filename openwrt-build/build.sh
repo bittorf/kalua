@@ -320,6 +320,7 @@ kconfig_file()
 	}
 
 	# config-3.10
+	log "kconfig_file() dir: '$dir/config-*'"
 	find "$dir" -name 'config-[0-9]*' | head -n1
 }
 
@@ -1260,6 +1261,7 @@ check_working_directory()
 		echo "$repo" >'KALUA_REPO_URL'
 
 		log "[OK] now you should do:"
+		log "debug: pwd: '$(pwd)'"
 		log "cd '$buildsystemdir' && ../build.sh --help"
 		chmod +x 'build.sh'
 
@@ -2307,7 +2309,7 @@ apply_symbol()
 
 			# TODO: code duplication, see below: CONFIG_*
 			# not in config with needed value?
-			[ -e "$file" ] && {
+			if [ -e "$file" ]; then
 				grep -sq ^"$symbol"$ "$file" || {
 					pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
 
@@ -2322,7 +2324,9 @@ apply_symbol()
 						echo "$symbol" >>"$file"
 					fi
 				}
-			}
+			else
+				log "kconfig_file: '$file' pwd: '$( pwd )'"
+			fi
 		;;
 		'CONFIG_'*)
 			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
