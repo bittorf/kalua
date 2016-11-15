@@ -54,7 +54,7 @@ print_usage_and_exit()
 
 Usage: ./$0 --openwrt
        ./$0 --openwrt trunk|lede|lede-staging
-       ./$0 --openwrt trunk --download_pool /path/to/your/dir
+       ./$0 --openwrt trunk --download_pool /absolute/path/to/dir
        ./$0 --openwrt 15.05 --myrepo git://github.com/weimarnetz/weimarnetz.git
 
        This will download/checkout OpenWrt-buildscripts,
@@ -1089,12 +1089,63 @@ has_internet()
 	fi
 }
 
+feeds_prepare()
+{
+	local file_feeds='feeds.conf.default'
+	local do_symlinking='no'
+	local file
+
+	fgrep -q ' oonf '  "$file_feeds" || {
+		# using 'src-git-full' possible since r45668
+		# needs:
+		# CMake version 2.8.12 or better
+		# libnl3-dev or libnl-tiny for the nl80211-listener plugin
+		# libtomcrypt-dev for the hash_tomcrypt plugin
+		echo >>"$file_feeds" 'src-git-full oonf https://github.com/OLSR/OONF.git'
+		log "addfeed 'olsrd2/oonf'" debug,gitadd "$file_feeds"
+		do_symlinking='true'
+	}
+
+	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
+		# FIXME! use search_and_replace()
+		# hide oldpackages
+		sed >"$file_feeds.tmp" '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
+		mv   "$file_feeds.tmp" "$file_feeds"
+		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
+
+		if has_internet; then
+			# https://forum.openwrt.org/viewtopic.php?id=52219
+			./scripts/feeds update oldpackages
+			# install all packages from specified feed
+			./scripts/feeds install -a -p oldpackages
+		else
+			log '[OK] no internet - only refreshing index of "oldpackages"'
+			./scripts/feeds update -i oldpackages
+		fi
+	}
+
+	[ -d 'package/feeds' ] || {
+		# seems, everything is really untouched
+		log "missing 'package/symlinks', getting feeds"
+		build 'defconfig'
+		do_symlinking='true'
+	}
+
+	[ "$do_symlinking" = 'true' ] && {
+		log "enforce/updating symlinking of packages"
+		make package/symlinks
+	}
+
+	file='feeds/routing/olsrd/Makefile'
+	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
+	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' 'PKG_SOURCE_VERSION:=2d03856092df89eaef5a2948c845863a8a8c3702'
+	log "patching OLSRd1 for using recent HEAD" debug,gitadd "$file"
+}
+
 check_working_directory()
 {
 	local funcname='check_working_directory'
-	local file_feeds='feeds.conf.default'
 	local i=0
-	local do_symlinking='no'
 	local package list error repo git_url answer buildsystemdir pattern
 
 	if [ -n "$FORCE" ]; then
@@ -1182,7 +1233,7 @@ check_working_directory()
 			ln -s "$DOWNLOAD_POOL" "$buildsystemdir/dl"
 		else
 			log "[OK] no central download pool - but if you want this,"
-			log "please use --download_pool '\$YOUR_DIRECTORY'"
+			log "please use --download_pool '/your/absolute/path'"
 		fi
 
 		[ -d 'packages' ] && {
@@ -1212,52 +1263,6 @@ check_working_directory()
 
 	# user directory for private/overlay-files
 	mkdir -p 'files'
-
-	fgrep -q ' oonf '  "$file_feeds" || {
-		# using 'src-git-full' possible since r45668
-		# needs:
-		# CMake version 2.8.12 or better
-		# libnl3-dev or libnl-tiny for the nl80211-listener plugin
-		# libtomcrypt-dev for the hash_tomcrypt plugin
-		echo >>"$file_feeds" 'src-git-full oonf https://github.com/OLSR/OONF.git'
-		log "addfeed 'olsrd2/oonf'" debug,gitadd "$file_feeds"
-		do_symlinking='true'
-	}
-
-	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
-		# FIXME! use search_and_replace()
-		# hide oldpackages
-		sed >"$file_feeds.tmp" '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
-		mv   "$file_feeds.tmp" "$file_feeds"
-		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
-
-		if has_internet; then
-			# https://forum.openwrt.org/viewtopic.php?id=52219
-			./scripts/feeds update oldpackages
-			# install all packages from specified feed
-			./scripts/feeds install -a -p oldpackages
-		else
-			log '[OK] no internet - only refreshing index of "oldpackages"'
-			./scripts/feeds update -i oldpackages
-		fi
-	}
-
-	[ -d 'package/feeds' ] || {
-		# seems, everything is really untouched
-		log "missing 'package/symlinks', getting feeds"
-		build 'defconfig'
-		do_symlinking='true'
-	}
-
-	[ "$do_symlinking" = 'true' ] && {
-		log "enforce/updating symlinking of packages"
-		make package/symlinks
-	}
-
-	file_olsrd='feeds/routing/olsrd/Makefile'
-	search_and_replace "$file_olsrd" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
-	search_and_replace "$file_olsrd" '^PKG_SOURCE_VERSION:=.*' 'PKG_SOURCE_VERSION:=2d03856092df89eaef5a2948c845863a8a8c3702'
-	log "patching OLSRd1 for using recent HEAD" debug,gitadd "$file_olsrd"
 
 	# for detecting: are we in "original" (aka master) tree or in private checkout
 	case "$( git remote get-url origin )" in
@@ -3795,6 +3800,7 @@ check_working_directory			|| die_and_exit
 openwrt_download 'reset_autocommits'
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 check_git_settings			|| die_and_exit
+feeds_prepare
 feeds_adjust_version "$FEEDSTIME"
 
 [ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
