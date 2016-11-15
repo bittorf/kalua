@@ -1144,9 +1144,10 @@ feeds_prepare()
 	log "importing OLSRd1 Makefile" debug,gitadd "$file"
 	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
 	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' 'PKG_SOURCE_VERSION:=2d03856092df89eaef5a2948c845863a8a8c3702'
-	search_and_replace "$file" ' pud ' ''		# dont compile these plugins
-	search_and_replace "$file" ' pgraphquagga ' ''
-	search_and_replace "$file" ' p2pd' ''
+	search_and_replace "$file" ' pud '		# dont compile these plugins
+	search_and_replace "$file" ' pgraphquagga '
+	search_and_replace "$file" ' p2pd'
+	search_and_replace "$file" ' nameservicesecure '
 	log "patching OLSRd1 for using recent HEAD" debug,gitadd "$file"
 }
 
