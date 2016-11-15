@@ -462,7 +462,7 @@ echo    >>$TOOLS '}'
 
 echo	>>$TOOLS ''
 echo    >>$TOOLS '# all nodes:'
-echo -n >>$TOOLS 'LIST="'
+printf  >>$TOOLS 'LIST="'
 
 echo  >$OUT '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 echo >>$OUT '	"http://www.w3.org/TR/html4/loose.dtd">'
@@ -3436,7 +3436,7 @@ printf '%s' "<!-- spacer: $spacer :spacer -->"
 		printf '%s' "<td bgcolor='$color' title='${hint}${linebreak}${name}${linebreak}${speed:+:}${speed}'><tt>$spacer</tt></td>"
 	} done
 
-	[ $i -eq 0 ] && echo -n '<td>&nbsp;</td>'	# valid html
+	[ $i -eq 0 ] && printf '<td>&nbsp;</td>'	# valid html
 
 	printf '%s' "</tr></table>"
 	printf '%s' "</td>"
@@ -3497,11 +3497,11 @@ cell_essid()
 			if [ -n "$wired_clients_formatted" ]; then
 				printf '%s' "<td>${wired_clients_formatted}</td>"
 			else
-				echo -n '<td>&nbsp;</td>'
+				printf '<td>&nbsp;</td>'
 			fi
 		fi
 	else
-		echo -n '<td>&nbsp;</td>'
+		printf '<td>&nbsp;</td>'
 	fi
 
 	[ -z "$list_essid" ] && {
@@ -3929,7 +3929,7 @@ cell_ram()				# fixme! this must be a graph, which is red/green
 
 	[ "$ram_option" = "1" ] && printf '%s' "SIMPLE_MESHNODE:"
 
-	echo -n  "size:${ram_size}${linebreak}"
+	printf '%s' "size:${ram_size}${linebreak}"
 	printf '%s' "-free:${ram_free}${linebreak}"
 	printf '%s' "-free_flushed:${ram_free_after_flush}${linebreak}"
 	printf '%s' "-zram_r/w:${zram_reads}/${zram_writes}${linebreak}"

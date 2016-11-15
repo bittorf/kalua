@@ -3095,7 +3095,7 @@ EOF
 					echo
 					echo '# or short:'
 
-					echo -n '--usecase '
+					printf '--usecase '
 					parse_case_patterns "$funcname" | while read -r line; do {
 						printf '%s' "$line,"
 					} done

@@ -385,7 +385,7 @@ for FILE in $FILELIST; do {		# preselect interesting nodes (e.g. only adhoc)
 				}
 			}
 EOF
-			echo -n '		}'
+			printf '		}'
 		} >>map.temp.node2hostnameIDS
 	}
 
@@ -638,7 +638,7 @@ EOF
 		cat <<EOF
 			}
 EOF
-		echo -n '		}'
+		printf '		}'
 
 #		echo "	\"$LOCAL\" -> \"$REMOTE\" [ arrowhead=\"none\", arrowtail=\"none\", style=$STYLE $LABEL];"
 		
