@@ -216,7 +216,7 @@ git-svn-id: based_on_OpenWrt@$VERSION_OPENWRT_INTEGER" |
 log()
 {
 	local message="$1"	# special handling, if it contains '[ERROR]'
-	local option="$2"	# e.g. debug,gitadd
+	local option="$2"	# e.g. debug,gitadd,untrack
 	local gitfile="$3"	# can also be a directory
 	local name
 
@@ -241,6 +241,7 @@ log()
 	has "$option" 'gitadd' && {
 		if [ -e "$gitfile" ]; then
 			autocommit "$gitfile" "$message"
+			has "$option" 'untrack' && git rm --cached "$gitfile"
 		else
 			log "gitadd: file/dir '$gitfile' does not exist"
 		fi
@@ -1160,7 +1161,7 @@ feeds_prepare()
 	search_and_replace "$file" ' pud ' ' '			# dont compile these plugin
 	search_and_replace "$file" ' pgraph ' ' '
 	search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
-	log "patching OLSRd1 for using recent HEAD" gitadd "$file"
+	log "patching OLSRd1 for using recent HEAD" gitadd,untrack "$file"
 }
 
 check_working_directory()
