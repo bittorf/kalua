@@ -171,7 +171,10 @@ autocommit()
 
 	if [ -e "$gitfile" ]; then
 		# we need 'force' here, because e.g. files/ is in .gitignore
-		git add --force "$gitfile"
+		git add --force "$gitfile" || {
+			log "[ERROR] during 'git add --force '$file'"
+			return 1
+		}
 
 		count_files=$( find "$gitfile" -type f | wc -l )
 		count_dirs=$(  find "$gitfile" -type d | wc -l )
@@ -240,8 +243,9 @@ log()
 
 	has "$option" 'gitadd' && {
 		if [ -e "$gitfile" ]; then
-			autocommit "$gitfile" "$message"
-			has "$option" 'untrack' && git rm --cached "$gitfile"
+			autocommit "$gitfile" "$message" && {
+				has "$option" 'untrack' && git rm --cached "$gitfile"
+			}
 		else
 			log "gitadd: file/dir '$gitfile' does not exist"
 		fi
@@ -1158,7 +1162,7 @@ feeds_prepare()
 	log "importing OLSRd1 Makefile" gitadd "$file"
 	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
 	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
-	search_and_replace "$file" ' pud ' ' '			# dont compile these plugin
+	search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
 	search_and_replace "$file" ' pgraph ' ' '
 	search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
 	log "patching OLSRd1 for using recent HEAD" gitadd,untrack "$file"
