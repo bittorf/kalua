@@ -300,12 +300,11 @@ search_and_replace()
 		log "[ERROR] while replacing '$search' with '$replace' in '$file'"
 	}
 
-	pattern="$( echo "$replace" | sed 's/&//g' )"	# remove special sed tokens
-	grep -q "$pattern" "$file.tmp" || {
-		log "[ERR] replacing did not work, cannot found '$replace' in '$file.tmp'"
-	}
-
-	mv "$file.tmp" "$file"
+	if cmp "$file" "$file.tmp"; then
+		log "[ERROR] replacing did not work, there was no change in '$file.tmp'"
+	else
+		mv "$file.tmp" "$file"
+	fi
 }
 
 kconfig_file()
