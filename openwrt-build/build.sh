@@ -1637,10 +1637,10 @@ copy_firmware_files()
 	log "usecase: --usecase $USECASE"
 	log "usecase-hash: $( usecase_hash "$USECASE" )"
 
-	# http://intercity-vpn.de/firmware/mpc85xx/images/testing/1c78c7a701714cddd092279587e719a3/TP-LINK%20TL-WDR4900%20v1.bin
-#	log "http://intercity-vpn.de/firmware/$ARCH/images/testing/usecase/$( usecase_hash "$USECASE" )/$HARDWARE_MODEL.bin"
-#	log "http://intercity-vpn.de/firmware/$HARDWARE_MODEL/testing/usecase/..."
-	log "http://intercity-vpn.de/networks/xyz/firmware/$HARDWARE_MODEL/testing/usecase/..."
+	# autoupdate-scheme:
+	# how to set revision-number? a node must check, if there is a *newer* version
+	log "http://intercity-vpn.de/networks/xyz/firmware/$HARDWARE_MODEL/testing/usecase/info.txt"	# hash + revision
+	log "http://intercity-vpn.de/networks/xyz/firmware/$HARDWARE_MODEL/testing/usecase/fw.bin"
 
 	# Ubiquiti Bullet M
 	destination="$HARDWARE_MODEL_FILENAME"
@@ -2287,6 +2287,13 @@ apply_symbol()
 	esac
 
 	case "$symbol" in
+		'CONFIG_KERNEL_'*)
+			file="$( kconfig_file )"
+			log "kernel-symbol: '$symbol' to '$file'"
+		;;
+	esac
+
+	case "$symbol" in
 		*'=y')
 			symbol="$( echo "$symbol" | cut -d'=' -f1 )"
 
@@ -2304,31 +2311,6 @@ apply_symbol()
 				search_and_replace "$file" "^$symbol=y" "# $symbol is not set"
 			else
 				grep -sq "$symbol" "$file" || echo >>"$file" "# $*"
-			fi
-		;;
-		'CONFIG_KERNEL_'*)
-			file="$( kconfig_file )"
-			log "kernel-symbol: '$symbol' to '$file'"
-
-			# TODO: code duplication, see below: CONFIG_*
-			# not in config with needed value?
-			if [ -e "$file" ]; then
-				grep -sq ^"$symbol"$ "$file" || {
-					pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
-
-					# if already config, but with another value?
-					if grep -q ^"$pre=" "$file"; then
-						log "replacing value of '$pre', was: '$symbol'"
-
-						grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
-						echo "$symbol" >>"$file.tmp"		# write symbol
-						mv   "$file.tmp" "$file"		# ready
-					else
-						echo "$symbol" >>"$file"
-					fi
-				}
-			else
-				log "kconfig_file: '$file' pwd: '$( pwd )'"
 			fi
 		;;
 		'CONFIG_'*)
@@ -2351,6 +2333,12 @@ apply_symbol()
 					echo "$symbol" >>"$file"
 				fi
 			}
+		;;
+	esac
+
+	case "$symbol" in
+		'CONFIG_KERNEL_'*)
+			log "[OK] kconfig-symbol: $symbol" gitadd "$file"
 		;;
 	esac
 }

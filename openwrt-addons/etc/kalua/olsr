@@ -58,16 +58,17 @@ _olsr_build_overview_static()		# runs as cron.minutely on vpn-server into '/tmp/
 {
 	local funcname='olsr_build_overview_static'
 	local output="${1:-/var/www/cgi-bin-status.html}"
-
-	local time1 time2 size
+	local time1='-'
+	local time2 size time_output
 	local tempfile="/tmp/$funcname"
 
 	_olsr uptime is_short && return 0
 
-	_stopwatch start "$funcname:build_tables"
-	# only on VPN-server: see uci() in /tmp/loader
-	uci unvalid_call 2>/dev/null && _olsr build_tables
-	time1="$( _stopwatch stop "$funcname:build_tables" )"
+	[ $OPENWRT_REV -eq 0 ] && {
+		_stopwatch start "$funcname:build_tables"
+		_olsr build_tables
+		time1="$( _stopwatch stop "$funcname:build_tables" )"
+	}
 
 	_stopwatch start "$funcname:cgi-bin-status.sh"
 	REMOTE_ADDR='' /www/cgi-bin-status.sh >"$tempfile"
