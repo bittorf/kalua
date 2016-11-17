@@ -311,7 +311,7 @@ search_and_replace()
 kconfig_file()
 {
 	# TODO: code duplication see function below
-	local dir
+	local dir arch
 
 	dir="target/linux/$ARCH_MAIN"
 	[ -d "$dir" ] || {
@@ -322,7 +322,10 @@ kconfig_file()
 	case "$ARCH_MAIN" in
 		'uml')
 			# target/linux/uml/config/i386|x86_64
-			find "$dir/config/$( buildhost_arch )" -type f
+			arch="$( buildhost_arch )"
+			[ "$arch" = 'amd64' ] && arch='x86_64'
+
+			find "$dir/config/$arch" -type f
 		;;
 		*)
 			# config-3.10
