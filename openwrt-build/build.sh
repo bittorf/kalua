@@ -1108,7 +1108,7 @@ feeds_prepare()
 {
 	local file_feeds='feeds.conf.default'
 	local do_symlinking='no'
-	local file
+	local file githash
 
 	fgrep -q ' oonf '  "$file_feeds" || {
 		# using 'src-git-full' possible since r45668
@@ -1147,18 +1147,21 @@ feeds_prepare()
 	}
 
 	[ "$do_symlinking" = 'true' ] && {
+		# TODO: check if already done
 		log "enforce/updating symlinking of packages"
 		make package/symlinks
 	}
 
 	# we can not add this 'new' file to git, otherwise it will disappear when switching back to master
 	file='feeds/routing/olsrd/Makefile'
-	log "importing OLSRd1 Makefile"
+	githash='2d03856'	# https://github.com/OLSR/olsrd
+	log "importing OLSRd1 Makefile" gitadd "$file"
 	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
-	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' 'PKG_SOURCE_VERSION:=2d03856092df89eaef5a2948c845863a8a8c3702'
+	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
 	search_and_replace "$file" ' pud '			# dont compile these plugin
-	search_and_replace "$file" '.*olsrd-mod-pud' '# &'	# and hide from calling
-	log "patching OLSRd1 for using recent HEAD"
+	search_and_replace "$file" ' pgraphquagga '
+	search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
+	log "patching OLSRd1 for using recent HEAD" gitadd "$file"
 }
 
 check_working_directory()
