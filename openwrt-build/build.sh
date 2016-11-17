@@ -319,10 +319,17 @@ kconfig_file()
 		return 1
 	}
 
-	# target/linux/uml/config/i386|x86_64
-	# config-3.10
-	log "kconfig_file() dir: '$dir/config-*'"
-	find "$dir" -name 'config-[0-9]*' | head -n1
+	case "$ARCH_MAIN" in
+		'UML')
+			# target/linux/uml/config/i386|x86_64
+			find "$dir/config/$( buildhost_arch )" -type f
+		;;
+		*)
+			# config-3.10
+			log "kconfig_file() dir: '$dir/config-*'"
+			find "$dir" -type f -name 'config-[0-9]*' | head -n1
+		;;
+	esac
 }
 
 kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2012-August/016430.html
@@ -3391,7 +3398,7 @@ check_scripts()
 	test $i -ge 0
 }
 
-myarch()
+buildhost_arch()
 {
 	# e.g. i386 or amd64
 	dpkg --print-architecture
@@ -3496,7 +3503,7 @@ bootstrap_ctags()
 bootstrap_shellsheck()
 {
 	[ -n "$TRAVIS" ] && {
-		local myarch="$( myarch )"
+		local myarch="$( buildhost_arch )"
 		local url="http://ftp.debian.org/debian/pool/main/s/shellcheck/shellcheck_0.4.4-4_${myarch}.deb"
 
 		# TODO: build-static: https://github.com/koalaman/shellcheck/issues/758
