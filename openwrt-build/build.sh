@@ -173,6 +173,7 @@ autocommit()
 		# we need 'force' here, because e.g. files/ is in .gitignore
 		git add --force "$gitfile" || {
 			log "[ERROR] during 'git add --force '$file'"
+			git stash save 'unsure what happened'
 			return 1
 		}
 
@@ -305,7 +306,7 @@ search_and_replace()
 		log "[ERROR] while replacing '$search' with '$replace' in '$file'"
 	}
 
-	if cmp "$file" "$file.tmp"; then
+	if cmp "$file" "$file.tmp" >/dev/null; then
 		log "[ERROR] replacing did not work, there was no change in '$file.tmp'"
 	else
 		mv "$file.tmp" "$file"
