@@ -215,7 +215,7 @@ git-svn-id: based_on_OpenWrt@$VERSION_OPENWRT_INTEGER" |
 
 log()
 {
-	local message="$1"
+	local message="$1"	# special handling, if it contains '[ERROR]'
 	local option="$2"	# e.g. debug,gitadd
 	local gitfile="$3"	# can also be a directory
 	local name
@@ -302,7 +302,7 @@ search_and_replace()
 
 	pattern="$( echo "$replace" | sed 's/&//g' )"	# remove special sed tokens
 	grep -q "$pattern" "$file.tmp" || {
-		log "[ERROR] replacing did not work, cannot found '$replace' in '$file.tmp'"
+		log "[ERR] replacing did not work, cannot found '$replace' in '$file.tmp'"
 	}
 
 	mv "$file.tmp" "$file"
@@ -1158,8 +1158,8 @@ feeds_prepare()
 	log "importing OLSRd1 Makefile" gitadd "$file"
 	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
 	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
-	search_and_replace "$file" ' pud '			# dont compile these plugin
-	search_and_replace "$file" ' pgraphquagga '
+	search_and_replace "$file" ' pud ' ' '			# dont compile these plugin
+	search_and_replace "$file" ' pgraph ' ' '
 	search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
 	log "patching OLSRd1 for using recent HEAD" gitadd "$file"
 }
