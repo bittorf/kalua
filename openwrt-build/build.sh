@@ -2066,7 +2066,7 @@ apply_symbol()
 	local hash tarball_hash rev commit_info
 	local last_commit_unixtime last_commit_date url
 	local file file_original installation sub_profile node
-	local dir pre size1 size2 gain firstline
+	local dir pre size1 size2 gain firstline symbol_temp
 
 	case "$symbol" in
 		"$KALUA_DIRNAME"*)
@@ -2310,6 +2310,7 @@ apply_symbol()
 
 	case "$symbol" in
 		*'=y')
+			symbol_temp="$symbol"
 			symbol="$( echo "$symbol" | cut -d'=' -f1 )"
 
 			if grep -sq ^"# $symbol is not set" "$file"; then
@@ -2317,8 +2318,11 @@ apply_symbol()
 			else
 				grep -sq ^"$symbol=y"$ "$file" || echo >>"$file" "$symbol=y"
 			fi
+
+			symbol="$symbol_temp"	# for later logging
 		;;
 		*' is not set')
+			symbol_temp="$symbol"
 			set -- $symbol
 			symbol="$1"
 
@@ -2327,6 +2331,8 @@ apply_symbol()
 			else
 				grep -sq "$symbol" "$file" || echo >>"$file" "# $*"
 			fi
+
+			symbol="$symbol_temp"	# for later logging
 		;;
 		'CONFIG_'*)
 			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
