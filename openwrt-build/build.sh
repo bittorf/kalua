@@ -2289,7 +2289,12 @@ apply_symbol()
 	case "$symbol" in
 		'CONFIG_KERNEL_'*)
 			file="$( kconfig_file )"
-			log "kernel-symbol: '$symbol' to '$file'"
+			if [ -e "$file" ]; then
+				log "kernel-symbol: '$symbol' to '$file'"
+			else
+				log "kernel-symbol: '$symbol' - file missing: '$file'"
+				return 1
+			fi
 		;;
 	esac
 
