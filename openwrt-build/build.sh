@@ -1161,13 +1161,13 @@ feeds_prepare()
 
 	file='feeds/routing/olsrd/Makefile'
 	githash='2d03856'	# https://github.com/OLSR/olsrd
-	log "importing OLSRd1 Makefile" gitadd,untrack "$file"
+	log "importing OLSRd1 Makefile" 			# gitadd,untrack "$file"
 	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
 	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
 	search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
 	search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
 	search_and_replace "$file" ' pgraph ' ' ' && {
-		log "patching OLSRd1 for using recent HEAD" gitadd,untrack "$file"
+		log "patching OLSRd1 for using recent HEAD" 	# gitadd,untrack "$file"
 	}
 
 	return 0
@@ -1236,6 +1236,7 @@ check_working_directory()
 		case "$VERSION_OPENWRT" in
 			'lede-staging')
 				# https://git.lede-project.org/?p=lede/nbd/staging.git;a=summary
+				# https://git.lede-project.org/?a=project_list;pf=lede
 				git_url='git://git.lede-project.org/lede/nbd/staging.git'
 				buildsystemdir='staging'
 			;;
