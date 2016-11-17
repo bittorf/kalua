@@ -308,6 +308,7 @@ search_and_replace()
 
 	if cmp "$file" "$file.tmp" >/dev/null; then
 		log "[ERROR] replacing did not work, there was no change in '$file.tmp'"
+		return 1
 	else
 		mv "$file.tmp" "$file"
 	fi
@@ -1163,10 +1164,13 @@ feeds_prepare()
 	log "importing OLSRd1 Makefile" gitadd "$file"
 	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
 	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
-	search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
-	search_and_replace "$file" ' pgraph ' ' '
 	search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
-	log "patching OLSRd1 for using recent HEAD" gitadd,untrack "$file"
+	search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
+	search_and_replace "$file" ' pgraph ' ' ' && {
+		log "patching OLSRd1 for using recent HEAD" gitadd,untrack "$file"
+	}
+
+	return 0
 }
 
 check_working_directory()
