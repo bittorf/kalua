@@ -288,8 +288,8 @@ log()
 	esac
 }
 
-search_and_replace()
-{
+search_and_replace()		# workaround 'sed -i' which is a GNU extension and not POSIX
+{				# http://stackoverflow.com/questions/7232797/sed-on-aix-does-not-recognize-i-flag
 	local file="$1"
 	local search="$2"	# ^LINUX_VERSION:=.*
 	local replace="$3"	# LINUX_VERSION:=3.18.19
@@ -300,13 +300,14 @@ search_and_replace()
 		return 1
 	}
 
-	# workaround 'sed -i' which is a GNU extension and not POSIX
-	# http://stackoverflow.com/questions/7232797/sed-on-aix-does-not-recognize-i-flag
 	sed >"$file.tmp" "s|$search|$replace|" "$file" || {
 		log "[ERROR] while replacing '$search' with '$replace' in '$file'"
+		rm "$file.tmp"
+		return 1
 	}
 
 	if cmp "$file" "$file.tmp" >/dev/null; then
+		rm "$file.tmp"
 		log "[ERROR] replacing did not work, there was no change in '$file.tmp'"
 		return 1
 	else
