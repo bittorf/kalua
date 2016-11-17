@@ -1276,7 +1276,6 @@ check_working_directory()
 		log "[OK] now you should do:"
 		log "debug: pwd: '$(pwd)'"
 		log "cd '$buildsystemdir' && ../build.sh --help"
-		chmod +x 'build.sh'
 
 		exit $error
 	}
@@ -1473,7 +1472,7 @@ openwrt_download()
 
 			get_lede_hash(){
 				local wish="$1"
-				local line info
+				local line info rc
 
 				log "get_lede_hash() input: $wish"
 				wish="$( echo "$wish" | cut -b2- )"	# e.g. r1492 -> 1492
@@ -1498,9 +1497,12 @@ openwrt_download()
 						return 1
 					fi
 				done
+				rc=$?	# because of subshell
 
-				log "get_lede_hash() no success in dir: '$( pwd )'"
-				return 1
+				[ $rc -eq 0 ] || {
+					log "get_lede_hash() no success in dir: '$( pwd )'"
+					return $rc
+				}
 			}
 
 			[ -z "$hash" ] && {
