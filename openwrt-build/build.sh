@@ -320,7 +320,7 @@ kconfig_file()
 	}
 
 	case "$ARCH_MAIN" in
-		'UML')
+		'uml')
 			# target/linux/uml/config/i386|x86_64
 			find "$dir/config/$( buildhost_arch )" -type f
 		;;
