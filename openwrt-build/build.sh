@@ -1159,10 +1159,9 @@ feeds_prepare()
 		make package/symlinks
 	}
 
-	# we can not add this 'new' file to git, otherwise it will disappear when switching back to master
 	file='feeds/routing/olsrd/Makefile'
 	githash='2d03856'	# https://github.com/OLSR/olsrd
-	log "importing OLSRd1 Makefile" gitadd "$file"
+	log "importing OLSRd1 Makefile" gitadd,untrack "$file"
 	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
 	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
 	search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
