@@ -53,8 +53,14 @@ mac2ipv4()	# TODO: better name
 				ip_list="$( ip -family inet neigh |  fgrep "$dev" | fgrep "$mac" | cut -d' ' -f1 | grep ^'1[09][02]' )"
 
 				if [ -n "$ip_list" ]; then
-					for ip in $ip_list; do break; done	# fill var with 1st list_element
 					log "$funcname($i) grabbed ip from arp: $mac -> $ip_list"
+
+					for ip in $ip_list; do {
+						_net ip_reachable "$ip" 3 "$dev" && {
+							log "$funcname($i) grabbed ip from arp: using '$ip'"
+							break
+						}
+					} done
 				else
 					ip=
 					log "$funcname($i) no match in arp for $mac"

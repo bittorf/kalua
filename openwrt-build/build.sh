@@ -1245,6 +1245,12 @@ check_working_directory()
 				git_url='git://git.lede-project.org/source.git'
 				buildsystemdir='source'
 			;;
+			'lede.local')
+				# idea: if next arg = existing dir, take this (so not local keyword needed)
+				git_url='mylede'		# git clone git://... mylede
+				buildsystemdir='source'
+				VERSION_OPENWRT='lede'
+			;;
 			'trunk')
 				git_url='git://git.openwrt.org/openwrt.git'
 				buildsystemdir='openwrt'
@@ -1257,7 +1263,7 @@ check_working_directory()
 		esac
 
 		log "first start - fetching OpenWrt/$VERSION_OPENWRT: git clone '$git_url'"
-		git clone "$git_url" || return $error
+		git clone "$git_url" "$buildsystemdir" || return $error
 
 		if [ -d "$DOWNLOAD_POOL" ]; then
 			log "symlinking our central download pool '$DOWNLOAD_POOL'"
