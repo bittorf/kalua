@@ -593,8 +593,6 @@ run_test()
 
 					# SC2119/SC2120 - references arguments, but non are ever passed:
 					sed -i 's/explode \$/set -f;set +f -- \$/g' "$tempfile"
-					# SC2039 - do not complain about 'local'
-					sed -i '1{s|^#!/bin/sh|#!/bin/dash|}' "$tempfile"
 
 					# always source '/tmp/loader' ontop of the scripts,
 					# otherwise it complains about $HOSTNAME not allowed in POSIX
@@ -612,7 +610,8 @@ run_test()
 
 					[ -n "$TRAVIS" ] && log "TRAVIS: sc_list: '$sc_list' exec: $shellcheck_bin --exclude='$ignore' '$file'"
 
-					if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
+					# dash needed: SC2039 - do not complain about 'local'
+					if $shellcheck_bin --shell=dash --exclude="$ignore" "$tempfile"; then
 						if [ -n "$sc_list" ]; then
 							log "[OK] shellcheck: '$file' - START: check without internal ignores: $sc_list"
 							sed -i 's/# shellcheck disable=SC/# shellXXXXX disable=SC/g' "$tempfile"
@@ -678,7 +677,7 @@ run_test()
 			# TODO: check if each function call '_class method' is allowed/possible
 			for name in $( list_shellfunctions "$file" ); do {
 				{
-					echo '#!/bin/dash'	# shellcheck will not complain about 'local' in dash-mode
+					echo '#!/bin/sh'
 					echo '. /tmp/loader'
 					echo
 
@@ -709,8 +708,6 @@ run_test()
 
 				# SC2119/SC2120 - references arguments, but non are ever passed:
 				sed -i 's/explode \$/set -f; set +f -- \$/g' "$tempfile"
-				# SC2039 - do not complain about 'local'
-				sed -i '1{s|^#!/bin/sh|#!/bin/dash|}' "$tempfile"
 
 				functions_checked=$(( functions_checked + 1 ))
 				function_too_large "$name" "$tempfile" "$file" && func_too_large=$(( func_too_large + 1 ))
@@ -719,7 +716,7 @@ run_test()
 
 				if   function_seems_generated "$tempfile" "$name"; then
 					log "[OK] --> function '$name()' - will not check, seems to be generated"
-				elif $shellcheck_bin --exclude="$ignore" "$tempfile"; then
+				elif $shellcheck_bin --shell=dash --exclude="$ignore" "$tempfile"; then
 					log "[OK] --> function '$name()' used: $( show_shellfunction_usage_count "$name" ) times, count: $functions_checked/$functions_overall"
 				else
 					log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"

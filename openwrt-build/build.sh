@@ -910,7 +910,7 @@ EOF
 			# http://wiki.freifunk-hannover.de/mediawiki/wiki/wiki/index.php?title=Meshcube
 			# http://download.berlin.freifunk.net/sven-ola/nylon/readme.txt
 			# http://webcache.googleusercontent.com/search?q=cache:PHP_RlZ-_qMJ:comments.gmane.org/gmane.org.freifunk.berlin/214+&cd=1&hl=de&ct=clnk&gl=de&lr=lang_de%7Clang_en
-			TARGET_SYMBOL='CONFIG_TARGET_au1000_au1500=y'
+			TARGET_SYMBOL='CONFIG_TARGET_au1000_au1500_InternetBox=y'
 			FILENAME_SYSUPGRADE='openwrt-au1000-au1500-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-au1000-au1500-vmlinux-flash.srec'
 			# 'openwrt-au1000-au1500-squashfs.srec'
