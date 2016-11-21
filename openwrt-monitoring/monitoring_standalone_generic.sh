@@ -55,7 +55,7 @@ MYPUBIP="$( wget -qO - "http://$MONI_SERVER/scripts/getip/" | head -n1 | fgrep '
 
 [ -z "$ETHERNET" ] && {
 ETHERNET="$( ip --oneline link show |
-		while read LINE; do {
+		while read -r LINE; do {
 			case "$LINE" in
 				*' lo: '*|*' wwan0: '*)
 				;;
@@ -80,19 +80,17 @@ set -- $( ifconfig "$ETHERNET" | grep 'inet addr:' | tr ':' ' ' )
 MYIP=$3
 
 URL="http://$MONI_SERVER/networks/$NETWORK/meshrdf"
-#read HOSTNAME </proc/sys/kernel/hostname
-HOSTNAME="$( cat /proc/sys/kernel/hostname )"
-#logger -s "HOSTNAME: '$HOSTNAME'"
+read -r HOSTNAME </proc/sys/kernel/hostname
 [ -z "$VERSION" ] && VERSION=$(( $( stat --printf %Y /var/lib/dpkg/status || echo 0 ) / 3600 ))
-while read L; do case "$L" in MemTotal:*) set -- $L; RAM=$2; break;; esac; done </proc/meminfo
+while read -r L; do case "$L" in MemTotal:*) set -- $L; RAM=$2; break;; esac; done </proc/meminfo
 
 set -- $( ifconfig "$ETHERNET" )
 MAC=$5
 MAC="$( echo "$MAC" | sed 's/://g' | tr 'A-F' 'a-f' )"
 
-UPTIME=$(( $( read A </proc/uptime; echo ${A%%.*} ) / 3600 ))
-read LOAD </proc/loadavg; LOAD=${LOAD%% *}	#; LOAD=${LOAD//./}
-LOAD="$( echo $LOAD | sed 's/\.//g' )"
+UPTIME=$(( $( read -r A </proc/uptime; echo ${A%%.*} ) / 3600 ))
+read -r LOAD </proc/loadavg; LOAD=${LOAD%% *}
+LOAD="$( echo $LOAD | sed 's/\.//g' )"		# 0.07 -> 007
 SSID=
 
 if   [ -e '/usr/local/bin/omap4_temp' ]; then
@@ -119,7 +117,7 @@ fi
 	HASH_NEW="$( sha1sum "/tmp/screenshot.jpg" )"
 
 	if [ "$HASH_OLD" = "$HASH_NEW" ]; then
-		logger -s "screen didnt change"
+		logger -s "screen did not change"
 	else
 		logger -s "screen changed, sending screenshot"
 		scp "/tmp/screenshot.jpg" root@$MONI_SERVER:/var/www/networks/$NETWORK/settings/$MAC.screenshot.jpg
