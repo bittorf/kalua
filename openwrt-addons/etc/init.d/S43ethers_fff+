@@ -214,14 +214,21 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 			# echo >>$SUB_VIRT "$VPN_SERVER news.weimarnetz.de"
 		;;
 		'drop')
-			echo  >$SUB_DROP "# for dropping known advertisement servers"
-			echo >>$SUB_DROP "# (1.1.0.0/20 gets REJECTed, range is enough for ~4096 hosts)"
-
 			local LIST='/etc/hosts.drop'		# see fff-adblock-list.ipk, list of bad domains
 
+			echo  >$SUB_DROP "# for dropping known advertisement servers, see: '$LIST'"
+			echo >>$SUB_DROP "# (1.1.0.0/20 gets REJECTed, range is enough for ~4096 hosts)"
+
+			if bool_true 'firewall.@adblock[0].enabled'; then
+	                        bool_true 'system.@community[0].splash' || LIST=
+	                        [ -n "$LOWMEM" ] && LIST=
+	                else
+	                        LIST=
+			fi
+
 			[ -e "$LIST" ] || {
-				_log it $FUNC daemon debug "no drop-list '$LIST' - do nothing"
-				return
+				_log it $FUNC daemon info "[OK] drop-list '$LIST' forbidden - do nothing"
+				return 0
 			}
 
 			_log it $FUNC daemon debug "building drop-list"
@@ -232,7 +239,6 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 			local LINE
 
 			while read -r LINE; do {
-
 				Y=$(( Y + 1 ))
 				[ $Y -gt 254 ] && {
 					Y=1
@@ -392,30 +398,9 @@ case "$1" in
 		build_hosts wifi
 		build_hosts virtual
 
-		if bool_true 'firewall.@adblock[0].enabled'; then
-			bool_true 'system.@community[0].splash' || DROP=0
-			[ -n "$LOWMEM" ] && DROP=0
-		else
-			DROP=0
-		fi
-
-		DROPFILE="/etc/hosts.drop"
-		if [ "$DROP" = "0" ]; then
-			[ -e "$DROPFILE" ] && {
-				_log it "del_adblock" daemon debug "must be deactivated, removing '$DROPFILE'"
-				rm "$DROPFILE"
-			}
-		else
-			_stopwatch start adblock
-			build_hosts drop
-			_stopwatch stop 'adblock' quiet
-
-			if [ -e "$DROPFILE" ]; then
-				_log it "add_adblock" daemon debug "$( _file size "$DROPFILE" ) bytes in $( _file lines "$DROPFILE" ) entries"
-			else
-				_log it "add_adblock" daemon debug "was not possible, missing '$DROPFILE'"
-			fi
-		fi
+		stopwatch start adblock
+		build_hosts drop
+		_stopwatch stop 'adblock' quiet
 
 		build_hosts join
 

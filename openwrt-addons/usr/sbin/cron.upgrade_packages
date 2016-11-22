@@ -65,11 +65,16 @@ while read -r LINE; do {
 			PACKAGE_SIZE=$(( ${PACKAGE_SIZE:-0} / 1000 ))				# 154
 			PACKAGE_SIZE=$(( PACKAGE_SIZE + $(( PACKAGE_SIZE / 5 )) ))		# 184 (+20%)	estimated flash_size
 		;;
-		"")
+		'')
 			[ -n "$VERSION" -a -n "$FILENAME" ] && {
 				case "$PACKAGE" in
-					mydesign|mysettings|sshpubkeys|fff-adblock-list)	# idea! accept all packages?
+					fff-adblock-list)
+						[ -e '/etc/hosts.drop' ] || opkg remove "$PACKAGE"	# just a hotfix, remove later
+					;;
+				esac
 
+				case "$PACKAGE" in
+					mydesign|mysettings|sshpubkeys|fff-adblock-list)	# idea! accept all packages?
 						VERSION_HERE="$( _software package_version $PACKAGE )"
 						VERSION_SERVER="$VERSION"
 
@@ -79,7 +84,7 @@ while read -r LINE; do {
 							_log it found_newer_version daemon alert "upgrading '$PACKAGE' (here/server: v$VERSION_HERE/v$VERSION_SERVER url: '$URL' expected_size: $PACKAGE_SIZE kb)"
 
 							FILE="/tmp/${PACKAGE}_${VERSION_SERVER}_$$.ipk"		# better logging
-							wget -qO "$FILE" "$URL"
+							_curl it "$URL" >"$FILE"
 
 							[ "$PACKAGE" = "mysettings" ] || {
 								_software make_free_space ${PACKAGE_SIZE:-0}
