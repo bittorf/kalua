@@ -877,6 +877,13 @@ _netfilter_masquerade_start()
 	local devname="${1:-$( _net local_inet_offer )}"
 #	local exception="$2"		# fixme! needs source/destination arg
 	local device devname statfile
+	local userfile="$TMPDIR/user.masq"
+
+	[ -e "$userfile" ] && {
+		# TODO: provide clean rollback for masquerade_stop()
+		_log it $funcname daemon info "calling '$userfile'"
+		command . "$userfile"
+	}
 
 	case "$devname" in
 		wifi)
@@ -898,7 +905,7 @@ _netfilter_masquerade_start()
 		;;
 		'')
 			_netfilter masquerade_stop
-			return 0
+			[ -e "$userfile" ] || return 0
 		;;
 		*)
 			if _net dev_is_valid "$devname"; then
@@ -915,6 +922,7 @@ _netfilter_masquerade_start()
 	statfile="/tmp/NETFILTER/MASQUERADING_$device"
 
 	if [ -e "$statfile" ]; then
+		_log it $funcname daemon info "ignoring call, was already done earlier: $statfile"
 		return 0
 	else
 		_log it $funcname daemon info "activating for device $device ($devname)"
@@ -930,8 +938,6 @@ _netfilter_masquerade_start()
 
 	$IPT -A FORWARD -i $device
 	$IPT -A FORWARD -o $device
-
-	[ -e "$TMPDIR/user.masq" ] && . "$TMPDIR/user.masq"
 
 	case "$CONFIG_PROFILE" in
 		tkolleg*)
