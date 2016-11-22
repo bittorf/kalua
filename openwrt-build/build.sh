@@ -1952,6 +1952,15 @@ apply_patches()
 	}
 
 	list_files_and_dirs | while read -r file; do {
+		case "$file" in
+			*'-ath10k-'*)
+				grep -q '_kmod-ath10k' '.config' || {
+					log "[OK] ignoring patch: $file"
+					continue
+				}
+			;;
+		esac
+
 		if [ -d "$file" ]; then
 			log "dir: $file" debug
 			register_patch "DIR: $file"
@@ -2667,6 +2676,7 @@ build_options_set()
 				else
 					log '[OK] using full iproute2'
 					apply_symbol 'CONFIG_PACKAGE_ip=y'		# network: routing/redirection: ip
+					apply_symbol 'CONFIG_PACKAGE_ip-full=y'		# since lede 2016-oct-13
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
 #					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y'		# FIXME
 					apply_symbol 'CONFIG_BUSYBOX_DEFAULT_IP is not set'
