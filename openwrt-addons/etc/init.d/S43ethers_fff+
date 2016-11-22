@@ -220,24 +220,25 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 			echo >>$SUB_DROP "# (1.1.0.0/20 gets REJECTed, range is enough for ~4096 hosts)"
 
 			if bool_true 'firewall.@adblock[0].enabled'; then
-	                        bool_true 'system.@community[0].splash' || LIST=
-	                        [ -n "$LOWMEM" ] && LIST=
+	                        bool_true 'system.@community[0].splash' || LIST="$LIST forbidden:community_splash_active"
+	                        [ -n "$LOWMEM" ] && LIST="$LIST forbidden:lowmem"
 	                else
-	                        LIST=
+	                        LIST="$LIST forbidden:adblock_disabled"
 			fi
 
-			[ -e "$LIST" ] || {
-				_log it $FUNC daemon info "[OK] drop-list '$LIST' forbidden - do nothing"
+			if [ -e "$LIST" ]; then
+				_log it $FUNC daemon info "building drop-list"
+			else
+				_log it $FUNC daemon info "[OK] drop-list not exists '$LIST' - do nothing"
 				return 0
-			}
-
-			_log it $FUNC daemon debug "building drop-list"
+			fi
 
 			local X=0
 			local Y=0
 			local COUNT=0
 			local LINE
 
+			_stopwatch start 'adblock'
 			while read -r LINE; do {
 				Y=$(( Y + 1 ))
 				[ $Y -gt 254 ] && {
@@ -247,8 +248,8 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 				}
 
 				echo "1.1.$X.$Y $LINE"		# e.g. '1.1.5.200 www.ebay.de' -> packetfilter knows, that this range must be dropped
-
 			} done <$LIST >>$SUB_DROP
+			_stopwatch stop 'adblock' quiet
 
 			_log it $FUNC daemon debug "building drop-list ready ($(( COUNT + Y )) hosts)"
 		;;
@@ -397,11 +398,7 @@ case "$1" in
 		build_hosts lan
 		build_hosts wifi
 		build_hosts virtual
-
-		stopwatch start adblock
 		build_hosts drop
-		_stopwatch stop 'adblock' quiet
-
 		build_hosts join
 
 		fkt_restart_running_dnsserver
