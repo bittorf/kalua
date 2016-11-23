@@ -80,6 +80,7 @@ special arguments:
 	  --check 	# shell-scripts only
 	  --unittest	# complete testsuite
 	  --fail	# simulate error: keep patched branch after building
+	  --nobuild	# stop after patching and building .config
 	  --update	# refresh this buildscript
 	  --dotconfig "\$myfile"
 	  --feedstime '2015-08-31 19:33'
@@ -590,6 +591,8 @@ target_hardware_set()
 			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+
+			# TODO: CONFIG_TARGET_ROOTFS_SQUASHFS=y -> CONFIG_TARGET_ROOTFS_EXT4FS is not set ?
 
 			[ "$option" = 'info' ] && {
 				cat <<EOF
@@ -3719,6 +3722,9 @@ while [ -n "$1" ]; do {
 		'--fail')
 			FAIL='true'
 		;;
+		'--nobuild')
+			NOBUILD='true'
+		;;
 		'--download_pool')
 			DOWNLOAD_POOL="$2"
 		;;
@@ -3877,10 +3883,16 @@ else
 	build_options_set 'ready'
 fi
 
-build					|| exit 1
-copy_firmware_files			|| die_and_exit
-openwrt_download 'switch_to_master'
-openwrt_download 'reset_autocommits'
+if [ "$NOBUILD" = 'true' ]; then
+	get_uptime_in_sec 'T2'
+	log "[OK] stopping just before build (needed $( calc_time_diff "$T1" "$T2" ) sec)"
+	exit 1
+else
+	build					|| exit 1
+	copy_firmware_files			|| die_and_exit
+	openwrt_download 'switch_to_master'
+	openwrt_download 'reset_autocommits'
+fi
 
 get_uptime_in_sec 'T2'
 
