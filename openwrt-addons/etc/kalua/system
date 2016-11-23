@@ -127,12 +127,14 @@ _system_crashreboot()
 	{
 		# use shell builtins only (except 'reboot')
 		echo '#!/bin/sh'
-		echo 'echo s >/proc/sysrq-trigger'	# [s]ync
+		echo 'echo s >/proc/sysrq-trigger'				# [s]ync
 		echo 'i=128000; while case $i in 0) false;; *) i=$(( i - 1 ));; esac; do :; done'	# wait ~10 sec
-		echo 'echo c >/proc/sysrq-trigger'	# [c]rash
+		echo 'command -v /tmp/sysupgrade || echo c >/proc/sysrq-trigger'	# [c]rash
 		echo 'i=256000; while case $i in 0) false;; *) i=$(( i - 1 ));; esac; do :; done'	# wait ~20 sec
-		echo '/sbin/reboot -f'
+		echo 'command -v /tmp/sysupgrade || /sbin/reboot -f'
 	} >"$file"
+
+	command -v '/tmp/sysupgrade' && return 1	# from '/sbin/sysupgrade'
 
 	case "$HARDWARE" in
 		'toomuchreboots'*)
@@ -146,6 +148,7 @@ _system_crashreboot()
 		;;
 		*)
 			/bin/chmod +x "$file" && "$file"
+			command -v '/tmp/sysupgrade' && return 1
 
 			# last try
 			echo 'c' >/proc/sysrq-trigger
