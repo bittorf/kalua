@@ -1306,7 +1306,7 @@ check_working_directory()
 	mkdir -p 'files'
 
 	# for detecting: are we in "original" (aka master) tree or in private checkout
-	case "$( git remote get-url origin )" in
+	case "$( git config --get remote.origin.url )" in
 		*'lede-project'*)
 			pattern='.'	# means: any
 		;;
@@ -1451,7 +1451,7 @@ openwrt_download()
 
 	lede_fixup()
 	{
-		case "$( git remote get-url origin )" in
+		case "$( git config --get remote.origin.url )" in
 			*'lede'*)
 				[ ${VERSION_OPENWRT_INTEGER:-0} -gt 0 ] && {
 					log "rewriting \$VERSION_OPENWRT: $VERSION_OPENWRT/$VERSION_OPENWRT_INTEGER"
@@ -1658,7 +1658,7 @@ copy_firmware_files()
 	mkdir -p "$attic"
 	rootfs='squash'
 
-	case "$( git remote get-url origin )" in
+	case "$( git config --get remote.origin.url )" in
 		*'lede'*)
 			# bin/targets/ramips/mt7621/lede-ramips-mt7621-witi-squashfs-sysupgrade.bin
 			FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/openwrt/lede/g' )"
@@ -1733,7 +1733,7 @@ copy_firmware_files()
 		esac
 	}
 
-	case "$( git remote get-url origin )" in
+	case "$( git config --get remote.origin.url )" in
 		*'lede'*)
 			pre="bin/targets/$ARCH_MAIN/$ARCH_SUB"
 		;;
