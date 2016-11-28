@@ -1164,14 +1164,18 @@ feeds_prepare()
 
 	file='feeds/routing/olsrd/Makefile'
 	githash='2d03856'	# https://github.com/OLSR/olsrd
-	log "importing OLSRd1 Makefile" 			# gitadd,untrack "$file"
-	search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
-	search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
-	search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
-	search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
-	search_and_replace "$file" ' pgraph ' ' ' && {
-		log "patching OLSRd1 for using recent HEAD" 	# gitadd,untrack "$file"
-	}
+	if grep -q "=$githash" "$file"; then
+		log "[OK] OLSRd1: Makefile already patches"
+	else
+		log "[OK] OLSRd1: importing Makefile" 			# gitadd,untrack "$file"
+		search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
+		search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
+		search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
+		search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
+		search_and_replace "$file" ' pgraph ' ' ' && {
+			log "patching OLSRd1 for using recent HEAD" 	# gitadd,untrack "$file"
+		}
+	fi
 
 	return 0
 }
@@ -1983,6 +1987,7 @@ apply_patches()
 
 			patch_for_atheros_driver()
 			{
+				grep -q ' a/drivers/net/wireless/ath/' "$1" && return 0
 				grep -q ' a/net/wireless/ath/' "$1"
 			}
 
