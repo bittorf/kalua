@@ -46,6 +46,43 @@ _storage_kmodules()
 	_system kmodules $action "$list"
 }
 
+_storage_blockinfo()
+{
+	local dev="$1"		# e.g. /dev/sda1
+
+	if command -v 'block' >/dev/null; then
+		# /dev/sda1: UUID="b2d046bb-199a-4c38-9d2c-730eba52b36b" LABEL="rootfs" VERSION="1.0" TYPE="ext2"
+		block info "$dev"
+	elif command -v 'blkid' >/dev/null; then
+		# /dev/sdc: UUID="f71f6f45-857c-411e-9636-a9dc5a6d4e87" UUID_SUB="ccd1d3bf-30ac-4848-a0b7-06a3650efba4" TYPE="btrfs"
+		blkid "$dev"
+	fi
+}
+
+_storage_set_spindown()
+{
+	local dev="$1"
+	local rotation
+	local dev_plain="$( echo "$dev" | tr -d '0-9' )"	# sda7 -> sda
+
+	# unneeded for USB-stick
+	[ "$( cat /sys/block/$dev_plain/removable 2>/dev/null )" = '0' ] && return 0
+
+	command -v hdparm >/dev/null || return 0
+
+	# http://stackoverflow.com/questions/908188/is-there-any-way-of-detecting-if-a-drive-is-a-ssd
+	# /sys/block/$dev_plain/queue/rotational -> 1
+	#
+	# e.g. 7200 or 'Solid State Device'
+	explode $( hdparm -I "/dev/$dev_plain" | fgrep 'Nominal Media Rotation Rate: ' )
+	rotation="$5"
+
+	isnumber "$rotation" && {
+		_log it $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($rotation rpm)"
+		hdparm -y -S 60 "/dev/$dev_plain"
+	}
+}
+
 _storage_automount()
 {
 	local funcname='storage_automount'
@@ -53,9 +90,10 @@ _storage_automount()
 	local line dev size blockinfo success=
 
 	# TODO:
-	# when using this for a samba-share we must make sure, that
-	# the hardlink-count: http://www.giannistsakiris.com/2011/04/15/counting-and-listing-hard-links-on-linux/
-	# is always '2' - see: https://bugzilla.samba.org/show_bug.cgi?id=9346
+	# when using this for a samba-share we must make sure, that hardlink-count is always 2
+	# http://www.giannistsakiris.com/2011/04/15/counting-and-listing-hard-links-on-linux/
+	# https://bugzilla.samba.org/show_bug.cgi?id=9346
+
 
 	# root@goflexhome:~ cat /proc/partitions
 	# major minor  #blocks  name
@@ -68,39 +106,6 @@ _storage_automount()
 	#   8        1   19543041 sda1
 	#   8        2 2127937770 sda2
 	# 254        0      62464 zram0
-
-	# root@goflexhome:~ block info /dev/sda1
-	# /dev/sda1: UUID="b2d046bb-199a-4c38-9d2c-730eba52b36b" LABEL="rootfs" VERSION="1.0" TYPE="ext2"
-
-	# root@goflexhome:~ df -h
-	# Filesystem                Size      Used Available Use% Mounted on
-	# /dev/sda1                18.3G     11.7G      5.7G  67% /tmp/hdd/sda1
-	# /dev/sda2                 2.0T      1.9T     10.6G  99% /tmp/hdd/sda2
-
-	set_spindown()
-	{
-		local dev="$1"
-		local dev_plain="$( echo "$dev" | tr -d '0-9' )"	# sda7 -> sda
-		local rotation
-
-		# unneeded for USB-stick
-		[ "$( cat /sys/block/$dev_plain/removable 2>/dev/null )" = '0' ] && return 0
-
-		command -v hdparm >/dev/null || return 0
-
-		# http://stackoverflow.com/questions/908188/is-there-any-way-of-detecting-if-a-drive-is-a-ssd
-		# /sys/block/$dev_plain/queue/rotational -> 1
-		#
-		# e.g. 7200 or 'Solid State Device'
-		explode $( hdparm -I "/dev/$dev_plain" | fgrep 'Nominal Media Rotation Rate: ' )
-		rotation="$5"
-
-		isnumber "$rotation" && {
-			_log it $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($rotation rpm)"
-			hdparm -y -S 60 "/dev/$dev_plain"
-		}
-	}
-
 	while read -r line; do {
 		case "$line" in
 			*' sda'|*' sda'[0-9]|*' sdb'|*' sdb'[0-9])
@@ -109,7 +114,7 @@ _storage_automount()
 
 				# ignore already mounted drives
 				grep -q ^"/dev/$dev " '/proc/mounts' && continue
-				blockinfo="$( block info "/dev/$dev" )"
+				blockinfo="$( _storage blockinfo "/dev/$dev" )"
 				_log it $funcname daemon info "dev: '$dev' blockinfo: '$blockinfo'"
 
 				case "$blockinfo" in
@@ -123,6 +128,10 @@ _storage_automount()
 
 						_log it $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev' ($blockinfo)"
 						mount "/dev/$dev" "$dir/$dev" && {
+							# root@goflexhome:~ df -h
+							# Filesystem                Size      Used Available Use% Mounted on
+							# /dev/sda1                18.3G     11.7G      5.7G  67% /tmp/hdd/sda1
+							# /dev/sda2                 2.0T      1.9T     10.6G  99% /tmp/hdd/sda2
 							explode $( df -h | grep "$dir/$dev"$ )
 							size="$2"
 
@@ -135,7 +144,7 @@ _storage_automount()
 								mount "/dev/$dev" "$dir/${dev}_$size" && success='true'
 							}
 
-							[ -n "$size" ] && set_spindown "$dev"
+							[ -n "$size" ] && storage set_spindown "$dev"
 						}
 					;;
 				esac
