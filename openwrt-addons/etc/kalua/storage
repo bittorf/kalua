@@ -61,25 +61,24 @@ _storage_blockinfo()
 
 _storage_set_spindown()
 {
-	local dev="$1"
+	local dev="$1"		# e.g. /dev/sda (not /dev/sdaX!)
 	local rotation
-	local dev_plain="$( echo "$dev" | tr -d '0-9' )"	# sda7 -> sda
 
 	# unneeded for USB-stick
-	[ "$( cat /sys/block/$dev_plain/removable 2>/dev/null )" = '0' ] && return 0
+	[ "$( cat /sys/block/$dev/removable 2>/dev/null )" = '0' ] && return 0
 
 	command -v hdparm >/dev/null || return 0
 
 	# http://stackoverflow.com/questions/908188/is-there-any-way-of-detecting-if-a-drive-is-a-ssd
-	# /sys/block/$dev_plain/queue/rotational -> 1
+	# /sys/block/$dev/queue/rotational -> 1
 	#
 	# e.g. 7200 or 'Solid State Device'
-	explode $( hdparm -I "/dev/$dev_plain" | fgrep 'Nominal Media Rotation Rate: ' )
+	explode $( hdparm -I "/dev/$dev" | fgrep 'Nominal Media Rotation Rate: ' )
 	rotation="$5"
 
 	isnumber "$rotation" && {
 		_log it $funcname daemon info "[OK] spindown-time to 5 minutes and spinning down now /dev/$dev ($rotation rpm)"
-		hdparm -y -S 60 "/dev/$dev_plain"
+		hdparm -y -S 60 "/dev/$dev"
 	}
 }
 
@@ -87,7 +86,8 @@ _storage_automount()
 {
 	local funcname='storage_automount'
 	local dir="$TMPDIR/storage"
-	local line dev size blockinfo success=
+	local line dev dev_plain size blockinfo success=
+	local ignore_spindown_list=
 
 	# TODO:
 	# when using this for a samba-share we must make sure, that hardlink-count is always 2
@@ -108,9 +108,10 @@ _storage_automount()
 	# 254        0      62464 zram0
 	while read -r line; do {
 		case "$line" in
-			*' sda'|*' sda'[0-9]|*' sdb'|*' sdb'[0-9])
+			*' sd'[a-z]|*' sd'[a-z][0-9])
 				explode $line
 				dev="$4"
+				dev_plain="$( echo "$dev" | tr -d '0-9' )"
 
 				# ignore already mounted drives
 				grep -q ^"/dev/$dev " '/proc/mounts' && continue
@@ -118,7 +119,9 @@ _storage_automount()
 				_log it $funcname daemon info "dev: '$dev' blockinfo: '$blockinfo'"
 
 				case "$blockinfo" in
-					*' LABEL="rootfs" '*)
+					*' LABEL="rootfs" '*|'TYPE="linux_raid_member"'*)
+						_log it $funcname daemon info "[OK] ignoring dev: $blockinfo"
+						ignore_spindown_list="$ignore_spindown_list $dev_plain"
 					;;
 					"/dev/$dev: UUID="*)
 						# happens on x86 with ext4 on cf-card
@@ -144,7 +147,11 @@ _storage_automount()
 								mount "/dev/$dev" "$dir/${dev}_$size" && success='true'
 							}
 
-							[ -n "$size" ] && storage set_spindown "$dev"
+							[ -n "$size" ] && {
+								_list contains_element "$ignore_spindown_list" "$dev_plain" || {
+									_storage set_spindown "$dev_plain"
+								}
+							}
 						}
 					;;
 				esac
