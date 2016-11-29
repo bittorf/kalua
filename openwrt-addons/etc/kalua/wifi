@@ -1610,9 +1610,9 @@ _wifi_signal_get()
 	local dev="$1"
 	local mac="$2"
 	local option="$3"	# e.g. 'debug'
-	local line age try=0 try_max=10 signal=0 file=
+	local line age try=0 try_max=10 signal=0 valid_values=0 file=
 
-	while [ $signal -eq 0 -a -z "$file" -a $try -lt $try_max ]; do {
+	while [ $signal -eq 0 -a -z "$file" -a $try -lt $try_max -a $valid_values -lt 3 ]; do {
 		try=$(( try + 1 ))
 		[ $try -gt 5 ] && sleep 1
 
@@ -1634,10 +1634,19 @@ _wifi_signal_get()
 		signal="${line#*signal: }"	# signal:  -50 [-60, -54, -53] dBm
 		signal="${signal%% *}"		# -50
 
-		isnumber "$signal" || signal=0
+		if isnumber "$signal"; then
+			[ $signal -le -10 -a $signal -ge -95 ] && {	# ok = -10...-95
+				valid_values=$(( valid_values + 1 ))
+			}
+		else
+			signal=0
+		fi
 	} done
 
-	[ "$option" = 'debug' ] && _log it $funcname daemon info "dev: $dev mac: $mac try: $try signal: $signal file: '$file'"
+	[ "$option" = 'debug' ] && {
+		_log it $funcname daemon info "dev: $dev mac: $mac try: $try signal: $signal file: '$file'"
+	}
+
 	echo "$signal"
 }
 
