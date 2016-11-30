@@ -2427,13 +2427,13 @@ build_options_set()
 			grep -v ^'patch:' "${file}.details" >>"$file"
 
 			# see autocommit()
-			grep -q ^'patch:' "${file}.details" && {
+			grep -q ^'patch:' "${file}.details" && {	# parser_ignore
 				{
 					echo
 					echo 'patches:'
 					grep ^'patch:' "${file}.details"
 				} >>"$file"
-			}
+			}						# parser_ignore
 
 			rm -f "${file}.details"
 
