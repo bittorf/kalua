@@ -142,7 +142,8 @@ uci_already_added()
 apply_olsr_roaming()
 {
 	local wired_networks="$1"		# e.g. 'lan' or 'lan wan'
-	local index network list list_ap has_5ghz has_2ghz is_hybrid milliwatt
+	local special_ssid="$2"
+	local index network list list_ap has_5ghz has_2ghz is_hybrid milliwatt disassoc_low_ack
 
 #	local ssid2	# TODO: dhcp complains about missing IP on dev
 #	ssid2="freifunk ($HOSTNAME"
@@ -201,12 +202,18 @@ apply_olsr_roaming()
 			if _wifi is2ghz "$index"; then
 				has_2ghz='true'
 				# https://wiki.openwrt.org/doc/uci/wireless#inactivity_timeout_options
-				uci set "wireless.@wifi-iface[$index].disassoc_low_ack"='1'
+				if [ -n "$special_ssid" ]; then
+					disassoc_low_ack=0
+				else
+					disassoc_low_ack=1
+				fi
+
+				uci set "wireless.@wifi-iface[$index].disassoc_low_ack=$disassoc_low_ack"
 				uci del "wireless.@wifi-iface[$index].max_inactivity"
 #				uci set "wireless.@wifi-iface[$index].max_inactivity"='30'
 			else
 				has_5ghz='true'
-				uci set "wireless.@wifi-iface[$index].disassoc_low_ack"='0'	# sticky 5ghz
+				uci set "wireless.@wifi-iface[$index].disassoc_low_ack=0"	# sticky 5ghz
 			fi
 		else
 			# e.g. 'lan'
@@ -478,7 +485,7 @@ integer2fourhex()	# e.g. 8 -> 00:08
 
 boot()
 {
-	local list pattern daemon i j good_hash
+	local list pattern daemon i j good_hash ssid=
 
 	for daemon in ulogd firewall sysntpd; do {
 		[ -e "/etc/init.d/$daemon" ] || continue
@@ -1467,6 +1474,7 @@ boot()
 				337)
 					# emelio-derzar
 					uci set system.@monitoring[0].txpower_auto='false'
+					ssid='playstation.freifunk.net'
 				;;
 				350)
 					# autostart radio
@@ -1911,7 +1919,7 @@ uci set network.wwan.modes='gsm'
 
 			[ "$ROAMING" = 'false' ] || {
 				apply_olsr_roaming "$ROAMING" && {
-					_wifi set ap any ssid 'weimar.freifunk.net'
+					_wifi set ap any ssid "${ssid:-weimar.freifunk.net}" "$ssid"
 				}
 
 				_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
