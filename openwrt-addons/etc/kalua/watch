@@ -448,18 +448,42 @@ _watch_coredump()
 
 _watch_user_list()
 {
-	local file
+	local option="$1"
+	local file mac list_keep list=
+	local keep="$PERMDIR/vds_user_list"
 	local dhcplease_12h='43200'
 
-	bool_true 'system.@weblogin[0].forget_clients' || return 0
+	case "$option" in
+		'load_keep')
+			[ -e "$keep" ] && {
+				read -r list_keep <"$keep"
+				for mac in $list_keep; do {
+					touch "/tmp/vds_user_$mac"
+				} done
+			}
+		;;
+	esac
 
 	for file in '/tmp/vds_user_'*; do {
-		[ -e "$file" ] && {
-			_file age "$file" -gt $dhcplease_12h && {
-				rm "$file"
+		if bool_true 'system.@weblogin[0].forget_clients'; then
+			[ -e "$file" ] && {
+				_file age "$file" -gt $dhcplease_12h && rm "$file"
 			}
-		}
+		else
+			mac="${file#*user_}"	# /tmp/vds_user_68:09:27:9f:89:4d -> 68:09:27:9f:89:4d
+			list="$list $mac"
+		fi
 	} done
+
+	[ -n "$list" ] && {
+		_weblogin authserver is_myself && {
+			# only update on change
+			read -r list_keep <"$keep"
+			[ "$list" = "$list_keep" ] || echo "$list" >"$keep"
+		}
+	}
+
+	true
 }
 
 _watch_space_tmpfs()
