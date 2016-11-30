@@ -209,6 +209,9 @@ autocommit()
 		[ -z "$message" ] && message="$gitfile"
 	fi
 
+	# see: build_options_set() with option 'ready'
+	echo "patch: $message | $gitfile | $count" >>'files/etc/openwrt_build.details'
+
 	git commit --signoff -m "
 autocommit: $message
 | $filetype: $gitfile $count
@@ -2421,7 +2424,17 @@ build_options_set()
 	case "$options" in
 		'ready')	# parser_ignore
 			file="$custom_dir/etc/openwrt_build"
-			cat   "${file}.details" >>"$file"
+			grep -v ^'patch:' "${file}.details" >>"$file"
+
+			# see autocommit()
+			grep -q ^'patch:' "${file}.details" && {
+				{
+					echo
+					echo 'patches:'
+					grep ^'patch:' "${file}.details"
+				} >>"$file"
+			}
+
 			rm -f "${file}.details"
 
 			log "[OK] writing details" gitadd "$file"
