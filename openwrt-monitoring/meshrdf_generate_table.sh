@@ -2242,6 +2242,7 @@ send_mail_telegram()
 	# TODO: use stored email from node
 
 	case "$NETWORK" in
+		paltstadt) list="$admin info|et-steinmetz.de info|weimar-pension-altstadt.de" ;;
 		ewerk)
 			case "$hostname" in
 				*'vorfuehrraum'*|*'kino'*|*'cafe'*)
@@ -2265,7 +2266,16 @@ send_mail_telegram()
 		amalienhof) list="$admin sven.rahaus|gmx.de info|amalienhof-weimar.de" ;;
 		zwickau) list="$admin alrik.badstuebner|web.de" ;;
 		ilm1) list="$admin stefanschlieter|gmail.com is.1|gmx.de andre-blue|gmx.de" ;;
-		wagenplatz) list="$admin platz_fabi|hotmail.com ferdinandhacke|web.de" ;;
+		wagenplatz)
+			case "$hostname" in
+				'wagenplatz-richtung-BAMAG')
+					list=		# ignore during winter/22-10uhr
+				;;
+				*)
+					list="$admin platz_fabi|hotmail.com ferdinandhacke|web.de"
+				;;
+			esac
+		;;
 		server)
 			case "$hostname" in
 				'SCC')
@@ -2285,6 +2295,9 @@ send_mail_telegram()
 					list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de"
 					# TODO:
 					message="$( echo "$message" | sed 's/liszt28/ffweimar-vhs/g' )"
+				;;
+				'CubieNAS')
+					list="$admin koch_asl|yahoo.de"
 				;;
 				'X301wigo')
 					case "$subject" in
@@ -2313,7 +2326,7 @@ send_mail_telegram()
 				'BaeckerRose'|'BaeckereiRose')
 					# TODO - own network
 					list="$admin info|et-steinmetz.de info|rose-weimar.de"
-					message="$( echo "$message" | sed 's/liszt28/brose/g' )"
+					message="$( echo "$message" | sed 's|liszt28|brose|g' )"
 				;;
 				*)
 					list="$admin"
@@ -2424,6 +2437,7 @@ send_mail_telegram()
 					# TODO - needs better concept
 				;;
 				*)
+					# do not send error-mail between 23.00-06.59
 					return 1
 				;;
 			esac

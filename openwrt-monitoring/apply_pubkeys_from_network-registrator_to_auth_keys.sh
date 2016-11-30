@@ -32,17 +32,19 @@ uptime_in_seconds()
 
 up1="$( uptime_in_seconds )"
 outfile="$HOME/.ssh/authorized_keys.$network"
-logger -s "[START] safing to $outfile"
+logger -s "[START] safing to '$outfile'"
 
 I=0
+K=0
 for file in /var/www/networks/$network/registrator/recent/* ; do {
 	[ -e "$file" ] || continue
 
-	I=$(( I + 1 ))
-	. $file
+	. $file		# getting SSHPUBKEY and NODE and WIFIMAC
 
+	I=$(( I + 1 ))	# how many keys are read
 	J=1
 	while [ $J -lt ${#SSHPUBKEY} ]; do {
+		# convert hex2bin, always 2 bytes
 		HEXBYTE="$( echo "$SSHPUBKEY" | cut -b $J,$(( J + 1 )) )"
 		J=$(( J + 2 ))
 
@@ -50,10 +52,18 @@ for file in /var/www/networks/$network/registrator/recent/* ; do {
 			octal="$( printf "%o" "0x$HEXBYTE" )"
 			eval printf "\\\\$octal"
 		}
-	} done
-} done >"$outfile"
+	} done >"$outfile.tmp"
+
+	read -r KEY <"$outfile.tmp"
+	grep -q -- ^"$KEY"$ "$outfile" || {
+		K=$(( K + 1 ))
+		logger -s "[OK] adding new/changed key for node '$NODE/$WIFIMAC' from '$file'"
+		echo "$KEY" >>"$outfile"
+	}
+} done
 
 up2="$( uptime_in_seconds )"
-logger -s "[READY] safed to $outfile in $(( up2 - up1 )) seconds ($I keys)"
+[ $K -eq 0 ] && logger -s "[OK] no new keys found"
+logger -s "[READY] safed to '$outfile' in $(( up2 - up1 )) seconds ($I keys/$K added)"
 
 [ -n "$action" ] && $0 "$action"

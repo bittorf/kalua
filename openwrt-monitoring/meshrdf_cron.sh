@@ -252,8 +252,16 @@ gen_meshrdf_for_network()
 				return 1
 			;;
 			*)
-#				log "$funcname: respect_fileage: yes"
-				return 0
+				case "$network" in
+					'cvjm')
+						# only 1 router
+						return 1
+					;;
+					*)
+#						log "$funcname: respect_fileage: yes"
+						return 0
+					;;
+				esac
 			;;
 		esac
 	}
@@ -394,9 +402,11 @@ for NET in $LIST; do {
 	ignore_network "$NET" && continue
 	NET="/var/www/networks/$NET/meshrdf/recent"
 
+	# TODO: always for 'small' networks
 	# build often!
 #	gen_meshrdf_for_network gnm
 	gen_meshrdf_for_network limona
+	gen_meshrdf_for_network cvjm
 #	gen_meshrdf_for_network ewerk
 #	gen_meshrdf_for_network malchow		# demo
 #	gen_meshrdf_for_network malchowpferde
