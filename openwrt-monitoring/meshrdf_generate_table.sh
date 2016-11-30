@@ -2342,8 +2342,8 @@ send_mail_telegram()
 		pension-ralfz) list="$admin rkleinert|ejbweimar.de" ;;
 		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
 		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
-		lisztwe) list="$admin mail|hotel-liszt.de technikad|mx.onimail.de technik|hotel-adagio.de" ;;
-		adagio) list="$admin mail|hotel-adagio.de technikad|mx.onimail.de technik|hotel-adagio.de" ;;
+		lisztwe) list="$admin technik|hotel-adagio.de" ;;
+		adagio) list="$admin technik|hotel-adagio.de" ;;
 		apphalle) list="$admin info|appartementhausamdom.de" ;;
 		spbansin)
 			list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de"

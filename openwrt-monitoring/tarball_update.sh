@@ -85,7 +85,7 @@ for NW in $NETWORK; do {
 	logger -s "from...to: $LAST_COMMIT...$COMMIT_NOW"
 	logger -s "https://github.com/bittorf/kalua/compare/$LAST_COMMIT...$COMMIT_NOW"
 	logger -s "count commits:"
-	git rev-list --format=%h $LAST_COMMIT...$COMMIT_NOW master | grep ^'commit ' | wc -l
+	git rev-list --format=%h $LAST_COMMIT...$COMMIT_NOW master | grep -c ^'commit '
 	logger -s "shortlog/authors"
 	git shortlog -s $LAST_COMMIT...$COMMIT_NOW
 
