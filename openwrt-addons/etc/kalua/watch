@@ -450,37 +450,32 @@ _watch_user_list()
 {
 	local option="$1"
 	local file mac list_keep list=
-	local keep="$PERMDIR/vds_user_list"
+	local keep="$PERMDIR/vds_user_list.tar.gz"
+	local keep_temp="$TMPDIR/vds_user_list.tar.gz"
 	local dhcplease_12h='43200'
 
 	case "$option" in
 		'load_keep')
-			[ -e "$keep" ] && {
-				read -r list_keep <"$keep"
-				for mac in $list_keep; do {
-					touch "/tmp/vds_user_$mac"
-				} done
-			}
+			[ -e "$keep" ] && tar -c / -xzf "$keep"
 		;;
 	esac
 
-	for file in '/tmp/vds_user_'*; do {
-		if bool_true 'system.@weblogin[0].forget_clients'; then
+	if bool_true 'system.@weblogin[0].forget_clients'; then
+		for file in '/tmp/vds_user_'*; do {
 			[ -e "$file" ] && {
 				_file age "$file" -gt $dhcplease_12h && rm "$file"
 			}
-		else
-			mac="${file#*user_}"	# /tmp/vds_user_68:09:27:9f:89:4d -> 68:09:27:9f:89:4d
-			list="$list $mac"
-		fi
-	} done
-
-	[ -n "$list" ] && {
+		} done
+	else
 		_weblogin authserver is_myself && {
-			# only update on change
-			read -r list_keep <"$keep"
-			[ "$list" = "$list_keep" ] || echo "$list" >"$keep"
+			# also remember filedates:
+			tar czf "$keep_temp" '/tmp/vds_user_'*
 		}
+	fi
+
+	[ -e "$keep_temp" ] && {
+		cmp "$keep" "$keep_temp" || cp "$keep_temp" "$keep"
+		rm "$keep_temp"
 	}
 
 	true
