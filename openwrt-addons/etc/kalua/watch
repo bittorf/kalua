@@ -886,6 +886,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	local funcname='watch_dns_resolution'
 	local testserver='intercity-vpn.de'	# FIXME! use a fallback list
 	local ip line pid pid_fakedns pid_parent pid_main script leases cmdline testdomain dump_core ip_nexthop
+	local marker_watchdog_ok="$PERMDIR/netifd_dhcp_watchdog_ok"
 
 	_system maintenance_window_active 'pppoe_reconnect' && return 0
 
@@ -944,7 +945,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		# e.g.: (first word is validity/unixtime)
 		# 1417698583 00:00:00:00:00:00 127.0.0.2 lo-alias *
 		if line="$( grep ' 00:00:00:00:00:00 127.0.0.2 lo-alias ' "$leases" )"; then
-			[ -e '/www/netifd_dhcp_watchdog' ] || touch '/www/netifd_dhcp_watchdog'
+			[ -e "$marker_watchdog_ok" ] || touch "$marker_watchdog_ok"
 			explode $line
 
 			if   _ntp set is_unset; then
@@ -968,7 +969,9 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 		else
 			# a lot of: 'no address range available for DHCP request via lo'
 			# when this file exists, we already have seen a working 'lo-alias'-lease
-			[ -e '/www/netifd_dhcp_watchdog' ] && {
+			[ -e "$marker_watchdog_ok" ] && {
+				rm "$marker_watchdog_ok"
+
 				_log it $funcname daemon alert 'loopback-alias/cron-watchdog seems down'
 				/etc/init.d/dnsmasq restart
 				ifup loopback
