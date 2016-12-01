@@ -3379,7 +3379,7 @@ check_scripts()
 									log "[IGNORE] will NOT check '$mimetype' file '$file' (special)"
 								;;
 								*)
-									log "checking '$mimetype' / $file"
+									log "html: checking '$mimetype' / $file"
 									tidy -errors "$file" || return 1
 								;;
 							esac

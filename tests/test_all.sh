@@ -486,14 +486,14 @@ run_test()
 		echo >>"$filelist" "$file"
 
 		ip="$( _net get_external_ip )"
-		log "_weblogin htmlout_loginpage | ip=$ip"	# omit 2 lines header:
+		log "html: _weblogin htmlout_loginpage | ip=$ip"	# omit 2 lines header
 		file='/dev/shm/generated_files/weblogin_htmlout_loginpage'
 		_weblogin htmlout_loginpage '' '' '' '' "http://$ip" '(cache)' | tail -n+3 >"$file"
 		echo >>"$filelist" "$file"
 
 		log "html: userdb"
 		file='/dev/shm/generated_userdb'
-		openwrt-addons/www/cgi-bin/userdb | tail -n+3 >"$file"
+		openwrt-addons/www/cgi-bin/userdb | tail -n+3 >"$file"	# omit 2 lines header
 		echo >>"$filelist" "$file"
 
 		# collect all shellscripts:
@@ -549,6 +549,9 @@ run_test()
 			esac
 
 			case "$( _filetype detect_mimetype "$file" )" in
+				'text/html')
+					tidy -errors "$file" || log "[ERR] in html"
+				;;
 				'text/x-shellscript')
 					# strip non-printable (ascii-subset)
 					tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
