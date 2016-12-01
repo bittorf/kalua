@@ -550,7 +550,11 @@ run_test()
 
 			case "$( _filetype detect_mimetype "$file" )" in
 				'text/html')
-					tidy -errors "$file" || log "[ERR] in html"
+					if tidy -errors "$file"; then
+						log "[OK] html / tidy"
+					else
+						log "[ERR] in html / tidy: $?"
+					fi
 				;;
 				'text/x-shellscript')
 					# strip non-printable (ascii-subset)
@@ -675,7 +679,7 @@ run_test()
 					fi
 				;;
 				*)
-					log "[IGNORE] non-shellfile '$file'"
+					log "[IGNORE] non-shellfile '$file' mime: $( _filetype detect_mimetype )"
 					continue
 				;;
 			esac
