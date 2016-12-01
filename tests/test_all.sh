@@ -491,6 +491,11 @@ run_test()
 		_weblogin htmlout_loginpage '' '' '' '' "http://$ip" '(cache)' | tail -n+3 >"$file"
 		echo >>"$filelist" "$file"
 
+		log "html: userdb"
+		file='/dev/shm/generated_userdb'
+		openwrt-addons/www/userdb | tail -n+3 >"$file"
+		echo >>"$filelist" "$file"
+
 		# collect all shellscripts:
 		find >>"$filelist" 'tests' 'openwrt-addons' 'openwrt-build' 'openwrt-monitoring' -type f -not -iwholename '*.git*'
 

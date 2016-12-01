@@ -93,6 +93,7 @@ fi
 
 	N=0; for _ in $LIST_FORM_CHECKBOX; do N=$(( N + 1 )); done 		# count tickets
 	for LOGIN_ID in $LIST_FORM_CHECKBOX; do break; done			# fetch first ticket
+
 	eval $( _db user login show $LOGIN_ID 'PROFILE_ID' )			# used_profile_id
 	eval $( _db user profile show $PROFILE_ID 'NAME' )
 
@@ -139,6 +140,14 @@ case "$FORM_ACTION" in
 		rm "$DIR_DATABASE/USER/profile/id${PROFILE_ID}_counterA" 2>/dev/null
 		echo >>$SCHEDULER_IMPORTANT "_db ticketcheck; rm /www/ticketcheck-requested_${PROFILE_ID}"
 		GLOBAL_BOTTOM_TEXT="$( _i18n get "$LANG" tickets_will_be_delivered_soon ) [$( _db list_mail_recipients )]"
+	;;
+	config_export)
+		_log it uci_export daemon alert "exporting to $REMOTE_ADDR"
+		_http header_mimetype_output "application/octet-stream" \
+			"config_export-from-${HOSTNAME}-$( _system date humanreadable ).bin.txt"
+
+		uci export
+		exit 0
 	;;
 esac
 
@@ -779,7 +788,7 @@ EOF
 <br><li>$( _i18n get "$LANG" html_manage_devices ):
 	<ul>
 EOF
-		LISTE_DEVICES="$( _db user device list )"
+		LIST_DEVICES="$( _db user device list )"
 
 		if [ -n "$LIST_LOGINS" ]; then
 			echo "<li>$( _i18n get "$LANG" new_devices ) <a href='?FORM_ACTION=device_add'>$( _i18n get "$LANG" create )</a></li>"
@@ -787,12 +796,21 @@ EOF
 			echo "<li>$( _i18n get "$LANG" new_devices ) <s>$( _i18n get "$LANG" create )</s> ($( _i18n get "$LANG" make_login_first ))</li>"
 		fi
 
-		[ -n "$LISTE_DEVICES" ] && {
+		[ -n "$LIST_DEVICES" ] && {
 			echo "<li>$( _i18n get "$LANG" show_devices )</li>"
 		}
 
 		cat <<EOF
-	</ul></li></ul>
+</ul></li>
+<br><li>$( _i18n get "$LANG" html_config_management ):
+	<ul>
+EOF
+		echo "<li>$( _i18n get "$LANG" config_export ): <a href='?FORM_ACTION=config_export'>$( _i18n get "$LANG" download )</a></li>"
+		echo "<li>$( _i18n get "$LANG" config_import ): <a href='?FORM_ACTION=config_import'>$( _i18n get "$LANG" upload )</a></li>"
+
+		cat <<EOF
+	</ul>
+</ul>
 EOF
 	;;
 esac
