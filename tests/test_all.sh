@@ -493,7 +493,7 @@ run_test()
 
 		log "html: userdb"
 		file='/dev/shm/generated_userdb'
-		openwrt-addons/www/userdb | tail -n+3 >"$file"
+		openwrt-addons/www/cgi-bin/userdb | tail -n+3 >"$file"
 		echo >>"$filelist" "$file"
 
 		# collect all shellscripts:

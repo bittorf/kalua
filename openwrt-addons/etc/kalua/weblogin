@@ -291,7 +291,7 @@ EOF
 			hidden_title='comprehensive wireless internet access throughout the entire hotel complex using mesh technology'
 			hidden_adlink="<a hreflang='en' href='$hidden_url' title='$hidden_title'>.</a>"
 
-			if _weblogin device_or_customer_needs_admin_interaction ; then
+			if _weblogin device_or_customer_needs_admin_interaction "$REMOTE_ADDR"; then
 				_weblogin htmlout_needs_admin_interaction "$LANG"
 			else
 				auth_type="$( uci -q get system.@weblogin[0].auth_type )"
@@ -536,17 +536,19 @@ _weblogin_htmlout_inet_broken()
 
 _weblogin_device_or_customer_needs_admin_interaction()
 {
+	local ip="$1"
 	local cgi_role
 
 	# public or <empty>
-	_net ip4_is_private "$REMOTE_ADDR" || return 1
+	_net ip4_is_private "$ip" || return 1
 
 	# not if another olsr-neigh
-	[ -e "/tmp/OLSR/is_my_neigh-$REMOTE_ADDR" ] && return 1
+	[ -e "/tmp/OLSR/is_my_neigh-$ip" ] && return 1
 
 	bool_true 'system.@weblogin[0].allow_cgi_roles' && {
-		[ -e "$TMPDIR/cgi_role" ] && {
-			read -r cgi_role <"$TMPDIR/cgi_role"
+		# see /www/cgi-bin-tool.sh
+		[ -e "$TMPDIR/cgi_role_$ip" ] && {
+			read -r cgi_role <"$TMPDIR/cgi_role_$ip"
 			[ "$cgi_role" = 'keininternet' ] && return 0
 		}
 	}
@@ -764,7 +766,7 @@ _weblogin_login_check()			# FIXME! send HOSTNAME?
 		esac
 	fi
 
-	if   _weblogin device_or_customer_needs_admin_interaction; then
+	if   _weblogin device_or_customer_needs_admin_interaction "$REMOTE_ADDR"; then
 		[ -n "${USER}${PASS}${MAC}" ] && {
 			if [ -e '/tmp/catch_sms' ]; then
 				_log it catch daemon info "USER: $USER PASS: $PASS MAC: $MAC IP: $ip"
