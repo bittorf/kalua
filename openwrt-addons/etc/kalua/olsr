@@ -631,15 +631,19 @@ _olsr_build_tables()				# building of /tmp/OLSR_TMP/ALL 		// is called every min
 
 	did_we_ever_had_neighbours()
 	{
-		# this means 'WiFi-neigh' and 'LAN/WAN-neigh'
+		bool_true 'olsrd.@meta[0].no_watching' && return 1
+
+		# this means 'WiFi-neigh' and 'LAN/WAN-neigh' and/or VPN-neighs
 		ls -1 /tmp/OLSR/isneigh_*  2>/dev/null >/dev/null && return 0
 		ls -1 /tmp/OLSR/goodping_* 2>/dev/null >/dev/null && return 0
 	}
 
 	if did_we_ever_had_neighbours; then
 		[ $( _file size '/tmp/OLSR/LINKS.sh' ) -eq 0 -a $OPENWRT_REV -gt 0 ] && {
-			_system maintenance_window_active 'pppoe_reconnect' || \
+			_system maintenance_window_active 'pppoe_reconnect' || {
 				_log it $funcname daemon alert 'detected 0 neighbours'
+			}
+
 			return 1
 		}
 	else

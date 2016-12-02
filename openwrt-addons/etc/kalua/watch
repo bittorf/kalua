@@ -2193,7 +2193,7 @@ _watch_olsrstuff()
 			batctl gateways | grep -q "MBit" || return 1
 
 			test -e "/tmp/OLSR_HNA_SLAVE_PINGTEST" && return 0
-			test -e "$TMPDIR/service_olsrd_nowatching" || return 0
+			bool_true 'olsrd.@meta[0].no_watching' || return 0
 
 			return 1
 		}
@@ -2201,7 +2201,7 @@ _watch_olsrstuff()
 		olsr_unneeded && {
 			_log it $funcname daemon info 'OK - olsr_unneeded'
 			rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
-			touch "$TMPDIR/service_olsrd_nowatching"
+			uci set olsrd.@meta[0].no_watching='true'
 			_olsr daemon stop "batman_active_now"
 			_net local_inet_offer >/dev/null || ip route add default via "$( uci get network.mybridge.gateway )"
 		}
@@ -2269,14 +2269,14 @@ _watch_olsrstuff()
 			fi
 		}
 	else
-		if [ -e "$TMPDIR/service_olsrd_nowatching" ]; then
+		if bool_true 'olsrd.@meta[0].no_watching'; then
 			[ -e '/tmp/OLSR_HNA_SLAVE_PINGTEST' ] && {
 				read -r IP <'/tmp/OLSR_HNA_SLAVE_PINGTEST'
 
 				_net ip_reachable "$IP" ping 30 || {
 					_log it $funcname daemon info "[ERR] ping to $IP failed"
 					ip route del default
-					rm "$TMPDIR/service_olsrd_nowatching"	# fire olsr
+					uci del 'olsrd.@meta[0].no_watching'	# fire olsr and watch - really?
 					rm "/tmp/OLSR_HNA_SLAVE_PINGTEST"
 
 					_olsr daemon start "$funcname() ping to $IP failed"
