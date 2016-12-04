@@ -19,7 +19,7 @@ else
 			# localhost
 		;;
 		*)
-			_net is_router "$REMOTE_ADDR" || {
+			_net isrouter "$REMOTE_ADDR" || {
 				_http header_mimetype_output text/plain
 				echo "# ERROR: Download from '$REMOTE_ADDR' not allowed"
 				exit 0
