@@ -1412,7 +1412,8 @@ openwrt_revision_number_get()		# e.g. 43234
 			case "$rev" in
 				'r'[0-9]*)
 					# e.g. r12345
-					echo "$rev" | cut -d'r' -f2
+					# e.g. r2445-ee5a6c1
+					echo "$rev" | cut -d'r' -f2 | cut -d'-' -f1
 				;;
 				*)
 					echo 'UNKNOWN_REVISION'
