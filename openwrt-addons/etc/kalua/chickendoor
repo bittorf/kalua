@@ -1,0 +1,83 @@
+#!/bin/sh
+
+# this works with a 'TP-LINK TL-WR1043ND'
+CHICKENDOOR_GPIO_BREAK='/sys/class/leds/tp-link:green:system/brightness'
+CHICKENDOOR_GPIO_MOTOR='/sys/class/leds/tp-link:green:usb/brightness'
+
+_chickendoor_state()
+{
+	local funcname='chickendoor_state'
+	local state="$1"
+	local file="$PERMDIR/$funcname"
+
+	case "$state" in
+		closed|open|up|down)
+			echo >"$file" "$state"
+		;;
+		get|*)
+			cat "$file"
+		;;
+	esac
+}
+
+_chickendoor_evening_close()
+{
+	local funcname='chickendoor_evening_close'
+	local interval="${1:-165}"
+
+	_chickendoor down
+	_log sleep $funcname "$interval" step 1
+	_chickendoor stop
+
+	_chickendoor state 'closed'
+}
+
+_chickendoor_morning_open()
+{
+	local funcname='chickendoor_morning_open'
+	local interval="${1:-15}"
+
+	_chickendoor up
+	_log sleep $funcname "$interval" step 1
+	_chickendoor stop
+
+	_chickendoor state 'open'
+}
+
+_chickendoor_up()	# TODO: up/down can change if spindle overturns
+{
+	_chickendoor release
+	echo 255 >"$CHICKENDOOR_GPIO_MOTOR"
+	_chickendoor state 'up'
+}
+
+_chickendoor_down()
+{
+	_chickendoor release
+
+	_log it chickendoor_down daemon info 'done'
+	_wifi led on
+
+	_chickendoor state 'down'
+}
+
+_chickendoor_stop()
+{
+	_log it chickendoor_stop daemon info 'done'
+	echo '0' >"$CHICKENDOOR_GPIO_MOTOR"
+
+	_wifi led off
+	_chickendoor brake
+}
+
+_chickendoor_release()
+{
+	_log it chickendoor_release daemon info 'break: released'
+	echo '0' >"$CHICKENDOOR_GPIO_BREAK"
+}
+
+_chickendoor_brake()
+{
+	_log it chickendoor_brake daemon info 'brake: holding'
+	echo '255' >"$CHICKENDOOR_GPIO_BREAK"
+}
