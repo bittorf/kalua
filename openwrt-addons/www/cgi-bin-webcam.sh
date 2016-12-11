@@ -33,14 +33,23 @@ pics2movie()
 		tar -C 'pix' -xf "$file" || echo "error in '$file'"
 
 		cd 'pix' || return 1
-		ls -1rt >../frames/files.txt
+		ls -1 >"../frames/files.txt"
 		while read -r line; do {
-			mv "$line" "../frames/img-$( printf '%05d' "$i" ).jpg"
+			mv "$line" "../frames/img-$( date +%s -r "$line" ).jpg"
 			i=$(( i + 1 ))
-		} done <../frames/files.txt
+		} done <"../frames/files.txt"
 		cd - >/dev/null
 	} done
 
-	ffmpeg -r 60 -f image2 -i frames/img-%05d.jpg -vcodec libx264 -crf 15 -pix_fmt yuv420p out.mp4
+	cd frames
+	i=0
+	ls -1rt | while read -r line; do {
+		# TODO: enforce '1280x720' and RGB24?
+		convert "$line" "img-$( printf '%05d' "$i" ).png" && i=$(( i + 1 ))
+		rm "$line"
+	} done
+
+	ffmpeg -r 60 -f image2 -i img-%05d.png -vcodec libx264 -crf 15 -pix_fmt yuv420p ../out.mp4
+	cd - >/dev/null
 	rm -fR 'pix' 'frames'
 }
