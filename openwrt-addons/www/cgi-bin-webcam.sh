@@ -27,7 +27,8 @@ pics2movie()
 	local file
 	local line i=0
 
-	mkdir 'pix' 'frames'
+	mkdir 'pix' || return		# plain .jpg's from tar-files
+	mkdir 'frames' || return	# sanitized pics converted to .png
 
 	for file in *.tar; do {
 		tar -C 'pix' -xf "$file" || echo "error in '$file'"
@@ -38,10 +39,10 @@ pics2movie()
 			mv "$line" "../frames/img-$( date +%s -r "$line" ).jpg"
 			i=$(( i + 1 ))
 		} done <"../frames/files.txt"
-		cd - >/dev/null
+		cd - >/dev/null || return
 	} done
 
-	cd frames
+	cd frames || return
 	i=0
 	ls -1rt | while read -r line; do {
 		# TODO: enforce '1280x720' and RGB24?
@@ -50,6 +51,6 @@ pics2movie()
 	} done
 
 	ffmpeg -r 60 -f image2 -i img-%05d.png -vcodec libx264 -crf 15 -pix_fmt yuv420p ../out.mp4
-	cd - >/dev/null
+	cd - >/dev/null || return
 	rm -fR 'pix' 'frames'
 }
