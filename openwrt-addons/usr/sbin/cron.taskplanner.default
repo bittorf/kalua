@@ -13,15 +13,20 @@ eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%d;' )
 . /tmp/loader
 [ -z "$UP" ] && read -r UP REST </proc/uptime		# normally done during cron.minutely
 
-# read -r REST <'/tmp/OLSR/DEFGW_NOW' || REST='8.8.8.8'
-# test $( _net ping_getlatency "$REST" || echo '100' ) -gt 99 && _system crashreboot wifiphy_probs
+if [ -e "$TMPDIR/firstrun" ]; then
+	# echo >$SCHEDULER '_firmware check_forced_upgrade'
+	[ -e "$TMPDIR/.autorun" ] && _watch autorun		# direct call
 
-# echo >$SCHEDULER '_firmware check_forced_upgrade'
-[ -e "$TMPDIR/.autorun" ] && _watch autorun		# direct call
-
-[ -e "$TMPDIR/firstrun" ] || {
+	bool_true 'olsrd.@meta[0].watch_gateway' && {
+		read -r REST <'/tmp/OLSR/DEFGW_NOW' || REST='8.8.8.8'
+		test $( _net ping_getlatency "$REST" || echo '100' ) -gt 99 && {
+			_system crashreboot wifiphy_probs
+		}
+	}
+else
 	touch "$TMPDIR/firstrun"
 
+	# jobs directly after bootup
 	cat >>$SCHEDULER <<EOF
 _watch flash_free_space
 _ssh sanitize_and_cleanup_keys
@@ -33,7 +38,7 @@ cron.monitoring send_alive_message
 _watch user_list load_keep
 _vpn x
 EOF
-}
+fi
 
 cat >>$SCHEDULER <<EOF
 _watch wifistuff

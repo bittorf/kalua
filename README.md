@@ -385,6 +385,7 @@ Special UCI-variables
 	system.@profile[0].ipsystem		- string
 
 	olsrd.@meta[0].no_watching		- bool
+	olsrd.@meta[0].watch_gateway		- bool
 	olsrd.@meta[0].hnaslave			- bool
 	olsrd.@meta[0].hnaslave_dirty		- bool
 	olsrd.@meta[0].hnaslave_condition	- e.g. '2 ap'

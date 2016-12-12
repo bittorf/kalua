@@ -65,7 +65,7 @@ output_table()
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent vpn_proto
 	local head_list neigh_list neigh_file neigh age inet_offer cost_best cost_best_time th_insert mult_ip count cost_align i
 #	local noisefloor
-	local symbol_infinite='<big>&infin;</big>'
+	local symbol_infinite='<big>&infin;</big>' metric_ok='false'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
 
 	if [ -e '/tmp/OLSR/DEFGW_NOW' ]; then
@@ -292,6 +292,7 @@ output_table()
 		case "$metric" in
 			'1')
 				metric='direkt'
+				metric_ok='true'	# we need at least 1 direct neigh, otherwise we restart the daemon later
 			;;
 			'')
 				metric='&mdash;'
@@ -510,7 +511,7 @@ output_table()
  <td align='right' title='$cost_best_time'> $cost_best </td>
  <td align='right'>$( _wifi speed cached $REMOTE | cut -d'-' -f2 )</td>
  <td align='right' bgcolor='$snr_color'> $snr </td>
- <td align='center'> $metric </td>
+ <td align='center' $( test "$metric" = '&mdash;' && echo "bgcolor='crimson'" )> $metric </td>
  <td align='right'> $rx_mbytes </td>
  <td align='right'> $tx_mbytes </td>
  <td nowrap> $gateway_percent </td>
@@ -702,6 +703,11 @@ _switch show 'html' 'Ansicht der Netzwerkanschl&uuml;sse:&nbsp;'
 
 bool_true 'system.@monitoring[0].cisco_collect' && {
 	_cisco collect show
+}
+
+test "$metric_ok" = 'true' || {
+	_log it watch_metric daemon alert 'killing daemon, let cron restart it'
+	killall olsrd
 }
 
 cat <<EOF

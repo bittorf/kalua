@@ -7,15 +7,22 @@ _http header_mimetype_output 'application/x-tar' "webcam_${ANYADR}_$( date +%s )
 
 LIST="$TMPDIR/webcam_filelist.txt"
 # e.g. 02-20161209142507-01.jpg
-ls -1t *.jpg | grep -v 'lastsnap.jpg' >"$LIST"
+# find . -type f -name '*.jpg' | grep -v 'lastsnap.jpg' >"$LIST"
+ls -1t *'.jpg' | grep -v 'lastsnap.jpg' >"$LIST"
 
 [ -s "$LIST" ] && {
+	read -r FILE <"$LIST"			# most recent
+	END_MARKER="$( printf "\xFF\xD9" )"
+	FILE_END="$( tail -c2 "$FILE" )"
+	test "$END_MARKER" = "$FILE_END" || BADFILE="$FILE"	# we do not remove it later, if not fully written
+
 	# e.g. download with 'wget --content-disposition http://$IP/cgi-bin-webcam.sh'
 	tar -c -T "$LIST" -f -
 
 	while read -r FILE; do {
+		# test "$END_MARKER" = "$FILE_END"
 		test -e "$FILE" -a "$FILE" != 'webcam.jpg' && {
-			rm "$FILE"
+			test "$FILE" = "$BADFILE" || rm "$FILE"
 		}
 	} done <"$LIST"
 }
