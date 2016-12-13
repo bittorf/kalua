@@ -1,0 +1,53 @@
+#!/bin/sh
+
+_date_sunrise_sunset_apicall()
+{
+	local funcname='date_sunrise_sunset_apicall'
+	local mode="${1:-sunrise}"	# sunrise|sunset
+	local lat="${2:-$( uci get system.@admin[0].latlon | cut -d';' -f1 )}"
+	local lon="${3:-$( uci get system.@admin[0].latlon | cut -d';' -f2 )}"
+	local url='http://api.sunrise-sunset.org/json'
+	local file="$TMPDIR/$funcname"
+	local http_answer url sunrise sunset
+
+	if _file is_from_today "$file.$mode"; then
+		cat "$file.$mode"
+		return 0
+	else
+		# see http://sunrise-sunset.org/api
+		url='http://api.sunrise-sunset.org/json'
+		url="$url?lat=$lat&lng=$lon&formatted=0"
+		http_answer="$( _curl it "$url" )"
+
+		. /usr/share/libubox/jshn.sh
+		json_load "$http_answer"
+		sunrise="$J_T1_sunrise"		# TODO: json_get_var ...
+		sunset="$J_T1_sunrset"
+		json_cleanup
+
+		# e.g. 2016-12-13T07:10:17+00:00
+		sunrise="$( echo "$sunrise" | tr 'T' ' ' )"
+		sunrise="$( date -u -d "$sunrise" +%s )" && echo "$sunrise" >"$file.sunrise"
+
+		sunset="$( echo "$sunset" | tr 'T' ' ' )"
+		sunset="$( date -u -d "$sunset" +%s )" && echo "$sunset" >"$file.sunset"
+
+		cat "$file.$mode"
+	fi
+}
+
+_date_sunrise_today()	# out: unixtime
+{
+	local lat="$1"
+	local lon="$2"
+
+	_date sunrise_sunset_apicall 'sunrise' "$lat" "$lon"
+}
+
+_date_sunset_today()	# out: unixtime
+{
+	local lat="$1"
+	local lon="$2"
+
+	_date sunrise_sunset_apicall 'sunset' "$lat" "$lon"
+}
