@@ -62,7 +62,7 @@ pics2movie()
 	cd frames || return
 	j=0
 	ls -1rt | while read -r file; do {
-		convert "$file" -resize 1280x720 -depth 24 "img-$( printf '%05d' "$j" ).png" && j=$(( j + 1 ))
+		convert "$file" -resize 1280x720 -depth 24 -colorspace RGB "img-$( printf '%05d' "$j" ).png" && j=$(( j + 1 ))
 		logger -s "convert: $j/$i"
 		rm "$file"
 	} done
