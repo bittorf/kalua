@@ -7,8 +7,8 @@
 
 # MINUTE = 00...59
 # HOUR   = 00...23
-MINUTE=;HOUR=;WEEKDAY=;DAYOFMONTH=
-eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%d;' )
+MINUTE=;HOUR=;WEEKDAY=;DAYOFMONTH=;UNIXTIME=
+eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%d; UNIXTIME=%s;' )
 
 . /tmp/loader
 [ -z "$UP" ] && read -r UP REST </proc/uptime		# normally done during cron.minutely
@@ -73,18 +73,28 @@ bool_true 'olsrd.@meta[0].no_watching' || {
 } >>$SCHEDULER
 
 _chickendoor state 'enabled' && {
-	# https://www.google.de/search?q=sonnenuntergang+heute
-	# https://www.google.de/search?q=sonnenaufgang+heute
-	#
-	# 2016aug25: 6:19 + 20.15
-	# 2016sep09: 6:43 + 19:46
-	# 2016sep19: 6:58 + 19:19
-	# 2016nov28: 7:52 + 16:13
-	#
-	# 10 min before sunrise
-	# 45 min after sunset
-	case "$MINUTE" in 57|58|59) case "$HOUR" in 06) test "$( _chickendoor state 'get' )" = 'closed' && _chickendoor morning_open ;; esac ;; esac
-	case "$MINUTE" in 47|48|49) case "$HOUR" in 17) test "$( _chickendoor state 'get' )" = 'open'   && _chickendoor evening_close ;; esac ;; esac
+	case "$( _chickendoor state 'get' )" in
+		'closed')
+			case "$HOUR" in
+				04|05|06|07|08|09|10)
+					# open 15 minutes before sunrise
+					test $(( UNIXTIME - (15*60) )) -gt $( _date sunrise_today ) && {
+						_chickendoor morning_open
+					}
+				;;
+			esac
+		;;
+		'open')
+			case "$HOUR" in
+				16|17|18|19|20|21|22)
+					# close 45 minutes after sunset
+					test $(( UNIXTIME + (45*60) )) -gt $( _date sunset_today ) && {
+						_chickendoor evening_close
+					}
+				;;
+			esac
+		;;
+	esac
 }
 
 case "$HOUR:$MINUTE" in
