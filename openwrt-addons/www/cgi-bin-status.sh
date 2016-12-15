@@ -333,7 +333,7 @@ output_table()
 				for dev in $WIFI_DEVS; do {
 
 					# maybe use: wifi_get_station_param / wifi_show_station_traffic
-					explode $( iw dev "$dev" station get "$mac" )
+					explode $( iw dev "$dev" station get "$mac" 2>/dev/null )
 					while [ -n "$1" ]; do {
 						shift
 						case "$1 $2" in
