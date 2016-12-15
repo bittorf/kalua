@@ -32,13 +32,15 @@ rm "$LIST"
 pics2movie()
 {
 	local file timestamp line j=0 i=0 oldest=0 newest=9999999999
+	local TMPDIR="$HOME/ramdisk"
+
+	# mkdir "$HOME/ramdisk"
+	# sudo mount -t tmpfs -o size=80% none "$HOME/ramdisk"	# TODO: use it
 
 	mkdir 'pix' || return		# plain .jpg's from tar-files
 	mkdir 'frames' || return	# sanitized pics converted to .png
 
-	# TODO: do most in ram-disc?
-	# TODO: show progress
-	# unpack every tar and throw all files into 1 dir
+	# unpack every tar and throw all files into 1 dir:
 	for file in *.tar; do {
 		j=$(( j + 1 ))
 		tar -C 'pix' -xf "$file" || logger -s "error in '$file'"
@@ -58,17 +60,23 @@ pics2movie()
 	} done
 	logger -s "all files: $i in $j tars - oldest=$oldest=$( date -d @$oldest ) newest=$newest=$( date -d @$newest )"
 
-	# sanitize each picture
+	# sanitize each picture:
 	cd frames || return
 	j=0
 	ls -1rt | while read -r file; do {
-		convert "$file" -resize 1280x720 -depth 24 -colorspace RGB "img-$( printf '%05d' "$j" ).png" && j=$(( j + 1 ))
+		convert "$file" \
+			-resize 1280x720 \
+			-depth 24 -colorspace RGB \
+			-define png:compression-filter=1 \
+			-define png-compression-level=7 \
+			-define png:compression-strategy=2 \
+			"img-$( printf '%05d' "$j" ).png" && j=$(( j + 1 ))
 		logger -s "convert: $j/$i"
 		rm "$file"
 	} done
 	logger -s "all files: $i files ok: $( ls -l *.png | tail -n1 ) oldest: $oldest newest: $newest"
 
-	ffmpeg -r 60 -f image2 -i img-%05d.png -vcodec libx264 -crf 15 -pix_fmt yuv420p "../out.mp4"
-	cd - >/dev/null || return
+	ffmpeg -r 60 -f image2 -i img-%05d.png -vcodec libx264 -crf 15 -pix_fmt yuv420p "../out.mp4" || return 1
+	cd - >/dev/null || return 1
 	rm -fR 'pix' 'frames'
 }

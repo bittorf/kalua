@@ -76,24 +76,20 @@ bool_true 'olsrd.@meta[0].no_watching' || {
 _chickendoor state 'enabled' && {
 	case "$( _chickendoor state 'get' )" in
 		'closed')
-			case "$HOUR" in
-				04|05|06|07|08|09|10)
-					# open 15 minutes before sunrise
-					test $(( UNIXTIME - (15*60) )) -gt $( _date sunrise_today ) && {
-						_chickendoor morning_open
-					}
-				;;
-			esac
+			REST=$(( $( _date sunrise_today ) - UNIXTIME ))
+			[ $REST -lt 3600 -a $REST -gt -3600 ] && {
+				# open 45 minutes before sunrise
+				test $(( UNIXTIME - (45*60) )) -gt $( _date sunrise_today ) && \
+					_chickendoor morning_open
+			}
 		;;
 		'open')
-			case "$HOUR" in
-				16|17|18|19|20|21|22)
-					# close 45 minutes after sunset
-					test $(( UNIXTIME + (45*60) )) -gt $( _date sunset_today ) && {
-						_chickendoor evening_close
-					}
-				;;
-			esac
+			REST=$(( $( _date sunset_today ) - UNIXTIME ))
+			[ $REST -lt 3600 -a $REST -gt -3600 ] && {
+				# close 45 minutes after sunset
+				test $(( UNIXTIME + (45*60) )) -gt $( _date sunset_today ) && \
+					_chickendoor evening_close
+			}
 		;;
 	esac
 }
