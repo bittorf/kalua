@@ -540,6 +540,8 @@ EOF
 		echo " <td colspan='3'> &nbsp; </td>"
 		echo "</tr>"
 	} done
+
+	test "$metric_ok" = 'true'
 }
 
 [ -e '/tmp/OLSR/ALL' ] || _olsr build_tables
@@ -697,17 +699,16 @@ cat <<EOF
   <table cellspacing='5' cellpadding='5' border='0' class='sortable'>
 EOF
 
-output_table "$@"	# SC2119/SC2120
+output_table "$@" || {		# SC2119/SC2120
+	_log it watch_metric daemon alert 'killing daemon, let cron restart it'
+	killall olsrd
+}
+
 echo '  </table>'
 _switch show 'html' 'Ansicht der Netzwerkanschl&uuml;sse:&nbsp;'
 
 bool_true 'system.@monitoring[0].cisco_collect' && {
 	_cisco collect show
-}
-
-test "$metric_ok" = 'true' || {
-	_log it watch_metric daemon alert 'killing daemon, let cron restart it'
-	killall olsrd
 }
 
 cat <<EOF
