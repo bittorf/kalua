@@ -7,9 +7,9 @@ cd /webcam || exit
 _http header_mimetype_output 'application/x-tar' "webcam_${ANYADR}_$( date +%s ).tar"
 
 LIST="$TMPDIR/webcam_filelist.txt"
-# e.g. 02-20161209142507-01.jpg
-# find . -type f -name '*.jpg' | grep -v 'lastsnap.jpg' >"$LIST"
-ls -1t *'.jpg' | grep -v 'lastsnap.jpg' >"$LIST"
+# e.g. '02-20161209142507-01.jpg' or 'webcam.jpg'
+ls -1t *'.jpg' >"$LIST"
+sed -i 's/lastsnap.jpg/d' "$LIST"
 
 [ -s "$LIST" ] && {
 	read -r FILE <"$LIST"			# most recent
@@ -18,7 +18,7 @@ ls -1t *'.jpg' | grep -v 'lastsnap.jpg' >"$LIST"
 	test "$END_MARKER" = "$FILE_END" || BADFILE="$FILE"	# we do not remove it later, if not fully written
 
 	# e.g. download/cronjob like:
-	# wget -O recent.bin http://$IP/cgi-bin-webcam.sh && mv recent.bin webcam_$IP.$(date +%s).tar'
+	# wget -O recent.bin http://$IP/cgi-bin-webcam.sh && mv recent.bin cam_$IP.$(date +%s).tar'
 	tar -c -T "$LIST" -f -
 
 	while read -r FILE; do {
@@ -61,9 +61,9 @@ pics2movie()
 	# Di 13. Dez 14:54:04 CET 2016
 	# di 13  dez 14 54 04 cet 2016
 	# 2016-13dez-14h54
-	set -- $( date -d @$oldest | sed 's/[^0-9a-zA-Z]/ /g' | tr '[[:upper:]]' '[[:lower:]]' )
+	set -- $( date -d @$oldest | sed 's/[^0-9a-zA-Z]/ /g' | tr '[:upper:]' '[:lower:]' )
 	oldest="$8-${2}$3-${4}h$5"
-	set -- $( date -d @$newest | sed 's/[^0-9a-zA-Z]/ /g' | tr '[[:upper:]]' '[[:lower:]]' )
+	set -- $( date -d @$newest | sed 's/[^0-9a-zA-Z]/ /g' | tr '[:upper:]' '[:lower:]' )
 	newest="$8-${2}$3-${4}h$5"
 	out="../$( pwd | sed 's|^.*/||' )_$( date +%s )_${newest}_${oldest}.mp4"	# dirname in which we are in, e.g. cam-buero-aussen
 
