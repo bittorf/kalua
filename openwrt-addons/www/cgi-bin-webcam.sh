@@ -8,7 +8,7 @@ _http header_mimetype_output 'application/x-tar' "webcam_${ANYADR}_$( date +%s )
 
 LIST="$TMPDIR/webcam_filelist.txt"
 # e.g. '02-20161209142507-01.jpg' or 'webcam.jpg'
-ls -1t *'.jpg' >"$LIST"
+ls -1t ./*'.jpg' >"$LIST"
 sed -i 's/lastsnap.jpg/d' "$LIST"
 
 [ -s "$LIST" ] && {
@@ -70,6 +70,7 @@ pics2movie()
 	# sanitize each picture in 'frames'
 	cd frames || return
 	codec='-c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 15 -profile:v baseline -level 3.0'
+	# shellcheck disable=SC2012
 	ls -1rt | while read -r file; do {
 		convert "$file" -resize 1280x720 -depth 24 -colorspace RGB ppm:-
 		rm "$file"

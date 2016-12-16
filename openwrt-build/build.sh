@@ -1165,9 +1165,12 @@ feeds_prepare()
 		make package/symlinks
 	}
 
+	# TODO: cd feeds/routing && git stash
 	file='feeds/routing/olsrd/Makefile'
 	githash='2d03856'	# https://github.com/OLSR/olsrd
-	if grep -q "=$githash" "$file"; then
+	if   grep -q 'PKG_VERSION:=0.9.5' "$file"; then
+		:
+	elif grep -q "=$githash" "$file"; then
 		log "[OK] OLSRd1: Makefile already patches"
 	else
 		log "[OK] OLSRd1: importing Makefile" 			# gitadd,untrack "$file"
