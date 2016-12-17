@@ -72,16 +72,17 @@ bool_true 'olsrd.@meta[0].no_watching' || {
 	echo '_olsr incoming_and_outgoing_olsr_traffic'
 } >>$SCHEDULER
 
-# TODO: block for X minutes when e.g. closed or opened manually?
+# TODO: build a real crontab-entry once a day
+# TODO: block for 60 minutes when e.g. closed or opened manually?
 _chickendoor state 'enabled' && {
 	case "$( _chickendoor state 'get' )" in
 		'closed')
-			REST=$(( $( _date sunrise_today ) - UNIXTIME - 2700 ))	# open 45 min before sunrise
-			[ $REST -lt 2700 -a $REST -gt 0 ] && _chickendoor morning_open
+			REST=$(( $( _date sunrise_today ) - 2700 ))	# open: 45 min before sunrise
+			[ $(( UNIXTIME - REST )) -ge 0 -a $(( UNIXTIME - REST )) -lt 1800 ] && _chickendoor morning_open
 		;;
 		'open')
-			REST=$(( $( _date sunset_today ) - UNIXTIME + 2700 ))	# close 45 min after sunset
-			[ $REST -lt 0 -a $REST -gt -2700 ] && _chickendoor evening_close
+			REST=$(( $( _date sunset_today ) + 2700 ))	# close: 45 min after sunset
+			[ $(( UNIXTIME - REST )) -ge 0 -a $(( UNIXTIME - REST )) -lt 1800 ] && _chickendoor evening_close
 		;;
 	esac
 }
