@@ -94,12 +94,6 @@ elif fgrep -s ' 0% packet loss' '/tmp/PING'; then
 else
 	REST="$( fgrep -s '% packet loss' '/tmp/PING' )"
 
-	# FIXME! use real clock-values
-	# ignore error during early UP and reboot_nightly
-	[ ${UP%.*} -lt 300 -o ${UP%.*} -gt 86000 ] && {
-		bool_true 'system.@system[0].avoid_autoreboot' || REST=
-	}
-
 	case "$REST" in
 		'')
 		;;
@@ -126,6 +120,13 @@ else
 			REST=2
 		;;
 	esac
+
+	[ -n "$REST" ] && {
+		# ignore error during early UP and reboot_nightly
+		[ ${UP%.*} -lt 300 -o ${UP%.*} -gt 86000 ] && {
+			_system maintenance_window_active && REST=
+		}
+	}
 
 	if [ -n "$REST" ]; then
 		read -r LOAD _ <'/proc/loadavg'
