@@ -1225,6 +1225,50 @@ boot()
 			uci set olsrd.@meta[0].hnaslave=0
 			_wifi set ap 2ghz ssid 'Borbing'
 		;;
+		hentzel*)
+			# fullduplex mesh network with olsr2 and separated channels for RX/TX:
+			case "$NODENUMBER" in
+				2|3)
+					# group-A: hybrid / dualband / inet
+					#          mesh: channel 36
+					_wifi set adhoc   2ghz 'off'
+					_wifi set anymode 2ghz channel 1		# also mesh0.20mhz
+
+					_wifi set anymode 5ghz channel 36		# also mesh1.20mhz
+				;;
+				4|6)
+					# group-A: mesh: channel 14
+					_wifi set ap anyfreq 'off'
+					_wifi longshot name 'mesh2' distance 50 channel 14 chanbw 5 mhz mcast 6000 nodes '4 6'
+					ROAMING='false'
+				;;
+				5|7)
+					# group-A: mesh: channel
+					_wifi set ap anyfreq 'off'
+					_wifi longshot name 'mesh3' distance 50 channel 8 chanbw 5 mhz mcast 6000 nodes '4 6'
+					ROAMING='false'
+				;;
+				3)
+					# group-B: hybrid / dualbanid
+					#          mesh: channel 36
+				;;
+				6)
+					# group-B: mesh: channel 14
+				;;
+				7)
+					# group-B:
+				;;
+			esac
+
+			[ "$ROAMING" = 'false' ] || {
+				apply_olsr_roaming "$ROAMING" && {
+					_wifi set ap any ssid 'Villa Hentzel'
+				}
+
+				_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
+				_wifi set adhoc 5ghz ssid 'ffintern.5GHz'
+			}
+		;;
 		ffweimar*)
 			uci set system.@vpn[0].active='true'
 
@@ -1778,7 +1822,7 @@ uci set network.wwan.modes='gsm'
 					uci set network.wan.shaping_uplink='940'
 					uci set network.wan.shaping_downlink='15000'
 
-					uci set system.@vpn[0].active='false'	# till issues are solved
+					uci set system.@vpn[0].active='true'
 				;;
 				279)
 					# roehr30
@@ -1824,6 +1868,9 @@ uci set network.wwan.modes='gsm'
 			_wifi longshot name 'BAMAG-wagenplatz' distance 500 channel 100 chanbw 40 mhz mcast  6000 nodes '825 826'
 			_wifi longshot name 'f36-schlacht5GHz' distance 360 channel 100 chanbw 40 mhz mcast  6000 nodes '719 670'
 			_wifi longshot name 'f36-schlacht2GHz' distance 360 channel  11 chanbw 40 mhz mcast 12000 nodes '766 814 905'
+			_wifi longshot name 'kueche-loettisch' distance  20 channel  14 chanbw  5 mhz mcast  6000 nodes '2 222'
+			[ "$NODENUMBER" = '222' ] && uci set system.@monitoring[0].pingcheck="$( _ipsystem getvar WIFIADR   2 )"
+			[ "$NODENUMBER" =   '2' ] && uci set system.@monitoring[0].pingcheck="$( _ipsystem getvar WIFIADR 222 )"
 
 			# TODO:
 			# - longshot: speed '$node->$node/$up/$down'
@@ -1919,10 +1966,15 @@ uci set network.wwan.modes='gsm'
 					ROAMING='false'
 				;;
 				2)
-					# EG-labor-AP
+					# EG-labor-AP / kueche
 					# 10.63.2.33 / VoIP
 					# scp intercity-vpn.de:/var/www/files/beethovens9th-long.wav /www/audio.wav
 					uci set system.@system[0].avoid_autoreboot='true'
+					_wifi set ap 2ghz 'off'
+				;;
+				920)
+					# EG-labor-zweiter / kueche
+					_wifi set adhoc 2ghz 'off'
 				;;
 			esac
 

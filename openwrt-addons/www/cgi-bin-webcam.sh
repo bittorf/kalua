@@ -34,6 +34,7 @@ rm "$LIST"
 
 pics2movie()
 {
+	local resolution='1280x720'
 	local out codec file timestamp line j=0 i=0 oldest=0 newest=9999999999
 	# scp 10.63.2.34:bigbrother/cam-{buero-innen,buero-aussen,muelltonne}/*.tar .
 	mkdir 'pix' || return		# plain .jpg's from tar-files
@@ -65,16 +66,18 @@ pics2movie()
 	oldest="$8-${2}$3-${4}h$5"
 	set -- $( date -d @$newest | sed 's/[^0-9a-zA-Z]/ /g' | tr '[:upper:]' '[:lower:]' )
 	newest="$8-${2}$3-${4}h$5"
-	out="../$( pwd | sed 's|^.*/||' )_$( date +%s )_${newest}_${oldest}.mp4"	# dirname in which we are in, e.g. cam-buero-aussen
+	out="../$( pwd | sed 's|^.*/||' )_$( date +%s )_${newest}_${oldest}"	# dirname in which we are in, e.g. cam-buero-aussen
 
 	# sanitize each picture in 'frames'
 	cd frames || return
 	codec='-c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 15 -profile:v baseline -level 3.0'
 	# shellcheck disable=SC2012
 	ls -1rt | while read -r file; do {
-		convert "$file" -resize 1280x720 -depth 24 -colorspace RGB ppm:-
+		# TODO: output error-picture with time if pic is damaged
+		convert "$file" -resize "$resolution" -depth '24' -colorspace 'RGB' ppm:-
 		rm "$file"
-	} done | ffmpeg -r 10 -f image2pipe -vcodec ppm -i - $codec -f mp4 "$out"
+	} done | ffmpeg -r 10 -f image2pipe -vcodec ppm -i - $codec -f mp4 "$out.mp4"
+	# ffmpeg -f image2pipe -vcodec mjpeg -i - -qscale 0 -f mjpeg -vcodec mjpeg -y "$out.mjpeg"
 
 	cd - >/dev/null && rm -fR 'pix' 'frames'
 }
