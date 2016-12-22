@@ -2006,7 +2006,7 @@ _wifi_scan_geolocation()
 	local funcname='wifi_scan_geolocation'
 	local file="$TMPDIR/scan.json"
 	local marker="$TMPDIR/$funcname"	# e.g. 50.972;11.328
-	local lat= lon= latlon=
+	local lat='' lon='' latlon=''
 
 	[ $OPENWRT_REV -gt 0 -a -e "$marker" ] && {
 		_file age "$marker" -lt 43200 && {
@@ -2843,10 +2843,11 @@ _wifi_longshot()	# this works only for all radios on some band in adhoc-mode
 	# TODO: txpower
 
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101'
+	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101' pingcheck
 	# e.g. _wifi longshot channel 36 chanbw 10 mhz mcast 12000 distance 800 name 'j2-reithaus' nodes '100 101' testtime '04:32' testchannel '36...165'
 
 	# option: chantest? chanbwtest? -> testtime 3:50
-	local channel='' chanbw='' node='' mcast_rate='' name='' bssid='' distance='' index='' radio=''
+	local channel='' chanbw='' node='' mcast_rate='' name='' bssid='' distance='' index='' radio='' nodelist='' ip=''
 	local band='anyfreq'
 
 	# in 802.11n-mode we need the beacons from our neighs for HT-capabilities
@@ -2886,8 +2887,20 @@ _wifi_longshot()	# this works only for all radios on some band in adhoc-mode
 				chanbw="$2"
 				shift
 			;;
+			'pingcheck')
+				[ "$( _list count_elements "$nodelist" )" -eq 2 ] && {
+					for node in $nodelist; do {
+						[ "$NODENUMBER" = "$node" ] || {
+							ip="$( _ipsystem getvar WIFIADR "$node" )"
+							uci set system.@monitoring[0].pingcheck="$ip"
+						}
+					} done
+				}
+			;;
 			'nodes')
 				for node in $2; do {
+					nodelist="$nodelist $node"
+
 					[ "$NODENUMBER" = "$node" ] && {
 						[ -n "$mcast_rate" ] && {
 							_wifi set adhoc $band mcast_rate "$mcast_rate"
