@@ -1229,45 +1229,46 @@ boot()
 			# fullduplex mesh network with olsr2 and separated channels for RX/TX:
 			case "$NODENUMBER" in
 				2|3)
-					# group-A: hybrid / dualband / inet
+					# hybrid / dualband / inet
 					#          mesh: channel 36
 					_wifi set adhoc   2ghz 'off'
 					_wifi set anymode 2ghz channel 1		# also mesh0.20mhz
 
+					_wifi set adhoc   5ghz 'off'
 					_wifi set anymode 5ghz channel 36		# also mesh1.20mhz
 				;;
 				4|6)
-					# group-A: mesh: channel 14
+					# mesh: channel 14 - TX
 					_wifi set ap anyfreq 'off'
-					_wifi longshot name 'mesh2' distance 50 channel 14 chanbw 5 mhz mcast 6000 nodes '4 6'
+					_wifi longshot name 'intern1' distance 50 channel 14 chanbw 5 mhz mcast 6000 nodes '4 6'
 					ROAMING='false'
 				;;
 				5|7)
-					# group-A: mesh: channel
+					# mesh: channel 8 - RX
 					_wifi set ap anyfreq 'off'
-					_wifi longshot name 'mesh3' distance 50 channel 8 chanbw 5 mhz mcast 6000 nodes '4 6'
+					_wifi longshot name 'intern2' distance 50 channel 8 chanbw 5 mhz mcast 6000 nodes '5 7'
 					ROAMING='false'
 				;;
-				3)
-					# group-B: hybrid / dualbanid
-					#          mesh: channel 36
-				;;
-				6)
-					# group-B: mesh: channel 14
-				;;
-				7)
-					# group-B:
-				;;
 			esac
+
+			[ $NODENUMBER -eq 2 ] && {
+				uci set network.wan.proto='static'
+				uci set network.wan.ipaddr='192.168.2.114'
+				uci set network.wan.netmask='255.255.255.0'
+				uci set network.wan.gateway='192.168.2.1'
+			}
 
 			[ "$ROAMING" = 'false' ] || {
 				apply_olsr_roaming "$ROAMING" && {
 					_wifi set ap any ssid 'Villa Hentzel'
 				}
 
-				_wifi set adhoc 2ghz ssid 'ffintern.2GHz'
-				_wifi set adhoc 5ghz ssid 'ffintern.5GHz'
+				_wifi set adhoc 2ghz ssid 'intern.2GHz'
+				_wifi set adhoc 5ghz ssid 'intern.5GHz'
 			}
+
+			_wifi set anymode 2ghz txpower '23'
+			_wifi set anymode 5ghz txpower '20'
 		;;
 		ffweimar*)
 			uci set system.@vpn[0].active='true'

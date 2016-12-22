@@ -2005,12 +2005,13 @@ _wifi_scan_geolocation()
 {
 	local funcname='wifi_scan_geolocation'
 	local file="$TMPDIR/scan.json"
-	local marker="$TMPDIR/$funcname"
-	local lat lon
+	local marker="$TMPDIR/$funcname"	# e.g. 50.972;11.328
+	local lat= lon= latlon=
 
 	[ $OPENWRT_REV -gt 0 -a -e "$marker" ] && {
 		_file age "$marker" -lt 43200 && {
-			_log it $funcname daemon debug "lat/lon from '$marker': $( cat "$marker" )"
+			read -r latlon <"$marker"
+			_log it $funcname daemon debug "lat/lon from '$marker': $latlon - http://www.openstreetmap.org/#map=18/${latlon%;*}/${latlon#*;}"
 			return 0
 		}
 	}
@@ -2026,7 +2027,7 @@ _wifi_scan_geolocation()
 		eval $( _wifi scan_geolocation_api_query "$file" )
 
 		[ -n "$lat" -a -n "$lon" ] && {
-			_log it $funcname daemon info "lat: $lat lon: $lon"
+			_log it $funcname daemon info "http://www.openstreetmap.org/#map=18/$lat/$lon"
 			echo "$lat;$lon" >"$marker"
 			uci set "system.@admin[0].latlon=$lat;$lon"
 		}
@@ -2127,7 +2128,6 @@ _wifi_scan_geolocation_api_query()
 		_log it $funcname daemon info "[ERROR] answer: $answer"
 	else
 		echo "lat=$lat;lon=$lon"	# use via 'eval'
-		_log it $funcname daemon info "http://www.openstreetmap.org/#map=18/$lat/$lon"
 	fi
 }
 
