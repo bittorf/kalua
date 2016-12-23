@@ -2901,12 +2901,13 @@ build_options_set()
 			;;
 			'BigBrother')
 				$funcname subcall 'USBcam'
-#				apply_symbol 'CONFIG_PACKAGE_ffmpeg=y'
 				apply_symbol 'CONFIG_PACKAGE_motion=y'
 			;;
-			'BigBrotherMini')
-				$funcname subcall 'BigBrother'
-#				apply_symbol 'CONFIG_PACKAGE_libffmpeg-mini=y'
+			'FFmpeg')
+				apply_symbol 'CONFIG_PACKAGE_libffmpeg=y'
+			;;
+			'FFmpegmini')
+				apply_symbol 'CONFIG_PACKAGE_libffmpeg-mini=y'
 			;;
 			'Photograph')
 				$funcname subcall 'USBcam'
