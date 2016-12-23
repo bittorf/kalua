@@ -390,16 +390,22 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 	# -> GWCHECK="value:value:value:value:value:value:value"
 
 	[ -e /tmp/GATEWAY_CHECK_RECENT ] && {
-		GATEWAY=
-		. /tmp/GATEWAY_CHECK_RECENT		# need: NEXTHOP|GATEWAY is: DATE|GATEWAY_HOSTNAME|COST_INT|GATEWAY|NEXTHOP|METRIC
-		[ -e "/tmp/GATEWAY_CHECK_RECENT.batman" ] && . /tmp/GATEWAY_CHECK_RECENT.batman
+		GATEWAY=;NEXTHOP=	# needed
+		# is: DATE|GATEWAY_HOSTNAME|COST_INT|GATEWAY|NEXTHOP|METRIC
+		. /tmp/GATEWAY_CHECK_RECENT
+
+		[ -e '/tmp/GATEWAY_CHECK_RECENT.batman' ] && {
+			. /tmp/GATEWAY_CHECK_RECENT.batman
+		}
 	}
 
-	if   [ -z "$NEXTHOP" ]; then
+	if [ -z "$NEXTHOP" ]; then
 		SIGNAL=
 	elif ip -oneline route get "$NEXTHOP" | fgrep -q 'dev wlan'; then
-		SIGNAL="$( _wifi signal_best "$WIFIDEV" "$NEXTHOP" )"	# example-value
-		SIGNAL="$( _sanitizer run "$SIGNAL" urlvalue )"
+		# TODO: only measure, if nexthop changes
+		DEV="$( _net ip2dev "$NEXTHOP" )"
+		MAC="$( _net ip2mac "$NEXTHOP" )"
+		SIGNAL="$( _wifi signal_get "$IP" "$MAC" )"
 	else
 		SIGNAL=
 	fi
