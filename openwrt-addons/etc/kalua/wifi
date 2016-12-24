@@ -282,6 +282,11 @@ _wifi_change_essid_ap()
 			uci delete "wireless.@wifi-iface[$i].ssid_old"
 			uci set "wireless.@wifi-iface[$i].ssid=${essid:-$CONFIG_PROFILE-$NODENUMBER}"
 
+			[ -e "$file.ap_forced_on.$i" ] && {
+				rm -f "$file"
+				_wifi set ap "$i" 'off'
+			}
+
 			[ -e "$file" ] && {
 				age="$( _file age "$file" humanreadable)"
 				echo >>$SCHEDULER "_weblogin authserver_message '$funcname() $HOSTNAME: ${option:-inet_broken} after $age'"
@@ -298,8 +303,10 @@ _wifi_change_essid_ap()
 			_wifi set anymode 5ghz txpower '20'
 
 			_wifi longshot_name >/dev/null && {
-				# TODO: switch off if OK again?
-				_wifi set ap anyfreq 'on'
+				_wifi check_disabled "$i" && {
+					_wifi set ap "$i" 'on'
+					touch "$file.ap_forced_on.$i"
+				}
 			}
 		fi
 	} done
