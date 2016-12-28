@@ -1666,6 +1666,34 @@ _wifi_signal_get()
 	echo "$signal"		# TODO: allow '0'?
 }
 
+_wifi_dev2mode()		# OUT: e.g. adhoc|ap|sta|mesh (like uci names)
+{
+	local dev="$1"
+	local line mode
+
+	explode $( iw dev "$dev" info )
+	line="$*"
+	mode="${line#*type }"
+	mode="${mode%% *}"	# side effect: 'type mesh point' -> 'mesh'
+
+	case "$mode" in
+		'AP')
+			mode='ap'
+		;;
+		'IBSS')
+			mode='adhoc'
+		;;
+		'managed')
+			mode='sta'
+		;;
+		'mesh'|*)
+			:
+		;;
+	esac
+
+	echo "$mode"
+}
+
 _wifi_channel()
 {
 	local funcname='wifi_channel'
@@ -1776,48 +1804,40 @@ _wifi_probe_mode_ap()
 _wifi_mode()			# OUT1: string, ap | client | adhoc | adhocap             // rename: wifi_get_mode_conn?
 {
 	local funcname='wifi_mode'
-	local dev="$1"		# FIXME! some calls can't provide wifidev - till now we only check config, so it does'nt matter
+	local dev="$1"		# we check the whole phy, e.g. wlan0 + wlan0-1
 	local switch="$2"	# can be 'config' or <empty>
+	local file name phy i phy_other dev_other list_dev='' mode=''
 
 	_net dev_is_valid "$dev" || {
-		_log it $funcname daemon debug "wifidev '${dev:-no_wifi}' not found"
+		_log it $funcname daemon debug "wifidev '$dev' not found"
 		return 1
 	}
 
-	# FIXME! check if disabled
-	local mode1="$( uci get wireless.@wifi-iface[0].mode )"
-	local mode2="$( uci get wireless.@wifi-iface[1].mode )"
+	read -r phy <"/var/run/interfaces/dev2radio_$dev" || return 1
 
-	case "$mode1" in
-		ap|adhoc)
-			case "$mode2" in
-				ap|adhoc)
-					echo "${mode1}${mode2}"		# FIXME! we do not diff between config/real
-					return				# fixes e.g. compare_config_and_real_wifi_mode() in watch()
-				;;
-			esac
-		;;
-	esac
+	for file in '/var/run/interfaces/dev2radio_'*; do {
+		read -r phy_other <"$file"
+		[ "$phy_other" = "$phy" ] && {
+			dev_other="$( echo "$file" | cut -d'_' -f2 )"
+			list_dev="$list_dev $dev_other"
+		}
+	} done
+	_log it $funcname daemon debug "dev: '$dev' checking: '$list_dev'"
 
-	command -v iwconfig >/dev/null || {
-		# FIXME! check if disabled and do DEVNAME <-> uci-entry
-		uci get wireless.@wifi-iface[0].mode
-		return 0
-	}
+	for dev_other in $list_dev; do {
+		read -r name <"/var/run/interfaces/dev2name_$dev_other" || return 1
+		i="$( _wifi get "$name" index )"
 
-	if _wifi probe_mode_infrastructure "$dev" "$switch"; then
-		if _wifi probe_mode_ap "$dev" "$switch"; then
-			echo 'ap'
-		else
-			echo 'client'	# FIXME! output 'sta' or 'station' ?
-		fi
-	else
-		if _wifi probe_mode_ap "$dev" "$switch"; then
-			echo 'unknown'
-		else
-			echo 'adhoc'
-		fi
-	fi
+		_wifi check_disabled "$i" || {
+			if [ "$switch" = 'config' ]; then
+				mode="$mode $( uci get "wireless.@wifi-iface[$i].mode" )"
+			else
+				mode="$mode $( _wifi dev2mode "$dev_other" )"
+			fi
+		}
+	} done
+
+	echo "$mode" | tr -d ' '
 }
 
 _wifi_math_mw2mbm()
