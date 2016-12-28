@@ -192,7 +192,7 @@ _rrd_show()
 	local output='/tmp/graph.png'
 	local date="$( _system date humanreadable pretty )"
 	local location="$( _weblogin metadata_locationname )"
-	local watermark forward_type default_route_dev devname title
+	local watermark forward_type default_route_dev devname title factor_different_users
 	local typical_average_packetsize=350
 	local label="bytes/sec & users/stations (1 = 100k) & TCP/UDP-conntrack (1000 = 1M)"	# Y-axis
 	local alpha=88
@@ -200,6 +200,7 @@ _rrd_show()
 
 	if [ -e "$TMPDIR/rrd_mode_longshot" ]; then
 		forward_type="longshot-traffic $WIFIDEV"
+		factor_different_users=1000
 	else
 		explode $( ip route list exact '0.0.0.0/0' )
 		shift 2
@@ -207,6 +208,7 @@ _rrd_show()
 
 		read -r devname <"/var/run/interfaces/dev2name_$default_route_dev" || devname="$default_route_dev"
 		forward_type="$devname-traffic $default_route_dev"
+		factor_different_users=10000
 	fi
 
 	title="$location: forwarded $forward_type host-$NODENUMBER: $HOSTNAME - time: $date (-$duration)"
@@ -250,7 +252,7 @@ _rrd_show()
 		DEF:wifi_stations=${file}:wifi_stations:AVERAGE		\
 			CDEF:value5=wifi_stations,100000,*		\
 		DEF:different_users=${file}:different_users:AVERAGE	\
-			CDEF:value6=different_users,10000,*		\
+			CDEF:value6=different_users,$factor_different_users,*	\
 		DEF:tcp=${file}:tcp:AVERAGE				\
 			CDEF:value7=tcp,1000,*				\
 		DEF:udp=${file}:udp:AVERAGE				\
@@ -302,7 +304,7 @@ _rrd_show()
 			GPRINT:value9:AVERAGE:"avg\:%8.2lf %s"		\
 			GPRINT:value9:MIN:"min\:%8.2lf %s"		\
 			GPRINT:value9:MAX:"max\:%8.2lf %s$end" || {
-				logger -s "error $? during rrdtool graph ..."
+				_log it $funcname daemon alert "error $? during rrdtool graph"
 				return 1
 			}
 
