@@ -49,8 +49,8 @@ _rrd_update()
 	local funcname='rrd_update'
 	local file='/tmp/datafile.rrd'
 	local up_packets=0 up_bytes=0 down_packets=0 down_bytes=0
-	local stations=0 users=0 udp=0 tcp=0 signal=0
-	local time_now line mac iw_rc
+	local stations=0 users=0 udp=0 tcp=0 signal=0 iw_rc=0
+	local time_now line mac
 
 	[ -e "$file" ] || return 0
 
@@ -75,7 +75,6 @@ _rrd_update()
 	if [ $stations -eq 1 -o -n "$force_station_mac" ]; then
 		[ -e "$TMPDIR/rrd_mode_longshot" ] || touch "$TMPDIR/rrd_mode_longshot"
 
-		iw_rc=0
 		if   [ "$force_station_mac" = 'all' ]; then
 			explode $( iw dev "$WIFIDEV" station dump || echo "iw_rc=$?" ) was_empty
 		elif [ -n "$force_station_mac" ]; then
@@ -88,7 +87,7 @@ _rrd_update()
 			'iw_rc='*)
 				eval $1
 				_log it $funcname daemon alert \
-					"iw failed, stations: $stations force_station_mac: $force_station_mac"
+					"[ERR] iw: $iw_rc, stations: $stations force_station_mac: $force_station_mac"
 			;;
 		esac
 
@@ -205,7 +204,7 @@ _rrd_show()
 	else
 		explode $( ip route list exact '0.0.0.0/0' )
 		shift 2
-		for default_route_dev in $*; do _net dev_is_valid "$default_route_dev" && break; done
+		for default_route_dev in "$@"; do _net dev_is_valid "$default_route_dev" && break; done
 
 		read -r devname <"/var/run/interfaces/dev2name_$default_route_dev" || devname="$default_route_dev"
 		forward_type="$devname-traffic $default_route_dev"
