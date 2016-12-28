@@ -793,7 +793,9 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_ARCHERC7=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-archer-c7-v${version}-squashfs-factory.bin"
-			# FIXME! OpenWrt-patch...
+			# TODO: CONFIG_PACKAGE_ath10k-firmware-qca988x-ct=y
+			# qca988x hw2.0 target 0x4100016c chip_id 0x043202ff sub 0000:0000
+			# /lib/firmware/ath10k/QCA988X/hw2.0/
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_PACKAGE_kmod-ath10k=y"
 		;;
 		'Mercury MAC1200R')

@@ -713,16 +713,19 @@ _watch_system_time()
 
 _watch_wifi_mode()		# check e.g. adhoc in config but managed in real?
 {
+	local funcname='watch_wifi_mode'
+	local mode_real mode_conf
+
 	[ -z "$WIFIDEV" ] && return 0
 
-	local MODE_REAL="$( _wifi mode "$WIFIDEV" config )"
-	local MODE_CONF="$( _wifi mode "$WIFIDEV" )"
+	mode_real="$( _wifi mode "$WIFIDEV" )"
+	mode_conf="$( _wifi mode "$WIFIDEV" config )"
 
-	if [ "$MODE_REAL" != "$MODE_CONF" ]; then
-		_wifi phy_restart "$WIFIDEV" "compare_config_and_real_wifi_mode: diff, real/conf: '$MODE_REAL/$MODE_CONF'" alert
-		return 1
+	if [ "$mode_real" = "$mode_conf" ]; then
+		:
 	else
-		return 0
+		_wifi phy_restart "$WIFIDEV" "$funcname() real/conf: '$MODE_REAL/$MODE_CONF'" alert
+		_log sleep $funcname 60 step 5
 	fi
 }
 
@@ -2046,12 +2049,12 @@ _watch_wifistuff()
 	# mon.wlan0 in ap-mode
 	# on newstyle-devices
 
-	WIFIMODE="$( _wifi mode $WIFIDEV )"
+	WIFIMODE="$( _wifi mode "$WIFIDEV" )"	# e.g. adhocap
 
 	incoming_wifi_activity || {
 		case "$WIFIMODE" in
-			*adhoc*)
-				_wifi phy_restart "$WIFIDEV" "no incoming_wifi_activity"
+			*'adhoc'*)
+				_wifi phy_restart "$WIFIDEV" "no incoming_wifi_activity, mode '$WIFIMODE'"
 			;;
 			*)
 				# AP-mode:     WIFIDEV =    ap-interface
@@ -2059,7 +2062,7 @@ _watch_wifistuff()
 				if [ -n "$( iw dev "$WIFIDEV" station dump )" ]; then
 					touch "/tmp/wifi_hasclients_$WIFIDEV"
 					_wifi check_each_client || {
-						_wifi phy_restart "$WIFIDEV" "clients active, no incoming_wifi_activity, mode $WIFIMODE"
+						_wifi phy_restart "$WIFIDEV" "clients active, no incoming_wifi_activity, mode '$WIFIMODE'"
 					}
 				else
 					[ -e "/tmp/wifi_hasclients_$WIFIDEV" ] && {
@@ -2071,7 +2074,7 @@ _watch_wifistuff()
 					}
 
 					# _wifi phy_restart "$WIFIDEV" "no clients, no incoming_wifi_activity, mode $WIFIMODE" info
-					_log it incoming_wifi_activity daemon info "no clients, no incoming_wifi_activity, mode $WIFIMODE"
+					_log it incoming_wifi_activity daemon info "no clients, no incoming_wifi_activity, mode '$WIFIMODE'"
 				fi
 			;;
 		esac

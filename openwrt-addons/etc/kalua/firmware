@@ -982,8 +982,8 @@ _firmware_download()
 
 	[ -e "$file" ] && return 0		# for manually fetching the file and test the hole procedure
 
-	local source="${2:-$( _links firmware_url_get )}"
-	local hash="${3:-$( _links firmware_url_get crc )}"
+	local source="${2:-$( _links firmware_url_get )}"	# url
+	local hash="${3:-$( _links firmware_url_get crc )}"	# md5sum
 	local maxtry="${4:-1000}"
 
 	[ ${#hash} = "32" ] || {
@@ -1036,6 +1036,8 @@ _firmware_check_forced_upgrade()
 	_firmware configure_keep_files
 
 	local FILE='/tmp/fw'
+	local url="$1"
+	local md5sum="$2"
 
 	[ -e '/www/fw' ] || {
 		[ -z "$LOWMEM" ] && {
@@ -1095,14 +1097,14 @@ _firmware_check_forced_upgrade()
 			LOWMEM="true"
 		}
 
-		_firmware download "$FILE" || {	# or add manually: FILE | URL | HASH
+		_firmware download "$FILE" "$url" "$md5sum" || {
 			rm "$FILE"
 		}
 	}
 
 	if [ -e "$FILE" ]; then
 		_wifi watch_phy_problems sysupgrade || _system crashreboot 'wifiphy_probs'
-		_firmware burn $FILE
+		_firmware burn "$FILE"
 	else
 		[ -n "$LOWMEM" ] && {
 			_system crashreboot 'download_failed'
