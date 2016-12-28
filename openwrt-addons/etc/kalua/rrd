@@ -73,6 +73,8 @@ _rrd_update()
 
 	# longshot-mode
 	if [ $stations -eq 1 -o -n "$force_station_mac" ]; then
+		[ -e "$TMPDIR/rrd_mode_longshot" ] || touch "$TMPDIR/rrd_mode_longshot"
+
 		if   [ "$force_station_mac" = 'all' ]; then
 			explode $( iw dev "$WIFIDEV" station dump || echo "iw_rc=$?" ) was_empty
 		elif [ -n "$force_station_mac" ]; then
@@ -84,15 +86,13 @@ _rrd_update()
 		case "$1" in
 			'iw_rc='*)
 				eval $1
+				_log it $funcname daemon alert \
+					"iw failed, stations: $stations force_station_mac: $force_station_mac"
 			;;
 		esac
 
 		line="$*"
 		shift 7
-
-		[ $iw_rc -eq 0 ] || {
-			_log it $funcname daemon alert "iw failed, stations: $stations force_station_mac: $force_station_mac"
-		}
 
 		# FIXME! maybe we should add e.g. 'tx retries:' to get the REAL air-pollution or at least graph it
 		while [ -n "$2" ]; do {
@@ -171,7 +171,7 @@ _rrd_update()
 	line="$time_now:$up_packets:$up_bytes:$down_packets:$down_bytes:$stations:$users:$tcp:$udp:$signal"
 
 	rrdtool update "$file" "$line" || {
-		_log it $funcname daemon info "error $?: rrdtool update $file $line"
+		_log it $funcname daemon alert "error $?: rrdtool update $file $line"
 	}
 }
 
@@ -192,13 +192,24 @@ _rrd_show()
 	local output='/tmp/graph.png'
 	local date="$( _system date humanreadable pretty )"
 	local location="$( _weblogin metadata_locationname )"
-	local title="$location: forwarded WAN-traffic $WANDEV host-$NODENUMBER: $HOSTNAME - time: $date (-$duration)"
-	local watermark
+	local watermark forward_type default_route_dev devname title
 	local typical_average_packetsize=350
-#	local context='traffic'
 	local label="bytes/sec & users/stations (1 = 100k) & TCP/UDP-conntrack (1000 = 1M)"	# Y-axis
 	local alpha=88
 	local end='\j'
+
+	if [ -e "$TMPDIR/rrd_mode_longshot" ]; then
+		forward_type="longshot-traffic $WIFIDEV"
+	else
+		explode $( ip route list exact '0.0.0.0/0' )
+		shift 2
+		for default_route_dev in $*; do _net dev_is_valid "$default_route_dev" && break; done
+
+		read -r devname <"/var/run/interfaces/dev2name_$default_route_dev" || devname="$default_route_dev"
+		forward_type="$devname-traffic $default_route_dev"
+	fi
+
+	title="$location: forwarded $forward_typehost-$NODENUMBER: $HOSTNAME - time: $date (-$duration)"
 
 	case "$( rrdtool --version | head -n1 )" in
 		*'1.0.50'*|*'1.0.'*)
