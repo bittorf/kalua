@@ -375,8 +375,6 @@ _firmware_updatemode()		# updatemode <empty>		= string of configured update-mode
 _firmware_download_prepare_for_lowmem_devices()
 {
 	local funcname='firmware_download_prepare_for_lowmem_devices'
-	[ -z "$LOWMEM" ] && return 1
-
 	local url="$( _links firmware_url_get )"
 	local server_dnsname="$( _http url_get_serverstring "$url" )"
 	local ip="$( _net dns2ip "$server_dnsname" )"
@@ -429,7 +427,7 @@ _firmware_download_prepare_for_lowmem_devices()
 
 	_log it $funcname daemon info "[OK] flushing caches: $( _system ram_free flush ) bytes free"
 
-	# fixme! we cannot "remove_kmodules misc" because of ppp
+	# FIXME! we cannot "remove_kmodules misc" because of ppp
 }
 
 _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one module
@@ -1048,7 +1046,7 @@ _firmware_check_forced_upgrade()
 			# ssh thisrouter
 			# _firmware download /tmp/fw http://nexthop/fw $md5sum
 
-			_firmware download "$FILE"
+			_firmware download "$FILE" "$url" "$md5sum"
 			_firmware check_image "$FILE" || rm "$FILE"	# abort totally?
 
 # workaround the 15 second-timeout of procd/rcS
@@ -1093,9 +1091,7 @@ _firmware_check_forced_upgrade()
 	}
 
 	[ -e "$FILE" ] || {
-		_firmware download_prepare_for_lowmem_devices && {
-			LOWMEM="true"
-		}
+		[ -n "$LOWMEM" ] && _firmware download_prepare_for_lowmem_devices
 
 		_firmware download "$FILE" "$url" "$md5sum" || {
 			rm "$FILE"
@@ -1103,8 +1099,11 @@ _firmware_check_forced_upgrade()
 	}
 
 	if [ -e "$FILE" ]; then
-		_wifi watch_phy_problems sysupgrade || _system crashreboot 'wifiphy_probs'
-		_firmware burn "$FILE"
+		if _wifi watch_phy_problems sysupgrade; then
+			_firmware burn "$FILE"
+		else
+			_system crashreboot 'wifiphy_probs'
+		fi
 	else
 		[ -n "$LOWMEM" ] && {
 			_system crashreboot 'download_failed'
