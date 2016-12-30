@@ -814,29 +814,33 @@ _firmware_burn()
 		fgrep -q "ubusd" "$patchfile" || _system crashreboot 'patching_failed'
 	}
 
-	mkdir /tmp/fwimage
-	mv "$FILE" /tmp/fwimage
-
 	# last chance for using '/tmp/loader'
 	. /usr/sbin/cron.check_klog
-	_wifi watch_phy_problems sysupgrade || _system crashreboot 'wifiphy_probs'
+	_wifi watch_phy_problems sysupgrade || {
+		_system crashreboot 'wifiphy_probs'
+		return 1
+	}
 
-	# all dirs, except our special fwdir
+	#### remove all dirs, except our special fwdir ###
+	mkdir /tmp/fwimage
+	mv "$FILE" /tmp/fwimage
+	#
 	find /tmp -type d | while read -r LINE; do {
 		case "$LINE" in
-			"/tmp"|"/tmp/fwimage"|"/tmp/sysinfo")
+			'/tmp'|'/tmp/fwimage'|'/tmp/sysinfo')
 			;;
 			*)
 				rm -fR "$LINE"
 			;;
 		esac
 	} done
-	# all files
-	rm /tmp/*
 
+	rm /tmp/*	# all files
+	#
 	mv /tmp/fwimage/* "$FILE"
 	rm -fR /tmp/fwimage
 	touch '/www/switch.txt'		# mark timestamp for later reuse
+	#### ready cleaning up /tmp #####
 
 	_log()	# real function is gone: _log it $funcname ...
 	{
