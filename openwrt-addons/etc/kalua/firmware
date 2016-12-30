@@ -439,14 +439,16 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 	list_modules_get()	# output with lowest 'usage_count' first
 	{
-		local line
+		local line line2
 
-		while read line; do {
+		while read -r line; do {
 			# cfg80211 190067 4 ath9k,ath9k_common,ath,mac80211, Live 0x83240000
 			# ^^^name        ^^^usage_count
 			explode $line
 			echo "$3 $1"
-		} done <'/proc/modules' | sort -n | cut -d' ' -f2
+		} done <'/proc/modules' | sort -n | cut -d' ' -f2 | while read -r line2; do {
+			printf '%s' "$line2 "
+		} done
 	}
 
 	case "$filter_option" in
@@ -490,13 +492,15 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 		read -r i <"/tmp/$funcname"
 		_log it $funcname daemon info "mode: '$filter_option', iteration: $i/25"
 
+		list_modules="$( list_modules_get )"
+
 		if [ $i -lt 4 ]; then
-			list_modules="$( list_modules_get )"
+			_log it $funcname daemon info "remaining: '$list_modules'"
 		else
 			if [ "$filter_option" = 'all' -a -e '/tmp/loader' ]; then
-				list_modules="$( _list shuffle "$( list_modules_get )" )"
+				list_modules="$( _list shuffle "$list_modules" )"
 			else
-				_log it $funcname daemon info "remaining: '$( list_modules_get )'"
+				_log it $funcname daemon info "remaining: '$list_modules'"
 				break
 			fi
 		fi
@@ -564,7 +568,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 			[ -n "$remove" ] && {
 				_log it $funcname daemon info "removing kmodule: $module"
 
-				( rmmod $module ) &
+				( rmmod "$module" ) &
 				pid_rmmod="$!"
 
 				for j in $( seq 10 -1 1 ); do {
@@ -588,16 +592,17 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 			}
 		} done
 
-		[ "$filter_option" = "all" ] && {
-			if [ -n "$( list_modules_get )" ]; then
-				_log it $funcname daemon info "[ERR] still loaded modules:"
-				lsmod | _log it firmware_lsmod daemon info
+		[ "$filter_option" = 'all' ] && {
+			list_modules="$( list_modules_get )"
+
+			if [ -n "$list_modules" ]; then
+				_log it $funcname daemon info "[ERR] still loaded modules: '$list_modules'"
 			else
 				_log it $funcname daemon info "[OK] all modules are now unloaded"
 			fi
 		}
 
-		[ "$errorcount" = "0" ] && break
+		[ "$errorcount" = '0' ] && break
 	} done
 
 	_watch counter "/tmp/$funcname" set 0
@@ -1134,7 +1139,7 @@ _firmware_check_forced_upgrade()
 
 	if [ -e "$FILE" ]; then
 		if _wifi watch_phy_problems sysupgrade; then
-			_firmware burn "$FILE" || return 1
+			_firmware burn "$FILE" && return 0
 		else
 			_system crashreboot 'wifiphy_probs'
 		fi
