@@ -2260,7 +2260,10 @@ send_mail_telegram()
 			list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de"
 			[ $v2 -lt 38000 ] && list=	# openwrt-revision
 		;;
-		ffweimar-*) list= ;;	# TODO: do not double send / already send on main-network (e.g. ffweimar)
+		ffweimar-*)
+			# TODO: do not double send / already send on main-network (e.g. ffweimar)
+			list=
+		;;
 		neufert|bauhaus) list= ;;
 		limona) list="$admin sven.rahaus|gmx.de" ;;
 		amalienhof) list="$admin sven.rahaus|gmx.de info|amalienhof-weimar.de" ;;
@@ -2291,7 +2294,7 @@ send_mail_telegram()
 				'wettertest')
 					list="$admin bittorf1|uni-weimar.de"
 				;;
-				*'-vhs'*)
+				*'-vhs'*|*'wuschel-garten'*|*'Wuschel-NachbarNEU'*)
 					list="$admin frenzel|monami-weimar.de peter.frenzel|uni-weimar.de"
 					# TODO:
 					message="$( echo "$message" | sed 's/liszt28/ffweimar-vhs/g' )"
@@ -2342,8 +2345,7 @@ send_mail_telegram()
 		pension-ralfz) list="$admin rkleinert|ejbweimar.de" ;;
 		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
 		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
-		lisztwe) list="$admin technik|hotel-adagio.de" ;;
-		adagio) list="$admin technik|hotel-adagio.de" ;;
+		lisztwe|adagio|hentzel) list="$admin technik|hotel-adagio.de" ;;
 		apphalle) list="$admin info|appartementhausamdom.de" ;;
 		spbansin)
 			list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de"

@@ -76,6 +76,7 @@ for NW in $NETWORK; do {
 	DIR="/var/www/networks/$NW/tarball/$MODE"
 	MD5="$( md5sum "$TARBALL" | cut -d' ' -f1 )"
 	SIZE="$( stat -c%s "$TARBALL" )"
+	mkdir -p "$DIR"
 
 	cd /root/tarball/kalua || exit
 	LAST_UNIXTIME="$( date +%s -r "$DIR/info.txt" )"

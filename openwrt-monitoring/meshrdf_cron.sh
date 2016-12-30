@@ -405,7 +405,8 @@ for NET in $LIST; do {
 	# TODO: always for 'small' networks
 	# build often!
 #	gen_meshrdf_for_network gnm
-	gen_meshrdf_for_network limona
+	gen_meshrdf_for_network hentzel
+	gen_meshrdf_for_network cvjm
 	gen_meshrdf_for_network cvjm
 #	gen_meshrdf_for_network ewerk
 #	gen_meshrdf_for_network malchow		# demo

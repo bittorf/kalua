@@ -187,7 +187,7 @@ $testnet  = "liszt28";
 if(strpos($profile,$testnet)!==false){
 	print "OK-pmu";		// for poor_mens_update()
 } else {
-	print "OK";
+	print "OK-pmu";
 };
 
 ?>
