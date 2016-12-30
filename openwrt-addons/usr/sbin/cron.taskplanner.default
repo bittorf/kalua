@@ -14,8 +14,17 @@ eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%d; UNIXTIME=%s;' )
 [ -z "$UP" ] && read -r UP REST </proc/uptime		# normally done during cron.minutely
 
 if [ -e "$TMPDIR/firstrun" ]; then
-	# echo >$SCHEDULER '_firmware check_forced_upgrade || /sbin/reboot'
 	[ -e "$TMPDIR/.autorun" ] && _watch autorun		# direct call
+
+	[ -e "$TMPDIR/fw" ] && {
+		_firmware check_image "$TMPDIR/fw" && {
+			if _firmware check_forced_upgrade; then
+				/bin/sleep 180
+			else
+				/sbin/reboot
+			fi
+		}
+	}
 
 	bool_true 'olsrd.@meta[0].watch_gateway' && {
 		read -r REST <'/tmp/OLSR/DEFGW_NOW' || REST='8.8.8.8'

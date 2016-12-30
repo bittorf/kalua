@@ -461,23 +461,23 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 				explode $line
 
 				case "$1" in
-					"/dev/sd"*)
+					'/dev/sd'*)
 						_log it $funcname daemon info "unmounting '$2'"
 						umount "$2"
-						umount "/proc/bus/usb"
+						umount '/proc/bus/usb'
 					;;
-					"debugfs")
+					'debugfs')
 						_log it $funcname daemon info "unmounting '$2'"
 						umount "$2"
 					;;
-					"none")
-						[ "$2" = "/proc/bus/usb" ] && {
+					'none')
+						[ "$2" = '/proc/bus/usb' ] && {
 							_log it $funcname daemon info "unmounting '$2'"
 							umount "$2"
 						}
 					;;
 				esac
-			} done <"/proc/mounts"
+			} done <'/proc/mounts'
 
 			_log it $funcname daemon info "/proc/mounts: START"
 			_log it $funcname daemon info <'/proc/mounts'
@@ -511,12 +511,12 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 			case "$module" in
 				'b44')
-					_log it $funcname daemon info "leaving: '$module'"
+					_log it $funcname daemon info "leaving: '$module'"		# FIXME! why?
 				;;
 				"nf_"*|"xt"*|"ts_"*|"x_tables"|"ip_tables"|"ipt_"*|"iptable_"*)
 					case "$filter_option" in
 						all|most|iptables)
-							remove="true"
+							remove='true'
 						;;
 					esac
 				;;
@@ -532,6 +532,9 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 								'3.14'*)
 									_system version '42657...43223' || remove='true'
 								;;
+								*)
+									remove='true'
+								;;
 							esac
 						;;
 					esac
@@ -539,7 +542,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 				"ts_"*|"crc_ccitt"|"aes_generic"|"arc4"|"crypto_algapi"|"ppp"*)		# fixme! ifdown wan for ppp?
 					case "$filter_option" in
 						all|most|misc)
-							remove="true"
+							remove='true'
 						;;
 					esac
 				;;
@@ -565,7 +568,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 				_system version '39021...39124' && remove=
 			}
 
-			[ -n "$remove" ] && {
+			if [ -n "$remove" ]; then
 				_log it $funcname daemon info "removing kmodule: $module"
 
 				( rmmod "$module" ) &
@@ -586,10 +589,11 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 				grep -q ^"$module " '/proc/modules' && {
 					errorcount=$(( errorcount + 1 ))
-					_log it $funcname daemon debug "rmmod/lsmod: $( lsmod | fgrep "$module" )"
 					_log it $funcname daemon info "removing kmodule: $module [FAILED2] errorcount: $errorcount"
 				}
-			}
+			else
+				_log it $funcname daemon info "will not remove '$module' in mode: '$filter_option'"
+			fi
 		} done
 
 		[ "$filter_option" = 'all' ] && {
