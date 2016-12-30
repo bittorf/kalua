@@ -849,11 +849,13 @@ _netfilter_stop_all_tables()
 
 	for table in mangle filter nat raw; do {
 		_log it $funcname daemon info "unloading table $table"
+		$IPT --table "$table" -nL >/dev/null || continue
+		$IPT --table "$table" -F
 
 		try=10
 		while [ $try -gt 0 ]; do {
 			try=$(( try - 1 ))
-			list="$( iptables -t "$table" -nL | grep ^'Chain ' | cut -d' ' -f2 )"
+			list="$( $IPT --table "$table" -nL | grep ^'Chain ' | cut -d' ' -f2 )"
 
 			work=
 			for custom_chain in $list; do {
@@ -861,7 +863,7 @@ _netfilter_stop_all_tables()
 					'PREROUTING'|'INPUT'|'FORWARD'|'OUTPUT'|'POSTROUTING')
 					;;
 					*)
-						$IPT -t $table -X "$custom_chain"
+						$IPT --table "$table" -X "$custom_chain"
 						work='true'
 					;;
 				esac
@@ -870,7 +872,7 @@ _netfilter_stop_all_tables()
 			[ -z "$work" ] && break
 		} done
 
-		$IPT -t $table -F
+		$IPT --table "$table" -F
 	} done
 
 	# batman-stuff
