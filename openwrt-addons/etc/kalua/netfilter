@@ -845,11 +845,22 @@ _netfilter_ipforwarding_revert()
 _netfilter_stop_all_tables()
 {
 	local funcname='netfilter_stop_all_tables'
+	local list custom_chain try
 
 	for table in mangle filter nat raw; do {
 		_log it $funcname daemon info "unloading table $table"
+
+		try=10
+		while [ $try -gt 0 ]; do {
+			try=$(( try - 1 ))
+			list="$( iptables -t "$table" -nL | grep ^'Chain ' | cut -d' ' -f2 )"
+
+			for custom_chain in $list; do {
+				$IPT -t $table -X "$custom_chain"
+			} done
+		} done
+
 		$IPT -t $table -F
-		$IPT -t $table -X
 	} done
 
 	# batman-stuff
