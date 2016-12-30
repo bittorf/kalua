@@ -697,6 +697,12 @@ _firmware_burn()
 	local funcname="firmware_burn"
 	local pause=
 
+	if [ -e "$FILE" ]; then
+		_log remote "started using file '$FILE'"
+	else
+		return 1
+	fi
+
 	if [ $( _system uptime sec ) -lt 90 ]; then
 		pause=1		# image on flash: invoked from /etc/init.d/boot
 	else
@@ -705,7 +711,6 @@ _firmware_burn()
 
 	touch /tmp/DEBUG		# syslog verbose, if any...
 	touch "$TMPDIR/$funcname"
-	_log remote "started using file '$FILE'"
 
 	_system include			# we need a copy in ram
 	_log shell_is_interactive && {
@@ -812,6 +817,7 @@ _firmware_burn()
 	mkdir /tmp/fwimage
 	mv "$FILE" /tmp/fwimage
 
+	# last chance for using '/tmp/loader'
 	. /usr/sbin/cron.check_klog
 	_wifi watch_phy_problems sysupgrade || _system crashreboot 'wifiphy_probs'
 
@@ -835,7 +841,15 @@ _firmware_burn()
 	_log()	# real function is gone: _log it $funcname ...
 	{
 		shift
-		echo "fakelog: $*" >/dev/console
+		local txt="$*"
+
+		if [ -z "$4" ]; then			# read from STDIN
+			while read -r txt; do {
+				echo "fakelog: $txt" >/dev/console
+			} done
+		else
+			echo "fakelog: $*" >/dev/console
+		fi
 	}
 
 	interfaces()
