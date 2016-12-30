@@ -2538,6 +2538,7 @@ build_options_set()
 			'Standard')	# >4mb flash
 				apply_symbol 'CONFIG_DROPBEAR_CURVE25519=y'		# default since r48196 -> adds 40k
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
+				apply_symbol 'CONFIG_PACKAGE_kmod-ipt-raw=y'
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-conntrack-extra=y'	# +100k?
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
@@ -2583,6 +2584,7 @@ build_options_set()
 			'Small')	# <4mb flash - for a working jffs2 it should not exceed '3.670.020' bytes (e.g. WR703N)
 				apply_symbol 'CONFIG_DROPBEAR_CURVE25519 is not set'	# default since r48196 -> saves 40k
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
+				apply_symbol 'CONFIG_PACKAGE_kmod-ipt-raw=y'
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
 #				apply_symbol 'CONFIG_PACKAGE_iptables-mod-conntrack-extra=y'	# +100k?
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
