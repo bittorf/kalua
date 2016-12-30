@@ -845,7 +845,7 @@ _netfilter_ipforwarding_revert()
 _netfilter_stop_all_tables()
 {
 	local funcname='netfilter_stop_all_tables'
-	local list custom_chain try
+	local list custom_chain try work
 
 	for table in mangle filter nat raw; do {
 		_log it $funcname daemon info "unloading table $table"
@@ -854,11 +854,20 @@ _netfilter_stop_all_tables()
 		while [ $try -gt 0 ]; do {
 			try=$(( try - 1 ))
 			list="$( iptables -t "$table" -nL | grep ^'Chain ' | cut -d' ' -f2 )"
-			[ -z "$list" ] && break
 
+			work=
 			for custom_chain in $list; do {
-				$IPT -t $table -X "$custom_chain"
+				case "$custom_chain" in
+					'PREROUTING'|'INPUT'|'FORWARD'|'OUTPUT'|'POSTROUTING')
+					;;
+					*)
+						$IPT -t $table -X "$custom_chain"
+						work='true'
+					;;
+				esac
 			} done
+
+			[ -z "$work" ] && break
 		} done
 
 		$IPT -t $table -F
