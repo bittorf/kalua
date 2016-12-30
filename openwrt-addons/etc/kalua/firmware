@@ -493,9 +493,10 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 		if [ $i -lt 4 ]; then
 			list_modules="$( list_modules_get )"
 		else
-			if [ "$filter_option" = "all" ]; then
+			if [ "$filter_option" = 'all' -a '/tmp/loader' ]; then
 				list_modules="$( _list shuffle "$( list_modules_get )" )"
 			else
+				_log it $funcname daemon info "remaining: '$( list_modules_get )'"
 				break
 			fi
 		fi
@@ -604,7 +605,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 
 _firmware_kill_tasks()
 {
-	local funcname="firmware_kill_tasks"
+	local funcname='firmware_kill_tasks'
 	local list_tasks="$1"		# special keywords: pause | wifi_down
 
 	for task in $list_tasks ; do {
@@ -629,8 +630,8 @@ _firmware_kill_tasks()
 				_net roaming_eventlistener 'stop' "$funcname: $task"
 				_wifi set anymode anyfreq 'off'
 			;;
-			uhttpd)
-				/etc/init.d/uhttpd stop
+			uhttpd|dnsmasq)
+				/etc/init.d/$task stop
 			;;
 			*)
 				_log it $funcname daemon info "killall $task"
@@ -639,8 +640,10 @@ _firmware_kill_tasks()
 		esac
 	} done
 
-	_log it $funcname daemon info "[OK] still running tasks:"
-	[ -e "/tmp/CRON_PSWORK" ] || ps | _log it firmware_process_snapshot daemon info
+	[ -e '/tmp/CRON_PSWORK' ] || {
+		_log it $funcname daemon info "[OK] still running tasks:"
+		ps | _log it firmware_process_snapshot daemon info
+	}
 }
 
 _firmware_check_image()
@@ -1131,7 +1134,7 @@ _firmware_check_forced_upgrade()
 
 	if [ -e "$FILE" ]; then
 		if _wifi watch_phy_problems sysupgrade; then
-			_firmware burn "$FILE"
+			_firmware burn "$FILE" || return 1
 		else
 			_system crashreboot 'wifiphy_probs'
 		fi
@@ -1144,4 +1147,6 @@ _firmware_check_forced_upgrade()
 	pidof crond >/dev/null || _system crashreboot 'cron_died'
 
 	[ -e "/tmp/LOCKFILE_APPLY" ] && rm "/tmp/LOCKFILE_APPLY"        # unblock scheduler
+
+	return 1
 }
