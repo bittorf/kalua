@@ -9,7 +9,7 @@ _http header_mimetype_output 'application/x-tar' "webcam_${ANYADR}_$( date +%s )
 LIST="$TMPDIR/webcam_filelist.txt"
 # e.g. './02-20161209142507-01.jpg' or './webcam.jpg' or './lastsnap.jpg'
 ls -1t ./*'.jpg' >"$LIST"
-sed -i 's/.*lastsnap.jpg/d' "$LIST"
+sed -i '/.*lastsnap.jpg/d' "$LIST"
 
 [ -s "$LIST" ] && {
 	read -r FILE <"$LIST"			# most recent
