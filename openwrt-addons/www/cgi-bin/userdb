@@ -174,12 +174,15 @@ EOF
 grep -qs ^"$HTTP_USER_AGENT"$ "/tmp/AUTH_USERDB_${REMOTE_ADDR}" || {
 	CONFIG="$( uci -q get uhttpd.main.config || echo 'missing_uhttpd.main.config' )"
 
-	login_ok()
+	login_ok()	# TODO: enforceable via uci var
 	{
 		[ -z "$REMOTE_ADDR" ] && return 0	# e.g. during tests
 
-		_net ip4_is_private "$REMOTE_ADDR" && {	# TODO: enforceable via uci var
-			[ -e "$CONFIG" ] && return 0
+		_net ip4_is_private "$REMOTE_ADDR" && return 0
+
+		[ -e "$CONFIG" ] || {
+			_log it userdb_gui daemon info "ip: $REMOTE_ADDR config '$CONFIG' n/a"
+			return 0
 		}
 
 		# this means: 'same like in CONFIG'
@@ -190,16 +193,11 @@ grep -qs ^"$HTTP_USER_AGENT"$ "/tmp/AUTH_USERDB_${REMOTE_ADDR}" || {
 	}
 
 	if   login_ok; then
-		# FIXME!
-		_system add_ramdisc "$DIR_DATABASE" compressable
+		_system add_ramdisc "$DIR_DATABASE" compressable	# FIXME!
 
 		_log it userdb_gui daemon info "[OK] auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT'"
 		echo "$HTTP_USER_AGENT" >"/tmp/AUTH_USERDB_${REMOTE_ADDR}"
 	else
-		[ -e "$CONFIG" ] || {
-			_log it userdb_gui daemon info "config '$CONFIG' n/a"
-		}
-
 		if [ -z "$FORM_AUTH_USER" -o -z "$FORM_AUTH_PASS" ]; then
 			_log it userdb_gui daemon info "[ERR] missing auth for IP '$REMOTE_ADDR' with user-agent '$HTTP_USER_AGENT'"
 		else
