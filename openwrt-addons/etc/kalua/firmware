@@ -781,6 +781,8 @@ _firmware_burn()
 	_firmware remove_kmodules all
 	_log it $funcname daemon info "[OK] after 'remove_kmodules all' - flushing caches: $( _system ram_free flush ) bytes free"
 
+	/sbin/sysctl -w 'vm.min_free_kbytes=300'
+
 	[ "$pause" = '1' ] || {
 		_firmware check_image "$FILE" || {
 			_log it $funcname daemon alert "check_image '$FILE' failed"
@@ -832,14 +834,14 @@ _firmware_burn()
 		sed -i 's|^v() {|v() {\necho "$@" >/dev/console|' "$patchfile"
 	}
 
-	[ -e "$patchfile" ] && {
-		sh -n "$patchfile" || _system crashreboot 'patching_failed'
-	}
-
 	fgrep -q "ubusd" "$patchfile" || {
 		_log it $funcname daemon info "[OK] patching '$patchfile', adding some essential services"
 		sed -i 's/services$/&\n*sh*|*dbclient*|*preinit*|*procd*|*ubusd*);;/' "$patchfile"
 		fgrep -q "ubusd" "$patchfile" || _system crashreboot 'patching_failed'
+	}
+
+	[ -e "$patchfile" ] && {
+		sh -n "$patchfile" || _system crashreboot 'patching_failed'
 	}
 
 	# last chance for using '/tmp/loader'
