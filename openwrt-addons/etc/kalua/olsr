@@ -914,7 +914,11 @@ _olsr_version()
 	local version
 	local file='/tmp/OLSR/daemon_version'
 
-	cat "$file" 2>/dev/null && return 0
+	if cat "$file" 2>/dev/null; then
+		return 0
+	else
+		mkdir -p "$( dirname "$file" )"
+	fi
 
 	case "$( _file hash '/usr/sbin/olsrd' )" in
 		0e2e2a7075ab294e1f784bf1191e099a) version='pre-0.6.0_2010-04-10_ff1.6.38' ;;
@@ -927,9 +931,7 @@ _olsr_version()
 				version="unknown build: $version"
 			else
 				# exstract everything between *** [...] *** and strip spaces
-
-				version="$( olsrd -v 2>/dev/null | fgrep 'olsr.org' | head -n1 | sed -n 's/^.*\*\*\*\(.*\)\*\*\*.*/\1/p' )"
-				version="$( echo "$version" | sed 's/ //g' )"
+				version="$( olsrd -v | fgrep ' olsr.org ' | sed 's/[* ]//g' )"
 
 				case "$version" in
 					*'git_6485b2e'*)
@@ -941,7 +943,7 @@ _olsr_version()
 	esac
 
 	[ -n "$version" ] && echo "$version" >"$file"
-	echo "$version"
+	echo "${version:-unknown}"
 }
 
 _olsr_uptime()			# in seconds

@@ -21,7 +21,7 @@ case "${BUTTON}-${ACTION}" in
 			DIFF=99		# 100 = longpress
 		fi
 
-		# FIXME! DIFF = 1000 -> 10 seconds
+		# DIFF = 1000 -> 10 seconds: so [milliseconds]/10
 		logger -s -- "$0: button '$BUTTON' released after $DIFF millisec"
 		rm '/tmp/BUTTON'
 
