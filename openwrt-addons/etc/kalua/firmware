@@ -574,7 +574,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 			if [ -n "$remove" ]; then
 				_log it $funcname daemon info "removing kmodule: $module"
 
-				( rmmod "$module" ) &
+				( rmmod "$module" || echo "$?:$module" >"$TMPDIR/rmmod_failed" ) &
 				pid_rmmod="$!"
 
 				for j in $( seq 10 -1 1 ); do {
@@ -593,6 +593,11 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 				grep -q ^"$module " '/proc/modules' && {
 					errorcount=$(( errorcount + 1 ))
 					_log it $funcname daemon info "removing kmodule: $module [FAILED2] errorcount: $errorcount"
+				}
+
+				[ -e "$TMPDIR/rmmod_failed" ] && {
+					_log it $funcname daemon info "removing kmodule: $module [FAILED4]: $( cat "$TMPDIR/rmmod_failed" )"
+					rm -f "$TMPDIR/rmmod_failed"
 				}
 			else
 				_log it $funcname daemon info "will not remove '$module' in mode: '$filter_option'"
@@ -642,10 +647,12 @@ _firmware_kill_tasks()
 				_net roaming_eventlistener 'stop' "$funcname: $task"
 				_wifi set anymode anyfreq 'off'
 			;;
-			uhttpd|dnsmasq)
-				/etc/init.d/$task stop
-			;;
 			*)
+				[ -e "/etc/init.d/$task" ] && {
+					_log it $funcname daemon info "stopping: $task"
+					/etc/init.d/$task stop
+				}
+
 				_log it $funcname daemon info "killall $task"
 				killall "$task"
 			;;
