@@ -355,7 +355,7 @@ func_cron_config_write()
 		}
 
 		audioplayer_check_needed && {
-			sed -i "s;### CHECK_AUDIOPLAYER ###;test -e /tmp/audioplayer.sh \&\& . /tmp/audioplayer.sh" "/tmp/CRON_IS_CAREFUL"
+			sed -i "s;### CHECK_AUDIOPLAYER ###;test -e /tmp/audioplayer.sh \&\& . /tmp/audioplayer.sh;" "/tmp/CRON_IS_CAREFUL"
 		}
 
 		irqcheck_needed()
@@ -457,14 +457,16 @@ func_cron_config_write()
 			sed -i 's/0.8\*/0.8\*|0.7\*|0.6\*|0.5\*/' "/tmp/CRON_IS_CAREFUL"
 		}
 
-		if _rrd needed; then
-			_rrd setup 'keep_database'
-			WATCH_STATION="$( uci -q get system.@monitoring[0].watch_station )"
-			echo >$CRONFILE "* * * * * /bin/sleep 5 && . /tmp/CRON_IS_CAREFUL"
-			echo >$CRONFILE "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'"
-		else
-			echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL"
-		fi
+		{
+			if _rrd needed; then
+				_rrd setup 'keep_database'
+				WATCH_STATION="$( uci -q get system.@monitoring[0].watch_station )"
+				echo "* * * * * /bin/sleep 5 && . /tmp/CRON_IS_CAREFUL"
+				echo "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'"
+			else
+				echo "* * * * * . /tmp/CRON_IS_CAREFUL"
+			fi
+		} >"$CRONFILE"
 	fi
 
 	while read -r LINE; do {
