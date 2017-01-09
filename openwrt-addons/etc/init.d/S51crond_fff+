@@ -358,14 +358,6 @@ func_cron_config_write()
 			sed -i "s;### CHECK_AUDIOPLAYER ###;test -e /tmp/audioplayer.sh \&\& . /tmp/audioplayer.sh" "/tmp/CRON_IS_CAREFUL"
 		}
 
-		_rrd needed && {
-			_rrd setup 'keep_database'
-
-			WATCH_STATION="$( uci -q get system.@monitoring[0].watch_station )"
-
-			sed -i "s|### CALL_RRD ###|IPT='$IPT'; WIFIDEV=$WIFIDEV; _rrd update '$WATCH_STATION'|" "/tmp/CRON_IS_CAREFUL"
-		}
-
 		irqcheck_needed()
 		{
 			case "$CONFIG_PROFILE" in
@@ -462,26 +454,17 @@ func_cron_config_write()
 		[ -n "$LOWMEM" ] && {
 			_log it $FUNC daemon info "lowram: be even more careful, do not work if load > 0.5"
 
-			case "$CONFIG_PROFILE" in
-				elephant*)
-					sed -i 's/0.8\*/0.8\*|0.7\*|0.6\*|0.5\*|0.4\*/' "/tmp/CRON_IS_CAREFUL"
-				;;
-				*)
-					sed -i 's/0.8\*/0.8\*|0.7\*|0.6\*|0.5\*/' "/tmp/CRON_IS_CAREFUL"
-				;;
-			esac
+			sed -i 's/0.8\*/0.8\*|0.7\*|0.6\*|0.5\*/' "/tmp/CRON_IS_CAREFUL"
 		}
 
-		case "$CONFIG_PROFILE" in
-			ffweimar*)
-				echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL; . /tmp/loader; _watch switch_linkstatus"
-			;;
-			*)
-				echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL"
-			;;
-		esac
-
-#				echo >>$CRONFILE "* * * * * test -e /tmp/CRON.DEBUG || { touch /tmp/CRON.DEBUG; while true; do cat /proc/loadavg /proc/uptime /proc/interrupts >/dev/console; sleep 5; done; }"
+		if _rrd needed; then
+			_rrd setup 'keep_database'
+			WATCH_STATION="$( uci -q get system.@monitoring[0].watch_station )"
+			echo >$CRONFILE "* * * * * /bin/sleep 5 && . /tmp/CRON_IS_CAREFUL"
+			echo >$CRONFILE "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'"
+		else
+			echo >$CRONFILE "* * * * * . /tmp/CRON_IS_CAREFUL"
+		fi
 	fi
 
 	while read -r LINE; do {
