@@ -1237,17 +1237,6 @@ check_working_directory()
 			fi
 		} done
 
-		[ -d 'openwrt' ] && {
-			log "first start - removing (old?) dir openwrt: please answer Y/N"
-			read -r answer
-
-			if [ "$answer" = 'Y' ]; then
-				rm -fR 'openwrt'
-			else
-				log "[OK] leaving openwrt-dir"
-			fi
-		}
-
 		case "$VERSION_OPENWRT" in
 			'lede-staging')
 				# https://git.lede-project.org/?p=lede/nbd/staging.git;a=summary
@@ -1276,6 +1265,17 @@ check_working_directory()
 				buildsystemdir='openwrt'
 			;;
 		esac
+
+		[ -d "$buildsystemdir" ] && {
+			log "first start - removing (old?) dir '$buildsystemdir' - please answer Y/N"
+			read -r answer
+
+			if [ "$answer" = 'Y' ]; then
+				rm -fR "$buildsystemdir"
+			else
+				log "[OK] leaving dir: '$buildsystemdir'"
+			fi
+		}
 
 		log "first start - fetching OpenWrt/$VERSION_OPENWRT: git clone '$git_url'"
 		git clone "$git_url" "$buildsystemdir" || return $error
