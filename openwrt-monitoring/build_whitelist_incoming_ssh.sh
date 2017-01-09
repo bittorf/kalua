@@ -64,7 +64,7 @@ uptime_in_seconds()
 
 init_tables_if_virgin()
 {
-	$IPT -nL INPUT | fgrep -q incoming_ssh || {
+	$IPT -nL INPUT | grep -Fq incoming_ssh || {
 		log "virgin iptables, building initial stuff"
 		$IPT -N incoming_ssh
 
@@ -121,7 +121,7 @@ whitelist_ip_already_known()
 {
 	local ip="$1"
 
-	$IPT -nL incoming_ssh | fgrep -q " $ip "
+	$IPT -nL incoming_ssh | grep -Fq " $ip "
 }
 
 whitelist_learn_ip()
@@ -129,7 +129,7 @@ whitelist_learn_ip()
 	local ip="$1"
 	local network="$2"
 
-	$IPT -nL incoming_ssh | fgrep -q "$network" || {
+	$IPT -nL incoming_ssh | grep -Fq "$network" || {
 		log "new network detected: $network"
 		$IPT -N incoming_ssh_$network
 		$IPT -I incoming_ssh_$network -j ACCEPT

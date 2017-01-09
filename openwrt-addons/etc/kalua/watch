@@ -74,7 +74,7 @@ _watch_roaming()	# called every 60 secs
 					_log it $funcname daemon debug "loop: $i ap-dev: $dev mac: $mac"
 				fi
 
-				if fgrep -q "$mac" "$station_list"; then
+				if grep -Fq "$mac" "$station_list"; then
 					# root@box:~ grep 00:1e:65:94:22:52 /proc/net/arp
 					# 100.66.3.186    0x1  0x6   00:1e:65:94:22:52  *  br-mastergate
 					# 100.67.190.252  0x1  0x2   00:1e:65:94:22:52  *  br-mastergate
@@ -87,7 +87,7 @@ _watch_roaming()	# called every 60 secs
 
 					# TODO: code duplication, see wireless_events.sh
 					for ip in $ip_list; do {
-						route_get="$( ip -oneline route get "$ip/32" | fgrep " dev br-$bridgedev " )" || {
+						route_get="$( ip -oneline route get "$ip/32" | grep -F " dev br-$bridgedev " )" || {
 							_log it $funcname daemon info "ip $ip (of $ip_list) not added yet - changed IP? - $route_get"
 
 							if [ "$inet_offer" = 'true' ]; then
@@ -571,7 +571,7 @@ _watch_dhcp_space()
 		esac
 
 		explode $line
-		if fgrep -q "$3" "/tmp/CLIENTS_LAN"; then
+		if grep -Fq "$3" "/tmp/CLIENTS_LAN"; then
 			clients_lan=$(( clients_lan + 1 ))
 		else
 			clients_wifi=$(( clients_wifi + 1 ))
@@ -648,7 +648,7 @@ _watch_local_proxy()
 	}
 
 	_curl it "http://127.0.0.1:8123/polipo/status?" 5 >"$TMPDIR/${funcname}_$$"
-	fgrep -q "Polipo status report" "$TMPDIR/${funcname}_$$" || {
+	grep -Fq "Polipo status report" "$TMPDIR/${funcname}_$$" || {
 		daemon_restart "cannot fetch local status-page"
 	}
 	rm "$TMPDIR/${funcname}_$$"
@@ -914,7 +914,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	/etc/init.d/dnsmasq enabled || {
 		ip="$( uci -q get dhcp.@dnsmasq[0].server )"
 		line="nameserver ${ip:-8.8.8.8}"
-		fgrep -q "$line" '/etc/resolv.conf' || echo "$line" >'/etc/resolv.conf'
+		grep -Fq "$line" '/etc/resolv.conf' || echo "$line" >'/etc/resolv.conf'
 
 		return 0
 	}
@@ -990,7 +990,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	script="$( uci -q get dhcp.@dnsmasq[0].dhcpscript )"
 
 	pid_good "$pid" "$script" || {
-		if fgrep -q 'nameserver 127.0.0.1' '/etc/resolv.conf'; then
+		if grep -Fq 'nameserver 127.0.0.1' '/etc/resolv.conf'; then
 			_log it $funcname daemon info "restarting dnsmasq"
 
 			pidof udhcpd >/dev/null && {			# otherwise the server-port cannot bound to new daemon
@@ -1097,7 +1097,7 @@ _watch_pppoe()
 
 	[ "$( uci -q get network.$ifname.proto )" = 'pppoe' ] || return 0
 
-	if ip route list exact '0.0.0.0/0' | fgrep -q "dev $WANDEV" ; then	# WANDEV= "pppoe-wan" OR "ppp0"
+	if ip route list exact '0.0.0.0/0' | grep -Fq "dev $WANDEV" ; then	# WANDEV= "pppoe-wan" OR "ppp0"
 		if [ -e "$failure_file" ]; then
 			rm "$failure_file"
 			_stopwatch stop "$funcname" quiet 1 'pppoe-connection'
@@ -1112,7 +1112,7 @@ _watch_pppoe()
 		fi
 
 		[ -e "$TMPDIR/${funcname}:maxfail" ] && rm "$TMPDIR/${funcname}:maxfail"
-	elif ifstatus $ifname | fgrep -q 'AUTH_TOPEER_FAILED'; then
+	elif ifstatus $ifname | grep -Fq 'AUTH_TOPEER_FAILED'; then
 		# https://dev.openwrt.org/ticket/18026
 		if _watch counter "$TMPDIR/${funcname}:maxfail" increment 1 max 4; then
 			_log it $funcname daemon info "authfail - trying to reconnect"
@@ -1404,7 +1404,7 @@ _watch_sshd_or_telnet()
 		_log it restart_sshd daemon alert "reason: $1"
 
 		# FIXME: how can this happen? (e.g. wagenplatz)
-		logread | fgrep 'authpriv.warn dropbear' | fgrep "User 'root' has blank password, rejected" && {
+		logread | grep -F 'authpriv.warn dropbear' | grep -F "User 'root' has blank password, rejected" && {
 			sh -c "echo admin; sleep 1; echo admin" | passwd
 		}
 
@@ -1660,7 +1660,7 @@ _watch_topusage_task()
 
 	# seems to be USB-related, last detected on r40826
 	# https://lists.openwrt.org/pipermail/openwrt-devel/2014-April/024995.html
-	if fgrep '[khubd]' "$file" | grep -q ' DW'; then
+	if grep -F '[khubd]' "$file" | grep -q ' DW'; then
 		khubd_state='blocked'
 	else
 		[ -e "$TMPDIR/khubd_blocked" ] && rm "$TMPDIR/khubd_blocked"
@@ -1917,14 +1917,14 @@ _watch_wifistuff()
 		local uptime="$( _wifi phy_uptime "$WIFIDEV" )"
 		[ $uptime -lt 120 ] && return 0
 
-		ip -family inet address show dev "$WIFIDEV" | fgrep -q 'inet ' || {
+		ip -family inet address show dev "$WIFIDEV" | grep -Fq 'inet ' || {
 			_wifi phy_restart "$WIFIDEV" 'no ip on dev' || touch '/tmp/WIFI_PHY_ERROR'
 			# avoid fail of next checks
 			WIFIDEV=
 		}
 
 		local file='/tmp/WIFI_SPECIALS.sh'
-		fgrep -sq 'brctl addif ' "$file" && {
+		grep -Fsq 'brctl addif ' "$file" && {
 			case "$( brctl show )" in
 				*'wlan'*)
 				;;
@@ -1951,9 +1951,9 @@ _watch_wifistuff()
 		local monitoring_vif="mon.$WIFIDEV"
 		local logprio='alert'
 
-		if   fgrep -sq '"wlan0-1"' /var/etc/olsrd.conf; then	# hybrid adhoc/ap - check adhoc
+		if   grep -Fsq '"wlan0-1"' /var/etc/olsrd.conf; then	# hybrid adhoc/ap - check adhoc
 			check_dev='wlan0-1'
-		elif fgrep -sq '"wlan0"' /var/etc/olsrd.conf; then
+		elif grep -Fsq '"wlan0"' /var/etc/olsrd.conf; then
 			check_dev='wlan0'
 		elif _net dev_is_valid "$monitoring_vif"; then
 			check_dev="$monitoring_vif"
@@ -2246,7 +2246,7 @@ _watch_olsrstuff()
 		watch_olsr_ip="$( uci -q get olsrd.@meta[0].watch_ip )" && {		# e.g. 10.63.2.25
 			watch_value="$( uci -q get olsrd.@meta[0].watch_value )"	# e.g. "2500" = max 2.500
 
-			explode $( fgrep "$watch_olsr_ip" "/tmp/OLSR/ALL" | head -n1 )
+			explode $( grep -F "$watch_olsr_ip" "/tmp/OLSR/ALL" | head -n1 )
 			value="$( echo "$value" | tr -d '.' )"	# ETX-value, e.g 1.234 -> 1234
 
 			if   [ "$value" = '0100' ]; then
@@ -2323,7 +2323,7 @@ _watch_lowmem_freemem()
 			local ip
 
 			for ip in $( list_ip_from_dhcp_leases ) $( list_ip_from_arp_cache ); do {
-				fgrep -q "$ip;" "/tmp/CLIENTS_LAN" && return 0
+				grep -Fq "$ip;" "/tmp/CLIENTS_LAN" && return 0
 			} done
 
 			test -e "/www/SIMPLE_MESHNODE_FORCE_DHCP_LAN"

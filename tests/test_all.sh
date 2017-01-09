@@ -232,11 +232,11 @@ test_division_by_zero_is_protected()
 {
 	log "test ocurence of possible unprotected division by 0"
 
-	git grep ' / [^0-9]' | fgrep '$(( ' | grep -v 'divisor_valid' | grep ^'openwrt-addons' && return 1
-	git grep ' % [^0-9]' | fgrep '$(( ' | grep -v 'divisor_valid' | grep ^'openwrt-addons' && return 1
+	git grep ' / [^0-9]' | grep -F '$(( ' | grep -v 'divisor_valid' | grep ^'openwrt-addons' && return 1
+	git grep ' % [^0-9]' | grep -F '$(( ' | grep -v 'divisor_valid' | grep ^'openwrt-addons' && return 1
 
-	git grep ' / [^0-9]' | fgrep '$(( ' | grep -v 'divisor_valid' | grep  'apply_profile' && return 1
-	git grep ' % [^0-9]' | fgrep '$(( ' | grep -v 'divisor_valid' | grep  'apply_profile' && return 1
+	git grep ' / [^0-9]' | grep -F '$(( ' | grep -v 'divisor_valid' | grep  'apply_profile' && return 1
+	git grep ' % [^0-9]' | grep -F '$(( ' | grep -v 'divisor_valid' | grep  'apply_profile' && return 1
 
 	return 0
 }
@@ -707,11 +707,11 @@ run_test()
 					echo
 
 					# otherwise we get SC2119
-					if   show_shellfunction "$name" "$file" | fgrep -q "\$1"; then
+					if   show_shellfunction "$name" "$file" | grep -Fq "\$1"; then
 						echo "$name \"\$@\""	# ...with args
-					elif show_shellfunction "$name" "$file" | fgrep -q "\${1"; then
+					elif show_shellfunction "$name" "$file" | grep -Fq "\${1"; then
 						echo "$name \"\$@\""	# ...with args
-					elif show_shellfunction "$name" "$file" | fgrep -q "\$@"; then
+					elif show_shellfunction "$name" "$file" | grep -Fq "\$@"; then
 						echo "$name \"\$@\""	# ...with args
 					else
 						echo "$name"		# call function without args

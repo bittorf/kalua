@@ -44,7 +44,7 @@ else
 	log "[START]"
 fi
 
-MYPUBIP="$( wget -qO - "http://$MONI_SERVER/scripts/getip/" | head -n1 | fgrep '.' )"
+MYPUBIP="$( wget -qO - "http://$MONI_SERVER/scripts/getip/" | head -n1 | grep -F '.' )"
 [ -z "$MYPUBIP" ] && {
 	[ -e '/var/run/olsrd.pid' ] && {
 		pidof olsrd || /etc/init.d/olsrd
@@ -98,12 +98,12 @@ if   [ -e '/usr/local/bin/omap4_temp' ]; then
 	SSID="$SSID+%c2%b0C"	# space grad celcius
 elif [ -e '/usr/bin/sensors' ]; then
 	# apt-get install lm-sensors
-	set -- $( sensors | fgrep 'temp1:' )
+	set -- $( sensors | grep -F 'temp1:' )
 	SSID="$2"					# +56.0°C
 	SSID="$( echo "$SSID" | sed 's/[^0-9\.]//g' )"	#  56.0
 	SSID="$SSID+%c2%b0C"	# space grad celcius
 
-	set -- $( sensors | fgrep 'fan1:' )
+	set -- $( sensors | grep -F 'fan1:' )
 	SSID="$SSID+%7C+$2+RPM"				# 56.0 °C | 4900 RPM
 
 	# TODO: show highest
@@ -134,7 +134,7 @@ show_switch()
 {
 	return 0
 
-	ip link show dev "$ETHERNET" | fgrep -q 'NO-CARRIER' && return 1
+	ip link show dev "$ETHERNET" | grep -Fq 'NO-CARRIER' && return 1
 	[ -e "/sbin/mii-tool" ] && /sbin/mii-tool "$ETHERNET" 2>/dev/null
 }
 

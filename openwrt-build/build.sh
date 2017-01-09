@@ -368,7 +368,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 				config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
 			fi
 
-			fgrep -q "$pattern" "$config" || {
+			grep -Fq "$pattern" "$config" || {
 				search_and_replace "$config" 'console=ttyS0,115200' "$pattern &"
 				log "looking into '$config', adding '$pattern'" gitadd "$config"
 			}
@@ -376,7 +376,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		'ar71xx')
 			config="$dir/image/Makefile"
 
-			fgrep -q "$pattern" "$config" || {
+			grep -Fq "$pattern" "$config" || {
 				search_and_replace "$config" 'console=' "$pattern &"
 				log "looking into '$config', adding '$pattern'" gitadd "$config"
 			}
@@ -389,7 +389,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 			if [ -e "$config" ]; then
 				log "looking into '$config', adding '$pattern'"
 
-				fgrep -q "$pattern" "$config" || {
+				grep -Fq "$pattern" "$config" || {
 					# FIXME! use search_and_replace()
 					sed >"$config.tmp" "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
 					mv   "$config.tmp" "$config"
@@ -486,7 +486,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 
 	if [ -e "$file" ]; then
 		MAC80211_CLEAN='true'
-		COMPAT_WIRELESS_DATE="$( fgrep 'PKG_VERSION:=' 'package/kernel/mac80211/Makefile' | cut -d'=' -f2 )"	# e.g. 2016-01-10
+		COMPAT_WIRELESS_DATE="$( grep -F 'PKG_VERSION:=' 'package/kernel/mac80211/Makefile' | cut -d'=' -f2 )"	# e.g. 2016-01-10
 		pattern="${option}CONFIG_PACKAGE_kmod-ath9k=y"
 
 		log "searching for '$pattern' in '.config'"
@@ -538,7 +538,7 @@ copy_additional_packages()
 
 	for dir in $KALUA_DIRNAME/openwrt-packages/* ; do {
 		if [ -e "$dir/Makefile" ]; then
-			install_section="$( fgrep 'SECTION:=' "$dir/Makefile" | cut -d'=' -f2 )"
+			install_section="$( grep -F 'SECTION:=' "$dir/Makefile" | cut -d'=' -f2 )"
 			package="$( basename "$dir" )"
 
 			do_copy()
@@ -1125,7 +1125,7 @@ feeds_prepare()
 	local do_symlinking='no'
 	local file githash
 
-	fgrep -q ' oonf '  "$file_feeds" || {
+	grep -Fq ' oonf '  "$file_feeds" || {
 		# using 'src-git-full' possible since r45668
 		# needs:
 		# CMake version 2.8.12 or better
@@ -1136,7 +1136,7 @@ feeds_prepare()
 		do_symlinking='true'
 	}
 
-	fgrep ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
+	grep -F ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
 		# FIXME! use search_and_replace()
 		# hide oldpackages
 		sed >"$file_feeds.tmp" '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
@@ -1581,7 +1581,7 @@ openwrt_download()
 			found_autocommit()
 			{
 				# from log/gitadd
-				git log HEAD...HEAD^^ | fgrep -q '# mimic OpenWrt-style:'
+				git log HEAD...HEAD^^ | grep -Fq '# mimic OpenWrt-style:'
 			}
 
 			while found_autocommit; do {
@@ -2238,7 +2238,7 @@ apply_symbol()
 			url='http://intercity-vpn.de/networks/liszt28/tarball/testing/info.txt'
 
 			log "$KALUA_DIRNAME: adding recent tarball hash from '$url'"
-			tarball_hash="$( wget -qO - "$url" | fgrep 'tarball.tgz' | cut -d' ' -f2 )"
+			tarball_hash="$( wget -qO - "$url" | grep -F 'tarball.tgz' | cut -d' ' -f2 )"
 			if [ -z "$tarball_hash" ]; then
 				log "[ERR] cannot fetch tarball hash from '$url'"
 				log "[ERR] be prepared that your node will automatically perform an update upon first boot"
@@ -2576,7 +2576,7 @@ build_options_set()
 					$funcname subcall 'debug'
 				}	# parser_ignore
 
-				fgrep -q 'CONFIG_USB_SUPPORT=y' "$file" && {
+				grep -Fq 'CONFIG_USB_SUPPORT=y' "$file" && {
 					log "[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
 					$funcname subcall 'USBstorage'
 				}	# parser_ignore
@@ -3783,7 +3783,7 @@ while [ -n "$1" ]; do {
 			else
 				# ARG3 = e.g. option 'plain' or 'json'
 				# first try a submatch (e.g. 1043 or asus) - when this fails, show all
-				target_hardware_set 'list' "$3" | fgrep "$2" || target_hardware_set 'list' "$3"
+				target_hardware_set 'list' "$3" | grep -F "$2" || target_hardware_set 'list' "$3"
 
 				exit 1
 			fi

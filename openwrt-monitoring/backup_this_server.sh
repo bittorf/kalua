@@ -233,7 +233,7 @@ cd / || exit
 	esac
 
 	TARFILE="/tmp/backup-server-varwwwother-$( uname -n )-$( date +%Y%b%d_%H:%M ).tar"
-	FILELIST="$( find /var/www -maxdepth 1 -mindepth 1 | fgrep -v "/networks" | fgrep -v "/macs" )"
+	FILELIST="$( find /var/www -maxdepth 1 -mindepth 1 | grep -Fv "/networks" | grep -Fv "/macs" )"
 
 	echo "content: varwwwother creating $TARFILE"
 	tar -cf "$TARFILE" $FILELIST || {

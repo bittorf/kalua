@@ -399,7 +399,7 @@ echo    >>$TOOLS '# uci set olsrd.@meta[0].hnaslave=1; uci commit olsrd'
 echo	>>$TOOLS '# uci set olsrd.@olsrd[0].LinkQualityAlgorithm=etx_ffeth'
 echo	>>$TOOLS '# uci set olsrd.@Interface[0].Mode=ether; uci set olsrd.@Interface[1].Mode=mesh; uci commit olsrd'
 echo    >>$TOOLS ''
-echo	>>$TOOLS '# uname -a | fgrep -q " 3.14.29 " || {'
+echo	>>$TOOLS '# uname -a | grep -Fq " 3.14.29 " || {'
 echo	>>$TOOLS '#	echo >\$SCHEDULER_IMPORTANT "_firmware check_forced_upgrade"'
 echo	>>$TOOLS '#	_firmware update_pmu testing'
 echo	>>$TOOLS '#	_watch monitoring'
@@ -2843,11 +2843,11 @@ func_cell_pfilter ()
 					printf '%s' "<td nowrap bgcolor=green> $PFILTER </td>"
 				;;
 				*)
-					  if echo "$PFILTER" | fgrep -q  ".0 olsrign" ; then
+					  if echo "$PFILTER" | grep -Fq  ".0 olsrign" ; then
 
 						printf '%s' "<td nowrap bgcolor=green> $PFILTER </td>"
 
-					elif echo "$PFILTER" | fgrep -q ".10 olsrign" ; then
+					elif echo "$PFILTER" | grep -Fq ".10 olsrign" ; then
 
 						printf '%s' "<td nowrap bgcolor=green> $PFILTER </td>"
 					else
@@ -4044,7 +4044,7 @@ case "$NETWORK" in
 
 		[ -e "$TMPDIR/PORTFW" ] || {
 			echo  >"$TMPDIR/PORTFW" 'case "$WIFIMAC" in'
-			wget -qO - "http://$LAST_REMOTE_ADDR/cgi-bin-tool.sh?OPT=portforwarding_table" | fgrep 'port: 80 ' | sed -n 's/^### \(.*\)/\1/p' >>"$TMPDIR/PORTFW"
+			wget -qO - "http://$LAST_REMOTE_ADDR/cgi-bin-tool.sh?OPT=portforwarding_table" | grep -F 'port: 80 ' | sed -n 's/^### \(.*\)/\1/p' >>"$TMPDIR/PORTFW"
 			echo >>"$TMPDIR/PORTFW" '	*) PORT= ;; esac'
 			echo >>"$TMPDIR/PORTFW" '#'
 			sed -i 's/://g' "$TMPDIR/PORTFW"

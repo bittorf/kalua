@@ -81,7 +81,7 @@ for NETWORK in $LIST_NETWORKS; do {
 	BACKUP="backup_vds_$( date +%Y%b%d_%H:%M ).tar.lzma"
 	log "[START] working on $NETWORK: $( free_diskspace ) in dir: '$( pwd )'"
 
-	find . -size -500c | fgrep "db_backup.tgz_" |
+	find . -size -500c | grep -F "db_backup.tgz_" |
 	 while read -r FILE; do {
 		log "deleting too small db-backup: $FILE <500 bytes"
 		rm -f "$FILE"

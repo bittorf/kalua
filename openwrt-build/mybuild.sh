@@ -262,7 +262,7 @@ set_build()
 					config="$dir/image/Makefile"
 					log "$mode: looking into '$config'"
 
-					fgrep -q "$pattern" "$config" || {
+					grep -Fq "$pattern" "$config" || {
 						sed -i "s/console=/$pattern &/" "$config"
 					}
 				;;
@@ -270,7 +270,7 @@ set_build()
 					config="$( ls -1 $dir/config-* | head -n1 )"
 					log "$mode: looking into '$config'"
 
-					fgrep -q "$pattern" "$config" || {
+					grep -Fq "$pattern" "$config" || {
 						sed -i "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
 					}
 				;;
@@ -847,7 +847,7 @@ applymystuff()
 		url="http://intercity-vpn.de/firmware/$( get_arch )/images/testing/info.txt"
 		log "fetching $url"
 		hash="$( wget -qO - "$url" |
-			  fgrep "tarball.tgz" |
+			  grep -F "tarball.tgz" |
 			   cut -d' ' -f2
 			)"
 

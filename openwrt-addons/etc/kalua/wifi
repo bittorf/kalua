@@ -467,7 +467,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 	esac
 
 	[ -e '/tmp/OLSR/LINKS.sh' ] && {
-		eval $( fgrep "REMOTE=${ip};" '/tmp/OLSR/LINKS.sh' )
+		eval $( grep -F "REMOTE=${ip};" '/tmp/OLSR/LINKS.sh' )
 		printf '%s' "lq=$LQ;nlq=$NLQ;cost=$COST;"
 	}
 
@@ -925,8 +925,8 @@ _wifi_speed()
 
 		if really_test_speed; then
 			speed="$( _speedtest stats here "$nexthop" poormens_tcpdownload |
-				fgrep "$pattern" |
-				 fgrep -v '=0' |
+				grep -F "$pattern" |
+				 grep -Fv '=0' |
 				  cut -d'=' -f2 )"
 		else
 			speed=8888
@@ -1298,7 +1298,7 @@ _wifi_phy_restart()
 		local i=30
 
 		while [ $i -gt 0 ]; do {
-			if ip address show dev $wifi_dev | fgrep -q "inet "; then
+			if ip address show dev $wifi_dev | grep -Fq "inet "; then
 				_log it $funcname daemon info "good ip after $(( 30 - i )) sec"
 				return 0
 			else
@@ -1520,13 +1520,13 @@ _wifi_bssid()				# BSSID = cell in adhoc, ap-wifimac in ap, wifimac of associate
 
 		command -v iwinfo >/dev/null && {
 			# Access Point: 02:CA:FF:EE:BA:BE
-			explode $( iwinfo "$WIFIDEV" info | fgrep 'Access Point:' )
+			explode $( iwinfo "$WIFIDEV" info | grep -F 'Access Point:' )
 			bssid="$3"
 		}
 
 		command -v iwconfig >/dev/null && test -z "$bssid" && {
 			# Mode:Ad-Hoc  Frequency:2.432 GHz  Cell: 02:CA:FF:EE:BA:BE
-			explode $( iwconfig "$WIFIDEV" | fgrep 'Cell:' )
+			explode $( iwconfig "$WIFIDEV" | grep -F 'Cell:' )
 
 			while [ -n "$1" ]; do {
 				shift
@@ -2246,7 +2246,7 @@ _wifi_check_each_client()
 
 	for mac in $( _wifi mac_assoclist "$WIFIDEV" ); do {
 		# TODO: more values?
-		explode $( iw dev "$WIFIDEV" station get "$mac" | fgrep 'inactive time:' )
+		explode $( iw dev "$WIFIDEV" station get "$mac" | grep -F 'inactive time:' )
 		inactive_time="$3"
 
 		[ -z "$inactive_time" -o $inactive_time -ge 120000 ] && {
@@ -2674,8 +2674,8 @@ _wifi_longshot_test()		# only works with single-radio devices
 
 	show_uci_wireless()
 	{
-		uci show wireless | fgrep '.chan'
-		uci show wireless | fgrep '.bssid'
+		uci show wireless | grep -F '.chan'
+		uci show wireless | grep -F '.bssid'
 	}
 
 	e "waiting till $starttime"
@@ -2699,7 +2699,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 #	chanbw_initial="$( uci -q get wireless.radio0.chanbw || echo '20' )"
 
 	bssid_initial="$( _wifi bssid $WIFIDEV )"
-#	bssid_initial="$( uci show wireless | fgrep '.bssid=' | head -n1 | cut -d'=' -f2 )"
+#	bssid_initial="$( uci show wireless | grep -F '.bssid=' | head -n1 | cut -d'=' -f2 )"
 
 
 	# TODO: initial sync via http? needed
@@ -2714,7 +2714,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	_stopwatch start $funcname
 
 	for channel in $( seq "$channel_start" "$channel_ready" ); do {
-		iw phy phy0 info | fgrep -q " MHz [$channel]" || continue	# invalid/unusable channel
+		iw phy phy0 info | grep -Fq " MHz [$channel]" || continue	# invalid/unusable channel
 
 		for chanbw in 5 10 20; do {
 			# TODO: test different txpower levels
@@ -2729,7 +2729,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 			wait_till_time ':20'	# till wifi has settled and link is useable
 ###
 			bssid="$( _wifi bssid $WIFIDEV )"
-			explode $( iwinfo "$WIFIDEV" info | fgrep 'Link Quality:' )
+			explode $( iwinfo "$WIFIDEV" info | grep -F 'Link Quality:' )
 			quality="$6"
 
 			for node in $node_list; do {
@@ -2988,7 +2988,7 @@ _wifi_longshot_report()
 		# we only need IPv4
 		# fe80::f6ec:38ff:fefd:74b4 dev wlan0 lladdr f4:ec:38:fd:74:b4 STALE
 		# 10.63.23.69 dev wlan0 lladdr f8:1a:67:5a:a1:6b PERMANENT
-		ip="$( ip neigh | fgrep "dev $dev lladdr" | grep -v ':....:' | head -n1 | cut -d' ' -f1 )"
+		ip="$( ip neigh | grep -F "dev $dev lladdr" | grep -v ':....:' | head -n1 | cut -d' ' -f1 )"
 
 		[ -n "$ip" ] && {
 			DONT_WORK='true' . /usr/sbin/cron.pingchecker		# gives us pingstat()

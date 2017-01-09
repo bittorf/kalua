@@ -711,23 +711,23 @@ _netfilter_stats()
 
 	case "$context" in
 		forward_lan2lan)
-			line="$( $IPT -nxvL FORWARD | fgrep "!$WIFIDEV !$WIFIDEV" )"
+			line="$( $IPT -nxvL FORWARD | grep -F "!$WIFIDEV !$WIFIDEV" )"
 		;;
 		forward_lan2wifi)
-			line="$( $IPT -nxvL FORWARD | fgrep "!$WIFIDEV $WIFIDEV" )"
+			line="$( $IPT -nxvL FORWARD | grep -F "!$WIFIDEV $WIFIDEV" )"
 		;;
 		forward_wifi2wifi)
-			line="$( $IPT -nxvL FORWARD | fgrep "$WIFIDEV  $WIFIDEV" )"
+			line="$( $IPT -nxvL FORWARD | grep -F "$WIFIDEV  $WIFIDEV" )"
 		;;
 		*)
 			if _sanitizer run "$context" mac check; then
-				line="$( $IPT -t mangle -nxvL FORWARD | fgrep "incoming_$context" )"
+				line="$( $IPT -t mangle -nxvL FORWARD | grep -F "incoming_$context" )"
 
 				explode $line
 				packets="${1:-0}"
 				bytes="${2:-0}"
 
-				line="$( $IPT -t mangle -nxvL FORWARD | fgrep "outgoing_$context" )"
+				line="$( $IPT -t mangle -nxvL FORWARD | grep -F "outgoing_$context" )"
 			else
 				return 1
 			fi
@@ -1501,7 +1501,7 @@ _netfilter_splash_autoadd()
 		if _netfilter user_probe "$mac"; then
 			:	# already known
 		else
-			fgrep -sq "$ip;" '/tmp/CLIENTS_ALL' && {
+			grep -Fsq "$ip;" '/tmp/CLIENTS_ALL' && {
 				/etc/dhcp-script.d/10dhcpscript add "$mac" "$ip"
 			}
 		fi
@@ -1599,7 +1599,7 @@ _netfilter_walledgarden_list()
 	list="$list $( uci -q get 'system.@weblogin[0].list_walledgarden' )"
 
 	[ -e "/www/advertisement.js" ] && {
-		fgrep -q "www.openxdemo.com" "/www/advertisement.js" && {
+		grep -Fq "www.openxdemo.com" "/www/advertisement.js" && {
 			ip="$( _net dns2ip www.openxdemo.com )"
 			list="$list $ip www.openxdemo.com"
 		}
@@ -1733,8 +1733,8 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	_sanitizer run "$mac" mac check || return 1
 	_sanitizer run "$ip"  ip4 check || return 1
 
-	fgrep -sq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
-	ip neigh show to "$ip" | fgrep -q " dev $WANDEV " && return 1	# no direct logins from WAN
+	grep -Fsq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
+	ip neigh show to "$ip" | grep -Fq " dev $WANDEV " && return 1	# no direct logins from WAN
 
 	# TODO: ip can change when called via dnsmasq: e.g. 02:50:43:34:25:bc - if arping fails? refetch ip via 'ip neigh'
 
@@ -1836,10 +1836,10 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 
 			# with '-D' = 'Duplicated address detection mode'
 			_log it $funcname daemon info "arping -D -c1 -I '$dev' '$ip'"
-			line="$( arping -D -c1 -I "$dev" "$ip" | fgrep ':' )" || {
+			line="$( arping -D -c1 -I "$dev" "$ip" | grep -F ':' )" || {
 				# not all systems do this e.g. LANCOM
 				_log it $funcname daemon info "arping -c1 -I '$dev' '$ip'"
-				line="$( arping -c1 -I "$dev" "$ip" | fgrep ':' )"
+				line="$( arping -c1 -I "$dev" "$ip" | grep -F ':' )"
 			}
 
 			if [ -n "$line" ]; then
@@ -1894,7 +1894,7 @@ _netfilter_user_add()
 		mkdir "/tmp/NETFILTER/USER/$mac" || return 0
 	else
 		# maybe in /www/NETFILTER_AUTOADD is the ip from another day, so try another lookup
-		for unexpected_ip in $( ip neigh | fgrep " $mac " | cut -d' ' -f1 ); do {
+		for unexpected_ip in $( ip neigh | grep -F " $mac " | cut -d' ' -f1 ); do {
 			if dev="$( _netfilter user_reachable "$mac" "$unexpected_ip" )"; then
 				if [ "$unexpected_ip" = "$ip" ]; then
 					_log it $funcname daemon info "same IP $ip 2nd call to user_reachable() works - mac: $mac"
@@ -1924,9 +1924,9 @@ _netfilter_user_add()
 	_net dev_is_wifi "$dev" || {
 		bool_true 'system.@weblogin[0].always_reachable' || {
 			# no action if already in:
-			fgrep -sq " add '$mac' '$ip' " '/www/NETFILTER_AUTOADD' || {
+			grep -Fsq " add '$mac' '$ip' " '/www/NETFILTER_AUTOADD' || {
 				# hide/comment entry with other ip but same mac:
-				fgrep -sq " add '$mac' " '/www/NETFILTER_AUTOADD' && {
+				grep -Fsq " add '$mac' " '/www/NETFILTER_AUTOADD' && {
 					sed -i "s/^.*$mac/# IP changed # &/" '/www/NETFILTER_AUTOADD'
 				}
 

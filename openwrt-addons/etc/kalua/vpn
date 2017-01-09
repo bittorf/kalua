@@ -83,7 +83,7 @@ _vpn_innercity_master_vtund()
 						_vpn innercity_master_vtund 'restart'
 					fi
 
-					if lsof | fgrep '/dev/net/tun' | grep -q ^'olsrd'; then
+					if lsof | grep -F '/dev/net/tun' | grep -q ^'olsrd'; then
 						pid_list="$( pgrep 'vpn_innercity_master_iface up' )"
 						for pid in $pid_list; do {
 							_log it $funcname daemon alert "hanging task: $pid '$( cat /proc/$pid/cmdline )'"
@@ -365,12 +365,12 @@ _vpn_innercity_master_iface()
 		uptime=$( _stopwatch seconds2humanreadable "$uptime_sec" )
 		rm -f "$TMPDIR/$funcname-devup-$dev"
 
-		explode $( $IPT -nxvL | fgrep " $dev " | head -n1 )
+		explode $( $IPT -nxvL | grep -F " $dev " | head -n1 )
 		packets=$1
 		bytes=$2
 		$IPT -D FORWARD -o $dev -j ACCEPT
 
-		explode $( $IPT -nxvL | fgrep " $dev " | head -n1 )
+		explode $( $IPT -nxvL | grep -F " $dev " | head -n1 )
 		packets=$(( packets + $1 ))
 		bytes=$(( bytes + $2 ))
 		$IPT -D FORWARD -i $dev -j ACCEPT
@@ -581,7 +581,7 @@ _vpn_hideandseek_master_vtund_write_config()
 		# oldstyle
 		ifname='mytunnel'
 	else
-		ifname="$( uci show network | fgrep "ifname='tap0'" | cut -d'.' -f2 )"
+		ifname="$( uci show network | grep -F "ifname='tap0'" | cut -d'.' -f2 )"
 		[ -z "$ifname" ] && ifname='innercityVPN'
 
 		uci set network.${ifname}.disabled='0'		# FIXME!
@@ -709,13 +709,13 @@ _vpn_check_daemon()		# TODO: needs better name: it's for 'hideandseek'
 		if   _vpn tapdev_has_probs 'tap0'; then
 			restart_vtund 'dev is not fully up'
 		elif grep -q 'Connection timed out' '/tmp/logread.out'; then
-			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | fgrep -c 'Connection timed out' '/tmp/logread.out' ) -gt 5 ] && {
+			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | grep -Fc 'Connection timed out' '/tmp/logread.out' ) -gt 5 ] && {
 				grep -q ' vtund: link_up ' '/tmp/logread.out' || {
 					restart_vtund 'our pubip has changed?'
 				}
 			}
 		elif grep -q "Can't resolv server address" '/tmp/logread.out'; then
-			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | fgrep -c "Can't resolv server address" '/tmp/logread.out' ) -gt 5 ] && {
+			[ $( grep "vtund\[[0-9]*\]:" '/tmp/logread.out' | grep -Fc "Can't resolv server address" '/tmp/logread.out' ) -gt 5 ] && {
 				restart_vtund 'servers pubip has changed?'
 			}
 		fi

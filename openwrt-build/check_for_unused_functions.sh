@@ -9,7 +9,7 @@ count_occurrence_of_string()
 	find . -type f >"$tempfile"
 
 	while read -r file; do {
-		fgrep "$string" "$file"
+		grep -F "$string" "$file"
 	} done <"$tempfile" | wc -l
 
 	rm "$tempfile"

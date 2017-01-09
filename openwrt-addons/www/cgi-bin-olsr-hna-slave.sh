@@ -81,9 +81,9 @@ else
 	eval $( _http query_string_sanitize "$0" )		# ?netaddr=...&netmask=...&version=...
 
 	if isnumber "$version"; then
-		RTABLE="$( ip route list exact $netaddr/$netmask | fgrep " via $REMOTE_ADDR " )" || {
+		RTABLE="$( ip route list exact $netaddr/$netmask | grep -F " via $REMOTE_ADDR " )" || {
 			knowing_hna_already "$netaddr" "$netmask" && {
-				RTABLE="$( ip route list exact $REMOTE_ADDR | fgrep " via $REMOTE_ADDR " )"
+				RTABLE="$( ip route list exact $REMOTE_ADDR | grep -F " via $REMOTE_ADDR " )"
 			}
 		}
 

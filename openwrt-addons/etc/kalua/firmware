@@ -401,7 +401,7 @@ _firmware_download_prepare_for_lowmem_devices()
 			wifi_needed()
 			{
 				for dev in $WIFI_DEVS; do {
-					ip route list exact '0.0.0.0/0' | fgrep -q "dev $dev" && return 0
+					ip route list exact '0.0.0.0/0' | grep -Fq "dev $dev" && return 0
 				} done
 
 				return 1
@@ -747,7 +747,7 @@ _firmware_burn()
 
 	_system include			# we need a copy in ram
 	_log shell_is_interactive && {
-		screen -ls | fgrep -qi "Attached" || {
+		screen -ls | grep -Fqi "Attached" || {
 
 			if [ -e "/usr/sbin/screen" ]; then
 				_log it $FUNC daemon info "better start a screen-session: /usr/sbin/screen - then do: '. /tmp/loader; _firmware burn /tmp/fw'"
@@ -823,12 +823,12 @@ _firmware_burn()
 				local patchfile partition fix
 
 				patchfile="/lib/upgrade/common.sh"
-				fgrep -q '"Upgrade completed";' "$patchfile" || {
-					partition="/dev/$( fgrep "linux" /proc/mtd | cut -d':' -f1 )"
+				grep -Fq '"Upgrade completed";' "$patchfile" || {
+					partition="/dev/$( grep -F "linux" /proc/mtd | cut -d':' -f1 )"
 					fix="mtd fixtrx $partition"
 					_log it $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
 					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
-					fgrep -q "$fix" "$patchfile" || _system crashreboot 'patching_failed'
+					grep -Fq "$fix" "$patchfile" || _system crashreboot 'patching_failed'
 				}
 			}
 		;;
@@ -848,10 +848,10 @@ _firmware_burn()
 		sed -i 's|^v() {|v() {\necho "$@" >/dev/console|' "$patchfile"
 	}
 
-	fgrep -q "ubusd" "$patchfile" || {
+	grep -Fq "ubusd" "$patchfile" || {
 		_log it $funcname daemon info "[OK] patching '$patchfile', adding some essential services"
 		sed -i 's/services$/&\n*sh*|*dbclient*|*preinit*|*procd*|*ubusd*);;/' "$patchfile"
-		fgrep -q "ubusd" "$patchfile" || _system crashreboot 'patching_failed'
+		grep -Fq "ubusd" "$patchfile" || _system crashreboot 'patching_failed'
 	}
 
 	[ -e "$patchfile" ] && {
@@ -1141,10 +1141,10 @@ _firmware_check_forced_upgrade()
 		if grep -q "_firmware burn" "/etc/init.d/boot"; then
 			_system crashreboot 'sysupgrade_start'
 		else
-			if fgrep -q "kmodloader" "/etc/init.d/boot"; then
+			if grep -Fq "kmodloader" "/etc/init.d/boot"; then
 				sed -i 's|/sbin/kmodloader$|if test -e /www/fw; then mv /www/fw /tmp; . /tmp/loader; _firmware; _firmware burn /tmp/fw; else /sbin/kmodloader; fi|' "/etc/init.d/boot" && _system crashreboot 'sysupgrade_start'
 			else
-				if fgrep -q "# another round of" "/etc/init.d/boot"; then
+				if grep -Fq "# another round of" "/etc/init.d/boot"; then
 					sed  -i -e 's/^.*\.failsafe$/&\ntest -e \/www\/fw || {/' \
 						-e 's/^.*rm -f \/tmp\/wireless.tmp$/&\n}/' \
 						-e 's/# another round of/test -e \/www\/fw \&\& {\n. \/tmp\/loader\n_wifi set anymode anyfreq disabled 1\n\/bin\/mv \/www\/fw \/tmp\/fw\n_firmware burn \/tmp\/fw\nuci revert wireless.radio0.disabled\n}\n\n&/' \

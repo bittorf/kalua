@@ -26,9 +26,9 @@ count_crashs_unreal()
 	local j=0
 
 	for file in /tmp/crashlogs/crash-*; do {
-		if   fgrep -sq "SysRq : Trigger a crash" "$file"; then
+		if   grep -Fsq "SysRq : Trigger a crash" "$file"; then
 			i=$(( i + 1 ))
-		elif fgrep -sq "invoked oom-killer:" "$file"; then
+		elif grep -Fsq "invoked oom-killer:" "$file"; then
 			j=$(( j + 1 ))
 		fi
 	} done
@@ -164,7 +164,7 @@ process_name()
 	local file="$1"
 	local line
 
-	line="$( fgrep '] Process ' "$file" )" && {
+	line="$( grep -F '] Process ' "$file" )" && {
 		set -- $line
 		while [ "$1" != "Process" ]; do shift; done
 		echo $2
@@ -172,7 +172,7 @@ process_name()
 		return 0
 	}
 
-	line="$( fgrep ' invoked oom-killer: ' "$file" )" && {
+	line="$( grep -F ' invoked oom-killer: ' "$file" )" && {
 		set -- $line
 		while [ "$2" != "invoked" ]; do shift; done
 		echo $1
@@ -230,7 +230,7 @@ html_tablecontent()
 			fi
 		}
 
-		if   fgrep -q "SysRq : Trigger a crash" "$file"; then
+		if   grep -Fq "SysRq : Trigger a crash" "$file"; then
 			# fixme!
 			continue
 			# fixme!
@@ -247,30 +247,30 @@ html_tablecontent()
 			fi
 
 			reason="manual SysRq/$reason/$uptime"
-		elif fgrep -q "invoked oom-killer:" "$file"; then
+		elif grep -Fq "invoked oom-killer:" "$file"; then
 			reason="oom-killer"
 			# fixme!
 #			continue
 			# fixme!
-		elif fgrep -q 'Instruction bus error' "$file"; then
+		elif grep -Fq 'Instruction bus error' "$file"; then
 			reason='Instruction bus error'
-		elif fgrep -q "Unable to handle kernel paging request at virtual address 00000000" "$file"; then
+		elif grep -Fq "Unable to handle kernel paging request at virtual address 00000000" "$file"; then
 			reason="0ptr_deref"
-		elif fgrep -q "Unhandled kernel unaligned access" "$file"; then
+		elif grep -Fq "Unhandled kernel unaligned access" "$file"; then
 			reason="unaligned_access"
-		elif fgrep -q "Unable to handle kernel paging request at virtual address" "$file"; then
+		elif grep -Fq "Unable to handle kernel paging request at virtual address" "$file"; then
 			reason="kernel_paging_fuckup"
-		elif fgrep -q "Reserved instruction in kernel code" "$file"; then
+		elif grep -Fq "Reserved instruction in kernel code" "$file"; then
 			reason="illegal Opcode"
-		elif fgrep -q "do_cpu invoked from kernel context" "$file"; then
+		elif grep -Fq "do_cpu invoked from kernel context" "$file"; then
 			reason="bad call to do_cpu()"
-		elif fgrep -q "unaligned instruction access" "$file"; then
+		elif grep -Fq "unaligned instruction access" "$file"; then
 			reason="unaligned_instr_access"
-		elif fgrep -q "SQUASHFS error:" "$file"; then
+		elif grep -Fq "SQUASHFS error:" "$file"; then
 			reason="squashfs"
-		elif fgrep -q "Kernel bug detected" "$file"; then
+		elif grep -Fq "Kernel bug detected" "$file"; then
 			reason="kernel_bug"
-		elif fgrep -q "device closed unexpectedly" "$file"; then
+		elif grep -Fq "device closed unexpectedly" "$file"; then
 			reason="watchdog"
 		else
 			reason="?"
@@ -281,15 +281,15 @@ html_tablecontent()
 		fi
 
 
-		if   fgrep -q "ar71xx" "$file"; then
+		if   grep -Fq "ar71xx" "$file"; then
 			platform="ar71xx"
-		elif fgrep -q "TL-WR1043ND" "$file"; then
+		elif grep -Fq "TL-WR1043ND" "$file"; then
 			platform="ar71xx"
-		elif fgrep -q "Buffalo WHR-HP-G54" "$file"; then
+		elif grep -Fq "Buffalo WHR-HP-G54" "$file"; then
 			platform="brcm47xx"
-		elif fgrep -q "Dell TrueMobile 2300" "$file"; then
+		elif grep -Fq "Dell TrueMobile 2300" "$file"; then
 			platform="brcm47xx"
-		elif fgrep -q "Linksys WRT54G/GS/GL" "$file"; then
+		elif grep -Fq "Linksys WRT54G/GS/GL" "$file"; then
 			platform="brcm47xx"
 		else
 			platform="?"

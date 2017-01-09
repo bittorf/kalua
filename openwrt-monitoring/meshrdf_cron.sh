@@ -82,7 +82,7 @@ htmlout_error_summary()
 		fi
 #		log "[OK] including '$NETWORK'-contacts: $CONTACT_DATA"
 
-		fgrep -sq " title='MISS " "$HTML_INDEX" && {
+		grep -Fsq " title='MISS " "$HTML_INDEX" && {
 			# header:
 			{
 				printf '%s' "<tr><td align='left' colspan='25' bgcolor='#81F7F3'><small>"
@@ -92,7 +92,7 @@ htmlout_error_summary()
 
 			OMIT='d85d4c9c2fb0'		# leonardo/beach
 			VERY_OLD='#8A0829'		# darkviolett = very old nodes - we suppress them (see meshrdf_generate)
-			fgrep " title='MISS " "$HTML_INDEX" | fgrep -v "$OMIT" | fgrep -v "$VERY_OLD" >>"$FILE_SUMMARY_TEMP"
+			grep -F " title='MISS " "$HTML_INDEX" | grep -Fv "$OMIT" | grep -Fv "$VERY_OLD" >>"$FILE_SUMMARY_TEMP"
 		}
 
 	} done
@@ -155,7 +155,7 @@ optimize_space()
 
 list_meshrdf_files_with_zero_size()
 {
-	find /var/www/networks -type f -size 0 | fgrep "/recent/"
+	find /var/www/networks -type f -size 0 | grep -F "/recent/"
 }
 
 ignore_network()
@@ -311,7 +311,7 @@ esac
 
 # this detroys the ping-counter! we really should send out an SMS
 log "checking: disk full?"
-if df -h /dev/xvda1 | fgrep -q "100%"; then
+if df -h /dev/xvda1 | grep -Fq "100%"; then
 	if iptables -nL INPUT | head -n3 | grep -q ^'ACCEPT' ; then
 		log "diskspace OK - allowing ssh-login: already allowed"
 	else

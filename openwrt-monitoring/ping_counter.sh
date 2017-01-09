@@ -12,7 +12,7 @@
 
 # helper:
 # pruefen wo ist welche IP: IP='1.2.3.4'
-# iptables -nxvL myping | while read LINE; do set -- $LINE; case "$3" in 'myping_'*) iptables -nxvL $3 | fgrep "$IP" && echo "$3" ;; esac; done
+# iptables -nxvL myping | while read LINE; do set -- $LINE; case "$3" in 'myping_'*) iptables -nxvL $3 | grep -F "$IP" && echo "$3" ;; esac; done
 #
 # pruefen von welchem router die IP kommt:
 # NETWORK=liszt28
@@ -22,7 +22,7 @@
 # entfernen mit:
 # iptables -D myping_ejbw-pbx -s "$IP" -j ACCEPT
 # besser:
-# NW=liszt28; I=0; while let I+=1; do iptables -nxvL myping_$NW $I | fgrep -q " $IP " && break; done; iptables -D myping_$NW $I
+# NW=liszt28; I=0; while let I+=1; do iptables -nxvL myping_$NW $I | grep -Fq " $IP " && break; done; iptables -D myping_$NW $I
 
 log()
 {
@@ -458,7 +458,7 @@ add_new_ipaddresses_from_network()
 
 			case "$3" in
 				'myping_'*)
-					iptables -nxvL $3 | fgrep -q " $ip " && {
+					iptables -nxvL $3 | grep -Fq " $ip " && {
 						log "will not add $ip to network '$network' - found it already in $3"
 						echo "YES"
 						return 0
@@ -483,7 +483,7 @@ add_new_ipaddresses_from_network()
 			continue
 		}
 
-		iptables -nL myping_$network | fgrep -q " $ip " || {
+		iptables -nL myping_$network | grep -Fq " $ip " || {
 			[ "$( is_in_another_network "$ip" )" = 'NO' ] && {
 				for network in $list_network; do {
 					# FIXME! - when in 'failure', check if good again!

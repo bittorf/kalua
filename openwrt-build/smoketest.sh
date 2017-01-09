@@ -34,7 +34,7 @@ log()
 
 openwrt_revision_get()
 {
-	git log -1 | fgrep 'git-svn-id:' | cut -d'@' -f2 | cut -d' ' -f1
+	git log -1 | grep -F 'git-svn-id:' | cut -d'@' -f2 | cut -d' ' -f1
 }
 
 mymake()

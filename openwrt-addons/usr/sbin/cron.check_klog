@@ -54,31 +54,31 @@ LINE=
 
 		# early ramcheck / Alina Friedrichsen
 		PATTERN="Bad RAM at address"
-		fgrep -q "$PATTERN" "/tmp/dmesg.recent" && {
+		grep -Fq "$PATTERN" "/tmp/dmesg.recent" && {
 			cp "/tmp/dmesg.recent" "/www/badram.$$.$UP"
 			_log it kernellog daemon sms "wrote: /www/badram.$$.$UP"
 		}
 	}
 
 	PATTERN="Unhandled kernel unaligned access"
-	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'kernel_unaligned_access'
+	grep -Fq "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'kernel_unaligned_access'
 
 	PATTERN="page allocation failure: "
-	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'page_alloc_fail'
+	grep -Fq "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'page_alloc_fail'
 
 	# https://github.com/oops-kernel-org/kerneloops/blob/master/dmesg.c#L185
 	PATTERN="BUG: Bad page state in process"
-	fgrep -q " $PATTERN " "/tmp/dmesg.recent" && _system crashreboot 'BUG_bad_page'
+	grep -Fq " $PATTERN " "/tmp/dmesg.recent" && _system crashreboot 'BUG_bad_page'
 
 	PATTERN="Fixing recursive fault but reboot is needed"
-	fgrep -q "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'recursive_fault'
+	grep -Fq "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'recursive_fault'
 
 	case "$HARDWARE" in
 		'TP-LINK TL-WDR4900 v1')
 			# NETDEV WATCHDOG: eth0 (fsl-gianfar): transmit queue 0 timed out
 			PATTERN="NETDEV WATCHDOG:"
-			[ $OPENWRT_REV -lt 44610 ] && fgrep -q "$PATTERN" "/tmp/dmesg.recent" && {
-				_system reboot_safe "$( fgrep "$PATTERN" "/tmp/dmesg.recent" )"
+			[ $OPENWRT_REV -lt 44610 ] && grep -Fq "$PATTERN" "/tmp/dmesg.recent" && {
+				_system reboot_safe "$( grep -F "$PATTERN" "/tmp/dmesg.recent" )"
 			}
 		;;
 	esac
@@ -144,7 +144,7 @@ LINE=
 	}
 
 	PATTERN="ath9k/recv.c:"
-	fgrep " WARNING: at " "/tmp/dmesg.recent" | fgrep -q "$PATTERN" && {
+	grep -F " WARNING: at " "/tmp/dmesg.recent" | grep -Fq "$PATTERN" && {
 		_wifi watch_phy_problems notify
 		_wifi watch_phy_problems
 
@@ -153,9 +153,9 @@ LINE=
 	}
 
 	PATTERN='nf_conntrack: table full, dropping packet'
-	fgrep -q "$PATTERN" '/tmp/dmesg.recent' && {
+	grep -Fq "$PATTERN" '/tmp/dmesg.recent' && {
 		_log it kernellog daemon alert "$PATTERN"
-		[ $( fgrep -c "$PATTERN" '/tmp/dmesg.log' ) -gt 25 ] && {
+		[ $( grep -Fc "$PATTERN" '/tmp/dmesg.log' ) -gt 25 ] && {
 			_system crashreboot 'conntrack_full'
 		}
 	}
@@ -182,13 +182,13 @@ LINE=
 
 	[ -e "/tmp/cron.webcam" ] && {
 		PATTERN="uvcvideo: Failed to set UVC probe control"
-		fgrep -q "$PATTERN" "/tmp/dmesg.recent" && _system reboot_safe "$PATTERN"
+		grep -Fq "$PATTERN" "/tmp/dmesg.recent" && _system reboot_safe "$PATTERN"
 	}
 }
 
 # TODO: autoreduce lease-time:
-# logread | fgrep dnsmasq-dhcp | grep -c 'no address available'
-# logread | fgrep dnsmasq-dhcp | grep 'no address available' | cut -d' ' -f9 | sort | uniq | wc -l
+# logread | grep -F dnsmasq-dhcp | grep -c 'no address available'
+# logread | grep -F dnsmasq-dhcp | grep 'no address available' | cut -d' ' -f9 | sort | uniq | wc -l
 #
 # daemon.info dnsmasq-dhcp[26277]: DHCPDISCOVER(eth0.1) 00:22:43:6e:e1:e3 no address available
 
@@ -198,7 +198,7 @@ LINE=
 	case "$LOAD" in
 		'0'*)
 			PATTERN='main: Thread 1 - Watchdog timeout, did NOT restart graceful,killing it'
-			logread | fgrep -q "$PATTERN" && {
+			logread | grep -Fq "$PATTERN" && {
 				. /tmp/loader
 				[ $( _system uptime min ) -gt 15 ] && {
 					_system reboot_safe "$PATTERN"

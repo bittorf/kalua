@@ -424,7 +424,7 @@ output_table()
 				*)
 					_net dev_is_tuntap "$iface_out" && {
 						# FIXME! this means we have to set it on client too (works and is ignored by the parser)
-						[ -z "$vpn_proto" ] && vpn_proto="$( fgrep -q -m1 'proto udp' "$TMPDIR/vtund.conf" && echo 'udp' )"
+						[ -z "$vpn_proto" ] && vpn_proto="$( grep -Fq -m1 'proto udp' "$TMPDIR/vtund.conf" && echo 'udp' )"
 						channel="/${vpn_proto:=tcp}VPN"
 
 						snr='vpn'
