@@ -620,7 +620,7 @@ run_test()
 						       sort -u |
 						        while read -r LINE; do printf '%s' "$LINE "; done )"
 
-					[ -n "$TRAVIS" ] && log "TRAVIS: sc_list: '$sc_list' exec: $shellcheck_bin --exclude='$ignore' '$file'"
+					[ -n "$TRAVIS" ] && log "TRAVIS: sc_list: '$sc_list' exec: $shellcheck_bin --shell=dash --exclude='$ignore' '$file'"
 
 					# dash needed: SC2039 - do not complain about 'local'
 					if $shellcheck_bin --shell=dash --exclude="$ignore" "$tempfile"; then
@@ -628,7 +628,7 @@ run_test()
 							log "[OK] shellcheck: '$file' - START: check without internal ignores: $sc_list"
 							sed -i 's/# shellcheck disable=SC/# shellXXXXX disable=SC/g' "$tempfile"
 
-							if $shellcheck_bin --exclude="$ignore" "$tempfile"; then
+							if $shellcheck_bin --shell=dash --exclude="$ignore" "$tempfile"; then
 								log "[OK] shellcheck: '$file' - READY: without errors: remove SC-ignores"
 							else
 								log "[OK] shellcheck: '$file' - READY: check without internal ignores"
@@ -637,7 +637,7 @@ run_test()
 							log "[OK] shellcheck: '$file'"
 						fi
 					else
-						log "[ERROR] try $shellcheck_bin -e $ignore '$file'"
+						log "[ERROR] try $shellcheck_bin --shell=dash --exclude=$ignore '$file'"
 						log "line1: '$( head -n1 "$tempfile" )'"
 						log "line2: '$( head -n2 "$tempfile" | tail -n1 )'"
 
@@ -731,7 +731,7 @@ run_test()
 				elif $shellcheck_bin --shell=dash --exclude="$ignore" "$tempfile"; then
 					log "[OK] --> function '$name()' used: $( show_shellfunction_usage_count "$name" ) times, count: $functions_checked/$functions_overall"
 				else
-					log "[ERROR] try $shellcheck_bin -e $ignore '$file' -> $name()"
+					log "[ERROR] try $shellcheck_bin --shell=dash --exclude=$ignore '$file' -> $name()"
 					good='false'
 
 					# debug
