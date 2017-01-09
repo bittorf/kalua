@@ -3535,6 +3535,7 @@ bootstrap_ctags()
 	local dir='ctags'
 	local date="$( LC_ALL=C date "+%b %_d %Y" )"	# e.g. 'Oct  1 2016'
 	local good_version='48e382b94dac8ed8bf4b360c0ce4dd01c21bc5de'
+	good_version='9668032d8715265ca5b4ff16eb2efa8f1c450883'		# 2017-jan-8 (including new sh-parser)
 
 	/tmp/$dir/ctags --version | grep -q "Compiled: $date" || {
 		(
