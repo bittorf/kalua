@@ -882,6 +882,15 @@ boot()
 
 	apply_cronwatchdog()	# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
 	{
+		local option="$1"
+
+		[ "$option" = 'set_inactive' ] && {
+			uci_remove_section "network.@alias[].interface" 'loopback'
+			[ -e '/www/netifd_dhcp_watchdog' ] && rm '/www/netifd_dhcp_watchdog'
+
+			return 0
+		}
+
 		uci_remove_section "network.@alias[].interface" 'loopback'
 		uci add network 'alias' >/dev/null
 		uci set network.@alias[-1].interface='loopback'
@@ -905,18 +914,31 @@ boot()
 		uci set dhcp.@dhcp[-1].ignore='0'
 	}
 
-	if   [ $( _system ram_size ) -gt 32768 -a $OPENWRT_REV -ge 100000 ]; then
+	ssh_active()
+	{
 		/etc/init.d/dropbear 'enabled' || /etc/init.d/dropbear 'enable'
-		apply_cronwatchdog
-	elif [ -n "$LOWMEM" -o $OPENWRT_REV -ge 100000 ]; then
-		uci_remove_section "network.@alias[].interface" 'loopback'
-		[ -e '/www/netifd_dhcp_watchdog' ] && rm '/www/netifd_dhcp_watchdog'
+	}
 
+	ssh_inactive()
+	{
 		/etc/init.d/dropbear 'enabled' && /etc/init.d/dropbear 'disable'
 		touch '/tmp/service_ssh_nowatching'
-	else
-		/etc/init.d/dropbear 'enabled' || /etc/init.d/dropbear 'enable'
+	}
+
+	if   [ $( _system ram_size ) -gt 32768 ]; then
+		ssh_active
 		apply_cronwatchdog
+	elif [ -n "$LOWMEM" ]; then
+		ssh_inactive
+		apply_cronwatchdog 'set_inactive'
+	else
+		if [ $OPENWRT_REV -ge 1000000 ]; then
+			ssh_inactive
+			apply_cronwatchdog 'set_inactive'
+		else
+			ssh_active
+			apply_cronwatchdog
+		fi
 	fi
 
 	case "$CONFIG_PROFILE" in
