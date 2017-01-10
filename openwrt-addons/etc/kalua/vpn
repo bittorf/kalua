@@ -437,7 +437,7 @@ _vpn_hideandseek_user_add()
 	local table_name='hideandseek'
 	local table_id=50
 	local tunnel_dev='tap0'
-	local user_id markerfile special_table
+	local user_id markerfile special_table cacheflush_needed=
 
 	grep -q ^"$table_id $table_name" '/etc/iproute2/rt_tables' || echo "$table_id $table_name" >>'/etc/iproute2/rt_tables'
 
@@ -448,16 +448,19 @@ _vpn_hideandseek_user_add()
 			if [ -n "$( ip route list exact '0.0.0.0/0' table "$table_name" )" ]; then
 				return 0
 			else
-				# for testing ICMP + faster DNS lookups
-				ip rule add from all to '8.8.8.8/32' lookup main prio 9999
-				ip rule add from "$ROAMING_NET/$ROAMING_PRE" to "$ROAMING_NET/$ROAMING_PRE" lookup main prio 9999
+				ip rule show | grep -q "9999:\tfrom all to 8.8.8.8 lookup main" || {
+					cacheflush_needed='true'
+					# for testing ICMP + faster DNS lookups
+					ip rule add from all to '8.8.8.8/32' lookup main prio 9999
+					ip rule add from "$ROAMING_NET/$ROAMING_PRE" to "$ROAMING_NET/$ROAMING_PRE" lookup main prio 9999
 
-				# own generated traffic (e.g. monitoring do not through tunnel)
-				ip rule add from $WANADR lookup main prio 9999
+					# own generated traffic (e.g. monitoring do not through tunnel)
+					ip rule add from $WANADR lookup main prio 9999
+				}
 			fi
 
-			ip route add default via "$( _ipsystem getvar 'WIFIVPNSERVERADR' )" dev "$tunnel_dev" table "$table_name"
-			ip route flush cache
+			ip route add default via "$( _ipsystem getvar 'WIFIVPNSERVERADR' )" dev "$tunnel_dev" table "$table_name" && cacheflush_needed='true'
+			[ -n "$cacheflush_needed" ] && ip route flush cache
 
 			return 0
 		;;
