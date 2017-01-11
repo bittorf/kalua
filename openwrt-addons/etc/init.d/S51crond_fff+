@@ -459,7 +459,9 @@ func_cron_config_write()
 
 		{
 			if _rrd needed; then
-				[ -p '/tmp/FIFO' ] || mkfifo '/tmp/FIFO'
+				FIFO="/tmp/MYFIFO_$$"
+				[ -p "$FIFO" ] || mkfifo "$FIFO"
+				# TODO: what if CRON_IS_CAREFUL crashes and '/tmp/CRON_RUN' is not removed? -> FIFO blocks
 
 				_rrd setup 'keep_database'
 				WATCH_STATION="$( uci -q get system.@monitoring[0].watch_station )"
@@ -467,8 +469,8 @@ func_cron_config_write()
 				# each crontab-entry is only executed if it does not run already (e.g. runningtime >60 sec)
 				# this FIFO-pipe construction makes sure, that RRD is really called each 60 sec (runs ~1 sec)
 				# and only after RRD runned the mainpart ('CRON_IS_CAREFUL') is executed...
-				echo "* * * * * >/tmp/FIFO && >/tmp/CRON_RUN && . /tmp/CRON_IS_CAREFUL; rm /tmp/CRON_RUN"
-				echo "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'; test -e /tmp/CRON_RUN || read UNBLOCK_NOW </tmp/FIFO"
+				echo "* * * * * >$FIFI && >/tmp/CRON_RUN && . /tmp/CRON_IS_CAREFUL; rm /tmp/CRON_RUN"
+				echo "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'; test -e /tmp/CRON_RUN || read UNBLOCK_NOW <$FIFO"
 			else
 				echo "* * * * * . /tmp/CRON_IS_CAREFUL"
 			fi
