@@ -350,6 +350,7 @@ Special UCI-variables
 	system.@monitoring[0].nightly_longrange - bool
 	system.@monitoring[0].send_mapapi	- bool
 	system.@monitoring[0].report_wantraffic - bool
+	system.@monitoring[0].report_lan_dhcp   - bool
 	system.@monitoring[0].station_stats	- bool
 	system.@monitoring[0].no_wiphy_restart	- bool
 	system.@monitoring[0].toggle_wifi	- bool
