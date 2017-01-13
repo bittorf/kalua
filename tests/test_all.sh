@@ -274,7 +274,10 @@ test_isnumber()
 	isnumber ''  && return 1
 	isnumber ' ' && return 1
 	isnumber '1.34' && return 1
-
+	isnumber "'a" && return 1	# POSIX: If the leading character is a single-quote or double-quote,
+					# the value shall be the numeric value in the underlying codeset of
+					# the character following the single-quote or double-quote.
+					# so will not work: isnumber(){ printf '%d' "$1";}
 	set +x
 	return 0
 }
