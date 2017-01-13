@@ -1800,17 +1800,18 @@ copy_firmware_files()
 
 file='$destination' checksum_md5='$checksum'
 EOF
-		destination="$RELEASE_SERVER/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
-		destination_scpsafe="$( echo "$destination" | sed 's| |\\\\ |g' )"	# 'a b' -> 'a\\ b'
-		destination_info="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.txt"
-		destination_info_scpsafe="$( echo "$destination_info" | sed 's| |\\\\ |g' )"
+		# scpsafe = each space needs 2 slashes: 'a b' -> 'a\\ b'
+		destination="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
+		destination_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination" | sed 's| |\\\\ |g' )\""
+		destination_info="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.txt"
+		destination_info_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination_info" | sed 's| |\\\\ |g' )\""
 
-		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
-		log "ssh \"${RELEASE_SERVER%:*}\" \"mkdir -p '$server_dir'\""
-		ssh "${RELEASE_SERVER%:*}" "mkdir -p '$server_dir'"
-		log  "scp '$file' '$destination_scpsafe'"
-		echo "scp '$file' '$destination_scpsafe'"		 >'DO_SCP.sh'
-		echo "scp 'info.txt' '$destination_info_scpsafe'"	>>'DO_SCP.sh'
+		{
+			# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
+			echo "ssh ${RELEASE_SERVER%:*} \"mkdir -p '$server_dir'\""
+			echo "scp '$file' $destination_scpsafe"
+			echo "scp 'info.txt' $destination_info_scpsafe"
+		} >'DO_SCP.sh'
 
 		# a direct call fails with 'scp: ambiguous target'
 		. './DO_SCP.sh' && rm 'DO_SCP.sh' 'info.txt'
