@@ -84,7 +84,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			#	Standard,kalua/TP-LINK TL-WR1043ND.openwrt=r43102_kernel=_option=Standard,VDS,kalua@3731799_rootfs=squash_image=sysupgrade.bin
 
 			dir="$( uci get system.@monitoring[0].url )"
-			dir="$dir/firmware/models/$( _sanitizer run "$HARDWARE" urlvalue )/$UPDATEMODE/$usecase/"
+			dir="$dir/firmware/models/$( _sanitizer run "$HARDWARE" urlvalue )/$UPDATEMODE/$usecase"
 			filewish="$HARDWARE.bin"
 
 			# very special: slashes are not allowed in filenames,
@@ -93,43 +93,21 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 
 			case "$COMMAND" in
 				crc)
-#					local GENERATED KERNEL MAINTAINER
-					local VERSION CRC i=0
-					local url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
-
-# if pattern/filename matches, get 2nd word:
-# NEW:
-# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db  SIZE[byte]: 999999  BLOCKS[64k]: 49  FILE: 'La Fonera 2.0N.bin'  USECASE: b1cc2a438170a6fff4d08b08da4030af = Standard,LuCIfull,VDS,kalua  REV: r45678
-# OLD:
-# CRC[md5]: 6128dc961fb0369df5ae79dc7a0654db  SIZE[byte]: 999999  BLOCKS[64k]: 49  FILE: 'La Fonera 2.0N.bin'
+					local i=0
+					local url="$dir/info.txt"
 
 					get_crc()
 					{
 						local url="$1"
-						local usecase="$2"
-						local pattern="'${filewish}'${usecase:+  USECASE: }${usecase}${usecase:+ = }"
 						local line
 
-						_curl it "$url" |
-						 while read -r line; do {
-							case "$line" in
-								*"$pattern"*)
-									echo "$line" | cut -d' ' -f2
-									return 111
-								;;
-								'# END')
-									_log it $funcname daemon info "pattern for '$usecase' in $url not found: $pattern"
-									echo '0'
-									return 111
-								;;
-							esac
-						} done
-
-						test $? -eq 111
+						# checksum_md5='8e06d6efb3179eb1efd11ad2b2ad5648' file='TP-LINK....bin'
+						line="$( _curl it "$url" | grep ^'checksum_md5=' | cut -d"'" -f2 )"
+						test ${#line} -eq 32 && echo "$line"
 					}
 
 					while [ $i -lt 100 -a "$UPDATEMODE" != '0' ]; do {
-						if get_crc "$url" "$usecase"; then
+						if get_crc "$url"; then
 							break
 						else
 							_log sleep "firmware_getcrc_run_${i}_outof_100" 10 step 1
@@ -138,7 +116,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 					} done
 				;;
 				*)
-					printf '%s\n' "${dir}$( _sanitizer run "$filewish" urlvalue )"
+					printf '%s\n' "$dir/$( _sanitizer run "$filewish" urlvalue )"
 				;;
 			esac
 		;;

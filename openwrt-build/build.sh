@@ -1692,8 +1692,12 @@ copy_firmware_files()
 	# autoupdate-scheme:
 	# how to set revision-number?
 	# a node must have the possibility to check, if
+	#
 	# 1) there is a changed image
-	# 2) which revision number/version has it builtin
+	#    - so there is a need, that a node knows the hash of its running image
+	#    - we can not work with revisions, because also auto-downgrading must be possible
+	# 2) which revision number/version has the image builtin
+	#    - mostly for showing in a dialog/GUI
 
 	# Ubiquiti Bullet M
 	destination="$HARDWARE_MODEL_FILENAME"
@@ -1798,7 +1802,7 @@ copy_firmware_files()
 # build at: $( TZ='CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00' date )
 # build time: $BUILD_DURATION sec
 
-file='$destination' checksum_md5='$checksum'
+checksum_md5='$checksum' file='$destination'
 EOF
 		# scpsafe = each space needs 2 slashes: 'a b' -> 'a\\ b'
 		destination="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
