@@ -20,7 +20,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 	local UPDATEMODE="$( _firmware updatemode "$KEYWORD" override )"
 	local BASE="$( uci get system.@fwupdate[0].url )"	# http://intercity-vpn.de/firmware
 	local ARCHITECTURE="$( _system architecture )"
-	local url
+	local url filewish dir usecase=
 	BASE="${BASE:-http://intercity-vpn.de/firmware}"
 
 	case "$COMMAND" in
@@ -68,53 +68,35 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			printf '%s' "${FFF_PLUS_VERSION:=000000}"
 		;;
 		*)
-			local FILEWISH dir='' usecase=''
+			# falling back to: Standard,kalua
+			usecase="$( _firmware get_usecase 'hash' )" || usecase='49c4b5bf00fd398fba251a59f628de60'
 
-			if usecase="$( _firmware get_usecase 'hash' )"; then
-				# e.g. http://intercity-vpn.de/firmware/ar71xx/images/testing/usecase/18c5d9ba35511b0b03491993b9507089/TP-LINK%20TL-WR1043ND.bin
-				# see copy_firmware_files() in build.sh
-				#
-				# [symlink]
-				# /var/www/firmware/ar71xx/images/testing/usecase/
-				#	18c5d9ba35511b0b03491993b9507089/TP-LINK TL-WR1043ND.bin
-				# [symlink]
-				# /var/www/firmware/ar71xx/images/testing/usecase/
-				#	Standard,VDS,kalua/TP-LINK TL-WR1043ND.bin
-				# [realfile]
-				# /var/www/firmware/ar71xx/images/testing/usecase/
-				#	Standard,VDS,kalua/TP-LINK TL-WR1043ND.openwrt=r43102_kernel=_option=Standard,debug,VDS,kalua@3731799_rootfs=squash_image=sysupgrade.bin
+			# e.g. http://intercity-vpn.de/firmware/ar71xx/images/testing/usecase/18c5d9ba35511b0b03491993b9507089/TP-LINK%20TL-WR1043ND.bin
+			# see copy_firmware_files() in build.sh
+			#
+			# [symlink] -> Standard,VDS,kalua = 18c5d9ba35511b0b03491993b9507089 -> see: _firmware get_usecase hash
+			# /var/www/networks/$NET/firmware/models/$HARDWARE/$UPDATEMODE/usecase/
+			#	18c5d9ba35511b0b03491993b9507089/TP-LINK TL-WR1043ND.bin
+			# [symlink]
+			# /var/www/firmware/$NET/firmware/models/$HARDWARE/$UPDATEMODE/usecase/
+			#	Standard,VDS,kalua/TP-LINK TL-WR1043ND.bin
+			# [realfile]
+			# /var/www/firmware/$NET/firmware/models/$HARDWARE/$UPDATEMODE/usecase/
+			#	Standard,VDS,kalua/TP-LINK TL-WR1043ND.openwrt=r43102_kernel=_option=Standard,VDS,kalua@3731799_rootfs=squash_image=sysupgrade.bin
 
+			dir="$( uci get system.@monitoring[0].url )"
+			dir="$dir/firmware/models/$( _sanitizer run "$HARDWARE" urlvalue )/$UPDATEMODE/$usecase/"
+			filewish="$HARDWARE.bin"
 
-				# https://$monitoringserver/networks/$NET/firmware/models/$HW/testing/$fullname.bin
-				# http://intercity-vpn.de/networks/liszt28
-				dir="$( uci get system.@monitoring[0].url )"
-				dir="$dir/firmware/models/$( _sanitizer run "$HARDWARE" urlvalue )/$usecase/"
-				FILEWISH="$HARDWARE.bin"
-			else
-				FILEWISH="$HARDWARE.sysupgrade.bin"
-			fi
-
-			# very special: slashes are not allowed in filename,
+			# very special: slashes are not allowed in filenames,
 			# e.g. 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
-			FILEWISH="$( echo "$FILEWISH" | tr '/' ':' )"
+			filewish="$( echo "$filewish" | tr '/' ':' )"
 
 			case "$COMMAND" in
 				crc)
-					local i=0
 #					local GENERATED KERNEL MAINTAINER
-					local VERSION CRC url
-
-					[ "$UPDATEMODE" = "0" ] && i=100
-
-					case "$CONFIG_PROFILE" in
-						liszt28*)
-							# TODO: newstyle
-							url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
-						;;
-						*)
-							url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
-						;;
-					esac
+					local VERSION CRC i=0
+					local url="$BASE/$ARCHITECTURE/images/$UPDATEMODE/info.txt"
 
 # if pattern/filename matches, get 2nd word:
 # NEW:
@@ -126,7 +108,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 					{
 						local url="$1"
 						local usecase="$2"
-						local pattern="'${FILEWISH}'${usecase:+  USECASE: }${usecase}${usecase:+ = }"
+						local pattern="'${filewish}'${usecase:+  USECASE: }${usecase}${usecase:+ = }"
 						local line
 
 						_curl it "$url" |
@@ -147,7 +129,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 						test $? -eq 111
 					}
 
-					while [ $i -lt 100 ]; do {
+					while [ $i -lt 100 -a "$UPDATEMODE" != '0' ]; do {
 						if get_crc "$url" "$usecase"; then
 							break
 						else
@@ -157,7 +139,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 					} done
 				;;
 				*)
-					printf '%s\n' "${dir}$( _sanitizer run "$FILEWISH" urlvalue )"
+					printf '%s\n' "${dir}$( _sanitizer run "$filewish" urlvalue )"
 				;;
 			esac
 		;;
