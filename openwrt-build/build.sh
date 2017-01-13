@@ -2282,11 +2282,11 @@ apply_symbol()
 
 			set -- $( du -s "$custom_dir" )
 			size1="$1"
-			tar czf "$custom_dir.tgz" "$custom_dir"
-			set -- $( du -s "$custom_dir.tgz" && rm "$custom_dir.tgz" )
+			tar cJf "$custom_dir.tar.xz" "$custom_dir"
+			set -- $( du -s "$custom_dir.tar.xz" && rm "$custom_dir.tar.xz" )
 			size2="$1"
 			gain=$(( size2 * 100 / size1 ))
-			log "[OK] custom dir '$custom_dir' adds $size1 kilobytes (~${size2}k = ${gain}% compressed) to your image"
+			log "[OK] custom dir '$custom_dir' adds $size1 kilobytes (~${size2}k = ${gain}% xz-compressed) to your image"
 
 			return 0
 		;;
