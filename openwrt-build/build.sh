@@ -211,6 +211,7 @@ autocommit()
 
 	# see: build_options_set() with option 'ready'
 	echo "patch: $message | $gitfile | $count" >>'files/etc/openwrt_build.details'
+	git add 'files/etc/openwrt_build.details'
 
 	git commit --signoff -m "
 autocommit: $message
@@ -252,7 +253,11 @@ log()
 				has "$option" 'untrack' && git rm --cached "$gitfile"
 			}
 		else
-			log "gitadd: file/dir '$gitfile' does not exist"
+			if git rm "$gitfile"; then
+				autocommit "$gitfile" "$message"
+			else
+				log "gitadd: file/dir '$gitfile' does not exist"
+			fi
 		fi
 	}
 
@@ -2442,6 +2447,7 @@ build_options_set()
 			}						# parser_ignore
 
 			rm -f "${file}.details"
+			log "remove tempfile" debug,gitadd "${file}.details"
 
 			log "[OK] writing details" gitadd "$file"
 			return 0
@@ -3236,6 +3242,7 @@ EOF
 		log "adding build-information '$USECASE' to '$file'" gitadd "$file"
 	else
 		echo "${subcall:-$USECASE}" >>"${file}.details"
+		log "just tempfile" debug,gitadd "${file}.details"
 	fi
 
 	return 0
