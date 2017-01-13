@@ -1690,9 +1690,10 @@ copy_firmware_files()
 	log "usecase-hash: $( usecase_hash "$USECASE" )"
 
 	# autoupdate-scheme:
-	# how to set revision-number? a node must check, if there is a *newer* version
-	log "http://intercity-vpn.de/networks/xyz/firmware/$HARDWARE_MODEL/testing/usecase/info.txt"	# hash + revision
-	log "http://intercity-vpn.de/networks/xyz/firmware/$HARDWARE_MODEL/testing/usecase/fw.bin"
+	# how to set revision-number?
+	# a node must have the possibility to check, if
+	# 1) there is a changed image
+	# 2) which revision number/version has it builtin
 
 	# Ubiquiti Bullet M
 	destination="$HARDWARE_MODEL_FILENAME"
@@ -1726,13 +1727,13 @@ copy_firmware_files()
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11_rootfs=squash_image=sysupgrade_option=Standard,kalua@5dce00c.bin
 	destination="${destination}.bin"
 
-# hardware=	Ubiquiti Bullet M			// special, no option-name and separator='.'
-# rootfs=	jffs2.64k | squash | ext4
-# openwrt=	r38675
-# kernel=	3.6.11
-# image=	sysupgrade | factory | tftp | srec | ...
-# profile=	liszt28.hybrid.4			// optional
-# option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
+	# hardware=	Ubiquiti Bullet M			// special, no option-name and separator='.'
+	# rootfs=	jffs2.64k | squash | ext4
+	# openwrt=	r38675
+	# kernel=	3.6.11
+	# image=	sysupgrade | factory | tftp | srec | ...
+	# profile=	liszt28.hybrid.4			// optional
+	# option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
 	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
 	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {
@@ -1775,18 +1776,21 @@ copy_firmware_files()
 		error=1
 	fi
 
-	# scp bin/ar71xx/attic/TP-LINK\ TL-WR1043ND.openwrt\=r43238_kernel\=3.10.58_option\=Standard\,VDS\,kalua\@5415ee5_rootfs\=squash_image\=sysupgrade.bin root@intercity-vpn.de:/var/www/firmware/ar71xx/images/testing/usecase/
-	# auf server:
-	# cd /var/www/firmware/ar71xx/images/testing/usecase/
-	# cd Standard,VDS,kalua
-	# rm "TP-LINK TL-WR1043ND.bin"
-	# ln -s ../TP-LINK\ TL-WR1043ND.openwrt\=r43238_kernel\=3.10.58_option\=Standard\,VDS\,kalua\@5415ee5_rootfs\=squash_image\=sysupgrade.bin "TP-LINK TL-WR1043ND.bin"
+	# for firmware-downloader: (only symlink)
+	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/49c4b5bf00fd398fba251a59f628de60/TP-LINK+TL-WR1043ND.bin
+	#
+	# humanreadable: (only symlink)
+	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/Standard,kalua/TP-LINK+TL-WR1043ND.bin
+	#
+	# real file:
+	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/Standard,kalua/...fullname...
 
-	[ -n "$RELEASE" -a -e "$file" ] && {
+	[ -n "$RELEASE" -a -n "$RELEASE_SERVER" -a -e "$file" ] && {
 		# workaround: when build without kalua
 		[ -z "$USECASE_DOWNLOAD" ] && USECASE_DOWNLOAD="$USECASE"
 
-		server_dir="${RELEASE_SERVER#*:}/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
+		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
+		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
 		checksum="$( md5sum "$file" | cut -d' ' -f1 )"
 
 		cat >'info.txt' <<EOF
@@ -1796,14 +1800,12 @@ copy_firmware_files()
 
 file='$destination' checksum_md5='$checksum'
 EOF
-		destination="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
+		destination="$RELEASE_SERVER/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
 		destination_scpsafe="$( echo "$destination" | sed 's| |\\\\ |g' )"	# 'a b' -> 'a\\ b'
 		destination_info="$RELEASE_SERVER/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.txt"
 		destination_info_scpsafe="$( echo "$destination_info" | sed 's| |\\\\ |g' )"
 
-		# readme.md?
-		# tarball?
-
+		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
 		log "ssh \"${RELEASE_SERVER%:*}\" \"mkdir -p '$server_dir'\""
 		ssh "${RELEASE_SERVER%:*}" "mkdir -p '$server_dir'"
 		log  "scp '$file' '$destination_scpsafe'"
@@ -3818,7 +3820,12 @@ while [ -n "$1" ]; do {
 			case "$2" in
 				'stable'|'beta'|'testing')
 					RELEASE="$2"
-					RELEASE_SERVER="$3"
+					RELEASE_SERVER="$3"	# root@intercity-vpn.de:/var/www/networks/liszt28
+
+					[ -z "$RELEASE_SERVER" ] && {
+						log "[ERROR] --release $RELEASE user@server:/your/path/to/network"
+						exit 1
+					}
 				;;
 				*)
 					log "[ERROR] --release stable|beta|testing"
