@@ -249,6 +249,7 @@ log()
 
 	has "$option" 'gitadd' && {
 		if [ -e "$gitfile" ]; then
+			# TODO: silence git output in 'debug' mode
 			autocommit "$gitfile" "$message" && {
 				has "$option" 'untrack' && git rm --cached "$gitfile"
 			}
@@ -1809,6 +1810,11 @@ EOF
 		destination_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination" | sed 's| |\\\\ |g' )\""
 		destination_info="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.txt"
 		destination_info_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination_info" | sed 's| |\\\\ |g' )\""
+
+		# TODO:
+		# ln -fs "TP-LINK TL-WDR4900 v1.openwrt=r ... .bin" "TP-LINK TL-WDR4900 v1.bin"
+		# rm alte dateien
+		# symlink usecase-hash auf humanreadable
 
 		{
 			# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
