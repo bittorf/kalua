@@ -1702,12 +1702,22 @@ copy_firmware_files()
 		esac
 	}
 
+	# Ubiquiti Bullet M
+	destination="$HARDWARE_MODEL_FILENAME"
+
 	case "$( git config --get remote.origin.url )" in
 		*'lede'*)
 			pre="bin/targets/$ARCH_MAIN/$ARCH_SUB"
+
+			# special: see lede_fixup()
+			# Ubiquiti Bullet M.openwrt=r38576
+			destination="${destination}.lede=r$(( VERSION_OPENWRT_INTEGER - 1000000 ))"
 		;;
 		*)
 			pre="bin/$ARCH_MAIN"
+
+			# Ubiquiti Bullet M.openwrt=r38576
+			destination="${destination}.openwrt=${VERSION_OPENWRT}"
 		;;
 	esac
 
@@ -1715,12 +1725,6 @@ copy_firmware_files()
 	log "hardware: '$HARDWARE_MODEL'"
 	log "usecase: --usecase $USECASE"
 	log "usecase-hash: $( usecase_hash "$USECASE" )"
-
-	# Ubiquiti Bullet M
-	destination="$HARDWARE_MODEL_FILENAME"
-
-	# Ubiquiti Bullet M.openwrt=r38576
-	destination="${destination}.openwrt=${VERSION_OPENWRT}"
 
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11
 	destination="${destination}_kernel=${VERSION_KERNEL}"
