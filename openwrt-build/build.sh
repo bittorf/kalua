@@ -1818,12 +1818,12 @@ EOF
 		set -x
 		ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *"
 		# scp-safe: each space needs 2 slashes: 'a b' -> 'a\\ b'
-		scp "$file"     $release_server:"$( echo "$destination"      | sed 's| |\\\\ |g' )" || err=1
-		scp 'info.json' $release_server:"$( echo "$destination_info" | sed 's| |\\\\ |g' )" || err=1
+		scp "$file"     $release_server:\"$( echo "$destination"      | sed 's| |\\\\ |g' )\" || err=1
+		scp 'info.json' $release_server:\"$( echo "$destination_info" | sed 's| |\\\\ |g' )\" || err=1
 		#
 		ssh $release_server "cd '$server_dir'; ln -s '$destination' '$HARDWARE_MODEL_FILENAME'" || err=1
 		# in front of hash is a 'dot' (so hidden when browsing)
-		ssh $release_server "cd '$server_dir'; mkdir ../.$( usecase_hash "$USECASE" )" || err=1
+		ssh $release_server "cd '$server_dir'; mkdir -p ../.$( usecase_hash "$USECASE" )" || err=1
 		ssh $release_server "cd '$server_dir'; cd ..; ln -sf $USECASE ../.$( usecase_hash "$USECASE" )" || err=1
 		set +x
 	}
