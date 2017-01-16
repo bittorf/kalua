@@ -1832,8 +1832,8 @@ scp 'info.json' $release_server:"$( scp_safe "$destination_info" )" || err=1
 #
 ssh $release_server "cd '$server_dir'; ln -s '$destination' '$HARDWARE_MODEL_FILENAME'" || err=1
 # in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
-ssh $release_server "cd '$server_dir'; mkdir -p ../.$( usecase_hash "$USECASE" )" || err=1
-ssh $release_server "cd '$server_dir'; cd ..; ln -sf '$USECASE' ../.$( usecase_hash "$USECASE" )" || err=1
+ssh $release_server "cd '$server_dir'; cd ..; mkdir -p '.$( usecase_hash "$USECASE" )'" || err=1
+ssh $release_server "cd '$server_dir'; cd ..; ln -sf '$USECASE' '.$( usecase_hash "$USECASE" )'" || err=1
 EOF
 		. ./DO_SCP.sh
 		[ $err -eq 0 ] && rm ./DO_SCP.sh
