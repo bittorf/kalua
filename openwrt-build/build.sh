@@ -1670,8 +1670,8 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH_MAIN/attic"
-	local file file_size checksum_md5 checksum_sha256 rootfs server_dir release_server pre
-	local destination destination_scpsafe destination_info destination_info_scpsafe
+	local file file_size checksum_md5 checksum_sha256 rootfs server_dir release_server
+	local destination destination_scpsafe destination_info destination_info_scpsafe pre
 	local err=0
 
 	mkdir -p "$attic"
@@ -1808,21 +1808,20 @@ copy_firmware_files()
   "firmware_rev": "$VERSION_OPENWRT"
 }
 EOF
-		destination="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
-		destination_info="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.json"
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
 		release_server="${RELEASE_SERVER%:*}"
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
 		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
+		destination="$serverdir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
+		destination_info="$serverdir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.json"
 
 		set -x
 		ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *"
-		ssh $release_server "ln -s \"$file\" \"$HARDWARE_MODEL_FILENAME\"" || err=1
 		# scp-safe: each space needs 2 slashes: 'a b' -> 'a\\ b'
 		scp "$file"     $release_server:"$( echo "$destination"      | sed 's| |\\\\ |g' )" || err=1
 		scp 'info.json' $release_server:"$( echo "$destination_info" | sed 's| |\\\\ |g' )" || err=1
 		#
-		ssh $release_server "cd '$server_dir'; ln -s '$file' '$HARDWARE_MODEL_FILENAME'" || err=1
+		ssh $release_server "cd '$server_dir'; ln -s '$destination' '$HARDWARE_MODEL_FILENAME'" || err=1
 		# in front of hash is a 'dot' (so hidden when browsing)
 		ssh $release_server "cd '$server_dir'; mkdir ../.$( usecase_hash "$USECASE" )" || err=1
 		ssh $release_server "cd '$server_dir'; cd ..; ln -sf $USECASE ../.$( usecase_hash "$USECASE" )" || err=1
