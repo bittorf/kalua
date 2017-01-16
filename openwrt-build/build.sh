@@ -1823,13 +1823,13 @@ EOF
 		destination_info_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination_info" | sed 's| |\\\\ |g' )\""
 
 		# TODO:
-		# ln -fs "TP-LINK TL-WDR4900 v1.openwrt=r ... .bin" "TP-LINK TL-WDR4900 v1.bin"
-		# rm alte dateien
 		# symlink usecase-hash auf humanreadable
 
 		set -x
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
-		ssh ${RELEASE_SERVER%:*} "mkdir -p '$server_dir'; cd '$server_dir; rm *; 'ln -s '$file' '$HARDWARE_MODEL_FILENAME'" || err=1
+		ssh ${RELEASE_SERVER%:*} "mkdir -p \"$server_dir\""
+		ssh ${RELEASE_SERVER%:*} "cd \"$server_dir\"; rm *; ln -s \"$file\" \"$HARDWARE_MODEL_FILENAME\"" || err=1
+		log "destination_scpsafe: $destination_scpsafe"
 		scp "$file" $destination_scpsafe || err=1
 		scp 'info.json' $destination_info_scpsafe || err=1
 		set +x
