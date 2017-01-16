@@ -1818,7 +1818,7 @@ EOF
 		scp_safe()
 		{
 			# each space needs 2 slashes: 'a b' -> 'a\\ b'
-			echo "\$1" | sed 's| |\\\\ |g'
+			echo "$1" | sed 's| |\\\\ |g'
 		}
 
 		cat >./DO_SCP.sh <<EOF
