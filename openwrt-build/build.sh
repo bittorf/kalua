@@ -1805,15 +1805,16 @@ copy_firmware_files()
   "firmware_md5": "$checksum_md5",
   "firmware_sha256": "$checksum_sha256",
   "firmware_kernel": "$VERSION_KERNEL",
-  "firmware_rev": "$VERSION_OPENWRT"
+  "firmware_rev": "$VERSION_OPENWRT",
+  "firmware_usecase": "$USECASE_DOWNLOAD"
 }
 EOF
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
 		release_server="${RELEASE_SERVER%:*}"
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
 		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
-		destination="$serverdir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
-		destination_info="$serverdir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.json"
+		destination="$server_dir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
+		destination_info="$server_dir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.json"
 
 		scp_safe()
 		{
