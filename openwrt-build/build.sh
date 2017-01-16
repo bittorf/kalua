@@ -1670,9 +1670,9 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH_MAIN/attic"
-	local file checksum rootfs server_dir pre
+	local file file_size checksum_md5 checksum_sha256 rootfs server_dir pre
 	local destination destination_scpsafe destination_info destination_info_scpsafe
-	local error=0
+	local err=0
 
 	mkdir -p "$attic"
 	rootfs='squash'
@@ -1682,6 +1682,32 @@ copy_firmware_files()
 			# bin/targets/ramips/mt7621/lede-ramips-mt7621-witi-squashfs-sysupgrade.bin
 			FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/openwrt/lede/g' )"
 			FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/openwrt/lede/g' )"
+		;;
+	esac
+
+	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
+	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {
+		case "$FILENAME_FACTORY" in
+			*[0-9]'nd'|*[0-9]'n')
+				log "[OK] fixup filename '$FILENAME_FACTORY'"
+				FILENAME_FACTORY="$( echo "$FILENAME_FACTORY" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
+			;;
+		esac
+
+		case "$FILENAME_SYSUPGRADE" in
+			*[0-9]'nd'|*[0-9]'n')
+				log "[OK] fixup filename '$FILENAME_SYSUPGRADE'"
+				FILENAME_FACTORY="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
+			;;
+		esac
+	}
+
+	case "$( git config --get remote.origin.url )" in
+		*'lede'*)
+			pre="bin/targets/$ARCH_MAIN/$ARCH_SUB"
+		;;
+		*)
+			pre="bin/$ARCH_MAIN"
 		;;
 	esac
 
@@ -1740,32 +1766,6 @@ copy_firmware_files()
 	# profile=	liszt28.hybrid.4			// optional
 	# option=	Standard,kalua@5dce00c,VDS,failsafe,noIPv6,noPPPoE,micro,mini,small,LuCI ...
 
-	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
-	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {
-		case "$FILENAME_FACTORY" in
-			*[0-9]'nd'|*[0-9]'n')
-				log "[OK] fixup filename '$FILENAME_FACTORY'"
-				FILENAME_FACTORY="$( echo "$FILENAME_FACTORY" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
-			;;
-		esac
-
-		case "$FILENAME_SYSUPGRADE" in
-			*[0-9]'nd'|*[0-9]'n')
-				log "[OK] fixup filename '$FILENAME_SYSUPGRADE'"
-				FILENAME_FACTORY="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
-			;;
-		esac
-	}
-
-	case "$( git config --get remote.origin.url )" in
-		*'lede'*)
-			pre="bin/targets/$ARCH_MAIN/$ARCH_SUB"
-		;;
-		*)
-			pre="bin/$ARCH_MAIN"
-		;;
-	esac
-
 	if [ -n "$CONFIG_PROFILE" ]; then
 		file="$pre/$FILENAME_FACTORY"
 		log "$( wc -c <"$file" ) Bytes: '$FILENAME_FACTORY'"
@@ -1778,7 +1778,7 @@ copy_firmware_files()
 	if [ -e "$file" ]; then
 		cp -v "$file" "$attic/$destination"
 	else
-		error=1
+		err=1
 	fi
 
 	# for firmware-downloader: (only symlink)
@@ -1796,19 +1796,30 @@ copy_firmware_files()
 
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
 		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
-		checksum="$( md5sum "$file" | cut -d' ' -f1 )"
+		checksum_md5="$( md5sum "$file" | cut -d' ' -f1 )"
+		checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
+		file_size="$( wc -c <"$file" )"
 
-		cat >'info.txt' <<EOF
-# server: $( hostname )
-# build at: $( TZ='CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00' date )
-# build time: $BUILD_DURATION sec
-
-checksum_md5='$checksum' file='$destination'
+		# TODO: keep factory + sysupgrade in sync
+		# TODO: nice browsing like 'https://weimarnetz.de/freifunk/firmware/nightlies/ar71xx/'
+		cat >'info.json' <<EOF
+{
+  "build_host": "$( hostname )",
+  "build_time": "$( date )",
+  "build_duration": "$BUILD_DURATION",
+  "firmware_file": "$destination",
+  "firmware_size": "$file_size",
+  "firmware_md5": "$checksum_md5",
+  "firmware_sha256": "$checksum_sha256",
+  "firmware_kernel": "$VERSION_KERNEL",
+  "firmware_rev": "$VERSION_OPENWRT"
+}
 EOF
 		# scpsafe = each space needs 2 slashes: 'a b' -> 'a\\ b'
 		destination="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
 		destination_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination" | sed 's| |\\\\ |g' )\""
-		destination_info="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.txt"
+		#
+		destination_info="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.json"
 		destination_info_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination_info" | sed 's| |\\\\ |g' )\""
 
 		# TODO:
@@ -1816,20 +1827,15 @@ EOF
 		# rm alte dateien
 		# symlink usecase-hash auf humanreadable
 
-		{
-			# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
-			echo "ssh ${RELEASE_SERVER%:*} \"mkdir -p '$server_dir'\""
-			echo "scp '$file' $destination_scpsafe"
-			echo "scp 'info.txt' $destination_info_scpsafe"
-		} >'DO_SCP.sh'
-
-		# a direct call fails with 'scp: ambiguous target'
-		. './DO_SCP.sh' && rm 'DO_SCP.sh' 'info.txt'
-
-		error=0
+		set -x
+		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
+		ssh ${RELEASE_SERVER%:*} "mkdir -p '$server_dir'; cd '$server_dir; rm *; 'ln -s '$file' '$HARDWARE_MODEL_FILENAME'" || err=1
+		scp "$file" $destination_scpsafe || err=1
+		scp 'info.json' $destination_info_scpsafe || err=1
+		set +x
 	}
 
-	return $error
+	return $err
 }
 
 calc_time_diff()
