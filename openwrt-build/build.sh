@@ -1670,7 +1670,7 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH_MAIN/attic"
-	local file file_size checksum_md5 checksum_sha256 rootfs server_dir pre
+	local file file_size checksum_md5 checksum_sha256 rootfs server_dir release_server pre
 	local destination destination_scpsafe destination_info destination_info_scpsafe
 	local err=0
 
@@ -1715,16 +1715,6 @@ copy_firmware_files()
 	log "hardware: '$HARDWARE_MODEL'"
 	log "usecase: --usecase $USECASE"
 	log "usecase-hash: $( usecase_hash "$USECASE" )"
-
-	# autoupdate-scheme:
-	# how to set revision-number?
-	# a node must have the possibility to check, if
-	#
-	# 1) there is a changed image
-	#    - so there is a need, that a node knows the hash of its running image
-	#    - we can not work with revisions, because also auto-downgrading must be possible
-	# 2) which revision number/version has the image builtin
-	#    - mostly for showing in a dialog/GUI
 
 	# Ubiquiti Bullet M
 	destination="$HARDWARE_MODEL_FILENAME"
@@ -1794,14 +1784,17 @@ copy_firmware_files()
 		# workaround: when build without kalua
 		[ -z "$USECASE_DOWNLOAD" ] && USECASE_DOWNLOAD="$USECASE"
 
-		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
-		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
 		checksum_md5="$( md5sum "$file" | cut -d' ' -f1 )"
 		checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
 		file_size="$( wc -c <"$file" )"
 
 		# TODO: keep factory + sysupgrade in sync
 		# TODO: nice browsing like 'https://weimarnetz.de/freifunk/firmware/nightlies/ar71xx/'
+		#
+		# autoupdate-scheme: there is a changed image
+		# - a running node compares it's own revision, with revision on server
+		# - changed revision = upgrade, so also auto-downgrading is possible
+		# - revision also for showing in a dialog/GUI
 		cat >'info.json' <<EOF
 {
   "build_host": "$( hostname )",
@@ -1815,23 +1808,24 @@ copy_firmware_files()
   "firmware_rev": "$VERSION_OPENWRT"
 }
 EOF
-		# scpsafe = each space needs 2 slashes: 'a b' -> 'a\\ b'
 		destination="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
-		destination_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination" | sed 's| |\\\\ |g' )\""
-		#
 		destination_info="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.json"
-		destination_info_scpsafe="${RELEASE_SERVER%:*}:\"$( echo "$destination_info" | sed 's| |\\\\ |g' )\""
-
-		# TODO:
-		# symlink usecase-hash auf humanreadable
+		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
+		release_server="${RELEASE_SERVER#*:}"
+		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
+		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
 
 		set -x
-		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
-		ssh ${RELEASE_SERVER%:*} "mkdir -p \"$server_dir\""
-		ssh ${RELEASE_SERVER%:*} "cd \"$server_dir\"; rm *; ln -s \"$file\" \"$HARDWARE_MODEL_FILENAME\"" || err=1
-		log "destination_scpsafe: $destination_scpsafe"
-		scp "$file" $destination_scpsafe || err=1
-		scp 'info.json' $destination_info_scpsafe || err=1
+		ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *"
+		ssh $release_server "ln -s \"$file\" \"$HARDWARE_MODEL_FILENAME\"" || err=1
+		# scp-safe: each space needs 2 slashes: 'a b' -> 'a\\ b'
+		scp "$file"     $release_server:"$( echo "$destination"      | sed 's| |\\\\ |g' )" || err=1
+		scp 'info.json' $release_server:"$( echo "$destination_info" | sed 's| |\\\\ |g' )" || err=1
+		#
+		ssh $release_server "cd '$server_dir'; ln -s '$file' '$HARDWARE_MODEL_FILENAME'" || err=1
+		# in front of hash is a 'dot' (so hidden when browsing)
+		ssh $release_server "cd '$server_dir'; mkdir ../.$( usecase_hash "$USECASE" )" || err=1
+		ssh $release_server "cd '$server_dir'; cd ..; ln -sf $USECASE ../.$( usecase_hash "$USECASE" )" || err=1
 		set +x
 	}
 
