@@ -1815,18 +1815,18 @@ EOF
 		destination="$serverdir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
 		destination_info="$serverdir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.json"
 
+		scp_safe()
+		{
+			# each space needs 2 slashes: 'a b' -> 'a\\ b'
+			echo "\$1" | sed 's| |\\\\ |g'
+		}
+
 		cat >./DO_SCP.sh <<EOF
 #!/bin/sh
 
-scp_safe()
-{
-	# each space needs 2 slashes: 'a b' -> 'a\\ b'
-	echo "\$1" | sed 's| |\\\\ |g'
-}
-
-ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *"
-scp "$file"     $release_server:"\$( scp_safe "$destination" )" || err=1
-scp 'info.json' $release_server:"\$( scp_safe "$destination_info" )" || err=1
+ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *" || err=1
+scp "$file"     $release_server:"$( scp_safe "$destination" )" || err=1
+scp 'info.json' $release_server:"$( scp_safe "$destination_info" )" || err=1
 #
 ssh $release_server "cd '$server_dir'; ln -s '$destination' '$HARDWARE_MODEL_FILENAME'" || err=1
 # in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
