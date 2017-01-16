@@ -1813,8 +1813,9 @@ EOF
 		release_server="${RELEASE_SERVER%:*}"
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
 		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
-		destination="$server_dir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/$destination"
-		destination_info="$server_dir/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD/info.json"
+		#
+		destination="$server_dir/$destination"
+		destination_info="$server_dir/info.json"
 
 		scp_safe()
 		{
