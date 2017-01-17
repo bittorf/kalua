@@ -1059,7 +1059,16 @@ EOF
 	ARCH="${ARCH#*_}"
 	ARCH_MAIN="${ARCH%_*}"	# ramips_mt7620 -> ramips
 	ARCH_SUB="${ARCH#*_}"	# ramips_mt7620 -> mt7620
-	[ "$ARCH_SUB" = "$ARCH" ] && ARCH_SUB='generic'
+	[ "$ARCH_SUB" = "$ARCH" ] && {
+		case "$TARGET_SYMBOL" in
+			*'-legacy-'*)
+				ARCH_SUB='legacy'	# FIXME: more generic approach
+			;;
+			*)
+				ARCH_SUB='generic'
+			;;
+		esac
+	}
 
 	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
 	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"
@@ -1814,7 +1823,7 @@ copy_firmware_files()
 {
   "build_host": "$( hostname )",
   "build_time": "$( date )",
-  "build_duration": "$BUILD_DURATION",
+  "build_duration_sec": "$BUILD_DURATION",
   "firmware_file": "$destination",
   "firmware_size": "$file_size",
   "firmware_md5": "$checksum_md5",
