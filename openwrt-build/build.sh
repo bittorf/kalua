@@ -1775,14 +1775,11 @@ copy_firmware_files()
 		err=1
 	fi
 
-	# for firmware-downloader: (only symlink)
-	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/49c4b5bf00fd398fba251a59f628de60/TP-LINK+TL-WR1043ND.bin
-	#
-	# humanreadable: (only symlink)
-	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/Standard,kalua/TP-LINK+TL-WR1043ND.bin
-	#
 	# real file:
 	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/Standard,kalua/...fullname...
+	#
+	# for firmware-downloader: (only symlink)
+	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/.49c4b5bf00fd398fba251a59f628de60.bin
 
 	[ -n "$RELEASE" -a -n "$RELEASE_SERVER" -a -e "$file" ] && {
 		# workaround: when build without kalua
@@ -1794,6 +1791,7 @@ copy_firmware_files()
 
 		# TODO: keep factory + sysupgrade in sync
 		# TODO: nice browsing like 'https://weimarnetz.de/freifunk/firmware/nightlies/ar71xx/'
+		# TODO: json: use integers where applicable?
 		#
 		# autoupdate-scheme: there is a changed image
 		# - a running node compares it's own revision, with revision on server
@@ -1809,7 +1807,7 @@ copy_firmware_files()
   "firmware_md5": "$checksum_md5",
   "firmware_sha256": "$checksum_sha256",
   "firmware_kernel": "$VERSION_KERNEL",
-  "firmware_rev": "$VERSION_OPENWRT",
+  "firmware_rev": "$VERSION_OPENWRT_INTEGER",
   "firmware_usecase": "$USECASE_DOWNLOAD"
 }
 EOF
@@ -1821,26 +1819,34 @@ EOF
 		destination="$server_dir/$destination"
 		destination_info="$server_dir/info.json"
 
+		scripts/diffconfig.sh >'info.diffconfig.txt'
+		[ -d 'logs' ] && tar xJf 'info.buildlog.tar.xz' logs/
+
 		scp_safe()
 		{
 			# each space needs 2 slashes: 'a b' -> 'a\\ b'
 			echo "$1" | sed 's| |\\\\ |g'
 		}
 
+		# workaround with sourcing file is needed, because
+		# directly using the vars leads do 'scp: ambiguous target'
 		cat >./DO_SCP.sh <<EOF
 #!/bin/sh
 
-ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *" || err=1
-scp "$file"     $release_server:"$( scp_safe "$destination" )" || err=1
-scp 'info.json' $release_server:"$( scp_safe "$destination_info" )" || err=1
-#
-ssh $release_server "cd '$server_dir'; ln -s '$destination' '$HARDWARE_MODEL_FILENAME'" || err=1
-# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
-ssh $release_server "cd '$server_dir'; cd ..; mkdir -p '.$( usecase_hash "$USECASE" )'" || err=1
-ssh $release_server "cd '$server_dir'; cd ..; ln -sf '$USECASE' '.$( usecase_hash "$USECASE" )'" || err=1
+upload()
+{
+	ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *"	|| return
+	scp "$file"     $release_server:"$( scp_safe "$destination" )"		|| return
+	scp 'info.'*    $release_server:"$( scp_safe "$destination_info" )"	|| return
+
+	# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
+	ssh $release_server "cd '$server_dir'; ln -sf '$destination' '.$( usecase_hash "$USECASE" ).bin'" || return
+}
+
+upload || err=1
 EOF
 		. ./DO_SCP.sh
-		[ $err -eq 0 ] && rm ./DO_SCP.sh
+		[ $err -eq 0 ] && rm ./DO_SCP.sh 'info.'*
 	}
 
 	return $err
@@ -1924,6 +1930,7 @@ build()
 	buildjobs=$(( $( cpu_count ) + 1 ))
 	# do not stress if we already have load / e.g. gcc-farm
 	[ $CPU_LOAD_INTEGER -ge 100 ] && buildjobs=$(( (buildjobs - 1) / 2 ))
+	[ -d 'logs' ] && rm -fR 'logs'
 	commandline="--jobs $buildjobs BUILD_LOG=1"
 
 	case "$option" in
