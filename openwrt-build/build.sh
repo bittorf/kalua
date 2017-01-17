@@ -1869,7 +1869,7 @@ upload()
 	ssh $release_server    "cd '$server_dir' && cd .. && \
 				mkdir -p '.$myhash' && cd '.$myhash' && \
 				ln -sf '$destination' '$HARDWARE_MODEL.bin' && \
-				ln -sf '$destination_info/json.info' 'json.info'" || return 4
+				ln -sf '$destination_info/info.json' 'info.json'" || return 4
 }
 
 upload || {
