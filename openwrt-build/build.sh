@@ -1672,6 +1672,7 @@ copy_firmware_files()
 	local attic="bin/$ARCH_MAIN/attic"
 	local file file_size checksum_md5 checksum_sha256 rootfs server_dir release_server
 	local destination destination_scpsafe destination_info destination_info_scpsafe pre
+	local usign_bin usign_pubkey usign_privkey usign_signature
 	local err=0
 
 	mkdir -p "$attic"
@@ -1789,6 +1790,18 @@ copy_firmware_files()
 		checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
 		file_size="$( wc -c <"$file" )"
 
+		usign_bin='./staging_dir/host/bin/usign'
+		[ -e "$usign_bin" ] && {
+			usign_privkey='../build.privkey'
+			usign_pubkey='../build.pubkey'
+
+			[ -e "$usign_privkey" -o -e "$usign_pubkey" ] || {
+				$usign_bin -G -p "$usign_pubkey" -s "$usign_privkey"
+			}
+
+			usign_signature="$( $usign_bin -S -m "$file" -s "$usign_privkey" -x - )"
+		}
+
 		# TODO: keep factory + sysupgrade in sync
 		# TODO: nice browsing like 'https://weimarnetz.de/freifunk/firmware/nightlies/ar71xx/'
 		# TODO: json: use integers where applicable?
@@ -1806,9 +1819,11 @@ copy_firmware_files()
   "firmware_size": "$file_size",
   "firmware_md5": "$checksum_md5",
   "firmware_sha256": "$checksum_sha256",
+  "firmware_signature": "$usign_signature",
   "firmware_kernel": "$VERSION_KERNEL",
   "firmware_rev": "$VERSION_OPENWRT_INTEGER",
-  "firmware_usecase": "$USECASE_DOWNLOAD"
+  "firmware_usecase": "$USECASE_DOWNLOAD",
+  "firmware_usecase_hash": "$( usecase_hash "$USECASE" )"
 }
 EOF
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
@@ -2472,6 +2487,11 @@ build_options_set()
 
 	case "$options" in
 		'ready')	# parser_ignore
+			[ -e '../build.pubkey' ] && {			# parser_ignore
+				cp '../build.pubkey' "$custom_dir/etc/kalue.usign_pubkey"
+				log "adding usign pubkey" gitadd "$custom_dir/etc/kalue.usign_pubkey"
+			}						# parser_ignore
+
 			file="$custom_dir/etc/openwrt_build"
 			grep -v ^'patch:' "${file}.details" >>"$file"
 
