@@ -1842,7 +1842,7 @@ EOF
 		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
 		#
 		destination="$server_dir/$destination"		# full filename
-		destination_info="$server_dir/"
+		destination_info="$server_dir"
 
 		scripts/diffconfig.sh >'info.diffconfig.txt'
 		[ -d 'logs' ] && tar cJf 'info.buildlog.tar.xz' logs/
@@ -1863,7 +1863,7 @@ upload()
 	ssh $release_server "mkdir -p '$server_dir' && cd '$server_dir' && rm -f *" || return 1
 
 	scp "$file"     $release_server:"$( scp_safe "$destination" )"		|| return 2
-	scp 'info.'*    $release_server:"$( scp_safe "$destination_info" )"	|| return 3
+	scp 'info.'*    $release_server:"$( scp_safe "$destination_info/" )"	|| return 3
 
 	# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
 	ssh $release_server    "cd '$server_dir' && cd .. && \
