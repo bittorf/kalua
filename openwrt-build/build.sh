@@ -1675,7 +1675,7 @@ usecase_hash()		# see: _firmware_get_usecase()
 		log "usecase_hash: word: '${1%@*}'"
 		echo "${1%@*}"
 		shift
-	} done | sort | md5sum | cut -d' ' -f1
+	} done | LC_ALL=C sort | md5sum | cut -d' ' -f1
 }
 
 copy_firmware_files()
