@@ -1060,7 +1060,7 @@ EOF
 	ARCH_MAIN="${ARCH%_*}"	# ramips_mt7620 -> ramips
 	ARCH_SUB="${ARCH#*_}"	# ramips_mt7620 -> mt7620
 	[ "$ARCH_SUB" = "$ARCH" ] && {
-		case "$TARGET_SYMBOL" in
+		case "$FILENAME_SYSUPGRADE" in
 			*'-legacy-'*)
 				ARCH_SUB='legacy'	# FIXME: more generic approach
 			;;
@@ -3178,26 +3178,25 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_opkg is not set'		# base-system: opkg
 				apply_symbol 'CONFIG_PACKAGE_usign is not set'		# since r45283 - FIXME! still in image
 
-				log "noOPKG: write missing 'files/etc/opkg.conf'"
 				mkdir -p 'files/etc'
 
-				# TODO: generic -> subtarget
 				# .../trunk/ramips/mt7620/packages
 				cat >'files/etc/opkg.conf' <<EOF
 dest root /
 dest ram /tmp
 lists_dir ext /var/opkg-lists
 option overlay_root /overlay
-src/gz chaos_calmer_base http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/base
-src/gz chaos_calmer_luci http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/luci
-src/gz chaos_calmer_management http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/management
-src/gz chaos_calmer_oldpackages http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/oldpackages
-src/gz chaos_calmer_olsrd2 http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/olsrd2
-src/gz chaos_calmer_oonfapi http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/oonfapi
-src/gz chaos_calmer_packages http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/packages
-src/gz chaos_calmer_routing http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/routing
-src/gz chaos_calmer_telephony http://downloads.openwrt.org/snapshots/trunk/$ARCH/generic/packages/telephony
+src/gz chaos_calmer_base http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/base
+src/gz chaos_calmer_luci http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/luci
+src/gz chaos_calmer_management http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/management
+src/gz chaos_calmer_oldpackages http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/oldpackages
+src/gz chaos_calmer_olsrd2 http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/olsrd2
+src/gz chaos_calmer_oonfapi http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/oonfapi
+src/gz chaos_calmer_packages http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/packages
+src/gz chaos_calmer_routing http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/routing
+src/gz chaos_calmer_telephony http://downloads.openwrt.org/snapshots/trunk/$ARCH/$ARCH_SUB/packages/telephony
 EOF
+				log "noOPKG: write missing 'files/etc/opkg.conf'" gitadd 'files/etc/opkg.conf'
 			;;
 			'noPPPoE')
 				apply_symbol 'CONFIG_PACKAGE_ppp is not set'		# network: ppp
