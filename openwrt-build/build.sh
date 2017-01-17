@@ -1799,7 +1799,7 @@ copy_firmware_files()
 				$usign_bin -G -p "$usign_pubkey" -s "$usign_privkey"
 			}
 
-			usign_signature="$( $usign_bin -S -m "$file" -s "$usign_privkey" -x - )"
+			usign_signature="$( $usign_bin -S -m "$file" -s "$usign_privkey" -x - | grep -v ^'untrusted comment' )"
 		}
 
 		# TODO: keep factory + sysupgrade in sync
@@ -1856,7 +1856,7 @@ upload()
 	scp 'info.'*    $release_server:"$( scp_safe "$destination_info" )"	|| return 3
 
 	# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
-	ssh $release_server "cd '$server_dir' && ln -sf '$destination' '.$( usecase_hash "$USECASE" ).bin'" || return 4
+	ssh $release_server "cd '$server_dir' && cd .. && ln -sf '$destination' '.$( usecase_hash "$USECASE" ).bin'" || return 4
 }
 
 upload || {
