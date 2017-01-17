@@ -1817,10 +1817,10 @@ EOF
 		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
 		#
 		destination="$server_dir/$destination"
-		destination_info="$server_dir/info.json"
+		destination_info="$server_dir/"
 
 		scripts/diffconfig.sh >'info.diffconfig.txt'
-		[ -d 'logs' ] && tar xJf 'info.buildlog.tar.xz' logs/
+		[ -d 'logs' ] && tar cJf 'info.buildlog.tar.xz' logs/
 
 		scp_safe()
 		{
@@ -1835,15 +1835,18 @@ EOF
 
 upload()
 {
-	ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *"	|| return
-	scp "$file"     $release_server:"$( scp_safe "$destination" )"		|| return
-	scp 'info.'*    $release_server:"$( scp_safe "$destination_info" )"	|| return
+	ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *"	|| return 1
+	scp "$file"     $release_server:"$( scp_safe "$destination" )"		|| return 2
+	scp 'info.'*    $release_server:"$( scp_safe "$destination_info" )"	|| return 3
 
 	# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
-	ssh $release_server "cd '$server_dir'; ln -sf '$destination' '.$( usecase_hash "$USECASE" ).bin'" || return
+	ssh $release_server "cd '$server_dir'; ln -sf '$destination' '.$( usecase_hash "$USECASE" ).bin'" || return 4
 }
 
-upload || err=1
+upload || {
+	log "upload-error: $?"
+	err=1
+}
 EOF
 		. ./DO_SCP.sh
 		[ $err -eq 0 ] && rm ./DO_SCP.sh 'info.'*
