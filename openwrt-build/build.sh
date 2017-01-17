@@ -885,7 +885,7 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-legacy-squashfs.trx'
 			FILENAME_FACTORY='openwrt-wrt54g-squashfs.bin'
 
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y"
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
 		;;
 		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2'|'ASUS WL-HDD 2.5')
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
@@ -907,7 +907,7 @@ EOF
 					;;
 				esac
 
-				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y"
+				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
 			else
 				FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
 				FILENAME_FACTORY='openwrt-brcm47xx-squashfs.trx'
@@ -1667,12 +1667,9 @@ usecase_hash()		# see: _firmware_get_usecase()
 	local usecase="$1"
 	local oldIFS="$IFS"; IFS=','; set -- $usecase; IFS="$oldIFS"
 
-	log "usecase_hash: input: '$usecase'"
-
 	# print each word without appended version @...
 	# output the same hash, no matter in which order the words are
 	while [ -n "$1" ]; do {
-		log "usecase_hash: word: '${1%@*}'"
 		echo "${1%@*}"
 		shift
 	} done | LC_ALL=C sort | md5sum | cut -d' ' -f1
@@ -3302,7 +3299,14 @@ EOF
 				return 1
 			;;
 			*)
-				return 0
+				case "$SPECIAL_OPTIONS" in
+					*"$USECASE"*)
+						return 1
+					;;
+					*)
+						return 0
+					;;
+				esac
 			;;
 		esac
 	}
