@@ -73,18 +73,13 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 
 			# see copy_firmware_files() in build.sh
 			#
-			# [symlink] -> Standard,VDS,kalua = 18c5d9ba35511b0b03491993b9507089 -> see: _firmware get_usecase hash
+			# [symlink] -> Standard,VDS,kalua -> hash -> 18c5d9ba35511b0b03491993b9507089
 			# /var/www/networks/$NET/firmware/models/$HARDWARE/$UPDATEMODE/
 			#	18c5d9ba35511b0b03491993b9507089/TP-LINK TL-WR1043ND.bin
-			# [symlink]
-			# /var/www/firmware/$NET/firmware/models/$HARDWARE/$UPDATEMODE/
-			#	Standard,kalua/TP-LINK TL-WR1043ND.bin
-			# [realfile]
-			# /var/www/firmware/$NET/firmware/models/$HARDWARE/$UPDATEMODE/
-			#	Standard,kalua/TP-LINK TL-WR1043ND.openwrt=r43102_kernel=_option=Standard,VDS,kalua@3731799_rootfs=squash_image=sysupgrade.bin
+			#					/info.json
 
 			dir="$( uci get system.@monitoring[0].url )"
-			dir="$dir/firmware/models/$( _sanitizer run "$HARDWARE" urlvalue )/$UPDATEMODE/$usecase"
+			dir="$dir/firmware/models/$( _sanitizer run "$HARDWARE" urlvalue )/$UPDATEMODE/$( _firmware get_usecase 'hash' )"
 			filewish="$HARDWARE.bin"
 
 			# very special: slashes are not allowed in filenames,
@@ -98,11 +93,8 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 
 					get_crc()
 					{
-						local url="$1"
-						local line
-
-						line="$( _curl it "$url" | grep '"firmware_md5": ' | cut -d'"' -f4 )"
-						test ${#line} -eq 32 && echo "$line"
+						local line="$( _curl it "$1" | grep '"firmware_md5": ' | cut -d'"' -f4 )"
+						[ ${#line} -eq 32 ] && echo "$line"
 					}
 
 					while [ $i -lt 100 -a "$UPDATEMODE" != '0' ]; do {

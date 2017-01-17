@@ -885,7 +885,7 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-brcm47xx-legacy-squashfs.trx'
 			FILENAME_FACTORY='openwrt-wrt54g-squashfs.bin'
 
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y"
 		;;
 		'Buffalo WHR-HP-G54'|'Dell TrueMobile 2300'|'ASUS WL-500g Premium'|'ASUS WL-500g Premium v2'|'ASUS WL-HDD 2.5')
 			TARGET_SYMBOL='CONFIG_TARGET_brcm47xx_Broadcom-b44-b43=y'
@@ -907,7 +907,7 @@ EOF
 					;;
 				esac
 
-				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y b43mini"
+				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_brcm47xx_legacy=y CONFIG_LOW_MEMORY_FOOTPRINT=y"
 			else
 				FILENAME_SYSUPGRADE='openwrt-brcm47xx-squashfs.trx'
 				FILENAME_FACTORY='openwrt-brcm47xx-squashfs.trx'
@@ -1681,7 +1681,7 @@ copy_firmware_files()
 	local attic="bin/$ARCH_MAIN/attic"
 	local file file_size checksum_md5 checksum_sha256 rootfs server_dir release_server
 	local destination destination_scpsafe destination_info destination_info_scpsafe pre
-	local usign_bin usign_pubkey usign_privkey usign_signature
+	local usign_bin usign_pubkey usign_privkey usign_signature myhash
 	local err=0
 
 	mkdir -p "$attic"
@@ -1731,10 +1731,11 @@ copy_firmware_files()
 		;;
 	esac
 
+	myhash="$( usecase_hash "$USECASE" )"
 	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch '$ARCH'/'$ARCH_MAIN'"
 	log "hardware: '$HARDWARE_MODEL'"
 	log "usecase: --usecase $USECASE"
-	log "usecase-hash: $( usecase_hash "$USECASE" )"
+	log "usecase-hash: $myhash"
 
 	# Ubiquiti Bullet M.openwrt=r38576_kernel=3.6.11
 	destination="${destination}_kernel=${VERSION_KERNEL}"
@@ -1832,7 +1833,7 @@ copy_firmware_files()
   "firmware_kernel": "$VERSION_KERNEL",
   "firmware_rev": "$VERSION_OPENWRT_INTEGER",
   "firmware_usecase": "$USECASE_DOWNLOAD",
-  "firmware_usecase_hash": "$( usecase_hash "$USECASE" )"
+  "firmware_usecase_hash": "$myhash"
 }
 EOF
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
@@ -1840,7 +1841,7 @@ EOF
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
 		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
 		#
-		destination="$server_dir/$destination"
+		destination="$server_dir/$destination"		# full filename
 		destination_info="$server_dir/"
 
 		scripts/diffconfig.sh >'info.diffconfig.txt'
@@ -1865,7 +1866,10 @@ upload()
 	scp 'info.'*    $release_server:"$( scp_safe "$destination_info" )"	|| return 3
 
 	# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
-	ssh $release_server "cd '$server_dir' && cd .. && ln -sf '$destination' '.$( usecase_hash "$USECASE" ).bin'" || return 4
+	ssh $release_server    "cd '$server_dir' && cd .. && \
+				mkdir -p '.$myhash' && cd '.$myhash' && \
+				ln -sf '$destination' '$HARDWARE_MODEL.bin' && \
+				ln -sf '$destination_info/json.info' 'json.info'" || return 4
 }
 
 upload || {
