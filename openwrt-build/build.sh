@@ -1672,6 +1672,7 @@ usecase_hash()		# see: _firmware_get_usecase()
 	# print each word without appended version @...
 	# output the same hash, no matter in which order the words are
 	while [ -n "$1" ]; do {
+		log "usecase_hash: word: '${1%@*}'"
 		echo "${1%@*}"
 		shift
 	} done | sort | md5sum | cut -d' ' -f1
