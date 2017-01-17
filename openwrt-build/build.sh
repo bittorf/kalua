@@ -1649,7 +1649,7 @@ openwrt_download()
 
 usecase_has()
 {
-	local usecase_keyword="$1"
+	local usecase_keyword="$1"	# e.g. 'noDebug'
 	local oldIFS="$IFS"; IFS=','; set -- $LIST_USER_OPTIONS; IFS="$oldIFS"
 
 	case " $* " in
@@ -1666,6 +1666,8 @@ usecase_hash()		# see: _firmware_get_usecase()
 {
 	local usecase="$1"
 	local oldIFS="$IFS"; IFS=','; set -- $usecase; IFS="$oldIFS"
+
+	log "usecase_hash: input: '$usecase'"
 
 	# print each word without appended version @...
 	# output the same hash, no matter in which order the words are
@@ -1731,6 +1733,9 @@ copy_firmware_files()
 		;;
 	esac
 
+	# workaround: when build without kalua
+	[ -z "$USECASE_DOWNLOAD" ] && USECASE_DOWNLOAD="$USECASE"
+
 	myhash="$( usecase_hash "$USECASE_DOWNLOAD" )"
 	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch/main/sub '$ARCH'/'$ARCH_MAIN'/'$ARCH_SUB'"
 	log "hardware: '$HARDWARE_MODEL'"
@@ -1793,9 +1798,6 @@ copy_firmware_files()
 	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/.49c4b5bf00fd398fba251a59f628de60.bin
 
 	[ -n "$RELEASE" -a -n "$RELEASE_SERVER" -a -e "$file" ] && {
-		# workaround: when build without kalua
-		[ -z "$USECASE_DOWNLOAD" ] && USECASE_DOWNLOAD="$USECASE"
-
 		checksum_md5="$( md5sum "$file" | cut -d' ' -f1 )"
 		checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
 		file_size="$( wc -c <"$file" )"
