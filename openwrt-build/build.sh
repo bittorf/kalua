@@ -1731,8 +1731,8 @@ copy_firmware_files()
 		;;
 	esac
 
-	myhash="$( usecase_hash "$USECASE" )"
-	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch '$ARCH'/'$ARCH_MAIN'"
+	myhash="$( usecase_hash "$USECASE_DOWNLOAD" )"
+	log "openwrt-version: '$VERSION_OPENWRT' with kernel: '$VERSION_KERNEL' for arch/main/sub '$ARCH'/'$ARCH_MAIN'/'$ARCH_SUB'"
 	log "hardware: '$HARDWARE_MODEL'"
 	log "usecase: --usecase $USECASE"
 	log "usecase-hash: $myhash"
