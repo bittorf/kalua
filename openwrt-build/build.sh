@@ -1835,12 +1835,13 @@ EOF
 
 upload()
 {
-	ssh $release_server "mkdir -p '$server_dir'; cd '$server_dir'; rm *"	|| return 1
+	ssh $release_server "mkdir -p '$server_dir' && cd '$server_dir' && rm -f *" || return 1
+
 	scp "$file"     $release_server:"$( scp_safe "$destination" )"		|| return 2
 	scp 'info.'*    $release_server:"$( scp_safe "$destination_info" )"	|| return 3
 
 	# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
-	ssh $release_server "cd '$server_dir'; ln -sf '$destination' '.$( usecase_hash "$USECASE" ).bin'" || return 4
+	ssh $release_server "cd '$server_dir' && ln -sf '$destination' '.$( usecase_hash "$USECASE" ).bin'" || return 4
 }
 
 upload || {
