@@ -1795,7 +1795,7 @@ copy_firmware_files()
 	# for firmware-downloader: (only symlink)
 	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/.49c4b5bf00fd398fba251a59f628de60.bin
 
-	[ -n "$RELEASE" -a -n "$RELEASE_SERVER" -a -e "$file" ] && {
+	[ -n "$RELEASE" -a -e "$file" ] && {
 		checksum_md5="$( md5sum "$file" | cut -d' ' -f1 )"
 		checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
 		file_size="$( wc -c <"$file" )"
@@ -3304,6 +3304,8 @@ EOF
 						return 1
 					;;
 					*)
+						# FIXME! USECASE e.g. b43mini,Standard,kalua@0e25ad4
+						log "YES: needs adding: $USECASE"
 						return 0
 					;;
 				esac
