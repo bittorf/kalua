@@ -1679,7 +1679,7 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH_MAIN/attic"
-	local file file_size checksum_md5 checksum_sha256 rootfs server_dir release_server
+	local file file_size checksum_md5 checksum_sha256 rootfs server_dir server
 	local destination destination_scpsafe destination_info destination_info_scpsafe pre
 	local usign_bin usign_pubkey usign_privkey usign_signature myhash
 	local err=0
@@ -1837,7 +1837,7 @@ copy_firmware_files()
 }
 EOF
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> root@intercity-vpn.de
-		release_server="${RELEASE_SERVER%:*}"
+		server="${RELEASE_SERVER%:*}"
 		# root@intercity-vpn.de:/var/www/networks/liszt28 -> /var/www/networks/liszt28
 		server_dir="${RELEASE_SERVER#*:}/firmware/models/$HARDWARE_MODEL_FILENAME/$RELEASE/$USECASE_DOWNLOAD"
 		#
@@ -1860,16 +1860,16 @@ EOF
 
 upload()
 {
-	ssh $release_server "mkdir -p '$server_dir' && cd '$server_dir' && rm -f *" || return 1
+	ssh $server "mkdir -p '$server_dir' && cd '$server_dir' && rm -f *" || return 1
 
-	scp "$file"     $release_server:"$( scp_safe "$destination" )"		|| return 2
-	scp 'info.'*    $release_server:"$( scp_safe "$destination_info/" )"	|| return 3
+	scp "$file"     $server:"$( scp_safe "$destination" )"		|| return 2
+	scp 'info.'*    $server:"$( scp_safe "$destination_info/" )"	|| return 3
 
 	# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
-	ssh $release_server    "cd '$server_dir' && cd .. && \
-				mkdir -p '.$myhash' && cd '.$myhash' && \
-				ln -sf '$destination' '$HARDWARE_MODEL.bin' && \
-				ln -sf '$destination_info/info.json' 'info.json'" || return 4
+	ssh $server    "cd '$server_dir' && cd .. && \
+			mkdir -p '.$myhash' && cd '.$myhash' && \
+			ln -sf '$destination' '$HARDWARE_MODEL.bin' && \
+			ln -sf '$destination_info/info.json' 'info.json'" || return 4
 }
 
 upload || {
