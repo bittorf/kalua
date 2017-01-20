@@ -315,9 +315,12 @@ if df -h /dev/xvda1 | grep -Fq "100%"; then
 	if iptables -nL INPUT | head -n3 | grep -q ^'ACCEPT' ; then
 		log "diskspace OK - allowing ssh-login: already allowed"
 	else
-		/var/www/scripts/send_sms.sh "liszt28" "0176/24223419" "intercity-vpn.de: disk full - needs housekeeping"
+#		/var/www/scripts/send_sms.sh "liszt28" "0176/24223419" "intercity-vpn.de: disk full - needs housekeeping"
 		log "disk full - allowing ssh-login from everywhere"
 		iptables -I INPUT -p tcp -j ACCEPT
+
+		/var/www/scripts/compress_vds_files.sh start
+		/var/www/scripts/backup_this_server.sh BACKUPSERVER all_networks_smallest_first
 	fi
 else
 	iptables -nL INPUT | head -n3 | grep ^'ACCEPT' | grep -q 'tcp  --  0.0.0.0/0' && {
