@@ -791,7 +791,6 @@ EOF
 		;;
 		'TP-LINK TL-WR1043ND'|'TP-LINK TL-WR1043ND v2')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr1043nd
-			# TODO: LEDE:  CONFIG_TARGET_ar71xx_generic_DEVICE_tl-wr1043nd-v1=y
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-factory.bin"
@@ -1119,6 +1118,13 @@ EOF
 			apply_symbol "CONFIG_TARGET_$ARCH_MAIN=y"
 		;;
 	esac
+
+	# TODO:
+	# CONFIG_TARGET_ar71xx_generic_Default is not set
+	# CONFIG_TARGET_ar71xx_generic_DEVICE_tl-wr1043nd-v1=y
+	# CONFIG_TARGET_PROFILE="DEVICE_tl-wr1043nd-v1"
+	#
+	# "openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
 
 	apply_symbol "$TARGET_SYMBOL"
 	build 'defconfig'
@@ -1484,10 +1490,8 @@ openwrt_download()
 		case "$( git config --get remote.origin.url )" in
 			*'lede'*)
 				[ ${VERSION_OPENWRT_INTEGER:-0} -gt 0 ] && {
-					log "rewriting \$VERSION_OPENWRT: $VERSION_OPENWRT/$VERSION_OPENWRT_INTEGER"
 					VERSION_OPENWRT_INTEGER=$(( VERSION_OPENWRT_INTEGER + 1000000 ))
 					VERSION_OPENWRT="r$VERSION_OPENWRT_INTEGER"
-					log "rewriting \$VERSION_OPENWRT: now: $VERSION_OPENWRT/$VERSION_OPENWRT_INTEGER"
 				}
 			;;
 		esac
@@ -2503,8 +2507,8 @@ build_options_set()
 	case "$options" in
 		'ready')	# parser_ignore
 			[ -e '../build.pubkey' ] && {			# parser_ignore
-				cp '../build.pubkey' "$custom_dir/etc/kalue.usign_pubkey"
-				log "adding usign pubkey" gitadd "$custom_dir/etc/kalue.usign_pubkey"
+				cp '../build.pubkey' "$custom_dir/etc/kalua.usign_pubkey"
+				log "adding usign pubkey" gitadd "$custom_dir/etc/kalua.usign_pubkey"
 			}						# parser_ignore
 
 			file="$custom_dir/etc/openwrt_build"
