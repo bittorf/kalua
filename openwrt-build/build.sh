@@ -585,7 +585,7 @@ target_hardware_set()
 	local model="$1"	# 'list' or <modelname>
 	local option="$2"	# 'plain', 'js', 'info' or <empty>
 	local quiet="$3"	# e.g. 'quiet' (not logging)
-	local line file version
+	local line file version device_symbol
 
 	[ -n "$quiet" ] && funcname="quiet_$funcname"
 
@@ -1119,14 +1119,27 @@ EOF
 		;;
 	esac
 
-	# TODO:
-	# CONFIG_TARGET_ar71xx_generic_Default is not set
-	# CONFIG_TARGET_ar71xx_generic_DEVICE_tl-wr1043nd-v1=y
-	# CONFIG_TARGET_PROFILE="DEVICE_tl-wr1043nd-v1"
-	#
-	# "openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
+	case "$( git config --get remote.origin.url )" in
+		*'lede-project'*)
+			case "$FILENAME_SYSUPGRADE" in
+				*'-squashfs-'*)
+					# e.g. openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
+					device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
+					device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
+					apply_symbol "CONFIG_TARGET_${ARCH}_${ARCH_SUB}_Default is not set"
+					apply_symbol "CONFIG_TARGET_${ARCH}_${ARCH_SUB}_DEVICE_$device_symbol=y"
+					apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
+				;;
+				*)
+					apply_symbol "$TARGET_SYMBOL"
+				;;
+			esac
+		;;
+		*)
+			apply_symbol "$TARGET_SYMBOL"	# e.g. CONFIG_TARGET_ar71xx_generic_TLWR1043=y
+		;;
+	esac
 
-	apply_symbol "$TARGET_SYMBOL"
 	build 'defconfig'
 }
 
@@ -2183,7 +2196,7 @@ apply_kernelsymbol()
 apply_symbol()
 {
 	local funcname='apply_symbol'
-	local symbol="$1"
+	local symbol="$1"		# TODO: allow more than 1 in one shot
 	local symbol_kernel="$2"
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
