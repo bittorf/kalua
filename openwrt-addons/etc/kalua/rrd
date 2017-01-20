@@ -190,7 +190,7 @@ _rrd_update()
 _rrd_show()
 {
 	local funcname='rrd_show'
-	local duration="$1"		# e.g. 15min, 4h
+	local duration="$1"		# e.g. 15min, 4h or '14:40 --end 15:25'
 	local file="${2:-/tmp/datafile.rrd}"
 
 	[ -e "$file" ] || return 1
@@ -201,10 +201,13 @@ _rrd_show()
 		duration=$(( $( _system date unixtime ) - duration ))
 		duration=$(( duration / 60 ))
 	else
-		# our database is not bigger, see rrd_setup()
-		[ $duration -gt 1440 ] && duration=1440
+		isnumber "$duration" && {
+			# our database is not bigger, see rrd_setup()
+			[ $duration -gt 1440 ] && duration=1440
+		}
 	fi
-	isnumber $duration && duration="${duration}min"
+	isnumber "$duration" && duration="${duration}min"
+	case "$duration" in *'--end'*);;*) duration="-$duration" ;; esac	# add leading '-' of not a timerange
 
 	local webfile='/www/traffic.png'
 	local output='/tmp/graph.png'
@@ -261,7 +264,7 @@ _rrd_show()
 	# suppress output of image-size
 	rrdtool >/dev/null graph "$output"				\
 		--imgformat PNG --width 900 --height 600		\
-		--start -$duration					\
+		--start $duration					\
 		--vertical-label "$label"				\
 		--title "$title" ${watermark+--watermark} $watermark 	\
 		DEF:load_1m=${file}:load_1m:AVERAGE			\
