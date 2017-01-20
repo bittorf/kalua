@@ -210,7 +210,9 @@ autocommit()
 	fi
 
 	# see: build_options_set() with option 'ready'
-	echo "patch: $message | $gitfile | $count" >>'files/etc/openwrt_build.details'
+	[ "$gitfile" = 'files/etc/openwrt_build.details' ] || {
+		echo "patch: $message | $gitfile | $count" >>'files/etc/openwrt_build.details'
+	}
 	git add 'files/etc/openwrt_build.details'
 
 	git commit --signoff -m "
@@ -3323,8 +3325,6 @@ EOF
 		echo "${subcall:-$USECASE}" >>"${file}.details"
 		log "just tempfile" debug,gitadd "${file}.details"
 	fi
-
-	return 0
 }
 
 parse_case_patterns()

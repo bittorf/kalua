@@ -2161,7 +2161,7 @@ _cell_firmwareversion_humanreadable()
 			UPDATE="$(  echo "$update" | cut -d'.' -f1 )"
 			usecase="$( echo "$update" | cut -d'.' -f2 )"
 
-			echo "USECASE='$usecase'; HARDWARE='$HW';" >>"$USECASE_FILE"
+			echo "USECASE='$usecase'; HARDWARE='$HW'; WIFIMAC='$WIFIMAC';" >>"$USECASE_FILE"
 		;;
 		*)
 			UPDATE="$update"
