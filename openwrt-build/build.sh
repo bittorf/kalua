@@ -53,8 +53,8 @@ print_usage_and_exit()
 		cat <<EOF
 
 Usage: ./$0 --openwrt
-       ./$0 --openwrt trunk|lede|lede-staging
-       ./$0 --openwrt trunk --download_pool /absolute/path/to/dir
+       ./$0 --openwrt lede|trunk|lede-staging
+       ./$0 --openwrt lede --download_pool /absolute/path/to/dir
        ./$0 --openwrt 15.05 --myrepo git://github.com/weimarnetz/weimarnetz.git
 
        This will download/checkout OpenWrt-buildscripts,

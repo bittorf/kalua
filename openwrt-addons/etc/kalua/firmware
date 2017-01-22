@@ -2,12 +2,14 @@
 
 _firmware_get_usecase()		# TODO: think about reordering
 {
+	local funcname='firmware_get_usecase'
 	local option="$1"			# e.g. 'hash' or ask for specific case, e.g. 'NAS'
 	local file="${2:-/etc/openwrt_build}"	# generated on image build-time
 	local line oldIFS usecase
 
 	# e.g. Standard,debug,VDS,OLSRd2,kalua@41eba50,FeatureXY
 	read -r line 2>/dev/null <"$file" || return 1
+	_log it $funcname daemon debug "usecase: $line option: $option file: $file"
 
 	# split words after ','
 	oldIFS="$IFS"; IFS=','; explode $line; IFS="$oldIFS"
@@ -631,6 +633,8 @@ _firmware_kill_tasks()
 	local list_tasks="$1"		# special keywords: pause | wifi_down
 
 	for task in $list_tasks ; do {
+		[ -e "$TMPDIR/keep_$task" ] && continue
+
 		case "$task" in
 			dropbear)
 				case "$CONFIG_PROFILE" in
@@ -1090,7 +1094,7 @@ _firmware_download()
 		 _watch counter "/tmp/fetch_firmware" increment 1 max $maxtry || break
 	} done
 
-	if _watch counter "/tmp/fetch_firmware" increment 1 max $maxtry; then
+	if _watch counter "$TMPDIR/$funcname" increment 1 max $maxtry; then
 		_log it $funcname daemon info "[READY] downloading '$file' with $( _file size "$file" ) bytes"
 		return 0
 	else
