@@ -56,7 +56,7 @@ case "$LOAD" in
 	'0'*)
 	;;
 	*)
-		echo '[ATT] high load:'
+		echo '[ATT] high load:'		# TODO: abort here?
 		uptime
 	;;
 esac

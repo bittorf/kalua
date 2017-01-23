@@ -7,7 +7,8 @@ _rrd_setup()
 	local interval=60			# [sec]
 	local maxwait=$(( interval * 2 ))	# [sec] writes 'unknown' into database after this time
 	local minmax_unlimited='U:U'		# allow all values, do not limit min or max
-	local minmax_load='0:10'
+	local minmax_load='0:31'
+	local minmax_procs='0:999'
 	local minmax_mem="0:$( _system ram_size )"	# kilobytes
 	local minmax_100mbit='0:12500000'
 	local minmax_100mbit_packets='0:12500'
@@ -31,8 +32,7 @@ _rrd_setup()
 
 	rrdtool create "$file" \
 		DS:load_1m:GAUGE:${maxwait}:$minmax_load \
-		DS:load_5m:GAUGE:${maxwait}:$minmax_load \
-		DS:load_15m:GAUGE:${maxwait}:$minmax_load \
+		DS:procs:GAUGE:${maxwait}:$minmax_procs \
 		DS:mem:GAUGE:${maxwait}:$minmax_mem \
 		DS:upload_packets:COUNTER:${maxwait}:$minmax_100mbit_packets \
 		DS:upload_bytes:COUNTER:${maxwait}:$minmax_100mbit \
@@ -44,7 +44,7 @@ _rrd_setup()
 		DS:udp:GAUGE:${maxwait}:$minmax_unlimited \
 		DS:signal:GAUGE:${maxwait}:$minmax_unlimited \
 			--step $interval \
-			RRA:AVERAGE:0.5:1:1440		# results in a 154k fixed-size database
+			RRA:AVERAGE:0.5:1:1440		# results in a 142k fixed-size database
 #			RRA:AVERAGE:0.5:4:3600 \
 #			RRA:AVERAGE:0.5:24:3600
 }
@@ -57,10 +57,12 @@ _rrd_update()
 	local file='/tmp/datafile.rrd'
 	local up_packets=0 up_bytes=0 down_packets=0 down_bytes=0
 	local stations=0 users=0 udp=0 tcp=0 signal=0 iw_rc=0
-	local time_now line mac load_1m load_5m load_15m mem word
+	local time_now line mac load_1m procs mem word
 
 	[ -e "$file" ] || return 0
-	read -r load_1m load_5m load_15m _ </proc/loadavg
+
+	read -r load_1m _ _ procs _ <'/proc/loadavg'
+	procs="${procs#*/}"
 
 	# speedcode: outputs kilobytes - same as system_ram_free()
 	while read -r word mem _; do case "$word" in 'MemAvailable:'*|'Buffers:'*) break;; esac; done <'/proc/meminfo'
@@ -179,7 +181,7 @@ _rrd_update()
 	} done <'/proc/net/nf_conntrack'
 
 	time_now='N'	# RRD special
-	line="$time_now:$load_1m:$load_5m:$load_15m:$mem:$up_packets:$up_bytes:$down_packets:$down_bytes:$stations:$users:$tcp:$udp:$signal"
+	line="$time_now:$load_1m:$procs:$mem:$up_packets:$up_bytes:$down_packets:$down_bytes:$stations:$users:$tcp:$udp:$signal"
 
 	rrdtool update "$file" "$line" || {
 		_log it $funcname daemon alert "error $?: rrdtool update $file $line"
@@ -246,9 +248,8 @@ _rrd_show()
 	esac
 
 	local colorA='#00cc22'		# load-1m			- green
-	local colorB='#000022'		# load-5m			- black
-	local colorC='#663322'		# load-15m			- brown
-	local colorD='#ff9999'		# mem				- pink
+	local colorB='#000022'		# running processes		- black
+	local colorC='#ff9999'		# mem				- pink
 	local color1='#ff6600'		# upload_packets		- orange
 	local color2="#9999ff"		# upload_bytes/area		- grey
 	local color3='#00cc00'		# download_packets		- green
@@ -269,12 +270,10 @@ _rrd_show()
 		--title "$title" ${watermark+--watermark} $watermark 	\
 		DEF:load_1m=${file}:load_1m:AVERAGE			\
 			CDEF:valueA=load_1m,1000000,*			\
-		DEF:load_5m=${file}:load_5m:AVERAGE			\
-			CDEF:valueB=load_5m,1000000,*			\
-		DEF:load_15m=${file}:load_15m:AVERAGE			\
-			CDEF:valueC=load_15m,1000000,*			\
+		DEF:procs=${file}:procs:AVERAGE				\
+			CDEF:valueB=procs,10000,*			\
 		DEF:mem=${file}:mem:AVERAGE				\
-			CDEF:valueD=mem,15,*				\
+			CDEF:valueC=mem,25,*				\
 		DEF:upload_packets=${file}:upload_packets:AVERAGE	\
 			CDEF:value1=upload_packets,-$typical_average_packetsize,* \
 		DEF:upload_bytes=${file}:upload_bytes:AVERAGE		\
@@ -298,21 +297,16 @@ _rrd_show()
 			GPRINT:load_1m:AVERAGE:"avg\:%8.2lf %s"		\
 			GPRINT:load_1m:MIN:"min\:%8.2lf %s"		\
 			GPRINT:load_1m:MAX:"max\:%8.2lf %s$end"		\
-		LINE1:valueB${colorB}:'CPU-load  [5min]  '		\
-			GPRINT:load_5m:LAST:"current\:%8.2lf %s"	\
-			GPRINT:load_5m:AVERAGE:"avg\:%8.2lf %s"		\
-			GPRINT:load_5m:MIN:"min\:%8.2lf %s"		\
-			GPRINT:load_5m:MAX:"max\:%8.2lf %s$end"		\
-		LINE1:valueC${colorC}:'CPU-load [15min]  '		\
-			GPRINT:load_15m:LAST:"current\:%8.2lf %s"	\
-			GPRINT:load_15m:AVERAGE:"avg\:%8.2lf %s"	\
-			GPRINT:load_15m:MIN:"min\:%8.2lf %s"		\
-			GPRINT:load_15m:MAX:"max\:%8.2lf %s$end"	\
-		LINE1:valueD${colorD}:'Memory free       '		\
-			GPRINT:mem:LAST:"current\:%8.2lf %s"	\
-			GPRINT:mem:AVERAGE:"avg\:%8.2lf %s"	\
-			GPRINT:mem:MIN:"min\:%8.2lf %s"		\
-			GPRINT:mem:MAX:"max\:%8.2lf %s$end"	\
+		LINE1:valueB${colorB}:'running processes '		\
+			GPRINT:procs:LAST:"current\:%8.2lf %s"	\
+			GPRINT:procs:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:procs:MIN:"min\:%8.2lf %s"		\
+			GPRINT:procs:MAX:"max\:%8.2lf %s$end"		\
+		LINE1:valueC${colorC}:'Memory free       '		\
+			GPRINT:mem:LAST:"current\:%8.2lf %s"		\
+			GPRINT:mem:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:mem:MIN:"min\:%8.2lf %s"			\
+			GPRINT:mem:MAX:"max\:%8.2lf %s$end"		\
 		LINE1:value1${color1}:'upload [packets]  '		\
 			GPRINT:value1:LAST:"current\:%8.2lf %s"		\
 			GPRINT:value1:AVERAGE:"avg\:%8.2lf %s"		\
