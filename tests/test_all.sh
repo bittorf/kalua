@@ -561,6 +561,7 @@ run_test()
 				;;
 				'text/x-shellscript')
 					# strip non-printable (ascii-subset)
+					# https://github.com/koalaman/shellcheck/issues/324
 					tr -cd '\11\12\15\40-\176' <"$file" >"$tempfile"
 
 					hash1="$( md5sum <"$tempfile" | cut -d' ' -f1 )"
