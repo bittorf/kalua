@@ -23,7 +23,7 @@ sed -i '/.*lastsnap.jpg/d' "$LIST"
 
 	while read -r FILE; do {
 		# test "$END_MARKER" = "$FILE_END"
-		test -e "$FILE" -a "$FILE" != 'webcam.jpg' && {
+		test -e "$FILE" -a "$FILE" != './webcam.jpg' && {
 			test "$FILE" = "$BADFILE" || rm "$FILE"
 		}
 	} done <"$LIST"

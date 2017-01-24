@@ -215,11 +215,17 @@ _rrd_show()
 	local output='/tmp/graph.png'
 	local date="$( _system date humanreadable pretty )"
 	local location="$( _weblogin metadata_locationname )"
-	local watermark forward_type default_route_dev devname title factor_different_users
+	local watermark forward_type default_route_dev devname title factor_different_users mem_multiplier
 	local typical_average_packetsize=350
 	local label="bytes/sec & users/stations (1 = 100k) & TCP/UDP-conntrack (1000 = 1M)"	# Y-axis
 	local alpha=88
 	local end='\j'		# linejump in legend
+
+	if [ $( _system ram_free ) -gt 15000000 ]; then
+		mem_multiplier=10
+	else
+		mem_multiplier=100
+	fi
 
 	if [ -e "$TMPDIR/rrd_mode_longshot" ]; then
 		forward_type="longshot-traffic $WIFIDEV"
@@ -273,7 +279,7 @@ _rrd_show()
 		DEF:procs=${file}:procs:AVERAGE				\
 			CDEF:valueB=procs,10000,*			\
 		DEF:mem=${file}:mem:AVERAGE				\
-			CDEF:valueC=mem,25,*				\
+			CDEF:valueC=mem,$mem_multiplier,*		\
 		DEF:upload_packets=${file}:upload_packets:AVERAGE	\
 			CDEF:value1=upload_packets,-$typical_average_packetsize,* \
 		DEF:upload_bytes=${file}:upload_bytes:AVERAGE		\
