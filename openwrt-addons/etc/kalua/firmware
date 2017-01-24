@@ -699,6 +699,60 @@ _firmware_check_image()
 	fi
 }
 
+_firmware_patch_sysupgrade()
+{
+	local funcname='firmware_patch_sysupgrade'
+	local patchfile='/lib/upgrade/common.sh'
+	local partition fix
+
+	_system version '34794...34814' && {
+		# https://dev.openwrt.org/changeset/34815/trunk
+		grep -sq ^'supivot()' "$patchfile" || {
+			sed -i  -e "s/pivot \$RAM_ROOT/supivot \$RAM_ROOT/" \
+				-e 's/pivot()/supivot()/' "$patchfile"
+		}
+	}
+
+	case "$( _system architecture )" in
+		'brcm47xx')
+			[ $OPENWRT_REV -lt 32866 ] && {
+				grep -q '"Upgrade completed";' "$patchfile" || {
+					partition="/dev/$( grep 'linux' '/proc/mtd' | cut -d':' -f1 )"
+					fix="mtd fixtrx $partition"
+
+					_log it $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
+					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
+					grep -q "$fix" "$patchfile" || _system crashreboot 'patching_failed'
+				}
+			}
+		;;
+	esac
+
+	grep -sq " test \$I -gt 100 " "$patchfile" || {
+		local loop_begin="I=0; while true; do"
+		local loop_end="\&\& break; v retry_upgrade; I=\$(( I + 1 )); test \$I -gt 100 \&\& break; done"
+
+		_log it $funcname daemon info "[OK] patching '$patchfile', adding loop to default_do_upgrade() till it does not fail"
+		sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
+	}
+
+	grep -sq 'console' "$patchfile" || {
+		_log it $funcname daemon info "[OK] patching '$patchfile', adding console_log"
+		sed -i 's|^v() {|v() {\necho "$@" >/dev/console|' "$patchfile"
+	}
+
+	grep -q 'ubusd' "$patchfile" || {
+		_log it $funcname daemon info "[OK] patching '$patchfile', adding some essential services"
+		sed -i 's/services$/&\n*sh*|*dbclient*|*preinit*|*procd*|*ubusd*);;/' "$patchfile"
+		grep -Fq "ubusd" "$patchfile" || _system crashreboot 'patching_failed'
+	}
+
+	[ -e "$patchfile" ] && {
+		sh -n "$patchfile" || _system crashreboot 'patching_failed'
+	}
+}
+
+
 _firmware_remove_cron_stuff()
 {
 	local funcname="firmware_remove_cron_stuff"
@@ -834,55 +888,7 @@ _firmware_burn()
 	echo 'firmware_upgrade' >/tmp/CRON_OVERLOAD
 
 	_firmware configure_keep_files
-
-	_system version '34794...34814' && {
-		# https://dev.openwrt.org/changeset/34815/trunk
-		grep -sq ^'supivot()' '/lib/upgrade/common.sh' || {
-			sed -i  -e "s/pivot \$RAM_ROOT/supivot \$RAM_ROOT/" \
-				-e 's/pivot()/supivot()/' '/lib/upgrade/common.sh'
-		}
-	}
-
-	case "$( _system architecture )" in
-		brcm47xx)
-			[ $OPENWRT_REV -ge 32866 ] || {
-				local patchfile partition fix
-
-				patchfile="/lib/upgrade/common.sh"
-				grep -Fq '"Upgrade completed";' "$patchfile" || {
-					partition="/dev/$( grep -F "linux" /proc/mtd | cut -d':' -f1 )"
-					fix="mtd fixtrx $partition"
-					_log it $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
-					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
-					grep -Fq "$fix" "$patchfile" || _system crashreboot 'patching_failed'
-				}
-			}
-		;;
-	esac
-
-	local patchfile='/lib/upgrade/common.sh'
-	grep -sq " test \$I -gt 100 " "$patchfile" || {
-		local loop_begin="I=0; while true; do"
-		local loop_end="\&\& break; v retry_upgrade; I=\$(( I + 1 )); test \$I -gt 100 \&\& break; done"
-
-		_log it $funcname daemon info "[OK] patching '$patchfile', adding loop to default_do_upgrade() till it does not fail"
-		sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
-	}
-
-	grep -sq 'console' "$patchfile" || {
-		_log it $funcname daemon info "[OK] patching '$patchfile', adding console_log"
-		sed -i 's|^v() {|v() {\necho "$@" >/dev/console|' "$patchfile"
-	}
-
-	grep -Fq "ubusd" "$patchfile" || {
-		_log it $funcname daemon info "[OK] patching '$patchfile', adding some essential services"
-		sed -i 's/services$/&\n*sh*|*dbclient*|*preinit*|*procd*|*ubusd*);;/' "$patchfile"
-		grep -Fq "ubusd" "$patchfile" || _system crashreboot 'patching_failed'
-	}
-
-	[ -e "$patchfile" ] && {
-		sh -n "$patchfile" || _system crashreboot 'patching_failed'
-	}
+	_firmware patch_sysupgrade
 
 	# last chance for using '/tmp/loader'
 	. /usr/sbin/cron.check_klog
