@@ -21,19 +21,17 @@ _rrd_setup()
 		fi
 	}
 
-	_log it setup daemon info "initial setup of $file"
+	_log it setup daemon info "initial setup of '$file'"
 
 	# DS  = Data Source
 	# RRA = Round Robin Archive
 	# datasource_type = DERIVE|COUNTER|ABSOLUTE|GAUGE - see https://collectd.org/wiki/index.php/Data_source
 
-	# TODO: rrdtool fetch /tmp/datafile.rrd AVERAGE
-	# TODO: safe place bei limiting numbers e.g. load
-
 	rrdtool create "$file" \
 		DS:load_1m:GAUGE:${maxwait}:$minmax_load \
 		DS:procs:GAUGE:${maxwait}:$minmax_procs \
 		DS:mem:GAUGE:${maxwait}:$minmax_mem \
+		DS:irq:COUNTER:${maxwait}:$minmax_unlimited \
 		DS:upload_packets:COUNTER:${maxwait}:$minmax_100mbit_packets \
 		DS:upload_bytes:COUNTER:${maxwait}:$minmax_100mbit \
 		DS:download_packets:COUNTER:${maxwait}:$minmax_100mbit_packets \
@@ -57,7 +55,7 @@ _rrd_update()
 	local file='/tmp/datafile.rrd'
 	local up_packets=0 up_bytes=0 down_packets=0 down_bytes=0
 	local stations=0 users=0 udp=0 tcp=0 signal=0 iw_rc=0
-	local time_now line mac load_1m procs mem word
+	local time_now line mac load_1m procs mem word irq driver
 
 	[ -e "$file" ] || return 0
 
@@ -66,6 +64,18 @@ _rrd_update()
 
 	# speedcode: outputs kilobytes - same as system_ram_free()
 	while read -r word mem _; do case "$word" in 'MemAvailable:'*|'Buffers:'*) break;; esac; done <'/proc/meminfo'
+
+	#           CPU0       CPU1       CPU2       CPU3
+	# 11:   54116641          0          0          0  MIPS GIC  11  mt76x2e
+	read -r driver <"$TMPDIR/rrd_irq_datasource" || {
+		_wifi dev2driver "$WIFIDEV" >"$TMPDIR/rrd_irq_datasource" || {
+			explode $( grep '[0-9]:' '/proc/interrupts' | head -n1 )
+			for driver in $*; do :; done
+			echo "$driver" >"$TMPDIR/rrd_irq_datasource"	# no wifi: take first irq
+		}
+	}
+
+	while read -r _ irq word; do case "$word" in *"$driver") break;; esac; done <'/proc/interrupts'
 
 # FIXME!
 #	[ -e "/tmp/STATS_FORWARD" ] && {	# rrd_needed() set this if needed
@@ -181,7 +191,7 @@ _rrd_update()
 	} done <'/proc/net/nf_conntrack'
 
 	time_now='N'	# RRD special
-	line="$time_now:$load_1m:$procs:$mem:$up_packets:$up_bytes:$down_packets:$down_bytes:$stations:$users:$tcp:$udp:$signal"
+	line="$time_now:$load_1m:$procs:$mem:$irq:$up_packets:$up_bytes:$down_packets:$down_bytes:$stations:$users:$tcp:$udp:$signal"
 
 	rrdtool update "$file" "$line" || {
 		_log it $funcname daemon alert "error $?: rrdtool update $file $line"
@@ -256,6 +266,7 @@ _rrd_show()
 	local colorA='#00cc22'		# load-1m			- green
 	local colorB='#000022'		# running processes		- black
 	local colorC='#ff9999'		# mem				- pink
+	local colorD='#ffcc00'		# irq				- yellow
 	local color1='#ff6600'		# upload_packets		- orange
 	local color2="#9999ff"		# upload_bytes/area		- grey
 	local color3='#00cc00'		# download_packets		- green
@@ -270,7 +281,7 @@ _rrd_show()
 
 	# suppress output of image-size
 	rrdtool >/dev/null graph "$output"				\
-		--imgformat PNG --width 900 --height 600		\
+		--imgformat PNG --width 1200 --height 520		\
 		--start $duration					\
 		--vertical-label "$label"				\
 		--title "$title" ${watermark+--watermark} $watermark 	\
@@ -280,6 +291,8 @@ _rrd_show()
 			CDEF:valueB=procs,10000,*			\
 		DEF:mem=${file}:mem:AVERAGE				\
 			CDEF:valueC=mem,$mem_multiplier,*		\
+		DEF:irq=${file}:irq:AVERAGE				\
+			CDEF:valueD=irq,1,*				\
 		DEF:upload_packets=${file}:upload_packets:AVERAGE	\
 			CDEF:value1=upload_packets,-$typical_average_packetsize,* \
 		DEF:upload_bytes=${file}:upload_bytes:AVERAGE		\
@@ -309,6 +322,11 @@ _rrd_show()
 			GPRINT:procs:MIN:"min\:%8.2lf %s"		\
 			GPRINT:procs:MAX:"max\:%8.2lf %s$end"		\
 		LINE1:valueC${colorC}:'Memory free       '		\
+			GPRINT:mem:LAST:"current\:%8.2lf %s"		\
+			GPRINT:mem:AVERAGE:"avg\:%8.2lf %s"		\
+			GPRINT:mem:MIN:"min\:%8.2lf %s"			\
+			GPRINT:mem:MAX:"max\:%8.2lf %s$end"		\
+		LINE1:valueD${colorD}:'interrupts wifi   '		\
 			GPRINT:mem:LAST:"current\:%8.2lf %s"		\
 			GPRINT:mem:AVERAGE:"avg\:%8.2lf %s"		\
 			GPRINT:mem:MIN:"min\:%8.2lf %s"			\
