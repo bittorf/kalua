@@ -12,6 +12,7 @@ _rrd_setup()
 	local minmax_mem="0:$( _system ram_size )"	# kilobytes
 	local minmax_100mbit='0:12500000'
 	local minmax_100mbit_packets='0:12500'
+	local driver
 
 	[ -e "$file" ] && {
 		if [ "$option" = 'keep_database' ]; then
@@ -19,6 +20,12 @@ _rrd_setup()
 		else
 			rm "$file"
 		fi
+	}
+
+	_wifi dev2driver "$WIFIDEV" >"$TMPDIR/rrd_irq_datasource" || {
+		# no wifi: take first irq
+		for driver in $( grep '[0-9]:' '/proc/interrupts' | head -n1 ); do :; done
+		echo "$driver" >"$TMPDIR/rrd_irq_datasource"
 	}
 
 	_log it setup daemon info "initial setup of '$file'"
@@ -67,13 +74,7 @@ _rrd_update()
 
 	#           CPU0       CPU1       CPU2       CPU3
 	# 11:   54116641          0          0          0  MIPS GIC  11  mt76x2e
-	read -r driver <"$TMPDIR/rrd_irq_datasource" || {
-		_wifi dev2driver "$WIFIDEV" >"$TMPDIR/rrd_irq_datasource" || {
-			for driver in $( grep '[0-9]:' '/proc/interrupts' | head -n1 ); do :; done
-			echo "$driver" >"$TMPDIR/rrd_irq_datasource"	# no wifi: take first irq
-		}
-	}
-
+	read -r driver <"$TMPDIR/rrd_irq_datasource"
 	while read -r _ irq word; do case "$word" in *"$driver") break;; esac; done <'/proc/interrupts'
 
 # FIXME!
@@ -198,6 +199,27 @@ _rrd_update()
 	}
 }
 
+_rrd_show_if_enough_resources()
+{
+	local mem_border=8000
+	local load word mem
+
+	read -r load _ <'/proc/loadavg'
+	case "$load" in
+		'0.'*)
+		;;
+		*)
+			return 1
+		;;
+	esac
+
+	# speedcode: outputs kilobytes - same as system_ram_free()
+	while read -r word mem _; do case "$word" in 'MemAvailable:'*|'Buffers:'*) break;; esac; done <'/proc/meminfo'
+	[ $mem -lt $mem_border ] && return 1
+
+	_rrd show
+}
+
 _rrd_show()
 {
 	local funcname='rrd_show'
@@ -224,7 +246,7 @@ _rrd_show()
 	local output='/tmp/graph.png'
 	local date="$( _system date humanreadable pretty )"
 	local location="$( _weblogin metadata_locationname )"
-	local watermark forward_type default_route_dev devname title factor_different_users mem_multiplier
+	local watermark forward_type default_route_dev devname title factor_different_users mem_multiplier irq_ds
 	local typical_average_packetsize=350
 	local label="bytes/sec & users/stations (1 = 100k) & TCP/UDP-conntrack (1000 = 1M)"	# Y-axis
 	local alpha=88
@@ -235,6 +257,8 @@ _rrd_show()
 	else
 		mem_multiplier=100
 	fi
+
+	read -r irq_ds <"$TMPDIR/rrd_irq_datasource"
 
 	if [ -e "$TMPDIR/rrd_mode_longshot" ]; then
 		forward_type="longshot-traffic $WIFIDEV"
@@ -325,7 +349,7 @@ _rrd_show()
 			GPRINT:mem:AVERAGE:"avg\:%8.2lf %s"		\
 			GPRINT:mem:MIN:"min\:%8.2lf %s"			\
 			GPRINT:mem:MAX:"max\:%8.2lf %s$end"		\
-		LINE1:valueD${colorD}:'interrupts wifi   '		\
+		LINE1:valueD${colorD}:"interrupts $irq_ds-wifi"		\
 			GPRINT:mem:LAST:"current\:%8.2lf %s"		\
 			GPRINT:mem:AVERAGE:"avg\:%8.2lf %s"		\
 			GPRINT:mem:MIN:"min\:%8.2lf %s"			\
@@ -405,8 +429,8 @@ _rrd_upload()
 
 _rrd_needed()
 {
-	command -v rrdtool >/dev/null || return 1
 	[ -n "$LOWMEM" ] && return 1
+	command -v rrdtool >/dev/null || return 1
 
 	_wifi longshot_name >/dev/null && return 0
 	test $( _system ram_size ) -gt 32768 && return 0
