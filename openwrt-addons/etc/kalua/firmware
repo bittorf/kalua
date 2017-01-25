@@ -706,8 +706,8 @@ _firmware_patch_sysupgrade()
 	local partition fix
 
 	_system version '34794...34814' && {
-		# https://dev.openwrt.org/changeset/34815/trunk
-		grep -sq ^'supivot()' "$patchfile" || {
+		grep -q ^'supivot()' "$patchfile" || {
+			_log it $funcname daemon info "[OK] patching '$patchfile': https://dev.openwrt.org/changeset/34815/trunk"
 			sed -i  -e "s/pivot \$RAM_ROOT/supivot \$RAM_ROOT/" \
 				-e 's/pivot()/supivot()/' "$patchfile"
 		}
@@ -720,36 +720,35 @@ _firmware_patch_sysupgrade()
 					partition="/dev/$( grep 'linux' '/proc/mtd' | cut -d':' -f1 )"
 					fix="mtd fixtrx $partition"
 
-					_log it $funcname daemon info "[OK] patching '$patchfile', adding: '$fix'"
+					_log it $funcname daemon info "[OK] patching '$patchfile': adding: '$fix'"
 					sed -i "s|\"Upgrade completed\"|\"Upgrade completed\"; $fix|" "$patchfile"
-					grep -q "$fix" "$patchfile" || _system crashreboot 'patching_failed'
 				}
 			}
 		;;
 	esac
 
-	grep -sq " test \$I -gt 100 " "$patchfile" || {
+	grep -q " test \$I -gt 100 " "$patchfile" || {
 		local loop_begin="I=0; while true; do"
 		local loop_end="\&\& break; v retry_upgrade; I=\$(( I + 1 )); test \$I -gt 100 \&\& break; done"
 
-		_log it $funcname daemon info "[OK] patching '$patchfile', adding loop to default_do_upgrade() till it does not fail"
+		_log it $funcname daemon info "[OK] patching '$patchfile': adding loop to default_do_upgrade() till it does not fail"
 		sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"
 	}
 
-	grep -sq 'console' "$patchfile" || {
-		_log it $funcname daemon info "[OK] patching '$patchfile', adding console_log"
+	grep -q 'console' "$patchfile" || {
+		_log it $funcname daemon info "[OK] patching '$patchfile': adding console_log"
 		sed -i 's|^v() {|v() {\necho "$@" >/dev/console|' "$patchfile"
 	}
 
 	grep -q 'ubusd' "$patchfile" || {
-		_log it $funcname daemon info "[OK] patching '$patchfile', adding some essential services"
+		_log it $funcname daemon info "[OK] patching '$patchfile': adding some essential services"
 		sed -i 's/services$/&\n*sh*|*dbclient*|*preinit*|*procd*|*ubusd*);;/' "$patchfile"
-		grep -q 'ubusd' "$patchfile" || _system crashreboot 'patching_failed'
 	}
 
 	grep -q '"Upgrade completed";' "$patchfile" || {
+		_log it $funcname daemon info "[OK] patching '$patchfile': show stats when ready"
 		# ps is not available, so we use builtins:
-		sed -i 's|"Upgrade completed"|&; rm /tmp/fw; echo 3 >/proc/sys/vm/drop_caches; cat /proc/meminfo >/dev/console; for F in /proc/*; do case $F in /proc/[0-9]*) while read -r L; do case $L in Name:*) echo $L >/dev/console; break ;; esac; done <$F/status;; esac; done|' "$patchfile"
+		sed -i 's|"Upgrade completed"|&; rm /tmp/fw; /bin/echo 3 >/proc/sys/vm/drop_caches; /bin/cat /proc/meminfo >/dev/console; for F in /proc/*; do case $F in /proc/[0-9]*) while read -r L; do case $L in Name:*) /bin/echo $L >/dev/console; break ;; esac; done <$F/status;; esac; done|' "$patchfile"
 	}
 
 	[ -e "$patchfile" ] && {
