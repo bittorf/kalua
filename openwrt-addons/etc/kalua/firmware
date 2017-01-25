@@ -705,6 +705,8 @@ _firmware_patch_sysupgrade()
 	local patchfile='/lib/upgrade/common.sh'
 	local partition fix
 
+	[ -e "$patchfile" ] || return 0
+
 	_system version '34794...34814' && {
 		grep -q ^'supivot()' "$patchfile" || {
 			_log it $funcname daemon info "[OK] patching '$patchfile': https://dev.openwrt.org/changeset/34815/trunk"
@@ -747,13 +749,15 @@ _firmware_patch_sysupgrade()
 
 	grep -q '"Upgrade completed";' "$patchfile" || {
 		_log it $funcname daemon info "[OK] patching '$patchfile': show stats when ready"
-		# ps is not available, so we use builtins:
-		sed -i 's|"Upgrade completed"|&; rm /tmp/fw; /bin/echo 3 >/proc/sys/vm/drop_caches; /bin/cat /proc/meminfo >/dev/console; for F in /proc/*; do case $F in /proc/[0-9]*) while read -r L; do case $L in Name:*) /bin/echo $L >/dev/console; break ;; esac; done <$F/status;; esac; done|' "$patchfile"
+		# ps is not available, so we use builtins - FIXME! is /proc available?
+		sed -i 's|"Upgrade completed"|&; /bin/rm /tmp/fw; /bin/echo 3 >/proc/sys/vm/drop_caches; /bin/cat /proc/meminfo >/dev/console; for F in /proc/*; do case $F in /proc/[0-9]*) while read -r L; do case $L in Name:*) /bin/echo $L >/dev/console; break ;; esac; done <$F/status;; esac; done|' "$patchfile"
 	}
 
-	[ -e "$patchfile" ] && {
-		sh -n "$patchfile" || _system crashreboot 'patching_failed'
-	}
+	if sh -n "$patchfile"; then
+		_log it $funcname daemon info "[OK] patching '$patchfile': READY"
+	else
+		_system crashreboot 'patching_failed'
+	fi
 }
 
 
