@@ -211,6 +211,7 @@ autocommit()
 
 	# see: build_options_set() with option 'ready'
 	[ "$gitfile" = 'files/etc/openwrt_build.details' ] || {
+		mkdir -p 'files/etc'
 		echo "patch: $message | $gitfile | $count" >>'files/etc/openwrt_build.details'
 	}
 	git add 'files/etc/openwrt_build.details'
