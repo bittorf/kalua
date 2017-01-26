@@ -214,7 +214,7 @@ autocommit()
 		mkdir -p 'files/etc'
 		echo "patch: $message | $gitfile | $count" >>'files/etc/openwrt_build.details'
 	}
-	git add 'files/etc/openwrt_build.details'
+	git add --force 'files/etc/openwrt_build.details'
 
 	git commit --signoff -m "
 autocommit: $message
@@ -1903,7 +1903,10 @@ upload || {
 }
 EOF
 		. ./DO_SCP.sh
-		[ $err -eq 0 ] && rm ./DO_SCP.sh 'info.'*
+		[ $err -eq 0 ] && {
+			rm ./DO_SCP.sh 'info.'*
+			log "[OK] upload ready, see: server: $server destination: $destination_info"
+		}
 	}
 
 	return $err
