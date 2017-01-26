@@ -3088,6 +3088,11 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-watchdog=y'	# ...
 				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-dyn-gw-plain=y'	# ...
 
+				# TODO: mini:
+				# CONFIG_PACKAGE_olsrd-mod-dyn-gw-plain is not set
+				# CONFIG_PACKAGE_olsrd-mod-jsoninfo is not set
+				# CONFIG_PACKAGE_olsrd-mod-nameservice is not set
+
 				$funcname subcall 'macVLAN'
 			;;
 			'OLSRd2')
@@ -3186,6 +3191,9 @@ build_options_set()
 				apply_symbol 'CONFIG_KERNEL_DEBUG_FS is not set'
 				apply_symbol 'CONFIG_KERNEL_CRASHLOG is not set'
 
+				apply_symbol 'CONFIG_STRIP_KERNEL_EXPORTS=y'
+				apply_symbol 'CONFIG_USE_MKLIBS=y'
+
 				$funcname subcall 'noPrintK'
 			;;
 			'noIPv6')
@@ -3259,6 +3267,7 @@ EOF
 
 				# newer/lede:
 				apply_symbol 'CONFIG_KERNEL_PRINTK is not set'
+				apply_symbol 'CONFIG_KERNEL_PRINTK_TIME is not set'
 			;;
 			'noAP')
 				# autoselected from 'noWIFI'

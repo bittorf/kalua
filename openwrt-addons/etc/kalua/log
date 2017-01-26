@@ -17,12 +17,17 @@ _log_shell_is_interactive()
 _log_remote()
 {
 	local message="$1"
-	local authserver="$( _weblogin authserver )"
+	local server="${2:-$( _weblogin authserver )}"
+	local url_encoded
 
 	_log it ${funcname:-unset_funcname} daemon alert "$message"
 
-	message="$( _sanitizer run "$HOSTNAME: $message" urlvalue )"	# FIXME! autoadd hostname? + funcname?
-	_tool remote "$authserver" message "MSG=$message"
+	# FIXME! autoadd hostname? + funcname?
+	url_encoded="$( _sanitizer run "$HOSTNAME: $message" urlvalue )"
+
+	_tool remote "$server" message "MSG=$url_encoded" || {
+		echo >>$SCHEDULER_NEXTRUN "_log remote '$message' $server"
+	}
 }
 
 _log_sleep()		# _log sleep firmware_burn 180 step 10
