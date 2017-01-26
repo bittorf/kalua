@@ -2202,7 +2202,7 @@ apply_kernelsymbol()
 apply_symbol()
 {
 	local funcname='apply_symbol'
-	local symbol="$1"		# TODO: allow more than 1 in one shot
+	local symbol="$1"
 	local symbol_kernel="$2"
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
@@ -2212,6 +2212,10 @@ apply_symbol()
 	local dir pre size1 size2 gain firstline symbol_temp
 
 	case "$symbol" in
+		'now')
+			build 'defconfig'
+			return $?
+		;;
 		"$KALUA_DIRNAME"*)
 			log "$KALUA_DIRNAME: getting files"
 
@@ -2331,6 +2335,7 @@ apply_symbol()
 #			apply_symbol 'CONFIG_EXTRA_OPTIMIZATION="-fno-caller-saves -fstack-protector -fstack-protector-all -fno-delete-null-pointer-checks"'
 
 			# FIXME! do not hardcode testnet
+			# FIXME! in --release mode, take values from cmdline
 			url='http://intercity-vpn.de/networks/liszt28/tarball/testing/info.txt'
 
 			log "$KALUA_DIRNAME: adding recent tarball hash from '$url'"
