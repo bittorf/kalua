@@ -1440,6 +1440,7 @@ openwrt_revision_number_get()		# e.g. 43234
 	local rev
 
 	if [ -d '.git' ]; then
+		# works only with OpenWrt
 		rev="$( git log -1 | grep 'git-svn-id' | cut -d'@' -f2 | cut -d' ' -f1 )"
 	else
 		# e.g. virgin script-download
@@ -1456,7 +1457,8 @@ openwrt_revision_number_get()		# e.g. 43234
 				'r'[0-9]*)
 					# e.g. r12345
 					# e.g. r2445-ee5a6c1
-					echo "$rev" | cut -d'r' -f2 | cut -d'-' -f1
+					# e.g. r3128+26-64f0ef4
+					echo "$rev" | cut -d'r' -f2 | cut -d'+' -f1 | cut -d'-' -f1
 				;;
 				*)
 					echo 'UNKNOWN_REVISION'
@@ -1542,14 +1544,14 @@ openwrt_download()
 			hash="$( git log --format=%h --grep="@$hash " )"	# 12345 -> fe53cab (number -> hash)
 
 			get_lede_hash(){
-				local wish="$1"
+				local wish="$1"		# e.g. r1492
 				local line info rc
 
 				log "get_lede_hash() input: $wish"
 				wish="$( echo "$wish" | cut -b2- )"	# e.g. r1492 -> 1492
 
-				git log --format=%h | while read -r line; do
-					git show "$line" | grep -q '# mimic OpenWrt-style:' && {
+				git log --format=%h | while read -r line; do {
+					git log --format=%B -n1 "$line" | grep -q '# mimic OpenWrt-style:' && {
 						log "get_lede_hash() abort: found 'mimic OpenWrt-style'"
 						return 1
 					}
@@ -1567,7 +1569,7 @@ openwrt_download()
 						log "get_lede_hash() git describe failed"
 						return 1
 					fi
-				done
+				} done
 				rc=$?	# because of subshell
 
 				[ $rc -eq 0 ] || {
@@ -1578,12 +1580,13 @@ openwrt_download()
 
 			[ -z "$hash" ] && {
 				hash="$( get_lede_hash "$wish" )"
+
 				if [ -z "$hash" ]; then
 					log "[ERROR] - unable to find '$wish' - using latest commit"
 					# can happen if 'rXXXXX' is in packages/feeds, just use newest:
 					hash="$( git log -1 --format=%h )"
 				else
-					log "using hash: '$hash'"
+					log "using lede-hash: '$hash'"
 				fi
 			}
 
