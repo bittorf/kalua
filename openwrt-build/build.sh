@@ -1893,8 +1893,8 @@ upload()
 	# in front of 'usercase_hash' is a 'dot' (so hidden when browsing)
 	ssh $server    "cd '$server_dir' && cd .. && \
 			mkdir -p '.$myhash' && cd '.$myhash' && \
-			ln -sf '$destination' '$HARDWARE_MODEL.bin' && \
-			ln -sf '$destination_info/info.json' 'info.json'" || return 4
+				ln -sf '$destination' '$HARDWARE_MODEL_FILENAME.bin' || return 4
+				ln -sf '$destination_info/info.json' 'info.json'" || return 5
 }
 
 upload || {
