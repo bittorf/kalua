@@ -1722,14 +1722,15 @@ copy_firmware_files()
 	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
 	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {
 		case "$FILENAME_FACTORY" in
-			*[0-9]'nd'|*[0-9]'n')
+			*[0-9]'nd-v'*|*[0-9]'n-v'*)
 				log "[OK] fixup filename '$FILENAME_FACTORY'"
+				# ...-tl-wr841nd-v7-... -> ...-tl-wr841-v7-...
 				FILENAME_FACTORY="$( echo "$FILENAME_FACTORY" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
 			;;
 		esac
 
 		case "$FILENAME_SYSUPGRADE" in
-			*[0-9]'nd'|*[0-9]'n')
+			*[0-9]'nd-v'*|*[0-9]'n-v'*)
 				log "[OK] fixup filename '$FILENAME_SYSUPGRADE'"
 				FILENAME_FACTORY="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
 			;;
@@ -2653,6 +2654,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
 #				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools (=iwconfig)
+				#
 # since r48386 is 'uclient'	apply_symbol 'CONFIG_PACKAGE_curl=y'			# network: file-transfer: curl
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
@@ -2699,6 +2701,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless: (but debugFS-export still active)
 #				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
+				apply_symbol 'CONFIG_ATH9K_UBNTHSR is not set'
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
