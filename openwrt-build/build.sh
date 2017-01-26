@@ -2606,8 +2606,11 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_MAC80211_RC_RHAPSODY_BLUES=y'
 			;;
 			'zRAM')
-				apply_symbol 'CONFIG_BUSYBOX_CONFIG_SWAPONOFF=y'
-				apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_SWAPON_PRI=y'
+				grep -q 'CONFIG_PACKAGE_fstools=y' "$file" || {
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_SWAPONOFF=y'
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_SWAPON_PRI=y'
+				}	# parser_ignore
+
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
 
 # https://dev.openwrt.org/ticket/19586
@@ -2677,7 +2680,7 @@ build_options_set()
 					$funcname subcall 'debug'
 				}	# parser_ignore
 
-				grep -Fq 'CONFIG_USB_SUPPORT=y' "$file" && {
+				grep -q 'CONFIG_USB_SUPPORT=y' "$file" && {
 					log "[OK] autoselecting usecase 'USBstorage' in 'Standard'-mode"
 					$funcname subcall 'USBstorage'
 				}	# parser_ignore
