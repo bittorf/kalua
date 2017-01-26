@@ -1732,7 +1732,7 @@ copy_firmware_files()
 		case "$FILENAME_SYSUPGRADE" in
 			*[0-9]'nd-v'*|*[0-9]'n-v'*)
 				log "[OK] fixup filename '$FILENAME_SYSUPGRADE'"
-				FILENAME_FACTORY="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
+				FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
 			;;
 		esac
 	}
