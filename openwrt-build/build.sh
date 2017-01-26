@@ -3175,6 +3175,17 @@ build_options_set()
 				apply_symbol kernel 'CONFIG_DEBUG_INFO is not set'
 				apply_symbol kernel 'CONFIG_ELF_CORE is not set'
 
+				# these are newer symbols than avove, which does the same:
+				apply_symbol 'CONFIG_PKG_CHECK_FORMAT_SECURITY is not set'
+				apply_symbol 'CONFIG_KERNEL_ELF_CORE is not set'
+
+				apply_symbol 'CONFIG_KERNEL_DEBUG_KERNEL is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_INFO is not set'
+
+				apply_symbol 'CONFIG_KERNEL_KALLSYMS is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_FS is not set'
+				apply_symbol 'CONFIG_KERNEL_CRASHLOG is not set'
+
 				$funcname subcall 'noPrintK'
 			;;
 			'noIPv6')
@@ -3245,6 +3256,9 @@ EOF
 				apply_symbol kernel 'CONFIG_PRINTK is not set'		# general setup: standard kernel features
 				apply_symbol kernel 'CONFIG_EARLY_PRINTK is not set'	# kernel hacking: early printk
 				apply_symbol kernel 'CONFIG_SYS_HAS_EARLY_PRINTK is not set'
+
+				# newer/lede:
+				apply_symbol 'CONFIG_KERNEL_PRINTK is not set'
 			;;
 			'noAP')
 				# autoselected from 'noWIFI'
