@@ -143,7 +143,8 @@ apply_olsr_roaming()
 {
 	local wired_networks="$1"		# e.g. 'lan' or 'lan wan'
 	local special_ssid="$2"
-	local index network list list_ap has_5ghz has_2ghz is_hybrid milliwatt disassoc_low_ack
+	local index network list list_ap has_5ghz has_2ghz milliwatt disassoc_low_ack
+#	local is_hybrid
 
 #	local ssid2	# TODO: dhcp complains about missing IP on dev
 #	ssid2="freifunk ($HOSTNAME"
@@ -266,8 +267,7 @@ apply_olsr_roaming()
 	if _wifi longshot_name >/dev/null; then
 		_wifi set ap anyfreq 'off'
 	else
-		# TODO: test if this speeds up roaming? CoverageClass1 = 450m
-		_wifi set ap 2ghz distance '100'
+		_wifi set ap 2ghz distance '100'	# test if this speeds up roaming? CoverageClass1 = 450m
 		_wifi set ap 2ghz beacon_int '250'	# better powersafe and not too slow
 		_wifi set ap 2ghz txpower '10'
 
@@ -278,24 +278,25 @@ apply_olsr_roaming()
 		_wifi set ap anyfreq mcast_rate ''	# use defaults
 
 		# TODO: be band-specific
-		[ -n "$( _wifi get any mode adhoc )" ] && is_hybrid='true'	# FIXME! mesh?
+#		[ -n "$( _wifi get any mode adhoc )" ] && is_hybrid='true'	# FIXME! 802.11s?
 
-		# single band 5ghz AP
-		[ -n "$has_5ghz" -a -z "$has_2ghz" ] && {
-			[ -n "$is_hybrid" ] && {
-				_wifi set ap 5ghz beacon_int '50'
-				_wifi set ap 5ghz txpower '20'
-			}
-		}
+#		# single band 5ghz AP
+#		[ -n "$has_5ghz" -a -z "$has_2ghz" ] && {
+#			[ -n "$is_hybrid" ] && {
+#				_wifi set ap 5ghz beacon_int '50'
+#				_wifi set ap 5ghz txpower '20'
+#			}
+#		}
 
-		# TODO: uci var for describing "next to me/wired is already an adhoc-only device, so do not power up my adhoc"
-		# single band 2ghz AP
-		[ -z "$has_5ghz" -a -n "$has_2ghz" ] && {
-			[ -n "$is_hybrid" ] && {
-				_wifi set ap 2ghz beacon_int '125'
-				_wifi set ap 2ghz txpower '20'
-			}
-		}
+#		# TODO: uci var for describing "next to me/wired is already an adhoc-only device, so do not power up my adhoc"
+#		# single band 2ghz AP
+#		[ -z "$has_5ghz" -a -n "$has_2ghz" ] && {
+#			[ -n "$is_hybrid" ] && {
+#				# FIXME! beacon_int in 1 mesh MUST be the same
+#				_wifi set ap 2ghz beacon_int '125'
+#				_wifi set ap 2ghz txpower '20'
+#			}
+#		}
 
 		# this should make the roaming-better, because the client does not 'glue' that much at an AP
 		# TODO: do not if nexthop is wired
@@ -2903,24 +2904,11 @@ uci set network.wwan.modes='gsm'
 		;;
 	esac
 
-	case "$( uci -q get wireless.radio0.hwmode )" in
-		*'n'*)
-			if _wifi longshot_name >/dev/null ; then
-				:
-				# do not touch, wifi_longshot() sets it
-			else
-				case "$CONFIG_PROFILE" in
-					liszt28*|berlinle*)
-						# FIXME! never touch in roaming mode
-					;;
-					*)
-						# 802.11n works with distributed beaconing
-						uci set wireless.radio0.beacon_int=100
-					;;
-				esac
-			fi
-		;;
-	esac
+	_wifi longshot_name >/dev/null || {
+		# 802.11n works with distributed beaconing
+		_wifi set adhoc 2ghz beacon_int '250'
+		_wifi set adhoc 5ghz beacon_int  '50'
+	}
 
 	case "$( uci -q get wireless.radio0.htmode )" in
 		'HT40'*)
@@ -2933,8 +2921,8 @@ uci set network.wwan.modes='gsm'
 		*'hybrid')
 			grep -sq "wlanadhoc" "/etc/config/wireless" && {
 				uci show network | grep -q ^"network.wlanadhoc=" || {
-					uci set network.wlanadhoc=interface
-					uci set network.wlanadhoc.proto=static
+					uci set network.wlanadhoc='interface'
+					uci set network.wlanadhoc.proto='static'
 					uci set network.wlanadhoc.ipaddr=$(  uci get network.wlan.ipaddr )
 					uci set network.wlanadhoc.netmask=$( uci get network.wlan.netmask )
 				}
