@@ -2000,7 +2000,10 @@ build()
 			[ -f '.config' ] && [ -n "$DEBUG" -a $( wc -l <'.config' ) -lt 10 ] && cat '.config'
 			log "end of .config" debug
 
+			get_uptime_in_sec 't1'
 			make $make_verbose defconfig >/dev/null || make defconfig
+			get_uptime_in_sec 't2'
+			log "running 'make $option' needed $( calc_time_diff "$t1" "$t2" ) sec"
 		;;
 		*)
 			[ -n "$MAC80211_CLEAN" ] && {
