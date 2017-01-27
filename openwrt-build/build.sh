@@ -1074,7 +1074,7 @@ EOF
 	}
 
 	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
-	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | sed 's|/|:|g' )"
+	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | tr '/' ':' )"
 
 	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
 	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {

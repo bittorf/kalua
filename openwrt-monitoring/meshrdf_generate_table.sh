@@ -2348,6 +2348,12 @@ send_mail_telegram()
 		lisztwe|adagio|hentzel) list="$admin technik|hotel-adagio.de" ;;
 		apphalle) list="$admin info|appartementhausamdom.de" ;;
 		spbansin)
+			case "$hostname" in
+				'Haus9'*)
+					list=
+				;;
+			esac
+
 			list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de"
 
 			case "$hostname" in
@@ -4495,5 +4501,99 @@ echo >>$TOOLS '#	fi'
 echo >>$TOOLS ''
 echo >>$TOOLS '} done && rm script.sh'
 echo >>$TOOLS "test -n \"\$ERROR\" && echo \"please enter sh $TOOLS '\$ERROR'\""
+
+usecase_hash()		# see: _firmware_get_usecase()
+{
+	local usecase="$1"
+	local oldIFS="$IFS"; IFS=','; set -- $usecase; IFS="$oldIFS"
+
+	# print each word without appended version @...
+	# output the same hash, no matter in which order the words are
+	while [ -n "$1" ]; do {
+		echo "${1%@*}"
+		shift
+	} done | LC_ALL=C sort | md5sum | cut -d' ' -f1
+}
+
+mode2rev()
+{
+	case "$1" in
+		'stable')
+			echo "$MODE_STABLE_REV"
+		;;
+		'beta')
+			echo "$MODE_BETA_REV"
+		;;
+		'testing')
+			echo "$MODE_TESTING_REV"
+		;;
+	esac
+}
+
+RECIPE="$USECASE_FILE.firmware_baking_recipe.sh"
+SERVER="root@intercity-vpn.de:$PWD"
+TAB='	'
+
+MODE_STABLE_REV=44150	# TODO: different values for different networks?
+MODE_BETA_REV=49276
+MODE_TESTING_REV=3157	# LEDE
+
+sh -n "$USECASE_FILE" && cd .. && {
+	echo '#!/bin/sh'
+	echo "# generated @$( date ) from $0"
+	echo
+	echo '# firmware updatemodes:'
+	echo "# - stable: r$MODE_STABLE_REV"
+	echo "# - beta: r$MODE_BETA_REV"
+	echo "# - testing/avantgarde: r$MODE_TESTING_REV (LEDE)"
+	echo
+	echo '# prepare your env with e.g.:'
+	echo '# mkdir -p YOUR_BUILD_DIR && cd YOUR_BUILD_DIR'
+	echo '# wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh && chmod +x build.sh'
+	echo "# ./build.sh --openwrt trunk --download_pool \$HOME/openwrt_dl"
+	echo "# ./build.sh --openwrt lede  --download_pool \$HOME/openwrt_dl"
+	echo '#'
+	echo "# and upload your public key for upload to: $( echo "$SERVER" | cut -d':' -f1 )"
+	echo '# end execute this script'
+	echo
+
+	# TODO: show stats: count different models, different usecases, overall jobs and estimated build-time
+
+	ALREADY_WRITTEN=
+	while read -r LINE; do {
+		# USECASE='Standard,LuCIfull,debug,kalua'; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='6670025c2045';
+		# USECASE=''; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='f8d111a9cec8';
+		USECASE=;HARDWARE=;WIFIMAC=
+		eval $LINE
+		USECASE="${USECASE:-Standard,kalua}"
+
+		WRITTEN_HASH="$( echo "$HARDWARE+$USECASE" | md5sum | cut -d'-' -f1 )"
+		case "$ALREADY_WRITTEN" in *"$WRITTEN_HASH"*) continue;; *) ALREADY_WRITTEN="$ALREADY_WRITTEN $WRITTEN_HASH";; esac
+
+		# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
+		HARDWARE_FILENAME="$( echo "$HARDWARE" | tr '/' ':' )"
+
+		for MODE in stable beta testing; do {
+			BUILD_DIR='openwrt'
+			REV="$( mode2rev "$MODE" )"
+			REV_JSON="$REV"
+
+			[ "$MODE" = 'testing' ] && {
+				REV_JSON=$(( REV + 1000000 ))
+				BUILD_DIR='source'
+			}
+
+			VALUES="--openwrt r$REV --hardware '$HARDWARE' --usecase '$USECASE'"
+			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$( usecase_hash "$USECASE" )/info.json"
+			HIDE=
+			grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON" && HIDE='#'
+
+			echo
+			echo "${HIDE}cd '$BUILD_DIR' && git checkout master && ../build.sh \\"
+			echo "${HIDE}${TAB}${TAB}$VALUES \\"
+			echo "${HIDE}${TAB}${TAB}--release $MODE '$SERVER' ; cd .. || exit"
+		} done
+	} done <"$USECASE_FILE"
+} >"$RECIPE" && cp "$RECIPE" 'firmware/build_all.sh'
 
 log "[READY] network '$NETWORK' in $DURATION_BUILDTIME sec"
