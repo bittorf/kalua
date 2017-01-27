@@ -1722,16 +1722,12 @@ copy_firmware_files()
 	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
 	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {
 		case "$FILENAME_FACTORY" in
-			*[0-9]'nd-v'*|*[0-9]'n-v'*)
+			*'wr'[0-9][0-9][0-9]'nd-v'*|*'wr'[0-9][0-9][0-9]'n-v'*)
 				log "[OK] fixup filename '$FILENAME_FACTORY'"
-				# ...-tl-wr841nd-v7-... -> ...-tl-wr841-v7-...
-				FILENAME_FACTORY="$( echo "$FILENAME_FACTORY" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
-			;;
-		esac
-
-		case "$FILENAME_SYSUPGRADE" in
-			*[0-9]'nd-v'*|*[0-9]'n-v'*)
 				log "[OK] fixup filename '$FILENAME_SYSUPGRADE'"
+
+				# ...-tl-wr841nd-v7-... -> ...-tl-wr841-v7-...
+				FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
 				FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
 			;;
 		esac
