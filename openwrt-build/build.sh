@@ -1294,7 +1294,8 @@ check_working_directory()
 				VERSION_OPENWRT='lede'
 			;;
 			'trunk')
-				git_url='git://git.openwrt.org/openwrt.git'
+				# git_url='git://git.openwrt.org/openwrt.git'
+				git_url='https://github.com/openwrt/openwrt'
 				buildsystemdir='openwrt'
 			;;
 			*'.'*)
