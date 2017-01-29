@@ -1168,12 +1168,16 @@ feeds_prepare()
 	}
 
 	grep -Fq ' oonf '  "$file_feeds" || {
-		# using 'src-git-full' possible since r45668
-		# needs:
-		# CMake version 2.8.12 or better
-		# libnl3-dev or libnl-tiny for the nl80211-listener plugin
-		# libtomcrypt-dev for the hash_tomcrypt plugin
-		echo >>"$file_feeds" 'src-git-full oonf https://github.com/OLSR/OONF.git'
+		if [ $VERSION_OPENWRT_INTEGER -ge 45668 ]; then
+			# needs:
+			# CMake version 2.8.12 or better
+			# libnl3-dev or libnl-tiny for the nl80211-listener plugin
+			# libtomcrypt-dev for the hash_tomcrypt plugin
+			echo >>"$file_feeds" 'src-git-full oonf https://github.com/OLSR/OONF.git'
+		else
+			echo >>"$file_feeds" 'src-git      oonf https://github.com/OLSR/OONF.git'
+		fi
+
 		log "addfeed 'olsrd2/oonf'" debug,gitadd "$file_feeds"
 		do_symlinking='true'
 	}
