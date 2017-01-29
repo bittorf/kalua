@@ -1441,7 +1441,7 @@ feeds_adjust_version()			# needs: src git-full for the feeds and 'clone depth 99
 				../../scripts/feeds update -i "$dir"
 			}
 		elif [ -n "$githash" ]; then
-			git checkout -b "feed@${githash}_before_$timestamp" "$githash"
+			git checkout -b "feed@${githash}_before_$( echo "$timestamp" | tr ' ' '_' | tr ':' '-' )" "$githash"
 			../../scripts/feeds update -i "$dir"
 		else
 			log "[OK] no commit which fits, removing feeds index of '$dir'"
