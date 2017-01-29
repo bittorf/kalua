@@ -83,7 +83,7 @@ special arguments:
 	  --nobuild	# stop after patching and building .config
 	  --update	# refresh this buildscript
 	  --dotconfig "\$myfile"
-	  --feedstime '2015-08-31 19:33'
+	  --feedstime '2015-08-31 19:33' 'feedsname or <empty>'
 
 	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
           --patchdir \$dir1 --patchdir \$dir2
@@ -1163,6 +1163,10 @@ feeds_prepare()
 	local do_symlinking='no'
 	local file githash
 
+	grep -q 'depth 1 ' 'scripts/feeds' && {
+		sed -i 's/--depth 1 /--depth 99999 /' 'scripts/feeds'
+	}
+
 	grep -Fq ' oonf '  "$file_feeds" || {
 		# using 'src-git-full' possible since r45668
 		# needs:
@@ -1211,7 +1215,7 @@ feeds_prepare()
 	if   grep -q 'PKG_VERSION:=0.9.5' "$file"; then
 		:
 	elif grep -q "=$githash" "$file"; then
-		log "[OK] OLSRd1: Makefile already patches"
+		log "[OK] OLSRd1: Makefile already patched"
 	else
 		log "[OK] OLSRd1: importing Makefile" 			# gitadd,untrack "$file"
 		search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
@@ -1222,6 +1226,10 @@ feeds_prepare()
 			log "patching OLSRd1 for using recent HEAD" 	# gitadd,untrack "$file"
 		}
 	fi
+
+	grep -q 'depth 99999 ' 'scripts/feeds' && {
+		sed -i 's/--depth 99999 /--depth 1 /' 'scripts/feeds'
+	}
 
 	return 0
 }
@@ -1391,18 +1399,24 @@ check_working_directory()
 	}
 }
 
-feeds_adjust_version()			# FIXME! src git-full
+feeds_adjust_version()			# needs: src git-full for the feeds and 'clone depth 9999'
 {
-	local timestamp="$1"		# e.g. '2009-07-27 13:37'
+	local timestamp="$1"		# e.g. '2009-07-27 13:37' or <empty> = HEAD/original
+	local feed="$2"			# e.g. 'luci' or <empty> = all
 	local dir githash oldbranch
+
 	cd feeds || return
 
 	for dir in *; do {
 		test -d "$dir.tmp"  || continue
 		test -d "$dir/.git" || continue
 
+		[ -n "$feed" ] && {
+			[ -d "$feed" ] || continue	# user want specific feed - TODO: support list
+		}
+
 		cd "$dir" || return
-		if [ -n "$FEEDSTIME" ]; then
+		if [ -n "$timestamp" ]; then
 			# http://stackoverflow.com/questions/6990484/git-checkout-by-date
 			# git rev-list -n 1 --before="2009-07-27 13:37" master
 			githash="$( git rev-list -n 1 --before="$timestamp" master )"
@@ -1423,7 +1437,7 @@ feeds_adjust_version()			# FIXME! src git-full
 				../../scripts/feeds update -i "$dir"
 			}
 		elif [ -n "$githash" ]; then
-			git checkout -b "feed@${githash}_before_$FEEDSTIME" "$githash"
+			git checkout -b "feed@${githash}_before_$timestamp" "$githash"
 			../../scripts/feeds update -i "$dir"
 		else
 			log "[OK] no commit which fits, removing feeds index of '$dir'"
@@ -3840,7 +3854,8 @@ while [ -n "$1" ]; do {
 			fi
 		;;
 		'--feedstime')
-			FEEDSTIME="$2"	# e.g. '2015-08-31 19:33'
+			FEEDSTIME="$2"	# e.g. '2015-08-31 19:33' or <empty> = fresh
+			FEEDSNAME="$3"	# e.g. 'luci' or <empty> = all
 		;;
 		'--check'|'-c')
 			log "KALUA_DIRNAME: '$KALUA_DIRNAME' \$0: $0" debug
@@ -4039,7 +4054,7 @@ openwrt_download 'reset_autocommits'
 openwrt_download "$VERSION_OPENWRT"	|| die_and_exit
 check_git_settings			|| die_and_exit
 feeds_prepare
-feeds_adjust_version "$FEEDSTIME"
+feeds_adjust_version "$FEEDSTIME" "$FEEDSNAME"
 
 [ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
 [ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
