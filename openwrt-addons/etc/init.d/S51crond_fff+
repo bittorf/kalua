@@ -74,28 +74,29 @@ func_cron_daemon_start()
 	fi
 }
 
-func_cron_daemon_stop ()
+func_cron_daemon_stop()
 {
-	local FUNC="cron_daemon_stop"
+	local funcname='func_cron_daemon_stop'
+	local myfifo
 
-	pidof crond >/dev/null && {
-		_log it $FUNC daemon info "killing"
+	if pidof crond >/dev/null; then
+		for myfifo in $( crontab -l ); do :;done
+		myfifo="$TMPDIR/$( basename "$myfifo" )"
+		[ -p "$myfifo" ] && {
+			_log it $funcname daemon "[OK] removing old FIFO: $myfifo - TODO"
+		}
+
+		_log it $funcname daemon info "killing"
 		killall crond
-		return
-	}
-
-	_log it $FUNC daemon debug "no daemon running"
+	else
+		_log it $funcname daemon debug "no daemon running"
+	fi
 }
 
 func_cron_start ()
 {
 	func_cron_config_write $1
 	func_cron_daemon_start
-}
-
-func_cron_stop ()
-{
-	func_cron_daemon_stop
 }
 
 func_cron_status ()
@@ -470,7 +471,7 @@ func_cron_config_write()
 				for FIFO in '/tmp/MYFIFO_'*; do I=$(( I + 1 )); done
 				if   [ $I -ge 10 ]; then
 					_system crashreboot 'task_hangs'
-				elif [ $I -ge 3 ]; then
+				elif [ $I -ge 2 ]; then
 					_log remote "too much open FIFOs: $I"
 				fi
 			else
@@ -510,12 +511,12 @@ case "$1" in
 		func_cron_start minimal
 	;;
 	stop)
-		func_cron_stop	
+		func_cron_daemon_stop
 	;;
 	restart)
 		_system adjust_coredump
 
-		func_cron_stop leave_watchdog
+		func_cron_daemon_stop
 		func_cron_start $2
 	;;
 	status)

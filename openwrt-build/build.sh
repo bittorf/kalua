@@ -1445,9 +1445,10 @@ feeds_adjust_version()			# needs: src git-full for the feeds and 'clone depth 99
 			../../scripts/feeds update -i "$dir"
 		else
 			log "[OK] no commit which fits, removing feeds index of '$dir'"
-			rm "$dir.index"
-			rm "$dir.targetindex"
+			[ -e "$dir.index" ] && rm "$dir.index"
+			[ -e "$dir.targetindex"] && rm "$dir.targetindex"
 		fi
+
 		cd ..
 	} done
 
