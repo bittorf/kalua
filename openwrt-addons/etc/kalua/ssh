@@ -52,15 +52,21 @@ _ssh_key_public_fingerprint_get()	# output differs, wether its a SHA1 or MD5 has
 
 _ssh_start()
 {
-	/etc/init.d/dropbear start
+	pidof dropbear >/dev/null || /etc/init.d/dropbear start
 }
 
 _ssh_stop()
 {
 	killall dropbear
+
 	sleep 3
 	local pid="$( _system get_first_pid dropbear )"
-	[ -n "$pid" ] && kill -9 $pid
+
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	else
+		true
+	fi
 }
 
 _ssh_regen_keys()
@@ -73,8 +79,11 @@ _ssh_regen_keys()
 
 	_log it $funcname daemon info '[START]'
 
-	for file in $file1 $file.pub $file2 $file2.pub $file3 $file3.pub; do {
-		[ -e "$file" ] && rm "$file"
+	for file in "$file1" "$file.pub" "$file2" "$file2.pub" "$file3" "$file3.pub"; do {
+		[ -e "$file" ] && {
+			_log it $funcname daemon alert "[OK] removing '$file'"
+			rm "$file"
+		}
 	} done
 
 	_ssh start
