@@ -1,7 +1,7 @@
 #!/bin/sh
 
 _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
-{					#	stable|beta|testing	<crc>			# .. (fetching crc)
+{					#	stable|beta|testing	<md5|version_on_server>	# .. (fetching checksum/version)
 					#	version_installed				# fixme! move to _firmware()
 					#	version_current		<stable|beta|testing>	# ..
 					#	version_current_main	<stable|beta|testing>	# ..
@@ -87,18 +87,29 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			filewish="$( echo "$filewish" | tr '/' ':' )"
 
 			case "$COMMAND" in
-				crc)
+				'md5'|'version_on_server')
 					local i=0
 					local url="$dir/info.json"
 
-					get_crc()
-					{
-						local line="$( _curl it "$1" | grep '"firmware_md5": ' | cut -d'"' -f4 )"
-						[ ${#line} -eq 32 ] && echo "$line"
-					}
+					case "$COMMAND" in
+						'md5')
+							get_json_field()
+							{
+								local line="$( _curl it "$1" | grep '"firmware_md5": ' | cut -d'"' -f4 )"
+								[ ${#line} -eq 32 ] && echo "$line"
+							}
+						;;
+						'version_on_server')
+							get_json_field()
+							{
+								local line="$( _curl it "$1" | grep '"firmware_rev": ' | cut -d'"' -f4 )"
+								isnumber "$line"
+							}
+						;;
+					esac
 
 					while [ $i -lt 100 -a "$UPDATEMODE" != '0' ]; do {
-						if get_crc "$url"; then
+						if get_json_field "$url"; then
 							break
 						else
 							_log sleep "$funcname()-$COMMAND-$i/100" 10 step 1
