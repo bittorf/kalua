@@ -4536,7 +4536,8 @@ TAB='	'
 
 MODE_STABLE_REV=44150	# TODO: different values for different networks?
 MODE_BETA_REV=49276
-MODE_TESTING_REV=3157	# LEDE
+MODE_TESTING_REV=3204	# LEDE
+BUILD_ID="firmware@bittorf-wireless.com"
 
 sh -n "$USECASE_FILE" && cd .. && {
 	echo '#!/bin/sh'
@@ -4548,15 +4549,19 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# - testing/avantgarde: r$MODE_TESTING_REV (LEDE)"
 	echo
 	echo '# prepare your env with e.g.:'
+	echo "# export PATH=\"~:\$PATH\""
 	echo '# mkdir -p YOUR_BUILD_DIR && cd YOUR_BUILD_DIR'
+	echo '#'
 	echo '# wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh && chmod +x build.sh'
 	echo "# ./build.sh --openwrt trunk --download_pool \$HOME/openwrt_dl"
 	echo "# ./build.sh --openwrt lede  --download_pool \$HOME/openwrt_dl"
 	echo '#'
-	echo "# and upload your public key for upload to: $( echo "$SERVER" | cut -d':' -f1 )"
-	echo '# end execute this script'
+	echo "# and copy your public key for upload to: $( echo "$SERVER" | cut -d':' -f1 )"
+	echo '# and execute this script.'
 	echo
 
+	# TODO: do not double build e.g. usecase 'Standard,kalua' and 'kalua,Standard'
+	# TODO: check if usecase is valid with build.sh?
 	# TODO: show stats: count different models, different usecases, overall jobs and estimated build-time
 
 	ALREADY_WRITTEN=
@@ -4583,14 +4588,16 @@ sh -n "$USECASE_FILE" && cd .. && {
 				BUILD_DIR='source'
 			}
 
-			VALUES="--openwrt r$REV --hardware '$HARDWARE' --usecase '$USECASE'"
 			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$( usecase_hash "$USECASE" )/info.json"
 			HIDE=
 			grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON" && HIDE='#'
 
 			echo
 			echo "${HIDE}cd '$BUILD_DIR' && git checkout master && ../build.sh \\"
-			echo "${HIDE}${TAB}${TAB}$VALUES \\"
+			echo "${HIDE}${TAB}${TAB}--buildid $BUILD_ID \\"
+			echo "${HIDE}${TAB}${TAB}--openwrt r$REV \\"
+			echo "${HIDE}${TAB}${TAB}--hardware '$HARDWARE' \\"
+			echo "${HIDE}${TAB}${TAB}--usecase '$USECASE' \\"
 			echo "${HIDE}${TAB}${TAB}--release $MODE '$SERVER' ; cd .. || exit"
 		} done
 	} done <"$USECASE_FILE"
