@@ -4531,22 +4531,24 @@ mode2rev()
 }
 
 RECIPE="$USECASE_FILE.firmware_baking_recipe.sh"
-SERVER="root@intercity-vpn.de:$PWD"
 TAB='	'
+TAB2="${TAB}${TAB}"
 
 MODE_STABLE_REV=44150	# TODO: different values for different networks?
 MODE_BETA_REV=49276
-MODE_TESTING_REV=3204	# LEDE
+MODE_TESTING_REV=3209	# LEDE
 BUILD_ID="firmware@bittorf-wireless.com"
 
 sh -n "$USECASE_FILE" && cd .. && {
+	SERVER="root@intercity-vpn.de:$PWD"
+
 	echo '#!/bin/sh'
 	echo "# generated @$( date ) from $0"
 	echo
 	echo '# firmware updatemodes:'
-	echo "# - stable: r$MODE_STABLE_REV"
-	echo "# - beta: r$MODE_BETA_REV"
-	echo "# - testing/avantgarde: r$MODE_TESTING_REV (LEDE)"
+	echo "# - stable..............: r$MODE_STABLE_REV"
+	echo "# - beta................: r$MODE_BETA_REV"
+	echo "# - testing/avantgarde..: r$MODE_TESTING_REV (LEDE)"
 	echo
 	echo '# prepare your env with e.g.:'
 	echo "# export PATH=\"~:\$PATH\""
@@ -4557,14 +4559,17 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# ./build.sh --openwrt lede  --download_pool \$HOME/openwrt_dl"
 	echo '#'
 	echo "# and copy your public key for upload to: $( echo "$SERVER" | cut -d':' -f1 )"
-	echo '# and execute this script.'
+	echo '# and execute this script:'
+	echo
+	echo 'export FAILED='
 	echo
 
 	# TODO: do not double build e.g. usecase 'Standard,kalua' and 'kalua,Standard'
-	# TODO: check if usecase is valid with build.sh?
+	# TODO: check if usecase is really valid with 'build.sh'
 	# TODO: show stats: count different models, different usecases, overall jobs and estimated build-time
 
 	ALREADY_WRITTEN=
+	STABLE=0;BETA=0;TESTING=0;OVERALL=0;OVERALL_READY=0
 	while read -r LINE; do {
 		# USECASE='Standard,LuCIfull,debug,kalua'; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='6670025c2045';
 		# USECASE=''; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='f8d111a9cec8';
@@ -4579,28 +4584,76 @@ sh -n "$USECASE_FILE" && cd .. && {
 		HARDWARE_FILENAME="$( echo "$HARDWARE" | tr '/' ':' )"
 
 		for MODE in stable beta testing; do {
-			BUILD_DIR='openwrt'
 			REV="$( mode2rev "$MODE" )"
-			REV_JSON="$REV"
+			OVERALL=$(( OVERALL + 1 ))
 
-			[ "$MODE" = 'testing' ] && {
-				REV_JSON=$(( REV + 1000000 ))
-				BUILD_DIR='source'
-			}
+			case "$MODE" in
+				'stable')
+					REV_JSON="$REV"
+					BUILD_DIR='openwrt'
+					STABLE=$(( STABLE + 1 ))
+					FNAME="s$STABLE"
+				;;
+				'beta')
+					REV_JSON="$REV"
+					BUILD_DIR='openwrt'
+					BETA=$(( BETA + 1 ))
+					FNAME="b$BETA"
+				;;
+				'testing')
+					REV_JSON=$(( REV + 1000000 ))
+					BUILD_DIR='source'
+					TESTING=$(( TESTING + 1 ))
+					FNAME="t$TESTING"
+				;;
+			esac
 
 			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$( usecase_hash "$USECASE" )/info.json"
 			HIDE=
 			grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON" && HIDE='#'
 
+			echo "$FNAME() {"
+			test -n "$HIDE" && {
+				OVERALL_READY=$(( OVERALL_READY + 1 ))
+				echo "${TAB}return 0${TAB}# already built"
+				echo
+			}
+			echo "${TAB}cd '$BUILD_DIR' && git checkout 'master' && \\"
+			echo "${TAB}../build.sh \\"
+			echo "${TAB2}--buildid '$BUILD_ID' \\"
+			echo "${TAB2}--openwrt 'r$REV' \\"
+			echo "${TAB2}--hardware '$HARDWARE' \\"
+			echo "${TAB2}--usecase '$USECASE' \\"
+			echo "${TAB2}--release $MODE '$SERVER' || FAILED=\"\$FAILED $FNAME\""
+			echo "${TAB}cd .."
+			echo '}'
 			echo
-			echo "${HIDE}cd '$BUILD_DIR' && git checkout master && ../build.sh \\"
-			echo "${HIDE}${TAB}${TAB}--buildid $BUILD_ID \\"
-			echo "${HIDE}${TAB}${TAB}--openwrt r$REV \\"
-			echo "${HIDE}${TAB}${TAB}--hardware '$HARDWARE' \\"
-			echo "${HIDE}${TAB}${TAB}--usecase '$USECASE' \\"
-			echo "${HIDE}${TAB}${TAB}--release $MODE '$SERVER' ; cd .. || exit"
 		} done
 	} done <"$USECASE_FILE"
+
+	I=0
+	echo "stable() {"
+		printf '%s' "$TAB"; while [ $I -lt $STABLE ]; do I=$(( I + 1 )); printf '%s' "s$I;"; done; echo
+	echo "}"
+	echo
+
+	I=0
+	echo "beta() {"
+		printf '%s' "$TAB"; while [ $I -lt $BETA ]; do I=$(( I + 1 )); printf '%s' "b$I;"; done; echo
+	echo "}"
+	echo
+
+	I=0
+	echo "testing() {"
+		printf '%s' "$TAB"; while [ $I -lt $TESTING ]; do I=$(( I + 1 )); printf '%s' "t$I;"; done; echo
+	echo "}"
+	echo
+
+	echo 'all() { stable; beta; testing; }'
+	echo
+	echo "# overall: $OVERALL images"
+	echo "# already build: $OVERALL_READY images"
+	echo "# still needed: $(( OVERALL - OVERALL_READY )) images"
 } >"$RECIPE" && cp "$RECIPE" 'firmware/build_all.sh'
 
 log "[READY] network '$NETWORK' in $DURATION_BUILDTIME sec"
