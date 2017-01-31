@@ -1131,6 +1131,11 @@ EOF
 					apply_symbol "CONFIG_TARGET_${ARCH}_${ARCH_SUB}_Default is not set"
 					apply_symbol "CONFIG_TARGET_${ARCH}_${ARCH_SUB}_DEVICE_$device_symbol=y"
 					apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
+
+					# e.g.:
+					# CONFIG_TARGET_ramips_rt305x_Default is not set
+					# CONFIG_TARGET_ramips_rt305x_DEVICE_fonera20n=y
+					# CONFIG_TARGET_PROFILE="DEVICE_fonera20n"
 				;;
 				*)
 					apply_symbol "$TARGET_SYMBOL"
