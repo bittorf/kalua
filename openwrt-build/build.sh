@@ -3950,6 +3950,7 @@ while [ -n "$1" ]; do {
 			# exact match in our list?
 			if target_hardware_set 'list' 'plain' | grep -q ^"$2"$ ; then
 				HARDWARE_MODEL="$2"
+				[ "$3" = 'check_valid' ] && exit 0
 			else
 				# ARG3 = e.g. option 'plain' or 'json'
 				# first try a submatch (e.g. 1043 or asus) - when this fails, show all
