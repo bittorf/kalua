@@ -141,6 +141,7 @@ uci_already_added()
 
 apply_olsr_roaming()
 {
+	local funcname='apply_olsr_roaming'
 	local wired_networks="$1"		# e.g. 'lan' or 'lan wan'
 	local special_ssid="$2"
 	local index network list list_ap has_5ghz has_2ghz milliwatt disassoc_low_ack is_hybrid
@@ -199,7 +200,10 @@ apply_olsr_roaming()
 				;;
 				*)
 					# force active
-					uci set "wireless.@wifi-iface[$index].disabled=0"
+					bool_true "wireless.@wifi-iface[$index].disabled" || {
+						_log it $funcname daemon debug "switching on wifi-iface: $index"
+						uci set "wireless.@wifi-iface[$index].disabled=0"
+					}
 				;;
 			esac
 
@@ -1582,7 +1586,7 @@ boot()
 
 			case "$NODENUMBER" in
 				303)
-					# f36drucker
+					# f36drucker/alt
 					uci set olsrd.@meta[0].watch_gateway='true'
 				;;
 				122)
@@ -1599,14 +1603,17 @@ boot()
 					ssid='playstation.freifunk.net'
 				;;
 				350)
+					# f36drucker/neu
+
 					# autostart radio
 #					echo >>$SCHEDULER "BUTTON=wps; ACTION=released; grep -q nightly_reboot /tmp/REBOOT_REASON && . /etc/hotplug.d/button/events.sh"
 
 					# FIXME!
 					uci del olsrd.@meta[0].throttle_traffic
-					uci set system.@system[0].zram_disabled='true'
+					uci set system.@system[0].zram_disabled='false'
 
 					_wifi set ap 2ghz 'off'			# debug LEDE-issues
+					ROAMING='false'
 				;;
 				837)
 					_wifi set anymode 5ghz 'off'		# ath10k-crash
