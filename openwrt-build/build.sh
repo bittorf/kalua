@@ -3973,6 +3973,8 @@ while [ -n "$1" ]; do {
 					exit 1
 				fi
 			} done
+
+			[ "$3" = 'check_valid' ] && exit 0
 		;;
 		'--profile'|'-p')
 			# e.g. ffweimar.hybrid.120
