@@ -1112,12 +1112,14 @@ EOF
 	log "architecture: '$ARCH'/'$ARCH_MAIN' model: '$model' kernel: '$VERSION_KERNEL' kernel_enforced: '$VERSION_KERNEL_FORCE'"
 
 	apply_symbol 'nuke_config'
-	apply_symbol "CONFIG_TARGET_$ARCH=y"
 
 	case "$ARCH" in
 		*'_'*)
-			# needs 2 symbols for successful 'defconfig'
+			# e.g. 'ramips_rt305x'
 			apply_symbol "CONFIG_TARGET_$ARCH_MAIN=y"
+		;;
+		*)
+			apply_symbol "CONFIG_TARGET_$ARCH=y"
 		;;
 	esac
 

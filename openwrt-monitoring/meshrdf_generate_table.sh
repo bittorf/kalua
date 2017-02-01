@@ -4683,7 +4683,6 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo '#'
 	echo "# START: $BUILD_SCRIPT_START"
 	echo "# READY: $BUILD_SCRIPT_START"
-	echo "# START: $BUILD_SCRIPT_START"
 } >"$RECIPE" && cp "$RECIPE" 'firmware/build_all.sh'
 
 log "[READY] network '$NETWORK' in $DURATION_BUILDTIME sec"
