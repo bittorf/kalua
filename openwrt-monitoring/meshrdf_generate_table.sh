@@ -4610,7 +4610,18 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$( usecase_hash "$USECASE" )/info.json"
 			HIDE=
-			grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON" && HIDE='#'
+			if grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON"; then
+				HIDE='#'
+			else
+				[ -e "$JSON" ] || {
+					mkdir -p "$( dirname "$JSON" )"
+					{
+						echo '{'
+						echo "  \"firmware_rev\": \"0\""
+						echo "}"
+					} >"$JSON"
+				}
+			fi
 
 			echo "$FNAME() {"
 			test -n "$HIDE" && {
