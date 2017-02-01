@@ -1109,7 +1109,8 @@ EOF
 		}
 	}
 
-	log "architecture: '$ARCH'/'$ARCH_MAIN' model: '$model' kernel: '$VERSION_KERNEL' kernel_enforced: '$VERSION_KERNEL_FORCE'"
+	log "architecture: plain/main/sub: '$ARCH'/'$ARCH_MAIN'/'$ARCH_SUB'"
+	log "model: '$model' kernel: '$VERSION_KERNEL' kernel_enforced: '$VERSION_KERNEL_FORCE'"
 
 	apply_symbol 'nuke_config'
 
@@ -1131,20 +1132,10 @@ EOF
 					device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
 					device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
 
-					case "$ARCH" in
-						*'_'*)
-							# e.g. 'ramips_rt305x'
-							apply_symbol "CONFIG_TARGET_${ARCH_MAIN}_Default is not set"
-							apply_symbol "CONFIG_TARGET_${ARCH_MAIN}_DEVICE_$device_symbol=y"
-							apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
-						;;
-						*)
-							# e.g. 'ar71xx'? TODO: give example
-							apply_symbol "CONFIG_TARGET_${ARCH}_Default is not set"
-							apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
-							apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
-						;;
-					esac
+					# e.g. 'ramips_rt305x'
+					apply_symbol "CONFIG_TARGET_${ARCH}_Default is not set"
+					apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
+					apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
 				;;
 				*)
 					apply_symbol "$TARGET_SYMBOL"
