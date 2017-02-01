@@ -1130,14 +1130,21 @@ EOF
 					# e.g. openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
 					device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
 					device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
-					apply_symbol "CONFIG_TARGET_${ARCH}_${ARCH_SUB}_Default is not set"
-					apply_symbol "CONFIG_TARGET_${ARCH}_${ARCH_SUB}_DEVICE_$device_symbol=y"
-					apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
 
-					# e.g.:
-					# CONFIG_TARGET_ramips_rt305x_Default is not set
-					# CONFIG_TARGET_ramips_rt305x_DEVICE_fonera20n=y
-					# CONFIG_TARGET_PROFILE="DEVICE_fonera20n"
+					case "$ARCH" in
+						*'_'*)
+							# e.g. 'ramips_rt305x'
+							apply_symbol "CONFIG_TARGET_${ARCH_MAIN}_Default is not set"
+							apply_symbol "CONFIG_TARGET_${ARCH_MAIN}_DEVICE_$device_symbol=y"
+							apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
+						;;
+						*)
+							# e.g. 'ar71xx'? TODO: give example
+							apply_symbol "CONFIG_TARGET_${ARCH}_Default is not set"
+							apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
+							apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
+						;;
+					esac
 				;;
 				*)
 					apply_symbol "$TARGET_SYMBOL"
