@@ -580,6 +580,18 @@ copy_additional_packages()
 	return 0
 }
 
+version_is_lede()
+{
+	case "$( git config --get remote.origin.url )" in
+		*'lede-project'*)
+			return 0
+		;;
+		*)
+			return 1
+		;;
+	esac
+}
+
 target_hardware_set()
 {
 	local funcname='target_hardware_set'
@@ -961,10 +973,16 @@ EOF
 			### 1 x IDT Korina 10/100 Mbit/s Fast Ethernet port  supporting Auto-MDI/X
 			### 2 x VIA VT6105 10/100 Mbit/s Fast Ethernet ports supporting Auto-MDI/X
 			TARGET_SYMBOL='CONFIG_TARGET_rb532_Default=y'
-			FILENAME_SYSUPGRADE='openwrt-rb532-combined-jffs2-128k.bin'
-			FILENAME_FACTORY='openwrt-rb532-combined-jffs2-128k.bin'	# via 'dd' to CF-card
 
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_JFFS2=y"
+			if version_is_lede ; then
+				FILENAME_SYSUPGRADE='lede-rb532-nand-squashfs-sysupgrade.bin'
+				FILENAME_FACTORY='lede-rb532-combined-squashfs.bin'
+			else
+				FILENAME_SYSUPGRADE='openwrt-rb532-combined-jffs2-128k.bin'
+				FILENAME_FACTORY='openwrt-rb532-combined-jffs2-128k.bin'	# via 'dd' to CF-card
+
+				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_JFFS2=y"
+			fi
 		;;
 		'Seagate GoFlex Home'|'Seagate GoFlex Net')
 			# http://wiki.openwrt.org/toh/seagate/goflexnet
@@ -1124,28 +1142,25 @@ EOF
 		;;
 	esac
 
-	case "$( git config --get remote.origin.url )" in
-		*'lede-project'*)
-			case "$FILENAME_SYSUPGRADE" in
-				*'-squashfs-'*)
-					# e.g. openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
-					device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
-					device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
+	if version_is_lede ; then
+		case "$FILENAME_SYSUPGRADE" in
+			*'-squashfs-'*)
+				# e.g. openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
+				device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
+				device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
 
-					# e.g. 'ramips_rt305x'
-					apply_symbol "CONFIG_TARGET_${ARCH}_Default is not set"
-					apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
-					apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
-				;;
-				*)
-					apply_symbol "$TARGET_SYMBOL"
-				;;
-			esac
-		;;
-		*)
-			apply_symbol "$TARGET_SYMBOL"	# e.g. CONFIG_TARGET_ar71xx_generic_TLWR1043=y
-		;;
-	esac
+				# e.g. 'ramips_rt305x'
+				apply_symbol "CONFIG_TARGET_${ARCH}_Default is not set"
+				apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
+				apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
+			;;
+			*)
+				apply_symbol "$TARGET_SYMBOL"
+			;;
+		esac
+	else
+		apply_symbol "$TARGET_SYMBOL"	# e.g. CONFIG_TARGET_ar71xx_generic_TLWR1043=y
+	fi
 
 	build 'defconfig'
 }
@@ -1374,14 +1389,11 @@ check_working_directory()
 	mkdir -p 'files'
 
 	# for detecting: are we in "original" (aka master) tree or in private checkout
-	case "$( git config --get remote.origin.url )" in
-		*'lede-project'*)
-			pattern='.'	# means: any
-		;;
-		''|*)
-			pattern='git-svn-id'
-		;;
-	esac
+	if version_is_lede ; then
+		pattern='.'	# means: any
+	else
+		pattern='git-svn-id'
+	fi
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
@@ -1529,14 +1541,12 @@ openwrt_download()
 
 	lede_fixup()
 	{
-		case "$( git config --get remote.origin.url )" in
-			*'lede'*)
-				[ ${VERSION_OPENWRT_INTEGER:-0} -gt 0 ] && {
-					VERSION_OPENWRT_INTEGER=$(( VERSION_OPENWRT_INTEGER + 1000000 ))
-					VERSION_OPENWRT="r$VERSION_OPENWRT_INTEGER"
-				}
-			;;
-		esac
+		version_is_lede && {
+			[ ${VERSION_OPENWRT_INTEGER:-0} -gt 0 ] && {
+				VERSION_OPENWRT_INTEGER=$(( VERSION_OPENWRT_INTEGER + 1000000 ))
+				VERSION_OPENWRT="r$VERSION_OPENWRT_INTEGER"
+			}
+		}
 	}
 
 	case "$wish" in
@@ -1736,13 +1746,11 @@ copy_firmware_files()
 	mkdir -p "$attic"
 	rootfs='squash'
 
-	case "$( git config --get remote.origin.url )" in
-		*'lede'*)
-			# bin/targets/ramips/mt7621/lede-ramips-mt7621-witi-squashfs-sysupgrade.bin
-			FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/openwrt/lede/g' )"
-			FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/openwrt/lede/g' )"
-		;;
-	esac
+	version_is_lede && {
+		# bin/targets/ramips/mt7621/lede-ramips-mt7621-witi-squashfs-sysupgrade.bin
+		FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/openwrt/lede/g' )"
+		FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/openwrt/lede/g' )"
+	}
 
 	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
 	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {
@@ -1761,21 +1769,18 @@ copy_firmware_files()
 	# Ubiquiti Bullet M
 	destination="$HARDWARE_MODEL_FILENAME"
 
-	case "$( git config --get remote.origin.url )" in
-		*'lede'*)
-			pre="bin/targets/$ARCH_MAIN/$ARCH_SUB"
+	if version_is_lede ; then
+		pre="bin/targets/$ARCH_MAIN/$ARCH_SUB"
 
-			# special: see lede_fixup()
-			# Ubiquiti Bullet M.openwrt=r38576
-			destination="${destination}.lede=r$(( VERSION_OPENWRT_INTEGER - 1000000 ))"
-		;;
-		*)
-			pre="bin/$ARCH_MAIN"
+		# special: see lede_fixup()
+		# Ubiquiti Bullet M.openwrt=r38576
+		destination="${destination}.lede=r$(( VERSION_OPENWRT_INTEGER - 1000000 ))"
+	else
+		pre="bin/$ARCH_MAIN"
 
-			# Ubiquiti Bullet M.openwrt=r38576
-			destination="${destination}.openwrt=${VERSION_OPENWRT}"
-		;;
-	esac
+		# Ubiquiti Bullet M.openwrt=r38576
+		destination="${destination}.openwrt=${VERSION_OPENWRT}"
+	fi
 
 	# workaround: when build without kalua
 	[ -z "$USECASE_DOWNLOAD" ] && USECASE_DOWNLOAD="$USECASE"
