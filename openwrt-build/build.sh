@@ -2064,6 +2064,7 @@ build()
 				log "[ERROR] during make: check directory logs/ with"
 				log "do: 'find logs -type f -exec stat -c '%y %N' {} \; | sort -n'"
 				log "first build unparallel with: 'make -j1 BUILD_LOG=1'"
+				log "initial call was: $ARGUMENTS_MAIN"
 				return 1
 			fi
 		;;
@@ -3849,10 +3850,13 @@ fi
 KALUA_DIRNAME="$( basename "$KALUA_REPO_URL" | cut -d'.' -f1 )"		# e.g. kalua|weimarnetz
 PATCHDIR=
 
-[ -z "$1" ] && {
+if [ -z "$1" ]; then
 	openwrt_download 'reset_autocommits'
 	print_usage_and_exit
-}
+else
+	ARGUMENTS_MAIN="$*"
+	log "parsing your args: $ARGUMENTS_MAIN"
+fi
 
 while [ -n "$1" ]; do {
 	case "$1" in
