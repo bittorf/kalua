@@ -4624,10 +4624,15 @@ sh -n "$USECASE_FILE" && cd .. && {
 			esac
 
 			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$USECASE_HASH/info.json"
+			USECASE_DIR="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/$USECASE"
 			HIDE=
+
 			if grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON"; then
+				# already done
 				HIDE='#'
 			else
+				mkdir -p "$USECASE_DIR"
+
 				[ -e "$JSON" ] || {
 					mkdir -p "$( dirname "$JSON" )"
 					{
