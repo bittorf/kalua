@@ -4371,7 +4371,7 @@ show_rrdimages()
 LINK_GIT_COMMITS="http://www.datenkiste.org/cgi-bin/gitweb.cgi?p=fff;a=summary"
 LINK_GIT_COMMITS="https://github.com/bittorf/kalua/commits/master"
 
-echo >>$OUT "</table><h3>$ROUTER_COUNT routers in list <small>(${NODE_GOOD} good = ${PERCENT_GOOD}%, ${NODE_WEEK} weak, ${NODE_LOST} lost, autodetected ${NODE_AUTO} of these, $ROUTER_OMITTED <a href='$LB/ignore/macs.txt'>omitted</a>)</small> - <a href='$LB/log/log.txt'>Systemlog</a> (<a href='$LB/log/log_short.txt'>kurz</a>) - <a href='$LB/meshrdf/netjson.html'>TopologyMap</a> - <a href='$LINK_GIT_COMMITS'>ChangeLog/GIT</a> - <a href='/firmware'>Firmware</a> - <a href='$LB/meshrdf/tools.txt'>Shell-Wizards</a> - <a href='http://wireless.subsignal.org/index.php?title=Software-Betatest'>Wiki</a> - <a href='$LB/meshrdf/meshrdf.txt'>monitoring.data <small>($FILESIZE_DATA)</small></a> - <a href='$LB/vds'>VDS-Data <small>(${DIRSIZE_VDS:-0M})</small></a> - <a href='$LB/packages'>Packages</a> -<small> IPv4: $LAST_REMOTE_ADDR ($LAST_REMOTE_ADDR_NODE)</small>-<small> FreeSpace: $( free_disk_space ) </small><small>${ADDLINK} generated: $LOCALTIME in $DURATION_BUILDTIME sec | each $DURATION_BUILDCYCLE - monitraff: $( monitoring_data_per_day )</small> - <small><a href='$LB/meshrdf/$FILE_FAILURE_OVERVIEW'>ErrorOverview.txt</a></small> - <small>DoubleIPs: '${DOUBLE_NODENUMBERS:-none}'</small></h3>$( show_screenshots )<br>$( show_rrdimages )"
+echo >>$OUT "</table><h3>$ROUTER_COUNT routers in list <small>(${NODE_GOOD} good = ${PERCENT_GOOD}%, ${NODE_WEEK} weak, ${NODE_LOST} lost, autodetected ${NODE_AUTO} of these, $ROUTER_OMITTED <a href='$LB/ignore/macs.txt'>omitted</a>)</small> - <a href='$LB/log/log.txt'>Systemlog</a> (<a href='$LB/log/log_short.txt'>kurz</a>) - <a href='$LB/meshrdf/netjson.html'>TopologyMap</a> - <a href='$LINK_GIT_COMMITS'>ChangeLog/GIT</a> - <a href='firmware'>Firmware</a> - <a href='$LB/meshrdf/tools.txt'>Shell-Wizards</a> - <a href='http://wireless.subsignal.org/index.php?title=Software-Betatest'>Wiki</a> - <a href='$LB/meshrdf/meshrdf.txt'>monitoring.data <small>($FILESIZE_DATA)</small></a> - <a href='$LB/vds'>VDS-Data <small>(${DIRSIZE_VDS:-0M})</small></a> - <a href='$LB/packages'>Packages</a> -<small> IPv4: $LAST_REMOTE_ADDR ($LAST_REMOTE_ADDR_NODE)</small>-<small> FreeSpace: $( free_disk_space ) </small><small>${ADDLINK} generated: $LOCALTIME in $DURATION_BUILDTIME sec | each $DURATION_BUILDCYCLE - monitraff: $( monitoring_data_per_day )</small> - <small><a href='$LB/meshrdf/$FILE_FAILURE_OVERVIEW'>ErrorOverview.txt</a></small> - <small>DoubleIPs: '${DOUBLE_NODENUMBERS:-none}'</small></h3>$( show_screenshots )<br>$( show_rrdimages )"
  
 
 cat >>$OUT <<EOF
@@ -4538,12 +4538,15 @@ MODE_STABLE_REV=44150	# TODO: different values for different networks?
 MODE_BETA_REV=49276
 MODE_TESTING_REV=3209	# LEDE
 BUILD_ID="firmware@bittorf-wireless.com"
+BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
+BUILD_SCRIPT_START="$( date )"
 
 sh -n "$USECASE_FILE" && cd .. && {
 	SERVER="root@intercity-vpn.de:$PWD"
+	mkdir -p 'firmware'
 
 	echo '#!/bin/sh'
-	echo "# generated @$( date ) from $0"
+	echo "# generated @$BUILD_SCRIPT_START from $0"
 	echo
 	echo '# firmware updatemodes:'
 	echo "# - stable..............: r$MODE_STABLE_REV"
@@ -4554,7 +4557,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# export PATH=\"~:\$PATH\""
 	echo '# mkdir -p YOUR_BUILD_DIR && cd YOUR_BUILD_DIR'
 	echo '#'
-	echo '# wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh && chmod +x build.sh'
+	echo "# wget $BUILD_SCRIPT_URL && chmod +x build.sh"
 	echo "# ./build.sh --openwrt trunk --download_pool \$HOME/openwrt_dl"
 	echo "# ./build.sh --openwrt lede  --download_pool \$HOME/openwrt_dl"
 	echo '#'
@@ -4564,9 +4567,11 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo 'export FAILED='
 	echo
 
-	# TODO: do not double build e.g. usecase 'Standard,kalua' and 'kalua,Standard'
-	# TODO: check if usecase is really valid with 'build.sh'
 	# TODO: show stats: count different models, different usecases, overall jobs and estimated build-time
+
+	[ -e "$TMPDIR/build.sh" ] || {
+		wget --no-check-certificate -O "$TMPDIR/build.sh" "$BUILD_SCRIPT_URL" && chmod +x "$TMPDIR/build.sh"
+	}
 
 	ALREADY_WRITTEN=
 	STABLE=0;BETA=0;TESTING=0;OVERALL=0;OVERALL_READY=0
@@ -4576,8 +4581,18 @@ sh -n "$USECASE_FILE" && cd .. && {
 		USECASE=;HARDWARE=;WIFIMAC=
 		eval $LINE
 		USECASE="${USECASE:-Standard,kalua}"
+		USECASE_HASH="$( usecase_hash "$USECASE" )"
 
-		WRITTEN_HASH="$( echo "$HARDWARE+$USECASE" | md5sum | cut -d'-' -f1 )"
+		$TMPDIR/build.sh --hardware "$HARDWARE" check_valid >/dev/null || {
+			echo "# DEBUG: hardware invalid: '$HARDWARE'"
+			continue
+		}
+		$TMPDIR/build.sh --usecase "$USECASE"   check_valid >/dev/null || {
+			echo "# DEBUG: usecase invalid: '$USECASE'"
+			continue
+		}
+
+		WRITTEN_HASH="$( echo "$HARDWARE+$USECASE_HASH" | md5sum | cut -d'-' -f1 )"
 		case "$ALREADY_WRITTEN" in *"$WRITTEN_HASH"*) continue;; *) ALREADY_WRITTEN="$ALREADY_WRITTEN $WRITTEN_HASH";; esac
 
 		# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
@@ -4608,7 +4623,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 				;;
 			esac
 
-			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$( usecase_hash "$USECASE" )/info.json"
+			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$USECASE_HASH/info.json"
 			HIDE=
 			if grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON"; then
 				HIDE='#'
@@ -4665,6 +4680,10 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# overall: $OVERALL images"
 	echo "# already build: $OVERALL_READY images"
 	echo "# still needed: $(( OVERALL - OVERALL_READY )) images"
+	echo '#'
+	echo "# START: $BUILD_SCRIPT_START"
+	echo "# READY: $BUILD_SCRIPT_START"
+	echo "# START: $BUILD_SCRIPT_START"
 } >"$RECIPE" && cp "$RECIPE" 'firmware/build_all.sh'
 
 log "[READY] network '$NETWORK' in $DURATION_BUILDTIME sec"
