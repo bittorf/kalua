@@ -849,9 +849,14 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
 			FILENAME_FACTORY='openwrt-atheros-ubnt2-pico2-squashfs.bin'
 		;;
-		'Ubiquiti Nanostation5'|'Ubiquiti Picostation5'|'Ubiquiti WispStation5'|'Ubiquiti Bullet5')
+		'Ubiquiti Nanostation5'|'Ubiquiti Picostation5'|'Ubiquiti Bullet5'|'Ubiquiti WispStation5')
 			# Atheros MIPS 4Kc / ath5k / 32 mb RAM / 8 mb FLASH (Wispstation5 = 16/4)
-			TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+			if [ $( openwrt_revision_number_get ) -ge 44736 ]; then
+				TARGET_SYMBOL='CONFIG_TARGET_ath25=y'
+			else
+				TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+			fi
+
 			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
 			FILENAME_FACTORY='openwrt-atheros-ubnt5-squashfs.bin'
 		;;
