@@ -218,6 +218,8 @@ case "$ACTION" in
 		esac
 	;;
 	ifupdate|ifdown)
+		[ -e '/tmp/loader' ] || . /etc/rc.common /etc/init.d/cron.user boot
+
 		case "$ACTION.$INTERFACE" in
 			'ifdown.wan'*|'ifdown.wwan'*)
 				[ -e "$TMPDIR/olsr_hna_inetoffer_needed" ] && {
@@ -234,19 +236,18 @@ case "$ACTION" in
 
 		# wrong place but works:
 		[ -e '/etc/crontabs/root' ] && {
-			[ -e '/tmp/loader' ] || . /etc/rc.common /etc/init.d/cron.user boot
 			. /tmp/loader
 
-			[ $( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds ) -gt 300 ] && {
+			[ $( _stopwatch stop '/tmp/CRON_LASTCALL' interim,nolog,seconds ) -gt 900 ] && {
 				# locking maybe unneeded
 				mkdir '/tmp/LOCK_dhcpscript_cron_restart' && {
 					if pidof crond >/dev/null; then
 						_stopwatch start '/tmp/CRON_LASTCALL' global
-						_log it iface_$ACTION daemon alert "cron hangs, restarting"
+						_log it iface_$ACTION.$INTERFACE daemon alert "cron hangs, restarting"
 						/etc/init.d/S51crond_fff+ restart
 					else
 						_stopwatch start '/tmp/CRON_LASTCALL' global
-						_log it iface_$ACTION daemon alert "cron died, starting"
+						_log it iface_$ACTION.$INTERFACE daemon alert "cron died, starting"
 						/etc/init.d/S51crond_fff+ start
 					fi
 
