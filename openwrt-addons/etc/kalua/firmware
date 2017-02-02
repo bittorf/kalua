@@ -966,7 +966,7 @@ _firmware_burn()
 		} done
 	}
 
-	local getmem msg1 msg2 msg3 delifs cmds removeable_interfaces IFNAME
+	local getmem msg1 msg2 msg3 wait4noload delifs cmds removeable_interfaces IFNAME
 
 	# reverse order, all in one line: 		# SC2119/SC2120
 	removeable_interfaces="$( interfaces "$@" | sed '1!G;h;$!d' | while read -r LINE; do printf '%s' "$LINE "; done )"
@@ -988,8 +988,9 @@ _firmware_burn()
 	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; /bin/echo ip_START >/dev/console; ip a >/dev/console; /bin/echo ip_END >/dev/console"
 	# FIXME! reboot is disabled
 	msg3="ip a | grep . && { ip a >>$PERMLOG; sync; echo /sbin/reboot -f; }; /bin/cat /proc/net/dev >/dev/console"
+	wait4noload="/bin/sleep 90; read -r load _ </proc/loadavg; case \$load in 0.0*) /bin/echo load:\$load;;*) /sbin/reboot -f;; esac"
 
-	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3"
+	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3; $wait4noload"
 
 	# using this way, we have enough free RAM, e.g.
 	# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys with r?????
