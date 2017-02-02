@@ -3937,7 +3937,7 @@ while [ -n "$1" ]; do {
 			URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 
 			CRC_OLD="$( md5sum <"$ME" )"
-			if wget -O "$ME.tmp" "$URL"; then
+			if wget --cache=off -O "$ME.tmp" "$URL"; then		# FIXME: --cache = GNU
 				CRC_NEW="$( md5sum <"$ME.tmp" )"
 				if [ "$CRC_OLD" = "$CRC_NEW" ]; then
 					rm "$ME.tmp"
