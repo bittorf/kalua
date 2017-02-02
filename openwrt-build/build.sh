@@ -1210,6 +1210,7 @@ feeds_prepare()
 	local file githash
 
 	grep -q 'depth 1 ' 'scripts/feeds' && {
+		log "hotpatch 'scripts/feeds' for git-fetch with complete history"
 		sed -i 's/--depth 1 /--depth 99999 /' 'scripts/feeds'
 	}
 
@@ -1235,7 +1236,9 @@ feeds_prepare()
 		mv   "$file_feeds.tmp" "$file_feeds"
 		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
 
-		if has_internet; then
+		if [ -n "$RELEASE" ]; then
+			log "[OK] will not update feeds in release-mode"
+		elif has_internet; then
 			# https://forum.openwrt.org/viewtopic.php?id=52219
 			./scripts/feeds update oldpackages
 			# install all packages from specified feed
@@ -1259,25 +1262,26 @@ feeds_prepare()
 		make package/symlinks
 	}
 
-	# TODO: cd feeds/routing && git stash
-	file='feeds/routing/olsrd/Makefile'
-	githash='2d03856'	# https://github.com/OLSR/olsrd
-	if   grep -q 'PKG_VERSION:=0.9.5' "$file"; then
-		:
-	elif grep -q "=$githash" "$file"; then
-		log "[OK] OLSRd1: Makefile already patched"
-	else
-		log "[OK] OLSRd1: importing Makefile" 			# gitadd,untrack "$file"
-		search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
-		search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
-		search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
-		search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
-		search_and_replace "$file" ' pgraph ' ' ' && {
-			log "patching OLSRd1 for using recent HEAD" 	# gitadd,untrack "$file"
-		}
-	fi
+#	# TODO: cd feeds/routing && git stash
+#	file='feeds/routing/olsrd/Makefile'
+#	githash='2d03856'	# https://github.com/OLSR/olsrd
+#	if   grep -q 'PKG_VERSION:=0.9.5' "$file"; then
+#		:
+#	elif grep -q "=$githash" "$file"; then
+#		log "[OK] OLSRd1: Makefile already patched"
+#	else
+#		log "[OK] OLSRd1: importing Makefile" 			# gitadd,untrack "$file"
+#		search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
+#		search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
+#		search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
+#		search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
+#		search_and_replace "$file" ' pgraph ' ' ' && {
+#			log "patching OLSRd1 for using recent HEAD" 	# gitadd,untrack "$file"
+#		}
+#	fi
 
 	grep -q 'depth 99999 ' 'scripts/feeds' && {
+		log "unpatch 'scripts/feeds' back to normal history"
 		sed -i 's/--depth 99999 /--depth 1 /' 'scripts/feeds'
 	}
 
@@ -1459,7 +1463,8 @@ feeds_adjust_version()			# needs: src git-full for the feeds and 'clone depth 99
 		test -d "$dir/.git" || continue
 
 		[ -n "$feed" ] && {
-			[ -d "$feed" ] || continue	# user want specific feed - TODO: support list
+			[ -d "$feed" ] || continue	# user want specific feed
+							# TODO: support list of feeds
 		}
 
 		cd "$dir" || return
@@ -1475,6 +1480,7 @@ feeds_adjust_version()			# needs: src git-full for the feeds and 'clone depth 99
 
 		if   [ "$githash" = 'master' ]; then
 			git branch | grep -q ^'* master' || {
+				log "[OK] not on 'master' yet, adjusting"
 				git checkout master
 
 				for oldbranch in $( git branch | grep feeds@ | cut -b3- ); do {
