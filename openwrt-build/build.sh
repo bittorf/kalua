@@ -988,17 +988,33 @@ EOF
 				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_JFFS2=y"
 			fi
 		;;
-		'Seagate GoFlex Home'|'Seagate GoFlex Net')
+		'Seagate GoFlex Home')
+			TARGET_SYMBOL='CONFIG_TARGET_kirkwood=y'	# TODO: more specific?
+
+			if version_is_lede ; then
+				FILENAME_SYSUPGRADE='lede-kirkwood-goflexhome-squashfs-sysupgrade.tar'
+				FILENAME_FACTORY='lede-kirkwood-goflexhome-squashfs-factory.bin'
+			else
+				FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'	# = rootfs
+				FILENAME_FACTORY='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'
+			fi
+		;;
+		'Seagate GoFlex Net')
 			# http://wiki.openwrt.org/toh/seagate/goflexnet
 			# http://archlinuxarm.org/platforms/armv5/seagate-goflex-home
 			# http://judepereira.com/blog/hacking-your-goflex-home-2-uart-serial-console/
 			# https://dev.openwrt.org/ticket/14938#comment:5
+			TARGET_SYMBOL='CONFIG_TARGET_kirkwood=y'	# TODO: more specific?
 
-			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_GOFLEXNET=y'
-			FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'	# = rootfs
-			FILENAME_FACTORY='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'
-			# kernel: bin/kirkwood/openwrt-kirkwood-goflexnet-uImage
-			#
+			if version_is_lede ; then
+				FILENAME_SYSUPGRADE='lede-kirkwood-goflexnet-squashfs-sysupgrade.tar'
+				FILENAME_SYSUPGRADE='lede-kirkwood-goflexnet-squashfs-factory.bin'
+			else
+				FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'	# = rootfs
+				FILENAME_FACTORY='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'
+				# kernel: bin/kirkwood/openwrt-kirkwood-goflexnet-uImage
+			fi
+
 			# CONFIG_PACKAGE_uboot-kirkwood-goflexhome=y
 			# uboot:  bin/kirkwood/uboot-kirkwood-goflexhome/openwrt-kirkwood-goflexhome-u-boot.kwb
 		;;
