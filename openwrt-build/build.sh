@@ -762,7 +762,6 @@ EOF
 		'TP-LINK TL-WR841N/ND v8'|'TP-LINK TL-WR841N/ND v9')
 			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
-			# TODO: name changed: openwrt-ar71xx-generic-tl-wr841-v8-squashfs-sysupgrade.bin
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841n-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841n-v${version}-squashfs-factory.bin"
 		;;
@@ -1764,9 +1763,18 @@ copy_firmware_files()
 				log "[OK] fixup filename '$FILENAME_FACTORY'"
 				log "[OK] fixup filename '$FILENAME_SYSUPGRADE'"
 
-				# ...-tl-wr841nd-v7-... -> ...-tl-wr841-v7-...
-				FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
-				FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
+				case "$FILENAME_FACTORY" in
+					*'-wr841n-'*)
+						# ...-tl-wr841n-v8-... -> ...-tl-wr841-v8-...
+						FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/\(^.*[0-9]\)n\(-.*\)/\1\2/' )"
+						FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)n\(-.*\)/\1\2/' )"
+					;;
+					*)
+						# ...-tl-wr841nd-v7-... -> ...-tl-wr841-v7-...
+						FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
+						FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/\(^.*[0-9]\)nd\(-.*\)/\1\2/' )"
+					;;
+				esac
 			;;
 		esac
 	}
