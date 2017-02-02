@@ -670,8 +670,14 @@ EOF
 			# sd-card install:
 			# http://wiki.openwrt.org/doc/hardware/soc/soc.allwinner.sunxi#sd_layout
 			TARGET_SYMBOL='CONFIG_TARGET_sunxi_Cubietruck=y'
-			FILENAME_SYSUPGRADE='openwrt-sunxi-Cubietruck-sdcard-vfat-ext4.img.gz'
-			# CONFIG_BRCMFMAC_SDIO=y
+
+			if version_is_lede ; then
+				FILENAME_SYSUPGRADE='lede-sunxi-sun7i-a20-cubietruck-squashfs-sdcard.img.gz'
+				FILENAME_FACTORY='lede-sunxi-sun7i-a20-cubietruck-ext4-sdcard.img.gz'
+			else
+				FILENAME_SYSUPGRADE='openwrt-sunxi-Cubietruck-sdcard-vfat-ext4.img.gz'
+				# CONFIG_BRCMFMAC_SDIO=y
+			fi
 		;;
 		'Soekris net5501')
 			TARGET_SYMBOL='CONFIG_TARGET_x86_net5501=y'
