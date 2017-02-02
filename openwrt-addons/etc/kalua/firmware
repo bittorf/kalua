@@ -973,6 +973,7 @@ _firmware_burn()
 	LANBRC="${LANBRC:-192.168.1.255}"
 
 	# FIXME! remove all ipv6 routes (e.g. gateway)
+	/etc/init.d/network stop
 	for IFNAME in $( interfaces "$@" ) 'lo'; do {	# SC2119/SC2120
 		ip address flush dev "$IFNAME"
 		ip link delete "$IFNAME"
@@ -981,7 +982,7 @@ _firmware_burn()
 	_firmware remove_kmodules all
 	ip -oneline address show | _log it $funcname daemon info
 
-	getmem="echo 3 >/proc/sys/vm/drop_caches; while read -r L; do case \$L in MemAvailable:*) break;; esac; done </proc/meminfo"
+	getmem="echo 3 >/proc/sys/vm/drop_caches; while read -r L; do case \$L in MemAvailable:*|Active:*) break;; esac; done </proc/meminfo"
 	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
 	delifs="for I in $removeable_interfaces; do /bin/echo \"ip link set dev \$I down\"; ip link set dev \$I down; /bin/echo \"\$I is down\"; done"
 	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; /bin/echo ip_START >/dev/console; ip a >/dev/console; /bin/echo ip_END >/dev/console"
@@ -991,7 +992,7 @@ _firmware_burn()
 	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3"
 
 	# using this way, we have enough free RAM, e.g.
-	# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys
+	# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys with r?????
 	#
 	# ideas to get even more free ram:
 	# - unloading all functions/vars before mtd
@@ -1001,14 +1002,14 @@ _firmware_burn()
 		cat >/etc/crontabs/root <<EOF
 * * * * * /bin/echo FIRECRON >/dev/console; rm /etc/crontabs/root; killall crond; $cmds; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f
 EOF
-
+	cat /etc/crontabs/root >/dev/console
 	/usr/sbin/crond -L /dev/null
 
 	# see above
 	grep -q 'reboot -f'$ '/etc/crontabs/root' || _system crashreboot 'patching_failed'
 	pidof crond >/dev/null || _system crashreboot 'cron_died'
 
-	/bin/netmsg $LANBRC "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
+	/bin/netmsg "$LANBRC" "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
 	/bin/echo "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'" >/dev/console
 }
 
