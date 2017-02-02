@@ -38,7 +38,7 @@ log()		# tail -f /var/log/messages
 	logger -t $0 -p user.info -s "$message"
 }
 
-TMPDIR='/var/run/kalua'		# is 'tmpfs'
+TMPDIR='/var/run/kalua'		# is 'tmpfs' - TODO: network-specific?
 mkdir -p "$TMPDIR"		# TODO: root must do initially this + chmod -R 777 /var/run/kalua
 
 UNIXTIME_SCRIPTSTART="$( date +%s )"
@@ -4682,12 +4682,45 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 	echo 'all() { stable; beta; testing; }'
 	echo
-	echo "# overall: $OVERALL images"
+	echo "# overall stable + beta + testing: $STABLE + $BETA + $TESTING = $OVERALL images"
 	echo "# already build: $OVERALL_READY images"
 	echo "# still needed: $(( OVERALL - OVERALL_READY )) images"
 	echo '#'
 	echo "# START: $BUILD_SCRIPT_START"
 	echo "# READY: $BUILD_SCRIPT_START"
 } >"$RECIPE" && cp "$RECIPE" 'firmware/build_all.sh'
+
+generate_build_matrix()
+{
+	cd "$PWD/firmware/models" || return
+
+	ls -1 | while read -r MODEL; do {
+		cd "$MODEL" && {
+			for MODE in stable beta testing; do {
+				cd "$MODE" && {
+					ls -1 | while read -r USECASE; do {
+						echo "$MODEL | $MODE | $USECASE"
+					} done
+					cd ..
+				}
+			} done
+			cd ..
+		}
+	} done
+}
+
+generate_build_matrix >"$TMPDIR/build_matrix.html"
+
+#
+# model1 | stable  | usecaseX
+#        |         | usecaseY
+#        |         | usecaseZ
+#        | beta    | usecaseX
+#        |         | usecaseY
+#        |         | usecaseZ
+#        | testing | usecaseX
+#        |         | usecaseY
+#        |         | usecaseZ
+# model2 | ...
 
 log "[READY] network '$NETWORK' in $DURATION_BUILDTIME sec"
