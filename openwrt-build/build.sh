@@ -989,7 +989,7 @@ EOF
 			fi
 		;;
 		'Seagate GoFlex Home')
-			TARGET_SYMBOL='CONFIG_TARGET_kirkwood=y'	# TODO: more specific?
+			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_Default=y'	# TODO: more specific?
 
 			if version_is_lede ; then
 				FILENAME_SYSUPGRADE='lede-kirkwood-goflexhome-squashfs-sysupgrade.tar'
@@ -1004,7 +1004,7 @@ EOF
 			# http://archlinuxarm.org/platforms/armv5/seagate-goflex-home
 			# http://judepereira.com/blog/hacking-your-goflex-home-2-uart-serial-console/
 			# https://dev.openwrt.org/ticket/14938#comment:5
-			TARGET_SYMBOL='CONFIG_TARGET_kirkwood=y'	# TODO: more specific?
+			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_Default=y'	# TODO: more specific?
 
 			if version_is_lede ; then
 				FILENAME_SYSUPGRADE='lede-kirkwood-goflexnet-squashfs-sysupgrade.tar'
