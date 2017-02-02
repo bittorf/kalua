@@ -972,7 +972,7 @@ EOF
 			[ "$model" = 'Nexx WT3020A' ] && version='4M'
 
 			# http://wiki.openwrt.org/toh/nexx/wt3020
-			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7620=y'
+			TARGET_SYMBOL="CONFIG_TARGET_ramips_mt7620_wt3020-${version}=y"
 			FILENAME_SYSUPGRADE="openwrt-ramips-mt7620-wt3020-${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ramips-mt7620-wt3020-${version}-squashfs-factory.bin"
 		;;
