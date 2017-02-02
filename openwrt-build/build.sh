@@ -1158,15 +1158,16 @@ EOF
 
 	apply_symbol 'nuke_config'
 
-	case "$ARCH" in
-		*'_'*)
+# experimental
+#	case "$ARCH" in
+#		*'_'*)
 			# e.g. 'ramips_rt305x'
 			apply_symbol "CONFIG_TARGET_$ARCH_MAIN=y"
-		;;
-		*)
+#		;;
+#		*)
 			apply_symbol "CONFIG_TARGET_$ARCH=y"
-		;;
-	esac
+#		;;
+#	esac
 
 	if version_is_lede ; then
 		case "$FILENAME_SYSUPGRADE" in
