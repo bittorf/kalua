@@ -62,10 +62,9 @@ case "$LOAD" in
 esac
 unset LOAD
 
-read -r UP REST <'/proc/uptime'
-UP="${UP%.*}"
-case "${#UP}" in 1|2|3) echo "[ATT] low uptime: $UP sec";; esac
-unset UP REST
+read -r UP _ <'/proc/uptime'
+case "${#UP}" in 4|5|6) echo "[ATT] low uptime: $UP sec";; esac
+unset UP
 
 case "$USER" in
 	'root'|'')
