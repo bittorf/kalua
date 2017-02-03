@@ -2671,7 +2671,14 @@ build_options_set()
 			;;
 			'-'*)	# parser_ignore
 				# direct call (no subcall)
-				[ "$subcall" = 'hide' ] || USECASE="${USECASE}${USECASE+,}${1}"
+				case "$SPECIAL_OPTIONS" in
+					*"$1"*)	# parser_ignore
+						log "will not add auto-added usecase from SPECIAL_OPTIONS: $1"
+					;;
+					*)	# parser_ignore
+						[ "$subcall" = 'hide' ] || USECASE="${USECASE}${USECASE+,}${1}"
+					;;
+				esac
 			;;
 		esac
 
@@ -3455,6 +3462,8 @@ EOF
 			*)
 				case "$SPECIAL_OPTIONS" in
 					*"$USECASE"*)
+						# FIXME! here we already have the *full* USECASE, this not not work:
+						# e.g. b43mini is auto-added to $SPECIAL_OPTIONS, but should be hidden (like subcall)
 						log "$funcname() = NO: already in: '$USECASE'"
 						return 1
 					;;
