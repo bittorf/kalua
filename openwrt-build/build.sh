@@ -1975,6 +1975,9 @@ EOF
 
 upload()
 {
+	log "[START] uploading to $server:$server_dir"
+	[ -e 'DRYRUN' ] && return 0
+
 	ssh $server "mkdir -p '$server_dir' && cd '$server_dir' && rm -f *" || return 1
 
 	scp "$file"     $server:"$( scp_safe "$destination" )"		|| return 2
@@ -1985,6 +1988,8 @@ upload()
 			mkdir -p '.$myhash' && cd '.$myhash' && \
 				ln -sf '$destination' '$HARDWARE_MODEL_FILENAME.bin' || return 4
 				ln -sf '$destination_info/info.json' 'info.json'" || return 5
+
+	log "[READY] uploading to $server:$server_dir"
 }
 
 upload || {
@@ -4074,12 +4079,12 @@ while [ -n "$1" ]; do {
 					RELEASE_SERVER="$3"	# root@intercity-vpn.de:/var/www/networks/liszt28
 
 					[ -z "$RELEASE_SERVER" ] && {
-						log "[ERROR] --release $RELEASE user@server:/your/path/to/network"
+						log "[ERROR] --release $RELEASE user@server:/path/to/network"
 						exit 1
 					}
 				;;
 				*)
-					log "[ERROR] --release stable|beta|testing"
+					log "[ERROR] --release stable|beta|testing user@server:/path/to/network"
 					exit 1
 				;;
 			esac
