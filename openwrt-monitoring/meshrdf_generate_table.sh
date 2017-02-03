@@ -4534,8 +4534,11 @@ RECIPE="$USECASE_FILE.firmware_baking_recipe.sh"
 TAB='	'
 
 MODE_STABLE_REV=44150	# TODO: different values for different networks?
+MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
+MODE_BETA_FEEDSTIME='2016-04-30 16:54'
 MODE_TESTING_REV=3209	# LEDE
+MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 BUILD_SCRIPT_START="$( date )"
@@ -4545,7 +4548,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	mkdir -p 'firmware'
 
 	echo '#!/bin/sh'
-	echo "# generated @$BUILD_SCRIPT_START from $0"
+	echo "# generated for network '$NETWORK' @$BUILD_SCRIPT_START from $0"
 	echo
 	echo '# firmware updatemodes:'
 	echo "# - stable..............: r$MODE_STABLE_REV"
@@ -4618,18 +4621,21 @@ sh -n "$USECASE_FILE" && cd .. && {
 					BUILD_DIR='openwrt'
 					STABLE=$(( STABLE + 1 ))
 					FNAME="s$STABLE"
+					FEEDSTIME="$MODE_STABLE_FEEDSTIME"
 				;;
 				'beta')
 					REV_JSON="$REV"
 					BUILD_DIR='openwrt'
 					BETA=$(( BETA + 1 ))
 					FNAME="b$BETA"
+					FEEDSTIME="$MODE_BETA_FEEDSTIME"
 				;;
 				'testing')
 					REV_JSON=$(( REV + 1000000 ))
 					BUILD_DIR='source'
 					TESTING=$(( TESTING + 1 ))
 					FNAME="t$TESTING"
+					FEEDSTIME="$MODE_TESTING_FEEDSTIME"
 				;;
 			esac
 
@@ -4664,6 +4670,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 			echo "${TAB}../build.sh \\"
 			echo "${TAB}${TAB}--buildid '$BUILD_ID' \\"
 			echo "${TAB}${TAB}--openwrt 'r$REV' \\"
+			[ -n "$FEEDSTIME" ] && echo "${TAB}${TAB}--feedstime '$FEEDSTIME' \\"
 			echo "${TAB}${TAB}--hardware '$HARDWARE' \\"
 			echo "${TAB}${TAB}--usecase '$USECASE' \\"
 			echo "${TAB}${TAB}--release $MODE '$SERVER' || FAILED=\"\$FAILED $FNAME\""
