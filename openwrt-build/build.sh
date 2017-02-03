@@ -3438,10 +3438,12 @@ EOF
 
 	buildinfo_needs_adding()
 	{
+		local funcname='buildinfo_needs_adding'
 		[ -n "$subcall" ] && return 1
 
 		case "$USECASE" in
 			'CONFIG_'*)
+				log "$funcname() = NO: will not add: '$USECASE'"
 				return 1
 			;;
 			'')
@@ -3451,11 +3453,12 @@ EOF
 			*)
 				case "$SPECIAL_OPTIONS" in
 					*"$USECASE"*)
+						log "$funcname() = NO: already in: '$USECASE'"
 						return 1
 					;;
 					*)
 						# FIXME! USECASE e.g. b43mini,Standard,kalua@0e25ad4
-						log "YES: needs adding: $USECASE"
+						log "$funcname() = YES: $USECASE"
 						return 0
 					;;
 				esac
