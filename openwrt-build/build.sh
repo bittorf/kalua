@@ -2663,9 +2663,11 @@ build_options_set()
 			"-$KALUA_DIRNAME"*)	# parser_ignore
 						# direct call to kalua (no subcall)
 			;;
-			*'=y'|*[.0-9])		# parser_ignore
+			*'=y'|*'='[.0-9]*)	# parser_ignore
 						# e.g. CONFIG_TARGET_ROOTFS_INITRAMFS=y
 						# e.g. SQUASHFS_BLOCK_SIZE=64
+						# but NOT catch valid: OLSRd2
+				log "will not add to usecase: $1"
 			;;
 			'-'*)	# parser_ignore
 				# direct call (no subcall)
