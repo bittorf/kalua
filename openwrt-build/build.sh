@@ -845,25 +845,42 @@ EOF
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2'|'Ubiquiti Bullet2')
 			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
 			# the other one is: Picostation M2 (HP) = MIPS 24KC / 400 MHz
+
+			case "$model" in
+				'Ubiquiti Nanostation2') version='ubnt2' ;;
+				'Ubiquiti Picostation2') version='ubnt2-pico2' ;;
+				'Ubiquiti Bullet2') version='ubnt2' ;;
+			esac
+
 			if [ $( openwrt_revision_number_get ) -ge 44736 ]; then
-				TARGET_SYMBOL='CONFIG_TARGET_ath25=y'
+				TARGET_SYMBOL='CONFIG_TARGET_ath25_ubnt2=y'
+				FILENAME_SYSUPGRADE="lede-ath25-${version}-squashfs-sysupgrade.bin"
+				FILENAME_FACTORY=
 			else
 				TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+				FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
+				FILENAME_FACTORY="openwrt-atheros-${version}-squashfs.bin"
 			fi
-
-			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
-			FILENAME_FACTORY='openwrt-atheros-ubnt2-pico2-squashfs.bin'
 		;;
 		'Ubiquiti Nanostation5'|'Ubiquiti Picostation5'|'Ubiquiti Bullet5'|'Ubiquiti WispStation5')
 			# Atheros MIPS 4Kc / ath5k / 32 mb RAM / 8 mb FLASH (Wispstation5 = 16/4)
+
+			case "$model" in
+				'Ubiquiti Nanostation5') version='ubnt5' ;;
+				'Ubiquiti Picostation5') version='ubnt2-pico2' ;;	# really2?
+				'Ubiquiti Bullet5') version='ubnt5' ;;
+				'Ubiquiti WispStation5') version='ubnt5' ;;
+			esac
+
 			if [ $( openwrt_revision_number_get ) -ge 44736 ]; then
-				TARGET_SYMBOL='CONFIG_TARGET_ath25=y'
+				TARGET_SYMBOL='CONFIG_TARGET_ath25_ubnt2=y'
+				FILENAME_SYSUPGRADE="lede-ath25-${version}-squashfs-sysupgrade.bin"
+				FILENAME_FACTORY=
 			else
 				TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
+				FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
+				FILENAME_FACTORY="openwrt-atheros-${version}-squashfs.bin"
 			fi
-
-			FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
-			FILENAME_FACTORY='openwrt-atheros-ubnt5-squashfs.bin'
 		;;
 		'Ubiquiti Bullet M2'|'Ubiquiti Bullet M2 Titanium'|'Ubiquiti Bullet M5'|'Ubiquiti Bullet M5 Titanium'|'Ubiquiti Picostation M2'|'Ubiquiti Picostation M5')
 			# http://wiki.openwrt.org/toh/ubiquiti/bullet
@@ -1257,7 +1274,7 @@ feeds_prepare()
 		do_symlinking='true'
 	}
 
-	[ "$do_symlinking" = 'true' ] && {
+	[ "$do_symlinking" = 'true' -a -z "$RELEASE" ] && {
 		# TODO: check if already done
 		log "enforce/updating symlinking of packages"
 		make package/symlinks
