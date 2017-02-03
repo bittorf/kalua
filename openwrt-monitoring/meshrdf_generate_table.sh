@@ -4532,7 +4532,6 @@ mode2rev()
 
 RECIPE="$USECASE_FILE.firmware_baking_recipe.sh"
 TAB='	'
-TAB2="${TAB}${TAB}"
 
 MODE_STABLE_REV=44150	# TODO: different values for different networks?
 MODE_BETA_REV=49276
@@ -4580,7 +4579,18 @@ sh -n "$USECASE_FILE" && cd .. && {
 		# USECASE=''; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='f8d111a9cec8';
 		USECASE=;HARDWARE=;WIFIMAC=
 		eval $LINE
-		USECASE="${USECASE:-Standard,kalua}"
+
+		[ -z "$USECASE" ] && {
+			case "$HARDWARE" in
+				'Ubiquiti Nanostation2'|'Ubiquiti Nanostation5')
+					USECASE='Small,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,kalua'
+				;;
+				*)
+					USECASE='Standard,kalua}'
+				;;
+			esac
+		}
+
 		USECASE_HASH="$( usecase_hash "$USECASE" )"
 
 		$TMPDIR/build.sh --hardware "$HARDWARE" check_valid >/dev/null || {
@@ -4649,13 +4659,14 @@ sh -n "$USECASE_FILE" && cd .. && {
 				echo "${TAB}return 0${TAB}# already built"
 				echo
 			}
+			echo "${TAB}echo; echo '=== next_image: $FNAME ==='; echo"
 			echo "${TAB}cd '$BUILD_DIR' && git checkout 'master' && \\"
 			echo "${TAB}../build.sh \\"
-			echo "${TAB2}--buildid '$BUILD_ID' \\"
-			echo "${TAB2}--openwrt 'r$REV' \\"
-			echo "${TAB2}--hardware '$HARDWARE' \\"
-			echo "${TAB2}--usecase '$USECASE' \\"
-			echo "${TAB2}--release $MODE '$SERVER' || FAILED=\"\$FAILED $FNAME\""
+			echo "${TAB}${TAB}--buildid '$BUILD_ID' \\"
+			echo "${TAB}${TAB}--openwrt 'r$REV' \\"
+			echo "${TAB}${TAB}--hardware '$HARDWARE' \\"
+			echo "${TAB}${TAB}--usecase '$USECASE' \\"
+			echo "${TAB}${TAB}--release $MODE '$SERVER' || FAILED=\"\$FAILED $FNAME\""
 			echo "${TAB}cd .."
 			echo '}'
 			echo
@@ -4687,7 +4698,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# still needed: $(( OVERALL - OVERALL_READY )) images"
 	echo '#'
 	echo "# START: $BUILD_SCRIPT_START"
-	echo "# READY: $BUILD_SCRIPT_START"
+	echo "# READY: $( date )"
 } >"$RECIPE" && cp "$RECIPE" 'firmware/build_all.sh'
 
 generate_build_matrix()
