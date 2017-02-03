@@ -1450,16 +1450,21 @@ check_working_directory()
 				i=$(( i + 1 ))
 			} done
 
-			log "the last commit MUST include pattern '$pattern', seems you have private"
-			log "commits (when this is OK for you, just add --force to your call)."
-			log "please rollback several times via: git reset --soft HEAD^"
-			log "or just do: git reset --soft HEAD~$i"
-			log "you can switch back via: git reflog; git reset \$hash"
+			if [ -n "$RELEASE" ]; then
+				log "the last commit MUST include pattern '$pattern', rolling back"
+				git reset --soft HEAD~$i
+			else
+				log "the last commit MUST include pattern '$pattern', seems you have private"
+				log "commits (when this is OK for you, just add --force to your call)."
+				log "please rollback several times via: git reset --soft HEAD^"
+				log "or just do: git reset --soft HEAD~$i"
+				log "you can switch back via: git reflog; git reset \$hash"
+			fi
 		else
 			log "please make sure, that you are in OpenWrt's git-root"
 		fi
 
-		return $error
+		[ -z "$RELEASE" ] && return $error
 	}
 
 	ls -d "$KALUA_DIRNAME" >/dev/null || {
