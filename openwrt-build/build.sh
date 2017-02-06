@@ -1035,9 +1035,9 @@ EOF
 		'Seagate GoFlex Home')
 			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_Default=y'	# TODO: more specific?
 
-			if version_is_lede ; then
-				FILENAME_SYSUPGRADE='lede-kirkwood-goflexhome-squashfs-sysupgrade.tar'
-				FILENAME_FACTORY='lede-kirkwood-goflexhome-squashfs-factory.bin'
+			if [ $( openwrt_revision_number_get ) -ge 49276 ]; then
+				FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexhome-squashfs-sysupgrade.tar'
+				FILENAME_FACTORY='openwrt-kirkwood-goflexhome-squashfs-factory.bin'
 			else
 				FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'	# = rootfs
 				FILENAME_FACTORY='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'
@@ -1050,9 +1050,9 @@ EOF
 			# https://dev.openwrt.org/ticket/14938#comment:5
 			TARGET_SYMBOL='CONFIG_TARGET_kirkwood_Default=y'	# TODO: more specific?
 
-			if version_is_lede ; then
-				FILENAME_SYSUPGRADE='lede-kirkwood-goflexnet-squashfs-sysupgrade.tar'
-				FILENAME_SYSUPGRADE='lede-kirkwood-goflexnet-squashfs-factory.bin'
+			if [ $( openwrt_revision_number_get ) -ge 49276 ]; then
+				FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexnet-squashfs-sysupgrade.tar'
+				FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexnet-squashfs-factory.bin'
 			else
 				FILENAME_SYSUPGRADE='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'	# = rootfs
 				FILENAME_FACTORY='openwrt-kirkwood-goflexnet-jffs2-nand-2048-128k.img'
