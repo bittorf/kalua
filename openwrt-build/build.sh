@@ -708,6 +708,9 @@ EOF
 		'MQmaker WiTi')
 			# https://wiki.openwrt.org/toh/mqmaker/witi
 			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_witi=y'
+			# TODO: for openwrt: CONFIG_TARGET_ramips_mt7621_WITI=y
+
+
 			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-witi-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
@@ -854,8 +857,14 @@ EOF
 
 			if [ $( openwrt_revision_number_get ) -ge 44736 ]; then
 				TARGET_SYMBOL='CONFIG_TARGET_ath25_ubnt2=y'
-				FILENAME_SYSUPGRADE="lede-ath25-${version}-squashfs-sysupgrade.bin"
-				FILENAME_FACTORY=
+
+				if [ $( openwrt_revision_number_get ) -gt 49726 ]; then
+					FILENAME_SYSUPGRADE="openwrt-ath25-${version}-squashfs-sysupgrade.bin"
+					FILENAME_FACTORY=
+				else
+					FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
+					FILENAME_FACTORY="openwrt-atheros-${version}-squashfs.bin"
+				fi
 			else
 				TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
 				FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
@@ -873,9 +882,15 @@ EOF
 			esac
 
 			if [ $( openwrt_revision_number_get ) -ge 44736 ]; then
-				TARGET_SYMBOL='CONFIG_TARGET_ath25_ubnt2=y'
-				FILENAME_SYSUPGRADE="lede-ath25-${version}-squashfs-sysupgrade.bin"
-				FILENAME_FACTORY=
+				TARGET_SYMBOL='CONFIG_TARGET_ath25_ubnt2=y'		# really2?
+
+				if [ $( openwrt_revision_number_get ) -gt 49726 ]; then
+					FILENAME_SYSUPGRADE="openwrt-ath25-${version}-squashfs-sysupgrade.bin"
+					FILENAME_FACTORY=
+				else
+					FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
+					FILENAME_FACTORY="openwrt-atheros-${version}-squashfs.bin"
+				fi
 			else
 				TARGET_SYMBOL='CONFIG_TARGET_atheros_Default=y'
 				FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
@@ -1373,7 +1388,7 @@ check_working_directory()
 				buildsystemdir='source'
 				VERSION_OPENWRT='lede'
 			;;
-			'trunk')
+			'openwrt'|'trunk')
 				# git_url='git://git.openwrt.org/openwrt.git'
 				git_url='https://github.com/openwrt/openwrt'
 				buildsystemdir='openwrt'
@@ -1438,9 +1453,9 @@ check_working_directory()
 
 	# for detecting: are we in "original" (aka master) tree or in private checkout
 	if version_is_lede ; then
-		pattern='.'	# means: any
+		pattern='.'		# means: any
 	else
-		pattern='git-svn-id'
+		pattern='git-svn-id'	# the last was r49373 = 2016-may-11
 	fi
 
 	git log -1 | grep -q "$pattern" || {
@@ -3279,7 +3294,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_dropbear is not set'
 
 				# https://dev.openwrt.org/changeset/46809/trunk - (telnet removal)
-				$funcname subcall 'revert46809'
+				# FIXME! this has conflicts with e.g. 49276
+				# $funcname subcall 'revert46809'
 			;;
 			'noHTTPd')
 				apply_symbol 'CONFIG_PACKAGE_uhttpd is not set'
