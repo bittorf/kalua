@@ -859,7 +859,7 @@ EOF
 				TARGET_SYMBOL='CONFIG_TARGET_ath25_ubnt2=y'
 
 				if   [ $( openwrt_revision_number_get ) -eq 49276 ]; then
-					FILENAME_SYSUPGRADE="openwrt-ath25-squashfs-sysupgrade.bin"
+					FILENAME_SYSUPGRADE="openwrt-ath25-combined.squashfs.img"
 					FILENAME_FACTORY=
 				elif [ $( openwrt_revision_number_get ) -gt 49276 ]; then
 					FILENAME_SYSUPGRADE="openwrt-ath25-${version}-combined.squashfs.img"
@@ -888,7 +888,7 @@ EOF
 				TARGET_SYMBOL='CONFIG_TARGET_ath25_ubnt2=y'		# really2?
 
 				if   [ $( openwrt_revision_number_get ) -eq 49276 ]; then
-					FILENAME_SYSUPGRADE="openwrt-ath25-squashfs-sysupgrade.bin"
+					FILENAME_SYSUPGRADE="openwrt-ath25-combined.squashfs.img"
 					FILENAME_FACTORY=
 				elif [ $( openwrt_revision_number_get ) -gt 49276 ]; then
 					FILENAME_SYSUPGRADE="openwrt-ath25-${version}-squashfs-sysupgrade.bin"
