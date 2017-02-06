@@ -1966,6 +1966,7 @@ copy_firmware_files()
   "firmware_md5": "$checksum_md5",
   "firmware_sha256": "$checksum_sha256",
   "firmware_signature": "$usign_signature",
+  "firmware_manually_checked": "false",
   "firmware_kernel": "$VERSION_KERNEL",
   "firmware_rev": "$VERSION_OPENWRT_INTEGER",
   "firmware_usecase": "$USECASE_DOWNLOAD",

@@ -79,8 +79,29 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 						'version_on_server')
 							get_json_field()
 							{
-								local line="$( _curl it "$1" | grep '"firmware_rev": ' | cut -d'"' -f4 )"
-								isnumber "$line" && echo "$line"
+								local json checked revision
+
+								json="$( _curl it "$1" )"
+								explode $json
+
+								while [ -n "$1" ]; do {
+									case "$1" in
+										'"firmware_manually_checked":')
+											checked="$2"
+										;;
+										'"firmware_rev":')
+											revision="$2"
+											break
+										;;
+									esac
+
+									shift
+								} done
+
+								# check for newer version must fail, but hard download should work
+								[ "$checked" = 'true' ] && {
+									isnumber "$revision" && echo "$revision"
+								}
 							}
 						;;
 					esac
