@@ -1920,7 +1920,7 @@ copy_firmware_files()
 
 
 	if [ -e "$file" ]; then
-		cp -v "$file" "$attic/$destination"
+		[ -z "$RELEASE" ] && cp -v "$file" "$attic/$destination"
 	else
 		err=1
 	fi
