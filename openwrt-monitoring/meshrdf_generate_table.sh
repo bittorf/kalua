@@ -4537,7 +4537,7 @@ MODE_STABLE_REV=44150	# TODO: different values for different networks?
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3209	# LEDE
+MODE_TESTING_REV=3320	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4549,17 +4549,18 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 	echo '#!/bin/sh'
 	echo "# generated for network '$NETWORK' @$BUILD_SCRIPT_START from $0"
-	echo
+	echo '#'
 	echo '# firmware updatemodes:'
 	echo "# - stable..............: r$MODE_STABLE_REV"
 	echo "# - beta................: r$MODE_BETA_REV"
 	echo "# - testing/avantgarde..: r$MODE_TESTING_REV (LEDE)"
-	echo
+	echo '#'
 	echo '# prepare your env with e.g.:'
 	echo "# export PATH=\"~:\$PATH\""
 	echo '# mkdir -p YOUR_BUILD_DIR && cd YOUR_BUILD_DIR'
 	echo '#'
-	echo "# wget $BUILD_SCRIPT_URL && chmod +x build.sh"
+	echo "# URL='$BUILD_SCRIPT_URL'"
+	echo "# wget -O build.sh \"\$URL\" && chmod +x build.sh"
 	echo "# ./build.sh --openwrt trunk --download_pool \$HOME/openwrt_dl"
 	echo "# ./build.sh --openwrt lede  --download_pool \$HOME/openwrt_dl"
 	echo '#'
@@ -4586,7 +4587,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 		[ -z "$USECASE" ] && {
 			case "$HARDWARE" in
 				'Ubiquiti Nanostation2'|'Ubiquiti Nanostation5')
-					USECASE='Small,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,kalua'
+					USECASE='Small,squash256,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,kalua'
 				;;
 				*)
 					USECASE='Standard,kalua}'
@@ -4597,11 +4598,11 @@ sh -n "$USECASE_FILE" && cd .. && {
 		USECASE_HASH="$( usecase_hash "$USECASE" )"
 
 		$TMPDIR/build.sh --hardware "$HARDWARE" check_valid >/dev/null || {
-			echo "# DEBUG: hardware invalid: '$HARDWARE'"
+			echo "# DEBUG: hardware invalid: '$HARDWARE' - see: $WIFIMAC"
 			continue
 		}
 		$TMPDIR/build.sh --usecase "$USECASE"   check_valid >/dev/null || {
-			echo "# DEBUG: usecase invalid: '$USECASE'"
+			echo "# DEBUG: usecase invalid: '$USECASE' - see: $WIFIMAC"
 			continue
 		}
 
@@ -4660,21 +4661,28 @@ sh -n "$USECASE_FILE" && cd .. && {
 			fi
 
 			echo "$FNAME() {"
-			test -n "$HIDE" && {
+
+			if [ -n "$HIDE" ]; then
 				OVERALL_READY=$(( OVERALL_READY + 1 ))
-				echo "${TAB}return 0${TAB}# already built"
-				echo
-			}
-			echo "${TAB}echo; echo '=== next_image: $FNAME ==='; echo"
-			echo "${TAB}cd '$BUILD_DIR' && git checkout 'master' && \\"
+				echo "${TAB}[ \"\$1\" = 'force' ] || return 0${TAB}# already built"
+			else
+				echo "${TAB}echo; echo '=== next_image: $FNAME ==='; echo"
+			fi
+
+			echo
+			echo "${TAB}cd '$BUILD_DIR' && git checkout 'master' && make clean && \\"
 			echo "${TAB}../build.sh \\"
 			echo "${TAB}${TAB}--buildid '$BUILD_ID' \\"
-			echo "${TAB}${TAB}--openwrt 'r$REV' \\"
-			[ -n "$FEEDSTIME" ] && echo "${TAB}${TAB}--feedstime '$FEEDSTIME' \\"
-			echo "${TAB}${TAB}--hardware '$HARDWARE' \\"
-			echo "${TAB}${TAB}--usecase '$USECASE' \\"
+
+			if [ -n "$FEEDSTIME" ]; then
+				echo "${TAB}${TAB}--openwrt 'r$REV' --feedstime '$FEEDSTIME' \\"
+			else
+				echo "${TAB}${TAB}--openwrt 'r$REV' \\"
+			fi
+
+			echo "${TAB}${TAB}--hardware '$HARDWARE' --usecase '$USECASE' \\"
 			echo "${TAB}${TAB}--release $MODE '$SERVER' || FAILED=\"\$FAILED $FNAME\""
-			echo "${TAB}cd .."
+			echo "${TAB}git stash; test -e '.config' && cd .."
 			echo '}'
 			echo
 		} done
