@@ -4537,7 +4537,7 @@ MODE_STABLE_REV=44150	# TODO: different values for different networks?
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3320	# LEDE
+MODE_TESTING_REV=3321	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4597,6 +4597,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 		USECASE_HASH="$( usecase_hash "$USECASE" )"
 
+		# TODO: speed up by using a cache
 		$TMPDIR/build.sh --hardware "$HARDWARE" check_valid >/dev/null || {
 			echo "# DEBUG: hardware invalid: '$HARDWARE' - see: $WIFIMAC"
 			continue
@@ -4720,12 +4721,40 @@ generate_build_matrix()
 {
 	cd "$PWD/firmware/models" || return
 
+ 	local bgcolor_model bgcolor_mode bgcolor_usecase color
+	local color_ok='lightgreen'
+	local color_bad='crimson'
+	local color_unbuild='white'
+
+	echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
+	echo '		"http://www.w3.org/TR/html4/loose.dtd">'
+	echo '<html><head><title>build-matrix $NETWORK</title><META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15"></head><body>'
+	echo '<table cellspacing=1 cellpadding=1 border=0>'
+	echo "<thead><tr bgcolor='lightblue'><td>hardware</td><td>update</td><td>usecase</td></thead><tbody>"
+
 	ls -1 | while read -r MODEL; do {
 		cd "$MODEL" && {
+			printf '%s' "<tr><td bgcolor='$color_ok'>$MODEL</td>"
 			for MODE in stable beta testing; do {
 				cd "$MODE" && {
+					[ "$MODE" = 'stable' ] || printf '%s' '<tr><td bgcolor='$color_ok'>&nbsp;</td>'
+					printf '%s' "<td bgcolor='$color_ok'>$MODE</td>"
+
 					ls -1 | while read -r USECASE; do {
-						echo "$MODEL | $MODE | $USECASE"
+						color="$color_unbuild"
+						if   [ -e "$USECASE/info.json" ]; then
+							color="$color_ok"
+						elif [ -e "$USECASE/info.buildlog.tar.xz" ]; then
+							color="$color_bad"
+						fi
+
+						if [ "$FIRST_PRINTED" ]; then
+							printf '%s' '<tr><td bgcolor='$color_ok'>&nbsp;</td><td bgcolor='$color_ok'>&nbsp;</td>'
+							printf '%s' "<td bgcolor='$color'>$USECASE<br></td></tr>"
+						else
+							FIRST_PRINTED='true'
+							printf '%s' "<td bgcolor='$color'>$USECASE<br></td></tr>"
+						fi
 					} done
 					cd ..
 				}
@@ -4733,9 +4762,11 @@ generate_build_matrix()
 			cd ..
 		}
 	} done
+
+	echo '</tbody></table></body></html>'
 }
 
-generate_build_matrix >"$TMPDIR/build_matrix.html"
+generate_build_matrix >'firmware/build_all.html'
 
 #
 # model1 | stable  | usecaseX
@@ -4748,5 +4779,8 @@ generate_build_matrix >"$TMPDIR/build_matrix.html"
 #        |         | usecaseY
 #        |         | usecaseZ
 # model2 | ...
+
+
+
 
 log "[READY] network '$NETWORK' in $DURATION_BUILDTIME sec"
