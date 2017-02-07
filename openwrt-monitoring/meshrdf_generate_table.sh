@@ -4764,7 +4764,7 @@ generate_build_matrix()
 	echo '		"http://www.w3.org/TR/html4/loose.dtd">'
 	echo "<html><head><title>build-matrix $NETWORK @$( date )</title><META HTTP-EQUIV=\"content-type\" CONTENT=\"text/html; charset=ISO-8859-15\"></head><body>"
 	echo '<table cellspacing=1 cellpadding=1 border=0>'
-	echo "<thead><tr bgcolor='lightblue'><td>hardware</td><td>update</td><td>usecase</td></thead><tbody>"
+	echo "<thead><tr bgcolor='lightblue'><td>hardware</td><td>update</td><td>usecase</td><td>OK</td></thead><tbody>"
 
 	ls -1 | while read -r MODEL; do {
 		cd "$MODEL" && {
@@ -4782,12 +4782,20 @@ generate_build_matrix()
 							color="$color_bad"
 						fi
 
+	# TODO:
+	# sed 's/\(.*"firmware_manually_checked":\) "false"\(.*\)/\1 "true"\2/' /var/www/networks/liszt28/firmware/models/Xiaomi\ Miwifi\ mini/testing/Standard\,kalua/info.json
+						if grep -sq '"firmware_manually_checked": "true"' "$USECASE/info.json"; then
+							CELL_FLASHED="<td bgcolor='$color_ok'>&#10004;</td>"	# OK
+						else
+							CELL_FLASHED="<td bgcolor='$color_unbuild'>&mdash;</td>"
+						fi
+
 						if [ "$FIRST_PRINTED" ]; then
 							printf '%s' '<tr><td bgcolor='$color_ok'>&nbsp;</td><td bgcolor='$color_ok'>&nbsp;</td>'
-							printf '%s' "<td bgcolor='$color'>$USECASE<br></td></tr>"
+							printf '%s' "<td bgcolor='$color'>$USECASE<br></td>$CELL_FLASHED</tr>"
 						else
 							FIRST_PRINTED='true'
-							printf '%s' "<td bgcolor='$color'>$USECASE<br></td></tr>"
+							printf '%s' "<td bgcolor='$color'>$USECASE<br></td>$CELL_FLASHED</tr>"
 						fi
 					} done
 					cd ..
