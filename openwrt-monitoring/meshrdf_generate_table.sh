@@ -4515,6 +4515,44 @@ usecase_hash()		# see: _firmware_get_usecase()
 	} done | LC_ALL=C sort | md5sum | cut -d' ' -f1
 }
 
+[ -e "$TMPDIR/build.sh" ] || {
+	wget --no-check-certificate -O "$TMPDIR/build.sh" "$BUILD_SCRIPT_URL" && chmod +x "$TMPDIR/build.sh"
+}
+
+hardware_is_valid()
+{
+	local hardware="$1"
+	local cache="$TMPDIR/build-hardware_valid.txt"
+
+	grep -q ^"is__valid:$hardware|"$ "$cache" && return 0
+	grep -q ^"not_valid:$hardware|"$ "$cache" && return 1
+
+	if $TMPDIR/build.sh --hardware "$hardware" check_valid >/dev/null; then
+		echo "is__valid:$hardware|" >>"$cache"
+		return 0
+	else
+		echo "not_valid:$hardware|" >>"$cache"
+		return 1
+	fi
+}
+
+usecase_is_valid()
+{
+	local usecase="$1"
+	local cache="$TMPDIR/build-usecase_valid.txt"
+
+	grep -q ^"is__valid:$usecase|"$ "$cache" && return 0
+	grep -q ^"not_valid:$usecase|"$ "$cache" && return 1
+
+	if $TMPDIR/build.sh --usecase "$usecase" check_valid >/dev/null; then
+		echo "is__valid:$usecase|" >>"$cache"
+		return 0
+	else
+		echo "not_valid:$usecase|" >>"$cache"
+		return 1
+	fi
+}
+
 mode2rev()
 {
 	case "$1" in
@@ -4572,10 +4610,6 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 	# TODO: show stats: count different models, different usecases, overall jobs and estimated build-time
 
-	[ -e "$TMPDIR/build.sh" ] || {
-		wget --no-check-certificate -O "$TMPDIR/build.sh" "$BUILD_SCRIPT_URL" && chmod +x "$TMPDIR/build.sh"
-	}
-
 	ALREADY_WRITTEN=
 	STABLE=0;BETA=0;TESTING=0;OVERALL=0;OVERALL_READY=0
 	while read -r LINE; do {
@@ -4597,12 +4631,12 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 		USECASE_HASH="$( usecase_hash "$USECASE" )"
 
-		# TODO: speed up by using a cache
-		$TMPDIR/build.sh --hardware "$HARDWARE" check_valid >/dev/null || {
+		hardware_is_valid "$HARDWARE" || {
 			echo "# DEBUG: hardware invalid: '$HARDWARE' - see: $WIFIMAC"
 			continue
 		}
-		$TMPDIR/build.sh --usecase "$USECASE"   check_valid >/dev/null || {
+
+		usecase_is_valid "$USECASE" || {
 			echo "# DEBUG: usecase invalid: '$USECASE' - see: $WIFIMAC"
 			continue
 		}
@@ -4721,14 +4755,14 @@ generate_build_matrix()
 {
 	cd "$PWD/firmware/models" || return
 
- 	local bgcolor_model bgcolor_mode bgcolor_usecase color
+	local bgcolor_model bgcolor_mode bgcolor_usecase color
 	local color_ok='lightgreen'
 	local color_bad='crimson'
 	local color_unbuild='white'
 
 	echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 	echo '		"http://www.w3.org/TR/html4/loose.dtd">'
-	echo '<html><head><title>build-matrix $NETWORK</title><META HTTP-EQUIV="content-type" CONTENT="text/html; charset=ISO-8859-15"></head><body>'
+	echo "<html><head><title>build-matrix $NETWORK @$( date )</title><META HTTP-EQUIV=\"content-type\" CONTENT=\"text/html; charset=ISO-8859-15\"></head><body>"
 	echo '<table cellspacing=1 cellpadding=1 border=0>'
 	echo "<thead><tr bgcolor='lightblue'><td>hardware</td><td>update</td><td>usecase</td></thead><tbody>"
 
