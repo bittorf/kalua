@@ -895,7 +895,7 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 	local funcname='watch_dns_resolution'
 	local testserver='intercity-vpn.de'	# FIXME! use a fallback list
 	local ip line pid pid_fakedns pid_parent pid_main script leases cmdline testdomain dump_core ip_nexthop
-	local marker_watchdog_ok="$PERMDIR/netifd_dhcp_watchdog_ok"
+	local config_file marker_watchdog_ok="$PERMDIR/netifd_dhcp_watchdog_ok"
 
 	_system maintenance_window_active 'pppoe_reconnect' && return 0
 
@@ -915,13 +915,17 @@ _watch_dns_resolution()		# only with existing dnsmasq and reachable internet-gat
 
 	[ -x '/etc/init.d/dnsmasq' ] || return 0
 
-	/etc/init.d/dnsmasq enabled || {
+	if /etc/init.d/dnsmasq enabled; then
+		# prevent restart-loop:
+		for config_file in '/var/etc/dnsmasq.conf'*; do break; done
+		_file age "$config_file" -lt 120 && return 0
+	else
 		ip="$( uci -q get dhcp.@dnsmasq[0].server )"
 		line="nameserver ${ip:-8.8.8.8}"
 		grep -Fq "$line" '/etc/resolv.conf' || echo "$line" >'/etc/resolv.conf'
 
 		return 0
-	}
+	fi
 
 	pid_good()
 	{
