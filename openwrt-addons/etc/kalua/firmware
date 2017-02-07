@@ -1102,9 +1102,16 @@ _firmware_upgrade_is_needed()
 _firmware_download()
 {
 	local funcname='firmware_download'
-	local file="${1:-/tmp/fw}"
+	local marker="$TMPDIR/$funcname"
+	local file="${1:-/tmp/fw}"		# filename or 'is_running'
 
-	[ -e "$file" ] && return 0		# for manually fetching the file and test the hole procedure
+	if   [ "$file" = 'is_running' ]; then
+		test -e "$marker"
+		return $?
+	elif [ -e "$file" ]; then
+		# for manually fetching the file and test the whole procedure
+		return 0
+	fi
 
 	local source="${2:-$( _links firmware_url_get )}"	# url
 	local hash="${3:-$( _links firmware_url_get 'md5' )}"	# checksum
@@ -1115,25 +1122,28 @@ _firmware_download()
 		return 1
 	}
 
-	filehash_is_ok()
+	filehash_ok()
 	{
 		test "$( _file hash "$file" )" = "$hash"
 	}
 
-	while ! filehash_is_ok ; do {
+	while ! filehash_ok ; do {
 		touch "$file"
-		_log it $funcname daemon info "http_get $source: now $( _file size "$file" ) bytes targethash: $hash"
+		_log it $funcname daemon info "http_get '$source' - now $( _file size "$file" ) bytes - targethash: $hash"
+
 		_curl it "$source" 60 "continue $file"
 		_log sleep $funcname 15 step 5
-		 _watch counter "/tmp/fetch_firmware" increment 1 max $maxtry || break
+
+		 _watch counter "$marker" increment 1 max $maxtry || break
 	} done
 
-	if _watch counter "$TMPDIR/$funcname" increment 1 max $maxtry; then
+	if _watch counter "$marker" increment 1 max $maxtry; then
 		_log it $funcname daemon info "[READY] downloading '$file' with $( _file size "$file" ) bytes"
+		rm "$marker"
 		return 0
 	else
 		_log it $funcname daemon info "[ERR] downloading '$file', maximum tries = $maxtry reached, deleting and aborting"
-		rm "$file" /tmp/fetch_firmware
+		rm "$file" "$marker"
 		return 1
 	fi
 }
