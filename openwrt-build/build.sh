@@ -764,7 +764,12 @@ EOF
 		;;
 		'TP-LINK TL-WR841N/ND v1.5'|'TP-LINK TL-WR841N/ND v3'|'TP-LINK TL-WR841N/ND v5'|'TP-LINK TL-WR841N/ND v7')
 			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
-			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
+			if version_is_lede ; then
+				TARGET_SYMBOL="CONFIG_TARGET_ar71xx_generic_tl-wr841-v${version}=y"
+			else
+				TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
+			fi
+
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841nd-v${version}-squashfs-factory.bin"
 		;;
