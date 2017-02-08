@@ -2666,9 +2666,8 @@ apply_symbol()
 
 				# if already config, but with another value?
 				if grep -q ^"$pre=" "$file"; then
-					log "replacing value of '$pre'"
-					log "was: '$old'"
-					log "new: '$symbol'"
+					log "replace: was: '$pre=$old'"
+					log "replace: new: '$symbol'"
 
 					grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
 					echo "$symbol" >>"$file.tmp"		# write symbol
