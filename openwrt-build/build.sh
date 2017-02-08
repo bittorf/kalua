@@ -1681,7 +1681,7 @@ openwrt_download()
 					log "will run: git describe '$line' in dir '$PWD'" debug
 					if info="$( git describe "$line" )"; then
 						# e.g. 'reboot-1492-g637640c' but empty with 'lede-staging'
-						match="$( echo "$line" | cut -d'-' -f2 )"
+						match="$( echo "$line" | cut -d'-' -f1 )"
 
 						if   [ $match -eq $wish ]; then
 							log "get_lede_hash() found $line / $info"
@@ -2139,8 +2139,11 @@ build()
 	[ -n "$DEBUG" ] && make_verbose='V=s'
 
 	buildjobs=$(( $( cpu_count ) + 1 ))
-	# do not stress if we already have load / e.g. gcc-farm
-	[ $CPU_LOAD_INTEGER -ge 100 ] && buildjobs=$(( (buildjobs - 1) / 2 ))
+	[ $CPU_LOAD_INTEGER -ge 100 -a -z "$RELEASE" ] && {
+		# do not stress if we already have load / e.g. gcc-farm
+		buildjobs=$(( (buildjobs - 1) / 2 ))
+	}
+
 	[ -d 'logs' ] && rm -fR 'logs'
 	commandline="--jobs $buildjobs BUILD_LOG=1"
 
