@@ -766,12 +766,13 @@ EOF
 			# http://wiki.openwrt.org/de/toh/tp-link/tl-wr841nd
 			if version_is_lede ; then
 				TARGET_SYMBOL="CONFIG_TARGET_ar71xx_generic_tl-wr841-v${version}=y"
+				FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841-v${version}-squashfs-sysupgrade.bin"
+				FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841-v${version}-squashfs-factory.bin"
 			else
 				TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR841=y'
+				FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841nd-v${version}-squashfs-sysupgrade.bin"
+				FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841nd-v${version}-squashfs-factory.bin"
 			fi
-
-			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr841nd-v${version}-squashfs-sysupgrade.bin"
-			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr841nd-v${version}-squashfs-factory.bin"
 		;;
 		'TP-LINK TL-WR842N/ND v1'|'TP-LINK TL-WR842N/ND v2')
 			# https://wiki.openwrt.org/toh/tp-link/tl-wr842nd
@@ -1201,6 +1202,7 @@ EOF
 	if version_is_lede ; then
 		case "$FILENAME_SYSUPGRADE" in
 			*'-squashfs-'*)
+				# TODO: cut from 'TARGET_SYMBOL' not 'FILENAME_SYSUPGRADE'
 				# e.g. openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
 				device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
 				device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
