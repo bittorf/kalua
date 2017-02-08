@@ -1657,7 +1657,7 @@ openwrt_download()
 			is_valid_githash()
 			{
 				# TODO: truncate length? this only ensure 'is_hex':
-				test "$1" = "$( printf '%s' "$1" | sed 's/[^a-fA-F0-9]//g' )"
+				test "${1:-is_empty}" = "$( printf '%s' "$1" | sed 's/[^a-fA-F0-9]//g' )"
 			}
 
 			# typical entry:
