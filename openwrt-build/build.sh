@@ -1654,6 +1654,12 @@ openwrt_download()
 			# e.g. r12345
 			$funcname 'switch_to_master'
 
+			is_valid_githash()
+			{
+				# TODO: truncate length? this only ensure 'is_hex':
+				test "$1" = "$( printf '%s' "$1" | sed 's/[^a-fA-F0-9]//g' )"
+			}
+
 			# typical entry:
 			# git-svn-id: svn://svn.openwrt.org/openwrt/trunk@39864 3c298f89-4303-0410-b956-a3cf2f4a3e73
 			hash="$( echo "$wish" | cut -b2- )"			# r12345 -> 12345  (remove leading 'r')
@@ -1689,22 +1695,22 @@ openwrt_download()
 				rc=$?	# because of subshell
 
 				[ $rc -eq 0 ] || {
-					log "get_lede_hash() no success in dir: '$( pwd )' - rc: $rc"
+					log "get_lede_hash() no success in dir: '$( pwd )' - rc: $rc, branches:"
 					git branch
-					log "see state above"
+					log "[READY] listing branches"
 					return $rc
 				}
 			}
 
-			[ -z "$hash" ] && {
+			is_valid_githash "$hash" || {
 				hash="$( get_lede_hash "$wish" )"
 
-				if [ -z "$hash" ]; then
+				if is_valid_githash "$hash"; then
+					log "using lede-hash: '$hash'"
+				else
 					log "[ERROR] - unable to find '$wish' - using latest commit"
 					# can happen if 'rXXXXX' is in packages/feeds, just use newest:
 					hash="$( git log -1 --format=%h )"
-				else
-					log "using lede-hash: '$hash'"
 				fi
 			}
 
