@@ -1200,17 +1200,9 @@ EOF
 	log "model: '$model' kernel: '$VERSION_KERNEL' kernel_enforced: '$VERSION_KERNEL_FORCE'"
 
 	apply_symbol 'nuke_config'
-
-# experimental
-#	case "$ARCH" in
-#		*'_'*)
-			# e.g. 'ramips_rt305x'
-			apply_symbol "CONFIG_TARGET_$ARCH_MAIN=y"
-#		;;
-#		*)
-			apply_symbol "CONFIG_TARGET_$ARCH=y"
-#		;;
-#	esac
+	apply_symbol "CONFIG_TARGET_$ARCH_MAIN=y"
+	apply_symbol "CONFIG_TARGET_$ARCH=y"
+	build 'defconfig'
 
 	if version_is_lede ; then
 		case "$FILENAME_SYSUPGRADE" in
@@ -2164,7 +2156,7 @@ build()
 			log "running 'make $option' needed $( calc_time_diff "$t1" "$t2" ) sec"
 
 			while read -r line; do {
-				grep -q ^"$line"$ '.config' || log "is NOT in .config: '$line'"
+				grep -q ^"$line"$ '.config' || log "[ERROR] is NOT in .config: '$line'"
 			} done <'.config.check_during_defconfig'
 			rm '.config.check_during_defconfig'
 		;;
