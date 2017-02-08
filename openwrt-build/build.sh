@@ -1597,7 +1597,7 @@ openwrt_download()
 				# or 'trunk'
 				# or 'switch_to_master'
 				# or 'reset_autocommits'
-	local hash branch commit
+	local hash branch commit match
 	local old_wish="$wish"
 
 	log "apply '$wish'"
@@ -1678,19 +1678,21 @@ openwrt_download()
 						return 1
 					}
 
-					log "will run: git describe '$line' in dir '$( pwd )'"
+					log "will run: git describe '$line' in dir '$PWD'" debug
 					if info="$( git describe "$line" )"; then
 						# e.g. 'reboot-1492-g637640c' but empty with 'lede-staging'
-						case "$info" in
-							*"-$wish-"*)
-								log "get_lede_hash() found $line / $info"
-								echo "$line"
-								return 0
-							;;
-							*)
-								log "no_match: get_lede_hash() found $line / $info"
-							;;
-						esac
+						match="$( echo "$line" | cut -d'-' -f2 )"
+
+						if   [ $match -eq $wish ]; then
+							log "get_lede_hash() found $line / $info"
+							echo "$line"
+							return 0
+						elif [ $match -lt $wish ]; then
+							log "get_lede_hash() give up, $match<$wish"
+							return 1
+						else
+							log "no_match: get_lede_hash() found $line / $info" debug
+						fi
 					else
 						log "get_lede_hash() git describe failed"
 						return 2
