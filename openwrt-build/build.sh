@@ -1740,7 +1740,9 @@ openwrt_download()
 			} done
 		;;
 		'switch_to_master')
+			# e.g. openwrt@4339e5d=r3321
 			branch="$( git branch | grep ^'* openwrt@' | cut -d' ' -f2 )"
+
 			if [ -n "$branch" ]; then
 				if git checkout master >/dev/null; then
 					git branch -D "$branch" || log "[ERR] failed deleting branch '$branch'"
@@ -1770,6 +1772,11 @@ openwrt_download()
 				log "or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git stash clear'"
 
 				git stash list
+			}
+
+			git branch | grep -q ^'\* master'$ || {
+				log "[ERROR] we are NOT on master"
+				return 1
 			}
 		;;
 		*)
