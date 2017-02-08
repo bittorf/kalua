@@ -1212,9 +1212,7 @@ EOF
 				device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
 
 				# e.g. 'ramips_rt305x'
-				apply_symbol "CONFIG_TARGET_${ARCH}_Default is not set"
 				apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
-				apply_symbol "CONFIG_TARGET_PROFILE=\"DEVICE_$device_symbol\""
 			;;
 			*)
 				apply_symbol "$TARGET_SYMBOL"
