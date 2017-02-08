@@ -2662,16 +2662,22 @@ apply_symbol()
 			# not in config with needed value?
 			grep -sq ^"$symbol"$ "$file" || {
 				pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
-				old="$( echo "$symbol" | cut -b $(( ${#pre} + 2 ))- )"
+				old="$( { grep ^"$pre " "$file" || grep ^"$pre=" } | cut -b $(( ${#pre} + 2 ))- )"
 
-				# if already config, but with another value?
-				if grep -q ^"$pre=" "$file"; then
+				# already in config, but with another value?
+				if   grep -q ^"$pre=" "$file"; then
 					log "replace: was: '$pre=$old'"
 					log "replace: new: '$symbol'"
 
 					grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
 					echo "$symbol" >>"$file.tmp"		# write symbol
 					mv   "$file.tmp" "$file"		# ready
+				elif grep -q ^"$pre " "$file"; then
+					log "replace: '$( grep ^"$pre " "$file" )'"
+
+					grep -v ^"$pre " "$file" >"$file.tmp"
+					echo "$symbol" >>"$file.tmp"
+					mv   "$file.tmp" "$file"
 				else
 					echo "$symbol" >>"$file"
 				fi
