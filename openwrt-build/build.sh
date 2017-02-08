@@ -1989,7 +1989,9 @@ EOF
 		destination_info="$server_dir"
 
 		scripts/diffconfig.sh >'info.diffconfig.txt'
-		[ -d 'logs' ] && tar cJf 'info.buildlog.tar.xz' logs/
+
+#		TODO: only upload on ERROR in release-mode
+#		[ -d 'logs' ] && tar cJf 'info.buildlog.tar.xz' logs/
 
 		scp_safe()
 		{
