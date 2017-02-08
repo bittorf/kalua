@@ -1773,16 +1773,22 @@ openwrt_download()
 			lede_fixup
 
 			git stash list | grep -qv '() going to checkout ' && {
-				log "found openwrt-stash, ignore via press 'q'"
-				log "or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git stash clear'"
+				if [ -n "$RELEASE" ]; then
+					git stash clear
+				else
+					log "found openwrt-stash, ignore via press 'q'"
+					log "or use e.g. 'git stash list' OR 'git pop' OR 'git apply stash@{0}' OR 'git stash clear'"
 
-				git stash list
+					git stash list
+				fi
 			}
 
-			git branch | grep -q ^'\* master'$ || {
+			if git branch | grep -q ^'\* master'$ ; then
+				log "[OK] we are on branch 'master' now"
+			else
 				log "[ERROR] we are NOT on master"
 				return 1
-			}
+			fi
 		;;
 		*)
 			log "unknown option '$wish'"
@@ -2623,7 +2629,7 @@ apply_symbol()
 		'CONFIG_'*)
 			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
 			# e.g. CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=64
-			log "CONFIG_-mode => '$symbol'" debug
+			log "CONFIG_-mode => '$symbol'"
 
 			# not in config with needed value?
 			grep -sq ^"$symbol"$ "$file" || {
