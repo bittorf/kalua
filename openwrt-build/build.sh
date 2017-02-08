@@ -2367,7 +2367,7 @@ apply_symbol()
 	local hash tarball_hash rev commit_info
 	local last_commit_unixtime last_commit_date url
 	local file file_original installation sub_profile node
-	local dir pre size1 size2 gain firstline symbol_temp
+	local dir pre old size1 size2 gain firstline symbol_temp
 
 	case "$symbol" in
 		'now')
@@ -2662,10 +2662,11 @@ apply_symbol()
 			# not in config with needed value?
 			grep -sq ^"$symbol"$ "$file" || {
 				pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
+				old="$( echo "$symbol" | cut -b $(( ${#pre} + 1 ))- )"
 
 				# if already config, but with another value?
 				if grep -q ^"$pre=" "$file"; then
-					log "replacing value of '$pre', was: '$symbol'"
+					log "replacing value of '$pre', was: '$old' new: '$symbol'"
 
 					grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
 					echo "$symbol" >>"$file.tmp"		# write symbol
