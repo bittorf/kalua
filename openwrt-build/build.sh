@@ -1683,13 +1683,15 @@ openwrt_download()
 						esac
 					else
 						log "get_lede_hash() git describe failed"
-						return 1
+						return 2
 					fi
 				} done
 				rc=$?	# because of subshell
 
 				[ $rc -eq 0 ] || {
-					log "get_lede_hash() no success in dir: '$( pwd )'"
+					log "get_lede_hash() no success in dir: '$( pwd )' - rc: $rc"
+					git branch
+					log "see state above"
 					return $rc
 				}
 			}
