@@ -2162,6 +2162,11 @@ build()
 			make $make_verbose defconfig >/dev/null || make defconfig
 			get_uptime_in_sec 't2'
 			log "running 'make $option' needed $( calc_time_diff "$t1" "$t2" ) sec"
+
+			while read -r line; do {
+				grep -q ^"$line"$ '.config' || log "is NOT in .config: '$line'"
+			} done <'.config.check_during_defconfig'
+			rm '.config.check_during_defconfig'
 		;;
 		*)
 			[ -n "$MAC80211_CLEAN" ] && {
@@ -2569,7 +2574,7 @@ apply_symbol()
 			register_patch 'init'
 
 			log "$symbol: starting with an empty config"
-			rm "$file"
+			rm -f "$file" "${file}.check_during_defconfig"
 			touch "$file"
 
 			$funcname 'nuke_customdir'
@@ -2583,20 +2588,32 @@ apply_symbol()
 		;;
 	esac
 
+	doublecheck_later()
+	{
+		echo "$1" >>"${file}.check_during_defconfig"
+	}
+
 	case "$symbol" in
 		'kernel')
 			symbol="$symbol_kernel"
+			log "symbolA: $symbol"
+		;;
+		'CONFIG_TARGET_'*)
+			log "symbolB: $symbol"
+			doublecheck_later "$symbol"
 		;;
 		*'=y'|*' is not set')
-			log "symbol: $symbol" debug
+			log "symbolC: $symbol"
+			doublecheck_later "$symbol"
 		;;
 		*)
-			log "symbol: $symbol"
+			log "symbolD: $symbol"
+			doublecheck_later "$symbol"
 		;;
 	esac
 
 	case "$symbol" in
-		'CONFIG_BUSYBOX'*)
+		'CONFIG_BUSYBOX_'*)
 			# maybe unneeded
 			grep -q 'CONFIG_BUSYBOX_CUSTOM=y' "$file" || {
 				log "enabling BUSYBOX_CUSTOM in preparation of '$symbol'"
@@ -2619,6 +2636,7 @@ apply_symbol()
 
 	case "$symbol" in
 		*'=y')
+			log "mode =y: $symbol" debug
 			symbol_temp="$symbol"
 			symbol="$( echo "$symbol" | cut -d'=' -f1 )"
 
@@ -2631,6 +2649,7 @@ apply_symbol()
 			symbol="$symbol_temp"	# for later logging
 		;;
 		*' is not set')
+			log "mode isnotset: $symbol" debug
 			symbol_temp="$symbol"
 			set -- $symbol
 			symbol="$1"
@@ -2646,7 +2665,7 @@ apply_symbol()
 		'CONFIG_'*)
 			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
 			# e.g. CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=64
-			log "CONFIG_-mode => '$symbol'"
+			log "CONFIG_-mode => '$symbol'" debug
 
 			# not in config with needed value?
 			grep -sq ^"$symbol"$ "$file" || {
