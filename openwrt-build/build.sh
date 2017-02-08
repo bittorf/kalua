@@ -1681,7 +1681,7 @@ openwrt_download()
 					log "will run: git describe '$line' in dir '$PWD'" debug
 					if info="$( git describe "$line" )"; then
 						# e.g. 'reboot-1492-g637640c' but empty with 'lede-staging'
-						match="$( echo "$line" | cut -d'-' -f1 )"
+						match="$( echo "$info" | cut -d'-' -f2 )"
 
 						if   [ $match -eq $wish ]; then
 							log "get_lede_hash() found $line / $info"
