@@ -1687,6 +1687,9 @@ openwrt_download()
 								echo "$line"
 								return 0
 							;;
+							*)
+								log "no_match: get_lede_hash() found $line / $info"
+							;;
 						esac
 					else
 						log "get_lede_hash() git describe failed"
