@@ -1678,6 +1678,7 @@ openwrt_download()
 						return 1
 					}
 
+					log "will run: git describe '$line' in dir '$( pwd )'"
 					if info="$( git describe "$line" )"; then
 						# e.g. 'reboot-1492-g637640c' but empty with 'lede-staging'
 						case "$info" in
