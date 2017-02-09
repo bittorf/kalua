@@ -3021,7 +3021,9 @@ build_options_set()
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y'
 				else
 					log '[OK] using full iproute2'
-					apply_symbol 'CONFIG_PACKAGE_ip=y'		# network: routing/redirection: ip
+					test $( openwrt_revision_number_get ) -lt 46831 && {
+						apply_symbol 'CONFIG_PACKAGE_ip=y'	# network: routing/redirection: ip
+					}	# parser_ignore
 					apply_symbol 'CONFIG_PACKAGE_ip-full=y'		# since lede 2016-oct-13
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
 #					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y'		# FIXME
