@@ -2592,28 +2592,16 @@ apply_symbol()
 			log "symbolB: $symbol"
 #			doublecheck_later "$symbol"
 		;;
-		'CONFIG_TARGET_'*)
+		*'=y')
 			log "symbolC: $symbol"
 			doublecheck_later "$symbol"
 		;;
-		'CONFIG_BUSYBOX_'*)
-			log "symbolD: $symbol"
-			doublecheck_later "$symbol"
-		;;
-		'CONFIG_PACKAGE_'*)
-			log "symbolE: $symbol"
-			doublecheck_later "$symbol"
-		;;
-		*'=y')
-			log "symbolF: $symbol"
-			doublecheck_later "$symbol"
-		;;
 		*' is not set')
-			log "symbolG: $symbol"
+			log "symbolD: $symbol"
 			doublecheck_later "# $symbol"
 		;;
 		*)
-			log "symbolH: $symbol"
+			log "symbolE: $symbol"
 			doublecheck_later "$symbol"
 		;;
 	esac
