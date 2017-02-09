@@ -2150,9 +2150,13 @@ build()
 			log "running 'make $option' needed $( calc_time_diff "$t1" "$t2" ) sec"
 
 			while read -r line; do {
-				grep -q ^"$line"$ '.config' || log "[ERROR] is NOT in .config: '$line'"
-			} done <'.config.check_during_defconfig'
-			rm '.config.check_during_defconfig'
+				if grep -q ^"$line"$ '.config'; then
+					log "[OK] found in .config: '$line'"
+				else
+					log "[ERROR] is NOT in .config: '$line'"
+				fi
+			} done <'.config.check_after_defconfig'
+			rm '.config.check_after_defconfig'
 		;;
 		*)
 			[ -n "$MAC80211_CLEAN" ] && {
@@ -2560,7 +2564,7 @@ apply_symbol()
 			register_patch 'init'
 
 			log "$symbol: starting with an empty config"
-			rm -f "$file" "${file}.check_during_defconfig"
+			rm -f "$file" "${file}.check_after_defconfig"
 			touch "$file"
 
 			$funcname 'nuke_customdir'
@@ -2576,7 +2580,7 @@ apply_symbol()
 
 	doublecheck_later()
 	{
-		echo "$1" >>"${file}.check_during_defconfig"
+		echo "$1" >>"${file}.check_after_defconfig"
 	}
 
 	case "$symbol" in
@@ -2584,24 +2588,32 @@ apply_symbol()
 			symbol="$symbol_kernel"
 			log "symbolA: $symbol"
 		;;
-		'CONFIG_TARGET_'*)
+		'CONFIG_KERNEL_'*)
 			log "symbolB: $symbol"
-			doublecheck_later "$symbol"
+#			doublecheck_later "$symbol"
 		;;
-		'CONFIG_BUSYBOX_'*)
+		'CONFIG_TARGET_'*)
 			log "symbolC: $symbol"
 			doublecheck_later "$symbol"
 		;;
-		'CONFIG_PACKAGE_'*)
+		'CONFIG_BUSYBOX_'*)
 			log "symbolD: $symbol"
 			doublecheck_later "$symbol"
 		;;
-		*'=y'|*' is not set')
+		'CONFIG_PACKAGE_'*)
 			log "symbolE: $symbol"
 			doublecheck_later "$symbol"
 		;;
-		*)
+		*'=y')
 			log "symbolF: $symbol"
+			doublecheck_later "$symbol"
+		;;
+		*' is not set')
+			log "symbolG: $symbol"
+			doublecheck_later "# $symbol"
+		;;
+		*)
+			log "symbolH: $symbol"
 			doublecheck_later "$symbol"
 		;;
 	esac
@@ -4060,7 +4072,7 @@ while [ -n "$1" ]; do {
 			URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 
 			CRC_OLD="$( md5sum <"$ME" )"
-			if wget --cache=off -O "$ME.tmp" "$URL"; then		# FIXME: --cache = GNU
+			if wget --no-cache -O "$ME.tmp" "$URL"; then		# FIXME: --cache = GNU
 				CRC_NEW="$( md5sum <"$ME.tmp" )"
 				if [ "$CRC_OLD" = "$CRC_NEW" ]; then
 					rm "$ME.tmp"
