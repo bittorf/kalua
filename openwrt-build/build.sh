@@ -2604,6 +2604,7 @@ apply_symbol()
 			grep -q 'CONFIG_BUSYBOX_CUSTOM=y' "$file" || {
 				log "enabling BUSYBOX_CUSTOM in preparation of '$symbol'"
 				echo 'CONFIG_BUSYBOX_CUSTOM=y' >>"$file"
+				doublecheck_later 'CONFIG_BUSYBOX_CUSTOM=y'
 			}
 		;;
 	esac
@@ -2614,7 +2615,7 @@ apply_symbol()
 			if [ -e "$file" ]; then
 				log "kernel-symbol: '$symbol' to '$file'"
 			else
-				log "kernel-symbol: '$symbol' - file missing: '$file'"
+				log "[ERROR] kernel-symbol: '$symbol' - file missing: '$file'"
 				return 1
 			fi
 		;;
