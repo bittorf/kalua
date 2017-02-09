@@ -1946,13 +1946,20 @@ copy_firmware_files()
 	# for firmware-downloader: (only symlink)
 	# /var/www/networks/liszt28/firmware/models/TP-LINK+TL-WR1043ND/testing/.49c4b5bf00fd398fba251a59f628de60.bin
 
-	[ -n "$RELEASE" -a -e "$file" ] && {
-		checksum_md5="$( md5sum "$file" | cut -d' ' -f1 )"
-		checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
-		file_size="$( wc -c <"$file" )"
+	[ -n "$RELEASE" ] && {
+		if [ -e "$file" ]; then
+			checksum_md5="$( md5sum "$file" | cut -d' ' -f1 )"
+			checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
+			file_size="$( wc -c <"$file" )"
+		else
+			touch "$file"
+			checksum_md5='deadbeef'
+			checksum_sha256='deadbeef'
+			file_size='0'
+		fi
 
 		usign_bin='./staging_dir/host/bin/usign'
-		[ -e "$usign_bin" ] && {
+		if [ -e "$usign_bin" -a $file_size -gt 0 ]; then
 			usign_privkey='../build.privkey'
 			usign_pubkey='../build.pubkey'
 
@@ -1961,7 +1968,9 @@ copy_firmware_files()
 			}
 
 			usign_signature="$( $usign_bin -S -m "$file" -s "$usign_privkey" -x - | grep -v ^'untrusted comment' )"
-		}
+		else
+			usign_signature='no-signature'
+		fi
 
 		# TODO: keep factory + sysupgrade in sync
 		# TODO: nice browsing like 'https://weimarnetz.de/freifunk/firmware/nightlies/ar71xx/'
