@@ -3016,7 +3016,7 @@ build_options_set()
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
 #					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y'		# FIXME
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_IP is not set'
-					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE is not set'
+#					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE is not set'
 				fi
 
 				apply_symbol 'CONFIG_PACKAGE_kmod-ipip=y'
@@ -4062,7 +4062,7 @@ while [ -n "$1" ]; do {
 			URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 
 			CRC_OLD="$( md5sum <"$ME" )"
-			if wget --no-cache -O "$ME.tmp" "$URL"; then		# FIXME: --cache = GNU
+			if wget --no-cache --user-agent 'AmigaVoyager/2.95 (compatible; MC680x0; AmigaOS)' -O "$ME.tmp" "$URL"; then
 				CRC_NEW="$( md5sum <"$ME.tmp" )"
 				if [ "$CRC_OLD" = "$CRC_NEW" ]; then
 					rm "$ME.tmp"
