@@ -1155,9 +1155,6 @@ EOF
 		esac
 	}
 
-	# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
-	HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | tr '/' ':' )"
-
 	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
 	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
 		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
@@ -4128,6 +4125,10 @@ while [ -n "$1" ]; do {
 			# exact match in our list?
 			if target_hardware_set 'list' 'plain' | grep -q ^"$2"$ ; then
 				HARDWARE_MODEL="$2"
+
+				# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
+				HARDWARE_MODEL_FILENAME="$( echo "$HARDWARE_MODEL" | tr '/' ':' )"
+
 				[ "$3" = 'check_valid' ] && exit 0
 			else
 				# ARG3 = e.g. option 'plain' or 'json'
@@ -4252,7 +4253,7 @@ feeds_adjust_version "$FEEDSTIME" "$FEEDSNAME"
 
 SPECIAL_OPTIONS=
 [ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$LIST_USER_OPTIONS" -a "$HARDWARE_MODEL" ] && \
-	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${LIST_USER_OPTIONS}_${HARDWARE_MODEL}"
+	BACKUP_DOTCONFIG="KALUA_DOTCONFIG_${VERSION_OPENWRT}_${LIST_USER_OPTIONS}_${HARDWARE_MODEL_FILENAME}"
 
 # FIXME! disabled for now, we must at least apply kalua-patchset
 if [ -e "x$BACKUP_DOTCONFIG" ]; then
