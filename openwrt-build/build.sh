@@ -3495,7 +3495,6 @@ EOF
 			;;
 			'noFW')
 				apply_symbol 'CONFIG_PACKAGE_firewall is not set'	# base-system: firewall3 *off*
-				apply_symbol 'CONFIG_DEFAULT_firewall is not set'	# needed?
 			;;
 			'squash64'|'squash256'|'squash1024')
 				# smaller -> bigger image, but lowering ram-usage
