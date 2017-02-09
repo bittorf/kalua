@@ -2588,12 +2588,20 @@ apply_symbol()
 			log "symbolB: $symbol"
 			doublecheck_later "$symbol"
 		;;
-		*'=y'|*' is not set')
+		'CONFIG_BUSYBOX_'*)
 			log "symbolC: $symbol"
 			doublecheck_later "$symbol"
 		;;
-		*)
+		'CONFIG_PACKAGE_'*)
 			log "symbolD: $symbol"
+			doublecheck_later "$symbol"
+		;;
+		*'=y'|*' is not set')
+			log "symbolE: $symbol"
+			doublecheck_later "$symbol"
+		;;
+		*)
+			log "symbolF: $symbol"
 			doublecheck_later "$symbol"
 		;;
 	esac
@@ -2604,7 +2612,6 @@ apply_symbol()
 			grep -q 'CONFIG_BUSYBOX_CUSTOM=y' "$file" || {
 				log "enabling BUSYBOX_CUSTOM in preparation of '$symbol'"
 				echo 'CONFIG_BUSYBOX_CUSTOM=y' >>"$file"
-				doublecheck_later 'CONFIG_BUSYBOX_CUSTOM=y'
 			}
 		;;
 	esac
