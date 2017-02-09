@@ -2364,7 +2364,7 @@ apply_symbol()
 	local symbol_kernel="$2"
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
-	local hash tarball_hash rev commit_info
+	local hash tarball_hash rev commit_info i
 	local last_commit_unixtime last_commit_date url
 	local file file_original installation sub_profile node
 	local dir pre old size1 size2 gain firstline symbol_temp both_files
@@ -2592,7 +2592,6 @@ apply_symbol()
 		;;
 		'CONFIG_KERNEL_'*)
 			log "symbolB: $symbol"
-#			doublecheck_later "$symbol"
 		;;
 		*'=y')
 			log "symbolC: $symbol"
@@ -2613,7 +2612,9 @@ apply_symbol()
 			# maybe unneeded
 			grep -q 'CONFIG_BUSYBOX_CUSTOM=y' "$file" || {
 				log "enabling BUSYBOX_CUSTOM in preparation of '$symbol'"
+
 				echo 'CONFIG_BUSYBOX_CUSTOM=y' >>"$file"
+				doublecheck_later 'CONFIG_BUSYBOX_CUSTOM=y'
 			}
 		;;
 	esac
@@ -2640,7 +2641,13 @@ apply_symbol()
 		;;
 	esac
 
+	i=0
 	for file in $both_files; do {
+		i=$(( i + 1 ))
+		# ugly hack!
+		# in 2nd / generic config, we need the short name:
+		[ $i -eq 2 ] && symbol="$( echo "$symbol" | sed 's/CONFIG_KERNEL_/CONFIG_/' )"
+
 		if [ -e "$file" ]; then
 			log "working on file '$file'"
 		else
