@@ -3454,8 +3454,6 @@ EOF
 			'noPPPoE')
 				apply_symbol 'CONFIG_PACKAGE_ppp is not set'		# network: ppp
 				apply_symbol 'CONFIG_PACKAGE_kmod-ppp is not set'	# kernel-modules: network-support: ppp
-				apply_symbol 'CONFIG_PACKAGE_kmod-pppoe is not set'	# needed?
-				apply_symbol 'CONFIG_PACKAGE_kmod-pppox is not set'	# needed?
 			;;
 			'noPrintK')
 				# autoselected from 'noDebug'
@@ -4061,7 +4059,7 @@ while [ -n "$1" ]; do {
 			URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
 
 			CRC_OLD="$( md5sum <"$ME" )"
-			if wget --no-cache --user-agent 'AmigaVoyager/2.95 (compatible; MC680x0; AmigaOS)' -O "$ME.tmp" "$URL"; then
+			if wget --no-cache --user-agent 'AmigaVoyager/2.95 (compatible; MC680x0; AmigaOS)' -SO "$ME.tmp" "$URL"; then
 				CRC_NEW="$( md5sum <"$ME.tmp" )"
 				if [ "$CRC_OLD" = "$CRC_NEW" ]; then
 					rm "$ME.tmp"
