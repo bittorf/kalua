@@ -2367,7 +2367,7 @@ apply_symbol()
 	local hash tarball_hash rev commit_info
 	local last_commit_unixtime last_commit_date url
 	local file file_original installation sub_profile node
-	local dir pre old size1 size2 gain firstline symbol_temp
+	local dir pre old size1 size2 gain firstline symbol_temp both_files
 
 	case "$symbol" in
 		'now')
@@ -2621,80 +2621,95 @@ apply_symbol()
 	case "$symbol" in
 		'CONFIG_KERNEL_'*)
 			file="$( kconfig_file )"
+
 			if [ -e "$file" ]; then
 				log "kernel-symbol: '$symbol' to '$file'"
+
+				# e.g. ar71xx + generic
+				# /home/bastian/ledebot/source/target/linux/ar71xx/config-4.4
+				# /home/bastian/ledebot/source/target/linux/generic/config-4.4
+				both_files="$( echo "$file" | sed "s|/$ARCH_MAIN/|/generic/|" )"
+				both_files="$file $both_files"
 			else
 				log "[ERROR] kernel-symbol: '$symbol' - file missing: '$file'"
 				return 1
 			fi
 		;;
+		*)
+			both_files="$file"
+		;;
 	esac
 
-	case "$symbol" in
-		*'=y')
-			log "mode =y: $symbol" debug
-			symbol_temp="$symbol"
-			symbol="$( echo "$symbol" | cut -d'=' -f1 )"
+	for file in $both_files; do {
+		log "working on file '$file'"
 
-			if grep -sq ^"# $symbol is not set" "$file"; then
-				search_and_replace "$file" "^# $symbol is not set" "$symbol=y"
-			else
-				grep -sq ^"$symbol=y"$ "$file" || echo >>"$file" "$symbol=y"
-			fi
+		case "$symbol" in
+			*'=y')
+				log "mode =y: $symbol" debug
+				symbol_temp="$symbol"
+				symbol="$( echo "$symbol" | cut -d'=' -f1 )"
 
-			symbol="$symbol_temp"	# for later logging
-		;;
-		*' is not set')
-			log "mode isnotset: $symbol" debug
-			symbol_temp="$symbol"
-			set -- $symbol
-			symbol="$1"
-
-			if grep -sq ^"$symbol=y" "$file"; then
-				search_and_replace "$file" "^$symbol=y" "# $symbol is not set"
-			else
-				grep -sq "$symbol" "$file" || echo >>"$file" "# $*"
-			fi
-
-			symbol="$symbol_temp"	# for later logging
-		;;
-		'CONFIG_'*)
-			# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
-			# e.g. CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=64
-			log "CONFIG_-mode => '$symbol'" debug
-
-			# not in config with needed value?
-			grep -sq ^"$symbol"$ "$file" || {
-				pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
-				old="$( grep ^"$pre " "$file" || grep ^"$pre=" "$file" )"
-				old="$( echo "$old" | cut -b $(( ${#pre} + 2 ))- )"
-
-				# already in config, but with another value?
-				if   grep -q ^"$pre=" "$file"; then
-					log "replace: was: '$pre=$old'"
-					log "replace: new: '$symbol'"
-
-					grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
-					echo "$symbol" >>"$file.tmp"		# write symbol
-					mv   "$file.tmp" "$file"		# ready
-				elif grep -q ^"$pre " "$file"; then
-					log "replace: '$( grep ^"$pre " "$file" )'"
-
-					grep -v ^"$pre " "$file" >"$file.tmp"
-					echo "$symbol" >>"$file.tmp"
-					mv   "$file.tmp" "$file"
+				if grep -sq ^"# $symbol is not set" "$file"; then
+					search_and_replace "$file" "^# $symbol is not set" "$symbol=y"
 				else
-					echo "$symbol" >>"$file"
+					grep -sq ^"$symbol=y"$ "$file" || echo >>"$file" "$symbol=y"
 				fi
-			}
-		;;
-	esac
 
-	case "$symbol" in
-		'CONFIG_KERNEL_'*)
-			log "[OK] kconfig-symbol: $symbol" gitadd "$file"
-		;;
-	esac
+				symbol="$symbol_temp"	# for later logging
+			;;
+			*' is not set')
+				log "mode isnotset: $symbol" debug
+				symbol_temp="$symbol"
+				set -- $symbol
+				symbol="$1"
+
+				if grep -sq ^"$symbol=y" "$file"; then
+					search_and_replace "$file" "^$symbol=y" "# $symbol is not set"
+				else
+					grep -sq "$symbol" "$file" || echo >>"$file" "# $*"
+				fi
+
+				symbol="$symbol_temp"	# for later logging
+			;;
+			'CONFIG_'*)
+				# e.g. CONFIG_B43_FW_SQUASH_PHYTYPES="G"
+				# e.g. CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=64
+				log "CONFIG_-mode => '$symbol'" debug
+
+				# not in config with needed value?
+				grep -sq ^"$symbol"$ "$file" || {
+					pre="$( echo "$symbol" | cut -d'=' -f1 )"	# without '=64' or '="G"'
+					old="$( grep ^"$pre " "$file" || grep ^"$pre=" "$file" )"
+					old="$( echo "$old" | cut -b $(( ${#pre} + 2 ))- )"
+
+					# already in config, but with another value?
+					if   grep -q ^"$pre=" "$file"; then
+						log "replace: was: '$pre=$old'"
+						log "replace: new: '$symbol'"
+
+						grep -v ^"$pre=" "$file" >"$file.tmp"	# exclude line
+						echo "$symbol" >>"$file.tmp"		# write symbol
+						mv   "$file.tmp" "$file"		# ready
+					elif grep -q ^"$pre " "$file"; then
+						log "replace: '$( grep ^"$pre " "$file" )'"
+
+						grep -v ^"$pre " "$file" >"$file.tmp"
+						echo "$symbol" >>"$file.tmp"
+						mv   "$file.tmp" "$file"
+					else
+						echo "$symbol" >>"$file"
+					fi
+				}
+			;;
+		esac
+
+		case "$symbol" in
+			'CONFIG_KERNEL_'*)
+				log "[OK] kconfig-symbol: $symbol" gitadd "$file"
+			;;
+		esac
+
+	} done
 }
 
 serialize_comma_list()
