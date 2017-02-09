@@ -2140,23 +2140,28 @@ build()
 			rm -fR "bin/$ARCH_MAIN/packages" 2>/dev/null
 		;;
 		'defconfig')
-			log "running 'make defconfig'" debug
-			[ -f '.config' ] && [ -n "$DEBUG" -a $( wc -l <'.config' ) -lt 10 ] && cat '.config'
-			log "end of .config" debug
+			if [ -e '.config.check_after_defconfig' ]; then
+				log "running 'make defconfig'"
 
-			get_uptime_in_sec 't1'
-			make $make_verbose defconfig >/dev/null || make defconfig
-			get_uptime_in_sec 't2'
-			log "running 'make $option' needed $( calc_time_diff "$t1" "$t2" ) sec"
+				[ -f '.config' ] && [ -n "$DEBUG" -a $( wc -l <'.config' ) -lt 10 ] && cat '.config'
+				log "end of .config" debug
 
-			while read -r line; do {
-				if grep -q ^"$line"$ '.config'; then
-					log "[OK] found in .config: '$line'"
-				else
-					log "[ERROR] is NOT in .config: '$line'"
-				fi
-			} done <'.config.check_after_defconfig'
-			rm '.config.check_after_defconfig'
+				get_uptime_in_sec 't1'
+				make $make_verbose defconfig >/dev/null || make defconfig
+				get_uptime_in_sec 't2'
+				log "running 'make $option' needed $( calc_time_diff "$t1" "$t2" ) sec"
+
+				while read -r line; do {
+					if grep -q ^"$line"$ '.config'; then
+						log "[OK] found in .config: '$line'"
+					else
+						log "[ERROR] is NOT in .config: '$line'"
+					fi
+				} done <'.config.check_after_defconfig'
+				rm '.config.check_after_defconfig'
+			else
+				log "no need for running 'make defconfig' - no changes"
+			fi
 		;;
 		*)
 			[ -n "$MAC80211_CLEAN" ] && {
