@@ -2641,7 +2641,11 @@ apply_symbol()
 	esac
 
 	for file in $both_files; do {
-		log "working on file '$file'"
+		if [ -e "$file" ]; then
+			log "working on file '$file'"
+		else
+			log "[ERROR] file not found '$file'"
+		fi
 
 		case "$symbol" in
 			*'=y')
@@ -3446,7 +3450,9 @@ build_options_set()
 			;;
 			'noOPKG')
 				apply_symbol 'CONFIG_PACKAGE_opkg is not set'		# base-system: opkg
-				apply_symbol 'CONFIG_PACKAGE_usign is not set'		# since r45283 - FIXME! still in image
+
+				apply_symbol 'CONFIG_SIGNED_PACKAGES is not set'
+				apply_symbol 'CONFIG_PACKAGE_usign is not set'		# since r45283
 
 				mkdir -p 'files/etc'
 
