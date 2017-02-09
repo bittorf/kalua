@@ -3006,6 +3006,7 @@ build_options_set()
 					test $( openwrt_revision_number_get ) -lt 46829 && return 1
 
 					# is busybox 'ip' included/default?
+#					grep -q ^'CONFIG_BUSYBOX_CONFIG_IP=y' '.config'
 					grep -q ^'CONFIG_BUSYBOX_DEFAULT_IP=y' '.config'
 				}	# parser_ignore
 
@@ -3024,8 +3025,7 @@ build_options_set()
 					apply_symbol 'CONFIG_PACKAGE_ip-full=y'		# since lede 2016-oct-13
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
 #					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y'		# FIXME
-					apply_symbol 'CONFIG_BUSYBOX_DEFAULT_IP is not set'
-					apply_symbol 'CONFIG_BUSYBOX_CONIG_IP is not set'
+					apply_symbol 'CONFIG_BUSYBOX_CONFIG_IP is not set'
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE is not set'
 				fi
 
