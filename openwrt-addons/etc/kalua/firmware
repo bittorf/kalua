@@ -815,16 +815,19 @@ _firmware_burn()
 	local FILE="${1:-/tmp/fw}"
 	local FUNC="firmware_burn"
 	local funcname='firmware_burn'
-	local entry pause=
-
-	if [ -e "$TMPDIR/$funcname" ]; then
-		return 1
-	else
-		touch "$TMPDIR/$funcname"
-	fi
+	local entry fw_size fw_hash pause=
 
 	if [ -e "$FILE" ]; then
+		# locking:
+		if [ -e "$TMPDIR/$funcname" ]; then
+			return 1
+		else
+			touch "$TMPDIR/$funcname"
+		fi
+
 		_log remote "$funcname() started using file '$FILE' on '$HARDWARE'"
+		fw_size="$( _file size "$FILE" )"
+		fw_hash="$( _file hash "$FILE" )"	# md5
 	else
 		return 1
 	fi
@@ -957,7 +960,7 @@ _firmware_burn()
 				echo "fakelog: $txt" >/dev/console
 			} done
 		else
-			echo "fakelog: $*" >/dev/console
+			echo "fakelog: $txt" >/dev/console
 		fi
 	}
 
@@ -1000,7 +1003,27 @@ _firmware_burn()
 	sleep_now="/bin/echo sleeping_90_sec >/dev/console; /bin/sleep 90"
 	wait4noload="read -r load </proc/loadavg;/bin/echo cpu:\$load >/dev/console;case \$load in 0.0*|0.1*|0.2*);;*)/sbin/reboot -f;;esac"
 	#
+	check_size="$( test \$( /usr/bin/wc -c <$FILE ) -eq $fw_size || /sbin/reboot -f )"
+	check_hash="$( test \$( /usr/bin/md5sum <$FILE | /usr/bin/cut -d' ' -f1 ) = $fw_hash || /sbin/reboot -f )"
+	check_file="$check_size; $check_hash"
 	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3; $sleep_now; $wait4noload"
+	cmds="/bin/echo FIRECRON >/dev/console; /bin/sleep 10; rm /etc/crontabs/root; killall crond; $cmds"
+	cmds="$cmds; $check_file; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f"
+
+	{
+		echo '#!/bin/sh'
+		echo
+		echo "$cmds"
+		echo
+		echo "# ready"
+	} >/tmp/do_sysupgrade.sh
+
+	cat /tmp/do_sysupgrade.sh >/dev/console
+	chmod +x /tmp/do_sysupgrade.sh
+	sh -n /tmp/do_sysupgrade.sh || {
+		_log "error in '/tmp/do_sysupgrade.sh'"
+		/sbin/reboot -f
+	}
 
 	# using this way, we have enough free RAM, e.g.
 	# 4220kb before sysupgrading with an 3396kb file in RAM-disk on a 16mb-Linksys with r?????
@@ -1010,9 +1033,8 @@ _firmware_burn()
 	# - unmounting jffs2/unneeded filesystems
 	# - reducing disk-buffers?
 
-		cat >/etc/crontabs/root <<EOF
-* * * * * /bin/echo FIRECRON >/dev/console; rm /etc/crontabs/root; killall crond; $cmds; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f
-EOF
+	echo >/etc/crontabs/root '* * * * * /tmp/do_sysupgrade.sh'
+
 	cat /etc/crontabs/root >/dev/console
 	/usr/sbin/crond -L /dev/null
 
