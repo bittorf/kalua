@@ -5,7 +5,7 @@
 # - force feed via --feed XY --feed AB
 # - only add feedXY if usecase needs it -> feed-dependency in usecase
 # - simulate apply-run: show symbols/tree
-# - usecases: noUSB, noIPTables, noIPv6, Failsafe (like sven-ola -> via kernel-commandline), noJFFS2, noSQFS
+# - usecases: noIPTables, noIPv6, Failsafe (like sven-ola -> via kernel-commandline), noJFFS2, noSQFS
 # - build release-dir
 # - autodeps for kalua-functions and strip unneeded ones, when e.g. db() is not needed?
 # - include/renew patches for awk-removal
@@ -2992,6 +2992,11 @@ build_options_set()
 #				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 
+				usecase_has 'USB' || {
+					log "[OK] autoselecting usecase 'noUSB' in 'Small'-mode"
+					$funcname subcall 'noUSB'
+				}	# parser_ignore
+
 #				[ "$ARCH" = 'ar71xx' ] && {
 #					$funcname subcall 'revert46432'		# FIXME! keep kernel 3.18.19
 #					$funcname subcall 'revert46553'		# dito
@@ -3056,6 +3061,12 @@ build_options_set()
 				else
 					log "[ERR] commit $rev not found, ignoring"
 				fi
+			;;
+			'noUSB')
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-core is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-ledtrig-usbport is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb-ohci is not set'
+				apply_symbol 'CONFIG_PACKAGE_kmod-usb2 is not set'
 			;;
 			'iproute2')
 				# TODO: do not include the 'ip neigh' patch with new busybox (e.g. v1.24.1),
