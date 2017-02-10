@@ -994,21 +994,27 @@ _firmware_burn()
 	_firmware remove_kmodules all
 	ip -oneline address show | _log it $funcname daemon info
 
-	getmem="echo 3 >/proc/sys/vm/drop_caches; while read -r L; do case \$L in MemAvailable:*|Active:*) break;; esac; done </proc/meminfo"
-	msg1="/bin/netmsg $LANBRC \"$HOSTNAME: before_delifs: \$L\"; /bin/echo \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
-	delifs="for I in $removeable_interfaces; do /bin/echo \"ip link set dev \$I down\"; ip link set dev \$I down; /bin/echo \"\$I is down\"; done"
-	msg2="/bin/echo \"$HOSTNAME: after_delifs: \$L\" >/dev/console; /bin/echo ip_START >/dev/console; ip a >/dev/console; /bin/echo ip_END >/dev/console"
-	# FIXME! reboot is disabled
-	msg3="ip a | grep . && { ip a >>$PERMLOG; sync; echo /sbin/reboot -f; }; /bin/cat /proc/net/dev >/dev/console"
-	sleep_now="/bin/echo sleeping_90_sec >/dev/console; /bin/sleep 90"
-	wait4noload="read -r load </proc/loadavg;/bin/echo cpu:\$load >/dev/console;case \$load in 0.0*|0.1*|0.2*);;*)/sbin/reboot -f;;esac"
+	app()
+	{
+		# a portable 'which' / show full path
+		command -v "$1"
+	}
+
+	getmem="$(app echo) 3 >/proc/sys/vm/drop_caches; while read -r L; do case \$L in MemAvailable:*|Active:*) break;; esac; done </proc/meminfo"
+	msg1="$(app netmsg) $LANBRC \"$HOSTNAME: before_delifs: \$L\"; $(app echo) \"$HOSTNAME: before_delifs: \$L\" >/dev/console"
+	delifs="for I in $removeable_interfaces; do $(app echo) \"ip link set dev \$I down\"; $(app ip) link set dev \$I down; $(app echo) \"\$I is down\"; done"
+	msg2="$(app echo) \"$HOSTNAME: after_delifs: \$L\" >/dev/console; $(app echo) ip_START >/dev/console; $(app ip) a >/dev/console; $(app echo) ip_END >/dev/console"
+	# FIXME! in msg3 the 'reboot' is disabled - too often triggers:
+	msg3="$(app ip) a | grep . && { $(app ip) a >>$PERMLOG; sync; $(app echo) $(app reboot) -f; }; $(app cat) /proc/net/dev >/dev/console"
+	sleep_now="$(app echo) sleeping_90_sec >/dev/console; $(app sleep) 90"
+	wait4noload="read -r load </proc/loadavg; $(app echo) cpu:\$load >/dev/console;case \$load in 0.0*|0.1*|0.2*);;*)$(app reboot) -f;;esac"
 	#
-	check_size="test \$( /usr/bin/wc -c <$FILE ) -eq $fw_size || /sbin/reboot -f"
-	check_hash="test \$( /usr/bin/md5sum <$FILE | /usr/bin/cut -d' ' -f1 ) = $fw_hash || /sbin/reboot -f"
+	check_size="test \$( $(app wc) -c <$FILE ) -eq $fw_size || $(app reboot) -f"
+	check_hash="test \$( $(app md5sum) <$FILE | $(app cut) -d' ' -f1 ) = $fw_hash || $(app reboot) -f"
 	check_file="$check_size; $check_hash"
 	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3; $sleep_now; $wait4noload"
-	cmds="/bin/echo FIRECRON >/dev/console; /bin/sleep 10; rm /etc/crontabs/root; killall crond; $cmds"
-	cmds="$cmds; $check_file; /sbin/sysupgrade -v $FILE; /bin/sleep 60; /sbin/reboot -f"
+	cmds="$(app echo) FIRECRON >/dev/console; $(app sleep) 10; rm /etc/crontabs/root; $(app killall) crond; $cmds"
+	cmds="$cmds; $check_file; $(app sysupgrade) -v $FILE; $(app sleep) 60; $(app reboot) -f"
 
 	{
 		echo '#!/bin/sh'
