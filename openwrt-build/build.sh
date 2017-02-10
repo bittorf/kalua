@@ -1202,8 +1202,9 @@ EOF
 				# TODO: cut from 'TARGET_SYMBOL' not 'FILENAME_SYSUPGRADE'
 				# e.g. openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
 				# e.g. openwrt-ath25-ubnt2-combined.squashfs.img
+				# e.g. openwrt-ath25-ubnt2-squashfs-sysupgrade.bin
 				case "$FILENAME_SYSUPGRADE" in
-					*'combined'*)
+					*'ath25'*)
 						device_symbol="$( echo "$FILENAME_SYSUPGRADE" | cut -d'-' -f3 )"
 					;;
 					*)
