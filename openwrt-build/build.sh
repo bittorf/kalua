@@ -2669,6 +2669,13 @@ apply_symbol()
 
 	case "$symbol" in
 		'CONFIG_KERNEL_'*)
+			# ugly and very special
+			if [ "$symbol" = 'CONFIG_KERNEL_PRINTK is not set' ]; then
+				file_original="$file"
+			else
+				file_original=
+			fi
+
 			file="$( kconfig_file )"
 
 			if [ -e "$file" ]; then
@@ -2678,7 +2685,7 @@ apply_symbol()
 				# /home/bastian/ledebot/source/target/linux/ar71xx/config-4.4
 				# /home/bastian/ledebot/source/target/linux/generic/config-4.4
 				both_files="$( echo "$file" | sed "s|/$ARCH_MAIN/|/generic/|" )"
-				both_files="$file $both_files"
+				both_files="$file $both_files $file_original"
 			else
 				log "[ERROR] kernel-symbol: '$symbol' - file missing: '$file'"
 				return 1
