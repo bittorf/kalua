@@ -1832,7 +1832,7 @@ copy_firmware_files()
 	local attic="bin/$ARCH_MAIN/attic"
 	local file file_size checksum_md5 checksum_sha256 rootfs server_dir server
 	local destination destination_scpsafe destination_info destination_info_scpsafe pre
-	local usign_bin usign_pubkey usign_privkey usign_signature myhash
+	local usign_bin usign_pubkey usign_privkey usign_signature myhash mylogdir
 	local err=0
 
 	mkdir -p "$attic"
@@ -1959,16 +1959,17 @@ copy_firmware_files()
 			file_size='0'
 
 			[ -d 'logs' ] && {
-				mkdir 'logs-sorted' && {
+				mylogdir='logs-sorted-by-timestamp'
+				mkdir "$mylogdir" && {
 					# put all files time-sorted into 1 dir, for easy reviewing:
-					find logs -type f -exec stat -c '%y %N' {} \; | sort -n |
+					find 'logs/' -type f -exec stat -c '%y %N' {} \; | sort -n |
 					 while read LINE; do {
 						set -- $LINE
 						eval FILE=$4
 
 						UNIXTIME="$( date +%s -r "$FILE" )"
 						NEWFILE="$( echo "$UNIXTIME-$FILE" | tr '/' '-' )"
-						cp "$FILE" "logs-sorted/$NEWFILE"
+						cp "$FILE" "$mylogdir/$NEWFILE"
 					} done
 				}
 
@@ -1977,10 +1978,10 @@ copy_firmware_files()
 					echo "# dir: $( dirname "$file" )"
 					echo '#'
 					ls -l "$( dirname "$file" )"
-				} >"logs2/$( date +%s )-dirlist.txt"
+				} >"$mylogdir/$( date +%s )-produced-imagefiles.txt"
 
-				tar cJf 'info.buildlog.tar.xz' 'logs-sorted'
-				rm -fR 'logs-sorted'
+				tar cJf 'info.buildlog.tar.xz' "$mylogdir"
+				rm -fR "$mylogdir"
 			}
 		fi
 
