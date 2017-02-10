@@ -862,7 +862,7 @@ EOF
 					FILENAME_SYSUPGRADE="openwrt-ath25-combined.squashfs.img"
 					FILENAME_FACTORY=
 				elif [ $( openwrt_revision_number_get ) -gt 49276 ]; then
-					FILENAME_SYSUPGRADE="openwrt-ath25-${version}-combined.squashfs.img"
+					FILENAME_SYSUPGRADE="openwrt-ath25-${version}-squashfs-sysupgrade.bin"
 					FILENAME_FACTORY=
 				else
 					FILENAME_SYSUPGRADE='openwrt-atheros-combined.squashfs.img'
