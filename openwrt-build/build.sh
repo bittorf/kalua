@@ -1963,6 +1963,8 @@ copy_firmware_files()
 			checksum_md5="$( md5sum "$file" | cut -d' ' -f1 )"
 			checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
 			file_size="$( wc -c <"$file" )"
+
+			[ -e 'info.buildlog.tar.xz' ] && rm 'info.buildlog.tar.xz'
 		else
 			checksum_md5='deadbeef'
 			checksum_sha256='deadbeef'
