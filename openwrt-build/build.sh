@@ -1198,13 +1198,21 @@ EOF
 
 	if version_is_lede ; then
 		case "$FILENAME_SYSUPGRADE" in
-			*'-squashfs-'*)
+			*'squashfs'*)
 				# TODO: cut from 'TARGET_SYMBOL' not 'FILENAME_SYSUPGRADE'
 				# e.g. openwrt-ar71xx-generic-tl-wr1043nd-v1-squashfs-sysupgrade.bin
-				device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
-				device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
+				# e.g. openwrt-ath25-ubnt2-combined.squashfs.img
+				case "$FILENAME_SYSUPGRADE" in
+					*'combined'*)
+						device_symbol="$( echo "$FILENAME_SYSUPGRADE" | cut -d'-' -f3 )"
+					;;
+					*)
+						device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
+						device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
+					;;
+				esac
 
-#				case "$..:" # CONFIG_TARGET_rb532_DEVICE_lede-rb532-nand=y
+				log "device_symbol=$device_symbol TARGET_SYMBOL: $TARGET_SYMBOL FILENAME_SYSUPGRADE: $FILENAME_SYSUPGRADE"
 				# e.g. 'ramips_rt305x'
 				apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
 			;;
@@ -2963,7 +2971,7 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless: (but debugFS-export still active)
 #				apply_symbol 'CONFIG_PACKAGE_MAC80211_MESH is not set'	# ...
 #				apply_symbol 'CONFIG_PACKAGE_wireless-tools=y'		# base-system: wireless-tools
-				apply_symbol 'CONFIG_ATH9K_UBNTHSR is not set'
+				grep -q 'CONFIG_PACKAGE_kmod-ath9k=y' .config && apply_symbol 'CONFIG_ATH9K_UBNTHSR is not set'
 #				apply_symbol 'CONFIG_PACKAGE_curl=y'
 #				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
