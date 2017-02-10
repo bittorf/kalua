@@ -1958,7 +1958,29 @@ copy_firmware_files()
 			checksum_sha256='deadbeef'
 			file_size='0'
 
-			[ -d 'logs' ] && tar cJf 'info.buildlog.tar.xz' logs/
+			[ -d 'logs' ] && {
+				mkdir 'logs-sorted' && {
+					# put all files time-sorted into 1 dir, for easy reviewing:
+					find logs -type f -exec stat -c '%y %N' {} \; | sort -n |
+					 while read LINE; do {
+						set -- $LINE
+						eval FILE=$4
+
+						UNIXTIME="$( date +%s -r "$FILE" )"
+						NEWFILE="$( echo "$UNIXTIME-$FILE" | tr '/' '-' )"
+						cp "$FILE" "logs2/$NEWFILE"
+					} done
+
+				{
+					echo "# file: $( basename "$file" )"
+					echo "# dir: $( dirname "$file" )"
+					echo '#'
+					ls -l "$( dirname "$file" )"
+				} >"logs2/$( date +%s )-dirlist.txt"
+
+				tar cJf 'info.buildlog.tar.xz' 'logs-sorted'
+				rm -fR 'logs-sorted'
+			}
 		fi
 
 		usign_bin='./staging_dir/host/bin/usign'
