@@ -1964,7 +1964,8 @@ copy_firmware_files()
 				mkdir "$mylogdir" && {
 					# put all files time-sorted into 1 dir, for easy reviewing:
 					find 'logs/' -type f -exec stat -c '%y %N' {} \; | sort -n |
-					 while read LINE; do {
+					 while read -r LINE; do {
+						FILE=
 						set -- $LINE
 						eval FILE=$4
 
