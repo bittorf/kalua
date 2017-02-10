@@ -1284,10 +1284,12 @@ feeds_prepare()
 		do_symlinking='true'
 	}
 
-	[ "$do_symlinking" = 'true' -a -z "$RELEASE" ] && {
-		# TODO: check if already done
-		log "enforce/updating symlinking of packages"
-		make package/symlinks
+	[ "$do_symlinking" = 'true' ] && {
+		# TODO: find a better way for checking 'is_ready_done'
+		[ -h 'feeds/luci.targetindex' ] || {
+			log "enforce/updating symlinking of packages"
+			make package/symlinks
+		}
 	}
 
 #	# TODO: cd feeds/routing && git stash
@@ -1953,7 +1955,6 @@ copy_firmware_files()
 			checksum_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
 			file_size="$( wc -c <"$file" )"
 		else
-			touch "$file"
 			checksum_md5='deadbeef'
 			checksum_sha256='deadbeef'
 			file_size='0'
@@ -1983,6 +1984,8 @@ copy_firmware_files()
 				tar cJf 'info.buildlog.tar.xz' "$mylogdir"
 				rm -fR "$mylogdir"
 			}
+
+			touch "$file"
 		fi
 
 		usign_bin='./staging_dir/host/bin/usign'
