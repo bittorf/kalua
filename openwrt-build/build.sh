@@ -1968,8 +1968,9 @@ copy_firmware_files()
 
 						UNIXTIME="$( date +%s -r "$FILE" )"
 						NEWFILE="$( echo "$UNIXTIME-$FILE" | tr '/' '-' )"
-						cp "$FILE" "logs2/$NEWFILE"
+						cp "$FILE" "logs-sorted/$NEWFILE"
 					} done
+				}
 
 				{
 					echo "# file: $( basename "$file" )"
