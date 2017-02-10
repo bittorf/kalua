@@ -2679,7 +2679,7 @@ apply_symbol()
 			file="$( kconfig_file )"
 
 			if [ -e "$file" ]; then
-				log "kernel-symbol: '$symbol' to '$file'"
+				log "kernel-symbol: '$symbol' to '$file' and '$file_original'"
 
 				# e.g. ar71xx + generic
 				# /home/bastian/ledebot/source/target/linux/ar71xx/config-4.4
@@ -2704,7 +2704,7 @@ apply_symbol()
 		[ $i -eq 2 ] && symbol="$( echo "$symbol" | sed 's/CONFIG_KERNEL_/CONFIG_/' )"
 
 		if [ -e "$file" ]; then
-			log "working on file '$file'"
+			log "working on file '$file' i=$i"
 		else
 			log "[ERROR] file not found '$file'"
 		fi
@@ -3113,7 +3113,7 @@ build_options_set()
 #					apply_symbol 'CONFIG_BUSYBOX_CONFIG_FEATURE_IP_RULE is not set'
 				fi
 
-				apply_symbol 'CONFIG_PACKAGE_kmod-ipip=y'
+#				apply_symbol 'CONFIG_PACKAGE_kmod-ipip=y'
 			;;
 			'queryMII')
 				# deprecated! (we now use 'devstatus' for query MII)
