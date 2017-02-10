@@ -319,6 +319,7 @@ Special UCI-variables
 	system.@weblogin[0].forget_clients	- bool
 	system.@weblogin[0].list_walledgarden	- ip description
 	system.@weblogin[0].pdf_labels_simple	- bool
+	system.@weblogin[0].pdf_allow_archiv	- bool
 	
 	system.@monitoring[0].serverip		- IP
 	system.@monitoring[0].backping		- nodenumber

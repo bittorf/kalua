@@ -1193,7 +1193,7 @@ EOF
 
 	apply_symbol 'nuke_config'
 	apply_symbol "CONFIG_TARGET_$ARCH_MAIN=y"
-	apply_symbol "CONFIG_TARGET_$ARCH=y"
+	[ "$ARCH" = "$ARCH_MAIN" ] || apply_symbol "CONFIG_TARGET_$ARCH=y"
 	build 'defconfig'
 
 	if version_is_lede ; then
@@ -1204,6 +1204,7 @@ EOF
 				device_symbol="${FILENAME_SYSUPGRADE#*-$ARCH_SUB-}"
 				device_symbol="${device_symbol%-squashfs-*}"		# tl-wr1043nd-v1
 
+#				case "$..:" # CONFIG_TARGET_rb532_DEVICE_lede-rb532-nand=y
 				# e.g. 'ramips_rt305x'
 				apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
 			;;
@@ -1956,6 +1957,8 @@ copy_firmware_files()
 			checksum_md5='deadbeef'
 			checksum_sha256='deadbeef'
 			file_size='0'
+
+			[ -d 'logs' ] && tar cJf 'info.buildlog.tar.xz' logs/
 		fi
 
 		usign_bin='./staging_dir/host/bin/usign'
@@ -2006,9 +2009,6 @@ EOF
 		destination_info="$server_dir"
 
 		scripts/diffconfig.sh >'info.diffconfig.txt'
-
-#		TODO: only upload on ERROR in release-mode
-#		[ -d 'logs' ] && tar cJf 'info.buildlog.tar.xz' logs/
 
 		scp_safe()
 		{
