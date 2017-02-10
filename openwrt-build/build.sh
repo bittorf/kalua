@@ -2672,6 +2672,7 @@ apply_symbol()
 			# ugly and very special
 			if [ "$symbol" = 'CONFIG_KERNEL_PRINTK is not set' ]; then
 				file_original="$file"
+				doublecheck_later "$symbol"
 			else
 				file_original=
 			fi
@@ -2702,9 +2703,10 @@ apply_symbol()
 		# ugly hack!
 		# in 2nd / generic config, we need the short name:
 		[ $i -eq 2 ] && symbol="$( echo "$symbol" | sed 's/CONFIG_KERNEL_/CONFIG_/' )"
+		[ $i -eq 3 ] && symbol="$( echo "$symbol" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
 
 		if [ -e "$file" ]; then
-			log "working on file '$file' i=$i"
+			log "working on file '$file'"
 		else
 			log "[ERROR] file not found '$file'"
 		fi
