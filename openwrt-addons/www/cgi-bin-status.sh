@@ -681,7 +681,9 @@ system_version_string()
 
 rrd_info()
 {
-	if [ -e '/www/traffic.png' ]; then
+	# TODO: embedd into page
+
+	if _rrd needed; then
 		printf '%s' '<a href="traffic.png">RRD</a>'
 	else
 		printf '%s' 'no_RRD'
