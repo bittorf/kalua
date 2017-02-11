@@ -197,7 +197,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 		}
 
 		_log it $funcname daemon alert "fetching tarball in '$MODE'-mode: '$URL'"
-		_firmware download "$TGZ" "$URL" "$hash_tarball" 100 || {
+		_firmware download "$TGZ" "$URL" "$hash_tarball" '?' 100 || {
 			_log it $funcname daemon info "failed to download '$URL' - abort"
 
 			cleanup reschedule
@@ -1151,9 +1151,11 @@ _firmware_download()
 
 	local source="${2:-$( _links firmware_url_get )}"	# url
 	local hash="${3:-$( _links firmware_url_get 'md5' )}"	# checksum
-	local maxtry="${4:-1000}"
+	local size="${4:-$( _links firmware_url_get 'size' )}"	# bytes or '?'
+	local maxtry="${5:-250}"
+	local size_downloaded
 
-	[ ${#hash} = "32" ] || {
+	[ ${#hash} -eq 32 ] || {
 		_log it $funcname daemon info "abort - hash invalid: '$hash'"
 		return 1
 	}
@@ -1165,7 +1167,10 @@ _firmware_download()
 
 	while ! filehash_ok ; do {
 		touch "$file"
-		_log it $funcname daemon info "http_get '$source' - now $( _file size "$file" ) bytes - targethash: $hash"
+		size_downloaded=$( _file size "$file" )
+		_log it $funcname daemon info "http_get '$source' - now $size_downloaded bytes - targethash: $hash"
+
+		isnumber "$size" && [ $size_downloaded -gt $size ] && break
 
 		_curl it "$source" 60 "continue $file"
 		_log sleep $funcname 15 step 5
@@ -1176,7 +1181,13 @@ _firmware_download()
 	if _watch counter "$marker" increment 1 max $maxtry; then
 		_log it $funcname daemon info "[READY] downloading '$file' with $( _file size "$file" ) bytes"
 		rm "$marker"
-		return 0
+
+		if [ $size_downloaded -eq $size ]; then
+			return 0
+		else
+			_log it $funcname daemon info "[ERR] size mismatch: $size_downloaded/$size"
+			return 1
+		fi
 	else
 		_log it $funcname daemon info "[ERR] downloading '$file', maximum tries = $maxtry reached, deleting and aborting"
 		rm "$file" "$marker"
@@ -1208,6 +1219,7 @@ _firmware_check_forced_upgrade()
 	local FILE='/tmp/fw'
 	local url="$1"
 	local md5sum="$2"
+	local size="$3"
 
 	[ -e '/www/fw' ] || {
 		[ -z "$LOWMEM" ] && {
@@ -1216,9 +1228,9 @@ _firmware_check_forced_upgrade()
 			# md5sum /tmp/fw
 			# ln -s /tmp/fw /www/fw
 			# ssh thisrouter
-			# _firmware download /tmp/fw http://nexthop/fw $md5sum
+			# _firmware download /tmp/fw http://nexthop/fw $md5sum size maxtry
 
-			_firmware download "$FILE" "$url" "$md5sum"
+			_firmware download "$FILE" "$url" "$md5sum" "$size"
 			_firmware check_image "$FILE" || rm "$FILE"	# abort totally?
 
 # workaround the 15 second-timeout of procd/rcS
@@ -1265,7 +1277,7 @@ _firmware_check_forced_upgrade()
 	[ -e "$FILE" ] || {
 		[ -n "$LOWMEM" ] && _firmware download_prepare_for_lowmem_devices
 
-		_firmware download "$FILE" "$url" "$md5sum" || {
+		_firmware download "$FILE" "$url" "$md5sum" "$size" || {
 			rm "$FILE"
 		}
 	}
