@@ -812,12 +812,11 @@ _firmware_remove_cron_stuff()
 
 _firmware_burn()
 {
-	local FILE="${1:-/tmp/fw}"
-	local FUNC="firmware_burn"
+	local file="${1:-/tmp/fw}"
 	local funcname='firmware_burn'
-	local entry fw_size fw_hash pause=
+	local entry fw_hash fw_size pause=
 
-	if [ -e "$FILE" ]; then
+	if [ -e "$file" ]; then
 		# locking:
 		if [ -e "$TMPDIR/$funcname" ]; then
 			return 1
@@ -825,9 +824,9 @@ _firmware_burn()
 			touch "$TMPDIR/$funcname"
 		fi
 
-		_log remote "$funcname() started using file '$FILE' on '$HARDWARE'"
-		fw_size="$( _file size "$FILE" )"
-		fw_hash="$( _file hash "$FILE" )"	# md5
+		_log remote "$funcname() started using file '$file' on '$HARDWARE'"
+		read fw_size 2>/dev/null <"$file.size" || fw_size="$( _file size "$file" )"
+		read fw_hash 2>/dev/null <"$file.hash" || fw_hash="$( _file hash "$file" )"	# must be md5
 	else
 		return 1
 	fi
@@ -846,9 +845,9 @@ _firmware_burn()
 		screen -ls | grep -Fqi "Attached" || {
 
 			if [ -e "/usr/sbin/screen" ]; then
-				_log it $FUNC daemon info "better start a screen-session: /usr/sbin/screen - then do: '. /tmp/loader; _firmware burn /tmp/fw'"
+				_log it $funcname daemon info "better start a screen-session: /usr/sbin/screen - then do: '. /tmp/loader; _firmware burn /tmp/fw'"
 			else
-				_log it $FUNC daemon info "better start a screen-session: $OPKG update; $OPKG install screen; screen - then do: '. /tmp/loader; _firmware burn /tmp/fw'"
+				_log it $funcname daemon info "better start a screen-session: $OPKG update; $OPKG install screen; screen - then do: '. /tmp/loader; _firmware burn /tmp/fw'"
 			fi
 
 			_log sleep $funcname 10 step 1
@@ -910,8 +909,8 @@ _firmware_burn()
 	/sbin/sysctl -w 'vm.min_free_kbytes=300'
 
 	[ "$pause" = '1' ] || {
-		_firmware check_image "$FILE" || {
-			_log it $funcname daemon alert "check_image '$FILE' failed"
+		_firmware check_image "$file" || {
+			_log it $funcname daemon alert "check_image '$file' failed"
 			_system crashreboot 'sysupgrade_start'
 			return 1
 		}
@@ -931,7 +930,7 @@ _firmware_burn()
 
 	#### remove all dirs, except our special fwdir ###
 	mkdir /tmp/fwimage
-	mv "$FILE" /tmp/fwimage
+	mv "$file" /tmp/fwimage
 	#
 	find /tmp -type d | while read -r LINE; do {
 		case "$LINE" in
@@ -945,7 +944,7 @@ _firmware_burn()
 
 	rm /tmp/*	# all files, except dirs
 	#
-	mv /tmp/fwimage/* "$FILE"
+	mv /tmp/fwimage/* "$file"
 	rm -fR /tmp/fwimage
 	touch '/www/switch.txt'		# mark timestamp for later reuse
 	#### ready cleaning up /tmp #####
@@ -1009,12 +1008,12 @@ _firmware_burn()
 	sleep_now="$(app echo) sleeping_90_sec >/dev/console; $(app sleep) 90"
 	wait4noload="read -r load </proc/loadavg; $(app echo) cpu:\$load >/dev/console;case \$load in 0.0*|0.1*|0.2*);;*)$(app reboot) -f;;esac"
 	#
-	check_size="$(app test) \$( $(app wc) -c <$FILE ) -eq $fw_size || $(app reboot) -f"
-	check_hash="$(app test) \$( $(app md5sum) <$FILE | $(app cut) -d' ' -f1 ) = $fw_hash || $(app reboot) -f"
+	check_size="$(app test) \$( $(app wc) -c <$file ) -eq $fw_size || $(app reboot) -f"
+	check_hash="$(app test) \$( $(app md5sum) <$file | $(app cut) -d' ' -f1 ) = $fw_hash || $(app reboot) -f"
 	check_file="$check_size; $check_hash"
 	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3; $sleep_now; $wait4noload"
 	cmds="$(app echo) FIRECRON >/dev/console; $(app sleep) 10; $(app rm) /etc/crontabs/root; $(app killall) crond; $cmds"
-	cmds="$cmds; $check_file; $(app sysupgrade) -v $FILE; $(app sleep) 60; $(app reboot) -f"
+	cmds="$cmds; $check_file; $(app sysupgrade) -v $file; $(app sleep) 60; $(app reboot) -f"
 
 	{
 		echo '#!/bin/sh'
@@ -1183,6 +1182,8 @@ _firmware_download()
 		rm "$marker"
 
 		if [ $size_downloaded -eq $size ]; then
+			echo "$size" >"$file.size"
+			echo "$hash" >"$file.hash"
 			return 0
 		else
 			_log it $funcname daemon info "[ERR] size mismatch: $size_downloaded/$size"
