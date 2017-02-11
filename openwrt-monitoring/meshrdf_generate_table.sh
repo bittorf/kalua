@@ -2153,6 +2153,7 @@ _cell_firmwareversion_humanreadable()
 {
 	local update="$1"	# e.g. 'testing.Standard,kalua' or 'testing' or '0'
 	local FWVERSION="$2"
+	local openwrt_rev="$3"
 	local TIME="$(( $UNIXTIME_SCRIPTSTART / 86400 ))"		# days
 	local UPDATE= usecase= OUT=
 
@@ -2161,7 +2162,7 @@ _cell_firmwareversion_humanreadable()
 			UPDATE="$(  echo "$update" | cut -d'.' -f1 )"
 			usecase="$( echo "$update" | cut -d'.' -f2 )"
 
-			echo "USECASE='$usecase'; HARDWARE='$HW'; WIFIMAC='$WIFIMAC';" >>"$USECASE_FILE"
+			echo "USECASE='$usecase'; HARDWARE='$HW'; WIFIMAC='$WIFIMAC'; OPENWRT_REV='$openwrt_rev';" >>"$USECASE_FILE"
 		;;
 		*)
 			UPDATE="$update"
@@ -3796,7 +3797,7 @@ esac
 
 	_cell_lastseen "$LASTSEEN" "$HUMANTIME" "$i1" 
 	func_cell_hostname "$HOSTNAME" "$WIFIMAC" "$MAIL"
-	_cell_firmwareversion_humanreadable "$UPDATE" "$VERSION"
+	_cell_firmwareversion_humanreadable "$UPDATE" "$VERSION" "$v2"
 
 	good_git_color()
 	{
@@ -4571,11 +4572,12 @@ mode2rev()
 RECIPE="$USECASE_FILE.firmware_baking_recipe.sh"
 TAB='	'
 
-MODE_STABLE_REV=44150	# TODO: different values for different networks?
+# TODO: different values for different networks
+MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3321	# LEDE
+MODE_TESTING_REV=3374	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4615,13 +4617,13 @@ sh -n "$USECASE_FILE" && cd .. && {
 	while read -r LINE; do {
 		# USECASE='Standard,LuCIfull,debug,kalua'; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='6670025c2045';
 		# USECASE=''; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='f8d111a9cec8';
-		USECASE=;HARDWARE=;WIFIMAC=
+		USECASE=;HARDWARE=;WIFIMAC=;OPENWRT_REV=;
 		eval $LINE
 
 		[ -z "$USECASE" ] && {
 			case "$HARDWARE" in
 				'Ubiquiti Nanostation2'|'Ubiquiti Nanostation5')
-					USECASE='Small,squash256,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,kalua'
+					USECASE='Standard-4mb,kalua'
 				;;
 				*)
 					USECASE='Standard,kalua}'
@@ -4679,7 +4681,15 @@ sh -n "$USECASE_FILE" && cd .. && {
 			USECASE_DIR="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/$USECASE"
 			HIDE=
 
-			if grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON"; then
+			[ $REV_JSON -eq $OPENWRT_REV ] && {
+				grep -q '"firmware_manually_checked": "false"' "$JSON" && {
+					sed -i 's/\(.*"firmware_manually_checked":\) "false"\(.*\)/\1 "true"\2/' "$JSON"
+				}
+			}
+
+			if   grep -q "\"firmware_md5\": \"deadbeef\"" "$JSON"; then
+				:
+			elif grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON"; then
 				# already done
 				HIDE='#'
 			else
@@ -4779,18 +4789,18 @@ generate_build_matrix()
 
 					ls -1 | while read -r USECASE; do {
 						color="$color_unbuild"
-						if   [ -e "$USECASE/info.json" ]; then
-							color="$color_ok"
-						elif [ -e "$USECASE/info.buildlog.tar.xz" ]; then
+						if   [ -e "$USECASE/info.buildlog.tar.xz" ]; then
 							color="$color_bad"
-						fi
+							CELL_FLASHED="<td bgcolor='$color' align='center'><a href"
+							CELL_FLASHED="$CELL_FLASHED='models/$MODEL/$MODE/$USECASE/info.buildlog.tar.xz'>log</a></td>"
+						elif [ -e "$USECASE/info.json" ]; then
+							color="$color_ok"
 
-	# TODO:
-	# sed 's/\(.*"firmware_manually_checked":\) "false"\(.*\)/\1 "true"\2/' /var/www/networks/liszt28/firmware/models/Xiaomi\ Miwifi\ mini/testing/Standard\,kalua/info.json
-						if grep -sq '"firmware_manually_checked": "true"' "$USECASE/info.json"; then
-							CELL_FLASHED="<td bgcolor='$color_ok' align='center'>&#10004;</td>"	# OK
-						else
-							CELL_FLASHED="<td bgcolor='$color_unbuild' align='center'>&ndash;</td>"
+							if grep -sq '"firmware_manually_checked": "true"' "$USECASE/info.json"; then
+								CELL_FLASHED="<td bgcolor='$color_ok' align='center'>&#10004;</td>"	# OK
+							else
+								CELL_FLASHED="<td bgcolor='$color_unbuild' align='center'>&ndash;</td>"
+							fi
 						fi
 
 						if [ "$FIRST_PRINTED" ]; then
