@@ -75,6 +75,7 @@ EOF
 for NW in $NETWORK; do {
 	DIR="/var/www/networks/$NW/tarball/$MODE"
 	MD5="$( md5sum "$TARBALL" | cut -d' ' -f1 )"
+	SHA256="$( sha256sum "$TARBALL" | cut -d' ' -f1 )"
 	SIZE="$( stat -c%s "$TARBALL" )"
 	mkdir -p "$DIR"
 
@@ -97,5 +98,18 @@ for NW in $NETWORK; do {
 	cat "$DIR/info.txt"
 
 	cp -v "$TARBALL" "$DIR"
+
+	# TODO: move to build.sh, so we can use 'usign' from staging_dir?
+	cat >"$DIR/info.json" <<EOF
+{
+  "build_time": "$( date )",
+  "update_file": "tarball.tgz",
+  "update_size": "$SIZE",
+  "update_md5": "$MD5",
+  "update_sha256": "$SHA256",
+  "update_signature": "foo"
+}
+EOF
+
 	echo "CRC[md5]: $MD5  SIZE[byte]: $SIZE  FILE: 'tarball.tgz'" >"$DIR/info.txt"
 } done
