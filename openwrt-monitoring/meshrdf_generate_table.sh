@@ -4577,7 +4577,7 @@ MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3374	# LEDE
+MODE_TESTING_REV=3426	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4633,8 +4633,21 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 		USECASE_HASH="$( usecase_hash "$USECASE" )"
 
+		case "$HARDWARE" in
+			'toomuchreboots-'*)
+				HARDWARE="$( echo "$HARDWARE" | cut -b16- )"
+			;;
+		esac
+
+		# ugly fixes for testnet:
+		case "$NETWORK: $HARDWARE" in
+			'liszt28: T-Mobile InternetBox') HARDWARE='T-Mobile InternetBox TMD SB1-S';;
+			'liszt28: TP-LINK TL-WDR3600/4300/4310') HARDWARE='TP-LINK TL-WDR4300';;
+			'liszt28: Ubiquiti Bullet M') HARDWARE='Ubiquiti Bullet M5';;
+		esac
+
 		hardware_is_valid "$HARDWARE" || {
-			echo "# DEBUG: hardware invalid: '$HARDWARE' - see: $WIFIMAC"
+			[ $OPENWRT_REV -eq 0 ] || echo "# DEBUG: hardware invalid: '$HARDWARE' - see: $WIFIMAC"
 			continue
 		}
 
@@ -4715,7 +4728,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 			fi
 
 			echo
-			echo "${TAB}cd '$BUILD_DIR' && git checkout 'master' && make clean && \\"
+			echo "${TAB}cd '$BUILD_DIR' && git checkout 'master' && test -e '.config' && make clean || true && \\"
 			echo "${TAB}../build.sh \\"
 			echo "${TAB}${TAB}--buildid '$BUILD_ID' \\"
 
@@ -4727,7 +4740,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 			echo "${TAB}${TAB}--hardware '$HARDWARE' --usecase '$USECASE' \\"
 			echo "${TAB}${TAB}--release $MODE '$SERVER' || FAILED=\"\$FAILED $FNAME\""
-			echo "${TAB}git stash; test -e '.config' && cd .."
+			echo "${TAB}git stash; test -e 'LICENSE' && cd .."
 			echo '}'
 			echo
 		} done
@@ -4752,6 +4765,8 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo
 
 	echo 'all() { stable; beta; testing; }'
+	echo
+	echo "update() { wget -O build_all.sh http://intercity-vpn.de/networks/$NETWORK/firmware/build_all.sh; }"
 	echo
 	echo "# overall stable + beta + testing: $STABLE + $BETA + $TESTING = $OVERALL images"
 	echo "# already build: $OVERALL_READY images"
