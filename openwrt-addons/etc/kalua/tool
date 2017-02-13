@@ -1,13 +1,41 @@
 #!/bin/sh
 
-_tool_remote()
-{
+_tool_remote()		# e.g. _tool remote IP-address 'startshell'
+{			# e.g. _tool remote IP-address command (special mode)
 	local remote_ip="$1"
 	local remote_command="$2"	# e.g. 'message'
 	local append_query="$3"		# e.g. 'MSG=bla'
-	local url="http://$remote_ip/cgi-bin-tool.sh?OPT=${remote_command}${append_query:+&}${append_query}"
+	local password url=
 
-	_curl it "$url"
+	while :; do {
+		case "$remote_command" in
+			'command')
+				[ -z "$url" ] && {
+					printf '%s' "give cgi-password of '$remote_ip': "
+					read -r password
+					echo 'now give a command and press enter:'
+					echo '(abort loop with CTRL+C)'
+					echo
+				}
+
+				printf '%s' '# '
+				read -r mycommand
+
+				mycommand="$( _sanitizer run "$mycommand" urlvalue )"
+				url="http://root:$password@$remote_ip/cgi-bin/userdb"
+				url="$url?FORM_AUTH_USER=root&FORM_AUTH_PASS=$password&FORM_ACTION=command+$mycommand"
+			;;
+			*)
+				if [ -n "$url" ]; then
+					break
+				else
+					url="http://$remote_ip/cgi-bin-tool.sh?OPT=${remote_command}${append_query:+&}${append_query}"
+				fi
+			;;
+		esac
+
+		_curl it "$url"
+	} done
 }
 
 fkt_print_accounting ()
