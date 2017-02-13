@@ -1811,14 +1811,17 @@ openwrt_download()
 
 usecase_has()
 {
+	local funcname='usecase_has'
 	local usecase_keyword="$1"	# e.g. 'noDebug'
-	local oldIFS="$IFS"; IFS=','; set -- $LIST_USER_OPTIONS; IFS="$oldIFS"
+	local oldIFS="$IFS"; IFS=','; set -- $LIST_USER_OPTIONS $LIST_SUBCALLS; IFS="$oldIFS"
 
 	case " $* " in
 		" $usecase_keyword ")
+			log "yes: $usecase_keyword" debug
 			return 0
 		;;
 		*)
+			log "no: $usecase_keyword" debug
 			return 1
 		;;
 	esac
@@ -2824,7 +2827,10 @@ build_options_set()
 	esac
 
 	# shift args, because the call is: $funcname 'subcall' "$opt"
-	[ "$options" = 'subcall' -a -n "$subcall" ] && options="$subcall"
+	[ "$options" = 'subcall' -a -n "$subcall" ] && {
+		options="$subcall"
+		LIST_SUBCALLS="$LIST_SUBCALLS $subcall"
+	}
 
 	set -- $( serialize_comma_list "$options" )
 	while [ -n "$1" ]; do {
@@ -2862,9 +2868,9 @@ build_options_set()
 			'CONFIG_'*)	# parser_ignore
 				apply_symbol "$1"
 
-				# FIXME! remove if parsing '$SPECIAL_OPTIONS' with spaces it fixed
 				case "$1" in
 					'CONFIG_TARGET_ROOTFS_PARTSIZE='*)	# parser_ignore
+						log "FIXME: $1 - remove if parsing '$SPECIAL_OPTIONS' with spaces it fixed"
 						apply_symbol 'CONFIG_TARGET_IMAGES_GZIP is not set'
 					;;
 				esac
@@ -3034,11 +3040,11 @@ build_options_set()
 			### here starts all 'meta-profiles' which are using above stubs
 			'Standard-4mb')
 				$funcname subcall 'Small'
+				$funcname subcall 'noDebug'
 				$funcname subcall 'squash256'
 				$funcname subcall 'noSSH'
 				$funcname subcall 'noOPKG'
 				$funcname subcall 'noPPPoE'
-				$funcname subcall 'noDebug'
 				$funcname subcall 'OLSRd'
 			;;
 			'freifunk')
@@ -3390,6 +3396,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_olsrd-mod-txtinfo=y'	# ...
 
 				usecase_has 'noDebug' || {
+					log "OLSRd: building full-version"
 					apply_symbol 'CONFIG_PACKAGE_olsrd-mod-nameservice=y'	# ...
 					apply_symbol 'CONFIG_PACKAGE_olsrd-mod-jsoninfo=y'	# ...
 					apply_symbol 'CONFIG_PACKAGE_olsrd-mod-watchdog=y'	# ...
@@ -4250,6 +4257,7 @@ while [ -n "$1" ]; do {
 
 				if build_options_set 'list' 'plain' | grep -q ^"$OPTION_SHORT"$ ; then
 					LIST_USER_OPTIONS="$2"
+					LIST_SUBCALLS=		# used later
 				else
 					log "problem for argument '$LIST_USER_OPTIONS'"
 					build_options_set 'list' "$3"
