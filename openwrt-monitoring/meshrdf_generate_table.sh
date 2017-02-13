@@ -15,8 +15,7 @@
 # wget -O "/var/www/networks/$NETWORK/index.html" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=hostname"
 #
 # or
-# cd /var/www/networks/schoeneck/meshrdf
-# /var/www/scripts/meshrdf_generate_table.sh
+# cd /var/www/networks/schoeneck/meshrdf && /var/www/scripts/meshrdf_generate_table.sh
 
 
 # TODO:
@@ -4503,6 +4502,31 @@ echo >>$TOOLS ''
 echo >>$TOOLS '} done && rm script.sh'
 echo >>$TOOLS "test -n \"\$ERROR\" && echo \"please enter sh $TOOLS '\$ERROR'\""
 
+
+RECIPE="$USECASE_FILE.firmware_baking_recipe.sh"
+TAB='	'
+
+# TODO: different values for different networks
+MODE_STABLE_REV=44150
+MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
+MODE_BETA_REV=49276
+MODE_BETA_FEEDSTIME='2016-04-30 16:54'
+MODE_TESTING_REV=3426	# LEDE
+MODE_TESTING_FEEDSTIME=
+BUILD_ID="firmware@bittorf-wireless.com"
+BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
+BUILD_SCRIPT_START="$( date )"
+
+[ -s "$TMPDIR/build.sh" ] || {
+	if wget --no-check-certificate -O "$TMPDIR/build.sh" "$BUILD_SCRIPT_URL"; then
+		# because a 0-byte file gives no error when executed O_o
+		test -s "$TMPDIR/build.sh" && chmod +x "$TMPDIR/build.sh"
+	else
+		rm -fR "$TMPDIR/build.sh"
+	fi
+}
+
+
 usecase_hash()		# see: _firmware_get_usecase()
 {
 	local usecase="$1"
@@ -4514,10 +4538,6 @@ usecase_hash()		# see: _firmware_get_usecase()
 		echo "${1%@*}"
 		shift
 	} done | LC_ALL=C sort | md5sum | cut -d' ' -f1
-}
-
-[ -e "$TMPDIR/build.sh" ] || {
-	wget --no-check-certificate -O "$TMPDIR/build.sh" "$BUILD_SCRIPT_URL" && chmod +x "$TMPDIR/build.sh"
 }
 
 hardware_is_valid()
@@ -4568,20 +4588,6 @@ mode2rev()
 		;;
 	esac
 }
-
-RECIPE="$USECASE_FILE.firmware_baking_recipe.sh"
-TAB='	'
-
-# TODO: different values for different networks
-MODE_STABLE_REV=44150
-MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
-MODE_BETA_REV=49276
-MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3426	# LEDE
-MODE_TESTING_FEEDSTIME=
-BUILD_ID="firmware@bittorf-wireless.com"
-BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
-BUILD_SCRIPT_START="$( date )"
 
 sh -n "$USECASE_FILE" && cd .. && {
 	SERVER="root@intercity-vpn.de:$PWD"
@@ -4650,6 +4656,19 @@ sh -n "$USECASE_FILE" && cd .. && {
 			[ $OPENWRT_REV -eq 0 ] || echo "# DEBUG: hardware invalid: '$HARDWARE' - see: $WIFIMAC"
 			continue
 		}
+
+		case "$USECASE" in
+			*'MinstrelBlues,'*)
+				USECASE="$( echo "$USECASE" | sed 's/MinstrelBlues,//g' )"
+			;;
+			*'}')
+				# strange, seen e.g. 'Standard,kalua}'
+				USECASE="${USECASE%?}"
+			;;
+			'Small,squash256,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,kalua')
+				USECASE='Standard-4mb,kalua'
+			;;
+		esac
 
 		usecase_is_valid "$USECASE" || {
 			echo "# DEBUG: usecase invalid: '$USECASE' - see: $WIFIMAC"
