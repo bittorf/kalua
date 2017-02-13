@@ -2830,7 +2830,7 @@ build_options_set()
 	[ "$options" = 'subcall' -a -n "$subcall" ] && {
 		options="$subcall"
 		LIST_SUBCALLS="$LIST_SUBCALLS $subcall"
-	}
+	}	# parser_ignore
 
 	set -- $( serialize_comma_list "$options" )
 	while [ -n "$1" ]; do {
