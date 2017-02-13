@@ -3031,6 +3031,16 @@ build_options_set()
 				# like mini and: noWiFi, noDNSmasq, noJFFS2-support?
 				# remove 'mtd' (~15k) if device can be flashed via bootloader?
 			;;
+			### here starts all 'meta-profiles' which are using above stubs
+			'Standard-4mb')
+				$funcname subcall 'Small'
+				$funcname subcall 'squash256'
+				$funcname subcall 'noSSH'
+				$funcname subcall 'noOPKG'
+				$funcname subcall 'noPPPoE'
+				$funcname subcall 'noDebug'
+				$funcname subcall 'OLSRd'
+			;;
 			'freifunk')
 				$funcname subcall 'Standard'
 				$funcname subcall 'OWM'
