@@ -2,6 +2,8 @@
 
 # http://intercity-vpn.de/networks/spbansin/media/1.jpg (generated from 47.jpg)
 
+[ "$PWD" = '/var/www/networks/spbansin/media' ] || exit 1
+
 OUTFILE='1.jpg'
 MAXAGE=14400		# 4 hours (use samplepic if we have no new pictures)
 CRC=

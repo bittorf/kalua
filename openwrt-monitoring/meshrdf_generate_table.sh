@@ -37,8 +37,7 @@ log()		# tail -f /var/log/messages
 	logger -t $0 -p user.info -s "$message"
 }
 
-TMPDIR='/var/run/kalua'		# is 'tmpfs' - TODO: network-specific?
-mkdir -p "$TMPDIR"		# TODO: root must do initially this + chmod -R 777 /var/run/kalua
+TMPDIR='/var/run/kalua'		# is 'tmpfs'
 
 UNIXTIME_SCRIPTSTART="$( date +%s )"
 
@@ -4511,7 +4510,7 @@ MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3426	# LEDE
+MODE_TESTING_REV=3439	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4632,10 +4631,51 @@ sh -n "$USECASE_FILE" && cd .. && {
 					USECASE='Standard-4mb,kalua'
 				;;
 				*)
-					USECASE='Standard,kalua}'
+					USECASE='Standard,kalua'
 				;;
 			esac
 		}
+
+		case "$USECASE" in
+			'Standard,'*)
+				case "$USECASE" in
+					*'USBstorage,'*)
+						USECASE="$( echo "$USECASE" | sed 's/USBstorage,//g' )"
+					;;
+				esac
+			;;
+		esac
+
+		# ugly fixes for netnet:
+		case "$USECASE" in
+			*'MinstrelBlues,'*)
+				USECASE="$( echo "$USECASE" | sed 's/MinstrelBlues,//g' )"
+			;;
+			*'MinstrelRhapsody'*)
+				USECASE="$( echo "$USECASE" | sed 's/MinstrelRhapsody,//g' )"
+			;;
+			'Standard,musl,kalua')
+				USECASE='Standard,kalua'
+			;;
+			'Small,noOPKG,noPPPoE,noDebug,OLSRd,kalua')
+				USECASE='Standard-4mb,kalua'
+			;;
+			'Small,noSSH,noOPKG,noPPPoE,OLSRd,kalua')
+				USECASE='Standard-4mb,kalua'
+			;;
+			'Small,squash256,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,kalua')
+				USECASE='Standard-4mb,kalua'
+			;;
+			'Small,noPPPoE,OLSRd,kalua')
+				USECASE='Standard-4mb,kalua'
+			;;
+			'Small,vtun,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,kalua')
+				USECASE='Standard-4mb,vtun,kalua'
+			;;
+			'Small,USBprinter,noOPKG,noPPPoE,noDebug,OLSRd,kalua')
+				USECASE='Standard-4mb,USBprinter,kalua'
+			;;
+		esac
 
 		USECASE_HASH="$( usecase_hash "$USECASE" )"
 
@@ -4656,19 +4696,6 @@ sh -n "$USECASE_FILE" && cd .. && {
 			[ $OPENWRT_REV -eq 0 ] || echo "# DEBUG: hardware invalid: '$HARDWARE' - see: $WIFIMAC"
 			continue
 		}
-
-		case "$USECASE" in
-			*'MinstrelBlues,'*)
-				USECASE="$( echo "$USECASE" | sed 's/MinstrelBlues,//g' )"
-			;;
-			*'}')
-				# strange, seen e.g. 'Standard,kalua}'
-				USECASE="${USECASE%?}"
-			;;
-			'Small,squash256,noSSH,noOPKG,noPPPoE,noDebug,OLSRd,kalua')
-				USECASE='Standard-4mb,kalua'
-			;;
-		esac
 
 		usecase_is_valid "$USECASE" || {
 			echo "# DEBUG: usecase invalid: '$USECASE' - see: $WIFIMAC"
@@ -4709,9 +4736,20 @@ sh -n "$USECASE_FILE" && cd .. && {
 				;;
 			esac
 
+			HIDE=
 			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$USECASE_HASH/info.json"
 			USECASE_DIR="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/$USECASE"
-			HIDE=
+
+			[ -d "$USECASE_DIR" ] || mkdir -p "$USECASE_DIR"
+			[ -e "$JSON" ] || {
+				mkdir -p "$( dirname "$JSON" )"
+				{
+					echo '{'
+					echo "  \"firmware_rev\": \"0\""
+					echo "}"
+				} >"$JSON"
+				cp "$JSON" "$USECASE_DIR/"
+			}
 
 			[ $REV_JSON -eq $OPENWRT_REV ] && {
 				grep -q '"firmware_manually_checked": "false"' "$JSON" && {
@@ -4722,19 +4760,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 			if   grep -q "\"firmware_md5\": \"deadbeef\"" "$JSON"; then
 				:
 			elif grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON"; then
-				# already done
-				HIDE='#'
-			else
-				mkdir -p "$USECASE_DIR"
-
-				[ -e "$JSON" ] || {
-					mkdir -p "$( dirname "$JSON" )"
-					{
-						echo '{'
-						echo "  \"firmware_rev\": \"0\""
-						echo "}"
-					} >"$JSON"
-				}
+				HIDE='#'	# # already build
 			fi
 
 			echo "$FNAME() {"
@@ -4828,7 +4854,7 @@ generate_build_matrix()
 							CELL_FLASHED="<td bgcolor='$color' align='center'><a href"
 							CELL_FLASHED="$CELL_FLASHED='models/$MODEL/$MODE/$USECASE/info.buildlog.tar.xz'>log</a></td>"
 						elif [ -e "$USECASE/info.json" ]; then
-							color="$color_ok"
+							color="$color_unbuild"
 
 							if grep -sq '"firmware_manually_checked": "true"' "$USECASE/info.json"; then
 								CELL_FLASHED="<td bgcolor='$color_ok' align='center'>&#10004;</td>"	# OK

@@ -6,6 +6,9 @@ IPT='/sbin/iptables'
 if [ -e "$TMPDIR/server_has_started" ]; then
 	:
 else
+	mkdir -p $TMPDIR
+	mount -t tmpfs -o size=128M,nosuid,nodev,mode=1777 tmpfs "$TMPDIR"
+
 	touch "$TMPDIR/server_has_started"
 
 	sleep 180
