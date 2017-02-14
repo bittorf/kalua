@@ -1176,6 +1176,7 @@ _firmware_download()
 	local funcname='firmware_download'
 	local marker="$TMPDIR/$funcname"
 	local file="${1:-/tmp/fw}"		# filename or 'is_running'
+	local option="$1"			# untrusted
 
 	if   [ "$file" = 'is_running' ]; then
 		test -e "$marker"
@@ -1191,13 +1192,23 @@ _firmware_download()
 	local hash="${3:-$( _links firmware_url_get 'md5' )}"	# checksum
 	local size="${4:-$( _links firmware_url_get 'size' )}"	# bytes or '?'
 	local maxtry="${5:-250}"
-	local size_downloaded
+	local size_downloaded sha256 sha256_server sha256_signature
 
-	[ ${#hash} -eq 32 ] || {
+	if [ -z "$hash" ]; then
 		_log it $funcname daemon info "abort - hash invalid: '$hash'"
 		rm "$marker"
 		return 1
-	}
+	else
+		sha256_server="$( _links firmware_url_get 'sha256' )"
+		sha256_signature="$( _links firmware_url_get 'sha256_signature' | cut -d' ' -f2)"	# remove nick
+
+		_firmware check_signature "$sha256_server" "$sha256_signature" '/etc/kalua.usign_pubkey' || {
+			_firmware check_signature "$sha256_server" "$sha256_signature" || {
+				_log it $funcname daemon info "ERROR: signature check failed"
+			}
+		}
+	fi
+	_log it $funcname daemon info "OK: signature check"
 
 	filehash_ok()
 	{
@@ -1221,10 +1232,23 @@ _firmware_download()
 		size_downloaded=$( _file size "$file" )
 		_log it $funcname daemon info "[READY] downloading '$file' with $size_downloaded bytes"
 
+		sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
+		[ "$sha256" = "$sha256_server" ] || {
+			_log it $funcname daemon info "sha256 mismatch: here/server: $sha256/$sha256_server"
+
+			if [ "$option" = 'untrusted' ]; then
+				_log it $funcname daemon info "ignoring signature fail by user request"
+			else
+				size_downloaded=-1
+				_log it $funcname daemon info "if you do not care, call: _firmware download '$file' untrusted"
+			fi
+		}
+
 		isnumber "$size" || size=$size_downloaded	# e.g. '?'
 		if [ $size_downloaded -eq $size ]; then
 			echo "$size" >"$file.size"
 			echo "$hash" >"$file.hash"
+			echo "$sha256" >"$file.sha256"
 
 			rm "$marker"
 			return 0
