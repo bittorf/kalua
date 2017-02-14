@@ -2010,6 +2010,7 @@ copy_firmware_files()
 			usign_keynick='../build.keynick'	# e.g. joe
 
 			[ -e "$usign_privkey" -a -e "$usign_pubkey" ] || {
+				log "[OK] generating keypair for signing: PLEASE backup private/pubkey: '$usign_privkey'/'$usign_pubkey'"
 				$usign_bin -G -p "$usign_pubkey" -s "$usign_privkey"
 			}
 
@@ -2813,13 +2814,16 @@ build_options_set()
 	local subcall="$2"	# <usecase> or 'hide'
 	local file='.config'
 	local custom_dir='files'
-	local kmod
+	local kmod nickname
 
 	case "$options" in
 		'ready')	# parser_ignore
 			[ -e '../build.pubkey' ] && {			# parser_ignore
-				cp '../build.pubkey' "$custom_dir/etc/kalua.usign_pubkey"
-				log "adding usign pubkey" gitadd "$custom_dir/etc/kalua.usign_pubkey"
+				mkdir -p "$custom_dir/etc/opkg/keys"
+				read -r nickname <"../build.keynick"	# e.g. joe
+				file="$custom_dir/etc/opkg/keys/kalua.pubkey-$nickname"
+				cp '../build.pubkey' "$file"
+				log "adding usign pubkey" gitadd "$file"
 			}						# parser_ignore
 
 			file="$custom_dir/etc/openwrt_build"

@@ -1,5 +1,42 @@
 #!/bin/sh
 
+_firmware_check_signature()
+{
+	local funcname='firmware_check_signature'
+	local message="$1"	# e.g. sha256hash
+	local signature="$2"
+	local pubkey_path="${3:-/etc/opkg/keys}"	# dir or file
+	local success_min="$( uci get system.@fwupdate[0].thrust_min || echo '1' )"
+	local success=0
+	local file_pubkey comment
+	local file_signature="$TMPDIR/$funcname"
+
+	command -v 'sha256sum' >/dev/null || return 0
+	command -v 'usign' >/dev/null || return 0
+
+	for file_pubkey in $( find "$pubkey_path" -type f ); do {
+		read -r comment <"$file_pubkey" || continue
+
+		{
+			echo "# public key from '$file' - $comment"
+			echo "$signature"
+		} >"$file_signature"
+
+		if echo "$message" | usign -V -p "$file_pubkey" -x "$file_signature" -q -m - ; then
+			_log it $funcname daemon info "OK: key: '$file_pubkey' - $comment"
+			rm "$file_signature"
+			success=$(( success + 1 ))
+			[ $success -ge $success_min ] && return 0
+		else
+			_log it $funcname daemon info "ERROR: key: '$file_pubkey' - $comment"
+		fi
+	} done
+
+	_log it $funcname daemon info "ERROR: only $success times success, but $success_min needed"
+	rm "$file_signature"
+	return 1
+}
+
 _firmware_download_new_release()
 {
 	[ $OPENWRT_REV -gt 0 ] && {

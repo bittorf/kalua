@@ -398,6 +398,7 @@ Special UCI-variables
 
 	system.@fwupdate[0].url			- url
 	system.@fwupdate[0].mode		- string: 0|stable|beta|testing
+	system.@fwupdate[0].thrust_min		- integer
 	system.@fwupdate[0].confirm_needed	- bool
 	system.@fwupdate[0].confirm_timeout	- integer (days)
 
