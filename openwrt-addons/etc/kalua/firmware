@@ -851,7 +851,7 @@ _firmware_burn()
 {
 	local file="${1:-/tmp/fw}"
 	local funcname='firmware_burn'
-	local entry fw_hash fw_size pause=
+	local entry fw_hash fw_size fw_sha256 pause=
 
 	if [ -e "$file" ]; then
 		# locking:
@@ -864,6 +864,7 @@ _firmware_burn()
 		_log remote "$funcname() started using file '$file' on '$HARDWARE'"
 		read -r fw_size 2>/dev/null <"$file.size" || fw_size="$( _file size "$file" )"
 		read -r fw_hash 2>/dev/null <"$file.hash" || fw_hash="$( _file hash "$file" )"	# must be md5
+		read -r fw_sha256 2>/dev/null <"$file.sha256" || fw_sha256="$( sha256sum "$file" | cut -d' ' -f1 )"
 	else
 		return 1
 	fi
@@ -1047,7 +1048,9 @@ _firmware_burn()
 	#
 	check_size="$(app test) \$( $(app wc) -c <$file ) -eq $fw_size || $(app reboot) -f"
 	check_hash="$(app test) \$( $(app md5sum) <$file | $(app cut) -d' ' -f1 ) = $fw_hash || $(app reboot) -f"
-	check_file="$check_size; $check_hash"
+	check_sha256="$(app test) \$( $(app sha256sum) <$file | $(app cut) -d' ' -f1 ) = $fw_sha256 || $(app reboot) -f"
+	check_file="$check_size; $check_hash;"
+	command -v sha256sum >/dev/null && check_file="$check_file $check_sha256;"
 	cmds="$getmem; $msg1; $delifs; $getmem; $msg2; $msg3; $sleep_now; $wait4noload"
 	cmds="$(app echo) FIRECRON >/dev/console; $(app sleep) 10; $(app rm) /etc/crontabs/root; $(app killall) crond; $cmds"
 	cmds="$cmds; $check_file; $(app sysupgrade) -v $file; $(app sleep) 60; $(app reboot) -f"
@@ -1209,7 +1212,7 @@ _firmware_download()
 		_firmware check_signature "$sha256_server" "$sha256_signature" '/etc/kalua.usign_pubkey' || {
 			_firmware check_signature "$sha256_server" "$sha256_signature" || {
 				[ "$option" = 'untrusted' ] || {
-					_log it $funcname daemon info "signature wrong, override with: _firmware download '$file' untrusted"
+					_log it $funcname daemon info "signature wrong, override with: _firmware download untrusted"
 					rm "$marker"
 					return 1
 				}
@@ -1248,7 +1251,7 @@ _firmware_download()
 				_log it $funcname daemon info "ignoring signature fail by user request"
 			else
 				size_downloaded=-1
-				_log it $funcname daemon info "if you do not care, call: _firmware download '$file' untrusted"
+				_log it $funcname daemon info "if you do not care, call: _firmware download untrusted"
 			fi
 		}
 
