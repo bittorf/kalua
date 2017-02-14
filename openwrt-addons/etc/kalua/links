@@ -1,7 +1,8 @@
 #!/bin/sh
 
 _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
-{					#	stable|beta|testing	<md5|size|version_on_server>	# .. (fetching checksum/version)
+{					#	stable|beta|testing	<size|md5|sha256|sha256_signature|version_on_server>
+					# 				.. (fetching checksum/version)
 	local COMMAND="$1"		#	tarball|tarball_hash
 	local KEYWORD="$2"		#	olsr_whitelist
 	local funcname='links_firmware_url_get'
@@ -64,7 +65,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 			dir="$dir/firmware/models/$( _sanitizer run "$hardware_filename" urlvalue )/$UPDATEMODE/.$usecase_hash"
 
 			case "$COMMAND" in
-				'size'|'md5'|'version_on_server')
+				'size'|'md5'|'sha256'|'sha256_signature'|'version_on_server')
 					local i=0
 					local url="$dir/info.json"
 
@@ -81,6 +82,20 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 							{
 								local line="$( _curl it "$1" | grep '"firmware_md5": ' | cut -d'"' -f4 )"
 								[ ${#line} -eq 32 ] && echo "$line"
+							}
+						;;
+						'sha256')
+							get_json_field()
+							{
+								line="$( _curl it "$1" | grep '"firmware_sha256": ' | cut -d'"' -f4 )"
+								[ ${#line} -eq 64 ] && echo "$line"
+							}
+						;;
+						'sha256_signature')
+							get_json_field()
+							{
+								line="$( _curl it "$1" | '"firmware_sha256_usign": ' | cut -d'"' -f4 )"
+								[ -n "$line" ] && echo "$line"
 							}
 						;;
 						'version_on_server')
