@@ -1846,7 +1846,7 @@ copy_firmware_files()
 	local attic="bin/$ARCH_MAIN/attic"
 	local file file_size checksum_md5 checksum_sha256 rootfs server_dir server
 	local destination destination_scpsafe destination_info destination_info_scpsafe pre
-	local usign_bin usign_pubkey usign_privkey usign_signature myhash mylogdir
+	local usign_bin usign_pubkey usign_privkey usign_signature usign_keynick keynick myhash mylogdir
 	local err=0
 
 	mkdir -p "$attic"
@@ -2007,12 +2007,24 @@ copy_firmware_files()
 		if [ -e "$usign_bin" -a $file_size -gt 0 ]; then
 			usign_privkey='../build.privkey'
 			usign_pubkey='../build.pubkey'
+			usign_keynick='../build.keynick'	# e.g. joe
 
-			[ -e "$usign_privkey" -o -e "$usign_pubkey" ] || {
+			[ -e "$usign_privkey" -a -e "$usign_pubkey" ] || {
 				$usign_bin -G -p "$usign_pubkey" -s "$usign_privkey"
 			}
 
-			usign_signature="$( $usign_bin -S -m "$file" -s "$usign_privkey" -x - | grep -v ^'untrusted comment' )"
+			if [ -e "$usign_keynick" ]; then
+				read -r keynick <"$usign_keynick"
+			else
+				keynick="bot-$( date "+%d%b%y-%Hh%Mm" )"	# e.g.: bot-14Feb17-11h32m
+				log "please add your nick to '$usign_keynick', falling back to: '$keynick'"
+			fi
+
+			# TODO: add different sig's from different users
+			#       maybe auto-add, if they have flashed it?
+			printf '%s' "$checksum_sha256" >"$file.sha256"
+			usign_signature="$( $usign_bin -S -m "$file.sha256" -s "$usign_privkey" -x - | grep -v ^'untrusted comment' )"
+			rm "$file.sha256"
 		else
 			usign_signature='no-signature'
 		fi
@@ -2034,7 +2046,7 @@ copy_firmware_files()
   "firmware_size": "$file_size",
   "firmware_md5": "$checksum_md5",
   "firmware_sha256": "$checksum_sha256",
-  "firmware_signature": "$usign_signature",
+  "firmware_sha256_usign": "$keynick $usign_signature",
   "firmware_manually_checked": "false",
   "firmware_kernel": "$VERSION_KERNEL",
   "firmware_rev": "$VERSION_OPENWRT_INTEGER",
