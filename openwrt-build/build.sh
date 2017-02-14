@@ -2022,9 +2022,13 @@ copy_firmware_files()
 
 			# TODO: add different sig's from different users
 			#       maybe auto-add, if they have flashed it?
-			printf '%s' "$checksum_sha256" >"$file.sha256"
+			echo "$checksum_sha256" >"$file.sha256"
 			usign_signature="$( $usign_bin -S -m "$file.sha256" -s "$usign_privkey" -x - | grep -v ^'untrusted comment' )"
 			rm "$file.sha256"
+
+			# echo "$sha256" | usign -V -p "$file_pubkey" -x "$file_signature" -m -
+			log "sha256: $checksum_sha256"
+			log "usign_signature: $usign_signature"
 		else
 			usign_signature='no-signature'
 		fi
