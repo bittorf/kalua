@@ -371,10 +371,10 @@ echo "$(date) | $SUM_WIRELESS_CLIENTS" >>"/var/www/networks/$NETWORK/media/SUM_W
 cd "/var/www/networks/$NETWORK/meshrdf"				# fixme! or better use absolute paths everywhere?
 
 echo     >$TOOLS '#!/bin/sh'
-echo    >>$TOOLS '. $TMPDIR/loader'
+echo    >>$TOOLS '. /tmp/loader'
 echo    >>$TOOLS ''
 echo    >>$TOOLS '	cat >script.sh <<EOF'
-echo    >>$TOOLS '. $TMPDIR/loader'
+echo    >>$TOOLS '. /tmp/loader'
 echo	>>$TOOLS '# case "\$CONFIG_PROFILE" in *ap) touch /www/START_SYSUPGRADE.late ;; esac'
 echo    >>$TOOLS '# killall dropbear'
 echo	>>$TOOLS '# [ -e /www/SIMPLE_MESHNODE ] || { touch /www/SIMPLE_MESHNODE; rm /www/GOOD_MODULE_UNLOAD; reboot; }'
@@ -4486,7 +4486,7 @@ echo >>$TOOLS '#	ssh -i /etc/dropbear/dropbear_dss_host_key "${WIFIADR}" "pidof 
 echo >>$TOOLS '#		ERROR="$ERROR $NODE"'
 echo >>$TOOLS '#	}'
 echo >>$TOOLS
-echo >>$TOOLS "#	if _tool remote $WIFIADR command 1 YOURPASS 'echo >>\$SCHEDULER_IMPORTANT \"_firmware update_pmu\"'; then"
+echo >>$TOOLS "#	if _tool remote \$WIFIADR command 1 YOURPASS 'echo >>\$SCHEDULER_IMPORTANT \"_firmware update_pmu\"'; then"
 echo >>$TOOLS '#	if scp -p -i /etc/dropbear/dropbear_dss_host_key $TMPDIR/fw ${WIFIADR}:/tmp ; then'
 echo >>$TOOLS '#	ping -c 5 $WIFIADR; _tool remote $WIFIADR startshell'
 echo >>$TOOLS '	if scp -p -i /etc/dropbear/dropbear_dss_host_key "script.sh" "${WIFIADR}:$TMPDIR/.autorun"; then'
@@ -4505,13 +4505,12 @@ echo >>$TOOLS "test -n \"\$ERROR\" && echo \"please enter sh $TOOLS '\$ERROR'\""
 RECIPE="$USECASE_FILE.firmware_baking_recipe.sh"
 TAB='	'
 
-# TODO: different values for different networks
+# TODO: different values for different networks - and: keep history
 MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3439	# LEDE
-[ "$NETWORK" = 'berlinle' ] && MODE_TESTING_REV=3472
+MODE_TESTING_REV=3497	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
