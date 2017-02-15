@@ -1,17 +1,19 @@
 #!/bin/sh
 
-_tool_remote()		# e.g. _tool remote IP-address 'startshell'
-{			# e.g. _tool remote IP-address 'command' (special mode)
+_tool_remote()		# e.g. _tool remote IP-address 'startshell' or 'command'
+{
 	local remote_ip="$1"
 	local remote_command="$2"	# e.g. 'message' or 'command'
 	local append_query="$3"		# e.g. 'MSG=bla' or '1' (just one command)
-	local password url=
+	local password="$4"
+	local mycommand="$5"
+	local url=
 	local i=0
 
 	while :; do {
 		case "$remote_command" in
 			'command')
-				[ -z "$url" ] && {
+				[ -z "$url" -a -z "$password" ] && {
 					printf '%s' "give cgi-password of '$remote_ip': "
 					read -r password
 					echo 'now give a command and press enter:'
@@ -22,8 +24,10 @@ _tool_remote()		# e.g. _tool remote IP-address 'startshell'
 				isnumber "$append_query" && test $i -eq $append_query && break
 				i=$(( i + 1 ))
 
-				printf '%s' '# '
-				read -r mycommand
+				isnumber "$append_query" && test -n "$mycommand" && test $append_query -neq 1 && {
+					printf '%s' '# '
+					read -r mycommand
+				}
 
 				mycommand="$( _sanitizer run "$mycommand" urlvalue )"
 				url="http://root:$password@$remote_ip/cgi-bin/userdb"
