@@ -4416,7 +4416,9 @@ if [ "$NOBUILD" = 'true' ]; then
 	log "[OK] stopping just before build (needed $( calc_time_diff "$T1" "$T2" ) sec)"
 	exit 1
 else
-	build					|| exit 1
+	build					|| {
+		[ -z "$RELEASE" ] && exit 1
+	}
 	copy_firmware_files			|| die_and_exit
 	openwrt_download 'switch_to_master'
 	openwrt_download 'reset_autocommits'
