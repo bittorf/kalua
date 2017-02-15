@@ -343,6 +343,7 @@ Special UCI-variables
 	system.@monitoring[0].speedcheck_wired	- bool
 	system.@monitoring[0].speedcheck_fakeip - IP
 	system.@monitoring[0].roaming_stats	- bool
+	system.@monitoring[0].roaming_kick_bad	- bool
 	system.@monitoring[0].report_traffic_nightly	- bool
 	system.@monitoring[0].report_daily_stats - bool
 	system.@monitoring[0].maintenance	- string, e.g. 'reverse_sshtunnel'
