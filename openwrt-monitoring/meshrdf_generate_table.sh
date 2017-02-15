@@ -11,8 +11,7 @@
 # http://www.devcurry.com/2009/07/hide-table-column-with-single-line-of.html
 # http://www.jordigirones.com/111-tablesorter-showhide-columns-widget.html
 
-# NETWORK=marinabh
-# wget -O "/var/www/networks/$NETWORK/index.html" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=hostname"
+# NETWORK=marinabh; S=$(date); wget -O "/var/www/networks/$NETWORK/index.html" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=hostname"; echo $S; date
 #
 # or
 # cd /var/www/networks/schoeneck/meshrdf && /var/www/scripts/meshrdf_generate_table.sh
@@ -4486,7 +4485,8 @@ echo >>$TOOLS "#	case \"\$( uci get wireless.@wifi-iface[0].ssid )\" in *[0-9]) 
 echo >>$TOOLS '#	ssh -i /etc/dropbear/dropbear_dss_host_key "${WIFIADR}" "pidof crond || /etc/init.d/*crond_fff+ start" || {'
 echo >>$TOOLS '#		ERROR="$ERROR $NODE"'
 echo >>$TOOLS '#	}'
-echo >>$TOOLS ""
+echo >>$TOOLS
+echo >>$TOOLS "#	if _tool remote $WIFIADR command 1 YOURPASS 'echo >>\$SCHEDULER_IMPORTANT \"_firmware update_pmu\"'; then"
 echo >>$TOOLS '#	if scp -p -i /etc/dropbear/dropbear_dss_host_key $TMPDIR/fw ${WIFIADR}:/tmp ; then'
 echo >>$TOOLS '#	ping -c 5 $WIFIADR; _tool remote $WIFIADR startshell'
 echo >>$TOOLS '	if scp -p -i /etc/dropbear/dropbear_dss_host_key "script.sh" "${WIFIADR}:$TMPDIR/.autorun"; then'
@@ -4511,6 +4511,7 @@ MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
 MODE_TESTING_REV=3439	# LEDE
+[ "$NETWORK" = 'berlinle' ] && MODE_TESTING_REV=3472
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4692,6 +4693,10 @@ sh -n "$USECASE_FILE" && cd .. && {
 			'liszt28: Ubiquiti Bullet M') HARDWARE='Ubiquiti Bullet M5';;
 		esac
 
+		case "$HARDWARE - $USECASE" in
+			'Ubiquiti Bullet5 - Standard,kalua') USECASE='Standard-4mb,kalua' ;;
+		esac
+
 		hardware_is_valid "$HARDWARE" || {
 			[ $OPENWRT_REV -eq 0 ] || echo "# DEBUG: hardware invalid: '$HARDWARE' - see: $WIFIMAC"
 			continue
@@ -4829,6 +4834,7 @@ generate_build_matrix()
 	local color_ok='lightgreen'
 	local color_bad='crimson'
 	local color_unbuild='white'
+	local color_untrushted='#ccffb3'
 
 	echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 	echo '		"http://www.w3.org/TR/html4/loose.dtd">'
@@ -4848,19 +4854,28 @@ generate_build_matrix()
 					printf '%s' "<td bgcolor='$color_ok'>$MODE</td>"
 
 					ls -1 | while read -r USECASE; do {
-						color="$color_unbuild"
 						if   [ -e "$USECASE/info.buildlog.tar.xz" ]; then
 							color="$color_bad"
 							CELL_FLASHED="<td bgcolor='$color' align='center'><a href"
 							CELL_FLASHED="$CELL_FLASHED='models/$MODEL/$MODE/$USECASE/info.buildlog.tar.xz'>log</a></td>"
 						elif [ -e "$USECASE/info.json" ]; then
-							color="$color_unbuild"
-
-							if grep -sq '"firmware_manually_checked": "true"' "$USECASE/info.json"; then
-								CELL_FLASHED="<td bgcolor='$color_ok' align='center'>&#10004;</td>"	# OK
-							else
+							if   grep -q '"firmware_md5": "deadbeef"' "$USECASE/info.json"; then
+								color="$color_bad"
 								CELL_FLASHED="<td bgcolor='$color_unbuild' align='center'>&ndash;</td>"
+							elif grep -q '"firmware_manually_checked": "true"' "$USECASE/info.json"; then
+								color="$color_ok"
+								CELL_FLASHED="<td bgcolor='$color_ok' align='center'>&#10004;</td>"	# OK
+							elif grep -q '"firmware_rev": "0"' "$USECASE/info.json"; then
+								color="$color_unbuild"
+								CELL_FLASHED="<td bgcolor='$color_unbuild' align='center'>&ndash;</td>"
+							else
+								color="$color_ok"
+								CELL_FLASHED="<td bgcolor='$color_untrushted' align='center'>&ndash;</td>"
 							fi
+						else
+							# no build-attempt for now
+							color="$color_unbuild"
+							CELL_FLASHED="<td bgcolor='$color_unbuild' align='center'>&ndash;</td>"
 						fi
 
 						if [ "$FIRST_PRINTED" ]; then

@@ -38,10 +38,11 @@ for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 
 	# FIXME! '2.6' has not much changelogs - it does not work...
 
-	wget -qO - "$URL" | while read -r LINE; do {
+	wget --no-check-certificate -O - "$URL" | while read -r LINE; do {
 		# e.g.
 		# <a href="ChangeLog-3.0.12">ChangeLog-3.0.12</a>
 		# <a href="ChangeLog-3.0.12.sign">ChangeLog-3.0.12.sign</a>
+		# <a href="ChangeLog-4.4.47.sign">ChangeLog-4.4.47.sign</a>   04-Feb-2017 08:55  833
 
 		oldIFS="$IFS"; IFS='"'; set -- $LINE; IFS="$oldIFS"
 		LINK="$2"
@@ -96,7 +97,6 @@ for MAIN_VERSION in 'v2.4' 'v2.5' 'v2.6' 'v3.0' 'v3.x' 'v4.x'; do {
 						} done <"$DIR/tempfile"
 						rm "$DIR/tempfile"
 
-						# FIXME! can this work (set in a subshell!)
 						[ -z "$DATE_WELLFORMED" ] && {
 							logger -s "changelog without good date - taking filedate: $FILEDATE"
 							# source: 22-Feb-2001 01:02
