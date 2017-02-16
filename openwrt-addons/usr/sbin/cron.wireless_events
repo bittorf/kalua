@@ -21,6 +21,36 @@ log()
 	esac
 }
 
+station_list()
+{
+	local action="$1"	# remove_all|add|del
+	local mac="$2"
+	local dev="$3"
+	local station_list="$TMPDIR/stations_ap.txt"
+	local lockdir="$station_list.locked"
+
+	while ! mkdir "$lockdir" 2>/dev/null; do
+		# wait a short time without using too much CPU
+		ping -q -c1 8.8.8.8 2>/dev/null >/dev/null
+	done
+
+	case "$action" in
+		'remove_all')
+			rm "$station_list" 2>/dev/null
+		;;
+		'add')
+			sed -i "/$mac/d" "$station_list"	# remove old entries
+			echo "$mac $dev" >>"$station_list"
+		;;
+		'del')
+			# remove from station list
+			sed -i "/$mac $dev/d" "$station_list"
+		;;
+	esac
+
+	rm -fR "$lockdir" 
+}
+
 mac2ipv4()	# TODO: better name
 {
 	local funcname='mac2ipv4'
@@ -223,14 +253,13 @@ worker()
 	local kickmarker="$TMPDIR/kicked_low_signal_$mac-$wifidev"
 	local txt="$funcname($$) dev:$wifidev ch:$( _wifi channel $wifidev ) MODE: $mode MAC: $mac"
 	local permlog="$PERMDIR/station_stats.txt"
-	local station_list="$TMPDIR/stations_ap.txt"
 	local unixtime="$( date +%s )"
 	local freq="$( _wifi dev2freq "$wifidev" )"
 
 	case "$mode" in
 		'new')
 			touch "$TMPDIR/dont_kick_$mac"
-			echo "$mac $wifidev" >>"$station_list"
+			station_list 'add' "$mac" "$dev"
 
 			# blocking, but needed for fast removal of local_route (or HNA) on old node
 			( _net roaming_debug $mode $unixtime $mac '' $freq 'early' $wifidev ) &
@@ -345,9 +374,7 @@ worker()
 			[ -e "$TMPDIR/dont_kick_$mac" ] && rm "$TMPDIR/dont_kick_$mac"
 			log rotate
 
-			# remove from station list
-			sed -i "/$mac $wifidev/d" "$station_list"
-			sed -i "/^$mac$/d" "$station_list"		# legacy
+			station_list 'del' "$mac" "$dev"
 		;;
 	esac
 }
@@ -383,6 +410,7 @@ fi
 			_wifi kick "$MAC" "$DEV" "cleanup-before-eventloop"
 		} done
 	} done
+	station_list 'remove_all'
 
 	# TODO: write into file and read nonforking? -> so we can inject arbitrary commands (e.g. stop)
 	iw event | while read -r LINE; do {
