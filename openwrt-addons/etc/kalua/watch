@@ -6,7 +6,8 @@ _watch_roaming()	# called every 60 secs
 	local option="$1"				# e.g. 'debug'
 	local station_list="$TMPDIR/stations_ap.txt"	# see 'cron.wireless_events'
 	local bridgedev='mastergate'
-	local file ip ip_list ip_escaped word radio ap dev mac mac_list error message i parameter route_get signal list=
+	local file ip ip_list ip_escaped word radio ap dev mac mac_list error
+	local ipv6linklocal message i parameter route_get signal list=
 	local inet_offer="$( _net local_inet_offer cached )"
 
 	_net dev_is_valid "br-$bridgedev" || return 0
@@ -112,20 +113,25 @@ _watch_roaming()	# called every 60 secs
 						}
 					} done
 				else
-					[ $i -eq 5 ] && _log it $funcname daemon alert "real client $mac@$dev is not in 'iw event' list: $station_list"
+					ipv6linklocal="$( _net mac2linklocal "$mac" )%$dev"
+					if _net ping_getlatency "$ipv6linklocal" >/dev/null; then
+						_log it $funcname daemon alert "real client $mac@$dev is not in 'iw event' list: $station_list"
 
-					message="$message $i/$mac/$dev"
-					error=$(( error + 1 ))
+						message="$message $i/$mac/$dev"
+						error=$(( error + 1 ))
 
-					{
-						echo "#"
-						echo "[START] $funcname() message=$message error=$error - station get $mac"
-						iw dev "$dev" station get "$mac"
-						echo "station-list:"
-						cat "$station_list"
-						echo "[READY] $funcname()"
-						echo "#"
-					} >>'/tmp/IWLOG'
+						{
+							echo "#"
+							echo "[START] $funcname() message=$message error=$error - station get $mac"
+							iw dev "$dev" station get "$mac"
+							echo "station-list:"
+							cat "$station_list"
+							echo "[READY] $funcname()"
+							echo "#"
+						} >>'/tmp/IWLOG'
+					else
+						_log it $funcname daemon info "[OK] ignoring $mac - seems gone"
+					fi
 				fi
 			} done
 		} done
