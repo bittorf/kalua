@@ -2040,6 +2040,12 @@ copy_firmware_files()
 			usign_signature='no-signature'
 		fi
 
+	listof_nick_and_signature_pairs()
+	{
+		echo "    \"$keynick\": \"$usign_signature\","
+		echo "    \"klaus\": \"foo\""
+	}
+
 		# TODO: keep factory + sysupgrade in sync
 		# TODO: nice browsing like 'https://weimarnetz.de/freifunk/firmware/nightlies/ar71xx/'
 		# TODO: json: use integers where applicable?
@@ -2057,6 +2063,9 @@ copy_firmware_files()
   "firmware_size": "$file_size",
   "firmware_md5": "$checksum_md5",
   "firmware_sha256": "$checksum_sha256",
+  "firmware_sha256_signatures": {
+$( listof_nick_and_signature_pairs )
+  },
   "firmware_sha256_usign": "$keynick $usign_signature",
   "firmware_manually_checked": "false",
   "firmware_kernel": "$VERSION_KERNEL",
