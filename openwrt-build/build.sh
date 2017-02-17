@@ -2040,11 +2040,13 @@ copy_firmware_files()
 			usign_signature='no-signature'
 		fi
 
-	listof_nick_and_signature_pairs()
-	{
-		echo "    \"$keynick\": \"$usign_signature\","
-		echo "    \"klaus\": \"foo\""
-	}
+		# signatures:
+		# TODO: everybody sends the usign-pubkey in monitoring
+		# TODO: on monitoring-server we must provide an interface
+		#       for uploading anonymous signatures with "nick+sig"
+		#       (nick can be e.g. hostname)
+		# TODO: only, if we can check it against our pubkey-list: built into JSON
+
 
 		# TODO: keep factory + sysupgrade in sync
 		# TODO: nice browsing like 'https://weimarnetz.de/freifunk/firmware/nightlies/ar71xx/'
@@ -2064,7 +2066,7 @@ copy_firmware_files()
   "firmware_md5": "$checksum_md5",
   "firmware_sha256": "$checksum_sha256",
   "firmware_sha256_signatures": {
-$( listof_nick_and_signature_pairs )
+    "$keynick": "$usign_signature"
   },
   "firmware_sha256_usign": "$keynick $usign_signature",
   "firmware_manually_checked": "false",

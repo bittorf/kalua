@@ -342,6 +342,7 @@ Special UCI-variables
 	system.@monitoring[0].max_wificlients	- bool
 	system.@monitoring[0].speedcheck_wired	- bool
 	system.@monitoring[0].speedcheck_fakeip - IP
+	system.@monitoring[0].roaming_debug	- bool
 	system.@monitoring[0].roaming_stats	- bool
 	system.@monitoring[0].roaming_kick_bad	- bool
 	system.@monitoring[0].roaming_no_nat	- bool
