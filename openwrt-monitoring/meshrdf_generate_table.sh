@@ -779,7 +779,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 
 		# updates
 		REMEMBER_VERSION="$VERSION"
-		[ -e "${FILE}.changes" ] && . "${FILE}.changes"
+		[ -e "${FILE}.changes" ] && . "${FILE}.changes"		# apply on top of main-dataset
 		[ -z "$VERSION" ] && VERSION="$REMEMBER_VERSION"
 
 		LATLON=		# FIXME!
@@ -2339,6 +2339,8 @@ send_mail_telegram()
 					list=	# TODO
 				;;
 			esac
+
+			list=
 		;;
 		pension-ralfz) list="$admin rkleinert|ejbweimar.de" ;;
 		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
@@ -2352,17 +2354,18 @@ send_mail_telegram()
 				;;
 			esac
 
-			list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de"
+#			list="$admin office|seeparkbansin.de ecklebe|he-immobilien.de"
 
 			case "$hostname" in
 				'Haus12-r1202-Traumdomizil')
-					list="$list info|traumdomizil-usedom.de"
+#					list="$list info|traumdomizil-usedom.de"
 				;;
 			esac
 		;;
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
 		berlinle)
 			list="$admin hotel-berlin-leipzig|t-online.de"
+			list=
 		;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
@@ -2376,7 +2379,7 @@ send_mail_telegram()
 			esac
 		;;
 		extrawatt)
-			list="$admin matthias.golle|extrawatt-weimar.de"
+#			list="$admin matthias.golle|extrawatt-weimar.de"
 
 			case "$hostname" in
 				'240VoltPlugBuergel')
@@ -2390,7 +2393,7 @@ send_mail_telegram()
 			list="$admin"	# TODO
 
 			case "$hostname" in
-				'Steg6uferseite-MESH') list= ;;
+				'marinabh-adhoc--17'|'Steg6uferseite-MESH') list= ;;
 			esac
 		;;
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
@@ -4510,7 +4513,7 @@ MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3497	# LEDE
+MODE_TESTING_REV=3503	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4777,7 +4780,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 			fi
 
 			echo
-			echo "${TAB}cd '$BUILD_DIR' && git checkout 'master' && test -e '.config' && make clean || true && \\"
+			echo "${TAB}cd '$BUILD_DIR' && git checkout 'master' && test -e '.config' && rm -fR bin/ && make clean || true && \\"
 			echo "${TAB}../build.sh \\"
 			echo "${TAB}${TAB}--buildid '$BUILD_ID' \\"
 

@@ -20,8 +20,18 @@ if(isset($_GET["refresh"])) {		// refresh='true' -> monitoring_heartbeat
 		$r5 = strval($_GET["r5"]);		// wired-clients
 
 		file_put_contents("recent/".$mac.".changes", "UP=".$v1.";LOAD=".$v3.";h2=".$v2.";VERSION=".$v4.";r4=".$r4.";r5=".$r5.";PUBIP_REAL=".$v0.";");
-		print("REFRESHED");
 
+		$pwd = getcwd();
+		$testnet  = "liszt28";
+		$testnet2  = "berlinle";
+
+		if       (strpos($pwd,$testnet)!==false){
+			print("REFRESHED:PMU");
+		} elseif (strpos($pwd,$testnet2)!==false){
+			print "REFRESHED:PMU";
+		} else {
+			print("REFRESHED");
+		};
 	} else {
 		print("UNKNOWN");
 	}
@@ -187,7 +197,7 @@ $testnet  = "liszt28";
 if(strpos($profile,$testnet)!==false){
 	print "OK-pmu";		// for poor_mens_update()
 } else {
-	print "OK-pmu";
+	print "OK";
 };
 
 ?>
