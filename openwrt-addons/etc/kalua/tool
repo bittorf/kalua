@@ -14,8 +14,9 @@ _tool_remote()		# e.g. _tool remote IP-address 'startshell' or 'command'
 		case "$remote_command" in
 			'command')
 				[ -z "$url" -a -z "$password" ] && {
-					printf '%s' "give cgi-password of '$remote_ip': "
+					printf '%s' "give cgi-password of '$remote_ip' (or enter for same as this router): "
 					read -r password
+					[ -z "$password" ] && password="$( cut -d':' -f3 /etc/httpd.conf )"
 					echo 'now give a command and press enter:'
 					echo '(abort loop with CTRL+C)'
 					echo
@@ -25,14 +26,15 @@ _tool_remote()		# e.g. _tool remote IP-address 'startshell' or 'command'
 				i=$(( i + 1 ))
 
 				# do not ask in 1-command mode:
-				isnumber "${append_query:-0}" && test -n "$mycommand" && test ${append_query:-1} -ne 1 && {
-					printf '%s' '# '
+				isnumber "${append_query:-0}" && test -z "$mycommand" -a ${append_query:-0} -ne 1 && {
+					printf '\n%s' '#' '# your command: '
 					read -r mycommand
 				}
 
 				mycommand="$( _sanitizer run "$mycommand" urlvalue )"
 				url="http://root:$password@$remote_ip/cgi-bin/userdb"
 				url="$url?FORM_AUTH_USER=root&FORM_AUTH_PASS=$password&FORM_ACTION=command+$mycommand"
+				mycommand=
 			;;
 			*)
 				if [ -n "$url" ]; then
