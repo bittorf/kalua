@@ -76,11 +76,12 @@ case "$ACTION" in
 				_net roaming_eventlistener start 'hotplug: mastergate comes up'
 
 				$IPT -t nat --new 'NAT_ALIEN_ROAMERS' && {
-					# FIXME! -i is empty in POSTROUTING, so restrict to 'br-mastergate' does not work
-#					$IPT -t nat -I 'NAT_ALIEN_ROAMERS' -s "$ROAMING_NET/$ROAMING_PRE" ! -d "$ROAMING_NET/$ROAMING_PRE" -j MASQUERADE
-					# do not NAT our own OLSR-HNA4-range:
-#					$IPT -t nat -I 'NAT_ALIEN_ROAMERS' -s "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL" -j RETURN
-					$IPT -t nat -I POSTROUTING -j 'NAT_ALIEN_ROAMERS'
+					$IPT -t nat -I POSTROUTING -s -j 'NAT_ALIEN_ROAMERS'
+
+					bool_true 'system.@monitoring[0].roaming_nat' && {
+						$IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET/$ROAMING_PRE" -j SNAT --to-source "$ROAMING_ADR_LOCAL"
+						$IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL" -j RETURN
+					}
 				}
 			;;
 			'innercityVPN')
