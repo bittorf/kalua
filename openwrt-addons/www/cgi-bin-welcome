@@ -1,33 +1,25 @@
 #!/bin/sh
 
+CACHE='/tmp/weblogin_cached_for_overload'
+STAGE2='true'
+
 case "$QUERY_STRING" in
-	REDIRECTED=1*)
+	'REDIRECTED=1'*)
 	;;
-	LOGOUT=1*)
+	'LOGOUT=1'*)
 		. /tmp/loader
 		_weblogin html_logoutpage
-		exit
+		STAGE2=
 	;;
 	*)
-		cat '/tmp/weblogin_cached_for_overload' 2>/dev/null && exit 0
+		cat "$CACHE" 2>/dev/null && STAGE2=
 	;;
 esac
 
-. /tmp/loader
-
-[ -e '/tmp/weblogin_cached_for_overload' ] || {
-	if bool_true 'system.@weblogin[0].enabled'; then
-		case "$( uci -q get system.@weblogin[0].auth )" in
-			password2mobile)
-				_weblogin htmlout_loginpage '' '' '' '' "http://$WIFIADR" "(cache)" "mobile_mode" >'/tmp/weblogin_cached_for_overload'
-			;;
-			*)
-				_weblogin htmlout_loginpage '' '' '' '' "http://$WIFIADR" "(cache)" >'/tmp/weblogin_cached_for_overload'
-			;;
-		esac
-	else
-		_weblogin htmlout_gatepage >'/tmp/weblogin_cached_for_overload'
-	fi
-}
-
-. /www/cgi-bin-welcome_stage2
+case "$STAGE2" in
+	'true')
+		. /tmp/loader
+		[ -e "$CACHE" ] || _weblogin loginpage_build_cache "$CACHE"
+		. /www/cgi-bin-welcome_stage2
+	;;
+esac
