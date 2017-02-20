@@ -77,26 +77,24 @@ _monitoring_heartbeat_minimal_send()
 	local up="$1"		# hours
 	local load="$2"		# 15mins
 
-	local file_url='/tmp/MONITORING_HEARTBEAT_URL'
-	local file_archiv="$TMPDIR/ARCHIV_MONITORING"
+	local file_url="$TMPDIR/MONITORING_HEARTBEAT_URL"
+	local file_archiv="$TMPDIR/ARCHIV_MONITORING.recent"
 	local mac url up free load lan_clients wifi_clients answer
 
 	if [ -e "$file_url" ]; then
 		read -r url <"$file_url"
 	else
 		# at least 1 normal sending/monitoring-run is needed
-		grep -q ^'# alive-message was send' "$file_archiv" || {
-			grep -q 'olsrrestarttime=' "$file_archiv" || return 1
-		}
+		[ -e "$file_archiv" ] || return 1
 
-		read -r mac <'/www/monitoring.wifimac'
-		url="$( uci -q get system.@monitoring[0].url )/meshrdf/?refresh=true&mac=$mac"
+		read -r mac <"$WWWDIR/monitoring.wifimac"
+		url="$( uci get system.@monitoring[0].url )/meshrdf/?refresh=true&mac=$mac"
 		echo "$url" >"$file_url"
 	fi
 
 	up="$( _system uptime hours )"
 	free="$( _system ram_free )"
-	load="$( _system load 15min )"
+	load="$( _system load 1min )"
 	wifi_clients="$( _net count_wireless )"
 	lan_clients="$( _net count_wired )"
 
@@ -104,13 +102,15 @@ _monitoring_heartbeat_minimal_send()
 
 	answer="$( _curl it "$url" 30 )"
 	case "$answer" in
-		'REFRESHED'|'REFRESHED:PMU')
-			{
-				echo "$url"
-				echo "# alive-message was send @ $funcname (normal exit...)"
-			} >"$file_archiv"
-
-			[ "$answer" = 'REFRESHED:PMU' ] && _firmware update_pmu
+		'REFRESHED')
+			touch "$file_archiv"
+		;;
+		'REFRESHED:PMU')
+			touch "$file_archiv"
+			_firmware update_pmu
+		;;
+		*)
+			_log it $funcname daemon info "answer: '$answer'"
 		;;
 	esac
 }
