@@ -1,12 +1,24 @@
 #!/bin/sh
 . /tmp/loader
-[ $OPENWRT_REV -ge $LEDE_REV -a -e "$TMPDIR/ARCHIV_MONITORING.recent" ] && {
+
+funcname='heartbeat'
+ARG1="$1"		# sam = send_alive_message|fast|full
+ARG2="$2"
+
+if   [ $OPENWRT_REV -ge $LEDE_REV -a -e "$TMPDIR/ARCHIV_MONITORING.recent" -a "$ARG1" != 'full' ]; then
 	_watch monitoring force
 	exit 0
-}
-
-FUNC="heartbeat"
-funcname='heartbeat'
+elif [ -n "$LOWMEM" ]; then
+	if [ $( _file lines /proc/modules ) -gt 30 ]; then
+		# 3.3.8, apmode = 23, adhoc-mode = 5 (SIMPLEMESH)
+		_log it start daemon info "no execution - waiting for unload of unneeded kmodules"
+		exit
+	else
+		ARG1='fast'
+	fi
+else
+	_system fully_installed || ARG1='fast'
+fi
 
 # idee: per scp + compression auf den server schieben
 # idee: mehrere snapshots in einem query senden (base64 encoding?)
@@ -15,38 +27,12 @@ funcname='heartbeat'
 #       $TMPDIR/ARCHIV_MONITORING
 #       $TMPDIR/ARCHIV_MONITORING_urlencoded	// hat den vorteil, das der loader besser arbeitet
 #
-# idee: immer alles erzeugen, aber nur DIFF zum letzten abspeichern
+# idee: immer alles erzeugen, aber nur DIFF zum letzten abspeichern + senden
 # idee: a1...A3...b9....c7=  (benennen der variablen nach kategorien -> ist kuerzer, es muss nur eine zuordnungstabelle existieren)
 # idee: versionsstring v1= mitsenden (weniger aerger auf dem server)
 
 ### sending "i'am alive"-messages to vpn-server in random
 ### intervals (approx. once a day) or/and simply log it
-
-_system include
-CPU_LOAD="$( _system load 15min )"
-RAM_SIZE="$( _system ram_size )"
-
-[ -n "$LOWMEM" ] && {
-	[ $( _file lines /proc/modules ) -gt 30 ] && {		# 3.3.8, apmode = 23, adhoc-mode = 5 (SIMPLEMESH)
-		_log it start daemon info "no execution - waiting for unload of unneeded kmodules"
-		exit
-	}
-}
-
-ARG1="$1"
-ARG2="$2"
-
-case "$CONFIG_PROFILE" in
-	monami*)
-	;;
-	*)
-		[ -n "$LOWMEM" ] && ARG1='fast'
-	;;
-esac
-
-_system fully_installed || ARG1='fast'
-
-[ "$ARG1" = 'fast' ] && _log it $funcname daemon debug "fastmode - no data_collection"
 
 serveranswer_ok()
 {
@@ -69,8 +55,9 @@ serveranswer_ok()
 }
 
 if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
-	_log it $FUNC daemon debug "start"
+	_log it $funcname daemon debug "start"
 
+	_system include
 	_sanitizer include
 	_math include
 	_wifi include
@@ -87,6 +74,8 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 	# printf '%s' "t2="		>>$F
 	# _system load 15min		>>$F
 
+	CPU_LOAD="$( _system load 15min )"
+	RAM_SIZE="$( _system ram_size )"
 	TIME="$( _system date unixtime )"
 
 	# generated via olsr_build_tables()
@@ -122,7 +111,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 			WIFIMAC="$( _sanitizer run "$( uci -q get wireless.radio0.macaddr )" hex )"
 			[ -z "$WIFIMAC" ] && {
 				bool_true 'wireless.radio0.disabled' || {
-					_log it $FUNC daemon alert 'empty wifimac, rebuilding netparam'
+					_log it $funcname daemon alert 'empty wifimac, rebuilding netparam'
 					_netparam check
 
 					random_mac()
@@ -338,7 +327,7 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 		esac
 
 		if [ "$PUBIP" != "$PUBIP_OLD" ]; then
-			_log it $FUNC daemon info "public IP changed: '$PUBIP_OLD' -> '$PUBIP'"
+			_log it $funcname daemon info "public IP changed: '$PUBIP_OLD' -> '$PUBIP'"
 			ARG1="send_alive_message"
 
 			# renew dyndns: fixme! must be called via hotplug
@@ -359,10 +348,10 @@ if [ -n "$NODENUMBER" -a "$ARG1" != 'fast' ]; then
 				}
 			}
 		else
-			_log it $FUNC daemon info "[OK] not changed public IP: $PUBIP - no speedcheck, see '/tmp/MY_PUBLIC_IP'"
+			_log it $funcname daemon info "[OK] not changed public IP: $PUBIP - no speedcheck, see '/tmp/MY_PUBLIC_IP'"
 		fi
 	else
-		_log it $FUNC daemon info "public IP cannot be sanitized to ip4: '$PUBIP'"
+		_log it $funcname daemon info "public IP cannot be sanitized to ip4: '$PUBIP'"
 		PUBIP=
 	fi
 
@@ -710,7 +699,7 @@ grep -q ^"ip_tables " /proc/modules && {
 		ARG2='no_antenna_test'
 	}
 
-	_log it $FUNC daemon debug "ready"
+	_log it $funcname daemon debug "ready"
 
 	KEEP_ALIVE_URL="$( uci -q get system.@monitoring[0].url )/meshrdf/"
 
@@ -720,13 +709,13 @@ grep -q ^"ip_tables " /proc/modules && {
 	}
 
 	if [ -n "$KEEP_ALIVE_URL" ] && [ "$ARG1" = "send_alive_message" -o "$ARG1" = "sam" ]; then
-		_log it $FUNC daemon info "sending keepalive to: '${KEEP_ALIVE_URL} [...]'"
+		_log it $funcname daemon info "sending keepalive to: '${KEEP_ALIVE_URL} [...]'"
 		[ -z "$ARG2" ] && _log sleep send_alive_jitter "$( _math random_integer 0 60 )" step 10
 
 		_ntp set
 
 		[ -e '/www/backup_archiv_node_data' ] && {			# see _system reboot_safe()
-			_log it $FUNC daemon info "found node-data backup, including"
+			_log it $funcname daemon info "found node-data backup, including"
 
 			mv "$TMPDIR/ARCHIV_MONITORING" "$TMPDIR/ARCHIV_MONITORING.temp"		# copy backup-file
 			mv '/www/backup_archiv_node_data' "$TMPDIR/ARCHIV_MONITORING"		# on top of
@@ -756,13 +745,13 @@ grep -q ^"ip_tables " /proc/modules && {
 					# wget -O - "${KEEP_ALIVE_URL}?log=$REQUEST"
 					# check length of QUERY_STRING on server
 					[ ${#QUERY} -gt 8000 ] && {
-						_log it $FUNC daemon info "ignoring long line: '${#QUERY}' bytes"
+						_log it $funcname daemon info "ignoring long line: '${#QUERY}' bytes"
 						continue
 					}
 
 					case "$QUERY" in
 						'log='*)
- 							_log it $FUNC daemon debug "send log-message"
+ 							_log it $funcname daemon debug "send log-message"
 							# time=... is appended in log()
  							QUERY="${QUERY}&hostname=$HOSTNAME&mac=$WIFIMAC&rev=$OPENWRT_REV&config=$CONFIG_PROFILE"
  						;;
@@ -795,7 +784,7 @@ grep -q ^"ip_tables " /proc/modules && {
 					echo "$errors_overall" >"$TMPDIR/ARCHIV_MONITORING.errors"
 
  					if serveranswer_ok "$OUT"; then
- 						_log it $FUNC daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT - i: $i"
+ 						_log it $funcname daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT - i: $i"
 
 						[ -z "$MAPAPI" ] && {
 							MAPAPI='send'
@@ -804,7 +793,7 @@ grep -q ^"ip_tables " /proc/modules && {
 							}
 						}
 					else
- 						_log it $FUNC daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
+ 						_log it $funcname daemon info "send alive-line: something went wrong at line '$LINENUMBER_LAST_SUCCESS' - ending ('${KEEP_ALIVE_URL}?${QUERY}' -> '$OUT')"
 
  						# FIXME! this is a workaround for only sending lines, which we have not send yet
 						sed -n "$LINENUMBER_LAST_SUCCESS,999p" "$TMPDIR/ARCHIV_MONITORING" >"$TMPDIR/ARCHIV_MONITORING.tmp"
@@ -819,10 +808,10 @@ grep -q ^"ip_tables " /proc/modules && {
  				;;
  				*)
 					if [ "$MAPAPI" = 'send' ]; then
-						_log it $FUNC daemon debug "send alive normally ended"
+						_log it $funcname daemon debug "send alive normally ended"
 						echo >>"$TMPDIR/ARCHIV_MONITORING" "# alive-message was send @ $DATE_LOCAL_HUMAN (normal exit...)"
 					else
-						_log it $FUNC daemon info "send alive without success"
+						_log it $funcname daemon info "send alive without success"
 						echo >>$SCHEDULER '_watch monitoring force'
 					fi
 
@@ -831,4 +820,6 @@ grep -q ^"ip_tables " /proc/modules && {
 			esac
 		} done
 	fi
+else
+	_log it $funcname daemon debug "fastmode - no data_collection"
 fi
