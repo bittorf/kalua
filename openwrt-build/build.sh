@@ -2156,6 +2156,7 @@ get_uptime_in_sec()
 
 cpu_count()
 {
+	# use 'taskset' for override
 	if   grep -sc ^'processor' '/proc/cpuinfo'; then
 		:
 	elif command -v lsconf 2>/dev/null >/dev/null; then
