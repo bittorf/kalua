@@ -4,35 +4,41 @@ _firmware_check_signature()
 {
 	local funcname='firmware_check_signature'
 	local message="$1"	# e.g. sha256hash
-	local signature="$2"	# TODO: support for a list
+	local list_signatures="$2"
 	local pubkey_path="${3:-/etc/opkg/keys}"	# dir or file
-	local success_min="$( uci get system.@fwupdate[0].thrust_min || echo '1' )"	# TODO: default 2
+	local success_min="$( uci get system.@fwupdate[0].thrust_min || echo '2' )"
 	local success=0
-	local file_pubkey comment
+	local file_pubkey comment signature signatures_checked
 	local file_signature="$TMPDIR/$funcname"
 
 	command -v 'sha256sum' >/dev/null || return 0
 	command -v 'usign' >/dev/null || return 0
 	[ $success_min -eq 0 ] && return 0
 
-	# shellcheck disable=SC2044
-	for file_pubkey in $( find "$pubkey_path" -type f ); do {
-		read -r comment <"$file_pubkey" || continue
+	for signature in $list_signatures; do {
+		case "$signatures_checked" in
+			*" $signature "*) continue;;	# ignore doubles
+			*) signatures_checked="$signatures_checked $signature " ;;
+		esac
 
-		{
-			echo "# public key from '$file' - $comment"
-			echo "$signature"
-		} >"$file_signature"
+		# shellcheck disable=SC2044
+		for file_pubkey in $( find "$pubkey_path" -type f ); do {
+			read -r comment <"$file_pubkey" || continue
 
-		# FIXME! make sure we do not check the same signature twice!
-		if echo "$message" | usign -V -p "$file_pubkey" -x "$file_signature" -q -m - ; then
-			_log it $funcname daemon info "OK: key: '$file_pubkey' - $comment"
-			rm "$file_signature"
-			success=$(( success + 1 ))
-			[ $success -ge $success_min ] && return 0
-		else
-			_log it $funcname daemon debug "ERROR: key: '$file_pubkey' - $comment"
-		fi
+			{
+				echo "# public key from '$file' - $comment"
+				echo "$signature"
+			} >"$file_signature"
+
+			if echo "$message" | usign -V -p "$file_pubkey" -x "$file_signature" -q -m - ; then
+				_log it $funcname daemon info "OK: key: '$file_pubkey' - $comment"
+				rm "$file_signature"
+				success=$(( success + 1 ))
+				[ $success -ge $success_min ] && return 0
+			else
+				_log it $funcname daemon debug "ERROR: key: '$file_pubkey' - $comment"
+			fi
+		} done
 	} done
 
 	_log it $funcname daemon info "ERROR: only $success times success, but $success_min needed"
