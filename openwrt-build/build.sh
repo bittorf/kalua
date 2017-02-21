@@ -2068,7 +2068,6 @@ copy_firmware_files()
   "firmware_sha256_signatures": {
     "$keynick": "$usign_signature"
   },
-  "firmware_sha256_usign": "$keynick $usign_signature",
   "firmware_manually_checked": "false",
   "firmware_kernel": "$VERSION_KERNEL",
   "firmware_rev": "$VERSION_OPENWRT_INTEGER",
