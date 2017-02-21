@@ -1198,6 +1198,22 @@ _firmware_upgrade_is_needed()
 	return 0
 }
 
+_firmware_signature_calc()
+{
+	local checksum_sha256="$1"
+	local privkey="$PERMDIR/usign_privkey"
+	local pubkey="$PERMDIR/usign_pubkey"
+	local file_sha256="$TMPDIR/usign_signature"
+
+	command -v 'usign' >/dev/null || return 1
+	test ${#checksum_sha256} -eq 64 || return 1
+	_firmware signature_prepare 'check' || return 1
+
+	echo "$checksum_sha256" >"$file_sha256"
+	usign -S -m "$file_sha256" -s "$privkey" -x - | grep -v ^'untrusted comment'
+	rm "$file_sha256"
+}
+
 _firmware_signature_prepare()
 {
 	local funcname='firmware_signature_prepare'
@@ -1219,7 +1235,9 @@ _firmware_signature_prepare()
 			_log it $funcname daemon info "[OK] wrote: '$privkey' and '$pubkey'"
 		;;
 		*)
-			echo "please run _$funcname nick your_shortname"
+			echo "please run: _$funcname nick your_shortname"
+			echo "or upload your '$privkey' and '$pubkey'"
+
 			return 1
 		;;
 	esac
