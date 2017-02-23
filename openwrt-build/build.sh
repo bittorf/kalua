@@ -110,6 +110,28 @@ EOF
 	exit $?
 }
 
+primenumbers_get()
+{
+	local end="$1"
+	local i=2
+	local prime div list=
+
+	while [ $i -lt $end ]; do {
+		prime='true'
+		for div in $(seq 2 $(( i - 2 )) ); do {
+			test $(( i % div )) -eq 0 && {
+				prime=
+				break
+			}
+		}  done
+
+		test "$prime" && list="$list $i"
+		i=$(( i + 1 ))
+	} done
+
+	echo "$list"
+}
+
 build_tarball_package()
 {
 	local funcname='build_tarball_package'
