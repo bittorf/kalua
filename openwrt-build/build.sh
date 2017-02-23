@@ -2302,22 +2302,22 @@ build()
 apply_builtin_secret()
 {
 	local funcname='apply_builtin_secret'
-	local patch_plain="$KALUA_DIRNAME/openwrt-patches/builtin_secret/"*
 	local patch_dir='package/system/usign/patches'
-	local file
+	local file patch_plain
 
 	command -v 'openssl' >/dev/null || return 0
 	command -v 'bc' >/dev/null || return 0
 
 	export RANDOM_PRIME1="$(openssl prime -generate -bits 256)"
 	export RANDOM_PRIME2="$(openssl prime -generate -bits 256)"
-	export CODE_PROOF_OF_BOOT="$( echo "obase=16; $PRIME1*$PRIME2"| BC_LINE_LENGTH=0 bc )"
+	export CODE_PROOF_OF_BOOT="$( echo "obase=16; $RANDOM_PRIME1*$RANDOM_PRIME2"| BC_LINE_LENGTH=0 bc )"
 
+	for patch_plain in "$KALUA_DIRNAME/openwrt-patches/builtin_secret/"*; do break; done
 	[ -e "$patch_plain" ] && {
 		[ -d 'package/system/usign' ] && {
-			mkdir "$patch_dir"
+			mkdir -p "$patch_dir"
 			cp "$patch_plain" "$patch_dir/"
-			file="$patch_dir/"*
+			for file in "$patch_dir/"*; do break; done
 			sed -i -e "s/PRIME1/\"$P1\"/" -e "s/PRIME2/\"$P2\"/" "$file"
 			log "$funcname(): adding '$file'" gitadd "$file"
 		}
