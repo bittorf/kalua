@@ -2091,6 +2091,7 @@ copy_firmware_files()
     "$keynick": "$usign_signature"
   },
   "firmware_manually_checked": "false",
+  "firmware_code_proof_of_boot": "$CODE_PROOF_OF_BOOT",
   "firmware_kernel": "$VERSION_KERNEL",
   "firmware_rev": "$VERSION_OPENWRT_INTEGER",
   "firmware_usecase": "$USECASE_DOWNLOAD",
@@ -2298,6 +2299,31 @@ build()
 	esac
 }
 
+apply_builtin_secret()
+{
+	local funcname='apply_builtin_secret'
+	local patch_plain="$KALUA_DIRNAME/openwrt-patches/builtin_secret/"*
+	local patch_dir='package/system/usign/patches'
+	local file
+
+	command -v 'openssl' >/dev/null || return 0
+	command -v 'bc' >/dev/null || return 0
+
+	export RANDOM_PRIME1="$(openssl prime -generate -bits 256)"
+	export RANDOM_PRIME2="$(openssl prime -generate -bits 256)"
+	export CODE_PROOF_OF_BOOT="$( echo "obase=16; $PRIME1*$PRIME2"| BC_LINE_LENGTH=0 bc )"
+
+	[ -e "$patch_plain" ] && {
+		[ -d 'package/system/usign' ] && {
+			mkdir "$patch_dir"
+			cp "$patch_plain" "$patch_dir/"
+			file="$patch_dir/"*
+			sed -i -e "s/PRIME1/\"$P1\"/" -e "s/PRIME2/\"$P2\"/" "$file"
+			log "$funcname(): adding '$file'" gitadd "$file"
+		}
+	}
+}
+
 apply_patches()
 {
 	local file
@@ -2312,6 +2338,8 @@ apply_patches()
 		log "$KALUA_DIRNAME: apply_wifi_reghack"
 		apply_wifi_reghack
 	fi
+
+	apply_builtin_secret
 
 	list_files_and_dirs()
 	{
