@@ -247,11 +247,11 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 		}
 
 		URL="$( _links firmware_url_get tarball $MODE )"		# enforce beta|stable|testing if needed
-		hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"	# FIXME! abort when fetching hash fails
+		hash_tarball="$( _links firmware_url_get tarball_hash $MODE )"
 
 		read -r hash_last_applied <"$FILE_HASH_APPLIED"
 
-		[ "$hash_tarball" = "${hash_last_applied:-empty}" ] && {
+		[ "${hash_tarball:-$hash_last_applied}" = "${hash_last_applied:-empty}" ] && {
 			_log it $funcname daemon info "[OK] applied nothing - all seems up to date (tarball-hash known: $FILE_HASH_APPLIED)"
 			return 0
 		}
@@ -361,6 +361,7 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 					mv "$TEMPFILE" "/$TEMPFILE" || {
 						_log it $funcname daemon alert "error during moving file '$WORKINGDIR/$TEMPFILE' to '/$TEMPFILE'"
 						COUNT_ERROR=$(( COUNT_ERROR + 1 ))
+						COUNT=$(( COUNT - 1 ))
 					}
 				}
 			}
@@ -373,9 +374,10 @@ _firmware_update_pmu()		# poor mens update - simply overwrites all (shell-)files
 
 	cleanup
 	cd $original_dir || return
-	printf '%s' "$hash_tarball" >"$FILE_HASH_APPLIED"
 
 	if [ $COUNT -gt 0 ]; then
+		printf '%s' "$hash_tarball" >"$FILE_HASH_APPLIED"
+
 		_ rebuild "$funcname"
 		_() { false;}
 		. /tmp/loader

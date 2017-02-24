@@ -2320,7 +2320,7 @@ apply_builtin_secret()
 			mkdir -p "$patch_dir"
 			cp "$patch_plain" "$patch_dir/"
 			for file in "$patch_dir/"*; do break; done
-			sed -i -e "s/PRIME1/\"$random_prime1\"/" -e "s/PRIME2/\"$random_prime2\"/" "$file"
+			sed -i -e "/printf/s/PRIME1/\"$random_prime1\"/" -e "/printf/s/PRIME2/\"$random_prime2\"/" "$file"
 			log "$funcname(): adding '$file'" gitadd "$file"
 		}
 	}
@@ -4369,7 +4369,7 @@ while [ -n "$1" ]; do {
 		;;
 		'--release'|'-r')
 			case "$2" in
-				'stable'|'beta'|'testing')
+				'stable'|'beta'|'testing'|'nightly')
 					RELEASE="$2"
 					RELEASE_SERVER="$3"	# root@intercity-vpn.de:/var/www/networks/liszt28
 
