@@ -66,28 +66,36 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 
 			case "$COMMAND" in
 				'size'|'md5'|'sha256'|'sha256_signatures'|'version_on_server')
-					local i=0
-					local url="$dir/info.json"
+					read_cache()
+					{
+						local url="$dir/info.json"
+						local cache="$TMPDIR/cache_info.json"
+						local expired_seconds=30
+
+						_file age "$cache" -lt $expired_seconds || _curl it "$url" >"$cache"
+						grep -q ^'}'$ "$cache" || rm "$cache"
+						cat "$cache" 2>/dev/null
+					}
 
 					case "$COMMAND" in
 						'size')
 							get_json_field()
 							{
-								local line="$( _curl it "$1" | grep '"firmware_size": ' | cut -d'"' -f4 )"
+								local line="$( read_cache | grep '"firmware_size": ' | cut -d'"' -f4 )"
 								isnumber "$line" && echo "$line"
 							}
 						;;
 						'md5')
 							get_json_field()
 							{
-								local line="$( _curl it "$1" | grep '"firmware_md5": ' | cut -d'"' -f4 )"
+								local line="$( read_cache | grep '"firmware_md5": ' | cut -d'"' -f4 )"
 								[ ${#line} -eq 32 ] && echo "$line"
 							}
 						;;
 						'sha256')
 							get_json_field()
 							{
-								line="$( _curl it "$1" | grep '"firmware_sha256": ' | cut -d'"' -f4 )"
+								line="$( read_cache | grep '"firmware_sha256": ' | cut -d'"' -f4 )"
 								[ ${#line} -eq 64 ] && echo "$line"
 							}
 						;;
@@ -96,7 +104,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 							{
 								local line sign parse=
 
-								_curl it "$1" | while read -r line; do {
+								read_cache | while read -r line; do {
 									case "$line" in
 										*'"firmware_sha256_signatures": {'*)
 											parse='true'
@@ -123,7 +131,7 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 							{
 								local json revision checked='false'
 
-								json="$( _curl it "$1" )"
+								json="$( read_cache )"
 								explode $json
 
 								while [ -n "$1" ]; do {
@@ -157,8 +165,9 @@ _links_firmware_url_get()		# ARG1:	stable|beta|testing|empty
 					esac
 
 					# TODO: abort early if '"firmware_rev": "0"'
+					local i=0
 					while [ $i -lt 5 -a "$UPDATEMODE" != '0' ]; do {
-						if get_json_field "$url"; then
+						if get_json_field ; then
 							break
 						else
 							_log sleep "$funcname()-$COMMAND-$i/max_5" 10 step 1

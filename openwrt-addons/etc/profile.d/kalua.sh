@@ -12,6 +12,7 @@ prompt_set()
 		esac
 	}
 
+	# TODO: dash does not know escaping
 	local e='\[\e'			# start escape-sequence
 	local c='\]'			# close escape-sequence
 
