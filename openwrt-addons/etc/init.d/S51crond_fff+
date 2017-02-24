@@ -456,8 +456,8 @@ func_cron_config_write()
 
 		{
 			if _rrd needed; then
-				FIFO="/tmp/MYFIFO_$$"
-				[ -p "$FIFO" ] || mkfifo "$FIFO"
+#				FIFO="/tmp/MYFIFO_$$"
+#				[ -p "$FIFO" ] || mkfifo "$FIFO"
 				# TODO: what if CRON_IS_CAREFUL crashes and '/tmp/CRON_RUN' is not removed? -> FIFO blocks
 
 				_rrd setup 'keep_database'
@@ -466,16 +466,19 @@ func_cron_config_write()
 				# each crontab-entry is only executed if it does not run already (e.g. runningtime >60 sec)
 				# this FIFO-pipe construction makes sure, that RRD is really called each 60 sec (runs ~1 sec)
 				# and only after RRD runned the mainpart ('CRON_IS_CAREFUL') is executed...
-				echo "* * * * * >$FIFO && >/tmp/CRON_RUN && . /tmp/CRON_IS_CAREFUL; rm /tmp/CRON_RUN"
-				echo "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'; test -e /tmp/CRON_RUN || read UNBLOCK_NOW <$FIFO"
+#				echo "* * * * * >$FIFO && >/tmp/CRON_RUN && . /tmp/CRON_IS_CAREFUL; rm /tmp/CRON_RUN"
+#				echo "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'; test -e /tmp/CRON_RUN || read UNBLOCK_NOW <$FIFO"
 
-				I=0
-				for FIFO in '/tmp/MYFIFO_'*; do I=$(( I + 1 )); done
-				if   [ $I -ge 10 ]; then
-					_system crashreboot 'task_hangs'
-				elif [ $I -ge 2 ]; then
-					_log remote "too much open FIFOs: $I"
-				fi
+				echo "* * * * * /bin/sleep 5 && . /tmp/CRON_IS_CAREFUL"
+				echo "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'"
+
+#				I=0
+#				for FIFO in '/tmp/MYFIFO_'*; do I=$(( I + 1 )); done
+#				if   [ $I -ge 10 ]; then
+#					_system crashreboot 'task_hangs'
+#				elif [ $I -ge 2 ]; then
+#					_log remote "too much open FIFOs: $I"
+#				fi
 			else
 				echo "* * * * * . /tmp/CRON_IS_CAREFUL"
 			fi
@@ -483,7 +486,7 @@ func_cron_config_write()
 	fi
 
 	while read -r LINE; do {
-		_log it $FUNC daemon debug "+ '$LINE'"
+		_log it $FUNC daemon debug "CRONTAB: $LINE"
 	} done <$CRONFILE
 }
 
