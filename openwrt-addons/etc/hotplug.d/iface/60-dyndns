@@ -79,10 +79,16 @@ case "$ACTION" in
 					$IPT -t nat -I POSTROUTING -j 'NAT_ALIEN_ROAMERS'
 
 					bool_true 'system.@monitoring[0].roaming_nat' && {
+						LIST_DEVS="$( _wifi active_ap_devices ) $LANDEV"
+
 						if _net local_inet_offer >/dev/null; then
-							$IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET/$ROAMING_PRE" -j MASQUERADE
+							for DEV in $LIST_DEVS; do {
+								$IPT -t nat -I NAT_ALIEN_ROAMERS -i $DEV -s "$ROAMING_NET/$ROAMING_PRE" -j MASQUERADE
+							} done
 						else
-							$IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET/$ROAMING_PRE" -j SNAT --to-source "$ROAMING_ADR_LOCAL"
+							for DEV in $LIST_DEVS; do {
+								$IPT -t nat -I NAT_ALIEN_ROAMERS -i $DEV -s "$ROAMING_NET/$ROAMING_PRE" -j SNAT --to-source "$ROAMING_ADR_LOCAL"
+							} done
 						fi
 
 						$IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL" -j RETURN
