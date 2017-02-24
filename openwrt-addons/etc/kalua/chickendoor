@@ -9,9 +9,6 @@ _chickendoor_state()
 	local funcname='chickendoor_state'
 	local state="$1"
 	local file="$PERMDIR/$funcname"
-	local webcam_port=33333
-	local webcam_link="http://bwireless.mooo.com:$webcam_port/webcam.jpg"
-	local greetings='Gruesse von der automatischen Huehnerklappe.'
 
 	case "$state" in
 		enabled)
@@ -20,26 +17,32 @@ _chickendoor_state()
 		up|down)
 			echo >"$file" "$state"
 		;;
-		open)
+		open|closed)
 			echo >"$file" "$state"
 
-			_log shell_is_interactive && return 0
-			_mail send_telegram "$( _chickendoor housekeeper )" \
+			local webcam_port=33333
+			local webcam_link="http://bwireless.mooo.com:$webcam_port/webcam.jpg"
+			local greetings='Gruesse von der automatischen Huehnerklappe.'
+
+			case "$state" in
+				open)
+					_log shell_is_interactive && return 0
+					_mail send_telegram "$( _chickendoor housekeeper )" \
 						"Schlachthof: $( _i18n get 'de' 'dayname_today' ) morgen: Huehnerklappe wurde geoeffnet." \
 						"Sonnenaufgang heute: $( _system date unixtime2date "$( _date sunrise_today )" )\n" \
 						"Sonnenuntergang heute: $( _system date unixtime2date "$( _date sunset_today )" )\n\n" \
 						"Alles i.O.\nKeine Stoerung - den Huehnern gehts gut.\n\n" \
 						"Bilder hier:\n$webcam_link\n\n$greetings"
-		;;
-		closed)
-			echo >"$file" "$state"
-
-			_log shell_is_interactive && return 0
-			_mail send_telegram "$( _chickendoor housekeeper )" \
+				;;
+				closed)
+					_log shell_is_interactive && return 0
+					_mail send_telegram "$( _chickendoor housekeeper )" \
 						"Schlachthof: $( _i18n get 'de' 'dayname_today' ) abend: Huehnerklappe wurde geschlossen." \
 						"Sonnenuntergang heute: $( _system date unixtime2date "$( _date sunset_today )" )\n\n" \
 						"Alles i.O.\nKeine Stoerung - den Huehnern gehts gut.\n\n" \
 						"Bilder hier:\n$webcam_link\n\n$greetings"
+				;;
+			esac
 		;;
 		get|*)
 			cat "$file"
