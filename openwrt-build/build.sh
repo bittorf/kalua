@@ -381,7 +381,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 {
 	local funcname='kernel_commandline_tweak'
 	local dir="target/linux/$ARCH_MAIN"
-	local pattern=' oops=panic panic=10 '
+	local pattern=" oops=panic panic=10 prime1=$CODE_PROOF_OF_BOOT_PRIME1 "
 	local config kernelversion
 
 	case "$ARCH_MAIN" in
@@ -2313,6 +2313,8 @@ apply_builtin_secret()
 
 	# output in shorter hex:
 	export CODE_PROOF_OF_BOOT="$( echo "obase=16; $random_prime1 * $random_prime2"| BC_LINE_LENGTH=0 bc )"
+	# we export 1 factor to userspace:
+	export CODE_PROOF_OF_BOOT_PRIME1="$random_prime1"
 
 	for patch_plain in "$KALUA_DIRNAME/openwrt-patches/builtin_secret/"*; do break; done
 	[ -e "$patch_plain" ] && {
@@ -2320,7 +2322,7 @@ apply_builtin_secret()
 			mkdir -p "$patch_dir"
 			cp "$patch_plain" "$patch_dir/"
 			for file in "$patch_dir/"*; do break; done
-			sed -i -e "/printf/s/PRIME1/\"$random_prime1\"/" -e "/printf/s/PRIME2/\"$random_prime2\"/" "$file"
+			sed -i -e "/printf/s/PRIME1/\"$random_prime1\"/" "$file"
 			log "$funcname(): adding '$file'" gitadd "$file"
 		}
 	}
@@ -2329,6 +2331,9 @@ apply_builtin_secret()
 apply_patches()
 {
 	local file
+
+	log "$KALUA_DIRNAME: adding builtin secret"
+	apply_builtin_secret
 
 	log "$KALUA_DIRNAME: tweaking kernel commandline"
 	kernel_commandline_tweak
@@ -2340,8 +2345,6 @@ apply_patches()
 		log "$KALUA_DIRNAME: apply_wifi_reghack"
 		apply_wifi_reghack
 	fi
-
-	apply_builtin_secret
 
 	list_files_and_dirs()
 	{
