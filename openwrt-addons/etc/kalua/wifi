@@ -2112,24 +2112,39 @@ _wifi_scan()
 	local dev="${1:-$WIFIDEV}"		# e.g. wlan0
 	local option="$2"			# e.g. <my-special-ssid> or 'mozilla' or <empty>
 	local line value remote signal bssid mhz ssid capability
-	local devindex devname chanbw
+	local devindex devname chanbw debugfs phy
 	local freq="$( _wifi dev2freq "$dev" )"
 	local temp="$TMPDIR/$funcname.$$"
 	local i=0
 	local try=1
 
+	# TODO: own function, maye join with dev2chanbw()
+	read -r phy 2>/dev/null <"/var/run/interfaces/dev2radio_$dev"
 	devname="$( _net dev2name "$dev" )"		# wlan0 -> wlanadhoc
 	chanbw="$( _wifi get "$devname" chanbw )"
 	devindex="$( _wifi get "$devname" index )"
 	case "$chanbw" in
 		5|10)
 			_wifi set anymode "$devindex" chanbw 20
-			_wifi phy_restart "$dev" "$funcname() changing chanbw from $chanbw to 20"
+			debugfs="/sys/kernel/debug/ieee80211/$phy/ath9k/chanbw"
+
+			if [ -e "$debugfs" ]; then
+				_log it $funcname daemon info "fastmode: chanbw $chanbw->20"
+				echo '20' >"$debugfs"
+			else
+				_wifi phy_restart "$dev" "$funcname() changing chanbw for $devname/$dev from $chanbw to 20"
+			fi
 
 			restore_chanbw()
 			{
 				_wifi set anymode "$devindex" chanbw "$chanbw"
-				_wifi phy_restart "$dev" "$funcname() changing chanbw from 20 to $chanbw"
+
+				if [ -e "$debugfs" ]; then
+					_log it $funcname daemon info "fastmode: chanbw 20->$chanbw"
+					echo "$chanbw" >"$debugfs"
+				else
+					_wifi phy_restart "$dev" "$funcname() changing chanbw for $devname/$dev from 20 to $chanbw"
+				fi
 			}
 		;;
 		*)
