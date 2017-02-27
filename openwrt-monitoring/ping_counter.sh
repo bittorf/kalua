@@ -72,7 +72,7 @@ list_pubips_from_network()	# parses status-files from monitoring of each node fo
 			esac
 
 
-# fixme! show newest at first!
+			# FIXME! show newest at first!
 
 			# e.g. spbansin:Haus8 -> spbansin
 			network="${network%:*}"

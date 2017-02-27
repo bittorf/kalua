@@ -764,7 +764,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 		continue
 	}
 
-	D0=;k0=;k1=;k2=;k3=;u0=;w0=;w1=;w2=;w3=;t0=;t1=;n0=;d0=;d1=;i0=;i1=;i2=;i3=;i4=;i5=;i6=;r0=;r1=;r2=;r3=;r4=;r5=;r9=;h0=;h1=;h2=;h3=;h4=;h5=;h6=;h7=;s1=;s2=;v1=;v2=;NODE=;UP=;VERSION=;HOSTNAME=;WIFIMAC=;REBOOT=;CITY=;UPDATE=;NEIGH=;LATLON=;GWNODE=;TXPWR=;WIFIMODE=;CHANNEL=;COST2GW=;HOP2GW=;USERS=;MRATE=;LOAD=;HW=;UNIXTIME=;HUMANTIME=;FORWARDED=;SERVICES=;PUBIP_REAL=;PUBIP_SIMU=;MAIL=;PHONE=;SSHPUBKEYFP=;FRAG=;RTS=;GMODEPROT=;GW=;PROFILE=;NOISE=;RSSI=;GMODE=;ESSID=;BSSID=;WIFIDRV=;LOG=;OLSRVER=;OPTIMIZENLQ=;OPTIMIZENEIGH=;PORTFW=;WIFISCAN=;SENS=;PFILTER=
+	secret=;D0=;k0=;k1=;k2=;k3=;u0=;w0=;w1=;w2=;w3=;t0=;t1=;n0=;d0=;d1=;i0=;i1=;i2=;i3=;i4=;i5=;i6=;r0=;r1=;r2=;r3=;r4=;r5=;r9=;h0=;h1=;h2=;h3=;h4=;h5=;h6=;h7=;s1=;s2=;v1=;v2=;NODE=;UP=;VERSION=;HOSTNAME=;WIFIMAC=;REBOOT=;CITY=;UPDATE=;NEIGH=;LATLON=;GWNODE=;TXPWR=;WIFIMODE=;CHANNEL=;COST2GW=;HOP2GW=;USERS=;MRATE=;LOAD=;HW=;UNIXTIME=;HUMANTIME=;FORWARDED=;SERVICES=;PUBIP_REAL=;PUBIP_SIMU=;MAIL=;PHONE=;SSHPUBKEYFP=;FRAG=;RTS=;GMODEPROT=;GW=;PROFILE=;NOISE=;RSSI=;GMODE=;ESSID=;BSSID=;WIFIDRV=;LOG=;OLSRVER=;OPTIMIZENLQ=;OPTIMIZENEIGH=;PORTFW=;WIFISCAN=;SENS=;PFILTER=
 
 	# use real file, otherwise the stat-command is not useful
 	[ -h "$FILE" ] && FILE="$( readlink -f "$FILE" )"
@@ -2151,8 +2151,9 @@ _cell_firmwareversion_humanreadable()
 	local update="$1"	# e.g. 'testing.Standard,kalua' or 'testing' or '0'
 	local FWVERSION="$2"
 	local openwrt_rev="$3"
+	local secret="$4"	# builtin_secret / hex
 	local TIME="$(( $UNIXTIME_SCRIPTSTART / 86400 ))"		# days
-	local UPDATE= usecase= OUT=
+	local file_json prime_product prime_factor2 UPDATE= usecase= OUT=
 
 	case "$update" in
 		*'.'*)
@@ -2168,6 +2169,28 @@ _cell_firmwareversion_humanreadable()
 
 	[ -n "$HW" ] && {
 		grep -sq ^"$HW"$ "$HARDWARE_FILE" || echo "$HW" >>"$HARDWARE_FILE"
+	}
+
+	# CODE_PROOF_OF_BOOT:
+	[ -n "$secret" ] && {
+		UPDATE="$(  echo "$update" | cut -d'.' -f1 )"		# e.g. testing
+		usecase="$( echo "$update" | cut -d'.' -f2 )"
+		file_json="../firmware/models/$HW/$UPDATE/$usecase/info.json"
+
+		is_prime()
+		{
+			openssl prime $1 $2 | grep -q 'is prime'
+		}
+
+		grep -sq '"firmware_manually_checked": "false"' "$file_json" && {
+			is_prime -hex "$secret" && {
+				prime_product="$( grep '"firmware_code_proof_of_boot":' "$file_json" | cut -d'"' -f4 )"
+				prime_factor2="$( echo "ibase=16; $prime_product / $secret" | BC_LINE_LENGTH=0 bc )"
+				is_prime "$prime_factor2" && {
+					sed -i 's/\(.*"firmware_manually_checked":\) "false"\(.*\)/\1 "true"\2/' "$file_json"
+				}
+			}
+		}
 	}
 
 	unixtime2date()
@@ -3797,7 +3820,7 @@ esac
 
 	_cell_lastseen "$LASTSEEN" "$HUMANTIME" "$i1" 
 	func_cell_hostname "$HOSTNAME" "$WIFIMAC" "$MAIL"
-	_cell_firmwareversion_humanreadable "$UPDATE" "$VERSION" "$v2"
+	_cell_firmwareversion_humanreadable "$UPDATE" "$VERSION" "$v2" "$secret"
 
 	good_git_color()
 	{
@@ -4513,7 +4536,7 @@ MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3503	# LEDE
+MODE_TESTING_REV=3582	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4620,6 +4643,8 @@ sh -n "$USECASE_FILE" && cd .. && {
 
 	# TODO: show stats: count different models, different usecases, overall jobs and estimated build-time
 
+	[ "$NETWORK" = 'liszt28' ] && echo >>"$USECASE_FILE" "USECASE='Standard-4mb,kalua'; HARDWARE='UML'; WIFIMAC='112233445566';"
+
 	ALREADY_WRITTEN=
 	STABLE=0;BETA=0;TESTING=0;OVERALL=0;OVERALL_READY=0
 	while read -r LINE; do {
@@ -4639,10 +4664,16 @@ sh -n "$USECASE_FILE" && cd .. && {
 			esac
 		}
 
+		# enforce a usecase:
+		case "$NETWORK" in
+			'itzehoe') USECASE='Standard,kalua' ;;
+		esac
+
 		case "$USECASE" in
 			'Standard,'*)
 				case "$USECASE" in
 					*'USBstorage,'*)
+						# this is already an auto-included sub-usecase
 						USECASE="$( echo "$USECASE" | sed 's/USBstorage,//g' )"
 					;;
 				esac
@@ -4743,7 +4774,6 @@ sh -n "$USECASE_FILE" && cd .. && {
 				;;
 			esac
 
-			HIDE=
 			JSON="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/.$USECASE_HASH/info.json"
 			USECASE_DIR="$PWD/firmware/models/$HARDWARE_FILENAME/$MODE/$USECASE"
 
@@ -4758,12 +4788,14 @@ sh -n "$USECASE_FILE" && cd .. && {
 				cp "$JSON" "$USECASE_DIR/"
 			}
 
-			[ $REV_JSON -eq $OPENWRT_REV ] && {
-				grep -q '"firmware_manually_checked": "false"' "$JSON" && {
-					sed -i 's/\(.*"firmware_manually_checked":\) "false"\(.*\)/\1 "true"\2/' "$JSON"
-				}
-			}
+# for new we only accept "CODE_PROOF_OF_BOOT" messages
+#			[ $REV_JSON -eq $OPENWRT_REV ] && {
+#				grep -q '"firmware_manually_checked": "false"' "$JSON" && {
+#					sed -i 's/\(.*"firmware_manually_checked":\) "false"\(.*\)/\1 "true"\2/' "$JSON"
+#				}
+#			}
 
+			HIDE=
 			if   grep -q "\"firmware_md5\": \"deadbeef\"" "$JSON"; then
 				:
 			elif grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON"; then

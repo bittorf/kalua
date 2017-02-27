@@ -5,7 +5,15 @@ funcname='heartbeat'
 ARG1="$1"		# sam = send_alive_message|fast|full
 ARG2="$2"
 
-if   [ $OPENWRT_REV -ge $LEDE_REV -a -e "$TMPDIR/ARCHIV_MONITORING.recent" -a "$ARG1" != 'full' ]; then
+full_run_already_happened()
+{
+	test $OPENWRT_REV -ge $LEDE_REV -a \
+		"$ARG1" != 'full' -a \
+		-e "$TMPDIR/builtin_secret_was_send" -a \
+		-e "$TMPDIR/ARCHIV_MONITORING.recent"
+}
+
+if   full_run_already_happened; then
 	_watch monitoring force
 	exit 0
 elif [ -n "$LOWMEM" ]; then
@@ -681,9 +689,11 @@ grep -q ^"ip_tables " /proc/modules && {
 	QUERY="${QUERY}&u0=$( usbport_something_is_plugged_in && echo '1' )"
 
 	[ -e "$TMPDIR/builtin_secret_was_send" ] || {
-		SECRET="$( _firmware builtin_secret )" && {
+		if SECRET="$( _firmware builtin_secret )"; then
 			QUERY="${QUERY}&secret=$SECRET"		# is already HEX
-		}
+		else
+			touch "$TMPDIR/builtin_secret_was_send"
+		fi
 	}
 
 	[ -n "$( uci -q get dhcp.@dnsmasq[0].dhcpscript )" ] && {
