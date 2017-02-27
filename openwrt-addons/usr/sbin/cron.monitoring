@@ -675,10 +675,16 @@ grep -q ^"ip_tables " /proc/modules && {
 			;;
 		esac
 
-		test -n "$( grep -s " Driver=" /proc/bus/usb/devices | grep -v "Driver=hub" )"
+		test -n "$( grep -s " Driver=" /proc/bus/usb/devices | grep -v 'Driver=hub' )"
 	}
 
-	QUERY="${QUERY}&u0=$( usbport_something_is_plugged_in && echo "1" )"
+	QUERY="${QUERY}&u0=$( usbport_something_is_plugged_in && echo '1' )"
+
+	[ -e "$TMPDIR/builtin_secret_was_send" ] || {
+		SECRET="$( _firmware builtin_secret )" && {
+			QUERY="${QUERY}&secret=$SECRET"		# is already HEX
+		}
+	}
 
 	[ -n "$( uci -q get dhcp.@dnsmasq[0].dhcpscript )" ] && {
 		QUERY="${QUERY}&D0=1"
@@ -785,6 +791,12 @@ grep -q ^"ip_tables " /proc/modules && {
 
  					if serveranswer_ok "$OUT"; then
  						_log it $funcname daemon debug "send alive-line: $LINENUMBER_LAST_SUCCESS - $OUT - i: $i"
+
+						case "$QUERY" in
+							*'secret='*)
+								touch "$TMPDIR/builtin_secret_was_send"
+							;;
+						esac
 
 						[ -z "$MAPAPI" ] && {
 							MAPAPI='send'
