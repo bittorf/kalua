@@ -381,7 +381,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 {
 	local funcname='kernel_commandline_tweak'
 	local dir="target/linux/$ARCH_MAIN"
-	local pattern=" oops=panic panic=10 prime1=$CODE_PROOF_OF_BOOT_PRIME1 "
+	local pattern=" oops=panic panic=10 builtin_secret=$CODE_PROOF_OF_BOOT_PRIME1 "
 	local config kernelversion
 
 	case "$ARCH_MAIN" in
@@ -2301,31 +2301,16 @@ build()
 
 apply_builtin_secret()
 {
-	local funcname='apply_builtin_secret'
-	local patch_dir='package/system/usign/patches'
-	local file patch_plain random_prime1 random_prime2
-
 	command -v 'openssl' >/dev/null || return 0
 	command -v 'bc' >/dev/null || return 0
 
-	random_prime1="$(openssl prime -generate -bits 256)"
-	random_prime2="$(openssl prime -generate -bits 256)"
+	local random_prime1="$(openssl prime -generate -bits 256)"
+	local random_prime2="$(openssl prime -generate -bits 256)"
 
-	# output in shorter hex:
-	export CODE_PROOF_OF_BOOT="$( echo "obase=16; $random_prime1 * $random_prime2"| BC_LINE_LENGTH=0 bc )"
-	# we export 1 factor to userspace:
-	export CODE_PROOF_OF_BOOT_PRIME1="$random_prime1"
-
-	for patch_plain in "$KALUA_DIRNAME/openwrt-patches/builtin_secret/"*; do break; done
-	[ -e "$patch_plain" ] && {
-		[ -d 'package/system/usign' ] && {
-			mkdir -p "$patch_dir"
-			cp "$patch_plain" "$patch_dir/"
-			for file in "$patch_dir/"*; do break; done
-			sed -i -e "/printf/s/PRIME1/\"$random_prime1\"/" "$file"
-			log "$funcname(): adding '$file'" gitadd "$file"
-		}
-	}
+	# public: output in shorter hex:
+	export CODE_PROOF_OF_BOOT="$( echo "obase=16; $random_prime1 * $random_prime2" | BC_LINE_LENGTH=0 bc )"
+	# secret: we export 1 factor (also in hex) to userspace:
+	export CODE_PROOF_OF_BOOT_PRIME1="$( echo "obase=16; $random_prime1" | BC_LINE_LENGTH=0 bc )"
 }
 
 apply_patches()
