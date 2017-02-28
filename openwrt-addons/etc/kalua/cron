@@ -302,3 +302,70 @@ _cron_dummy()
 	# tail -n1 .ssh/authorized_keys >.ssh/authorized_keys.giancarlo.camserver
 	# apt-get install dropbear -> reverse-ssh-tunnel
 }
+
+_cron_dslr()
+{
+	local funcname='cron_dslr'
+	local action="$1"
+	local marker upload_path pubkey user_at_server identity instruction up file list
+	local ramdisc='/webcam'
+
+	# jpeg is ready / http://stackoverflow.com/questions/4585527/detect-eof-for-jpg-images
+	# o1="$( printf "%o" "0xff" )"
+	# o2="$( printf "%o" "0xd9" )"
+	# GOOD="$( eval printf "\\\\$o1" )$( eval printf "\\\\$o2" )"
+	# END="$( tail -c2 file )"
+	# test "$END" = "$GOOD"
+
+	case "$action" in
+		'init')
+			_system add_ramdisc "$ramdisc"
+		;;
+		'setup')
+			# upload my pubkey to upload-server, for password-less 'scp'
+			upload_path="$( uci get system.@webcam[0].storage_path )"	# user@ip:/my/path
+			user_at_server="$( echo "$upload_path" | cut -d':' -f1 )"
+			identity="$( _ssh key_public_fingerprint_get keyfilename )"
+			instruction="grep -q '$pubkey' .ssh/authorized_keys || echo '$pubkey' >>.ssh/authorized_keys"
+			read -r pubkey <"$identity.pub"
+			ssh -i "$identity" "$user_at_server" "$instruction"
+			# test with:
+			# ssh -i "$( _ssh key_public_fingerprint_get keyfilename )" $user_at_server
+		;;
+		'loop_download')	# from camera
+			mkdir "$TMPDIR/$action" || return 0
+			while :; do {
+				[ "$( _system disc_free "$ramdisc" percent )" -gt 25 ] && {
+					gphoto2 --get-all-files && {
+						gphoto2 --delete-all-files --recurse
+						_log it $funcname daemon info "$action OK get+delete"
+					}
+				}
+				sleep 1
+			} done
+			rm -fR "$TMPDIR/$action"
+		;;
+		'loop_upload')		# to server + storage (TODO)
+			upload_path="$( uci get system.@webcam[0].storage_path )"	# user@ip:/my/path
+			identity="$( _ssh key_public_fingerprint_get keyfilename )"
+
+			mkdir "$TMPDIR/$action" || return 0
+			while :; do {
+				list=
+				for file in "$ramdisc/"*; do test -e "$file" && list="$list $file"; done
+
+				[ -n "$list" ] && {
+					if scp -i "$identity" "$ramdisc/"* "$upload_path"; then
+						_log it $funcname daemon info "$action scp-OK: $list"
+					else
+						_log it $funcname daemon alert "$action failed: $?"
+					fi
+				}
+
+				read -r up _ </proc/uptime; echo "${up%.*}${up#*.}" >'/tmp/CRON_LASTCALL'
+				sleep 1
+			} done
+			rm -fR "$TMPDIR/$action"
+		;;
+	esac
+}

@@ -450,3 +450,4 @@ Special UCI-variables
 	system.@webcam[0].flip_x		- bool
 	system.@webcam[0].flip_y		- bool
 	system.@webcam[0].disabled		- bool
+	system.@webcam[0].dslr_upload		- bool
