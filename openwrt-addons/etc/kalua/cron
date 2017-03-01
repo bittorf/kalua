@@ -370,10 +370,23 @@ _cron_dslr()
 				[ -e "$TMPDIR/DSLR_BREAK2" ] && rm "$TMPDIR/DSLR_BREAK2" && break
 
 				list=
-				for file in "$ramdisc/"*; do test -e "$file" && list="$list $file"; done
+				for file in "$ramdisc/"*; do {
+					case "$file" in
+						*'.JPG')
+							list="$list $file"
+						;;
+						*'tmpfile'*)
+							# ignore
+						;;
+						*)
+							rm -f "$file"	# e.g. _DSC4966.NEF
+							continue
+						;;
+					esac
+				} done
 
 				[ -n "$list" ] && {
-					if scp -i "$identity" "$ramdisc/"*.JPG "$upload_path"; then
+					if scp -i "$identity" "$ramdisc/"*'.JPG' "$upload_path"; then
 						rm -f $list
 						_log it $funcname daemon info "$action scp-OK: $list"
 					else
