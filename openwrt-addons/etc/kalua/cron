@@ -322,21 +322,24 @@ _cron_dslr()
 			_system add_ramdisc "$ramdisc"
 		;;
 		'setup')
-			# upload my pubkey to upload-server, for password-less 'scp'
+			_log it $funcname daemon info "upload my pubkey to upload-server, for password-less 'scp'"
 			upload_path="$( uci get system.@webcam[0].storage_path )"	# user@ip:/my/path
 			user_at_server="$( echo "$upload_path" | cut -d':' -f1 )"
 			identity="$( _ssh key_public_fingerprint_get keyfilename )"
-			instruction="grep -q '$pubkey' .ssh/authorized_keys || echo '$pubkey' >>.ssh/authorized_keys"
+
 			read -r pubkey <"$identity.pub"
+			instruction="grep -q '$pubkey' .ssh/authorized_keys || echo '$pubkey' >>.ssh/authorized_keys"
 			ssh -i "$identity" "$user_at_server" "$instruction"
-			# test with:
-			# ssh -i "$( _ssh key_public_fingerprint_get keyfilename )" $user_at_server
+
+			_log it $funcname daemon info "test with: ssh -i $identity $user_at_server"
 		;;
 		'loop_download')	# from camera
 			mkdir "$TMPDIR/$action" || return 0
+			cd "$ramdisc" || return 1
+
 			while :; do {
 				[ -e "$TMPDIR/DEBUG" ] && _log it $funcname daemon info "loop: $action"
-				[ -e "$TMPDIR/DSLR_BREAK" ] && rm "$TMPDIR/DSLR_BREAK" && break
+				[ -e "$TMPDIR/DSLR_BREAK1" ] && rm "$TMPDIR/DSLR_BREAK1" && break
 
 				[ "$( _system disc_free "$ramdisc" percent )" -gt 25 ] && {
 					gphoto2 --get-all-files && {
@@ -346,7 +349,10 @@ _cron_dslr()
 				}
 				sleep 1
 			} done
+
+			cd -
 			rm -fR "$TMPDIR/$action"
+			_log it $funcname daemon alert "$action endloop"
 		;;
 		'loop_upload')		# to server + storage (TODO)
 			upload_path="$( uci get system.@webcam[0].storage_path )"	# user@ip:/my/path
@@ -355,7 +361,7 @@ _cron_dslr()
 			mkdir "$TMPDIR/$action" || return 0
 			while :; do {
 				[ -e "$TMPDIR/DEBUG" ] && _log it $funcname daemon info "loop: $action"
-				[ -e "$TMPDIR/DSLR_BREAK" ] && rm "$TMPDIR/DSLR_BREAK" && break
+				[ -e "$TMPDIR/DSLR_BREAK2" ] && rm "$TMPDIR/DSLR_BREAK2" && break
 
 				list=
 				for file in "$ramdisc/"*; do test -e "$file" && list="$list $file"; done
@@ -372,7 +378,9 @@ _cron_dslr()
 				read -r up _ </proc/uptime; echo "${up%.*}${up#*.}" >'/tmp/CRON_LASTCALL'
 				sleep 1
 			} done
+
 			rm -fR "$TMPDIR/$action"
+			_log it $funcname daemon alert "$action endloop"
 		;;
 	esac
 }
