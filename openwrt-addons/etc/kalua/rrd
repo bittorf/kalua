@@ -203,6 +203,7 @@ _rrd_update()
 
 _rrd_show_if_enough_resources()
 {
+	local option="$1"
 	local mem_border=8000
 	local load word mem
 
@@ -219,7 +220,7 @@ _rrd_show_if_enough_resources()
 	while read -r word mem _; do case "$word" in 'MemAvailable:'*|'Buffers:'*) break;; esac; done <'/proc/meminfo'
 	[ $mem -lt $mem_border ] && return 1
 
-	_rrd show
+	_rrd show "$option"
 }
 
 _rrd_show()
@@ -416,12 +417,13 @@ _rrd_upload()
 	local funcname='rrd_upload'
 	local duration="$1"
 	local file='/tmp/graph.png'
-	local date="$( _system date humanreadable | sed 's/:/./g' )"
-	local dest="$( uci get system.@vds[0].server )../media/traffic_${HOSTNAME}_${date}.png"
 	local try=3
 
-	_rrd show "$duration" || return 1
+	_rrd show_if_enough_resources "$duration" || return 1
 	pidof scp >/dev/null && return 1
+
+	local date="$( _system date humanreadable | sed 's/:/./g' )"
+	local dest="$( uci get system.@vds[0].server )../media/traffic_${HOSTNAME}_${date}.png"
 
 	while [ $try -gt 0 ]; do {
 		_log it $funcname daemon info "uploading '$file' to '$dest'"
