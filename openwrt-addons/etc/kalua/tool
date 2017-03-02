@@ -7,8 +7,7 @@ _tool_remote()		# e.g. _tool remote IP-address 'startshell' or 'command'
 	local append_query="$3"		# e.g. 'MSG=bla' or '1' (just one command)
 	local password="$4"
 	local mycommand="$5"
-	local url=
-	local i=0
+	local i=0 timeout=30 rc=0 url=
 
 	while :; do {
 		case "$remote_command" in
@@ -26,10 +25,12 @@ _tool_remote()		# e.g. _tool remote IP-address 'startshell' or 'command'
 				i=$(( i + 1 ))
 
 				# do not ask in 1-command mode:
-				isnumber "${append_query:-0}" && test -z "$mycommand" -a ${append_query:-0} -ne 1 && {
+				if isnumber "${append_query:-0}" && test -z "$mycommand" -a ${append_query:-0} -ne 1; then
 					printf '\n%s' '#' '# your command: '
 					read -r mycommand
-				}
+				else
+					timeout=180
+				fi
 
 				mycommand="$( _sanitizer run "$mycommand" urlvalue )"
 				url="http://root:$password@$remote_ip/cgi-bin/userdb"
@@ -45,8 +46,15 @@ _tool_remote()		# e.g. _tool remote IP-address 'startshell' or 'command'
 			;;
 		esac
 
-		_curl it "$url"		# TODO: check output in commandmode -> rc
+		_curl it "$url"	"$timeout" >"$temp"
+
+		cat "$temp"
+		grep -q '</body></html>' "$temp"
+		rc=$?
+		rm -f "$temp"
 	} done
+
+	test $rc -eq 0
 }
 
 fkt_print_accounting ()
