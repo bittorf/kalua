@@ -1547,7 +1547,7 @@ _netfilter_splash_batman_alien_unauth()
 						'Station '*)
 							explode $line
 							mac="$2"
-							[ -e "/tmp/vds_user_$mac" ] || {
+							nf_user 'is_known' "$mac" || {
 								ip="$( _net mac2ip "$mac" )"
 								_log it $funcname daemon info "mac/ip $mac/$ip needs splash on node $NODENUMBER"
 							}
@@ -1973,7 +1973,7 @@ EOF
 	_log it $funcname daemon info "mac: $mac ip: $ip"
 	echo "$mac" >"/tmp/NETFILTER/IP2MAC/$ip"
 	echo "$ip"  >"/tmp/NETFILTER/MAC2IP/$mac"
-	touch "/tmp/vds_user_$mac"
+	nf_user 'mark_known' "$mac"
 
 	# maybe doing this for batman has side-effects
 	# also: to be correct it must be done (only?) for gateway0/macvlan
@@ -2132,7 +2132,7 @@ _netfilter_user_del()
 			_netfilter set_arp reachable "$mac" "$ip" "$dev"
 		}
 
-		bool_true 'system.@weblogin[0].forget_clients' && rm "/tmp/vds_user_$mac"
+		bool_true 'system.@weblogin[0].forget_clients' && nf_user 'delete_user' "$mac"
 		rm -fR "/tmp/NETFILTER/USER/$mac"
 	}
 }
@@ -2331,8 +2331,8 @@ _netfilter_user_stats_process()
 			continue	# do not generate any message for this user
 		}
 
-		if [ -e "/tmp/vds_user_$mac" ]; then
-			read -r hash <"/tmp/vds_user_$mac"
+		if nf_user 'is_known' "$mac" ; then
+			nf_user 'get_hash' "$mac" 'hash'
 		else
 			hash=
 		fi
@@ -2366,9 +2366,9 @@ _netfilter_user_stats_process()
 					*':'*)
 						# add allowed macs from server to this station
 						if bool_true 'system.@weblogin[0].forget_clients'; then
-							[ -e "/tmp/vds_user_$mac" ] || touch "/tmp/vds_user_$mac"
+							nf_user 'is_known' "$mac" || nf_user 'mark_known' "$mac"
 						else
-							touch "/tmp/vds_user_$mac"
+							nf_user 'mark_known' "$mac"
 						fi
 					;;
 					'OK-UNIXTIME='*)

@@ -451,38 +451,21 @@ _watch_coredump()
 
 _watch_user_list()
 {
-	local option="$1"
-	local file
-	local keep="$PERMDIR/vds_user_list.tar.gz"
-	local keep_temp="$TMPDIR/vds_user_list.tar.gz"
-	local dhcplease_12h='43200'
+	local option="$1"	# <empty> or 'load_keep'
 
 	case "$option" in
 		'load_keep')
-			[ -e "$keep" ] && tar -C / -xzf "$keep"
+			nf_user 'restore'
 		;;
 	esac
 
 	if bool_true 'system.@weblogin[0].forget_clients'; then
-		for file in '/tmp/vds_user_'*; do {
-			[ -e "$file" ] && {
-				_file age "$file" -gt $dhcplease_12h && rm "$file"
-			}
-		} done
+		nf_user 'delete_old'
 	else
 		_weblogin authserver is_myself && {
-			# also remember filedates:
-			tar czf "$keep_temp" '/tmp/vds_user_'* 2>/dev/null
+			nf_user 'backup'
 		}
 	fi
-
-	[ -e "$keep_temp" ] && {
-		if  cmp -s "$keep_temp" "$keep"; then
-			rm "$keep_temp"
-		else
-			mv "$keep_temp" "$keep"
-		fi
-	}
 
 	true
 }

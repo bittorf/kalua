@@ -11,9 +11,9 @@ if [ -n "$LOG" ]; then
 else
 	_netfilter user_probe "$CMA" || exit 1
 
-	[ -e "/tmp/vds_user_$CMA" ] || exit 1
+	nf_user 'is_known' "$CMA" || exit 1
 
-	read -r HASH <"/tmp/vds_user_$CMA"
+	nf_user 'get_hash' "$CMA" 'HASH'
 	[ "$HASH" = "$CAH" ] || exit
 
 	echo >>$SCHEDULER "_netfilter user_del $CMA kick_user"

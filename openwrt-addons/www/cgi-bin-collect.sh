@@ -86,17 +86,7 @@ case "$QUERY_STRING" in
 
 		# while we have a conversation anyway,
 		# report which mac's are OK to allow (e.g. DHCP)
-		for FILE in /tmp/vds_user_*; do {
-			FILE="${FILE#*user_}"
-
-			case "$FILE" in
-				'*')
-				;;
-				*)
-					echo "$FILE"
-				;;
-			esac
-		} done
+		nf_user 'list_all'
 
 		echo "OK-UNIXTIME=$( date +%s )"
 	;;

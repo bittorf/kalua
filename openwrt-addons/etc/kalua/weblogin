@@ -330,7 +330,7 @@ EOF
 						# no credentials are needed, just "click away"
 						local mac="$( _net ip2mac $REMOTE_ADDR )"
 						_log it $funcname daemon info "allowing access for ip/mac: $REMOTE_ADDR/$mac"
-						[ -n "$mac" ] && touch "/tmp/vds_user_$mac"
+						[ -n "$mac" ] && nf_user 'mark_known' "$mac"
 					;;
 					'roomnumber')
 						cat <<EOF
@@ -806,8 +806,8 @@ _weblogin_login_check()			# FIXME! send HOSTNAME?
 	elif [ -e '/tmp/FREE' ]; then
 		_log it $funcname daemon info "[OK] auth: existing /tmp/FREE"
 		free=1
-	elif [ -e "/tmp/vds_user_${MAC:-mac_is_empty}" ]; then
-		_log it $funcname daemon info "[OK] auth: existing /tmp/vds_user_$MAC"
+	elif nf_user 'is_known' "${MAC:-mac_is_empty}"; then
+		_log it $funcname daemon info "[OK] auth: is_known: $MAC"
 		free=1
 	else
 		_log it $funcname daemon info "query local db for '$HASH'"
@@ -836,8 +836,7 @@ _weblogin_login_check()			# FIXME! send HOSTNAME?
 	[ "$ANSWER" = '1' -o "$free" = '1' ] && {
 		_weblogin device_or_customer_needs_admin_interaction "$REMOTE_ADDR" || {
 			[ -n "$MAC" ] && {
-				# FIXME! for building vds, use DB instead (easy/simple mac2hash)
-				echo "$HASH" >"/tmp/vds_user_$MAC"
+				nf_user 'set_hash' "$MAC" "$HASH"
 			}
 
 			return 0
