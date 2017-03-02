@@ -2,12 +2,12 @@
 
 nf_user()
 {
-	local action="$1"
+	local cmd="$1"
 	local mac="$2"
-	local varname="${3:-$mac}"
+	local varname="$3"
 	local i=0
 
-	case "$action" in
+	case "$cmd" in
 		'list_all')
 			for mac in '/tmp/vds_user_'*; do {
 				case "$mac" in *'*') return 1 ;; esac
@@ -23,6 +23,12 @@ nf_user()
 			rm '/tmp/vds_user_'* 2>/dev/null
 		;;
 		'delete_old')
+			# hotfix: default inode-value ~1/4 of size (e.g. 16000 for 64M-tmpfs)
+			grep ^'tmpfs /tmp tmpfs' /proc/mounts | grep -q 'nr_inodes=' || {
+				mount -o remount,nr_inodes=$(( $(_system ram_size) / 4 )) tmpfs /tmp
+			}
+
+			# TODO: sort by age and abort on first fail
 			for mac in '/tmp/vds_user_'*; do {
 				_file age "$mac" -gt 43200 && rm "$mac" 2>/dev/null	# 12h
 			} done
