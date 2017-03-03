@@ -5,38 +5,27 @@ nf_user()
 	local cmd="$1"
 	local mac="$2"
 	local varname="$3"
-	local obj timestamp i=0 pair=
+	local oldIFS obj unixtime timestamp i=0 pair=
 
 	case "$NF_LIST" in
 		'')
-			if [ -n "$( ls -1 '/tmp/vds_user_'* )" ]; then
-				umigrate
-			else
-				command . "$TMPDIR/NF_USER.sh" 2>/dev/null
+			if command . "$TMPDIR/NF_USER.sh" 2>/dev/null; then
+				:
+			elif ls -1 '/tmp/vds_user_'* 2>/dev/null ]; then
+				nf_user_migrate
 			fi
 		;;
 	esac
 
+	case "${#mac}" in 17) oldIFS="$IFS"; IFS=:; set -- $mac; IFS="$oldIFS"; mac="$1$2$3$4$5$6";; esac
+
 	case "$cmd" in
 		'list_all')
-			for mac in $NF_LIST; do {
-				printf '%s\n' "$mac"
-			} done
-
-#			for mac in '/tmp/vds_user_'*; do {
-#				case "$mac" in *'*') return 1 ;; esac
-#				printf '%s\n' "${mac#*user_}"
-#			} done
+			for mac in $NF_LIST; do printf '%s\n' "$mac"; done
 		;;
 		'count_all')
-			for mac in $NF_LIST; do {
-				i=$(( i + 1 ))
-			} done
+			for mac in $NF_LIST; do i=$(( i + 1 )); done
 			eval $varname=$i
-
-#			for mac in '/tmp/vds_user_'*; do i=$(( i + 1 )); done
-#			case "$mac" in *'*') i=0 ;; esac
-#			eval $varname=$i
 		;;
 		'delete_all')
 			for mac in $NF_LIST; do {
@@ -44,53 +33,31 @@ nf_user()
 			} done
 			NF_LIST=
 			rm "$TMPDIR/NF_USER.sh"
-
-#			rm '/tmp/vds_user_'* 2>/dev/null
 		;;
 		'delete_old')
-			local unixtime="$( date +%s )"
+			unixtime="$( date +%s )"
 			for mac in $NF_LIST; do {
 				eval pair="\"\${NF_$mac}\""
 				timestamp="${pair%,*}"
 				test $(( unixtime - timestamp )) -gt 43200 && ustore "$mac" 'remove'
 			} done
-
-#			# hotfix: default inode-value ~1/4 of size (e.g. 16000 for 64M-tmpfs)
-#			grep ^'tmpfs /tmp tmpfs' /proc/mounts | grep -q 'nr_inodes=' || {
-#				mount -o remount,nr_inodes=$(( $(_system ram_size) / 4 )) tmpfs /tmp
-#			}
-#
-#			for mac in '/tmp/vds_user_'*; do {
-#				_file age "$mac" -gt 43200 && rm "$mac" 2>/dev/null	# 12h
-#			} done
 		;;
 		'delete_user')
 			ustore "$mac" 'remove'
-
-#			rm "/tmp/vds_user_$mac" 2>/dev/null
 		;;
 		'is_known')
 			eval pair="\"\${NF_$mac}\""
-			case "$pair" in '') return 1;; *) return 0;; esac
-
-#			test -e "/tmp/vds_user_$mac"
+			case "$pair" in '') false;; esac
 		;;
 		'mark_known')
 			ustore "$mac" '' ''		# now + empty_hash
-
-#			touch "/tmp/vds_user_$mac"	# also: update timestamp
+		;;
+		'set_hash')
+			ustore "$mac" '' "$varname"
 		;;
 		'get_hash')
 			eval pair="\"\${NF_$mac}\""
 			eval $varname=${pair#*,}
-
-#			eval $varname=
-#			read -r "$varname" <"/tmp/vds_user_$mac"
-		;;
-		'set_hash')
-			ustore "$mac" '' "$varname"
-
-#			echo "$varname" >"/tmp/vds_user_$mac"
 		;;
 		'backup')
 			cmp -s "$TMPDIR/NF_USER.sh" "$PERMDIR/NF_USER.sh" || {
@@ -98,22 +65,11 @@ nf_user()
 					cp "$TMPDIR/NF_USER.sh" "$PERMDIR/NF_USER.sh"
 				}
 			}
-
-#			# also remember filedates:
-#			tar czf "$TMPDIR/vds_user_list.tar.gz" '/tmp/vds_user_'* 2>/dev/null
-#
-#			if  cmp -s "$TMPDIR/vds_user_list.tar.gz" "$PERMDIR/vds_user_list.tar.gz"; then
-#				rm "$TMPDIR/vds_user_list.tar.gz"
-#			else
-#				mv "$TMPDIR/vds_user_list.tar.gz" "$PERMDIR/vds_user_list.tar.gz"
-#			fi
 		;;
 		'restore')
 			test -e    "$PERMDIR/NF_USER.sh" && {
 				cp "$PERMDIR/NF_USER.sh" "$TMPDIR/NF_USER.sh"
 			}
-
-#			tar -C / -xzf "$PERMDIR/vds_user_list.tar.gz"
 		;;
 	esac
 }
@@ -150,12 +106,12 @@ ustore()
 	echo >>"$TMPDIR/NF_USER.sh" "NF_$shortmac=\"$unixtime,$hash\""
 }
 
-umigrate()
+nf_user_migrate()
 {
 	local file unixtime mac hash
 
-	for file in /tmp/vds_user_*; do {
-		case "$file" in *'*') break ;; esac
+	for file in '/tmp/vds_user_'*; do {
+		case "$file" in *'*') return 0 ;; esac
 
 		unixtime="$( _file time "$file" unix )"
 		mac="${file#*user_}"
