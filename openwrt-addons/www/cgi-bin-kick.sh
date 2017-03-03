@@ -13,6 +13,7 @@ else
 
 	nf_user 'is_known' "$CMA" || exit 1
 
+	HASH=
 	nf_user 'get_hash' "$CMA" 'HASH'
 	[ "$HASH" = "$CAH" ] || exit
 
