@@ -2024,7 +2024,7 @@ copy_firmware_files()
 					ls -l "$( dirname "$file" )"
 				} >"$mylogdir/$( date +%s )-produced-imagefiles.txt"
 
-				tar cJf 'info.buildlog.tar.xz' "$mylogdir"
+				tar cJf 'info.buildlog.tar.xz' "$mylogdir" '.config'
 				rm -fR "$mylogdir"
 			}
 
