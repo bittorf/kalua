@@ -188,13 +188,17 @@ $portfw = strval($_GET["portfw"]);		// ...
 $pfilter = strval($_GET["pfilter"]);
 $olsrrestartcount = strval($_GET["olsrrestartcount"]);
 $olsrrestarttime = strval($_GET["olsrrestarttime"]);
+
 $secret = strval($_GET["secret"]);		// hex
+if ! (ctype_xdigit($secret)) {
+	$secret = "";
+};
 
 $script = "./meshrdf_accept.sh 1>/dev/null 2>/dev/null 'WIFISCAN=\"\";secret=\"".$secret."\";D0=\"".$D0."\";e0=\"".$e0."\";e1=\"".$e1."\";k0=\"".$k0."\";k1=\"".$k1."\";k2=\"".$k2."\";k3=\"".$k3."\";u0=\"".$u0."\";w0=\"".$w0."\";w1=\"".$w1."\";w2=\"".$w2."\";w3=\"".$w3."\";t0=\"".$t0."\";t1=\"".$t1."\";t2=\"".$t2."\";t3=\"".$t3."\";d0=\"".$d0."\";n0=\"".$n0."\";d1=\"".$d1."\";i0=\"".$i0."\";i1=\"".$i1."\";i2=\"".$i2."\";i3=\"".$i3."\";i4=\"".$i4."\";i6=\"".$i6."\";i5=\"".$i5."\";r0=\"".$r0."\";r1=\"".$r1."\";r2=\"".$r2."\";r3=\"".$r3."\";r4=\"".$r4."\";r5=\"".$r5."\";r9=\"".$r9."\";h0=\"".$h0."\";h1=\"".$h1."\";h2=\"".$h2."\";h3=\"".$h3."\";h4=\"".$h4."\";h5=\"".$h5."\";h6=\"".$h6."\";h7=\"".$h7."\";s2=\"".$s2."\";s1=\"".$s1."\";v1=\"".$v1."\";v2=\"".$v2."\";NODE=\"".$node."\";UP=\"".$up."\";VERSION=\"".$version."\";HOSTNAME=\"".$hostname."\";WIFIMAC=\"".$mac."\";REBOOT=\"".$reboot."\";CITY=\"".$city."\";UPDATE=\"".$update."\";NEIGH=\"".$neigh."\";LATLON=\"".$latlon."\";GWNODE=\"".$gwnode."\";TXPWR=\"".$txpwr."\";WIFIMODE=\"".$wifimode."\";CHANNEL=\"".$channel."\";COST2GW=\"".$etx2gw."\";HOP2GW=\"".$hop2gw."\";USERS=\"".$users."\";MRATE=\"".$mrate."\";LOAD=\"".$load."\";HW=\"".$hw."\";UNIXTIME=\"".$unixtime."\";HUMANTIME=\"".$humantime."\";FORWARDED=\"".$forwarded."\";SERVICES=\"".$services."\";PUBIP_REAL=\"".$remoteaddr."\";PUBIP_SIMU=\"".$pubip."\";MAIL=\"".$mail."\";PHONE=\"".$phone."\";SSHPUBKEYFP=\"".$pubkey."\";FRAG=\"".$frag."\";RTS=\"".$rts."\";GMODEPROT=\"".$gmodeprot."\";GW=\"".$gw."\";PROFILE=\"".$profile."\";NOISE=\"".$noise."\";RSSI=\"".$rssi."\";GMODE=\"".$gmode."\";ESSID='\''".$essid."'\'';BSSID=\"".$bssid."\";WIFIDRV=\"".$wifidrv."\";LOG=\"".$log."\";OLSRVER=\"".$olsrver."\";OPTIMIZENLQ=\"".$optimizenlq."\";OPTIMIZENEIGH=\"".$optimizeneigh."\";PORTFW=\"".$portfw."\";PFILTER=\"".$pfilter."\";OLSRRESTARTTIME=\"".$olsrrestarttime."\";OLSRRESTARTCOUNT=\"".$olsrrestartcount."\";SENS=\"".$sens."\"' || logger $0 error $? during meshrdf_accept.sh in $( pwd )";
 
 system($script);
 
-$testnet  = "liszt28";
+$testnet  = "schoeneck";
 if(strpos($profile,$testnet)!==false){
 	print "OK-pmu";		// for poor_mens_update()
 } else {

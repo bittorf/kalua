@@ -2394,7 +2394,7 @@ send_mail_telegram()
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
 		schoeneck)
 			list="$admin wolle.schuster|web.de info.vogtland|ifahotels.com"
-
+list=
 			case "$hostname" in
 				'KassenhausPicostation-MESH')
 					list=
@@ -4874,7 +4874,7 @@ generate_build_matrix()
 	echo '		"http://www.w3.org/TR/html4/loose.dtd">'
 	echo "<html><head><title>build-matrix $NETWORK @$( date )</title><META HTTP-EQUIV=\"content-type\" CONTENT=\"text/html; charset=ISO-8859-15\"></head><body>"
 	echo '<table cellspacing=1 cellpadding=1 border=0>'
-	echo "<thead><tr bgcolor='lightblue'><td>&nbsp;</td><td>hardware</td><td>update</td><td>usecase</td><td>OK</td></thead><tbody>"
+	echo "<thead><tr bgcolor='lightblue'><td>&nbsp;</td><td>hardware</td><td>&nbsp;update&nbsp;</td><td>usecase</td><td>booted?</td></thead><tbody>"
 
 	MODEL_NO=0
 	ls -1 | while read -r MODEL; do {

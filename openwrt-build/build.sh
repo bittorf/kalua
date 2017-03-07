@@ -638,7 +638,7 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
 
-			# TODO: CONFIG_TARGET_ROOTFS_SQUASHFS=y -> CONFIG_TARGET_ROOTFS_EXT4FS is not set ?
+			# TODO: CONFIG_TARGET_ROOTFS_SQUASHFS=y -> CONFIG_TARGET_ROOTFS_EXT4FS is not set
 
 			[ "$option" = 'info' ] && {
 				cat <<EOF
@@ -1005,9 +1005,13 @@ EOF
 			fi
 		;;
 		'T-Mobile InternetBox TMD SB1-S'|'4G Systems MTX-1 Board')
+			# https://wiki.openwrt.org/inbox/toh/t-mobile-internetbox
 			# http://wiki.openwrt.org/inbox/t-mobile-internetbox
 			# http://wiki.openwrt.org/toh/4g.systems/access.cube
+			# https://dev.openwrt.org/wiki/au1000
 			#
+			# http://comments.gmane.org/gmane.org.freifunk.berlin/214
+			# https://wiki.freifunk.net/MeshCube
 			# http://www.linux-mips.org/wiki/YAMON		// 0.2.17 seems used
 			# http://www.lara.prd.fr/imara/platforms/hardware/communications/4gcube/hack
 			# http://fylvestre.inria.fr/pub/nylon-meshcubes/meshcube.org/meshwiki/YamonNetConsole.shtml
