@@ -638,7 +638,9 @@ target_hardware_set()
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
 
-			# TODO: CONFIG_TARGET_ROOTFS_SQUASHFS=y -> CONFIG_TARGET_ROOTFS_EXT4FS is not set
+			version_is_lede && SPECIAL_OPTIONS="$SPECIAL_OPTIONS -CONFIG_TARGET_ROOTFS_EXT4FS"
+			version_is_lede && SPECIAL_OPTIONS="$SPECIAL_OPTIONS -CONFIG_TARGET_IMAGES_GZIP"
+			version_is_lede && SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_SQUASHFS=y"
 
 			[ "$option" = 'info' ] && {
 				cat <<EOF
@@ -2871,11 +2873,17 @@ serialize_comma_list()
 build_options_set()
 {
 	local funcname='build_options_set'
-	local options="$1"	# <usecase> FIXME! support 'xy is not set' (spaces!)
+	local options="$1"	# <usecase> or '-<usecase>'
 	local subcall="$2"	# <usecase> or 'hide'
 	local file='.config'
 	local custom_dir='files'
 	local kmod nickname
+
+	case "$options" in	# parser_ignore
+		'-')
+			options="$( echo "$options" | cut -b2- ) is not set"
+		;;
+	esac
 
 	case "$options" in
 		'ready')	# parser_ignore
@@ -2948,13 +2956,6 @@ build_options_set()
 		case "$1" in
 			'CONFIG_'*)	# parser_ignore
 				apply_symbol "$1"
-
-				case "$1" in
-					'CONFIG_TARGET_ROOTFS_PARTSIZE='*)	# parser_ignore
-						log "FIXME: $1 - remove if parsing '$SPECIAL_OPTIONS' with spaces it fixed"
-						apply_symbol 'CONFIG_TARGET_IMAGES_GZIP is not set'
-					;;
-				esac
 			;;
 			'defconfig')	# parser_ignore
 					# this simply adds or deletes no symbols
