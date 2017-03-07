@@ -190,7 +190,7 @@ $olsrrestartcount = strval($_GET["olsrrestartcount"]);
 $olsrrestarttime = strval($_GET["olsrrestarttime"]);
 
 $secret = strval($_GET["secret"]);		// hex
-if ! (ctype_xdigit($secret)) {
+if(!ctype_xdigit($secret)) {
 	$secret = "";
 };
 
