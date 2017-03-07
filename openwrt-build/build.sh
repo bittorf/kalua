@@ -2879,12 +2879,6 @@ build_options_set()
 	local custom_dir='files'
 	local kmod nickname
 
-	case "$options" in	# parser_ignore
-		'-')
-			options="$( echo "$options" | cut -b2- ) is not set"
-		;;
-	esac
-
 	case "$options" in
 		'ready')	# parser_ignore
 			[ -e '../build.pubkey' ] && {			# parser_ignore
@@ -2950,6 +2944,12 @@ build_options_set()
 						[ "$subcall" = 'hide' ] || USECASE="${USECASE}${USECASE+,}${1}"
 					;;
 				esac
+			;;
+		esac
+
+		case "$1" in
+			'-'*)	# parser_ignore
+				set -- "$( echo "$1" | cut -b2- ) is not set"
 			;;
 		esac
 
