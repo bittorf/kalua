@@ -273,8 +273,6 @@ _system_add_ramdisc()
 	local divide=2
 	local size_tmpfs=
 
-	# FIXME! seems racy
-
 	case "$name" in
 		*'/'*'/'*)
 			# /tmp/DB -> tmp
@@ -289,8 +287,9 @@ _system_add_ramdisc()
 	_log it $funcname daemon info "working on '$name'"
 	[ -z "$name" ] && return 1
 
-	# tmpfs /database tmpfs rw,nosuid,nodev,relatime,size=14500k 0 0
-	if grep -q ^"tmpfs /$name " '/proc/mounts'; then
+	# e.g.: /dev/sda1 /database vfat rw,relatime 0 0
+	# e.g.: tmpfs /database tmpfs rw,nosuid,nodev,relatime,size=14500k 0 0
+	if grep -q " /$name " '/proc/mounts'; then
 		_log it $funcname daemon debug "[OK] already mounted: /$name"
 	else
 		if   [ "$option" = 'compressable' ]; then
@@ -678,14 +677,9 @@ EOF
 				[1-9]) DAY="0$DAY" ;;
 			esac
 
-			oldifs="$IFS"
-			IFS=":"
-			read -r HOUR MIN SEC <<EOF
-$TIME
-EOF
-			IFS="$oldifs"
-
-			date --date "${YEAR}-${MONTH}-${DAY} ${HOUR}:${MIN}:${SEC}" +%s
+			oldifs="$IFS"; IFS=':'; explode $TIME; IFS="$oldifs"
+			HOUR="$1"; MIN="$2"; SEC="$3"
+			date --date "${YEAR}-${MONTH}-${DAY} ${HOUR:-00}:${MIN:-00}:${SEC:-00}" +%s
 		;;
 		evalable)
 			date "+DATE=\"%b %d %H:%M:%S\""

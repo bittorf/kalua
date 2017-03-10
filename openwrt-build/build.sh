@@ -2016,6 +2016,7 @@ copy_firmware_files()
 						FILE=
 						set -- $LINE
 						eval FILE=$4
+						test -s "$FILE" || continue
 
 						UNIXTIME="$( date +%s -r "$FILE" )"
 						NEWFILE="$( echo "$UNIXTIME-$FILE" | tr '/' '-' )"
