@@ -853,7 +853,7 @@ _firmware_patch_sysupgrade()
 
 	grep -q 'console' "$patchfile" || {
 		_log it $funcname daemon info "[OK] patching '$patchfile': adding console_log"
-		sed -i 's|^v() {|v() {\necho "$@" >/dev/console|' "$patchfile"
+		sed -i 's|^v() {|v() {\nprintf \"%s\" "$@" >/dev/console|' "$patchfile"
 	}
 
 	grep -q 'ubusd' "$patchfile" || {
@@ -864,7 +864,7 @@ _firmware_patch_sysupgrade()
 	grep -q '"Upgrade completed";' "$patchfile" || {
 		_log it $funcname daemon info "[OK] patching '$patchfile': show stats when ready"
 		# ps is not available, so we use builtins - FIXME! is /proc available?
-		sed -i 's|"Upgrade completed"|&; /bin/rm /tmp/fw; /bin/echo 3 >/proc/sys/vm/drop_caches; /bin/cat /proc/meminfo >/dev/console; for F in /proc/*; do case $F in /proc/[0-9]*) while read -r L; do case $L in Name:*) /bin/echo $L >/dev/console; break ;; esac; done <$F/status;; esac; done|' "$patchfile"
+		sed -i 's|"Upgrade completed"|&; /bin/rm /tmp/fw; printf \"%s\n\" 3 >/proc/sys/vm/drop_caches; /bin/cat /proc/meminfo >/dev/console; for F in /proc/*; do case $F in /proc/[0-9]*) while read -r L; do case $L in Name:*) printf \"%s\n\" $L >/dev/console; break ;; esac; done <$F/status;; esac; done|' "$patchfile"
 	}
 
 	if sh -n "$patchfile"; then
@@ -971,6 +971,8 @@ _firmware_burn()
 
 	nf_user 'delete_all'
 	killall iw
+
+	_log it $funcname daemon info "[OK] will kill daemons, do e.g. 'touch $TMPDIR/keep_dropbear' to prevent"
 
 	_log it $funcname daemon info "[OK] switching off DHCP on all interfaces"
 	/etc/init.d/dnsmasq stop
