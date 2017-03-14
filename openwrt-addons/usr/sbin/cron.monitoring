@@ -24,6 +24,20 @@ elif [ -n "$LOWMEM" ]; then
 	else
 		ARG1='fast'
 	fi
+elif [ "$( uci get network.lan.type )" = 'bridge' -a -z "$NODENUMBER" -a -z "$CONFIG_PROFILE" ]; then
+	while read -r IFACE DEFROUTE _; do {
+		case "$DEFROUTE" in Destination);;00000000)break;;*)DEFROUTE=;break;; esac
+	} done </proc/net/route
+	_log it $funcname daemon alert "lost config, DEFROUTE: $DEFROUTE"
+
+	if [ -n "$DEFROUTE" ]; then
+		NODENUMBER=2
+	else
+		# default to testnet/random with nodenumber
+		/etc/init.d/apply_profile.code liszt28 adhoc "$( _ipsystem getvar 'NODE_NUMBER' )" dhcp
+		/rom/etc/init.d/apply_profile 'services_refire'
+		exit 1
+	fi
 else
 	_system fully_installed || ARG1='fast'
 fi
@@ -715,9 +729,8 @@ grep -q ^"ip_tables " /proc/modules && {
 		ARG2='no_antenna_test'
 	}
 
-	_log it $funcname daemon debug "ready"
-
-	KEEP_ALIVE_URL="$( uci -q get system.@monitoring[0].url )/meshrdf/"
+	KEEP_ALIVE_URL="$( uci -q get system.@monitoring[0].url || echo 'http://intercity-vpn.de/networks/lost' )/meshrdf/"
+	_log it $funcname daemon debug "ready: URL: $KEEP_ALIVE_URL"
 
 	[ "$UPTIME" -lt 2 ] && {
 		ARG1="send_alive_message"
