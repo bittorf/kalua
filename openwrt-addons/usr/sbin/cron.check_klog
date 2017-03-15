@@ -9,6 +9,10 @@ LINE=
 [ ${#LINE} -eq 0 ] || {
 	. /tmp/loader
 
+	# file is removed in '/etc/init.d/end_boot'
+	# we make sure there, that we call this script just before
+	[ -e '/tmp/BOOT' ] && FIRST_RUN='true'
+
 	# TODO: do not grep all patterns, when we look at it line-by-line anyway
 	while read -r LINE; do {
 		case "$LINE" in
@@ -41,24 +45,23 @@ LINE=
 				# from roaming
 				# ... disabled/forwarded state
 			;;
-			*'Bad RAM at address'*)
-				# early ramcheck / Alina Friedrichsen
-				cp '/tmp/dmesg.recent' "$PERMDIR/badram.$$.$UP"
-				_log it kernellog daemon sms "wrote: $PERMDIR/badram.$$.$UP"
-			;;
 			*)
 				printf '%s\n' "$LINE" >>'/tmp/dmesg.log'
 
-				# during monitoring, we check if we had messages after boot
-				# file /tmp/BOOT is removed in '/etc/init.d/end_boot'
-				if [ -e '/tmp/BOOT' ]; then
-					FIRST_RUN='true'
-				else
-					_watch counter '/tmp/dmesg.counter' increment
-				fi
+				# during monitoring, we want to check/show if we had messages after boot
+				[ "$FIRST_RUN" = 'true' ] || _watch counter '/tmp/dmesg.counter' increment
 			;;
 		esac
 	} done <'/tmp/dmesg.recent'
+
+	[ "$FIRST_RUN" = 'true' ] &&
+		# early ramcheck / Alina Friedrichsen
+		PATTERN='Bad RAM at address'
+		grep -Fq "$PATTERN" "/tmp/dmesg.recent" && {
+			cp '/tmp/dmesg.recent' "$PERMDIR/badram.$$.$UP"
+			_log it kernellog daemon sms "wrote: $PERMDIR/badram.$$.$UP"
+		}
+	}
 
 	PATTERN="Unhandled kernel unaligned access"
 	grep -Fq "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'kernel_unaligned_access'
