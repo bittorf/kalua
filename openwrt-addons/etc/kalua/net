@@ -2373,13 +2373,24 @@ _net_mac2ip()		# SENSE: get client-IP from different sources
 	{
 		local mac ip line
 
+		# 3rd field is 'Flags', where 0x0 incomplete | 0x2 complete | 0x6 complete and manually set
+		# https://github.com/openwrt/linux/blob/master/include/uapi/linux/if_arp.h#L127
+		#
+		# root@box:~ cat /proc/net/arp | grep 00:1e:65:94:22:52
+		# 100.67.217.186   0x1         0x0         00:1e:65:94:22:52     *        br-mastergate
+		# 100.66.3.187     0x1         0x2         00:1e:65:94:22:52     *        br-mastergate
+		#
+		# root@box:~ ip neigh | grep 00:1e:65:94:22:52
+		# 100.66.3.187 dev br-mastergate lladdr 00:1e:65:94:22:52 REACHABLE
+		# fe80::21e:65ff:fe94:2252 dev wlan0-1 lladdr 00:1e:65:94:22:52 REACHABLE
+		# fe80::21e:65ff:fe94:2252 dev br-mastergate lladdr 00:1e:65:94:22:52 STALE
 		while read -r line; do {
 			explode $line
 			ip="$1"
 			mac="$( _sanitizer run "$4" lowercase )"
 
 			[ "$MAC" = "$mac" ] && {
-				IP="$ip"
+				IP="$ip"		# TODO: double check if valid?
 				return
 			}
 

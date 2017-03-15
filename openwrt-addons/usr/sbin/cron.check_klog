@@ -3,7 +3,7 @@
 LINE=
 [ -e '/bin/dmesg' ] && {
 	/bin/dmesg -c >'/tmp/dmesg.recent'
-	read -r LINE     <'/tmp/dmesg.recent'
+	read -r LINE <'/tmp/dmesg.recent'
 }
 
 [ ${#LINE} -eq 0 ] || {
@@ -31,7 +31,7 @@ LINE=
 			*'Created IBSS using preconfigured BSSID '*|*'Creating new IBSS network, BSSID '*) ;;
 			*' Trigger new scan to find an IBSS to join'*) ;;
 			*'b43-phy0: Loading firmware version'*) ;;
-			*'Atheros AR8216/AR8236/AR8316 ag71xx-mdio.0:00: Port '*) ;; # Port 2 is up/down
+			*'Atheros AR8216/AR8236/AR8316 ag71xx-mdio.0:00: Port '*) ;; # e.g. Port 2 is up/down
 			*'cdp-send uses obsolete (PF_INET,SOCK_PACKET)'*) ;;
 			*'Downgrade max_prob_rate from '*)
 				# since kernel 3.18?
@@ -41,24 +41,24 @@ LINE=
 				# from roaming
 				# ... disabled/forwarded state
 			;;
+			*'Bad RAM at address'*)
+				# early ramcheck / Alina Friedrichsen
+				cp '/tmp/dmesg.recent' "$PERMDIR/badram.$$.$UP"
+				_log it kernellog daemon sms "wrote: $PERMDIR/badram.$$.$UP"
+			;;
 			*)
-				echo "$LINE" >>'/tmp/dmesg.log'
-				[ -e "/tmp/dmesg.boot" ] && _watch counter '/tmp/dmesg.counter' increment
+				printf '%s\n' "$LINE" >>'/tmp/dmesg.log'
+
+				# during monitoring, we check if we had messages after boot
+				# file /tmp/BOOT is removed in '/etc/init.d/end_boot'
+				if [ -e '/tmp/BOOT' ]; then
+					FIRST_RUN='true'
+				else
+					_watch counter '/tmp/dmesg.counter' increment
+				fi
 			;;
 		esac
 	} done <'/tmp/dmesg.recent'
-
-	[ -e "/tmp/dmesg.boot" ] || {
-		FIRST_RUN='true'
-		cp '/tmp/dmesg.recent' '/tmp/dmesg.boot'
-
-		# early ramcheck / Alina Friedrichsen
-		PATTERN="Bad RAM at address"
-		grep -Fq "$PATTERN" "/tmp/dmesg.recent" && {
-			cp "/tmp/dmesg.recent" "/www/badram.$$.$UP"
-			_log it kernellog daemon sms "wrote: /www/badram.$$.$UP"
-		}
-	}
 
 	PATTERN="Unhandled kernel unaligned access"
 	grep -Fq "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'kernel_unaligned_access'
@@ -94,7 +94,7 @@ LINE=
 	grep -q "$PATTERN" '/tmp/dmesg.recent' && {
 		# TODO:
 		# rmmod ath9k; rmmod ath9k_common; rmmod ath9k_hw; rmmod ath; rmmod mac80211; rmmod cfg80211; rmmod compat; modprobe ath9k; wifi
-		if [ -n "$FIRST_RUN" ]; then
+		if [ "$FIRST_RUN" = 'true' ]; then
 			_wifi watch_phy_problems notify
 			_wifi watch_phy_problems
 		else
