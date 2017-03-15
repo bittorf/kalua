@@ -87,7 +87,7 @@ _storage_automount()
 {
 	local funcname='storage_automount'
 	local dir="$TMPDIR/storage"
-	local line dev dev_plain size blockinfo success=
+	local line dev dev_plain size blockinfo mount_opt success=
 	local ignore_spindown_list=
 
 	# TODO:
@@ -136,9 +136,17 @@ _storage_automount()
 
 						mkdir -p "$dir/$dev"
 
-						# TODO: add -o user?
+						case "$blockinfo" in
+							*'TYPE="btrfs"'*)
+								mount_opt='-o compress'
+							;;
+							*)
+								mount_opt=	# TODO: add -o user? or noatime on rotational?
+							;;
+						esac
+
 						_log it $funcname daemon info "exec: mount '/dev/$dev' '$dir/$dev' ($blockinfo)"
-						mount "/dev/$dev" "$dir/$dev" && {
+						mount $mount_opt "/dev/$dev" "$dir/$dev" && {
 							# root@goflexhome:~ df -h
 							# Filesystem                Size      Used Available Use% Mounted on
 							# /dev/sda1                18.3G     11.7G      5.7G  67% /tmp/hdd/sda1
@@ -151,8 +159,7 @@ _storage_automount()
 								mkdir -p "$dir/${dev}_$size"
 								_log it $funcname daemon info "[OK] /dev/$dev -> $dir/${dev}_$size"
 
-								# TODO: noatime on rotational?
-								mount "/dev/$dev" "$dir/${dev}_$size" && success='true'
+								mount $mount_opt "/dev/$dev" "$dir/${dev}_$size" && success='true'
 							}
 
 							[ -n "$size" ] && {
