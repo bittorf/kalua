@@ -52,6 +52,15 @@ alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
 alias unload='_ u'
 alias dropshell='echo >>$SCHEDULER_IMPORTANT "/etc/init.d/dropbear stop"; killall dropbear'
 
+[ -e '/tmp/dmesg.log' ] && {
+	dmesg()
+	{
+		cat '/tmp/dmesg.log'
+		/bin/dmesg
+		echo "# executed 'cat /tmp/dmesg.log' (filled every minute)"
+	}
+}
+
 read -r LOAD <'/proc/loadavg'
 case "$LOAD" in
 	'0'*)
