@@ -691,7 +691,7 @@ EOF
 }
 
 _system_ram_free()		# [bytes] - for showing fragmentation in syslog use 'echo m >/proc/sysrq-trigger'
-{				#           also: echo 1 >/proc/sys/vm/compact_memory
+{				#           also: echo 1 >/proc/sys/vm/compact_memory  on_server: cat /proc/buddyinfo
 	local option="$1"	# eval-hack OR flush
 	local mem line
 
@@ -804,10 +804,12 @@ _system_sysctl_tweaks()
 	local funcname='system_sysctl_tweaks'
 	local file='/proc/cmdline'
 	local entry
+	local oom_value=2
 	local min_free=1524
 
 	# /proc/sys/vm/min_free_kbytes | is e.g. '466' in 16mb Linksys with kernel 3.14.26
 	[ $( _system ram_size ) -lt 16384 ] && min_free=500
+	[ $OPENWRT_REV -eq 0 ] && oom_value=1
 
 	# http://www.kernel.org/doc/Documentation/sysctl/kernel.txt
 	# http://www.kernel.org/doc/Documentation/sysctl/vm.txt
@@ -817,7 +819,7 @@ _system_sysctl_tweaks()
 	#
 	# since r42046 till r44873 http://wiki.openwrt.org/doc/uci/firewall#nf_conntrack_skip_filter
 	# net.netfilter.nf_conntrack_skip_filter=0
-	for entry in	'vm.panic_on_oom=2' \
+	for entry in	"vm.panic_on_oom=$oom_value" \
 			'kernel.panic_on_oops=1' \
 			'kernel.panic=10' \
 			"vm.min_free_kbytes=$min_free" \
