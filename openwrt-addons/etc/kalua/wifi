@@ -445,7 +445,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 {
 	local mac="$1"		# or IP
 	local option="$2"	# debug
-	local ip line result targetline rate rate_calc throughput efficiency system file
+	local ip line result targetline rate rate_calc throughput efficiency system file dev freq
 	local max=0
 
 	[ "$option" = 'debug' ] || {
@@ -461,7 +461,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 		*)
 			_sanitizer run "$mac" ip4 check && {
 				ip="$mac"
-				mac="$( _net ip2mac $mac )"
+				mac="$( _net ip2mac "$mac" )"
 			}
 		;;
 	esac
@@ -471,7 +471,10 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 		printf '%s' "lq=$LQ;nlq=$NLQ;cost=$COST;"
 	}
 
+	# e.g. .../netdev:$dev/stations...
 	file="$( _wifi_minstrel_debugsfs_file "$mac" )" || return 1
+	dev="$( echo "$file" | cut -d':' -f2 | cut -d'/' -f1 )"		# e.g. wlan0-1
+	freq="$( _wifi dev2freq "$dev" )"
 
 	[ "$option" = "debug" ] && {
 		_log it minstrel_out daemon debug "output of $file"
@@ -613,7 +616,7 @@ _wifi_minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate(
 		}
 	}
 
-	echo "txrate=${rate:-0};txthroughput=${throughput:-0};efficiency=${efficiency:-0};system=${system};ip=$ip"
+	echo "txrate=${rate:-0};txthroughput=${throughput:-0};efficiency=${efficiency:-0};system=${system};ip=$ip;dev=$dev;freq=$freq;"
 }
 
 _wifi_math_mcs2rate()			# fixme! output spatial streams, coding rate, modulation type?
