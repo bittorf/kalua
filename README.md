@@ -422,6 +422,7 @@ Special UCI-variables
 	olsrd.@meta[0].allow_no_neigh		- bool
 
 	firewall.@adblock[0].enabled		- bool
+	firewall.@adblock[0].windowsupdate	- bool
 	firewall.@ignoreolsr[0].ip		- IP
 
 	mail.@pop3[0].username			- string
