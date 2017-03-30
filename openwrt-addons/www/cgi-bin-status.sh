@@ -662,23 +662,6 @@ EOF
 
 _http include_js_sorttable
 
-system_version_string()
-{
-	if   [ $OPENWRT_REV -ge $LEDE_REV ]; then
-		echo "LEDE r$(( OPENWRT_REV - LEDE_REV ))"
-	elif [ $OPENWRT_REV -gt 0 ]; then
-		echo "OpenWrt r$OPENWRT_REV"
-	elif grep -sq ^'PRETTY_NAME=' '/etc/os-release'; then
-		eval $( grep ^'PRETTY_NAME=' '/etc/os-release' )
-		echo "$PRETTY_NAME"
-	elif grep -sq ^'DISTRIB_DESCRIPTION=' '/etc/lsb-release'; then
-		eval $( grep ^'DISTRIB_DESCRIPTION=' '/etc/lsb-release' )
-		echo "$DISTRIB_DESCRIPTION"
-	else
-		echo 'Unknown System'
-	fi
-}
-
 rrd_info()
 {
 	# TODO: embedd into page
@@ -693,7 +676,7 @@ rrd_info()
 cat <<EOF
  </head>
  <body>
-  <h1>host '$HOSTNAME' &ndash; No. ${NODENUMBER:-unset} (mit $( system_version_string ) auf '$HARDWARE')</h1>
+  <h1>host '$HOSTNAME' &ndash; No. ${NODENUMBER:-unset} (mit $( _system version_string ) auf '$HARDWARE')</h1>
   <big><a href='netjson.html'> OLSRv1-Verbindungen </a> ${AGE_HUMANREADABLE}&emsp;</big>
    <small>Version: $( _olsr version ) | system <b>uptime</b>: $( _system uptime humanreadable ) ($BOOTTIME) | kalua age: $( _file age '/etc/variables_fff+' humanreadable ) ($( _firmware updatemode )) | $( _system cpucount ) CPU-Kerne | $( rrd_info )</small><br><br>
   <big>&Uuml;bersicht &uuml;ber aktuell bestehende OLSR-Verbindungen ($NODE_COUNT Netzknoten, $ROUTE_COUNT Routen, $( remote_hops ) Hops zu Betrachter $REMOTE_ADDR, Gatewaywechsel: $GATEWAY_JITTER)</big><br>
