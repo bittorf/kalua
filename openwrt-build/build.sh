@@ -2643,8 +2643,12 @@ apply_symbol()
 				cp '/tmp/apply_profile.code.definitions' "$file"
 				log "$KALUA_DIRNAME: using custom '/tmp/apply_profile.code.definitions'" gitadd "$file"
 			else
-				[ -e "$custom_dir/etc/init.d/apply_profile.code.definitions.private" ] && rm "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
+				[ -e "$custom_dir/etc/init.d/apply_profile.code.definitions.private" ] && {
+					rm "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
+				}
+
 				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
+				[ -n "$RELEASE_SERVER" ] && return 1
 			fi
 
 			[ -n "$CONFIG_PROFILE" ] && {
