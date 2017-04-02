@@ -19,25 +19,35 @@ _chickendoor_state()
 		;;
 		open|closed)
 			echo >"$file" "$state"
+			_log shell_is_interactive && return 0
 
 			local webcam_port=33333
 			local webcam_link="http://bwireless.mooo.com:$webcam_port/webcam.jpg"
 			local greetings='Gruesse von der automatischen Huehnerklappe.'
+			local housekeeper="$( _chickendoor housekeeper )"
+			local housekeeper_next="$( _chickendoor housekeeper 'next' )"
+			local subject_pre="Schlachthof: $( _i18n get 'de' 'dayname_today' )"
 
 			case "$state" in
 				open)
-					_log shell_is_interactive && return 0
-					_mail send_telegram "$( _chickendoor housekeeper )" \
-						"Schlachthof: $( _i18n get 'de' 'dayname_today' ) morgen: Huehnerklappe wurde geoeffnet." \
+					_mail send_telegram "$housekeeper" \
+						"$subject_pre frueh: Huehnerklappe wurde geoeffnet." \
 						"Sonnenaufgang heute: $( _system date unixtime2date "$( _date sunrise_today )" )\n" \
 						"Sonnenuntergang heute: $( _system date unixtime2date "$( _date sunset_today )" )\n\n" \
 						"Alles i.O.\nKeine Stoerung - den Huehnern gehts gut.\n\n" \
 						"Bilder hier:\n$webcam_link\n\n$greetings"
+
+					[ "$housekeeper" = "$housekeeper_next" ] || {
+						_mail send_telegram "$housekeeper_next" \
+							"$subject_pre - Huehnerstall: naechste Woche bist du dran" \
+							"Wunderschoenen guten Morgen.\n" \
+							"Denk daran, das du ab morgen dran bist,\n"
+							"und macht eine saubere Uebergabe...\n"
+					}
 				;;
 				closed)
-					_log shell_is_interactive && return 0
-					_mail send_telegram "$( _chickendoor housekeeper )" \
-						"Schlachthof: $( _i18n get 'de' 'dayname_today' ) abend: Huehnerklappe wurde geschlossen." \
+					_mail send_telegram "$housekeeper" \
+						"$subject_pre abend: Huehnerklappe wurde geschlossen." \
 						"Sonnenuntergang heute: $( _system date unixtime2date "$( _date sunset_today )" )\n\n" \
 						"Alles i.O.\nKeine Stoerung - den Huehnern gehts gut.\n\n" \
 						"Bilder hier:\n$webcam_link\n\n$greetings"
@@ -66,7 +76,8 @@ _chickendoor_toggle()
 
 _chickendoor_housekeeper()
 {
-	local o
+	local option="$1"	# <empty>|next
+	local o calendar_week
 	local bb='bb|npl.de'
 	local jakob='jakob.aschenbach|gmx.de'
 	local jan='zirkuswagenbau|web.de'
@@ -75,7 +86,13 @@ _chickendoor_housekeeper()
 	local robert='robert.p.frech|gmail.com'
 	local ina='michalski|steinhauerei-weimar.de'
 
-	case "$( date +%W )" in		# +%U = ab sonntag schon umschalten
+	if [ "$option" = 'next' ]; then
+		calendar_week="$( date +%U )"	# sunday = first day of week
+	else
+		calendar_week="$( date +%W )"
+	fi
+
+	case "$calendar_week" in
 		49|04|11|18|25|32|39|46) o="$jan" ;;
 		50|05|12|19|26|33|40|47) o="$jakob" ;;
 		51|06|13|20|27|34|41|48) o="$ina" ;;
