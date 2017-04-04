@@ -744,11 +744,13 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 	if [ "$option" = 'myself' ]; then
 		_log it $funcname daemon info "ip: $ip ($option)"
 		$IPT -I OLSR_MYSELF -s $ip -j DROP
-		$IPT -I OLSR_MYSELF -s $ip -m limit --limit '20/s' --limit-burst 25 -j ACCEPT
+		$IPT -I OLSR_MYSELF -s $ip -j LOG --log-prefix "OLSR: myself: $ip "
+		$IPT -I OLSR_MYSELF -s $ip -m limit --limit '40/s' --limit-burst 50 -j ACCEPT
 	else
 		_log it $funcname daemon info "ip: $ip"
 		$IPT -I OLSR -s $ip -j DROP
-		$IPT -I OLSR -s $ip -m limit --limit '10/s' --limit-burst 15 -j ACCEPT
+		$IPT -I OLSR -s $ip -j LOG --log-prefix "OLSR: ip: $ip "
+		$IPT -I OLSR -s $ip -m limit --limit '20/s' --limit-burst 30 -j ACCEPT
 
 		# destination is normally 255.255.255.255
 		dev="$( _net ip2dev "$ip" )"
@@ -756,7 +758,8 @@ _olsr_throttle_traffic()	# TODO: choose droprate according to OLSR-speed and nei
 			touch "$dir/outgoing_dev-$dev"
 			$IPT -I OLSR -i $dev		# just measuring
 			$IPT -I OLSR -o $dev -j DROP
-			$IPT -I OLSR -o $dev -m limit --limit '50/s' --limit-burst 50 -j ACCEPT
+			$IPT -I OLSR -o $dev -j LOG --log-prefix "OLSR: dev: $dev "
+			$IPT -I OLSR -o $dev -m limit --limit "100/s" --limit-burst 100 -j ACCEPT
 		}
 	fi
 
