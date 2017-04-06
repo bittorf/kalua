@@ -8,7 +8,7 @@ knowing_hna_already()
 	local netmask="$( _net cidr2mask "$2" )"
 	local i=0
 
-	while true; do
+	loop init; while loop max 32; do
 		case "$( uci get olsrd.@Hna4[$i].netaddr)/$( uci get olsrd.@Hna4[$i].netmask )" in
 			"$netaddr/$netmask")
 				_log it $funcname daemon info "already know: $netaddr/$netmask"

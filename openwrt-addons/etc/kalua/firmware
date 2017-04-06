@@ -602,7 +602,7 @@ _firmware_remove_kmodules()		# fixme! loop as long as we can kick at least one m
 		;;
 	esac
 
-	while :; do {
+	loop init; while loop max 99999; do {
 		_watch counter "/tmp/$funcname" increment 1 max 25 || break
 		read -r i <"/tmp/$funcname"
 		_log it $funcname daemon info "mode: '$filter_option', iteration: $i/25"
@@ -851,9 +851,9 @@ _firmware_patch_sysupgrade()
 		;;
 	esac
 
-	grep -q " test \$I -gt 100 " "$patchfile" || {
-		local loop_begin="I=0; while true; do"
-		local loop_end="\&\& break; v retry_upgrade; I=\$(( I + 1 )); test \$I -gt 100 \&\& break; done"
+	grep -q 'retry_upgrade' "$patchfile" || {
+		local loop_begin="I=0; while test \$I -lt 10; do I=\$(( I + 1 )); "
+		local loop_end="; v retry_upgrade; done"
 
 		_log it $funcname daemon info "[OK] patching '$patchfile': adding loop to default_do_upgrade() till it does not fail"
 		sed -i "s|default_do_upgrade \"\$ARGV\"|${loop_begin} & ${loop_end}|" "$patchfile"

@@ -1137,13 +1137,13 @@ copy_images_to_server()
 			return 1
 		fi
 
-		while true; do {
+		while [ $i -le $max ]; do {
 			if scp "$file_local" "$destination"; then
 				return 0
 			else
 				i=$(( i + 1 ))
 
-				if [ $i -gt $max ]; then
+				if [ $i -ge $max ]; then
 					log "[ERR] scp abort"
 					return 1
 				else
