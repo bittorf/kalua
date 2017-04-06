@@ -69,14 +69,18 @@ LINE=
 		esac
 	} done <'/tmp/dmesg.recent'
 
-	[ "$FIRST_RUN" = 'true' ] && {
+	if [ "$FIRST_RUN" = 'true' ]; then
 		# early ramcheck / Alina Friedrichsen
 		PATTERN='Bad RAM at address'
 		grep -Fq "$PATTERN" "/tmp/dmesg.recent" && {
 			cp '/tmp/dmesg.recent' "$PERMDIR/badram.$$.$UP"
 			_log it kernellog daemon sms "wrote: $PERMDIR/badram.$$.$UP"
 		}
-	}
+	else
+		test $( wc -l <'/tmp/dmesg.log' ) -gt 600 && {
+			_watch archivsize '/tmp/dmesg.log' 500
+		}
+	fi
 
 	PATTERN="Unhandled kernel unaligned access"
 	grep -Fq "$PATTERN" "/tmp/dmesg.recent" && _system crashreboot 'kernel_unaligned_access'
