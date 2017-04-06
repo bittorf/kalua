@@ -13,6 +13,7 @@ prompt_set()
 	}
 
 	# TODO: dash does not know escaping
+	# https://github.com/koalaman/shellcheck/issues/834
 	local e='\[\e'			# start escape-sequence
 	local c='\]'			# close escape-sequence
 

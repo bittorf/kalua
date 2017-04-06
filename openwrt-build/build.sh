@@ -3035,6 +3035,7 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
 				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
+				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
@@ -3083,6 +3084,7 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
 #				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
+#				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
