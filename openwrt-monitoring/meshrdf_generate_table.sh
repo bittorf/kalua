@@ -249,7 +249,7 @@ get_network_name()
 
 	set -- $( pwd )
 
-	while :; do {
+	while [ -n "$1" ]; do {
 		case "$1" in
 			'networks')
 				echo "$2"
@@ -1649,6 +1649,7 @@ cell_klog()
 			diff="$diff+$coredumps"
 		fi
 
+		# TODO: check if sorting is correct
 		printf '%s' "<td align='center' sorttable_customkey='$diff' bgcolor='$bgcolor' title='$lines_boot/$lines_log'>$diff</td>"
 	else
 		printf '%s' "<td align='right' sorttable_customkey='${rt_throttling}' title='$lines_boot/$lines_log'>RT:${rt_throttling}s</td>"
@@ -2335,8 +2336,11 @@ send_mail_telegram()
 				'E2-ayse')
 					list="$admin aysekurultay|gmail.com"
 				;;
-				'Frenze-oben'|'Frenze-unten')
+				'Frenze-unten')
 					list="$admin sven.pasemann|gmx.de"
+				;;
+				*'renze-oben'*)
+					list=
 				;;
 				'MountMeyer')
 					list="$admin alrik.badstuebner|web.de"
@@ -2369,6 +2373,7 @@ send_mail_telegram()
 		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
 		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
 		lisztwe|adagio|hentzel) list="$admin technik|hotel-adagio.de" ;;
+		hentzel) list="$admin technik|hotel-adagio.de info|hotel-villa-hentzel.de" ;;
 		apphalle) list="$admin info|appartementhausamdom.de" ;;
 		spbansin)
 			case "$hostname" in
@@ -2388,7 +2393,6 @@ send_mail_telegram()
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
 		berlinle)
 			list="$admin hotel-berlin-leipzig|t-online.de"
-			list=
 		;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
@@ -2420,10 +2424,10 @@ list=
 			esac
 		;;
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
-		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
-		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de huettendorf|stadtwerke-itzehoe.de" ;;
+		ejbw) list="$admin haustechnik|ejbweimar.de";;
+		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de huettendorf|stadtwerke-itzehoe.de" ; list=;;
 		wuensch) list="$admin p_s_wuensch|t-online.de" ;;
-		leonardo) list="$admin info|hotel-leonardo.de" ;;
+		leonardo) list="$admin info|hotel-leonardo.de"; list= ;;
 		rehungen)
 			case "$hostname" in
 				'nussberg73a-kindergarten') list="$admin ina.noettgen@gmx.de" ;; # 01512-7569004
@@ -4536,7 +4540,7 @@ MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3582	# LEDE
+MODE_TESTING_REV=3900	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4628,7 +4632,9 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo '#'
 	echo '# prepare your env with e.g.:'
 	echo "# export PATH=\"~:\$PATH\""
-	echo '# mkdir -p YOUR_BUILD_DIR && cd YOUR_BUILD_DIR'
+	echo '# MY_BUILD_DIR=mybuildbot'
+	echo "# mount -t tmpfs -o size=90% none \"\$PWD/\$MY_BUILD_DIR\""
+	echo "# mkdir -p \$MY_BUILD_DIR && cd \$MY_BUILD_DIR"
 	echo '#'
 	echo "# URL='$BUILD_SCRIPT_URL'"
 	echo "# wget -O build.sh \"\$URL\" && chmod +x build.sh"
@@ -4680,7 +4686,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 			;;
 		esac
 
-		# ugly fixes for netnet:
+		# ugly fixes for netnet and others
 		case "$USECASE" in
 			*'MinstrelBlues,'*)
 				USECASE="$( echo "$USECASE" | sed 's/MinstrelBlues,//g' )"
@@ -4692,6 +4698,9 @@ sh -n "$USECASE_FILE" && cd .. && {
 				USECASE='Standard,kalua'
 			;;
 			'Small,noOPKG,noPPPoE,noDebug,OLSRd,kalua')
+				USECASE='Standard-4mb,kalua'
+			;;
+			'Small,noOPKG,noPPPoE,OLSRd,kalua')
 				USECASE='Standard-4mb,kalua'
 			;;
 			'Small,noSSH,noOPKG,noPPPoE,OLSRd,kalua')
@@ -4724,6 +4733,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 			'liszt28: T-Mobile InternetBox') HARDWARE='T-Mobile InternetBox TMD SB1-S';;
 			'liszt28: TP-LINK TL-WDR3600/4300/4310') HARDWARE='TP-LINK TL-WDR4300';;
 			'liszt28: Ubiquiti Bullet M') HARDWARE='Ubiquiti Bullet M5';;
+			'marinabh: Ubiquiti Bullet M') HARDWARE='Ubiquiti Bullet M2';;
 		esac
 
 		case "$HARDWARE - $USECASE" in

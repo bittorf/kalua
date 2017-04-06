@@ -23,7 +23,7 @@ if(isset($_GET["refresh"])) {		// refresh='true' -> monitoring_heartbeat
 
 		$pwd = getcwd();
 		$testnet  = "liszt28";
-		$testnet2  = "berlinle";
+		$testnet2  = "braunsroda";
 
 		if       (strpos($pwd,$testnet)!==false){
 			print("REFRESHED:PMU");
@@ -198,7 +198,7 @@ $script = "./meshrdf_accept.sh 1>/dev/null 2>/dev/null 'WIFISCAN=\"\";secret=\""
 
 system($script);
 
-$testnet  = "schoeneck";
+$testnet  = "liszt28";
 if(strpos($profile,$testnet)!==false){
 	print "OK-pmu";		// for poor_mens_update()
 } else {

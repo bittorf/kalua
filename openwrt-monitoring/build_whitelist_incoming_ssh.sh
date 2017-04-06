@@ -109,6 +109,7 @@ init_tables_if_virgin()
 		$IPT -A incoming_ssh -s 128.93.132.10 -j ACCEPT		# gnu/cc-farm
 		$IPT -A incoming_ssh -s 141.54.1.2 -j ACCEPT		# ping01
 		$IPT -A incoming_ssh -s 77.87.48.22 -j ACCEPT		# bb.weimarnetz.de
+		$IPT -A incoming_ssh -s 141.54.159.13 -j ACCEPT		# SCC
 		$IPT -A incoming_ssh -j LOG --log-prefix "unthrusted SSH: "
 		$IPT -A incoming_ssh -j REJECT
 	}
