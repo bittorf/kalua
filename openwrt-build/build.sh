@@ -750,6 +750,12 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-ramips-mt7620-miwifi-mini-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
+		'Raspberry Pi 3')
+			# CONFIG_TARGET_brcm2708_bcm2710=y
+			TARGET_SYMBOL='CONFIG_TARGET_brcm2708_bcm2710_DEVICE_rpi-3=y'
+			FILENAME_SYSUPGRADE='lede-brcm2708-bcm2710-rpi-3-ext4-sdcard.img.gz'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
 		'Buffalo WZR-HP-AG300H')
 			# http://wiki.openwrt.org/toh/buffalo/wzr-hp-ag300h
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_WZRHPAG300H=y'
