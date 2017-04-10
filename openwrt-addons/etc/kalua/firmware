@@ -76,9 +76,19 @@ _firmware_builtin_secret()
 
 _firmware_download_new_release()	# TODO: how to downgrade or switch mode, e.g. testing->beta
 {
+	local funcname='firmware_download_new_release'
+
 	[ $OPENWRT_REV -gt 0 ] && {
 		[ $OPENWRT_REV -lt $( _links firmware_url_get 'version_on_server' ) ] && {
-			_net local_inet_offer 'cached' >/dev/null || _firmware download
+			if _net local_inet_offer 'cached' >/dev/null; then
+				if bool_true 'system.@fwupdate[0].allow_inetoffer'; then
+					_firmware download
+				else
+					_log it $funcname daemon info 'forbidden, enforce with: uci set system.@fwupdate[0].allow_inetoffer=1'
+				fi
+			else
+				_firmware download
+			fi
 		}
 	}
 }
