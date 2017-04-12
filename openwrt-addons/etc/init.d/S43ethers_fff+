@@ -94,9 +94,9 @@ build_network_clients()		# build a fgrep-able list, for fast seeking 'is ipX a c
 
 build_hosts()				# SENSE: modulary builds /etc/local.hosts
 {
-	local FUNC="build_hosts"
-	local FILE="/etc/local.hosts"
-	local SUB_PATH="/tmp"
+	local funcname='build_hosts'
+	local local_hosts='/etc/local.hosts'
+	local SUB_PATH='/tmp'
 	local SUB_DROP="$SUB_PATH/hosts.drop"
 	local SUB_VIRT="$SUB_PATH/hosts.virtual"
 	local SUB_WIFI="$SUB_PATH/hosts.wifi"
@@ -106,7 +106,12 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 
 	case "$1" in
 		'join')
-			_log it $FUNC daemon debug "joining '$SUB_LAN', '$SUB_WIFI', '$SUB_VIRT', '$SUB_DROP' to '$FILE'"
+			[ -h "$local_hosts" ] || {
+				rm -f "$local_hosts"
+				ln -s "$TMPDIR/local.hosts" "$local_hosts"
+			}
+
+			_log it $funcname daemon debug "joining '$SUB_LAN', '$SUB_WIFI', '$SUB_VIRT', '$SUB_DROP' to '$local_hosts'"
 
 			for file in HEADER "$SUB_VIRT" "$SUB_LAN" "$SUB_WIFI" "$SUB_DROP"; do {
 				[ "$file" = 'HEADER' ] && echo "# generated from $0"
@@ -116,7 +121,7 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 					echo "# --- READY: $file"
 					echo
 				}
-			} done >"$FILE"
+			} done >"$local_hosts"
 		;;
 		'wifi')
 			# on OS-X the client accept this build hostname, e.g.: user-wifi7-n387.lan
@@ -227,9 +232,9 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 			fi
 
 			if [ -e "$LIST" ]; then
-				_log it $FUNC daemon info "building drop-list"
+				_log it $funcname daemon info "building drop-list"
 			else
-				_log it $FUNC daemon info "[OK] drop-list not exists '$LIST' - do nothing"
+				_log it $funcname daemon info "[OK] drop-list not exists '$LIST' - do nothing"
 				return 0
 			fi
 
@@ -276,7 +281,7 @@ build_hosts()				# SENSE: modulary builds /etc/local.hosts
 				done
 			}
 
-			_log it $FUNC daemon debug "building drop-list ready ($(( COUNT + Y )) hosts)"
+			_log it $funcname daemon debug "building drop-list ready ($(( COUNT + Y )) hosts)"
 		;;
 	esac
 }
