@@ -188,7 +188,7 @@ _wifi_dev2freq()	# TODO: code duplication with wifi_channel()
 {			# TODO: on multiband cards this can be senseless
 	local dev="$1"
 	local freq=0
-	local channel basefreq
+	local channel basefreq phy
 
 	_net dev_is_wifi "$dev" && {
 		# old, e.g. r30823 / iw v3.3
@@ -205,11 +205,13 @@ _wifi_dev2freq()	# TODO: code duplication with wifi_channel()
 				freq="${freq#*(}"
 			;;
 			*)
-				# FIXME! do not hardcode 'radio0'
-				channel="$( uci -q get wireless.radio0.channel )" || channel=0
+				read -r phy <"/var/run/interfaces/dev2radio_$dev"
+				channel="$( uci -q get wireless.radio${phy}.channel )" || channel=0
 
 				# https://en.wikipedia.org/wiki/List_of_WLAN_channels
-				if [ $channel -lt 15 ]; then
+				if   [ $channel -eq 0 ]; then
+					basefreq=0
+				elif [ $channel -lt 15 ]; then
 					basefreq=2407	# 2.4ghz works for channel 1-13
 				else
 					basefreq=5000	# 5ghz - works for channel 7...165
