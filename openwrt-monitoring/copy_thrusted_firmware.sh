@@ -29,6 +29,19 @@ files_meshrdf_recent()
 	} done
 }
 
+usecase_hash()		# see: _firmware_get_usecase()
+{
+	local usecase="$1"
+	local oldIFS="$IFS"; IFS=','; set -- $usecase; IFS="$oldIFS"
+
+	# print each word without appended version @...
+	# output the same hash, no matter in which order the words are
+	while [ -n "$1" ]; do {
+		echo "${1%@*}"
+		shift
+	} done | LC_ALL=C sort | md5sum | cut -d' ' -f1
+}
+
 I=0
 for FILE in $( files_meshrdf_recent "$NETWORK_DEST" ); do {
 	. "$FILE"
@@ -46,10 +59,13 @@ for FILE in $( files_meshrdf_recent "$NETWORK_DEST" ); do {
 
 		[ "$F1" = "$F2" ] || {
 			I=$(( I + 1 ))
-			rm -fR "$DEST_DIR"
-			mkdir -p "$DEST_DIR"
+
+			USECASE_HASH="$( usecase_hash "$USECASE" )"
+			rm -fR "$DEST_DIR" "$DEST_DIR"/../.$USECASE_HASH
+			mkdir -p "$DEST_DIR" "$DEST_DIR"/../.$USECASE_HASH
 
 			cp -v "$FROM_DIR"/* "$DEST_DIR"
+			cp -v "$FROM_DIR"/../.$USECASE_HASH/* "$DEST_DIR"/../.$USECASE_HASH	# FIXME! should be a symbolic link
 		}
 	else
 		log "[ERR] missing from-dir: $FROM_DIR"
