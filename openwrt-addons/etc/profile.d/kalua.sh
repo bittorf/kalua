@@ -120,6 +120,10 @@ elif [ -e '/tmp/REBOOT_REASON' ]; then
 	[ -e '/tmp/loader' ] && . /tmp/loader
 	_system include
 
+	[ -e "$PERMDIR/manually_started:firmware_download" ] && {
+		echo '[ATT] firmware update was started'
+	}
+
 	case "$CRASH" in
 		'nocrash'|'nightly_reboot'|'apply_profile'|'wifimac_safed')
 			CRASH="$( _system reboots )"
