@@ -11,7 +11,7 @@ UPDATE_MODE="$3"	# e.g. testing
 
 log()
 {
-	logger -s -- "$0: $*"
+	logger -s -- "$0: $1"
 }
 
 files_meshrdf_recent()
