@@ -1005,7 +1005,11 @@ _firmware_burn()
 	uci set dhcp.@dnsmasq[0].cachesize='0'
 	/etc/init.d/dnsmasq start
 
-	_firmware remove_cron_stuff $pause || return 1
+	_firmware remove_cron_stuff $pause || {
+		rm -f "$TMPDIR/$funcname"
+		return 1
+	}
+
 	_firmware kill_tasks "$list_tasks"
 	_net roaming_eventlistener stop "$funcname: prepare_flash"
 
@@ -1026,6 +1030,7 @@ _firmware_burn()
 		_firmware check_image "$file" || {
 			_log it $funcname daemon alert "check_image '$file' failed"
 			_system crashreboot 'sysupgrade_start'
+			rm -f "$TMPDIR/$funcname"
 			return 1
 		}
 	}
@@ -1039,6 +1044,7 @@ _firmware_burn()
 	. /usr/sbin/cron.check_klog
 	_wifi watch_phy_problems sysupgrade || {
 		_system crashreboot 'wifiphy_probs'
+		rm -f "$TMPDIR/$funcname"
 		return 1
 	}
 
@@ -1169,89 +1175,6 @@ _firmware_burn()
 
 	/bin/netmsg "$LANBRC" "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'"
 	/bin/echo "$HOSTNAME: new crond started, will soon delete these ifnames: '$removeable_interfaces'" >/dev/console
-}
-
-_firmware_upgrade_is_needed()
-{
-	return 1	# FIXME!
-
-	local target_version_git
-
-	_system maintenance_window_active || return 1
-
-	[ -e '/tmp/fw' -o -e '/www/START_SYSUPGRADE.late' ] && return 0
-
-	case "$HARDWARE" in
-		'TP-LINK TL-WDR3600/4300/4310')
-			return 1
-		;;
-		'TP-LINK TL-WR1043ND')
-			target_version_git=44877
-
-			case "$CONFIG_PROFILE" in
-#				'ejbw'*|'tkolleg'*)
-#				;;
-#				'schoeneck'*|'limona'*|'rehungen'*|'leonardo'*|'aschbach'*|'olympia'*|'berlinle'*|'boltenhagendh'*)
-#				;;
-#				'spbansin'*|'ibfleesensee'*|'fparkssee'*|'marinapark'*|'satama'*)
-#				;;
-				*)
-					return 1
-				;;
-			esac
-		;;
-		"Buffalo WHR-HP-G54"|"Linksys WRT54G:GS:GL"|"Dell TrueMobile 2300")
-			target_version_git=33726
-
-			case "$CONFIG_PROFILE" in
-				*)
-					return 1
-				;;
-			esac
-		;;
-		'Ubiquiti Bullet M'|'Ubiquiti Bullet M2'|'Ubiquiti Bullet M5')
-			target_version_git=43238
-
-			case "$CONFIG_PROFILE" in
-				'rehungen'*)
-				;;
-				*)
-					return 1
-				;;
-			esac
-		;;
-		*)
-			return 1
-		;;
-	esac
-
-	_firmware updatemode testing || {
-		return 1
-	}
-
-	[ $OPENWRT_REV -ge ${target_version_git:-99999} ] && {
-		return 1
-	}
-
-	case "$CONFIG_PROFILE" in	# explicit global nono!
-		ffweimar*)
-			return 1	# be safe and free
-		;;
-	esac
-
-	case "$CONFIG_PROFILE" in
-		dummynet*|liszt28*)
-			:
-			# these inet-offer nodes are safe:
-		;;
-		*)
-			_net local_inet_offer >/dev/null && {
-				return 1
-			}
-		;;
-	esac
-
-	return 0
 }
 
 _firmware_signature_calc()
