@@ -40,7 +40,7 @@ motion_generate_conf()			# resolution: (motion needs modulo 16) - or:
 	local height="${2:-480}"	#  800 x  450 =  800 x  448		 1024 x 576 (16:9)
 	local mode="${3:-day}"		#  640 x  343 =  640 x  336
 	local dir='/webcam'
-	local snapshot quali threshold pixel_change_in_percent_for_motion append_arg
+	local snapshot quali threshold pixel_change_in_percent_for_motion append_arg size_ramdisc ram_size
 
 	# TODO: lookup sunset/sunrise like chickendoor
 	case "$mode" in
@@ -59,7 +59,15 @@ motion_generate_conf()			# resolution: (motion needs modulo 16) - or:
 	# default is 1500 pixel, which is 0.5% for 640 x 480
 	threshold=$(( ((width * height) / 100) * pixel_change_in_percent_for_motion ))
 
-	_system add_ramdisc "$dir"
+	ram_size="$( _system ram_size )"	# [kilobytes]
+	ram_size=$(( ram_size / 1024 ))
+	if [ $ram_size -gt 32 ]; then
+		size_ramdisc=$(( ram_size - 32 ))
+	else
+		size_ramdisc=1			# [megabytes]
+	fi
+	_system add_ramdisc "$dir" "${size_ramdisc}M"
+
 	if command -v motion >/dev/null; then
 		cat <<EOF
 daemon			on
@@ -85,7 +93,10 @@ EOF
 		append_arg='--quiet --no-banner --no-timestamp'
 		bool_true 'system.@webcam[0].flip_x' && append_arg="$append_arg --flip v"
 		bool_true 'system.@webcam[0].flip_y' && append_arg="$append_arg --flip h"
+
+		echo "read -r LOAD REST </proc/loadavg; case \$LOAD in 0*)"
 		echo "fswebcam -d /dev/video0 $append_arg --fps 1 -r ${width}x${height} '$dir/webcam.jpg'"
+		echo ";;esac"
 	fi
 }
 
