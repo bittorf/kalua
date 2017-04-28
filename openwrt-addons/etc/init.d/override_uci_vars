@@ -25,6 +25,11 @@ force_dnsserver()
 	}
 }
 
+date_is_after()
+{
+	test $( _system date unixtime ) -gt $( _system date 2unixtime "$1" )
+}
+
 uci_sanitize_wireless_macs()
 {
 	local funcname='uci_sanitize_wireless_macs'
@@ -218,7 +223,7 @@ apply_olsr_roaming()
 
 				uci set "wireless.@wifi-iface[$index].disassoc_low_ack=$disassoc_low_ack"
 				uci -q del "wireless.@wifi-iface[$index].max_inactivity"
-#				uci set "wireless.@wifi-iface[$index].max_inactivity"='30'
+				uci set "wireless.@wifi-iface[$index].max_inactivity=10"
 			else
 				has_5ghz='true'
 				uci set "wireless.@wifi-iface[$index].disassoc_low_ack=0"	# sticky 5ghz
@@ -1223,9 +1228,11 @@ boot()
 			_wifi set ap any ssid "Hotel Olympia $(( NODENUMBER - 1 ))"
 		;;
 		castelfalfi*)
-			[ $( _system date unixtime ) -lt $( _system date 2unixtime 'Sun Apr 10 23:55:00 CET 2015' ) ] && {
+			if date_is_after 'Sun Apr 10 23:55:00 CET 2015'; then
+				rm '/tmp/FREE' 2>/dev/null
+			else
 				touch '/tmp/FREE'
-			}
+			fi
 
 			uci set system.@weblogin[0].defaultlang='en'
 			uci set system.@weblogin[0].auth_type='roomnumber'
@@ -1871,34 +1878,35 @@ boot()
 					uci set system.@vpn[0].force='true'
 					config_add_alias 'lan' '10.63.4.41/27'
 					olsr_disable_interface 'innercityVPN'
-# https://wiki.openwrt.org/doc/recipes/ltedongle					
-# uqmi -d /dev/cdc-wdm0 --get-signal-info
-# uqmi -d /dev/cdc-wdm0 --get-data-status
-# uqmi -d /dev/cdc-wdm0 --get-imei
-# uqmi -d /dev/cdc-wdm0 --set-network-modes gsm		// all, lte, umts, gsm, cdma, td-scdma
-# uqmi -d /dev/cdc-wdm0 --get-serving-system
-# uqmi -d /dev/cdc-wdm0 --network-scan
-uci set network.wwan='interface'
-uci set network.wwan.device='/dev/cdc-wdm0'
-uci set network.wwan.ifname='wwan0'
-uci set network.wwan.proto='dhcp'
-uci set network.wwan.pincode='8412'
-# uqmi -d /dev/cdc-wdm0 --verify-pin1 8412
-# uqmi -d /dev/cdc-wdm0 --get-pin-status
-# uqmi -d /dev/cdc-wdm0 --network-register
-uci set network.wwan.disabled='0'
-uci set network.wwan.apn='internet.t-mobile'
-uci set network.wwan.username='t-mobile'
-uci set network.wwan.password='tm'
-uci set network.wwan.modes='gsm'
-#root@box:~ uqmi -d /dev/cdc-wdm0 --get-serving-system
-#{
-#        "registration": "registered",
-#        "plmn_mcc": 262,
-#        "plmn_mnc": 1,
-#        "plmn_description": "Telekom.de",
-#        "roaming": false
-#}
+
+					# https://wiki.openwrt.org/doc/recipes/ltedongle
+					# uqmi -d /dev/cdc-wdm0 --get-signal-info
+					# uqmi -d /dev/cdc-wdm0 --get-data-status
+					# uqmi -d /dev/cdc-wdm0 --get-imei
+					# uqmi -d /dev/cdc-wdm0 --set-network-modes gsm		// all, lte, umts, gsm, cdma, td-scdma
+					# uqmi -d /dev/cdc-wdm0 --get-serving-system
+					# uqmi -d /dev/cdc-wdm0 --network-scan
+					uci set network.wwan='interface'
+					uci set network.wwan.device='/dev/cdc-wdm0'
+					uci set network.wwan.ifname='wwan0'
+					uci set network.wwan.proto='dhcp'
+					uci set network.wwan.pincode='8412'
+					# uqmi -d /dev/cdc-wdm0 --verify-pin1 8412
+					# uqmi -d /dev/cdc-wdm0 --get-pin-status
+					# uqmi -d /dev/cdc-wdm0 --network-register
+					uci set network.wwan.disabled='0'
+					uci set network.wwan.apn='internet.t-mobile'
+					uci set network.wwan.username='t-mobile'
+					uci set network.wwan.password='tm'
+					uci set network.wwan.modes='gsm'
+					#root@box:~ uqmi -d /dev/cdc-wdm0 --get-serving-system
+					#{
+					#        "registration": "registered",
+					#        "plmn_mcc": 262,
+					#        "plmn_mnc": 1,
+					#        "plmn_description": "Telekom.de",
+					#        "roaming": false
+					#}
 				;;
 			esac
 
@@ -2385,39 +2393,47 @@ uci set network.wwan.modes='gsm'
 			_wifi set ap 2ghz txpower '22'
 		;;
 		ejbw*)
-			if [ "$NODENUMBER" = '43' ]; then
-				force_dnsserver '10.10.100.1'		# FIXME!
-			else
-				force_dnsserver '208.67.222.123'	# opendns/no_adults
-			fi
+			case "$NODENUMBER" in
+				43)
+					force_dnsserver '10.10.100.1'		# FIXME!
+				;;
+				*)
+					force_dnsserver '208.67.222.123'	# opendns/no_adults
+				;;
+			esac
 
 			uci set system.@weblogin[0].enabled='false'		# since 2015nov19
 
 			uci set system.@monitoring[0].report_lan_dhcp='true'
 			uci set system.@monitoring[0].ignore_lossyethernet='true'	# powerline e.g. 10.10.31.61
-			uci set dhcp.wlan.leasetime='5m'
 			uci set olsrd.@meta[0].hnaslave='false'
 			uci set system.@monitoring[0].backping='16'	# lueftungskeller
 
 			_wifi set adhoc 2ghz bssid '02:be:ef:ca:ff:ee'
-			_wifi set ap    2ghz ssid 'EJB Weimar'		# PMR: poor mens roaming
+			_wifi set ap anyfreq ssid 'EJB Weimar'		# PMR: poor mens roaming # FOO
+			uci set dhcp.wlan.leasetime='5m'		# FIXME! till roaming is fixed
 
 			case "$NODENUMBER" in
-				100|101)
-					# real: 367m - FIXME! was 20 mhz with r44150/J2 + r41522/reithaus at -70 dBm
-					_wifi longshot name 'j2-reithaus' distance 380 channel 104 chanbw 20 mhz mcast 6000 nodes '100 101'
-					_wifi set anymode 5ghz txpower '21'
-
-					uci set network.wlan.shaping='true'
-					uci set network.wlan.shaping_uplink='9000'	# we have ~18mbit max @5mhz chanbw (minstrel)
-					uci set network.wlan.shaping_downlink='9000'
-
-					uci set system.@weblogin[0].enabled='false'
+				60|26)
+					# TODO: each AP in RH another SSID?
+					# TODO: wireless.@wifi-iface[$index].disassoc_low_ack=0 ?
 				;;
 			esac
 
 			case "$NODENUMBER" in
-				101|41|42|43|45|46)
+				100|101)
+					# real: 367m - FIXME! was 20 mhz with r44150/J2 + r41522/reithaus at -70 dBm
+					_wifi longshot name 'j2-reithaus' distance 380 channel 104 chanbw 20 mhz mcast 6000 nodes '100 101' pingcheck
+					_wifi set anymode 5ghz txpower '21'
+
+					uci set network.wlan.shaping='true'
+					uci set network.wlan.shaping_uplink='13000'	# we have ~18mbit max @5mhz chanbw (minstrel)
+					uci set network.wlan.shaping_downlink='13000'	# 2017apr28 @20mhz = MCS5 = 30.6mbit
+				;;
+			esac
+
+			case "$NODENUMBER" in
+				101|41|42|43|45|46|47|26|59|60)
 					# reithaus
 					uci set system.@weblogin[0].authserver="$( _ipsystem getvar 'WIFIADR' '100' )"
 				;;
@@ -2428,7 +2444,7 @@ uci set network.wwan.modes='gsm'
 
 			case "$NODENUMBER" in
 				31|48)
-					uci set olsrd.@Interface[0].Mode='mesh'
+					uci set olsrd.@Interface[0].Mode='mesh'		# why?
 				;;
 				50)
 					# inet-offer
@@ -2437,23 +2453,26 @@ uci set network.wwan.modes='gsm'
 			esac
 
 			case "$NODENUMBER" in
-				39|35|31|30)
-					# riegel / pbx
-					uci set system.@system[0].avoid_autoreboot='true'
+				26|60|43|30|31|35|39|13)
+					uci set dhcp.lan.ignore='0'
 				;;
-				43)
-					uci set system.@weblogin[0].enabled='1'
-					uci set system.@weblogin[0].freelan='true'
+				*)
+					uci set dhcp.lan.ignore='1'
+				;;
+			esac
+
+			case "$NODENUMBER" in
+				39|35|31|30)
+					# riegel / pbx-stuff
+					uci set system.@system[0].avoid_autoreboot='true'
 				;;
 				100)
 					# j4dach
-					uci set dhcp.lan.ignore=1
-
 					config_add_alias 'lan' '192.168.112.2/24' '192.168.112.1'
 
 					bool_true 'system.@netfilter[0].lan_masquerading' && {
 						uci add system netfilter >/dev/null
-						uci set system.@netfilter[-1].lan_masquerading='0'
+						uci set system.@netfilter[-1].lan_masquerading='false'	# TODO: always set?
 					}
 
 					uci set system.@monitoring[0].pingcheck='10.10.101.1'
@@ -2475,7 +2494,7 @@ uci set network.wwan.modes='gsm'
 
 					uci_already_added 'olsrd' 'Hna4' 'netaddr' '192.168.10.0' || {
 						uci add olsrd Hna4 >/dev/null
-						uci set olsrd.@Hna4[-1].netaddr=192.168.10.0
+						uci set olsrd.@Hna4[-1].netaddr=192.168.10.0	# TODO: always set?
 						uci set olsrd.@Hna4[-1].netmask=255.255.255.0
 					}
 
@@ -2484,17 +2503,20 @@ uci set network.wwan.modes='gsm'
 #					uci set olsrd.@Hna4[-1].netmask=255.255.255.0
 
 					uci set system.@monitoring[0].pingcheck='10.10.100.1'
-					uci set system.@monitoring[0].maintenance='reverse_sshtunnel'	# port: 17126
+					uci set system.@monitoring[0].maintenance='reverse_sshtunnel'	# port: 14979
 					uci set system.@monitoring[0].maintenance_force='true'
 				;;
 			esac
 		;;
 		leonardo*)
-			if [ $( _system date unixtime ) -lt $( _system date 2unixtime 'Mon Mar 13 23:55:00 CET 2017' ) ]; then
-				touch '/tmp/FREE'
-			else
+			if date_is_after 'Mon Mar 13 23:55:00 CET 2017'; then
 				rm '/tmp/FREE' 2>/dev/null
+			else
+				touch '/tmp/FREE'
 			fi
+
+			# TODO: send via monitoring:
+			# poe-kabel: [1] [2] [3] [4]  | 1=Konferenzraum 2=E1-flur 3=E3-flur 4=EG-flur
 
 			uci set system.@weblogin[0].namespace='leonardo'	# username of ticket
 			uci set system.@weblogin[0].respect_missing_db='true'
