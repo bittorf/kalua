@@ -3105,8 +3105,10 @@ build_options_set()
 				$funcname subcall 'noFW'
 
 				usecase_has 'USB' || {
-					log "[OK] autoselecting usecase 'noUSB' in 'Small'-mode"
-					$funcname subcall 'noUSB'
+					usecase_has 'USBprinter' || {
+						log "[OK] autoselecting usecase 'noUSB' in 'Small'-mode"
+						$funcname subcall 'noUSB'
+					}	# parser_ignore
 				}	# parser_ignore
 
 #				[ "$ARCH" = 'ar71xx' ] && {
