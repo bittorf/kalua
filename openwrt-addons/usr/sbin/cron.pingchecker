@@ -6,6 +6,7 @@ pingstat()
 	local ip="$1"
 	local file='/tmp/PING'
 	local line='' packets='' retries=''
+	local myroute="$( ip -oneline route get "$ip" )"
 
 	if [ -e "$file" ]; then
 		while read -r line; do {
@@ -23,7 +24,9 @@ pingstat()
 	#        otherwise a flapping route (e.g. bad wifi-link) is bad for mesurement
 	# append some wifi TX-debug, e.g.:
 	# bytes: 10.729.533 packets: 35.965 retries: 4230 (=11.76%) failed: 2 avg: -75 bitrate: 39.0
-	ip route get "$ip" | grep -Fq " dev $WIFIDEV " && {
+	case "$myroute" in
+		*" dev $WIFIDEV "*)
+
 		iw dev $WIFIDEV station get "$( _net ip2mac "$ip" )" |
 		 while read -r line; do {
 			case "$line" in
@@ -34,17 +37,17 @@ pingstat()
 				# signal avg:     -46 [-46] dBm
 				# tx bitrate:     65.0 MBit/s MCS 7
 
-# TODO: here we have 100% failed: 'tx packets' = 'tx failed'
-#Station 00:27:22:32:0f:dd (on wlan0)
-#    inactive time:      2210 ms
-#    rx bytes:   1300
-#    rx packets: 8
-#    tx bytes:   2096
-#    tx packets: 26
-#    tx retries: 184
-#    tx failed:  26
-#    signal:     -92 [-92] dBm
-#    signal avg: -91 [-91] dBm
+				# TODO: here we have 100% failed: 'tx packets' = 'tx failed'
+				# Station 00:27:22:32:0f:dd (on wlan0)
+				#    inactive time:      2210 ms
+				#    rx bytes:   1300
+				#    rx packets: 8
+				#    tx bytes:   2096
+				#    tx packets: 26
+				#    tx retries: 184
+				#    tx failed:  26
+				#    signal:     -92 [-92] dBm
+				#    signal avg: -91 [-91] dBm
 
 
 				*'tx '*|*'signal avg:'*)
@@ -68,7 +71,12 @@ pingstat()
 				;;
 			esac
 		} done
-	}
+
+		;;
+		*)
+			printf '%s' "route_not_wifi: $myroute"
+		;;
+	esac
 }
 
 olsr_stats()		# if we only have one neigh, take it? e.g. ping from central_inetoffer into mesh
