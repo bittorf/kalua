@@ -249,7 +249,8 @@ get_network_name()
 
 	set -- $( pwd )
 
-	while [ -n "$1" ]; do {
+#	while [ -n "$1" ]; do {		# FIXME!
+	while :;do {
 		case "$1" in
 			'networks')
 				echo "$2"
@@ -568,8 +569,8 @@ case "$NETWORK" in
 	;;
 esac
 
-LIST="age pubssh/hostname version kernel git ram switch dhcp up wifiup olsrup klog speed Oin Oout load db"
-LIST="$LIST hwmac $NAME_ESSID ch node profile storage nexthop tx(nh/gp) etx(nh) tx(nh) eff[%] m(nh) wifimode hop2gw cost2gw txpwr mrate"
+LIST="age pubssh/hostname version kernel GIT RAM switch DHCP up wifiup olsrup klog speed Oin Oout load DB"
+LIST="$LIST hwmac $NAME_ESSID Ch node profile storage nexthop tx(nh/gp) etx(nh) tx(nh) eff[%] m(nh) wifimode hop2gw cost2gw txpwr mrate"
 LIST="$LIST gmode noise signal wifineighs wiredneighs speedTCP pfilter"
 
 for COL in $LIST; do {
@@ -582,25 +583,25 @@ for COL in $LIST; do {
 	LINK_TITLE=
 
 	case "$COL" in
-		"version")
-			LINK="https://github.com/bittorf/kalua"
-			LINK_TITLE="Alter in Tagen der Version des Kalua-Aufsatzes (Paketfilter/Loginseite)"
+		'version')
+			LINK='https://github.com/bittorf/kalua'
+			LINK_TITLE='Alter in Tagen der Version des Kalua-Aufsatzes (Paketfilter/Loginseite)'
 		;;
-		"age")
+		'age')
 			printf '%s' " title='vor wieviel Stunden, gab es die letzte aktive R&uuml;ckmeldung dieses Ger&auml;tes'"
 		;;
-		"kernel")
-			LINK="http://kernel.org"
+		'kernel')
+			LINK='http://kernel.org'
 			LINK_TITLE="Linux-Kernel development"
 		;;
-		"git")
-			LINK="http://nbd.name/gitweb.cgi?p=openwrt.git"
-			LINK_TITLE="Development of the OpenWRT Linux-Distribution"
+		'GIT')
+			LINK='http://nbd.name/gitweb.cgi?p=openwrt.git'
+			LINK_TITLE='Development of the OpenWRT Linux-Distribution'
 		;;
-		"pubssh/hostname")
+		'pubssh/hostname')
 			printf '%s' " bgcolor='lime'"
 		;;
-		"m(nh)")
+		'm(nh)')
 			printf '%s' " title='verwendete Modulationsart zum nexthop-Nachbarn (b|g|unbekannt)'"
 		;;
 	esac
@@ -705,7 +706,7 @@ for FILE in $LIST_FILES ; do {
 # here we collect or allowed messages, so filtering must go here:
 # TODO: use ARG1 for specific mac
 #
-LIST_FILES="$( find recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | sort )"
+LIST_FILES="$( find recent | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | LC_ALL=C sort -f )"
 [ -n "$FORM_MAC" ] && {
 	[ -e "recent/$FORM_MAC" ] && {
 		LIST_FILES="recent/$FORM_MAC"
@@ -729,7 +730,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	}
 
 	case "$NODE" in
-		''|0)
+		''|1|0)
 			log "[double nodenumber] ignoring mode '$MODE'" debug
 			continue
 		;;
@@ -1005,7 +1006,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 	log "LASTSEEN: $LASTSEEN" debug
 
 	case "$NETWORK" in
-		X-liszt28|X-gnm|X-apphalle|X-abtpark|X-ewerk|ilm1)
+		X-liszt28|X-gnm|X-apphalle|X-abtpark|X-ewerk)
 			# in minutes - please also adjust in _cell_lastseen()
 			LASTSEEN="$(( $LASTSEEN /   60 ))"
 			AGE_BORDER=9999
@@ -1169,8 +1170,22 @@ func_cell_wifimode ()
 	esac
 
 	case "$WIFIDRV" in
-		*adhocap*) COLOR="yellow" ;;
+		*'adhocap'*) COLOR="yellow" ;;
 	esac
+
+	case "$NETWORK" in
+		liszt28)
+			case "$OLSRVER" in
+				*'0.9.6.1-git'*)
+					COLOR='lime'
+				;;
+				*)
+					COLOR='crimson'
+				;;
+			esac
+		;;
+	esac
+
 
 #		printf '%s' "<td title='$WIFIDRV $OLSRVER' nowrap bgcolor='$COLOR'>&nbsp;${OLSRVER}&nbsp;${VALUE}&nbsp;</td>"
 		printf '%s' "<td title='$WIFIDRV $OLSRVER' nowrap bgcolor='$COLOR'>${VALUE}</td>"
@@ -2424,7 +2439,7 @@ list=
 			esac
 		;;
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
-		ejbw) list="$admin haustechnik|ejbweimar.de";;
+		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
 		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de huettendorf|stadtwerke-itzehoe.de" ; list=;;
 		wuensch) list="$admin p_s_wuensch|t-online.de" ;;
 		leonardo) list="$admin info|hotel-leonardo.de"; list= ;;
@@ -2555,7 +2570,7 @@ _cell_lastseen()
 	local subject_add=
 
 	case "$NETWORK" in
-		X-liszt28|X-apphalle|X-abtpark|X-apphalle|X-ewerk|ilm1)
+		X-liszt28|X-apphalle|X-abtpark|X-apphalle|X-ewerk)
 			border=61	# min - normally every 15 mins a mini-update and every 60 mins a full
 		;;
 		gnm)
@@ -3737,7 +3752,7 @@ _cell_wifi_neighs ()
 
 html_comment()		# for sorting
 {
-	printf '%s' "<!-- $( echo $1 | sed 's/-//g' ) -->"
+	printf '%s' "<!-- $( echo $1 | sed 's/-//g' | tr 'A-Z' 'a-z' ) -->"
 	return 0
 
 	local comment="$1"
@@ -3828,39 +3843,20 @@ esac
 
 	good_git_color()
 	{
-		local rev="${1:-0}"
-
-		case "$HOSTNAME" in
-			'ewerk-'*)
-				case "$rev" in
-					49276)
-						# kultursymposium
-						echo "$COLOR_BRIGHT_GREEN"
-					;;
-					*)
-					;;
-				esac
-
-				return 0
-			;;
-		esac
+		local rev="${1:=0}"
 
 		case "$rev" in
-			28879|29366)			# brcm47xx + ar71xx
-				echo "$COLOR_BRIGHT_ORANGE"
+			44150)		# stable
+				echo "$COLOR_DARK_GREEN"	# stable
 			;;
-			33502|33556|33726|32582|35052)		# linksys/buffi/dell x 2 | tplink | bullet M | tplink
-				echo "$COLOR_BRIGHT_GREEN"
+			49276)
+				echo "$COLOR_DARK_GREEN"	# beta
 			;;
-			# 32060|32055|34054|35724|35300		# atheros | tpl | tpl | bulletM | tplinkNEU
-			44150)		# ar71xx
-				echo "$COLOR_BRIGHT_GREEN"
-			;;
-			31182|30823|30563|31465|33160|33616|30671) # linksys/buffi/dell | linksys/buffi/dell | tplink | tplink | tplink | tplink | bullet M
-				echo "$COLOR_DARK_GREEN"
+			1003900|0)
+				echo "$COLOR_BRIGHT_GREEN"	# testing
 			;;
 			99999)
-				echo "$COLOR_DARK_GREEN"
+				echo "$COLOR_DARK_GREEN"	# server?
 			;;
 			*)
 				if   [ $rev -ge 34794 -a $rev -lt 34815 ]; then
@@ -4139,7 +4135,7 @@ esac
 
 	echo    "</tr>"
 
-} done | sort -rn >>$OUT
+} done | LC_ALL=C sort -f -r -n >>$OUT
 
 ROUTER_ALL="$( ls -1 recent/ | grep "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]"$ | wc -l )"
 ROUTER_OMITTED="$( grep -s 'omitted:' "$OUT" | wc -l )"
@@ -4284,7 +4280,7 @@ show_screenshots()
 			[ -e "$file" ] || continue
 			hostname="$( cat "$( echo "$file" | cut -d'.' -f1 ).hostname" )"
 			echo "$hostname $file"
-		} done | sort | cut -d' ' -f2
+		} done | LC_ALL=C sort | cut -d' ' -f2
 	}
 
 	for file in $( list ); do {
@@ -4426,7 +4422,7 @@ bla()
 {
 	local line p1 p2 p p_old
 
-	sort "${FILE_FAILURE_OVERVIEW}.tmp" | while read line; do {
+	LC_ALL=C sort "${FILE_FAILURE_OVERVIEW}.tmp" | while read line; do {
 		p1="$( echo "$line" | cut -d'-' -f1 )"
 		p2="$( echo "$line" | cut -d'-' -f1 )"
 		p="${p1}-${p2}"		# HausA-1234
@@ -4437,7 +4433,7 @@ bla()
 	} done >>"$FILE_FAILURE_OVERVIEW"
 }
 
-sort "${FILE_FAILURE_OVERVIEW}.tmp" >>"$FILE_FAILURE_OVERVIEW"
+LC_ALL=C sort "${FILE_FAILURE_OVERVIEW}.tmp" >>"$FILE_FAILURE_OVERVIEW"
 
 case "$NETWORK" in
 	apphalle|castelfalfi|leonardo|schoeneck|extrawatt|olympia|aschbach|boltenhagendh|rehungen|vivaldi|marinabh)
@@ -4615,6 +4611,8 @@ mode2rev()
 		'testing')
 			echo "$MODE_TESTING_REV"
 		;;
+		'nightly')
+		;;
 	esac
 }
 
@@ -4631,9 +4629,9 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# - testing/avantgarde..: r$MODE_TESTING_REV (LEDE)"
 	echo '#'
 	echo '# prepare your env with e.g.:'
-	echo "# export PATH=\"~:\$PATH\""
+	echo "# export PATH=\"~\$PATH:~\""
 	echo '# MY_BUILD_DIR=mybuildbot'
-	echo "# mount -t tmpfs -o size=90% none \"\$PWD/\$MY_BUILD_DIR\""
+	echo "# sudo mount -t tmpfs -o size=90% none \"\$PWD/\$MY_BUILD_DIR\""
 	echo "# mkdir -p \$MY_BUILD_DIR && cd \$MY_BUILD_DIR"
 	echo '#'
 	echo "# URL='$BUILD_SCRIPT_URL'"
@@ -4641,7 +4639,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# ./build.sh --openwrt trunk --download_pool \$HOME/openwrt_dl"
 	echo "# ./build.sh --openwrt lede  --download_pool \$HOME/openwrt_dl"
 	echo '#'
-	echo "# and copy your public key for upload to: $( echo "$SERVER" | cut -d':' -f1 )"
+	echo "# and copy your public ssh-key (for autouploading files) to: $( echo "$SERVER" | cut -d':' -f1 )"
 	echo '# and execute this script:'
 	echo
 	echo 'export FAILED='
@@ -4652,7 +4650,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	[ "$NETWORK" = 'liszt28' ] && echo >>"$USECASE_FILE" "USECASE='Standard-4mb,kalua'; HARDWARE='UML'; WIFIMAC='112233445566';"
 
 	ALREADY_WRITTEN=
-	STABLE=0;BETA=0;TESTING=0;OVERALL=0;OVERALL_READY=0
+	STABLE=0;BETA=0;TESTING=0;NIGHTLY=0;OVERALL=0;OVERALL_READY=0
 	while read -r LINE; do {
 		# USECASE='Standard,LuCIfull,debug,kalua'; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='6670025c2045';
 		# USECASE=''; HARDWARE='TP-LINK TL-WR1043ND'; WIFIMAC='f8d111a9cec8';
@@ -4728,10 +4726,10 @@ sh -n "$USECASE_FILE" && cd .. && {
 			;;
 		esac
 
-		# ugly fixes for testnet:
+		# ugly fixes:
 		case "$NETWORK: $HARDWARE" in
 			'liszt28: T-Mobile InternetBox') HARDWARE='T-Mobile InternetBox TMD SB1-S';;
-			'liszt28: TP-LINK TL-WDR3600/4300/4310') HARDWARE='TP-LINK TL-WDR4300';;
+			*'TP-LINK TL-WDR3600/4300/4310') HARDWARE='TP-LINK TL-WDR4300';;
 			'liszt28: Ubiquiti Bullet M') HARDWARE='Ubiquiti Bullet M5';;
 			'marinabh: Ubiquiti Bullet M') HARDWARE='Ubiquiti Bullet M2';;
 		esac
@@ -4756,7 +4754,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 		# 'Linksys WRT54G/GS/GL' -> 'Linksys WRT54G:GS:GL'
 		HARDWARE_FILENAME="$( echo "$HARDWARE" | tr '/' ':' )"
 
-		for MODE in stable beta testing; do {
+		for MODE in stable beta testing nightly; do {
 			REV="$( mode2rev "$MODE" )"
 			OVERALL=$(( OVERALL + 1 ))
 
@@ -4781,6 +4779,15 @@ sh -n "$USECASE_FILE" && cd .. && {
 					TESTING=$(( TESTING + 1 ))
 					FNAME="t$TESTING"
 					FEEDSTIME="$MODE_TESTING_FEEDSTIME"
+				;;
+				'nightly')
+					REV_JSON=0
+					BUILD_DIR='source'
+					NIGHTLY=$(( NIGHTLY + 1 ))
+					FNAME="n$NIGHTLY"
+					FEEDSTIME=
+
+					OVERALL=$(( OVERALL - 1 ))
 				;;
 			esac
 
@@ -4829,7 +4836,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 			if [ -n "$FEEDSTIME" ]; then
 				echo "${TAB}${TAB}--openwrt 'r$REV' --feedstime '$FEEDSTIME' \\"
 			else
-				echo "${TAB}${TAB}--openwrt 'r$REV' \\"
+				echo "${TAB}${TAB}--openwrt "r${REV:-\${1}}" \\"
 			fi
 
 			echo "${TAB}${TAB}--hardware '$HARDWARE' --usecase '$USECASE' \\"
@@ -4855,6 +4862,12 @@ sh -n "$USECASE_FILE" && cd .. && {
 	I=0
 	echo "testing() {"
 		printf '%s' "$TAB"; while [ $I -lt $TESTING ]; do I=$(( I + 1 )); printf '%s' "t$I;"; done; echo
+	echo "}"
+	echo
+
+	I=0
+	echo "nightly() {"
+		printf '%s' "$TAB"; while [ $I -lt $NIGHTLY ]; do I=$(( I + 1 )); printf '%s' "n$I;"; done; echo
 	echo "}"
 	echo
 
