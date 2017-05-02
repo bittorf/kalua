@@ -328,9 +328,12 @@ _vpn_innercity_master_iface()
 		ip link set dev $dev mtu $mtu address $genmac up
 		touch "$TMPDIR/$funcname-devup-$dev"
 
+		# FIXME! use generic throttle-api for this and olsr
 		$IPT -I INPUT  -p udp --dport 698 -i $dev -j DROP
 		$IPT -I INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
 		$IPT -I INPUT  -p udp --dport 698 -i $dev -s $tunnel_ip_here -j ACCEPT
+		$IPT -I INPUT  -p tcp --dport  22 -i $dev -j ACCEPT	# SSH
+		#
 		$IPT -I OUTPUT -p udp --dport 698 -o $dev -j DROP
 		$IPT -I OUTPUT -p udp --dport 698 -o $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
 		$IPT -I FORWARD -i $dev -j ACCEPT
@@ -377,6 +380,8 @@ _vpn_innercity_master_iface()
 
 		$IPT -D OUTPUT -p udp --dport 698 -o $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
 		$IPT -D OUTPUT -p udp --dport 698 -o $dev -j DROP
+		#
+		$IPT -D INPUT  -p tcp --dport  22 -i $dev -j ACCEPT	# SSH
 		$IPT -D INPUT  -p udp --dport 698 -i $dev -s $tunnel_ip_here -j ACCEPT
 		$IPT -D INPUT  -p udp --dport 698 -i $dev -m limit --limit $limit/s --limit-burst $limit_burst -j ACCEPT
 		$IPT -D INPUT  -p udp --dport 698 -i $dev -j DROP

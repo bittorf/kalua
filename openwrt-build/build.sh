@@ -770,6 +770,8 @@ EOF
 			FILENAME_FACTORY='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-factory.bin'
 		;;
 		'TP-LINK CPE510'|'TP-LINK CPE520')
+	# lede-ar71xx-generic-cpe210-220-510-520-squashfs-sysupgrade.bin ->
+	# bin/targets/ar71xx/generic/lede-ar71xx-generic-cpe510-520-squashfs-sysupgrade.bin
 	# TODO: https://git.lede-project.org/?p=source.git;a=commit;h=c2e0c41842895ba47819fa98b785c76a2524628b
 			# https://wiki.openwrt.org/toh/tp-link/tl-cpe510
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_CPE510=y'
