@@ -5,8 +5,8 @@
 # 0x12 = port443, redirect to local port 443
 # 0x13 = port53udp, redirect to local port 53
 # 0x14 = port53tcp, redirect to local port 53
-# 0x15 = port53udp, redirect to local port 5353
-# 0x16 = port53tcp, redirect to local port 5353
+# 0x15 = port53udp, redirect to local port 53535
+# 0x16 = port53tcp, redirect to local port 53535
 # 0x22 = adblocking, gets rejected
 # 0x33 = connection_start
 # 0x44 = connection_close
@@ -1306,7 +1306,7 @@ _netfilter_is_meshnode()	# fixme! better iterate over olsrd-interface, if one is
 _netfilter_fakedns_start()
 {
 	local funcname='netfilter_fakedns_start'
-	local dnsport="${1:-5353}"
+	local dnsport="${1:-53535}"
 	local dnsfake_ip="$ANYADR"
 	local pid
 
@@ -1322,7 +1322,7 @@ _netfilter_fakedns_start()
 
 	[ -h '/sbin/fakedns' ] || ln -s "$( command -v dnsmasq )" '/sbin/fakedns'
 
-	# check with GNU: nslookup gmx.de $SERVER -port=5353
+	# check with GNU: nslookup gmx.de $SERVER -port=53535
 	/sbin/fakedns --log-queries --address=/#/$dnsfake_ip -p $dnsport && {
 		pid=$( pidof fakedns ) && {
 			echo >"$TMPDIR/FAKEDNS.pid"	"$pid"
@@ -1369,7 +1369,7 @@ _netfilter_splash_start()
 
 		if [ -n "$ap_active" ]; then
 			# tested with dnsmasq 2.75
-			dnsport=5353
+			dnsport=53535
 			_netfilter fakedns_start "$dnsport"
 		else
 			dnsport=53
@@ -1449,8 +1449,8 @@ _netfilter_splash_start()
 	fi
 
 	# redirect DNS to local fake DNS-server
-	$IPT -t nat -A PREROUTING -p tcp -m mark --mark 0x16/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
-	$IPT -t nat -A PREROUTING -p udp -m mark --mark 0x15/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:5353"
+	$IPT -t nat -A PREROUTING -p tcp -m mark --mark 0x16/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:53535"
+	$IPT -t nat -A PREROUTING -p udp -m mark --mark 0x15/0xff -j DNAT --to-destination "${WIFIADR:-$LANADR}:53535"
 
 	add_dev()
 	{
