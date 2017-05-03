@@ -2,6 +2,7 @@
 
 NETWORK="$1"
 VERSION="$2"
+OPTION="$3"	# e.g. 'test' or <empty>
 
 [ -z "$NETWORK" ] && {
 	echo "Usage: $0 <network> <version>"
@@ -21,14 +22,21 @@ generate_script()
 	cat <<EOF
 #!/bin/sh
 . /tmp/loader
-wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/tarball.tgz
-cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz; /etc/kalua_init apply_settings
+[ \$HOSTNAME = 'test-marinabh' -a "\$( uname -r )" = '4.1.20' ] && {
+	wget -O /tmp/fw2 'http://intercity-vpn.de/networks/liszt28/firmware/models/TP-LINK%20TL-WR841N:ND%20v8/testing/Standard-4mb,kalua/TP-LINK%20TL-WR841N:ND%20v8.lede=r3900_kernel=4.4.56_rootfs=squash_image=sysupgrade_option=Standard-4mb,kalua@ab2a8ca.bin' && {
+		sysupgrade /tmp/fw2
+		exit 0
+	}
+#	wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/tarball.tgz
+#	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz; /etc/kalua_init apply_settings
+}
 
 apply_settings()
 {
-	[ -e "/sbin/uci" ] || return 1
+	[ -e '/sbin/uci' ] || return 1
+	[ -e '/www/monitoring.wifimac' ] || return 1
 
-	local mac="\$( _sanitizer run "\$( _net dev2mac \$WIFIDEV )" hex lowercase )"
+	local mac; read -r mac <'/www/monitoring.wifimac'	# hex, lowercase
 
 	hostname()
 	{
@@ -56,12 +64,12 @@ apply_settings()
 		}
 	}
 
-	case "\$mac" in
+	case "\$mac" in foo);;	# make syntax valid without any further entries
 EOF
 
 	COUNTER=0	# count AP's
 
-	for FILE in $DIR_DATA_SOURCE/* ; do {
+	[ -z "$OPTION" ] && for FILE in $DIR_DATA_SOURCE/* ; do {
 
 		MAC="$( basename "$FILE" | cut -d'.' -f1 )"
 
@@ -106,13 +114,14 @@ EOF
 }
 
 generate_script >'postinst'
+sh -n 'postinst' || exit 1
 chmod 777 'postinst'
-cp 'postinst' '/tmp/postinst'
+cp 'postinst' '/tmp/postinst' && cat '/tmp/postinst'
 
 echo '2.0' >'debian-binary'
 
 PKG_NAME='mysettings'
-PKG_VERSION="${VERSION}"
+PKG_VERSION="$VERSION"
 
 cat >'control' <<EOF
 Package: $PKG_NAME

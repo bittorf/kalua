@@ -47,11 +47,11 @@ for FILE in $( ls -1 ./*.ipk ); do {
 				esac
 			} done
 			
-			stat >>"$OUT" --printf "Filename: %n\n\n" "$FILE"
+			stat >>"$OUT" --printf "Filename: %n\n\n" "$( basename "$FILE" )"
 		;;
 		*)
 			grep -v ^" " control | grep -v "^$" >>"$OUT"	# strip lines beginning with space and empty lines
-			stat >>"$OUT" --printf "Size: %s\nFilename: %n\n\n" "$FILE"
+			stat >>"$OUT" --printf "Size: %s\nFilename: %n\n\n" "$( basename "$FILE" )"
 		;;
 	esac
 
