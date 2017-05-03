@@ -1,18 +1,16 @@
 #!/bin/sh
-. /tmp/loader								# fixme! push most into _software() because it is very ipkg-specific
+. /tmp/loader
 
-									# this one does: reading and working directly with a stream of
-									# package-metadata without the need to use flashspace like with 'ipkg update'
+# FIXME! push most into _software() because it is very ipkg-specific
+
+# this one does: reading and working directly with a stream of
+# package-metadata without the need to use flashspace like with 'ipkg update'
+
 [ -e "$PERMDIR/manually_started:firmware_download" ] && exit 0
 
-[ "$1" != "force" ] && {
+[ "$1" != 'force' ] && {
 	_firmware updatemode 0 && {
 		_log it grab_package_list daemon debug "no autoupdate - no execution"
-		exit 0
-	}
-
-	[ $( _system flash_free ) -lt 128 ] && {
-		_log it grab_package_list daemon debug "low flash <128k, no execution"
 		exit 0
 	}
 
@@ -48,24 +46,31 @@ echo "upgrade_packages" >"/tmp/CRON_OVERLOAD"
 
 while read -r LINE; do {
 	case "${LINE%: *}" in				# *pkg-keyword
-		Priority|Maintainer|Section|Description|Source|Architecture|Depends|MD5Sum|Conflicts)
+		'Priority'|'Maintainer'|'Section'|'Description'|'Source'|'Architecture'|'Depends'|'MD5Sum'|'Conflicts')
 			continue
 		;;
-		Package)
+		'Package')
 			PACKAGE="${LINE#*: }"		# mydesign
 			VERSION=
 			FILENAME=
+			PACKAGE_SIZE=
 		;;
-		Version)
+		'Version')
 			VERSION="${LINE#*: }"		# 0.1
 		;;
-		Filename)
+		'Filename')
 			FILENAME="${LINE#*: }"		# mydesign_0.1.ipk
 		;;
-		Size)
+		'Size')
+			[ -n "$PACKAGE_SIZE" ] && continue
+
 			PACKAGE_SIZE="${LINE#*: }"						# 154119 [bytes]
 			PACKAGE_SIZE=$(( ${PACKAGE_SIZE:-0} / 1000 ))				# 154
 			PACKAGE_SIZE=$(( PACKAGE_SIZE + $(( PACKAGE_SIZE / 5 )) ))		# 184 (+20%)	estimated flash_size
+		;;
+		'Installed-Size')
+			PACKAGE_SIZE="${LINE#*: }"
+			PACKAGE_SIZE=$(( ${PACKAGE_SIZE:-0} / 1000 ))
 		;;
 		'')
 			[ -n "$VERSION" -a -n "$FILENAME" ] && {
@@ -136,6 +141,6 @@ while read -r LINE; do {
 		;;
 	esac
 
-} done </tmp/UPGRADE_PACKAGE_LIST
+} done <'/tmp/UPGRADE_PACKAGE_LIST'
 
-rm "/tmp/UPGRADE_PACKAGE_LIST" "/tmp/CRON_OVERLOAD"
+rm -f '/tmp/UPGRADE_PACKAGE_LIST' '/tmp/CRON_OVERLOAD'
