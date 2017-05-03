@@ -1226,6 +1226,11 @@ _firmware_download()
 {
 	local funcname='firmware_download'
 	local file="${1:-/tmp/fw}"		# filename or 'is_running' or 'untrusted'
+	local source="$2"			# url
+	local hash="$3"				# checksum
+	local size="$4"				# bytes or '?'
+	local maxtry="${5:-250}"
+	local size_downloaded sha256 sha256_on_server sha256_signatures option
 	local marker="$TMPDIR/$funcname"
 	local marker_perm="$PERMDIR/manually_started:$funcname"
 
@@ -1236,18 +1241,18 @@ _firmware_download()
 		# for manually fetching the file and test the whole procedure
 		return 0
 	else
-		# a lot of things can go wrong here:
-		uci set system.@system[0].avoid_autoreboot='false'	# this triggers reboot:over_uptime (24h+)
+		[ "$file" = '/tmp/fw' ] && {
+			# a lot of things can go wrong here:
+			uci set system.@system[0].avoid_autoreboot='false'	# this triggers reboot:over_uptime (24h+)
 
-		touch "$marker"		# TODO: add a cleanup-trap
-		_log shell_is_interactive && echo "$file" >"$marker_perm"
+			touch "$marker"		# TODO: add a cleanup-trap
+			_log shell_is_interactive && echo "$file" >"$marker_perm"
+		}
 	fi
 
-	local source="${2:-$( _links firmware_url_get )}"	# url
-	local hash="${3:-$( _links firmware_url_get 'md5' )}"	# checksum
-	local size="${4:-$( _links firmware_url_get 'size' )}"	# bytes or '?'
-	local maxtry="${5:-250}"
-	local size_downloaded sha256 sha256_on_server sha256_signatures option
+	source="${source:-$( _links firmware_url_get )}"
+	hash="${hash:-$( _links firmware_url_get 'md5' )}"
+	size="${size:-$( _links firmware_url_get 'size' )}"
 
 	[ "$file" = 'untrusted' ] && {
 		option="$file"		# ugly! for easy signature override
