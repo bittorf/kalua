@@ -198,7 +198,7 @@ $script = "./meshrdf_accept.sh 1>/dev/null 2>/dev/null 'WIFISCAN=\"\";secret=\""
 
 system($script);
 
-$testnet  = "limona";
+$testnet  = "liszt28";
 if(strpos($profile,$testnet)!==false){
 	print "OK-pmu";		// for poor_mens_update()
 } else {

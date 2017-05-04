@@ -4124,7 +4124,15 @@ esac
 	_cell_mrate "$MRATE" "$WIFIMODE" "$NETWORK"
 
 	[ "$HW" = "Pandaboard" ] && GMODE=    # fixme!
-	printf '%s' "<td> $GMODE </td>"
+
+	case "$GMODE" in	# e.g. 11ng20mhzHT20
+		*'11g'*)
+			printf '%s' "<td bgcolor='crimson'> $GMODE </td>"
+		;;
+		*)
+			printf '%s' "<td> $GMODE </td>"
+		;;
+	esac
 	
 	func_cell_noise "$NOISE" "$SENS"
 	_cell_signal "$RSSI" "$WIFIMODE"
@@ -4819,7 +4827,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 				HIDE='#'	# # already build
 			fi
 
-			echo "$FNAME() {"
+			echo "$FNAME() {		# wifimac: $WIFIMAC"
 
 			if [ -n "$HIDE" ]; then
 				OVERALL_READY=$(( OVERALL_READY + 1 ))
@@ -4833,10 +4841,12 @@ sh -n "$USECASE_FILE" && cd .. && {
 			echo "${TAB}../build.sh \\"
 			echo "${TAB}${TAB}--buildid '$BUILD_ID' \\"
 
+			[ -z "$REV" ] && REV="\${1}"	# nightly
+
 			if [ -n "$FEEDSTIME" ]; then
 				echo "${TAB}${TAB}--openwrt 'r$REV' --feedstime '$FEEDSTIME' \\"
 			else
-				echo "${TAB}${TAB}--openwrt "r${REV:-\${1}}" \\"
+				echo "${TAB}${TAB}--openwrt 'r$REV' \\"
 			fi
 
 			echo "${TAB}${TAB}--hardware '$HARDWARE' --usecase '$USECASE' \\"
