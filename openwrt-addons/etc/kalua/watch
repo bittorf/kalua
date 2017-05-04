@@ -89,7 +89,13 @@ _watch_roaming()	# called every 60 secs
 
 					# TODO: code duplication, see wireless_events.sh
 					for ip in $ip_list; do {
-						route_get="$( ip -oneline route get "$ip/32" | grep -F " dev br-$bridgedev " )" || {
+						# FIXME! this is not enough:
+						# we must check arping:
+						# if not alien (but local roaming ip) it is _always_ true
+						# if alien it is also true, if no special rule set in network
+						if route_get="$( ip -oneline route get "$ip/32" | grep -F " dev br-$bridgedev " )"; then
+							_log it $funcname daemon debug "ip: $ip"
+						else
 							_log it $funcname daemon info "ip $ip (of $ip_list) not added yet - changed IP? - $route_get"
 
 							if [ "$inet_offer" = 'true' ]; then
@@ -110,7 +116,7 @@ _watch_roaming()	# called every 60 secs
 									echo "ip route del $ip/32 dev br-$bridgedev"
 								} >>"$TMPDIR/ROAMING_remove_host_route_$mac"
 							}
-						}
+						fi
 					} done
 				else
 					ipv6linklocal="$( _net mac2linklocal "$mac" )%$dev"
