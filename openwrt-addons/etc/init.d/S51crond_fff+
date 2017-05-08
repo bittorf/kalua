@@ -421,15 +421,20 @@ func_cron_config_write()
 			{
 				[ -e "$PERMDIR/manually_started:firmware_download" ] && return 1
 				bool_true 'system.@webcam[0].disabled' && return 1
-
 				[ -e '/dev/video0' ] || return 1
-				command -v fswebcam || return 1
 
-				fswebcam --verbose \
-					--device '/dev/video0' \
-					--resolution '640x480' \
-					--png 5 \
-					--save '/tmp/webcam.png'
+				if   command -v fswebcam; then
+					fswebcam --verbose \
+						--device '/dev/video0' \
+						--resolution '640x480' \
+						--png 5 \
+						--save '/tmp/webcam.png'
+				elif command -v 'motion'; then
+					:
+					# TODO: grab 1 picture via http-api?
+				else
+					return 1
+				fi
 
 				# output >0 bytes?
 				if [ -s '/tmp/webcam.png' ]; then
