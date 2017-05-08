@@ -1206,6 +1206,7 @@ boot()
 			uci set system.@weblogin[0].authserver="$( _ipsystem getvar 'LANADR' '2' )"
 			uci set olsrd.@meta[0].hnaslave='false'
 			uci set system.@monitoring[0].roaming_nat='true'
+			uci set system.@system[0].zram_disabled='true'
 
 			[ "$ROAMING" = 'false' ] || {
 				apply_olsr_roaming "$ROAMING" && {
@@ -1221,6 +1222,8 @@ boot()
 					_wifi set ap anyfreq 'off'
 				;;
 			esac
+
+			[ "$NODENUMBER" = '2' ] || uci set system.@system[0].disable_automount='true'
 
 			_wifi set anymode 2ghz txpower '23'
 			_wifi set adhoc 2ghz beacon_int '100'
@@ -1620,6 +1623,7 @@ boot()
 			# so we can call 'http://www.internet'
 			uci set dhcp.@dnsmasq[0].local='/internet/'
 			uci set dhcp.@dnsmasq[0].domain='internet'
+			uci set dhcp.lan.leasetime='48h'
 
 			hostapd_activate_coredump
 
@@ -1812,7 +1816,12 @@ boot()
 					uci set system.@system[0].avoid_autoreboot='true'
 				;;
 				867)
-					# elsternest
+					# elsternest -> LAN -> AirOS -> WAN-to-825
+
+					# avoid flapping gw from plagenwatz/bamag
+					uci set olsrd.@Interface[0].LinkQualityMult='10.63.60.253 0.5'
+					uci set olsrd.@Interface[0].Mode='mesh'
+
 					config_add_alias 'lan' '192.168.3.1/24'		# ubnt AirOS = 192.168.3.20  / BAMAG
 					config_add_alias 'lan' '192.168.1.8/24'		# ubnt AirOS = 192.168.1.222 / ewerk
 
@@ -1823,6 +1832,15 @@ boot()
 					config_add_alias 'wan' '192.168.3.2/24'		# ubnt AirOS = 192.168.3.30
 					uci set system.@monitoring[0].pingcheck="$( _ipsystem getvar LANADR 814 )"	# schlachtNanoDach
 					uci set system.@monitoring[0].pingcheck_lazy='1'
+
+					uci set olsrd.@Interface[1].LinkQualityMult='10.63.102.225 0.5'
+					uci set olsrd.@Interface[1].Mode='mesh'		# no 0.1 on WAN (so LinkQualityMult works)
+
+					uci set network.lan.proto='dhcp'
+					bool_true 'system.@netfilter[0].lan_masquerading' || {
+						uci add system netfilter >/dev/null
+						uci set system.@netfilter[0].lan_masquerading='true'
+					}
 				;;
 				603)
 					# ewerk/kesselsaalNEU
@@ -2037,7 +2055,7 @@ boot()
 			_wifi longshot name 'BAMAG-wagenplatz' distance 500 channel 100 chanbw 40 mhz mcast  6000 nodes '825 826'
 			_wifi longshot name 'f36-schlacht5GHz' distance 360 channel 100 chanbw 10 mhz mcast  6000 nodes '719 670'
 #			_wifi longshot name 'f36-schlacht2GHz' distance 360 channel  11 chanbw 40 mhz mcast 12000 nodes '766 814 905'
-			_wifi longshot name 'kueche-loettisch' distance  50 channel  14 chanbw  5 mhz mcast  6000 nodes '2 222' pingcheck
+			_wifi longshot name 'kueche-loettisch' distance  50 channel  11 chanbw 10 mhz mcast 48000 nodes '2 222' pingcheck
 			_wifi longshot name 'frenze-longshot'  distance  50 channel  11 chanbw 10 mhz mcast  6000 nodes '3 269' pingcheck
 
 			# TODO:
