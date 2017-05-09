@@ -7,40 +7,34 @@
 
 # we ignore this port when sourcing script for just using pics2movie()
 [ -n "$REMOTE_ADDR" ] && {
-. /tmp/loader
+	. /tmp/loader
+	cd /webcam || exit
 
-cd /webcam || exit
+	_http header_mimetype_output 'application/x-tar' "webcam_${ANYADR}_$( date +%s ).tar"
 
-_http header_mimetype_output 'application/x-tar' "webcam_${ANYADR}_$( date +%s ).tar"
+	LIST="$TMPDIR/webcam_filelist.txt"
+	# e.g. './02-20161209142507-01.jpg' or './webcam.jpg' or './lastsnap.jpg'
+	ls -1t ./*'.jpg' 2>/dev/null >"$LIST" && sed -i '/.*lastsnap.jpg/d' "$LIST"
 
-LIST="$TMPDIR/webcam_filelist.txt"
-# e.g. './02-20161209142507-01.jpg' or './webcam.jpg' or './lastsnap.jpg'
-for FILE in ./*'.jpg'; do {
-	ls -1t ./*'.jpg' >"$LIST" && {
-		sed -i '/.*lastsnap.jpg/d' "$LIST"
+	[ -s "$LIST" ] && {
+		read -r FILE <"$LIST"			# most recent
+		END_MARKER="$( printf "\xFF\xD9" )"
+		FILE_END="$( tail -c2 "$FILE" )"
+		# we do not remove it later, if not fully written:
+		test "$END_MARKER" = "$FILE_END" || BADFILE="$FILE"
+
+		tar -c -T "$LIST" -f -
+
+		while read -r FILE; do {
+			test -e "$FILE" -a "$FILE" != './webcam.jpg' && {
+				test "$FILE" = "$BADFILE" || {
+					case "$QUERY_STRING" in *'DEBUG=1'*);;*) rm "$FILE" ;; esac
+				}
+			}
+		} done <"$LIST"
 	}
 
-	break	# for-loop is simple check, if any .jpg is there
-} done
-
-[ -s "$LIST" ] && {
-	read -r FILE <"$LIST"			# most recent
-	END_MARKER="$( printf "\xFF\xD9" )"
-	FILE_END="$( tail -c2 "$FILE" )"
-	test "$END_MARKER" = "$FILE_END" || BADFILE="$FILE"	# we do not remove it later, if not fully written
-
-	tar -c -T "$LIST" -f -
-
-	while read -r FILE; do {
-		test -e "$FILE" -a "$FILE" != './webcam.jpg' && {
-			test "$FILE" = "$BADFILE" || {
-				case "$QUERY_STRING" in *'DEBUG=1'*);;*) rm "$FILE" ;; esac
-			}
-		}
-	} done <"$LIST"
-}
-
-rm "$LIST"
+	rm "$LIST"
 }
 
 pics2movie()
