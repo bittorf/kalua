@@ -1746,14 +1746,17 @@ _netfilter_user_reachable()	# output: string/devname e.g. 'wlan0-1'
 	_sanitizer run "$mac" mac check || return 1
 	_sanitizer run "$ip"  ip4 check || return 1
 
+	[ -n "$DNSMASQ_INTERFACE" ] && {
+		echo "$DNSMASQ_INTERFACE"
+		return 0
+	}
+
 	grep -Fsq "$ip " /www/cgi-bin/check_hosts.txt && return 1	# special list of other alien-nodes
 	ip neigh show to "$ip" | grep -Fq " dev $WANDEV " && return 1	# no direct logins from WAN
 
 	# TODO: ip can change when called via dnsmasq: e.g. 02:50:43:34:25:bc - if arping fails? refetch ip via 'ip neigh'
 
-	if   [ -n "$DNSMASQ_INTERFACE" ]; then
-		dev_guess="$DNSMASQ_INTERFACE"
-	elif [ -n "$dev" ]; then
+	if   [ -n "$dev" ]; then
 		dev_guess="$dev"
 	else
 		dev_guess="$( _net ip2dev "$ip" )"
