@@ -634,6 +634,13 @@ boot()
 	[ -x '/etc/init.d/olsrd' ] || uci set olsrd.@meta[0].no_watching='true'
 	[ -n "$ANYADR" ] && uci set olsrd.@olsrd[0].MainIp="$ANYADR"
 	apply_olsr_speed '6'
+
+	case "$( uci get network.wan.proto )" in
+		'ppp'*)
+			olsr_disable_interface 'wan'	# TODO: for all interfaces with public-ip
+		;;
+	esac
+
 	echo >>$SCHEDULER '_olsr throttle_traffic restart'	# always after update_pmu()
 	uci_sanitize_wireless_macs
 
@@ -1146,16 +1153,17 @@ boot()
 			# node3 = SSID-4 = 4,6
 			# node2 = SSID-1 = nix
 
+			[ $NODENUMBER -eq 2 ] || uci set system.@system[0].disable_automount='true'	# safe memory
 			uci set system.@system[0].zram_disabled='true'
 
 			uci set system.@fwupdate[0].thrust_min='0'		# FIXME!
 			uci set system.@fwupdate[0].allow_unchecked='true'	# FIXME!
 
-			uci set system.@monitoring[0].report_lan_dhcp='true'
+#			uci set system.@monitoring[0].report_lan_dhcp='true'
 			uci set system.@monitoring[0].rrd='true'
 			uci set system.@monitoring[0].lazy_wifi_framecounter='false'
 			uci set system.@weblogin[0].respect_missing_db='true'
-			uci set system.@system[0].avoid_autoreboot='true'
+#			uci set system.@system[0].avoid_autoreboot='true'
 
 			_wifi set adhoc 2ghz ssid 'intern.2GHz'
 			_wifi set adhoc 5ghz ssid 'intern.5GHz'
