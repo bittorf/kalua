@@ -15,8 +15,13 @@ _http header_mimetype_output 'application/x-tar' "webcam_${ANYADR}_$( date +%s )
 
 LIST="$TMPDIR/webcam_filelist.txt"
 # e.g. './02-20161209142507-01.jpg' or './webcam.jpg' or './lastsnap.jpg'
-ls -1t ./*'.jpg' >"$LIST"
-sed -i '/.*lastsnap.jpg/d' "$LIST"
+for FILE in ./*'.jpg'; do {
+	ls -1t ./*'.jpg' >"$LIST" && {
+		sed -i '/.*lastsnap.jpg/d' "$LIST"
+	}
+
+	break	# for-loop is simple check, if any .jpg is there
+} done
 
 [ -s "$LIST" ] && {
 	read -r FILE <"$LIST"			# most recent
