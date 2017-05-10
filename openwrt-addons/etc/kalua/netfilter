@@ -1443,9 +1443,9 @@ _netfilter_splash_start()
 	_netfilter mssfix
 
 	if pidof bat_events >/dev/null; then
-		local dev_list="br-mybridge gateway0 $WIFI_DEVS $LANDEV"
+		local dev_list="br-mybridge gateway0 $WIFI_DEVS $LANDEV wlan+"
 	else
-		local dev_list="$WIFI_DEVS $LANDEV br-mastergate"
+		local dev_list="$WIFI_DEVS $LANDEV br-mastergate wlan+"
 	fi
 
 	# redirect DNS to local fake DNS-server
@@ -1457,7 +1457,14 @@ _netfilter_splash_start()
 		temp_dev="$dev"
 		[ "$dev" = 'gateway0' ] && dev='br-mybridge'
 
-		ip="$( _net dev2ip "$dev" )" || return 1
+		case "$dev" in
+			*'+')
+			;;
+			*)
+				ip="$( _net dev2ip "$dev" )" || return 1
+			;;
+		esac
+
 		[ "$temp_dev" = 'gateway0' ] && dev='gateway0'
 
 		$IPT -t nat -A PREROUTING -p tcp -i $dev -m mark --mark 0x11/0xff -j DNAT --to-destination $ip:80
