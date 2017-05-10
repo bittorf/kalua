@@ -2656,7 +2656,7 @@ apply_symbol()
 				}
 
 				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
-				[ -n "$RELEASE_SERVER" ] && return 1
+				[ -n "$RELEASE_SERVER" ] && exit 1
 			fi
 
 			[ -n "$CONFIG_PROFILE" ] && {
