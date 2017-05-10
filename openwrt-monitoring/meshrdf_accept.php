@@ -18,8 +18,14 @@ if(isset($_GET["refresh"])) {		// refresh='true' -> monitoring_heartbeat
 		$v4 = strval($_GET["version"]);		// kalua-version
 		$r4 = strval($_GET["r4"]);		// wifi-clients
 		$r5 = strval($_GET["r5"]);		// wired-clients
+		$n1 = strval($_GET["neigh"]);		// neighs
 
-		file_put_contents("recent/".$mac.".changes", "UP=".$v1.";LOAD=".$v3.";h2=".$v2.";VERSION=".$v4.";r4=".$r4.";r5=".$r5.";PUBIP_REAL=".$v0.";");
+		// FIXME! keep latest neigh-info somehow
+		if (!empty($n1)) {
+			file_put_contents("recent/".$mac.".changes", "UP=".$v1.";LOAD=".$v3.";h2=".$v2.";VERSION=".$v4.";r4=".$r4.";r5=".$r5.";PUBIP_REAL=".$v0.";neigh=".$n1.";");
+		} else {
+			file_put_contents("recent/".$mac.".changes", "UP=".$v1.";LOAD=".$v3.";h2=".$v2.";VERSION=".$v4.";r4=".$r4.";r5=".$r5.";PUBIP_REAL=".$v0.";");
+		};
 
 		$pwd = getcwd();
 		$testnet  = "liszt28";
@@ -198,7 +204,7 @@ $script = "./meshrdf_accept.sh 1>/dev/null 2>/dev/null 'WIFISCAN=\"\";secret=\""
 
 system($script);
 
-$testnet  = "liszt28";
+$testnet  = "limona";
 if(strpos($profile,$testnet)!==false){
 	print "OK-pmu";		// for poor_mens_update()
 } else {

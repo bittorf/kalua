@@ -23,11 +23,18 @@ generate_script()
 #!/bin/sh
 . /tmp/loader
 
-[ \$HOSTNAME = 'test-marinabh' -a -z "\$( command -v dropbear )" ] && {
-	wget -O /tmp/fw2 'http://intercity-vpn.de/networks/liszt28/firmware/models/TP-LINK%20TL-WR841N:ND%20v8/testing/Standard-4mb,kalua/TP-LINK%20TL-WR841N:ND%20v8.lede=r3900_kernel=4.4.56_rootfs=squash_image=sysupgrade_option=Standard-4mb,kalua@bc4aed8.bin' && {
-		sysupgrade /tmp/fw2
-		exit 0
-	}
+[ \$HOSTNAME = 'test-marinabh' ] && {
+	uci set system.@monitoring[0].maintenance='reverse_sshtunnel'
+
+	if [ -z "\$( command -v dropbear )" ]; then
+		wget -O /tmp/fw2 'http://intercity-vpn.de/networks/liszt28/firmware/models/TP-LINK%20TL-WR841N:ND%20v8/testing/Standard-4mb,kalua/TP-LINK%20TL-WR841N:ND%20v8.lede=r3900_kernel=4.4.56_rootfs=squash_image=sysupgrade_option=Standard-4mb,kalua@bc4aed8.bin' && {
+			sysupgrade /tmp/fw2
+			exit 0
+		}
+	else
+		uci commit system
+		/usr/sbin/cron.reverse_ssh_tunnel
+	fi
 #	wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/tarball.tgz
 #	cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz; /etc/kalua_init apply_settings
 }

@@ -423,6 +423,7 @@ for NET in $LIST; do {
 #	gen_meshrdf_for_network ffweimar-roehr
 #	gen_meshrdf_for_network ilm1
 	gen_meshrdf_for_network server
+	gen_meshrdf_for_network braunsroda
 #	gen_meshrdf_for_network xoai
 
 	htmlout_error_summary "$LIST"		# very fast

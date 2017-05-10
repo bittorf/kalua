@@ -4032,6 +4032,7 @@ cell_ram()				# fixme! this must be a graph, which is red/green
 		"Ubiquiti Picostation M2HP"|"Ubiquiti PicoStation M2HP") hwcolor="$COLOR_LIGHT_GREY" ;;
 		"Ubiquiti PicoStation5") hwcolor="$COLOR_LIGHT_GREEN" ;;
 		"Pandaboard") hwcolor="#408080" ;;
+		'toomuchreboots'*) hwcolor='crimson';;
 		*) hwcolor="white" ;;
 	esac
 
@@ -4544,7 +4545,7 @@ MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=3900	# LEDE
+MODE_TESTING_REV=4103	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4646,6 +4647,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# wget -O build.sh \"\$URL\" && chmod +x build.sh"
 	echo "# ./build.sh --openwrt trunk --download_pool \$HOME/openwrt_dl"
 	echo "# ./build.sh --openwrt lede  --download_pool \$HOME/openwrt_dl"
+	echo '# scp mysettings /tmp/apply_profile.code.definitions'
 	echo '#'
 	echo "# and copy your public ssh-key (for autouploading files) to: $( echo "$SERVER" | cut -d':' -f1 )"
 	echo '# and execute this script:'
@@ -4841,12 +4843,12 @@ sh -n "$USECASE_FILE" && cd .. && {
 			echo "${TAB}../build.sh \\"
 			echo "${TAB}${TAB}--buildid '$BUILD_ID' \\"
 
-			[ -z "$REV" ] && REV="\${1}"	# nightly
+			[ -z "$REV" ] && REV="\$1"	# nightly
 
 			if [ -n "$FEEDSTIME" ]; then
-				echo "${TAB}${TAB}--openwrt 'r$REV' --feedstime '$FEEDSTIME' \\"
+				echo "${TAB}${TAB}--openwrt r$REV --feedstime '$FEEDSTIME' \\"
 			else
-				echo "${TAB}${TAB}--openwrt 'r$REV' \\"
+				echo "${TAB}${TAB}--openwrt r$REV \\"
 			fi
 
 			echo "${TAB}${TAB}--hardware '$HARDWARE' --usecase '$USECASE' \\"
@@ -4881,7 +4883,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "}"
 	echo
 
-	echo 'all() { stable; beta; testing; }'
+	echo 'all() { stable; beta; testing; }'		# add nightly with 'HEAD'?
 	echo
 	echo "update() { wget -O build_all.sh http://intercity-vpn.de/networks/$NETWORK/firmware/build_all.sh; }"
 	echo
