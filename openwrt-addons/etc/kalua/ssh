@@ -117,7 +117,7 @@ _ssh_usable_ciphers()
 _ssh_sanitize_and_cleanup_keys()
 {
 	local funcname='ssh_sanitize_and_cleanup_keys'
-	local file mode
+	local file mode do_restart='false'
 
 	command -v 'dropbearkey' >/dev/null || return 0
 	[ -h "$HOME/.ssh" ] || ln -fs '/etc/dropbear' "$HOME/.ssh"
@@ -129,6 +129,7 @@ _ssh_sanitize_and_cleanup_keys()
 			[ -e "$file" ] && rm -f "$file"
 
 			if dropbearkey -t "$mode" -f "$file"; then
+				do_restart='true'
 				_log it $funcname daemon alert "[OK] generated $mode-key"
 
 				[ -s "$file.pub" ] || {
@@ -142,4 +143,6 @@ _ssh_sanitize_and_cleanup_keys()
 			fi
 		}
 	} done
+
+	[ "$do_restart" = 'false' ] || _ssh start
 }
