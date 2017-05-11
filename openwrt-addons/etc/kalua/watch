@@ -47,14 +47,21 @@ _watch_roaming()	# called every 60 secs
 	} done
 
 	for dev in $list; do {
-		_net dev_is_valid "$dev" || {
-			_log it $funcname daemon alert "missing bridge '$dev', restarting '$bridgedev'"
+		if _net dev_is_valid "$dev"; then
+			touch "$TMPDIR/$funcname-devOK-$dev"	# must be up at least 1 time
+		else
 			# ifup $bridgedev		# does not work
 			# 25: br-mastergate: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
 			#     link/ether 56:81:4b:ca:48:e8 brd ff:ff:ff:ff:ff:ff
-			_wifi phy_restart
-			return 1
-		}
+			if [ -e "$TMPDIR/$funcname-devOK-$dev" ]; then
+				rm "$TMPDIR/$funcname-devOK-"*
+				_log it $funcname daemon alert "missing bridge '$dev', restarting '$bridgedev'"
+				_wifi phy_restart
+				return 1
+			else
+				_log it $funcname daemon debug "dev was never up: $dev"
+			fi
+		fi
 	} done
 
 	# iterate up to 5 times for avoiding a race
