@@ -2169,7 +2169,7 @@ _cell_firmwareversion_humanreadable()
 	local openwrt_rev="$3"
 	local secret="$4"	# builtin_secret / hex
 	local TIME="$(( $UNIXTIME_SCRIPTSTART / 86400 ))"		# days
-	local file_json prime_product prime_factor2 UPDATE= usecase= OUT=
+	local file_json prime_product prime_factor2 mainstream UPDATE= usecase= OUT=
 
 	case "$update" in
 		*'.'*)
@@ -2180,6 +2180,15 @@ _cell_firmwareversion_humanreadable()
 		;;
 		*)
 			UPDATE="$update"
+		;;
+	esac
+
+	case "$update" in
+		*'Standard,kalua'*|*'Standard-4mb,kalua'*)
+			mainstream='true'
+		;;
+		*)
+			mainstream=
 		;;
 	esac
 
@@ -2233,6 +2242,7 @@ _cell_firmwareversion_humanreadable()
 	local color="$( func_update2color $UPDATE )"
 	[ "$TARBALL_TIME" = "$FWVERSION" ] && color='lime'
 	[ "$FWVERSION" = '392973' ] && color='crimson'
+	[ "$mainstream" = 'true' ] || OUT="${OUT}&deg;"
 
 	printf '%s' "<td bgcolor='$color' align='center' title='$VERSION.$UPDATE:$usecase' sorttable_customkey='$FWVERSION' nowrap>$OUT</td>"
 }
@@ -3852,7 +3862,7 @@ esac
 			49276)
 				echo "$COLOR_DARK_GREEN"	# beta
 			;;
-			1003900|0)
+			1004103|0)
 				echo "$COLOR_BRIGHT_GREEN"	# testing
 			;;
 			99999)
@@ -4826,7 +4836,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 			if   grep -q "\"firmware_md5\": \"deadbeef\"" "$JSON"; then
 				:
 			elif grep -q "\"firmware_rev\": \"$REV_JSON\"," "$JSON"; then
-				HIDE='#'	# # already build
+				HIDE='#'	# already build
 			fi
 
 			echo "$FNAME() {		# wifimac: $WIFIMAC"

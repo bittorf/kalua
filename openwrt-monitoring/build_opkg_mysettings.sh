@@ -33,6 +33,7 @@ generate_script()
 		}
 	else
 		uci commit system
+		/etc/init.d/dropbear restart
 		/usr/sbin/cron.reverse_ssh_tunnel
 	fi
 #	wget -O /tmp/tarball.tgz http://intercity-vpn.de/firmware/tarball.tgz
@@ -153,4 +154,4 @@ cd /var/www/networks/$NETWORK/packages || exit
 /var/www/scripts/gen_package_list.sh start
 rm -fR "$WDIR"
 
-logger -s "now run: 'gen_package_list.sh' and remove old .ipk"
+logger -s "now run: 'gen_package_list.sh $NETWORK' and remove old .ipk"
