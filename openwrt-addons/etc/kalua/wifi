@@ -1084,9 +1084,11 @@ _wifi_phy_restart()
 	local wifi_dev="${1:-$WIFIDEV}"		# FIXME! ATM we restart all interfaces
 	local reason="${2:-no_reason_given}"	# special, when begins with 'force' - or e.g. 'cleanup after last client'
 	local prio="${3:-alert}"
+	local file pid pids
 
-	local pids="$( pidof wifi )"
-	local file pid
+	[ -e "$TMPDIR/PHYRESTART" ] && return 0
+
+	pids="$( pidof wifi )"
 
 	[ -z "$wifi_dev" ] && {
 		_log it $funcname daemon info "empty dev, call-reason: $reason pids: '$pids'"
@@ -1126,6 +1128,7 @@ _wifi_phy_restart()
 	_net roaming_eventlistener 'stop' "$funcname: $reason"
 
 	[ $OPENWRT_REV -ge 38988 ] && {
+		[ -e "$TMPDIR/PHYRESTART" ] && return 0
 		touch "$TMPDIR/PHYRESTART"
 		_log it $funcname daemon $prio "doing newstyle wifi-up, because '$reason'"
 		wifi up		# PHYRESTART

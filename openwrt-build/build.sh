@@ -3562,7 +3562,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_kmod-macvlan=y'		# kernel-modules: network-devices:
 			;;
 			'ebTables')
-				apply_symbol 'CONFIG_PACKAGE_ebtables=y'		# # network: firewall: ebtables
+				apply_symbol 'CONFIG_PACKAGE_ebtables=y'		# network: firewall: ebtables
 			;;
 			'VDS')
 				apply_symbol 'CONFIG_PACKAGE_ulogd=y'			# network: ulogd:
