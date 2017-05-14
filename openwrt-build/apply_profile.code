@@ -13,9 +13,11 @@ uptime_in_seconds()
 
 has_default_route()
 {
-	route -n | grep -q ^'0\.0\.0\.0' && return 0
+	local interface="${1:-.}"	# empty = dot = always match, no matter which interface
 
-	ip route list exact '0.0.0.0/0' | grep -q ^'default'
+	route -n | grep ^'0\.0\.0\.0' | grep -q "$interface" && return 0
+
+	ip route list exact '0.0.0.0/0' | grep ^'default' | grep -q "$interface"
 }
 
 password_was_never_set()
@@ -304,10 +306,15 @@ GATEWAY="$4"
 	}
 }
 
-# FIXME! test which interface, MUST be wan: network.wan.ifname
-has_default_route && {
-	[ "$( uci get network.wan.proto )" = "dhcp" ] && {
-		SIM_ARG4="dhcp"		# auf masq=1 testen?
+while [ $( uptime_in_seconds ) -lt 120 ]; do {
+	log 'no wan-default route, waiting for uptime >120 sec'
+	has_default_route "$( uci -q get network.wan.ifname )" && break
+	sleep 5
+} done
+
+has_default_route "$( uci -q get network.wan.ifname )" && {
+	[ "$( uci get network.wan.proto )" = 'dhcp' ] && {
+		SIM_ARG4='dhcp'		# auf masq=1 testen?
 	}
 }
 
