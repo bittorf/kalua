@@ -371,7 +371,7 @@ kconfig_file()
 		;;
 		*)
 			# config-3.10
-			log "kconfig_file() dir: '$dir/config-*'"
+			log "kconfig_file() dir: '$dir/config-[0-9]*'"
 			find "$dir" -type f -name 'config-[0-9]*' | head -n1
 		;;
 	esac
@@ -2124,6 +2124,15 @@ EOF
 		destination_info="$server_dir"
 
 		scripts/diffconfig.sh >'info.diffconfig.txt'
+		command -v 'binwalk' >/dev/null && {
+			mkdir "rootfs_$$"
+			echo
+			echo "binwalk '$file':"
+			binwalk --directory=rootfs_$$ -e -M "$file"
+			echo
+			echo 'files in squashfs (rootfs):'
+			staging_dir/host/bin/unsquashfs4 -ll "$( find "rootfs_$$" -type f -name '*.squashfs' | head -n1 )"
+		} >>'info.diffconfig.txt'
 
 		scp_safe()
 		{
