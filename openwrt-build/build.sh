@@ -1903,7 +1903,7 @@ copy_firmware_files()
 	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
 	[ $VERSION_OPENWRT_INTEGER -ge 48767 ] && {
 		case "$FILENAME_FACTORY" in
-			*'tl-wr941-v4'*)
+			*'tl-wr941nd-v4'*)
 			;;
 			*'wr'[0-9][0-9][0-9]'nd-v'*|*'wr'[0-9][0-9][0-9]'n-v'*)
 				log "[OK] fixup filename '$FILENAME_FACTORY'"
