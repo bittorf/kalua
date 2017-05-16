@@ -2123,21 +2123,29 @@ EOF
 		destination="$server_dir/$destination"		# full filename
 		destination_info="$server_dir"
 
-		scripts/diffconfig.sh >'info.diffconfig.txt'
+	{
+		echo "### output from 'scripts/diffconfig.sh'"
+		scripts/diffconfig.sh
+
 		command -v 'binwalk' >/dev/null && {
 			mkdir "rootfs_$$"
+
 			echo
-			echo "binwalk '$file':"
+			echo "### binwalk '$file':"
 			binwalk --directory="rootfs_$$" --extract --matryoshka "$file"
+
 			echo
-			echo 'files in squashfs (rootfs):'
+			echo '###files in squashfs (rootfs):'
 			file_squashfs="$( find "rootfs_$$" -type f -name '*.squashfs' | head -n1 )"
 			staging_dir/host/bin/unsquashfs4 -ll "$file_squashfs"
+
 			echo
-			echo 'stats:'
+			echo '### stats:'
 			staging_dir/host/bin/unsquashfs4 -stat "$file_squashfs"
+
 			rm -fR "rootfs_$$"
-		} >>'info.diffconfig.txt'
+		}
+	} >'info.diffconfig.txt'
 
 		scp_safe()
 		{
