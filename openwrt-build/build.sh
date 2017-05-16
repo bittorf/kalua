@@ -1886,7 +1886,7 @@ copy_firmware_files()
 {
 	local funcname='copy_firmware_files'
 	local attic="bin/$ARCH_MAIN/attic"
-	local file file_size checksum_md5 checksum_sha256 rootfs server_dir server
+	local file file_size checksum_md5 checksum_sha256 rootfs server_dir server file_squashfs
 	local destination destination_scpsafe destination_info destination_info_scpsafe pre
 	local usign_bin usign_pubkey usign_privkey usign_signature usign_keynick keynick myhash mylogdir
 	local err=0
@@ -2128,10 +2128,15 @@ EOF
 			mkdir "rootfs_$$"
 			echo
 			echo "binwalk '$file':"
-			binwalk --directory=rootfs_$$ -e -M "$file"
+			binwalk --directory="rootfs_$$" --extract --matryoshka "$file"
 			echo
 			echo 'files in squashfs (rootfs):'
-			staging_dir/host/bin/unsquashfs4 -ll "$( find "rootfs_$$" -type f -name '*.squashfs' | head -n1 )"
+			file_squashfs="$( find "rootfs_$$" -type f -name '*.squashfs' | head -n1 )"
+			staging_dir/host/bin/unsquashfs4 -ll "$file_squashfs"
+			echo
+			echo 'stats:'
+			staging_dir/host/bin/unsquashfs4 -stat "$file_squashfs"
+			rm -fR "rootfs_$$"
 		} >>'info.diffconfig.txt'
 
 		scp_safe()
