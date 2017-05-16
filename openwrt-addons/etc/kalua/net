@@ -149,38 +149,38 @@ _net_sensor_type()
 	esac
 }
 
+_net_subnet2iplist()
+{
+	local ip_and_cidr="$1"			# 10.63.4.33/27
+	local ip="${ip_and_cidr%/*}"
+	local broadcast="$( ipcalc.sh "$ip_and_cidr" | grep ^'BROADCAST=' | cut -d'=' -f2 )"
+	local a1 a2 a3 a4 b1 b2 b3 b4 o1 o2 o3 o4
+
+	explode $( echo "$ip"        | sed 's/\./ /g' ); a1=$1;a2=$2;a3=$3;a4=$4
+	explode $( echo "$broadcast" | sed 's/\./ /g' ); b1=$1;b2=$2;b3=$3;b4=$4
+	test $b4 -gt $a4 && b4=$(( b4 - 1 ))	# ignore broadcast itself
+
+	for o1 in $( seq $a1 $b1 ); do {
+	 for o2 in $( seq $a2 $b2 ); do {
+	  for o3 in $( seq $a3 $b3 ); do {
+	   for o4 in $( seq $a4 $b4 ); do {
+		echo $o1.$o2.$o3.$o4
+	   } done
+	  } done
+	 } done
+	} done
+}
+
 _net_list_webservers()		# helper for extrawatt, needs ~26 mins for a /24
 {
 	local funcname='net_list_webservers'
-	local pre="${1:-$WANPRE}"	# e.g. 27
-					# FIXME! unused - http://stackoverflow.com/questions/16986879/bash-script-to-list-all-ips-in-prefix
-	local octet123="${2:-$WANNET}"	# e.g. 192.168.178.0 or 10.63.4.33
-	local range="$pre"
+	local range="${1:-$WANNET/$WANPRE}"
+	local identifier="${2:-extrawatt}"
 	local ip port mac message sensor_type
 
-	# root@EG-labor-AP:~ ipcalc.sh 10.63.4.33 27
-	# IP=10.63.4.33
-	# NETMASK=255.255.255.224
-	# BROADCAST=10.63.4.63
-	# NETWORK=10.63.4.32
-	# PREFIX=27
-	# root@EG-labor-AP:~ ipcalc.sh 10.63.4.0 24
-	# IP=10.63.4.0
-	# NETMASK=255.255.255.0
-	# BROADCAST=10.63.4.255
-	# NETWORK=10.63.4.0
-	# PREFIX=24
+	echo "$( date ) - $range - $identifier"
 
-	[ -z "$octet123" ] && return
-	octet123="${octet123%.*}"	# 192.168.178.0 -> 192.168.178
-
-	name='extrawatt'
-	range="$( seq 1 254 )"	# FIXME!
-	echo "$( date ) - $octet123/$pre"
-
-	for i in $range; do {
-		ip="$octet123.$i"
-
+	for ip in $( _net subnet2iplist "$range" ); do {
 		for port in 22 80 443; do {
 			_log it $funcname daemon info "scan '$ip' for port '$port'"
 			_net tcp_port_reachable "$ip" "$port" && {
@@ -191,7 +191,7 @@ _net_list_webservers()		# helper for extrawatt, needs ~26 mins for a /24
 				fi
 
 				mac="$( _net ip2mac "$ip" )"
-				message="$name ip: $ANYADR type: $sensor_type"
+				message="$identifier ip: $ANYADR type: $sensor_type"
 				echo "OK $ip:$port $message"
 
 				_netfilter portforwarding_add "$WANDEV" "$mac-$port" "$port" "$ip" "$mac" "$message"
