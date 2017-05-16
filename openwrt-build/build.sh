@@ -2135,9 +2135,9 @@ EOF
 			binwalk --directory="rootfs_$$" --extract --matryoshka "$file"
 
 			echo
-			echo '###files in squashfs (rootfs):'
+			echo '### files in squashfs (rootfs):'
 			file_squashfs="$( find "rootfs_$$" -type f -name '*.squashfs' | head -n1 )"
-			staging_dir/host/bin/unsquashfs4 -ll "$file_squashfs"
+			staging_dir/host/bin/unsquashfs4 -ll "$file_squashfs" | sed 's/squashfs-root//g'
 
 			echo
 			echo '### stats:'
