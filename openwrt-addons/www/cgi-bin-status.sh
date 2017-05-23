@@ -64,10 +64,10 @@ output_table()
 	local line word remote_hostname iface_out iface_out_color mac snr bgcolor toggle rx_mbytes tx_mbytes all gw_file report
 	local LOCAL REMOTE LQ NLQ COST COUNT=0 cost_int cost_color snr_color dev channel metric gateway gateway_percent vpn_proto
 	local head_list neigh_list neigh_file neigh age inet_offer cost_best cost_best_time th_insert mult_ip count cost_align i
-	local minstrel_mac minstrel_dev minstrel_needed=0
 #	local noisefloor
 	local symbol_infinite='<big>&infin;</big>' metric_ok='false'
 	local mult_list="$( uci -q get olsrd.@Interface[0].LinkQualityMult ) $( uci -q get olsrd.@Interface[1].LinkQualityMult )"
+	export MINSTREL_MAC MINSTREL_DEV MINSTREL_NEEDED=0
 
 	if [ -e '/tmp/OLSR/DEFGW_NOW' ]; then
 		read -r gateway <'/tmp/OLSR/DEFGW_NOW'
@@ -340,9 +340,9 @@ output_table()
 
 						case "$1 $2" in
 							'signal avg:')
-								minstrel_needed=$(( minstrel_needed + 1 ))
-								minstrel_mac="$mac"
-								minstrel_dev="$dev"
+								MINSTREL_NEEDED=$(( MINSTREL_NEEDED + 1 ))
+								MINSTREL_MAC="$mac"
+								MINSTREL_DEV="$dev"
 
 								snr="$3"
 								break 2
@@ -698,11 +698,12 @@ output_table "$@" || {		# SC2119/SC2120
 echo '  </table>'
 _switch show 'html' 'Ansicht der Netzwerkanschl&uuml;sse:&nbsp;'
 
-[ "$minstrel_needed" = '1' ] && {
-	echo '<tt>'
-	echo "wifi rate sampling / minstrel Tabelle f&uuml; '$minstrel_mac' @$minstrel_dev :"
-	_wifi minstrel "$minstrel_mac" debug
-	echo '</tt>'
+[ "$MINSTREL_NEEDED" = '1' ] && {
+	echo '<pre>'
+	echo "wifi rate sampling / minstrel-Tabelle f&uuml;r station $MINSTREL_MAC@$MINSTREL_DEV"
+	echo
+	_wifi minstrel "$MINSTREL_MAC" debug
+	echo '</pre>'
 }
 
 bool_true 'system.@monitoring[0].cisco_collect' && {
