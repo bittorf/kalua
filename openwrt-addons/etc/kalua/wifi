@@ -2123,7 +2123,7 @@ _wifi_scan()
 {
 	local funcname='wifi_scan'
 	local dev="${1:-$WIFIDEV}"		# e.g. wlan0
-	local option="$2"			# e.g. <my-special-ssid> or 'mozilla' or <empty>
+	local option="$2"			# e.g. <my-special-ssid> or 'mozilla' or '@5mhz' or <empty>
 	local line value remote signal bssid mhz ssid capability
 	local devindex devname chanbw debugfs phy rc
 	local freq="$( _wifi dev2freq "$dev" )"
@@ -2134,8 +2134,20 @@ _wifi_scan()
 	# TODO: own function, maye join with dev2chanbw()
 	read -r phy 2>/dev/null <"/var/run/interfaces/dev2radio_$dev"
 	devname="$( _net dev2name "$dev" )"		# wlan0 -> wlanadhoc
-	chanbw="$( _wifi get "$devname" chanbw )"
 	devindex="$( _wifi get "$devname" index )"
+	chanbw="$( _wifi get "$devname" chanbw )"
+
+	case "$option" in
+		'@keep')
+			chanbw=
+			option=
+		;;
+		'@5'*|'@10'*|'@20'*)
+			chanbw="$( echo "$option" | cut -d'@' -f2 | tr -d 'a-z' )"
+			option=
+		;;
+	esac
+
 	case "$chanbw" in
 		5|10)
 			_wifi set anymode "$devindex" chanbw 20
