@@ -388,6 +388,7 @@ Special UCI-variables
 	system.@system[0].leds_ignore		- bool
 	system.@system[0].wifi_no_predistortion - bool
 	system.@system[0].disable_automount	- bool
+	system.@system[0].disable_qos		- bool
 	
 	system.@profile[0].name			- string
 	system.@profile[0].nodenumber		- integer
