@@ -17,7 +17,7 @@ _chickendoor_state()
 		up|down)
 			echo >"$file" "$state"
 		;;
-		open|closed)
+		open|closed)				# must be set manually on first installation
 			echo >"$file" "$state"
 			_log shell_is_interactive && return 0
 
@@ -38,8 +38,11 @@ _chickendoor_state()
 						"Bilder hier:\n$webcam_link\n\n$greetings"
 
 					[ "$housekeeper" = "$housekeeper_next" ] || {
+						_sms send "$( _chickendoor housekeeper "$housekeeper_next" )" \
+							  "Huehnerstall: denk bitte daran: kommende Woche bist du dran." 'nopost'
+
 						_mail send_telegram "$housekeeper_next" \
-							"$subject_pre - Huehnerstall: naechste Woche bist du dran" \
+							"$subject_pre - Huehnerstall: kommende Woche bist du dran" \
 							"Wunderschoenen guten Morgen.\n" \
 							"Denk daran, das du ab morgen dran bist,\n" \
 							"und macht eine saubere Uebergabe...\n$greetings"
@@ -76,21 +79,34 @@ _chickendoor_toggle()
 
 _chickendoor_housekeeper()
 {
-	local option="$1"	# <empty>|next
-	local o calendar_week
-	local bb='bb|npl.de'
-	local jakob='jakob.aschenbach|gmx.de'
-	local jan='zirkuswagenbau|web.de'
-	local kurt='kurdinat|akut-guitars.de'
-	local danny='gesellschertel|web.de'
-	local robert='robert.p.frech|gmail.com'
-	local ina='michalski|steinhauerei-weimar.de'
+	local option="$1"	# <empty>|next|<email_for_sms>
+	local o calendar_week email
+	local bb='bb|npl.de 017624223419'			# first = admin
+	local jakob='jakob.aschenbach|gmx.de 01739446491'
+	local jan='zirkuswagenbau|web.de 015255922934'
+	local kurt='kurdinat|akut-guitars.de 01731491669'
+	local danny='gesellschertel|web.de 01747105236'
+	local robert='robert.p.frech|gmail.com 01743915076'
+	local ina='michalski|steinhauerei-weimar.de 01623009333'
+	local all="$jakob $jan $kurt $danny $robert $ina $bb"
 
-	if [ "$option" = 'next' ]; then
-		calendar_week="$( date +%U )"	# sunday = first day of week
-	else
-		calendar_week="$( date +%W )"
-	fi
+	case "$option" in
+		*'@'*)
+			for email in $all; do {
+				[ "$option" = "$email" ] && {
+					explode $email
+					echo $2
+					return 0
+				}
+			} done
+		;;
+		'next')
+			calendar_week="$( date +%U )"	# sunday = first day of week
+		;;
+		*)
+			calendar_week="$( date +%W )"
+		;;
+	esac
 
 	case "$calendar_week" in
 		49|04|11|18|25|32|39|46) o="$jan" ;;
@@ -102,7 +118,10 @@ _chickendoor_housekeeper()
 		03|10|17|24|31|38|45|52) o="$bb" ;;
 	esac
 
-	echo "$o $bb" | sed 's/|/@/g'
+	explode $o
+	o=$1
+	explode $bb
+	echo "$o $1" | sed 's/|/@/g'		# always add admin
 }
 
 _chickendoor_evening_close()
