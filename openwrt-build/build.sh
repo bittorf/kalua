@@ -1860,7 +1860,7 @@ usecase_has()
 	local word
 	local oldIFS="$IFS"; IFS=','; set -- $LIST_USER_OPTIONS $LIST_SUBCALLS; IFS="$oldIFS"
 
-	for word in $*; do {
+	for word in "$@"; do {
 		[ "$word" = "$usecase_keyword" ] && return 0
 	} done
 
