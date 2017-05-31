@@ -1857,18 +1857,14 @@ usecase_has()
 {
 	local funcname='usecase_has'
 	local usecase_keyword="$1"	# e.g. 'noDebug'
+	local word
 	local oldIFS="$IFS"; IFS=','; set -- $LIST_USER_OPTIONS $LIST_SUBCALLS; IFS="$oldIFS"
 
-	case " $* " in
-		" $usecase_keyword ")
-			log "yes: $usecase_keyword" debug
-			return 0
-		;;
-		*)
-			log "no: $usecase_keyword" debug
-			return 1
-		;;
-	esac
+	for word in $*; do {
+		[ "$word" = "$usecase_keyword" ] && return 0
+	} done
+
+	return 1
 }
 
 usecase_hash()		# see: _firmware_get_usecase()
