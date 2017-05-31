@@ -1236,7 +1236,6 @@ EOF
 	apply_symbol 'nuke_config'
 	apply_symbol "CONFIG_TARGET_$ARCH_MAIN=y"
 	[ "$ARCH" = "$ARCH_MAIN" ] || apply_symbol "CONFIG_TARGET_$ARCH=y"
-	build 'defconfig'
 
 	if version_is_lede ; then
 		case "$FILENAME_SYSUPGRADE" in
@@ -1260,6 +1259,9 @@ EOF
 				apply_symbol "CONFIG_TARGET_${ARCH}_DEVICE_$device_symbol=y"
 			;;
 			*)
+				# https://bugs.lede-project.org/index.php?do=details&task_id=779
+				build 'defconfig'
+
 				apply_symbol "$TARGET_SYMBOL"
 			;;
 		esac
