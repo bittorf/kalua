@@ -4441,14 +4441,14 @@ while [ -n "$1" ]; do {
 			echo   >>~/hostname "echo $( echo "$2" | cut -d'@' -f2 )"
 			chmod +x ~/hostname
 
-			case "$PATH" in
-				'~:'*)
-				;;
-				*)
-					log "[ERR] $1: adjust your path with: export PATH=\"~:\$PATH\""
-					STOP_PARSE='true'
-				;;
-			esac
+			for WORD in $( echo "$PATH" | sed 's/:/ /g' ); do {
+				[ "$WORD" = '~' ] && break
+			} done
+
+			[ "$WORD" = '~' ] || {
+				log "[ERR] $1: adjust your path with: export PATH=\"~:\$PATH\""
+				STOP_PARSE='true'
+			}
 		;;
 		'--'*|'-'*)
 			log "[ERR] invalid option '$1'"
