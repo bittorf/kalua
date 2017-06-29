@@ -364,6 +364,7 @@ Special UCI-variables
 	system.@monitoring[0].txpower_keep	- bool
 	system.@monitoring[0].rrd		- bool
 	system.@monitoring[0].sensor_netrange	- ip_netaddr/CIDR
+	system.@monitoring[0].sensor_allow_inet - bool
 	
 	system.@admin[0].location		- string
 	system.@admin[0].latlon			- string
