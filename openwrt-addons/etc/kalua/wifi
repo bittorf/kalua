@@ -2827,7 +2827,10 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 			wait_till_time ':25'
 			e "[BP] waited for link to settle/getting useable"
 			iw dev "$wifidev" info >>"$logfile"
-			iw dev "$wifidev" station dump >>"$logfile" || e "ERR: empty station dump"
+
+			e "station dump:"
+			iw dev "$wifidev" station dump >>"$logfile"
+			e "station dump - READY"
 ###
 			# Tx-Power: 19 dBm  Link Quality: unknown/70
 			explode $( iwinfo "$wifidev" info | grep -F 'Link Quality:' )
@@ -2840,26 +2843,25 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 
 				e "LINKed? - ip: $ip mac: $mac"
 				if [ $node -eq $NODENUMBER ]; then
-					# we download now from the X others
+					e "list: its me"
 					for node2 in $node_list; do {
 						[ $node2 -eq $NODENUMBER ] && continue
 
 						ip="$( _ipsystem getvar 'WIFIADR' "$node2" )"
 
-						if ping -q -c1 "$ip"; then
-							e "ping to '$ip' ok"
+						if ping -q -w1 -c1 "$ip"; then
+							e "we/$NODENUMBER downloading from $node2/$ip : $( _wifi speed force "$ip" )"
 						else
 							e "error ping to '$ip'"
 						fi
-
-						e "we/$NODENUMBER downloading from $node2/$ip : $( _wifi speed force "$ip" )"
 					} done
 				else
-					# the others downloads from me:
+					e "list: other side downloads now from me"
+
 					for node2 in $node_list; do {
 						e "waiting, node $node2 should downloads now"
 
-						if ping -q -c1 "$ip"; then
+						if ping -q -w1 -c1 "$ip"; then
 							e "ping to '$ip' ok"
 						else
 							e "error ping to '$ip'"
@@ -2871,9 +2873,7 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 
 					for node2 in $node_list; do {
 						ip="$( _ipsystem getvar 'WIFIADR' "$node2" )"
-						e "ip: $ip"
 						mac="$( _net ip2mac "$ip" 'lazy' )"
-						e "mac: $mac"
 
 						# is generated during www/cgi-bin-tool.sh when the other download from me
 						for file in "/tmp/STATS/minstrel_"*"_$mac"; do :; done
@@ -2885,7 +2885,7 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 							e "minstrel-table: $file"
 							cat "$file" >>"$logfile" && rm "$file"
 						else
-							e "no new '${file:-minstrel_file}' - nobody downloaded from me"
+							e "no new '$file' - nobody downloaded from me"
 						fi
 					} done
 				fi
