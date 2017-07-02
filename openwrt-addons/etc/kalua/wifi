@@ -2708,6 +2708,8 @@ _wifi_is_valid_channel()
 	iw phy "$phy" info | grep -Fq " MHz [$channel]"
 }
 
+				# TODO: initial sync via http? needed
+				# TODO: generate mail/pdf
 				# FIXME! always have fixed slots and wait for (up-)timeX after each task
 				# FIXME! what if both nodes have different "channel-capabilites"?
 				# FIXME! block forwarding? stop olsr?
@@ -2722,8 +2724,9 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 	local phy='phy0'	# FIXME! only works with single-radio devices
 	local wifidev="$WIFIDEV"
 
+	local chanbw_list='5 10 20'
 	local channel_start channel_ready channel chanbw mac ip node node2 file bssid quality
-	local channel_initial channel_list chanbw_initial bssid_initial
+	local channel_initial channel_list chanbw_initial bssid_initial i j
 	local logfile="$TMPDIR/$funcname.log"
 	[ -e "$logfile" ] && rm "$logfile"
 
@@ -2767,7 +2770,10 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 	}
 
 	e "waiting till $starttime"
-	[ "$starttime" = 'now' ] || wait_till_time "$starttime"
+	[ "$starttime" = 'now' ] || {
+		_ntp set 'force'
+		wait_till_time "$starttime"
+	}
 
 	e 'uci/iw'
 	show_uci_wireless
@@ -2783,34 +2789,40 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 	# e.g. 02:be:ef:05:01:00
 	bssid_initial="$( _wifi bssid "$wifidev" )"
 
-
-	# TODO: initial sync via http? needed
-	# TODO: generate mail/pdf
-
 	channels="$( echo "$channels" | tr '.' ' ' )"	# e.g. 36...44
 	explode $channels
 	channel_start="$1"
 	channel_ready="$2"
 
-	channel_list="$( seq "$channel_start" "$channel_ready" )"
+	channel_list=
+	i=0
+	for channel in "$( seq "$channel_start" "$channel_ready" )"; do {
+		_wifi is_valid_channel "$channel" "$phy" && {
+			channel_list="$channel_list $channel"
+
+			for chanbw in $chanbw_list; do {
+				i=$(( i + 1 ))
+			} done
+		}
+	} done
 
 	e "initial channel $channel_initial list: $channel_list chanbw $chanbw_initial bssid $bssid_initial"
 	_stopwatch start $funcname
 
+	j=0
 	for channel in $channel_list; do {
-		_wifi is_valid_channel "$channel" "$phy" || continue
-
-		for chanbw in 5 10 20; do {
+		for chanbw in $chanbw_list; do {
 			# TODO: test different txpower levels
 ###
+			j=$(( j + 1 ))
 			wait_till_time ':05'
 			bssid=;quality=
-			e "[TIME] test start: channel $channel chanbw $chanbw nodes $NODENUMBER"
+			e "[TIME] test start: channel $channel chanbw $chanbw nodes $NODENUMBER loop: $j/$i"
 			_wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER
 			show_uci_wireless
 			_wifi phy_restart "$wifidev" "$funcname" 'info'		# execution time depends and can change...
 			e "waiting for link"
-			wait_till_time ':20'	# till wifi has settled and link is useable
+			wait_till_time ':25'	# till wifi has settled and link is useable
 ###
 			# Tx-Power: 19 dBm  Link Quality: unknown/70
 			explode $( iwinfo "$wifidev" info | grep -F 'Link Quality:' )
@@ -2821,7 +2833,7 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 				ip="$( _ipsystem getvar 'WIFIADR' "$node" )"
 				mac="$( _net ip2mac "$ip" )"
 
-				e "[TIME] LINKed? - ip: $ip mac: $mac"
+				e "LINKed? - ip: $ip mac: $mac"
 				if [ $node -eq $NODENUMBER ]; then
 					# we download now from the X others
 					for node2 in $node_list; do {
@@ -2849,8 +2861,8 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 						fi
 					} done
 
-					wait_till_time ':50'
-					e "[TIME] looking for downloads/minstrel (TX-data)"
+					wait_till_time ':55'
+					e "looking for downloads/minstrel (TX-data)"
 
 					for node2 in $node_list; do {
 						ip="$( _ipsystem getvar 'WIFIADR' "$node2" )"
@@ -2866,7 +2878,7 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 							e "minstrel-table: $file"
 							cat "$file" >>"$logfile" && rm "$file"
 						else
-							e "no new '$file' - nobody downloaded from me"
+							e "no new '${file:-minstrel_file}' - nobody downloaded from me"
 						fi
 					} done
 				fi
