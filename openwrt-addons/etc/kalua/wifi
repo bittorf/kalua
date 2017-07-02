@@ -237,7 +237,7 @@ _wifi_dev2chanbw()
 		chanbw="${chanbw:-20}"
 	}
 
-	echo "$chanbw"
+	echo "$chanbw"		# e.g. '5'
 }
 
 _wifi_kick()
@@ -2693,20 +2693,45 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 	} done
 }
 
-_wifi_longshot_test()		# only works with single-radio devices
+_wifi_is_valid_channel()
+{
+	local channel="$1"
+	local phy="${2:-phy0}"
+
+	# [...]
+	# Frequencies:
+	#     * 5180 MHz [36] (19.0 dBm)
+	#     * 5200 MHz [40] (19.0 dBm)
+	# [...]
+
+	iw phy "$phy" info | grep -Fq " MHz [$channel]"
+}
+
+_wifi_longshot_test()		# execution time MUST be synchronised on both ends with the exactly SAME call
 {
 	local funcname='wifi_longshot_test'
 	local starttime="$1"	# e.g. '23:45' or '01:09' or 'now'
 	local channels="$2"	# 36...165 or minimal: 36...40
 	local node_list="$3"	# 100 101  or minimal: 100
 
-	local phy='phy0'	# FIXME!
+	local phy='phy0'	# FIXME! only works with single-radio devices
+	local wifidev="$WIFIDEV"
+
 	local channel_start channel_ready channel chanbw mac ip node node2 file bssid quality
 	local channel_initial chanbw_initial bssid_initial
+	local logfile="$TMPDIR/$funcname.log"
+	[ -e "$logfile" ] && rm "$logfile"
 
-	e()
+	e()	# echo 'message' or a file
 	{
-		echo "# $( date ) | ch:$channel bw:$chanbw bssid:$bssid q:$quality | $1"
+		echo "# $( date ) | ch:$channel bw:$chanbw bssid:$bssid q:$quality | $1" >>"$logfile"
+
+		if [ -e "$1" ]; then
+			cat "$1" >>"$logfile"
+			cat "$1"
+		else
+			tail -n1 "$logfile"
+		fi
 	}
 
 	wait_till_time()
@@ -2736,25 +2761,19 @@ _wifi_longshot_test()		# only works with single-radio devices
 	e "waiting till $starttime"
 	[ "$starttime" = 'now' ] || wait_till_time "$starttime"
 
-	e 'uci/iwconfig'
+	e 'uci/iw'
 	show_uci_wireless
-	command -v iwconfig && iwconfig
+	iw dev "$wifidev" info
 	e 'now'
 
 	### get real data! ###
-	channel_initial="$( _wifi channel $WIFIDEV )"
-#	channel_initial="$( uci -q get wireless.radio0.channel )"
+	channel_initial="$( _wifi channel "$wifidev" )"
 
-	# e.g. 0x00000014 or 0x00000005
-	chanbw_initial="$( cat /sys/kernel/debug/ieee80211/$phy/ath9k/chanbw )"
-	[ -z "$chanbw_initial" ] && chanbw_initial="$( cat /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode )"
-	[ -z "$chanbw_initial" ] && chanbw_initial='0x14'
-	[ -n "$chanbw_initial" ] && chanbw_initial=$(( chanbw_initial ))	# hex2dec
+	# e.g. 5, 10, 20
+	chanbw_initial="$( _wifi dev2chanbw "$wifidev" )"
 
-#	chanbw_initial="$( uci -q get wireless.radio0.chanbw || echo '20' )"
-
-	bssid_initial="$( _wifi bssid $WIFIDEV )"
-#	bssid_initial="$( uci show wireless | grep -F '.bssid=' | head -n1 | cut -d'=' -f2 )"
+	# e.g. 02:be:ef:05:01:00
+	bssid_initial="$( _wifi bssid "$wifidev" )"
 
 
 	# TODO: initial sync via http? needed
@@ -2769,7 +2788,7 @@ _wifi_longshot_test()		# only works with single-radio devices
 	_stopwatch start $funcname
 
 	for channel in $( seq "$channel_start" "$channel_ready" ); do {
-		iw phy "$phy" info | grep -Fq " MHz [$channel]" || continue	# invalid/unusable channel
+		_wifi is_valid_channel "$channel" "$phy" || continue
 
 		for chanbw in 5 10 20; do {
 			# TODO: test different txpower levels
@@ -2779,16 +2798,17 @@ _wifi_longshot_test()		# only works with single-radio devices
 			e "[TIME] test start: channel $channel chanbw $chanbw nodes $NODENUMBER"
 			_wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER
 			show_uci_wireless
-			_wifi phy_restart "$WIFIDEV" "$funcname" 'info'		# execution time depends and can change...
+			_wifi phy_restart "$wifidev" "$funcname" 'info'		# execution time depends and can change...
 			e "waiting for link"
 			wait_till_time ':20'	# till wifi has settled and link is useable
 ###
-			bssid="$( _wifi bssid $WIFIDEV )"
-			explode $( iwinfo "$WIFIDEV" info | grep -F 'Link Quality:' )
+			# Tx-Power: 19 dBm  Link Quality: unknown/70
+			explode $( iwinfo "$wifidev" info | grep -F 'Link Quality:' )
 			quality="$6"
+			bssid="$( _wifi bssid "$wifidev" )"
 
 			for node in $node_list; do {
-				ip="$( _ipsystem getvar 'WIFIADR' $node )"
+				ip="$( _ipsystem getvar 'WIFIADR' "$node" )"
 				mac="$( _net ip2mac "$ip" )"
 
 				e "[TIME] LINKed? - ip: $ip mac: $mac"
@@ -2805,10 +2825,10 @@ _wifi_longshot_test()		# only works with single-radio devices
 							e "error ping to $ip"
 						fi
 
-						e "we/$NODENUMBER downloading from $node2/$ip : $( _wifi speed force $ip )"
+						e "we/$NODENUMBER downloading from $node2/$ip : $( _wifi speed force "$ip" )"
 					} done
 				else
-					# the others download from me:
+					# the others downloads from me:
 					for node2 in $node_list; do {
 						e "waiting, node $node2 should downloads now"
 
@@ -2820,19 +2840,19 @@ _wifi_longshot_test()		# only works with single-radio devices
 					} done
 
 					wait_till_time ':50'
-					e "[TIME] looking for downloads/minstrel"
+					e "[TIME] looking for downloads/minstrel (TX-data)"
 
 					for node2 in $node_list; do {
 						ip="$( _ipsystem getvar 'WIFIADR' "$node2" )"
 						mac="$( _net ip2mac "$ip" )"
 
-						# is generated during www/cgi-bin-tool.sh
+						# is generated during www/cgi-bin-tool.sh when the other download from me
 						file="$( ls -1 /tmp/STATS/minstrel_*_$mac )"
 						e "node: $node2 ip: $ip mac: $mac file: '$( ls -l "$file" )'"
 
 						if [ -e "$file" ]; then
 							e "station dump: $mac fage: $( _file age "$file" ) fage2: $( _file age "$file" )"
-							iw dev "$WIFIDEV" station get $mac
+							iw dev "$wifidev" station get "$mac"
 							e "minstrel-table: $file"
 							cat "$file" && rm "$file"
 						else
@@ -2848,7 +2868,8 @@ _wifi_longshot_test()		# only works with single-radio devices
 	e "READY: switching back: _wifi longshot channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial nodes $NODENUMBER"
 	_wifi longshot channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial nodes $NODENUMBER
 	show_uci_wireless
-	_wifi phy_restart "$WIFIDEV" "$funcname" 'info'
+	_wifi phy_restart "$wifidev" "$funcname" 'info'
+
 	_stopwatch stop $funcname
 }
 
