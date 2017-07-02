@@ -2796,7 +2796,7 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 
 	channel_list=
 	i=0
-	for channel in "$( seq "$channel_start" "$channel_ready" )"; do {
+	for channel in $( seq "$channel_start" "$channel_ready" ); do {
 		_wifi is_valid_channel "$channel" "$phy" && {
 			channel_list="$channel_list $channel"
 
@@ -2815,14 +2815,17 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 			# TODO: test different txpower levels
 ###
 			j=$(( j + 1 ))
-			wait_till_time ':05'
 			bssid=;quality=
-			e "[TIME] test start: channel $channel chanbw $chanbw nodes $NODENUMBER loop: $j/$i"
+
+			wait_till_time ':05'
+			e "[BP] test start: channel $channel chanbw $chanbw nodes $NODENUMBER loop: $j/$i"
+
 			_wifi longshot channel $channel chanbw $chanbw nodes $NODENUMBER
 			show_uci_wireless
 			_wifi phy_restart "$wifidev" "$funcname" 'info'		# execution time depends and can change...
-			e "waiting for link"
-			wait_till_time ':25'	# till wifi has settled and link is useable
+
+			wait_till_time ':25'
+			e "[BP] waited for link to settle/getting useable"
 ###
 			# Tx-Power: 19 dBm  Link Quality: unknown/70
 			explode $( iwinfo "$wifidev" info | grep -F 'Link Quality:' )
@@ -2854,15 +2857,15 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 					for node2 in $node_list; do {
 						e "waiting, node $node2 should downloads now"
 
-						if ping -q -c1 $ip; then
-							e "ping to $ip ok"
+						if ping -q -c1 "$ip"; then
+							e "ping to '$ip' ok"
 						else
-							e "error ping to $ip"
+							e "error ping to '$ip'"
 						fi
 					} done
 
-					wait_till_time ':55'
-					e "looking for downloads/minstrel (TX-data)"
+					wait_till_time ':59'
+					e "[BP] looking for downloads/minstrel (TX-data)"
 
 					for node2 in $node_list; do {
 						ip="$( _ipsystem getvar 'WIFIADR' "$node2" )"
