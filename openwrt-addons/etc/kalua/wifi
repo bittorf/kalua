@@ -2150,6 +2150,7 @@ _wifi_scan()
 		;;
 	esac
 
+	_log it $funcname daemon debug "chanbw is '$chanbw' MHz"
 	case "$chanbw" in
 		5|10)
 			_wifi set anymode "$devindex" chanbw 20
@@ -2707,6 +2708,10 @@ _wifi_is_valid_channel()
 	iw phy "$phy" info | grep -Fq " MHz [$channel]"
 }
 
+				# FIXME! always have fixed slots and wait for (up-)timeX after each task
+				# FIXME! what if both nodes have different "channel-capabilites"?
+				# FIXME! block forwarding? stop olsr?
+				# echo >>$SCHEDULER_IMPORTANT '_wifi longshot_test 14:45:00 36...40 "719 670"'
 _wifi_longshot_test()		# execution time MUST be synchronised on both ends with the exactly SAME call
 {
 	local funcname='wifi_longshot_test'
@@ -2718,7 +2723,7 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 	local wifidev="$WIFIDEV"
 
 	local channel_start channel_ready channel chanbw mac ip node node2 file bssid quality
-	local channel_initial chanbw_initial bssid_initial
+	local channel_initial channel_list chanbw_initial bssid_initial
 	local logfile="$TMPDIR/$funcname.log"
 	[ -e "$logfile" ] && rm "$logfile"
 
@@ -2734,15 +2739,24 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 		fi
 	}
 
+	show_uci_wireless()
+	{
+		uci show wireless | grep -F '.chan'
+		uci show wireless | grep -F '.bssid'
+	} >>"$logfile"
+
 	wait_till_time()
 	{
-		local time="$1"		# e.g. :00 or :07 or :59 or 10:45:00
+		local time_pattern="$1"		# e.g. :00 or :07 or :59 or 10:45:00
 		local date
 
-		# TODO: better algo: get initial value and count down
+		e "wait_till_time: $time_pattern"
+
+		# TODO: better algo: get initial value and count down (uptime! and check ntp)
 		while date="$( date "+%H:%M:%S" )"; do {
 			case "$date" in
-				*"$time")
+				*"$time_pattern")
+					e "wait_till_time: READY"
 					return 0
 				;;
 				*)
@@ -2752,18 +2766,12 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 		} done
 	}
 
-	show_uci_wireless()
-	{
-		uci show wireless | grep -F '.chan'
-		uci show wireless | grep -F '.bssid'
-	}
-
 	e "waiting till $starttime"
 	[ "$starttime" = 'now' ] || wait_till_time "$starttime"
 
 	e 'uci/iw'
 	show_uci_wireless
-	iw dev "$wifidev" info
+	iw dev "$wifidev" info >>"$logfile"
 	e 'now'
 
 	### get real data! ###
@@ -2784,10 +2792,12 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 	channel_start="$1"
 	channel_ready="$2"
 
-	e "initial channel $channel_initial chanbw $chanbw_initial bssid $bssid_initial"
+	channel_list="$( seq "$channel_start" "$channel_ready" )"
+
+	e "initial channel $channel_initial list: $channel_list chanbw $chanbw_initial bssid $bssid_initial"
 	_stopwatch start $funcname
 
-	for channel in $( seq "$channel_start" "$channel_ready" ); do {
+	for channel in $channel_list; do {
 		_wifi is_valid_channel "$channel" "$phy" || continue
 
 		for chanbw in 5 10 20; do {
@@ -2819,10 +2829,10 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 
 						ip="$( _ipsystem getvar 'WIFIADR' "$node2" )"
 
-						if ping -q -c1 $ip; then
-							e "ping to $ip ok"
+						if ping -q -c1 "$ip"; then
+							e "ping to '$ip' ok"
 						else
-							e "error ping to $ip"
+							e "error ping to '$ip'"
 						fi
 
 						e "we/$NODENUMBER downloading from $node2/$ip : $( _wifi speed force "$ip" )"
@@ -2852,9 +2862,9 @@ _wifi_longshot_test()		# execution time MUST be synchronised on both ends with t
 
 						if [ -e "$file" ]; then
 							e "station dump: $mac fage: $( _file age "$file" ) fage2: $( _file age "$file" )"
-							iw dev "$wifidev" station get "$mac"
+							iw dev "$wifidev" station get "$mac" >>"$logfile"
 							e "minstrel-table: $file"
-							cat "$file" && rm "$file"
+							cat "$file" >>"$logfile" && rm "$file"
 						else
 							e "no new '$file' - nobody downloaded from me"
 						fi
