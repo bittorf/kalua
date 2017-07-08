@@ -457,10 +457,11 @@ for FILE in NULL FOO; do {
 		NDEV="$(   interpret_neigh "ndev"   "$LINE" )"
 		NNEIGH="$( interpret_neigh "nneigh" "$LINE" )"
 		NCOST="$(  interpret_neigh "ncost"  "$LINE" )"
+		NCOST="${NCOST:-infinite}"
 
 		LOCAL="$(  func_nodenumber2hostname $NODE )"
 		REMOTE="$( func_nodenumber2hostname $NNEIGH )"
-		COST="$( echo ${NCOST:=infinite} | sed 's/[^0-9]//g' )"		# 1.782 = 1782 for floatless calculating
+		COST="$( echo "$NCOST" | sed 's/[^0-9]//g' )"		# 1.782 = 1782 for floatless calculating
 		[ -z "$COST" ] && COST="9999"
 
 #		log "cost: $COST local: $LOCAL remote: $REMOTE"

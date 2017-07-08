@@ -219,7 +219,7 @@ logrotate_monilog()
 
 	log "logrotate '$file' into '$destdir/'"
 	cp "$file" "$destdir"
-	>"$file"
+	true >"$file"
 	bzip2 --small --best "$destfile"
 
 	datestring=$( date +%s )
