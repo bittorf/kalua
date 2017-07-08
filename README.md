@@ -358,6 +358,7 @@ Special UCI-variables
 	system.@monitoring[0].report_lan_dhcp   - bool
 	system.@monitoring[0].station_stats	- bool
 	system.@monitoring[0].no_wiphy_restart	- bool
+	system.@monitoring[0].ignore_phy_probs  - bool
 	system.@monitoring[0].toggle_wifi	- bool
 	system.@monitoring[0].toggle_wifi_off	- clocktime
 	system.@monitoring[0].toggle_wifi_on	- clocktime
