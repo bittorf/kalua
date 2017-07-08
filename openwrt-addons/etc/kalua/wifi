@@ -983,6 +983,7 @@ _wifi_phy_uptime()
 
 _wifi_watch_phy_problems()	# RETURN: 0 = ok ; 1 = problems! - SENSE: reboot if possible
 {
+	local funcname='wifi_watch_phy_problems'
 	local option="$1"	# e.g. 'notify' or 'sysupgrade'
 	local dev error=
 
@@ -996,14 +997,17 @@ _wifi_watch_phy_problems()	# RETURN: 0 = ok ; 1 = problems! - SENSE: reboot if p
 	}
 
 	for dev in $WIFI_DEVS; do {
-		[ -e "/tmp/WIFI_ERROR.$dev" ] && error='true'
+		[ -e "/tmp/WIFI_ERROR.$dev" ] && error="$error on_dev:$dev"
 	} done
 
 	if [ -z "$error" ]; then
 		:
 	else
 		# if any error, forbid sysupgrade
-		[ "$option" = 'sysupgrade' ] && return 1
+		[ "$option" = 'sysupgrade' ] && {
+			_log it $funcname daemon alert "$option: $error"
+			return 1
+		}
 	fi
 
 	return 0
