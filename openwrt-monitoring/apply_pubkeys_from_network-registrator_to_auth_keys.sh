@@ -63,7 +63,11 @@ for file in /var/www/networks/$network/registrator/recent/* ; do {
 } done
 
 up2="$( uptime_in_seconds )"
-[ $K -eq 0 ] && logger -s "[OK] no new keys found"
-logger -s "[READY] safed to '$outfile' in $(( up2 - up1 )) seconds ($I keys/$K added)"
 
-[ -n "$action" ] && $0 "$action"
+if [ $K -eq 0 ]; then
+	logger -s "[OK] no new keys found"
+else
+	logger -s "[READY] safed to '$outfile' in $(( up2 - up1 )) seconds ($I keys/$K added)"
+
+	[ -n "$action" ] && $0 "$action"
+fi

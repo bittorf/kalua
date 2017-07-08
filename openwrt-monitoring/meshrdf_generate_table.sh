@@ -14,7 +14,7 @@
 # NETWORK=marinabh; S=$(date); wget -O "/var/www/networks/$NETWORK/index.html" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=hostname"; echo $S; date
 #
 # or
-# cd /var/www/networks/schoeneck/meshrdf && /var/www/scripts/meshrdf_generate_table.sh
+# cd /var/www/networks/$NETWORK/meshrdf && /var/www/scripts/meshrdf_generate_table.sh
 
 
 # TODO:
@@ -2295,8 +2295,12 @@ send_mail_telegram()
 				*'vorfuehrraum'*|*'kino'*|*'cafe'*)
 					list="$admin dh|lichthaus.info svenopel|gmx.de hansen|wastlhuber.de"
 				;;
+# DigitalBauhausSummit				*)
+# #digibau17
 				*)
-					list="$admin who-be|who-be.de"
+
+					list="$admin norbert.drysz|nationaltheater-weimar.de"
+		#			list="$admin who-be|who-be.de"
 				;;
 			esac
 		;;
@@ -2397,9 +2401,9 @@ send_mail_telegram()
 		pension-ralfz) list="$admin rkleinert|ejbweimar.de" ;;
 		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
 		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
-		lisztwe|adagio|hentzel) list="$admin technik|hotel-adagio.de" ;;
+		lisztwe|adagio) list="$admin technik|hotel-adagio.de" ;;
 		hentzel) list="$admin technik|hotel-adagio.de info|hotel-villa-hentzel.de" ;;
-		apphalle) list="$admin info|appartementhausamdom.de" ;;
+		apphalle) list="$admin info|appartementhausamdom.de"; list= ;;			# FIXME!
 		spbansin)
 			case "$hostname" in
 				'Haus9'*)
@@ -2416,9 +2420,7 @@ send_mail_telegram()
 			esac
 		;;
 		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
-		berlinle)
-			list="$admin hotel-berlin-leipzig|t-online.de"
-		;;
+		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
 		schoeneck)
@@ -2439,6 +2441,7 @@ list=
 				;;
 			esac
 		;;
+		braunsroda) list="$admin matthias.golle|extrawatt-weimar.de";list= ;;
 		tkolleg) list="$admin mail|detlefwagner.de" ;;
 		marinabh)
 			list="$admin schreyack|yachtwelt.de"
@@ -4555,7 +4558,7 @@ MODE_STABLE_REV=44150
 MODE_STABLE_FEEDSTIME='2015-01-25 23:40'
 MODE_BETA_REV=49276
 MODE_BETA_FEEDSTIME='2016-04-30 16:54'
-MODE_TESTING_REV=4103	# LEDE
+MODE_TESTING_REV=4283	# LEDE
 MODE_TESTING_FEEDSTIME=
 BUILD_ID="firmware@bittorf-wireless.com"
 BUILD_SCRIPT_URL='https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh'
@@ -4648,7 +4651,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# - testing/avantgarde..: r$MODE_TESTING_REV (LEDE)"
 	echo '#'
 	echo '# prepare your env with e.g.:'
-	echo "# export PATH=\"~\$PATH:~\""
+	echo "# export PATH=\"\$PATH:~\""
 	echo '# MY_BUILD_DIR=mybuildbot'
 	echo "# sudo mount -t tmpfs -o size=90% none \"\$PWD/\$MY_BUILD_DIR\""
 	echo "# mkdir -p \$MY_BUILD_DIR && cd \$MY_BUILD_DIR"
@@ -4658,6 +4661,7 @@ sh -n "$USECASE_FILE" && cd .. && {
 	echo "# ./build.sh --openwrt trunk --download_pool \$HOME/openwrt_dl"
 	echo "# ./build.sh --openwrt lede  --download_pool \$HOME/openwrt_dl"
 	echo '# scp mysettings /tmp/apply_profile.code.definitions'
+	echo '# scp your_sign_keys .'
 	echo '#'
 	echo "# and copy your public ssh-key (for autouploading files) to: $( echo "$SERVER" | cut -d':' -f1 )"
 	echo '# and execute this script:'

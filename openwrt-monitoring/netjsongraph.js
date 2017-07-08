@@ -102,7 +102,7 @@
             metadata: true,
             defaultStyle: true,
             tooltipDelay: 300,
-            animationAtStart: true,
+            animationAtStart: false,	// bastian: changed, was true
             scaleExtent: [0.25, 5],
             charge: -130,
             linkDistance: 40,
@@ -235,8 +235,8 @@
             }
         }, opts);
         if(!opts.animationAtStart) {
-            opts.linkStrength = 2;
-            opts.friction = 0.3;
+            opts.linkStrength = 6;		// bastian: was '2'
+            opts.friction = 0.3;		// bastian: was '0.3'
             opts.gravity = 0;
         }
         if(opts.el == "body") {

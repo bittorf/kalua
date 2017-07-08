@@ -1,6 +1,6 @@
 #!/bin/sh
 
-[ -z "$1" ] && {
+[ -z "$3" ] && {
 	echo "usage: $0 <from_network> <to_network> <update-mode>"
 	exit 1
 }
@@ -47,6 +47,11 @@ for FILE in $( files_meshrdf_recent "$NETWORK_DEST" ); do {
 	. "$FILE"
 	HARDWARE="$( echo "$HW" | tr '/' ':' )"		# TP-LINK TL-WR841N/ND v8
 	USECASE="$( echo "$UPDATE" | cut -d'.' -f2 )"	# testing.Standard,VDS,kalua
+
+	case "$HARDWARE" in
+		'TP-LINK TL-WDR3600:4300:4310') HARDWARE='TP-LINK TL-WDR4300' ;;
+	esac
+	log "hardware: '$HARDWARE'"
 
 	DEST_DIR="/var/www/networks/$NETWORK_DEST/firmware/models/$HARDWARE/$UPDATE_MODE/$USECASE"
 	FROM_DIR="/var/www/networks/$NETWORK_FROM/firmware/models/$HARDWARE/$UPDATE_MODE/$USECASE"

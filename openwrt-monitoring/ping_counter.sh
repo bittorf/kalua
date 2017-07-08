@@ -124,6 +124,8 @@ list_networks()
 		echo "$1"
 		return 0
 	elif [ "$1" = 'maintenance' ]; then
+		# spbansin
+
 		cat <<EOF
 chicago
 giancarlo
@@ -140,7 +142,6 @@ schoeneck
 extrawatt
 aschbach
 berlinle
-spbansin
 limona
 xoai
 amalienhof
@@ -149,6 +150,9 @@ paltstadt
 palais
 EOF
 	else
+# spbansin
+# spbansin:Haus8
+
 		cat <<EOF
 giancarlo
 malchow
@@ -174,8 +178,6 @@ extrawatt
 aschbach
 berlinle
 itzehoe
-spbansin
-spbansin:Haus8
 tkolleg
 limona
 monami

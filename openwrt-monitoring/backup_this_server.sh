@@ -10,6 +10,10 @@
 # /var/www/monilog.txt*
 # /var/log/apache2/other_vhosts_access.log*
 
+# howto new add new server:
+# cat /root/.ssh/id_rsa.pub | ssh root@bwireless.mooo.com -p 10022 'cat >>.ssh/authorized_keys'
+
+
 # see: /root/backup/ejbw/pbx/
 # cd /root/backup/ejbw/pbx/; for F in *.bin; do echo $F; lzma "$F"; done  # appends .lzma
 

@@ -411,7 +411,7 @@ for NET in $LIST; do {
 	gen_meshrdf_for_network hentzel
 	gen_meshrdf_for_network cvjm
 	gen_meshrdf_for_network cvjm
-#	gen_meshrdf_for_network ewerk
+	gen_meshrdf_for_network ewerk
 #	gen_meshrdf_for_network malchow		# demo
 #	gen_meshrdf_for_network malchowpferde
 #	gen_meshrdf_for_network malchowpension
