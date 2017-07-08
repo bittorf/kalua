@@ -105,7 +105,7 @@ show_shellfunction()
 		return 1
 	fi
 
-	>"$temp_script"
+	true >"$temp_script"
 	chmod +x "$temp_script"
 
 	is_parseable()
