@@ -184,10 +184,6 @@ _net_list_webservers()		# helper for extrawatt, needs ~26 mins for a /24
 		for port in 22 80 443; do {
 			_log it $funcname daemon info "scan '$ip' for port '$port'"
 			_net tcp_port_reachable "$ip" "$port" && {
-				bool_true 'system.@monitoring[0].sensor_allow_inet' && {
-					_netfilter user_add "$( _net ip2mac "$ip" )" "$ip"
-				}
-
 				if [ "$port" = '22' ]; then
 					sensor_type='SSH'
 				else
@@ -195,10 +191,14 @@ _net_list_webservers()		# helper for extrawatt, needs ~26 mins for a /24
 				fi
 
 				mac="$( _net ip2mac "$ip" )"
-				message="$identifier ip: $ANYADR type: $sensor_type"
+				message="$identifier ip: $ANYADR mac: $mac type: $sensor_type"
 				echo "OK $ip:$port $message"
 
 				_netfilter portforwarding_add "$WANDEV" "$mac-$port" "$port" "$ip" "$mac" "$message"
+
+				bool_true 'system.@monitoring[0].sensor_allow_inet' && {
+					_netfilter user_add "$mac" "$ip"
+				}
 			}
 		} done
 	} done
