@@ -805,13 +805,16 @@ for FILE in $LIST_FILES LASTFILE; do {
 				;;
 			esac
 		;;
-		schoeneck)
+		schoeneck|ejbw)
+			HOSTNAME_UNSANITIZED="$HOSTNAME"			# used later in text2port()
 			HOSTNAME_TEMP="$( hostname_sanitizer "$NODE" )"
 
 			if [ -n "$HOSTNAME_TEMP" ]; then
 				HOSTNAME="$HOSTNAME_TEMP"
+				export HOSTNAME_UNSANITIZED
 			else
 				HOSTNAME="miss${NODE}_${WIFIMAC}"
+				HOSTNAME_UNSANITIZED=
 			fi
 		;;
 		apphalle)
@@ -1253,7 +1256,7 @@ func_cell_hostname ()
 			;;
 			*)
 				case "$NETWORK" in
-					'schoeneck')
+					'schoeneck'|'ejbw')
 						return 1
 					;;
 					*)
@@ -1270,7 +1273,7 @@ func_cell_hostname ()
 	}
 
 	case "$NETWORK" in
-		schoeneck)
+		'schoeneck'|'ejbw')
 			case "$HOSTNAME" in
 				'xxx'*)
 #					HOSTNAME_ENFORCED=
@@ -1847,7 +1850,7 @@ func_cell_nexthop()
 		esac
 
 		case "$name" in
-			'schoeneck'*)
+			'schoeneck'*|'ejbw'*)
 				name="$nodenumber"
 			;;
 		esac
@@ -2303,6 +2306,8 @@ send_mail_telegram()
 		#			list="$admin who-be|who-be.de"
 				;;
 			esac
+
+			list=
 		;;
 		Xibfleesensee) list="$admin info|iberotel-fleesensee.de" ;;
 		malchow*) list="$admin info|malchow-it.de" ;;
@@ -2452,7 +2457,7 @@ list=
 			esac
 		;;
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
-		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
+		ejbw) list="$admin haustechnik|ejbweimar.de";list= ;;
 		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de huettendorf|stadtwerke-itzehoe.de" ; list=;;
 		wuensch) list="$admin p_s_wuensch|t-online.de" ;;
 		leonardo) list="$admin info|hotel-leonardo.de"; list= ;;
@@ -3508,7 +3513,13 @@ printf '%s' "<!-- spacer: $spacer :spacer -->"
 
 		local config_profile="$PROFILE"
 		local hostname="$HOSTNAME"
-		local ssh_port="$( text2port "${config_profile}${hostname}" )"
+
+		if [ -n "$HOSTNAME_UNSANITIZED" ]; then
+			local ssh_port="$( text2port "${config_profile}${HOSTNAME_UNSANITIZED}" )"
+		else
+			local ssh_port="$( text2port "${config_profile}${hostname}" )"
+		fi
+
 		local hint="use_sshport:${ssh_port}"
 
 		printf '%s' "<td bgcolor='$color' title='${hint}${linebreak}${name}${linebreak}${speed:+:}${speed}'><tt>$spacer</tt></td>"

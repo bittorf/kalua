@@ -23,6 +23,10 @@
 # iptables -D myping_ejbw-pbx -s "$IP" -j ACCEPT
 # besser:
 # NW=liszt28; I=0; while let I+=1; do iptables -nxvL myping_$NW $I | grep -Fq " $IP " && break; done; iptables -D myping_$NW $I
+#
+# hinzufuegen mit:
+# NW=liszt28; IP=...; iptables -I incoming_ssh -s $IP -j incoming_ssh_$NW
+
 
 log()
 {
@@ -123,8 +127,7 @@ list_networks()
 	if   [ -e "/var/www/networks/${1:-unset}" ]; then
 		echo "$1"
 		return 0
-	elif [ "$1" = 'maintenance' ]; then
-		# spbansin
+	elif [ "$option" = 'maintenance' ]; then
 
 		cat <<EOF
 chicago
@@ -132,7 +135,6 @@ giancarlo
 abtpark
 ilm1
 adagio
-ibfleesensee
 apphalle
 ejbw
 ejbw-pbx
@@ -140,18 +142,16 @@ castelfalfi
 leonardo
 schoeneck
 extrawatt
+braunsroda
 aschbach
 berlinle
 limona
 xoai
 amalienhof
-rehungen
 paltstadt
 palais
 EOF
 	else
-# spbansin
-# spbansin:Haus8
 
 		cat <<EOF
 giancarlo
@@ -175,6 +175,7 @@ castelfalfi
 leonardo
 schoeneck
 extrawatt
+braunsroda
 aschbach
 berlinle
 itzehoe
@@ -196,7 +197,7 @@ EOF
 	# removed dhsylt        - 2014apr11
 }
 
-fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if this is failing to, cry!
+fetch_testfile()	# if ping is missing, we try to fetch a testurl/testdata - if this is failing too, cry!
 {
 	local funcname="fetch_testfile"
 	local network="$1"

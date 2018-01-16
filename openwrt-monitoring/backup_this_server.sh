@@ -15,7 +15,10 @@
 
 
 # see: /root/backup/ejbw/pbx/
-# cd /root/backup/ejbw/pbx/; for F in *.bin; do echo $F; lzma "$F"; done  # appends .lzma
+# cd /root/backup/ejbw/pbx/
+#  for F in *.bin; do echo $F; lzma "$F"; done  # appends .lzma
+#  ls -1|while read F; do case "$F" in *'01_'*) echo $F;;esac;done
+
 
 ARG="$1"		# BACKUPSERVER|checksize = special keyword
 ARG2="${2:-unknown}"	# e.g. 'satama' or 'ejbw-pbx...'
