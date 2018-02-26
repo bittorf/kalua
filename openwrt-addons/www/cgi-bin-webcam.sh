@@ -72,7 +72,7 @@ pics2movie()
 	oldest="$8-${2}$3-${4}h$5"
 	set -- $( date -d @$newest | sed 's/[^0-9a-zA-Z]/ /g' | tr '[:upper:]' '[:lower:]' )
 	newest="$8-${2}$3-${4}h$5"
-	out="../$( pwd | sed 's|^.*/||' )_$( date +%s )_${newest}_${oldest}"	# dirname in which we are in, e.g. cam-buero-aussen
+	out="../$( pwd | sed 's|^.*/||' )_${i}frames_$( date +%s )_${newest}_${oldest}"	# dirname in which we are in, e.g. cam-buero-aussen
 
 	# sanitize each picture in 'frames'
 	cd frames || return
