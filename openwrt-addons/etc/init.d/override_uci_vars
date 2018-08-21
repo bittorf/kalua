@@ -135,12 +135,30 @@ uci_already_added()
 {
 	local config="$1"	# e.g. network
 	local section="$2"	# e.g. alias
-	local item="$3"		# e.g. ipaddr or 'interface'
-	local wish="$4"		# e.g. 10.10.43.33 or 'lan'
+	#
+	local item="$3"		# e.g. interface
+	local wish="$4"		# e.g. lan
+	#
+	local item2="$5"	# e.g. ipaddr
+	local wish2="$6"	# e.g. 10.10.43.33
+	#
 	local value i=0
 
 	while value="$( uci -q get $config.@$section[$i].$item )"; do {
 		if [ "$wish" = "$value" ]; then
+
+			if [ -z "$wish2" ]; then
+				return 0
+			else
+				value="$( uci -q get $config.@$section[$i].$item2 )"
+
+				if [ "$wish2" = "$value" ]; then
+					return 0
+				else
+					i=$(( i + 1 ))
+				fi
+			fi
+
 			return 0
 		else
 			i=$(( i + 1 ))
@@ -380,7 +398,9 @@ config_add_alias()
 	mask="${ip_and_mask#*/}"
 	mask="$( _net cidr2mask "$mask" )"
 
-	uci_already_added 'network' 'alias' 'interface' "$network" || {
+	uci_already_added 'network' 'alias' \
+			  'interface' "$network" \
+			  'ipaddr' "$ip" || {
 		uci add network alias >/dev/null
 		uci set network.@alias[-1].interface="$network"
 		uci set network.@alias[-1].proto='static'
@@ -2045,6 +2065,9 @@ boot()
 					# ADSL Modem Allnet All0333CJ Rev.C / Amazon-SE SoC
 					# web: admin/coolwhite -> advanced mode -> status
 					config_add_alias 'wan' '172.16.1.253/24'
+
+					# for internal portfw like coming from external
+					config_add_alias 'wan' "$( _ipsystem getvar WANADR )/$( _ipsystem getvar WANPRE )"	# internal portfw
 				;;
 				279)
 					# roehr30
@@ -2201,8 +2224,8 @@ boot()
 					uci set system.@system[0].avoid_autoreboot='true'
 					_wifi set ap 2ghz 'off'
 
-					echo  >"$TMPDIR/user.masq" "$IPT -I INPUT -i $LANDEV -p udp --dport 698 -m statistic --mode random --probability 0.25 -j DROP"
-					echo >>"$TMPDIR/user.masq" "$IPT -I INPUT -i $WANDEV -p udp --dport 698 -m statistic --mode random --probability 0.25 -j DROP"
+					echo  >"$TMPDIR/user.masq" "$IPT -I INPUT -i $LANDEV -p udp --dport 698 -m statistic --mode random --probability 0.4 -j DROP"
+					echo >>"$TMPDIR/user.masq" "$IPT -I INPUT -i $WANDEV -p udp --dport 698 -m statistic --mode random --probability 0.4 -j DROP"
 				;;
 				920)
 					# EG-labor-zweiter / kueche
@@ -2210,8 +2233,8 @@ boot()
 					uci set dhcp.lan.ignore='1'
 					uci set olsrd.@Interface[0].Mode='mesh'		# only backup-connection
 
-					echo  >"$TMPDIR/user.masq" "$IPT -I INPUT -i $LANDEV -p udp --dport 698 -m statistic --mode random --probability 0.25 -j DROP"
-					echo >>"$TMPDIR/user.masq" "$IPT -I INPUT -i $WANDEV -p udp --dport 698 -m statistic --mode random --probability 0.25 -j DROP"
+					echo  >"$TMPDIR/user.masq" "$IPT -I INPUT -i $LANDEV -p udp --dport 698 -m statistic --mode random --probability 0.4 -j DROP"
+					echo >>"$TMPDIR/user.masq" "$IPT -I INPUT -i $WANDEV -p udp --dport 698 -m statistic --mode random --probability 0.4 -j DROP"
 				;;
 			esac
 
