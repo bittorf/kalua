@@ -4194,6 +4194,11 @@ unittest_do()
 	fi
 
 	log '[START]'
+	[ -e '/opt/jdk_switcher/jdk_switcher.sh' ] && {		# debug an travis ci issue
+		cat /opt/jdk_switcher/jdk_switcher.sh
+		sh -n /opt/jdk_switcher/jdk_switcher.sh
+	}
+
 	log "build and symlink loader: $build_loader uid: $uid"
 	if [ $uid -eq 0 ]; then
 		$build_loader "$funcname" || return 1
