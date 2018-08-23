@@ -4199,7 +4199,7 @@ unittest_do()
 		sh -n /opt/jdk_switcher/jdk_switcher.sh
 	}
 
-	log "build and symlink loader: $build_loader uid: $uid"
+	log "build and symlink loader: $build_loader uid: $uid funcname: $funcname"
 	if [ $uid -eq 0 ]; then
 		set -x
 		$build_loader "$funcname" || return 1
