@@ -230,7 +230,7 @@ do_sloccount()
 
 test_division_by_zero_is_protected()
 {
-	log "test ocurence of possible unprotected division by 0"
+	log "test ocurence of possible unprotected division by 0 - use e.g.: divisor_valid \$var || var=1"
 
 	git grep ' / [^0-9]' | grep -F '$(( ' | grep -v 'divisor_valid' | grep ^'openwrt-addons' && return 1
 	git grep ' % [^0-9]' | grep -F '$(( ' | grep -v 'divisor_valid' | grep ^'openwrt-addons' && return 1
