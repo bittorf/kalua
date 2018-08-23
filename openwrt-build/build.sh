@@ -4206,8 +4206,10 @@ unittest_do()
 		set +x
 		ln -sf "$build_loader" '/etc/kalua_init' || return 1
 	else
+		set -x
 		sudo $build_loader "$funcname" || return 1
 		sudo ln -sf "$build_loader" '/etc/kalua_init' || return 1
+		set +x
 	fi
 	log "[OK] setting $build_loader -> /tmp/loader symlink needed sudo"
 	log "used PATH in loader:"
