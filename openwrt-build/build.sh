@@ -4201,7 +4201,9 @@ unittest_do()
 
 	log "build and symlink loader: $build_loader uid: $uid"
 	if [ $uid -eq 0 ]; then
+		set -x
 		$build_loader "$funcname" || return 1
+		set +x
 		ln -sf "$build_loader" '/etc/kalua_init' || return 1
 	else
 		sudo $build_loader "$funcname" || return 1
