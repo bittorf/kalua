@@ -4064,6 +4064,9 @@ travis_prepare()
 			log "[OK] running 'apt-get update'"
 			sudo apt-get update || return 1
 			apt_updated='true'
+
+			log "[OK] running 'apt-get install debian-keyring debian-archive-keyring'"
+			sudo apt-get install debian-keyring debian-archive-keyring
 		}
 
 		log "[OK] trying 'apt-get install $*'"
