@@ -4060,22 +4060,25 @@ travis_prepare()
 	local apt_updated=
 	do_install()
 	{
-		[ -z "$apt_updated" ] && {
-			log "[OK] running 'apt-get -y install debian-keyring debian-archive-keyring'"
-			sudo apt-get -y install debian-keyring debian-archive-keyring
+		# https://superuser.com/questions/164553/automatically-answer-yes-when-using-apt-get-install
+		local force='--yes --force-yes'
 
-			log "[OK] running 'apt-get update'"
-			sudo apt-get update || return 1
+		[ -z "$apt_updated" ] && {
+			log "[OK] running 'apt-get $force install debian-keyring debian-archive-keyring'"
+			sudo apt-get $force install debian-keyring debian-archive-keyring
+
+			log "[OK] running 'apt-get $force update'"
+			sudo apt-get $force update || return 1
 			apt_updated='true'
 
-			log "[OK] running 'apt-get -y dist-upgrade'"
-			sudo apt-get -y dist-upgrade
+			log "[OK] running 'apt-get $force dist-upgrade'"
+			sudo apt-get $force dist-upgrade
 		}
 
-		log "[OK] trying 'apt-get -y install $*'"
-		sudo apt-get -y install "$@" || {
+		log "[OK] trying 'apt-get $force install $*'"
+		sudo apt-get $force install "$@" || {
 			# sometimes it bails out without good reason
-			log "[ERR] during 'apt-get install $*', but trying to continue..."
+			log "[ERR] during 'apt-get $force install $*', but trying to continue..."
 		}
 	}
 
