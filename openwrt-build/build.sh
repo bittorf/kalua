@@ -4082,12 +4082,16 @@ travis_prepare()
 		}
 	}
 
+	command -v 'hexdump'	|| do_install 'bsdmainutils'	|| return 1
+
 	# http://ctags.sourceforge.net -> buggy
 	# https://github.com/universal-ctags/ctags.git
 	bootstrap_ctags		|| return 1
 
 	# TODO: check again after 'do_install'
 	command -v 'pip'	|| do_install 'pip'		|| return 1	# for codespell
+	pip install --upgrade pip
+
 	# https://github.com/lucasdemarchi/codespell
 	command -v 'codespell.py' || sudo pip install codespell	|| return 1
 	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
@@ -4203,22 +4207,13 @@ unittest_do()
 	fi
 
 	log '[START]'
-	[ -e '/opt/jdk_switcher/jdk_switcher.sh' ] && {		# debug an travis ci issue
-		cat /opt/jdk_switcher/jdk_switcher.sh
-		sh -n /opt/jdk_switcher/jdk_switcher.sh
-	}
-
 	log "build and symlink loader: $build_loader uid: $uid funcname: $funcname"
 	if [ $uid -eq 0 ]; then
-		set -x
 		$build_loader "$funcname" || return 1
-		set +x
 		ln -sf "$build_loader" '/etc/kalua_init' || return 1
 	else
-		set -x
 		sudo $build_loader "$funcname" || return 1
 		sudo ln -sf "$build_loader" '/etc/kalua_init' || return 1
-		set +x
 	fi
 	log "[OK] setting $build_loader -> /tmp/loader symlink needed sudo"
 	log "used PATH in loader:"
