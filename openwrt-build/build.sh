@@ -4061,15 +4061,18 @@ travis_prepare()
 	do_install()
 	{
 		[ -z "$apt_updated" ] && {
+			log "[OK] running 'apt-get -y install debian-keyring debian-archive-keyring'"
+			sudo apt-get -y install debian-keyring debian-archive-keyring
+
 			log "[OK] running 'apt-get update'"
 			sudo apt-get update || return 1
 			apt_updated='true'
 
-			log "[OK] running 'apt-get install debian-keyring debian-archive-keyring'"
-			sudo apt-get install debian-keyring debian-archive-keyring
+			log "[OK] running 'apt-get -y dist-upgrade'"
+			sudo apt-get -y dist-upgrade
 		}
 
-		log "[OK] trying 'apt-get install $*'"
+		log "[OK] trying 'apt-get -y install $*'"
 		sudo apt-get -y install "$@" || {
 			# sometimes it bails out without good reason
 			log "[ERR] during 'apt-get install $*', but trying to continue..."
