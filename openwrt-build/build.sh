@@ -4106,7 +4106,7 @@ travis_prepare()
 	php --version | grep -q ^'PHP 5\.' || do_install 'php5'	|| return 1
 	# for javascript testing: https://github.com/marijnh/acorn
 	command -v 'nodejs'	|| {
-		do_install 'nodejs'		|| return 1
+#		do_install 'nodejs'		|| return 1
 		do_install 'nodejs-legacy'	|| return 1
 	}
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
