@@ -4094,7 +4094,7 @@ travis_prepare()
 
 	# TODO: check again after 'do_install'
 	command -v 'pip'	|| do_install 'pip'		|| return 1	# for codespell
-	pip install --upgrade pip
+	pip install --user --upgrade pip
 
 	# https://github.com/lucasdemarchi/codespell
 	command -v 'codespell.py' || sudo pip install codespell	|| return 1
@@ -4106,7 +4106,11 @@ travis_prepare()
 	php --version | grep -q ^'PHP 5\.' || do_install 'php5'	|| return 1
 	# for javascript testing: https://github.com/marijnh/acorn
 	command -v 'nodejs'	|| do_install 'nodejs'		|| return 1
-	command -v 'npm'	|| do_install 'npm'		|| return 1
+	command -v 'npm'	|| {
+		do_install 'npm' 		|| return 1
+		do_install 'nodejs-legacy'	|| return 1
+	}
+
 	# forces http NOT https:
 	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
 	# https://www.npmjs.com/package/acorn - javascript-parser/checker
