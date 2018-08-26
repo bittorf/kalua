@@ -4061,6 +4061,7 @@ travis_prepare()
 	do_install()
 	{
 		# https://superuser.com/questions/164553/automatically-answer-yes-when-using-apt-get-install
+		# TODO: --force-yes is deprecated, use one of the options starting with --allow instead.
 		local force='--yes --force-yes'
 
 		[ -z "$apt_updated" ] && {
@@ -4071,8 +4072,11 @@ travis_prepare()
 			sudo apt-get $force update || return 1
 			apt_updated='true'
 
-			log "[OK] running 'apt-get $force dist-upgrade'"
-			sudo apt-get $force dist-upgrade
+			log "[OK] running 'apt-get $force autoremove'"
+			sudo apt-get $force autoremove
+
+#			log "[OK] running 'apt-get $force dist-upgrade'"
+#			sudo apt-get $force dist-upgrade
 		}
 
 		log "[OK] trying 'apt-get $force install $*'"
