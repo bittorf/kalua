@@ -222,15 +222,27 @@ _netparam_list_wifi_devs()
 {
 	local network_name list_wifi_names devname i
 
-	for i in 0 1 2 3 4 5 6 7; do {
-		devname="$( uci -q get "wireless.@wifi-iface[$i].network" )"
+	while devname="$( uci -q get "wireless.@wifi-iface[$i].network" )"; do {
 		[ "$devname" = 'lan' ] || {
 			list_wifi_names="$list_wifi_names $devname"
 		}
+		i=$(( i + 1 ))
 	} done
 
-	# for old firmwares
-	[ -e "/sbin/ifstatus" ] || {
+	# try newstyle first:
+	if [ -e '/sbin/ifstatus' ]; then
+		# uci get wireless.@wifi-iface[0].device -> radio0
+		# uci get wireless.radio0.disabled -> 1?
+
+		for network_name in $list_wifi_names; do {
+			# can be:
+			# JSON: "device": "wlan0",
+			# or:
+			# Interface wlan0 not found
+			ifstatus "$network_name" | grep -F '"device":' | cut -d':' -f2 | cut -d'"' -f2
+		} done
+	else
+		# for old firmwares
 		[ -n "$list_wifi_names" ] && {
 			if   [ -e '/etc/config/wireless' ]; then
 				bool_true 'wireless.radio0.disabled' || echo 'wlan0'
@@ -239,19 +251,8 @@ _netparam_list_wifi_devs()
 			fi
 		}
 
-		return 0
-	}
-
-	# uci get wireless.@wifi-iface[0].device -> radio0
-	# uci get wireless.radio0.disabled -> 1?
-
-	for network_name in $list_wifi_names; do {
-		# can be:
-		# JSON: "device": "wlan0",
-		# or:
-		# Interface wlan0 not found
-		ifstatus "$network_name" | grep -F '"device":' | cut -d':' -f2 | cut -d'"' -f2
-	} done
+		true
+	fi
 }
 
 _netparam_check()
