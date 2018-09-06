@@ -668,6 +668,14 @@ run_test()
 								sed -i 's/churchs/churches/g' "$tempfile"
 							;;
 							*)
+								# trick codespell for some false positives
+								sed -i 's/ als / also /g' "$tempfile"
+								sed -i 's/ oder / or /g' "$tempfile"
+								sed -i 's/ manuell / manual /g' "$tempfile"
+								sed -i 's/ wan / wan_interface /g' "$tempfile"
+								sed -i 's/ WAN / WAN_interface /g' "$tempfile"
+								sed -i 's|/ND|ND|g' "$tempfile"		# e.g. 841/ND
+
 								codespell_bin='codespell'
 #								[ -e "$tempfile.dict" ] && rm -f "$tempfile.dict"
 							;;
@@ -779,7 +787,8 @@ run_test()
 		echo
 		cat "$codespell_file"
 		echo
-		log "[ATTENTION] end of spelling mistakes"
+		log "[ATTENTION] end of the $codespell_errors spelling mistakes"
+		echo
 	}
 
 	log 'cleanup'

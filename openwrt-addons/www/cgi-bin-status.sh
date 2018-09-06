@@ -670,7 +670,7 @@ _http include_js_sorttable
 
 rrd_info()
 {
-	# TODO: embedd into page
+	# TODO: should be embedded into page
 
 	if _rrd needed; then
 		printf '%s' '<a href="traffic.png">RRD</a>'
