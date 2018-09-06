@@ -4131,6 +4131,7 @@ travis_prepare()
 	npm --version
 
 	/usr/bin/env node --version || sudo ln -s /usr/bin/nodejs /usr/bin/node
+	hexdump -C $( command -v 'npm' ) | head -n10
 
 #	/usr/bin/npm uninstall npm
 #	npm --version
