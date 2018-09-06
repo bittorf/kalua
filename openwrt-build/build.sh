@@ -3831,12 +3831,12 @@ parse_case_patterns()
 	#   case "$1" in
 	#     option1|option2)
 	#     ;;
-	#     optionN)
+	#     option3)
 	#     ;;
 	#   esac
 	# }
 	#
-	# running our parser on this function will output 'option1 option2 optionN'
+	# running our parser on this function will output 'option1 option2 option3'
 
 	while read -r line; do {
 		if [ "$start_parse" = 'true' ]; then

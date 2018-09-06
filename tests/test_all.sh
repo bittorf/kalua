@@ -660,6 +660,10 @@ run_test()
 
 					if command -v codespell >/dev/null; then
 						case "$file" in
+							*'i18n')
+								grep -v "de)\|ru)\|da)\|ja)\|fr)" "$tempfile" >"$tempfile.tmp"
+								mv "$tempfile.tmp" "$tempfile"
+							;;
 							*'random_username'|*'test_all.sh')
 #								codespell_bin="codespell --dictionary='$tempfile.dict'"
 								codespell_bin='codespell'
@@ -674,13 +678,18 @@ run_test()
 						esac
 
 						# TODO: better use dictionary?
-						# trick codespell for some false positives
+						# mute/trick codespell for some false positives
 						sed -i 's/als/also/g' "$tempfile"
 						sed -i 's/oder/or/g' "$tempfile"
+						sed -i 's/SIGNATUR/SIGNATURE/g' "$tempfile"
+						sed -i 's/technik/technique/g' "$tempfile"
+						sed -i 's/TECHNIK/TECHNIQUE/g' "$tempfile"
 						sed -i 's/manuell/manual/g' "$tempfile"
 						sed -i 's/wan/wan_interface/g' "$tempfile"
 						sed -i 's/WAN/WAN_interface/g' "$tempfile"
-						sed -i 's|/ND|ND|g' "$tempfile"		# e.g. 841/ND
+						sed -i 's|ND|AND|g' "$tempfile"		# e.g. 841/ND
+						sed -i 's|nd|and|g' "$tempfile"		# e.g. 841/ND
+						sed -i 's/usign/using/g' "$tempfile"
 
 						# https://github.com/lucasdemarchi/codespell/issues/63 -> TODO: returncode fixed
 						if $codespell_bin "$tempfile" | wc -l | xargs test 0 -eq; then
