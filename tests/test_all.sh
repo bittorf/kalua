@@ -661,6 +661,7 @@ run_test()
 					if command -v codespell >/dev/null; then
 						case "$file" in
 							*'i18n')
+								# remove lines with non-english words
 								grep -v "de)\|ru)\|da)\|ja)\|fr)" "$tempfile" >"$tempfile.tmp"
 								mv "$tempfile.tmp" "$tempfile"
 							;;
@@ -690,6 +691,7 @@ run_test()
 						sed -i 's|ND|AND|g' "$tempfile"		# e.g. 841/ND
 						sed -i 's|nd|and|g' "$tempfile"		# e.g. 841/ND
 						sed -i 's/usign/using/g' "$tempfile"
+						sed -i 's/doubleclick/double-click/g' "$tempfile"
 
 						# https://github.com/lucasdemarchi/codespell/issues/63 -> TODO: returncode fixed
 						if $codespell_bin "$tempfile" | wc -l | xargs test 0 -eq; then
@@ -802,7 +804,7 @@ run_test()
 
 	do_sloccount
 
-	[ -s "$codespell_file" ] && {
+	if [ -s "$codespell_file" ]; then
 		codespell_errors=$( grep -c ^"$tempfile:" "$codespell_file" )
 
 		log "[ATTENTION] we had $codespell_errors codespell errors:"
@@ -811,7 +813,9 @@ run_test()
 		echo
 		log "[ATTENTION] end of the $codespell_errors spelling mistakes"
 		echo
-	}
+	else
+		log "[OK] detected 0 codespell mistakes"
+	fi
 
 	log 'cleanup'
 	rm -fR /tmp/loader /tmp/kalua "$TMPDIR/NETPARAM"
