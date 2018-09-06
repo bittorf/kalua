@@ -4096,7 +4096,7 @@ travis_prepare()
 	echo
 
 	# TODO: check again after 'do_install'
-	command -v 'pip'	|| do_install 'pip'		|| return 1	# for codespell
+	command -v 'pip'	|| do_install 'pip'		|| return 1	# needed for codespell
 #	pip install --user --upgrade pip
 	echo "# running: pip --version"
 	pip --version
@@ -4273,7 +4273,7 @@ unittest_do()
 
 	log "executing '$start_test'"
 	$start_test 'now' || {
-		log "search for pattern '^--' when this is a shellsheck error or search 'try: codespell.py' for spell mistakes"
+		log "search for pattern '^--' when this is a shellsheck error or search 'try: codespell' for spell mistakes"
 		return 1
 	}
 }

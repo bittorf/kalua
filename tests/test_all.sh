@@ -656,16 +656,16 @@ run_test()
 
 					count_files=$(( count_files + 1 ))
 
-					if command -v codespell.py >/dev/null; then
+					if command -v codespell >/dev/null; then
 						case "$file" in
 							*'random_username'|*'test_all.sh')
-#								codespell_bin="codespell.py --dictionary='$tempfile.dict'"
-								codespell_bin='codespell.py'
+#								codespell_bin="codespell --dictionary='$tempfile.dict'"
+								codespell_bin='codespell'
 #								echo 'churchs->churches, disabled: is a shoebrand' >"$tempfile.dict"
 								sed -i 's/churchs/churches/g' "$tempfile"
 							;;
 							*)
-								codespell_bin='codespell.py'
+								codespell_bin='codespell'
 #								[ -e "$tempfile.dict" ] && rm -f "$tempfile.dict"
 							;;
 						esac
