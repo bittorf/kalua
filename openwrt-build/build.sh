@@ -4097,6 +4097,7 @@ travis_prepare()
 	command -v 'pip'	|| do_install 'pip'		|| return 1	# for codespell
 #	pip install --user --upgrade pip
 	pip --version
+	ls -lR .cache/pip
 
 	# https://github.com/lucasdemarchi/codespell
 	command -v 'codespell.py' || sudo pip install codespell	|| return 1
@@ -4121,6 +4122,8 @@ travis_prepare()
 	node --version
 
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
+	npm --version
+	npm i -g npm
 	npm --version
 
 	# forces http NOT https:
