@@ -4091,28 +4091,41 @@ travis_prepare()
 	# http://ctags.sourceforge.net -> buggy
 	# https://github.com/universal-ctags/ctags.git
 	bootstrap_ctags		|| return 1
+	echo "# running: ctags --version"
 	ctags --version
+	echo
 
 	# TODO: check again after 'do_install'
 	command -v 'pip'	|| do_install 'pip'		|| return 1	# for codespell
 #	pip install --user --upgrade pip
+	echo "# running: pip --version"
 	pip --version
+	echo
 	ls -lR .cache/pip
 
 	# https://github.com/lucasdemarchi/codespell
 	command -v 'codespell.py' || sudo pip install codespell	|| return 1
+	echo "# running: codespell --version"
+	codespell --version
+	echo
 
 	# http://www.dwheeler.com/sloccount/sloccount-2.26.tar.gz
 	command -v 'sloccount'	|| do_install 'sloccount'	|| return 1
+	echo "# running: sloccount --version"
 	sloccount --version
+	echo
 
 	# http://www.html-tidy.org/
 	command -v 'tidy'	|| do_install 'tidy'		|| return 1
+	echo "# running: tidy --version"
 	tidy --version
+	echo
 
 	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
 	php --version | grep -q ^'PHP 5\.' || do_install 'php5'	|| return 1
+	echo "# running: php --version"
 	php --version
+	echo
 
 	# for javascript testing: https://github.com/marijnh/acorn
 	command -v 'nodejs'	|| {
@@ -4132,14 +4145,9 @@ travis_prepare()
 	npm --version
 	echo
 	npm install -g npm
+	echo "# running: npm --version"
 	npm --version
-
-#	/usr/bin/env node --version || sudo ln -s /usr/bin/nodejs /usr/bin/node
-#	hexdump -C $( command -v 'npm' ) | head -n10
-
-#	/usr/bin/npm uninstall npm
-#	npm --version
-#	rm -r /usr/local/lib/node_modules/npm
+	echo
 
 	# forces http NOT https:
 	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
@@ -4153,6 +4161,9 @@ travis_prepare()
 		bootstrap_shellsheck || return 1
 		command -v shellcheck || return 1
 	fi
+	echo "# running: shellcheck --version"
+	shellcheck --version
+	echo
 }
 
 bootstrap_ctags()
