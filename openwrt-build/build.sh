@@ -4116,15 +4116,20 @@ travis_prepare()
 
 	# for javascript testing: https://github.com/marijnh/acorn
 	command -v 'nodejs'	|| {
-#		do_install 'nodejs'		|| return 1
-		do_install 'nodejs-legacy'	|| return 1
+		do_install 'nodejs'		|| return 1
+#		do_install 'nodejs-legacy'	|| return 1
 	}
+	echo "# running: node --version"
 	node --version
+	echo
 
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
 	npm --version
-	npm i -g npm
+	npm install -g npm
 	npm --version
+	/usr/bin/npm uninstall npm
+	npm --version
+	rm -r /usr/local/lib/node_modules/npm
 
 	# forces http NOT https:
 	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
