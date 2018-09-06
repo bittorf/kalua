@@ -375,8 +375,8 @@ run_test()
 	local force_file="$1"
 	local shellcheck_bin ignore file tempfile filelist ip hash1 hash2
 	local codespell_bin size1 size2 line line_stripped i list name sc_list
-	local codespell_file="/tmp/codespell.txt"
 	local codespell_errors=0
+	local codespell_file='/dev/shm/codespell.txt'
 	local func_too_large=0
 	local func_too_wide=0
 	local count_files=0
@@ -673,12 +673,13 @@ run_test()
 							;;
 						esac
 
+						# TODO: better use dictionary?
 						# trick codespell for some false positives
-						sed -i 's/ als / also /g' "$tempfile"
-						sed -i 's/ oder / or /g' "$tempfile"
-						sed -i 's/ manuell / manual /g' "$tempfile"
-						sed -i 's/ wan / wan_interface /g' "$tempfile"
-						sed -i 's/ WAN / WAN_interface /g' "$tempfile"
+						sed -i 's/als/also/g' "$tempfile"
+						sed -i 's/oder/or/g' "$tempfile"
+						sed -i 's/manuell/manual/g' "$tempfile"
+						sed -i 's/wan/wan_interface/g' "$tempfile"
+						sed -i 's/WAN/WAN_interface/g' "$tempfile"
 						sed -i 's|/ND|ND|g' "$tempfile"		# e.g. 841/ND
 
 						# https://github.com/lucasdemarchi/codespell/issues/63 -> TODO: returncode fixed
@@ -701,7 +702,6 @@ run_test()
 							} >>"$codespell_file"
 
 #							good='false'
-							codespell_errors=$(( codespell_errors + 1 ))
 						fi
 					else
 						log "[OK] no spellcheck - please install 'https://github.com/lucasdemarchi/codespell'"
@@ -793,7 +793,9 @@ run_test()
 
 	do_sloccount
 
-	[ $codespell_errors -gt 0 ] && {
+	[ -s "$codespell_file" ] && {
+		codespell_errors=$( grep -c ^"$tempfile:" "$codespell_file" )
+
 		log "[ATTENTION] we had $codespell_errors codespell errors:"
 		echo
 		cat "$codespell_file"
