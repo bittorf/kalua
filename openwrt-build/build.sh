@@ -4119,8 +4119,9 @@ travis_prepare()
 		do_install 'nodejs'		|| return 1
 		do_install 'nodejs-legacy'	|| return 1
 	}
-	echo "# running: node --version"
+	echo "# running: node --version | nodejs --version"
 	node --version
+	nodejs --version
 	echo
 
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
@@ -4131,9 +4132,7 @@ travis_prepare()
 	npm --version
 
 #	/usr/bin/env node --version || sudo ln -s /usr/bin/nodejs /usr/bin/node
-	hexdump -C $( command -v 'npm' ) | head -n10
-	command -v node
-	command -v nodejs
+#	hexdump -C $( command -v 'npm' ) | head -n10
 
 #	/usr/bin/npm uninstall npm
 #	npm --version
