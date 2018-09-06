@@ -4117,7 +4117,7 @@ travis_prepare()
 	# for javascript testing: https://github.com/marijnh/acorn
 	command -v 'nodejs'	|| {
 		do_install 'nodejs'		|| return 1
-#		do_install 'nodejs-legacy'	|| return 1
+		do_install 'nodejs-legacy'	|| return 1
 	}
 	echo "# running: node --version"
 	node --version
@@ -4130,9 +4130,10 @@ travis_prepare()
 	npm install -g npm
 	npm --version
 
-	/usr/bin/env node --version || sudo ln -s /usr/bin/nodejs /usr/bin/node
+#	/usr/bin/env node --version || sudo ln -s /usr/bin/nodejs /usr/bin/node
 	hexdump -C $( command -v 'npm' ) | head -n10
 	command -v node
+	command -v nodejs
 
 #	/usr/bin/npm uninstall npm
 #	npm --version
