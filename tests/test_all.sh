@@ -672,10 +672,10 @@ run_test()
 
 						# https://github.com/lucasdemarchi/codespell/issues/63 -> TODO: returncode fixed
 						if $codespell_bin "$tempfile" | wc -l | xargs test 0 -eq; then
-							log "[OK] codespell.py '$file'"
+							log "[OK] codespell '$file'"
 						else
-							log "[ERROR] try: codespell.py '$file'"
-							codespell.py "$file"
+							log "[ERROR] try: $codespell_bin '$file'"
+							$codespell_bin "$file"
 							good='false'
 						fi
 					else

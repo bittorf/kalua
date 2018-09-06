@@ -4087,6 +4087,9 @@ travis_prepare()
 	}
 
 	command -v 'hexdump'	|| do_install 'bsdmainutils'	|| return 1
+	echo "# running: hexdump --version"
+	hexdump --version
+	echo
 
 	# http://ctags.sourceforge.net -> buggy
 	# https://github.com/universal-ctags/ctags.git
@@ -4101,7 +4104,6 @@ travis_prepare()
 	echo "# running: pip --version"
 	pip --version
 	echo
-	ls -lR .cache/pip
 
 	# https://github.com/lucasdemarchi/codespell
 	command -v 'codespell.py' || sudo pip install codespell	|| return 1
