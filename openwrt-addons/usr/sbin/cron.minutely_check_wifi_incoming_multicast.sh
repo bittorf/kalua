@@ -65,7 +65,7 @@ check_wifi_phy()	# watch if value-change of received_multicast_frames > X% of mo
 	logger -s "debug: $DEBUG"
 
 	[ $frames_average_overall -lt 20 ] || {
-		# positiv values = avg is smaller than avg_overall (=lower incoming multicast framerate)
+		# positive values = avg is smaller than avg_overall (=lower incoming multicast framerate)
 		test $percentual_change -lt $border
 	}
 }

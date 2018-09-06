@@ -4552,8 +4552,8 @@ check_git_settings			|| die_and_exit
 feeds_prepare
 feeds_adjust_version "$FEEDSTIME" "$FEEDSNAME"
 
-[ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specifiy --hardware '\$MODEL'"
-[ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specifiy --usecase '\$USECASE'"
+[ -z "$HARDWARE_MODEL" ]    && print_usage_and_exit "you forgot to specify --hardware '\$MODEL'"
+[ -z "$LIST_USER_OPTIONS" ] && print_usage_and_exit "you forgot to specify --usecase '\$USECASE'"
 
 SPECIAL_OPTIONS=
 [ -z "$BACKUP_DOTCONFIG" -a "$VERSION_OPENWRT" -a "$LIST_USER_OPTIONS" -a "$HARDWARE_MODEL" ] && \

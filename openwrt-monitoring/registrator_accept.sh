@@ -62,7 +62,7 @@ log "pwd: $( pwd ) - working on query $1"
 			else
 				log "state C"
 				echo "REGENERATE_KEY"
-				log "REGENERATE_KEY2: node'$NODE' want's to reg with same SSHPUBKEYFP='$SSHPUBKEYFP' like node'$( cat sshfp/$SSHPUBKEYFP )'"
+				log "REGENERATE_KEY2: node'$NODE' wants to reg with same SSHPUBKEYFP='$SSHPUBKEYFP' like node'$( cat sshfp/$SSHPUBKEYFP )'"
 			fi
 		else
 
@@ -75,7 +75,7 @@ log "pwd: $( pwd ) - working on query $1"
 			if [ "$( cat sshfp/$SSHPUBKEYFP )" -eq "$NODE" ]; then
 				log "state E"
 				echo "REGENERATE_KEY"
-				log "REGENERATE_KEY: node'$NODE' want's to reg with same SSHPUBKEYFP='$SSHPUBKEYFP' like node'$( cat sshfp/$SSHPUBKEYFP )'"
+				log "REGENERATE_KEY: node'$NODE' wants to reg with same SSHPUBKEYFP='$SSHPUBKEYFP' like node'$( cat sshfp/$SSHPUBKEYFP )'"
 			else
 				log "state F"
 				echo "OK"

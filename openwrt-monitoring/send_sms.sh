@@ -129,7 +129,7 @@ else
 	}
 
 	if [ -z "$MOBILE" ]; then
-		log "file not found/useable '$FILE'"
+		log "file not found/usable '$FILE'"
 		exit 1
 	else
 		NUMBER="$MOBILE"

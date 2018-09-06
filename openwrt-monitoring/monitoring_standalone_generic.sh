@@ -95,13 +95,13 @@ SSID=
 
 if   [ -e '/usr/local/bin/omap4_temp' ]; then
 	SSID="$( /usr/local/bin/omap4_temp )"
-	SSID="$SSID+%c2%b0C"	# space grad celcius
+	SSID="$SSID+%c2%b0C"	# space grad celsius
 elif [ -e '/usr/bin/sensors' ]; then
 	# apt-get install lm-sensors
 	set -- $( sensors | grep -F 'temp1:' )
 	SSID="$2"					# +56.0°C
 	SSID="$( echo "$SSID" | sed 's/[^0-9\.]//g' )"	#  56.0
-	SSID="$SSID+%c2%b0C"	# space grad celcius
+	SSID="$SSID+%c2%b0C"	# space grad celsius
 
 	set -- $( sensors | grep -F 'fan1:' )
 	SSID="$SSID+%7C+$2+RPM"				# 56.0 °C | 4900 RPM

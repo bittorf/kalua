@@ -309,7 +309,7 @@ case "$OPTION" in
 	;;
 esac
 
-# this detroys the ping-counter! we really should send out an SMS
+# this destroys the ping-counter! we really should send out an SMS
 log "checking: disk full?"
 if df -h /dev/xvda1 | grep -Fq "100%"; then
 	if iptables -nL INPUT | head -n3 | grep -q ^'ACCEPT' ; then

@@ -54,7 +54,7 @@ BASE="/var/www/networks/$NETWORK"
 
 echo "#!/bin/sh"		 >postinst
 echo "VERSION=$IPKG_VERSION"	>>postinst
-cat ${0}.code			>>postinst	# inludes pubkey of monitoring server
+cat ${0}.code			>>postinst	# includes pubkey of monitoring server
 
 # do not include files older than 30 days
 I=0

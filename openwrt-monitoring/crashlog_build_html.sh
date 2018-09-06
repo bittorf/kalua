@@ -14,12 +14,12 @@ LIST_OMIT_REV='r33160 r32793 r33502 r33616 r33726 r35300 r37767 r33867 r34599 <4
 # build www with:
 # /var/www/scripts/crashlog_build_html.sh >/tmp/crash_$$; mv /tmp/crash_$$ /var/www/crashlog/report.html
 
-count_crashs()
+count_crashes()
 {
 	ls -1 /tmp/crashlogs/crash-* | wc -l
 }
 
-count_crashs_unreal()
+count_crashes_unreal()
 {
 	local file
 	local i=0
@@ -43,8 +43,8 @@ list_ids()
 
 html_head()
 {
-	local crash_all=$( count_crashs )
-	local crash_unreal="$( count_crashs_unreal )"
+	local crash_all=$( count_crashes )
+	local crash_unreal="$( count_crashes_unreal )"
 	set -- $crash_unreal
 	local crash_sysrq=$1
 	local crash_oom=$2
@@ -54,8 +54,8 @@ html_head()
 	cat <<EOF
 <html><head><title>crashlogs @ $( date "+%d.%b'%y-%H:%M" )</title></head><body>
 <h3>OpenWrt crashlogs</h3>
-<small>$crash_real real, $crash_sysrq manually invoked and $crash_oom by oom-killer = $crash_all crashs overall - omitting these revs: $LIST_OMIT_REV<br></small>
-<br><tt>these crashs are part of an automatic crashdump-collection of several thousand OpenWrt-routers</tt>
+<small>$crash_real real, $crash_sysrq manually invoked and $crash_oom by oom-killer = $crash_all crashes overall - omitting these revs: $LIST_OMIT_REV<br></small>
+<br><tt>these crashes are part of an automatic crashdump-collection of several thousand OpenWrt-routers</tt>
 <br><br>
 <table cellspacing='1' cellpadding='1' border='1'>
 EOF

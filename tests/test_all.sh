@@ -338,7 +338,7 @@ test_loader_metafunction()
 	[ "$( id -u )" -eq 0 ] || {
 		log "[ERROR] USER: '$USER' workaround needed sudo: $( ls -l '/tmp/loader' )"
 		sudo chown $USER:$USER '/tmp/loader'
-		log "[ERROR] see file permisions: $( ls -l /kalua/loader )"
+		log "[ERROR] see file permissions: $( ls -l /kalua/loader )"
 		sudo chmod 0777 '/tmp/loader'
 	}
 	_ rebuild "autotest:USER:$USER:HOME:$HOME"
@@ -661,7 +661,8 @@ run_test()
 							*'random_username'|*'test_all.sh')
 #								codespell_bin="codespell --dictionary='$tempfile.dict'"
 								codespell_bin='codespell'
-#								echo 'churchs->churches, disabled: is a shoebrand' >"$tempfile.dict"
+
+								# churchs->churches, disabled: is a shoebrand'
 								sed -i 's/churchs/churches/g' "$tempfile"
 							;;
 							*)
