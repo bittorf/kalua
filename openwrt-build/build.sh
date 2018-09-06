@@ -4124,12 +4124,17 @@ travis_prepare()
 	echo
 
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
+	echo "# running: npm --version"
 	npm --version
+	echo
 	npm install -g npm
 	npm --version
-	/usr/bin/npm uninstall npm
-	npm --version
-	rm -r /usr/local/lib/node_modules/npm
+
+	/usr/bin/env node --version || sudo ln -s /usr/bin/nodejs /usr/bin/node
+
+#	/usr/bin/npm uninstall npm
+#	npm --version
+#	rm -r /usr/local/lib/node_modules/npm
 
 	# forces http NOT https:
 	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
