@@ -668,18 +668,18 @@ run_test()
 								sed -i 's/churchs/churches/g' "$tempfile"
 							;;
 							*)
-								# trick codespell for some false positives
-								sed -i 's/ als / also /g' "$tempfile"
-								sed -i 's/ oder / or /g' "$tempfile"
-								sed -i 's/ manuell / manual /g' "$tempfile"
-								sed -i 's/ wan / wan_interface /g' "$tempfile"
-								sed -i 's/ WAN / WAN_interface /g' "$tempfile"
-								sed -i 's|/ND|ND|g' "$tempfile"		# e.g. 841/ND
-
 								codespell_bin='codespell'
 #								[ -e "$tempfile.dict" ] && rm -f "$tempfile.dict"
 							;;
 						esac
+
+						# trick codespell for some false positives
+						sed -i 's/ als / also /g' "$tempfile"
+						sed -i 's/ oder / or /g' "$tempfile"
+						sed -i 's/ manuell / manual /g' "$tempfile"
+						sed -i 's/ wan / wan_interface /g' "$tempfile"
+						sed -i 's/ WAN / WAN_interface /g' "$tempfile"
+						sed -i 's|/ND|ND|g' "$tempfile"		# e.g. 841/ND
 
 						# https://github.com/lucasdemarchi/codespell/issues/63 -> TODO: returncode fixed
 						if $codespell_bin "$tempfile" | wc -l | xargs test 0 -eq; then
@@ -690,7 +690,13 @@ run_test()
 
 							{
 								echo "# file: $file"
-								$codespell_bin "$tempfile"
+								$codespell_bin "$tempfile" | while read -r line; do {
+									echo "$line"
+
+									number="$( echo "$line" | cut -d':' -f2 )"
+									set -- $line
+									sed -n "${number}p" "$tempfile" | grep --color -- "$2"
+								} done
 								echo
 							} >>"$codespell_file"
 
@@ -758,7 +764,12 @@ run_test()
 					good='false'
 
 					# debug
-					grep -q 'EOF' "$tempfile" && hexdump -C "$tempfile" | grep 'EOF'
+					grep -q 'EOF' "$tempfile" && {
+						log "path: $PATH pwd: $PWD"
+						set -x
+						hexdump -C "$tempfile" | grep 'EOF'
+						set +x
+					}
 
 					echo '### start'
 					grep -n ^ "$tempfile"
