@@ -375,6 +375,8 @@ run_test()
 	local force_file="$1"
 	local shellcheck_bin ignore file tempfile filelist ip hash1 hash2
 	local codespell_bin size1 size2 line line_stripped i list name sc_list
+	local codespell_file="/tmp/codespell.txt"
+	local codespell_errors=0
 	local func_too_large=0
 	local func_too_wide=0
 	local count_files=0
@@ -677,7 +679,15 @@ run_test()
 						else
 							log "[ERROR] try: $codespell_bin '$file'"
 							$codespell_bin "$file"
-							good='false'
+
+							{
+								echo "# file: $file"
+								$codespell_bin "$tempfile"
+								echo
+							} >>"$codespell_file"
+
+#							good='false'
+							codespell_errors=$(( codespell_errors + 1 ))
 						fi
 					else
 						log "[OK] no spellcheck - please install 'https://github.com/lucasdemarchi/codespell'"
@@ -763,6 +773,14 @@ run_test()
 	fi
 
 	do_sloccount
+
+	[ $codespell_errors -gt 0 ] && {
+		log "[ATTENTION] we had $codespell_errors codespell errors:"
+		echo
+		cat "$codespell_file"
+		echo
+		log "[ATTENTION] end of spelling mistakes"
+	}
 
 	log 'cleanup'
 	rm -fR /tmp/loader /tmp/kalua "$TMPDIR/NETPARAM"
