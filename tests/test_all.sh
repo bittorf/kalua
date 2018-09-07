@@ -2,8 +2,12 @@
 . /tmp/loader
 export PATH="/tmp/ctags:$PATH"		# FIXME!
 
-# find too wide functions/files with:
-# i=0; while read -r L; do i=$(( i + 1 )); test ${#L} -gt 120 && echo "$i: $L"; done <$FILE
+# TODO:
+# - find too wide functions/files with:
+#   i=0; while read -r L; do i=$(( i + 1 )); test ${#L} -gt 120 && echo "$i: $L"; done <$FILE
+# - local-scope varnames should be small:
+#   grep 'local [A-Z]' openwrt-addons/etc/kalua/*
+
 
 log()
 {
