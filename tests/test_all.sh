@@ -724,10 +724,7 @@ run_test()
 					fi
 				;;
 				*)
-					# DEBUG:
-					[ "$file" = 'openwrt-monitoring/getip/index.php' ] && set -x
-
-					log "[IGNORE] non-shellfile '$file' mime: $( _filetype detect_mimetype )"
+					log "[IGNORE] non-shellfile '$file' mime: $( _filetype detect_mimetype "$file" )"
 					continue
 				;;
 			esac
