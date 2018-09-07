@@ -559,6 +559,9 @@ run_test()
 
 			case "$( _filetype detect_mimetype "$file" )" in
 				'text/html')
+					# debug
+					set -x
+
 					if tidy -errors "$file"; then
 						log "[OK] html / tidy"
 					else
