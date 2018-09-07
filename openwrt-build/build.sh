@@ -4138,6 +4138,11 @@ travis_prepare()
 	echo "# running: tidy --version"
 	tidy --version
 	echo
+	# http://binaries.html-tidy.org/
+	wget -O newtidy.deb "https://github.com/htacg/tidy-html5/releases/download/5.4.0/tidy-5.4.0-64bit.deb"
+	dpkg -i newtidy.deb
+	hash -r
+	tidy --version
 
 	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
 	php --version | grep -q ^'PHP 5\.' || do_install 'php5'	|| return 1
@@ -4248,6 +4253,7 @@ bootstrap_ctags()
 	}
 
 	export PATH="/tmp/$dir:$PATH"
+	hash -r
 	ctags --version
 	ctags --version | grep "Compiled: $date"
 }
