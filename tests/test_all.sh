@@ -724,7 +724,7 @@ run_test()
 					fi
 				;;
 				*)
-					log "[IGNORE] non-shellfile '$file' mime: $( _filetype detect_mimetype "$file" )"
+					log "[IGNORE] non-shellfile '$file' kalua-MIME: $( _filetype detect_mimetype "$file" )"
 					continue
 				;;
 			esac
@@ -805,8 +805,6 @@ run_test()
 
 		[ "$good" = 'false' ] && return 1
 	fi
-
-	do_sloccount
 
 	if [ -s "$codespell_file" ]; then
 		codespell_errors=$( grep -c ^"$tempfile:" "$codespell_file" )

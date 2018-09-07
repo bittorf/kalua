@@ -2,25 +2,25 @@
 
 _filetype_check_header()
 {
-	local MAGIC="$1"		# keyword 'show' or a regex, e.g. ^1f8b:
-	local FILE="$2"
-	local BYTES LINE
-	local GREPFLAG="-q"
+	local magic="$1"		# keyword 'show' or a regex, e.g. ^1f8b:
+	local file="$2"
+	local bytes line
+	local grepflag="-q"
 
-	[ -e "$FILE" ] || return 1
+	[ -f "$file" ] || return 1
 
-	BYTES="$( echo "$MAGIC" | sed 's/ //g' )"
-	BYTES=$(( ${#BYTES} / 2 ))
+	bytes="$( echo "$magic" | sed 's/ //g' )"
+	bytes=$(( ${#bytes} / 2 ))
 
-	case "$MAGIC" in
-		show) MAGIC=; BYTES=16; GREPFLAG= ;;
+	case "$magic" in
+		show) magic=; bytes=16; grepflag= ;;
 	esac
 
-	dd if="$FILE" bs=${BYTES} count=1 2>&- |
+	dd if="$file" bs=${bytes} count=1 2>&- |
 		hexdump -C |
-			if read -r LINE; then echo "${LINE#* }"; fi |
+			if read -r line; then echo "${line#* }"; fi |
 				sed 's/ //g' |
-					grep $GREPFLAG "$MAGIC" && {
+					grep $grepflag "$magic" && {
 						return 0
 					}
 	return 1
@@ -29,7 +29,7 @@ _filetype_check_header()
 _filetype_detect_mimetype()
 {
 	local file="$1"
-	local list='tar gzip pdf gif html shellscript unknown'
+	local list='tar gzip pdf shellscript php elf unknown'	# TODO: gif|html|script
 	local mime
 
 	for mime in $list; do {
@@ -42,6 +42,7 @@ _filetype_detect_mimetype()
 		pdf)  mime='application/pdf' ;;
 		gif)  mime='image/gif' ;;
 		html) mime='text/html' ;;
+		php)  mime='text/x-php' ;;
 		shellscript) mime='text/x-shellscript' ;;
 		*)    mime='text/plain' ;;
 	esac
@@ -71,6 +72,14 @@ _filetype_unknown()
 	:
 }
 
+_filetype_php()
+{
+	local file="$1"
+	local magic='^3c3f706870'	# is '<?php'
+
+	_filetype check_header "$magic" "$file"
+}
+
 _filetype_gzip()
 {
 	local FILE="$1"
@@ -89,10 +98,10 @@ _filetype_shellscript()
 
 _filetype_pdf()
 {
-	local FILE="$1"
-	local MAGIC="^255044462d31"	# '%PDF-1.'
+	local file="$1"
+	local magic="^255044462d31"	# '%PDF-1.'
 
-	_filetype check_header "$MAGIC" "$FILE"
+	_filetype check_header "$magic" "$file"
 }
 
 _filetype_script()
