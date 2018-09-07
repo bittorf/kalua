@@ -3946,6 +3946,15 @@ check_scripts()
 
 		# TODO: uncompress tar/gzip?
 
+		case "$file" in
+			*'.js')
+				[ "$mimetype" = 'application/javascript' ] || {
+					log "[FIXME] mimetype = $mimetype but is really: javascript"
+					mimetype='application/javascript'
+				}
+			;;
+		esac
+
 		case "$mimetype" in
 			'text/plain')
 				log "[OK] will NOT check '$mimetype' file '$file'" debug
@@ -4003,6 +4012,7 @@ check_scripts()
 						;;
 						*)
 							acorn --silent "$file" || return 1
+							log "[OK] acorn/js-checker: $file"
 						;;
 					esac
 				else
@@ -4172,6 +4182,7 @@ travis_prepare()
 	npm --version
 	echo
 
+	# install acorn
 	# forces http NOT https:
 	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
 	# https://www.npmjs.com/package/acorn - javascript-parser/checker
