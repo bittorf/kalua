@@ -4205,8 +4205,10 @@ bootstrap_file()	# the 'file' command
 		autoreconf -i
 		aclocal
 
-		autoconf && ./configure && sudo make install && hash -r
+		autoconf && ./configure && sudo make install
 	)
+
+	hash -r
 }
 
 bootstrap_ctags()
