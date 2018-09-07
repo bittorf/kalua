@@ -3964,11 +3964,11 @@ check_scripts()
 			;;
 			'text/html')
 				if command -v tidy >/dev/null; then
-					case "$( head -n1 "$file" )" in
-						'<!DOCTYPE html>')
-							log "[IGNORE] tidy/HTML5: '$file' see: http://foswiki.org/Tasks/Item13134"
-						;;
-						*)
+#					case "$( head -n1 "$file" )" in
+#						'<!DOCTYPE html>')
+#							log "[IGNORE] tidy/HTML5: '$file' see: http://foswiki.org/Tasks/Item13134"
+#						;;
+#						*)
 							case "$file" in
 								*'map1.html'|*'map2.html')
 									log "[IGNORE] will NOT check '$mimetype' file '$file' (special)"
@@ -3976,10 +3976,11 @@ check_scripts()
 								*)
 									log "html: checking '$mimetype' / $file"
 									tidy -errors "$file" || return 1
+									log "[OK] html-tidy: $file"
 								;;
 							esac
-						;;
-					esac
+#						;;
+#					esac
 				else
 					log "[IGNORE] will NOT check '$mimetype' file '$file' - missing 'tidy'"
 				fi
@@ -4001,8 +4002,6 @@ check_scripts()
 				fi
 			;;
 			'application/javascript')
-				# https://github.com/marijnh/acorn -> install node.js + npm?
-				#  - https://marijnhaverbeke.nl/fund/
 				# TODO: autoextract <script>...</script> snippets from HTML?
 				if command -v acorn >/dev/null; then
 					log "checking '$mimetype' / $file"
@@ -4150,7 +4149,7 @@ travis_prepare()
 	echo
 	# http://binaries.html-tidy.org/
 	wget -O newtidy.deb "https://github.com/htacg/tidy-html5/releases/download/5.4.0/tidy-5.4.0-64bit.deb"
-	dpkg -i newtidy.deb
+	dpkg -i newtidy.deb && rm newtidy.deb
 	hash -r
 	tidy --version
 
@@ -4160,7 +4159,7 @@ travis_prepare()
 	php --version
 	echo
 
-	# for javascript testing: https://github.com/marijnh/acorn
+	# for javascript testing: https://github.com/marijnh/acorn | https://marijnhaverbeke.nl/fund/
 	command -v 'nodejs'	|| {
 		# https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions
 		curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
