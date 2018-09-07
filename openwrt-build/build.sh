@@ -4091,6 +4091,11 @@ travis_prepare()
 	hexdump --version
 	echo
 
+	command -v 'cppcheck'	|| do_install 'cppcheck'	|| return 1
+	echo "# running: cppcheck --version"
+	cppcheck --version
+	echo
+
 	# http://ctags.sourceforge.net -> buggy
 	# https://github.com/universal-ctags/ctags.git
 	bootstrap_ctags		|| return 1

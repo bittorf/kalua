@@ -798,6 +798,7 @@ run_test()
 		rm "$filelist"
 		rm -fR '/dev/shm/generated_files'
 
+		echo
 		log "[OK] checked $count_files shellfiles with $count_functions functions"
 		log "[OK] hint: $func_too_large/$count_functions functions ($(( (func_too_large * 100) / count_functions ))%) are too large"
 		log "[OK] hint: $func_too_wide/$count_functions functions ($(( (func_too_wide * 100) / count_functions ))%) are too wide"
@@ -815,13 +816,15 @@ run_test()
 		cat "$codespell_file"
 		echo
 		log "[ATTENTION] end of the $codespell_errors spelling mistakes"
-		echo
 	else
 		log "[OK] detected 0 codespell mistakes"
 	fi
 
+	echo
+	do_sloccount
+
 	log 'cleanup'
-	rm -fR /tmp/loader /tmp/kalua "$TMPDIR/NETPARAM"
+	sudo rm -fR /tmp/loader /tmp/kalua "$TMPDIR/NETPARAM"
 
 	log '[READY]'
 }
