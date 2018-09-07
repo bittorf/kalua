@@ -4184,7 +4184,7 @@ travis_prepare()
 	echo
 }
 
-bootstrap_file()
+bootstrap_file()	# the 'file' command
 {
 	local url='https://github.com/file/file.git'
 	local dir='file-git'
@@ -4201,7 +4201,10 @@ bootstrap_file()
 		log '[OK] used commit:'
 		git log -1
 
-		autoconf && autoreconf -i && aclocal && autoconf && ./configure && sudo make install
+		autoconf
+		autoreconf -i
+		aclocal
+		autoconf && ./configure && sudo make install
 	)
 }
 
