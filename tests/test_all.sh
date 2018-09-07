@@ -559,11 +559,18 @@ run_test()
 
 			case "$( _filetype detect_mimetype "$file" )" in
 				'text/html')
-					if tidy -errors "$file"; then
-						log "[OK] html-tidy: $file"
-					else
-						log "[ERR] in html / tidy-rc: $? in file: $file"
-					fi
+					case "$file" in
+						*'map1.html'|*'map2.html')
+								log "[OK] ignoring special html-files: $file"
+						;;
+						*)
+							if tidy -errors "$file"; then
+								log "[OK] html-tidy: $file"
+							else
+								log "[ERR] in html / tidy-rc: $? in file: $file"
+							fi
+						;;
+					esac
 				;;
 				'text/x-shellscript')
 					# strip non-printable (ascii-subset)

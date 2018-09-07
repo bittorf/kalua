@@ -4062,6 +4062,8 @@ buildhost_arch()
 
 travis_prepare()
 {
+	local url
+
 	log "[OK] debug 'mount'/'ip'"
 	echo '# ---'
 	mount
@@ -4176,7 +4178,7 @@ travis_prepare()
 	echo "# running: npm --version"
 	npm --version
 	echo
-	npm install -g npm
+	npm install --global npm
 	echo "# running: npm --version"
 	npm --version
 	echo
@@ -4186,6 +4188,13 @@ travis_prepare()
 	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
 	# https://www.npmjs.com/package/acorn - javascript-parser/checker
 	sudo $( command -v 'npm' ) install --global 'acorn'	|| return 1
+
+	# install cheerio for extracting DOM snippets (e.g. <script>foo</script>) for testing
+	sudo $( command -v 'npm' ) install --global 'cheerio'
+	url='https://gist.githubusercontent.com/mamuesp/e08a4f9b484ab8a84748/raw/50546bc52e8d4a452b9870e9b0f4a71192fdf3d1/extract.js'
+	sudo wget -O /usr/local/bin/extract.js "$url"
+
+	export NODE_PATH="$( npm root --global ):$NODE_PATH"
 
 	export PATH="$HOME/.cabal/bin:$PATH"
 	if command -v shellcheck; then
