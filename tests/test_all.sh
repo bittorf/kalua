@@ -692,6 +692,11 @@ run_test()
 						sed -i 's|nd|and|g' "$tempfile"		# e.g. 841/ND
 						sed -i 's/usign/using/g' "$tempfile"
 						sed -i 's/doubleclick/double-click/g' "$tempfile"
+						sed -i 's/lokal/Lokalisierung/g' "$tempfile"
+						sed -i 's/Normale/Normalisierung/g' "$tempfile"
+						sed -i 's/Programm/Program/g' "$tempfile"
+						sed -i 's/Elemente/Elements/g' "$tempfile"
+						sed -i 's/Paket/Pakets/g' "$tempfile"
 
 						# https://github.com/lucasdemarchi/codespell/issues/63 -> TODO: returncode fixed
 						if $codespell_bin "$tempfile" | wc -l | xargs test 0 -eq; then
@@ -707,18 +712,21 @@ run_test()
 
 									number="$( echo "$line" | cut -d':' -f2 )"
 									set -- $line
-									sed -n "${number}p" "$tempfile" | grep --color -- "$2"
+									sed -n "${number}p" "$tempfile" | grep --color=always -- "$2"
 								} done
 								echo
 							} >>"$codespell_file"
 
-#							good='false'
+							good='false'
 						fi
 					else
 						log "[OK] no spellcheck - please install 'https://github.com/lucasdemarchi/codespell'"
 					fi
 				;;
 				*)
+					# DEBUG:
+					[ "$file" = 'openwrt-monitoring/getip/index.php' ] && set -x
+
 					log "[IGNORE] non-shellfile '$file' mime: $( _filetype detect_mimetype )"
 					continue
 				;;
@@ -777,9 +785,7 @@ run_test()
 					# debug
 					grep -q 'EOF' "$tempfile" && {
 						log "path: $PATH pwd: $PWD"
-						set -x
 						hexdump -C "$tempfile" | grep 'EOF'
-						set +x
 					}
 
 					echo '### start'
