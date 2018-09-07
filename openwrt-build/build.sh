@@ -4150,8 +4150,8 @@ travis_prepare()
 	tidy --version
 	echo
 	# http://binaries.html-tidy.org/
-	wget -O newtidy.deb "https://github.com/htacg/tidy-html5/releases/download/5.4.0/tidy-5.4.0-64bit.deb"
-	dpkg -i newtidy.deb && rm newtidy.deb
+	wget      -O newtidy.deb "https://github.com/htacg/tidy-html5/releases/download/5.4.0/tidy-5.4.0-64bit.deb"
+	sudo dpkg -i newtidy.deb && rm newtidy.deb
 	hash -r
 	tidy --version
 
