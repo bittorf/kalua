@@ -4194,7 +4194,7 @@ bootstrap_file()
 
 		cd '/tmp' || return 1
 		[ -d "$dir" ] && rm -fR "$dir"
-		git clone "$url"
+		git clone "$url" "$dir"
 		cd "$dir" || return 1
 #		git checkout -b 'good_version' "$good_version"
 
@@ -4216,7 +4216,7 @@ bootstrap_ctags()
 		(
 			cd '/tmp' || return 1
 			[ -d "$dir" ] && rm -fR "$dir"
-			git clone "$url"
+			git clone "$url" "$dir"
 			cd "$dir" || return 1
 			git checkout -b 'good_version' "$good_version"
 
@@ -4268,7 +4268,7 @@ bootstrap_shellsheck()
 		}
 
 		cd '/run/shm' || return 1
-		git clone https://github.com/koalaman/shellcheck.git
+		git clone https://github.com/koalaman/shellcheck.git 'shellcheck'
 		cd shellcheck || return 1
 
 		log '[OK] last commit:'
