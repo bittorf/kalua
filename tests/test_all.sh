@@ -19,6 +19,8 @@ list_shellfunctions()
 	local file="$1"
 	local line
 
+	_filetype shellscript "$file" || return 1
+
 	if command -v 'ctags' >/dev/null; then
 		ctags --sort=no --language-force=sh -x "$file" |
 		 while read -r line; do {
@@ -523,7 +525,7 @@ run_test()
 
 			case "$file" in
 				'openwrt-build/mybuild.sh'|'openwrt-monitoring/meshrdf_generate_table.sh')
-					log "[OK] ignoring '$file'"
+					log "[OK] ignoring '$file' (FIXME)"
 				;;
 				*)
 					for name in $( list_shellfunctions "$file" ); do {
@@ -561,7 +563,7 @@ run_test()
 				'text/html')
 					case "$file" in
 						*'map1.html'|*'map2.html')
-								log "[OK] ignoring special html-files: $file"
+							log "[OK] ignoring special html-files: $file"
 						;;
 						*)
 							if tidy -errors "$file"; then
