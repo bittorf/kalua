@@ -4204,7 +4204,12 @@ bootstrap_file()	# the 'file' command
 		autoconf
 		autoreconf -i
 		aclocal
-		autoconf && ./configure && sudo make install
+		autoconf && ./configure && sudo make V=99 install && {
+			hash -t 'file'
+			hash -d 'file'
+			file --help
+			hash -t 'file'
+		}
 	)
 }
 
