@@ -3944,6 +3944,8 @@ check_scripts()
 	while read -r file; do {
 		mimetype="$( mimetype_get "$file" )"
 
+		# TODO: uncompress tar/gzip?
+
 		case "$mimetype" in
 			'text/plain')
 				log "[OK] will NOT check '$mimetype' file '$file'" debug
@@ -4091,6 +4093,15 @@ travis_prepare()
 	hexdump --version
 	echo
 
+	command -v 'file'	|| return 1
+	echo "# running: file --version"
+	file --version
+	echo
+	bootstrap_file
+	echo "# running: file --version"
+	file --version
+	echo
+
 	command -v 'cppcheck'	|| do_install 'cppcheck'	|| return 1
 	echo "# running: cppcheck --version"
 	cppcheck --version
@@ -4173,13 +4184,33 @@ travis_prepare()
 	echo
 }
 
+bootstrap_file()
+{
+	local url='https://github.com/file/file.git'
+	local dir='file-git'
+
+	(
+		do_install 'libtool'
+
+		cd '/tmp' || return 1
+		[ -d "$dir" ] && rm -fR "$dir"
+		git clone "$url"
+		cd "$dir" || return 1
+#		git checkout -b 'good_version' "$good_version"
+
+		log '[OK] used commit:'
+		git log -1
+
+		autoconf && autoreconf -i && aclocal && autoconf && ./configure && sudo make install
+	)
+}
+
 bootstrap_ctags()
 {
 	local url='https://github.com/universal-ctags/ctags.git'
 	local dir='ctags'
 	local date="$( LC_ALL=C date "+%b %_d %Y" )"	# e.g. 'Oct  1 2016'
-	local good_version='48e382b94dac8ed8bf4b360c0ce4dd01c21bc5de'
-	good_version='9668032d8715265ca5b4ff16eb2efa8f1c450883'		# 2017-jan-8 (including new sh-parser)
+	local good_version='9668032d8715265ca5b4ff16eb2efa8f1c450883'		# 2017-jan-8 (including new sh-parser)
 
 	/tmp/$dir/ctags --version | grep -q "Compiled: $date" || {
 		(
