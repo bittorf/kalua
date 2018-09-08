@@ -4205,7 +4205,7 @@ travis_prepare()
 		# https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions
 		curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
 #		do_install 'nodejs'		|| return 1
-#		do_install 'nodejs-legacy'	|| return 1
+		do_install 'nodejs-legacy'	|| return 1
 
 		echo "# running: nodejs --version"
 		nodejs --version
