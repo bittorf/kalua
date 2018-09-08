@@ -4236,12 +4236,13 @@ travis_prepare()
 
 	# install acorn
 	# forces http NOT https:
-	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
+	npm config set registry http://registry.npmjs.org/
 	# https://www.npmjs.com/package/acorn - javascript-parser/checker
-	sudo $( command -v 'npm' ) install 'acorn' --global	|| return 1
+	npm install 'acorn' --global	|| return 1
 
 	# install cheerio for extracting DOM snippets (e.g. <script>foo</script>) for testing
-	sudo $( command -v 'npm' ) install 'cheerio' --global	|| return 1
+	npm install 'cheerio' --global	|| return 1
+	ls -l /usr/lib/node_modules
 	ls -l /usr/lib/node_modules/cheerio
 
 	export NODE_PATH="$( npm root --global ):$NODE_PATH"
