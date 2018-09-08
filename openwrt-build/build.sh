@@ -3961,7 +3961,7 @@ extract_javascript_and_check()
 
 	mkdir "$dir"
 
-	find $( npm root --global ) -type f | grep cheerio
+	find $( npm root --global ) -type f
 	export NODE_PATH="$( npm root --global ):$NODE_PATH"
 	log "[nodejs@$(pwd)]: node $bin $html_file $dir - NODE_PATH: $NODE_PATH"
 	node $bin "$html_file" "$dir" || return 1
@@ -4206,6 +4206,15 @@ travis_prepare()
 		do_install 'nodejs'		|| return 1
 #		do_install 'nodejs-legacy'	|| return 1
 	}
+	echo "# running: node --version"
+	node --version
+	echo "# running: nodejs --version"
+	nodejs --version
+	echo
+
+	sudo rm "$( command -v node )"
+	sudo ln -s "$( command -v nodejs )" "$( command -v node )"
+	hash -r
 	echo "# running: node --version"
 	node --version
 	echo "# running: nodejs --version"
