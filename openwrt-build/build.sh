@@ -3961,7 +3961,8 @@ extract_javascript_and_check()
 
 	mkdir "$dir"
 
-	find $( npm root --global ) -type f
+	find $( npm root --global ) -type f | grep -i cheerio
+
 	export NODE_PATH="$( npm root --global ):$NODE_PATH"
 	log "[nodejs@$(pwd)]: node $bin $html_file $dir - NODE_PATH: $NODE_PATH"
 	node $bin "$html_file" "$dir" || return 1
@@ -4200,26 +4201,27 @@ travis_prepare()
 	echo
 
 	# for javascript testing: https://github.com/marijnh/acorn | https://marijnhaverbeke.nl/fund/
-	command -v 'nodejs'	|| {
+	command -v 'node'	|| {
 		# https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions
 		curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
 		do_install 'nodejs'		|| return 1
 #		do_install 'nodejs-legacy'	|| return 1
+
+		echo "# running: nodejs --version"
+		nodejs --version
 	}
 	echo "# running: node --version"
 	node --version
-	echo "# running: nodejs --version"
-	nodejs --version
 	echo
 
-	sudo rm "$( command -v node )"
-	sudo ln -s "$( command -v nodejs )" "$( command -v node )"
-	hash -r
-	echo "# running: node --version"
-	node --version
-	echo "# running: nodejs --version"
-	nodejs --version
-	echo
+#	sudo rm "$( command -v node )"
+#	sudo ln -s "$( command -v nodejs )" "$( command -v node )"
+#	hash -r
+#	echo "# running: node --version"
+#	node --version
+#	echo "# running: nodejs --version"
+#	nodejs --version
+#	echo
 
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
 	echo "# running: npm --version"
@@ -4234,10 +4236,11 @@ travis_prepare()
 	# forces http NOT https:
 	sudo $( command -v 'npm' ) config set registry http://registry.npmjs.org/
 	# https://www.npmjs.com/package/acorn - javascript-parser/checker
-	sudo $( command -v 'npm' ) install --global 'acorn'	|| return 1
+	sudo $( command -v 'npm' ) install 'acorn' --global	|| return 1
 
 	# install cheerio for extracting DOM snippets (e.g. <script>foo</script>) for testing
-	sudo $( command -v 'npm' ) install --global 'cheerio'	|| return 1
+	sudo $( command -v 'npm' ) install 'cheerio' --global	|| return 1
+	ls -l /usr/lib/node_modules/cheerio
 
 	export NODE_PATH="$( npm root --global ):$NODE_PATH"
 	log "NODE_PATH: $NODE_PATH"
