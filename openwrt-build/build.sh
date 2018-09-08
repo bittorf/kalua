@@ -3929,6 +3929,52 @@ list_shellfunctions()
 	grep -s '^[a-zA-Z_][a-zA-Z0-9_]*[ ]*()' "$file" | cut -d'(' -f1
 }
 
+check_javascript()
+{
+	local file="$1"
+	local mimetype="$2"
+
+	if command -v acorn >/dev/null; then
+		log "checking '$mimetype' / $file in pwd: $( pwd )"
+
+		case "$file" in
+			*'googleclosure.'*|*'googleclosure_'*)
+				log "[OK] ignoring '$file' FIXME"
+			;;
+			*)
+				acorn --silent "$file" || return 1
+				log "[OK] acorn/js-checker: $file"
+			;;
+		esac
+	else
+		log "[IGNORE] will NOT check '$mimetype' file '$file' - missing 'acorn'"
+	fi
+}
+
+extract_javascript_and_check()
+{
+	local html_file="$1"
+	local bin='tests/extract_all_script_elements.js'
+	local dir="/tmp/extracted_scripts"
+	local mime='application/javascript'
+	local file
+
+	mkdir "$dir"
+	nodejs $bin "$html_file" "$dir"
+
+	for file in $dir/*; do {
+		test -f "$file" && {
+			check_javascript "$file" "$mime" || {
+				rm -fR "$dir"
+				return 1
+			}
+		}
+	} done
+
+	rm -fR "$dir"
+	true
+}
+
 check_scripts()
 {
 	local funcname='check_scripts'
@@ -3977,6 +4023,8 @@ check_scripts()
 									log "html: checking '$mimetype' / $file"
 									tidy -errors "$file" || return 1
 									log "[OK] html-tidy: $file"
+
+									extract_javascript_and_check "$file" || return 1
 								;;
 							esac
 #						;;
@@ -4002,21 +4050,7 @@ check_scripts()
 				fi
 			;;
 			'application/javascript')
-				# TODO: autoextract <script>...</script> snippets from HTML?
-				if command -v acorn >/dev/null; then
-					log "checking '$mimetype' / $file"
-					case "$file" in
-						*'googleclosure'*)
-							log "[OK] ignoring '$file' FIXME"	# FIXME!
-						;;
-						*)
-							acorn --silent "$file" || return 1
-							log "[OK] acorn/js-checker: $file"
-						;;
-					esac
-				else
-					log "[IGNORE] will NOT check '$mimetype' file '$file' - missing 'acorn'"
-				fi
+				check_javascript "$file" "$mimetype" || return 1
 			;;
 			'image/gif')
 				# imagemagick?
