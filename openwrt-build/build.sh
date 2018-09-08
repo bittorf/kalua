@@ -3961,7 +3961,7 @@ extract_javascript_and_check()
 
 	mkdir "$dir"
 
-	find $( npm root --global ) -type f | grep -i cheerio
+	find $( npm root --global ) -type f | grep -i cheerio || log "[FOO] no cheerio found"
 
 	export NODE_PATH="$( npm root --global ):$NODE_PATH"
 	log "[nodejs@$(pwd)]: node $bin $html_file $dir - NODE_PATH: $NODE_PATH"
@@ -4201,10 +4201,10 @@ travis_prepare()
 	echo
 
 	# for javascript testing: https://github.com/marijnh/acorn | https://marijnhaverbeke.nl/fund/
-	command -v 'node'	|| {
+	command -v 'nodejs'	|| {
 		# https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions
 		curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
-		do_install 'nodejs'		|| return 1
+#		do_install 'nodejs'		|| return 1
 #		do_install 'nodejs-legacy'	|| return 1
 
 		echo "# running: nodejs --version"
