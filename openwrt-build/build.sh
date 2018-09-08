@@ -4214,14 +4214,14 @@ travis_prepare()
 	node --version
 	echo
 
-#	sudo rm "$( command -v node )"
-#	sudo ln -s "$( command -v nodejs )" "$( command -v node )"
-#	hash -r
-#	echo "# running: node --version"
-#	node --version
-#	echo "# running: nodejs --version"
-#	nodejs --version
-#	echo
+	sudo rm "$( command -v node )"
+	sudo ln -s "$( command -v nodejs )" "$( command -v node )"
+	hash -r
+	echo "# running: node --version"
+	node --version
+	echo "# running: nodejs --version"
+	nodejs --version
+	echo
 
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
 	echo "# running: npm --version"
