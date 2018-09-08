@@ -3961,6 +3961,7 @@ extract_javascript_and_check()
 
 	mkdir "$dir"
 
+	find $( npm root --global ) -type f | grep cheerio
 	export NODE_PATH="$( npm root --global ):$NODE_PATH"
 	log "[nodejs@$(pwd)]: node $bin $html_file $dir - NODE_PATH: $NODE_PATH"
 	node $bin "$html_file" "$dir" || return 1
