@@ -4201,33 +4201,35 @@ travis_prepare()
 	echo
 
 	# for javascript testing: https://github.com/marijnh/acorn | https://marijnhaverbeke.nl/fund/
-	command -v 'nodejs'	|| {
+#	command -v 'nodejs'	|| {
 		# https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions
 		curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
 #		do_install 'nodejs'		|| return 1
-		do_install 'nodejs-legacy'	|| return 1
+#		do_install 'nodejs-legacy'	|| return 1
 
-		echo "# running: nodejs --version"
-		nodejs --version
-	}
-	echo "# running: node --version"
-	node --version
-	echo
+#		echo "# running: nodejs --version"
+#		nodejs --version
+#	}
+#	echo "# running: node --version"
+#	node --version
+#	echo
 
-	sudo rm "$( command -v node )"
-	sudo ln -s "$( command -v nodejs )" "$( command -v node )"
-	hash -r
+#	sudo rm "$( command -v node )"
+#	sudo ln -s "$( command -v nodejs )" "$( command -v node )"
+#	hash -r
 	echo "# running: node --version"
 	node --version
 	echo "# running: nodejs --version"
 	nodejs --version
 	echo
 
+#	curl -L https://www.npmjs.com/install.sh | sh
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
 	echo "# running: npm --version"
 	npm --version
 	echo
 	npm install --global npm
+	hash -r
 	echo "# running: npm --version"
 	npm --version
 	echo
