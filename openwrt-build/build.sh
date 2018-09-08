@@ -3962,7 +3962,7 @@ extract_javascript_and_check()
 	mkdir "$dir"
 
 	log "[nodejs@$(pwd)]: nodejs $bin $html_file $dir"
-	nodejs $bin "$html_file" "$dir"
+	node $bin "$html_file" "$dir"
 
 	for file in $dir/*; do {
 		log "testing: $file"
