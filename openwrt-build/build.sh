@@ -3960,9 +3960,12 @@ extract_javascript_and_check()
 	local file
 
 	mkdir "$dir"
+
+	log "[nodejs@$(pwd)]: nodejs $bin $html_file $dir"
 	nodejs $bin "$html_file" "$dir"
 
 	for file in $dir/*; do {
+		log "testing: $file"
 		test -f "$file" && {
 			check_javascript "$file" "$mime" || {
 				rm -fR "$dir"
@@ -4223,11 +4226,10 @@ travis_prepare()
 	sudo $( command -v 'npm' ) install --global 'acorn'	|| return 1
 
 	# install cheerio for extracting DOM snippets (e.g. <script>foo</script>) for testing
-	sudo $( command -v 'npm' ) install --global 'cheerio'
-	url='https://gist.githubusercontent.com/mamuesp/e08a4f9b484ab8a84748/raw/50546bc52e8d4a452b9870e9b0f4a71192fdf3d1/extract.js'
-	sudo wget -O /usr/local/bin/extract.js "$url"
+	sudo $( command -v 'npm' ) install --global 'cheerio'	|| return 1
 
 	export NODE_PATH="$( npm root --global ):$NODE_PATH"
+	log "NODE_PATH: $NODE_PATH"
 
 	export PATH="$HOME/.cabal/bin:$PATH"
 	if command -v shellcheck; then
