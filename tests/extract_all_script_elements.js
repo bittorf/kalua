@@ -20,21 +20,22 @@ function extractScripts(data) {
 	var $ = cheerio.load(data);
 
 	$('script').each(function(i, element){
-		if ($(element).attr('src') === undefined) {
+		var src = $(element).attr('src');
+		if (src === undefined) {
 			console.log("[OK] direct content");
 			var content = $(element).html();
+			var fileName = outputPath + 'js_snippet-' + i + ".html";
+
+			fs.writeFile(fileName, content, function (err) {
+				if (err) {
+					return console.log(err);
+				}
+				console.log("[OK] stored: " + fileName);
+			});
 		} else {
-			console.log("[OK] src-element found, ignoring");
+			console.log("[OK] ignoring external source: '" + src + "'");
 		};
 
-		var fileName = outputPath + 'js_snippet-' + i + ".html";
-
-		fs.writeFile(fileName, content, function (err) {
-			if (err) {
-				return console.log(err);
-			}
-			console.log("[OK] stored: " + fileName);
-		});
 	});
 }
 
