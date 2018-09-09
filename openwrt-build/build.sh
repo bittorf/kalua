@@ -3960,16 +3960,12 @@ extract_javascript_and_check()
 	local file
 
 	mkdir "$dir"
-
-	find $( npm root --global ) -type f | grep -i cheerio || log "[FOO] no cheerio found"
-
-	export NODE_PATH="$( npm root --global ):$NODE_PATH"
-	log "[nodejs@$(pwd)]: node $bin $html_file $dir - NODE_PATH: $NODE_PATH"
+	log "running: node $bin $html_file $dir"
 	node $bin "$html_file" "$dir" || return 1
 
 	for file in $dir/*; do {
 		log "testing: $file"
-		test -f "$file" && {
+		test -s "$file" && {
 			check_javascript "$file" "$mime" || {
 				rm -fR "$dir"
 				return 1
@@ -4200,30 +4196,14 @@ travis_prepare()
 	php --version
 	echo
 
-	# for javascript testing: https://github.com/marijnh/acorn | https://marijnhaverbeke.nl/fund/
-#	command -v 'nodejs'	|| {
-		# https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions
-		curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
-		do_install 'nodejs'		|| return 1
-#		do_install 'nodejs-legacy'	|| return 1
-
-#		echo "# running: nodejs --version"
-#		nodejs --version
-#	}
-#	echo "# running: node --version"
-#	node --version
-#	echo
-
-#	sudo rm "$( command -v node )"
-#	sudo ln -s "$( command -v nodejs )" "$( command -v node )"
-#	hash -r
+	curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+	do_install 'nodejs'	|| return 1
 	echo "# running: node --version"
 	node --version
 	echo "# running: nodejs --version"
 	nodejs --version
 	echo
 
-#	curl -L https://www.npmjs.com/install.sh | sh
 	command -v 'npm'	|| do_install 'npm' 		|| return 1
 	echo "# running: npm --version"
 	npm --version
@@ -4234,16 +4214,16 @@ travis_prepare()
 	npm --version
 	echo
 
-	# install acorn
 	# forces http NOT https:
 	npm config set registry http://registry.npmjs.org/
+
+	# install acorn
 	# https://www.npmjs.com/package/acorn - javascript-parser/checker
+	# for javascript testing: https://github.com/marijnh/acorn | https://marijnhaverbeke.nl/fund/
 	npm install 'acorn' --global	|| return 1
 
 	# install cheerio for extracting DOM snippets (e.g. <script>foo</script>) for testing
 	npm install 'cheerio' --global	|| return 1
-	ls -l /usr/lib/node_modules
-	ls -l /usr/lib/node_modules/cheerio
 
 	export NODE_PATH="$( npm root --global ):$NODE_PATH"
 	log "NODE_PATH: $NODE_PATH"
