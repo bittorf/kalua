@@ -3959,6 +3959,8 @@ extract_javascript_and_check()
 	local mime='application/javascript'
 	local file
 
+	export NODE_PATH="$( npm root --global ):$NODE_PATH"
+
 	mkdir "$dir"
 	log "running: node $bin $html_file $dir"
 	node $bin "$html_file" "$dir" || return 1
