@@ -403,6 +403,7 @@ Special UCI-variables
 	olsrd.@meta[0].hnaslave_condition	- e.g. '2 ap'
 	olsrd.@meta[0].ignored_interfaces	- e.g. 'tap598 tap732'
 	olsrd.@meta[0].ignore_restarts		- bool
+	olsrd.@meta[0].no_auto_hna4		- bool
 
 	system.@fwupdate[0].url			- url
 	system.@fwupdate[0].mode		- string: 0|stable|beta|testing
