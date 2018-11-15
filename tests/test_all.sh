@@ -8,6 +8,9 @@ export PATH="/tmp/ctags:$PATH"		# FIXME!
 # - local-scope varnames should be small:
 #   grep 'local [A-Z]' openwrt-addons/etc/kalua/*
 
+# TODO:
+# - cgi-bin-status.sh -> html + js checker
+
 
 log()
 {
@@ -730,7 +733,7 @@ run_test()
 								echo
 							} >>"$codespell_file"
 
-							good='false'
+#							good='false'
 						fi
 					else
 						log "[OK] no spellcheck - please install 'https://github.com/lucasdemarchi/codespell'"
