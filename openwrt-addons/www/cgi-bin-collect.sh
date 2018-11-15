@@ -71,7 +71,7 @@ case "$QUERY_STRING" in
 	*'roaming_querymac'*)
 		eval $( _http query_string_sanitize "$0:roaming_querymac" )
 
-		# format: mac ip expires - see: net_roaming_report_new() - searched newest entires first = 'tac'
+		# format: mac ip expires - see: net_roaming_report_new() - searched newest entries first = 'tac'
 		if LINE="$( tac_roaming | grep ^"$mac" )"; then
 			explode $LINE
 			echo $2
