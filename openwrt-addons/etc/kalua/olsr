@@ -1863,15 +1863,9 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 {
 	local FILE='/tmp/OLSR/LINKS.sh'
 	local GATEWAY_IP="$( ip route list exact 0.0.0.0/0 | sed -n 's/^.* via \([0-9\.]*\) .*/\1/p;q' )" # FIXME! more abstraction, works
-	local minstrel minstrel_stats file value txrate txthroughput
-
-	[ "$( uci -q get wireless.radio0.type )" = "mac80211" ] && {
-		[ -d "/sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations" ] && {
-			minstrel="true"
-		}
-	}
-
-	local DNS METRIC LIST LINE DEVTYPE SPACER1 SPACER2 SPACER4 MAX1 MAX2 LQMULTI LQMULTI_ALL	# only for mesh-gateways
+	local minstrel_stats file value txrate txgoodput txeff
+	local dev devtype symbol freq signal phy line freq_signal_dev
+	local DNS METRIC LIST LINE DEVTYPE SPACER1 SPACER2 SPACER4 MAX1 MAX2 LQMULTI LQMULTI_ALL
 	local COUNT=0 LOCAL REMOTE LQ NLQ COST
 
 	LIST="$( sed -n 's/^LOCAL=\([0-9\.]*\).*/\1/p' "$FILE" )"		# all local IP's
@@ -1880,16 +1874,17 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 	MAX2="$( _sanitizer run "$LIST" list_get_longest_string )"
 	LQMULTI_ALL="$( _olsr lqmultiplier )"
 
-	[ $( echo $LIST | wc -w ) -gt 9 ] && SPACER3=" "  	# numbering layout
+	[ $( echo "$LIST" | wc -w ) -gt 9 ] && SPACER3=' '  	# for numbering layout
 
 	while read -r LINE; do {
-
 	  	eval $LINE
 
 		[ "$COST" = "INFINITE" ] && COST=
 
-		DEVTYPE="$( _net devtype2symbol $( _net dev_type $( _net ip2dev "$LOCAL" ) ) )"
-		DEVTYPE="${DEVTYPE}${DEVTYPE}"		# looks better
+		dev="$( _net ip2dev "$LOCAL" )"
+		devtype="$( _net dev_type "$dev" )"
+		symbol="$( _net devtype2symbol "$devtype" )"
+		symbol="${symbol}${symbol}"		# looks better: e.g. '~' = '~~'
 
 		MAC="$( _net ip2mac "$REMOTE" lazy )"
 		SPACER1="$( _sanitizer run "$MAX1 $LOCAL"  add_length_diff_with_spaces )"			# ip's should always have
@@ -1904,39 +1899,91 @@ _olsr_neighs_humanreadable()		# TODO: latitude/longitude/distance + speed
 			LQMULTI="$( _olsr lqmultiplier "$REMOTE" )"
 		fi
 
-		SPACER4="  "
-		[ "$REMOTE" = "$GATEWAY_IP" ] && SPACER4=">>"
+		SPACER4='  '
+		[ "$REMOTE" = "$GATEWAY_IP" ] && SPACER4='>>'
 
-		if [ "$minstrel" = "true" -a "$DEVTYPE" = "~~" ]; then
-			file="/sys/kernel/debug/ieee80211/phy0/netdev:$WIFIDEV/stations/$MAC"
+		if [ "$symbol" = '~~' ]; then
+			read -r phy <"/var/run/interfaces/dev2radio_$dev"
+			file="/sys/kernel/debug/ieee80211/$phy/netdev:$dev/stations/$MAC/rc_stats_csv"
 
-			if [ -d "$file" ]; then
+			# TODO: wifi_minstrel()
+			if [ -f "$file" ]; then
+				# HT20,LGI,1,P,MCS1 ,1,739,9.7,7.3,74.5,29.8,4,0,0,23491,35706,2737119,110684,1.0
+				# HT20,SGI,1,AP,MCS2 ,32,443,14.6,14.6,85.4,21.1,5,1,1,819673,1173152,1570343,76081,1.0
+				# or
+				# AP,12,6,844,9.7,9.7,95.1,16.5,5,0,0,18,25,26,4
+				# or
+				# CCK  LP  1 P 11.0M 123 1535 4.8 4.8 95.4 16.3 3 0 0 808  1569
+				# HT20 LGI 1 P MCS0  0   1477 4.8 4.8 80.7 38.7 3 0 0 3967 8482
+				while read -r line; do {
+					explode $( echo "$line" | tr ',' ' ' )
 
-				minstrel_stats="sig/mbytes_TX,RX/rate/throughput:"
+					case "$4" in
+						*'P'*)
+							case "$5" in
+								'MCS'*)
+									txrate="$8"
+								;;
+								*'M')
+									# 11M -> 11
+									txrate="$( echo "$5" | cut -d'M' -f1 )"
+								;;
+							esac
 
-				value=
-				read -r value 2>/dev/null <"$file/last_signal"
-				minstrel_stats="$minstrel_stats ${value:-?}"
+							txgoodput=$9
+							txeff=${10}
 
-				value=
-				read -r value 2>/dev/null <"$file/rx_bytes"
-				minstrel_stats="$minstrel_stats/$( _math bytes2unit "$value" mbytes dotted )"
+							break
+						;;
+					esac
 
-				value=
-				read -r value 2>/dev/null <"$file/tx_bytes"
-				minstrel_stats="$minstrel_stats/$( _math bytes2unit "$value" mbytes dotted )"
+					case "$1" in
+						*'P'*)
+							txrate=$2
+							txgoodput=$6
+							txeff=$7
 
-				txrate=; txthroughput=; efficiency=
-				eval $( _wifi minstrel_extract_raw_and_real_txrate_from_neigh_with_highest_success_rate $MAC )
-				minstrel_stats="$minstrel_stats/$txrate/${txthroughput}@${efficiency}%  "
+							break
+						;;
+					esac
+				} done <"$file"
+
+				txrate="$(    printf '% 4.1f' "$txrate" )"
+				txrate="$(    printf '%5s'    "$txrate" )"
+
+				txgoodput="$( printf '% 4.1f' "$txgoodput" )"
+				txgoodput="$( printf '%5s'    "$txgoodput" )"
+
+				txeff="$(     printf '%5s'    "$txeff" )"
+
+				if [ -n "$txrate" ]; then
+					# e.g. ' 31.7| 31.7mbit|100.0%'
+					minstrel_stats="$txrate|${txgoodput}mbit|${txeff}%"
+				else
+					minstrel_stats="$file"
+				fi
 			else
-				minstrel_stats="sig/mbytes_TX,RX/rate/throughput: ?  "
+				minstrel_stats='  ???|      ???|   ???'
 			fi
 		else
 			minstrel_stats=
 		fi
 
-		echo "${SPACER3}${COUNT}:${SPACER4}${LOCAL}${SPACER1} ${DEVTYPE}${METRIC:=0}${DEVTYPE} ${REMOTE}${SPACER2}  LQ/NLQ/COST: ${LQ} / ${NLQ} / ${COST:=~    }  ${minstrel_stats}MAC+DNS: ${MAC:=??:??:??:??:??:??} '${DNS:=unknown}' ${LQMULTI}"
+		case "$symbol" in
+			'~~')
+				freq="$( _wifi dev2freq "$dev" )"
+				signal="$( _wifi signal_get "$dev" "$MAC" )"
+
+				freq_signal_dev="${freq}mhz/${signal}dbm@$dev"
+			;;
+			*)
+				freq=
+				signal=
+				freq_signal_dev='                                          '
+			;;
+		esac
+
+		echo "${SPACER3}${COUNT}:${SPACER4}${LOCAL}${SPACER1} ${symbol}${METRIC:=0}${symbol} ${REMOTE}${SPACER2}  $freq_signal_dev  $minstrel_stats  LQ/NLQ/COST: ${LQ} / ${NLQ} / ${COST:=~    }  MAC+DNS: ${MAC:=??:??:??:??:??:??} '${DNS:=unknown}' ${LQMULTI}"
 
 	} done <"$FILE"
 
