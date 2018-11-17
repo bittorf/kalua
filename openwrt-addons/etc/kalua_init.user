@@ -91,6 +91,12 @@ test_iptables()
 	fi
 }
 
+# returncode of iptables from include/xtables.h
+# 1 = OTHER_PROBLEM
+# 2 = PARAMETER_PROBLEM
+# 3 = VERSION_PROBLEM
+# 4 = RESOURCE_PROBLEM
+
 test_iptables
 cat <<EOF
 ipt(){
@@ -102,6 +108,19 @@ ipt(){
 			;;
 			*)
 				_log it ipt daemon alert "rc: \$rc $IPT \$*"
+			;;
+		esac
+
+		case "\$rc" in
+			4)
+				sleep 5
+				if $IPT "\$@"; then
+					_log it ipt daemon alert "[OK] on second try: \$*"
+					rc=0
+				else
+					rc=\$?
+					_log it ipt daemon alert "[ERROR:\$rc] also on second try: \$*"
+				fi
 			;;
 		esac
 
