@@ -718,6 +718,59 @@ boot()
 	esac
 
 	case "$HARDWARE" in
+		'TP-LINK TL-WDR4900'*|'MQmaker WiTi')
+			fixup_phy_path_on_multiradio_device()
+			{
+				local funcname='fixup_phy_path_on_multiradio_device'
+				local phy uci_path hwmode
+				local real_phy0="$( readlink -f /sys/class/ieee80211/phy0/device | sed 's|/sys/devices/platform/||' )"	# 5ghz
+				local real_phy1="$( readlink -f /sys/class/ieee80211/phy1/device | sed 's|/sys/devices/platform/||' )"	# 2ghz
+
+
+				for phy in 0 1 2 3; do {
+					uci_path="$( uci -q get wireless.radio${phy}.path )"
+					hwmode="$(   uci -q get wireless.radio${phy}.hwmode )"
+
+					case "$hwmode" in
+						11a|11na)
+							[ "$uci_path" = "$real_phy0" ] || {
+								_log it $funcname daemon info "5ghz radio$phy: uci set wireless.radio${phy}.path=$real_phy0"
+							}
+
+							[ "$hwmode" = '11na' ] || {
+								_log it $funcname daemon info "5ghz radio$phy: uci set wireless.radio${phy}.hwmode=11na"
+							}
+						;;
+						11g|11ng)
+							[ "$uci_path" = "$real_phy1" ] || {
+								_log it $funcname daemon info "2ghz radio$phy: uci set wireless.radio${phy}.path=$real_phy1"
+							}
+
+							[ "$hwmode" = '11ng' ] || {
+								_log it $funcname daemon info "2ghz radio$phy: uci set wireless.radio${phy}.hwmode=11ng"
+							}
+						;;
+						'')
+							if   [ "$uci_path" = "$real_phy0" ]; then
+								_log it $funcname daemon info "5ghz radio$phy: uci set wireless.radio${phy}.hwmode=11na"
+							elif [ "$uci_path" = "$real_phy1" ]; then
+								_log it $funcname daemon info "2ghz radio$phy: uci set wireless.radio${phy}.hwmode=11ng"
+							else
+								_log it $funcname daemon info "uci path bad?: radio$phy: $uci_path"
+							fi
+						;;
+						*)
+							_log it $funcname daemon info "hwmode '$hwmode' = unknown for radio$phy"
+						;;
+					esac
+				} done
+			}
+
+			fixup_phy_path_on_multiradio_device
+		;;
+	esac
+
+	case "$HARDWARE" in
 		'TP-LINK TL-WDR4900'*)
 			# dirty-fix default mac: 00:04:9f:ef:01:01
 			# https://dev.openwrt.org/ticket/14714
