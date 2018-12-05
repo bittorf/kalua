@@ -102,25 +102,30 @@ cat <<EOF
 ipt(){
 	$IPT "\$@" || {
 		local rc=\$?
+		local i
 
 		case "\$*" in
 			*'-nL'*|*'-nxvL'*|*' --new '*)
 			;;
 			*)
-				_log it ipt daemon alert "rc: \$rc $IPT \$*"
+				_log it ipt daemon alert "[ERROR:\$rc] $IPT \$*"
 			;;
 		esac
 
 		case "\$rc" in
 			4)
-				sleep 30
-				if $IPT "\$@"; then
-					_log it ipt daemon alert "[OK] on second try: \$*"
-					rc=0
-				else
-					rc=\$?
-					_log it ipt daemon alert "[ERROR:\$rc] also on second try: \$*"
-				fi
+				for i in 3 3 6 6 9 9 15 30; do {
+					sleep $i
+
+					if $IPT "\$@"; then
+						_log it ipt daemon alert "[OK] on try $i: \$*"
+						rc=0
+						break
+					else
+						rc=\$?
+						_log it ipt daemon alert "[ERROR:\$rc] also on second try $i: \$*"
+					fi
+				} done
 			;;
 		esac
 
