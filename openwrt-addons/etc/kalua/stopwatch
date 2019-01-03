@@ -40,7 +40,15 @@ _stopwatch_seconds2humanreadable()
 {
 	local seconds="$1"
 #	local option="$2"	# e.g. 'pedantic' (TODO)
-	local min sec hours days month humanreadable=
+	local negative min sec hours days month years humanreadable=
+	local min_month=43200
+	local min_days=1440
+	local min_years=$(( min_days * 365 ))
+
+	test $seconds -lt 0 && {
+		negative='- '
+		seconds=$(( seconds * -1 ))
+	}
 
 	min=$(( seconds / 60 ))
 	sec=$(( seconds % 60 ))
@@ -49,17 +57,27 @@ _stopwatch_seconds2humanreadable()
 	# 1d 0h 17min -> 1d 17min
 	# 1h 0min -> 1h
 
-	if   [ $min -gt 44640 ]; then		# 44640 = 31 days
-		month=$(( min / 44640 ))
-		min=$(( min % 44640 ))
-		days=$(( min / 1440 ))
-		min=$(( min % 1440 ))
+	if   [ $min -gt $min_years ]; then
+		years=$(( min / min_years ))
+		min=$(( min % min_years ))
+		month=$(( min / min_month ))
+		min=$(( min % min_month ))
+		days=$(( min / min_days ))
+		min=$(( min % min_days ))
+		hours=$(( min / 60 ))
+		min=$(( min % 60 ))
+		humanreadable="${years}y ${month}mon ${days}d ${hours}h ${min}min"
+	elif [ $min -gt $min_month ]; then
+		month=$(( min / min_month ))
+		min=$(( min % min_month ))
+		days=$(( min / min_days ))
+		min=$(( min % min_days ))
 		hours=$(( min / 60 ))
 		min=$(( min % 60 ))
 		humanreadable="${month}mon ${days}d ${hours}h ${min}min"
-	elif [ $min -gt 1440 ]; then		# 1440 = 1 day
-		days=$(( min / 1440 ))
-		min=$(( min % 1440 ))
+	elif [ $min -gt $min_days ]; then
+		days=$(( min / min_days ))
+		min=$(( min % min_days ))
 		hours=$(( min / 60 ))
 		min=$(( min % 60 ))
 		humanreadable="${days}d ${hours}h ${min}min"
@@ -77,7 +95,7 @@ _stopwatch_seconds2humanreadable()
 		humanreadable="${sec}sec"
 	fi
 
-	echo "$humanreadable"
+	echo "${negative}$humanreadable"
 }
 
 _stopwatch_stop()		# OUT1: centyseconds = seconds/100
