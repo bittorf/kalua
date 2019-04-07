@@ -363,7 +363,7 @@ test_loader_metafunction()
 	# reload:
 	log "[test] loader-reload"
 	unset -f _
-	_ t && return 1
+	_ t && return 1		# must fail
 	. /tmp/loader
 	_ t || return 1
 	log "[test] loader-reload OK: USER: $USER HOME: $HOME"

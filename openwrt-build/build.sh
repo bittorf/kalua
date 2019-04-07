@@ -3935,11 +3935,11 @@ check_javascript()
 	local mimetype="$2"
 
 	if command -v acorn >/dev/null; then
-		log "checking '$mimetype' / $file in pwd: $( pwd )"
+		log "checking '$mimetype' / $file"
 
 		case "$file" in
 			*'googleclosure.'*|*'googleclosure_'*)
-				log "[OK] ignoring '$file' FIXME"
+				log "[OK] acorn/js-checker: ignoring '$file' FIXME"
 			;;
 			*)
 				acorn --silent "$file" || return 1
