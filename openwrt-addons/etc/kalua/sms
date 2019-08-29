@@ -66,7 +66,7 @@ _sms_send_sms77()
 	local text="$4"			# must be URL encoded
 
 	local deliver_type='quality'	# basicplus = 0.029 | quality = 0.069 | direct = 0.089 Euro - FIXME! needs abstraction
-	local trash out rc o last_action uptime
+	local trash out rc o last_action uptime passurl userurl apiurl
 	local file_last_action="/tmp/$funcname"
 	local url="http://www.sms77.de/gateway/?type=$deliver_type"
 
@@ -97,7 +97,11 @@ _sms_send_sms77()
 
 	_log it $funcname daemon debug "[${#text} chars] ${url}&u=${user}&p=${pass}&to=${number}&text=${text}"
 
-	out="$( _curl it "${url}&u=${user}&p=${pass}&to=${number}&text=${text}" '' '' "$user" "$pass" )"
+	passurl="$( _sanitizer run "$pass" urlvalue )"
+	userurl="$( _sanitizer run "$user" urlvalue )"
+	apiurl="${url}&u=${userurl}&p=${passurl}&to=${number}&text=${text}"
+
+	out="$( _curl it "$apiurl}" '' '' "$userurl" "$passurl" )"
 	rc=$?
 
 	[ $rc -eq 0 ] || {
