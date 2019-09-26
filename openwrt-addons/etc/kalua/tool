@@ -730,7 +730,7 @@ _tool_sysinfo()
 {
 	local reason="$1"	# webserver|cron
 
-	echo '<small><pre><!-- banner -->'
+	echo '<small><pre><!-- /etc/banner -->'
 	cat '/etc/banner'
 
 	echo '<hr><!-- uptime/date -->'
@@ -766,7 +766,7 @@ _tool_sysinfo()
 				iw dev "$ifname" link
 				echo "<hr><!-- iw dev $ifname info -->"
 				iw dev "$ifname" info
-				echo "<hr><!-- iw dev $ifname station dump"
+				echo "<hr><!-- iw dev $ifname station dump -->"
 				iw dev "$ifname" station dump
 			}
 		} done
@@ -778,13 +778,31 @@ _tool_sysinfo()
 		cat "/tmp/CRONSTATUS"
 	}
 
-	local table
+	local table line
 	for table in mangle filter nat raw; do {
 		echo
 		echo "<hr><!-- netfilter: table: $table -->"
 		$IPT -t $table -nxvL
 	} done
 
+	echo
+	echo "<hr><!-- ip route list exact 0.0.0.0/0 table all -->"
+	ip route list exact '0.0.0.0/0' table all | while read -r line; do {
+		case "$line " in
+			*"dev $LANDEV "*)
+				echo "# default_gateway LAN/wired | $line"
+			;;
+			*"dev $WANDEV "*)
+				echo "# default_gateway WAN/wired | $line"
+			;;
+			*)
+				# TODO: _net dev_is_wifi + 2ghz?
+				echo "# default_gateway XXXXXXXXX | $line"
+			;;
+		esac
+	} done
+
+	echo
 	echo '</pre></small>'
 
 	[ "$reason" = 'cron' ] || {
