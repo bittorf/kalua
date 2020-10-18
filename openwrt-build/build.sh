@@ -1482,7 +1482,7 @@ check_working_directory()
 			rm -fR 'packages'
 		}
 
-		repo='git://git.openwrt.org/packages.git'
+		repo='https://github.com/openwrt/packages.git'
 		log "first start - fetching OpenWrt-packages: git clone '$repo'"
 		git clone "$repo" || return $error
 		cd "$buildsystemdir" || return
