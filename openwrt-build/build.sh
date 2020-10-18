@@ -1508,13 +1508,15 @@ check_working_directory()
 	# for detecting: are we in "original" (aka master) tree or in private checkout
 	if version_is_lede ; then
 		pattern='.'		# means: any
+	elif git log -1 | grep ^'Date:' | grep -q '2020'; then
+		pattern='.'
 	else
 		pattern='git-svn-id'	# the last was r49373 = 2016-may-11
 	fi
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
-			# search most recent 'good' commit
+			log "searching most recent 'good' commit, pattern: '$pattern'"
 			while ! git log -$i | grep -q "$pattern"; do {
 				i=$(( i + 1 ))
 			} done
