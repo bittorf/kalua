@@ -606,10 +606,14 @@ version_is_lede()
 {
 	case "$( git config --get remote.origin.url )" in
 		*'lede-project'*)
+			export HQNAME='lede'
 			return 0
 		;;
 		*)
-			return 1
+			git log -1 | grep ^'Date:' | grep -q '2020' && {
+				export HQNAME='openwrt'
+				true
+			}
 		;;
 	esac
 }
@@ -636,7 +640,7 @@ target_hardware_set()
 			TARGET_SYMBOL='CONFIG_TARGET_uml_Default=y'
 			FILENAME_SYSUPGRADE='openwrt-uml-vmlinux'
 			FILENAME_FACTORY='openwrt-uml-ext4.img'
-			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=32"	# [megabytes]
 
 			version_is_lede && SPECIAL_OPTIONS="$SPECIAL_OPTIONS -CONFIG_TARGET_ROOTFS_EXT4FS"
 			version_is_lede && SPECIAL_OPTIONS="$SPECIAL_OPTIONS -CONFIG_TARGET_IMAGES_GZIP"
@@ -663,6 +667,12 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_x86_64=y'
 			FILENAME_SYSUPGRADE='openwrt-x86-64-vmlinuz'
 			FILENAME_FACTORY='openwrt-x86-64-rootfs-ext4.img.gz'
+
+			version_is_lede && \
+			test "$HQNAME" = openwrt && \
+				FILENAME_FACTORY='openwrt-x86-64-generic-ext4-rootfs.img.gz' && \
+				FILENAME_SYSUPGRADE='openwrt-x86-64-generic-kernel.bin'
+
 			[ ${#LIST_USER_OPTIONS} -le 14 ] && {
 				# e.g. 'Standard,kalua' or 'Small,kalua' ...
 				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
@@ -854,6 +864,12 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWR1043=y'
 			FILENAME_SYSUPGRADE="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-sysupgrade.bin"
 			FILENAME_FACTORY="openwrt-ar71xx-generic-tl-wr1043nd-v${version}-squashfs-factory.bin"
+
+			version_is_lede && \
+			test "$HQNAME" = openwrt && \
+				FILENAME_FACTORY="openwrt-ath79-generic-tplink_tl-wr1043nd-v${version}-squashfs-factory.bin" && \
+				FILENAME_SYSUPGRADE="openwrt-ath79-generic-tplink_tl-wr1043nd-v${version}-squashfs-sysupgrade.bin" && \
+				TARGET_SYMBOL='CONFIG_TARGET_ath79_generic_TLWR1043=y'
 		;;
 		'TP-LINK TL-WDR7500'|'TP-LINK Archer C7'|'TP-LINK Archer C7 v2')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wdr7500
@@ -882,9 +898,6 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_DIR615E4=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-dir-615-e4-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-dir-615-e4-squashfs-factory.bin'
-		;;
-		'Ubiquiti EdgeRouter X-SFP')
-			:
 		;;
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2'|'Ubiquiti Bullet2')
 			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
@@ -1184,6 +1197,8 @@ EOF
 	# CONFIG_TARGET_ramips_mt7620 ->
 	#        TARGET_ramips_mt7620 ->
 	#               ramips_mt7620
+
+	set -x
 	ARCH="${TARGET_SYMBOL%_*}"
 	ARCH="${ARCH#*_}"
 	ARCH="${ARCH#*_}"
@@ -1199,6 +1214,9 @@ EOF
 			;;
 		esac
 	}
+
+	set +x
+	sleep 30
 
 	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
 	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
@@ -1403,7 +1421,6 @@ check_working_directory()
 		}
 
 		# fedora: build-essential = 'make automake gcc gcc-c++ kernel-devel'
-		# TODO: git-core?
 		list='build-essential libncurses5-dev m4 flex git zlib1g-dev unzip subversion gawk python libssl-dev'
 		for package in $list; do {
 			log "testing for '$package'" debug
@@ -1482,6 +1499,7 @@ check_working_directory()
 			rm -fR 'packages'
 		}
 
+		repo='git://git.openwrt.org/packages.git'
 		repo='https://github.com/openwrt/packages.git'
 		log "first start - fetching OpenWrt-packages: git clone '$repo'"
 		git clone "$repo" || return $error
@@ -1508,7 +1526,7 @@ check_working_directory()
 	# for detecting: are we in "original" (aka master) tree or in private checkout
 	if version_is_lede ; then
 		pattern='.'		# means: any
-	elif git log -1 | grep ^'Date:' | grep -q '2020'; then
+	elif git log -1 | grep ^Date: | grep -q 2020; then
 		pattern='.'
 	else
 		pattern='git-svn-id'	# the last was r49373 = 2016-may-11
@@ -1516,7 +1534,7 @@ check_working_directory()
 
 	git log -1 | grep -q "$pattern" || {
 		if git log | grep -q "$pattern"; then
-			log "searching most recent 'good' commit, pattern: '$pattern'"
+			# search most recent 'good' commit
 			while ! git log -$i | grep -q "$pattern"; do {
 				i=$(( i + 1 ))
 			} done
@@ -1900,8 +1918,8 @@ copy_firmware_files()
 
 	version_is_lede && {
 		# bin/targets/ramips/mt7621/lede-ramips-mt7621-witi-squashfs-sysupgrade.bin
-		FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed 's/openwrt/lede/g' )"
-		FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed 's/openwrt/lede/g' )"
+		FILENAME_FACTORY="$(    echo "$FILENAME_FACTORY"    | sed "s/openwrt/$HQNAME/g" )"
+		FILENAME_SYSUPGRADE="$( echo "$FILENAME_SYSUPGRADE" | sed "s/openwrt/$HQNAME/g" )"
 	}
 
 	# change image-filesnames for some TP-Link routers: https://dev.openwrt.org/changeset/48767
