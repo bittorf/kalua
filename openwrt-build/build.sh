@@ -2238,7 +2238,7 @@ cpu_load_integer()
 	#  12:16AM   up 121 days,  12:34,  3 users,  load average: 3.75, 4.00, 4.42
 	# LINUX:
 	# 09:18:12 up 12 min,  load average: 0.54, 0.85, 0.58
-	set -- $( uptime )
+	set -- $( LC_ALL=C uptime )
 
 	while [ -n "$1" ]; do {
 		case "$1" in
