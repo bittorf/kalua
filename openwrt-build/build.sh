@@ -883,6 +883,9 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-dir-615-e4-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-dir-615-e4-squashfs-factory.bin'
 		;;
+		'Ubiquiti EdgeRouter X-SFP')
+			:
+		;;
 		'Ubiquiti Nanostation2'|'Ubiquiti Picostation2'|'Ubiquiti Bullet2')
 			# Atheros MIPS 4Kc @ 180 MHz / ath5k / 32 mb RAM / 8 mb FLASH
 			# the other one is: Picostation M2 (HP) = MIPS 24KC / 400 MHz
@@ -1400,7 +1403,8 @@ check_working_directory()
 		}
 
 		# fedora: build-essential = 'make automake gcc gcc-c++ kernel-devel'
-		list='build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev'
+		# TODO: git-core?
+		list='build-essential libncurses5-dev m4 flex git zlib1g-dev unzip subversion gawk python libssl-dev'
 		for package in $list; do {
 			log "testing for '$package'" debug
 
