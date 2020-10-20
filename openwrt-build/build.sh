@@ -675,7 +675,7 @@ EOF
 
 			[ ${#LIST_USER_OPTIONS} -le 14 ] && {
 				# e.g. 'Standard,kalua' or 'Small,kalua' ...
-				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=16"	# [megabytes]
+				SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_TARGET_ROOTFS_PARTSIZE=32"	# [megabytes]
 			}	# parser_ignore
 
 			[ "$option" = 'info' ] && {
@@ -845,12 +845,26 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_TLWDR4300=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-tl-wdr4300-v1-squashfs-factory.bin'
+
+			version_is_lede && \
+			test "$HQNAME" = openwrt && \
+				FILENAME_FACTORY="openwrt-ath79-generic-tplink_tl-wdr4300-v${version}-squashfs-factory.bin" && \
+				FILENAME_SYSUPGRADE="openwrt-ath79-generic-tplink_tl-wdr4300-v${version}-squashfs-sysupgrade.bin" && \
+				TARGET_SYMBOL='CONFIG_TARGET_ath79_generic_TLWDR4300=y'
 		;;
 		'TP-LINK TL-WDR4900 v1')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wdr4900
 			TARGET_SYMBOL='CONFIG_TARGET_mpc85xx_TLWDR4900=y'
 			FILENAME_SYSUPGRADE='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
+
+# bin/targets/mpc85xx_p1010_DEVICE/p1010_DEVICE_tplink/openwrt-mpc85xx-p1010-tplink_tl-wdr4900-v1-sqe
+# bin/targets/mpc85xx/p1010/openwrt-mpc85xx-p1010-tplink_tl-wdr4900-v1-squashfs-factory.bin
+			version_is_lede && \
+			test "$HQNAME" = openwrt && \
+				TARGET_SYMBOL='CONFIG_TARGET_mpc85xx_p1010_DEVICE_tplink_tl-wdr4900-v1=y' \
+				FILENAME_FACTORY="openwrt-mpc85xx-p1010-tplink_tl-wdr4900-v1-squashfs-factory.bin" && \
+				FILENAME_SYSUPGRADE="openwrt-mpc85xx-p1010-tplink_tl-wdr4900-v1-squashfs-sysupgrade.bin"
 		;;
 		'TP-LINK TL-WR940N'|'TP-LINK TL-WR941ND v4')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr940n
@@ -1197,11 +1211,35 @@ EOF
 	# CONFIG_TARGET_ramips_mt7620 ->
 	#        TARGET_ramips_mt7620 ->
 	#               ramips_mt7620
+	#
+	# CONFIG_TARGET_x86_64=y ->
+	#
+	# CONFIG_TARGET_mpc85xx_p1010_DEVICE_tplink_tl-wdr4900-v1=y ->
+	#
 
-	set -x
-	ARCH="${TARGET_SYMBOL%_*}"
+	case "$TARGET_SYMBOL" in
+		*'x86_64='*)
+			ARCH='CONFIG_TARGET_x86_64'
+		;;
+		*'mpc85xx_p1010_DEVICE'*)
+			ARCH='CONFIG_TARGET_mpc85xx_p1010'
+		;;
+		*)
+			# CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y ->
+			# CONFIG_TARGET_ramips_mt7620
+			ARCH="${TARGET_SYMBOL%_*}"
+		;;
+	esac
+
+	# cannot open bin/targets/64/generic/openwrt-x86-64-generic-kernel.bin: No such file
+	#
+	# ls -l bin/targets/x86/64/openwrt-x86-64-generic-kernel.bin
+	# zcat bin/targets/x86/64/openwrt-x86-64-generic-ext4-rootfs.img.gz >bin/targets/x86/64/openwrt-x86-64-generic-ext4-rootfs.img
+
+	# remove: CONFIG_TARGET_
 	ARCH="${ARCH#*_}"
 	ARCH="${ARCH#*_}"
+
 	ARCH_MAIN="${ARCH%_*}"	# ramips_mt7620 -> ramips
 	ARCH_SUB="${ARCH#*_}"	# ramips_mt7620 -> mt7620
 	[ "$ARCH_SUB" = "$ARCH" ] && {
@@ -1215,9 +1253,6 @@ EOF
 		esac
 	}
 
-	set +x
-	sleep 30
-
 	VERSION_KERNEL="$( grep ^'LINUX_VERSION:=' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
 	[ -n "$VERSION_KERNEL" -a -n "$VERSION_KERNEL_FORCE" ] && {
 		VERSION_KERNEL="$VERSION_KERNEL_FORCE"
@@ -1230,7 +1265,7 @@ EOF
 		# since r43047
 		# KERNEL_PATCHVER:=3.10
 		VERSION_KERNEL="$( grep ^'KERNEL_PATCHVER:=' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
-		# and in 'include/kernel-version.mk'
+:		# and in 'include/kernel-version.mk'
 		# LINUX_VERSION-3.10 = .58
 		VERSION_KERNEL="$( grep ^"LINUX_VERSION-$VERSION_KERNEL = " 'include/kernel-version.mk' )"
 		VERSION_KERNEL="$( echo "$VERSION_KERNEL" | sed 's/ = //' | sed 's/LINUX_VERSION-//' )"
@@ -2395,7 +2430,8 @@ apply_patches()
 	list_files_and_dirs()
 	{
 		local folder dir file
-
+# FIXME!
+return 0
 		# /dir/file1
 		# /dir/file2
 		# /dir/dirX/file1 ...
@@ -3088,8 +3124,8 @@ build_options_set()
 				apply_symbol 'CONFIG_PROCD_SHOW_BOOT=y'
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TRACEROUTE6=y'	# +1k
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
-				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
-				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
+#				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
+#				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
@@ -3099,7 +3135,7 @@ build_options_set()
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
 				$funcname subcall 'shaping'
-				$funcname subcall 'vtun'
+#				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
 
