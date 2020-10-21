@@ -779,14 +779,21 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-factory.bin'
 		;;
-		'TP-LINK CPE510'|'TP-LINK CPE520')
+		'TP-LINK CPE510 v1'|'TP-LINK CPE510 v2'|'TP-LINK CPE510 v3'|'TP-LINK CPE520 v1'|'TP-LINK CPE520 v2'|'TP-LINK CPE520 v3')
 	# lede-ar71xx-generic-cpe210-220-510-520-squashfs-sysupgrade.bin ->
 	# bin/targets/ar71xx/generic/lede-ar71xx-generic-cpe510-520-squashfs-sysupgrade.bin
 	# TODO: https://git.lede-project.org/?p=source.git;a=commit;h=c2e0c41842895ba47819fa98b785c76a2524628b
+	# TODO: 520?
 			# https://wiki.openwrt.org/toh/tp-link/tl-cpe510
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_CPE510=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-cpe210-220-510-520-squashfs-factory.bin'
+
+			version_is_lede && \
+			test "$HQNAME" = openwrt && \
+				TARGET_SYMBOL="CONFIG_TARGET_ath79_generic_DEVICE_tplink_cpe510-v${version}" && \
+				FILENAME_SYSUPGRADE="openwrt-ath79-generic-tplink_cpe510-v${version}-squashfs-sysupgrade.bin" && \
+				FILENAME_FACTORY="openwrt-ath79-generic-tplink_cpe510-v${version}-squashfs-factory.bin"
 		;;
 		'TP-LINK TL-WR703N v1')
 			# http://wiki.openwrt.org/toh/tp-link/tl-wr703n
@@ -858,8 +865,6 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
 
-# bin/targets/mpc85xx_p1010_DEVICE/p1010_DEVICE_tplink/openwrt-mpc85xx-p1010-tplink_tl-wdr4900-v1-sqe
-# bin/targets/mpc85xx/p1010/openwrt-mpc85xx-p1010-tplink_tl-wdr4900-v1-squashfs-factory.bin
 			version_is_lede && \
 			test "$HQNAME" = openwrt && \
 				TARGET_SYMBOL='CONFIG_TARGET_mpc85xx_p1010_DEVICE_tplink_tl-wdr4900-v1=y' \
@@ -1216,6 +1221,7 @@ EOF
 	#
 	# CONFIG_TARGET_mpc85xx_p1010_DEVICE_tplink_tl-wdr4900-v1=y ->
 	#
+	# CONFIG_TARGET_ath79_generic_DEVICE_tplink_cpe510-v1 ->
 
 	case "$TARGET_SYMBOL" in
 		*'x86_64='*)
@@ -1223,6 +1229,9 @@ EOF
 		;;
 		*'mpc85xx_p1010_DEVICE'*)
 			ARCH='CONFIG_TARGET_mpc85xx_p1010'
+		;;
+		*'_DEVICE_'*)
+			ARCH="$( echo "$TARGET_SYMBOL" | sed -n 's/^\(.*\)_DEVICE_.*/\1/p' )"
 		;;
 		*)
 			# CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y ->
