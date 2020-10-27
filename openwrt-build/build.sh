@@ -2379,6 +2379,9 @@ build()
 				make package/kernel/mac80211/clean
 			}
 
+			log "you can now execute in '$( pwd )' your e.g. make menuconfig | press return when ready"
+			read NOP
+
 			log "running 'make $commandline'"
 			get_uptime_in_sec 't1'
 
@@ -3087,6 +3090,7 @@ build_options_set()
 				}	# parser_ignore
 
 				apply_symbol 'CONFIG_PACKAGE_zram-swap=y'		# base-system: zram-swap
+				apply_symbol kernel 'CONFIG_ZRAM=y'
 
 # https://dev.openwrt.org/ticket/19586
 #				apply_symbol 'CONFIG_PROCD_ZRAM_TMPFS=y'		# since r43489
