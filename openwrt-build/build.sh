@@ -771,7 +771,12 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_WZRHPAG300H=y'
 			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-factory.bin'
-			# TODO: openwrt-ar71xx-generic-wzr-hp-ag300h-squashfs-tftp.bin
+
+			version_is_lede && \
+			test "$HQNAME" = openwrt && \
+				TARGET_SYMBOL='CONFIG_TARGET_ath79_generic_WZRHPAG300H=y' && \
+				FILENAME_SYSUPGRADE='openwrt-ath79-generic-buffalo_wzr-hp-ag300h-squashfs-sysupgrade.bin' && \
+				FILENAME_FACTORY='openwrt-ath79-generic-buffalo_wzr-hp-ag300h-squashfs-factory.bin'
 		;;
 		'TP-LINK CPE210'|'TP-LINK CPE220')
 			# https://wiki.openwrt.org/toh/tp-link/tl-cpe210
@@ -1373,6 +1378,12 @@ feeds_prepare()
 
 		log "addfeed 'olsrd2/oonf'" debug,gitadd "$file_feeds"
 		do_symlinking='true'
+	}
+
+	grep -F ' DAWN ' "$file_feeds" || {
+		log "DAWN: in file '$file_feeds' no dawn, cd to '$(pwd)', press enter"
+		read -r NOP
+		# ./scripts/feeds install dawn
 	}
 
 	grep -F ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
@@ -2380,7 +2391,7 @@ build()
 			}
 
 			log "you can now execute in '$( pwd )' your e.g. make menuconfig | press return when ready"
-			read NOP
+			read -r NOP
 
 			log "running 'make $commandline'"
 			get_uptime_in_sec 't1'
@@ -3658,6 +3669,13 @@ build_options_set()
 			;;
 			'ebTables')
 				apply_symbol 'CONFIG_PACKAGE_ebtables=y'		# network: firewall: ebtables
+			;;
+			'hostAPd')
+				apply_symbol 'CONFIG_PACKAGE_hostapd=y'
+			;;
+			'DAWN')
+				apply_symbol 'CONFIG_PACKAGE_dawn=y'
+				$funcname subcall 'hostAPd'
 			;;
 			'VDS')
 				apply_symbol 'CONFIG_PACKAGE_ulogd=y'			# network: ulogd:
