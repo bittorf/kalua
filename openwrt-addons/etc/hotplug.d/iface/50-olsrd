@@ -56,6 +56,18 @@ case "$ACTION" in
 			# INTERFACE = e.g. 'wlanadhocRADIO1' or 'cfg144d8f'
 			# DEVICE    = e.g. 'wlan1-1'
 			olsrd_interface_needs_adding && {
+				VXDEV='vx_overlay'
+				[ -n "$ROAMING_TUNNEL_MASTER" ] || VXDEV=lo
+
+				_net dev_is_valid $VXDEV || {
+					ip link add dev $VXDEV type vxlan id $NODENUMBER remote $ROAMING_TUNNEL_MASTER dstport 4789
+					ip link set dev $VXDEV up
+					ip addr add $ROAMING_TUNNEL_IP/$ROAMING_TUNNEL_PRE broadcast $ROAMING_TUNNEL_BRC dev $VXDEV
+
+					# allow broadcasts:
+					echo 0 >/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+				}
+
 				logger -t olsrd_hotplug -p daemon.info "restart: dev $INTERFACE"
 				. /etc/rc.common /etc/init.d/olsrd restart
 				logger -t olsrd_hotplug -p daemon.info "restart: dev $INTERFACE - ready"
