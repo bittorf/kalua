@@ -57,9 +57,15 @@ case "$ACTION" in
 			# DEVICE    = e.g. 'wlan1-1'
 			olsrd_interface_needs_adding && {
 				VXDEV='vx_overlay'
-				[ -n "$ROAMING_TUNNEL_MASTER" ] || VXDEV=lo
+				grep -q ^'vxlan' /proc/modules || VXDEV=lo
 
+				. /tmp/loader
 				_net dev_is_valid $VXDEV || {
+					[ -z "$ROAMING_TUNNEL_MASTER" ] && {
+						_netparam check
+						. /tmp/loader
+					}
+
 					ip link add dev $VXDEV type vxlan id $NODENUMBER remote $ROAMING_TUNNEL_MASTER dstport 4789
 					ip link set dev $VXDEV up
 					ip addr add $ROAMING_TUNNEL_IP/$ROAMING_TUNNEL_PRE broadcast $ROAMING_TUNNEL_BRC dev $VXDEV
