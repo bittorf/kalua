@@ -50,35 +50,35 @@ olsrd_interface_needs_adding()
 
 case "$ACTION" in
 	ifup)
+		VXDEV='vx_overlay'
+		grep -q ^'vxlan' /proc/modules || VXDEV=lo
+
+		. /tmp/loader
+		_net dev_is_valid $VXDEV || {
+			[ -z "$ROAMING_TUNNEL_MASTER" ] && {
+				_netparam check
+				. /tmp/loader
+			}
+
+			ip link add dev $VXDEV type vxlan id $NODENUMBER remote $ROAMING_TUNNEL_MASTER dstport 4789
+			ip link set dev $VXDEV up
+			ip addr add $ROAMING_TUNNEL_IP/$ROAMING_TUNNEL_PRE broadcast $ROAMING_TUNNEL_BRC dev $VXDEV
+
+			# allow broadcasts:
+			echo 0 >/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+
+			uci set dawn.@network[0].broadcast_ip="$ROAMING_TUNNEL_BRC"
+			uci set dawn.@network[0].network_option=0	# UDP
+
+			pidof dawn >/dev/null && /etc/init.d/dawn restart
+		}
+
 		# only work after the first normal startup
 		# also: no need to test, if enabled
 		[ -e '/var/etc/olsrd.conf' ] && {
 			# INTERFACE = e.g. 'wlanadhocRADIO1' or 'cfg144d8f'
 			# DEVICE    = e.g. 'wlan1-1'
 			olsrd_interface_needs_adding && {
-				VXDEV='vx_overlay'
-				grep -q ^'vxlan' /proc/modules || VXDEV=lo
-
-				. /tmp/loader
-				_net dev_is_valid $VXDEV || {
-					[ -z "$ROAMING_TUNNEL_MASTER" ] && {
-						_netparam check
-						. /tmp/loader
-					}
-
-					ip link add dev $VXDEV type vxlan id $NODENUMBER remote $ROAMING_TUNNEL_MASTER dstport 4789
-					ip link set dev $VXDEV up
-					ip addr add $ROAMING_TUNNEL_IP/$ROAMING_TUNNEL_PRE broadcast $ROAMING_TUNNEL_BRC dev $VXDEV
-
-					# allow broadcasts:
-					echo 0 >/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
-
-					uci set dawn.@network[0].broadcast_ip="$ROAMING_TUNNEL_BRC"
-					uci set dawn.@network[0].network_option=0	# UDP
-
-					/etc/init.d/dawn restart
-				}
-
 				logger -t olsrd_hotplug -p daemon.info "restart: dev $INTERFACE"
 				. /etc/rc.common /etc/init.d/olsrd restart
 				logger -t olsrd_hotplug -p daemon.info "restart: dev $INTERFACE - ready"
