@@ -60,6 +60,23 @@ case "$ACTION" in
 				. /tmp/loader
 			}
 
+			grep -q "config interface 'vx'" /etc/config/network || {
+				cat >>/dev/null <<EOF
+
+config interface 'vx'
+	option proto    'vxlan'
+	option peeraddr '$ROAMING_TUNNEL_MASTER'
+	option port     '4789'
+	option vid      '$NODENUMBER'
+
+config interface 'l2vpn'
+	option ifname  '@vx'
+	option proto   'static'
+	option ipaddr  '$ROAMING_TUNNEL_IP'
+	option netmask '$( _net cidr2mask $ROAMING_TUNNEL_PRE )'
+	option layer   '2'
+EOF
+}
 			ip link add dev $VXDEV type vxlan id $NODENUMBER remote $ROAMING_TUNNEL_MASTER dstport 4789
 			ip link set dev $VXDEV up
 			ip addr add $ROAMING_TUNNEL_IP/$ROAMING_TUNNEL_PRE broadcast $ROAMING_TUNNEL_BRC dev $VXDEV
