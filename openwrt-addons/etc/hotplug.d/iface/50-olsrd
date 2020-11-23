@@ -81,12 +81,28 @@ EOF
 			ip link set dev $VXDEV up
 			ip addr add $ROAMING_TUNNEL_IP/$ROAMING_TUNNEL_PRE broadcast $ROAMING_TUNNEL_BRC dev $VXDEV
 
+			uci -q get network.vxnet || {
+				uci set network.vxnet=interface
+				uci set network.vxnet.proto=none
+				ubus call network reload
+			}
+
+			# https://openwrt-devel.openwrt.narkive.com/gFufVSmE/netifd-handling-of-interfaces-with-proto-none
+			# now we can e.g.
+			# ifstatus vxnet
+			# devstatus vx_overlay
+			ubus call network.interface.vxnet add_device '{ "name": "'$VXDEV'" }'
+
 			# allow broadcasts:
 			echo 0 >/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
 
 			uci set dawn.@network[0].broadcast_ip="$ROAMING_TUNNEL_BRC"
 			uci set dawn.@network[0].network_option=2	# TCP
 			uci del dawn.@network[0].disabled
+
+			# dawn uses this in TCP mode:
+			uci set umdns.@umdns[0].network=vxnet
+			/etc/init.d/umdns restart
 
 			pidof dawn >/dev/null && /etc/init.d/dawn restart
 		}
