@@ -61,10 +61,11 @@ case "$ACTION" in
 			}
 
 			grep -q "config interface 'vx'" /etc/config/network || {
-				cat >>/dev/null <<EOF
+				cat >>/etc/config/network <<EOF
 
 config interface 'vx'
 	option proto    'vxlan'
+	option ipaddr   '0.0.0.0'
 	option peeraddr '$ROAMING_TUNNEL_MASTER'
 	option port     '4789'
 	option vid      '$NODENUMBER'
@@ -76,22 +77,25 @@ config interface 'l2vpn'
 	option netmask '$( _net cidr2mask $ROAMING_TUNNEL_PRE )'
 	option layer   '2'
 EOF
-}
-			ip link add dev $VXDEV type vxlan id $NODENUMBER remote $ROAMING_TUNNEL_MASTER dstport 4789
-			ip link set dev $VXDEV up
-			ip addr add $ROAMING_TUNNEL_IP/$ROAMING_TUNNEL_PRE broadcast $ROAMING_TUNNEL_BRC dev $VXDEV
 
-			uci -q get network.vxnet || {
-				uci set network.vxnet=interface
-				uci set network.vxnet.proto=none
-				ubus call network reload
-			}
+			ifup vx
+}
+
+#			ip link add dev $VXDEV type vxlan id $NODENUMBER remote $ROAMING_TUNNEL_MASTER dstport 4789
+#			ip link set dev $VXDEV up
+#			ip addr add $ROAMING_TUNNEL_IP/$ROAMING_TUNNEL_PRE broadcast $ROAMING_TUNNEL_BRC dev $VXDEV
+
+#			uci -q get network.vxnet || {
+#				uci set network.vxnet=interface
+#				uci set network.vxnet.proto=none
+#				ubus call network reload
+#			}
 
 			# https://openwrt-devel.openwrt.narkive.com/gFufVSmE/netifd-handling-of-interfaces-with-proto-none
 			# now we can e.g.
 			# ifstatus vxnet
 			# devstatus vx_overlay
-			ubus call network.interface.vxnet add_device '{ "name": "'$VXDEV'" }'
+#			ubus call network.interface.vxnet add_device '{ "name": "'$VXDEV'" }'
 
 			# allow broadcasts:
 			echo 0 >/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
@@ -101,10 +105,19 @@ EOF
 			uci del dawn.@network[0].disabled
 
 			# dawn uses this in TCP mode:
+			# check: ubus call umdns hosts
+			#        ubus call umdns browse
 			uci set umdns.@umdns[0].network=vxnet
 			/etc/init.d/umdns restart
 
+			# https://forum.openwrt.org/t/how-does-rrm-work/32635/65
+			# ubus call dawn get_network
+			# ubus call dawn get_hearing_map
+			# ubus call hostapd.wlan0-1 rrm_nr_get_own
+			# ubus -v list dawn
 			pidof dawn >/dev/null && /etc/init.d/dawn restart
+
+			# https://github.com/anonymous-one/hostapd-roamer/tree/master
 		}
 
 		# only work after the first normal startup
