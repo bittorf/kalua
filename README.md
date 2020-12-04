@@ -1,6 +1,8 @@
 kalua - build mesh-networks _without_ pain
 ==========================================
 
+[![HitCount](http://hits.dwyl.com/bittorf/kalua.svg)](http://hits.dwyl.com/bittorf/kalua)
+
 * community: http://wireless.subsignal.org
 * monitoring: http://intercity-vpn.de/networks/giancarlo/
 * documentation: [API](http://wireless.subsignal.org/index.php?title=Firmware-Dokumentation_API)
