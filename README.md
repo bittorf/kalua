@@ -31,6 +31,13 @@ sh build.sh --openwrt trunk && cd openwrt && ../build.sh --help
 
 # or build an image:
 ../build.sh --openwrt r46693 --hardware 'La Fonera 2.0N' --usecase 'Standard,kalua'
+
+# or get specific help for hardware:
+../build.sh --openwrt r16539 --hardware
+
+# or get specific help for usecase:
+../build.sh --openwrt r16539 --hardware 'TP-LINK TL-WDR4300' --usecase
+
 ```
 
 how to tweak the build:
