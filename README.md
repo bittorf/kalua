@@ -22,17 +22,19 @@ join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bit
 * [![build status now][travisGFX]][travis]
 
 
-TLDR!
------
+TLDR! - just get me started:
+----------------------------
 
 ```
 wget https://raw.githubusercontent.com/bittorf/kalua/master/openwrt-build/build.sh
-sh build.sh --openwrt trunk && cd openwrt
+sh build.sh --openwrt trunk && cd openwrt && ../build.sh --help
+
+# or build an image:
 ../build.sh --openwrt r46693 --hardware 'La Fonera 2.0N' --usecase 'Standard,kalua'
 ```
 
-how to get started
-------------------
+how to tweak the build:
+-----------------------
 
 ```
 git clone https://github.com/bittorf/kalua.git
