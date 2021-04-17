@@ -1583,7 +1583,7 @@ check_working_directory()
 	# for detecting: are we in "original" (aka master) tree or in private checkout
 	if version_is_lede ; then
 		pattern='.'		# means: any
-	elif git log -1 | grep ^Date: | grep -q 2020; then
+	elif git log -1 | grep ^Date: | grep -q 202[0-9]; then
 		pattern='.'
 	else
 		pattern='git-svn-id'	# the last was r49373 = 2016-may-11
