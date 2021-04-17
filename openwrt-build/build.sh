@@ -1492,7 +1492,8 @@ check_working_directory()
 			else
 				log "missing package '$package'"
 				log "please run: apt-get install --yes --force-yes '$package'"
-				return $error
+
+				sudo apt-get install --yes --force-yes "$package" || return $error
 			fi
 		} done
 
@@ -1571,6 +1572,7 @@ check_working_directory()
 		log "[OK] now you should do:"
 		log "debug: pwd: '$(pwd)'"
 		log "cd '$buildsystemdir' && ../build.sh --help"
+		chmod +x build.sh
 
 		exit $error
 	}
