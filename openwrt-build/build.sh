@@ -1572,7 +1572,7 @@ check_working_directory()
 		log "[OK] now you should do:"
 		log "debug: pwd: '$(pwd)'"
 		log "cd '$buildsystemdir' && ../build.sh --help"
-		chmod +x build.sh
+		chmod +x ../build.sh
 
 		exit $error
 	}
