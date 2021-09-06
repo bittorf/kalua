@@ -483,10 +483,10 @@ build_kalua_update_tarball()
 		cp -pv ../openwrt-build/apply_profile* etc/init.d
 
 		private_settings="../../apply_profile.code.definitions"
-		[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
+		[ -f "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
 		[ -f "$PRIV" ] && private_settings="$PRIV"
 
-		[ -e "$private_settings" ] && {
+		if [ -f "$private_settings" ]; then
 			log "using file: '$private_settings'"
 			cp -pv "$private_settings" etc/init.d
 
@@ -495,7 +495,9 @@ build_kalua_update_tarball()
 			sed -n '/^case/,/^	\*)/p' "../openwrt-build/apply_profile.code.definitions" | sed -e '1d' -e '$d' >"/tmp/defs_$$"
 			sed -i '/^case/ r /tmp/defs' "etc/init.d/apply_profile.code.definitions"
 			rm "/tmp/defs_$$"
-		}
+		else
+			log "HINT: include private definitions file with: export PRIV=/path/to/myfile"
+		fi
 
 		check_scripts . || return 1
 		tar $options -czf "$tarball" .
