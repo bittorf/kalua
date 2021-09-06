@@ -745,11 +745,18 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-x86-alix2-combined-squashfs.img'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
+		'Xiaomi Mi R3P Pro')
+			# https://openwrt.org/toh/xiaomi/xiaomi_r3p_pro
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_xiaomi_mi-router-3-pro=y'
+			# TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3-pro=y'
+
+			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-xiaomi_mi-router-3-pro-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ramips-mt7621-xiaomi_mi-router-3-pro-squashfs-factory.bin'
+		;;
 		'MQmaker WiTi')
 			# https://wiki.openwrt.org/toh/mqmaker/witi
 			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_witi=y'
 			# TODO: for openwrt: CONFIG_TARGET_ramips_mt7621_WITI=y
-
 
 			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-witi-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"

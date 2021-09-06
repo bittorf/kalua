@@ -267,7 +267,7 @@ exit
 opkg update
 opkg install ip bmon netperf
 opkg install olsrd olsrd-mod-arprefresh olsrd-mod-watchdog olsrd-mod-txtinfo olsrd-mod-nameservice
-opkg install uhttpd uhttpd-mod-tls px5g
+opkg install uhttpd libuhttpd-mbedtls px5g
 opkg install kmod-ipt-compat-xtables iptables-mod-conntrack iptables-mod-conntrack-extra iptables-mod-extra
 opkg install iptables-mod-filter iptables-mod-ipp2p iptables-mod-ipopt iptables-mod-nat iptables-mod-nat-extra
 opkg install iptables-mod-ulog ulogd ulogd-mod-extra
