@@ -282,7 +282,8 @@ opkg install iptables-mod-filter iptables-mod-ipp2p iptables-mod-ipopt iptables-
 opkg install iptables-mod-ulog ulogd ulogd-mod-extra
 
 # build full kalua-tarball on server
-kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full
+# export PRIV=/home/bastian/bittorf_wireless/programmierung/apply_profile.code.definitions
+( cd .. && kalua/openwrt-build/mybuild.sh build_kalua_update_tarball full )
 
 # copy from server to your router
 scp user@yourserver:/tmp/tarball.tgz /tmp/tarball.tgz

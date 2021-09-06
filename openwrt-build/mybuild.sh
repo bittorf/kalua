@@ -484,6 +484,7 @@ build_kalua_update_tarball()
 
 		private_settings="../../apply_profile.code.definitions"
 		[ -e "$private_settings" ] || private_settings="/tmp/apply_profile.code.definitions"
+		[ -f "$PRIV" ] && private_settings="$PRIV"
 
 		[ -e "$private_settings" ] && {
 			log "using file: '$private_settings'"
