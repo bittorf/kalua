@@ -698,7 +698,7 @@ _config_softwareinstall()
 _config_wireless()			# fixme! channels hardcoded
 {
 	local NODE="$1"
-	local MAC htmode hwmode country ht_cap ht_cap_list hideht radiotype radiocard hidetx
+	local MAC htmode hwmode hwband country ht_cap ht_cap_list hideht radiotype radiocard hidetx
 	local temp="/tmp/config_wireless.tmp"
 	local driver_path distance
 	local network_append=
@@ -764,6 +764,8 @@ for radiocard in 0 1 2 3; do {
 		hide_mac=
 	fi
 
+	hwband="$( uci get wireless.radio${radiocard}.band )"		# e.g. 2g or 5g
+
 	hwmode="$( uci get wireless.radio${radiocard}.hwmode )"		# backup current state
 	hwmode="${hwmode:-11g}"
 	[ "$HARDWARE" = 'UML' -a "$radiocard" = '0' ] && hwmode='11n'	# hwsim has 2 x dualcard
@@ -774,8 +776,9 @@ for radiocard in 0 1 2 3; do {
 		;;
 	esac
 
-	case "$( uci get wireless.radio${radiocard}.htmode )" in	# maybe switched off by user
-		"")
+	htmode="$( uci get wireless.radio${radiocard}.htmode )"
+	case "$htmode" in	# maybe switched off by user
+		'')
 			hideht="#"
 		;;
 	esac
@@ -835,6 +838,11 @@ for radiocard in 0 1 2 3; do {
 
 	get_wifi_band()
 	{
+		case "$hwband" in
+			2g) echo 'g' && return ;;
+			5g) echo 'a' && return ;;
+		esac
+
 		case "$hwmode" in
 			11na|11a)
 				echo 'a'
@@ -874,32 +882,38 @@ for radiocard in 0 1 2 3; do {
 		;;
 	esac
 
-	wireless_reghack_available || {
-		case "$CHANNEL" in
-			36|37|38|39|40|149|153|161) htmode="HT40+" ;;
-			44|157) htmode="HT40-" ;;
-			1|2|3|4|5|6) htmode="HT40+" ;;
-			   12|13|14) htmode="HT20" ;;		# fixme!
-			          *) htmode="HT40-" ;;
-		esac
-	}
-
-	case "$PROFILE_MODE" in
-		hybrid)
-			htmode="HT20"
-		;;
-	esac
-
-	case "$hwmode" in
-		11g)
-			htmode="HT20"
-		;;
-	esac
-
-	local hide_noscan
 	case "$htmode" in
-		"HT20")
-			hide_noscan="#"
+		*vht*|*VHT*)
+		;;
+		*)
+			wireless_reghack_available || {
+				case "$CHANNEL" in
+					36|37|38|39|40|149|153|161) htmode="HT40+" ;;
+					44|157) htmode="HT40-" ;;
+					1|2|3|4|5|6) htmode="HT40+" ;;
+					   12|13|14) htmode="HT20" ;;		# fixme!
+						  *) htmode="HT40-" ;;
+				esac
+			}
+
+			case "$PROFILE_MODE" in
+				hybrid)
+					htmode="HT20"
+				;;
+			esac
+
+			case "$hwmode" in
+				11g)
+					htmode="HT20"
+				;;
+			esac
+
+			local hide_noscan
+			case "$htmode" in
+				"HT20")
+					hide_noscan="#"
+				;;
+			esac
 		;;
 	esac
 
