@@ -260,10 +260,19 @@ piggyback kalua on a new router model without building from scratch
 ip -family inet address show dev $(uci get network.wan.ifname)
 /etc/init.d/firewall stop
 /etc/init.d/firewall disable
-exit
 
+# get internet access using another AccessPoint or
 # plugin ethernet on WAN and connect to the router
 # via 'telnet <routers_wan_ip>', then do:
+uci set wireless.default_radio0.mode=sta
+uci set wireless.default_radio0.ssid=weimar.freifunk.net
+uci set wireless.default_radio0.network=getip
+uci del wireless.radio0.disabled
+uci set network.getip=interface
+uci set network.getip.proto=dhcp
+wifi
+
+# install essential packages:
 opkg update
 opkg install ip bmon netperf
 opkg install olsrd olsrd-mod-arprefresh olsrd-mod-watchdog olsrd-mod-txtinfo olsrd-mod-nameservice
@@ -284,6 +293,7 @@ cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 
 # execute config-writer
 /etc/init.d/apply_profile.code
+/etc/init.d/apply_profile.code liszt28 hybrid 34
 ```
 
 Cherry Picking Git commits from forked repositories
