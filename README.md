@@ -295,6 +295,10 @@ cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 # execute config-writer
 /etc/init.d/apply_profile.code
 /etc/init.d/apply_profile.code liszt28 hybrid 34
+
+# avoid autoupdates:
+uci set system.@system[0].noswinstall=true
+uci commit system
 ```
 
 Cherry Picking Git commits from forked repositories
