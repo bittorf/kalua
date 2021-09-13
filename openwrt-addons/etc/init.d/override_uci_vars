@@ -2142,8 +2142,13 @@ boot()
 
 					local myip wanip
 
+					# /etc/ethers:
+					# 70:10:6f:ca:74:70 10.63.22.98
+					# b4:2e:99:c4:5f:13 10.63.22.100
 					myip="$( _net ip4_plus_x "$LANADR" 1 )"
-					_net dhcp_lease_fixed '70:10:6f:ca:74:70' "$myip"
+					_net dhcp_lease_fixed '70:10:6f:ca:74:70' "$myip"	# nas
+					myip="$( _net ip4_plus_x "$LANADR" 3 )"
+					_net dhcp_lease_fixed 'b4:2e:99:c4:5f:13' "$myip"	# ryzen
 
 					wanip="$( _ipsystem getvar 'WANADR' 276 )"	# from inet_offering router
 					grep -sq ^"$wanip " "$TMPDIR/own_dns_overrides.txt" || echo "$wanip bwireless.mooo.com" >>"$TMPDIR/own_dns_overrides.txt"
@@ -2477,6 +2482,14 @@ boot()
 				;;
 			esac
 
+			case "$HARDWARE" in
+				'TP-LINK Archer C6U')
+					# 5ghz crashes on bootup
+					_wifi set anymode anyfreq off
+					_wifi set anymode 2ghz on
+				;;
+			esac
+
 			apply_olsr_watchdog
 		;;
 		'ilm1'*)
@@ -2590,6 +2603,9 @@ boot()
 					uci set system.@monitoring[0].pingcheck='10.10.101.1'
 
 					_olsr hna4_inetoffer start 'bootup'
+
+					# FIXME: workaround:
+					echo >"$TMPDIR/user.masq" "$IPT -t nat -s 10.10.0.0/16 -I POSTROUTING -j MASQUERADE"
 				;;
 				101)
 					# Heizung/Lueftung: 192.168.0.245|246|247 - haustechnikmsr|Ods8g4d2
