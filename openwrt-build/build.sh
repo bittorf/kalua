@@ -913,7 +913,11 @@ EOF
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_PACKAGE_kmod-ath10k=y"
 		;;
 		'TP-LINK Archer C6U')
-			:
+			# FIXME! no article yet
+			# https://oldwiki.archive.openwrt.org/toh/tp-link/start
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_DEVICE_tplink_archer-c6u-v1=y'
+			FILENAME_SYSUPGRADE="openwrt-ramips-mt7621-tplink_archer-c6u-v1-squashfs-sysupgrade.bin"
+			FILENAME_FACTORY="openwrt-ramips-mt7621-tplink_archer-c6u-v1-squashfs-factory.bin"
 		;;
 		'Mercury MAC1200R')
 			# http://wiki.openwrt.org/toh/mercury/mac1200r
