@@ -296,7 +296,8 @@ cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 /etc/init.d/apply_profile.code
 /etc/init.d/apply_profile.code liszt28 hybrid 34
 
-# avoid autoupdates:
+# avoid autoupdates and keep serial console-login running:
+touch /www/serial_enabled
 uci set system.@system[0].noswinstall=true
 uci commit system
 ```
