@@ -912,6 +912,9 @@ EOF
 			# /lib/firmware/ath10k/QCA988X/hw2.0/
 			SPECIAL_OPTIONS="$SPECIAL_OPTIONS CONFIG_PACKAGE_kmod-ath10k=y"
 		;;
+		'TP-LINK Archer C6U')
+			:
+		;;
 		'Mercury MAC1200R')
 			# http://wiki.openwrt.org/toh/mercury/mac1200r
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_MAC1200R=y'
