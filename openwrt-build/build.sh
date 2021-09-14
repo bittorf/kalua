@@ -2713,6 +2713,7 @@ apply_symbol()
 			} done
 			cd - >/dev/null || return
 
+			# TODO: add header like above
 			log "$KALUA_DIRNAME: adding 'apply_profile' stuff to '$custom_dir/etc/init.d/'"
 			cp "$KALUA_DIRNAME/openwrt-build/apply_profile"* "$custom_dir/etc/init.d"
 
