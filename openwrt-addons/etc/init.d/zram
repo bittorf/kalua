@@ -13,15 +13,16 @@ ram_size()	# in kilobytes
 
 zram_size()	# in megabytes
 {
+	local cpu_cores="$1"
 	local zram_size="$( uci -q get system.@system[0].zram_size_mb )"
 	local ram_size="$( ram_size )"
 
-	if [ -z "$zram_size" ]; then
+	[ -z "$zram_size" ] && {
 		# e.g. 6mb for 16mb-routers or 61mb for 128mb-routers
-		echo $(( ram_size / 2048 ))
-	else
-		echo "$zram_size"
-	fi
+		zram_size=$(( ram_size / 2048 ))
+	}
+
+	echo "$(( zram_size / cpu_cores ))"
 }
 
 zram_applicable()
@@ -130,9 +131,9 @@ kmodules_do()
 
 start()
 {
-	local zram_size="$( zram_size )"
-	local list_cores="$( list_cpu_idx )"
-	local zram_dev core num_devices offset
+	local zram_dev core num_devices offset list_cores zram_size
+
+	list_cores="$( list_cpu_idx )"
 
 	# http://shmilyxbq-compcache.googlecode.com/hg/README
 	# if >1 cpu_core or zram0 already used, reinit kmodule with e.g. num_devices=4
@@ -146,6 +147,8 @@ start()
 			stop
 		;;
 	esac
+
+	zram_size="$( zram_size "$num_devices" )"
 
 	for offset in 0 1 2 3; do test -d "/sys/block/zram$offset" || break; done
 	kmodules_do load "$(( num_devices + offset ))"
