@@ -84,6 +84,7 @@ special arguments:
 	  --update	# refresh this buildscript
 	  --dotconfig "\$myfile"
 	  --feedstime '2015-08-31 19:33' 'feedsname or <empty>'
+	  --yes         # yes to all questions
 
 	  # apply own patches on top of OpenWrt. default only adds openwrt-patches/*
           --patchdir \$dir1 --patchdir \$dir2
@@ -1396,7 +1397,7 @@ feeds_prepare()
 
 	grep -F ' DAWN ' "$file_feeds" || {
 		log "DAWN: in file '$file_feeds' no dawn, cd to '$(pwd)', press enter"
-		read -r NOP
+		[ -n "$YESTOALL" ] || read -r NOP
 		# ./scripts/feeds install dawn
 	}
 
@@ -2407,7 +2408,7 @@ build()
 			}
 
 			log "you can now execute in '$( pwd )' your e.g. make menuconfig | press return when ready"
-			read -r NOP
+			[ -n "$YESTOALL" ] || read -r NOP
 
 			log "running 'make $commandline'"
 			get_uptime_in_sec 't1'
@@ -4528,6 +4529,9 @@ fi
 
 while [ -n "$1" ]; do {
 	case "$1" in
+		'--yes'|'-y')
+			export YESTOALL=true
+		;;
 		'--tarball_package'|'-P')
 			build_tarball_package || print_usage_and_exit
 			exit 0
