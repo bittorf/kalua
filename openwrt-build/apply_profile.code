@@ -708,6 +708,8 @@ _config_wireless()			# fixme! channels hardcoded
 	local default_channel="$CHANNEL"
 	local pointing2device
 
+	[ -f '/etc/config/wireless.orig' ] || cp /etc/config/wireless /etc/config/wireless.orig
+
 	# only for AP-interfaces:
 	local default_encryption_type="${WIFI_ENCRYPTION:-none}"	# e.g. psk2
 	local default_encryption_pass="$WIFI_PASS"			# e.g. mypass
@@ -1152,7 +1154,6 @@ EOF
 
 } done
 
-	[ -f '/etc/config/wireless.orig' ] || cp /etc/config/wireless /etc/config/wireless.orig
 	mv -f "$temp" /etc/config/wireless
 }
 
@@ -1245,7 +1246,7 @@ config interface 'innercityVPN'
 
 EOF
 
-	[ -n "$LANDEV" ] && {
+	if [ -n "$LANDEV" ]; then
 		cat >>/etc/config/network <<EOF
 
 config 'interface' 'lan'
@@ -1256,7 +1257,19 @@ $( test -n "$LANMAC" && echo "	option 'macaddr' '$LANMAC'" )
 	option 'netmask'  '$( _ipsystem getvar 'LANMSK' $NODE )'
 
 EOF
-	}
+	elif LANDEV="$( uci -q get network.lan.device )"; then
+		# e.g. br-lan
+		cat >>/etc/config/network <<EOF
+
+config 'interface' 'lan'
+	option 'device'   '$LANDEV'
+$( test -n "$LANMAC" && echo "	option 'macaddr' '$LANMAC'" )
+	option 'proto'    'static'
+	option 'ipaddr'   '$( _ipsystem getvar 'LANADR' $NODE )'
+	option 'netmask'  '$( _ipsystem getvar 'LANMSK' $NODE )'
+
+EOF
+	fi
 
 	if [ -z "$WANDEV" ]; then
 			:		# no wandev/singleport
