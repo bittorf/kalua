@@ -330,7 +330,7 @@ search_and_replace()		# workaround 'sed -i' which is a GNU extension and not POS
 	local replace="$3"	# LINUX_VERSION:=3.18.19
 	local pattern
 
-	[ -e "$file" ] || {
+	[ -f "$file" ] || {
 		log "[ERROR] search_and_replace() file not found: '$file'"
 		return 1
 	}
@@ -343,7 +343,7 @@ search_and_replace()		# workaround 'sed -i' which is a GNU extension and not POS
 
 	if cmp "$file" "$file.tmp" >/dev/null; then
 		rm "$file.tmp"
-		log "[ERROR] replacing did not work, there was no change in '$file.tmp'"
+		log "[ERROR] replacing did not work, same files: '$file' and '$file.tmp'"
 		return 1
 	else
 		mv "$file.tmp" "$file"
