@@ -610,7 +610,7 @@ version_is_lede()
 			return 0
 		;;
 		*)
-			git log -1 | grep ^'Date:' | grep -q '2020' && {
+			git log -1 | grep ^'Date:' | grep -q '202[0-9]' && {
 				export HQNAME='openwrt'
 				true
 			}
