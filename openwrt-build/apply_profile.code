@@ -1153,6 +1153,7 @@ _config_network()
 	LANDEV="$(  uci -q get network.lan.ifname )"
 	test -n "$( uci -q get network.@device[0].name )" && LANDEV=
 	WANDEV="$( uci get network.wan.ifname )"
+	test -n "$( uci -q get network.wan.device )" && WANDEV=
 
 	if [ "$GATEWAY" = "dhcp" ]; then
 		PROTO="dhcp"
@@ -1223,8 +1224,20 @@ $( test -n "$LANMAC" && echo "	option 'macaddr' '$LANMAC'" )
 EOF
 	fi
 
-	if [ -z "$WANDEV" ]; then
-			:		# no wandev/singleport
+	if   [ -n "$( uci -q get network.wan.device )" ]; then
+		WANDEV="$( uci -q get network.wan.device )"
+		local wan_ipaddr="$(  _ipsystem getvar 'WANADR' $NODE )"
+		local wan_netmask="$( _ipsystem getvar 'WANMSK' $NODE )"
+
+		cat >>/etc/config/network <<EOF
+config interface 'wan'
+	option device '$WANDEV'
+	option 'proto' 'static'
+	option 'ipaddr'	 '$wan_ipaddr'
+	option 'netmask' '$wan_netmask'
+EOF
+	elif [ -z "$WANDEV" ]; then
+		:		# no wandev/singleport
 	else
 		local hide_gateway="#"
 		local wan_ipaddr="$(  _ipsystem getvar 'WANADR' $NODE )"
