@@ -2547,13 +2547,16 @@ _wifi_is2ghz()
 _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 {
 	local funcname='wifi_set'
+
 	local wifimode="$1"	# e.g. 'ap' (all ap-interface) or any/anymode or 'adhoc' or 'ap2' (only the 2nd one)
 	local band="$2"		# e.g. '5ghz' or 'any' or 'anyfreq' or 'index'
 	local var="$3"		# e.g. 'ssid' or 'disabled' or 'off'/'on' -> disabled 1/0
-	local value="$4"	# e.g. 'myssid' or '1'
+	local value="$4"	# e.g. 'myssid' or '1' or <empty> => is deleted
 	local option="$5"
+
 	local radio='' bssid='' chanbw='' carry='' i=''
-	local ifacemode
+	local ifacemode line line1 line2 lineno
+	local temp=/tmp/$funcname.$$
 
 	case "$var" in
 		'off')
@@ -2577,6 +2580,8 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 	# _wifi set ap      5ghz     off
 	# _wifi set anymode anyfreq  disabled kmod_unload
 
+	[ -f /tmp/DEBUG_wifi_set ] && uci show wireless >"$temp"
+
 	for i in $( seq 0 15 ); do {
 		ifacemode="$( uci -q get "wireless.@wifi-iface[$i].mode" )"
 		[ -z "$ifacemode" ] && continue
@@ -2599,7 +2604,11 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 					# http://opus4.kobv.de/opus4-tuberlin/files/3939/huehn_thomas.pdf
 					# get the corresponding radio till minstrel-blues/power control is not active
 					radio="$( uci -q get "wireless.@wifi-iface[$i].device" )" && {
-						uci set wireless.$radio.$var="$value"
+						if [ -n "$value" ]; then
+							uci set wireless.$radio.$var="$value"
+						else
+							uci -q delete wireless.$radio.$var
+						fi
 					}
 				;;
 				'channel'|'chanbw'|'disabled')
@@ -2654,7 +2663,11 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 								;;
 							esac
 						else
-							uci set wireless.$radio.$var="$value"
+							if [ -n "$value" ]; then
+								uci set wireless.$radio.$var="$value"
+							else
+								uci -q delete wireless.$radio.$var
+							fi
 						fi
 					}
 
@@ -2695,7 +2708,7 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 							if [ $chanbw -ge 40 ]; then
 								uci set wireless.${radio}.noscan='1'
 							else
-								uci del wireless.${radio}.noscan
+								uci -q delete wireless.${radio}.noscan
 							fi
 
 							if [ $value -lt 100 ]; then
@@ -2722,6 +2735,33 @@ _wifi_set()			# e.g. _wifi set ap "$ifindex" txpower
 			esac
 		}
 	} done
+
+	[ -f /tmp/DEBUG_wifi_set ] || return 0
+	uci show wireless >"$temp.new"
+
+	cmp "$temp" "$temp.new" >/dev/null || {
+		# compare each line from oldfile with newfile:
+		while read -r line1; do {
+			grep -Fq "$line1" "$temp.new" || {
+				_log it $funcname daemon debug "changed: $line1"
+				line2="$( echo "$line1" | cut -d'=' -f1 )"		# varname only
+				line2="$( grep -F "$line2=" "$temp.new" )"
+				_log it $funcname daemon debug "now:     ${line2:-<deleted>}"
+			}
+		} done <"$temp"
+
+		# compare each line from newfile with oldfile:
+		while read -r line1; do {
+			grep -Fq "$line1" "$temp" || {
+				line2="$( echo "$line1" | cut -d'=' -f1 )"		# varname only
+				line2="$( grep -F "$line2=" "$temp" )"
+				_log it $funcname daemon debug "was:     ${line2:-<unset>}"
+				_log it $funcname daemon debug "changed: $line1"
+			}
+		} done <"$temp.new"
+	}
+
+	rm "$temp" "$temp.new"
 }
 
 _wifi_is_valid_channel()
