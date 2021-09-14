@@ -1200,7 +1200,8 @@ _config_network()
 		;;
 	esac
 
-	LANDEV="$( uci get network.lan.ifname )"
+	LANDEV="$(  uci -q get network.lan.ifname )"
+	test -n "$( uci -q get network.lan.device )" && LANDEV=
 	WANDEV="$( uci get network.wan.ifname )"
 
 	if [ "$GATEWAY" = "dhcp" ]; then
@@ -1246,23 +1247,24 @@ config interface 'innercityVPN'
 
 EOF
 
-	if [ -n "$LANDEV" ]; then
+	if   [ -n "$( uci -q get network.lan.device )" ]; then
+		LANDEV="$( uci -q get network.lan.device )"	# e.g. br-lan
+
 		cat >>/etc/config/network <<EOF
 
 config 'interface' 'lan'
-	option 'ifname'   '$LANDEV'
+	option 'device'   '$LANDEV'
 $( test -n "$LANMAC" && echo "	option 'macaddr' '$LANMAC'" )
 	option 'proto'    'static'
 	option 'ipaddr'   '$( _ipsystem getvar 'LANADR' $NODE )'
 	option 'netmask'  '$( _ipsystem getvar 'LANMSK' $NODE )'
 
 EOF
-	elif LANDEV="$( uci -q get network.lan.device )"; then
-		# e.g. br-lan
+	elif [ -n "$LANDEV" ]; then
 		cat >>/etc/config/network <<EOF
 
 config 'interface' 'lan'
-	option 'device'   '$LANDEV'
+	option 'ifname'   '$LANDEV'
 $( test -n "$LANMAC" && echo "	option 'macaddr' '$LANMAC'" )
 	option 'proto'    'static'
 	option 'ipaddr'   '$( _ipsystem getvar 'LANADR' $NODE )'
