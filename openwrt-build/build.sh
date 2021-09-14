@@ -2416,7 +2416,12 @@ build()
 			if make $make_verbose $commandline ; then
 				get_uptime_in_sec 't2'
 				BUILD_DURATION="$( calc_time_diff "$t1" "$t2" )"
-				log "running 'make $commandline' lasts $BUILD_DURATION sec"
+
+				get_uptime_in_sec TFULL2
+				FULL_DURATION="$(  calc_time_diff "$TFULL1" "$TFULL2" )"
+				FULL_DURATION=$(( FULL_DURATION - BUILD_DURATION ))
+
+				log "running 'make $commandline' lasts $BUILD_DURATION sec (+preparing $FULL_DURATION sec)"
 
 				if [ "$FAIL" = 'true' ]; then
 					log "keeping state, so you can make changes and build again"
@@ -4525,6 +4530,7 @@ if [ -z "$1" ]; then
 else
 	ARGUMENTS_MAIN="$*"
 	log "parsing your args: $ARGUMENTS_MAIN"
+	get_uptime_in_sec TFULL1
 fi
 
 while [ -n "$1" ]; do {
