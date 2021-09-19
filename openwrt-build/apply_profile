@@ -28,7 +28,7 @@ call()
 	# preventing the scheduler from running, see: _scheduler_allow_run()
 	touch '/tmp/scheduler_allow_run'
 
-	[ -e '/tmp/loader' ] && {			# router is not virgin (so: re-apply config)
+	if [ -e '/tmp/loader' ]; then			# router is not virgin (so: re-apply config)
 		. /tmp/loader
 
 		if [ -n "$LOWMEM" ]; then
@@ -37,13 +37,20 @@ call()
 		else
 			logread >>/tmp/syslog.debug.txt
 		fi
-	}
+	else
+		_log()		# an ungly fallback
+		{
+			shift
+			printf '%s\n' "$0: $*" >/dev/console
+			logger -s --  "$0: $*"
+		}
+	fi
 
 	while [ $max_try -gt 0 ]; do {
-		logger -s "$ME [BOOT] start"
+		_log it $ME daemon info "[BOOT] start"
 		"$ME.code" boot && break
 
-		logger -s "$ME [BOOT] executed $ME.code - but with errors, $max_try try's yet, waiting $interval secs"
+		_log it $ME daemon info "[BOOT] executed $ME.code - but with errors, $max_try try's yet, waiting $interval secs"
 		max_try=$(( max_try - 1 ))
 
 		[ -e '/tmp/LOCKFILE_APPLY' ] || {
@@ -58,7 +65,7 @@ call()
 		sleep $interval
 	} done
 
-	logger -s "$ME [BOOT] ready - removing '$ME', showing success with led_firework"
+	_log it $ME daemon info "[BOOT] ready - removing '$ME', showing success with led_firework"
 	rm -f "$lockfile" '/tmp/scheduler_allow_run'
 
 	# fallback if everything fails (and nobody has manually applied something)
@@ -163,7 +170,7 @@ led_firework()
 		. '/etc/diag.sh'
 
 		while [ $i -lt $led_loops ]; do {
-			logger -s "$ME [BOOT] led_firework, loop $i/$led_loops - $message"
+			_log it $ME daemon info "[BOOT] led_firework, loop $i/$led_loops - $message"
 			for led_state in preinit failsafe 'done'; do {
 				set_state "$led_state"
 				sleep 1
