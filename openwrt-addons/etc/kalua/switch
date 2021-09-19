@@ -236,7 +236,13 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 		'TP-Link TL-WR842N/ND v1') hw='TP-LINK TL-WR842N/ND v1' ;;
 		'Ubiquiti Bullet M') hw='Ubiquiti Bullet M' ;;
 		'Ubiquiti Nanostation M') hw='Ubiquiti Nanostation M5' ;;
-		*) hw="$HARDWARE" ;;
+		*)
+			if [ -f /etc/board.json ]; then
+				hw="DSA"
+			else
+				hw="$HARDWARE"
+			fi
+		;;
 	esac
 
 	case "$hw" in	# we expect, that the 1st port is the wan-port (if any)
@@ -332,6 +338,15 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 			_switch symbol gap
 			_switch symbol full 1000
 		;;
+		'DSA')
+			# FIXME! parse /etc/board.json once
+			_switch dsa_parse wan
+			_switch symbol gap
+			_switch dsa_parse lan1
+			_switch dsa_parse lan2
+			_switch dsa_parse lan3
+			_switch dsa_parse lan4
+		;;
 		*)
 			_log it $funcname daemon debug "unknown hardware: '$HARDWARE'"
 			_switch symbol unimplemented
@@ -340,6 +355,23 @@ _switch_show()		# SENSE: show all switch-ports, e.g. 'C.bB-C' = "1GB gap 100mbit
 
 	[ -n "$SWITCH_SYMBOL_HTML" ] && printf '</tr></table>'
 	unset I SWITCH_SYMBOL_HTML	# I = port counter, see symbol()
+}
+
+_switch dsa_parse()
+{
+	local devname="$1"
+	local speed
+
+	# e.g. '     "speed": "1000F",'
+	speed="$( ubus call network.device status "{\"name\":\"$devname\"}" | grep '"speed":' )"
+
+	case "$speed" in
+		*'1000F'*) _switch symbol full 1000 ;;
+		 *'100F'*) _switch symbol full  100 ;;
+		  *'10F'*) _switch symbol full   10 ;;
+		  *'-1F'*) _switch symbol down ;;
+			*) _switch symbol unimplemented ;;
+	esac
 }
 
 _switch_test()
