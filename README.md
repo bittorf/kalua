@@ -295,6 +295,8 @@ cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 # execute config-writer
 /etc/init.d/apply_profile.code
 /etc/init.d/apply_profile.code liszt28 hybrid 34
+# or delete caller if already configured:
+rm /etc/init.d/apply_profile
 
 # avoid autoupdates and keep serial console-login running:
 touch /www/serial_enabled
