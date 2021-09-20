@@ -12,12 +12,12 @@ _ssh_key_public_fingerprint_get()	# output differs, whether its a SHA1 or MD5 ha
 	local me='ssh_key_public_fingerprint_get'
 	local file_openwrt1='/etc/dropbear/dropbear_dss_host_key'	# old
 	local file_openwrt2='/etc/dropbear/dropbear_rsa_host_key'	# newer/since r46814
-	local file_openwrt3='/etc/dropbear/dropbear_ecdsa_host_key'	# e.g. debian or future TODO: ed25519
+	local file_openwrt3='/etc/dropbear/dropbear_ecdsa_host_key'	# e.g. debian or future
+	local file_openwrt4='/etc/dropbear/dropbear_ed25519_host_key'	# e.g. 2021+
 	local file_debian='/etc/ssh/ssh_host_rsa_key'
 	local nop file
 
 	# TODO: path can be /etc/ssh/... (debian)
-
 
 	[ "$option" = 'keyfilename' ] && nop=':'
 
@@ -29,6 +29,9 @@ _ssh_key_public_fingerprint_get()	# output differs, whether its a SHA1 or MD5 ha
 		$nop dropbearkey -y -f "$file" | grep -F 'Fingerprint:' | cut -d' ' -f3
 	elif [ -e "$file_openwrt3" ]; then
 		file="$file_openwrt3"
+		$nop dropbearkey -y -f "$file" | grep -F 'Fingerprint:' | cut -d' ' -f3
+	elif [ -e "$file_openwrt4" ]; then
+		file="$file_openwrt4"
 		$nop dropbearkey -y -f "$file" | grep -F 'Fingerprint:' | cut -d' ' -f3
 	elif [ -e "$file_debian" ]; then
 		# FIXME! for openssl-only
@@ -79,11 +82,12 @@ _ssh_regen_keys()
 	local file1='/etc/dropbear/dropbear_dss_host_key'
 	local file2='/etc/dropbear/dropbear_rsa_host_key'
 	local file3='/etc/dropbear/dropbear_ecdsa_host_key'
+	local file4='/etc/dropbear/dropbear_ed25519_host_key'
 	local file
 
 	_log it $funcname daemon info '[START]'
 
-	for file in "$file1" "$file.pub" "$file2" "$file2.pub" "$file3" "$file3.pub"; do {
+	for file in "$file1" "$file.pub" "$file2" "$file2.pub" "$file3" "$file3.pub" "$file4" "$file4.pub"; do {
 		[ -e "$file" ] && {
 			_log it $funcname daemon alert "[OK] removing '$file'"
 			rm "$file"
@@ -94,7 +98,7 @@ _ssh_regen_keys()
 
 	[ -e "/tmp/$funcname" ] && rm "/tmp/$funcname"
 	loop init; while loop max 100; do {
-		[ -e "$file1" -o -e "$file2" -o -e "$file3" ] && break
+		[ -e "$file1" -o -e "$file2" -o -e "$file3" -e -e "$file4" ] && break
 
 		_watch counter "/tmp/$funcname" increment 1 max 100 || return 0
 		sleep 1
@@ -110,7 +114,7 @@ _ssh_usable_ciphers()
 	local line
 
 	dropbearkey 2>&1 | while read -r line; do {
-		test ${#line} -lt 5 && echo "$line"	# e.g. rsa dss ecdsa
+		test ${#line} -le 7 && echo "$line"	# e.g. rsa dss ecdsa ed25519
 	} done
 }
 
