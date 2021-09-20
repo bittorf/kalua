@@ -298,10 +298,9 @@ cd /; tar xvzf /tmp/tarball.tgz; rm /tmp/tarball.tgz
 # or delete caller if already configured:
 rm /etc/init.d/apply_profile
 
-# avoid autoupdates and keep serial console-login running:
+# avoid 1st autoupdate and keep serial console-login running:
 touch /www/serial_enabled
-uci set system.@system[0].noswinstall=true
-uci commit system
+touch /www/lazypmu
 ```
 
 Cherry Picking Git commits from forked repositories

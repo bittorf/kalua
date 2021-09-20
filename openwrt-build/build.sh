@@ -2771,6 +2771,9 @@ apply_symbol()
 				log "added tarball hash" gitadd 'files/etc/tarball_last_applied_hash'
 			fi
 
+			# ignore 1st update call, see firmware_update_pmu()
+			touch 'files/www/lazypmu'
+
 			if [ -e '/tmp/apply_profile.code.definitions' ]; then
 				file="$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 				cp '/tmp/apply_profile.code.definitions' "$file"
