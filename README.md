@@ -274,7 +274,7 @@ wifi
 
 # install essential packages:
 opkg update
-opkg install ip bmon netperf
+opkg install ip bmon netperf iputils-arping
 opkg install olsrd olsrd-mod-arprefresh olsrd-mod-watchdog olsrd-mod-txtinfo olsrd-mod-nameservice
 opkg install uhttpd libuhttpd-mbedtls px5g
 opkg install kmod-ipt-compat-xtables iptables-mod-conntrack iptables-mod-conntrack-extra iptables-mod-extra
