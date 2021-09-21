@@ -1,6 +1,6 @@
 #!/bin/sh
 . /tmp/loader
-export PATH="/tmp/ctags:$PATH"		# FIXME!
+export PATH="/tmp/ctags:/home/bastian/.local/bin:$PATH"		# FIXME!
 
 # TODO:
 # - find too wide functions/files with:
@@ -25,14 +25,27 @@ list_shellfunctions()
 	_filetype shellscript "$file" || return 1
 
 	if command -v 'ctags' >/dev/null; then
+		# e.g:
+		# user@box$ ctags --sort=no --language-force=sh -x openwrt-addons/etc/hotplug.d/iface/50-olsrd
+		# olsrd_list_configured_interfaces function      3 openwrt-addons/etc/hotplug.d/iface/50-olsrd olsrd_list_configured_interfaces()
+		# olsrd_interface_already_in_config function    22 openwrt-addons/etc/hotplug.d/iface/50-olsrd olsrd_interface_already_in_config()
+		# olsrd_interface_needs_adding function         34 openwrt-addons/etc/hotplug.d/iface/50-olsrd olsrd_interface_needs_adding()
+		# EOF              heredoc                      64 openwrt-addons/etc/hotplug.d/iface/50-olsrd cat >>/etc/config/network <<EOF
+
 		ctags --sort=no --language-force=sh -x "$file" |
 		 while read -r line; do {
 			# myfunc   function   60 /path/to/file    myfunc () { # bla foo
 			explode $line
-			echo "$1"
+			case "$1" in
+				'EOF')
+				;;
+				*)
+					echo "$1"
+				;;
+			esac
 		} done
 	else
-		log "[ERR] please install 'ctags'"
+		log "[ERR] please install 'ctags' ('universal-tags')"
 		return 1
 	fi
 }
@@ -68,9 +81,10 @@ show_shellfunction_usage_count()
 
 show_shellfunction()
 {
-	local funcname='show_shellfunction'
 	local name="$1"
 	local file="$2"
+
+	local funcname='show_shellfunction'
 	local diff line line_start line_end lines_max rc=0
 	local temp_script="$TMPDIR/$funcname-$$"
 
@@ -81,6 +95,9 @@ show_shellfunction()
 
 	starting_line()
 	{
+		local name="$1"
+		local file="$2"
+
 		# filename should end on '.sh', otherwise we must enforce detection
 		ctags --sort=no --language-force=sh -x "$file" |
 		 while read -r line; do {
@@ -96,7 +113,7 @@ show_shellfunction()
 		} done
 	}
 
-	line_start="$( starting_line )"
+	line_start="$( starting_line "$name" "$file" )"
 	if isnumber "$line_start"; then
 		line_end="$line_start"
 		lines_max="$( wc -l <"$file" )"
