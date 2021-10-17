@@ -1,0 +1,80 @@
+From 9156c2e8ba5295e2ced8b788d8ccf57a220094b1 Mon Sep 17 00:00:00 2001
+From: Bastian Bittorf <bb@npl.de>
+Date: Sun, 17 Oct 2021 17:24:53 +0200
+Subject: [PATCH] dnsmasq: procd-ujail: workaround startup failure, when
+ leasefile location is in /tmp
+
+introduced with 44f694ba1bca1417d24e851c637c284f9f78c06d
+("build: select procd-ujail if !SMALL_FLASH") dnsmasq fails
+to startup when the leasefile is configured to be in /tmp,
+which is just not suited for beeing a jail location.
+
+Workaround this (no jailing for this file for this special case)
+and show a proper information in syslog.
+
+without this patch, the syslog shows:
+Thu Oct 14 18:32:38 2021 user.err : jail: creat(/tmp/ujail-lhNbFK/tmp/dhcp.leases) failed: Read-only file system
+Thu Oct 14 18:32:38 2021 daemon.crit dnsmasq[1]: cannot open or create lease file /tmp/dhcp.leases: Read-only file system
+Thu Oct 14 18:32:38 2021 daemon.crit dnsmasq[1]: FAILED to start up
+
+Ref: https://bugs.openwrt.org/index.php?do=details&task_id=4085
+Acked-by: Daniel Golle <daniel@makrotopia.org>
+Signed-off-by: Bastian Bittorf <bb@npl.de>
+---
+ .../services/dnsmasq/files/dnsmasq.init       | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/package/network/services/dnsmasq/files/dnsmasq.init b/package/network/services/dnsmasq/files/dnsmasq.init
+index 3250b2179b..af2effdb26 100644
+--- a/package/network/services/dnsmasq/files/dnsmasq.init
++++ b/package/network/services/dnsmasq/files/dnsmasq.init
+@@ -616,7 +616,7 @@ dhcp_add() {
+ 
+ 		case $ra_management in
+ 		0)
+-			# SLACC with DCHP for extended options
++			# SLACC with DHCP for extended options
+ 			xappend "--dhcp-range=$nettag::,constructor:$ifname,ra-stateless,ra-names"
+ 			;;
+ 		2)
+@@ -816,7 +816,7 @@ dnsmasq_start()
+ {
+ 	local cfg="$1"
+ 	local disabled user_dhcpscript
+-	local resolvfile resolvdir localuse=0
++	local resolvfile resolvdir leasedir localuse=0
+ 
+ 	config_get_bool disabled "$cfg" disabled 0
+ 	[ "$disabled" -gt 0 ] && return 0
+@@ -994,7 +994,11 @@ dnsmasq_start()
+ 	fi
+ 
+ 	config_get leasefile $cfg leasefile "/tmp/dhcp.leases"
+-	[ -n "$leasefile" ] && [ ! -e "$leasefile" ] && touch "$leasefile"
++	[ -n "$leasefile" ] && {
++		leasedir="$( dirname "$leasefile" )" && mkdir -p "$leasedir"
++		[ ! -e "$leasefile" ] && touch "$leasefile"
++	}
++
+ 	config_get_bool cachelocal "$cfg" cachelocal 1
+ 
+ 	config_get_bool noresolv "$cfg" noresolv 0
+@@ -1154,6 +1158,15 @@ dnsmasq_start()
+ 	procd_add_jail_mount $EXTRA_MOUNT $RFC6761FILE $TRUSTANCHORSFILE
+ 	procd_add_jail_mount $dnsmasqconffile $dnsmasqconfdir $resolvdir $user_dhcpscript
+ 	procd_add_jail_mount /etc/passwd /etc/group /etc/TZ /etc/hosts /etc/ethers
++
++	[ -d "$leasedir" ] && {
++		[ "$leasedir" = '/tmp' ] && {
++			logger -t dnsmasq \
++				"consider using a more private directory for leasefile" \
++				"because jailing /tmp does not work: choose e.g. /tmp/dnsmasq/leasefile"
++		}
++		procd_add_jail_mount_rw $leasedir
++	}
+ 	procd_add_jail_mount_rw /var/run/dnsmasq/ $leasefile
+ 
+ 	procd_close_instance
+-- 
+2.30.2
+
