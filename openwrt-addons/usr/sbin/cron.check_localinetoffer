@@ -1,3 +1,122 @@
 #!/bin/sh
+. /tmp/loader
 
-true
+inet_offer_check_local()	# we do NOT use: net_local_inet_offer()
+{				# here we check if our first and last hop is valid
+	local dest_ip='8.8.8.8'
+	local hop_first_configured="$( )"
+	local hop_first result line word i=0
+	local marker="$TMPDIR/local_inet_check"
+	local try=1
+	local max_retry=3
+
+	# traceroute -q1 -w1 -n 8.8.8.8
+	# traceroute to 8.8.8.8 (8.8.8.8), 30 hops max, 38 byte packets
+	#  1  192.168.8.1  0.629 ms		// <= this IP must be configured
+	#  2  *
+	#  3  10.81.85.1  73.040 ms
+	#  4  10.81.85.22  38.169 ms
+	#  5  10.81.120.193  60.361 ms
+	#  6  195.71.246.243  65.328 ms
+	#  7  62.53.11.131  67.552 ms
+	#  8  212.23.106.97  68.561 ms
+	#  9  *
+	# 10  8.8.8.8  69.941 ms		// <= last must be dest_ip
+
+	line="$( traceroute -q1 -w1 -n "$dest_ip" | tail -n +2 )"	# omit 1st line
+
+	while [ $try -le $max_retry ]; do {
+		try=$(( try + 1 ))
+		result='bad'
+
+		for word in $line; do {
+			i=$(( i + 1 ))
+			if [ "$i" = 2 ]; then
+				[ "$word" = "$hop_first_configured" ] || {
+					result='bad'
+					break
+				}
+			else
+				[ "$word" = "$dest_ip" ] && {
+					result='ok'
+					break
+				}
+			fi
+		} done
+
+		[ "$result" = 'ok' ] && break
+	} done
+
+	echo "local_inetoffer_$result" >"$marker"
+	test "$result" = ok
+}
+
+inet_offer_prefer()
+{
+	local wish="$1"		# local|remote
+	local message="$2"
+
+	case "$wish" in
+		local)
+			# check local API if inet is working
+			_olsr hna4_inetoffer 'start'
+		;;
+		remote)
+			# check remote API if inet is working
+			_olsr hna4_inetoffer 'stop'
+		;;
+	esac
+}
+
+download()
+{
+	local url="$1"
+	local rc=0
+
+	_stopwatch start 'download'
+	wget -qO /dev/null "$url" || rc=$?
+	_stopwatch stop  'download' nolog
+
+	return $?
+}
+
+do_checks()
+{
+	local check_ip="$1"		# test this IP for the *other* inet-offer
+
+	local max_latency=100		# [ms]
+	local max_download_time=200	# [centisec]
+	local download_time check_url latency
+
+	case "$check_ip" in
+		'') ;;
+		*)
+			if [ "${latency:-999}" -lt $max_latency ]; then
+				if check_url="$( uci -q get network.wan.check_url )"; then
+					if download_time="$( download "$check_url" )"	# [centisec]
+						if [ "$download_time" -gt $max_download_time ]; then
+							inet_offer_prefer 'remote' \
+								"ip: $check_ip ping-ok: $latency ms speed-ok: $download_time ($check_url)"
+						else
+							inet_offer_prefer 'local' \
+								"ip: $check_ip ping-ok: $latency ms speed-bad: $download_time ($check_url)"
+						fi
+					else
+						inet_offer_prefer 'local' \
+							"ip: $check_ip ping-ok: $latency ms download-bad: $check_url"
+					fi
+				else
+					inet_offer_prefer 'local' \
+						"ip: $check_ip ping-ok: $latency ms"
+				fi
+			else
+				inet_offer_prefer 'local' \
+					"ip: $check_ip ping-bad: ${latency:--} ms"
+			fi
+		;;
+	esac
+}
+
+# uci set network.wan.check_ip='172.17.0.81'
+# uci set network.wan.check_url='http://172.17.0.81/test1mb.bin'
+# do_checks "$( uci -q get network.wan.check_ip )"
