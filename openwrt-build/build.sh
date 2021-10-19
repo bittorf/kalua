@@ -2472,8 +2472,7 @@ apply_patches()
 	list_files_and_dirs()
 	{
 		local folder dir file
-# FIXME!
-return 0
+
 		# /dir/file1
 		# /dir/file2
 		# /dir/dirX/file1 ...

@@ -24,6 +24,16 @@ boot()
 	fi
 	date -s @$(( unixtime + 30 ))
 
+	# needed early for 32mb devices:
+	modprobe zram || echo "zram: modprobe: $?" >/dev/console
+	printf '%s\n' 'lzo' >/sys/block/zram0/comp_algorithm || echo "zram: algo: $?" >/dev/console
+	printf '%s\n'  '8M' >/sys/block/zram0/mem_limit || echo "zram: limit: $?" >/dev/console
+	printf '%s\n'  '4M' >/sys/block/zram0/disksize || echo "zram: disksize: $?" >/dev/console
+	printf '%s\n'  '50' >/proc/sys/vm/swappiness || echo "zram: swappiness: $?" >/dev/console
+	printf '%s\n' '500' >/proc/sys/vm/vfs_cache_pressure || echo "zram: pressure: $?" >/dev/console
+	mkswap /dev/zram0 || echo "zram: mkswap: $?" >/dev/console
+	swapon /dev/zram0 || echo "zram: swapon: $?" >/dev/console
+
 	grep -q ^'debugfs /sys/kernel/debug' '/proc/mounts' || {
 		grep -q 'debugfs'$ '/proc/filesystems' && {
 			mount -o noatime -t debugfs debugfs '/sys/kernel/debug'
