@@ -878,6 +878,14 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
 
+			# size 2702364 bytes = OK
+			# KERNEL = ./build_dir/target-powerpc_8540_musl/linux-mpc85xx_p1010/tplink_tl-wdr4900-v1-kernel.bin
+			# CONFIG_KERNEL_PRINTK is not set
+			# CONFIG_KERNEL_DEBUG_KERNEL is not set
+			# CONFIG_KERNEL_DEBUG_INFO is not set
+			# CONFIG_KERNEL_COREDUMP is not set ???
+			# CONFIG_KERNEL_ELF_CORE is not set
+
 			version_is_lede && \
 			test "$HQNAME" = openwrt && \
 				TARGET_SYMBOL='CONFIG_TARGET_mpc85xx_p1010_DEVICE_tplink_tl-wdr4900-v1=y' \
@@ -1371,93 +1379,15 @@ has_internet()
 
 feeds_prepare()
 {
-	local file_feeds='feeds.conf.default'
-	local do_symlinking='no'
-	local file githash
+	cp feeds.conf.default feeds.conf
 
-	grep -q 'depth 1 ' 'scripts/feeds' && {
-		log "hotpatch 'scripts/feeds' for git-fetch with complete history"
-		sed -i 's/--depth 1 /--depth 99999 /' 'scripts/feeds'
-	}
+	# https://github.com/openwrt/packages
+	./scripts/feeds update packages
+	./scripts/feeds install -a -p packages
 
-	grep -Fq ' oonf '  "$file_feeds" || {
-		if [ $VERSION_OPENWRT_INTEGER -ge 45668 ]; then
-			# needs:
-			# CMake version 2.8.12 or better
-			# libnl3-dev or libnl-tiny for the nl80211-listener plugin
-			# libtomcrypt-dev for the hash_tomcrypt plugin
-			echo >>"$file_feeds" 'src-git-full oonf https://github.com/OLSR/OONF.git'
-		else
-			echo >>"$file_feeds" 'src-git      oonf https://github.com/OLSR/OONF.git'
-		fi
-
-		log "addfeed 'olsrd2/oonf'" debug,gitadd "$file_feeds"
-		do_symlinking='true'
-	}
-
-	grep -F ' DAWN ' "$file_feeds" || {
-		log "DAWN: in file '$file_feeds' no dawn, cd to '$(pwd)', press enter"
-		[ -n "$YESTOALL" ] || read -r NOP
-		# ./scripts/feeds install dawn
-	}
-
-	grep -F ' oldpackages ' "$file_feeds" | grep -q ^'#' && {
-		# FIXME! use search_and_replace()
-		# hide oldpackages
-		sed >"$file_feeds.tmp" '/oldpackages/s/^#\(.*\)/\1/' "$file_feeds"
-		mv   "$file_feeds.tmp" "$file_feeds"
-		log "enable feed 'oldpackages'" debug,gitadd "$file_feeds"
-
-		if [ -n "$RELEASE" ]; then
-			log "[OK] will not update feeds in release-mode"
-		elif has_internet; then
-			# https://forum.openwrt.org/viewtopic.php?id=52219
-			./scripts/feeds update oldpackages
-			# install all packages from specified feed
-			./scripts/feeds install -a -p oldpackages
-		else
-			log '[OK] no internet - only refreshing index of "oldpackages"'
-			./scripts/feeds update -i oldpackages
-		fi
-	}
-
-	[ -d 'package/feeds' ] || {
-		# seems, everything is really untouched
-		log "missing 'package/symlinks', getting feeds"
-		build 'defconfig'
-		do_symlinking='true'
-	}
-
-	[ "$do_symlinking" = 'true' ] && {
-		# TODO: find a better way for checking 'is_ready_done'
-		[ -h 'feeds/luci.targetindex' ] || {
-			log "enforce/updating symlinking of packages"
-			make package/symlinks
-		}
-	}
-
-#	# TODO: cd feeds/routing && git stash
-#	file='feeds/routing/olsrd/Makefile'
-#	githash='2d03856'	# https://github.com/OLSR/olsrd
-#	if   grep -q 'PKG_VERSION:=0.9.5' "$file"; then
-#		:
-#	elif grep -q "=$githash" "$file"; then
-#		log "[OK] OLSRd1: Makefile already patched"
-#	else
-#		log "[OK] OLSRd1: importing Makefile" 			# gitadd,untrack "$file"
-#		search_and_replace "$file" '^PKG_VERSION:=.*' 'PKG_VERSION:=0.9.1'
-#		search_and_replace "$file" '^PKG_SOURCE_VERSION:=.*' "PKG_SOURCE_VERSION:=$githash"
-#		search_and_replace "$file" '.*olsrd-mod-pud))$' '# & #'	# and hide from calling
-#		search_and_replace "$file" ' pud ' ' '			# do not compile these plugin
-#		search_and_replace "$file" ' pgraph ' ' ' && {
-#			log "patching OLSRd1 for using recent HEAD" 	# gitadd,untrack "$file"
-#		}
-#	fi
-
-	grep -q 'depth 99999 ' 'scripts/feeds' && {
-		log "unpatch 'scripts/feeds' back to normal history"
-		sed -i 's/--depth 99999 /--depth 1 /' 'scripts/feeds'
-	}
+	# https://github.com/dragino/openwrt-routing-packages
+	./scripts/feeds update routing
+	./scripts/feeds install -a -p routing
 
 	return 0
 }
@@ -2407,7 +2337,7 @@ build()
 				make package/kernel/mac80211/clean
 			}
 
-			log "you can now execute in '$( pwd )' your e.g. make menuconfig | press return when ready"
+			log "you can now execute in '$( pwd )' your e.g. make menuconfig | press <enter> when ready"
 			[ -n "$YESTOALL" ] || read -r NOP
 
 			log "running 'make $commandline'"
@@ -2773,16 +2703,20 @@ apply_symbol()
 			# ignore 1st update call, see firmware_update_pmu()
 			touch 'files/www/lazypmu'
 
-			if [ -e '/tmp/apply_profile.code.definitions' ]; then
+			# avoid 5GHz radio for now:
+			echo '# mt7615e' >files/etc/modules.d/mt7615e
+
+			if [ -f '/tmp/apply_profile.code.definitions' ]; then
 				file="$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 				cp '/tmp/apply_profile.code.definitions' "$file"
 				log "$KALUA_DIRNAME: using custom '/tmp/apply_profile.code.definitions'" gitadd "$file"
 			else
-				[ -e "$custom_dir/etc/init.d/apply_profile.code.definitions.private" ] && {
+				[ -f "$custom_dir/etc/init.d/apply_profile.code.definitions.private" ] && {
 					rm "$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 				}
 
-				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file"
+				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file | press <enter> when ready"
+				[ -n "$YESTOALL" ] || read -r NOP
 				[ -n "$RELEASE_SERVER" ] && exit 1
 			fi
 
@@ -3173,6 +3107,10 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
 #				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
 
+				apply_symbol 'CONFIG_DEVEL=y'
+				apply_symbol 'CONFIG_PACKAGE_procd-ujail is not set'
+				apply_symbol 'CONFIG_SECCOMP is not set'
+
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
 
@@ -3221,6 +3159,10 @@ build_options_set()
 				apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNET=y'		# client (remote if all are at CC15.5+)
 #				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
 #				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
+
+				apply_symbol 'CONFIG_DEVEL=y'
+				apply_symbol 'CONFIG_PACKAGE_procd-ujail is not set'
+				apply_symbol 'CONFIG_SECCOMP is not set'
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
