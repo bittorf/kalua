@@ -4459,7 +4459,7 @@ check_git_settings()
 if [ -e 'KALUA_REPO_URL' ]; then
 	read -r KALUA_REPO_URL <'KALUA_REPO_URL'
 else
-	KALUA_REPO_URL='git://github.com/bittorf/kalua.git'
+	KALUA_REPO_URL='https://github.com/bittorf/kalua.git'
 fi
 
 KALUA_DIRNAME="$( basename "$KALUA_REPO_URL" | cut -d'.' -f1 )"		# e.g. kalua|weimarnetz
