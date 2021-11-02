@@ -3113,6 +3113,13 @@ build_options_set()
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
+# fee
+				case "$HARDWARE_MODEL" in
+					'TP-LINK Archer C6U')
+						# the 5ghz radio likely produces a boot-loop:
+						apply_symbol 'CONFIG_PACKAGE_kmod-mt7615e is not set'
+					;;
+				esac
 
 				$funcname subcall 'iproute2'
 				$funcname subcall 'squash64'
