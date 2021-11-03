@@ -482,12 +482,13 @@ apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.
 
 apply_wifi_reghack()		# maybe unneeded with r45252
 {
-	local funcname='apply_wifi_reghack'
 	local option="$1"	# e.g. 'disable'
+
+	local funcname='apply_wifi_reghack'
 	local file="$KALUA_DIRNAME/openwrt-patches/reghack/900-regulatory-compliance_test.patch"
 	local file_regdb_hacked countries code file2 pattern COMPAT_WIRELESS_DATE
 
-	if [ -e "$file" ]; then
+	if [ -f "$file" ]; then
 		MAC80211_CLEAN='true'
 		COMPAT_WIRELESS_DATE="$( grep -F 'PKG_VERSION:=' 'package/kernel/mac80211/Makefile' | cut -d'=' -f2 )"	# e.g. 2016-01-10
 		pattern="${option}CONFIG_PACKAGE_kmod-ath9k=y"
@@ -499,7 +500,10 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 			search_and_replace "$file2" 'YYYY-MM-DD' "$COMPAT_WIRELESS_DATE"
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS_DATE for using all channels ('birdkiller-mode')" gitadd "$file2"
 
-			if [ $VERSION_OPENWRT_INTEGER -lt 40293 ]; then
+			if true; then
+				# also after LEDE:
+				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt-r40293++"
+			elif [ $VERSION_OPENWRT_INTEGER -lt 40293 ]; then
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt"
 			else
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt-r40293++"
