@@ -1,4 +1,3 @@
-#!/bin/sh
 . /tmp/loader
 . /usr/share/libubox/jshn.sh
 
@@ -39,6 +38,7 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 
 	# call API and convert JSON answer to shell variables
 	# answer e.g.:
+	#
 	# {
 	#  "status": 200,
 	#  "message": "updated",
@@ -48,6 +48,22 @@ if [ "$( _ipsystem getvar 'NODE_NUMBER_RANDOM' )" = 'false' -a -z "$OPTION" ]; t
 	#    "last_seen": 1395749203533,
 	#    "network": "ffweimar",
 	#    "location": "/ffweimar/knoten/261"
+	#  }
+	# }
+	#
+	# or newstyle:
+	#
+	# {
+	#  "message" : "updated",
+	#  "status" : 200,
+	#  "result" : {
+	#    "key" : 279,
+	#    "number" : 43,
+	#    "mac" : "a0f3c1748db9",
+	#    "created_at" : 1635938210956,
+	#    "last_seen" : 1635938255651,
+	#    "location" : "/ffweimar/knoten/43",
+	#    "network" : "ffweimar"
 	#  }
 	# }
 	#
