@@ -353,12 +353,13 @@ search_and_replace()		# workaround 'sed -i' which is a GNU extension and not POS
 
 kconfig_file()
 {
-	# TODO: code duplication see function below
-	local dir arch
+	local file version
 
-	dir="target/linux/$ARCH_MAIN"
-	[ -d "$dir" ] || {
-		log "[ERR] kconfig_file() dir not found: '$dir'"
+	file="target/linux/$ARCH_MAIN/Makefile"
+	version="$( grep ^'KERNEL_PATCHVER:=' "$file" | cut -d'=' -f2)"		# e.g. 5.4
+
+	[ -n "$version" ] || {
+		log "[ERR] kconfig_file() symbol 'KERNEL_PATCHVER:=' not found in '$file'"
 		return 1
 	}
 
@@ -371,9 +372,9 @@ kconfig_file()
 			find "$dir/config/$arch" -type f
 		;;
 		*)
-			# config-3.10
-			log "kconfig_file() dir: '$dir/config-[0-9]*'"
-			find "$dir" -type f -name 'config-[0-9]*' | head -n1
+			find "target/linux/$ARCH_MAIN/$ARCH_SUB" -type f -name "config-$version" | grep . || {
+				find "target/linux/$ARCH_MAIN"   -type f -name "config-$version" | grep .
+			}
 		;;
 	esac
 }
@@ -382,54 +383,21 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 {
 	local funcname='kernel_commandline_tweak'
 	local dir="target/linux/$ARCH_MAIN"
-	local pattern=" oops=panic panic=10 builtin_secret=$CODE_PROOF_OF_BOOT_PRIME1 "
+	local pattern="oops=panic panic=10 builtin_secret=$CODE_PROOF_OF_BOOT_PRIME1"
 	local config kernelversion
 
 	case "$ARCH_MAIN" in
 		'uml')
 			return 0
 		;;
-		'mpc85xx')
-			config="$dir/files/arch/powerpc/boot/dts/tl-wdr4900-v1.dts"	# since r45597
-
-			if [ -e "$config" ];then
-				:
-			else
-				# config-3.10 -> 3.10
-				kernelversion="$( find "$dir" -name 'config-[0-9]*' | head -n1 | cut -d'-' -f2 )"
-				config="$dir/patches-$kernelversion/140-powerpc-85xx-tl-wdr4900-v1-support.patch"
-			fi
-
-			grep -Fq "$pattern" "$config" || {
-				search_and_replace "$config" 'console=ttyS0,115200' "$pattern &"
-				log "looking into '$config', adding '$pattern'" gitadd "$config"
-			}
-		;;
-		'ar71xx')
-			config="$dir/image/Makefile"
-
-			grep -Fq "$pattern" "$config" || {
-				search_and_replace "$config" 'console=' "$pattern &"
-				log "looking into '$config', adding '$pattern'" gitadd "$config"
-			}
-		;;
 		*)
-			# see also: https://dev.openwrt.org/changeset/46754/trunk ...46760
-			# tested for brcm47xx
-			config="$( find "$dir" -name 'config-[0-9]*' | head -n1 )"
+			config="$( kconfig_file )"
 
-			if [ -e "$config" ]; then
-				log "looking into '$config', adding '$pattern'"
-
-				grep -Fq "$pattern" "$config" || {
-					# FIXME! use search_and_replace()
-					sed >"$config.tmp" "/^CONFIG_CMDLINE=/s/\"$/${pattern}\"/" "$config"
-					mv   "$config.tmp" "$config"
-					log "looking into '$config', adding '$pattern'" gitadd "$config"
-				}
-			else
-				log "cannot find '$config' from '$dir/config-*'"
-			fi
+			grep -q "$pattern" "$config" || {
+				# e.g. CONFIG_CMDLINE="rootfstype=squashfs,jffs2"
+				# FIXME! search_and_replace
+				sed -i "s/^CONFIG_CMDLINE=\"\(.*\)\"/CONFIG_CMDLINE=\"\1 $pattern\"/" "$config"
+			}
 		;;
 	esac
 
