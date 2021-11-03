@@ -2494,7 +2494,10 @@ apply_patches()
 					# automatically add 'From:' if missing
 					# sed '1{s/^/From: name@domain.com (Proper Name)\n/}'
 
-					if git am --ignore-whitespace --signoff <"$file"; then
+					if   grep -q ^'From:' "$file" && git am --ignore-whitespace --signoff <"$file"; then
+						log "[OK] patched ontop OpenWrt: '$file'" debug
+						register_patch "$file"
+					elif git apply <"$file"; then
 						log "[OK] patched ontop OpenWrt: '$file'" debug
 						register_patch "$file"
 					else
