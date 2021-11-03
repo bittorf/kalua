@@ -401,15 +401,18 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		;;
 	esac
 
-	grep -q "$pattern" "$config" || {
+	if grep -q "$pattern" "$config"; then
+		register_patch "$config"
+	else
 		log "[ERROR] while adding '$pattern' to '$config'"
-	}
+	fi
 }
 
 register_patch()
 {
-	local funcname='register_patch'
 	local name="$1"
+
+	local funcname='register_patch'
 	local dir='files/etc'
 	local file="$dir/openwrt_patches"	# we can read the file later on the router
 
