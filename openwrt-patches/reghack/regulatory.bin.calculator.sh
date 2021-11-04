@@ -7,9 +7,15 @@ power_and_freq_to_regdomain()
 
 	local line country freq1 freq2 channel_width max_ant_db mac_eirp
 	local url_regdb='http://git.kernel.org/cgit/linux/kernel/git/sforshee/wireless-regdb.git/plain/db.txt'
+	local cache="/tmp/regdb.txt"
 
-	wget -O - "$url_regdb" |
-	 while read -r line; do {
+	if [ -s "$cache" ]; then
+		echo "[OK] using '$cache'"
+	else
+		wget -O "$cache" "$url_regdb"
+	fi
+
+	while read -r line; do {
 		case "$line" in							# country AU:
 			'country '[A-Z]*)					# 	(2402 - 2482 @ 40), (N/A, 20)
 				country="${line#* }"	# all after space	#	(5170 - 5250 @ 40), (3, 23)
@@ -20,7 +26,7 @@ power_and_freq_to_regdomain()
 			;;							#	(5150 - 5250 @ 40), (N/A, 200 mW), NO-OUTDOOR
 			*)							#
 										# country JP: DFS-JP
-				[ -n "$country" ] && {
+				[ -n "$country" ] && {				#       (4910 - 4990 @ 40), (23)
 					case "$line" in
 						'#'*)
 							continue
@@ -49,7 +55,7 @@ power_and_freq_to_regdomain()
 					[ -n "$freq1" ] && {
 						[ $needed_freq -le $freq2 -a $needed_freq -ge $freq1 ] && {
 							if [ -n "$needed_power" ]; then
-								[ $max_eirp -ge $needed_power ] && {
+								[ $max_ant_db -ge $needed_power ] && {
 									echo "$country $line"
 								}
 							else
@@ -60,7 +66,7 @@ power_and_freq_to_regdomain()
 				}
 			;;
 		esac
-	} done
+	} done <"$cache"
 }
 
 if [ -z "$1" ]; then
