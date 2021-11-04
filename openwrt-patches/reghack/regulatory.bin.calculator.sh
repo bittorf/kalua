@@ -73,7 +73,9 @@ if [ -z "$1" ]; then
 	echo "Usage: $0 <freq> <power>"
 	echo " e.g.: $0 4915"
 	echo " e.g.: $0 5180 21"
-	exit 1
+	echo " e.g.: $0 6425"
+
+	false
 else
 	power_and_freq_to_regdomain "$1" "$2"
 fi
