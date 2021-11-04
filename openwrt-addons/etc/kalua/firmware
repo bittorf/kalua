@@ -832,6 +832,7 @@ _firmware_check_image()
 {
 	local funcname="firmware_check_image"
 	local file="${1:-/tmp/fw}"
+	local file2="${2:-/www/fw_lastpart}"
 
 	_log it $funcname daemon info "[START] checking image '$file'"
 
@@ -839,6 +840,18 @@ _firmware_check_image()
 		_log it $funcname daemon info "file '$file' is missing, abort"
 		return 1
 	}
+
+	# for very low memory conditions, we support
+	# the download in 2 parts:
+	#
+	# part1 / head = /tmp/fw
+	# part2 / tail = /www/fw_lastpart (as much as possibe to disk)
+	#
+	# after early sysupgrade in stage2 (killing all tasks, unloading kernelmoduls)
+	# we concat/append the diskfile to /tmp/fw
+	#
+	# so we can not check the splitted file:
+	[ -f "$file2" ] && return 0
 
 	[ -e "/etc/functions.sh" ] && . /etc/functions.sh
 	[ -e "/lib/functions.sh" ] && . /lib/functions.sh
@@ -862,7 +875,7 @@ _firmware_patch_sysupgrade()
 {
 	local funcname='firmware_patch_sysupgrade'
 	local patchfile='/lib/upgrade/common.sh'
-	local partition fix
+	local partition fix cmd
 
 	[ -e "$patchfile" ] || return 0
 
@@ -887,6 +900,11 @@ _firmware_patch_sysupgrade()
 			}
 		;;
 	esac
+
+	grep -q 'sync'$ "$patchfile" && {
+		cmd='if test -f /www/fw_lastpart; then if cat /www/fw_lastpart >>/tmp/fw; then rm /www/fw_lastpart; fi; fi'
+		sed -i "s|sync$|sync # patched\n\t$cmd|" "$patchfile"
+	}
 
 	grep -q 'retry_upgrade' "$patchfile" || {
 		local loop_begin="I=0; while test \$I -lt 10; do I=\$(( I + 1 )); "
