@@ -317,13 +317,19 @@ log()
 			$MYLOGGER '! L'
 			$MYLOGGER "!  )- $0: $message"
 			$MYLOGGER '! /'
+
+			[ -n "$YESTOALL" ] || {
+				printf '\n%s\n' '*** press <enter> to continue ***'
+				read -r NOP
+				printf '%s\n' 'going further...'
+			}
 		;;
 		*)
 			$MYLOGGER "$0:$name $message"
 		;;
 	esac
 }
-
+				# FIXME! we must choose replace patterns in a way, that on double call the search patterns is not found
 search_and_replace()		# workaround 'sed -i' which is a GNU extension and not POSIX
 {				# http://stackoverflow.com/questions/7232797/sed-on-aix-does-not-recognize-i-flag
 	local file="$1"
@@ -347,7 +353,10 @@ search_and_replace()		# workaround 'sed -i' which is a GNU extension and not POS
 		log "[ERROR] replacing did not work, same files: '$file' and '$file.tmp'"
 		return 1
 	else
-		mv "$file.tmp" "$file"
+		mv "$file.tmp" "$file" || {
+			log "[ERROR] during mv '$file.tmp' '$file'"
+			return 1
+		}
 	fi
 }
 
@@ -480,6 +489,15 @@ apply_minstrel_rhapsody()	# successor of minstrel -> minstrel_blues: http://www.
 	git commit --signoff -m "$funcname()"
 }
 
+apply_failsafe_autoreboot()
+{
+	local funcname='apply_failsafe_autoreboot'
+	local file='package/base-files/files/lib/preinit/99_10_failsafe_login'
+	local pattern='( /bin/sleep 3600; /bin/sync; /sbin/reboot -f ) \&'
+
+	search_and_replace "$file" ' {$' " {\t$funcname\n\t$pattern\n"
+}
+
 apply_wifi_reghack()		# maybe unneeded with r45252
 {
 	local option="$1"	# e.g. 'disable'
@@ -497,16 +515,14 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 		if grep -q "$pattern" '.config'; then
 			cp -v "$file" "package/kernel/mac80211/patches"
 			file2="package/kernel/mac80211/patches/$( basename "$file" )"
-			search_and_replace "$file2" 'YYYY-MM-DD' "$COMPAT_WIRELESS_DATE"
+			search_and_replace "$file2" 'YYYY-MM-DD' "$COMPAT_WIRELESS_DATE" || log "[ERROR] on $file2"
 			log "patching ath9k/compat-wireless $COMPAT_WIRELESS_DATE for using all channels ('birdkiller-mode')" gitadd "$file2"
 
 			if true; then
-				# also after LEDE:
+				# apply for LEDE++
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt-r40293++"
 			elif [ $VERSION_OPENWRT_INTEGER -lt 40293 ]; then
 				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt"
-			else
-				file_regdb_hacked="$KALUA_DIRNAME/openwrt-patches/reghack/regulatory.db.txt-r40293++"
 			fi
 
 			file2='package/kernel/mac80211/files/regdb.txt'
@@ -2373,6 +2389,8 @@ apply_patches()
 		log "$KALUA_DIRNAME: apply_wifi_reghack"
 		apply_wifi_reghack
 	fi
+
+	apply_failsafe_autoreboot
 
 	list_files_and_dirs()
 	{
