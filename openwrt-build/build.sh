@@ -3262,6 +3262,14 @@ build_options_set()
 					log "[ERR] commit $rev not found, ignoring"
 				fi
 			;;
+			'GCC8')
+				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
+				apply_symbol 'CONFIG_GCC_VERSION_8=y'
+			;;
+			'GCC10')
+				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
+				apply_symbol 'CONFIG_GCC_VERSION_8=y'
+			;;
 			'noUSB')
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-core is not set'
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-ledtrig-usbport is not set'
