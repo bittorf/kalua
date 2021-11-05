@@ -3268,7 +3268,7 @@ build_options_set()
 			;;
 			'GCC10')
 				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
-				apply_symbol 'CONFIG_GCC_VERSION_8=y'
+				apply_symbol 'CONFIG_GCC_VERSION_10=y'
 			;;
 			'noUSB')
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-core is not set'
