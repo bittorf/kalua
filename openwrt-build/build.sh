@@ -3430,7 +3430,8 @@ build_options_set()
 			;;
 			'shaping')
 				apply_symbol 'CONFIG_PACKAGE_kmod-sched=y'		# kernel-modules: network support: kmod-sched
-				apply_symbol 'CONFIG_PACKAGE_tc=y'			# network: tc
+				apply_symbol 'CONFIG_PACKAGE_tc-full=y'			# network: tc
+				apply_symbol 'CONFIG_PACKAGE_tc-mod-iptables=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-ifb=y'		# kernel-modules: network devices:
 			;;
 			'b43mini')
