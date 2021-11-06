@@ -753,6 +753,16 @@ EOF
 			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-mqmaker_witi-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
+		'Totolink A7000R')
+			# 2.4G = 4T4R
+			# 5.xG = 4T4R
+			# https://github.com/openwrt/openwrt/pull/4545#event-5359804603
+			# => PanguBox IP04349 reference board
+			# "IP04349 is TOTOLINK/Zioncom's internal codename of TOTOLINK A7000R, and normal users won't even know about this codename at all."
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_DEVICE_totolink_a7000r=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-totolink_a7000r-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
 		'Xiaomi Miwifi mini')
 			# https://wiki.openwrt.org/toh/xiaomi/mini
 			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y'
@@ -2858,10 +2868,10 @@ apply_symbol()
 		[ $i -eq 2 ] && symbol="$( echo "$symbol" | sed 's/CONFIG_KERNEL_/CONFIG_/' )"
 		[ $i -eq 3 ] && symbol="$( echo "$symbol" | sed 's/CONFIG_/CONFIG_KERNEL_/' )"
 
-		if [ -e "$file" ]; then
-			log "working on file '$file'"
+		if [ -f "$file" ]; then
+			log "working on file '$file' - symbol: $symbol"
 		else
-			log "[ERROR] file not found '$file'"
+			log "file not found '$file' - symbol: $symbol"
 		fi
 
 		case "$symbol" in
