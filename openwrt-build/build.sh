@@ -365,7 +365,7 @@ kconfig_file()
 	local file version
 
 	file="target/linux/$ARCH_MAIN/Makefile"
-	version="$( grep ^'KERNEL_PATCHVER:=' "$file" | cut -d'=' -f2)"		# e.g. 5.4
+	version="$( grep ^'KERNEL_PATCHVER' "$file" | cut -d'=' -f2)"		# e.g. 5.4
 
 	[ -n "$version" ] || {
 		log "[ERR] kconfig_file() symbol 'KERNEL_PATCHVER:=' not found in '$file'"
@@ -774,6 +774,11 @@ EOF
 			TARGET_SYMBOL='CONFIG_TARGET_brcm2708_bcm2710_DEVICE_rpi-3=y'
 			FILENAME_SYSUPGRADE='lede-brcm2708-bcm2710-rpi-3-ext4-sdcard.img.gz'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
+		'Raspberry Pi Zero W')
+			TARGET_SYMBOL='CONFIG_TARGET_bcm27xx_bcm2708_DEVICE_rpi=y'
+			FILENAME_SYSUPGRADE='openwrt-bcm27xx-bcm2708-rpi-ext4-sysupgrade.img.gz'	# ext4/squashfs
+			FILENAME_FACTORY='openwrt-bcm27xx-bcm2708-rpi-ext4-factory.img.gz'		# ext4/squashfs
 		;;
 		'Buffalo WZR-HP-AG300H')
 			# http://wiki.openwrt.org/toh/buffalo/wzr-hp-ag300h
@@ -1301,8 +1306,9 @@ EOF
 
 	[ -z "$VERSION_KERNEL" ] && {
 		# since r43047
-		# KERNEL_PATCHVER:=3.10
-		VERSION_KERNEL="$( grep ^'KERNEL_PATCHVER:=' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
+		# KERNEL_PATCHVER:=3.10 (or) KERNEL_PATCHVER=3.10
+
+		VERSION_KERNEL="$( grep ^'KERNEL_PATCHVER' "target/linux/$ARCH_MAIN/Makefile" | cut -d'=' -f2 )"
 :		# and in 'include/kernel-version.mk'
 		# LINUX_VERSION-3.10 = .58
 		VERSION_KERNEL="$( grep ^"LINUX_VERSION-$VERSION_KERNEL = " 'include/kernel-version.mk' )"
@@ -1319,7 +1325,7 @@ EOF
 			#   -> KERNEL_PATCHVER:=3.14
 			#   -> KERNEL_PATCHVER:=3.18
 			file="target/linux/$ARCH_MAIN/Makefile"
-			search_and_replace "$file" '^KERNEL_PATCHVER:=.*' "KERNEL_PATCHVER:=$VERSION_KERNEL_FORCE"
+			search_and_replace "$file" '^KERNEL_PATCHVER.*' "KERNEL_PATCHVER:=$VERSION_KERNEL_FORCE"
 			log "enforce kernel version '$VERSION_KERNEL_FORCE', was '$VERSION_KERNEL' for r43047+" gitadd "$file"
 		}
 	}
