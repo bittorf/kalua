@@ -497,6 +497,7 @@ apply_failsafe_autoreboot()
 	local hint="# from $funcname()"
 
 	search_and_replace "$file" ' {$' " {\t$hint\n\t$pattern\n"
+	log "patching '$file'" gitadd "$file"
 }
 
 apply_wifi_reghack()		# maybe unneeded with r45252
@@ -748,10 +749,8 @@ EOF
 		;;
 		'MQmaker WiTi')
 			# https://wiki.openwrt.org/toh/mqmaker/witi
-			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_witi=y'
-			# TODO: for openwrt: CONFIG_TARGET_ramips_mt7621_WITI=y
-
-			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-witi-squashfs-sysupgrade.bin'
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_DEVICE_mqmaker_witi=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-mqmaker_witi-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
 		'Xiaomi Miwifi mini')
@@ -3113,6 +3112,7 @@ build_options_set()
 # fee
 				case "$HARDWARE_MODEL" in
 					'TP-LINK Archer C6U')
+						# FIXME! use $SPECIAL_OPTIONS for that
 						# the 5ghz radio likely produces a boot-loop:
 						apply_symbol 'CONFIG_PACKAGE_kmod-mt7615e is not set'
 					;;
@@ -3122,7 +3122,7 @@ build_options_set()
 				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
-				$funcname subcall 'shaping'
+				usecase_has 'noShaping' || $funcname subcall 'shaping'
 #				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
@@ -3264,11 +3264,11 @@ build_options_set()
 			;;
 			'GCC8')
 				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
-				apply_symbol 'CONFIG_GCC_VERSION_8=y'
+				apply_symbol 'CONFIG_GCC_USE_VERSION_8=y'
 			;;
 			'GCC10')
 				apply_symbol 'CONFIG_TOOLCHAINOPTS=y'
-				apply_symbol 'CONFIG_GCC_VERSION_10=y'
+				apply_symbol 'CONFIG_GCC_USE_VERSION_10=y'
 			;;
 			'noUSB')
 				apply_symbol 'CONFIG_PACKAGE_kmod-usb-core is not set'
@@ -3669,6 +3669,9 @@ build_options_set()
 			;;
 			'noHTTPd')
 				apply_symbol 'CONFIG_PACKAGE_uhttpd is not set'
+			;;
+			'noShaping')
+				:
 			;;
 			'noDebug')
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG is not set'
