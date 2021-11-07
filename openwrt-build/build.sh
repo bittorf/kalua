@@ -2726,9 +2726,6 @@ apply_symbol()
 			# ignore 1st update call, see firmware_update_pmu()
 			touch 'files/www/lazypmu'
 
-			# avoid 5GHz radio for now:
-			echo '# mt7615e' >files/etc/modules.d/mt7615e
-
 			if [ -f '/tmp/apply_profile.code.definitions' ]; then
 				file="$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 				cp '/tmp/apply_profile.code.definitions' "$file"
