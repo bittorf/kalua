@@ -406,6 +406,7 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 				# e.g. CONFIG_CMDLINE="rootfstype=squashfs,jffs2"
 				# FIXME! search_and_replace
 				sed -i "s/^CONFIG_CMDLINE=\"\(.*\)\"/CONFIG_CMDLINE=\"\1 $pattern\"/" "$config"
+				log "added '$pattern' kernel cmdline" gitadd "$config"
 			}
 		;;
 	esac
@@ -1024,9 +1025,9 @@ EOF
 		'Ubiquiti Bullet M2'|'Ubiquiti Bullet M2 Titanium'|'Ubiquiti Bullet M5'|'Ubiquiti Bullet M5 Titanium'|'Ubiquiti Picostation M2'|'Ubiquiti Picostation M5')
 			# http://wiki.openwrt.org/toh/ubiquiti/bullet
 			# http://wiki.openwrt.org/toh/ubiquiti/picostationm2
-			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_UBNT=y'
-			FILENAME_SYSUPGRADE='openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-sysupgrade.bin'
-			FILENAME_FACTORY='openwrt-ar71xx-generic-ubnt-bullet-m-squashfs-factory.bin'
+			TARGET_SYMBOL='CONFIG_TARGET_ath79_generic_DEVICE_ubnt_bullet-m-ar7240=y'
+			FILENAME_SYSUPGRADE='openwrt-ath79-generic-ubnt_bullet-m-ar7240-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY='openwrt-ath79-generic-ubnt_bullet-m-ar7240-squashfs-factory.bin'
 		;;
 		'Ubiquiti Nanostation M2'|'Ubiquiti Nanostation M5')
 			# XM (older model)
@@ -2725,6 +2726,9 @@ apply_symbol()
 
 			# ignore 1st update call, see firmware_update_pmu()
 			touch 'files/www/lazypmu'
+
+			# avoid 5GHz radio for now:
+			echo '# mt7615e' >files/etc/modules.d/mt7615e
 
 			if [ -f '/tmp/apply_profile.code.definitions' ]; then
 				file="$custom_dir/etc/init.d/apply_profile.code.definitions.private"
