@@ -741,11 +741,22 @@ EOF
 		;;
 		'Xiaomi Mi R3P Pro')
 			# https://openwrt.org/toh/xiaomi/xiaomi_r3p_pro
-			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_xiaomi_mi-router-3-pro=y'
-			# TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3-pro=y'
-
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3-pro=y'
 			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-xiaomi_mi-router-3-pro-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY='openwrt-ramips-mt7621-xiaomi_mi-router-3-pro-squashfs-factory.bin'
+		;;
+		'Xiaomi Mi Router AC2100')
+			# The Tube:
+			# https://openwrt.org/toh/xiaomi/mi_router_ac2100
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-ac2100=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-xiaomi_mi-router-ac2100-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
+		'Xiaomi Redmi Router AC2100')
+			# https://openwrt.org/toh/xiaomi/xiaomi_redmi_router_ac2100
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_redmi-router-ac2100=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
 		'MQmaker WiTi')
 			# https://wiki.openwrt.org/toh/mqmaker/witi
