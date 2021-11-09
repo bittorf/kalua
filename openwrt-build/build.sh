@@ -209,12 +209,12 @@ autocommit()
 		eval $gitfile || {
 			case "$gitfile" in
 				*'git revert '*)
-					log "[ERR] command failed (but ignoring it): eval $gitfile"
+					log "[ERROR] command failed (but ignoring it): eval $gitfile"
 					return 0
 				;;
 			esac
 
-			log "[ERR] command failed: eval $gitfile"
+			log "[ERROR] command failed: eval $gitfile"
 			# workaround for a conflicting merge/revert
 
 			git status | grep 'both modified:' | while read -r line; do {
@@ -275,7 +275,6 @@ log()
 
 	has "$option" 'gitadd' && {
 		if [ -e "$gitfile" ]; then
-			# TODO: silence git output in 'debug' mode
 			autocommit "$gitfile" "$message" && {
 				has "$option" 'untrack' && git rm --cached "$gitfile"
 			}
@@ -286,6 +285,8 @@ log()
 				log "gitadd: file/dir '$gitfile' does not exist"
 			fi
 		fi
+
+		message="$message | file/dir: $gitfile"
 	}
 
 	case "$funcname" in
@@ -368,7 +369,7 @@ kconfig_file()
 	version="$( grep ^'KERNEL_PATCHVER' "$file" | cut -d'=' -f2)"		# e.g. 5.4
 
 	[ -n "$version" ] || {
-		log "[ERR] kconfig_file() symbol 'KERNEL_PATCHVER:=' not found in '$file'"
+		log "[ERROR] kconfig_file() symbol 'KERNEL_PATCHVER:=' not found in '$file'"
 		return 1
 	}
 
@@ -424,7 +425,8 @@ register_patch()
 
 	local funcname='register_patch'
 	local dir='files/etc'
-	local file="$dir/openwrt_patches"	# we can read the file later on the router
+	local file="$dir/openwrt_patches"	# we can read this file later on running router
+	export EFFECTIVE_PATCHED_FILE=
 
 	if [ -f "$name" ]; then
 		name="$( basename "$name" )"
@@ -443,7 +445,7 @@ register_patch()
 	fi
 
 	if [ "$name" = 'init' ]; then
-		[ -e "$file" ] && rm "$file"
+		[ -f "$file" ] && rm "$file"
 	else
 		case "$name" in
 			'DIR:'*|*':'|'REGHACK:'*)	# FIXME!
@@ -462,6 +464,10 @@ register_patch()
 		grep -sq ^"$name"$ "$file" || {
 			[ -e "$name" ] && log "adding patchfile" gitadd "$name"
 			echo "$name" >>"$file"
+
+			# +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
+			#       ^^^...
+			EFFECTIVE_PATCHED_FILE="$( grep ^'+++' "$name" | head -n1 | cut -b7- )"
 		}
 	fi
 }
@@ -553,7 +559,7 @@ apply_wifi_reghack()		# maybe unneeded with r45252
 			}
 		fi
 	else
-		log "[ERR] cannot find '$file'"
+		log "[ERROR] cannot find '$file'"
 	fi
 }
 
@@ -777,8 +783,8 @@ EOF
 		;;
 		'Xiaomi Miwifi mini')
 			# https://wiki.openwrt.org/toh/xiaomi/mini
-			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7620_MIWIFI-MINI=y'
-			FILENAME_SYSUPGRADE='openwrt-ramips-mt7620-miwifi-mini-squashfs-sysupgrade.bin'
+			TARGET_SYMBOL='CONFIG_TARGET_ramips_mt7620_DEVICE_xiaomi_miwifi-mini=y'
+			FILENAME_SYSUPGRADE='openwrt-ramips-mt7620-xiaomi_miwifi-mini-squashfs-sysupgrade.bin'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
 		'Raspberry Pi 3')
@@ -1397,7 +1403,7 @@ has_internet()
 	elif command -v ip >/dev/null; then
 		ip route list exact '0.0.0.0/0' | grep -q ^'default'
 	else
-		log "[ERR] unsure if we have internet, allowing"
+		log "[ERROR] unsure if we have internet, allowing"
 		return 0
 	fi
 }
@@ -1854,7 +1860,7 @@ openwrt_download()
 
 			if [ -n "$branch" ]; then
 				if git checkout master >/dev/null; then
-					git branch -D "$branch" || log "[ERR] failed deleting branch '$branch'"
+					git branch -D "$branch" || log "[ERROR] failed deleting branch '$branch'"
 				else
 					log "[ERROR] cannot switch to master, stashing"
 					git stash list
@@ -2441,6 +2447,10 @@ apply_patches()
 		} done
 	}
 
+	log "$KALUA_DIRNAME: trying to apply these patches:"
+	for _ in $( list_files_and_dirs ); do log "# patch: $_"; done
+	log "$KALUA_DIRNAME: (end of patches)"
+
 	list_files_and_dirs | while read -r file; do {
 		case "$file" in
 			*'-ath10k-'*)
@@ -2509,8 +2519,17 @@ apply_patches()
 
 			if   patch_for_mac80211 "$file"; then
 				register_patch "$file"
-				cp -v "$file" 'package/kernel/mac80211/patches'
-				log "mac80211.generic: adding '$file'" gitadd "package/kernel/mac80211/patches/$( basename "$file" )"
+
+				case "$EFFECTIVE_PATCHED_FILE" in
+					'package/kernel/mac80211/patches'*)
+						cp -v "$file" 'package/kernel/mac80211/patches'
+					;;
+					*)
+						# e.g. package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
+					;;
+				esac
+
+				log "mac80211.generic: adding '$file'" gitadd "$EFFECTIVE_PATCHED_FILE"
 				MAC80211_CLEAN='true'
 			elif patch_for_atheros_driver "$file"; then
 				register_patch "$file"
@@ -2723,8 +2742,8 @@ apply_symbol()
 			log "$KALUA_DIRNAME: adding recent tarball hash from '$url'"
 			tarball_hash="$( wget -qO - "$url" | grep -F 'tarball.tgz' | cut -d' ' -f2 )"
 			if [ -z "$tarball_hash" ]; then
-				log "[ERR] cannot fetch tarball hash from '$url'"
-				log "[ERR] be prepared that your node will automatically perform an update upon first boot"
+				log "[ERROR] cannot fetch tarball hash from '$url'"
+				log "[ERROR] be prepared that your node will automatically perform an update upon first boot"
 			else
 				echo >'files/etc/tarball_last_applied_hash' "$tarball_hash"
 				log "added tarball hash" gitadd 'files/etc/tarball_last_applied_hash'
@@ -3309,7 +3328,7 @@ build_options_set()
 					message="$( git show -s --pretty=oneline --format=%B "$hash" | head -n1 )"
 					autocommit "git revert $hash --no-commit" "reverting r$rev ($message)"
 				else
-					log "[ERR] commit $rev not found, ignoring"
+					log "[ERROR] commit $rev not found, ignoring"
 				fi
 			;;
 			'GCC8')
@@ -3382,7 +3401,7 @@ build_options_set()
 						[ "$1" = 'query_mii' ] && NEEDS_MII='true'
 					}		# parser_ignore
 
-					_switch_show	# TODO: fake _log()?
+					_switch_show
 
 					if [ -n "$NEEDS_MII" ]; then
 						# before r45995 it was: CONFIG_PACKAGE_mii-tool=y but 'musl' broke it - fixed with xy!
@@ -3392,7 +3411,7 @@ build_options_set()
 						return 1
 					fi
 				else
-					log '[ERR] cannot autodetect if "queryMIIinterface" is needed - please apply this usecase manually if needed'
+					log '[ERROR] cannot autodetect if "queryMIIinterface" is needed - please apply this usecase manually if needed'
 					return 1
 				fi
 			;;
@@ -4254,7 +4273,7 @@ travis_prepare()
 		log "[OK] trying 'apt-get $force install $*'"
 		sudo apt-get $force install "$@" || {
 			# sometimes it bails out without good reason
-			log "[ERR] during 'apt-get $force install $*', but trying to continue..."
+			log "[ERROR] during 'apt-get $force install $*', but trying to continue..."
 		}
 	}
 
@@ -4418,7 +4437,7 @@ bootstrap_ctags()
 			if make; then
 				log '[OK] make success'
 			else
-				log "[ERR] make: $? - rebuild with V=99"
+				log "[ERROR] make: $? - rebuild with V=99"
 				make V=99
 
 				return 1
@@ -4449,7 +4468,7 @@ bootstrap_shellsheck()
 	(
 		cabal update
 		cabal install --verbose=3 'cabal-install' || {
-			log "[ERR] cabal-install"
+			log "[ERROR] cabal-install"
 			cat "$HOME/.cabal/logs/cabal-install-"*.log
 		}
 
@@ -4637,7 +4656,7 @@ while [ -n "$1" ]; do {
 					VERSION_OPENWRT_INTEGER="${2#*r}"
 				;;
 				*)
-					log '[ERR] please specify: --openwrt trunk|12.09|14.07|15.05 or e.g. r12345'
+					log '[ERROR] please specify: --openwrt trunk|12.09|14.07|15.05 or e.g. r12345'
 					STOP_PARSE='true'
 				;;
 			esac
@@ -4736,12 +4755,12 @@ while [ -n "$1" ]; do {
 			} done
 
 			[ "$WORD" = '~' ] || {
-				log "[ERR] $1: adjust your path with: export PATH=\"~:\$PATH\""
+				log "[ERROR] $1: adjust your path with: export PATH=\"~:\$PATH\""
 				STOP_PARSE='true'
 			}
 		;;
 		'--'*|'-'*)
-			log "[ERR] invalid option '$1'"
+			log "[ERROR] invalid option '$1'"
 			STOP_PARSE='true'
 		;;
 	esac
