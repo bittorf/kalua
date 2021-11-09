@@ -804,6 +804,12 @@ EOF
 				FILENAME_SYSUPGRADE='openwrt-ath79-generic-buffalo_wzr-hp-ag300h-squashfs-sysupgrade.bin' && \
 				FILENAME_FACTORY='openwrt-ath79-generic-buffalo_wzr-hp-ag300h-squashfs-factory.bin'
 		;;
+		'TP-Link TD-W9980'|'TP-Link TD-W9980-B')
+			# https://openwrt.org/toh/tp-link/td-w9980
+			TARGET_SYMBOL='CONFIG_TARGET_lantiq_xrx200_DEVICE_tplink_tdw8980=y'
+			FILENAME_SYSUPGRADE='openwrt-lantiq-xrx200-tplink_tdw8980-squashfs-sysupgrade.bin'
+			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
+		;;
 		'TP-LINK CPE210'|'TP-LINK CPE220')
 			# https://wiki.openwrt.org/toh/tp-link/tl-cpe210
 			TARGET_SYMBOL='CONFIG_TARGET_ar71xx_generic_CPE510=y'	# really 510
@@ -3134,6 +3140,22 @@ build_options_set()
 				apply_symbol 'CONFIG_DEVEL=y'
 				apply_symbol 'CONFIG_PACKAGE_procd-ujail is not set'
 				apply_symbol 'CONFIG_SECCOMP is not set'
+				# FIXME! measure impact:
+				# CONFIG_STRIP_KERNEL_EXPORTS=y
+				# CONFIG_USE_MKLIBS=y
+				# CONFIG_PKG_CHECK_FORMAT_SECURITY is not set
+				#
+				# CONFIG_KERNEL_CRASHLOG is not set
+				# CONFIG_KERNEL_KALLSYMS is not set
+				# CONFIG_KERNEL_DEBUG_KERNEL is not set
+				# CONFIG_KERNEL_DEBUG_INFO is not set
+				# CONFIG_KERNEL_ELF_CORE is not set
+				# CONFIG_KERNEL_SECCOMP is not set
+
+
+				# include?
+				# CONFIG_PACKAGE_kmod-vxlan=y
+				# CONFIG_PACKAGE_usteer=y
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
