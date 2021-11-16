@@ -478,11 +478,15 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 	_system crashreboot "$1"
 }
 
+				# on 4 cores we output 25 when load is 1.00
 _system_load()			# load without comma, e.g. 1.00 = 100 or 12.89 = 1289 or 0.05 = 5
 {
 	local time="${1:-1min}"
 	local format="$2"	# e.g. quiet OR full OR <empty>
-	local cpuload decimals out oldIFS
+	local cpuload decimals out oldIFS line
+	local cores=0
+
+	while read -r line; do case "$line" in cpu[0-9]*) cores=$(( cores + 1 )) ;; esac; done </proc/stat
 
 	case "$time" in
 		'1min')
@@ -505,7 +509,7 @@ _system_load()			# load without comma, e.g. 1.00 = 100 or 12.89 = 1289 or 0.05 =
 			out="${out#0}"				# cut off leading zero's
 			out="${out#0}"
 
-			export LOAD="$out"
+			export LOAD=$(( out / cores ))
 		;;
 	esac
 
