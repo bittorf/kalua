@@ -2567,23 +2567,6 @@ apply_patches()
 				cp -v "$file" 'toolchain/musl/patches'
 				log "musl: adding '$file'" gitadd "toolchain/musl/patches/$( basename "$file" )"
 			elif patch_for_openwrt "$file"; then
-				case "$file" in
-					*'lzma'*)
-						f1='target/linux/ath79/image/lzma-loader/src/7zTypes.h'
-						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
-						f1='target/linux/ath79/image/lzma-loader/src/LzmaDec.h'
-						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
-						f1='target/linux/ath79/image/lzma-loader/src/LzmaDec.c'
-						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
-						f1='target/linux/ramips/image/lzma-loader/src/7zTypes.h'
-						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
-						f1='target/linux/ramips/image/lzma-loader/src/LzmaDec.c'
-						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
-						f1='target/linux/ramips/image/lzma-loader/src/LzmaDec.h'
-						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
-					;;
-				esac
-
 				if git apply --ignore-whitespace --check <"$file"; then
 					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
 					# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
