@@ -191,6 +191,8 @@ autocommit()
 {
 	local gitfile="$1"	# existing_file or 'git revert xy'
 	local message="$2"
+
+	local funcname='autocommit'
 	local count_files count_dirs count filetype line file
 
 	if [ -e "$gitfile" ]; then
@@ -209,7 +211,7 @@ autocommit()
 		eval $gitfile || {
 			case "$gitfile" in
 				*'git revert '*)
-					log "[ERROR] command failed (but ignoring it): eval $gitfile"
+					log "[OK] message: '$message' command failed (but ignoring it): eval $gitfile"
 					return 0
 				;;
 			esac
@@ -426,9 +428,11 @@ register_patch()
 	local funcname='register_patch'
 	local dir='files/etc'
 	local file="$dir/openwrt_patches"	# we can read this file later on running router
+	local fullname
 	export EFFECTIVE_PATCHED_FILE=
 
 	if [ -f "$name" ]; then
+		fullname="$name"
 		name="$( basename "$name" )"
 	else
 		case "$name" in
@@ -438,6 +442,7 @@ register_patch()
 			'FAILED: '*)
 				set -- $name
 				shift
+				fullname="$@"
 				name="$( basename "$@" )"
 				name="* failed: $name"
 			;;
@@ -459,15 +464,17 @@ register_patch()
 			;;
 		esac
 
-		[ -d "$dir" ] || mkdir "$dir"
+		[ -d "$dir" ] || mkdir -p "$dir"
 
 		grep -sq ^"$name"$ "$file" || {
 			[ -e "$name" ] && log "adding patchfile" gitadd "$name"
 			echo "$name" >>"$file"
 
+			[ -f "$fullname" ] || return 0
 			# +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 			#       ^^^...
-			EFFECTIVE_PATCHED_FILE="$( grep ^'+++' "$name" | head -n1 | cut -b7- )"
+			EFFECTIVE_PATCHED_FILE="$( grep ^'+++' "$fullname" | head -n1 | cut -b7- )"
+			log "EFFECTIVE_PATCHED_FILE: '$EFFECTIVE_PATCHED_FILE' file: $file fullname: $fullname"
 		}
 	fi
 }
@@ -2330,7 +2337,7 @@ build()
 	}
 
 	[ -d 'logs' ] && rm -fR 'logs'
-	commandline="--jobs $buildjobs BUILD_LOG=1"
+	commandline="--jobs ${JOBS:-$buildjobs} BUILD_LOG=1"
 
 	case "$option" in
 		'nuke_bindir')
@@ -2414,7 +2421,7 @@ apply_builtin_secret()
 
 apply_patches()
 {
-	local file
+	local file f1
 
 	log "$KALUA_DIRNAME: adding builtin secret"
 	apply_builtin_secret
@@ -2452,6 +2459,8 @@ apply_patches()
 	log "$KALUA_DIRNAME: (end of patches)"
 
 	list_files_and_dirs | while read -r file; do {
+		log "[OK] working in '$file'"
+
 		case "$file" in
 			*'-ath10k-'*)
 				grep -q '_kmod-ath10k' '.config' || {
@@ -2469,6 +2478,7 @@ apply_patches()
 			{
 				grep -q ^'To: openwrt-devel@lists.openwrt.org' "$1" && return 0
 				grep -q ' a/package/' "$1" && return 0
+				grep -q ' a/target/' "$1" && return 0
 				grep -q ' a/include/' "$1"
 			}
 
@@ -2557,6 +2567,23 @@ apply_patches()
 				cp -v "$file" 'toolchain/musl/patches'
 				log "musl: adding '$file'" gitadd "toolchain/musl/patches/$( basename "$file" )"
 			elif patch_for_openwrt "$file"; then
+				case "$file" in
+					*'lzma'*)
+						f1='target/linux/ath79/image/lzma-loader/src/7zTypes.h'
+						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
+						f1='target/linux/ath79/image/lzma-loader/src/LzmaDec.h'
+						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
+						f1='target/linux/ath79/image/lzma-loader/src/LzmaDec.c'
+						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
+						f1='target/linux/ramips/image/lzma-loader/src/7zTypes.h'
+						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
+						f1='target/linux/ramips/image/lzma-loader/src/LzmaDec.c'
+						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
+						f1='target/linux/ramips/image/lzma-loader/src/LzmaDec.h'
+						test -f "$f1" && cp "$f1" "$f1.orig" && rm -f "$f1"
+					;;
+				esac
+
 				if git apply --ignore-whitespace --check <"$file"; then
 					# http://stackoverflow.com/questions/15934101/applying-a-diff-file-with-git
 					# http://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress
@@ -3142,7 +3169,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-conntrack-extra=y'	# +100k?
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
-				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
+#				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
 				apply_symbol 'CONFIG_PACKAGE_rrdtool1=y'		# utilities: rrdtool:
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
@@ -3187,11 +3214,11 @@ build_options_set()
 					;;
 				esac
 
-				$funcname subcall 'iproute2'
-				$funcname subcall 'squash64'
+###				$funcname subcall 'iproute2'
+###				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
-				usecase_has 'noShaping' || $funcname subcall 'shaping'
+###				usecase_has 'noShaping' || $funcname subcall 'shaping'
 #				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
@@ -4563,6 +4590,9 @@ while [ -n "$1" ]; do {
 	case "$1" in
 		'--yes'|'-y')
 			export YESTOALL=true
+		;;
+		'--jobs'|'-j')
+			export JOBS=$2
 		;;
 		'--tarball_package'|'-P')
 			build_tarball_package || print_usage_and_exit
