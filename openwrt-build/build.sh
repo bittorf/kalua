@@ -2421,7 +2421,7 @@ apply_builtin_secret()
 
 apply_patches()
 {
-	local file f1
+	local file
 
 	log "$KALUA_DIRNAME: adding builtin secret"
 	apply_builtin_secret
@@ -3198,7 +3198,7 @@ build_options_set()
 				esac
 
 ###				$funcname subcall 'iproute2'
-###				$funcname subcall 'squash64'
+				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
 ###				usecase_has 'noShaping' || $funcname subcall 'shaping'
