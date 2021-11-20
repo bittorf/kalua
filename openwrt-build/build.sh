@@ -916,12 +916,8 @@ EOF
 			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
 
 			# size 2702364 bytes = OK
-			# KERNEL = ./build_dir/target-powerpc_8540_musl/linux-mpc85xx_p1010/tplink_tl-wdr4900-v1-kernel.bin
-			# CONFIG_KERNEL_PRINTK is not set
-			# CONFIG_KERNEL_DEBUG_KERNEL is not set
-			# CONFIG_KERNEL_DEBUG_INFO is not set
-			# CONFIG_KERNEL_COREDUMP is not set ???
-			# CONFIG_KERNEL_ELF_CORE is not set
+			FILENAME_KERNEL1='build_dir/target-powerpc_8540_musl/linux-mpc85xx_p1010/vmlinux.elf'
+			FILENAME_KERNEL2='build_dir/target-powerpc_8540_musl/linux-mpc85xx_p1010/tplink_tl-wdr4900-v1-kernel.bin'
 
 			version_is_lede && \
 			test "$HQNAME" = openwrt && \
@@ -3166,21 +3162,21 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
 #				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
 
+				# FIXME! measure impact:
 				apply_symbol 'CONFIG_DEVEL=y'
 				apply_symbol 'CONFIG_PACKAGE_procd-ujail is not set'
+				# CONFIG_KERNEL_CRASHLOG is not set				# crashlog.o ?
+				apply_symbol 'CONFIG_KERNEL_KALLSYMS is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_KERNEL is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_INFO is not set'
+				apply_symbol 'CONFIG_KERNEL_ELF_CORE is not set'
 				apply_symbol 'CONFIG_SECCOMP is not set'
-				# FIXME! measure impact:
-				# CONFIG_STRIP_KERNEL_EXPORTS=y
-				# CONFIG_USE_MKLIBS=y
-				# CONFIG_PKG_CHECK_FORMAT_SECURITY is not set
-				#
-				# CONFIG_KERNEL_CRASHLOG is not set
-				# CONFIG_KERNEL_KALLSYMS is not set
-				# CONFIG_KERNEL_DEBUG_KERNEL is not set
-				# CONFIG_KERNEL_DEBUG_INFO is not set
-				# CONFIG_KERNEL_ELF_CORE is not set
-				# CONFIG_KERNEL_SECCOMP is not set
-
+				apply_symbol 'CONFIG_KERNEL_SECCOMP is not set'
+				apply_symbol 'CONFIG_KERNEL_CC_OPTIMIZE_FOR_SIZE=y'		# switch off 'CONFIG_KERNEL_CC_OPTIMIZE_FOR_PERFORMANCE=y'
+				apply_symbol 'CONFIG_USE_SSTRIP=y'				# switch off 'CONFIG_USE_STRIP=y'
+				apply_symbol 'CONFIG_STRIP_KERNEL_EXPORTS=y'
+				apply_symbol 'CONFIG_USE_MKLIBS=y'
+				apply_symbol 'CONFIG_PKG_CHECK_FORMAT_SECURITY is not set'
 
 				# include?
 				# CONFIG_PACKAGE_kmod-vxlan=y
@@ -3188,7 +3184,7 @@ build_options_set()
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
-# fee
+
 				case "$HARDWARE_MODEL" in
 					'TP-LINK Archer C6U')
 						# FIXME! use $SPECIAL_OPTIONS for that
