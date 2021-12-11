@@ -79,22 +79,31 @@ case "$ACTION" in
 					$IPT -t nat -I POSTROUTING -j 'NAT_ALIEN_ROAMERS'
 
 					bool_true 'system.@monitoring[0].roaming_nat' && {
-						LIST_DEVS="$( _wifi active_ap_devices ) $LANDEV"
+						# we only must NAT connected AP-clients,
+						# which have roamed and use another roaming-range, e.g.
+						#   laptopA: connects to 100.66.1.2/32, and
+						#   roams to a router with HNA 100.67.1.0/24
+
+						LIST_DEVS="$( _wifi active_ap_devices )"
 
 						if _net local_inet_offer >/dev/null; then
 							for DEV in $LIST_DEVS; do {
-								$IPT -t nat -I NAT_ALIEN_ROAMERS -i $DEV -s "$ROAMING_NET/$ROAMING_PRE" -j MASQUERADE
+								$IPT -t nat -I NAT_ALIEN_ROAMERS -i $DEV   -s "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL" -j ACCEPT
+								$IPT -t nat -I NAT_ALIEN_ROAMERS -i $DEV ! -s "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL" -j MASQUERADE
 							} done
 						else
 							for DEV in $LIST_DEVS; do {
-								$IPT -t nat -I NAT_ALIEN_ROAMERS -i $DEV -s "$ROAMING_NET/$ROAMING_PRE" -j SNAT --to-source "$ROAMING_ADR_LOCAL"
+								$IPT -t nat -I NAT_ALIEN_ROAMERS -i $DEV   -s "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL" -j ACCEPT
+								$IPT -t nat -I NAT_ALIEN_ROAMERS -i $DEV ! -s "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL" -j SNAT --to-source "$ROAMING_ADR_LOCAL"
 							} done
 						fi
 
+						# TODO: not needed?
+						$IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET/$ROAMING_PRE" -j ACCEPT
 						$IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET_LOCAL/$ROAMING_PRE_LOCAL" -j RETURN
 
 						# FIXME! it seems sometimes not working, so masq all:
-						$IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET/$ROAMING_PRE" -j SNAT --to-source "$ROAMING_ADR_LOCAL"
+						# $IPT -t nat -I NAT_ALIEN_ROAMERS -s "$ROAMING_NET/$ROAMING_PRE" -j SNAT --to-source "$ROAMING_ADR_LOCAL"
 					}
 				}
 			;;
