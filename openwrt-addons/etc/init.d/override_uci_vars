@@ -525,6 +525,47 @@ integer2fourhex()	# e.g. 8 -> 00:08
 	fi
 }
 
+apply_cronwatchdog()	# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
+{
+	local option="$1"
+
+	# https://www.mail-archive.com/dnsmasq-discuss@lists.thekelleys.org.uk/msg11369.html
+	dnsmasq -v | grep -q '2.77test5' && option='set_inactive'
+
+	[ "$option" = 'set_inactive' ] && {
+		uci_remove_section "network.@alias[].interface" 'loopback'
+		uci_remove_section "dhcp.@host[].name" 'lo-alias'
+		uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
+
+		[ -e '/www/netifd_dhcp_watchdog' ] && rm '/www/netifd_dhcp_watchdog'
+
+		pidof dnsmasq >/dev/null && /etc/init.d/dnsmasq restart
+		return 0
+	}
+
+	uci_remove_section "network.@alias[].interface" 'loopback'
+	uci add network 'alias' >/dev/null
+	uci set network.@alias[-1].interface='loopback'
+	uci set network.@alias[-1].proto='dhcp'
+	uci set network.@alias[-1].defaultroute='0'	# do not apply default route
+	uci set network.@alias[-1].peerdns='0'		# and DNS
+
+	uci_remove_section "dhcp.@host[].name" 'lo-alias'
+	uci add dhcp 'host' >/dev/null
+	uci set dhcp.@host[-1].ip='127.0.0.2'
+	uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
+	uci set dhcp.@host[-1].name='lo-alias'
+
+	uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
+	uci add dhcp 'dhcp' >/dev/null
+	uci set dhcp.@dhcp[-1].interface='loopback'
+	uci set dhcp.@dhcp[-1].start='2'
+	uci set dhcp.@dhcp[-1].limit='2'
+	uci set dhcp.@dhcp[-1].leasetime='1h'
+	uci set dhcp.@dhcp[-1].force='1'
+	uci set dhcp.@dhcp[-1].ignore='0'
+}
+
 boot()
 {
 	local list pattern daemon i j good_hash ssid=
@@ -589,7 +630,7 @@ boot()
 		while uci del olsrd.@LoadPlugin[0]; do :; done
 		while uci del network.@loopback[0]; do :; done
 
-		[ -n "$LOWMEM" ] && {
+		if [ -n "$LOWMEM" ]; then
 			kmodules_group_deactivate '*'
 			kmodules_group_activate   'zram'
 			kmodules_group_activate   'lib-lzo'
@@ -603,7 +644,9 @@ boot()
 #			kmodule_force_deactivation 'ip6tables'
 
 			/etc/init.d/odhcpd disable
-		}
+		else
+			apply_cronwatchdog
+		fi
 
 		return 0
 	else
@@ -1018,47 +1061,6 @@ boot()
 			uci -q delete uhttpd.main.listen_https
 		fi
 	fi
-
-	apply_cronwatchdog()	# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
-	{
-		local option="$1"
-
-		# https://www.mail-archive.com/dnsmasq-discuss@lists.thekelleys.org.uk/msg11369.html
-		dnsmasq -v | grep -q '2.77test5' && option='set_inactive'
-
-		[ "$option" = 'set_inactive' ] && {
-			uci_remove_section "network.@alias[].interface" 'loopback'
-			uci_remove_section "dhcp.@host[].name" 'lo-alias'
-			uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
-
-			[ -e '/www/netifd_dhcp_watchdog' ] && rm '/www/netifd_dhcp_watchdog'
-
-			pidof dnsmasq >/dev/null && /etc/init.d/dnsmasq restart
-			return 0
-		}
-
-		uci_remove_section "network.@alias[].interface" 'loopback'
-		uci add network 'alias' >/dev/null
-		uci set network.@alias[-1].interface='loopback'
-		uci set network.@alias[-1].proto='dhcp'
-		uci set network.@alias[-1].defaultroute='0'	# do not apply default route
-		uci set network.@alias[-1].peerdns='0'		# and DNS
-
-		uci_remove_section "dhcp.@host[].name" 'lo-alias'
-		uci add dhcp 'host' >/dev/null
-		uci set dhcp.@host[-1].ip='127.0.0.2'
-		uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
-		uci set dhcp.@host[-1].name='lo-alias'
-
-		uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
-		uci add dhcp 'dhcp' >/dev/null
-		uci set dhcp.@dhcp[-1].interface='loopback'
-		uci set dhcp.@dhcp[-1].start='2'
-		uci set dhcp.@dhcp[-1].limit='2'
-		uci set dhcp.@dhcp[-1].leasetime='1h'
-		uci set dhcp.@dhcp[-1].force='1'
-		uci set dhcp.@dhcp[-1].ignore='0'
-	}
 
 	ssh_active()
 	{
