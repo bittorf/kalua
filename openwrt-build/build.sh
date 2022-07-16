@@ -191,6 +191,8 @@ autocommit()
 {
 	local gitfile="$1"	# existing_file or 'git revert xy'
 	local message="$2"
+
+	local funcname='autocommit'
 	local count_files count_dirs count filetype line file
 
 	if [ -e "$gitfile" ]; then
@@ -209,7 +211,7 @@ autocommit()
 		eval $gitfile || {
 			case "$gitfile" in
 				*'git revert '*)
-					log "[ERROR] command failed (but ignoring it): eval $gitfile"
+					log "[OK] message: '$message' command failed (but ignoring it): eval $gitfile"
 					return 0
 				;;
 			esac
@@ -426,9 +428,11 @@ register_patch()
 	local funcname='register_patch'
 	local dir='files/etc'
 	local file="$dir/openwrt_patches"	# we can read this file later on running router
+	local fullname
 	export EFFECTIVE_PATCHED_FILE=
 
 	if [ -f "$name" ]; then
+		fullname="$name"
 		name="$( basename "$name" )"
 	else
 		case "$name" in
@@ -438,6 +442,7 @@ register_patch()
 			'FAILED: '*)
 				set -- $name
 				shift
+				fullname="$@"
 				name="$( basename "$@" )"
 				name="* failed: $name"
 			;;
@@ -459,15 +464,17 @@ register_patch()
 			;;
 		esac
 
-		[ -d "$dir" ] || mkdir "$dir"
+		[ -d "$dir" ] || mkdir -p "$dir"
 
 		grep -sq ^"$name"$ "$file" || {
 			[ -e "$name" ] && log "adding patchfile" gitadd "$name"
 			echo "$name" >>"$file"
 
+			[ -f "$fullname" ] || return 0
 			# +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 			#       ^^^...
-			EFFECTIVE_PATCHED_FILE="$( grep ^'+++' "$name" | head -n1 | cut -b7- )"
+			EFFECTIVE_PATCHED_FILE="$( grep ^'+++' "$fullname" | head -n1 | cut -b7- )"
+			log "EFFECTIVE_PATCHED_FILE: '$EFFECTIVE_PATCHED_FILE' file: $file fullname: $fullname"
 		}
 	fi
 }
@@ -909,12 +916,8 @@ EOF
 			FILENAME_FACTORY='openwrt-mpc85xx-generic-tl-wdr4900-v1-squashfs-factory.bin'
 
 			# size 2702364 bytes = OK
-			# KERNEL = ./build_dir/target-powerpc_8540_musl/linux-mpc85xx_p1010/tplink_tl-wdr4900-v1-kernel.bin
-			# CONFIG_KERNEL_PRINTK is not set
-			# CONFIG_KERNEL_DEBUG_KERNEL is not set
-			# CONFIG_KERNEL_DEBUG_INFO is not set
-			# CONFIG_KERNEL_COREDUMP is not set ???
-			# CONFIG_KERNEL_ELF_CORE is not set
+			FILENAME_KERNEL1='build_dir/target-powerpc_8540_musl/linux-mpc85xx_p1010/vmlinux.elf'
+			FILENAME_KERNEL2='build_dir/target-powerpc_8540_musl/linux-mpc85xx_p1010/tplink_tl-wdr4900-v1-kernel.bin'
 
 			version_is_lede && \
 			test "$HQNAME" = openwrt && \
@@ -2330,7 +2333,7 @@ build()
 	}
 
 	[ -d 'logs' ] && rm -fR 'logs'
-	commandline="--jobs $buildjobs BUILD_LOG=1"
+	commandline="--jobs ${JOBS:-$buildjobs} BUILD_LOG=1"
 
 	case "$option" in
 		'nuke_bindir')
@@ -2452,6 +2455,8 @@ apply_patches()
 	log "$KALUA_DIRNAME: (end of patches)"
 
 	list_files_and_dirs | while read -r file; do {
+		log "[OK] working in '$file'"
+
 		case "$file" in
 			*'-ath10k-'*)
 				grep -q '_kmod-ath10k' '.config' || {
@@ -2469,6 +2474,7 @@ apply_patches()
 			{
 				grep -q ^'To: openwrt-devel@lists.openwrt.org' "$1" && return 0
 				grep -q ' a/package/' "$1" && return 0
+				grep -q ' a/target/' "$1" && return 0
 				grep -q ' a/include/' "$1"
 			}
 
@@ -3142,7 +3148,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-conntrack-extra=y'	# +100k?
 				apply_symbol 'CONFIG_PACKAGE_resolveip=y'		# base-system: +3k
 				apply_symbol 'CONFIG_PACKAGE_uhttpd=y'			# network: webserver: uhttpd
-				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
+#				apply_symbol 'CONFIG_PACKAGE_uhttpd-mod-tls=y'		# ...
 				apply_symbol 'CONFIG_PACKAGE_px5g=y'			# utilities: px5g
 				apply_symbol 'CONFIG_PACKAGE_rrdtool1=y'		# utilities: rrdtool:
 				apply_symbol 'CONFIG_PACKAGE_ATH_DEBUG=y'		# kernel-modules: wireless:
@@ -3156,21 +3162,21 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
 #				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
 
+				# FIXME! measure impact:
 				apply_symbol 'CONFIG_DEVEL=y'
 				apply_symbol 'CONFIG_PACKAGE_procd-ujail is not set'
+				# CONFIG_KERNEL_CRASHLOG is not set				# crashlog.o ?
+				apply_symbol 'CONFIG_KERNEL_KALLSYMS is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_KERNEL is not set'
+				apply_symbol 'CONFIG_KERNEL_DEBUG_INFO is not set'
+				apply_symbol 'CONFIG_KERNEL_ELF_CORE is not set'
 				apply_symbol 'CONFIG_SECCOMP is not set'
-				# FIXME! measure impact:
-				# CONFIG_STRIP_KERNEL_EXPORTS=y
-				# CONFIG_USE_MKLIBS=y
-				# CONFIG_PKG_CHECK_FORMAT_SECURITY is not set
-				#
-				# CONFIG_KERNEL_CRASHLOG is not set
-				# CONFIG_KERNEL_KALLSYMS is not set
-				# CONFIG_KERNEL_DEBUG_KERNEL is not set
-				# CONFIG_KERNEL_DEBUG_INFO is not set
-				# CONFIG_KERNEL_ELF_CORE is not set
-				# CONFIG_KERNEL_SECCOMP is not set
-
+				apply_symbol 'CONFIG_KERNEL_SECCOMP is not set'
+				apply_symbol 'CONFIG_KERNEL_CC_OPTIMIZE_FOR_SIZE=y'		# switch off 'CONFIG_KERNEL_CC_OPTIMIZE_FOR_PERFORMANCE=y'
+				apply_symbol 'CONFIG_USE_SSTRIP=y'				# switch off 'CONFIG_USE_STRIP=y'
+				apply_symbol 'CONFIG_STRIP_KERNEL_EXPORTS=y'
+				apply_symbol 'CONFIG_USE_MKLIBS=y'
+				apply_symbol 'CONFIG_PKG_CHECK_FORMAT_SECURITY is not set'
 
 				# include?
 				# CONFIG_PACKAGE_kmod-vxlan=y
@@ -3178,7 +3184,7 @@ build_options_set()
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
-# fee
+
 				case "$HARDWARE_MODEL" in
 					'TP-LINK Archer C6U')
 						# FIXME! use $SPECIAL_OPTIONS for that
@@ -3187,11 +3193,11 @@ build_options_set()
 					;;
 				esac
 
-				$funcname subcall 'iproute2'
+###				$funcname subcall 'iproute2'
 				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
-				usecase_has 'noShaping' || $funcname subcall 'shaping'
+###				usecase_has 'noShaping' || $funcname subcall 'shaping'
 #				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
@@ -4563,6 +4569,9 @@ while [ -n "$1" ]; do {
 	case "$1" in
 		'--yes'|'-y')
 			export YESTOALL=true
+		;;
+		'--jobs'|'-j')
+			export JOBS=$2
 		;;
 		'--tarball_package'|'-P')
 			build_tarball_package || print_usage_and_exit

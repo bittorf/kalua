@@ -525,6 +525,47 @@ integer2fourhex()	# e.g. 8 -> 00:08
 	fi
 }
 
+apply_cronwatchdog()	# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
+{
+	local option="$1"
+
+	# https://www.mail-archive.com/dnsmasq-discuss@lists.thekelleys.org.uk/msg11369.html
+	dnsmasq -v | grep -q '2.77test5' && option='set_inactive'
+
+	[ "$option" = 'set_inactive' ] && {
+		uci_remove_section "network.@alias[].interface" 'loopback'
+		uci_remove_section "dhcp.@host[].name" 'lo-alias'
+		uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
+
+		[ -e '/www/netifd_dhcp_watchdog' ] && rm '/www/netifd_dhcp_watchdog'
+
+		pidof dnsmasq >/dev/null && /etc/init.d/dnsmasq restart
+		return 0
+	}
+
+	uci_remove_section "network.@alias[].interface" 'loopback'
+	uci add network 'alias' >/dev/null
+	uci set network.@alias[-1].interface='loopback'
+	uci set network.@alias[-1].proto='dhcp'
+	uci set network.@alias[-1].defaultroute='0'	# do not apply default route
+	uci set network.@alias[-1].peerdns='0'		# and DNS
+
+	uci_remove_section "dhcp.@host[].name" 'lo-alias'
+	uci add dhcp 'host' >/dev/null
+	uci set dhcp.@host[-1].ip='127.0.0.2'
+	uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
+	uci set dhcp.@host[-1].name='lo-alias'
+
+	uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
+	uci add dhcp 'dhcp' >/dev/null
+	uci set dhcp.@dhcp[-1].interface='loopback'
+	uci set dhcp.@dhcp[-1].start='2'
+	uci set dhcp.@dhcp[-1].limit='2'
+	uci set dhcp.@dhcp[-1].leasetime='1h'
+	uci set dhcp.@dhcp[-1].force='1'
+	uci set dhcp.@dhcp[-1].ignore='0'
+}
+
 boot()
 {
 	local list pattern daemon i j good_hash ssid=
@@ -574,7 +615,7 @@ boot()
 		uci set network.@lan[-1].netmask="$( _ipsystem getvar 'LANMSK' )"
 	}
 
-	if [ -e '/etc/init.d/apply_profile' ]; then
+	if [ -f '/etc/init.d/apply_profile' ]; then
 		[ -s '/www/cgi-bin-welcome.sh'	] || ln -s '/www/cgi-bin-welcome'   '/www/cgi-bin-welcome.sh'
 		[ -s '/www/cgi-bin-sql.sh'	] || ln -s '/www/cgi-bin-sql'	    '/www/cgi-bin-sql.sh'
 		[ -s '/www/cgi-bin-tool.sh'	] || ln -s '/www/cgi-bin-tool_fff+' '/www/cgi-bin-tool.sh'
@@ -586,7 +627,10 @@ boot()
 		uci set uhttpd.px5g.state='Thuringia'
 		uci set uhttpd.px5g.location='Weimar'
 
-		[ -n "$LOWMEM" ] && {
+		while uci del olsrd.@LoadPlugin[0]; do :; done
+		while uci del network.@loopback[0]; do :; done
+
+		if [ -n "$LOWMEM" ]; then
 			kmodules_group_deactivate '*'
 			kmodules_group_activate   'zram'
 			kmodules_group_activate   'lib-lzo'
@@ -600,7 +644,9 @@ boot()
 #			kmodule_force_deactivation 'ip6tables'
 
 			/etc/init.d/odhcpd disable
-		}
+		else
+			apply_cronwatchdog
+		fi
 
 		return 0
 	else
@@ -1016,47 +1062,6 @@ boot()
 		fi
 	fi
 
-	apply_cronwatchdog()	# cron-watchdog via netifd-dhcp-hotplug-call: iface/60-dyndns
-	{
-		local option="$1"
-
-		# https://www.mail-archive.com/dnsmasq-discuss@lists.thekelleys.org.uk/msg11369.html
-		dnsmasq -v | grep -q '2.77test5' && option='set_inactive'
-
-		[ "$option" = 'set_inactive' ] && {
-			uci_remove_section "network.@alias[].interface" 'loopback'
-			uci_remove_section "dhcp.@host[].name" 'lo-alias'
-			uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
-
-			[ -e '/www/netifd_dhcp_watchdog' ] && rm '/www/netifd_dhcp_watchdog'
-
-			pidof dnsmasq >/dev/null && /etc/init.d/dnsmasq restart
-			return 0
-		}
-
-		uci_remove_section "network.@alias[].interface" 'loopback'
-		uci add network 'alias' >/dev/null
-		uci set network.@alias[-1].interface='loopback'
-		uci set network.@alias[-1].proto='dhcp'
-		uci set network.@alias[-1].defaultroute='0'	# do not apply default route
-		uci set network.@alias[-1].peerdns='0'		# and DNS
-
-		uci_remove_section "dhcp.@host[].name" 'lo-alias'
-		uci add dhcp 'host' >/dev/null
-		uci set dhcp.@host[-1].ip='127.0.0.2'
-		uci set dhcp.@host[-1].mac='00:00:00:00:00:00'
-		uci set dhcp.@host[-1].name='lo-alias'
-
-		uci_remove_section "dhcp.@dhcp[].interface" 'loopback'
-		uci add dhcp 'dhcp' >/dev/null
-		uci set dhcp.@dhcp[-1].interface='loopback'
-		uci set dhcp.@dhcp[-1].start='2'
-		uci set dhcp.@dhcp[-1].limit='2'
-		uci set dhcp.@dhcp[-1].leasetime='1h'
-		uci set dhcp.@dhcp[-1].force='1'
-		uci set dhcp.@dhcp[-1].ignore='0'
-	}
-
 	ssh_active()
 	{
 		/etc/init.d/dropbear 'enabled' || /etc/init.d/dropbear 'enable'
@@ -1238,7 +1243,7 @@ boot()
 	}
 
 	case "$HARDWARE" in
-		'TP-LINK Archer C6U')
+		'xxxTP-LINK Archer C6U')
 			# 5ghz/mt7615e crashes on bootup
 			_wifi set anymode anyfreq off
 			_wifi set anymode 2ghz on
@@ -1960,6 +1965,7 @@ boot()
 				867)
 					# elsternest -> LAN -> AirOS -> WAN-to-825
 					uci set system.@monitoring[0].speedcheck_wired=true
+					uci set dhcp.lan.ignore=1
 
 					# avoid flapping gw from plagenwatz/bamag
 					uci set olsrd.@Interface[0].LinkQualityMult='10.63.60.253 0.5'
@@ -2170,18 +2176,22 @@ boot()
 					uci set system.@monitoring[0].button_smstext='Fries36: Knopf gedrueckt: bitte anrufen 03643-827407'
 					uci set system.@monitoring[0].button_phone='0176/24223419 0179/7465017'
 
-					local myip wanip
+					local myip
 
 					# /etc/ethers:
 					# 70:10:6f:ca:74:70 10.63.22.98
 					# b4:2e:99:c4:5f:13 10.63.22.100
 					myip="$( _net ip4_plus_x "$LANADR" 1 )"
-					_net dhcp_lease_fixed '70:10:6f:ca:74:70' "$myip"	# nas
-					myip="$( _net ip4_plus_x "$LANADR" 3 )"
-					_net dhcp_lease_fixed 'b4:2e:99:c4:5f:13' "$myip"	# ryzen
+					_net dhcp_lease_fixed '70:10:6f:ca:74:70' "$myip"	# nas = 98
 
-					wanip="$( _ipsystem getvar 'WANADR' 276 )"	# from inet_offering router
-					grep -sq ^"$wanip " "$TMPDIR/own_dns_overrides.txt" || echo "$wanip bwireless.mooo.com" >>"$TMPDIR/own_dns_overrides.txt"
+					myip="$( _net ip4_plus_x "$LANADR" 2 )"
+					_net dhcp_lease_fixed '00:17:88:7b:84:62' "$myip"	# phillips hue = 99
+
+					myip="$( _net ip4_plus_x "$LANADR" 3 )"
+					_net dhcp_lease_fixed 'b4:2e:99:c4:5f:13' "$myip"	# ryzen = 100
+
+					myip="$( _net ip4_plus_x "$LANADR" 6 )"
+					_net dhcp_lease_fixed 'e8:6a:64:6c:0b:98' "$myip"	# job = 103
 				;;
 				603)
 					# ewerk
@@ -2190,6 +2200,10 @@ boot()
 #					ROAMING='false'
 				;;
 			esac
+
+			# for all nodes in network liszt28:
+			local ip && ip="$( _ipsystem getvar 'LANADR' 278 )"	# from inet_offering router
+			grep -sq ^"$ip " "$TMPDIR/own_dns_overrides.txt" || echo "$ip bwireless.mooo.com" >>"$TMPDIR/own_dns_overrides.txt"
 
 			case "$NODENUMBER" in
 				348)
@@ -2513,7 +2527,7 @@ boot()
 			esac
 
 			case "$HARDWARE" in
-				'TP-LINK Archer C6U')
+				'xxxTP-LINK Archer C6U')
 					# 5ghz/mt7615e crashes on bootup
 					_wifi set anymode 2ghz on
 					_wifi set anymode 5ghz off	# FIXME!
@@ -2559,7 +2573,11 @@ boot()
 		ejbw*)
 			# CPE710-A = AP  = 192.168.0.254 = SSID = TNK / WPA-PSK = 8ewl...x2
 			# CPE710-B = STA = 192.168.0.253
-			[ "$NODENUMBER" = 50 ] || uci set olsrd.@meta[0].no_auto_hna4='true'
+
+			case "$NODENUMBER" in
+				50|60) ;;
+				*) uci set olsrd.@meta[0].no_auto_hna4='true' ;;
+			esac
 
 			case "$NODENUMBER" in
 				43)
@@ -3311,6 +3329,15 @@ boot()
 			;;
 		esac
 	}
+
+	case "$HARDWARE" in
+		'Raspberry Pi Zero'*)
+			# https://bugs.openwrt.org/index.php?do=details&task_id=4144
+			uci del wireless.radio0.htmode
+			# http://lists.openwrt.org/pipermail/openwrt-devel/2021-November/037124.html
+			# uci set wireless.@wifi-iface[0].iw_qos_map_set='none'
+		;;
+	esac
 
 	case "$( uci -q get wireless.radio0.htmode )" in
 		'HT40'*)

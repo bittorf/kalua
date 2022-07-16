@@ -266,15 +266,6 @@ func_cron_config_write()
 			sed -i 's|### CALL_ZRAMCHECK ###|test -e /tmp/ZRAMUSED \|\| { test $( cat /sys/block/zram0/num_writes ) -gt 1 \&\& { . /tmp/loader; _log it zram_usage_detector daemon alert "1st zram-usage: load: $LOAD up: $UP"; touch /tmp/ZRAMUSED; }; }|' "/tmp/CRON_IS_CAREFUL"
 		}
 
-		zram_reboot_if_used_needed()
-		{
-			return 1
-		}
-
-		zram_reboot_if_used_needed && {
-			sed -i 's|### CALL_ZRAMREBOOT ###|test -e /tmp/ZRAMUSED \&\& { sync; echo "c" >/proc/sysrq-trigger; /bin/sleep 5; /sbin/reboot -f; }|' "/tmp/CRON_IS_CAREFUL"
-		}
-
 		ubus_checker_needed()
 		{
 			local funcname='ubus_checker_needed'
@@ -368,18 +359,8 @@ func_cron_config_write()
 			sed -i "s;### CHECK_AUDIOPLAYER ###;test -e /tmp/audioplayer.sh \&\& . /tmp/audioplayer.sh;" "/tmp/CRON_IS_CAREFUL"
 		}
 
-		irqcheck_needed()
-		{
-			return 1	# obsolete: now in RRD
-		}
-
 		[ -e "/etc/init.d/apply_profile" ] && {
 			sed -i 's|### CALL_APPLYPROFILE ###|/etc/init.d/apply_profile.watch call; /etc/init.d/apply_profile call|' "/tmp/CRON_IS_CAREFUL"
-		}
-
-		irqcheck_needed && {
-			cp '/usr/sbin/cron.check_interrupts' '/tmp'
-			sed -i 's|### CALL_IRQ ###|DEV=ath9k . /tmp/cron.check_interrupts|' "/tmp/CRON_IS_CAREFUL"
 		}
 
 		backping_needed()
@@ -478,30 +459,11 @@ func_cron_config_write()
 				echo '* * * * * . /tmp/loader && _watch hanging_command scp'
 				echo '*/15 * * * * . /tmp/loader && _olsr build_tables || { _olsr build_tables; cron.check_inet_gw_fff; }'
 			elif _rrd needed; then
-#				TODO: check if FIFO already exists, if yes: raise counter
-#				FIFO="/tmp/MYFIFO_$$"
-#				[ -p "$FIFO" ] || mkfifo "$FIFO"
-				# TODO: what if CRON_IS_CAREFUL crashes and '/tmp/CRON_RUN' is not removed? -> FIFO blocks
-
 				_rrd setup 'keep_database'
 				WATCH_STATION="$( uci -q get system.@monitoring[0].watch_station )"
 
-				# each crontab-entry is only executed if it does not run already (e.g. runningtime >60 sec)
-				# this FIFO-pipe construction makes sure, that RRD is really called each 60 sec (runs ~1 sec)
-				# and only after RRD ran the mainpart ('CRON_IS_CAREFUL') is executed...
-#				echo "* * * * * >$FIFO && >/tmp/CRON_RUN && . /tmp/CRON_IS_CAREFUL; rm /tmp/CRON_RUN"
-#				echo "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION'; test -e /tmp/CRON_RUN || read UNBLOCK_NOW <$FIFO"
-
 				echo '* * * * * /bin/sleep 5 && . /tmp/CRON_IS_CAREFUL'
 				echo "* * * * * . /tmp/loader && _rrd update '$WATCH_STATION' && . /usr/sbin/cron.taskplanner.default"
-
-#				I=0
-#				for FIFO in '/tmp/MYFIFO_'*; do I=$(( I + 1 )); done
-#				if   [ $I -ge 10 ]; then
-#					_system crashreboot 'task_hangs'
-#				elif [ $I -ge 2 ]; then
-#					_log remote "too much open FIFOs: $I"
-#				fi
 			else
 				echo '* * * * * . /tmp/CRON_IS_CAREFUL'
 				echo '* * * * * . /tmp/loader && test ! -e /tmp/firmware_burn && . /usr/sbin/cron.taskplanner.default'
@@ -522,7 +484,6 @@ case "$1" in
 		network_still_upstarting()
 		{
 			pidof network >/dev/null && return 0
-#			pidof iw >/dev/null && return 0
 		}
 
 		while network_still_upstarting; do {

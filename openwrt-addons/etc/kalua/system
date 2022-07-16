@@ -40,6 +40,10 @@ _system_crashreboot()
 			reason="$reason_long"	# one char/digit
 		;;
 		*)
+			test -f /etc/init.d/apply_profile && {
+				test "$reason_long" = apply_profile || return 0
+			}
+
 			# do not change layout here, because in
 			# /etc/init.d/generate_kalua_loader: reason_long()
 			# we grep this function
@@ -474,11 +478,14 @@ _system_reboot_safe()				# fixme! maybe shutting down services like vpn, olsrd?
 	_system crashreboot "$1"
 }
 
+				# on 4 cores we output 25 when load is 1.00
 _system_load()			# load without comma, e.g. 1.00 = 100 or 12.89 = 1289 or 0.05 = 5
 {
 	local time="${1:-1min}"
 	local format="$2"	# e.g. quiet OR full OR <empty>
-	local cpuload decimals out oldIFS
+	local cpuload decimals out oldIFS line cores=1
+
+	while read -r line; do case "$line" in cpu[0-9]*) cores=$(( cores + 1 )) ;; esac; done </proc/stat && cores=$(( cores - 1 ))
 
 	case "$time" in
 		'1min')
@@ -500,8 +507,9 @@ _system_load()			# load without comma, e.g. 1.00 = 100 or 12.89 = 1289 or 0.05 =
 			out="${cpuload}${decimals}"
 			out="${out#0}"				# cut off leading zero's
 			out="${out#0}"
+			out=$(( out / cores ))			# divisor_valid
 
-			export LOAD="$out"
+			export LOAD=$out
 		;;
 	esac
 

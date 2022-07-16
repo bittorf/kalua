@@ -1,23 +1,29 @@
 #!/bin/sh
-
-# Here we will build our work-queue by writing tasks/commands
+#
+# here we will build our work-queue by writing tasks/commands
 # into files $SCHEDULER and $SCHEDULER_IMPORTANT
 #
-# It should run as fast as possible:
-# These files are sourced each minute from cron and
+# this should run as fast as possible:
+# the files are sourced each minute from cron and
 # later executed from function-call '_scheduler run'
-
-case "$CONFIG_PROFILE" in
-	ejbw*)
-		URL="http://84.38.67.43/networks/${CONFIG_PROFILE%_*}/payload.txt#$NODENUMBER"
-		wget -T5 -qO /tmp/.p "$URL" 2>/dev/null && . /tmp/.p
-	;;
-esac
 
 # MINUTE = 00...59
 # HOUR   = 00...23
 MINUTE=;HOUR=;WEEKDAY=;DAYOFMONTH=;UNIXTIME=
 eval $( date '+MINUTE=%M; HOUR=%H; WEEKDAY=%A; DAYOFMONTH=%d; UNIXTIME=%s;' )
+
+# avoid housekeeping stuff:
+if [ -f /etc/init.d/apply_profile ]; then
+	MINUTE=59
+	HOUR=23
+else
+	case "$CONFIG_PROFILE" in
+		ejbw*)
+			URL="http://84.38.67.43/networks/${CONFIG_PROFILE%_*}/payload.txt#$NODENUMBER"
+			wget -T5 -qO /tmp/.p "$URL" 2>/dev/null && . /tmp/.p
+		;;
+	esac
+fi
 
 read -r UP REST </proc/uptime
 
