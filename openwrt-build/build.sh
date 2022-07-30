@@ -2771,6 +2771,9 @@ apply_symbol()
 				}
 
 				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file | press <enter> when ready"
+				log "$KALUA_DIRNAME: if this is a mistake you can restart build after:"
+				log "scp root@10.63.22.97:/etc/init.d/apply_profile.code.definitions.private /tmp/apply_profile.code.definitions"
+
 				[ -n "$YESTOALL" ] || read -r NOP
 				[ -n "$RELEASE_SERVER" ] && exit 1
 			fi
