@@ -507,7 +507,7 @@ apply_failsafe_autoreboot()
 {
 	local funcname='apply_failsafe_autoreboot'
 	local file='package/base-files/files/lib/preinit/99_10_failsafe_login'
-	local pattern='( /bin/sleep 3600; /bin/sync; /sbin/reboot -f ) \&'
+	local pattern='( /bin/sleep 3600 || exit ; /bin/sync; /sbin/reboot -f ) \&'
 	local hint="# from $funcname()"
 
 	search_and_replace "$file" ' {$' " {\t$hint\n\t$pattern\n"
