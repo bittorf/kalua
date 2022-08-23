@@ -62,6 +62,13 @@ alias dropshell='echo >>$SCHEDULER_IMPORTANT "/etc/init.d/dropbear stop"; killal
 	}
 }
 
+command -v 'nproc' >/dev/null || {
+	nproc()
+	{
+		_system cpucount
+	}
+}
+
 read -r LOAD <'/proc/loadavg'
 case "$LOAD" in
 	'0'*)
