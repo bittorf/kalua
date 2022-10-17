@@ -1716,18 +1716,23 @@ _net_dev2ip()			# only first ip
 	local dev="$1"
 	local option="$2"	# 'ip'|'mask'|'debug'|'ip_but_noloopback'
 	local mode="$3"		# 'CIDR'|'mask'
-	local line ip_with_mask key
+	local line ip_with_mask key i=0
 
 	_net dev_is_valid "$dev" || return 1
 
-	case "$option" in
-		'ip_but_noloopback')
-			line="$( ip -oneline -f inet address show dev "$dev" | grep -v 'inet 127\.' )"
-		;;
-		*)
-			line="$( ip -oneline -f inet address show dev "$dev" )"
-		;;
-	esac
+	while [ $i -lt 5 ]; do {
+		case "$option" in
+			'ip_but_noloopback')
+				line="$( ip -oneline -f inet address show dev "$dev" | grep -v 'inet 127' )"
+			;;
+			*)
+				line="$( ip -oneline -f inet address show dev "$dev" )"
+			;;
+		esac
+
+		[ -n "$line" ] && break
+		i=$(( i + 1 )) && sleep 1
+	} done
 
 	explode ${line:-is_empty}
 
