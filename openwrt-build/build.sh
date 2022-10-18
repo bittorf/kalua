@@ -4260,8 +4260,12 @@ travis_prepare()
 	local apt_updated=
 	do_install()
 	{
-		log "[DEBUG] do_install $* - override with: FAKEINSTALL=true"
-		[ "$FAKEINSTALL" = true ] && return 0
+		if [ "$FAKEINSTALL" = true ]; then
+			log "[DEBUG] do_install $* - will ignore call, we have: FAKEINSTALL=true"
+			return 0
+		else
+			log "[DEBUG] do_install $* - override with: FAKEINSTALL=true"
+		fi
 
 		# https://superuser.com/questions/164553/automatically-answer-yes-when-using-apt-get-install
 		# https://askubuntu.com/questions/1367139/apt-get-upgrade-auto-restart-services
@@ -4403,22 +4407,26 @@ bootstrap_file()	# the 'file' command
 	local dir='file-git'
 
 	(
-		do_install 'libtool'
-
 		cd '/tmp' || return 1
-		[ -d "$dir" ] && rm -fR "$dir"
-		git clone "$url" "$dir"
-		cd "$dir" || return 1
-#		git checkout -b 'good_version' "$good_version"
 
-		log '[OK] used commit:'
-		git log -1
+		[ -d "$dir" ] && {
+			rm -fR "$dir" 2>/dev/null || log "[DEBUG] rm -fR '$dir' failed with RC $? - will continue"
+		}
 
-		autoconf
-		autoreconf -i
-		aclocal
+		git clone "$url" "$dir" && {
+			cd "$dir" || return 1
+	#		git checkout -b 'good_version' "$good_version"
 
-		autoconf && ./configure && sudo make install
+			log '[OK] used commit:'
+			git log -1
+
+			do_install 'libtool'
+			autoconf
+			autoreconf -i
+			aclocal
+
+			autoconf && ./configure && sudo make install
+		}
 	)
 
 	hash -r
