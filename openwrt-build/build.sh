@@ -4260,9 +4260,14 @@ travis_prepare()
 	local apt_updated=
 	do_install()
 	{
+		log "[DEBUG] do_install $* - override with: FAKEINSTALL=true"
+		[ "$FAKEINSTALL" = true ] && return 0
+
 		# https://superuser.com/questions/164553/automatically-answer-yes-when-using-apt-get-install
-		# TODO: --force-yes is deprecated, use one of the options starting with --allow instead.
-		local force='--yes --force-yes'
+		# https://askubuntu.com/questions/1367139/apt-get-upgrade-auto-restart-services
+		export YESTOALL=true
+		export DEBIAN_FRONTEND=noninteractive
+		local force='--yes -o APT::Get::Upgrade-Allow-New=true'
 
 		[ -z "$apt_updated" ] && {
 			log "[OK] running 'apt-get $force install debian-keyring debian-archive-keyring'"
@@ -4283,6 +4288,7 @@ travis_prepare()
 		sudo apt-get $force install "$@" || {
 			# sometimes it bails out without good reason
 			log "[ERROR] during 'apt-get $force install $*', but trying to continue..."
+			true
 		}
 	}
 
