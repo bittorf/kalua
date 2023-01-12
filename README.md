@@ -145,7 +145,7 @@ how to build this from scratch on a debian server
 ```
 # work as root:
 apt-get update
-LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen rsync python3-distutils"
+LIST="build-essential libncurses5-dev m4 flex git git-core zlib1g-dev unzip subversion gawk python libssl-dev quilt screen rsync python3-distutils libbz2-dev"
 for PACKAGE in $LIST; do apt-get -y install $PACKAGE; done
 
 # now login as non-root user
