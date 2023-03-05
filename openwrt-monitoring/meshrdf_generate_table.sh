@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # tail -n1 "$TMPDIR/schoeneck.dot" | grep -q '}' || echo "}" >>$TMPDIR/schoeneck.dot; dot -Tpng $TMPDIR/schoeneck.dot > /var/www/1.png
 
 # take screenshot into account:
@@ -12,10 +12,10 @@
 # http://www.jordigirones.com/111-tablesorter-showhide-columns-widget.html
 
 # NETWORK=marinabh; S=$(date); wget -O "/var/www/networks/$NETWORK/index.html" "http://127.0.0.1/networks/$NETWORK/meshrdf/?ORDER=hostname"; echo $S; date
+# N=liszt28;F=/var/www/networks/$N/index.html;wget -qO $F.tmp "http://127.0.0.1/networks/$N/meshrdf/?ORDER=hostname" && cp $F.tmp $F
 #
 # or
 # cd /var/www/networks/$NETWORK/meshrdf && /var/www/scripts/meshrdf_generate_table.sh
-
 
 # TODO:
 # for FILE in $( find /var/www/networks/ffweimar/meshrdf/recent -type f ); do . $FILE; echo $NODE; done | sort -n | uniq | while read LINE; do test $LINE -lt 970 && echo "$LINE"; done >/var/www/networks/ffweimar/all_nodes.txt
@@ -33,7 +33,7 @@ log()		# tail -f /var/log/messages
 	[ "$prio" = 'debug' -a -z "$SSH_CONNECTION" ] && return 0
 
 #	echo "${NETWORK:-network_unset}: $1" >>$TMPDIR/log_monitoring.txt
-	logger -t $0 -p user.info -s "$message"
+	logger -t "$0" -p user.info -s "$message"
 }
 
 TMPDIR='/var/run/kalua'		# is 'tmpfs'
@@ -276,21 +276,27 @@ HARDWARE_FILE="$TMPDIR/networks/$NETWORK/hardware.txt"
 USECASE_FILE="$TMPDIR/networks/$NETWORK/usecase.txt"
 [ -e "$USECASE_FILE" ] && rm "$USECASE_FILE"
 
-# special overrride, e.g. schoeneck
-[ -e "$TMPDIR/function_hostnames_$NETWORK" ] && rm "$TMPDIR/function_hostnames_$NETWORK"
+# special overrride, e.g. schoeneck, ejbw
+[ -f "$TMPDIR/function_hostnames_$NETWORK" ] && rm -f "$TMPDIR/function_hostnames_$NETWORK"
 
-log "[START] network '$NETWORK' for IP: '${REMOTE_ADDR:-empty}'"
+if [ -n "$REMOTE_ADDR" ]; then
+	log "[START] network '$NETWORK' for IP: '${REMOTE_ADDR:-empty}'"
+else
+	log "[START] network '$NETWORK' - exit (no ip)"
+	exit 0
+fi
 
 case "$NETWORK" in
 	'zumnorde'*)
 		echo  >$OUT '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 		echo >>$OUT '	"http://www.w3.org/TR/html4/loose.dtd">'
-		echo >>$OUT '<html><head><meta http-equiv="content-type" content="text/html; charset=UTF-8">'
+		echo >>$OUT '<html lang=de>'
+		echo >>$OUT '<head><meta http-equiv="content-type" content="text/html; charset=UTF-8">'
 		echo >>$OUT '<LINK REL="shortcut icon" TYPE="image/x-icon" HREF="/favicon.ico">'
 		echo >>$OUT "<title>$NETWORK|meshRDF|$LOCALTIME|order=$SPECIAL_ORDER_BY</title>"
 #		echo >>$OUT "<body bgcolor='crimson'><h1>server error - disc full (0% of 104.5 TB on /mnt/basti/zfs/tank/$NETWORK)</h1>"
 		echo >>$OUT "<body bgcolor='lightgreen'><h1>Wartungsarbeiten - wir bitten um Geduld</h1>bittorf wireless ))&nbsp;&nbsp;<i>...your WiFi we care</i>"
-		echo >>$OUT "</body><html>"
+		echo >>$OUT "</body></html>"
 
 		cp "$OUT" "$REAL_OUT"
 		rm "$OUT"
@@ -323,12 +329,12 @@ FILE="/var/www/networks/$NETWORK/tarball/testing/tarball.tgz"
 
 touch "$TMPDIR/DETECTED_FAULTY_$NETWORK"
 
-for FILE in $( find /var/www/networks/$NETWORK/vds -type f -name 'db_backup.tgz_*' ); do {
-	BYTES=$( stat --printf="%s" "$FILE" )
-	[ $BYTES -lt 500 ] && {
+for FILE in $( find /var/www/networks/$NETWORK/vds -type f -name 'db_backup.tgz_*' -size -500 ); do {
+#	BYTES=$( stat --printf="%s" "$FILE" )
+#	[ $BYTES -lt 500 ] && {
 		log "FIXME! removing $FILE, $( stat --printf="%s" "$FILE" ) bytes"
-		rm "$FILE"
-	}
+		rm -f "$FILE"
+#	}
 } done
 
 FILE_FAILURE_OVERVIEW="./failure_overview.txt"
@@ -464,7 +470,8 @@ printf  >>$TOOLS 'LIST="'
 
 echo  >$OUT '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 echo >>$OUT '	"http://www.w3.org/TR/html4/loose.dtd">'
-echo >>$OUT '<html><head><meta http-equiv="content-type" content="text/html; charset=UTF-8">'
+echo >>$OUT '<html lang=de>'
+echo >>$OUT '<head><meta http-equiv="content-type" content="text/html; charset=UTF-8">'
 echo >>$OUT '<LINK REL="shortcut icon" TYPE="image/x-icon" HREF="/favicon.ico">'
 echo >>$OUT "<title>$NETWORK|meshRDF|$LOCALTIME|order=$SPECIAL_ORDER_BY|wireless:$SUM_WIRELESS_CLIENTS</title>"
 
@@ -499,9 +506,10 @@ fi
 
 echo >>$OUT "</head><body bgcolor='$BODY_BGCOLOR'>"
 
+# HUMANZEIT="$( date "+%d.%b'%y-%H:%M" )"
 # checkout: http://stackoverflow.com/questions/7641791/javascript-library-for-human-friendly-relative-date-formatting
 cat >>$OUT <<EOF
-<p id='zeitstempel' data-timestamp_page='$UNIXTIME_SCRIPTSTART'> Datenbestand vom $( date "+%d.%b'%y-%H:%M" )</p>
+<p id='zeitstempel' data-timestamp_page='### UNIX_DATENBESTAND ###'> Datenbestand vom ### HUMAN_DATENBESTAND ###</p>
 <script type="text/javascript">
 // tiny-relative-time.js
 // Author: Max Albrecht <1@178.is>
@@ -560,6 +568,13 @@ cat >>$OUT <<EOF
 </script>
 EOF
 
+case "$NETWORK" in
+	ejbw)
+		echo >>$OUT "<p><a href='http://bwireless.mooo.com'>Livekarte aller Router und Nutzer</a></p>"
+	;;
+esac
+
+
 echo >>$OUT "$HEADLINE<table cellspacing='1' cellpadding='1' border='1' class='sortable' id='haupt'><tr>"
 
 NAME_ESSID="essid"
@@ -569,8 +584,8 @@ case "$NETWORK" in
 	;;
 esac
 
-LIST="age pubssh/hostname version kernel GIT RAM switch DHCP up wifiup olsrup klog speed Oin Oout load DB"
-LIST="$LIST hwmac $NAME_ESSID Ch node profile storage nexthop tx(nh/gp) etx(nh) tx(nh) eff[%] m(nh) wifimode hop2gw cost2gw txpwr mrate"
+LIST="age pubssh/hostname node profile version kernel GIT RAM switch DHCP up wifiup olsrup klog speed Oin Oout load DB"
+LIST="$LIST hwmac $NAME_ESSID Ch storage nexthop tx(nh/gp) etx(nh) tx(nh) eff[%] m(nh) wifimode hop2gw cost2gw txpwr mrate"
 LIST="$LIST gmode noise signal wifineighs wiredneighs speedTCP pfilter"
 
 for COL in $LIST; do {
@@ -606,7 +621,7 @@ for COL in $LIST; do {
 		;;
 	esac
 
-	LINK_START="${LINK:+<a href='$LINK'${LINK_TITLE:+ title='}${LINK_TITLE}${LINK_TITLE:+'}>}"
+	LINK_START="${LINK:+<a href=\"$LINK\"${LINK_TITLE:+ title=\"}${LINK_TITLE}${LINK_TITLE:+\"}>}"
 	LINK_END="${LINK_START:+</a>}"
 
 	printf '%s' "><small> ${LINK_START}${COL}${LINK_END} </small></th>"
@@ -614,47 +629,75 @@ for COL in $LIST; do {
 } done >>$OUT
 echo >>$OUT "</tr>"
 
-
 hostname_sanitizer()
 {
 	local nodenumber_translate="$1"
 	local file="$TMPDIR/function_hostnames_$NETWORK"
 	local database="/var/www/networks/$NETWORK/$NETWORK-hostnames.sh"
+	local node mac file file2
 
 #	hostnames_override() { :; }
 
-	[ -e "$file" ] || {
+	[ -f "$file" ] || {
 		{
 			echo '#!/bin/sh'
 			echo "# generated @ $(date) from $0 for network $NETWORK"
 			echo
-			echo "hostnames_override()"	# each line is a function call to node()"
+			echo "hostnames_override()"	# each line is a function call to node()
 			echo "{"
+			echo "  HOSTNAME_NEW=; X=; Y=; M=;"
 			echo "	case \"\$1\" in"
 
-			[ -e "$database" ] && {
-			while read -r line; do {
-				case "$line" in
-					''|'#'*)
-					;;
-					*)
-						# node 178 is HausB-1132-AP
-						set -- $line
-						echo "		$2) echo \":::$4\";;"
-						
-					;;
-				esac
-			} done <"$database"
+			[ -f "$database" ] && {
+				while read -r line; do {
+					case "$line" in
+						'node '*)
+							# node 178 is HausB-1132-AP at 50.345 11.123
+							set -- $line
+							node="$2"
+
+							mac='unset'
+							file2="$( grep -l ";NODE=\"$node\"" "/var/www/networks/$NETWORK/meshrdf/recent/"* | xargs ls -t | head -n1 )" && {
+								case "$file2" in
+									*/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
+										mac="$( sed -n 's/^.*WIFIMAC="\([a-f0-9]*\)".*/\1/p' "$file2" )"
+									;;
+								esac
+							}
+
+							printf '%s\n' "		$node) echo \"$4\"; export HOSTNAME_NEW=\"$4\" X=\"$6\" Y=\"$7\" M=\"$mac\";;"
+							
+						;;
+					esac
+				} done <"$database"
 			}
 
 			echo "		*)"
 			echo "			echo \"unknown_host\$1\""
+			echo "			false"
 			echo "		;;"
 			echo "	esac"
 			echo "}"
 		} >"$file"
 
-		.  "$file"
+		. "$file"
+
+		{
+		#	echo "| Hostname | Node | MAC | LAN-IP | Network | Latitude | Longitude |"
+		#	echo "|----------|------|-----|--------|---------|----------|-----------|"
+			echo "| Hostname | Node | MAC | LAN-IP | Network |"
+			echo "|----------|------|-----|--------|---------|"
+
+			for I in $( seq 0 100 ); do {
+				if hostnames_override "$I" >/dev/null && test "${#M}" -eq 12; then
+					echo "|$HOSTNAME_NEW|$I|$M|10.10.$I.33|10.10.$I.0/26|"
+				else
+		#			echo "I: $I M: '$M' file: '$( ls -l "$file" )'"
+					true
+				fi
+			} done | sort
+		} >"$TMPDIR/networks/$NETWORK/table.md"
+		cp "$TMPDIR/networks/$NETWORK/table.md" "/var/www/networks/$NETWORK/media/"
 	}
 
 	hostnames_override "$nodenumber_translate"
@@ -813,7 +856,7 @@ for FILE in $LIST_FILES LASTFILE; do {
 				HOSTNAME="$HOSTNAME_TEMP"
 				export HOSTNAME_UNSANITIZED
 			else
-				HOSTNAME="miss${NODE}_${WIFIMAC}"
+				HOSTNAME="miss${NODE}_${WIFIMAC}_${HOSTNAME_NEW}"
 				HOSTNAME_UNSANITIZED=
 			fi
 		;;
@@ -849,11 +892,11 @@ for FILE in $LIST_FILES LASTFILE; do {
 
 		if grep -q ^"$WIFIMAC	# autohide" '../ignore/macs.txt'; then
 			# autohide / autounhide
-			[ $(( UNIXTIME_SCRIPTSTART - LAST_UPDATE_UNIXTIME )) -lt 864000 ] && {
-				grep -q ^"# $WIFIMAC	# younger than 10 days" '../ignore/macs.txt' || {
+			[ $(( UNIXTIME_SCRIPTSTART - LAST_UPDATE_UNIXTIME )) -lt 3600 ] && {
+				grep -q ^"# $WIFIMAC	# younger than 1 hour" '../ignore/macs.txt' || {
 					# delete old and show comment: TODO: sms?
 					sed -i "/^$WIFIMAC/d" '../ignore/macs.txt'
-					echo "# $WIFIMAC	# younger than 10 days - auto_unhided @$( date )" >>'../ignore/macs.txt'
+					echo "# $WIFIMAC	# younger than 1 hour - auto_unhided @$( date )" >>'../ignore/macs.txt'
 				}
 			}
 		else
@@ -1790,6 +1833,17 @@ func_cell_nexthop()
 				boltenhagendh*)
 					[ "$nexthop" = "2" ] && bgcolor="lime"
 				;;
+				ejbw-pbx*)
+					[ "$nexthop" = "1" ] && bgcolor="lime"
+				;;
+				ejbw*)
+					case "$nexthop" in
+						1|50) bgcolor="lime" ;;
+						100)
+							[ "$NODE" = 100 ] && bgcolor="lime"
+						;;
+					esac
+				;;
 			esac
 		;;
 	esac
@@ -1957,6 +2011,20 @@ func_cell_nexthop()
 		dhsylt)
 			bgcolor=
 		;;
+		ejbw*)
+			case "$nexthop" in
+				0)
+					nexthop=50
+					bgcolor=
+				;;
+			esac
+
+			case "$nexthop" in
+				50)
+					bgcolor='lime'
+				;;
+			esac
+		;;
 	esac
 
 	printf '%s' "<td align='right' bgcolor='$bgcolor'>${nexthop}</td>"
@@ -2080,6 +2148,10 @@ func_cell_nexthop_effective()		# and tx(nexthop)
 		rehungen-61)
 			NEXTHOP="PUPP"
 			BGCOLOR="green"
+		;;
+		ejbw-0)
+			NEXTHOP="J2"
+			BGCOLOR='green'
 		;;
 	esac
 
@@ -2247,7 +2319,16 @@ _cell_firmwareversion_humanreadable()
 	[ "$FWVERSION" = '392973' ] && color='crimson'
 	[ "$mainstream" = 'true' ] || OUT="${OUT}&deg;"
 
-	printf '%s' "<td bgcolor='$color' align='center' title='$VERSION.$UPDATE:$usecase' sorttable_customkey='$FWVERSION' nowrap>$OUT</td>"
+# debug: which host does not send data:
+# 
+#	local file="../meshrdf/recent/${WIFIMAC}.rrr"
+#	if [ -f "$file" ]; then
+#		:
+#	else
+#		color='crimson'
+#	fi
+
+	printf '%s' "<td bgcolor='$color' align='center' title='m:$MAC:$WIFIMAC:$VERSION.$UPDATE:$usecase' sorttable_customkey='$FWVERSION' nowrap>$OUT</td>"
 }
 
 hostname_from_monitoring_sanitized()	# used for send_mail_telegram() and related
@@ -2297,12 +2378,14 @@ send_mail_telegram()
 			case "$hostname" in
 				*'vorfuehrraum'*|*'kino'*|*'cafe'*)
 					list="$admin dh|lichthaus.info svenopel|gmx.de hansen|wastlhuber.de"
+					list=
 				;;
 # DigitalBauhausSummit				*)
 # #digibau17
 				*)
 
 					list="$admin norbert.drysz|nationaltheater-weimar.de"
+					list=
 		#			list="$admin who-be|who-be.de"
 				;;
 			esac
@@ -2370,8 +2453,12 @@ send_mail_telegram()
 				'E2-ayse')
 					list="$admin aysekurultay|gmail.com"
 				;;
+				*'renze-'*)
+					list=
+				;;
 				'Frenze-unten')
 					list="$admin sven.pasemann|gmx.de"
+					list=
 				;;
 				*'renze-oben'*)
 					list=
@@ -2404,8 +2491,11 @@ send_mail_telegram()
 			list=
 		;;
 		pension-ralfz) list="$admin rkleinert|ejbweimar.de" ;;
-		aschbach) list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de" ;;
-		giancarlo) list="$admin uve.giancarlo|t-online.de" ;;
+		aschbach)
+			list="$admin njovicevic|cans.de rezeption|berghotel-aschbach.de"
+			list=
+		;;
+		giancarlo) list="$admin uve.giancarlo|t-online.de"; list= ;;
 		lisztwe|adagio) list="$admin technik|hotel-adagio.de" ;;
 		hentzel) list="$admin technik|hotel-adagio.de info|hotel-villa-hentzel.de" ;;
 		apphalle) list="$admin info|appartementhausamdom.de"; list= ;;			# FIXME!
@@ -2423,8 +2513,10 @@ send_mail_telegram()
 #					list="$list info|traumdomizil-usedom.de"
 				;;
 			esac
+
+			list=
 		;;
-		xoai) list="$admin mb|mariobehling.de hp|fossasia.org" ;;
+		xoai) list="$admin mb|mariobehling.de hp|fossasia.org"; list= ;;
 		berlinle) list="$admin hotel-berlin-leipzig|t-online.de" ;;
 		cvjm) list="$admin stefan.luense|schnelle-pc-hilfe.de info|cvjm-leipzig.de" ;;
 		cospudener) list="$admin stefan.luense|schnelle-pc-hilfe.de" ;;
@@ -2455,16 +2547,20 @@ list=
 			case "$hostname" in
 				'marinabh-adhoc--17'|'Steg6uferseite-MESH') list= ;;
 			esac
+
+			list=
 		;;
 		abtpark) list="$admin stefan.luense|schnelle-pc-hilfe.de reserv|apark.de" ;;
-		ejbw) list="$admin haustechnik|ejbweimar.de";list= ;;
+		ejbw) list="$admin haustechnik|ejbweimar.de" ;;
 		itzehoe) list="$admin hans-juergen.weidlich|stadtwerke-itzehoe.de huettendorf|stadtwerke-itzehoe.de" ; list=;;
 		wuensch) list="$admin p_s_wuensch|t-online.de" ;;
-		leonardo) list="$admin info|hotel-leonardo.de"; list= ;;
+		leonardo) list="$admin info|hotel-leonardo.de" ;;
 		rehungen)
 			case "$hostname" in
 				'nussberg73a-kindergarten') list="$admin ina.noettgen@gmx.de" ;; # 01512-7569004
 			esac
+
+			list=
 		;;
 		*) list="$admin" ;;
 	esac
@@ -2520,6 +2616,7 @@ list=
 
 			for recipient in $list; do {
 				[ "$recipient" = "$admin" ] && recipient='technik|bittorf-wireless.de'
+				[ "$recipient" = "$admin" ] && recipient='bb|npl.de'
 
 				recipient="$( echo "$recipient" | sed 's/|/@/g' )"
 				message="$message- $recipient\n"
@@ -3805,155 +3902,159 @@ case "$NETWORK" in
 	;;
 esac
 
-	case "$SPECIAL_ORDER_BY" in
-		node)
-			html_comment "$( printf "%05d" $NODE )"
+case "$SPECIAL_ORDER_BY" in
+	node)
+		html_comment "$( printf "%05d" $NODE )"
+	;;
+	load)
+		html_comment "$LOAD"
+	;;
+	mac)
+		html_comment "$WIFIMAC"
+	;;
+	age)
+		BLA=$(( 99999999 - $LASTSEEN_ORIGINAL ))
+		VALUE="$( printf "%10d" ${BLA:-0} )"
+		html_comment "$VALUE"		# newest on top
+	;;
+	age2)
+		VALUE="$( printf "%10d" ${LASTSEEN_ORIGINAL:-0} )"
+		html_comment "$VALUE"		# oldest on top
+	;;
+	cost)
+		html_comment "$COST2GW_X"
+	;;
+	uptime)
+		html_comment "$( printf "%10d" $UP )"
+	;;
+	version)
+		html_comment "$VERSION"
+	;;
+	essid)
+		html_comment "$( printf "%03d" $( printf '%s' "$ESSID" | sed 's/[^0-9]//g' ) )"
+	;;
+	txpower)
+		html_comment "$TXPWR"
+	;;
+	sens)
+		html_comment "$( echo $SENS | sed 's/mb//' )"
+	;;
+	*)
+		# we must 'clean/sanitize' the hostname first
+		func_cell_hostname "$HOSTNAME" "$WIFIMAC" "$MAIL" >/dev/null
+
+		html_comment "${FILL}${HOSTNAME_FOR_SORTING}"
+	;;
+esac
+
+
+case "$WIFIMODE" in
+	*adhocap*|*apap*)
+		BGCOLOR="#408080"	# same like ap
+	;;
+esac
+
+printf '%s' "<tr bgcolor='$BGCOLOR'>"
+
+HUMANTIME="$( date -d @$LAST_UPDATE_UNIXTIME )"
+
+_cell_lastseen "$LASTSEEN" "$HUMANTIME" "$i1" 
+func_cell_hostname "$HOSTNAME" "$WIFIMAC" "$MAIL"
+
+cell_node "$NODE"
+_cell_profile "$PROFILE" "$WIFIMODE" "$BSSID"
+
+_cell_firmwareversion_humanreadable "$UPDATE" "$VERSION" "$v2" "$secret"
+
+good_git_color()
+{
+	local rev="${1:=0}"
+
+	case "$rev" in
+		44150)		# stable
+			echo "$COLOR_DARK_GREEN"	# stable
 		;;
-		load)
-			html_comment "$LOAD"
+		49276)
+			echo "$COLOR_DARK_GREEN"	# beta
 		;;
-		mac)
-			html_comment "$WIFIMAC"
+		1004103|0)
+			echo "$COLOR_BRIGHT_GREEN"	# testing
 		;;
-		age)
-			BLA=$(( 99999999 - $LASTSEEN_ORIGINAL ))
-			VALUE="$( printf "%10d" ${BLA:-0} )"
-			html_comment "$VALUE"		# newest on top
-		;;
-		age2)
-			VALUE="$( printf "%10d" ${LASTSEEN_ORIGINAL:-0} )"
-			html_comment "$VALUE"		# oldest on top
-		;;
-		cost)
-			html_comment "$COST2GW_X"
-		;;
-		uptime)
-			html_comment "$( printf "%10d" $UP )"
-		;;
-		version)
-			html_comment "$VERSION"
-		;;
-		essid)
-			html_comment "$( printf "%03d" $( printf '%s' "$ESSID" | sed 's/[^0-9]//g' ) )"
-		;;
-		txpower)
-			html_comment "$TXPWR"
-		;;
-		sens)
-			html_comment "$( echo $SENS | sed 's/mb//' )"
+		99999)
+			echo "$COLOR_DARK_GREEN"	# server?
 		;;
 		*)
-			# we must 'clean/sanitize' the hostname first
-			func_cell_hostname "$HOSTNAME" "$WIFIMAC" "$MAIL" >/dev/null
-
-			html_comment "${FILL}${HOSTNAME_FOR_SORTING}"
-		;;
-	esac
-
-
-	case "$WIFIMODE" in
-		*adhocap*|*apap*)
-			BGCOLOR="#408080"	# same like ap
-		;;
-	esac
-
-	printf '%s' "<tr bgcolor='$BGCOLOR'>"
-
-	HUMANTIME="$( date -d @$LAST_UPDATE_UNIXTIME )"
-
-	_cell_lastseen "$LASTSEEN" "$HUMANTIME" "$i1" 
-	func_cell_hostname "$HOSTNAME" "$WIFIMAC" "$MAIL"
-	_cell_firmwareversion_humanreadable "$UPDATE" "$VERSION" "$v2" "$secret"
-
-	good_git_color()
-	{
-		local rev="${1:=0}"
-
-		case "$rev" in
-			44150)		# stable
-				echo "$COLOR_DARK_GREEN"	# stable
-			;;
-			49276)
-				echo "$COLOR_DARK_GREEN"	# beta
-			;;
-			1004103|0)
-				echo "$COLOR_BRIGHT_GREEN"	# testing
-			;;
-			99999)
-				echo "$COLOR_DARK_GREEN"	# server?
-			;;
-			*)
-				if   [ $rev -ge 34794 -a $rev -lt 34815 ]; then
-					func_update2color 'bad_version:broken_sysupgrade'
-				elif [ $rev -ge 40293 -a $rev -lt 40503 ]; then
-					func_update2color 'bad_version:broken_wifi_regdb'
-				elif [ $rev -ge 45040 -a $rev -lt 45189 ]; then
-					func_update2color 'bad_version:uci_broken'
-				elif [ $rev -ge 44918 -a $rev -lt 45790 ]; then
-					# reset to defaults / firstboot by accident
-					# https://dev.openwrt.org/ticket/19564
-					# internally fixed since ~45790
-					func_update2color 'bad_version:fstools_broken'
+			if   [ $rev -ge 34794 -a $rev -lt 34815 ]; then
+				func_update2color 'bad_version:broken_sysupgrade'
+			elif [ $rev -ge 40293 -a $rev -lt 40503 ]; then
+				func_update2color 'bad_version:broken_wifi_regdb'
+			elif [ $rev -ge 45040 -a $rev -lt 45189 ]; then
+				func_update2color 'bad_version:uci_broken'
+			elif [ $rev -ge 44918 -a $rev -lt 45790 ]; then
+				# reset to defaults / firstboot by accident
+				# https://dev.openwrt.org/ticket/19564
+				# internally fixed since ~45790
+				func_update2color 'bad_version:fstools_broken'
 #				elif [ $rev -ge 44946 -a $rev -lt 45579 ]; then
 #					# fixed in $TMPDIR/loader and used from r45579+
 #					# https://dev.openwrt.org/ticket/19539 - visible on dualradio-routers
 #					func_update2color 'bad_version:uci_lists_broken'
-				elif [ $rev -gt 46435 -a $rev -lt 47455 ]; then
-					# https://dev.openwrt.org/ticket/20556
-					# needs more testing, something with linklocal IPv4/macvlan does not work
-					func_update2color 'bad_version:macvlanIPv4_broken'
-				elif [ $rev -gt 44150 ]; then
-					func_update2color 'testing'
-				else
-					return 1
-				fi
-			;;
-		esac
-	}
+			elif [ $rev -gt 46435 -a $rev -lt 47455 ]; then
+				# https://dev.openwrt.org/ticket/20556
+				# needs more testing, something with linklocal IPv4/macvlan does not work
+				func_update2color 'bad_version:macvlanIPv4_broken'
+			elif [ $rev -gt 44150 ]; then
+				func_update2color 'testing'
+			else
+				return 1
+			fi
+		;;
+	esac
+}
 
-	kernel_color()
-	{
-		case "$1" in
-			"3.2.5"|"3.3.3"|"3.7.3"|"3.7.9"|"3.2.9"|'3.10.28')	# 4 x ar71xx | brcm47xx
-				echo "$COLOR_DARK_GREEN"
-			;;
-			"3.2.13")				# brcm47xx
-				echo "$COLOR_BRIGHT_GREEN"
-			;;
-			'3.14.29'|'3.18.8'|'4.1.16')		# ar71xx
-				echo "$COLOR_BRIGHT_GREEN"
-			;;
-			"3.4.0"*)				# pandaboards
-				echo "$COLOR_BRIGHT_GREEN"
-			;;
-			*)
-				echo "$COLOR_LIGHT_PINK"
-			;;
-		esac
-	}
+kernel_color()
+{
+	case "$1" in
+		"3.2.5"|"3.3.3"|"3.7.3"|"3.7.9"|"3.2.9"|'3.10.28')	# 4 x ar71xx | brcm47xx
+			echo "$COLOR_DARK_GREEN"
+		;;
+		"3.2.13")				# brcm47xx
+			echo "$COLOR_BRIGHT_GREEN"
+		;;
+		'3.14.29'|'3.18.8'|'4.1.16')		# ar71xx
+			echo "$COLOR_BRIGHT_GREEN"
+		;;
+		"3.4.0"*)				# pandaboards
+			echo "$COLOR_BRIGHT_GREEN"
+		;;
+		*)
+			echo "$COLOR_LIGHT_PINK"
+		;;
+	esac
+}
 
-	kernel_timestamp()	# http://de.wikipedia.org/wiki/Linux_(Kernel)#Versionsgeschichte_ab_Version_2.6
-	{
-		# files generated via '/var/www/scripts/read_kernel_release_dates.sh'
-		if [ -e "/var/www/kernel_history/${1:-no_input}" ]; then
-			cat "/var/www/kernel_history/$1"
-		else
-			# 1 jan 1992		// 7 Feb 2012    date --date "2012-11-26 00:00:00" +%s
-			echo "694220400"
-		fi
-	}
+kernel_timestamp()	# http://de.wikipedia.org/wiki/Linux_(Kernel)#Versionsgeschichte_ab_Version_2.6
+{
+	# files generated via '/var/www/scripts/read_kernel_release_dates.sh'
+	if [ -e "/var/www/kernel_history/${1:-no_input}" ]; then
+		cat "/var/www/kernel_history/$1"
+	else
+		# 1 jan 1992		// 7 Feb 2012    date --date "2012-11-26 00:00:00" +%s
+		echo "694220400"
+	fi
+}
 
-	local kmajor="$( echo "$v1" | cut -d'-' -f1 )"		# e.g. 3.0.0
-	local kminor="$( echo "$v1" | cut -d'-' -f2 )"		# e.g. -15-generic	// fixme!
-	local kerneltime="$( kernel_timestamp "$kmajor" )"
-	local kerneldate="$( date -d @$kerneltime | sed 's/ /_/g' )"
-	local sortkey="sorttable_customkey='$(( $kerneltime / 3600 ))'"		# small integer
-	local title="$kminor/$(( ($UNIXTIME_SCRIPTSTART - $kerneltime) / 86400 ))days_old:$v1=$kerneldate"
+kmajor="$( echo "$v1" | cut -d'-' -f1 )"		# e.g. 3.0.0
+kminor="$( echo "$v1" | cut -d'-' -f2 )"		# e.g. -15-generic	// fixme!
+kerneltime="$( kernel_timestamp "$kmajor" )"
+kerneldate="$( date -d @$kerneltime | sed 's/ /_/g' )"
+sortkey="sorttable_customkey='$(( $kerneltime / 3600 ))'"		# small integer
+title="$kminor/$(( ($UNIXTIME_SCRIPTSTART - $kerneltime) / 86400 ))days_old:$v1=$kerneldate"
 
-	# kernel
-	printf '%s' "<td bgcolor='$( kernel_color "$v1" )' $sortkey title='$title'><small>$kmajor</small></td>"
-	# git
-	printf '%s' "<td bgcolor='$( good_git_color "$v2" )' align='right'><small>$v2</small></td>"	
+# kernel
+printf '%s' "<td bgcolor='$( kernel_color "$v1" )' $sortkey title='$title'><small>$kmajor</small></td>"
+# git
+printf '%s' "<td bgcolor='$( good_git_color "$v2" )' align='right'><small>$v2</small></td>"	
 
 cell_ram()				# fixme! this must be a graph, which is red/green
 {					# fixme! convert all to kilobytes
@@ -4068,7 +4169,7 @@ cell_ram()				# fixme! this must be a graph, which is red/green
 		;;
 	esac
 
-	printf '%s' "<td bgcolor='$hwcolor' sorttable_customkey='$HW-$WIFIMAC'><small><a href='meshrdf/recent/$WIFIMAC' title='$HW'>${locally_administered}$WIFIMAC</a></small></td>"
+	printf '%s' "<td bgcolor='$hwcolor' sorttable_customkey='$WIFIMAC-$HW'><small><a href='meshrdf/recent/$WIFIMAC' title='$HW'>$WIFIMAC${locally_administered}</a></small></td>"
 
 	case "$WIFIMAC" in
 		b827eb8dbbf0)
@@ -4132,9 +4233,6 @@ esac
 
 	cell_essid "$ESSID" "$r0" "$r1" "$r2" "$r3" "$r4" "$r5"
 	cell_channel "$CHANNEL"
-	cell_node "$NODE"
-
-	_cell_profile "$PROFILE" "$WIFIMODE" "$BSSID"
 	func_cell_disk_free "$SERVICES" "$u0"
 
 	func_cell_nexthop		"$GWNODE" "$i1"
@@ -4441,6 +4539,7 @@ sorttable.innerSortFunction.apply(myTH, []);
 EOF
 
 echo >>$OUT "</body></html>"
+sed -i -e "s/### HUMAN_DATENBESTAND ###/$( date "+%d.%b'%y-%H:%M" )/" -e "s/### UNIX_DATENBESTAND ###/$( date +%s )/" "$OUT"
 
 # log "copying '$OUT' = ('$( ls -l "$OUT" )') to '$REAL_OUT.temp' pwd: '$(pwd)'"
 cp "$OUT" "$REAL_OUT.temp" 2>$TMPDIR/uuu2 1>$TMPDIR/uuu1 >$TMPDIR/uuu || log "error copy: $? $( cat $TMPDIR/uuu $TMPDIR/uuu1 $TMPDIR/uuu2 )"
@@ -4649,7 +4748,7 @@ mode2rev()
 	esac
 }
 
-sh -n "$USECASE_FILE" && cd .. && {
+test -s "$USECASE_FILE" && sh -n "$USECASE_FILE" && cd .. && {
 	SERVER="root@intercity-vpn.de:$PWD"
 	mkdir -p 'firmware'
 
@@ -4932,7 +5031,8 @@ generate_build_matrix()
 
 	echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"'
 	echo '		"http://www.w3.org/TR/html4/loose.dtd">'
-	echo "<html><head><title>build-matrix $NETWORK @$( date )</title><META HTTP-EQUIV=\"content-type\" CONTENT=\"text/html; charset=ISO-8859-15\"></head><body>"
+	echo "<html lang=de>"
+	echo "<head><title>build-matrix $NETWORK @$( date )</title><META HTTP-EQUIV=\"content-type\" CONTENT=\"text/html; charset=ISO-8859-15\"></head><body>"
 	echo '<table cellspacing=1 cellpadding=1 border=0>'
 	echo "<thead><tr bgcolor='lightblue'><td>&nbsp;</td><td>hardware</td><td>&nbsp;update&nbsp;</td><td>usecase</td><td>booted?</td></thead><tbody>"
 
