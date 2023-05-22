@@ -4330,7 +4330,7 @@ travis_prepare()
 	echo
 
 	# https://github.com/lucasdemarchi/codespell
-	command -v 'codespell.py' || sudo pip install codespell	|| return 1
+	command -v 'codespell'  || sudo pip install codespell	|| return 1
 	echo "# running: codespell --version"
 	codespell --version
 	echo
@@ -4344,7 +4344,7 @@ travis_prepare()
 	# http://www.html-tidy.org/
 #	command -v 'tidy'	|| do_install 'tidy'		|| return 1
 	# http://binaries.html-tidy.org/
-	wget -O newtidy.deb "https://github.com/htacg/tidy-html5/releases/download/5.4.0/tidy-5.4.0-64bit.deb"
+	wget -O newtidy.deb "https://github.com/htacg/tidy-html5/releases/download/5.8.0/tidy-5.8.0-Linux-64bit.deb"
 	sudo dpkg -i --force-overwrite newtidy.deb && rm newtidy.deb
 	hash -r
 	echo "# running: tidy --version"
@@ -4352,12 +4352,12 @@ travis_prepare()
 	echo
 
 	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
-	php --version | grep -q ^'PHP 5\.' || do_install 'php5'	|| return 1
+	php --version | grep -q '^PHP 5\.\|^PHP 7\.' || do_install 'php-cli'	|| return 1
 	echo "# running: php --version"
 	php --version
 	echo
 
-	curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+#	curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
 	do_install 'nodejs'	|| return 1
 	echo "# running: node --version"
 	node --version
