@@ -4091,7 +4091,7 @@ check_javascript()
 				log "[OK] acorn/js-checker: ignoring '$file' FIXME"
 			;;
 			*)
-				acorn --silent "$file" || return 1
+				acorn --ecma2015 --silent "$file" || return 1
 				log "[OK] acorn/js-checker: $file"
 			;;
 		esac
