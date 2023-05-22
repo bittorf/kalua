@@ -4303,11 +4303,13 @@ travis_prepare()
 
 	command -v 'file'	|| return 1
 	echo "# running: file --version"
-	file --version
-	echo
-	bootstrap_file
+	file --version | grep '5.[4-9]' || {
+		echo
+		bootstrap_file		|| return 1
+	}
 	echo "# running: file --version"
 	file --version
+	file -ib "$0" | grep -q 'text/x-shellscript' || return 1
 	echo
 
 	command -v 'cppcheck'	|| do_install 'cppcheck'	|| return 1
@@ -4405,6 +4407,7 @@ bootstrap_file()	# the 'file' command
 {
 	local url='https://github.com/file/file.git'
 	local dir='file-git'
+	local good_version='7b3f836be5c21e64a65be9b13fad53eac76a0abb'
 
 	(
 		cd '/tmp' || return 1
@@ -4415,7 +4418,7 @@ bootstrap_file()	# the 'file' command
 
 		git clone "$url" "$dir" && {
 			cd "$dir" || return 1
-	#		git checkout -b 'good_version' "$good_version"
+			git checkout -b 'good_version' "$good_version"
 
 			log '[OK] used commit:'
 			git log -1
