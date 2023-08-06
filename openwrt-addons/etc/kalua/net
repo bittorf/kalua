@@ -1951,36 +1951,38 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 	# fe80::3a78:62ff:fe4f:2dfe from :: dev eth0 proto kernel src fe80::6666:b3ff:fede:d9ec metric 256 pref medium
 	#                                       ^^^^ wrong/not_useful
 
-	# speedup:
-	ip -oneline route get "$ip" | grep -q ^"$ip dev $LANDEV src" && echo "$LANDEV" && return 0
+	if ! _net both_ipv4_in_same_subnet "$ROAMING_NET/$ROAMING_PRE" "$ip/32"; then
+		# speedup:
+		ip -oneline route get "$ip" | grep -q ^"$ip dev $LANDEV src" && echo "$LANDEV" && return 0
 
-	devlist="$( tail -n+3 /proc/net/dev | cut -d':' -f1 )"
+		devlist="$( tail -n+3 /proc/net/dev | cut -d':' -f1 )"
 
-	case "$( uci -q get network.@device[0].ports )" in
-		*'lan1'* )
-			# in DSA-mode we should exclude the switch,
-			# otherwise dev2ip() complains about missing ip
-			#
-			# eth0 is the whole switch, lanX@eth0 and wan@eth0 the real device
-			devlist="$( _list remove_element "$devlist" 'eth0' string )"
-		;;
-	esac
-
-	for dev in $devlist; do {
-		case "$dev" in
-			vx)
-			;;
-			*)
-				ip_found="$( _net dev2ip "$dev" )"
-
-				[ "$ip" = "$ip_found" ] && {
-					echo "$dev"
-					return 0
-				}
+		case "$( uci -q get network.@device[0].ports )" in
+			*'lan1'* )
+				# in DSA-mode we should exclude the switch,
+				# otherwise dev2ip() complains about missing ip
+				#
+				# eth0 is the whole switch, lanX@eth0 and wan@eth0 the real device
+				devlist="$( _list remove_element "$devlist" 'eth0' string )"
 			;;
 		esac
-	} done
-	dev=
+
+		for dev in $devlist; do {
+			case "$dev" in
+				vx)
+				;;
+				*)
+					ip_found="$( _net dev2ip "$dev" )"
+
+					[ "$ip" = "$ip_found" ] && {
+						echo "$dev"
+						return 0
+					}
+				;;
+			esac
+		} done
+		dev=
+	fi
 
 	while read -r line; do {
 		case "$line" in
