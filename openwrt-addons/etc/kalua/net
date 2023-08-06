@@ -1935,15 +1935,21 @@ _net_ip2dev()		# outputs real devname like 'br0' or 'wlan0-1'
 	local ip_found line devlist dev=
 
 	case "$ip" in
-		"$WIFIADR") dev="$WIFIDEV" ;;
-		"$LANADR") dev="$LANDEV" ;;
-		"$WANADR") dev="$WANDEV" ;;
-		"$LOADR") dev="$LODEV" ;;
-		*) false ;;
-	esac && {
-		echo "$dev"
-		return 0
-	}
+		"$WIFIADR") echo "$WIFIDEV" && return ;;
+		"$LANADR") echo "$LANDEV" && return ;;
+		"$WANADR") echo "$WANDEV" && return ;;
+		"$LOADR") echo "$LODEV" && return ;;
+	esac
+
+	# FIXME! does not work for IPv6 linklocal fe80:: addresses
+	#
+	# root@F36-stube:~ ip neigh | grep 38:78:62:4f:2d:fe
+	# fe80::3a78:62ff:fe4f:2dfe dev br-mastergate lladdr 38:78:62:4f:2d:fe STALE
+	# fe80::3a78:62ff:fe4f:2dfe dev phy1-ap0 lladdr 38:78:62:4f:2d:fe STALE
+	#
+	# root@F36-stube:~ ip -oneline route get fe80::3a78:62ff:fe4f:2dfe
+	# fe80::3a78:62ff:fe4f:2dfe from :: dev eth0 proto kernel src fe80::6666:b3ff:fede:d9ec metric 256 pref medium
+	#                                       ^^^^ wrong/not_useful
 
 	# speedup:
 	ip -oneline route get "$ip" | grep -q ^"$ip dev $LANDEV src" && echo "$LANDEV" && return 0
