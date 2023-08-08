@@ -4,7 +4,9 @@
 MODE="${1:-unset}"
 MAC="${2:-ff:00:00:00:00:00}"		# FIXME! this enforces an invalid mac, see sanitizer_mac()
 IP="${3:-127.0.0.1}"
-HOST="${4:-unset}"
+HOST="${4:-unset}"			# or special case: 'check_if_reachable'
+
+_log it dhcp_script daemon info "mode: ${MODE:-unset} opts: ${DNSMASQ_REQUESTED_OPTIONS:-empty}"
 
 case "$MODE" in
 	arp-add) MODE=add ;;
@@ -27,13 +29,16 @@ if   [ -n "$DNSMASQ_INTERFACE" ]; then
 	# DNSMASQ_CLIENT_ID
 	# DNSMASQ_DATA_MISSING
 	# DNSMASQ_DOMAIN
-	# DNSMASQ_INTERFACE => DNSMASQ_INTERFACE stores the name of the interface on which the request arrived; this is not set for "old" actions when dnsmasq restarts.
-	# DNSMASQ_LEASE_EXPIRES
-	# DNSMASQ_TIME_REMAINING
+	# DNSMASQ_INTERFACE='br-mastergate' => stores the name of the interface on which the request arrived; this is not set for "old" actions when dnsmasq restarts
+	# DNSMASQ_LEASE_EXPIRES='1691552248'
+	# DNSMASQ_REQUESTED_OPTIONS='1,33,3,6,15,28,51,58,59,43'
+	# DNSMASQ_TAGS='mastergate br-mastergate'
+	# DNSMASQ_TIME_REMAINING='43200'
+	# DNSMASQ_VENDOR_CLASS='android-dhcp-8.0.0
 
 	export DNSMASQ_INTERFACE		# needed in netfilter_user_reachable()
 	DEV="$DNSMASQ_INTERFACE"
-	_log it dhcp_script daemon info "provided dev: $DEV mode: $MODE mac: $MAC ip: $IP host: $HOST"
+	_log it dhcp_script daemon info "provided dev: $DEV mode: $MODE mac: $MAC ip: $IP host: $HOST opts: ${DNSMASQ_REQUESTED_OPTIONS:-empty}"
 elif [ -e "$TMPDIR/firmware_burn" ]; then
 	exit 0
 else
@@ -41,7 +46,8 @@ else
 
 	# https://lists.thekelleys.org.uk/pipermail/dnsmasq-discuss/2023q3/017193.html
 	DEV="$( _net ip2dev $IP )"
-	_log it dhcp_script daemon info "guessed dev: $DEV mode: $MODE mac: $MAC ip: $IP host: $HOST"
+	export DNSMASQ_INTERFACE="$DEV"		# fake it
+	_log it dhcp_script daemon info "guessed dev: $DEV mode: $MODE mac: $MAC ip: $IP host: $HOST opts: ${DNSMASQ_REQUESTED_OPTIONS:-empty}"
 fi
 
 case "$DEV" in
