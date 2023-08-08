@@ -4,7 +4,7 @@
 MODE="${1:-unset}"
 MAC="${2:-ff:00:00:00:00:00}"		# FIXME! this enforces an invalid mac, see sanitizer_mac()
 IP="${3:-127.0.0.1}"
-HOST="${4:-unset}"			# or special case: 'check_if_reachable'
+HOST="${4:-unset}"			# or special case: 'check_if_reachable' or 'reanimateV2'
 
 _log it dhcp_script daemon info "mode: ${MODE:-unset} opts: ${DNSMASQ_REQUESTED_OPTIONS:-empty}"
 
@@ -44,9 +44,14 @@ elif [ -e "$TMPDIR/firmware_burn" ]; then
 else
 	case "$IP" in fe80::*) exit 0 ;; esac	# ignore IPv6 linklocal, ip2dev() does not work here reliable anyway
 
-	# https://lists.thekelleys.org.uk/pipermail/dnsmasq-discuss/2023q3/017193.html
-	DEV="$( _net ip2dev $IP )"
-	export DNSMASQ_INTERFACE="$DEV"		# fake it
+	if ip neigh show to "$IP" | grep -q "$MAC"; then
+		# https://lists.thekelleys.org.uk/pipermail/dnsmasq-discuss/2023q3/017193.html
+		DEV="$( _net ip2dev $IP )"
+		export DNSMASQ_INTERFACE="$DEV"		# needed in netfilter_user_reachable()
+	else
+		_log it dhcp_script daemon info "guessed-pre: not-in-arp: mac: $MAC ip: $IP"
+	fi
+
 	_log it dhcp_script daemon info "guessed dev: $DEV mode: $MODE mac: $MAC ip: $IP host: $HOST opts: ${DNSMASQ_REQUESTED_OPTIONS:-empty}"
 fi
 
