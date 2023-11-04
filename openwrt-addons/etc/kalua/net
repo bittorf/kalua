@@ -908,21 +908,26 @@ _net_show_traffic()
 _net_get_external_ip()		# FIXME! add IPv6 and rename to 'ip4'
 {				# FIXME! add override for 'IPv6 only' and 20 ports IPv4-portfw
 	local url_user="$1"
-	local ip url
+
+	local ip url cachefile="$TMPDIR/cache-net_get_external_ip"
 	local url_default="$( uci -q get system.@monitoring[0].url )/getip/"
 	local url_fallback1="http://intercity-vpn.de/networks/liszt28/getip/"	# if default is unset
 	local url_fallback2='http://api.ipify.org'
-	local list_url="$url_user $url_default $url_fallback1 $url_fallback2"
+	local url_fallback3='http://ifconfig.me'
+	local list_url="$url_user $url_default $url_fallback1 $url_fallback2 $url_fallback3"
 	local timeout=6
 
 	for url in $list_url; do {
 		ip="$( _curl it "$url" $timeout )"
 
 		_sanitizer run "$ip" ip4 check && {
+			echo "$ip" >"$cachefile"
 			echo "$ip"
 			return 0
 		}
 	} done
+
+	cat "$cachefile"
 }
 
 _net_ping_getlatency()
