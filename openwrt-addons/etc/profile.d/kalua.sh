@@ -46,7 +46,7 @@ prompt_set
 alias n='_olsr txtinfo'
 alias n2='echo /nhdpinfo link | nc 127.0.0.1 2009'
 alias ll='ls -la'
-alias lr='logread | logread_helper'
+alias lr='logread -f | logread_helper'
 alias flush='_system ram_free flush'
 alias myssh='ssh -i $( _ssh key_public_fingerprint_get keyfilename )'
 alias regen='_ rebuild; _(){ false;}; . /tmp/loader'
