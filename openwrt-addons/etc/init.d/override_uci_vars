@@ -167,6 +167,47 @@ uci_already_added()
 	return 1
 }
 
+apply_usteer()
+{
+	local funcname='apply_usteer'
+	local ifindex="$1"
+
+	if test -x /sbin/usteerd; then
+		_log it $funcname daemon info "will apply usteer and 802.11r rules on wifi-iface: $index"
+	else
+		_log it $funcname daemon info "will NOT apply usteer and 802.11r (usteerd missing)"
+	fi
+
+	# https://forum.openwrt.org/t/802-11r-fast-roaming-configuration-channels-and-ft/118917/2
+	# https://forum.openwrt.org/t/802-11r-fast-transition-how-to-understand-that-ft-works/110920/36
+
+	add()
+	{
+		local key="$1"
+		local value="$2"
+
+		uci set "wireless.@wifi-iface[$ifindex].$key=$value"
+	}
+
+	# https://forum.openwrt.org/t/802-11r-fast-transition-how-to-understand-that-ft-works/110920/36
+	# https://forum.openwrt.org/t/802-11r-fast-transition-how-to-understand-that-ft-works/110920/205
+	add ieee80211r '1'
+	add mobility_domain '1111'
+	add ft_psk_generate_local '1'
+	add ft_over_ds '1'
+	add pmk_r1_push '1'
+	add reassociation_deadline '20000'
+
+	# https://openwrt.org/docs/guide-user/network/wifi/usteer
+	add bss_transition '1'
+	add wnm_sleep_mode '1'
+	add time_advertisement '2'
+	add time_zone 'GMT0'
+	add ieee80211k '1'
+	add rrm_neighbor_report '1'
+	add rrm_beacon_report '1'
+}
+
 apply_olsr_roaming()
 {
 	local funcname='apply_olsr_roaming'
@@ -246,14 +287,18 @@ apply_olsr_roaming()
 					disassoc_low_ack=1		# kick likely, if station is weak
 				fi
 
+				_log it $funcname daemon info "configuring roaming on AP - band: 2GHz network: $network index: $index"
 				uci set "wireless.@wifi-iface[$index].disassoc_low_ack=$disassoc_low_ack"
 				uci set "wireless.@wifi-iface[$index].max_inactivity=15"
 			else
 				has_5ghz='true'
 
+				_log it $funcname daemon info "configuring roaming on AP - band: 5GHz network: $network index: $index"
 				uci set "wireless.@wifi-iface[$index].disassoc_low_ack=1"	# not sticky, but
 				uci set "wireless.@wifi-iface[$index].max_inactivity=30"	# a bit longer than 2ghz
 			fi
+
+			apply_usteer "$index"
 		else
 			# e.g. 'lan'
 			network="$index"
@@ -2612,6 +2657,9 @@ ac:67:84:1e:4d:73,clock-Syl
 70:10:6f:ca:74:70,eth-NAS
 b4:2e:99:c4:5f:13,eth-ryzen
 b8:27:eb:d1:e2:90,eth-CCU3
+64:66:b3:de:d9:ec,eth-RouterStube
+b4:2e:99:c4:5f:13,eth-Router44
+64:66:b3:e8:38:f0,eth-RouterAyse
 0c:08:b4:4e:7e:85,forbidden-HUMAX-receiver
 "
 
