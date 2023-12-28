@@ -62,8 +62,13 @@ Usage: ./$0 --openwrt
 
 EOF
 	else
-		cat <<EOF
+		[ -f /tmp/apply_profile.code.definitions ] || {
+			echo "[hint] missing autoconfig-stuff, do e.g.:"
+			echo "# scp -O root@$( ip route list exact 0.0.0.0/0 | cut -d' ' -f3 ):/etc/init.d/apply_profile.code.definitions.private /tmp/apply_profile.code.definitions"
+			echo
+		}
 
+		cat <<EOF
 Usage: $0 --openwrt <revision> --hardware <model> --usecase <meta_names> [--debug] [--force] [--quiet]
 
  e.g.: $0 --openwrt r${rev:-12345} --hardware '$hardware' --usecase '$usecase' $more_options
@@ -194,6 +199,8 @@ autocommit()
 
 	local funcname='autocommit'
 	local count_files count_dirs count filetype line file
+
+	[ "$gitfile" = 'files/etc/openwrt_build.details' ] && touch files/etc/openwrt_build.details
 
 	if [ -e "$gitfile" ]; then
 		# we need 'force' here, because e.g. files/ is in .gitignore
@@ -338,6 +345,8 @@ search_and_replace()		# workaround 'sed -i' which is a GNU extension and not POS
 	local file="$1"
 	local search="$2"	# ^LINUX_VERSION:=.*
 	local replace="$3"	# LINUX_VERSION:=3.18.19
+
+	local funcname='search_and_replace'
 	local pattern
 
 	[ -f "$file" ] || {
@@ -351,16 +360,20 @@ search_and_replace()		# workaround 'sed -i' which is a GNU extension and not POS
 		return 1
 	}
 
-	if cmp "$file" "$file.tmp" >/dev/null; then
-		rm "$file.tmp"
-		log "[ERROR] replacing did not work, same files: '$file' and '$file.tmp'"
-		return 1
+	if grep -q "$replace" "$file.tmp"; then
+		log "[OK] found pattern '$replace' in tempfile '$file.tmp'"
 	else
-		mv "$file.tmp" "$file" || {
-			log "[ERROR] during mv '$file.tmp' '$file'"
+		cmp "$file" "$file.tmp" >/dev/null && {
+			rm "$file.tmp"
+			log "[ERROR] replacing did not work, same files: '$file' and '$file.tmp'"
 			return 1
 		}
 	fi
+
+	mv "$file.tmp" "$file" || {
+		log "[ERROR] during mv '$file.tmp' '$file'"
+		return 1
+	}
 }
 
 kconfig_file()
@@ -404,6 +417,11 @@ kernel_commandline_tweak()	# https://lists.openwrt.org/pipermail/openwrt-devel/2
 		;;
 		*)
 			config="$( kconfig_file )"
+
+			grep -q ^'CONFIG_CMDLINE=' "$config" || {
+				log "[OK] not supported/found 'CONFIG_CMDLINE=' in '$config'"
+				return 0	# e.g. raspberry pi zero w
+			}
 
 			grep -q "$pattern" "$config" || {
 				# e.g. CONFIG_CMDLINE="rootfstype=squashfs,jffs2"
@@ -800,10 +818,10 @@ EOF
 			FILENAME_SYSUPGRADE='lede-brcm2708-bcm2710-rpi-3-ext4-sdcard.img.gz'
 			FILENAME_FACTORY="$FILENAME_SYSUPGRADE"
 		;;
-		'Raspberry Pi Zero W')
+		'Raspberry Pi Zero W'|'Raspberry Pi Zero WH')
 			TARGET_SYMBOL='CONFIG_TARGET_bcm27xx_bcm2708_DEVICE_rpi=y'
-			FILENAME_SYSUPGRADE='openwrt-bcm27xx-bcm2708-rpi-ext4-sysupgrade.img.gz'	# ext4/squashfs
-			FILENAME_FACTORY='openwrt-bcm27xx-bcm2708-rpi-ext4-factory.img.gz'		# ext4/squashfs
+			FILENAME_SYSUPGRADE='openwrt-bcm27xx-bcm2708-rpi-squashfs-sysupgrade.img.gz'	# ext4/squashfs
+			FILENAME_FACTORY='openwrt-bcm27xx-bcm2708-rpi-squashfs-factory.img.gz'		# ext4/squashfs
 		;;
 		'Buffalo WZR-HP-AG300H')
 			# http://wiki.openwrt.org/toh/buffalo/wzr-hp-ag300h
@@ -2282,7 +2300,7 @@ cpu_count()
 		# e.g. AIX - see http://antmeetspenguin.blogspot.de/2013/05/aix-cpu-info.html
 		lsconf | grep -c 'proc[0-9]'
 	else
-		echo '1'
+		cat /tmp/cpucount 2>/dev/null || echo '1'
 	fi
 }
 
@@ -2758,9 +2776,6 @@ apply_symbol()
 			# ignore 1st update call, see firmware_update_pmu()
 			touch 'files/www/lazypmu'
 
-			# avoid 5GHz radio for now:
-			echo '# mt7615e' >files/etc/modules.d/mt7615e
-
 			if [ -f '/tmp/apply_profile.code.definitions' ]; then
 				file="$custom_dir/etc/init.d/apply_profile.code.definitions.private"
 				cp '/tmp/apply_profile.code.definitions' "$file"
@@ -2772,8 +2787,7 @@ apply_symbol()
 
 				log "$KALUA_DIRNAME: no '/tmp/apply_profile.code.definitions' found, using standard $KALUA_DIRNAME file | press <enter> when ready"
 				log "$KALUA_DIRNAME: if this is a mistake you can restart build after:"
-				log "scp root@10.63.22.97:/etc/init.d/apply_profile.code.definitions.private /tmp/apply_profile.code.definitions"
-
+				log "# scp -O root@$( ip route list exact 0.0.0.0/0 | cut -d' ' -f3 ):/etc/init.d/apply_profile.code.definitions.private /tmp/apply_profile.code.definitions"
 				[ -n "$YESTOALL" ] || read -r NOP
 				[ -n "$RELEASE_SERVER" ] && exit 1
 			fi
@@ -3144,7 +3158,7 @@ build_options_set()
 				}	# parser_ignore
 			;;
 			'Standard')	# >4mb flash
-				apply_symbol 'CONFIG_DROPBEAR_CURVE25519=y'		# default since r48196 -> adds 40k
+#				apply_symbol 'CONFIG_DROPBEAR_CURVE25519=y'		# default since r48196 -> adds 40k
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-ipopt=y'	# network: firewall: iptables:
 				apply_symbol 'CONFIG_PACKAGE_kmod-ipt-raw=y'
 				apply_symbol 'CONFIG_PACKAGE_iptables-mod-nat-extra=y'	# ...
@@ -3165,10 +3179,11 @@ build_options_set()
 #				apply_symbol 'CONFIG_PACKAGE_libmbedtls=y'
 #				apply_symbol 'CONFIG_PACKAGE_libustream-mbedtls=y'	# since LEDE ~3800
 
-				# FIXME! measure impact:
+				maybe_unsafe_tweaks()	# TODO: measure size impact
+				{
 				apply_symbol 'CONFIG_DEVEL=y'
 				apply_symbol 'CONFIG_PACKAGE_procd-ujail is not set'
-				# CONFIG_KERNEL_CRASHLOG is not set				# crashlog.o ?
+				# CONFIG_KERNEL_CRASHLOG is not set				# crashlog.o ? / removed 2021-nov-20: 43b498f669c978c1a2004640ad6cabddc9e693ec
 				apply_symbol 'CONFIG_KERNEL_KALLSYMS is not set'
 				apply_symbol 'CONFIG_KERNEL_DEBUG_KERNEL is not set'
 				apply_symbol 'CONFIG_KERNEL_DEBUG_INFO is not set'
@@ -3180,27 +3195,38 @@ build_options_set()
 				apply_symbol 'CONFIG_STRIP_KERNEL_EXPORTS=y'
 				apply_symbol 'CONFIG_USE_MKLIBS=y'
 				apply_symbol 'CONFIG_PKG_CHECK_FORMAT_SECURITY is not set'
+				}
+				case "$HARDWARE_MODEL" in
+					'Raspberry Pi'*) ;;		# does not boot, TODO: which symbol is root cause?
+					*) maybe_unsafe_tweaks ;;
+				esac
 
-				# include?
-				# CONFIG_PACKAGE_kmod-vxlan=y
-				# CONFIG_PACKAGE_usteer=y
+				apply_symbol 'CONFIG_PACKAGE_kmod-pstore=y'
+
+				apply_symbol 'CONFIG_PACKAGE_kmod-vxlan=y'
+				apply_symbol 'CONFIG_PACKAGE_usteer=y'
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
 
 				case "$HARDWARE_MODEL" in
-					'TP-LINK Archer C6U')
+					'xxxTP-LINK Archer C6U')
 						# FIXME! use $SPECIAL_OPTIONS for that
 						# the 5ghz radio likely produces a boot-loop:
 						apply_symbol 'CONFIG_PACKAGE_kmod-mt7615e is not set'
 					;;
 				esac
 
-###				$funcname subcall 'iproute2'
+# spezial:
+apply_symbol 'CONFIG_BPF_TOOLCHAIN_BUILD_LLVM=y'
+apply_symbol 'CONFIG_PACKAGE_unetd=y'
+
+
+				$funcname subcall 'iproute2'
 				$funcname subcall 'squash64'
 				$funcname subcall 'zRAM'
 				$funcname subcall 'netcatFull'
-###				usecase_has 'noShaping' || $funcname subcall 'shaping'
+				usecase_has 'noShaping' || $funcname subcall 'shaping'
 #				$funcname subcall 'vtun'
 				$funcname subcall 'mesh'
 				$funcname subcall 'noFW'
@@ -3385,7 +3411,8 @@ build_options_set()
 					test $( openwrt_revision_number_get ) -lt 46831 && {
 						apply_symbol 'CONFIG_PACKAGE_ip=y'	# network: routing/redirection: ip
 					}	# parser_ignore
-					apply_symbol 'CONFIG_PACKAGE_ip-full=y'		# since lede 2016-oct-13
+#					apply_symbol 'CONFIG_PACKAGE_ip-full=y'		# since lede 2016-oct-13
+					apply_symbol 'CONFIG_PACKAGE_ip-tiny=y'
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_ARPING=y'
 #					apply_symbol 'CONFIG_BUSYBOX_CONFIG_TELNETD=y'		# FIXME
 					apply_symbol 'CONFIG_BUSYBOX_CONFIG_IP is not set'
@@ -3511,6 +3538,7 @@ build_options_set()
 				apply_symbol 'CONFIG_PACKAGE_tc-full=y'			# network: tc
 				apply_symbol 'CONFIG_PACKAGE_tc-mod-iptables=y'
 				apply_symbol 'CONFIG_PACKAGE_kmod-ifb=y'		# kernel-modules: network devices:
+				# TODO: quosify
 			;;
 			'b43mini')
 				apply_symbol 'CONFIG_B43_FW_SQUASH_PHYTYPES="G"'	# kernel-modules: wireless: b43
@@ -4091,7 +4119,7 @@ check_javascript()
 				log "[OK] acorn/js-checker: ignoring '$file' FIXME"
 			;;
 			*)
-				acorn --ecma2015 --silent "$file" || return 1
+				acorn --silent "$file" || return 1
 				log "[OK] acorn/js-checker: $file"
 			;;
 		esac
@@ -4260,18 +4288,9 @@ travis_prepare()
 	local apt_updated=
 	do_install()
 	{
-		if [ "$FAKEINSTALL" = true ]; then
-			log "[DEBUG] do_install $* - will ignore call, we have: FAKEINSTALL=true"
-			return 0
-		else
-			log "[DEBUG] do_install $* - override with: FAKEINSTALL=true"
-		fi
-
 		# https://superuser.com/questions/164553/automatically-answer-yes-when-using-apt-get-install
-		# https://askubuntu.com/questions/1367139/apt-get-upgrade-auto-restart-services
-		export YESTOALL=true
-		export DEBIAN_FRONTEND=noninteractive
-		local force='--yes -o APT::Get::Upgrade-Allow-New=true'
+		# TODO: --force-yes is deprecated, use one of the options starting with --allow instead.
+		local force='--yes --force-yes'
 
 		[ -z "$apt_updated" ] && {
 			log "[OK] running 'apt-get $force install debian-keyring debian-archive-keyring'"
@@ -4292,7 +4311,6 @@ travis_prepare()
 		sudo apt-get $force install "$@" || {
 			# sometimes it bails out without good reason
 			log "[ERROR] during 'apt-get $force install $*', but trying to continue..."
-			true
 		}
 	}
 
@@ -4303,13 +4321,11 @@ travis_prepare()
 
 	command -v 'file'	|| return 1
 	echo "# running: file --version"
-	file --version | grep '5.[4-9]' || {
-		echo
-		bootstrap_file		|| return 1
-	}
+	file --version
+	echo
+	bootstrap_file
 	echo "# running: file --version"
 	file --version
-	file -ib "$0" | grep -q 'text/x-shellscript' || return 1
 	echo
 
 	command -v 'cppcheck'	|| do_install 'cppcheck'	|| return 1
@@ -4332,7 +4348,7 @@ travis_prepare()
 	echo
 
 	# https://github.com/lucasdemarchi/codespell
-	command -v 'codespell'  || sudo pip install codespell	|| return 1
+	command -v 'codespell.py' || sudo pip install codespell	|| return 1
 	echo "# running: codespell --version"
 	codespell --version
 	echo
@@ -4346,7 +4362,7 @@ travis_prepare()
 	# http://www.html-tidy.org/
 #	command -v 'tidy'	|| do_install 'tidy'		|| return 1
 	# http://binaries.html-tidy.org/
-	wget -O newtidy.deb "https://github.com/htacg/tidy-html5/releases/download/5.8.0/tidy-5.8.0-Linux-64bit.deb"
+	wget -O newtidy.deb "https://github.com/htacg/tidy-html5/releases/download/5.4.0/tidy-5.4.0-64bit.deb"
 	sudo dpkg -i --force-overwrite newtidy.deb && rm newtidy.deb
 	hash -r
 	echo "# running: tidy --version"
@@ -4354,12 +4370,12 @@ travis_prepare()
 	echo
 
 	# http://de1.php.net/distributions/php-5.6.14.tar.bz2
-	php --version | grep -q '^PHP 5\.\|^PHP 7\.' || do_install 'php-cli'	|| return 1
+	php --version | grep -q ^'PHP 5\.' || do_install 'php5'	|| return 1
 	echo "# running: php --version"
 	php --version
 	echo
 
-#	curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+	curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
 	do_install 'nodejs'	|| return 1
 	echo "# running: node --version"
 	node --version
@@ -4407,29 +4423,24 @@ bootstrap_file()	# the 'file' command
 {
 	local url='https://github.com/file/file.git'
 	local dir='file-git'
-	local good_version='7b3f836be5c21e64a65be9b13fad53eac76a0abb'
 
 	(
+		do_install 'libtool'
+
 		cd '/tmp' || return 1
+		[ -d "$dir" ] && rm -fR "$dir"
+		git clone "$url" "$dir"
+		cd "$dir" || return 1
+#		git checkout -b 'good_version' "$good_version"
 
-		[ -d "$dir" ] && {
-			rm -fR "$dir" 2>/dev/null || log "[DEBUG] rm -fR '$dir' failed with RC $? - will continue"
-		}
+		log '[OK] used commit:'
+		git log -1
 
-		git clone "$url" "$dir" && {
-			cd "$dir" || return 1
-			git checkout -b 'good_version' "$good_version"
+		autoconf
+		autoreconf -i
+		aclocal
 
-			log '[OK] used commit:'
-			git log -1
-
-			do_install 'libtool'
-			autoconf
-			autoreconf -i
-			aclocal
-
-			autoconf && ./configure && sudo make install
-		}
+		autoconf && ./configure && sudo make install
 	)
 
 	hash -r
