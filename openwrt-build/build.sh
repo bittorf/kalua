@@ -2389,7 +2389,7 @@ build()
 				make package/kernel/mac80211/clean
 			}
 
-			log "you can now execute in '$( pwd )' your e.g. make menuconfig | press <enter> when ready"
+			log "you can now execute in '$( pwd )' your e.g. 'make menuconfig' and/or make 'kernel_menuconfig' | press <enter> when ready"
 			[ -n "$YESTOALL" ] || read -r NOP
 
 			log "running 'make $commandline'"
@@ -2628,6 +2628,7 @@ apply_symbol()
 	local funcname='apply_symbol'
 	local symbol="$1"
 	local symbol_kernel="$2"
+
 	local file='.config'
 	local custom_dir='files'	# standard way to add/customize
 	local hash tarball_hash rev commit_info i
@@ -3203,8 +3204,11 @@ build_options_set()
 
 				apply_symbol 'CONFIG_PACKAGE_kmod-pstore=y'
 
+				# https://openwrt.org/docs/guide-user/network/wifi/usteer
 				apply_symbol 'CONFIG_PACKAGE_kmod-vxlan=y'
 				apply_symbol 'CONFIG_PACKAGE_usteer=y'
+				apply_symbol 'CONFIG_PACKAGE_wpad-basic-mbedtls=n'	# and next symbol:
+				apply_symbol 'CONFIG_PACKAGE_wpad=y'
 
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_EMBEDDED=y'	# https://www.kernel.org/doc/menuconfig/fs-squashfs-Kconfig.html
 				apply_symbol 'kernel' 'CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=1'
@@ -3217,10 +3221,9 @@ build_options_set()
 					;;
 				esac
 
-# spezial:
-apply_symbol 'CONFIG_BPF_TOOLCHAIN_BUILD_LLVM=y'
-apply_symbol 'CONFIG_PACKAGE_unetd=y'
-
+				# spezial:
+				# apply_symbol 'CONFIG_BPF_TOOLCHAIN_BUILD_LLVM=y'
+				# apply_symbol 'CONFIG_PACKAGE_unetd=y'	# wireguard tunnels between OpenWRT routers
 
 				$funcname subcall 'iproute2'
 				$funcname subcall 'squash64'
