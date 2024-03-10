@@ -29,17 +29,23 @@ _wifi_active_ap_devices()	# e.g. ' wlan0 wlan1-1 wlan1-2 '
 
 _wifi_debugap()
 {
-	local dev mac user list freq cachefile
+	local dev mac user list freq cachefile maclist count signal append keypress keyassoc i key2mac obj
 
 	cachefile="$TMPDIR/wifi_debugap"
 	list="$( _wifi active_ap_devices )"
 
 	while true; do {
+		echo "# host: $HOSTNAME | $( date )" >"$cachefile"
+
+		key2mac=
+		i=97
 		for dev in $list; do {
 			freq="$( _wifi dev2freq "$dev" )"
-			echo "device: $dev | $freq MHz"
+			maclist="$( _wifi mac_assoclist "$dev" | sort )"
+			count="$( _list count_elements "$maclist" )"
+			echo "# device: $dev | $freq MHz | $count clients"
 
-			for mac in $( _wifi mac_assoclist "$dev" ); do {
+			for mac in $maclist; do {
 				user="$( echo "$mac" | logread_helper )"
 				case "$user" in
 					*'"'*) user="$( echo "$user" | cut -d'"' -f2 )" ;;
@@ -47,16 +53,41 @@ _wifi_debugap()
 				esac
 				test -f "$TMPDIR/forbidden-$mac" && user="$user (forbidden)"
 
-				echo "    # mac: $mac | user: ${user:-???}"
-				iw dev "$dev" station get "$mac" | grep "signal\|x bitrate"
+				keyassoc="$( printf "\\$(printf '%03o' "$i")" )"	# a, b, c ...
+				key2mac="$key2mac $keyassoc,$dev,$mac"
+				i=$(( i + 1 ))
+
+				echo "    # mac: $mac | press '$keyassoc' to kick | user: ${user:-???}"
+				iw dev "$dev" station get "$mac" | grep "signal\|x bitrate" >"$cachefile.signal"
+
+				# signal:  	-61 [-65, -63] dBm
+				#               ^^^
+				for signal in $( grep signal: "$cachefile.signal" | cut -d':' -f2 ); do break; done
+				case "$signal" in -*) signal=$(( signal * -1 )) ;; esac
+
+				printf '%s' "        sigmeter: "
+				printf -- '*%.0s' $( seq "$(( 100 - signal ))" )
+				printf '\n'
+				cat "$cachefile.signal"
 			} done
 
 			echo
-		} done >"$cachefile"
+		} done >>"$cachefile"
 
 		clear
 		cat "$cachefile"
-		sleep 1
+
+		IFS= read -r -t 1 -n 1 -s keypress && {		# e.g. press 'f' to kick
+			for obj in $key2mac; do {
+				case "$obj" in
+					"$keypress,"*)
+						dev="${obj%,*}" && dev="${dev#*,}"
+						mac="${obj##*,}"
+						_wifi kick "$mac" "$dev" 'interactive kick by admin'
+					;;
+				esac
+			} done
+		}
 	} done
 }
 
