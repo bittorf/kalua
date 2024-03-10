@@ -27,6 +27,35 @@ _wifi_active_ap_devices()	# e.g. ' wlan0 wlan1-1 wlan1-2 '
 	}
 }
 
+_wifi_debugap()
+{
+	local dev mac user list freq cachefile
+
+	cachefile="$TMPDIR/wifi_debugap"
+	list="$( _wifi active_ap_devices )"
+
+	while true; do {
+		for dev in $list; do {
+			freq="$( _wifi dev2freq "$dev" )"
+			echo "device: $dev | $freq MHz"
+
+			for mac in $( _wifi mac_assoclist "$dev" ); do {
+				user="$( echo "$mac" | logread_helper )"
+				case "$user" in *'"'*) user="$( echo "$user" | cut -d'"' -f2 )" ;; *) user= ;; esac
+
+				echo "    # mac: $mac | user: ${user:-???}"
+				iw dev "$dev" station get "$mac" | grep "signal\|x bitrate"
+			} done
+
+			echo
+		} done >"$cachefile"
+
+		clear
+		cat "$cachefile"
+		sleep 1
+	} done
+}
+
 _wifi_phy_amp_predistortion()	# more effectiv txpower on higher rates
 {
 	local funcname='wifi_phy_amp_predistortion'
