@@ -89,7 +89,7 @@ _wifi_debugap()
 					"$keypress,"*)
 						dev="${obj%,*}" && dev="${dev#*,}"
 						mac="${obj##*,}"
-						_wifi kick "$mac" "$dev" 'interactive kick by admin'
+						_wifi kick "$mac" "$dev" "force: interactive kick by admin|$keypress|$obj"
 						break
 					;;
 				esac
@@ -320,29 +320,33 @@ _wifi_dev2chanbw()
 
 _wifi_kick()
 {
-	local funcname='wifi_kick'
 	local mac="$1"
 	local dev_list="${2:-$WIFI_DEVS}"
 	local reason="${3:-no_reason_given}"
+
+	local funcname='wifi_kick'
 	local file="/tmp/$funcname"
 	local dev
 
 	for dev in $dev_list; do {
-		iw dev $dev station get "$mac" 1>&- 2>&- && {
-			command="ubus call hostapd.$dev del_client"
-			_log it $funcname daemon info "station: $mac reason: $reason executing: $command"
-			echo "$( date ) $funcname() $mac @ $dev (reason: $reason)" >>'/tmp/IWLOG'
+		case "$reason" in
+			force*) ;;
+			*) iw dev $dev station get "$mac" 1>&- 2>&- || continue ;;
+		esac
 
-			# ban_time can be omitted
-			# http://resin.csoft.net/cgi-bin/man.cgi?section=5&topic=hostapd.conf
-			# and
-			# https://supportforums.cisco.com/document/141136/80211-association-status-80211-deauth-reason-codes
-			cat >"$file" <<EOF
+		command="ubus call hostapd.$dev del_client"
+		_log it $funcname daemon info "station: $mac reason: $reason executing: $command"
+		echo "$( date ) $funcname() $mac @ $dev (reason: $reason)" >>'/tmp/IWLOG'
+
+		# ban_time can be omitted
+		# http://resin.csoft.net/cgi-bin/man.cgi?section=5&topic=hostapd.conf
+		# and
+		# https://supportforums.cisco.com/document/141136/80211-association-status-80211-deauth-reason-codes
+		cat >"$file" <<EOF
 rm $file
 $command '{ "addr" : "$mac", "reason" : "assoc toomany", "ban_time" : 10000 }'
 EOF
-			. $file && return 0
-		}
+		. $file && return 0
 	} done
 
 	_log it $funcname daemon info "did not found mac '$mac' on dev '$dev' reason: $reason"
