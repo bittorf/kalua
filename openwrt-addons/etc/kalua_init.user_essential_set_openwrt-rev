@@ -5,23 +5,24 @@ LEDE_REV=1000000
 if   [ -f '/etc/openwrt_release' ]; then
 	. '/etc/openwrt_release'
 	OPENWRT_REV="${DISTRIB_REVISION%-*}"			# e.g. r14723+22-7f5f738466 -> r14723+22
-	OPENWRT_REV="${OPENWRT_REV=%+*}"			# e.g. r14723+22 -> r14723
-	OPENWRT_REV="${OPENWRT_REV=%-*}"			# e.g. r17419-364bd887a1 -> r17419
+	OPENWRT_REV="${OPENWRT_REV%+*}"				# e.g. r14723+22 -> r14723
+	OPENWRT_REV="${OPENWRT_REV%-*}"				# e.g. r17419-364bd887a1 -> r17419
 	OPENWRT_REV="$( echo "$OPENWRT_REV" | tr -d 'r' )"	# e.g. r14723 -> 14723
 
-	case "$( uname -r )" in 5*) OPENWRT_REV=$(( OPENWRT_REV + 100000 ));; esac
+	case "$( uname -r )" in 1*|2*|3*|4*) ;; *) OPENWRT_REV=$(( OPENWRT_REV + 100000 ));; esac
 
 	[ "$DISTRIB_ID" = 'LEDE' ] && OPENWRT_REV=$(( OPENWRT_REV + LEDE_REV ))
 elif [ -f '/etc/banner' ]; then
 	# ATTITUDE ADJUSTMENT (bleeding edge, r30563)
 	# CHAOS CALMER (Bleeding Edge, r46435)
+	# shellcheck disable=SC2046
 	set -- $( grep ' r[1-9][0-9][0-9]' '/etc/banner' )
 
 	for _ in "$@"; do {
 		case "$_" in
 			r[0-9]*)
 				OPENWRT_REV="$( echo "$_" | tr -d 'r)' )"	# 'r46435' -> 46435
-				[ $OPENWRT_REV -gt 0 ] && break
+				[ "$OPENWRT_REV" -gt 0 ] && break
 				OPENWRT_REV=
 			;;
 		esac
