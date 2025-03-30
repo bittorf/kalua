@@ -1,23 +1,18 @@
 kalua - build mesh-networks _without_ pain
 ==========================================
 
-[![HitCount](http://hits.dwyl.com/bittorf/kalua.svg)](https://github.com/bittorf/kalua)
-
 * community: http://wireless.subsignal.org
-* monitoring: http://intercity-vpn.de/networks/giancarlo/
+* monitoring: http://intercity-vpn.de/networks/liszt28/
 * documentation: [API](http://wireless.subsignal.org/index.php?title=Firmware-Dokumentation_API)
 
 needing support?
-join the [club](http://blog.maschinenraum.tk) or ask for [consulting](http://bittorf-wireless.de)
+join the [club](http://blog.maschinenraum.tk)
 
-[flattr]:	https://flattr.com/submit/auto?user_id=bittorf&url=https://github.com/bittorf/kalua&title=kalua&language=&tags=github&category=software
-[flattrGFX]:	http://api.flattr.com/button/flattr-badge-large.png
 [bitcoin]:	https://blockchain.info/address/184Rzvif2EfpW1EycmL3SWt64n8L1vHQdJ
 [bitcoinGFX]:	http://intercity-vpn.de/files/bitcoin-button.png
 [travis]:	https://travis-ci.org/bittorf/kalua
 [travisGFX]:	https://travis-ci.org/bittorf/kalua.png
 
-* [![flattr this repo][flattrGFX]][flattr]
 * [![sending bitcoins][bitcoinGFX]][bitcoin]
 * [![build status now][travisGFX]][travis]
 
