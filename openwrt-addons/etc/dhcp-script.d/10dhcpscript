@@ -14,6 +14,28 @@ case "$MODE" in
 	old) test -e /tmp/CRON_OVERLOAD && exit 0 ;;
 esac
 
+case "$HOST,$MODE,$IP" in lo-alias,*) ;; *,fe80*) ;; *,add,*|*,old,*)
+	MYHOST="${HOST:-unset}" && test "$MYHOST" = unset && explode $( grep "$MAC" /tmp/dhcp/leases ) && MYHOST="${4:-unset}"
+	case "$MYHOST" in '*') MYHOST= ;; esac
+
+	NEW= && logread_helper "$MAC" && NEW="$MATCH"
+	case "$NEW" in *:*:*:*:*:*|'') ;; *) MYHOST="${NEW:-unset}" ;; esac
+
+	case "$( ip neigh show "$IP" )" in
+		*" dev ${LANDEV:-foo} "*) SIGNAL='ethernet' ;;
+		*) SIGNAL= && for AP in $( _wifi active_ap_devices ); do {
+			SIGNAL="$( _wifi signal_get "$AP" "$MAC" )" && test "$SIGNAL" != 0 && break
+			SIGNAL=
+		   } done
+	esac
+
+	ME="$( ip route get "$IP" | sed -n 's/.* src \([0-9\.]*\) .*/\1/p' )"
+	URL="http://intercity-vpn.de/log/?HOST=${MYHOST:-unset}&MAC=${MAC}&IP4=${IP}&GW=${ME}&SIGNAL=${SIGNAL}"
+
+	_log it dhcp_script daemon info "url: $URL"
+	wget -q -T3 -U "rt-$NODENUMBER" "$URL" >/dev/null
+esac
+
 case "$MAC" in
 	'00:00:00:00:00:00')
 		MODE='cron-watchdog'
