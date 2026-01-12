@@ -1,4 +1,7 @@
 #!/bin/sh /etc/rc.common
+# this file belongs to kalua: git://github.com/bittorf/kalua.git
+# last change: Mon, 14 Oct 2024 19:03:57 +0200 | commit: 72b881854 | openwrt-addons/etc/init.d/override_uci_vars
+
 
 . /tmp/loader
 
@@ -2241,16 +2244,8 @@ boot()
 					myip="$( _net ip4_plus_x "$LANADR" 6 )"
 					_net dhcp_lease_fixed 'e8:6a:64:6c:0b:98' "$myip"	# job = .103
 
-#					myip="$( _net ip4_plus_x "$LANADR" 11 )"
-#					_net dhcp_lease_fixed 'a4:91:b1:2b:4b:ba' "$myip"
-
-#					myip="$( _net ip4_plus_x "$LANADR" 12 )"
-#					_net dhcp_lease_fixed 'a4:91:b1:ab:7b:c6' "$myip"
-
 					myip="$( _net ip4_plus_x "$LANADR" 13 )"
 					_net dhcp_lease_fixed 'b8:27:eb:d1:e2:90' "$myip"	# CCU3 = .110
-
-
 
 klauschwein()
 {
@@ -2645,9 +2640,12 @@ touch "/tmp/forbidden-66:c9:e1:68:f4:4e"
 touch "/tmp/forbidden-06:ba:b4:9b:8c:7f"
 touch "/tmp/forbidden-e8:f7:91:55:50:2a"
 
+uci set network.lan.mtu=1420		# FIXME!
+
 cat >"$TMPDIR/logread_helper" <<EOF
 logread_helper()	# stdin = logread
 {
+  local match="\$1"
   local tuple mac dev list cmd
 
   list="
@@ -2674,6 +2672,9 @@ f6:fa:97:45:cc:5e,tablet-Syl
 28:ef:01:48:b3:3c,tablet-Bas-kindle4thGen
 ac:67:84:1e:4d:73,clock-Syl
 70:10:6f:ca:74:70,eth-NAS
+cc:ce:1e:df:32:f7,eth-Stefanfritzbox
+a4:91:b1:2b:4c:ae,eth-Timhub
+ec:c9:ff:b8:5a:54,wifi-loodio
 0c:dd:24:10:fa:d1,wifi-ryzen
 b4:2e:99:c4:5f:13,eth-ryzen
 b8:27:eb:d1:e2:90,eth-CCU3
@@ -2687,9 +2688,11 @@ b8:27:eb:d1:e2:90,eth-CCU3
   for tuple in \$list; do {
     mac=\${tuple%,*}
     dev=\${tuple#*,}
+    case "\$match" in "\$mac") export MATCH="\$dev" && return 0 ;; esac
     cmd="\$cmd -e s/\$mac/&=>\"\$dev\"/g"
   } done
 
+  case "\$match" in '') ;; *) return 1 ;; esac
   sed \$cmd
 }
 EOF
