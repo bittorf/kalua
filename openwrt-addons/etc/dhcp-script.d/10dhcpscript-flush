@@ -1,0 +1,76 @@
+#!/bin/sh
+# this file belongs to kalua: git://github.com/bittorf/kalua.git
+# Versendet die in /tmp/dhcp_events/ gespoolten DHCP-'old'-Events
+# gebuendelt als EIN HTTP-Request an http://intercity-vpn.de/log/?batch=1
+# (Server-Seite: intercity-vpn-log-monitor/device-monitoring.php)
+#
+# Wird von 10dhcpscript je 'old'-Event als Hintergrundprozess gestartet.
+# Lock + Sende-Intervall sorgen dafuer, dass hoechstens alle 30 Sekunden
+# wirklich ein Batch gesendet wird (Buendelung, kein Request-Sturm).
+
+. /tmp/loader
+
+SPOOL_DIR='/tmp/dhcp_events'
+BATCH_URL='http://intercity-vpn.de/log/?batch=1'
+BODY='/tmp/dhcp_events.batch'
+LOCKDIR='/tmp/dhcp_flush.lock'
+SENTFILE='/tmp/dhcp_flush.sent'
+MIN_INTERVAL=45
+
+NOW="$( date +%s )"
+
+# erst kuerzlich gesendet? dann re-armen und spaeter nochmal versuchen
+if [ -e "$SENTFILE" ]; then
+	LAST="$( cat "$SENTFILE" 2>/dev/null )"
+	case "$LAST" in
+		[0-9]*)
+			if [ $(( NOW - LAST )) -lt "$MIN_INTERVAL" ]; then
+				( sleep "$MIN_INTERVAL"; /etc/dhcp-script.d/10dhcpscript-flush ) >/dev/null 2>&1 &
+				exit 0
+			fi
+		;;
+	esac
+fi
+
+# Lock gegen parallele Sender (mit Stale-Cleanup nach 120 Sekunden)
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
+	LAST="$( cat "$LOCKDIR/ts" 2>/dev/null )"
+	case "$LAST" in
+		[0-9]*)
+			[ $(( NOW - LAST )) -le 120 ] && exit 0
+		;;
+	esac
+	rmdir "$LOCKDIR" 2>/dev/null || exit 0
+	mkdir "$LOCKDIR" 2>/dev/null || exit 0
+fi
+echo "$NOW" >"$LOCKDIR/ts"
+trap 'rm -rf "$LOCKDIR"' EXIT
+
+[ -d "$SPOOL_DIR" ] || exit 0
+
+# ohne Inhalt nichts zu tun
+ls "$SPOOL_DIR" 2>/dev/null | grep -q . || exit 0
+
+: >"$BODY" 2>/dev/null || exit 0
+
+COUNT=0
+for FILE in "$SPOOL_DIR"/*; do
+	[ -f "$FILE" ] || continue
+	cat "$FILE" >>"$BODY"
+	printf '\n' >>"$BODY"
+	COUNT=$(( COUNT + 1 ))
+done
+
+[ "$COUNT" -gt 0 ] || exit 0
+
+if wget -q -T5 -U "rt-$NODENUMBER" --post-file "$BODY" "$BATCH_URL" -O /dev/null 2>/dev/null; then
+	_log it dhcp_flush daemon info "gesendet: $COUNT gespoolte Events gebuendelt"
+	rm -f "$SPOOL_DIR"/*
+	date +%s >"$SENTFILE"
+else
+	_log it dhcp_flush daemon warn "senden fehlgeschlagen - $COUNT Events bleiben gespoolt"
+fi
+
+rm -f "$BODY"
+
+true

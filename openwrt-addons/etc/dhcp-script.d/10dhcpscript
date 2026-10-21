@@ -32,8 +32,25 @@ case "$HOST,$MODE,$IP" in lo-alias,*) ;; *,fe80*) ;; *,add,*|*,old,*)
 	ME="$( ip route get "$IP" | sed -n 's/.* src \([0-9\.]*\) .*/\1/p' )"
 	URL="http://intercity-vpn.de/log/?HOST=${MYHOST:-unset}&MAC=${MAC}&IP4=${IP}&GW=${ME}&SIGNAL=${SIGNAL}"
 
-	_log it dhcp_script daemon info "url: $URL"
-	wget -q -T3 -U "rt-$NODENUMBER" "$URL" >/dev/null
+	case "$MODE" in
+		'add')
+			# neue Geraete sofort melden
+			_log it dhcp_script daemon info "url: $URL"
+			wget -q -T3 -U "rt-$NODENUMBER" "$URL" >/dev/null
+		;;
+		'old')
+			# alive-Signal: in Spool legen und gebuendelt senden (siehe
+			# 10dhcpscript-flush + intercity-vpn-log-monitor 'batch=1').
+			# Der Flush laeuft als Hintergrundprozess mit kleinem Random-
+			# Delay; Lock und Sende-Intervall im Flush-Script buendeln.
+			_log it dhcp_script daemon info "spooled: $URL"
+			SPOOL_DIR='/tmp/dhcp_events'
+			mkdir -p "$SPOOL_DIR"
+			SPOOL_FILE="$SPOOL_DIR/$( printf '%s' "$MAC" | tr ':' '-' )"
+			printf '%s\n' "MAC=$MAC&HOST=${MYHOST:-unset}&IP4=$IP&GW=$ME&SIGNAL=$SIGNAL" >"$SPOOL_FILE"
+			( sleep $(( 8 + RANDOM % 7 )); /etc/dhcp-script.d/10dhcpscript-flush ) >/dev/null 2>&1 &
+		;;
+	esac
 esac
 
 case "$MAC" in
